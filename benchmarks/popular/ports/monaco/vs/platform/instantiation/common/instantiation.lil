@@ -1,0 +1,28 @@
+export class ServiceIdentifier {
+  string id;
+
+  init(string id) {
+    this.id = id;
+  }
+}
+
+ServiceIdentifier[] knownServiceIds = [];
+
+export ServiceIdentifier createDecorator(string serviceId) {
+  int i = 0;
+  while (i < knownServiceIds.length) {
+    if (knownServiceIds[i].id == serviceId) {
+      return knownServiceIds[i];
+    }
+    i = i + 1;
+  }
+  ServiceIdentifier created = new ServiceIdentifier(serviceId);
+  knownServiceIds.push(created);
+  return created;
+}
+
+export string IInstantiationServiceId = "instantiationService";
+
+export ServiceIdentifier instantiationServiceId() {
+  return createDecorator(IInstantiationServiceId);
+}

@@ -1,0 +1,134 @@
+import { DEV } from "../dev-flag.lil";
+import {
+  hostGlobal,
+  toInt,
+  toNum,
+  undef,
+  objectKeys,
+  indexOf,
+  setTimeoutHost,
+  push,
+  len
+} from "../host.lil";
+import { die } from "../errors.lil";
+
+bool canMergeGlobalState = true;
+bool isolateCalled = false;
+
+JsValue persistentKeys = JS.array();
+
+void initPersistentKeys() {
+  push(persistentKeys, "mobxGuid");
+  push(persistentKeys, "spyListeners");
+  push(persistentKeys, "enforceActions");
+  push(persistentKeys, "computedRequiresReaction");
+  push(persistentKeys, "reactionRequiresObservable");
+  push(persistentKeys, "observableRequiresReaction");
+  push(persistentKeys, "allowStateReads");
+  push(persistentKeys, "disableErrorBoundaries");
+  push(persistentKeys, "runId");
+  push(persistentKeys, "UNCHANGED");
+}
+
+initPersistentKeys();
+
+JsValue createMobXGlobals() {
+  JsValue g = JS.object();
+  g["version"] = 7;
+  g["UNCHANGED"] = JS.object();
+  g["trackingDerivation"] = null;
+  g["trackingContext"] = null;
+  g["runId"] = 0;
+  g["mobxGuid"] = 0;
+  g["inBatch"] = 0;
+  g["pendingUnobservations"] = JS.array();
+  g["pendingReactions"] = JS.array();
+  g["isRunningReactions"] = false;
+  g["allowStateChanges"] = false;
+  g["allowStateReads"] = true;
+  g["enforceActions"] = true;
+  g["spyListeners"] = JS.array();
+  g["globalReactionErrorHandlers"] = JS.array();
+  g["computedRequiresReaction"] = false;
+  g["reactionRequiresObservable"] = false;
+  g["observableRequiresReaction"] = false;
+  g["disableErrorBoundaries"] = false;
+  g["suppressReactionErrors"] = false;
+  g["safeDescriptors"] = true;
+  return g;
+}
+
+JsValue initGlobalState() {
+  JsValue global = hostGlobal();
+  if (global["__mobxInstanceCount"].truthy() && toNum(global["__mobxInstanceCount"]) > 0.0 && !global["__mobxGlobals"].truthy()) {
+    canMergeGlobalState = false;
+  }
+  JsValue existing = global["__mobxGlobals"];
+  if (existing.truthy() && !JS.strictEqual(existing["version"], 7)) {
+    canMergeGlobalState = false;
+  }
+  if (!canMergeGlobalState) {
+    setTimeoutHost(JS.method0((JsValue _self) => {
+      if (!isolateCalled) {
+        die(35);
+      }
+      return undef();
+    }), 1);
+    return createMobXGlobals();
+  } else if (existing.truthy()) {
+    global["__mobxInstanceCount"] = toNum(global["__mobxInstanceCount"]) + 1.0;
+    if (!existing["UNCHANGED"].truthy()) {
+      existing["UNCHANGED"] = JS.object();
+    }
+    return existing;
+  }
+  global["__mobxInstanceCount"] = 1;
+  JsValue created = createMobXGlobals();
+  global["__mobxGlobals"] = created;
+  return created;
+}
+
+export JsValue globalState = initGlobalState();
+
+export int getNextId() {
+  int id = toInt(globalState["mobxGuid"]) + 1;
+  globalState["mobxGuid"] = id;
+  return id;
+}
+
+export JsValue isolateGlobalState = JS.method0((JsValue _self) => {
+  if (len(globalState["pendingReactions"]) != 0 || globalState["inBatch"].truthy() || globalState["isRunningReactions"].truthy()) {
+    die(36);
+  }
+  isolateCalled = true;
+  if (canMergeGlobalState) {
+    JsValue global = hostGlobal();
+    float count = toNum(global["__mobxInstanceCount"]) - 1.0;
+    global["__mobxInstanceCount"] = count;
+    if (count == 0.0) {
+      global["__mobxGlobals"] = undef();
+    }
+    globalState = createMobXGlobals();
+  }
+  return undef();
+});
+
+export JsValue getGlobalState = JS.method0((JsValue _self) => {
+  return globalState;
+});
+
+export JsValue resetGlobalState = JS.method0((JsValue _self) => {
+  JsValue defaultGlobals = createMobXGlobals();
+  JsValue keys = objectKeys(defaultGlobals);
+  int n = len(keys);
+  int i = 0;
+  while (i < n) {
+    JsValue key = keys[i];
+    if (indexOf(persistentKeys, key) == -1) {
+      globalState[key] = defaultGlobals[key];
+    }
+    i = i + 1;
+  }
+  globalState["allowStateChanges"] = !globalState["enforceActions"].truthy();
+  return undef();
+});

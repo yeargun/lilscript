@@ -1,0 +1,54 @@
+export string suggestMoreInfoIcon = "suggest-more-info";
+
+export class SuggestItemRenderer {
+  int kind;
+  string label;
+  string detail;
+  string description;
+  bool isDeprecated;
+  bool matchesPrefix;
+  string iconClass;
+
+  init(int kind, string label, string detail) {
+    this.kind = kind;
+    this.label = label;
+    this.detail = detail;
+    this.description = "";
+    this.isDeprecated = false;
+    this.matchesPrefix = false;
+    this.iconClass = "suggest-icon-" + kind.toString();
+  }
+
+  string renderLabelWithHighlights(string prefix) {
+    if (prefix.length == 0) {
+      this.matchesPrefix = true;
+      return this.label;
+    }
+    string lowLabel = this.label.toLowerCase();
+    string lowPrefix = prefix.toLowerCase();
+    int at = lowLabel.indexOf(lowPrefix);
+    this.matchesPrefix = at == 0;
+    if (at < 0) {
+      return this.label;
+    }
+    string before = "";
+    string mid = "";
+    string after = "";
+    int i = 0;
+    while (i < this.label.length) {
+      if (i < at) {
+        before = before + this.label.charAt(i);
+      } else if (i < at + prefix.length) {
+        mid = mid + this.label.charAt(i);
+      } else {
+        after = after + this.label.charAt(i);
+      }
+      i = i + 1;
+    }
+    return before + "<match>" + mid + "</match>" + after;
+  }
+}
+
+export SuggestItemRenderer createSuggestItemRenderer(int kind, string label, string detail) {
+  return new SuggestItemRenderer(kind, label, detail);
+}

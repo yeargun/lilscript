@@ -1,0 +1,111 @@
+export string SUGGEST_CONTROLLER_ID = "editor.contrib.suggestController";
+
+export class SuggestController {
+  bool widgetVisible;
+  bool detailsVisible;
+  int selectedIndex;
+  string[] labels;
+  string[] insertTexts;
+  string filterPrefix;
+  bool autoTrigger;
+  bool froze;
+  int triggerKind;
+
+  init() {
+    this.widgetVisible = false;
+    this.detailsVisible = false;
+    this.selectedIndex = 0;
+    this.labels = [];
+    this.insertTexts = [];
+    this.filterPrefix = "";
+    this.autoTrigger = true;
+    this.froze = false;
+    this.triggerKind = 0;
+  }
+
+  string getId() {
+    return SUGGEST_CONTROLLER_ID;
+  }
+
+  void triggerSuggest(string[] labels, string[] insertTexts, string prefix, bool automatic) {
+    this.labels = labels;
+    this.insertTexts = insertTexts;
+    this.filterPrefix = prefix;
+    this.autoTrigger = automatic;
+    this.selectedIndex = 0;
+    this.widgetVisible = labels.length > 0;
+    this.froze = false;
+  }
+
+  void hide() {
+    this.widgetVisible = false;
+    this.detailsVisible = false;
+    this.froze = false;
+  }
+
+  void selectNext() {
+    if (!this.widgetVisible || this.labels.length == 0) {
+      return;
+    }
+    this.selectedIndex = this.selectedIndex + 1;
+    if (this.selectedIndex >= this.labels.length) {
+      this.selectedIndex = 0;
+    }
+  }
+
+  void selectPrev() {
+    if (!this.widgetVisible || this.labels.length == 0) {
+      return;
+    }
+    this.selectedIndex = this.selectedIndex - 1;
+    if (this.selectedIndex < 0) {
+      this.selectedIndex = this.labels.length - 1;
+    }
+  }
+
+  void selectNextPage(int pageSize) {
+    int size = pageSize;
+    if (size < 1) {
+      size = 5;
+    }
+    this.selectedIndex = this.selectedIndex + size;
+    if (this.selectedIndex >= this.labels.length) {
+      this.selectedIndex = this.labels.length - 1;
+    }
+  }
+
+  void selectPrevPage(int pageSize) {
+    int size = pageSize;
+    if (size < 1) {
+      size = 5;
+    }
+    this.selectedIndex = this.selectedIndex - size;
+    if (this.selectedIndex < 0) {
+      this.selectedIndex = 0;
+    }
+  }
+
+  string? accept() {
+    if (!this.widgetVisible || this.labels.length == 0) {
+      return null;
+    }
+    string text = this.insertTexts[this.selectedIndex];
+    this.hide();
+    return text;
+  }
+
+  void toggleDetails() {
+    if (!this.widgetVisible) {
+      return;
+    }
+    this.detailsVisible = !this.detailsVisible;
+  }
+
+  void freeze() {
+    this.froze = true;
+  }
+}
+
+export SuggestController createSuggestController() {
+  return new SuggestController();
+}

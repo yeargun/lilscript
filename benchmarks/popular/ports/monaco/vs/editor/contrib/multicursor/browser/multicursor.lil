@@ -1,0 +1,135 @@
+
+export class TextRange {
+  int startLineNumber;
+  int startColumn;
+  int endLineNumber;
+  int endColumn;
+
+  init(int startLineNumber, int startColumn, int endLineNumber, int endColumn) {
+    this.startLineNumber = startLineNumber;
+    this.startColumn = startColumn;
+    this.endLineNumber = endLineNumber;
+    this.endColumn = endColumn;
+  }
+}
+
+export class TextPos {
+  int lineNumber;
+  int column;
+
+  init(int lineNumber, int column) {
+    this.lineNumber = lineNumber;
+    this.column = column;
+  }
+}
+
+bool posBefore(TextPos a, TextPos b) {
+  if (a.lineNumber < b.lineNumber) {
+    return true;
+  }
+  if (a.lineNumber > b.lineNumber) {
+    return false;
+  }
+  return a.column < b.column;
+}
+
+bool rangeContainsPos(TextRange range, int lineNumber, int column) {
+  if (lineNumber < range.startLineNumber || lineNumber > range.endLineNumber) {
+    return false;
+  }
+  if (lineNumber == range.startLineNumber && column < range.startColumn) {
+    return false;
+  }
+  if (lineNumber == range.endLineNumber && column > range.endColumn) {
+    return false;
+  }
+  return true;
+}
+
+export TextRange createTextRange(int startLine, int startColumn, int endLine, int endColumn) {
+  return new TextRange(startLine, startColumn, endLine, endColumn);
+}
+
+export TextPos createTextPos(int lineNumber, int column) {
+  return new TextPos(lineNumber, column);
+}
+
+export class CursorState {
+  int lineNumber;
+  int column;
+
+  init(int lineNumber, int column) {
+    this.lineNumber = lineNumber;
+    this.column = column;
+  }
+}
+
+export CursorState[] addCursorAbove(CursorState[] cursors, int lineCount) {
+  CursorState[] next = [];
+  int i = 0;
+  while (i < cursors.length) {
+    next.push(cursors[i]);
+    int line = cursors[i].lineNumber - 1;
+    if (line >= 1) {
+      next.push(new CursorState(line, cursors[i].column));
+    }
+    i = i + 1;
+  }
+  return uniqueCursors(next);
+}
+
+export CursorState[] addCursorBelow(CursorState[] cursors, int lineCount) {
+  CursorState[] next = [];
+  int i = 0;
+  while (i < cursors.length) {
+    next.push(cursors[i]);
+    int line = cursors[i].lineNumber + 1;
+    if (line <= lineCount) {
+      next.push(new CursorState(line, cursors[i].column));
+    }
+    i = i + 1;
+  }
+  return uniqueCursors(next);
+}
+
+export CursorState[] addCursorsToLineEnds(TextRange selection, int[] lineMaxColumns) {
+  CursorState[] result = [];
+  int line = selection.startLineNumber;
+  while (line < selection.endLineNumber) {
+    int maxCol = 1;
+    if (line >= 1 && line <= lineMaxColumns.length) {
+      maxCol = lineMaxColumns[line - 1];
+    }
+    result.push(new CursorState(line, maxCol));
+    line = line + 1;
+  }
+  if (selection.endColumn > 1) {
+    result.push(new CursorState(selection.endLineNumber, selection.endColumn));
+  }
+  return result;
+}
+
+CursorState[] uniqueCursors(CursorState[] cursors) {
+  CursorState[] result = [];
+  int i = 0;
+  while (i < cursors.length) {
+    bool seen = false;
+    int j = 0;
+    while (j < result.length) {
+      if (result[j].lineNumber == cursors[i].lineNumber && result[j].column == cursors[i].column) {
+        seen = true;
+        break;
+      }
+      j = j + 1;
+    }
+    if (!seen) {
+      result.push(cursors[i]);
+    }
+    i = i + 1;
+  }
+  return result;
+}
+
+export CursorState createCursorState(int lineNumber, int column) {
+  return new CursorState(lineNumber, column);
+}

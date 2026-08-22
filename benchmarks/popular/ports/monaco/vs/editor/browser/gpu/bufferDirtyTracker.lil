@@ -1,0 +1,57 @@
+export class BufferDirtyTracker {
+  int startIndex;
+  int endIndex;
+  bool hasRange;
+
+  init() {
+    this.startIndex = 0;
+    this.endIndex = 0;
+    this.hasRange = false;
+  }
+
+  int dataOffset() {
+    if (!this.hasRange) {
+      return -1;
+    }
+    return this.startIndex;
+  }
+
+  int dirtySize() {
+    if (!this.hasRange) {
+      return 0;
+    }
+    return this.endIndex - this.startIndex + 1;
+  }
+
+  bool isDirty() {
+    return this.hasRange;
+  }
+
+  void flagIndex(int index) {
+    if (!this.hasRange || index < this.startIndex) {
+      this.startIndex = index;
+    }
+    if (!this.hasRange || index > this.endIndex) {
+      this.endIndex = index;
+    }
+    this.hasRange = true;
+  }
+
+  int flag(int index, int length = 1) {
+    this.flagIndex(index);
+    if (length > 1) {
+      this.flagIndex(index + length - 1);
+    }
+    return index;
+  }
+
+  void clear() {
+    this.startIndex = 0;
+    this.endIndex = 0;
+    this.hasRange = false;
+  }
+}
+
+export BufferDirtyTracker createBufferDirtyTracker() {
+  return new BufferDirtyTracker();
+}

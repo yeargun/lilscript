@@ -1,0 +1,41 @@
+export class Point2D {
+  int x;
+  int y;
+
+  init(int x, int y) {
+    this.x = x;
+    this.y = y;
+  }
+
+  Point2D add(Point2D other) {
+    return new Point2D(this.x + other.x, this.y + other.y);
+  }
+
+  Point2D subtract(Point2D other) {
+    return new Point2D(this.x - other.x, this.y - other.y);
+  }
+
+  Point2D deltaX(int delta) {
+    return new Point2D(this.x + delta, this.y);
+  }
+
+  Point2D deltaY(int delta) {
+    return new Point2D(this.x, this.y + delta);
+  }
+
+  Point2D scale(int factor) {
+    return new Point2D(this.x * factor, this.y * factor);
+  }
+
+  bool isZero() {
+    return this.x == 0 && this.y == 0;
+  }
+
+  string toString() {
+    return "(" + this.x.toString() + "," + this.y.toString() + ")";
+  }
+}
+
+export bool pointEquals(Point2D a, Point2D b) {
+  return a.x == b.x && a.y == b.y;
+}

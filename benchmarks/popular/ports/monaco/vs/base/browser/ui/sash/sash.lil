@@ -1,0 +1,449 @@
+import { domCreateElement, appendChild, setClassName, classListAdd, classListRemove, setStyle, addEventListener, removeEventListener, preventDefault, stopPropagation, eventKeyCode, eventAltKey, windowSelf, hostCall, jsUndefined, jsPropInt, scheduleTimeoutMs, clearTimeoutId } from "../../../../../js-host";
+
+export enum Orientation {
+  VERTICAL,
+  HORIZONTAL
+}
+
+export enum SashState {
+  Disabled,
+  AtMinimum,
+  AtMaximum,
+  Enabled
+}
+
+export enum OrthogonalEdge {
+  North,
+  South,
+  East,
+  West
+}
+
+export class SashEvent {
+  int startX;
+  int currentX;
+  int startY;
+  int currentY;
+  bool altKey;
+
+  init(int startX, int currentX, int startY, int currentY, bool altKey) {
+    this.startX = startX;
+    this.currentX = currentX;
+    this.startY = startY;
+    this.currentY = currentY;
+    this.altKey = altKey;
+  }
+}
+
+export class SashLayoutProvider {
+  func(JsValue)->int getVerticalSashLeftFn;
+  func(JsValue)->int getVerticalSashTopFn;
+  func(JsValue)->int getVerticalSashHeightFn;
+  func(JsValue)->int getHorizontalSashTopFn;
+  func(JsValue)->int getHorizontalSashLeftFn;
+  func(JsValue)->int getHorizontalSashWidthFn;
+
+  init() {
+    this.getVerticalSashLeftFn = (JsValue sash) => {
+      return 0;
+    };
+    this.getVerticalSashTopFn = (JsValue sash) => {
+      return 0;
+    };
+    this.getVerticalSashHeightFn = (JsValue sash) => {
+      return 0;
+    };
+    this.getHorizontalSashTopFn = (JsValue sash) => {
+      return 0;
+    };
+    this.getHorizontalSashLeftFn = (JsValue sash) => {
+      return 0;
+    };
+    this.getHorizontalSashWidthFn = (JsValue sash) => {
+      return 0;
+    };
+  }
+}
+
+int globalSashSize = 4;
+int globalHoverDelay = 300;
+
+export void setGlobalSashSize(int size) {
+  globalSashSize = size;
+}
+
+export void setGlobalHoverDelay(int delay) {
+  globalHoverDelay = delay;
+}
+
+export int getGlobalSashSize() {
+  return globalSashSize;
+}
+
+int eventPage(JsValue event, string name) {
+  JsValue value = event[name];
+  if (value is float) {
+    float n = value;
+    return n.toInt();
+  }
+  return 0;
+}
+
+export class Sash {
+  JsValue el;
+  SashLayoutProvider layoutProvider;
+  Orientation orientation;
+  int size;
+  SashState state;
+  int hoverDelay;
+  JsValue hoverTimeout;
+  bool hoverScheduled;
+  Sash? linkedSash;
+  Sash? orthogonalStartSash;
+  Sash? orthogonalEndSash;
+  OrthogonalEdge orthogonalEdge;
+  bool hasOrthogonalEdge;
+  (func(SashEvent)->void)[] startListeners;
+  (func(SashEvent)->void)[] changeListeners;
+  (func()->void)[] endListeners;
+  (func()->void)[] resetListeners;
+  (func(SashState)->void)[] enablementListeners;
+  func(JsValue)->void moveListener;
+  func(JsValue)->void upListener;
+  bool dragging;
+  int dragStartX;
+  int dragStartY;
+  bool dragAlt;
+  bool disposed;
+
+  init(JsValue container, SashLayoutProvider layoutProvider, Orientation orientation, int size) {
+    this.layoutProvider = layoutProvider;
+    this.orientation = orientation;
+    this.size = size;
+    if (this.size <= 0) {
+      this.size = globalSashSize;
+    }
+    this.state = SashState.Enabled;
+    this.hoverDelay = globalHoverDelay;
+    this.hoverTimeout = null;
+    this.hoverScheduled = false;
+    this.linkedSash = null;
+    this.orthogonalStartSash = null;
+    this.orthogonalEndSash = null;
+    this.orthogonalEdge = OrthogonalEdge.North;
+    this.hasOrthogonalEdge = false;
+    this.startListeners = [];
+    this.changeListeners = [];
+    this.endListeners = [];
+    this.resetListeners = [];
+    this.enablementListeners = [];
+    this.dragging = false;
+    this.dragStartX = 0;
+    this.dragStartY = 0;
+    this.dragAlt = false;
+    this.disposed = false;
+    this.el = domCreateElement("div");
+    setClassName(this.el, "monaco-sash");
+    if (orientation == Orientation.HORIZONTAL) {
+      classListAdd(this.el, "horizontal");
+    } else {
+      classListAdd(this.el, "vertical");
+    }
+    appendChild(container, this.el);
+    Sash owner = this;
+    this.moveListener = (JsValue event) => {
+      owner.onPointerMove(event);
+    };
+    this.upListener = (JsValue event) => {
+      owner.onPointerUp(event);
+    };
+    addEventListener(this.el, "mousedown", (JsValue event) => {
+      owner.onPointerStart(event);
+    }, false);
+    addEventListener(this.el, "dblclick", (JsValue event) => {
+      owner.onPointerDoublePress();
+    }, false);
+    addEventListener(this.el, "mouseenter", (JsValue event) => {
+      owner.onMouseEnter(false);
+    }, false);
+    addEventListener(this.el, "mouseleave", (JsValue event) => {
+      owner.onMouseLeave(false);
+    }, false);
+    this.layout();
+  }
+
+  void setState(SashState state) {
+    if (this.state == state) {
+      return;
+    }
+    if (state == SashState.Disabled) {
+      classListAdd(this.el, "disabled");
+    } else {
+      classListRemove(this.el, "disabled");
+    }
+    if (state == SashState.AtMinimum) {
+      classListAdd(this.el, "minimum");
+    } else {
+      classListRemove(this.el, "minimum");
+    }
+    if (state == SashState.AtMaximum) {
+      classListAdd(this.el, "maximum");
+    } else {
+      classListRemove(this.el, "maximum");
+    }
+    this.state = state;
+    int i = 0;
+    while (i < this.enablementListeners.length) {
+      this.enablementListeners[i](state);
+      i = i + 1;
+    }
+  }
+
+  func()->void onDidStart(func(SashEvent)->void listener) {
+    this.startListeners.push(listener);
+    Sash owner = this;
+    return () => {
+      int index = owner.startListeners.indexOf(listener);
+      if (index >= 0) {
+        owner.startListeners.splice(index, 1);
+      }
+    };
+  }
+
+  func()->void onDidChange(func(SashEvent)->void listener) {
+    this.changeListeners.push(listener);
+    Sash owner = this;
+    return () => {
+      int index = owner.changeListeners.indexOf(listener);
+      if (index >= 0) {
+        owner.changeListeners.splice(index, 1);
+      }
+    };
+  }
+
+  func()->void onDidEnd(func()->void listener) {
+    this.endListeners.push(listener);
+    Sash owner = this;
+    return () => {
+      int index = owner.endListeners.indexOf(listener);
+      if (index >= 0) {
+        owner.endListeners.splice(index, 1);
+      }
+    };
+  }
+
+  func()->void onDidReset(func()->void listener) {
+    this.resetListeners.push(listener);
+    Sash owner = this;
+    return () => {
+      int index = owner.resetListeners.indexOf(listener);
+      if (index >= 0) {
+        owner.resetListeners.splice(index, 1);
+      }
+    };
+  }
+
+  string dragCursor() {
+    if (this.orientation == Orientation.HORIZONTAL) {
+      if (this.state == SashState.AtMinimum) {
+        return "s-resize";
+      }
+      if (this.state == SashState.AtMaximum) {
+        return "n-resize";
+      }
+      return "ns-resize";
+    }
+    if (this.state == SashState.AtMinimum) {
+      return "e-resize";
+    }
+    if (this.state == SashState.AtMaximum) {
+      return "w-resize";
+    }
+    return "ew-resize";
+  }
+
+  void onPointerStart(JsValue event) {
+    preventDefault(event);
+    stopPropagation(event);
+    Sash? orthogonal = this.getOrthogonalSash(event);
+    if (orthogonal != null) {
+      orthogonal.onPointerStart(event);
+    }
+    Sash? linked = this.linkedSash;
+    if (linked != null) {
+      linked.onPointerStart(event);
+    }
+    if (this.state == SashState.Disabled) {
+      return;
+    }
+    this.dragging = true;
+    this.dragStartX = eventPage(event, "pageX");
+    this.dragStartY = eventPage(event, "pageY");
+    this.dragAlt = eventAltKey(event);
+    classListAdd(this.el, "active");
+    setStyle(this.el, "cursor", this.dragCursor());
+    SashEvent start = new SashEvent(this.dragStartX, this.dragStartX, this.dragStartY, this.dragStartY, this.dragAlt);
+    int i = 0;
+    while (i < this.startListeners.length) {
+      this.startListeners[i](start);
+      i = i + 1;
+    }
+    JsValue root = windowSelf();
+    addEventListener(root, "mousemove", this.moveListener, false);
+    addEventListener(root, "mouseup", this.upListener, false);
+  }
+
+  void onPointerMove(JsValue event) {
+    if (!this.dragging) {
+      return;
+    }
+    preventDefault(event);
+    SashEvent next = new SashEvent(this.dragStartX, eventPage(event, "pageX"), this.dragStartY, eventPage(event, "pageY"), this.dragAlt);
+    int i = 0;
+    while (i < this.changeListeners.length) {
+      this.changeListeners[i](next);
+      i = i + 1;
+    }
+  }
+
+  void onPointerUp(JsValue event) {
+    if (!this.dragging) {
+      return;
+    }
+    preventDefault(event);
+    this.dragging = false;
+    classListRemove(this.el, "active");
+    JsValue root = windowSelf();
+    removeEventListener(root, "mousemove", this.moveListener, false);
+    removeEventListener(root, "mouseup", this.upListener, false);
+    int i = 0;
+    while (i < this.endListeners.length) {
+      this.endListeners[i]();
+      i = i + 1;
+    }
+  }
+
+  void onPointerDoublePress() {
+    Sash? linked = this.linkedSash;
+    if (linked != null) {
+      linked.fireReset();
+    }
+    this.fireReset();
+  }
+
+  void fireReset() {
+    int i = 0;
+    while (i < this.resetListeners.length) {
+      this.resetListeners[i]();
+      i = i + 1;
+    }
+  }
+
+  void onMouseEnter(bool fromLinked) {
+    if (this.dragging) {
+      this.cancelHover();
+      classListAdd(this.el, "hover");
+    } else {
+      this.scheduleHover();
+    }
+    Sash? linked = this.linkedSash;
+    if (!fromLinked && linked != null) {
+      linked.onMouseEnter(true);
+    }
+  }
+
+  void onMouseLeave(bool fromLinked) {
+    this.cancelHover();
+    classListRemove(this.el, "hover");
+    Sash? linked = this.linkedSash;
+    if (!fromLinked && linked != null) {
+      linked.onMouseLeave(true);
+    }
+  }
+
+  void scheduleHover() {
+    this.cancelHover();
+    this.hoverScheduled = true;
+    Sash owner = this;
+    this.hoverTimeout = scheduleTimeoutMs(() => {
+      if (owner.hoverScheduled) {
+        classListAdd(owner.el, "hover");
+      }
+    }, this.hoverDelay * 1.0);
+  }
+
+  void cancelHover() {
+    this.hoverScheduled = false;
+    if (this.hoverTimeout.truthy()) {
+      clearTimeoutId(this.hoverTimeout);
+      this.hoverTimeout = null;
+    }
+  }
+
+  void clearSashHoverState() {
+    this.onMouseLeave(false);
+  }
+
+  void layout() {
+    if (this.orientation == Orientation.VERTICAL) {
+      int left = this.layoutProvider.getVerticalSashLeftFn(this.el) - this.size / 2;
+      setStyle(this.el, "left", left.toString() + "px");
+      setStyle(this.el, "top", this.layoutProvider.getVerticalSashTopFn(this.el).toString() + "px");
+      int height = this.layoutProvider.getVerticalSashHeightFn(this.el);
+      if (height > 0) {
+        setStyle(this.el, "height", height.toString() + "px");
+      }
+      setStyle(this.el, "width", this.size.toString() + "px");
+    } else {
+      int top = this.layoutProvider.getHorizontalSashTopFn(this.el) - this.size / 2;
+      setStyle(this.el, "top", top.toString() + "px");
+      setStyle(this.el, "left", this.layoutProvider.getHorizontalSashLeftFn(this.el).toString() + "px");
+      int width = this.layoutProvider.getHorizontalSashWidthFn(this.el);
+      if (width > 0) {
+        setStyle(this.el, "width", width.toString() + "px");
+      }
+      setStyle(this.el, "height", this.size.toString() + "px");
+    }
+  }
+
+  Sash? getOrthogonalSash(JsValue event) {
+    JsValue target = event["target"];
+    if (!target.truthy()) {
+      return null;
+    }
+    JsValue classList = target["classList"];
+    if (!classList.truthy()) {
+      return null;
+    }
+    if (!hostCall(classList, "contains", "orthogonal-drag-handle", jsUndefined(), jsUndefined()).truthy()) {
+      return null;
+    }
+    if (hostCall(classList, "contains", "start", jsUndefined(), jsUndefined()).truthy()) {
+      return this.orthogonalStartSash;
+    }
+    return this.orthogonalEndSash;
+  }
+
+  void dispose() {
+    this.disposed = true;
+    this.cancelHover();
+    if (this.dragging) {
+      JsValue root = windowSelf();
+      removeEventListener(root, "mousemove", this.moveListener, false);
+      removeEventListener(root, "mouseup", this.upListener, false);
+    }
+    hostCall(this.el, "remove", jsUndefined(), jsUndefined(), jsUndefined());
+  }
+}
+
+export Sash createSash(JsValue container, SashLayoutProvider layoutProvider, Orientation orientation, int size = 0) {
+  return new Sash(container, layoutProvider, orientation, size);
+}
+
+export SashLayoutProvider createSashLayoutProvider() {
+  return new SashLayoutProvider();
+}
+
+export SashEvent createSashEvent(int startX, int currentX, int startY, int currentY, bool altKey) {
+  return new SashEvent(startX, currentX, startY, currentY, altKey);
+}

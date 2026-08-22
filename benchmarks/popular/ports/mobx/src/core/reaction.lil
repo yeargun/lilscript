@@ -1,0 +1,206 @@
+import { DEV } from "../dev-flag.lil";
+import {
+  isUndef,
+  undef,
+  isNullish,
+  isFn,
+  toStr,
+  toInt,
+  len,
+  push,
+  indexOf,
+  splice1,
+  invoke0,
+  call0,
+  call1,
+  call2,
+  throwErr,
+  error2,
+  warn,
+  now,
+  inOp,
+  gSymbol,
+  isSym
+} from "../host.lil";
+import { NOT_TRACKING, $mobx } from "../constants.lil";
+import { getNextId, globalState } from "./globalstate.lil";
+import {
+  startBatch,
+  endBatch,
+  runReactions
+} from "./observable.lil";
+import {
+  shouldCompute,
+  trackDerivedFunction,
+  clearObserving,
+  isCaughtException
+} from "./derivation.lil";
+import { isSpyEnabled, spyReport, spyReportStart, spyReportEnd } from "./spy.lil";
+import { isReactionPred } from "./predicates.lil";
+import { installReactionFlags } from "./shared.lil";
+import { createInstanceofPredicate } from "../host.lil";
+
+export JsValue Reaction = JS.methodRest((JsValue self, JsValue args) => {
+  string name = "Reaction";
+  if (len(args) > 0 && !isUndef(args[0])) {
+    name = toStr(args[0]);
+  } else if (DEV) {
+    name = "Reaction@" + getNextId();
+  }
+  self["name_"] = name;
+  self["onInvalidate_"] = undef();
+  if (len(args) > 1) {
+    self["onInvalidate_"] = args[1];
+  }
+  if (len(args) > 2 && args[2].truthy()) {
+    self["errorHandler_"] = args[2];
+  }
+  if (len(args) > 3 && !isUndef(args[3])) {
+    self["requiresObservable_"] = args[3];
+  }
+  self["observing_"] = JS.array();
+  self["newObserving_"] = null;
+  self["dependenciesState_"] = NOT_TRACKING;
+  self["runId_"] = 0;
+  self["unboundDepsCount_"] = 0;
+  self["flags_"] = 0;
+  return self;
+});
+
+Reaction["prototype"]["onBecomeStale_"] = JS.method0((JsValue self) => {
+  invoke0(self, "schedule_");
+  return undef();
+});
+Reaction["prototype"]["schedule_"] = JS.method0((JsValue self) => {
+  if (!self["isScheduled"].truthy()) {
+    self["isScheduled"] = true;
+    push(globalState["pendingReactions"], self);
+    runReactions();
+  }
+  return undef();
+});
+Reaction["prototype"]["runReaction_"] = JS.method0((JsValue self) => {
+  if (!self["isDisposed"].truthy()) {
+    startBatch();
+    self["isScheduled"] = false;
+    JsValue prev = globalState["trackingContext"];
+    globalState["trackingContext"] = self;
+    if (shouldCompute(self)) {
+      self["isTrackPending"] = true;
+      try {
+        invoke0(self, "onInvalidate_");
+        if (DEV && self["isTrackPending"].truthy() && isSpyEnabled()) {
+          spyReport(JS.object("name", self["name_"], "type", "scheduled-reaction"));
+        }
+      } catch (JsValue e) {
+        call1(self["reportExceptionInDerivation_"], self, e);
+      }
+    }
+    globalState["trackingContext"] = prev;
+    endBatch();
+  }
+  return undef();
+});
+Reaction["prototype"]["track"] = JS.method1((JsValue self, JsValue fn) => {
+  if (self["isDisposed"].truthy()) {
+    return undef();
+  }
+  startBatch();
+  bool notify = DEV && isSpyEnabled();
+  JsValue startTime = undef();
+  if (DEV && notify) {
+    startTime = now();
+    spyReportStart(JS.object("name", self["name_"], "type", "reaction"));
+  }
+  self["isRunning"] = true;
+  JsValue prevReaction = globalState["trackingContext"];
+  globalState["trackingContext"] = self;
+  JsValue result = trackDerivedFunction(self, fn, undef());
+  globalState["trackingContext"] = prevReaction;
+  self["isRunning"] = false;
+  self["isTrackPending"] = false;
+  if (self["isDisposed"].truthy()) {
+    clearObserving(self);
+  }
+  if (isCaughtException(result)) {
+    call1(self["reportExceptionInDerivation_"], self, result["cause"]);
+  }
+  if (DEV && notify) {
+    spyReportEnd(JS.object("time", toInt(now()) - toInt(startTime)));
+  }
+  endBatch();
+  return undef();
+});
+Reaction["prototype"]["reportExceptionInDerivation_"] = JS.method1((JsValue self, JsValue error) => {
+  if (self["errorHandler_"].truthy()) {
+    call2(self["errorHandler_"], undef(), error, self);
+    return undef();
+  }
+  if (globalState["disableErrorBoundaries"].truthy()) {
+    throwErr(error);
+  }
+  string message = "[mobx] uncaught error in '" + toStr(self) + "'";
+  if (DEV) {
+    message = "[mobx] Encountered an uncaught exception that was thrown by a reaction or observer component, in: '" + toStr(self) + "'";
+  }
+  if (!globalState["suppressReactionErrors"].truthy()) {
+    error2(message, error);
+  } else if (DEV) {
+    warn("[mobx] (error in reaction '" + toStr(self["name_"]) + "' suppressed, fix error of causing action below)");
+  }
+  if (DEV && isSpyEnabled()) {
+    spyReport(JS.object("type", "error", "name", self["name_"], "message", message, "error", "" + error));
+  }
+  JsValue handlers = globalState["globalReactionErrorHandlers"];
+  int n = len(handlers);
+  int i = 0;
+  while (i < n) {
+    call2(handlers[i], undef(), error, self);
+    i = i + 1;
+  }
+  return undef();
+});
+Reaction["prototype"]["dispose"] = JS.method0((JsValue self) => {
+  if (!self["isDisposed"].truthy()) {
+    self["isDisposed"] = true;
+    if (!self["isRunning"].truthy()) {
+      startBatch();
+      clearObserving(self);
+      endBatch();
+    }
+  }
+  return undef();
+});
+Reaction["prototype"]["getDisposer_"] = JS.method1((JsValue self, JsValue abortSignal) => {
+  JsValue dispose = () => {
+    call0(self["dispose"], self);
+    if (!isNullish(abortSignal) && isFn(abortSignal["removeEventListener"])) {
+      JS.invoke(abortSignal, "removeEventListener", "abort", dispose);
+    }
+    return undef();
+  };
+  if (!isNullish(abortSignal) && isFn(abortSignal["addEventListener"])) {
+    JS.invoke(abortSignal, "addEventListener", "abort", dispose);
+  }
+  dispose[$mobx] = self;
+  if (inOp("dispose", gSymbol()) && isSym(gSymbol()["dispose"])) {
+    dispose[gSymbol()["dispose"]] = dispose;
+  }
+  return dispose;
+});
+Reaction["prototype"]["toString"] = JS.method0((JsValue self) => {
+  return "Reaction[" + toStr(self["name_"]) + "]";
+});
+isReactionPred = createInstanceofPredicate("Reaction", Reaction);
+installReactionFlags(Reaction["prototype"]);
+
+export JsValue onReactionError = JS.method1((JsValue _self, JsValue handler) => {
+  push(globalState["globalReactionErrorHandlers"], handler);
+  return JS.method0((JsValue __self) => {
+    int idx = indexOf(globalState["globalReactionErrorHandlers"], handler);
+    if (idx >= 0) {
+      splice1(globalState["globalReactionErrorHandlers"], idx, 1);
+    }
+    return undef();
+  });
+});

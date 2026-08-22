@@ -1,0 +1,176 @@
+import { domCreateElement, appendChild, setClassName, classListAdd, clearChildren, setTextContent, setStyle, setAttribute } from "../../../../../js-host";
+
+export class KeybindingChord {
+  bool ctrlKey;
+  bool shiftKey;
+  bool altKey;
+  bool metaKey;
+  string keyLabel;
+
+  init(bool ctrlKey, bool shiftKey, bool altKey, bool metaKey, string keyLabel) {
+    this.ctrlKey = ctrlKey;
+    this.shiftKey = shiftKey;
+    this.altKey = altKey;
+    this.metaKey = metaKey;
+    this.keyLabel = keyLabel;
+  }
+}
+
+export class KeybindingMatch {
+  bool ctrlKey;
+  bool shiftKey;
+  bool altKey;
+  bool metaKey;
+  bool keyCode;
+
+  init(bool ctrlKey, bool shiftKey, bool altKey, bool metaKey, bool keyCode) {
+    this.ctrlKey = ctrlKey;
+    this.shiftKey = shiftKey;
+    this.altKey = altKey;
+    this.metaKey = metaKey;
+    this.keyCode = keyCode;
+  }
+}
+
+export class ModifierLabels {
+  string ctrlKey;
+  string shiftKey;
+  string altKey;
+  string metaKey;
+  string separator;
+
+  init(string ctrlKey, string shiftKey, string altKey, string metaKey, string separator) {
+    this.ctrlKey = ctrlKey;
+    this.shiftKey = shiftKey;
+    this.altKey = altKey;
+    this.metaKey = metaKey;
+    this.separator = separator;
+  }
+}
+
+export ModifierLabels macosModifierLabels = new ModifierLabels("⌃", "⇧", "⌥", "⌘", "");
+export ModifierLabels windowsModifierLabels = new ModifierLabels("Ctrl", "Shift", "Alt", "Windows", "+");
+export ModifierLabels linuxModifierLabels = new ModifierLabels("Ctrl", "Shift", "Alt", "Super", "+");
+
+export class KeybindingLabel {
+  JsValue domNode;
+  KeybindingChord[] chords;
+  KeybindingMatch[] matches;
+  ModifierLabels labels;
+  string background;
+  string border;
+  string bottomBorder;
+  string shadow;
+  bool renderUnbound;
+  bool didEverRender;
+
+  init(JsValue container, ModifierLabels labels, string foreground, string background, string border, string bottomBorder, string shadow, bool renderUnbound) {
+    this.chords = [];
+    this.matches = [];
+    this.labels = labels;
+    this.background = background;
+    this.border = border;
+    this.bottomBorder = bottomBorder;
+    this.shadow = shadow;
+    this.renderUnbound = renderUnbound;
+    this.didEverRender = false;
+    this.domNode = domCreateElement("div");
+    setClassName(this.domNode, "monaco-keybinding");
+    if (foreground.length > 0) {
+      setStyle(this.domNode, "color", foreground);
+    }
+    appendChild(container, this.domNode);
+  }
+
+  JsValue createKeyElement(string label, bool highlight) {
+    JsValue keyElement = domCreateElement("span");
+    string className = "monaco-keybinding-key";
+    if (highlight) {
+      className = className + " highlight";
+    }
+    setClassName(keyElement, className);
+    setTextContent(keyElement, label);
+    if (this.background.length > 0) {
+      setStyle(keyElement, "background-color", this.background);
+    }
+    if (this.border.length > 0) {
+      setStyle(keyElement, "border-color", this.border);
+    }
+    if (this.bottomBorder.length > 0) {
+      setStyle(keyElement, "border-bottom-color", this.bottomBorder);
+    }
+    if (this.shadow.length > 0) {
+      setStyle(keyElement, "box-shadow", "inset 0 -1px 0 " + this.shadow);
+    }
+    return keyElement;
+  }
+
+  void renderKey(JsValue parent, string label, bool highlight, string separator) {
+    appendChild(parent, this.createKeyElement(label, highlight));
+    if (separator.length > 0) {
+      JsValue sep = domCreateElement("span");
+      setClassName(sep, "monaco-keybinding-key-separator");
+      setTextContent(sep, separator);
+      appendChild(parent, sep);
+    }
+  }
+
+  void renderChord(JsValue parent, KeybindingChord chord, KeybindingMatch chordMatch) {
+    if (chord.ctrlKey) {
+      this.renderKey(parent, this.labels.ctrlKey, chordMatch.ctrlKey, this.labels.separator);
+    }
+    if (chord.shiftKey) {
+      this.renderKey(parent, this.labels.shiftKey, chordMatch.shiftKey, this.labels.separator);
+    }
+    if (chord.altKey) {
+      this.renderKey(parent, this.labels.altKey, chordMatch.altKey, this.labels.separator);
+    }
+    if (chord.metaKey) {
+      this.renderKey(parent, this.labels.metaKey, chordMatch.metaKey, this.labels.separator);
+    }
+    if (chord.keyLabel.length > 0) {
+      this.renderKey(parent, chord.keyLabel, chordMatch.keyCode, "");
+    }
+  }
+
+  void set(KeybindingChord[] chords, KeybindingMatch[] matches) {
+    this.chords = chords;
+    this.matches = matches;
+    this.render();
+  }
+
+  void render() {
+    clearChildren(this.domNode);
+    if (this.chords.length == 0) {
+      if (this.renderUnbound) {
+        appendChild(this.domNode, this.createKeyElement("Unbound", false));
+      }
+      this.didEverRender = true;
+      return;
+    }
+    int i = 0;
+    while (i < this.chords.length) {
+      if (i > 0) {
+        JsValue sep = domCreateElement("span");
+        setClassName(sep, "monaco-keybinding-key-chord-separator");
+        setTextContent(sep, " ");
+        appendChild(this.domNode, sep);
+      }
+      KeybindingMatch chordMatch = new KeybindingMatch(false, false, false, false, false);
+      if (i < this.matches.length) {
+        chordMatch = this.matches[i];
+      }
+      this.renderChord(this.domNode, this.chords[i], chordMatch);
+      i = i + 1;
+    }
+    this.didEverRender = true;
+  }
+}
+
+export KeybindingLabel createKeybindingLabel(JsValue container, ModifierLabels labels, string foreground = "", string background = "", string border = "", string bottomBorder = "", string shadow = "", bool renderUnbound = false) {
+  return new KeybindingLabel(container, labels, foreground, background, border, bottomBorder, shadow, renderUnbound);
+}
+
+export KeybindingChord createKeybindingChord(bool ctrlKey, bool shiftKey, bool altKey, bool metaKey, string keyLabel) {
+  return new KeybindingChord(ctrlKey, shiftKey, altKey, metaKey, keyLabel);
+}

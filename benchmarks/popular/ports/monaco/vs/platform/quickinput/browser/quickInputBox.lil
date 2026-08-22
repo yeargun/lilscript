@@ -1,0 +1,34 @@
+export class QuickInputBox {
+  string value;
+  string placeholder;
+  bool enabled;
+  int selectionStart;
+  int selectionEnd;
+
+  init() {
+    this.value = "";
+    this.placeholder = "";
+    this.enabled = true;
+    this.selectionStart = 0;
+    this.selectionEnd = 0;
+  }
+
+  void setValue(string value) {
+    this.value = value;
+    this.selectionStart = value.length;
+    this.selectionEnd = value.length;
+  }
+
+  void select(int start, int end) {
+    this.selectionStart = start;
+    this.selectionEnd = end;
+  }
+
+  void setEnabled(bool enabled) {
+    this.enabled = enabled;
+  }
+}
+
+export QuickInputBox createQuickInputBox() {
+  return new QuickInputBox();
+}

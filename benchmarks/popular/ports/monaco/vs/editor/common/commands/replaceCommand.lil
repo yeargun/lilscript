@@ -1,0 +1,146 @@
+import { Pos } from "../../../../base/position";
+import { Rng, createRange } from "../../../../base/range";
+import { Sel, createSelection } from "../../../../base/selection";
+
+export class ReplaceCommand {
+  Rng range;
+  string text;
+  bool insertsAutoWhitespace;
+
+  init(Rng range, string text, bool insertsAutoWhitespace) {
+    this.range = range;
+    this.text = text;
+    this.insertsAutoWhitespace = insertsAutoWhitespace;
+  }
+
+  Sel computeCursorState(Rng inverseRange) {
+    return createSelection(
+      inverseRange.endLineNumber,
+      inverseRange.endColumn,
+      inverseRange.endLineNumber,
+      inverseRange.endColumn
+    );
+  }
+}
+
+export class ReplaceCommandThatSelectsText {
+  Rng range;
+  string text;
+
+  init(Rng range, string text) {
+    this.range = range;
+    this.text = text;
+  }
+
+  Sel computeCursorState(Rng inverseRange) {
+    return createSelection(
+      inverseRange.startLineNumber,
+      inverseRange.startColumn,
+      inverseRange.endLineNumber,
+      inverseRange.endColumn
+    );
+  }
+}
+
+export class ReplaceCommandWithoutChangingPosition {
+  Rng range;
+  string text;
+  bool insertsAutoWhitespace;
+
+  init(Rng range, string text, bool insertsAutoWhitespace) {
+    this.range = range;
+    this.text = text;
+    this.insertsAutoWhitespace = insertsAutoWhitespace;
+  }
+
+  Sel computeCursorState(Rng inverseRange) {
+    return createSelection(
+      inverseRange.startLineNumber,
+      inverseRange.startColumn,
+      inverseRange.startLineNumber,
+      inverseRange.startColumn
+    );
+  }
+}
+
+export class ReplaceCommandWithOffsetCursorState {
+  Rng range;
+  string text;
+  int lineNumberDeltaOffset;
+  int columnDeltaOffset;
+  bool insertsAutoWhitespace;
+
+  init(Rng range, string text, int lineNumberDeltaOffset, int columnDeltaOffset, bool insertsAutoWhitespace) {
+    this.range = range;
+    this.text = text;
+    this.lineNumberDeltaOffset = lineNumberDeltaOffset;
+    this.columnDeltaOffset = columnDeltaOffset;
+    this.insertsAutoWhitespace = insertsAutoWhitespace;
+  }
+
+  Sel computeCursorState(Rng inverseRange) {
+    Pos end = new Pos(inverseRange.endLineNumber, inverseRange.endColumn).delta(this.lineNumberDeltaOffset, this.columnDeltaOffset);
+    return createSelection(end.lineNumber, end.column, end.lineNumber, end.column);
+  }
+}
+
+export class ReplaceCommandThatPreservesSelection {
+  Rng range;
+  string text;
+  Sel initialSelection;
+  bool forceMoveMarkers;
+
+  init(Rng range, string text, Sel initialSelection, bool forceMoveMarkers) {
+    this.range = range;
+    this.text = text;
+    this.initialSelection = initialSelection;
+    this.forceMoveMarkers = forceMoveMarkers;
+  }
+
+  Sel computeCursorState() {
+    return this.initialSelection;
+  }
+}
+
+export Pos addPositiveOffsetToModelPosition(int[] lineMaxColumn, Pos position, int offset) {
+  int remaining = offset;
+  if (remaining < 0) {
+    remaining = 0;
+  }
+  int lineCount = lineMaxColumn.length;
+  Pos endPosition = new Pos(lineCount, lineMaxColumn[lineCount - 1]);
+  int lineNumber = position.lineNumber;
+  while (lineNumber <= lineCount) {
+    if (lineNumber == position.lineNumber) {
+      int futureOffset = remaining - lineMaxColumn[lineNumber - 1] + position.column;
+      if (futureOffset <= 0) {
+        endPosition = new Pos(position.lineNumber, position.column + remaining);
+        break;
+      }
+      remaining = futureOffset;
+    } else {
+      int futureOffset = remaining - lineMaxColumn[lineNumber - 1];
+      if (futureOffset <= 0) {
+        endPosition = new Pos(lineNumber, remaining);
+        break;
+      }
+      remaining = futureOffset;
+    }
+    lineNumber = lineNumber + 1;
+  }
+  return endPosition;
+}
+
+export Rng replaceOvertypeRange(int[] lineMaxColumn, Rng range, string text) {
+  Pos initialStart = new Pos(range.startLineNumber, range.startColumn);
+  Pos initialEnd = new Pos(range.endLineNumber, range.endColumn);
+  int offsetDelta = text.length;
+  if (!range.isEmpty()) {
+    offsetDelta = offsetDelta - 1;
+  }
+  Pos endPosition = addPositiveOffsetToModelPosition(lineMaxColumn, initialEnd, offsetDelta);
+  if (endPosition.lineNumber > initialEnd.lineNumber) {
+    endPosition = new Pos(initialEnd.lineNumber, lineMaxColumn[initialEnd.lineNumber - 1]);
+  }
+  return createRange(initialStart.lineNumber, initialStart.column, endPosition.lineNumber, endPosition.column);
+}

@@ -1,0 +1,59 @@
+import { concat2, emptyBuf, repeatChar } from "../../../../js-host";
+
+export enum CharWidthRequestType {
+  Regular,
+  Italic,
+  Bold
+}
+
+export class CharWidthRequest {
+  string chr;
+  CharWidthRequestType kind;
+  float width;
+
+  init(string chr, CharWidthRequestType kind) {
+    this.chr = chr;
+    this.kind = kind;
+    this.width = 0.0;
+  }
+
+  void fulfill(float width) {
+    this.width = width;
+  }
+}
+
+export CharWidthRequest createCharWidthRequest(string chr, CharWidthRequestType kind) {
+  return new CharWidthRequest(chr, kind);
+}
+
+string repeat256(string ch) {
+  string htmlString = ch;
+  if (ch == " ") {
+    htmlString = "\u00a0";
+  }
+  int i = 0;
+  while (i < 8) {
+    htmlString = concat2(htmlString, htmlString);
+    i = i + 1;
+  }
+  return htmlString;
+}
+
+export float widthFromOffset(int offsetWidth) {
+  return offsetWidth * 1.0 / 256.0;
+}
+
+export void fulfillFromOffset(CharWidthRequest request, int offsetWidth) {
+  request.fulfill(widthFromOffset(offsetWidth));
+}
+
+export string renderCharSample(CharWidthRequest request) {
+  return repeat256(request.chr);
+}
+
+export string repeatCharSample(string chr, int times) {
+  if (times <= 0) {
+    return emptyBuf();
+  }
+  return repeatChar(chr, times);
+}

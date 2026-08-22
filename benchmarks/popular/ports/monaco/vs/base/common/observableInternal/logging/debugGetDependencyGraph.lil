@@ -1,0 +1,120 @@
+export class ObservableGraphNode {
+  JsValue source;
+  string name;
+  string typeName;
+  string value;
+  string state;
+  ObservableGraphNode[] dependencies;
+  ObservableGraphNode[] observers;
+
+  init(
+    JsValue source,
+    string name,
+    string typeName,
+    string value,
+    string state
+  ) {
+    this.source = source;
+    this.name = name;
+    this.typeName = typeName;
+    this.value = value;
+    this.state = state;
+    this.dependencies = [];
+    this.observers = [];
+  }
+
+  void addDependency(ObservableGraphNode dependency) {
+    if (this.dependencies.indexOf(dependency) < 0) {
+      this.dependencies.push(dependency);
+    }
+  }
+
+  void addObserver(ObservableGraphNode observer) {
+    if (this.observers.indexOf(observer) < 0) {
+      this.observers.push(observer);
+    }
+  }
+}
+
+string graphIndent(int level) {
+  string result = "";
+  int i = 0;
+  while (i < level) {
+    result = result + "\t\t";
+    i = i + 1;
+  }
+  return result;
+}
+
+string formatNodeWithDependencies(
+  ObservableGraphNode node,
+  int level,
+  JsValue[] listed
+) {
+  string indent = graphIndent(level);
+  if (listed.indexOf(node.source) >= 0) {
+    return indent + "* " + node.typeName + " " + node.name
+      + " (already listed)";
+  }
+  listed.push(node.source);
+  string result = indent + "* " + node.typeName + " " + node.name + ":\n";
+  result = result + indent + "  value: " + node.value + "\n";
+  result = result + indent + "  state: " + node.state;
+  if (node.dependencies.length > 0) {
+    result = result + "\n" + indent + "  dependencies:";
+    int i = 0;
+    while (i < node.dependencies.length) {
+      result = result + "\n"
+        + formatNodeWithDependencies(node.dependencies[i], level + 1, listed);
+      i = i + 1;
+    }
+  }
+  return result;
+}
+
+string formatNodeWithObservers(
+  ObservableGraphNode node,
+  int level,
+  JsValue[] listed
+) {
+  string indent = graphIndent(level);
+  if (listed.indexOf(node.source) >= 0) {
+    return indent + "* " + node.typeName + " " + node.name
+      + " (already listed)";
+  }
+  listed.push(node.source);
+  string result = indent + "* " + node.typeName + " " + node.name + ":\n";
+  result = result + indent + "  value: " + node.value + "\n";
+  result = result + indent + "  state: " + node.state;
+  if (node.observers.length > 0) {
+    result = result + "\n" + indent + "  observers:";
+    int i = 0;
+    while (i < node.observers.length) {
+      result = result + "\n"
+        + formatNodeWithObservers(node.observers[i], level + 1, listed);
+      i = i + 1;
+    }
+  }
+  return result;
+}
+
+export string debugGetObservableGraph(
+  ObservableGraphNode root,
+  string direction
+) {
+  JsValue[] listed = [];
+  if (direction == "observers") {
+    return formatNodeWithObservers(root, 0, listed);
+  }
+  return formatNodeWithDependencies(root, 0, listed);
+}
+
+export ObservableGraphNode createObservableGraphNode(
+  JsValue source,
+  string name,
+  string typeName,
+  string value,
+  string state
+) {
+  return new ObservableGraphNode(source, name, typeName, value, state);
+}

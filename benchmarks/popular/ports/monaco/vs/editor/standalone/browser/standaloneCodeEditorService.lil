@@ -1,0 +1,43 @@
+export class StandaloneCodeEditorService {
+  string[] editorIds;
+  string activeId;
+
+  init() {
+    this.editorIds = [];
+    this.activeId = "";
+  }
+
+  void add(string id) {
+    if (!this.editorIds.includes(id)) {
+      this.editorIds.push(id);
+    }
+    this.activeId = id;
+  }
+
+  void remove(string id) {
+    string[] next = [];
+    int i = 0;
+    while (i < this.editorIds.length) {
+      if (this.editorIds[i] != id) {
+        next.push(this.editorIds[i]);
+      }
+      i = i + 1;
+    }
+    this.editorIds = next;
+    if (this.activeId == id) {
+      if (next.length > 0) {
+        this.activeId = next[next.length - 1];
+      } else {
+        this.activeId = "";
+      }
+    }
+  }
+
+  string[] listCodeEditors() {
+    return this.editorIds;
+  }
+}
+
+export StandaloneCodeEditorService createStandaloneCodeEditorService() {
+  return new StandaloneCodeEditorService();
+}

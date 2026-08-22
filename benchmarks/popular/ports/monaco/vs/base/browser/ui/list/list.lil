@@ -1,0 +1,19 @@
+export string NOT_SELECTABLE_GROUP_ID = "notSelectable";
+
+export class ListError {
+  string user;
+  string message;
+
+  init(string user, string message) {
+    this.user = user;
+    this.message = message;
+  }
+
+  string toString() {
+    return "ListError [" + this.user + "] " + this.message;
+  }
+}
+
+export ListError createListError(string user, string message) {
+  return new ListError(user, message);
+}

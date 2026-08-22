@@ -1,0 +1,59 @@
+import { hostCall, jsUndefined, sliceOf } from "../../../../js-host";
+import { getIndentationAtPosition } from "./languageConfigurationRegistry";
+
+export JsValue getEnterAction(
+  int autoIndent,
+  JsValue model,
+  JsValue range,
+  JsValue languageConfigurationService
+) {
+  int lineNumber = JS.number(range["startLineNumber"]).toInt();
+  int startColumn = JS.number(range["startColumn"]).toInt();
+  int endColumn = JS.number(range["endColumn"]).toInt();
+  string languageId = JS.string(hostCall(model, "getLanguageIdAtPosition", lineNumber, startColumn, jsUndefined()));
+  JsValue configuration = hostCall(
+    languageConfigurationService,
+    "getLanguageConfiguration",
+    languageId,
+    jsUndefined(),
+    jsUndefined()
+  );
+  if (configuration == null) {
+    return null;
+  }
+  string line = JS.string(hostCall(model, "getLineContent", lineNumber, jsUndefined(), jsUndefined()));
+  string previous = "";
+  if (lineNumber > 1) {
+    previous = JS.string(hostCall(model, "getLineContent", lineNumber - 1, jsUndefined(), jsUndefined()));
+  }
+  string before = sliceOf(line, 0, startColumn - 1);
+  string after = sliceOf(line, endColumn - 1, line.length);
+  JsValue enterResult = JS.invoke(configuration, "onEnter", autoIndent, previous, before, after);
+  if (enterResult == null) {
+    return null;
+  }
+  int indentAction = JS.number(enterResult["indentAction"]).toInt();
+  string appendText = "";
+  if (enterResult["appendText"] != null) {
+    appendText = JS.string(enterResult["appendText"]);
+  } else if (indentAction == 1 || indentAction == 2) {
+    appendText = "\t";
+  }
+  if (enterResult["appendText"] != null && indentAction == 1) {
+    appendText = "\t" + appendText;
+  }
+  int removeText = 0;
+  if (enterResult["removeText"] != null) {
+    removeText = JS.number(enterResult["removeText"]).toInt();
+  }
+  string indentation = getIndentationAtPosition(model, lineNumber, startColumn);
+  if (removeText > 0 && removeText <= indentation.length) {
+    indentation = sliceOf(indentation, 0, indentation.length - removeText);
+  }
+  JsValue result = JS.object();
+  result["indentAction"] = indentAction;
+  result["appendText"] = appendText;
+  result["removeText"] = removeText;
+  result["indentation"] = indentation;
+  return result;
+}

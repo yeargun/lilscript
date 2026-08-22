@@ -1,0 +1,32 @@
+import { throwError } from "../../../js-host";
+
+int lazyUninitialized = 0;
+int lazyRunning = 1;
+int lazyCompleted = 2;
+
+export class LazyString {
+  int state;
+  string stored;
+  func()->string executor;
+
+  init(func()->string executor) {
+    this.executor = executor;
+    this.state = lazyUninitialized;
+    this.stored = "";
+  }
+
+  string value() {
+    if (this.state == lazyUninitialized) {
+      this.state = lazyRunning;
+      this.stored = this.executor();
+      this.state = lazyCompleted;
+    } else if (this.state == lazyRunning) {
+      throwError("Cannot read the value of a lazy that is being initialized");
+    }
+    return this.stored;
+  }
+
+  string rawValue() {
+    return this.stored;
+  }
+}

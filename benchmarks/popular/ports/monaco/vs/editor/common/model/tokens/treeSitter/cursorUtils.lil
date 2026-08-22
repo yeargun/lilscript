@@ -1,0 +1,156 @@
+export class CursorNode {
+  int id;
+  int startIndex;
+  int endIndex;
+  CursorNode? parent;
+  CursorNode[] children;
+
+  init(int id, int startIndex, int endIndex) {
+    this.id = id;
+    this.startIndex = startIndex;
+    this.endIndex = endIndex;
+    this.parent = null;
+    this.children = [];
+  }
+
+  void appendChild(CursorNode child) {
+    child.parent = this;
+    this.children.push(child);
+  }
+}
+
+export class TreeCursor {
+  CursorNode currentNode;
+
+  init(CursorNode currentNode) {
+    this.currentNode = currentNode;
+  }
+
+  bool gotoFirstChild() {
+    if (this.currentNode.children.length == 0) {
+      return false;
+    }
+    this.currentNode = this.currentNode.children[0];
+    return true;
+  }
+
+  bool gotoNextSibling() {
+    CursorNode? parent = this.currentNode.parent;
+    if (parent == null) {
+      return false;
+    }
+    int index = parent.children.indexOf(this.currentNode);
+    if (index < 0 || index + 1 >= parent.children.length) {
+      return false;
+    }
+    this.currentNode = parent.children[index + 1];
+    return true;
+  }
+
+  bool gotoPreviousSibling() {
+    CursorNode? parent = this.currentNode.parent;
+    if (parent == null) {
+      return false;
+    }
+    int index = parent.children.indexOf(this.currentNode);
+    if (index <= 0) {
+      return false;
+    }
+    this.currentNode = parent.children[index - 1];
+    return true;
+  }
+
+  bool gotoParent() {
+    CursorNode? parent = this.currentNode.parent;
+    if (parent == null) {
+      return false;
+    }
+    this.currentNode = parent;
+    return true;
+  }
+
+  void resetTo(TreeCursor cursor) {
+    this.currentNode = cursor.currentNode;
+  }
+}
+
+export bool gotoNextSibling(TreeCursor newCursor, TreeCursor oldCursor) {
+  bool nextNew = newCursor.gotoNextSibling();
+  bool nextOld = oldCursor.gotoNextSibling();
+  return nextNew && nextOld && nextNew == nextOld;
+}
+
+export bool gotoParent(TreeCursor newCursor, TreeCursor oldCursor) {
+  bool nextNew = newCursor.gotoParent();
+  bool nextOld = oldCursor.gotoParent();
+  return nextNew && nextOld && nextNew == nextOld;
+}
+
+export bool gotoNthChild(TreeCursor newCursor, TreeCursor oldCursor, int index) {
+  bool nextNew = newCursor.gotoFirstChild();
+  bool nextOld = oldCursor.gotoFirstChild();
+  if (!nextNew || !nextOld || nextNew != nextOld) {
+    return false;
+  }
+  int i = 0;
+  while (i < index) {
+    nextNew = newCursor.gotoNextSibling();
+    nextOld = oldCursor.gotoNextSibling();
+    if (!nextNew || !nextOld || nextNew != nextOld) {
+      return false;
+    }
+    i = i + 1;
+  }
+  return true;
+}
+
+export bool nextSiblingOrParentSibling(TreeCursor newCursor, TreeCursor oldCursor) {
+  bool searching = true;
+  while (searching) {
+    CursorNode? parent = newCursor.currentNode.parent;
+    if (parent != null) {
+      int index = parent.children.indexOf(newCursor.currentNode);
+      if (index + 1 < parent.children.length) {
+        return gotoNextSibling(newCursor, oldCursor);
+      }
+      if (!gotoParent(newCursor, oldCursor)) {
+        return false;
+      }
+    } else {
+      searching = false;
+    }
+  }
+  return false;
+}
+
+export CursorNode? getClosestPreviousNodes(TreeCursor cursor, CursorNode treeRoot) {
+  TreeCursor previous = new TreeCursor(cursor.currentNode);
+  CursorNode startingNode = cursor.currentNode;
+  bool searching = true;
+  while (searching) {
+    if (previous.gotoPreviousSibling()) {
+      while (previous.currentNode.children.length > 0) {
+        previous.currentNode =
+          previous.currentNode.children[previous.currentNode.children.length - 1];
+      }
+      searching = false;
+    } else if (!previous.gotoParent()) {
+      searching = false;
+    }
+  }
+  if (
+    previous.currentNode.id != startingNode.id
+    && previous.currentNode.endIndex <= startingNode.startIndex
+  ) {
+    return previous.currentNode;
+  }
+  return null;
+}
+
+export CursorNode createCursorNode(int id, int startIndex, int endIndex) {
+  return new CursorNode(id, startIndex, endIndex);
+}
+
+export TreeCursor createTreeCursor(CursorNode node) {
+  return new TreeCursor(node);
+}

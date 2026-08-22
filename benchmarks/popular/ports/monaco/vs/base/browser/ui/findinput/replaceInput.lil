@@ -1,0 +1,159 @@
+import { domCreateElement, appendChild, setClassName, classListAdd, classListRemove, setAttribute, addEventListener, preventDefault, eventKeyCode, focusElement } from "../../../../../js-host";
+
+export class PreserveCaseToggle {
+  JsValue domNode;
+  bool checked;
+  (func(bool)->void)[] changeListeners;
+
+  init(string appendTitle, bool isChecked) {
+    this.checked = isChecked;
+    this.changeListeners = [];
+    this.domNode = domCreateElement("div");
+    setClassName(this.domNode, "monaco-custom-toggle");
+    classListAdd(this.domNode, "codicon");
+    classListAdd(this.domNode, "codicon-preserve-case");
+    setAttribute(this.domNode, "role", "checkbox");
+    setAttribute(this.domNode, "title", "Preserve Case" + appendTitle);
+    if (isChecked) {
+      classListAdd(this.domNode, "checked");
+    }
+    PreserveCaseToggle owner = this;
+    addEventListener(this.domNode, "click", (JsValue event) => {
+      owner.setChecked(!owner.checked);
+      int i = 0;
+      while (i < owner.changeListeners.length) {
+        owner.changeListeners[i](false);
+        i = i + 1;
+      }
+    }, false);
+    addEventListener(this.domNode, "keydown", (JsValue event) => {
+      int key = eventKeyCode(event);
+      if (key == 13 || key == 32) {
+        owner.setChecked(!owner.checked);
+        int i = 0;
+        while (i < owner.changeListeners.length) {
+          owner.changeListeners[i](true);
+          i = i + 1;
+        }
+        preventDefault(event);
+      }
+    }, false);
+  }
+
+  void setChecked(bool value) {
+    this.checked = value;
+    if (value) {
+      classListAdd(this.domNode, "checked");
+    } else {
+      classListRemove(this.domNode, "checked");
+    }
+  }
+
+  func()->void onChange(func(bool)->void listener) {
+    this.changeListeners.push(listener);
+    return () => {};
+  }
+}
+
+export class ReplaceInput {
+  JsValue domNode;
+  JsValue input;
+  PreserveCaseToggle preserveCase;
+  bool showPreserveCase;
+  bool fixFocusOnOptionClickEnabled;
+  (func(bool)->void)[] optionChangeListeners;
+  (func(JsValue)->void)[] keyDownListeners;
+  (func(JsValue)->void)[] mouseDownListeners;
+  (func(JsValue)->void)[] preserveCaseKeyDownListeners;
+
+  init(JsValue parent, string placeholder, string label, bool showPreserveCase) {
+    this.showPreserveCase = showPreserveCase;
+    this.fixFocusOnOptionClickEnabled = true;
+    this.optionChangeListeners = [];
+    this.keyDownListeners = [];
+    this.mouseDownListeners = [];
+    this.preserveCaseKeyDownListeners = [];
+    this.domNode = domCreateElement("div");
+    setClassName(this.domNode, "monaco-findInput");
+    this.input = domCreateElement("input");
+    setAttribute(this.input, "type", "text");
+    classListAdd(this.input, "input");
+    if (placeholder.length > 0) {
+      setAttribute(this.input, "placeholder", placeholder);
+    }
+    if (label.length > 0) {
+      setAttribute(this.input, "aria-label", label);
+    }
+    appendChild(this.domNode, this.input);
+    this.preserveCase = new PreserveCaseToggle("", false);
+    if (showPreserveCase) {
+      appendChild(this.domNode, this.preserveCase.domNode);
+    }
+    ReplaceInput owner = this;
+    this.preserveCase.onChange((bool viaKeyboard) => {
+      int i = 0;
+      while (i < owner.optionChangeListeners.length) {
+        owner.optionChangeListeners[i](viaKeyboard);
+        i = i + 1;
+      }
+      if (!viaKeyboard && owner.fixFocusOnOptionClickEnabled) {
+        focusElement(owner.input);
+      }
+    });
+    addEventListener(this.domNode, "keydown", (JsValue event) => {
+      int i = 0;
+      while (i < owner.keyDownListeners.length) {
+        owner.keyDownListeners[i](event);
+        i = i + 1;
+      }
+    }, false);
+    addEventListener(this.domNode, "mousedown", (JsValue event) => {
+      int i = 0;
+      while (i < owner.mouseDownListeners.length) {
+        owner.mouseDownListeners[i](event);
+        i = i + 1;
+      }
+    }, false);
+    if (parent.truthy()) {
+      appendChild(parent, this.domNode);
+    }
+  }
+
+  string getValue() {
+    JsValue v = this.input["value"];
+    if (v is string) {
+      string s = v;
+      return s;
+    }
+    return "";
+  }
+
+  void setValue(string value) {
+    this.input["value"] = value;
+  }
+
+  bool getPreserveCase() {
+    return this.preserveCase.checked;
+  }
+
+  void setPreserveCase(bool value) {
+    this.preserveCase.setChecked(value);
+  }
+
+  void focus() {
+    focusElement(this.input);
+  }
+
+  func()->void onDidOptionChange(func(bool)->void listener) {
+    this.optionChangeListeners.push(listener);
+    return () => {};
+  }
+}
+
+export ReplaceInput createReplaceInput(JsValue parent, string placeholder = "", string label = "input", bool showPreserveCase = true) {
+  return new ReplaceInput(parent, placeholder, label, showPreserveCase);
+}
+
+export PreserveCaseToggle createPreserveCaseToggle(string appendTitle, bool isChecked) {
+  return new PreserveCaseToggle(appendTitle, isChecked);
+}

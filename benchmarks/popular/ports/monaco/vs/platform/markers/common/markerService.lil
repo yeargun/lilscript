@@ -1,0 +1,76 @@
+export class Marker {
+  string resource;
+  string owner;
+  string message;
+  int severity;
+
+  init(string resource, string owner, string message, int severity) {
+    this.resource = resource;
+    this.owner = owner;
+    this.message = message;
+    this.severity = severity;
+  }
+}
+
+export class MarkerService {
+  Marker[] markers;
+
+  init() {
+    this.markers = [];
+  }
+
+  void changeOne(string resource, string owner, Marker[] next) {
+    Marker[] kept = [];
+    int i = 0;
+    while (i < this.markers.length) {
+      Marker m = this.markers[i];
+      if (!(m.resource == resource && m.owner == owner)) {
+        kept.push(m);
+      }
+      i = i + 1;
+    }
+    int n = 0;
+    while (n < next.length) {
+      kept.push(next[n]);
+      n = n + 1;
+    }
+    this.markers = kept;
+  }
+
+  void changeAll(string owner, Marker[] next) {
+    Marker[] kept = [];
+    int i = 0;
+    while (i < this.markers.length) {
+      if (this.markers[i].owner != owner) {
+        kept.push(this.markers[i]);
+      }
+      i = i + 1;
+    }
+    int n = 0;
+    while (n < next.length) {
+      kept.push(next[n]);
+      n = n + 1;
+    }
+    this.markers = kept;
+  }
+
+  Marker[] read(string resource) {
+    Marker[] out = [];
+    int i = 0;
+    while (i < this.markers.length) {
+      if (resource.length == 0 || this.markers[i].resource == resource) {
+        out.push(this.markers[i]);
+      }
+      i = i + 1;
+    }
+    return out;
+  }
+}
+
+export MarkerService createMarkerService() {
+  return new MarkerService();
+}
+
+export Marker createMarker(string resource, string owner, string message, int severity) {
+  return new Marker(resource, owner, message, severity);
+}

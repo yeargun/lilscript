@@ -1,0 +1,104 @@
+export int HOVER_IDLE = 0;
+export int HOVER_FIRST_WAIT = 1;
+export int HOVER_SECOND_WAIT = 2;
+export int HOVER_WAITING_ASYNC = 3;
+export int HOVER_LOADING = 4;
+export int HOVER_DELAYED = 0;
+export int HOVER_IMMEDIATE = 1;
+
+export class HoverResult {
+  string[] values;
+  bool isComplete;
+  bool hasLoadingMessage;
+  int delay;
+
+  init(string[] values, bool isComplete, bool hasLoadingMessage, int delay) {
+    this.values = values;
+    this.isComplete = isComplete;
+    this.hasLoadingMessage = hasLoadingMessage;
+    this.delay = delay;
+  }
+}
+
+export class HoverOperation {
+  int state;
+  int hoverTime;
+  string[] result;
+  bool asyncDone;
+
+  init(int hoverTime) {
+    this.state = HOVER_IDLE;
+    this.hoverTime = hoverTime;
+    this.result = [];
+    this.asyncDone = true;
+  }
+
+  int firstWaitTime() {
+    return this.hoverTime / 2;
+  }
+
+  int secondWaitTime() {
+    return this.hoverTime - this.firstWaitTime();
+  }
+
+  int loadingMessageTime() {
+    return this.hoverTime * 3;
+  }
+
+  void start(int mode) {
+    if (mode == HOVER_DELAYED) {
+      if (this.state == HOVER_IDLE) {
+        this.state = HOVER_FIRST_WAIT;
+      }
+      return;
+    }
+    this.triggerAsync();
+    this.triggerSync();
+  }
+
+  void triggerAsync() {
+    this.state = HOVER_SECOND_WAIT;
+    this.asyncDone = false;
+  }
+
+  void addAsync(string item) {
+    if (item.length > 0) {
+      this.result.push(item);
+    }
+    this.asyncDone = true;
+    if (this.state == HOVER_WAITING_ASYNC || this.state == HOVER_LOADING) {
+      this.state = HOVER_IDLE;
+    }
+  }
+
+  void triggerSync() {
+    if (this.asyncDone) {
+      this.state = HOVER_IDLE;
+    } else {
+      this.state = HOVER_WAITING_ASYNC;
+    }
+  }
+
+  void triggerLoading() {
+    if (this.state == HOVER_WAITING_ASYNC) {
+      this.state = HOVER_LOADING;
+    }
+  }
+
+  HoverResult? fireResult() {
+    if (this.state == HOVER_FIRST_WAIT || this.state == HOVER_SECOND_WAIT) {
+      return null;
+    }
+    return new HoverResult(this.result, this.state == HOVER_IDLE, this.state == HOVER_LOADING, this.hoverTime);
+  }
+
+  void cancel() {
+    this.result = [];
+    this.state = HOVER_IDLE;
+    this.asyncDone = true;
+  }
+}
+
+export HoverOperation createHoverOperation(int hoverTime) {
+  return new HoverOperation(hoverTime);
+}

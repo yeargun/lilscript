@@ -1,0 +1,244 @@
+import { dateNow, windowSelf, jsArrayLen, jsArrayAt, preventDefault, stopPropagation, hostCall, jsUndefined } from "../../../js-host";
+
+export string EventTypeTap = "-monaco-gesturetap";
+export string EventTypeChange = "-monaco-gesturechange";
+export string EventTypeStart = "-monaco-gesturestart";
+export string EventTypeEnd = "-monaco-gesturesend";
+export string EventTypeContextmenu = "-monaco-gesturecontextmenu";
+
+float touchNumber(JsValue touch, string name) {
+  JsValue value = touch[name];
+  if (value is float) {
+    float n = value;
+    return n;
+  }
+  return 0.0;
+}
+
+export class TouchData {
+  int id;
+  JsValue initialTarget;
+  float initialTimeStamp;
+  float initialPageX;
+  float initialPageY;
+  float[] rollingTimestamps;
+  float[] rollingPageX;
+  float[] rollingPageY;
+
+  init(int id, JsValue target, float timestamp, float pageX, float pageY) {
+    this.id = id;
+    this.initialTarget = target;
+    this.initialTimeStamp = timestamp;
+    this.initialPageX = pageX;
+    this.initialPageY = pageY;
+    this.rollingTimestamps = [timestamp];
+    this.rollingPageX = [pageX];
+    this.rollingPageY = [pageY];
+  }
+
+  void push(float timestamp, float pageX, float pageY) {
+    if (this.rollingPageX.length > 3) {
+      this.rollingPageX.splice(0, 1);
+      this.rollingPageY.splice(0, 1);
+      this.rollingTimestamps.splice(0, 1);
+    }
+    this.rollingTimestamps.push(timestamp);
+    this.rollingPageX.push(pageX);
+    this.rollingPageY.push(pageY);
+  }
+}
+
+export class Gesture {
+  JsValue[] targets;
+  JsValue[] ignoreTargets;
+  Map<int, TouchData> activeTouches;
+  bool dispatched;
+  float lastSetTapCountTime;
+
+  init() {
+    this.targets = [];
+    this.ignoreTargets = [];
+    this.activeTouches = new Map<int, TouchData>();
+    this.dispatched = false;
+    this.lastSetTapCountTime = 0.0;
+  }
+
+  func()->void addTarget(JsValue element) {
+    this.targets.push(element);
+    Gesture owner = this;
+    return () => {
+      int index = owner.targets.indexOf(element);
+      if (index >= 0) {
+        owner.targets.splice(index, 1);
+      }
+    };
+  }
+
+  func()->void ignoreTarget(JsValue element) {
+    this.ignoreTargets.push(element);
+    Gesture owner = this;
+    return () => {
+      int index = owner.ignoreTargets.indexOf(element);
+      if (index >= 0) {
+        owner.ignoreTargets.splice(index, 1);
+      }
+    };
+  }
+
+  bool isTouchDevice() {
+    JsValue root = windowSelf();
+    if (root["ontouchstart"].truthy()) {
+      return true;
+    }
+    JsValue points = root["navigator"]["maxTouchPoints"];
+    if (points is float) {
+      float count = points;
+      return count > 0.0;
+    }
+    return false;
+  }
+
+  JsValue newGestureEvent(string eventType, JsValue initialTarget) {
+    JsValue event = JS.object();
+    event["type"] = eventType;
+    event["initialTarget"] = initialTarget;
+    event["tapCount"] = 0;
+    return event;
+  }
+
+  bool contains(JsValue container, JsValue target) {
+    JsValue missing = jsUndefined();
+    return hostCall(container, "contains", target, missing, missing).truthy();
+  }
+
+  void dispatchEvent(JsValue event) {
+    JsValue initialTarget = event["initialTarget"];
+    int i = 0;
+    while (i < this.ignoreTargets.length) {
+      if (this.contains(this.ignoreTargets[i], initialTarget)) {
+        return;
+      }
+      i = i + 1;
+    }
+    string eventType = "";
+    JsValue rawType = event["type"];
+    if (rawType is string) {
+      eventType = rawType;
+    }
+    if (eventType == EventTypeTap) {
+      float now = dateNow();
+      int tapCount = 2;
+      if (now - this.lastSetTapCountTime > 400.0) {
+        tapCount = 1;
+      }
+      event["tapCount"] = tapCount;
+      this.lastSetTapCountTime = now;
+    } else if (eventType == EventTypeChange || eventType == EventTypeContextmenu) {
+      this.lastSetTapCountTime = 0.0;
+    }
+    i = 0;
+    while (i < this.targets.length) {
+      JsValue target = this.targets[i];
+      if (this.contains(target, initialTarget)) {
+        JsValue missing = jsUndefined();
+        hostCall(target, "dispatchEvent", event, missing, missing);
+        this.dispatched = true;
+      }
+      i = i + 1;
+    }
+  }
+
+  void onTouchStart(JsValue event) {
+    float timestamp = dateNow();
+    JsValue touches = event["targetTouches"];
+    int i = 0;
+    while (i < jsArrayLen(touches)) {
+      JsValue touch = jsArrayAt(touches, i);
+      int id = touchNumber(touch, "identifier").toInt();
+      float pageX = touchNumber(touch, "pageX");
+      float pageY = touchNumber(touch, "pageY");
+      JsValue target = touch["target"];
+      this.activeTouches.set(id, new TouchData(id, target, timestamp, pageX, pageY));
+      JsValue gestureEvent = this.newGestureEvent(EventTypeStart, target);
+      gestureEvent["pageX"] = pageX;
+      gestureEvent["pageY"] = pageY;
+      this.dispatchEvent(gestureEvent);
+      i = i + 1;
+    }
+    this.consumeIfDispatched(event);
+  }
+
+  void onTouchMove(JsValue event) {
+    float timestamp = dateNow();
+    JsValue touches = event["changedTouches"];
+    int i = 0;
+    while (i < jsArrayLen(touches)) {
+      JsValue touch = jsArrayAt(touches, i);
+      int id = touchNumber(touch, "identifier").toInt();
+      TouchData? data = this.activeTouches.get(id);
+      if (data != null) {
+        float pageX = touchNumber(touch, "pageX");
+        float pageY = touchNumber(touch, "pageY");
+        JsValue gestureEvent = this.newGestureEvent(EventTypeChange, data.initialTarget);
+        gestureEvent["translationX"] = pageX - data.rollingPageX[data.rollingPageX.length - 1];
+        gestureEvent["translationY"] = pageY - data.rollingPageY[data.rollingPageY.length - 1];
+        gestureEvent["pageX"] = pageX;
+        gestureEvent["pageY"] = pageY;
+        this.dispatchEvent(gestureEvent);
+        data.push(timestamp, pageX, pageY);
+      }
+      i = i + 1;
+    }
+    this.consumeIfDispatched(event);
+  }
+
+  void onTouchEnd(JsValue event) {
+    float timestamp = dateNow();
+    JsValue touches = event["changedTouches"];
+    int i = 0;
+    while (i < jsArrayLen(touches)) {
+      JsValue touch = jsArrayAt(touches, i);
+      int id = touchNumber(touch, "identifier").toInt();
+      TouchData? data = this.activeTouches.get(id);
+      if (data != null) {
+        float finalX = data.rollingPageX[data.rollingPageX.length - 1];
+        float finalY = data.rollingPageY[data.rollingPageY.length - 1];
+        float holdTime = timestamp - data.initialTimeStamp;
+        float distanceX = (data.initialPageX - finalX).abs();
+        float distanceY = (data.initialPageY - finalY).abs();
+        if (distanceX < 30.0 && distanceY < 30.0) {
+          string eventType = EventTypeTap;
+          if (holdTime >= 700.0) {
+            eventType = EventTypeContextmenu;
+          }
+          JsValue gestureEvent = this.newGestureEvent(eventType, data.initialTarget);
+          gestureEvent["pageX"] = finalX;
+          gestureEvent["pageY"] = finalY;
+          this.dispatchEvent(gestureEvent);
+        }
+        this.dispatchEvent(this.newGestureEvent(EventTypeEnd, data.initialTarget));
+        this.activeTouches.delete(id);
+      }
+      i = i + 1;
+    }
+    this.consumeIfDispatched(event);
+  }
+
+  void consumeIfDispatched(JsValue event) {
+    if (this.dispatched) {
+      preventDefault(event);
+      stopPropagation(event);
+      this.dispatched = false;
+    }
+  }
+
+  void dispose() {
+    this.targets = [];
+    this.ignoreTargets = [];
+    this.activeTouches.clear();
+  }
+}
+
+export Gesture createGesture() {
+  return new Gesture();
+}

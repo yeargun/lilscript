@@ -1,0 +1,29 @@
+export class ActionViewItemService {
+  string[] ids;
+  string[] kinds;
+
+  init() {
+    this.ids = [];
+    this.kinds = [];
+  }
+
+  void register(string id, string kind) {
+    this.ids.push(id);
+    this.kinds.push(kind);
+  }
+
+  string lookup(string id) {
+    int i = 0;
+    while (i < this.ids.length) {
+      if (this.ids[i] == id) {
+        return this.kinds[i];
+      }
+      i = i + 1;
+    }
+    return "";
+  }
+}
+
+export ActionViewItemService createActionViewItemService() {
+  return new ActionViewItemService();
+}

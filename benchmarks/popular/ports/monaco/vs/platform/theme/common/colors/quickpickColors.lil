@@ -1,0 +1,54 @@
+export class QuickpickColorsRegistry {
+  string[] ids;
+
+  init() {
+    this.ids = [];
+  }
+
+  string register(string id) {
+    if (!this.ids.includes(id)) {
+      this.ids.push(id);
+    }
+    return id;
+  }
+
+  bool has(string id) {
+    return this.ids.includes(id);
+  }
+
+  string asCssVariableName(string id) {
+    string out = "--vscode-";
+    int i = 0;
+    while (i < id.length) {
+      string ch = id.charAt(i);
+      if (ch == ".") {
+        out = out + "-";
+      } else {
+        out = out + ch;
+      }
+      i = i + 1;
+    }
+    return out;
+  }
+}
+
+QuickpickColorsRegistry colors = new QuickpickColorsRegistry();
+
+export QuickpickColorsRegistry getQuickpickColorsRegistry() {
+  return colors;
+}
+
+export string c0 = colors.register("quickInput.background");
+export string c1 = colors.register("quickInput.foreground");
+export string c2 = colors.register("quickInputTitle.background");
+export string c3 = colors.register("pickerGroup.foreground");
+export string c4 = colors.register("pickerGroup.border");
+export string c5 = colors.register("quickInput.list.focusBackground");
+export string c6 = colors.register("quickInputList.focusForeground");
+export string c7 = colors.register("quickInputList.focusIconForeground");
+export string c8 = colors.register("quickInputList.focusBackground");
+export string c9 = colors.register("quickInputList.focusHighlightForeground");
+
+export string[] colorIds() {
+  return colors.ids;
+}

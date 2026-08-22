@@ -1,0 +1,19 @@
+export class SyncDescriptor {
+  string ctorId;
+  string[] staticArguments;
+  bool supportsDelayedInstantiation;
+
+  init(string ctorId, bool supportsDelayedInstantiation = false) {
+    this.ctorId = ctorId;
+    this.staticArguments = [];
+    this.supportsDelayedInstantiation = supportsDelayedInstantiation;
+  }
+
+  void addStaticArgument(string value) {
+    this.staticArguments.push(value);
+  }
+}
+
+export SyncDescriptor createSyncDescriptor(string ctorId, bool delayed = false) {
+  return new SyncDescriptor(ctorId, delayed);
+}

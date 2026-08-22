@@ -1,0 +1,42 @@
+import { hostCall, jsUndefined, windowSelf } from "../../../../js-host";
+
+bool webWorkerInitialized = false;
+JsValue currentWebWorkerServer = JS.object();
+
+export JsValue initialize(func(JsValue)->JsValue factory) {
+  if (webWorkerInitialized) {
+    throw "WebWorker already initialized!";
+  }
+  webWorkerInitialized = true;
+  JsValue server = JS.object();
+  JsValue handler = factory(server);
+  server["handler"] = handler;
+  server["onmessage"] = (JsValue message) => {
+    hostCall(handler, "onmessage", message, jsUndefined(), jsUndefined());
+  };
+  server["postMessage"] = (JsValue message) => {
+    hostCall(windowSelf(), "postMessage", message, jsUndefined(), jsUndefined());
+  };
+  currentWebWorkerServer = server;
+  windowSelf()["onmessage"] = (JsValue event) => {
+    JsValue message = event["data"];
+    hostCall(server, "onmessage", message, jsUndefined(), jsUndefined());
+  };
+  return server;
+}
+
+export void bootstrapWebWorker(func(JsValue)->JsValue factory) {
+  windowSelf()["onmessage"] = (JsValue event) => {
+    if (!webWorkerInitialized) {
+      initialize(factory);
+    }
+  };
+}
+
+export bool isWebWorkerInitialized() {
+  return webWorkerInitialized;
+}
+
+export JsValue getWebWorkerServer() {
+  return currentWebWorkerServer;
+}

@@ -1,0 +1,55 @@
+export class DomReadingContext {
+  float clientRectDeltaLeft;
+  float clientRectScale;
+  bool didDomLayout;
+  bool clientRectRead;
+  float rectLeft;
+  float rectWidth;
+  float offsetWidth;
+
+  init(float rectLeft, float rectWidth, float offsetWidth) {
+    this.clientRectDeltaLeft = 0.0;
+    this.clientRectScale = 1.0;
+    this.didDomLayout = false;
+    this.clientRectRead = false;
+    this.rectLeft = rectLeft;
+    this.rectWidth = rectWidth;
+    this.offsetWidth = offsetWidth;
+  }
+
+  void markDidDomLayout() {
+    this.didDomLayout = true;
+  }
+
+  void readClientRect() {
+    if (this.clientRectRead) {
+      return;
+    }
+    this.clientRectRead = true;
+    this.markDidDomLayout();
+    this.clientRectDeltaLeft = this.rectLeft;
+    if (this.offsetWidth > 0.0) {
+      this.clientRectScale = this.rectWidth / this.offsetWidth;
+    } else {
+      this.clientRectScale = 1.0;
+    }
+  }
+
+  float getClientRectDeltaLeft() {
+    if (!this.clientRectRead) {
+      this.readClientRect();
+    }
+    return this.clientRectDeltaLeft;
+  }
+
+  float getClientRectScale() {
+    if (!this.clientRectRead) {
+      this.readClientRect();
+    }
+    return this.clientRectScale;
+  }
+}
+
+export DomReadingContext createDomReadingContext(float rectLeft, float rectWidth, float offsetWidth) {
+  return new DomReadingContext(rectLeft, rectWidth, offsetWidth);
+}

@@ -1,0 +1,153 @@
+string twoDecimals(float value) {
+  int scaled = (value * 100.0 + 0.5).floor().toInt();
+  int whole = scaled / 100;
+  int frac = scaled - whole * 100;
+  string fracText = frac.toString();
+  if (frac < 10) {
+    fracText = "0" + fracText;
+  }
+  return whole.toString() + "." + fracText;
+}
+
+export class DecorationStyleSet {
+  int id;
+  int color;
+  bool hasColor;
+  bool bold;
+  bool hasBold;
+  float opacity;
+  bool hasOpacity;
+  bool strikethrough;
+  float strikethroughThickness;
+  bool hasThickness;
+  int strikethroughColor;
+  bool hasStrikethroughColor;
+
+  init(int id) {
+    this.id = id;
+    this.color = 0;
+    this.hasColor = false;
+    this.bold = false;
+    this.hasBold = false;
+    this.opacity = 1.0;
+    this.hasOpacity = false;
+    this.strikethrough = false;
+    this.strikethroughThickness = 1.0;
+    this.hasThickness = false;
+    this.strikethroughColor = 0;
+    this.hasStrikethroughColor = false;
+  }
+}
+
+export class StyleKey {
+  int color;
+  int bold;
+  string opacity;
+  int strikethrough;
+  string thickness;
+  int strikethroughColor;
+  int id;
+
+  init(int color, int bold, string opacity, int strikethrough, string thickness, int strikethroughColor, int id) {
+    this.color = color;
+    this.bold = bold;
+    this.opacity = opacity;
+    this.strikethrough = strikethrough;
+    this.thickness = thickness;
+    this.strikethroughColor = strikethroughColor;
+    this.id = id;
+  }
+}
+
+export class DecorationStyleCache {
+  int nextId;
+  DecorationStyleSet[] cacheById;
+  StyleKey[] cacheByStyle;
+
+  init() {
+    this.nextId = 1;
+    this.cacheById = [];
+    this.cacheByStyle = [];
+  }
+
+  StyleKey? findStyle(int color, int bold, string opacity, int strikethrough, string thickness, int strikethroughColor) {
+    int i = 0;
+    while (i < this.cacheByStyle.length) {
+      StyleKey key = this.cacheByStyle[i];
+      if (key.color == color && key.bold == bold && key.opacity == opacity && key.strikethrough == strikethrough && key.thickness == thickness && key.strikethroughColor == strikethroughColor) {
+        return key;
+      }
+      i = i + 1;
+    }
+    return null;
+  }
+
+  int getOrCreateEntry(int color, bool hasColor, bool bold, bool hasBold, float opacity, bool hasOpacity, bool strikethrough, float strikethroughThickness, bool hasThickness, int strikethroughColor, bool hasStrikethroughColor) {
+    if (!hasColor && !hasBold && !hasOpacity && !strikethrough && !hasThickness && !hasStrikethroughColor) {
+      return 0;
+    }
+    int colorKey = 0;
+    if (hasColor) {
+      colorKey = color;
+    }
+    int boldKey = 0;
+    if (hasBold && bold) {
+      boldKey = 1;
+    }
+    string opacityKey = "";
+    if (hasOpacity) {
+      opacityKey = twoDecimals(opacity);
+    }
+    int strikeKey = 0;
+    if (strikethrough) {
+      strikeKey = 1;
+    }
+    string thicknessKey = "";
+    if (hasThickness) {
+      thicknessKey = twoDecimals(strikethroughThickness);
+    }
+    int strikeColorKey = 0;
+    if (hasStrikethroughColor) {
+      strikeColorKey = strikethroughColor;
+    }
+    StyleKey? existing = this.findStyle(colorKey, boldKey, opacityKey, strikeKey, thicknessKey, strikeColorKey);
+    if (existing != null) {
+      return existing.id;
+    }
+    int id = this.nextId;
+    this.nextId = this.nextId + 1;
+    DecorationStyleSet entry = new DecorationStyleSet(id);
+    entry.color = color;
+    entry.hasColor = hasColor;
+    entry.bold = bold;
+    entry.hasBold = hasBold;
+    entry.opacity = opacity;
+    entry.hasOpacity = hasOpacity;
+    entry.strikethrough = strikethrough;
+    entry.strikethroughThickness = strikethroughThickness;
+    entry.hasThickness = hasThickness;
+    entry.strikethroughColor = strikethroughColor;
+    entry.hasStrikethroughColor = hasStrikethroughColor;
+    this.cacheById.push(entry);
+    this.cacheByStyle.push(new StyleKey(colorKey, boldKey, opacityKey, strikeKey, thicknessKey, strikeColorKey, id));
+    return id;
+  }
+
+  DecorationStyleSet? getStyleSet(int id) {
+    if (id == 0) {
+      return null;
+    }
+    int i = 0;
+    while (i < this.cacheById.length) {
+      if (this.cacheById[i].id == id) {
+        return this.cacheById[i];
+      }
+      i = i + 1;
+    }
+    return null;
+  }
+}
+
+export DecorationStyleCache createDecorationStyleCache() {
+  return new DecorationStyleCache();
+}

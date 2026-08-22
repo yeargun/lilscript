@@ -66,6 +66,21 @@ was emitted — the drift is per-region, not per-name.
 - 2026-08-19 — Shipped marked at `local_name_reserve = 4`, which the 660-case gate
   proves correct, and recorded the matrix above so the setting is not mistaken for a
   size preference. — **OPEN**
+- 2026-08-20 — Guard landed as `validate_resolved_generated_bindings`: a value-use
+  that is not visible in any enclosing function, but is bound as a local of some
+  *other* function, is `unresolved generated identifier`. Visibility walks enclosing
+  functions with `function_directly_binds_name` (nested `var`/`let`/`const` bodies
+  skipped). `function_scope_declares` must not be used here — it attributes a nested
+  `var y` to the ancestor IIFE and misses the leak. Expression-arrow params need
+  `name_is_declared_in_enclosing_expression_arrow` or `e=>e+1` next to `function f(e)`
+  false-positives. — **PARTIAL**
+- 2026-08-20 — Hole: `score_plan` analyzed the declaration spelling and then ranked
+  the peephole sibling even when the sibling leaked (`var y` in the list tokenizer,
+  `y.exec` in the table path). Fixed by only adding the optimized variant when
+  `analyze_generated_javascript(&optimized.code).is_ok()`, plus
+  `retain_resolved_javascript` after remaps/cleanup. marked now builds with
+  `candidate_search = "production"` and passes 21/21 including setOptions. The
+  reserve matrix has not been re-run. — **PARTIAL**
 
 ## Next step
 

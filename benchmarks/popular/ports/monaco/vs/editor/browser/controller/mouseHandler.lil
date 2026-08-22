@@ -1,0 +1,136 @@
+import { eventDeltaY, preventDefault, stopPropagation } from "../../../../js-host";
+
+export enum MouseTargetType {
+  UNKNOWN,
+  TEXTAREA,
+  GUTTER_GLYPH_MARGIN,
+  GUTTER_LINE_NUMBERS,
+  GUTTER_LINE_DECORATIONS,
+  GUTTER_VIEW_ZONE,
+  CONTENT_TEXT,
+  CONTENT_EMPTY,
+  CONTENT_VIEW_ZONE,
+  CONTENT_WIDGET,
+  OVERVIEW_RULER,
+  SCROLLBAR,
+  OVERLAY_WIDGET,
+  OUTSIDE_EDITOR
+}
+
+export class MouseHandler {
+  int height;
+  int lastMouseLeaveTime;
+  int mouseDownCount;
+  bool mouseDown;
+  int capturePointerId;
+  int zoomLevel;
+  float gestureAccumulatedDelta;
+  float prevMouseWheelTime;
+  bool mouseWheelZoom;
+
+  init(int height, bool mouseWheelZoom) {
+    this.height = height;
+    this.lastMouseLeaveTime = -1;
+    this.mouseDownCount = 0;
+    this.mouseDown = false;
+    this.capturePointerId = 0;
+    this.zoomLevel = 0;
+    this.gestureAccumulatedDelta = 0.0;
+    this.prevMouseWheelTime = 0.0;
+    this.mouseWheelZoom = mouseWheelZoom;
+  }
+
+  void onHeightChanged(int height) {
+    if (this.height != height) {
+      this.height = height;
+    }
+  }
+
+  void onMouseDown(int pointerId, int detail) {
+    this.mouseDown = true;
+    this.capturePointerId = pointerId;
+    this.mouseDownCount = detail;
+    if (this.mouseDownCount < 1) {
+      this.mouseDownCount = 1;
+    }
+  }
+
+  void onMouseUp() {
+    this.mouseDown = false;
+  }
+
+  void onPointerUp() {
+    this.mouseDown = false;
+  }
+
+  void onMouseLeave(int nowMs) {
+    this.lastMouseLeaveTime = nowMs;
+    this.mouseDown = false;
+  }
+
+  int applyPhysicalWheelZoom(int deltaY) {
+    int delta = -1;
+    if (deltaY > 0) {
+      delta = 1;
+    }
+    this.zoomLevel = this.zoomLevel + delta;
+    return this.zoomLevel;
+  }
+
+  int applyGestureWheelZoom(float nowMs, float deltaY, bool hasZoomModifiers) {
+    if (nowMs - this.prevMouseWheelTime > 50.0) {
+      this.gestureAccumulatedDelta = 0.0;
+    }
+    this.prevMouseWheelTime = nowMs;
+    this.gestureAccumulatedDelta = this.gestureAccumulatedDelta + deltaY;
+    if (!hasZoomModifiers) {
+      return this.zoomLevel;
+    }
+    this.zoomLevel = (this.gestureAccumulatedDelta / 5.0).round().toInt();
+    return this.zoomLevel;
+  }
+
+  bool hasMouseWheelZoomModifiers(bool isMacintosh, bool metaKey, bool ctrlKey, bool shiftKey, bool altKey) {
+    if (shiftKey || altKey) {
+      return false;
+    }
+    if (isMacintosh) {
+      return metaKey || ctrlKey;
+    }
+    return ctrlKey && !metaKey;
+  }
+
+  void onMouseWheel(JsValue browserEvent, bool isMacintosh, bool metaKey, bool ctrlKey, bool shiftKey, bool altKey, bool physicalWheel, float nowMs) {
+    if (!this.mouseWheelZoom) {
+      return;
+    }
+    if (!this.hasMouseWheelZoomModifiers(isMacintosh, metaKey, ctrlKey, shiftKey, altKey)) {
+      return;
+    }
+    int deltaY = eventDeltaY(browserEvent);
+    if (physicalWheel) {
+      this.applyPhysicalWheelZoom(deltaY);
+    } else {
+      this.applyGestureWheelZoom(nowMs, deltaY * 1.0, true);
+    }
+    preventDefault(browserEvent);
+    stopPropagation(browserEvent);
+  }
+}
+
+export MouseHandler createMouseHandler(int height, bool mouseWheelZoom) {
+  return new MouseHandler(height, mouseWheelZoom);
+}
+
+export bool isSelectionTarget(MouseTargetType kind) {
+  if (kind == MouseTargetType.CONTENT_TEXT) {
+    return true;
+  }
+  if (kind == MouseTargetType.CONTENT_EMPTY) {
+    return true;
+  }
+  if (kind == MouseTargetType.GUTTER_LINE_NUMBERS) {
+    return true;
+  }
+  return false;
+}

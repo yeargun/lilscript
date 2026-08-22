@@ -1,0 +1,194 @@
+export string TM_SELECTED_TEXT = "TM_SELECTED_TEXT";
+export string TM_CURRENT_LINE = "TM_CURRENT_LINE";
+export string TM_CURRENT_WORD = "TM_CURRENT_WORD";
+export string TM_LINE_INDEX = "TM_LINE_INDEX";
+export string TM_LINE_NUMBER = "TM_LINE_NUMBER";
+export string TM_FILENAME = "TM_FILENAME";
+export string TM_FILENAME_BASE = "TM_FILENAME_BASE";
+export string TM_DIRECTORY = "TM_DIRECTORY";
+export string TM_FILEPATH = "TM_FILEPATH";
+export string CLIPBOARD = "CLIPBOARD";
+export string CURRENT_YEAR = "CURRENT_YEAR";
+export string CURRENT_YEAR_SHORT = "CURRENT_YEAR_SHORT";
+export string CURRENT_MONTH = "CURRENT_MONTH";
+export string CURRENT_DATE = "CURRENT_DATE";
+export string CURRENT_HOUR = "CURRENT_HOUR";
+export string CURRENT_MINUTE = "CURRENT_MINUTE";
+export string CURRENT_SECOND = "CURRENT_SECOND";
+export string CURRENT_DAY_NAME = "CURRENT_DAY_NAME";
+export string CURRENT_MONTH_NAME = "CURRENT_MONTH_NAME";
+export string RANDOM = "RANDOM";
+export string UUID = "UUID";
+export string BLOCK_COMMENT_START = "BLOCK_COMMENT_START";
+export string BLOCK_COMMENT_END = "BLOCK_COMMENT_END";
+export string LINE_COMMENT = "LINE_COMMENT";
+
+export string[] snippetVariableNames() {
+  return [
+    TM_SELECTED_TEXT,
+    TM_CURRENT_LINE,
+    TM_CURRENT_WORD,
+    TM_LINE_INDEX,
+    TM_LINE_NUMBER,
+    TM_FILENAME,
+    TM_FILENAME_BASE,
+    TM_DIRECTORY,
+    TM_FILEPATH,
+    CLIPBOARD,
+    CURRENT_YEAR,
+    CURRENT_YEAR_SHORT,
+    CURRENT_MONTH,
+    CURRENT_DATE,
+    CURRENT_HOUR,
+    CURRENT_MINUTE,
+    CURRENT_SECOND,
+    RANDOM,
+    UUID,
+    BLOCK_COMMENT_START,
+    BLOCK_COMMENT_END,
+    LINE_COMMENT
+  ];
+}
+
+export class SnippetVariableContext {
+  string selectedText;
+  string currentLine;
+  string currentWord;
+  int lineNumber;
+  string fileName;
+  string directory;
+  string clipboard;
+  string lineComment;
+  string blockCommentStart;
+  string blockCommentEnd;
+  int year;
+  int month;
+  int date;
+  int hour;
+  int minute;
+  int second;
+
+  init() {
+    this.selectedText = "";
+    this.currentLine = "";
+    this.currentWord = "";
+    this.lineNumber = 1;
+    this.fileName = "";
+    this.directory = "";
+    this.clipboard = "";
+    this.lineComment = "//";
+    this.blockCommentStart = "/*";
+    this.blockCommentEnd = "*/";
+    this.year = 2026;
+    this.month = 1;
+    this.date = 1;
+    this.hour = 0;
+    this.minute = 0;
+    this.second = 0;
+  }
+}
+
+string pad2(int value) {
+  if (value < 10) {
+    return "0" + value.toString();
+  }
+  return value.toString();
+}
+
+string fileNameBase(string fileName) {
+  int dot = -1;
+  int i = 0;
+  while (i < fileName.length) {
+    if (fileName.charAt(i) == ".") {
+      dot = i;
+    }
+    i = i + 1;
+  }
+  if (dot <= 0) {
+    return fileName;
+  }
+  string out = "";
+  i = 0;
+  while (i < dot) {
+    out = out + fileName.charAt(i);
+    i = i + 1;
+  }
+  return out;
+}
+
+export string resolveSnippetVariable(string name, SnippetVariableContext ctx) {
+  if (name == TM_SELECTED_TEXT) {
+    return ctx.selectedText;
+  }
+  if (name == TM_CURRENT_LINE) {
+    return ctx.currentLine;
+  }
+  if (name == TM_CURRENT_WORD) {
+    return ctx.currentWord;
+  }
+  if (name == TM_LINE_INDEX) {
+    return (ctx.lineNumber - 1).toString();
+  }
+  if (name == TM_LINE_NUMBER) {
+    return ctx.lineNumber.toString();
+  }
+  if (name == TM_FILENAME) {
+    return ctx.fileName;
+  }
+  if (name == TM_FILENAME_BASE) {
+    return fileNameBase(ctx.fileName);
+  }
+  if (name == TM_DIRECTORY) {
+    return ctx.directory;
+  }
+  if (name == TM_FILEPATH) {
+    if (ctx.directory.length == 0) {
+      return ctx.fileName;
+    }
+    return ctx.directory + "/" + ctx.fileName;
+  }
+  if (name == CLIPBOARD) {
+    return ctx.clipboard;
+  }
+  if (name == CURRENT_YEAR) {
+    return ctx.year.toString();
+  }
+  if (name == CURRENT_YEAR_SHORT) {
+    return pad2(ctx.year % 100);
+  }
+  if (name == CURRENT_MONTH) {
+    return pad2(ctx.month);
+  }
+  if (name == CURRENT_DATE) {
+    return pad2(ctx.date);
+  }
+  if (name == CURRENT_HOUR) {
+    return pad2(ctx.hour);
+  }
+  if (name == CURRENT_MINUTE) {
+    return pad2(ctx.minute);
+  }
+  if (name == CURRENT_SECOND) {
+    return pad2(ctx.second);
+  }
+  if (name == LINE_COMMENT) {
+    return ctx.lineComment;
+  }
+  if (name == BLOCK_COMMENT_START) {
+    return ctx.blockCommentStart;
+  }
+  if (name == BLOCK_COMMENT_END) {
+    return ctx.blockCommentEnd;
+  }
+  if (name == RANDOM) {
+    return "000000";
+  }
+  if (name == UUID) {
+    return "00000000-0000-4000-8000-000000000000";
+  }
+  return "";
+}
+
+export SnippetVariableContext createSnippetVariableContext() {
+  return new SnippetVariableContext();
+}

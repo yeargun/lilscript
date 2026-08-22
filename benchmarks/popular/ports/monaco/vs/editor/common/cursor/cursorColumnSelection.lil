@@ -1,0 +1,261 @@
+pure int columnMin(int a, int b) {
+  if (a < b) {
+    return a;
+  }
+  return b;
+}
+
+pure int columnMax(int a, int b) {
+  if (a > b) {
+    return a;
+  }
+  return b;
+}
+
+int columnNextTabStop(int visibleColumn, int tabSize) {
+  if (tabSize <= 0) {
+    return visibleColumn + 1;
+  }
+  return visibleColumn + tabSize - visibleColumn % tabSize;
+}
+
+int columnVisibleColumn(string line, int column, int tabSize) {
+  int end = column - 1;
+  if (end > line.length) {
+    end = line.length;
+  }
+  int visibleColumn = 0;
+  int i = 0;
+  while (i < end) {
+    if (line.charCodeAt(i) == 9) {
+      visibleColumn = columnNextTabStop(visibleColumn, tabSize);
+    } else {
+      visibleColumn = visibleColumn + 1;
+    }
+    i = i + 1;
+  }
+  return visibleColumn;
+}
+
+int columnFromVisibleColumn(string line, int targetVisibleColumn, int tabSize) {
+  if (targetVisibleColumn <= 0) {
+    return 1;
+  }
+  int beforeVisibleColumn = 0;
+  int beforeColumn = 1;
+  int i = 0;
+  while (i < line.length) {
+    int afterVisibleColumn = beforeVisibleColumn + 1;
+    if (line.charCodeAt(i) == 9) {
+      afterVisibleColumn = columnNextTabStop(beforeVisibleColumn, tabSize);
+    }
+    int afterColumn = i + 2;
+    if (afterVisibleColumn >= targetVisibleColumn) {
+      if (afterVisibleColumn - targetVisibleColumn < targetVisibleColumn - beforeVisibleColumn) {
+        return afterColumn;
+      }
+      return beforeColumn;
+    }
+    beforeVisibleColumn = afterVisibleColumn;
+    beforeColumn = afterColumn;
+    i = i + 1;
+  }
+  return line.length + 1;
+}
+
+export class ColumnSelectionState {
+  int lineNumber;
+  int selectionStartColumn;
+  int positionColumn;
+
+  init(int lineNumber, int selectionStartColumn, int positionColumn) {
+    this.lineNumber = lineNumber;
+    this.selectionStartColumn = selectionStartColumn;
+    this.positionColumn = positionColumn;
+  }
+}
+
+export class ColumnSelectionResult {
+  ColumnSelectionState[] viewStates;
+  bool reversed;
+  int fromLineNumber;
+  int fromVisualColumn;
+  int toLineNumber;
+  int toVisualColumn;
+
+  init(
+    ColumnSelectionState[] viewStates,
+    bool reversed,
+    int fromLineNumber,
+    int fromVisualColumn,
+    int toLineNumber,
+    int toVisualColumn
+  ) {
+    this.viewStates = viewStates;
+    this.reversed = reversed;
+    this.fromLineNumber = fromLineNumber;
+    this.fromVisualColumn = fromVisualColumn;
+    this.toLineNumber = toLineNumber;
+    this.toVisualColumn = toVisualColumn;
+  }
+}
+
+export ColumnSelectionResult columnSelect(
+  string[] lines,
+  int tabSize,
+  int fromLineNumber,
+  int fromVisibleColumn,
+  int toLineNumber,
+  int toVisibleColumn
+) {
+  int lineDelta = toLineNumber - fromLineNumber;
+  if (lineDelta < 0) {
+    lineDelta = 0 - lineDelta;
+  }
+  int lineCount = lineDelta + 1;
+  bool reversed = fromLineNumber > toLineNumber;
+  bool isRTL = fromVisibleColumn > toVisibleColumn;
+  bool isLTR = fromVisibleColumn < toVisibleColumn;
+  ColumnSelectionState[] states = [];
+  int i = 0;
+  while (i < lineCount) {
+    int lineNumber = fromLineNumber + i;
+    if (reversed) {
+      lineNumber = fromLineNumber - i;
+    }
+    string line = lines[lineNumber - 1];
+    int startColumn = columnFromVisibleColumn(line, fromVisibleColumn, tabSize);
+    int endColumn = columnFromVisibleColumn(line, toVisibleColumn, tabSize);
+    int visibleStartColumn = columnVisibleColumn(line, startColumn, tabSize);
+    int visibleEndColumn = columnVisibleColumn(line, endColumn, tabSize);
+    bool includeLine = true;
+    if (isLTR && (visibleStartColumn > toVisibleColumn || visibleEndColumn < fromVisibleColumn)) {
+      includeLine = false;
+    }
+    if (isRTL && (visibleEndColumn > fromVisibleColumn || visibleStartColumn < toVisibleColumn)) {
+      includeLine = false;
+    }
+    if (includeLine) {
+      states.push(new ColumnSelectionState(lineNumber, startColumn, endColumn));
+    }
+    i = i + 1;
+  }
+  if (states.length == 0) {
+    i = 0;
+    while (i < lineCount) {
+      int lineNumber = fromLineNumber + i;
+      if (reversed) {
+        lineNumber = fromLineNumber - i;
+      }
+      int maxColumn = lines[lineNumber - 1].length + 1;
+      states.push(new ColumnSelectionState(lineNumber, maxColumn, maxColumn));
+      i = i + 1;
+    }
+  }
+  return new ColumnSelectionResult(
+    states,
+    reversed,
+    fromLineNumber,
+    fromVisibleColumn,
+    toLineNumber,
+    toVisibleColumn
+  );
+}
+
+export ColumnSelectionResult columnSelectLeft(
+  string[] lines,
+  int tabSize,
+  ColumnSelectionResult previous
+) {
+  int toVisibleColumn = previous.toVisualColumn;
+  if (toVisibleColumn > 0) {
+    toVisibleColumn = toVisibleColumn - 1;
+  }
+  return columnSelect(
+    lines,
+    tabSize,
+    previous.fromLineNumber,
+    previous.fromVisualColumn,
+    previous.toLineNumber,
+    toVisibleColumn
+  );
+}
+
+export ColumnSelectionResult columnSelectRight(
+  string[] lines,
+  int tabSize,
+  ColumnSelectionResult previous
+) {
+  int minLineNumber = columnMin(previous.fromLineNumber, previous.toLineNumber);
+  int maxLineNumber = columnMax(previous.fromLineNumber, previous.toLineNumber);
+  int maxVisibleColumn = 0;
+  int lineNumber = minLineNumber;
+  while (lineNumber <= maxLineNumber) {
+    string line = lines[lineNumber - 1];
+    int visibleColumn = columnVisibleColumn(line, line.length + 1, tabSize);
+    maxVisibleColumn = columnMax(maxVisibleColumn, visibleColumn);
+    lineNumber = lineNumber + 1;
+  }
+  int toVisibleColumn = previous.toVisualColumn;
+  if (toVisibleColumn < maxVisibleColumn) {
+    toVisibleColumn = toVisibleColumn + 1;
+  }
+  return columnSelect(
+    lines,
+    tabSize,
+    previous.fromLineNumber,
+    previous.fromVisualColumn,
+    previous.toLineNumber,
+    toVisibleColumn
+  );
+}
+
+export ColumnSelectionResult columnSelectUp(
+  string[] lines,
+  int tabSize,
+  ColumnSelectionResult previous,
+  int pageSize,
+  bool isPaged
+) {
+  int linesCount = 1;
+  if (isPaged) {
+    linesCount = pageSize;
+  }
+  int toLineNumber = previous.toLineNumber - linesCount;
+  if (toLineNumber < 1) {
+    toLineNumber = 1;
+  }
+  return columnSelect(
+    lines,
+    tabSize,
+    previous.fromLineNumber,
+    previous.fromVisualColumn,
+    toLineNumber,
+    previous.toVisualColumn
+  );
+}
+
+export ColumnSelectionResult columnSelectDown(
+  string[] lines,
+  int tabSize,
+  ColumnSelectionResult previous,
+  int pageSize,
+  bool isPaged
+) {
+  int linesCount = 1;
+  if (isPaged) {
+    linesCount = pageSize;
+  }
+  int toLineNumber = previous.toLineNumber + linesCount;
+  if (toLineNumber > lines.length) {
+    toLineNumber = lines.length;
+  }
+  return columnSelect(
+    lines,
+    tabSize,
+    previous.fromLineNumber,
+    previous.fromVisualColumn,
+    toLineNumber,
+    previous.toVisualColumn
+  );
+}

@@ -1,0 +1,29 @@
+import { hostCall, jsUndefined } from "../../../../js-host";
+
+export class ViewContext {
+  JsValue configuration;
+  JsValue theme;
+  JsValue viewModel;
+  JsValue viewLayout;
+
+  init(JsValue configuration, JsValue theme, JsValue viewModel, JsValue viewLayout) {
+    this.configuration = configuration;
+    this.theme = theme;
+    this.viewModel = viewModel;
+    this.viewLayout = viewLayout;
+  }
+
+  void addEventHandler(JsValue eventHandler) {
+    JsValue empty = jsUndefined();
+    hostCall(this.viewModel, "addViewEventHandler", eventHandler, empty, empty);
+  }
+
+  void removeEventHandler(JsValue eventHandler) {
+    JsValue empty = jsUndefined();
+    hostCall(this.viewModel, "removeViewEventHandler", eventHandler, empty, empty);
+  }
+}
+
+export ViewContext createViewContext(JsValue configuration, JsValue theme, JsValue viewModel, JsValue viewLayout) {
+  return new ViewContext(configuration, theme, viewModel, viewLayout);
+}

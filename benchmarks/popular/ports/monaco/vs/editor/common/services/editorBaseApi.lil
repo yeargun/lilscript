@@ -1,0 +1,61 @@
+export int KeyModCtrlCmd = 2048;
+export int KeyModShift = 1024;
+export int KeyModAlt = 512;
+export int KeyModWinCtrl = 256;
+
+export int keyChord(int firstPart, int secondPart) {
+  int low = firstPart & 65535;
+  int high = (secondPart & 65535) << 16;
+  return low | high;
+}
+
+export class KeyMod {
+  int ctrlCmd;
+  int shift;
+  int alt;
+  int winCtrl;
+
+  init() {
+    this.ctrlCmd = KeyModCtrlCmd;
+    this.shift = KeyModShift;
+    this.alt = KeyModAlt;
+    this.winCtrl = KeyModWinCtrl;
+  }
+
+  int chord(int firstPart, int secondPart) {
+    return keyChord(firstPart, secondPart);
+  }
+}
+
+export KeyMod createKeyMod() {
+  return new KeyMod();
+}
+
+export class MonacoToken {
+  int offset;
+  string type;
+  int language;
+
+  init(int offset, string type, int language) {
+    this.offset = offset;
+    this.type = type;
+    this.language = language;
+  }
+}
+
+export JsValue createMonacoBaseAPI() {
+  JsValue api = JS.object();
+  api["editor"] = 0;
+  api["languages"] = 0;
+  JsValue keyMod = JS.object();
+  keyMod["CtrlCmd"] = KeyModCtrlCmd;
+  keyMod["Shift"] = KeyModShift;
+  keyMod["Alt"] = KeyModAlt;
+  keyMod["WinCtrl"] = KeyModWinCtrl;
+  api["KeyMod"] = keyMod;
+  api["KeyCode"] = JS.object();
+  api["SelectionDirection"] = JS.object();
+  api["MarkerSeverity"] = JS.object();
+  api["MarkerTag"] = JS.object();
+  return api;
+}

@@ -1,0 +1,126 @@
+
+export class TextRange {
+  int startLineNumber;
+  int startColumn;
+  int endLineNumber;
+  int endColumn;
+
+  init(int startLineNumber, int startColumn, int endLineNumber, int endColumn) {
+    this.startLineNumber = startLineNumber;
+    this.startColumn = startColumn;
+    this.endLineNumber = endLineNumber;
+    this.endColumn = endColumn;
+  }
+}
+
+export class TextPos {
+  int lineNumber;
+  int column;
+
+  init(int lineNumber, int column) {
+    this.lineNumber = lineNumber;
+    this.column = column;
+  }
+}
+
+bool posBefore(TextPos a, TextPos b) {
+  if (a.lineNumber < b.lineNumber) {
+    return true;
+  }
+  if (a.lineNumber > b.lineNumber) {
+    return false;
+  }
+  return a.column < b.column;
+}
+
+bool rangeContainsPos(TextRange range, int lineNumber, int column) {
+  if (lineNumber < range.startLineNumber || lineNumber > range.endLineNumber) {
+    return false;
+  }
+  if (lineNumber == range.startLineNumber && column < range.startColumn) {
+    return false;
+  }
+  if (lineNumber == range.endLineNumber && column > range.endColumn) {
+    return false;
+  }
+  return true;
+}
+
+export TextRange createTextRange(int startLine, int startColumn, int endLine, int endColumn) {
+  return new TextRange(startLine, startColumn, endLine, endColumn);
+}
+
+export TextPos createTextPos(int lineNumber, int column) {
+  return new TextPos(lineNumber, column);
+}
+
+export class InlineCompletionsAccessibleView {
+  int lineNumber;
+  int startColumn;
+  int endColumn;
+  string originalText;
+  string modifiedText;
+  int width;
+  int height;
+  bool collapsed;
+  bool visible;
+
+  init() {
+    this.lineNumber = 1;
+    this.startColumn = 1;
+    this.endColumn = 1;
+    this.originalText = "";
+    this.modifiedText = "";
+    this.width = 0;
+    this.height = 0;
+    this.collapsed = false;
+    this.visible = false;
+  }
+
+  void setEdit(int lineNumber, int startColumn, int endColumn, string originalText, string modifiedText) {
+    this.lineNumber = lineNumber;
+    this.startColumn = startColumn;
+    this.endColumn = endColumn;
+    this.originalText = originalText;
+    this.modifiedText = modifiedText;
+    this.visible = modifiedText.length > 0;
+    int lines = 1;
+    int i = 0;
+    while (i < modifiedText.length) {
+      if (modifiedText.charAt(i) == "\n") {
+        lines = lines + 1;
+      }
+      i = i + 1;
+    }
+    this.height = lines * 18;
+    this.width = modifiedText.length * 8;
+  }
+
+  int originalOverlap() {
+    int n = this.originalText.length;
+    if (this.modifiedText.length < n) {
+      n = this.modifiedText.length;
+    }
+    int i = 0;
+    while (i < n) {
+      if (this.originalText.charAt(i) != this.modifiedText.charAt(i)) {
+        break;
+      }
+      i = i + 1;
+    }
+    return i;
+  }
+
+  void collapse() {
+    this.collapsed = true;
+    this.height = 18;
+  }
+
+  void expand() {
+    this.collapsed = false;
+  }
+}
+
+export InlineCompletionsAccessibleView createInlineCompletionsAccessibleView() {
+  return new InlineCompletionsAccessibleView();
+}

@@ -222,8 +222,9 @@ pub(crate) fn function_binds_name(
                 expects_name = false;
             }
             match token.text {
+                ")" | "]" | "}" if delimiter_depth == 0 => break,
                 "(" | "[" | "{" => delimiter_depth += 1,
-                ")" | "]" | "}" => delimiter_depth = delimiter_depth.saturating_sub(1),
+                ")" | "]" | "}" => delimiter_depth -= 1,
                 "," if delimiter_depth == 0 => expects_name = true,
                 _ => {}
             }
@@ -300,6 +301,154 @@ fn nested_function_binds_name(
         return false;
     }
     function_binds_name(tokens, matching_close, matching_open, body, close, name)
+}
+
+fn catch_block_binds_name(
+    tokens: &[Token<'_>],
+    matching_open: &[Option<usize>],
+    body: usize,
+    name: &str,
+) -> bool {
+    let Some(close_paren) = body.checked_sub(1) else {
+        return false;
+    };
+    if tokens[close_paren].text != ")" {
+        return false;
+    }
+    let Some(open_paren) = matching_open.get(close_paren).copied().flatten() else {
+        return false;
+    };
+    if open_paren
+        .checked_sub(1)
+        .and_then(|index| tokens.get(index))
+        .map(|token| token.text)
+        != Some("catch")
+    {
+        return false;
+    }
+    tokens[open_paren + 1..close_paren]
+        .iter()
+        .any(|token| token.kind == TokenKind::Identifier && token.text == name)
+}
+
+pub(crate) fn name_is_declared_in_enclosing_catch(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    at: usize,
+    name: &str,
+) -> bool {
+    let matching_open = matching_openers(matching_close);
+    let mut cursor = enclosing_block_start(matching_close, at);
+    while let Some(body) = cursor {
+        if catch_block_binds_name(tokens, &matching_open, body, name) {
+            return true;
+        }
+        cursor = enclosing_block_start(matching_close, body);
+    }
+    false
+}
+
+pub(crate) fn name_is_declared_in_enclosing_expression_arrow(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    at: usize,
+    name: &str,
+) -> bool {
+    let matching_open = matching_openers(matching_close);
+    for (index, token) in tokens.iter().enumerate() {
+        if token.text != "=>" || tokens.get(index + 1).map(|next| next.text) == Some("{") {
+            continue;
+        }
+        let body_end =
+            top_level_stop(tokens, index + 1, &[",", ";", ")", "]", "}"]).unwrap_or(tokens.len());
+        if at > index
+            && at < body_end
+            && expression_arrow_binds_name(tokens, &matching_open, index, name)
+        {
+            return true;
+        }
+    }
+    false
+}
+
+pub(crate) fn identifier_is_function_parameter(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    at: usize,
+) -> bool {
+    for (open, close) in matching_close.iter().enumerate() {
+        let Some(close) = *close else {
+            continue;
+        };
+        if tokens[open].text != "(" || at <= open || at >= close {
+            continue;
+        }
+        if !matches!(
+            tokens.get(close + 1).map(|token| token.text),
+            Some("{") | Some("=>")
+        ) || paren_close_is_control_header(tokens, close)
+        {
+            continue;
+        }
+        return true;
+    }
+    false
+}
+
+pub(crate) fn identifier_is_catch_parameter(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    at: usize,
+) -> bool {
+    for (open, close) in matching_close.iter().enumerate() {
+        let Some(close) = *close else {
+            continue;
+        };
+        if tokens[open].text != "(" || at <= open || at >= close {
+            continue;
+        }
+        if open
+            .checked_sub(1)
+            .and_then(|index| tokens.get(index))
+            .map(|token| token.text)
+            == Some("catch")
+        {
+            return true;
+        }
+    }
+    false
+}
+
+pub(crate) fn name_is_bound_as_non_enclosing_function_local(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    at: usize,
+    name: &str,
+) -> bool {
+    let matching_open = matching_openers(matching_close);
+    for open in 0..tokens.len() {
+        if tokens[open].text != "{" {
+            continue;
+        }
+        let Some(before) = open.checked_sub(1) else {
+            continue;
+        };
+        let is_function = tokens[before].text == "=>"
+            || (tokens[before].text == ")" && !paren_close_is_control_header(tokens, before));
+        if !is_function {
+            continue;
+        }
+        let Some(end) = matching_close.get(open).copied().flatten() else {
+            continue;
+        };
+        if at > open && at < end {
+            continue;
+        }
+        if function_binds_name(tokens, matching_close, &matching_open, open, end, name) {
+            return true;
+        }
+    }
+    false
 }
 
 fn expression_arrow_binds_name(
@@ -554,6 +703,126 @@ pub(crate) fn name_is_declared_in_any_enclosing_function_scope(
     false
 }
 
+pub(crate) fn name_is_visible_generated_binding(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    at: usize,
+    name: &str,
+) -> bool {
+    if name_is_declared_in_enclosing_expression_arrow(tokens, matching_close, at, name)
+        || name_is_declared_in_enclosing_catch(tokens, matching_close, at, name)
+        || name_is_declared_at_module_scope(tokens, matching_close, name)
+    {
+        return true;
+    }
+    let matching_open = matching_openers(matching_close);
+    let Some((body, end)) = enclosing_function_span(tokens, matching_close, at) else {
+        return false;
+    };
+    if function_directly_binds_name(
+        tokens,
+        matching_close,
+        &matching_open,
+        body,
+        end,
+        name,
+    ) {
+        return true;
+    }
+    let mut cursor = Some(body);
+    while let Some(body) = cursor {
+        let Some(outer) = enclosing_function_span(tokens, matching_close, body) else {
+            break;
+        };
+        if function_directly_binds_name(
+            tokens,
+            matching_close,
+            &matching_open,
+            outer.0,
+            outer.1,
+            name,
+        ) {
+            return true;
+        }
+        if outer.0 >= body {
+            break;
+        }
+        cursor = Some(outer.0);
+    }
+    false
+}
+
+fn function_directly_binds_name(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    matching_open: &[Option<usize>],
+    body: usize,
+    end: usize,
+    name: &str,
+) -> bool {
+    let parameter_range = body.checked_sub(1).and_then(|before_body| {
+        if tokens[before_body].text == "=>" {
+            let before_arrow = before_body.checked_sub(1)?;
+            if tokens[before_arrow].text == ")" {
+                matching_open[before_arrow].map(|open| (open + 1, before_arrow))
+            } else {
+                Some((before_arrow, before_arrow + 1))
+            }
+        } else if tokens[before_body].text == ")" {
+            matching_open[before_body].map(|open| (open + 1, before_body))
+        } else {
+            None
+        }
+    });
+    if parameter_range.is_some_and(|(start, finish)| {
+        tokens[start..finish]
+            .iter()
+            .any(|token| token.kind == TokenKind::Identifier && token.text == name)
+    }) {
+        return true;
+    }
+    let mut cursor = body + 1;
+    while cursor < end {
+        if let Some(close) = nested_function_end(tokens, matching_close, cursor) {
+            cursor = close + 1;
+            continue;
+        }
+        if !matches!(tokens[cursor].text, "var" | "let" | "const") {
+            cursor += 1;
+            continue;
+        }
+        cursor += 1;
+        let mut delimiter_depth = 0usize;
+        let mut expects_name = true;
+        while cursor < end {
+            let token = tokens[cursor];
+            if delimiter_depth == 0 && token.text == ";" {
+                break;
+            }
+            if let Some(close) = nested_function_end(tokens, matching_close, cursor) {
+                cursor = close + 1;
+                expects_name = false;
+                continue;
+            }
+            if expects_name && token.kind == TokenKind::Identifier {
+                if token.text == name {
+                    return true;
+                }
+                expects_name = false;
+            }
+            match token.text {
+                ")" | "]" | "}" if delimiter_depth == 0 => break,
+                "(" | "[" | "{" => delimiter_depth += 1,
+                ")" | "]" | "}" => delimiter_depth -= 1,
+                "," if delimiter_depth == 0 => expects_name = true,
+                _ => {}
+            }
+            cursor += 1;
+        }
+    }
+    false
+}
+
 fn name_is_declared_at_module_scope(
     tokens: &[Token<'_>],
     matching_close: &[Option<usize>],
@@ -600,39 +869,98 @@ fn name_is_declared_at_module_scope(
             }
         }
         if matches!(tokens[scan].text, "let" | "var" | "const") {
-            let mut index = scan + 1;
-            let mut delimiter_depth = 0usize;
-            let mut expects_name = true;
-            while index < tokens.len() {
-                let token = tokens[index];
-                if delimiter_depth == 0 && token.text == ";" {
-                    break;
+            if let Some(end) = module_var_declaration_end(tokens, matching_close, scan, name) {
+                if end.1 {
+                    return true;
                 }
-                if let Some(close) = nested_function_end(tokens, matching_close, index) {
-                    index = close + 1;
-                    expects_name = false;
-                    continue;
-                }
-                if expects_name && token.kind == TokenKind::Identifier {
-                    if token.text == name {
-                        return true;
-                    }
-                    expects_name = false;
-                }
-                match token.text {
-                    "(" | "[" | "{" => delimiter_depth += 1,
-                    ")" | "]" | "}" => delimiter_depth = delimiter_depth.saturating_sub(1),
-                    "," if delimiter_depth == 0 => expects_name = true,
-                    _ => {}
-                }
-                index += 1;
+                scan = end.0;
+                continue;
             }
-            scan = index;
-            continue;
         }
         scan += 1;
     }
     false
+}
+
+pub(crate) fn name_is_module_var_binding(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    name: &str,
+) -> bool {
+    let mut scan = 0usize;
+    while scan < tokens.len() {
+        if let Some(close) = nested_function_end(tokens, matching_close, scan) {
+            scan = close + 1;
+            continue;
+        }
+        if tokens[scan].text == "class" {
+            let mut body = scan + 1;
+            if tokens
+                .get(body)
+                .is_some_and(|token| token.kind == TokenKind::Identifier)
+            {
+                body += 1;
+            }
+            if tokens.get(body).map(|token| token.text) == Some("extends") {
+                body += 2;
+            }
+            if tokens.get(body).map(|token| token.text) == Some("{") {
+                if let Some(close) = matching_close.get(body).copied().flatten() {
+                    scan = close + 1;
+                    continue;
+                }
+            }
+        }
+        if matches!(tokens[scan].text, "let" | "var" | "const") {
+            if let Some(end) = module_var_declaration_end(tokens, matching_close, scan, name) {
+                if end.1 {
+                    return true;
+                }
+                scan = end.0;
+                continue;
+            }
+        }
+        scan += 1;
+    }
+    false
+}
+
+fn module_var_declaration_end(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    scan: usize,
+    name: &str,
+) -> Option<(usize, bool)> {
+    let mut index = scan + 1;
+    let mut delimiter_depth = 0usize;
+    let mut expects_name = true;
+    let mut found = false;
+    while index < tokens.len() {
+        let token = tokens[index];
+        if delimiter_depth == 0 && token.text == ";" {
+            return Some((index, found));
+        }
+        if let Some(close) = nested_function_end(tokens, matching_close, index) {
+            index = close + 1;
+            expects_name = false;
+            continue;
+        }
+        if expects_name && token.kind == TokenKind::Identifier {
+            if token.text == name {
+                found = true;
+            }
+            expects_name = false;
+        }
+        match token.text {
+            ")" | "]" | "}" if delimiter_depth == 0 => return Some((index, found)),
+            "(" | "[" | "{" => delimiter_depth += 1,
+            ")" | "]" | "}" => delimiter_depth -= 1,
+            "," if delimiter_depth == 0 => expects_name = true,
+            _ => {}
+        }
+        index += 1;
+    }
+    Some((index, found))
 }
 
 pub(crate) fn name_is_declared_in_visible_scope(
@@ -884,8 +1212,9 @@ pub(crate) fn function_scope_declares(
                 expects_name = false;
             }
             match token.text {
+                ")" | "]" | "}" if delimiter_depth == 0 => break,
                 "(" | "[" | "{" => delimiter_depth += 1,
-                ")" | "]" | "}" => delimiter_depth = delimiter_depth.saturating_sub(1),
+                ")" | "]" | "}" => delimiter_depth -= 1,
                 "," if delimiter_depth == 0 => expects_name = true,
                 _ => {}
             }

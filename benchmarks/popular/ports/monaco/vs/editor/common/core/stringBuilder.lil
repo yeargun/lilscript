@@ -1,0 +1,49 @@
+import { emptyBuf, concat2, stringFromCharCode1 } from "../../../../js-host";
+import { isFullWidthCharacter } from "./cursorColumns";
+
+export class StringBuilder {
+  int capacity;
+  string completed;
+
+  init(int capacity) {
+    this.capacity = capacity;
+    this.completed = emptyBuf();
+  }
+
+  void reset() {
+    this.completed = emptyBuf();
+  }
+
+  string build() {
+    return this.completed;
+  }
+
+  void appendCharCode(int charCode) {
+    this.completed = concat2(this.completed, stringFromCharCode1(charCode * 1.0));
+  }
+
+  void appendASCIICharCode(int charCode) {
+    this.appendCharCode(charCode);
+  }
+
+  void appendString(string str) {
+    this.completed = concat2(this.completed, str);
+  }
+}
+
+export string decodeUTF16LE(int[] source, int offset, int len) {
+  string out = emptyBuf();
+  int i = 0;
+  while (i < len) {
+    int idx = offset + i;
+    if (idx >= 0 && idx < source.length) {
+      out = concat2(out, stringFromCharCode1(source[idx] * 1.0));
+    }
+    i = i + 1;
+  }
+  return out;
+}
+
+export bool stringBuilderWideHint(int charCode) {
+  return isFullWidthCharacter(charCode);
+}

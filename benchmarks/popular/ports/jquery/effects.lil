@@ -19,27 +19,7 @@ import { createTween, tweenRun } from "./effects/Tween";
 import { Deferred } from "./deferred";
 import { queueStatic, dequeueStatic, queueHooks } from "./queue";
 import {
-  createEmptyObject,
-  arraySplice,
-  deleteProp,
-  hasProp,
-  isNullish,
-  isUndefined,
-  typeOf,
-  stringify,
-  unaryPlus,
-  mathMax,
   dateNow,
-  regexTest,
-  regexExec,
-  stringMatch,
-  jsUndefined,
-  call0,
-  call1,
-  call2,
-  call3,
-  apply,
-  arrayIsArray,
   scheduleTimeoutMs,
   requestAnimationFrameOrNull
 } from "./js-host.lil";
@@ -90,6 +70,7 @@ Regex rrun = new Regex("queueHooks$");
 JsValue animationTweeners = JS.object();
 JsValue[] animationPrefilters = [];
 JsValue[] fxTimers = [];
+JsValue schedule = JS.undefined();
 
 void fxStop() {
   inProgress = null;
@@ -116,7 +97,7 @@ JsValue fxTick() {
   return JS.undefined();
 }
 
-void schedule() {
+schedule = () => {
   if (inProgress.truthy()) {
     bool scheduledViaRaf = false;
     if (document["hidden"] == false) {
@@ -124,14 +105,12 @@ void schedule() {
       scheduledViaRaf = raf.truthy();
     }
     if (!scheduledViaRaf) {
-      scheduleTimeoutMs(JS.staticRest((JsValue _a) => {
-        schedule();
-        return JS.undefined();
-      }), JS.number(jQuery["fx"]["interval"]));
+      scheduleTimeoutMs(schedule, JS.number(jQuery["fx"]["interval"]));
     }
     fxTick();
   }
-}
+  return JS.undefined();
+};
 
 void fxStart() {
   if (!inProgress.truthy()) {
@@ -146,10 +125,10 @@ void enqueueFxTimer(JsValue timer) {
 }
 
 float createFxNow() {
-  scheduleTimeoutMs(JS.staticRest((JsValue _a) => {
+  scheduleTimeoutMs(() => {
     fxNow = null;
     return JS.undefined();
-  }), 0.0);
+  }, 0.0);
   float now = dateNow();
   fxNow = now;
   return now;
@@ -165,25 +144,20 @@ float currentFxNow() {
 JsValue genFx(string type, bool includeWidth) {
   JsValue attrs = JS.object();
   attrs["height"] = type;
-
+  int i = 0;
   int step = 2;
   if (includeWidth) {
     step = 1;
   }
-
-  int i = 0;
-  while (i < 4) {
+  for (; i < 4; i = i + step) {
     string which = cssExpand[i];
     attrs["margin" + which] = type;
     attrs["padding" + which] = type;
-    i = i + step;
   }
-
   if (includeWidth) {
     attrs["opacity"] = type;
     attrs["width"] = type;
   }
-
   return attrs;
 }
 
@@ -235,26 +209,26 @@ JsValue defaultPrefilter(JsValue elem, JsValue props, JsValue opts) {
     if (JS.isNullish(hooks["unqueued"])) {
       hooks["unqueued"] = 0.0;
       JsValue oldfire = hooks["empty"]["fire"];
-      hooks["empty"]["fire"] = JS.staticRest((JsValue _a) => {
+      hooks["empty"]["fire"] = () => {
         if (!hooks["unqueued"].truthy()) {
           oldfire();
         }
         return JS.undefined();
-      });
+      };
     }
     hooks["unqueued"] = JS.number(hooks["unqueued"]) + 1.0;
 
-    JS.invoke(anim, "always", JS.staticRest((JsValue _a) => {
-      JS.invoke(anim, "always", JS.staticRest((JsValue _b) => {
+    JS.invoke(anim, "always", () => {
+      JS.invoke(anim, "always", () => {
         hooks["unqueued"] = JS.number(hooks["unqueued"]) - 1.0;
         JsValue fxQueue = queueStatic(elem, "fx", JS.undefined());
         if (fxQueue.length == 0.0) {
           JS.invoke(hooks["empty"], "fire");
         }
         return JS.undefined();
-      }));
+      });
       return JS.undefined();
-    }));
+    });
   }
 
   for (string prop in props) {
@@ -311,10 +285,10 @@ JsValue defaultPrefilter(JsValue elem, JsValue props, JsValue opts) {
         (JS.strictEqual(display, "inline-block") && !JS.isNullish(restoreDisplay))) {
       if (JS.strictEqual(css(elem, "float"), "none")) {
         if (!propTweenBool) {
-          JS.invoke(anim, "done", JS.staticRest((JsValue _a) => {
+          JS.invoke(anim, "done", () => {
             styleDecl["display"] = restoreDisplay;
             return JS.undefined();
-          }));
+          });
           if (JS.isNullish(restoreDisplay)) {
             display = styleDecl["display"];
             if (JS.strictEqual(display, "none")) {
@@ -331,12 +305,12 @@ JsValue defaultPrefilter(JsValue elem, JsValue props, JsValue opts) {
 
   if (opts["overflow"].truthy()) {
     styleDecl["overflow"] = "hidden";
-    JS.invoke(anim, "always", JS.staticRest((JsValue _a) => {
+    JS.invoke(anim, "always", () => {
       styleDecl["overflow"] = opts["overflow"][0];
       styleDecl["overflowX"] = opts["overflow"][1];
       styleDecl["overflowY"] = opts["overflow"][2];
       return JS.undefined();
-    }));
+    });
   }
 
   JsValue propTween = false;
@@ -359,7 +333,7 @@ JsValue defaultPrefilter(JsValue elem, JsValue props, JsValue opts) {
         showHide([elem], true);
       }
 
-      JS.invoke(anim, "done", JS.staticRest((JsValue _a) => {
+      JS.invoke(anim, "done", () => {
         if (!hidden) {
           showHide([elem], false);
         }
@@ -368,7 +342,7 @@ JsValue defaultPrefilter(JsValue elem, JsValue props, JsValue opts) {
           style(elem, p3, orig[p3]);
         }
         return JS.undefined();
-      }));
+      });
     }
 
     JsValue startVal = JS.or(JS.and(hidden, dataShow[prop2]), 0.0);
@@ -482,7 +456,10 @@ JsValue AnimationWithOpts(JsValue elem, JsValue properties, JsValue originalOpti
     }
 
     float currentTime = currentFxNow();
-    float remaining = mathMax(0.0, startTime + duration - currentTime);
+    float remaining = startTime + duration - currentTime;
+    if (remaining < 0.0) {
+      remaining = 0.0;
+    }
     float temp = 0.0;
     if (duration != 0.0) {
       temp = remaining / duration;
@@ -637,11 +614,8 @@ JsValue speed(JsValue speedArg, JsValue easingArg = null, JsValue fnArg = null) 
   return opt;
 }
 
-JsValue fnAnimate(JsValue self, JsValue args) {
-  JsValue prop = args[0];
-  JsValue speedArg = args[1];
-  JsValue easingArg = args[2];
-  JsValue callbackArg = args[3];
+JsValue fnAnimate(JsValue prop, JsValue speedArg, JsValue easingArg, JsValue callbackArg) {
+  JsValue self = this;
   bool empty = isEmptyObject(prop);
   JsValue optall = speed(speedArg, easingArg, callbackArg);
 
@@ -669,10 +643,8 @@ void stopQueue(JsValue hooks, JsValue gotoEnd) {
   stop(gotoEnd);
 }
 
-JsValue fnStop(JsValue self, JsValue args) {
-  JsValue type = args[0];
-  JsValue clearQueue = args[1];
-  JsValue gotoEnd = args[2];
+JsValue fnStop(JsValue type, JsValue clearQueue, JsValue gotoEnd) {
+  JsValue self = this;
 
   if (!(type is string)) {
     gotoEnd = clearQueue;
@@ -681,14 +653,7 @@ JsValue fnStop(JsValue self, JsValue args) {
   }
 
   if (clearQueue.truthy()) {
-    string clearType = "fx";
-    if (type.truthy()) {
-      clearType = JS.string(type);
-    }
-    each(self, (JsValue _i, JsValue el) => {
-      queueStatic(el, clearType, emptyArray());
-      return JS.undefined();
-    });
+    JS.invoke(self, "queue", JS.or(type, "fx"), emptyArray());
   }
 
   return each(self, JS.method0((JsValue el) => {
@@ -737,7 +702,8 @@ JsValue fnStop(JsValue self, JsValue args) {
   }));
 }
 
-JsValue fnFinish(JsValue self, JsValue typeArg) {
+JsValue fnFinish(JsValue typeArg) {
+  JsValue self = this;
   JsValue type = typeArg;
   if (type != false) {
     if (!type.truthy()) {
@@ -787,77 +753,69 @@ JsValue fnFinish(JsValue self, JsValue typeArg) {
   }));
 }
 
-void install() {
-  animationPrefilters = [defaultPrefilter];
-  animationTweeners["*"] = [defaultTweener];
+animationPrefilters = [defaultPrefilter];
+animationTweeners["*"] = [defaultTweener];
 
-  JsValue animation = AnimationCtor;
-  animation["tweeners"] = animationTweeners;
-  animation["tweener"] = animationTweener;
-  animation["prefilters"] = animationPrefilters;
-  animation["prefilter"] = animationPrefilter;
-  jQuery["Animation"] = animation;
+JsValue animation = AnimationCtor;
+animation["tweeners"] = animationTweeners;
+animation["tweener"] = animationTweener;
+animation["prefilters"] = animationPrefilters;
+animation["prefilter"] = animationPrefilter;
+jQuery["Animation"] = animation;
 
-  jQuery["speed"] = speed;
+jQuery["speed"] = speed;
 
-  JsValue fn = jQuery["fn"];
-  fn["fadeTo"] = JS.methodRest((JsValue self, JsValue args) => {
-    JsValue shown = JS.invoke(self, "filter", isHiddenWithinTree);
-    JS.invoke(shown, "css", "opacity", 0.0);
-    JS.invoke(shown, "show");
-    return JS.invoke(JS.invoke(shown, "end"), "animate", OpacityAnim{args[1]}, args[0], args[2], args[3]);
-  });
-  fn["animate"] = JS.methodRest(fnAnimate);
-  fn["stop"] = JS.methodRest(fnStop);
-  fn["finish"] = JS.method1(fnFinish);
-
-  each(["toggle", "show", "hide"], (JsValue _i, JsValue name) => {
-    string nameStr = JS.string(name);
-    JsValue cssFn = fn[nameStr];
-    fn[nameStr] = JS.methodRest((JsValue self, JsValue args) => {
-      JsValue speedArg = args[0];
-      if (JS.isNullish(speedArg) || speedArg is bool) {
-        return JS.apply(cssFn, self, args);
-      }
-      return JS.invoke(self, "animate", genFx(nameStr, true), speedArg, args[1], args[2]);
-    });
-    return JS.undefined();
-  });
-
-  fn["slideDown"] = JS.methodRest((JsValue self, JsValue args) => {
-    return JS.invoke(self, "animate", genFx("show", false), args[0], args[1], args[2]);
-  });
-  fn["slideUp"] = JS.methodRest((JsValue self, JsValue args) => {
-    return JS.invoke(self, "animate", genFx("hide", false), args[0], args[1], args[2]);
-  });
-  fn["slideToggle"] = JS.methodRest((JsValue self, JsValue args) => {
-    return JS.invoke(self, "animate", genFx("toggle", false), args[0], args[1], args[2]);
-  });
-  fn["fadeIn"] = JS.methodRest((JsValue self, JsValue args) => {
-    return JS.invoke(self, "animate", OpacityAnim{"show"}, args[0], args[1], args[2]);
-  });
-  fn["fadeOut"] = JS.methodRest((JsValue self, JsValue args) => {
-    return JS.invoke(self, "animate", OpacityAnim{"hide"}, args[0], args[1], args[2]);
-  });
-  fn["fadeToggle"] = JS.methodRest((JsValue self, JsValue args) => {
-    return JS.invoke(self, "animate", OpacityAnim{"toggle"}, args[0], args[1], args[2]);
-  });
-
-  fxTimers = [];
-  jQuery["timers"] = fxTimers;
-
-  jQuery["fx"]["tick"] = fxTick;
-  jQuery["fx"]["timer"] = JS.staticRest((JsValue args) => {
-    JsValue timer = args[0];
-    enqueueFxTimer(timer);
-    return JS.undefined();
-  });
-  jQuery["fx"]["interval"] = 13.0;
-  jQuery["fx"]["start"] = fxStart;
-  jQuery["fx"]["stop"] = fxStop;
-  jQuery["fx"]["speeds"] = FxSpeeds{600.0, 200.0, 400.0};
+JsValue fnFadeTo(JsValue speedArg, JsValue to, JsValue easingArg, JsValue callbackArg) {
+  JsValue shown = JS.invoke(this, "filter", isHiddenWithinTree);
+  JS.invoke(shown, "css", "opacity", 0.0);
+  JS.invoke(shown, "show");
+  return JS.invoke(JS.invoke(shown, "end"), "animate", OpacityAnim{to}, speedArg, easingArg, callbackArg);
 }
 
-install();
+JsValue fn = jQuery["fn"];
+fn["fadeTo"] = fnFadeTo;
+fn["animate"] = fnAnimate;
+fn["stop"] = fnStop;
+fn["finish"] = fnFinish;
+
+each(["toggle", "show", "hide"], (JsValue _i, JsValue name) => {
+  string nameStr = JS.string(name);
+  JsValue cssFn = fn[nameStr];
+  fn[nameStr] = JS.methodRest((JsValue self, JsValue args) => {
+    JsValue speedArg = args[0];
+    if (JS.isNullish(speedArg) || speedArg is bool) {
+      return JS.apply(cssFn, self, args);
+    }
+    return JS.invoke(self, "animate", genFx(nameStr, true), speedArg, args[1], args[2]);
+  });
+  return JS.undefined();
+});
+
+JsValue shortcuts = JS.object();
+shortcuts["slideDown"] = genFx("show", false);
+shortcuts["slideUp"] = genFx("hide", false);
+shortcuts["slideToggle"] = genFx("toggle", false);
+shortcuts["fadeIn"] = OpacityAnim{"show"};
+shortcuts["fadeOut"] = OpacityAnim{"hide"};
+shortcuts["fadeToggle"] = OpacityAnim{"toggle"};
+each(shortcuts, (JsValue name, JsValue props) => {
+  fn[name] = JS.methodRest((JsValue self, JsValue args) => {
+    return JS.invoke(self, "animate", props, args[0], args[1], args[2]);
+  });
+  return JS.undefined();
+});
+
+fxTimers = [];
+jQuery["timers"] = fxTimers;
+
+jQuery["fx"]["tick"] = fxTick;
+jQuery["fx"]["timer"] = (JsValue timer) => {
+  enqueueFxTimer(timer);
+  return JS.undefined();
+};
+jQuery["fx"]["interval"] = 13.0;
+jQuery["fx"]["start"] = fxStart;
+jQuery["fx"]["stop"] = fxStop;
+jQuery["fx"]["speeds"] = FxSpeeds{600.0, 200.0, 400.0};
 
 export { jQuery, AnimationCtor as Animation, defaultPrefilter, genFx, animationTweeners, animationPrefilters };

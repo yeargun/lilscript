@@ -1,0 +1,54 @@
+import { DefaultLinesDiffComputer } from "./defaultLinesDiffComputer/defaultLinesDiffComputer";
+import { LinesDiff } from "./linesDiffComputer";
+
+export class DiffComputer {
+  string[] originalLines;
+  string[] modifiedLines;
+  JsValue options;
+
+  init(string[] originalLines, string[] modifiedLines, JsValue options) {
+    this.originalLines = originalLines;
+    this.modifiedLines = modifiedLines;
+    this.options = options;
+  }
+
+  LinesDiff computeDiff() {
+    JsValue normalized = JS.object();
+    normalized["ignoreTrimWhitespace"] = false;
+    if (
+      this.options != null &&
+      this.options["shouldIgnoreTrimWhitespace"].truthy()
+    ) {
+      normalized["ignoreTrimWhitespace"] =
+        this.options["shouldIgnoreTrimWhitespace"].truthy();
+    }
+    normalized["computeMoves"] = false;
+    normalized["maxComputationTimeMs"] = 0;
+    return new DefaultLinesDiffComputer().computeDiff(
+      this.originalLines,
+      this.modifiedLines,
+      normalized
+    );
+  }
+}
+
+export class LegacyLinesDiffComputer {
+  LinesDiff computeDiff(string[] originalLines, string[] modifiedLines, JsValue options) {
+    JsValue normalized = JS.object();
+    normalized["ignoreTrimWhitespace"] = false;
+    if (options != null && options["ignoreTrimWhitespace"].truthy()) {
+      normalized["ignoreTrimWhitespace"] = options["ignoreTrimWhitespace"].truthy();
+    }
+    normalized["computeMoves"] = false;
+    normalized["maxComputationTimeMs"] = 0;
+    return new DefaultLinesDiffComputer().computeDiff(
+      originalLines,
+      modifiedLines,
+      normalized
+    );
+  }
+}
+
+export LegacyLinesDiffComputer createLegacyLinesDiffComputer() {
+  return new LegacyLinesDiffComputer();
+}

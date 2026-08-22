@@ -1,0 +1,92 @@
+pure int clampPositionPart(int value) {
+  if (value < 1) {
+    return 1;
+  }
+  return value;
+}
+
+export class Position {
+  int lineNumber;
+  int column;
+
+  init(int lineNumber, int column) {
+    this.lineNumber = lineNumber;
+    this.column = column;
+  }
+
+  Position with(int newLineNumber, int newColumn) {
+    if (newLineNumber == this.lineNumber && newColumn == this.column) {
+      return this;
+    }
+    return new Position(newLineNumber, newColumn);
+  }
+
+  Position delta(int deltaLineNumber, int deltaColumn) {
+    return this.with(
+      clampPositionPart(this.lineNumber + deltaLineNumber),
+      clampPositionPart(this.column + deltaColumn)
+    );
+  }
+
+  bool equals(Position other) {
+    return this.lineNumber == other.lineNumber && this.column == other.column;
+  }
+
+  bool isBefore(Position other) {
+    if (this.lineNumber != other.lineNumber) {
+      return this.lineNumber < other.lineNumber;
+    }
+    return this.column < other.column;
+  }
+
+  bool isBeforeOrEqual(Position other) {
+    if (this.lineNumber != other.lineNumber) {
+      return this.lineNumber < other.lineNumber;
+    }
+    return this.column <= other.column;
+  }
+
+  Position clone() {
+    return new Position(this.lineNumber, this.column);
+  }
+
+  string toString() {
+    return "(" + this.lineNumber.toString() + "," + this.column.toString() + ")";
+  }
+}
+
+export Position createPosition(int lineNumber, int column) {
+  return new Position(lineNumber, column);
+}
+
+export Position liftPosition(JsValue value) {
+  int lineNumber = JS.number(value["lineNumber"]).toInt();
+  int column = JS.number(value["column"]).toInt();
+  return new Position(lineNumber, column);
+}
+
+export bool isIPosition(JsValue value) {
+  if (!value.truthy()) {
+    return false;
+  }
+  return value["lineNumber"].truthy() && value["column"].truthy();
+}
+
+export bool positionEquals(Position a, Position b) {
+  return a.lineNumber == b.lineNumber && a.column == b.column;
+}
+
+export bool positionIsBefore(Position a, Position b) {
+  return a.isBefore(b);
+}
+
+export bool positionIsBeforeOrEqual(Position a, Position b) {
+  return a.isBeforeOrEqual(b);
+}
+
+export int positionCompare(Position a, Position b) {
+  if (a.lineNumber == b.lineNumber) {
+    return a.column - b.column;
+  }
+  return a.lineNumber - b.lineNumber;
+}

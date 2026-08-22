@@ -1,0 +1,142 @@
+import { DefaultLinesDiffComputer } from "../diff/defaultLinesDiffComputer/defaultLinesDiffComputer";
+import { LegacyLinesDiffComputer } from "../diff/legacyLinesDiffComputer";
+import { LinesDiff, MovedText } from "../diff/linesDiffComputer";
+import { DetailedLineRangeMapping, RangeMapping } from "../diff/rangeMapping";
+import {
+  MirrorModel,
+  WorkerTextModelSyncServer
+} from "./textModelSync/textModelSync.impl.lil";
+
+JsValue[] serializeChanges(DetailedLineRangeMapping[] changes) {
+  JsValue[] result = [];
+  int i = 0;
+  while (i < changes.length) {
+    DetailedLineRangeMapping change = changes[i];
+    JsValue[] inner = [];
+    int j = 0;
+    while (j < change.innerChanges.length) {
+      RangeMapping mapping = change.innerChanges[j];
+      inner.push([
+        mapping.originalRange.startLineNumber,
+        mapping.originalRange.startColumn,
+        mapping.originalRange.endLineNumber,
+        mapping.originalRange.endColumn,
+        mapping.modifiedRange.startLineNumber,
+        mapping.modifiedRange.startColumn,
+        mapping.modifiedRange.endLineNumber,
+        mapping.modifiedRange.endColumn
+      ]);
+      j = j + 1;
+    }
+    result.push([
+      change.original.startLineNumber,
+      change.original.endLineNumberExclusive,
+      change.modified.startLineNumber,
+      change.modified.endLineNumberExclusive,
+      inner
+    ]);
+    i = i + 1;
+  }
+  return result;
+}
+
+bool modelsAreIdentical(MirrorModel original, MirrorModel modified) {
+  if (original.getLineCount() != modified.getLineCount()) {
+    return false;
+  }
+  int lineNumber = 1;
+  while (lineNumber <= original.getLineCount()) {
+    if (
+      original.getLineContent(lineNumber) != modified.getLineContent(lineNumber)
+    ) {
+      return false;
+    }
+    lineNumber = lineNumber + 1;
+  }
+  return true;
+}
+
+export class EditorWorker {
+  WorkerTextModelSyncServer modelSyncServer;
+  JsValue foreignModule;
+
+  init(JsValue foreignModule = null) {
+    this.modelSyncServer = new WorkerTextModelSyncServer();
+    this.foreignModule = foreignModule;
+  }
+
+  void dispose() {}
+
+  string ping() {
+    return "pong";
+  }
+
+  MirrorModel[] getModels() {
+    return this.modelSyncServer.getModels();
+  }
+
+  void acceptNewModel(JsValue data) {
+    this.modelSyncServer.acceptNewModel(data);
+  }
+
+  void acceptModelChanged(string uri, JsValue event) {
+    this.modelSyncServer.acceptModelChanged(uri, event);
+  }
+
+  void acceptRemovedModel(string uri) {
+    this.modelSyncServer.acceptRemovedModel(uri);
+  }
+
+  JsValue computeDiff(
+    string originalUri,
+    string modifiedUri,
+    JsValue options,
+    string algorithm = "advanced"
+  ) {
+    MirrorModel? original = this.modelSyncServer.getModel(originalUri);
+    MirrorModel? modified = this.modelSyncServer.getModel(modifiedUri);
+    if (original == null || modified == null) {
+      return null;
+    }
+    LinesDiff diff = new DefaultLinesDiffComputer().computeDiff(
+      original.getLinesContent(),
+      modified.getLinesContent(),
+      options
+    );
+    if (algorithm == "legacy") {
+      diff = new LegacyLinesDiffComputer().computeDiff(
+        original.getLinesContent(),
+        modified.getLinesContent(),
+        options
+      );
+    }
+    JsValue result = JS.object();
+    result["identical"] =
+      diff.changes.length == 0 && modelsAreIdentical(original, modified);
+    result["quitEarly"] = diff.hitTimeout;
+    result["changes"] = serializeChanges(diff.changes);
+    JsValue[] moves = [];
+    int i = 0;
+    while (i < diff.moves.length) {
+      MovedText move = diff.moves[i];
+      moves.push([
+        move.lineRangeMapping.original.startLineNumber,
+        move.lineRangeMapping.original.endLineNumberExclusive,
+        move.lineRangeMapping.modified.startLineNumber,
+        move.lineRangeMapping.modified.endLineNumberExclusive,
+        serializeChanges(move.changes)
+      ]);
+      i = i + 1;
+    }
+    result["moves"] = moves;
+    return result;
+  }
+}
+
+export EditorWorker createEditorWorker(JsValue foreignModule = null) {
+  return new EditorWorker(foreignModule);
+}
+
+export string editorWorkerPing() {
+  return new EditorWorker().ping();
+}

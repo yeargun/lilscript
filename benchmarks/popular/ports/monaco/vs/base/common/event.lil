@@ -1,0 +1,98 @@
+export class Emitter<T> {
+  (func(T)->void)[] listeners;
+  bool disposed;
+
+  init() {
+    this.listeners = [];
+    this.disposed = false;
+  }
+
+  func()->void event(func(T)->void listener) {
+    if (this.disposed) {
+      return () => {};
+    }
+    this.listeners.push(listener);
+    Emitter<T> owner = this;
+    bool removed = false;
+    return () => {
+      if (removed) {
+        return;
+      }
+      removed = true;
+      int index = owner.listeners.indexOf(listener);
+      if (index >= 0) {
+        owner.listeners.splice(index, 1);
+      }
+    };
+  }
+
+  void fire(T value) {
+    if (this.disposed) {
+      return;
+    }
+    (func(T)->void)[] snapshot = this.listeners.slice();
+    int i = 0;
+    while (i < snapshot.length) {
+      snapshot[i](value);
+      i = i + 1;
+    }
+  }
+
+  void dispose() {
+    this.disposed = true;
+    this.listeners = [];
+  }
+}
+
+export Emitter<JsValue> createEmitter() {
+  return new Emitter<JsValue>();
+}
+
+export func()->void emitterEvent(Emitter<JsValue> emitter, func(JsValue)->void listener) {
+  return emitter.event(listener);
+}
+
+export void emitterFire(Emitter<JsValue> emitter, JsValue value) {
+  emitter.fire(value);
+}
+
+export func()->void eventNone(func(JsValue)->void listener) {
+  return () => {};
+}
+
+export func(func(JsValue)->void)->func()->void eventOnce(
+  func(func(JsValue)->void)->func()->void event
+) {
+  return (func(JsValue)->void listener) => {
+    bool fired = false;
+    bool subscribed = false;
+    func()->void disposeListener = () => {};
+    func(JsValue)->void onceListener = (JsValue value) => {
+      if (fired) {
+        return;
+      }
+      fired = true;
+      listener(value);
+      if (subscribed) {
+        disposeListener();
+      }
+    };
+    disposeListener = event(onceListener);
+    subscribed = true;
+    if (fired) {
+      disposeListener();
+    }
+    return disposeListener;
+  };
+}
+
+export func(func(JsValue)->void)->func()->void eventMap(
+  func(func(JsValue)->void)->func()->void event,
+  func(JsValue)->JsValue mapper
+) {
+  return (func(JsValue)->void listener) => {
+    return event((JsValue value) => {
+      listener(mapper(value));
+    });
+  };
+}

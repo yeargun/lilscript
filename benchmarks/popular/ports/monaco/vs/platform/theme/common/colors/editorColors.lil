@@ -1,0 +1,139 @@
+export class EditorColorsRegistry {
+  string[] ids;
+
+  init() {
+    this.ids = [];
+  }
+
+  string register(string id) {
+    if (!this.ids.includes(id)) {
+      this.ids.push(id);
+    }
+    return id;
+  }
+
+  bool has(string id) {
+    return this.ids.includes(id);
+  }
+
+  string asCssVariableName(string id) {
+    string out = "--vscode-";
+    int i = 0;
+    while (i < id.length) {
+      string ch = id.charAt(i);
+      if (ch == ".") {
+        out = out + "-";
+      } else {
+        out = out + ch;
+      }
+      i = i + 1;
+    }
+    return out;
+  }
+}
+
+EditorColorsRegistry colors = new EditorColorsRegistry();
+
+export EditorColorsRegistry getEditorColorsRegistry() {
+  return colors;
+}
+
+export string c0 = colors.register("editor.background");
+export string c1 = colors.register("editor.foreground");
+export string c2 = colors.register("editorStickyScroll.background");
+export string c3 = colors.register("editorStickyScrollGutter.background");
+export string c4 = colors.register("editorStickyScrollHover.background");
+export string c5 = colors.register("editorStickyScroll.border");
+export string c6 = colors.register("editorStickyScroll.shadow");
+export string c7 = colors.register("editorWidget.background");
+export string c8 = colors.register("editorWidget.foreground");
+export string c9 = colors.register("editorWidget.border");
+export string c10 = colors.register("editorWidget.resizeBorder");
+export string c11 = colors.register("editorError.background");
+export string c12 = colors.register("editorError.foreground");
+export string c13 = colors.register("editorError.border");
+export string c14 = colors.register("editorWarning.background");
+export string c15 = colors.register("editorWarning.foreground");
+export string c16 = colors.register("editorWarning.border");
+export string c17 = colors.register("editorInfo.background");
+export string c18 = colors.register("editorInfo.foreground");
+export string c19 = colors.register("editorInfo.border");
+export string c20 = colors.register("editorHint.foreground");
+export string c21 = colors.register("editorHint.border");
+export string c22 = colors.register("editorLink.activeForeground");
+export string c23 = colors.register("editor.selectionBackground");
+export string c24 = colors.register("editor.selectionForeground");
+export string c25 = colors.register("editor.inactiveSelectionBackground");
+export string c26 = colors.register("editor.selectionHighlightBackground");
+export string c27 = colors.register("editor.selectionHighlightBorder");
+export string c28 = colors.register("editor.compositionBorder");
+export string c29 = colors.register("editor.findMatchBackground");
+export string c30 = colors.register("editor.findMatchForeground");
+export string c31 = colors.register("editor.findMatchHighlightBackground");
+export string c32 = colors.register("editor.findMatchHighlightForeground");
+export string c33 = colors.register("editor.findRangeHighlightBackground");
+export string c34 = colors.register("editor.findMatchBorder");
+export string c35 = colors.register("editor.findMatchHighlightBorder");
+export string c36 = colors.register("editor.findRangeHighlightBorder");
+export string c37 = colors.register("editor.hoverHighlightBackground");
+export string c38 = colors.register("editorHoverWidget.background");
+export string c39 = colors.register("editorHoverWidget.foreground");
+export string c40 = colors.register("editorHoverWidget.border");
+export string c41 = colors.register("editorHoverWidget.statusBarBackground");
+export string c42 = colors.register("editorInlayHint.foreground");
+export string c43 = colors.register("editorInlayHint.background");
+export string c44 = colors.register("editorInlayHint.typeForeground");
+export string c45 = colors.register("editorInlayHint.typeBackground");
+export string c46 = colors.register("editorInlayHint.parameterForeground");
+export string c47 = colors.register("editorInlayHint.parameterBackground");
+export string c48 = colors.register("editorLightBulb.foreground");
+export string c49 = colors.register("editorLightBulbAutoFix.foreground");
+export string c50 = colors.register("editorLightBulbAi.foreground");
+export string c51 = colors.register("editor.snippetTabstopHighlightBackground");
+export string c52 = colors.register("editor.snippetTabstopHighlightBorder");
+export string c53 = colors.register("editor.snippetFinalTabstopHighlightBackground");
+export string c54 = colors.register("editor.snippetFinalTabstopHighlightBorder");
+export string c55 = colors.register("diffEditor.insertedTextBackground");
+export string c56 = colors.register("diffEditor.removedTextBackground");
+export string c57 = colors.register("diffEditor.insertedLineBackground");
+export string c58 = colors.register("diffEditor.removedLineBackground");
+export string c59 = colors.register("diffEditorGutter.insertedLineBackground");
+export string c60 = colors.register("diffEditorGutter.removedLineBackground");
+export string c61 = colors.register("diffEditorOverview.insertedForeground");
+export string c62 = colors.register("diffEditorOverview.removedForeground");
+export string c63 = colors.register("diffEditor.insertedTextBorder");
+export string c64 = colors.register("diffEditor.removedTextBorder");
+export string c65 = colors.register("diffEditor.border");
+export string c66 = colors.register("diffEditor.diagonalFill");
+export string c67 = colors.register("diffEditor.unchangedRegionBackground");
+export string c68 = colors.register("diffEditor.unchangedRegionForeground");
+export string c69 = colors.register("diffEditor.unchangedCodeBackground");
+export string c70 = colors.register("widget.shadow");
+export string c71 = colors.register("widget.border");
+export string c72 = colors.register("toolbar.hoverBackground");
+export string c73 = colors.register("toolbar.hoverOutline");
+export string c74 = colors.register("toolbar.activeBackground");
+export string c75 = colors.register("breadcrumb.foreground");
+export string c76 = colors.register("breadcrumb.background");
+export string c77 = colors.register("breadcrumb.focusForeground");
+export string c78 = colors.register("breadcrumb.activeSelectionForeground");
+export string c79 = colors.register("breadcrumbPicker.background");
+export string c80 = colors.register("merge.currentHeaderBackground");
+export string c81 = colors.register("merge.currentContentBackground");
+export string c82 = colors.register("merge.incomingHeaderBackground");
+export string c83 = colors.register("merge.incomingContentBackground");
+export string c84 = colors.register("merge.commonHeaderBackground");
+export string c85 = colors.register("merge.commonContentBackground");
+export string c86 = colors.register("merge.border");
+export string c87 = colors.register("editorOverviewRuler.currentContentForeground");
+export string c88 = colors.register("editorOverviewRuler.incomingContentForeground");
+export string c89 = colors.register("editorOverviewRuler.commonContentForeground");
+export string c90 = colors.register("editorOverviewRuler.findMatchForeground");
+export string c91 = colors.register("editorOverviewRuler.selectionHighlightForeground");
+export string c92 = colors.register("problemsErrorIcon.foreground");
+export string c93 = colors.register("problemsWarningIcon.foreground");
+export string c94 = colors.register("problemsInfoIcon.foreground");
+
+export string[] colorIds() {
+  return colors.ids;
+}

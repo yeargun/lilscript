@@ -1,0 +1,597 @@
+export int MINIMAP_GUTTER_WIDTH = 8;
+export int RenderMinimapNone = 0;
+export int RenderMinimapText = 1;
+export int RenderMinimapBlocks = 2;
+export int RenderLineNumbersOff = 0;
+export int RenderLineNumbersOn = 1;
+export int RenderLineNumbersRelative = 2;
+export int RenderLineNumbersInterval = 3;
+export int AccessibilitySupportUnknown = 0;
+export int AccessibilitySupportDisabled = 1;
+export int AccessibilitySupportEnabled = 2;
+
+export int clampInt(int n, int min, int max) {
+  if (n < min) {
+    return min;
+  }
+  if (n > max) {
+    return max;
+  }
+  return n;
+}
+
+export float clampFloat(float n, float min, float max) {
+  if (n < min) {
+    return min;
+  }
+  if (n > max) {
+    return max;
+  }
+  return n;
+}
+
+export class EditorOptionDefaults {
+  bool glyphMargin;
+  int lineNumbersRenderType;
+  int lineNumbersMinChars;
+  bool scrollBeyondLastLine;
+  int paddingTop;
+  int paddingBottom;
+  bool folding;
+  string showFoldingControls;
+  int lineDecorationsWidth;
+  string wordWrap;
+  string wordWrapOverride1;
+  string wordWrapOverride2;
+  int wordWrapColumn;
+  int accessibilitySupport;
+  bool minimapEnabled;
+  string minimapSide;
+  string minimapSize;
+  bool minimapRenderCharacters;
+  int minimapMaxColumn;
+  int minimapScale;
+  int verticalScrollbarSize;
+  bool verticalHasArrows;
+  int scrollbarArrowSize;
+  int horizontalScrollbarSize;
+  int fontSize;
+  int lineHeight;
+  string fontFamily;
+  float letterSpacing;
+  int tabSize;
+  bool insertSpaces;
+  bool readOnly;
+  bool roundedSelection;
+  bool links;
+  string matchBrackets;
+  bool smoothScrolling;
+  int stopRenderingLineAfter;
+  bool renderControlCharacters;
+  string renderWhitespace;
+  string wrappingStrategy;
+  int scrollBeyondLastColumn;
+
+  init() {
+    this.glyphMargin = true;
+    this.lineNumbersRenderType = RenderLineNumbersOn;
+    this.lineNumbersMinChars = 5;
+    this.scrollBeyondLastLine = true;
+    this.paddingTop = 0;
+    this.paddingBottom = 0;
+    this.folding = true;
+    this.showFoldingControls = "mouseover";
+    this.lineDecorationsWidth = 10;
+    this.wordWrap = "off";
+    this.wordWrapOverride1 = "inherit";
+    this.wordWrapOverride2 = "inherit";
+    this.wordWrapColumn = 80;
+    this.accessibilitySupport = AccessibilitySupportUnknown;
+    this.minimapEnabled = true;
+    this.minimapSide = "right";
+    this.minimapSize = "proportional";
+    this.minimapRenderCharacters = true;
+    this.minimapMaxColumn = 120;
+    this.minimapScale = 1;
+    this.verticalScrollbarSize = 14;
+    this.verticalHasArrows = false;
+    this.scrollbarArrowSize = 11;
+    this.horizontalScrollbarSize = 12;
+    this.fontSize = 14;
+    this.lineHeight = 0;
+    this.fontFamily = "Menlo, Monaco, Courier New, monospace";
+    this.letterSpacing = 0.0;
+    this.tabSize = 4;
+    this.insertSpaces = true;
+    this.readOnly = false;
+    this.roundedSelection = true;
+    this.links = true;
+    this.matchBrackets = "always";
+    this.smoothScrolling = false;
+    this.stopRenderingLineAfter = 10000;
+    this.renderControlCharacters = true;
+    this.renderWhitespace = "selection";
+    this.wrappingStrategy = "simple";
+    this.scrollBeyondLastColumn = 4;
+  }
+}
+
+export class ConfigurationChangedEvent {
+  bool[] values;
+
+  init(bool[] values) {
+    this.values = values;
+  }
+
+  bool hasChanged(int id) {
+    if (id < 0 || id >= this.values.length) {
+      return false;
+    }
+    return this.values[id];
+  }
+}
+
+export class ComputeOptionsMemory {
+  int stableFitMaxMinimapScale;
+  int stableFitRemainingWidth;
+  int stableOuterHeight;
+  int stableLineHeight;
+  float stableTypicalHalfwidth;
+  float stablePixelRatio;
+  bool stableScrollBeyondLastLine;
+  int stablePaddingTop;
+  int stablePaddingBottom;
+  bool stableMinimapEnabled;
+  string stableMinimapSide;
+  string stableMinimapSize;
+  bool stableMinimapRenderCharacters;
+  int stableMinimapMaxColumn;
+  int stableMinimapScale;
+  int stableVerticalScrollbarWidth;
+  bool stableIsViewportWrapping;
+  bool hasStable;
+
+  init() {
+    this.stableFitMaxMinimapScale = 0;
+    this.stableFitRemainingWidth = 0;
+    this.stableOuterHeight = 0;
+    this.stableLineHeight = 0;
+    this.stableTypicalHalfwidth = 0.0;
+    this.stablePixelRatio = 0.0;
+    this.stableScrollBeyondLastLine = false;
+    this.stablePaddingTop = 0;
+    this.stablePaddingBottom = 0;
+    this.stableMinimapEnabled = false;
+    this.stableMinimapSide = "";
+    this.stableMinimapSize = "";
+    this.stableMinimapRenderCharacters = false;
+    this.stableMinimapMaxColumn = 0;
+    this.stableMinimapScale = 0;
+    this.stableVerticalScrollbarWidth = 0;
+    this.stableIsViewportWrapping = false;
+    this.hasStable = false;
+  }
+}
+
+export class MinimapLayout {
+  int renderMinimap;
+  int minimapLeft;
+  int minimapWidth;
+  bool minimapHeightIsEditorHeight;
+  bool minimapIsSampling;
+  int minimapScale;
+  int minimapLineHeight;
+  int minimapCanvasInnerWidth;
+  int minimapCanvasInnerHeight;
+  float minimapCanvasOuterWidth;
+  int minimapCanvasOuterHeight;
+
+  init() {
+    this.renderMinimap = RenderMinimapNone;
+    this.minimapLeft = 0;
+    this.minimapWidth = 0;
+    this.minimapHeightIsEditorHeight = false;
+    this.minimapIsSampling = false;
+    this.minimapScale = 1;
+    this.minimapLineHeight = 1;
+    this.minimapCanvasInnerWidth = 0;
+    this.minimapCanvasInnerHeight = 0;
+    this.minimapCanvasOuterWidth = 0.0;
+    this.minimapCanvasOuterHeight = 0;
+  }
+}
+
+export class EditorLayoutInfo {
+  int width;
+  int height;
+  int glyphMarginLeft;
+  int glyphMarginWidth;
+  int glyphMarginDecorationLaneCount;
+  int lineNumbersLeft;
+  int lineNumbersWidth;
+  int decorationsLeft;
+  int decorationsWidth;
+  int contentLeft;
+  int contentWidth;
+  MinimapLayout minimap;
+  int viewportColumn;
+  bool isWordWrapMinified;
+  bool isViewportWrapping;
+  int wrappingColumn;
+  int verticalScrollbarWidth;
+  int horizontalScrollbarHeight;
+  int overviewRulerTop;
+  int overviewRulerWidth;
+  int overviewRulerHeight;
+  int overviewRulerRight;
+
+  init() {
+    this.width = 0;
+    this.height = 0;
+    this.glyphMarginLeft = 0;
+    this.glyphMarginWidth = 0;
+    this.glyphMarginDecorationLaneCount = 0;
+    this.lineNumbersLeft = 0;
+    this.lineNumbersWidth = 0;
+    this.decorationsLeft = 0;
+    this.decorationsWidth = 0;
+    this.contentLeft = 0;
+    this.contentWidth = 0;
+    this.minimap = new MinimapLayout();
+    this.viewportColumn = 0;
+    this.isWordWrapMinified = false;
+    this.isViewportWrapping = false;
+    this.wrappingColumn = -1;
+    this.verticalScrollbarWidth = 0;
+    this.horizontalScrollbarHeight = 0;
+    this.overviewRulerTop = 0;
+    this.overviewRulerWidth = 0;
+    this.overviewRulerHeight = 0;
+    this.overviewRulerRight = 0;
+  }
+}
+
+export class MinimapLineCount {
+  float typicalViewportLineCount;
+  int extraLinesBeforeFirstLine;
+  int extraLinesBeyondLastLine;
+  float desiredRatio;
+  int minimapLineCount;
+
+  init(float typicalViewportLineCount, int extraLinesBeforeFirstLine, int extraLinesBeyondLastLine, float desiredRatio, int minimapLineCount) {
+    this.typicalViewportLineCount = typicalViewportLineCount;
+    this.extraLinesBeforeFirstLine = extraLinesBeforeFirstLine;
+    this.extraLinesBeyondLastLine = extraLinesBeyondLastLine;
+    this.desiredRatio = desiredRatio;
+    this.minimapLineCount = minimapLineCount;
+  }
+}
+
+int imax(int a, int b) {
+  if (a > b) {
+    return a;
+  }
+  return b;
+}
+
+int imin(int a, int b) {
+  if (a < b) {
+    return a;
+  }
+  return b;
+}
+
+export int validatedFontSize(int fontSize) {
+  return clampInt(fontSize, 6, 100);
+}
+
+export int validatedLineHeight(int lineHeight, int fontSize) {
+  if (lineHeight == 0) {
+    return ((fontSize * 1.5).round().toInt());
+  }
+  if (lineHeight > 0 && lineHeight < 8) {
+    return (fontSize * 1.0 * lineHeight * 1.0).round().toInt();
+  }
+  return clampInt(lineHeight, 8, 150);
+}
+
+export int validatedTabSize(int tabSize) {
+  return clampInt(tabSize, 1, 100);
+}
+
+export string validatedWordWrap(string wordWrap) {
+  if (wordWrap == "on" || wordWrap == "off" || wordWrap == "wordWrapColumn" || wordWrap == "bounded") {
+    return wordWrap;
+  }
+  return "off";
+}
+
+export MinimapLineCount computeContainedMinimapLineCount(int viewLineCount, bool scrollBeyondLastLine, int paddingTop, int paddingBottom, int height, int lineHeight, float pixelRatio) {
+  float typicalViewportLineCount = height * 1.0 / (lineHeight * 1.0);
+  int extraLinesBeforeFirstLine = (paddingTop * 1.0 / (lineHeight * 1.0)).floor().toInt();
+  int extraLinesBeyondLastLine = (paddingBottom * 1.0 / (lineHeight * 1.0)).floor().toInt();
+  if (scrollBeyondLastLine) {
+    int extra = (typicalViewportLineCount - 1.0).floor().toInt();
+    extraLinesBeyondLastLine = imax(extraLinesBeyondLastLine, extra);
+  }
+  float desiredRatio = (extraLinesBeforeFirstLine + viewLineCount + extraLinesBeyondLastLine) * 1.0 / (pixelRatio * height * 1.0);
+  int minimapLineCount = 0;
+  if (desiredRatio != 0.0) {
+    minimapLineCount = (viewLineCount * 1.0 / desiredRatio).floor().toInt();
+  }
+  return new MinimapLineCount(typicalViewportLineCount, extraLinesBeforeFirstLine, extraLinesBeyondLastLine, desiredRatio, minimapLineCount);
+}
+
+export MinimapLayout computeMinimapLayout(EditorOptionDefaults options, int outerWidth, int outerHeight, int lineHeight, float typicalHalfwidthCharacterWidth, float pixelRatio, int viewLineCount, int remainingWidth, bool isViewportWrapping, ComputeOptionsMemory memory) {
+  MinimapLayout result = new MinimapLayout();
+  result.minimapCanvasInnerHeight = (pixelRatio * outerHeight * 1.0).floor().toInt();
+  result.minimapCanvasOuterHeight = outerHeight;
+  if (!options.minimapEnabled) {
+    return result;
+  }
+  bool couldUseMemory = memory.hasStable && outerHeight == memory.stableOuterHeight && lineHeight == memory.stableLineHeight && typicalHalfwidthCharacterWidth == memory.stableTypicalHalfwidth && pixelRatio == memory.stablePixelRatio && options.scrollBeyondLastLine == memory.stableScrollBeyondLastLine && options.paddingTop == memory.stablePaddingTop && options.paddingBottom == memory.stablePaddingBottom && options.minimapEnabled == memory.stableMinimapEnabled && options.minimapSide == memory.stableMinimapSide && options.minimapSize == memory.stableMinimapSize && options.minimapRenderCharacters == memory.stableMinimapRenderCharacters && options.minimapMaxColumn == memory.stableMinimapMaxColumn && options.minimapScale == memory.stableMinimapScale && options.verticalScrollbarSize == memory.stableVerticalScrollbarWidth && isViewportWrapping == memory.stableIsViewportWrapping;
+  int minimapScale = options.minimapScale;
+  if (pixelRatio >= 2.0) {
+    minimapScale = (options.minimapScale * 2.0).round().toInt();
+  }
+  int baseCharHeight = 3;
+  if (options.minimapRenderCharacters) {
+    baseCharHeight = 2;
+  }
+  bool minimapHeightIsEditorHeight = false;
+  bool minimapIsSampling = false;
+  int minimapLineHeight = baseCharHeight * minimapScale;
+  float minimapCharWidth = minimapScale * 1.0 / pixelRatio;
+  float minimapWidthMultiplier = 1.0;
+  int minimapCanvasInnerHeight = result.minimapCanvasInnerHeight;
+  if (options.minimapSize == "fill" || options.minimapSize == "fit") {
+    MinimapLineCount counts = computeContainedMinimapLineCount(viewLineCount, options.scrollBeyondLastLine, options.paddingTop, options.paddingBottom, outerHeight, lineHeight, pixelRatio);
+    float ratio = 1.0;
+    if (counts.minimapLineCount != 0) {
+      ratio = viewLineCount * 1.0 / (counts.minimapLineCount * 1.0);
+    }
+    if (ratio > 1.0) {
+      minimapHeightIsEditorHeight = true;
+      minimapIsSampling = true;
+      minimapScale = 1;
+      minimapLineHeight = 1;
+      minimapCharWidth = minimapScale * 1.0 / pixelRatio;
+    } else {
+      bool fitBecomesFill = false;
+      int maxMinimapScale = minimapScale + 1;
+      if (options.minimapSize == "fit") {
+        int effectiveMinimapHeight = ((counts.extraLinesBeforeFirstLine + viewLineCount + counts.extraLinesBeyondLastLine) * minimapLineHeight);
+        if (isViewportWrapping && couldUseMemory && remainingWidth <= memory.stableFitRemainingWidth) {
+          fitBecomesFill = true;
+          maxMinimapScale = memory.stableFitMaxMinimapScale;
+        } else {
+          fitBecomesFill = effectiveMinimapHeight > minimapCanvasInnerHeight;
+        }
+      }
+      if (options.minimapSize == "fill" || fitBecomesFill) {
+        minimapHeightIsEditorHeight = true;
+        int configuredMinimapScale = minimapScale;
+        int fromRatio = 1;
+        if (counts.desiredRatio != 0.0) {
+          fromRatio = imax(1, (1.0 / counts.desiredRatio).floor().toInt());
+        }
+        int lineCap = (lineHeight * 1.0 * pixelRatio).floor().toInt();
+        minimapLineHeight = imin(lineCap, fromRatio);
+        if (isViewportWrapping && couldUseMemory && remainingWidth <= memory.stableFitRemainingWidth) {
+          maxMinimapScale = memory.stableFitMaxMinimapScale;
+        }
+        minimapScale = imin(maxMinimapScale, imax(1, (minimapLineHeight * 1.0 / (baseCharHeight * 1.0)).floor().toInt()));
+        if (minimapScale > configuredMinimapScale && configuredMinimapScale > 0) {
+          minimapWidthMultiplier = clampFloat(minimapScale * 1.0 / (configuredMinimapScale * 1.0), 1.0, 2.0);
+        }
+        minimapCharWidth = minimapScale * 1.0 / pixelRatio / minimapWidthMultiplier;
+        float lines = counts.typicalViewportLineCount;
+        float extra = (counts.extraLinesBeforeFirstLine + viewLineCount + counts.extraLinesBeyondLastLine) * 1.0;
+        if (extra > lines) {
+          lines = extra;
+        }
+        minimapCanvasInnerHeight = (lines * minimapLineHeight * 1.0).ceil().toInt();
+        if (isViewportWrapping) {
+          memory.hasStable = true;
+          memory.stableFitRemainingWidth = remainingWidth;
+          memory.stableFitMaxMinimapScale = minimapScale;
+          memory.stableOuterHeight = outerHeight;
+          memory.stableLineHeight = lineHeight;
+          memory.stableTypicalHalfwidth = typicalHalfwidthCharacterWidth;
+          memory.stablePixelRatio = pixelRatio;
+          memory.stableScrollBeyondLastLine = options.scrollBeyondLastLine;
+          memory.stablePaddingTop = options.paddingTop;
+          memory.stablePaddingBottom = options.paddingBottom;
+          memory.stableMinimapEnabled = options.minimapEnabled;
+          memory.stableMinimapSide = options.minimapSide;
+          memory.stableMinimapSize = options.minimapSize;
+          memory.stableMinimapRenderCharacters = options.minimapRenderCharacters;
+          memory.stableMinimapMaxColumn = options.minimapMaxColumn;
+          memory.stableMinimapScale = options.minimapScale;
+          memory.stableVerticalScrollbarWidth = options.verticalScrollbarSize;
+          memory.stableIsViewportWrapping = isViewportWrapping;
+        } else {
+          memory.hasStable = false;
+          memory.stableFitRemainingWidth = 0;
+        }
+      }
+    }
+  }
+  int minimapMaxWidth = (options.minimapMaxColumn * 1.0 * minimapCharWidth).floor().toInt();
+  float denom = typicalHalfwidthCharacterWidth + minimapCharWidth;
+  int computedWidth = 0;
+  if (denom != 0.0) {
+    computedWidth = (((remainingWidth - options.verticalScrollbarSize - 2) * 1.0 * minimapCharWidth) / denom).floor().toInt();
+  }
+  if (computedWidth < 0) {
+    computedWidth = 0;
+  }
+  int minimapWidth = imin(minimapMaxWidth, computedWidth) + MINIMAP_GUTTER_WIDTH;
+  int minimapCanvasInnerWidth = (pixelRatio * minimapWidth * 1.0).floor().toInt();
+  float minimapCanvasOuterWidth = minimapCanvasInnerWidth * 1.0 / pixelRatio;
+  minimapCanvasInnerWidth = (minimapCanvasInnerWidth * 1.0 * minimapWidthMultiplier).floor().toInt();
+  int renderMinimap = RenderMinimapBlocks;
+  if (options.minimapRenderCharacters) {
+    renderMinimap = RenderMinimapText;
+  }
+  int minimapLeft = outerWidth - minimapWidth - options.verticalScrollbarSize;
+  if (options.minimapSide == "left") {
+    minimapLeft = 0;
+  }
+  result.renderMinimap = renderMinimap;
+  result.minimapLeft = minimapLeft;
+  result.minimapWidth = minimapWidth;
+  result.minimapHeightIsEditorHeight = minimapHeightIsEditorHeight;
+  result.minimapIsSampling = minimapIsSampling;
+  result.minimapScale = minimapScale;
+  result.minimapLineHeight = minimapLineHeight;
+  result.minimapCanvasInnerWidth = minimapCanvasInnerWidth;
+  result.minimapCanvasInnerHeight = minimapCanvasInnerHeight;
+  result.minimapCanvasOuterWidth = minimapCanvasOuterWidth;
+  result.minimapCanvasOuterHeight = outerHeight;
+  return result;
+}
+
+export EditorLayoutInfo computeEditorLayout(EditorOptionDefaults options, int outerWidth, int outerHeight, int lineHeight, int lineNumbersDigitCount, float typicalHalfwidthCharacterWidth, float maxDigitWidth, float pixelRatio, int viewLineCount, bool isDominatedByLongLines, int glyphMarginDecorationLaneCount, ComputeOptionsMemory memory) {
+  int width = outerWidth | 0;
+  int height = outerHeight | 0;
+  int lh = lineHeight | 0;
+  string wordWrapOverride2 = options.wordWrapOverride2;
+  string wordWrapOverride1 = options.wordWrapOverride1;
+  if (wordWrapOverride2 != "inherit") {
+    wordWrapOverride1 = wordWrapOverride2;
+  }
+  string wordWrap = options.wordWrap;
+  if (wordWrapOverride1 != "inherit") {
+    wordWrap = wordWrapOverride1;
+  }
+  int lineDecorationsWidth = options.lineDecorationsWidth;
+  if (options.folding && options.showFoldingControls != "never") {
+    lineDecorationsWidth = lineDecorationsWidth + 16;
+  }
+  int lineNumbersWidth = 0;
+  if (options.lineNumbersRenderType != RenderLineNumbersOff) {
+    int digitCount = imax(lineNumbersDigitCount, options.lineNumbersMinChars);
+    lineNumbersWidth = (digitCount * 1.0 * maxDigitWidth).round().toInt();
+  }
+  int glyphMarginWidth = 0;
+  if (options.glyphMargin) {
+    glyphMarginWidth = lh * glyphMarginDecorationLaneCount;
+  }
+  int glyphMarginLeft = 0;
+  int lineNumbersLeft = glyphMarginLeft + glyphMarginWidth;
+  int decorationsLeft = lineNumbersLeft + lineNumbersWidth;
+  int contentLeft = decorationsLeft + lineDecorationsWidth;
+  int remainingWidth = width - glyphMarginWidth - lineNumbersWidth - lineDecorationsWidth;
+  bool isWordWrapMinified = false;
+  bool isViewportWrapping = false;
+  int wrappingColumn = -1;
+  if (options.accessibilitySupport == AccessibilitySupportEnabled && options.wordWrapOverride1 == "inherit" && isDominatedByLongLines) {
+    isWordWrapMinified = true;
+    isViewportWrapping = true;
+  } else if (wordWrap == "on" || wordWrap == "bounded") {
+    isViewportWrapping = true;
+  } else if (wordWrap == "wordWrapColumn") {
+    wrappingColumn = options.wordWrapColumn;
+  }
+  MinimapLayout minimapLayout = computeMinimapLayout(options, width, height, lh, typicalHalfwidthCharacterWidth, pixelRatio, viewLineCount, remainingWidth, isViewportWrapping, memory);
+  if (minimapLayout.renderMinimap != RenderMinimapNone && minimapLayout.minimapLeft == 0) {
+    glyphMarginLeft = glyphMarginLeft + minimapLayout.minimapWidth;
+    lineNumbersLeft = lineNumbersLeft + minimapLayout.minimapWidth;
+    decorationsLeft = decorationsLeft + minimapLayout.minimapWidth;
+    contentLeft = contentLeft + minimapLayout.minimapWidth;
+  }
+  int contentWidth = remainingWidth - minimapLayout.minimapWidth;
+  int viewportColumn = 1;
+  if (typicalHalfwidthCharacterWidth != 0.0) {
+    viewportColumn = imax(1, ((contentWidth - options.verticalScrollbarSize - 2) * 1.0 / typicalHalfwidthCharacterWidth).floor().toInt());
+  }
+  int verticalArrowSize = 0;
+  if (options.verticalHasArrows) {
+    verticalArrowSize = options.scrollbarArrowSize;
+  }
+  if (isViewportWrapping) {
+    wrappingColumn = imax(1, viewportColumn);
+    if (wordWrap == "bounded") {
+      wrappingColumn = imin(wrappingColumn, options.wordWrapColumn);
+    }
+  }
+  EditorLayoutInfo info = new EditorLayoutInfo();
+  info.width = width;
+  info.height = height;
+  info.glyphMarginLeft = glyphMarginLeft;
+  info.glyphMarginWidth = glyphMarginWidth;
+  info.glyphMarginDecorationLaneCount = glyphMarginDecorationLaneCount;
+  info.lineNumbersLeft = lineNumbersLeft;
+  info.lineNumbersWidth = lineNumbersWidth;
+  info.decorationsLeft = decorationsLeft;
+  info.decorationsWidth = lineDecorationsWidth;
+  info.contentLeft = contentLeft;
+  info.contentWidth = contentWidth;
+  info.minimap = minimapLayout;
+  info.viewportColumn = viewportColumn;
+  info.isWordWrapMinified = isWordWrapMinified;
+  info.isViewportWrapping = isViewportWrapping;
+  info.wrappingColumn = wrappingColumn;
+  info.verticalScrollbarWidth = options.verticalScrollbarSize;
+  info.horizontalScrollbarHeight = options.horizontalScrollbarSize;
+  info.overviewRulerTop = verticalArrowSize;
+  info.overviewRulerWidth = options.verticalScrollbarSize;
+  info.overviewRulerHeight = height - 2 * verticalArrowSize;
+  info.overviewRulerRight = 0;
+  return info;
+}
+
+export class ApplyUpdateResult {
+  JsValue newValue;
+  bool didChange;
+
+  init(JsValue newValue, bool didChange) {
+    this.newValue = newValue;
+    this.didChange = didChange;
+  }
+}
+
+export ApplyUpdateResult applyUpdate(JsValue value, JsValue update) {
+  if (!value.truthy() || !update.truthy() || !value.isObject() || !update.isObject()) {
+    bool changed = true;
+    if (value is string && update is string) {
+      string a = value;
+      string b = update;
+      changed = a != b;
+    } else if (value is float && update is float) {
+      float a = value;
+      float b = update;
+      changed = a != b;
+    } else if (value is bool && update is bool) {
+      bool a = value;
+      bool b = update;
+      changed = a != b;
+    }
+    return new ApplyUpdateResult(update, changed);
+  }
+  if (value.isArray() || update.isArray()) {
+    bool same = value.isArray() && update.isArray() && value.length == update.length;
+    return new ApplyUpdateResult(update, !same);
+  }
+  bool didChange = false;
+  for (string key in update) {
+    ApplyUpdateResult result = applyUpdate(value[key], update[key]);
+    if (result.didChange) {
+      value[key] = result.newValue;
+      didChange = true;
+    }
+  }
+  return new ApplyUpdateResult(value, didChange);
+}
+
+export string wrappingStrategyFromAccessibility(string wrappingStrategy, int accessibilitySupport) {
+  if (accessibilitySupport == AccessibilitySupportEnabled) {
+    return "advanced";
+  }
+  return wrappingStrategy;
+}
+
+export EditorOptionDefaults editorOptionDefaults() {
+  return new EditorOptionDefaults();
+}

@@ -1,0 +1,55 @@
+export int StringEOLUnknown = 0;
+export int StringEOLLF = 1;
+export int StringEOLCRLF = 2;
+export int StringEOLInvalid = 3;
+
+export class EolCount {
+  int eolCount;
+  int firstLineLength;
+  int lastLineLength;
+  int eol;
+
+  init(int eolCount, int firstLineLength, int lastLineLength, int eol) {
+    this.eolCount = eolCount;
+    this.firstLineLength = firstLineLength;
+    this.lastLineLength = lastLineLength;
+    this.eol = eol;
+  }
+}
+
+export EolCount countEOL(string text) {
+  int eolCount = 0;
+  int firstLineLength = 0;
+  int lastLineStart = 0;
+  int eol = StringEOLUnknown;
+  int i = 0;
+  int n = text.length;
+  while (i < n) {
+    int chr = text.charCodeAt(i);
+    if (chr == 13) {
+      if (eolCount == 0) {
+        firstLineLength = i;
+      }
+      eolCount = eolCount + 1;
+      if (i + 1 < n && text.charCodeAt(i + 1) == 10) {
+        eol = eol | StringEOLCRLF;
+        i = i + 1;
+      } else {
+        eol = eol | StringEOLInvalid;
+      }
+      lastLineStart = i + 1;
+    } else if (chr == 10) {
+      eol = eol | StringEOLLF;
+      if (eolCount == 0) {
+        firstLineLength = i;
+      }
+      eolCount = eolCount + 1;
+      lastLineStart = i + 1;
+    }
+    i = i + 1;
+  }
+  if (eolCount == 0) {
+    firstLineLength = n;
+  }
+  return new EolCount(eolCount, firstLineLength, n - lastLineStart, eol);
+}

@@ -1,0 +1,272 @@
+pure int moveClamp(int value, int low, int high) {
+  if (value < low) {
+    return low;
+  }
+  if (value > high) {
+    return high;
+  }
+  return value;
+}
+
+int moveNextTabStop(int visibleColumn, int tabSize) {
+  if (tabSize <= 0) {
+    return visibleColumn + 1;
+  }
+  return visibleColumn + tabSize - visibleColumn % tabSize;
+}
+
+int moveVisibleColumn(string line, int column, int tabSize) {
+  int end = column - 1;
+  if (end > line.length) {
+    end = line.length;
+  }
+  int visibleColumn = 0;
+  int i = 0;
+  while (i < end) {
+    if (line.charCodeAt(i) == 9) {
+      visibleColumn = moveNextTabStop(visibleColumn, tabSize);
+    } else {
+      visibleColumn = visibleColumn + 1;
+    }
+    i = i + 1;
+  }
+  return visibleColumn;
+}
+
+int moveColumnFromVisible(string line, int targetVisibleColumn, int tabSize) {
+  int visibleColumn = 0;
+  int i = 0;
+  while (i < line.length) {
+    int nextVisibleColumn = visibleColumn + 1;
+    if (line.charCodeAt(i) == 9) {
+      nextVisibleColumn = moveNextTabStop(visibleColumn, tabSize);
+    }
+    if (nextVisibleColumn >= targetVisibleColumn) {
+      if (nextVisibleColumn - targetVisibleColumn < targetVisibleColumn - visibleColumn) {
+        return i + 2;
+      }
+      return i + 1;
+    }
+    visibleColumn = nextVisibleColumn;
+    i = i + 1;
+  }
+  return line.length + 1;
+}
+
+int previousCharacterLength(string line, int offset) {
+  if (offset <= 0) {
+    return 1;
+  }
+  int low = line.charCodeAt(offset - 1);
+  if (low >= 56320 && low <= 57343 && offset >= 2) {
+    int high = line.charCodeAt(offset - 2);
+    if (high >= 55296 && high <= 56319) {
+      return 2;
+    }
+  }
+  return 1;
+}
+
+int nextCharacterLength(string line, int offset) {
+  if (offset + 1 >= line.length) {
+    return 1;
+  }
+  int high = line.charCodeAt(offset);
+  int low = line.charCodeAt(offset + 1);
+  if (high >= 55296 && high <= 56319 && low >= 56320 && low <= 57343) {
+    return 2;
+  }
+  return 1;
+}
+
+bool blankLine(string line) {
+  int i = 0;
+  while (i < line.length) {
+    int code = line.charCodeAt(i);
+    if (code != 32 && code != 9) {
+      return false;
+    }
+    i = i + 1;
+  }
+  return true;
+}
+
+int firstNonWhitespaceColumn(string line) {
+  int i = 0;
+  while (i < line.length) {
+    int code = line.charCodeAt(i);
+    if (code != 32 && code != 9) {
+      return i + 1;
+    }
+    i = i + 1;
+  }
+  return 1;
+}
+
+export class CursorPosition {
+  int lineNumber;
+  int column;
+  int leftoverVisibleColumns;
+
+  init(int lineNumber, int column, int leftoverVisibleColumns) {
+    this.lineNumber = lineNumber;
+    this.column = column;
+    this.leftoverVisibleColumns = leftoverVisibleColumns;
+  }
+
+  bool equals(CursorPosition other) {
+    return this.lineNumber == other.lineNumber
+      && this.column == other.column
+      && this.leftoverVisibleColumns == other.leftoverVisibleColumns;
+  }
+}
+
+export CursorPosition leftPosition(string[] lines, CursorPosition position) {
+  if (position.column > 1) {
+    string line = lines[position.lineNumber - 1];
+    int length = previousCharacterLength(line, position.column - 1);
+    return new CursorPosition(position.lineNumber, position.column - length, 0);
+  }
+  if (position.lineNumber > 1) {
+    int lineNumber = position.lineNumber - 1;
+    return new CursorPosition(lineNumber, lines[lineNumber - 1].length + 1, 0);
+  }
+  return new CursorPosition(position.lineNumber, position.column, 0);
+}
+
+export CursorPosition rightPosition(string[] lines, CursorPosition position) {
+  string line = lines[position.lineNumber - 1];
+  if (position.column <= line.length) {
+    int length = nextCharacterLength(line, position.column - 1);
+    return new CursorPosition(position.lineNumber, position.column + length, 0);
+  }
+  if (position.lineNumber < lines.length) {
+    return new CursorPosition(position.lineNumber + 1, 1, 0);
+  }
+  return new CursorPosition(position.lineNumber, position.column, 0);
+}
+
+export CursorPosition moveLeft(string[] lines, CursorPosition position, int count) {
+  CursorPosition result = new CursorPosition(
+    position.lineNumber,
+    position.column,
+    position.leftoverVisibleColumns
+  );
+  int i = 0;
+  while (i < count) {
+    result = leftPosition(lines, result);
+    i = i + 1;
+  }
+  return result;
+}
+
+export CursorPosition moveRight(string[] lines, CursorPosition position, int count) {
+  CursorPosition result = new CursorPosition(
+    position.lineNumber,
+    position.column,
+    position.leftoverVisibleColumns
+  );
+  int i = 0;
+  while (i < count) {
+    result = rightPosition(lines, result);
+    i = i + 1;
+  }
+  return result;
+}
+
+export CursorPosition vertical(
+  string[] lines,
+  int tabSize,
+  CursorPosition position,
+  int newLineNumber,
+  bool allowMoveOnEdgeLine
+) {
+  int visibleColumn = moveVisibleColumn(
+    lines[position.lineNumber - 1],
+    position.column,
+    tabSize
+  ) + position.leftoverVisibleColumns;
+  int lineNumber = moveClamp(newLineNumber, 1, lines.length);
+  int column = position.column;
+  if (newLineNumber < 1 && allowMoveOnEdgeLine) {
+    column = 1;
+  } else if (newLineNumber > lines.length && allowMoveOnEdgeLine) {
+    column = lines[lines.length - 1].length + 1;
+  } else {
+    column = moveColumnFromVisible(lines[lineNumber - 1], visibleColumn, tabSize);
+  }
+  int actualVisibleColumn = moveVisibleColumn(lines[lineNumber - 1], column, tabSize);
+  int leftoverVisibleColumns = visibleColumn - actualVisibleColumn;
+  if (leftoverVisibleColumns < 0) {
+    leftoverVisibleColumns = 0;
+  }
+  return new CursorPosition(lineNumber, column, leftoverVisibleColumns);
+}
+
+export CursorPosition moveUp(
+  string[] lines,
+  int tabSize,
+  CursorPosition position,
+  int lineCount
+) {
+  return vertical(lines, tabSize, position, position.lineNumber - lineCount, true);
+}
+
+export CursorPosition moveDown(
+  string[] lines,
+  int tabSize,
+  CursorPosition position,
+  int lineCount
+) {
+  return vertical(lines, tabSize, position, position.lineNumber + lineCount, true);
+}
+
+export CursorPosition moveToPreviousBlankLine(string[] lines, CursorPosition position) {
+  int lineNumber = position.lineNumber;
+  while (lineNumber > 1 && blankLine(lines[lineNumber - 1])) {
+    lineNumber = lineNumber - 1;
+  }
+  while (lineNumber > 1 && !blankLine(lines[lineNumber - 1])) {
+    lineNumber = lineNumber - 1;
+  }
+  return new CursorPosition(lineNumber, 1, 0);
+}
+
+export CursorPosition moveToNextBlankLine(string[] lines, CursorPosition position) {
+  int lineNumber = position.lineNumber;
+  while (lineNumber < lines.length && blankLine(lines[lineNumber - 1])) {
+    lineNumber = lineNumber + 1;
+  }
+  while (lineNumber < lines.length && !blankLine(lines[lineNumber - 1])) {
+    lineNumber = lineNumber + 1;
+  }
+  return new CursorPosition(lineNumber, 1, 0);
+}
+
+export CursorPosition moveToBeginningOfLine(string[] lines, CursorPosition position) {
+  string line = lines[position.lineNumber - 1];
+  int firstColumn = firstNonWhitespaceColumn(line);
+  if (position.column == firstColumn) {
+    return new CursorPosition(position.lineNumber, 1, 0);
+  }
+  return new CursorPosition(position.lineNumber, firstColumn, 0);
+}
+
+export CursorPosition moveToEndOfLine(string[] lines, CursorPosition position) {
+  return new CursorPosition(
+    position.lineNumber,
+    lines[position.lineNumber - 1].length + 1,
+    0
+  );
+}
+
+export CursorPosition moveToBeginningOfBuffer() {
+  return new CursorPosition(1, 1, 0);
+}
+
+export CursorPosition moveToEndOfBuffer(string[] lines) {
+  if (lines.length == 0) {
+    return new CursorPosition(1, 1, 0);
+  }
+  return new CursorPosition(lines.length, lines[lines.length - 1].length + 1, 0);
+}

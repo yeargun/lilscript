@@ -1,0 +1,116 @@
+export class FindRange {
+  int startLineNumber;
+  int startColumn;
+  int endLineNumber;
+  int endColumn;
+
+  init(int startLineNumber, int startColumn, int endLineNumber, int endColumn) {
+    this.startLineNumber = startLineNumber;
+    this.startColumn = startColumn;
+    this.endLineNumber = endLineNumber;
+    this.endColumn = endColumn;
+  }
+}
+
+bool rangeEquals(FindRange a, FindRange b) {
+  return a.startLineNumber == b.startLineNumber
+    && a.startColumn == b.startColumn
+    && a.endLineNumber == b.endLineNumber
+    && a.endColumn == b.endColumn;
+}
+
+int compareRangeStarts(FindRange a, FindRange b) {
+  if (a.startLineNumber < b.startLineNumber) {
+    return -1;
+  }
+  if (a.startLineNumber > b.startLineNumber) {
+    return 1;
+  }
+  if (a.startColumn < b.startColumn) {
+    return -1;
+  }
+  if (a.startColumn > b.startColumn) {
+    return 1;
+  }
+  return 0;
+}
+
+export class FindEditOp {
+  FindRange range;
+  string text;
+
+  init(FindRange range, string text) {
+    this.range = range;
+    this.text = text;
+  }
+}
+
+export class ReplaceAllCommand {
+  FindRange editorSelection;
+  FindRange[] ranges;
+  string[] replaceStrings;
+  FindEditOp[] operations;
+
+  init(FindRange editorSelection, FindRange[] ranges, string[] replaceStrings) {
+    this.editorSelection = editorSelection;
+    this.ranges = ranges;
+    this.replaceStrings = replaceStrings;
+    this.operations = [];
+  }
+
+  FindEditOp[] getEditOperations() {
+    FindEditOp[] ops = [];
+    int i = 0;
+    while (i < this.ranges.length) {
+      ops.push(new FindEditOp(this.ranges[i], this.replaceStrings[i]));
+      i = i + 1;
+    }
+    int a = 0;
+    while (a < ops.length) {
+      int b = a + 1;
+      while (b < ops.length) {
+        if (compareRangeStarts(ops[b].range, ops[a].range) < 0) {
+          FindEditOp tmp = ops[a];
+          ops[a] = ops[b];
+          ops[b] = tmp;
+        }
+        b = b + 1;
+      }
+      a = a + 1;
+    }
+    FindEditOp[] merged = [];
+    if (ops.length == 0) {
+      this.operations = merged;
+      return merged;
+    }
+    FindEditOp previous = ops[0];
+    i = 1;
+    while (i < ops.length) {
+      FindEditOp next = ops[i];
+      if (previous.range.endLineNumber == next.range.startLineNumber && previous.range.endColumn == next.range.startColumn) {
+        previous.range = new FindRange(
+          previous.range.startLineNumber,
+          previous.range.startColumn,
+          next.range.endLineNumber,
+          next.range.endColumn
+        );
+        previous.text = previous.text + next.text;
+      } else {
+        merged.push(previous);
+        previous = next;
+      }
+      i = i + 1;
+    }
+    merged.push(previous);
+    this.operations = merged;
+    return merged;
+  }
+}
+
+export ReplaceAllCommand createReplaceAllCommand(FindRange selection, FindRange[] ranges, string[] replaceStrings) {
+  return new ReplaceAllCommand(selection, ranges, replaceStrings);
+}
+
+export FindRange createReplaceRange(int startLine, int startColumn, int endLine, int endColumn) {
+  return new FindRange(startLine, startColumn, endLine, endColumn);
+}

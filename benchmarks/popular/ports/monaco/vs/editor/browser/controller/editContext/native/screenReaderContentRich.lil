@@ -1,0 +1,74 @@
+import { concat2, emptyBuf, sliceOf } from "../../../../../../js-host";
+
+export class ScreenReaderContentRich {
+  string[] lineValues;
+  int selectionStartLine;
+  int selectionStartColumn;
+  int selectionEndLine;
+  int selectionEndColumn;
+
+  init() {
+    this.lineValues = [];
+    this.selectionStartLine = 1;
+    this.selectionStartColumn = 1;
+    this.selectionEndLine = 1;
+    this.selectionEndColumn = 1;
+  }
+
+  void setLines(string[] lines) {
+    this.lineValues = lines;
+    if (this.lineValues.length == 0) {
+      this.lineValues.push(emptyBuf());
+    }
+  }
+
+  string value() {
+    string out = emptyBuf();
+    int i = 0;
+    while (i < this.lineValues.length) {
+      if (i != 0) {
+        out = concat2(out, "\n");
+      }
+      out = concat2(out, this.lineValues[i]);
+      i = i + 1;
+    }
+    return out;
+  }
+
+  int offsetAt(int lineNumber, int column) {
+    int offset = 0;
+    int i = 1;
+    while (i < lineNumber && i <= this.lineValues.length) {
+      offset = offset + this.lineValues[i - 1].length + 1;
+      i = i + 1;
+    }
+    int col = column - 1;
+    if (col < 0) {
+      col = 0;
+    }
+    return offset + col;
+  }
+
+  void setSelection(int sl, int sc, int el, int ec) {
+    this.selectionStartLine = sl;
+    this.selectionStartColumn = sc;
+    this.selectionEndLine = el;
+    this.selectionEndColumn = ec;
+  }
+
+  string selectedText() {
+    int start = this.offsetAt(this.selectionStartLine, this.selectionStartColumn);
+    int end = this.offsetAt(this.selectionEndLine, this.selectionEndColumn);
+    string all = this.value();
+    if (end < start) {
+      int tmp = start;
+      start = end;
+      end = tmp;
+    }
+    return sliceOf(all, start, end);
+  }
+}
+
+export ScreenReaderContentRich createScreenReaderContentRich() {
+  return new ScreenReaderContentRich();
+}

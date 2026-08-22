@@ -1,0 +1,55 @@
+export class InspectToken {
+  int offset;
+  string type;
+  string text;
+
+  init(int offset, string type, string text) {
+    this.offset = offset;
+    this.type = type;
+    this.text = text;
+  }
+}
+
+export class InspectTokensWidget {
+  InspectToken[] tokens;
+  int offset;
+  bool visible;
+
+  init() {
+    this.tokens = [];
+    this.offset = 0;
+    this.visible = false;
+  }
+
+  void setTokens(InspectToken[] tokens) {
+    this.tokens = tokens;
+  }
+
+  InspectToken? tokenAt(int offset) {
+    int i = this.tokens.length - 1;
+    while (i >= 0) {
+      if (this.tokens[i].offset <= offset) {
+        return this.tokens[i];
+      }
+      i = i - 1;
+    }
+    return null;
+  }
+
+  void show(int offset) {
+    this.offset = offset;
+    this.visible = true;
+  }
+
+  void hide() {
+    this.visible = false;
+  }
+}
+
+export InspectTokensWidget createInspectTokensWidget() {
+  return new InspectTokensWidget();
+}
+
+export InspectToken createInspectToken(int offset, string type, string text) {
+  return new InspectToken(offset, type, text);
+}

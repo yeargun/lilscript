@@ -16,10 +16,12 @@
     "verify:exact": "node verify-nanoid.mjs && node verify-mitt.mjs && node verify-clsx.mjs && node verify-gl-matrix.mjs && node verify-motion.mjs",
     "monaco:ide": "node monaco-layers/build-ide.mjs && node monaco-layers/serve-ide.mjs",
     "monaco:serve": "node monaco-layers/serve-ide.mjs",
-    "monaco:e2e": "node monaco-layers/e2e-ide.mjs"
+    "monaco:e2e": "node monaco-layers/e2e-ide.mjs",
+    "mobx:measure": "node ports/mobx/measure.mjs"
   },
   "dependencies": {
     "@reduxjs/toolkit": "2.8.2",
+    "@rolldown/binding-darwin-arm64": "^1.2.4",
     "acorn": "8.15.0",
     "clsx": "2.1.1",
     "gl-matrix": "3.4.3",
@@ -27,6 +29,7 @@
     "jquery": "3.7.1",
     "jsdom": "26.1.0",
     "mitt": "3.0.1",
+    "mobx": "7.0.0",
     "monaco-editor": "0.56.0",
     "monaco-editor-core": "0.56.0",
     "motion": "^13.0.0",
@@ -38,8 +41,8 @@
     "esbuild": "0.28.1",
     "google-closure-compiler": "20260804.0.0",
     "playwright-core": "^1.55.0",
-    "rolldown": "1.2.3",
-    "terser": "5.43.1",
+    "rolldown": "^1.2.4",
+    "terser": "^5.50.0",
     "vite": "8.2.1"
   }
 }

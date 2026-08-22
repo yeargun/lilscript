@@ -1,0 +1,201 @@
+import { domCreateElement, createTextNode, appendChild, clearChildren, setAttribute, setClassName, jsPropString, stringSplit, stringSlice, stringReplace, newRegexp } from "../../../js-host";
+
+export string[] allowedMarkdownHtmlTags = [
+  "a", "b", "blockquote", "br", "code", "del", "div", "em", "h1", "h2", "h3",
+  "h4", "h5", "h6", "hr", "i", "img", "kbd", "li", "ol", "p", "pre", "s",
+  "span", "strike", "strong", "sub", "sup", "table", "tbody", "td", "th", "thead",
+  "tr", "tt", "u", "ul", "video"
+];
+
+export string[] allowedMarkdownHtmlAttributes = [
+  "align", "alt", "checked", "class", "data-code", "data-href", "disabled", "height",
+  "href", "id", "name", "role", "src", "start", "style", "target", "title", "type", "width"
+];
+
+void flushMarkdownText(JsValue parent, string text) {
+  if (text.length > 0) {
+    appendChild(parent, createTextNode(text));
+  }
+}
+
+void renderMarkdownInline(JsValue parent, string text) {
+  int i = 0;
+  string plain = "";
+  while (i < text.length) {
+    string ch = text.charAt(i);
+    if (ch == "\\" && i + 1 < text.length) {
+      plain = plain + text.charAt(i + 1);
+      i = i + 2;
+      continue;
+    }
+    if (ch == "`") {
+      int closeCode = text.indexOf("`", i + 1);
+      if (closeCode >= 0) {
+        flushMarkdownText(parent, plain);
+        plain = "";
+        JsValue code = domCreateElement("code");
+        appendChild(code, createTextNode(stringSlice(text, i + 1, closeCode)));
+        appendChild(parent, code);
+        i = closeCode + 1;
+        continue;
+      }
+    }
+    if (ch == "*" && i + 1 < text.length && text.charAt(i + 1) == "*") {
+      int closeStrong = text.indexOf("**", i + 2);
+      if (closeStrong >= 0) {
+        flushMarkdownText(parent, plain);
+        plain = "";
+        JsValue strong = domCreateElement("strong");
+        renderMarkdownInline(strong, stringSlice(text, i + 2, closeStrong));
+        appendChild(parent, strong);
+        i = closeStrong + 2;
+        continue;
+      }
+    }
+    if (ch == "*" || ch == "_") {
+      int closeEmphasis = text.indexOf(ch, i + 1);
+      if (closeEmphasis > i + 1) {
+        flushMarkdownText(parent, plain);
+        plain = "";
+        JsValue emphasis = domCreateElement("em");
+        renderMarkdownInline(emphasis, stringSlice(text, i + 1, closeEmphasis));
+        appendChild(parent, emphasis);
+        i = closeEmphasis + 1;
+        continue;
+      }
+    }
+    int linkStart = i;
+    bool image = false;
+    if (ch == "!" && i + 1 < text.length && text.charAt(i + 1) == "[") {
+      image = true;
+      linkStart = i + 1;
+    }
+    if (text.charAt(linkStart) == "[") {
+      int labelEnd = text.indexOf("]", linkStart + 1);
+      if (labelEnd >= 0 && labelEnd + 1 < text.length && text.charAt(labelEnd + 1) == "(") {
+        int targetEnd = text.indexOf(")", labelEnd + 2);
+        if (targetEnd >= 0) {
+          flushMarkdownText(parent, plain);
+          plain = "";
+          string label = stringSlice(text, linkStart + 1, labelEnd);
+          string href = stringSlice(text, labelEnd + 2, targetEnd);
+          if (image) {
+            JsValue imageNode = domCreateElement("img");
+            setAttribute(imageNode, "alt", label);
+            setAttribute(imageNode, "src", href);
+            appendChild(parent, imageNode);
+          } else {
+            JsValue link = domCreateElement("a");
+            setAttribute(link, "href", "");
+            setAttribute(link, "data-href", href);
+            renderMarkdownInline(link, label);
+            appendChild(parent, link);
+          }
+          i = targetEnd + 1;
+          continue;
+        }
+      }
+    }
+    plain = plain + ch;
+    i = i + 1;
+  }
+  flushMarkdownText(parent, plain);
+}
+
+export class MarkdownRenderResult {
+  JsValue element;
+  bool disposed;
+
+  init(JsValue element) {
+    this.element = element;
+    this.disposed = false;
+  }
+
+  void dispose() {
+    this.disposed = true;
+  }
+}
+
+export MarkdownRenderResult renderMarkdown(JsValue markdown, JsValue options, JsValue target) {
+  string value = jsPropString(markdown, "value", "");
+  if (markdown is string) {
+    string raw = markdown;
+    value = raw;
+  }
+  JsValue root = target;
+  if (!root.truthy()) {
+    root = domCreateElement("div");
+  }
+  clearChildren(root);
+  string[] lines = stringSplit(value, "\n");
+  bool inCode = false;
+  JsValue codeBlock = root;
+  int i = 0;
+  while (i < lines.length) {
+    string line = lines[i];
+    if (line.startsWith("```")) {
+      if (!inCode) {
+        JsValue pre = domCreateElement("pre");
+        codeBlock = domCreateElement("code");
+        appendChild(pre, codeBlock);
+        appendChild(root, pre);
+        inCode = true;
+      } else {
+        inCode = false;
+      }
+      i = i + 1;
+      continue;
+    }
+    if (inCode) {
+      appendChild(codeBlock, createTextNode(line + "\n"));
+      i = i + 1;
+      continue;
+    }
+    if (line.length == 0) {
+      appendChild(root, domCreateElement("br"));
+      i = i + 1;
+      continue;
+    }
+    int headingLevel = 0;
+    while (headingLevel < line.length && headingLevel < 6 && line.charAt(headingLevel) == "#") {
+      headingLevel = headingLevel + 1;
+    }
+    JsValue block = root;
+    string content = line;
+    if (headingLevel > 0 && headingLevel < line.length && line.charAt(headingLevel) == " ") {
+      block = domCreateElement("h" + headingLevel.toString());
+      content = stringSlice(line, headingLevel + 1, line.length);
+    } else if (line.startsWith("> ")) {
+      block = domCreateElement("blockquote");
+      content = stringSlice(line, 2, line.length);
+    } else if (line.startsWith("- ") || line.startsWith("* ")) {
+      block = domCreateElement("li");
+      content = stringSlice(line, 2, line.length);
+    } else {
+      block = domCreateElement("p");
+    }
+    renderMarkdownInline(block, content);
+    appendChild(root, block);
+    i = i + 1;
+  }
+  return new MarkdownRenderResult(root);
+}
+
+export string renderAsPlaintext(JsValue value, JsValue options) {
+  string text = jsPropString(value, "value", "");
+  if (value is string) {
+    string raw = value;
+    text = raw;
+  }
+  text = stringReplace(text, newRegexp("```[^\\n]*\\n?|```", "g"), "");
+  text = stringReplace(text, newRegexp("!\\[([^\\]]*)\\]\\([^\\)]*\\)", "g"), "");
+  text = stringReplace(text, newRegexp("\\[([^\\]]+)\\]\\([^\\)]*\\)", "g"), "$1");
+  text = stringReplace(text, newRegexp("(^|\\n)#{1,6}\\s*", "g"), "$1");
+  text = stringReplace(text, newRegexp("[*_`~]", "g"), "");
+  text = stringReplace(text, newRegexp("<[^>]+>", "g"), "");
+  return stringReplace(text, newRegexp("^\\s+|\\s+$", "g"), "");
+}
+
+export JsValue fillInIncompleteTokens(JsValue tokens) {
+  return tokens;
+}

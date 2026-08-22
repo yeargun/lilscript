@@ -1,0 +1,177 @@
+import { TokenizationRegistry } from "./tokenizationRegistry";
+
+export class Token {
+  int offset;
+  string type;
+  string language;
+
+  init(int offset, string type, string language) {
+    this.offset = offset;
+    this.type = type;
+    this.language = language;
+  }
+
+  string toString() {
+    return "(" + this.offset.toString() + ", " + this.type + ")";
+  }
+}
+
+export class TokenizationResult {
+  Token[] tokens;
+  JsValue endState;
+
+  init(Token[] tokens, JsValue endState) {
+    this.tokens = tokens;
+    this.endState = endState;
+  }
+}
+
+export class EncodedTokenizationResult {
+  int[] tokens;
+  JsValue fontInfo;
+  JsValue endState;
+
+  init(int[] tokens, JsValue fontInfo, JsValue endState) {
+    this.tokens = tokens;
+    this.fontInfo = fontInfo;
+    this.endState = endState;
+  }
+}
+
+export int HoverVerbosityActionIncrease = 0;
+export int HoverVerbosityActionDecrease = 1;
+export int InlineCompletionTriggerKindAutomatic = 0;
+export int InlineCompletionTriggerKindExplicit = 1;
+export int InlineCompletionHintStyleCode = 1;
+export int InlineCompletionHintStyleLabel = 2;
+export int InlineCompletionEndOfLifeReasonKindAccepted = 0;
+export int InlineCompletionEndOfLifeReasonKindRejected = 1;
+export int InlineCompletionEndOfLifeReasonKindIgnored = 2;
+export int DocumentPasteTriggerKindAutomatic = 0;
+export int DocumentPasteTriggerKindPasteAs = 1;
+export int SignatureHelpTriggerKindInvoke = 1;
+export int SignatureHelpTriggerKindTriggerCharacter = 2;
+export int SignatureHelpTriggerKindContentChange = 3;
+export int DocumentHighlightKindText = 0;
+export int DocumentHighlightKindRead = 1;
+export int DocumentHighlightKindWrite = 2;
+export int NewSymbolNameTagAIGenerated = 1;
+export int NewSymbolNameTriggerKindInvoke = 0;
+export int NewSymbolNameTriggerKindAutomatic = 1;
+export int InlayHintKindType = 1;
+export int InlayHintKindParameter = 2;
+
+export class SelectedSuggestionInfo {
+  JsValue range;
+  string text;
+  int completionKind;
+  bool isSnippetText;
+
+  init(JsValue range, string text, int completionKind, bool isSnippetText) {
+    this.range = range;
+    this.text = text;
+    this.completionKind = completionKind;
+    this.isSnippetText = isSnippetText;
+  }
+
+  bool equals(SelectedSuggestionInfo other) {
+    return this.range == other.range && this.text == other.text &&
+      this.completionKind == other.completionKind && this.isSnippetText == other.isSnippetText;
+  }
+}
+
+export class ProviderId {
+  string extensionId;
+  string extensionVersion;
+  string providerId;
+
+  init(string extensionId = "", string extensionVersion = "", string providerId = "") {
+    this.extensionId = extensionId;
+    this.extensionVersion = extensionVersion;
+    this.providerId = providerId;
+  }
+
+  string toString() {
+    string result = this.extensionId;
+    if (this.extensionVersion.length > 0) {
+      result = result + "@" + this.extensionVersion;
+    }
+    if (this.providerId.length > 0) {
+      result = result + ":" + this.providerId;
+    }
+    if (result.length == 0) {
+      return "unknown";
+    }
+    return result;
+  }
+
+  string toStringWithoutVersion() {
+    string result = this.extensionId;
+    if (this.providerId.length > 0) {
+      result = result + ":" + this.providerId;
+    }
+    return result;
+  }
+}
+
+export class VersionedExtensionId {
+  string extensionId;
+  string version;
+
+  init(string extensionId, string version) {
+    this.extensionId = extensionId;
+    this.version = version;
+  }
+
+  string toString() {
+    return this.extensionId + "@" + this.version;
+  }
+}
+
+export class FoldingRangeKind {
+  string value;
+
+  init(string value) {
+    this.value = value;
+  }
+}
+
+export FoldingRangeKind FoldingRangeKindComment = new FoldingRangeKind("comment");
+export FoldingRangeKind FoldingRangeKindImports = new FoldingRangeKind("imports");
+export FoldingRangeKind FoldingRangeKindRegion = new FoldingRangeKind("region");
+
+export bool isLocationLink(JsValue value) {
+  return value != null && value["uri"] != null && value["range"] != null &&
+    (value["originSelectionRange"] != null || value["targetSelectionRange"] != null);
+}
+
+export bool isCommand(JsValue value) {
+  return value != null && JS.typeOf(value["id"]) == "string" && JS.typeOf(value["title"]) == "string";
+}
+
+export class LazyTokenizationSupport {
+  func()->JsValue createSupport;
+  JsValue support;
+
+  init(func()->JsValue createSupport) {
+    this.createSupport = createSupport;
+    this.support = null;
+  }
+
+  JsValue tokenizationSupport() {
+    if (this.support == null) {
+      this.support = this.createSupport();
+    }
+    return this.support;
+  }
+
+  void dispose() {
+    this.support = null;
+  }
+}
+
+export TokenizationRegistry TokenizationRegistryGlobal = new TokenizationRegistry();
+
+export TokenizationRegistry createGlobalTokenizationRegistry() {
+  return new TokenizationRegistry();
+}

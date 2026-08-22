@@ -1,0 +1,320 @@
+import { newRegexp, regexExec, stringSlice } from "../../../../../js-host";
+
+export class Token {
+  int offset;
+  string type;
+
+  init(int offset, string type) {
+    this.offset = offset;
+    this.type = type;
+  }
+}
+
+export class Rule {
+  Regex pattern;
+  bool lineStart;
+  int kind;
+  string token;
+  string next;
+
+  init(Regex pattern, bool lineStart, int kind, string token, string next) {
+    this.pattern = pattern;
+    this.lineStart = lineStart;
+    this.kind = kind;
+    this.token = token;
+    this.next = next;
+  }
+}
+
+export class Lexer {
+  string languageId;
+  string tokenPostfix;
+  string defaultToken;
+  string[] keywords;
+  string[] stateNames;
+  Rule[][] stateRules;
+  int maxStack;
+
+  init(string languageId, string tokenPostfix, string defaultToken, string[] keywords) {
+    this.languageId = languageId;
+    this.tokenPostfix = tokenPostfix;
+    this.defaultToken = defaultToken;
+    this.keywords = keywords;
+    this.stateNames = [];
+    this.stateRules = [];
+    this.maxStack = 100;
+  }
+}
+
+export class LineState {
+  string[] stack;
+
+  init(string[] stack) {
+    this.stack = stack;
+  }
+
+  LineState clone() {
+    string[] next = [];
+    int i = 0;
+    while (i < this.stack.length) {
+      next.push(this.stack[i]);
+      i = i + 1;
+    }
+    return new LineState(next);
+  }
+}
+
+int indexOfState(Lexer lex, string name) {
+  return lex.stateNames.indexOf(name);
+}
+
+string parentState(string state) {
+  int i = state.length - 1;
+  while (i >= 0) {
+    if (state.charAt(i) == ".") {
+      string out = "";
+      int k = 0;
+      while (k < i) {
+        out = out + state.charAt(k);
+        k = k + 1;
+      }
+      return out;
+    }
+    i = i - 1;
+  }
+  return "";
+}
+
+Rule[] rulesFor(Lexer lex, string state) {
+  string cur = state;
+  int guard = 0;
+  while (cur.length > 0 && guard < 64) {
+    int idx = indexOfState(lex, cur);
+    if (idx >= 0) {
+      return lex.stateRules[idx];
+    }
+    string next = parentState(cur);
+    if (next.length >= cur.length) {
+      break;
+    }
+    cur = next;
+    guard = guard + 1;
+  }
+  int root = indexOfState(lex, "root");
+  if (root >= 0) {
+    return lex.stateRules[root];
+  }
+  Rule[] empty = [];
+  return empty;
+}
+
+export void addState(Lexer lex, string name) {
+  if (indexOfState(lex, name) >= 0) {
+    return;
+  }
+  lex.stateNames.push(name);
+  Rule[] rules = [];
+  lex.stateRules.push(rules);
+}
+
+export void addRule(Lexer lex, string state, string pattern, int kind, string token, string next, bool lineStart) {
+  addState(lex, state);
+  int idx = indexOfState(lex, state);
+  string source = pattern;
+  if (pattern.length == 0 || pattern.charAt(0) != "^") {
+    source = "^(?:" + pattern + ")";
+  }
+  lex.stateRules[idx].push(new Rule(newRegexp(source, ""), lineStart, kind, token, next));
+}
+
+export Lexer createLexer(string languageId, string tokenPostfix, string defaultToken, string[] keywords) {
+  Lexer lex = new Lexer(languageId, tokenPostfix, defaultToken, keywords);
+  addState(lex, "root");
+  return lex;
+}
+
+string qualify(Lexer lex, string token) {
+  if (token.length == 0) {
+    return token;
+  }
+  if (token.indexOf(".") >= 0 || lex.tokenPostfix.length == 0) {
+    return token;
+  }
+  return token + lex.tokenPostfix;
+}
+
+bool isKeyword(Lexer lex, string word) {
+  return lex.keywords.indexOf(word) >= 0;
+}
+
+export LineState initialState() {
+  return new LineState(["root"]);
+}
+
+export LineState monarchInitialState() {
+  return initialState();
+}
+
+string execMatch(Regex pattern, string rest) {
+  JsValue found = regexExec(pattern, rest);
+  if (found.truthy()) {
+    return JS.string(found[0]);
+  }
+  return "";
+}
+
+export Token[] tokenizeLine(Lexer lex, LineState state, string line) {
+  Token[] tokens = [];
+  int pos = 0;
+  bool force = true;
+  int guard = 0;
+  int lastPos = -1;
+  while ((force || pos < line.length) && guard < 10000) {
+    guard = guard + 1;
+    if (!force && pos == lastPos) {
+      pos = pos + 1;
+      if (pos >= line.length) {
+        break;
+      }
+    }
+    lastPos = pos;
+    force = false;
+    if (state.stack.length == 0) {
+      state.stack.push("root");
+    }
+    string stackState = state.stack[state.stack.length - 1];
+    Rule[] rules = rulesFor(lex, stackState);
+    string rest = stringSlice(line, pos, line.length);
+    Rule? matchedRule = null;
+    string matchedText = "";
+    int ri = 0;
+    while (ri < rules.length) {
+      Rule rule = rules[ri];
+      if (rule.lineStart && pos != 0) {
+        ri = ri + 1;
+        continue;
+      }
+      string found = execMatch(rule.pattern, rest);
+      if (found.length > 0) {
+        matchedText = found;
+        matchedRule = rule;
+        break;
+      }
+      ri = ri + 1;
+    }
+    int kind = 0;
+    string token = lex.defaultToken;
+    string next = "";
+    if (matchedRule != null) {
+      kind = matchedRule.kind;
+      token = matchedRule.token;
+      next = matchedRule.next;
+    } else {
+      if (pos < line.length) {
+        matchedText = line.charAt(pos);
+      } else {
+        break;
+      }
+    }
+    if (matchedText.length == 0) {
+      if (pos < line.length) {
+        matchedText = line.charAt(pos);
+        token = lex.defaultToken;
+        kind = 0;
+      } else {
+        break;
+      }
+    }
+    if (kind == 4) {
+      if (isKeyword(lex, matchedText)) {
+        token = "keyword";
+      } else {
+        token = "identifier";
+      }
+    }
+    if (kind != 6) {
+      if (token != "@rematch") {
+        string t = qualify(lex, token);
+        if (t.length > 0) {
+          tokens.push(new Token(pos, t));
+        }
+        pos = pos + matchedText.length;
+      }
+    }
+    if (kind == 1) {
+      if (state.stack.length < lex.maxStack) {
+        state.stack.push(next);
+      }
+    } else {
+      if (kind == 2) {
+        if (state.stack.length > 1) {
+          state.stack.splice(state.stack.length - 1, 1);
+        }
+      } else {
+        if (kind == 3) {
+          state.stack[state.stack.length - 1] = next;
+        } else {
+          if (kind == 5) {
+            state.stack = ["root"];
+          } else {
+            if (kind == 7) {
+              if (state.stack.length < lex.maxStack) {
+                state.stack.push(stackState);
+              }
+            }
+          }
+        }
+      }
+    }
+    if (pos == 0 && matchedText.length == 0 && kind == 0) {
+      break;
+    }
+  }
+  return tokens;
+}
+
+export Token[] monarchLexerTokenize(Lexer lex, LineState state, string line) {
+  return tokenizeLine(lex, state, line);
+}
+
+export Token[] tokenizeText(Lexer lex, string text) {
+  Token[] all = [];
+  LineState state = initialState();
+  int lineStart = 0;
+  int i = 0;
+  while (i <= text.length) {
+    bool atEnd = i == text.length;
+    bool atNl = false;
+    if (!atEnd && text.charAt(i) == "\n") {
+      atNl = true;
+    }
+    if (atEnd || atNl) {
+      string line = stringSlice(text, lineStart, i);
+      Token[] row = tokenizeLine(lex, state, line);
+      int t = 0;
+      while (t < row.length) {
+        all.push(new Token(row[t].offset + lineStart, row[t].type));
+        t = t + 1;
+      }
+      if (atNl) {
+        i = i + 1;
+        lineStart = i;
+      } else {
+        break;
+      }
+    } else {
+      i = i + 1;
+    }
+  }
+  return all;
+}
+
+export string[] tokenTypes(Token[] tokens) {
+  string[] out = [];
+  int i = 0;
+  while (i < tokens.length) {
+    out.push(tokens[i].offset.toString() + ":" + tokens[i].type);
+    i = i + 1;
+  }
+  return out;
+}

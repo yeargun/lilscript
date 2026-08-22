@@ -1,0 +1,82 @@
+export int QuickInputHideReasonBlur = 1;
+export int QuickInputHideReasonGesture = 2;
+export int QuickInputHideReasonOther = 3;
+
+export class QuickInput {
+  string title;
+  string value;
+  string placeholder;
+  bool enabled;
+  bool busy;
+  bool visible;
+  int hideReason;
+
+  init() {
+    this.title = "";
+    this.value = "";
+    this.placeholder = "";
+    this.enabled = true;
+    this.busy = false;
+    this.visible = false;
+    this.hideReason = 0;
+  }
+
+  void show() {
+    this.visible = true;
+  }
+
+  void hide() {
+    this.visible = false;
+    this.hideReason = QuickInputHideReasonOther;
+  }
+
+  void setValue(string value) {
+    this.value = value;
+  }
+}
+
+export class QuickPick {
+  QuickInput input;
+  string[] items;
+  int activeIndex;
+  bool canSelectMany;
+
+  init() {
+    this.input = new QuickInput();
+    this.items = [];
+    this.activeIndex = -1;
+    this.canSelectMany = false;
+  }
+
+  void setItems(string[] items) {
+    this.items = items;
+    if (items.length > 0) {
+      this.activeIndex = 0;
+    } else {
+      this.activeIndex = -1;
+    }
+  }
+
+  string? pick() {
+    if (this.activeIndex < 0 || this.activeIndex >= this.items.length) {
+      return null;
+    }
+    return this.items[this.activeIndex];
+  }
+
+  void hide() {
+    this.input.hide();
+  }
+
+  void show() {
+    this.input.show();
+  }
+}
+
+export QuickInput createQuickInput() {
+  return new QuickInput();
+}
+
+export QuickPick createQuickPick() {
+  return new QuickPick();
+}

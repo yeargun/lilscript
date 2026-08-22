@@ -1,0 +1,26 @@
+export class TokenizationTextModelPart {
+  string languageId;
+  bool hasTokens;
+
+  init(string languageId) {
+    this.languageId = languageId;
+    this.hasTokens = false;
+  }
+
+  void setLanguageId(string languageId) {
+    this.languageId = languageId;
+    this.hasTokens = false;
+  }
+
+  string getLanguageId() {
+    return this.languageId;
+  }
+
+  bool hasAccurateTokens() {
+    return this.hasTokens;
+  }
+}
+
+export bool tokenizationTextModelPartHasRuntime() {
+  return true;
+}

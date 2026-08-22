@@ -1,0 +1,120 @@
+export int ATLAS_MAXIMUM_PAGE_COUNT = 16;
+export int ATLAS_MAXIMUM_GLYPH_COUNT = 5000;
+
+int hashString(string s) {
+  int hash = 5381;
+  int i = 0;
+  while (i < s.length) {
+    hash = Math.imul(hash, 33) + s.charCodeAt(i);
+    i = i + 1;
+  }
+  return hash;
+}
+
+string shaderLine(string acc, string line) {
+  return acc + line + "\n";
+}
+
+export class ShaderModuleSource {
+  string source;
+  int length;
+  int hash;
+
+  init(string source) {
+    this.source = source;
+    this.length = source.length;
+    this.hash = hashString(source);
+  }
+}
+
+export string buildFullFileRenderStrategyWgsl() {
+  string s = "";
+  s = shaderLine(s, "struct GlyphInfo {");
+  s = shaderLine(s, "	position: vec2f,");
+  s = shaderLine(s, "	size: vec2f,");
+  s = shaderLine(s, "	origin: vec2f,");
+  s = shaderLine(s, "};");
+  s = shaderLine(s, "");
+  s = shaderLine(s, "struct Vertex {");
+  s = shaderLine(s, "	@location(0) position: vec2f,");
+  s = shaderLine(s, "};");
+  s = shaderLine(s, "");
+  s = shaderLine(s, "struct Cell {");
+  s = shaderLine(s, "	position: vec2f,");
+  s = shaderLine(s, "	unused1: vec2f,");
+  s = shaderLine(s, "	glyphIndex: f32,");
+  s = shaderLine(s, "	textureIndex: f32");
+  s = shaderLine(s, "};");
+  s = shaderLine(s, "");
+  s = shaderLine(s, "struct LayoutInfo {");
+  s = shaderLine(s, "	canvasDims: vec2f,");
+  s = shaderLine(s, "	viewportOffset: vec2f,");
+  s = shaderLine(s, "	viewportDims: vec2f,");
+  s = shaderLine(s, "}");
+  s = shaderLine(s, "");
+  s = shaderLine(s, "struct ScrollOffset {");
+  s = shaderLine(s, "	offset: vec2f");
+  s = shaderLine(s, "}");
+  s = shaderLine(s, "");
+  s = shaderLine(s, "struct VSOutput {");
+  s = shaderLine(s, "	@builtin(position) position:   vec4f,");
+  s = shaderLine(s, "	@location(1)       layerIndex: f32,");
+  s = shaderLine(s, "	@location(0)       texcoord:   vec2f,");
+  s = shaderLine(s, "};");
+  s = shaderLine(s, "");
+  s = shaderLine(s, "@group(0) @binding(4)       var<uniform>       layoutInfo:      LayoutInfo;");
+  s = shaderLine(s, "@group(0) @binding(5)  var<uniform>       atlasDims:       vec2f;");
+  s = shaderLine(s, "@group(0) @binding(6)            var<uniform>       scrollOffset:    ScrollOffset;");
+  s = shaderLine(s, "");
+  s = shaderLine(s, "@group(0) @binding(0)               var<storage, read> glyphInfo:       array<array<GlyphInfo, 5000>, 16>;");
+  s = shaderLine(s, "@group(0) @binding(1)                   var<storage, read> cells:           array<Cell>;");
+  s = shaderLine(s, "");
+  s = shaderLine(s, "@vertex fn vs(");
+  s = shaderLine(s, "	vert: Vertex,");
+  s = shaderLine(s, "	@builtin(instance_index) instanceIndex: u32,");
+  s = shaderLine(s, "	@builtin(vertex_index) vertexIndex : u32");
+  s = shaderLine(s, ") -> VSOutput {");
+  s = shaderLine(s, "	let cell = cells[instanceIndex];");
+  s = shaderLine(s, "	var glyph = glyphInfo[u32(cell.textureIndex)][u32(cell.glyphIndex)];");
+  s = shaderLine(s, "");
+  s = shaderLine(s, "	var vsOut: VSOutput;");
+  s = shaderLine(s, "	vsOut.position = vec4f(");
+  s = shaderLine(s, "		vec2f(-1, 1) +");
+  s = shaderLine(s, "		((vert.position * vec2f(2, -2)) / layoutInfo.canvasDims) * glyph.size +");
+  s = shaderLine(s, "		((cell.position * vec2f(2, -2)) / layoutInfo.canvasDims) +");
+  s = shaderLine(s, "		((glyph.origin * vec2f(2, -2)) / layoutInfo.canvasDims) +");
+  s = shaderLine(s, "		(((layoutInfo.viewportOffset - scrollOffset.offset * vec2(1, -1)) * 2) / layoutInfo.canvasDims),");
+  s = shaderLine(s, "		0.0,");
+  s = shaderLine(s, "		1.0");
+  s = shaderLine(s, "	);");
+  s = shaderLine(s, "");
+  s = shaderLine(s, "	vsOut.layerIndex = cell.textureIndex;");
+  s = shaderLine(s, "	vsOut.texcoord = vert.position;");
+  s = shaderLine(s, "	vsOut.texcoord = (");
+  s = shaderLine(s, "		(glyph.position / atlasDims) +");
+  s = shaderLine(s, "		(vsOut.texcoord * (glyph.size / atlasDims))");
+  s = shaderLine(s, "	);");
+  s = shaderLine(s, "");
+  s = shaderLine(s, "	return vsOut;");
+  s = shaderLine(s, "}");
+  s = shaderLine(s, "");
+  s = shaderLine(s, "@group(0) @binding(2) var ourSampler: sampler;");
+  s = shaderLine(s, "@group(0) @binding(3)        var ourTexture: texture_2d_array<f32>;");
+  s = shaderLine(s, "");
+  s = shaderLine(s, "@fragment fn fs(vsOut: VSOutput) -> @location(0) vec4f {");
+  s = shaderLine(s, "	return textureSample(ourTexture, ourSampler, vsOut.texcoord, u32(vsOut.layerIndex));");
+  s = shaderLine(s, "}");
+  return s;
+}
+
+export ShaderModuleSource fullFileRenderStrategyWgsl() {
+  return new ShaderModuleSource(buildFullFileRenderStrategyWgsl());
+}
+
+export int fullFileRenderStrategyWgslLength() {
+  return buildFullFileRenderStrategyWgsl().length;
+}
+
+export int fullFileRenderStrategyWgslHash() {
+  return hashString(buildFullFileRenderStrategyWgsl());
+}

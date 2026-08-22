@@ -1,0 +1,64 @@
+import { OffsetRange } from "../ranges/offsetRange";
+import { BaseEdit, BaseReplacement } from "./edit";
+import { emptyBuf, concat2, sliceOf } from "../../../../../js-host";
+
+export class StringReplacement {
+  OffsetRange replaceRange;
+  string newText;
+
+  init(OffsetRange replaceRange, string newText) {
+    this.replaceRange = replaceRange;
+    this.newText = newText;
+  }
+
+  int getNewLength() {
+    return this.newText.length;
+  }
+
+  bool isEmpty() {
+    return this.replaceRange.isEmpty() && this.newText.length == 0;
+  }
+
+  string replace(string str) {
+    return concat2(concat2(sliceOf(str, 0, this.replaceRange.start), this.newText), sliceOf(str, this.replaceRange.endExclusive, str.length));
+  }
+}
+
+export class StringEdit {
+  StringReplacement[] replacements;
+
+  init(StringReplacement[] replacements) {
+    this.replacements = replacements;
+  }
+
+  string apply(string base) {
+    string out = emptyBuf();
+    int pos = 0;
+    int i = 0;
+    while (i < this.replacements.length) {
+      StringReplacement edit = this.replacements[i];
+      out = concat2(out, sliceOf(base, pos, edit.replaceRange.start));
+      out = concat2(out, edit.newText);
+      pos = edit.replaceRange.endExclusive;
+      i = i + 1;
+    }
+    return concat2(out, sliceOf(base, pos, base.length));
+  }
+}
+
+export StringEdit stringEditFromSingle(OffsetRange range, string newText) {
+  StringReplacement[] rows = [];
+  rows.push(new StringReplacement(range, newText));
+  return new StringEdit(rows);
+}
+
+export BaseEdit stringEditAsBase(StringEdit edit) {
+  BaseReplacement[] rows = [];
+  int i = 0;
+  while (i < edit.replacements.length) {
+    StringReplacement r = edit.replacements[i];
+    rows.push(new BaseReplacement(r.replaceRange, r.newText));
+    i = i + 1;
+  }
+  return new BaseEdit(rows);
+}

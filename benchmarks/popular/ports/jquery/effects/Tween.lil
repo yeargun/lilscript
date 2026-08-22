@@ -1,8 +1,8 @@
 import { jQuery } from "../core";
+import { css, style } from "../css";
 import { finalPropName } from "../css/finalPropName";
 import {
   objectCreate,
-  isNullish,
   mathCos,
   mathPI
 } from "../js-host.lil";
@@ -22,7 +22,7 @@ JsValue tweenDefaultGet(JsValue tween) {
     return elem[prop];
   }
 
-  JsValue result = JS.invoke(jQuery, "css", elem, prop, "");
+  JsValue result = css(elem, JS.string(prop), "");
   if (!result.truthy() || result == "auto") {
     return 0.0;
   }
@@ -41,7 +41,7 @@ void tweenDefaultSet(JsValue tween) {
   bool useStyle = JS.and(elem, elem["nodeType"]) == 1.0 &&
     (jQuery["cssHooks"][prop].truthy() || !JS.isNullish(elem["style"][finalPropName(JS.string(prop))]));
   if (useStyle) {
-    JS.invoke(jQuery, "style", elem, prop, JS.add(tween["now"], tween["unit"]));
+    style(elem, JS.string(prop), JS.add(tween["now"], tween["unit"]));
   } else {
     elem[prop] = tween["now"];
   }
@@ -144,17 +144,6 @@ export JsValue tweenRun(JsValue tween, float percent) {
   return tween;
 }
 
-JsValue TweenFacade(
-  JsValue elem,
-  JsValue options,
-  JsValue prop,
-  JsValue end,
-  JsValue easingArg = null,
-  JsValue unitArg = null
-) {
-  return createTween(elem, options, prop, end, easingArg, unitArg);
-}
-
 JsValue TweenInit(
   JsValue elem,
   JsValue options,
@@ -214,26 +203,22 @@ struct EasingMap {
   string _default;
 }
 
-void install() {
-  JsValue defaultHooks = TweenGetSet{tweenDefaultGet, tweenDefaultSet};
-  JsValue scrollHooks = TweenSetOnly{tweenScrollSet};
-  JsValue hooks = TweenHooks{defaultHooks, scrollHooks, scrollHooks};
-  tweenPropHooks = hooks;
+JsValue defaultHooks = TweenGetSet{tweenDefaultGet, tweenDefaultSet};
+JsValue scrollHooks = TweenSetOnly{tweenScrollSet};
+JsValue hooks = TweenHooks{defaultHooks, scrollHooks, scrollHooks};
+tweenPropHooks = hooks;
 
-  JsValue factory = TweenFacade;
-  JsValue initFn = TweenInit;
-  JsValue proto = TweenProto{factory, initFn, TweenCurMethod, TweenRunMethod};
-  tweenPrototype = proto;
-  factory["prototype"] = proto;
-  factory["propHooks"] = hooks;
-  initFn["prototype"] = proto;
+JsValue factory = createTween;
+JsValue initFn = TweenInit;
+JsValue proto = TweenProto{factory, initFn, TweenCurMethod, TweenRunMethod};
+tweenPrototype = proto;
+factory["prototype"] = proto;
+factory["propHooks"] = hooks;
+initFn["prototype"] = proto;
 
-  jQuery["Tween"] = factory;
-  jQuery["easing"] = EasingMap{easingLinear, easingSwing, "swing"};
-  jQuery["fx"] = initFn;
-  jQuery["fx"]["step"] = JS.object();
-}
+jQuery["Tween"] = factory;
+jQuery["easing"] = EasingMap{easingLinear, easingSwing, "swing"};
+jQuery["fx"] = initFn;
+jQuery["fx"]["step"] = JS.object();
 
-install();
-
-export { jQuery, tweenPropHooks, TweenFacade };
+export { jQuery, tweenPropHooks };

@@ -1,0 +1,89 @@
+export class ColorContribution {
+  string id;
+  string dark;
+  string light;
+  string hcDark;
+  string hcLight;
+
+  init(string id, string dark, string light, string hcDark, string hcLight) {
+    this.id = id;
+    this.dark = dark;
+    this.light = light;
+    this.hcDark = hcDark;
+    this.hcLight = hcLight;
+  }
+}
+
+export string asCssVariableName(string colorIdent) {
+  string out = "--vscode-";
+  int i = 0;
+  while (i < colorIdent.length) {
+    string ch = colorIdent.charAt(i);
+    if (ch == ".") {
+      out = out + "-";
+    } else {
+      out = out + ch;
+    }
+    i = i + 1;
+  }
+  return out;
+}
+
+export class ColorRegistry {
+  ColorContribution[] colors;
+
+  init() {
+    this.colors = [];
+  }
+
+  string registerColor(string id, string dark, string light, string hcDark, string hcLight) {
+    this.colors.push(new ColorContribution(id, dark, light, hcDark, hcLight));
+    return id;
+  }
+
+  string resolve(string id, string themeType) {
+    int i = 0;
+    while (i < this.colors.length) {
+      if (this.colors[i].id == id) {
+        ColorContribution c = this.colors[i];
+        if (themeType == "light") {
+          return c.light;
+        }
+        if (themeType == "hcDark") {
+          return c.hcDark;
+        }
+        if (themeType == "hcLight") {
+          return c.hcLight;
+        }
+        return c.dark;
+      }
+      i = i + 1;
+    }
+    return "";
+  }
+}
+
+ColorRegistry colorRegistry = new ColorRegistry();
+
+export string registerColor(string id, string dark, string light, string hcDark, string hcLight) {
+  return colorRegistry.registerColor(id, dark, light, hcDark, hcLight);
+}
+
+export ColorRegistry getColorRegistry() {
+  return colorRegistry;
+}
+
+export string foreground = registerColor("foreground", "#CCCCCC", "#616161", "#FFFFFF", "#292929");
+export string errorForeground = registerColor("errorForeground", "#F48771", "#A1260D", "#F48771", "#B5200D");
+export string descriptionForeground = registerColor("descriptionForeground", "#CCCCCCB3", "#717171", "#CCCCCCB3", "#717171");
+export string iconForeground = registerColor("icon.foreground", "#C5C5C5", "#424242", "#FFFFFF", "#292929");
+export string focusBorder = registerColor("focusBorder", "#007FD4", "#0090F1", "#F38518", "#006BBD");
+export string contrastBorder = registerColor("contrastBorder", "", "", "#6FC3DF", "#0F4A85");
+export string selectionBackground = registerColor("selection.background", "", "", "", "");
+export string textLinkForeground = registerColor("textLink.foreground", "#3794FF", "#006AB1", "#21A6FF", "#0F4A85");
+export string editorBackground = registerColor("editor.background", "#1E1E1E", "#FFFFFF", "#000000", "#FFFFFF");
+export string editorForeground = registerColor("editor.foreground", "#D4D4D4", "#000000", "#FFFFFF", "#292929");
+export string editorWidgetBackground = registerColor("editorWidget.background", "#252526", "#F3F3F3", "#0C141F", "#FFFFFF");
+export string editorWidgetForeground = registerColor("editorWidget.foreground", "#CCCCCC", "#616161", "#FFFFFF", "#292929");
+export string listActiveSelectionBackground = registerColor("list.activeSelectionBackground", "#04395E", "#0060C0", "#0F4A85", "#0060C0");
+export string listActiveSelectionForeground = registerColor("list.activeSelectionForeground", "#FFFFFF", "#FFFFFF", "#FFFFFF", "#FFFFFF");

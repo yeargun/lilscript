@@ -1,0 +1,64 @@
+export string ExtensionsModesRegistry = "editor.modesRegistry";
+export string PLAINTEXT_LANGUAGE_ID = "plaintext";
+export string PLAINTEXT_EXTENSION = ".txt";
+
+export class EditorModesRegistry {
+  JsValue[] languages;
+  (func()->void)[] listeners;
+
+  init() {
+    this.languages = [];
+    this.listeners = [];
+  }
+
+  void fireChange() {
+    int i = 0;
+    while (i < this.listeners.length) {
+      this.listeners[i]();
+      i = i + 1;
+    }
+  }
+
+  func()->void onDidChangeLanguages(func()->void listener) {
+    this.listeners.push(listener);
+    return () => {
+      int index = this.listeners.indexOf(listener);
+      if (index >= 0) {
+        this.listeners.splice(index, 1);
+      }
+    };
+  }
+
+  func()->void registerLanguage(JsValue definition) {
+    this.languages.push(definition);
+    this.fireChange();
+    return () => {
+      int index = this.languages.indexOf(definition);
+      if (index >= 0) {
+        this.languages.splice(index, 1);
+        this.fireChange();
+      }
+    };
+  }
+
+  JsValue[] getLanguages() {
+    return this.languages;
+  }
+}
+
+export EditorModesRegistry ModesRegistry = new EditorModesRegistry();
+
+JsValue plaintextLanguageDefinition() {
+  JsValue definition = JS.object();
+  definition["id"] = PLAINTEXT_LANGUAGE_ID;
+  definition["extensions"] = [PLAINTEXT_EXTENSION];
+  definition["aliases"] = ["Plain Text", "text"];
+  definition["mimetypes"] = ["text/plain"];
+  return definition;
+}
+
+func()->void plaintextRegistration = ModesRegistry.registerLanguage(plaintextLanguageDefinition());
+
+export EditorModesRegistry createEditorModesRegistry() {
+  return new EditorModesRegistry();
+}

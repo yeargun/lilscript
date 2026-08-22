@@ -1,0 +1,38 @@
+export class StandaloneGotoLineQuickAccess {
+  string prefix;
+
+  init() {
+    this.prefix = ":";
+  }
+
+  int parseLine(string input) {
+    string digits = "";
+    int i = 0;
+    if (input.length > 0 && input.charAt(0) == ":") {
+      i = 1;
+    }
+    while (i < input.length) {
+      int c = input.charCodeAt(i);
+      if (c >= 48 && c <= 57) {
+        digits = digits + input.charAt(i);
+      } else {
+        break;
+      }
+      i = i + 1;
+    }
+    if (digits.length == 0) {
+      return 0;
+    }
+    int n = 0;
+    int d = 0;
+    while (d < digits.length) {
+      n = n * 10 + (digits.charCodeAt(d) - 48);
+      d = d + 1;
+    }
+    return n;
+  }
+}
+
+export StandaloneGotoLineQuickAccess createStandaloneGotoLineQuickAccess() {
+  return new StandaloneGotoLineQuickAccess();
+}

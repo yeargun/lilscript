@@ -1,0 +1,41 @@
+export class AccessibilitySignal {
+  string name;
+  string sound;
+  bool enabled;
+
+  init(string name, string sound) {
+    this.name = name;
+    this.sound = sound;
+    this.enabled = true;
+  }
+}
+
+export class AccessibilitySignalService {
+  AccessibilitySignal[] signals;
+  string lastPlayed;
+
+  init() {
+    this.signals = [];
+    this.lastPlayed = "";
+  }
+
+  void register(string name, string sound) {
+    this.signals.push(new AccessibilitySignal(name, sound));
+  }
+
+  bool playSignal(string name) {
+    int i = 0;
+    while (i < this.signals.length) {
+      if (this.signals[i].name == name && this.signals[i].enabled) {
+        this.lastPlayed = name;
+        return true;
+      }
+      i = i + 1;
+    }
+    return false;
+  }
+}
+
+export AccessibilitySignalService createAccessibilitySignalService() {
+  return new AccessibilitySignalService();
+}

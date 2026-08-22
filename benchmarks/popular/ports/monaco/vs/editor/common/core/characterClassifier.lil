@@ -1,0 +1,84 @@
+import { toUint8 } from "../../../base/common/uint";
+
+export class CharacterClassifier {
+  int defaultValue;
+  int[] asciiMap;
+  int[] extraKeys;
+  int[] extraVals;
+
+  init(int defaultValue) {
+    int dv = toUint8(defaultValue);
+    this.defaultValue = dv;
+    int[] ascii = [];
+    int i = 0;
+    while (i < 256) {
+      ascii.push(dv);
+      i = i + 1;
+    }
+    this.asciiMap = ascii;
+    this.extraKeys = [];
+    this.extraVals = [];
+  }
+
+  void set(int charCode, int value) {
+    int v = toUint8(value);
+    if (charCode >= 0 && charCode < 256) {
+      this.asciiMap[charCode] = v;
+      return;
+    }
+    int i = 0;
+    while (i < this.extraKeys.length) {
+      if (this.extraKeys[i] == charCode) {
+        this.extraVals[i] = v;
+        return;
+      }
+      i = i + 1;
+    }
+    this.extraKeys.push(charCode);
+    this.extraVals.push(v);
+  }
+
+  int get(int charCode) {
+    if (charCode >= 0 && charCode < 256) {
+      return this.asciiMap[charCode];
+    }
+    int i = 0;
+    while (i < this.extraKeys.length) {
+      if (this.extraKeys[i] == charCode) {
+        return this.extraVals[i];
+      }
+      i = i + 1;
+    }
+    return this.defaultValue;
+  }
+
+  void clear() {
+    int i = 0;
+    while (i < 256) {
+      this.asciiMap[i] = this.defaultValue;
+      i = i + 1;
+    }
+    this.extraKeys = [];
+    this.extraVals = [];
+  }
+}
+
+export class CharacterSet {
+  CharacterClassifier actual;
+
+  init() {
+    this.actual = new CharacterClassifier(0);
+  }
+
+  void add(int charCode) {
+    this.actual.set(charCode, 1);
+  }
+
+  bool has(int charCode) {
+    return this.actual.get(charCode) == 1;
+  }
+
+  void clear() {
+    this.actual.clear();
+  }
+}

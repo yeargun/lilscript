@@ -1,0 +1,40 @@
+export string hierarchicalKindSep = ".";
+export string hierarchicalKindNoneValue = "@@none@@";
+
+export class HierarchicalKind {
+  string value;
+
+  init(string value) {
+    this.value = value;
+  }
+
+  bool equals(HierarchicalKind other) {
+    return this.value == other.value;
+  }
+
+  bool contains(HierarchicalKind other) {
+    if (this.equals(other) || this.value == "") {
+      return true;
+    }
+    return other.value.startsWith(this.value + hierarchicalKindSep);
+  }
+
+  bool intersects(HierarchicalKind other) {
+    return this.contains(other) || other.contains(this);
+  }
+
+  HierarchicalKind append(string part) {
+    if (this.value.length == 0) {
+      return new HierarchicalKind(part);
+    }
+    return new HierarchicalKind(this.value + hierarchicalKindSep + part);
+  }
+}
+
+export HierarchicalKind hierarchicalKindNone() {
+  return new HierarchicalKind(hierarchicalKindNoneValue);
+}
+
+export HierarchicalKind hierarchicalKindEmpty() {
+  return new HierarchicalKind("");
+}

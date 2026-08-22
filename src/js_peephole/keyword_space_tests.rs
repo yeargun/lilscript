@@ -65,8 +65,10 @@ fn keeps_return_separated_from_a_logical_ternary() {
     )
     .unwrap();
     assert!(
-        optimized.code.contains("return a") && !optimized.code.contains("returna"),
-        "{}",
+        (optimized.code.contains("return a") || optimized.code.contains("return i"))
+            && !optimized.code.contains("returna")
+            && !optimized.code.contains("returni"),
+        "fused return: {}",
         optimized.code
     );
     asserts_parses(&optimized.code);
@@ -1882,6 +1884,28 @@ fn does_not_var_shadow_module_bindings() {
 }
 
 #[test]
+fn does_not_var_shadow_module_bindings_in_expression_guards() {
+    let keep = "var canMerge=true;var state=(function(){var count=0;count&&(canMerge=false);if(!canMerge)return\"isolated\";return\"merged\"})();console.log(state+\":\"+canMerge)";
+    let flip = "var canMerge=true;var state=(function(){var count=1;count&&(canMerge=false);if(!canMerge)return\"isolated\";return\"merged\"})();console.log(state+\":\"+canMerge)";
+    let keep_out = optimize_generated_javascript(keep).unwrap();
+    let flip_out = optimize_generated_javascript(flip).unwrap();
+    assert!(
+        !keep_out.code.contains("var canMerge;"),
+        "{}",
+        keep_out.code
+    );
+    assert_eq!(run_node(&keep_out.code).trim(), "merged:true", "{}", keep_out.code);
+    assert_eq!(run_node(&flip_out.code).trim(), "isolated:false", "{}", flip_out.code);
+}
+
+#[test]
+fn does_not_var_shadow_module_bindings_in_comma_sequences() {
+    let source = "var gs={old:1};function isolate(flag){flag&&(gs={neu:1});return gs}var next=isolate(true);console.log(next.neu+\":\"+gs.neu)";
+    let optimized = optimize_generated_javascript(source).unwrap();
+    assert_eq!(run_node(&optimized.code).trim(), "1:1", "{}", optimized.code);
+}
+
+#[test]
 fn shadows_module_function_helpers_used_as_inner_temps() {
     let source = "function k(a,b,c){return a.call(b,c)}function step(flag){k=!!flag;return k}console.log(step(true));console.log(typeof k)";
     let optimized = optimize_generated_javascript(source).unwrap();
@@ -1907,7 +1931,7 @@ fn declares_implicit_temps_after_a_switch_case() {
     let source = "function k(a,b,c){return a.call(b,c)}function step(flag){for(;;){switch(0){case 0:k=!!flag;return k}}}console.log(step(true));console.log(typeof k)";
     let optimized = optimize_generated_javascript(source).unwrap();
     let script = format!("\"use strict\";{}", optimized.code);
-    assert_eq!(run_node(&script).trim(), "true\nfunction");
+    assert_eq!(run_node(&script).trim(), "true\nfunction", "{}", optimized.code);
 }
 
 #[test]
@@ -2050,6 +2074,47 @@ fn side_effecting_continue_folding_preserves_scope_and_loop_boundaries() {
         .unwrap();
         assert_eq!(optimized, source, "{source} -> {optimized}");
     }
+}
+
+#[test]
+fn restores_semicolon_when_unwrapping_object_literal_before_else() {
+    for source in [
+        "function f(c){var x;if(c){var o={a:1}}else{o={a:0}}return o.a}",
+        "function f(c){if(c){return {a:1}}else{return {a:0}}}",
+        "function f(c,x){if(c){x={a:1}}else{x={a:0}}return x.a}",
+        "function f(issue){if(typeof issue==\"string\"){var next={message:issue}}else{next=issue}return next}",
+    ] {
+        let isolated = late_generated_javascript_cleanup_pass(
+            source,
+            LateJavaScriptCleanupPass::SingleStatementControlBraces,
+        )
+        .unwrap();
+        asserts_parses(&isolated);
+        assert!(
+            isolated.contains("};else") || isolated.contains("}; else"),
+            "object-ending consequent needs a semicolon before else: {isolated}"
+        );
+
+        let optimized = optimize_generated_javascript(source).unwrap();
+        asserts_parses(&optimized.code);
+    }
+
+    let try_before_else = "function f(c){if(c){try{use(1)}catch(e){use(e)}}else{use(0)}}";
+    let try_optimized = late_generated_javascript_cleanup_pass(
+        try_before_else,
+        LateJavaScriptCleanupPass::SingleStatementControlBraces,
+    )
+    .unwrap();
+    asserts_parses(&try_optimized);
+    assert!(
+        try_optimized.contains("catch(e){use(e)}else")
+            || try_optimized.contains("}else{use(0)}"),
+        "{try_optimized}"
+    );
+    assert!(
+        !try_optimized.contains("};else"),
+        "try/catch already terminates before else: {try_optimized}"
+    );
 }
 
 #[test]

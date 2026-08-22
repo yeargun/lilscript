@@ -1,0 +1,152 @@
+import { dateNow } from "../../../../js-host";
+
+float fmax(float a, float b) {
+  if (a > b) {
+    return a;
+  }
+  return b;
+}
+
+export class DragScrollPosition {
+  string outsidePosition;
+  float outsideDistance;
+  int mouseColumn;
+  int lineNumber;
+  int column;
+  bool hasPosition;
+
+  init(string outsidePosition, float outsideDistance, int mouseColumn, int lineNumber, int column, bool hasPosition) {
+    this.outsidePosition = outsidePosition;
+    this.outsideDistance = outsideDistance;
+    this.mouseColumn = mouseColumn;
+    this.lineNumber = lineNumber;
+    this.column = column;
+    this.hasPosition = hasPosition;
+  }
+}
+
+export class DragScrollingOperation {
+  DragScrollPosition position;
+  float lastTime;
+  bool running;
+
+  init(DragScrollPosition position) {
+    this.position = position;
+    this.lastTime = dateNow();
+    this.running = true;
+  }
+
+  void setPosition(DragScrollPosition position) {
+    this.position = position;
+  }
+
+  float tick() {
+    float now = dateNow();
+    float elapsed = now - this.lastTime;
+    this.lastTime = now;
+    return elapsed;
+  }
+
+  void dispose() {
+    this.running = false;
+  }
+}
+
+export float topBottomScrollSpeed(float lineHeight, float viewportHeight, float outsideDistance) {
+  float viewportInLines = 1.0;
+  if (lineHeight > 0.0) {
+    viewportInLines = viewportHeight / lineHeight;
+  }
+  float outsideDistanceInLines = 0.0;
+  if (lineHeight > 0.0) {
+    outsideDistanceInLines = outsideDistance / lineHeight;
+  }
+  if (outsideDistanceInLines <= 1.5) {
+    return fmax(30.0, viewportInLines * (1.0 + outsideDistanceInLines));
+  }
+  if (outsideDistanceInLines <= 3.0) {
+    return fmax(60.0, viewportInLines * (2.0 + outsideDistanceInLines));
+  }
+  return fmax(200.0, viewportInLines * (7.0 + outsideDistanceInLines));
+}
+
+export float leftRightScrollSpeed(float charWidth, float contentWidth, float outsideDistance) {
+  float viewportInChars = 1.0;
+  if (charWidth > 0.0) {
+    viewportInChars = contentWidth / charWidth;
+  }
+  float outsideDistanceInChars = 0.0;
+  if (charWidth > 0.0) {
+    outsideDistanceInChars = outsideDistance / charWidth;
+  }
+  if (outsideDistanceInChars <= 1.5) {
+    return fmax(30.0, viewportInChars * (1.0 + outsideDistanceInChars));
+  }
+  if (outsideDistanceInChars <= 3.0) {
+    return fmax(60.0, viewportInChars * (2.0 + outsideDistanceInChars));
+  }
+  return fmax(200.0, viewportInChars * (7.0 + outsideDistanceInChars));
+}
+
+export float executeTopBottomScroll(DragScrollingOperation op, float lineHeight, float viewportHeight) {
+  if (!op.running) {
+    return 0.0;
+  }
+  float elapsed = op.tick();
+  float scrollSpeedInLines = topBottomScrollSpeed(lineHeight, viewportHeight, op.position.outsideDistance);
+  float scrollInPixels = scrollSpeedInLines * (elapsed / 1000.0) * lineHeight;
+  if (op.position.outsidePosition == "above") {
+    return 0.0 - scrollInPixels;
+  }
+  return scrollInPixels;
+}
+
+export float executeLeftRightScroll(DragScrollingOperation op, float charWidth, float contentWidth) {
+  if (!op.running) {
+    return 0.0;
+  }
+  float elapsed = op.tick();
+  float scrollSpeedInChars = leftRightScrollSpeed(charWidth, contentWidth, op.position.outsideDistance);
+  float scrollInPixels = scrollSpeedInChars * (elapsed / 1000.0) * charWidth * 0.5;
+  if (op.position.outsidePosition == "left") {
+    return 0.0 - scrollInPixels;
+  }
+  return scrollInPixels;
+}
+
+export class DragScrolling {
+  DragScrollingOperation? operation;
+
+  init() {
+    this.operation = null;
+  }
+
+  void start(DragScrollPosition position) {
+    DragScrollingOperation? existing = this.operation;
+    if (existing != null) {
+      existing.setPosition(position);
+      return;
+    }
+    this.operation = new DragScrollingOperation(position);
+  }
+
+  void stop() {
+    DragScrollingOperation? existing = this.operation;
+    if (existing != null) {
+      existing.dispose();
+      this.operation = null;
+    }
+  }
+
+  void dispose() {
+    this.stop();
+  }
+}
+
+export DragScrolling createDragScrolling() {
+  return new DragScrolling();
+}
+
+export DragScrollPosition createDragScrollPosition(string outsidePosition, float outsideDistance, int mouseColumn, int lineNumber, int column) {
+  return new DragScrollPosition(outsidePosition, outsideDistance, mouseColumn, lineNumber, column, lineNumber > 0);
+}

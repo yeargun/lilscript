@@ -1,0 +1,208 @@
+string repeatString(string value, int count) {
+  string result = "";
+  int i = 0;
+  while (i < count) {
+    result = result + value;
+    i = i + 1;
+  }
+  return result;
+}
+
+bool markdownToken(string ch) {
+  return ch == "\\" || ch == "`" || ch == "*" || ch == "_" || ch == "{" || ch == "}"
+    || ch == "[" || ch == "]" || ch == "(" || ch == ")" || ch == "#" || ch == "+"
+    || ch == "!" || ch == "~";
+}
+
+export string escapeMarkdownSyntaxTokens(string text) {
+  string result = "";
+  bool lineStart = true;
+  int i = 0;
+  while (i < text.length) {
+    string ch = text.charAt(i);
+    if (markdownToken(ch)) {
+      result = result + "\\" + ch;
+    } else if (ch == "-" && lineStart) {
+      result = result + "\\-";
+    } else {
+      result = result + ch;
+    }
+    if (ch == "\n") {
+      lineStart = true;
+    } else if (ch != " " && ch != "\t") {
+      lineStart = false;
+    }
+    i = i + 1;
+  }
+  return result;
+}
+
+string escapeThemeIcons(string text) {
+  string result = "";
+  int i = 0;
+  while (i < text.length) {
+    if (i + 2 < text.length && text.charAt(i) == "$" && text.charAt(i + 1) == "(") {
+      int end = text.indexOf(")", i + 2);
+      if (end >= 0) {
+        bool escaped = i > 0 && text.charAt(i - 1) == "\\";
+        if (!escaped) {
+          result = result + "\\";
+        }
+      }
+    }
+    result = result + text.charAt(i);
+    i = i + 1;
+  }
+  return result;
+}
+
+string escapeTextForMarkdown(string text, bool supportThemeIcons, int newlineStyle) {
+  string source = text;
+  if (supportThemeIcons) {
+    source = escapeThemeIcons(source);
+  }
+  source = escapeMarkdownSyntaxTokens(source);
+  string result = "";
+  int i = 0;
+  while (i < source.length) {
+    string ch = source.charAt(i);
+    if (ch == " " || ch == "\t") {
+      result = result + "&nbsp;";
+    } else if (ch == ">") {
+      result = result + "\\>";
+    } else if (ch == "\n") {
+      if (newlineStyle == 1) {
+        result = result + "\\\n";
+      } else {
+        result = result + "\n\n";
+      }
+    } else {
+      result = result + ch;
+    }
+    i = i + 1;
+  }
+  return result;
+}
+
+export string appendEscapedMarkdownCodeBlockFence(string code, string langId) {
+  int longest = 0;
+  int run = 0;
+  bool lineStart = true;
+  int i = 0;
+  while (i < code.length) {
+    string ch = code.charAt(i);
+    if (lineStart && ch == "`") {
+      run = run + 1;
+      if (run > longest) {
+        longest = run;
+      }
+    } else {
+      run = 0;
+      lineStart = ch == "\n";
+    }
+    i = i + 1;
+  }
+  int fenceLength = 3;
+  if (longest >= 3) {
+    fenceLength = longest + 1;
+  }
+  string fence = repeatString("`", fenceLength);
+  return fence + langId + "\n" + code + "\n" + fence;
+}
+
+string escapeLinkPart(string value, string character) {
+  string result = "";
+  int i = 0;
+  while (i < value.length) {
+    string ch = value.charAt(i);
+    if (ch == character && (i == 0 || value.charAt(i - 1) != "\\")) {
+      result = result + "\\";
+    }
+    result = result + ch;
+    i = i + 1;
+  }
+  return result;
+}
+
+export class MarkdownString {
+  string value;
+  bool isTrusted;
+  bool supportThemeIcons;
+  bool supportHtml;
+  bool supportAlertSyntax;
+
+  init(string value, bool isTrusted, bool supportThemeIcons, bool supportHtml, bool supportAlertSyntax) {
+    this.value = value;
+    this.isTrusted = isTrusted;
+    this.supportThemeIcons = supportThemeIcons;
+    this.supportHtml = supportHtml;
+    this.supportAlertSyntax = supportAlertSyntax;
+  }
+
+  MarkdownString appendText(string text, int newlineStyle) {
+    this.value = this.value + escapeTextForMarkdown(text, this.supportThemeIcons, newlineStyle);
+    return this;
+  }
+
+  MarkdownString appendMarkdown(string markdown) {
+    this.value = this.value + markdown;
+    return this;
+  }
+
+  MarkdownString appendCodeblock(string langId, string code) {
+    this.value = this.value + "\n" + appendEscapedMarkdownCodeBlockFence(code, langId) + "\n";
+    return this;
+  }
+
+  MarkdownString appendLink(string target, string label, string title) {
+    this.value = this.value + "[" + escapeLinkPart(label, "]") + "](" + escapeLinkPart(target, ")");
+    if (title.length > 0) {
+      this.value = this.value + " \"" + escapeLinkPart(escapeLinkPart(title, "\""), ")") + "\"";
+    }
+    this.value = this.value + ")";
+    return this;
+  }
+}
+
+export MarkdownString createMarkdownString(string value, bool isTrusted, bool supportThemeIcons, bool supportHtml, bool supportAlertSyntax) {
+  return new MarkdownString(value, isTrusted, supportThemeIcons, supportHtml, supportAlertSyntax);
+}
+
+export bool isEmptyMarkdownString(MarkdownString value) {
+  return value.value.length == 0;
+}
+
+export bool markdownStringEqual(MarkdownString a, MarkdownString b) {
+  return a.value == b.value
+    && a.isTrusted == b.isTrusted
+    && a.supportThemeIcons == b.supportThemeIcons
+    && a.supportHtml == b.supportHtml
+    && a.supportAlertSyntax == b.supportAlertSyntax;
+}
+
+export string escapeDoubleQuotes(string input) {
+  string result = "";
+  int i = 0;
+  while (i < input.length) {
+    if (input.charAt(i) == "\"") {
+      result = result + "&quot;";
+    } else {
+      result = result + input.charAt(i);
+    }
+    i = i + 1;
+  }
+  return result;
+}
+
+export string removeMarkdownEscapes(string text) {
+  string result = "";
+  int i = 0;
+  while (i < text.length) {
+    if (text.charAt(i) == "\\" && i + 1 < text.length && (markdownToken(text.charAt(i + 1)) || text.charAt(i + 1) == "-" || text.charAt(i + 1) == ".")) {
+      i = i + 1;
+    }
+    result = result + text.charAt(i);
+    i = i + 1;
+  }
+  return result;
+}

@@ -1,0 +1,19 @@
+export class Product {
+  string nameShort;
+  string nameLong;
+  string version;
+  string commit;
+  string quality;
+
+  init() {
+    this.nameShort = "Monaco";
+    this.nameLong = "Monaco Editor";
+    this.version = "0.56.0";
+    this.commit = "";
+    this.quality = "stable";
+  }
+}
+
+export Product createProduct() {
+  return new Product();
+}

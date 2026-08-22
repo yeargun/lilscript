@@ -1,0 +1,175 @@
+int MINIMUM_SLIDER_SIZE = 20;
+
+int imin(int a, int b) {
+  if (a < b) {
+    return a;
+  }
+  return b;
+}
+
+int imax(int a, int b) {
+  if (a > b) {
+    return a;
+  }
+  return b;
+}
+
+export class EditorScrollbarState {
+  int scrollbarSize;
+  int oppositeScrollbarSize;
+  int arrowSize;
+  int visibleSize;
+  int scrollSize;
+  int scrollPosition;
+  int computedAvailableSize;
+  bool computedIsNeeded;
+  int computedSliderSize;
+  float computedSliderRatio;
+  int computedSliderPosition;
+
+  init(int arrowSize, int scrollbarSize, int oppositeScrollbarSize, int visibleSize, int scrollSize, int scrollPosition) {
+    this.scrollbarSize = scrollbarSize;
+    this.oppositeScrollbarSize = oppositeScrollbarSize;
+    this.arrowSize = arrowSize;
+    this.visibleSize = visibleSize;
+    this.scrollSize = scrollSize;
+    this.scrollPosition = scrollPosition;
+    this.computedAvailableSize = 0;
+    this.computedIsNeeded = false;
+    this.computedSliderSize = 0;
+    this.computedSliderRatio = 0.0;
+    this.computedSliderPosition = 0;
+    this.refreshComputedValues();
+  }
+
+  void refreshComputedValues() {
+    int computedAvailableSize = this.visibleSize - this.oppositeScrollbarSize;
+    if (computedAvailableSize < 0) {
+      computedAvailableSize = 0;
+    }
+    int computedRepresentableSize = computedAvailableSize - 2 * this.arrowSize;
+    if (computedRepresentableSize < 0) {
+      computedRepresentableSize = 0;
+    }
+    bool computedIsNeeded = this.scrollSize > 0 && this.scrollSize > this.visibleSize;
+    this.computedAvailableSize = computedAvailableSize;
+    this.computedIsNeeded = computedIsNeeded;
+    if (!computedIsNeeded) {
+      this.computedSliderSize = computedRepresentableSize;
+      this.computedSliderRatio = 0.0;
+      this.computedSliderPosition = 0;
+      return;
+    }
+    int computedSliderSize = (this.visibleSize * 1.0 * computedRepresentableSize * 1.0 / (this.scrollSize * 1.0)).floor().toInt();
+    if (computedSliderSize < MINIMUM_SLIDER_SIZE) {
+      computedSliderSize = MINIMUM_SLIDER_SIZE;
+    }
+    float computedSliderRatio = 0.0;
+    int denom = this.scrollSize - this.visibleSize;
+    if (denom != 0) {
+      computedSliderRatio = (computedRepresentableSize - computedSliderSize) * 1.0 / (denom * 1.0);
+    }
+    this.computedSliderSize = computedSliderSize;
+    this.computedSliderRatio = computedSliderRatio;
+    this.computedSliderPosition = (this.scrollPosition * 1.0 * computedSliderRatio).round().toInt();
+  }
+
+  bool setVisibleSize(int visibleSize) {
+    if (this.visibleSize != visibleSize) {
+      this.visibleSize = visibleSize;
+      this.refreshComputedValues();
+      return true;
+    }
+    return false;
+  }
+
+  bool setScrollSize(int scrollSize) {
+    if (this.scrollSize != scrollSize) {
+      this.scrollSize = scrollSize;
+      this.refreshComputedValues();
+      return true;
+    }
+    return false;
+  }
+
+  bool setScrollPosition(int scrollPosition) {
+    if (this.scrollPosition != scrollPosition) {
+      this.scrollPosition = scrollPosition;
+      this.refreshComputedValues();
+      return true;
+    }
+    return false;
+  }
+
+  int getDesiredScrollPositionFromOffset(int offset) {
+    if (!this.computedIsNeeded) {
+      return 0;
+    }
+    if (this.computedSliderRatio == 0.0) {
+      return 0;
+    }
+    return ((offset - this.arrowSize - this.computedSliderSize / 2) * 1.0 / this.computedSliderRatio).round().toInt();
+  }
+
+  int getDesiredScrollPositionFromOffsetPaged(int offset) {
+    int current = this.computedSliderPosition;
+    if (offset < current) {
+      return this.scrollPosition - this.visibleSize;
+    }
+    return this.scrollPosition + this.visibleSize;
+  }
+}
+
+export class EditorScrollbar {
+  EditorScrollbarState vertical;
+  EditorScrollbarState horizontal;
+  int contentLeft;
+  int contentWidth;
+  int height;
+  int minimapWidth;
+  string minimapSide;
+  int left;
+  int width;
+
+  init(int contentLeft, int contentWidth, int height, int minimapWidth, string minimapSide, int verticalVisible, int verticalScroll, int verticalPosition, int horizontalVisible, int horizontalScroll, int horizontalPosition, int verticalScrollbarSize, int horizontalScrollbarSize) {
+    this.contentLeft = contentLeft;
+    this.contentWidth = contentWidth;
+    this.height = height;
+    this.minimapWidth = minimapWidth;
+    this.minimapSide = minimapSide;
+    this.vertical = new EditorScrollbarState(0, verticalScrollbarSize, horizontalScrollbarSize, verticalVisible, verticalScroll, verticalPosition);
+    this.horizontal = new EditorScrollbarState(0, horizontalScrollbarSize, verticalScrollbarSize, horizontalVisible, horizontalScroll, horizontalPosition);
+    this.left = contentLeft;
+    this.width = contentWidth;
+    this.setLayout();
+  }
+
+  void setLayout() {
+    this.left = this.contentLeft;
+    if (this.minimapSide == "right") {
+      this.width = this.contentWidth + this.minimapWidth;
+    } else {
+      this.width = this.contentWidth;
+    }
+  }
+
+  int verticalSliderTop() {
+    return this.vertical.computedSliderPosition;
+  }
+
+  int verticalSliderSize() {
+    return this.vertical.computedSliderSize;
+  }
+
+  int horizontalSliderLeft() {
+    return this.horizontal.computedSliderPosition;
+  }
+
+  int horizontalSliderSize() {
+    return this.horizontal.computedSliderSize;
+  }
+}
+
+export EditorScrollbar createEditorScrollbar(int contentLeft, int contentWidth, int height, int minimapWidth, string minimapSide, int verticalVisible, int verticalScroll, int verticalPosition, int horizontalVisible, int horizontalScroll, int horizontalPosition, int verticalScrollbarSize, int horizontalScrollbarSize) {
+  return new EditorScrollbar(contentLeft, contentWidth, height, minimapWidth, minimapSide, verticalVisible, verticalScroll, verticalPosition, horizontalVisible, horizontalScroll, horizontalPosition, verticalScrollbarSize, horizontalScrollbarSize);
+}

@@ -1,0 +1,175 @@
+export class DisposableStore {
+  (func()->void)[] callbacks;
+  bool disposed;
+
+  init() {
+    this.callbacks = [];
+    this.disposed = false;
+  }
+
+  void add(func()->void callback) {
+    if (!this.disposed) {
+      this.callbacks.push(callback);
+    }
+  }
+
+  void clear() {
+    (func()->void)[] pending = this.callbacks.slice();
+    this.callbacks = [];
+    int i = 0;
+    while (i < pending.length) {
+      pending[i]();
+      i = i + 1;
+    }
+  }
+
+  void dispose() {
+    if (this.disposed) {
+      return;
+    }
+    this.disposed = true;
+    this.clear();
+  }
+
+  bool isDisposed() {
+    return this.disposed;
+  }
+}
+
+export class Disposable {
+  DisposableStore store;
+
+  init() {
+    this.store = new DisposableStore();
+  }
+
+  void register(func()->void callback) {
+    this.store.add(callback);
+  }
+
+  void dispose() {
+    this.store.dispose();
+  }
+}
+
+export class MutableDisposable {
+  bool disposed;
+  bool hasValue;
+  func()->void value;
+
+  init() {
+    this.disposed = false;
+    this.hasValue = false;
+    this.value = () => {};
+  }
+
+  void set(func()->void callback) {
+    if (this.disposed) {
+      callback();
+      return;
+    }
+    if (this.hasValue) {
+      this.value();
+    }
+    this.value = callback;
+    this.hasValue = true;
+  }
+
+  void clear() {
+    if (this.hasValue) {
+      this.hasValue = false;
+      this.value();
+      this.value = () => {};
+    }
+  }
+
+  void dispose() {
+    if (!this.disposed) {
+      this.disposed = true;
+      this.clear();
+    }
+  }
+}
+
+export class RefCountedDisposable {
+  int counter;
+  bool disposed;
+  func()->void callback;
+
+  init(func()->void callback) {
+    this.counter = 1;
+    this.disposed = false;
+    this.callback = callback;
+  }
+
+  RefCountedDisposable acquire() {
+    if (!this.disposed) {
+      this.counter = this.counter + 1;
+    }
+    return this;
+  }
+
+  RefCountedDisposable release() {
+    if (!this.disposed) {
+      this.counter = this.counter - 1;
+      if (this.counter == 0) {
+        this.disposed = true;
+        this.callback();
+      }
+    }
+    return this;
+  }
+}
+
+export DisposableStore createDisposableStore() {
+  return new DisposableStore();
+}
+
+export Disposable createDisposable() {
+  return new Disposable();
+}
+
+export MutableDisposable createMutableDisposable() {
+  return new MutableDisposable();
+}
+
+export RefCountedDisposable createRefCountedDisposable(func()->void callback) {
+  return new RefCountedDisposable(callback);
+}
+
+export void storeAdd(DisposableStore store, func()->void callback) {
+  store.add(callback);
+}
+
+export void storeClear(DisposableStore store) {
+  store.clear();
+}
+
+export void storeDispose(DisposableStore store) {
+  store.dispose();
+}
+
+export func()->void toDisposable(func()->void callback) {
+  bool disposed = false;
+  return () => {
+    if (!disposed) {
+      disposed = true;
+      callback();
+    }
+  };
+}
+
+export func()->void combinedDisposable((func()->void)[] disposables) {
+  bool disposed = false;
+  return () => {
+    if (disposed) {
+      return;
+    }
+    disposed = true;
+    int i = 0;
+    while (i < disposables.length) {
+      disposables[i]();
+      i = i + 1;
+    }
+  };
+}

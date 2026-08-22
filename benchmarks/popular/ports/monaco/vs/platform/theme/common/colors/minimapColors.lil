@@ -1,0 +1,55 @@
+export class MinimapColorsRegistry {
+  string[] ids;
+
+  init() {
+    this.ids = [];
+  }
+
+  string register(string id) {
+    if (!this.ids.includes(id)) {
+      this.ids.push(id);
+    }
+    return id;
+  }
+
+  bool has(string id) {
+    return this.ids.includes(id);
+  }
+
+  string asCssVariableName(string id) {
+    string out = "--vscode-";
+    int i = 0;
+    while (i < id.length) {
+      string ch = id.charAt(i);
+      if (ch == ".") {
+        out = out + "-";
+      } else {
+        out = out + ch;
+      }
+      i = i + 1;
+    }
+    return out;
+  }
+}
+
+MinimapColorsRegistry colors = new MinimapColorsRegistry();
+
+export MinimapColorsRegistry getMinimapColorsRegistry() {
+  return colors;
+}
+
+export string c0 = colors.register("minimap.findMatchHighlight");
+export string c1 = colors.register("minimap.selectionOccurrenceHighlight");
+export string c2 = colors.register("minimap.selectionHighlight");
+export string c3 = colors.register("minimap.infoHighlight");
+export string c4 = colors.register("minimap.warningHighlight");
+export string c5 = colors.register("minimap.errorHighlight");
+export string c6 = colors.register("minimap.background");
+export string c7 = colors.register("minimap.foregroundOpacity");
+export string c8 = colors.register("minimapSlider.background");
+export string c9 = colors.register("minimapSlider.hoverBackground");
+export string c10 = colors.register("minimapSlider.activeBackground");
+
+export string[] colorIds() {
+  return colors.ids;
+}

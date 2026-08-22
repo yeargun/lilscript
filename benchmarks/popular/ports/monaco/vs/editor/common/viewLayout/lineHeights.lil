@@ -1,0 +1,195 @@
+export class CustomLineHeightData {
+  string decorationId;
+  int startLineNumber;
+  int endLineNumber;
+  int lineHeight;
+
+  init(string decorationId, int startLineNumber, int endLineNumber, int lineHeight) {
+    this.decorationId = decorationId;
+    this.startLineNumber = startLineNumber;
+    this.endLineNumber = endLineNumber;
+    this.lineHeight = lineHeight;
+  }
+}
+
+export class CustomLine {
+  string decorationId;
+  int lineNumber;
+  int specialHeight;
+  int prefixSum;
+  int maximumSpecialHeight;
+
+  init(string decorationId, int lineNumber, int specialHeight, int prefixSum) {
+    this.decorationId = decorationId;
+    this.lineNumber = lineNumber;
+    this.specialHeight = specialHeight;
+    this.prefixSum = prefixSum;
+    this.maximumSpecialHeight = specialHeight;
+  }
+}
+
+export class LineHeightsManager {
+  int defaultLineHeight;
+  CustomLineHeightData[] ranges;
+  int[] heights;
+  int[] prefixSums;
+  int validLineCount;
+
+  init(int defaultLineHeight, CustomLineHeightData[] customLineHeightData) {
+    this.defaultLineHeight = defaultLineHeight;
+    this.ranges = [];
+    this.heights = [];
+    this.prefixSums = [];
+    this.validLineCount = 0;
+    int i = 0;
+    while (i < customLineHeightData.length) {
+      this.ranges.push(customLineHeightData[i]);
+      i = i + 1;
+    }
+  }
+
+  void invalidate() {
+    this.heights = [];
+    this.prefixSums = [];
+    this.validLineCount = 0;
+  }
+
+  void setDefaultLineHeight(int lineHeight) {
+    if (lineHeight != this.defaultLineHeight) {
+      this.defaultLineHeight = lineHeight;
+      this.invalidate();
+    }
+  }
+
+  int computeHeight(int lineNumber) {
+    int height = this.defaultLineHeight;
+    int i = 0;
+    while (i < this.ranges.length) {
+      CustomLineHeightData range = this.ranges[i];
+      if (lineNumber >= range.startLineNumber && lineNumber <= range.endLineNumber && range.lineHeight > height) {
+        height = range.lineHeight;
+      }
+      i = i + 1;
+    }
+    return height;
+  }
+
+  void ensurePrefixSums(int lineNumber) {
+    int current = this.validLineCount + 1;
+    while (current <= lineNumber) {
+      int height = this.computeHeight(current);
+      this.heights.push(height);
+      int sum = height;
+      if (this.prefixSums.length > 0) {
+        sum = this.prefixSums[this.prefixSums.length - 1] + height;
+      }
+      this.prefixSums.push(sum);
+      current = current + 1;
+    }
+    if (lineNumber > this.validLineCount) {
+      this.validLineCount = lineNumber;
+    }
+  }
+
+  void removeCustomLineHeight(string decorationId) {
+    int i = this.ranges.length - 1;
+    while (i >= 0) {
+      if (this.ranges[i].decorationId == decorationId) {
+        this.ranges.splice(i, 1);
+      }
+      i = i - 1;
+    }
+    this.invalidate();
+  }
+
+  void insertOrChangeCustomLineHeight(string decorationId, int startLineNumber, int endLineNumber, int lineHeight) {
+    this.removeCustomLineHeight(decorationId);
+    if (startLineNumber < 1) {
+      startLineNumber = 1;
+    }
+    if (endLineNumber >= startLineNumber) {
+      this.ranges.push(new CustomLineHeightData(decorationId, startLineNumber, endLineNumber, lineHeight));
+    }
+    this.invalidate();
+  }
+
+  int heightForLineNumber(int lineNumber) {
+    if (lineNumber < 1) {
+      return this.defaultLineHeight;
+    }
+    this.ensurePrefixSums(lineNumber);
+    return this.heights[lineNumber - 1];
+  }
+
+  int getAccumulatedLineHeightsIncludingLineNumber(int lineNumber) {
+    if (lineNumber <= 0) {
+      return 0;
+    }
+    this.ensurePrefixSums(lineNumber);
+    return this.prefixSums[lineNumber - 1];
+  }
+
+  void onLinesDeleted(int fromLineNumber, int toLineNumber) {
+    int count = toLineNumber - fromLineNumber + 1;
+    int i = this.ranges.length - 1;
+    while (i >= 0) {
+      CustomLineHeightData range = this.ranges[i];
+      if (range.endLineNumber < fromLineNumber) {
+        i = i - 1;
+        continue;
+      }
+      if (range.startLineNumber > toLineNumber) {
+        range.startLineNumber = range.startLineNumber - count;
+        range.endLineNumber = range.endLineNumber - count;
+        i = i - 1;
+        continue;
+      }
+      int newStart = range.startLineNumber;
+      if (newStart > fromLineNumber) {
+        newStart = fromLineNumber;
+      }
+      int newEnd = range.endLineNumber - count;
+      if (newEnd < fromLineNumber) {
+        newEnd = fromLineNumber;
+      }
+      range.startLineNumber = newStart;
+      range.endLineNumber = newEnd;
+      if (range.endLineNumber < 1) {
+        this.ranges.splice(i, 1);
+      }
+      i = i - 1;
+    }
+    this.invalidate();
+  }
+
+  void onLinesInserted(int fromLineNumber, int toLineNumber) {
+    int count = toLineNumber - fromLineNumber + 1;
+    int i = 0;
+    while (i < this.ranges.length) {
+      CustomLineHeightData range = this.ranges[i];
+      if (range.startLineNumber >= fromLineNumber) {
+        range.startLineNumber = range.startLineNumber + count;
+        range.endLineNumber = range.endLineNumber + count;
+      } else {
+        if (range.endLineNumber >= fromLineNumber - 1) {
+          range.endLineNumber = range.endLineNumber + count;
+        }
+      }
+      i = i + 1;
+    }
+    this.invalidate();
+  }
+}
+
+export LineHeightsManager createLineHeightsManager(int defaultLineHeight, CustomLineHeightData[] customLineHeightData) {
+  return new LineHeightsManager(defaultLineHeight, customLineHeightData);
+}
+
+export LineHeightsManager createDefaultLineHeightsManager(int defaultLineHeight) {
+  CustomLineHeightData[] data = [];
+  return new LineHeightsManager(defaultLineHeight, data);
+}
+
+export CustomLineHeightData createCustomLineHeightData(string decorationId, int startLineNumber, int endLineNumber, int lineHeight) {
+  return new CustomLineHeightData(decorationId, startLineNumber, endLineNumber, lineHeight);
+}

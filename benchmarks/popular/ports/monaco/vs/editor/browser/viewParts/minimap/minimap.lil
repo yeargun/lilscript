@@ -1,0 +1,321 @@
+int MINIMAP_GUTTER_WIDTH = 8;
+int RENDER_NONE = 0;
+int RENDER_TEXT = 1;
+int RENDER_BLOCKS = 2;
+
+int imin(int a, int b) {
+  if (a < b) {
+    return a;
+  }
+  return b;
+}
+
+int imax(int a, int b) {
+  if (a > b) {
+    return a;
+  }
+  return b;
+}
+
+float fmin(float a, float b) {
+  if (a < b) {
+    return a;
+  }
+  return b;
+}
+
+float fmax(float a, float b) {
+  if (a > b) {
+    return a;
+  }
+  return b;
+}
+
+export class MinimapOptions {
+  bool enabled;
+  string side;
+  string size;
+  bool renderCharacters;
+  int maxColumn;
+  int scale;
+  float pixelRatio;
+  int outerWidth;
+  int outerHeight;
+  int lineHeight;
+  float typicalHalfwidthCharacterWidth;
+  bool scrollBeyondLastLine;
+  int paddingTop;
+  int paddingBottom;
+  int verticalScrollbarWidth;
+  int viewLineCount;
+  int remainingWidth;
+  bool isViewportWrapping;
+
+  init(bool enabled, string side, string size, bool renderCharacters, int maxColumn, int scale, float pixelRatio, int outerWidth, int outerHeight, int lineHeight, float typicalHalfwidthCharacterWidth, bool scrollBeyondLastLine, int paddingTop, int paddingBottom, int verticalScrollbarWidth, int viewLineCount, int remainingWidth, bool isViewportWrapping) {
+    this.enabled = enabled;
+    this.side = side;
+    this.size = size;
+    this.renderCharacters = renderCharacters;
+    this.maxColumn = maxColumn;
+    this.scale = scale;
+    this.pixelRatio = pixelRatio;
+    this.outerWidth = outerWidth;
+    this.outerHeight = outerHeight;
+    this.lineHeight = lineHeight;
+    this.typicalHalfwidthCharacterWidth = typicalHalfwidthCharacterWidth;
+    this.scrollBeyondLastLine = scrollBeyondLastLine;
+    this.paddingTop = paddingTop;
+    this.paddingBottom = paddingBottom;
+    this.verticalScrollbarWidth = verticalScrollbarWidth;
+    this.viewLineCount = viewLineCount;
+    this.remainingWidth = remainingWidth;
+    this.isViewportWrapping = isViewportWrapping;
+  }
+}
+
+export class MinimapLayoutInfo {
+  int renderMinimap;
+  int minimapLeft;
+  int minimapWidth;
+  bool minimapHeightIsEditorHeight;
+  bool minimapIsSampling;
+  int minimapScale;
+  int minimapLineHeight;
+  int minimapCanvasInnerWidth;
+  int minimapCanvasInnerHeight;
+  float minimapCanvasOuterWidth;
+  int minimapCanvasOuterHeight;
+
+  init(int renderMinimap, int minimapLeft, int minimapWidth, bool minimapHeightIsEditorHeight, bool minimapIsSampling, int minimapScale, int minimapLineHeight, int minimapCanvasInnerWidth, int minimapCanvasInnerHeight, float minimapCanvasOuterWidth, int minimapCanvasOuterHeight) {
+    this.renderMinimap = renderMinimap;
+    this.minimapLeft = minimapLeft;
+    this.minimapWidth = minimapWidth;
+    this.minimapHeightIsEditorHeight = minimapHeightIsEditorHeight;
+    this.minimapIsSampling = minimapIsSampling;
+    this.minimapScale = minimapScale;
+    this.minimapLineHeight = minimapLineHeight;
+    this.minimapCanvasInnerWidth = minimapCanvasInnerWidth;
+    this.minimapCanvasInnerHeight = minimapCanvasInnerHeight;
+    this.minimapCanvasOuterWidth = minimapCanvasOuterWidth;
+    this.minimapCanvasOuterHeight = minimapCanvasOuterHeight;
+  }
+}
+
+export class MinimapSliderLayout {
+  int scrollTop;
+  int scrollHeight;
+  bool sliderNeeded;
+  float computedSliderRatio;
+  float sliderTop;
+  int sliderHeight;
+  int topPaddingLineCount;
+  int startLineNumber;
+  int endLineNumber;
+
+  init(int scrollTop, int scrollHeight, bool sliderNeeded, float computedSliderRatio, float sliderTop, int sliderHeight, int topPaddingLineCount, int startLineNumber, int endLineNumber) {
+    this.scrollTop = scrollTop;
+    this.scrollHeight = scrollHeight;
+    this.sliderNeeded = sliderNeeded;
+    this.computedSliderRatio = computedSliderRatio;
+    this.sliderTop = sliderTop;
+    this.sliderHeight = sliderHeight;
+    this.topPaddingLineCount = topPaddingLineCount;
+    this.startLineNumber = startLineNumber;
+    this.endLineNumber = endLineNumber;
+  }
+
+  int getDesiredScrollTopFromDelta(int delta) {
+    if (this.computedSliderRatio == 0.0) {
+      return this.scrollTop;
+    }
+    return (this.scrollTop + delta / this.computedSliderRatio).round().toInt();
+  }
+
+  int getDesiredScrollTopFromTouchLocation(int pageY) {
+    if (this.computedSliderRatio == 0.0) {
+      return 0;
+    }
+    return ((pageY - this.sliderHeight / 2) / this.computedSliderRatio).round().toInt();
+  }
+
+  int getYForLineNumber(int lineNumber, int minimapLineHeight) {
+    return (lineNumber - this.startLineNumber + this.topPaddingLineCount) * minimapLineHeight;
+  }
+}
+
+export MinimapLayoutInfo computeMinimapLayout(MinimapOptions input) {
+  if (!input.enabled) {
+    return new MinimapLayoutInfo(RENDER_NONE, 0, 0, false, false, 1, 1, 0, (input.pixelRatio * input.outerHeight).floor().toInt(), 0.0, input.outerHeight);
+  }
+  int minimapScale = input.scale;
+  if (input.pixelRatio >= 2.0) {
+    minimapScale = (input.scale * 2.0).round().toInt();
+  }
+  int baseCharHeight = 3;
+  if (input.renderCharacters) {
+    baseCharHeight = 2;
+  }
+  int minimapCanvasInnerHeight = (input.pixelRatio * input.outerHeight).floor().toInt();
+  float minimapCanvasOuterHeight = minimapCanvasInnerHeight / input.pixelRatio;
+  bool minimapHeightIsEditorHeight = false;
+  bool minimapIsSampling = false;
+  int minimapLineHeight = baseCharHeight * minimapScale;
+  float minimapCharWidth = minimapScale / input.pixelRatio;
+  float minimapWidthMultiplier = 1.0;
+  if (input.size == "fill" || input.size == "fit") {
+    float typicalViewportLineCount = input.outerHeight * 1.0 / input.lineHeight;
+    int extraLinesBeforeFirstLine = input.paddingTop / input.lineHeight;
+    int extraLinesBeyondLastLine = input.paddingBottom / input.lineHeight;
+    if (input.scrollBeyondLastLine) {
+      extraLinesBeyondLastLine = imax(extraLinesBeyondLastLine, (typicalViewportLineCount - 1.0).floor().toInt());
+    }
+    float desiredRatio = (extraLinesBeforeFirstLine + input.viewLineCount + extraLinesBeyondLastLine) * 1.0 / (input.pixelRatio * input.outerHeight);
+    int minimapLineCount = 1;
+    if (desiredRatio > 0.0) {
+      minimapLineCount = (input.viewLineCount * 1.0 / desiredRatio).floor().toInt();
+    }
+    if (minimapLineCount < 1) {
+      minimapLineCount = 1;
+    }
+    float ratio = input.viewLineCount * 1.0 / minimapLineCount;
+    if (ratio > 1.0) {
+      minimapHeightIsEditorHeight = true;
+      minimapIsSampling = true;
+      minimapScale = 1;
+      minimapLineHeight = 1;
+      minimapCharWidth = minimapScale / input.pixelRatio;
+    } else {
+      bool fitBecomesFill = false;
+      if (input.size == "fit") {
+        int effectiveMinimapHeight = (extraLinesBeforeFirstLine + input.viewLineCount + extraLinesBeyondLastLine) * minimapLineHeight;
+        fitBecomesFill = effectiveMinimapHeight > minimapCanvasInnerHeight;
+      }
+      if (input.size == "fill" || fitBecomesFill) {
+        minimapHeightIsEditorHeight = true;
+        int configuredMinimapScale = minimapScale;
+        float inv = 1.0 / desiredRatio;
+        int sampled = inv.floor().toInt();
+        if (sampled < 1) {
+          sampled = 1;
+        }
+        int lineCap = (input.lineHeight * 1.0 * input.pixelRatio).floor().toInt();
+        minimapLineHeight = imin(lineCap, sampled);
+        minimapScale = imin(configuredMinimapScale + 1, imax(1, minimapLineHeight / baseCharHeight));
+        if (minimapScale > configuredMinimapScale) {
+          minimapWidthMultiplier = fmin(2.0, minimapScale * 1.0 / configuredMinimapScale);
+        }
+        minimapCharWidth = minimapScale / input.pixelRatio / minimapWidthMultiplier;
+        float needed = fmax(typicalViewportLineCount, (extraLinesBeforeFirstLine + input.viewLineCount + extraLinesBeyondLastLine) * 1.0);
+        minimapCanvasInnerHeight = (needed * minimapLineHeight).ceil().toInt();
+      }
+    }
+  }
+  int minimapMaxWidth = (input.maxColumn * 1.0 * minimapCharWidth).floor().toInt();
+  float rawWidth = ((input.remainingWidth - input.verticalScrollbarWidth - 2) * 1.0 * minimapCharWidth) / (input.typicalHalfwidthCharacterWidth + minimapCharWidth);
+  int minimapWidth = imin(minimapMaxWidth, imax(0, rawWidth.floor().toInt()) + MINIMAP_GUTTER_WIDTH);
+  int minimapCanvasInnerWidth = (input.pixelRatio * minimapWidth).floor().toInt();
+  float minimapCanvasOuterWidth = minimapCanvasInnerWidth / input.pixelRatio;
+  minimapCanvasInnerWidth = (minimapCanvasInnerWidth * 1.0 * minimapWidthMultiplier).floor().toInt();
+  int renderMinimap = RENDER_BLOCKS;
+  if (input.renderCharacters) {
+    renderMinimap = RENDER_TEXT;
+  }
+  int minimapLeft = 0;
+  if (input.side != "left") {
+    minimapLeft = input.outerWidth - minimapWidth - input.verticalScrollbarWidth;
+  }
+  return new MinimapLayoutInfo(renderMinimap, minimapLeft, minimapWidth, minimapHeightIsEditorHeight, minimapIsSampling, minimapScale, minimapLineHeight, minimapCanvasInnerWidth, minimapCanvasInnerHeight, minimapCanvasOuterWidth, minimapCanvasOuterHeight.floor().toInt());
+}
+
+export MinimapSliderLayout createSliderLayout(MinimapLayoutInfo layout, MinimapOptions options, int viewportStartLineNumber, int viewportEndLineNumber, int viewportStartLineNumberVerticalOffset, int viewportHeight, bool viewportContainsWhitespaceGaps, int lineCount, int realLineCount, int scrollTop, int scrollHeight) {
+  float pixelRatio = options.pixelRatio;
+  int minimapLineHeight = layout.minimapLineHeight;
+  int minimapLinesFitting = 0;
+  if (minimapLineHeight > 0) {
+    minimapLinesFitting = layout.minimapCanvasInnerHeight / minimapLineHeight;
+  }
+  int lineHeight = options.lineHeight;
+  if (layout.minimapHeightIsEditorHeight) {
+    int logicalScrollHeight = realLineCount * options.lineHeight + options.paddingTop + options.paddingBottom;
+    if (options.scrollBeyondLastLine) {
+      logicalScrollHeight = logicalScrollHeight + imax(0, viewportHeight - options.lineHeight - options.paddingBottom);
+    }
+    int sliderHeight = 1;
+    if (logicalScrollHeight > 0) {
+      sliderHeight = imax(1, (viewportHeight * 1.0 * viewportHeight / logicalScrollHeight).floor().toInt());
+    }
+    int maxMinimapSliderTop = imax(0, options.outerHeight - sliderHeight);
+    float computedSliderRatio = 0.0;
+    int denom = scrollHeight - viewportHeight;
+    if (denom != 0) {
+      computedSliderRatio = maxMinimapSliderTop * 1.0 / denom;
+    }
+    float sliderTop = scrollTop * computedSliderRatio;
+    bool sliderNeeded = maxMinimapSliderTop > 0;
+    int topPaddingLineCount = options.paddingTop / options.lineHeight;
+    return new MinimapSliderLayout(scrollTop, scrollHeight, sliderNeeded, computedSliderRatio, sliderTop, sliderHeight, topPaddingLineCount, 1, imin(lineCount, minimapLinesFitting));
+  }
+  int sliderHeight = 0;
+  if (viewportContainsWhitespaceGaps && viewportEndLineNumber != lineCount) {
+    int viewportLineCount = viewportEndLineNumber - viewportStartLineNumber + 1;
+    sliderHeight = (viewportLineCount * minimapLineHeight / pixelRatio).floor().toInt();
+  } else {
+    float expectedViewportLineCount = viewportHeight * 1.0 / lineHeight;
+    sliderHeight = (expectedViewportLineCount * minimapLineHeight / pixelRatio).floor().toInt();
+  }
+  int extraLinesAtTheTop = options.paddingTop / lineHeight;
+  int extraLinesAtTheBottom = options.paddingBottom / lineHeight;
+  if (options.scrollBeyondLastLine) {
+    float expectedViewportLineCount = viewportHeight * 1.0 / lineHeight;
+    extraLinesAtTheBottom = imax(extraLinesAtTheBottom, (expectedViewportLineCount - 1.0).floor().toInt());
+  }
+  float maxMinimapSliderTop = 0.0;
+  if (extraLinesAtTheBottom > 0) {
+    float expectedViewportLineCount = viewportHeight * 1.0 / lineHeight;
+    maxMinimapSliderTop = (extraLinesAtTheTop + lineCount + extraLinesAtTheBottom - expectedViewportLineCount - 1.0) * minimapLineHeight / pixelRatio;
+  } else {
+    maxMinimapSliderTop = fmax(0.0, (extraLinesAtTheTop + lineCount) * minimapLineHeight / pixelRatio - sliderHeight);
+  }
+  maxMinimapSliderTop = fmin(options.outerHeight - sliderHeight, maxMinimapSliderTop);
+  float computedSliderRatio = 0.0;
+  int denom = scrollHeight - viewportHeight;
+  if (denom != 0) {
+    computedSliderRatio = maxMinimapSliderTop / denom;
+  }
+  float sliderTop = scrollTop * computedSliderRatio;
+  if (minimapLinesFitting >= extraLinesAtTheTop + lineCount + extraLinesAtTheBottom) {
+    bool sliderNeeded = maxMinimapSliderTop > 0.0;
+    return new MinimapSliderLayout(scrollTop, scrollHeight, sliderNeeded, computedSliderRatio, sliderTop, sliderHeight, extraLinesAtTheTop, 1, lineCount);
+  }
+  float consideringStartLineNumber = viewportStartLineNumber * 1.0;
+  if (viewportStartLineNumber > 1) {
+    consideringStartLineNumber = viewportStartLineNumber + extraLinesAtTheTop;
+  } else {
+    consideringStartLineNumber = fmax(1.0, scrollTop * 1.0 / lineHeight);
+  }
+  int startLineNumber = imax(1, (consideringStartLineNumber - sliderTop * pixelRatio / minimapLineHeight).floor().toInt());
+  int topPaddingLineCount = 0;
+  if (startLineNumber < extraLinesAtTheTop) {
+    topPaddingLineCount = extraLinesAtTheTop - startLineNumber + 1;
+    startLineNumber = 1;
+  } else {
+    startLineNumber = imax(1, startLineNumber - extraLinesAtTheTop);
+  }
+  int endLineNumber = imin(lineCount, startLineNumber - topPaddingLineCount + minimapLinesFitting - 1);
+  float partialLine = (scrollTop - viewportStartLineNumberVerticalOffset) * 1.0 / lineHeight;
+  float sliderTopAligned = 0.0;
+  if (scrollTop >= options.paddingTop && options.paddingTop > 0) {
+    sliderTopAligned = (viewportStartLineNumber - startLineNumber + topPaddingLineCount + partialLine) * minimapLineHeight / pixelRatio;
+  } else {
+    if (options.paddingTop > 0) {
+      sliderTopAligned = (scrollTop * 1.0 / options.paddingTop) * (topPaddingLineCount + partialLine) * minimapLineHeight / pixelRatio;
+    } else {
+      sliderTopAligned = (viewportStartLineNumber - startLineNumber + topPaddingLineCount + partialLine) * minimapLineHeight / pixelRatio;
+    }
+  }
+  return new MinimapSliderLayout(scrollTop, scrollHeight, true, computedSliderRatio, sliderTopAligned, sliderHeight, topPaddingLineCount, startLineNumber, endLineNumber);
+}
+
+export MinimapOptions createMinimapOptions(bool enabled, string side, string size, bool renderCharacters, int maxColumn, int scale, float pixelRatio, int outerWidth, int outerHeight, int lineHeight, float typicalHalfwidthCharacterWidth, bool scrollBeyondLastLine, int paddingTop, int paddingBottom, int verticalScrollbarWidth, int viewLineCount, int remainingWidth, bool isViewportWrapping) {
+  return new MinimapOptions(enabled, side, size, renderCharacters, maxColumn, scale, pixelRatio, outerWidth, outerHeight, lineHeight, typicalHalfwidthCharacterWidth, scrollBeyondLastLine, paddingTop, paddingBottom, verticalScrollbarWidth, viewLineCount, remainingWidth, isViewportWrapping);
+}

@@ -1,0 +1,172 @@
+import { stringSplit } from "../../../js-host";
+
+export class DataTransferItem {
+  string id;
+  string value;
+  bool file;
+  string fileName;
+  string uri;
+  JsValue data;
+
+  init(string id, string value, bool file, string fileName, string uri, JsValue data) {
+    this.id = id;
+    this.value = value;
+    this.file = file;
+    this.fileName = fileName;
+    this.uri = uri;
+    this.data = data;
+  }
+}
+
+int transferFileId = 0;
+
+export DataTransferItem createStringDataTransferItem(string value, string id) {
+  return new DataTransferItem(id, value, false, "", "", JS.object());
+}
+
+export DataTransferItem createFileDataTransferItem(string fileName, string uri, JsValue data, string id) {
+  transferFileId = transferFileId + 1;
+  return new DataTransferItem(id, "", true, fileName, uri, data);
+}
+
+export class VSDataTransfer {
+  Map<string, DataTransferItem[]> entries;
+  string[] mimeTypes;
+
+  init() {
+    this.entries = new Map<string, DataTransferItem[]>();
+    this.mimeTypes = [];
+  }
+
+  int size() {
+    return this.entries.size;
+  }
+
+  string toKey(string mimeType) {
+    return mimeType.toLowerCase();
+  }
+
+  bool has(string mimeType) {
+    return this.entries.has(this.toKey(mimeType));
+  }
+
+  DataTransferItem? get(string mimeType) {
+    DataTransferItem[]? values = this.entries.get(this.toKey(mimeType));
+    if (values != null && values.length > 0) {
+      return values[0];
+    }
+    return null;
+  }
+
+  void append(string mimeType, DataTransferItem value) {
+    string key = this.toKey(mimeType);
+    DataTransferItem[]? values = this.entries.get(key);
+    if (values != null) {
+      values.push(value);
+    } else {
+      DataTransferItem[] created = [value];
+      this.entries.set(key, created);
+      this.mimeTypes.push(key);
+    }
+  }
+
+  void replace(string mimeType, DataTransferItem value) {
+    string key = this.toKey(mimeType);
+    DataTransferItem[] created = [value];
+    if (!this.entries.has(key)) {
+      this.mimeTypes.push(key);
+    }
+    this.entries.set(key, created);
+  }
+
+  void delete(string mimeType) {
+    string key = this.toKey(mimeType);
+    this.entries.delete(key);
+    int index = this.mimeTypes.indexOf(key);
+    if (index >= 0) {
+      this.mimeTypes.splice(index, 1);
+    }
+  }
+
+  bool matches(string pattern) {
+    string[] mimes = [];
+    int keyIndex = 0;
+    while (keyIndex < this.mimeTypes.length) {
+      string key = this.mimeTypes[keyIndex];
+      mimes.push(key);
+      DataTransferItem[]? values = this.entries.get(key);
+      if (values != null) {
+        int i = 0;
+        while (i < values.length) {
+          if (values[i].file && mimes.indexOf("files") < 0) {
+            mimes.push("files");
+          }
+          i = i + 1;
+        }
+      }
+      keyIndex = keyIndex + 1;
+    }
+    return matchesMimeType(pattern, mimes);
+  }
+}
+
+export bool matchesMimeType(string pattern, string[] mimeTypes) {
+  string normalizedPattern = pattern.toLowerCase();
+  if (normalizedPattern == "*/*") {
+    return mimeTypes.length > 0;
+  }
+  int i = 0;
+  while (i < mimeTypes.length) {
+    if (mimeTypes[i].toLowerCase() == normalizedPattern) {
+      return true;
+    }
+    i = i + 1;
+  }
+  int slash = normalizedPattern.indexOf("/");
+  if (slash <= 0 || slash != normalizedPattern.length - 2 || normalizedPattern.charAt(normalizedPattern.length - 1) != "*") {
+    return false;
+  }
+  string prefix = "";
+  int p = 0;
+  while (p <= slash) {
+    prefix = prefix + normalizedPattern.charAt(p);
+    p = p + 1;
+  }
+  i = 0;
+  while (i < mimeTypes.length) {
+    if (mimeTypes[i].toLowerCase().startsWith(prefix)) {
+      return true;
+    }
+    i = i + 1;
+  }
+  return false;
+}
+
+export string createUriList(string[] entries) {
+  string[] distinct = [];
+  int i = 0;
+  while (i < entries.length) {
+    if (distinct.indexOf(entries[i]) < 0) {
+      distinct.push(entries[i]);
+    }
+    i = i + 1;
+  }
+  return distinct.join("\r\n");
+}
+
+export string[] splitUriList(string value) {
+  return stringSplit(value, "\r\n");
+}
+
+export string[] parseUriList(string value) {
+  string[] rows = stringSplit(value, "\r\n");
+  string[] result = [];
+  int i = 0;
+  while (i < rows.length) {
+    if (!rows[i].startsWith("#")) {
+      result.push(rows[i]);
+    }
+    i = i + 1;
+  }
+  return result;
+}

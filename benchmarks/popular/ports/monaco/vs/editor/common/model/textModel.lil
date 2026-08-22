@@ -1,0 +1,590 @@
+import {
+  sliceOf,
+  concat2,
+  replaceEol,
+  stringSplit,
+  emptyBuf,
+  newRegexp,
+  regexExec
+} from "../../../../js-host";
+
+export class Position {
+  int lineNumber;
+  int column;
+
+  init(int lineNumber, int column) {
+    this.lineNumber = lineNumber;
+    this.column = column;
+  }
+}
+
+export class Range {
+  int startLineNumber;
+  int startColumn;
+  int endLineNumber;
+  int endColumn;
+
+  init(int startLineNumber, int startColumn, int endLineNumber, int endColumn) {
+    this.startLineNumber = startLineNumber;
+    this.startColumn = startColumn;
+    this.endLineNumber = endLineNumber;
+    this.endColumn = endColumn;
+  }
+
+  bool isEmpty() {
+    return this.startLineNumber == this.endLineNumber && this.startColumn == this.endColumn;
+  }
+}
+
+export class TextModelResolvedOptions {
+  int tabSize;
+  int indentSize;
+  bool insertSpaces;
+  bool trimAutoWhitespace;
+
+  init(int tabSize, int indentSize, bool insertSpaces, bool trimAutoWhitespace) {
+    this.tabSize = tabSize;
+    this.indentSize = indentSize;
+    if (this.tabSize < 1) {
+      this.tabSize = 4;
+    }
+    if (this.indentSize < 1) {
+      this.indentSize = this.tabSize;
+    }
+    this.insertSpaces = insertSpaces;
+    this.trimAutoWhitespace = trimAutoWhitespace;
+  }
+}
+
+export class ModelDecorationOptions {
+  string className;
+  bool isWholeLine;
+  string glyphMarginClassName;
+  int stickiness;
+  bool collapseOnReplaceEdit;
+  bool affectsFont;
+
+  init(
+    string className,
+    bool isWholeLine,
+    string glyphMarginClassName,
+    int stickiness,
+    bool collapseOnReplaceEdit,
+    bool affectsFont
+  ) {
+    this.className = className;
+    this.isWholeLine = isWholeLine;
+    this.glyphMarginClassName = glyphMarginClassName;
+    this.stickiness = stickiness;
+    this.collapseOnReplaceEdit = collapseOnReplaceEdit;
+    this.affectsFont = affectsFont;
+  }
+}
+
+export class ModelDecoration {
+  string id;
+  int ownerId;
+  Range range;
+  ModelDecorationOptions options;
+
+  init(string id, int ownerId, Range range, ModelDecorationOptions options) {
+    this.id = id;
+    this.ownerId = ownerId;
+    this.range = range;
+    this.options = options;
+  }
+}
+
+export class TextEditOperation {
+  Range range;
+  string text;
+  bool forceMoveMarkers;
+  int identifier;
+
+  init(Range range, string text, bool forceMoveMarkers, int identifier) {
+    this.range = range;
+    this.text = text;
+    this.forceMoveMarkers = forceMoveMarkers;
+    this.identifier = identifier;
+  }
+}
+
+export class ContentChange {
+  Range range;
+  int rangeOffset;
+  int rangeLength;
+  string text;
+
+  init(Range range, int rangeOffset, int rangeLength, string text) {
+    this.range = range;
+    this.rangeOffset = rangeOffset;
+    this.rangeLength = rangeLength;
+    this.text = text;
+  }
+}
+
+export class FindMatch {
+  Range range;
+  string[] matches;
+
+  init(Range range, string[] matches) {
+    this.range = range;
+    this.matches = matches;
+  }
+}
+
+export class TextBufferFactory {
+  string text;
+
+  init(string text) {
+    this.text = text;
+  }
+
+  TextModel create(string languageId, string uri) {
+    return new TextModel(this.text, languageId, uri);
+  }
+}
+
+export class TextModel {
+  string value;
+  string languageId;
+  string uri;
+  string eol;
+  int versionId;
+  int alternativeVersionId;
+  bool disposed;
+  bool isForSimpleWidget;
+  bool tooLargeForSyncing;
+  TextModelResolvedOptions options;
+  ModelDecoration[] decorations;
+  int nextDecorationId;
+
+  init(string value, string languageId, string uri) {
+    this.eol = "\n";
+    if (value.indexOf("\r\n") >= 0) {
+      this.eol = "\r\n";
+    }
+    this.value = replaceEol(value, this.eol);
+    this.languageId = languageId;
+    this.uri = uri;
+    this.versionId = 1;
+    this.alternativeVersionId = 1;
+    this.disposed = false;
+    this.isForSimpleWidget = false;
+    this.tooLargeForSyncing = value.length > 50000000;
+    this.options = new TextModelResolvedOptions(4, 4, true, true);
+    this.decorations = [];
+    this.nextDecorationId = 1;
+  }
+
+  void dispose() {
+    this.disposed = true;
+    this.decorations = [];
+  }
+
+  string getValue() {
+    return this.value;
+  }
+
+  void setValue(string value) {
+    this.eol = "\n";
+    if (value.indexOf("\r\n") >= 0) {
+      this.eol = "\r\n";
+    }
+    this.value = replaceEol(value, this.eol);
+    this.versionId = this.versionId + 1;
+    this.alternativeVersionId = this.alternativeVersionId + 1;
+  }
+
+  string[] getLinesContent() {
+    return stringSplit(replaceEol(this.value, "\n"), "\n");
+  }
+
+  int getLineCount() {
+    return this.getLinesContent().length;
+  }
+
+  string getLineContent(int lineNumber) {
+    string[] lines = this.getLinesContent();
+    if (lineNumber < 1 || lineNumber > lines.length) {
+      return emptyBuf();
+    }
+    return lines[lineNumber - 1];
+  }
+
+  int getLineLength(int lineNumber) {
+    return this.getLineContent(lineNumber).length;
+  }
+
+  int getLineMaxColumn(int lineNumber) {
+    return this.getLineLength(lineNumber) + 1;
+  }
+
+  int getOffsetAt(Position position) {
+    int line = 1;
+    int offset = 0;
+    while (offset < this.value.length && line < position.lineNumber) {
+      int code = this.value.charCodeAt(offset);
+      if (code == 13) {
+        if (offset + 1 < this.value.length && this.value.charCodeAt(offset + 1) == 10) {
+          offset = offset + 1;
+        }
+        line = line + 1;
+      } else if (code == 10) {
+        line = line + 1;
+      }
+      offset = offset + 1;
+    }
+    int result = offset + position.column - 1;
+    if (result < offset) {
+      result = offset;
+    }
+    if (result > this.value.length) {
+      result = this.value.length;
+    }
+    return result;
+  }
+
+  Position getPositionAt(int requestedOffset) {
+    int end = requestedOffset;
+    if (end < 0) {
+      end = 0;
+    }
+    if (end > this.value.length) {
+      end = this.value.length;
+    }
+    int line = 1;
+    int column = 1;
+    int i = 0;
+    while (i < end) {
+      int code = this.value.charCodeAt(i);
+      if (code == 13) {
+        if (i + 1 < end && this.value.charCodeAt(i + 1) == 10) {
+          i = i + 1;
+        }
+        line = line + 1;
+        column = 1;
+      } else if (code == 10) {
+        line = line + 1;
+        column = 1;
+      } else {
+        column = column + 1;
+      }
+      i = i + 1;
+    }
+    return new Position(line, column);
+  }
+
+  string getValueInRange(Range range, int eolPreference = 0) {
+    int start = this.getOffsetAt(new Position(range.startLineNumber, range.startColumn));
+    int end = this.getOffsetAt(new Position(range.endLineNumber, range.endColumn));
+    string result = sliceOf(this.value, start, end);
+    if (eolPreference == 1) {
+      return replaceEol(result, "\n");
+    }
+    if (eolPreference == 2) {
+      return replaceEol(result, "\r\n");
+    }
+    return result;
+  }
+
+  Range getFullModelRange() {
+    int last = this.getLineCount();
+    return new Range(1, 1, last, this.getLineMaxColumn(last));
+  }
+
+  string getEOL() {
+    return this.eol;
+  }
+
+  void setEOL(string eol) {
+    if (eol != this.eol) {
+      this.value = replaceEol(this.value, eol);
+      this.eol = eol;
+      this.versionId = this.versionId + 1;
+      this.alternativeVersionId = this.alternativeVersionId + 1;
+    }
+  }
+
+  TextEditOperation[] sortEditsDescending(TextEditOperation[] edits) {
+    TextEditOperation[] sorted = edits.slice();
+    int i = 0;
+    while (i < sorted.length) {
+      int best = i;
+      int bestOffset = this.getOffsetAt(
+        new Position(sorted[i].range.startLineNumber, sorted[i].range.startColumn)
+      );
+      int j = i + 1;
+      while (j < sorted.length) {
+        int offset = this.getOffsetAt(
+          new Position(sorted[j].range.startLineNumber, sorted[j].range.startColumn)
+        );
+        if (offset > bestOffset) {
+          best = j;
+          bestOffset = offset;
+        }
+        j = j + 1;
+      }
+      if (best != i) {
+        TextEditOperation temp = sorted[i];
+        sorted[i] = sorted[best];
+        sorted[best] = temp;
+      }
+      i = i + 1;
+    }
+    return sorted;
+  }
+
+  ContentChange[] applyEdits(TextEditOperation[] edits) {
+    TextEditOperation[] sorted = this.sortEditsDescending(edits);
+    ContentChange[] changes = [];
+    int i = 0;
+    while (i < sorted.length) {
+      TextEditOperation edit = sorted[i];
+      int start = this.getOffsetAt(new Position(edit.range.startLineNumber, edit.range.startColumn));
+      int end = this.getOffsetAt(new Position(edit.range.endLineNumber, edit.range.endColumn));
+      string text = replaceEol(edit.text, this.eol);
+      this.value = concat2(
+        concat2(sliceOf(this.value, 0, start), text),
+        sliceOf(this.value, end, this.value.length)
+      );
+      changes.push(new ContentChange(edit.range, start, end - start, text));
+      this.acceptDecorationEdit(start, end, text.length, edit.forceMoveMarkers);
+      i = i + 1;
+    }
+    if (sorted.length > 0) {
+      this.versionId = this.versionId + 1;
+      this.alternativeVersionId = this.alternativeVersionId + 1;
+    }
+    return changes;
+  }
+
+  void acceptDecorationEdit(int start, int end, int textLength, bool forceMoveMarkers) {
+    int delta = textLength - (end - start);
+    int i = 0;
+    while (i < this.decorations.length) {
+      ModelDecoration decoration = this.decorations[i];
+      int decorationStart = this.getOffsetAt(
+        new Position(decoration.range.startLineNumber, decoration.range.startColumn)
+      );
+      int decorationEnd = this.getOffsetAt(
+        new Position(decoration.range.endLineNumber, decoration.range.endColumn)
+      );
+      if (decorationEnd < start) {
+        i = i + 1;
+        continue;
+      }
+      if (decorationStart > end || (decorationStart == end && forceMoveMarkers)) {
+        decorationStart = decorationStart + delta;
+        decorationEnd = decorationEnd + delta;
+      } else {
+        if (decorationStart >= start) {
+          decorationStart = start + textLength;
+        }
+        if (decorationEnd >= start) {
+          decorationEnd = start + textLength;
+        }
+      }
+      Position from = this.getPositionAt(decorationStart);
+      Position to = this.getPositionAt(decorationEnd);
+      decoration.range = new Range(from.lineNumber, from.column, to.lineNumber, to.column);
+      i = i + 1;
+    }
+  }
+
+  string addDecoration(int ownerId, Range range, ModelDecorationOptions options) {
+    string id = concat2("d", this.nextDecorationId.toString());
+    this.nextDecorationId = this.nextDecorationId + 1;
+    this.decorations.push(new ModelDecoration(id, ownerId, range, options));
+    return id;
+  }
+
+  void removeDecoration(string id) {
+    int i = 0;
+    while (i < this.decorations.length) {
+      if (this.decorations[i].id == id) {
+        this.decorations.splice(i, 1);
+        return;
+      }
+      i = i + 1;
+    }
+  }
+
+  ModelDecoration[] getDecorationsInRange(Range range, int ownerId) {
+    ModelDecoration[] result = [];
+    int searchStart = this.getOffsetAt(new Position(range.startLineNumber, range.startColumn));
+    int searchEnd = this.getOffsetAt(new Position(range.endLineNumber, range.endColumn));
+    int i = 0;
+    while (i < this.decorations.length) {
+      ModelDecoration decoration = this.decorations[i];
+      if (ownerId == 0 || decoration.ownerId == ownerId) {
+        int start = this.getOffsetAt(
+          new Position(decoration.range.startLineNumber, decoration.range.startColumn)
+        );
+        int end = this.getOffsetAt(
+          new Position(decoration.range.endLineNumber, decoration.range.endColumn)
+        );
+        if (start <= searchEnd && end >= searchStart) {
+          result.push(decoration);
+        }
+      }
+      i = i + 1;
+    }
+    return result;
+  }
+
+  FindMatch[] findMatches(
+    string searchString,
+    Range range,
+    bool isRegex,
+    bool matchCase,
+    bool captureMatches,
+    int limit
+  ) {
+    FindMatch[] result = [];
+    if (searchString.length == 0 || limit <= 0) {
+      return result;
+    }
+    string source = searchString;
+    if (!isRegex) {
+      source = escapeSearch(source);
+    }
+    string flags = "g";
+    if (!matchCase) {
+      flags = "gi";
+    }
+    Regex regex = newRegexp(source, flags);
+    int line = range.startLineNumber;
+    while (line <= range.endLineNumber && result.length < limit) {
+      string text = this.getLineContent(line);
+      int from = 0;
+      int to = text.length;
+      if (line == range.startLineNumber) {
+        from = range.startColumn - 1;
+      }
+      if (line == range.endLineNumber) {
+        to = range.endColumn - 1;
+      }
+      string part = sliceOf(text, from, to);
+      JsValue found = regexExec(regex, part);
+      while (found.truthy() && result.length < limit) {
+        int index = JS.number(found["index"]).toInt();
+        string foundText = JS.string(found[0]);
+        string[] captures = [];
+        if (captureMatches) {
+          captures.push(foundText);
+        }
+        result.push(
+          new FindMatch(
+            new Range(line, from + index + 1, line, from + index + foundText.length + 1),
+            captures
+          )
+        );
+        if (foundText.length == 0) {
+          break;
+        }
+        found = regexExec(regex, part);
+      }
+      line = line + 1;
+    }
+    return result;
+  }
+
+  bool isTooLargeForSyncing() {
+    return this.tooLargeForSyncing;
+  }
+}
+
+string escapeSearch(string value) {
+  string result = emptyBuf();
+  int i = 0;
+  while (i < value.length) {
+    string ch = value.charAt(i);
+    if (
+      ch == "\\" || ch == "^" || ch == "$" || ch == "." || ch == "|" || ch == "?"
+      || ch == "*" || ch == "+" || ch == "(" || ch == ")" || ch == "[" || ch == "]"
+      || ch == "{" || ch == "}"
+    ) {
+      result = concat2(result, "\\");
+    }
+    result = concat2(result, ch);
+    i = i + 1;
+  }
+  return result;
+}
+
+export TextModel[] modelRegistry = [];
+int nextModelId = 1;
+
+export TextBufferFactory createTextBufferFactory(string text) {
+  return new TextBufferFactory(text);
+}
+
+export TextBufferFactory createTextBufferFactoryFromSnapshot(string snapshot) {
+  return new TextBufferFactory(snapshot);
+}
+
+export TextModel createTextBuffer(string value, string defaultEOL) {
+  TextModel model = new TextModel(replaceEol(value, defaultEOL), "plaintext", "");
+  model.eol = defaultEOL;
+  return model;
+}
+
+export TextModel createModel(string value, string languageId) {
+  string uri = concat2("inmemory://model/", nextModelId.toString());
+  nextModelId = nextModelId + 1;
+  return createModelWithUri(value, languageId, uri);
+}
+
+export TextModel createModelWithUri(string value, string languageId, string uri) {
+  TextModel model = new TextModel(value, languageId, uri);
+  modelRegistry.push(model);
+  return model;
+}
+
+export TextModel[] getModels() {
+  TextModel[] result = [];
+  int i = 0;
+  while (i < modelRegistry.length) {
+    if (!modelRegistry[i].disposed) {
+      result.push(modelRegistry[i]);
+    }
+    i = i + 1;
+  }
+  return result;
+}
+
+export TextEditOperation editOp(
+  int startLine,
+  int startColumn,
+  int endLine,
+  int endColumn,
+  string text
+) {
+  return new TextEditOperation(
+    new Range(startLine, startColumn, endLine, endColumn),
+    text,
+    false,
+    0
+  );
+}
+
+export ModelDecorationOptions deco(
+  string className,
+  bool isWholeLine,
+  string glyphMarginClassName
+) {
+  return new ModelDecorationOptions(className, isWholeLine, glyphMarginClassName, 1, false, false);
+}
+
+export int indentOfLine(string line) {
+  int i = 0;
+  while (i < line.length) {
+    int code = line.charCodeAt(i);
+    if (code != 32 && code != 9) {
+      break;
+    }
+    i = i + 1;
+  }
+  return i;
+}

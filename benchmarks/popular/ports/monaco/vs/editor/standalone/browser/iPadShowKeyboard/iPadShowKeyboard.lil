@@ -1,0 +1,27 @@
+import { domCreateElement, setClassName, setDisplay, focusElement } from "../../../../../js-host";
+
+export class IPadShowKeyboard {
+  JsValue textarea;
+  bool visible;
+
+  init() {
+    this.textarea = domCreateElement("textarea");
+    setClassName(this.textarea, "iPadShowKeyboard");
+    this.visible = false;
+  }
+
+  void show() {
+    setDisplay(this.textarea, "block");
+    this.visible = true;
+    focusElement(this.textarea);
+  }
+
+  void hide() {
+    setDisplay(this.textarea, "none");
+    this.visible = false;
+  }
+}
+
+export IPadShowKeyboard createIPadShowKeyboard() {
+  return new IPadShowKeyboard();
+}

@@ -1,0 +1,113 @@
+import { newRegexp, regexTest } from "../../../../../js-host";
+
+export class BasicInplaceReplace {
+  string[][] valueSets;
+
+  init() {
+    this.valueSets = [
+      ["true", "false"],
+      ["True", "False"],
+      ["Private", "Public", "Friend", "ReadOnly", "Partial", "Protected", "WriteOnly"],
+      ["public", "protected", "private"]
+    ];
+  }
+
+  string? numberReplace(string value, bool up) {
+    if (!regexTest(newRegexp("^[0-9]+(?:\\.[0-9]+)?$"), value)) {
+      return null;
+    }
+    float amount = JS.number(value);
+    if (amount == 0.0 && !up) {
+      return null;
+    }
+    int dot = value.lastIndexOf(".");
+    float step = 1.0;
+    if (dot >= 0) {
+      int decimals = value.length - dot - 1;
+      int i = 0;
+      while (i < decimals) {
+        step = step / 10.0;
+        i = i + 1;
+      }
+    }
+    if (up) {
+      amount = amount + step;
+    } else {
+      amount = amount - step;
+    }
+    return JS.string(amount);
+  }
+
+  string? valueSetReplace(string[] values, string value, bool up) {
+    int index = values.indexOf(value);
+    if (index < 0) {
+      return null;
+    }
+    if (up) {
+      index = index + 1;
+      if (index >= values.length) {
+        index = 0;
+      }
+    } else {
+      index = index - 1;
+      if (index < 0) {
+        index = values.length - 1;
+      }
+    }
+    return values[index];
+  }
+
+  string? textReplace(string value, bool up) {
+    int i = 0;
+    while (i < this.valueSets.length) {
+      string? result = this.valueSetReplace(this.valueSets[i], value, up);
+      if (result != null) {
+        return result;
+      }
+      i = i + 1;
+    }
+    return null;
+  }
+
+  string? doNavigateValueSet(string value, bool up) {
+    string? numeric = this.numberReplace(value, up);
+    if (numeric != null) {
+      return numeric;
+    }
+    return this.textReplace(value, up);
+  }
+
+  JsValue navigateValueSet(
+    JsValue range1,
+    string text1,
+    JsValue range2,
+    string text2,
+    bool up
+  ) {
+    if (range1 != null && text1.length > 0) {
+      string? first = this.doNavigateValueSet(text1, up);
+      if (first != null) {
+        JsValue result = JS.object();
+        result["range"] = range1;
+        result["value"] = first;
+        return result;
+      }
+    }
+    if (range2 != null && text2.length > 0) {
+      string? second = this.doNavigateValueSet(text2, up);
+      if (second != null) {
+        JsValue result = JS.object();
+        result["range"] = range2;
+        result["value"] = second;
+        return result;
+      }
+    }
+    return null;
+  }
+}
+
+export BasicInplaceReplace BasicInplaceReplaceInstance = new BasicInplaceReplace();
+
+export BasicInplaceReplace createBasicInplaceReplace() {
+  return new BasicInplaceReplace();
+}

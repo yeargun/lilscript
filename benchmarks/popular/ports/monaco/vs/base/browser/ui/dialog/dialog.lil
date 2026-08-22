@@ -1,0 +1,169 @@
+import { domCreateElement, appendChild, setClassName, classListAdd, setAttribute, setTextContent, setStyle, addEventListener, preventDefault, stopPropagation, eventKeyCode, eventCtrlKey, focusElement, inputGetValue, inputSetValue, setPlaceholder, hostCall, jsUndefined } from "../../../../../js-host";
+
+export enum DialogContentsAlignment {
+  Horizontal,
+  Vertical
+}
+
+export class DialogInputOptions {
+  string placeholder;
+  string inputType;
+  string value;
+
+  init(string placeholder, string inputType, string value) {
+    this.placeholder = placeholder;
+    this.inputType = inputType;
+    this.value = value;
+  }
+}
+
+export class DialogResult {
+  int button;
+  bool checkboxChecked;
+  string[] values;
+
+  init(int button, bool checkboxChecked, string[] values) {
+    this.button = button;
+    this.checkboxChecked = checkboxChecked;
+    this.values = values;
+  }
+}
+
+export class Dialog {
+  JsValue element;
+  JsValue messageElement;
+  JsValue buttonsContainer;
+  JsValue[] buttonNodes;
+  JsValue[] inputNodes;
+  JsValue checkbox;
+  string[] buttons;
+  int cancelId;
+  DialogContentsAlignment alignment;
+  bool checkboxChecked;
+  bool visible;
+  (func(DialogResult)->void)[] closeListeners;
+
+  init(JsValue container, string message, string[] buttons, int cancelId, DialogContentsAlignment alignment, string checkboxLabel, bool checkboxChecked) {
+    this.buttons = buttons;
+    this.cancelId = cancelId;
+    this.alignment = alignment;
+    this.checkboxChecked = checkboxChecked;
+    this.visible = false;
+    this.buttonNodes = [];
+    this.inputNodes = [];
+    this.closeListeners = [];
+    this.element = domCreateElement("div");
+    setClassName(this.element, "monaco-dialog-box");
+    setAttribute(this.element, "role", "dialog");
+    if (alignment == DialogContentsAlignment.Vertical) {
+      classListAdd(this.element, "align-vertical");
+    }
+    this.messageElement = domCreateElement("div");
+    setClassName(this.messageElement, "dialog-message-row");
+    setTextContent(this.messageElement, message);
+    appendChild(this.element, this.messageElement);
+    if (checkboxLabel.length > 0) {
+      this.checkbox = domCreateElement("input");
+      setAttribute(this.checkbox, "type", "checkbox");
+      this.checkbox["checked"] = checkboxChecked;
+      JsValue label = domCreateElement("label");
+      setTextContent(label, checkboxLabel);
+      appendChild(label, this.checkbox);
+      appendChild(this.element, label);
+    } else {
+      this.checkbox = null;
+    }
+    this.buttonsContainer = domCreateElement("div");
+    setClassName(this.buttonsContainer, "dialog-buttons-row");
+    appendChild(this.element, this.buttonsContainer);
+    Dialog owner = this;
+    int i = 0;
+    while (i < buttons.length) {
+      JsValue button = domCreateElement("a");
+      setClassName(button, "monaco-button");
+      setAttribute(button, "role", "button");
+      setTextContent(button, buttons[i]);
+      int index = i;
+      addEventListener(button, "click", (JsValue event) => {
+        owner.close(index);
+      }, false);
+      appendChild(this.buttonsContainer, button);
+      this.buttonNodes.push(button);
+      i = i + 1;
+    }
+    addEventListener(this.element, "keydown", (JsValue event) => {
+      int key = eventKeyCode(event);
+      if (key == 27) {
+        preventDefault(event);
+        stopPropagation(event);
+        owner.close(owner.cancelId);
+      } else if (key == 13 && !eventCtrlKey(event)) {
+        owner.close(0);
+      }
+    }, false);
+    appendChild(container, this.element);
+  }
+
+  void addInput(DialogInputOptions options) {
+    JsValue input = domCreateElement("input");
+    setAttribute(input, "type", options.inputType);
+    if (options.placeholder.length > 0) {
+      setPlaceholder(input, options.placeholder);
+    }
+    if (options.value.length > 0) {
+      inputSetValue(input, options.value);
+    }
+    appendChild(this.element, input);
+    this.inputNodes.push(input);
+  }
+
+  DialogResult collectResult(int button) {
+    bool checked = this.checkboxChecked;
+    if (this.checkbox.truthy()) {
+      checked = this.checkbox["checked"].truthy();
+    }
+    string[] values = [];
+    int i = 0;
+    while (i < this.inputNodes.length) {
+      values.push(inputGetValue(this.inputNodes[i]));
+      i = i + 1;
+    }
+    return new DialogResult(button, checked, values);
+  }
+
+  void close(int button) {
+    this.visible = false;
+    setStyle(this.element, "display", "none");
+    DialogResult result = this.collectResult(button);
+    int i = 0;
+    while (i < this.closeListeners.length) {
+      this.closeListeners[i](result);
+      i = i + 1;
+    }
+  }
+
+  void show() {
+    this.visible = true;
+    setStyle(this.element, "display", "block");
+    if (this.buttonNodes.length > 0) {
+      focusElement(this.buttonNodes[0]);
+    }
+  }
+
+  func()->void onDidClose(func(DialogResult)->void listener) {
+    this.closeListeners.push(listener);
+    return () => {};
+  }
+
+  void dispose() {
+    hostCall(this.element, "remove", jsUndefined(), jsUndefined(), jsUndefined());
+  }
+}
+
+export Dialog createDialog(JsValue container, string message, string[] buttons, int cancelId, DialogContentsAlignment alignment, string checkboxLabel = "", bool checkboxChecked = false) {
+  return new Dialog(container, message, buttons, cancelId, alignment, checkboxLabel, checkboxChecked);
+}
+
+export DialogInputOptions createDialogInputOptions(string placeholder = "", string inputType = "text", string value = "") {
+  return new DialogInputOptions(placeholder, inputType, value);
+}

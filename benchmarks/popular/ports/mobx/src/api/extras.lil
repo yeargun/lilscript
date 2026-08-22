@@ -1,0 +1,44 @@
+import {
+  arrayFrom,
+  len,
+  push,
+  undef
+} from "../host.lil";
+import { hasObservers } from "../core/observable.lil";
+import { getAtom } from "../types/type-utils.lil";
+
+export JsValue getDependencyTree = JS.method2((JsValue _s, JsValue thing, JsValue property) => {
+  return nodeToDependencyTree(JS.call(getAtom, undef(), thing, property));
+});
+export JsValue getObserverTree = JS.method2((JsValue _s, JsValue thing, JsValue property) => {
+  return nodeToObserverTree(JS.call(getAtom, undef(), thing, property));
+});
+
+JsValue nodeToDependencyTree(JsValue node) {
+  JsValue result = JS.object("name", node["name_"]);
+  if (node["observing_"].truthy() && len(node["observing_"]) > 0) {
+    JsValue deps = JS.array();
+    int i = 0;
+    while (i < len(node["observing_"])) {
+      push(deps, nodeToDependencyTree(node["observing_"][i]));
+      i = i + 1;
+    }
+    result["dependencies"] = deps;
+  }
+  return result;
+}
+
+JsValue nodeToObserverTree(JsValue node) {
+  JsValue result = JS.object("name", node["name_"]);
+  if (hasObservers(node)) {
+    JsValue observers = arrayFrom(JS.invoke(node["observers_"], "values"));
+    JsValue trees = JS.array();
+    int i = 0;
+    while (i < len(observers)) {
+      push(trees, nodeToObserverTree(observers[i]));
+      i = i + 1;
+    }
+    result["observers"] = trees;
+  }
+  return result;
+}

@@ -1,0 +1,202 @@
+
+export class HSVA {
+  number h;
+  number s;
+  number v;
+  number a;
+
+  init(number h, number s, number v, number a) {
+    this.h = h;
+    this.s = s;
+    this.v = v;
+    this.a = a;
+  }
+}
+
+export class RGBA {
+  int r;
+  int g;
+  int b;
+  number a;
+
+  init(int r, int g, int b, number a) {
+    this.r = r;
+    this.g = g;
+    this.b = b;
+    this.a = a;
+  }
+}
+
+number clampf(number x) {
+  if (x < 0.0) {
+    return 0.0;
+  }
+  if (x > 1.0) {
+    return 1.0;
+  }
+  return x;
+}
+
+int clampi(int x) {
+  if (x < 0) {
+    return 0;
+  }
+  if (x > 255) {
+    return 255;
+  }
+  return x;
+}
+
+export RGBA hsvaToRgba(HSVA c) {
+  number h = c.h;
+  while (h < 0.0) {
+    h = h + 360.0;
+  }
+  while (h >= 360.0) {
+    h = h - 360.0;
+  }
+  number s = clampf(c.s);
+  number v = clampf(c.v);
+  number hf = h / 60.0;
+  int hi = hf.floor().toInt();
+  number f = hf - hi * 1.0;
+  number p = v * (1.0 - s);
+  number q = v * (1.0 - f * s);
+  number t = v * (1.0 - (1.0 - f) * s);
+  number rf = 0.0;
+  number gf = 0.0;
+  number bf = 0.0;
+  if (hi == 0) {
+    rf = v;
+    gf = t;
+    bf = p;
+  } else if (hi == 1) {
+    rf = q;
+    gf = v;
+    bf = p;
+  } else if (hi == 2) {
+    rf = p;
+    gf = v;
+    bf = t;
+  } else if (hi == 3) {
+    rf = p;
+    gf = q;
+    bf = v;
+  } else if (hi == 4) {
+    rf = t;
+    gf = p;
+    bf = v;
+  } else {
+    rf = v;
+    gf = p;
+    bf = q;
+  }
+  return new RGBA((rf * 255.0).floor().toInt(), (gf * 255.0).floor().toInt(), (bf * 255.0).floor().toInt(), clampf(c.a));
+}
+
+export HSVA rgbaToHsva(RGBA c) {
+  number r = clampi(c.r) * 1.0 / 255.0;
+  number g = clampi(c.g) * 1.0 / 255.0;
+  number b = clampi(c.b) * 1.0 / 255.0;
+  number maxv = r;
+  if (g > maxv) {
+    maxv = g;
+  }
+  if (b > maxv) {
+    maxv = b;
+  }
+  number minv = r;
+  if (g < minv) {
+    minv = g;
+  }
+  if (b < minv) {
+    minv = b;
+  }
+  number d = maxv - minv;
+  number h = 0.0;
+  if (d > 0.0) {
+    if (maxv == r) {
+      h = 60.0 * ((g - b) / d);
+    } else if (maxv == g) {
+      h = 60.0 * (2.0 + (b - r) / d);
+    } else {
+      h = 60.0 * (4.0 + (r - g) / d);
+    }
+  }
+  if (h < 0.0) {
+    h = h + 360.0;
+  }
+  number s = 0.0;
+  if (maxv > 0.0) {
+    s = d / maxv;
+  }
+  return new HSVA(h, s, maxv, clampf(c.a));
+}
+
+export string rgbaToHex(RGBA c) {
+  string hex = "#";
+  string[] digits = ["0","1","2","3","4","5","6","7","8","9","a","b","c","d","e","f"];
+  int[] parts = [clampi(c.r), clampi(c.g), clampi(c.b)];
+  int i = 0;
+  while (i < 3) {
+    hex = hex + digits[parts[i] / 16] + digits[parts[i] % 16];
+    i = i + 1;
+  }
+  return hex;
+}
+
+int hexNibble(string ch) {
+  int code = ch.charCodeAt(0);
+  if (code >= 48 && code <= 57) {
+    return code - 48;
+  }
+  if (code >= 97 && code <= 102) {
+    return code - 87;
+  }
+  if (code >= 65 && code <= 70) {
+    return code - 55;
+  }
+  return 0;
+}
+
+export RGBA? parseHexColor(string text) {
+  if (text.length == 0 || text.charAt(0) != "#") {
+    return null;
+  }
+  if (text.length == 4) {
+    int r = hexNibble(text.charAt(1));
+    int g = hexNibble(text.charAt(2));
+    int b = hexNibble(text.charAt(3));
+    return new RGBA(r * 16 + r, g * 16 + g, b * 16 + b, 1.0);
+  }
+  if (text.length == 7) {
+    int r = hexNibble(text.charAt(1)) * 16 + hexNibble(text.charAt(2));
+    int g = hexNibble(text.charAt(3)) * 16 + hexNibble(text.charAt(4));
+    int b = hexNibble(text.charAt(5)) * 16 + hexNibble(text.charAt(6));
+    return new RGBA(r, g, b, 1.0);
+  }
+  return null;
+}
+
+export class ColorPickerBody {
+  bool visible;
+  RGBA color;
+
+  init() {
+    this.visible = false;
+    this.color = new RGBA(255, 255, 255, 1.0);
+  }
+
+  void show(RGBA color) {
+    this.color = color;
+    this.visible = true;
+  }
+
+  void hide() {
+    this.visible = false;
+  }
+}
+
+export ColorPickerBody createColorPickerBody() {
+  return new ColorPickerBody();
+}

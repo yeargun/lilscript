@@ -1,0 +1,31 @@
+bool labelsHasDriveLetter(string path) {
+  if (path.length < 2) {
+    return false;
+  }
+  int first = path.charCodeAt(0);
+  bool letter = (first >= 65 && first <= 90) || (first >= 97 && first <= 122);
+  return letter && path.charCodeAt(1) == 58;
+}
+
+export string normalizeDriveLetter(string path, bool isWindowsOS) {
+  if (isWindowsOS && labelsHasDriveLetter(path)) {
+    string rest = "";
+    int i = 1;
+    while (i < path.length) {
+      rest = rest + path.charAt(i);
+      i = i + 1;
+    }
+    return path.charAt(0).toUpperCase() + rest;
+  }
+  return path;
+}
+
+string cachedUserHome = "";
+
+export string getCachedUserHome() {
+  return cachedUserHome;
+}
+
+export void setCachedUserHome(string home) {
+  cachedUserHome = home;
+}

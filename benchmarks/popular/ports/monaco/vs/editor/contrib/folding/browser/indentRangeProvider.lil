@@ -1,0 +1,175 @@
+export int MAX_LINE_NUMBER = 16777215;
+export int MAX_FOLDING_REGIONS_FOR_INDENT = 5000;
+export string ID_INDENT_PROVIDER = "indent";
+
+export int computeIndentLevel(string line, int tabSize) {
+  int indent = 0;
+  int i = 0;
+  int size = tabSize;
+  if (size < 1) {
+    size = 4;
+  }
+  while (i < line.length) {
+    int code = line.charCodeAt(i);
+    if (code == 32) {
+      indent = indent + 1;
+    } else if (code == 9) {
+      indent = indent - (indent % size) + size;
+    } else {
+      break;
+    }
+    i = i + 1;
+  }
+  if (i == line.length) {
+    return -1;
+  }
+  return indent;
+}
+
+export class FoldRange {
+  int startLineNumber;
+  int endLineNumber;
+
+  init(int startLineNumber, int endLineNumber) {
+    this.startLineNumber = startLineNumber;
+    this.endLineNumber = endLineNumber;
+  }
+}
+
+export class PreviousRegion {
+  int indent;
+  int endAbove;
+  int line;
+
+  init(int indent, int endAbove, int line) {
+    this.indent = indent;
+    this.endAbove = endAbove;
+    this.line = line;
+  }
+}
+
+export class RangesCollector {
+  int[] startIndexes;
+  int[] endIndexes;
+  int[] indentOccurrences;
+  int length;
+  int limit;
+
+  init(int limit) {
+    this.startIndexes = [];
+    this.endIndexes = [];
+    this.indentOccurrences = [];
+    this.length = 0;
+    this.limit = limit;
+  }
+
+  void insertFirst(int startLineNumber, int endLineNumber, int indent) {
+    if (startLineNumber > MAX_LINE_NUMBER || endLineNumber > MAX_LINE_NUMBER) {
+      return;
+    }
+    this.startIndexes.push(startLineNumber);
+    this.endIndexes.push(endLineNumber);
+    this.length = this.length + 1;
+    if (indent < 1000) {
+      while (this.indentOccurrences.length <= indent) {
+        this.indentOccurrences.push(0);
+      }
+      this.indentOccurrences[indent] = this.indentOccurrences[indent] + 1;
+    }
+  }
+
+  FoldRange[] toIndentRanges() {
+    FoldRange[] ranges = [];
+    if (this.length <= this.limit) {
+      int i = this.length - 1;
+      while (i >= 0) {
+        ranges.push(new FoldRange(this.startIndexes[i], this.endIndexes[i]));
+        i = i - 1;
+      }
+      return ranges;
+    }
+    int entries = 0;
+    int maxIndent = this.indentOccurrences.length;
+    int i = 0;
+    while (i < this.indentOccurrences.length) {
+      int n = this.indentOccurrences[i];
+      if (n > 0) {
+        if (n + entries > this.limit) {
+          maxIndent = i;
+          break;
+        }
+        entries = entries + n;
+      }
+      i = i + 1;
+    }
+    i = this.length - 1;
+    while (i >= 0 && ranges.length < this.limit) {
+      ranges.push(new FoldRange(this.startIndexes[i], this.endIndexes[i]));
+      i = i - 1;
+    }
+    return ranges;
+  }
+}
+
+export FoldRange[] computeRanges(string[] lines, int tabSize, bool offSide) {
+  RangesCollector result = new RangesCollector(MAX_FOLDING_REGIONS_FOR_INDENT);
+  PreviousRegion[] previousRegions = [];
+  int sentinelLine = lines.length + 1;
+  previousRegions.push(new PreviousRegion(-1, sentinelLine, sentinelLine));
+  int line = lines.length;
+  while (line > 0) {
+    string lineContent = lines[line - 1];
+    int indent = computeIndentLevel(lineContent, tabSize);
+    PreviousRegion previous = previousRegions[previousRegions.length - 1];
+    if (indent == -1) {
+      if (offSide) {
+        previous.endAbove = line;
+      }
+      line = line - 1;
+      continue;
+    }
+    if (previous.indent > indent) {
+      while (previous.indent > indent && previousRegions.length > 1) {
+        previousRegions.splice(previousRegions.length - 1, 1);
+        previous = previousRegions[previousRegions.length - 1];
+      }
+      int endLineNumber = previous.endAbove - 1;
+      if (endLineNumber - line >= 1) {
+        result.insertFirst(line, endLineNumber, indent);
+      }
+    }
+    if (previous.indent == indent) {
+      previous.endAbove = line;
+    } else if (previous.indent < indent) {
+      previousRegions.push(new PreviousRegion(indent, line, line));
+    }
+    line = line - 1;
+  }
+  return result.toIndentRanges();
+}
+
+export class IndentRangeProvider {
+  string id;
+  int tabSize;
+  bool offSide;
+  int limit;
+
+  init(int tabSize, bool offSide, int limit) {
+    this.id = ID_INDENT_PROVIDER;
+    this.tabSize = tabSize;
+    this.offSide = offSide;
+    this.limit = limit;
+  }
+
+  FoldRange[] compute(string[] lines) {
+    return computeRanges(lines, this.tabSize, this.offSide);
+  }
+}
+
+export IndentRangeProvider createIndentRangeProvider(int tabSize, bool offSide) {
+  return new IndentRangeProvider(tabSize, offSide, MAX_FOLDING_REGIONS_FOR_INDENT);
+}
+
+export RangesCollector createRangesCollector(int limit) {
+  return new RangesCollector(limit);
+}

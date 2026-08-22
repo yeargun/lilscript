@@ -1,0 +1,37 @@
+export string INLINE_ACCEPT = "editor.action.inlineSuggest.commit";
+export string INLINE_ACCEPT_WORD = "editor.action.inlineSuggest.acceptNextWord";
+export string INLINE_ACCEPT_LINE = "editor.action.inlineSuggest.acceptNextLine";
+export string INLINE_HIDE = "editor.action.inlineSuggest.hide";
+export string INLINE_SHOW_NEXT = "editor.action.inlineSuggest.showNext";
+export string INLINE_SHOW_PREV = "editor.action.inlineSuggest.showPrevious";
+export string INLINE_TRIGGER = "editor.action.inlineSuggest.trigger";
+
+export string[] inlineCompletionCommandIds() {
+  return [
+    INLINE_ACCEPT,
+    INLINE_ACCEPT_WORD,
+    INLINE_ACCEPT_LINE,
+    INLINE_HIDE,
+    INLINE_SHOW_NEXT,
+    INLINE_SHOW_PREV,
+    INLINE_TRIGGER
+  ];
+}
+
+export class InlineCompletionContextKeys {
+  bool visible;
+  bool suppressed;
+
+  init() {
+    this.visible = false;
+    this.suppressed = false;
+  }
+
+  bool canShow() {
+    return !this.suppressed;
+  }
+}
+
+export InlineCompletionContextKeys createInlineCompletionContextKeys() {
+  return new InlineCompletionContextKeys();
+}

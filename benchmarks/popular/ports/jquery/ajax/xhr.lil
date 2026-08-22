@@ -1,20 +1,8 @@
 import { jQuery } from "../core";
 import { support } from "../var/support";
 import {
-  jsUndefined,
-  createEmptyObject,
-  hasProp,
-  isUndefined,
-  typeOf,
-  stringify,
   newXMLHttpRequest,
-  call0,
-  call1,
-  call2,
-  call4,
-  apply,
-  scheduleTimeoutMs,
-  unaryPlus
+  scheduleTimeoutMs
 } from "../js-host.lil";
 
 /*
@@ -75,18 +63,17 @@ JsValue xhrTransportFactory(JsValue options) {
     JsValue errorCallback = null;
 
     return XhrTransport{
-      JS.methodRest((JsValue _self, JsValue args) => {
-      JsValue headers = args[0];
-      JsValue complete = args[1];
+      (JsValue headers, JsValue complete) => {
       JsValue xhr = JS.invoke(options, "xhr");
-
-      JsValue[] openArgs = [];
-      openArgs.push(options["type"]);
-      openArgs.push(options["url"]);
-      openArgs.push(options["async"]);
-      openArgs.push(options["username"]);
-      openArgs.push(options["password"]);
-      JS.apply(xhr["open"], xhr, openArgs);
+      JS.invoke(
+        xhr,
+        "open",
+        options["type"],
+        options["url"],
+        options["async"],
+        options["username"],
+        options["password"]
+      );
 
       if (options["xhrFields"].truthy()) {
         for (string key in options["xhrFields"]) {
@@ -107,7 +94,7 @@ JsValue xhrTransportFactory(JsValue options) {
       }
 
       func(XhrCb)->JsValue makeCallback = (XhrCb kind) => {
-        return JS.staticRest((JsValue _eventArgs) => {
+        return () => {
           if (callback.truthy()) {
             callback = null;
             errorCallback = null;
@@ -146,7 +133,7 @@ JsValue xhrTransportFactory(JsValue options) {
             }
           }
           return JS.undefined();
-        });
+        };
       };
 
       xhr["onload"] = makeCallback(XhrCb.Success);
@@ -158,7 +145,7 @@ JsValue xhrTransportFactory(JsValue options) {
       if (!JS.isUndefined(xhr["onabort"])) {
         xhr["onabort"] = errorHandler;
       } else {
-        xhr["onreadystatechange"] = JS.staticRest((JsValue _args) => {
+        xhr["onreadystatechange"] = () => {
           if (xhr["readyState"] == 4.0) {
             scheduleTimeoutMs(() => {
               if (callback.truthy()) {
@@ -168,7 +155,7 @@ JsValue xhrTransportFactory(JsValue options) {
             }, 0.0);
           }
           return JS.undefined();
-        });
+        };
       }
 
       callback = makeCallback(XhrCb.Abort);
@@ -186,13 +173,13 @@ JsValue xhrTransportFactory(JsValue options) {
       }
 
       return JS.undefined();
-    }),
-      JS.method0((JsValue _self) => {
+    },
+      () => {
       if (callback.truthy()) {
         callback();
       }
       return JS.undefined();
-    })
+    }
     };
   }
   return JS.undefined();

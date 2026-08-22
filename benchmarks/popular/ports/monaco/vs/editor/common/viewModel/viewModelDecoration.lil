@@ -1,0 +1,109 @@
+export class DecorationRange {
+  int startLineNumber;
+  int startColumn;
+  int endLineNumber;
+  int endColumn;
+
+  init(int startLineNumber, int startColumn, int endLineNumber, int endColumn) {
+    this.startLineNumber = startLineNumber;
+    this.startColumn = startColumn;
+    this.endLineNumber = endLineNumber;
+    this.endColumn = endColumn;
+  }
+}
+
+export class DecorationOptions {
+  bool hideInCommentTokens;
+  bool hideInStringTokens;
+  string inlineClassName;
+
+  init(bool hideInCommentTokens, bool hideInStringTokens, string inlineClassName) {
+    this.hideInCommentTokens = hideInCommentTokens;
+    this.hideInStringTokens = hideInStringTokens;
+    this.inlineClassName = inlineClassName;
+  }
+}
+
+export class ViewModelDecoration {
+  DecorationRange range;
+  DecorationOptions options;
+
+  init(DecorationRange range, DecorationOptions options) {
+    this.range = range;
+    this.options = options;
+  }
+}
+
+export class DecorationToken {
+  int lineNumber;
+  int startColumn;
+  int endColumn;
+  int tokenType;
+
+  init(int lineNumber, int startColumn, int endColumn, int tokenType) {
+    this.lineNumber = lineNumber;
+    this.startColumn = startColumn;
+    this.endColumn = endColumn;
+    this.tokenType = tokenType;
+  }
+}
+
+bool tokenIntersectsRange(DecorationToken token, DecorationRange range) {
+  if (token.lineNumber < range.startLineNumber || token.lineNumber > range.endLineNumber) {
+    return false;
+  }
+  int startColumn = 1;
+  int endColumn = 2147483647;
+  if (token.lineNumber == range.startLineNumber) {
+    startColumn = range.startColumn;
+  }
+  if (token.lineNumber == range.endLineNumber) {
+    endColumn = range.endColumn;
+  }
+  return token.endColumn > startColumn && token.startColumn < endColumn;
+}
+
+bool allTokensInRangeHaveType(DecorationToken[] tokens, DecorationRange range, int tokenType) {
+  bool found = false;
+  int i = 0;
+  while (i < tokens.length) {
+    if (tokenIntersectsRange(tokens[i], range)) {
+      found = true;
+      if (tokens[i].tokenType != tokenType) {
+        return false;
+      }
+    }
+    i = i + 1;
+  }
+  return found;
+}
+
+export bool isModelDecorationInComment(DecorationToken[] tokens, ViewModelDecoration decoration) {
+  return allTokensInRangeHaveType(tokens, decoration.range, 1);
+}
+
+export bool isModelDecorationInString(DecorationToken[] tokens, ViewModelDecoration decoration) {
+  return allTokensInRangeHaveType(tokens, decoration.range, 2);
+}
+
+export bool isModelDecorationVisible(DecorationToken[] tokens, ViewModelDecoration decoration) {
+  if (decoration.options.hideInCommentTokens && isModelDecorationInComment(tokens, decoration)) {
+    return false;
+  }
+  if (decoration.options.hideInStringTokens && isModelDecorationInString(tokens, decoration)) {
+    return false;
+  }
+  return true;
+}
+
+export ViewModelDecoration createViewModelDecoration(DecorationRange range, DecorationOptions options) {
+  return new ViewModelDecoration(range, options);
+}
+
+export DecorationRange createDecorationRange(int startLineNumber, int startColumn, int endLineNumber, int endColumn) {
+  return new DecorationRange(startLineNumber, startColumn, endLineNumber, endColumn);
+}
+
+export DecorationOptions createDecorationOptions(bool hideInCommentTokens = false, bool hideInStringTokens = false, string inlineClassName = "") {
+  return new DecorationOptions(hideInCommentTokens, hideInStringTokens, inlineClassName);
+}

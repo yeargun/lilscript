@@ -1,0 +1,168 @@
+import { DEV } from "../dev-flag.lil";
+import {
+  assign,
+  call0,
+  call1,
+  call2,
+  isArr,
+  isES6Map,
+  isES6Set,
+  isNullish,
+  isPlainObject,
+  isStr,
+  mapSet,
+  newMap,
+  push,
+  stringifyKey,
+  toStr,
+  undef
+} from "../host.lil";
+import {
+  $mobx,
+  OBSERVABLE,
+  OBSERVABLE_REF,
+  OBSERVABLE_SHALLOW,
+  OBSERVABLE_STRUCT
+} from "../constants.lil";
+import { assert20223DecoratorType } from "../api/decorators.lil";
+import { createDecoratorAnnotation } from "../api/decoratorannotation.lil";
+import { die } from "../errors.lil";
+import { initObservable } from "../types/type-utils-init.lil";
+import {
+  observable,
+  observableRef,
+  observableShallow,
+  observableDeep,
+  observableStruct
+} from "./bindings.lil";
+import { isObservableValueCheck } from "./isobservable.lil";
+import { extendObservable } from "./extendobservable.lil";
+import {
+  deepEnhancerFn,
+  referenceEnhancerFn,
+  shallowEnhancerFn,
+  refStructEnhancerFn,
+  getEnhancerFromOptions,
+  asCreateObservableOptions
+} from "../types/modifiers.lil";
+import { ObservableValue } from "../types/observablevalue.lil";
+import { createObservableArray } from "../types/observablearray.lil";
+import { ObservableMap } from "../types/observablemap.lil";
+import { ObservableSet } from "../types/observableset.lil";
+import { asDynamicObservableObject } from "../types/dynamicobject.lil";
+import { asObservableObject } from "../types/observableobject.lil";
+import { createObservableAnnotation } from "../types/observableannotation.lil";
+
+JsValue registerLazyObservable(JsValue target, JsValue annotation, JsValue keyName, JsValue value) {
+  JsValue adm = JS.call(asObservableObject, undef(), target)[$mobx];
+  if (!adm["lazyObservableKeys_"].truthy()) {
+    adm["lazyObservableKeys_"] = newMap();
+  }
+  mapSet(adm["lazyObservableKeys_"], keyName, JS.method0((JsValue _f) => {
+    JsValue enhancer = deepEnhancerFn;
+    if (annotation["options_"].truthy() && annotation["options_"]["enhancer_"].truthy()) {
+      enhancer = annotation["options_"]["enhancer_"];
+    }
+    string n = "ObservableObject." + stringifyKey(keyName);
+    if (DEV) {
+      n = toStr(adm["name_"]) + "." + stringifyKey(keyName);
+    }
+    return JS.construct(ObservableValue, value, enhancer, n, false, undef());
+  }));
+  return adm;
+}
+
+JsValue decorateObservable20223_ = JS.method3((JsValue _s, JsValue annotation, JsValue desc, JsValue context) => {
+  if (DEV) {
+    if (toStr(context["kind"]) == "field") {
+      die("Please use `@observable accessor " + stringifyKey(context["name"]) + "` instead of `@observable " + stringifyKey(context["name"]) + "`");
+    }
+    JsValue kinds = JS.array();
+    push(kinds, "accessor");
+    assert20223DecoratorType(context, kinds);
+  }
+  if (toStr(context["kind"]) != "accessor") {
+    return undef();
+  }
+  JsValue keyName = context["name"];
+  JsValue result = JS.object();
+  result["get"] = JS.method0((JsValue self) => {
+    JsValue adm = self[$mobx];
+    if (!adm.truthy()) {
+      adm = registerLazyObservable(self, annotation, keyName, call0(desc["get"], self));
+    }
+    return call1(adm["getObservablePropValue_"], adm, keyName);
+  });
+  result["set"] = JS.method1((JsValue self, JsValue value) => {
+    JsValue adm = self[$mobx];
+    if (!adm.truthy()) {
+      adm = registerLazyObservable(self, annotation, keyName, value);
+    }
+    return call2(adm["setObservablePropValue_"], adm, keyName, value);
+  });
+  result["init"] = JS.method1((JsValue self, JsValue value) => {
+    registerLazyObservable(self, annotation, keyName, value);
+    return value;
+  });
+  return result;
+});
+
+JsValue observableAnnotation = createObservableAnnotation(OBSERVABLE, undef());
+JsValue observableRefAnnotation = createObservableAnnotation(OBSERVABLE_REF, JS.object("enhancer_", referenceEnhancerFn));
+JsValue observableShallowAnnotation = createObservableAnnotation(OBSERVABLE_SHALLOW, JS.object("enhancer_", shallowEnhancerFn));
+JsValue observableStructAnnotation = createObservableAnnotation(OBSERVABLE_STRUCT, JS.object("enhancer_", refStructEnhancerFn));
+
+JsValue createObservable(JsValue v, JsValue arg2, JsValue arg3) {
+  if (arg2.truthy() && isStr(arg2["kind"])) {
+    return JS.call(decorateObservable20223_, undef(), observableAnnotation, v, arg2);
+  }
+  if (isObservableValueCheck(v)) {
+    return v;
+  }
+  if (isPlainObject(v)) {
+    return JS.call(observable["object"], observable, v, arg2, arg3);
+  }
+  if (isArr(v)) {
+    return JS.call(observable["array"], observable, v, arg2);
+  }
+  if (isES6Map(v)) {
+    return JS.call(observable["map"], observable, v, arg2);
+  }
+  if (isES6Set(v)) {
+    return JS.call(observable["set"], observable, v, arg2);
+  }
+  if (JS.typeOf(v) == "object" && !JS.isNullish(v)) {
+    return v;
+  }
+  return JS.call(observable["box"], observable, v, arg2);
+}
+
+observable = assign(JS.method3((JsValue _s, JsValue value, JsValue arg2, JsValue arg3) => {
+  return createObservable(value, arg2, arg3);
+}), observableAnnotation);
+observable["box"] = JS.method2((JsValue _s, JsValue value, JsValue options) => {
+  JsValue o = asCreateObservableOptions(options);
+  return JS.construct(ObservableValue, value, getEnhancerFromOptions(o), o["name"], true, o["equals"]);
+});
+observable["array"] = JS.method2((JsValue _s, JsValue initial, JsValue options) => {
+  JsValue o = asCreateObservableOptions(options);
+  return JS.call(createObservableArray, undef(), initial, getEnhancerFromOptions(o), o["name"]);
+});
+observable["map"] = JS.method2((JsValue _s, JsValue initial, JsValue options) => {
+  JsValue o = asCreateObservableOptions(options);
+  return JS.construct(ObservableMap, initial, getEnhancerFromOptions(o), o["name"]);
+});
+observable["set"] = JS.method2((JsValue _s, JsValue initial, JsValue options) => {
+  JsValue o = asCreateObservableOptions(options);
+  return JS.construct(ObservableSet, initial, getEnhancerFromOptions(o), o["name"]);
+});
+observable["object"] = JS.method3((JsValue _s, JsValue props, JsValue annotations, JsValue options) => {
+  return initObservable(JS.method0((JsValue __s) => {
+    return JS.call(extendObservable, undef(), asDynamicObservableObject(JS.object(), options), props, annotations);
+  }));
+});
+observableRef = createDecoratorAnnotation(observableRefAnnotation, decorateObservable20223_);
+observableShallow = createDecoratorAnnotation(observableShallowAnnotation, decorateObservable20223_);
+observableDeep = createDecoratorAnnotation(observableAnnotation, decorateObservable20223_);
+observableStruct = createDecoratorAnnotation(observableStructAnnotation, decorateObservable20223_);
+export { observable, observableRef, observableShallow, observableDeep, observableStruct };

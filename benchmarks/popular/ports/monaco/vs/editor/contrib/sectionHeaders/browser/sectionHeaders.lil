@@ -1,0 +1,46 @@
+export class SectionHeader {
+  int lineNumber;
+  string text;
+  bool separator;
+
+  init(int lineNumber, string text, bool separator) {
+    this.lineNumber = lineNumber;
+    this.text = text;
+    this.separator = separator;
+  }
+}
+
+export SectionHeader[] findSectionHeaders(string[] lines, string mark) {
+  SectionHeader[] headers = [];
+  int line = 1;
+  while (line <= lines.length) {
+    string content = lines[line - 1];
+    int at = content.indexOf(mark);
+    if (at >= 0) {
+      string text = "";
+      int i = at + mark.length;
+      while (i < content.length) {
+        text = text + content.charAt(i);
+        i = i + 1;
+      }
+      bool separator = false;
+      int k = 0;
+      while (k < text.length) {
+        if (text.charAt(k) != "-" && text.charAt(k) != "=" && text.charAt(k) != " ") {
+          break;
+        }
+        if (text.charAt(k) == "-" || text.charAt(k) == "=") {
+          separator = true;
+        }
+        k = k + 1;
+      }
+      headers.push(new SectionHeader(line, text, separator));
+    }
+    line = line + 1;
+  }
+  return headers;
+}
+
+export SectionHeader createSectionHeader(int lineNumber, string text, bool separator) {
+  return new SectionHeader(lineNumber, text, separator);
+}

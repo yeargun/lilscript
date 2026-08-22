@@ -1,0 +1,129 @@
+import {
+  hostCall,
+  jsUndefined,
+  sliceOf,
+  stringFromCharCode1,
+  stringReplace,
+  stringSplit,
+  newRegexp
+} from "../../../../js-host";
+
+string escapeHtml(string text) {
+  string result = stringReplace(text, newRegexp("&", "g"), "&amp;");
+  result = stringReplace(result, newRegexp("<", "g"), "&lt;");
+  result = stringReplace(result, newRegexp(">", "g"), "&gt;");
+  return result;
+}
+
+string renderCharacter(int code, bool useNbsp, bool previousSpace) {
+  if (code == 60) {
+    return "&lt;";
+  }
+  if (code == 62) {
+    return "&gt;";
+  }
+  if (code == 38) {
+    return "&amp;";
+  }
+  if (code == 0) {
+    return "&#00;";
+  }
+  if (code == 13) {
+    return "&#8203;";
+  }
+  if (code == 32 && useNbsp && previousSpace) {
+    return "&#160;";
+  }
+  return stringFromCharCode1(code);
+}
+
+export string tokenizeLineToHTML(
+  string text,
+  JsValue viewLineTokens,
+  JsValue colorMap,
+  int startOffset,
+  int endOffset,
+  int tabSize,
+  bool useNbsp
+) {
+  string result = "<div>";
+  int characterIndex = 0;
+  int width = 0;
+  bool previousSpace = true;
+  int tokenCount = JS.number(hostCall(viewLineTokens, "getCount", jsUndefined(), jsUndefined(), jsUndefined())).toInt();
+  int tokenIndex = 0;
+  while (tokenIndex < tokenCount) {
+    int tokenEnd = JS.number(hostCall(viewLineTokens, "getEndOffset", tokenIndex, jsUndefined(), jsUndefined())).toInt();
+    string content = "";
+    while (characterIndex < tokenEnd && characterIndex < endOffset) {
+      int code = text.charCodeAt(characterIndex);
+      bool tab = code == 9;
+      if (!tab) {
+        width = width + 1;
+      }
+      if (characterIndex >= startOffset) {
+        if (tab) {
+          int remainder = width % tabSize;
+          int spaces = tabSize;
+          if (remainder != 0) {
+            spaces = tabSize - remainder;
+          }
+          width = width + spaces;
+          int i = 0;
+          while (i < spaces) {
+            content = content + renderCharacter(32, useNbsp, previousSpace);
+            previousSpace = !previousSpace;
+            i = i + 1;
+          }
+        } else {
+          content = content + renderCharacter(code, useNbsp, previousSpace);
+          previousSpace = code == 32 && !previousSpace;
+        }
+      }
+      characterIndex = characterIndex + 1;
+    }
+    if (tokenEnd > startOffset) {
+      string style = JS.string(hostCall(viewLineTokens, "getInlineStyle", tokenIndex, colorMap, jsUndefined()));
+      result = result + "<span style=\"" + style + "\">" + content + "</span>";
+    }
+    if (tokenEnd > endOffset || characterIndex >= endOffset || startOffset >= endOffset) {
+      break;
+    }
+    tokenIndex = tokenIndex + 1;
+  }
+  return result + "</div>";
+}
+
+export string _tokenizeToString(string text, JsValue languageIdCodec, JsValue tokenizationSupport) {
+  string[] lines = stringSplit(stringReplace(text, newRegexp("\\r\\n|\\r", "g"), "\n"), "\n");
+  string result = "<div class=\"monaco-tokenized-source\">";
+  int i = 0;
+  while (i < lines.length) {
+    if (i > 0) {
+      result = result + "<br/>";
+    }
+    string line = lines[i];
+    JsValue tokenized = JS.invoke(tokenizationSupport, "tokenize", line, true, null);
+    if (tokenized != null && JS.isArray(tokenized["tokens"])) {
+      JsValue tokens = tokenized["tokens"];
+      int tokenIndex = 0;
+      int start = 0;
+      int tokenLength = JS.number(tokens["length"]).toInt();
+      while (tokenIndex < tokenLength) {
+        int end = line.length;
+        if (tokenIndex + 1 < tokenLength) {
+          end = JS.number(tokens[tokenIndex + 1]["offset"]).toInt();
+        }
+        string className = JS.string(tokens[tokenIndex]["type"]);
+        result = result + "<span class=\"" + className + "\">" +
+          escapeHtml(sliceOf(line, start, end)) + "</span>";
+        start = end;
+        tokenIndex = tokenIndex + 1;
+      }
+    } else {
+      result = result + escapeHtml(line);
+    }
+    i = i + 1;
+  }
+  return result + "</div>";
+}

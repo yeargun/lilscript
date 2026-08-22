@@ -1,0 +1,30 @@
+export class StandaloneHelpQuickAccess {
+  string prefix;
+  string[] items;
+
+  init() {
+    this.prefix = "?";
+    this.items = [];
+    this.items.push("? Help");
+    this.items.push("> Commands");
+    this.items.push(": Go to Line");
+    this.items.push("@ Go to Symbol");
+  }
+
+  string[] getPicks(string filter) {
+    string[] out = [];
+    string q = filter.toLowerCase();
+    int i = 0;
+    while (i < this.items.length) {
+      if (q.length == 0 || this.items[i].toLowerCase().includes(q)) {
+        out.push(this.items[i]);
+      }
+      i = i + 1;
+    }
+    return out;
+  }
+}
+
+export StandaloneHelpQuickAccess createStandaloneHelpQuickAccess() {
+  return new StandaloneHelpQuickAccess();
+}

@@ -1,0 +1,104 @@
+export class ConfigurationModel {
+  string[] keys;
+  string[] values;
+
+  init() {
+    this.keys = [];
+    this.values = [];
+  }
+
+  int indexOf(string key) {
+    int i = 0;
+    while (i < this.keys.length) {
+      if (this.keys[i] == key) {
+        return i;
+      }
+      i = i + 1;
+    }
+    return -1;
+  }
+
+  void setValue(string key, string value) {
+    int idx = this.indexOf(key);
+    if (idx >= 0) {
+      this.values[idx] = value;
+      return;
+    }
+    this.keys.push(key);
+    this.values.push(value);
+  }
+
+  string getValue(string key) {
+    int idx = this.indexOf(key);
+    if (idx >= 0) {
+      return this.values[idx];
+    }
+    return "";
+  }
+
+  bool isEmpty() {
+    return this.keys.length == 0;
+  }
+}
+
+export class Configuration {
+  ConfigurationModel defaults;
+  ConfigurationModel user;
+  ConfigurationModel workspace;
+  ConfigurationModel memory;
+
+  init() {
+    this.defaults = new ConfigurationModel();
+    this.user = new ConfigurationModel();
+    this.workspace = new ConfigurationModel();
+    this.memory = new ConfigurationModel();
+  }
+
+  string getValue(string key) {
+    string mem = this.memory.getValue(key);
+    if (mem.length > 0) {
+      return mem;
+    }
+    string ws = this.workspace.getValue(key);
+    if (ws.length > 0) {
+      return ws;
+    }
+    string user = this.user.getValue(key);
+    if (user.length > 0) {
+      return user;
+    }
+    return this.defaults.getValue(key);
+  }
+
+  void merge(ConfigurationModel from, ConfigurationModel into) {
+    int i = 0;
+    while (i < from.keys.length) {
+      into.setValue(from.keys[i], from.values[i]);
+      i = i + 1;
+    }
+  }
+}
+
+export class ConfigurationChangeEvent {
+  string[] keys;
+
+  init() {
+    this.keys = [];
+  }
+
+  bool affectsConfiguration(string key) {
+    return this.keys.includes(key);
+  }
+}
+
+export ConfigurationModel createConfigurationModel() {
+  return new ConfigurationModel();
+}
+
+export Configuration createConfiguration() {
+  return new Configuration();
+}
+
+export ConfigurationChangeEvent createConfigurationChangeEvent() {
+  return new ConfigurationChangeEvent();
+}

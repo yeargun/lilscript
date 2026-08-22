@@ -1,0 +1,129 @@
+export class ReducerReader {
+  func(JsValue)->JsValue readFn;
+
+  init(func(JsValue)->JsValue readFn) {
+    this.readFn = readFn;
+  }
+
+  JsValue read(JsValue observable) {
+    return this.readFn(observable);
+  }
+}
+
+export class ObservableReducerOptions {
+  func()->JsValue initialFn;
+  func(ReducerReader, JsValue, JsValue)->JsValue updateFn;
+  func(JsValue)->void disposeFinalFn;
+  func(JsValue, JsValue)->bool equalityComparer;
+
+  init(
+    func()->JsValue initialFn,
+    func(ReducerReader, JsValue, JsValue)->JsValue updateFn,
+    func(JsValue)->void disposeFinalFn,
+    func(JsValue, JsValue)->bool equalityComparer
+  ) {
+    this.initialFn = initialFn;
+    this.updateFn = updateFn;
+    this.disposeFinalFn = disposeFinalFn;
+    this.equalityComparer = equalityComparer;
+  }
+}
+
+export class ObservableReducer {
+  ObservableReducerOptions options;
+  bool hasValue;
+  JsValue previousValue;
+  int listenerCount;
+  (func(JsValue, JsValue)->void)[] listeners;
+
+  init(ObservableReducerOptions options) {
+    this.options = options;
+    this.hasValue = false;
+    this.previousValue = 0;
+    this.listenerCount = 0;
+    this.listeners = [];
+  }
+
+  JsValue recompute(ReducerReader reader, JsValue changeSummary) {
+    if (!this.hasValue) {
+      this.previousValue = this.options.initialFn();
+      this.hasValue = true;
+    }
+    JsValue oldValue = this.previousValue;
+    JsValue newValue = this.options.updateFn(
+      reader,
+      oldValue,
+      changeSummary
+    );
+    this.previousValue = newValue;
+    if (!this.options.equalityComparer(oldValue, newValue)) {
+      (func(JsValue, JsValue)->void)[] snapshot = this.listeners.slice();
+      int i = 0;
+      while (i < snapshot.length) {
+        snapshot[i](newValue, oldValue);
+        i = i + 1;
+      }
+    }
+    return newValue;
+  }
+
+  JsValue get() {
+    if (!this.hasValue) {
+      this.previousValue = this.options.initialFn();
+      this.hasValue = true;
+    }
+    return this.previousValue;
+  }
+
+  void set(JsValue value, JsValue change) {
+    if (this.listenerCount == 0) {
+      throw "Can only set when there is a listener";
+    }
+    JsValue oldValue = this.previousValue;
+    this.previousValue = value;
+    this.hasValue = true;
+    (func(JsValue, JsValue)->void)[] snapshot = this.listeners.slice();
+    int i = 0;
+    while (i < snapshot.length) {
+      snapshot[i](value, change);
+      i = i + 1;
+    }
+  }
+
+  func()->void observe(func(JsValue, JsValue)->void listener) {
+    this.listeners.push(listener);
+    this.listenerCount = this.listenerCount + 1;
+    return () => {
+      int index = this.listeners.indexOf(listener);
+      if (index >= 0) {
+        this.listeners.splice(index, 1);
+        this.listenerCount = this.listenerCount - 1;
+      }
+      if (this.listenerCount == 0 && this.hasValue) {
+        this.options.disposeFinalFn(this.previousValue);
+        this.hasValue = false;
+        this.previousValue = 0;
+      }
+    };
+  }
+}
+
+export ObservableReducer observableReducerSettable(
+  ObservableReducerOptions options
+) {
+  return new ObservableReducer(options);
+}
+
+export ObservableReducerOptions createObservableReducerOptions(
+  func()->JsValue initialFn,
+  func(ReducerReader, JsValue, JsValue)->JsValue updateFn
+) {
+  return new ObservableReducerOptions(
+    initialFn,
+    updateFn,
+    (JsValue value) => {},
+    (JsValue a, JsValue b) => {
+      return a == b;
+    }
+  );
+}

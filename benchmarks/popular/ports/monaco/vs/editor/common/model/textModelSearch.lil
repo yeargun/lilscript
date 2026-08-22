@@ -1,0 +1,473 @@
+import {
+  newRegexp,
+  regexExec,
+  regexSetLastIndex,
+  regexLastIndex,
+  jsArrayLen,
+  jsArrayAt,
+  sliceOf,
+  concat2,
+  replaceEol,
+  stringSplit,
+  emptyBuf
+} from "../../../../js-host";
+
+export class Position {
+  int lineNumber;
+  int column;
+
+  init(int lineNumber, int column) {
+    this.lineNumber = lineNumber;
+    this.column = column;
+  }
+}
+
+export class Range {
+  int startLineNumber;
+  int startColumn;
+  int endLineNumber;
+  int endColumn;
+
+  init(int startLineNumber, int startColumn, int endLineNumber, int endColumn) {
+    this.startLineNumber = startLineNumber;
+    this.startColumn = startColumn;
+    this.endLineNumber = endLineNumber;
+    this.endColumn = endColumn;
+  }
+}
+
+export class FindMatch {
+  Range range;
+  string[] matches;
+  bool hasMatches;
+
+  init(Range range, string[] matches, bool hasMatches) {
+    this.range = range;
+    this.matches = matches;
+    this.hasMatches = hasMatches;
+  }
+}
+
+export class SearchData {
+  Regex regex;
+  string wordSeparators;
+  string simpleSearch;
+  bool hasSimpleSearch;
+  bool multiline;
+
+  init(Regex regex, string wordSeparators, string simpleSearch, bool hasSimpleSearch, bool multiline) {
+    this.regex = regex;
+    this.wordSeparators = wordSeparators;
+    this.simpleSearch = simpleSearch;
+    this.hasSimpleSearch = hasSimpleSearch;
+    this.multiline = multiline;
+  }
+}
+
+export class SearchParams {
+  string searchString;
+  bool isRegex;
+  bool matchCase;
+  string wordSeparators;
+
+  init(string searchString, bool isRegex, bool matchCase, string wordSeparators) {
+    this.searchString = searchString;
+    this.isRegex = isRegex;
+    this.matchCase = matchCase;
+    this.wordSeparators = wordSeparators;
+  }
+
+  SearchData? parseSearchRequest() {
+    if (this.searchString.length == 0) {
+      return null;
+    }
+    bool multiline = false;
+    if (this.isRegex) {
+      multiline = isMultilineRegexSource(this.searchString);
+    } else {
+      multiline = this.searchString.indexOf("\n") >= 0 || this.searchString.indexOf("\r") >= 0;
+    }
+    string source = this.searchString;
+    if (!this.isRegex) {
+      source = escapeRegExpCharacters(source);
+    }
+    string flags = "gu";
+    if (!this.matchCase) {
+      flags = "giu";
+    }
+    Regex regex = newRegexp(source, flags);
+    bool simple = !this.isRegex && !multiline && this.matchCase;
+    return new SearchData(regex, this.wordSeparators, this.searchString, simple, multiline);
+  }
+}
+
+export class SearchModel {
+  string value;
+  string eol;
+
+  init(string value, string eol) {
+    this.value = value;
+    this.eol = eol;
+  }
+
+  string[] lines() {
+    return stringSplit(replaceEol(this.value, "\n"), "\n");
+  }
+
+  int getLineCount() {
+    return this.lines().length;
+  }
+
+  string getLineContent(int lineNumber) {
+    string[] all = this.lines();
+    if (lineNumber < 1 || lineNumber > all.length) {
+      return emptyBuf();
+    }
+    return all[lineNumber - 1];
+  }
+
+  int getLineMaxColumn(int lineNumber) {
+    return this.getLineContent(lineNumber).length + 1;
+  }
+
+  string getEOL() {
+    return this.eol;
+  }
+
+  int getOffsetAt(Position position) {
+    string[] all = this.lines();
+    int result = 0;
+    int i = 1;
+    while (i < position.lineNumber && i <= all.length) {
+      result = result + all[i - 1].length + this.eol.length;
+      i = i + 1;
+    }
+    result = result + position.column - 1;
+    if (result < 0) {
+      return 0;
+    }
+    if (result > this.value.length) {
+      return this.value.length;
+    }
+    return result;
+  }
+
+  Position getPositionAt(int requestedOffset) {
+    int end = requestedOffset;
+    if (end < 0) {
+      end = 0;
+    }
+    if (end > this.value.length) {
+      end = this.value.length;
+    }
+    int line = 1;
+    int column = 1;
+    int i = 0;
+    while (i < end) {
+      int code = this.value.charCodeAt(i);
+      if (code == 13) {
+        if (i + 1 < end && this.value.charCodeAt(i + 1) == 10) {
+          i = i + 1;
+        }
+        line = line + 1;
+        column = 1;
+      } else if (code == 10) {
+        line = line + 1;
+        column = 1;
+      } else {
+        column = column + 1;
+      }
+      i = i + 1;
+    }
+    return new Position(line, column);
+  }
+
+  string getValueInRange(Range range, int eolPreference) {
+    int start = this.getOffsetAt(new Position(range.startLineNumber, range.startColumn));
+    int end = this.getOffsetAt(new Position(range.endLineNumber, range.endColumn));
+    string result = sliceOf(this.value, start, end);
+    if (eolPreference == 1) {
+      result = replaceEol(result, "\n");
+    } else if (eolPreference == 2) {
+      result = replaceEol(result, "\r\n");
+    }
+    return result;
+  }
+}
+
+export bool isMultilineRegexSource(string searchString) {
+  int i = 0;
+  while (i < searchString.length) {
+    int code = searchString.charCodeAt(i);
+    if (code == 10 || code == 13) {
+      return true;
+    }
+    if (code == 92) {
+      i = i + 1;
+      if (i < searchString.length) {
+        int next = searchString.charCodeAt(i);
+        if (next == 110 || next == 114 || next == 87) {
+          return true;
+        }
+      }
+    }
+    i = i + 1;
+  }
+  return false;
+}
+
+export string escapeRegExpCharacters(string searchString) {
+  string result = emptyBuf();
+  int i = 0;
+  while (i < searchString.length) {
+    string ch = searchString.charAt(i);
+    if (
+      ch == "\\" || ch == "^" || ch == "$" || ch == "." || ch == "|" || ch == "?"
+      || ch == "*" || ch == "+" || ch == "(" || ch == ")" || ch == "[" || ch == "]"
+      || ch == "{" || ch == "}"
+    ) {
+      result = concat2(result, "\\");
+    }
+    result = concat2(result, ch);
+    i = i + 1;
+  }
+  return result;
+}
+
+export bool isValidMatch(
+  string wordSeparators,
+  string text,
+  int textLength,
+  int matchStartIndex,
+  int matchLength
+) {
+  bool leftBoundary = matchStartIndex == 0;
+  if (!leftBoundary) {
+    string before = text.charAt(matchStartIndex - 1);
+    string first = emptyBuf();
+    if (matchLength > 0) {
+      first = text.charAt(matchStartIndex);
+    }
+    leftBoundary = wordSeparators.indexOf(before) >= 0
+      || (matchLength > 0 && wordSeparators.indexOf(first) >= 0);
+  }
+  bool rightBoundary = matchStartIndex + matchLength == textLength;
+  if (!rightBoundary) {
+    string after = text.charAt(matchStartIndex + matchLength);
+    string last = emptyBuf();
+    if (matchLength > 0) {
+      last = text.charAt(matchStartIndex + matchLength - 1);
+    }
+    rightBoundary = wordSeparators.indexOf(after) >= 0
+      || (matchLength > 0 && wordSeparators.indexOf(last) >= 0);
+  }
+  return leftBoundary && rightBoundary;
+}
+
+string[] captureRawMatches(JsValue raw) {
+  string[] result = [];
+  int count = jsArrayLen(raw);
+  int i = 0;
+  while (i < count) {
+    result.push(JS.string(jsArrayAt(raw, i)));
+    i = i + 1;
+  }
+  return result;
+}
+
+export class Searcher {
+  string wordSeparators;
+  Regex searchRegex;
+  int prevMatchStartIndex;
+  int prevMatchLength;
+
+  init(string wordSeparators, Regex searchRegex) {
+    this.wordSeparators = wordSeparators;
+    this.searchRegex = searchRegex;
+    this.prevMatchStartIndex = -1;
+    this.prevMatchLength = 0;
+  }
+
+  void reset(int lastIndex) {
+    regexSetLastIndex(this.searchRegex, lastIndex);
+    this.prevMatchStartIndex = -1;
+    this.prevMatchLength = 0;
+  }
+
+  JsValue next(string text) {
+    while (this.prevMatchStartIndex + this.prevMatchLength != text.length) {
+      JsValue found = regexExec(this.searchRegex, text);
+      if (!found.truthy()) {
+        return null;
+      }
+      int start = JS.number(found["index"]).toInt();
+      string value = JS.string(found[0]);
+      int length = value.length;
+      if (start == this.prevMatchStartIndex && length == this.prevMatchLength) {
+        if (length == 0) {
+          regexSetLastIndex(this.searchRegex, regexLastIndex(this.searchRegex) + 1);
+          continue;
+        }
+        return null;
+      }
+      this.prevMatchStartIndex = start;
+      this.prevMatchLength = length;
+      if (
+        this.wordSeparators.length == 0
+        || isValidMatch(this.wordSeparators, text, text.length, start, length)
+      ) {
+        return found;
+      }
+    }
+    return null;
+  }
+}
+
+FindMatch makeFindMatch(int line, int startColumn, string text, JsValue raw, bool captureMatches) {
+  string[] captures = [];
+  bool hasMatches = false;
+  if (captureMatches) {
+    captures = captureRawMatches(raw);
+    hasMatches = true;
+  }
+  return new FindMatch(
+    new Range(line, startColumn, line, startColumn + text.length),
+    captures,
+    hasMatches
+  );
+}
+
+export class TextModelSearch {
+  FindMatch[] findMatches(
+    SearchModel model,
+    SearchParams searchParams,
+    Range searchRange,
+    bool captureMatches,
+    int limitResultCount
+  ) {
+    FindMatch[] result = [];
+    SearchData? data = searchParams.parseSearchRequest();
+    if (data == null) {
+      return result;
+    }
+    if (data.multiline) {
+      string text = model.getValueInRange(searchRange, 1);
+      Searcher searcher = new Searcher(data.wordSeparators, data.regex);
+      searcher.reset(0);
+      int baseOffset = model.getOffsetAt(new Position(searchRange.startLineNumber, searchRange.startColumn));
+      JsValue found = searcher.next(text);
+      while (found.truthy() && result.length < limitResultCount) {
+        int index = JS.number(found["index"]).toInt();
+        string foundText = JS.string(found[0]);
+        Position start = model.getPositionAt(baseOffset + index);
+        Position end = model.getPositionAt(baseOffset + index + foundText.length);
+        string[] captures = [];
+        bool hasMatches = false;
+        if (captureMatches) {
+          captures = captureRawMatches(found);
+          hasMatches = true;
+        }
+        result.push(new FindMatch(new Range(start.lineNumber, start.column, end.lineNumber, end.column), captures, hasMatches));
+        found = searcher.next(text);
+      }
+      return result;
+    }
+    int line = searchRange.startLineNumber;
+    while (line <= searchRange.endLineNumber && result.length < limitResultCount) {
+      string lineText = model.getLineContent(line);
+      int from = 0;
+      int to = lineText.length;
+      if (line == searchRange.startLineNumber) {
+        from = searchRange.startColumn - 1;
+      }
+      if (line == searchRange.endLineNumber) {
+        to = searchRange.endColumn - 1;
+      }
+      string text = sliceOf(lineText, from, to);
+      Searcher searcher = new Searcher(data.wordSeparators, data.regex);
+      searcher.reset(0);
+      JsValue found = searcher.next(text);
+      while (found.truthy() && result.length < limitResultCount) {
+        int index = JS.number(found["index"]).toInt();
+        string foundText = JS.string(found[0]);
+        result.push(makeFindMatch(line, from + index + 1, foundText, found, captureMatches));
+        found = searcher.next(text);
+      }
+      line = line + 1;
+    }
+    return result;
+  }
+
+  FindMatch? findNextMatch(
+    SearchModel model,
+    SearchParams params,
+    Position start,
+    bool captureMatches
+  ) {
+    int lineCount = model.getLineCount();
+    int pass = 0;
+    while (pass < lineCount) {
+      int line = ((start.lineNumber - 1 + pass) % lineCount) + 1;
+      int column = 1;
+      if (pass == 0) {
+        column = start.column;
+      }
+      Range range = new Range(line, column, line, model.getLineMaxColumn(line));
+      FindMatch[] found = this.findMatches(model, params, range, captureMatches, 1);
+      if (found.length > 0) {
+        return found[0];
+      }
+      pass = pass + 1;
+    }
+    return null;
+  }
+
+  FindMatch? findPreviousMatch(
+    SearchModel model,
+    SearchParams params,
+    Position start,
+    bool captureMatches
+  ) {
+    int lineCount = model.getLineCount();
+    int pass = 0;
+    while (pass < lineCount) {
+      int line = (lineCount + start.lineNumber - pass - 1) % lineCount + 1;
+      int column = model.getLineMaxColumn(line);
+      if (pass == 0) {
+        column = start.column;
+      }
+      Range range = new Range(line, 1, line, column);
+      FindMatch[] found = this.findMatches(model, params, range, captureMatches, 9990);
+      if (found.length > 0) {
+        return found[found.length - 1];
+      }
+      pass = pass + 1;
+    }
+    return null;
+  }
+}
+
+export Searcher createSearcher(string searchString, bool isRegex, bool matchCase, string wordSeparators) {
+  SearchParams params = new SearchParams(searchString, isRegex, matchCase, wordSeparators);
+  SearchData? data = params.parseSearchRequest();
+  if (data != null) {
+    return new Searcher(data.wordSeparators, data.regex);
+  }
+  return new Searcher(wordSeparators, newRegexp("(?:)", "g"));
+}
+
+export TextModelSearch createTextModelSearch() {
+  return new TextModelSearch();
+}
+
+export SearchModel createSearchModel(string value, string eol) {
+  return new SearchModel(value, eol);
+}
+
+export Range createSearchRange(int startLine, int startColumn, int endLine, int endColumn) {
+  return new Range(startLine, startColumn, endLine, endColumn);
+}
+
+export SearchParams createSearchParams(string searchString, bool isRegex, bool matchCase, string wordSeparators) {
+  return new SearchParams(searchString, isRegex, matchCase, wordSeparators);
+}

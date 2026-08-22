@@ -1,0 +1,33 @@
+export class Pager {
+  int total;
+  int pageSize;
+  int firstPageCount;
+
+  init(int total, int pageSize, int firstPageCount) {
+    this.total = total;
+    this.pageSize = pageSize;
+    this.firstPageCount = firstPageCount;
+  }
+
+  int pageCount() {
+    if (this.pageSize <= 0) {
+      return 0;
+    }
+    int remaining = this.total - this.firstPageCount;
+    if (remaining <= 0) {
+      return 1;
+    }
+    return 1 + (remaining + this.pageSize - 1) / this.pageSize;
+  }
+
+  int pageOffset(int index) {
+    if (index <= 0) {
+      return 0;
+    }
+    return this.firstPageCount + (index - 1) * this.pageSize;
+  }
+}
+
+export Pager mapPager(Pager pager) {
+  return new Pager(pager.total, pager.pageSize, pager.firstPageCount);
+}

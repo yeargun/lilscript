@@ -1,0 +1,63 @@
+export enum HoverStyle {
+  Pointer,
+  Mouse
+}
+
+export class ManagedHoverTooltipMarkdown {
+  JsValue markdown;
+  string markdownNotSupportedFallback;
+
+  init(JsValue markdown, string markdownNotSupportedFallback) {
+    this.markdown = markdown;
+    this.markdownNotSupportedFallback = markdownNotSupportedFallback;
+  }
+}
+
+export bool isManagedHoverTooltipMarkdownString(JsValue obj) {
+  if (!obj.truthy()) {
+    return false;
+  }
+  return obj["markdown"].truthy() && obj["markdownNotSupportedFallback"].truthy();
+}
+
+export bool isManagedHoverTooltipHTMLElement(JsValue obj) {
+  if (!obj.truthy()) {
+    return false;
+  }
+  return obj["element"].truthy();
+}
+
+export class ManagedHover {
+  bool disposed;
+  func()->void showFn;
+  func()->void hideFn;
+  func(JsValue)->void updateFn;
+
+  init(func()->void showFn, func()->void hideFn, func(JsValue)->void updateFn) {
+    this.disposed = false;
+    this.showFn = showFn;
+    this.hideFn = hideFn;
+    this.updateFn = updateFn;
+  }
+
+  void show() {
+    this.showFn();
+  }
+
+  void hide() {
+    this.hideFn();
+  }
+
+  void update(JsValue tooltip) {
+    this.updateFn(tooltip);
+  }
+
+  void dispose() {
+    this.disposed = true;
+    this.hideFn();
+  }
+}
+
+export ManagedHover createManagedHover(func()->void showFn, func()->void hideFn, func(JsValue)->void updateFn) {
+  return new ManagedHover(showFn, hideFn, updateFn);
+}

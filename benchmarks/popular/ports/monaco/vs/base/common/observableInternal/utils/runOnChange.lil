@@ -1,0 +1,144 @@
+export class ChangeObservable {
+  func()->JsValue getFn;
+  func(func(JsValue, JsValue)->void)->func()->void subscribeFn;
+
+  init(
+    func()->JsValue getFn,
+    func(func(JsValue, JsValue)->void)->func()->void subscribeFn
+  ) {
+    this.getFn = getFn;
+    this.subscribeFn = subscribeFn;
+  }
+}
+
+export class ChangeDisposableStore {
+  (func()->void)[] disposables;
+
+  init() {
+    this.disposables = [];
+  }
+
+  void add(func()->void disposeFn) {
+    this.disposables.push(disposeFn);
+  }
+
+  void clear() {
+    int i = this.disposables.length - 1;
+    while (i >= 0) {
+      this.disposables[i]();
+      i = i - 1;
+    }
+    this.disposables = [];
+  }
+
+  void dispose() {
+    this.clear();
+  }
+}
+
+export class ChangeCancellationToken {
+  bool cancellationRequested;
+  (func()->void)[] listeners;
+
+  init() {
+    this.cancellationRequested = false;
+    this.listeners = [];
+  }
+
+  void cancel() {
+    if (this.cancellationRequested) {
+      return;
+    }
+    this.cancellationRequested = true;
+    (func()->void)[] snapshot = this.listeners.slice();
+    this.listeners = [];
+    int i = 0;
+    while (i < snapshot.length) {
+      snapshot[i]();
+      i = i + 1;
+    }
+  }
+
+  void onCancellationRequested(func()->void listener) {
+    if (this.cancellationRequested) {
+      listener();
+      return;
+    }
+    this.listeners.push(listener);
+  }
+}
+
+export class RunOnChangeSubscription {
+  func()->void disposeFn;
+
+  init(func()->void disposeFn) {
+    this.disposeFn = disposeFn;
+  }
+
+  void dispose() {
+    this.disposeFn();
+  }
+}
+
+export RunOnChangeSubscription runOnChange(
+  ChangeObservable observable,
+  func(JsValue, JsValue, JsValue[])->void callback
+) {
+  JsValue previousValue = observable.getFn();
+  func()->void disposeFn = observable.subscribeFn(
+    (JsValue newValue, JsValue delta) => {
+      JsValue oldValue = previousValue;
+      previousValue = newValue;
+      JsValue[] deltas = [];
+      if (delta.truthy() || delta is bool || delta is float || delta is string) {
+        deltas.push(delta);
+      }
+      callback(newValue, oldValue, deltas);
+    }
+  );
+  return new RunOnChangeSubscription(disposeFn);
+}
+
+export RunOnChangeSubscription runOnChangeWithStore(
+  ChangeObservable observable,
+  func(JsValue, JsValue, JsValue[], ChangeDisposableStore)->void callback
+) {
+  ChangeDisposableStore store = new ChangeDisposableStore();
+  RunOnChangeSubscription inner = runOnChange(
+    observable,
+    (JsValue value, JsValue previousValue, JsValue[] deltas) => {
+      store.clear();
+      callback(value, previousValue, deltas, store);
+    }
+  );
+  return new RunOnChangeSubscription(() => {
+    inner.dispose();
+    store.dispose();
+  });
+}
+
+export RunOnChangeSubscription runOnChangeWithCancellationToken(
+  ChangeObservable observable,
+  func(JsValue, JsValue, JsValue[], ChangeCancellationToken)->void callback
+) {
+  ChangeCancellationToken token = new ChangeCancellationToken();
+  RunOnChangeSubscription inner = runOnChange(
+    observable,
+    (JsValue value, JsValue previousValue, JsValue[] deltas) => {
+      token.cancel();
+      token = new ChangeCancellationToken();
+      callback(value, previousValue, deltas, token);
+    }
+  );
+  return new RunOnChangeSubscription(() => {
+    token.cancel();
+    inner.dispose();
+  });
+}
+
+export ChangeObservable createChangeObservable(
+  func()->JsValue getFn,
+  func(func(JsValue, JsValue)->void)->func()->void subscribeFn
+) {
+  return new ChangeObservable(getFn, subscribeFn);
+}

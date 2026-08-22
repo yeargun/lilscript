@@ -1,0 +1,26 @@
+import { jsonDocumentKeys } from "../contrib/language-data";
+import { emptyBuf, concat2 } from "../js-host";
+
+export string[] jsonWorkerSymbols(string value) {
+  return jsonDocumentKeys(value);
+}
+
+export string handleJsonWorker(string method, string uri, string value) {
+  if (method == "ping" || method == "initialize") {
+    return "pong";
+  }
+  if (method == "documentSymbols" || method == "keys") {
+    string[] keys = jsonDocumentKeys(value);
+    string out = emptyBuf();
+    int i = 0;
+    while (i < keys.length) {
+      if (i > 0) {
+        out = concat2(out, ",");
+      }
+      out = concat2(out, keys[i]);
+      i++;
+    }
+    return out;
+  }
+  return concat2(emptyBuf(), uri);
+}

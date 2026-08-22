@@ -1,0 +1,58 @@
+export class ScrollDecorationViewPart {
+  int scrollTop;
+  int width;
+  bool useShadows;
+  bool shouldShow;
+  int minimapRender;
+  int minimapWidth;
+  int minimapLeft;
+  int verticalScrollbarWidth;
+  int editorWidth;
+
+  init(bool useShadows, int editorWidth, int verticalScrollbarWidth, int minimapRender, int minimapWidth, int minimapLeft) {
+    this.scrollTop = 0;
+    this.useShadows = useShadows;
+    this.editorWidth = editorWidth;
+    this.verticalScrollbarWidth = verticalScrollbarWidth;
+    this.minimapRender = minimapRender;
+    this.minimapWidth = minimapWidth;
+    this.minimapLeft = minimapLeft;
+    this.shouldShow = false;
+    this.width = 0;
+    this.updateWidth();
+    this.updateShouldShow();
+  }
+
+  void updateWidth() {
+    if (this.minimapRender == 0 || (this.minimapWidth > 0 && this.minimapLeft == 0)) {
+      this.width = this.editorWidth;
+    } else {
+      this.width = this.editorWidth - this.verticalScrollbarWidth;
+    }
+  }
+
+  bool updateShouldShow() {
+    bool next = this.useShadows && this.scrollTop > 0;
+    if (this.shouldShow != next) {
+      this.shouldShow = next;
+      return true;
+    }
+    return false;
+  }
+
+  bool onScrollChanged(int scrollTop) {
+    this.scrollTop = scrollTop;
+    return this.updateShouldShow();
+  }
+
+  string className() {
+    if (this.shouldShow) {
+      return "scroll-decoration";
+    }
+    return "";
+  }
+}
+
+export ScrollDecorationViewPart createScrollDecorationViewPart(bool useShadows, int editorWidth, int verticalScrollbarWidth, int minimapRender, int minimapWidth, int minimapLeft) {
+  return new ScrollDecorationViewPart(useShadows, editorWidth, verticalScrollbarWidth, minimapRender, minimapWidth, minimapLeft);
+}

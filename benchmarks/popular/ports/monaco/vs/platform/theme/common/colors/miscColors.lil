@@ -1,0 +1,60 @@
+export class MiscColorsRegistry {
+  string[] ids;
+
+  init() {
+    this.ids = [];
+  }
+
+  string register(string id) {
+    if (!this.ids.includes(id)) {
+      this.ids.push(id);
+    }
+    return id;
+  }
+
+  bool has(string id) {
+    return this.ids.includes(id);
+  }
+
+  string asCssVariableName(string id) {
+    string out = "--vscode-";
+    int i = 0;
+    while (i < id.length) {
+      string ch = id.charAt(i);
+      if (ch == ".") {
+        out = out + "-";
+      } else {
+        out = out + ch;
+      }
+      i = i + 1;
+    }
+    return out;
+  }
+}
+
+MiscColorsRegistry colors = new MiscColorsRegistry();
+
+export MiscColorsRegistry getMiscColorsRegistry() {
+  return colors;
+}
+
+export string c0 = colors.register("sash.hoverBorder");
+export string c1 = colors.register("badge.background");
+export string c2 = colors.register("badge.foreground");
+export string c3 = colors.register("activityWarningBadge.foreground");
+export string c4 = colors.register("activityWarningBadge.background");
+export string c5 = colors.register("activityErrorBadge.foreground");
+export string c6 = colors.register("activityErrorBadge.background");
+export string c7 = colors.register("scrollbar.shadow");
+export string c8 = colors.register("scrollbarSlider.background");
+export string c9 = colors.register("scrollbarSlider.hoverBackground");
+export string c10 = colors.register("scrollbarSlider.activeBackground");
+export string c11 = colors.register("scrollbar.background");
+export string c12 = colors.register("progressBar.background");
+export string c13 = colors.register("chart.line");
+export string c14 = colors.register("chart.axis");
+export string c15 = colors.register("chart.guide");
+
+export string[] colorIds() {
+  return colors.ids;
+}

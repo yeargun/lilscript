@@ -1,0 +1,280 @@
+export class DataTreeNode {
+  string element;
+  string label;
+  DataTreeNode? parent;
+  DataTreeNode[] children;
+  int depth;
+  bool hasChildren;
+  bool collapsible;
+  bool collapsed;
+  bool visible;
+  int renderNodeCount;
+
+  init(string element, string label, DataTreeNode? parent, int depth, bool hasChildren) {
+    this.element = element;
+    this.label = label;
+    this.parent = parent;
+    this.children = [];
+    this.depth = depth;
+    this.hasChildren = hasChildren;
+    this.collapsible = hasChildren;
+    this.collapsed = false;
+    this.visible = true;
+    this.renderNodeCount = 0;
+  }
+}
+
+export class DataTreeSource {
+  func(string)->string[] childrenOf;
+  func(string)->bool hasChildrenOf;
+  func(string)->string labelOf;
+
+  init(func(string)->string[] childrenOf, func(string)->bool hasChildrenOf, func(string)->string labelOf) {
+    this.childrenOf = childrenOf;
+    this.hasChildrenOf = hasChildrenOf;
+    this.labelOf = labelOf;
+  }
+}
+
+export class DataTree {
+  DataTreeNode root;
+  Map<string, DataTreeNode> nodes;
+  DataTreeSource source;
+  DataTreeNode[] rendered;
+  string[] focus;
+  string[] selection;
+
+  init(string rootElement, DataTreeSource source) {
+    this.source = source;
+    bool hasChildren = source.hasChildrenOf(rootElement);
+    this.root = new DataTreeNode(rootElement, source.labelOf(rootElement), null, 0, hasChildren);
+    this.nodes = new Map();
+    if (rootElement.length > 0) {
+      this.nodes.set(rootElement, this.root);
+    }
+    this.rendered = [];
+    this.focus = [];
+    this.selection = [];
+  }
+
+  DataTreeNode? getNode(string element) {
+    if (element.length == 0 || element == this.root.element) {
+      return this.root;
+    }
+    return this.nodes.get(element);
+  }
+
+  bool has(string element) {
+    return this.getNode(element) != null;
+  }
+
+  void forget(DataTreeNode node) {
+    int i = 0;
+    while (i < node.children.length) {
+      this.forget(node.children[i]);
+      i = i + 1;
+    }
+    if (node != this.root) {
+      this.nodes.delete(node.element);
+    }
+  }
+
+  DataTreeNode adopt(string id, DataTreeNode parent, Map<string, DataTreeNode> previous) {
+    bool hasChildren = this.source.hasChildrenOf(id);
+    DataTreeNode? existing = previous.get(id);
+    if (existing != null) {
+      existing.parent = parent;
+      existing.depth = parent.depth + 1;
+      existing.hasChildren = hasChildren;
+      existing.collapsible = hasChildren;
+      existing.label = this.source.labelOf(id);
+      this.nodes.set(id, existing);
+      return existing;
+    }
+    DataTreeNode created = new DataTreeNode(id, this.source.labelOf(id), parent, parent.depth + 1, hasChildren);
+    this.nodes.set(id, created);
+    return created;
+  }
+
+  void refreshNode(DataTreeNode node, bool recursive) {
+    if (!node.hasChildren) {
+      int i = 0;
+      while (i < node.children.length) {
+        this.forget(node.children[i]);
+        i = i + 1;
+      }
+      node.children = [];
+      return;
+    }
+    if (node.collapsed && node != this.root) {
+      return;
+    }
+    Map<string, DataTreeNode> previous = new Map();
+    int i = 0;
+    while (i < node.children.length) {
+      previous.set(node.children[i].element, node.children[i]);
+      i = i + 1;
+    }
+    string[] childIds = this.source.childrenOf(node.element);
+    DataTreeNode[] next = [];
+    Map<string, bool> kept = new Map();
+    i = 0;
+    while (i < childIds.length) {
+      DataTreeNode child = this.adopt(childIds[i], node, previous);
+      kept.set(child.element, true);
+      next.push(child);
+      i = i + 1;
+    }
+    DataTreeNode[] oldChildren = node.children;
+    node.children = next;
+    i = 0;
+    while (i < oldChildren.length) {
+      if (!kept.has(oldChildren[i].element)) {
+        this.forget(oldChildren[i]);
+      }
+      i = i + 1;
+    }
+    node.hasChildren = next.length > 0 || this.source.hasChildrenOf(node.element);
+    node.collapsible = node.hasChildren;
+    if (recursive) {
+      i = 0;
+      while (i < next.length) {
+        this.refreshNode(next[i], true);
+        i = i + 1;
+      }
+    }
+  }
+
+  bool refresh(string element, bool recursive = true) {
+    DataTreeNode? node = this.getNode(element);
+    if (node == null) {
+      return false;
+    }
+    node.hasChildren = this.source.hasChildrenOf(node.element);
+    node.collapsible = node.hasChildren;
+    node.label = this.source.labelOf(node.element);
+    this.refreshNode(node, recursive);
+    this.recompute();
+    return true;
+  }
+
+  int recomputeNode(DataTreeNode node) {
+    int childCount = 0;
+    int i = 0;
+    while (i < node.children.length) {
+      childCount = childCount + this.recomputeNode(node.children[i]);
+      i = i + 1;
+    }
+    if (node == this.root) {
+      node.visible = true;
+      node.renderNodeCount = childCount;
+    } else if (!node.visible) {
+      node.renderNodeCount = 0;
+    } else if (node.collapsed) {
+      node.renderNodeCount = 1;
+    } else {
+      node.renderNodeCount = 1 + childCount;
+    }
+    return node.renderNodeCount;
+  }
+
+  void collectRendered(DataTreeNode node, DataTreeNode[] result) {
+    if (node != this.root) {
+      if (!node.visible) {
+        return;
+      }
+      result.push(node);
+      if (node.collapsed) {
+        return;
+      }
+    }
+    int i = 0;
+    while (i < node.children.length) {
+      this.collectRendered(node.children[i], result);
+      i = i + 1;
+    }
+  }
+
+  void recompute() {
+    this.recomputeNode(this.root);
+    DataTreeNode[] result = [];
+    this.collectRendered(this.root, result);
+    this.rendered = result;
+  }
+
+  bool setCollapsed(string element, bool collapsed, bool recursive = false) {
+    DataTreeNode? node = this.getNode(element);
+    if (node == null || node == this.root || !node.collapsible) {
+      return false;
+    }
+    bool changed = node.collapsed != collapsed;
+    node.collapsed = collapsed;
+    if (recursive) {
+      this.collapseChildren(node, collapsed);
+    }
+    if (!collapsed) {
+      this.refreshNode(node, false);
+    }
+    this.recompute();
+    return changed;
+  }
+
+  void collapseChildren(DataTreeNode node, bool collapsed) {
+    int i = 0;
+    while (i < node.children.length) {
+      if (node.children[i].collapsible) {
+        node.children[i].collapsed = collapsed;
+      }
+      this.collapseChildren(node.children[i], collapsed);
+      i = i + 1;
+    }
+  }
+
+  bool collapse(string element, bool recursive = false) {
+    return this.setCollapsed(element, true, recursive);
+  }
+
+  bool expand(string element, bool recursive = false) {
+    return this.setCollapsed(element, false, recursive);
+  }
+
+  int getListIndex(string element) {
+    DataTreeNode? node = this.getNode(element);
+    if (node == null || node == this.root) {
+      return -1;
+    }
+    return this.rendered.indexOf(node);
+  }
+
+  void setFocus(string[] elements) {
+    this.focus = elements.slice();
+  }
+
+  string[] getFocus() {
+    return this.focus.slice();
+  }
+
+  void setSelection(string[] elements) {
+    this.selection = elements.slice();
+  }
+
+  string[] getSelection() {
+    return this.selection.slice();
+  }
+
+  DataTreeNode[] renderedNodes() {
+    return this.rendered.slice();
+  }
+}
+
+export DataTreeSource createDataTreeSource(
+  func(string)->string[] childrenOf,
+  func(string)->bool hasChildrenOf,
+  func(string)->string labelOf
+) {
+  return new DataTreeSource(childrenOf, hasChildrenOf, labelOf);
+}
+
+export DataTree createDataTree(string rootElement, DataTreeSource source) {
+  return new DataTree(rootElement, source);
+}

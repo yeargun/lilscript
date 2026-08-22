@@ -1,0 +1,39 @@
+export int wrappingIndentNone = 0;
+export bool glyphMarginDefault = false;
+export int autoIndentAdvanced = 3;
+export int overviewRulerLanesDefault = 2;
+
+export class MonacoApi {
+  string[] ignoreDuplicateModules;
+
+  init() {
+    this.ignoreDuplicateModules = [];
+    this.ignoreDuplicateModules.push("vscode-languageserver-types");
+    this.ignoreDuplicateModules.push("vscode-languageserver-types/main");
+    this.ignoreDuplicateModules.push("vscode-languageserver-textdocument");
+    this.ignoreDuplicateModules.push("vscode-languageserver-textdocument/main");
+    this.ignoreDuplicateModules.push("vscode-nls");
+    this.ignoreDuplicateModules.push("vscode-nls/vscode-nls");
+    this.ignoreDuplicateModules.push("jsonc-parser");
+    this.ignoreDuplicateModules.push("jsonc-parser/main");
+    this.ignoreDuplicateModules.push("vscode-uri");
+    this.ignoreDuplicateModules.push("vscode-uri/index");
+    this.ignoreDuplicateModules.push("vs/basic-languages/typescript/typescript");
+  }
+}
+
+export MonacoApi createMonacoApi() {
+  return new MonacoApi();
+}
+
+export string editorApiCreate() {
+  return "editor.create";
+}
+
+export string languagesApiRegister() {
+  return "languages.register";
+}
+
+export string[] monacoIgnoreDuplicateModules() {
+  return createMonacoApi().ignoreDuplicateModules;
+}

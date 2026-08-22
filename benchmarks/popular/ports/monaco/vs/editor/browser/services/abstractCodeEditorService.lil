@@ -1,0 +1,149 @@
+export class AbstractCodeEditorService {
+  Map<string, int> codeEditors;
+  Map<string, int> diffEditors;
+  Map<string, string> modelProperties;
+  Map<string, int> decorationOptionProviders;
+  string[] editorIds;
+  string[] diffIds;
+  string focusedId;
+  string widgetFocusedId;
+
+  init() {
+    this.codeEditors = new Map<string, int>();
+    this.diffEditors = new Map<string, int>();
+    this.modelProperties = new Map<string, string>();
+    this.decorationOptionProviders = new Map<string, int>();
+    this.editorIds = [];
+    this.diffIds = [];
+    this.focusedId = "";
+    this.widgetFocusedId = "";
+  }
+
+  void addCodeEditor(string id) {
+    this.codeEditors.set(id, 1);
+    this.editorIds.push(id);
+  }
+
+  void removeCodeEditor(string id) {
+    if (this.codeEditors.has(id)) {
+      this.codeEditors.delete(id);
+      int i = 0;
+      while (i < this.editorIds.length) {
+        if (this.editorIds[i] == id) {
+          this.editorIds.splice(i, 1);
+          break;
+        }
+        i = i + 1;
+      }
+    }
+    if (this.focusedId == id) {
+      this.focusedId = "";
+    }
+    if (this.widgetFocusedId == id) {
+      this.widgetFocusedId = "";
+    }
+  }
+
+  string[] listCodeEditors() {
+    string[] copy = [];
+    int i = 0;
+    while (i < this.editorIds.length) {
+      copy.push(this.editorIds[i]);
+      i = i + 1;
+    }
+    return copy;
+  }
+
+  void addDiffEditor(string id) {
+    this.diffEditors.set(id, 1);
+    this.diffIds.push(id);
+  }
+
+  void removeDiffEditor(string id) {
+    if (this.diffEditors.has(id)) {
+      this.diffEditors.delete(id);
+      int i = 0;
+      while (i < this.diffIds.length) {
+        if (this.diffIds[i] == id) {
+          this.diffIds.splice(i, 1);
+          break;
+        }
+        i = i + 1;
+      }
+    }
+  }
+
+  string[] listDiffEditors() {
+    string[] copy = [];
+    int i = 0;
+    while (i < this.diffIds.length) {
+      copy.push(this.diffIds[i]);
+      i = i + 1;
+    }
+    return copy;
+  }
+
+  string? getFocusedCodeEditor() {
+    if (this.focusedId.length > 0) {
+      return this.focusedId;
+    }
+    if (this.widgetFocusedId.length > 0) {
+      return this.widgetFocusedId;
+    }
+    return null;
+  }
+
+  void setTextFocus(string id) {
+    this.focusedId = id;
+  }
+
+  void setWidgetFocus(string id) {
+    this.widgetFocusedId = id;
+  }
+
+  void setModelProperty(string resource, string key, string value) {
+    this.modelProperties.set(resource + "\u0000" + key, value);
+  }
+
+  string? getModelProperty(string resource, string key) {
+    return this.modelProperties.get(resource + "\u0000" + key);
+  }
+
+  void registerDecorationType(string key) {
+    int? existing = this.decorationOptionProviders.get(key);
+    int refCount = 1;
+    if (existing != null) {
+      refCount = existing + 1;
+    }
+    this.decorationOptionProviders.set(key, refCount);
+  }
+
+  void removeDecorationType(string key) {
+    int? existing = this.decorationOptionProviders.get(key);
+    if (existing == null) {
+      return;
+    }
+    int next = existing - 1;
+    if (next <= 0) {
+      this.decorationOptionProviders.delete(key);
+      return;
+    }
+    this.decorationOptionProviders.set(key, next);
+  }
+}
+
+export AbstractCodeEditorService createAbstractCodeEditorService() {
+  return new AbstractCodeEditorService();
+}
+
+export class GlobalStyleSheet {
+  JsValue styleSheet;
+
+  init(JsValue styleSheet) {
+    this.styleSheet = styleSheet;
+  }
+}
+
+export GlobalStyleSheet createGlobalStyleSheet(JsValue styleSheet) {
+  return new GlobalStyleSheet(styleSheet);
+}

@@ -1,0 +1,197 @@
+export class ConfigNode {
+  string key;
+  string value;
+  ConfigNode[] children;
+
+  init(string key) {
+    this.key = key;
+    this.value = "";
+    this.children = [];
+  }
+
+  ConfigNode child(string name) {
+    int i = 0;
+    while (i < this.children.length) {
+      if (this.children[i].key == name) {
+        return this.children[i];
+      }
+      i = i + 1;
+    }
+    ConfigNode created = new ConfigNode(name);
+    this.children.push(created);
+    return created;
+  }
+}
+
+string[] splitDots(string key) {
+  string[] parts = [];
+  string cur = "";
+  int i = 0;
+  while (i < key.length) {
+    string ch = key.charAt(i);
+    if (ch == ".") {
+      parts.push(cur);
+      cur = "";
+    } else {
+      cur = cur + ch;
+    }
+    i = i + 1;
+  }
+  parts.push(cur);
+  return parts;
+}
+
+export void addToValueTree(ConfigNode root, string key, string value) {
+  string[] segments = splitDots(key);
+  if (segments.length == 0) {
+    return;
+  }
+  ConfigNode curr = root;
+  int i = 0;
+  while (i < segments.length - 1) {
+    curr = curr.child(segments[i]);
+    i = i + 1;
+  }
+  ConfigNode leaf = curr.child(segments[segments.length - 1]);
+  leaf.value = value;
+}
+
+export void removeFromValueTree(ConfigNode root, string key) {
+  string[] segments = splitDots(key);
+  ConfigNode curr = root;
+  int i = 0;
+  while (i < segments.length - 1) {
+    int k = 0;
+    bool found = false;
+    while (k < curr.children.length) {
+      if (curr.children[k].key == segments[i]) {
+        curr = curr.children[k];
+        found = true;
+        break;
+      }
+      k = k + 1;
+    }
+    if (!found) {
+      return;
+    }
+    i = i + 1;
+  }
+  string last = segments[segments.length - 1];
+  ConfigNode[] next = [];
+  int n = 0;
+  while (n < curr.children.length) {
+    if (curr.children[n].key != last) {
+      next.push(curr.children[n]);
+    }
+    n = n + 1;
+  }
+  curr.children = next;
+}
+
+export string getConfigurationValue(ConfigNode root, string settingPath, string defaultValue) {
+  string[] path = splitDots(settingPath);
+  ConfigNode curr = root;
+  int i = 0;
+  while (i < path.length) {
+    int k = 0;
+    bool found = false;
+    while (k < curr.children.length) {
+      if (curr.children[k].key == path[i]) {
+        curr = curr.children[k];
+        found = true;
+        break;
+      }
+      k = k + 1;
+    }
+    if (!found) {
+      return defaultValue;
+    }
+    i = i + 1;
+  }
+  if (curr.value.length == 0) {
+    return defaultValue;
+  }
+  return curr.value;
+}
+
+export class ConfigurationInspect {
+  string key;
+  string value;
+  string defaultValue;
+  string userValue;
+
+  init(string key, string value, string defaultValue, string userValue) {
+    this.key = key;
+    this.value = value;
+    this.defaultValue = defaultValue;
+    this.userValue = userValue;
+  }
+}
+
+export class ConfigurationService {
+  ConfigNode defaults;
+  ConfigNode user;
+  ConfigNode merged;
+
+  init() {
+    this.defaults = new ConfigNode("");
+    this.user = new ConfigNode("");
+    this.merged = new ConfigNode("");
+  }
+
+  void update(string key, string value) {
+    addToValueTree(this.user, key, value);
+    addToValueTree(this.merged, key, value);
+  }
+
+  void setDefault(string key, string value) {
+    addToValueTree(this.defaults, key, value);
+    if (getConfigurationValue(this.user, key, "") == "") {
+      addToValueTree(this.merged, key, value);
+    }
+  }
+
+  string get(string key, string fallback = "") {
+    return getConfigurationValue(this.merged, key, fallback);
+  }
+
+  ConfigurationInspect inspect(string key) {
+    string def = getConfigurationValue(this.defaults, key, "");
+    string userValue = getConfigurationValue(this.user, key, "");
+    string value = getConfigurationValue(this.merged, key, def);
+    return new ConfigurationInspect(key, value, def, userValue);
+  }
+}
+
+export ConfigNode toValuesTree(string[] keys, string[] values) {
+  ConfigNode root = new ConfigNode("");
+  int i = 0;
+  while (i < keys.length && i < values.length) {
+    addToValueTree(root, keys[i], values[i]);
+    i = i + 1;
+  }
+  return root;
+}
+
+export ConfigurationService createConfigurationService() {
+  return new ConfigurationService();
+}
+
+export string IConfigurationServiceId = "configurationService";
+
+export string getLanguageTagSettingPlainKey(string settingKey) {
+  string out = "";
+  int i = 0;
+  while (i < settingKey.length) {
+    string ch = settingKey.charAt(i);
+    if (ch != "[" && ch != "]") {
+      out = out + ch;
+    } else {
+      if (ch == "]" && i + 1 < settingKey.length && settingKey.charAt(i + 1) == "[") {
+        out = out + ", ";
+      }
+    }
+    i = i + 1;
+  }
+  return out;
+}

@@ -1,0 +1,33 @@
+export class ConstObservable {
+  JsValue value;
+
+  init(JsValue value) {
+    this.value = value;
+  }
+
+  string debugName() {
+    return this.toString();
+  }
+
+  JsValue get() {
+    return this.value;
+  }
+
+  JsValue read() {
+    return this.value;
+  }
+
+  void reportChanges() {}
+
+  void addObserver(JsValue observer) {}
+
+  void removeObserver(JsValue observer) {}
+
+  string toString() {
+    return "Const";
+  }
+}
+
+export ConstObservable constObservable(JsValue value) {
+  return new ConstObservable(value);
+}

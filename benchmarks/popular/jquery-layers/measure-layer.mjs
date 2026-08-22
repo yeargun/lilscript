@@ -28,6 +28,7 @@ async function ensureDom() {
   const dom = new JSDOM("<!doctype html><html><body></body></html>");
   globalThis.window = dom.window;
   globalThis.document = dom.window.document;
+  globalThis.DOMParser = dom.window.DOMParser;
 }
 
 function run(program, args) {

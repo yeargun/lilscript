@@ -1,0 +1,28 @@
+export class HelpQuickAccessProvider {
+  string[] entries;
+
+  init() {
+    this.entries = [];
+  }
+
+  void add(string prefix, string description) {
+    this.entries.push(prefix + " " + description);
+  }
+
+  string[] getPicks(string filter) {
+    string[] out = [];
+    string q = filter.toLowerCase();
+    int i = 0;
+    while (i < this.entries.length) {
+      if (q.length == 0 || this.entries[i].toLowerCase().includes(q)) {
+        out.push(this.entries[i]);
+      }
+      i = i + 1;
+    }
+    return out;
+  }
+}
+
+export HelpQuickAccessProvider createHelpQuickAccessProvider() {
+  return new HelpQuickAccessProvider();
+}

@@ -1,0 +1,88 @@
+import {
+  clearTimeoutId,
+  jsUndefined,
+  scheduleTimeoutMs
+} from "../../../../../../js-host";
+
+export class Throttler {
+  bool hasTimeout;
+  JsValue timeoutId;
+
+  init() {
+    this.hasTimeout = false;
+    this.timeoutId = 0;
+  }
+
+  void throttle(func()->void fn, float timeoutMs) {
+    if (this.hasTimeout) {
+      return;
+    }
+    this.hasTimeout = true;
+    this.timeoutId = scheduleTimeoutMs(() => {
+      this.hasTimeout = false;
+      this.timeoutId = 0;
+      fn();
+    }, timeoutMs);
+  }
+
+  void dispose() {
+    if (this.hasTimeout) {
+      clearTimeoutId(this.timeoutId);
+      this.hasTimeout = false;
+      this.timeoutId = 0;
+    }
+  }
+}
+
+export void deepAssign(JsValue target, JsValue source) {
+  if (!target.truthy() || !target.isObject()) {
+    return;
+  }
+  if (!source.truthy() || !source.isObject()) {
+    return;
+  }
+  for (string key in source) {
+    JsValue sourceValue = source[key];
+    JsValue targetValue = target[key];
+    if (
+      sourceValue.truthy()
+      && sourceValue.isObject()
+      && targetValue.truthy()
+      && targetValue.isObject()
+      && !sourceValue.isArray()
+      && !targetValue.isArray()
+    ) {
+      deepAssign(targetValue, sourceValue);
+    } else {
+      target[key] = sourceValue;
+    }
+  }
+}
+
+export void deepAssignDeleteNulls(JsValue target, JsValue source) {
+  if (!target.truthy() || !target.isObject()) {
+    return;
+  }
+  if (!source.truthy() || !source.isObject()) {
+    return;
+  }
+  for (string key in source) {
+    JsValue sourceValue = source[key];
+    if (!sourceValue.truthy() && !(sourceValue is bool) && !(sourceValue is float)) {
+      target[key] = jsUndefined();
+    } else {
+      JsValue targetValue = target[key];
+      if (
+        sourceValue.isObject()
+        && targetValue.truthy()
+        && targetValue.isObject()
+        && !sourceValue.isArray()
+        && !targetValue.isArray()
+      ) {
+        deepAssignDeleteNulls(targetValue, sourceValue);
+      } else {
+        target[key] = sourceValue;
+      }
+    }
+  }
+}

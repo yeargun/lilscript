@@ -1,0 +1,35 @@
+export class QuickTree {
+  string[] ids;
+  bool[] checked;
+  bool[] collapsed;
+
+  init() {
+    this.ids = [];
+    this.checked = [];
+    this.collapsed = [];
+  }
+
+  void add(string id, bool isChecked, bool isCollapsed) {
+    this.ids.push(id);
+    this.checked.push(isChecked);
+    this.collapsed.push(isCollapsed);
+  }
+
+  void setChecked(int index, bool value) {
+    if (index < 0 || index >= this.checked.length) {
+      return;
+    }
+    this.checked[index] = value;
+  }
+
+  void setCollapsed(int index, bool value) {
+    if (index < 0 || index >= this.collapsed.length) {
+      return;
+    }
+    this.collapsed[index] = value;
+  }
+}
+
+export QuickTree createQuickTree() {
+  return new QuickTree();
+}

@@ -1,0 +1,45 @@
+export int numberHash(int val, int initialHashVal) {
+  return (((initialHashVal << 5) - initialHashVal) + val) | 0;
+}
+
+export int booleanHash(bool b, int initialHashVal) {
+  if (b) {
+    return numberHash(433, initialHashVal);
+  }
+  return numberHash(863, initialHashVal);
+}
+
+export int stringHash(string s, int hashVal) {
+  int h = numberHash(149417, hashVal);
+  int i = 0;
+  while (i < s.length) {
+    h = numberHash(s.charCodeAt(i), h);
+    i = i + 1;
+  }
+  return h;
+}
+
+export int intArrayHash(int[] arr, int initialHashVal) {
+  int h = numberHash(104579, initialHashVal);
+  int i = 0;
+  while (i < arr.length) {
+    h = numberHash(arr[i], h);
+    i = i + 1;
+  }
+  return h;
+}
+
+export int hashString(string obj) {
+  return stringHash(obj, 0);
+}
+
+export int hashInt(int obj) {
+  return numberHash(obj, 0);
+}
+
+export int leftRotate(int value, int bits) {
+  int delta = 32 - bits;
+  int ones = (1 << delta) - 1;
+  int mask = 0 - ones - 1;
+  return ((value << bits) | ((mask & value) >>> delta)) >>> 0;
+}

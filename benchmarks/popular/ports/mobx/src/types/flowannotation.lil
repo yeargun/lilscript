@@ -1,0 +1,102 @@
+import { DEV } from "../dev-flag.lil";
+import {
+  bind,
+  call1,
+  defineProperty,
+  hasOwn,
+  isNullish,
+  push,
+  undef
+} from "../host.lil";
+import {
+  MAKE_BREAK,
+  MAKE_CANCEL,
+  MAKE_CONTINUE
+} from "../constants.lil";
+import { assert20223DecoratorType } from "../api/decorators.lil";
+import { globalState } from "../core/globalstate.lil";
+import { isFlow } from "../core/predicates.lil";
+import { flow } from "../api/bindings.lil";
+import { admProxyOrTarget } from "./adm-proxy.lil";
+
+export JsValue decorateFlow20223_ = JS.method3((JsValue _s, JsValue annotation, JsValue mthd, JsValue context) => {
+  if (DEV) {
+    JsValue kinds = JS.array();
+    push(kinds, "method");
+    assert20223DecoratorType(context, kinds);
+  }
+  JsValue keyName = context["name"];
+  if (!isFlow(mthd)) {
+    mthd = JS.call(flow, undef(), mthd);
+  }
+  if (annotation["options_"].truthy() && annotation["options_"]["bound"].truthy()) {
+    call1(context["addInitializer"], context, JS.method0((JsValue self) => {
+      JsValue boundFn = bind(self[keyName], self);
+      boundFn["isMobXFlow"] = true;
+      self[keyName] = boundFn;
+      return undef();
+    }));
+  }
+  return mthd;
+});
+
+JsValue createFlowDescriptor(JsValue adm, JsValue annotation, JsValue key, JsValue descriptor, bool bound, bool safeDescriptors) {
+  JsValue value = descriptor["value"];
+  if (!isFlow(value)) {
+    value = JS.call(flow, undef(), value);
+  }
+  if (bound) {
+    value = bind(value, admProxyOrTarget(adm));
+    value["isMobXFlow"] = true;
+  }
+  bool configurable = true;
+  bool writable = true;
+  if (safeDescriptors) {
+    configurable = adm["isPlainObject_"].truthy();
+    writable = false;
+  }
+  return JS.object("value", value, "configurable", configurable, "enumerable", false, "writable", writable);
+}
+
+JsValue flowAnnotationMake = JS.methodRest((JsValue self, JsValue args) => {
+  JsValue adm = args[0];
+  JsValue key = args[1];
+  JsValue descriptor = args[2];
+  JsValue source = args[3];
+  if (JS.strictEqual(source, adm["target_"])) {
+    JsValue outcome = JS.call(self["extend_"], self, adm, key, descriptor, false);
+    if (JS.isNullish(outcome)) {
+      return MAKE_CANCEL;
+    }
+    return MAKE_CONTINUE;
+  }
+  if (self["options_"].truthy() && self["options_"]["bound"].truthy() && (!hasOwn(adm["target_"], key) || !isFlow(adm["target_"][key]))) {
+    JsValue outcome = JS.call(self["extend_"], self, adm, key, descriptor, false);
+    if (JS.isNullish(outcome)) {
+      return MAKE_CANCEL;
+    }
+  }
+  if (isFlow(descriptor["value"])) {
+    return MAKE_BREAK;
+  }
+  defineProperty(source, key, createFlowDescriptor(adm, self, key, descriptor, false, false));
+  return MAKE_CONTINUE;
+});
+
+JsValue flowAnnotationExtend = JS.methodRest((JsValue self, JsValue args) => {
+  JsValue adm = args[0];
+  bool boundFlag = false;
+  if (self["options_"].truthy() && self["options_"]["bound"].truthy()) {
+    boundFlag = true;
+  }
+  return JS.call(adm["defineProperty_"], adm, args[1], createFlowDescriptor(adm, self, args[1], args[2], boundFlag, globalState["safeDescriptors"].truthy()), args[3]);
+});
+
+export JsValue createFlowAnnotation(string name, JsValue options) {
+  JsValue annotation = JS.object();
+  annotation["annotationType_"] = name;
+  annotation["options_"] = options;
+  annotation["make_"] = flowAnnotationMake;
+  annotation["extend_"] = flowAnnotationExtend;
+  return annotation;
+}

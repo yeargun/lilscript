@@ -1,0 +1,72 @@
+export class EmbeddedCodeEditorWidget {
+  int parentWidth;
+  int parentHeight;
+  int overwriteWidth;
+  int overwriteHeight;
+  bool overwriteReadOnly;
+  bool hasOverwriteReadOnly;
+  string overwriteWordWrap;
+  bool hasOverwriteWordWrap;
+
+  init(int parentWidth, int parentHeight) {
+    this.parentWidth = parentWidth;
+    this.parentHeight = parentHeight;
+    this.overwriteWidth = 0;
+    this.overwriteHeight = 0;
+    this.overwriteReadOnly = false;
+    this.hasOverwriteReadOnly = false;
+    this.overwriteWordWrap = "";
+    this.hasOverwriteWordWrap = false;
+  }
+
+  void setOverwriteReadOnly(bool readOnly) {
+    this.hasOverwriteReadOnly = true;
+    this.overwriteReadOnly = readOnly;
+  }
+
+  void setOverwriteWordWrap(string wordWrap) {
+    this.hasOverwriteWordWrap = true;
+    this.overwriteWordWrap = wordWrap;
+  }
+
+  bool resolvedReadOnly(bool parentReadOnly) {
+    if (this.hasOverwriteReadOnly) {
+      return this.overwriteReadOnly;
+    }
+    return parentReadOnly;
+  }
+
+  string resolvedWordWrap(string parentWordWrap) {
+    if (this.hasOverwriteWordWrap) {
+      return this.overwriteWordWrap;
+    }
+    return parentWordWrap;
+  }
+
+  int resolvedWidth() {
+    if (this.overwriteWidth > 0) {
+      return this.overwriteWidth;
+    }
+    return this.parentWidth;
+  }
+
+  int resolvedHeight() {
+    if (this.overwriteHeight > 0) {
+      return this.overwriteHeight;
+    }
+    return this.parentHeight;
+  }
+
+  void onParentConfigurationChanged(int parentWidth, int parentHeight) {
+    this.parentWidth = parentWidth;
+    this.parentHeight = parentHeight;
+  }
+}
+
+export EmbeddedCodeEditorWidget createEmbeddedCodeEditorWidget(int parentWidth, int parentHeight) {
+  return new EmbeddedCodeEditorWidget(parentWidth, parentHeight);
+}
+
+export bool isEmbeddedEditor(bool hasParent) {
+  return hasParent;
+}

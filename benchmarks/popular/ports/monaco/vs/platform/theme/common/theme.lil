@@ -1,0 +1,29 @@
+export string ColorSchemeDark = "dark";
+export string ColorSchemeLight = "light";
+export string ColorSchemeHcDark = "hcDark";
+export string ColorSchemeHcLight = "hcLight";
+export string ThemeTypeVs = "vs";
+export string ThemeTypeVsDark = "vs-dark";
+export string ThemeTypeHcBlack = "hc-black";
+export string ThemeTypeHcLight = "hc-light";
+
+export bool isHighContrast(string scheme) {
+  return scheme == ColorSchemeHcDark || scheme == ColorSchemeHcLight;
+}
+
+export bool isDark(string scheme) {
+  return scheme == ColorSchemeDark || scheme == ColorSchemeHcDark;
+}
+
+export string themeTypeSelector(string scheme) {
+  if (scheme == ColorSchemeLight) {
+    return ThemeTypeVs;
+  }
+  if (scheme == ColorSchemeDark) {
+    return ThemeTypeVsDark;
+  }
+  if (scheme == ColorSchemeHcLight) {
+    return ThemeTypeHcLight;
+  }
+  return ThemeTypeHcBlack;
+}

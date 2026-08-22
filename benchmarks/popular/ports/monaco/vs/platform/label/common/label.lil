@@ -1,0 +1,29 @@
+export string basename(string path) {
+  int i = path.length - 1;
+  while (i >= 0) {
+    string ch = path.charAt(i);
+    if (ch == "/" || ch == "\\") {
+      string out = "";
+      int k = i + 1;
+      while (k < path.length) {
+        out = out + path.charAt(k);
+        k = k + 1;
+      }
+      return out;
+    }
+    i = i - 1;
+  }
+  return path;
+}
+
+export class LabelService {
+  string getUriLabel(string path) {
+    return basename(path);
+  }
+}
+
+export LabelService createLabelService() {
+  return new LabelService();
+}
+
+export string ILabelServiceId = "labelService";

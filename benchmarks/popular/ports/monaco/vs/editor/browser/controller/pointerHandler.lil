@@ -1,0 +1,63 @@
+export class PointerHandler {
+  string lastPointerType;
+  bool isPhone;
+  bool pointerEvents;
+  bool hasTouchEvent;
+
+  init(bool isPhone, bool pointerEvents, bool hasTouchEvent) {
+    this.lastPointerType = "mouse";
+    this.isPhone = isPhone;
+    this.pointerEvents = pointerEvents;
+    this.hasTouchEvent = hasTouchEvent;
+  }
+
+  string selectHandlerKind() {
+    if (this.isPhone && this.pointerEvents) {
+      return "pointer";
+    }
+    if (this.hasTouchEvent) {
+      return "touch";
+    }
+    return "mouse";
+  }
+
+  void onPointerDown(string pointerType) {
+    if (pointerType == "mouse") {
+      this.lastPointerType = "mouse";
+      return;
+    }
+    if (pointerType == "touch") {
+      this.lastPointerType = "touch";
+      return;
+    }
+    this.lastPointerType = "pen";
+  }
+
+  int translationScrollX(int translationX) {
+    return 0 - translationX;
+  }
+
+  int translationScrollY(int translationY) {
+    return 0 - translationY;
+  }
+
+  bool shouldHandleTap(bool containsTarget) {
+    return containsTarget;
+  }
+
+  bool dispatchInSelectionMode() {
+    return this.lastPointerType == "pen";
+  }
+
+  bool ignoreMouseDownForTouch(string pointerType) {
+    return pointerType == "touch";
+  }
+}
+
+export PointerHandler createPointerHandler(bool isPhone, bool pointerEvents, bool hasTouchEvent) {
+  return new PointerHandler(isPhone, pointerEvents, hasTouchEvent);
+}
+
+export string syntheticTapEventName() {
+  return "-monaco-textarea-synthetic-tap";
+}

@@ -1,0 +1,138 @@
+
+bool isIdentChar(string ch) {
+  int code = ch.charCodeAt(0);
+  if (code >= 97 && code <= 122) {
+    return true;
+  }
+  if (code >= 65 && code <= 90) {
+    return true;
+  }
+  if (code >= 48 && code <= 57) {
+    return true;
+  }
+  return ch == "_" || ch == "$";
+}
+
+string sliceChars(string text, int start, int end) {
+  string out = "";
+  int i = start;
+  if (i < 0) {
+    i = 0;
+  }
+  int last = end;
+  if (last > text.length) {
+    last = text.length;
+  }
+  while (i < last) {
+    out = out + text.charAt(i);
+    i = i + 1;
+  }
+  return out;
+}
+
+string wordAt(string line, int column) {
+  int i = column - 1;
+  if (i < 0) {
+    i = 0;
+  }
+  if (i > line.length) {
+    i = line.length;
+  }
+  int start = i;
+  while (start > 0 && isIdentChar(line.charAt(start - 1))) {
+    start = start - 1;
+  }
+  int end = i;
+  while (end < line.length && isIdentChar(line.charAt(end))) {
+    end = end + 1;
+  }
+  return sliceChars(line, start, end);
+}
+
+int wordStart(string line, int column) {
+  int i = column - 1;
+  if (i < 0) {
+    i = 0;
+  }
+  if (i > line.length) {
+    i = line.length;
+  }
+  while (i > 0 && isIdentChar(line.charAt(i - 1))) {
+    i = i - 1;
+  }
+  return i + 1;
+}
+
+int wordEnd(string line, int column) {
+  int i = column - 1;
+  if (i < 0) {
+    i = 0;
+  }
+  if (i > line.length) {
+    i = line.length;
+  }
+  while (i < line.length && isIdentChar(line.charAt(i))) {
+    i = i + 1;
+  }
+  return i + 1;
+}
+
+int leadingIndent(string line) {
+  int i = 0;
+  while (i < line.length) {
+    string ch = line.charAt(i);
+    if (ch != " " && ch != "\t") {
+      break;
+    }
+    i = i + 1;
+  }
+  return i;
+}
+
+export class StickyLine {
+  int lineNumber;
+  string text;
+  int indent;
+
+  init(int lineNumber, string text, int indent) {
+    this.lineNumber = lineNumber;
+    this.text = text;
+    this.indent = indent;
+  }
+}
+
+export StickyLine[] stickyLinesAt(string[] lines, int lineNumber, int maxCount) {
+  StickyLine[] result = [];
+  int i = 1;
+  int limit = lineNumber;
+  if (limit > lines.length) {
+    limit = lines.length;
+  }
+  while (i <= limit && result.length < maxCount) {
+    string content = lines[i - 1];
+    int indent = leadingIndent(content);
+    string trimmed = sliceChars(content, indent, content.length);
+    bool candidate = trimmed.startsWith("class ") || trimmed.startsWith("function ") || trimmed.startsWith("def ") || trimmed.endsWith("{");
+    if (candidate) {
+      result.push(new StickyLine(i, trimmed, indent));
+    }
+    i = i + 1;
+  }
+  StickyLine[] filtered = [];
+  int current = 0;
+  if (limit >= 1) {
+    current = leadingIndent(lines[limit - 1]);
+  }
+  i = 0;
+  while (i < result.length) {
+    if (result[i].indent < current || result[i].lineNumber == lineNumber) {
+      filtered.push(result[i]);
+    }
+    i = i + 1;
+  }
+  return filtered;
+}
+
+export StickyLine createStickyLine(int lineNumber, string text, int indent) {
+  return new StickyLine(lineNumber, text, indent);
+}

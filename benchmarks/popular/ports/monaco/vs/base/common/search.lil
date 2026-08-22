@@ -1,0 +1,66 @@
+import { sliceOf, stringSplit } from "../../../js-host";
+
+bool containsUppercaseCharacter(string value) {
+  int i = 0;
+  while (i < value.length) {
+    string ch = value.charAt(i);
+    if (ch.toUpperCase() == ch && ch.toLowerCase() != ch) {
+      return true;
+    }
+    i = i + 1;
+  }
+  return false;
+}
+
+bool validateSpecificSpecialCharacter(string value, string pattern, string specialCharacter) {
+  if (value.indexOf(specialCharacter) < 0 || pattern.indexOf(specialCharacter) < 0) {
+    return false;
+  }
+  return stringSplit(value, specialCharacter).length == stringSplit(pattern, specialCharacter).length;
+}
+
+string buildForSpecialCharacter(string value, string pattern, string specialCharacter) {
+  string[] patternParts = stringSplit(pattern, specialCharacter);
+  string[] valueParts = stringSplit(value, specialCharacter);
+  string[] result = [];
+  int i = 0;
+  while (i < patternParts.length) {
+    result.push(buildReplaceStringWithCasePreservedValue(valueParts[i], patternParts[i]));
+    i = i + 1;
+  }
+  return result.join(specialCharacter);
+}
+
+export string buildReplaceStringWithCasePreservedValue(string value, string pattern) {
+  if (value.length == 0) {
+    return pattern;
+  }
+  bool containsHyphens = validateSpecificSpecialCharacter(value, pattern, "-");
+  bool containsUnderscores = validateSpecificSpecialCharacter(value, pattern, "_");
+  if (containsHyphens && !containsUnderscores) {
+    return buildForSpecialCharacter(value, pattern, "-");
+  }
+  if (!containsHyphens && containsUnderscores) {
+    return buildForSpecialCharacter(value, pattern, "_");
+  }
+  if (value.toUpperCase() == value) {
+    return pattern.toUpperCase();
+  }
+  if (value.toLowerCase() == value) {
+    return pattern.toLowerCase();
+  }
+  if (containsUppercaseCharacter(value.charAt(0)) && pattern.length > 0) {
+    return pattern.charAt(0).toUpperCase() + sliceOf(pattern, 1, pattern.length);
+  }
+  if (value.charAt(0).toUpperCase() != value.charAt(0) && pattern.length > 0) {
+    return pattern.charAt(0).toLowerCase() + sliceOf(pattern, 1, pattern.length);
+  }
+  return pattern;
+}
+
+export string buildReplaceStringWithCasePreserved(string[] matches, string pattern) {
+  if (matches.length == 0) {
+    return pattern;
+  }
+  return buildReplaceStringWithCasePreservedValue(matches[0], pattern);
+}

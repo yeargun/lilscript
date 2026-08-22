@@ -1,0 +1,120 @@
+int RENDER_OFF = 0;
+int RENDER_ON = 1;
+int RENDER_RELATIVE = 2;
+int RENDER_INTERVAL = 3;
+
+int iabs(int n) {
+  if (n < 0) {
+    return 0 - n;
+  }
+  return n;
+}
+
+export class LineNumberRender {
+  int lineNumber;
+  string text;
+  string extraClassNames;
+  int left;
+  int width;
+  bool active;
+
+  init(int lineNumber, string text, string extraClassNames, int left, int width, bool active) {
+    this.lineNumber = lineNumber;
+    this.text = text;
+    this.extraClassNames = extraClassNames;
+    this.left = left;
+    this.width = width;
+    this.active = active;
+  }
+}
+
+export class LineNumbersOverlay {
+  int renderType;
+  int cursorModelLine;
+  int lineCount;
+  int lineNumbersLeft;
+  int lineNumbersWidth;
+  string renderFinalNewline;
+  LineNumberRender[] renderResult;
+
+  init(int renderType, int cursorModelLine, int lineCount, int lineNumbersLeft, int lineNumbersWidth, string renderFinalNewline) {
+    this.renderType = renderType;
+    this.cursorModelLine = cursorModelLine;
+    this.lineCount = lineCount;
+    this.lineNumbersLeft = lineNumbersLeft;
+    this.lineNumbersWidth = lineNumbersWidth;
+    this.renderFinalNewline = renderFinalNewline;
+    this.renderResult = [];
+  }
+
+  string getLineRenderLineNumber(int modelLineNumber, int modelColumn) {
+    if (modelColumn != 1) {
+      return "";
+    }
+    if (this.renderType == RENDER_RELATIVE) {
+      int diff = iabs(this.cursorModelLine - modelLineNumber);
+      if (diff == 0) {
+        return modelLineNumber.toString();
+      }
+      return diff.toString();
+    }
+    if (this.renderType == RENDER_INTERVAL) {
+      if (this.cursorModelLine == modelLineNumber) {
+        return modelLineNumber.toString();
+      }
+      if (modelLineNumber % 10 == 0) {
+        return modelLineNumber.toString();
+      }
+      if (modelLineNumber == this.lineCount) {
+        return modelLineNumber.toString();
+      }
+      return "";
+    }
+    return modelLineNumber.toString();
+  }
+
+  void prepareRender(int visibleStartLineNumber, int visibleEndLineNumber, int[] lastLineLengths) {
+    this.renderResult = [];
+    if (this.renderType == RENDER_OFF) {
+      return;
+    }
+    int lineNumber = visibleStartLineNumber;
+    while (lineNumber <= visibleEndLineNumber) {
+      string text = this.getLineRenderLineNumber(lineNumber, 1);
+      string extra = "";
+      if (lineNumber == this.lineCount && lastLineLengths.length > 0) {
+        int lastLen = lastLineLengths[0];
+        if (lastLen == 0) {
+          if (this.renderFinalNewline == "off") {
+            text = "";
+          }
+          if (this.renderFinalNewline == "dimmed") {
+            extra = extra + " dimmed-line-number";
+          }
+        }
+      }
+      bool active = lineNumber == this.cursorModelLine;
+      if (active) {
+        extra = extra + " active-line-number";
+      }
+      this.renderResult.push(new LineNumberRender(lineNumber, text, extra, this.lineNumbersLeft, this.lineNumbersWidth, active));
+      lineNumber = lineNumber + 1;
+    }
+  }
+
+  string render(int startLineNumber, int lineNumber) {
+    int lineIndex = lineNumber - startLineNumber;
+    if (lineIndex < 0 || lineIndex >= this.renderResult.length) {
+      return "";
+    }
+    LineNumberRender row = this.renderResult[lineIndex];
+    if (row.text.length == 0 && row.extraClassNames.length == 0) {
+      return "";
+    }
+    return "<div class=\"line-numbers" + row.extraClassNames + "\" style=\"left:" + row.left.toString() + "px;width:" + row.width.toString() + "px;\">" + row.text + "</div>";
+  }
+}
+
+export LineNumbersOverlay createLineNumbersOverlay(int renderType, int cursorModelLine, int lineCount, int lineNumbersLeft, int lineNumbersWidth, string renderFinalNewline) {
+  return new LineNumbersOverlay(renderType, cursorModelLine, lineCount, lineNumbersLeft, lineNumbersWidth, renderFinalNewline);
+}

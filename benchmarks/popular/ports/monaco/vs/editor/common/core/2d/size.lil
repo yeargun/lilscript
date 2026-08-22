@@ -1,0 +1,17 @@
+export class Size2D {
+  int width;
+  int height;
+
+  init(int width, int height) {
+    this.width = width;
+    this.height = height;
+  }
+
+  string toString() {
+    return "(" + this.width.toString() + "," + this.height.toString() + ")";
+  }
+
+  Size2D transpose() {
+    return new Size2D(this.height, this.width);
+  }
+}

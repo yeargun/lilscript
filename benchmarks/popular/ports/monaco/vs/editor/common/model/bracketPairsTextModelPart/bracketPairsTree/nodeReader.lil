@@ -1,0 +1,139 @@
+int LengthFactor = 67108864;
+
+int lengthAdd(int first, int second) {
+  int result = first + second;
+  if (second >= LengthFactor) {
+    result = result - first % LengthFactor;
+  }
+  return result;
+}
+
+export class ReaderNode {
+  int kind;
+  int length;
+  ReaderNode[] children;
+
+  init(int kind, int length, ReaderNode[] children) {
+    this.kind = kind;
+    this.length = length;
+    this.children = children;
+  }
+
+  int childrenLength() {
+    return this.children.length;
+  }
+
+  ReaderNode? getChild(int index) {
+    if (index < 0 || index >= this.children.length) {
+      return null;
+    }
+    return this.children[index];
+  }
+}
+
+int getNextChildIdx(ReaderNode node, int currentIndex) {
+  int index = currentIndex + 1;
+  if (index >= node.children.length) {
+    return -1;
+  }
+  return index;
+}
+
+export class NodeReader {
+  int lastOffset;
+  ReaderNode[] nextNodes;
+  int[] offsets;
+  int[] indexes;
+
+  init(ReaderNode node) {
+    this.lastOffset = 0;
+    this.nextNodes = [node];
+    this.offsets = [0];
+    this.indexes = [];
+  }
+
+  ReaderNode? readLongestNodeAt(int offset, func(ReaderNode)->bool predicate) {
+    if (offset < this.lastOffset) {
+      return null;
+    }
+    this.lastOffset = offset;
+    while (this.nextNodes.length > 0) {
+      ReaderNode current = this.nextNodes[this.nextNodes.length - 1];
+      int currentOffset = this.offsets[this.offsets.length - 1];
+      if (offset < currentOffset) {
+        return null;
+      }
+      if (currentOffset < offset) {
+        if (lengthAdd(currentOffset, current.length) <= offset) {
+          this.nextNodeAfterCurrent();
+        } else {
+          int childIndex = getNextChildIdx(current, -1);
+          if (childIndex < 0) {
+            this.nextNodeAfterCurrent();
+          } else {
+            ReaderNode? child = current.getChild(childIndex);
+            if (child != null) {
+              this.nextNodes.push(child);
+              this.offsets.push(currentOffset);
+              this.indexes.push(childIndex);
+            }
+          }
+        }
+      } else {
+        if (predicate(current)) {
+          this.nextNodeAfterCurrent();
+          return current;
+        }
+        int childIndex = getNextChildIdx(current, -1);
+        if (childIndex < 0) {
+          this.nextNodeAfterCurrent();
+          return null;
+        }
+        ReaderNode? child = current.getChild(childIndex);
+        if (child != null) {
+          this.nextNodes.push(child);
+          this.offsets.push(currentOffset);
+          this.indexes.push(childIndex);
+        }
+      }
+    }
+    return null;
+  }
+
+  void nextNodeAfterCurrent() {
+    bool done = false;
+    while (!done && this.nextNodes.length > 0) {
+      int lastNode = this.nextNodes.length - 1;
+      ReaderNode current = this.nextNodes[lastNode];
+      int currentOffset = this.offsets[this.offsets.length - 1];
+      this.nextNodes.splice(lastNode, 1);
+      this.offsets.splice(this.offsets.length - 1, 1);
+      if (this.indexes.length == 0) {
+        done = true;
+      } else {
+        ReaderNode parent = this.nextNodes[this.nextNodes.length - 1];
+        int indexSlot = this.indexes.length - 1;
+        int nextIndex = getNextChildIdx(parent, this.indexes[indexSlot]);
+        if (nextIndex >= 0) {
+          ReaderNode? child = parent.getChild(nextIndex);
+          if (child != null) {
+            this.nextNodes.push(child);
+            this.offsets.push(lengthAdd(currentOffset, current.length));
+            this.indexes[indexSlot] = nextIndex;
+            done = true;
+          }
+        } else {
+          this.indexes.splice(indexSlot, 1);
+        }
+      }
+    }
+  }
+}
+
+export ReaderNode createReaderNode(int kind, int length, ReaderNode[] children) {
+  return new ReaderNode(kind, length, children);
+}
+
+export NodeReader createNodeReader(ReaderNode node) {
+  return new NodeReader(node);
+}

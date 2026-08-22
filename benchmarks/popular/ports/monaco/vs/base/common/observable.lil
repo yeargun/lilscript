@@ -1,0 +1,13 @@
+export string[] observableBarrel() {
+  string[] xs = [];
+  xs.push("observableInternal/index.js");
+  xs.push("observableInternal/observables/observableValue.js");
+  xs.push("observableInternal/observables/derived.js");
+  xs.push("observableInternal/reactions/autorun.js");
+  xs.push("observableInternal/transaction.js");
+  return xs;
+}
+
+export string observableFacadeFrom() {
+  return "observableInternal/index.js";
+}

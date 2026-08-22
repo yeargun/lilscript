@@ -1,0 +1,28 @@
+export class InlineProgress {
+  bool visible;
+  int lineNumber;
+  int column;
+  string title;
+
+  init() {
+    this.visible = false;
+    this.lineNumber = 1;
+    this.column = 1;
+    this.title = "";
+  }
+
+  void showAt(int lineNumber, int column, string title) {
+    this.lineNumber = lineNumber;
+    this.column = column;
+    this.title = title;
+    this.visible = true;
+  }
+
+  void hide() {
+    this.visible = false;
+  }
+}
+
+export InlineProgress createInlineProgress() {
+  return new InlineProgress();
+}

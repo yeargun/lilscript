@@ -1,0 +1,86 @@
+export class KeybindingRule {
+  string id;
+  string primary;
+  string when;
+  int weight;
+  bool isExtension;
+
+  init(string id, string primary, string when, int weight, bool isExtension) {
+    this.id = id;
+    this.primary = primary;
+    this.when = when;
+    this.weight = weight;
+    this.isExtension = isExtension;
+  }
+}
+
+export class KeybindingsRegistryImpl {
+  KeybindingRule[] core;
+  KeybindingRule[] extensions;
+  bool cacheValid;
+  KeybindingRule[] merged;
+
+  init() {
+    this.core = [];
+    this.extensions = [];
+    this.cacheValid = false;
+    this.merged = [];
+  }
+
+  void registerKeybindingRule(string id, string primary, string when, int weight) {
+    this.core.push(new KeybindingRule(id, primary, when, weight, false));
+    this.cacheValid = false;
+  }
+
+  void registerExtensionKeybinding(string id, string primary, string when, int weight) {
+    this.extensions.push(new KeybindingRule(id, primary, when, weight, true));
+    this.cacheValid = false;
+  }
+
+  KeybindingRule[] getDefaultKeybindings() {
+    if (this.cacheValid) {
+      return this.merged;
+    }
+    KeybindingRule[] out = [];
+    int i = 0;
+    while (i < this.core.length) {
+      out.push(this.core[i]);
+      i = i + 1;
+    }
+    int j = 0;
+    while (j < this.extensions.length) {
+      out.push(this.extensions[j]);
+      j = j + 1;
+    }
+    int a = 0;
+    while (a < out.length) {
+      int b = a + 1;
+      while (b < out.length) {
+        if (out[b].weight < out[a].weight) {
+          KeybindingRule tmp = out[a];
+          out[a] = out[b];
+          out[b] = tmp;
+        }
+        b = b + 1;
+      }
+      a = a + 1;
+    }
+    this.merged = out;
+    this.cacheValid = true;
+    return out;
+  }
+}
+
+KeybindingsRegistryImpl keybindingsRegistry = new KeybindingsRegistryImpl();
+
+export KeybindingsRegistryImpl getKeybindingsRegistry() {
+  return keybindingsRegistry;
+}
+
+export void registerKeybindingRule(string id, string primary, string when, int weight) {
+  keybindingsRegistry.registerKeybindingRule(id, primary, when, weight);
+}
+
+export KeybindingRule[] getDefaultKeybindings() {
+  return keybindingsRegistry.getDefaultKeybindings();
+}

@@ -1,0 +1,51 @@
+import { Pos } from "../../../../../base/position";
+import { Rng, createRange } from "../../../../../base/range";
+import { sliceOf } from "../../../../../js-host";
+import { TextLength, textLengthOfText } from "./textLength";
+import { PositionOffsetTransformer } from "./positionToOffsetImpl";
+import { OffsetRange } from "../ranges/offsetRange";
+import { LineRange } from "../ranges/lineRange";
+
+export class StringText {
+  string value;
+  PositionOffsetTransformer transformer;
+
+  init(string value) {
+    this.value = value;
+    this.transformer = new PositionOffsetTransformer(value);
+  }
+
+  TextLength length() {
+    return textLengthOfText(this.value);
+  }
+
+  string getValue() {
+    return this.value;
+  }
+
+  string getValueOfRange(Rng range) {
+    int start = this.transformer.getOffset(new Pos(range.startLineNumber, range.startColumn));
+    int end = this.transformer.getOffset(new Pos(range.endLineNumber, range.endColumn));
+    return sliceOf(this.value, start, end);
+  }
+
+  string getValueOfOffsetRange(OffsetRange range) {
+    return sliceOf(this.value, range.start, range.endExclusive);
+  }
+
+  int getLineLength(int lineNumber) {
+    return this.getLineAt(lineNumber).length;
+  }
+
+  string getLineAt(int lineNumber) {
+    return this.getValueOfRange(createRange(lineNumber, 1, lineNumber, 1073741824));
+  }
+
+  LineRange lineRange() {
+    return this.length().toLineRange();
+  }
+
+  PositionOffsetTransformer getTransformer() {
+    return this.transformer;
+  }
+}

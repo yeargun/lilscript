@@ -1,0 +1,175 @@
+export class DecorationsRange {
+  int startLineNumber;
+  int startColumn;
+  int endLineNumber;
+  int endColumn;
+
+  init(int startLineNumber, int startColumn, int endLineNumber, int endColumn) {
+    this.startLineNumber = startLineNumber;
+    this.startColumn = startColumn;
+    this.endLineNumber = endLineNumber;
+    this.endColumn = endColumn;
+  }
+
+  bool equals(DecorationsRange other) {
+    return this.startLineNumber == other.startLineNumber && this.startColumn == other.startColumn && this.endLineNumber == other.endLineNumber && this.endColumn == other.endColumn;
+  }
+}
+
+export class ModelDecorationData {
+  string id;
+  DecorationsRange range;
+  string inlineClassName;
+  string beforeClassName;
+  string afterClassName;
+  bool affectsFont;
+  bool minimap;
+  bool margin;
+
+  init(string id, DecorationsRange range, string inlineClassName, string beforeClassName, string afterClassName, bool affectsFont, bool minimap, bool margin) {
+    this.id = id;
+    this.range = range;
+    this.inlineClassName = inlineClassName;
+    this.beforeClassName = beforeClassName;
+    this.afterClassName = afterClassName;
+    this.affectsFont = affectsFont;
+    this.minimap = minimap;
+    this.margin = margin;
+  }
+}
+
+export class LineInlineDecoration {
+  DecorationsRange range;
+  string className;
+  int type;
+
+  init(DecorationsRange range, string className, int type) {
+    this.range = range;
+    this.className = className;
+    this.type = type;
+  }
+}
+
+export class ViewportDecorations {
+  ModelDecorationData[] decorations;
+  LineInlineDecoration[][] inlineDecorations;
+  bool[] hasVariableFonts;
+
+  init(ModelDecorationData[] decorations, LineInlineDecoration[][] inlineDecorations, bool[] hasVariableFonts) {
+    this.decorations = decorations;
+    this.inlineDecorations = inlineDecorations;
+    this.hasVariableFonts = hasVariableFonts;
+  }
+}
+
+export class ViewModelDecorations {
+  ModelDecorationData[] decorations;
+  DecorationsRange? cachedRange;
+  ViewportDecorations? cachedData;
+
+  init(ModelDecorationData[] decorations) {
+    this.decorations = decorations;
+    this.cachedRange = null;
+    this.cachedData = null;
+  }
+
+  void reset() {
+    this.cachedRange = null;
+    this.cachedData = null;
+  }
+
+  void setDecorations(ModelDecorationData[] decorations) {
+    this.decorations = decorations;
+    this.reset();
+  }
+
+  ViewportDecorations compute(DecorationsRange viewRange, bool onlyMinimap, bool onlyMargin) {
+    ModelDecorationData[] result = [];
+    LineInlineDecoration[][] inlineByLine = [];
+    bool[] variable = [];
+    int line = viewRange.startLineNumber;
+    while (line <= viewRange.endLineNumber) {
+      LineInlineDecoration[] lineData = [];
+      inlineByLine.push(lineData);
+      variable.push(false);
+      line = line + 1;
+    }
+    int i = 0;
+    while (i < this.decorations.length) {
+      ModelDecorationData decoration = this.decorations[i];
+      if (decoration.range.endLineNumber < viewRange.startLineNumber || decoration.range.startLineNumber > viewRange.endLineNumber) {
+        i = i + 1;
+        continue;
+      }
+      if (onlyMinimap && !decoration.minimap) {
+        i = i + 1;
+        continue;
+      }
+      if (onlyMargin && !decoration.margin) {
+        i = i + 1;
+        continue;
+      }
+      result.push(decoration);
+      int startLine = decoration.range.startLineNumber;
+      if (startLine < viewRange.startLineNumber) {
+        startLine = viewRange.startLineNumber;
+      }
+      int endLine = decoration.range.endLineNumber;
+      if (endLine > viewRange.endLineNumber) {
+        endLine = viewRange.endLineNumber;
+      }
+      if (decoration.inlineClassName.length > 0) {
+        line = startLine;
+        while (line <= endLine) {
+          inlineByLine[line - viewRange.startLineNumber].push(new LineInlineDecoration(decoration.range, decoration.inlineClassName, 0));
+          if (decoration.affectsFont) {
+            variable[line - viewRange.startLineNumber] = true;
+          }
+          line = line + 1;
+        }
+      }
+      if (decoration.beforeClassName.length > 0 && decoration.range.startLineNumber >= viewRange.startLineNumber && decoration.range.startLineNumber <= viewRange.endLineNumber) {
+        DecorationsRange beforeRange = new DecorationsRange(decoration.range.startLineNumber, decoration.range.startColumn, decoration.range.startLineNumber, decoration.range.startColumn);
+        inlineByLine[decoration.range.startLineNumber - viewRange.startLineNumber].push(new LineInlineDecoration(beforeRange, decoration.beforeClassName, 1));
+      }
+      if (decoration.afterClassName.length > 0 && decoration.range.endLineNumber >= viewRange.startLineNumber && decoration.range.endLineNumber <= viewRange.endLineNumber) {
+        DecorationsRange afterRange = new DecorationsRange(decoration.range.endLineNumber, decoration.range.endColumn, decoration.range.endLineNumber, decoration.range.endColumn);
+        inlineByLine[decoration.range.endLineNumber - viewRange.startLineNumber].push(new LineInlineDecoration(afterRange, decoration.afterClassName, 2));
+      }
+      i = i + 1;
+    }
+    return new ViewportDecorations(result, inlineByLine, variable);
+  }
+
+  ViewportDecorations getDecorationsViewportData(DecorationsRange viewRange) {
+    DecorationsRange? previousRange = this.cachedRange;
+    ViewportDecorations? previousData = this.cachedData;
+    if (previousRange != null && previousData != null && previousRange.equals(viewRange)) {
+      return previousData;
+    }
+    ViewportDecorations data = this.compute(viewRange, false, false);
+    this.cachedRange = viewRange;
+    this.cachedData = data;
+    return data;
+  }
+
+  ModelDecorationData[] getMinimapDecorationsInRange(DecorationsRange range) {
+    return this.compute(range, true, false).decorations;
+  }
+
+  ViewportDecorations getDecorationsOnLine(int lineNumber, int minColumn, int maxColumn, bool onlyMinimap = false, bool onlyMargin = false) {
+    return this.compute(new DecorationsRange(lineNumber, minColumn, lineNumber, maxColumn), onlyMinimap, onlyMargin);
+  }
+}
+
+export ViewModelDecorations createViewModelDecorations(ModelDecorationData[] decorations) {
+  return new ViewModelDecorations(decorations);
+}
+
+export ModelDecorationData createModelDecorationData(string id, DecorationsRange range, string inlineClassName = "", string beforeClassName = "", string afterClassName = "", bool affectsFont = false, bool minimap = false, bool margin = false) {
+  return new ModelDecorationData(id, range, inlineClassName, beforeClassName, afterClassName, affectsFont, minimap, margin);
+}
+
+export DecorationsRange createDecorationsRange(int startLineNumber, int startColumn, int endLineNumber, int endColumn) {
+  return new DecorationsRange(startLineNumber, startColumn, endLineNumber, endColumn);
+}

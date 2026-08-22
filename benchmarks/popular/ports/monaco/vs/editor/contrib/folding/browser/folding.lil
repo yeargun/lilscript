@@ -1,0 +1,195 @@
+export string FOLDING_CONTROLLER_ID = "editor.contrib.folding";
+export int FOLDING_UPDATE_MIN_MS = 200;
+
+export class FoldRange {
+  int startLineNumber;
+  int endLineNumber;
+  bool isCollapsed;
+
+  init(int startLineNumber, int endLineNumber, bool isCollapsed) {
+    this.startLineNumber = startLineNumber;
+    this.endLineNumber = endLineNumber;
+    this.isCollapsed = isCollapsed;
+  }
+}
+
+int computeIndentLevel(string line, int tabSize) {
+  int indent = 0;
+  int i = 0;
+  int size = tabSize;
+  if (size < 1) {
+    size = 4;
+  }
+  while (i < line.length) {
+    int code = line.charCodeAt(i);
+    if (code == 32) {
+      indent = indent + 1;
+    } else if (code == 9) {
+      indent = indent - (indent % size) + size;
+    } else {
+      break;
+    }
+    i = i + 1;
+  }
+  if (i == line.length) {
+    return -1;
+  }
+  return indent;
+}
+
+class PreviousRegion {
+  int indent;
+  int endAbove;
+  int line;
+
+  init(int indent, int endAbove, int line) {
+    this.indent = indent;
+    this.endAbove = endAbove;
+    this.line = line;
+  }
+}
+
+export FoldRange[] computeIndentFolds(string[] lines, int tabSize, bool offSide) {
+  FoldRange[] folds = [];
+  PreviousRegion[] previousRegions = [];
+  int sentinel = lines.length + 1;
+  previousRegions.push(new PreviousRegion(-1, sentinel, sentinel));
+  int line = lines.length;
+  while (line > 0) {
+    int indent = computeIndentLevel(lines[line - 1], tabSize);
+    PreviousRegion previous = previousRegions[previousRegions.length - 1];
+    if (indent == -1) {
+      if (offSide) {
+        previous.endAbove = line;
+      }
+      line = line - 1;
+      continue;
+    }
+    if (previous.indent > indent) {
+      while (previous.indent > indent && previousRegions.length > 1) {
+        previousRegions.splice(previousRegions.length - 1, 1);
+        previous = previousRegions[previousRegions.length - 1];
+      }
+      int endLineNumber = previous.endAbove - 1;
+      if (endLineNumber - line >= 1) {
+        folds.push(new FoldRange(line, endLineNumber, false));
+      }
+    }
+    if (previous.indent == indent) {
+      previous.endAbove = line;
+    } else if (previous.indent < indent) {
+      previousRegions.push(new PreviousRegion(indent, line, line));
+    }
+    line = line - 1;
+  }
+  int i = 0;
+  int j = folds.length - 1;
+  while (i < j) {
+    FoldRange tmp = folds[i];
+    folds[i] = folds[j];
+    folds[j] = tmp;
+    i = i + 1;
+    j = j - 1;
+  }
+  return folds;
+}
+
+export class FoldingController {
+  bool enabled;
+  bool useFoldingProviders;
+  bool unfoldOnClickAfterEndOfLine;
+  bool foldingImportsByDefault;
+  FoldRange[] regions;
+  int mouseDownLine;
+
+  init() {
+    this.enabled = true;
+    this.useFoldingProviders = true;
+    this.unfoldOnClickAfterEndOfLine = false;
+    this.foldingImportsByDefault = false;
+    this.regions = [];
+    this.mouseDownLine = -1;
+  }
+
+  string getId() {
+    return FOLDING_CONTROLLER_ID;
+  }
+
+  void recompute(string[] lines, int tabSize, bool offSide) {
+    if (!this.enabled) {
+      this.regions = [];
+      return;
+    }
+    this.regions = computeIndentFolds(lines, tabSize, offSide);
+  }
+
+  void fold(int lineNumber) {
+    int i = 0;
+    while (i < this.regions.length) {
+      if (this.regions[i].startLineNumber == lineNumber) {
+        this.regions[i].isCollapsed = true;
+      }
+      i = i + 1;
+    }
+  }
+
+  void unfold(int lineNumber) {
+    int i = 0;
+    while (i < this.regions.length) {
+      if (this.regions[i].startLineNumber <= lineNumber && this.regions[i].endLineNumber >= lineNumber) {
+        this.regions[i].isCollapsed = false;
+      }
+      i = i + 1;
+    }
+  }
+
+  void foldAll() {
+    int i = 0;
+    while (i < this.regions.length) {
+      this.regions[i].isCollapsed = true;
+      i = i + 1;
+    }
+  }
+
+  void unfoldAll() {
+    int i = 0;
+    while (i < this.regions.length) {
+      this.regions[i].isCollapsed = false;
+      i = i + 1;
+    }
+  }
+
+  void toggleFold(int lineNumber) {
+    int i = this.regions.length - 1;
+    while (i >= 0) {
+      if (this.regions[i].startLineNumber <= lineNumber && this.regions[i].endLineNumber >= lineNumber) {
+        this.regions[i].isCollapsed = !this.regions[i].isCollapsed;
+        return;
+      }
+      i = i - 1;
+    }
+  }
+
+  bool onMouseDown(int lineNumber) {
+    this.mouseDownLine = lineNumber;
+    return true;
+  }
+
+  bool onMouseUp(int lineNumber, bool afterEndOfLine) {
+    if (this.mouseDownLine != lineNumber) {
+      this.mouseDownLine = -1;
+      return false;
+    }
+    this.mouseDownLine = -1;
+    if (afterEndOfLine && this.unfoldOnClickAfterEndOfLine) {
+      this.unfold(lineNumber);
+      return true;
+    }
+    this.toggleFold(lineNumber);
+    return true;
+  }
+}
+
+export FoldingController createFoldingController() {
+  return new FoldingController();
+}

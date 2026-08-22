@@ -181,7 +181,8 @@ fn preserves_non_identifier_assignments_and_different_operands() {
     let source = "a.x=a.x+1;a=b+1;return a";
     let optimized = optimize_generated_javascript(source).unwrap();
     // Neither assignment is folded; only the top-level comma join applies.
-    assert_eq!(optimized.code, "a.x=a.x+1,a=b+1;return a");
+    // The implicit `a=` becomes a module binding so the fragment is valid ESM.
+    assert_eq!(optimized.code, "var a;a.x=a.x+1,a=b+1;return a");
 }
 
 #[test]
@@ -405,7 +406,7 @@ fn folds_an_assignment_followed_by_its_truthiness_guard() {
     .unwrap();
     assert_eq!(
         optimized.code,
-        "function f(x){(a=read(x))&&use(a),(b=next())&&use(b);}"
+        "function f(x){var a;var b;(a=read(x))&&use(a),(b=next())&&use(b);}"
     );
     assert!(optimized.rewrites >= 2);
 }
@@ -415,7 +416,6 @@ fn assignment_guard_folding_stays_within_proven_statement_boundaries() {
     let sources = [
         "function f(x){if(x)a=read();if(a)use(a)}",
         "function f(x){while(x)a=read();if(a)use(a)}",
-        "function f(x){x?a=read():b=next();if(b)use(b)}",
         "function f(){a.x=read();if(a.x)use(a.x)}",
     ];
 
@@ -423,6 +423,13 @@ fn assignment_guard_folding_stays_within_proven_statement_boundaries() {
         let optimized = optimize_generated_javascript(source).unwrap();
         assert_eq!(optimized.code, source);
     }
+
+    assert_eq!(
+        optimize_generated_javascript("function f(x){x?a=read():b=next();if(b)use(b)}")
+            .unwrap()
+            .code,
+        "function f(x){var a;var b;x?a=read():b=next();if(b)use(b)}"
+    );
 
     assert_eq!(
         optimize_generated_javascript("function f(){a=read();if(b)use(a)}")
@@ -436,7 +443,7 @@ fn assignment_guard_folding_stays_within_proven_statement_boundaries() {
             .unwrap();
     assert_eq!(
         nested.code,
-        "function f(){(a=choose(call(1),{x:[2,3]}))&&use(a);}"
+        "function f(){var a;(a=choose(call(1),{x:[2,3]}))&&use(a);}"
     );
 }
 
@@ -942,6 +949,95 @@ fn permits_the_same_generated_binding_in_nested_scopes() {
 }
 
 #[test]
+fn rejects_a_boolean_fused_into_a_class_body() {
+    let error = analyze_generated_javascript(
+        "class C{set x(t){this.x=t}!1{this.y=1}z(){return this.x}}",
+    )
+    .unwrap_err();
+    assert!(
+        error.to_string().contains("invalid generated class element"),
+        "{error}"
+    );
+}
+
+#[test]
+fn permits_a_computed_false_class_method() {
+    analyze_generated_javascript("class C{constructor(){this.y=1}[!1](){this.y=0}z(){return this.y}}")
+        .unwrap();
+}
+
+#[test]
+fn rejects_a_declaration_in_a_for_update_clause() {
+    let error = analyze_generated_javascript(
+        "function each(r,n){for(var t=r.values();!t.next().done;var e;)r.call(n,e.value)}",
+    )
+    .unwrap_err();
+    assert!(
+        error
+            .to_string()
+            .contains("invalid generated for-update clause"),
+        "{error}"
+    );
+}
+
+#[test]
+fn permits_a_c_style_for_with_empty_update() {
+    analyze_generated_javascript("function each(t){for(var i=t.values();!i.next().done;){}}").unwrap();
+}
+
+#[test]
+fn rejects_a_local_read_from_a_sibling_function() {
+    let source = "function a(){var y=/a/;return y.test(\"a\")}function b(e){return y.exec(e)}";
+    let error = analyze_generated_javascript(source).unwrap_err();
+    assert!(
+        error.to_string().contains("unresolved generated identifier"),
+        "{error}"
+    );
+}
+
+#[test]
+fn rejects_a_sibling_local_leaked_through_a_shared_iife() {
+    let source = "var S=(function(){function list(){var y=/a/;return y.test(\"a\")}function table(e){return y.exec(e)}return table})()";
+    let error = analyze_generated_javascript(source).unwrap_err();
+    assert!(
+        error.to_string().contains("unresolved generated identifier"),
+        "{error}"
+    );
+}
+
+#[test]
+fn permits_sibling_functions_that_reuse_the_same_parameter_name() {
+    analyze_generated_javascript("function a(e){return e}function b(e){return e}").unwrap();
+}
+
+#[test]
+fn permits_an_expression_arrow_parameter_that_matches_a_sibling_local() {
+    analyze_generated_javascript("function a(x){return x}let n=x=>x+1;console.log(n(2))").unwrap();
+}
+
+#[test]
+fn permits_a_catch_parameter_that_matches_a_sibling_local() {
+    analyze_generated_javascript(
+        "function a(){var v31=0;return v31}function b(){try{return 1}catch(v31){return v31}}",
+    )
+    .unwrap();
+}
+
+#[test]
+fn permits_a_later_var_after_an_asi_var_list_that_matches_a_sibling() {
+    analyze_generated_javascript(
+        "function a(){if(x){var y=1,z}var v130=2;return v130}function b(){var v130=0;return v130}",
+    )
+    .unwrap();
+}
+
+#[test]
+fn permits_a_nested_function_to_read_an_outer_var() {
+    analyze_generated_javascript("function a(){var y=/a/;return function b(e){return y.exec(e)}}")
+        .unwrap();
+}
+
+#[test]
 fn inlines_bit_or_zero_into_subtract_without_stealing_the_minus() {
     let source = r#"function f(x){if(x){var l=x+2|0;return l-1|0}return 0}console.log(f(5))"#;
     let optimized = optimize_generated_javascript(source).unwrap();
@@ -1240,11 +1336,89 @@ fn folds_dead_pure_prototype_aliases() {
     let delayed_out = optimize_generated_javascript(delayed).unwrap();
     assert_eq!(
         delayed_out.code.matches("t=C.prototype").count(),
-        1,
+        0,
         "{}",
         delayed_out.code
     );
     assert_eq!(run_javascript(&delayed_out.code).trim(), "1");
+
+    let across_function = "class I{constructor(){this.e=1}}class M{constructor(){this.e=2}}la=function(n,c){return c};la(\"Atom\",I),a=I.prototype;var be=function(e){return e};la(\"Reaction\",M),a=M.prototype;console.log(a===M.prototype,be(3))";
+    let across_out = optimize_generated_javascript(across_function).unwrap();
+    assert_eq!(
+        across_out.code.matches("a=I.prototype").count(),
+        0,
+        "{}",
+        across_out.code
+    );
+    assert_eq!(run_javascript(&across_out.code).trim(), "true 3");
+
+    let shadowed_param = "class I{constructor(e){this.e=e}}la=function(n,c){c.prototype.x=!0;return c};la(\"Atom\",I),a=I.prototype;var be=function(e,t,r){return e+t+r};console.log(be(1,2,3),be(4,5,6),new I(9).e)";
+    let shadowed_out = optimize_generated_javascript(shadowed_param).unwrap();
+    assert!(
+        !shadowed_out.code.contains("a=I.prototype"),
+        "{}",
+        shadowed_out.code
+    );
+    assert_eq!(run_javascript(&shadowed_out.code).trim(), "6 15 9");
+
+    let comma_run = "class C{constructor(){this.a=1}m(){return this.a}}X=function(n,c){return c};wi=Symbol.toStringTag,mi=C.prototype,mi=C.prototype,mi=C.prototype,lt=X('ObservableSet',C);var x=new C();console.log(x.m(),typeof lt,String(wi))";
+    let comma_run_out = optimize_generated_javascript(comma_run).unwrap();
+    assert!(
+        !comma_run_out.code.contains("prototypemi")
+            && !comma_run_out.code.contains("prototypelt")
+            && !comma_run_out.code.contains("toStringTagmi")
+            && !comma_run_out.code.contains(")lt="),
+        "{}",
+        comma_run_out.code
+    );
+    assert_eq!(
+        run_javascript(&comma_run_out.code).trim(),
+        "1 function Symbol(Symbol.toStringTag)"
+    );
+
+    let leftover_has = "class p{constructor(){this.l=1}H(t,r){x(this.l)}}t=p.prototype,t.has=function(t,r,n){n=!!n;try{c();var Z=this.C(t);if(!Z)return Z}finally{f()}return!0}";
+    let leftover_has_out = optimize_generated_javascript(leftover_has).unwrap();
+    assert!(
+        leftover_has_out.code.contains("has(t,r,n){") && !leftover_has_out.code.contains("t.has("),
+        "{}",
+        leftover_has_out.code
+    );
+
+    let reassigned_after_call = "class h{constructor(){this.a=1}}X=function(n,c){return c};X('ComputedValue',h),di=h.prototype,di=function(t,n){return t+n};console.log(di(2,3),new h().a)";
+    let reassigned_out = optimize_generated_javascript(reassigned_after_call).unwrap();
+    assert!(
+        !reassigned_out.code.contains(")di=") && !reassigned_out.code.contains("prototype)di"),
+        "{}",
+        reassigned_out.code
+    );
+    assert_eq!(run_javascript(&reassigned_out.code).trim(), "5 1");
+
+    let overwritten_after_if = "class F{constructor(){this.a=1}}e=F.prototype;if(0)foo();e=2;console.log(e)";
+    let overwritten_out = optimize_generated_javascript(overwritten_after_if).unwrap();
+    assert!(
+        !overwritten_out.code.contains("e=F.prototype"),
+        "{}",
+        overwritten_out.code
+    );
+    assert_eq!(run_javascript(&overwritten_out.code).trim(), "2");
+
+    let read_after_if = "class F{constructor(){this.a=1}}e=F.prototype;if(0)other();console.log(e===F.prototype)";
+    let read_out = optimize_generated_javascript(read_after_if).unwrap();
+    assert!(
+        read_out.code.contains("e=F.prototype") || read_out.code.contains("F.prototype"),
+        "{}",
+        read_out.code
+    );
+    assert_eq!(run_javascript(&read_out.code).trim(), "true");
+
+    let unused_var_alias = "class C{constructor(){this.a=1}}var r=C.prototype;console.log(new C().a)";
+    let unused_var_out = optimize_generated_javascript(unused_var_alias).unwrap();
+    assert!(
+        !unused_var_out.code.contains("r=C.prototype"),
+        "{}",
+        unused_var_out.code
+    );
+    assert_eq!(run_javascript(&unused_var_out.code).trim(), "1");
 }
 
 #[test]
@@ -1274,4 +1448,30 @@ fn folds_pooled_has_predicates_to_method_calls() {
         run_javascript(source).trim()
     );
     assert_eq!(run_javascript(&optimized.code).trim(), "true,false");
+}
+
+#[test]
+fn declares_expression_embedded_implicit_locals() {
+    let source = r#"class O{get(){S(this),le(this)&&(e=o.trackingContext,this.U&&!e&&(o.trackingContext=this),o.trackingContext=e);return this.c}}"#;
+    let (out, count) = super::folds::declare_implicit_assignment_bindings(source).unwrap();
+    assert!(count >= 1, "{out}");
+    assert!(out.contains("var e"), "{out}");
+    assert!(out.contains("get(){var e"), "{out}");
+}
+
+#[test]
+fn declares_top_level_implicit_export_bindings() {
+    let source = r#"An=function(e){return e};export{An as flowResult}"#;
+    let (out, count) = super::folds::declare_implicit_assignment_bindings(source).unwrap();
+    assert!(count >= 1, "{out}");
+    assert!(out.contains("var An"), "{out}");
+    let optimized = optimize_generated_javascript(source).unwrap();
+    assert!(
+        optimized.code.contains("var An")
+            || optimized.code.contains("let An")
+            || optimized.code.contains("const An")
+            || optimized.code.contains("function An"),
+        "{}",
+        optimized.code
+    );
 }

@@ -1,0 +1,39 @@
+export class StandaloneCommandsQuickAccess {
+  string prefix;
+  string[] commands;
+
+  init() {
+    this.prefix = ">";
+    this.commands = [];
+  }
+
+  void add(string id) {
+    this.commands.push(id);
+  }
+
+  string[] getPicks(string filter) {
+    string q = filter;
+    if (q.length > 0 && q.charAt(0) == ">") {
+      string rest = "";
+      int i = 1;
+      while (i < q.length) {
+        rest = rest + q.charAt(i);
+        i = i + 1;
+      }
+      q = rest;
+    }
+    string[] out = [];
+    int n = 0;
+    while (n < this.commands.length) {
+      if (q.length == 0 || this.commands[n].toLowerCase().includes(q.toLowerCase())) {
+        out.push(this.commands[n]);
+      }
+      n = n + 1;
+    }
+    return out;
+  }
+}
+
+export StandaloneCommandsQuickAccess createStandaloneCommandsQuickAccess() {
+  return new StandaloneCommandsQuickAccess();
+}

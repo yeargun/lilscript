@@ -1,0 +1,49 @@
+export class EditorWorkerHost {
+  string[] models;
+  string lastMethod;
+  string lastArgs;
+
+  init() {
+    this.models = [];
+    this.lastMethod = "";
+    this.lastArgs = "";
+  }
+
+  string fhr(string prop, string args) {
+    this.lastMethod = prop;
+    this.lastArgs = args;
+    return prop;
+  }
+
+  void addModel(string id) {
+    this.models.push(id);
+  }
+
+  string[] getModels() {
+    return this.models;
+  }
+}
+
+export class EditorWorkerClient {
+  EditorWorkerHost host;
+  bool started;
+
+  init(EditorWorkerHost host) {
+    this.host = host;
+    this.started = true;
+  }
+}
+
+export EditorWorkerClient startEditorWorker() {
+  EditorWorkerHost host = new EditorWorkerHost();
+  return new EditorWorkerClient(host);
+}
+
+export string editorWorkerPing() {
+  return "pong";
+}
+
+export string handleEditorWorker(string method, string args) {
+  EditorWorkerHost host = new EditorWorkerHost();
+  return host.fhr(method, args);
+}

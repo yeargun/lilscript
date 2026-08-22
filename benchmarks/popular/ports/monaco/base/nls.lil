@@ -1,0 +1,7 @@
+export string localize(string key, string message) {
+  return message;
+}
+
+export string localizeMessage(string message) {
+  return message;
+}

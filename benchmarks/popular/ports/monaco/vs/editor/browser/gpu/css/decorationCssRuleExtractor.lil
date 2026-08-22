@@ -1,0 +1,168 @@
+string sliceRange(string s, int start, int end) {
+  int from = start;
+  int to = end;
+  if (from < 0) {
+    from = 0;
+  }
+  if (to > s.length) {
+    to = s.length;
+  }
+  if (from >= to) {
+    return "";
+  }
+  string out = "";
+  int i = from;
+  while (i < to) {
+    out = out + s.charAt(i);
+    i = i + 1;
+  }
+  return out;
+}
+
+string[] splitSpace(string value) {
+  string[] parts = [];
+  string cur = "";
+  int i = 0;
+  while (i < value.length) {
+    string ch = value.charAt(i);
+    if (ch == " ") {
+      parts.push(cur);
+      cur = "";
+    } else {
+      cur = cur + ch;
+    }
+    i = i + 1;
+  }
+  parts.push(cur);
+  return parts;
+}
+
+export class CssStyleRule {
+  string selectorText;
+  string[] properties;
+  string[] values;
+
+  init(string selectorText) {
+    this.selectorText = selectorText;
+    this.properties = [];
+    this.values = [];
+  }
+
+  void set(string property, string value) {
+    int i = 0;
+    while (i < this.properties.length) {
+      if (this.properties[i] == property) {
+        this.values[i] = value;
+        return;
+      }
+      i = i + 1;
+    }
+    this.properties.push(property);
+    this.values.push(value);
+  }
+
+  string getPropertyValue(string property) {
+    int i = 0;
+    while (i < this.properties.length) {
+      if (this.properties[i] == property) {
+        return this.values[i];
+      }
+      i = i + 1;
+    }
+    return "";
+  }
+}
+
+bool classBoundaryOk(string selector, int endOfResult) {
+  if (selector.length == endOfResult) {
+    return true;
+  }
+  string next = sliceRange(selector, endOfResult, endOfResult + 1);
+  return next == " " || next == ":" || next == ".";
+}
+
+bool ruleMatchesClass(CssStyleRule rule, string className) {
+  string searchTerm = "." + className;
+  int index = rule.selectorText.indexOf(searchTerm);
+  if (index < 0) {
+    return false;
+  }
+  int endOfResult = index + searchTerm.length;
+  return classBoundaryOk(rule.selectorText, endOfResult);
+}
+
+export class DecorationCssRuleExtractor {
+  CssStyleRule[] rules;
+  Map<string, CssStyleRule[]> ruleCache;
+  Map<string, string> cssVariableCache;
+
+  init() {
+    this.rules = [];
+    this.ruleCache = new Map<string, CssStyleRule[]>();
+    this.cssVariableCache = new Map<string, string>();
+  }
+
+  void addRule(string selectorText) {
+    this.rules.push(new CssStyleRule(selectorText));
+  }
+
+  void addRuleWithStyle(string selectorText, string property, string value) {
+    CssStyleRule rule = new CssStyleRule(selectorText);
+    rule.set(property, value);
+    this.rules.push(rule);
+  }
+
+  void collectMatchingRules(string[] classNames, CssStyleRule[] result) {
+    int r = 0;
+    while (r < this.rules.length) {
+      CssStyleRule rule = this.rules[r];
+      int c = 0;
+      while (c < classNames.length) {
+        if (ruleMatchesClass(rule, classNames[c])) {
+          result.push(rule);
+          break;
+        }
+        c = c + 1;
+      }
+      r = r + 1;
+    }
+  }
+
+  CssStyleRule[] getStyleRules(string decorationClassName) {
+    CssStyleRule[]? existing = this.ruleCache.get(decorationClassName);
+    if (existing != null) {
+      return existing;
+    }
+    string[] parts = splitSpace(decorationClassName);
+    string[] classNames = [];
+    int i = 0;
+    while (i < parts.length) {
+      if (parts[i].length > 0) {
+        classNames.push(parts[i]);
+      }
+      i = i + 1;
+    }
+    CssStyleRule[] rules = [];
+    this.collectMatchingRules(classNames, rules);
+    this.ruleCache.set(decorationClassName, rules);
+    return rules;
+  }
+
+  string resolveCssVariable(string variableName, string computedValue) {
+    string? cached = this.cssVariableCache.get(variableName);
+    if (cached != null) {
+      return cached;
+    }
+    this.cssVariableCache.set(variableName, computedValue);
+    return computedValue;
+  }
+
+  void clear() {
+    this.ruleCache = new Map<string, CssStyleRule[]>();
+    this.cssVariableCache = new Map<string, string>();
+  }
+}
+
+export DecorationCssRuleExtractor createDecorationCssRuleExtractor() {
+  return new DecorationCssRuleExtractor();
+}

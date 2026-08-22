@@ -1,0 +1,13 @@
+export int getQuickInputHeight(string kind) {
+  if (kind == "separator") {
+    return 30;
+  }
+  return 44;
+}
+
+export string getQuickInputTemplateId(string kind) {
+  if (kind == "separator") {
+    return "separator";
+  }
+  return "item";
+}

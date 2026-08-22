@@ -1,0 +1,310 @@
+export class ListEntry {
+  string element;
+  string label;
+  bool selectable;
+
+  init(string element, string label, bool selectable = true) {
+    this.element = element;
+    this.label = label;
+    this.selectable = selectable;
+  }
+}
+
+export class ListWidget {
+  ListEntry[] entries;
+  int[] focus;
+  int[] selection;
+  int selectionAnchor;
+  string typeNavigationQuery;
+
+  init() {
+    this.entries = [];
+    this.focus = [];
+    this.selection = [];
+    this.selectionAnchor = -1;
+    this.typeNavigationQuery = "";
+  }
+
+  int length() {
+    return this.entries.length;
+  }
+
+  bool isSelectable(int index) {
+    return index >= 0 && index < this.entries.length && this.entries[index].selectable;
+  }
+
+  int[] normalizeIndexes(int[] indexes) {
+    int[] result = [];
+    int i = 0;
+    while (i < indexes.length) {
+      int index = indexes[i];
+      if (this.isSelectable(index) && result.indexOf(index) < 0) {
+        int insertion = 0;
+        while (insertion < result.length && result[insertion] < index) {
+          insertion = insertion + 1;
+        }
+        int[] next = [];
+        int j = 0;
+        while (j < insertion) {
+          next.push(result[j]);
+          j = j + 1;
+        }
+        next.push(index);
+        j = insertion;
+        while (j < result.length) {
+          next.push(result[j]);
+          j = j + 1;
+        }
+        result = next;
+      }
+      i = i + 1;
+    }
+    return result;
+  }
+
+  int[] remapTrait(int[] indexes, int start, int deleteCount, int insertCount) {
+    int[] result = [];
+    int delta = insertCount - deleteCount;
+    int i = 0;
+    while (i < indexes.length) {
+      int index = indexes[i];
+      if (index < start) {
+        result.push(index);
+      } else if (index >= start + deleteCount) {
+        result.push(index + delta);
+      }
+      i = i + 1;
+    }
+    return this.normalizeIndexes(result);
+  }
+
+  void splice(int start, int deleteCount, ListEntry[] inserted = []) {
+    int index = start;
+    if (index < 0) {
+      index = 0;
+    }
+    if (index > this.entries.length) {
+      index = this.entries.length;
+    }
+    int count = deleteCount;
+    if (count < 0) {
+      count = 0;
+    }
+    if (index + count > this.entries.length) {
+      count = this.entries.length - index;
+    }
+    ListEntry[] next = [];
+    int i = 0;
+    while (i < index) {
+      next.push(this.entries[i]);
+      i = i + 1;
+    }
+    i = 0;
+    while (i < inserted.length) {
+      next.push(inserted[i]);
+      i = i + 1;
+    }
+    i = index + count;
+    while (i < this.entries.length) {
+      next.push(this.entries[i]);
+      i = i + 1;
+    }
+    this.focus = this.remapTrait(this.focus, index, count, inserted.length);
+    this.selection = this.remapTrait(this.selection, index, count, inserted.length);
+    if (this.selectionAnchor >= index && this.selectionAnchor < index + count) {
+      this.selectionAnchor = -1;
+    } else if (this.selectionAnchor >= index + count) {
+      this.selectionAnchor = this.selectionAnchor + inserted.length - count;
+    }
+    this.entries = next;
+    this.focus = this.normalizeIndexes(this.focus);
+    this.selection = this.normalizeIndexes(this.selection);
+  }
+
+  void setFocus(int[] indexes) {
+    this.focus = this.normalizeIndexes(indexes);
+  }
+
+  int[] getFocus() {
+    return this.focus.slice();
+  }
+
+  int findNextSelectable(int fromIndex, int step, bool loop) {
+    if (this.entries.length == 0) {
+      return -1;
+    }
+    int index = fromIndex;
+    int visited = 0;
+    while (visited < this.entries.length) {
+      index = index + step;
+      if (index < 0 || index >= this.entries.length) {
+        if (!loop) {
+          return -1;
+        }
+        if (index < 0) {
+          index = this.entries.length - 1;
+        } else {
+          index = 0;
+        }
+      }
+      if (this.entries[index].selectable) {
+        return index;
+      }
+      visited = visited + 1;
+    }
+    return -1;
+  }
+
+  int focusNext(int count = 1, bool loop = false) {
+    int current = -1;
+    if (this.focus.length > 0) {
+      current = this.focus[0];
+    }
+    int remaining = count;
+    while (remaining > 0) {
+      int next = this.findNextSelectable(current, 1, loop);
+      if (next < 0) {
+        break;
+      }
+      current = next;
+      remaining = remaining - 1;
+    }
+    if (current >= 0) {
+      this.focus = [current];
+    }
+    return current;
+  }
+
+  int focusPrevious(int count = 1, bool loop = false) {
+    int current = this.entries.length;
+    if (this.focus.length > 0) {
+      current = this.focus[0];
+    }
+    int remaining = count;
+    while (remaining > 0) {
+      int next = this.findNextSelectable(current, -1, loop);
+      if (next < 0) {
+        break;
+      }
+      current = next;
+      remaining = remaining - 1;
+    }
+    if (current >= 0 && current < this.entries.length) {
+      this.focus = [current];
+    }
+    return current;
+  }
+
+  void setSelection(int[] indexes) {
+    this.selection = this.normalizeIndexes(indexes);
+    if (this.selection.length > 0) {
+      this.selectionAnchor = this.selection[this.selection.length - 1];
+    } else {
+      this.selectionAnchor = -1;
+    }
+  }
+
+  int[] getSelection() {
+    return this.selection.slice();
+  }
+
+  void toggleSelection(int index) {
+    if (!this.isSelectable(index)) {
+      return;
+    }
+    int current = this.selection.indexOf(index);
+    if (current >= 0) {
+      this.selection.splice(current, 1);
+    } else {
+      this.selection.push(index);
+      this.selection = this.normalizeIndexes(this.selection);
+    }
+    this.selectionAnchor = index;
+  }
+
+  void selectRange(int fromIndex, int toIndex) {
+    int start = fromIndex;
+    int end = toIndex;
+    if (start > end) {
+      int swap = start;
+      start = end;
+      end = swap;
+    }
+    int[] result = [];
+    int i = start;
+    while (i <= end) {
+      if (this.isSelectable(i)) {
+        result.push(i);
+      }
+      i = i + 1;
+    }
+    this.selection = result;
+    this.selectionAnchor = fromIndex;
+  }
+
+  void extendSelectionTo(int index) {
+    int anchor = this.selectionAnchor;
+    if (anchor < 0) {
+      if (this.focus.length > 0) {
+        anchor = this.focus[0];
+      } else {
+        anchor = index;
+      }
+    }
+    this.selectRange(anchor, index);
+    this.selectionAnchor = anchor;
+  }
+
+  string[] getSelectedElements() {
+    string[] result = [];
+    int i = 0;
+    while (i < this.selection.length) {
+      result.push(this.entries[this.selection[i]].element);
+      i = i + 1;
+    }
+    return result;
+  }
+
+  int typeNavigate(string text, bool append = true) {
+    if (append) {
+      this.typeNavigationQuery = this.typeNavigationQuery + text.toLowerCase();
+    } else {
+      this.typeNavigationQuery = text.toLowerCase();
+    }
+    if (this.typeNavigationQuery.length == 0) {
+      return -1;
+    }
+    int start = -1;
+    if (this.focus.length > 0) {
+      start = this.focus[0];
+    }
+    int i = 1;
+    while (i <= this.entries.length) {
+      int index = start + i;
+      if (index >= this.entries.length) {
+        index = index - this.entries.length;
+      }
+      if (
+        this.entries[index].selectable
+        && this.entries[index].label.toLowerCase().indexOf(this.typeNavigationQuery) == 0
+      ) {
+        this.focus = [index];
+        return index;
+      }
+      i = i + 1;
+    }
+    return -1;
+  }
+
+  void clearTypeNavigation() {
+    this.typeNavigationQuery = "";
+  }
+}
+
+export ListEntry createListEntry(string element, string label, bool selectable = true) {
+  return new ListEntry(element, label, selectable);
+}
+
+export ListWidget createListWidget() {
+  return new ListWidget();
+}

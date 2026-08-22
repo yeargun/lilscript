@@ -1,0 +1,142 @@
+int LengthFactor = 67108864;
+export int lengthZero = 0;
+
+export class TextLength {
+  int lineCount;
+  int columnCount;
+
+  init(int lineCount, int columnCount) {
+    this.lineCount = lineCount;
+    this.columnCount = columnCount;
+  }
+}
+
+export class LengthRange {
+  int startLineNumber;
+  int startColumn;
+  int endLineNumber;
+  int endColumn;
+
+  init(int startLineNumber, int startColumn, int endLineNumber, int endColumn) {
+    this.startLineNumber = startLineNumber;
+    this.startColumn = startColumn;
+    this.endLineNumber = endLineNumber;
+    this.endColumn = endColumn;
+  }
+}
+
+export int lengthDiff(int startLineCount, int startColumnCount, int endLineCount, int endColumnCount) {
+  if (startLineCount != endLineCount) {
+    return toLength(endLineCount - startLineCount, endColumnCount);
+  }
+  return toLength(0, endColumnCount - startColumnCount);
+}
+
+export bool lengthIsZero(int length) {
+  return length == 0;
+}
+
+export int toLength(int lineCount, int columnCount) {
+  return lineCount * LengthFactor + columnCount;
+}
+
+export TextLength lengthToObj(int length) {
+  int lineCount = length / LengthFactor;
+  return new TextLength(lineCount, length - lineCount * LengthFactor);
+}
+
+export int lengthGetLineCount(int length) {
+  return length / LengthFactor;
+}
+
+export int lengthGetColumnCountIfZeroLineCount(int length) {
+  return length;
+}
+
+export int lengthAdd(int first, int second) {
+  int result = first + second;
+  if (second >= LengthFactor) {
+    result = result - first % LengthFactor;
+  }
+  return result;
+}
+
+export int sumLengths<T>(T[] items, func(T)->int lengthFn) {
+  int result = lengthZero;
+  int i = 0;
+  while (i < items.length) {
+    result = lengthAdd(result, lengthFn(items[i]));
+    i = i + 1;
+  }
+  return result;
+}
+
+export bool lengthEquals(int first, int second) {
+  return first == second;
+}
+
+export int lengthDiffNonNegative(int first, int second) {
+  int diff = second - first;
+  if (diff <= 0) {
+    return lengthZero;
+  }
+  int firstLine = first / LengthFactor;
+  int secondLine = second / LengthFactor;
+  int secondColumn = second - secondLine * LengthFactor;
+  if (firstLine == secondLine) {
+    int firstColumn = first - firstLine * LengthFactor;
+    return toLength(0, secondColumn - firstColumn);
+  }
+  return toLength(secondLine - firstLine, secondColumn);
+}
+
+export bool lengthLessThan(int first, int second) {
+  return first < second;
+}
+
+export bool lengthLessThanEqual(int first, int second) {
+  return first <= second;
+}
+
+export bool lengthGreaterThanEqual(int first, int second) {
+  return first >= second;
+}
+
+export int positionToLength(int lineNumber, int column) {
+  return toLength(lineNumber - 1, column - 1);
+}
+
+export LengthRange lengthsToRange(int start, int end) {
+  int startLine = start / LengthFactor;
+  int endLine = end / LengthFactor;
+  int startColumn = start - startLine * LengthFactor;
+  int endColumn = end - endLine * LengthFactor;
+  return new LengthRange(startLine + 1, startColumn + 1, endLine + 1, endColumn + 1);
+}
+
+export int lengthOfString(string text) {
+  int lineCount = 0;
+  int columnCount = 0;
+  int i = 0;
+  while (i < text.length) {
+    int code = text.charCodeAt(i);
+    if (code == 13) {
+      if (i + 1 < text.length && text.charCodeAt(i + 1) == 10) {
+        i = i + 1;
+      }
+      lineCount = lineCount + 1;
+      columnCount = 0;
+    } else if (code == 10) {
+      lineCount = lineCount + 1;
+      columnCount = 0;
+    } else {
+      columnCount = columnCount + 1;
+    }
+    i = i + 1;
+  }
+  return toLength(lineCount, columnCount);
+}
+
+export TextLength createTextLength(int lineCount, int columnCount) {
+  return new TextLength(lineCount, columnCount);
+}

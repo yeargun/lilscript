@@ -1,0 +1,283 @@
+export class ViewCompositionStartEvent {
+  int type;
+  init() {
+    this.type = 0;
+  }
+}
+
+export class ViewCompositionEndEvent {
+  int type;
+  init() {
+    this.type = 1;
+  }
+}
+
+export class ViewConfigurationChangedEvent {
+  int type;
+  int[] changedOptions;
+
+  init(int[] changedOptions) {
+    this.type = 2;
+    this.changedOptions = changedOptions;
+  }
+
+  bool hasChanged(int id) {
+    int i = 0;
+    while (i < this.changedOptions.length) {
+      if (this.changedOptions[i] == id) {
+        return true;
+      }
+      i = i + 1;
+    }
+    return false;
+  }
+}
+
+export class ViewCursorStateChangedEvent {
+  int type;
+  JsValue selections;
+  JsValue modelSelections;
+  int reason;
+
+  init(JsValue selections, JsValue modelSelections, int reason) {
+    this.type = 3;
+    this.selections = selections;
+    this.modelSelections = modelSelections;
+    this.reason = reason;
+  }
+}
+
+export class ViewDecorationsChangedEvent {
+  int type;
+  bool affectsMinimap;
+  bool affectsOverviewRuler;
+  bool affectsGlyphMargin;
+  bool affectsLineNumber;
+
+  init(bool affectsMinimap, bool affectsOverviewRuler, bool affectsGlyphMargin, bool affectsLineNumber) {
+    this.type = 4;
+    this.affectsMinimap = affectsMinimap;
+    this.affectsOverviewRuler = affectsOverviewRuler;
+    this.affectsGlyphMargin = affectsGlyphMargin;
+    this.affectsLineNumber = affectsLineNumber;
+  }
+}
+
+export class ViewFlushedEvent {
+  int type;
+  init() {
+    this.type = 5;
+  }
+}
+
+export class ViewFocusChangedEvent {
+  int type;
+  bool isFocused;
+
+  init(bool isFocused) {
+    this.type = 6;
+    this.isFocused = isFocused;
+  }
+}
+
+export class ViewLanguageConfigurationEvent {
+  int type;
+  init() {
+    this.type = 7;
+  }
+}
+
+export class ViewLineMappingChangedEvent {
+  int type;
+  init() {
+    this.type = 8;
+  }
+}
+
+export class ViewLinesChangedEvent {
+  int type;
+  int fromLineNumber;
+  int count;
+
+  init(int fromLineNumber, int count) {
+    this.type = 9;
+    this.fromLineNumber = fromLineNumber;
+    this.count = count;
+  }
+}
+
+export class ViewLinesDeletedEvent {
+  int type;
+  int fromLineNumber;
+  int toLineNumber;
+
+  init(int fromLineNumber, int toLineNumber) {
+    this.type = 10;
+    this.fromLineNumber = fromLineNumber;
+    this.toLineNumber = toLineNumber;
+  }
+}
+
+export class ViewLinesInsertedEvent {
+  int type;
+  int fromLineNumber;
+  int toLineNumber;
+
+  init(int fromLineNumber, int toLineNumber) {
+    this.type = 11;
+    this.fromLineNumber = fromLineNumber;
+    this.toLineNumber = toLineNumber;
+  }
+}
+
+export class ViewRevealRangeRequestEvent {
+  int type;
+  string source;
+  bool minimalReveal;
+  JsValue range;
+  JsValue selections;
+  int verticalType;
+  bool revealHorizontal;
+  int scrollType;
+
+  init(string source, bool minimalReveal, JsValue range, JsValue selections, int verticalType, bool revealHorizontal, int scrollType) {
+    this.type = 12;
+    this.source = source;
+    this.minimalReveal = minimalReveal;
+    this.range = range;
+    this.selections = selections;
+    this.verticalType = verticalType;
+    this.revealHorizontal = revealHorizontal;
+    this.scrollType = scrollType;
+  }
+}
+
+export class ViewScrollChangedEvent {
+  int type;
+  int scrollWidth;
+  int scrollLeft;
+  int scrollHeight;
+  int scrollTop;
+  bool scrollWidthChanged;
+  bool scrollLeftChanged;
+  bool scrollHeightChanged;
+  bool scrollTopChanged;
+
+  init(int scrollWidth, int scrollLeft, int scrollHeight, int scrollTop, bool scrollWidthChanged, bool scrollLeftChanged, bool scrollHeightChanged, bool scrollTopChanged) {
+    this.type = 13;
+    this.scrollWidth = scrollWidth;
+    this.scrollLeft = scrollLeft;
+    this.scrollHeight = scrollHeight;
+    this.scrollTop = scrollTop;
+    this.scrollWidthChanged = scrollWidthChanged;
+    this.scrollLeftChanged = scrollLeftChanged;
+    this.scrollHeightChanged = scrollHeightChanged;
+    this.scrollTopChanged = scrollTopChanged;
+  }
+}
+
+export class ViewThemeChangedEvent {
+  int type;
+  string theme;
+
+  init(string theme) {
+    this.type = 14;
+    this.theme = theme;
+  }
+}
+
+export class ViewTokensChangedEvent {
+  int type;
+  JsValue ranges;
+
+  init(JsValue ranges) {
+    this.type = 15;
+    this.ranges = ranges;
+  }
+}
+
+export class ViewTokensColorsChangedEvent {
+  int type;
+  init() {
+    this.type = 16;
+  }
+}
+
+export class ViewZonesChangedEvent {
+  int type;
+  init() {
+    this.type = 17;
+  }
+}
+
+export ViewCompositionStartEvent createViewCompositionStartEvent() {
+  return new ViewCompositionStartEvent();
+}
+
+export ViewCompositionEndEvent createViewCompositionEndEvent() {
+  return new ViewCompositionEndEvent();
+}
+
+export ViewConfigurationChangedEvent createViewConfigurationChangedEvent(int[] changedOptions) {
+  return new ViewConfigurationChangedEvent(changedOptions);
+}
+
+export ViewCursorStateChangedEvent createViewCursorStateChangedEvent(JsValue selections, JsValue modelSelections, int reason) {
+  return new ViewCursorStateChangedEvent(selections, modelSelections, reason);
+}
+
+export ViewDecorationsChangedEvent createViewDecorationsChangedEvent(bool affectsMinimap = true, bool affectsOverviewRuler = true, bool affectsGlyphMargin = true, bool affectsLineNumber = true) {
+  return new ViewDecorationsChangedEvent(affectsMinimap, affectsOverviewRuler, affectsGlyphMargin, affectsLineNumber);
+}
+
+export ViewFlushedEvent createViewFlushedEvent() {
+  return new ViewFlushedEvent();
+}
+
+export ViewFocusChangedEvent createViewFocusChangedEvent(bool isFocused) {
+  return new ViewFocusChangedEvent(isFocused);
+}
+
+export ViewLanguageConfigurationEvent createViewLanguageConfigurationEvent() {
+  return new ViewLanguageConfigurationEvent();
+}
+
+export ViewLineMappingChangedEvent createViewLineMappingChangedEvent() {
+  return new ViewLineMappingChangedEvent();
+}
+
+export ViewLinesChangedEvent createViewLinesChangedEvent(int fromLineNumber, int count) {
+  return new ViewLinesChangedEvent(fromLineNumber, count);
+}
+
+export ViewLinesDeletedEvent createViewLinesDeletedEvent(int fromLineNumber, int toLineNumber) {
+  return new ViewLinesDeletedEvent(fromLineNumber, toLineNumber);
+}
+
+export ViewLinesInsertedEvent createViewLinesInsertedEvent(int fromLineNumber, int toLineNumber) {
+  return new ViewLinesInsertedEvent(fromLineNumber, toLineNumber);
+}
+
+export ViewRevealRangeRequestEvent createViewRevealRangeRequestEvent(string source, bool minimalReveal, JsValue range, JsValue selections, int verticalType, bool revealHorizontal, int scrollType) {
+  return new ViewRevealRangeRequestEvent(source, minimalReveal, range, selections, verticalType, revealHorizontal, scrollType);
+}
+
+export ViewScrollChangedEvent createViewScrollChangedEvent(int scrollWidth, int scrollLeft, int scrollHeight, int scrollTop, bool scrollWidthChanged, bool scrollLeftChanged, bool scrollHeightChanged, bool scrollTopChanged) {
+  return new ViewScrollChangedEvent(scrollWidth, scrollLeft, scrollHeight, scrollTop, scrollWidthChanged, scrollLeftChanged, scrollHeightChanged, scrollTopChanged);
+}
+
+export ViewThemeChangedEvent createViewThemeChangedEvent(string theme) {
+  return new ViewThemeChangedEvent(theme);
+}
+
+export ViewTokensChangedEvent createViewTokensChangedEvent(JsValue ranges) {
+  return new ViewTokensChangedEvent(ranges);
+}
+
+export ViewTokensColorsChangedEvent createViewTokensColorsChangedEvent() {
+  return new ViewTokensColorsChangedEvent();
+}
+
+export ViewZonesChangedEvent createViewZonesChangedEvent() {
+  return new ViewZonesChangedEvent();
+}

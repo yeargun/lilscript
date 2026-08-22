@@ -1,0 +1,100 @@
+import { domCreateElement, appendChild, setClassName, classListAdd, classListRemove, setAttribute, addEventListener } from "../../../../../js-host";
+
+export class DropdownMenuActionViewItem {
+  JsValue actionItem;
+  JsValue element;
+  string label;
+  bool enabled;
+  bool visible;
+  (func(bool)->void)[] visibilityListeners;
+  func()->void showMenuFn;
+
+  init(JsValue container, string label, string classNames) {
+    this.label = label;
+    this.enabled = true;
+    this.visible = false;
+    this.visibilityListeners = [];
+    this.showMenuFn = () => {};
+    this.actionItem = container;
+    this.element = domCreateElement("a");
+    setClassName(this.element, "action-label");
+    this.setAriaLabelAttributes();
+    this.renderLabel(classNames);
+    appendChild(container, this.element);
+    DropdownMenuActionViewItem owner = this;
+    addEventListener(this.element, "click", (JsValue event) => {
+      owner.show();
+    }, false);
+  }
+
+  void setAriaLabelAttributes() {
+    setAttribute(this.element, "role", "button");
+    setAttribute(this.element, "aria-haspopup", "true");
+    setAttribute(this.element, "aria-expanded", "false");
+    setAttribute(this.element, "aria-label", this.label);
+  }
+
+  void renderLabel(string classNames) {
+    if (classNames.length > 0) {
+      int i = 0;
+      string current = "";
+      while (i <= classNames.length) {
+        string ch = "";
+        if (i < classNames.length) {
+          ch = classNames.charAt(i);
+        }
+        if (i == classNames.length || ch == " ") {
+          if (current.length > 0) {
+            classListAdd(this.element, current);
+            current = "";
+          }
+        } else {
+          current = current + ch;
+        }
+        i = i + 1;
+      }
+    }
+    classListAdd(this.element, "codicon");
+  }
+
+  func()->void onDidChangeVisibility(func(bool)->void listener) {
+    this.visibilityListeners.push(listener);
+    return () => {};
+  }
+
+  void setVisible(bool visible) {
+    this.visible = visible;
+    string expanded = "false";
+    if (visible) {
+      expanded = "true";
+    }
+    setAttribute(this.element, "aria-expanded", expanded);
+    int i = 0;
+    while (i < this.visibilityListeners.length) {
+      this.visibilityListeners[i](visible);
+      i = i + 1;
+    }
+  }
+
+  void show() {
+    this.setVisible(true);
+    this.showMenuFn();
+  }
+
+  void updateEnabled() {
+    if (this.enabled) {
+      classListRemove(this.actionItem, "disabled");
+      classListRemove(this.element, "disabled");
+    } else {
+      classListAdd(this.actionItem, "disabled");
+      classListAdd(this.element, "disabled");
+    }
+  }
+
+  void setActionContext(JsValue context) {
+  }
+}
+
+export DropdownMenuActionViewItem createDropdownMenuActionViewItem(JsValue container, string label, string classNames = "") {
+  return new DropdownMenuActionViewItem(container, label, classNames);
+}

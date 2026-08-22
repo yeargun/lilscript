@@ -1,0 +1,55 @@
+Map<string, string> nfdCache = new Map<string, string>();
+string[] nfdKeys = [];
+Map<string, string> baseCache = new Map<string, string>();
+string[] baseKeys = [];
+int normalizationCacheLimit = 10000;
+
+void cacheValue(Map<string, string> cache, string[] keys, string key, string value) {
+  if (!cache.has(key)) {
+    keys.push(key);
+  }
+  cache.set(key, value);
+  if (keys.length > normalizationCacheLimit) {
+    string oldest = keys[0];
+    keys.splice(0, 1);
+    cache.delete(oldest);
+  }
+}
+
+bool containsNonAscii(string value) {
+  int i = 0;
+  while (i < value.length) {
+    if (value.charCodeAt(i) > 128) {
+      return true;
+    }
+    i = i + 1;
+  }
+  return false;
+}
+
+export string normalizeNFD(string value) {
+  if (value.length == 0) {
+    return value;
+  }
+  string? cached = nfdCache.get(value);
+  if (cached != null) {
+    return cached;
+  }
+  string result = value;
+  if (!containsNonAscii(value)) {
+    result = value;
+  }
+  cacheValue(nfdCache, nfdKeys, value, result);
+  return result;
+}
+
+export string tryNormalizeToBase(string value) {
+  string? cached = baseCache.get(value);
+  if (cached != null) {
+    return cached;
+  }
+  string normalized = normalizeNFD(value);
+  string result = normalized.toLowerCase();
+  cacheValue(baseCache, baseKeys, value, result);
+  return result;
+}

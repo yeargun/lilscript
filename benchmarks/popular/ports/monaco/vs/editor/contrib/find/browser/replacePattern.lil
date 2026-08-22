@@ -1,0 +1,313 @@
+import { stringSlice, emptyBuf, stringFromCharCode1 } from "../../../../../js-host";
+
+export int REPLACE_STATIC = 0;
+export int REPLACE_DYNAMIC = 1;
+
+export class ReplacePiece {
+  string staticValue;
+  bool hasStatic;
+  int matchIndex;
+  string[] caseOps;
+  bool hasCaseOps;
+
+  init(string staticValue, bool hasStatic, int matchIndex, string[] caseOps, bool hasCaseOps) {
+    this.staticValue = staticValue;
+    this.hasStatic = hasStatic;
+    this.matchIndex = matchIndex;
+    this.caseOps = caseOps;
+    this.hasCaseOps = hasCaseOps;
+  }
+}
+
+export ReplacePiece staticReplacePiece(string value) {
+  string[] ops = [];
+  return new ReplacePiece(value, true, -1, ops, false);
+}
+
+export ReplacePiece matchReplacePiece(int index, string[] caseOps) {
+  bool hasOps = caseOps.length > 0;
+  return new ReplacePiece(emptyBuf(), false, index, caseOps, hasOps);
+}
+
+export class ReplacePattern {
+  int kind;
+  string staticValue;
+  ReplacePiece[] pieces;
+
+  init(ReplacePiece[] pieces) {
+    this.pieces = pieces;
+    if (pieces.length == 0) {
+      this.kind = REPLACE_STATIC;
+      this.staticValue = emptyBuf();
+    } else if (pieces.length == 1 && pieces[0].hasStatic) {
+      this.kind = REPLACE_STATIC;
+      this.staticValue = pieces[0].staticValue;
+    } else {
+      this.kind = REPLACE_DYNAMIC;
+      this.staticValue = emptyBuf();
+    }
+  }
+
+  bool hasReplacementPatterns() {
+    return this.kind == REPLACE_DYNAMIC;
+  }
+}
+
+export ReplacePattern staticReplacePattern(string value) {
+  return new ReplacePattern([staticReplacePiece(value)]);
+}
+
+string substituteMatch(int matchIndex, string[] matches) {
+  if (matches.length == 0) {
+    return emptyBuf();
+  }
+  if (matchIndex == 0) {
+    return matches[0];
+  }
+  string remainder = emptyBuf();
+  int index = matchIndex;
+  while (index > 0) {
+    if (index < matches.length) {
+      return matches[index] + remainder;
+    }
+    remainder = (index % 10).toString() + remainder;
+    index = index / 10;
+  }
+  return "$" + remainder;
+}
+
+string applyCaseOps(string value, string[] caseOps) {
+  if (caseOps.length == 0) {
+    return value;
+  }
+  string out = emptyBuf();
+  int opIdx = 0;
+  int idx = 0;
+  while (idx < value.length) {
+    if (opIdx >= caseOps.length) {
+      out = out + stringSlice(value, idx, value.length);
+      break;
+    }
+    string op = caseOps[opIdx];
+    string ch = value.charAt(idx);
+    if (op == "U") {
+      out = out + ch.toUpperCase();
+    } else if (op == "u") {
+      out = out + ch.toUpperCase();
+      opIdx = opIdx + 1;
+    } else if (op == "L") {
+      out = out + ch.toLowerCase();
+    } else if (op == "l") {
+      out = out + ch.toLowerCase();
+      opIdx = opIdx + 1;
+    } else {
+      out = out + ch;
+    }
+    idx = idx + 1;
+  }
+  return out;
+}
+
+bool isUpperLetter(string ch) {
+  string up = ch.toUpperCase();
+  string low = ch.toLowerCase();
+  return up != low && ch == up;
+}
+
+bool isLowerLetter(string ch) {
+  string up = ch.toUpperCase();
+  string low = ch.toLowerCase();
+  return up != low && ch == low;
+}
+
+export string buildReplaceStringWithCasePreserved(string[] matches, string replaceString) {
+  if (matches.length == 0) {
+    return replaceString;
+  }
+  string matched = matches[0];
+  if (matched.length == 0 || replaceString.length == 0) {
+    return replaceString;
+  }
+  bool allUpper = true;
+  bool allLower = true;
+  int i = 0;
+  while (i < matched.length) {
+    string ch = matched.charAt(i);
+    if (isLowerLetter(ch)) {
+      allUpper = false;
+    }
+    if (isUpperLetter(ch)) {
+      allLower = false;
+    }
+    i = i + 1;
+  }
+  if (allUpper) {
+    return replaceString.toUpperCase();
+  }
+  if (allLower) {
+    return replaceString.toLowerCase();
+  }
+  if (isUpperLetter(matched.charAt(0))) {
+    return replaceString.charAt(0).toUpperCase() + stringSlice(replaceString, 1, replaceString.length);
+  }
+  return replaceString;
+}
+
+export string buildReplaceString(ReplacePattern pattern, string[] matches, bool preserveCase) {
+  if (pattern.kind == REPLACE_STATIC) {
+    if (preserveCase) {
+      return buildReplaceStringWithCasePreserved(matches, pattern.staticValue);
+    }
+    return pattern.staticValue;
+  }
+  string result = emptyBuf();
+  int i = 0;
+  while (i < pattern.pieces.length) {
+    ReplacePiece piece = pattern.pieces[i];
+    if (piece.hasStatic) {
+      result = result + piece.staticValue;
+    } else {
+      string captured = substituteMatch(piece.matchIndex, matches);
+      if (piece.hasCaseOps) {
+        captured = applyCaseOps(captured, piece.caseOps);
+      }
+      result = result + captured;
+    }
+    i = i + 1;
+  }
+  return result;
+}
+
+export class ReplacePieceBuilder {
+  string source;
+  int lastCharIndex;
+  ReplacePiece[] result;
+  string currentStatic;
+
+  init(string source) {
+    this.source = source;
+    this.lastCharIndex = 0;
+    this.result = [];
+    this.currentStatic = emptyBuf();
+  }
+
+  void emitStatic(string value) {
+    if (value.length == 0) {
+      return;
+    }
+    this.currentStatic = this.currentStatic + value;
+  }
+
+  void emitUnchanged(int toCharIndex) {
+    this.emitStatic(stringSlice(this.source, this.lastCharIndex, toCharIndex));
+    this.lastCharIndex = toCharIndex;
+  }
+
+  void emitStaticAt(string value, int toCharIndex) {
+    this.emitStatic(value);
+    this.lastCharIndex = toCharIndex;
+  }
+
+  void emitMatchIndex(int index, int toCharIndex, string[] caseOps) {
+    if (this.currentStatic.length != 0) {
+      this.result.push(staticReplacePiece(this.currentStatic));
+      this.currentStatic = emptyBuf();
+    }
+    this.result.push(matchReplacePiece(index, caseOps));
+    this.lastCharIndex = toCharIndex;
+  }
+
+  ReplacePattern finalize() {
+    this.emitUnchanged(this.source.length);
+    if (this.currentStatic.length != 0) {
+      this.result.push(staticReplacePiece(this.currentStatic));
+      this.currentStatic = emptyBuf();
+    }
+    return new ReplacePattern(this.result);
+  }
+}
+
+export ReplacePattern parseReplaceString(string replaceString) {
+  if (replaceString.length == 0) {
+    ReplacePiece[] empty = [];
+    return new ReplacePattern(empty);
+  }
+  string[] caseOps = [];
+  ReplacePieceBuilder builder = new ReplacePieceBuilder(replaceString);
+  int i = 0;
+  int len = replaceString.length;
+  while (i < len) {
+    int chCode = replaceString.charCodeAt(i);
+    if (chCode == 92) {
+      i = i + 1;
+      if (i >= len) {
+        break;
+      }
+      int nextChCode = replaceString.charCodeAt(i);
+      if (nextChCode == 92) {
+        builder.emitUnchanged(i - 1);
+        builder.emitStaticAt("\\", i + 1);
+      } else if (nextChCode == 110) {
+        builder.emitUnchanged(i - 1);
+        builder.emitStaticAt("\n", i + 1);
+      } else if (nextChCode == 116) {
+        builder.emitUnchanged(i - 1);
+        builder.emitStaticAt("\t", i + 1);
+      } else if (nextChCode == 117 || nextChCode == 85 || nextChCode == 108 || nextChCode == 76) {
+        builder.emitUnchanged(i - 1);
+        builder.emitStaticAt(emptyBuf(), i + 1);
+        caseOps.push(stringFromCharCode1(nextChCode));
+      }
+      i = i + 1;
+      continue;
+    }
+    if (chCode == 36) {
+      i = i + 1;
+      if (i >= len) {
+        break;
+      }
+      int nextChCode = replaceString.charCodeAt(i);
+      if (nextChCode == 36) {
+        builder.emitUnchanged(i - 1);
+        builder.emitStaticAt("$", i + 1);
+        i = i + 1;
+        continue;
+      }
+      if (nextChCode == 48 || nextChCode == 38) {
+        builder.emitUnchanged(i - 1);
+        builder.emitMatchIndex(0, i + 1, caseOps);
+        caseOps = [];
+        i = i + 1;
+        continue;
+      }
+      if (nextChCode >= 49 && nextChCode <= 57) {
+        int matchIndex = nextChCode - 48;
+        if (i + 1 < len) {
+          int nextNext = replaceString.charCodeAt(i + 1);
+          if (nextNext >= 48 && nextNext <= 57) {
+            i = i + 1;
+            matchIndex = matchIndex * 10 + (nextNext - 48);
+            builder.emitUnchanged(i - 2);
+            builder.emitMatchIndex(matchIndex, i + 1, caseOps);
+            caseOps = [];
+            i = i + 1;
+            continue;
+          }
+        }
+        builder.emitUnchanged(i - 1);
+        builder.emitMatchIndex(matchIndex, i + 1, caseOps);
+        caseOps = [];
+        i = i + 1;
+        continue;
+      }
+      i = i + 1;
+      continue;
+    }
+    i = i + 1;
+  }
+  return builder.finalize();
+}
+
+export ReplacePieceBuilder createReplacePieceBuilder(string source) {
+  return new ReplacePieceBuilder(source);
+}

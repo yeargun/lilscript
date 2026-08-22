@@ -1,0 +1,117 @@
+import {
+  call1,
+  isFn,
+  isNullish,
+  isUndef,
+  mapGet,
+  undef
+} from "../host.lil";
+import { $mobx } from "../constants.lil";
+import {
+  die,
+  die1,
+  die2
+} from "../errors.lil";
+import {
+  isAction,
+  isAtom,
+  isComputedValue,
+  isObservableArray,
+  isObservableMap,
+  isObservableObject,
+  isObservableSet,
+  isReaction
+} from "../core/predicates.lil";
+
+export JsValue getAtom = JS.method2((JsValue _s, JsValue thing, JsValue property) => {
+  if (JS.typeOf(thing) == "object" && !JS.isNullish(thing)) {
+    if (isObservableArray(thing)) {
+      if (!isUndef(property)) {
+        die(23);
+      }
+      return thing[$mobx]["atom_"];
+    }
+    if (isObservableSet(thing)) {
+      return thing["atom_"];
+    }
+    if (isObservableMap(thing)) {
+      if (isUndef(property)) {
+        return thing["keysAtom_"];
+      }
+      JsValue obs = mapGet(thing["data_"], property);
+      if (!obs.truthy()) {
+        obs = mapGet(thing["hasMap_"], property);
+      }
+      if (!obs.truthy()) {
+        die2(25, property, thing["name_"]);
+      }
+      return obs;
+    }
+    if (property.truthy() && !thing[$mobx].truthy()) {
+      JsValue probed = thing[property];
+      if (isUndef(probed)) {
+        probed = undef();
+      }
+    }
+    if (isObservableObject(thing)) {
+      if (!property.truthy()) {
+        die(26);
+      }
+      JsValue adm = thing[$mobx];
+      JsValue observableNode = mapGet(adm["values_"], property);
+      if (!observableNode.truthy()) {
+        observableNode = call1(adm["materializeLazyComputed_"], adm, property);
+      }
+      if (!observableNode.truthy()) {
+        observableNode = call1(adm["materializeLazyObservable_"], adm, property);
+      }
+      if (!observableNode.truthy()) {
+        die2(27, property, adm["name_"]);
+      }
+      return observableNode;
+    }
+    if (isAtom(thing) || isComputedValue(thing) || isReaction(thing)) {
+      return thing;
+    }
+  } else if (isFn(thing)) {
+    if (isReaction(thing[$mobx])) {
+      return thing[$mobx];
+    }
+  }
+  die1(28, thing);
+  return undef();
+});
+
+export JsValue getAdministration = JS.method2((JsValue _s, JsValue thing, JsValue property) => {
+  if (!thing.truthy()) {
+    die(29);
+  }
+  if (!isUndef(property)) {
+    return JS.call(getAdministration, undef(), JS.call(getAtom, undef(), thing, property));
+  }
+  if (isAtom(thing) || isComputedValue(thing) || isReaction(thing) || isObservableMap(thing) || isObservableSet(thing)) {
+    return thing;
+  }
+  if (thing[$mobx].truthy()) {
+    return thing[$mobx];
+  }
+  die1(24, thing);
+  return undef();
+});
+
+export JsValue getDebugName = JS.method2((JsValue _s, JsValue thing, JsValue property) => {
+  JsValue named = undef();
+  if (!isUndef(property)) {
+    named = JS.call(getAtom, undef(), thing, property);
+  } else if (isAction(thing)) {
+    return thing["name"];
+  } else {
+    bool fromAdmin = isObservableObject(thing) || isObservableMap(thing) || isObservableSet(thing);
+    if (fromAdmin) {
+      named = JS.call(getAdministration, undef(), thing);
+    } else {
+      named = JS.call(getAtom, undef(), thing);
+    }
+  }
+  return named["name_"];
+});

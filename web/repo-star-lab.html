@@ -1,0 +1,493 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Repo star — 10 versions</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --ink: #141612;
+        --muted: #5a5e57;
+        --line: #d2cec2;
+        --paper: #f4f1e8;
+        --sheet: #fffcf5;
+        --gold: #b8891a;
+        --dark: #141612;
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        padding: 40px 28px 80px;
+        background: var(--paper);
+        color: var(--ink);
+        font-family: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 32px;
+        font-weight: 600;
+        letter-spacing: -0.04em;
+      }
+
+      .lede {
+        max-width: 46rem;
+        margin: 10px 0 36px;
+        color: var(--muted);
+        font-size: 16px;
+        line-height: 1.5;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+        gap: 22px;
+      }
+
+      .card {
+        min-height: 220px;
+        display: grid;
+        align-content: space-between;
+        padding: 18px 18px 28px;
+        border: 1px solid var(--line);
+        background: var(--sheet);
+      }
+
+      .card header {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        color: var(--muted);
+        font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+        font-size: 12px;
+      }
+
+      .card b {
+        color: var(--ink);
+        font-family: "IBM Plex Sans", sans-serif;
+        font-size: 16px;
+        font-weight: 600;
+      }
+
+      .stage {
+        min-height: 132px;
+        display: grid;
+        place-items: end;
+        padding-top: 28px;
+      }
+
+      .gh {
+        display: block;
+        flex: 0 0 auto;
+      }
+
+      .star {
+        display: block;
+        flex: 0 0 auto;
+      }
+
+      a.v {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        color: inherit;
+        text-decoration: none;
+      }
+
+      .cue {
+        position: absolute;
+        color: var(--gold);
+        font-family: Caveat, cursive;
+        font-weight: 700;
+        line-height: 1;
+        white-space: nowrap;
+        pointer-events: none;
+      }
+
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+      }
+
+      .go {
+        display: grid;
+        place-items: center;
+        border-radius: 999px;
+      }
+
+      /* 1 */
+      .v1 .pill {
+        gap: 14px;
+        padding: 12px 12px 12px 18px;
+        background: #fff;
+        box-shadow: 0 14px 36px rgba(20, 22, 18, 0.1);
+      }
+      .v1 .label {
+        font-family: Caveat, cursive;
+        font-size: 30px;
+        font-weight: 700;
+        letter-spacing: 0.01em;
+      }
+      .v1 .go {
+        width: 44px;
+        height: 44px;
+        background: var(--ink);
+        color: #fff;
+      }
+
+      /* 2 */
+      .v2 .pill {
+        gap: 12px;
+        padding: 11px 16px 11px 14px;
+        background: var(--ink);
+        color: #fff;
+      }
+      .v2 .star { color: #f0c14a; }
+      .v2 .label {
+        font-family: Caveat, cursive;
+        font-size: 32px;
+        font-weight: 700;
+      }
+
+      /* 3 */
+      .v3 { align-items: flex-end; }
+      .v3 .cue {
+        right: 10px;
+        bottom: calc(100% - 2px);
+        font-size: 28px;
+        transform: rotate(-7deg);
+      }
+      .v3 .scribble {
+        position: absolute;
+        right: -22px;
+        bottom: -10px;
+      }
+      .v3 .pill {
+        gap: 14px;
+        padding: 14px 18px;
+        background: #fff;
+        box-shadow: 0 14px 36px rgba(20, 22, 18, 0.1);
+      }
+      .v3 .name {
+        font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+        font-size: 13px;
+      }
+
+      /* 4 */
+      .v4 .pill {
+        width: 72px;
+        height: 72px;
+        justify-content: center;
+        background: var(--ink);
+        color: #fff;
+        box-shadow: 0 16px 34px rgba(20, 22, 18, 0.16);
+      }
+      .v4 .cue {
+        right: calc(100% + 8px);
+        bottom: 18px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 30px;
+        transform: rotate(-8deg);
+      }
+      .v4 .star { color: var(--gold); }
+
+      /* 5 */
+      .v5 .pill {
+        gap: 0;
+        background: #fff;
+        box-shadow: 0 14px 36px rgba(20, 22, 18, 0.1);
+      }
+      .v5 .side {
+        width: 64px;
+        height: 64px;
+        display: grid;
+        place-items: center;
+      }
+      .v5 .side.ink {
+        background: var(--ink);
+        color: #fff;
+      }
+      .v5 .side.gold {
+        color: var(--gold);
+      }
+
+      /* 6 */
+      .v6 .pill {
+        gap: 12px;
+        padding: 10px 20px 10px 12px;
+        background: #fff8e8;
+        border: 1px solid #e6d3a2;
+      }
+      .v6 .mark {
+        width: 48px;
+        height: 48px;
+        display: grid;
+        place-items: center;
+        border-radius: 999px;
+        background: var(--ink);
+        color: #fff;
+      }
+      .v6 .copy {
+        display: grid;
+        gap: 0;
+      }
+      .v6 .label {
+        font-family: Caveat, cursive;
+        font-size: 30px;
+        font-weight: 700;
+        color: #9a6f10;
+        line-height: 0.9;
+      }
+      .v6 .name {
+        color: var(--muted);
+        font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+        font-size: 11px;
+      }
+
+      /* 7 */
+      .v7 .pill {
+        gap: 14px;
+        padding: 13px 22px 13px 16px;
+        background: #fff;
+        box-shadow: 0 14px 36px rgba(20, 22, 18, 0.1);
+      }
+      .v7 .star { color: var(--gold); }
+      .v7 .label {
+        font-family: Caveat, cursive;
+        font-size: 34px;
+        font-weight: 700;
+      }
+
+      /* 8 */
+      .v8 .pill {
+        gap: 14px;
+        padding: 12px 14px 12px 16px;
+        background: #fff;
+        box-shadow: 0 14px 36px rgba(20, 22, 18, 0.1);
+      }
+      .v8 .copy { display: grid; }
+      .v8 .name {
+        font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+        font-size: 12px;
+      }
+      .v8 .label {
+        position: relative;
+        width: max-content;
+        color: var(--gold);
+        font-family: Caveat, cursive;
+        font-size: 26px;
+        font-weight: 700;
+        line-height: 1;
+      }
+      .v8 .go {
+        width: 44px;
+        height: 44px;
+        background: var(--ink);
+        color: #fff;
+      }
+
+      /* 9 */
+      .v9 .pill {
+        gap: 12px;
+        padding: 11px 11px 11px 16px;
+        background: var(--ink);
+        color: #fff;
+      }
+      .v9 .label {
+        font-family: Caveat, cursive;
+        font-size: 30px;
+        font-weight: 700;
+      }
+      .v9 .go {
+        width: 46px;
+        height: 46px;
+        background: #f0c14a;
+        color: var(--ink);
+      }
+
+      /* 10 */
+      .v10 { align-items: center; }
+      .v10 .pill {
+        gap: 14px;
+        padding: 14px 18px 14px 16px;
+        background: #fff;
+        box-shadow: 0 14px 36px rgba(20, 22, 18, 0.1);
+      }
+      .v10 .star { color: var(--gold); }
+      .v10 .label {
+        font-family: Caveat, cursive;
+        font-size: 32px;
+        font-weight: 700;
+      }
+      .v10 .arrow {
+        color: var(--gold);
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Ten floating GitHub stars</h1>
+    <p class="lede">
+      All bigger, fully rounded, with the GitHub mark. Tell me the number you
+      want on the live page — nothing here is wired into the landing page yet.
+    </p>
+
+    <div class="grid">
+      <article class="card">
+        <header><b>1 · Big handwritten pill</b><span>01</span></header>
+        <div class="stage">
+          <a class="v v1" href="https://github.com/yeargun/lilscript">
+            <span class="pill">
+              <svg class="gh" viewBox="0 0 16 16" width="28" height="28"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8"/></svg>
+              <span class="label">Star the repo</span>
+              <span class="go"><svg viewBox="0 0 24 24" width="18" height="18" fill="none"><path d="M5 12h12.4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M12.4 6.1 19.5 12l-7.1 5.9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            </span>
+          </a>
+        </div>
+      </article>
+
+      <article class="card">
+        <header><b>2 · Dark star</b><span>02</span></header>
+        <div class="stage">
+          <a class="v v2" href="https://github.com/yeargun/lilscript">
+            <span class="pill">
+              <svg class="gh" viewBox="0 0 16 16" width="26" height="26"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8"/></svg>
+              <svg class="star" viewBox="0 0 24 24" width="26" height="26"><path fill="currentColor" d="M12.1 1.8 15 8.6l7.3.6-5.5 4.8 1.7 7.1-6.4-3.7-6.6 3.4 2.1-7.1L2 9.1l7.4-.7z"/></svg>
+              <span class="label">Star</span>
+            </span>
+          </a>
+        </div>
+      </article>
+
+      <article class="card">
+        <header><b>3 · Note over the chip</b><span>03</span></header>
+        <div class="stage">
+          <a class="v v3" href="https://github.com/yeargun/lilscript">
+            <span class="cue">
+              Star this
+              <svg class="scribble" viewBox="0 0 70 18" width="70" height="18" fill="none"><path d="M3 11c9-7 20-8 31-4 8 3 15 5 24 3 5-1 9-3 12-2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M60 4.6c2.8 1.8 5.4 3.2 7.2 4.4-2.4.2-5.6.7-8.4 2.2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </span>
+            <span class="pill">
+              <svg class="gh" viewBox="0 0 16 16" width="28" height="28"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8"/></svg>
+              <span class="name">yeargun/lilscript</span>
+            </span>
+          </a>
+        </div>
+      </article>
+
+      <article class="card">
+        <header><b>4 · Round mark + note</b><span>04</span></header>
+        <div class="stage">
+          <a class="v v4" href="https://github.com/yeargun/lilscript">
+            <span class="cue">
+              <svg class="star" viewBox="0 0 24 24" width="28" height="28"><path fill="currentColor" d="M12.1 1.8 15 8.6l7.3.6-5.5 4.8 1.7 7.1-6.4-3.7-6.6 3.4 2.1-7.1L2 9.1l7.4-.7z"/></svg>
+              Star
+            </span>
+            <span class="pill">
+              <svg class="gh" viewBox="0 0 16 16" width="32" height="32"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8"/></svg>
+            </span>
+          </a>
+        </div>
+      </article>
+
+      <article class="card">
+        <header><b>5 · Twin circles</b><span>05</span></header>
+        <div class="stage">
+          <a class="v v5" href="https://github.com/yeargun/lilscript">
+            <span class="pill">
+              <span class="side ink">
+                <svg class="gh" viewBox="0 0 16 16" width="30" height="30"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8"/></svg>
+              </span>
+              <span class="side gold">
+                <svg class="star" viewBox="0 0 24 24" width="30" height="30"><path fill="currentColor" d="M12.1 1.8 15 8.6l7.3.6-5.5 4.8 1.7 7.1-6.4-3.7-6.6 3.4 2.1-7.1L2 9.1l7.4-.7z"/></svg>
+              </span>
+            </span>
+          </a>
+        </div>
+      </article>
+
+      <article class="card">
+        <header><b>6 · Stacked copy</b><span>06</span></header>
+        <div class="stage">
+          <a class="v v6" href="https://github.com/yeargun/lilscript">
+            <span class="pill">
+              <span class="mark">
+                <svg class="gh" viewBox="0 0 16 16" width="24" height="24"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8"/></svg>
+              </span>
+              <span class="copy">
+                <span class="label">Star the repo</span>
+                <span class="name">yeargun/lilscript</span>
+              </span>
+            </span>
+          </a>
+        </div>
+      </article>
+
+      <article class="card">
+        <header><b>7 · Star + word</b><span>07</span></header>
+        <div class="stage">
+          <a class="v v7" href="https://github.com/yeargun/lilscript">
+            <span class="pill">
+              <svg class="gh" viewBox="0 0 16 16" width="26" height="26"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8"/></svg>
+              <svg class="star" viewBox="0 0 24 24" width="28" height="28"><path fill="currentColor" d="M12.1 1.8 15 8.6l7.3.6-5.5 4.8 1.7 7.1-6.4-3.7-6.6 3.4 2.1-7.1L2 9.1l7.4-.7z"/></svg>
+              <span class="label">Star</span>
+            </span>
+          </a>
+        </div>
+      </article>
+
+      <article class="card">
+        <header><b>8 · Repo + star line</b><span>08</span></header>
+        <div class="stage">
+          <a class="v v8" href="https://github.com/yeargun/lilscript">
+            <span class="pill">
+              <svg class="gh" viewBox="0 0 16 16" width="26" height="26"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8"/></svg>
+              <span class="copy">
+                <span class="name">yeargun/lilscript</span>
+                <span class="label">★ Star the repo</span>
+              </span>
+              <span class="go"><svg viewBox="0 0 24 24" width="18" height="18" fill="none"><path d="M5 12h12.4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M12.4 6.1 19.5 12l-7.1 5.9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            </span>
+          </a>
+        </div>
+      </article>
+
+      <article class="card">
+        <header><b>9 · Dark + gold arrow</b><span>09</span></header>
+        <div class="stage">
+          <a class="v v9" href="https://github.com/yeargun/lilscript">
+            <span class="pill">
+              <svg class="gh" viewBox="0 0 16 16" width="26" height="26"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8"/></svg>
+              <span class="label">Star the repo</span>
+              <span class="go"><svg viewBox="0 0 24 24" width="18" height="18" fill="none"><path d="M5 12h12.4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M12.4 6.1 19.5 12l-7.1 5.9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            </span>
+          </a>
+        </div>
+      </article>
+
+      <article class="card">
+        <header><b>10 · Star, word, arrow</b><span>10</span></header>
+        <div class="stage">
+          <a class="v v10" href="https://github.com/yeargun/lilscript">
+            <span class="pill">
+              <svg class="gh" viewBox="0 0 16 16" width="26" height="26"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8"/></svg>
+              <svg class="star" viewBox="0 0 24 24" width="26" height="26"><path fill="currentColor" d="M12.1 1.8 15 8.6l7.3.6-5.5 4.8 1.7 7.1-6.4-3.7-6.6 3.4 2.1-7.1L2 9.1l7.4-.7z"/></svg>
+              <span class="label">Star</span>
+              <svg class="arrow" viewBox="0 0 24 24" width="20" height="20" fill="none"><path d="M4 12h13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M12 6.2 19.2 12 12 17.8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </span>
+          </a>
+        </div>
+      </article>
+    </div>
+  </body>
+</html>

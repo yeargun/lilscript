@@ -1,0 +1,39 @@
+export class QuickInputTreeController {
+  int focus;
+  int[] checked;
+  string[] elements;
+
+  init() {
+    this.focus = -1;
+    this.checked = [];
+    this.elements = [];
+  }
+
+  void setElements(string[] elements) {
+    this.elements = elements;
+    if (elements.length > 0) {
+      this.focus = 0;
+    } else {
+      this.focus = -1;
+    }
+  }
+
+  void toggleCheck() {
+    if (this.focus < 0) {
+      return;
+    }
+    int i = 0;
+    while (i < this.checked.length) {
+      if (this.checked[i] == this.focus) {
+        this.checked.splice(i, 1);
+        return;
+      }
+      i = i + 1;
+    }
+    this.checked.push(this.focus);
+  }
+}
+
+export QuickInputTreeController createQuickInputTreeController() {
+  return new QuickInputTreeController();
+}

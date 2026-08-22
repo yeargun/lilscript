@@ -6,6 +6,7 @@ export class Decoration {
   string className;
   string hoverMessage;
   bool isWholeLine;
+  int metadata;
 
   init(int id, Rng range, string className, string hoverMessage, bool isWholeLine) {
     this.id = id;
@@ -13,6 +14,7 @@ export class Decoration {
     this.className = className;
     this.hoverMessage = hoverMessage;
     this.isWholeLine = isWholeLine;
+    this.metadata = 0;
   }
 }
 
@@ -470,6 +472,20 @@ export class IntervalTree {
       this.deleteNode(node);
     }
   }
+}
+
+export int decoMetadata(bool stickiness, bool affectsOverviewRuler, bool isWholeLine) {
+  int bits = 0;
+  if (stickiness) {
+    bits = bits + 1;
+  }
+  if (affectsOverviewRuler) {
+    bits = bits + 2;
+  }
+  if (isWholeLine) {
+    bits = bits + 4;
+  }
+  return bits;
 }
 
 export IntervalTree createIntervalTree() {

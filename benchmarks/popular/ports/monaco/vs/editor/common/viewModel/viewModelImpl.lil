@@ -1,0 +1,416 @@
+import { sliceOf, repeatChar } from "../../../../js-host";
+
+export class ViewModelPosition {
+  int lineNumber;
+  int column;
+
+  init(int lineNumber, int column) {
+    this.lineNumber = lineNumber;
+    this.column = column;
+  }
+}
+
+export class ViewModelRange {
+  int startLineNumber;
+  int startColumn;
+  int endLineNumber;
+  int endColumn;
+
+  init(int startLineNumber, int startColumn, int endLineNumber, int endColumn) {
+    this.startLineNumber = startLineNumber;
+    this.startColumn = startColumn;
+    this.endLineNumber = endLineNumber;
+    this.endColumn = endColumn;
+  }
+}
+
+export class ViewModelLineData {
+  string content;
+  bool continuesWithWrappedLine;
+  int minColumn;
+  int maxColumn;
+  int startVisibleColumn;
+
+  init(string content, bool continuesWithWrappedLine, int minColumn, int maxColumn, int startVisibleColumn) {
+    this.content = content;
+    this.continuesWithWrappedLine = continuesWithWrappedLine;
+    this.minColumn = minColumn;
+    this.maxColumn = maxColumn;
+    this.startVisibleColumn = startVisibleColumn;
+  }
+}
+
+export class ViewModel {
+  string[] modelLines;
+  int tabSize;
+  int wrappingColumn;
+  int wrappingIndent;
+  ViewModelRange[] hiddenAreas;
+  int[] viewModelLineNumbers;
+  int[] viewStartOffsets;
+  int[] viewEndOffsets;
+  int[] viewIndentLengths;
+  int[] viewStartVisibleColumns;
+  int[] modelFirstViewLines;
+  int[] modelViewLineCounts;
+  int viewportStart;
+  int viewportEnd;
+
+  init(string[] modelLines, int tabSize, int wrappingColumn, int wrappingIndent) {
+    this.modelLines = modelLines;
+    this.tabSize = tabSize;
+    this.wrappingColumn = wrappingColumn;
+    this.wrappingIndent = wrappingIndent;
+    this.hiddenAreas = [];
+    this.viewModelLineNumbers = [];
+    this.viewStartOffsets = [];
+    this.viewEndOffsets = [];
+    this.viewIndentLengths = [];
+    this.viewStartVisibleColumns = [];
+    this.modelFirstViewLines = [];
+    this.modelViewLineCounts = [];
+    this.viewportStart = 1;
+    this.viewportEnd = 1;
+    this.rebuild();
+  }
+
+  int charWidth(int code, int visibleColumn) {
+    if (code == 9) {
+      return this.tabSize - visibleColumn % this.tabSize;
+    }
+    if ((code >= 4352 && code <= 4447) || (code >= 11904 && code <= 42191) || (code >= 44032 && code <= 55203) || (code >= 63744 && code <= 64255) || (code >= 65072 && code <= 65376)) {
+      return 2;
+    }
+    return 1;
+  }
+
+  bool modelLineIsHidden(int lineNumber) {
+    int i = 0;
+    while (i < this.hiddenAreas.length) {
+      if (lineNumber >= this.hiddenAreas[i].startLineNumber && lineNumber <= this.hiddenAreas[i].endLineNumber) {
+        return true;
+      }
+      i = i + 1;
+    }
+    return false;
+  }
+
+  int wrappedIndentLength(string content) {
+    if (this.wrappingIndent == 0 || this.wrappingColumn < 1) {
+      return 0;
+    }
+    int width = 0;
+    int i = 0;
+    while (i < content.length) {
+      int code = content.charCodeAt(i);
+      if (code != 32 && code != 9) {
+        break;
+      }
+      width = width + this.charWidth(code, width);
+      i = i + 1;
+    }
+    int extra = 0;
+    if (this.wrappingIndent == 2) {
+      extra = 1;
+    }
+    if (this.wrappingIndent == 3) {
+      extra = 2;
+    }
+    i = 0;
+    while (i < extra) {
+      width = width + this.tabSize - width % this.tabSize;
+      i = i + 1;
+    }
+    if (width + 2 > this.wrappingColumn) {
+      return 0;
+    }
+    return width;
+  }
+
+  void appendViewLine(int modelLineNumber, int startOffset, int endOffset, int indent, int startVisibleColumn) {
+    this.viewModelLineNumbers.push(modelLineNumber);
+    this.viewStartOffsets.push(startOffset);
+    this.viewEndOffsets.push(endOffset);
+    this.viewIndentLengths.push(indent);
+    this.viewStartVisibleColumns.push(startVisibleColumn);
+    this.modelViewLineCounts[modelLineNumber - 1] = this.modelViewLineCounts[modelLineNumber - 1] + 1;
+  }
+
+  void appendWrappedModelLine(int modelLineNumber, string content) {
+    int indent = this.wrappedIndentLength(content);
+    if (this.wrappingColumn < 1 || content.length == 0) {
+      this.appendViewLine(modelLineNumber, 0, content.length, 0, 0);
+      return;
+    }
+    int continuationWidth = this.wrappingColumn - indent;
+    if (continuationWidth < 1) {
+      continuationWidth = this.wrappingColumn;
+      indent = 0;
+    }
+    int segmentStart = 0;
+    int visibleColumn = 0;
+    int segmentStartVisibleColumn = 0;
+    int limit = this.wrappingColumn;
+    int candidateOffset = -1;
+    int candidateColumn = 0;
+    int i = 0;
+    while (i < content.length) {
+      int code = content.charCodeAt(i);
+      int width = this.charWidth(code, visibleColumn);
+      if (code == 32 || code == 9 || code == 45 || code == 47 || code == 92) {
+        candidateOffset = i + 1;
+        candidateColumn = visibleColumn + width;
+      }
+      int nextColumn = visibleColumn + width;
+      if (nextColumn > limit) {
+        int breakOffset = candidateOffset;
+        int breakColumn = candidateColumn;
+        if (breakOffset <= segmentStart) {
+          breakOffset = i;
+          breakColumn = visibleColumn;
+        }
+        if (breakOffset <= segmentStart) {
+          breakOffset = i + 1;
+          breakColumn = nextColumn;
+        }
+        int lineIndent = 0;
+        if (segmentStart > 0) {
+          lineIndent = indent;
+        }
+        this.appendViewLine(modelLineNumber, segmentStart, breakOffset, lineIndent, segmentStartVisibleColumn);
+        segmentStart = breakOffset;
+        segmentStartVisibleColumn = breakColumn;
+        limit = breakColumn + continuationWidth;
+        candidateOffset = -1;
+        if (breakOffset <= i) {
+          continue;
+        }
+      }
+      visibleColumn = nextColumn;
+      i = i + 1;
+    }
+    int finalIndent = 0;
+    if (segmentStart > 0) {
+      finalIndent = indent;
+    }
+    this.appendViewLine(modelLineNumber, segmentStart, content.length, finalIndent, segmentStartVisibleColumn);
+  }
+
+  void rebuild() {
+    this.viewModelLineNumbers = [];
+    this.viewStartOffsets = [];
+    this.viewEndOffsets = [];
+    this.viewIndentLengths = [];
+    this.viewStartVisibleColumns = [];
+    this.modelFirstViewLines = [];
+    this.modelViewLineCounts = [];
+    int i = 0;
+    while (i < this.modelLines.length) {
+      this.modelFirstViewLines.push(this.viewModelLineNumbers.length + 1);
+      this.modelViewLineCounts.push(0);
+      if (!this.modelLineIsHidden(i + 1)) {
+        this.appendWrappedModelLine(i + 1, this.modelLines[i]);
+      }
+      i = i + 1;
+    }
+    if (this.viewModelLineNumbers.length == 0 && this.modelLines.length > 0) {
+      this.appendWrappedModelLine(1, this.modelLines[0]);
+      this.modelFirstViewLines[0] = 1;
+    }
+    if (this.viewportEnd > this.getLineCount()) {
+      this.viewportEnd = this.getLineCount();
+    }
+  }
+
+  int validViewLineNumber(int lineNumber) {
+    if (lineNumber < 1) {
+      return 1;
+    }
+    if (lineNumber > this.getLineCount()) {
+      return this.getLineCount();
+    }
+    return lineNumber;
+  }
+
+  int getLineCount() {
+    return this.viewModelLineNumbers.length;
+  }
+
+  string getLineContent(int lineNumber) {
+    int viewIndex = this.validViewLineNumber(lineNumber) - 1;
+    int modelIndex = this.viewModelLineNumbers[viewIndex] - 1;
+    string result = sliceOf(this.modelLines[modelIndex], this.viewStartOffsets[viewIndex], this.viewEndOffsets[viewIndex]);
+    if (this.viewIndentLengths[viewIndex] > 0) {
+      result = repeatChar(" ", this.viewIndentLengths[viewIndex]) + result;
+    }
+    return result;
+  }
+
+  int getLineLength(int lineNumber) {
+    return this.getLineContent(lineNumber).length;
+  }
+
+  int getLineMinColumn(int lineNumber) {
+    int viewIndex = this.validViewLineNumber(lineNumber) - 1;
+    return this.viewIndentLengths[viewIndex] + 1;
+  }
+
+  int getLineMaxColumn(int lineNumber) {
+    return this.getLineLength(lineNumber) + 1;
+  }
+
+  ViewModelLineData getViewLineData(int lineNumber) {
+    int viewLine = this.validViewLineNumber(lineNumber);
+    int viewIndex = viewLine - 1;
+    bool continues = false;
+    if (viewIndex + 1 < this.viewModelLineNumbers.length && this.viewModelLineNumbers[viewIndex + 1] == this.viewModelLineNumbers[viewIndex]) {
+      continues = true;
+    }
+    return new ViewModelLineData(this.getLineContent(viewLine), continues, this.getLineMinColumn(viewLine), this.getLineMaxColumn(viewLine), this.viewStartVisibleColumns[viewIndex]);
+  }
+
+  ViewModelPosition convertViewPositionToModelPosition(ViewModelPosition position) {
+    int viewLine = this.validViewLineNumber(position.lineNumber);
+    int viewIndex = viewLine - 1;
+    int localOffset = position.column - this.getLineMinColumn(viewLine);
+    if (localOffset < 0) {
+      localOffset = 0;
+    }
+    int segmentLength = this.viewEndOffsets[viewIndex] - this.viewStartOffsets[viewIndex];
+    if (localOffset > segmentLength) {
+      localOffset = segmentLength;
+    }
+    return new ViewModelPosition(this.viewModelLineNumbers[viewIndex], this.viewStartOffsets[viewIndex] + localOffset + 1);
+  }
+
+  ViewModelRange convertViewRangeToModelRange(ViewModelRange range) {
+    ViewModelPosition start = this.convertViewPositionToModelPosition(new ViewModelPosition(range.startLineNumber, range.startColumn));
+    ViewModelPosition end = this.convertViewPositionToModelPosition(new ViewModelPosition(range.endLineNumber, range.endColumn));
+    return new ViewModelRange(start.lineNumber, start.column, end.lineNumber, end.column);
+  }
+
+  ViewModelPosition convertModelPositionToViewPosition(ViewModelPosition position, int affinity = 2, bool belowHiddenRanges = false) {
+    int modelLine = position.lineNumber;
+    if (modelLine < 1) {
+      modelLine = 1;
+    }
+    if (modelLine > this.modelLines.length) {
+      modelLine = this.modelLines.length;
+    }
+    bool moved = false;
+    if (belowHiddenRanges) {
+      while (modelLine < this.modelLines.length && this.modelLineIsHidden(modelLine)) {
+        modelLine = modelLine + 1;
+        moved = true;
+      }
+    } else {
+      while (modelLine > 1 && this.modelLineIsHidden(modelLine)) {
+        modelLine = modelLine - 1;
+        moved = true;
+      }
+    }
+    int column = position.column;
+    if (moved) {
+      if (belowHiddenRanges) {
+        column = 1;
+      } else {
+        column = this.modelLines[modelLine - 1].length + 1;
+      }
+    }
+    if (column < 1) {
+      column = 1;
+    }
+    if (column > this.modelLines[modelLine - 1].length + 1) {
+      column = this.modelLines[modelLine - 1].length + 1;
+    }
+    int offset = column - 1;
+    int firstView = this.modelFirstViewLines[modelLine - 1];
+    int count = this.modelViewLineCounts[modelLine - 1];
+    int index = 0;
+    while (index + 1 < count && offset > this.viewEndOffsets[firstView + index - 1]) {
+      index = index + 1;
+    }
+    if (affinity == 1 && index + 1 < count && offset == this.viewEndOffsets[firstView + index - 1]) {
+      index = index + 1;
+    }
+    int viewIndex = firstView + index - 1;
+    int localOffset = offset - this.viewStartOffsets[viewIndex];
+    if (localOffset < 0) {
+      localOffset = 0;
+    }
+    return new ViewModelPosition(firstView + index, this.viewIndentLengths[viewIndex] + localOffset + 1);
+  }
+
+  ViewModelRange convertModelRangeToViewRange(ViewModelRange range) {
+    ViewModelPosition start = this.convertModelPositionToViewPosition(new ViewModelPosition(range.startLineNumber, range.startColumn), 1);
+    ViewModelPosition end = this.convertModelPositionToViewPosition(new ViewModelPosition(range.endLineNumber, range.endColumn), 0);
+    return new ViewModelRange(start.lineNumber, start.column, end.lineNumber, end.column);
+  }
+
+  void setHiddenAreas(ViewModelRange[] ranges) {
+    this.hiddenAreas = ranges;
+    this.rebuild();
+  }
+
+  ViewModelRange[] toModelVisibleRanges(ViewModelRange visibleViewRange) {
+    ViewModelRange modelRange = this.convertViewRangeToModelRange(visibleViewRange);
+    ViewModelRange[] result = [];
+    int startLine = modelRange.startLineNumber;
+    int startColumn = modelRange.startColumn;
+    int i = 0;
+    while (i < this.hiddenAreas.length) {
+      ViewModelRange hidden = this.hiddenAreas[i];
+      if (hidden.endLineNumber >= startLine && hidden.startLineNumber <= modelRange.endLineNumber) {
+        if (startLine < hidden.startLineNumber) {
+          result.push(new ViewModelRange(startLine, startColumn, hidden.startLineNumber - 1, this.modelLines[hidden.startLineNumber - 2].length + 1));
+        }
+        startLine = hidden.endLineNumber + 1;
+        startColumn = 1;
+      }
+      i = i + 1;
+    }
+    if (startLine < modelRange.endLineNumber || (startLine == modelRange.endLineNumber && startColumn <= modelRange.endColumn)) {
+      result.push(new ViewModelRange(startLine, startColumn, modelRange.endLineNumber, modelRange.endColumn));
+    }
+    return result;
+  }
+
+  void setViewport(int startLineNumber, int endLineNumber) {
+    this.viewportStart = this.validViewLineNumber(startLineNumber);
+    this.viewportEnd = this.validViewLineNumber(endLineNumber);
+  }
+
+  ViewModelRange getCompletelyVisibleViewRange() {
+    return new ViewModelRange(this.viewportStart, this.getLineMinColumn(this.viewportStart), this.viewportEnd, this.getLineMaxColumn(this.viewportEnd));
+  }
+
+  ViewModelRange[] getVisibleRanges() {
+    return this.toModelVisibleRanges(this.getCompletelyVisibleViewRange());
+  }
+
+  void setLineContent(int modelLineNumber, string content) {
+    if (modelLineNumber < 1 || modelLineNumber > this.modelLines.length) {
+      return;
+    }
+    this.modelLines[modelLineNumber - 1] = content;
+    this.rebuild();
+  }
+
+  void setWrapping(int wrappingColumn, int wrappingIndent) {
+    this.wrappingColumn = wrappingColumn;
+    this.wrappingIndent = wrappingIndent;
+    this.rebuild();
+  }
+}
+
+export ViewModel createViewModel(string[] modelLines, int tabSize = 4, int wrappingColumn = -1, int wrappingIndent = 1) {
+  return new ViewModel(modelLines, tabSize, wrappingColumn, wrappingIndent);
+}
+
+export ViewModelPosition createViewModelPosition(int lineNumber, int column) {
+  return new ViewModelPosition(lineNumber, column);
+}
+
+export ViewModelRange createViewModelRange(int startLineNumber, int startColumn, int endLineNumber, int endColumn) {
+  return new ViewModelRange(startLineNumber, startColumn, endLineNumber, endColumn);
+}

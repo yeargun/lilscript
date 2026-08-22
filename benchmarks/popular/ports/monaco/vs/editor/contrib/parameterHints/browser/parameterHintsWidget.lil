@@ -1,0 +1,202 @@
+export class ParameterInformation {
+  string label;
+  string documentation;
+
+  init(string label, string documentation) {
+    this.label = label;
+    this.documentation = documentation;
+  }
+}
+
+export class SignatureInformation {
+  string label;
+  string documentation;
+  ParameterInformation[] parameters;
+  int activeParameter;
+
+  init(string label) {
+    this.label = label;
+    this.documentation = "";
+    this.parameters = [];
+    this.activeParameter = 0;
+  }
+}
+
+export class SignatureHelp {
+  SignatureInformation[] signatures;
+  int activeSignature;
+  int activeParameter;
+
+  init() {
+    this.signatures = [];
+    this.activeSignature = 0;
+    this.activeParameter = 0;
+  }
+}
+
+export class ParameterSpan {
+  string before;
+  string active;
+  string after;
+
+  init(string before, string active, string after) {
+    this.before = before;
+    this.after = after;
+    this.active = active;
+  }
+}
+
+export class ParameterHintsRender {
+  bool visible;
+  bool multiple;
+  string overloads;
+  string announcedLabel;
+  ParameterSpan? signature;
+  string docs;
+  bool hasDocs;
+
+  init() {
+    this.visible = false;
+    this.multiple = false;
+    this.overloads = "";
+    this.announcedLabel = "";
+    this.signature = null;
+    this.docs = "";
+    this.hasDocs = false;
+  }
+}
+
+string sliceChars(string text, int start, int end) {
+  string out = "";
+  int i = start;
+  if (i < 0) {
+    i = 0;
+  }
+  int last = end;
+  if (last > text.length) {
+    last = text.length;
+  }
+  while (i < last) {
+    out = out + text.charAt(i);
+    i = i + 1;
+  }
+  return out;
+}
+
+string padStartDigits(int value, int width) {
+  string text = "" + value;
+  while (text.length < width) {
+    text = "0" + text;
+  }
+  return text;
+}
+
+int[] parameterLabelOffsets(SignatureInformation signature, int paramIdx) {
+  int[] offsets = [];
+  offsets.push(0);
+  offsets.push(0);
+  if (paramIdx < 0 || paramIdx >= signature.parameters.length) {
+    return offsets;
+  }
+  string label = signature.parameters[paramIdx].label;
+  if (label.length == 0) {
+    return offsets;
+  }
+  int idx = signature.label.indexOf(label);
+  if (idx < 0) {
+    return offsets;
+  }
+  offsets[0] = idx;
+  offsets[1] = idx + label.length;
+  return offsets;
+}
+
+bool hasDocs(SignatureInformation signature, int paramIdx) {
+  if (signature.documentation.length > 0) {
+    return true;
+  }
+  if (paramIdx < 0 || paramIdx >= signature.parameters.length) {
+    return false;
+  }
+  return signature.parameters[paramIdx].documentation.length > 0;
+}
+
+export class ParameterHintsWidget {
+  ParameterHintsRender renderState;
+  bool visible;
+
+  init() {
+    this.renderState = new ParameterHintsRender();
+    this.visible = false;
+  }
+
+  void show() {
+    if (this.visible) {
+      return;
+    }
+    this.visible = true;
+    this.renderState.visible = true;
+  }
+
+  void hide() {
+    this.visible = false;
+    this.renderState.visible = false;
+    this.renderState.announcedLabel = "";
+    this.renderState.signature = null;
+    this.renderState.docs = "";
+  }
+
+  void render(SignatureHelp hints) {
+    this.show();
+    this.renderState.multiple = hints.signatures.length > 1;
+    int total = hints.signatures.length;
+    int active = hints.activeSignature;
+    if (active < 0) {
+      active = 0;
+    }
+    if (active >= total) {
+      this.renderState.signature = null;
+      return;
+    }
+    this.renderState.overloads = padStartDigits(active + 1, ("" + total).length) + "/" + total;
+    SignatureInformation signature = hints.signatures[active];
+    int paramIdx = signature.activeParameter;
+    if (paramIdx < 0) {
+      paramIdx = hints.activeParameter;
+    }
+    int[] offsets = parameterLabelOffsets(signature, paramIdx);
+    this.renderState.signature = new ParameterSpan(
+      sliceChars(signature.label, 0, offsets[0]),
+      sliceChars(signature.label, offsets[0], offsets[1]),
+      sliceChars(signature.label, offsets[1], signature.label.length)
+    );
+    this.renderState.hasDocs = hasDocs(signature, paramIdx);
+    string docs = signature.documentation;
+    if (paramIdx >= 0 && paramIdx < signature.parameters.length) {
+      ParameterInformation param = signature.parameters[paramIdx];
+      if (param.documentation.length > 0) {
+        if (docs.length > 0) {
+          docs = param.documentation + ", " + docs;
+        } else {
+          docs = param.documentation;
+        }
+      }
+      string announce = param.label;
+      if (docs.length > 0) {
+        announce = announce + ", " + docs;
+      }
+      if (announce != this.renderState.announcedLabel) {
+        this.renderState.announcedLabel = announce;
+      }
+    }
+    this.renderState.docs = docs;
+  }
+}
+
+export ParameterHintsWidget createParameterHintsWidget() {
+  return new ParameterHintsWidget();
+}
+
+export ParameterSpan createParameterSpan(string before, string active, string after) {
+  return new ParameterSpan(before, active, after);
+}

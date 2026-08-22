@@ -1,0 +1,123 @@
+export class HistoryNavigator {
+  Set<string> history;
+  int limit;
+  string[] elements;
+  int index;
+
+  init(int limit) {
+    this.history = new Set();
+    this.limit = limit;
+    this.elements = [];
+    this.index = -1;
+  }
+
+  void rebuild() {
+    string[] next = [];
+    for (string value of this.elements) {
+      if (this.history.has(value)) {
+        next.push(value);
+      }
+    }
+    this.elements = next;
+    if (this.elements.length > this.limit) {
+      string[] kept = [];
+      int start = this.elements.length - this.limit;
+      int i = start;
+      while (i < this.elements.length) {
+        kept.push(this.elements[i]);
+        i = i + 1;
+      }
+      Set<string> limited = new Set();
+      int k = 0;
+      while (k < kept.length) {
+        limited.add(kept[k]);
+        k = k + 1;
+      }
+      this.history = limited;
+      this.elements = kept;
+    }
+    this.index = this.elements.length;
+  }
+
+  string[] getHistory() {
+    return this.elements;
+  }
+
+  void add(string value) {
+    if (this.history.has(value)) {
+      this.history.delete(value);
+      string[] remaining = [];
+      int i = 0;
+      while (i < this.elements.length) {
+        if (this.elements[i] != value) {
+          remaining.push(this.elements[i]);
+        }
+        i = i + 1;
+      }
+      this.elements = remaining;
+    }
+    this.history.add(value);
+    this.elements.push(value);
+    this.rebuild();
+  }
+
+  string next() {
+    int nextIndex = this.index + 1;
+    if (nextIndex > this.elements.length) {
+      nextIndex = this.elements.length;
+    }
+    this.index = nextIndex;
+    if (this.index == this.elements.length || this.index < 0) {
+      return "";
+    }
+    return this.elements[this.index];
+  }
+
+  string previous() {
+    if (this.index == 0) {
+      return "";
+    }
+    int prev = this.index - 1;
+    if (prev < -1) {
+      prev = -1;
+    }
+    this.index = prev;
+    if (this.index < 0 || this.index >= this.elements.length) {
+      return "";
+    }
+    return this.elements[this.index];
+  }
+
+  string current() {
+    if (this.index < 0 || this.index >= this.elements.length) {
+      return "";
+    }
+    return this.elements[this.index];
+  }
+
+  string first() {
+    this.index = 0;
+    return this.current();
+  }
+
+  string last() {
+    this.index = this.elements.length - 1;
+    return this.current();
+  }
+
+  bool isLast() {
+    return this.index >= this.elements.length - 1;
+  }
+
+  bool isNowhere() {
+    return this.index < 0 || this.index >= this.elements.length;
+  }
+
+  bool has(string value) {
+    return this.history.has(value);
+  }
+}
+
+export HistoryNavigator createHistoryNavigator(int limit) {
+  return new HistoryNavigator(limit);
+}

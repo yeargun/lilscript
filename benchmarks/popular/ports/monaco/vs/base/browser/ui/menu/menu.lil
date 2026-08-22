@@ -1,0 +1,317 @@
+export int HORIZONTAL_RIGHT = 0;
+export int HORIZONTAL_LEFT = 1;
+export int VERTICAL_ABOVE = 0;
+export int VERTICAL_BELOW = 1;
+
+export string trimMenuLabel(string value) {
+  int start = 0;
+  while (start < value.length && value.charAt(start) == " ") {
+    start = start + 1;
+  }
+  int end = value.length;
+  while (end > start && value.charAt(end - 1) == " ") {
+    end = end - 1;
+  }
+  string result = "";
+  int i = start;
+  while (i < end) {
+    result = result + value.charAt(i);
+    i = i + 1;
+  }
+  return result;
+}
+
+export string menuMnemonic(string label) {
+  int i = 0;
+  while (i < label.length) {
+    if (
+      i + 3 < label.length
+      && label.charAt(i) == "("
+      && label.charAt(i + 1) == "&"
+      && label.charAt(i + 2) != "&"
+      && label.charAt(i + 3) == ")"
+    ) {
+      return label.charAt(i + 2).toLowerCase();
+    }
+    if (label.charAt(i) == "&" && i + 1 < label.length) {
+      if (label.charAt(i + 1) == "&") {
+        i = i + 2;
+        continue;
+      }
+      if (label.charAt(i + 1) != " ") {
+        return label.charAt(i + 1).toLowerCase();
+      }
+    }
+    i = i + 1;
+  }
+  return "";
+}
+
+export string cleanMnemonic(string label) {
+  string result = "";
+  int i = 0;
+  while (i < label.length) {
+    if (
+      i + 3 < label.length
+      && label.charAt(i) == "("
+      && label.charAt(i + 1) == "&"
+      && label.charAt(i + 2) != "&"
+      && label.charAt(i + 3) == ")"
+    ) {
+      i = i + 4;
+      continue;
+    }
+    if (label.charAt(i) == "&" && i + 1 < label.length) {
+      if (label.charAt(i + 1) == "&") {
+        result = result + "&";
+        i = i + 2;
+        continue;
+      }
+      i = i + 1;
+      continue;
+    }
+    result = result + label.charAt(i);
+    i = i + 1;
+  }
+  return trimMenuLabel(result);
+}
+
+export JsValue menuNoop(JsValue context) {
+  return context;
+}
+
+export class MenuAction {
+  string id;
+  string label;
+  bool enabled;
+  bool checked;
+  bool separator;
+  MenuAction[] submenu;
+  func(JsValue)->JsValue runner;
+
+  init(
+    string id,
+    string label,
+    bool enabled,
+    bool checked,
+    bool separator,
+    MenuAction[] submenu,
+    func(JsValue)->JsValue runner
+  ) {
+    this.id = id;
+    this.label = label;
+    this.enabled = enabled;
+    this.checked = checked;
+    this.separator = separator;
+    this.submenu = submenu;
+    this.runner = runner;
+  }
+
+  string mnemonic() {
+    return menuMnemonic(this.label);
+  }
+
+  bool hasSubmenu() {
+    return this.submenu.length > 0;
+  }
+
+  JsValue run(JsValue context) {
+    if (!this.enabled || this.separator || this.hasSubmenu()) {
+      return null;
+    }
+    return this.runner(context);
+  }
+}
+
+export class MenuModel {
+  MenuAction[] actions;
+  int focusedIndex;
+  MenuModel? activeSubmenu;
+
+  init(MenuAction[] actions = []) {
+    this.actions = [];
+    this.focusedIndex = -1;
+    this.activeSubmenu = null;
+    this.setActions(actions);
+  }
+
+  void setActions(MenuAction[] actions) {
+    MenuAction[] filtered = [];
+    int i = 0;
+    while (i < actions.length) {
+      MenuAction action = actions[i];
+      if (action.separator) {
+        if (filtered.length == 0 || filtered[filtered.length - 1].separator) {
+          i = i + 1;
+          continue;
+        }
+      }
+      filtered.push(action);
+      i = i + 1;
+    }
+    if (filtered.length > 0 && filtered[filtered.length - 1].separator) {
+      filtered.pop();
+    }
+    this.actions = filtered;
+    this.focusedIndex = -1;
+    this.activeSubmenu = null;
+  }
+
+  bool canFocus(int index) {
+    return index >= 0
+      && index < this.actions.length
+      && !this.actions[index].separator
+      && this.actions[index].enabled;
+  }
+
+  int focusNext(bool loop = true) {
+    if (this.actions.length == 0) {
+      return -1;
+    }
+    int index = this.focusedIndex;
+    int visited = 0;
+    while (visited < this.actions.length) {
+      index = index + 1;
+      if (index >= this.actions.length) {
+        if (!loop) {
+          return this.focusedIndex;
+        }
+        index = 0;
+      }
+      if (this.canFocus(index)) {
+        this.focusedIndex = index;
+        this.activeSubmenu = null;
+        return index;
+      }
+      visited = visited + 1;
+    }
+    return -1;
+  }
+
+  int focusPrevious(bool loop = true) {
+    if (this.actions.length == 0) {
+      return -1;
+    }
+    int index = this.focusedIndex;
+    if (index < 0) {
+      index = this.actions.length;
+    }
+    int visited = 0;
+    while (visited < this.actions.length) {
+      index = index - 1;
+      if (index < 0) {
+        if (!loop) {
+          return this.focusedIndex;
+        }
+        index = this.actions.length - 1;
+      }
+      if (this.canFocus(index)) {
+        this.focusedIndex = index;
+        this.activeSubmenu = null;
+        return index;
+      }
+      visited = visited + 1;
+    }
+    return -1;
+  }
+
+  int triggerMnemonic(string key) {
+    string normalized = key.toLowerCase();
+    if (normalized.length == 0) {
+      return -1;
+    }
+    int start = this.focusedIndex;
+    int i = 1;
+    while (i <= this.actions.length) {
+      int index = start + i;
+      if (index >= this.actions.length) {
+        index = index - this.actions.length;
+      }
+      if (this.canFocus(index) && this.actions[index].mnemonic() == normalized) {
+        this.focusedIndex = index;
+        if (this.actions[index].hasSubmenu()) {
+          MenuModel submenu = new MenuModel(this.actions[index].submenu);
+          this.activeSubmenu = submenu;
+          submenu.focusNext();
+        }
+        return index;
+      }
+      i = i + 1;
+    }
+    return -1;
+  }
+
+  MenuModel? openSubmenu(bool selectFirst = true) {
+    if (!this.canFocus(this.focusedIndex)) {
+      return null;
+    }
+    MenuAction action = this.actions[this.focusedIndex];
+    if (!action.hasSubmenu()) {
+      return null;
+    }
+    MenuModel submenu = new MenuModel(action.submenu);
+    this.activeSubmenu = submenu;
+    if (selectFirst) {
+      submenu.focusNext();
+    }
+    return submenu;
+  }
+
+  void closeSubmenu() {
+    this.activeSubmenu = null;
+  }
+
+  JsValue runFocused(JsValue context = null) {
+    if (!this.canFocus(this.focusedIndex)) {
+      return null;
+    }
+    MenuAction action = this.actions[this.focusedIndex];
+    if (action.hasSubmenu()) {
+      this.openSubmenu();
+      return null;
+    }
+    return action.run(context);
+  }
+
+  bool setEnabled(string id, bool enabled) {
+    int i = 0;
+    while (i < this.actions.length) {
+      if (this.actions[i].id == id) {
+        this.actions[i].enabled = enabled;
+        if (!enabled && this.focusedIndex == i) {
+          this.focusedIndex = -1;
+        }
+        return true;
+      }
+      i = i + 1;
+    }
+    return false;
+  }
+}
+
+export MenuAction createMenuAction(
+  string id,
+  string label,
+  func(JsValue)->JsValue runner,
+  bool enabled = true,
+  bool checked = false
+) {
+  return new MenuAction(id, label, enabled, checked, false, [], runner);
+}
+
+export MenuAction createSubmenuAction(
+  string id,
+  string label,
+  MenuAction[] submenu,
+  bool enabled = true
+) {
+  return new MenuAction(id, label, enabled, false, false, submenu, menuNoop);
+}
+
+export MenuAction createMenuSeparator() {
+  return new MenuAction("separator", "", false, false, true, [], menuNoop);
+}
+
+export MenuModel createMenu(MenuAction[] actions) {
+  return new MenuModel(actions);
+}

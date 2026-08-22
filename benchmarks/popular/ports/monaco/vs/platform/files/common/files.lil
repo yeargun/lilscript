@@ -1,0 +1,53 @@
+export int FileTypeUnknown = 0;
+export int FileTypeFile = 1;
+export int FileTypeDirectory = 2;
+export int FileTypeSymbolicLink = 64;
+
+export class FileService {
+  string[] paths;
+  string[] contents;
+
+  init() {
+    this.paths = [];
+    this.contents = [];
+  }
+
+  int indexOf(string path) {
+    int i = 0;
+    while (i < this.paths.length) {
+      if (this.paths[i] == path) {
+        return i;
+      }
+      i = i + 1;
+    }
+    return -1;
+  }
+
+  void writeFile(string path, string content) {
+    int idx = this.indexOf(path);
+    if (idx >= 0) {
+      this.contents[idx] = content;
+      return;
+    }
+    this.paths.push(path);
+    this.contents.push(content);
+  }
+
+  string readFile(string path) {
+    int idx = this.indexOf(path);
+    if (idx >= 0) {
+      return this.contents[idx];
+    }
+    return "";
+  }
+
+  bool exists(string path) {
+    return this.indexOf(path) >= 0;
+  }
+}
+
+export FileService createFileService() {
+  return new FileService();
+}
+
+export string IFileServiceId = "fileService";

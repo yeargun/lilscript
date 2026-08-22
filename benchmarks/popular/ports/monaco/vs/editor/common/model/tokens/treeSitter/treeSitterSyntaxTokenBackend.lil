@@ -1,0 +1,156 @@
+export int BackgroundTokenizationStateInProgress = 1;
+export int BackgroundTokenizationStateCompleted = 2;
+export int StandardTokenTypeOther = 0;
+
+export class LineTokens {
+  string content;
+  int[] endOffsetsAndMetadata;
+
+  init(string content, int[] endOffsetsAndMetadata) {
+    this.content = content;
+    this.endOffsetsAndMetadata = endOffsetsAndMetadata;
+  }
+}
+
+export class TreeSitterSyntaxTokenBackend {
+  string languageId;
+  string[] lines;
+  int[][] tokensByLine;
+  int backgroundTokenizationState;
+  bool available;
+
+  init(string languageId, string[] lines) {
+    this.languageId = languageId;
+    this.lines = lines;
+    this.tokensByLine = [];
+    this.backgroundTokenizationState = BackgroundTokenizationStateInProgress;
+    this.available = false;
+    this.resetTokenization();
+  }
+
+  void resetTokenization() {
+    this.tokensByLine = [];
+    int i = 0;
+    while (i < this.lines.length) {
+      this.tokensByLine.push([this.lines[i].length, 0]);
+      i = i + 1;
+    }
+  }
+
+  void setLineTokens(int lineNumber, int[] tokens) {
+    int index = lineNumber - 1;
+    if (index >= 0 && index < this.tokensByLine.length) {
+      this.tokensByLine[index] = tokens;
+      this.available = true;
+    }
+  }
+
+  LineTokens getLineTokens(int lineNumber) {
+    int index = lineNumber - 1;
+    if (index < 0 || index >= this.lines.length) {
+      return new LineTokens("", [0, 0]);
+    }
+    return new LineTokens(this.lines[index], this.tokensByLine[index]);
+  }
+
+  void handleDidChangeContent(
+    int startLineNumber,
+    int deletedLineCount,
+    string[] insertedLines,
+    bool isFlush
+  ) {
+    if (isFlush) {
+      this.lines = insertedLines;
+      this.available = false;
+      this.backgroundTokenizationState = BackgroundTokenizationStateInProgress;
+      this.resetTokenization();
+      return;
+    }
+    int index = startLineNumber - 1;
+    if (index < 0) {
+      index = 0;
+    }
+    if (deletedLineCount > 0) {
+      this.lines.splice(index, deletedLineCount);
+      this.tokensByLine.splice(index, deletedLineCount);
+    }
+    string[] nextLines = [];
+    int[][] nextTokens = [];
+    int i = 0;
+    while (i < index && i < this.lines.length) {
+      nextLines.push(this.lines[i]);
+      nextTokens.push(this.tokensByLine[i]);
+      i = i + 1;
+    }
+    i = 0;
+    while (i < insertedLines.length) {
+      nextLines.push(insertedLines[i]);
+      nextTokens.push([insertedLines[i].length, 0]);
+      i = i + 1;
+    }
+    i = index;
+    while (i < this.lines.length) {
+      nextLines.push(this.lines[i]);
+      nextTokens.push(this.tokensByLine[i]);
+      i = i + 1;
+    }
+    this.lines = nextLines;
+    this.tokensByLine = nextTokens;
+  }
+
+  void completeBackgroundTokenization() {
+    this.backgroundTokenizationState = BackgroundTokenizationStateCompleted;
+    this.available = true;
+  }
+
+  void forceTokenization(int lineNumber) {
+    int index = lineNumber - 1;
+    if (index >= 0 && index < this.lines.length && this.tokensByLine[index].length == 0) {
+      this.tokensByLine[index] = [this.lines[index].length, 0];
+    }
+  }
+
+  bool hasAccurateTokensForLine(int lineNumber) {
+    int index = lineNumber - 1;
+    return this.available
+      && index >= 0
+      && index < this.tokensByLine.length
+      && this.tokensByLine[index].length > 0;
+  }
+
+  bool isCheapToTokenize(int lineNumber) {
+    return true;
+  }
+
+  int getTokenTypeIfInsertingCharacter(
+    int lineNumber,
+    int column,
+    string character
+  ) {
+    return StandardTokenTypeOther;
+  }
+
+  LineTokens[]? tokenizeLinesAt(int lineNumber, string[] nextLines) {
+    if (!this.available) {
+      return null;
+    }
+    LineTokens[] result = [];
+    int i = 0;
+    while (i < nextLines.length) {
+      result.push(new LineTokens(nextLines[i], [nextLines[i].length, 0]));
+      i = i + 1;
+    }
+    return result;
+  }
+
+  bool hasTokens() {
+    return this.available;
+  }
+}
+
+export TreeSitterSyntaxTokenBackend createTreeSitterSyntaxTokenBackend(
+  string languageId,
+  string[] lines
+) {
+  return new TreeSitterSyntaxTokenBackend(languageId, lines);
+}

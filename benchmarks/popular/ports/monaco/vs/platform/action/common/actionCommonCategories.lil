@@ -1,0 +1,5 @@
+export string CategoryView = "View";
+export string CategoryHelp = "Help";
+export string CategoryPreferences = "Preferences";
+export string CategoryDeveloper = "Developer";
+export string CategoryFile = "File";

@@ -1,0 +1,56 @@
+export class ArrayNavigator {
+  string[] items;
+  int start;
+  int end;
+  int index;
+
+  init(string[] items, int start, int end, int index) {
+    this.items = items;
+    this.start = start;
+    this.end = end;
+    this.index = index;
+  }
+
+  string current() {
+    if (this.index == this.start - 1 || this.index == this.end) {
+      return "";
+    }
+    return this.items[this.index];
+  }
+
+  bool hasCurrent() {
+    return this.index != this.start - 1 && this.index != this.end;
+  }
+
+  string next() {
+    int nextIndex = this.index + 1;
+    if (nextIndex > this.end) {
+      nextIndex = this.end;
+    }
+    this.index = nextIndex;
+    return this.current();
+  }
+
+  string previous() {
+    int prev = this.index - 1;
+    if (prev < this.start - 1) {
+      prev = this.start - 1;
+    }
+    this.index = prev;
+    return this.current();
+  }
+
+  string first() {
+    this.index = this.start;
+    return this.current();
+  }
+
+  string last() {
+    this.index = this.end - 1;
+    return this.current();
+  }
+}
+
+export ArrayNavigator createArrayNavigator(string[] items) {
+  return new ArrayNavigator(items, 0, items.length, -1);
+}

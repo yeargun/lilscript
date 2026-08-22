@@ -1,0 +1,199 @@
+export class OffsetRange {
+  int start;
+  int endExclusive;
+
+  init(int start, int endExclusive) {
+    this.start = start;
+    this.endExclusive = endExclusive;
+  }
+
+  int length() {
+    return this.endExclusive - this.start;
+  }
+
+  bool isEmpty() {
+    return this.start >= this.endExclusive;
+  }
+
+  bool intersectsOrTouches(OffsetRange other) {
+    return this.start <= other.endExclusive && other.start <= this.endExclusive;
+  }
+
+  OffsetRange intersect(OffsetRange other) {
+    int start = this.start;
+    if (other.start > start) {
+      start = other.start;
+    }
+    int end = this.endExclusive;
+    if (other.endExclusive < end) {
+      end = other.endExclusive;
+    }
+    if (end < start) {
+      end = start;
+    }
+    return new OffsetRange(start, end);
+  }
+
+  OffsetRange delta(int amount) {
+    return new OffsetRange(this.start + amount, this.endExclusive + amount);
+  }
+}
+
+export class Annotation {
+  OffsetRange range;
+  JsValue annotation;
+  bool hasAnnotation;
+
+  init(OffsetRange range, JsValue annotation, bool hasAnnotation) {
+    this.range = range;
+    this.annotation = annotation;
+    this.hasAnnotation = hasAnnotation;
+  }
+}
+
+export class AnnotationsUpdate {
+  Annotation[] annotations;
+
+  init(Annotation[] annotations) {
+    this.annotations = annotations;
+  }
+}
+
+export class StringReplacement {
+  OffsetRange replaceRange;
+  string newText;
+
+  init(OffsetRange replaceRange, string newText) {
+    this.replaceRange = replaceRange;
+    this.newText = newText;
+  }
+}
+
+export class StringEdit {
+  StringReplacement[] replacements;
+
+  init(StringReplacement[] replacements) {
+    this.replacements = replacements;
+  }
+}
+
+export class AnnotatedString {
+  Annotation[] annotations;
+
+  init(Annotation[] annotations) {
+    this.annotations = annotations;
+  }
+
+  void setAnnotations(AnnotationsUpdate update) {
+    int u = 0;
+    while (u < update.annotations.length) {
+      Annotation replacement = update.annotations[u];
+      Annotation[] next = [];
+      int i = 0;
+      bool inserted = false;
+      while (i < this.annotations.length) {
+        Annotation current = this.annotations[i];
+        if (current.range.endExclusive <= replacement.range.start) {
+          next.push(current);
+        } else if (current.range.start >= replacement.range.endExclusive) {
+          if (!inserted && replacement.hasAnnotation) {
+            next.push(replacement);
+            inserted = true;
+          }
+          next.push(current);
+        }
+        i = i + 1;
+      }
+      if (!inserted && replacement.hasAnnotation) {
+        next.push(replacement);
+      }
+      this.annotations = next;
+      u = u + 1;
+    }
+  }
+
+  Annotation[] getAnnotationsIntersecting(OffsetRange range) {
+    Annotation[] result = [];
+    int low = 0;
+    int high = this.annotations.length;
+    while (low < high) {
+      int middle = low + ((high - low) / 2);
+      if (this.annotations[middle].range.endExclusive < range.start) {
+        low = middle + 1;
+      } else {
+        high = middle;
+      }
+    }
+    int i = low;
+    while (i < this.annotations.length && this.annotations[i].range.start <= range.endExclusive) {
+      if (this.annotations[i].range.intersectsOrTouches(range)) {
+        result.push(this.annotations[i]);
+      }
+      i = i + 1;
+    }
+    return result;
+  }
+
+  Annotation[] applyEdit(StringEdit edit) {
+    Annotation[] deleted = [];
+    int replacementIndex = 0;
+    while (replacementIndex < edit.replacements.length) {
+      StringReplacement replacement = edit.replacements[replacementIndex];
+      int removedLength = replacement.replaceRange.length();
+      int delta = replacement.newText.length - removedLength;
+      Annotation[] next = [];
+      int i = 0;
+      bool extendedFirst = false;
+      while (i < this.annotations.length) {
+        Annotation current = this.annotations[i];
+        OffsetRange range = current.range;
+        if (range.endExclusive <= replacement.replaceRange.start) {
+          next.push(current);
+        } else if (range.start >= replacement.replaceRange.endExclusive) {
+          current.range = range.delta(delta);
+          next.push(current);
+        } else {
+          int overlap = range.intersect(replacement.replaceRange).length();
+          int start = range.start;
+          if (start > replacement.replaceRange.start) {
+            start = replacement.replaceRange.start;
+          }
+          int end = range.endExclusive - overlap;
+          if (!extendedFirst) {
+            end = end + replacement.newText.length;
+            extendedFirst = true;
+          } else if (range.start >= replacement.replaceRange.start) {
+            start = replacement.replaceRange.start + replacement.newText.length;
+            end = end + replacement.newText.length;
+          }
+          Annotation adjusted = new Annotation(new OffsetRange(start, end), current.annotation, current.hasAnnotation);
+          if (adjusted.range.isEmpty()) {
+            deleted.push(adjusted);
+          } else {
+            next.push(adjusted);
+          }
+        }
+        i = i + 1;
+      }
+      this.annotations = next;
+      replacementIndex = replacementIndex + 1;
+    }
+    return deleted;
+  }
+}
+
+export AnnotatedString createAnnotatedString(Annotation[] annotations) {
+  return new AnnotatedString(annotations);
+}
+
+export Annotation createAnnotation(int start, int endExclusive, JsValue value) {
+  return new Annotation(new OffsetRange(start, endExclusive), value, true);
+}
+
+export Annotation createAnnotationRemoval(int start, int endExclusive) {
+  return new Annotation(new OffsetRange(start, endExclusive), null, false);
+}
+
+export AnnotationsUpdate createAnnotationsUpdate(Annotation[] annotations) {
+  return new AnnotationsUpdate(annotations);
+}

@@ -1,0 +1,10 @@
+export JsValue createNullDocumentDiff() {
+  JsValue result = JS.object();
+  result["identical"] = true;
+  result["quitEarly"] = false;
+  result["changes"] = JS.array();
+  result["moves"] = JS.array();
+  return result;
+}
+
+export JsValue nullDocumentDiff = createNullDocumentDiff();

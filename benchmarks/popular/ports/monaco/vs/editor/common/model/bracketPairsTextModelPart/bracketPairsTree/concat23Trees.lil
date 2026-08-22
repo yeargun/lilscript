@@ -1,0 +1,181 @@
+export class AstTreeNode {
+  int listHeight;
+  int length;
+  AstTreeNode[] children;
+
+  init(int listHeight, int length, AstTreeNode[] children) {
+    this.listHeight = listHeight;
+    this.length = length;
+    this.children = children;
+  }
+
+  void recomputeLength() {
+    int result = 0;
+    int i = 0;
+    while (i < this.children.length) {
+      result = result + this.children[i].length;
+      i = i + 1;
+    }
+    this.length = result;
+  }
+}
+
+AstTreeNode createParent(AstTreeNode first, AstTreeNode second, AstTreeNode? third) {
+  AstTreeNode[] children = [first, second];
+  if (third != null) {
+    children.push(third);
+  }
+  AstTreeNode result = new AstTreeNode(first.listHeight + 1, 0, children);
+  result.recomputeLength();
+  return result;
+}
+
+export AstTreeNode? concat23TreesOfSameHeight(AstTreeNode[] items) {
+  if (items.length == 0) {
+    return null;
+  }
+  AstTreeNode[] level = items.slice();
+  while (level.length > 1) {
+    AstTreeNode[] next = [];
+    int i = 0;
+    while (i < level.length) {
+      int remaining = level.length - i;
+      if (remaining == 2 || remaining == 4) {
+        next.push(createParent(level[i], level[i + 1], null));
+        i = i + 2;
+      } else {
+        AstTreeNode? third = null;
+        if (remaining >= 3) {
+          third = level[i + 2];
+        }
+        next.push(createParent(level[i], level[i + 1], third));
+        i = i + 3;
+      }
+    }
+    level = next;
+  }
+  return level[0];
+}
+
+AstTreeNode appendTree(AstTreeNode taller, AstTreeNode smaller) {
+  AstTreeNode root = taller;
+  AstTreeNode current = root;
+  AstTreeNode[] parents = [];
+  while (current.listHeight > smaller.listHeight + 1 && current.children.length > 0) {
+    parents.push(current);
+    current = current.children[current.children.length - 1];
+  }
+  AstTreeNode carry = smaller;
+  bool hasCarry = true;
+  if (current.children.length < 3) {
+    current.children.push(smaller);
+    current.recomputeLength();
+    hasCarry = false;
+  } else {
+    AstTreeNode last = current.children[current.children.length - 1];
+    current.children.splice(current.children.length - 1, 1);
+    current.recomputeLength();
+    carry = createParent(last, smaller, null);
+  }
+  int i = parents.length - 1;
+  while (i >= 0) {
+    AstTreeNode parent = parents[i];
+    if (hasCarry) {
+      if (parent.children.length < 3) {
+        parent.children.push(carry);
+        hasCarry = false;
+      } else {
+        AstTreeNode last = parent.children[parent.children.length - 1];
+        parent.children.splice(parent.children.length - 1, 1);
+        carry = createParent(last, carry, null);
+      }
+    }
+    parent.recomputeLength();
+    i = i - 1;
+  }
+  if (hasCarry) {
+    return createParent(root, carry, null);
+  }
+  return root;
+}
+
+AstTreeNode prependTree(AstTreeNode taller, AstTreeNode smaller) {
+  AstTreeNode root = taller;
+  AstTreeNode current = root;
+  AstTreeNode[] parents = [];
+  while (current.listHeight > smaller.listHeight + 1 && current.children.length > 0) {
+    parents.push(current);
+    current = current.children[0];
+  }
+  AstTreeNode carry = smaller;
+  bool hasCarry = true;
+  if (current.children.length < 3) {
+    AstTreeNode[] next = [smaller];
+    int c = 0;
+    while (c < current.children.length) {
+      next.push(current.children[c]);
+      c = c + 1;
+    }
+    current.children = next;
+    current.recomputeLength();
+    hasCarry = false;
+  } else {
+    AstTreeNode first = current.children[0];
+    current.children.splice(0, 1);
+    current.recomputeLength();
+    carry = createParent(smaller, first, null);
+  }
+  int i = parents.length - 1;
+  while (i >= 0) {
+    AstTreeNode parent = parents[i];
+    if (hasCarry) {
+      if (parent.children.length < 3) {
+        AstTreeNode[] next = [carry];
+        int c = 0;
+        while (c < parent.children.length) {
+          next.push(parent.children[c]);
+          c = c + 1;
+        }
+        parent.children = next;
+        hasCarry = false;
+      } else {
+        AstTreeNode first = parent.children[0];
+        parent.children.splice(0, 1);
+        carry = createParent(carry, first, null);
+      }
+    }
+    parent.recomputeLength();
+    i = i - 1;
+  }
+  if (hasCarry) {
+    return createParent(carry, root, null);
+  }
+  return root;
+}
+
+AstTreeNode concatTwo(AstTreeNode first, AstTreeNode second) {
+  if (first.listHeight == second.listHeight) {
+    return createParent(first, second, null);
+  }
+  if (first.listHeight > second.listHeight) {
+    return appendTree(first, second);
+  }
+  return prependTree(second, first);
+}
+
+export AstTreeNode? concat23Trees(AstTreeNode[] items) {
+  if (items.length == 0) {
+    return null;
+  }
+  AstTreeNode result = items[0];
+  int i = 1;
+  while (i < items.length) {
+    result = concatTwo(result, items[i]);
+    i = i + 1;
+  }
+  return result;
+}
+
+export AstTreeNode createAstTreeLeaf(int length) {
+  return new AstTreeNode(0, length, []);
+}

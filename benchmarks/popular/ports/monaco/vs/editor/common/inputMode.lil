@@ -1,0 +1,24 @@
+export string inputModeInsert = "insert";
+export string inputModeOvertype = "overtype";
+
+string currentInputMode = inputModeInsert;
+(func()->void)[] inputModeListeners = [];
+
+export string getInputMode() {
+  return currentInputMode;
+}
+
+export void setInputMode(string mode) {
+  currentInputMode = mode;
+  int i = 0;
+  while (i < inputModeListeners.length) {
+    inputModeListeners[i]();
+    i = i + 1;
+  }
+}
+
+export func()->void onDidChangeInputMode(func()->void listener) {
+  inputModeListeners.push(listener);
+  return () => {
+  };
+}

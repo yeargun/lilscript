@@ -1,0 +1,28 @@
+export class FloatingMenu {
+  bool visible;
+  int x;
+  int y;
+  string[] actions;
+
+  init() {
+    this.visible = false;
+    this.x = 0;
+    this.y = 0;
+    this.actions = [];
+  }
+
+  void show(int x, int y, string[] actions) {
+    this.x = x;
+    this.y = y;
+    this.actions = actions;
+    this.visible = actions.length > 0;
+  }
+
+  void hide() {
+    this.visible = false;
+  }
+}
+
+export FloatingMenu createFloatingMenu() {
+  return new FloatingMenu();
+}

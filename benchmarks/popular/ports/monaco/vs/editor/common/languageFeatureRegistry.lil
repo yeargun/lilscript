@@ -1,0 +1,215 @@
+import { score } from "./languageSelector";
+import { hostCall, jsUndefined } from "../../../js-host";
+
+class LanguageFeatureEntry {
+  JsValue selector;
+  JsValue provider;
+  int featureScore;
+  int time;
+
+  init(JsValue selector, JsValue provider, int time) {
+    this.selector = selector;
+    this.provider = provider;
+    this.featureScore = -1;
+    this.time = time;
+  }
+}
+
+bool isExclusiveSelector(JsValue selector) {
+  if (JS.typeOf(selector) == "string") {
+    return false;
+  }
+  if (JS.isArray(selector)) {
+    int i = 0;
+    int length = JS.number(selector["length"]).toInt();
+    while (i < length) {
+      if (!isExclusiveSelector(selector[i])) {
+        return false;
+      }
+      i = i + 1;
+    }
+    return true;
+  }
+  if (selector["exclusive"] == null) {
+    return false;
+  }
+  return selector["exclusive"].truthy();
+}
+
+bool isBuiltinSelector(JsValue selector) {
+  if (JS.typeOf(selector) == "string") {
+    return false;
+  }
+  if (JS.isArray(selector)) {
+    int i = 0;
+    int length = JS.number(selector["length"]).toInt();
+    while (i < length) {
+      if (isBuiltinSelector(selector[i])) {
+        return true;
+      }
+      i = i + 1;
+    }
+    return false;
+  }
+  return selector["isBuiltin"] != null && selector["isBuiltin"].truthy();
+}
+
+string modelLanguageId(JsValue model) {
+  if (model["languageId"] != null) {
+    return JS.string(model["languageId"]);
+  }
+  return JS.string(hostCall(model, "getLanguageId", jsUndefined(), jsUndefined(), jsUndefined()));
+}
+
+export class LanguageFeatureRegistry {
+  LanguageFeatureEntry[] entries;
+  int clock;
+  (func(int)->void)[] listeners;
+
+  init() {
+    this.entries = [];
+    this.clock = 0;
+    this.listeners = [];
+  }
+
+  void fireChange() {
+    int i = 0;
+    while (i < this.listeners.length) {
+      this.listeners[i](this.entries.length);
+      i = i + 1;
+    }
+  }
+
+  func()->void onDidChange(func(int)->void listener) {
+    this.listeners.push(listener);
+    return () => {
+      int index = this.listeners.indexOf(listener);
+      if (index >= 0) {
+        this.listeners.splice(index, 1);
+      }
+    };
+  }
+
+  func()->void register(JsValue selector, JsValue provider) {
+    LanguageFeatureEntry entry = new LanguageFeatureEntry(selector, provider, this.clock);
+    this.clock = this.clock + 1;
+    this.entries.push(entry);
+    this.fireChange();
+    return () => {
+      int index = this.entries.indexOf(entry);
+      if (index >= 0) {
+        this.entries.splice(index, 1);
+        this.fireChange();
+      }
+    };
+  }
+
+  void updateScores(JsValue model, bool recursive) {
+    JsValue uri = model["uri"];
+    string languageId = modelLanguageId(model);
+    bool synchronized = true;
+    if (model["isTooLargeForSyncing"] != null) {
+      synchronized = !model["isTooLargeForSyncing"].truthy();
+    }
+    int exclusiveIndex = -1;
+    int i = 0;
+    while (i < this.entries.length) {
+      LanguageFeatureEntry entry = this.entries[i];
+      entry.featureScore = score(entry.selector, uri, languageId, synchronized);
+      if (entry.featureScore > 0 && isExclusiveSelector(entry.selector)) {
+        if (recursive) {
+          entry.featureScore = 0;
+        } else {
+          exclusiveIndex = i;
+        }
+      }
+      i = i + 1;
+    }
+    if (exclusiveIndex >= 0) {
+      i = 0;
+      while (i < this.entries.length) {
+        this.entries[i].featureScore = 0;
+        i = i + 1;
+      }
+      this.entries[exclusiveIndex].featureScore = 1000;
+    }
+  }
+
+  LanguageFeatureEntry[] orderedEntries(JsValue model, bool recursive) {
+    this.updateScores(model, recursive);
+    LanguageFeatureEntry[] ordered = [];
+    int i = 0;
+    while (i < this.entries.length) {
+      LanguageFeatureEntry entry = this.entries[i];
+      if (entry.featureScore > 0) {
+        int at = 0;
+        while (at < ordered.length) {
+          LanguageFeatureEntry current = ordered[at];
+          bool before = entry.featureScore > current.featureScore;
+          if (entry.featureScore == current.featureScore) {
+            bool entryBuiltin = isBuiltinSelector(entry.selector);
+            bool currentBuiltin = isBuiltinSelector(current.selector);
+            if (entryBuiltin != currentBuiltin) {
+              before = !entryBuiltin;
+            } else {
+              before = entry.time > current.time;
+            }
+          }
+          if (before) {
+            break;
+          }
+          at = at + 1;
+        }
+        ordered.push(entry);
+        int move = ordered.length - 1;
+        while (move > at) {
+          ordered[move] = ordered[move - 1];
+          move = move - 1;
+        }
+        ordered[at] = entry;
+      }
+      i = i + 1;
+    }
+    return ordered;
+  }
+
+  bool has(JsValue model) {
+    return this.all(model).length > 0;
+  }
+
+  JsValue[] all(JsValue model) {
+    LanguageFeatureEntry[] entries = this.orderedEntries(model, false);
+    JsValue[] providers = [];
+    int i = 0;
+    while (i < entries.length) {
+      providers.push(entries[i].provider);
+      i = i + 1;
+    }
+    return providers;
+  }
+
+  JsValue[] allNoModel() {
+    JsValue[] providers = [];
+    int i = 0;
+    while (i < this.entries.length) {
+      providers.push(this.entries[i].provider);
+      i = i + 1;
+    }
+    return providers;
+  }
+
+  JsValue[] ordered(JsValue model, bool recursive = false) {
+    LanguageFeatureEntry[] entries = this.orderedEntries(model, recursive);
+    JsValue[] providers = [];
+    int i = 0;
+    while (i < entries.length) {
+      providers.push(entries[i].provider);
+      i = i + 1;
+    }
+    return providers;
+  }
+}
+
+export LanguageFeatureRegistry createLanguageFeatureRegistry() {
+  return new LanguageFeatureRegistry();
+}

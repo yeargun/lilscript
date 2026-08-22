@@ -1,0 +1,61 @@
+export class RegistryImpl {
+  string[] ids;
+  string[] payloads;
+
+  init() {
+    this.ids = [];
+    this.payloads = [];
+  }
+
+  void add(string id, string data) {
+    int i = 0;
+    while (i < this.ids.length) {
+      if (this.ids[i] == id) {
+        return;
+      }
+      i = i + 1;
+    }
+    this.ids.push(id);
+    this.payloads.push(data);
+  }
+
+  string lookup(string id) {
+    int i = 0;
+    while (i < this.ids.length) {
+      if (this.ids[i] == id) {
+        return this.payloads[i];
+      }
+      i = i + 1;
+    }
+    return "";
+  }
+
+  bool knows(string id) {
+    return this.lookup(id).length > 0 || this.ids.includes(id);
+  }
+
+  void dispose() {
+    string[] emptyIds = [];
+    string[] emptyPayloads = [];
+    this.ids = emptyIds;
+    this.payloads = emptyPayloads;
+  }
+}
+
+RegistryImpl platformRegistry = new RegistryImpl();
+
+export RegistryImpl getRegistry() {
+  return platformRegistry;
+}
+
+export void registryAdd(string id, string data) {
+  platformRegistry.add(id, data);
+}
+
+export string registryLookup(string id) {
+  return platformRegistry.lookup(id);
+}
+
+export RegistryImpl createRegistry() {
+  return new RegistryImpl();
+}

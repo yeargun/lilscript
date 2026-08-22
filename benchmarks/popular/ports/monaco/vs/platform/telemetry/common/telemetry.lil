@@ -1,0 +1,26 @@
+export int TelemetryLevelNone = 0;
+export int TelemetryLevelCrash = 1;
+export int TelemetryLevelError = 2;
+export int TelemetryLevelUsage = 3;
+
+export class TelemetryService {
+  int level;
+  string[] events;
+
+  init(int level) {
+    this.level = level;
+    this.events = [];
+  }
+
+  void publicLog(string eventName) {
+    if (this.level >= TelemetryLevelUsage) {
+      this.events.push(eventName);
+    }
+  }
+}
+
+export TelemetryService createTelemetryService(int level) {
+  return new TelemetryService(level);
+}
+
+export string ITelemetryServiceId = "telemetryService";

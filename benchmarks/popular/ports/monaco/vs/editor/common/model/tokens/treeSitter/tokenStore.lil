@@ -1,0 +1,373 @@
+export int TokenQualityNone = 0;
+export int TokenQualityViewportGuess = 1;
+export int TokenQualityEditGuess = 2;
+export int TokenQualityAccurate = 3;
+
+export class TokenUpdate {
+  int startOffsetInclusive;
+  int length;
+  int token;
+
+  init(int startOffsetInclusive, int length, int token) {
+    this.startOffsetInclusive = startOffsetInclusive;
+    this.length = length;
+    this.token = token;
+  }
+}
+
+export class StoredToken {
+  int startOffsetInclusive;
+  int length;
+  int token;
+  int tokenQuality;
+
+  init(int startOffsetInclusive, int length, int token, int tokenQuality) {
+    this.startOffsetInclusive = startOffsetInclusive;
+    this.length = length;
+    this.token = token;
+    this.tokenQuality = tokenQuality;
+  }
+}
+
+export class OffsetRange {
+  int startOffset;
+  int endOffset;
+
+  init(int startOffset, int endOffset) {
+    this.startOffset = startOffset;
+    this.endOffset = endOffset;
+  }
+}
+
+export class ListNode {
+  int height;
+  ListNode[] children;
+  int length;
+  int token;
+  int tokenQuality;
+  bool leaf;
+  ListNode? parent;
+
+  init(int height, bool leaf, int length, int token, int tokenQuality) {
+    this.height = height;
+    this.children = [];
+    this.length = length;
+    this.token = token;
+    this.tokenQuality = tokenQuality;
+    this.leaf = leaf;
+    this.parent = null;
+  }
+
+  bool canAppendChild() {
+    return !this.leaf && this.children.length < 3;
+  }
+
+  void updateParentLength(int delta) {
+    ListNode? current = this.parent;
+    while (current != null) {
+      current.length = current.length + delta;
+      current = current.parent;
+    }
+  }
+
+  void appendChild(ListNode node) {
+    if (!this.canAppendChild()) {
+      return;
+    }
+    this.children.push(node);
+    this.length = this.length + node.length;
+    this.updateParentLength(node.length);
+    node.parent = this;
+  }
+
+  void prependChild(ListNode node) {
+    if (!this.canAppendChild()) {
+      return;
+    }
+    ListNode[] next = [node];
+    int i = 0;
+    while (i < this.children.length) {
+      next.push(this.children[i]);
+      i = i + 1;
+    }
+    this.children = next;
+    this.length = this.length + node.length;
+    this.updateParentLength(node.length);
+    node.parent = this;
+  }
+
+  ListNode? unappendChild() {
+    if (this.children.length == 0) {
+      return null;
+    }
+    ListNode child = this.children[this.children.length - 1];
+    this.children.splice(this.children.length - 1, 1);
+    this.length = this.length - child.length;
+    this.updateParentLength(0 - child.length);
+    child.parent = null;
+    return child;
+  }
+
+  ListNode? unprependChild() {
+    if (this.children.length == 0) {
+      return null;
+    }
+    ListNode child = this.children[0];
+    this.children.splice(0, 1);
+    this.length = this.length - child.length;
+    this.updateParentLength(0 - child.length);
+    child.parent = null;
+    return child;
+  }
+
+  ListNode? lastChild() {
+    if (this.children.length == 0) {
+      return null;
+    }
+    return this.children[this.children.length - 1];
+  }
+
+  void dispose() {
+    this.children = [];
+    this.parent = null;
+  }
+}
+
+ListNode createLeaf(int length, int token, int quality) {
+  return new ListNode(0, true, length, token, quality);
+}
+
+ListNode createParent(ListNode[] children) {
+  int height = 1;
+  if (children.length > 0) {
+    height = children[0].height + 1;
+  }
+  ListNode result = new ListNode(height, false, 0, 0, TokenQualityNone);
+  int i = 0;
+  while (i < children.length) {
+    result.appendChild(children[i]);
+    i = i + 1;
+  }
+  return result;
+}
+
+ListNode buildTreeFromLeaves(ListNode[] leaves) {
+  if (leaves.length == 0) {
+    return createLeaf(0, 0, TokenQualityNone);
+  }
+  ListNode[] level = leaves;
+  while (level.length > 1) {
+    ListNode[] next = [];
+    int i = 0;
+    while (i < level.length) {
+      int remaining = level.length - i;
+      int take = 3;
+      if (remaining == 2 || remaining == 4) {
+        take = 2;
+      }
+      ListNode[] children = [];
+      int j = 0;
+      while (j < take && i + j < level.length) {
+        children.push(level[i + j]);
+        j = j + 1;
+      }
+      next.push(createParent(children));
+      i = i + take;
+    }
+    level = next;
+  }
+  return level[0];
+}
+
+void flattenLeaves(ListNode node, ListNode[] result) {
+  if (node.leaf) {
+    result.push(node);
+    return;
+  }
+  int i = 0;
+  while (i < node.children.length) {
+    flattenLeaves(node.children[i], result);
+    i = i + 1;
+  }
+}
+
+export class TokenStore {
+  int textLength;
+  ListNode root;
+
+  init(int textLength) {
+    this.textLength = textLength;
+    this.root = createLeaf(textLength, 0, TokenQualityNone);
+  }
+
+  void buildStore(TokenUpdate[] tokens, int tokenQuality) {
+    ListNode[] leaves = [];
+    int i = 0;
+    while (i < tokens.length) {
+      leaves.push(createLeaf(tokens[i].length, tokens[i].token, tokenQuality));
+      i = i + 1;
+    }
+    if (leaves.length == 0) {
+      leaves.push(createLeaf(this.textLength, 0, TokenQualityNone));
+    }
+    this.root = buildTreeFromLeaves(leaves);
+    this.textLength = this.root.length;
+  }
+
+  void update(int length, TokenUpdate[] tokens, int tokenQuality) {
+    if (tokens.length == 0) {
+      return;
+    }
+    this.replace(length, tokens[0].startOffsetInclusive, tokens, tokenQuality);
+  }
+
+  void delete(int length, int startOffset) {
+    this.replace(length, startOffset, [], TokenQualityEditGuess);
+  }
+
+  void replace(int length, int updateOffsetStart, TokenUpdate[] tokens, int tokenQuality) {
+    int updateEnd = updateOffsetStart + length;
+    ListNode[] oldLeaves = [];
+    flattenLeaves(this.root, oldLeaves);
+    ListNode[] preceding = [];
+    ListNode[] following = [];
+    int offset = 0;
+    int i = 0;
+    while (i < oldLeaves.length) {
+      ListNode leaf = oldLeaves[i];
+      int leafEnd = offset + leaf.length;
+      if (leafEnd <= updateOffsetStart) {
+        preceding.push(createLeaf(leaf.length, leaf.token, leaf.tokenQuality));
+      } else if (offset >= updateEnd) {
+        following.push(createLeaf(leaf.length, leaf.token, leaf.tokenQuality));
+      } else {
+        if (offset < updateOffsetStart) {
+          preceding.push(createLeaf(updateOffsetStart - offset, leaf.token, leaf.tokenQuality));
+        }
+        if (leafEnd > updateEnd) {
+          following.push(createLeaf(leafEnd - updateEnd, leaf.token, leaf.tokenQuality));
+        }
+      }
+      offset = leafEnd;
+      i = i + 1;
+    }
+    ListNode[] combined = preceding;
+    i = 0;
+    while (i < tokens.length) {
+      combined.push(createLeaf(tokens[i].length, tokens[i].token, tokenQuality));
+      i = i + 1;
+    }
+    i = 0;
+    while (i < following.length) {
+      combined.push(following[i]);
+      i = i + 1;
+    }
+    if (combined.length == 0) {
+      combined.push(createLeaf(0, 0, TokenQualityNone));
+    }
+    this.root = buildTreeFromLeaves(combined);
+    this.textLength = this.root.length;
+  }
+
+  StoredToken[] getTokensInRange(int startOffsetInclusive, int endOffsetExclusive) {
+    StoredToken[] result = [];
+    ListNode[] leaves = [];
+    flattenLeaves(this.root, leaves);
+    int offset = 0;
+    int i = 0;
+    while (i < leaves.length) {
+      ListNode leaf = leaves[i];
+      int end = offset + leaf.length;
+      if (end > startOffsetInclusive && offset < endOffsetExclusive) {
+        int clippedStart = offset;
+        if (clippedStart < startOffsetInclusive) {
+          clippedStart = startOffsetInclusive;
+        }
+        int clippedEnd = end;
+        if (clippedEnd > endOffsetExclusive) {
+          clippedEnd = endOffsetExclusive;
+        }
+        result.push(
+          new StoredToken(clippedStart, clippedEnd - clippedStart, leaf.token, leaf.tokenQuality)
+        );
+      }
+      offset = end;
+      i = i + 1;
+    }
+    return result;
+  }
+
+  StoredToken? getTokenAt(int requestedOffset) {
+    StoredToken[] result = this.getTokensInRange(requestedOffset, requestedOffset + 1);
+    if (result.length == 0) {
+      return null;
+    }
+    return result[0];
+  }
+
+  void markForRefresh(int startOffsetInclusive, int endOffsetExclusive) {
+    ListNode[] leaves = [];
+    flattenLeaves(this.root, leaves);
+    int offset = 0;
+    int i = 0;
+    while (i < leaves.length) {
+      int end = offset + leaves[i].length;
+      if (end > startOffsetInclusive && offset < endOffsetExclusive) {
+        leaves[i].tokenQuality = TokenQualityNone;
+      }
+      offset = end;
+      i = i + 1;
+    }
+  }
+
+  bool rangeHasTokens(int startOffsetInclusive, int endOffsetExclusive, int minimumTokenQuality) {
+    StoredToken[] tokens = this.getTokensInRange(startOffsetInclusive, endOffsetExclusive);
+    int i = 0;
+    while (i < tokens.length) {
+      if (tokens[i].tokenQuality < minimumTokenQuality) {
+        return false;
+      }
+      i = i + 1;
+    }
+    return true;
+  }
+
+  bool rangeNeedsRefresh(int startOffsetInclusive, int endOffsetExclusive) {
+    return !this.rangeHasTokens(startOffsetInclusive, endOffsetExclusive, TokenQualityAccurate);
+  }
+
+  OffsetRange[] getNeedsRefresh() {
+    OffsetRange[] result = [];
+    ListNode[] leaves = [];
+    flattenLeaves(this.root, leaves);
+    int offset = 0;
+    int i = 0;
+    while (i < leaves.length) {
+      ListNode leaf = leaves[i];
+      if (leaf.tokenQuality != TokenQualityAccurate) {
+        if (result.length > 0 && result[result.length - 1].endOffset == offset) {
+          result[result.length - 1].endOffset = offset + leaf.length;
+        } else {
+          result.push(new OffsetRange(offset, offset + leaf.length));
+        }
+      }
+      offset = offset + leaf.length;
+      i = i + 1;
+    }
+    return result;
+  }
+
+  void dispose() {
+    this.root.dispose();
+    this.root = createLeaf(0, 0, TokenQualityNone);
+    this.textLength = 0;
+  }
+}
+
+export TokenStore createTokenStore(int textLength) {
+  return new TokenStore(textLength);
+}
+
+export TokenUpdate createTokenUpdate(int startOffsetInclusive, int length, int token) {
+  return new TokenUpdate(startOffsetInclusive, length, token);
+}

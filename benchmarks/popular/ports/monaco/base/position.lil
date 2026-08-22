@@ -58,6 +58,22 @@ export class Pos {
   }
 }
 
+export Pos liftPosition(JsValue value) {
+  if (!value.truthy()) {
+    return new Pos(1, 1);
+  }
+  int line = JS.number(value["lineNumber"]).toInt();
+  int col = JS.number(value["column"]).toInt();
+  return new Pos(posMax1(line), posMax1(col));
+}
+
+export bool isIPosition(JsValue value) {
+  if (!value.truthy()) {
+    return false;
+  }
+  return value["lineNumber"].truthy() && value["column"].truthy();
+}
+
 export Pos createPosition(int lineNumber, int column) {
   return new Pos(lineNumber, column);
 }

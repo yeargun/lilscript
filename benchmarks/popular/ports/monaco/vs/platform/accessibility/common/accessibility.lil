@@ -1,0 +1,47 @@
+export class AccessibilitySupport {
+  string[] keys;
+  string[] values;
+
+  init() {
+    this.keys = [];
+    this.values = [];
+  }
+
+  int indexOf(string key) {
+    int i = 0;
+    while (i < this.keys.length) {
+      if (this.keys[i] == key) {
+        return i;
+      }
+      i = i + 1;
+    }
+    return -1;
+  }
+
+  void set(string key, string value) {
+    int idx = this.indexOf(key);
+    if (idx >= 0) {
+      this.values[idx] = value;
+      return;
+    }
+    this.keys.push(key);
+    this.values.push(value);
+  }
+
+  string get(string key, string fallback) {
+    int idx = this.indexOf(key);
+    if (idx >= 0) {
+      return this.values[idx];
+    }
+    return fallback;
+  }
+}
+
+export AccessibilitySupport createAccessibilitySupport() {
+  return new AccessibilitySupport();
+}
+
+export string IAccessibilityServiceId = "accessibilityService";
+export int AccessibilitySupportUnknown = 0;
+export int AccessibilitySupportDisabled = 1;
+export int AccessibilitySupportEnabled = 2;

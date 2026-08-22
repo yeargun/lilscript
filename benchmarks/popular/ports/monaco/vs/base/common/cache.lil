@@ -1,0 +1,52 @@
+export string identityString(string t) {
+  return t;
+}
+
+export class LRUCachedFunction {
+  func(string)->string fn;
+  string lastCache;
+  string lastArgKey;
+  bool hasCache;
+
+  init(func(string)->string fn) {
+    this.fn = fn;
+    this.lastCache = "";
+    this.lastArgKey = "";
+    this.hasCache = false;
+  }
+
+  string get(string arg) {
+    if (!this.hasCache || this.lastArgKey != arg) {
+      this.lastArgKey = arg;
+      this.lastCache = this.fn(arg);
+      this.hasCache = true;
+    }
+    return this.lastCache;
+  }
+}
+
+export class CachedFunction {
+  func(string)->string fn;
+  string[] keys;
+  string[] values;
+
+  init(func(string)->string fn) {
+    this.fn = fn;
+    this.keys = [];
+    this.values = [];
+  }
+
+  string get(string arg) {
+    int i = 0;
+    while (i < this.keys.length) {
+      if (this.keys[i] == arg) {
+        return this.values[i];
+      }
+      i = i + 1;
+    }
+    string value = this.fn(arg);
+    this.keys.push(arg);
+    this.values.push(value);
+    return value;
+  }
+}

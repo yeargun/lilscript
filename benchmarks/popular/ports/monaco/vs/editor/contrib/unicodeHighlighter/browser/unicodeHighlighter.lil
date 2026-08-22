@@ -1,0 +1,76 @@
+export bool isUnusualLineTerminator(int code) {
+  return code == 8232 || code == 8233;
+}
+
+export bool isNonBasicAscii(int code) {
+  return code > 127;
+}
+
+export bool isInvisible(int code) {
+  if (code == 8203 || code == 8204 || code == 8205 || code == 65279) {
+    return true;
+  }
+  if (code >= 8234 && code <= 8238) {
+    return true;
+  }
+  return false;
+}
+
+export int[] unusualLineTerminatorOffsets(string value) {
+  int[] offsets = [];
+  int i = 0;
+  while (i < value.length) {
+    int code = value.charCodeAt(i);
+    if (isUnusualLineTerminator(code)) {
+      offsets.push(i);
+    }
+    i = i + 1;
+  }
+  return offsets;
+}
+
+export int[] ambiguousUnicodeOffsets(string value) {
+  int[] offsets = [];
+  int i = 0;
+  while (i < value.length) {
+    int code = value.charCodeAt(i);
+    if (isNonBasicAscii(code) || isInvisible(code)) {
+      offsets.push(i);
+    }
+    i = i + 1;
+  }
+  return offsets;
+}
+
+export string replaceUnusualLineTerminators(string value) {
+  string out = "";
+  int i = 0;
+  while (i < value.length) {
+    int code = value.charCodeAt(i);
+    if (isUnusualLineTerminator(code)) {
+      out = out + "\n";
+    } else {
+      out = out + value.charAt(i);
+    }
+    i = i + 1;
+  }
+  return out;
+}
+
+export class UnicodeHighlighter {
+  bool enabled;
+  int[] offsets;
+
+  init() {
+    this.enabled = true;
+    this.offsets = [];
+  }
+
+  void compute(string value) {
+    this.offsets = ambiguousUnicodeOffsets(value);
+  }
+}
+
+export UnicodeHighlighter createUnicodeHighlighter() {
+  return new UnicodeHighlighter();
+}

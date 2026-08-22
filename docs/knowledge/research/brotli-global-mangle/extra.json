@@ -1,0 +1,1624 @@
+{
+  "generatedAt": "2026-08-19T23:21:11.089Z",
+  "note": "Follow-up probes. Node zlib Brotli 1.1.0 generic q11. Not lilscript-codec.",
+  "stats": {
+    "jquery-min": {
+      "name": "jquery-min",
+      "raw": 87533,
+      "uniqueLocals": 184,
+      "unique1": 54,
+      "unique2": 111,
+      "uses1": 8031,
+      "reuse1": 148.7,
+      "topLocals": [
+        {
+          "n": "e",
+          "c": 1835
+        },
+        {
+          "n": "t",
+          "c": 1186
+        },
+        {
+          "n": "n",
+          "c": 872
+        },
+        {
+          "n": "r",
+          "c": 701
+        },
+        {
+          "n": "ce",
+          "c": 548
+        },
+        {
+          "n": "i",
+          "c": 546
+        },
+        {
+          "n": "o",
+          "c": 475
+        },
+        {
+          "n": "a",
+          "c": 380
+        },
+        {
+          "n": "s",
+          "c": 262
+        },
+        {
+          "n": "u",
+          "c": 232
+        },
+        {
+          "n": "l",
+          "c": 231
+        },
+        {
+          "n": "v",
+          "c": 162
+        }
+      ],
+      "topLetters": [
+        {
+          "ch": "e",
+          "c": 8172
+        },
+        {
+          "ch": "t",
+          "c": 6209
+        },
+        {
+          "ch": "n",
+          "c": 4781
+        },
+        {
+          "ch": "r",
+          "c": 3912
+        },
+        {
+          "ch": "i",
+          "c": 3558
+        },
+        {
+          "ch": "o",
+          "c": 3315
+        },
+        {
+          "ch": "a",
+          "c": 2738
+        },
+        {
+          "ch": "s",
+          "c": 2585
+        },
+        {
+          "ch": "c",
+          "c": 2514
+        },
+        {
+          "ch": "u",
+          "c": 2267
+        },
+        {
+          "ch": "l",
+          "c": 2206
+        },
+        {
+          "ch": "f",
+          "c": 1640
+        },
+        {
+          "ch": "p",
+          "c": 1532
+        },
+        {
+          "ch": "d",
+          "c": 1515
+        },
+        {
+          "ch": "h",
+          "c": 1285
+        },
+        {
+          "ch": "g",
+          "c": 858
+        }
+      ]
+    },
+    "jquery-lil-raw": {
+      "name": "jquery-lil-raw",
+      "raw": 102681,
+      "uniqueLocals": 743,
+      "unique1": 54,
+      "unique2": 663,
+      "uses1": 11614,
+      "reuse1": 215.1,
+      "topLocals": [
+        {
+          "n": "a",
+          "c": 2290
+        },
+        {
+          "n": "b",
+          "c": 1766
+        },
+        {
+          "n": "c",
+          "c": 1320
+        },
+        {
+          "n": "d",
+          "c": 1257
+        },
+        {
+          "n": "e",
+          "c": 971
+        },
+        {
+          "n": "f",
+          "c": 689
+        },
+        {
+          "n": "g",
+          "c": 555
+        },
+        {
+          "n": "h",
+          "c": 532
+        },
+        {
+          "n": "i",
+          "c": 414
+        },
+        {
+          "n": "jm",
+          "c": 171
+        },
+        {
+          "n": "j",
+          "c": 158
+        },
+        {
+          "n": "k",
+          "c": 140
+        }
+      ],
+      "topLetters": [
+        {
+          "ch": "e",
+          "c": 6107
+        },
+        {
+          "ch": "a",
+          "c": 5553
+        },
+        {
+          "ch": "t",
+          "c": 4845
+        },
+        {
+          "ch": "n",
+          "c": 4469
+        },
+        {
+          "ch": "r",
+          "c": 4143
+        },
+        {
+          "ch": "i",
+          "c": 3647
+        },
+        {
+          "ch": "c",
+          "c": 3356
+        },
+        {
+          "ch": "o",
+          "c": 2914
+        },
+        {
+          "ch": "f",
+          "c": 2760
+        },
+        {
+          "ch": "l",
+          "c": 2715
+        },
+        {
+          "ch": "d",
+          "c": 2656
+        },
+        {
+          "ch": "u",
+          "c": 2597
+        },
+        {
+          "ch": "b",
+          "c": 2476
+        },
+        {
+          "ch": "s",
+          "c": 2003
+        },
+        {
+          "ch": "h",
+          "c": 1753
+        },
+        {
+          "ch": "g",
+          "c": 1713
+        }
+      ]
+    },
+    "jquery-lil-min": {
+      "name": "jquery-lil-min",
+      "raw": 110749,
+      "uniqueLocals": 1096,
+      "unique1": 54,
+      "unique2": 1015,
+      "uses1": 15318,
+      "reuse1": 283.7,
+      "topLocals": [
+        {
+          "n": "r",
+          "c": 2836
+        },
+        {
+          "n": "e",
+          "c": 2286
+        },
+        {
+          "n": "t",
+          "c": 1609
+        },
+        {
+          "n": "n",
+          "c": 1263
+        },
+        {
+          "n": "l",
+          "c": 980
+        },
+        {
+          "n": "u",
+          "c": 845
+        },
+        {
+          "n": "i",
+          "c": 619
+        },
+        {
+          "n": "f",
+          "c": 577
+        },
+        {
+          "n": "o",
+          "c": 393
+        },
+        {
+          "n": "a",
+          "c": 315
+        },
+        {
+          "n": "s",
+          "c": 303
+        },
+        {
+          "n": "v",
+          "c": 270
+        }
+      ],
+      "topLetters": [
+        {
+          "ch": "r",
+          "c": 7422
+        },
+        {
+          "ch": "e",
+          "c": 6918
+        },
+        {
+          "ch": "t",
+          "c": 5341
+        },
+        {
+          "ch": "n",
+          "c": 5083
+        },
+        {
+          "ch": "l",
+          "c": 4125
+        },
+        {
+          "ch": "u",
+          "c": 3408
+        },
+        {
+          "ch": "i",
+          "c": 2850
+        },
+        {
+          "ch": "o",
+          "c": 2810
+        },
+        {
+          "ch": "a",
+          "c": 2475
+        },
+        {
+          "ch": "f",
+          "c": 2138
+        },
+        {
+          "ch": "s",
+          "c": 1962
+        },
+        {
+          "ch": "p",
+          "c": 1684
+        },
+        {
+          "ch": "v",
+          "c": 1558
+        },
+        {
+          "ch": "d",
+          "c": 1249
+        },
+        {
+          "ch": "g",
+          "c": 1241
+        },
+        {
+          "ch": "h",
+          "c": 1145
+        }
+      ]
+    },
+    "glmatrix-lil-vite": {
+      "name": "glmatrix-lil-vite",
+      "raw": 68496,
+      "uniqueLocals": 370,
+      "unique1": 54,
+      "unique2": 307,
+      "uses1": 11791,
+      "reuse1": 218.4,
+      "topLocals": [
+        {
+          "n": "e",
+          "c": 2821
+        },
+        {
+          "n": "t",
+          "c": 2061
+        },
+        {
+          "n": "n",
+          "c": 1596
+        },
+        {
+          "n": "r",
+          "c": 923
+        },
+        {
+          "n": "a",
+          "c": 724
+        },
+        {
+          "n": "i",
+          "c": 630
+        },
+        {
+          "n": "o",
+          "c": 570
+        },
+        {
+          "n": "s",
+          "c": 376
+        },
+        {
+          "n": "Math",
+          "c": 322
+        },
+        {
+          "n": "c",
+          "c": 311
+        },
+        {
+          "n": "Q",
+          "c": 247
+        },
+        {
+          "n": "l",
+          "c": 246
+        }
+      ],
+      "topLetters": [
+        {
+          "ch": "e",
+          "c": 4297
+        },
+        {
+          "ch": "t",
+          "c": 4236
+        },
+        {
+          "ch": "n",
+          "c": 3254
+        },
+        {
+          "ch": "r",
+          "c": 2652
+        },
+        {
+          "ch": "a",
+          "c": 2126
+        },
+        {
+          "ch": "o",
+          "c": 1633
+        },
+        {
+          "ch": "i",
+          "c": 1514
+        },
+        {
+          "ch": "u",
+          "c": 1214
+        },
+        {
+          "ch": "l",
+          "c": 1051
+        },
+        {
+          "ch": "c",
+          "c": 1016
+        },
+        {
+          "ch": "s",
+          "c": 996
+        },
+        {
+          "ch": "f",
+          "c": 733
+        },
+        {
+          "ch": "h",
+          "c": 488
+        },
+        {
+          "ch": "m",
+          "c": 451
+        },
+        {
+          "ch": "d",
+          "c": 399
+        },
+        {
+          "ch": "M",
+          "c": 376
+        }
+      ]
+    },
+    "glmatrix-js-vite": {
+      "name": "glmatrix-js-vite",
+      "raw": 73505,
+      "uniqueLocals": 399,
+      "unique1": 54,
+      "unique2": 336,
+      "uses1": 12174,
+      "reuse1": 225.4,
+      "topLocals": [
+        {
+          "n": "e",
+          "c": 2975
+        },
+        {
+          "n": "t",
+          "c": 1670
+        },
+        {
+          "n": "n",
+          "c": 1283
+        },
+        {
+          "n": "r",
+          "c": 851
+        },
+        {
+          "n": "a",
+          "c": 742
+        },
+        {
+          "n": "i",
+          "c": 720
+        },
+        {
+          "n": "o",
+          "c": 562
+        },
+        {
+          "n": "Math",
+          "c": 549
+        },
+        {
+          "n": "s",
+          "c": 428
+        },
+        {
+          "n": "c",
+          "c": 367
+        },
+        {
+          "n": "l",
+          "c": 325
+        },
+        {
+          "n": "u",
+          "c": 264
+        }
+      ],
+      "topLetters": [
+        {
+          "ch": "e",
+          "c": 4362
+        },
+        {
+          "ch": "t",
+          "c": 3913
+        },
+        {
+          "ch": "n",
+          "c": 2931
+        },
+        {
+          "ch": "a",
+          "c": 2741
+        },
+        {
+          "ch": "r",
+          "c": 2655
+        },
+        {
+          "ch": "o",
+          "c": 1657
+        },
+        {
+          "ch": "i",
+          "c": 1582
+        },
+        {
+          "ch": "u",
+          "c": 1227
+        },
+        {
+          "ch": "s",
+          "c": 1199
+        },
+        {
+          "ch": "c",
+          "c": 1061
+        },
+        {
+          "ch": "l",
+          "c": 988
+        },
+        {
+          "ch": "h",
+          "c": 782
+        },
+        {
+          "ch": "f",
+          "c": 767
+        },
+        {
+          "ch": "M",
+          "c": 608
+        },
+        {
+          "ch": "m",
+          "c": 567
+        },
+        {
+          "ch": "d",
+          "c": 457
+        }
+      ]
+    }
+  },
+  "surgical": {
+    "jquery-min": [
+      {
+        "id": "baseline",
+        "raw": 87533,
+        "gzip9": 30342,
+        "br5": 29763,
+        "br11": 27445,
+        "dBr11": 0,
+        "dGzip": 0
+      },
+      {
+        "id": "hottest-to-n",
+        "raw": 87533,
+        "gzip9": 30151,
+        "br5": 29519,
+        "br11": 27253,
+        "dBr11": -192,
+        "dGzip": -191
+      },
+      {
+        "id": "hottest-to-t",
+        "raw": 87533,
+        "gzip9": 30008,
+        "br5": 29440,
+        "br11": 27157,
+        "dBr11": -288,
+        "dGzip": -334
+      },
+      {
+        "id": "hottest-to-a",
+        "raw": 87533,
+        "gzip9": 30287,
+        "br5": 29702,
+        "br11": 27337,
+        "dBr11": -108,
+        "dGzip": -55
+      },
+      {
+        "id": "hottest-to-q",
+        "raw": 87533,
+        "gzip9": 30427,
+        "br5": 29844,
+        "br11": 27463,
+        "dBr11": 18,
+        "dGzip": 85
+      },
+      {
+        "id": "hottest-to-x",
+        "raw": 87533,
+        "gzip9": 30410,
+        "br5": 29836,
+        "br11": 27455,
+        "dBr11": 10,
+        "dGzip": 68
+      },
+      {
+        "id": "alphabet-eni",
+        "raw": 86985,
+        "gzip9": 30277,
+        "br5": 29676,
+        "br11": 27378,
+        "dBr11": -67,
+        "dGzip": -65
+      },
+      {
+        "id": "alphabet-eni+let",
+        "raw": 86985,
+        "gzip9": 30276,
+        "br5": 29678,
+        "br11": 27426,
+        "dBr11": -19,
+        "dGzip": -66
+      },
+      {
+        "id": "alphabet-eni+bool",
+        "raw": 86920,
+        "gzip9": 30275,
+        "br5": 29673,
+        "br11": 27382,
+        "dBr11": -63,
+        "dGzip": -67
+      },
+      {
+        "id": "let-only",
+        "raw": 87533,
+        "gzip9": 30341,
+        "br5": 29765,
+        "br11": 27462,
+        "dBr11": 17,
+        "dGzip": -1
+      }
+    ],
+    "jquery-lil-raw": [
+      {
+        "id": "baseline",
+        "raw": 102681,
+        "gzip9": 38948,
+        "br5": 36306,
+        "br11": 33283,
+        "dBr11": 0,
+        "dGzip": 0
+      },
+      {
+        "id": "hottest-to-e",
+        "raw": 102681,
+        "gzip9": 38694,
+        "br5": 36080,
+        "br11": 32965,
+        "dBr11": -318,
+        "dGzip": -254
+      },
+      {
+        "id": "hottest-to-n",
+        "raw": 102681,
+        "gzip9": 39008,
+        "br5": 36337,
+        "br11": 33278,
+        "dBr11": -5,
+        "dGzip": 60
+      },
+      {
+        "id": "hottest-to-t",
+        "raw": 102681,
+        "gzip9": 39000,
+        "br5": 36349,
+        "br11": 33298,
+        "dBr11": 15,
+        "dGzip": 52
+      },
+      {
+        "id": "hottest-to-q",
+        "raw": 102681,
+        "gzip9": 39053,
+        "br5": 36393,
+        "br11": 33320,
+        "dBr11": 37,
+        "dGzip": 105
+      },
+      {
+        "id": "hottest-to-x",
+        "raw": 102681,
+        "gzip9": 39055,
+        "br5": 36391,
+        "br11": 33336,
+        "dBr11": 53,
+        "dGzip": 107
+      },
+      {
+        "id": "alphabet-eni",
+        "raw": 102510,
+        "gzip9": 38798,
+        "br5": 36225,
+        "br11": 33107,
+        "dBr11": -176,
+        "dGzip": -150
+      },
+      {
+        "id": "alphabet-eni+let",
+        "raw": 102510,
+        "gzip9": 38744,
+        "br5": 36182,
+        "br11": 33133,
+        "dBr11": -150,
+        "dGzip": -204
+      },
+      {
+        "id": "alphabet-eni+bool",
+        "raw": 102459,
+        "gzip9": 38786,
+        "br5": 36222,
+        "br11": 33186,
+        "dBr11": -97,
+        "dGzip": -162
+      },
+      {
+        "id": "let-only",
+        "raw": 102681,
+        "gzip9": 38894,
+        "br5": 36249,
+        "br11": 33227,
+        "dBr11": -56,
+        "dGzip": -54
+      }
+    ],
+    "jquery-lil-min": [
+      {
+        "id": "baseline",
+        "raw": 110749,
+        "gzip9": 42826,
+        "br5": 41380,
+        "br11": 37901,
+        "dBr11": 0,
+        "dGzip": 0
+      },
+      {
+        "id": "hottest-to-e",
+        "raw": 110749,
+        "gzip9": 42237,
+        "br5": 40810,
+        "br11": 37353,
+        "dBr11": -548,
+        "dGzip": -589
+      },
+      {
+        "id": "hottest-to-n",
+        "raw": 110749,
+        "gzip9": 42532,
+        "br5": 41084,
+        "br11": 37672,
+        "dBr11": -229,
+        "dGzip": -294
+      },
+      {
+        "id": "hottest-to-t",
+        "raw": 110749,
+        "gzip9": 42420,
+        "br5": 41040,
+        "br11": 37531,
+        "dBr11": -370,
+        "dGzip": -406
+      },
+      {
+        "id": "hottest-to-a",
+        "raw": 110749,
+        "gzip9": 42747,
+        "br5": 41315,
+        "br11": 37859,
+        "dBr11": -42,
+        "dGzip": -79
+      },
+      {
+        "id": "hottest-to-q",
+        "raw": 110749,
+        "gzip9": 42887,
+        "br5": 41432,
+        "br11": 37960,
+        "dBr11": 59,
+        "dGzip": 61
+      },
+      {
+        "id": "hottest-to-x",
+        "raw": 110749,
+        "gzip9": 42886,
+        "br5": 41438,
+        "br11": 37915,
+        "dBr11": 14,
+        "dGzip": 60
+      },
+      {
+        "id": "alphabet-eni",
+        "raw": 110749,
+        "gzip9": 42861,
+        "br5": 41386,
+        "br11": 37870,
+        "dBr11": -31,
+        "dGzip": 35
+      },
+      {
+        "id": "alphabet-eni+let",
+        "raw": 110749,
+        "gzip9": 42782,
+        "br5": 41310,
+        "br11": 37858,
+        "dBr11": -43,
+        "dGzip": -44
+      },
+      {
+        "id": "alphabet-eni+bool",
+        "raw": 110749,
+        "gzip9": 42861,
+        "br5": 41386,
+        "br11": 37870,
+        "dBr11": -31,
+        "dGzip": 35
+      },
+      {
+        "id": "let-only",
+        "raw": 110749,
+        "gzip9": 42742,
+        "br5": 41305,
+        "br11": 37857,
+        "dBr11": -44,
+        "dGzip": -84
+      }
+    ],
+    "glmatrix-lil-vite": [
+      {
+        "id": "baseline",
+        "raw": 68496,
+        "gzip9": 17192,
+        "br5": 16396,
+        "br11": 14116,
+        "dBr11": 0,
+        "dGzip": 0
+      },
+      {
+        "id": "hottest-to-n",
+        "raw": 68496,
+        "gzip9": 17087,
+        "br5": 16315,
+        "br11": 13995,
+        "dBr11": -121,
+        "dGzip": -105
+      },
+      {
+        "id": "hottest-to-t",
+        "raw": 68496,
+        "gzip9": 17014,
+        "br5": 16220,
+        "br11": 13930,
+        "dBr11": -186,
+        "dGzip": -178
+      },
+      {
+        "id": "hottest-to-a",
+        "raw": 68496,
+        "gzip9": 17141,
+        "br5": 16355,
+        "br11": 14097,
+        "dBr11": -19,
+        "dGzip": -51
+      },
+      {
+        "id": "hottest-to-q",
+        "raw": 68496,
+        "gzip9": 17208,
+        "br5": 16418,
+        "br11": 14125,
+        "dBr11": 9,
+        "dGzip": 16
+      },
+      {
+        "id": "hottest-to-x",
+        "raw": 68496,
+        "gzip9": 17198,
+        "br5": 16424,
+        "br11": 14105,
+        "dBr11": -11,
+        "dGzip": 6
+      },
+      {
+        "id": "alphabet-eni",
+        "raw": 68496,
+        "gzip9": 17070,
+        "br5": 16312,
+        "br11": 14037,
+        "dBr11": -79,
+        "dGzip": -122
+      },
+      {
+        "id": "alphabet-eni+let",
+        "raw": 68496,
+        "gzip9": 17017,
+        "br5": 16257,
+        "br11": 14053,
+        "dBr11": -63,
+        "dGzip": -175
+      },
+      {
+        "id": "alphabet-eni+bool",
+        "raw": 68496,
+        "gzip9": 17070,
+        "br5": 16312,
+        "br11": 14037,
+        "dBr11": -79,
+        "dGzip": -122
+      },
+      {
+        "id": "let-only",
+        "raw": 68496,
+        "gzip9": 17141,
+        "br5": 16350,
+        "br11": 14051,
+        "dBr11": -65,
+        "dGzip": -51
+      }
+    ],
+    "glmatrix-js-vite": [
+      {
+        "id": "baseline",
+        "raw": 73505,
+        "gzip9": 17722,
+        "br5": 16504,
+        "br11": 14330,
+        "dBr11": 0,
+        "dGzip": 0
+      },
+      {
+        "id": "hottest-to-n",
+        "raw": 73505,
+        "gzip9": 17645,
+        "br5": 16440,
+        "br11": 14270,
+        "dBr11": -60,
+        "dGzip": -77
+      },
+      {
+        "id": "hottest-to-t",
+        "raw": 73505,
+        "gzip9": 17491,
+        "br5": 16274,
+        "br11": 14130,
+        "dBr11": -200,
+        "dGzip": -231
+      },
+      {
+        "id": "hottest-to-a",
+        "raw": 73505,
+        "gzip9": 17681,
+        "br5": 16473,
+        "br11": 14307,
+        "dBr11": -23,
+        "dGzip": -41
+      },
+      {
+        "id": "hottest-to-q",
+        "raw": 73505,
+        "gzip9": 17737,
+        "br5": 16516,
+        "br11": 14301,
+        "dBr11": -29,
+        "dGzip": 15
+      },
+      {
+        "id": "hottest-to-x",
+        "raw": 73505,
+        "gzip9": 17732,
+        "br5": 16520,
+        "br11": 14319,
+        "dBr11": -11,
+        "dGzip": 10
+      },
+      {
+        "id": "alphabet-eni",
+        "raw": 73505,
+        "gzip9": 17648,
+        "br5": 16439,
+        "br11": 14342,
+        "dBr11": 12,
+        "dGzip": -74
+      },
+      {
+        "id": "alphabet-eni+let",
+        "raw": 73505,
+        "gzip9": 17637,
+        "br5": 16437,
+        "br11": 14329,
+        "dBr11": -1,
+        "dGzip": -85
+      },
+      {
+        "id": "alphabet-eni+bool",
+        "raw": 73505,
+        "gzip9": 17648,
+        "br5": 16439,
+        "br11": 14342,
+        "dBr11": 12,
+        "dGzip": -74
+      },
+      {
+        "id": "let-only",
+        "raw": 73505,
+        "gzip9": 17712,
+        "br5": 16509,
+        "br11": 14340,
+        "dBr11": 10,
+        "dGzip": -10
+      }
+    ]
+  },
+  "moreAudits": {
+    "jquery-audit-balanced.raw.js": {
+      "file": "jquery-audit-balanced.raw.js",
+      "raw": 97869,
+      "gzip9": 37623,
+      "br5": 36559,
+      "br11": 33569
+    },
+    "jquery-audit-comma-conditionals.raw.js": {
+      "file": "jquery-audit-comma-conditionals.raw.js",
+      "raw": 115537,
+      "gzip9": 40209,
+      "br5": 38884,
+      "br11": 35555
+    },
+    "jquery-audit-current.raw.js": {
+      "file": "jquery-audit-current.raw.js",
+      "raw": 98379,
+      "gzip9": 37656,
+      "br5": 36558,
+      "br11": 33648
+    },
+    "jquery-audit-function-spelling.raw.js": {
+      "file": "jquery-audit-function-spelling.raw.js",
+      "raw": 103062,
+      "gzip9": 37815,
+      "br5": 36706,
+      "br11": 33647
+    },
+    "jquery-audit-internal-properties.raw.js": {
+      "file": "jquery-audit-internal-properties.raw.js",
+      "raw": 98379,
+      "gzip9": 37656,
+      "br5": 36558,
+      "br11": 33648
+    },
+    "jquery-audit-lean-balanced.raw.js": {
+      "file": "jquery-audit-lean-balanced.raw.js",
+      "raw": 98509,
+      "gzip9": 37099,
+      "br5": 36051,
+      "br11": 33216
+    },
+    "jquery-audit-lean-debug-names.raw.js": {
+      "file": "jquery-audit-lean-debug-names.raw.js",
+      "raw": 197597,
+      "gzip9": 63556,
+      "br5": 59786,
+      "br11": 52895
+    },
+    "jquery-audit-lean-inline-24.raw.js": {
+      "file": "jquery-audit-lean-inline-24.raw.js",
+      "raw": 99584,
+      "gzip9": 37243,
+      "br5": 36195,
+      "br11": 33380
+    },
+    "jquery-audit-lean-inline-48.raw.js": {
+      "file": "jquery-audit-lean-inline-48.raw.js",
+      "raw": 103623,
+      "gzip9": 37403,
+      "br5": 36331,
+      "br11": 33446
+    },
+    "jquery-audit-lean-inline-96.raw.js": {
+      "file": "jquery-audit-lean-inline-96.raw.js",
+      "raw": 103651,
+      "gzip9": 37391,
+      "br5": 36306,
+      "br11": 33484
+    },
+    "jquery-audit-lean-minimal-transforms.raw.js": {
+      "file": "jquery-audit-lean-minimal-transforms.raw.js",
+      "raw": 99069,
+      "gzip9": 37229,
+      "br5": 36212,
+      "br11": 33357
+    },
+    "jquery-audit-lean-no-inlining.raw.js": {
+      "file": "jquery-audit-lean-no-inlining.raw.js",
+      "raw": 98773,
+      "gzip9": 37185,
+      "br5": 36157,
+      "br11": 33285
+    },
+    "jquery-audit-lean.raw.js": {
+      "file": "jquery-audit-lean.raw.js",
+      "raw": 99476,
+      "gzip9": 37234,
+      "br5": 36197,
+      "br11": 33373
+    },
+    "jquery-audit-mangled-exports.raw.js": {
+      "file": "jquery-audit-mangled-exports.raw.js",
+      "raw": 98338,
+      "gzip9": 37639,
+      "br5": 36539,
+      "br11": 33582
+    },
+    "jquery-audit-no-closure-inlining.raw.js": {
+      "file": "jquery-audit-no-closure-inlining.raw.js",
+      "raw": 97543,
+      "gzip9": 37577,
+      "br5": 36500,
+      "br11": 33563
+    },
+    "jquery-audit-no-function-folding.raw.js": {
+      "file": "jquery-audit-no-function-folding.raw.js",
+      "raw": 98520,
+      "gzip9": 37707,
+      "br5": 36608,
+      "br11": 33652
+    },
+    "jquery-audit-no-function-subsumption.raw.js": {
+      "file": "jquery-audit-no-function-subsumption.raw.js",
+      "raw": 98379,
+      "gzip9": 37656,
+      "br5": 36558,
+      "br11": 33648
+    },
+    "jquery-audit-no-inlining.raw.js": {
+      "file": "jquery-audit-no-inlining.raw.js",
+      "raw": 97680,
+      "gzip9": 37638,
+      "br5": 36584,
+      "br11": 33613
+    },
+    "jquery-audit-no-number-pool.raw.js": {
+      "file": "jquery-audit-no-number-pool.raw.js",
+      "raw": 98660,
+      "gzip9": 37685,
+      "br5": 36595,
+      "br11": 33614
+    },
+    "jquery-audit-no-reserve.raw.js": {
+      "file": "jquery-audit-no-reserve.raw.js",
+      "raw": 98379,
+      "gzip9": 37656,
+      "br5": 36558,
+      "br11": 33648
+    },
+    "jquery-audit-no-scalar-replacement.raw.js": {
+      "file": "jquery-audit-no-scalar-replacement.raw.js",
+      "raw": 98379,
+      "gzip9": 37656,
+      "br5": 36558,
+      "br11": 33648
+    },
+    "jquery-audit-no-string-pool.raw.js": {
+      "file": "jquery-audit-no-string-pool.raw.js",
+      "raw": 99476,
+      "gzip9": 37234,
+      "br5": 36197,
+      "br11": 33373
+    },
+    "jquery-audit-performance.raw.js": {
+      "file": "jquery-audit-performance.raw.js",
+      "raw": 103528,
+      "gzip9": 38293,
+      "br5": 37093,
+      "br11": 34080
+    },
+    "jquery-audit-plain-ir.raw.js": {
+      "file": "jquery-audit-plain-ir.raw.js",
+      "raw": 97726,
+      "gzip9": 37647,
+      "br5": 36580,
+      "br11": 33596
+    },
+    "jquery-audit-positional-aggregates.raw.js": {
+      "file": "jquery-audit-positional-aggregates.raw.js",
+      "raw": 96401,
+      "gzip9": 37202,
+      "br5": 36116,
+      "br11": 33165
+    },
+    "jquery-audit-readable.raw.js": {
+      "file": "jquery-audit-readable.raw.js",
+      "raw": 229262,
+      "gzip9": 71176,
+      "br5": 66166,
+      "br11": 58144
+    },
+    "jquery-audit-realistic-performance.raw.js": {
+      "file": "jquery-audit-realistic-performance.raw.js",
+      "raw": 98562,
+      "gzip9": 37702,
+      "br5": 36626,
+      "br11": 33637
+    },
+    "jquery-audit-slim.raw.js": {
+      "file": "jquery-audit-slim.raw.js",
+      "raw": 72920,
+      "gzip9": 27357,
+      "br5": 26673,
+      "br11": 24635
+    },
+    "jquery-audit-unstable-locals.raw.js": {
+      "file": "jquery-audit-unstable-locals.raw.js",
+      "raw": 98379,
+      "gzip9": 37656,
+      "br5": 36558,
+      "br11": 33648
+    }
+  },
+  "inversions": [
+    {
+      "corpus": "jquery-lil-raw",
+      "id": "fn-by-length",
+      "dGz": -1188,
+      "d5": 167,
+      "d11": 185
+    },
+    {
+      "corpus": "jquery-lil-raw",
+      "id": "fn-by-prefix",
+      "dGz": -1054,
+      "d5": 292,
+      "d11": 162
+    },
+    {
+      "corpus": "jquery-min",
+      "id": "alphabet-rare",
+      "dGz": 319,
+      "d5": 241,
+      "d11": -33
+    },
+    {
+      "corpus": "jquery-lil-measured",
+      "id": "alphabet-rare",
+      "dGz": 256,
+      "d5": 52,
+      "d11": -19
+    },
+    {
+      "corpus": "glmatrix-js-vite",
+      "id": "fn-by-length",
+      "dGz": -234,
+      "d5": 8,
+      "d11": 22
+    },
+    {
+      "corpus": "jquery-lil-measured",
+      "id": "rotate-short-13",
+      "dGz": 216,
+      "d5": 127,
+      "d11": -36
+    },
+    {
+      "corpus": "jquery-lil-raw",
+      "id": "fn-reverse",
+      "dGz": -178,
+      "d5": 14,
+      "d11": 40
+    },
+    {
+      "corpus": "glmatrix-lil-vite",
+      "id": "alphabet-rare",
+      "dGz": 141,
+      "d5": 73,
+      "d11": -36
+    },
+    {
+      "corpus": "glmatrix-js-vite",
+      "id": "alphabet-rare",
+      "dGz": 130,
+      "d5": 85,
+      "d11": -24
+    },
+    {
+      "corpus": "glmatrix-lil-vite",
+      "id": "fn-by-length",
+      "dGz": -127,
+      "d5": -159,
+      "d11": 5
+    },
+    {
+      "corpus": "jquery-lil-measured",
+      "id": "pool-strings-4x6",
+      "dGz": 90,
+      "d5": 84,
+      "d11": -18
+    },
+    {
+      "corpus": "glmatrix-lil-vite",
+      "id": "fn-reverse",
+      "dGz": 30,
+      "d5": -83,
+      "d11": -68
+    },
+    {
+      "corpus": "jquery-lil-raw",
+      "id": "dot-length-bracket",
+      "dGz": 82,
+      "d5": 80,
+      "d11": -12
+    },
+    {
+      "corpus": "glmatrix-js-vite",
+      "id": "alphabet-function-letters",
+      "dGz": -74,
+      "d5": -65,
+      "d11": 12
+    },
+    {
+      "corpus": "glmatrix-lil-raw",
+      "id": "rotate-short-13",
+      "dGz": 66,
+      "d5": 41,
+      "d11": -16
+    },
+    {
+      "corpus": "glmatrix-lil-raw",
+      "id": "alphabet-rare",
+      "dGz": -1,
+      "d5": 3,
+      "d11": -81
+    },
+    {
+      "corpus": "glmatrix-js-vite",
+      "id": "rotate-short-1",
+      "dGz": 69,
+      "d5": 37,
+      "d11": -4
+    },
+    {
+      "corpus": "glmatrix-lil-raw",
+      "id": "bait-unique",
+      "dGz": 16,
+      "d5": 12,
+      "d11": -52
+    },
+    {
+      "corpus": "jquery-lil-min",
+      "id": "alphabet-function-letters",
+      "dGz": 35,
+      "d5": 6,
+      "d11": -31
+    },
+    {
+      "corpus": "jquery-lil-measured",
+      "id": "bait-unique",
+      "dGz": 14,
+      "d5": 6,
+      "d11": -51
+    },
+    {
+      "corpus": "glmatrix-js-vite",
+      "id": "fn-reverse",
+      "dGz": 53,
+      "d5": -14,
+      "d11": -9
+    },
+    {
+      "corpus": "glmatrix-js-raw",
+      "id": "bool-minify",
+      "dGz": -3,
+      "d5": -1,
+      "d11": 58
+    },
+    {
+      "corpus": "jquery-src",
+      "id": "var-to-let",
+      "dGz": -14,
+      "d5": -8,
+      "d11": 36
+    },
+    {
+      "corpus": "jquery-lil-measured",
+      "id": "pool-strings-8x8",
+      "dGz": 14,
+      "d5": 2,
+      "d11": -34
+    },
+    {
+      "corpus": "glmatrix-lil-raw",
+      "id": "bait-function-return",
+      "dGz": 10,
+      "d5": 6,
+      "d11": -35
+    },
+    {
+      "corpus": "jquery-lil-min",
+      "id": "quotes-single",
+      "dGz": 7,
+      "d5": 0,
+      "d11": 34
+    },
+    {
+      "corpus": "jquery-lil-measured",
+      "id": "bool-expand",
+      "dGz": 28,
+      "d5": 26,
+      "d11": -12
+    },
+    {
+      "corpus": "jquery-lil-measured",
+      "id": "bait-function-return",
+      "dGz": 8,
+      "d5": 0,
+      "d11": -29
+    },
+    {
+      "corpus": "glmatrix-lil-vite",
+      "id": "bait-javascript-type",
+      "dGz": 34,
+      "d5": 22,
+      "d11": -2
+    },
+    {
+      "corpus": "jquery-lil-raw",
+      "id": "pool-strings-4x6",
+      "dGz": 16,
+      "d5": 10,
+      "d11": -18
+    },
+    {
+      "corpus": "glmatrix-lil-vite",
+      "id": "bool-expand",
+      "dGz": 3,
+      "d5": -2,
+      "d11": 31
+    },
+    {
+      "corpus": "jquery-lil-measured",
+      "id": "quotes-single",
+      "dGz": 8,
+      "d5": 9,
+      "d11": -23
+    },
+    {
+      "corpus": "jquery-lil-measured",
+      "id": "bait-javascript-type",
+      "dGz": 22,
+      "d5": 13,
+      "d11": -8
+    },
+    {
+      "corpus": "jquery-min",
+      "id": "quotes-single",
+      "dGz": 13,
+      "d5": 11,
+      "d11": -16
+    },
+    {
+      "corpus": "jquery-min",
+      "id": "bait-unique",
+      "dGz": 16,
+      "d5": 17,
+      "d11": -13
+    },
+    {
+      "corpus": "jquery-src",
+      "id": "bait-function-return",
+      "dGz": 10,
+      "d5": 14,
+      "d11": -18
+    },
+    {
+      "corpus": "glmatrix-js-raw",
+      "id": "bait-unique",
+      "dGz": 14,
+      "d5": 20,
+      "d11": -14
+    },
+    {
+      "corpus": "jquery-lil-min",
+      "id": "bait-function-return",
+      "dGz": 8,
+      "d5": 7,
+      "d11": -16
+    },
+    {
+      "corpus": "glmatrix-js-vite",
+      "id": "bait-function-return",
+      "dGz": 10,
+      "d5": 7,
+      "d11": -14
+    },
+    {
+      "corpus": "glmatrix-js-raw",
+      "id": "var-to-let",
+      "dGz": -2,
+      "d5": 2,
+      "d11": -21
+    },
+    {
+      "corpus": "glmatrix-js-vite",
+      "id": "var-to-let",
+      "dGz": -10,
+      "d5": 5,
+      "d11": 10
+    },
+    {
+      "corpus": "jquery-min",
+      "id": "var-to-let",
+      "dGz": -1,
+      "d5": 2,
+      "d11": 17
+    },
+    {
+      "corpus": "glmatrix-js-raw",
+      "id": "quotes-single",
+      "dGz": 1,
+      "d5": -3,
+      "d11": 17
+    },
+    {
+      "corpus": "glmatrix-js-raw",
+      "id": "dot-length-bracket",
+      "dGz": 7,
+      "d5": 15,
+      "d11": -10
+    },
+    {
+      "corpus": "glmatrix-lil-raw",
+      "id": "quotes-single",
+      "dGz": 0,
+      "d5": -8,
+      "d11": 12
+    }
+  ]
+}

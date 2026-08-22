@@ -1,0 +1,83 @@
+export class ViewLineOptions {
+  string themeType;
+  string renderWhitespace;
+  string experimentalWhitespaceRendering;
+  bool renderControlCharacters;
+  float spaceWidth;
+  float middotWidth;
+  float wsmiddotWidth;
+  bool useMonospaceOptimizations;
+  bool canUseHalfwidthRightwardsArrow;
+  int lineHeight;
+  int stopRenderingLineAfter;
+  bool fontLigatures;
+  int verticalScrollbarSize;
+  bool useGpu;
+
+  init(string themeType, string renderWhitespace, string experimentalWhitespaceRendering, bool renderControlCharacters, float spaceWidth, float middotWidth, float wsmiddotWidth, bool useMonospaceOptimizations, bool canUseHalfwidthRightwardsArrow, int lineHeight, int stopRenderingLineAfter, bool fontLigatures, int verticalScrollbarSize, bool useGpu) {
+    this.themeType = themeType;
+    this.renderWhitespace = renderWhitespace;
+    this.experimentalWhitespaceRendering = experimentalWhitespaceRendering;
+    this.renderControlCharacters = renderControlCharacters;
+    this.spaceWidth = spaceWidth;
+    this.middotWidth = middotWidth;
+    this.wsmiddotWidth = wsmiddotWidth;
+    this.useMonospaceOptimizations = useMonospaceOptimizations;
+    this.canUseHalfwidthRightwardsArrow = canUseHalfwidthRightwardsArrow;
+    this.lineHeight = lineHeight;
+    this.stopRenderingLineAfter = stopRenderingLineAfter;
+    this.fontLigatures = fontLigatures;
+    this.verticalScrollbarSize = verticalScrollbarSize;
+    this.useGpu = useGpu;
+  }
+
+  bool equals(ViewLineOptions other) {
+    if (this.themeType != other.themeType) {
+      return false;
+    }
+    if (this.renderWhitespace != other.renderWhitespace) {
+      return false;
+    }
+    if (this.experimentalWhitespaceRendering != other.experimentalWhitespaceRendering) {
+      return false;
+    }
+    if (this.renderControlCharacters != other.renderControlCharacters) {
+      return false;
+    }
+    if (this.spaceWidth != other.spaceWidth) {
+      return false;
+    }
+    if (this.middotWidth != other.middotWidth) {
+      return false;
+    }
+    if (this.wsmiddotWidth != other.wsmiddotWidth) {
+      return false;
+    }
+    if (this.useMonospaceOptimizations != other.useMonospaceOptimizations) {
+      return false;
+    }
+    if (this.canUseHalfwidthRightwardsArrow != other.canUseHalfwidthRightwardsArrow) {
+      return false;
+    }
+    if (this.lineHeight != other.lineHeight) {
+      return false;
+    }
+    if (this.stopRenderingLineAfter != other.stopRenderingLineAfter) {
+      return false;
+    }
+    if (this.fontLigatures != other.fontLigatures) {
+      return false;
+    }
+    if (this.verticalScrollbarSize != other.verticalScrollbarSize) {
+      return false;
+    }
+    if (this.useGpu != other.useGpu) {
+      return false;
+    }
+    return true;
+  }
+}
+
+export ViewLineOptions createViewLineOptions(string themeType, string renderWhitespace, string experimentalWhitespaceRendering, bool renderControlCharacters, float spaceWidth, float middotWidth, float wsmiddotWidth, bool useMonospaceOptimizations, bool canUseHalfwidthRightwardsArrow, int lineHeight, int stopRenderingLineAfter, bool fontLigatures, int verticalScrollbarSize, bool useGpu) {
+  return new ViewLineOptions(themeType, renderWhitespace, experimentalWhitespaceRendering, renderControlCharacters, spaceWidth, middotWidth, wsmiddotWidth, useMonospaceOptimizations, canUseHalfwidthRightwardsArrow, lineHeight, stopRenderingLineAfter, fontLigatures, verticalScrollbarSize, useGpu);
+}

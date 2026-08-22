@@ -1,0 +1,155 @@
+export class ViewEventRecord {
+  int type;
+  JsValue payload;
+
+  init(int type, JsValue payload) {
+    this.type = type;
+    this.payload = payload;
+  }
+}
+
+export class ViewEventHandler {
+  bool shouldRenderValue;
+  int[] handlerTypes;
+  (func(ViewEventRecord)->bool)[] handlers;
+
+  init() {
+    this.shouldRenderValue = true;
+    this.handlerTypes = [];
+    this.handlers = [];
+  }
+
+  bool shouldRender() {
+    return this.shouldRenderValue;
+  }
+
+  void forceShouldRender() {
+    this.shouldRenderValue = true;
+  }
+
+  void setShouldRender() {
+    this.shouldRenderValue = true;
+  }
+
+  void onDidRender() {
+    this.shouldRenderValue = false;
+  }
+
+  void setEventHandler(int eventType, func(ViewEventRecord)->bool handler) {
+    int i = 0;
+    while (i < this.handlerTypes.length) {
+      if (this.handlerTypes[i] == eventType) {
+        this.handlers[i] = handler;
+        return;
+      }
+      i = i + 1;
+    }
+    this.handlerTypes.push(eventType);
+    this.handlers.push(handler);
+  }
+
+  bool handleEvent(ViewEventRecord event) {
+    int i = 0;
+    while (i < this.handlerTypes.length) {
+      if (this.handlerTypes[i] == event.type) {
+        return this.handlers[i](event);
+      }
+      i = i + 1;
+    }
+    return false;
+  }
+
+  void handleEvents(ViewEventRecord[] events) {
+    bool render = false;
+    int i = 0;
+    while (i < events.length) {
+      if (this.handleEvent(events[i])) {
+        render = true;
+      }
+      i = i + 1;
+    }
+    if (render) {
+      this.shouldRenderValue = true;
+    }
+  }
+
+  bool onCompositionStart(ViewEventRecord event) {
+    return this.handleEvent(event);
+  }
+
+  bool onCompositionEnd(ViewEventRecord event) {
+    return this.handleEvent(event);
+  }
+
+  bool onConfigurationChanged(ViewEventRecord event) {
+    return this.handleEvent(event);
+  }
+
+  bool onCursorStateChanged(ViewEventRecord event) {
+    return this.handleEvent(event);
+  }
+
+  bool onDecorationsChanged(ViewEventRecord event) {
+    return this.handleEvent(event);
+  }
+
+  bool onFlushed(ViewEventRecord event) {
+    return this.handleEvent(event);
+  }
+
+  bool onFocusChanged(ViewEventRecord event) {
+    return this.handleEvent(event);
+  }
+
+  bool onLanguageConfigurationChanged(ViewEventRecord event) {
+    return this.handleEvent(event);
+  }
+
+  bool onLineMappingChanged(ViewEventRecord event) {
+    return this.handleEvent(event);
+  }
+
+  bool onLinesChanged(ViewEventRecord event) {
+    return this.handleEvent(event);
+  }
+
+  bool onLinesDeleted(ViewEventRecord event) {
+    return this.handleEvent(event);
+  }
+
+  bool onLinesInserted(ViewEventRecord event) {
+    return this.handleEvent(event);
+  }
+
+  bool onRevealRangeRequest(ViewEventRecord event) {
+    return this.handleEvent(event);
+  }
+
+  bool onScrollChanged(ViewEventRecord event) {
+    return this.handleEvent(event);
+  }
+
+  bool onThemeChanged(ViewEventRecord event) {
+    return this.handleEvent(event);
+  }
+
+  bool onTokensChanged(ViewEventRecord event) {
+    return this.handleEvent(event);
+  }
+
+  bool onTokensColorsChanged(ViewEventRecord event) {
+    return this.handleEvent(event);
+  }
+
+  bool onZonesChanged(ViewEventRecord event) {
+    return this.handleEvent(event);
+  }
+}
+
+export ViewEventHandler createViewEventHandler() {
+  return new ViewEventHandler();
+}
+
+export ViewEventRecord createViewEventRecord(int type, JsValue payload) {
+  return new ViewEventRecord(type, payload);
+}

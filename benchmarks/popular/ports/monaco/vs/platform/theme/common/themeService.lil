@@ -1,0 +1,86 @@
+export class ThemeColor {
+  string id;
+  string dark;
+  string light;
+  string hcDark;
+  string hcLight;
+
+  init(string id, string dark, string light, string hcDark, string hcLight) {
+    this.id = id;
+    this.dark = dark;
+    this.light = light;
+    this.hcDark = hcDark;
+    this.hcLight = hcLight;
+  }
+
+  string resolve(string themeType) {
+    if (themeType == "light") {
+      return this.light;
+    }
+    if (themeType == "hcDark") {
+      return this.hcDark;
+    }
+    if (themeType == "hcLight") {
+      return this.hcLight;
+    }
+    return this.dark;
+  }
+}
+
+export class ThemeService {
+  string type;
+  ThemeColor[] colors;
+  (func(string)->void)[] listeners;
+
+  init(string type) {
+    this.type = type;
+    this.colors = [];
+    this.listeners = [];
+  }
+
+  void defineColor(string id, string dark, string light, string hcDark, string hcLight) {
+    this.colors.push(new ThemeColor(id, dark, light, hcDark, hcLight));
+  }
+
+  string getColor(string id) {
+    int i = 0;
+    while (i < this.colors.length) {
+      if (this.colors[i].id == id) {
+        return this.colors[i].resolve(this.type);
+      }
+      i = i + 1;
+    }
+    return "";
+  }
+
+  void setThemeType(string type) {
+    if (this.type == type) {
+      return;
+    }
+    this.type = type;
+    int i = 0;
+    while (i < this.listeners.length) {
+      this.listeners[i](type);
+      i = i + 1;
+    }
+  }
+
+  bool isDark() {
+    return this.type == "dark" || this.type == "hcDark";
+  }
+
+  bool isHighContrast() {
+    return this.type == "hcDark" || this.type == "hcLight";
+  }
+}
+
+export ThemeService createThemeService(string type) {
+  ThemeService svc = new ThemeService(type);
+  svc.defineColor("editor.background", "#1E1E1E", "#FFFFFF", "#000000", "#FFFFFF");
+  svc.defineColor("editor.foreground", "#D4D4D4", "#000000", "#FFFFFF", "#292929");
+  svc.defineColor("foreground", "#CCCCCC", "#616161", "#FFFFFF", "#292929");
+  svc.defineColor("focusBorder", "#007FD4", "#0090F1", "#F38518", "#006BBD");
+  return svc;
+}
+
+export string IThemeServiceId = "themeService";

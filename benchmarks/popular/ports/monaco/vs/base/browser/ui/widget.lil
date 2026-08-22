@@ -1,0 +1,163 @@
+import { addEventListener, removeEventListener, preventDefault, stopPropagation, eventButton, eventClientX, eventClientY, eventCtrlKey, eventShiftKey, eventAltKey, eventKeyCode, eventCode } from "../../../../js-host";
+
+export class WidgetMouseEvent {
+  JsValue browserEvent;
+  JsValue target;
+  int button;
+  int posx;
+  int posy;
+  bool ctrlKey;
+  bool shiftKey;
+  bool altKey;
+  bool metaKey;
+
+  init(JsValue event) {
+    this.browserEvent = event;
+    this.target = event["target"];
+    this.button = eventButton(event);
+    this.posx = eventClientX(event);
+    this.posy = eventClientY(event);
+    this.ctrlKey = eventCtrlKey(event);
+    this.shiftKey = eventShiftKey(event);
+    this.altKey = eventAltKey(event);
+    this.metaKey = event["metaKey"].truthy();
+  }
+
+  void preventDefault() {
+    preventDefault(this.browserEvent);
+  }
+
+  void stopPropagation() {
+    stopPropagation(this.browserEvent);
+  }
+}
+
+export class WidgetKeyboardEvent {
+  JsValue browserEvent;
+  JsValue target;
+  int keyCode;
+  string code;
+  bool ctrlKey;
+  bool shiftKey;
+  bool altKey;
+  bool metaKey;
+
+  init(JsValue event) {
+    this.browserEvent = event;
+    this.target = event["target"];
+    this.keyCode = eventKeyCode(event);
+    this.code = eventCode(event);
+    this.ctrlKey = eventCtrlKey(event);
+    this.shiftKey = eventShiftKey(event);
+    this.altKey = eventAltKey(event);
+    this.metaKey = event["metaKey"].truthy();
+  }
+
+  bool equals(int other) {
+    return this.keyCode == other;
+  }
+
+  void preventDefault() {
+    preventDefault(this.browserEvent);
+  }
+
+  void stopPropagation() {
+    stopPropagation(this.browserEvent);
+  }
+}
+
+export class Widget {
+  JsValue[] listenerTargets;
+  string[] listenerTypes;
+  (func(JsValue)->void)[] listenerHandlers;
+  bool[] listenerCapture;
+  bool disposed;
+
+  init() {
+    this.listenerTargets = [];
+    this.listenerTypes = [];
+    this.listenerHandlers = [];
+    this.listenerCapture = [];
+    this.disposed = false;
+  }
+
+  void registerListener(JsValue node, string type, func(JsValue)->void handler, bool capture) {
+    addEventListener(node, type, handler, capture);
+    this.listenerTargets.push(node);
+    this.listenerTypes.push(type);
+    this.listenerHandlers.push(handler);
+    this.listenerCapture.push(capture);
+  }
+
+  void onclick(JsValue node, func(WidgetMouseEvent)->void listener) {
+    this.registerListener(node, "click", (JsValue event) => {
+      listener(new WidgetMouseEvent(event));
+    }, false);
+  }
+
+  void onmousedown(JsValue node, func(WidgetMouseEvent)->void listener) {
+    this.registerListener(node, "mousedown", (JsValue event) => {
+      listener(new WidgetMouseEvent(event));
+    }, false);
+  }
+
+  void onmouseover(JsValue node, func(WidgetMouseEvent)->void listener) {
+    this.registerListener(node, "mouseover", (JsValue event) => {
+      listener(new WidgetMouseEvent(event));
+    }, false);
+  }
+
+  void onmouseleave(JsValue node, func(WidgetMouseEvent)->void listener) {
+    this.registerListener(node, "mouseleave", (JsValue event) => {
+      listener(new WidgetMouseEvent(event));
+    }, false);
+  }
+
+  void onkeydown(JsValue node, func(WidgetKeyboardEvent)->void listener) {
+    this.registerListener(node, "keydown", (JsValue event) => {
+      listener(new WidgetKeyboardEvent(event));
+    }, false);
+  }
+
+  void onkeyup(JsValue node, func(WidgetKeyboardEvent)->void listener) {
+    this.registerListener(node, "keyup", (JsValue event) => {
+      listener(new WidgetKeyboardEvent(event));
+    }, false);
+  }
+
+  void oninput(JsValue node, func(JsValue)->void listener) {
+    this.registerListener(node, "input", listener, false);
+  }
+
+  void onblur(JsValue node, func(JsValue)->void listener) {
+    this.registerListener(node, "blur", listener, false);
+  }
+
+  void onfocus(JsValue node, func(JsValue)->void listener) {
+    this.registerListener(node, "focus", listener, false);
+  }
+
+  func()->void ignoreGesture(JsValue node) {
+    return () => {};
+  }
+
+  void dispose() {
+    if (this.disposed) {
+      return;
+    }
+    this.disposed = true;
+    int i = 0;
+    while (i < this.listenerTargets.length) {
+      removeEventListener(this.listenerTargets[i], this.listenerTypes[i], this.listenerHandlers[i], this.listenerCapture[i]);
+      i = i + 1;
+    }
+    this.listenerTargets = [];
+    this.listenerTypes = [];
+    this.listenerHandlers = [];
+    this.listenerCapture = [];
+  }
+}
+
+export Widget createWidget() {
+  return new Widget();
+}

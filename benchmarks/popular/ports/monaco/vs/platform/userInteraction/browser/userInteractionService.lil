@@ -1,0 +1,17 @@
+export class UserInteractionService {
+  float lastInteraction;
+
+  init() {
+    this.lastInteraction = 0.0;
+  }
+
+  void mark(float now) {
+    this.lastInteraction = now;
+  }
+}
+
+export UserInteractionService createUserInteractionService() {
+  return new UserInteractionService();
+}
+
+export string IUserInteractionServiceId = "userInteractionService";

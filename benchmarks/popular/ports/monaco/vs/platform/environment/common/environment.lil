@@ -1,0 +1,19 @@
+export class EnvironmentService {
+  bool isBuilt;
+  bool isExtensionDevelopment;
+  string appRoot;
+  string userHome;
+
+  init() {
+    this.isBuilt = true;
+    this.isExtensionDevelopment = false;
+    this.appRoot = "";
+    this.userHome = "";
+  }
+}
+
+export EnvironmentService createEnvironmentService() {
+  return new EnvironmentService();
+}
+
+export string IEnvironmentServiceId = "environmentService";

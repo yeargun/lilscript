@@ -1,0 +1,57 @@
+import { jsUndefined } from "../../../../../js-host";
+
+export class DefaultHoverDelegate {
+  int delayMs;
+  string placement;
+  bool instant;
+  bool disposed;
+
+  init(string placement, bool instant) {
+    this.delayMs = -1;
+    this.placement = placement;
+    this.instant = instant;
+    this.disposed = false;
+  }
+
+  JsValue showHover(JsValue options, bool focus) {
+    return jsUndefined();
+  }
+
+  void dispose() {
+    this.disposed = true;
+  }
+}
+
+func(string, bool)->DefaultHoverDelegate hoverDelegateFactory = (string placement, bool instant) => {
+  return new DefaultHoverDelegate(placement, instant);
+};
+
+DefaultHoverDelegate defaultHoverDelegateMouse = new DefaultHoverDelegate("mouse", false);
+DefaultHoverDelegate defaultHoverDelegateElement = new DefaultHoverDelegate("element", false);
+bool mouseReady = false;
+bool elementReady = false;
+
+export void setHoverDelegateFactory(func(string, bool)->DefaultHoverDelegate provider) {
+  hoverDelegateFactory = provider;
+  mouseReady = false;
+  elementReady = false;
+}
+
+export DefaultHoverDelegate getDefaultHoverDelegate(string placement) {
+  if (placement == "element") {
+    if (!elementReady) {
+      defaultHoverDelegateElement = hoverDelegateFactory("element", false);
+      elementReady = true;
+    }
+    return defaultHoverDelegateElement;
+  }
+  if (!mouseReady) {
+    defaultHoverDelegateMouse = hoverDelegateFactory("mouse", false);
+    mouseReady = true;
+  }
+  return defaultHoverDelegateMouse;
+}
+
+export DefaultHoverDelegate createInstantHoverDelegate() {
+  return hoverDelegateFactory("element", true);
+}

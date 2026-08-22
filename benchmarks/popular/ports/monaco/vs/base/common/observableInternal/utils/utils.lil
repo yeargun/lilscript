@@ -1,0 +1,306 @@
+import {
+  clearTimeoutId,
+  hostThen,
+  scheduleTimeoutMs
+} from "../../../../../js-host";
+
+export class UtilityObservable {
+  JsValue value;
+  (func(JsValue, JsValue)->void)[] listeners;
+
+  init(JsValue value) {
+    this.value = value;
+    this.listeners = [];
+  }
+
+  JsValue get() {
+    return this.value;
+  }
+
+  void reportChanges() {}
+
+  void set(JsValue newValue) {
+    if (this.value == newValue) {
+      return;
+    }
+    JsValue oldValue = this.value;
+    this.value = newValue;
+    (func(JsValue, JsValue)->void)[] snapshot = this.listeners.slice();
+    int i = 0;
+    while (i < snapshot.length) {
+      snapshot[i](newValue, oldValue);
+      i = i + 1;
+    }
+  }
+
+  func()->void observe(func(JsValue, JsValue)->void listener) {
+    this.listeners.push(listener);
+    return () => {
+      int index = this.listeners.indexOf(listener);
+      if (index >= 0) {
+        this.listeners.splice(index, 1);
+      }
+    };
+  }
+}
+
+export UtilityObservable observableFromPromise(JsValue promise) {
+  UtilityObservable observable = new UtilityObservable(JS.object());
+  hostThen(promise, (JsValue value) => {
+    JsValue wrapped = JS.object();
+    wrapped["value"] = value;
+    observable.set(wrapped);
+  });
+  return observable;
+}
+
+export class DebouncedUtilityObservable {
+  UtilityObservable source;
+  UtilityObservable output;
+  float debounceMs;
+  bool hasTimeout;
+  JsValue timeoutId;
+  func()->void disposeSource;
+
+  init(UtilityObservable source, float debounceMs) {
+    this.source = source;
+    this.output = new UtilityObservable(source.get());
+    this.debounceMs = debounceMs;
+    this.hasTimeout = false;
+    this.timeoutId = 0;
+    this.disposeSource = source.observe(
+      (JsValue newValue, JsValue oldValue) => {
+        if (this.hasTimeout) {
+          clearTimeoutId(this.timeoutId);
+        }
+        if (this.debounceMs == 0.0) {
+          this.output.set(newValue);
+          this.hasTimeout = false;
+        } else {
+          this.hasTimeout = true;
+          this.timeoutId = scheduleTimeoutMs(() => {
+            this.hasTimeout = false;
+            this.output.set(newValue);
+          }, this.debounceMs);
+        }
+      }
+    );
+  }
+
+  JsValue get() {
+    return this.output.get();
+  }
+
+  func()->void observe(func(JsValue, JsValue)->void listener) {
+    return this.output.observe(listener);
+  }
+
+  void dispose() {
+    this.disposeSource();
+    if (this.hasTimeout) {
+      clearTimeoutId(this.timeoutId);
+      this.hasTimeout = false;
+    }
+  }
+}
+
+export DebouncedUtilityObservable debouncedObservable(
+  UtilityObservable observable,
+  float debounceMs
+) {
+  return new DebouncedUtilityObservable(observable, debounceMs);
+}
+
+export DebouncedUtilityObservable debouncedObservable2(
+  UtilityObservable observable,
+  float debounceMs
+) {
+  return new DebouncedUtilityObservable(observable, debounceMs);
+}
+
+export func()->void keepObserved(UtilityObservable observable) {
+  return observable.observe((JsValue value, JsValue previousValue) => {});
+}
+
+export func()->void recomputeInitiallyAndOnChange(
+  UtilityObservable observable,
+  func(JsValue)->void handleValue
+) {
+  handleValue(observable.get());
+  return observable.observe((JsValue value, JsValue previousValue) => {
+    handleValue(value);
+  });
+}
+
+export class CachedUtilityDerived {
+  func(JsValue)->JsValue computeFn;
+  JsValue cachedValue;
+  bool hasValue;
+
+  init(func(JsValue)->JsValue computeFn) {
+    this.computeFn = computeFn;
+    this.cachedValue = 0;
+    this.hasValue = false;
+  }
+
+  JsValue recompute() {
+    JsValue previous = this.cachedValue;
+    this.cachedValue = this.computeFn(previous);
+    this.hasValue = true;
+    return this.cachedValue;
+  }
+
+  JsValue get() {
+    if (!this.hasValue) {
+      return this.recompute();
+    }
+    return this.cachedValue;
+  }
+
+  void clearCache() {
+    this.cachedValue = 0;
+    this.hasValue = false;
+  }
+
+  void setCache(JsValue value) {
+    this.cachedValue = value;
+    this.hasValue = true;
+  }
+}
+
+export CachedUtilityDerived derivedObservableWithCache(
+  func(JsValue)->JsValue computeFn
+) {
+  return new CachedUtilityDerived(computeFn);
+}
+
+export CachedUtilityDerived derivedObservableWithWritableCache(
+  func(JsValue)->JsValue computeFn
+) {
+  return new CachedUtilityDerived(computeFn);
+}
+
+export class UtilityDisposableStore {
+  (func()->void)[] disposables;
+
+  init() {
+    this.disposables = [];
+  }
+
+  void add(func()->void disposeFn) {
+    this.disposables.push(disposeFn);
+  }
+
+  void dispose() {
+    int i = this.disposables.length - 1;
+    while (i >= 0) {
+      this.disposables[i]();
+      i = i - 1;
+    }
+    this.disposables = [];
+  }
+}
+
+class ArrayMapEntry {
+  JsValue key;
+  JsValue output;
+  UtilityDisposableStore store;
+
+  init(JsValue key, JsValue output, UtilityDisposableStore store) {
+    this.key = key;
+    this.output = output;
+    this.store = store;
+  }
+}
+
+export class CachedObservableArrayMap {
+  func(JsValue, UtilityDisposableStore)->JsValue mapFn;
+  func(JsValue)->JsValue keySelector;
+  ArrayMapEntry[] cache;
+  JsValue[] items;
+
+  init(
+    func(JsValue, UtilityDisposableStore)->JsValue mapFn,
+    func(JsValue)->JsValue keySelector
+  ) {
+    this.mapFn = mapFn;
+    this.keySelector = keySelector;
+    this.cache = [];
+    this.items = [];
+  }
+
+  int findEntry(JsValue key) {
+    int i = 0;
+    while (i < this.cache.length) {
+      if (this.cache[i].key == key) {
+        return i;
+      }
+      i = i + 1;
+    }
+    return -1;
+  }
+
+  void setItems(JsValue[] sourceItems) {
+    bool[] used = [];
+    int u = 0;
+    while (u < this.cache.length) {
+      used.push(false);
+      u = u + 1;
+    }
+    JsValue[] nextItems = [];
+    int i = 0;
+    while (i < sourceItems.length) {
+      JsValue item = sourceItems[i];
+      JsValue key = this.keySelector(item);
+      int index = this.findEntry(key);
+      if (index < 0) {
+        UtilityDisposableStore store = new UtilityDisposableStore();
+        JsValue output = this.mapFn(item, store);
+        this.cache.push(new ArrayMapEntry(key, output, store));
+        used.push(true);
+        nextItems.push(output);
+      } else {
+        used[index] = true;
+        nextItems.push(this.cache[index].output);
+      }
+      i = i + 1;
+    }
+    int index = this.cache.length - 1;
+    while (index >= 0) {
+      if (!used[index]) {
+        this.cache[index].store.dispose();
+        this.cache.splice(index, 1);
+      }
+      index = index - 1;
+    }
+    this.items = nextItems;
+  }
+
+  JsValue[] getItems() {
+    return this.items;
+  }
+
+  void dispose() {
+    int i = 0;
+    while (i < this.cache.length) {
+      this.cache[i].store.dispose();
+      i = i + 1;
+    }
+    this.cache = [];
+    this.items = [];
+  }
+}
+
+export CachedObservableArrayMap mapObservableArrayCached(
+  func(JsValue, UtilityDisposableStore)->JsValue mapFn,
+  func(JsValue)->JsValue keySelector
+) {
+  return new CachedObservableArrayMap(mapFn, keySelector);
+}
+
+export bool isObservable(JsValue obj) {
+  if (!obj.truthy() || !obj.isObject()) {
+    return false;
+  }
+  return obj["get"].truthy() && obj["reportChanges"].truthy();
+}

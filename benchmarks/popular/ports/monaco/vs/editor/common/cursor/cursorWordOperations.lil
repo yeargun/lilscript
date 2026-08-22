@@ -1,0 +1,207 @@
+export string DEFAULT_WORD_SEPARATORS = "`~!@#$%^&*()-=+[{]}\\\\|;:'\",.<>/?";
+
+export class WordPosition {
+  int lineNumber;
+  int column;
+
+  init(int lineNumber, int column) {
+    this.lineNumber = lineNumber;
+    this.column = column;
+  }
+
+  bool equals(WordPosition other) {
+    return this.lineNumber == other.lineNumber && this.column == other.column;
+  }
+}
+
+export class WordRange {
+  int startLineNumber;
+  int startColumn;
+  int endLineNumber;
+  int endColumn;
+
+  init(int startLineNumber, int startColumn, int endLineNumber, int endColumn) {
+    this.startLineNumber = startLineNumber;
+    this.startColumn = startColumn;
+    this.endLineNumber = endLineNumber;
+    this.endColumn = endColumn;
+  }
+}
+
+int wordCharacterClass(string line, int index, string separators) {
+  int code = line.charCodeAt(index);
+  if (code == 32 || code == 9 || code == 10 || code == 13) {
+    return 0;
+  }
+  if (separators.indexOf(line.charAt(index)) >= 0) {
+    return 1;
+  }
+  return 2;
+}
+
+int wordStartInLine(string line, int offset, string separators) {
+  if (line.length == 0 || offset <= 0) {
+    return 0;
+  }
+  int index = offset;
+  if (index >= line.length) {
+    index = line.length - 1;
+  }
+  int characterClass = wordCharacterClass(line, index, separators);
+  while (index > 0 && wordCharacterClass(line, index - 1, separators) == characterClass) {
+    index = index - 1;
+  }
+  return index;
+}
+
+int wordEndInLine(string line, int offset, string separators) {
+  if (line.length == 0 || offset >= line.length) {
+    return line.length;
+  }
+  int characterClass = wordCharacterClass(line, offset, separators);
+  int index = offset + 1;
+  while (index < line.length && wordCharacterClass(line, index, separators) == characterClass) {
+    index = index + 1;
+  }
+  return index;
+}
+
+export WordPosition moveWordLeft(
+  string[] lines,
+  WordPosition position,
+  string separators
+) {
+  int lineNumber = position.lineNumber;
+  int offset = position.column - 1;
+  if (offset == 0) {
+    if (lineNumber == 1) {
+      return new WordPosition(1, 1);
+    }
+    lineNumber = lineNumber - 1;
+    offset = lines[lineNumber - 1].length;
+  }
+  string line = lines[lineNumber - 1];
+  int index = offset - 1;
+  while (index >= 0 && wordCharacterClass(line, index, separators) == 0) {
+    index = index - 1;
+  }
+  if (index < 0) {
+    return new WordPosition(lineNumber, 1);
+  }
+  int characterClass = wordCharacterClass(line, index, separators);
+  while (index > 0 && wordCharacterClass(line, index - 1, separators) == characterClass) {
+    index = index - 1;
+  }
+  return new WordPosition(lineNumber, index + 1);
+}
+
+export WordPosition moveWordRight(
+  string[] lines,
+  WordPosition position,
+  string separators
+) {
+  int lineNumber = position.lineNumber;
+  string line = lines[lineNumber - 1];
+  int index = position.column - 1;
+  if (index >= line.length) {
+    if (lineNumber == lines.length) {
+      return new WordPosition(lineNumber, line.length + 1);
+    }
+    return new WordPosition(lineNumber + 1, 1);
+  }
+  int characterClass = wordCharacterClass(line, index, separators);
+  while (index < line.length && wordCharacterClass(line, index, separators) == characterClass) {
+    index = index + 1;
+  }
+  while (index < line.length && wordCharacterClass(line, index, separators) == 0) {
+    index = index + 1;
+  }
+  return new WordPosition(lineNumber, index + 1);
+}
+
+export WordPosition moveWordEndRight(
+  string[] lines,
+  WordPosition position,
+  string separators
+) {
+  int lineNumber = position.lineNumber;
+  string line = lines[lineNumber - 1];
+  int index = position.column - 1;
+  while (index < line.length && wordCharacterClass(line, index, separators) == 0) {
+    index = index + 1;
+  }
+  if (index >= line.length) {
+    if (lineNumber < lines.length) {
+      return new WordPosition(lineNumber + 1, 1);
+    }
+    return new WordPosition(lineNumber, line.length + 1);
+  }
+  int characterClass = wordCharacterClass(line, index, separators);
+  while (index < line.length && wordCharacterClass(line, index, separators) == characterClass) {
+    index = index + 1;
+  }
+  return new WordPosition(lineNumber, index + 1);
+}
+
+export WordRange wordAtPosition(
+  string[] lines,
+  WordPosition position,
+  string separators
+) {
+  string line = lines[position.lineNumber - 1];
+  if (line.length == 0) {
+    return new WordRange(
+      position.lineNumber,
+      1,
+      position.lineNumber,
+      1
+    );
+  }
+  int offset = position.column - 1;
+  if (offset >= line.length) {
+    offset = line.length - 1;
+  }
+  int start = wordStartInLine(line, offset, separators);
+  int end = wordEndInLine(line, offset, separators);
+  return new WordRange(position.lineNumber, start + 1, position.lineNumber, end + 1);
+}
+
+export WordRange deleteWordLeftRange(
+  string[] lines,
+  WordPosition position,
+  string separators
+) {
+  WordPosition start = moveWordLeft(lines, position, separators);
+  return new WordRange(
+    start.lineNumber,
+    start.column,
+    position.lineNumber,
+    position.column
+  );
+}
+
+export WordRange deleteWordRightRange(
+  string[] lines,
+  WordPosition position,
+  string separators
+) {
+  WordPosition end = moveWordRight(lines, position, separators);
+  return new WordRange(
+    position.lineNumber,
+    position.column,
+    end.lineNumber,
+    end.column
+  );
+}
+
+export WordPosition wordJump(
+  string[] lines,
+  WordPosition position,
+  string separators,
+  bool moveLeft
+) {
+  if (moveLeft) {
+    return moveWordLeft(lines, position, separators);
+  }
+  return moveWordRight(lines, position, separators);
+}

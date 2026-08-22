@@ -1,0 +1,15 @@
+export class ExtensionIdentifier {
+  string value;
+
+  init(string value) {
+    this.value = value;
+  }
+
+  bool equals(ExtensionIdentifier other) {
+    return this.value.toLowerCase() == other.value.toLowerCase();
+  }
+}
+
+export ExtensionIdentifier createExtensionIdentifier(string value) {
+  return new ExtensionIdentifier(value);
+}

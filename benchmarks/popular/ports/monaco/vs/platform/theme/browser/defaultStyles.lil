@@ -1,0 +1,25 @@
+export class ListStyles {
+  string listFocusBackground;
+  string listActiveSelectionBackground;
+  string listHoverBackground;
+
+  init() {
+    this.listFocusBackground = "#062f4a";
+    this.listActiveSelectionBackground = "#04395e";
+    this.listHoverBackground = "#2a2d2e";
+  }
+}
+
+export ListStyles defaultListStyles = new ListStyles();
+
+export class FindWidgetStyles {
+  string inputBackground;
+  string inputForeground;
+
+  init() {
+    this.inputBackground = "#3c3c3c";
+    this.inputForeground = "#cccccc";
+  }
+}
+
+export FindWidgetStyles defaultFindWidgetStyles = new FindWidgetStyles();

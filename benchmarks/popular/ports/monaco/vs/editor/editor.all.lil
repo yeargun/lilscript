@@ -1,0 +1,120 @@
+export string[] editorAllModules() {
+  string[] mods = [];
+  mods.push("browser/coreCommands");
+  mods.push("browser/widget/codeEditor/codeEditorWidget");
+  mods.push("browser/widget/diffEditor/diffEditor.contribution");
+  mods.push("contrib/anchorSelect/browser/anchorSelect");
+  mods.push("contrib/bracketMatching/browser/bracketMatching");
+  mods.push("contrib/caretOperations/browser/caretOperations");
+  mods.push("contrib/caretOperations/browser/transpose");
+  mods.push("contrib/clipboard/browser/clipboard");
+  mods.push("contrib/codeAction/browser/codeActionContributions");
+  mods.push("contrib/codelens/browser/codelensController");
+  mods.push("contrib/colorPicker/browser/colorPickerContribution");
+  mods.push("contrib/comment/browser/comment");
+  mods.push("contrib/contextmenu/browser/contextmenu");
+  mods.push("contrib/cursorUndo/browser/cursorUndo");
+  mods.push("contrib/dnd/browser/dnd");
+  mods.push("contrib/dropOrPasteInto/browser/copyPasteContribution");
+  mods.push("contrib/dropOrPasteInto/browser/dropIntoEditorContribution");
+  mods.push("contrib/find/browser/findController");
+  mods.push("contrib/folding/browser/folding");
+  mods.push("contrib/fontZoom/browser/fontZoom");
+  mods.push("contrib/format/browser/formatActions");
+  mods.push("contrib/documentSymbols/browser/documentSymbols");
+  mods.push("contrib/inlineCompletions/browser/inlineCompletions.contribution");
+  mods.push("contrib/inlineProgress/browser/inlineProgress");
+  mods.push("contrib/gotoSymbol/browser/goToCommands");
+  mods.push("contrib/gotoSymbol/browser/link/goToDefinitionAtPosition");
+  mods.push("contrib/gotoError/browser/gotoError");
+  mods.push("contrib/gotoError/browser/markerSelectionStatus");
+  mods.push("contrib/gpu/browser/gpuActions");
+  mods.push("contrib/hover/browser/hoverContribution");
+  mods.push("contrib/indentation/browser/indentation");
+  mods.push("contrib/inlayHints/browser/inlayHintsContribution");
+  mods.push("contrib/inPlaceReplace/browser/inPlaceReplace");
+  mods.push("contrib/insertFinalNewLine/browser/insertFinalNewLine");
+  mods.push("contrib/lineSelection/browser/lineSelection");
+  mods.push("contrib/linesOperations/browser/linesOperations");
+  mods.push("contrib/linkedEditing/browser/linkedEditing");
+  mods.push("contrib/links/browser/links");
+  mods.push("contrib/longLinesHelper/browser/longLinesHelper");
+  mods.push("contrib/middleScroll/browser/middleScroll.contribution");
+  mods.push("contrib/multicursor/browser/multicursor");
+  mods.push("contrib/parameterHints/browser/parameterHints");
+  mods.push("contrib/placeholderText/browser/placeholderText.contribution");
+  mods.push("contrib/rename/browser/rename");
+  mods.push("contrib/sectionHeaders/browser/sectionHeaders");
+  mods.push("contrib/semanticTokens/browser/documentSemanticTokens");
+  mods.push("contrib/semanticTokens/browser/viewportSemanticTokens");
+  mods.push("contrib/smartSelect/browser/smartSelect");
+  mods.push("contrib/snippet/browser/snippetController2");
+  mods.push("contrib/stickyScroll/browser/stickyScrollContribution");
+  mods.push("contrib/suggest/browser/suggestController");
+  mods.push("contrib/suggest/browser/suggestInlineCompletions");
+  mods.push("contrib/tokenization/browser/tokenization");
+  mods.push("contrib/toggleTabFocusMode/browser/toggleTabFocusMode");
+  mods.push("contrib/unicodeHighlighter/browser/unicodeHighlighter");
+  mods.push("contrib/unusualLineTerminators/browser/unusualLineTerminators");
+  mods.push("contrib/wordHighlighter/browser/wordHighlighter");
+  mods.push("contrib/wordOperations/browser/wordOperations");
+  mods.push("contrib/wordPartOperations/browser/wordPartOperations");
+  mods.push("contrib/readOnlyMessage/browser/contribution");
+  mods.push("contrib/diffEditorBreadcrumbs/browser/contribution");
+  mods.push("contrib/floatingMenu/browser/floatingMenu.contribution");
+  mods.push("common/standaloneStrings");
+  mods.push("base/browser/ui/codicons/codiconStyles");
+  return mods;
+}
+
+export string editorAllModuleAt(int index) {
+  string[] mods = editorAllModules();
+  if (index < 0 || index >= mods.length) {
+    return "";
+  }
+  return mods[index];
+}
+
+export int editorAllModuleCount() {
+  return editorAllModules().length;
+}
+
+export bool editorAllContains(string id) {
+  return editorAllModules().includes(id);
+}
+
+export string loadCoreCommands() {
+  return "browser/coreCommands";
+}
+
+export string loadCodeEditorWidget() {
+  return "browser/widget/codeEditor/codeEditorWidget";
+}
+
+export string loadFindController() {
+  return "contrib/find/browser/findController";
+}
+
+export string loadFolding() {
+  return "contrib/folding/browser/folding";
+}
+
+export string loadSuggestController() {
+  return "contrib/suggest/browser/suggestController";
+}
+
+export string loadHoverContribution() {
+  return "contrib/hover/browser/hoverContribution";
+}
+
+export string loadMulticursor() {
+  return "contrib/multicursor/browser/multicursor";
+}
+
+export string loadStandaloneStrings() {
+  return "common/standaloneStrings";
+}
+
+export string loadCodiconStyles() {
+  return "base/browser/ui/codicons/codiconStyles";
+}

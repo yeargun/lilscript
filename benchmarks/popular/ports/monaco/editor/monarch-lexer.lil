@@ -1,0 +1,11 @@
+import { Lexer, LineState, Token, tokenizeLine, initialState, tokenizeText, tokenTypes } from "./monarch";
+
+export Token[] monarchLexerTokenize(Lexer lex, LineState state, string line) {
+  return tokenizeLine(lex, state, line);
+}
+
+export LineState monarchInitialState() {
+  return initialState();
+}
+
+export { Lexer, LineState, Token, tokenizeLine, initialState, tokenizeText, tokenTypes };

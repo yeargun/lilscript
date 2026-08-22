@@ -1,0 +1,74 @@
+import { concat2, emptyBuf, sliceOf } from "../../../../../../js-host";
+
+export class NativeEditContext {
+  JsValue domNode;
+  string text;
+  int selectionStart;
+  int selectionEnd;
+  int cursorLineNumber;
+  int cursorColumn;
+  bool focused;
+  bool composing;
+
+  init(JsValue domNode) {
+    this.domNode = domNode;
+    this.text = emptyBuf();
+    this.selectionStart = 0;
+    this.selectionEnd = 0;
+    this.cursorLineNumber = 1;
+    this.cursorColumn = 1;
+    this.focused = false;
+    this.composing = false;
+  }
+
+  void setText(string text, int selectionStart, int selectionEnd) {
+    this.text = text;
+    this.selectionStart = selectionStart;
+    this.selectionEnd = selectionEnd;
+  }
+
+  void onTextUpdate(string text, int selectionStart, int selectionEnd) {
+    this.text = text;
+    this.selectionStart = selectionStart;
+    this.selectionEnd = selectionEnd;
+  }
+
+  string textInRange(int start, int end) {
+    int from = start;
+    int to = end;
+    if (from < 0) {
+      from = 0;
+    }
+    if (to > this.text.length) {
+      to = this.text.length;
+    }
+    if (from > to) {
+      from = to;
+    }
+    return sliceOf(this.text, from, to);
+  }
+
+  void onCompositionStart() {
+    this.composing = true;
+  }
+
+  void onCompositionEnd() {
+    this.composing = false;
+  }
+
+  void focus() {
+    this.focused = true;
+  }
+
+  void blur() {
+    this.focused = false;
+  }
+}
+
+export NativeEditContext createNativeEditContext(JsValue domNode) {
+  return new NativeEditContext(domNode);
+}
+
+export string surroundWithMarks(string text) {
+  return concat2(concat2("[", text), "]");
+}

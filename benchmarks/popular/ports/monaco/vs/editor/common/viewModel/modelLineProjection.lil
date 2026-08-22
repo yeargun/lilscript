@@ -1,0 +1,189 @@
+import { sliceOf, repeatChar } from "../../../../js-host";
+
+export class ProjectionPosition {
+  int lineNumber;
+  int column;
+
+  init(int lineNumber, int column) {
+    this.lineNumber = lineNumber;
+    this.column = column;
+  }
+}
+
+export class ModelLineProjectionData {
+  int[] breakOffsets;
+  int[] breakOffsetsVisibleColumn;
+  int wrappedTextIndentLength;
+
+  init(int[] breakOffsets, int[] breakOffsetsVisibleColumn, int wrappedTextIndentLength) {
+    this.breakOffsets = breakOffsets;
+    this.breakOffsetsVisibleColumn = breakOffsetsVisibleColumn;
+    this.wrappedTextIndentLength = wrappedTextIndentLength;
+  }
+
+  int getOutputLineCount() {
+    return this.breakOffsets.length;
+  }
+
+  int getLineStartOffset(int outputLineIndex) {
+    if (outputLineIndex == 0) {
+      return 0;
+    }
+    return this.breakOffsets[outputLineIndex - 1];
+  }
+
+  int getLineEndOffset(int outputLineIndex) {
+    return this.breakOffsets[outputLineIndex];
+  }
+
+  int getMinOutputOffset(int outputLineIndex) {
+    if (outputLineIndex == 0) {
+      return 0;
+    }
+    return this.wrappedTextIndentLength;
+  }
+
+  int getMaxOutputOffset(int outputLineIndex) {
+    return this.getMinOutputOffset(outputLineIndex) + this.getLineEndOffset(outputLineIndex) - this.getLineStartOffset(outputLineIndex);
+  }
+
+  int getLineLength(int outputLineIndex) {
+    return this.getMaxOutputOffset(outputLineIndex);
+  }
+
+  ProjectionPosition translateToOutputPosition(int inputOffset, int affinity = 2) {
+    int lineIndex = 0;
+    while (lineIndex + 1 < this.breakOffsets.length && inputOffset > this.breakOffsets[lineIndex]) {
+      lineIndex = lineIndex + 1;
+    }
+    if (affinity == 1 && lineIndex + 1 < this.breakOffsets.length && inputOffset == this.breakOffsets[lineIndex]) {
+      lineIndex = lineIndex + 1;
+    }
+    int startOffset = this.getLineStartOffset(lineIndex);
+    int outputOffset = inputOffset - startOffset + this.getMinOutputOffset(lineIndex);
+    if (outputOffset < this.getMinOutputOffset(lineIndex)) {
+      outputOffset = this.getMinOutputOffset(lineIndex);
+    }
+    if (outputOffset > this.getMaxOutputOffset(lineIndex)) {
+      outputOffset = this.getMaxOutputOffset(lineIndex);
+    }
+    return new ProjectionPosition(lineIndex, outputOffset + 1);
+  }
+
+  int translateToInputOffset(int outputLineIndex, int outputOffset) {
+    int lineIndex = outputLineIndex;
+    if (lineIndex < 0) {
+      lineIndex = 0;
+    }
+    if (lineIndex >= this.breakOffsets.length) {
+      lineIndex = this.breakOffsets.length - 1;
+    }
+    int localOffset = outputOffset - this.getMinOutputOffset(lineIndex);
+    if (localOffset < 0) {
+      localOffset = 0;
+    }
+    int lineLength = this.getLineEndOffset(lineIndex) - this.getLineStartOffset(lineIndex);
+    if (localOffset > lineLength) {
+      localOffset = lineLength;
+    }
+    return this.getLineStartOffset(lineIndex) + localOffset;
+  }
+}
+
+export class ModelLineProjection {
+  ModelLineProjectionData? data;
+  bool visible;
+
+  init(ModelLineProjectionData? data, bool visible) {
+    this.data = data;
+    this.visible = visible;
+  }
+
+  bool isVisible() {
+    return this.visible;
+  }
+
+  ModelLineProjection setVisible(bool visible) {
+    this.visible = visible;
+    return this;
+  }
+
+  int getViewLineCount() {
+    if (!this.visible) {
+      return 0;
+    }
+    ModelLineProjectionData? current = this.data;
+    if (current == null) {
+      return 1;
+    }
+    return current.getOutputLineCount();
+  }
+
+  string getViewLineContent(string modelLineContent, int outputLineIndex) {
+    if (!this.visible) {
+      return "";
+    }
+    ModelLineProjectionData? current = this.data;
+    if (current == null) {
+      return modelLineContent;
+    }
+    string content = sliceOf(modelLineContent, current.getLineStartOffset(outputLineIndex), current.getLineEndOffset(outputLineIndex));
+    if (outputLineIndex > 0) {
+      return repeatChar(" ", current.wrappedTextIndentLength) + content;
+    }
+    return content;
+  }
+
+  int getViewLineLength(string modelLineContent, int outputLineIndex) {
+    ModelLineProjectionData? current = this.data;
+    if (current == null) {
+      return modelLineContent.length;
+    }
+    return current.getLineLength(outputLineIndex);
+  }
+
+  int getViewLineMinColumn(int outputLineIndex) {
+    ModelLineProjectionData? current = this.data;
+    if (current == null) {
+      return 1;
+    }
+    return current.getMinOutputOffset(outputLineIndex) + 1;
+  }
+
+  int getViewLineMaxColumn(string modelLineContent, int outputLineIndex) {
+    return this.getViewLineLength(modelLineContent, outputLineIndex) + 1;
+  }
+
+  int getModelColumnOfViewPosition(int outputLineIndex, int outputColumn) {
+    ModelLineProjectionData? current = this.data;
+    if (current == null) {
+      return outputColumn;
+    }
+    return current.translateToInputOffset(outputLineIndex, outputColumn - 1) + 1;
+  }
+
+  ProjectionPosition getViewPositionOfModelPosition(int baseViewLineNumber, int inputColumn, int affinity = 2) {
+    ModelLineProjectionData? current = this.data;
+    if (current == null) {
+      return new ProjectionPosition(baseViewLineNumber, inputColumn);
+    }
+    ProjectionPosition translated = current.translateToOutputPosition(inputColumn - 1, affinity);
+    return new ProjectionPosition(baseViewLineNumber + translated.lineNumber, translated.column);
+  }
+
+  int getViewLineNumberOfModelPosition(int baseViewLineNumber, int inputColumn) {
+    return this.getViewPositionOfModelPosition(baseViewLineNumber, inputColumn).lineNumber;
+  }
+}
+
+export ModelLineProjection createModelLineProjection(ModelLineProjectionData? lineBreakData, bool isVisible) {
+  return new ModelLineProjection(lineBreakData, isVisible);
+}
+
+export ModelLineProjectionData createModelLineProjectionData(int[] breakOffsets, int[] breakOffsetsVisibleColumn, int wrappedTextIndentLength) {
+  return new ModelLineProjectionData(breakOffsets, breakOffsetsVisibleColumn, wrappedTextIndentLength);
+}
+
+export ProjectionPosition createProjectionPosition(int lineNumber, int column) {
+  return new ProjectionPosition(lineNumber, column);
+}

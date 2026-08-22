@@ -1,0 +1,33 @@
+export class DiffEditorEditors {
+  int originalWidth;
+  int modifiedWidth;
+  int height;
+  bool sideBySide;
+
+  init(int totalWidth, int height, int sashPosition, bool sideBySide) {
+    this.height = height;
+    this.sideBySide = sideBySide;
+    if (sideBySide) {
+      this.originalWidth = sashPosition;
+      this.modifiedWidth = totalWidth - sashPosition;
+    } else {
+      this.originalWidth = totalWidth;
+      this.modifiedWidth = totalWidth;
+    }
+  }
+
+  void layout(int totalWidth, int sashPosition, bool sideBySide) {
+    this.sideBySide = sideBySide;
+    if (sideBySide) {
+      this.originalWidth = sashPosition;
+      this.modifiedWidth = totalWidth - sashPosition;
+    } else {
+      this.originalWidth = totalWidth;
+      this.modifiedWidth = totalWidth;
+    }
+  }
+}
+
+export DiffEditorEditors createDiffEditorEditors(int totalWidth, int height, int sashPosition, bool sideBySide) {
+  return new DiffEditorEditors(totalWidth, height, sashPosition, sideBySide);
+}

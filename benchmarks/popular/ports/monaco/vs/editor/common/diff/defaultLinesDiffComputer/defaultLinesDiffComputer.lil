@@ -1,0 +1,139 @@
+import { sliceOf } from "../../../../../js-host";
+import { createRange } from "../../../../../base/range";
+import { LineRange } from "../../core/ranges/lineRange";
+import { LinesDiff, MovedText } from "../linesDiffComputer";
+import { DetailedLineRangeMapping, LineRangeMapping, RangeMapping } from "../rangeMapping";
+import { DynamicProgrammingDiffing } from "./algorithms/dynamicProgrammingDiffing";
+import { MyersDiffAlgorithm } from "./algorithms/myersDiffAlgorithm";
+import { SequenceDiff } from "./algorithms/diffAlgorithm";
+import { computeMovedLines } from "./computeMovedLines";
+
+string trimLine(string value) {
+  int start = 0;
+  int end = value.length;
+  while (start < end) {
+    int code = value.charCodeAt(start);
+    if (code != 32 && code != 9) {
+      break;
+    }
+    start = start + 1;
+  }
+  while (end > start) {
+    int code = value.charCodeAt(end - 1);
+    if (code != 32 && code != 9) {
+      break;
+    }
+    end = end - 1;
+  }
+  return sliceOf(value, start, end);
+}
+
+int[] hashLines(string[] lines, Map<string, int> hashes, bool ignoreTrimWhitespace) {
+  int[] result = [];
+  int i = 0;
+  while (i < lines.length) {
+    string line = lines[i];
+    if (ignoreTrimWhitespace) {
+      line = trimLine(line);
+    }
+    int hash = hashes.size;
+    int? existing = hashes.get(line);
+    if (existing != null) {
+      hash = existing;
+    } else {
+      hashes.set(line, hash);
+    }
+    result.push(hash);
+    i = i + 1;
+  }
+  return result;
+}
+
+DetailedLineRangeMapping mappingFromDiff(SequenceDiff diff) {
+  LineRange original = new LineRange(
+    diff.seq1Range.start + 1,
+    diff.seq1Range.endExclusive + 1
+  );
+  LineRange modified = new LineRange(
+    diff.seq2Range.start + 1,
+    diff.seq2Range.endExclusive + 1
+  );
+  RangeMapping[] innerChanges = [
+    new RangeMapping(
+      createRange(
+        diff.seq1Range.start + 1,
+        1,
+        diff.seq1Range.endExclusive + 1,
+        1
+      ),
+      createRange(
+        diff.seq2Range.start + 1,
+        1,
+        diff.seq2Range.endExclusive + 1,
+        1
+      )
+    )
+  ];
+  return new DetailedLineRangeMapping(original, modified, innerChanges);
+}
+
+export class DefaultLinesDiffComputer {
+  DynamicProgrammingDiffing dynamicProgrammingDiffing;
+  MyersDiffAlgorithm myersDiffingAlgorithm;
+
+  init() {
+    this.dynamicProgrammingDiffing = new DynamicProgrammingDiffing();
+    this.myersDiffingAlgorithm = new MyersDiffAlgorithm();
+  }
+
+  LinesDiff computeDiff(string[] originalLines, string[] modifiedLines, JsValue options) {
+    bool ignoreTrimWhitespace = false;
+    if (options != null && options["ignoreTrimWhitespace"].truthy()) {
+      ignoreTrimWhitespace = options["ignoreTrimWhitespace"].truthy();
+    }
+    Map<string, int> hashes = new Map();
+    int[] originalHashes = hashLines(originalLines, hashes, ignoreTrimWhitespace);
+    int[] modifiedHashes = hashLines(modifiedLines, hashes, ignoreTrimWhitespace);
+    SequenceDiff[] sequenceDiffs = [];
+    if (originalHashes.length + modifiedHashes.length < 1700) {
+      sequenceDiffs = this.dynamicProgrammingDiffing.compute(
+        originalHashes,
+        modifiedHashes
+      ).diffs;
+    } else {
+      sequenceDiffs = this.myersDiffingAlgorithm.compute(
+        originalHashes,
+        modifiedHashes
+      ).diffs;
+    }
+    DetailedLineRangeMapping[] changes = [];
+    int i = 0;
+    while (i < sequenceDiffs.length) {
+      changes.push(mappingFromDiff(sequenceDiffs[i]));
+      i = i + 1;
+    }
+    MovedText[] moves = [];
+    if (options != null && options["computeMoves"].truthy()) {
+      LineRangeMapping[] movedRanges = computeMovedLines(
+        changes,
+        originalLines,
+        modifiedLines,
+        originalHashes,
+        modifiedHashes
+      );
+      int moveIndex = 0;
+      while (moveIndex < movedRanges.length) {
+        moves.push(new MovedText(
+          movedRanges[moveIndex],
+          []
+        ));
+        moveIndex = moveIndex + 1;
+      }
+    }
+    return new LinesDiff(changes, moves, false);
+  }
+}
+
+export DefaultLinesDiffComputer createDefaultLinesDiffComputer() {
+  return new DefaultLinesDiffComputer();
+}

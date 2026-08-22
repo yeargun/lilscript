@@ -1,0 +1,240 @@
+import { concat2, emptyBuf } from "../../../../../../js-host";
+
+export int TokenKindText = 0;
+export int TokenKindOpeningBracket = 1;
+export int TokenKindClosingBracket = 2;
+
+export class BracketDefinition {
+  string languageId;
+  string bracketText;
+  string[] openingBracketTexts;
+
+  init(string languageId, string bracketText, string[] openingBracketTexts) {
+    this.languageId = languageId;
+    this.bracketText = bracketText;
+    this.openingBracketTexts = openingBracketTexts;
+  }
+}
+
+export class BracketToken {
+  int length;
+  int kind;
+  int bracketId;
+  int[] bracketIds;
+  string text;
+  string languageId;
+
+  init(
+    int length,
+    int kind,
+    int bracketId,
+    int[] bracketIds,
+    string text,
+    string languageId
+  ) {
+    this.length = length;
+    this.kind = kind;
+    this.bracketId = bracketId;
+    this.bracketIds = bracketIds;
+    this.text = text;
+    this.languageId = languageId;
+  }
+}
+
+export class DenseKeyProvider {
+  string[] values;
+
+  init() {
+    this.values = [];
+  }
+
+  int getKey(string value) {
+    int key = this.values.indexOf(value);
+    if (key >= 0) {
+      return key;
+    }
+    this.values.push(value);
+    return this.values.length - 1;
+  }
+}
+
+string bracketKey(string languageId, string bracketText) {
+  return concat2(concat2(languageId, ":::"), bracketText.toLowerCase());
+}
+
+string escapeRegExp(string value) {
+  string result = emptyBuf();
+  int i = 0;
+  while (i < value.length) {
+    string ch = value.charAt(i);
+    if (
+      ch == "\\" || ch == "^" || ch == "$" || ch == "." || ch == "|" || ch == "?"
+      || ch == "*" || ch == "+" || ch == "(" || ch == ")" || ch == "[" || ch == "]"
+      || ch == "{" || ch == "}"
+    ) {
+      result = concat2(result, "\\");
+    }
+    result = concat2(result, ch);
+    i = i + 1;
+  }
+  return result;
+}
+
+export class BracketTokens {
+  string[] texts;
+  BracketToken[] tokens;
+
+  init() {
+    this.texts = [];
+    this.tokens = [];
+  }
+
+  void addOpening(BracketDefinition opening, DenseKeyProvider keyProvider) {
+    string text = opening.bracketText.toLowerCase();
+    int id = keyProvider.getKey(bracketKey(opening.languageId, text));
+    this.texts.push(text);
+    this.tokens.push(
+      new BracketToken(text.length, TokenKindOpeningBracket, id, [id], text, opening.languageId)
+    );
+  }
+
+  void addClosing(BracketDefinition closing, DenseKeyProvider keyProvider) {
+    string text = closing.bracketText.toLowerCase();
+    int[] ids = [];
+    int i = 0;
+    while (i < closing.openingBracketTexts.length) {
+      int id = keyProvider.getKey(
+        bracketKey(closing.languageId, closing.openingBracketTexts[i].toLowerCase())
+      );
+      if (ids.indexOf(id) < 0) {
+        ids.push(id);
+      }
+      i = i + 1;
+    }
+    int primary = 0;
+    if (ids.length > 0) {
+      primary = ids[0];
+    }
+    this.texts.push(text);
+    this.tokens.push(
+      new BracketToken(text.length, TokenKindClosingBracket, primary, ids, text, closing.languageId)
+    );
+  }
+
+  BracketToken? getToken(string value) {
+    int index = this.texts.indexOf(value.toLowerCase());
+    if (index < 0) {
+      return null;
+    }
+    return this.tokens[index];
+  }
+
+  string getRegExpStr() {
+    string result = emptyBuf();
+    int i = 0;
+    while (i < this.texts.length) {
+      int best = i;
+      int j = i + 1;
+      while (j < this.texts.length) {
+        if (this.texts[j].length > this.texts[best].length) {
+          best = j;
+        }
+        j = j + 1;
+      }
+      if (best != i) {
+        string text = this.texts[i];
+        this.texts[i] = this.texts[best];
+        this.texts[best] = text;
+        BracketToken token = this.tokens[i];
+        this.tokens[i] = this.tokens[best];
+        this.tokens[best] = token;
+      }
+      string escaped = escapeRegExp(this.texts[i]);
+      if (i > 0) {
+        result = concat2(result, "|");
+      }
+      result = concat2(result, escaped);
+      i = i + 1;
+    }
+    return result;
+  }
+
+  string findClosingTokenText(int[] openingBracketIds) {
+    int i = 0;
+    while (i < this.tokens.length) {
+      BracketToken token = this.tokens[i];
+      if (token.kind == TokenKindClosingBracket) {
+        int j = 0;
+        while (j < token.bracketIds.length) {
+          if (openingBracketIds.indexOf(token.bracketIds[j]) >= 0) {
+            return this.texts[i];
+          }
+          j = j + 1;
+        }
+      }
+      i = i + 1;
+    }
+    return emptyBuf();
+  }
+
+  bool isEmpty() {
+    return this.tokens.length == 0;
+  }
+}
+
+export class LanguageAgnosticBracketTokens {
+  DenseKeyProvider keyProvider;
+  string[] languageIds;
+  BracketTokens[] languageTokens;
+
+  init(DenseKeyProvider keyProvider) {
+    this.keyProvider = keyProvider;
+    this.languageIds = [];
+    this.languageTokens = [];
+  }
+
+  void setLanguageTokens(string languageId, BracketTokens tokens) {
+    int index = this.languageIds.indexOf(languageId);
+    if (index >= 0) {
+      this.languageTokens[index] = tokens;
+    } else {
+      this.languageIds.push(languageId);
+      this.languageTokens.push(tokens);
+    }
+  }
+
+  bool didLanguageChange(string languageId) {
+    return this.languageIds.indexOf(languageId) >= 0;
+  }
+
+  BracketTokens? getSingleLanguageBracketTokens(string languageId) {
+    int index = this.languageIds.indexOf(languageId);
+    if (index < 0) {
+      return null;
+    }
+    return this.languageTokens[index];
+  }
+}
+
+export BracketTokens createBracketTokens(
+  BracketDefinition[] openings,
+  BracketDefinition[] closings,
+  DenseKeyProvider keyProvider
+) {
+  BracketTokens result = new BracketTokens();
+  int i = 0;
+  while (i < openings.length) {
+    result.addOpening(openings[i], keyProvider);
+    i = i + 1;
+  }
+  i = 0;
+  while (i < closings.length) {
+    result.addClosing(closings[i], keyProvider);
+    i = i + 1;
+  }
+  return result;
+}
+
+export DenseKeyProvider createDenseKeyProvider() {
+  return new DenseKeyProvider();
+}

@@ -1,0 +1,37 @@
+int START_CH_CODE = 32;
+int CHAR_COUNT = 96;
+int UNKNOWN_CODE = 65533;
+
+export int[] allCharCodes() {
+  int[] codes = [];
+  int i = START_CH_CODE;
+  while (i <= 126) {
+    codes.push(i);
+    i = i + 1;
+  }
+  codes.push(UNKNOWN_CODE);
+  return codes;
+}
+
+export int getCharIndex(int chCode, int fontScale) {
+  int index = chCode - START_CH_CODE;
+  if (index < 0 || index > CHAR_COUNT) {
+    if (fontScale <= 2) {
+      int wrapped = (index + CHAR_COUNT) % CHAR_COUNT;
+      if (wrapped < 0) {
+        wrapped = wrapped + CHAR_COUNT;
+      }
+      return wrapped;
+    }
+    return CHAR_COUNT - 1;
+  }
+  return index;
+}
+
+export int charCount() {
+  return CHAR_COUNT;
+}
+
+export int startChCode() {
+  return START_CH_CODE;
+}

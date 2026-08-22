@@ -1,0 +1,292 @@
+export enum SelectionDirection {
+  LTR,
+  RTL
+}
+
+export class Position {
+  int lineNumber;
+  int column;
+
+  init(int lineNumber, int column) {
+    this.lineNumber = lineNumber;
+    this.column = column;
+  }
+
+  bool equals(Position other) {
+    return this.lineNumber == other.lineNumber && this.column == other.column;
+  }
+
+  int compare(Position other) {
+    if (this.lineNumber == other.lineNumber) {
+      return this.column - other.column;
+    }
+    return this.lineNumber - other.lineNumber;
+  }
+}
+
+export class Range {
+  int startLineNumber;
+  int startColumn;
+  int endLineNumber;
+  int endColumn;
+
+  init(int startLineNumber, int startColumn, int endLineNumber, int endColumn) {
+    if (startLineNumber > endLineNumber || (startLineNumber == endLineNumber && startColumn > endColumn)) {
+      this.startLineNumber = endLineNumber;
+      this.startColumn = endColumn;
+      this.endLineNumber = startLineNumber;
+      this.endColumn = startColumn;
+    } else {
+      this.startLineNumber = startLineNumber;
+      this.startColumn = startColumn;
+      this.endLineNumber = endLineNumber;
+      this.endColumn = endColumn;
+    }
+  }
+
+  bool isEmpty() {
+    return this.startLineNumber == this.endLineNumber && this.startColumn == this.endColumn;
+  }
+}
+
+export class Selection {
+  int startLineNumber;
+  int startColumn;
+  int endLineNumber;
+  int endColumn;
+  int selectionStartLineNumber;
+  int selectionStartColumn;
+  int positionLineNumber;
+  int positionColumn;
+
+  init(
+    int selectionStartLineNumber,
+    int selectionStartColumn,
+    int positionLineNumber,
+    int positionColumn
+  ) {
+    this.selectionStartLineNumber = selectionStartLineNumber;
+    this.selectionStartColumn = selectionStartColumn;
+    this.positionLineNumber = positionLineNumber;
+    this.positionColumn = positionColumn;
+    if (
+      selectionStartLineNumber > positionLineNumber
+      || (selectionStartLineNumber == positionLineNumber && selectionStartColumn > positionColumn)
+    ) {
+      this.startLineNumber = positionLineNumber;
+      this.startColumn = positionColumn;
+      this.endLineNumber = selectionStartLineNumber;
+      this.endColumn = selectionStartColumn;
+    } else {
+      this.startLineNumber = selectionStartLineNumber;
+      this.startColumn = selectionStartColumn;
+      this.endLineNumber = positionLineNumber;
+      this.endColumn = positionColumn;
+    }
+  }
+
+  bool isEmpty() {
+    return this.startLineNumber == this.endLineNumber && this.startColumn == this.endColumn;
+  }
+
+  bool equalsSelection(Selection other) {
+    return this.selectionStartLineNumber == other.selectionStartLineNumber
+      && this.selectionStartColumn == other.selectionStartColumn
+      && this.positionLineNumber == other.positionLineNumber
+      && this.positionColumn == other.positionColumn;
+  }
+
+  int compare(Selection other) {
+    if (this.startLineNumber != other.startLineNumber) {
+      return this.startLineNumber - other.startLineNumber;
+    }
+    if (this.startColumn != other.startColumn) {
+      return this.startColumn - other.startColumn;
+    }
+    if (this.endLineNumber != other.endLineNumber) {
+      return this.endLineNumber - other.endLineNumber;
+    }
+    return this.endColumn - other.endColumn;
+  }
+
+  bool containsPosition(Position position) {
+    if (position.lineNumber < this.startLineNumber || position.lineNumber > this.endLineNumber) {
+      return false;
+    }
+    if (position.lineNumber == this.startLineNumber && position.column < this.startColumn) {
+      return false;
+    }
+    if (position.lineNumber == this.endLineNumber && position.column > this.endColumn) {
+      return false;
+    }
+    return true;
+  }
+
+  bool containsRange(Range other) {
+    if (other.startLineNumber < this.startLineNumber || other.endLineNumber > this.endLineNumber) {
+      return false;
+    }
+    if (other.startLineNumber == this.startLineNumber && other.startColumn < this.startColumn) {
+      return false;
+    }
+    if (other.endLineNumber == this.endLineNumber && other.endColumn > this.endColumn) {
+      return false;
+    }
+    return true;
+  }
+
+  Range plusRange(Range other) {
+    int startLineNumber = this.startLineNumber;
+    int startColumn = this.startColumn;
+    int endLineNumber = this.endLineNumber;
+    int endColumn = this.endColumn;
+    if (other.startLineNumber < startLineNumber) {
+      startLineNumber = other.startLineNumber;
+      startColumn = other.startColumn;
+    } else if (other.startLineNumber == startLineNumber && other.startColumn < startColumn) {
+      startColumn = other.startColumn;
+    }
+    if (other.endLineNumber > endLineNumber) {
+      endLineNumber = other.endLineNumber;
+      endColumn = other.endColumn;
+    } else if (other.endLineNumber == endLineNumber && other.endColumn > endColumn) {
+      endColumn = other.endColumn;
+    }
+    return new Range(startLineNumber, startColumn, endLineNumber, endColumn);
+  }
+
+  Range? intersectRanges(Range other) {
+    int startLineNumber = this.startLineNumber;
+    int startColumn = this.startColumn;
+    int endLineNumber = this.endLineNumber;
+    int endColumn = this.endColumn;
+    if (startLineNumber < other.startLineNumber) {
+      startLineNumber = other.startLineNumber;
+      startColumn = other.startColumn;
+    } else if (startLineNumber == other.startLineNumber && startColumn < other.startColumn) {
+      startColumn = other.startColumn;
+    }
+    if (endLineNumber > other.endLineNumber) {
+      endLineNumber = other.endLineNumber;
+      endColumn = other.endColumn;
+    } else if (endLineNumber == other.endLineNumber && endColumn > other.endColumn) {
+      endColumn = other.endColumn;
+    }
+    if (startLineNumber > endLineNumber) {
+      return null;
+    }
+    if (startLineNumber == endLineNumber && startColumn > endColumn) {
+      return null;
+    }
+    return new Range(startLineNumber, startColumn, endLineNumber, endColumn);
+  }
+
+  Selection delta(int lineCount) {
+    return new Selection(
+      this.selectionStartLineNumber + lineCount,
+      this.selectionStartColumn,
+      this.positionLineNumber + lineCount,
+      this.positionColumn
+    );
+  }
+
+  SelectionDirection getDirection() {
+    if (
+      this.selectionStartLineNumber == this.startLineNumber
+      && this.selectionStartColumn == this.startColumn
+    ) {
+      return SelectionDirection.LTR;
+    }
+    return SelectionDirection.RTL;
+  }
+
+  Selection setEndPosition(int lineNumber, int column) {
+    if (this.getDirection() == SelectionDirection.LTR) {
+      return new Selection(this.startLineNumber, this.startColumn, lineNumber, column);
+    }
+    return new Selection(lineNumber, column, this.startLineNumber, this.startColumn);
+  }
+
+  Selection setStartPosition(int lineNumber, int column) {
+    if (this.getDirection() == SelectionDirection.LTR) {
+      return new Selection(lineNumber, column, this.endLineNumber, this.endColumn);
+    }
+    return new Selection(this.endLineNumber, this.endColumn, lineNumber, column);
+  }
+
+  Position getPosition() {
+    return new Position(this.positionLineNumber, this.positionColumn);
+  }
+
+  Position getSelectionStart() {
+    return new Position(this.selectionStartLineNumber, this.selectionStartColumn);
+  }
+
+  Range toRange() {
+    return new Range(this.startLineNumber, this.startColumn, this.endLineNumber, this.endColumn);
+  }
+
+  string toString() {
+    return "["
+      + this.selectionStartLineNumber.toString()
+      + ","
+      + this.selectionStartColumn.toString()
+      + " -> "
+      + this.positionLineNumber.toString()
+      + ","
+      + this.positionColumn.toString()
+      + "]";
+  }
+}
+
+export Selection createSelection(
+  int selectionStartLineNumber,
+  int selectionStartColumn,
+  int positionLineNumber,
+  int positionColumn
+) {
+  return new Selection(
+    selectionStartLineNumber,
+    selectionStartColumn,
+    positionLineNumber,
+    positionColumn
+  );
+}
+
+export Selection selectionFromPositions(Position start, Position end) {
+  return new Selection(start.lineNumber, start.column, end.lineNumber, end.column);
+}
+
+export Selection selectionFromRange(Range range, SelectionDirection direction) {
+  if (direction == SelectionDirection.LTR) {
+    return new Selection(range.startLineNumber, range.startColumn, range.endLineNumber, range.endColumn);
+  }
+  return new Selection(range.endLineNumber, range.endColumn, range.startLineNumber, range.startColumn);
+}
+
+export Range selectionAsRange(Selection selection) {
+  return selection.toRange();
+}
+
+export Selection liftSelection(JsValue value) {
+  return new Selection(
+    JS.number(value["selectionStartLineNumber"]).toInt(),
+    JS.number(value["selectionStartColumn"]).toInt(),
+    JS.number(value["positionLineNumber"]).toInt(),
+    JS.number(value["positionColumn"]).toInt()
+  );
+}
+
+export bool isISelection(JsValue value) {
+  if (!value.truthy()) {
+    return false;
+  }
+  return value["selectionStartLineNumber"].truthy()
+    && value["selectionStartColumn"].truthy()
+    && value["positionLineNumber"].truthy()
+    && value["positionColumn"].truthy();
+}
+
+export bool selectionsEqual(Selection a, Selection b) {
+  return a.equalsSelection(b);
+}

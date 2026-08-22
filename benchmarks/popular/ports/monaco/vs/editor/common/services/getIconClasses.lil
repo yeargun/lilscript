@@ -1,0 +1,121 @@
+import {
+  hostCall,
+  jsUndefined,
+  newRegexp,
+  sliceOf,
+  stringReplace,
+  stringSplit
+} from "../../../../js-host";
+
+export string fileIconSelectorEscape(string value) {
+  return stringReplace(value, newRegexp("\\s", "g"), "/");
+}
+
+string extensionFrom(string[] segments, int start) {
+  string result = "";
+  int i = start;
+  while (i < segments.length) {
+    if (result.length > 0) {
+      result = result + ".";
+    }
+    result = result + segments[i];
+    i = i + 1;
+  }
+  return result;
+}
+
+string detectLanguageId(JsValue modelService, JsValue languageService, JsValue resource) {
+  if (resource == null) {
+    return "";
+  }
+  JsValue model = hostCall(modelService, "getModel", resource, jsUndefined(), jsUndefined());
+  string languageId = "";
+  if (model != null) {
+    languageId = JS.string(hostCall(model, "getLanguageId", jsUndefined(), jsUndefined(), jsUndefined()));
+  }
+  if (languageId.length == 0 || languageId == "plaintext") {
+    JsValue guessed = hostCall(
+      languageService,
+      "guessLanguageIdByFilepathOrFirstLine",
+      resource,
+      "",
+      jsUndefined()
+    );
+    if (guessed != null) {
+      languageId = JS.string(guessed);
+    }
+  }
+  if (languageId == "plaintext") {
+    return "";
+  }
+  return languageId;
+}
+
+export string[] getIconClasses(
+  JsValue modelService,
+  JsValue languageService,
+  JsValue resource,
+  int fileKind,
+  JsValue icon = null
+) {
+  string[] classes = [];
+  if (icon != null && icon["id"] != null) {
+    classes.push("codicon-" + JS.string(icon["id"]));
+    classes.push("predefined-file-icon");
+    return classes;
+  }
+  if (fileKind == 2) {
+    classes.push("rootfolder-icon");
+  } else if (fileKind == 1) {
+    classes.push("folder-icon");
+  } else {
+    classes.push("file-icon");
+  }
+  if (resource == null) {
+    return classes;
+  }
+  string path = "";
+  if (resource["path"] != null) {
+    path = JS.string(resource["path"]);
+  } else if (resource["fsPath"] != null) {
+    path = JS.string(resource["fsPath"]);
+  }
+  int slash = path.lastIndexOf("/");
+  string name = path;
+  string parent = "";
+  if (slash >= 0) {
+    name = sliceOf(path, slash + 1, path.length);
+    string directory = sliceOf(path, 0, slash);
+    int parentSlash = directory.lastIndexOf("/");
+    parent = sliceOf(directory, parentSlash + 1, directory.length);
+  }
+  name = fileIconSelectorEscape(name.toLowerCase());
+  parent = fileIconSelectorEscape(parent.toLowerCase());
+  if (parent.length > 0) {
+    classes.push(parent + "-name-dir-icon");
+  }
+  if (fileKind == 2) {
+    classes.push(name + "-root-name-folder-icon");
+  } else if (fileKind == 1) {
+    classes.push(name + "-name-folder-icon");
+  } else {
+    if (name.length > 0) {
+      classes.push(name + "-name-file-icon");
+      classes.push("name-file-icon");
+      if (name.length <= 255) {
+        string[] segments = stringSplit(name, ".");
+        int i = 1;
+        while (i < segments.length) {
+          classes.push(extensionFrom(segments, i) + "-ext-file-icon");
+          i = i + 1;
+        }
+      }
+      classes.push("ext-file-icon");
+    }
+    string languageId = detectLanguageId(modelService, languageService, resource);
+    if (languageId.length > 0) {
+      classes.push(fileIconSelectorEscape(languageId) + "-lang-file-icon");
+    }
+  }
+  return classes;
+}

@@ -1,0 +1,208 @@
+int imin(int a, int b) {
+  if (a < b) {
+    return a;
+  }
+  return b;
+}
+
+int imax(int a, int b) {
+  if (a > b) {
+    return a;
+  }
+  return b;
+}
+
+export class ColorZone {
+  int from;
+  int to;
+  int colorId;
+
+  init(int from, int to, int colorId) {
+    this.from = from;
+    this.to = to;
+    this.colorId = colorId;
+  }
+}
+
+export class OverviewRulerZone {
+  int startLineNumber;
+  int endLineNumber;
+  int heightInLines;
+  string color;
+
+  init(int startLineNumber, int endLineNumber, int heightInLines, string color) {
+    this.startLineNumber = startLineNumber;
+    this.endLineNumber = endLineNumber;
+    this.heightInLines = heightInLines;
+    this.color = color;
+  }
+}
+
+export class OverviewRulerFill {
+  int from;
+  int to;
+  int colorId;
+  int width;
+
+  init(int from, int to, int colorId, int width) {
+    this.from = from;
+    this.to = to;
+    this.colorId = colorId;
+    this.width = width;
+  }
+}
+
+export class OverviewRuler {
+  int lineHeight;
+  int domWidth;
+  int domHeight;
+  int outerHeight;
+  float pixelRatio;
+  OverviewRulerZone[] zones;
+  string[] colors;
+
+  init(int lineHeight, float pixelRatio) {
+    this.lineHeight = lineHeight;
+    this.pixelRatio = pixelRatio;
+    this.domWidth = 0;
+    this.domHeight = 0;
+    this.outerHeight = 0;
+    this.zones = [];
+    this.colors = [""];
+  }
+
+  int getCanvasWidth() {
+    return (this.domWidth * 1.0 * this.pixelRatio).floor().toInt();
+  }
+
+  int getCanvasHeight() {
+    return (this.domHeight * 1.0 * this.pixelRatio).floor().toInt();
+  }
+
+  int colorId(string color) {
+    int i = 1;
+    while (i < this.colors.length) {
+      if (this.colors[i] == color) {
+        return i;
+      }
+      i = i + 1;
+    }
+    this.colors.push(color);
+    return this.colors.length - 1;
+  }
+
+  int verticalOffsetForLine(int lineNumber) {
+    return (lineNumber - 1) * this.lineHeight;
+  }
+
+  int zoneY(int lineNumber, int totalHeight) {
+    if (this.outerHeight <= 0) {
+      return 0;
+    }
+    float ratio = totalHeight * 1.0 / this.outerHeight;
+    return (ratio * this.verticalOffsetForLine(lineNumber)).floor().toInt();
+  }
+
+  ColorZone[] resolveColorZones() {
+    ColorZone[] allZones = [];
+    int totalHeight = this.getCanvasHeight();
+    float ratio = 0.0;
+    if (this.outerHeight > 0) {
+      ratio = totalHeight * 1.0 / this.outerHeight;
+    }
+    int halfMinimumHeight = (4.0 * this.pixelRatio / 2.0).floor().toInt();
+    int i = 0;
+    while (i < this.zones.length) {
+      OverviewRulerZone zone = this.zones[i];
+      int offset1 = this.verticalOffsetForLine(zone.startLineNumber);
+      int offset2 = 0;
+      if (zone.heightInLines == 0) {
+        offset2 = this.verticalOffsetForLine(zone.endLineNumber) + this.lineHeight;
+      } else {
+        offset2 = offset1 + zone.heightInLines * this.lineHeight;
+      }
+      int y1 = (ratio * offset1).floor().toInt();
+      int y2 = (ratio * offset2).floor().toInt();
+      int center = (y1 + y2) / 2;
+      int halfHeight = y2 - center;
+      if (halfHeight < halfMinimumHeight) {
+        halfHeight = halfMinimumHeight;
+      }
+      if (center - halfHeight < 0) {
+        center = halfHeight;
+      }
+      if (center + halfHeight > totalHeight) {
+        center = totalHeight - halfHeight;
+      }
+      allZones.push(new ColorZone(center - halfHeight, center + halfHeight, this.colorId(zone.color)));
+      i = i + 1;
+    }
+    i = 1;
+    while (i < allZones.length) {
+      ColorZone key = allZones[i];
+      int j = i - 1;
+      while (j >= 0 && (allZones[j].colorId > key.colorId || (allZones[j].colorId == key.colorId && allZones[j].from > key.from))) {
+        allZones[j + 1] = allZones[j];
+        j = j - 1;
+      }
+      allZones[j + 1] = key;
+      i = i + 1;
+    }
+    ColorZone[] merged = [];
+    i = 0;
+    while (i < allZones.length) {
+      ColorZone current = allZones[i];
+      if (merged.length > 0 && merged[merged.length - 1].colorId == current.colorId && current.from <= merged[merged.length - 1].to + 1) {
+        if (current.to > merged[merged.length - 1].to) {
+          merged[merged.length - 1].to = current.to;
+        }
+      } else {
+        merged.push(new ColorZone(current.from, current.to, current.colorId));
+      }
+      i = i + 1;
+    }
+    return merged;
+  }
+
+  OverviewRulerFill[] renderOneLane() {
+    OverviewRulerFill[] fills = [];
+    ColorZone[] colorZones = this.resolveColorZones();
+    int width = this.getCanvasWidth();
+    int currentColorId = 0;
+    int currentFrom = 0;
+    int currentTo = 0;
+    int i = 0;
+    while (i < colorZones.length) {
+      ColorZone zone = colorZones[i];
+      if (zone.colorId != currentColorId) {
+        if (currentColorId != 0) {
+          fills.push(new OverviewRulerFill(currentFrom, currentTo, currentColorId, width));
+        }
+        currentColorId = zone.colorId;
+        currentFrom = zone.from;
+        currentTo = zone.to;
+      } else {
+        if (currentTo >= zone.from) {
+          currentTo = imax(currentTo, zone.to);
+        } else {
+          fills.push(new OverviewRulerFill(currentFrom, currentTo, currentColorId, width));
+          currentFrom = zone.from;
+          currentTo = zone.to;
+        }
+      }
+      i = i + 1;
+    }
+    if (currentColorId != 0) {
+      fills.push(new OverviewRulerFill(currentFrom, currentTo, currentColorId, width));
+    }
+    return fills;
+  }
+}
+
+export OverviewRuler createOverviewRuler(int lineHeight, float pixelRatio) {
+  return new OverviewRuler(lineHeight, pixelRatio);
+}
+
+export OverviewRulerZone createOverviewRulerZone(int startLineNumber, int endLineNumber, int heightInLines, string color) {
+  return new OverviewRulerZone(startLineNumber, endLineNumber, heightInLines, color);
+}

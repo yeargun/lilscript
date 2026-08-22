@@ -1,0 +1,130 @@
+export class TransactionObserver {
+  func(JsValue)->void beginUpdateFn;
+  func(JsValue)->void endUpdateFn;
+  func(JsValue, JsValue)->void handleChangeFn;
+  func(JsValue)->void handlePossibleChangeFn;
+
+  init(
+    func(JsValue)->void beginUpdateFn,
+    func(JsValue)->void endUpdateFn,
+    func(JsValue, JsValue)->void handleChangeFn,
+    func(JsValue)->void handlePossibleChangeFn
+  ) {
+    this.beginUpdateFn = beginUpdateFn;
+    this.endUpdateFn = endUpdateFn;
+    this.handleChangeFn = handleChangeFn;
+    this.handlePossibleChangeFn = handlePossibleChangeFn;
+  }
+
+  void beginUpdate(JsValue observable) {
+    this.beginUpdateFn(observable);
+  }
+
+  void endUpdate(JsValue observable) {
+    this.endUpdateFn(observable);
+  }
+
+  void handleChange(JsValue observable, JsValue change) {
+    this.handleChangeFn(observable, change);
+  }
+
+  void handlePossibleChange(JsValue observable) {
+    this.handlePossibleChangeFn(observable);
+  }
+}
+
+export class TransactionEntry {
+  TransactionObserver observer;
+  JsValue observable;
+
+  init(TransactionObserver observer, JsValue observable) {
+    this.observer = observer;
+    this.observable = observable;
+  }
+}
+
+export class TransactionImpl {
+  string debugName;
+  TransactionEntry[] updatingObservers;
+  bool active;
+
+  init(string debugName) {
+    this.debugName = debugName;
+    this.updatingObservers = [];
+    this.active = true;
+  }
+
+  string getDebugName() {
+    return this.debugName;
+  }
+
+  void updateObserver(TransactionObserver observer, JsValue observable) {
+    if (!this.active) {
+      throw "Transaction already finished!";
+    }
+    this.updatingObservers.push(new TransactionEntry(observer, observable));
+    observer.beginUpdate(observable);
+  }
+
+  void finish() {
+    if (!this.active) {
+      throw "transaction.finish() has already been called!";
+    }
+    int i = 0;
+    while (i < this.updatingObservers.length) {
+      TransactionEntry entry = this.updatingObservers[i];
+      entry.observer.endUpdate(entry.observable);
+      i = i + 1;
+    }
+    this.active = false;
+  }
+
+  TransactionEntry[] debugGetUpdatingObservers() {
+    if (!this.active) {
+      return [];
+    }
+    return this.updatingObservers.slice();
+  }
+}
+
+TransactionImpl? globalTransactionValue = null;
+
+export void transaction(func(TransactionImpl)->void fn, string debugName = "") {
+  TransactionImpl tx = new TransactionImpl(debugName);
+  try {
+    fn(tx);
+  } finally {
+    tx.finish();
+  }
+}
+
+export void globalTransaction(func(TransactionImpl)->void fn) {
+  if (globalTransactionValue != null) {
+    fn(globalTransactionValue);
+    return;
+  }
+  TransactionImpl tx = new TransactionImpl("globalTransaction");
+  globalTransactionValue = tx;
+  try {
+    fn(tx);
+  } finally {
+    tx.finish();
+    globalTransactionValue = null;
+  }
+}
+
+export void asyncTransaction(func(TransactionImpl)->void fn, string debugName = "") {
+  transaction(fn, debugName);
+}
+
+export void subtransaction(
+  TransactionImpl? tx,
+  func(TransactionImpl)->void fn,
+  string debugName = ""
+) {
+  if (tx != null) {
+    fn(tx);
+    return;
+  }
+  transaction(fn, debugName);
+}

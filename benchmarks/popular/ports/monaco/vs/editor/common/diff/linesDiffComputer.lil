@@ -1,0 +1,31 @@
+import { DetailedLineRangeMapping, LineRangeMapping } from "./rangeMapping";
+
+export class MovedText {
+  LineRangeMapping lineRangeMapping;
+  DetailedLineRangeMapping[] changes;
+
+  init(LineRangeMapping lineRangeMapping, DetailedLineRangeMapping[] changes) {
+    this.lineRangeMapping = lineRangeMapping;
+    this.changes = changes;
+  }
+}
+
+export class LinesDiff {
+  DetailedLineRangeMapping[] changes;
+  MovedText[] moves;
+  bool hitTimeout;
+
+  init(DetailedLineRangeMapping[] changes, MovedText[] moves, bool hitTimeout) {
+    this.changes = changes;
+    this.moves = moves;
+    this.hitTimeout = hitTimeout;
+  }
+}
+
+export LinesDiff createLinesDiff(
+  DetailedLineRangeMapping[] changes,
+  MovedText[] moves,
+  bool hitTimeout
+) {
+  return new LinesDiff(changes, moves, hitTimeout);
+}

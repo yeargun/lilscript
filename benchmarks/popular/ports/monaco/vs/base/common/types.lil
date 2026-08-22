@@ -1,0 +1,19 @@
+export bool isDefined(JsValue arg) {
+  return arg.truthy();
+}
+
+export bool isUndefinedOrNull(JsValue obj) {
+  return !obj.truthy();
+}
+
+export bool isBoolean(bool obj) {
+  return obj == true || obj == false;
+}
+
+export bool isOneOfString(string value, string[] validValues) {
+  return validValues.indexOf(value) >= 0;
+}
+
+export JsValue upcast(JsValue x) {
+  return x;
+}

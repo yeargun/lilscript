@@ -1,0 +1,10 @@
+export string getAriaLabel(string label, string description) {
+  if (description.length == 0) {
+    return label;
+  }
+  return label + ", " + description;
+}
+
+export string getWidgetAriaLabel() {
+  return "Quick Input";
+}

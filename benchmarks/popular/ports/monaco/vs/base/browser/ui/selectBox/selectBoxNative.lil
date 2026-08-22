@@ -1,0 +1,204 @@
+import { domCreateElement, appendChild, setClassName, classListAdd, setAttribute, setStyle, addEventListener, preventDefault, stopPropagation, eventKeyCode, eventAltKey, focusElement, blurElement, setTabIndex } from "../../../../../js-host";
+
+export class NativeSelectOption {
+  string text;
+  bool isDisabled;
+  bool isSeparator;
+
+  init(string text, bool isDisabled, bool isSeparator) {
+    this.text = text;
+    this.isDisabled = isDisabled;
+    this.isSeparator = isSeparator;
+  }
+}
+
+bool optionsEqual(NativeSelectOption[] a, NativeSelectOption[] b) {
+  if (a.length != b.length) {
+    return false;
+  }
+  int i = 0;
+  while (i < a.length) {
+    if (a[i].text != b[i].text || a[i].isDisabled != b[i].isDisabled || a[i].isSeparator != b[i].isSeparator) {
+      return false;
+    }
+    i = i + 1;
+  }
+  return true;
+}
+
+export class SelectBoxNative {
+  JsValue selectElement;
+  NativeSelectOption[] options;
+  int selected;
+  string ariaLabel;
+  string selectBackground;
+  string selectForeground;
+  string selectBorder;
+  bool macos;
+  (func(int, string)->void)[] selectListeners;
+
+  init(NativeSelectOption[] options, int selected, bool macos, string ariaLabel, string selectBackground, string selectForeground, string selectBorder) {
+    this.options = [];
+    this.selected = 0;
+    this.macos = macos;
+    this.ariaLabel = ariaLabel;
+    this.selectBackground = selectBackground;
+    this.selectForeground = selectForeground;
+    this.selectBorder = selectBorder;
+    this.selectListeners = [];
+    this.selectElement = domCreateElement("select");
+    setClassName(this.selectElement, "monaco-select-box");
+    if (ariaLabel.length > 0) {
+      setAttribute(this.selectElement, "aria-label", ariaLabel);
+    }
+    this.registerListeners();
+    this.setOptions(options, selected);
+  }
+
+  void registerListeners() {
+    SelectBoxNative owner = this;
+    addEventListener(this.selectElement, "click", (JsValue event) => {
+      preventDefault(event);
+      stopPropagation(event);
+    }, false);
+    addEventListener(this.selectElement, "change", (JsValue event) => {
+      JsValue target = event["target"];
+      JsValue idx = target["selectedIndex"];
+      int index = 0;
+      if (idx is float) {
+        float n = idx;
+        index = n.toInt();
+      }
+      owner.select(index);
+      owner.fireSelect();
+    }, false);
+    addEventListener(this.selectElement, "keydown", (JsValue event) => {
+      int key = eventKeyCode(event);
+      bool showSelect = false;
+      if (owner.macos) {
+        if (key == 40 || key == 38 || key == 32) {
+          showSelect = true;
+        }
+      } else {
+        if ((key == 40 && eventAltKey(event)) || key == 32 || key == 13) {
+          showSelect = true;
+        }
+      }
+      if (showSelect) {
+        stopPropagation(event);
+      }
+    }, false);
+  }
+
+  func()->void onDidSelect(func(int, string)->void listener) {
+    this.selectListeners.push(listener);
+    SelectBoxNative owner = this;
+    return () => {
+      int index = owner.selectListeners.indexOf(listener);
+      if (index >= 0) {
+        owner.selectListeners.splice(index, 1);
+      }
+    };
+  }
+
+  void fireSelect() {
+    string text = "";
+    if (this.selected >= 0 && this.selected < this.options.length) {
+      text = this.options[this.selected].text;
+    }
+    int i = 0;
+    while (i < this.selectListeners.length) {
+      this.selectListeners[i](this.selected, text);
+      i = i + 1;
+    }
+  }
+
+  JsValue createOption(NativeSelectOption option, int index) {
+    JsValue node = domCreateElement("option");
+    node["value"] = option.text;
+    node["text"] = option.text;
+    node["disabled"] = option.isDisabled || option.isSeparator;
+    if (option.isSeparator) {
+      setAttribute(node, "role", "separator");
+    }
+    return node;
+  }
+
+  void setOptions(NativeSelectOption[] options, int selected) {
+    if (!optionsEqual(this.options, options)) {
+      this.options = options;
+      this.selectElement["options"]["length"] = 0;
+      int i = 0;
+      while (i < options.length) {
+        hostAdd(this.selectElement, this.createOption(options[i], i));
+        i = i + 1;
+      }
+    }
+    if (selected >= 0) {
+      this.select(selected);
+    }
+  }
+
+  void select(int index) {
+    if (this.options.length == 0) {
+      this.selected = 0;
+    } else if (index >= 0 && index < this.options.length) {
+      this.selected = index;
+    } else if (index > this.options.length - 1) {
+      this.select(this.options.length - 1);
+      return;
+    } else if (this.selected < 0) {
+      this.selected = 0;
+    }
+    this.selectElement["selectedIndex"] = this.selected;
+    if (this.selected < this.options.length) {
+      setAttribute(this.selectElement, "title", this.options[this.selected].text);
+    } else {
+      setAttribute(this.selectElement, "title", "");
+    }
+  }
+
+  void focus() {
+    setTabIndex(this.selectElement, 0);
+    focusElement(this.selectElement);
+  }
+
+  void blur() {
+    setTabIndex(this.selectElement, -1);
+    blurElement(this.selectElement);
+  }
+
+  void setFocusable(bool focusable) {
+    if (focusable) {
+      setTabIndex(this.selectElement, 0);
+    } else {
+      setTabIndex(this.selectElement, -1);
+    }
+  }
+
+  void render(JsValue container) {
+    classListAdd(container, "select-container");
+    appendChild(container, this.selectElement);
+    this.setOptions(this.options, this.selected);
+    this.applyStyles();
+  }
+
+  void applyStyles() {
+    setStyle(this.selectElement, "background-color", this.selectBackground);
+    setStyle(this.selectElement, "color", this.selectForeground);
+    setStyle(this.selectElement, "border-color", this.selectBorder);
+  }
+}
+
+void hostAdd(JsValue select, JsValue option) {
+  select["add"].truthy();
+  appendChild(select, option);
+}
+
+export SelectBoxNative createSelectBoxNative(NativeSelectOption[] options, int selected, bool macos = false, string ariaLabel = "", string selectBackground = "", string selectForeground = "", string selectBorder = "") {
+  return new SelectBoxNative(options, selected, macos, ariaLabel, selectBackground, selectForeground, selectBorder);
+}
+
+export NativeSelectOption createNativeSelectOption(string text, bool isDisabled = false, bool isSeparator = false) {
+  return new NativeSelectOption(text, isDisabled, isSeparator);
+}

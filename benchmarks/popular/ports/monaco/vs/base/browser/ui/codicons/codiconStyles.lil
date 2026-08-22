@@ -1,0 +1,8 @@
+export string CODICON_FONT_FAMILY = "codicon";
+export string CODICON_MODIFIER_SPIN = "codicon-modifier-spin";
+export string CODICON_MODIFIER_DISABLED = "codicon-modifier-disabled";
+export string CODICON_MODIFIER_HIDDEN = "codicon-modifier-hidden";
+
+export string asCodiconClassName(string id) {
+  return "codicon codicon-" + id;
+}

@@ -1,0 +1,21 @@
+export class Product {
+  string nameShort;
+  string nameLong;
+  string version;
+  string commit;
+  string quality;
+
+  init(string nameShort, string nameLong, string version, string commit, string quality) {
+    this.nameShort = nameShort;
+    this.nameLong = nameLong;
+    this.version = version;
+    this.commit = commit;
+    this.quality = quality;
+  }
+}
+
+Product sharedProduct = new Product("monaco", "Monaco Editor", "0.56.0", "f487add297079a02eb836810185b165e50cadabc", "stable");
+
+export Product product() {
+  return sharedProduct;
+}

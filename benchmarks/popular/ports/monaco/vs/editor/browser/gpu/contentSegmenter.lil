@@ -1,0 +1,122 @@
+string sliceRange(string s, int start, int end) {
+  int from = start;
+  int to = end;
+  if (from < 0) {
+    from = 0;
+  }
+  if (to > s.length) {
+    to = s.length;
+  }
+  if (from >= to) {
+    return "";
+  }
+  string out = "";
+  int i = from;
+  while (i < to) {
+    out = out + s.charAt(i);
+    i = i + 1;
+  }
+  return out;
+}
+
+export class LineData {
+  string content;
+  bool isBasicASCII;
+
+  init(string content, bool isBasicASCII) {
+    this.content = content;
+    this.isBasicASCII = isBasicASCII;
+  }
+}
+
+export class ViewLineOptions {
+  bool useMonospaceOptimizations;
+
+  init(bool useMonospaceOptimizations) {
+    this.useMonospaceOptimizations = useMonospaceOptimizations;
+  }
+}
+
+bool isGraphemeContinuation(int code) {
+  if (code >= 56320 && code <= 57343) {
+    return true;
+  }
+  if (code >= 768 && code <= 879) {
+    return true;
+  }
+  if (code >= 65024 && code <= 65039) {
+    return true;
+  }
+  if (code == 8205) {
+    return true;
+  }
+  return false;
+}
+
+export class ContentSegmenter {
+  string content;
+  bool ascii;
+  string[] segments;
+  bool[] defined;
+
+  init(string content, bool ascii) {
+    this.content = content;
+    this.ascii = ascii;
+    this.segments = [];
+    this.defined = [];
+    if (ascii) {
+      int i = 0;
+      while (i < content.length) {
+        this.segments.push(content.charAt(i));
+        this.defined.push(true);
+        i = i + 1;
+      }
+    } else {
+      int x = 0;
+      while (x < content.length) {
+        int code = content.charCodeAt(x);
+        if (x > 0 && isGraphemeContinuation(code)) {
+          this.segments.push("");
+          this.defined.push(false);
+        } else {
+          int end = x + 1;
+          if (code >= 55296 && code <= 56319 && end < content.length) {
+            int next = content.charCodeAt(end);
+            if (next >= 56320 && next <= 57343) {
+              end = end + 1;
+            }
+          }
+          while (end < content.length && isGraphemeContinuation(content.charCodeAt(end))) {
+            end = end + 1;
+          }
+          this.segments.push(sliceRange(content, x, end));
+          this.defined.push(true);
+        }
+        x = x + 1;
+      }
+    }
+  }
+
+  string? getSegmentAtIndex(int index) {
+    if (index < 0 || index >= this.segments.length) {
+      return null;
+    }
+    if (!this.defined[index]) {
+      return null;
+    }
+    return this.segments[index];
+  }
+}
+
+export ContentSegmenter createContentSegmenter(LineData lineData, ViewLineOptions options) {
+  bool ascii = lineData.isBasicASCII && options.useMonospaceOptimizations;
+  return new ContentSegmenter(lineData.content, ascii);
+}
+
+export ContentSegmenter createAsciiContentSegmenter(string content) {
+  return new ContentSegmenter(content, true);
+}
+
+export ContentSegmenter createGraphemeContentSegmenter(string content) {
+  return new ContentSegmenter(content, false);
+}

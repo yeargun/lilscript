@@ -1,0 +1,33 @@
+export class WordContextKey {
+  bool atEnd;
+  bool word;
+
+  init() {
+    this.atEnd = false;
+    this.word = false;
+  }
+
+  void update(string line, int column) {
+    if (column <= 1) {
+      this.atEnd = line.length == 0;
+      this.word = false;
+      return;
+    }
+    int i = column - 1;
+    if (i > line.length) {
+      i = line.length;
+    }
+    this.atEnd = i >= line.length;
+    if (i <= 0) {
+      this.word = false;
+      return;
+    }
+    int code = line.charCodeAt(i - 1);
+    bool letter = (code >= 97 && code <= 122) || (code >= 65 && code <= 90) || (code >= 48 && code <= 57) || code == 95;
+    this.word = letter;
+  }
+}
+
+export WordContextKey createWordContextKey() {
+  return new WordContextKey();
+}

@@ -1,0 +1,52 @@
+export class ChartsColorsRegistry {
+  string[] ids;
+
+  init() {
+    this.ids = [];
+  }
+
+  string register(string id) {
+    if (!this.ids.includes(id)) {
+      this.ids.push(id);
+    }
+    return id;
+  }
+
+  bool has(string id) {
+    return this.ids.includes(id);
+  }
+
+  string asCssVariableName(string id) {
+    string out = "--vscode-";
+    int i = 0;
+    while (i < id.length) {
+      string ch = id.charAt(i);
+      if (ch == ".") {
+        out = out + "-";
+      } else {
+        out = out + ch;
+      }
+      i = i + 1;
+    }
+    return out;
+  }
+}
+
+ChartsColorsRegistry colors = new ChartsColorsRegistry();
+
+export ChartsColorsRegistry getChartsColorsRegistry() {
+  return colors;
+}
+
+export string c0 = colors.register("charts.foreground");
+export string c1 = colors.register("charts.lines");
+export string c2 = colors.register("charts.red");
+export string c3 = colors.register("charts.blue");
+export string c4 = colors.register("charts.yellow");
+export string c5 = colors.register("charts.orange");
+export string c6 = colors.register("charts.green");
+export string c7 = colors.register("charts.purple");
+
+export string[] colorIds() {
+  return colors.ids;
+}

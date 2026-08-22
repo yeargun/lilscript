@@ -1,0 +1,166 @@
+import { hostCall, jsUndefined } from "../../../../js-host";
+
+export int NO_STYLING = 2147483647;
+
+export class SemanticTokensProviderStyling {
+  JsValue legend;
+  JsValue themeService;
+  JsValue languageService;
+  Map<string, int> cache;
+
+  init(JsValue legend, JsValue themeService = null, JsValue languageService = null) {
+    this.legend = legend;
+    this.themeService = themeService;
+    this.languageService = languageService;
+    this.cache = new Map();
+  }
+
+  int getMetadata(int tokenTypeIndex, int tokenModifierSet, string languageId) {
+    string key = tokenTypeIndex.toString() + ":" + tokenModifierSet.toString() + ":" + languageId;
+    int? cached = this.cache.get(key);
+    if (cached != null) {
+      return cached;
+    }
+    JsValue tokenTypes = this.legend["tokenTypes"];
+    int typeCount = JS.number(tokenTypes["length"]).toInt();
+    if (tokenTypeIndex < 0 || tokenTypeIndex >= typeCount) {
+      this.cache.set(key, NO_STYLING);
+      return NO_STYLING;
+    }
+    string tokenType = JS.string(tokenTypes[tokenTypeIndex]);
+    JsValue[] modifiers = [];
+    JsValue availableModifiers = this.legend["tokenModifiers"];
+    int availableCount = JS.number(availableModifiers["length"]).toInt();
+    int bits = tokenModifierSet;
+    int i = 0;
+    while (bits > 0 && i < availableCount) {
+      if ((bits & 1) != 0) {
+        modifiers.push(availableModifiers[i]);
+      }
+      bits = bits >> 1;
+      i = i + 1;
+    }
+    JsValue style = null;
+    if (this.themeService != null) {
+      JsValue theme = hostCall(
+        this.themeService,
+        "getColorTheme",
+        jsUndefined(),
+        jsUndefined(),
+        jsUndefined()
+      );
+      if (theme != null) {
+        style = hostCall(theme, "getTokenStyleMetadata", tokenType, modifiers, languageId);
+      }
+    }
+    if (style == null) {
+      this.cache.set(key, NO_STYLING);
+      return NO_STYLING;
+    }
+    int metadata = 0;
+    if (style["italic"] != null) {
+      metadata = metadata | 1;
+      if (style["italic"].truthy()) {
+        metadata = metadata | (1 << 11);
+      }
+    }
+    if (style["bold"] != null) {
+      metadata = metadata | 2;
+      if (style["bold"].truthy()) {
+        metadata = metadata | (2 << 11);
+      }
+    }
+    if (style["underline"] != null) {
+      metadata = metadata | 4;
+      if (style["underline"].truthy()) {
+        metadata = metadata | (4 << 11);
+      }
+    }
+    if (style["strikethrough"] != null) {
+      metadata = metadata | 8;
+      if (style["strikethrough"].truthy()) {
+        metadata = metadata | (8 << 11);
+      }
+    }
+    if (style["foreground"] != null) {
+      metadata = metadata | 16 |
+        (JS.number(style["foreground"]).toInt() << 15);
+    }
+    if (metadata == 0) {
+      metadata = NO_STYLING;
+    }
+    this.cache.set(key, metadata);
+    return metadata;
+  }
+}
+
+export class SemanticTokensArea {
+  int startLineNumber;
+  int[] data;
+
+  init(int startLineNumber, int[] data) {
+    this.startLineNumber = startLineNumber;
+    this.data = data;
+  }
+}
+
+export SemanticTokensArea[] toMultilineTokens2(
+  JsValue tokens,
+  SemanticTokensProviderStyling styling,
+  string languageId
+) {
+  SemanticTokensArea[] result = [];
+  JsValue source = tokens["data"];
+  int sourceLength = JS.number(source["length"]).toInt();
+  int tokenCount = sourceLength / 5;
+  int tokenIndex = 0;
+  int lastLineNumber = 1;
+  int lastStartCharacter = 0;
+  int areaLine = 0;
+  int[] areaData = [];
+  while (tokenIndex < tokenCount) {
+    int offset = tokenIndex * 5;
+    int deltaLine = JS.number(source[offset]).toInt();
+    int deltaCharacter = JS.number(source[offset + 1]).toInt();
+    int lineNumber = lastLineNumber + deltaLine;
+    int startCharacter = deltaCharacter;
+    if (deltaLine == 0) {
+      startCharacter = lastStartCharacter + deltaCharacter;
+    }
+    int length = JS.number(source[offset + 2]).toInt();
+    int metadata = styling.getMetadata(
+      JS.number(source[offset + 3]).toInt(),
+      JS.number(source[offset + 4]).toInt(),
+      languageId
+    );
+    if (length > 0 && metadata != NO_STYLING) {
+      if (areaLine == 0) {
+        areaLine = lineNumber;
+      }
+      if (areaData.length >= 1600 && lineNumber != lastLineNumber) {
+        result.push(new SemanticTokensArea(areaLine, areaData));
+        areaData = [];
+        areaLine = lineNumber;
+      }
+      areaData.push(lineNumber - areaLine);
+      areaData.push(startCharacter);
+      areaData.push(startCharacter + length);
+      areaData.push(metadata);
+    }
+    lastLineNumber = lineNumber;
+    lastStartCharacter = startCharacter;
+    tokenIndex = tokenIndex + 1;
+  }
+  if (areaData.length > 0) {
+    result.push(new SemanticTokensArea(areaLine, areaData));
+  }
+  return result;
+}
+
+export SemanticTokensProviderStyling createSemanticTokensProviderStyling(
+  JsValue legend,
+  JsValue themeService = null,
+  JsValue languageService = null
+) {
+  return new SemanticTokensProviderStyling(legend, themeService, languageService);
+}

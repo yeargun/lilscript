@@ -1,0 +1,35 @@
+import { domCreateElement, appendChild, setClassName, classListAdd, setTextContent, scheduleTimeoutMs, hostCall, jsUndefined } from "../../../../../js-host";
+
+export void applyDragImage(JsValue event, JsValue container, string label, string[] extraClasses) {
+  JsValue dataTransfer = event["dataTransfer"];
+  if (!dataTransfer.truthy()) {
+    return;
+  }
+  JsValue dragImage = domCreateElement("div");
+  setClassName(dragImage, "monaco-drag-image");
+  setTextContent(dragImage, label);
+  int i = 0;
+  while (i < extraClasses.length) {
+    classListAdd(dragImage, extraClasses[i]);
+    i = i + 1;
+  }
+  JsValue current = container;
+  int guard = 0;
+  while (current.truthy() && guard < 64) {
+    JsValue classList = current["classList"];
+    if (classList.truthy() && hostCall(classList, "contains", "monaco-workbench", jsUndefined(), jsUndefined()).truthy()) {
+      break;
+    }
+    current = current["parentElement"];
+    guard = guard + 1;
+  }
+  JsValue dragContainer = current;
+  if (!dragContainer.truthy()) {
+    dragContainer = container["ownerDocument"]["body"];
+  }
+  appendChild(dragContainer, dragImage);
+  hostCall(dataTransfer, "setDragImage", dragImage, -10, -10);
+  scheduleTimeoutMs(() => {
+    hostCall(dragImage, "remove", jsUndefined(), jsUndefined(), jsUndefined());
+  }, 0.0);
+}

@@ -1,0 +1,51 @@
+export class DiffEditorItemTemplate {
+  string originalUri;
+  string modifiedUri;
+  bool collapsed;
+  int headerHeight;
+  int editorHeight;
+
+  init(string originalUri, string modifiedUri) {
+    this.originalUri = originalUri;
+    this.modifiedUri = modifiedUri;
+    this.collapsed = false;
+    this.headerHeight = 40;
+    this.editorHeight = 200;
+  }
+
+  int height() {
+    if (this.collapsed) {
+      return this.headerHeight;
+    }
+    return this.headerHeight + this.editorHeight;
+  }
+
+  void setCollapsed(bool collapsed) {
+    this.collapsed = collapsed;
+  }
+
+  void setEditorHeight(int editorHeight) {
+    this.editorHeight = editorHeight;
+  }
+}
+
+export DiffEditorItemTemplate createDiffEditorItemTemplate(string originalUri, string modifiedUri) {
+  return new DiffEditorItemTemplate(originalUri, modifiedUri);
+}
+
+export string headerLabel(string uri) {
+  int slash = uri.lastIndexOf("/");
+  if (slash < 0) {
+    slash = uri.lastIndexOf("\\");
+  }
+  if (slash < 0 || slash + 1 >= uri.length) {
+    return uri;
+  }
+  string name = "";
+  int i = slash + 1;
+  while (i < uri.length) {
+    name = name + uri.charAt(i);
+    i = i + 1;
+  }
+  return name;
+}

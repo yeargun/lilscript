@@ -1,0 +1,68 @@
+import {
+  call0,
+  call1,
+  call2,
+  defineProperty,
+  isNullish,
+  isStringish,
+  newProxy,
+  ownKeys,
+  undef
+} from "../host.lil";
+import { $mobx } from "../constants.lil";
+import { die } from "../errors.lil";
+import {
+  asObservableObject,
+  setObjectValue
+} from "./observableobject.lil";
+
+JsValue objectProxyTraps = JS.object();
+objectProxyTraps["has"] = JS.method2((JsValue _s, JsValue target, JsValue key) => {
+  return call1(target[$mobx]["has_"], target[$mobx], key);
+});
+objectProxyTraps["get"] = JS.method2((JsValue _s, JsValue target, JsValue key) => {
+  return call1(target[$mobx]["get_"], target[$mobx], key);
+});
+objectProxyTraps["set"] = JS.method3((JsValue _s, JsValue target, JsValue key, JsValue value) => {
+  if (!isStringish(key)) {
+    return false;
+  }
+  JsValue result = setObjectValue(target[$mobx], key, value, true);
+  if (JS.isNullish(result)) {
+    return true;
+  }
+  return result.truthy();
+});
+objectProxyTraps["deleteProperty"] = JS.method2((JsValue _s, JsValue target, JsValue key) => {
+  if (!isStringish(key)) {
+    return false;
+  }
+  JsValue result = JS.call(target[$mobx]["delete_"], target[$mobx], key, true);
+  if (JS.isNullish(result)) {
+    return true;
+  }
+  return result.truthy();
+});
+objectProxyTraps["defineProperty"] = JS.method3((JsValue _s, JsValue target, JsValue key, JsValue descriptor) => {
+  JsValue result = call2(target[$mobx]["defineProperty_"], target[$mobx], key, descriptor);
+  if (JS.isNullish(result)) {
+    return true;
+  }
+  return result.truthy();
+});
+objectProxyTraps["ownKeys"] = JS.method1((JsValue _s, JsValue target) => {
+  return call0(target[$mobx]["ownKeys_"], target[$mobx]);
+});
+objectProxyTraps["preventExtensions"] = JS.method1((JsValue _s, JsValue _t) => {
+  die(13);
+  return false;
+});
+
+export JsValue asDynamicObservableObject(JsValue target, JsValue options) {
+  target = JS.call(asObservableObject, undef(), target, options);
+  JsValue adm = target[$mobx];
+  if (!adm["proxy_"].truthy()) {
+    adm["proxy_"] = newProxy(target, objectProxyTraps);
+  }
+  return adm["proxy_"];
+}

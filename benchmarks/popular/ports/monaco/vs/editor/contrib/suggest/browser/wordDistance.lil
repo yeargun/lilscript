@@ -1,0 +1,46 @@
+export class WordDistance {
+  int[] lineNumbers;
+  int[] columns;
+
+  init() {
+    this.lineNumbers = [];
+    this.columns = [];
+  }
+
+  void remember(int lineNumber, int column) {
+    this.lineNumbers.push(lineNumber);
+    this.columns.push(column);
+  }
+
+  int distance(int lineNumber, int column) {
+    int best = 2147483647;
+    int i = 0;
+    while (i < this.lineNumbers.length) {
+      int dline = this.lineNumbers[i] - lineNumber;
+      if (dline < 0) {
+        dline = 0 - dline;
+      }
+      int dcol = this.columns[i] - column;
+      if (dcol < 0) {
+        dcol = 0 - dcol;
+      }
+      int d = dline * 1000 + dcol;
+      if (d < best) {
+        best = d;
+      }
+      i = i + 1;
+    }
+    if (this.lineNumbers.length == 0) {
+      return 0;
+    }
+    return best;
+  }
+}
+
+export WordDistance createWordDistance() {
+  return new WordDistance();
+}
+
+export WordDistance noneWordDistance() {
+  return new WordDistance();
+}

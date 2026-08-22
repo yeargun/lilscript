@@ -1,0 +1,18 @@
+export class QuickInputTreeRenderer {
+  string templateId;
+
+  init() {
+    this.templateId = "quickInputTree";
+  }
+
+  string render(string label, string description) {
+    if (description.length == 0) {
+      return label;
+    }
+    return label + " " + description;
+  }
+}
+
+export QuickInputTreeRenderer createQuickInputTreeRenderer() {
+  return new QuickInputTreeRenderer();
+}

@@ -1,0 +1,27 @@
+export class ResolvedKeybindingItem {
+  string command;
+  string when;
+  bool isDefault;
+  string[] chords;
+  int weight1;
+  int weight2;
+  string extensionId;
+
+  init(string command, string[] chords, string when, bool isDefault) {
+    this.command = command;
+    this.chords = chords;
+    this.when = when;
+    this.isDefault = isDefault;
+    this.weight1 = 0;
+    this.weight2 = 0;
+    this.extensionId = "";
+  }
+
+  bool isRemoval() {
+    return this.command.length > 0 && this.command.charAt(0) == "-";
+  }
+}
+
+export ResolvedKeybindingItem createResolvedKeybindingItem(string command, string[] chords, string when, bool isDefault) {
+  return new ResolvedKeybindingItem(command, chords, when, isDefault);
+}

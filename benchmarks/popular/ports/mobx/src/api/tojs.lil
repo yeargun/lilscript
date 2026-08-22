@@ -1,0 +1,92 @@
+import {
+  arrayFrom,
+  call0,
+  call1,
+  dateCtor,
+  gObject,
+  isNullish,
+  len,
+  mapGet,
+  mapHas,
+  mapSet,
+  newMap,
+  newSet,
+  protoIsPrototypeOf,
+  setAdd,
+  toInt,
+  undef,
+  yes
+} from "../host.lil";
+import { DEV } from "../dev-flag.lil";
+import { die } from "../errors.lil";
+import {
+  isComputedValue,
+  isObservableArray,
+  isObservableMap,
+  isObservableSet,
+  isObservableValue
+} from "../core/predicates.lil";
+import { isObservableValueCheck } from "./isobservable.lil";
+import { ownKeysApi } from "./object-api.lil";
+
+export JsValue toJS = JS.methodRest((JsValue _s, JsValue args) => {
+  if (DEV && len(args) > 1 && args[1].truthy()) {
+    die("toJS no longer supports options");
+  }
+  return toJSHelper(args[0], newMap());
+});
+
+JsValue toJSHelper(JsValue source, JsValue alreadySeen) {
+  if (JS.isNullish(source) || JS.typeOf(source) != "object" || protoIsPrototypeOf(dateCtor(), source) || !isObservableValueCheck(source)) {
+    return source;
+  }
+  if (isObservableValue(source) || isComputedValue(source)) {
+    return toJSHelper(call0(source["get"], source), alreadySeen);
+  }
+  if (mapHas(alreadySeen, source)) {
+    return mapGet(alreadySeen, source);
+  }
+  if (isObservableArray(source)) {
+    JsValue res = JS.array();
+    mapSet(alreadySeen, source, res);
+    int i = 0;
+    while (i < toInt(source["length"])) {
+      res[i] = toJSHelper(source[i], alreadySeen);
+      i = i + 1;
+    }
+    return res;
+  }
+  if (isObservableSet(source)) {
+    JsValue res = newSet();
+    mapSet(alreadySeen, source, res);
+    JsValue vals = arrayFrom(JS.invoke(source, "values"));
+    int i = 0;
+    while (i < len(vals)) {
+      setAdd(res, toJSHelper(vals[i], alreadySeen));
+      i = i + 1;
+    }
+    return res;
+  }
+  if (isObservableMap(source)) {
+    JsValue res = newMap();
+    mapSet(alreadySeen, source, res);
+    JsValue ents = arrayFrom(JS.invoke(source, "entries"));
+    int i = 0;
+    while (i < len(ents)) {
+      mapSet(res, ents[i][0], toJSHelper(ents[i][1], alreadySeen));
+      i = i + 1;
+    }
+    return res;
+  }
+  JsValue res = JS.object();
+  mapSet(alreadySeen, source, res);
+  JsValue ks = call1(ownKeysApi, undef(), source);
+  int i = 0;
+  while (i < len(ks)) {
+    if (yes(JS.call(gObject()["prototype"]["propertyIsEnumerable"], source, ks[i]))) {
+      res[ks[i]] = toJSHelper(source[ks[i]], alreadySeen);
+    }
+    i = i + 1;
+  }
+  return res;
+}

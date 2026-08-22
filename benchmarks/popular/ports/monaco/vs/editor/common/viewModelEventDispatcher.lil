@@ -1,0 +1,268 @@
+export class DispatchedViewEvent {
+  int type;
+  JsValue payload;
+
+  init(int type, JsValue payload) {
+    this.type = type;
+    this.payload = payload;
+  }
+}
+
+export class OutgoingViewModelEvent {
+  int kind;
+  int oldA;
+  int oldB;
+  int oldC;
+  int oldD;
+  int valueA;
+  int valueB;
+  int valueC;
+  int valueD;
+  bool flag;
+  JsValue payload;
+
+  init(int kind, int oldA, int oldB, int oldC, int oldD, int valueA, int valueB, int valueC, int valueD, bool flag, JsValue payload) {
+    this.kind = kind;
+    this.oldA = oldA;
+    this.oldB = oldB;
+    this.oldC = oldC;
+    this.oldD = oldD;
+    this.valueA = valueA;
+    this.valueB = valueB;
+    this.valueC = valueC;
+    this.valueD = valueD;
+    this.flag = flag;
+    this.payload = payload;
+  }
+
+  bool isNoOp() {
+    if (this.kind == 0) {
+      return this.oldA == this.valueA && this.oldB == this.valueB;
+    }
+    if (this.kind == 1 || this.kind == 2) {
+      return this.oldA == this.valueA;
+    }
+    if (this.kind == 3) {
+      return this.oldA == this.valueA && this.oldB == this.valueB && this.oldC == this.valueC && this.oldD == this.valueD;
+    }
+    return false;
+  }
+
+  OutgoingViewModelEvent? attemptToMerge(OutgoingViewModelEvent other) {
+    if (other.kind != this.kind) {
+      return null;
+    }
+    if (this.kind == 0 || this.kind == 1 || this.kind == 2 || this.kind == 3 || this.kind == 7) {
+      return new OutgoingViewModelEvent(this.kind, this.oldA, this.oldB, this.oldC, this.oldD, other.valueA, other.valueB, other.valueC, other.valueD, this.flag || other.flag, other.payload);
+    }
+    if (this.kind == 4 || this.kind == 5 || this.kind == 6) {
+      return this;
+    }
+    return null;
+  }
+}
+
+export class ViewModelEventsCollector {
+  DispatchedViewEvent[] viewEvents;
+  OutgoingViewModelEvent[] outgoingEvents;
+
+  init() {
+    this.viewEvents = [];
+    this.outgoingEvents = [];
+  }
+
+  void emitViewEvent(DispatchedViewEvent event) {
+    this.viewEvents.push(event);
+  }
+
+  void emitOutgoingEvent(OutgoingViewModelEvent event) {
+    this.outgoingEvents.push(event);
+  }
+}
+
+export class ViewModelEventDispatcher {
+  (func(DispatchedViewEvent[])->void)[] eventHandlers;
+  (func(OutgoingViewModelEvent)->void)[] outgoingHandlers;
+  DispatchedViewEvent[] viewEventQueue;
+  OutgoingViewModelEvent[] outgoingEvents;
+  bool consuming;
+  ViewModelEventsCollector? collector;
+  int collectorCount;
+
+  init() {
+    this.eventHandlers = [];
+    this.outgoingHandlers = [];
+    this.viewEventQueue = [];
+    this.outgoingEvents = [];
+    this.consuming = false;
+    this.collector = null;
+    this.collectorCount = 0;
+  }
+
+  void addViewEventHandler(func(DispatchedViewEvent[])->void eventHandler) {
+    this.eventHandlers.push(eventHandler);
+  }
+
+  void removeViewEventHandler(func(DispatchedViewEvent[])->void eventHandler) {
+    int i = 0;
+    while (i < this.eventHandlers.length) {
+      if (this.eventHandlers[i] == eventHandler) {
+        this.eventHandlers.splice(i, 1);
+        return;
+      }
+      i = i + 1;
+    }
+  }
+
+  void addOutgoingEventHandler(func(OutgoingViewModelEvent)->void eventHandler) {
+    this.outgoingHandlers.push(eventHandler);
+  }
+
+  void removeOutgoingEventHandler(func(OutgoingViewModelEvent)->void eventHandler) {
+    int i = 0;
+    while (i < this.outgoingHandlers.length) {
+      if (this.outgoingHandlers[i] == eventHandler) {
+        this.outgoingHandlers.splice(i, 1);
+        return;
+      }
+      i = i + 1;
+    }
+  }
+
+  void addOutgoingEvent(OutgoingViewModelEvent event) {
+    int i = 0;
+    while (i < this.outgoingEvents.length) {
+      OutgoingViewModelEvent? merged = this.outgoingEvents[i].attemptToMerge(event);
+      if (merged != null) {
+        this.outgoingEvents[i] = merged;
+        return;
+      }
+      i = i + 1;
+    }
+    this.outgoingEvents.push(event);
+  }
+
+  void emitOutgoingEvents() {
+    if (this.collector != null || this.consuming) {
+      return;
+    }
+    while (this.outgoingEvents.length > 0) {
+      OutgoingViewModelEvent event = this.outgoingEvents[0];
+      this.outgoingEvents.splice(0, 1);
+      if (!event.isNoOp()) {
+        int i = 0;
+        while (i < this.outgoingHandlers.length) {
+          this.outgoingHandlers[i](event);
+          i = i + 1;
+        }
+      }
+    }
+  }
+
+  void emitOutgoingEvent(OutgoingViewModelEvent event) {
+    this.addOutgoingEvent(event);
+    this.emitOutgoingEvents();
+  }
+
+  ViewModelEventsCollector beginEmitViewEvents() {
+    this.collectorCount = this.collectorCount + 1;
+    ViewModelEventsCollector? current = this.collector;
+    if (current != null) {
+      return current;
+    }
+    ViewModelEventsCollector created = new ViewModelEventsCollector();
+    this.collector = created;
+    return created;
+  }
+
+  void endEmitViewEvents() {
+    if (this.collectorCount > 0) {
+      this.collectorCount = this.collectorCount - 1;
+    }
+    if (this.collectorCount != 0) {
+      return;
+    }
+    ViewModelEventsCollector? current = this.collector;
+    if (current != null) {
+      int i = 0;
+      while (i < current.outgoingEvents.length) {
+        this.addOutgoingEvent(current.outgoingEvents[i]);
+        i = i + 1;
+      }
+      i = 0;
+      while (i < current.viewEvents.length) {
+        this.viewEventQueue.push(current.viewEvents[i]);
+        i = i + 1;
+      }
+      this.collector = null;
+      this.consumeViewEventQueue();
+    }
+    this.emitOutgoingEvents();
+  }
+
+  void emitSingleViewEvent(DispatchedViewEvent event) {
+    ViewModelEventsCollector collector = this.beginEmitViewEvents();
+    collector.emitViewEvent(event);
+    this.endEmitViewEvents();
+  }
+
+  void emitMany(DispatchedViewEvent[] events) {
+    int i = 0;
+    while (i < events.length) {
+      this.viewEventQueue.push(events[i]);
+      i = i + 1;
+    }
+    this.consumeViewEventQueue();
+  }
+
+  void consumeViewEventQueue() {
+    if (this.consuming || this.viewEventQueue.length == 0) {
+      return;
+    }
+    this.consuming = true;
+    while (this.viewEventQueue.length > 0) {
+      DispatchedViewEvent[] events = this.viewEventQueue;
+      this.viewEventQueue = [];
+      int i = 0;
+      int handlerCount = this.eventHandlers.length;
+      while (i < handlerCount && i < this.eventHandlers.length) {
+        this.eventHandlers[i](events);
+        i = i + 1;
+      }
+    }
+    this.consuming = false;
+    this.emitOutgoingEvents();
+  }
+}
+
+export ViewModelEventDispatcher createViewModelEventDispatcher() {
+  return new ViewModelEventDispatcher();
+}
+
+export DispatchedViewEvent createDispatchedViewEvent(int type, JsValue payload) {
+  return new DispatchedViewEvent(type, payload);
+}
+
+export OutgoingViewModelEvent createContentSizeChangedEvent(int oldContentWidth, int oldContentHeight, int contentWidth, int contentHeight, JsValue payload) {
+  return new OutgoingViewModelEvent(0, oldContentWidth, oldContentHeight, 0, 0, contentWidth, contentHeight, 0, 0, false, payload);
+}
+
+export OutgoingViewModelEvent createFocusChangedEvent(bool oldHasFocus, bool hasFocus, JsValue payload) {
+  int oldValue = 0;
+  int value = 0;
+  if (oldHasFocus) {
+    oldValue = 1;
+  }
+  if (hasFocus) {
+    value = 1;
+  }
+  return new OutgoingViewModelEvent(1, oldValue, 0, 0, 0, value, 0, 0, 0, false, payload);
+}
+
+export OutgoingViewModelEvent createScrollChangedEvent(int oldScrollWidth, int oldScrollLeft, int oldScrollHeight, int oldScrollTop, int scrollWidth, int scrollLeft, int scrollHeight, int scrollTop, JsValue payload) {
+  return new OutgoingViewModelEvent(3, oldScrollWidth, oldScrollLeft, oldScrollHeight, oldScrollTop, scrollWidth, scrollLeft, scrollHeight, scrollTop, false, payload);
+}
+
+export OutgoingViewModelEvent createSimpleOutgoingEvent(int kind, JsValue payload) {
+  return new OutgoingViewModelEvent(kind, 0, 0, 0, 0, 1, 0, 0, 0, false, payload);
+}

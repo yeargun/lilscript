@@ -1,0 +1,111 @@
+int nmax(int a, int b) {
+  if (a > b) {
+    return a;
+  }
+  return b;
+}
+
+int nmin(int a, int b) {
+  if (a < b) {
+    return a;
+  }
+  return b;
+}
+
+export class DiffEditorWidget {
+  int id;
+  int width;
+  int height;
+  int sashPosition;
+  float splitViewDefaultRatio;
+  bool renderSideBySide;
+  int originalCursorLine;
+  int modifiedCursorLine;
+  int originalScrollTop;
+  int modifiedScrollTop;
+  bool disposed;
+
+  init(int width, int height) {
+    this.id = 1;
+    this.width = width;
+    this.height = height;
+    this.splitViewDefaultRatio = 0.5;
+    this.sashPosition = (width * 1.0 * this.splitViewDefaultRatio).round().toInt();
+    this.renderSideBySide = true;
+    this.originalCursorLine = 1;
+    this.modifiedCursorLine = 1;
+    this.originalScrollTop = 0;
+    this.modifiedScrollTop = 0;
+    this.disposed = false;
+  }
+
+  string getEditorType() {
+    return "vs.editor.IDiffEditor";
+  }
+
+  string getId() {
+    return "vs.editor.IDiffEditor:v2:" + this.id.toString();
+  }
+
+  void layout(int width, int height) {
+    this.width = width;
+    this.height = height;
+    if (this.renderSideBySide) {
+      this.sashPosition = nmax(0, nmin(width, (width * 1.0 * this.splitViewDefaultRatio).round().toInt()));
+    } else {
+      this.sashPosition = width;
+    }
+  }
+
+  void setScrollTop(int originalScrollTop, int modifiedScrollTop) {
+    this.originalScrollTop = originalScrollTop;
+    this.modifiedScrollTop = modifiedScrollTop;
+  }
+
+  void switchSide() {
+    int tmp = this.originalCursorLine;
+    this.originalCursorLine = this.modifiedCursorLine;
+    this.modifiedCursorLine = tmp;
+  }
+
+  void goToDiff(bool next, int[] modifiedStarts, int lineCount) {
+    if (modifiedStarts.length == 0) {
+      return;
+    }
+    int current = this.modifiedCursorLine;
+    if (next) {
+      int i = 0;
+      while (i < modifiedStarts.length) {
+        if (modifiedStarts[i] > current) {
+          this.modifiedCursorLine = modifiedStarts[i];
+          return;
+        }
+        i = i + 1;
+      }
+      this.modifiedCursorLine = modifiedStarts[0];
+      return;
+    }
+    int j = modifiedStarts.length - 1;
+    while (j >= 0) {
+      if (modifiedStarts[j] < current) {
+        this.modifiedCursorLine = modifiedStarts[j];
+        return;
+      }
+      j = j - 1;
+    }
+    this.modifiedCursorLine = modifiedStarts[modifiedStarts.length - 1];
+  }
+
+  void dispose() {
+    this.disposed = true;
+  }
+}
+
+int widgetIdCounter = 0;
+
+export DiffEditorWidget createDiffEditorWidget(int width, int height) {
+  widgetIdCounter = widgetIdCounter + 1;
+  DiffEditorWidget widget = new DiffEditorWidget(width, height);
+  widget.id = widgetIdCounter;
+  return widget;
+}

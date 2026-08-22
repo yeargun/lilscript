@@ -1,0 +1,416 @@
+import { domCreateElement, appendChild, setClassName, classListAdd, classListRemove, setStyle, setAttribute, addEventListener, getClientWidth, getClientHeight, getScrollTop, getScrollLeft, rectLeft, rectTop, windowSelf, hostCall, jsUndefined, jsPropInt } from "../../../../../js-host";
+
+export enum LayoutAnchorPosition {
+  Before,
+  After
+}
+
+export enum LayoutAnchorMode {
+  AVOID,
+  ALIGN
+}
+
+export enum AnchorAlignment {
+  LEFT,
+  RIGHT
+}
+
+export enum AnchorPosition {
+  BELOW,
+  ABOVE
+}
+
+export enum AnchorAxisAlignment {
+  VERTICAL,
+  HORIZONTAL
+}
+
+export enum ContextViewDOMPosition {
+  ABSOLUTE,
+  FIXED,
+  FIXED_SHADOW
+}
+
+export class LayoutAnchor {
+  int offset;
+  int size;
+  LayoutAnchorPosition position;
+  LayoutAnchorMode mode;
+
+  init(int offset, int size, LayoutAnchorPosition position, LayoutAnchorMode mode) {
+    this.offset = offset;
+    this.size = size;
+    this.position = position;
+    this.mode = mode;
+  }
+}
+
+export class Layout1dResult {
+  int position;
+  string result;
+
+  init(int position, string result) {
+    this.position = position;
+    this.result = result;
+  }
+}
+
+export class LayoutRect {
+  int top;
+  int left;
+  int width;
+  int height;
+
+  init(int top, int left, int width, int height) {
+    this.top = top;
+    this.left = left;
+    this.width = width;
+    this.height = height;
+  }
+}
+
+export class Layout2dResult {
+  int top;
+  int left;
+  int bottom;
+  int right;
+  AnchorAlignment anchorAlignment;
+  AnchorPosition anchorPosition;
+
+  init(int top, int left, int bottom, int right, AnchorAlignment anchorAlignment, AnchorPosition anchorPosition) {
+    this.top = top;
+    this.left = left;
+    this.bottom = bottom;
+    this.right = right;
+    this.anchorAlignment = anchorAlignment;
+    this.anchorPosition = anchorPosition;
+  }
+}
+
+int jsInt(JsValue obj, string key) {
+  JsValue value = obj[key];
+  if (value is float) {
+    float n = value;
+    return n.toInt();
+  }
+  return 0;
+}
+
+export Layout1dResult layout1d(int viewportSize, int viewSize, LayoutAnchor anchor) {
+  int layoutAfter = anchor.offset + anchor.size;
+  int layoutBefore = anchor.offset;
+  if (anchor.mode == LayoutAnchorMode.ALIGN) {
+    layoutAfter = anchor.offset;
+    layoutBefore = anchor.offset + anchor.size;
+  }
+  if (anchor.position == LayoutAnchorPosition.Before) {
+    if (viewSize <= viewportSize - layoutAfter) {
+      return new Layout1dResult(layoutAfter, "ok");
+    }
+    if (viewSize <= layoutBefore) {
+      return new Layout1dResult(layoutBefore - viewSize, "flipped");
+    }
+    int overlap = viewportSize - viewSize;
+    if (overlap < 0) {
+      overlap = 0;
+    }
+    return new Layout1dResult(overlap, "overlap");
+  }
+  if (viewSize <= layoutBefore) {
+    return new Layout1dResult(layoutBefore - viewSize, "ok");
+  }
+  if (viewSize <= viewportSize - layoutAfter && layoutBefore < viewSize / 2) {
+    return new Layout1dResult(layoutAfter, "flipped");
+  }
+  return new Layout1dResult(0, "overlap");
+}
+
+bool rangesIntersect(int aStart, int aEnd, int bStart, int bEnd) {
+  return aStart < bEnd && bStart < aEnd;
+}
+
+export Layout2dResult layout2d(LayoutRect viewport, LayoutRect view, LayoutRect anchor, AnchorAlignment alignment, AnchorPosition position, AnchorAxisAlignment axis) {
+  AnchorAlignment anchorAlignment = alignment;
+  AnchorPosition anchorPosition = position;
+  int top = 0;
+  int left = 0;
+  if (axis == AnchorAxisAlignment.VERTICAL) {
+    LayoutAnchorPosition verticalPos = LayoutAnchorPosition.Before;
+    if (anchorPosition != AnchorPosition.BELOW) {
+      verticalPos = LayoutAnchorPosition.After;
+    }
+    LayoutAnchor verticalAnchor = new LayoutAnchor(anchor.top - viewport.top, anchor.height, verticalPos, LayoutAnchorMode.AVOID);
+    LayoutAnchorPosition horizontalPos = LayoutAnchorPosition.Before;
+    if (anchorAlignment != AnchorAlignment.LEFT) {
+      horizontalPos = LayoutAnchorPosition.After;
+    }
+    LayoutAnchor horizontalAnchor = new LayoutAnchor(anchor.left, anchor.width, horizontalPos, LayoutAnchorMode.ALIGN);
+    Layout1dResult verticalLayout = layout1d(viewport.height, view.height, verticalAnchor);
+    top = verticalLayout.position + viewport.top;
+    if (verticalLayout.result == "flipped") {
+      if (anchorPosition == AnchorPosition.BELOW) {
+        anchorPosition = AnchorPosition.ABOVE;
+      } else {
+        anchorPosition = AnchorPosition.BELOW;
+      }
+    }
+    if (rangesIntersect(top, top + view.height, verticalAnchor.offset, verticalAnchor.offset + verticalAnchor.size)) {
+      horizontalAnchor.mode = LayoutAnchorMode.AVOID;
+    }
+    Layout1dResult horizontalLayout = layout1d(viewport.width, view.width, horizontalAnchor);
+    left = horizontalLayout.position;
+    if (horizontalLayout.result == "flipped") {
+      if (anchorAlignment == AnchorAlignment.LEFT) {
+        anchorAlignment = AnchorAlignment.RIGHT;
+      } else {
+        anchorAlignment = AnchorAlignment.LEFT;
+      }
+    }
+  } else {
+    LayoutAnchorPosition horizontalPos = LayoutAnchorPosition.Before;
+    if (anchorAlignment != AnchorAlignment.LEFT) {
+      horizontalPos = LayoutAnchorPosition.After;
+    }
+    LayoutAnchor horizontalAnchor = new LayoutAnchor(anchor.left, anchor.width, horizontalPos, LayoutAnchorMode.AVOID);
+    LayoutAnchorPosition verticalPos = LayoutAnchorPosition.Before;
+    if (anchorPosition != AnchorPosition.BELOW) {
+      verticalPos = LayoutAnchorPosition.After;
+    }
+    LayoutAnchor verticalAnchor = new LayoutAnchor(anchor.top, anchor.height, verticalPos, LayoutAnchorMode.ALIGN);
+    Layout1dResult horizontalLayout = layout1d(viewport.width, view.width, horizontalAnchor);
+    left = horizontalLayout.position;
+    if (horizontalLayout.result == "flipped") {
+      if (anchorAlignment == AnchorAlignment.LEFT) {
+        anchorAlignment = AnchorAlignment.RIGHT;
+      } else {
+        anchorAlignment = AnchorAlignment.LEFT;
+      }
+    }
+    if (rangesIntersect(left, left + view.width, horizontalAnchor.offset, horizontalAnchor.offset + horizontalAnchor.size)) {
+      verticalAnchor.mode = LayoutAnchorMode.AVOID;
+    }
+    Layout1dResult verticalLayout = layout1d(viewport.height, view.height, verticalAnchor);
+    top = verticalLayout.position + viewport.top;
+    if (verticalLayout.result == "flipped") {
+      if (anchorPosition == AnchorPosition.BELOW) {
+        anchorPosition = AnchorPosition.ABOVE;
+      } else {
+        anchorPosition = AnchorPosition.BELOW;
+      }
+    }
+  }
+  int right = viewport.width - (left + view.width);
+  int bottom = viewport.height - (top + view.height);
+  return new Layout2dResult(top, left, bottom, right, anchorAlignment, anchorPosition);
+}
+
+export bool isAnchor(JsValue obj) {
+  if (!obj.truthy()) {
+    return false;
+  }
+  return obj["x"] is float && obj["y"] is float;
+}
+
+export LayoutRect getAnchorRect(JsValue anchor) {
+  if (anchor["nodeType"].truthy() || anchor["getBoundingClientRect"].truthy()) {
+    return new LayoutRect(rectTop(anchor), rectLeft(anchor), getClientWidth(anchor), getClientHeight(anchor));
+  }
+  if (isAnchor(anchor)) {
+    int w = jsInt(anchor, "width");
+    int h = jsInt(anchor, "height");
+    if (w == 0) {
+      w = 1;
+    }
+    if (h == 0) {
+      h = 2;
+    }
+    return new LayoutRect(jsInt(anchor, "y"), jsInt(anchor, "x"), w, h);
+  }
+  return new LayoutRect(jsInt(anchor, "posy"), jsInt(anchor, "posx"), 2, 2);
+}
+
+export class ContextViewDelegate {
+  func()->JsValue getAnchorFn;
+  func(JsValue)->JsValue renderFn;
+  func()->void layoutFn;
+  func(JsValue)->void hideFn;
+  AnchorAlignment anchorAlignment;
+  AnchorPosition anchorPosition;
+  AnchorAxisAlignment anchorAxisAlignment;
+  int layer;
+  bool canRelayout;
+
+  init(func()->JsValue getAnchorFn, func(JsValue)->JsValue renderFn) {
+    this.getAnchorFn = getAnchorFn;
+    this.renderFn = renderFn;
+    this.layoutFn = () => {};
+    this.hideFn = (JsValue data) => {};
+    this.anchorAlignment = AnchorAlignment.LEFT;
+    this.anchorPosition = AnchorPosition.BELOW;
+    this.anchorAxisAlignment = AnchorAxisAlignment.VERTICAL;
+    this.layer = 0;
+    this.canRelayout = true;
+  }
+}
+
+export class ContextView {
+  JsValue container;
+  JsValue view;
+  ContextViewDelegate? delegate;
+  bool useFixedPosition;
+  bool visible;
+
+  init(JsValue container, ContextViewDOMPosition domPosition) {
+    this.container = container;
+    this.useFixedPosition = domPosition != ContextViewDOMPosition.ABSOLUTE;
+    this.visible = false;
+    this.delegate = null;
+    this.view = domCreateElement("div");
+    setClassName(this.view, "context-view");
+    setStyle(this.view, "display", "none");
+    if (container.truthy()) {
+      appendChild(container, this.view);
+    }
+    ContextView owner = this;
+    addEventListener(container, "click", (JsValue event) => {
+      owner.onDOMEvent(event, false);
+    }, false);
+    addEventListener(container, "keydown", (JsValue event) => {
+      owner.onDOMEvent(event, false);
+    }, false);
+    addEventListener(container, "click", (JsValue event) => {
+      owner.onDOMEvent(event, true);
+    }, true);
+  }
+
+  void show(ContextViewDelegate delegate) {
+    if (this.visible) {
+      this.hide(null);
+    }
+    this.delegate = delegate;
+    this.visible = true;
+    setClassName(this.view, "context-view monaco-component");
+    setStyle(this.view, "top", "0px");
+    setStyle(this.view, "left", "0px");
+    setStyle(this.view, "z-index", (2575 + delegate.layer).toString());
+    if (this.useFixedPosition) {
+      setStyle(this.view, "position", "fixed");
+    } else {
+      setStyle(this.view, "position", "absolute");
+    }
+    setStyle(this.view, "display", "block");
+    delegate.renderFn(this.view);
+    this.doLayout();
+  }
+
+  JsValue getViewElement() {
+    return this.view;
+  }
+
+  void layout() {
+    ContextViewDelegate? delegate = this.delegate;
+    if (!this.visible || delegate == null) {
+      return;
+    }
+    if (!delegate.canRelayout) {
+      this.hide(null);
+      return;
+    }
+    delegate.layoutFn();
+    this.doLayout();
+  }
+
+  void doLayout() {
+    ContextViewDelegate? delegate = this.delegate;
+    if (!this.visible || delegate == null) {
+      return;
+    }
+    LayoutRect anchor = getAnchorRect(delegate.getAnchorFn());
+    JsValue win = windowSelf();
+    int pageY = jsInt(win, "pageYOffset");
+    int pageX = jsInt(win, "pageXOffset");
+    int innerW = jsInt(win, "innerWidth");
+    int innerH = jsInt(win, "innerHeight");
+    LayoutRect viewport = new LayoutRect(pageY, pageX, innerW, innerH);
+    LayoutRect view = new LayoutRect(0, 0, getClientWidth(this.view), getClientHeight(this.view));
+    Layout2dResult placed = layout2d(viewport, view, anchor, delegate.anchorAlignment, delegate.anchorPosition, delegate.anchorAxisAlignment);
+    classListRemove(this.view, "top");
+    classListRemove(this.view, "bottom");
+    classListRemove(this.view, "left");
+    classListRemove(this.view, "right");
+    if (placed.anchorPosition == AnchorPosition.BELOW) {
+      classListAdd(this.view, "bottom");
+    } else {
+      classListAdd(this.view, "top");
+    }
+    if (placed.anchorAlignment == AnchorAlignment.LEFT) {
+      classListAdd(this.view, "left");
+    } else {
+      classListAdd(this.view, "right");
+    }
+    int containerTop = rectTop(this.container);
+    int containerLeft = rectLeft(this.container);
+    if (this.useFixedPosition) {
+      containerTop = rectTop(this.view);
+      containerLeft = rectLeft(this.view);
+    }
+    int top = placed.top - containerTop + getScrollTop(this.container);
+    int left = placed.left - containerLeft + getScrollLeft(this.container);
+    setStyle(this.view, "top", top.toString() + "px");
+    setStyle(this.view, "left", left.toString() + "px");
+  }
+
+  void hide(JsValue data) {
+    ContextViewDelegate? delegate = this.delegate;
+    this.delegate = null;
+    this.visible = false;
+    if (delegate != null) {
+      delegate.hideFn(data);
+    }
+    setStyle(this.view, "display", "none");
+  }
+
+  bool isVisible() {
+    return this.visible;
+  }
+
+  void onDOMEvent(JsValue event, bool onCapture) {
+    ContextViewDelegate? delegate = this.delegate;
+    if (delegate == null) {
+      return;
+    }
+    if (onCapture) {
+      JsValue target = event["target"];
+      JsValue current = target;
+      int guard = 0;
+      bool inside = false;
+      while (current.truthy() && guard < 64) {
+        if (current == this.container) {
+          inside = true;
+          break;
+        }
+        current = current["parentNode"];
+        guard = guard + 1;
+      }
+      if (!inside) {
+        this.hide(null);
+      }
+    }
+  }
+
+  void dispose() {
+    this.hide(null);
+  }
+}
+
+export ContextView createContextView(JsValue container, ContextViewDOMPosition domPosition) {
+  return new ContextView(container, domPosition);
+}
+
+export ContextViewDelegate createContextViewDelegate(func()->JsValue getAnchorFn, func(JsValue)->JsValue renderFn) {
+  return new ContextViewDelegate(getAnchorFn, renderFn);
+}
+
+export LayoutRect createLayoutRect(int top, int left, int width, int height) {
+  return new LayoutRect(top, left, width, height);
+}

@@ -1,16 +1,18 @@
-import { bindMonaco } from "../../../ports/monaco/monaco-api.ts";
-import * as lil from "../../../build/monaco-layers/entry.raw.js";
+import { bootMonaco } from "../../../build/monaco-layers/entry.raw.js";
+import { attachTypescript } from "../../../ports/monaco/ts-language/attach-typescript.js";
 import { mountIde } from "../workbench.js";
 
-const monaco = bindMonaco(lil);
+const monaco = bootMonaco();
 globalThis.monaco = monaco;
 globalThis.__lilEditor = true;
+
+await attachTypescript(monaco);
 
 mountIde(monaco, {
   label: "LilScript monaco",
   otherHref: "../js/",
   otherLabel: "JS monaco-editor →",
-  languageFeatures: false,
+  languageFeatures: true,
   banner:
-    "This page is the LilScript monaco port (piece tree, model, view, commands, Monarch, contrib). No monaco-editor JavaScript is in the bundle.",
+    "Compiled LilScript monaco plus the official Microsoft TypeScript worker (typescriptServices.js). The editor API is LilScript; tsc runs in ts.worker.js.",
 });

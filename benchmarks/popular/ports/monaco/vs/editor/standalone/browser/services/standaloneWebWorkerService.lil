@@ -1,0 +1,21 @@
+export class StandaloneWebWorkerService {
+  string[] workers;
+
+  init() {
+    this.workers = [];
+  }
+
+  string createWorker(string descriptor) {
+    this.workers.push(descriptor);
+    return descriptor;
+  }
+
+  void dispose() {
+    string[] empty = [];
+    this.workers = empty;
+  }
+}
+
+export StandaloneWebWorkerService createStandaloneWebWorkerService() {
+  return new StandaloneWebWorkerService();
+}

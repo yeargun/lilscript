@@ -1,0 +1,130 @@
+import { DEV } from "../dev-flag.lil";
+import {
+  assign,
+  bind,
+  call1,
+  fnName,
+  isFn,
+  isStr,
+  isStringish,
+  push,
+  stringifyKey,
+  toStr,
+  undef
+} from "../host.lil";
+import {
+  ACTION,
+  ACTION_BOUND,
+  AUTOACTION,
+  AUTOACTION_BOUND
+} from "../constants.lil";
+import { assert20223DecoratorType } from "../api/decorators.lil";
+import { createAction } from "../core/action.lil";
+import { createDecoratorAnnotation } from "../api/decoratorannotation.lil";
+import {
+  die,
+  die3
+} from "../errors.lil";
+import { isAction } from "../core/predicates.lil";
+import {
+  action,
+  autoAction,
+  actionBound,
+  autoActionBound
+} from "./bindings.lil";
+import { createActionAnnotation } from "../types/actionannotation.lil";
+import { runInAction } from "./run-in-action.lil";
+
+JsValue decorateAction20223_ = JS.method3((JsValue _s, JsValue annotation, JsValue mthd, JsValue context) => {
+  if (DEV) {
+    JsValue kinds = JS.array();
+    push(kinds, "method");
+    push(kinds, "field");
+    assert20223DecoratorType(context, kinds);
+  }
+  JsValue keyName = context["name"];
+  JsValue wrap = JS.method1((JsValue _w, JsValue m) => {
+    string n = stringifyKey(keyName);
+    if (annotation["options_"].truthy() && annotation["options_"]["name"].truthy()) {
+      n = toStr(annotation["options_"]["name"]);
+    }
+    bool autoFlag = false;
+    if (annotation["options_"].truthy() && annotation["options_"]["autoAction"].truthy()) {
+      autoFlag = true;
+    }
+    return createAction(n, m, autoFlag, undef());
+  });
+  if (toStr(context["kind"]) == "field") {
+    return JS.method1((JsValue self, JsValue initMthd) => {
+      JsValue out = initMthd;
+      if (!isAction(out)) {
+        out = call1(wrap, undef(), out);
+      }
+      if (annotation["options_"].truthy() && annotation["options_"]["bound"].truthy()) {
+        out = bind(out, self);
+        out["isMobxAction"] = true;
+      }
+      return out;
+    });
+  }
+  if (toStr(context["kind"]) == "method") {
+    if (!isAction(mthd)) {
+      mthd = call1(wrap, undef(), mthd);
+    }
+    if (annotation["options_"].truthy() && annotation["options_"]["bound"].truthy()) {
+      call1(context["addInitializer"], context, JS.method0((JsValue self) => {
+        JsValue boundFn = bind(self[keyName], self);
+        boundFn["isMobxAction"] = true;
+        self[keyName] = boundFn;
+        return undef();
+      }));
+    }
+    return mthd;
+  }
+  die3(43, annotation["annotationType_"], stringifyKey(keyName), context["kind"]);
+  return undef();
+});
+
+JsValue actionAnnotation = createActionAnnotation(ACTION, undef());
+JsValue actionBoundAnnotation = createActionAnnotation(ACTION_BOUND, JS.object("bound", true));
+JsValue autoActionAnnotation = createActionAnnotation(AUTOACTION, JS.object("autoAction", true));
+JsValue autoActionBoundAnnotation = createActionAnnotation(AUTOACTION_BOUND, JS.object("autoAction", true, "bound", true));
+
+JsValue createActionFactory(bool asAuto) {
+  return JS.method2((JsValue _s, JsValue arg1, JsValue arg2) => {
+    if (arg2.truthy() && isStr(arg2["kind"])) {
+      JsValue ann = actionAnnotation;
+      if (asAuto) {
+        ann = autoActionAnnotation;
+      }
+      return JS.call(decorateAction20223_, undef(), ann, arg1, arg2);
+    }
+    if (isFn(arg1)) {
+      string n = toStr(fnName(arg1));
+      if (n == "") {
+        n = "<unnamed action>";
+      }
+      return createAction(n, arg1, asAuto, undef());
+    }
+    if (isFn(arg2)) {
+      return createAction(toStr(arg1), arg2, asAuto, undef());
+    }
+    if (isStringish(arg1)) {
+      string kind = ACTION;
+      if (asAuto) {
+        kind = AUTOACTION;
+      }
+      return createDecoratorAnnotation(createActionAnnotation(kind, JS.object("name", arg1, "autoAction", asAuto)), decorateAction20223_);
+    }
+    if (DEV) {
+      die("Invalid arguments for `action`");
+    }
+    return undef();
+  });
+}
+
+action = assign(createActionFactory(false), actionAnnotation);
+autoAction = assign(createActionFactory(true), autoActionAnnotation);
+actionBound = createDecoratorAnnotation(actionBoundAnnotation, decorateAction20223_);
+autoActionBound = createDecoratorAnnotation(autoActionBoundAnnotation, decorateAction20223_);
+export { action, autoAction, actionBound, autoActionBound, runInAction };

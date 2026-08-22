@@ -1,0 +1,165 @@
+export int MATCHES_LIMIT = 19999;
+export int FIND_WIDGET_INITIAL_WIDTH = 419;
+export int PART_WIDTH = 275;
+export int FIND_INPUT_AREA_HEIGHT = 33;
+export int FIND_ALL_CONTROLS_WIDTH = 118;
+export int MAX_MATCHES_COUNT_WIDTH = 69;
+
+export string NLS_MATCHES_LOCATION = "{0} of {1}";
+export string NLS_NO_RESULTS = "No results";
+
+export string findSelectionIcon = "find-selection";
+export string findReplaceIcon = "find-replace";
+export string findReplaceAllIcon = "find-replace-all";
+export string findPreviousMatchIcon = "find-previous-match";
+export string findNextMatchIcon = "find-next-match";
+
+export class FindWidgetViewZone {
+  int afterLineNumber;
+  int heightInPx;
+  bool suppressMouseDown;
+
+  init(int afterLineNumber) {
+    this.afterLineNumber = afterLineNumber;
+    this.heightInPx = FIND_INPUT_AREA_HEIGHT;
+    this.suppressMouseDown = false;
+  }
+}
+
+export class FindWidget {
+  bool isVisible;
+  bool isReplaceVisible;
+  bool searchInputFocused;
+  bool replaceInputFocused;
+  string searchString;
+  string replaceString;
+  bool matchCase;
+  bool wholeWord;
+  bool isRegex;
+  bool preserveCase;
+  bool searchInSelection;
+  int matchesPosition;
+  int matchesCount;
+  int width;
+  int height;
+  int editorWidth;
+  bool resized;
+
+  init() {
+    this.isVisible = false;
+    this.isReplaceVisible = false;
+    this.searchInputFocused = false;
+    this.replaceInputFocused = false;
+    this.searchString = "";
+    this.replaceString = "";
+    this.matchCase = false;
+    this.wholeWord = false;
+    this.isRegex = false;
+    this.preserveCase = false;
+    this.searchInSelection = false;
+    this.matchesPosition = 0;
+    this.matchesCount = 0;
+    this.width = FIND_WIDGET_INITIAL_WIDTH;
+    this.height = FIND_INPUT_AREA_HEIGHT;
+    this.editorWidth = 0;
+    this.resized = false;
+  }
+
+  int maxWidth() {
+    int max = this.editorWidth - 28 - 15 - 2 - 2;
+    if (max < FIND_WIDGET_INITIAL_WIDTH) {
+      return FIND_WIDGET_INITIAL_WIDTH;
+    }
+    return max;
+  }
+
+  void layout(int editorWidth) {
+    this.editorWidth = editorWidth;
+    int max = this.maxWidth();
+    if (!this.resized) {
+      this.width = FIND_WIDGET_INITIAL_WIDTH;
+    }
+    if (this.width > max) {
+      this.width = max;
+    }
+    if (this.isReplaceVisible) {
+      this.height = FIND_INPUT_AREA_HEIGHT * 2;
+    } else {
+      this.height = FIND_INPUT_AREA_HEIGHT;
+    }
+  }
+
+  void sashResize(int delta) {
+    this.resized = true;
+    this.width = this.width + delta;
+    int max = this.maxWidth();
+    if (this.width < FIND_WIDGET_INITIAL_WIDTH) {
+      this.width = FIND_WIDGET_INITIAL_WIDTH;
+    }
+    if (this.width > max) {
+      this.width = max;
+    }
+  }
+
+  string matchesCountText() {
+    if (this.matchesCount == 0) {
+      return NLS_NO_RESULTS;
+    }
+    string position = this.matchesPosition.toString();
+    string count = this.matchesCount.toString();
+    if (this.matchesCount >= MATCHES_LIMIT) {
+      count = MATCHES_LIMIT.toString() + "+";
+    }
+    return position + " of " + count;
+  }
+
+  void reveal(bool replace) {
+    this.isVisible = true;
+    if (replace) {
+      this.isReplaceVisible = true;
+      this.height = FIND_INPUT_AREA_HEIGHT * 2;
+    }
+  }
+
+  void hide() {
+    this.isVisible = false;
+    this.searchInputFocused = false;
+    this.replaceInputFocused = false;
+  }
+
+  void toggleReplace() {
+    this.isReplaceVisible = !this.isReplaceVisible;
+    if (this.isReplaceVisible) {
+      this.height = FIND_INPUT_AREA_HEIGHT * 2;
+    } else {
+      this.height = FIND_INPUT_AREA_HEIGHT;
+    }
+  }
+
+  void updateMatchInfo(int position, int count) {
+    this.matchesPosition = position;
+    this.matchesCount = count;
+  }
+
+  bool stopPropagationForMultiLineUpwards(string value, int selectionStart) {
+    if (value.indexOf("\n") < 0) {
+      return false;
+    }
+    return selectionStart > 0;
+  }
+
+  bool stopPropagationForMultiLineDownwards(string value, int selectionEnd) {
+    if (value.indexOf("\n") < 0) {
+      return false;
+    }
+    return selectionEnd < value.length;
+  }
+}
+
+export FindWidget createFindWidget() {
+  return new FindWidget();
+}
+
+export FindWidgetViewZone createFindWidgetViewZone(int afterLineNumber) {
+  return new FindWidgetViewZone(afterLineNumber);
+}

@@ -1,0 +1,39 @@
+export class QuickInputService {
+  bool visible;
+  string lastPicked;
+  string[] lastItems;
+
+  init() {
+    this.visible = false;
+    this.lastPicked = "";
+    this.lastItems = [];
+  }
+
+  string pick(string[] items, string query) {
+    this.lastItems = items;
+    this.visible = true;
+    string q = query.toLowerCase();
+    int i = 0;
+    string chosen = "";
+    while (i < items.length) {
+      if (q.length == 0 || items[i].toLowerCase().includes(q)) {
+        chosen = items[i];
+        break;
+      }
+      i = i + 1;
+    }
+    this.lastPicked = chosen;
+    this.visible = false;
+    return chosen;
+  }
+
+  void hide() {
+    this.visible = false;
+  }
+}
+
+export QuickInputService createQuickInputService() {
+  return new QuickInputService();
+}
+
+export string IQuickInputServiceId = "quickInputService";

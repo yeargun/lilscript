@@ -1,0 +1,29 @@
+export class MessageController {
+  bool visible;
+  string text;
+  int lineNumber;
+  int column;
+
+  init() {
+    this.visible = false;
+    this.text = "";
+    this.lineNumber = 1;
+    this.column = 1;
+  }
+
+  void show(string text, int lineNumber, int column) {
+    this.text = text;
+    this.lineNumber = lineNumber;
+    this.column = column;
+    this.visible = text.length > 0;
+  }
+
+  void close() {
+    this.visible = false;
+    this.text = "";
+  }
+}
+
+export MessageController createMessageController() {
+  return new MessageController();
+}

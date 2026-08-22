@@ -213,3 +213,50 @@ export bool rangesIntersecting(Rng a, Rng b) {
 export bool rangeSpansMultipleLines(Rng range) {
   return range.endLineNumber > range.startLineNumber;
 }
+
+export Rng liftRange(JsValue value) {
+  if (!value.truthy()) {
+    return new Rng(1, 1, 1, 1);
+  }
+  int sl = JS.number(value["startLineNumber"]).toInt();
+  int sc = JS.number(value["startColumn"]).toInt();
+  int el = JS.number(value["endLineNumber"]).toInt();
+  int ec = JS.number(value["endColumn"]).toInt();
+  return new Rng(sl, sc, el, ec);
+}
+
+export bool isIRange(JsValue value) {
+  if (!value.truthy()) {
+    return false;
+  }
+  return value["startLineNumber"].truthy()
+    && value["startColumn"].truthy()
+    && value["endLineNumber"].truthy()
+    && value["endColumn"].truthy();
+}
+
+export int rangeCompareRangesUsingStarts(Rng a, Rng b) {
+  if (a.startLineNumber == b.startLineNumber) {
+    if (a.startColumn == b.startColumn) {
+      if (a.endLineNumber == b.endLineNumber) {
+        return a.endColumn - b.endColumn;
+      }
+      return a.endLineNumber - b.endLineNumber;
+    }
+    return a.startColumn - b.startColumn;
+  }
+  return a.startLineNumber - b.startLineNumber;
+}
+
+export int rangeCompareRangesUsingEnds(Rng a, Rng b) {
+  if (a.endLineNumber == b.endLineNumber) {
+    if (a.endColumn == b.endColumn) {
+      if (a.startLineNumber == b.startLineNumber) {
+        return a.startColumn - b.startColumn;
+      }
+      return a.startLineNumber - b.startLineNumber;
+    }
+    return a.endColumn - b.endColumn;
+  }
+  return a.endLineNumber - b.endLineNumber;
+}

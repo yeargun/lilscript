@@ -1,0 +1,147 @@
+export class Action {
+  string id;
+  string label;
+  string tooltip;
+  string cssClass;
+  bool enabled;
+  bool checked;
+  bool hasChecked;
+  func(JsValue)->JsValue callback;
+  (func(JsValue)->void)[] changeListeners;
+
+  init(string id, string label, string cssClass, bool enabled, func(JsValue)->JsValue callback) {
+    this.id = id;
+    this.label = label;
+    this.tooltip = "";
+    this.cssClass = cssClass;
+    this.enabled = enabled;
+    this.checked = false;
+    this.hasChecked = false;
+    this.callback = callback;
+    this.changeListeners = [];
+  }
+
+  func()->void onDidChange(func(JsValue)->void listener) {
+    this.changeListeners.push(listener);
+    Action owner = this;
+    return () => {
+      int index = owner.changeListeners.indexOf(listener);
+      if (index >= 0) {
+        owner.changeListeners.splice(index, 1);
+      }
+    };
+  }
+
+  void fireChange(string property, JsValue value) {
+    JsValue change = JS.object();
+    change[property] = value;
+    (func(JsValue)->void)[] snapshot = this.changeListeners.slice();
+    int i = 0;
+    while (i < snapshot.length) {
+      snapshot[i](change);
+      i = i + 1;
+    }
+  }
+
+  void setLabel(string value) {
+    if (this.label != value) {
+      this.label = value;
+      this.fireChange("label", value);
+    }
+  }
+
+  void setTooltip(string value) {
+    if (this.tooltip != value) {
+      this.tooltip = value;
+      this.fireChange("tooltip", value);
+    }
+  }
+
+  void setClass(string value) {
+    if (this.cssClass != value) {
+      this.cssClass = value;
+      this.fireChange("class", value);
+    }
+  }
+
+  void setEnabled(bool value) {
+    if (this.enabled != value) {
+      this.enabled = value;
+      this.fireChange("enabled", value);
+    }
+  }
+
+  void setChecked(bool value) {
+    if (!this.hasChecked || this.checked != value) {
+      this.checked = value;
+      this.hasChecked = true;
+      this.fireChange("checked", value);
+    }
+  }
+
+  JsValue run(JsValue event) {
+    if (!this.enabled) {
+      return JS.object();
+    }
+    return this.callback(event);
+  }
+}
+
+export class SubmenuAction {
+  string id;
+  string label;
+  string cssClass;
+  Action[] actions;
+
+  init(string id, string label, Action[] actions, string cssClass) {
+    this.id = id;
+    this.label = label;
+    this.cssClass = cssClass;
+    this.actions = actions;
+  }
+}
+
+export Action createAction(string id, string label, string cssClass, bool enabled, func(JsValue)->JsValue callback) {
+  return new Action(id, label, cssClass, enabled, callback);
+}
+
+export Action createSeparator() {
+  return new Action("vs.actions.separator", "", "separator", false, (JsValue value) => value);
+}
+
+export Action[] joinActionLists(Action[][] actionLists) {
+  Action[] result = [];
+  int i = 0;
+  while (i < actionLists.length) {
+    Action[] list = actionLists[i];
+    if (list.length > 0) {
+      if (result.length > 0) {
+        result.push(createSeparator());
+      }
+      int j = 0;
+      while (j < list.length) {
+        result.push(list[j]);
+        j = j + 1;
+      }
+    }
+    i = i + 1;
+  }
+  return result;
+}
+
+export Action[] cleanActions(Action[] actions) {
+  while (actions.length > 0 && actions[0].id == "vs.actions.separator") {
+    actions.splice(0, 1);
+  }
+  while (actions.length > 0 && actions[actions.length - 1].id == "vs.actions.separator") {
+    actions.pop();
+  }
+  int i = actions.length - 2;
+  while (i >= 0) {
+    if (actions[i].id == "vs.actions.separator" && actions[i + 1].id == "vs.actions.separator") {
+      actions.splice(i + 1, 1);
+    }
+    i = i - 1;
+  }
+  return actions;
+}

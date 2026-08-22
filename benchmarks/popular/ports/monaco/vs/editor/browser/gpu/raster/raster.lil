@@ -1,0 +1,49 @@
+export class BoundingBox {
+  int left;
+  int top;
+  int right;
+  int bottom;
+
+  init(int left, int top, int right, int bottom) {
+    this.left = left;
+    this.top = top;
+    this.right = right;
+    this.bottom = bottom;
+  }
+}
+
+export class OriginOffset {
+  int x;
+  int y;
+
+  init(int x, int y) {
+    this.x = x;
+    this.y = y;
+  }
+}
+
+export class RasterizedGlyph {
+  BoundingBox boundingBox;
+  OriginOffset originOffset;
+  float fontBoundingBoxAscent;
+  float fontBoundingBoxDescent;
+
+  init(BoundingBox boundingBox, OriginOffset originOffset, float fontBoundingBoxAscent, float fontBoundingBoxDescent) {
+    this.boundingBox = boundingBox;
+    this.originOffset = originOffset;
+    this.fontBoundingBoxAscent = fontBoundingBoxAscent;
+    this.fontBoundingBoxDescent = fontBoundingBoxDescent;
+  }
+}
+
+export RasterizedGlyph createEmptyRasterizedGlyph() {
+  return new RasterizedGlyph(new BoundingBox(0, 0, -1, -1), new OriginOffset(0, 0), 0.0, 0.0);
+}
+
+export int glyphWidth(RasterizedGlyph glyph) {
+  return glyph.boundingBox.right - glyph.boundingBox.left + 1;
+}
+
+export int glyphHeight(RasterizedGlyph glyph) {
+  return glyph.boundingBox.bottom - glyph.boundingBox.top + 1;
+}

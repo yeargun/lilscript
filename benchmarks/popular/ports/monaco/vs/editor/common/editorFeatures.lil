@@ -1,0 +1,13 @@
+JsValue[] editorFeatures = [];
+
+export void registerEditorFeature(JsValue constructorValue) {
+  editorFeatures.push(constructorValue);
+}
+
+export JsValue[] getEditorFeatures() {
+  return editorFeatures.slice();
+}
+
+export int getEditorFeatureCount() {
+  return editorFeatures.length;
+}

@@ -1,0 +1,104 @@
+import { hostCall, jsUndefined, sliceOf } from "../../../../../js-host";
+import { IndentRulesSupport } from "./indentRules";
+
+export class ProcessedLineTokens {
+  string content;
+
+  init(string content) {
+    this.content = content;
+  }
+
+  string getLineContent() {
+    return this.content;
+  }
+}
+
+string applyIndentation(string line, string indentation) {
+  int i = 0;
+  while (i < line.length) {
+    int code = line.charCodeAt(i);
+    if (code != 32 && code != 9) {
+      break;
+    }
+    i = i + 1;
+  }
+  return indentation + sliceOf(line, i, line.length);
+}
+
+export class ProcessedIndentRulesSupport {
+  JsValue model;
+  IndentRulesSupport indentRulesSupport;
+
+  init(JsValue model, IndentRulesSupport indentRulesSupport, JsValue languageConfigurationService) {
+    this.model = model;
+    this.indentRulesSupport = indentRulesSupport;
+  }
+
+  string processedLine(int lineNumber, string indentation) {
+    string line = JS.string(hostCall(this.model, "getLineContent", lineNumber, jsUndefined(), jsUndefined()));
+    if (indentation.length > 0) {
+      return applyIndentation(line, indentation);
+    }
+    return line;
+  }
+
+  bool shouldIncrease(int lineNumber, string indentation = "") {
+    return this.indentRulesSupport.shouldIncrease(this.processedLine(lineNumber, indentation));
+  }
+
+  bool shouldDecrease(int lineNumber, string indentation = "") {
+    return this.indentRulesSupport.shouldDecrease(this.processedLine(lineNumber, indentation));
+  }
+
+  bool shouldIgnore(int lineNumber, string indentation = "") {
+    return this.indentRulesSupport.shouldIgnore(this.processedLine(lineNumber, indentation));
+  }
+
+  bool shouldIndentNextLine(int lineNumber, string indentation = "") {
+    return this.indentRulesSupport.shouldIndentNextLine(this.processedLine(lineNumber, indentation));
+  }
+}
+
+export class IndentationContextProcessor {
+  JsValue model;
+
+  init(JsValue model, JsValue languageConfigurationService) {
+    this.model = model;
+  }
+
+  JsValue getProcessedTokenContextAroundRange(JsValue range) {
+    int startLine = JS.number(range["startLineNumber"]).toInt();
+    int endLine = JS.number(range["endLineNumber"]).toInt();
+    int startColumn = JS.number(range["startColumn"]).toInt();
+    int endColumn = JS.number(range["endColumn"]).toInt();
+    string startText = JS.string(hostCall(this.model, "getLineContent", startLine, jsUndefined(), jsUndefined()));
+    string endText = JS.string(hostCall(this.model, "getLineContent", endLine, jsUndefined(), jsUndefined()));
+    string previous = "";
+    if (startLine > 1) {
+      previous = JS.string(hostCall(this.model, "getLineContent", startLine - 1, jsUndefined(), jsUndefined()));
+    }
+    JsValue result = JS.object();
+    result["beforeRangeProcessedTokens"] = new ProcessedLineTokens(sliceOf(startText, 0, startColumn - 1));
+    result["afterRangeProcessedTokens"] = new ProcessedLineTokens(sliceOf(endText, endColumn - 1, endText.length));
+    result["previousLineProcessedTokens"] = new ProcessedLineTokens(previous);
+    return result;
+  }
+}
+
+export bool isLanguageDifferentFromLineStart(JsValue model, JsValue position) {
+  if (model["getLanguageIdAtPosition"] == null) {
+    return false;
+  }
+  int line = JS.number(position["lineNumber"]).toInt();
+  int column = JS.number(position["column"]).toInt();
+  string first = JS.string(hostCall(model, "getLanguageIdAtPosition", line, 1, jsUndefined()));
+  string current = JS.string(hostCall(model, "getLanguageIdAtPosition", line, column, jsUndefined()));
+  return first != current;
+}
+
+export IndentationContextProcessor createIndentationContextProcessor(
+  JsValue model,
+  JsValue languageConfigurationService
+) {
+  return new IndentationContextProcessor(model, languageConfigurationService);
+}

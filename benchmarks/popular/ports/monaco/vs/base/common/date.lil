@@ -1,0 +1,31 @@
+import { hostCall, jsUndefined, windowSelf } from "../../../js-host";
+
+JsValue callIntl(string name, JsValue locales, JsValue options, JsValue fallback) {
+  JsValue intl = windowSelf()["Intl"];
+  try {
+    return hostCall(intl, name, locales, options, jsUndefined());
+  } catch (JsValue error) {
+    return hostCall(intl, name, fallback, options, jsUndefined());
+  }
+}
+
+export JsValue safeDateTimeFormat(JsValue locales, JsValue options) {
+  return callIntl("DateTimeFormat", locales, options, jsUndefined());
+}
+
+export JsValue safeCollator(JsValue locales, JsValue options) {
+  return callIntl("Collator", locales, options, jsUndefined());
+}
+
+export JsValue safeSegmenter(JsValue locales, JsValue options) {
+  return callIntl("Segmenter", locales, options, jsUndefined());
+}
+
+export JsValue safeLocale(JsValue tag, JsValue options) {
+  string fallback = "en";
+  return callIntl("Locale", tag, options, fallback);
+}
+
+export JsValue safeNumberFormat(JsValue locales, JsValue options) {
+  return callIntl("NumberFormat", locales, options, jsUndefined());
+}

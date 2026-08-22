@@ -1,0 +1,212 @@
+export class MonospaceLineBreakData {
+  int[] breakOffsets;
+  int[] breakOffsetsVisibleColumn;
+  int wrappedTextIndentLength;
+
+  init(int[] breakOffsets, int[] breakOffsetsVisibleColumn, int wrappedTextIndentLength) {
+    this.breakOffsets = breakOffsets;
+    this.breakOffsetsVisibleColumn = breakOffsetsVisibleColumn;
+    this.wrappedTextIndentLength = wrappedTextIndentLength;
+  }
+}
+
+export class MonospaceLineBreaksComputerFactory {
+  string breakBeforeChars;
+  string breakAfterChars;
+
+  init(string breakBeforeChars, string breakAfterChars) {
+    this.breakBeforeChars = breakBeforeChars;
+    this.breakAfterChars = breakAfterChars;
+  }
+
+  int classify(int charCode) {
+    if ((charCode >= 12352 && charCode <= 12543) || (charCode >= 13312 && charCode <= 19903) || (charCode >= 19968 && charCode <= 40959)) {
+      return 3;
+    }
+    int i = 0;
+    while (i < this.breakBeforeChars.length) {
+      if (this.breakBeforeChars.charCodeAt(i) == charCode) {
+        return 1;
+      }
+      i = i + 1;
+    }
+    i = 0;
+    while (i < this.breakAfterChars.length) {
+      if (this.breakAfterChars.charCodeAt(i) == charCode) {
+        return 2;
+      }
+      i = i + 1;
+    }
+    return 0;
+  }
+
+  bool canBreak(int previousCode, int previousClass, int currentCode, int currentClass, bool keepAll) {
+    if (currentCode == 32) {
+      return false;
+    }
+    if (previousClass == 2 && currentClass != 2) {
+      return true;
+    }
+    if (previousClass != 1 && currentClass == 1) {
+      return true;
+    }
+    if (!keepAll && previousClass == 3 && currentClass != 2) {
+      return true;
+    }
+    return !keepAll && currentClass == 3 && previousClass != 1;
+  }
+
+  bool isFullWidth(int charCode) {
+    if (charCode >= 4352 && charCode <= 4447) {
+      return true;
+    }
+    if (charCode >= 11904 && charCode <= 42191 && charCode != 12351) {
+      return true;
+    }
+    if (charCode >= 44032 && charCode <= 55203) {
+      return true;
+    }
+    if (charCode >= 63744 && charCode <= 64255) {
+      return true;
+    }
+    if (charCode >= 65040 && charCode <= 65049) {
+      return true;
+    }
+    if (charCode >= 65072 && charCode <= 65135) {
+      return true;
+    }
+    if (charCode >= 65280 && charCode <= 65376) {
+      return true;
+    }
+    return charCode >= 65504 && charCode <= 65510;
+  }
+
+  int charWidth(int charCode, int visibleColumn, int tabSize) {
+    if (charCode == 9) {
+      return tabSize - visibleColumn % tabSize;
+    }
+    if (this.isFullWidth(charCode) || charCode < 32) {
+      return 2;
+    }
+    if (charCode >= 55296 && charCode <= 56319) {
+      return 2;
+    }
+    return 1;
+  }
+
+  int wrappedIndentLength(string lineText, int tabSize, int wrappingColumn, int wrappingIndent) {
+    if (wrappingIndent == 0) {
+      return 0;
+    }
+    int indentEnd = 0;
+    while (indentEnd < lineText.length) {
+      int code = lineText.charCodeAt(indentEnd);
+      if (code != 32 && code != 9) {
+        break;
+      }
+      indentEnd = indentEnd + 1;
+    }
+    if (indentEnd == lineText.length) {
+      return 0;
+    }
+    int width = 0;
+    int i = 0;
+    while (i < indentEnd) {
+      width = width + this.charWidth(lineText.charCodeAt(i), width, tabSize);
+      i = i + 1;
+    }
+    int extraTabs = 0;
+    if (wrappingIndent == 2) {
+      extraTabs = 1;
+    }
+    if (wrappingIndent == 3) {
+      extraTabs = 2;
+    }
+    i = 0;
+    while (i < extraTabs) {
+      width = width + tabSize - width % tabSize;
+      i = i + 1;
+    }
+    if (width + 2 > wrappingColumn) {
+      return 0;
+    }
+    return width;
+  }
+
+  MonospaceLineBreakData? createLineBreaks(string lineText, int tabSize, int wrappingColumn, int wrappingIndent, string wordBreak = "normal") {
+    if (wrappingColumn < 0 || lineText.length <= 1) {
+      return null;
+    }
+    int indentLength = this.wrappedIndentLength(lineText, tabSize, wrappingColumn, wrappingIndent);
+    int wrappedWidth = wrappingColumn - indentLength;
+    if (wrappedWidth < 1) {
+      wrappedWidth = wrappingColumn;
+      indentLength = 0;
+    }
+    bool keepAll = wordBreak == "keepAll";
+    int[] offsets = [];
+    int[] visibleOffsets = [];
+    int segmentStart = 0;
+    int visibleColumn = 0;
+    int segmentLimit = wrappingColumn;
+    int candidateOffset = -1;
+    int candidateVisibleColumn = 0;
+    int previousCode = 0;
+    int previousClass = 0;
+    int i = 0;
+    while (i < lineText.length) {
+      int code = lineText.charCodeAt(i);
+      int currentClass = this.classify(code);
+      if (i > segmentStart && this.canBreak(previousCode, previousClass, code, currentClass, keepAll)) {
+        candidateOffset = i;
+        candidateVisibleColumn = visibleColumn;
+      }
+      int width = this.charWidth(code, visibleColumn, tabSize);
+      int nextColumn = visibleColumn + width;
+      if (nextColumn > segmentLimit) {
+        int breakOffset = candidateOffset;
+        int breakColumn = candidateVisibleColumn;
+        if (breakOffset <= segmentStart) {
+          breakOffset = i;
+          breakColumn = visibleColumn;
+        }
+        if (breakOffset <= segmentStart) {
+          breakOffset = i + 1;
+          breakColumn = nextColumn;
+        }
+        offsets.push(breakOffset);
+        visibleOffsets.push(breakColumn);
+        segmentStart = breakOffset;
+        segmentLimit = breakColumn + wrappedWidth;
+        candidateOffset = -1;
+        if (breakOffset <= i) {
+          continue;
+        }
+      }
+      visibleColumn = nextColumn;
+      previousCode = code;
+      previousClass = currentClass;
+      i = i + 1;
+      if (code >= 55296 && code <= 56319 && i < lineText.length) {
+        i = i + 1;
+      }
+    }
+    if (offsets.length == 0) {
+      return null;
+    }
+    if (offsets[offsets.length - 1] != lineText.length) {
+      offsets.push(lineText.length);
+      visibleOffsets.push(visibleColumn);
+    }
+    return new MonospaceLineBreakData(offsets, visibleOffsets, indentLength);
+  }
+}
+
+export MonospaceLineBreaksComputerFactory createMonospaceLineBreaksComputerFactory(string breakBeforeChars, string breakAfterChars) {
+  return new MonospaceLineBreaksComputerFactory(breakBeforeChars, breakAfterChars);
+}
+
+export MonospaceLineBreakData? computeMonospaceLineBreaks(string lineText, int tabSize, int wrappingColumn, int wrappingIndent = 1, string wordBreak = "normal") {
+  MonospaceLineBreaksComputerFactory factory = new MonospaceLineBreaksComputerFactory("([{", ".,;:!?)]}");
+  return factory.createLineBreaks(lineText, tabSize, wrappingColumn, wrappingIndent, wordBreak);
+}

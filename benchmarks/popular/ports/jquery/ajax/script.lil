@@ -1,16 +1,5 @@
 import { jQuery, globalEval, wrap } from "../core";
 import { document } from "../var/document";
-import {
-  jsUndefined,
-  createEmptyObject,
-  isUndefined,
-  stringify,
-  call0,
-  call1,
-  call2,
-  call4,
-  apply
-} from "../js-host.lil";
 
 struct ScriptAccepts {
   string script;
@@ -62,9 +51,7 @@ JsValue scriptTransportFactory(JsValue s) {
     JsValue transport = JS.undefined();
 
     transport = ScriptTransport{
-      JS.methodRest((JsValue _self, JsValue args) => {
-      JsValue complete = args[1];
-
+      (JsValue _headers, JsValue complete) => {
       JsValue attrs = s["scriptAttrs"];
       if (!attrs.truthy()) {
         attrs = JS.object();
@@ -74,7 +61,7 @@ JsValue scriptTransportFactory(JsValue s) {
 
       JS.invoke(script, "prop", ScriptProps{s["scriptCharset"], s["url"]});
 
-      onHandler = JS.method1((JsValue _self2, JsValue evt) => {
+      onHandler = (JsValue evt) => {
         JS.invoke(script, "remove");
         callback = null;
         if (evt.truthy()) {
@@ -85,20 +72,20 @@ JsValue scriptTransportFactory(JsValue s) {
           complete(statusNum, evt["type"]);
         }
         return JS.undefined();
-      });
+      };
       callback = onHandler;
 
       JS.invoke(script, "on", "load error", onHandler);
 
       JS.invoke(document["head"], "appendChild", script[0]);
       return JS.undefined();
-    }),
-      JS.method0((JsValue _self) => {
+    },
+      () => {
       if (callback.truthy()) {
         callback();
       }
       return JS.undefined();
-    })
+    }
     };
 
     return transport;
@@ -106,29 +93,25 @@ JsValue scriptTransportFactory(JsValue s) {
   return JS.undefined();
 }
 
-void install() {
-  JS.invoke(jQuery, "ajaxPrefilter", (JsValue s) => {
-    if (s["crossDomain"].truthy()) {
-      s["contents"]["script"] = false;
-    }
-    return JS.undefined();
-  });
+JS.invoke(jQuery, "ajaxPrefilter", (JsValue s) => {
+  if (s["crossDomain"].truthy()) {
+    s["contents"]["script"] = false;
+  }
+  return JS.undefined();
+});
 
-  JS.invoke(jQuery, "ajaxSetup", scriptSetupOptions);
+JS.invoke(jQuery, "ajaxSetup", scriptSetupOptions);
 
-  JS.invoke(jQuery, "ajaxPrefilter", "script", (JsValue s) => {
-    if (JS.isUndefined(s["cache"])) {
-      s["cache"] = false;
-    }
-    if (s["crossDomain"].truthy()) {
-      s["type"] = "GET";
-    }
-    return JS.undefined();
-  });
+JS.invoke(jQuery, "ajaxPrefilter", "script", (JsValue s) => {
+  if (JS.isUndefined(s["cache"])) {
+    s["cache"] = false;
+  }
+  if (s["crossDomain"].truthy()) {
+    s["type"] = "GET";
+  }
+  return JS.undefined();
+});
 
-  JS.invoke(jQuery, "ajaxTransport", "script", scriptTransportFactory);
-}
-
-install();
+JS.invoke(jQuery, "ajaxTransport", "script", scriptTransportFactory);
 
 export { jQuery };

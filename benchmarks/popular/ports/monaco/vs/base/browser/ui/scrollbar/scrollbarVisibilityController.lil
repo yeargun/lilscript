@@ -1,0 +1,159 @@
+import {
+  scheduleTimeoutMs,
+  setClassName
+} from "../../../../../js-host";
+
+ScrollbarVisibilityController[] pendingReveals = [];
+bool revealFlushScheduled = false;
+
+void flushScrollbarReveals() {
+  revealFlushScheduled = false;
+  int i = 0;
+  while (i < pendingReveals.length) {
+    pendingReveals[i].applyPendingReveal();
+    i = i + 1;
+  }
+  pendingReveals = [];
+}
+
+void scheduleScrollbarReveal(ScrollbarVisibilityController controller) {
+  pendingReveals.push(controller);
+  if (!revealFlushScheduled) {
+    revealFlushScheduled = true;
+    scheduleTimeoutMs(flushScrollbarReveals, 0.0);
+  }
+}
+
+export class ScrollbarVisibilityController {
+  int visibility;
+  string visibleClassName;
+  string invisibleClassName;
+  JsValue domNode;
+  bool isVisible;
+  bool isNeededValue;
+  bool rawShouldBeVisible;
+  bool shouldBeVisible;
+  bool revealPending;
+
+  init(
+    int visibility,
+    string visibleClassName,
+    string invisibleClassName
+  ) {
+    this.visibility = visibility;
+    this.visibleClassName = visibleClassName;
+    this.invisibleClassName = invisibleClassName;
+    this.domNode = null;
+    this.isVisible = false;
+    this.isNeededValue = false;
+    this.rawShouldBeVisible = false;
+    this.shouldBeVisible = false;
+    this.revealPending = false;
+  }
+
+  void setVisibility(int visibility) {
+    if (this.visibility == visibility) {
+      return;
+    }
+    this.visibility = visibility;
+    this.updateShouldBeVisible();
+  }
+
+  void setShouldBeVisible(bool shouldBeVisible) {
+    this.rawShouldBeVisible = shouldBeVisible;
+    this.updateShouldBeVisible();
+  }
+
+  bool applyVisibilitySetting() {
+    if (this.visibility == 2) {
+      return false;
+    }
+    if (this.visibility == 3) {
+      return true;
+    }
+    return this.rawShouldBeVisible;
+  }
+
+  void updateShouldBeVisible() {
+    bool next = this.applyVisibilitySetting();
+    if (this.shouldBeVisible == next) {
+      return;
+    }
+    this.shouldBeVisible = next;
+    this.ensureVisibility();
+  }
+
+  void setIsNeeded(bool isNeeded) {
+    if (this.isNeededValue == isNeeded) {
+      return;
+    }
+    this.isNeededValue = isNeeded;
+    this.ensureVisibility();
+  }
+
+  void setDomNode(JsValue domNode) {
+    this.domNode = domNode;
+    setClassName(this.domNode, this.invisibleClassName);
+    this.setShouldBeVisible(false);
+    this.ensureVisibility();
+  }
+
+  void ensureVisibility() {
+    if (!this.isNeededValue) {
+      this.hide(false);
+      return;
+    }
+    if (this.shouldBeVisible) {
+      this.reveal();
+    } else {
+      this.hide(true);
+    }
+  }
+
+  void reveal() {
+    if (this.isVisible) {
+      return;
+    }
+    this.isVisible = true;
+    this.revealPending = true;
+    scheduleScrollbarReveal(this);
+  }
+
+  void applyPendingReveal() {
+    if (!this.revealPending || !this.isVisible) {
+      return;
+    }
+    this.revealPending = false;
+    if (this.domNode != null) {
+      setClassName(this.domNode, this.visibleClassName);
+    }
+  }
+
+  void hide(bool withFadeAway) {
+    this.revealPending = false;
+    if (!this.isVisible) {
+      return;
+    }
+    this.isVisible = false;
+    if (this.domNode == null) {
+      return;
+    }
+    string className = this.invisibleClassName;
+    if (withFadeAway) {
+      className = className + " fade";
+    }
+    setClassName(this.domNode, className);
+  }
+}
+
+export ScrollbarVisibilityController createScrollbarVisibilityController(
+  int visibility,
+  string visibleClassName,
+  string invisibleClassName
+) {
+  return new ScrollbarVisibilityController(
+    visibility,
+    visibleClassName,
+    invisibleClassName
+  );
+}

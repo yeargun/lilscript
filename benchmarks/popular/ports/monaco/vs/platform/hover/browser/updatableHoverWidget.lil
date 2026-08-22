@@ -1,0 +1,33 @@
+import { setTextContent, setDisplay } from "../../../../js-host";
+
+export class UpdatableHoverWidget {
+  JsValue container;
+  string content;
+  bool visible;
+
+  init(JsValue container) {
+    this.container = container;
+    this.content = "";
+    this.visible = false;
+  }
+
+  void update(string content) {
+    this.content = content;
+    setTextContent(this.container, content);
+    if (content.length == 0) {
+      setDisplay(this.container, "none");
+      this.visible = false;
+    } else {
+      setDisplay(this.container, "block");
+      this.visible = true;
+    }
+  }
+
+  void dispose() {
+    this.update("");
+  }
+}
+
+export UpdatableHoverWidget createUpdatableHoverWidget(JsValue container) {
+  return new UpdatableHoverWidget(container);
+}

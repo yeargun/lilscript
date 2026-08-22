@@ -1,0 +1,24 @@
+import { OffsetRange } from "./offsetRange";
+import { Rng, createRange } from "../../../../../base/range";
+
+export class ColumnRange {
+  int startColumn;
+  int endColumnExclusive;
+
+  init(int startColumn, int endColumnExclusive) {
+    this.startColumn = startColumn;
+    this.endColumnExclusive = endColumnExclusive;
+  }
+
+  Rng toRange(int lineNumber) {
+    return createRange(lineNumber, this.startColumn, lineNumber, this.endColumnExclusive);
+  }
+
+  bool equals(ColumnRange other) {
+    return this.startColumn == other.startColumn && this.endColumnExclusive == other.endColumnExclusive;
+  }
+
+  OffsetRange toZeroBasedOffsetRange() {
+    return new OffsetRange(this.startColumn - 1, this.endColumnExclusive - 1);
+  }
+}

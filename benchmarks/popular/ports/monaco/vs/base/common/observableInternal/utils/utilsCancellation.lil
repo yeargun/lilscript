@@ -1,0 +1,154 @@
+export class WaitStateObservable {
+  func()->JsValue getFn;
+  func(func(JsValue)->void)->func()->void subscribeFn;
+
+  init(
+    func()->JsValue getFn,
+    func(func(JsValue)->void)->func()->void subscribeFn
+  ) {
+    this.getFn = getFn;
+    this.subscribeFn = subscribeFn;
+  }
+}
+
+export class WaitCancellationToken {
+  bool cancellationRequested;
+  (func()->void)[] listeners;
+
+  init() {
+    this.cancellationRequested = false;
+    this.listeners = [];
+  }
+
+  func()->void onCancellationRequested(func()->void listener) {
+    if (this.cancellationRequested) {
+      listener();
+      return () => {};
+    }
+    this.listeners.push(listener);
+    return () => {
+      int index = this.listeners.indexOf(listener);
+      if (index >= 0) {
+        this.listeners.splice(index, 1);
+      }
+    };
+  }
+
+  void cancel() {
+    if (this.cancellationRequested) {
+      return;
+    }
+    this.cancellationRequested = true;
+    (func()->void)[] snapshot = this.listeners.slice();
+    this.listeners = [];
+    int i = 0;
+    while (i < snapshot.length) {
+      snapshot[i]();
+      i = i + 1;
+    }
+  }
+}
+
+export class WaitForStateResult {
+  bool finished;
+  bool rejected;
+  JsValue value;
+  JsValue error;
+  func()->void disposeState;
+  func()->void disposeCancellation;
+
+  init() {
+    this.finished = false;
+    this.rejected = false;
+    this.value = 0;
+    this.error = 0;
+    this.disposeState = () => {};
+    this.disposeCancellation = () => {};
+  }
+
+  void resolve(JsValue value) {
+    if (this.finished) {
+      return;
+    }
+    this.finished = true;
+    this.value = value;
+    this.disposeState();
+    this.disposeCancellation();
+  }
+
+  void reject(JsValue error) {
+    if (this.finished) {
+      return;
+    }
+    this.finished = true;
+    this.rejected = true;
+    this.error = error;
+    this.disposeState();
+    this.disposeCancellation();
+  }
+
+  void dispose() {
+    this.disposeState();
+    this.disposeCancellation();
+  }
+}
+
+void evaluateWaitState(
+  WaitForStateResult result,
+  JsValue state,
+  func(JsValue)->bool predicate,
+  func(JsValue)->JsValue errorFn
+) {
+  if (result.finished) {
+    return;
+  }
+  JsValue error = errorFn(state);
+  if (error.truthy() || error is bool || error is float || error is string) {
+    if (error is bool) {
+      bool flag = error;
+      if (!flag) {
+        error = 0;
+      }
+    }
+  }
+  if (error.truthy()) {
+    result.reject(error);
+    return;
+  }
+  if (predicate(state)) {
+    result.resolve(state);
+  }
+}
+
+export WaitForStateResult waitForState(
+  WaitStateObservable observable,
+  func(JsValue)->bool predicate,
+  func(JsValue)->JsValue errorFn,
+  WaitCancellationToken cancellationToken
+) {
+  WaitForStateResult result = new WaitForStateResult();
+  JsValue current = observable.getFn();
+  evaluateWaitState(result, current, predicate, errorFn);
+  if (!result.finished) {
+    result.disposeState = observable.subscribeFn((JsValue state) => {
+      evaluateWaitState(result, state, predicate, errorFn);
+    });
+  }
+  result.disposeCancellation = cancellationToken.onCancellationRequested(
+    () => {
+      result.reject("CancellationError");
+    }
+  );
+  if (cancellationToken.cancellationRequested) {
+    result.reject("CancellationError");
+  }
+  return result;
+}
+
+export bool waitForDefined(JsValue state) {
+  return state.truthy() || state is bool || state is float || state is string;
+}
+
+export JsValue noWaitError(JsValue state) {
+  return 0;
+}

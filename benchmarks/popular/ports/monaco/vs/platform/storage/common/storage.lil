@@ -1,0 +1,75 @@
+export string TARGET_KEY = "__$__targetStorageMarker";
+export int WillSaveStateNone = 0;
+export int WillSaveStateShutdown = 1;
+
+export class StorageService {
+  string[] keys;
+  string[] values;
+  int[] targets;
+
+  init() {
+    this.keys = [];
+    this.values = [];
+    this.targets = [];
+  }
+
+  int indexOf(string key) {
+    int i = 0;
+    while (i < this.keys.length) {
+      if (this.keys[i] == key) {
+        return i;
+      }
+      i = i + 1;
+    }
+    return -1;
+  }
+
+  string get(string key, string fallback) {
+    int idx = this.indexOf(key);
+    if (idx >= 0) {
+      return this.values[idx];
+    }
+    return fallback;
+  }
+
+  void store(string key, string value, int target) {
+    int idx = this.indexOf(key);
+    if (idx >= 0) {
+      this.values[idx] = value;
+      this.targets[idx] = target;
+      return;
+    }
+    this.keys.push(key);
+    this.values.push(value);
+    this.targets.push(target);
+  }
+
+  bool remove(string key) {
+    int idx = this.indexOf(key);
+    if (idx < 0) {
+      return false;
+    }
+    string[] nextKeys = [];
+    string[] nextValues = [];
+    int[] nextTargets = [];
+    int i = 0;
+    while (i < this.keys.length) {
+      if (i != idx) {
+        nextKeys.push(this.keys[i]);
+        nextValues.push(this.values[i]);
+        nextTargets.push(this.targets[i]);
+      }
+      i = i + 1;
+    }
+    this.keys = nextKeys;
+    this.values = nextValues;
+    this.targets = nextTargets;
+    return true;
+  }
+}
+
+export StorageService createStorageService() {
+  return new StorageService();
+}
+
+export string IStorageServiceId = "storageService";

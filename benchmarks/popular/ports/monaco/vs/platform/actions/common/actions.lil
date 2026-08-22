@@ -1,0 +1,68 @@
+export class MenuId {
+  string id;
+
+  init(string id) {
+    this.id = id;
+  }
+}
+
+export class MenuItem {
+  string command;
+  string title;
+  string group;
+  string when;
+  int order;
+
+  init(string command, string title, string group, string when, int order) {
+    this.command = command;
+    this.title = title;
+    this.group = group;
+    this.when = when;
+    this.order = order;
+  }
+}
+
+export class MenuRegistryImpl {
+  MenuItem[] items;
+  MenuId[] ids;
+
+  init() {
+    this.items = [];
+    this.ids = [];
+  }
+
+  MenuId appendMenuItem(string menuId, string command, string title, string group, string when, int order) {
+    this.items.push(new MenuItem(command, title, group, when, order));
+    MenuId id = new MenuId(menuId);
+    this.ids.push(id);
+    return id;
+  }
+
+  MenuItem[] getMenuItems(string menuId) {
+    MenuItem[] out = [];
+    int i = 0;
+    while (i < this.items.length) {
+      out.push(this.items[i]);
+      i = i + 1;
+    }
+    return out;
+  }
+}
+
+MenuRegistryImpl menuRegistry = new MenuRegistryImpl();
+
+export MenuRegistryImpl getMenuRegistry() {
+  return menuRegistry;
+}
+
+export MenuId createMenuId(string id) {
+  return new MenuId(id);
+}
+
+export bool isIMenuItem(string command) {
+  return command.length > 0;
+}
+
+export bool isISubmenuItem(string submenu) {
+  return submenu.length > 0;
+}

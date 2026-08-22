@@ -1,0 +1,218 @@
+import { DEV } from "../dev-flag.lil";
+import {
+  setAdd,
+  setDelete,
+  toInt,
+  toNum,
+  sizeOf,
+  push,
+  len,
+  invoke0,
+  call1,
+  undef,
+  warn,
+  toStr,
+  error1,
+  splice1
+} from "../host.lil";
+import {
+  STALE,
+  POSSIBLY_STALE,
+  UP_TO_DATE,
+  MAX_REACTION_ITERATIONS
+} from "../constants.lil";
+import { globalState } from "./globalstate.lil";
+import { isComputedValue } from "./predicates.lil";
+
+export bool hasObservers(JsValue observable) {
+  return observable["observers_"].truthy() && observable["observers_"]["size"].truthy();
+}
+
+export JsValue getObservers(JsValue observable) {
+  return observable["observers_"];
+}
+
+export void addObserver(JsValue observable, JsValue node) {
+  setAdd(observable["observers_"], node);
+  if (toNum(observable["lowestObserverState_"]) > toNum(node["dependenciesState_"])) {
+    observable["lowestObserverState_"] = node["dependenciesState_"];
+  }
+}
+
+export void queueForUnobservation(JsValue observable) {
+  if (!observable["isPendingUnobservation"].truthy()) {
+    observable["isPendingUnobservation"] = true;
+    push(globalState["pendingUnobservations"], observable);
+  }
+}
+
+export void removeObserver(JsValue observable, JsValue node) {
+  setDelete(observable["observers_"], node);
+  if (!observable["observers_"]["size"].truthy()) {
+    queueForUnobservation(observable);
+  }
+}
+
+export void startBatch() {
+  globalState["inBatch"] = toNum(globalState["inBatch"]) + 1.0;
+}
+
+export void endBatch() {
+  globalState["inBatch"] = toNum(globalState["inBatch"]) - 1.0;
+  if (!globalState["inBatch"].truthy()) {
+    runReactions();
+    JsValue list = globalState["pendingUnobservations"];
+    int i = 0;
+    while (i < len(list)) {
+      JsValue observable = list[i];
+      observable["isPendingUnobservation"] = false;
+      if (!observable["observers_"]["size"].truthy()) {
+        if (observable["isBeingObserved"].truthy()) {
+          observable["isBeingObserved"] = false;
+          invoke0(observable, "onBUO");
+        }
+        if (isComputedValue(observable)) {
+          invoke0(observable, "suspend_");
+        }
+      }
+      i = i + 1;
+    }
+    globalState["pendingUnobservations"] = JS.array();
+  }
+}
+
+export void checkIfStateReadsAreAllowed(JsValue observable) {
+  if (DEV && !globalState["allowStateReads"].truthy() && globalState["observableRequiresReaction"].truthy()) {
+    warn("[mobx] Observable '" + toStr(observable["name_"]) + "' being read outside a reactive context.");
+  }
+}
+
+export bool reportObserved(JsValue observable) {
+  if (DEV && !globalState["allowStateReads"].truthy() && globalState["observableRequiresReaction"].truthy()) {
+    warn("[mobx] Observable '" + toStr(observable["name_"]) + "' being read outside a reactive context.");
+  }
+  JsValue derivation = globalState["trackingDerivation"];
+  if (!JS.isNullish(derivation)) {
+    if (!JS.strictEqual(derivation["runId_"], observable["lastAccessedBy_"])) {
+      observable["lastAccessedBy_"] = derivation["runId_"];
+      int count = toInt(derivation["unboundDepsCount_"]);
+      derivation["newObserving_"][count] = observable;
+      derivation["unboundDepsCount_"] = count + 1;
+      if (!observable["isBeingObserved"].truthy() && globalState["trackingContext"].truthy()) {
+        observable["isBeingObserved"] = true;
+        invoke0(observable, "onBO");
+      }
+    }
+    return observable["isBeingObserved"].truthy();
+  } else if (!observable["observers_"]["size"].truthy() && globalState["inBatch"].truthy()) {
+    queueForUnobservation(observable);
+  }
+  return false;
+}
+
+JsValue propagateChangedEach = JS.method1((JsValue _self, JsValue d) => {
+  if (!d["dependenciesState_"].truthy()) {
+    invoke0(d, "onBecomeStale_");
+  }
+  d["dependenciesState_"] = STALE;
+  return undef();
+});
+
+JsValue propagateMaybeChangedEach = JS.method1((JsValue _self, JsValue d) => {
+  if (!d["dependenciesState_"].truthy()) {
+    d["dependenciesState_"] = POSSIBLY_STALE;
+    invoke0(d, "onBecomeStale_");
+  }
+  return undef();
+});
+
+JsValue confirmedObservable = undef();
+JsValue propagateChangeConfirmedEach = JS.method1((JsValue _self, JsValue d) => {
+  JsValue state = d["dependenciesState_"];
+  if (JS.strictEqual(state, POSSIBLY_STALE)) {
+    d["dependenciesState_"] = STALE;
+  } else if (!state.truthy()) {
+    confirmedObservable["lowestObserverState_"] = UP_TO_DATE;
+  }
+  return undef();
+});
+
+export void propagateChanged(JsValue observable) {
+  if (JS.strictEqual(observable["lowestObserverState_"], STALE)) {
+    return;
+  }
+  observable["lowestObserverState_"] = STALE;
+  JS.invoke(observable["observers_"], "forEach", propagateChangedEach);
+}
+
+export void propagateChangeConfirmed(JsValue observable) {
+  if (JS.strictEqual(observable["lowestObserverState_"], STALE)) {
+    return;
+  }
+  observable["lowestObserverState_"] = STALE;
+  JsValue prev = confirmedObservable;
+  confirmedObservable = observable;
+  JS.invoke(observable["observers_"], "forEach", propagateChangeConfirmedEach);
+  confirmedObservable = prev;
+}
+
+export void reportChanged(JsValue observable) {
+  startBatch();
+  propagateChanged(observable);
+  endBatch();
+}
+
+export void propagateMaybeChanged(JsValue observable) {
+  if (observable["lowestObserverState_"].truthy()) {
+    return;
+  }
+  observable["lowestObserverState_"] = POSSIBLY_STALE;
+  JS.invoke(observable["observers_"], "forEach", propagateMaybeChangedEach);
+}
+
+JsValue reactionScheduler = (JsValue f) => {
+  return JS.call(f, undef());
+};
+
+JsValue runReactionsHelperFn = () => {
+  globalState["isRunningReactions"] = true;
+  JsValue allReactions = globalState["pendingReactions"];
+  int iterations = 0;
+  while (len(allReactions) > 0) {
+    iterations = iterations + 1;
+    if (iterations == MAX_REACTION_ITERATIONS) {
+      if (DEV) {
+        error1("Reaction doesn't converge to a stable state after 100 iterations. Probably there is a cycle in the reactive function: " + toStr(allReactions[0]));
+      } else {
+        error1("[mobx] cycle in reaction: " + toStr(allReactions[0]));
+      }
+      splice1(allReactions, 0, len(allReactions));
+    }
+    JsValue remainingReactions = splice1(allReactions, 0, len(allReactions));
+    int n = len(remainingReactions);
+    int i = 0;
+    while (i < n) {
+      invoke0(remainingReactions[i], "runReaction_");
+      i = i + 1;
+    }
+  }
+  globalState["isRunningReactions"] = false;
+  return undef();
+};
+
+export void runReactions() {
+  if (globalState["inBatch"].truthy() || globalState["isRunningReactions"].truthy()) {
+    return;
+  }
+  call1(reactionScheduler, undef(), runReactionsHelperFn);
+}
+
+export void setReactionScheduler(JsValue fn) {
+  JsValue baseScheduler = reactionScheduler;
+  reactionScheduler = (JsValue f) => {
+    JsValue wrapped = () => {
+      return call1(baseScheduler, undef(), f);
+    };
+    return call1(fn, undef(), wrapped);
+  };
+}

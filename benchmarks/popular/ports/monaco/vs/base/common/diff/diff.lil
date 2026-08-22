@@ -1,0 +1,198 @@
+export class DiffChange {
+  int originalStart;
+  int originalLength;
+  int modifiedStart;
+  int modifiedLength;
+
+  init(int originalStart, int originalLength, int modifiedStart, int modifiedLength) {
+    this.originalStart = originalStart;
+    this.originalLength = originalLength;
+    this.modifiedStart = modifiedStart;
+    this.modifiedLength = modifiedLength;
+  }
+
+  int getOriginalEnd() {
+    return this.originalStart + this.originalLength;
+  }
+
+  int getModifiedEnd() {
+    return this.modifiedStart + this.modifiedLength;
+  }
+}
+
+class FastInts {
+  int[] pos;
+  int[] neg;
+
+  init() {
+    this.pos = [0, 0, 0, 0, 0, 0, 0, 0];
+    this.neg = [0, 0, 0, 0, 0, 0, 0, 0];
+  }
+
+  int get(int idx) {
+    if (idx < 0) {
+      int i = 0 - idx - 1;
+      if (i >= this.neg.length) {
+        return 0;
+      }
+      return this.neg[i];
+    }
+    if (idx >= this.pos.length) {
+      return 0;
+    }
+    return this.pos[idx];
+  }
+
+  void set(int idx, int value) {
+    if (idx < 0) {
+      int i = 0 - idx - 1;
+      while (this.neg.length <= i) {
+        this.neg.push(0);
+      }
+      this.neg[i] = value;
+    } else {
+      while (this.pos.length <= idx) {
+        this.pos.push(0);
+      }
+      this.pos[idx] = value;
+    }
+  }
+}
+
+int snakeInt(int[] seqX, int[] seqY, int x, int y) {
+  while (x < seqX.length && y < seqY.length && seqX[x] == seqY[y]) {
+    x = x + 1;
+    y = y + 1;
+  }
+  return x;
+}
+
+export int[] stringElements(string source) {
+  int[] characters = [];
+  int i = 0;
+  while (i < source.length) {
+    characters.push(source.charCodeAt(i));
+    i = i + 1;
+  }
+  return characters;
+}
+
+export DiffChange[] computeIntDiff(int[] original, int[] modified) {
+  DiffChange[] result = [];
+  if (original.length == 0 && modified.length == 0) {
+    return result;
+  }
+  if (original.length == 0) {
+    result.push(new DiffChange(0, 0, 0, modified.length));
+    return result;
+  }
+  if (modified.length == 0) {
+    result.push(new DiffChange(0, original.length, 0, 0));
+    return result;
+  }
+  FastInts v = new FastInts();
+  v.set(1, 0);
+  int n = original.length;
+  int m = modified.length;
+  int max = n + m;
+  int d = 0;
+  while (d <= max) {
+    int k = 0 - d;
+    while (k <= d) {
+      int x = 0;
+      if (k == 0 - d || (k != d && v.get(k - 1) < v.get(k + 1))) {
+        x = v.get(k + 1);
+      } else {
+        x = v.get(k - 1) + 1;
+      }
+      int y = x - k;
+      x = snakeInt(original, modified, x, y);
+      y = x - k;
+      v.set(k, x);
+      if (x >= n && y >= m) {
+        result.push(new DiffChange(0, 0, 0, 0));
+        return stringDiffChanges(original, modified);
+      }
+      k = k + 2;
+    }
+    d = d + 1;
+  }
+  return stringDiffChanges(original, modified);
+}
+
+DiffChange[] stringDiffChanges(int[] original, int[] modified) {
+  DiffChange[] changes = [];
+  int i = 0;
+  int j = 0;
+  while (i < original.length || j < modified.length) {
+    if (i < original.length && j < modified.length && original[i] == modified[j]) {
+      i = i + 1;
+      j = j + 1;
+    } else {
+      int origStart = i;
+      int modStart = j;
+      while (i < original.length && (j >= modified.length || original[i] != modified[j])) {
+        bool found = false;
+        int look = j;
+        while (look < modified.length) {
+          if (original[i] == modified[look]) {
+            found = true;
+            break;
+          }
+          look = look + 1;
+        }
+        if (found && look == j) {
+          break;
+        }
+        if (!found) {
+          i = i + 1;
+        } else {
+          break;
+        }
+      }
+      while (j < modified.length && (i >= original.length || original[i] != modified[j])) {
+        bool found = false;
+        int look = i;
+        while (look < original.length) {
+          if (modified[j] == original[look]) {
+            found = true;
+            break;
+          }
+          look = look + 1;
+        }
+        if (found && look == i) {
+          break;
+        }
+        if (!found) {
+          j = j + 1;
+        } else {
+          break;
+        }
+      }
+      int origLen = i - origStart;
+      int modLen = j - modStart;
+      if (origLen > 0 || modLen > 0) {
+        changes.push(new DiffChange(origStart, origLen, modStart, modLen));
+      }
+    }
+  }
+  return changes;
+}
+
+export DiffChange[] stringDiff(string original, string modified) {
+  return computeIntDiff(stringElements(original), stringElements(modified));
+}
+
+export class LcsDiff {
+  int[] original;
+  int[] modified;
+
+  init(int[] original, int[] modified) {
+    this.original = original;
+    this.modified = modified;
+  }
+
+  DiffChange[] ComputeDiff() {
+    return computeIntDiff(this.original, this.modified);
+  }
+}

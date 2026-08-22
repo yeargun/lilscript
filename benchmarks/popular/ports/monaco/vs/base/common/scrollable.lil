@@ -1,0 +1,189 @@
+export class ScrollState {
+  bool forceIntegerValues;
+  int width;
+  int scrollWidth;
+  int scrollLeft;
+  int height;
+  int scrollHeight;
+  int scrollTop;
+  int rawScrollLeft;
+  int rawScrollTop;
+
+  init(bool forceIntegerValues, int width, int scrollWidth, int scrollLeft, int height, int scrollHeight, int scrollTop) {
+    this.forceIntegerValues = forceIntegerValues;
+    int w = width;
+    int sw = scrollWidth;
+    int sl = scrollLeft;
+    int h = height;
+    int sh = scrollHeight;
+    int st = scrollTop;
+    if (forceIntegerValues) {
+      w = w | 0;
+      sw = sw | 0;
+      sl = sl | 0;
+      h = h | 0;
+      sh = sh | 0;
+      st = st | 0;
+    }
+    this.rawScrollLeft = sl;
+    this.rawScrollTop = st;
+    if (w < 0) {
+      w = 0;
+    }
+    if (sl + w > sw) {
+      sl = sw - w;
+    }
+    if (sl < 0) {
+      sl = 0;
+    }
+    if (h < 0) {
+      h = 0;
+    }
+    if (st + h > sh) {
+      st = sh - h;
+    }
+    if (st < 0) {
+      st = 0;
+    }
+    this.width = w;
+    this.scrollWidth = sw;
+    this.scrollLeft = sl;
+    this.height = h;
+    this.scrollHeight = sh;
+    this.scrollTop = st;
+  }
+
+  bool equals(ScrollState other) {
+    return this.rawScrollLeft == other.rawScrollLeft && this.rawScrollTop == other.rawScrollTop && this.width == other.width && this.scrollWidth == other.scrollWidth && this.scrollLeft == other.scrollLeft && this.height == other.height && this.scrollHeight == other.scrollHeight && this.scrollTop == other.scrollTop;
+  }
+
+  ScrollState withScrollDimensions(int width, int scrollWidth, int height, int scrollHeight, bool useRawScrollPositions) {
+    int sl = this.scrollLeft;
+    int st = this.scrollTop;
+    if (useRawScrollPositions) {
+      sl = this.rawScrollLeft;
+      st = this.rawScrollTop;
+    }
+    int w = width;
+    int sw = scrollWidth;
+    int h = height;
+    int sh = scrollHeight;
+    if (w < 0) {
+      w = this.width;
+    }
+    if (sw < 0) {
+      sw = this.scrollWidth;
+    }
+    if (h < 0) {
+      h = this.height;
+    }
+    if (sh < 0) {
+      sh = this.scrollHeight;
+    }
+    return new ScrollState(this.forceIntegerValues, w, sw, sl, h, sh, st);
+  }
+
+  ScrollState withScrollPosition(int scrollLeft, int scrollTop) {
+    int sl = scrollLeft;
+    int st = scrollTop;
+    if (sl < 0) {
+      sl = this.rawScrollLeft;
+    }
+    if (st < 0) {
+      st = this.rawScrollTop;
+    }
+    return new ScrollState(this.forceIntegerValues, this.width, this.scrollWidth, sl, this.height, this.scrollHeight, st);
+  }
+}
+
+export class SmoothScrollingOperation {
+  ScrollState from;
+  ScrollState to;
+  float startTime;
+  float duration;
+
+  init(ScrollState from, ScrollState to, float startTime, float duration) {
+    this.from = from;
+    this.to = to;
+    this.startTime = startTime;
+    this.duration = duration;
+  }
+
+  float ease(float t) {
+    if (t < 0.0) {
+      return 0.0;
+    }
+    if (t > 1.0) {
+      return 1.0;
+    }
+    return t * t * t;
+  }
+
+  ScrollState tick(float now) {
+    float completion = (now - this.startTime) / this.duration;
+    float t = this.ease(completion);
+    int sl = this.from.scrollLeft + ((this.to.scrollLeft - this.from.scrollLeft) * 1.0 * t).floor().toInt();
+    int st = this.from.scrollTop + ((this.to.scrollTop - this.from.scrollTop) * 1.0 * t).floor().toInt();
+    return this.from.withScrollPosition(sl, st);
+  }
+
+  bool isDone(float now) {
+    return now - this.startTime >= this.duration;
+  }
+}
+
+export class Scrollable {
+  ScrollState state;
+  int smoothScrollDuration;
+  SmoothScrollingOperation? animation;
+
+  init(bool forceIntegerValues, int smoothScrollDuration) {
+    this.state = new ScrollState(forceIntegerValues, 0, 0, 0, 0, 0, 0);
+    this.smoothScrollDuration = smoothScrollDuration;
+    this.animation = null;
+  }
+
+  ScrollState getScrollDimensions() {
+    return this.state;
+  }
+
+  ScrollState getCurrentScrollPosition() {
+    return this.state;
+  }
+
+  void setScrollDimensions(int width, int scrollWidth, int height, int scrollHeight, bool useRaw) {
+    this.state = this.state.withScrollDimensions(width, scrollWidth, height, scrollHeight, useRaw);
+  }
+
+  void setScrollPositionNow(int scrollLeft, int scrollTop) {
+    this.animation = null;
+    this.state = this.state.withScrollPosition(scrollLeft, scrollTop);
+  }
+
+  void setScrollPositionSmooth(int scrollLeft, int scrollTop, float now) {
+    if (this.smoothScrollDuration == 0) {
+      this.setScrollPositionNow(scrollLeft, scrollTop);
+      return;
+    }
+    ScrollState target = this.state.withScrollPosition(scrollLeft, scrollTop);
+    this.animation = new SmoothScrollingOperation(this.state, target, now, this.smoothScrollDuration * 1.0);
+  }
+
+  bool hasPendingScrollAnimation() {
+    return this.animation != null;
+  }
+
+  void performSmoothScrolling(float now) {
+    SmoothScrollingOperation? current = this.animation;
+    if (current == null) {
+      return;
+    }
+    SmoothScrollingOperation op = current;
+    if (op.isDone(now)) {
+      this.state = op.to;
+      this.animation = null;
+    } else {
+      this.state = op.tick(now);
+    }
+  }
+}

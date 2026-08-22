@@ -1,0 +1,149 @@
+int imax(int a, int b) {
+  if (a > b) {
+    return a;
+  }
+  return b;
+}
+
+export class CursorLine {
+  int lineNumber;
+  int column;
+  bool empty;
+
+  init(int lineNumber, int column, bool empty) {
+    this.lineNumber = lineNumber;
+    this.column = column;
+    this.empty = empty;
+  }
+}
+
+export class LineHighlight {
+  int lineNumber;
+  int y;
+  int width;
+  string className;
+  bool exact;
+
+  init(int lineNumber, int y, int width, string className, bool exact) {
+    this.lineNumber = lineNumber;
+    this.y = y;
+    this.width = width;
+    this.className = className;
+    this.exact = exact;
+  }
+}
+
+export class CurrentLineHighlightOverlay {
+  string renderLineHighlight;
+  bool renderLineHighlightOnlyWhenFocus;
+  bool wordWrap;
+  int contentLeft;
+  int contentWidth;
+  bool selectionIsEmpty;
+  bool focused;
+  int[] cursorLineNumbers;
+
+  init(string renderLineHighlight, bool renderLineHighlightOnlyWhenFocus, bool wordWrap, int contentLeft, int contentWidth) {
+    this.renderLineHighlight = renderLineHighlight;
+    this.renderLineHighlightOnlyWhenFocus = renderLineHighlightOnlyWhenFocus;
+    this.wordWrap = wordWrap;
+    this.contentLeft = contentLeft;
+    this.contentWidth = contentWidth;
+    this.selectionIsEmpty = true;
+    this.focused = false;
+    this.cursorLineNumbers = [1];
+  }
+
+  bool readFromSelections(CursorLine[] selections) {
+    int[] lineNumbers = [];
+    bool selectionIsEmpty = true;
+    int i = 0;
+    while (i < selections.length) {
+      CursorLine selection = selections[i];
+      bool seen = false;
+      int j = 0;
+      while (j < lineNumbers.length) {
+        if (lineNumbers[j] == selection.lineNumber) {
+          seen = true;
+          break;
+        }
+        j = j + 1;
+      }
+      if (!seen) {
+        lineNumbers.push(selection.lineNumber);
+      }
+      if (!selection.empty) {
+        selectionIsEmpty = false;
+      }
+      i = i + 1;
+    }
+    int k = 1;
+    while (k < lineNumbers.length) {
+      int key = lineNumbers[k];
+      int j = k - 1;
+      while (j >= 0 && lineNumbers[j] > key) {
+        lineNumbers[j + 1] = lineNumbers[j];
+        j = j - 1;
+      }
+      lineNumbers[j + 1] = key;
+      k = k + 1;
+    }
+    this.cursorLineNumbers = lineNumbers;
+    this.selectionIsEmpty = selectionIsEmpty;
+    return true;
+  }
+
+  bool shouldRenderInMargin() {
+    if (this.renderLineHighlight != "gutter" && this.renderLineHighlight != "all") {
+      return false;
+    }
+    if (this.renderLineHighlightOnlyWhenFocus && !this.focused) {
+      return false;
+    }
+    return true;
+  }
+
+  bool shouldRenderInContent() {
+    if (this.renderLineHighlight != "line" && this.renderLineHighlight != "all") {
+      return false;
+    }
+    if (!this.selectionIsEmpty) {
+      return false;
+    }
+    if (this.renderLineHighlightOnlyWhenFocus && !this.focused) {
+      return false;
+    }
+    return true;
+  }
+
+  LineHighlight[] prepareRender(int visibleStartLineNumber, int visibleEndLineNumber, int lineHeight, int scrollTop, int scrollWidth) {
+    LineHighlight[] result = [];
+    if (!this.shouldRenderInContent()) {
+      return result;
+    }
+    int width = imax(scrollWidth, this.contentWidth);
+    int i = 0;
+    while (i < this.cursorLineNumbers.length) {
+      int cursorLineNumber = this.cursorLineNumbers[i];
+      if (cursorLineNumber >= visibleStartLineNumber && cursorLineNumber <= visibleEndLineNumber) {
+        int y = (cursorLineNumber - 1) * lineHeight - scrollTop;
+        string className = "current-line";
+        if (this.shouldRenderInMargin()) {
+          className = className + " current-line-both";
+        }
+        className = className + " current-line-exact";
+        result.push(new LineHighlight(cursorLineNumber, y, width, className, true));
+      }
+      i = i + 1;
+    }
+    return result;
+  }
+}
+
+export CursorLine createCursorLine(int lineNumber, int column, bool empty) {
+  return new CursorLine(lineNumber, column, empty);
+}
+
+export CurrentLineHighlightOverlay createCurrentLineHighlightOverlay(string renderLineHighlight, bool renderLineHighlightOnlyWhenFocus, bool wordWrap, int contentLeft, int contentWidth) {
+  return new CurrentLineHighlightOverlay(renderLineHighlight, renderLineHighlightOnlyWhenFocus, wordWrap, contentLeft, contentWidth);
+}

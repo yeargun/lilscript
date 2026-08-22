@@ -1,0 +1,412 @@
+export int FOLD_SOURCE_PROVIDER = 0;
+export int FOLD_SOURCE_USER = 1;
+export int FOLD_SOURCE_RECOVERED = 2;
+export int MAX_FOLDING_REGIONS = 65535;
+export int MAX_LINE_NUMBER = 16777215;
+export int MASK_INDENT = -16777216;
+
+export string foldSourceAbbr(int source) {
+  if (source == FOLD_SOURCE_USER) {
+    return "u";
+  }
+  if (source == FOLD_SOURCE_RECOVERED) {
+    return "r";
+  }
+  return " ";
+}
+
+export class BitField {
+  int[] states;
+  int size;
+
+  init(int size) {
+    this.size = size;
+    int words = (size + 31) / 32;
+    this.states = [];
+    int i = 0;
+    while (i < words) {
+      this.states.push(0);
+      i = i + 1;
+    }
+  }
+
+  bool get(int index) {
+    int arrayIndex = index / 32;
+    int bit = index % 32;
+    if (arrayIndex < 0 || arrayIndex >= this.states.length) {
+      return false;
+    }
+    return (this.states[arrayIndex] & (1 << bit)) != 0;
+  }
+
+  void set(int index, bool newState) {
+    int arrayIndex = index / 32;
+    int bit = index % 32;
+    if (arrayIndex < 0 || arrayIndex >= this.states.length) {
+      return;
+    }
+    int value = this.states[arrayIndex];
+    int mask = 1 << bit;
+    if (newState) {
+      this.states[arrayIndex] = value | mask;
+    } else {
+      this.states[arrayIndex] = value & (mask ^ -1);
+    }
+  }
+}
+
+export class FoldRange {
+  int startLineNumber;
+  int endLineNumber;
+  string typeName;
+  bool isCollapsed;
+  int source;
+
+  init(int startLineNumber, int endLineNumber, string typeName, bool isCollapsed, int source) {
+    this.startLineNumber = startLineNumber;
+    this.endLineNumber = endLineNumber;
+    this.typeName = typeName;
+    this.isCollapsed = isCollapsed;
+    this.source = source;
+  }
+}
+
+export class FoldingRegions {
+  int[] startIndexes;
+  int[] endIndexes;
+  string[] types;
+  bool hasTypes;
+  BitField collapseStates;
+  BitField userDefinedStates;
+  BitField recoveredStates;
+  bool parentsComputed;
+
+  init(int[] startIndexes, int[] endIndexes, string[] types, bool hasTypes) {
+    this.startIndexes = startIndexes;
+    this.endIndexes = endIndexes;
+    this.types = types;
+    this.hasTypes = hasTypes;
+    this.collapseStates = new BitField(startIndexes.length);
+    this.userDefinedStates = new BitField(startIndexes.length);
+    this.recoveredStates = new BitField(startIndexes.length);
+    this.parentsComputed = false;
+  }
+
+  int length() {
+    return this.startIndexes.length;
+  }
+
+  int getStartLineNumber(int index) {
+    return this.startIndexes[index] & MAX_LINE_NUMBER;
+  }
+
+  int getEndLineNumber(int index) {
+    return this.endIndexes[index] & MAX_LINE_NUMBER;
+  }
+
+  string getType(int index) {
+    if (!this.hasTypes || index < 0 || index >= this.types.length) {
+      return "";
+    }
+    return this.types[index];
+  }
+
+  bool isCollapsed(int index) {
+    return this.collapseStates.get(index);
+  }
+
+  void setCollapsed(int index, bool newState) {
+    this.collapseStates.set(index, newState);
+  }
+
+  bool isUserDefined(int index) {
+    return this.userDefinedStates.get(index);
+  }
+
+  void setUserDefined(int index, bool newState) {
+    this.userDefinedStates.set(index, newState);
+  }
+
+  bool isRecovered(int index) {
+    return this.recoveredStates.get(index);
+  }
+
+  void setRecovered(int index, bool newState) {
+    this.recoveredStates.set(index, newState);
+  }
+
+  int getSource(int index) {
+    if (this.isUserDefined(index)) {
+      return FOLD_SOURCE_USER;
+    }
+    if (this.isRecovered(index)) {
+      return FOLD_SOURCE_RECOVERED;
+    }
+    return FOLD_SOURCE_PROVIDER;
+  }
+
+  void setSource(int index, int source) {
+    if (source == FOLD_SOURCE_USER) {
+      this.setUserDefined(index, true);
+      this.setRecovered(index, false);
+    } else if (source == FOLD_SOURCE_RECOVERED) {
+      this.setUserDefined(index, false);
+      this.setRecovered(index, true);
+    } else {
+      this.setUserDefined(index, false);
+      this.setRecovered(index, false);
+    }
+  }
+
+  bool setCollapsedAllOfType(string typeName, bool newState) {
+    bool changed = false;
+    if (!this.hasTypes) {
+      return false;
+    }
+    int i = 0;
+    while (i < this.types.length) {
+      if (this.types[i] == typeName) {
+        this.setCollapsed(i, newState);
+        changed = true;
+      }
+      i = i + 1;
+    }
+    return changed;
+  }
+
+  void ensureParentIndices() {
+    if (this.parentsComputed) {
+      return;
+    }
+    this.parentsComputed = true;
+    int[] parentIndexes = [];
+    int i = 0;
+    while (i < this.startIndexes.length) {
+      int startLineNumber = this.startIndexes[i];
+      int endLineNumber = this.endIndexes[i];
+      while (parentIndexes.length > 0) {
+        int last = parentIndexes[parentIndexes.length - 1];
+        int lastStart = this.getStartLineNumber(last);
+        int lastEnd = this.getEndLineNumber(last);
+        if (lastStart <= startLineNumber && lastEnd >= endLineNumber) {
+          break;
+        }
+        parentIndexes.splice(parentIndexes.length - 1, 1);
+      }
+      int parentIndex = -1;
+      if (parentIndexes.length > 0) {
+        parentIndex = parentIndexes[parentIndexes.length - 1];
+      }
+      parentIndexes.push(i);
+      this.startIndexes[i] = startLineNumber + ((parentIndex & 255) << 24);
+      this.endIndexes[i] = endLineNumber + ((parentIndex & 65280) << 16);
+      i = i + 1;
+    }
+  }
+
+  int getParentIndex(int index) {
+    this.ensureParentIndices();
+    int parent = ((this.startIndexes[index] & MASK_INDENT) >>> 24) + ((this.endIndexes[index] & MASK_INDENT) >>> 16);
+    if (parent == MAX_FOLDING_REGIONS) {
+      return -1;
+    }
+    return parent;
+  }
+
+  bool containsLine(int index, int line) {
+    return this.getStartLineNumber(index) <= line && this.getEndLineNumber(index) >= line;
+  }
+
+  int foldIndexAt(int line) {
+    int low = 0;
+    int high = this.startIndexes.length;
+    if (high == 0) {
+      return -1;
+    }
+    while (low < high) {
+      int mid = (low + high) / 2;
+      if (line < this.getStartLineNumber(mid)) {
+        high = mid;
+      } else {
+        low = mid + 1;
+      }
+    }
+    return low - 1;
+  }
+
+  int findRange(int line) {
+    int index = this.foldIndexAt(line);
+    if (index >= 0) {
+      if (this.getEndLineNumber(index) >= line) {
+        return index;
+      }
+      index = this.getParentIndex(index);
+      while (index != -1) {
+        if (this.containsLine(index, line)) {
+          return index;
+        }
+        index = this.getParentIndex(index);
+      }
+    }
+    return -1;
+  }
+
+  FoldRange toFoldRange(int index) {
+    return new FoldRange(
+      this.getStartLineNumber(index),
+      this.getEndLineNumber(index),
+      this.getType(index),
+      this.isCollapsed(index),
+      this.getSource(index)
+    );
+  }
+
+  void collapseAll() {
+    int i = 0;
+    while (i < this.length()) {
+      this.setCollapsed(i, true);
+      i = i + 1;
+    }
+  }
+
+  void expandAll() {
+    int i = 0;
+    while (i < this.length()) {
+      this.setCollapsed(i, false);
+      i = i + 1;
+    }
+  }
+}
+
+export FoldingRegions createFoldingRegions(int[] startIndexes, int[] endIndexes) {
+  string[] types = [];
+  return new FoldingRegions(startIndexes, endIndexes, types, false);
+}
+
+export FoldingRegions foldingRegionsFromRanges(FoldRange[] ranges) {
+  int[] starts = [];
+  int[] ends = [];
+  string[] types = [];
+  bool gotTypes = false;
+  int i = 0;
+  while (i < ranges.length) {
+    starts.push(ranges[i].startLineNumber);
+    ends.push(ranges[i].endLineNumber);
+    types.push(ranges[i].typeName);
+    if (ranges[i].typeName.length > 0) {
+      gotTypes = true;
+    }
+    i = i + 1;
+  }
+  FoldingRegions regions = new FoldingRegions(starts, ends, types, gotTypes);
+  i = 0;
+  while (i < ranges.length) {
+    if (ranges[i].isCollapsed) {
+      regions.setCollapsed(i, true);
+    }
+    regions.setSource(i, ranges[i].source);
+    i = i + 1;
+  }
+  return regions;
+}
+
+bool rangeValid(FoldRange useRange, int prevLineNumber, int maxLineNumber, FoldRange? topStacked) {
+  if (useRange.endLineNumber <= useRange.startLineNumber) {
+    return false;
+  }
+  if (useRange.startLineNumber <= prevLineNumber) {
+    return false;
+  }
+  if (useRange.endLineNumber > maxLineNumber) {
+    return false;
+  }
+  if (topStacked != null && topStacked.endLineNumber < useRange.endLineNumber) {
+    return false;
+  }
+  return true;
+}
+
+export FoldRange[] sanitizeAndMerge(FoldRange[] rangesA, FoldRange[] rangesB, int maxLineNumber) {
+  FoldRange[] result = [];
+  FoldRange[] stacked = [];
+  int indexA = 0;
+  int indexB = 0;
+  int prevLineNumber = 0;
+  FoldRange? topStacked = null;
+  while (indexA < rangesA.length || indexB < rangesB.length) {
+    FoldRange? nextA = null;
+    FoldRange? nextB = null;
+    if (indexA < rangesA.length) {
+      nextA = rangesA[indexA];
+    }
+    if (indexB < rangesB.length) {
+      nextB = rangesB[indexB];
+    }
+    FoldRange? useRange = null;
+    if (nextB != null && (nextA == null || nextA.startLineNumber >= nextB.startLineNumber)) {
+      FoldRange bRange = nextB;
+      if (nextA != null && nextA.startLineNumber == bRange.startLineNumber) {
+        FoldRange aRange = nextA;
+        if (bRange.source == FOLD_SOURCE_USER) {
+          useRange = bRange;
+        } else {
+          bool sameSize = aRange.endLineNumber == bRange.endLineNumber;
+          aRange.isCollapsed = bRange.isCollapsed && sameSize;
+          aRange.source = FOLD_SOURCE_PROVIDER;
+          useRange = aRange;
+        }
+        indexA = indexA + 1;
+      } else {
+        if (bRange.isCollapsed && bRange.source == FOLD_SOURCE_PROVIDER) {
+          bRange.source = FOLD_SOURCE_RECOVERED;
+        }
+        useRange = bRange;
+      }
+      indexB = indexB + 1;
+    } else if (nextA != null) {
+      FoldRange aRange = nextA;
+      useRange = aRange;
+      int scan = indexB;
+      while (scan < rangesB.length) {
+        FoldRange prescan = rangesB[scan];
+        if (prescan.startLineNumber > aRange.endLineNumber) {
+          break;
+        }
+        if (prescan.source == FOLD_SOURCE_USER && prescan.endLineNumber > aRange.endLineNumber) {
+          useRange = null;
+          break;
+        }
+        scan = scan + 1;
+      }
+      indexA = indexA + 1;
+    }
+    if (useRange != null) {
+      FoldRange chosen = useRange;
+      while (topStacked != null && topStacked.endLineNumber < chosen.startLineNumber) {
+        if (stacked.length == 0) {
+          topStacked = null;
+        } else {
+          topStacked = stacked[stacked.length - 1];
+          stacked.splice(stacked.length - 1, 1);
+        }
+      }
+      if (rangeValid(chosen, prevLineNumber, maxLineNumber, topStacked)) {
+        result.push(chosen);
+        prevLineNumber = chosen.startLineNumber;
+        if (topStacked != null) {
+          stacked.push(topStacked);
+        }
+        topStacked = chosen;
+      }
+    }
+  }
+  return result;
+}
+
+export BitField createBitField(int size) {
+  return new BitField(size);
+}
+
+export FoldRange createFoldRange(int startLine, int endLine, bool collapsed) {
+  return new FoldRange(startLine, endLine, "", collapsed, FOLD_SOURCE_PROVIDER);
+}

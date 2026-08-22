@@ -1,0 +1,82 @@
+export class DiffEditorExperimentalOptions {
+  bool showMoves;
+  bool showEmptyDecorations;
+  bool useTrueInlineView;
+
+  init() {
+    this.showMoves = false;
+    this.showEmptyDecorations = true;
+    this.useTrueInlineView = false;
+  }
+}
+
+export class DiffEditorHideUnchangedRegionsOptions {
+  bool enabled;
+  int contextLineCount;
+  int minimumLineCount;
+  int revealLineCount;
+
+  init() {
+    this.enabled = false;
+    this.contextLineCount = 3;
+    this.minimumLineCount = 3;
+    this.revealLineCount = 20;
+  }
+}
+
+export class DiffEditorDefaultOptions {
+  bool enableSplitViewResizing;
+  float splitViewDefaultRatio;
+  bool renderSideBySide;
+  bool renderMarginRevertIcon;
+  bool renderGutterMenu;
+  int maxComputationTime;
+  int maxFileSize;
+  bool ignoreTrimWhitespace;
+  bool renderIndicators;
+  bool originalEditable;
+  bool diffCodeLens;
+  bool renderOverviewRuler;
+  string diffWordWrap;
+  string diffAlgorithm;
+  bool accessibilityVerbose;
+  DiffEditorExperimentalOptions experimental;
+  DiffEditorHideUnchangedRegionsOptions hideUnchangedRegions;
+  bool isInEmbeddedEditor;
+  bool onlyShowAccessibleDiffViewer;
+  int renderSideBySideInlineBreakpoint;
+  bool useInlineViewWhenSpaceIsLimited;
+  bool compactMode;
+
+  init() {
+    this.enableSplitViewResizing = true;
+    this.splitViewDefaultRatio = 0.5;
+    this.renderSideBySide = true;
+    this.renderMarginRevertIcon = true;
+    this.renderGutterMenu = true;
+    this.maxComputationTime = 5000;
+    this.maxFileSize = 50;
+    this.ignoreTrimWhitespace = true;
+    this.renderIndicators = true;
+    this.originalEditable = false;
+    this.diffCodeLens = false;
+    this.renderOverviewRuler = true;
+    this.diffWordWrap = "inherit";
+    this.diffAlgorithm = "advanced";
+    this.accessibilityVerbose = false;
+    this.experimental = new DiffEditorExperimentalOptions();
+    this.hideUnchangedRegions = new DiffEditorHideUnchangedRegionsOptions();
+    this.isInEmbeddedEditor = false;
+    this.onlyShowAccessibleDiffViewer = false;
+    this.renderSideBySideInlineBreakpoint = 900;
+    this.useInlineViewWhenSpaceIsLimited = true;
+    this.compactMode = false;
+  }
+}
+
+export DiffEditorDefaultOptions diffEditorDefaultOptions =
+  new DiffEditorDefaultOptions();
+
+export DiffEditorDefaultOptions createDiffEditorDefaultOptions() {
+  return new DiffEditorDefaultOptions();
+}

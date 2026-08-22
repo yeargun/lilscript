@@ -1,0 +1,268 @@
+export class OverlayLine {
+  string renderedContent;
+  int top;
+  int height;
+  bool hasDom;
+
+  init() {
+    this.renderedContent = "";
+    this.top = 0;
+    this.height = 0;
+    this.hasDom = false;
+  }
+}
+
+export class OverlayHost {
+  bool needsRender;
+  bool focused;
+  OverlayLine[] lines;
+  int startLineNumber;
+  int contentWidth;
+  int contentLeft;
+  int scrollWidth;
+  int scrollHeight;
+  string className;
+  int width;
+  int height;
+  string[] overlayHtml;
+
+  init() {
+    this.needsRender = true;
+    this.focused = false;
+    this.lines = [];
+    this.startLineNumber = 1;
+    this.contentWidth = 0;
+    this.contentLeft = 0;
+    this.scrollWidth = 0;
+    this.scrollHeight = 0;
+    this.className = "view-overlays";
+    this.width = 0;
+    this.height = 0;
+    this.overlayHtml = [];
+  }
+}
+
+export class DynamicOverlay {
+  bool needsRender;
+  bool disposed;
+  string className;
+
+  init(string className) {
+    this.needsRender = true;
+    this.disposed = false;
+    this.className = className;
+  }
+
+  bool shouldRender() {
+    return this.needsRender;
+  }
+
+  void onDidRender() {
+    this.needsRender = false;
+  }
+
+  void dispose() {
+    this.disposed = true;
+    this.needsRender = false;
+  }
+
+  void prepareRender() {
+    this.needsRender = true;
+  }
+
+  string render(int startLineNumber, int lineNumber) {
+    return "<div class=\"" + this.className + "\" data-line=\"" + lineNumber.toString() + "\"></div>";
+  }
+}
+
+export class ViewOverlays {
+  OverlayHost host;
+  DynamicOverlay[] dynamicOverlays;
+  int lineHeight;
+
+  init(int lineHeight = 18) {
+    this.host = new OverlayHost();
+    this.dynamicOverlays = [];
+    this.lineHeight = lineHeight;
+  }
+
+  bool shouldRender() {
+    if (this.host.needsRender) {
+      return true;
+    }
+    int i = 0;
+    while (i < this.dynamicOverlays.length) {
+      if (this.dynamicOverlays[i].shouldRender()) {
+        return true;
+      }
+      i = i + 1;
+    }
+    return false;
+  }
+
+  void dispose() {
+    int i = 0;
+    while (i < this.dynamicOverlays.length) {
+      this.dynamicOverlays[i].dispose();
+      i = i + 1;
+    }
+    this.dynamicOverlays = [];
+  }
+
+  void addDynamicOverlay(DynamicOverlay overlay) {
+    this.dynamicOverlays.push(overlay);
+  }
+
+  bool onConfigurationChanged(int contentWidth, int contentLeft) {
+    this.host.contentWidth = contentWidth;
+    this.host.contentLeft = contentLeft;
+    this.host.needsRender = true;
+    return true;
+  }
+
+  bool onFlushed() {
+    this.host.lines = [];
+    this.host.needsRender = true;
+    return true;
+  }
+
+  bool onFocusChanged(bool isFocused) {
+    this.host.focused = isFocused;
+    this.host.needsRender = true;
+    return true;
+  }
+
+  bool onLinesChanged() {
+    this.host.needsRender = true;
+    return true;
+  }
+
+  bool onLinesDeleted() {
+    this.host.needsRender = true;
+    return true;
+  }
+
+  bool onLinesInserted() {
+    this.host.needsRender = true;
+    return true;
+  }
+
+  bool onScrollChanged(int scrollWidth, int scrollHeight, bool scrollTopChanged) {
+    this.host.scrollWidth = scrollWidth;
+    this.host.scrollHeight = scrollHeight;
+    this.host.needsRender = true;
+    return true;
+  }
+
+  bool onTokensChanged() {
+    this.host.needsRender = true;
+    return true;
+  }
+
+  bool onZonesChanged() {
+    this.host.needsRender = true;
+    return true;
+  }
+
+  void prepareRender(int startLineNumber, int endLineNumber) {
+    int i = 0;
+    while (i < this.dynamicOverlays.length) {
+      DynamicOverlay overlay = this.dynamicOverlays[i];
+      if (overlay.shouldRender()) {
+        overlay.prepareRender();
+        overlay.onDidRender();
+      }
+      i = i + 1;
+    }
+    this.host.startLineNumber = startLineNumber;
+  }
+
+  string renderOverlayLine(int lineNumber, int deltaTop, int lineHeight) {
+    string result = "";
+    int i = 0;
+    while (i < this.dynamicOverlays.length) {
+      result = result + this.dynamicOverlays[i].render(this.host.startLineNumber, lineNumber);
+      i = i + 1;
+    }
+    return "<div style=\"top:" + deltaTop.toString() + "px;height:" + lineHeight.toString() + "px;line-height:" + lineHeight.toString() + "px;\">" + result + "</div>";
+  }
+
+  void renderLines(int startLineNumber, int endLineNumber) {
+    this.host.lines = [];
+    this.host.overlayHtml = [];
+    int lineNumber = startLineNumber;
+    int index = 0;
+    while (lineNumber <= endLineNumber) {
+      OverlayLine line = new OverlayLine();
+      int deltaTop = index * this.lineHeight;
+      string html = this.renderOverlayLine(lineNumber, deltaTop, this.lineHeight);
+      line.renderedContent = html;
+      line.top = deltaTop;
+      line.height = this.lineHeight;
+      line.hasDom = true;
+      this.host.lines.push(line);
+      this.host.overlayHtml.push(html);
+      lineNumber = lineNumber + 1;
+      index = index + 1;
+    }
+    this.host.needsRender = false;
+    if (this.host.focused) {
+      this.host.className = "view-overlays focused";
+    } else {
+      this.host.className = "view-overlays";
+    }
+  }
+}
+
+export class ContentViewOverlays {
+  ViewOverlays overlays;
+  int contentWidth;
+
+  init(int contentWidth, int lineHeight = 18) {
+    this.overlays = new ViewOverlays(lineHeight);
+    this.contentWidth = contentWidth;
+    this.overlays.host.className = "view-overlays";
+    this.overlays.host.height = 0;
+    this.overlays.host.contentWidth = contentWidth;
+  }
+
+  void render(int startLineNumber, int endLineNumber, int scrollWidth) {
+    this.overlays.renderLines(startLineNumber, endLineNumber);
+    int width = scrollWidth;
+    if (this.contentWidth > width) {
+      width = this.contentWidth;
+    }
+    this.overlays.host.width = width;
+  }
+}
+
+export class MarginViewOverlays {
+  ViewOverlays overlays;
+  int contentLeft;
+
+  init(int contentLeft, int lineHeight = 18) {
+    this.overlays = new ViewOverlays(lineHeight);
+    this.contentLeft = contentLeft;
+    this.overlays.host.className = "margin-view-overlays";
+    this.overlays.host.width = 1;
+    this.overlays.host.contentLeft = contentLeft;
+  }
+
+  void render(int startLineNumber, int endLineNumber, int scrollHeight) {
+    this.overlays.renderLines(startLineNumber, endLineNumber);
+    int height = scrollHeight;
+    if (height > 1000000) {
+      height = 1000000;
+    }
+    this.overlays.host.height = height;
+    this.overlays.host.width = this.contentLeft;
+  }
+}
+
+export ViewOverlays createViewOverlays(int lineHeight = 18) {
+  return new ViewOverlays(lineHeight);
+}
+
+export DynamicOverlay createDynamicOverlay(string className) {
+  return new DynamicOverlay(className);
+}

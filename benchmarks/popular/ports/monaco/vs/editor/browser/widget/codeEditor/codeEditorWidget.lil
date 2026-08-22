@@ -1,0 +1,674 @@
+import {
+  appendChild,
+  blurElement,
+  classListAdd,
+  clearChildren,
+  concat2,
+  domCreateElement,
+  emptyBuf,
+  focusElement,
+  getClientHeight,
+  getClientWidth,
+  hostPaintEditor,
+  jsUndefined,
+  setAttribute,
+  setClassName,
+  setScrollTop,
+  setStyle,
+  setTabIndex
+} from "../../../../../js-host";
+
+int nmax(int a, int b) {
+  if (a > b) {
+    return a;
+  }
+  return b;
+}
+
+int nmin(int a, int b) {
+  if (a < b) {
+    return a;
+  }
+  return b;
+}
+
+int nextEditorId = 0;
+
+export class EditorOptions {
+  int fontSize;
+  int lineHeight;
+  int tabSize;
+  int width;
+  int height;
+  bool readOnly;
+  bool lineNumbers;
+  bool minimap;
+  bool wordWrap;
+  bool glyphMargin;
+  string theme;
+  string languageId;
+  string wordWrapMode;
+  int lineNumbersMinChars;
+  int verticalScrollbarSize;
+  int horizontalScrollbarSize;
+
+  init() {
+    this.fontSize = 14;
+    this.lineHeight = 19;
+    this.tabSize = 4;
+    this.width = 800;
+    this.height = 400;
+    this.readOnly = false;
+    this.lineNumbers = true;
+    this.minimap = true;
+    this.wordWrap = false;
+    this.glyphMargin = true;
+    this.theme = "vs";
+    this.languageId = "plaintext";
+    this.wordWrapMode = "off";
+    this.lineNumbersMinChars = 5;
+    this.verticalScrollbarSize = 14;
+    this.horizontalScrollbarSize = 12;
+  }
+}
+
+export class EditorModel {
+  string[] lines;
+  string uri;
+  string languageId;
+  int versionId;
+
+  init(string value, string uri, string languageId) {
+    this.uri = uri;
+    this.languageId = languageId;
+    this.versionId = 1;
+    this.lines = splitModelLines(value);
+  }
+
+  int getLineCount() {
+    return this.lines.length;
+  }
+
+  int getLineLength(int lineNumber) {
+    int idx = lineNumber - 1;
+    if (idx < 0 || idx >= this.lines.length) {
+      return 0;
+    }
+    return this.lines[idx].length;
+  }
+
+  string getLineContent(int lineNumber) {
+    int idx = lineNumber - 1;
+    if (idx < 0 || idx >= this.lines.length) {
+      return emptyBuf();
+    }
+    return this.lines[idx];
+  }
+
+  string getValue() {
+    string out = emptyBuf();
+    int i = 0;
+    while (i < this.lines.length) {
+      if (i != 0) {
+        out = concat2(out, "\n");
+      }
+      out = concat2(out, this.lines[i]);
+      i = i + 1;
+    }
+    return out;
+  }
+
+  void setValue(string value) {
+    this.lines = splitModelLines(value);
+    this.versionId = this.versionId + 1;
+  }
+}
+
+string[] splitModelLines(string value) {
+  string[] lines = [];
+  string current = emptyBuf();
+  int i = 0;
+  while (i < value.length) {
+    string ch = value.charAt(i);
+    if (ch == "\n") {
+      lines.push(current);
+      current = emptyBuf();
+    } else if (ch != "\r") {
+      current = concat2(current, ch);
+    }
+    i = i + 1;
+  }
+  lines.push(current);
+  if (lines.length == 0) {
+    lines.push(emptyBuf());
+  }
+  return lines;
+}
+
+export class EditorSelection {
+  int selectionStartLineNumber;
+  int selectionStartColumn;
+  int positionLineNumber;
+  int positionColumn;
+
+  init(int selectionStartLineNumber, int selectionStartColumn, int positionLineNumber, int positionColumn) {
+    this.selectionStartLineNumber = selectionStartLineNumber;
+    this.selectionStartColumn = selectionStartColumn;
+    this.positionLineNumber = positionLineNumber;
+    this.positionColumn = positionColumn;
+  }
+}
+
+export class EditorLayoutInfo {
+  int width;
+  int height;
+  int glyphMarginLeft;
+  int glyphMarginWidth;
+  int lineNumbersLeft;
+  int lineNumbersWidth;
+  int decorationsLeft;
+  int decorationsWidth;
+  int contentLeft;
+  int contentWidth;
+  int minimapWidth;
+  int wrappingColumn;
+
+  init() {
+    this.width = 0;
+    this.height = 0;
+    this.glyphMarginLeft = 0;
+    this.glyphMarginWidth = 0;
+    this.lineNumbersLeft = 0;
+    this.lineNumbersWidth = 0;
+    this.decorationsLeft = 0;
+    this.decorationsWidth = 0;
+    this.contentLeft = 0;
+    this.contentWidth = 0;
+    this.minimapWidth = 0;
+    this.wrappingColumn = -1;
+  }
+}
+
+bool optBool(JsValue options, string key, bool fallback) {
+  if (!options.truthy()) {
+    return fallback;
+  }
+  JsValue v = options[key];
+  if (!v.truthy()) {
+    return fallback;
+  }
+  string s = JS.string(v);
+  if (s == "false" || s == "off" || s == "0") {
+    return false;
+  }
+  return true;
+}
+
+int optInt(JsValue options, string key, int fallback) {
+  if (!options.truthy()) {
+    return fallback;
+  }
+  JsValue v = options[key];
+  if (!v.truthy()) {
+    return fallback;
+  }
+  return JS.number(v).toInt();
+}
+
+string optString(JsValue options, string key, string fallback) {
+  if (!options.truthy()) {
+    return fallback;
+  }
+  JsValue v = options[key];
+  if (!v.truthy()) {
+    return fallback;
+  }
+  return JS.string(v);
+}
+
+EditorOptions optionsFromJs(JsValue raw) {
+  EditorOptions options = new EditorOptions();
+  options.fontSize = optInt(raw, "fontSize", options.fontSize);
+  options.lineHeight = optInt(raw, "lineHeight", options.lineHeight);
+  options.tabSize = optInt(raw, "tabSize", options.tabSize);
+  options.width = optInt(raw, "width", options.width);
+  options.height = optInt(raw, "height", options.height);
+  options.readOnly = optBool(raw, "readOnly", options.readOnly);
+  options.lineNumbers = optBool(raw, "lineNumbers", options.lineNumbers);
+  options.minimap = optBool(raw, "minimap", options.minimap);
+  options.wordWrap = optBool(raw, "wordWrap", options.wordWrap);
+  options.glyphMargin = optBool(raw, "glyphMargin", options.glyphMargin);
+  options.theme = optString(raw, "theme", options.theme);
+  options.languageId = optString(raw, "language", options.languageId);
+  string wrap = optString(raw, "wordWrap", "");
+  if (wrap == "on" || wrap == "bounded" || wrap == "wordWrapColumn") {
+    options.wordWrap = true;
+    options.wordWrapMode = wrap;
+  }
+  if (wrap == "off") {
+    options.wordWrap = false;
+    options.wordWrapMode = "off";
+  }
+  JsValue dim = raw["dimension"];
+  if (dim.truthy()) {
+    options.width = optInt(dim, "width", options.width);
+    options.height = optInt(dim, "height", options.height);
+  }
+  return options;
+}
+
+void applyOptions(EditorOptions target, EditorOptions incoming) {
+  if (incoming.fontSize > 0) {
+    target.fontSize = incoming.fontSize;
+  }
+  if (incoming.lineHeight > 0) {
+    target.lineHeight = incoming.lineHeight;
+  }
+  if (incoming.tabSize > 0) {
+    target.tabSize = incoming.tabSize;
+  }
+  if (incoming.width > 0) {
+    target.width = incoming.width;
+  }
+  if (incoming.height > 0) {
+    target.height = incoming.height;
+  }
+  target.readOnly = incoming.readOnly;
+  target.lineNumbers = incoming.lineNumbers;
+  target.minimap = incoming.minimap;
+  target.wordWrap = incoming.wordWrap;
+  target.glyphMargin = incoming.glyphMargin;
+  if (incoming.theme.length > 0) {
+    target.theme = incoming.theme;
+  }
+  if (incoming.languageId.length > 0) {
+    target.languageId = incoming.languageId;
+  }
+  target.wordWrapMode = incoming.wordWrapMode;
+}
+
+EditorLayoutInfo computeWidgetLayout(EditorOptions options) {
+  EditorLayoutInfo layout = new EditorLayoutInfo();
+  layout.width = options.width;
+  layout.height = options.height;
+  int glyph = 0;
+  if (options.glyphMargin) {
+    glyph = options.lineHeight;
+  }
+  int lineNumbersWidth = 0;
+  if (options.lineNumbers) {
+    lineNumbersWidth = options.lineNumbersMinChars * (options.fontSize * 6 / 10);
+    if (lineNumbersWidth < 20) {
+      lineNumbersWidth = 20;
+    }
+  }
+  int decorations = 10;
+  layout.glyphMarginLeft = 0;
+  layout.glyphMarginWidth = glyph;
+  layout.lineNumbersLeft = glyph;
+  layout.lineNumbersWidth = lineNumbersWidth;
+  layout.decorationsLeft = glyph + lineNumbersWidth;
+  layout.decorationsWidth = decorations;
+  layout.contentLeft = glyph + lineNumbersWidth + decorations;
+  int minimapWidth = 0;
+  if (options.minimap) {
+    minimapWidth = 70;
+  }
+  layout.minimapWidth = minimapWidth;
+  layout.contentWidth = options.width - layout.contentLeft - minimapWidth - options.verticalScrollbarSize;
+  if (options.wordWrap) {
+    int charWidth = nmax(1, options.fontSize * 6 / 10);
+    layout.wrappingColumn = nmax(1, (layout.contentWidth - 2) / charWidth);
+  } else {
+    layout.wrappingColumn = -1;
+  }
+  return layout;
+}
+
+export class CodeEditor {
+  int id;
+  JsValue domElement;
+  JsValue root;
+  JsValue textarea;
+  JsValue linesHost;
+  JsValue margin;
+  EditorOptions options;
+  EditorLayoutInfo layoutInfo;
+  EditorModel? model;
+  EditorSelection selection;
+  int scrollTop;
+  bool focused;
+  bool disposed;
+  bool hasRealView;
+  int charWidth;
+
+  init(JsValue domElement, EditorOptions options) {
+    nextEditorId = nextEditorId + 1;
+    this.id = nextEditorId;
+    this.domElement = domElement;
+    this.options = options;
+    this.layoutInfo = computeWidgetLayout(options);
+    this.model = null;
+    this.selection = new EditorSelection(1, 1, 1, 1);
+    this.scrollTop = 0;
+    this.focused = false;
+    this.disposed = false;
+    this.hasRealView = true;
+    this.charWidth = nmax(1, options.fontSize * 6 / 10);
+    this.root = domCreateElement("div");
+    this.textarea = domCreateElement("textarea");
+    this.linesHost = domCreateElement("div");
+    this.margin = domCreateElement("div");
+    setClassName(this.root, "monaco-editor");
+    setAttribute(this.root, "role", "code");
+    setTabIndex(this.textarea, 0);
+    appendChild(this.root, this.margin);
+    appendChild(this.root, this.linesHost);
+    appendChild(this.root, this.textarea);
+    if (domElement.truthy()) {
+      clearChildren(domElement);
+      appendChild(domElement, this.root);
+    }
+    this.applyLayoutStyles();
+  }
+
+  void applyLayoutStyles() {
+    setStyle(this.root, "width", this.layoutInfo.width.toString() + "px");
+    setStyle(this.root, "height", this.layoutInfo.height.toString() + "px");
+    setStyle(this.root, "position", "relative");
+    setStyle(this.margin, "width", this.layoutInfo.contentLeft.toString() + "px");
+    setStyle(this.linesHost, "left", this.layoutInfo.contentLeft.toString() + "px");
+    setStyle(this.textarea, "position", "absolute");
+    classListAdd(this.root, this.options.theme);
+  }
+
+  string getId() {
+    return "vs.editor.ICodeEditor:" + this.id.toString();
+  }
+
+  string getEditorType() {
+    return "vs.editor.ICodeEditor";
+  }
+
+  EditorModel? getModel() {
+    return this.model;
+  }
+
+  void setModel(EditorModel? next) {
+    EditorModel? current = this.model;
+    if (current != null && next != null) {
+      if (current.uri == next.uri && current == next) {
+        return;
+      }
+    }
+    if (current == null && next == null) {
+      return;
+    }
+    bool hadFocus = this.focused;
+    this.model = next;
+    this.selection = new EditorSelection(1, 1, 1, 1);
+    this.scrollTop = 0;
+    if (next != null) {
+      this.options.languageId = next.languageId;
+      if (hadFocus) {
+        this.focus();
+      }
+    } else {
+      this.focused = false;
+    }
+    this.render();
+  }
+
+  void layout(int width, int height) {
+    int w = width;
+    int h = height;
+    if (w <= 0 && this.domElement.truthy()) {
+      w = getClientWidth(this.domElement);
+    }
+    if (h <= 0 && this.domElement.truthy()) {
+      h = getClientHeight(this.domElement);
+    }
+    if (w > 0) {
+      this.options.width = w;
+    }
+    if (h > 0) {
+      this.options.height = h;
+    }
+    this.layoutInfo = computeWidgetLayout(this.options);
+    this.applyLayoutStyles();
+    this.render();
+  }
+
+  void updateOptions(JsValue raw) {
+    EditorOptions incoming = optionsFromJs(raw);
+    applyOptions(this.options, incoming);
+    this.charWidth = nmax(1, this.options.fontSize * 6 / 10);
+    this.layoutInfo = computeWidgetLayout(this.options);
+    this.applyLayoutStyles();
+    this.render();
+  }
+
+  void focus() {
+    if (this.disposed || !this.hasRealView) {
+      return;
+    }
+    focusElement(this.textarea);
+    this.focused = true;
+  }
+
+  void blur() {
+    blurElement(this.textarea);
+    this.focused = false;
+  }
+
+  bool hasTextFocus() {
+    return this.focused;
+  }
+
+  bool hasWidgetFocus() {
+    return this.focused;
+  }
+
+  void setPosition(int lineNumber, int column) {
+    EditorSelection next = new EditorSelection(lineNumber, column, lineNumber, column);
+    this.selection = this.clampSelection(next);
+    this.revealLine(this.selection.positionLineNumber);
+    this.placeTextarea();
+  }
+
+  void setSelection(int sl, int sc, int pl, int pc) {
+    this.selection = this.clampSelection(new EditorSelection(sl, sc, pl, pc));
+    this.revealLine(this.selection.positionLineNumber);
+    this.placeTextarea();
+  }
+
+  EditorSelection getSelection() {
+    return this.selection;
+  }
+
+  EditorSelection clampSelection(EditorSelection sel) {
+    int lines = 1;
+    EditorModel? model = this.model;
+    if (model != null) {
+      lines = model.getLineCount();
+    }
+    int line = sel.positionLineNumber;
+    if (line < 1) {
+      line = 1;
+    }
+    if (line > lines) {
+      line = lines;
+    }
+    int maxCol = 1;
+    if (model != null) {
+      maxCol = model.getLineLength(line) + 1;
+    }
+    int col = sel.positionColumn;
+    if (col < 1) {
+      col = 1;
+    }
+    if (col > maxCol) {
+      col = maxCol;
+    }
+    int sl = sel.selectionStartLineNumber;
+    if (sl < 1) {
+      sl = 1;
+    }
+    if (sl > lines) {
+      sl = lines;
+    }
+    int sMax = 1;
+    if (model != null) {
+      sMax = model.getLineLength(sl) + 1;
+    }
+    int sc = sel.selectionStartColumn;
+    if (sc < 1) {
+      sc = 1;
+    }
+    if (sc > sMax) {
+      sc = sMax;
+    }
+    return new EditorSelection(sl, sc, line, col);
+  }
+
+  void revealLine(int lineNumber) {
+    this.revealLineWithType(lineNumber, 0);
+  }
+
+  void revealLineInCenter(int lineNumber) {
+    this.revealLineWithType(lineNumber, 1);
+  }
+
+  void revealLineWithType(int lineNumber, int revealType) {
+    int line = lineNumber;
+    if (line < 1) {
+      line = 1;
+    }
+    int top = (line - 1) * this.options.lineHeight;
+    if (revealType == 1) {
+      top = top - this.options.height / 2 + this.options.lineHeight / 2;
+    }
+    if (revealType == 5) {
+      top = top - this.options.height / 5;
+    }
+    if (top < 0) {
+      top = 0;
+    }
+    int contentHeight = this.contentHeight();
+    int maxScroll = nmax(0, contentHeight - this.options.height);
+    if (top > maxScroll) {
+      top = maxScroll;
+    }
+    this.scrollTop = top;
+    setScrollTop(this.root, top);
+    this.render();
+  }
+
+  int contentHeight() {
+    int lines = 1;
+    EditorModel? model = this.model;
+    if (model != null) {
+      lines = model.getLineCount();
+    }
+    return lines * this.options.lineHeight + this.options.height / 2;
+  }
+
+  void setScrollTop(int value) {
+    int next = value;
+    if (next < 0) {
+      next = 0;
+    }
+    this.scrollTop = next;
+    setScrollTop(this.root, next);
+  }
+
+  int getScrollTop() {
+    return this.scrollTop;
+  }
+
+  EditorLayoutInfo getLayoutInfo() {
+    return this.layoutInfo;
+  }
+
+  void placeTextarea() {
+    int top = (this.selection.positionLineNumber - 1) * this.options.lineHeight - this.scrollTop;
+    int left = this.layoutInfo.contentLeft + (this.selection.positionColumn - 1) * this.charWidth;
+    setStyle(this.textarea, "top", top.toString() + "px");
+    setStyle(this.textarea, "left", left.toString() + "px");
+  }
+
+  void render() {
+    string value = emptyBuf();
+    string languageId = this.options.languageId;
+    EditorModel? model = this.model;
+    if (model != null) {
+      value = model.getValue();
+      languageId = model.languageId;
+    }
+    hostPaintEditor(
+      this.linesHost,
+      this.margin,
+      jsUndefined(),
+      this.textarea,
+      jsUndefined(),
+      this.textarea,
+      value,
+      languageId,
+      this.options.lineHeight,
+      this.layoutInfo.width,
+      this.layoutInfo.height,
+      this.scrollTop,
+      this.options.lineNumbers,
+      this.options.minimap,
+      this.options.theme,
+      this.selection.selectionStartLineNumber,
+      this.selection.selectionStartColumn,
+      this.selection.positionLineNumber,
+      this.selection.positionColumn,
+      "",
+      this.options.wordWrap,
+      this.options.tabSize
+    );
+    this.placeTextarea();
+  }
+
+  void dispose() {
+    this.disposed = true;
+    this.hasRealView = false;
+    this.model = null;
+    this.focused = false;
+  }
+}
+
+export CodeEditor create(JsValue domElement, JsValue rawOptions) {
+  EditorOptions options = optionsFromJs(rawOptions);
+  if (options.width <= 0 && domElement.truthy()) {
+    options.width = getClientWidth(domElement);
+  }
+  if (options.height <= 0 && domElement.truthy()) {
+    options.height = getClientHeight(domElement);
+  }
+  if (options.width <= 0) {
+    options.width = 800;
+  }
+  if (options.height <= 0) {
+    options.height = 400;
+  }
+  CodeEditor editor = new CodeEditor(domElement, options);
+  string value = optString(rawOptions, "value", "");
+  string language = optString(rawOptions, "language", options.languageId);
+  if (value.length > 0 || language.length > 0) {
+    editor.setModel(new EditorModel(value, "inmemory://model/" + editor.id.toString(), language));
+  } else {
+    editor.render();
+  }
+  return editor;
+}
+
+export EditorModel createModel(string value, string languageId, string uri) {
+  return new EditorModel(value, uri, languageId);
+}
+
+export EditorOptions createEditorOptions() {
+  return new EditorOptions();
+}

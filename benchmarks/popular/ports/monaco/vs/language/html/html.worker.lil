@@ -1,0 +1,2 @@
+import { handleHtmlWorker, htmlWorkerCompletions } from "../../../workers/html.worker";
+export { handleHtmlWorker, htmlWorkerCompletions };

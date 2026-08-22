@@ -1,0 +1,82 @@
+string EDITOR_TYPE_CODE = "vs.editor.ICodeEditor";
+string EDITOR_TYPE_DIFF = "vs.editor.IDiffEditor";
+
+export bool isCodeEditor(JsValue thing) {
+  if (!thing.truthy()) {
+    return false;
+  }
+  JsValue getter = thing["getEditorType"];
+  if (!getter.truthy()) {
+    return false;
+  }
+  string editorType = JS.string(thing["editorType"]);
+  if (editorType.length == 0) {
+    editorType = JS.string(thing["getEditorType"]);
+  }
+  return editorType == EDITOR_TYPE_CODE;
+}
+
+export bool isDiffEditor(JsValue thing) {
+  if (!thing.truthy()) {
+    return false;
+  }
+  string editorType = JS.string(thing["editorType"]);
+  return editorType == EDITOR_TYPE_DIFF;
+}
+
+export bool isCompositeEditor(JsValue thing) {
+  if (!thing.truthy()) {
+    return false;
+  }
+  JsValue onDidChangeActiveEditor = thing["onDidChangeActiveEditor"];
+  return onDidChangeActiveEditor.truthy();
+}
+
+export JsValue getCodeEditor(JsValue thing) {
+  if (isCodeEditor(thing)) {
+    return thing;
+  }
+  if (isDiffEditor(thing)) {
+    JsValue modified = thing["modifiedEditor"];
+    if (modified.truthy()) {
+      return modified;
+    }
+  }
+  if (isCompositeEditor(thing)) {
+    JsValue active = thing["activeCodeEditor"];
+    if (isCodeEditor(active)) {
+      return active;
+    }
+  }
+  return null;
+}
+
+export enum MouseTargetType {
+  UNKNOWN,
+  TEXTAREA,
+  GUTTER_GLYPH_MARGIN,
+  GUTTER_LINE_NUMBERS,
+  GUTTER_LINE_DECORATIONS,
+  GUTTER_VIEW_ZONE,
+  CONTENT_TEXT,
+  CONTENT_EMPTY,
+  CONTENT_VIEW_ZONE,
+  CONTENT_WIDGET,
+  OVERVIEW_RULER,
+  SCROLLBAR,
+  OVERLAY_WIDGET,
+  OUTSIDE_EDITOR
+}
+
+export enum ScrollType {
+  Smooth,
+  Immediate
+}
+
+export string editorTypeCode() {
+  return EDITOR_TYPE_CODE;
+}
+
+export string editorTypeDiff() {
+  return EDITOR_TYPE_DIFF;
+}

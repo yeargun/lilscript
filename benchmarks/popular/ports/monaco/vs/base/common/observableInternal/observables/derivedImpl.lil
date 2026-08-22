@@ -1,0 +1,468 @@
+export int DerivedStateInitial = 0;
+export int DerivedStateDependenciesMightHaveChanged = 1;
+export int DerivedStateStale = 2;
+export int DerivedStateUpToDate = 3;
+
+export string derivedStateToString(int state) {
+  if (state == DerivedStateInitial) {
+    return "initial";
+  }
+  if (state == DerivedStateDependenciesMightHaveChanged) {
+    return "dependenciesMightHaveChanged";
+  }
+  if (state == DerivedStateStale) {
+    return "stale";
+  }
+  if (state == DerivedStateUpToDate) {
+    return "upToDate";
+  }
+  return "<unknown>";
+}
+
+export class DependencyObserver {
+  func(ObservableDependency)->void beginFn;
+  func(ObservableDependency)->void endFn;
+  func(ObservableDependency, JsValue)->void changeFn;
+  func(ObservableDependency)->void possibleFn;
+
+  init(
+    func(ObservableDependency)->void beginFn,
+    func(ObservableDependency)->void endFn,
+    func(ObservableDependency, JsValue)->void changeFn,
+    func(ObservableDependency)->void possibleFn
+  ) {
+    this.beginFn = beginFn;
+    this.endFn = endFn;
+    this.changeFn = changeFn;
+    this.possibleFn = possibleFn;
+  }
+}
+
+export class ObservableDependency {
+  string debugName;
+  func()->JsValue getFn;
+  func()->void reportChangesFn;
+  func(DependencyObserver)->void addObserverFn;
+  func(DependencyObserver)->void removeObserverFn;
+
+  init(
+    string debugName,
+    func()->JsValue getFn,
+    func()->void reportChangesFn,
+    func(DependencyObserver)->void addObserverFn,
+    func(DependencyObserver)->void removeObserverFn
+  ) {
+    this.debugName = debugName;
+    this.getFn = getFn;
+    this.reportChangesFn = reportChangesFn;
+    this.addObserverFn = addObserverFn;
+    this.removeObserverFn = removeObserverFn;
+  }
+
+  JsValue get() {
+    return this.getFn();
+  }
+
+  void reportChanges() {
+    this.reportChangesFn();
+  }
+
+  void addObserver(DependencyObserver observer) {
+    this.addObserverFn(observer);
+  }
+
+  void removeObserver(DependencyObserver observer) {
+    this.removeObserverFn(observer);
+  }
+}
+
+export class DerivedObserver {
+  func(Derived)->void beginFn;
+  func(Derived)->void endFn;
+  func(Derived, JsValue)->void changeFn;
+  func(Derived)->void possibleFn;
+
+  init(
+    func(Derived)->void beginFn,
+    func(Derived)->void endFn,
+    func(Derived, JsValue)->void changeFn,
+    func(Derived)->void possibleFn
+  ) {
+    this.beginFn = beginFn;
+    this.endFn = endFn;
+    this.changeFn = changeFn;
+    this.possibleFn = possibleFn;
+  }
+}
+
+export class Derived {
+  string debugName;
+  func(Derived)->JsValue computeFn;
+  func(JsValue, JsValue)->bool equalityComparator;
+  bool hasLastObserverHandler;
+  func()->void lastObserverHandler;
+  int state;
+  JsValue value;
+  bool hasValue;
+  int updateCount;
+  ObservableDependency[] dependencies;
+  ObservableDependency[] dependenciesToBeRemoved;
+  DerivedObserver[] observers;
+  DependencyObserver dependencyObserver;
+  bool isComputing;
+  bool readerValid;
+  bool didReportChange;
+
+  init(
+    string debugName,
+    func(Derived)->JsValue computeFn,
+    func(JsValue, JsValue)->bool equalityComparator
+  ) {
+    this.debugName = debugName;
+    this.computeFn = computeFn;
+    this.equalityComparator = equalityComparator;
+    this.hasLastObserverHandler = false;
+    this.lastObserverHandler = () => {};
+    this.state = DerivedStateInitial;
+    this.value = 0;
+    this.hasValue = false;
+    this.updateCount = 0;
+    this.dependencies = [];
+    this.dependenciesToBeRemoved = [];
+    this.observers = [];
+    this.isComputing = false;
+    this.readerValid = false;
+    this.didReportChange = false;
+    this.dependencyObserver = new DependencyObserver(
+      (ObservableDependency observable) => {
+        this.beginUpdate(observable);
+      },
+      (ObservableDependency observable) => {
+        this.endUpdate(observable);
+      },
+      (ObservableDependency observable, JsValue change) => {
+        this.handleChange(observable, change);
+      },
+      (ObservableDependency observable) => {
+        this.handlePossibleChange(observable);
+      }
+    );
+  }
+
+  void setLastObserverHandler(func()->void handler) {
+    this.hasLastObserverHandler = true;
+    this.lastObserverHandler = handler;
+  }
+
+  void clearCache() {
+    this.state = DerivedStateInitial;
+    this.value = 0;
+    this.hasValue = false;
+    int i = 0;
+    while (i < this.dependencies.length) {
+      this.dependencies[i].removeObserver(this.dependencyObserver);
+      i = i + 1;
+    }
+    this.dependencies = [];
+    this.dependenciesToBeRemoved = [];
+    if (this.hasLastObserverHandler) {
+      this.lastObserverHandler();
+    }
+  }
+
+  JsValue get() {
+    if (this.observers.length == 0) {
+      this.readerValid = true;
+      JsValue result = 0;
+      try {
+        result = this.computeFn(this);
+      } finally {
+        this.readerValid = false;
+        int i = 0;
+        while (i < this.dependencies.length) {
+          this.dependencies[i].removeObserver(this.dependencyObserver);
+          i = i + 1;
+        }
+        this.dependencies = [];
+        this.dependenciesToBeRemoved = [];
+      }
+      return result;
+    }
+    bool continueChecking = true;
+    while (continueChecking) {
+      if (this.state == DerivedStateDependenciesMightHaveChanged) {
+        int i = 0;
+        while (i < this.dependencies.length && this.state != DerivedStateStale) {
+          this.dependencies[i].reportChanges();
+          i = i + 1;
+        }
+        if (this.state == DerivedStateDependenciesMightHaveChanged) {
+          this.state = DerivedStateUpToDate;
+        }
+      }
+      if (this.state != DerivedStateUpToDate) {
+        this.recompute();
+      }
+      continueChecking = this.state != DerivedStateUpToDate;
+    }
+    return this.value;
+  }
+
+  void reportChanges() {
+    this.get();
+  }
+
+  void recompute() {
+    if (this.isComputing) {
+      this.state = DerivedStateStale;
+      return;
+    }
+    this.isComputing = true;
+    this.didReportChange = false;
+    this.dependenciesToBeRemoved = this.dependencies;
+    this.dependencies = [];
+    bool hadValue = this.hasValue;
+    JsValue oldValue = this.value;
+    this.readerValid = true;
+    this.state = DerivedStateUpToDate;
+    try {
+      this.value = this.computeFn(this);
+      this.hasValue = true;
+    } finally {
+      this.readerValid = false;
+      int i = 0;
+      while (i < this.dependenciesToBeRemoved.length) {
+        this.dependenciesToBeRemoved[i].removeObserver(this.dependencyObserver);
+        i = i + 1;
+      }
+      this.dependenciesToBeRemoved = [];
+      this.isComputing = false;
+    }
+    bool didChange = this.didReportChange;
+    if (hadValue && !this.equalityComparator(oldValue, this.value)) {
+      didChange = true;
+    }
+    if (!this.didReportChange && didChange) {
+      DerivedObserver[] snapshot = this.observers.slice();
+      int i = 0;
+      while (i < snapshot.length) {
+        snapshot[i].changeFn(this, 0);
+        i = i + 1;
+      }
+    }
+    this.didReportChange = false;
+  }
+
+  void beginUpdate(ObservableDependency observable) {
+    bool propagateBegin = this.updateCount == 0;
+    this.updateCount = this.updateCount + 1;
+    if (this.state == DerivedStateUpToDate) {
+      this.state = DerivedStateDependenciesMightHaveChanged;
+      if (!propagateBegin) {
+        DerivedObserver[] possibleSnapshot = this.observers.slice();
+        int p = 0;
+        while (p < possibleSnapshot.length) {
+          possibleSnapshot[p].possibleFn(this);
+          p = p + 1;
+        }
+      }
+    }
+    if (propagateBegin) {
+      DerivedObserver[] snapshot = this.observers.slice();
+      int i = 0;
+      while (i < snapshot.length) {
+        snapshot[i].beginFn(this);
+        i = i + 1;
+      }
+    }
+  }
+
+  void endUpdate(ObservableDependency observable) {
+    this.updateCount = this.updateCount - 1;
+    if (this.updateCount < 0) {
+      throw "Derived update count became negative";
+    }
+    if (this.updateCount == 0) {
+      DerivedObserver[] snapshot = this.observers.slice();
+      int i = 0;
+      while (i < snapshot.length) {
+        snapshot[i].endFn(this);
+        i = i + 1;
+      }
+    }
+  }
+
+  bool isCurrentDependency(ObservableDependency observable) {
+    return this.dependencies.indexOf(observable) >= 0
+      && this.dependenciesToBeRemoved.indexOf(observable) < 0;
+  }
+
+  void handlePossibleChange(ObservableDependency observable) {
+    if (
+      this.state == DerivedStateUpToDate
+      && this.isCurrentDependency(observable)
+    ) {
+      this.state = DerivedStateDependenciesMightHaveChanged;
+      DerivedObserver[] snapshot = this.observers.slice();
+      int i = 0;
+      while (i < snapshot.length) {
+        snapshot[i].possibleFn(this);
+        i = i + 1;
+      }
+    }
+  }
+
+  void handleChange(ObservableDependency observable, JsValue change) {
+    if (!this.isCurrentDependency(observable)) {
+      return;
+    }
+    bool wasUpToDate = this.state == DerivedStateUpToDate;
+    if (
+      this.state == DerivedStateDependenciesMightHaveChanged
+      || wasUpToDate
+    ) {
+      this.state = DerivedStateStale;
+      if (wasUpToDate) {
+        DerivedObserver[] snapshot = this.observers.slice();
+        int i = 0;
+        while (i < snapshot.length) {
+          snapshot[i].possibleFn(this);
+          i = i + 1;
+        }
+      }
+    }
+  }
+
+  JsValue readObservable(ObservableDependency observable) {
+    if (!this.readerValid) {
+      throw "The reader object cannot be used outside its compute function";
+    }
+    observable.addObserver(this.dependencyObserver);
+    JsValue result = observable.get();
+    if (this.dependencies.indexOf(observable) < 0) {
+      this.dependencies.push(observable);
+    }
+    int removalIndex = this.dependenciesToBeRemoved.indexOf(observable);
+    if (removalIndex >= 0) {
+      this.dependenciesToBeRemoved.splice(removalIndex, 1);
+    }
+    return result;
+  }
+
+  void addObserver(DerivedObserver observer) {
+    if (this.observers.indexOf(observer) >= 0) {
+      return;
+    }
+    this.observers.push(observer);
+    if (this.updateCount > 0) {
+      observer.beginFn(this);
+    }
+  }
+
+  void removeObserver(DerivedObserver observer) {
+    int index = this.observers.indexOf(observer);
+    if (index < 0) {
+      return;
+    }
+    this.observers.splice(index, 1);
+    if (this.updateCount > 0) {
+      observer.endFn(this);
+    }
+    if (this.observers.length == 0) {
+      this.clearCache();
+    }
+  }
+
+  JsValue debugGetState() {
+    JsValue result = JS.object();
+    result["state"] = this.state;
+    result["stateStr"] = derivedStateToString(this.state);
+    result["updateCount"] = this.updateCount;
+    result["isComputing"] = this.isComputing;
+    result["dependencies"] = this.dependencies;
+    result["value"] = this.value;
+    return result;
+  }
+
+  void debugSetValue(JsValue newValue) {
+    this.value = newValue;
+    this.hasValue = true;
+  }
+
+  void debugRecompute() {
+    if (this.isComputing) {
+      this.state = DerivedStateStale;
+      return;
+    }
+    this.recompute();
+  }
+
+  void setValue(JsValue newValue, JsValue change) {
+    this.value = newValue;
+    this.hasValue = true;
+    DerivedObserver[] snapshot = this.observers.slice();
+    int i = 0;
+    while (i < snapshot.length) {
+      snapshot[i].beginFn(this);
+      snapshot[i].changeFn(this, change);
+      snapshot[i].endFn(this);
+      i = i + 1;
+    }
+  }
+}
+
+export class DerivedWithSetter {
+  Derived derived;
+  func(JsValue, JsValue)->void setFn;
+
+  init(Derived derived, func(JsValue, JsValue)->void setFn) {
+    this.derived = derived;
+    this.setFn = setFn;
+  }
+
+  JsValue get() {
+    return this.derived.get();
+  }
+
+  void addObserver(DerivedObserver observer) {
+    this.derived.addObserver(observer);
+  }
+
+  void removeObserver(DerivedObserver observer) {
+    this.derived.removeObserver(observer);
+  }
+
+  void set(JsValue value, JsValue change) {
+    this.setFn(value, change);
+  }
+}
+
+export Derived createDerived(
+  string debugName,
+  func(Derived)->JsValue computeFn
+) {
+  return new Derived(
+    debugName,
+    computeFn,
+    (JsValue a, JsValue b) => {
+      return a == b;
+    }
+  );
+}
+
+export ObservableDependency createObservableDependency(
+  string debugName,
+  func()->JsValue getFn,
+  func(DependencyObserver)->void addObserverFn,
+  func(DependencyObserver)->void removeObserverFn
+) {
+  return new ObservableDependency(
+    debugName,
+    getFn,
+    () => {
+      getFn();
+    },
+    addObserverFn,
+    removeObserverFn
+  );
+}

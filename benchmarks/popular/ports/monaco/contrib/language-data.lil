@@ -1,0 +1,53 @@
+import { emptyBuf, concat2 } from "../js-host";
+
+export string[] jsonDocumentKeys(string value) {
+  string[] keys = [];
+  int i = 0;
+  while (i < value.length) {
+    if (value.charAt(i) == "\"") {
+      int j = i + 1;
+      string key = emptyBuf();
+      while (j < value.length && value.charAt(j) != "\"") {
+        key = concat2(key, value.charAt(j));
+        j++;
+      }
+      int k = j + 1;
+      while (k < value.length && (value.charAt(k) == " " || value.charAt(k) == "\t")) {
+        k++;
+      }
+      if (k < value.length && value.charAt(k) == ":") {
+        if (keys.indexOf(key) < 0) {
+          keys.push(key);
+        }
+      }
+      i = j;
+    }
+    i++;
+  }
+  return keys;
+}
+
+export string[] cssPropertyNames() {
+  return [
+    "color", "background", "margin", "padding", "border", "display", "flex",
+    "grid", "position", "width", "height", "font-size", "font-family", "line-height",
+    "text-align", "justify-content", "align-items", "overflow", "opacity", "z-index"
+  ];
+}
+
+export string[] htmlTagNames() {
+  return [
+    "div", "span", "p", "a", "ul", "ol", "li", "table", "tr", "td", "section",
+    "article", "header", "footer", "nav", "main", "button", "input", "form", "img"
+  ];
+}
+
+export string[] tsKeywordCompletions() {
+  return [
+    "break", "case", "catch", "class", "const", "continue", "debugger", "default",
+    "delete", "do", "else", "enum", "export", "extends", "false", "finally", "for",
+    "function", "if", "import", "in", "instanceof", "let", "new", "null", "return",
+    "super", "switch", "this", "throw", "true", "try", "typeof", "var", "void",
+    "while", "with", "yield", "async", "await", "interface", "type", "implements"
+  ];
+}

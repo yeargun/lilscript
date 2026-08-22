@@ -1,0 +1,17 @@
+export string EditorTypeICodeEditor = "vs.editor.ICodeEditor";
+export string EditorTypeIDiffEditor = "vs.editor.IDiffEditor";
+export string IEditorServiceId = "editorService";
+
+export class EditorInput {
+  string resource;
+  string typeId;
+
+  init(string resource, string typeId) {
+    this.resource = resource;
+    this.typeId = typeId;
+  }
+}
+
+export EditorInput createEditorInput(string resource, string typeId) {
+  return new EditorInput(resource, typeId);
+}

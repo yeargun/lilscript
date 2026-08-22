@@ -109,8 +109,10 @@ export function mountIde(monaco, options) {
     tsApi.javascriptDefaults.setEagerModelSync?.(true);
     tsApi.typescriptDefaults.setCompilerOptions({
       target: tsApi.ScriptTarget?.ES2020 ?? 7,
-      module: tsApi.ModuleKind?.CommonJS ?? 1,
+      module: tsApi.ModuleKind?.ESNext ?? 99,
       moduleResolution: tsApi.ModuleResolutionKind?.NodeJs ?? 2,
+      jsx: tsApi.JsxEmit?.Preserve ?? 1,
+      jsxImportSource: "solid-js",
       allowNonTsExtensions: true,
       allowImportingTsExtensions: true,
       allowJs: true,
@@ -119,9 +121,41 @@ export function mountIde(monaco, options) {
     });
     tsApi.javascriptDefaults.setCompilerOptions({
       allowNonTsExtensions: true,
-      noEmit: true,
+      allowJs: true,
       checkJs: true,
+      jsx: tsApi.JsxEmit?.Preserve ?? 1,
+      noEmit: true,
     });
+    if (!tsApi.typescriptDefaults.getExtraLibs?.()?.["ts:solid-js.d.ts"]) {
+      tsApi.typescriptDefaults.addExtraLib(
+        `declare module "solid-js" {
+  export type Accessor<T> = () => T;
+  export type Setter<T> = (value: T | ((prev: T) => T)) => T;
+  export function createSignal<T>(value: T): [Accessor<T>, Setter<T>];
+  export function createMemo<T>(fn: () => T): Accessor<T>;
+  export function createEffect(fn: () => void): void;
+  export function onMount(fn: () => void): void;
+  export function onCleanup(fn: () => void): void;
+  export function Show(props: { when: unknown; fallback?: unknown; children?: unknown }): unknown;
+  export function For<T>(props: { each: T[]; children?: (item: T, index?: Accessor<number>) => unknown }): unknown;
+}
+declare module "solid-js/web" {
+  export function render(code: () => unknown, element: Element): () => void;
+}
+declare module "solid-js/jsx-runtime" {
+  export namespace JSX {
+    interface IntrinsicElements { [elemName: string]: any }
+    type Element = any;
+  }
+}
+declare namespace JSX {
+  interface IntrinsicElements { [elemName: string]: any }
+  type Element = any;
+}
+`,
+        "ts:solid-js.d.ts",
+      );
+    }
   }
 
   const models = new Map();
@@ -130,15 +164,8 @@ export function mountIde(monaco, options) {
     const existing = monaco.editor.getModel?.(uri);
     const model = existing ?? monaco.editor.createModel(file.value, file.language, uri);
     models.set(file.path, { file, model, dirty: false });
-    if (tsApi?.typescriptDefaults && (file.language === "typescript" || file.language === "javascript")) {
-      const workerName = "/" + WORKSPACE + "/" + file.path;
-      tsApi.typescriptDefaults.addExtraLib(file.value, workerName);
-      tsApi.typescriptDefaults.addExtraLib(file.value, String(uri.toString?.() ?? uri));
-      model.onDidChangeContent?.(() => {
-        const text = model.getValue();
-        tsApi.typescriptDefaults.addExtraLib(text, workerName);
-        tsApi.typescriptDefaults.addExtraLib(text, String(uri.toString?.() ?? uri));
-      });
+    if (file.path.endsWith(".tsx") && monaco.editor.setModelLanguage) {
+      monaco.editor.setModelLanguage(model, "typescript");
     }
   }
 
@@ -484,6 +511,12 @@ export function mountIde(monaco, options) {
     }
   }
 
+  window.addEventListener("lil-workbench", (ev) => {
+    const kind = ev.detail;
+    if (kind === "commands") toggleQuick(true, "commands");
+    if (kind === "symbols") toggleQuick(true, "symbols");
+  });
+
   function fillQuick(query) {
     const hits = document.getElementById("quick-hits");
     const q = query.trim().toLowerCase();
@@ -699,8 +732,19 @@ export function mountIde(monaco, options) {
     renderStatus();
   });
   monaco.editor.onDidChangeMarkers?.(() => {
+    const modelsNow = monaco.editor.getModels?.() ?? [];
+    for (const model of modelsNow) {
+      const rows = monaco.editor.getModelMarkers?.({ resource: model.uri }) ?? [];
+      model._paintMarkers = rows.map((m) => ({
+        line: m.startLineNumber,
+        sc: m.startColumn,
+        ec: m.endColumn,
+        severity: Number(m.severity ?? 8),
+      }));
+    }
     renderProblems();
     if (sidePanel === "problems") renderFiles();
+    layout();
   });
 
   render();

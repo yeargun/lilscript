@@ -1,0 +1,403 @@
+export class Position {
+  int lineNumber;
+  int column;
+
+  init(int lineNumber, int column) {
+    this.lineNumber = lineNumber;
+    this.column = column;
+  }
+}
+
+export class WordAtPosition {
+  string word;
+  int startColumn;
+  int endColumn;
+
+  init(string word, int startColumn, int endColumn) {
+    this.word = word;
+    this.startColumn = startColumn;
+    this.endColumn = endColumn;
+  }
+}
+
+export class TokenSegment {
+  int startOffset;
+  int endOffset;
+  int metadata;
+  int languageId;
+
+  init(int startOffset, int endOffset, int metadata, int languageId) {
+    this.startOffset = startOffset;
+    this.endOffset = endOffset;
+    this.metadata = metadata;
+    this.languageId = languageId;
+  }
+}
+
+export class SemanticToken {
+  int lineNumber;
+  int startOffset;
+  int endOffset;
+  int metadata;
+
+  init(int lineNumber, int startOffset, int endOffset, int metadata) {
+    this.lineNumber = lineNumber;
+    this.startOffset = startOffset;
+    this.endOffset = endOffset;
+    this.metadata = metadata;
+  }
+}
+
+export class LineTokens {
+  string content;
+  TokenSegment[] segments;
+
+  init(string content, TokenSegment[] segments) {
+    this.content = content;
+    this.segments = segments;
+  }
+
+  int getCount() {
+    return this.segments.length;
+  }
+
+  int getStartOffset(int index) {
+    return this.segments[index].startOffset;
+  }
+
+  int getEndOffset(int index) {
+    return this.segments[index].endOffset;
+  }
+
+  int getLanguageId(int index) {
+    return this.segments[index].languageId;
+  }
+
+  int findTokenIndexAtOffset(int offset) {
+    int i = 0;
+    while (i < this.segments.length) {
+      if (offset < this.segments[i].endOffset) {
+        return i;
+      }
+      i = i + 1;
+    }
+    if (this.segments.length == 0) {
+      return 0;
+    }
+    return this.segments.length - 1;
+  }
+}
+
+bool isWordCharacter(int code) {
+  return (code >= 48 && code <= 57)
+    || (code >= 65 && code <= 90)
+    || (code >= 97 && code <= 122)
+    || code == 95
+    || code >= 128;
+}
+
+string textRange(string text, int start, int end) {
+  string result = "";
+  int i = start;
+  while (i < end && i < text.length) {
+    result = result + text.charAt(i);
+    i = i + 1;
+  }
+  return result;
+}
+
+export class TokenizationTextModelPart {
+  string languageId;
+  int encodedLanguageId;
+  string[] lines;
+  TokenSegment[][] syntacticTokens;
+  SemanticToken[] semanticTokens;
+  bool semanticComplete;
+  int backgroundTokenizationState;
+
+  init(string languageId, int encodedLanguageId, string[] lines) {
+    this.languageId = languageId;
+    this.encodedLanguageId = encodedLanguageId;
+    this.lines = lines;
+    this.syntacticTokens = [];
+    this.semanticTokens = [];
+    this.semanticComplete = false;
+    this.backgroundTokenizationState = 1;
+    this.resetTokenization();
+  }
+
+  void resetTokenization() {
+    this.syntacticTokens = [];
+    int i = 0;
+    while (i < this.lines.length) {
+      this.syntacticTokens.push([
+        new TokenSegment(0, this.lines[i].length, 0, this.encodedLanguageId)
+      ]);
+      i = i + 1;
+    }
+    this.backgroundTokenizationState = 1;
+  }
+
+  void setLineTokens(int lineNumber, TokenSegment[] tokens) {
+    int index = lineNumber - 1;
+    if (index >= 0 && index < this.syntacticTokens.length) {
+      this.syntacticTokens[index] = tokens;
+    }
+  }
+
+  TokenSegment[] addSemanticTokens(int lineNumber, TokenSegment[] syntactic) {
+    TokenSegment[] result = syntactic.slice();
+    int i = 0;
+    while (i < this.semanticTokens.length) {
+      SemanticToken semantic = this.semanticTokens[i];
+      if (semantic.lineNumber == lineNumber) {
+        TokenSegment[] next = [];
+        int j = 0;
+        while (j < result.length) {
+          TokenSegment token = result[j];
+          if (
+            token.endOffset <= semantic.startOffset
+            || token.startOffset >= semantic.endOffset
+          ) {
+            next.push(token);
+          } else {
+            if (token.startOffset < semantic.startOffset) {
+              next.push(
+                new TokenSegment(
+                  token.startOffset,
+                  semantic.startOffset,
+                  token.metadata,
+                  token.languageId
+                )
+              );
+            }
+            int start = token.startOffset;
+            if (start < semantic.startOffset) {
+              start = semantic.startOffset;
+            }
+            int end = token.endOffset;
+            if (end > semantic.endOffset) {
+              end = semantic.endOffset;
+            }
+            next.push(
+              new TokenSegment(start, end, semantic.metadata, token.languageId)
+            );
+            if (token.endOffset > semantic.endOffset) {
+              next.push(
+                new TokenSegment(
+                  semantic.endOffset,
+                  token.endOffset,
+                  token.metadata,
+                  token.languageId
+                )
+              );
+            }
+          }
+          j = j + 1;
+        }
+        result = next;
+      }
+      i = i + 1;
+    }
+    return result;
+  }
+
+  LineTokens getLineTokens(int lineNumber) {
+    int index = lineNumber - 1;
+    if (index < 0 || index >= this.lines.length) {
+      return new LineTokens("", []);
+    }
+    return new LineTokens(
+      this.lines[index],
+      this.addSemanticTokens(lineNumber, this.syntacticTokens[index])
+    );
+  }
+
+  void setSemanticTokens(SemanticToken[] tokens, bool isComplete) {
+    this.semanticTokens = tokens;
+    this.semanticComplete = isComplete;
+  }
+
+  void setPartialSemanticTokens(
+    int startLineNumber,
+    int endLineNumber,
+    SemanticToken[] tokens
+  ) {
+    if (this.semanticComplete) {
+      return;
+    }
+    SemanticToken[] result = [];
+    int i = 0;
+    while (i < this.semanticTokens.length) {
+      SemanticToken token = this.semanticTokens[i];
+      if (
+        token.lineNumber < startLineNumber
+        || token.lineNumber > endLineNumber
+      ) {
+        result.push(token);
+      }
+      i = i + 1;
+    }
+    i = 0;
+    while (i < tokens.length) {
+      result.push(tokens[i]);
+      i = i + 1;
+    }
+    this.semanticTokens = result;
+  }
+
+  bool hasCompleteSemanticTokens() {
+    return this.semanticComplete;
+  }
+
+  bool hasSomeSemanticTokens() {
+    return this.semanticTokens.length > 0;
+  }
+
+  int[] findLanguageBoundaries(LineTokens lineTokens, int tokenIndex) {
+    if (lineTokens.segments.length == 0) {
+      return [0, lineTokens.content.length];
+    }
+    int language = lineTokens.getLanguageId(tokenIndex);
+    int startOffset = lineTokens.getStartOffset(tokenIndex);
+    int i = tokenIndex - 1;
+    while (i >= 0 && lineTokens.getLanguageId(i) == language) {
+      startOffset = lineTokens.getStartOffset(i);
+      i = i - 1;
+    }
+    int endOffset = lineTokens.getEndOffset(tokenIndex);
+    i = tokenIndex + 1;
+    while (
+      i < lineTokens.getCount()
+      && lineTokens.getLanguageId(i) == language
+    ) {
+      endOffset = lineTokens.getEndOffset(i);
+      i = i + 1;
+    }
+    return [startOffset, endOffset];
+  }
+
+  WordAtPosition? getWordAtPosition(Position position) {
+    if (position.lineNumber < 1 || position.lineNumber > this.lines.length) {
+      return null;
+    }
+    string line = this.lines[position.lineNumber - 1];
+    LineTokens lineTokens = this.getLineTokens(position.lineNumber);
+    if (lineTokens.getCount() == 0) {
+      return null;
+    }
+    int offset = position.column - 1;
+    int tokenIndex = lineTokens.findTokenIndexAtOffset(offset);
+    int[] boundaries = this.findLanguageBoundaries(lineTokens, tokenIndex);
+    int start = offset;
+    if (start >= line.length) {
+      start = line.length - 1;
+    }
+    if (start < 0 || !isWordCharacter(line.charCodeAt(start))) {
+      if (start > boundaries[0] && isWordCharacter(line.charCodeAt(start - 1))) {
+        start = start - 1;
+      } else {
+        return null;
+      }
+    }
+    int end = start + 1;
+    while (start > boundaries[0] && isWordCharacter(line.charCodeAt(start - 1))) {
+      start = start - 1;
+    }
+    while (end < boundaries[1] && isWordCharacter(line.charCodeAt(end))) {
+      end = end + 1;
+    }
+    return new WordAtPosition(textRange(line, start, end), start + 1, end + 1);
+  }
+
+  WordAtPosition getWordUntilPosition(Position position) {
+    WordAtPosition? word = this.getWordAtPosition(position);
+    if (word == null) {
+      return new WordAtPosition("", position.column, position.column);
+    }
+    int length = position.column - word.startColumn;
+    if (length < 0) {
+      length = 0;
+    }
+    if (length > word.word.length) {
+      length = word.word.length;
+    }
+    return new WordAtPosition(
+      textRange(word.word, 0, length),
+      word.startColumn,
+      position.column
+    );
+  }
+
+  int getLanguageIdAtPosition(int lineNumber, int column) {
+    LineTokens tokens = this.getLineTokens(lineNumber);
+    if (tokens.getCount() == 0) {
+      return this.encodedLanguageId;
+    }
+    return tokens.getLanguageId(tokens.findTokenIndexAtOffset(column - 1));
+  }
+
+  void setLanguageId(string languageId, int encodedLanguageId) {
+    if (this.languageId == languageId) {
+      return;
+    }
+    this.languageId = languageId;
+    this.encodedLanguageId = encodedLanguageId;
+    this.resetTokenization();
+  }
+
+  bool hasTokens() {
+    int i = 0;
+    while (i < this.syntacticTokens.length) {
+      if (this.syntacticTokens[i].length > 0) {
+        return true;
+      }
+      i = i + 1;
+    }
+    return false;
+  }
+
+  void forceTokenization(int lineNumber) {
+    if (lineNumber >= this.lines.length) {
+      this.backgroundTokenizationState = 2;
+    }
+  }
+
+  bool hasAccurateTokensForLine(int lineNumber) {
+    return lineNumber >= 1
+      && lineNumber <= this.syntacticTokens.length
+      && this.syntacticTokens[lineNumber - 1].length > 0;
+  }
+
+  bool isCheapToTokenize(int lineNumber) {
+    return lineNumber < 1
+      || lineNumber > this.lines.length
+      || this.lines[lineNumber - 1].length < 20000;
+  }
+}
+
+export TokenSegment createTokenSegment(
+  int startOffset,
+  int endOffset,
+  int metadata,
+  int languageId
+) {
+  return new TokenSegment(startOffset, endOffset, metadata, languageId);
+}
+
+export SemanticToken createSemanticToken(
+  int lineNumber,
+  int startOffset,
+  int endOffset,
+  int metadata
+) {
+  return new SemanticToken(lineNumber, startOffset, endOffset, metadata);
+}
+
+export TokenizationTextModelPart createTokenizationTextModelPart(
+  string languageId,
+  int encodedLanguageId,
+  string[] lines
+) {
+  return new TokenizationTextModelPart(languageId, encodedLanguageId, lines);
+}

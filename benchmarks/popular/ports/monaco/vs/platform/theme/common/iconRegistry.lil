@@ -1,0 +1,45 @@
+export class IconContribution {
+  string id;
+  string fontCharacter;
+  string description;
+
+  init(string id, string fontCharacter, string description) {
+    this.id = id;
+    this.fontCharacter = fontCharacter;
+    this.description = description;
+  }
+}
+
+export class IconRegistry {
+  IconContribution[] icons;
+
+  init() {
+    this.icons = [];
+  }
+
+  string registerIcon(string id, string fontCharacter, string description) {
+    this.icons.push(new IconContribution(id, fontCharacter, description));
+    return id;
+  }
+
+  IconContribution? getIcon(string id) {
+    int i = 0;
+    while (i < this.icons.length) {
+      if (this.icons[i].id == id) {
+        return this.icons[i];
+      }
+      i = i + 1;
+    }
+    return null;
+  }
+}
+
+IconRegistry iconRegistry = new IconRegistry();
+
+export string registerIcon(string id, string fontCharacter, string description) {
+  return iconRegistry.registerIcon(id, fontCharacter, description);
+}
+
+export IconRegistry getIconRegistry() {
+  return iconRegistry;
+}

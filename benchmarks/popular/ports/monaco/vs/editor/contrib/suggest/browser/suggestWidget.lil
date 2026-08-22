@@ -1,0 +1,106 @@
+export int STATUS_LOADING = 0;
+export int STATUS_EMPTY = 1;
+export int STATUS_READY = 2;
+export int STATUS_FROZEN = 3;
+
+export class SuggestWidget {
+  int status;
+  bool focused;
+  int selectedIndex;
+  int visibleCount;
+  int listHeight;
+  int itemHeight;
+  int maxHeight;
+  int width;
+  bool detailsVisible;
+  bool explainMode;
+  int capped;
+
+  init(int itemHeight, int maxHeight) {
+    this.status = STATUS_EMPTY;
+    this.focused = false;
+    this.selectedIndex = 0;
+    this.visibleCount = 0;
+    this.listHeight = 0;
+    this.itemHeight = itemHeight;
+    this.maxHeight = maxHeight;
+    this.width = 430;
+    this.detailsVisible = false;
+    this.explainMode = false;
+    this.capped = 0;
+  }
+
+  void showSuggestions(int count, bool loading, bool frozen) {
+    this.visibleCount = count;
+    if (loading) {
+      this.status = STATUS_LOADING;
+    } else if (frozen) {
+      this.status = STATUS_FROZEN;
+    } else if (count == 0) {
+      this.status = STATUS_EMPTY;
+    } else {
+      this.status = STATUS_READY;
+    }
+    int height = count * this.itemHeight;
+    if (height > this.maxHeight) {
+      height = this.maxHeight;
+      this.capped = count - (this.maxHeight / this.itemHeight);
+    } else {
+      this.capped = 0;
+    }
+    this.listHeight = height;
+    if (this.selectedIndex >= count) {
+      this.selectedIndex = 0;
+    }
+  }
+
+  void hide() {
+    this.status = STATUS_EMPTY;
+    this.focused = false;
+    this.detailsVisible = false;
+  }
+
+  int selectNext() {
+    if (this.visibleCount == 0) {
+      return 0;
+    }
+    this.selectedIndex = this.selectedIndex + 1;
+    if (this.selectedIndex >= this.visibleCount) {
+      this.selectedIndex = 0;
+    }
+    return this.selectedIndex;
+  }
+
+  int selectPrev() {
+    if (this.visibleCount == 0) {
+      return 0;
+    }
+    this.selectedIndex = this.selectedIndex - 1;
+    if (this.selectedIndex < 0) {
+      this.selectedIndex = this.visibleCount - 1;
+    }
+    return this.selectedIndex;
+  }
+
+  int selectFirst() {
+    this.selectedIndex = 0;
+    return 0;
+  }
+
+  int selectLast() {
+    if (this.visibleCount == 0) {
+      this.selectedIndex = 0;
+    } else {
+      this.selectedIndex = this.visibleCount - 1;
+    }
+    return this.selectedIndex;
+  }
+
+  bool isVisible() {
+    return this.status == STATUS_READY || this.status == STATUS_LOADING || this.status == STATUS_FROZEN;
+  }
+}
+
+export SuggestWidget createSuggestWidget(int itemHeight, int maxHeight) {
+  return new SuggestWidget(itemHeight, maxHeight);
+}

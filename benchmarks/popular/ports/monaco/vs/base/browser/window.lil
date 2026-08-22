@@ -1,0 +1,10 @@
+import { windowSelf } from "../../../js-host";
+
+export void ensureCodeWindow(JsValue targetWindow, int fallbackWindowId) {
+  JsValue id = targetWindow["vscodeWindowId"];
+  if (!(id is float)) {
+    targetWindow["vscodeWindowId"] = fallbackWindowId;
+  }
+}
+
+export JsValue mainWindow = windowSelf();

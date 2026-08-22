@@ -1,0 +1,68 @@
+export int defaultForeground = 1;
+export int defaultBackground = 2;
+
+export class NullToken {
+  int offset;
+  string type;
+  string language;
+
+  init(int offset, string type, string language) {
+    this.offset = offset;
+    this.type = type;
+    this.language = language;
+  }
+}
+
+export class NullState {
+  NullState clone() {
+    return this;
+  }
+
+  bool equals(NullState other) {
+    return true;
+  }
+}
+
+NullState sharedNullState = new NullState();
+
+export NullState nullState() {
+  return sharedNullState;
+}
+
+export class TokenizationResult {
+  NullToken[] tokens;
+  NullState state;
+
+  init(NullToken[] tokens, NullState state) {
+    this.tokens = tokens;
+    this.state = state;
+  }
+}
+
+export class EncodedTokenizationResult {
+  int[] tokens;
+  NullState state;
+
+  init(int[] tokens, NullState state) {
+    this.tokens = tokens;
+    this.state = state;
+  }
+}
+
+export TokenizationResult nullTokenize(string languageId, NullState state) {
+  NullToken[] tokens = [];
+  tokens.push(new NullToken(0, "", languageId));
+  return new TokenizationResult(tokens, state);
+}
+
+export EncodedTokenizationResult nullTokenizeEncoded(int languageId, NullState? state) {
+  int[] tokens = [];
+  tokens.push(0);
+  int metadata = (languageId << 0) | (0 << 8) | (0 << 11) | (defaultForeground << 15) | (defaultBackground << 24);
+  tokens.push(metadata);
+  NullState next = sharedNullState;
+  if (state != null) {
+    next = state;
+  }
+  return new EncodedTokenizationResult(tokens, next);
+}

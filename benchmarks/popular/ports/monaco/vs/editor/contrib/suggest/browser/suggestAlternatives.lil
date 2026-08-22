@@ -1,0 +1,49 @@
+export class SuggestAlternatives {
+  string[] texts;
+  int index;
+  bool active;
+
+  init() {
+    this.texts = [];
+    this.index = 0;
+    this.active = false;
+  }
+
+  void set(string[] texts) {
+    this.texts = texts;
+    this.index = 0;
+    this.active = texts.length > 1;
+  }
+
+  string? next() {
+    if (!this.active || this.texts.length == 0) {
+      return null;
+    }
+    this.index = this.index + 1;
+    if (this.index >= this.texts.length) {
+      this.index = 0;
+    }
+    return this.texts[this.index];
+  }
+
+  string? prev() {
+    if (!this.active || this.texts.length == 0) {
+      return null;
+    }
+    this.index = this.index - 1;
+    if (this.index < 0) {
+      this.index = this.texts.length - 1;
+    }
+    return this.texts[this.index];
+  }
+
+  void reset() {
+    this.texts = [];
+    this.index = 0;
+    this.active = false;
+  }
+}
+
+export SuggestAlternatives createSuggestAlternatives() {
+  return new SuggestAlternatives();
+}

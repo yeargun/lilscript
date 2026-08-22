@@ -1,0 +1,365 @@
+export class Viewport {
+  int top;
+  int left;
+  int width;
+  int height;
+
+  init(int top, int left, int width, int height) {
+    this.top = top;
+    this.left = left;
+    this.width = width;
+    this.height = height;
+  }
+}
+
+export class EditorScrollDimensions {
+  int width;
+  int contentWidth;
+  int scrollWidth;
+  int height;
+  int contentHeight;
+  int scrollHeight;
+
+  init(int width, int contentWidth, int height, int contentHeight) {
+    if (width < 0) {
+      width = 0;
+    }
+    if (contentWidth < 0) {
+      contentWidth = 0;
+    }
+    if (height < 0) {
+      height = 0;
+    }
+    if (contentHeight < 0) {
+      contentHeight = 0;
+    }
+    this.width = width;
+    this.contentWidth = contentWidth;
+    this.scrollWidth = width;
+    if (contentWidth > this.scrollWidth) {
+      this.scrollWidth = contentWidth;
+    }
+    this.height = height;
+    this.contentHeight = contentHeight;
+    this.scrollHeight = height;
+    if (contentHeight > this.scrollHeight) {
+      this.scrollHeight = contentHeight;
+    }
+  }
+}
+
+export class ViewLayoutWhitespace {
+  int id;
+  int afterLineNumber;
+  int height;
+  int minWidth;
+
+  init(int id, int afterLineNumber, int height, int minWidth) {
+    this.id = id;
+    this.afterLineNumber = afterLineNumber;
+    this.height = height;
+    this.minWidth = minWidth;
+  }
+}
+
+export class ViewLayout {
+  int lineCount;
+  int lineHeight;
+  int paddingTop;
+  int paddingBottom;
+  int width;
+  int height;
+  int maxLineWidth;
+  int overlayWidgetsMinWidth;
+  int scrollBeyondLastColumn;
+  int verticalScrollbarWidth;
+  int horizontalScrollbarHeight;
+  bool viewportWrapping;
+  bool scrollBeyondLastLine;
+  int scrollLeft;
+  int scrollTop;
+  int lastWhitespaceId;
+  ViewLayoutWhitespace[] whitespaces;
+  EditorScrollDimensions dimensions;
+
+  init(int lineCount, int lineHeight, int width, int height, int paddingTop, int paddingBottom) {
+    this.lineCount = lineCount;
+    this.lineHeight = lineHeight;
+    this.paddingTop = paddingTop;
+    this.paddingBottom = paddingBottom;
+    this.width = width;
+    this.height = height;
+    this.maxLineWidth = 0;
+    this.overlayWidgetsMinWidth = 0;
+    this.scrollBeyondLastColumn = 5;
+    this.verticalScrollbarWidth = 0;
+    this.horizontalScrollbarHeight = 0;
+    this.viewportWrapping = false;
+    this.scrollBeyondLastLine = false;
+    this.scrollLeft = 0;
+    this.scrollTop = 0;
+    this.lastWhitespaceId = 0;
+    this.whitespaces = [];
+    this.dimensions = new EditorScrollDimensions(width, 0, height, 0);
+    this.updateDimensions();
+  }
+
+  int whitespaceTotalHeight() {
+    int total = 0;
+    int i = 0;
+    while (i < this.whitespaces.length) {
+      total = total + this.whitespaces[i].height;
+      i = i + 1;
+    }
+    return total;
+  }
+
+  int whitespaceMinWidth() {
+    int result = 0;
+    int i = 0;
+    while (i < this.whitespaces.length) {
+      if (this.whitespaces[i].minWidth > result) {
+        result = this.whitespaces[i].minWidth;
+      }
+      i = i + 1;
+    }
+    return result;
+  }
+
+  int computeContentWidth() {
+    if (this.viewportWrapping) {
+      return this.maxLineWidth;
+    }
+    int result = this.maxLineWidth + this.scrollBeyondLastColumn + this.verticalScrollbarWidth;
+    int whitespaceWidth = this.whitespaceMinWidth();
+    if (whitespaceWidth > result) {
+      result = whitespaceWidth;
+    }
+    if (this.overlayWidgetsMinWidth > result) {
+      result = this.overlayWidgetsMinWidth;
+    }
+    return result;
+  }
+
+  int computeContentHeight(int contentWidth) {
+    int result = this.paddingTop + this.lineCount * this.lineHeight + this.whitespaceTotalHeight() + this.paddingBottom;
+    if (this.scrollBeyondLastLine) {
+      int extra = this.height - this.lineHeight - this.paddingBottom;
+      if (extra > 0) {
+        result = result + extra;
+      }
+    } else {
+      if (contentWidth > this.width) {
+        result = result + this.horizontalScrollbarHeight;
+      }
+    }
+    return result;
+  }
+
+  void updateDimensions() {
+    int contentWidth = this.computeContentWidth();
+    int contentHeight = this.computeContentHeight(contentWidth);
+    this.dimensions = new EditorScrollDimensions(this.width, contentWidth, this.height, contentHeight);
+    this.setScrollPosition(this.scrollLeft, this.scrollTop);
+  }
+
+  void setViewportSize(int width, int height) {
+    this.width = width;
+    this.height = height;
+    this.updateDimensions();
+  }
+
+  void configureScrolling(int scrollBeyondLastColumn, int verticalScrollbarWidth, int horizontalScrollbarHeight, bool viewportWrapping, bool scrollBeyondLastLine) {
+    this.scrollBeyondLastColumn = scrollBeyondLastColumn;
+    this.verticalScrollbarWidth = verticalScrollbarWidth;
+    this.horizontalScrollbarHeight = horizontalScrollbarHeight;
+    this.viewportWrapping = viewportWrapping;
+    this.scrollBeyondLastLine = scrollBeyondLastLine;
+    this.updateDimensions();
+  }
+
+  void setMaxLineWidth(int maxLineWidth) {
+    this.maxLineWidth = maxLineWidth;
+    this.updateDimensions();
+  }
+
+  void setOverlayWidgetsMinWidth(int minWidth) {
+    this.overlayWidgetsMinWidth = minWidth;
+    this.updateDimensions();
+  }
+
+  void setLineHeight(int lineHeight) {
+    this.lineHeight = lineHeight;
+    this.updateDimensions();
+  }
+
+  void setPadding(int paddingTop, int paddingBottom) {
+    this.paddingTop = paddingTop;
+    this.paddingBottom = paddingBottom;
+    this.updateDimensions();
+  }
+
+  void onFlushed(int lineCount) {
+    this.lineCount = lineCount;
+    this.updateDimensions();
+  }
+
+  void onLinesDeleted(int fromLineNumber, int toLineNumber) {
+    this.lineCount = this.lineCount - (toLineNumber - fromLineNumber + 1);
+    int i = 0;
+    while (i < this.whitespaces.length) {
+      if (this.whitespaces[i].afterLineNumber >= fromLineNumber && this.whitespaces[i].afterLineNumber <= toLineNumber) {
+        this.whitespaces[i].afterLineNumber = fromLineNumber - 1;
+      } else {
+        if (this.whitespaces[i].afterLineNumber > toLineNumber) {
+          this.whitespaces[i].afterLineNumber = this.whitespaces[i].afterLineNumber - (toLineNumber - fromLineNumber + 1);
+        }
+      }
+      i = i + 1;
+    }
+    this.updateDimensions();
+  }
+
+  void onLinesInserted(int fromLineNumber, int toLineNumber) {
+    int count = toLineNumber - fromLineNumber + 1;
+    this.lineCount = this.lineCount + count;
+    int i = 0;
+    while (i < this.whitespaces.length) {
+      if (this.whitespaces[i].afterLineNumber >= fromLineNumber) {
+        this.whitespaces[i].afterLineNumber = this.whitespaces[i].afterLineNumber + count;
+      }
+      i = i + 1;
+    }
+    this.updateDimensions();
+  }
+
+  int insertWhitespace(int afterLineNumber, int height, int minWidth) {
+    this.lastWhitespaceId = this.lastWhitespaceId + 1;
+    this.whitespaces.push(new ViewLayoutWhitespace(this.lastWhitespaceId, afterLineNumber, height, minWidth));
+    this.updateDimensions();
+    return this.lastWhitespaceId;
+  }
+
+  bool changeWhitespace(int id, int afterLineNumber, int height) {
+    int i = 0;
+    while (i < this.whitespaces.length) {
+      if (this.whitespaces[i].id == id) {
+        this.whitespaces[i].afterLineNumber = afterLineNumber;
+        this.whitespaces[i].height = height;
+        this.updateDimensions();
+        return true;
+      }
+      i = i + 1;
+    }
+    return false;
+  }
+
+  bool removeWhitespace(int id) {
+    int i = 0;
+    while (i < this.whitespaces.length) {
+      if (this.whitespaces[i].id == id) {
+        this.whitespaces.splice(i, 1);
+        this.updateDimensions();
+        return true;
+      }
+      i = i + 1;
+    }
+    return false;
+  }
+
+  int whitespaceHeightBeforeLine(int lineNumber) {
+    int total = 0;
+    int i = 0;
+    while (i < this.whitespaces.length) {
+      if (this.whitespaces[i].afterLineNumber < lineNumber) {
+        total = total + this.whitespaces[i].height;
+      }
+      i = i + 1;
+    }
+    return total;
+  }
+
+  int getVerticalOffsetForLineNumber(int lineNumber, bool includeViewZones = false) {
+    int whitespaceLine = lineNumber;
+    if (includeViewZones) {
+      whitespaceLine = lineNumber - 1;
+    }
+    return this.paddingTop + (lineNumber - 1) * this.lineHeight + this.whitespaceHeightBeforeLine(whitespaceLine);
+  }
+
+  int getVerticalOffsetAfterLineNumber(int lineNumber, bool includeViewZones = false) {
+    int whitespaceLine = lineNumber;
+    if (includeViewZones) {
+      whitespaceLine = lineNumber + 1;
+    }
+    return this.paddingTop + lineNumber * this.lineHeight + this.whitespaceHeightBeforeLine(whitespaceLine);
+  }
+
+  int getLineNumberAtVerticalOffset(int verticalOffset) {
+    int low = 1;
+    int high = this.lineCount;
+    while (low < high) {
+      int mid = (low + high) / 2;
+      int top = this.getVerticalOffsetForLineNumber(mid);
+      if (verticalOffset >= top + this.lineHeight) {
+        low = mid + 1;
+      } else {
+        high = mid;
+      }
+    }
+    return low;
+  }
+
+  void setScrollPosition(int scrollLeft, int scrollTop) {
+    int maxLeft = this.dimensions.scrollWidth - this.dimensions.width;
+    int maxTop = this.dimensions.scrollHeight - this.dimensions.height;
+    if (maxLeft < 0) {
+      maxLeft = 0;
+    }
+    if (maxTop < 0) {
+      maxTop = 0;
+    }
+    if (scrollLeft < 0) {
+      scrollLeft = 0;
+    }
+    if (scrollTop < 0) {
+      scrollTop = 0;
+    }
+    if (scrollLeft > maxLeft) {
+      scrollLeft = maxLeft;
+    }
+    if (scrollTop > maxTop) {
+      scrollTop = maxTop;
+    }
+    this.scrollLeft = scrollLeft;
+    this.scrollTop = scrollTop;
+  }
+
+  void deltaScrollNow(int deltaScrollLeft, int deltaScrollTop) {
+    this.setScrollPosition(this.scrollLeft + deltaScrollLeft, this.scrollTop + deltaScrollTop);
+  }
+
+  Viewport getCurrentViewport() {
+    return new Viewport(this.scrollTop, this.scrollLeft, this.width, this.height);
+  }
+
+  int getContentWidth() {
+    return this.dimensions.contentWidth;
+  }
+
+  int getScrollWidth() {
+    return this.dimensions.scrollWidth;
+  }
+
+  int getContentHeight() {
+    return this.dimensions.contentHeight;
+  }
+
+  int getScrollHeight() {
+    return this.dimensions.scrollHeight;
+  }
+}
+
+export ViewLayout createViewLayout(int lineCount, int lineHeight, int width, int height, int paddingTop = 0, int paddingBottom = 0) {
+  return new ViewLayout(lineCount, lineHeight, width, height, paddingTop, paddingBottom);
+}

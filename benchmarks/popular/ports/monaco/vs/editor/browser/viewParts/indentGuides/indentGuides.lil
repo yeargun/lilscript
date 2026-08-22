@@ -1,0 +1,110 @@
+int MAX_INDENT_LEVEL = 30;
+
+int imin(int a, int b) {
+  if (a < b) {
+    return a;
+  }
+  return b;
+}
+
+int imax(int a, int b) {
+  if (a > b) {
+    return a;
+  }
+  return b;
+}
+
+export class IndentGuide {
+  int visibleColumn;
+  int column;
+  string className;
+  bool active;
+  float left;
+  float width;
+
+  init(int visibleColumn, int column, string className, bool active, float left, float width) {
+    this.visibleColumn = visibleColumn;
+    this.column = column;
+    this.className = className;
+    this.active = active;
+    this.left = left;
+    this.width = width;
+  }
+}
+
+export class IndentGuidesOverlay {
+  float spaceWidth;
+  float maxIndentLeft;
+  bool indentation;
+  bool highlightActive;
+  IndentGuide[][] renderResult;
+
+  init(float spaceWidth, float maxIndentLeft, bool indentation, bool highlightActive) {
+    this.spaceWidth = spaceWidth;
+    this.maxIndentLeft = maxIndentLeft;
+    this.indentation = indentation;
+    this.highlightActive = highlightActive;
+    this.renderResult = [];
+  }
+
+  IndentGuide[] guidesForLine(int indentLevel, int indentSize, bool isActiveLine, int activeIndentLevel, float scrollWidth) {
+    IndentGuide[] lineGuides = [];
+    if (!this.indentation) {
+      return lineGuides;
+    }
+    int indentLvl = 1;
+    while (indentLvl <= indentLevel) {
+      int indentGuide = (indentLvl - 1) * indentSize + 1;
+      bool isActive = this.highlightActive && isActiveLine && indentLvl == activeIndentLevel;
+      float left = (indentGuide - 1) * 1.0 * this.spaceWidth;
+      if (left > scrollWidth) {
+        break;
+      }
+      if (this.maxIndentLeft > 0.0 && left > this.maxIndentLeft) {
+        break;
+      }
+      string className = "core-guide-indent lvl-" + ((indentLvl - 1) % MAX_INDENT_LEVEL).toString();
+      if (isActive) {
+        className = className + " indent-active";
+      }
+      lineGuides.push(new IndentGuide(indentGuide, -1, className, isActive, left, this.spaceWidth));
+      indentLvl = indentLvl + 1;
+    }
+    return lineGuides;
+  }
+
+  void prepareRender(int visibleStartLineNumber, int visibleEndLineNumber, int[] indentLevels, int indentSize, int activeStartLine, int activeEndLine, int activeIndentLevel, float scrollWidth) {
+    this.renderResult = [];
+    int lineNumber = visibleStartLineNumber;
+    while (lineNumber <= visibleEndLineNumber) {
+      int lineIndex = lineNumber - visibleStartLineNumber;
+      int indentLevel = 0;
+      if (lineIndex >= 0 && lineIndex < indentLevels.length) {
+        indentLevel = indentLevels[lineIndex];
+      }
+      bool isActiveLine = lineNumber >= activeStartLine && lineNumber <= activeEndLine;
+      this.renderResult.push(this.guidesForLine(indentLevel, indentSize, isActiveLine, activeIndentLevel, scrollWidth));
+      lineNumber = lineNumber + 1;
+    }
+  }
+
+  string render(int startLineNumber, int lineNumber) {
+    int lineIndex = lineNumber - startLineNumber;
+    if (lineIndex < 0 || lineIndex >= this.renderResult.length) {
+      return "";
+    }
+    IndentGuide[] guides = this.renderResult[lineIndex];
+    string result = "";
+    int i = 0;
+    while (i < guides.length) {
+      IndentGuide guide = guides[i];
+      result = result + "<div class=\"core-guide " + guide.className + " vertical\" style=\"left:" + guide.left.round().toInt().toString() + "px;width:" + guide.width.round().toInt().toString() + "px\"></div>";
+      i = i + 1;
+    }
+    return result;
+  }
+}
+
+export IndentGuidesOverlay createIndentGuidesOverlay(float spaceWidth, float maxIndentLeft, bool indentation, bool highlightActive) {
+  return new IndentGuidesOverlay(spaceWidth, maxIndentLeft, indentation, highlightActive);
+}

@@ -1,0 +1,217 @@
+export class BoundingBox {
+  int left;
+  int top;
+  int right;
+  int bottom;
+
+  init(int left, int top, int right, int bottom) {
+    this.left = left;
+    this.top = top;
+    this.right = right;
+    this.bottom = bottom;
+  }
+}
+
+export class OriginOffset {
+  int x;
+  int y;
+
+  init(int x, int y) {
+    this.x = x;
+    this.y = y;
+  }
+}
+
+export class RasterizedGlyph {
+  BoundingBox boundingBox;
+  OriginOffset originOffset;
+  float fontBoundingBoxAscent;
+  float fontBoundingBoxDescent;
+
+  init(BoundingBox boundingBox, OriginOffset originOffset, float ascent, float descent) {
+    this.boundingBox = boundingBox;
+    this.originOffset = originOffset;
+    this.fontBoundingBoxAscent = ascent;
+    this.fontBoundingBoxDescent = descent;
+  }
+}
+
+export class AtlasGlyph {
+  int pageIndex;
+  int glyphIndex;
+  int x;
+  int y;
+  int w;
+  int h;
+  int originOffsetX;
+  int originOffsetY;
+  float fontBoundingBoxAscent;
+  float fontBoundingBoxDescent;
+
+  init(int pageIndex, int glyphIndex, int x, int y, int w, int h) {
+    this.pageIndex = pageIndex;
+    this.glyphIndex = glyphIndex;
+    this.x = x;
+    this.y = y;
+    this.w = w;
+    this.h = h;
+    this.originOffsetX = 0;
+    this.originOffsetY = 0;
+    this.fontBoundingBoxAscent = 0.0;
+    this.fontBoundingBoxDescent = 0.0;
+  }
+}
+
+export class ShelfRow {
+  int x;
+  int y;
+  int h;
+
+  init() {
+    this.x = 0;
+    this.y = 0;
+    this.h = 0;
+  }
+}
+
+int imax2(int a, int b) {
+  if (a > b) {
+    return a;
+  }
+  return b;
+}
+
+export class TextureAtlasShelfAllocator {
+  int canvasWidth;
+  int canvasHeight;
+  int textureIndex;
+  ShelfRow currentRow;
+  AtlasGlyph[] allocatedGlyphs;
+  int nextIndex;
+
+  init(int canvasWidth, int canvasHeight, int textureIndex) {
+    this.canvasWidth = canvasWidth;
+    this.canvasHeight = canvasHeight;
+    this.textureIndex = textureIndex;
+    this.currentRow = new ShelfRow();
+    this.allocatedGlyphs = [];
+    this.nextIndex = 0;
+  }
+
+  AtlasGlyph? allocate(RasterizedGlyph rasterizedGlyph) {
+    int glyphWidth = rasterizedGlyph.boundingBox.right - rasterizedGlyph.boundingBox.left + 1;
+    int glyphHeight = rasterizedGlyph.boundingBox.bottom - rasterizedGlyph.boundingBox.top + 1;
+    if (glyphWidth > this.canvasWidth || glyphHeight > this.canvasHeight) {
+      throw "Glyph is too large for the atlas page";
+    }
+    if (glyphWidth > this.canvasWidth - this.currentRow.x) {
+      this.currentRow.x = 0;
+      this.currentRow.y = this.currentRow.y + this.currentRow.h;
+      this.currentRow.h = 1;
+    }
+    if (this.currentRow.y + glyphHeight > this.canvasHeight) {
+      return null;
+    }
+    AtlasGlyph glyph = new AtlasGlyph(this.textureIndex, this.nextIndex, this.currentRow.x, this.currentRow.y, glyphWidth, glyphHeight);
+    this.nextIndex = this.nextIndex + 1;
+    glyph.originOffsetX = rasterizedGlyph.originOffset.x;
+    glyph.originOffsetY = rasterizedGlyph.originOffset.y;
+    glyph.fontBoundingBoxAscent = rasterizedGlyph.fontBoundingBoxAscent;
+    glyph.fontBoundingBoxDescent = rasterizedGlyph.fontBoundingBoxDescent;
+    this.currentRow.x = this.currentRow.x + glyphWidth;
+    this.currentRow.h = imax2(this.currentRow.h, glyphHeight);
+    this.allocatedGlyphs.push(glyph);
+    return glyph;
+  }
+
+  int usedPixels() {
+    int used = 0;
+    int i = 0;
+    while (i < this.allocatedGlyphs.length) {
+      AtlasGlyph g = this.allocatedGlyphs[i];
+      used = used + g.w * g.h;
+      i = i + 1;
+    }
+    return used;
+  }
+
+  int wastedPixels() {
+    int[] rowYs = [];
+    int[] rowHeights = [];
+    int[] rowWidths = [];
+    int i = 0;
+    while (i < this.allocatedGlyphs.length) {
+      AtlasGlyph g = this.allocatedGlyphs[i];
+      int found = -1;
+      int r = 0;
+      while (r < rowYs.length) {
+        if (rowYs[r] == g.y) {
+          found = r;
+          break;
+        }
+        r = r + 1;
+      }
+      if (found < 0) {
+        rowYs.push(g.y);
+        rowHeights.push(g.h);
+        rowWidths.push(g.x + g.w);
+      } else {
+        rowHeights[found] = imax2(rowHeights[found], g.h);
+        rowWidths[found] = imax2(rowWidths[found], g.x + g.w);
+      }
+      i = i + 1;
+    }
+    int wasted = 0;
+    int j = 0;
+    while (j < this.allocatedGlyphs.length) {
+      AtlasGlyph g2 = this.allocatedGlyphs[j];
+      int rowH = g2.h;
+      int k = 0;
+      while (k < rowYs.length) {
+        if (rowYs[k] == g2.y) {
+          rowH = rowHeights[k];
+          break;
+        }
+        k = k + 1;
+      }
+      wasted = wasted + g2.w * (rowH - g2.h);
+      j = j + 1;
+    }
+    int n = 0;
+    while (n < rowYs.length) {
+      if (rowYs[n] != this.currentRow.y) {
+        wasted = wasted + (this.canvasWidth - rowWidths[n]) * rowHeights[n];
+      }
+      n = n + 1;
+    }
+    return wasted;
+  }
+
+  string getStats() {
+    int w = this.canvasWidth;
+    int h = this.canvasHeight;
+    int totalPixels = w * h;
+    int used = this.usedPixels();
+    int wasted = this.wastedPixels();
+    int usedPct = 0;
+    int wastedPct = 0;
+    int efficiency = 0;
+    if (totalPixels > 0) {
+      usedPct = (used * 100) / totalPixels;
+      wastedPct = (wasted * 100) / totalPixels;
+    }
+    int denom = used + wasted;
+    if (denom > 0) {
+      efficiency = (used * 100) / denom;
+    }
+    return "page" + this.textureIndex.toString() + ":\n     Total: " + totalPixels.toString() + " (" + w.toString() + "x" + h.toString() + ")\n      Used: " + used.toString() + " (" + usedPct.toString() + "%)\n    Wasted: " + wasted.toString() + " (" + wastedPct.toString() + "%)\nEfficiency: " + efficiency.toString() + "%";
+  }
+}
+
+export TextureAtlasShelfAllocator createTextureAtlasShelfAllocator(int canvasWidth, int canvasHeight, int textureIndex) {
+  return new TextureAtlasShelfAllocator(canvasWidth, canvasHeight, textureIndex);
+}
+
+export RasterizedGlyph createRasterizedGlyph(int w, int h) {
+  return new RasterizedGlyph(new BoundingBox(0, 0, w - 1, h - 1), new OriginOffset(0, 0), 0.0, 0.0);
+}

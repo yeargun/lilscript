@@ -1,0 +1,135 @@
+import { LineRange } from "../core/ranges/lineRange";
+import { Pos } from "../../../../base/position";
+import { Rng, createRange } from "../../../../base/range";
+
+export class LineRangeMapping {
+  LineRange original;
+  LineRange modified;
+
+  init(LineRange original, LineRange modified) {
+    this.original = original;
+    this.modified = modified;
+  }
+
+  string toString() {
+    return "{" + this.original.toString() + "->" + this.modified.toString() + "}";
+  }
+
+  LineRangeMapping flip() {
+    return new LineRangeMapping(this.modified, this.original);
+  }
+
+  LineRangeMapping join(LineRangeMapping other) {
+    return new LineRangeMapping(this.original.join(other.original), this.modified.join(other.modified));
+  }
+}
+
+export LineRangeMapping[] inverseLineRangeMapping(LineRangeMapping[] mapping, int originalLineCount, int modifiedLineCount) {
+  LineRangeMapping[] result = [];
+  int lastOriginalEndLineNumber = 1;
+  int lastModifiedEndLineNumber = 1;
+  int i = 0;
+  while (i < mapping.length) {
+    LineRangeMapping m = mapping[i];
+    LineRangeMapping r = new LineRangeMapping(
+      new LineRange(lastOriginalEndLineNumber, m.original.startLineNumber),
+      new LineRange(lastModifiedEndLineNumber, m.modified.startLineNumber)
+    );
+    if (!r.modified.isEmpty()) {
+      result.push(r);
+    }
+    lastOriginalEndLineNumber = m.original.endLineNumberExclusive;
+    lastModifiedEndLineNumber = m.modified.endLineNumberExclusive;
+    i = i + 1;
+  }
+  LineRangeMapping tail = new LineRangeMapping(
+    new LineRange(lastOriginalEndLineNumber, originalLineCount + 1),
+    new LineRange(lastModifiedEndLineNumber, modifiedLineCount + 1)
+  );
+  if (!tail.modified.isEmpty()) {
+    result.push(tail);
+  }
+  return result;
+}
+
+export LineRangeMapping[] clipLineRangeMapping(LineRangeMapping[] mapping, LineRange originalRange, LineRange modifiedRange) {
+  LineRangeMapping[] result = [];
+  int i = 0;
+  while (i < mapping.length) {
+    LineRangeMapping m = mapping[i];
+    LineRange? original = m.original.intersect(originalRange);
+    LineRange? modified = m.modified.intersect(modifiedRange);
+    if (original != null && !original.isEmpty() && modified != null && !modified.isEmpty()) {
+      result.push(new LineRangeMapping(original, modified));
+    }
+    i = i + 1;
+  }
+  return result;
+}
+
+export class RangeMapping {
+  Rng originalRange;
+  Rng modifiedRange;
+
+  init(Rng originalRange, Rng modifiedRange) {
+    this.originalRange = originalRange;
+    this.modifiedRange = modifiedRange;
+  }
+
+  string toString() {
+    return "{" + this.originalRange.toString() + "->" + this.modifiedRange.toString() + "}";
+  }
+
+  RangeMapping flip() {
+    return new RangeMapping(this.modifiedRange, this.originalRange);
+  }
+}
+
+export class DetailedLineRangeMapping {
+  LineRange original;
+  LineRange modified;
+  RangeMapping[] innerChanges;
+
+  init(LineRange original, LineRange modified, RangeMapping[] innerChanges) {
+    this.original = original;
+    this.modified = modified;
+    this.innerChanges = innerChanges;
+  }
+
+  DetailedLineRangeMapping flip() {
+    RangeMapping[] inner = [];
+    int i = 0;
+    while (i < this.innerChanges.length) {
+      inner.push(this.innerChanges[i].flip());
+      i = i + 1;
+    }
+    return new DetailedLineRangeMapping(this.modified, this.original, inner);
+  }
+}
+
+Pos normalizePosition(Pos position, string[] content) {
+  if (position.lineNumber < 1) {
+    return new Pos(1, 1);
+  }
+  if (position.lineNumber > content.length) {
+    return new Pos(content.length, content[content.length - 1].length + 1);
+  }
+  string line = content[position.lineNumber - 1];
+  if (position.column > line.length + 1) {
+    return new Pos(position.lineNumber, line.length + 1);
+  }
+  return position;
+}
+
+export RangeMapping getLineRangeMappingToRange(LineRangeMapping mapping) {
+  if (mapping.original.isEmpty() && mapping.modified.isEmpty()) {
+    return new RangeMapping(
+      createRange(mapping.original.startLineNumber, 1, mapping.original.startLineNumber, 1),
+      createRange(mapping.modified.startLineNumber, 1, mapping.modified.startLineNumber, 1)
+    );
+  }
+  return new RangeMapping(
+    createRange(mapping.original.startLineNumber, 1, mapping.original.endLineNumberExclusive, 1),
+    createRange(mapping.modified.startLineNumber, 1, mapping.modified.endLineNumberExclusive, 1)
+  );
+}

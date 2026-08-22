@@ -1,0 +1,49 @@
+import { domCreateElement, setClassName, classListAdd, stringSlice } from "../../../../../js-host";
+
+export JsValue renderIcon(string id, bool renderDefaultColor) {
+  JsValue node = domCreateElement("span");
+  classListAdd(node, "codicon");
+  classListAdd(node, "codicon-" + id);
+  if (renderDefaultColor) {
+    classListAdd(node, "codicon-colored");
+  }
+  return node;
+}
+
+export JsValue[] renderLabelWithIcons(string text, bool renderIconsInDefaultColor) {
+  JsValue[] elements = [];
+  int i = 0;
+  string plain = "";
+  while (i < text.length) {
+    bool escaped = i + 1 < text.length && text.charAt(i) == "\\" && text.charAt(i + 1) == "$";
+    if (escaped) {
+      plain = plain + "$";
+      i = i + 2;
+      continue;
+    }
+    if (i + 1 < text.length && text.charAt(i) == "$" && text.charAt(i + 1) == "(") {
+      int close = text.indexOf(")", i + 2);
+      if (close > i + 2) {
+        if (plain.length > 0) {
+          JsValue span = domCreateElement("span");
+          setClassName(span, "");
+          span["textContent"] = plain;
+          elements.push(span);
+          plain = "";
+        }
+        string id = stringSlice(text, i + 2, close);
+        elements.push(renderIcon(id, renderIconsInDefaultColor));
+        i = close + 1;
+        continue;
+      }
+    }
+    plain = plain + text.charAt(i);
+    i = i + 1;
+  }
+  if (plain.length > 0) {
+    JsValue span = domCreateElement("span");
+    span["textContent"] = plain;
+    elements.push(span);
+  }
+  return elements;
+}

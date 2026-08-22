@@ -1,0 +1,358 @@
+import { domCreateElement, appendChild, setClassName, classListAdd, classListRemove, setAttribute, setTextContent, setTabIndex, addEventListener, preventDefault, stopPropagation, eventButton, eventCtrlKey, focusElement, blurElement, hostCall, jsUndefined } from "../../../../../js-host";
+
+string boolAttr(bool value) {
+  if (value) {
+    return "true";
+  }
+  return "false";
+}
+
+export string SEPARATOR_ACTION_ID = "vs.actions.separator";
+
+export class ItemAction {
+  string id;
+  string label;
+  string tooltip;
+  string cssClass;
+  bool enabled;
+  bool checked;
+  bool hasChecked;
+  (func(JsValue)->void)[] changeListeners;
+
+  init(string id, string label, string cssClass, bool enabled) {
+    this.id = id;
+    this.label = label;
+    this.tooltip = "";
+    this.cssClass = cssClass;
+    this.enabled = enabled;
+    this.checked = false;
+    this.hasChecked = false;
+    this.changeListeners = [];
+  }
+
+  func()->void onDidChange(func(JsValue)->void listener) {
+    this.changeListeners.push(listener);
+    ItemAction owner = this;
+    return () => {
+      int index = owner.changeListeners.indexOf(listener);
+      if (index >= 0) {
+        owner.changeListeners.splice(index, 1);
+      }
+    };
+  }
+
+  void fireChange(string property) {
+    JsValue change = JS.object();
+    change[property] = true;
+    int i = 0;
+    while (i < this.changeListeners.length) {
+      this.changeListeners[i](change);
+      i = i + 1;
+    }
+  }
+}
+
+export class BaseActionViewItem {
+  ItemAction action;
+  JsValue element;
+  JsValue context;
+  bool draggable;
+  bool isMenu;
+  bool isTabList;
+  bool trapsArrowNavigation;
+  func(ItemAction, JsValue)->void runFn;
+
+  init(JsValue context, ItemAction action) {
+    this.action = action;
+    this.element = null;
+    this.context = context;
+    this.draggable = false;
+    this.isMenu = false;
+    this.isTabList = false;
+    this.trapsArrowNavigation = false;
+    this.runFn = (ItemAction action, JsValue ctx) => {};
+    BaseActionViewItem owner = this;
+    action.onDidChange((JsValue event) => {
+      owner.handleActionChangeEvent(event);
+    });
+  }
+
+  void handleActionChangeEvent(JsValue event) {
+    if (event["enabled"].truthy()) {
+      this.updateEnabled();
+    }
+    if (event["checked"].truthy()) {
+      this.updateChecked();
+    }
+    if (event["class"].truthy()) {
+      this.updateClass();
+    }
+    if (event["label"].truthy()) {
+      this.updateLabel();
+      this.updateTooltip();
+    }
+    if (event["tooltip"].truthy()) {
+      this.updateTooltip();
+    }
+  }
+
+  bool isEnabled() {
+    return this.action.enabled;
+  }
+
+  void setActionContext(JsValue context) {
+    this.context = context;
+  }
+
+  void render(JsValue container) {
+    this.element = container;
+    if (this.draggable) {
+      container["draggable"] = true;
+    }
+    BaseActionViewItem owner = this;
+    addEventListener(container, "mousedown", (JsValue event) => {
+      if (!owner.draggable) {
+        preventDefault(event);
+        stopPropagation(event);
+      }
+      if (owner.action.enabled && eventButton(event) == 0) {
+        classListAdd(container, "active");
+      }
+    }, false);
+    addEventListener(container, "click", (JsValue event) => {
+      preventDefault(event);
+      stopPropagation(event);
+      if (!owner.isMenu) {
+        owner.onClick(event);
+      }
+    }, false);
+    addEventListener(container, "dblclick", (JsValue event) => {
+      preventDefault(event);
+      stopPropagation(event);
+    }, false);
+    addEventListener(container, "mouseup", (JsValue event) => {
+      classListRemove(container, "active");
+    }, false);
+    addEventListener(container, "mouseout", (JsValue event) => {
+      classListRemove(container, "active");
+    }, false);
+    addEventListener(container, "contextmenu", (JsValue event) => {
+      if (eventButton(event) == 0 && eventCtrlKey(event)) {
+        owner.onClick(event);
+      }
+    }, false);
+  }
+
+  void onClick(JsValue event) {
+    preventDefault(event);
+    stopPropagation(event);
+    this.runFn(this.action, this.context);
+  }
+
+  void focus() {
+    if (this.element.truthy()) {
+      setTabIndex(this.element, 0);
+      focusElement(this.element);
+      classListAdd(this.element, "focused");
+    }
+  }
+
+  void blur() {
+    if (this.element.truthy()) {
+      blurElement(this.element);
+      setTabIndex(this.element, -1);
+      classListRemove(this.element, "focused");
+    }
+  }
+
+  void setFocusable(bool focusable) {
+    if (this.element.truthy()) {
+      if (focusable) {
+        setTabIndex(this.element, 0);
+      } else {
+        setTabIndex(this.element, -1);
+      }
+    }
+  }
+
+  void updateEnabled() {
+  }
+
+  void updateLabel() {
+  }
+
+  void updateClass() {
+  }
+
+  void updateChecked() {
+  }
+
+  void updateTooltip() {
+    if (!this.element.truthy()) {
+      return;
+    }
+    string title = this.action.tooltip;
+    if (title.length == 0) {
+      title = this.action.label;
+    }
+    setAttribute(this.element, "aria-label", title);
+    setAttribute(this.element, "title", title);
+  }
+
+  void dispose() {
+    if (this.element.truthy()) {
+      hostCall(this.element, "remove", jsUndefined(), jsUndefined(), jsUndefined());
+      this.element = null;
+    }
+  }
+}
+
+export class ActionViewItem {
+  BaseActionViewItem base;
+  JsValue label;
+  bool icon;
+  bool showLabel;
+  string keybinding;
+  string cssClass;
+
+  init(JsValue context, ItemAction action, bool icon, bool showLabel, string keybinding) {
+    this.base = new BaseActionViewItem(context, action);
+    this.label = null;
+    this.icon = icon;
+    this.showLabel = showLabel;
+    this.keybinding = keybinding;
+    this.cssClass = "";
+  }
+
+  string defaultRole() {
+    if (this.base.action.id == SEPARATOR_ACTION_ID) {
+      return "presentation";
+    }
+    if (this.base.isMenu) {
+      return "menuitem";
+    }
+    if (this.base.isTabList) {
+      return "tab";
+    }
+    return "button";
+  }
+
+  void render(JsValue container) {
+    this.base.render(container);
+    this.label = domCreateElement("a");
+    classListAdd(this.label, "action-label");
+    setAttribute(this.label, "role", this.defaultRole());
+    appendChild(container, this.label);
+    if (this.showLabel && this.keybinding.length > 0) {
+      JsValue kb = domCreateElement("span");
+      classListAdd(kb, "keybinding");
+      setTextContent(kb, this.keybinding);
+      appendChild(container, kb);
+    }
+    this.updateClass();
+    this.updateLabel();
+    this.updateEnabled();
+    this.updateChecked();
+    this.base.updateTooltip();
+  }
+
+  void updateLabel() {
+    if (this.showLabel && this.label.truthy()) {
+      setTextContent(this.label, this.base.action.label);
+    }
+  }
+
+  void updateClass() {
+    if (this.cssClass.length > 0 && this.label.truthy()) {
+      classListRemove(this.label, this.cssClass);
+    }
+    if (this.base.action.id == SEPARATOR_ACTION_ID && this.base.action.cssClass.length > 0 && this.label.truthy()) {
+      classListAdd(this.label, this.base.action.cssClass);
+    } else if (this.icon && this.label.truthy()) {
+      this.cssClass = this.base.action.cssClass;
+      classListAdd(this.label, "codicon");
+      if (this.cssClass.length > 0) {
+        classListAdd(this.label, this.cssClass);
+      }
+      this.updateEnabled();
+    } else if (this.label.truthy()) {
+      classListRemove(this.label, "codicon");
+    }
+  }
+
+  void updateEnabled() {
+    if (this.base.action.enabled) {
+      if (this.label.truthy()) {
+        classListRemove(this.label, "disabled");
+      }
+      if (this.base.element.truthy()) {
+        classListRemove(this.base.element, "disabled");
+      }
+    } else {
+      if (this.label.truthy()) {
+        setAttribute(this.label, "aria-disabled", "true");
+        classListAdd(this.label, "disabled");
+      }
+      if (this.base.element.truthy()) {
+        classListAdd(this.base.element, "disabled");
+      }
+    }
+  }
+
+  void updateChecked() {
+    if (!this.label.truthy()) {
+      return;
+    }
+    if (this.base.action.hasChecked) {
+      if (this.base.action.checked) {
+        classListAdd(this.label, "checked");
+      } else {
+        classListRemove(this.label, "checked");
+      }
+      if (this.base.isTabList) {
+        setAttribute(this.label, "aria-selected", boolAttr(this.base.action.checked));
+      } else {
+        setAttribute(this.label, "aria-pressed", boolAttr(this.base.action.checked));
+        setAttribute(this.label, "role", "button");
+      }
+    } else {
+      classListRemove(this.label, "checked");
+      setAttribute(this.label, "role", this.defaultRole());
+    }
+  }
+
+  void focus() {
+    if (this.label.truthy()) {
+      setTabIndex(this.label, 0);
+      focusElement(this.label);
+    }
+  }
+
+  void blur() {
+    if (this.label.truthy()) {
+      setTabIndex(this.label, -1);
+    }
+  }
+
+  void setFocusable(bool focusable) {
+    if (this.label.truthy()) {
+      if (focusable) {
+        setTabIndex(this.label, 0);
+      } else {
+        setTabIndex(this.label, -1);
+      }
+    }
+  }
+}
+
+export BaseActionViewItem createBaseActionViewItem(JsValue context, ItemAction action) {
+  return new BaseActionViewItem(context, action);
+}
+
+export ActionViewItem createActionViewItem(JsValue context, ItemAction action, bool icon = false, bool showLabel = true, string keybinding = "") {
+  return new ActionViewItem(context, action, icon, showLabel, keybinding);
+}
+
+export ItemAction createItemAction(string id, string label, string cssClass = "", bool enabled = true) {
+  return new ItemAction(id, label, cssClass, enabled);
+}

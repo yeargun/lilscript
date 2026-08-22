@@ -1,0 +1,24 @@
+export enum ScreenReaderContentKind {
+  Simple,
+  Rich
+}
+
+export int newlinecount(string text) {
+  int result = 0;
+  int startIndex = -1;
+  while (true) {
+    startIndex = text.indexOf("\n", startIndex + 1);
+    if (startIndex == -1) {
+      break;
+    }
+    result = result + 1;
+  }
+  return result;
+}
+
+export int pageOfLine(int lineNumber, int linesPerPage) {
+  if (linesPerPage <= 0) {
+    return 0;
+  }
+  return ((lineNumber - 1) * 1.0 / (linesPerPage * 1.0)).floor().toInt();
+}

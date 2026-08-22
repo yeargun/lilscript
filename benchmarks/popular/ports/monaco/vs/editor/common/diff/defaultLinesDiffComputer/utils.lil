@@ -1,0 +1,122 @@
+import { LineRange } from "../../core/ranges/lineRange";
+
+export class Array2D {
+  int width;
+  int height;
+  float[] array;
+
+  init(int width, int height) {
+    this.width = width;
+    this.height = height;
+    this.array = [];
+    int i = 0;
+    while (i < width * height) {
+      this.array.push(0.0);
+      i = i + 1;
+    }
+  }
+
+  float get(int x, int y) {
+    return this.array[x + y * this.width];
+  }
+
+  void set(int x, int y, float value) {
+    this.array[x + y * this.width] = value;
+  }
+}
+
+export bool isSpace(int characterCode) {
+  return characterCode == 32 || characterCode == 9;
+}
+
+export class LineRangeFragment {
+  LineRange range;
+  string[] lines;
+  string source;
+  Map<int, int> histogram;
+  int[] histogramKeys;
+  int totalCount;
+
+  init(LineRange range, string[] lines, string source) {
+    this.range = range;
+    this.lines = lines;
+    this.source = source;
+    this.histogram = new Map();
+    this.histogramKeys = [];
+    this.totalCount = 0;
+    int i = range.startLineNumber - 1;
+    while (i < range.endLineNumberExclusive - 1 && i < lines.length) {
+      string line = lines[i];
+      int j = 0;
+      while (j < line.length) {
+        int code = line.charCodeAt(j);
+        int count = 0;
+        int? existing = this.histogram.get(code);
+        if (existing != null) {
+          count = existing;
+        } else {
+          this.histogramKeys.push(code);
+        }
+        this.histogram.set(code, count + 1);
+        this.totalCount = this.totalCount + 1;
+        j = j + 1;
+      }
+      int newlineCount = 0;
+      int? newlineExisting = this.histogram.get(10);
+      if (newlineExisting != null) {
+        newlineCount = newlineExisting;
+      } else {
+        this.histogramKeys.push(10);
+      }
+      this.histogram.set(10, newlineCount + 1);
+      this.totalCount = this.totalCount + 1;
+      i = i + 1;
+    }
+  }
+
+  float computeSimilarity(LineRangeFragment other) {
+    int differences = 0;
+    int i = 0;
+    while (i < this.histogramKeys.length) {
+      int code = this.histogramKeys[i];
+      int left = 0;
+      int right = 0;
+      int? leftValue = this.histogram.get(code);
+      int? rightValue = other.histogram.get(code);
+      if (leftValue != null) {
+        left = leftValue;
+      }
+      if (rightValue != null) {
+        right = rightValue;
+      }
+      if (left != right) {
+        int difference = left - right;
+        if (difference < 0) {
+          difference = 0 - difference;
+        }
+        differences = differences + difference;
+      }
+      i = i + 1;
+    }
+    i = 0;
+    while (i < other.histogramKeys.length) {
+      int code = other.histogramKeys[i];
+      if (!this.histogram.has(code)) {
+        int? rightValue = other.histogram.get(code);
+        if (rightValue != null) {
+          differences = differences + rightValue;
+        }
+      }
+      i = i + 1;
+    }
+    int total = this.totalCount + other.totalCount;
+    if (total == 0) {
+      return 1.0;
+    }
+    return 1.0 - differences / total;
+  }
+}
+
+export Array2D createArray2D(int width, int height) {
+  return new Array2D(width, height);
+}

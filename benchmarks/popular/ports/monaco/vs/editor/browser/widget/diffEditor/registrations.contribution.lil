@@ -1,0 +1,30 @@
+export string CTX_DIFF_EDITOR = "isInDiffEditor";
+export string CFG_HIDE_UNCHANGED = "config.diffEditor.hideUnchangedRegions.enabled";
+export string CFG_SHOW_MOVES = "config.diffEditor.experimental.showMoves";
+
+export class DiffEditorRegistrations {
+  string[] commandIds;
+
+  init() {
+    this.commandIds = [
+      "diffEditor.toggleCollapseUnchangedRegions",
+      "diffEditor.toggleShowMovedCodeBlocks",
+      "diffEditor.switchSide"
+    ];
+  }
+
+  bool has(string id) {
+    int i = 0;
+    while (i < this.commandIds.length) {
+      if (this.commandIds[i] == id) {
+        return true;
+      }
+      i = i + 1;
+    }
+    return false;
+  }
+}
+
+export DiffEditorRegistrations createDiffEditorRegistrations() {
+  return new DiffEditorRegistrations();
+}

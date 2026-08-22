@@ -1,0 +1,190 @@
+export class BoundingBox {
+  int left;
+  int top;
+  int right;
+  int bottom;
+
+  init(int left, int top, int right, int bottom) {
+    this.left = left;
+    this.top = top;
+    this.right = right;
+    this.bottom = bottom;
+  }
+}
+
+export class OriginOffset {
+  int x;
+  int y;
+
+  init(int x, int y) {
+    this.x = x;
+    this.y = y;
+  }
+}
+
+export class RasterizedGlyph {
+  BoundingBox boundingBox;
+  OriginOffset originOffset;
+  float fontBoundingBoxAscent;
+  float fontBoundingBoxDescent;
+
+  init(BoundingBox boundingBox, OriginOffset originOffset, float ascent, float descent) {
+    this.boundingBox = boundingBox;
+    this.originOffset = originOffset;
+    this.fontBoundingBoxAscent = ascent;
+    this.fontBoundingBoxDescent = descent;
+  }
+}
+
+export class AtlasGlyph {
+  int pageIndex;
+  int glyphIndex;
+  int x;
+  int y;
+  int w;
+  int h;
+  string chars;
+  int tokenMetadata;
+  int decorationStyleSetId;
+  string cacheKey;
+
+  init(int pageIndex, int glyphIndex, int x, int y, int w, int h) {
+    this.pageIndex = pageIndex;
+    this.glyphIndex = glyphIndex;
+    this.x = x;
+    this.y = y;
+    this.w = w;
+    this.h = h;
+    this.chars = "";
+    this.tokenMetadata = 0;
+    this.decorationStyleSetId = 0;
+    this.cacheKey = "";
+  }
+}
+
+export class UsedArea {
+  int left;
+  int top;
+  int right;
+  int bottom;
+
+  init() {
+    this.left = 0;
+    this.top = 0;
+    this.right = 0;
+    this.bottom = 0;
+  }
+}
+
+export class ShelfRow {
+  int x;
+  int y;
+  int h;
+
+  init() {
+    this.x = 0;
+    this.y = 0;
+    this.h = 0;
+  }
+}
+
+int imax2(int a, int b) {
+  if (a > b) {
+    return a;
+  }
+  return b;
+}
+
+export class TextureAtlasPage {
+  int textureIndex;
+  int pageSize;
+  int version;
+  UsedArea usedArea;
+  AtlasGlyph[] glyphs;
+  ShelfRow currentRow;
+  int nextIndex;
+  bool useShelf;
+  int maximumGlyphCount;
+
+  init(int textureIndex, int pageSize, bool useShelf) {
+    this.textureIndex = textureIndex;
+    this.pageSize = pageSize;
+    this.version = 0;
+    this.usedArea = new UsedArea();
+    this.glyphs = [];
+    this.currentRow = new ShelfRow();
+    this.nextIndex = 0;
+    this.useShelf = useShelf;
+    this.maximumGlyphCount = 5000;
+  }
+
+  AtlasGlyph? findGlyph(string chars, int tokenMetadata, int decorationStyleSetId, string cacheKey) {
+    int i = 0;
+    while (i < this.glyphs.length) {
+      AtlasGlyph g = this.glyphs[i];
+      if (g.chars == chars && g.tokenMetadata == tokenMetadata && g.decorationStyleSetId == decorationStyleSetId && g.cacheKey == cacheKey) {
+        return g;
+      }
+      i = i + 1;
+    }
+    return null;
+  }
+
+  AtlasGlyph? allocateShelf(RasterizedGlyph rasterizedGlyph) {
+    int glyphWidth = rasterizedGlyph.boundingBox.right - rasterizedGlyph.boundingBox.left + 1;
+    int glyphHeight = rasterizedGlyph.boundingBox.bottom - rasterizedGlyph.boundingBox.top + 1;
+    if (glyphWidth > this.pageSize || glyphHeight > this.pageSize) {
+      return null;
+    }
+    if (glyphWidth > this.pageSize - this.currentRow.x) {
+      this.currentRow.x = 0;
+      this.currentRow.y = this.currentRow.y + this.currentRow.h;
+      this.currentRow.h = 1;
+    }
+    if (this.currentRow.y + glyphHeight > this.pageSize) {
+      return null;
+    }
+    AtlasGlyph glyph = new AtlasGlyph(this.textureIndex, this.nextIndex, this.currentRow.x, this.currentRow.y, glyphWidth, glyphHeight);
+    this.nextIndex = this.nextIndex + 1;
+    this.currentRow.x = this.currentRow.x + glyphWidth;
+    this.currentRow.h = imax2(this.currentRow.h, glyphHeight);
+    return glyph;
+  }
+
+  AtlasGlyph? getGlyph(RasterizedGlyph rasterizedGlyph, string chars, int tokenMetadata, int decorationStyleSetId, string cacheKey) {
+    AtlasGlyph? existing = this.findGlyph(chars, tokenMetadata, decorationStyleSetId, cacheKey);
+    if (existing != null) {
+      return existing;
+    }
+    if (this.glyphs.length >= this.maximumGlyphCount) {
+      return null;
+    }
+    AtlasGlyph? glyph = this.allocateShelf(rasterizedGlyph);
+    if (glyph == null) {
+      return null;
+    }
+    glyph.chars = chars;
+    glyph.tokenMetadata = tokenMetadata;
+    glyph.decorationStyleSetId = decorationStyleSetId;
+    glyph.cacheKey = cacheKey;
+    this.glyphs.push(glyph);
+    this.version = this.version + 1;
+    this.usedArea.right = imax2(this.usedArea.right, glyph.x + glyph.w - 1);
+    this.usedArea.bottom = imax2(this.usedArea.bottom, glyph.y + glyph.h - 1);
+    return glyph;
+  }
+
+  string getStats() {
+    return "page" + this.textureIndex.toString() + " glyphs=" + this.glyphs.length.toString() + " version=" + this.version.toString();
+  }
+
+  void dispose() {
+    this.glyphs = [];
+    this.pageSize = 1;
+    this.version = this.version + 1;
+  }
+}
+
+export TextureAtlasPage createTextureAtlasPage(int textureIndex, int pageSize, bool useShelf = true) {
+  return new TextureAtlasPage(textureIndex, pageSize, useShelf);
+}

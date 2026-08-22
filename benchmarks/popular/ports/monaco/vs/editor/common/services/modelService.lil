@@ -1,0 +1,195 @@
+import { hostCall, jsUndefined } from "../../../../js-host";
+
+string resourceKey(JsValue resource) {
+  if (resource == null) {
+    return "";
+  }
+  if (resource["scheme"] != null || resource["path"] != null) {
+    string scheme = "";
+    string authority = "";
+    string path = "";
+    if (resource["scheme"] != null) {
+      scheme = JS.string(resource["scheme"]);
+    }
+    if (resource["authority"] != null) {
+      authority = JS.string(resource["authority"]);
+    }
+    if (resource["path"] != null) {
+      path = JS.string(resource["path"]);
+    }
+    return scheme + "://" + authority + path;
+  }
+  return JS.string(resource);
+}
+
+export class ModelService {
+  Map<string, JsValue> models;
+  string[] modelKeys;
+  int generatedId;
+  (func(JsValue)->void)[] addedListeners;
+  (func(JsValue)->void)[] removedListeners;
+
+  init() {
+    this.models = new Map();
+    this.modelKeys = [];
+    this.generatedId = 0;
+    this.addedListeners = [];
+    this.removedListeners = [];
+  }
+
+  func()->void onModelAdded(func(JsValue)->void listener) {
+    this.addedListeners.push(listener);
+    return () => {
+      int index = this.addedListeners.indexOf(listener);
+      if (index >= 0) {
+        this.addedListeners.splice(index, 1);
+      }
+    };
+  }
+
+  func()->void onModelRemoved(func(JsValue)->void listener) {
+    this.removedListeners.push(listener);
+    return () => {
+      int index = this.removedListeners.indexOf(listener);
+      if (index >= 0) {
+        this.removedListeners.splice(index, 1);
+      }
+    };
+  }
+
+  JsValue createModel(
+    JsValue value,
+    JsValue languageSelection,
+    JsValue resource = null,
+    bool isForSimpleWidget = false
+  ) {
+    JsValue uri = resource;
+    if (uri == null) {
+      this.generatedId = this.generatedId + 1;
+      uri = JS.object();
+      uri["scheme"] = "inmemory";
+      uri["path"] = "/model/" + this.generatedId.toString();
+    }
+    string key = resourceKey(uri);
+    JsValue? existing = this.models.get(key);
+    if (existing != null) {
+      return existing;
+    }
+    JsValue model = JS.object();
+    model["uri"] = uri;
+    model["id"] = key;
+    model["value"] = value;
+    string languageId = "plaintext";
+    if (languageSelection != null) {
+      if (languageSelection["languageId"] != null) {
+        languageId = JS.string(languageSelection["languageId"]);
+      } else if (JS.typeOf(languageSelection) == "string") {
+        languageId = JS.string(languageSelection);
+      }
+    }
+    model["languageId"] = languageId;
+    model["isForSimpleWidget"] = isForSimpleWidget;
+    this.addModel(model);
+    return model;
+  }
+
+  void addModel(JsValue model) {
+    string key = resourceKey(model["uri"]);
+    if (this.models.has(key)) {
+      return;
+    }
+    this.models.set(key, model);
+    this.modelKeys.push(key);
+    int i = 0;
+    while (i < this.addedListeners.length) {
+      this.addedListeners[i](model);
+      i = i + 1;
+    }
+  }
+
+  JsValue[] getModels() {
+    JsValue[] result = [];
+    int i = 0;
+    while (i < this.modelKeys.length) {
+      JsValue? model = this.models.get(this.modelKeys[i]);
+      if (model != null) {
+        result.push(model);
+      }
+      i = i + 1;
+    }
+    return result;
+  }
+
+  JsValue getModel(JsValue resource) {
+    JsValue? model = this.models.get(resourceKey(resource));
+    if (model == null) {
+      return null;
+    }
+    return model;
+  }
+
+  void destroyModel(JsValue resource) {
+    string key = resourceKey(resource);
+    JsValue? model = this.models.get(key);
+    if (model == null) {
+      return;
+    }
+    this.models.delete(key);
+    int index = this.modelKeys.indexOf(key);
+    if (index >= 0) {
+      this.modelKeys.splice(index, 1);
+    }
+    int i = 0;
+    while (i < this.removedListeners.length) {
+      this.removedListeners[i](model);
+      i = i + 1;
+    }
+  }
+}
+
+string hexDigit(int value) {
+  string digits = "0123456789abcdef";
+  return digits.charAt(value & 15);
+}
+
+string hashHex(int value) {
+  string result = "";
+  int i = 0;
+  while (i < 8) {
+    result = hexDigit(value) + result;
+    value = value >> 4;
+    i = i + 1;
+  }
+  return result;
+}
+
+export class DefaultModelSHA1Computer {
+  bool canComputeSHA1(JsValue model) {
+    return model != null;
+  }
+
+  string computeSHA1(JsValue model) {
+    string text = "";
+    if (model["getValue"] != null) {
+      text = JS.string(hostCall(model, "getValue", jsUndefined(), jsUndefined(), jsUndefined()));
+    } else if (model["value"] != null) {
+      text = JS.string(model["value"]);
+    }
+    int hash = 216613626;
+    int i = 0;
+    while (i < text.length) {
+      hash = (hash ^ text.charCodeAt(i)) * 16777619;
+      i = i + 1;
+    }
+    string part = hashHex(hash);
+    return part + part + part + part + part;
+  }
+}
+
+export ModelService createModelService() {
+  return new ModelService();
+}
+
+export DefaultModelSHA1Computer createDefaultModelSHA1Computer() {
+  return new DefaultModelSHA1Computer();
+}

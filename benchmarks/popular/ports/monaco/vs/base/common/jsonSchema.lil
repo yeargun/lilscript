@@ -1,0 +1,23 @@
+export int JsonSchemaTypeNull = 0;
+export int JsonSchemaTypeBoolean = 1;
+export int JsonSchemaTypeNumber = 2;
+export int JsonSchemaTypeInteger = 3;
+export int JsonSchemaTypeString = 4;
+export int JsonSchemaTypeArray = 5;
+export int JsonSchemaTypeObject = 6;
+
+export class JsonSchema {
+  int schemaType;
+  string description;
+  bool additionalProperties;
+
+  init(int schemaType, string description, bool additionalProperties) {
+    this.schemaType = schemaType;
+    this.description = description;
+    this.additionalProperties = additionalProperties;
+  }
+}
+
+export JsonSchema jsonSchemaObject(string description) {
+  return new JsonSchema(JsonSchemaTypeObject, description, true);
+}

@@ -1,0 +1,140 @@
+int TOP_RIGHT_CORNER = 0;
+int BOTTOM_RIGHT_CORNER = 1;
+int TOP_CENTER = 2;
+
+int imax(int a, int b) {
+  if (a > b) {
+    return a;
+  }
+  return b;
+}
+
+export class OverlayWidget {
+  string id;
+  int preference;
+  int stack;
+  int top;
+  int left;
+  int clientHeight;
+  int clientWidth;
+  int minContentWidthInPx;
+
+  init(string id, int preference, int stack, int top, int left, int clientHeight, int clientWidth, int minContentWidthInPx) {
+    this.id = id;
+    this.preference = preference;
+    this.stack = stack;
+    this.top = top;
+    this.left = left;
+    this.clientHeight = clientHeight;
+    this.clientWidth = clientWidth;
+    this.minContentWidthInPx = minContentWidthInPx;
+  }
+}
+
+export class OverlayWidgetLayout {
+  string id;
+  int top;
+  int left;
+  int right;
+  bool hasRight;
+
+  init(string id, int top, int left, int right, bool hasRight) {
+    this.id = id;
+    this.top = top;
+    this.left = left;
+    this.right = right;
+    this.hasRight = hasRight;
+  }
+}
+
+export class ViewOverlayWidgets {
+  OverlayWidget[] widgets;
+  int verticalScrollbarWidth;
+  int minimapWidth;
+  int horizontalScrollbarHeight;
+  int editorHeight;
+  int editorWidth;
+
+  init(int verticalScrollbarWidth, int minimapWidth, int horizontalScrollbarHeight, int editorHeight, int editorWidth) {
+    this.widgets = [];
+    this.verticalScrollbarWidth = verticalScrollbarWidth;
+    this.minimapWidth = minimapWidth;
+    this.horizontalScrollbarHeight = horizontalScrollbarHeight;
+    this.editorHeight = editorHeight;
+    this.editorWidth = editorWidth;
+  }
+
+  int maxMinWidth() {
+    int maxMinWidth = 0;
+    int i = 0;
+    while (i < this.widgets.length) {
+      maxMinWidth = imax(maxMinWidth, this.widgets[i].minContentWidthInPx);
+      i = i + 1;
+    }
+    return maxMinWidth;
+  }
+
+  OverlayWidgetLayout layoutWidget(OverlayWidget widget, int[] stackCoordinates) {
+    if (widget.preference < 0) {
+      return new OverlayWidgetLayout(widget.id, 0, 0, 0, false);
+    }
+    int maxRight = 2 * this.verticalScrollbarWidth + this.minimapWidth;
+    if (widget.preference == TOP_RIGHT_CORNER || widget.preference == BOTTOM_RIGHT_CORNER) {
+      int top = 0;
+      if (widget.preference == BOTTOM_RIGHT_CORNER) {
+        top = this.editorHeight - widget.clientHeight - 2 * this.horizontalScrollbarHeight;
+      }
+      if (widget.stack >= 0) {
+        top = stackCoordinates[widget.preference];
+        stackCoordinates[widget.preference] = stackCoordinates[widget.preference] + widget.clientWidth;
+        return new OverlayWidgetLayout(widget.id, top, 0, 0, false);
+      }
+      return new OverlayWidgetLayout(widget.id, top, 0, maxRight, true);
+    }
+    if (widget.preference == TOP_CENTER) {
+      int top = 0;
+      if (widget.stack >= 0) {
+        top = stackCoordinates[TOP_CENTER];
+        stackCoordinates[TOP_CENTER] = stackCoordinates[TOP_CENTER] + widget.clientHeight;
+      }
+      return new OverlayWidgetLayout(widget.id, top, 0, 0, false);
+    }
+    return new OverlayWidgetLayout(widget.id, widget.top, widget.left, 0, false);
+  }
+
+  OverlayWidgetLayout[] layoutAll() {
+    OverlayWidget[] sorted = [];
+    int i = 0;
+    while (i < this.widgets.length) {
+      sorted.push(this.widgets[i]);
+      i = i + 1;
+    }
+    i = 1;
+    while (i < sorted.length) {
+      OverlayWidget key = sorted[i];
+      int j = i - 1;
+      while (j >= 0 && sorted[j].stack > key.stack) {
+        sorted[j + 1] = sorted[j];
+        j = j - 1;
+      }
+      sorted[j + 1] = key;
+      i = i + 1;
+    }
+    int[] stackCoordinates = [0, 0, 0];
+    OverlayWidgetLayout[] result = [];
+    i = 0;
+    while (i < sorted.length) {
+      result.push(this.layoutWidget(sorted[i], stackCoordinates));
+      i = i + 1;
+    }
+    return result;
+  }
+}
+
+export OverlayWidget createOverlayWidget(string id, int preference, int stack, int top, int left, int clientHeight, int clientWidth, int minContentWidthInPx) {
+  return new OverlayWidget(id, preference, stack, top, left, clientHeight, clientWidth, minContentWidthInPx);
+}
+
+export ViewOverlayWidgets createViewOverlayWidgets(int verticalScrollbarWidth, int minimapWidth, int horizontalScrollbarHeight, int editorHeight, int editorWidth) {
+  return new ViewOverlayWidgets(verticalScrollbarWidth, minimapWidth, horizontalScrollbarHeight, editorHeight, editorWidth);
+}

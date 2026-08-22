@@ -1,0 +1,154 @@
+import { concat2, emptyBuf, focusElement, setStyle, sliceOf } from "../../../../../../js-host";
+
+export class VisibleTextAreaData {
+  int modelLineNumber;
+  int distanceToModelLineStart;
+  int widthOfHiddenLineTextBefore;
+  int distanceToModelLineEnd;
+  int startLineNumber;
+  int startColumn;
+  int endLineNumber;
+  int endColumn;
+  int visibleStart;
+  int visibleEnd;
+  bool hasVisibleRange;
+
+  init(int modelLineNumber, int distanceToModelLineStart, int widthOfHiddenLineTextBefore, int distanceToModelLineEnd) {
+    this.modelLineNumber = modelLineNumber;
+    this.distanceToModelLineStart = distanceToModelLineStart;
+    this.widthOfHiddenLineTextBefore = widthOfHiddenLineTextBefore;
+    this.distanceToModelLineEnd = distanceToModelLineEnd;
+    this.startLineNumber = modelLineNumber;
+    this.startColumn = distanceToModelLineStart + 1;
+    this.endLineNumber = modelLineNumber;
+    this.endColumn = distanceToModelLineStart + 1;
+    this.visibleStart = 0;
+    this.visibleEnd = 0;
+    this.hasVisibleRange = false;
+  }
+
+  void prepareRender(int viewStartLine, int viewStartColumn, int viewEndLine, int viewEndColumn, int visibleStart, int visibleEnd, bool sameLine) {
+    this.startLineNumber = viewStartLine;
+    this.startColumn = viewStartColumn;
+    this.endLineNumber = viewEndLine;
+    this.endColumn = viewEndColumn;
+    if (sameLine) {
+      this.visibleStart = visibleStart;
+      this.visibleEnd = visibleEnd;
+      this.hasVisibleRange = true;
+    } else {
+      this.hasVisibleRange = false;
+    }
+  }
+}
+
+export class TextAreaEditContext {
+  JsValue textArea;
+  string value;
+  int selectionStart;
+  int selectionEnd;
+  int cursorLineNumber;
+  int cursorColumn;
+  bool focused;
+  bool composing;
+  VisibleTextAreaData? visibleTextArea;
+  int scrollLeft;
+  int lineHeight;
+  int contentLeft;
+
+  init(JsValue textArea, int lineHeight, int contentLeft) {
+    this.textArea = textArea;
+    this.value = emptyBuf();
+    this.selectionStart = 0;
+    this.selectionEnd = 0;
+    this.cursorLineNumber = 1;
+    this.cursorColumn = 1;
+    this.focused = false;
+    this.composing = false;
+    this.visibleTextArea = null;
+    this.scrollLeft = 0;
+    this.lineHeight = lineHeight;
+    this.contentLeft = contentLeft;
+  }
+
+  void focusTextArea() {
+    focusElement(this.textArea);
+    this.focused = true;
+  }
+
+  bool isFocused() {
+    return this.focused;
+  }
+
+  void writeScreenReaderContent(string value, int selectionStart, int selectionEnd) {
+    this.value = value;
+    this.selectionStart = selectionStart;
+    this.selectionEnd = selectionEnd;
+  }
+
+  void setCursor(int lineNumber, int column) {
+    this.cursorLineNumber = lineNumber;
+    this.cursorColumn = column;
+  }
+
+  void startComposition(int modelLineNumber, int distanceToModelLineStart, int widthOfHiddenLineTextBefore, int distanceToModelLineEnd) {
+    this.composing = true;
+    this.visibleTextArea = new VisibleTextAreaData(modelLineNumber, distanceToModelLineStart, widthOfHiddenLineTextBefore, distanceToModelLineEnd);
+  }
+
+  void endComposition() {
+    this.composing = false;
+    this.visibleTextArea = null;
+  }
+
+  void render(int scrollTop) {
+    int top = (this.cursorLineNumber - 1) * this.lineHeight - scrollTop;
+    int left = this.contentLeft + (this.cursorColumn - 1) * 8 - this.scrollLeft;
+    VisibleTextAreaData? visible = this.visibleTextArea;
+    if (visible != null) {
+      if (visible.hasVisibleRange) {
+        left = this.contentLeft + visible.visibleStart - this.scrollLeft;
+      }
+    }
+    setStyle(this.textArea, "top", top.toString() + "px");
+    setStyle(this.textArea, "left", left.toString() + "px");
+  }
+
+  string visibleLineText(string lineContent) {
+    VisibleTextAreaData? visible = this.visibleTextArea;
+    if (visible == null) {
+      return lineContent;
+    }
+    int start = visible.distanceToModelLineStart;
+    int end = lineContent.length - visible.distanceToModelLineEnd;
+    if (start < 0) {
+      start = 0;
+    }
+    if (end < start) {
+      end = start;
+    }
+    if (end > lineContent.length) {
+      end = lineContent.length;
+    }
+    return sliceOf(lineContent, start, end);
+  }
+}
+
+export TextAreaEditContext createTextAreaEditContext(JsValue textArea, int lineHeight, int contentLeft) {
+  return new TextAreaEditContext(textArea, lineHeight, contentLeft);
+}
+
+export VisibleTextAreaData createVisibleTextAreaData(int modelLineNumber, int distanceToModelLineStart, int widthOfHiddenLineTextBefore, int distanceToModelLineEnd) {
+  return new VisibleTextAreaData(modelLineNumber, distanceToModelLineStart, widthOfHiddenLineTextBefore, distanceToModelLineEnd);
+}
+
+export string textareaWrapClass(bool wrapping) {
+  if (wrapping) {
+    return "ime-text-area wrap";
+  }
+  return "ime-text-area";
+}
+
+export int textareaTopForLine(int lineNumber, int lineHeight, int scrollTop) {
+  return (lineNumber - 1) * lineHeight - scrollTop;
+}

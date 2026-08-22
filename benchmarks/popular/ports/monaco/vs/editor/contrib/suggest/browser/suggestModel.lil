@@ -1,0 +1,58 @@
+export int TriggerKindInvoke = 0;
+export int TriggerKindTriggerCharacter = 1;
+export int TriggerKindTriggerForIncompleteCompletions = 2;
+
+export class SuggestModel {
+  int state;
+  string lineContext;
+  int column;
+  bool autoTrigger;
+  bool incomplete;
+  int triggerKind;
+  string triggerCharacter;
+  int requestGeneration;
+
+  init() {
+    this.state = 0;
+    this.lineContext = "";
+    this.column = 1;
+    this.autoTrigger = false;
+    this.incomplete = false;
+    this.triggerKind = TriggerKindInvoke;
+    this.triggerCharacter = "";
+    this.requestGeneration = 0;
+  }
+
+  void cancel() {
+    this.state = 0;
+    this.incomplete = false;
+    this.requestGeneration = this.requestGeneration + 1;
+  }
+
+  void trigger(int column, string line, bool automatic, int kind, string character) {
+    this.column = column;
+    this.lineContext = line;
+    this.autoTrigger = automatic;
+    this.triggerKind = kind;
+    this.triggerCharacter = character;
+    this.state = 1;
+    this.requestGeneration = this.requestGeneration + 1;
+  }
+
+  bool shouldRetrigger(int newColumn, string newLine) {
+    if (this.state == 0) {
+      return false;
+    }
+    if (newColumn < this.column) {
+      return true;
+    }
+    if (newLine.length < this.lineContext.length) {
+      return true;
+    }
+    return false;
+  }
+}
+
+export SuggestModel createSuggestModel() {
+  return new SuggestModel();
+}

@@ -1,0 +1,155 @@
+int PREF_EXACT = 0;
+int PREF_ABOVE = 1;
+int PREF_BELOW = 2;
+
+int imin(int a, int b) {
+  if (a < b) {
+    return a;
+  }
+  return b;
+}
+
+int imax(int a, int b) {
+  if (a > b) {
+    return a;
+  }
+  return b;
+}
+
+export class WidgetAnchor {
+  int top;
+  int left;
+  int height;
+
+  init(int top, int left, int height) {
+    this.top = top;
+    this.left = left;
+    this.height = height;
+  }
+}
+
+export class WidgetPlacement {
+  bool fitsAbove;
+  int aboveTop;
+  bool fitsBelow;
+  int belowTop;
+  int left;
+
+  init(bool fitsAbove, int aboveTop, bool fitsBelow, int belowTop, int left) {
+    this.fitsAbove = fitsAbove;
+    this.aboveTop = aboveTop;
+    this.fitsBelow = fitsBelow;
+    this.belowTop = belowTop;
+    this.left = left;
+  }
+}
+
+export class WidgetCoordinate {
+  int top;
+  int left;
+  int preference;
+
+  init(int top, int left, int preference) {
+    this.top = top;
+    this.left = left;
+    this.preference = preference;
+  }
+}
+
+export class ContentWidget {
+  string id;
+  int lineNumber;
+  int column;
+  int[] preference;
+  int width;
+  int height;
+  bool allowEditorOverflow;
+  int contentLeft;
+
+  init(string id, int lineNumber, int column, int[] preference, int width, int height, bool allowEditorOverflow, int contentLeft) {
+    this.id = id;
+    this.lineNumber = lineNumber;
+    this.column = column;
+    this.preference = preference;
+    this.width = width;
+    this.height = height;
+    this.allowEditorOverflow = allowEditorOverflow;
+    this.contentLeft = contentLeft;
+  }
+}
+
+export class ViewContentWidgets {
+  ContentWidget[] widgets;
+  int contentWidth;
+  int contentLeft;
+
+  init(int contentWidth, int contentLeft) {
+    this.widgets = [];
+    this.contentWidth = contentWidth;
+    this.contentLeft = contentLeft;
+  }
+
+  WidgetPlacement layoutBoxInViewport(WidgetAnchor anchor, int width, int height, int viewportHeight, int scrollLeft, int viewportWidth) {
+    int aboveLineTop = anchor.top;
+    int heightAvailableAboveLine = aboveLineTop;
+    int underLineTop = anchor.top + anchor.height;
+    int heightAvailableUnderLine = viewportHeight - underLineTop;
+    int aboveTop = aboveLineTop - height;
+    bool fitsAbove = heightAvailableAboveLine >= height;
+    int belowTop = underLineTop;
+    bool fitsBelow = heightAvailableUnderLine >= height;
+    int left = anchor.left;
+    if (left + width > scrollLeft + viewportWidth) {
+      left = scrollLeft + viewportWidth - width;
+    }
+    if (left < scrollLeft) {
+      left = scrollLeft;
+    }
+    return new WidgetPlacement(fitsAbove, aboveTop, fitsBelow, belowTop, left);
+  }
+
+  WidgetCoordinate? prepareRenderWidget(ContentWidget widget, int lineHeight, int scrollTop, int viewportHeight, int scrollLeft, int viewportWidth, float typicalHalfwidth) {
+    if (widget.preference.length == 0) {
+      return null;
+    }
+    int left = ((widget.column - 1) * 1.0 * typicalHalfwidth).round().toInt();
+    int top = (widget.lineNumber - 1) * lineHeight - scrollTop;
+    WidgetAnchor anchor = new WidgetAnchor(top, left, lineHeight);
+    WidgetPlacement placement = this.layoutBoxInViewport(anchor, widget.width, widget.height, viewportHeight, scrollLeft, viewportWidth);
+    int pass = 1;
+    while (pass <= 2) {
+      int p = 0;
+      while (p < widget.preference.length) {
+        int pref = widget.preference[p];
+        if (pref == PREF_ABOVE) {
+          if (pass == 2 || placement.fitsAbove) {
+            return new WidgetCoordinate(placement.aboveTop, placement.left, PREF_ABOVE);
+          }
+        } else {
+          if (pref == PREF_BELOW) {
+            if (pass == 2 || placement.fitsBelow) {
+              return new WidgetCoordinate(placement.belowTop, placement.left, PREF_BELOW);
+            }
+          } else {
+            int exactLeft = anchor.left;
+            if (widget.allowEditorOverflow) {
+              exactLeft = exactLeft + widget.contentLeft;
+            }
+            return new WidgetCoordinate(anchor.top, exactLeft, PREF_EXACT);
+          }
+        }
+        p = p + 1;
+      }
+      pass = pass + 1;
+    }
+    return null;
+  }
+}
+
+export ContentWidget createContentWidget(string id, int lineNumber, int column, int[] preference, int width, int height, bool allowEditorOverflow, int contentLeft) {
+  return new ContentWidget(id, lineNumber, column, preference, width, height, allowEditorOverflow, contentLeft);
+}
+
+export ViewContentWidgets createViewContentWidgets(int contentWidth, int contentLeft) {
+  return new ViewContentWidgets(contentWidth, contentLeft);
+}

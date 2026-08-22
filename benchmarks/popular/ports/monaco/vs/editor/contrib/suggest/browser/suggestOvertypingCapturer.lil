@@ -1,0 +1,39 @@
+export class SuggestOvertypingCapturer {
+  string[] captured;
+  bool locked;
+
+  init() {
+    this.captured = [];
+    this.locked = false;
+  }
+
+  void capture(string text) {
+    if (this.locked) {
+      return;
+    }
+    this.captured.push(text);
+  }
+
+  string getValue() {
+    string out = "";
+    int i = 0;
+    while (i < this.captured.length) {
+      out = out + this.captured[i];
+      i = i + 1;
+    }
+    return out;
+  }
+
+  void lock() {
+    this.locked = true;
+  }
+
+  void unlock() {
+    this.locked = false;
+    this.captured = [];
+  }
+}
+
+export SuggestOvertypingCapturer createSuggestOvertypingCapturer() {
+  return new SuggestOvertypingCapturer();
+}

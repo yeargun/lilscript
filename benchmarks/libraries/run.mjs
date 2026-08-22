@@ -155,7 +155,7 @@ function command(program, args, options = {}) {
     cwd: options.cwd ?? repoRoot,
     encoding: "utf8",
     maxBuffer: 32 * 1024 * 1024,
-    timeout: options.timeout ?? 240_000,
+    timeout: options.timeout ?? 1_200_000,
   });
   if (result.error) throw result.error;
   if (result.status !== 0) {

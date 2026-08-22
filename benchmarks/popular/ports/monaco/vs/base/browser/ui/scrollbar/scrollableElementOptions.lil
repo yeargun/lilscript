@@ -1,0 +1,120 @@
+bool optionBool(JsValue options, string key, bool fallback) {
+  if (options == null || options[key] == null) {
+    return fallback;
+  }
+  return options[key].truthy();
+}
+
+int optionInt(JsValue options, string key, int fallback) {
+  if (options == null) {
+    return fallback;
+  }
+  JsValue value = options[key];
+  if (value is float) {
+    float n = value;
+    return n.round().toInt();
+  }
+  return fallback;
+}
+
+float optionFloat(JsValue options, string key, float fallback) {
+  if (options == null) {
+    return fallback;
+  }
+  JsValue value = options[key];
+  if (value is float) {
+    float n = value;
+    return n;
+  }
+  return fallback;
+}
+
+string optionString(JsValue options, string key, string fallback) {
+  if (options == null) {
+    return fallback;
+  }
+  JsValue value = options[key];
+  if (value is string) {
+    string text = value;
+    return text;
+  }
+  return fallback;
+}
+
+export class ScrollableElementOptions {
+  bool lazyRender;
+  string className;
+  bool useShadows;
+  bool handleMouseWheel;
+  bool flipAxes;
+  bool consumeMouseWheelIfScrollbarIsNeeded;
+  bool alwaysConsumeMouseWheel;
+  bool scrollYToX;
+  float mouseWheelScrollSensitivity;
+  float fastScrollSensitivity;
+  bool scrollPredominantAxis;
+  bool mouseWheelSmoothScroll;
+  bool inertialScroll;
+  int arrowSize;
+  JsValue listenOnDomNode;
+  int horizontal;
+  int horizontalScrollbarSize;
+  int horizontalSliderSize;
+  bool horizontalHasArrows;
+  int vertical;
+  int verticalScrollbarSize;
+  int verticalSliderSize;
+  bool verticalHasArrows;
+  bool scrollByPage;
+
+  init(JsValue options) {
+    this.lazyRender = optionBool(options, "lazyRender", false);
+    this.className = optionString(options, "className", "");
+    this.useShadows = optionBool(options, "useShadows", true);
+    this.handleMouseWheel = optionBool(options, "handleMouseWheel", true);
+    this.flipAxes = optionBool(options, "flipAxes", false);
+    this.consumeMouseWheelIfScrollbarIsNeeded =
+      optionBool(options, "consumeMouseWheelIfScrollbarIsNeeded", false);
+    this.alwaysConsumeMouseWheel =
+      optionBool(options, "alwaysConsumeMouseWheel", false);
+    this.scrollYToX = optionBool(options, "scrollYToX", false);
+    this.mouseWheelScrollSensitivity =
+      optionFloat(options, "mouseWheelScrollSensitivity", 1.0);
+    this.fastScrollSensitivity =
+      optionFloat(options, "fastScrollSensitivity", 5.0);
+    this.scrollPredominantAxis =
+      optionBool(options, "scrollPredominantAxis", true);
+    this.mouseWheelSmoothScroll =
+      optionBool(options, "mouseWheelSmoothScroll", true);
+    this.inertialScroll = optionBool(options, "inertialScroll", false);
+    this.arrowSize = optionInt(options, "arrowSize", 11);
+    this.listenOnDomNode = null;
+    if (options != null && options["listenOnDomNode"] != null) {
+      this.listenOnDomNode = options["listenOnDomNode"];
+    }
+    this.horizontal = optionInt(options, "horizontal", 1);
+    this.horizontalScrollbarSize =
+      optionInt(options, "horizontalScrollbarSize", 10);
+    this.horizontalSliderSize =
+      optionInt(options, "horizontalSliderSize", this.horizontalScrollbarSize);
+    this.horizontalHasArrows =
+      optionBool(options, "horizontalHasArrows", false);
+    this.vertical = optionInt(options, "vertical", 1);
+    this.verticalScrollbarSize =
+      optionInt(options, "verticalScrollbarSize", 10);
+    this.verticalSliderSize =
+      optionInt(options, "verticalSliderSize", this.verticalScrollbarSize);
+    this.verticalHasArrows = optionBool(options, "verticalHasArrows", false);
+    this.scrollByPage = optionBool(options, "scrollByPage", false);
+  }
+}
+
+export ScrollableElementOptions resolveOptions(JsValue options) {
+  return new ScrollableElementOptions(options);
+}
+
+export ScrollableElementOptions createScrollableElementOptions(
+  JsValue options
+) {
+  return new ScrollableElementOptions(options);
+}

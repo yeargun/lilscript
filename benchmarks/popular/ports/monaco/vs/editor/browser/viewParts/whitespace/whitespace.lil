@@ -1,0 +1,208 @@
+import { stringFromCharCode1 } from "../../../../../js-host";
+
+int CHAR_TAB = 9;
+int CHAR_SPACE = 32;
+int CHAR_NULL = 0;
+
+int imin(int a, int b) {
+  if (a < b) {
+    return a;
+  }
+  return b;
+}
+
+float fabs(float n) {
+  if (n < 0.0) {
+    return 0.0 - n;
+  }
+  return n;
+}
+
+export class WhitespaceOptions {
+  string renderWhitespace;
+  bool renderWithSVG;
+  float spaceWidth;
+  float middotWidth;
+  float wsmiddotWidth;
+  bool canUseHalfwidthRightwardsArrow;
+  int lineHeight;
+  int stopRenderingLineAfter;
+
+  init(string renderWhitespace, string experimentalWhitespaceRendering, float spaceWidth, float middotWidth, float wsmiddotWidth, bool canUseHalfwidthRightwardsArrow, int lineHeight, int stopRenderingLineAfter) {
+    if (experimentalWhitespaceRendering == "off") {
+      this.renderWhitespace = "none";
+      this.renderWithSVG = false;
+    } else {
+      this.renderWhitespace = renderWhitespace;
+      this.renderWithSVG = experimentalWhitespaceRendering == "svg";
+    }
+    this.spaceWidth = spaceWidth;
+    this.middotWidth = middotWidth;
+    this.wsmiddotWidth = wsmiddotWidth;
+    this.canUseHalfwidthRightwardsArrow = canUseHalfwidthRightwardsArrow;
+    this.lineHeight = lineHeight;
+    this.stopRenderingLineAfter = stopRenderingLineAfter;
+  }
+}
+
+export class WhitespaceMark {
+  int charIndex;
+  float left;
+  bool isTab;
+
+  init(int charIndex, float left, bool isTab) {
+    this.charIndex = charIndex;
+    this.left = left;
+    this.isTab = isTab;
+  }
+}
+
+int firstNonWhitespaceIndex(string lineContent) {
+  int i = 0;
+  while (i < lineContent.length) {
+    int code = lineContent.charCodeAt(i);
+    if (code != CHAR_SPACE && code != CHAR_TAB) {
+      return i;
+    }
+    i = i + 1;
+  }
+  return -1;
+}
+
+int lastNonWhitespaceIndex(string lineContent) {
+  int i = lineContent.length - 1;
+  while (i >= 0) {
+    int code = lineContent.charCodeAt(i);
+    if (code != CHAR_SPACE && code != CHAR_TAB) {
+      return i;
+    }
+    i = i - 1;
+  }
+  return -1;
+}
+
+export class WhitespaceOverlay {
+  WhitespaceOptions options;
+  string[] renderResult;
+
+  init(WhitespaceOptions options) {
+    this.options = options;
+    this.renderResult = [];
+  }
+
+  int renderSpaceCharCode() {
+    float wsmiddotDiff = fabs(this.options.wsmiddotWidth - this.options.spaceWidth);
+    float middotDiff = fabs(this.options.middotWidth - this.options.spaceWidth);
+    if (wsmiddotDiff < middotDiff) {
+      return 11825;
+    }
+    return 183;
+  }
+
+  WhitespaceMark[] marksForLine(string lineContent, int fauxIndentLength, bool continuesWithWrappedLine, float typicalHalfwidth) {
+    WhitespaceMark[] marks = [];
+    if (this.options.renderWhitespace == "none") {
+      return marks;
+    }
+    int len = lineContent.length;
+    if (this.options.stopRenderingLineAfter >= 0 && this.options.stopRenderingLineAfter < len) {
+      len = this.options.stopRenderingLineAfter;
+    }
+    if (this.options.renderWhitespace == "trailing" && continuesWithWrappedLine) {
+      return marks;
+    }
+    bool onlyBoundary = this.options.renderWhitespace == "boundary";
+    bool onlyTrailing = this.options.renderWhitespace == "trailing";
+    int first = firstNonWhitespaceIndex(lineContent);
+    int last = lastNonWhitespaceIndex(lineContent);
+    bool lineIsEmptyOrWhitespace = first < 0;
+    if (lineIsEmptyOrWhitespace) {
+      first = len;
+      last = len;
+    }
+    int charIndex = fauxIndentLength;
+    int visibleColumn = fauxIndentLength;
+    while (charIndex < len) {
+      int chCode = lineContent.charCodeAt(charIndex);
+      int width = 1;
+      if (chCode == CHAR_TAB) {
+        width = 4 - visibleColumn % 4;
+      }
+      if (chCode == CHAR_TAB || chCode == CHAR_SPACE) {
+        bool skip = false;
+        if (onlyTrailing && !lineIsEmptyOrWhitespace && charIndex <= last) {
+          skip = true;
+        }
+        if (onlyBoundary && charIndex >= first && charIndex <= last && chCode == CHAR_SPACE) {
+          int prevChCode = CHAR_NULL;
+          if (charIndex - 1 >= 0) {
+            prevChCode = lineContent.charCodeAt(charIndex - 1);
+          }
+          int nextChCode = CHAR_NULL;
+          if (charIndex + 1 < len) {
+            nextChCode = lineContent.charCodeAt(charIndex + 1);
+          }
+          if (prevChCode != CHAR_SPACE && nextChCode != CHAR_SPACE) {
+            skip = true;
+          }
+        }
+        if (!skip) {
+          float left = visibleColumn * 1.0 * typicalHalfwidth;
+          marks.push(new WhitespaceMark(charIndex, left, chCode == CHAR_TAB));
+        }
+      }
+      visibleColumn = visibleColumn + width;
+      charIndex = charIndex + 1;
+    }
+    return marks;
+  }
+
+  string htmlForMarks(WhitespaceMark[] marks) {
+    string result = "";
+    int spaceCode = this.renderSpaceCharCode();
+    int i = 0;
+    while (i < marks.length) {
+      WhitespaceMark mark = marks[i];
+      string glyph = stringFromCharCode1(spaceCode);
+      if (mark.isTab) {
+        if (this.options.canUseHalfwidthRightwardsArrow) {
+          glyph = stringFromCharCode1(65515);
+        } else {
+          glyph = stringFromCharCode1(8594);
+        }
+      }
+      result = result + "<div class=\"mwh\" style=\"left:" + mark.left.round().toInt().toString() + "px;height:" + this.options.lineHeight.toString() + "px;\">" + glyph + "</div>";
+      i = i + 1;
+    }
+    return result;
+  }
+
+  void prepareRender(string[] lines, int visibleStartLineNumber, float typicalHalfwidth) {
+    this.renderResult = [];
+    if (this.options.renderWhitespace == "none") {
+      return;
+    }
+    int i = 0;
+    while (i < lines.length) {
+      WhitespaceMark[] marks = this.marksForLine(lines[i], 0, false, typicalHalfwidth);
+      this.renderResult.push(this.htmlForMarks(marks));
+      i = i + 1;
+    }
+  }
+
+  string render(int startLineNumber, int lineNumber) {
+    int lineIndex = lineNumber - startLineNumber;
+    if (lineIndex < 0 || lineIndex >= this.renderResult.length) {
+      return "";
+    }
+    return this.renderResult[lineIndex];
+  }
+}
+
+export WhitespaceOptions createWhitespaceOptions(string renderWhitespace, string experimentalWhitespaceRendering, float spaceWidth, float middotWidth, float wsmiddotWidth, bool canUseHalfwidthRightwardsArrow, int lineHeight, int stopRenderingLineAfter) {
+  return new WhitespaceOptions(renderWhitespace, experimentalWhitespaceRendering, spaceWidth, middotWidth, wsmiddotWidth, canUseHalfwidthRightwardsArrow, lineHeight, stopRenderingLineAfter);
+}
+
+export WhitespaceOverlay createWhitespaceOverlay(WhitespaceOptions options) {
+  return new WhitespaceOverlay(options);
+}

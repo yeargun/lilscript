@@ -1,0 +1,115 @@
+export class DiffEditorOptions {
+  bool renderSideBySide;
+  bool useInlineViewWhenSpaceIsLimited;
+  int renderSideBySideInlineBreakpoint;
+  bool renderOverviewRuler;
+  bool renderMarginRevertIcon;
+  bool renderGutterMenu;
+  bool readOnly;
+  bool compactMode;
+  bool ignoreTrimWhitespace;
+  int maxComputationTime;
+  bool showMoves;
+  bool originalEditable;
+  bool hideUnchangedRegionsEnabled;
+  int hideUnchangedRegionsRevealLineCount;
+  int hideUnchangedRegionsContextLineCount;
+  int hideUnchangedRegionsMinimumLineCount;
+  bool useTrueInlineView;
+  string diffWordWrap;
+  string diffAlgorithm;
+  int diffEditorWidth;
+  bool screenReaderMode;
+
+  init() {
+    this.renderSideBySide = true;
+    this.useInlineViewWhenSpaceIsLimited = true;
+    this.renderSideBySideInlineBreakpoint = 900;
+    this.renderOverviewRuler = true;
+    this.renderMarginRevertIcon = true;
+    this.renderGutterMenu = true;
+    this.readOnly = false;
+    this.compactMode = false;
+    this.ignoreTrimWhitespace = true;
+    this.maxComputationTime = 5000;
+    this.showMoves = false;
+    this.originalEditable = false;
+    this.hideUnchangedRegionsEnabled = false;
+    this.hideUnchangedRegionsRevealLineCount = 20;
+    this.hideUnchangedRegionsContextLineCount = 3;
+    this.hideUnchangedRegionsMinimumLineCount = 3;
+    this.useTrueInlineView = false;
+    this.diffWordWrap = "inherit";
+    this.diffAlgorithm = "advanced";
+    this.diffEditorWidth = 0;
+    this.screenReaderMode = false;
+  }
+
+  bool couldShowInlineViewBecauseOfSize() {
+    return this.renderSideBySide && this.diffEditorWidth <= this.renderSideBySideInlineBreakpoint;
+  }
+
+  bool computedRenderSideBySide() {
+    if (this.compactMode) {
+      return false;
+    }
+    if (this.renderSideBySide && this.useInlineViewWhenSpaceIsLimited && this.couldShowInlineViewBecauseOfSize() && !this.screenReaderMode) {
+      return false;
+    }
+    return this.renderSideBySide;
+  }
+
+  bool shouldRenderOldRevertArrows() {
+    if (!this.renderMarginRevertIcon) {
+      return false;
+    }
+    if (!this.computedRenderSideBySide()) {
+      return false;
+    }
+    if (this.readOnly) {
+      return false;
+    }
+    if (this.renderGutterMenu) {
+      return false;
+    }
+    return true;
+  }
+
+  bool useTrueInlineDiffRendering() {
+    return !this.computedRenderSideBySide() && this.useTrueInlineView;
+  }
+
+  bool computedShowMoves() {
+    return this.showMoves && this.computedRenderSideBySide();
+  }
+}
+
+export DiffEditorOptions createDiffEditorOptions() {
+  return new DiffEditorOptions();
+}
+
+int clampInt(int value, int minValue, int maxValue) {
+  int v = value;
+  if (v < minValue) {
+    v = minValue;
+  }
+  if (v > maxValue) {
+    v = maxValue;
+  }
+  return v;
+}
+
+export int clampedInt(int value, int defaultValue, int minValue, int maxValue) {
+  return clampInt(value, minValue, maxValue);
+}
+
+export float clampedFloat(float value, float minValue, float maxValue) {
+  float v = value;
+  if (v < minValue) {
+    v = minValue;
+  }
+  if (v > maxValue) {
+    v = maxValue;
+  }
+  return v;
+}

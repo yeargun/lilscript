@@ -1,0 +1,369 @@
+import { emptyBuf, repeatChar } from "../../../../js-host";
+
+export enum EditOperationType {
+  Other,
+  TypingFirstSpace,
+  TypingConsecutiveSpace,
+  TypingOther,
+  DeletingLeft,
+  DeletingRight
+}
+
+export class TypeRange {
+  int startLineNumber;
+  int startColumn;
+  int endLineNumber;
+  int endColumn;
+
+  init(int startLineNumber, int startColumn, int endLineNumber, int endColumn) {
+    if (startLineNumber > endLineNumber || (startLineNumber == endLineNumber && startColumn > endColumn)) {
+      this.startLineNumber = endLineNumber;
+      this.startColumn = endColumn;
+      this.endLineNumber = startLineNumber;
+      this.endColumn = startColumn;
+    } else {
+      this.startLineNumber = startLineNumber;
+      this.startColumn = startColumn;
+      this.endLineNumber = endLineNumber;
+      this.endColumn = endColumn;
+    }
+  }
+
+  bool isEmpty() {
+    return this.startLineNumber == this.endLineNumber && this.startColumn == this.endColumn;
+  }
+}
+
+export class TypeEdit {
+  TypeRange range;
+  string text;
+  int lineNumberDeltaOffset;
+  int columnDeltaOffset;
+  bool preserveSelection;
+
+  init(
+    TypeRange range,
+    string text,
+    int lineNumberDeltaOffset,
+    int columnDeltaOffset,
+    bool preserveSelection
+  ) {
+    this.range = range;
+    this.text = text;
+    this.lineNumberDeltaOffset = lineNumberDeltaOffset;
+    this.columnDeltaOffset = columnDeltaOffset;
+    this.preserveSelection = preserveSelection;
+  }
+}
+
+int typeNextTabStop(int visibleColumn, int size) {
+  if (size <= 0) {
+    return visibleColumn + 1;
+  }
+  return visibleColumn + size - visibleColumn % size;
+}
+
+int typeVisibleColumn(string line, int column, int tabSize) {
+  int visibleColumn = 0;
+  int i = 0;
+  int end = column - 1;
+  while (i < end && i < line.length) {
+    if (line.charCodeAt(i) == 9) {
+      visibleColumn = typeNextTabStop(visibleColumn, tabSize);
+    } else {
+      visibleColumn = visibleColumn + 1;
+    }
+    i = i + 1;
+  }
+  return visibleColumn;
+}
+
+string leadingWhitespaceBefore(string line, int column) {
+  string result = emptyBuf();
+  int end = column - 1;
+  if (end > line.length) {
+    end = line.length;
+  }
+  int i = 0;
+  while (i < end) {
+    int code = line.charCodeAt(i);
+    if (code == 32) {
+      result = result + " ";
+    } else if (code == 9) {
+      result = result + "\t";
+    } else {
+      break;
+    }
+    i = i + 1;
+  }
+  return result;
+}
+
+string normalizedIndent(string indentation, int tabSize, int indentSize, bool insertSpaces) {
+  int visibleColumn = typeVisibleColumn(indentation, indentation.length + 1, tabSize);
+  if (insertSpaces) {
+    return repeatChar(" ", visibleColumn);
+  }
+  int tabCount = 0;
+  if (tabSize > 0) {
+    tabCount = visibleColumn / tabSize;
+  }
+  int spaceCount = visibleColumn - tabCount * tabSize;
+  return repeatChar("\t", tabCount) + repeatChar(" ", spaceCount);
+}
+
+string closingCharacter(string openCharacter, string openCharacters, string closeCharacters) {
+  int index = openCharacters.indexOf(openCharacter);
+  if (index < 0 || index >= closeCharacters.length) {
+    return emptyBuf();
+  }
+  return closeCharacters.charAt(index);
+}
+
+bool canAutoCloseBefore(string characterAfter) {
+  if (characterAfter.length == 0) {
+    return true;
+  }
+  int code = characterAfter.charCodeAt(0);
+  return code == 32
+    || code == 9
+    || code == 10
+    || code == 13
+    || ")]}>:;,.\"'`".indexOf(characterAfter.charAt(0)) >= 0;
+}
+
+export TypeEdit simpleCharacterType(TypeRange selection, string text, bool overtype) {
+  TypeRange range = selection;
+  if (overtype && selection.isEmpty()) {
+    range = new TypeRange(
+      selection.startLineNumber,
+      selection.startColumn,
+      selection.endLineNumber,
+      selection.endColumn + text.length
+    );
+  }
+  return new TypeEdit(range, text, 0, 0, false);
+}
+
+export TypeEdit enterEdit(
+  string line,
+  TypeRange selection,
+  int tabSize,
+  int indentSize,
+  bool insertSpaces,
+  bool increaseIndent,
+  bool indentOutdent
+) {
+  string indentation = leadingWhitespaceBefore(line, selection.startColumn);
+  indentation = normalizedIndent(indentation, tabSize, indentSize, insertSpaces);
+  string increased = indentation;
+  if (increaseIndent || indentOutdent) {
+    if (insertSpaces) {
+      increased = indentation + repeatChar(" ", indentSize);
+    } else {
+      increased = indentation + "\t";
+    }
+  }
+  if (indentOutdent) {
+    string text = "\n" + increased + "\n" + indentation;
+    return new TypeEdit(
+      selection,
+      text,
+      -1,
+      increased.length - indentation.length,
+      false
+    );
+  }
+  return new TypeEdit(selection, "\n" + increased, 0, 0, false);
+}
+
+export TypeEdit autoClosingOpenEdit(
+  TypeRange selection,
+  string line,
+  string typedCharacter,
+  string openCharacters,
+  string closeCharacters
+) {
+  string closeCharacter = closingCharacter(
+    typedCharacter,
+    openCharacters,
+    closeCharacters
+  );
+  if (closeCharacter.length == 0 || !selection.isEmpty()) {
+    return new TypeEdit(selection, typedCharacter, 0, 0, false);
+  }
+  string characterAfter = emptyBuf();
+  int offset = selection.endColumn - 1;
+  if (offset < line.length) {
+    characterAfter = line.charAt(offset);
+  }
+  if (!canAutoCloseBefore(characterAfter)) {
+    return new TypeEdit(selection, typedCharacter, 0, 0, false);
+  }
+  return new TypeEdit(
+    selection,
+    typedCharacter + closeCharacter,
+    0,
+    0 - closeCharacter.length,
+    false
+  );
+}
+
+export TypeEdit autoClosingOvertypeEdit(
+  TypeRange selection,
+  string line,
+  string typedCharacter,
+  string closeCharacters
+) {
+  if (!selection.isEmpty() || closeCharacters.indexOf(typedCharacter) < 0) {
+    return new TypeEdit(selection, typedCharacter, 0, 0, false);
+  }
+  int offset = selection.endColumn - 1;
+  if (offset < line.length && line.charAt(offset) == typedCharacter) {
+    TypeRange overtypeRange = new TypeRange(
+      selection.startLineNumber,
+      selection.startColumn,
+      selection.endLineNumber,
+      selection.endColumn + 1
+    );
+    return new TypeEdit(overtypeRange, typedCharacter, 0, 0, false);
+  }
+  return new TypeEdit(selection, typedCharacter, 0, 0, false);
+}
+
+export TypeEdit surroundSelectionEdit(
+  TypeRange selection,
+  string openCharacter,
+  string selectedText,
+  string openCharacters,
+  string closeCharacters
+) {
+  string closeCharacter = closingCharacter(
+    openCharacter,
+    openCharacters,
+    closeCharacters
+  );
+  if (selection.isEmpty() || closeCharacter.length == 0) {
+    return new TypeEdit(selection, openCharacter, 0, 0, false);
+  }
+  return new TypeEdit(
+    selection,
+    openCharacter + selectedText + closeCharacter,
+    0,
+    0 - closeCharacter.length,
+    false
+  );
+}
+
+export TypeEdit compositionEdit(
+  int lineNumber,
+  int column,
+  int lineMaxColumn,
+  string text,
+  int replacePreviousCharacterCount,
+  int replaceNextCharacterCount,
+  int positionDelta
+) {
+  int startColumn = column - replacePreviousCharacterCount;
+  if (startColumn < 1) {
+    startColumn = 1;
+  }
+  int endColumn = column + replaceNextCharacterCount;
+  if (endColumn > lineMaxColumn) {
+    endColumn = lineMaxColumn;
+  }
+  return new TypeEdit(
+    new TypeRange(lineNumber, startColumn, lineNumber, endColumn),
+    text,
+    0,
+    positionDelta,
+    false
+  );
+}
+
+export TypeEdit tabEdit(
+  TypeRange selection,
+  string line,
+  int tabSize,
+  int indentSize,
+  bool insertSpaces
+) {
+  string text = "\t";
+  if (insertSpaces) {
+    int visibleColumn = typeVisibleColumn(line, selection.startColumn, tabSize);
+    int spaceCount = indentSize - visibleColumn % indentSize;
+    text = repeatChar(" ", spaceCount);
+  }
+  return new TypeEdit(selection, text, 0, 0, false);
+}
+
+export string[] splitPasteLines(string text) {
+  string[] lines = [];
+  string line = emptyBuf();
+  int i = 0;
+  while (i < text.length) {
+    int code = text.charCodeAt(i);
+    if (code == 13 || code == 10) {
+      lines.push(line);
+      line = emptyBuf();
+      if (code == 13 && i + 1 < text.length && text.charCodeAt(i + 1) == 10) {
+        i = i + 1;
+      }
+    } else {
+      line = line + text.charAt(i);
+    }
+    i = i + 1;
+  }
+  lines.push(line);
+  return lines;
+}
+
+export string[] distributePaste(string text, int cursorCount, bool spread) {
+  string[] result = [];
+  if (cursorCount <= 1 || !spread) {
+    return result;
+  }
+  string[] lines = splitPasteLines(text);
+  if (lines.length != cursorCount) {
+    return result;
+  }
+  int i = 0;
+  while (i < lines.length) {
+    result.push(lines[i]);
+    i = i + 1;
+  }
+  return result;
+}
+
+export EditOperationType typingOperation(
+  string text,
+  EditOperationType previousOperation
+) {
+  if (text == " ") {
+    if (
+      previousOperation == EditOperationType.TypingFirstSpace
+      || previousOperation == EditOperationType.TypingConsecutiveSpace
+    ) {
+      return EditOperationType.TypingConsecutiveSpace;
+    }
+    return EditOperationType.TypingFirstSpace;
+  }
+  return EditOperationType.TypingOther;
+}
+
+export bool shouldPushStackElementBetween(
+  EditOperationType previousOperation,
+  EditOperationType operation
+) {
+  bool previousTyping = previousOperation == EditOperationType.TypingFirstSpace
+    || previousOperation == EditOperationType.TypingConsecutiveSpace
+    || previousOperation == EditOperationType.TypingOther;
+  bool currentTyping = operation == EditOperationType.TypingFirstSpace
+    || operation == EditOperationType.TypingConsecutiveSpace
+    || operation == EditOperationType.TypingOther;
+  if (previousTyping != currentTyping) {
+    return true;
+  }
+  return previousOperation == EditOperationType.TypingFirstSpace
+    && operation != EditOperationType.TypingConsecutiveSpace;
+}

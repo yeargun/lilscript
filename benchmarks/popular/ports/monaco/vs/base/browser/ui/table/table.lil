@@ -1,0 +1,64 @@
+export class TableColumn {
+  string id;
+  string label;
+  string templateId;
+  int weight;
+  int minimumWidth;
+  int maximumWidth;
+
+  init(
+    string id,
+    string label,
+    string templateId,
+    int weight,
+    int minimumWidth = 120,
+    int maximumWidth = 2147483647
+  ) {
+    this.id = id;
+    this.label = label;
+    this.templateId = templateId;
+    this.weight = weight;
+    this.minimumWidth = minimumWidth;
+    this.maximumWidth = maximumWidth;
+  }
+
+  int clampWidth(int width) {
+    if (width < this.minimumWidth) {
+      return this.minimumWidth;
+    }
+    if (width > this.maximumWidth) {
+      return this.maximumWidth;
+    }
+    return width;
+  }
+}
+
+export class TableRow {
+  string[] cells;
+
+  init(string[] cells = []) {
+    this.cells = cells;
+  }
+
+  string cell(int index) {
+    if (index < 0 || index >= this.cells.length) {
+      return "";
+    }
+    return this.cells[index];
+  }
+}
+
+export TableColumn createTableColumn(
+  string id,
+  string label,
+  string templateId,
+  int weight,
+  int minimumWidth = 120,
+  int maximumWidth = 2147483647
+) {
+  return new TableColumn(id, label, templateId, weight, minimumWidth, maximumWidth);
+}
+
+export TableRow createTableRow(string[] cells) {
+  return new TableRow(cells);
+}

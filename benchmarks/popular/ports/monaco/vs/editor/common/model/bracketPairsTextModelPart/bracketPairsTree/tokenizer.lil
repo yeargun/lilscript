@@ -1,0 +1,223 @@
+import { sliceOf } from "../../../../../../js-host";
+
+int LengthFactor = 67108864;
+export int TokenKindText = 0;
+export int TokenKindOpeningBracket = 1;
+export int TokenKindClosingBracket = 2;
+
+int toLength(int lineCount, int columnCount) {
+  return lineCount * LengthFactor + columnCount;
+}
+
+int lengthAdd(int first, int second) {
+  int result = first + second;
+  if (second >= LengthFactor) {
+    result = result - first % LengthFactor;
+  }
+  return result;
+}
+
+export class Token {
+  int length;
+  int kind;
+  int bracketId;
+  int[] bracketIds;
+  string bracketText;
+
+  init(int length, int kind, int bracketId, int[] bracketIds, string bracketText) {
+    this.length = length;
+    this.kind = kind;
+    this.bracketId = bracketId;
+    this.bracketIds = bracketIds;
+    this.bracketText = bracketText;
+  }
+}
+
+export class BracketTokens {
+  string[] texts;
+  Token[] tokens;
+
+  init(string[] texts, Token[] tokens) {
+    this.texts = texts;
+    this.tokens = tokens;
+  }
+
+  Token? getToken(string text) {
+    int i = 0;
+    string value = text.toLowerCase();
+    while (i < this.texts.length) {
+      if (this.texts[i].toLowerCase() == value) {
+        return this.tokens[i];
+      }
+      i = i + 1;
+    }
+    return null;
+  }
+
+  int findNext(string text, int start) {
+    int best = -1;
+    int i = 0;
+    while (i < this.texts.length) {
+      int index = text.toLowerCase().indexOf(this.texts[i].toLowerCase(), start);
+      if (index >= 0 && (best < 0 || index < best)) {
+        best = index;
+      }
+      i = i + 1;
+    }
+    return best;
+  }
+
+  Token? tokenAt(string text, int offset) {
+    int bestLength = -1;
+    Token? result = null;
+    int i = 0;
+    while (i < this.texts.length) {
+      string bracket = this.texts[i];
+      if (
+        offset + bracket.length <= text.length
+        && sliceOf(text, offset, offset + bracket.length).toLowerCase() == bracket.toLowerCase()
+        && bracket.length > bestLength
+      ) {
+        result = this.tokens[i];
+        bestLength = bracket.length;
+      }
+      i = i + 1;
+    }
+    return result;
+  }
+}
+
+int lengthOfRange(string text, int start, int end) {
+  int lines = 0;
+  int column = 0;
+  int i = start;
+  while (i < end) {
+    int code = text.charCodeAt(i);
+    if (code == 13) {
+      if (i + 1 < end && text.charCodeAt(i + 1) == 10) {
+        i = i + 1;
+      }
+      lines = lines + 1;
+      column = 0;
+    } else if (code == 10) {
+      lines = lines + 1;
+      column = 0;
+    } else {
+      column = column + 1;
+    }
+    i = i + 1;
+  }
+  return toLength(lines, column);
+}
+
+export class FastTokenizer {
+  string text;
+  BracketTokens brackets;
+  Token[] tokens;
+  int index;
+  int offset;
+  int length;
+
+  init(string text, BracketTokens brackets) {
+    this.text = text;
+    this.brackets = brackets;
+    this.tokens = [];
+    this.index = 0;
+    this.offset = 0;
+    this.length = lengthOfRange(text, 0, text.length);
+    this.tokenize();
+  }
+
+  void tokenize() {
+    int textStart = 0;
+    int i = 0;
+    while (i < this.text.length) {
+      Token? bracket = this.brackets.tokenAt(this.text, i);
+      if (bracket != null) {
+        if (textStart < i) {
+          this.tokens.push(
+            new Token(lengthOfRange(this.text, textStart, i), TokenKindText, -1, [], "")
+          );
+        }
+        this.tokens.push(bracket);
+        i = i + bracket.bracketText.length;
+        textStart = i;
+      } else {
+        i = i + 1;
+      }
+    }
+    if (textStart < this.text.length) {
+      this.tokens.push(
+        new Token(lengthOfRange(this.text, textStart, this.text.length), TokenKindText, -1, [], "")
+      );
+    }
+  }
+
+  Token? read() {
+    if (this.index >= this.tokens.length) {
+      return null;
+    }
+    Token token = this.tokens[this.index];
+    this.index = this.index + 1;
+    this.offset = lengthAdd(this.offset, token.length);
+    return token;
+  }
+
+  Token? peek() {
+    if (this.index >= this.tokens.length) {
+      return null;
+    }
+    return this.tokens[this.index];
+  }
+
+  bool skip(int length) {
+    int target = lengthAdd(this.offset, length);
+    while (this.offset < target && this.index < this.tokens.length) {
+      Token? token = this.read();
+      if (token == null) {
+        break;
+      }
+    }
+    return this.offset == target;
+  }
+}
+
+export class TextBufferTokenizer {
+  FastTokenizer tokenizer;
+
+  init(string text, BracketTokens brackets) {
+    this.tokenizer = new FastTokenizer(text, brackets);
+  }
+
+  int offset() {
+    return this.tokenizer.offset;
+  }
+
+  int length() {
+    return this.tokenizer.length;
+  }
+
+  Token? read() {
+    return this.tokenizer.read();
+  }
+
+  Token? peek() {
+    return this.tokenizer.peek();
+  }
+
+  bool skip(int length) {
+    return this.tokenizer.skip(length);
+  }
+}
+
+export Token createBracketToken(string text, int kind, int bracketId, int[] bracketIds) {
+  return new Token(toLength(0, text.length), kind, bracketId, bracketIds, text);
+}
+
+export BracketTokens createBracketTokens(string[] texts, Token[] tokens) {
+  return new BracketTokens(texts, tokens);
+}
+
+export FastTokenizer createFastTokenizer(string text, BracketTokens brackets) {
+  return new FastTokenizer(text, brackets);
+}

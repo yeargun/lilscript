@@ -1,0 +1,369 @@
+import { emptyBuf, concat2, sliceOf, throwError, stringFromCharCode1 } from "../../../js-host";
+
+export bool isFalsyOrWhitespace(string str) {
+  if (str.length == 0) {
+    return true;
+  }
+  int i = 0;
+  while (i < str.length) {
+    int code = str.charCodeAt(i);
+    if (code != 32 && code != 9 && code != 10 && code != 13) {
+      return false;
+    }
+    i = i + 1;
+  }
+  return true;
+}
+
+export string htmlAttributeEncodeValue(string value) {
+  string out = emptyBuf();
+  int i = 0;
+  while (i < value.length) {
+    string ch = value.charAt(i);
+    if (ch == "<") {
+      out = concat2(out, "&lt;");
+    } else if (ch == ">") {
+      out = concat2(out, "&gt;");
+    } else if (ch == "\"") {
+      out = concat2(out, "&quot;");
+    } else if (ch == "'") {
+      out = concat2(out, "&apos;");
+    } else if (ch == "&") {
+      out = concat2(out, "&amp;");
+    } else {
+      out = concat2(out, ch);
+    }
+    i = i + 1;
+  }
+  return out;
+}
+
+export string escape(string html) {
+  string out = emptyBuf();
+  int i = 0;
+  while (i < html.length) {
+    string ch = html.charAt(i);
+    if (ch == "<") {
+      out = concat2(out, "&lt;");
+    } else if (ch == ">") {
+      out = concat2(out, "&gt;");
+    } else if (ch == "&") {
+      out = concat2(out, "&amp;");
+    } else {
+      out = concat2(out, ch);
+    }
+    i = i + 1;
+  }
+  return out;
+}
+
+export string escapeRegExpCharacters(string value) {
+  string source = emptyBuf();
+  int i = 0;
+  while (i < value.length) {
+    string ch = value.charAt(i);
+    if (
+      ch == "\\" || ch == "{" || ch == "}" || ch == "*" || ch == "+" || ch == "?"
+      || ch == "|" || ch == "^" || ch == "$" || ch == "." || ch == "[" || ch == "]"
+      || ch == "(" || ch == ")"
+    ) {
+      source = concat2(concat2(source, "\\"), ch);
+    } else {
+      source = concat2(source, ch);
+    }
+    i = i + 1;
+  }
+  return source;
+}
+
+export string ltrim(string haystack, string needle) {
+  if (haystack.length == 0 || needle.length == 0) {
+    return haystack;
+  }
+  int needleLen = needle.length;
+  int offset = 0;
+  if (needleLen == 1) {
+    int ch = needle.charCodeAt(0);
+    while (offset < haystack.length && haystack.charCodeAt(offset) == ch) {
+      offset = offset + 1;
+    }
+  } else {
+    while (offset + needleLen <= haystack.length && sliceOf(haystack, offset, offset + needleLen) == needle) {
+      offset = offset + needleLen;
+    }
+  }
+  return sliceOf(haystack, offset, haystack.length);
+}
+
+export string rtrim(string haystack, string needle) {
+  if (haystack.length == 0 || needle.length == 0) {
+    return haystack;
+  }
+  int needleLen = needle.length;
+  int haystackLen = haystack.length;
+  if (needleLen == 1) {
+    int end = haystackLen;
+    int ch = needle.charCodeAt(0);
+    while (end > 0 && haystack.charCodeAt(end - 1) == ch) {
+      end = end - 1;
+    }
+    return sliceOf(haystack, 0, end);
+  }
+  int offset = haystackLen;
+  while (offset >= needleLen && sliceOf(haystack, offset - needleLen, offset) == needle) {
+    offset = offset - needleLen;
+  }
+  return sliceOf(haystack, 0, offset);
+}
+
+export string trim(string haystack, string needle) {
+  return rtrim(ltrim(haystack, needle), needle);
+}
+
+export string convertSimple2RegExpPattern(string pattern) {
+  string out = emptyBuf();
+  int i = 0;
+  while (i < pattern.length) {
+    string ch = pattern.charAt(i);
+    if (ch == "*") {
+      out = concat2(out, ".*");
+    } else if (
+      ch == "-" || ch == "\\" || ch == "{" || ch == "}" || ch == "+" || ch == "?"
+      || ch == "|" || ch == "^" || ch == "$" || ch == "." || ch == "," || ch == "["
+      || ch == "]" || ch == "(" || ch == ")" || ch == "#" || ch == " "
+    ) {
+      out = concat2(concat2(out, "\\"), ch);
+    } else {
+      out = concat2(out, ch);
+    }
+    i = i + 1;
+  }
+  return out;
+}
+
+export string createRegExpSource(string searchString, bool isRegex, bool wholeWord) {
+  if (searchString.length == 0) {
+    throwError("Cannot create regex from empty string");
+  }
+  string source = searchString;
+  if (!isRegex) {
+    source = escapeRegExpCharacters(searchString);
+  }
+  if (wholeWord) {
+    source = concat2(concat2("\\b", source), "\\b");
+  }
+  return source;
+}
+
+export int firstNonWhitespaceIndex(string str) {
+  int i = 0;
+  while (i < str.length) {
+    int chCode = str.charCodeAt(i);
+    if (chCode != 32 && chCode != 9) {
+      return i;
+    }
+    i = i + 1;
+  }
+  return -1;
+}
+
+export string getLeadingWhitespace(string str, int start, int end) {
+  int i = start;
+  int stop = end;
+  if (stop > str.length) {
+    stop = str.length;
+  }
+  while (i < stop) {
+    int chCode = str.charCodeAt(i);
+    if (chCode != 32 && chCode != 9) {
+      return sliceOf(str, start, i);
+    }
+    i = i + 1;
+  }
+  return sliceOf(str, start, stop);
+}
+
+export int lastNonWhitespaceIndex(string str, int startIndex) {
+  int i = startIndex;
+  if (i >= str.length) {
+    i = str.length - 1;
+  }
+  while (i >= 0) {
+    int chCode = str.charCodeAt(i);
+    if (chCode != 32 && chCode != 9) {
+      return i;
+    }
+    i = i - 1;
+  }
+  return -1;
+}
+
+export int compare(string a, string b) {
+  if (a < b) {
+    return -1;
+  }
+  if (a > b) {
+    return 1;
+  }
+  return 0;
+}
+
+export int compareSubstring(string a, string b, int aStart, int aEnd, int bStart, int bEnd) {
+  int aOff = aStart;
+  int bOff = bStart;
+  while (aOff < aEnd && bOff < bEnd) {
+    int codeA = a.charCodeAt(aOff);
+    int codeB = b.charCodeAt(bOff);
+    if (codeA < codeB) {
+      return -1;
+    }
+    if (codeA > codeB) {
+      return 1;
+    }
+    aOff = aOff + 1;
+    bOff = bOff + 1;
+  }
+  int aLen = aEnd - aOff;
+  int bLen = bEnd - bOff;
+  if (aLen < bLen) {
+    return -1;
+  }
+  if (aLen > bLen) {
+    return 1;
+  }
+  return 0;
+}
+
+export bool isAsciiDigit(int code) {
+  return code >= 48 && code <= 57;
+}
+
+export bool isLowerAsciiLetter(int code) {
+  return code >= 97 && code <= 122;
+}
+
+export bool isUpperAsciiLetter(int code) {
+  return code >= 65 && code <= 90;
+}
+
+export int compareSubstringIgnoreCase(string a, string b, int aStart, int aEnd, int bStart, int bEnd) {
+  int aOff = aStart;
+  int bOff = bStart;
+  while (aOff < aEnd && bOff < bEnd) {
+    int codeA = a.charCodeAt(aOff);
+    int codeB = b.charCodeAt(bOff);
+    if (codeA != codeB) {
+      if (codeA >= 128 || codeB >= 128) {
+        return compareSubstring(a, b, aOff, aEnd, bOff, bEnd);
+      }
+      if (isLowerAsciiLetter(codeA)) {
+        codeA = codeA - 32;
+      }
+      if (isLowerAsciiLetter(codeB)) {
+        codeB = codeB - 32;
+      }
+      int diff = codeA - codeB;
+      if (diff != 0) {
+        return diff;
+      }
+    }
+    aOff = aOff + 1;
+    bOff = bOff + 1;
+  }
+  int aLen = aEnd - aOff;
+  int bLen = bEnd - bOff;
+  if (aLen < bLen) {
+    return -1;
+  }
+  if (aLen > bLen) {
+    return 1;
+  }
+  return 0;
+}
+
+export bool equalsIgnoreCase(string a, string b) {
+  return a.length == b.length && compareSubstringIgnoreCase(a, b, 0, a.length, 0, b.length) == 0;
+}
+
+export bool startsWithIgnoreCase(string str, string candidate) {
+  int len = candidate.length;
+  return len <= str.length && compareSubstringIgnoreCase(str, candidate, 0, len, 0, len) == 0;
+}
+
+export bool endsWithIgnoreCase(string str, string candidate) {
+  int start = str.length - candidate.length;
+  if (start < 0) {
+    return false;
+  }
+  return compareSubstringIgnoreCase(str, candidate, start, str.length, 0, candidate.length) == 0;
+}
+
+export int commonPrefixLength(string a, string b) {
+  int len = a.length;
+  if (b.length < len) {
+    len = b.length;
+  }
+  int i = 0;
+  while (i < len) {
+    if (a.charCodeAt(i) != b.charCodeAt(i)) {
+      return i;
+    }
+    i = i + 1;
+  }
+  return len;
+}
+
+export int commonSuffixLength(string a, string b) {
+  int len = a.length;
+  if (b.length < len) {
+    len = b.length;
+  }
+  int i = 0;
+  int aLastIndex = a.length - 1;
+  int bLastIndex = b.length - 1;
+  while (i < len) {
+    if (a.charCodeAt(aLastIndex - i) != b.charCodeAt(bLastIndex - i)) {
+      return i;
+    }
+    i = i + 1;
+  }
+  return len;
+}
+
+export bool isHighSurrogate(int charCode) {
+  return 55296 <= charCode && charCode <= 56319;
+}
+
+export bool isLowSurrogate(int charCode) {
+  return 56320 <= charCode && charCode <= 57343;
+}
+
+export int computeCodePoint(int highSurrogate, int lowSurrogate) {
+  return ((highSurrogate - 55296) << 10) + (lowSurrogate - 56320) + 65536;
+}
+
+export int getNextCodePoint(string str, int len, int offset) {
+  int charCode = str.charCodeAt(offset);
+  if (isHighSurrogate(charCode) && offset + 1 < len) {
+    int nextCharCode = str.charCodeAt(offset + 1);
+    if (isLowSurrogate(nextCharCode)) {
+      return computeCodePoint(charCode, nextCharCode);
+    }
+  }
+  return charCode;
+}
+
+export string asciiLower(string s) {
+  string out = emptyBuf();
+  int i = 0;
+  while (i < s.length) {
+    int code = s.charCodeAt(i);
+    if (isUpperAsciiLetter(code)) {
+      out = concat2(out, stringFromCharCode1((code + 32) * 1.0));
+    } else {
+      out = concat2(out, s.charAt(i));
+    }
+    i = i + 1;
+  }
+  return out;
+}

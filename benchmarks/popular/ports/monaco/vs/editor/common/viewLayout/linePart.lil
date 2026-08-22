@@ -1,0 +1,21 @@
+export class LinePart {
+  int endIndex;
+  string type;
+  int metadata;
+  bool containsRTL;
+
+  init(int endIndex, string type, int metadata, bool containsRTL) {
+    this.endIndex = endIndex;
+    this.type = type;
+    this.metadata = metadata;
+    this.containsRTL = containsRTL;
+  }
+
+  bool isWhitespace() {
+    return (this.metadata & 1) != 0;
+  }
+
+  bool isPseudoAfter() {
+    return (this.metadata & 4) != 0;
+  }
+}

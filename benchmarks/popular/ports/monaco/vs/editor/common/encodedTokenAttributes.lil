@@ -1,0 +1,108 @@
+export int metadataLanguageIdMask = 255;
+export int metadataTokenTypeMask = 768;
+export int metadataBalancedBracketsMask = 1024;
+export int metadataFontStyleMask = 30720;
+export int metadataForegroundMask = 16744448;
+export int metadataBackgroundMask = -16777216;
+export int metadataTokenTypeOffset = 8;
+export int metadataFontStyleOffset = 11;
+export int metadataForegroundOffset = 15;
+export int metadataBackgroundOffset = 24;
+
+export int tokenLanguageId(int metadata) {
+  return (metadata & metadataLanguageIdMask) >>> 0;
+}
+
+export int tokenType(int metadata) {
+  return (metadata & metadataTokenTypeMask) >>> metadataTokenTypeOffset;
+}
+
+export bool tokenContainsBalancedBrackets(int metadata) {
+  return (metadata & metadataBalancedBracketsMask) != 0;
+}
+
+export int tokenFontStyle(int metadata) {
+  return (metadata & metadataFontStyleMask) >>> metadataFontStyleOffset;
+}
+
+export int tokenForeground(int metadata) {
+  return (metadata & metadataForegroundMask) >>> metadataForegroundOffset;
+}
+
+export int tokenBackground(int metadata) {
+  return (metadata & metadataBackgroundMask) >>> metadataBackgroundOffset;
+}
+
+export string tokenClassNameFromMetadata(int metadata) {
+  int foreground = tokenForeground(metadata);
+  string className = "mtk" + foreground.toString();
+  int fontStyle = tokenFontStyle(metadata);
+  if ((fontStyle & 1) != 0) {
+    className = className + " mtki";
+  }
+  if ((fontStyle & 2) != 0) {
+    className = className + " mtkb";
+  }
+  if ((fontStyle & 4) != 0) {
+    className = className + " mtku";
+  }
+  if ((fontStyle & 8) != 0) {
+    className = className + " mtks";
+  }
+  return className;
+}
+
+export string tokenInlineStyleFromMetadata(int metadata, string[] colorMap) {
+  int foreground = tokenForeground(metadata);
+  int fontStyle = tokenFontStyle(metadata);
+  string color = "";
+  if (foreground >= 0 && foreground < colorMap.length) {
+    color = colorMap[foreground];
+  }
+  string result = "color: " + color + ";";
+  if ((fontStyle & 1) != 0) {
+    result = result + "font-style: italic;";
+  }
+  if ((fontStyle & 2) != 0) {
+    result = result + "font-weight: bold;";
+  }
+  string textDecoration = "";
+  if ((fontStyle & 4) != 0) {
+    textDecoration = textDecoration + " underline";
+  }
+  if ((fontStyle & 8) != 0) {
+    textDecoration = textDecoration + " line-through";
+  }
+  if (textDecoration.length > 0) {
+    result = result + "text-decoration:" + textDecoration + ";";
+  }
+  return result;
+}
+
+export class TokenPresentation {
+  int foreground;
+  bool italic;
+  bool bold;
+  bool underline;
+  bool strikethrough;
+
+  init(int foreground, bool italic, bool bold, bool underline, bool strikethrough) {
+    this.foreground = foreground;
+    this.italic = italic;
+    this.bold = bold;
+    this.underline = underline;
+    this.strikethrough = strikethrough;
+  }
+}
+
+export TokenPresentation tokenPresentationFromMetadata(int metadata) {
+  int foreground = tokenForeground(metadata);
+  int fontStyle = tokenFontStyle(metadata);
+  return new TokenPresentation(
+    foreground,
+    (fontStyle & 1) != 0,
+    (fontStyle & 2) != 0,
+    (fontStyle & 4) != 0,
+    (fontStyle & 8) != 0
+  );
+}

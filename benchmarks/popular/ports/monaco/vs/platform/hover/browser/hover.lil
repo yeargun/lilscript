@@ -1,0 +1,15 @@
+export class HoverPosition {
+  int x;
+  int y;
+
+  init(int x, int y) {
+    this.x = x;
+    this.y = y;
+  }
+}
+
+export HoverPosition createHoverPosition(int x, int y) {
+  return new HoverPosition(x, y);
+}
+
+export string IHoverServiceId = "hoverService";

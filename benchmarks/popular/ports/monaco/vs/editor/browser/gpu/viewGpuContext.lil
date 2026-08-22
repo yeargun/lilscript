@@ -1,0 +1,227 @@
+export string[] gpuSupportedDecorationCssRules() {
+  string[] rules = [];
+  rules.push("color");
+  rules.push("font-weight");
+  rules.push("opacity");
+  rules.push("text-decoration");
+  rules.push("text-decoration-color");
+  rules.push("text-decoration-line");
+  rules.push("text-decoration-style");
+  rules.push("text-decoration-thickness");
+  return rules;
+}
+
+bool includesRule(string[] rules, string rule) {
+  int i = 0;
+  while (i < rules.length) {
+    if (rules[i] == rule) {
+      return true;
+    }
+    i = i + 1;
+  }
+  return false;
+}
+
+bool isDigit(int code) {
+  return code >= 48 && code <= 57;
+}
+
+bool isPixelThickness(string value) {
+  if (value == "initial") {
+    return true;
+  }
+  if (value.length < 3) {
+    return false;
+  }
+  if (!value.endsWith("px")) {
+    return false;
+  }
+  int i = 0;
+  bool seenDot = false;
+  bool seenDigit = false;
+  while (i < value.length - 2) {
+    int code = value.charCodeAt(i);
+    if (code == 46) {
+      if (seenDot) {
+        return false;
+      }
+      seenDot = true;
+    } else if (isDigit(code)) {
+      seenDigit = true;
+    } else {
+      return false;
+    }
+    i = i + 1;
+  }
+  return seenDigit;
+}
+
+bool isVarFallback(string value) {
+  if (!value.startsWith("var(--")) {
+    return false;
+  }
+  if (value.endsWith(", initial)") || value.endsWith(", inherit)")) {
+    return true;
+  }
+  return false;
+}
+
+export bool supportsCssRule(string rule, string value) {
+  string[] supported = gpuSupportedDecorationCssRules();
+  if (!includesRule(supported, rule)) {
+    return false;
+  }
+  if (rule == "text-decoration" || rule == "text-decoration-line") {
+    return value == "line-through";
+  }
+  if (rule == "text-decoration-color") {
+    if (isVarFallback(value)) {
+      return true;
+    }
+    return value.startsWith("#") || value.startsWith("rgb") || value.startsWith("var(");
+  }
+  if (rule == "text-decoration-style") {
+    return value == "initial";
+  }
+  if (rule == "text-decoration-thickness") {
+    return isPixelThickness(value);
+  }
+  return true;
+}
+
+export class InlineDecoration {
+  int type;
+  string inlineClassName;
+  int startLineNumber;
+  int startColumn;
+  int endLineNumber;
+  int endColumn;
+
+  init(int type, string inlineClassName, int startLineNumber, int startColumn, int endLineNumber, int endColumn) {
+    this.type = type;
+    this.inlineClassName = inlineClassName;
+    this.startLineNumber = startLineNumber;
+    this.startColumn = startColumn;
+    this.endLineNumber = endLineNumber;
+    this.endColumn = endColumn;
+  }
+}
+
+export class ViewLineRenderingData {
+  bool containsRTL;
+  int maxColumn;
+  int minColumn;
+  InlineDecoration[] inlineDecorations;
+  string content;
+
+  init(string content, bool containsRTL, int maxColumn) {
+    this.content = content;
+    this.containsRTL = containsRTL;
+    this.maxColumn = maxColumn;
+    this.minColumn = 1;
+    this.inlineDecorations = [];
+  }
+}
+
+export class CanvasSize {
+  int width;
+  int height;
+
+  init(int width, int height) {
+    this.width = width;
+    this.height = height;
+  }
+}
+
+export class ViewGpuContext {
+  int maxGpuCols;
+  float devicePixelRatio;
+  CanvasSize canvasDevicePixelDimensions;
+  int contentLeft;
+  int canvasWidth;
+  int canvasHeight;
+  int verticalScrollbarSize;
+  bool atlasReady;
+
+  init(float devicePixelRatio, int canvasWidth, int canvasHeight) {
+    this.maxGpuCols = 2000;
+    this.devicePixelRatio = devicePixelRatio;
+    this.canvasDevicePixelDimensions = new CanvasSize(canvasWidth, canvasHeight);
+    this.contentLeft = 0;
+    this.canvasWidth = canvasWidth;
+    this.canvasHeight = canvasHeight;
+    this.verticalScrollbarSize = 14;
+    this.atlasReady = true;
+  }
+
+  void setDevicePixelRatio(float ratio) {
+    this.devicePixelRatio = ratio;
+  }
+
+  void setCanvasDevicePixelDimensions(int width, int height) {
+    if (width <= 0 || height <= 0) {
+      return;
+    }
+    this.canvasWidth = width;
+    this.canvasHeight = height;
+    this.canvasDevicePixelDimensions.width = width;
+    this.canvasDevicePixelDimensions.height = height;
+  }
+
+  void setVerticalScrollbarSize(int size) {
+    this.verticalScrollbarSize = size;
+  }
+
+  bool canRender(ViewLineRenderingData data) {
+    if (data.containsRTL || data.maxColumn > this.maxGpuCols) {
+      return false;
+    }
+    if (data.inlineDecorations.length == 0) {
+      return true;
+    }
+    int i = 0;
+    while (i < data.inlineDecorations.length) {
+      InlineDecoration decoration = data.inlineDecorations[i];
+      if (decoration.type != 0) {
+        return false;
+      }
+      if (decoration.inlineClassName.includes(":")) {
+        return false;
+      }
+      i = i + 1;
+    }
+    return true;
+  }
+
+  string[] canRenderDetailed(ViewLineRenderingData data) {
+    string[] reasons = [];
+    if (data.containsRTL) {
+      reasons.push("containsRTL");
+    }
+    if (data.maxColumn > this.maxGpuCols) {
+      reasons.push("maxColumn > maxGpuCols");
+    }
+    if (data.inlineDecorations.length > 0) {
+      int i = 0;
+      while (i < data.inlineDecorations.length) {
+        InlineDecoration decoration = data.inlineDecorations[i];
+        if (decoration.type != 0) {
+          reasons.push("inlineDecorations with unsupported types (" + decoration.type.toString() + ")");
+        }
+        if (decoration.inlineClassName.includes(":")) {
+          reasons.push("inlineDecorations with unsupported CSS selectors (" + decoration.inlineClassName + ")");
+        }
+        i = i + 1;
+      }
+    }
+    return reasons;
+  }
+}
+
+export ViewGpuContext createViewGpuContext(float devicePixelRatio, int canvasWidth, int canvasHeight) {
+  return new ViewGpuContext(devicePixelRatio, canvasWidth, canvasHeight);
+}
+
+export ViewLineRenderingData createViewLineRenderingData(string content, bool containsRTL, int maxColumn) {
+  return new ViewLineRenderingData(content, containsRTL, maxColumn);
+}

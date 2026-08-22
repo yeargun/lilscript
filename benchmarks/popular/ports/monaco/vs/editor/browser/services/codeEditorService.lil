@@ -1,0 +1,62 @@
+export class CodeEditorService {
+  Map<string, int> codeEditors;
+  Map<string, int> diffEditors;
+  string focusedId;
+  string activeId;
+  int nextId;
+
+  init() {
+    this.codeEditors = new Map<string, int>();
+    this.diffEditors = new Map<string, int>();
+    this.focusedId = "";
+    this.activeId = "";
+    this.nextId = 1;
+  }
+
+  string addCodeEditor() {
+    string id = "editor:" + this.nextId.toString();
+    this.nextId = this.nextId + 1;
+    this.codeEditors.set(id, 1);
+    this.activeId = id;
+    return id;
+  }
+
+  void removeCodeEditor(string id) {
+    this.codeEditors.delete(id);
+    if (this.focusedId == id) {
+      this.focusedId = "";
+    }
+    if (this.activeId == id) {
+      this.activeId = "";
+    }
+  }
+
+  string? getFocusedCodeEditor() {
+    if (this.focusedId.length == 0) {
+      return null;
+    }
+    return this.focusedId;
+  }
+
+  string? getActiveCodeEditor() {
+    if (this.activeId.length == 0) {
+      return null;
+    }
+    return this.activeId;
+  }
+
+  void setFocused(string id) {
+    this.focusedId = id;
+    this.activeId = id;
+  }
+}
+
+CodeEditorService codeEditorServiceSingleton = new CodeEditorService();
+
+export CodeEditorService createCodeEditorService() {
+  return new CodeEditorService();
+}
+
+export string ICodeEditorServiceId() {
+  return "codeEditorService";
+}

@@ -1,0 +1,54 @@
+export class ReplaceHistory {
+  string[] values;
+  string storageKey;
+
+  init(string storageKey) {
+    this.values = [];
+    this.storageKey = storageKey;
+  }
+
+  bool has(string value) {
+    return this.values.indexOf(value) >= 0;
+  }
+
+  void add(string value) {
+    if (value.length == 0) {
+      return;
+    }
+    int existing = this.values.indexOf(value);
+    if (existing >= 0) {
+      this.values.splice(existing, 1);
+    }
+    this.values.push(value);
+  }
+
+  bool deleteValue(string value) {
+    int existing = this.values.indexOf(value);
+    if (existing < 0) {
+      return false;
+    }
+    this.values.splice(existing, 1);
+    return true;
+  }
+
+  void replace(string[] next) {
+    this.values = next;
+  }
+
+  string saveJson() {
+    string out = "[";
+    int i = 0;
+    while (i < this.values.length) {
+      if (i > 0) {
+        out = out + ",";
+      }
+      out = out + JSON.stringify(this.values[i]);
+      i = i + 1;
+    }
+    return out + "]";
+  }
+}
+
+export ReplaceHistory createReplaceWidgetHistory() {
+  return new ReplaceHistory("workbench.replace.history");
+}

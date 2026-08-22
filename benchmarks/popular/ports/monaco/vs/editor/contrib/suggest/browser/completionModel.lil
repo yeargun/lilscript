@@ -1,0 +1,225 @@
+export int REFILTER_NOTHING = 0;
+export int REFILTER_ALL = 1;
+export int REFILTER_INCR = 2;
+export int SNIPPET_KIND = 27;
+
+export class LineContext {
+  string leadingLineContent;
+  int characterCountDelta;
+
+  init(string leadingLineContent, int characterCountDelta) {
+    this.leadingLineContent = leadingLineContent;
+    this.characterCountDelta = characterCountDelta;
+  }
+}
+
+export class CompletionItem {
+  string label;
+  string filterText;
+  string insertText;
+  int kind;
+  int provider;
+  int column;
+  int editStartColumn;
+  int score;
+  int distance;
+  int idx;
+  bool isInvalid;
+  string word;
+
+  init(string label, string insertText, int kind) {
+    this.label = label;
+    this.filterText = label;
+    this.insertText = insertText;
+    this.kind = kind;
+    this.provider = 0;
+    this.column = 1;
+    this.editStartColumn = 1;
+    this.score = -100;
+    this.distance = 0;
+    this.idx = 0;
+    this.isInvalid = false;
+    this.word = "";
+  }
+}
+
+int fuzzyScore(string word, string wordLow, string target, string targetLow) {
+  if (word.length == 0) {
+    return -100;
+  }
+  if (targetLow.indexOf(wordLow) == 0) {
+    int bonus = 0;
+    if (target.length == word.length) {
+      bonus = 10;
+    }
+    return 1000 - (target.length - word.length) + bonus;
+  }
+  int score = 0;
+  int ti = 0;
+  int wi = 0;
+  int consecutive = 0;
+  while (wi < wordLow.length && ti < targetLow.length) {
+    if (wordLow.charAt(wi) == targetLow.charAt(ti)) {
+      score = score + 1 + consecutive;
+      consecutive = consecutive + 1;
+      wi = wi + 1;
+    } else {
+      consecutive = 0;
+    }
+    ti = ti + 1;
+  }
+  if (wi < wordLow.length) {
+    return 0;
+  }
+  return score * 10 - (target.length - word.length);
+}
+
+int compareItems(CompletionItem a, CompletionItem b, int snippetPos) {
+  if (snippetPos != 0 && a.kind != b.kind) {
+    if (a.kind == SNIPPET_KIND) {
+      return snippetPos;
+    }
+    if (b.kind == SNIPPET_KIND) {
+      return 0 - snippetPos;
+    }
+  }
+  if (a.score > b.score) {
+    return -1;
+  }
+  if (a.score < b.score) {
+    return 1;
+  }
+  if (a.distance < b.distance) {
+    return -1;
+  }
+  if (a.distance > b.distance) {
+    return 1;
+  }
+  if (a.idx < b.idx) {
+    return -1;
+  }
+  if (a.idx > b.idx) {
+    return 1;
+  }
+  return 0;
+}
+
+export class CompletionModel {
+  CompletionItem[] items;
+  CompletionItem[] filteredItems;
+  LineContext lineContext;
+  int column;
+  int refilterKind;
+  string snippetSuggestions;
+  bool filterGraceful;
+
+  init(CompletionItem[] items, int column, LineContext lineContext, string snippetSuggestions) {
+    this.items = items;
+    this.filteredItems = [];
+    this.lineContext = lineContext;
+    this.column = column;
+    this.refilterKind = REFILTER_ALL;
+    this.snippetSuggestions = snippetSuggestions;
+    this.filterGraceful = true;
+  }
+
+  void setLineContext(LineContext value) {
+    if (this.lineContext.leadingLineContent != value.leadingLineContent || this.lineContext.characterCountDelta != value.characterCountDelta) {
+      if (this.lineContext.characterCountDelta < value.characterCountDelta && this.filteredItems.length > 0) {
+        this.refilterKind = REFILTER_INCR;
+      } else {
+        this.refilterKind = REFILTER_ALL;
+      }
+      this.lineContext = value;
+    }
+  }
+
+  CompletionItem[] getItems() {
+    this.ensureFiltered();
+    return this.filteredItems;
+  }
+
+  void ensureFiltered() {
+    if (this.refilterKind == REFILTER_NOTHING) {
+      return;
+    }
+    CompletionItem[] source = this.items;
+    if (this.refilterKind == REFILTER_INCR) {
+      source = this.filteredItems;
+    }
+    CompletionItem[] target = [];
+    int i = 0;
+    while (i < source.length) {
+      CompletionItem item = source[i];
+      if (item.isInvalid) {
+        i = i + 1;
+        continue;
+      }
+      int overwriteBefore = item.column - item.editStartColumn;
+      int wordLen = overwriteBefore + this.lineContext.characterCountDelta - (item.column - this.column);
+      string word = "";
+      if (wordLen > 0) {
+        int start = this.lineContext.leadingLineContent.length - wordLen;
+        if (start < 0) {
+          start = 0;
+        }
+        int k = start;
+        while (k < this.lineContext.leadingLineContent.length) {
+          word = word + this.lineContext.leadingLineContent.charAt(k);
+          k = k + 1;
+        }
+      }
+      item.word = word;
+      if (wordLen == 0) {
+        item.score = -100;
+      } else {
+        string filter = item.filterText;
+        if (filter.length == 0) {
+          filter = item.label;
+        }
+        int scored = fuzzyScore(word, word.toLowerCase(), filter, filter.toLowerCase());
+        if (scored == 0) {
+          i = i + 1;
+          continue;
+        }
+        item.score = scored;
+      }
+      item.idx = i;
+      target.push(item);
+      i = i + 1;
+    }
+    int snippetPos = 0;
+    if (this.snippetSuggestions == "top") {
+      snippetPos = -1;
+    } else if (this.snippetSuggestions == "bottom") {
+      snippetPos = 1;
+    }
+    int a = 0;
+    while (a < target.length) {
+      int b = a + 1;
+      while (b < target.length) {
+        if (compareItems(target[b], target[a], snippetPos) < 0) {
+          CompletionItem tmp = target[a];
+          target[a] = target[b];
+          target[b] = tmp;
+        }
+        b = b + 1;
+      }
+      a = a + 1;
+    }
+    this.filteredItems = target;
+    this.refilterKind = REFILTER_NOTHING;
+  }
+}
+
+export CompletionModel createCompletionModel(CompletionItem[] items, int column, string leading, int delta, string snippetSuggestions) {
+  return new CompletionModel(items, column, new LineContext(leading, delta), snippetSuggestions);
+}
+
+export CompletionItem createCompletionItem(string label, string insertText, int kind) {
+  return new CompletionItem(label, insertText, kind);
+}
+
+export LineContext createLineContext(string leading, int delta) {
+  return new LineContext(leading, delta);
+}

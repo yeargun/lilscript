@@ -1,0 +1,568 @@
+import { DEV } from "../dev-flag.lil";
+import {
+  addHiddenProp,
+  apply,
+  assign,
+  call0,
+  call1,
+  call2,
+  construct1,
+  createInstanceofPredicate,
+  defineProperty,
+  gObject,
+  getDescriptor,
+  hasOwn,
+  inOp,
+  invoke0,
+  invoke1,
+  invoke2,
+  isExtensible,
+  isPlainObject,
+  isUndef,
+  len,
+  mapDelete,
+  mapGet,
+  mapHas,
+  mapSet,
+  newMap,
+  objectKeys,
+  reflectDefine,
+  reflectDelete,
+  reflectSet,
+  sizeOf,
+  stringifyKey,
+  toStr,
+  undef,
+  ownKeys as reflectOwnKeys
+} from "../host.lil";
+import {
+  $mobx,
+  ADD,
+  REMOVE,
+  UPDATE
+} from "../constants.lil";
+import { Atom } from "../core/atom.lil";
+import { ComputedValue } from "../core/computedvalue.lil";
+import { checkIfStateModificationsAreAllowed } from "../core/derivation.lil";
+import { die } from "../errors.lil";
+import {
+  endBatch,
+  propagateChanged,
+  reportChanged,
+  reportObserved,
+  startBatch
+} from "../core/observable.lil";
+import {
+  getNextId,
+  globalState
+} from "../core/globalstate.lil";
+import {
+  hasInterceptors,
+  interceptChange
+} from "../types/intercept-utils.lil";
+import {
+  hasListeners,
+  notifyListeners
+} from "../types/listen-utils.lil";
+import { isAnnotation } from "../api/annotation.lil";
+import {
+  isComputedValue,
+  isObservableObject,
+  isObservableObjectAdmPred,
+  isObservableValue
+} from "../core/predicates.lil";
+import {
+  isSpyEnabled,
+  spyReportEnd0,
+  spyReportStart
+} from "../core/spy.lil";
+import { autoAnnotation } from "../api/bindings.lil";
+import { admProxyOrTarget } from "./adm-proxy.lil";
+import { isOverride } from "./overrideannotation.lil";
+import { createAutoAnnotation } from "./autoannotation.lil";
+import { ObservableValue } from "./observablevalue.lil";
+import { referenceEnhancerFn } from "./modifiers.lil";
+
+JsValue descriptorCache = JS.invoke(gObject(), "create", null);
+
+JsValue getCachedObservablePropDescriptor(JsValue key) {
+  JsValue cached = descriptorCache[key];
+  if (cached.truthy()) {
+    return cached;
+  }
+  JsValue desc = JS.object();
+  desc["get"] = JS.method0((JsValue self) => {
+    return invoke1(self[$mobx], "getObservablePropValue_", key);
+  });
+  desc["set"] = JS.method1((JsValue self, JsValue value) => {
+    return invoke2(self[$mobx], "setObservablePropValue_", key, value);
+  });
+  descriptorCache[key] = desc;
+  return desc;
+}
+
+export void recordAnnotationApplied(JsValue adm, JsValue annotation, JsValue key) {
+  if (DEV) {
+    adm["appliedAnnotations_"][key] = annotation;
+  }
+}
+
+export void assertAnnotable(JsValue adm, JsValue annotation, JsValue key) {
+  if (DEV && !isAnnotation(annotation)) {
+    die("Cannot annotate '" + toStr(adm["name_"]) + "." + stringifyKey(key) + "': Invalid annotation.");
+  }
+  if (DEV && !isOverride(annotation) && hasOwn(adm["appliedAnnotations_"], key)) {
+    die("Cannot apply '" + toStr(annotation["annotationType_"]) + "' to '" + toStr(adm["name_"]) + "." + stringifyKey(key) + "':\nThe field is already annotated with '" + toStr(adm["appliedAnnotations_"][key]["annotationType_"]) + "'.\nRe-annotating fields is not allowed.\nUse 'override' annotation for methods overridden by subclass.");
+  }
+}
+
+export JsValue ObservableObjectAdministration = JS.methodRest((JsValue self, JsValue args) => {
+  self["target_"] = args[0];
+  if (len(args) > 1 && args[1].truthy()) {
+    self["values_"] = args[1];
+  } else {
+    self["values_"] = newMap();
+  }
+  self["name_"] = toStr(args[2]);
+  self["defaultAnnotation_"] = autoAnnotation;
+  if (len(args) > 3 && args[3].truthy()) {
+    self["defaultAnnotation_"] = args[3];
+  }
+  string keysName = "ObservableObject.keys";
+  if (DEV) {
+    keysName = toStr(self["name_"]) + ".keys";
+  }
+  self["keysAtom_"] = construct1(Atom, keysName);
+  self["isPlainObject_"] = isPlainObject(self["target_"]);
+  if (DEV && !isAnnotation(self["defaultAnnotation_"])) {
+    die("defaultAnnotation must be valid annotation");
+  }
+  if (DEV) {
+    self["appliedAnnotations_"] = JS.object();
+  }
+  return self;
+});
+
+ObservableObjectAdministration["prototype"]["materializeLazyComputed_"] = JS.method1((JsValue self, JsValue key) => {
+  if (!self["lazyComputedKeys_"].truthy()) {
+    return undef();
+  }
+  JsValue factory = mapGet(self["lazyComputedKeys_"], key);
+  if (!factory.truthy()) {
+    return undef();
+  }
+  mapDelete(self["lazyComputedKeys_"], key);
+  if (sizeOf(self["lazyComputedKeys_"]) == 0) {
+    self["lazyComputedKeys_"] = undef();
+  }
+  JsValue computedVal = call0(factory, undef());
+  mapSet(self["values_"], key, computedVal);
+  return computedVal;
+});
+ObservableObjectAdministration["prototype"]["materializeLazyObservable_"] = JS.method1((JsValue self, JsValue key) => {
+  if (!self["lazyObservableKeys_"].truthy()) {
+    return undef();
+  }
+  JsValue factory = mapGet(self["lazyObservableKeys_"], key);
+  if (!factory.truthy()) {
+    return undef();
+  }
+  mapDelete(self["lazyObservableKeys_"], key);
+  if (sizeOf(self["lazyObservableKeys_"]) == 0) {
+    self["lazyObservableKeys_"] = undef();
+  }
+  JsValue obs = call0(factory, undef());
+  mapSet(self["values_"], key, obs);
+  return obs;
+});
+ObservableObjectAdministration["prototype"]["getObservablePropValue_"] = JS.method1((JsValue self, JsValue key) => {
+  JsValue observableNode = mapGet(self["values_"], key);
+  if (!observableNode.truthy()) {
+    observableNode = call1(self["materializeLazyComputed_"], self, key);
+    if (!observableNode.truthy()) {
+      observableNode = call1(self["materializeLazyObservable_"], self, key);
+    }
+  }
+  return invoke0(observableNode, "get");
+});
+ObservableObjectAdministration["prototype"]["setObservablePropValue_"] = JS.method2((JsValue self, JsValue key, JsValue newValue) => {
+  JsValue observableNode = mapGet(self["values_"], key);
+  if (!observableNode.truthy()) {
+    observableNode = call1(self["materializeLazyComputed_"], self, key);
+  }
+  if (!observableNode.truthy()) {
+    observableNode = call1(self["materializeLazyObservable_"], self, key);
+  }
+  if (isComputedValue(observableNode)) {
+    call1(observableNode["set"], observableNode, newValue);
+    return true;
+  }
+  if (hasInterceptors(self)) {
+    JsValue change = interceptChange(self, JS.object("type", UPDATE, "object", admProxyOrTarget(self), "name", key, "newValue", newValue));
+    if (!change.truthy()) {
+      return null;
+    }
+    newValue = change["newValue"];
+  }
+  newValue = invoke1(observableNode, "prepareNewValue_", newValue);
+  if (!JS.strictEqual(newValue, globalState["UNCHANGED"])) {
+    bool notify = hasListeners(self);
+    bool notifySpy = DEV && isSpyEnabled();
+    JsValue change = null;
+    if (notify || notifySpy) {
+      change = JS.object("type", UPDATE, "observableKind", "object", "debugObjectName", self["name_"], "object", admProxyOrTarget(self), "oldValue", observableNode["value_"], "name", key, "newValue", newValue);
+    }
+    if (DEV && notifySpy) {
+      spyReportStart(change);
+    }
+    invoke1(observableNode, "setNewValue_", newValue);
+    if (notify) {
+      notifyListeners(self, change);
+    }
+    if (DEV && notifySpy) {
+      spyReportEnd0();
+    }
+  }
+  return true;
+});
+ObservableObjectAdministration["prototype"]["get_"] = JS.method1((JsValue self, JsValue key) => {
+  if (globalState["trackingDerivation"].truthy() && !hasOwn(self["target_"], key)) {
+    invoke1(self, "has_", key);
+  }
+  return self["target_"][key];
+});
+
+export JsValue setObjectValue(JsValue self, JsValue key, JsValue value, bool proxyTrap) {
+  if (hasOwn(self["target_"], key)) {
+    if (mapHas(self["values_"], key)) {
+      return invoke2(self, "setObservablePropValue_", key, value);
+    }
+    if (proxyTrap) {
+      return reflectSet(self["target_"], key, value);
+    }
+    self["target_"][key] = value;
+    return true;
+  }
+  return JS.call(self["extend_"], self, key, JS.object("value", value, "enumerable", true, "writable", true, "configurable", true), self["defaultAnnotation_"], proxyTrap);
+}
+
+ObservableObjectAdministration["prototype"]["set_"] = JS.method2((JsValue self, JsValue key, JsValue value) => {
+  return setObjectValue(self, key, value, false);
+});
+
+ObservableObjectAdministration["prototype"]["has_"] = JS.method1((JsValue self, JsValue key) => {
+  if (!globalState["trackingDerivation"].truthy()) {
+    return inOp(key, self["target_"]);
+  }
+  if (!self["pendingKeys_"].truthy()) {
+    self["pendingKeys_"] = newMap();
+  }
+  JsValue entry = mapGet(self["pendingKeys_"], key);
+  if (!entry.truthy()) {
+    string pendingName = "ObservableObject.key?";
+    if (DEV) {
+      pendingName = toStr(self["name_"]) + "." + stringifyKey(key) + "?";
+    }
+    entry = JS.construct(ObservableValue, inOp(key, self["target_"]), referenceEnhancerFn, pendingName, false, undef());
+    mapSet(self["pendingKeys_"], key, entry);
+  }
+  return call0(entry["get"], entry);
+});
+
+ObservableObjectAdministration["prototype"]["extend_"] = JS.methodRest((JsValue self, JsValue args) => {
+  JsValue key = args[0];
+  JsValue descriptor = args[1];
+  JsValue annotation = args[2];
+  JsValue proxyTrap = false;
+  if (len(args) > 3) {
+    proxyTrap = args[3];
+  }
+  if (JS.strictEqual(annotation, true)) {
+    annotation = self["defaultAnnotation_"];
+  }
+  if (JS.strictEqual(annotation, false)) {
+    return JS.call(self["defineProperty_"], self, key, descriptor, proxyTrap);
+  }
+  assertAnnotable(self, annotation, key);
+  JsValue outcome = JS.call(annotation["extend_"], annotation, self, key, descriptor, proxyTrap);
+  if (outcome.truthy()) {
+    recordAnnotationApplied(self, annotation, key);
+  }
+  return outcome;
+});
+
+ObservableObjectAdministration["prototype"]["notifyPropertyAddition_"] = JS.method2((JsValue self, JsValue key, JsValue value) => {
+  bool notify = hasListeners(self);
+  bool notifySpy = DEV && isSpyEnabled();
+  if (notify || notifySpy) {
+    JsValue change = JS.object("type", ADD, "observableKind", "object", "debugObjectName", self["name_"], "object", admProxyOrTarget(self), "name", key, "newValue", value);
+    if (DEV && notifySpy) {
+      spyReportStart(change);
+    }
+    if (notify) {
+      notifyListeners(self, change);
+    }
+    if (DEV && notifySpy) {
+      spyReportEnd0();
+    }
+  }
+  if (self["pendingKeys_"].truthy()) {
+    JsValue pending = mapGet(self["pendingKeys_"], key);
+    if (pending.truthy()) {
+      call1(pending["set"], pending, true);
+    }
+  }
+  reportChanged(self["keysAtom_"]);
+  return undef();
+});
+
+ObservableObjectAdministration["prototype"]["defineProperty_"] = JS.method3((JsValue self, JsValue key, JsValue descriptor, JsValue proxyTrapArg) => {
+  bool proxyTrap = proxyTrapArg.truthy();
+  if (DEV) {
+    checkIfStateModificationsAreAllowed(self["keysAtom_"]);
+  }
+  try {
+    startBatch();
+    JsValue deleteOutcome = call1(self["delete_"], self, key);
+    if (!deleteOutcome.truthy()) {
+      return deleteOutcome;
+    }
+    if (hasInterceptors(self)) {
+      JsValue change = interceptChange(self, JS.object("object", admProxyOrTarget(self), "name", key, "type", ADD, "newValue", descriptor["value"]));
+      if (!change.truthy()) {
+        return null;
+      }
+      if (!JS.strictEqual(descriptor["value"], change["newValue"])) {
+        descriptor = assign(JS.object(), descriptor);
+        descriptor["value"] = change["newValue"];
+      }
+    }
+    if (proxyTrap) {
+      if (!reflectDefine(self["target_"], key, descriptor)) {
+        return false;
+      }
+    } else {
+      defineProperty(self["target_"], key, descriptor);
+    }
+    call2(self["notifyPropertyAddition_"], self, key, descriptor["value"]);
+  } finally {
+    endBatch();
+  }
+  return true;
+});
+
+ObservableObjectAdministration["prototype"]["defineObservableProperty_"] = JS.methodRest((JsValue self, JsValue args) => {
+  JsValue key = args[0];
+  JsValue value = args[1];
+  JsValue enhancer = args[2];
+  bool proxyTrap = false;
+  if (len(args) > 3) {
+    proxyTrap = args[3].truthy();
+  }
+  if (DEV) {
+    checkIfStateModificationsAreAllowed(self["keysAtom_"]);
+  }
+  try {
+    startBatch();
+    JsValue deleteOutcome = call1(self["delete_"], self, key);
+    if (!deleteOutcome.truthy()) {
+      return deleteOutcome;
+    }
+    if (hasInterceptors(self)) {
+      JsValue change = interceptChange(self, JS.object("object", admProxyOrTarget(self), "name", key, "type", ADD, "newValue", value));
+      if (!change.truthy()) {
+        return null;
+      }
+      value = change["newValue"];
+    }
+    JsValue cachedDescriptor = getCachedObservablePropDescriptor(key);
+    bool configurable = true;
+    if (globalState["safeDescriptors"].truthy()) {
+      configurable = self["isPlainObject_"].truthy();
+    }
+    JsValue descriptor = JS.object("configurable", configurable, "enumerable", true, "get", cachedDescriptor["get"], "set", cachedDescriptor["set"]);
+    if (proxyTrap) {
+      if (!reflectDefine(self["target_"], key, descriptor)) {
+        return false;
+      }
+    } else {
+      defineProperty(self["target_"], key, descriptor);
+    }
+    string obsName = "ObservableObject.key";
+    if (DEV) {
+      obsName = toStr(self["name_"]) + "." + stringifyKey(key);
+    }
+    JsValue observableNode = JS.construct(ObservableValue, value, enhancer, obsName, false, undef());
+    mapSet(self["values_"], key, observableNode);
+    call2(self["notifyPropertyAddition_"], self, key, observableNode["value_"]);
+  } finally {
+    endBatch();
+  }
+  return true;
+});
+
+ObservableObjectAdministration["prototype"]["defineComputedProperty_"] = JS.method3((JsValue self, JsValue key, JsValue options, JsValue proxyTrapArg) => {
+  bool proxyTrap = proxyTrapArg.truthy();
+  if (DEV) {
+    checkIfStateModificationsAreAllowed(self["keysAtom_"]);
+  }
+  try {
+    startBatch();
+    JsValue deleteOutcome = call1(self["delete_"], self, key);
+    if (!deleteOutcome.truthy()) {
+      return deleteOutcome;
+    }
+    if (hasInterceptors(self)) {
+      JsValue change = interceptChange(self, JS.object("object", admProxyOrTarget(self), "name", key, "type", ADD, "newValue", undef()));
+      if (!change.truthy()) {
+        return null;
+      }
+    }
+    if (!options["name"].truthy()) {
+      if (DEV) {
+        options["name"] = toStr(self["name_"]) + "." + stringifyKey(key);
+      } else {
+        options["name"] = "ObservableObject.key";
+      }
+    }
+    options["context"] = admProxyOrTarget(self);
+    JsValue cachedDescriptor = getCachedObservablePropDescriptor(key);
+    bool configurable = true;
+    if (globalState["safeDescriptors"].truthy()) {
+      configurable = self["isPlainObject_"].truthy();
+    }
+    JsValue descriptor = JS.object("configurable", configurable, "enumerable", false, "get", cachedDescriptor["get"], "set", cachedDescriptor["set"]);
+    if (proxyTrap) {
+      if (!reflectDefine(self["target_"], key, descriptor)) {
+        return false;
+      }
+    } else {
+      defineProperty(self["target_"], key, descriptor);
+    }
+    mapSet(self["values_"], key, construct1(ComputedValue, options));
+    call2(self["notifyPropertyAddition_"], self, key, undef());
+  } finally {
+    endBatch();
+  }
+  return true;
+});
+
+ObservableObjectAdministration["prototype"]["delete_"] = JS.method2((JsValue self, JsValue key, JsValue proxyTrapArg) => {
+  bool proxyTrap = proxyTrapArg.truthy();
+  if (DEV) {
+    checkIfStateModificationsAreAllowed(self["keysAtom_"]);
+  }
+  if (!hasOwn(self["target_"], key)) {
+    return true;
+  }
+  if (hasInterceptors(self)) {
+    JsValue change = interceptChange(self, JS.object("object", admProxyOrTarget(self), "name", key, "type", REMOVE));
+    if (!change.truthy()) {
+      return null;
+    }
+  }
+  try {
+    startBatch();
+    bool notify = hasListeners(self);
+    bool notifySpy = DEV && isSpyEnabled();
+    JsValue observableNode = mapGet(self["values_"], key);
+    JsValue value = undef();
+    if (!observableNode.truthy() && (notify || notifySpy)) {
+      JsValue desc = getDescriptor(self["target_"], key);
+      if (desc.truthy()) {
+        value = desc["value"];
+      }
+    }
+    if (proxyTrap) {
+      if (!reflectDelete(self["target_"], key)) {
+        return false;
+      }
+    } else {
+      JS.delete(self["target_"], key);
+    }
+    if (DEV && self["appliedAnnotations_"].truthy()) {
+      JS.delete(self["appliedAnnotations_"], key);
+    }
+    if (observableNode.truthy()) {
+      mapDelete(self["values_"], key);
+      if (isObservableValue(observableNode)) {
+        value = observableNode["value_"];
+      }
+      propagateChanged(observableNode);
+    }
+    reportChanged(self["keysAtom_"]);
+    if (self["pendingKeys_"].truthy()) {
+      JsValue pending = mapGet(self["pendingKeys_"], key);
+      if (pending.truthy()) {
+        call1(pending["set"], pending, inOp(key, self["target_"]));
+      }
+    }
+    if (notify || notifySpy) {
+      JsValue change = JS.object("type", REMOVE, "observableKind", "object", "object", admProxyOrTarget(self), "debugObjectName", self["name_"], "oldValue", value, "name", key);
+      if (DEV && notifySpy) {
+        spyReportStart(change);
+      }
+      if (notify) {
+        notifyListeners(self, change);
+      }
+      if (DEV && notifySpy) {
+        spyReportEnd0();
+      }
+    }
+  } finally {
+    endBatch();
+  }
+  return true;
+});
+
+ObservableObjectAdministration["prototype"]["ownKeys_"] = JS.method0((JsValue self) => {
+  reportObserved(self["keysAtom_"]);
+  return reflectOwnKeys(self["target_"]);
+});
+ObservableObjectAdministration["prototype"]["keys_"] = JS.method0((JsValue self) => {
+  reportObserved(self["keysAtom_"]);
+  return objectKeys(self["target_"]);
+});
+
+isObservableObjectAdmPred = createInstanceofPredicate("ObservableObjectAdministration", ObservableObjectAdministration);
+
+JsValue getAnnotationFromOptions(JsValue options) {
+  if (!options.truthy()) {
+    return undef();
+  }
+  if (!isUndef(options["defaultDecorator"])) {
+    return options["defaultDecorator"];
+  }
+  if (options["autoBind"].truthy() || JS.strictEqual(options["deep"], false)) {
+    return createAutoAnnotation(options);
+  }
+  return undef();
+}
+
+export JsValue asObservableObject = JS.method2((JsValue _s, JsValue target, JsValue options) => {
+  if (DEV && options.truthy() && isObservableObject(target)) {
+    die("Options can't be provided for already observable objects.");
+  }
+  if (hasOwn(target, $mobx)) {
+    if (DEV && !isObservableObject(target)) {
+      die("Cannot convert '" + toStr(target["name_"]) + "' into observable object:\nThe target is already observable of different type.\nExtending builtins is not supported.");
+    }
+    return target;
+  }
+  if (DEV && !isExtensible(target)) {
+    die("Cannot make the designated object observable; it is not extensible");
+  }
+  string name = "ObservableObject";
+  if (options.truthy() && options["name"].truthy()) {
+    name = toStr(options["name"]);
+  } else if (DEV) {
+    if (isPlainObject(target)) {
+      name = "ObservableObject@" + getNextId();
+    } else {
+      name = toStr(target["constructor"]["name"]) + "@" + getNextId();
+    }
+  }
+  JsValue adm = JS.construct(ObservableObjectAdministration, target, newMap(), name, getAnnotationFromOptions(options));
+  addHiddenProp(target, $mobx, adm);
+  return target;
+});

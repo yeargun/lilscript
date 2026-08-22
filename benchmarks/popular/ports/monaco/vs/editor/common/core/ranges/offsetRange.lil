@@ -1,0 +1,155 @@
+import { sliceOf } from "../../../../../js-host";
+
+export class OffsetRange {
+  int start;
+  int endExclusive;
+
+  init(int start, int endExclusive) {
+    this.start = start;
+    this.endExclusive = endExclusive;
+  }
+
+  bool isEmpty() {
+    return this.start == this.endExclusive;
+  }
+
+  int length() {
+    return this.endExclusive - this.start;
+  }
+
+  OffsetRange delta(int offset) {
+    return new OffsetRange(this.start + offset, this.endExclusive + offset);
+  }
+
+  OffsetRange deltaStart(int offset) {
+    return new OffsetRange(this.start + offset, this.endExclusive);
+  }
+
+  OffsetRange deltaEnd(int offset) {
+    return new OffsetRange(this.start, this.endExclusive + offset);
+  }
+
+  bool equals(OffsetRange other) {
+    return this.start == other.start && this.endExclusive == other.endExclusive;
+  }
+
+  bool containsRange(OffsetRange other) {
+    return this.start <= other.start && other.endExclusive <= this.endExclusive;
+  }
+
+  bool contains(int offset) {
+    return this.start <= offset && offset < this.endExclusive;
+  }
+
+  OffsetRange? intersect(OffsetRange other) {
+    int s = this.start;
+    if (other.start > s) {
+      s = other.start;
+    }
+    int e = this.endExclusive;
+    if (other.endExclusive < e) {
+      e = other.endExclusive;
+    }
+    if (s >= e) {
+      return null;
+    }
+    return new OffsetRange(s, e);
+  }
+
+  OffsetRange join(OffsetRange other) {
+    int s = this.start;
+    if (other.start < s) {
+      s = other.start;
+    }
+    int e = this.endExclusive;
+    if (other.endExclusive > e) {
+      e = other.endExclusive;
+    }
+    return new OffsetRange(s, e);
+  }
+
+  int intersectionLength(OffsetRange other) {
+    int s = this.start;
+    if (other.start > s) {
+      s = other.start;
+    }
+    int e = this.endExclusive;
+    if (other.endExclusive < e) {
+      e = other.endExclusive;
+    }
+    int n = e - s;
+    if (n < 0) {
+      return 0;
+    }
+    return n;
+  }
+
+  bool intersects(OffsetRange other) {
+    int s = this.start;
+    if (other.start > s) {
+      s = other.start;
+    }
+    int e = this.endExclusive;
+    if (other.endExclusive < e) {
+      e = other.endExclusive;
+    }
+    return s < e;
+  }
+
+  bool intersectsOrTouches(OffsetRange other) {
+    int s = this.start;
+    if (other.start > s) {
+      s = other.start;
+    }
+    int e = this.endExclusive;
+    if (other.endExclusive < e) {
+      e = other.endExclusive;
+    }
+    return s <= e;
+  }
+
+  bool isBefore(OffsetRange other) {
+    return this.endExclusive <= other.start;
+  }
+
+  bool isAfter(OffsetRange other) {
+    return this.start >= other.endExclusive;
+  }
+
+  string substring(string str) {
+    return sliceOf(str, this.start, this.endExclusive);
+  }
+
+  int clip(int value) {
+    if (value < this.start) {
+      return this.start;
+    }
+    if (value > this.endExclusive - 1) {
+      return this.endExclusive - 1;
+    }
+    return value;
+  }
+
+  string toString() {
+    return "[" + this.start.toString() + ", " + this.endExclusive.toString() + ")";
+  }
+}
+
+export OffsetRange offsetRangeFromTo(int start, int endExclusive) {
+  return new OffsetRange(start, endExclusive);
+}
+
+export OffsetRange offsetRangeOfLength(int length) {
+  return new OffsetRange(0, length);
+}
+
+export OffsetRange offsetRangeEmptyAt(int offset) {
+  return new OffsetRange(offset, offset);
+}
+
+export OffsetRange? offsetRangeTryCreate(int start, int endExclusive) {
+  if (start > endExclusive) {
+    return null;
+  }
+  return new OffsetRange(start, endExclusive);
+}

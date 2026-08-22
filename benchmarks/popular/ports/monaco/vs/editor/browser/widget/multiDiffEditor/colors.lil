@@ -1,0 +1,20 @@
+export string MULTI_DIFF_HEADER_BG_DARK = "#262626";
+export string MULTI_DIFF_BORDER_LIGHT = "#cccccc";
+
+export string multiDiffEditorHeaderBackground(bool dark) {
+  if (dark) {
+    return MULTI_DIFF_HEADER_BG_DARK;
+  }
+  return "tab.inactiveBackground";
+}
+
+export string multiDiffEditorBackground() {
+  return "editorBackground";
+}
+
+export string multiDiffEditorBorder(bool dark) {
+  if (dark) {
+    return "sideBarSectionHeader.border";
+  }
+  return MULTI_DIFF_BORDER_LIGHT;
+}

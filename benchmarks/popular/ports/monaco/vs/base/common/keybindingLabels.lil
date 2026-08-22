@@ -1,0 +1,117 @@
+export class ModifierLabels {
+  string ctrlKey;
+  string shiftKey;
+  string altKey;
+  string metaKey;
+  string separator;
+
+  init(string ctrlKey, string shiftKey, string altKey, string metaKey, string separator) {
+    this.ctrlKey = ctrlKey;
+    this.shiftKey = shiftKey;
+    this.altKey = altKey;
+    this.metaKey = metaKey;
+    this.separator = separator;
+  }
+}
+
+export class ModifierFlags {
+  bool ctrlKey;
+  bool shiftKey;
+  bool altKey;
+  bool metaKey;
+
+  init(bool ctrlKey, bool shiftKey, bool altKey, bool metaKey) {
+    this.ctrlKey = ctrlKey;
+    this.shiftKey = shiftKey;
+    this.altKey = altKey;
+    this.metaKey = metaKey;
+  }
+}
+
+string simpleAsString(ModifierFlags modifiers, string key, ModifierLabels labels) {
+  string[] result = [];
+  if (modifiers.ctrlKey) {
+    result.push(labels.ctrlKey);
+  }
+  if (modifiers.shiftKey) {
+    result.push(labels.shiftKey);
+  }
+  if (modifiers.altKey) {
+    result.push(labels.altKey);
+  }
+  if (modifiers.metaKey) {
+    result.push(labels.metaKey);
+  }
+  if (key.length > 0) {
+    result.push(key);
+  }
+  return result.join(labels.separator);
+}
+
+export class ModifierLabelProvider {
+  ModifierLabels mac;
+  ModifierLabels windows;
+  ModifierLabels linux;
+
+  init(ModifierLabels mac, ModifierLabels windows, ModifierLabels linux) {
+    this.mac = mac;
+    this.windows = windows;
+    this.linux = linux;
+  }
+
+  ModifierLabels labelsFor(int operatingSystem) {
+    if (operatingSystem == 2) {
+      return this.mac;
+    }
+    if (operatingSystem == 1) {
+      return this.windows;
+    }
+    return this.linux;
+  }
+
+  string toLabel(int operatingSystem, ModifierFlags[] chords, string[] keyLabels) {
+    if (chords.length == 0 || chords.length != keyLabels.length) {
+      return "";
+    }
+    string[] result = [];
+    ModifierLabels labels = this.labelsFor(operatingSystem);
+    int i = 0;
+    while (i < chords.length) {
+      result.push(simpleAsString(chords[i], keyLabels[i], labels));
+      i = i + 1;
+    }
+    return result.join(" ");
+  }
+}
+
+export ModifierLabelProvider createUILabelProvider() {
+  return new ModifierLabelProvider(
+    new ModifierLabels("⌃", "⇧", "⌥", "⌘", ""),
+    new ModifierLabels("Ctrl", "Shift", "Alt", "Windows", "+"),
+    new ModifierLabels("Ctrl", "Shift", "Alt", "Super", "+")
+  );
+}
+
+export ModifierLabelProvider createAriaLabelProvider() {
+  return new ModifierLabelProvider(
+    new ModifierLabels("Control", "Shift", "Option", "Command", "+"),
+    new ModifierLabels("Control", "Shift", "Alt", "Windows", "+"),
+    new ModifierLabels("Control", "Shift", "Alt", "Super", "+")
+  );
+}
+
+export ModifierLabelProvider createElectronAcceleratorLabelProvider() {
+  return new ModifierLabelProvider(
+    new ModifierLabels("Ctrl", "Shift", "Alt", "Cmd", "+"),
+    new ModifierLabels("Ctrl", "Shift", "Alt", "Super", "+"),
+    new ModifierLabels("Ctrl", "Shift", "Alt", "Super", "+")
+  );
+}
+
+export ModifierLabelProvider createUserSettingsLabelProvider() {
+  return new ModifierLabelProvider(
+    new ModifierLabels("ctrl", "shift", "alt", "cmd", "+"),
+    new ModifierLabels("ctrl", "shift", "alt", "win", "+"),
+    new ModifierLabels("ctrl", "shift", "alt", "meta", "+")
+  );
+}

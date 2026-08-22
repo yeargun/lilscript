@@ -1,0 +1,746 @@
+int clampInt(int value, int min, int max) {
+  int v = value;
+  if (v < min) {
+    v = min;
+  }
+  if (v > max) {
+    v = max;
+  }
+  return v;
+}
+
+float clampFloat(float value, float min, float max) {
+  float v = value;
+  if (v < min) {
+    v = min;
+  }
+  if (v > max) {
+    v = max;
+  }
+  return v;
+}
+
+float roundFloat(float value, int decimalPoints) {
+  float decimal = 1.0;
+  int i = 0;
+  while (i < decimalPoints) {
+    decimal = decimal * 10.0;
+    i = i + 1;
+  }
+  return (value * decimal).round() / decimal;
+}
+
+export class RGBA {
+  int r;
+  int g;
+  int b;
+  float a;
+
+  init(int r, int g, int b, float a) {
+    this.r = clampInt(r, 0, 255);
+    this.g = clampInt(g, 0, 255);
+    this.b = clampInt(b, 0, 255);
+    this.a = roundFloat(clampFloat(a, 0.0, 1.0), 3);
+  }
+}
+
+export bool rgbaEquals(RGBA a, RGBA b) {
+  return a.r == b.r && a.g == b.g && a.b == b.b && a.a == b.a;
+}
+
+export class HSLA {
+  int h;
+  float s;
+  float l;
+  float a;
+
+  init(int h, float s, float l, float a) {
+    this.h = clampInt(h, 0, 360);
+    this.s = roundFloat(clampFloat(s, 0.0, 1.0), 3);
+    this.l = roundFloat(clampFloat(l, 0.0, 1.0), 3);
+    this.a = roundFloat(clampFloat(a, 0.0, 1.0), 3);
+  }
+}
+
+export bool hslaEquals(HSLA a, HSLA b) {
+  return a.h == b.h && a.s == b.s && a.l == b.l && a.a == b.a;
+}
+
+float hue2rgb(float p, float q, float t) {
+  float x = t;
+  if (x < 0.0) {
+    x = x + 1.0;
+  }
+  if (x > 1.0) {
+    x = x - 1.0;
+  }
+  if (x < 1.0 / 6.0) {
+    return p + (q - p) * 6.0 * x;
+  }
+  if (x < 0.5) {
+    return q;
+  }
+  if (x < 2.0 / 3.0) {
+    return p + (q - p) * (2.0 / 3.0 - x) * 6.0;
+  }
+  return p;
+}
+
+export HSLA hslaFromRgba(RGBA rgba) {
+  float r = (rgba.r * 1.0) / 255.0;
+  float g = (rgba.g * 1.0) / 255.0;
+  float b = (rgba.b * 1.0) / 255.0;
+  float max = r.max(g).max(b);
+  float min = r.min(g).min(b);
+  int h = 0;
+  float s = 0.0;
+  float l = (min + max) / 2.0;
+  float chroma = max - min;
+  if (chroma > 0.0) {
+    if (l <= 0.5) {
+      s = chroma / (2.0 * l);
+    } else {
+      s = chroma / (2.0 - 2.0 * l);
+    }
+    if (s > 1.0) {
+      s = 1.0;
+    }
+    if (max == r) {
+      float hf = (g - b) / chroma;
+      if (g < b) {
+        hf = hf + 6.0;
+      }
+      h = (hf * 60.0).round().toInt();
+    } else if (max == g) {
+      h = (((b - r) / chroma + 2.0) * 60.0).round().toInt();
+    } else {
+      h = (((r - g) / chroma + 4.0) * 60.0).round().toInt();
+    }
+  }
+  return new HSLA(h, s, l, rgba.a);
+}
+
+export RGBA hslaToRgba(HSLA hsla) {
+  float h = (hsla.h * 1.0) / 360.0;
+  float s = hsla.s;
+  float l = hsla.l;
+  float r = l;
+  float g = l;
+  float b = l;
+  if (s != 0.0) {
+    float q = l + s - l * s;
+    if (l < 0.5) {
+      q = l * (1.0 + s);
+    }
+    float p = 2.0 * l - q;
+    r = hue2rgb(p, q, h + 1.0 / 3.0);
+    g = hue2rgb(p, q, h);
+    b = hue2rgb(p, q, h - 1.0 / 3.0);
+  }
+  return new RGBA((r * 255.0).round().toInt(), (g * 255.0).round().toInt(), (b * 255.0).round().toInt(), hsla.a);
+}
+
+export class HSVA {
+  int h;
+  float s;
+  float v;
+  float a;
+
+  init(int h, float s, float v, float a) {
+    this.h = clampInt(h, 0, 360);
+    this.s = roundFloat(clampFloat(s, 0.0, 1.0), 3);
+    this.v = roundFloat(clampFloat(v, 0.0, 1.0), 3);
+    this.a = roundFloat(clampFloat(a, 0.0, 1.0), 3);
+  }
+}
+
+export bool hsvaEquals(HSVA a, HSVA b) {
+  return a.h == b.h && a.s == b.s && a.v == b.v && a.a == b.a;
+}
+
+export HSVA hsvaFromRgba(RGBA rgba) {
+  float r = (rgba.r * 1.0) / 255.0;
+  float g = (rgba.g * 1.0) / 255.0;
+  float b = (rgba.b * 1.0) / 255.0;
+  float cmax = r.max(g).max(b);
+  float cmin = r.min(g).min(b);
+  float delta = cmax - cmin;
+  float s = 0.0;
+  if (cmax != 0.0) {
+    s = delta / cmax;
+  }
+  float m = 0.0;
+  if (delta != 0.0) {
+    if (cmax == r) {
+      m = (g - b) / delta;
+      m = m - (m / 6.0).floor() * 6.0;
+      if (m < 0.0) {
+        m = m + 6.0;
+      }
+    } else if (cmax == g) {
+      m = (b - r) / delta + 2.0;
+    } else {
+      m = (r - g) / delta + 4.0;
+    }
+  }
+  return new HSVA((m * 60.0).round().toInt(), s, cmax, rgba.a);
+}
+
+export RGBA hsvaToRgba(HSVA hsva) {
+  float h = hsva.h * 1.0;
+  float s = hsva.s;
+  float v = hsva.v;
+  float c = v * s;
+  float hv = h / 60.0;
+  float rem = hv - (hv / 2.0).floor() * 2.0;
+  float x = c * (1.0 - (rem - 1.0).abs());
+  float m = v - c;
+  float r = 0.0;
+  float g = 0.0;
+  float b = 0.0;
+  if (h < 60.0) {
+    r = c;
+    g = x;
+  } else if (h < 120.0) {
+    r = x;
+    g = c;
+  } else if (h < 180.0) {
+    g = c;
+    b = x;
+  } else if (h < 240.0) {
+    g = x;
+    b = c;
+  } else if (h < 300.0) {
+    r = x;
+    b = c;
+  } else {
+    r = c;
+    b = x;
+  }
+  return new RGBA(((r + m) * 255.0).round().toInt(), ((g + m) * 255.0).round().toInt(), ((b + m) * 255.0).round().toInt(), hsva.a);
+}
+
+export class Color {
+  RGBA rgba;
+  bool hasHsla;
+  HSLA hslaValue;
+  bool hasHsva;
+  HSVA hsvaValue;
+  string css;
+  bool hasCss;
+
+  init(RGBA rgba) {
+    this.rgba = rgba;
+    this.hasHsla = false;
+    this.hslaValue = new HSLA(0, 0.0, 0.0, 1.0);
+    this.hasHsva = false;
+    this.hsvaValue = new HSVA(0, 0.0, 0.0, 1.0);
+    this.css = "";
+    this.hasCss = false;
+  }
+
+  HSLA hsla() {
+    if (this.hasHsla) {
+      return this.hslaValue;
+    }
+    HSLA next = hslaFromRgba(this.rgba);
+    this.hslaValue = next;
+    this.hasHsla = true;
+    return next;
+  }
+
+  HSVA hsva() {
+    if (this.hasHsva) {
+      return this.hsvaValue;
+    }
+    HSVA next = hsvaFromRgba(this.rgba);
+    this.hsvaValue = next;
+    this.hasHsva = true;
+    return next;
+  }
+
+  bool equals(Color other) {
+    return rgbaEquals(this.rgba, other.rgba) && hslaEquals(this.hsla(), other.hsla()) && hsvaEquals(this.hsva(), other.hsva());
+  }
+
+  float relativeLuminanceForComponent(int color) {
+    float c = (color * 1.0) / 255.0;
+    if (c <= 0.03928) {
+      return c / 12.92;
+    }
+    float base = (c + 0.055) / 1.055;
+    return (base.log() * 2.4).exp();
+  }
+
+  float getRelativeLuminance() {
+    float R = this.relativeLuminanceForComponent(this.rgba.r);
+    float G = this.relativeLuminanceForComponent(this.rgba.g);
+    float B = this.relativeLuminanceForComponent(this.rgba.b);
+    return roundFloat(0.2126 * R + 0.7152 * G + 0.0722 * B, 4);
+  }
+
+  bool isLighter() {
+    float yiq = (this.rgba.r * 299 + this.rgba.g * 587 + this.rgba.b * 114) * 1.0 / 1000.0;
+    return yiq >= 128.0;
+  }
+
+  bool isLighterThan(Color another) {
+    return this.getRelativeLuminance() > another.getRelativeLuminance();
+  }
+
+  bool isDarkerThan(Color another) {
+    return this.getRelativeLuminance() < another.getRelativeLuminance();
+  }
+
+  Color lighten(float factor) {
+    HSLA cur = this.hsla();
+    return colorFromHsla(new HSLA(cur.h, cur.s, cur.l + cur.l * factor, cur.a));
+  }
+
+  Color darken(float factor) {
+    HSLA cur = this.hsla();
+    return colorFromHsla(new HSLA(cur.h, cur.s, cur.l - cur.l * factor, cur.a));
+  }
+
+  Color transparent(float factor) {
+    return colorFromRgba(new RGBA(this.rgba.r, this.rgba.g, this.rgba.b, this.rgba.a * factor));
+  }
+
+  bool isTransparent() {
+    return this.rgba.a == 0.0;
+  }
+
+  bool isOpaque() {
+    return this.rgba.a == 1.0;
+  }
+
+  Color opposite() {
+    return colorFromRgba(new RGBA(255 - this.rgba.r, 255 - this.rgba.g, 255 - this.rgba.b, this.rgba.a));
+  }
+
+  Color mix(Color color, float factor) {
+    float normalize = clampFloat(factor, 0.0, 1.0);
+    RGBA a = this.rgba;
+    RGBA b = color.rgba;
+    return colorFromRgba(new RGBA(
+      (a.r * 1.0 + (b.r - a.r) * 1.0 * normalize).toInt(),
+      (a.g * 1.0 + (b.g - a.g) * 1.0 * normalize).toInt(),
+      (a.b * 1.0 + (b.b - a.b) * 1.0 * normalize).toInt(),
+      a.a + (b.a - a.a) * normalize
+    ));
+  }
+
+  Color makeOpaque(Color opaqueBackground) {
+    if (this.isOpaque() || opaqueBackground.rgba.a != 1.0) {
+      return this;
+    }
+    float a = this.rgba.a;
+    return colorFromRgba(new RGBA(
+      (opaqueBackground.rgba.r * 1.0 - a * (opaqueBackground.rgba.r - this.rgba.r) * 1.0).toInt(),
+      (opaqueBackground.rgba.g * 1.0 - a * (opaqueBackground.rgba.g - this.rgba.g) * 1.0).toInt(),
+      (opaqueBackground.rgba.b * 1.0 - a * (opaqueBackground.rgba.b - this.rgba.b) * 1.0).toInt(),
+      1.0
+    ));
+  }
+
+  int toNumber32Bit() {
+    int alpha = (this.rgba.a * 255.0).toInt();
+    return ((this.rgba.r << 24) | (this.rgba.g << 16) | (this.rgba.b << 8) | alpha) >>> 0;
+  }
+}
+
+export Color colorFromRgba(RGBA rgba) {
+  return new Color(rgba);
+}
+
+export Color colorFromHsla(HSLA hsla) {
+  Color color = new Color(hslaToRgba(hsla));
+  color.hslaValue = hsla;
+  color.hasHsla = true;
+  return color;
+}
+
+export Color colorFromHsva(HSVA hsva) {
+  Color color = new Color(hsvaToRgba(hsva));
+  color.hsvaValue = hsva;
+  color.hasHsva = true;
+  return color;
+}
+
+string twoDigitHex(int n) {
+  string hex = n.toString(16);
+  if (hex.length != 2) {
+    return "0" + hex;
+  }
+  return hex;
+}
+
+export string formatHex(Color color) {
+  return "#" + twoDigitHex(color.rgba.r) + twoDigitHex(color.rgba.g) + twoDigitHex(color.rgba.b);
+}
+
+export string formatHexA(Color color, bool compact) {
+  if (compact && color.rgba.a == 1.0) {
+    return formatHex(color);
+  }
+  int alpha = (color.rgba.a * 255.0).round().toInt();
+  return formatHex(color) + twoDigitHex(alpha);
+}
+
+string floatToFixed2(float value) {
+  int cents = (value * 100.0).round().toInt();
+  if (cents < 0) {
+    cents = 0;
+  }
+  string frac = (cents % 100).toString();
+  if (frac.length == 1) {
+    frac = "0" + frac;
+  }
+  return (cents / 100).toString() + "." + frac;
+}
+
+export string formatRGBA(Color color) {
+  return "rgba(" + color.rgba.r.toString() + ", " + color.rgba.g.toString() + ", " + color.rgba.b.toString() + ", " + floatToFixed2(color.rgba.a) + ")";
+}
+
+export string formatRGB(Color color) {
+  if (color.rgba.a == 1.0) {
+    return "rgb(" + color.rgba.r.toString() + ", " + color.rgba.g.toString() + ", " + color.rgba.b.toString() + ")";
+  }
+  return formatRGBA(color);
+}
+
+export string formatColor(Color color) {
+  if (color.isOpaque()) {
+    return formatHex(color);
+  }
+  return formatRGBA(color);
+}
+
+int parseHexDigit(int charCode) {
+  if (charCode >= 48 && charCode <= 57) {
+    return charCode - 48;
+  }
+  if (charCode >= 97 && charCode <= 102) {
+    return charCode - 97 + 10;
+  }
+  if (charCode >= 65 && charCode <= 70) {
+    return charCode - 65 + 10;
+  }
+  return 0;
+}
+
+class ColorLookup {
+  string name;
+  int r;
+  int g;
+  int b;
+
+  init(string name, int r, int g, int b) {
+    this.name = name;
+    this.r = r;
+    this.g = g;
+    this.b = b;
+  }
+}
+
+ColorLookup[] namedCssColors() {
+  ColorLookup[] xs = [];
+  xs.push(new ColorLookup("aliceblue", 240, 248, 255));
+  xs.push(new ColorLookup("antiquewhite", 250, 235, 215));
+  xs.push(new ColorLookup("aqua", 0, 255, 255));
+  xs.push(new ColorLookup("aquamarine", 127, 255, 212));
+  xs.push(new ColorLookup("azure", 240, 255, 255));
+  xs.push(new ColorLookup("beige", 245, 245, 220));
+  xs.push(new ColorLookup("bisque", 255, 228, 196));
+  xs.push(new ColorLookup("black", 0, 0, 0));
+  xs.push(new ColorLookup("blanchedalmond", 255, 235, 205));
+  xs.push(new ColorLookup("blue", 0, 0, 255));
+  xs.push(new ColorLookup("blueviolet", 138, 43, 226));
+  xs.push(new ColorLookup("brown", 165, 42, 42));
+  xs.push(new ColorLookup("burlywood", 222, 184, 135));
+  xs.push(new ColorLookup("cadetblue", 95, 158, 160));
+  xs.push(new ColorLookup("chartreuse", 127, 255, 0));
+  xs.push(new ColorLookup("chocolate", 210, 105, 30));
+  xs.push(new ColorLookup("coral", 255, 127, 80));
+  xs.push(new ColorLookup("cornflowerblue", 100, 149, 237));
+  xs.push(new ColorLookup("cornsilk", 255, 248, 220));
+  xs.push(new ColorLookup("crimson", 220, 20, 60));
+  xs.push(new ColorLookup("cyan", 0, 255, 255));
+  xs.push(new ColorLookup("darkblue", 0, 0, 139));
+  xs.push(new ColorLookup("darkcyan", 0, 139, 139));
+  xs.push(new ColorLookup("darkgoldenrod", 184, 134, 11));
+  xs.push(new ColorLookup("darkgray", 169, 169, 169));
+  xs.push(new ColorLookup("darkgreen", 0, 100, 0));
+  xs.push(new ColorLookup("darkgrey", 169, 169, 169));
+  xs.push(new ColorLookup("darkkhaki", 189, 183, 107));
+  xs.push(new ColorLookup("darkmagenta", 139, 0, 139));
+  xs.push(new ColorLookup("darkolivegreen", 85, 107, 47));
+  xs.push(new ColorLookup("darkorange", 255, 140, 0));
+  xs.push(new ColorLookup("darkorchid", 153, 50, 204));
+  xs.push(new ColorLookup("darkred", 139, 0, 0));
+  xs.push(new ColorLookup("darksalmon", 233, 150, 122));
+  xs.push(new ColorLookup("darkseagreen", 143, 188, 143));
+  xs.push(new ColorLookup("darkslateblue", 72, 61, 139));
+  xs.push(new ColorLookup("darkslategray", 47, 79, 79));
+  xs.push(new ColorLookup("darkslategrey", 47, 79, 79));
+  xs.push(new ColorLookup("darkturquoise", 0, 206, 209));
+  xs.push(new ColorLookup("darkviolet", 148, 0, 211));
+  xs.push(new ColorLookup("deeppink", 255, 20, 147));
+  xs.push(new ColorLookup("deepskyblue", 0, 191, 255));
+  xs.push(new ColorLookup("dimgray", 105, 105, 105));
+  xs.push(new ColorLookup("dimgrey", 105, 105, 105));
+  xs.push(new ColorLookup("dodgerblue", 30, 144, 255));
+  xs.push(new ColorLookup("firebrick", 178, 34, 34));
+  xs.push(new ColorLookup("floralwhite", 255, 250, 240));
+  xs.push(new ColorLookup("forestgreen", 34, 139, 34));
+  xs.push(new ColorLookup("fuchsia", 255, 0, 255));
+  xs.push(new ColorLookup("gainsboro", 220, 220, 220));
+  xs.push(new ColorLookup("ghostwhite", 248, 248, 255));
+  xs.push(new ColorLookup("gold", 255, 215, 0));
+  xs.push(new ColorLookup("goldenrod", 218, 165, 32));
+  xs.push(new ColorLookup("gray", 128, 128, 128));
+  xs.push(new ColorLookup("green", 0, 128, 0));
+  xs.push(new ColorLookup("greenyellow", 173, 255, 47));
+  xs.push(new ColorLookup("grey", 128, 128, 128));
+  xs.push(new ColorLookup("honeydew", 240, 255, 240));
+  xs.push(new ColorLookup("hotpink", 255, 105, 180));
+  xs.push(new ColorLookup("indianred", 205, 92, 92));
+  xs.push(new ColorLookup("indigo", 75, 0, 130));
+  xs.push(new ColorLookup("ivory", 255, 255, 240));
+  xs.push(new ColorLookup("khaki", 240, 230, 140));
+  xs.push(new ColorLookup("lavender", 230, 230, 250));
+  xs.push(new ColorLookup("lavenderblush", 255, 240, 245));
+  xs.push(new ColorLookup("lawngreen", 124, 252, 0));
+  xs.push(new ColorLookup("lemonchiffon", 255, 250, 205));
+  xs.push(new ColorLookup("lightblue", 173, 216, 230));
+  xs.push(new ColorLookup("lightcoral", 240, 128, 128));
+  xs.push(new ColorLookup("lightcyan", 224, 255, 255));
+  xs.push(new ColorLookup("lightgoldenrodyellow", 250, 250, 210));
+  xs.push(new ColorLookup("lightgray", 211, 211, 211));
+  xs.push(new ColorLookup("lightgreen", 144, 238, 144));
+  xs.push(new ColorLookup("lightgrey", 211, 211, 211));
+  xs.push(new ColorLookup("lightpink", 255, 182, 193));
+  xs.push(new ColorLookup("lightsalmon", 255, 160, 122));
+  xs.push(new ColorLookup("lightseagreen", 32, 178, 170));
+  xs.push(new ColorLookup("lightskyblue", 135, 206, 250));
+  xs.push(new ColorLookup("lightslategray", 119, 136, 153));
+  xs.push(new ColorLookup("lightslategrey", 119, 136, 153));
+  xs.push(new ColorLookup("lightsteelblue", 176, 196, 222));
+  xs.push(new ColorLookup("lightyellow", 255, 255, 224));
+  xs.push(new ColorLookup("lime", 0, 255, 0));
+  xs.push(new ColorLookup("limegreen", 50, 205, 50));
+  xs.push(new ColorLookup("linen", 250, 240, 230));
+  xs.push(new ColorLookup("magenta", 255, 0, 255));
+  xs.push(new ColorLookup("maroon", 128, 0, 0));
+  xs.push(new ColorLookup("mediumaquamarine", 102, 205, 170));
+  xs.push(new ColorLookup("mediumblue", 0, 0, 205));
+  xs.push(new ColorLookup("mediumorchid", 186, 85, 211));
+  xs.push(new ColorLookup("mediumpurple", 147, 112, 219));
+  xs.push(new ColorLookup("mediumseagreen", 60, 179, 113));
+  xs.push(new ColorLookup("mediumslateblue", 123, 104, 238));
+  xs.push(new ColorLookup("mediumspringgreen", 0, 250, 154));
+  xs.push(new ColorLookup("mediumturquoise", 72, 209, 204));
+  xs.push(new ColorLookup("mediumvioletred", 199, 21, 133));
+  xs.push(new ColorLookup("midnightblue", 25, 25, 112));
+  xs.push(new ColorLookup("mintcream", 245, 255, 250));
+  xs.push(new ColorLookup("mistyrose", 255, 228, 225));
+  xs.push(new ColorLookup("moccasin", 255, 228, 181));
+  xs.push(new ColorLookup("navajowhite", 255, 222, 173));
+  xs.push(new ColorLookup("navy", 0, 0, 128));
+  xs.push(new ColorLookup("oldlace", 253, 245, 230));
+  xs.push(new ColorLookup("olive", 128, 128, 0));
+  xs.push(new ColorLookup("olivedrab", 107, 142, 35));
+  xs.push(new ColorLookup("orange", 255, 165, 0));
+  xs.push(new ColorLookup("orangered", 255, 69, 0));
+  xs.push(new ColorLookup("orchid", 218, 112, 214));
+  xs.push(new ColorLookup("palegoldenrod", 238, 232, 170));
+  xs.push(new ColorLookup("palegreen", 152, 251, 152));
+  xs.push(new ColorLookup("paleturquoise", 175, 238, 238));
+  xs.push(new ColorLookup("palevioletred", 219, 112, 147));
+  xs.push(new ColorLookup("papayawhip", 255, 239, 213));
+  xs.push(new ColorLookup("peachpuff", 255, 218, 185));
+  xs.push(new ColorLookup("peru", 205, 133, 63));
+  xs.push(new ColorLookup("pink", 255, 192, 203));
+  xs.push(new ColorLookup("plum", 221, 160, 221));
+  xs.push(new ColorLookup("powderblue", 176, 224, 230));
+  xs.push(new ColorLookup("purple", 128, 0, 128));
+  xs.push(new ColorLookup("rebeccapurple", 102, 51, 153));
+  xs.push(new ColorLookup("red", 255, 0, 0));
+  xs.push(new ColorLookup("rosybrown", 188, 143, 143));
+  xs.push(new ColorLookup("royalblue", 65, 105, 225));
+  xs.push(new ColorLookup("saddlebrown", 139, 69, 19));
+  xs.push(new ColorLookup("salmon", 250, 128, 114));
+  xs.push(new ColorLookup("sandybrown", 244, 164, 96));
+  xs.push(new ColorLookup("seagreen", 46, 139, 87));
+  xs.push(new ColorLookup("seashell", 255, 245, 238));
+  xs.push(new ColorLookup("sienna", 160, 82, 45));
+  xs.push(new ColorLookup("silver", 192, 192, 192));
+  xs.push(new ColorLookup("skyblue", 135, 206, 235));
+  xs.push(new ColorLookup("slateblue", 106, 90, 205));
+  xs.push(new ColorLookup("slategray", 112, 128, 144));
+  xs.push(new ColorLookup("slategrey", 112, 128, 144));
+  xs.push(new ColorLookup("snow", 255, 250, 250));
+  xs.push(new ColorLookup("springgreen", 0, 255, 127));
+  xs.push(new ColorLookup("steelblue", 70, 130, 180));
+  xs.push(new ColorLookup("tan", 210, 180, 140));
+  xs.push(new ColorLookup("teal", 0, 128, 128));
+  xs.push(new ColorLookup("thistle", 216, 191, 216));
+  xs.push(new ColorLookup("tomato", 255, 99, 71));
+  xs.push(new ColorLookup("turquoise", 64, 224, 208));
+  xs.push(new ColorLookup("violet", 238, 130, 238));
+  xs.push(new ColorLookup("wheat", 245, 222, 179));
+  xs.push(new ColorLookup("white", 255, 255, 255));
+  xs.push(new ColorLookup("whitesmoke", 245, 245, 245));
+  xs.push(new ColorLookup("yellow", 255, 255, 0));
+  xs.push(new ColorLookup("yellowgreen", 154, 205, 50));
+  return xs;
+}
+
+export Color colorWhite() {
+  return colorFromRgba(new RGBA(255, 255, 255, 1.0));
+}
+
+export Color colorBlack() {
+  return colorFromRgba(new RGBA(0, 0, 0, 1.0));
+}
+
+export Color colorRed() {
+  return colorFromRgba(new RGBA(255, 0, 0, 1.0));
+}
+
+export Color colorBlue() {
+  return colorFromRgba(new RGBA(0, 0, 255, 1.0));
+}
+
+export Color colorGreen() {
+  return colorFromRgba(new RGBA(0, 255, 0, 1.0));
+}
+
+export Color colorCyan() {
+  return colorFromRgba(new RGBA(0, 255, 255, 1.0));
+}
+
+export Color colorLightgrey() {
+  return colorFromRgba(new RGBA(211, 211, 211, 1.0));
+}
+
+export Color colorTransparent() {
+  return colorFromRgba(new RGBA(0, 0, 0, 0.0));
+}
+
+export Color parseNamedKeyword(string css) {
+  ColorLookup[] xs = namedCssColors();
+  int i = 0;
+  while (i < xs.length) {
+    if (xs[i].name == css) {
+      return colorFromRgba(new RGBA(xs[i].r, xs[i].g, xs[i].b, 1.0));
+    }
+    i = i + 1;
+  }
+  return colorTransparent();
+}
+
+export bool namedKeywordExists(string css) {
+  ColorLookup[] xs = namedCssColors();
+  int i = 0;
+  while (i < xs.length) {
+    if (xs[i].name == css) {
+      return true;
+    }
+    i = i + 1;
+  }
+  return false;
+}
+
+export Color parseHex(string hex) {
+  int length = hex.length;
+  if (length == 0 || hex.charCodeAt(0) != 35) {
+    return colorTransparent();
+  }
+  if (length == 7) {
+    int r = 16 * parseHexDigit(hex.charCodeAt(1)) + parseHexDigit(hex.charCodeAt(2));
+    int g = 16 * parseHexDigit(hex.charCodeAt(3)) + parseHexDigit(hex.charCodeAt(4));
+    int b = 16 * parseHexDigit(hex.charCodeAt(5)) + parseHexDigit(hex.charCodeAt(6));
+    return colorFromRgba(new RGBA(r, g, b, 1.0));
+  }
+  if (length == 9) {
+    int r = 16 * parseHexDigit(hex.charCodeAt(1)) + parseHexDigit(hex.charCodeAt(2));
+    int g = 16 * parseHexDigit(hex.charCodeAt(3)) + parseHexDigit(hex.charCodeAt(4));
+    int b = 16 * parseHexDigit(hex.charCodeAt(5)) + parseHexDigit(hex.charCodeAt(6));
+    int a = 16 * parseHexDigit(hex.charCodeAt(7)) + parseHexDigit(hex.charCodeAt(8));
+    return colorFromRgba(new RGBA(r, g, b, (a * 1.0) / 255.0));
+  }
+  if (length == 4) {
+    int r = parseHexDigit(hex.charCodeAt(1));
+    int g = parseHexDigit(hex.charCodeAt(2));
+    int b = parseHexDigit(hex.charCodeAt(3));
+    return colorFromRgba(new RGBA(16 * r + r, 16 * g + g, 16 * b + b, 1.0));
+  }
+  if (length == 5) {
+    int r = parseHexDigit(hex.charCodeAt(1));
+    int g = parseHexDigit(hex.charCodeAt(2));
+    int b = parseHexDigit(hex.charCodeAt(3));
+    int a = parseHexDigit(hex.charCodeAt(4));
+    return colorFromRgba(new RGBA(16 * r + r, 16 * g + g, 16 * b + b, ((16 * a + a) * 1.0) / 255.0));
+  }
+  return colorTransparent();
+}
+
+export Color parseCssColor(string css) {
+  if (css == "transparent") {
+    return colorTransparent();
+  }
+  if (css.startsWith("#")) {
+    return parseHex(css);
+  }
+  if (namedKeywordExists(css)) {
+    return parseNamedKeyword(css);
+  }
+  return colorTransparent();
+}
+
+export Color colorFromHex(string hex) {
+  Color parsed = parseHex(hex);
+  if (hex.length == 0 || hex.charCodeAt(0) != 35) {
+    return colorRed();
+  }
+  if (hex.length != 4 && hex.length != 5 && hex.length != 7 && hex.length != 9) {
+    return colorRed();
+  }
+  return parsed;
+}
+
+export Color getLighterColor(Color baseColor, Color relative, float factor) {
+  if (baseColor.isLighterThan(relative)) {
+    return baseColor;
+  }
+  float f = factor;
+  if (f == 0.0) {
+    f = 0.5;
+  }
+  float lum1 = baseColor.getRelativeLuminance();
+  float lum2 = relative.getRelativeLuminance();
+  if (lum2 == 0.0) {
+    return baseColor.lighten(f);
+  }
+  f = f * (lum2 - lum1) / lum2;
+  return baseColor.lighten(f);
+}
+
+export Color getDarkerColor(Color baseColor, Color relative, float factor) {
+  if (baseColor.isDarkerThan(relative)) {
+    return baseColor;
+  }
+  float f = factor;
+  if (f == 0.0) {
+    f = 0.5;
+  }
+  float lum1 = baseColor.getRelativeLuminance();
+  float lum2 = relative.getRelativeLuminance();
+  if (lum1 == 0.0) {
+    return baseColor.darken(f);
+  }
+  f = f * (lum1 - lum2) / lum1;
+  return baseColor.darken(f);
+}

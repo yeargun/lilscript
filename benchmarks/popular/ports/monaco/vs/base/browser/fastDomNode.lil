@@ -1,0 +1,177 @@
+import { focusElement, setStyle, setClassName, classListAdd, classListRemove, setAttribute, appendChild, removeChild, hostCall, jsUndefined } from "../../../js-host";
+
+string numberAsPixels(float value) {
+  return value.toInt().toString() + "px";
+}
+
+export class FastDomNode {
+  JsValue domNode;
+  Map<string, string> values;
+  bool layerHint;
+
+  init(JsValue domNode) {
+    this.domNode = domNode;
+    this.values = new Map<string, string>();
+    this.layerHint = false;
+  }
+
+  void focus() {
+    focusElement(this.domNode);
+  }
+
+  void setCachedStyle(string property, string value) {
+    string? previous = this.values.get(property);
+    if (previous != null && previous == value) {
+      return;
+    }
+    this.values.set(property, value);
+    setStyle(this.domNode, property, value);
+  }
+
+  void setMaxWidth(float value) {
+    this.setCachedStyle("max-width", numberAsPixels(value));
+  }
+
+  void setWidth(float value) {
+    this.setCachedStyle("width", numberAsPixels(value));
+  }
+
+  void setHeight(float value) {
+    this.setCachedStyle("height", numberAsPixels(value));
+  }
+
+  void setTop(float value) {
+    this.setCachedStyle("top", numberAsPixels(value));
+  }
+
+  void setLeft(float value) {
+    this.setCachedStyle("left", numberAsPixels(value));
+  }
+
+  void setBottom(float value) {
+    this.setCachedStyle("bottom", numberAsPixels(value));
+  }
+
+  void setRight(float value) {
+    this.setCachedStyle("right", numberAsPixels(value));
+  }
+
+  void setPaddingLeft(float value) {
+    this.setCachedStyle("padding-left", numberAsPixels(value));
+  }
+
+  void setFontFamily(string value) {
+    this.setCachedStyle("font-family", value);
+  }
+
+  void setFontWeight(string value) {
+    this.setCachedStyle("font-weight", value);
+  }
+
+  void setFontSize(float value) {
+    this.setCachedStyle("font-size", numberAsPixels(value));
+  }
+
+  void setFontStyle(string value) {
+    this.setCachedStyle("font-style", value);
+  }
+
+  void setFontFeatureSettings(string value) {
+    this.setCachedStyle("font-feature-settings", value);
+  }
+
+  void setFontVariationSettings(string value) {
+    this.setCachedStyle("font-variation-settings", value);
+  }
+
+  void setTextDecoration(string value) {
+    this.setCachedStyle("text-decoration", value);
+  }
+
+  void setLineHeight(float value) {
+    this.setCachedStyle("line-height", numberAsPixels(value));
+  }
+
+  void setLetterSpacing(float value) {
+    this.setCachedStyle("letter-spacing", numberAsPixels(value));
+  }
+
+  void setClassName(string value) {
+    string? previous = this.values.get("class");
+    if (previous != null && previous == value) {
+      return;
+    }
+    this.values.set("class", value);
+    setClassName(this.domNode, value);
+  }
+
+  void toggleClassName(string className, bool shouldHaveIt) {
+    if (shouldHaveIt) {
+      classListAdd(this.domNode, className);
+    } else {
+      classListRemove(this.domNode, className);
+    }
+    this.values.delete("class");
+  }
+
+  void setDisplay(string value) {
+    this.setCachedStyle("display", value);
+  }
+
+  void setPosition(string value) {
+    this.setCachedStyle("position", value);
+  }
+
+  void setVisibility(string value) {
+    this.setCachedStyle("visibility", value);
+  }
+
+  void setColor(string value) {
+    this.setCachedStyle("color", value);
+  }
+
+  void setBackgroundColor(string value) {
+    this.setCachedStyle("background-color", value);
+  }
+
+  void setLayerHinting(bool value) {
+    if (this.layerHint == value) {
+      return;
+    }
+    this.layerHint = value;
+    if (value) {
+      setStyle(this.domNode, "transform", "translate3d(0px, 0px, 0px)");
+    } else {
+      setStyle(this.domNode, "transform", "");
+    }
+  }
+
+  void setBoxShadow(string value) {
+    this.setCachedStyle("box-shadow", value);
+  }
+
+  void setContain(string value) {
+    this.setCachedStyle("contain", value);
+  }
+
+  void setAttribute(string name, string value) {
+    setAttribute(this.domNode, name, value);
+  }
+
+  void removeAttribute(string name) {
+    JsValue missing = jsUndefined();
+    hostCall(this.domNode, "removeAttribute", name, missing, missing);
+  }
+
+  void appendChild(FastDomNode child) {
+    appendChild(this.domNode, child.domNode);
+  }
+
+  void removeChild(FastDomNode child) {
+    removeChild(this.domNode, child.domNode);
+  }
+}
+
+export FastDomNode createFastDomNode(JsValue domNode) {
+  return new FastDomNode(domNode);
+}

@@ -1,0 +1,463 @@
+import { DEV } from "../dev-flag.lil";
+import {
+  arrayFrom,
+  call0,
+  call1,
+  call2,
+  createInstanceofPredicate,
+  defineGetter,
+  gMap,
+  getPlainObjectKeys,
+  isArr,
+  isES6Map,
+  isNullish,
+  isPlainES6Map,
+  isPlainObject,
+  isUndef,
+  len,
+  makeIterable,
+  mapDelete,
+  mapGet,
+  mapHas,
+  mapSet,
+  newMap,
+  newSet,
+  objectKeys,
+  push,
+  setAdd,
+  sizeOf,
+  stringifyKey,
+  toStr,
+  undef,
+  wellKnown
+} from "../host.lil";
+import {
+  $mobx,
+  ADD,
+  DELETE,
+  UPDATE
+} from "../constants.lil";
+import {
+  checkIfStateModificationsAreAllowed,
+  untracked,
+  untrackedEnd,
+  untrackedStart
+} from "../core/derivation.lil";
+import { createAtom } from "../core/atom.lil";
+import { die1 } from "../errors.lil";
+import { transaction } from "../api/transaction.lil";
+import {
+  reportChanged,
+  reportObserved
+} from "../core/observable.lil";
+import {
+  getNextId,
+  globalState
+} from "../core/globalstate.lil";
+import {
+  hasInterceptors,
+  interceptChange
+} from "../types/intercept-utils.lil";
+import {
+  hasListeners,
+  notifyListeners
+} from "../types/listen-utils.lil";
+import { initObservable } from "../types/type-utils-init.lil";
+import {
+  isObservableMap,
+  isObservableMapPred
+} from "../core/predicates.lil";
+import {
+  isSpyEnabled,
+  spyReportEnd0,
+  spyReportStart
+} from "../core/spy.lil";
+import {
+  deepEnhancerFn,
+  referenceEnhancerFn
+} from "./modifiers.lil";
+import { ObservableValue } from "./observablevalue.lil";
+
+JsValue ObservableMapMarker = JS.object();
+
+export JsValue ObservableMap = JS.method3((JsValue self, JsValue initialData, JsValue enhancerArg, JsValue nameArg) => {
+  self[$mobx] = ObservableMapMarker;
+  self["enhancer_"] = deepEnhancerFn;
+  if (enhancerArg.truthy()) {
+    self["enhancer_"] = enhancerArg;
+  }
+  string name = "ObservableMap";
+  if (!isUndef(nameArg)) {
+    name = toStr(nameArg);
+  } else if (DEV) {
+    name = "ObservableMap@" + getNextId();
+  }
+  self["name_"] = name;
+  self["interceptors_"] = undef();
+  self["changeListeners_"] = undef();
+  self["dehancer"] = undef();
+  initObservable(JS.method0((JsValue _s) => {
+    string keysName = "ObservableMap.keys()";
+    if (DEV) {
+      keysName = toStr(self["name_"]) + ".keys()";
+    }
+    self["keysAtom_"] = JS.call(createAtom, undef(), keysName);
+    self["data_"] = newMap();
+    self["hasMap_"] = newMap();
+    if (initialData.truthy()) {
+      call1(self["merge"], self, initialData);
+    }
+    return undef();
+  }));
+  return self;
+});
+
+ObservableMap["prototype"]["has_"] = JS.method1((JsValue self, JsValue key) => {
+  return mapHas(self["data_"], key);
+});
+ObservableMap["prototype"]["has"] = JS.method1((JsValue self, JsValue key) => {
+  if (!globalState["trackingDerivation"].truthy()) {
+    return call1(self["has_"], self, key);
+  }
+  JsValue entry = mapGet(self["hasMap_"], key);
+  if (!entry.truthy()) {
+    string n = "ObservableMap.key?";
+    if (DEV) {
+      n = toStr(self["name_"]) + "." + stringifyKey(key) + "?";
+    }
+    entry = JS.construct(ObservableValue, call1(self["has_"], self, key), referenceEnhancerFn, n, false, undef());
+    mapSet(self["hasMap_"], key, entry);
+    entry["onBUOL"] = newSet();
+    setAdd(entry["onBUOL"], JS.method0((JsValue _s) => {
+      mapDelete(self["hasMap_"], key);
+      return undef();
+    }));
+  }
+  return call0(entry["get"], entry);
+});
+ObservableMap["prototype"]["set"] = JS.method2((JsValue self, JsValue key, JsValue value) => {
+  bool hasKey = mapHas(self["data_"], key);
+  if (hasInterceptors(self)) {
+    string typ = ADD;
+    if (hasKey) {
+      typ = UPDATE;
+    }
+    JsValue change = interceptChange(self, JS.object("type", typ, "object", self, "newValue", value, "name", key));
+    if (!change.truthy()) {
+      return self;
+    }
+    value = change["newValue"];
+  }
+  if (hasKey) {
+    call2(self["updateValue_"], self, key, value);
+  } else {
+    call2(self["addValue_"], self, key, value);
+  }
+  return self;
+});
+ObservableMap["prototype"]["updateValue_"] = JS.method2((JsValue self, JsValue key, JsValue newValue) => {
+  JsValue observableNode = mapGet(self["data_"], key);
+  newValue = call1(observableNode["prepareNewValue_"], observableNode, newValue);
+  if (!JS.strictEqual(newValue, globalState["UNCHANGED"])) {
+    bool notifySpy = DEV && isSpyEnabled();
+    bool notify = hasListeners(self);
+    JsValue change = null;
+    if (notify || notifySpy) {
+      change = JS.object("observableKind", "map", "debugObjectName", self["name_"], "type", UPDATE, "object", self, "oldValue", observableNode["value_"], "name", key, "newValue", newValue);
+    }
+    if (DEV && notifySpy) {
+      spyReportStart(change);
+    }
+    call1(observableNode["setNewValue_"], observableNode, newValue);
+    if (notify) {
+      notifyListeners(self, change);
+    }
+    if (DEV && notifySpy) {
+      spyReportEnd0();
+    }
+  }
+  return undef();
+});
+ObservableMap["prototype"]["addValue_"] = JS.method2((JsValue self, JsValue key, JsValue newValue) => {
+  if (DEV) {
+    checkIfStateModificationsAreAllowed(self["keysAtom_"]);
+  }
+  JS.call(transaction, undef(), JS.method0((JsValue _b) => {
+    string n = "ObservableMap.key";
+    if (DEV) {
+      n = toStr(self["name_"]) + "." + stringifyKey(key);
+    }
+    JsValue observableNode = JS.construct(ObservableValue, newValue, self["enhancer_"], n, false, undef());
+    mapSet(self["data_"], key, observableNode);
+    newValue = observableNode["value_"];
+    JsValue hasEntry = mapGet(self["hasMap_"], key);
+    if (hasEntry.truthy()) {
+      call1(hasEntry["setNewValue_"], hasEntry, true);
+    }
+    reportChanged(self["keysAtom_"]);
+    return undef();
+  }));
+  bool notifySpy = DEV && isSpyEnabled();
+  bool notify = hasListeners(self);
+  JsValue change = null;
+  if (notify || notifySpy) {
+    change = JS.object("observableKind", "map", "debugObjectName", self["name_"], "type", ADD, "object", self, "name", key, "newValue", newValue);
+  }
+  if (DEV && notifySpy) {
+    spyReportStart(change);
+  }
+  if (notify) {
+    notifyListeners(self, change);
+  }
+  if (DEV && notifySpy) {
+    spyReportEnd0();
+  }
+  return undef();
+});
+ObservableMap["prototype"]["delete"] = JS.method1((JsValue self, JsValue key) => {
+  if (DEV) {
+    checkIfStateModificationsAreAllowed(self["keysAtom_"]);
+  }
+  if (hasInterceptors(self)) {
+    JsValue change = interceptChange(self, JS.object("type", DELETE, "object", self, "name", key));
+    if (!change.truthy()) {
+      return false;
+    }
+  }
+  if (mapHas(self["data_"], key)) {
+    bool notifySpy = DEV && isSpyEnabled();
+    bool notify = hasListeners(self);
+    JsValue change = null;
+    if (notify || notifySpy) {
+      change = JS.object("observableKind", "map", "debugObjectName", self["name_"], "type", DELETE, "object", self, "oldValue", mapGet(self["data_"], key)["value_"], "name", key);
+    }
+    if (DEV && notifySpy) {
+      spyReportStart(change);
+    }
+    JS.call(transaction, undef(), JS.method0((JsValue _b) => {
+      reportChanged(self["keysAtom_"]);
+      JsValue hasEntry = mapGet(self["hasMap_"], key);
+      if (hasEntry.truthy()) {
+        call1(hasEntry["setNewValue_"], hasEntry, false);
+      }
+      JsValue observableNode = mapGet(self["data_"], key);
+      call1(observableNode["setNewValue_"], observableNode, undef());
+      mapDelete(self["data_"], key);
+      return undef();
+    }));
+    if (notify) {
+      notifyListeners(self, change);
+    }
+    if (DEV && notifySpy) {
+      spyReportEnd0();
+    }
+    return true;
+  }
+  return false;
+});
+ObservableMap["prototype"]["get"] = JS.method1((JsValue self, JsValue key) => {
+  if (call1(self["has"], self, key).truthy()) {
+    JsValue boxed = mapGet(self["data_"], key);
+    return dehanceMap(self, call0(boxed["get"], boxed));
+  }
+  return dehanceMap(self, undef());
+});
+ObservableMap["prototype"]["getOrInsert"] = JS.method2((JsValue self, JsValue key, JsValue value) => {
+  if (!call1(self["has"], self, key).truthy()) {
+    JS.call(self["set"], self, key, value);
+  }
+  return call1(self["get"], self, key);
+});
+ObservableMap["prototype"]["getOrInsertComputed"] = JS.method2((JsValue self, JsValue key, JsValue compute) => {
+  if (!call1(self["has"], self, key).truthy()) {
+    JS.call(self["set"], self, key, call1(compute, undef(), key));
+  }
+  return call1(self["get"], self, key);
+});
+ObservableMap["prototype"]["keys"] = JS.method0((JsValue self) => {
+  reportObserved(self["keysAtom_"]);
+  return JS.invoke(self["data_"], "keys");
+});
+ObservableMap["prototype"]["values"] = JS.method0((JsValue self) => {
+  JsValue keys = call0(self["keys"], self);
+  JsValue iterator = JS.object();
+  iterator["next"] = JS.method0((JsValue _n) => {
+      JsValue step = JS.invoke(keys, "next");
+      if (step["done"].truthy()) {
+        return JS.object("done", true, "value", undef());
+      }
+      return JS.object("done", false, "value", call1(self["get"], self, step["value"]));
+  });
+  iterator[wellKnown("toStringTag")] = "MapIterator";
+  return makeIterable(iterator);
+});
+ObservableMap["prototype"]["entries"] = JS.method0((JsValue self) => {
+  JsValue keys = call0(self["keys"], self);
+  JsValue iterator = JS.object();
+  iterator["next"] = JS.method0((JsValue _n) => {
+      JsValue step = JS.invoke(keys, "next");
+      if (step["done"].truthy()) {
+        return JS.object("done", true, "value", undef());
+      }
+      JsValue pair = JS.array();
+      push(pair, step["value"]);
+      push(pair, call1(self["get"], self, step["value"]));
+      return JS.object("done", false, "value", pair);
+  });
+  iterator[wellKnown("toStringTag")] = "MapIterator";
+  return makeIterable(iterator);
+});
+ObservableMap["prototype"]["forEach"] = JS.method2((JsValue self, JsValue callback, JsValue thisArg) => {
+  JS.invoke(self["data_"], "forEach", JS.method2((JsValue _f, JsValue _value, JsValue key) => {
+    JS.call(callback, thisArg, call1(self["get"], self, key), key, self);
+    return undef();
+  }));
+  return undef();
+});
+ObservableMap["prototype"]["merge"] = JS.method1((JsValue self, JsValue other) => {
+  if (isObservableMap(other)) {
+    other = JS.construct(gMap(), other);
+  }
+  JS.call(transaction, undef(), JS.method0((JsValue _b) => {
+    if (isPlainObject(other)) {
+      JsValue keys = getPlainObjectKeys(other);
+      int i = 0;
+      while (i < len(keys)) {
+        JS.call(self["set"], self, keys[i], other[keys[i]]);
+        i = i + 1;
+      }
+    } else if (isArr(other)) {
+      int i = 0;
+      while (i < len(other)) {
+        JS.call(self["set"], self, other[i][0], other[i][1]);
+        i = i + 1;
+      }
+    } else if (isES6Map(other)) {
+      if (!isPlainES6Map(other)) {
+        die1(19, other);
+      }
+      JS.invoke(other, "forEach", JS.methodRest((JsValue _f, JsValue fargs) => {
+        JS.call(self["set"], self, fargs[1], fargs[0]);
+        return undef();
+      }));
+    } else if (!JS.isNullish(other)) {
+      die1(20, other);
+    }
+    return undef();
+  }));
+  return self;
+});
+ObservableMap["prototype"]["clear"] = JS.method0((JsValue self) => {
+  JS.call(transaction, undef(), JS.method0((JsValue _b) => {
+    JS.call(untracked, undef(), JS.method0((JsValue _u) => {
+      JS.invoke(arrayFrom(call0(self["keys"], self)), "forEach", JS.method1((JsValue _f, JsValue key) => {
+        call1(self["delete"], self, key);
+        return undef();
+      }));
+      return undef();
+    }));
+    return undef();
+  }));
+  return undef();
+});
+JsValue convertToMap(JsValue dataStructure) {
+  if (isES6Map(dataStructure) || isObservableMap(dataStructure)) {
+    return dataStructure;
+  }
+  if (isArr(dataStructure)) {
+    return JS.construct(gMap(), dataStructure);
+  }
+  if (isPlainObject(dataStructure)) {
+    JsValue mapped = newMap();
+    JsValue keys = objectKeys(dataStructure);
+    int i = 0;
+    while (i < len(keys)) {
+      mapSet(mapped, keys[i], dataStructure[keys[i]]);
+      i = i + 1;
+    }
+    return mapped;
+  }
+  die1(21, dataStructure);
+  return newMap();
+}
+
+ObservableMap["prototype"]["replace"] = JS.method1((JsValue self, JsValue values) => {
+  JS.call(transaction, undef(), JS.method0((JsValue _b) => {
+    JsValue replacementMap = convertToMap(values);
+    JsValue orderedData = newMap();
+    bool keysReportChangedCalled = false;
+    JsValue existingKeys = arrayFrom(JS.invoke(self["data_"], "keys"));
+    int i = 0;
+    while (i < len(existingKeys)) {
+      JsValue key = existingKeys[i];
+      if (!mapHas(replacementMap, key)) {
+        if (call1(self["delete"], self, key).truthy()) {
+          keysReportChangedCalled = true;
+        } else {
+          mapSet(orderedData, key, mapGet(self["data_"], key));
+        }
+      }
+      i = i + 1;
+    }
+    JsValue entries = arrayFrom(JS.invoke(replacementMap, "entries"));
+    i = 0;
+    while (i < len(entries)) {
+      JsValue key = entries[i][0];
+      JsValue value = entries[i][1];
+      bool keyExisted = mapHas(self["data_"], key);
+      JS.call(self["set"], self, key, value);
+      if (mapHas(self["data_"], key)) {
+        mapSet(orderedData, key, mapGet(self["data_"], key));
+        if (!keyExisted) {
+          keysReportChangedCalled = true;
+        }
+      }
+      i = i + 1;
+    }
+    if (!keysReportChangedCalled) {
+      if (sizeOf(self["data_"]) != sizeOf(orderedData)) {
+        reportChanged(self["keysAtom_"]);
+      } else {
+        JsValue iter1 = JS.invoke(self["data_"], "keys");
+        JsValue iter2 = JS.invoke(orderedData, "keys");
+        JsValue next1 = JS.invoke(iter1, "next");
+        JsValue next2 = JS.invoke(iter2, "next");
+        while (!next1["done"].truthy()) {
+          if (!JS.strictEqual(next1["value"], next2["value"])) {
+            reportChanged(self["keysAtom_"]);
+            break;
+          }
+          next1 = JS.invoke(iter1, "next");
+          next2 = JS.invoke(iter2, "next");
+        }
+      }
+    }
+    self["data_"] = orderedData;
+    return undef();
+  }));
+  return self;
+});
+ObservableMap["prototype"]["toJSON"] = JS.method0((JsValue self) => {
+  return arrayFrom(self);
+});
+ObservableMap["prototype"]["toString"] = JS.method0((JsValue self) => {
+  return "[object ObservableMap]";
+});
+ObservableMap["prototype"][wellKnown("iterator")] = JS.method0((JsValue self) => {
+  return call0(self["entries"], self);
+});
+defineGetter(ObservableMap["prototype"], "size", JS.method0((JsValue self) => {
+  reportObserved(self["keysAtom_"]);
+  return self["data_"]["size"];
+}));
+defineGetter(ObservableMap["prototype"], wellKnown("toStringTag"), JS.method0((JsValue _s) => {
+  return "Map";
+}));
+isObservableMapPred = createInstanceofPredicate("ObservableMap", ObservableMap);
+
+JsValue dehanceMap(JsValue self, JsValue value) {
+  if (!isUndef(self["dehancer"])) {
+    return call1(self["dehancer"], undef(), value);
+  }
+  return value;
+}

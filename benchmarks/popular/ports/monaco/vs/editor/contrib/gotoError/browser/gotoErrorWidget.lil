@@ -1,0 +1,139 @@
+
+export class TextRange {
+  int startLineNumber;
+  int startColumn;
+  int endLineNumber;
+  int endColumn;
+
+  init(int startLineNumber, int startColumn, int endLineNumber, int endColumn) {
+    this.startLineNumber = startLineNumber;
+    this.startColumn = startColumn;
+    this.endLineNumber = endLineNumber;
+    this.endColumn = endColumn;
+  }
+}
+
+export class TextPos {
+  int lineNumber;
+  int column;
+
+  init(int lineNumber, int column) {
+    this.lineNumber = lineNumber;
+    this.column = column;
+  }
+}
+
+bool posBefore(TextPos a, TextPos b) {
+  if (a.lineNumber < b.lineNumber) {
+    return true;
+  }
+  if (a.lineNumber > b.lineNumber) {
+    return false;
+  }
+  return a.column < b.column;
+}
+
+bool rangeContainsPos(TextRange range, int lineNumber, int column) {
+  if (lineNumber < range.startLineNumber || lineNumber > range.endLineNumber) {
+    return false;
+  }
+  if (lineNumber == range.startLineNumber && column < range.startColumn) {
+    return false;
+  }
+  if (lineNumber == range.endLineNumber && column > range.endColumn) {
+    return false;
+  }
+  return true;
+}
+
+export TextRange createTextRange(int startLine, int startColumn, int endLine, int endColumn) {
+  return new TextRange(startLine, startColumn, endLine, endColumn);
+}
+
+export TextPos createTextPos(int lineNumber, int column) {
+  return new TextPos(lineNumber, column);
+}
+
+export int MARKER_HINT = 1;
+export int MARKER_INFO = 2;
+export int MARKER_WARNING = 4;
+export int MARKER_ERROR = 8;
+
+export class Marker {
+  int startLineNumber;
+  int startColumn;
+  int endLineNumber;
+  int endColumn;
+  string message;
+  int severity;
+
+  init(int startLineNumber, int startColumn, int endLineNumber, int endColumn, string message, int severity) {
+    this.startLineNumber = startLineNumber;
+    this.startColumn = startColumn;
+    this.endLineNumber = endLineNumber;
+    this.endColumn = endColumn;
+    this.message = message;
+    this.severity = severity;
+  }
+}
+
+export int nextMarkerIndex(Marker[] markers, int lineNumber, bool reverse) {
+  if (markers.length == 0) {
+    return -1;
+  }
+  if (!reverse) {
+    int i = 0;
+    while (i < markers.length) {
+      if (markers[i].startLineNumber > lineNumber) {
+        return i;
+      }
+      i = i + 1;
+    }
+    return 0;
+  }
+  int best = markers.length - 1;
+  int i = 0;
+  while (i < markers.length) {
+    if (markers[i].startLineNumber < lineNumber) {
+      best = i;
+    }
+    i = i + 1;
+  }
+  return best;
+}
+
+export class MarkerList {
+  Marker[] markers;
+  int index;
+
+  init(Marker[] markers) {
+    this.markers = markers;
+    this.index = 0;
+  }
+
+  Marker? move(bool reverse) {
+    if (this.markers.length == 0) {
+      return null;
+    }
+    if (reverse) {
+      this.index = this.index - 1;
+      if (this.index < 0) {
+        this.index = this.markers.length - 1;
+      }
+    } else {
+      this.index = this.index + 1;
+      if (this.index >= this.markers.length) {
+        this.index = 0;
+      }
+    }
+    return this.markers[this.index];
+  }
+}
+
+export MarkerList createMarkerList(Marker[] markers) {
+  return new MarkerList(markers);
+}
+
+export Marker createMarker(int line, int column, string message, int severity) {
+  return new Marker(line, column, line, column + 1, message, severity);
+}

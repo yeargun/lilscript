@@ -1,0 +1,122 @@
+import { newRegexp } from "../../../../../js-host";
+
+export int KindToken = 0;
+export int KindPush = 1;
+export int KindPop = 2;
+export int KindSwitch = 3;
+export int KindKeyword = 4;
+export int KindRoot = 5;
+export int KindRematch = 6;
+export int KindPushCurrent = 7;
+
+export class CompiledRule {
+  string state;
+  string pattern;
+  int kind;
+  string token;
+  string next;
+  bool lineStart;
+
+  init(string state, string pattern, int kind, string token, string next, bool lineStart) {
+    this.state = state;
+    this.pattern = pattern;
+    this.kind = kind;
+    this.token = token;
+    this.next = next;
+    this.lineStart = lineStart;
+  }
+}
+
+export class CompiledLexer {
+  string languageId;
+  string tokenPostfix;
+  string defaultToken;
+  bool ignoreCase;
+  int maxStack;
+  string start;
+  CompiledRule[] rules;
+  string[] keywords;
+
+  init(string languageId) {
+    this.languageId = languageId;
+    this.tokenPostfix = "." + languageId;
+    this.defaultToken = "source";
+    this.ignoreCase = false;
+    this.maxStack = 100;
+    this.start = "root";
+    this.rules = [];
+    this.keywords = [];
+  }
+}
+
+int kindFromNext(string next, string token) {
+  if (token == "@rematch") {
+    return KindRematch;
+  }
+  if (next == "@pop") {
+    return KindPop;
+  }
+  if (next == "@popall") {
+    return KindRoot;
+  }
+  if (next.length > 0 && next.charAt(0) == "@") {
+    return KindPush;
+  }
+  if (next.length > 0) {
+    return KindSwitch;
+  }
+  return KindToken;
+}
+
+string peelAt(string next) {
+  if (next.length > 0 && next.charAt(0) == "@") {
+    string out = "";
+    int i = 1;
+    while (i < next.length) {
+      out = out + next.charAt(i);
+      i = i + 1;
+    }
+    return out;
+  }
+  return next;
+}
+
+export CompiledLexer compile(string languageId, string[] states, string[] patterns, string[] tokens, string[] nexts) {
+  CompiledLexer lexer = new CompiledLexer(languageId);
+  int i = 0;
+  while (i < states.length && i < patterns.length && i < tokens.length) {
+    string next = "";
+    if (i < nexts.length) {
+      next = nexts[i];
+    }
+    int kind = kindFromNext(next, tokens[i]);
+    string nextState = peelAt(next);
+    if (kind == KindPop || kind == KindRoot || kind == KindRematch) {
+      nextState = "";
+    }
+    bool lineStart = false;
+    string pattern = patterns[i];
+    if (pattern.length > 0 && pattern.charAt(0) == "^") {
+      lineStart = true;
+    }
+    lexer.rules.push(new CompiledRule(states[i], pattern, kind, tokens[i], nextState, lineStart));
+    i = i + 1;
+  }
+  return lexer;
+}
+
+export Regex compileRuleRegex(string pattern, bool ignoreCase) {
+  string source = pattern;
+  if (pattern.length == 0 || pattern.charAt(0) != "^") {
+    source = "^(?:" + pattern + ")";
+  }
+  string flags = "";
+  if (ignoreCase) {
+    flags = "i";
+  }
+  return newRegexp(source, flags);
+}
+
+export CompiledLexer createCompiledLexer(string languageId) {
+  return new CompiledLexer(languageId);
+}

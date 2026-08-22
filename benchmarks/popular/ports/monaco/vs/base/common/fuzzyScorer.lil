@@ -1,0 +1,231 @@
+import { stringSplit } from "../../../js-host";
+
+export class FuzzyMatch {
+  int start;
+  int end;
+
+  init(int start, int end) {
+    this.start = start;
+    this.end = end;
+  }
+}
+
+export class PreparedQuery {
+  string original;
+  string originalLowercase;
+  string pathNormalized;
+  string normalized;
+  string normalizedLowercase;
+  bool containsPathSeparator;
+  bool expectContiguousMatch;
+  string[] values;
+
+  init(string original) {
+    this.original = original;
+    this.originalLowercase = original.toLowerCase();
+    this.pathNormalized = normalizePathSeparators(original);
+    this.normalized = normalizeQueryValue(this.pathNormalized);
+    this.normalizedLowercase = this.normalized.toLowerCase();
+    this.containsPathSeparator = this.pathNormalized.indexOf("/") >= 0;
+    this.expectContiguousMatch = original.length >= 2 && original.startsWith("\"") && original.endsWith("\"");
+    this.values = [];
+    string[] pieces = stringSplit(original, " ");
+    int i = 0;
+    while (i < pieces.length) {
+      string value = normalizeQueryValue(normalizePathSeparators(pieces[i]));
+      if (value.length > 0) {
+        this.values.push(value);
+      }
+      i = i + 1;
+    }
+  }
+}
+
+string normalizePathSeparators(string value) {
+  string result = "";
+  int i = 0;
+  while (i < value.length) {
+    if (value.charAt(i) == "\\") {
+      result = result + "/";
+    } else {
+      result = result + value.charAt(i);
+    }
+    i = i + 1;
+  }
+  return result;
+}
+
+string normalizeQueryValue(string value) {
+  string result = "";
+  int i = 0;
+  while (i < value.length) {
+    string ch = value.charAt(i);
+    if (ch != "*" && ch != "…" && ch != " " && ch != "\t" && ch != "\n" && ch != "\"") {
+      if (!(ch == "#" && i == value.length - 1 && result.length > 0)) {
+        result = result + ch;
+      }
+    }
+    i = i + 1;
+  }
+  return result;
+}
+
+export PreparedQuery prepareQuery(string original) {
+  return new PreparedQuery(original);
+}
+
+bool boundaryAt(string target, int index) {
+  if (index == 0) {
+    return true;
+  }
+  string previous = target.charAt(index - 1);
+  string current = target.charAt(index);
+  if (previous == "/" || previous == "\\" || previous == "-" || previous == "_" || previous == "." || previous == " ") {
+    return true;
+  }
+  return previous.toLowerCase() == previous && current.toUpperCase() == current && current.toLowerCase() != current;
+}
+
+export class FuzzyStringScore {
+  int score;
+  FuzzyMatch[] matches;
+
+  init(int score, FuzzyMatch[] matches) {
+    this.score = score;
+    this.matches = matches;
+  }
+}
+
+FuzzyStringScore scoreFuzzyString(string target, string query, bool contiguous) {
+  if (query.length == 0) {
+    return new FuzzyStringScore(0, []);
+  }
+  string targetLower = target.toLowerCase();
+  string queryLower = query.toLowerCase();
+  if (contiguous) {
+    int found = targetLower.indexOf(queryLower);
+    if (found < 0) {
+      return new FuzzyStringScore(0, []);
+    }
+    int score = 1000 - found * 5 - (target.length - query.length);
+    if (target == query) {
+      score = score + 1000;
+    } else if (targetLower == queryLower) {
+      score = score + 500;
+    }
+    FuzzyMatch[] exact = [new FuzzyMatch(found, found + query.length)];
+    return new FuzzyStringScore(score, exact);
+  }
+  int queryIndex = 0;
+  int targetIndex = 0;
+  int score = 0;
+  int lastMatch = -2;
+  FuzzyMatch[] matches = [];
+  while (queryIndex < query.length && targetIndex < target.length) {
+    if (queryLower.charAt(queryIndex) == targetLower.charAt(targetIndex)) {
+      int value = 10;
+      if (query.charAt(queryIndex) == target.charAt(targetIndex)) {
+        value = value + 2;
+      }
+      if (boundaryAt(target, targetIndex)) {
+        value = value + 8;
+      }
+      if (lastMatch + 1 == targetIndex) {
+        value = value + 6;
+      } else if (lastMatch >= 0) {
+        value = value - (targetIndex - lastMatch - 1);
+      }
+      score = score + value;
+      if (matches.length > 0 && matches[matches.length - 1].end == targetIndex) {
+        matches[matches.length - 1].end = targetIndex + 1;
+      } else {
+        matches.push(new FuzzyMatch(targetIndex, targetIndex + 1));
+      }
+      lastMatch = targetIndex;
+      queryIndex = queryIndex + 1;
+    }
+    targetIndex = targetIndex + 1;
+  }
+  if (queryIndex != query.length) {
+    return new FuzzyStringScore(0, []);
+  }
+  score = score - target.length + query.length;
+  if (targetLower == queryLower) {
+    score = score + 1000;
+  }
+  return new FuzzyStringScore(score, matches);
+}
+
+export class FuzzyItem {
+  string label;
+  string description;
+  string path;
+
+  init(string label, string description, string path) {
+    this.label = label;
+    this.description = description;
+    this.path = path;
+  }
+}
+
+export class FuzzyItemScore {
+  int score;
+  FuzzyMatch[] labelMatch;
+  FuzzyMatch[] descriptionMatch;
+  FuzzyMatch[] pathMatch;
+
+  init(int score, FuzzyMatch[] labelMatch, FuzzyMatch[] descriptionMatch, FuzzyMatch[] pathMatch) {
+    this.score = score;
+    this.labelMatch = labelMatch;
+    this.descriptionMatch = descriptionMatch;
+    this.pathMatch = pathMatch;
+  }
+}
+
+export FuzzyItemScore scoreItemFuzzy(FuzzyItem item, PreparedQuery query, bool allowNonContiguousMatches) {
+  bool contiguous = query.expectContiguousMatch || !allowNonContiguousMatches;
+  FuzzyStringScore labelScore = scoreFuzzyString(item.label, query.normalized, contiguous);
+  FuzzyStringScore descriptionScore = new FuzzyStringScore(0, []);
+  FuzzyStringScore pathScore = new FuzzyStringScore(0, []);
+  if (item.description.length > 0) {
+    descriptionScore = scoreFuzzyString(item.description, query.normalized, contiguous);
+  }
+  if (item.path.length > 0) {
+    pathScore = scoreFuzzyString(normalizePathSeparators(item.path), query.normalized, contiguous);
+  }
+  int best = labelScore.score;
+  if (descriptionScore.score > best) {
+    best = descriptionScore.score - 10;
+  }
+  if (pathScore.score > best) {
+    best = pathScore.score - 5;
+  }
+  if (query.containsPathSeparator && pathScore.score > 0) {
+    best = pathScore.score + 100;
+  }
+  return new FuzzyItemScore(best, labelScore.matches, descriptionScore.matches, pathScore.matches);
+}
+
+export int compareItemsByFuzzyScore(FuzzyItem itemA, FuzzyItem itemB, PreparedQuery query, bool allowNonContiguousMatches) {
+  FuzzyItemScore scoreA = scoreItemFuzzy(itemA, query, allowNonContiguousMatches);
+  FuzzyItemScore scoreB = scoreItemFuzzy(itemB, query, allowNonContiguousMatches);
+  if (scoreA.score != scoreB.score) {
+    return scoreB.score - scoreA.score;
+  }
+  if (itemA.label.length != itemB.label.length) {
+    return itemA.label.length - itemB.label.length;
+  }
+  string a = itemA.label.toLowerCase();
+  string b = itemB.label.toLowerCase();
+  if (a < b) {
+    return -1;
+  }
+  if (a > b) {
+    return 1;
+  }
+  return 0;
+}
+
+export FuzzyStringScore scoreFuzzy2(string target, PreparedQuery query, int patternStart, int wordStart) {
+  return scoreFuzzyString(target, query.normalized, query.expectContiguousMatch);
+}

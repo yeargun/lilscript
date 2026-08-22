@@ -1,0 +1,298 @@
+export class SparseLineTokens {
+  int[] tokens;
+
+  init(int[] tokens) {
+    this.tokens = tokens;
+  }
+
+  int getCount() {
+    return this.tokens.length / 4;
+  }
+
+  int getStartCharacter(int tokenIndex) {
+    return this.tokens[tokenIndex * 4 + 1];
+  }
+
+  int getEndCharacter(int tokenIndex) {
+    return this.tokens[tokenIndex * 4 + 2];
+  }
+
+  int getMetadata(int tokenIndex) {
+    return this.tokens[tokenIndex * 4 + 3];
+  }
+}
+
+JsValue sparseRange(int startLine, int startColumn, int endLine, int endColumn) {
+  JsValue range = JS.object();
+  range["startLineNumber"] = startLine;
+  range["startColumn"] = startColumn;
+  range["endLineNumber"] = endLine;
+  range["endColumn"] = endColumn;
+  return range;
+}
+
+export class SparseMultilineTokens {
+  int startLineNumber;
+  int[] tokens;
+
+  init(int startLineNumber, int[] tokens) {
+    this.startLineNumber = startLineNumber;
+    this.tokens = tokens;
+  }
+
+  int tokenCount() {
+    return this.tokens.length / 4;
+  }
+
+  int endLineNumber() {
+    int count = this.tokenCount();
+    if (count == 0) {
+      return this.startLineNumber - 1;
+    }
+    return this.startLineNumber + this.tokens[(count - 1) * 4];
+  }
+
+  bool isEmpty() {
+    return this.tokens.length == 0;
+  }
+
+  string toString() {
+    string result = "[";
+    int i = 0;
+    int count = this.tokenCount();
+    while (i < count) {
+      if (i > 0) {
+        result = result + ",";
+      }
+      int offset = i * 4;
+      result = result + "(" + (this.startLineNumber + this.tokens[offset]).toString() +
+        "," + this.tokens[offset + 1].toString() + "-" +
+        this.tokens[offset + 2].toString() + ")";
+      i = i + 1;
+    }
+    return result + "]";
+  }
+
+  SparseLineTokens? getLineTokens(int lineNumber) {
+    int delta = lineNumber - this.startLineNumber;
+    int[] result = [];
+    int i = 0;
+    int count = this.tokenCount();
+    while (i < count) {
+      int offset = i * 4;
+      int line = this.tokens[offset];
+      if (line == delta) {
+        result.push(line);
+        result.push(this.tokens[offset + 1]);
+        result.push(this.tokens[offset + 2]);
+        result.push(this.tokens[offset + 3]);
+      } else if (line > delta) {
+        break;
+      }
+      i = i + 1;
+    }
+    if (result.length == 0) {
+      return null;
+    }
+    return new SparseLineTokens(result);
+  }
+
+  JsValue getRange() {
+    int count = this.tokenCount();
+    if (count == 0) {
+      return null;
+    }
+    int lastOffset = (count - 1) * 4;
+    return sparseRange(
+      this.startLineNumber + this.tokens[0],
+      this.tokens[1] + 1,
+      this.startLineNumber + this.tokens[lastOffset],
+      this.tokens[lastOffset + 2] + 1
+    );
+  }
+
+  void normalize() {
+    if (this.tokens.length == 0) {
+      return;
+    }
+    int firstDelta = this.tokens[0];
+    if (firstDelta == 0) {
+      return;
+    }
+    this.startLineNumber = this.startLineNumber + firstDelta;
+    int i = 0;
+    while (i < this.tokenCount()) {
+      this.tokens[i * 4] = this.tokens[i * 4] - firstDelta;
+      i = i + 1;
+    }
+  }
+
+  void removeTokens(JsValue range) {
+    int startLine = JS.number(range["startLineNumber"]).toInt();
+    int startColumn = JS.number(range["startColumn"]).toInt() - 1;
+    int endLine = JS.number(range["endLineNumber"]).toInt();
+    int endColumn = JS.number(range["endColumn"]).toInt() - 1;
+    int[] result = [];
+    int i = 0;
+    int count = this.tokenCount();
+    while (i < count) {
+      int offset = i * 4;
+      int line = this.startLineNumber + this.tokens[offset];
+      int start = this.tokens[offset + 1];
+      int end = this.tokens[offset + 2];
+      bool intersects = (line > startLine || (line == startLine && end >= startColumn)) &&
+        (line < endLine || (line == endLine && start <= endColumn));
+      if (!intersects) {
+        result.push(this.tokens[offset]);
+        result.push(start);
+        result.push(end);
+        result.push(this.tokens[offset + 3]);
+      }
+      i = i + 1;
+    }
+    this.tokens = result;
+    this.normalize();
+  }
+
+  SparseMultilineTokens[] split(JsValue range) {
+    int startLine = JS.number(range["startLineNumber"]).toInt();
+    int startColumn = JS.number(range["startColumn"]).toInt() - 1;
+    int endLine = JS.number(range["endLineNumber"]).toInt();
+    int endColumn = JS.number(range["endColumn"]).toInt() - 1;
+    int[] before = [];
+    int[] after = [];
+    int afterStart = this.startLineNumber;
+    bool foundAfter = false;
+    int i = 0;
+    int count = this.tokenCount();
+    while (i < count) {
+      int offset = i * 4;
+      int line = this.startLineNumber + this.tokens[offset];
+      int start = this.tokens[offset + 1];
+      int end = this.tokens[offset + 2];
+      bool isBefore = line < startLine || (line == startLine && end < startColumn);
+      bool isAfter = line > endLine || (line == endLine && start > endColumn);
+      if (isBefore) {
+        before.push(this.tokens[offset]);
+        before.push(start);
+        before.push(end);
+        before.push(this.tokens[offset + 3]);
+      } else if (isAfter) {
+        if (!foundAfter) {
+          afterStart = line;
+          foundAfter = true;
+        }
+        after.push(line - afterStart);
+        after.push(start);
+        after.push(end);
+        after.push(this.tokens[offset + 3]);
+      }
+      i = i + 1;
+    }
+    SparseMultilineTokens[] result = [];
+    result.push(new SparseMultilineTokens(this.startLineNumber, before));
+    result.push(new SparseMultilineTokens(afterStart, after));
+    return result;
+  }
+
+  void acceptEdit(
+    JsValue range,
+    int eolCount,
+    int firstLineLength,
+    int lastLineLength,
+    int firstCharCode
+  ) {
+    int startLine = JS.number(range["startLineNumber"]).toInt();
+    int startColumn = JS.number(range["startColumn"]).toInt() - 1;
+    int endLine = JS.number(range["endLineNumber"]).toInt();
+    int endColumn = JS.number(range["endColumn"]).toInt() - 1;
+    int deletedLines = endLine - startLine;
+    int i = 0;
+    int count = this.tokenCount();
+    int[] result = [];
+    while (i < count) {
+      int offset = i * 4;
+      int line = this.startLineNumber + this.tokens[offset];
+      int start = this.tokens[offset + 1];
+      int end = this.tokens[offset + 2];
+      int metadata = this.tokens[offset + 3];
+      if (line < startLine || (line == startLine && end <= startColumn)) {
+      } else if (line > endLine || (line == endLine && start >= endColumn)) {
+        if (line == endLine) {
+          line = startLine;
+          start = startColumn + (start - endColumn);
+          end = startColumn + (end - endColumn);
+        } else {
+          line = line - deletedLines;
+        }
+      } else if (line == startLine && start < startColumn) {
+        end = startColumn;
+      } else if (line == endLine && end > endColumn) {
+        line = startLine;
+        start = startColumn;
+        end = startColumn + end - endColumn;
+      } else {
+        i = i + 1;
+        continue;
+      }
+      if (line == startLine) {
+        if (eolCount == 0) {
+          if (start >= startColumn) {
+            start = start + firstLineLength;
+            end = end + firstLineLength;
+          } else if (end > startColumn) {
+            end = end + firstLineLength;
+          }
+        } else if (start >= startColumn) {
+          int length = end - start;
+          line = line + eolCount;
+          start = lastLineLength + start - startColumn;
+          end = start + length;
+        }
+      } else if (line > startLine) {
+        line = line + eolCount;
+      }
+      result.push(line - this.startLineNumber);
+      result.push(start);
+      result.push(end);
+      result.push(metadata);
+      i = i + 1;
+    }
+    this.tokens = result;
+    this.normalize();
+  }
+
+  void applyEdit(JsValue range, string text) {
+    int eolCount = 0;
+    int firstLineLength = 0;
+    int lastLineLength = 0;
+    int currentLength = 0;
+    int i = 0;
+    while (i < text.length) {
+      int code = text.charCodeAt(i);
+      if (code == 10) {
+        if (eolCount == 0) {
+          firstLineLength = currentLength;
+        }
+        eolCount = eolCount + 1;
+        currentLength = 0;
+      } else if (code != 13) {
+        currentLength = currentLength + 1;
+      }
+      i = i + 1;
+    }
+    if (eolCount == 0) {
+      firstLineLength = currentLength;
+    }
+    lastLineLength = currentLength;
+    int firstCharCode = 0;
+    if (text.length > 0) {
+      firstCharCode = text.charCodeAt(0);
+    }
+    this.acceptEdit(range, eolCount, firstLineLength, lastLineLength, firstCharCode);
+  }
+}
+
+export SparseMultilineTokens createSparseMultilineTokens(int startLineNumber, int[] tokens) {
+  return new SparseMultilineTokens(startLineNumber, tokens);
+}

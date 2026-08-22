@@ -1,0 +1,60 @@
+export class IntRange {
+  int start;
+  int end;
+
+  init(int start, int end) {
+    this.start = start;
+    this.end = end;
+  }
+}
+
+export IntRange emptyIntRange() {
+  return new IntRange(0, 0);
+}
+
+export bool rangeIsEmpty(IntRange range) {
+  return range.end - range.start <= 0;
+}
+
+export IntRange rangeIntersect(IntRange one, IntRange other) {
+  if (one.start >= other.end || other.start >= one.end) {
+    return emptyIntRange();
+  }
+  int start = one.start;
+  if (other.start > start) {
+    start = other.start;
+  }
+  int end = one.end;
+  if (other.end < end) {
+    end = other.end;
+  }
+  if (end - start <= 0) {
+    return emptyIntRange();
+  }
+  return new IntRange(start, end);
+}
+
+export bool rangeIntersects(IntRange one, IntRange other) {
+  return !rangeIsEmpty(rangeIntersect(one, other));
+}
+
+export IntRange[] rangeRelativeComplement(IntRange one, IntRange other) {
+  IntRange[] result = [];
+  int firstEnd = other.start;
+  if (one.end < firstEnd) {
+    firstEnd = one.end;
+  }
+  IntRange first = new IntRange(one.start, firstEnd);
+  int secondStart = other.end;
+  if (one.start > secondStart) {
+    secondStart = one.start;
+  }
+  IntRange second = new IntRange(secondStart, one.end);
+  if (!rangeIsEmpty(first)) {
+    result.push(first);
+  }
+  if (!rangeIsEmpty(second)) {
+    result.push(second);
+  }
+  return result;
+}

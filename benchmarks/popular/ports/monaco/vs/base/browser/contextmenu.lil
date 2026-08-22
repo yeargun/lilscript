@@ -1,0 +1,49 @@
+export class ContextMenuDelegate {
+  func()->JsValue anchorProvider;
+  func()->JsValue actionsProvider;
+  func(bool)->void hideHandler;
+  bool skipTelemetry;
+  bool autoSelectFirstItem;
+  int anchorAlignment;
+  int anchorAxisAlignment;
+  int layer;
+
+  init(func()->JsValue anchorProvider, func()->JsValue actionsProvider, func(bool)->void hideHandler) {
+    this.anchorProvider = anchorProvider;
+    this.actionsProvider = actionsProvider;
+    this.hideHandler = hideHandler;
+    this.skipTelemetry = false;
+    this.autoSelectFirstItem = true;
+    this.anchorAlignment = 0;
+    this.anchorAxisAlignment = 0;
+    this.layer = 0;
+  }
+
+  JsValue getAnchor() {
+    return this.anchorProvider();
+  }
+
+  JsValue getActions() {
+    return this.actionsProvider();
+  }
+
+  void onHide(bool didCancel) {
+    this.hideHandler(didCancel);
+  }
+}
+
+export class ContextMenuProvider {
+  func(ContextMenuDelegate)->void showHandler;
+
+  init(func(ContextMenuDelegate)->void showHandler) {
+    this.showHandler = showHandler;
+  }
+
+  void showContextMenu(ContextMenuDelegate delegate) {
+    this.showHandler(delegate);
+  }
+}
+
+export ContextMenuDelegate createContextMenuDelegate(func()->JsValue anchorProvider, func()->JsValue actionsProvider, func(bool)->void hideHandler) {
+  return new ContextMenuDelegate(anchorProvider, actionsProvider, hideHandler);
+}

@@ -1,0 +1,112 @@
+
+export class TextRange {
+  int startLineNumber;
+  int startColumn;
+  int endLineNumber;
+  int endColumn;
+
+  init(int startLineNumber, int startColumn, int endLineNumber, int endColumn) {
+    this.startLineNumber = startLineNumber;
+    this.startColumn = startColumn;
+    this.endLineNumber = endLineNumber;
+    this.endColumn = endColumn;
+  }
+}
+
+export class TextPos {
+  int lineNumber;
+  int column;
+
+  init(int lineNumber, int column) {
+    this.lineNumber = lineNumber;
+    this.column = column;
+  }
+}
+
+bool posBefore(TextPos a, TextPos b) {
+  if (a.lineNumber < b.lineNumber) {
+    return true;
+  }
+  if (a.lineNumber > b.lineNumber) {
+    return false;
+  }
+  return a.column < b.column;
+}
+
+bool rangeContainsPos(TextRange range, int lineNumber, int column) {
+  if (lineNumber < range.startLineNumber || lineNumber > range.endLineNumber) {
+    return false;
+  }
+  if (lineNumber == range.startLineNumber && column < range.startColumn) {
+    return false;
+  }
+  if (lineNumber == range.endLineNumber && column > range.endColumn) {
+    return false;
+  }
+  return true;
+}
+
+export TextRange createTextRange(int startLine, int startColumn, int endLine, int endColumn) {
+  return new TextRange(startLine, startColumn, endLine, endColumn);
+}
+
+export TextPos createTextPos(int lineNumber, int column) {
+  return new TextPos(lineNumber, column);
+}
+
+export int HOVER_ANCHOR_RANGE = 1;
+export int HOVER_ANCHOR_FOREIGN = 2;
+
+export class HoverRangeAnchor {
+  int priority;
+  TextRange range;
+  int initialMousePosX;
+  int initialMousePosY;
+  int type;
+
+  init(int priority, TextRange range, int initialMousePosX, int initialMousePosY) {
+    this.priority = priority;
+    this.range = range;
+    this.initialMousePosX = initialMousePosX;
+    this.initialMousePosY = initialMousePosY;
+    this.type = HOVER_ANCHOR_RANGE;
+  }
+
+  bool equalsAnchor(HoverRangeAnchor other) {
+    return other.type == this.type
+      && this.range.startLineNumber == other.range.startLineNumber
+      && this.range.startColumn == other.range.startColumn
+      && this.range.endLineNumber == other.range.endLineNumber
+      && this.range.endColumn == other.range.endColumn;
+  }
+
+  bool canAdoptVisibleHover(int showAtLine) {
+    return showAtLine == this.range.startLineNumber;
+  }
+}
+
+export class HoverParticipantRegistry {
+  string[] participants;
+
+  init() {
+    this.participants = [];
+  }
+
+  void register(string id) {
+    if (this.participants.indexOf(id) < 0) {
+      this.participants.push(id);
+    }
+  }
+
+  string[] getAll() {
+    return this.participants;
+  }
+}
+
+export HoverRangeAnchor createHoverRangeAnchor(int priority, TextRange range, int x, int y) {
+  return new HoverRangeAnchor(priority, range, x, y);
+}
+
+export HoverParticipantRegistry createHoverParticipantRegistry() {
+  return new HoverParticipantRegistry();
+}

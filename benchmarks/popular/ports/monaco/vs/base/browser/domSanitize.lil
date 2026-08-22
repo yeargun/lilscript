@@ -1,0 +1,37 @@
+import { stringReplace, newRegexp, setInnerHTML, createTextNode, jsPropString } from "../../../js-host";
+
+export string[] basicMarkupHtmlTags = [
+  "a", "abbr", "b", "bdo", "blockquote", "br", "caption", "cite", "code", "col",
+  "colgroup", "dd", "del", "details", "dfn", "div", "dl", "dt", "em", "figcaption",
+  "figure", "h1", "h2", "h3", "h4", "h5", "h6", "hr", "i", "img", "ins", "kbd",
+  "label", "li", "mark", "ol", "p", "pre", "q", "rp", "rt", "ruby", "s", "samp",
+  "small", "source", "span", "strike", "strong", "sub", "summary", "sup", "table",
+  "tbody", "td", "tfoot", "th", "thead", "time", "tr", "tt", "u", "ul", "video", "wbr"
+];
+
+export string[] defaultAllowedAttrs = [
+  "href", "target", "src", "alt", "title", "for", "name", "role", "tabindex",
+  "x-dispatch", "required", "checked", "placeholder", "type", "start", "width", "height", "align"
+];
+
+export string sanitizeHtml(string untrusted, JsValue config) {
+  string clean = untrusted;
+  clean = stringReplace(clean, newRegexp("<\\s*(script|style|iframe|object|embed|form|input|button|textarea|select)[^>]*>[\\s\\S]*?<\\s*\\/\\s*\\1\\s*>", "gi"), "");
+  clean = stringReplace(clean, newRegexp("<\\s*(script|style|iframe|object|embed|form|input|button|textarea|select)[^>]*\\/?>", "gi"), "");
+  clean = stringReplace(clean, newRegexp("\\s+on[a-z]+\\s*=\\s*(\"[^\"]*\"|'[^']*'|[^\\s>]+)", "gi"), "");
+  clean = stringReplace(clean, newRegexp("\\s+(href|src)\\s*=\\s*([\"'])\\s*(javascript|vbscript|data):[\\s\\S]*?\\2", "gi"), "");
+  clean = stringReplace(clean, newRegexp("<!--([\\s\\S]*?)-->", "g"), "");
+  return clean;
+}
+
+export JsValue convertTagToPlaintext(JsValue node) {
+  string outer = jsPropString(node, "outerHTML", "");
+  if (outer.length == 0) {
+    outer = jsPropString(node, "textContent", "");
+  }
+  return createTextNode(outer);
+}
+
+export void safeSetInnerHtml(JsValue node, string untrusted, JsValue config) {
+  setInnerHTML(node, sanitizeHtml(untrusted, config));
+}

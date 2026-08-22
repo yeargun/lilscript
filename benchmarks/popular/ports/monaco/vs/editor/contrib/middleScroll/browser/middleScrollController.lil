@@ -1,0 +1,37 @@
+export class MiddleScroll {
+  bool active;
+  int originX;
+  int originY;
+  int velocityY;
+
+  init() {
+    this.active = false;
+    this.originX = 0;
+    this.originY = 0;
+    this.velocityY = 0;
+  }
+
+  void start(int x, int y) {
+    this.active = true;
+    this.originX = x;
+    this.originY = y;
+    this.velocityY = 0;
+  }
+
+  int tick(int mouseY) {
+    if (!this.active) {
+      return 0;
+    }
+    this.velocityY = (mouseY - this.originY) / 8;
+    return this.velocityY;
+  }
+
+  void stop() {
+    this.active = false;
+    this.velocityY = 0;
+  }
+}
+
+export MiddleScroll createMiddleScroll() {
+  return new MiddleScroll();
+}

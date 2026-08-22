@@ -1,0 +1,122 @@
+import { clipboardReadEvent, clipboardWriteEvent, concat2, emptyBuf, preventDefault } from "../../../../../js-host";
+
+export class ClipboardMetadata {
+  int version;
+  string id;
+  bool isFromEmptySelection;
+  string mode;
+  string text;
+
+  init(int version, string id, bool isFromEmptySelection, string mode, string text) {
+    this.version = version;
+    this.id = id;
+    this.isFromEmptySelection = isFromEmptySelection;
+    this.mode = mode;
+    this.text = text;
+  }
+}
+
+export class DataToCopy {
+  bool isFromEmptySelection;
+  string text;
+  string html;
+  string mode;
+
+  init(bool isFromEmptySelection, string text, string html, string mode) {
+    this.isFromEmptySelection = isFromEmptySelection;
+    this.text = text;
+    this.html = html;
+    this.mode = mode;
+  }
+}
+
+export class InMemoryClipboardMetadataManager {
+  string lastCopiedValue;
+  ClipboardMetadata? data;
+
+  init() {
+    this.lastCopiedValue = "";
+    this.data = null;
+  }
+
+  void set(string lastCopiedValue, ClipboardMetadata data) {
+    this.lastCopiedValue = lastCopiedValue;
+    this.data = data;
+  }
+
+  ClipboardMetadata? get(string pastedText) {
+    if (this.data != null && this.lastCopiedValue == pastedText) {
+      return this.data;
+    }
+    this.data = null;
+    return null;
+  }
+}
+
+InMemoryClipboardMetadataManager inMemoryClipboard = new InMemoryClipboardMetadataManager();
+
+export InMemoryClipboardMetadataManager createInMemoryClipboardMetadataManager() {
+  return new InMemoryClipboardMetadataManager();
+}
+
+export string firefoxNormalize(string text, bool isFirefox) {
+  if (!isFirefox) {
+    return text;
+  }
+  string out = emptyBuf();
+  int i = 0;
+  while (i < text.length) {
+    string ch = text.charAt(i);
+    if (ch == "\r" && i + 1 < text.length && text.charAt(i + 1) == "\n") {
+      out = concat2(out, "\n");
+      i = i + 2;
+    } else {
+      out = concat2(out, ch);
+      i = i + 1;
+    }
+  }
+  return out;
+}
+
+export DataToCopy getDataToCopy(string sourceText, bool emptySelection, bool isEmptySelection, string mode, bool copyWithSyntaxHighlighting, string html) {
+  string outHtml = "";
+  if (copyWithSyntaxHighlighting && sourceText.length < 65536) {
+    outHtml = html;
+  }
+  return new DataToCopy(emptySelection && isEmptySelection, sourceText, outHtml, mode);
+}
+
+export void storeClipboardMetadata(string textToCopy, ClipboardMetadata metadata, bool isFirefox) {
+  inMemoryClipboard.set(firefoxNormalize(textToCopy, isFirefox), metadata);
+}
+
+export ClipboardMetadata? lookupClipboardMetadata(string pastedText) {
+  return inMemoryClipboard.get(pastedText);
+}
+
+export void writeClipboardEvent(JsValue event, string text) {
+  preventDefault(event);
+  clipboardWriteEvent(event, text);
+}
+
+export string readClipboardEvent(JsValue event) {
+  return clipboardReadEvent(event);
+}
+
+export ClipboardMetadata createClipboardMetadata(string id, bool isFromEmptySelection, string mode, string text) {
+  return new ClipboardMetadata(1, id, isFromEmptySelection, mode, text);
+}
+
+bool copyWithSyntaxHighlightingForced = false;
+
+export bool forceCopyWithSyntaxHighlighting() {
+  return copyWithSyntaxHighlightingForced;
+}
+
+export void setForceCopyWithSyntaxHighlighting(bool value) {
+  copyWithSyntaxHighlightingForced = value;
+}
+
+export string vscodeEditorDataMime() {
+  return "vscode-editor-data";
+}

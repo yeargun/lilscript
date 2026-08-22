@@ -1,0 +1,41 @@
+export class AbstractEditContext {
+  int willCopyCount;
+  int willCutCount;
+  int willPasteCount;
+  bool focused;
+
+  init() {
+    this.willCopyCount = 0;
+    this.willCutCount = 0;
+    this.willPasteCount = 0;
+    this.focused = false;
+  }
+
+  void emitWillCopy() {
+    this.willCopyCount = this.willCopyCount + 1;
+  }
+
+  void emitWillCut() {
+    this.willCutCount = this.willCutCount + 1;
+  }
+
+  void emitWillPaste() {
+    this.willPasteCount = this.willPasteCount + 1;
+  }
+
+  void focus() {
+    this.focused = true;
+  }
+
+  void blur() {
+    this.focused = false;
+  }
+
+  bool isFocused() {
+    return this.focused;
+  }
+}
+
+export AbstractEditContext createAbstractEditContext() {
+  return new AbstractEditContext();
+}

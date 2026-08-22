@@ -1,0 +1,373 @@
+int compareSubstring(string a, string b, int aStart, int aEnd, int bStart, int bEnd) {
+  int aLen = aEnd - aStart;
+  int bLen = bEnd - bStart;
+  int n = aLen;
+  if (bLen < n) {
+    n = bLen;
+  }
+  int i = 0;
+  while (i < n) {
+    int aCode = a.charCodeAt(aStart + i);
+    int bCode = b.charCodeAt(bStart + i);
+    if (aCode != bCode) {
+      return aCode - bCode;
+    }
+    i = i + 1;
+  }
+  return aLen - bLen;
+}
+
+export class StringIterator {
+  string value;
+  int pos;
+
+  init() {
+    this.value = "";
+    this.pos = 0;
+  }
+
+  StringIterator reset(string key) {
+    this.value = key;
+    this.pos = 0;
+    return this;
+  }
+
+  StringIterator next() {
+    this.pos = this.pos + 1;
+    return this;
+  }
+
+  bool hasNext() {
+    return this.pos < this.value.length - 1;
+  }
+
+  int cmp(string a) {
+    int aCode = a.charCodeAt(0);
+    int thisCode = this.value.charCodeAt(this.pos);
+    return aCode - thisCode;
+  }
+
+  string valueAt() {
+    return this.value.charAt(this.pos);
+  }
+}
+
+export class PathIterator {
+  bool splitOnBackslash;
+  bool caseSensitive;
+  string value;
+  int from;
+  int to;
+  int valueLen;
+
+  init(bool splitOnBackslash, bool caseSensitive) {
+    this.splitOnBackslash = splitOnBackslash;
+    this.caseSensitive = caseSensitive;
+    this.value = "";
+    this.from = 0;
+    this.to = 0;
+    this.valueLen = 0;
+  }
+
+  PathIterator reset(string key) {
+    this.from = 0;
+    this.to = 0;
+    this.value = key;
+    this.valueLen = key.length;
+    int pos = key.length - 1;
+    while (pos >= 0) {
+      int ch = this.value.charCodeAt(pos);
+      if (!(ch == 47 || (this.splitOnBackslash && ch == 92))) {
+        break;
+      }
+      this.valueLen = this.valueLen - 1;
+      pos = pos - 1;
+    }
+    return this.next();
+  }
+
+  bool hasNext() {
+    return this.to < this.valueLen;
+  }
+
+  PathIterator next() {
+    this.from = this.to;
+    bool justSeps = true;
+    while (this.to < this.valueLen) {
+      int ch = this.value.charCodeAt(this.to);
+      if (ch == 47 || (this.splitOnBackslash && ch == 92)) {
+        if (justSeps) {
+          this.from = this.from + 1;
+        } else {
+          break;
+        }
+      } else {
+        justSeps = false;
+      }
+      this.to = this.to + 1;
+    }
+    return this;
+  }
+
+  int cmp(string a) {
+    return compareSubstring(a, this.value, 0, a.length, this.from, this.to);
+  }
+
+  string valueAt() {
+    string out = "";
+    int i = this.from;
+    while (i < this.to) {
+      out = out + this.value.charAt(i);
+      i = i + 1;
+    }
+    return out;
+  }
+}
+
+class TernarySearchTreeNode {
+  int height;
+  string segment;
+  string? stored;
+  bool hasValue;
+  TernarySearchTreeNode? left;
+  TernarySearchTreeNode? mid;
+  TernarySearchTreeNode? right;
+
+  init() {
+    this.height = 1;
+    this.segment = "";
+    this.stored = null;
+    this.hasValue = false;
+    this.left = null;
+    this.mid = null;
+    this.right = null;
+  }
+
+  int heightLeft() {
+    TernarySearchTreeNode? n = this.left;
+    if (n == null) {
+      return 0;
+    }
+    return n.height;
+  }
+
+  int heightRight() {
+    TernarySearchTreeNode? n = this.right;
+    if (n == null) {
+      return 0;
+    }
+    return n.height;
+  }
+
+  void updateHeight() {
+    int leftH = this.heightLeft();
+    int rightH = this.heightRight();
+    int maxH = leftH;
+    if (rightH > maxH) {
+      maxH = rightH;
+    }
+    this.height = 1 + maxH;
+  }
+
+  int balanceFactor() {
+    return this.heightRight() - this.heightLeft();
+  }
+
+  TernarySearchTreeNode rotateLeft() {
+    TernarySearchTreeNode? tmpNode = this.right;
+    if (tmpNode == null) {
+      return this;
+    }
+    this.right = tmpNode.left;
+    tmpNode.left = this;
+    this.updateHeight();
+    tmpNode.updateHeight();
+    return tmpNode;
+  }
+
+  TernarySearchTreeNode rotateRight() {
+    TernarySearchTreeNode? tmpNode = this.left;
+    if (tmpNode == null) {
+      return this;
+    }
+    this.left = tmpNode.right;
+    tmpNode.right = this;
+    this.updateHeight();
+    tmpNode.updateHeight();
+    return tmpNode;
+  }
+}
+
+class DirNode {
+  int dir;
+  TernarySearchTreeNode node;
+
+  init(int dir, TernarySearchTreeNode node) {
+    this.dir = dir;
+    this.node = node;
+  }
+}
+
+export class TernarySearchTree {
+  StringIterator iter;
+  TernarySearchTreeNode? root;
+
+  init() {
+    this.iter = new StringIterator();
+    this.root = null;
+  }
+
+  void clear() {
+    this.root = null;
+  }
+
+  string? set(string key, string element) {
+    StringIterator iter = this.iter.reset(key);
+    TernarySearchTreeNode? existingRoot = this.root;
+    if (existingRoot == null) {
+      TernarySearchTreeNode created = new TernarySearchTreeNode();
+      created.segment = iter.valueAt();
+      this.root = created;
+      existingRoot = created;
+    }
+    DirNode[] stack = [];
+    TernarySearchTreeNode node = new TernarySearchTreeNode();
+    if (existingRoot != null) {
+      node = existingRoot;
+    }
+    while (true) {
+      int val = iter.cmp(node.segment);
+      if (val > 0) {
+        TernarySearchTreeNode? left = node.left;
+        if (left == null) {
+          TernarySearchTreeNode created = new TernarySearchTreeNode();
+          created.segment = iter.valueAt();
+          node.left = created;
+          left = created;
+        }
+        stack.push(new DirNode(-1, node));
+        if (left != null) {
+          node = left;
+        }
+      } else if (val < 0) {
+        TernarySearchTreeNode? right = node.right;
+        if (right == null) {
+          TernarySearchTreeNode created = new TernarySearchTreeNode();
+          created.segment = iter.valueAt();
+          node.right = created;
+          right = created;
+        }
+        stack.push(new DirNode(1, node));
+        if (right != null) {
+          node = right;
+        }
+      } else if (iter.hasNext()) {
+        iter.next();
+        TernarySearchTreeNode? mid = node.mid;
+        if (mid == null) {
+          TernarySearchTreeNode created = new TernarySearchTreeNode();
+          created.segment = iter.valueAt();
+          node.mid = created;
+          mid = created;
+        }
+        stack.push(new DirNode(0, node));
+        if (mid != null) {
+          node = mid;
+        }
+      } else {
+        break;
+      }
+    }
+    string? oldElement = node.stored;
+    node.stored = element;
+    node.hasValue = true;
+    int i = stack.length - 1;
+    while (i >= 0) {
+      TernarySearchTreeNode stackNode = stack[i].node;
+      stackNode.updateHeight();
+      int bf = stackNode.balanceFactor();
+      if (bf < -1 || bf > 1) {
+        int d1 = stack[i].dir;
+        int d2 = stack[i + 1].dir;
+        if (d1 == 1 && d2 == 1) {
+          stack[i].node = stackNode.rotateLeft();
+        } else if (d1 == -1 && d2 == -1) {
+          stack[i].node = stackNode.rotateRight();
+        } else if (d1 == 1 && d2 == -1) {
+          TernarySearchTreeNode? right = stackNode.right;
+          if (right != null) {
+            TernarySearchTreeNode rotated = right.rotateRight();
+            stackNode.right = rotated;
+            stack[i + 1].node = rotated;
+          }
+          stack[i].node = stackNode.rotateLeft();
+        } else if (d1 == -1 && d2 == 1) {
+          TernarySearchTreeNode? left = stackNode.left;
+          if (left != null) {
+            TernarySearchTreeNode rotated = left.rotateLeft();
+            stackNode.left = rotated;
+            stack[i + 1].node = rotated;
+          }
+          stack[i].node = stackNode.rotateRight();
+        }
+        if (i > 0) {
+          int parentDir = stack[i - 1].dir;
+          if (parentDir == -1) {
+            stack[i - 1].node.left = stack[i].node;
+          } else if (parentDir == 1) {
+            stack[i - 1].node.right = stack[i].node;
+          } else {
+            stack[i - 1].node.mid = stack[i].node;
+          }
+        } else {
+          this.root = stack[0].node;
+        }
+      }
+      i = i - 1;
+    }
+    return oldElement;
+  }
+
+  TernarySearchTreeNode? getNode(string key) {
+    StringIterator iter = this.iter.reset(key);
+    TernarySearchTreeNode? node = this.root;
+    while (node != null) {
+      TernarySearchTreeNode current = node;
+      int val = iter.cmp(current.segment);
+      if (val > 0) {
+        node = current.left;
+      } else if (val < 0) {
+        node = current.right;
+      } else if (iter.hasNext()) {
+        iter.next();
+        node = current.mid;
+      } else {
+        break;
+      }
+    }
+    return node;
+  }
+
+  string? get(string key) {
+    TernarySearchTreeNode? node = this.getNode(key);
+    if (node == null) {
+      return null;
+    }
+    if (!node.hasValue) {
+      return null;
+    }
+    return node.stored;
+  }
+
+  bool has(string key) {
+    TernarySearchTreeNode? node = this.getNode(key);
+    if (node == null) {
+      return false;
+    }
+    return node.hasValue || node.mid != null;
+  }
+}
+
+export TernarySearchTree forStrings() {
+  return new TernarySearchTree();
+}

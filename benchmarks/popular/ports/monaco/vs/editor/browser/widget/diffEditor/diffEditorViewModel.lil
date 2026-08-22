@@ -1,0 +1,205 @@
+int nmax(int a, int b) {
+  if (a > b) {
+    return a;
+  }
+  return b;
+}
+
+int nmin(int a, int b) {
+  if (a < b) {
+    return a;
+  }
+  return b;
+}
+
+export class LineRange {
+  int startLineNumber;
+  int endLineNumberExclusive;
+
+  init(int startLineNumber, int endLineNumberExclusive) {
+    this.startLineNumber = startLineNumber;
+    this.endLineNumberExclusive = endLineNumberExclusive;
+  }
+
+  int length() {
+    int n = this.endLineNumberExclusive - this.startLineNumber;
+    if (n < 0) {
+      return 0;
+    }
+    return n;
+  }
+
+  bool contains(int lineNumber) {
+    return lineNumber >= this.startLineNumber && lineNumber < this.endLineNumberExclusive;
+  }
+}
+
+export LineRange lineRangeOfLength(int start, int length) {
+  return new LineRange(start, start + length);
+}
+
+export class LineRangeMapping {
+  LineRange original;
+  LineRange modified;
+
+  init(LineRange original, LineRange modified) {
+    this.original = original;
+    this.modified = modified;
+  }
+}
+
+export LineRangeMapping[] inverseMappings(LineRangeMapping[] changes, int originalLineCount, int modifiedLineCount) {
+  LineRangeMapping[] result = [];
+  int orig = 1;
+  int mod = 1;
+  int i = 0;
+  while (i < changes.length) {
+    LineRangeMapping c = changes[i];
+    if (orig < c.original.startLineNumber || mod < c.modified.startLineNumber) {
+      result.push(new LineRangeMapping(new LineRange(orig, c.original.startLineNumber), new LineRange(mod, c.modified.startLineNumber)));
+    }
+    orig = c.original.endLineNumberExclusive;
+    mod = c.modified.endLineNumberExclusive;
+    i = i + 1;
+  }
+  if (orig <= originalLineCount + 1 || mod <= modifiedLineCount + 1) {
+    result.push(new LineRangeMapping(new LineRange(orig, originalLineCount + 1), new LineRange(mod, modifiedLineCount + 1)));
+  }
+  return result;
+}
+
+export class UnchangedRegion {
+  int originalLineNumber;
+  int modifiedLineNumber;
+  int lineCount;
+  int visibleLineCountTop;
+  int visibleLineCountBottom;
+
+  init(int originalLineNumber, int modifiedLineNumber, int lineCount, int visibleLineCountTop, int visibleLineCountBottom) {
+    this.originalLineNumber = originalLineNumber;
+    this.modifiedLineNumber = modifiedLineNumber;
+    this.lineCount = lineCount;
+    this.visibleLineCountTop = nmax(0, nmin(visibleLineCountTop, lineCount));
+    this.visibleLineCountBottom = nmax(0, nmin(visibleLineCountBottom, lineCount - this.visibleLineCountTop));
+  }
+
+  LineRange originalUnchangedRange() {
+    return lineRangeOfLength(this.originalLineNumber, this.lineCount);
+  }
+
+  LineRange modifiedUnchangedRange() {
+    return lineRangeOfLength(this.modifiedLineNumber, this.lineCount);
+  }
+
+  LineRange getHiddenOriginalRange() {
+    return lineRangeOfLength(this.originalLineNumber + this.visibleLineCountTop, this.lineCount - this.visibleLineCountTop - this.visibleLineCountBottom);
+  }
+
+  LineRange getHiddenModifiedRange() {
+    return lineRangeOfLength(this.modifiedLineNumber + this.visibleLineCountTop, this.lineCount - this.visibleLineCountTop - this.visibleLineCountBottom);
+  }
+
+  void showMoreAbove(int count) {
+    int maxTop = this.lineCount - this.visibleLineCountBottom;
+    this.visibleLineCountTop = nmin(this.visibleLineCountTop + count, maxTop);
+  }
+
+  void showMoreBelow(int count) {
+    int maxBottom = this.lineCount - this.visibleLineCountTop;
+    this.visibleLineCountBottom = nmin(this.visibleLineCountBottom + count, maxBottom);
+  }
+
+  void showAll() {
+    this.visibleLineCountBottom = this.lineCount - this.visibleLineCountTop;
+  }
+
+  void collapseAll() {
+    this.visibleLineCountTop = 0;
+    this.visibleLineCountBottom = 0;
+  }
+
+  void setState(int visibleLineCountTop, int visibleLineCountBottom) {
+    this.visibleLineCountTop = nmax(0, nmin(visibleLineCountTop, this.lineCount));
+    this.visibleLineCountBottom = nmax(0, nmin(visibleLineCountBottom, this.lineCount - this.visibleLineCountTop));
+  }
+
+  void showModifiedLine(int lineNumber, int preference) {
+    int top = lineNumber + 1 - (this.modifiedLineNumber + this.visibleLineCountTop);
+    int bottom = (this.modifiedLineNumber - this.visibleLineCountBottom + this.lineCount) - lineNumber;
+    if (preference == 1 || preference == 0 && top < bottom) {
+      this.visibleLineCountTop = this.visibleLineCountTop + top;
+    } else {
+      this.visibleLineCountBottom = this.visibleLineCountBottom + bottom;
+    }
+    this.setState(this.visibleLineCountTop, this.visibleLineCountBottom);
+  }
+}
+
+export UnchangedRegion[] unchangedRegionsFromDiffs(LineRangeMapping[] changes, int originalLineCount, int modifiedLineCount, int minHiddenLineCount, int minContext) {
+  LineRangeMapping[] inversed = inverseMappings(changes, originalLineCount, modifiedLineCount);
+  UnchangedRegion[] result = [];
+  int i = 0;
+  while (i < inversed.length) {
+    LineRangeMapping mapping = inversed[i];
+    int origStart = mapping.original.startLineNumber;
+    int modStart = mapping.modified.startLineNumber;
+    int length = mapping.original.length();
+    bool atStart = origStart == 1 && modStart == 1;
+    bool atEnd = origStart + length == originalLineCount + 1 && modStart + length == modifiedLineCount + 1;
+    if ((atStart || atEnd) && length >= minContext + minHiddenLineCount) {
+      if (atStart && !atEnd) {
+        length = length - minContext;
+      }
+      if (atEnd && !atStart) {
+        origStart = origStart + minContext;
+        modStart = modStart + minContext;
+        length = length - minContext;
+      }
+      result.push(new UnchangedRegion(origStart, modStart, length, 0, 0));
+    } else if (length >= minContext * 2 + minHiddenLineCount) {
+      origStart = origStart + minContext;
+      modStart = modStart + minContext;
+      length = length - minContext * 2;
+      result.push(new UnchangedRegion(origStart, modStart, length, 0, 0));
+    }
+    i = i + 1;
+  }
+  return result;
+}
+
+export class DiffEditorViewModel {
+  LineRangeMapping[] changes;
+  UnchangedRegion[] unchangedRegions;
+  int originalLineCount;
+  int modifiedLineCount;
+  bool hideUnchangedRegions;
+  int minHiddenLineCount;
+  int minContext;
+
+  init(int originalLineCount, int modifiedLineCount) {
+    this.changes = [];
+    this.unchangedRegions = [];
+    this.originalLineCount = originalLineCount;
+    this.modifiedLineCount = modifiedLineCount;
+    this.hideUnchangedRegions = false;
+    this.minHiddenLineCount = 3;
+    this.minContext = 3;
+  }
+
+  void setChanges(LineRangeMapping[] changes) {
+    this.changes = changes;
+    if (this.hideUnchangedRegions) {
+      this.unchangedRegions = unchangedRegionsFromDiffs(changes, this.originalLineCount, this.modifiedLineCount, this.minHiddenLineCount, this.minContext);
+    } else {
+      this.unchangedRegions = [];
+    }
+  }
+}
+
+export DiffEditorViewModel createDiffEditorViewModel(int originalLineCount, int modifiedLineCount) {
+  return new DiffEditorViewModel(originalLineCount, modifiedLineCount);
+}
+
+export LineRangeMapping createLineRangeMapping(int origStart, int origEndEx, int modStart, int modEndEx) {
+  return new LineRangeMapping(new LineRange(origStart, origEndEx), new LineRange(modStart, modEndEx));
+}

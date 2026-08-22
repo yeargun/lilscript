@@ -1,0 +1,784 @@
+import {
+  addEventListener,
+  appendChild,
+  classListAdd,
+  classListRemove,
+  domCreateElement,
+  eventButton,
+  eventClientX,
+  eventClientY,
+  getClientHeight,
+  getClientWidth,
+  getScrollHeight,
+  getScrollLeft,
+  getScrollTop,
+  hostCall,
+  jsUndefined,
+  preventDefault,
+  rectLeft,
+  rectTop,
+  removeEventListener,
+  setAttribute,
+  setClassName,
+  setScrollLeft,
+  setScrollTop,
+  setStyle,
+  stopPropagation,
+  windowSelf
+} from "../../../../../js-host";
+import { ScrollbarArrow, createScrollbarArrow } from "./scrollbarArrow";
+import { ScrollbarVisibilityController, createScrollbarVisibilityController } from "./scrollbarVisibilityController";
+import { ScrollableElementOptions } from "./scrollableElementOptions";
+
+int POINTER_DRAG_RESET_DISTANCE = 140;
+int MINIMUM_SLIDER_SIZE = 20;
+int ARROW_IMG_SIZE = 11;
+
+AbstractScrollbar[] abstractScrollbars = [];
+AbstractScrollbar? activeScrollbar = null;
+SliderState? initialDragState = null;
+int initialPointerPosition = 0;
+int initialOrthogonalPosition = 0;
+
+float scrollbarNumber(JsValue value, float fallback) {
+  if (value is float) {
+    float n = value;
+    return n;
+  }
+  return fallback;
+}
+
+int scrollbarInt(JsValue value, int fallback) {
+  return scrollbarNumber(value, fallback * 1.0).round().toInt();
+}
+
+int readNodeInt(JsValue node, string key, int fallback) {
+  if (node == null) {
+    return fallback;
+  }
+  return scrollbarInt(node[key], fallback);
+}
+
+class SliderState {
+  int scrollbarSize;
+  int oppositeScrollbarSize;
+  int arrowSize;
+  int visibleSize;
+  int scrollSize;
+  int scrollPosition;
+  int computedAvailableSize;
+  bool computedIsNeeded;
+  int computedSliderSize;
+  float computedSliderRatio;
+  int computedSliderPosition;
+
+  init(int arrowSize, int scrollbarSize, int oppositeScrollbarSize, int visibleSize, int scrollSize, int scrollPosition) {
+    this.scrollbarSize = (scrollbarSize * 1.0).round().toInt();
+    this.oppositeScrollbarSize = (oppositeScrollbarSize * 1.0).round().toInt();
+    this.arrowSize = (arrowSize * 1.0).round().toInt();
+    this.visibleSize = (visibleSize * 1.0).round().toInt();
+    this.scrollSize = (scrollSize * 1.0).round().toInt();
+    this.scrollPosition = (scrollPosition * 1.0).round().toInt();
+    this.computedAvailableSize = 0;
+    this.computedIsNeeded = false;
+    this.computedSliderSize = 0;
+    this.computedSliderRatio = 0.0;
+    this.computedSliderPosition = 0;
+    this.refreshComputedValues();
+  }
+
+  void refreshComputedValues() {
+    int computedAvailableSize = this.visibleSize - this.oppositeScrollbarSize;
+    if (computedAvailableSize < 0) {
+      computedAvailableSize = 0;
+    }
+    int computedRepresentableSize = computedAvailableSize - 2 * this.arrowSize;
+    if (computedRepresentableSize < 0) {
+      computedRepresentableSize = 0;
+    }
+    bool computedIsNeeded = this.scrollSize > 0 && this.scrollSize > this.visibleSize;
+    this.computedAvailableSize = computedAvailableSize;
+    this.computedIsNeeded = computedIsNeeded;
+    if (!computedIsNeeded) {
+      this.computedSliderSize = computedRepresentableSize;
+      this.computedSliderRatio = 0.0;
+      this.computedSliderPosition = 0;
+      return;
+    }
+    int computedSliderSize = (
+      this.visibleSize * 1.0 * computedRepresentableSize * 1.0 / (this.scrollSize * 1.0)
+    ).floor().toInt();
+    if (computedSliderSize < MINIMUM_SLIDER_SIZE) {
+      computedSliderSize = MINIMUM_SLIDER_SIZE;
+    }
+    float computedSliderRatio = 0.0;
+    int denom = this.scrollSize - this.visibleSize;
+    if (denom != 0) {
+      computedSliderRatio = (computedRepresentableSize - computedSliderSize) * 1.0 / (denom * 1.0);
+    }
+    this.computedSliderSize = computedSliderSize;
+    this.computedSliderRatio = computedSliderRatio;
+    this.computedSliderPosition = (this.scrollPosition * 1.0 * computedSliderRatio).round().toInt();
+  }
+
+  bool setVisibleSize(int visibleSize) {
+    int next = (visibleSize * 1.0).round().toInt();
+    if (this.visibleSize != next) {
+      this.visibleSize = next;
+      this.refreshComputedValues();
+      return true;
+    }
+    return false;
+  }
+
+  bool setScrollSize(int scrollSize) {
+    int next = (scrollSize * 1.0).round().toInt();
+    if (this.scrollSize != next) {
+      this.scrollSize = next;
+      this.refreshComputedValues();
+      return true;
+    }
+    return false;
+  }
+
+  bool setScrollPosition(int scrollPosition) {
+    int next = (scrollPosition * 1.0).round().toInt();
+    if (this.scrollPosition != next) {
+      this.scrollPosition = next;
+      this.refreshComputedValues();
+      return true;
+    }
+    return false;
+  }
+
+  void setScrollbarSize(int scrollbarSize) {
+    this.scrollbarSize = (scrollbarSize * 1.0).round().toInt();
+  }
+
+  void setOppositeScrollbarSize(int oppositeScrollbarSize) {
+    this.oppositeScrollbarSize = (oppositeScrollbarSize * 1.0).round().toInt();
+    this.refreshComputedValues();
+  }
+
+  int getDesiredScrollPositionFromOffset(int offset) {
+    if (!this.computedIsNeeded || this.computedSliderRatio == 0.0) {
+      return 0;
+    }
+    return ((offset - this.arrowSize - this.computedSliderSize / 2) * 1.0 / this.computedSliderRatio).round().toInt();
+  }
+
+  int getDesiredScrollPositionFromOffsetPaged(int offset) {
+    if (!this.computedIsNeeded) {
+      return 0;
+    }
+    int corrected = offset - this.arrowSize;
+    if (corrected < this.computedSliderPosition) {
+      return this.scrollPosition - this.visibleSize;
+    }
+    return this.scrollPosition + this.visibleSize;
+  }
+
+  int getDesiredScrollPositionFromDelta(int delta) {
+    if (!this.computedIsNeeded || this.computedSliderRatio == 0.0) {
+      return 0;
+    }
+    return ((this.computedSliderPosition + delta) * 1.0 / this.computedSliderRatio).round().toInt();
+  }
+
+  SliderState clone() {
+    return new SliderState(
+      this.arrowSize,
+      this.scrollbarSize,
+      this.oppositeScrollbarSize,
+      this.visibleSize,
+      this.scrollSize,
+      this.scrollPosition
+    );
+  }
+}
+
+bool isWindowsPlatform() {
+  JsValue nav = windowSelf()["navigator"];
+  string plat = "";
+  string ua = "";
+  if (nav != null) {
+    JsValue platValue = nav["platform"];
+    if (platValue is string) {
+      plat = platValue;
+    }
+    JsValue uaValue = nav["userAgent"];
+    if (uaValue is string) {
+      ua = uaValue;
+    }
+  }
+  if (plat.indexOf("Win") >= 0) {
+    return true;
+  }
+  if (ua.indexOf("Windows") >= 0) {
+    return true;
+  }
+  return false;
+}
+
+void finishScrollbarDrag(JsValue event) {
+  AbstractScrollbar? active = activeScrollbar;
+  activeScrollbar = null;
+  initialDragState = null;
+  removeEventListener(windowSelf(), "pointermove", moveScrollbarDrag, false);
+  removeEventListener(windowSelf(), "pointerup", finishScrollbarDrag, false);
+  removeEventListener(windowSelf(), "pointercancel", finishScrollbarDrag, false);
+  if (active != null) {
+    active.finishDrag();
+  }
+}
+
+void moveScrollbarDrag(JsValue event) {
+  AbstractScrollbar? active = activeScrollbar;
+  SliderState? initial = initialDragState;
+  if (active == null || initial == null) {
+    return;
+  }
+  int orthogonal = active.orthogonalPointerPosition(event);
+  int orthogonalDelta = orthogonal - initialOrthogonalPosition;
+  if (orthogonalDelta < 0) {
+    orthogonalDelta = 0 - orthogonalDelta;
+  }
+  if (isWindowsPlatform() && orthogonalDelta > POINTER_DRAG_RESET_DISTANCE) {
+    active.setDesiredScrollPosition(initial.scrollPosition);
+    return;
+  }
+  int pointer = active.pointerPosition(event);
+  int delta = pointer - initialPointerPosition;
+  active.setDesiredScrollPosition(initial.getDesiredScrollPositionFromDelta(delta));
+}
+
+void beginScrollbarDrag(AbstractScrollbar scrollbar, JsValue event) {
+  activeScrollbar = scrollbar;
+  initialDragState = scrollbar.sliderState.clone();
+  initialPointerPosition = scrollbar.pointerPosition(event);
+  initialOrthogonalPosition = scrollbar.orthogonalPointerPosition(event);
+  classListAdd(scrollbar.slider, "active");
+  addEventListener(windowSelf(), "pointermove", moveScrollbarDrag, false);
+  addEventListener(windowSelf(), "pointerup", finishScrollbarDrag, false);
+  addEventListener(windowSelf(), "pointercancel", finishScrollbarDrag, false);
+  scrollbar.startDrag();
+}
+
+void scrollbarSliderPointerDown(JsValue event) {
+  if (eventButton(event) != 0) {
+    return;
+  }
+  JsValue currentTarget = event["currentTarget"];
+  int id = scrollbarInt(currentTarget["_abstractScrollbarId"], -1);
+  if (id < 0 || id >= abstractScrollbars.length) {
+    return;
+  }
+  preventDefault(event);
+  stopPropagation(event);
+  beginScrollbarDrag(abstractScrollbars[id], event);
+}
+
+void scrollbarBackgroundPointerDown(JsValue event) {
+  JsValue currentTarget = event["currentTarget"];
+  JsValue target = event["target"];
+  if (target != currentTarget) {
+    return;
+  }
+  int id = scrollbarInt(currentTarget["_abstractScrollbarId"], -1);
+  if (id < 0 || id >= abstractScrollbars.length) {
+    return;
+  }
+  abstractScrollbars[id].backgroundPointerDown(event);
+}
+
+export class AbstractScrollbar {
+  int id;
+  bool horizontal;
+  bool lazyRender;
+  bool scrollByPage;
+  bool shouldRender;
+  JsValue host;
+  JsValue scrollable;
+  JsValue domNode;
+  JsValue slider;
+  SliderState sliderState;
+  ScrollbarVisibilityController visibilityController;
+  ScrollbarArrow[] arrows;
+
+  init(
+    JsValue scrollable,
+    ScrollableElementOptions options,
+    JsValue host,
+    bool horizontal
+  ) {
+    this.id = abstractScrollbars.length;
+    this.horizontal = horizontal;
+    this.lazyRender = options.lazyRender;
+    this.scrollByPage = options.scrollByPage;
+    this.shouldRender = true;
+    this.host = host;
+    this.scrollable = scrollable;
+    this.arrows = [];
+
+    int visibleSize = readNodeInt(scrollable, "clientHeight", getClientHeight(scrollable));
+    int scrollSize = readNodeInt(scrollable, "scrollHeight", getScrollHeight(scrollable));
+    int scrollPosition = readNodeInt(scrollable, "scrollTop", getScrollTop(scrollable));
+    int arrowSize = 0;
+    int scrollbarSize = options.verticalScrollbarSize;
+    int oppositeScrollbarSize = 0;
+    int visibility = options.vertical;
+    bool hasArrows = options.verticalHasArrows;
+    if (horizontal) {
+      visibleSize = readNodeInt(scrollable, "clientWidth", getClientWidth(scrollable));
+      scrollSize = readNodeInt(scrollable, "scrollWidth", getClientWidth(scrollable));
+      if (scrollable != null && scrollable["getScrollDimensions"].truthy()) {
+        JsValue dims = hostCall(
+          scrollable,
+          "getScrollDimensions",
+          jsUndefined(),
+          jsUndefined(),
+          jsUndefined()
+        );
+        if (dims != null) {
+          visibleSize = readNodeInt(dims, "width", visibleSize);
+          scrollSize = readNodeInt(dims, "scrollWidth", scrollSize);
+        }
+      }
+      if (scrollable != null && scrollable["getCurrentScrollPosition"].truthy()) {
+        JsValue pos = hostCall(
+          scrollable,
+          "getCurrentScrollPosition",
+          jsUndefined(),
+          jsUndefined(),
+          jsUndefined()
+        );
+        if (pos != null) {
+          scrollPosition = readNodeInt(pos, "scrollLeft", getScrollLeft(scrollable));
+        }
+      } else {
+        scrollPosition = readNodeInt(scrollable, "scrollLeft", getScrollLeft(scrollable));
+      }
+      scrollbarSize = options.horizontalScrollbarSize;
+      oppositeScrollbarSize = options.verticalScrollbarSize;
+      visibility = options.horizontal;
+      hasArrows = options.horizontalHasArrows;
+      if (options.vertical == 2) {
+        oppositeScrollbarSize = 0;
+      }
+    } else {
+      if (scrollable != null && scrollable["getScrollDimensions"].truthy()) {
+        JsValue dims = hostCall(
+          scrollable,
+          "getScrollDimensions",
+          jsUndefined(),
+          jsUndefined(),
+          jsUndefined()
+        );
+        if (dims != null) {
+          visibleSize = readNodeInt(dims, "height", visibleSize);
+          scrollSize = readNodeInt(dims, "scrollHeight", scrollSize);
+        }
+      }
+      if (scrollable != null && scrollable["getCurrentScrollPosition"].truthy()) {
+        JsValue pos = hostCall(
+          scrollable,
+          "getCurrentScrollPosition",
+          jsUndefined(),
+          jsUndefined(),
+          jsUndefined()
+        );
+        if (pos != null) {
+          scrollPosition = readNodeInt(pos, "scrollTop", scrollPosition);
+        }
+      }
+    }
+    if (visibility == 2) {
+      scrollbarSize = 0;
+    }
+    if (hasArrows) {
+      arrowSize = options.arrowSize;
+    }
+    this.sliderState = new SliderState(
+      arrowSize,
+      scrollbarSize,
+      oppositeScrollbarSize,
+      visibleSize,
+      scrollSize,
+      scrollPosition
+    );
+
+    string orientationClass = "vertical";
+    if (horizontal) {
+      orientationClass = "horizontal";
+    }
+    this.visibilityController = createScrollbarVisibilityController(
+      visibility,
+      "visible scrollbar " + orientationClass,
+      "invisible scrollbar " + orientationClass
+    );
+    this.visibilityController.setIsNeeded(this.sliderState.computedIsNeeded);
+
+    this.domNode = domCreateElement("div");
+    this.domNode["_abstractScrollbarId"] = this.id;
+    setAttribute(this.domNode, "role", "presentation");
+    setAttribute(this.domNode, "aria-hidden", "true");
+    setStyle(this.domNode, "position", "absolute");
+    this.visibilityController.setDomNode(this.domNode);
+    addEventListener(this.domNode, "pointerdown", scrollbarBackgroundPointerDown, false);
+
+    this.createConfiguredArrows(options);
+    this.slider = domCreateElement("div");
+    this.slider["_abstractScrollbarId"] = this.id;
+    setClassName(this.slider, "slider");
+    setStyle(this.slider, "position", "absolute");
+    setStyle(this.slider, "contain", "strict");
+    if (horizontal) {
+      int top = (
+        (options.horizontalScrollbarSize - options.horizontalSliderSize) * 1.0 / 2.0
+      ).floor().toInt();
+      setStyle(this.slider, "top", top.toString() + "px");
+      setStyle(this.slider, "height", options.horizontalSliderSize.toString() + "px");
+    } else {
+      int left = (
+        (options.verticalScrollbarSize - options.verticalSliderSize) * 1.0 / 2.0
+      ).floor().toInt();
+      setStyle(this.slider, "left", left.toString() + "px");
+      setStyle(this.slider, "width", options.verticalSliderSize.toString() + "px");
+    }
+    appendChild(this.domNode, this.slider);
+    addEventListener(this.slider, "pointerdown", scrollbarSliderPointerDown, false);
+    abstractScrollbars.push(this);
+    this.render();
+  }
+
+  void createConfiguredArrows(ScrollableElementOptions options) {
+    bool hasArrows = options.verticalHasArrows;
+    int scrollbarSize = options.verticalScrollbarSize;
+    if (this.horizontal) {
+      hasArrows = options.horizontalHasArrows;
+      scrollbarSize = options.horizontalScrollbarSize;
+    }
+    if (!hasArrows) {
+      return;
+    }
+    int arrowDelta = ((options.arrowSize - ARROW_IMG_SIZE) * 1.0 / 2.0).floor().toInt();
+    int scrollbarDelta = ((scrollbarSize - ARROW_IMG_SIZE) * 1.0 / 2.0).floor().toInt();
+    JsValue first = JS.object();
+    first["scrollable"] = this.scrollable;
+    first["host"] = this.host;
+    first["horizontal"] = this.horizontal;
+    first["direction"] = -1;
+    first["className"] = "scra";
+    first["bgWidth"] = scrollbarSize;
+    first["bgHeight"] = options.arrowSize;
+    first["top"] = arrowDelta;
+    first["left"] = scrollbarDelta;
+    first["iconClassName"] = "codicon codicon-scrollbar-button-up";
+    if (this.horizontal) {
+      first["bgWidth"] = options.arrowSize;
+      first["bgHeight"] = scrollbarSize;
+      first["top"] = scrollbarDelta;
+      first["left"] = arrowDelta;
+      first["iconClassName"] = "codicon codicon-scrollbar-button-left";
+    }
+    ScrollbarArrow firstArrow = createScrollbarArrow(first);
+    firstArrow.appendTo(this.domNode);
+    this.arrows.push(firstArrow);
+
+    JsValue second = JS.object();
+    second["scrollable"] = this.scrollable;
+    second["host"] = this.host;
+    second["horizontal"] = this.horizontal;
+    second["direction"] = 1;
+    second["className"] = "scra";
+    second["bgWidth"] = scrollbarSize;
+    second["bgHeight"] = options.arrowSize;
+    second["bottom"] = arrowDelta;
+    second["left"] = scrollbarDelta;
+    second["iconClassName"] = "codicon codicon-scrollbar-button-down";
+    if (this.horizontal) {
+      second["bgWidth"] = options.arrowSize;
+      second["bgHeight"] = scrollbarSize;
+      second["right"] = arrowDelta;
+      second["top"] = scrollbarDelta;
+      second["left"] = null;
+      second["bottom"] = null;
+      second["iconClassName"] = "codicon codicon-scrollbar-button-right";
+    }
+    ScrollbarArrow secondArrow = createScrollbarArrow(second);
+    secondArrow.appendTo(this.domNode);
+    this.arrows.push(secondArrow);
+  }
+
+  void backgroundPointerDown(JsValue event) {
+    int button = eventButton(event);
+    string pointerType = "";
+    JsValue pointerTypeValue = event["pointerType"];
+    if (pointerTypeValue is string) {
+      pointerType = pointerTypeValue;
+    }
+    bool isMouse = pointerType == "mouse";
+    bool isLeftClick = button == 0;
+    if (isLeftClick || !isMouse) {
+      int offset = this.relativePointerOffset(event);
+      int desired = this.sliderState.getDesiredScrollPositionFromOffset(offset);
+      if (this.scrollByPage) {
+        desired = this.sliderState.getDesiredScrollPositionFromOffsetPaged(offset);
+      }
+      this.setDesiredScrollPosition(desired);
+    }
+    if (isLeftClick) {
+      preventDefault(event);
+      beginScrollbarDrag(this, event);
+    }
+  }
+
+  int relativePointerOffset(JsValue event) {
+    string key = "offsetY";
+    int fallback = this.pointerPosition(event) - rectTop(this.domNode);
+    if (this.horizontal) {
+      key = "offsetX";
+      fallback = this.pointerPosition(event) - rectLeft(this.domNode);
+    }
+    return scrollbarInt(event[key], fallback);
+  }
+
+  int pointerPosition(JsValue event) {
+    if (this.horizontal) {
+      return scrollbarInt(event["pageX"], eventClientX(event));
+    }
+    return scrollbarInt(event["pageY"], eventClientY(event));
+  }
+
+  int orthogonalPointerPosition(JsValue event) {
+    if (this.horizontal) {
+      return scrollbarInt(event["pageY"], eventClientY(event));
+    }
+    return scrollbarInt(event["pageX"], eventClientX(event));
+  }
+
+  void setDesiredScrollPosition(int desiredScrollPosition) {
+    int maxPosition = this.sliderState.scrollSize - this.sliderState.visibleSize;
+    int desired = desiredScrollPosition;
+    if (desired < 0) {
+      desired = 0;
+    }
+    if (desired > maxPosition) {
+      desired = maxPosition;
+    }
+    if (maxPosition < 0) {
+      desired = 0;
+    }
+    JsValue update = JS.object();
+    if (this.horizontal) {
+      update["scrollLeft"] = desired;
+    } else {
+      update["scrollTop"] = desired;
+    }
+    if (this.host != null) {
+      update["ownerId"] = this.host["_id"];
+    }
+    if (this.scrollable != null && this.scrollable["setScrollPositionNow"].truthy()) {
+      hostCall(
+        this.scrollable,
+        "setScrollPositionNow",
+        update,
+        jsUndefined(),
+        jsUndefined()
+      );
+    } else if (this.scrollable != null && this.scrollable["style"] != null) {
+      if (this.horizontal) {
+        setScrollLeft(this.scrollable, desired);
+      } else {
+        setScrollTop(this.scrollable, desired);
+      }
+    } else if (this.scrollable != null) {
+      if (this.horizontal) {
+        this.scrollable["scrollLeft"] = desired;
+      } else {
+        this.scrollable["scrollTop"] = desired;
+      }
+    }
+    if (this.host != null && this.host["onBarScroll"].truthy()) {
+      hostCall(this.host, "onBarScroll", update, jsUndefined(), jsUndefined());
+    }
+    this.sliderState.setScrollPosition(desired);
+    this.shouldRender = true;
+    this.render();
+  }
+
+  void writeScrollPosition(JsValue target, int scrollPosition) {
+    if (this.horizontal) {
+      target["scrollLeft"] = scrollPosition;
+    } else {
+      target["scrollTop"] = scrollPosition;
+    }
+  }
+
+  void startDrag() {
+    if (this.host == null || !this.host["onDragStart"].truthy()) {
+      return;
+    }
+    hostCall(this.host, "onDragStart", this.host["_id"], jsUndefined(), jsUndefined());
+  }
+
+  void finishDrag() {
+    classListRemove(this.slider, "active");
+    if (this.host == null || !this.host["onDragEnd"].truthy()) {
+      return;
+    }
+    hostCall(this.host, "onDragEnd", this.host["_id"], jsUndefined(), jsUndefined());
+  }
+
+  bool onElementSize(int visibleSize) {
+    if (this.sliderState.setVisibleSize(visibleSize)) {
+      this.visibilityController.setIsNeeded(this.sliderState.computedIsNeeded);
+      this.shouldRender = true;
+      if (!this.lazyRender) {
+        this.render();
+      }
+    }
+    return this.shouldRender;
+  }
+
+  bool onElementScrollSize(int scrollSize) {
+    if (this.sliderState.setScrollSize(scrollSize)) {
+      this.visibilityController.setIsNeeded(this.sliderState.computedIsNeeded);
+      this.shouldRender = true;
+      if (!this.lazyRender) {
+        this.render();
+      }
+    }
+    return this.shouldRender;
+  }
+
+  bool onElementScrollPosition(int scrollPosition) {
+    if (this.sliderState.setScrollPosition(scrollPosition)) {
+      this.visibilityController.setIsNeeded(this.sliderState.computedIsNeeded);
+      this.shouldRender = true;
+      if (!this.lazyRender) {
+        this.render();
+      }
+    }
+    return this.shouldRender;
+  }
+
+  bool onDidScroll(JsValue e) {
+    if (this.horizontal) {
+      this.shouldRender = this.onElementScrollSize(readNodeInt(e, "scrollWidth", this.sliderState.scrollSize)) || this.shouldRender;
+      this.shouldRender = this.onElementScrollPosition(readNodeInt(e, "scrollLeft", this.sliderState.scrollPosition)) || this.shouldRender;
+      this.shouldRender = this.onElementSize(readNodeInt(e, "width", this.sliderState.visibleSize)) || this.shouldRender;
+    } else {
+      this.shouldRender = this.onElementScrollSize(readNodeInt(e, "scrollHeight", this.sliderState.scrollSize)) || this.shouldRender;
+      this.shouldRender = this.onElementScrollPosition(readNodeInt(e, "scrollTop", this.sliderState.scrollPosition)) || this.shouldRender;
+      this.shouldRender = this.onElementSize(readNodeInt(e, "height", this.sliderState.visibleSize)) || this.shouldRender;
+    }
+    return this.shouldRender;
+  }
+
+  void beginReveal() {
+    this.visibilityController.setShouldBeVisible(true);
+  }
+
+  void beginHide() {
+    this.visibilityController.setShouldBeVisible(false);
+  }
+
+  void render() {
+    if (!this.shouldRender) {
+      return;
+    }
+    this.shouldRender = false;
+    int largeSize = this.sliderState.computedAvailableSize;
+    int smallSize = this.sliderState.scrollbarSize;
+    int sliderSize = this.sliderState.computedSliderSize;
+    int sliderPosition = this.sliderState.arrowSize + this.sliderState.computedSliderPosition;
+    if (this.horizontal) {
+      setStyle(this.domNode, "width", largeSize.toString() + "px");
+      setStyle(this.domNode, "height", smallSize.toString() + "px");
+      setStyle(this.domNode, "left", "0px");
+      setStyle(this.domNode, "bottom", "0px");
+      setStyle(this.slider, "width", sliderSize.toString() + "px");
+      setStyle(this.slider, "left", sliderPosition.toString() + "px");
+    } else {
+      setStyle(this.domNode, "width", smallSize.toString() + "px");
+      setStyle(this.domNode, "height", largeSize.toString() + "px");
+      setStyle(this.domNode, "right", "0px");
+      setStyle(this.domNode, "top", "0px");
+      setStyle(this.slider, "height", sliderSize.toString() + "px");
+      setStyle(this.slider, "top", sliderPosition.toString() + "px");
+    }
+  }
+
+  void updateScrollbarSize(int scrollbarSize) {
+    this.sliderState.setScrollbarSize(scrollbarSize);
+    if (this.horizontal) {
+      setStyle(this.slider, "height", scrollbarSize.toString() + "px");
+    } else {
+      setStyle(this.slider, "width", scrollbarSize.toString() + "px");
+    }
+    this.shouldRender = true;
+    if (!this.lazyRender) {
+      this.render();
+    }
+  }
+
+  void setOppositeScrollbarSize(int size) {
+    this.sliderState.setOppositeScrollbarSize(size);
+    this.shouldRender = true;
+  }
+
+  void updateOptions(ScrollableElementOptions options) {
+    int size = options.verticalScrollbarSize;
+    int opposite = 0;
+    int visibility = options.vertical;
+    if (this.horizontal) {
+      size = options.horizontalScrollbarSize;
+      opposite = options.verticalScrollbarSize;
+      visibility = options.horizontal;
+      if (options.horizontal == 2) {
+        size = 0;
+      }
+      if (options.vertical == 2) {
+        opposite = 0;
+      }
+    } else {
+      if (options.vertical == 2) {
+        size = 0;
+      }
+    }
+    this.updateScrollbarSize(size);
+    this.setOppositeScrollbarSize(opposite);
+    this.visibilityController.setVisibility(visibility);
+    this.scrollByPage = options.scrollByPage;
+  }
+
+  bool isNeeded() {
+    return this.sliderState.computedIsNeeded;
+  }
+
+  void delegatePointerDown(JsValue event) {
+    int pointer = this.pointerPosition(event);
+    int start = rectTop(this.domNode);
+    if (this.horizontal) {
+      start = rectLeft(this.domNode);
+    }
+    int sliderStart = start + this.sliderState.computedSliderPosition + this.sliderState.arrowSize;
+    int sliderStop = sliderStart + this.sliderState.computedSliderSize;
+    if (pointer >= sliderStart && pointer <= sliderStop && eventButton(event) == 0) {
+      preventDefault(event);
+      beginScrollbarDrag(this, event);
+      return;
+    }
+    this.backgroundPointerDown(event);
+  }
+}
+
+export AbstractScrollbar createAbstractScrollbar(
+  JsValue scrollable,
+  ScrollableElementOptions options,
+  JsValue host,
+  bool horizontal
+) {
+  return new AbstractScrollbar(scrollable, options, host, horizontal);
+}

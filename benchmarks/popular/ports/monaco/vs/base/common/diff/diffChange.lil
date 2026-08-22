@@ -1,0 +1,21 @@
+export class DiffChange {
+  int originalStart;
+  int originalLength;
+  int modifiedStart;
+  int modifiedLength;
+
+  init(int originalStart, int originalLength, int modifiedStart, int modifiedLength) {
+    this.originalStart = originalStart;
+    this.originalLength = originalLength;
+    this.modifiedStart = modifiedStart;
+    this.modifiedLength = modifiedLength;
+  }
+
+  int getOriginalEnd() {
+    return this.originalStart + this.originalLength;
+  }
+
+  int getModifiedEnd() {
+    return this.modifiedStart + this.modifiedLength;
+  }
+}

@@ -1,0 +1,36 @@
+export class DefaultConfiguration {
+  string[] keys;
+  string[] values;
+
+  init() {
+    this.keys = [];
+    this.values = [];
+  }
+
+  void register(string key, string value) {
+    this.keys.push(key);
+    this.values.push(value);
+  }
+
+  string get(string key) {
+    int i = 0;
+    while (i < this.keys.length) {
+      if (this.keys[i] == key) {
+        return this.values[i];
+      }
+      i = i + 1;
+    }
+    return "";
+  }
+
+  void reload() {
+    int i = 0;
+    while (i < this.keys.length) {
+      i = i + 1;
+    }
+  }
+}
+
+export DefaultConfiguration createDefaultConfiguration() {
+  return new DefaultConfiguration();
+}

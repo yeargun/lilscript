@@ -1,0 +1,69 @@
+import { LanguageFeatureRegistry } from "../languageFeatureRegistry";
+
+export class LanguageFeaturesService {
+  LanguageFeatureRegistry referenceProvider;
+  LanguageFeatureRegistry renameProvider;
+  LanguageFeatureRegistry newSymbolNamesProvider;
+  LanguageFeatureRegistry codeActionProvider;
+  LanguageFeatureRegistry definitionProvider;
+  LanguageFeatureRegistry typeDefinitionProvider;
+  LanguageFeatureRegistry declarationProvider;
+  LanguageFeatureRegistry implementationProvider;
+  LanguageFeatureRegistry documentSymbolProvider;
+  LanguageFeatureRegistry inlayHintsProvider;
+  LanguageFeatureRegistry colorProvider;
+  LanguageFeatureRegistry codeLensProvider;
+  LanguageFeatureRegistry documentFormattingEditProvider;
+  LanguageFeatureRegistry documentRangeFormattingEditProvider;
+  LanguageFeatureRegistry onTypeFormattingEditProvider;
+  LanguageFeatureRegistry signatureHelpProvider;
+  LanguageFeatureRegistry hoverProvider;
+  LanguageFeatureRegistry documentHighlightProvider;
+  LanguageFeatureRegistry multiDocumentHighlightProvider;
+  LanguageFeatureRegistry selectionRangeProvider;
+  LanguageFeatureRegistry foldingRangeProvider;
+  LanguageFeatureRegistry linkProvider;
+  LanguageFeatureRegistry inlineCompletionsProvider;
+  LanguageFeatureRegistry completionProvider;
+  LanguageFeatureRegistry linkedEditingRangeProvider;
+  LanguageFeatureRegistry documentRangeSemanticTokensProvider;
+  LanguageFeatureRegistry documentSemanticTokensProvider;
+  LanguageFeatureRegistry documentDropEditProvider;
+  LanguageFeatureRegistry documentPasteEditProvider;
+
+  init() {
+    this.referenceProvider = new LanguageFeatureRegistry();
+    this.renameProvider = new LanguageFeatureRegistry();
+    this.newSymbolNamesProvider = new LanguageFeatureRegistry();
+    this.codeActionProvider = new LanguageFeatureRegistry();
+    this.definitionProvider = new LanguageFeatureRegistry();
+    this.typeDefinitionProvider = new LanguageFeatureRegistry();
+    this.declarationProvider = new LanguageFeatureRegistry();
+    this.implementationProvider = new LanguageFeatureRegistry();
+    this.documentSymbolProvider = new LanguageFeatureRegistry();
+    this.inlayHintsProvider = new LanguageFeatureRegistry();
+    this.colorProvider = new LanguageFeatureRegistry();
+    this.codeLensProvider = new LanguageFeatureRegistry();
+    this.documentFormattingEditProvider = new LanguageFeatureRegistry();
+    this.documentRangeFormattingEditProvider = new LanguageFeatureRegistry();
+    this.onTypeFormattingEditProvider = new LanguageFeatureRegistry();
+    this.signatureHelpProvider = new LanguageFeatureRegistry();
+    this.hoverProvider = new LanguageFeatureRegistry();
+    this.documentHighlightProvider = new LanguageFeatureRegistry();
+    this.multiDocumentHighlightProvider = new LanguageFeatureRegistry();
+    this.selectionRangeProvider = new LanguageFeatureRegistry();
+    this.foldingRangeProvider = new LanguageFeatureRegistry();
+    this.linkProvider = new LanguageFeatureRegistry();
+    this.inlineCompletionsProvider = new LanguageFeatureRegistry();
+    this.completionProvider = new LanguageFeatureRegistry();
+    this.linkedEditingRangeProvider = new LanguageFeatureRegistry();
+    this.documentRangeSemanticTokensProvider = new LanguageFeatureRegistry();
+    this.documentSemanticTokensProvider = new LanguageFeatureRegistry();
+    this.documentDropEditProvider = new LanguageFeatureRegistry();
+    this.documentPasteEditProvider = new LanguageFeatureRegistry();
+  }
+}
+
+export LanguageFeaturesService createLanguageFeaturesService() {
+  return new LanguageFeaturesService();
+}

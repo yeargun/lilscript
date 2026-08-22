@@ -1,0 +1,31 @@
+export class JSONContributionRegistry {
+  string[] ids;
+  string[] schemas;
+
+  init() {
+    this.ids = [];
+    this.schemas = [];
+  }
+
+  void registerSchema(string id, string schema) {
+    this.ids.push(id);
+    this.schemas.push(schema);
+  }
+
+  string getSchema(string id) {
+    int i = 0;
+    while (i < this.ids.length) {
+      if (this.ids[i] == id) {
+        return this.schemas[i];
+      }
+      i = i + 1;
+    }
+    return "";
+  }
+}
+
+export JSONContributionRegistry createJSONContributionRegistry() {
+  return new JSONContributionRegistry();
+}
+
+export string ExtensionsJSONContribution = "base.contributions.json";

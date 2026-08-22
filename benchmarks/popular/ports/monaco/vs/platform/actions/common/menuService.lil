@@ -1,0 +1,54 @@
+export class MenuService {
+  string[] ids;
+  string[][] commands;
+
+  init() {
+    this.ids = [];
+    this.commands = [];
+  }
+
+  int indexOf(string id) {
+    int i = 0;
+    while (i < this.ids.length) {
+      if (this.ids[i] == id) {
+        return i;
+      }
+      i = i + 1;
+    }
+    return -1;
+  }
+
+  void createMenu(string id, string[] commands) {
+    int idx = this.indexOf(id);
+    if (idx >= 0) {
+      this.commands[idx] = commands;
+      return;
+    }
+    this.ids.push(id);
+    this.commands.push(commands);
+  }
+
+  string[] getMenuActions(string id, func(string)->bool whenMatches) {
+    int idx = this.indexOf(id);
+    if (idx < 0) {
+      string[] empty = [];
+      return empty;
+    }
+    string[] src = this.commands[idx];
+    string[] out = [];
+    int i = 0;
+    while (i < src.length) {
+      if (whenMatches(src[i])) {
+        out.push(src[i]);
+      }
+      i = i + 1;
+    }
+    return out;
+  }
+}
+
+export MenuService createMenuService() {
+  return new MenuService();
+}
+
+export string IMenuServiceId = "menuService";

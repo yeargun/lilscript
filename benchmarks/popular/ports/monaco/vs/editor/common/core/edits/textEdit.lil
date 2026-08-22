@@ -1,0 +1,52 @@
+import { Pos } from "../../../../../base/position";
+import { Rng, createRange } from "../../../../../base/range";
+import { TextLength, textLengthOfText } from "../text/textLength";
+import { StringText } from "../text/abstractText";
+import { emptyBuf, concat2, sliceOf } from "../../../../../js-host";
+
+export class TextReplacement {
+  Rng range;
+  string text;
+
+  init(Rng range, string text) {
+    this.range = range;
+    this.text = text;
+  }
+}
+
+export class TextEdit {
+  TextReplacement[] replacements;
+
+  init(TextReplacement[] replacements) {
+    this.replacements = replacements;
+  }
+
+  string applyOn(string base) {
+    StringText initial = new StringText(base);
+    string out = emptyBuf();
+    int pos = 0;
+    int i = 0;
+    while (i < this.replacements.length) {
+      TextReplacement r = this.replacements[i];
+      int start = initial.getTransformer().getOffset(new Pos(r.range.startLineNumber, r.range.startColumn));
+      int end = initial.getTransformer().getOffset(new Pos(r.range.endLineNumber, r.range.endColumn));
+      out = concat2(out, sliceOf(base, pos, start));
+      out = concat2(out, r.text);
+      pos = end;
+      i = i + 1;
+    }
+    return concat2(out, sliceOf(base, pos, base.length));
+  }
+
+  string apply(StringText initial) {
+    return this.applyOn(initial.getValue());
+  }
+
+  TextLength addedLength() {
+    return textLengthOfText("");
+  }
+}
+
+export TextReplacement textReplacement(int sl, int sc, int el, int ec, string text) {
+  return new TextReplacement(createRange(sl, sc, el, ec), text);
+}

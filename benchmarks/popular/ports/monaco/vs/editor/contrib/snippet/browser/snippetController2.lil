@@ -1,0 +1,112 @@
+export string SNIPPET_CONTROLLER_ID = "snippetController2";
+
+export class SnippetController2 {
+  bool isInSnippet;
+  int tabstopIndex;
+  int tabstopCount;
+  string insertedText;
+  bool choiceVisible;
+
+  init() {
+    this.isInSnippet = false;
+    this.tabstopIndex = 0;
+    this.tabstopCount = 0;
+    this.insertedText = "";
+    this.choiceVisible = false;
+  }
+
+  string getId() {
+    return SNIPPET_CONTROLLER_ID;
+  }
+
+  void insert(string template) {
+    this.insertedText = template;
+    int count = 0;
+    int i = 0;
+    while (i < template.length) {
+      if (template.charAt(i) == "$") {
+        count = count + 1;
+      }
+      i = i + 1;
+    }
+    this.tabstopCount = count;
+    this.tabstopIndex = 0;
+    this.isInSnippet = count > 0;
+    this.choiceVisible = template.indexOf("|") >= 0 && template.indexOf("${") >= 0;
+  }
+
+  bool next() {
+    if (!this.isInSnippet) {
+      return false;
+    }
+    this.tabstopIndex = this.tabstopIndex + 1;
+    if (this.tabstopIndex >= this.tabstopCount) {
+      this.finish();
+      return false;
+    }
+    return true;
+  }
+
+  bool prev() {
+    if (!this.isInSnippet) {
+      return false;
+    }
+    this.tabstopIndex = this.tabstopIndex - 1;
+    if (this.tabstopIndex < 0) {
+      this.tabstopIndex = 0;
+      return false;
+    }
+    return true;
+  }
+
+  void finish() {
+    this.isInSnippet = false;
+    this.choiceVisible = false;
+    this.tabstopIndex = 0;
+    this.tabstopCount = 0;
+  }
+
+  void cancel() {
+    this.finish();
+    this.insertedText = "";
+  }
+
+  bool isAtLastPlaceholder() {
+    if (!this.isInSnippet) {
+      return true;
+    }
+    return this.tabstopIndex >= this.tabstopCount - 1;
+  }
+}
+
+export string expandSnippet(string body) {
+  string out = "";
+  int i = 0;
+  while (i < body.length) {
+    if (body.charAt(i) == "$" && i + 1 < body.length) {
+      string next = body.charAt(i + 1);
+      int code = next.charCodeAt(0);
+      if (code >= 48 && code <= 57) {
+        i = i + 2;
+        continue;
+      }
+      if (next == "{") {
+        int j = i + 2;
+        while (j < body.length && body.charAt(j) != "}") {
+          j = j + 1;
+        }
+        if (j < body.length) {
+          i = j + 1;
+          continue;
+        }
+      }
+    }
+    out = out + body.charAt(i);
+    i = i + 1;
+  }
+  return out;
+}
+
+export SnippetController2 createSnippetController2() {
+  return new SnippetController2();
+}

@@ -154,7 +154,7 @@ export function bindMonaco(lil) {
   }
 
   const CompletionItemKind = {
-    Method: 0,
+    Method: lil.CompletionItemKindMethod ?? 0,
     Function: 1,
     Constructor: 2,
     Field: 3,
@@ -194,6 +194,12 @@ export function bindMonaco(lil) {
     }
     if (Array.isArray(pos) && pos.length >= 2) {
       return { lineNumber: Number(pos[0]) || 1, column: Number(pos[1]) || 1 }
+    }
+    if (typeof lil.liftPosition === "function") {
+      const lifted = lil.liftPosition(pos)
+      if (lifted && lifted.lineNumber) {
+        return { lineNumber: lifted.lineNumber | 0, column: lifted.column | 0 }
+      }
     }
     const line = Number(pos.lineNumber ?? pos.positionLineNumber ?? 1) || 1
     const col = Number(pos.column ?? pos.positionColumn ?? 1) || 1

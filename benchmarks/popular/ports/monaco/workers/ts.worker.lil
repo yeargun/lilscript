@@ -1,0 +1,39 @@
+import { tsKeywordCompletions } from "../contrib/language-data";
+import { emptyBuf, concat2 } from "../js-host";
+
+export string[] tsWorkerCompletions(string prefix) {
+  string[] words = tsKeywordCompletions();
+  string[] items = [];
+  int i = 0;
+  while (i < words.length) {
+    if (prefix.length == 0 || words[i].indexOf(prefix) == 0) {
+      items.push(words[i]);
+    }
+    i++;
+  }
+  return items;
+}
+
+export bool tsWorkerWithoutTsc() {
+  return true;
+}
+
+export string handleTsWorker(string method, string uri, string value) {
+  if (method == "ping" || method == "initialize") {
+    return "pong";
+  }
+  if (method == "completions") {
+    string[] items = tsWorkerCompletions(value);
+    string out = emptyBuf();
+    int i = 0;
+    while (i < items.length) {
+      if (i > 0) {
+        out = concat2(out, ",");
+      }
+      out = concat2(out, items[i]);
+      i++;
+    }
+    return out;
+  }
+  return concat2(emptyBuf(), uri);
+}

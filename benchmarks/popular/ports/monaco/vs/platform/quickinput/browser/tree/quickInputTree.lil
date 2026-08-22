@@ -1,0 +1,35 @@
+export class QuickInputTree {
+  string[] elements;
+  int focus;
+  bool visible;
+
+  init() {
+    this.elements = [];
+    this.focus = -1;
+    this.visible = true;
+  }
+
+  void setElements(string[] elements) {
+    this.elements = elements;
+    if (elements.length > 0) {
+      this.focus = 0;
+    } else {
+      this.focus = -1;
+    }
+  }
+
+  void focusNext() {
+    if (this.elements.length == 0) {
+      return;
+    }
+    this.focus = (this.focus + 1) % this.elements.length;
+  }
+
+  void layout() {
+    this.visible = true;
+  }
+}
+
+export QuickInputTree createQuickInputTree() {
+  return new QuickInputTree();
+}

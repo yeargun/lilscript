@@ -1,0 +1,70 @@
+export class Command {
+  string id;
+  string handlerId;
+
+  init(string id, string handlerId) {
+    this.id = id;
+    this.handlerId = handlerId;
+  }
+}
+
+export class CommandsRegistryImpl {
+  Command[] commands;
+
+  init() {
+    this.commands = [];
+  }
+
+  int indexOf(string id) {
+    int i = 0;
+    while (i < this.commands.length) {
+      if (this.commands[i].id == id) {
+        return i;
+      }
+      i = i + 1;
+    }
+    return -1;
+  }
+
+  bool registerCommand(string id, string handlerId) {
+    if (id.length == 0 || handlerId.length == 0) {
+      return false;
+    }
+    int idx = this.indexOf(id);
+    Command cmd = new Command(id, handlerId);
+    if (idx >= 0) {
+      this.commands[idx] = cmd;
+    } else {
+      this.commands.push(cmd);
+    }
+    return true;
+  }
+
+  string executeCommand(string id) {
+    int idx = this.indexOf(id);
+    if (idx < 0) {
+      return "";
+    }
+    return this.commands[idx].handlerId;
+  }
+
+  Command[] getCommands() {
+    return this.commands;
+  }
+}
+
+CommandsRegistryImpl commandsRegistry = new CommandsRegistryImpl();
+
+export bool registerCommand(string id, string handlerId) {
+  return commandsRegistry.registerCommand(id, handlerId);
+}
+
+export string executeCommand(string id) {
+  return commandsRegistry.executeCommand(id);
+}
+
+export CommandsRegistryImpl getCommandsRegistry() {
+  return commandsRegistry;
+}
+
+export string ICommandServiceId = "commandService";

@@ -1,0 +1,29 @@
+export class ObservableValue {
+  string value;
+  (func(string)->void)[] listeners;
+
+  init(string value) {
+    this.value = value;
+    this.listeners = [];
+  }
+
+  void set(string value) {
+    if (this.value == value) {
+      return;
+    }
+    this.value = value;
+    int i = 0;
+    while (i < this.listeners.length) {
+      this.listeners[i](value);
+      i = i + 1;
+    }
+  }
+
+  string get() {
+    return this.value;
+  }
+}
+
+export ObservableValue createObservableValue(string value) {
+  return new ObservableValue(value);
+}

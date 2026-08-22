@@ -1,0 +1,22 @@
+export class LayoutService {
+  int width;
+  int height;
+  int offset;
+
+  init() {
+    this.width = 0;
+    this.height = 0;
+    this.offset = 0;
+  }
+
+  void layout(int width, int height) {
+    this.width = width;
+    this.height = height;
+  }
+}
+
+export LayoutService createLayoutService() {
+  return new LayoutService();
+}
+
+export string ILayoutServiceId = "layoutService";

@@ -1,0 +1,61 @@
+export class ContextMenuItem {
+  string id;
+  string label;
+  bool enabled;
+
+  init(string id, string label, bool enabled) {
+    this.id = id;
+    this.label = label;
+    this.enabled = enabled;
+  }
+}
+
+export class ContextMenu {
+  bool visible;
+  int x;
+  int y;
+  ContextMenuItem[] items;
+
+  init() {
+    this.visible = false;
+    this.x = 0;
+    this.y = 0;
+    this.items = [
+      new ContextMenuItem("editor.action.goToDefinition", "Go to Definition", true),
+      new ContextMenuItem("editor.action.goToReferences", "Go to References", true),
+      new ContextMenuItem("editor.action.gotoSymbol", "Go to Symbol...", true),
+      new ContextMenuItem("editor.action.peekDefinition", "Peek Definition", true),
+      new ContextMenuItem("editor.action.rename", "Rename Symbol", true),
+      new ContextMenuItem("editor.action.changeAll", "Change All Occurrences", true),
+      new ContextMenuItem("editor.action.formatDocument", "Format Document", true),
+      new ContextMenuItem("editor.action.clipboardCutAction", "Cut", true),
+      new ContextMenuItem("editor.action.clipboardCopyAction", "Copy", true),
+      new ContextMenuItem("editor.action.clipboardPasteAction", "Paste", true),
+      new ContextMenuItem("editor.action.quickCommand", "Command Palette", true)
+    ];
+  }
+
+  void show(int x, int y) {
+    this.x = x;
+    this.y = y;
+    this.visible = true;
+  }
+
+  void hide() {
+    this.visible = false;
+  }
+
+  string? itemAt(int index) {
+    if (index < 0 || index >= this.items.length) {
+      return null;
+    }
+    if (!this.items[index].enabled) {
+      return null;
+    }
+    return this.items[index].id;
+  }
+}
+
+export ContextMenu createContextMenu() {
+  return new ContextMenu();
+}

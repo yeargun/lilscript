@@ -1,0 +1,546 @@
+import { stringSlice, emptyBuf } from "../../../../../js-host";
+
+export int TOKEN_DOLLAR = 0;
+export int TOKEN_COLON = 1;
+export int TOKEN_COMMA = 2;
+export int TOKEN_CURLY_OPEN = 3;
+export int TOKEN_CURLY_CLOSE = 4;
+export int TOKEN_BACKSLASH = 5;
+export int TOKEN_SLASH = 6;
+export int TOKEN_PIPE = 7;
+export int TOKEN_INT = 8;
+export int TOKEN_VARIABLE_NAME = 9;
+export int TOKEN_FORMAT = 10;
+export int TOKEN_PLUS = 11;
+export int TOKEN_DASH = 12;
+export int TOKEN_QUESTION = 13;
+export int TOKEN_EOF = 14;
+
+export int MARKER_TEXT = 0;
+export int MARKER_PLACEHOLDER = 1;
+export int MARKER_CHOICE = 2;
+export int MARKER_VARIABLE = 3;
+export int MARKER_FORMAT = 4;
+export int MARKER_SNIPPET = 5;
+
+export class ScannerToken {
+  int type;
+  int pos;
+  int len;
+
+  init(int type, int pos, int len) {
+    this.type = type;
+    this.pos = pos;
+    this.len = len;
+  }
+}
+
+bool isDigitChar(int ch) {
+  return ch >= 48 && ch <= 57;
+}
+
+bool isVariableChar(int ch) {
+  if (ch == 95) {
+    return true;
+  }
+  if (ch >= 97 && ch <= 122) {
+    return true;
+  }
+  if (ch >= 65 && ch <= 90) {
+    return true;
+  }
+  return false;
+}
+
+int staticTokenType(int ch) {
+  if (ch == 36) {
+    return TOKEN_DOLLAR;
+  }
+  if (ch == 58) {
+    return TOKEN_COLON;
+  }
+  if (ch == 44) {
+    return TOKEN_COMMA;
+  }
+  if (ch == 123) {
+    return TOKEN_CURLY_OPEN;
+  }
+  if (ch == 125) {
+    return TOKEN_CURLY_CLOSE;
+  }
+  if (ch == 92) {
+    return TOKEN_BACKSLASH;
+  }
+  if (ch == 47) {
+    return TOKEN_SLASH;
+  }
+  if (ch == 124) {
+    return TOKEN_PIPE;
+  }
+  if (ch == 43) {
+    return TOKEN_PLUS;
+  }
+  if (ch == 45) {
+    return TOKEN_DASH;
+  }
+  if (ch == 63) {
+    return TOKEN_QUESTION;
+  }
+  return -1;
+}
+
+export class Scanner {
+  string value;
+  int pos;
+
+  init() {
+    this.value = "";
+    this.pos = 0;
+  }
+
+  void text(string value) {
+    this.value = value;
+    this.pos = 0;
+  }
+
+  string tokenText(ScannerToken token) {
+    return stringSlice(this.value, token.pos, token.pos + token.len);
+  }
+
+  ScannerToken next() {
+    if (this.pos >= this.value.length) {
+      return new ScannerToken(TOKEN_EOF, this.pos, 0);
+    }
+    int pos = this.pos;
+    int ch = this.value.charCodeAt(pos);
+    int staticType = staticTokenType(ch);
+    if (staticType >= 0) {
+      this.pos = this.pos + 1;
+      return new ScannerToken(staticType, pos, 1);
+    }
+    if (isDigitChar(ch)) {
+      int len = 0;
+      while (pos + len < this.value.length && isDigitChar(this.value.charCodeAt(pos + len))) {
+        len = len + 1;
+      }
+      this.pos = this.pos + len;
+      return new ScannerToken(TOKEN_INT, pos, len);
+    }
+    if (isVariableChar(ch)) {
+      int len = 0;
+      while (pos + len < this.value.length) {
+        int next = this.value.charCodeAt(pos + len);
+        if (!(isVariableChar(next) || isDigitChar(next))) {
+          break;
+        }
+        len = len + 1;
+      }
+      this.pos = this.pos + len;
+      return new ScannerToken(TOKEN_VARIABLE_NAME, pos, len);
+    }
+    int len = 0;
+    while (pos + len < this.value.length) {
+      int next = this.value.charCodeAt(pos + len);
+      if (staticTokenType(next) >= 0 || isDigitChar(next) || isVariableChar(next)) {
+        break;
+      }
+      len = len + 1;
+    }
+    if (len == 0) {
+      len = 1;
+    }
+    this.pos = this.pos + len;
+    return new ScannerToken(TOKEN_FORMAT, pos, len);
+  }
+}
+
+export class SnippetMarker {
+  int kind;
+  string value;
+  int index;
+  string name;
+  SnippetMarker[] children;
+  string[] choices;
+  string shorthand;
+  string ifValue;
+  string elseValue;
+
+  init(int kind, string value, int index, string name) {
+    this.kind = kind;
+    this.value = value;
+    this.index = index;
+    this.name = name;
+    this.children = [];
+    this.choices = [];
+    this.shorthand = "";
+    this.ifValue = "";
+    this.elseValue = "";
+  }
+
+  void appendText(string text) {
+    if (text.length == 0) {
+      return;
+    }
+    if (this.children.length > 0 && this.children[this.children.length - 1].kind == MARKER_TEXT) {
+      this.children[this.children.length - 1].value = this.children[this.children.length - 1].value + text;
+      return;
+    }
+    this.children.push(new SnippetMarker(MARKER_TEXT, text, 0, ""));
+  }
+
+  void appendChild(SnippetMarker child) {
+    if (child.kind == MARKER_TEXT) {
+      this.appendText(child.value);
+      return;
+    }
+    this.children.push(child);
+  }
+
+  int textLen() {
+    if (this.kind == MARKER_TEXT) {
+      return this.value.length;
+    }
+    int total = 0;
+    int i = 0;
+    while (i < this.children.length) {
+      total = total + this.children[i].textLen();
+      i = i + 1;
+    }
+    return total;
+  }
+
+  string toText() {
+    if (this.kind == MARKER_TEXT) {
+      return this.value;
+    }
+    if (this.kind == MARKER_CHOICE && this.choices.length > 0) {
+      return this.choices[0];
+    }
+    string out = emptyBuf();
+    int i = 0;
+    while (i < this.children.length) {
+      out = out + this.children[i].toText();
+      i = i + 1;
+    }
+    return out;
+  }
+}
+
+int parseIntToken(string text) {
+  int n = 0;
+  int i = 0;
+  while (i < text.length) {
+    int c = text.charCodeAt(i);
+    if (c >= 48 && c <= 57) {
+      n = n * 10 + (c - 48);
+    }
+    i = i + 1;
+  }
+  return n;
+}
+
+bool isDigits(string text) {
+  if (text.length == 0) {
+    return false;
+  }
+  int i = 0;
+  while (i < text.length) {
+    if (!isDigitChar(text.charCodeAt(i))) {
+      return false;
+    }
+    i = i + 1;
+  }
+  return true;
+}
+
+export class SnippetParser {
+  Scanner scanner;
+  ScannerToken token;
+
+  init() {
+    this.scanner = new Scanner();
+    this.token = new ScannerToken(TOKEN_EOF, 0, 0);
+  }
+
+  bool accept(int type) {
+    if (this.token.type == type) {
+      this.token = this.scanner.next();
+      return true;
+    }
+    return false;
+  }
+
+  string acceptText(int type) {
+    if (this.token.type == type) {
+      string text = this.scanner.tokenText(this.token);
+      this.token = this.scanner.next();
+      return text;
+    }
+    return "";
+  }
+
+  bool backTo(ScannerToken saved) {
+    this.scanner.pos = saved.pos + saved.len;
+    this.token = saved;
+    return false;
+  }
+
+  bool parseAnything(SnippetMarker parent) {
+    if (this.token.type == TOKEN_EOF) {
+      return false;
+    }
+    parent.appendText(this.scanner.tokenText(this.token));
+    this.token = this.scanner.next();
+    return true;
+  }
+
+  bool parseEscaped(SnippetMarker parent) {
+    if (this.token.type != TOKEN_BACKSLASH) {
+      return false;
+    }
+    string value = this.scanner.tokenText(this.token);
+    this.token = this.scanner.next();
+    if (this.token.type == TOKEN_DOLLAR || this.token.type == TOKEN_CURLY_CLOSE || this.token.type == TOKEN_BACKSLASH) {
+      value = this.scanner.tokenText(this.token);
+      this.token = this.scanner.next();
+    }
+    parent.appendText(value);
+    return true;
+  }
+
+  bool parseTabstopOrVariable(SnippetMarker parent) {
+    ScannerToken saved = this.token;
+    if (!this.accept(TOKEN_DOLLAR)) {
+      return false;
+    }
+    string name = this.acceptText(TOKEN_VARIABLE_NAME);
+    if (name.length == 0) {
+      name = this.acceptText(TOKEN_INT);
+    }
+    if (name.length == 0) {
+      return this.backTo(saved);
+    }
+    if (isDigits(name)) {
+      parent.appendChild(new SnippetMarker(MARKER_PLACEHOLDER, "", parseIntToken(name), ""));
+    } else {
+      parent.appendChild(new SnippetMarker(MARKER_VARIABLE, "", 0, name));
+    }
+    return true;
+  }
+
+  bool parseComplexPlaceholder(SnippetMarker parent) {
+    ScannerToken saved = this.token;
+    if (!this.accept(TOKEN_DOLLAR) || !this.accept(TOKEN_CURLY_OPEN)) {
+      return this.backTo(saved);
+    }
+    string indexText = this.acceptText(TOKEN_INT);
+    if (indexText.length == 0) {
+      return this.backTo(saved);
+    }
+    SnippetMarker placeholder = new SnippetMarker(MARKER_PLACEHOLDER, "", parseIntToken(indexText), "");
+    if (this.accept(TOKEN_COLON)) {
+      while (true) {
+        if (this.accept(TOKEN_CURLY_CLOSE)) {
+          parent.appendChild(placeholder);
+          return true;
+        }
+        if (this.parseOne(placeholder)) {
+          continue;
+        }
+        parent.appendText("${" + indexText + ":");
+        int i = 0;
+        while (i < placeholder.children.length) {
+          parent.appendChild(placeholder.children[i]);
+          i = i + 1;
+        }
+        return true;
+      }
+    }
+    if (placeholder.index > 0 && this.accept(TOKEN_PIPE)) {
+      SnippetMarker choice = new SnippetMarker(MARKER_CHOICE, "", 0, "");
+      string current = emptyBuf();
+      while (this.token.type != TOKEN_EOF) {
+        if (this.accept(TOKEN_COMMA)) {
+          choice.choices.push(current);
+          current = emptyBuf();
+          continue;
+        }
+        if (this.accept(TOKEN_PIPE)) {
+          choice.choices.push(current);
+          placeholder.appendChild(choice);
+          if (this.accept(TOKEN_CURLY_CLOSE)) {
+            parent.appendChild(placeholder);
+            return true;
+          }
+          return this.backTo(saved);
+        }
+        current = current + this.scanner.tokenText(this.token);
+        this.token = this.scanner.next();
+      }
+      return this.backTo(saved);
+    }
+    if (this.accept(TOKEN_CURLY_CLOSE)) {
+      parent.appendChild(placeholder);
+      return true;
+    }
+    return this.backTo(saved);
+  }
+
+  bool parseComplexVariable(SnippetMarker parent) {
+    ScannerToken saved = this.token;
+    if (!this.accept(TOKEN_DOLLAR) || !this.accept(TOKEN_CURLY_OPEN)) {
+      return this.backTo(saved);
+    }
+    string name = this.acceptText(TOKEN_VARIABLE_NAME);
+    if (name.length == 0) {
+      return this.backTo(saved);
+    }
+    SnippetMarker variable = new SnippetMarker(MARKER_VARIABLE, "", 0, name);
+    if (this.accept(TOKEN_COLON)) {
+      while (true) {
+        if (this.accept(TOKEN_CURLY_CLOSE)) {
+          parent.appendChild(variable);
+          return true;
+        }
+        if (this.parseOne(variable)) {
+          continue;
+        }
+        parent.appendText("${" + name + ":");
+        int i = 0;
+        while (i < variable.children.length) {
+          parent.appendChild(variable.children[i]);
+          i = i + 1;
+        }
+        return true;
+      }
+    }
+    if (this.accept(TOKEN_CURLY_CLOSE)) {
+      parent.appendChild(variable);
+      return true;
+    }
+    return this.backTo(saved);
+  }
+
+  bool parseOne(SnippetMarker parent) {
+    if (this.parseEscaped(parent)) {
+      return true;
+    }
+    if (this.parseComplexPlaceholder(parent)) {
+      return true;
+    }
+    if (this.parseComplexVariable(parent)) {
+      return true;
+    }
+    if (this.parseTabstopOrVariable(parent)) {
+      return true;
+    }
+    return this.parseAnything(parent);
+  }
+
+  SnippetMarker parse(string value, bool insertFinalTabstop) {
+    SnippetMarker snippet = new SnippetMarker(MARKER_SNIPPET, "", 0, "");
+    this.scanner.text(value);
+    this.token = this.scanner.next();
+    while (this.parseOne(snippet)) {
+    }
+    if (insertFinalTabstop) {
+      bool hasFinal = false;
+      int i = 0;
+      while (i < snippet.children.length) {
+        if (snippet.children[i].kind == MARKER_PLACEHOLDER && snippet.children[i].index == 0) {
+          hasFinal = true;
+        }
+        i = i + 1;
+      }
+      bool hasAny = false;
+      i = 0;
+      while (i < snippet.children.length) {
+        if (snippet.children[i].kind == MARKER_PLACEHOLDER) {
+          hasAny = true;
+        }
+        i = i + 1;
+      }
+      if (hasAny && !hasFinal) {
+        snippet.appendChild(new SnippetMarker(MARKER_PLACEHOLDER, "", 0, ""));
+      }
+    }
+    return snippet;
+  }
+}
+
+export string escapeSnippet(string value) {
+  string out = emptyBuf();
+  int i = 0;
+  while (i < value.length) {
+    string ch = value.charAt(i);
+    if (ch == "$" || ch == "}" || ch == "\\") {
+      out = out + "\\";
+    }
+    out = out + ch;
+    i = i + 1;
+  }
+  return out;
+}
+
+export bool guessNeedsClipboard(string template) {
+  return template.indexOf("$CLIPBOARD") >= 0 || template.indexOf("${CLIPBOARD") >= 0;
+}
+
+export string resolveFormatString(string shorthand, string value, string ifValue, string elseValue) {
+  if (shorthand == "upcase") {
+    return value.toUpperCase();
+  }
+  if (shorthand == "downcase") {
+    return value.toLowerCase();
+  }
+  if (shorthand == "capitalize") {
+    if (value.length == 0) {
+      return value;
+    }
+    return value.charAt(0).toUpperCase() + stringSlice(value, 1, value.length);
+  }
+  if (shorthand == "pascalcase" || shorthand == "camelcase") {
+    string out = emptyBuf();
+    bool cap = shorthand == "pascalcase";
+    int i = 0;
+    while (i < value.length) {
+      string ch = value.charAt(i);
+      int code = ch.charCodeAt(0);
+      bool word = (code >= 97 && code <= 122) || (code >= 65 && code <= 90) || (code >= 48 && code <= 57);
+      if (word) {
+        if (cap) {
+          out = out + ch.toUpperCase();
+          cap = false;
+        } else {
+          out = out + ch;
+        }
+      } else {
+        cap = true;
+      }
+      i = i + 1;
+    }
+    if (shorthand == "camelcase" && out.length > 0) {
+      return out.charAt(0).toLowerCase() + stringSlice(out, 1, out.length);
+    }
+    return out;
+  }
+  if (value.length > 0 && ifValue.length > 0) {
+    return ifValue;
+  }
+  if (value.length == 0 && elseValue.length > 0) {
+    return elseValue;
+  }
+  return value;
+}
+
+export Scanner createScanner() {
+  return new Scanner();
+}
+
+export SnippetParser createSnippetParser() {
+  return new SnippetParser();
+}
+
+export SnippetMarker parseSnippet(string value) {
+  return createSnippetParser().parse(value, true);
+}

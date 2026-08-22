@@ -1,0 +1,288 @@
+export class DevToolsInstanceInfo {
+  int declarationId;
+  int instanceId;
+  int listenerCount;
+  int updateCount;
+  string lastValue;
+  JsValue[] changedObservables;
+
+  init(int declarationId, int instanceId) {
+    this.declarationId = declarationId;
+    this.instanceId = instanceId;
+    this.listenerCount = 0;
+    this.updateCount = 0;
+    this.lastValue = "";
+    this.changedObservables = [];
+  }
+}
+
+export class DevToolsChange {
+  string kind;
+  int instanceId;
+  string value;
+
+  init(string kind, int instanceId, string value) {
+    this.kind = kind;
+    this.instanceId = instanceId;
+    this.value = value;
+  }
+}
+
+string devToolsValue(JsValue value) {
+  if (value is string) {
+    string text = value;
+    return text;
+  }
+  if (value is bool) {
+    bool flag = value;
+    if (flag) {
+      return "true";
+    }
+    return "false";
+  }
+  if (value is float) {
+    float numericValue = value;
+    return numericValue.toInt().toString();
+  }
+  if (!value.truthy()) {
+    return "null";
+  }
+  if (value.isArray()) {
+    return "[Array]";
+  }
+  return "[Object]";
+}
+
+export class DevToolsLogger {
+  int nextDeclarationId;
+  int nextInstanceId;
+  Map<string, int> declarations;
+  Map<JsValue, DevToolsInstanceInfo> instanceInfos;
+  Map<int, JsValue> aliveInstances;
+  JsValue[] activeTransactions;
+  DevToolsChange[] changes;
+
+  init() {
+    this.nextDeclarationId = 0;
+    this.nextInstanceId = 0;
+    this.declarations = new Map();
+    this.instanceInfos = new Map();
+    this.aliveInstances = new Map();
+    this.activeTransactions = [];
+    this.changes = [];
+  }
+
+  int getDeclarationId(string typeName, string locationId) {
+    if (locationId.length == 0) {
+      return -1;
+    }
+    int? existing = this.declarations.get(locationId);
+    if (existing != null) {
+      return existing;
+    }
+    int result = this.nextDeclarationId;
+    this.nextDeclarationId = this.nextDeclarationId + 1;
+    this.declarations.set(locationId, result);
+    return result;
+  }
+
+  DevToolsInstanceInfo? getInfo(JsValue value) {
+    return this.instanceInfos.get(value);
+  }
+
+  void handleObservableCreated(JsValue observable, JsValue location) {
+    string locationId = "";
+    if (location.truthy() && location.isObject()) {
+      JsValue id = location["id"];
+      if (id is string) {
+        locationId = id;
+      }
+    }
+    int declarationId = this.getDeclarationId(
+      "observable/value",
+      locationId
+    );
+    DevToolsInstanceInfo info = new DevToolsInstanceInfo(
+      declarationId,
+      this.nextInstanceId
+    );
+    this.nextInstanceId = this.nextInstanceId + 1;
+    this.instanceInfos.set(observable, info);
+  }
+
+  void handleOnListenerCountChanged(JsValue observable, int newCount) {
+    DevToolsInstanceInfo? info = this.instanceInfos.get(observable);
+    if (info == null) {
+      return;
+    }
+    if (info.listenerCount == 0 && newCount > 0) {
+      this.aliveInstances.set(info.instanceId, observable);
+      this.changes.push(
+        new DevToolsChange("instanceAdded", info.instanceId, info.lastValue)
+      );
+    } else if (info.listenerCount > 0 && newCount == 0) {
+      this.aliveInstances.delete(info.instanceId);
+      this.changes.push(
+        new DevToolsChange("instanceRemoved", info.instanceId, "")
+      );
+    }
+    info.listenerCount = newCount;
+  }
+
+  void handleObservableUpdated(JsValue observable, JsValue changeInfo) {
+    DevToolsInstanceInfo? info = this.instanceInfos.get(observable);
+    if (info == null) {
+      return;
+    }
+    JsValue newValue = 0;
+    bool didChange = true;
+    if (changeInfo.truthy() && changeInfo.isObject()) {
+      newValue = changeInfo["newValue"];
+      JsValue didChangeValue = changeInfo["didChange"];
+      if (didChangeValue is bool) {
+        didChange = didChangeValue;
+      }
+    }
+    if (didChange) {
+      info.lastValue = devToolsValue(newValue);
+      info.updateCount = info.updateCount + 1;
+      this.changes.push(
+        new DevToolsChange("valueUpdated", info.instanceId, info.lastValue)
+      );
+    }
+    info.changedObservables = [];
+  }
+
+  void handleAutorunCreated(JsValue autorunValue, JsValue location) {
+    int declarationId = this.getDeclarationId("autorun", "");
+    DevToolsInstanceInfo info = new DevToolsInstanceInfo(
+      declarationId,
+      this.nextInstanceId
+    );
+    this.nextInstanceId = this.nextInstanceId + 1;
+    this.instanceInfos.set(autorunValue, info);
+    this.aliveInstances.set(info.instanceId, autorunValue);
+    this.changes.push(new DevToolsChange("autorunAdded", info.instanceId, ""));
+  }
+
+  void handleAutorunDisposed(JsValue autorunValue) {
+    DevToolsInstanceInfo? info = this.instanceInfos.get(autorunValue);
+    if (info == null) {
+      return;
+    }
+    this.aliveInstances.delete(info.instanceId);
+    this.instanceInfos.delete(autorunValue);
+    this.changes.push(
+      new DevToolsChange("autorunRemoved", info.instanceId, "")
+    );
+  }
+
+  void addChangedDependency(JsValue observer, JsValue observable) {
+    DevToolsInstanceInfo? info = this.instanceInfos.get(observer);
+    if (info == null) {
+      return;
+    }
+    if (info.changedObservables.indexOf(observable) < 0) {
+      info.changedObservables.push(observable);
+    }
+  }
+
+  void handleAutorunDependencyChanged(
+    JsValue autorunValue,
+    JsValue observable,
+    JsValue change
+  ) {
+    this.addChangedDependency(autorunValue, observable);
+  }
+
+  void handleAutorunStarted(JsValue autorunValue) {}
+
+  void handleAutorunFinished(JsValue autorunValue) {
+    DevToolsInstanceInfo? info = this.instanceInfos.get(autorunValue);
+    if (info == null) {
+      return;
+    }
+    info.updateCount = info.updateCount + 1;
+    info.changedObservables = [];
+    this.changes.push(
+      new DevToolsChange(
+        "autorunFinished",
+        info.instanceId,
+        info.updateCount.toString()
+      )
+    );
+  }
+
+  void handleDerivedDependencyChanged(
+    JsValue derivedValue,
+    JsValue observable,
+    JsValue change
+  ) {
+    this.addChangedDependency(derivedValue, observable);
+  }
+
+  void handleDerivedCleared(JsValue observable) {
+    DevToolsInstanceInfo? info = this.instanceInfos.get(observable);
+    if (info == null) {
+      return;
+    }
+    info.lastValue = "";
+    info.changedObservables = [];
+    this.changes.push(
+      new DevToolsChange("derivedCleared", info.instanceId, "")
+    );
+  }
+
+  void handleBeginTransaction(JsValue transactionValue) {
+    if (this.activeTransactions.indexOf(transactionValue) < 0) {
+      this.activeTransactions.push(transactionValue);
+    }
+  }
+
+  void handleEndTransaction(JsValue transactionValue) {
+    int index = this.activeTransactions.indexOf(transactionValue);
+    if (index >= 0) {
+      this.activeTransactions.splice(index, 1);
+    }
+  }
+
+  JsValue getTransactionState() {
+    JsValue result = JS.object();
+    string[] names = [];
+    int i = 0;
+    while (i < this.activeTransactions.length) {
+      JsValue tx = this.activeTransactions[i];
+      string name = "tx";
+      if (tx.truthy() && tx.isObject()) {
+        JsValue debugName = tx["debugName"];
+        if (debugName is string) {
+          name = debugName;
+        }
+      }
+      names.push(name);
+      i = i + 1;
+    }
+    result["names"] = names;
+    JsValue[] affected = [];
+    result["affected"] = affected;
+    return result;
+  }
+
+  DevToolsChange[] flushChanges() {
+    DevToolsChange[] result = this.changes;
+    this.changes = [];
+    return result;
+  }
+}
+
+DevToolsLogger? devToolsLoggerInstance = null;
+
+export DevToolsLogger getDevToolsLogger() {
+  DevToolsLogger? existing = devToolsLoggerInstance;
+  if (existing != null) {
+    return existing;
+  }
+  DevToolsLogger created = new DevToolsLogger();
+  devToolsLoggerInstance = created;
+  return created;
+}

@@ -1,0 +1,49 @@
+int uuidSeed = 123456789;
+
+int uuidNextByte() {
+  uuidSeed = Math.imul(uuidSeed, 1103515245) + 12345;
+  return (uuidSeed >>> 16) & 255;
+}
+
+string uuidHexByte(int n) {
+  string digits = "0123456789abcdef";
+  int v = n & 255;
+  return digits.charAt(v / 16) + digits.charAt(v % 16);
+}
+
+export string generateUuid() {
+  int[] data = [];
+  int i = 0;
+  while (i < 16) {
+    data.push(uuidNextByte());
+    i = i + 1;
+  }
+  data[6] = (data[6] & 15) | 64;
+  data[8] = (data[8] & 63) | 128;
+  string result = "";
+  result = result + uuidHexByte(data[0]);
+  result = result + uuidHexByte(data[1]);
+  result = result + uuidHexByte(data[2]);
+  result = result + uuidHexByte(data[3]);
+  result = result + "-";
+  result = result + uuidHexByte(data[4]);
+  result = result + uuidHexByte(data[5]);
+  result = result + "-";
+  result = result + uuidHexByte(data[6]);
+  result = result + uuidHexByte(data[7]);
+  result = result + "-";
+  result = result + uuidHexByte(data[8]);
+  result = result + uuidHexByte(data[9]);
+  result = result + "-";
+  result = result + uuidHexByte(data[10]);
+  result = result + uuidHexByte(data[11]);
+  result = result + uuidHexByte(data[12]);
+  result = result + uuidHexByte(data[13]);
+  result = result + uuidHexByte(data[14]);
+  result = result + uuidHexByte(data[15]);
+  return result;
+}
+
+export string prefixedUuid(string namespace) {
+  return namespace + "-" + generateUuid();
+}

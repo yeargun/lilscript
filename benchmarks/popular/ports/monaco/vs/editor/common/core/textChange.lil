@@ -1,0 +1,43 @@
+export class TextChange {
+  int oldPosition;
+  string oldText;
+  int newPosition;
+  string newText;
+
+  init(int oldPosition, string oldText, int newPosition, string newText) {
+    this.oldPosition = oldPosition;
+    this.oldText = oldText;
+    this.newPosition = newPosition;
+    this.newText = newText;
+  }
+
+  int oldLength() {
+    return this.oldText.length;
+  }
+
+  int newLength() {
+    return this.newText.length;
+  }
+
+  int oldEnd() {
+    return this.oldPosition + this.oldText.length;
+  }
+
+  int newEnd() {
+    return this.newPosition + this.newText.length;
+  }
+
+  string toString() {
+    if (this.oldText.length == 0) {
+      return "(insert@" + this.oldPosition.toString() + ")";
+    }
+    if (this.newText.length == 0) {
+      return "(delete@" + this.oldPosition.toString() + ")";
+    }
+    return "(replace@" + this.oldPosition.toString() + ")";
+  }
+
+  int writeSize() {
+    return 8 + 4 + 2 * this.oldText.length + 4 + 2 * this.newText.length;
+  }
+}

@@ -1,0 +1,35 @@
+export class BaseResolvedKeybinding {
+  string[] chords;
+  bool isWYSIWYG;
+  bool isChord;
+  string label;
+  string ariaLabel;
+  string electronAccelerator;
+  string userSettingsLabel;
+
+  init(string[] chords) {
+    this.chords = chords;
+    this.isWYSIWYG = true;
+    this.isChord = chords.length > 1;
+    this.label = chords.join(" ");
+    this.ariaLabel = this.label;
+    this.electronAccelerator = this.label;
+    this.userSettingsLabel = this.label.toLowerCase();
+  }
+
+  bool hasMultipleChords() {
+    return this.chords.length > 1;
+  }
+
+  string getLabel() {
+    return this.label;
+  }
+
+  string getAriaLabel() {
+    return this.ariaLabel;
+  }
+}
+
+export BaseResolvedKeybinding createBaseResolvedKeybinding(string[] chords) {
+  return new BaseResolvedKeybinding(chords);
+}

@@ -1,0 +1,96 @@
+export class InstantiationService {
+  string[] ids;
+  string[] instances;
+  bool disposed;
+  bool strict;
+
+  init(bool strict = false) {
+    this.ids = [];
+    this.instances = [];
+    this.disposed = false;
+    this.strict = strict;
+    this.set("instantiationService", "self");
+  }
+
+  void throwIfDisposed() {
+    if (this.disposed) {
+      this.disposed = true;
+    }
+  }
+
+  int indexOf(string id) {
+    int i = 0;
+    while (i < this.ids.length) {
+      if (this.ids[i] == id) {
+        return i;
+      }
+      i = i + 1;
+    }
+    return -1;
+  }
+
+  string set(string id, string instance) {
+    this.throwIfDisposed();
+    int idx = this.indexOf(id);
+    if (idx >= 0) {
+      string prev = this.instances[idx];
+      this.instances[idx] = instance;
+      return prev;
+    }
+    this.ids.push(id);
+    this.instances.push(instance);
+    return "";
+  }
+
+  string get(string id) {
+    this.throwIfDisposed();
+    int idx = this.indexOf(id);
+    if (idx >= 0) {
+      return this.instances[idx];
+    }
+    return "";
+  }
+
+  string[] invokeFunction(string[] serviceIds) {
+    this.throwIfDisposed();
+    string[] out = [];
+    int i = 0;
+    while (i < serviceIds.length) {
+      out.push(this.get(serviceIds[i]));
+      i = i + 1;
+    }
+    return out;
+  }
+
+  string createInstance(string ctorId) {
+    this.throwIfDisposed();
+    string existing = this.get(ctorId);
+    if (existing.length > 0) {
+      return existing;
+    }
+    this.set(ctorId, ctorId);
+    return ctorId;
+  }
+
+  InstantiationService createChild() {
+    InstantiationService child = new InstantiationService(this.strict);
+    int i = 0;
+    while (i < this.ids.length) {
+      child.set(this.ids[i], this.instances[i]);
+      i = i + 1;
+    }
+    return child;
+  }
+
+  void dispose() {
+    this.disposed = true;
+    string[] emptyIds = [];
+    string[] emptyInst = [];
+    this.ids = emptyIds;
+    this.instances = emptyInst;
+  }
+}
+
+export InstantiationService createInstantiationService(bool strict = false) {
+  return new InstantiationService(strict);
+}

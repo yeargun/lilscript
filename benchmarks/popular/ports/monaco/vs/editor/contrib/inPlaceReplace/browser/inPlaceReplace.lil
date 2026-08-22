@@ -1,0 +1,33 @@
+export string[] nearbyWords(string[] candidates, string current) {
+  string[] result = [];
+  int i = 0;
+  while (i < candidates.length) {
+    if (candidates[i] != current) {
+      result.push(candidates[i]);
+    }
+    i = i + 1;
+  }
+  return result;
+}
+
+export string inPlaceReplace(string[] candidates, string current, bool up) {
+  if (candidates.length == 0) {
+    return current;
+  }
+  int idx = candidates.indexOf(current);
+  if (idx < 0) {
+    return candidates[0];
+  }
+  if (up) {
+    idx = idx + 1;
+    if (idx >= candidates.length) {
+      idx = 0;
+    }
+  } else {
+    idx = idx - 1;
+    if (idx < 0) {
+      idx = candidates.length - 1;
+    }
+  }
+  return candidates[idx];
+}

@@ -1,0 +1,89 @@
+export float[] createQuadVertices() {
+  float[] vertices = [];
+  vertices.push(1.0);
+  vertices.push(0.0);
+  vertices.push(1.0);
+  vertices.push(1.0);
+  vertices.push(0.0);
+  vertices.push(1.0);
+  vertices.push(0.0);
+  vertices.push(0.0);
+  vertices.push(0.0);
+  vertices.push(1.0);
+  vertices.push(1.0);
+  vertices.push(0.0);
+  return vertices;
+}
+
+export int clampInt(int value, int lo, int hi) {
+  if (value < lo) {
+    return lo;
+  }
+  if (value > hi) {
+    return hi;
+  }
+  return value;
+}
+
+export float clampFloat(float value, float lo, float hi) {
+  if (value < lo) {
+    return lo;
+  }
+  if (value > hi) {
+    return hi;
+  }
+  return value;
+}
+
+export JsValue ensureNonNullable(JsValue value) {
+  if (value.truthy()) {
+    return value;
+  }
+  throw "Value cannot be null";
+}
+
+export class DevicePixelSize {
+  int width;
+  int height;
+
+  init(int width, int height) {
+    this.width = width;
+    this.height = height;
+  }
+}
+
+export class DevicePixelObserver {
+  int width;
+  int height;
+  bool disconnected;
+
+  init(int width, int height) {
+    this.width = width;
+    this.height = height;
+    this.disconnected = false;
+  }
+
+  bool observe(int width, int height) {
+    if (this.disconnected) {
+      return false;
+    }
+    if (width <= 0 || height <= 0) {
+      return false;
+    }
+    this.width = width;
+    this.height = height;
+    return true;
+  }
+
+  void disconnect() {
+    this.disconnected = true;
+  }
+}
+
+export DevicePixelObserver observeDevicePixelDimensions(int width, int height) {
+  return new DevicePixelObserver(width, height);
+}
+
+export DevicePixelSize createDevicePixelSize(int width, int height) {
+  return new DevicePixelSize(clampInt(width, 0, 16384), clampInt(height, 0, 16384));
+}

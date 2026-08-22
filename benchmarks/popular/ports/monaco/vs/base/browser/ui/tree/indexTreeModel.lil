@@ -1,0 +1,362 @@
+export int TREE_HIDDEN = 0;
+export int TREE_VISIBLE = 1;
+export int TREE_RECURSE = 2;
+
+export class IndexTreeElement {
+  string element;
+  IndexTreeElement[] children;
+  bool collapsible;
+  bool collapsed;
+  int visibility;
+
+  init(
+    string element,
+    IndexTreeElement[] children = [],
+    bool collapsible = false,
+    bool collapsed = false,
+    int visibility = TREE_VISIBLE
+  ) {
+    this.element = element;
+    this.children = children;
+    this.collapsible = collapsible || children.length > 0;
+    this.collapsed = collapsed;
+    this.visibility = visibility;
+  }
+}
+
+export class IndexTreeNode {
+  string element;
+  IndexTreeNode? parent;
+  IndexTreeNode[] children;
+  int depth;
+  int visibleChildrenCount;
+  int visibleChildIndex;
+  bool collapsible;
+  bool collapsed;
+  int renderNodeCount;
+  int visibility;
+  bool visible;
+
+  init(string element, IndexTreeNode? parent, int depth) {
+    this.element = element;
+    this.parent = parent;
+    this.children = [];
+    this.depth = depth;
+    this.visibleChildrenCount = 0;
+    this.visibleChildIndex = -1;
+    this.collapsible = false;
+    this.collapsed = false;
+    this.renderNodeCount = 0;
+    this.visibility = TREE_VISIBLE;
+    this.visible = true;
+  }
+}
+
+export class TreeSpliceLocation {
+  IndexTreeNode parentNode;
+  int index;
+
+  init(IndexTreeNode parentNode, int index) {
+    this.parentNode = parentNode;
+    this.index = index;
+  }
+}
+
+export class IndexTreeModel {
+  IndexTreeNode root;
+  bool collapseByDefault;
+
+  init(string rootElement = "", bool collapseByDefault = false) {
+    this.root = new IndexTreeNode(rootElement, null, 0);
+    this.root.collapsible = false;
+    this.root.collapsed = false;
+    this.collapseByDefault = collapseByDefault;
+  }
+
+  IndexTreeNode createNode(IndexTreeElement source, IndexTreeNode parent) {
+    IndexTreeNode node = new IndexTreeNode(source.element, parent, parent.depth + 1);
+    node.collapsible = source.collapsible || source.children.length > 0;
+    node.collapsed = source.collapsed;
+    node.visibility = source.visibility;
+    int i = 0;
+    while (i < source.children.length) {
+      node.children.push(this.createNode(source.children[i], node));
+      i = i + 1;
+    }
+    return node;
+  }
+
+  IndexTreeNode? getNode(int[] location) {
+    IndexTreeNode node = this.root;
+    int i = 0;
+    while (i < location.length) {
+      int index = location[i];
+      if (index < 0 || index >= node.children.length) {
+        return null;
+      }
+      node = node.children[index];
+      i = i + 1;
+    }
+    return node;
+  }
+
+  TreeSpliceLocation? getSpliceLocation(int[] location) {
+    if (location.length == 0) {
+      return null;
+    }
+    IndexTreeNode parent = this.root;
+    int i = 0;
+    while (i + 1 < location.length) {
+      int index = location[i];
+      if (index < 0 || index >= parent.children.length) {
+        return null;
+      }
+      parent = parent.children[index];
+      i = i + 1;
+    }
+    return new TreeSpliceLocation(parent, location[location.length - 1]);
+  }
+
+  IndexTreeNode[] splice(int[] location, int deleteCount, IndexTreeElement[] inserted = []) {
+    TreeSpliceLocation? target = this.getSpliceLocation(location);
+    if (target == null) {
+      throw "Invalid tree location";
+    }
+    int index = target.index;
+    if (index < 0) {
+      index = 0;
+    }
+    if (index > target.parentNode.children.length) {
+      index = target.parentNode.children.length;
+    }
+    int count = deleteCount;
+    if (count < 0) {
+      count = 0;
+    }
+    if (index + count > target.parentNode.children.length) {
+      count = target.parentNode.children.length - index;
+    }
+    IndexTreeNode[] deleted = [];
+    IndexTreeNode[] next = [];
+    int i = 0;
+    while (i < index) {
+      next.push(target.parentNode.children[i]);
+      i = i + 1;
+    }
+    i = index;
+    while (i < index + count) {
+      deleted.push(target.parentNode.children[i]);
+      i = i + 1;
+    }
+    i = 0;
+    while (i < inserted.length) {
+      next.push(this.createNode(inserted[i], target.parentNode));
+      i = i + 1;
+    }
+    i = index + count;
+    while (i < target.parentNode.children.length) {
+      next.push(target.parentNode.children[i]);
+      i = i + 1;
+    }
+    target.parentNode.children = next;
+    if (target.parentNode != this.root && target.parentNode.children.length > 0) {
+      target.parentNode.collapsible = true;
+    }
+    this.recompute();
+    return deleted;
+  }
+
+  int recomputeNode(IndexTreeNode node) {
+    int visibleChildren = 0;
+    int childIndex = 0;
+    int childRenderCount = 0;
+    int i = 0;
+    while (i < node.children.length) {
+      IndexTreeNode child = node.children[i];
+      child.parent = node;
+      child.depth = node.depth + 1;
+      int childCount = this.recomputeNode(child);
+      if (child.visible) {
+        child.visibleChildIndex = childIndex;
+        childIndex = childIndex + 1;
+        visibleChildren = visibleChildren + 1;
+      } else {
+        child.visibleChildIndex = -1;
+      }
+      childRenderCount = childRenderCount + childCount;
+      i = i + 1;
+    }
+    node.visibleChildrenCount = visibleChildren;
+    if (node == this.root) {
+      node.visible = true;
+      node.renderNodeCount = childRenderCount;
+      return node.renderNodeCount;
+    }
+    if (node.visibility == TREE_VISIBLE) {
+      node.visible = true;
+    } else if (node.visibility == TREE_RECURSE) {
+      node.visible = visibleChildren > 0;
+    } else {
+      node.visible = false;
+    }
+    if (!node.visible) {
+      node.renderNodeCount = 0;
+    } else if (node.collapsed) {
+      node.renderNodeCount = 1;
+    } else {
+      node.renderNodeCount = 1 + childRenderCount;
+    }
+    return node.renderNodeCount;
+  }
+
+  void recompute() {
+    this.recomputeNode(this.root);
+  }
+
+  bool setCollapsed(int[] location, bool collapsed, bool recursive = false) {
+    IndexTreeNode? node = this.getNode(location);
+    if (node == null || node == this.root || !node.collapsible) {
+      return false;
+    }
+    bool changed = node.collapsed != collapsed;
+    node.collapsed = collapsed;
+    if (recursive) {
+      this.setCollapsedRecursive(node, collapsed);
+    }
+    this.recompute();
+    return changed;
+  }
+
+  void setCollapsedRecursive(IndexTreeNode node, bool collapsed) {
+    int i = 0;
+    while (i < node.children.length) {
+      IndexTreeNode child = node.children[i];
+      if (child.collapsible) {
+        child.collapsed = collapsed;
+      }
+      this.setCollapsedRecursive(child, collapsed);
+      i = i + 1;
+    }
+  }
+
+  bool setCollapsible(int[] location, bool collapsible) {
+    IndexTreeNode? node = this.getNode(location);
+    if (node == null || node == this.root) {
+      return false;
+    }
+    bool changed = node.collapsible != collapsible;
+    node.collapsible = collapsible;
+    if (!collapsible) {
+      node.collapsed = false;
+    }
+    this.recompute();
+    return changed;
+  }
+
+  bool setVisibility(int[] location, int visibility) {
+    IndexTreeNode? node = this.getNode(location);
+    if (node == null || node == this.root) {
+      return false;
+    }
+    bool changed = node.visibility != visibility;
+    node.visibility = visibility;
+    this.recompute();
+    return changed;
+  }
+
+  void expandTo(int[] location) {
+    IndexTreeNode? node = this.getNode(location);
+    if (node == null) {
+      return;
+    }
+    IndexTreeNode? parent = node.parent;
+    while (parent != null) {
+      if (parent != this.root && parent.collapsible) {
+        parent.collapsed = false;
+      }
+      parent = parent.parent;
+    }
+    this.recompute();
+  }
+
+  void collectRendered(IndexTreeNode node, IndexTreeNode[] result) {
+    if (node != this.root) {
+      if (!node.visible) {
+        return;
+      }
+      result.push(node);
+      if (node.collapsed) {
+        return;
+      }
+    }
+    int i = 0;
+    while (i < node.children.length) {
+      this.collectRendered(node.children[i], result);
+      i = i + 1;
+    }
+  }
+
+  IndexTreeNode[] renderedNodes() {
+    IndexTreeNode[] result = [];
+    this.collectRendered(this.root, result);
+    return result;
+  }
+
+  int getListIndex(int[] location) {
+    IndexTreeNode? node = this.getNode(location);
+    if (node == null || !node.visible) {
+      return -1;
+    }
+    IndexTreeNode[] rendered = this.renderedNodes();
+    return rendered.indexOf(node);
+  }
+
+  int getListRenderCount(int[] location) {
+    IndexTreeNode? node = this.getNode(location);
+    if (node == null) {
+      return 0;
+    }
+    return node.renderNodeCount;
+  }
+
+  int[] getNodeLocation(IndexTreeNode node) {
+    int[] reversed = [];
+    IndexTreeNode current = node;
+    while (current != this.root) {
+      IndexTreeNode? parent = current.parent;
+      if (parent == null) {
+        return [];
+      }
+      int index = parent.children.indexOf(current);
+      if (index < 0) {
+        return [];
+      }
+      reversed.push(index);
+      current = parent;
+    }
+    int[] result = [];
+    int i = reversed.length - 1;
+    while (i >= 0) {
+      result.push(reversed[i]);
+      i = i - 1;
+    }
+    return result;
+  }
+}
+
+export IndexTreeElement createIndexTreeElement(
+  string element,
+  IndexTreeElement[] children,
+  bool collapsible,
+  bool collapsed,
+  int visibility
+) {
+  return new IndexTreeElement(element, children, collapsible, collapsed, visibility);
+}
+
+export IndexTreeModel createIndexTreeModel(
+  string rootElement,
+  bool collapseByDefault
+) {
+  return new IndexTreeModel(rootElement, collapseByDefault);
+}

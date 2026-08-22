@@ -1,0 +1,68 @@
+import { sliceOf, concat2 } from "../../../../js-host";
+
+export class ContentChange {
+  int rangeOffset;
+  int rangeLength;
+  string text;
+
+  init(int rangeOffset, int rangeLength, string text) {
+    this.rangeOffset = rangeOffset;
+    this.rangeLength = rangeLength;
+    this.text = text;
+  }
+}
+
+export class StringReplacement {
+  int start;
+  int end;
+  string text;
+
+  init(int start, int end, string text) {
+    this.start = start;
+    this.end = end;
+    this.text = text;
+  }
+}
+
+export class StringEdit {
+  StringReplacement[] replacements;
+
+  init(StringReplacement[] replacements) {
+    this.replacements = replacements;
+  }
+
+  string apply(string value) {
+    string result = value;
+    int i = 0;
+    while (i < this.replacements.length) {
+      StringReplacement replacement = this.replacements[i];
+      result = concat2(
+        concat2(sliceOf(result, 0, replacement.start), replacement.text),
+        sliceOf(result, replacement.end, result.length)
+      );
+      i = i + 1;
+    }
+    return result;
+  }
+}
+
+export StringEdit offsetEditFromContentChanges(ContentChange[] contentChanges) {
+  StringReplacement[] replacements = [];
+  int i = contentChanges.length - 1;
+  while (i >= 0) {
+    ContentChange change = contentChanges[i];
+    replacements.push(
+      new StringReplacement(
+        change.rangeOffset,
+        change.rangeOffset + change.rangeLength,
+        change.text
+      )
+    );
+    i = i - 1;
+  }
+  return new StringEdit(replacements);
+}
+
+export ContentChange createContentChange(int rangeOffset, int rangeLength, string text) {
+  return new ContentChange(rangeOffset, rangeLength, text);
+}

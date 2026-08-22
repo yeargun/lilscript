@@ -1007,17 +1007,18 @@ pub(crate) fn fold_single_statement_control_braces(
             {
                 replacement.insert(0, ' ');
             }
-            let has_terminator = tokens
-                .get(block_close.wrapping_sub(1))
+            let last_before_close = block_close.checked_sub(1);
+            let has_terminator = last_before_close
+                .and_then(|index| tokens.get(index))
                 .map(|token| token.text)
                 == Some(";");
-            let statement_ends_without_semicolon = tokens
-                .get(block_close.wrapping_sub(1))
-                .is_some_and(|token| token.text == "}")
-                || (tokens[statement_start].text == "do"
-                    && tokens
-                        .get(block_close.wrapping_sub(1))
-                        .is_some_and(|token| token.text == ")"));
+            let statement_ends_without_semicolon = last_before_close.is_some_and(|index| {
+                tokens.get(index).is_some_and(|token| token.text == "}")
+                    && closing_brace_terminates_statement(&tokens, &matching_open, index)
+            }) || (tokens[statement_start].text == "do"
+                && last_before_close
+                    .and_then(|index| tokens.get(index))
+                    .is_some_and(|token| token.text == ")"));
             let next_terminates_by_grammar = tokens
                 .get(block_close + 1)
                 .is_none_or(|token| matches!(token.text, "}" | ";"));
@@ -1039,6 +1040,44 @@ pub(crate) fn fold_single_statement_control_braces(
         for (start, end, replacement) in retained.into_iter().rev() {
             output.replace_range(start..end, &replacement);
         }
+    }
+}
+
+fn closing_brace_terminates_statement(
+    tokens: &[Token<'_>],
+    matching_open: &[Option<usize>],
+    close: usize,
+) -> bool {
+    let Some(open) = matching_open.get(close).copied().flatten() else {
+        return false;
+    };
+    let Some(previous) = open.checked_sub(1) else {
+        return true;
+    };
+    match tokens[previous].text {
+        "else" | "do" | "try" | "catch" | "finally" | "{" | ";" => true,
+        ")" => parenthesis_introduces_statement_block(tokens, matching_open, previous),
+        _ => false,
+    }
+}
+
+fn parenthesis_introduces_statement_block(
+    tokens: &[Token<'_>],
+    matching_open: &[Option<usize>],
+    close_paren: usize,
+) -> bool {
+    let Some(open) = matching_open.get(close_paren).copied().flatten() else {
+        return false;
+    };
+    let Some(previous) = open.checked_sub(1) else {
+        return false;
+    };
+    match tokens[previous].text {
+        "if" | "for" | "while" | "with" | "switch" | "catch" => true,
+        "await" => previous
+            .checked_sub(1)
+            .is_some_and(|index| tokens[index].text == "for"),
+        _ => false,
     }
 }
 

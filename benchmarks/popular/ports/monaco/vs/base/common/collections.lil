@@ -1,0 +1,132 @@
+export class StringSet {
+  string[] keys;
+
+  init() {
+    this.keys = [];
+  }
+
+  bool has(string element) {
+    return this.keys.indexOf(element) >= 0;
+  }
+
+  void add(string element) {
+    if (!this.has(element)) {
+      this.keys.push(element);
+    }
+  }
+
+  bool delete(string element) {
+    int idx = this.keys.indexOf(element);
+    if (idx < 0) {
+      return false;
+    }
+    this.keys.splice(idx, 1);
+    return true;
+  }
+
+  int size() {
+    return this.keys.length;
+  }
+
+  void clear() {
+    this.keys = [];
+  }
+}
+
+export class SetWithKey {
+  string[] keys;
+  string[] values;
+  func(string)->string toKey;
+
+  init(string[] values, func(string)->string toKey) {
+    this.toKey = toKey;
+    this.keys = [];
+    this.values = [];
+    int i = 0;
+    while (i < values.length) {
+      this.add(values[i]);
+      i = i + 1;
+    }
+  }
+
+  int size() {
+    return this.keys.length;
+  }
+
+  void add(string value) {
+    string key = this.toKey(value);
+    int i = 0;
+    while (i < this.keys.length) {
+      if (this.keys[i] == key) {
+        this.values[i] = value;
+        return;
+      }
+      i = i + 1;
+    }
+    this.keys.push(key);
+    this.values.push(value);
+  }
+
+  bool delete(string value) {
+    string key = this.toKey(value);
+    int i = 0;
+    while (i < this.keys.length) {
+      if (this.keys[i] == key) {
+        this.keys.splice(i, 1);
+        this.values.splice(i, 1);
+        return true;
+      }
+      i = i + 1;
+    }
+    return false;
+  }
+
+  bool has(string value) {
+    return this.keys.indexOf(this.toKey(value)) >= 0;
+  }
+
+  void clear() {
+    this.keys = [];
+    this.values = [];
+  }
+}
+
+export string[][] groupByString(string[] data, func(string)->string groupFn) {
+  string[] keys = [];
+  string[][] groups = [];
+  int i = 0;
+  while (i < data.length) {
+    string key = groupFn(data[i]);
+    int found = -1;
+    int k = 0;
+    while (k < keys.length) {
+      if (keys[k] == key) {
+        found = k;
+        break;
+      }
+      k = k + 1;
+    }
+    if (found < 0) {
+      keys.push(key);
+      string[] g = [];
+      g.push(data[i]);
+      groups.push(g);
+    } else {
+      groups[found].push(data[i]);
+    }
+    i = i + 1;
+  }
+  return groups;
+}
+
+export string[] intersectionStrings(string[] setA, string[] setB) {
+  string[] result = [];
+  int i = 0;
+  while (i < setB.length) {
+    if (setA.indexOf(setB[i]) >= 0 && result.indexOf(setB[i]) < 0) {
+      result.push(setB[i]);
+    }
+    i = i + 1;
+  }
+  return result;
+}

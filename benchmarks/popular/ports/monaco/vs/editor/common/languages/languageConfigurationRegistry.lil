@@ -1,0 +1,258 @@
+import { hostCall, jsUndefined, sliceOf } from "../../../../js-host";
+import { AutoClosingPairs } from "./languageConfiguration";
+import { CharacterPairSupport } from "./supports/characterPair";
+import { IndentRulesSupport } from "./supports/indentRules";
+import { OnEnterSupport } from "./supports/onEnter";
+
+export string ILanguageConfigurationService = "languageConfigurationService";
+
+export class LanguageConfigurationServiceChangeEvent {
+  string languageId;
+
+  init(string languageId = "") {
+    this.languageId = languageId;
+  }
+
+  bool affects(string candidate) {
+    return this.languageId.length == 0 || this.languageId == candidate;
+  }
+}
+
+export class LanguageConfigurationChangeEvent {
+  string languageId;
+
+  init(string languageId) {
+    this.languageId = languageId;
+  }
+}
+
+class LanguageConfigurationEntry {
+  JsValue configuration;
+  int priority;
+  int order;
+
+  init(JsValue configuration, int priority, int order) {
+    this.configuration = configuration;
+    this.priority = priority;
+    this.order = order;
+  }
+}
+
+JsValue combineConfigurations(LanguageConfigurationEntry[] entries) {
+  LanguageConfigurationEntry[] ordered = entries.slice();
+  int i = 0;
+  while (i < ordered.length) {
+    int best = i;
+    int j = i + 1;
+    while (j < ordered.length) {
+      LanguageConfigurationEntry a = ordered[j];
+      LanguageConfigurationEntry b = ordered[best];
+      if (a.priority < b.priority || (a.priority == b.priority && a.order < b.order)) {
+        best = j;
+      }
+      j = j + 1;
+    }
+    LanguageConfigurationEntry temporary = ordered[i];
+    ordered[i] = ordered[best];
+    ordered[best] = temporary;
+    i = i + 1;
+  }
+  JsValue result = JS.object();
+  string[] keys = [
+    "comments",
+    "brackets",
+    "wordPattern",
+    "indentationRules",
+    "onEnterRules",
+    "autoClosingPairs",
+    "surroundingPairs",
+    "autoCloseBefore",
+    "folding",
+    "colorizedBracketPairs",
+    "__electricCharacterSupport"
+  ];
+  i = 0;
+  while (i < ordered.length) {
+    JsValue configuration = ordered[i].configuration;
+    int keyIndex = 0;
+    while (keyIndex < keys.length) {
+      string key = keys[keyIndex];
+      if (configuration[key] != null) {
+        result[key] = configuration[key];
+      }
+      keyIndex = keyIndex + 1;
+    }
+    i = i + 1;
+  }
+  return result;
+}
+
+export class ResolvedLanguageConfiguration {
+  string languageId;
+  JsValue underlyingConfig;
+  JsValue comments;
+  CharacterPairSupport characterPair;
+  IndentRulesSupport indentRulesSupport;
+  OnEnterSupport onEnterSupport;
+
+  init(string languageId, JsValue configuration) {
+    this.languageId = languageId;
+    this.underlyingConfig = configuration;
+    this.comments = null;
+    if (configuration["comments"] != null) {
+      JsValue source = configuration["comments"];
+      JsValue value = JS.object();
+      if (source["lineComment"] != null) {
+        if (JS.typeOf(source["lineComment"]) == "string") {
+          value["lineCommentToken"] = source["lineComment"];
+        } else {
+          value["lineCommentToken"] = source["lineComment"]["comment"];
+          value["lineCommentNoIndent"] = source["lineComment"]["noIndent"];
+        }
+      }
+      if (source["blockComment"] != null) {
+        value["blockCommentStartToken"] = source["blockComment"][0];
+        value["blockCommentEndToken"] = source["blockComment"][1];
+      }
+      this.comments = value;
+    }
+    this.characterPair = new CharacterPairSupport(configuration);
+    this.indentRulesSupport = new IndentRulesSupport(configuration["indentationRules"]);
+    this.onEnterSupport = new OnEnterSupport(configuration);
+  }
+
+  JsValue onEnter(int autoIndent, string previous, string before, string after) {
+    return this.onEnterSupport.onEnter(autoIndent, previous, before, after);
+  }
+
+  AutoClosingPairs getAutoClosingPairs() {
+    return new AutoClosingPairs(this.characterPair.getAutoClosingPairs());
+  }
+
+  string getAutoCloseBeforeSet(bool forQuotes) {
+    return this.characterPair.getAutoCloseBeforeSet(forQuotes);
+  }
+
+  JsValue getSurroundingPairs() {
+    return this.underlyingConfig["surroundingPairs"];
+  }
+}
+
+export class LanguageConfigurationRegistry {
+  Map<string, LanguageConfigurationEntry[]> entries;
+  int order;
+  (func(LanguageConfigurationChangeEvent)->void)[] listeners;
+
+  init() {
+    this.entries = new Map();
+    this.order = 0;
+    this.listeners = [];
+    JsValue plain = JS.object();
+    plain["brackets"] = [["(", ")"], ["[", "]"], ["{", "}"]];
+    plain["surroundingPairs"] = [
+      ["{", "}"],
+      ["[", "]"],
+      ["(", ")"],
+      ["<", ">"],
+      ["\"", "\""],
+      ["'", "'"],
+      ["`", "`"]
+    ];
+    this.register("plaintext", plain, 0);
+  }
+
+  void fireChange(string languageId) {
+    LanguageConfigurationChangeEvent event = new LanguageConfigurationChangeEvent(languageId);
+    int i = 0;
+    while (i < this.listeners.length) {
+      this.listeners[i](event);
+      i = i + 1;
+    }
+  }
+
+  func()->void onDidChange(func(LanguageConfigurationChangeEvent)->void listener) {
+    this.listeners.push(listener);
+    return () => {
+      int index = this.listeners.indexOf(listener);
+      if (index >= 0) {
+        this.listeners.splice(index, 1);
+      }
+    };
+  }
+
+  func()->void register(string languageId, JsValue configuration, int priority = 0) {
+    LanguageConfigurationEntry[]? current = this.entries.get(languageId);
+    LanguageConfigurationEntry[] values = [];
+    if (current == null) {
+      this.entries.set(languageId, values);
+    } else {
+      values = current;
+    }
+    this.order = this.order + 1;
+    LanguageConfigurationEntry entry = new LanguageConfigurationEntry(configuration, priority, this.order);
+    values.push(entry);
+    this.fireChange(languageId);
+    return () => {
+      LanguageConfigurationEntry[]? values = this.entries.get(languageId);
+      if (values != null) {
+        int index = values.indexOf(entry);
+        if (index >= 0) {
+          values.splice(index, 1);
+          this.fireChange(languageId);
+        }
+      }
+    };
+  }
+
+  ResolvedLanguageConfiguration? getLanguageConfiguration(string languageId) {
+    LanguageConfigurationEntry[]? current = this.entries.get(languageId);
+    if (current == null || current.length == 0) {
+      return null;
+    }
+    return new ResolvedLanguageConfiguration(languageId, combineConfigurations(current));
+  }
+}
+
+export class LanguageConfigurationService {
+  LanguageConfigurationRegistry registry;
+
+  init() {
+    this.registry = new LanguageConfigurationRegistry();
+  }
+
+  func()->void register(string languageId, JsValue configuration, int priority = 0) {
+    return this.registry.register(languageId, configuration, priority);
+  }
+
+  ResolvedLanguageConfiguration getLanguageConfiguration(string languageId) {
+    ResolvedLanguageConfiguration? result = this.registry.getLanguageConfiguration(languageId);
+    if (result != null) {
+      return result;
+    }
+    return new ResolvedLanguageConfiguration(languageId, JS.object());
+  }
+}
+
+export string getIndentationAtPosition(JsValue model, int lineNumber, int column) {
+  string line = JS.string(hostCall(model, "getLineContent", lineNumber, jsUndefined(), jsUndefined()));
+  int end = 0;
+  while (end < line.length) {
+    int code = line.charCodeAt(end);
+    if (code != 32 && code != 9) {
+      break;
+    }
+    end = end + 1;
+  }
+  if (end > column - 1) {
+    end = column - 1;
+  }
+  return sliceOf(line, 0, end);
+}
+
+export LanguageConfigurationRegistry createLanguageConfigurationRegistry() {
+  return new LanguageConfigurationRegistry();
+}
+
+export LanguageConfigurationService createLanguageConfigurationService() {
+  return new LanguageConfigurationService();
+}

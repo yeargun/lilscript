@@ -1,0 +1,310 @@
+export class Position {
+  int lineNumber;
+  int column;
+
+  init(int lineNumber, int column) {
+    this.lineNumber = lineNumber;
+    this.column = column;
+  }
+}
+
+export class Range {
+  int startLineNumber;
+  int startColumn;
+  int endLineNumber;
+  int endColumn;
+
+  init(int startLineNumber, int startColumn, int endLineNumber, int endColumn) {
+    this.startLineNumber = startLineNumber;
+    this.startColumn = startColumn;
+    this.endLineNumber = endLineNumber;
+    this.endColumn = endColumn;
+  }
+}
+
+export class FontToken {
+  string fontFamily;
+  float fontSizeMultiplier;
+  float lineHeightMultiplier;
+
+  init(string fontFamily, float fontSizeMultiplier, float lineHeightMultiplier) {
+    this.fontFamily = fontFamily;
+    this.fontSizeMultiplier = fontSizeMultiplier;
+    this.lineHeightMultiplier = lineHeightMultiplier;
+  }
+}
+
+export class FontAnnotation {
+  int startOffset;
+  int endOffset;
+  FontToken fontToken;
+  string decorationId;
+
+  init(
+    int startOffset,
+    int endOffset,
+    FontToken fontToken,
+    string decorationId
+  ) {
+    this.startOffset = startOffset;
+    this.endOffset = endOffset;
+    this.fontToken = fontToken;
+    this.decorationId = decorationId;
+  }
+}
+
+export class FontDecoration {
+  string id;
+  Range range;
+  string inlineClassName;
+  float lineHeight;
+  bool affectsFont;
+  int ownerId;
+
+  init(
+    string id,
+    Range range,
+    string inlineClassName,
+    float lineHeight,
+    bool affectsFont,
+    int ownerId
+  ) {
+    this.id = id;
+    this.range = range;
+    this.inlineClassName = inlineClassName;
+    this.lineHeight = lineHeight;
+    this.affectsFont = affectsFont;
+    this.ownerId = ownerId;
+  }
+}
+
+export class LineHeightChange {
+  string decorationId;
+  int lineNumber;
+  float lineHeightMultiplier;
+
+  init(string decorationId, int lineNumber, float lineHeightMultiplier) {
+    this.decorationId = decorationId;
+    this.lineNumber = lineNumber;
+    this.lineHeightMultiplier = lineHeightMultiplier;
+  }
+}
+
+export class LineFontChange {
+  string decorationId;
+  int lineNumber;
+
+  init(string decorationId, int lineNumber) {
+    this.decorationId = decorationId;
+    this.lineNumber = lineNumber;
+  }
+}
+
+Position positionAt(string text, int offset) {
+  int line = 1;
+  int column = 1;
+  int i = 0;
+  while (i < offset && i < text.length) {
+    int code = text.charCodeAt(i);
+    if (code == 13 || code == 10) {
+      if (code == 13 && i + 1 < offset && text.charCodeAt(i + 1) == 10) {
+        i = i + 1;
+      }
+      line = line + 1;
+      column = 1;
+    } else {
+      column = column + 1;
+    }
+    i = i + 1;
+  }
+  return new Position(line, column);
+}
+
+string fontClassName(FontToken token) {
+  string family = token.fontFamily;
+  if (family.length == 0) {
+    family = "default";
+  }
+  return "mtk-font-"
+    + family
+    + "-"
+    + (token.fontSizeMultiplier * 100.0).floor().toInt().toString();
+}
+
+export class TokenizationFontDecorationProvider {
+  string text;
+  FontAnnotation[] annotations;
+  int decorationCount;
+  LineHeightChange[] lineHeightChanges;
+  LineFontChange[] lineFontChanges;
+
+  init(string text) {
+    this.text = text;
+    this.annotations = [];
+    this.decorationCount = 0;
+    this.lineHeightChanges = [];
+    this.lineFontChanges = [];
+  }
+
+  void setFontInfo(FontAnnotation[] changes) {
+    this.lineHeightChanges = [];
+    this.lineFontChanges = [];
+    int i = 0;
+    while (i < changes.length) {
+      FontAnnotation change = changes[i];
+      Position position = positionAt(this.text, change.startOffset);
+      if (change.decorationId.length == 0) {
+        change.decorationId =
+          "tokenization-font-decoration-" + this.decorationCount.toString();
+        this.decorationCount = this.decorationCount + 1;
+      }
+      this.removeIntersecting(change.startOffset, change.endOffset);
+      this.annotations.push(change);
+      if (change.fontToken.lineHeightMultiplier > 0.0) {
+        this.lineHeightChanges.push(
+          new LineHeightChange(
+            change.decorationId,
+            position.lineNumber,
+            change.fontToken.lineHeightMultiplier
+          )
+        );
+      }
+      this.lineFontChanges.push(
+        new LineFontChange(change.decorationId, position.lineNumber)
+      );
+      i = i + 1;
+    }
+  }
+
+  void removeIntersecting(int startOffset, int endOffset) {
+    FontAnnotation[] kept = [];
+    int i = 0;
+    while (i < this.annotations.length) {
+      FontAnnotation annotation = this.annotations[i];
+      if (
+        annotation.endOffset <= startOffset
+        || annotation.startOffset >= endOffset
+      ) {
+        kept.push(annotation);
+      } else {
+        Position position = positionAt(this.text, annotation.startOffset);
+        this.lineHeightChanges.push(
+          new LineHeightChange(annotation.decorationId, position.lineNumber, 0.0)
+        );
+        this.lineFontChanges.push(
+          new LineFontChange(annotation.decorationId, position.lineNumber)
+        );
+      }
+      i = i + 1;
+    }
+    this.annotations = kept;
+  }
+
+  void handleDidChangeContent(
+    int startOffset,
+    int deletedLength,
+    string insertedText
+  ) {
+    this.lineHeightChanges = [];
+    this.lineFontChanges = [];
+    int oldEnd = startOffset + deletedLength;
+    int delta = insertedText.length - deletedLength;
+    FontAnnotation[] kept = [];
+    int i = 0;
+    while (i < this.annotations.length) {
+      FontAnnotation annotation = this.annotations[i];
+      if (annotation.endOffset <= startOffset) {
+        kept.push(annotation);
+      } else if (annotation.startOffset >= oldEnd) {
+        annotation.startOffset = annotation.startOffset + delta;
+        annotation.endOffset = annotation.endOffset + delta;
+        kept.push(annotation);
+      } else {
+        Position position = positionAt(this.text, annotation.startOffset);
+        this.lineHeightChanges.push(
+          new LineHeightChange(annotation.decorationId, position.lineNumber, 0.0)
+        );
+        this.lineFontChanges.push(
+          new LineFontChange(annotation.decorationId, position.lineNumber)
+        );
+      }
+      i = i + 1;
+    }
+    string nextText = "";
+    i = 0;
+    while (i < startOffset && i < this.text.length) {
+      nextText = nextText + this.text.charAt(i);
+      i = i + 1;
+    }
+    nextText = nextText + insertedText;
+    i = oldEnd;
+    while (i < this.text.length) {
+      nextText = nextText + this.text.charAt(i);
+      i = i + 1;
+    }
+    this.text = nextText;
+    this.annotations = kept;
+  }
+
+  FontDecoration[] getDecorationsInRange(
+    int startOffset,
+    int endOffset,
+    bool filterFontDecorations,
+    bool onlyMinimapDecorations
+  ) {
+    FontDecoration[] result = [];
+    if (onlyMinimapDecorations) {
+      return result;
+    }
+    int i = 0;
+    while (i < this.annotations.length) {
+      FontAnnotation annotation = this.annotations[i];
+      if (
+        annotation.startOffset < endOffset
+        && annotation.endOffset > startOffset
+      ) {
+        bool affectsFont =
+          annotation.fontToken.fontFamily.length > 0
+          || annotation.fontToken.fontSizeMultiplier > 0.0;
+        if (!affectsFont || !filterFontDecorations) {
+          Position start = positionAt(this.text, annotation.startOffset);
+          Position end = positionAt(this.text, annotation.endOffset);
+          result.push(
+            new FontDecoration(
+              annotation.decorationId,
+              new Range(start.lineNumber, start.column, end.lineNumber, end.column),
+              fontClassName(annotation.fontToken),
+              annotation.fontToken.lineHeightMultiplier,
+              affectsFont,
+              0
+            )
+          );
+        }
+      }
+      i = i + 1;
+    }
+    return result;
+  }
+}
+
+export FontToken createFontToken(
+  string fontFamily,
+  float fontSizeMultiplier,
+  float lineHeightMultiplier
+) {
+  return new FontToken(fontFamily, fontSizeMultiplier, lineHeightMultiplier);
+}
+
+export FontAnnotation createFontAnnotation(
+  int startOffset,
+  int endOffset,
+  FontToken fontToken
+) {
+  return new FontAnnotation(startOffset, endOffset, fontToken, "");
+}
+
+export TokenizationFontDecorationProvider createTokenizationFontDecorationProvider(
+  string text
+) {
+  return new TokenizationFontDecorationProvider(text);
+}

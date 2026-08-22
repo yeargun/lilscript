@@ -1,0 +1,126 @@
+import { DEV } from "../dev-flag.lil";
+import {
+  addHiddenProp,
+  gObject,
+  gSet,
+  gSymbol,
+  getDescriptor,
+  getPrototypeOf,
+  inOp,
+  isPlainObject,
+  len,
+  setAdd,
+  setDelete,
+  stringifyKey,
+  toStr,
+  undef,
+  ownKeys as reflectOwnKeys
+} from "../host.lil";
+import {
+  $mobx,
+  MAKE_BREAK,
+  MAKE_CANCEL
+} from "../constants.lil";
+import {
+  die,
+  die2
+} from "../errors.lil";
+import { initObservable } from "../types/type-utils-init.lil";
+import { isObservableObject } from "../core/predicates.lil";
+import { extendObservable } from "./extendobservable.lil";
+import {
+  asObservableObject,
+  assertAnnotable,
+  recordAnnotationApplied
+} from "../types/observableobject.lil";
+
+JsValue keysSymbol = JS.call(gSymbol(), undef(), "mobx-keys");
+
+export JsValue makeObservable = JS.method3((JsValue _s, JsValue target, JsValue annotations, JsValue options) => {
+  initObservable(JS.method0((JsValue __s) => {
+    JsValue adm = JS.call(asObservableObject, undef(), target, options)[$mobx];
+    JsValue keys = reflectOwnKeys(annotations);
+    int i = 0;
+    while (i < len(keys)) {
+      makeAnnotate(adm, keys[i], annotations[keys[i]]);
+      i = i + 1;
+    }
+    return undef();
+  }));
+  return target;
+});
+
+export JsValue makeAutoObservable = JS.method3((JsValue _s, JsValue target, JsValue overrides, JsValue options) => {
+  if (DEV) {
+    JsValue proto = getPrototypeOf(target);
+    if (!isPlainObject(target) && !isPlainObject(proto)) {
+      die("'makeAutoObservable' can only be used for classes that don't have a superclass");
+    }
+    if (isObservableObject(target)) {
+      die("makeAutoObservable can only be used on objects not already made observable");
+    }
+  }
+  if (isPlainObject(target)) {
+    return JS.call(extendObservable, undef(), target, target, overrides, options);
+  }
+  initObservable(JS.method0((JsValue __s) => {
+    JsValue adm = JS.call(asObservableObject, undef(), target, options)[$mobx];
+    if (!inOp(keysSymbol, target)) {
+      JsValue proto = getPrototypeOf(target);
+      JsValue keys = JS.construct(gSet());
+      JsValue own = reflectOwnKeys(target);
+      JsValue pown = reflectOwnKeys(proto);
+      int i = 0;
+      while (i < len(own)) {
+        setAdd(keys, own[i]);
+        i = i + 1;
+      }
+      i = 0;
+      while (i < len(pown)) {
+        setAdd(keys, pown[i]);
+        i = i + 1;
+      }
+      setDelete(keys, "constructor");
+      setDelete(keys, $mobx);
+      addHiddenProp(proto, keysSymbol, keys);
+    }
+    JS.invoke(target[keysSymbol], "forEach", JS.method1((JsValue _f, JsValue key) => {
+      JsValue annotation = true;
+      if (overrides.truthy() && inOp(key, overrides)) {
+        annotation = overrides[key];
+      }
+      makeAnnotate(adm, key, annotation);
+      return undef();
+    }));
+    return undef();
+  }));
+  return target;
+});
+
+void makeAnnotate(JsValue adm, JsValue key, JsValue annotation) {
+  if (JS.strictEqual(annotation, true)) {
+    annotation = adm["defaultAnnotation_"];
+  }
+  if (JS.strictEqual(annotation, false)) {
+    return;
+  }
+  assertAnnotable(adm, annotation, key);
+  if (!inOp(key, adm["target_"])) {
+    die2(1, annotation["annotationType_"], toStr(adm["name_"]) + "." + stringifyKey(key));
+  }
+  JsValue source = adm["target_"];
+  while (source.truthy() && !JS.strictEqual(source, gObject()["prototype"])) {
+    JsValue descriptor = getDescriptor(source, key);
+    if (descriptor.truthy()) {
+      JsValue outcome = JS.call(annotation["make_"], annotation, adm, key, descriptor, source);
+      if (JS.strictEqual(outcome, MAKE_CANCEL)) {
+        return;
+      }
+      if (JS.strictEqual(outcome, MAKE_BREAK)) {
+        break;
+      }
+    }
+    source = getPrototypeOf(source);
+  }
+  recordAnnotationApplied(adm, annotation, key);
+}

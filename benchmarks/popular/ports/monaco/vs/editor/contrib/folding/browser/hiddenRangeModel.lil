@@ -1,0 +1,102 @@
+export class HiddenRange {
+  int startLineNumber;
+  int endLineNumber;
+
+  init(int startLineNumber, int endLineNumber) {
+    this.startLineNumber = startLineNumber;
+    this.endLineNumber = endLineNumber;
+  }
+}
+
+export class CollapsedFold {
+  int startLineNumber;
+  int endLineNumber;
+  bool isCollapsed;
+
+  init(int startLineNumber, int endLineNumber, bool isCollapsed) {
+    this.startLineNumber = startLineNumber;
+    this.endLineNumber = endLineNumber;
+    this.isCollapsed = isCollapsed;
+  }
+}
+
+bool isInside(int line, HiddenRange range) {
+  return line >= range.startLineNumber && line <= range.endLineNumber;
+}
+
+HiddenRange? findHiddenRange(HiddenRange[] ranges, int line) {
+  int low = 0;
+  int high = ranges.length;
+  while (low < high) {
+    int mid = (low + high) / 2;
+    if (line < ranges[mid].startLineNumber) {
+      high = mid;
+    } else {
+      low = mid + 1;
+    }
+  }
+  int i = low - 1;
+  if (i >= 0 && ranges[i].endLineNumber >= line) {
+    return ranges[i];
+  }
+  return null;
+}
+
+export class HiddenRangeModel {
+  HiddenRange[] hiddenRanges;
+  bool hasLineChanges;
+
+  init() {
+    this.hiddenRanges = [];
+    this.hasLineChanges = false;
+  }
+
+  void updateHiddenRanges(CollapsedFold[] regions) {
+    HiddenRange[] next = [];
+    int lastCollapsedStart = 2147483647;
+    int lastCollapsedEnd = -1;
+    int i = 0;
+    while (i < regions.length) {
+      if (!regions[i].isCollapsed) {
+        i = i + 1;
+        continue;
+      }
+      int startLineNumber = regions[i].startLineNumber + 1;
+      int endLineNumber = regions[i].endLineNumber;
+      if (lastCollapsedStart <= startLineNumber && endLineNumber <= lastCollapsedEnd) {
+        i = i + 1;
+        continue;
+      }
+      next.push(new HiddenRange(startLineNumber, endLineNumber));
+      lastCollapsedStart = startLineNumber;
+      lastCollapsedEnd = endLineNumber;
+      i = i + 1;
+    }
+    this.hiddenRanges = next;
+    this.hasLineChanges = false;
+  }
+
+  bool hasRanges() {
+    return this.hiddenRanges.length > 0;
+  }
+
+  bool isHidden(int line) {
+    return findHiddenRange(this.hiddenRanges, line) != null;
+  }
+
+  int adjustLine(int line) {
+    HiddenRange? hidden = findHiddenRange(this.hiddenRanges, line);
+    if (hidden != null) {
+      return hidden.startLineNumber - 1;
+    }
+    return line;
+  }
+}
+
+export HiddenRangeModel createHiddenRangeModel() {
+  return new HiddenRangeModel();
+}
+
+export HiddenRange createHiddenRange(int startLine, int endLine) {
+  return new HiddenRange(startLine, endLine);
+}

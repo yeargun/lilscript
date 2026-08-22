@@ -1,0 +1,36 @@
+export class StandaloneReferenceSearch {
+  string[] locations;
+  int active;
+
+  init() {
+    this.locations = [];
+    this.active = -1;
+  }
+
+  void setReferences(string[] locations) {
+    this.locations = locations;
+    if (locations.length > 0) {
+      this.active = 0;
+    } else {
+      this.active = -1;
+    }
+  }
+
+  string? current() {
+    if (this.active < 0 || this.active >= this.locations.length) {
+      return null;
+    }
+    return this.locations[this.active];
+  }
+
+  void next() {
+    if (this.locations.length == 0) {
+      return;
+    }
+    this.active = (this.active + 1) % this.locations.length;
+  }
+}
+
+export StandaloneReferenceSearch createStandaloneReferenceSearch() {
+  return new StandaloneReferenceSearch();
+}

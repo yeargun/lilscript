@@ -1,0 +1,97 @@
+export bool canASAR = false;
+
+export class AmdModule {
+  string id;
+  string factoryId;
+  string[] deps;
+  bool defined;
+  bool loaded;
+
+  init(string id) {
+    this.id = id;
+    this.factoryId = "";
+    this.deps = [];
+    this.defined = false;
+    this.loaded = false;
+  }
+}
+
+export class AmdLoader {
+  AmdModule[] modules;
+
+  init() {
+    this.modules = [];
+  }
+
+  AmdModule lookup(string id) {
+    int i = 0;
+    while (i < this.modules.length) {
+      if (this.modules[i].id == id) {
+        return this.modules[i];
+      }
+      i = i + 1;
+    }
+    AmdModule created = new AmdModule(id);
+    this.modules.push(created);
+    return created;
+  }
+
+  AmdModule define(string id, string[] deps, string factoryId) {
+    AmdModule mod = this.lookup(id);
+    mod.deps = deps;
+    mod.factoryId = factoryId;
+    mod.defined = true;
+    return mod;
+  }
+
+  AmdModule? requireModule(string id) {
+    AmdModule mod = this.lookup(id);
+    if (!mod.defined) {
+      return null;
+    }
+    int i = 0;
+    while (i < mod.deps.length) {
+      AmdModule dep = this.lookup(mod.deps[i]);
+      if (!dep.defined) {
+        return null;
+      }
+      dep.loaded = true;
+      i = i + 1;
+    }
+    mod.loaded = true;
+    return mod;
+  }
+
+  bool has(string id) {
+    int i = 0;
+    while (i < this.modules.length) {
+      if (this.modules[i].id == id && this.modules[i].defined) {
+        return true;
+      }
+      i = i + 1;
+    }
+    return false;
+  }
+}
+
+AmdLoader amdLoader = new AmdLoader();
+
+export AmdModule defineAmd(string id, string[] deps, string factoryId) {
+  return amdLoader.define(id, deps, factoryId);
+}
+
+export AmdModule? requireAmd(string id) {
+  return amdLoader.requireModule(id);
+}
+
+export AmdLoader getAmdLoader() {
+  return amdLoader;
+}
+
+export AmdLoader createAmdLoader() {
+  return new AmdLoader();
+}
+
+export string resolveAmdNodeModulePath(string nodeModuleName, string pathInsideNodeModule) {
+  return "node_modules/" + nodeModuleName + "/" + pathInsideNodeModule;
+}

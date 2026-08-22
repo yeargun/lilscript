@@ -1,0 +1,865 @@
+export int TREE_HIDDEN = 0;
+export int TREE_VISIBLE = 1;
+export int TREE_RECURSE = 2;
+export int FIND_HIGHLIGHT = 0;
+export int FIND_FILTER = 1;
+export int MATCH_FUZZY = 0;
+export int MATCH_CONTIGUOUS = 1;
+
+bool isSeparatorChar(string ch) {
+  return ch == "_"
+    || ch == "-"
+    || ch == "."
+    || ch == " "
+    || ch == "/"
+    || ch == "\\"
+    || ch == "'"
+    || ch == "\""
+    || ch == ":"
+    || ch == "$"
+    || ch == "<"
+    || ch == ">"
+    || ch == "("
+    || ch == ")"
+    || ch == "["
+    || ch == "]"
+    || ch == "{"
+    || ch == "}";
+}
+
+bool isWhitespaceChar(string ch) {
+  return ch == " " || ch == "\t";
+}
+
+bool isUpperAt(string word, string wordLow, int pos) {
+  if (pos < 0 || pos >= word.length) {
+    return false;
+  }
+  return word.charAt(pos) != wordLow.charAt(pos);
+}
+
+bool isPatternInWord(string patternLow, string wordLow) {
+  int p = 0;
+  int w = 0;
+  while (p < patternLow.length && w < wordLow.length) {
+    if (patternLow.charAt(p) == wordLow.charAt(w)) {
+      p = p + 1;
+    }
+    w = w + 1;
+  }
+  return p == patternLow.length;
+}
+
+int fuzzyWalkScore(string pattern, string patternLow, string word, string wordLow) {
+  int p = 0;
+  int w = 0;
+  int score = 0;
+  int lastMatch = -1;
+  while (p < patternLow.length && w < wordLow.length) {
+    if (patternLow.charAt(p) == wordLow.charAt(w)) {
+      int piece = 1;
+      if (w == p) {
+        if (pattern.charAt(p) == word.charAt(w)) {
+          piece = 7;
+        } else {
+          piece = 5;
+        }
+      } else if (isUpperAt(word, wordLow, w) && (w == 0 || !isUpperAt(word, wordLow, w - 1))) {
+        if (pattern.charAt(p) == word.charAt(w)) {
+          piece = 7;
+        } else {
+          piece = 5;
+        }
+      } else if (isSeparatorChar(wordLow.charAt(w))) {
+        piece = 5;
+      } else if (w > 0 && (isSeparatorChar(wordLow.charAt(w - 1)) || isWhitespaceChar(wordLow.charAt(w - 1)))) {
+        piece = 5;
+      }
+      if (lastMatch >= 0 && w == lastMatch + 1) {
+        piece = piece + 5;
+      }
+      score = score + piece;
+      lastMatch = w;
+      p = p + 1;
+    }
+    w = w + 1;
+  }
+  int skipped = w - patternLow.length;
+  if (skipped < 0) {
+    skipped = 0;
+  }
+  score = score - skipped;
+  if (wordLow.length == patternLow.length) {
+    score = score + 2;
+  }
+  return score;
+}
+
+export class TreeFindScore {
+  bool matched;
+  int score;
+  int matchStart;
+
+  init(bool matched, int score, int matchStart) {
+    this.matched = matched;
+    this.score = score;
+    this.matchStart = matchStart;
+  }
+}
+
+export TreeFindScore contiguousFuzzyScore(string patternLower, string wordLower) {
+  if (patternLower.length == 0) {
+    return new TreeFindScore(true, 0, 0);
+  }
+  int index = wordLower.toLowerCase().indexOf(patternLower);
+  if (index < 0) {
+    return new TreeFindScore(false, 0, 0);
+  }
+  return new TreeFindScore(true, 2147483647, index);
+}
+
+export TreeFindScore scoreKeyboardLabel(string pattern, string word, int matchType) {
+  string patternLow = pattern.toLowerCase();
+  string wordLow = word.toLowerCase();
+  if (patternLow.length == 0) {
+    return new TreeFindScore(true, 0, 0);
+  }
+  if (matchType == MATCH_CONTIGUOUS) {
+    return contiguousFuzzyScore(patternLow, wordLow);
+  }
+  if (!isPatternInWord(patternLow, wordLow)) {
+    return new TreeFindScore(false, 0, 0);
+  }
+  return new TreeFindScore(true, fuzzyWalkScore(pattern, patternLow, word, wordLow), 0);
+}
+
+export class TreeFilterResult {
+  bool matched;
+  int visibility;
+  TreeFindScore data;
+
+  init(bool matched, int visibility, TreeFindScore data) {
+    this.matched = matched;
+    this.visibility = visibility;
+    this.data = data;
+  }
+}
+
+export class FindFilter {
+  int totalCount;
+  int matchCount;
+  int findMatchType;
+  int findMode;
+  string pattern;
+  string lowercasePattern;
+  int defaultFindVisibility;
+
+  init() {
+    this.totalCount = 0;
+    this.matchCount = 0;
+    this.findMatchType = MATCH_FUZZY;
+    this.findMode = FIND_HIGHLIGHT;
+    this.pattern = "";
+    this.lowercasePattern = "";
+    this.defaultFindVisibility = TREE_RECURSE;
+  }
+
+  void reset() {
+    this.totalCount = 0;
+    this.matchCount = 0;
+  }
+
+  void setPattern(string pattern) {
+    this.pattern = pattern;
+    this.lowercasePattern = pattern.toLowerCase();
+  }
+
+  TreeFilterResult filterLabel(string label) {
+    this.totalCount = this.totalCount + 1;
+    if (this.lowercasePattern.length == 0) {
+      this.matchCount = this.matchCount + 1;
+      return new TreeFilterResult(true, TREE_VISIBLE, new TreeFindScore(true, 0, 0));
+    }
+    TreeFindScore scored = scoreKeyboardLabel(this.pattern, label, this.findMatchType);
+    if (scored.matched) {
+      this.matchCount = this.matchCount + 1;
+      return new TreeFilterResult(true, TREE_VISIBLE, scored);
+    }
+    if (this.findMode == FIND_FILTER) {
+      return new TreeFilterResult(false, this.defaultFindVisibility, new TreeFindScore(false, -100, 0));
+    }
+    return new TreeFilterResult(false, TREE_VISIBLE, new TreeFindScore(false, -100, 0));
+  }
+}
+
+export class AbstractTreeElement {
+  string element;
+  string label;
+  AbstractTreeElement[] children;
+  bool collapsible;
+  bool collapsed;
+
+  init(
+    string element,
+    string label,
+    AbstractTreeElement[] children = [],
+    bool collapsible = false,
+    bool collapsed = false
+  ) {
+    this.element = element;
+    this.label = label;
+    this.children = children;
+    this.collapsible = collapsible || children.length > 0;
+    this.collapsed = collapsed;
+  }
+}
+
+export class AbstractTreeNode {
+  string element;
+  string label;
+  AbstractTreeNode? parent;
+  AbstractTreeNode[] children;
+  int depth;
+  bool collapsible;
+  bool collapsed;
+  int visibility;
+  bool visible;
+  int visibleChildrenCount;
+  int visibleChildIndex;
+  int renderNodeCount;
+  TreeFindScore filterData;
+
+  init(string element, string label, AbstractTreeNode? parent, int depth) {
+    this.element = element;
+    this.label = label;
+    this.parent = parent;
+    this.children = [];
+    this.depth = depth;
+    this.collapsible = false;
+    this.collapsed = false;
+    this.visibility = TREE_VISIBLE;
+    this.visible = true;
+    this.visibleChildrenCount = 0;
+    this.visibleChildIndex = -1;
+    this.renderNodeCount = 0;
+    this.filterData = new TreeFindScore(true, 0, 0);
+  }
+}
+
+export class AbstractTree {
+  AbstractTreeNode root;
+  Map<string, AbstractTreeNode> nodes;
+  AbstractTreeNode[] rendered;
+  string[] focus;
+  string[] selection;
+  FindFilter finder;
+  bool collapseByDefault;
+  int scrollTop;
+  int viewportHeight;
+  int rowHeight;
+
+  init(string rootElement = "", int viewportHeight = 0, bool collapseByDefault = false) {
+    this.root = new AbstractTreeNode(rootElement, rootElement, null, 0);
+    this.nodes = new Map();
+    if (rootElement.length > 0) {
+      this.nodes.set(rootElement, this.root);
+    }
+    this.rendered = [];
+    this.focus = [];
+    this.selection = [];
+    this.finder = new FindFilter();
+    this.collapseByDefault = collapseByDefault;
+    this.scrollTop = 0;
+    this.viewportHeight = viewportHeight;
+    this.rowHeight = 22;
+  }
+
+  AbstractTreeNode createNode(AbstractTreeElement source, AbstractTreeNode parent) {
+    AbstractTreeNode node = new AbstractTreeNode(source.element, source.label, parent, parent.depth + 1);
+    AbstractTreeNode? previous = this.nodes.get(source.element);
+    node.collapsible = source.collapsible || source.children.length > 0;
+    if (previous != null) {
+      node.collapsed = previous.collapsed;
+      node.collapsible = previous.collapsible || source.children.length > 0;
+    } else if (source.collapsed) {
+      node.collapsed = true;
+    } else {
+      node.collapsed = this.collapseByDefault;
+    }
+    int i = 0;
+    while (i < source.children.length) {
+      node.children.push(this.createNode(source.children[i], node));
+      i = i + 1;
+    }
+    return node;
+  }
+
+  void unregister(AbstractTreeNode node) {
+    int i = 0;
+    while (i < node.children.length) {
+      this.unregister(node.children[i]);
+      i = i + 1;
+    }
+    if (node != this.root) {
+      this.nodes.delete(node.element);
+    }
+  }
+
+  void register(AbstractTreeNode node) {
+    if (node != this.root) {
+      this.nodes.set(node.element, node);
+    }
+    int i = 0;
+    while (i < node.children.length) {
+      this.register(node.children[i]);
+      i = i + 1;
+    }
+  }
+
+  bool setChildren(string element, AbstractTreeElement[] children) {
+    AbstractTreeNode? parent = this.getNode(element);
+    if (parent == null) {
+      return false;
+    }
+    AbstractTreeNode[] next = [];
+    int i = 0;
+    while (i < children.length) {
+      next.push(this.createNode(children[i], parent));
+      i = i + 1;
+    }
+    i = 0;
+    while (i < parent.children.length) {
+      this.unregister(parent.children[i]);
+      i = i + 1;
+    }
+    parent.children = next;
+    if (parent != this.root && parent.children.length > 0) {
+      parent.collapsible = true;
+    }
+    i = 0;
+    while (i < parent.children.length) {
+      this.register(parent.children[i]);
+      i = i + 1;
+    }
+    this.refilter();
+    return true;
+  }
+
+  AbstractTreeNode? getNode(string element) {
+    if (element.length == 0) {
+      return this.root;
+    }
+    return this.nodes.get(element);
+  }
+
+  bool has(string element) {
+    if (element.length == 0) {
+      return true;
+    }
+    return this.nodes.has(element);
+  }
+
+  int applyFilter(AbstractTreeNode node, int parentVisibility) {
+    if (node != this.root) {
+      if (parentVisibility == TREE_HIDDEN) {
+        node.visibility = TREE_HIDDEN;
+        node.visible = false;
+        node.renderNodeCount = 0;
+        node.filterData = new TreeFindScore(false, -100, 0);
+        int hidden = 0;
+        while (hidden < node.children.length) {
+          this.applyFilter(node.children[hidden], TREE_HIDDEN);
+          hidden = hidden + 1;
+        }
+        return TREE_HIDDEN;
+      }
+      TreeFilterResult result = this.finder.filterLabel(node.label);
+      node.filterData = result.data;
+      node.visibility = result.visibility;
+    } else {
+      node.visibility = TREE_VISIBLE;
+      node.filterData = new TreeFindScore(true, 0, 0);
+    }
+    int visibility = node.visibility;
+    int visibleChildren = 0;
+    int childIndex = 0;
+    int childRender = 0;
+    int i = 0;
+    while (i < node.children.length) {
+      AbstractTreeNode child = node.children[i];
+      this.applyFilter(child, visibility);
+      if (child.visible) {
+        child.visibleChildIndex = childIndex;
+        childIndex = childIndex + 1;
+        visibleChildren = visibleChildren + 1;
+        childRender = childRender + child.renderNodeCount;
+      } else {
+        child.visibleChildIndex = -1;
+      }
+      i = i + 1;
+    }
+    node.visibleChildrenCount = visibleChildren;
+    if (node == this.root) {
+      node.visible = true;
+      node.renderNodeCount = childRender;
+      return TREE_VISIBLE;
+    }
+    if (visibility == TREE_VISIBLE) {
+      node.visible = true;
+    } else if (visibility == TREE_RECURSE) {
+      node.visible = visibleChildren > 0;
+    } else {
+      node.visible = false;
+    }
+    if (!node.visible) {
+      node.renderNodeCount = 0;
+    } else if (node.collapsed) {
+      node.renderNodeCount = 1;
+    } else {
+      node.renderNodeCount = 1 + childRender;
+    }
+    return visibility;
+  }
+
+  void collectRendered(AbstractTreeNode node, AbstractTreeNode[] result) {
+    if (node != this.root) {
+      if (!node.visible) {
+        return;
+      }
+      result.push(node);
+      if (node.collapsed) {
+        return;
+      }
+    }
+    int i = 0;
+    while (i < node.children.length) {
+      this.collectRendered(node.children[i], result);
+      i = i + 1;
+    }
+  }
+
+  void rebuildRendered() {
+    AbstractTreeNode[] result = [];
+    this.collectRendered(this.root, result);
+    this.rendered = result;
+    this.normalizeTraits();
+    this.clampScroll();
+  }
+
+  void refilter() {
+    this.finder.reset();
+    this.applyFilter(this.root, TREE_VISIBLE);
+    this.rebuildRendered();
+  }
+
+  void setFindPattern(string pattern) {
+    this.finder.setPattern(pattern);
+    this.refilter();
+  }
+
+  void setFindMode(int mode) {
+    this.finder.findMode = mode;
+    this.refilter();
+  }
+
+  void setFindMatchType(int matchType) {
+    this.finder.findMatchType = matchType;
+    this.refilter();
+  }
+
+  void normalizeTraits() {
+    string[] nextFocus = [];
+    int i = 0;
+    while (i < this.focus.length) {
+      string id = this.focus[i];
+      if (this.getListIndex(id) >= 0 && nextFocus.indexOf(id) < 0) {
+        nextFocus.push(id);
+      }
+      i = i + 1;
+    }
+    this.focus = nextFocus;
+    string[] nextSelection = [];
+    i = 0;
+    while (i < this.selection.length) {
+      string id = this.selection[i];
+      if (this.getListIndex(id) >= 0 && nextSelection.indexOf(id) < 0) {
+        nextSelection.push(id);
+      }
+      i = i + 1;
+    }
+    this.selection = nextSelection;
+  }
+
+  int getListIndex(string element) {
+    AbstractTreeNode? node = this.getNode(element);
+    if (node == null || node == this.root || !node.visible) {
+      return -1;
+    }
+    return this.rendered.indexOf(node);
+  }
+
+  int getListRenderCount(string element) {
+    AbstractTreeNode? node = this.getNode(element);
+    if (node == null) {
+      return 0;
+    }
+    return node.renderNodeCount;
+  }
+
+  bool setCollapsed(string element, bool collapsed, bool recursive) {
+    AbstractTreeNode? node = this.getNode(element);
+    if (node == null || node == this.root || !node.collapsible) {
+      return false;
+    }
+    bool changed = node.collapsed != collapsed;
+    node.collapsed = collapsed;
+    if (recursive) {
+      this.setCollapsedRecursive(node, collapsed);
+    }
+    this.refilter();
+    return changed;
+  }
+
+  void setCollapsedRecursive(AbstractTreeNode node, bool collapsed) {
+    int i = 0;
+    while (i < node.children.length) {
+      AbstractTreeNode child = node.children[i];
+      if (child.collapsible) {
+        child.collapsed = collapsed;
+      }
+      this.setCollapsedRecursive(child, collapsed);
+      i = i + 1;
+    }
+  }
+
+  bool collapse(string element, bool recursive = false) {
+    return this.setCollapsed(element, true, recursive);
+  }
+
+  bool expand(string element, bool recursive = false) {
+    return this.setCollapsed(element, false, recursive);
+  }
+
+  bool toggleCollapsed(string element, bool recursive = false) {
+    AbstractTreeNode? node = this.getNode(element);
+    if (node == null || node == this.root || !node.collapsible) {
+      return false;
+    }
+    return this.setCollapsed(element, !node.collapsed, recursive);
+  }
+
+  bool isCollapsed(string element) {
+    AbstractTreeNode? node = this.getNode(element);
+    if (node == null) {
+      return false;
+    }
+    return node.collapsed;
+  }
+
+  bool isCollapsible(string element) {
+    AbstractTreeNode? node = this.getNode(element);
+    if (node == null) {
+      return false;
+    }
+    return node.collapsible;
+  }
+
+  void expandTo(string element) {
+    AbstractTreeNode? node = this.getNode(element);
+    if (node == null) {
+      return;
+    }
+    AbstractTreeNode? parent = node.parent;
+    while (parent != null) {
+      if (parent != this.root && parent.collapsible) {
+        parent.collapsed = false;
+      }
+      parent = parent.parent;
+    }
+    this.refilter();
+  }
+
+  bool shouldAllowFocus(AbstractTreeNode node) {
+    if (!node.visible) {
+      return false;
+    }
+    if (this.finder.lowercasePattern.length == 0) {
+      return true;
+    }
+    return node.filterData.matched;
+  }
+
+  int findNavigable(int fromIndex, int step, bool loop) {
+    if (this.rendered.length == 0) {
+      return -1;
+    }
+    int index = fromIndex;
+    int visited = 0;
+    while (visited < this.rendered.length) {
+      index = index + step;
+      if (index < 0 || index >= this.rendered.length) {
+        if (!loop) {
+          return -1;
+        }
+        if (index < 0) {
+          index = this.rendered.length - 1;
+        } else {
+          index = 0;
+        }
+      }
+      if (this.shouldAllowFocus(this.rendered[index])) {
+        return index;
+      }
+      visited = visited + 1;
+    }
+    return -1;
+  }
+
+  int currentFocusIndex() {
+    if (this.focus.length == 0) {
+      return -1;
+    }
+    return this.getListIndex(this.focus[0]);
+  }
+
+  void setFocusIndex(int index) {
+    if (index < 0 || index >= this.rendered.length) {
+      this.focus = [];
+      return;
+    }
+    this.focus = [this.rendered[index].element];
+  }
+
+  int focusNext(int count = 1, bool loop = false) {
+    int current = this.currentFocusIndex();
+    int remaining = count;
+    while (remaining > 0) {
+      int next = this.findNavigable(current, 1, loop);
+      if (next < 0) {
+        break;
+      }
+      current = next;
+      remaining = remaining - 1;
+    }
+    if (current >= 0) {
+      this.setFocusIndex(current);
+    }
+    return current;
+  }
+
+  int focusPrevious(int count = 1, bool loop = false) {
+    int current = this.currentFocusIndex();
+    if (current < 0) {
+      current = this.rendered.length;
+    }
+    int remaining = count;
+    while (remaining > 0) {
+      int next = this.findNavigable(current, -1, loop);
+      if (next < 0) {
+        break;
+      }
+      current = next;
+      remaining = remaining - 1;
+    }
+    if (current >= 0 && current < this.rendered.length) {
+      this.setFocusIndex(current);
+    }
+    return current;
+  }
+
+  int focusFirst() {
+    int next = this.findNavigable(-1, 1, false);
+    if (next >= 0) {
+      this.setFocusIndex(next);
+    }
+    return next;
+  }
+
+  int focusLast() {
+    int next = this.findNavigable(this.rendered.length, -1, false);
+    if (next >= 0) {
+      this.setFocusIndex(next);
+    }
+    return next;
+  }
+
+  void setFocus(string[] elements) {
+    string[] next = [];
+    int i = 0;
+    while (i < elements.length) {
+      if (this.getListIndex(elements[i]) >= 0 && next.indexOf(elements[i]) < 0) {
+        next.push(elements[i]);
+      }
+      i = i + 1;
+    }
+    this.focus = next;
+  }
+
+  string[] getFocus() {
+    return this.focus.slice();
+  }
+
+  void setSelection(string[] elements) {
+    string[] next = [];
+    int i = 0;
+    while (i < elements.length) {
+      if (this.getListIndex(elements[i]) >= 0 && next.indexOf(elements[i]) < 0) {
+        next.push(elements[i]);
+      }
+      i = i + 1;
+    }
+    this.selection = next;
+  }
+
+  string[] getSelection() {
+    return this.selection.slice();
+  }
+
+  int positionAt(int index) {
+    if (index < 0 || index >= this.rendered.length) {
+      return -1;
+    }
+    return index * this.rowHeight;
+  }
+
+  void clampScroll() {
+    int maximum = this.root.renderNodeCount * this.rowHeight - this.viewportHeight;
+    if (maximum < 0) {
+      maximum = 0;
+    }
+    if (this.scrollTop < 0) {
+      this.scrollTop = 0;
+    }
+    if (this.scrollTop > maximum) {
+      this.scrollTop = maximum;
+    }
+  }
+
+  void layout(int viewportHeight) {
+    this.viewportHeight = viewportHeight;
+    if (this.viewportHeight < 0) {
+      this.viewportHeight = 0;
+    }
+    this.clampScroll();
+  }
+
+  void reveal(string element, float relativeTop = -1.0) {
+    this.expandTo(element);
+    int index = this.getListIndex(element);
+    if (index < 0) {
+      return;
+    }
+    int top = this.positionAt(index);
+    int bottom = top + this.rowHeight;
+    if (relativeTop >= 0.0) {
+      float ratio = relativeTop;
+      if (ratio > 1.0) {
+        ratio = 1.0;
+      }
+      int available = this.viewportHeight - this.rowHeight;
+      if (available < 0) {
+        available = 0;
+      }
+      this.scrollTop = top - (available * 1.0 * ratio).floor().toInt();
+    } else if (top < this.scrollTop) {
+      this.scrollTop = top;
+    } else if (bottom > this.scrollTop + this.viewportHeight) {
+      this.scrollTop = bottom - this.viewportHeight;
+    }
+    this.clampScroll();
+  }
+
+  string getParentElement(string element) {
+    AbstractTreeNode? node = this.getNode(element);
+    if (node == null) {
+      return "";
+    }
+    AbstractTreeNode? parent = node.parent;
+    if (parent == null || parent == this.root) {
+      return "";
+    }
+    return parent.element;
+  }
+
+  string getFirstElementChild(string element) {
+    AbstractTreeNode? node = this.getNode(element);
+    if (node == null || node.children.length == 0) {
+      return "";
+    }
+    return node.children[0].element;
+  }
+
+  bool onLeftArrow() {
+    if (this.focus.length == 0) {
+      return false;
+    }
+    string element = this.focus[0];
+    AbstractTreeNode? node = this.getNode(element);
+    if (node == null) {
+      return false;
+    }
+    if (node.collapsible && !node.collapsed) {
+      return this.collapse(element, false);
+    }
+    AbstractTreeNode? parent = node.parent;
+    if (parent == null || parent == this.root) {
+      return false;
+    }
+    this.setFocus([parent.element]);
+    this.reveal(parent.element, -1.0);
+    return true;
+  }
+
+  bool onRightArrow() {
+    if (this.focus.length == 0) {
+      return false;
+    }
+    string element = this.focus[0];
+    AbstractTreeNode? node = this.getNode(element);
+    if (node == null) {
+      return false;
+    }
+    if (node.collapsible && node.collapsed) {
+      return this.expand(element, false);
+    }
+    int i = 0;
+    while (i < node.children.length) {
+      if (node.children[i].visible) {
+        this.setFocus([node.children[i].element]);
+        this.reveal(node.children[i].element, -1.0);
+        return true;
+      }
+      i = i + 1;
+    }
+    return false;
+  }
+
+  bool onSpace(bool recursive = false) {
+    if (this.focus.length == 0) {
+      return false;
+    }
+    return this.toggleCollapsed(this.focus[0], recursive);
+  }
+
+  AbstractTreeNode[] renderedNodes() {
+    return this.rendered.slice();
+  }
+}
+
+export FindFilter createFindFilter() {
+  return new FindFilter();
+}
+
+export AbstractTreeElement createAbstractTreeElement(
+  string element,
+  string label,
+  AbstractTreeElement[] children,
+  bool collapsible,
+  bool collapsed
+) {
+  return new AbstractTreeElement(element, label, children, collapsible, collapsed);
+}
+
+export AbstractTree createAbstractTree(string rootElement, int viewportHeight, bool collapseByDefault) {
+  return new AbstractTree(rootElement, viewportHeight, collapseByDefault);
+}

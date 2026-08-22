@@ -1,0 +1,37 @@
+bool hotReloadEnabled = false;
+(func(JsValue)->JsValue)[] hotReloadHandlers = [];
+
+export bool isHotReloadEnabled() {
+  return hotReloadEnabled;
+}
+
+export func()->void registerHotReloadHandler(func(JsValue)->JsValue handler) {
+  if (!hotReloadEnabled) {
+    return () => {};
+  }
+  hotReloadHandlers.push(handler);
+  bool disposed = false;
+  return () => {
+    if (disposed) {
+      return;
+    }
+    disposed = true;
+    int index = hotReloadHandlers.indexOf(handler);
+    if (index >= 0) {
+      hotReloadHandlers.splice(index, 1);
+    }
+  };
+}
+
+export JsValue[] applyHotReloadHandlers(JsValue arguments) {
+  JsValue[] results = [];
+  int i = 0;
+  while (i < hotReloadHandlers.length) {
+    JsValue result = hotReloadHandlers[i](arguments);
+    if (result.truthy()) {
+      results.push(result);
+    }
+    i = i + 1;
+  }
+  return results;
+}

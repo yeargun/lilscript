@@ -1,0 +1,198 @@
+import { LineTokens } from "./lineTokens";
+import { SparseLineTokens, SparseMultilineTokens } from "./sparseMultilineTokens";
+
+export class SparseTokensStore {
+  SparseMultilineTokens[] pieces;
+  bool complete;
+
+  init(JsValue languageIdCodec = null) {
+    this.pieces = [];
+    this.complete = false;
+  }
+
+  void flush() {
+    this.pieces = [];
+    this.complete = false;
+  }
+
+  bool isEmpty() {
+    return this.pieces.length == 0;
+  }
+
+  void set(SparseMultilineTokens[] pieces, bool isComplete, JsValue textModel = null) {
+    this.pieces = pieces;
+    this.complete = isComplete;
+  }
+
+  JsValue setPartial(JsValue range, SparseMultilineTokens[] newPieces) {
+    SparseMultilineTokens[] retained = [];
+    int startLine = JS.number(range["startLineNumber"]).toInt();
+    int endLine = JS.number(range["endLineNumber"]).toInt();
+    int i = 0;
+    while (i < this.pieces.length) {
+      SparseMultilineTokens piece = this.pieces[i];
+      if (piece.endLineNumber() < startLine || piece.startLineNumber > endLine) {
+        retained.push(piece);
+      } else {
+        SparseMultilineTokens[] split = piece.split(range);
+        if (!split[0].isEmpty()) {
+          retained.push(split[0]);
+        }
+        if (!split[1].isEmpty()) {
+          retained.push(split[1]);
+        }
+      }
+      i = i + 1;
+    }
+    i = 0;
+    while (i < newPieces.length) {
+      retained.push(newPieces[i]);
+      i = i + 1;
+    }
+    this.pieces = [];
+    while (retained.length > 0) {
+      int best = 0;
+      i = 1;
+      while (i < retained.length) {
+        if (retained[i].startLineNumber < retained[best].startLineNumber) {
+          best = i;
+        }
+        i = i + 1;
+      }
+      this.pieces.push(retained[best]);
+      retained.splice(best, 1);
+    }
+    return range;
+  }
+
+  bool isComplete() {
+    return this.complete;
+  }
+
+  SparseLineTokens? lineTokens(int lineNumber) {
+    int i = 0;
+    while (i < this.pieces.length) {
+      SparseMultilineTokens piece = this.pieces[i];
+      if (piece.startLineNumber <= lineNumber && lineNumber <= piece.endLineNumber()) {
+        SparseLineTokens? result = piece.getLineTokens(lineNumber);
+        if (result != null) {
+          return result;
+        }
+      }
+      i = i + 1;
+    }
+    return null;
+  }
+
+  LineTokens addSparseTokens(int lineNumber, LineTokens lexicalTokens) {
+    SparseLineTokens? semanticTokens = this.lineTokens(lineNumber);
+    if (semanticTokens == null || semanticTokens.getCount() == 0) {
+      return lexicalTokens;
+    }
+    int[] result = [];
+    int lexicalIndex = 0;
+    int lexicalCount = lexicalTokens.getCount();
+    int lastEnd = 0;
+    int semanticIndex = 0;
+    while (semanticIndex < semanticTokens.getCount()) {
+      int semanticStart = semanticTokens.getStartCharacter(semanticIndex);
+      int semanticEnd = semanticTokens.getEndCharacter(semanticIndex);
+      if (semanticStart > lexicalTokens.getTextLength()) {
+        semanticStart = lexicalTokens.getTextLength();
+      }
+      if (semanticEnd > lexicalTokens.getTextLength()) {
+        semanticEnd = lexicalTokens.getTextLength();
+      }
+      int semanticMetadata = semanticTokens.getMetadata(semanticIndex);
+      int mask = 0;
+      if ((semanticMetadata & 1) != 0) {
+        mask = mask | 2048;
+      }
+      if ((semanticMetadata & 2) != 0) {
+        mask = mask | 4096;
+      }
+      if ((semanticMetadata & 4) != 0) {
+        mask = mask | 8192;
+      }
+      if ((semanticMetadata & 8) != 0) {
+        mask = mask | 16384;
+      }
+      if ((semanticMetadata & 16) != 0) {
+        mask = mask | 16744448;
+      }
+      while (lexicalIndex < lexicalCount &&
+        lexicalTokens.getEndOffset(lexicalIndex) <= semanticStart) {
+        int end = lexicalTokens.getEndOffset(lexicalIndex);
+        if (end > lastEnd) {
+          result.push(end);
+          result.push(lexicalTokens.getMetadata(lexicalIndex));
+          lastEnd = end;
+        }
+        lexicalIndex = lexicalIndex + 1;
+      }
+      if (lexicalIndex < lexicalCount &&
+        lexicalTokens.getStartOffset(lexicalIndex) < semanticStart &&
+        semanticStart > lastEnd) {
+        result.push(semanticStart);
+        result.push(lexicalTokens.getMetadata(lexicalIndex));
+        lastEnd = semanticStart;
+      }
+      while (lexicalIndex < lexicalCount &&
+        lexicalTokens.getEndOffset(lexicalIndex) < semanticEnd) {
+        int metadata = lexicalTokens.getMetadata(lexicalIndex);
+        metadata = (metadata ^ (metadata & mask)) | (semanticMetadata & mask);
+        int end = lexicalTokens.getEndOffset(lexicalIndex);
+        if (end > lastEnd) {
+          result.push(end);
+          result.push(metadata);
+          lastEnd = end;
+        }
+        lexicalIndex = lexicalIndex + 1;
+      }
+      if (lexicalIndex < lexicalCount && semanticEnd > lastEnd) {
+        int metadata = lexicalTokens.getMetadata(lexicalIndex);
+        metadata = (metadata ^ (metadata & mask)) | (semanticMetadata & mask);
+        result.push(semanticEnd);
+        result.push(metadata);
+        lastEnd = semanticEnd;
+        if (lexicalTokens.getEndOffset(lexicalIndex) == semanticEnd) {
+          lexicalIndex = lexicalIndex + 1;
+        }
+      }
+      semanticIndex = semanticIndex + 1;
+    }
+    while (lexicalIndex < lexicalCount) {
+      int end = lexicalTokens.getEndOffset(lexicalIndex);
+      if (end > lastEnd) {
+        result.push(end);
+        result.push(lexicalTokens.getMetadata(lexicalIndex));
+        lastEnd = end;
+      }
+      lexicalIndex = lexicalIndex + 1;
+    }
+    return new LineTokens(result, lexicalTokens.getLineContent());
+  }
+
+  void acceptEdit(
+    JsValue range,
+    int eolCount,
+    int firstLineLength,
+    int lastLineLength,
+    int firstCharCode
+  ) {
+    int i = 0;
+    while (i < this.pieces.length) {
+      SparseMultilineTokens piece = this.pieces[i];
+      piece.acceptEdit(range, eolCount, firstLineLength, lastLineLength, firstCharCode);
+      if (piece.isEmpty()) {
+        this.pieces.splice(i, 1);
+      } else {
+        i = i + 1;
+      }
+    }
+  }
+}
+
+export SparseTokensStore createSparseTokensStore(JsValue languageIdCodec = null) {
+  return new SparseTokensStore(languageIdCodec);
+}

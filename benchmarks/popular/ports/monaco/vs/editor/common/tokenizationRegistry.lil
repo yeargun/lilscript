@@ -1,0 +1,118 @@
+export class TokenizationRegistry {
+  Map<string, JsValue> supports;
+  Map<string, JsValue> factories;
+  string[] languageIds;
+  JsValue[] colorMap;
+  bool hasColorMap;
+  (func(string[], bool)->void)[] listeners;
+
+  init() {
+    this.supports = new Map();
+    this.factories = new Map();
+    this.languageIds = [];
+    this.colorMap = [];
+    this.hasColorMap = false;
+    this.listeners = [];
+  }
+
+  void handleChange(string[] languageIds, bool colorMapChanged = false) {
+    int i = 0;
+    while (i < this.listeners.length) {
+      this.listeners[i](languageIds, colorMapChanged);
+      i = i + 1;
+    }
+  }
+
+  func()->void onDidChange(func(string[], bool)->void listener) {
+    this.listeners.push(listener);
+    return () => {
+      int index = this.listeners.indexOf(listener);
+      if (index >= 0) {
+        this.listeners.splice(index, 1);
+      }
+    };
+  }
+
+  func()->void register(string languageId, JsValue support) {
+    if (!this.supports.has(languageId)) {
+      this.languageIds.push(languageId);
+    }
+    this.supports.set(languageId, support);
+    this.handleChange([languageId]);
+    return () => {
+      JsValue? current = this.supports.get(languageId);
+      if (current != null && current == support) {
+        this.supports.delete(languageId);
+        int languageIndex = this.languageIds.indexOf(languageId);
+        if (languageIndex >= 0) {
+          this.languageIds.splice(languageIndex, 1);
+        }
+        this.handleChange([languageId]);
+      }
+    };
+  }
+
+  JsValue get(string languageId) {
+    JsValue? support = this.supports.get(languageId);
+    if (support != null) {
+      return support;
+    }
+    return null;
+  }
+
+  func()->void registerFactory(string languageId, JsValue factory) {
+    this.factories.set(languageId, factory);
+    return () => {
+      JsValue? current = this.factories.get(languageId);
+      if (current != null && current == factory) {
+        this.factories.delete(languageId);
+      }
+    };
+  }
+
+  JsValue getOrCreate(string languageId) {
+    JsValue support = this.get(languageId);
+    if (support != null) {
+      return support;
+    }
+    JsValue? factory = this.factories.get(languageId);
+    if (factory == null) {
+      return null;
+    }
+    JsValue value = factory["tokenizationSupport"];
+    if (value != null) {
+      this.supports.set(languageId, value);
+      this.handleChange([languageId]);
+      return value;
+    }
+    return null;
+  }
+
+  bool isResolved(string languageId) {
+    if (this.get(languageId) != null) {
+      return true;
+    }
+    return !this.factories.has(languageId);
+  }
+
+  void setColorMap(JsValue[] value) {
+    this.colorMap = value;
+    this.hasColorMap = true;
+    this.handleChange(this.languageIds.slice(), true);
+  }
+
+  JsValue[] getColorMap() {
+    return this.colorMap;
+  }
+
+  JsValue getDefaultBackground() {
+    if (this.hasColorMap && this.colorMap.length > 2) {
+      return this.colorMap[2];
+    }
+    return null;
+  }
+}
+
+export TokenizationRegistry createTokenizationRegistry() {
+  return new TokenizationRegistry();
+}

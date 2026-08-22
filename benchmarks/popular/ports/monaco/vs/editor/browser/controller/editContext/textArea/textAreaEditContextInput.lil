@@ -1,0 +1,140 @@
+import { concat2, emptyBuf, eventIsComposing, eventKey, preventDefault } from "../../../../../../js-host";
+
+export string TEXT_AREA_SYNTHETIC_TAP = "-monaco-textarea-synthetic-tap";
+
+export class CompositionContext {
+  int lastTypeTextLength;
+
+  init() {
+    this.lastTypeTextLength = 0;
+  }
+
+  TypeData handleCompositionUpdate(string text) {
+    string next = text;
+    TypeData typeInput = new TypeData(next, this.lastTypeTextLength, 0, 0);
+    this.lastTypeTextLength = next.length;
+    return typeInput;
+  }
+}
+
+export class TypeData {
+  string text;
+  int replacePrevCharCnt;
+  int replaceNextCharCnt;
+  int positionDelta;
+
+  init(string text, int replacePrevCharCnt, int replaceNextCharCnt, int positionDelta) {
+    this.text = text;
+    this.replacePrevCharCnt = replacePrevCharCnt;
+    this.replaceNextCharCnt = replaceNextCharCnt;
+    this.positionDelta = positionDelta;
+  }
+}
+
+export class TextAreaInput {
+  string value;
+  int selectionStart;
+  int selectionEnd;
+  bool focused;
+  bool composing;
+  CompositionContext? composition;
+
+  init() {
+    this.value = "";
+    this.selectionStart = 0;
+    this.selectionEnd = 0;
+    this.focused = false;
+    this.composing = false;
+    this.composition = null;
+  }
+
+  void setValue(string value) {
+    this.value = value;
+  }
+
+  void setSelectionRange(int selectionStart, int selectionEnd) {
+    this.selectionStart = selectionStart;
+    this.selectionEnd = selectionEnd;
+  }
+
+  TypeData onCompositionStart() {
+    this.composing = true;
+    CompositionContext ctx = new CompositionContext();
+    this.composition = ctx;
+    return ctx.handleCompositionUpdate(emptyBuf());
+  }
+
+  TypeData onCompositionUpdate(string text) {
+    CompositionContext? existing = this.composition;
+    CompositionContext ctx = new CompositionContext();
+    if (existing != null) {
+      ctx = existing;
+    } else {
+      this.composition = ctx;
+    }
+    this.composing = true;
+    return ctx.handleCompositionUpdate(text);
+  }
+
+  TypeData onCompositionEnd(string text) {
+    TypeData input = new TypeData(text, 0, 0, 0);
+    CompositionContext? existing = this.composition;
+    if (existing != null) {
+      input = existing.handleCompositionUpdate(text);
+    }
+    this.composing = false;
+    this.composition = null;
+    return input;
+  }
+
+  bool onKeyDown(JsValue event) {
+    string key = eventKey(event);
+    if (key == "Backspace" || key == "Delete" || key == "Enter" || key == "Tab") {
+      return true;
+    }
+    return false;
+  }
+
+  bool onInput(JsValue event) {
+    return !eventIsComposing(event);
+  }
+
+  void onFocus() {
+    this.focused = true;
+  }
+
+  void onBlur() {
+    this.focused = false;
+    this.composing = false;
+    this.composition = null;
+  }
+}
+
+export TextAreaInput createTextAreaInput() {
+  return new TextAreaInput();
+}
+
+export CompositionContext createCompositionContext() {
+  return new CompositionContext();
+}
+
+export TypeData createTypeData(string text, int replacePrevCharCnt, int replaceNextCharCnt, int positionDelta) {
+  return new TypeData(text, replacePrevCharCnt, replaceNextCharCnt, positionDelta);
+}
+
+export void preventTapDefault(JsValue event) {
+  preventDefault(event);
+}
+
+export string joinClipboardText(string[] parts, string eol) {
+  string out = emptyBuf();
+  int i = 0;
+  while (i < parts.length) {
+    if (i != 0) {
+      out = concat2(out, eol);
+    }
+    out = concat2(out, parts[i]);
+    i = i + 1;
+  }
+  return out;
+}

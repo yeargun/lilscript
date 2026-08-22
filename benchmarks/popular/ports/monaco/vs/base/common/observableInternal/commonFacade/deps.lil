@@ -1,0 +1,16 @@
+export string[] observableDepsExports() {
+  string[] xs = [];
+  xs.push("assertFn");
+  xs.push("strictEquals");
+  xs.push("BugIndicatingError");
+  xs.push("onBugIndicatingError");
+  xs.push("onUnexpectedError");
+  xs.push("Event");
+  xs.push("DisposableStore");
+  xs.push("toDisposable");
+  return xs;
+}
+
+export void onUnexpectedError(string message) {
+  throw message;
+}

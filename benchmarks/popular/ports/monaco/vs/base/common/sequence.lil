@@ -1,0 +1,35 @@
+export class Sequence {
+  int[] elements;
+
+  init() {
+    this.elements = [];
+  }
+
+  int length() {
+    return this.elements.length;
+  }
+
+  void splice(int start, int deleteCount, int[] items) {
+    int[] next = [];
+    int i = 0;
+    while (i < start && i < this.elements.length) {
+      next.push(this.elements[i]);
+      i = i + 1;
+    }
+    int k = 0;
+    while (k < items.length) {
+      next.push(items[k]);
+      k = k + 1;
+    }
+    int j = start + deleteCount;
+    while (j < this.elements.length) {
+      next.push(this.elements[j]);
+      j = j + 1;
+    }
+    this.elements = next;
+  }
+
+  int get(int index) {
+    return this.elements[index];
+  }
+}

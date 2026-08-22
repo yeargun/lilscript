@@ -1,0 +1,74 @@
+import { getClientWidth, getClientHeight } from "../../../../js-host";
+
+int clampObserved(int value) {
+  if (value < 5) {
+    return 5;
+  }
+  return value;
+}
+
+export class ElementSizeObserver {
+  JsValue referenceDomElement;
+  int width;
+  int height;
+  bool observing;
+  int changeCount;
+
+  init(JsValue referenceDomElement, int dimWidth, int dimHeight) {
+    this.referenceDomElement = referenceDomElement;
+    this.width = -1;
+    this.height = -1;
+    this.observing = false;
+    this.changeCount = 0;
+    this.measureReferenceDomElement(false, dimWidth, dimHeight);
+  }
+
+  void dispose() {
+    this.stopObserving();
+  }
+
+  int getWidth() {
+    return this.width;
+  }
+
+  int getHeight() {
+    return this.height;
+  }
+
+  void startObserving() {
+    this.observing = true;
+  }
+
+  void stopObserving() {
+    this.observing = false;
+  }
+
+  void observe(int dimWidth, int dimHeight) {
+    this.measureReferenceDomElement(true, dimWidth, dimHeight);
+  }
+
+  void measureReferenceDomElement(bool emitEvent, int dimWidth, int dimHeight) {
+    int observedWidth = 0;
+    int observedHeight = 0;
+    if (dimWidth > 0 || dimHeight > 0) {
+      observedWidth = dimWidth;
+      observedHeight = dimHeight;
+    } else if (this.referenceDomElement.truthy()) {
+      observedWidth = getClientWidth(this.referenceDomElement);
+      observedHeight = getClientHeight(this.referenceDomElement);
+    }
+    observedWidth = clampObserved(observedWidth);
+    observedHeight = clampObserved(observedHeight);
+    if (this.width != observedWidth || this.height != observedHeight) {
+      this.width = observedWidth;
+      this.height = observedHeight;
+      if (emitEvent) {
+        this.changeCount = this.changeCount + 1;
+      }
+    }
+  }
+}
+
+export ElementSizeObserver createElementSizeObserver(JsValue referenceDomElement, int dimWidth, int dimHeight) {
+  return new ElementSizeObserver(referenceDomElement, dimWidth, dimHeight);
+}

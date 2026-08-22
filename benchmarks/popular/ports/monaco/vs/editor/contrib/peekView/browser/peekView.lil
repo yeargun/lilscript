@@ -1,0 +1,98 @@
+
+export class TextRange {
+  int startLineNumber;
+  int startColumn;
+  int endLineNumber;
+  int endColumn;
+
+  init(int startLineNumber, int startColumn, int endLineNumber, int endColumn) {
+    this.startLineNumber = startLineNumber;
+    this.startColumn = startColumn;
+    this.endLineNumber = endLineNumber;
+    this.endColumn = endColumn;
+  }
+}
+
+export class TextPos {
+  int lineNumber;
+  int column;
+
+  init(int lineNumber, int column) {
+    this.lineNumber = lineNumber;
+    this.column = column;
+  }
+}
+
+bool posBefore(TextPos a, TextPos b) {
+  if (a.lineNumber < b.lineNumber) {
+    return true;
+  }
+  if (a.lineNumber > b.lineNumber) {
+    return false;
+  }
+  return a.column < b.column;
+}
+
+bool rangeContainsPos(TextRange range, int lineNumber, int column) {
+  if (lineNumber < range.startLineNumber || lineNumber > range.endLineNumber) {
+    return false;
+  }
+  if (lineNumber == range.startLineNumber && column < range.startColumn) {
+    return false;
+  }
+  if (lineNumber == range.endLineNumber && column > range.endColumn) {
+    return false;
+  }
+  return true;
+}
+
+export TextRange createTextRange(int startLine, int startColumn, int endLine, int endColumn) {
+  return new TextRange(startLine, startColumn, endLine, endColumn);
+}
+
+export TextPos createTextPos(int lineNumber, int column) {
+  return new TextPos(lineNumber, column);
+}
+
+export class PeekView {
+  bool visible;
+  string title;
+  int height;
+  TextRange[] references;
+  int selected;
+
+  init() {
+    this.visible = false;
+    this.title = "";
+    this.height = 240;
+    this.references = [];
+    this.selected = 0;
+  }
+
+  void show(string title, TextRange[] references) {
+    this.title = title;
+    this.references = references;
+    this.selected = 0;
+    this.visible = true;
+    int n = references.length;
+    if (n > 8) {
+      n = 8;
+    }
+    this.height = 80 + n * 22;
+  }
+
+  TextRange? current() {
+    if (this.selected < 0 || this.selected >= this.references.length) {
+      return null;
+    }
+    return this.references[this.selected];
+  }
+
+  void hide() {
+    this.visible = false;
+  }
+}
+
+export PeekView createPeekView() {
+  return new PeekView();
+}

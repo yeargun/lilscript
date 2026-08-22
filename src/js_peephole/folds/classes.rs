@@ -832,13 +832,8 @@ fn emit_class(
     class.push_str(ctor_body);
     class.push('}');
     for method in methods {
-        if method.computed {
-            class.push('[');
-            class.push_str(&method.name);
-            class.push(']');
-        } else {
-            class.push_str(&method.name);
-        }
+        let (name, computed) = sanitize_class_member_name(&method.name, method.computed);
+        push_class_member_name(&mut class, &name, computed);
         class.push('(');
         class.push_str(&method.params);
         class.push_str("){");
@@ -890,9 +885,38 @@ fn push_class_member_name(out: &mut String, name: &str, computed: bool) {
     }
 }
 
+fn class_member_name_needs_computed(name: &str) -> bool {
+    let mut chars = name.chars();
+    let Some(first) = chars.next() else {
+        return true;
+    };
+    if !(first.is_ascii_alphabetic() || first == '_' || first == '$') {
+        return true;
+    }
+    chars.any(|c| !(c.is_ascii_alphanumeric() || c == '_' || c == '$'))
+}
+
+fn sanitize_class_member_name(name: &str, computed: bool) -> (String, bool) {
+    if !computed {
+        if let Some((object, method)) = name.rsplit_once('.') {
+            if !class_member_name_needs_computed(object)
+                && !class_member_name_needs_computed(method)
+                && !is_reserved_method_name(method)
+            {
+                return (method.to_string(), false);
+            }
+        }
+    }
+    (
+        name.to_string(),
+        computed || class_member_name_needs_computed(name),
+    )
+}
+
 fn emit_class_method(method: &Method) -> String {
     let mut piece = String::new();
-    push_class_member_name(&mut piece, &method.name, method.computed);
+    let (name, computed) = sanitize_class_member_name(&method.name, method.computed);
+    push_class_member_name(&mut piece, &name, computed);
     piece.push('(');
     piece.push_str(&method.params);
     piece.push_str("){");
@@ -1526,8 +1550,9 @@ pub(crate) fn terminate_bare_prototype_before_statement(
     let tokens = lex(source)?;
     let mut replacements = Vec::new();
     let mut index = 0usize;
-    while index + 1 < tokens.len() {
-        if tokens[index].text == "prototype"
+    while index < tokens.len() {
+        if index + 1 < tokens.len()
+            && tokens[index].text == "prototype"
             && (tokens[index + 1].kind == TokenKind::Identifier
                 || matches!(
                     tokens[index + 1].text,
@@ -1535,6 +1560,26 @@ pub(crate) fn terminate_bare_prototype_before_statement(
                 ))
         {
             replacements.push((tokens[index].end, tokens[index].end, ";".to_string()));
+        }
+        if tokens[index].kind == TokenKind::Identifier
+            && tokens[index].text.starts_with("prototype")
+            && tokens[index].text.len() > "prototype".len()
+            && index
+                .checked_sub(1)
+                .is_some_and(|previous| tokens[previous].text == ".")
+        {
+            let rest = &tokens[index].text["prototype".len()..];
+            if rest
+                .bytes()
+                .next()
+                .is_some_and(|byte| byte.is_ascii_alphabetic() || byte == b'_' || byte == b'$')
+            {
+                replacements.push((
+                    tokens[index].start,
+                    tokens[index].end,
+                    format!("prototype;{rest}"),
+                ));
+            }
         }
         index += 1;
     }
@@ -1893,6 +1938,7 @@ pub(crate) fn fold_constructor_prototype_tables_to_classes(
     let (source, absorb_count) = absorb_prototype_members_into_classes(&source)?;
     let (source, default_count) = fold_undefined_defaults_into_formals(&source)?;
     let (source, rest_count) = fold_arguments_slice_to_rest(&source)?;
+    let (source, extends_count) = fold_inferred_extends_into_bare_classes(&source)?;
     let (source, strip_count) = strip_redundant_set_prototype_of(&source)?;
     let (source, dangling_count) = strip_dangling_set_prototype_of(&source)?;
     let (source, semi_count) = terminate_bare_prototype_before_statement(&source)?;
@@ -1904,6 +1950,7 @@ pub(crate) fn fold_constructor_prototype_tables_to_classes(
             + absorb_count
             + default_count
             + rest_count
+            + extends_count
             + strip_count
             + dangling_count
             + semi_count,
@@ -2393,6 +2440,182 @@ fn class_body_close(
         return matching_close.get(body).copied().flatten();
     }
     None
+}
+
+struct ClassSite<'a> {
+    name: &'a str,
+    has_extends: bool,
+    body_open: usize,
+    body_close: usize,
+}
+
+fn class_sites<'a>(
+    tokens: &'a [Token<'a>],
+    matching_close: &[Option<usize>],
+) -> Vec<ClassSite<'a>> {
+    let mut sites = Vec::new();
+    let mut index = 0usize;
+    while index + 3 < tokens.len() {
+        if tokens[index].text == "class" {
+            let mut body = index + 1;
+            let name = if tokens
+                .get(body)
+                .is_some_and(|token| token.kind == TokenKind::Identifier)
+            {
+                let name = tokens[body].text;
+                body += 1;
+                Some(name)
+            } else {
+                None
+            };
+            let has_extends = tokens.get(body).map(|token| token.text) == Some("extends");
+            if has_extends {
+                body += 2;
+            }
+            if tokens.get(body).map(|token| token.text) == Some("{") {
+                if let (Some(name), Some(close)) =
+                    (name, matching_close.get(body).copied().flatten())
+                {
+                    sites.push(ClassSite {
+                        name,
+                        has_extends,
+                        body_open: body,
+                        body_close: close,
+                    });
+                }
+            }
+        } else if tokens[index].kind == TokenKind::Identifier
+            && tokens.get(index + 1).map(|token| token.text) == Some("=")
+            && tokens.get(index + 2).map(|token| token.text) == Some("class")
+        {
+            let name = tokens[index].text;
+            let mut body = index + 3;
+            let has_extends = tokens.get(body).map(|token| token.text) == Some("extends");
+            if has_extends {
+                body += 2;
+            }
+            if tokens.get(body).map(|token| token.text) == Some("{") {
+                if let Some(close) = matching_close.get(body).copied().flatten() {
+                    sites.push(ClassSite {
+                        name,
+                        has_extends,
+                        body_open: body,
+                        body_close: close,
+                    });
+                }
+            }
+        }
+        index += 1;
+    }
+    sites
+}
+
+fn class_constructor_span(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    body_open: usize,
+    body_close: usize,
+) -> Option<(usize, usize)> {
+    let mut index = body_open + 1;
+    let mut depth = 0i32;
+    while index < body_close {
+        match tokens[index].text {
+            "(" | "[" | "{" => depth += 1,
+            ")" | "]" | "}" => depth -= 1,
+            _ => {}
+        }
+        if depth == 0
+            && tokens[index].text == "constructor"
+            && tokens.get(index + 1).map(|token| token.text) == Some("(")
+        {
+            let Some(params_close) = matching_close.get(index + 1).copied().flatten() else {
+                return None;
+            };
+            if tokens.get(params_close + 1).map(|token| token.text) != Some("{") {
+                return None;
+            }
+            let ctor_open = params_close + 1;
+            let ctor_close = matching_close.get(ctor_open).copied().flatten()?;
+            return Some((ctor_open, ctor_close));
+        }
+        index += 1;
+    }
+    None
+}
+
+fn constructor_contains_super(tokens: &[Token<'_>], ctor_open: usize, ctor_close: usize) -> bool {
+    tokens[ctor_open + 1..ctor_close]
+        .iter()
+        .any(|token| token.text == "super")
+}
+
+fn constructor_leading_base_call<'a>(
+    tokens: &'a [Token<'a>],
+    ctor_open: usize,
+    ctor_close: usize,
+    class_name: &str,
+) -> Option<&'a str> {
+    let start = ctor_open + 1;
+    if start + 4 >= ctor_close {
+        return None;
+    }
+    if tokens[start].kind == TokenKind::Identifier
+        && tokens[start].text != class_name
+        && tokens.get(start + 1).map(|token| token.text) == Some(".")
+        && tokens.get(start + 2).map(|token| token.text) == Some("call")
+        && tokens.get(start + 3).map(|token| token.text) == Some("(")
+        && tokens.get(start + 4).map(|token| token.text) == Some("this")
+    {
+        return Some(tokens[start].text);
+    }
+    None
+}
+
+fn fold_inferred_extends_into_bare_classes(
+    source: &str,
+) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let matching_close = matching_closers(&tokens);
+    let sites = class_sites(&tokens, &matching_close);
+    if sites.is_empty() {
+        return Ok((source.to_string(), 0));
+    }
+    let mut replacements = Vec::new();
+    for site in &sites {
+        if site.has_extends {
+            continue;
+        }
+        let Some((ctor_open, ctor_close)) =
+            class_constructor_span(&tokens, &matching_close, site.body_open, site.body_close)
+        else {
+            continue;
+        };
+        if constructor_contains_super(&tokens, ctor_open, ctor_close) {
+            continue;
+        }
+        let Some(base) =
+            constructor_leading_base_call(&tokens, ctor_open, ctor_close, site.name)
+        else {
+            continue;
+        };
+        let body = &source[tokens[ctor_open].end..tokens[ctor_close].start];
+        replacements.push((
+            tokens[ctor_open].end,
+            tokens[ctor_close].start,
+            rewrite_super_call(body, base),
+        ));
+        replacements.push((
+            tokens[site.body_open].start,
+            tokens[site.body_open].start,
+            format!(" extends {base}"),
+        ));
+    }
+    if replacements.is_empty() {
+        return Ok((source.to_string(), 0));
+    }
+    let count = replacements.len() / 2;
+    let (out, _) = apply_token_rewrites(source, replacements);
+    Ok((out, count))
 }
 
 fn class_spans<'a>(
@@ -3654,6 +3877,39 @@ mod tests {
     }
 
     #[test]
+    fn infers_extends_on_already_emitted_class_with_rebound_parent() {
+        let source = r#"class Y{constructor(n){this.b=n}toString(){return this.b}}class T{constructor(t,e){Y.call(this,e);this.g=t}}Ds=T.prototype;Object.setPrototypeOf(Ds,zs),Ds=T.prototype,Ds.constructor=T;var zs;zs=Symbol.toPrimitive"#;
+        let (out, count) = fold_constructor_prototype_tables_to_classes(source).unwrap();
+        assert!(count >= 1, "{out}");
+        assert!(out.contains("class T extends Y{"), "{out}");
+        assert!(out.contains("super(e)"), "{out}");
+        assert!(!out.contains("setPrototypeOf"), "{out}");
+        assert!(!out.contains("Y.call(this"), "{out}");
+    }
+
+    #[test]
+    fn infers_extends_on_assigned_class_expression() {
+        let source = r#"class Y{constructor(n){this.b=n}}T=class{constructor(t,e){Y.call(this,e);this.g=t}};k=T.prototype;Object.setPrototypeOf(k,zs);var zs;zs=Symbol.toPrimitive"#;
+        let (out, count) = fold_constructor_prototype_tables_to_classes(source).unwrap();
+        assert!(count >= 1, "{out}");
+        assert!(out.contains("T=class extends Y{"), "{out}");
+        assert!(out.contains("super(e)"), "{out}");
+        assert!(!out.contains("setPrototypeOf"), "{out}");
+    }
+
+    #[test]
+    fn full_pipeline_infers_extends_on_already_emitted_class() {
+        let source = r#"class Y{constructor(n){this.b=n}}class T{constructor(t,e){Y.call(this,e);this.g=t}}Ds=T.prototype;Object.setPrototypeOf(Ds,zs),Ds=T.prototype,Ds.constructor=T;var zs;zs=Symbol.toPrimitive"#;
+        let optimized = crate::js_peephole::optimize_generated_javascript(source).unwrap();
+        assert!(
+            optimized.code.contains("class T extends Y{"),
+            "{}",
+            optimized.code
+        );
+        assert!(!optimized.code.contains("setPrototypeOf"), "{}", optimized.code);
+    }
+
+    #[test]
     fn fuses_set_prototype_of_on_class_prototype() {
         let source = r#"var M=(0,function(n){this.b=n;return this});a=M.prototype,a.toString=function(){return this.b};var x=(0,function(v,n){M.call(this,n),this.g=v;return this});Object.setPrototypeOf(x.prototype,M.prototype);x.prototype.get=function(){return this.g}"#;
         let (out, count) = fold_constructor_prototype_tables_to_classes(source).unwrap();
@@ -3768,6 +4024,16 @@ mod tests {
         assert!(out.contains("constructor(A){var t=this;t.k=A}"), "{out}");
         assert!(out.contains("has(){return 1}"), "{out}");
         assert!(!out.contains("return t"), "{out}");
+    }
+
+    #[test]
+    fn does_not_emit_dotted_class_method_from_proto_alias() {
+        let source = "var p=(0,function(s,d){this.i=s;this.t=d+\"\";this.l=1;return this});t=p.prototype,t.H=function(t,r){x(this.l)},t.has=function(t,r,n){n=!!n;try{c();var Z=this.C(t);if(!Z)return Z}finally{f()}return!0}";
+        let (out, count) = fold_constructor_prototype_tables_to_classes(source).unwrap();
+        assert!(count >= 1, "{out}");
+        assert!(out.contains("has(t,r,n){"), "{out}");
+        assert!(!out.contains("t.has("), "{out}");
+        assert!(!out.contains("[t.has]"), "{out}");
     }
 
     #[test]
@@ -4089,5 +4355,14 @@ mod tests {
         assert!(!out.contains("arguments.length>0"), "{out}");
         assert!(out.contains("u&&(this.Y=u)"), "{out}");
         assert!(out.contains("h!==void 0&&(this.Oe=h)"), "{out}");
+    }
+
+    #[test]
+    fn folds_repeated_proto_alias_atom_table() {
+        let source = r#"var I=(0,function(e){e=e!==void 0?e+"":"Atom";this.e=e;this.l=new Set;this.K=0;this.f=-1;this.y=0;return this});a=I.prototype;a.onBO=function(){at(this)};a=I.prototype;a.onBUO=function(){et(this)};a=I.prototype;a.reportObserved=function(){return B(this)};a=I.prototype;a.reportChanged=function(){J(this)};a=I.prototype;a.toString=function(){return this.e};la("Atom",I);"#;
+        let (out, count) = fold_constructor_prototype_tables_to_classes(source).unwrap();
+        assert!(count >= 1 && out.contains("class I"), "{count} {out}");
+        let optimized = crate::js_peephole::optimize_generated_javascript(source).unwrap();
+        assert!(optimized.code.contains("class I"), "{}", optimized.code);
     }
 }

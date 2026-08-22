@@ -1,0 +1,146 @@
+export class ObservableValueOptions {
+  string debugName;
+  bool lazy;
+  func(JsValue, JsValue)->bool equalsFn;
+
+  init(
+    string debugName,
+    bool lazy,
+    func(JsValue, JsValue)->bool equalsFn
+  ) {
+    this.debugName = debugName;
+    this.lazy = lazy;
+    this.equalsFn = equalsFn;
+  }
+}
+
+export class OptionsValueObserver {
+  func(ConfigurableObservableValue)->void beginFn;
+  func(ConfigurableObservableValue, JsValue)->void changeFn;
+  func(ConfigurableObservableValue)->void endFn;
+
+  init(
+    func(ConfigurableObservableValue)->void beginFn,
+    func(ConfigurableObservableValue, JsValue)->void changeFn,
+    func(ConfigurableObservableValue)->void endFn
+  ) {
+    this.beginFn = beginFn;
+    this.changeFn = changeFn;
+    this.endFn = endFn;
+  }
+}
+
+export class ConfigurableObservableValue {
+  ObservableValueOptions options;
+  JsValue value;
+  OptionsValueObserver[] observers;
+  bool pending;
+  JsValue[] pendingChanges;
+
+  init(ObservableValueOptions options, JsValue initialValue) {
+    this.options = options;
+    this.value = initialValue;
+    this.observers = [];
+    this.pending = false;
+    this.pendingChanges = [];
+  }
+
+  void addObserver(OptionsValueObserver observer) {
+    if (this.observers.indexOf(observer) < 0) {
+      this.observers.push(observer);
+    }
+  }
+
+  void removeObserver(OptionsValueObserver observer) {
+    int index = this.observers.indexOf(observer);
+    if (index >= 0) {
+      this.observers.splice(index, 1);
+    }
+  }
+
+  void set(JsValue newValue, bool hasChange, JsValue change) {
+    if (!hasChange && this.options.equalsFn(this.value, newValue)) {
+      return;
+    }
+    this.value = newValue;
+    if (this.options.lazy) {
+      if (!this.pending) {
+        this.pending = true;
+        OptionsValueObserver[] snapshot = this.observers.slice();
+        int i = 0;
+        while (i < snapshot.length) {
+          snapshot[i].beginFn(this);
+          i = i + 1;
+        }
+      }
+      if (hasChange) {
+        this.pendingChanges.push(change);
+      }
+      return;
+    }
+    OptionsValueObserver[] snapshot = this.observers.slice();
+    int i = 0;
+    while (i < snapshot.length) {
+      snapshot[i].beginFn(this);
+      snapshot[i].changeFn(this, change);
+      snapshot[i].endFn(this);
+      i = i + 1;
+    }
+  }
+
+  void flush() {
+    if (!this.pending) {
+      return;
+    }
+    this.pending = false;
+    OptionsValueObserver[] snapshot = this.observers.slice();
+    if (this.pendingChanges.length == 0) {
+      int i = 0;
+      while (i < snapshot.length) {
+        snapshot[i].changeFn(this, 0);
+        i = i + 1;
+      }
+    } else {
+      int d = 0;
+      while (d < this.pendingChanges.length) {
+        int i = 0;
+        while (i < snapshot.length) {
+          snapshot[i].changeFn(this, this.pendingChanges[d]);
+          i = i + 1;
+        }
+        d = d + 1;
+      }
+    }
+    this.pendingChanges = [];
+    int i = 0;
+    while (i < snapshot.length) {
+      snapshot[i].endFn(this);
+      i = i + 1;
+    }
+  }
+
+  JsValue get() {
+    this.flush();
+    return this.value;
+  }
+}
+
+export ObservableValueOptions createObservableValueOptions(
+  string debugName,
+  bool lazy
+) {
+  return new ObservableValueOptions(
+    debugName,
+    lazy,
+    (JsValue a, JsValue b) => {
+      return a == b;
+    }
+  );
+}
+
+export ConfigurableObservableValue observableValueOpts(
+  ObservableValueOptions options,
+  JsValue initialValue
+) {
+  return new ConfigurableObservableValue(options, initialValue);
+}

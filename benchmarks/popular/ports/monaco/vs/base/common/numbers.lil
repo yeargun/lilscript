@@ -1,0 +1,69 @@
+export int clamp(int value, int min, int max) {
+  int v = value;
+  if (v < min) {
+    v = min;
+  }
+  if (v > max) {
+    v = max;
+  }
+  return v;
+}
+
+export class MovingAverage {
+  int n;
+  float val;
+
+  init() {
+    this.n = 1;
+    this.val = 0.0;
+  }
+
+  float update(float value) {
+    this.val = this.val + (value - this.val) / (this.n * 1.0);
+    this.n = this.n + 1;
+    return this.val;
+  }
+
+  float value() {
+    return this.val;
+  }
+}
+
+export class SlidingWindowAverage {
+  int n;
+  float val;
+  float[] values;
+  int index;
+  float sum;
+
+  init(int size) {
+    this.n = 0;
+    this.val = 0.0;
+    this.index = 0;
+    this.sum = 0.0;
+    float[] vals = [];
+    int i = 0;
+    while (i < size) {
+      vals.push(0.0);
+      i = i + 1;
+    }
+    this.values = vals;
+  }
+
+  float update(float value) {
+    float oldValue = this.values[this.index];
+    this.values[this.index] = value;
+    this.index = (this.index + 1) % this.values.length;
+    this.sum = this.sum - oldValue;
+    this.sum = this.sum + value;
+    if (this.n < this.values.length) {
+      this.n = this.n + 1;
+    }
+    this.val = this.sum / (this.n * 1.0);
+    return this.val;
+  }
+
+  float value() {
+    return this.val;
+  }
+}

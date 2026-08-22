@@ -1,0 +1,67 @@
+export int CharCodeNull = 0;
+export int CharCodeBackspace = 8;
+export int CharCodeTab = 9;
+export int CharCodeLineFeed = 10;
+export int CharCodeCarriageReturn = 13;
+export int CharCodeSpace = 32;
+export int CharCodeExclamationMark = 33;
+export int CharCodeDoubleQuote = 34;
+export int CharCodeHash = 35;
+export int CharCodeDollarSign = 36;
+export int CharCodePercentSign = 37;
+export int CharCodeAmpersand = 38;
+export int CharCodeSingleQuote = 39;
+export int CharCodeOpenParen = 40;
+export int CharCodeCloseParen = 41;
+export int CharCodeAsterisk = 42;
+export int CharCodePlus = 43;
+export int CharCodeComma = 44;
+export int CharCodeDash = 45;
+export int CharCodePeriod = 46;
+export int CharCodeSlash = 47;
+export int CharCodeDigit0 = 48;
+export int CharCodeDigit1 = 49;
+export int CharCodeDigit2 = 50;
+export int CharCodeDigit3 = 51;
+export int CharCodeDigit4 = 52;
+export int CharCodeDigit5 = 53;
+export int CharCodeDigit6 = 54;
+export int CharCodeDigit7 = 55;
+export int CharCodeDigit8 = 56;
+export int CharCodeDigit9 = 57;
+export int CharCodeColon = 58;
+export int CharCodeSemicolon = 59;
+export int CharCodeLessThan = 60;
+export int CharCodeEquals = 61;
+export int CharCodeGreaterThan = 62;
+export int CharCodeQuestionMark = 63;
+export int CharCodeAtSign = 64;
+export int CharCodeA = 65;
+export int CharCodeZ = 90;
+export int CharCodeOpenSquareBracket = 91;
+export int CharCodeBackslash = 92;
+export int CharCodeCloseSquareBracket = 93;
+export int CharCodeCaret = 94;
+export int CharCodeUnderline = 95;
+export int CharCodeBackTick = 96;
+export int CharCodea = 97;
+export int CharCodez = 122;
+export int CharCodeOpenCurlyBrace = 123;
+export int CharCodePipe = 124;
+export int CharCodeCloseCurlyBrace = 125;
+export int CharCodeTilde = 126;
+export int CharCodeULineSeparator = 8232;
+export int CharCodeUParagraphSeparator = 8233;
+export int CharCodeUTF8BOM = 65279;
+
+export bool isDigitCharCode(int code) {
+  return code >= CharCodeDigit0 && code <= CharCodeDigit9;
+}
+
+export bool isLetterCharCode(int code) {
+  return (code >= CharCodeA && code <= CharCodeZ) || (code >= CharCodea && code <= CharCodez);
+}
+
+export bool isWhitespaceCharCode(int code) {
+  return code == CharCodeSpace || code == CharCodeTab || code == CharCodeLineFeed || code == CharCodeCarriageReturn;
+}

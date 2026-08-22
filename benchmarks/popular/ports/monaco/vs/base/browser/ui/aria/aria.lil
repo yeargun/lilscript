@@ -1,0 +1,76 @@
+import { domCreateElement, appendChild, setClassName, setAttribute, setTextContent, getTextContent, clearChildren, setStyle, stringSlice } from "../../../../../js-host";
+
+int MAX_MESSAGE_LENGTH = 20000;
+JsValue ariaContainer = null;
+JsValue alertContainer = null;
+JsValue alertContainer2 = null;
+JsValue statusContainer = null;
+JsValue statusContainer2 = null;
+
+JsValue createAlertContainer(JsValue parent) {
+  JsValue element = domCreateElement("div");
+  setClassName(element, "monaco-alert");
+  setAttribute(element, "role", "alert");
+  setAttribute(element, "aria-atomic", "true");
+  appendChild(parent, element);
+  return element;
+}
+
+JsValue createStatusContainer(JsValue parent) {
+  JsValue element = domCreateElement("div");
+  setClassName(element, "monaco-status");
+  setAttribute(element, "aria-live", "polite");
+  setAttribute(element, "aria-atomic", "true");
+  appendChild(parent, element);
+  return element;
+}
+
+string truncateMessage(string msg) {
+  if (msg.length > MAX_MESSAGE_LENGTH) {
+    return stringSlice(msg, 0, MAX_MESSAGE_LENGTH);
+  }
+  return msg;
+}
+
+void insertMessage(JsValue target, string msg) {
+  clearChildren(target);
+  setTextContent(target, truncateMessage(msg));
+  setStyle(target, "visibility", "hidden");
+  setStyle(target, "visibility", "visible");
+}
+
+export void setARIAContainer(JsValue parent) {
+  ariaContainer = domCreateElement("div");
+  setClassName(ariaContainer, "monaco-aria-container");
+  alertContainer = createAlertContainer(ariaContainer);
+  alertContainer2 = createAlertContainer(ariaContainer);
+  statusContainer = createStatusContainer(ariaContainer);
+  statusContainer2 = createStatusContainer(ariaContainer);
+  appendChild(parent, ariaContainer);
+}
+
+export void alert(string msg) {
+  if (!ariaContainer.truthy()) {
+    return;
+  }
+  if (getTextContent(alertContainer) != msg) {
+    clearChildren(alertContainer2);
+    insertMessage(alertContainer, msg);
+  } else {
+    clearChildren(alertContainer);
+    insertMessage(alertContainer2, msg);
+  }
+}
+
+export void status(string msg) {
+  if (!ariaContainer.truthy()) {
+    return;
+  }
+  if (getTextContent(statusContainer) != msg) {
+    clearChildren(statusContainer2);
+    insertMessage(statusContainer, msg);
+  } else {
+    clearChildren(statusContainer);
+    insertMessage(statusContainer2, msg);
+  }
+}

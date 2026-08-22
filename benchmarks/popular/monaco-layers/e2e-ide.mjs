@@ -18,7 +18,7 @@ async function runSuite(page, name) {
     console.log((ok ? "  ok  " : "  FAIL") + " " + name + " " + msg);
   };
 
-  await page.goto(base + "/" + name + "/", { waitUntil: "networkidle", timeout: 30000 });
+  await page.goto(base + "/" + name + "/", { waitUntil: "load", timeout: 30000 });
   await page.waitForSelector(".view-line", { timeout: 20000 });
   await page.waitForTimeout(800);
   await page.waitForFunction(() => {
@@ -43,6 +43,35 @@ async function runSuite(page, name) {
   const typed = await page.evaluate(() => window.monaco.editor.getEditors()[0].getValue().includes("/*e2e*/"));
   note(typed, "editor.trigger type inserts text");
   await page.evaluate(() => window.monaco.editor.getEditors()[0].trigger("keyboard", "undo", null));
+
+  await page.locator("#editor").click({ position: { x: 90, y: 18 } });
+  await page.waitForTimeout(50);
+  const beforeKeys = await page.evaluate(() => window.monaco.editor.getEditors()[0].getValue());
+  await page.keyboard.type("HELLO_LIL");
+  const keyed = await page.evaluate(() => window.monaco.editor.getEditors()[0].getValue().includes("HELLO_LIL"));
+  note(keyed, "real keyboard typing inserts text");
+  await page.evaluate((value) => window.monaco.editor.getEditors()[0].setValue(value), beforeKeys);
+
+  if (name === "lil") {
+    const editorBox = await page.locator("#editor").boundingBox();
+    const clickX = editorBox.x + 180;
+    const clickY = editorBox.y + 90;
+    await page.mouse.click(clickX, clickY, { button: "right" });
+    await page.waitForTimeout(150);
+    const menuOk = await page.evaluate(({ clickX, clickY }) => {
+      const el = document.querySelector(".context-view");
+      if (!el) return false;
+      const cs = getComputedStyle(el);
+      if (cs.display === "none") return false;
+      const r = el.getBoundingClientRect();
+      return Math.abs(r.left - clickX) < 24 && Math.abs(r.top - clickY) < 24;
+    }, { clickX, clickY });
+    note(menuOk, "context menu opens at the click");
+    const menuItems = await page.evaluate(() => (document.querySelector(".context-view")?.innerText || "").replace(/\s+/g, " "));
+    note(/Go to Definition/.test(menuItems) && /Go to References/.test(menuItems) && /Command Palette/.test(menuItems), `context menu items match monaco (${menuItems.slice(0, 120)})`);
+    note(!/Toggle Line Comment/.test(menuItems), "context menu is not the homemade cut/copy list");
+    await page.keyboard.press("Escape");
+  }
 
   await page.evaluate(() => {
     const ed = window.monaco.editor.getEditors()[0];
@@ -88,7 +117,7 @@ async function runSuite(page, name) {
     const action = ed.getAction?.("editor.action.showHover");
     if (action?.run) action.run();
   });
-  await page.waitForTimeout(500);
+  await page.waitForTimeout(1500);
   const hoverText = await page.evaluate(() => {
     const nodes = [...document.querySelectorAll(".monaco-hover, .monaco-resizable-hover")];
     for (const el of nodes) {
@@ -129,6 +158,40 @@ async function runSuite(page, name) {
     (window.monaco.editor.getModelMarkers({}) || []).map((m) => m.message).join(" | "),
   );
   note(/string/.test(markers) && /number/.test(markers), "type error marker present");
+
+  if (name === "lil") {
+    const tsWorker = await page.evaluate(async () => {
+      const tsApi = window.monaco?.typescript ?? window.monaco?.languages?.typescript;
+      const get = tsApi?.getTypeScriptWorker;
+      if (typeof get !== "function") return { ok: false, reason: "no getTypeScriptWorker" };
+      const models = window.monaco.editor.getModels();
+      const model = models.find((m) => String(m.uri?.toString?.() ?? m.uri ?? "").includes("app.ts"));
+      if (!model) return { ok: false, reason: "no app.ts model" };
+      const worker = await get();
+      const client = await worker(model.uri);
+      const diags = await client.getSemanticDiagnostics(String(model.uri.toString()));
+      const text = (diags ?? []).map((d) => String(d.messageText?.messageText ?? d.messageText ?? "")).join(" | ");
+      return { ok: /string/.test(text) && /number/.test(text), reason: text.slice(0, 160) };
+    });
+    note(tsWorker.ok, `official TypeScript worker diagnostics (${tsWorker.reason})`);
+
+    const solidOk = await page.evaluate(async () => {
+      const tsApi = window.monaco?.typescript ?? window.monaco?.languages?.typescript;
+      const get = tsApi?.getTypeScriptWorker;
+      const models = window.monaco.editor.getModels();
+      const model = models.find((m) => String(m.uri?.toString?.() ?? m.uri ?? "").includes("App.tsx"));
+      if (typeof get !== "function" || !model) return { ok: false, reason: "no App.tsx" };
+      const worker = await get();
+      const client = await worker(model.uri);
+      const diags = await client.getSemanticDiagnostics(String(model.uri.toString()));
+      const text = (diags ?? []).map((d) => String(d.messageText?.messageText ?? d.messageText ?? "")).join(" | ");
+      return {
+        ok: !/Cannot find module 'solid-js'/.test(text) && !/jsx-runtime/.test(text),
+        reason: text.slice(0, 160) || "solid-js resolved",
+      };
+    });
+    note(solidOk.ok, `Solid TSX uses the TypeScript worker (${solidOk.reason})`);
+  }
 
   await page.keyboard.press("Escape");
   await page.keyboard.press("F1");

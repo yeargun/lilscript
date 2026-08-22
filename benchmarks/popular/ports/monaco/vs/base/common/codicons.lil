@@ -1,0 +1,59 @@
+export string[] codiconImports = ["codiconsLibrary"];
+Map<string, string> codiconDerivedAliases = new Map<string, string>();
+Map<string, int> codiconDerivedCodepoints = new Map<string, int>();
+bool codiconDerivedReady = false;
+
+void registerDerivedCodicons() {
+  if (codiconDerivedReady) {
+    return;
+  }
+  codiconDerivedReady = true;
+  codiconDerivedAliases.set("dialog-error", "error");
+  codiconDerivedAliases.set("dialog-warning", "warning");
+  codiconDerivedAliases.set("dialog-info", "info");
+  codiconDerivedAliases.set("dialog-close", "close");
+  codiconDerivedAliases.set("tree-item-expanded", "chevron-down");
+  codiconDerivedAliases.set("tree-filter-on-type-on", "list-filter");
+  codiconDerivedAliases.set("tree-filter-on-type-off", "list-selection");
+  codiconDerivedAliases.set("tree-filter-clear", "close");
+  codiconDerivedAliases.set("tree-item-loading", "loading");
+  codiconDerivedAliases.set("menu-selection", "check");
+  codiconDerivedAliases.set("menu-submenu", "chevron-right");
+  codiconDerivedAliases.set("menubar-more", "more");
+  codiconDerivedAliases.set("scrollbar-button-left", "triangle-left");
+  codiconDerivedAliases.set("scrollbar-button-right", "triangle-right");
+  codiconDerivedAliases.set("scrollbar-button-up", "triangle-up");
+  codiconDerivedAliases.set("scrollbar-button-down", "triangle-down");
+  codiconDerivedAliases.set("toolbar-more", "more");
+  codiconDerivedAliases.set("quick-input-back", "arrow-left");
+  codiconDerivedCodepoints.set("drop-down-button", 60084);
+  codiconDerivedCodepoints.set("symbol-customcolor", 60252);
+  codiconDerivedCodepoints.set("export", 60332);
+  codiconDerivedCodepoints.set("workspace-unspecified", 60355);
+  codiconDerivedCodepoints.set("newline", 60394);
+  codiconDerivedCodepoints.set("thumbsdown-filled", 60435);
+  codiconDerivedCodepoints.set("thumbsup-filled", 60436);
+  codiconDerivedCodepoints.set("git-fetch", 60445);
+  codiconDerivedCodepoints.set("lightbulb-sparkle-autofix", 60447);
+  codiconDerivedCodepoints.set("debug-breakpoint-pending", 60377);
+  codiconDerivedCodepoints.set("chat-import", 60550);
+  codiconDerivedCodepoints.set("chat-export", 60551);
+}
+
+export string getDerivedCodiconAlias(string id) {
+  registerDerivedCodicons();
+  string? alias = codiconDerivedAliases.get(id);
+  if (alias != null) {
+    return alias;
+  }
+  return "";
+}
+
+export int getDerivedCodicon(string id) {
+  registerDerivedCodicons();
+  int? value = codiconDerivedCodepoints.get(id);
+  if (value != null) {
+    return value;
+  }
+  return 0;
+}

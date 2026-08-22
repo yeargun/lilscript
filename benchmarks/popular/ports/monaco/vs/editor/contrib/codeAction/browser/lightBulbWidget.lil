@@ -1,0 +1,152 @@
+
+export class TextRange {
+  int startLineNumber;
+  int startColumn;
+  int endLineNumber;
+  int endColumn;
+
+  init(int startLineNumber, int startColumn, int endLineNumber, int endColumn) {
+    this.startLineNumber = startLineNumber;
+    this.startColumn = startColumn;
+    this.endLineNumber = endLineNumber;
+    this.endColumn = endColumn;
+  }
+}
+
+export class TextPos {
+  int lineNumber;
+  int column;
+
+  init(int lineNumber, int column) {
+    this.lineNumber = lineNumber;
+    this.column = column;
+  }
+}
+
+bool posBefore(TextPos a, TextPos b) {
+  if (a.lineNumber < b.lineNumber) {
+    return true;
+  }
+  if (a.lineNumber > b.lineNumber) {
+    return false;
+  }
+  return a.column < b.column;
+}
+
+bool rangeContainsPos(TextRange range, int lineNumber, int column) {
+  if (lineNumber < range.startLineNumber || lineNumber > range.endLineNumber) {
+    return false;
+  }
+  if (lineNumber == range.startLineNumber && column < range.startColumn) {
+    return false;
+  }
+  if (lineNumber == range.endLineNumber && column > range.endColumn) {
+    return false;
+  }
+  return true;
+}
+
+export TextRange createTextRange(int startLine, int startColumn, int endLine, int endColumn) {
+  return new TextRange(startLine, startColumn, endLine, endColumn);
+}
+
+export TextPos createTextPos(int lineNumber, int column) {
+  return new TextPos(lineNumber, column);
+}
+
+export int CODE_ACTION_QUICKFIX = 1;
+export int CODE_ACTION_REFACTOR = 2;
+export int CODE_ACTION_SOURCE = 4;
+export int CODE_ACTION_ORGANIZE_IMPORTS = 8;
+
+export class CodeAction {
+  string title;
+  int kind;
+  bool isPreferred;
+  bool disabled;
+  TextRange range;
+  string editText;
+
+  init(string title, int kind, bool isPreferred) {
+    this.title = title;
+    this.kind = kind;
+    this.isPreferred = isPreferred;
+    this.disabled = false;
+    this.range = new TextRange(1, 1, 1, 1);
+    this.editText = "";
+  }
+}
+
+export class CodeActionSet {
+  CodeAction[] actions;
+  bool hasAutoFix;
+
+  init() {
+    this.actions = [];
+    this.hasAutoFix = false;
+  }
+
+  void add(CodeAction action) {
+    this.actions.push(action);
+    if (action.isPreferred && action.kind == CODE_ACTION_QUICKFIX) {
+      this.hasAutoFix = true;
+    }
+  }
+
+  CodeAction[] filterKind(int kind) {
+    CodeAction[] result = [];
+    int i = 0;
+    while (i < this.actions.length) {
+      if ((this.actions[i].kind & kind) != 0) {
+        result.push(this.actions[i]);
+      }
+      i = i + 1;
+    }
+    return result;
+  }
+
+  CodeAction? preferred() {
+    int i = 0;
+    while (i < this.actions.length) {
+      if (this.actions[i].isPreferred && !this.actions[i].disabled) {
+        return this.actions[i];
+      }
+      i = i + 1;
+    }
+    return null;
+  }
+}
+
+export class LightBulbState {
+  bool visible;
+  int lineNumber;
+  int column;
+
+  init() {
+    this.visible = false;
+    this.lineNumber = 1;
+    this.column = 1;
+  }
+
+  void show(int lineNumber, int column) {
+    this.visible = true;
+    this.lineNumber = lineNumber;
+    this.column = column;
+  }
+
+  void hide() {
+    this.visible = false;
+  }
+}
+
+export CodeActionSet createCodeActionSet() {
+  return new CodeActionSet();
+}
+
+export CodeAction createCodeAction(string title, int kind, bool isPreferred) {
+  return new CodeAction(title, kind, isPreferred);
+}
+
+export LightBulbState createLightBulbState() {
+  return new LightBulbState();
+}

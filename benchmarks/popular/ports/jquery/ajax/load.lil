@@ -3,13 +3,6 @@ import { ajax } from "../ajax";
 import { stripAndCollapse } from "../core/stripAndCollapse";
 import { isFunction } from "../var/isFunction";
 import { parseHTML } from "../core/parseHTML";
-import {
-  jsUndefined,
-  typeOf,
-  stringify,
-  stringSlice,
-  stringIndexOf
-} from "../js-host.lil";
 
 struct LoadAjaxOptions {
   string url;
@@ -18,10 +11,8 @@ struct LoadAjaxOptions {
   JsValue data;
 }
 
-JsValue fnLoad(JsValue self, JsValue args) {
-  JsValue urlArg = args[0];
-  JsValue paramsArg = args[1];
-  JsValue callbackArg = args[2];
+JsValue fnLoad(JsValue urlArg, JsValue paramsArg, JsValue callbackArg) {
+  JsValue self = this;
 
   string url = JS.string(urlArg);
   string selector = "";
@@ -52,9 +43,9 @@ JsValue fnLoad(JsValue self, JsValue args) {
 
     JsValue request = ajax(ajaxOptions, JS.undefined());
 
-    JsValue afterRequest = JS.invoke(request, "done", JS.staticRest((JsValue doneArgs) => {
+    JsValue afterRequest = JS.invoke(request, "done", (JsValue responseText, JsValue textStatus, JsValue jqXHRDone) => {
+      JsValue[] doneArgs = [responseText, textStatus, jqXHRDone];
       response = doneArgs;
-      JsValue responseText = doneArgs[0];
 
       if (hasSelector) {
         JsValue container = wrap("<div>");
@@ -66,11 +57,11 @@ JsValue fnLoad(JsValue self, JsValue args) {
         JS.invoke(self, "html", responseText);
       }
       return JS.undefined();
-    }));
+    });
 
     if (callback.truthy()) {
       JS.invoke(afterRequest, "always", (JsValue jqXHR, JsValue status) => {
-        each(self, (JsValue _i, JsValue el) => {
+        each(self, JS.method0((JsValue el) => {
           JsValue applyArgs = response;
           if (!applyArgs.truthy()) {
             JsValue[] fallback = [];
@@ -81,7 +72,7 @@ JsValue fnLoad(JsValue self, JsValue args) {
           }
           JS.invoke(callback, "apply", el, applyArgs);
           return JS.undefined();
-        });
+        }));
         return JS.undefined();
       });
     }
@@ -90,6 +81,6 @@ JsValue fnLoad(JsValue self, JsValue args) {
   return self;
 }
 
-jQuery["fn"]["load"] = JS.methodRest(fnLoad);
+jQuery["fn"]["load"] = fnLoad;
 
 export { jQuery };

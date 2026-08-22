@@ -1,0 +1,15 @@
+export class WebWorkerDescriptor {
+  string label;
+  string moduleId;
+  string esmModuleLocation;
+
+  init(string label, string moduleId, string esmModuleLocation) {
+    this.label = label;
+    this.moduleId = moduleId;
+    this.esmModuleLocation = esmModuleLocation;
+  }
+}
+
+export WebWorkerDescriptor createWebWorkerDescriptor(string label, string moduleId, string esmModuleLocation) {
+  return new WebWorkerDescriptor(label, moduleId, esmModuleLocation);
+}

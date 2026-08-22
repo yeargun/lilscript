@@ -1,0 +1,28 @@
+export class ContextMenuService {
+  bool visible;
+  string[] actions;
+  int x;
+  int y;
+
+  init() {
+    this.visible = false;
+    this.actions = [];
+    this.x = 0;
+    this.y = 0;
+  }
+
+  void showContextMenu(string[] actions, int x, int y) {
+    this.actions = actions;
+    this.x = x;
+    this.y = y;
+    this.visible = true;
+  }
+
+  void hide() {
+    this.visible = false;
+  }
+}
+
+export ContextMenuService createContextMenuService() {
+  return new ContextMenuService();
+}

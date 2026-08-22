@@ -1,0 +1,172 @@
+import {
+  arrayFrom,
+  gObject,
+  gSymbol,
+  hasOwn,
+  inOp,
+  isES6Map,
+  isES6Set,
+  isFn,
+  isNullish,
+  isUndef,
+  len,
+  objectIs,
+  objectKeys,
+  pop,
+  push,
+  slice,
+  toStr,
+  unaryPlus,
+  undef,
+  yes
+} from "../host.lil";
+import {
+  isObservableArray,
+  isObservableMap,
+  isObservableSet
+} from "../core/predicates.lil";
+
+export bool compareStructural(JsValue a, JsValue b) {
+  return deepEqual(a, b, -1);
+}
+
+export bool compareShallow(JsValue a, JsValue b) {
+  return deepEqual(a, b, 1);
+}
+
+bool eq(JsValue a, JsValue b, int depth, JsValue aStack, JsValue bStack) {
+  if (JS.strictEqual(a, b)) {
+    return !JS.strictEqual(a, 0) || JS.strictEqual(1.0 / JS.number(a), 1.0 / JS.number(b));
+  }
+  if (JS.isNullish(a) || JS.isNullish(b)) {
+    return false;
+  }
+  if (!JS.strictEqual(a, a)) {
+    return !JS.strictEqual(b, b);
+  }
+  string type = JS.typeOf(a);
+  if (type != "function" && type != "object" && JS.typeOf(b) != "object") {
+    return false;
+  }
+  string className = toStr(JS.call(gObject()["prototype"]["toString"], a));
+  if (className != toStr(JS.call(gObject()["prototype"]["toString"], b))) {
+    return false;
+  }
+  if (className == "[object RegExp]" || className == "[object String]") {
+    return ("" + a) == ("" + b);
+  }
+  if (className == "[object Number]") {
+    JsValue pa = unaryPlus(a);
+    JsValue pb = unaryPlus(b);
+    if (!objectIs(pa, pa)) {
+      return !objectIs(pb, pb);
+    }
+    if (JS.strictEqual(pa, 0)) {
+      return objectIs(1.0 / JS.number(pa), 1.0 / JS.number(pb));
+    }
+    return JS.strictEqual(pa, pb);
+  }
+  if (className == "[object Date]" || className == "[object Boolean]") {
+    return JS.strictEqual(unaryPlus(a), unaryPlus(b));
+  }
+  if (className == "[object Symbol]") {
+    return JS.strictEqual(JS.call(gSymbol()["valueOf"], a), JS.call(gSymbol()["valueOf"], b));
+  }
+  if (className == "[object Map]" || className == "[object Set]") {
+    if (depth >= 0) {
+      depth = depth + 1;
+    }
+  }
+  a = unwrapEq(a);
+  b = unwrapEq(b);
+  bool areArrays = className == "[object Array]";
+  if (!areArrays) {
+    if (JS.typeOf(a) != "object" || JS.typeOf(b) != "object") {
+      return false;
+    }
+    JsValue aCtor = a["constructor"];
+    JsValue bCtor = b["constructor"];
+    if (!JS.strictEqual(aCtor, bCtor) && !(isFn(aCtor) && protoInstance(aCtor, aCtor) && isFn(bCtor) && protoInstance(bCtor, bCtor)) && inOp("constructor", a) && inOp("constructor", b)) {
+      return false;
+    }
+  }
+  if (depth == 0) {
+    return false;
+  } else if (depth < 0) {
+    depth = -1;
+  }
+  if (isUndef(aStack)) {
+    aStack = JS.array();
+    bStack = JS.array();
+  }
+  int length = len(aStack);
+  while (length > 0) {
+    length = length - 1;
+    if (JS.strictEqual(aStack[length], a)) {
+      return JS.strictEqual(bStack[length], b);
+    }
+  }
+  push(aStack, a);
+  push(bStack, b);
+  if (areArrays) {
+    length = len(a);
+    if (length != len(b)) {
+      return false;
+    }
+    while (length > 0) {
+      length = length - 1;
+      if (!eq(a[length], b[length], depth - 1, aStack, bStack)) {
+        return false;
+      }
+    }
+  } else {
+    JsValue keys = objectKeys(a);
+    length = len(keys);
+    if (len(objectKeys(b)) != length) {
+      return false;
+    }
+    int i = 0;
+    while (i < length) {
+      JsValue key = keys[i];
+      if (!(hasOwn(b, key) && eq(a[key], b[key], depth - 1, aStack, bStack))) {
+        return false;
+      }
+      i = i + 1;
+    }
+  }
+  popArr(aStack);
+  popArr(bStack);
+  return true;
+}
+
+bool protoInstance(JsValue ctor, JsValue value) {
+  if (!ctor.truthy()) {
+    return false;
+  }
+  JsValue protoOf = ctor["isPrototypeOf"];
+  if (isFn(protoOf)) {
+    return yes(JS.call(protoOf, ctor, value));
+  }
+  return inOp("constructor", value) && yes(value["constructor"] == ctor);
+}
+
+JsValue unwrapEq(JsValue a) {
+  if (isObservableArray(a)) {
+    return JS.invoke(a, "slice");
+  }
+  if (isES6Map(a) || isObservableMap(a)) {
+    return arrayFrom(JS.invoke(a, "entries"));
+  }
+  if (isES6Set(a) || isObservableSet(a)) {
+    return arrayFrom(JS.invoke(a, "entries"));
+  }
+  return a;
+}
+
+void popArr(JsValue arr) {
+  JS.invoke(arr, "pop");
+}
+
+export bool deepEqual(JsValue a, JsValue b, int depth) {
+  return eq(a, b, depth, undef(), undef());
+}

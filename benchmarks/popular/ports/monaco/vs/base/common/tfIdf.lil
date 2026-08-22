@@ -1,0 +1,262 @@
+bool isLetterCode(int code) {
+  return (code >= 65 && code <= 90) || (code >= 97 && code <= 122) || code > 127;
+}
+
+bool isDigitCode(int code) {
+  return code >= 48 && code <= 57;
+}
+
+string[] splitTerms(string input) {
+  string[] terms = [];
+  int start = -1;
+  int i = 0;
+  while (i <= input.length) {
+    bool wordCharacter = false;
+    if (i < input.length) {
+      int code = input.charCodeAt(i);
+      wordCharacter = isLetterCode(code) || isDigitCode(code);
+    }
+    if (wordCharacter) {
+      if (start < 0) {
+        start = i;
+      }
+    } else if (start >= 0) {
+      int length = i - start;
+      if (length >= 3 && isLetterCode(input.charCodeAt(start))) {
+        string word = "";
+        int j = start;
+        while (j < i) {
+          word = word + input.charAt(j);
+          j = j + 1;
+        }
+        terms.push(word.toLowerCase());
+        string part = "";
+        j = 0;
+        while (j < word.length) {
+          if (j > 0 && word.charCodeAt(j) >= 65 && word.charCodeAt(j) <= 90 && part.length >= 3) {
+            terms.push(part.toLowerCase());
+            part = "";
+          }
+          part = part + word.charAt(j);
+          j = j + 1;
+        }
+        if (part.length >= 3 && part.length < word.length) {
+          terms.push(part.toLowerCase());
+        }
+      }
+      start = -1;
+    }
+    i = i + 1;
+  }
+  return terms;
+}
+
+export class TfChunk {
+  string text;
+  Map<string, int> frequencies;
+  string[] terms;
+
+  init(string text) {
+    this.text = text;
+    this.frequencies = new Map<string, int>();
+    this.terms = [];
+    string[] values = splitTerms(text);
+    int i = 0;
+    while (i < values.length) {
+      int? count = this.frequencies.get(values[i]);
+      if (count != null) {
+        this.frequencies.set(values[i], count + 1);
+      } else {
+        this.frequencies.set(values[i], 1);
+        this.terms.push(values[i]);
+      }
+      i = i + 1;
+    }
+  }
+}
+
+export class TfDocument {
+  string key;
+  TfChunk[] chunks;
+
+  init(string key, string[] textChunks) {
+    this.key = key;
+    this.chunks = [];
+    int i = 0;
+    while (i < textChunks.length) {
+      this.chunks.push(new TfChunk(textChunks[i]));
+      i = i + 1;
+    }
+  }
+}
+
+export class TfIdfScore {
+  string key;
+  float score;
+
+  init(string key, float score) {
+    this.key = key;
+    this.score = score;
+  }
+}
+
+export class TfIdfCalculator {
+  int chunkCount;
+  Map<string, int> chunkOccurrences;
+  Map<string, TfDocument> documents;
+  string[] documentKeys;
+
+  init() {
+    this.chunkCount = 0;
+    this.chunkOccurrences = new Map<string, int>();
+    this.documents = new Map<string, TfDocument>();
+    this.documentKeys = [];
+  }
+
+  void deleteDocument(string key) {
+    TfDocument? document = this.documents.get(key);
+    if (document == null) {
+      return;
+    }
+    this.documents.delete(key);
+    int keyIndex = this.documentKeys.indexOf(key);
+    if (keyIndex >= 0) {
+      this.documentKeys.splice(keyIndex, 1);
+    }
+    this.chunkCount = this.chunkCount - document.chunks.length;
+    int i = 0;
+    while (i < document.chunks.length) {
+      TfChunk chunk = document.chunks[i];
+      int j = 0;
+      while (j < chunk.terms.length) {
+        string term = chunk.terms[j];
+        int? count = this.chunkOccurrences.get(term);
+        if (count != null) {
+          if (count <= 1) {
+            this.chunkOccurrences.delete(term);
+          } else {
+            this.chunkOccurrences.set(term, count - 1);
+          }
+        }
+        j = j + 1;
+      }
+      i = i + 1;
+    }
+  }
+
+  TfIdfCalculator updateDocument(string key, string[] textChunks) {
+    this.deleteDocument(key);
+    TfDocument document = new TfDocument(key, textChunks);
+    int i = 0;
+    while (i < document.chunks.length) {
+      TfChunk chunk = document.chunks[i];
+      int j = 0;
+      while (j < chunk.terms.length) {
+        string term = chunk.terms[j];
+        int? count = this.chunkOccurrences.get(term);
+        if (count != null) {
+          this.chunkOccurrences.set(term, count + 1);
+        } else {
+          this.chunkOccurrences.set(term, 1);
+        }
+        j = j + 1;
+      }
+      i = i + 1;
+    }
+    this.chunkCount = this.chunkCount + document.chunks.length;
+    this.documents.set(key, document);
+    this.documentKeys.push(key);
+    return this;
+  }
+
+  float computeIdf(string term) {
+    int occurrences = 0;
+    int? existing = this.chunkOccurrences.get(term);
+    if (existing != null) {
+      occurrences = existing;
+    }
+    if (occurrences <= 0) {
+      return 0.0;
+    }
+    return (((this.chunkCount + 1) * 1.0) / (occurrences * 1.0)).log();
+  }
+
+  float scoreChunk(TfChunk chunk, TfChunk query) {
+    float sum = 0.0;
+    int i = 0;
+    while (i < query.terms.length) {
+      string term = query.terms[i];
+      int? queryFrequency = query.frequencies.get(term);
+      int? chunkFrequency = chunk.frequencies.get(term);
+      if (queryFrequency != null && chunkFrequency != null) {
+        float idf = this.computeIdf(term);
+        if (idf > 0.0) {
+          float queryTfidf = queryFrequency * 1.0 * idf;
+          float chunkTfidf = chunkFrequency * 1.0 * idf;
+          sum = sum + queryTfidf * chunkTfidf;
+        }
+      }
+      i = i + 1;
+    }
+    return sum;
+  }
+
+  TfIdfScore[] calculateScores(string query, bool cancelled) {
+    if (cancelled) {
+      return [];
+    }
+    TfChunk queryChunk = new TfChunk(query);
+    TfIdfScore[] scores = [];
+    int i = 0;
+    while (i < this.documentKeys.length) {
+      TfDocument? document = this.documents.get(this.documentKeys[i]);
+      if (document != null) {
+        int j = 0;
+        while (j < document.chunks.length) {
+          float score = this.scoreChunk(document.chunks[j], queryChunk);
+          if (score > 0.0) {
+            scores.push(new TfIdfScore(document.key, score));
+          }
+          j = j + 1;
+        }
+      }
+      i = i + 1;
+    }
+    return scores;
+  }
+}
+
+export TfIdfCalculator createTfIdfCalculator() {
+  return new TfIdfCalculator();
+}
+
+export string[] tfIdfSplitTerms(string input) {
+  return splitTerms(input);
+}
+
+export TfIdfScore[] normalizeTfIdfScores(TfIdfScore[] scores) {
+  TfIdfScore[] result = scores.slice();
+  int i = 1;
+  while (i < result.length) {
+    TfIdfScore value = result[i];
+    int j = i;
+    while (j > 0 && result[j - 1].score < value.score) {
+      result[j] = result[j - 1];
+      j = j - 1;
+    }
+    result[j] = value;
+    i = i + 1;
+  }
+  float maximum = 0.0;
+  if (result.length > 0) {
+    maximum = result[0].score;
+  }
+  if (maximum > 0.0) {
+    i = 0;
+    while (i < result.length) {
+      result[i].score = result[i].score / maximum;
+      i = i + 1;
+    }
+  }
+  return result;
+}

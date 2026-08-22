@@ -1,0 +1,293 @@
+string sliceRange(string s, int start, int end) {
+  int from = start;
+  int to = end;
+  if (from < 0) {
+    from = 0;
+  }
+  if (to > s.length) {
+    to = s.length;
+  }
+  if (from >= to) {
+    return "";
+  }
+  string out = "";
+  int i = from;
+  while (i < to) {
+    out = out + s.charAt(i);
+    i = i + 1;
+  }
+  return out;
+}
+
+export int WRAP_NONE = 0;
+export int WRAP_SAME = 1;
+export int WRAP_INDENT = 2;
+export int WRAP_DEEP_INDENT = 3;
+
+export class LineBreaksRequest {
+  int lineNumber;
+  string content;
+
+  init(int lineNumber, string content) {
+    this.lineNumber = lineNumber;
+    this.content = content;
+  }
+}
+
+export class ModelLineProjectionData {
+  int[] injectionOffsets;
+  int[] breakOffsets;
+  int[] breakOffsetsVisibleColumn;
+  int wrappedTextIndentLength;
+
+  init(int[] injectionOffsets, int[] breakOffsets, int[] breakOffsetsVisibleColumn, int wrappedTextIndentLength) {
+    this.injectionOffsets = injectionOffsets;
+    this.breakOffsets = breakOffsets;
+    this.breakOffsetsVisibleColumn = breakOffsetsVisibleColumn;
+    this.wrappedTextIndentLength = wrappedTextIndentLength;
+  }
+}
+
+export class FontInfo {
+  float typicalHalfwidthCharacterWidth;
+  float typicalFullwidthCharacterWidth;
+  float spaceWidth;
+
+  init(float typicalHalfwidthCharacterWidth, float typicalFullwidthCharacterWidth, float spaceWidth) {
+    this.typicalHalfwidthCharacterWidth = typicalHalfwidthCharacterWidth;
+    this.typicalFullwidthCharacterWidth = typicalFullwidthCharacterWidth;
+    this.spaceWidth = spaceWidth;
+  }
+}
+
+bool isFullWidthCharacter(int charCode) {
+  if (charCode >= 11904 && charCode <= 55215) {
+    return true;
+  }
+  if (charCode >= 63744 && charCode <= 64255) {
+    return true;
+  }
+  if (charCode >= 65281 && charCode <= 65374) {
+    return true;
+  }
+  if (charCode >= 65504 && charCode <= 65510) {
+    return true;
+  }
+  return false;
+}
+
+int firstNonWhitespaceIndex(string str) {
+  int i = 0;
+  while (i < str.length) {
+    int code = str.charCodeAt(i);
+    if (code != 32 && code != 9) {
+      return i;
+    }
+    i = i + 1;
+  }
+  return -1;
+}
+
+int iroundPositive(float value) {
+  return (value + 0.5).floor().toInt();
+}
+
+int iceilPositive(float value) {
+  int floored = value.floor().toInt();
+  if (value > floored * 1.0) {
+    return floored + 1;
+  }
+  return floored;
+}
+
+export class CharWidthResult {
+  int[] charOffsets;
+  int[] visibleColumns;
+
+  init(int[] charOffsets, int[] visibleColumns) {
+    this.charOffsets = charOffsets;
+    this.visibleColumns = visibleColumns;
+  }
+}
+
+export CharWidthResult measureLine(string lineContent, int initialVisibleColumn, int tabSize) {
+  int[] charOffsets = [];
+  int[] visibleColumns = [];
+  int visibleColumn = initialVisibleColumn;
+  int charOffset = 0;
+  int charIndex = 0;
+  int len = lineContent.length;
+  while (charIndex < len) {
+    charOffsets.push(charOffset);
+    visibleColumns.push(visibleColumn);
+    int charCode = lineContent.charCodeAt(charIndex);
+    int producedCharacters = 1;
+    int charWidth = 1;
+    if (charCode == 9) {
+      producedCharacters = tabSize - (visibleColumn % tabSize);
+      if (producedCharacters <= 0) {
+        producedCharacters = tabSize;
+      }
+      charWidth = producedCharacters;
+    } else if (isFullWidthCharacter(charCode)) {
+      charWidth = 2;
+    }
+    charOffset = charOffset + producedCharacters;
+    visibleColumn = visibleColumn + charWidth;
+    charIndex = charIndex + 1;
+  }
+  charOffsets.push(charOffset);
+  visibleColumns.push(visibleColumn);
+  return new CharWidthResult(charOffsets, visibleColumns);
+}
+
+int[] breakByWrapColumn(int[] visibleColumns, int wrapColumn) {
+  int[] breaks = [];
+  if (wrapColumn <= 0) {
+    return breaks;
+  }
+  int lastBreak = 0;
+  int i = 1;
+  while (i < visibleColumns.length) {
+    int column = visibleColumns[i] - visibleColumns[lastBreak];
+    if (column > wrapColumn && i > lastBreak + 1) {
+      breaks.push(i - 1);
+      lastBreak = i - 1;
+    }
+    i = i + 1;
+  }
+  return breaks;
+}
+
+export class DOMLineBreaksComputer {
+  FontInfo fontInfo;
+  int tabSize;
+  int wrappingColumn;
+  int wrappingIndent;
+  LineBreaksRequest[] requests;
+
+  init(FontInfo fontInfo, int tabSize, int wrappingColumn, int wrappingIndent) {
+    this.fontInfo = fontInfo;
+    this.tabSize = tabSize;
+    this.wrappingColumn = wrappingColumn;
+    this.wrappingIndent = wrappingIndent;
+    this.requests = [];
+  }
+
+  void addRequest(int lineNumber, string content) {
+    this.requests.push(new LineBreaksRequest(lineNumber, content));
+  }
+
+  ModelLineProjectionData? createEmptyLineBreak(string lineContent) {
+    if (lineContent.length == 0) {
+      return null;
+    }
+    int[] breaks = [];
+    breaks.push(lineContent.length);
+    int[] visible = [];
+    visible.push(lineContent.length);
+    int[] injections = [];
+    return new ModelLineProjectionData(injections, breaks, visible, 0);
+  }
+
+  ModelLineProjectionData? computeOne(string lineContent) {
+    if (this.wrappingColumn == -1) {
+      return this.createEmptyLineBreak(lineContent);
+    }
+    int additionalIndent = 0;
+    if (this.wrappingIndent == WRAP_DEEP_INDENT) {
+      additionalIndent = 2;
+    } else if (this.wrappingIndent == WRAP_INDENT) {
+      additionalIndent = 1;
+    }
+    int additionalIndentSize = iroundPositive(this.tabSize * additionalIndent * 1.0);
+    int firstNonWhitespace = 0;
+    int wrappedTextIndentLength = 0;
+    int wrapColumn = this.wrappingColumn;
+    if (this.wrappingIndent != WRAP_NONE) {
+      firstNonWhitespace = firstNonWhitespaceIndex(lineContent);
+      if (firstNonWhitespace == -1) {
+        firstNonWhitespace = 0;
+      } else {
+        int i = 0;
+        while (i < firstNonWhitespace) {
+          int charWidth = 1;
+          if (lineContent.charCodeAt(i) == 9) {
+            charWidth = this.tabSize - (wrappedTextIndentLength % this.tabSize);
+            if (charWidth <= 0) {
+              charWidth = this.tabSize;
+            }
+          }
+          wrappedTextIndentLength = wrappedTextIndentLength + charWidth;
+          i = i + 1;
+        }
+        float indentWidth = this.fontInfo.spaceWidth * wrappedTextIndentLength * 1.0;
+        float overallWidth = this.wrappingColumn * 1.0 * this.fontInfo.typicalHalfwidthCharacterWidth;
+        if (indentWidth + this.fontInfo.typicalFullwidthCharacterWidth > overallWidth) {
+          firstNonWhitespace = 0;
+          wrappedTextIndentLength = 0;
+        } else {
+          int consumed = iceilPositive(indentWidth / this.fontInfo.typicalHalfwidthCharacterWidth);
+          wrapColumn = this.wrappingColumn - consumed;
+          if (wrapColumn < 1) {
+            wrapColumn = 1;
+          }
+        }
+      }
+    }
+    string renderLineContent = sliceRange(lineContent, firstNonWhitespace, lineContent.length);
+    CharWidthResult measured = measureLine(renderLineContent, wrappedTextIndentLength, this.tabSize);
+    int[] relativeBreaks = breakByWrapColumn(measured.visibleColumns, wrapColumn);
+    if (relativeBreaks.length == 0) {
+      return this.createEmptyLineBreak(lineContent);
+    }
+    int[] breakOffsets = [];
+    int[] breakOffsetsVisibleColumn = [];
+    int j = 0;
+    while (j < relativeBreaks.length) {
+      int rel = relativeBreaks[j];
+      int absOffset = rel + firstNonWhitespace;
+      breakOffsets.push(absOffset);
+      int vis = 0;
+      if (rel >= 0 && rel < measured.visibleColumns.length) {
+        vis = measured.visibleColumns[rel];
+      }
+      breakOffsetsVisibleColumn.push(vis);
+      j = j + 1;
+    }
+    breakOffsets.push(lineContent.length);
+    int lastVis = 0;
+    if (measured.visibleColumns.length > 0) {
+      lastVis = measured.visibleColumns[measured.visibleColumns.length - 1];
+    }
+    breakOffsetsVisibleColumn.push(lastVis);
+    int[] injections = [];
+    return new ModelLineProjectionData(injections, breakOffsets, breakOffsetsVisibleColumn, wrappedTextIndentLength + additionalIndentSize);
+  }
+
+  ModelLineProjectionData?[] finalize() {
+    ModelLineProjectionData?[] result = [];
+    int i = 0;
+    while (i < this.requests.length) {
+      result.push(this.computeOne(this.requests[i].content));
+      i = i + 1;
+    }
+    return result;
+  }
+}
+
+export class DOMLineBreaksComputerFactory {
+  FontInfo fontInfo;
+
+  init(FontInfo fontInfo) {
+    this.fontInfo = fontInfo;
+  }
+
+  DOMLineBreaksComputer createLineBreaksComputer(int tabSize, int wrappingColumn, int wrappingIndent) {
+    return new DOMLineBreaksComputer(this.fontInfo, tabSize, wrappingColumn, wrappingIndent);
+  }
+}
+
+export DOMLineBreaksComputerFactory createDOMLineBreaksComputerFactory(float halfwidth = 8.0, float fullwidth = 16.0, float spaceWidth = 8.0) {
+  return new DOMLineBreaksComputerFactory(new FontInfo(halfwidth, fullwidth, spaceWidth));
+}

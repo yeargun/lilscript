@@ -1,0 +1,2263 @@
+{
+  "generatedAt": "2026-08-19T23:18:35.325Z",
+  "note": "Diagnostic Node zlib brotli 1.1.0 generic lgwin 22. Not lilscript-codec. Mutations are compression-only; several are semantically illegal.",
+  "corpora": {
+    "jquery-min": {
+      "path": "/Users/yeargun/lilscript/benchmarks/popular/upstream/jquery/dist/jquery.min.js",
+      "file": "jquery.min.js",
+      "baseline": {
+        "id": "baseline",
+        "note": "unmodified artifact",
+        "raw": 87533,
+        "gzip9": 30342,
+        "br5": 29763,
+        "br11": 27445,
+        "dBr11": 0
+      },
+      "rows": [
+        {
+          "id": "baseline",
+          "note": "unmodified artifact",
+          "raw": 87533,
+          "gzip9": 30342,
+          "br5": 29763,
+          "br11": 27445,
+          "dBr11": 0
+        },
+        {
+          "id": "quotes-single",
+          "note": "every string literal forced to single quotes",
+          "raw": 87538,
+          "gzip9": 30355,
+          "br5": 29774,
+          "br11": 27429,
+          "dBr11": -16
+        },
+        {
+          "id": "bool-minify",
+          "note": "true/false/undefined -> !0/!1/void 0",
+          "raw": 87468,
+          "gzip9": 30336,
+          "br5": 29759,
+          "br11": 27436,
+          "dBr11": -9
+        },
+        {
+          "id": "bool-expand",
+          "note": "reverse of bool-minify; may over-replace",
+          "raw": 88409,
+          "gzip9": 30414,
+          "br5": 29824,
+          "br11": 27530,
+          "dBr11": 85
+        },
+        {
+          "id": "var-to-let",
+          "note": "declaration keyword swap",
+          "raw": 87533,
+          "gzip9": 30341,
+          "br5": 29765,
+          "br11": 27462,
+          "dBr11": 17
+        },
+        {
+          "id": "let-to-var",
+          "note": "declaration keyword swap",
+          "raw": 87533,
+          "gzip9": 30342,
+          "br5": 29763,
+          "br11": 27445,
+          "dBr11": 0
+        },
+        {
+          "id": "const-to-var",
+          "note": "declaration keyword swap",
+          "raw": 87533,
+          "gzip9": 30342,
+          "br5": 29763,
+          "br11": 27445,
+          "dBr11": 0
+        },
+        {
+          "id": "rotate-short-1",
+          "note": "permute 1-char locals along a-zA-Z_$",
+          "raw": 87533,
+          "gzip9": 30524,
+          "br5": 29918,
+          "br11": 27523,
+          "dBr11": 78
+        },
+        {
+          "id": "rotate-short-13",
+          "note": "far permutation of 1-char locals",
+          "raw": 87533,
+          "gzip9": 30678,
+          "br5": 30044,
+          "br11": 27506,
+          "dBr11": 61
+        },
+        {
+          "id": "alphabet-function-letters",
+          "note": "assign hottest short locals to letters from function/return",
+          "raw": 86985,
+          "gzip9": 30277,
+          "br5": 29676,
+          "br11": 27378,
+          "dBr11": -67
+        },
+        {
+          "id": "alphabet-rare",
+          "note": "assign hottest short locals to rare letters",
+          "raw": 86985,
+          "gzip9": 30661,
+          "br5": 30004,
+          "br11": 27412,
+          "dBr11": -33
+        },
+        {
+          "id": "locals-as-length-index-value",
+          "note": "hottest short locals become ROM words",
+          "raw": 109777,
+          "gzip9": 32373,
+          "br5": 32014,
+          "br11": 29045,
+          "dBr11": 1600
+        },
+        {
+          "id": "locals-as-function-return",
+          "note": "hottest short locals become long ROM words",
+          "raw": 124910,
+          "gzip9": 33116,
+          "br5": 32692,
+          "br11": 29561,
+          "dBr11": 2116
+        },
+        {
+          "id": "uniquify-short",
+          "note": "break cross-scope reuse of 1-2 char names",
+          "raw": 112110,
+          "gzip9": 49113,
+          "br5": 47531,
+          "br11": 41764,
+          "dBr11": 14319
+        },
+        {
+          "id": "collapse-to-e",
+          "note": "illegal: every 1-char local becomes e",
+          "raw": 87533,
+          "gzip9": 26475,
+          "br5": 25965,
+          "br11": 23715,
+          "dBr11": -3730
+        },
+        {
+          "id": "pool-strings-4x6",
+          "note": "array-pool repeated strings",
+          "raw": 86875,
+          "gzip9": 30420,
+          "br5": 29846,
+          "br11": 27469,
+          "dBr11": 24
+        },
+        {
+          "id": "pool-strings-8x8",
+          "note": "stricter pool",
+          "raw": 87419,
+          "gzip9": 30357,
+          "br5": 29777,
+          "br11": 27460,
+          "dBr11": 15
+        },
+        {
+          "id": "bait-function-return",
+          "note": "ROM-phrase preamble",
+          "raw": 87553,
+          "gzip9": 30352,
+          "br5": 29773,
+          "br11": 27452,
+          "dBr11": 7
+        },
+        {
+          "id": "bait-javascript-type",
+          "note": "exact 22-byte ROM phrase as dummy",
+          "raw": 87567,
+          "gzip9": 30366,
+          "br5": 29785,
+          "br11": 27452,
+          "dBr11": 7
+        },
+        {
+          "id": "bait-unique",
+          "note": "same shape, unique word",
+          "raw": 87553,
+          "gzip9": 30358,
+          "br5": 29780,
+          "br11": 27432,
+          "dBr11": -13
+        },
+        {
+          "id": "fn-reverse",
+          "note": "reverse function declaration order",
+          "raw": 87533,
+          "gzip9": 30511,
+          "br5": 29888,
+          "br11": 27510,
+          "dBr11": 65
+        },
+        {
+          "id": "fn-by-length",
+          "note": "shortest functions first",
+          "raw": 87533,
+          "gzip9": 31073,
+          "br5": 30002,
+          "br11": 27657,
+          "dBr11": 212
+        },
+        {
+          "id": "fn-by-prefix",
+          "note": "cluster similar function prefixes",
+          "raw": 87533,
+          "gzip9": 30937,
+          "br5": 30074,
+          "br11": 27633,
+          "dBr11": 188
+        },
+        {
+          "id": "dot-length-bracket",
+          "note": ".length -> [\"length\"]",
+          "raw": 88453,
+          "gzip9": 30402,
+          "br5": 29819,
+          "br11": 27495,
+          "dBr11": 50
+        }
+      ]
+    },
+    "jquery-src": {
+      "path": "/Users/yeargun/lilscript/benchmarks/popular/upstream/jquery/dist/jquery.js",
+      "file": "jquery.js",
+      "baseline": {
+        "id": "baseline",
+        "note": "unmodified artifact",
+        "raw": 285314,
+        "gzip9": 83697,
+        "br5": 79680,
+        "br11": 69545,
+        "dBr11": 0
+      },
+      "rows": [
+        {
+          "id": "baseline",
+          "note": "unmodified artifact",
+          "raw": 285314,
+          "gzip9": 83697,
+          "br5": 79680,
+          "br11": 69545,
+          "dBr11": 0
+        },
+        {
+          "id": "quotes-single",
+          "note": "every string literal forced to single quotes",
+          "raw": 285319,
+          "gzip9": 83810,
+          "br5": 79786,
+          "br11": 69662,
+          "dBr11": 117
+        },
+        {
+          "id": "bool-minify",
+          "note": "true/false/undefined -> !0/!1/void 0",
+          "raw": 284362,
+          "gzip9": 83601,
+          "br5": 79589,
+          "br11": 69490,
+          "dBr11": -55
+        },
+        {
+          "id": "bool-expand",
+          "note": "reverse of bool-minify; may over-replace",
+          "raw": 285314,
+          "gzip9": 83697,
+          "br5": 79680,
+          "br11": 69545,
+          "dBr11": 0
+        },
+        {
+          "id": "var-to-let",
+          "note": "declaration keyword swap",
+          "raw": 285314,
+          "gzip9": 83683,
+          "br5": 79672,
+          "br11": 69581,
+          "dBr11": 36
+        },
+        {
+          "id": "let-to-var",
+          "note": "declaration keyword swap",
+          "raw": 285314,
+          "gzip9": 83697,
+          "br5": 79680,
+          "br11": 69545,
+          "dBr11": 0
+        },
+        {
+          "id": "const-to-var",
+          "note": "declaration keyword swap",
+          "raw": 285314,
+          "gzip9": 83697,
+          "br5": 79680,
+          "br11": 69545,
+          "dBr11": 0
+        },
+        {
+          "id": "rotate-short-1",
+          "note": "permute 1-char locals along a-zA-Z_$",
+          "raw": 285314,
+          "gzip9": 83736,
+          "br5": 79709,
+          "br11": 69572,
+          "dBr11": 27
+        },
+        {
+          "id": "rotate-short-13",
+          "note": "far permutation of 1-char locals",
+          "raw": 285314,
+          "gzip9": 83740,
+          "br5": 79709,
+          "br11": 69576,
+          "dBr11": 31
+        },
+        {
+          "id": "alphabet-function-letters",
+          "note": "assign hottest short locals to letters from function/return",
+          "raw": 285154,
+          "gzip9": 83615,
+          "br5": 79613,
+          "br11": 69534,
+          "dBr11": -11
+        },
+        {
+          "id": "alphabet-rare",
+          "note": "assign hottest short locals to rare letters",
+          "raw": 285154,
+          "gzip9": 83763,
+          "br5": 79728,
+          "br11": 69635,
+          "dBr11": 90
+        },
+        {
+          "id": "locals-as-length-index-value",
+          "note": "hottest short locals become ROM words",
+          "raw": 288380,
+          "gzip9": 83977,
+          "br5": 79902,
+          "br11": 69652,
+          "dBr11": 107
+        },
+        {
+          "id": "locals-as-function-return",
+          "note": "hottest short locals become long ROM words",
+          "raw": 290135,
+          "gzip9": 84133,
+          "br5": 80069,
+          "br11": 69807,
+          "dBr11": 262
+        },
+        {
+          "id": "uniquify-short",
+          "note": "break cross-scope reuse of 1-2 char names",
+          "raw": 287233,
+          "gzip9": 86026,
+          "br5": 81816,
+          "br11": 71345,
+          "dBr11": 1800
+        },
+        {
+          "id": "collapse-to-e",
+          "note": "illegal: every 1-char local becomes e",
+          "raw": 285314,
+          "gzip9": 83545,
+          "br5": 79573,
+          "br11": 69436,
+          "dBr11": -109
+        },
+        {
+          "id": "pool-strings-4x6",
+          "note": "array-pool repeated strings",
+          "raw": 284656,
+          "gzip9": 83822,
+          "br5": 79760,
+          "br11": 69671,
+          "dBr11": 126
+        },
+        {
+          "id": "pool-strings-8x8",
+          "note": "stricter pool",
+          "raw": 285200,
+          "gzip9": 83734,
+          "br5": 79702,
+          "br11": 69567,
+          "dBr11": 22
+        },
+        {
+          "id": "bait-function-return",
+          "note": "ROM-phrase preamble",
+          "raw": 285334,
+          "gzip9": 83707,
+          "br5": 79694,
+          "br11": 69527,
+          "dBr11": -18
+        },
+        {
+          "id": "bait-javascript-type",
+          "note": "exact 22-byte ROM phrase as dummy",
+          "raw": 285348,
+          "gzip9": 83732,
+          "br5": 79701,
+          "br11": 69566,
+          "dBr11": 21
+        },
+        {
+          "id": "bait-unique",
+          "note": "same shape, unique word",
+          "raw": 285334,
+          "gzip9": 83717,
+          "br5": 79701,
+          "br11": 69551,
+          "dBr11": 6
+        },
+        {
+          "id": "fn-reverse",
+          "note": "reverse function declaration order",
+          "raw": 285314,
+          "gzip9": 83697,
+          "br5": 79680,
+          "br11": 69545,
+          "dBr11": 0
+        },
+        {
+          "id": "fn-by-length",
+          "note": "shortest functions first",
+          "raw": 285314,
+          "gzip9": 83697,
+          "br5": 79680,
+          "br11": 69545,
+          "dBr11": 0
+        },
+        {
+          "id": "fn-by-prefix",
+          "note": "cluster similar function prefixes",
+          "raw": 285314,
+          "gzip9": 83697,
+          "br5": 79680,
+          "br11": 69545,
+          "dBr11": 0
+        },
+        {
+          "id": "dot-length-bracket",
+          "note": ".length -> [\"length\"]",
+          "raw": 286238,
+          "gzip9": 83854,
+          "br5": 79768,
+          "br11": 69646,
+          "dBr11": 101
+        }
+      ]
+    },
+    "jquery-lil-raw": {
+      "path": "/Users/yeargun/lilscript/benchmarks/popular/ports/jquery/jquery-lilscript.raw.js",
+      "file": "jquery-lilscript.raw.js",
+      "baseline": {
+        "id": "baseline",
+        "note": "unmodified artifact",
+        "raw": 102681,
+        "gzip9": 38948,
+        "br5": 36306,
+        "br11": 33283,
+        "dBr11": 0
+      },
+      "rows": [
+        {
+          "id": "baseline",
+          "note": "unmodified artifact",
+          "raw": 102681,
+          "gzip9": 38948,
+          "br5": 36306,
+          "br11": 33283,
+          "dBr11": 0
+        },
+        {
+          "id": "quotes-single",
+          "note": "every string literal forced to single quotes",
+          "raw": 102656,
+          "gzip9": 38961,
+          "br5": 36314,
+          "br11": 33288,
+          "dBr11": 5
+        },
+        {
+          "id": "bool-minify",
+          "note": "true/false/undefined -> !0/!1/void 0",
+          "raw": 102630,
+          "gzip9": 38942,
+          "br5": 36301,
+          "br11": 33260,
+          "dBr11": -23
+        },
+        {
+          "id": "bool-expand",
+          "note": "reverse of bool-minify; may over-replace",
+          "raw": 104199,
+          "gzip9": 39055,
+          "br5": 36443,
+          "br11": 33399,
+          "dBr11": 116
+        },
+        {
+          "id": "var-to-let",
+          "note": "declaration keyword swap",
+          "raw": 102681,
+          "gzip9": 38894,
+          "br5": 36249,
+          "br11": 33227,
+          "dBr11": -56
+        },
+        {
+          "id": "let-to-var",
+          "note": "declaration keyword swap",
+          "raw": 102681,
+          "gzip9": 38948,
+          "br5": 36306,
+          "br11": 33283,
+          "dBr11": 0
+        },
+        {
+          "id": "const-to-var",
+          "note": "declaration keyword swap",
+          "raw": 102681,
+          "gzip9": 38948,
+          "br5": 36306,
+          "br11": 33283,
+          "dBr11": 0
+        },
+        {
+          "id": "rotate-short-1",
+          "note": "permute 1-char locals along a-zA-Z_$",
+          "raw": 102681,
+          "gzip9": 39031,
+          "br5": 36349,
+          "br11": 33336,
+          "dBr11": 53
+        },
+        {
+          "id": "rotate-short-13",
+          "note": "far permutation of 1-char locals",
+          "raw": 102681,
+          "gzip9": 39256,
+          "br5": 36579,
+          "br11": 33402,
+          "dBr11": 119
+        },
+        {
+          "id": "alphabet-function-letters",
+          "note": "assign hottest short locals to letters from function/return",
+          "raw": 102510,
+          "gzip9": 38798,
+          "br5": 36225,
+          "br11": 33107,
+          "dBr11": -176
+        },
+        {
+          "id": "alphabet-rare",
+          "note": "assign hottest short locals to rare letters",
+          "raw": 102510,
+          "gzip9": 39317,
+          "br5": 36566,
+          "br11": 33305,
+          "dBr11": 22
+        },
+        {
+          "id": "locals-as-length-index-value",
+          "note": "hottest short locals become ROM words",
+          "raw": 135226,
+          "gzip9": 41949,
+          "br5": 39899,
+          "br11": 35647,
+          "dBr11": 2364
+        },
+        {
+          "id": "locals-as-function-return",
+          "note": "hottest short locals become long ROM words",
+          "raw": 158399,
+          "gzip9": 43021,
+          "br5": 40883,
+          "br11": 36431,
+          "dBr11": 3148
+        },
+        {
+          "id": "uniquify-short",
+          "note": "break cross-scope reuse of 1-2 char names",
+          "raw": 140201,
+          "gzip9": 65594,
+          "br5": 63110,
+          "br11": 54552,
+          "dBr11": 21269
+        },
+        {
+          "id": "collapse-to-e",
+          "note": "illegal: every 1-char local becomes e",
+          "raw": 102681,
+          "gzip9": 32664,
+          "br5": 30546,
+          "br11": 27563,
+          "dBr11": -5720
+        },
+        {
+          "id": "pool-strings-4x6",
+          "note": "array-pool repeated strings",
+          "raw": 102462,
+          "gzip9": 38964,
+          "br5": 36316,
+          "br11": 33265,
+          "dBr11": -18
+        },
+        {
+          "id": "pool-strings-8x8",
+          "note": "stricter pool",
+          "raw": 102681,
+          "gzip9": 38948,
+          "br5": 36306,
+          "br11": 33283,
+          "dBr11": 0
+        },
+        {
+          "id": "bait-function-return",
+          "note": "ROM-phrase preamble",
+          "raw": 102701,
+          "gzip9": 38962,
+          "br5": 36312,
+          "br11": 33293,
+          "dBr11": 10
+        },
+        {
+          "id": "bait-javascript-type",
+          "note": "exact 22-byte ROM phrase as dummy",
+          "raw": 102715,
+          "gzip9": 38974,
+          "br5": 36318,
+          "br11": 33301,
+          "dBr11": 18
+        },
+        {
+          "id": "bait-unique",
+          "note": "same shape, unique word",
+          "raw": 102701,
+          "gzip9": 38966,
+          "br5": 36317,
+          "br11": 33301,
+          "dBr11": 18
+        },
+        {
+          "id": "fn-reverse",
+          "note": "reverse function declaration order",
+          "raw": 102681,
+          "gzip9": 38770,
+          "br5": 36320,
+          "br11": 33323,
+          "dBr11": 40
+        },
+        {
+          "id": "fn-by-length",
+          "note": "shortest functions first",
+          "raw": 102681,
+          "gzip9": 37760,
+          "br5": 36473,
+          "br11": 33468,
+          "dBr11": 185
+        },
+        {
+          "id": "fn-by-prefix",
+          "note": "cluster similar function prefixes",
+          "raw": 102681,
+          "gzip9": 37894,
+          "br5": 36598,
+          "br11": 33445,
+          "dBr11": 162
+        },
+        {
+          "id": "dot-length-bracket",
+          "note": ".length -> [\"length\"]",
+          "raw": 103969,
+          "gzip9": 39030,
+          "br5": 36386,
+          "br11": 33271,
+          "dBr11": -12
+        }
+      ]
+    },
+    "jquery-lil-measured": {
+      "path": "/Users/yeargun/lilscript/benchmarks/popular/build/jquery-measured.js",
+      "file": "jquery-measured.js",
+      "baseline": {
+        "id": "baseline",
+        "note": "unmodified artifact",
+        "raw": 162971,
+        "gzip9": 44309,
+        "br5": 43391,
+        "br11": 38560,
+        "dBr11": 0
+      },
+      "rows": [
+        {
+          "id": "baseline",
+          "note": "unmodified artifact",
+          "raw": 162971,
+          "gzip9": 44309,
+          "br5": 43391,
+          "br11": 38560,
+          "dBr11": 0
+        },
+        {
+          "id": "quotes-single",
+          "note": "every string literal forced to single quotes",
+          "raw": 162961,
+          "gzip9": 44317,
+          "br5": 43400,
+          "br11": 38537,
+          "dBr11": -23
+        },
+        {
+          "id": "bool-minify",
+          "note": "true/false/undefined -> !0/!1/void 0",
+          "raw": 161927,
+          "gzip9": 44226,
+          "br5": 43295,
+          "br11": 38437,
+          "dBr11": -123
+        },
+        {
+          "id": "bool-expand",
+          "note": "reverse of bool-minify; may over-replace",
+          "raw": 163436,
+          "gzip9": 44337,
+          "br5": 43417,
+          "br11": 38548,
+          "dBr11": -12
+        },
+        {
+          "id": "var-to-let",
+          "note": "declaration keyword swap",
+          "raw": 162971,
+          "gzip9": 44255,
+          "br5": 43341,
+          "br11": 38468,
+          "dBr11": -92
+        },
+        {
+          "id": "let-to-var",
+          "note": "declaration keyword swap",
+          "raw": 162971,
+          "gzip9": 44309,
+          "br5": 43391,
+          "br11": 38560,
+          "dBr11": 0
+        },
+        {
+          "id": "const-to-var",
+          "note": "declaration keyword swap",
+          "raw": 162953,
+          "gzip9": 44307,
+          "br5": 43389,
+          "br11": 38507,
+          "dBr11": -53
+        },
+        {
+          "id": "rotate-short-1",
+          "note": "permute 1-char locals along a-zA-Z_$",
+          "raw": 162971,
+          "gzip9": 44517,
+          "br5": 43528,
+          "br11": 38579,
+          "dBr11": 19
+        },
+        {
+          "id": "rotate-short-13",
+          "note": "far permutation of 1-char locals",
+          "raw": 162971,
+          "gzip9": 44525,
+          "br5": 43518,
+          "br11": 38524,
+          "dBr11": -36
+        },
+        {
+          "id": "alphabet-function-letters",
+          "note": "assign hottest short locals to letters from function/return",
+          "raw": 161252,
+          "gzip9": 44064,
+          "br5": 43123,
+          "br11": 38373,
+          "dBr11": -187
+        },
+        {
+          "id": "alphabet-rare",
+          "note": "assign hottest short locals to rare letters",
+          "raw": 161252,
+          "gzip9": 44565,
+          "br5": 43443,
+          "br11": 38541,
+          "dBr11": -19
+        },
+        {
+          "id": "locals-as-length-index-value",
+          "note": "hottest short locals become ROM words",
+          "raw": 193600,
+          "gzip9": 46890,
+          "br5": 46295,
+          "br11": 40178,
+          "dBr11": 1618
+        },
+        {
+          "id": "locals-as-function-return",
+          "note": "hottest short locals become long ROM words",
+          "raw": 215105,
+          "gzip9": 47787,
+          "br5": 47164,
+          "br11": 40871,
+          "dBr11": 2311
+        },
+        {
+          "id": "uniquify-short",
+          "note": "break cross-scope reuse of 1-2 char names",
+          "raw": 197329,
+          "gzip9": 69901,
+          "br5": 67860,
+          "br11": 57595,
+          "dBr11": 19035
+        },
+        {
+          "id": "collapse-to-e",
+          "note": "illegal: every 1-char local becomes e",
+          "raw": 162971,
+          "gzip9": 40642,
+          "br5": 40039,
+          "br11": 35009,
+          "dBr11": -3551
+        },
+        {
+          "id": "pool-strings-4x6",
+          "note": "array-pool repeated strings",
+          "raw": 161859,
+          "gzip9": 44399,
+          "br5": 43475,
+          "br11": 38542,
+          "dBr11": -18
+        },
+        {
+          "id": "pool-strings-8x8",
+          "note": "stricter pool",
+          "raw": 162936,
+          "gzip9": 44323,
+          "br5": 43393,
+          "br11": 38526,
+          "dBr11": -34
+        },
+        {
+          "id": "bait-function-return",
+          "note": "ROM-phrase preamble",
+          "raw": 162991,
+          "gzip9": 44317,
+          "br5": 43391,
+          "br11": 38531,
+          "dBr11": -29
+        },
+        {
+          "id": "bait-javascript-type",
+          "note": "exact 22-byte ROM phrase as dummy",
+          "raw": 163005,
+          "gzip9": 44331,
+          "br5": 43404,
+          "br11": 38552,
+          "dBr11": -8
+        },
+        {
+          "id": "bait-unique",
+          "note": "same shape, unique word",
+          "raw": 162991,
+          "gzip9": 44323,
+          "br5": 43397,
+          "br11": 38509,
+          "dBr11": -51
+        },
+        {
+          "id": "fn-reverse",
+          "note": "reverse function declaration order",
+          "raw": 162971,
+          "gzip9": 44309,
+          "br5": 43391,
+          "br11": 38560,
+          "dBr11": 0
+        },
+        {
+          "id": "fn-by-length",
+          "note": "shortest functions first",
+          "raw": 162971,
+          "gzip9": 44309,
+          "br5": 43391,
+          "br11": 38560,
+          "dBr11": 0
+        },
+        {
+          "id": "fn-by-prefix",
+          "note": "cluster similar function prefixes",
+          "raw": 162971,
+          "gzip9": 44309,
+          "br5": 43391,
+          "br11": 38560,
+          "dBr11": 0
+        },
+        {
+          "id": "dot-length-bracket",
+          "note": ".length -> [\"length\"]",
+          "raw": 164539,
+          "gzip9": 44402,
+          "br5": 43463,
+          "br11": 38613,
+          "dBr11": 53
+        }
+      ]
+    },
+    "jquery-lil-min": {
+      "path": "/Users/yeargun/lilscript/benchmarks/popular/build/jquery-lilscript.min.js",
+      "file": "jquery-lilscript.min.js",
+      "baseline": {
+        "id": "baseline",
+        "note": "unmodified artifact",
+        "raw": 110749,
+        "gzip9": 42826,
+        "br5": 41380,
+        "br11": 37901,
+        "dBr11": 0
+      },
+      "rows": [
+        {
+          "id": "baseline",
+          "note": "unmodified artifact",
+          "raw": 110749,
+          "gzip9": 42826,
+          "br5": 41380,
+          "br11": 37901,
+          "dBr11": 0
+        },
+        {
+          "id": "quotes-single",
+          "note": "every string literal forced to single quotes",
+          "raw": 110742,
+          "gzip9": 42833,
+          "br5": 41380,
+          "br11": 37935,
+          "dBr11": 34
+        },
+        {
+          "id": "bool-minify",
+          "note": "true/false/undefined -> !0/!1/void 0",
+          "raw": 110749,
+          "gzip9": 42826,
+          "br5": 41380,
+          "br11": 37901,
+          "dBr11": 0
+        },
+        {
+          "id": "bool-expand",
+          "note": "reverse of bool-minify; may over-replace",
+          "raw": 112885,
+          "gzip9": 42975,
+          "br5": 41549,
+          "br11": 38043,
+          "dBr11": 142
+        },
+        {
+          "id": "var-to-let",
+          "note": "declaration keyword swap",
+          "raw": 110749,
+          "gzip9": 42742,
+          "br5": 41305,
+          "br11": 37857,
+          "dBr11": -44
+        },
+        {
+          "id": "let-to-var",
+          "note": "declaration keyword swap",
+          "raw": 110749,
+          "gzip9": 42826,
+          "br5": 41380,
+          "br11": 37901,
+          "dBr11": 0
+        },
+        {
+          "id": "const-to-var",
+          "note": "declaration keyword swap",
+          "raw": 110749,
+          "gzip9": 42826,
+          "br5": 41380,
+          "br11": 37901,
+          "dBr11": 0
+        },
+        {
+          "id": "rotate-short-1",
+          "note": "permute 1-char locals along a-zA-Z_$",
+          "raw": 110749,
+          "gzip9": 43055,
+          "br5": 41519,
+          "br11": 38083,
+          "dBr11": 182
+        },
+        {
+          "id": "rotate-short-13",
+          "note": "far permutation of 1-char locals",
+          "raw": 110749,
+          "gzip9": 43208,
+          "br5": 41628,
+          "br11": 38038,
+          "dBr11": 137
+        },
+        {
+          "id": "alphabet-function-letters",
+          "note": "assign hottest short locals to letters from function/return",
+          "raw": 110749,
+          "gzip9": 42861,
+          "br5": 41386,
+          "br11": 37870,
+          "dBr11": -31
+        },
+        {
+          "id": "alphabet-rare",
+          "note": "assign hottest short locals to rare letters",
+          "raw": 110749,
+          "gzip9": 43353,
+          "br5": 41755,
+          "br11": 38014,
+          "dBr11": 113
+        },
+        {
+          "id": "locals-as-length-index-value",
+          "note": "hottest short locals become ROM words",
+          "raw": 149773,
+          "gzip9": 46163,
+          "br5": 45403,
+          "br11": 40732,
+          "dBr11": 2831
+        },
+        {
+          "id": "locals-as-function-return",
+          "note": "hottest short locals become long ROM words",
+          "raw": 176092,
+          "gzip9": 47284,
+          "br5": 46527,
+          "br11": 41565,
+          "dBr11": 3664
+        },
+        {
+          "id": "uniquify-short",
+          "note": "break cross-scope reuse of 1-2 char names",
+          "raw": 161217,
+          "gzip9": 79734,
+          "br5": 76709,
+          "br11": 65580,
+          "dBr11": 27679
+        },
+        {
+          "id": "collapse-to-e",
+          "note": "illegal: every 1-char local becomes e",
+          "raw": 110749,
+          "gzip9": 35132,
+          "br5": 34320,
+          "br11": 30886,
+          "dBr11": -7015
+        },
+        {
+          "id": "pool-strings-4x6",
+          "note": "array-pool repeated strings",
+          "raw": 109670,
+          "gzip9": 42800,
+          "br5": 41354,
+          "br11": 37842,
+          "dBr11": -59
+        },
+        {
+          "id": "pool-strings-8x8",
+          "note": "stricter pool",
+          "raw": 110720,
+          "gzip9": 42833,
+          "br5": 41389,
+          "br11": 37978,
+          "dBr11": 77
+        },
+        {
+          "id": "bait-function-return",
+          "note": "ROM-phrase preamble",
+          "raw": 110769,
+          "gzip9": 42834,
+          "br5": 41387,
+          "br11": 37885,
+          "dBr11": -16
+        },
+        {
+          "id": "bait-javascript-type",
+          "note": "exact 22-byte ROM phrase as dummy",
+          "raw": 110783,
+          "gzip9": 42847,
+          "br5": 41396,
+          "br11": 38049,
+          "dBr11": 148
+        },
+        {
+          "id": "bait-unique",
+          "note": "same shape, unique word",
+          "raw": 110769,
+          "gzip9": 42839,
+          "br5": 41392,
+          "br11": 37916,
+          "dBr11": 15
+        },
+        {
+          "id": "fn-reverse",
+          "note": "reverse function declaration order",
+          "raw": 110749,
+          "gzip9": 42895,
+          "br5": 41610,
+          "br11": 38118,
+          "dBr11": 217
+        },
+        {
+          "id": "fn-by-length",
+          "note": "shortest functions first",
+          "raw": 110749,
+          "gzip9": 43021,
+          "br5": 41613,
+          "br11": 38043,
+          "dBr11": 142
+        },
+        {
+          "id": "fn-by-prefix",
+          "note": "cluster similar function prefixes",
+          "raw": 110749,
+          "gzip9": 43426,
+          "br5": 41913,
+          "br11": 38255,
+          "dBr11": 354
+        },
+        {
+          "id": "dot-length-bracket",
+          "note": ".length -> [\"length\"]",
+          "raw": 112069,
+          "gzip9": 42905,
+          "br5": 41450,
+          "br11": 37972,
+          "dBr11": 71
+        }
+      ]
+    },
+    "glmatrix-js-vite": {
+      "path": "/Users/yeargun/lilscript/benchmarks/popular/build/gl-matrix-vite-run.mjs",
+      "file": "gl-matrix-vite-run.mjs",
+      "baseline": {
+        "id": "baseline",
+        "note": "unmodified artifact",
+        "raw": 73505,
+        "gzip9": 17722,
+        "br5": 16504,
+        "br11": 14330,
+        "dBr11": 0
+      },
+      "rows": [
+        {
+          "id": "baseline",
+          "note": "unmodified artifact",
+          "raw": 73505,
+          "gzip9": 17722,
+          "br5": 16504,
+          "br11": 14330,
+          "dBr11": 0
+        },
+        {
+          "id": "quotes-single",
+          "note": "every string literal forced to single quotes",
+          "raw": 73505,
+          "gzip9": 17722,
+          "br5": 16504,
+          "br11": 14330,
+          "dBr11": 0
+        },
+        {
+          "id": "bool-minify",
+          "note": "true/false/undefined -> !0/!1/void 0",
+          "raw": 73505,
+          "gzip9": 17722,
+          "br5": 16504,
+          "br11": 14330,
+          "dBr11": 0
+        },
+        {
+          "id": "bool-expand",
+          "note": "reverse of bool-minify; may over-replace",
+          "raw": 73507,
+          "gzip9": 17723,
+          "br5": 16505,
+          "br11": 14385,
+          "dBr11": 55
+        },
+        {
+          "id": "var-to-let",
+          "note": "declaration keyword swap",
+          "raw": 73505,
+          "gzip9": 17712,
+          "br5": 16509,
+          "br11": 14340,
+          "dBr11": 10
+        },
+        {
+          "id": "let-to-var",
+          "note": "declaration keyword swap",
+          "raw": 73505,
+          "gzip9": 17722,
+          "br5": 16504,
+          "br11": 14330,
+          "dBr11": 0
+        },
+        {
+          "id": "const-to-var",
+          "note": "declaration keyword swap",
+          "raw": 73505,
+          "gzip9": 17722,
+          "br5": 16504,
+          "br11": 14330,
+          "dBr11": 0
+        },
+        {
+          "id": "rotate-short-1",
+          "note": "permute 1-char locals along a-zA-Z_$",
+          "raw": 73505,
+          "gzip9": 17791,
+          "br5": 16541,
+          "br11": 14326,
+          "dBr11": -4
+        },
+        {
+          "id": "rotate-short-13",
+          "note": "far permutation of 1-char locals",
+          "raw": 73505,
+          "gzip9": 17833,
+          "br5": 16566,
+          "br11": 14382,
+          "dBr11": 52
+        },
+        {
+          "id": "alphabet-function-letters",
+          "note": "assign hottest short locals to letters from function/return",
+          "raw": 73505,
+          "gzip9": 17648,
+          "br5": 16439,
+          "br11": 14342,
+          "dBr11": 12
+        },
+        {
+          "id": "alphabet-rare",
+          "note": "assign hottest short locals to rare letters",
+          "raw": 73505,
+          "gzip9": 17852,
+          "br5": 16589,
+          "br11": 14306,
+          "dBr11": -24
+        },
+        {
+          "id": "locals-as-length-index-value",
+          "note": "hottest short locals become ROM words",
+          "raw": 107131,
+          "gzip9": 19103,
+          "br5": 18571,
+          "br11": 15692,
+          "dBr11": 1362
+        },
+        {
+          "id": "locals-as-function-return",
+          "note": "hottest short locals become long ROM words",
+          "raw": 128546,
+          "gzip9": 19651,
+          "br5": 19127,
+          "br11": 16072,
+          "dBr11": 1742
+        },
+        {
+          "id": "uniquify-short",
+          "note": "break cross-scope reuse of 1-2 char names",
+          "raw": 110377,
+          "gzip9": 45386,
+          "br5": 41108,
+          "br11": 32891,
+          "dBr11": 18561
+        },
+        {
+          "id": "collapse-to-e",
+          "note": "illegal: every 1-char local becomes e",
+          "raw": 73505,
+          "gzip9": 12360,
+          "br5": 12148,
+          "br11": 10393,
+          "dBr11": -3937
+        },
+        {
+          "id": "pool-strings-4x6",
+          "note": "array-pool repeated strings",
+          "raw": 73505,
+          "gzip9": 17722,
+          "br5": 16504,
+          "br11": 14330,
+          "dBr11": 0
+        },
+        {
+          "id": "pool-strings-8x8",
+          "note": "stricter pool",
+          "raw": 73505,
+          "gzip9": 17722,
+          "br5": 16504,
+          "br11": 14330,
+          "dBr11": 0
+        },
+        {
+          "id": "bait-function-return",
+          "note": "ROM-phrase preamble",
+          "raw": 73525,
+          "gzip9": 17732,
+          "br5": 16511,
+          "br11": 14316,
+          "dBr11": -14
+        },
+        {
+          "id": "bait-javascript-type",
+          "note": "exact 22-byte ROM phrase as dummy",
+          "raw": 73539,
+          "gzip9": 17755,
+          "br5": 16523,
+          "br11": 14365,
+          "dBr11": 35
+        },
+        {
+          "id": "bait-unique",
+          "note": "same shape, unique word",
+          "raw": 73525,
+          "gzip9": 17739,
+          "br5": 16514,
+          "br11": 14420,
+          "dBr11": 90
+        },
+        {
+          "id": "fn-reverse",
+          "note": "reverse function declaration order",
+          "raw": 73505,
+          "gzip9": 17775,
+          "br5": 16490,
+          "br11": 14321,
+          "dBr11": -9
+        },
+        {
+          "id": "fn-by-length",
+          "note": "shortest functions first",
+          "raw": 73505,
+          "gzip9": 17488,
+          "br5": 16512,
+          "br11": 14352,
+          "dBr11": 22
+        },
+        {
+          "id": "fn-by-prefix",
+          "note": "cluster similar function prefixes",
+          "raw": 73505,
+          "gzip9": 18786,
+          "br5": 17252,
+          "br11": 14738,
+          "dBr11": 408
+        },
+        {
+          "id": "dot-length-bracket",
+          "note": ".length -> [\"length\"]",
+          "raw": 73601,
+          "gzip9": 17736,
+          "br5": 16518,
+          "br11": 14383,
+          "dBr11": 53
+        }
+      ]
+    },
+    "glmatrix-lil-vite": {
+      "path": "/Users/yeargun/lilscript/benchmarks/popular/build/gl-matrix-lilscript-vite-run.mjs",
+      "file": "gl-matrix-lilscript-vite-run.mjs",
+      "baseline": {
+        "id": "baseline",
+        "note": "unmodified artifact",
+        "raw": 68496,
+        "gzip9": 17192,
+        "br5": 16396,
+        "br11": 14116,
+        "dBr11": 0
+      },
+      "rows": [
+        {
+          "id": "baseline",
+          "note": "unmodified artifact",
+          "raw": 68496,
+          "gzip9": 17192,
+          "br5": 16396,
+          "br11": 14116,
+          "dBr11": 0
+        },
+        {
+          "id": "quotes-single",
+          "note": "every string literal forced to single quotes",
+          "raw": 68496,
+          "gzip9": 17192,
+          "br5": 16396,
+          "br11": 14116,
+          "dBr11": 0
+        },
+        {
+          "id": "bool-minify",
+          "note": "true/false/undefined -> !0/!1/void 0",
+          "raw": 68496,
+          "gzip9": 17192,
+          "br5": 16396,
+          "br11": 14116,
+          "dBr11": 0
+        },
+        {
+          "id": "bool-expand",
+          "note": "reverse of bool-minify; may over-replace",
+          "raw": 68508,
+          "gzip9": 17195,
+          "br5": 16394,
+          "br11": 14147,
+          "dBr11": 31
+        },
+        {
+          "id": "var-to-let",
+          "note": "declaration keyword swap",
+          "raw": 68496,
+          "gzip9": 17141,
+          "br5": 16350,
+          "br11": 14051,
+          "dBr11": -65
+        },
+        {
+          "id": "let-to-var",
+          "note": "declaration keyword swap",
+          "raw": 68496,
+          "gzip9": 17192,
+          "br5": 16396,
+          "br11": 14116,
+          "dBr11": 0
+        },
+        {
+          "id": "const-to-var",
+          "note": "declaration keyword swap",
+          "raw": 68496,
+          "gzip9": 17192,
+          "br5": 16396,
+          "br11": 14116,
+          "dBr11": 0
+        },
+        {
+          "id": "rotate-short-1",
+          "note": "permute 1-char locals along a-zA-Z_$",
+          "raw": 68496,
+          "gzip9": 17283,
+          "br5": 16462,
+          "br11": 14151,
+          "dBr11": 35
+        },
+        {
+          "id": "rotate-short-13",
+          "note": "far permutation of 1-char locals",
+          "raw": 68496,
+          "gzip9": 17319,
+          "br5": 16472,
+          "br11": 14151,
+          "dBr11": 35
+        },
+        {
+          "id": "alphabet-function-letters",
+          "note": "assign hottest short locals to letters from function/return",
+          "raw": 68496,
+          "gzip9": 17070,
+          "br5": 16312,
+          "br11": 14037,
+          "dBr11": -79
+        },
+        {
+          "id": "alphabet-rare",
+          "note": "assign hottest short locals to rare letters",
+          "raw": 68496,
+          "gzip9": 17333,
+          "br5": 16469,
+          "br11": 14080,
+          "dBr11": -36
+        },
+        {
+          "id": "locals-as-length-index-value",
+          "note": "hottest short locals become ROM words",
+          "raw": 104060,
+          "gzip9": 18681,
+          "br5": 18788,
+          "br11": 15864,
+          "dBr11": 1748
+        },
+        {
+          "id": "locals-as-function-return",
+          "note": "hottest short locals become long ROM words",
+          "raw": 126918,
+          "gzip9": 19377,
+          "br5": 19383,
+          "br11": 16268,
+          "dBr11": 2152
+        },
+        {
+          "id": "uniquify-short",
+          "note": "break cross-scope reuse of 1-2 char names",
+          "raw": 105068,
+          "gzip9": 43586,
+          "br5": 40162,
+          "br11": 32743,
+          "dBr11": 18627
+        },
+        {
+          "id": "collapse-to-e",
+          "note": "illegal: every 1-char local becomes e",
+          "raw": 68496,
+          "gzip9": 12148,
+          "br5": 11953,
+          "br11": 10320,
+          "dBr11": -3796
+        },
+        {
+          "id": "pool-strings-4x6",
+          "note": "array-pool repeated strings",
+          "raw": 68496,
+          "gzip9": 17192,
+          "br5": 16396,
+          "br11": 14116,
+          "dBr11": 0
+        },
+        {
+          "id": "pool-strings-8x8",
+          "note": "stricter pool",
+          "raw": 68496,
+          "gzip9": 17192,
+          "br5": 16396,
+          "br11": 14116,
+          "dBr11": 0
+        },
+        {
+          "id": "bait-function-return",
+          "note": "ROM-phrase preamble",
+          "raw": 68516,
+          "gzip9": 17205,
+          "br5": 16405,
+          "br11": 14139,
+          "dBr11": 23
+        },
+        {
+          "id": "bait-javascript-type",
+          "note": "exact 22-byte ROM phrase as dummy",
+          "raw": 68530,
+          "gzip9": 17226,
+          "br5": 16418,
+          "br11": 14114,
+          "dBr11": -2
+        },
+        {
+          "id": "bait-unique",
+          "note": "same shape, unique word",
+          "raw": 68516,
+          "gzip9": 17212,
+          "br5": 16412,
+          "br11": 14188,
+          "dBr11": 72
+        },
+        {
+          "id": "fn-reverse",
+          "note": "reverse function declaration order",
+          "raw": 68496,
+          "gzip9": 17222,
+          "br5": 16313,
+          "br11": 14048,
+          "dBr11": -68
+        },
+        {
+          "id": "fn-by-length",
+          "note": "shortest functions first",
+          "raw": 68496,
+          "gzip9": 17065,
+          "br5": 16237,
+          "br11": 14121,
+          "dBr11": 5
+        },
+        {
+          "id": "fn-by-prefix",
+          "note": "cluster similar function prefixes",
+          "raw": 68496,
+          "gzip9": 18028,
+          "br5": 17038,
+          "br11": 14500,
+          "dBr11": 384
+        },
+        {
+          "id": "dot-length-bracket",
+          "note": ".length -> [\"length\"]",
+          "raw": 68580,
+          "gzip9": 17207,
+          "br5": 16412,
+          "br11": 14132,
+          "dBr11": 16
+        }
+      ]
+    },
+    "glmatrix-js-raw": {
+      "path": "/Users/yeargun/lilscript/benchmarks/popular/build/gl-matrix-raw.mjs",
+      "file": "gl-matrix-raw.mjs",
+      "baseline": {
+        "id": "baseline",
+        "note": "unmodified artifact",
+        "raw": 142374,
+        "gzip9": 22769,
+        "br5": 21093,
+        "br11": 17791,
+        "dBr11": 0
+      },
+      "rows": [
+        {
+          "id": "baseline",
+          "note": "unmodified artifact",
+          "raw": 142374,
+          "gzip9": 22769,
+          "br5": 21093,
+          "br11": 17791,
+          "dBr11": 0
+        },
+        {
+          "id": "quotes-single",
+          "note": "every string literal forced to single quotes",
+          "raw": 142374,
+          "gzip9": 22770,
+          "br5": 21090,
+          "br11": 17808,
+          "dBr11": 17
+        },
+        {
+          "id": "bool-minify",
+          "note": "true/false/undefined -> !0/!1/void 0",
+          "raw": 142367,
+          "gzip9": 22766,
+          "br5": 21092,
+          "br11": 17849,
+          "dBr11": 58
+        },
+        {
+          "id": "bool-expand",
+          "note": "reverse of bool-minify; may over-replace",
+          "raw": 142374,
+          "gzip9": 22769,
+          "br5": 21093,
+          "br11": 17791,
+          "dBr11": 0
+        },
+        {
+          "id": "var-to-let",
+          "note": "declaration keyword swap",
+          "raw": 142374,
+          "gzip9": 22767,
+          "br5": 21095,
+          "br11": 17770,
+          "dBr11": -21
+        },
+        {
+          "id": "let-to-var",
+          "note": "declaration keyword swap",
+          "raw": 142374,
+          "gzip9": 22769,
+          "br5": 21093,
+          "br11": 17791,
+          "dBr11": 0
+        },
+        {
+          "id": "const-to-var",
+          "note": "declaration keyword swap",
+          "raw": 142248,
+          "gzip9": 22750,
+          "br5": 21082,
+          "br11": 17790,
+          "dBr11": -1
+        },
+        {
+          "id": "rotate-short-1",
+          "note": "permute 1-char locals along a-zA-Z_$",
+          "raw": 142374,
+          "gzip9": 22802,
+          "br5": 21122,
+          "br11": 17810,
+          "dBr11": 19
+        },
+        {
+          "id": "rotate-short-13",
+          "note": "far permutation of 1-char locals",
+          "raw": 142374,
+          "gzip9": 22863,
+          "br5": 21177,
+          "br11": 17822,
+          "dBr11": 31
+        },
+        {
+          "id": "alphabet-function-letters",
+          "note": "assign hottest short locals to letters from function/return",
+          "raw": 142018,
+          "gzip9": 22781,
+          "br5": 21175,
+          "br11": 17856,
+          "dBr11": 65
+        },
+        {
+          "id": "alphabet-rare",
+          "note": "assign hottest short locals to rare letters",
+          "raw": 142018,
+          "gzip9": 22774,
+          "br5": 21131,
+          "br11": 17803,
+          "dBr11": 12
+        },
+        {
+          "id": "locals-as-length-index-value",
+          "note": "hottest short locals become ROM words",
+          "raw": 155304,
+          "gzip9": 23479,
+          "br5": 21714,
+          "br11": 18134,
+          "dBr11": 343
+        },
+        {
+          "id": "locals-as-function-return",
+          "note": "hottest short locals become long ROM words",
+          "raw": 161642,
+          "gzip9": 23765,
+          "br5": 21853,
+          "br11": 18247,
+          "dBr11": 456
+        },
+        {
+          "id": "uniquify-short",
+          "note": "break cross-scope reuse of 1-2 char names",
+          "raw": 155602,
+          "gzip9": 35769,
+          "br5": 32743,
+          "br11": 26296,
+          "dBr11": 8505
+        },
+        {
+          "id": "collapse-to-e",
+          "note": "illegal: every 1-char local becomes e",
+          "raw": 142374,
+          "gzip9": 21925,
+          "br5": 20560,
+          "br11": 17258,
+          "dBr11": -533
+        },
+        {
+          "id": "pool-strings-4x6",
+          "note": "array-pool repeated strings",
+          "raw": 142374,
+          "gzip9": 22769,
+          "br5": 21093,
+          "br11": 17791,
+          "dBr11": 0
+        },
+        {
+          "id": "pool-strings-8x8",
+          "note": "stricter pool",
+          "raw": 142374,
+          "gzip9": 22769,
+          "br5": 21093,
+          "br11": 17791,
+          "dBr11": 0
+        },
+        {
+          "id": "bait-function-return",
+          "note": "ROM-phrase preamble",
+          "raw": 142394,
+          "gzip9": 22780,
+          "br5": 21103,
+          "br11": 17802,
+          "dBr11": 11
+        },
+        {
+          "id": "bait-javascript-type",
+          "note": "exact 22-byte ROM phrase as dummy",
+          "raw": 142408,
+          "gzip9": 22796,
+          "br5": 21110,
+          "br11": 17808,
+          "dBr11": 17
+        },
+        {
+          "id": "bait-unique",
+          "note": "same shape, unique word",
+          "raw": 142394,
+          "gzip9": 22783,
+          "br5": 21113,
+          "br11": 17777,
+          "dBr11": -14
+        },
+        {
+          "id": "fn-reverse",
+          "note": "reverse function declaration order",
+          "raw": 142374,
+          "gzip9": 22769,
+          "br5": 21093,
+          "br11": 17791,
+          "dBr11": 0
+        },
+        {
+          "id": "fn-by-length",
+          "note": "shortest functions first",
+          "raw": 142374,
+          "gzip9": 22769,
+          "br5": 21093,
+          "br11": 17791,
+          "dBr11": 0
+        },
+        {
+          "id": "fn-by-prefix",
+          "note": "cluster similar function prefixes",
+          "raw": 142374,
+          "gzip9": 22769,
+          "br5": 21093,
+          "br11": 17791,
+          "dBr11": 0
+        },
+        {
+          "id": "dot-length-bracket",
+          "note": ".length -> [\"length\"]",
+          "raw": 142470,
+          "gzip9": 22776,
+          "br5": 21108,
+          "br11": 17781,
+          "dBr11": -10
+        }
+      ]
+    },
+    "glmatrix-lil-raw": {
+      "path": "/Users/yeargun/lilscript/benchmarks/popular/build/gl-matrix-lilscript-raw.mjs",
+      "file": "gl-matrix-lilscript-raw.mjs",
+      "baseline": {
+        "id": "baseline",
+        "note": "unmodified artifact",
+        "raw": 116878,
+        "gzip9": 21413,
+        "br5": 19940,
+        "br11": 17352,
+        "dBr11": 0
+      },
+      "rows": [
+        {
+          "id": "baseline",
+          "note": "unmodified artifact",
+          "raw": 116878,
+          "gzip9": 21413,
+          "br5": 19940,
+          "br11": 17352,
+          "dBr11": 0
+        },
+        {
+          "id": "quotes-single",
+          "note": "every string literal forced to single quotes",
+          "raw": 116878,
+          "gzip9": 21413,
+          "br5": 19932,
+          "br11": 17364,
+          "dBr11": 12
+        },
+        {
+          "id": "bool-minify",
+          "note": "true/false/undefined -> !0/!1/void 0",
+          "raw": 116861,
+          "gzip9": 21404,
+          "br5": 19934,
+          "br11": 17330,
+          "dBr11": -22
+        },
+        {
+          "id": "bool-expand",
+          "note": "reverse of bool-minify; may over-replace",
+          "raw": 116878,
+          "gzip9": 21413,
+          "br5": 19940,
+          "br11": 17352,
+          "dBr11": 0
+        },
+        {
+          "id": "var-to-let",
+          "note": "declaration keyword swap",
+          "raw": 116878,
+          "gzip9": 21340,
+          "br5": 19891,
+          "br11": 17284,
+          "dBr11": -68
+        },
+        {
+          "id": "let-to-var",
+          "note": "declaration keyword swap",
+          "raw": 116878,
+          "gzip9": 21413,
+          "br5": 19940,
+          "br11": 17352,
+          "dBr11": 0
+        },
+        {
+          "id": "const-to-var",
+          "note": "declaration keyword swap",
+          "raw": 116752,
+          "gzip9": 21395,
+          "br5": 19934,
+          "br11": 17299,
+          "dBr11": -53
+        },
+        {
+          "id": "rotate-short-1",
+          "note": "permute 1-char locals along a-zA-Z_$",
+          "raw": 116878,
+          "gzip9": 21432,
+          "br5": 19974,
+          "br11": 17376,
+          "dBr11": 24
+        },
+        {
+          "id": "rotate-short-13",
+          "note": "far permutation of 1-char locals",
+          "raw": 116878,
+          "gzip9": 21479,
+          "br5": 19981,
+          "br11": 17336,
+          "dBr11": -16
+        },
+        {
+          "id": "alphabet-function-letters",
+          "note": "assign hottest short locals to letters from function/return",
+          "raw": 116878,
+          "gzip9": 21221,
+          "br5": 19856,
+          "br11": 17190,
+          "dBr11": -162
+        },
+        {
+          "id": "alphabet-rare",
+          "note": "assign hottest short locals to rare letters",
+          "raw": 116878,
+          "gzip9": 21412,
+          "br5": 19943,
+          "br11": 17271,
+          "dBr11": -81
+        },
+        {
+          "id": "locals-as-length-index-value",
+          "note": "hottest short locals become ROM words",
+          "raw": 142563,
+          "gzip9": 22643,
+          "br5": 21886,
+          "br11": 18730,
+          "dBr11": 1378
+        },
+        {
+          "id": "locals-as-function-return",
+          "note": "hottest short locals become long ROM words",
+          "raw": 157112,
+          "gzip9": 23132,
+          "br5": 22236,
+          "br11": 19029,
+          "dBr11": 1677
+        },
+        {
+          "id": "uniquify-short",
+          "note": "break cross-scope reuse of 1-2 char names",
+          "raw": 145155,
+          "gzip9": 44460,
+          "br5": 41498,
+          "br11": 32577,
+          "dBr11": 15225
+        },
+        {
+          "id": "collapse-to-e",
+          "note": "illegal: every 1-char local becomes e",
+          "raw": 116878,
+          "gzip9": 15754,
+          "br5": 15474,
+          "br11": 13106,
+          "dBr11": -4246
+        },
+        {
+          "id": "pool-strings-4x6",
+          "note": "array-pool repeated strings",
+          "raw": 116878,
+          "gzip9": 21413,
+          "br5": 19940,
+          "br11": 17352,
+          "dBr11": 0
+        },
+        {
+          "id": "pool-strings-8x8",
+          "note": "stricter pool",
+          "raw": 116878,
+          "gzip9": 21413,
+          "br5": 19940,
+          "br11": 17352,
+          "dBr11": 0
+        },
+        {
+          "id": "bait-function-return",
+          "note": "ROM-phrase preamble",
+          "raw": 116898,
+          "gzip9": 21423,
+          "br5": 19946,
+          "br11": 17317,
+          "dBr11": -35
+        },
+        {
+          "id": "bait-javascript-type",
+          "note": "exact 22-byte ROM phrase as dummy",
+          "raw": 116912,
+          "gzip9": 21440,
+          "br5": 19958,
+          "br11": 17375,
+          "dBr11": 23
+        },
+        {
+          "id": "bait-unique",
+          "note": "same shape, unique word",
+          "raw": 116898,
+          "gzip9": 21429,
+          "br5": 19952,
+          "br11": 17300,
+          "dBr11": -52
+        },
+        {
+          "id": "fn-reverse",
+          "note": "reverse function declaration order",
+          "raw": 116878,
+          "gzip9": 21413,
+          "br5": 19940,
+          "br11": 17352,
+          "dBr11": 0
+        },
+        {
+          "id": "fn-by-length",
+          "note": "shortest functions first",
+          "raw": 116878,
+          "gzip9": 21413,
+          "br5": 19940,
+          "br11": 17352,
+          "dBr11": 0
+        },
+        {
+          "id": "fn-by-prefix",
+          "note": "cluster similar function prefixes",
+          "raw": 116878,
+          "gzip9": 21413,
+          "br5": 19940,
+          "br11": 17352,
+          "dBr11": 0
+        },
+        {
+          "id": "dot-length-bracket",
+          "note": ".length -> [\"length\"]",
+          "raw": 116962,
+          "gzip9": 21424,
+          "br5": 19965,
+          "br11": 17359,
+          "dBr11": 7
+        }
+      ]
+    }
+  },
+  "audits": {
+    "audit-lean": {
+      "path": "/Users/yeargun/lilscript/benchmarks/popular/ports/jquery/jquery-audit-lean.raw.js",
+      "file": "jquery-audit-lean.raw.js",
+      "raw": 99476,
+      "gzip9": 37234,
+      "br5": 36197,
+      "br11": 33373
+    },
+    "audit-balanced": {
+      "path": "/Users/yeargun/lilscript/benchmarks/popular/ports/jquery/jquery-audit-balanced.raw.js",
+      "file": "jquery-audit-balanced.raw.js",
+      "raw": 97869,
+      "gzip9": 37623,
+      "br5": 36559,
+      "br11": 33569
+    },
+    "audit-no-string-pool": {
+      "path": "/Users/yeargun/lilscript/benchmarks/popular/ports/jquery/jquery-audit-no-string-pool.raw.js",
+      "file": "jquery-audit-no-string-pool.raw.js",
+      "raw": 99476,
+      "gzip9": 37234,
+      "br5": 36197,
+      "br11": 33373
+    },
+    "audit-no-reserve": {
+      "path": "/Users/yeargun/lilscript/benchmarks/popular/ports/jquery/jquery-audit-no-reserve.raw.js",
+      "file": "jquery-audit-no-reserve.raw.js",
+      "raw": 98379,
+      "gzip9": 37656,
+      "br5": 36558,
+      "br11": 33648
+    },
+    "audit-no-inlining": {
+      "path": "/Users/yeargun/lilscript/benchmarks/popular/ports/jquery/jquery-audit-no-inlining.raw.js",
+      "file": "jquery-audit-no-inlining.raw.js",
+      "raw": 97680,
+      "gzip9": 37638,
+      "br5": 36584,
+      "br11": 33613
+    },
+    "audit-positional": {
+      "path": "/Users/yeargun/lilscript/benchmarks/popular/ports/jquery/jquery-audit-positional-aggregates.raw.js",
+      "file": "jquery-audit-positional-aggregates.raw.js",
+      "raw": 96401,
+      "gzip9": 37202,
+      "br5": 36116,
+      "br11": 33165
+    },
+    "audit-function-spelling": {
+      "path": "/Users/yeargun/lilscript/benchmarks/popular/ports/jquery/jquery-audit-function-spelling.raw.js",
+      "file": "jquery-audit-function-spelling.raw.js",
+      "raw": 103062,
+      "gzip9": 37815,
+      "br5": 36706,
+      "br11": 33647
+    },
+    "audit-no-number-pool": {
+      "path": "/Users/yeargun/lilscript/benchmarks/popular/ports/jquery/jquery-audit-no-number-pool.raw.js",
+      "file": "jquery-audit-no-number-pool.raw.js",
+      "raw": 98660,
+      "gzip9": 37685,
+      "br5": 36595,
+      "br11": 33614
+    },
+    "audit-readable": {
+      "path": "/Users/yeargun/lilscript/benchmarks/popular/ports/jquery/jquery-audit-readable.raw.js",
+      "file": "jquery-audit-readable.raw.js",
+      "raw": 229262,
+      "gzip9": 71176,
+      "br5": 66166,
+      "br11": 58144
+    },
+    "audit-mangled-exports": {
+      "path": "/Users/yeargun/lilscript/benchmarks/popular/ports/jquery/jquery-audit-mangled-exports.raw.js",
+      "file": "jquery-audit-mangled-exports.raw.js",
+      "raw": 98338,
+      "gzip9": 37639,
+      "br5": 36539,
+      "br11": 33582
+    }
+  },
+  "monaco": {
+    "fullBaseline": {
+      "raw": 2371075,
+      "gzip9": 539173,
+      "br11": 423674
+    },
+    "slice400k": [
+      {
+        "id": "baseline",
+        "raw": 210467,
+        "gzip9": 63606,
+        "br5": 59650,
+        "br11": 54426,
+        "dBr11": 0
+      },
+      {
+        "id": "quotes-single",
+        "raw": 210435,
+        "gzip9": 63685,
+        "br5": 59687,
+        "br11": 54490,
+        "dBr11": 64
+      },
+      {
+        "id": "bool-minify",
+        "raw": 210462,
+        "gzip9": 63603,
+        "br5": 59655,
+        "br11": 54485,
+        "dBr11": 59
+      },
+      {
+        "id": "rotate-short-1",
+        "raw": 210467,
+        "gzip9": 63782,
+        "br5": 59813,
+        "br11": 54506,
+        "dBr11": 80
+      },
+      {
+        "id": "locals-as-length-index-value",
+        "raw": 236267,
+        "gzip9": 65475,
+        "br5": 62221,
+        "br11": 56294,
+        "dBr11": 1868
+      },
+      {
+        "id": "pool-strings-4x6",
+        "raw": 209216,
+        "gzip9": 63742,
+        "br5": 59828,
+        "br11": 54490,
+        "dBr11": 64
+      },
+      {
+        "id": "fn-by-prefix",
+        "raw": 210467,
+        "gzip9": 68469,
+        "br5": 61960,
+        "br11": 55965,
+        "dBr11": 1539
+      },
+      {
+        "id": "bait-javascript-type",
+        "raw": 210501,
+        "gzip9": 63625,
+        "br5": 59665,
+        "br11": 54427,
+        "dBr11": 1
+      }
+    ]
+  },
+  "chunks": {
+    "jquery-lil-raw-32k": {
+      "raw": 102681,
+      "gzip9": null,
+      "br5": null,
+      "br11": 36730,
+      "note": "independent 32768-byte chunks"
+    },
+    "jquery-lil-raw-64k": {
+      "raw": 102681,
+      "gzip9": null,
+      "br5": null,
+      "br11": 35554,
+      "note": "independent 65536-byte chunks"
+    },
+    "jquery-lil-raw-whole": {
+      "raw": 102681,
+      "gzip9": 38948,
+      "br5": 36306,
+      "br11": 33283
+    }
+  },
+  "elapsedMs": 34814
+}

@@ -1,0 +1,36 @@
+import { hostCall, jsUndefined } from "../../../../js-host";
+
+export bool isCompletionsEnabledFromObject(JsValue value, string modeId = "*") {
+  if (value == null || JS.typeOf(value) != "object") {
+    return false;
+  }
+  if (value[modeId] != null) {
+    return value[modeId].truthy();
+  }
+  if (value["*"] != null) {
+    return value["*"].truthy();
+  }
+  return false;
+}
+
+export bool isCompletionsEnabledWithTextResourceConfig(
+  JsValue configurationService,
+  JsValue resource,
+  string modeId = "*"
+) {
+  string settingName = "";
+  if (configurationService["completionsEnablementSetting"] != null) {
+    settingName = JS.string(configurationService["completionsEnablementSetting"]);
+  }
+  if (settingName.length == 0) {
+    settingName = "github.copilot.enable";
+  }
+  JsValue value = hostCall(
+    configurationService,
+    "getValue",
+    resource,
+    settingName,
+    jsUndefined()
+  );
+  return isCompletionsEnabledFromObject(value, modeId);
+}

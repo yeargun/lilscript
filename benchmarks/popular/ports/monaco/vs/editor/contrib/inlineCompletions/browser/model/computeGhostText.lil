@@ -1,0 +1,128 @@
+export class TextReplacement {
+  int startLineNumber;
+  int startColumn;
+  int endLineNumber;
+  int endColumn;
+  string text;
+
+  init(int startLineNumber, int startColumn, int endLineNumber, int endColumn, string text) {
+    this.startLineNumber = startLineNumber;
+    this.startColumn = startColumn;
+    this.endLineNumber = endLineNumber;
+    this.endColumn = endColumn;
+    this.text = text;
+  }
+}
+
+int commonPrefixLength(string a, string b) {
+  int n = a.length;
+  if (b.length < n) {
+    n = b.length;
+  }
+  int i = 0;
+  while (i < n) {
+    if (a.charAt(i) != b.charAt(i)) {
+      break;
+    }
+    i = i + 1;
+  }
+  return i;
+}
+
+export TextReplacement singleTextRemoveCommonPrefix(TextReplacement edit, string valueToReplace) {
+  int prefix = commonPrefixLength(valueToReplace, edit.text);
+  string text = "";
+  int i = prefix;
+  while (i < edit.text.length) {
+    text = text + edit.text.charAt(i);
+    i = i + 1;
+  }
+  return new TextReplacement(edit.startLineNumber, edit.startColumn + prefix, edit.endLineNumber, edit.endColumn, text);
+}
+
+export bool singleTextEditAugments(TextReplacement edit, TextReplacement base) {
+  if (!edit.text.startsWith(base.text)) {
+    return false;
+  }
+  return base.startLineNumber == edit.startLineNumber && base.startColumn == edit.startColumn
+    && (base.endLineNumber < edit.endLineNumber || (base.endLineNumber == edit.endLineNumber && base.endColumn <= edit.endColumn));
+}
+
+export class GhostPart {
+  int column;
+  string text;
+  bool preview;
+
+  init(int column, string text, bool preview) {
+    this.column = column;
+    this.text = text;
+    this.preview = preview;
+  }
+}
+
+export class GhostText {
+  int lineNumber;
+  GhostPart[] parts;
+
+  init(int lineNumber, GhostPart[] parts) {
+    this.lineNumber = lineNumber;
+    this.parts = parts;
+  }
+}
+
+export GhostText? computeGhostText(TextReplacement edit, string sourceLine, string mode, int cursorColumn, int previewSuffixLength) {
+  if (edit.endLineNumber != edit.startLineNumber) {
+    return null;
+  }
+  int from = edit.startColumn - 1;
+  int to = edit.endColumn - 1;
+  if (from < 0) {
+    from = 0;
+  }
+  if (to > sourceLine.length) {
+    to = sourceLine.length;
+  }
+  string replaced = "";
+  int i = from;
+  while (i < to) {
+    replaced = replaced + sourceLine.charAt(i);
+    i = i + 1;
+  }
+  TextReplacement normalized = singleTextRemoveCommonPrefix(edit, replaced);
+  if (mode == "prefix") {
+    if (!normalized.text.startsWith(replaced) && replaced.length > 0) {
+      return null;
+    }
+  }
+  if (mode == "subwordSmart" && normalized.startColumn < cursorColumn) {
+    return null;
+  }
+  GhostPart[] parts = [];
+  int previewStart = normalized.text.length - previewSuffixLength;
+  if (previewStart < 0) {
+    previewStart = 0;
+  }
+  string nonPreview = "";
+  string preview = "";
+  i = 0;
+  while (i < normalized.text.length) {
+    if (i < previewStart) {
+      nonPreview = nonPreview + normalized.text.charAt(i);
+    } else {
+      preview = preview + normalized.text.charAt(i);
+    }
+    i = i + 1;
+  }
+  int insertColumn = normalized.startColumn + replaced.length;
+  if (nonPreview.length > 0) {
+    parts.push(new GhostPart(insertColumn, nonPreview, false));
+  }
+  if (preview.length > 0) {
+    parts.push(new GhostPart(insertColumn, preview, true));
+  }
+  return new GhostText(edit.startLineNumber, parts);
+}
+
+export TextReplacement createTextReplacement(int sl, int sc, int el, int ec, string text) {
+  return new TextReplacement(sl, sc, el, ec, text);
+}

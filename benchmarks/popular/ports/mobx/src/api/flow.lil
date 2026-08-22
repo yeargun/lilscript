@@ -1,0 +1,168 @@
+import { DEV } from "../dev-flag.lil";
+import {
+  apply,
+  assign,
+  call0,
+  call1,
+  construct0,
+  defineProperty,
+  fnName,
+  gError,
+  gPromise,
+  isFn,
+  isStr,
+  noop,
+  protoIsPrototypeOf,
+  setPrototypeOf,
+  toInt,
+  toStr,
+  undef
+} from "../host.lil";
+import { FLOW } from "../constants.lil";
+import { createDecoratorAnnotation } from "../api/decoratorannotation.lil";
+import { isFlow } from "../core/predicates.lil";
+import {
+  flow,
+  flowBound
+} from "./bindings.lil";
+import { action } from "./action.lil";
+import {
+  createFlowAnnotation,
+  decorateFlow20223_
+} from "../types/flowannotation.lil";
+
+export JsValue FlowCancellationError = JS.method0((JsValue self) => {
+  self["message"] = "FLOW_CANCELLED";
+  self["name"] = "FlowCancellationError";
+  return self;
+});
+setPrototypeOf(FlowCancellationError["prototype"], gError()["prototype"]);
+FlowCancellationError["prototype"]["constructor"] = FlowCancellationError;
+defineProperty(FlowCancellationError, "name", JS.object("value", "FlowCancellationError", "configurable", true));
+FlowCancellationError["prototype"]["toString"] = JS.method0((JsValue self) => {
+  return "Error: " + toStr(self["message"]);
+});
+
+export JsValue isFlowCancellationError = JS.method1((JsValue _s, JsValue error) => {
+  return protoIsPrototypeOf(FlowCancellationError, error);
+});
+
+int localGeneratorId = 0;
+
+flow = assign(JS.method2((JsValue _s, JsValue genFn, JsValue context) => {
+  if (context.truthy() && isStr(context["kind"])) {
+    return JS.call(decorateFlow20223_, undef(), flow, genFn, context);
+  }
+  string name = toStr(fnName(genFn));
+  if (name == "") {
+    if (DEV) {
+      name = "<unnamed flow>";
+    } else {
+      name = "flow";
+    }
+  }
+  JsValue res = JS.methodRest((JsValue ctx, JsValue genArgs) => {
+    int runId = 0;
+    if (DEV) {
+      localGeneratorId = localGeneratorId + 1;
+      runId = localGeneratorId;
+    }
+    string initName = name;
+    if (DEV) {
+      initName = name + " - runid: " + toStr(runId) + " - init";
+    }
+    JsValue gen = apply(JS.call(action, undef(), initName, genFn), ctx, genArgs);
+    JsValue slot = JS.object();
+    slot["rejector"] = undef();
+    slot["pending"] = undef();
+    slot["stepId"] = 0;
+    JsValue onFulfilled = undef();
+    JsValue onRejected = undef();
+    JsValue nextStep = undef();
+    onFulfilled = JS.method1((JsValue _f, JsValue v) => {
+      slot["pending"] = undef();
+      try {
+        string stepName = name;
+        if (DEV) {
+          int stepId = toInt(slot["stepId"]);
+          slot["stepId"] = stepId + 1;
+          stepName = name + " - runid: " + toStr(runId) + " - yield " + toStr(stepId);
+        }
+        JsValue ret = call1(JS.call(action, undef(), stepName, gen["next"]), gen, v);
+        call1(nextStep, undef(), ret);
+      } catch (JsValue e) {
+        call1(slot["rejector"], undef(), e);
+      }
+      return undef();
+    });
+    onRejected = JS.method1((JsValue _r, JsValue err) => {
+      slot["pending"] = undef();
+      try {
+        string stepName = name;
+        if (DEV) {
+          int stepId = toInt(slot["stepId"]);
+          slot["stepId"] = stepId + 1;
+          stepName = name + " - runid: " + toStr(runId) + " - yield " + toStr(stepId);
+        }
+        JsValue ret = call1(JS.call(action, undef(), stepName, gen["throw"]), gen, err);
+        call1(nextStep, undef(), ret);
+      } catch (JsValue e) {
+        call1(slot["rejector"], undef(), e);
+      }
+      return undef();
+    });
+    nextStep = JS.method1((JsValue _n, JsValue ret) => {
+      if (isFn(ret["then"])) {
+        JS.invoke(ret, "then", nextStep, slot["rejector"]);
+        return undef();
+      }
+      if (ret["done"].truthy()) {
+        call1(slot["resolve"], undef(), ret["value"]);
+        return undef();
+      }
+      slot["pending"] = JS.invoke(gPromise(), "resolve", ret["value"]);
+      JS.invoke(slot["pending"], "then", onFulfilled, onRejected);
+      return undef();
+    });
+    JsValue promise = JS.construct(gPromise(), JS.methodRest((JsValue _p, JsValue pargs) => {
+      slot["resolve"] = pargs[0];
+      slot["rejector"] = pargs[1];
+      call1(onFulfilled, undef(), undef());
+      return undef();
+    }));
+    string cancelName = name;
+    if (DEV) {
+      cancelName = name + " - runid: " + toStr(runId) + " - cancel";
+    }
+    promise["cancel"] = JS.call(action, undef(), cancelName, JS.method0((JsValue _c) => {
+      try {
+        if (slot["pending"].truthy() && isFn(slot["pending"]["cancel"])) {
+          call0(slot["pending"]["cancel"], slot["pending"]);
+        }
+        JsValue ret = JS.invoke(gen, "return", undef());
+        JsValue yielded = JS.invoke(gPromise(), "resolve", ret["value"]);
+        JS.invoke(yielded, "then", noop, noop);
+        if (isFn(yielded["cancel"])) {
+          call0(yielded["cancel"], yielded);
+        }
+        call1(slot["rejector"], undef(), construct0(FlowCancellationError));
+      } catch (JsValue e) {
+        call1(slot["rejector"], undef(), e);
+      }
+      return undef();
+    }));
+    return promise;
+  });
+  res["isMobXFlow"] = true;
+  return res;
+}), createFlowAnnotation(FLOW, undef()));
+
+flowBound = createDecoratorAnnotation(createFlowAnnotation("flow.bound", JS.object("bound", true)), decorateFlow20223_);
+
+export JsValue flowResult = JS.method1((JsValue _s, JsValue result) => {
+  return result;
+});
+export JsValue isFlowApi = JS.method1((JsValue _s, JsValue fn) => {
+  return isFlow(fn);
+});
+export { flow, flowBound };

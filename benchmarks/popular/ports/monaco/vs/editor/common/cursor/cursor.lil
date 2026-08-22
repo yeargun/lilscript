@@ -1,0 +1,349 @@
+import { emptyBuf, sliceFrom, sliceOf } from "../../../../js-host";
+
+export class CursorPosition {
+  int lineNumber;
+  int column;
+
+  init(int lineNumber, int column) {
+    this.lineNumber = lineNumber;
+    this.column = column;
+  }
+}
+
+export class CursorSelection {
+  int selectionStartLineNumber;
+  int selectionStartColumn;
+  int positionLineNumber;
+  int positionColumn;
+  int startLineNumber;
+  int startColumn;
+  int endLineNumber;
+  int endColumn;
+
+  init(
+    int selectionStartLineNumber,
+    int selectionStartColumn,
+    int positionLineNumber,
+    int positionColumn
+  ) {
+    this.selectionStartLineNumber = selectionStartLineNumber;
+    this.selectionStartColumn = selectionStartColumn;
+    this.positionLineNumber = positionLineNumber;
+    this.positionColumn = positionColumn;
+    if (
+      selectionStartLineNumber > positionLineNumber
+      || (selectionStartLineNumber == positionLineNumber && selectionStartColumn > positionColumn)
+    ) {
+      this.startLineNumber = positionLineNumber;
+      this.startColumn = positionColumn;
+      this.endLineNumber = selectionStartLineNumber;
+      this.endColumn = selectionStartColumn;
+    } else {
+      this.startLineNumber = selectionStartLineNumber;
+      this.startColumn = selectionStartColumn;
+      this.endLineNumber = positionLineNumber;
+      this.endColumn = positionColumn;
+    }
+  }
+
+  bool isEmpty() {
+    return this.startLineNumber == this.endLineNumber && this.startColumn == this.endColumn;
+  }
+}
+
+export class CursorEdit {
+  CursorSelection range;
+  string text;
+
+  init(CursorSelection range, string text) {
+    this.range = range;
+    this.text = text;
+  }
+}
+
+class OffsetEdit {
+  int start;
+  int end;
+  string text;
+  int selectionIndex;
+
+  init(int start, int end, string text, int selectionIndex) {
+    this.start = start;
+    this.end = end;
+    this.text = text;
+    this.selectionIndex = selectionIndex;
+  }
+}
+
+int cursorOffsetAt(string value, int lineNumber, int column) {
+  int line = 1;
+  int offset = 0;
+  while (offset < value.length && line < lineNumber) {
+    if (value.charCodeAt(offset) == 10) {
+      line = line + 1;
+    }
+    offset = offset + 1;
+  }
+  int result = offset + column - 1;
+  if (result > value.length) {
+    result = value.length;
+  }
+  return result;
+}
+
+CursorPosition cursorPositionAt(string value, int targetOffset) {
+  int offset = targetOffset;
+  if (offset < 0) {
+    offset = 0;
+  }
+  if (offset > value.length) {
+    offset = value.length;
+  }
+  int lineNumber = 1;
+  int lineStart = 0;
+  int i = 0;
+  while (i < offset) {
+    if (value.charCodeAt(i) == 10) {
+      lineNumber = lineNumber + 1;
+      lineStart = i + 1;
+    }
+    i = i + 1;
+  }
+  return new CursorPosition(lineNumber, offset - lineStart + 1);
+}
+
+int previousCursorOffset(string value, int offset) {
+  if (offset <= 0) {
+    return 0;
+  }
+  int result = offset - 1;
+  if (value.charCodeAt(result) == 10 && result > 0 && value.charCodeAt(result - 1) == 13) {
+    return result - 1;
+  }
+  int low = value.charCodeAt(result);
+  if (low >= 56320 && low <= 57343 && result > 0) {
+    int high = value.charCodeAt(result - 1);
+    if (high >= 55296 && high <= 56319) {
+      return result - 1;
+    }
+  }
+  return result;
+}
+
+int nextCursorOffset(string value, int offset) {
+  if (offset >= value.length) {
+    return value.length;
+  }
+  int result = offset + 1;
+  if (value.charCodeAt(offset) == 13 && result < value.length && value.charCodeAt(result) == 10) {
+    return result + 1;
+  }
+  int high = value.charCodeAt(offset);
+  if (high >= 55296 && high <= 56319 && result < value.length) {
+    int low = value.charCodeAt(result);
+    if (low >= 56320 && low <= 57343) {
+      return result + 1;
+    }
+  }
+  return result;
+}
+
+void sortOffsetEditsDescending(OffsetEdit[] edits) {
+  int i = 1;
+  while (i < edits.length) {
+    OffsetEdit value = edits[i];
+    int j = i - 1;
+    while (j >= 0 && edits[j].start < value.start) {
+      edits[j + 1] = edits[j];
+      j = j - 1;
+    }
+    edits[j + 1] = value;
+    i = i + 1;
+  }
+}
+
+export class CursorsController {
+  string value;
+  CursorSelection[] selections;
+  int previousEditOperationType;
+
+  init(string value) {
+    this.value = value;
+    this.selections = [new CursorSelection(1, 1, 1, 1)];
+    this.previousEditOperationType = 0;
+  }
+
+  CursorSelection getSelection() {
+    return this.selections[0];
+  }
+
+  CursorSelection[] getSelections() {
+    return this.selections.slice();
+  }
+
+  void setSelections(CursorSelection[] selections) {
+    if (selections.length > 0) {
+      this.selections = selections.slice();
+    }
+  }
+
+  int getPreviousEditOperationType() {
+    return this.previousEditOperationType;
+  }
+
+  void setPreviousEditOperationType(int operationType) {
+    this.previousEditOperationType = operationType;
+  }
+
+  void executeEdits(CursorEdit[] edits) {
+    OffsetEdit[] offsetEdits = [];
+    int i = 0;
+    while (i < edits.length) {
+      CursorEdit edit = edits[i];
+      int start = cursorOffsetAt(
+        this.value,
+        edit.range.startLineNumber,
+        edit.range.startColumn
+      );
+      int end = cursorOffsetAt(
+        this.value,
+        edit.range.endLineNumber,
+        edit.range.endColumn
+      );
+      offsetEdits.push(new OffsetEdit(start, end, edit.text, i));
+      i = i + 1;
+    }
+    OffsetEdit[] originalOrder = offsetEdits.slice();
+    sortOffsetEditsDescending(offsetEdits);
+    i = 0;
+    while (i < offsetEdits.length) {
+      OffsetEdit edit = offsetEdits[i];
+      this.value = sliceOf(this.value, 0, edit.start)
+        + edit.text
+        + sliceFrom(this.value, edit.end);
+      i = i + 1;
+    }
+    CursorSelection[] nextSelections = [];
+    i = 0;
+    while (i < originalOrder.length) {
+      OffsetEdit source = originalOrder[i];
+      int finalOffset = source.start + source.text.length;
+      int j = 0;
+      while (j < originalOrder.length) {
+        OffsetEdit other = originalOrder[j];
+        if (other.start < source.start) {
+          finalOffset = finalOffset + other.text.length - (other.end - other.start);
+        }
+        j = j + 1;
+      }
+      CursorPosition position = cursorPositionAt(this.value, finalOffset);
+      nextSelections.push(new CursorSelection(
+        position.lineNumber,
+        position.column,
+        position.lineNumber,
+        position.column
+      ));
+      i = i + 1;
+    }
+    if (nextSelections.length > 0) {
+      this.selections = nextSelections;
+    }
+  }
+
+  void type(string text) {
+    CursorEdit[] edits = [];
+    int i = 0;
+    while (i < this.selections.length) {
+      edits.push(new CursorEdit(this.selections[i], text));
+      i = i + 1;
+    }
+    this.executeEdits(edits);
+    this.previousEditOperationType = 1;
+  }
+
+  void paste(string text) {
+    this.type(text);
+    this.previousEditOperationType = 0;
+  }
+
+  void deleteLeft() {
+    CursorEdit[] edits = [];
+    int i = 0;
+    while (i < this.selections.length) {
+      CursorSelection selection = this.selections[i];
+      if (!selection.isEmpty()) {
+        edits.push(new CursorEdit(selection, emptyBuf()));
+      } else {
+        int offset = cursorOffsetAt(
+          this.value,
+          selection.positionLineNumber,
+          selection.positionColumn
+        );
+        CursorPosition startPosition = cursorPositionAt(
+          this.value,
+          previousCursorOffset(this.value, offset)
+        );
+        CursorSelection range = new CursorSelection(
+          startPosition.lineNumber,
+          startPosition.column,
+          selection.positionLineNumber,
+          selection.positionColumn
+        );
+        edits.push(new CursorEdit(range, emptyBuf()));
+      }
+      i = i + 1;
+    }
+    this.executeEdits(edits);
+    this.previousEditOperationType = 2;
+  }
+
+  void deleteRight() {
+    CursorEdit[] edits = [];
+    int i = 0;
+    while (i < this.selections.length) {
+      CursorSelection selection = this.selections[i];
+      if (!selection.isEmpty()) {
+        edits.push(new CursorEdit(selection, emptyBuf()));
+      } else {
+        int offset = cursorOffsetAt(
+          this.value,
+          selection.positionLineNumber,
+          selection.positionColumn
+        );
+        CursorPosition endPosition = cursorPositionAt(
+          this.value,
+          nextCursorOffset(this.value, offset)
+        );
+        CursorSelection range = new CursorSelection(
+          selection.positionLineNumber,
+          selection.positionColumn,
+          endPosition.lineNumber,
+          endPosition.column
+        );
+        edits.push(new CursorEdit(range, emptyBuf()));
+      }
+      i = i + 1;
+    }
+    this.executeEdits(edits);
+    this.previousEditOperationType = 3;
+  }
+
+  void movePrimary(CursorPosition position, bool select) {
+    CursorSelection current = this.selections[0];
+    if (select) {
+      this.selections[0] = new CursorSelection(
+        current.selectionStartLineNumber,
+        current.selectionStartColumn,
+        position.lineNumber,
+        position.column
+      );
+    } else {
+      this.selections[0] = new CursorSelection(
+        position.lineNumber,
+        position.column,
+        position.lineNumber,
+        position.column
+      );
+    }
+  }
+}

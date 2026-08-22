@@ -1,0 +1,329 @@
+export int CMD_NONE = 0;
+export int CMD_MOVE_TO = 1;
+export int CMD_MOVE_TO_SELECT = 2;
+export int CMD_COLUMN_SELECT = 3;
+export int CMD_CREATE_CURSOR = 4;
+export int CMD_LAST_CURSOR_MOVE_TO_SELECT = 5;
+export int CMD_WORD_SELECT = 6;
+export int CMD_WORD_SELECT_DRAG = 7;
+export int CMD_LAST_CURSOR_WORD_SELECT = 8;
+export int CMD_LINE_SELECT = 9;
+export int CMD_LINE_SELECT_DRAG = 10;
+export int CMD_LAST_CURSOR_LINE_SELECT = 11;
+export int CMD_LAST_CURSOR_LINE_SELECT_DRAG = 12;
+export int CMD_SET_SELECTION = 13;
+export int CMD_SELECT_ALL = 14;
+export int CMD_PASTE = 15;
+export int CMD_TYPE = 16;
+export int CMD_CUT = 17;
+export int CMD_COMPOSITION_TYPE = 18;
+export int CMD_COMPOSITION_START = 19;
+export int CMD_COMPOSITION_END = 20;
+
+export int MODIFIER_ALT = 0;
+export int MODIFIER_CTRL = 1;
+export int MODIFIER_META = 2;
+
+export class EditorPosition {
+  int lineNumber;
+  int column;
+
+  init(int lineNumber, int column) {
+    this.lineNumber = lineNumber;
+    this.column = column;
+  }
+}
+
+export class EditorSelection {
+  int startLineNumber;
+  int startColumn;
+  int endLineNumber;
+  int endColumn;
+
+  init(int startLineNumber, int startColumn, int endLineNumber, int endColumn) {
+    this.startLineNumber = startLineNumber;
+    this.startColumn = startColumn;
+    this.endLineNumber = endLineNumber;
+    this.endColumn = endColumn;
+  }
+}
+
+export class MouseDispatchData {
+  EditorPosition position;
+  int mouseColumn;
+  int mouseDownCount;
+  bool inSelectionMode;
+  bool altKey;
+  bool ctrlKey;
+  bool metaKey;
+  bool shiftKey;
+  bool middleButton;
+  bool startedOnLineNumbers;
+  bool onInjectedText;
+  int revealType;
+
+  init(EditorPosition position, int mouseColumn, int mouseDownCount) {
+    this.position = position;
+    this.mouseColumn = mouseColumn;
+    this.mouseDownCount = mouseDownCount;
+    this.inSelectionMode = false;
+    this.altKey = false;
+    this.ctrlKey = false;
+    this.metaKey = false;
+    this.shiftKey = false;
+    this.middleButton = false;
+    this.startedOnLineNumbers = false;
+    this.onInjectedText = false;
+    this.revealType = 0;
+  }
+}
+
+export class ViewController {
+  int multiCursorModifier;
+  bool selectionClipboard;
+  bool columnSelection;
+  bool scrollOnMiddleClick;
+  bool doubleClickSelectsBlock;
+  int lineMinColumn;
+  int lastCommand;
+  EditorPosition cursor;
+  EditorSelection selection;
+  bool lastWholeLine;
+  bool lastDoColumnSelect;
+  int lastMouseColumn;
+  string typedText;
+  string pastedText;
+
+  init() {
+    this.multiCursorModifier = MODIFIER_ALT;
+    this.selectionClipboard = false;
+    this.columnSelection = false;
+    this.scrollOnMiddleClick = false;
+    this.doubleClickSelectsBlock = false;
+    this.lineMinColumn = 1;
+    this.lastCommand = CMD_NONE;
+    this.cursor = new EditorPosition(1, 1);
+    this.selection = new EditorSelection(1, 1, 1, 1);
+    this.lastWholeLine = false;
+    this.lastDoColumnSelect = false;
+    this.lastMouseColumn = 1;
+    this.typedText = "";
+    this.pastedText = "";
+  }
+
+  EditorPosition validateViewColumn(EditorPosition viewPosition) {
+    if (viewPosition.column < this.lineMinColumn) {
+      return new EditorPosition(viewPosition.lineNumber, this.lineMinColumn);
+    }
+    return viewPosition;
+  }
+
+  bool hasMulticursorModifier(MouseDispatchData data) {
+    if (this.multiCursorModifier == MODIFIER_ALT) {
+      return data.altKey;
+    }
+    if (this.multiCursorModifier == MODIFIER_CTRL) {
+      return data.ctrlKey;
+    }
+    if (this.multiCursorModifier == MODIFIER_META) {
+      return data.metaKey;
+    }
+    return false;
+  }
+
+  bool hasNonMulticursorModifier(MouseDispatchData data) {
+    if (this.multiCursorModifier == MODIFIER_ALT) {
+      return data.ctrlKey || data.metaKey;
+    }
+    if (this.multiCursorModifier == MODIFIER_CTRL) {
+      return data.altKey || data.metaKey;
+    }
+    if (this.multiCursorModifier == MODIFIER_META) {
+      return data.ctrlKey || data.altKey;
+    }
+    return false;
+  }
+
+  void runCommand(int command, EditorPosition viewPosition, int revealType) {
+    EditorPosition validated = this.validateViewColumn(viewPosition);
+    this.lastCommand = command;
+    this.cursor = validated;
+    if (command == CMD_MOVE_TO) {
+      this.selection = new EditorSelection(validated.lineNumber, validated.column, validated.lineNumber, validated.column);
+    } else if (command == CMD_MOVE_TO_SELECT || command == CMD_LAST_CURSOR_MOVE_TO_SELECT) {
+      this.selection = new EditorSelection(this.selection.startLineNumber, this.selection.startColumn, validated.lineNumber, validated.column);
+    } else if (command == CMD_WORD_SELECT || command == CMD_WORD_SELECT_DRAG || command == CMD_LAST_CURSOR_WORD_SELECT) {
+      int start = validated.column;
+      if (start > 1) {
+        start = start - 1;
+      }
+      this.selection = new EditorSelection(validated.lineNumber, start, validated.lineNumber, validated.column + 1);
+    } else if (command == CMD_LINE_SELECT || command == CMD_LINE_SELECT_DRAG || command == CMD_LAST_CURSOR_LINE_SELECT || command == CMD_LAST_CURSOR_LINE_SELECT_DRAG) {
+      this.selection = new EditorSelection(validated.lineNumber, 1, validated.lineNumber + 1, 1);
+    } else if (command == CMD_SELECT_ALL) {
+      this.selection = new EditorSelection(1, 1, 2147483647, 1);
+    } else if (command == CMD_SET_SELECTION) {
+      this.selection = new EditorSelection(validated.lineNumber, validated.column, validated.lineNumber, validated.column);
+    }
+  }
+
+  void moveTo(EditorPosition viewPosition, int revealType) {
+    this.runCommand(CMD_MOVE_TO, viewPosition, revealType);
+  }
+
+  void moveToSelect(EditorPosition viewPosition, int revealType) {
+    this.runCommand(CMD_MOVE_TO_SELECT, viewPosition, revealType);
+  }
+
+  void columnSelect(EditorPosition viewPosition, int mouseColumn, bool doColumnSelect) {
+    EditorPosition validated = this.validateViewColumn(viewPosition);
+    this.lastCommand = CMD_COLUMN_SELECT;
+    this.lastDoColumnSelect = doColumnSelect;
+    this.lastMouseColumn = mouseColumn;
+    this.cursor = validated;
+    this.selection = new EditorSelection(this.selection.startLineNumber, this.selection.startColumn, validated.lineNumber, validated.column);
+  }
+
+  void createCursor(EditorPosition viewPosition, bool wholeLine) {
+    EditorPosition validated = this.validateViewColumn(viewPosition);
+    this.lastCommand = CMD_CREATE_CURSOR;
+    this.lastWholeLine = wholeLine;
+    this.cursor = validated;
+  }
+
+  void selectAll() {
+    this.runCommand(CMD_SELECT_ALL, this.cursor, 0);
+  }
+
+  void setSelection(EditorSelection modelSelection) {
+    this.lastCommand = CMD_SET_SELECTION;
+    this.selection = modelSelection;
+    this.cursor = new EditorPosition(modelSelection.endLineNumber, modelSelection.endColumn);
+  }
+
+  void paste(string text, bool pasteOnNewLine) {
+    this.lastCommand = CMD_PASTE;
+    this.pastedText = text;
+    if (pasteOnNewLine) {
+      this.cursor = new EditorPosition(this.cursor.lineNumber + 1, 1);
+    }
+  }
+
+  void type(string text) {
+    this.lastCommand = CMD_TYPE;
+    this.typedText = text;
+    this.cursor = new EditorPosition(this.cursor.lineNumber, this.cursor.column + text.length);
+  }
+
+  void compositionType(string text, int replacePrevCharCnt, int replaceNextCharCnt, int positionDelta) {
+    this.lastCommand = CMD_COMPOSITION_TYPE;
+    this.typedText = text;
+    int column = this.cursor.column - replacePrevCharCnt + text.length - replaceNextCharCnt + positionDelta;
+    if (column < this.lineMinColumn) {
+      column = this.lineMinColumn;
+    }
+    this.cursor = new EditorPosition(this.cursor.lineNumber, column);
+  }
+
+  void compositionStart() {
+    this.lastCommand = CMD_COMPOSITION_START;
+  }
+
+  void compositionEnd() {
+    this.lastCommand = CMD_COMPOSITION_END;
+  }
+
+  void cut() {
+    this.lastCommand = CMD_CUT;
+  }
+
+  void dispatchMouse(MouseDispatchData data) {
+    if (data.middleButton && !this.selectionClipboard) {
+      if (!this.scrollOnMiddleClick) {
+        this.columnSelect(data.position, data.mouseColumn, data.inSelectionMode);
+      }
+      return;
+    }
+    if (data.startedOnLineNumbers) {
+      if (this.hasMulticursorModifier(data)) {
+        if (data.inSelectionMode) {
+          this.runCommand(CMD_LAST_CURSOR_LINE_SELECT, data.position, data.revealType);
+        } else {
+          this.createCursor(data.position, true);
+        }
+      } else {
+        if (data.inSelectionMode) {
+          this.runCommand(CMD_LINE_SELECT_DRAG, data.position, data.revealType);
+        } else {
+          this.runCommand(CMD_LINE_SELECT, data.position, data.revealType);
+        }
+      }
+      return;
+    }
+    if (data.mouseDownCount >= 4) {
+      this.selectAll();
+      return;
+    }
+    if (data.mouseDownCount == 3) {
+      if (this.hasMulticursorModifier(data)) {
+        if (data.inSelectionMode) {
+          this.runCommand(CMD_LAST_CURSOR_LINE_SELECT_DRAG, data.position, data.revealType);
+        } else {
+          this.runCommand(CMD_LAST_CURSOR_LINE_SELECT, data.position, data.revealType);
+        }
+      } else {
+        if (data.inSelectionMode) {
+          this.runCommand(CMD_LINE_SELECT_DRAG, data.position, data.revealType);
+        } else {
+          this.runCommand(CMD_LINE_SELECT, data.position, data.revealType);
+        }
+      }
+      return;
+    }
+    if (data.mouseDownCount == 2) {
+      if (!data.onInjectedText) {
+        if (this.hasMulticursorModifier(data)) {
+          this.runCommand(CMD_LAST_CURSOR_WORD_SELECT, data.position, data.revealType);
+        } else {
+          if (data.inSelectionMode) {
+            this.runCommand(CMD_WORD_SELECT_DRAG, data.position, data.revealType);
+          } else {
+            this.runCommand(CMD_WORD_SELECT, data.position, data.revealType);
+          }
+        }
+      }
+      return;
+    }
+    if (this.hasMulticursorModifier(data)) {
+      if (!this.hasNonMulticursorModifier(data)) {
+        if (data.shiftKey) {
+          this.columnSelect(data.position, data.mouseColumn, true);
+        } else {
+          if (data.inSelectionMode) {
+            this.runCommand(CMD_LAST_CURSOR_MOVE_TO_SELECT, data.position, data.revealType);
+          } else {
+            this.createCursor(data.position, false);
+          }
+        }
+      }
+      return;
+    }
+    if (data.inSelectionMode) {
+      if (data.altKey || this.columnSelection) {
+        this.columnSelect(data.position, data.mouseColumn, true);
+      } else {
+        this.moveToSelect(data.position, data.revealType);
+      }
+      return;
+    }
+    this.moveTo(data.position, data.revealType);
+  }
+}
+
+export ViewController createViewController() {
+  return new ViewController();
+}
+
+export MouseDispatchData createMouseDispatchData(int lineNumber, int column, int mouseDownCount) {
+  return new MouseDispatchData(new EditorPosition(lineNumber, column), column, mouseDownCount);
+}

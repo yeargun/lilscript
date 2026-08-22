@@ -1,0 +1,40 @@
+export int MarkerSeverityHint = 1;
+export int MarkerSeverityInfo = 2;
+export int MarkerSeverityWarning = 4;
+export int MarkerSeverityError = 8;
+
+export class Marker {
+  string resource;
+  string owner;
+  string message;
+  int severity;
+  int startLine;
+  int startColumn;
+  int endLine;
+  int endColumn;
+
+  init(string resource, string owner, string message, int severity, int startLine, int startColumn, int endLine, int endColumn) {
+    this.resource = resource;
+    this.owner = owner;
+    this.message = message;
+    this.severity = severity;
+    this.startLine = startLine;
+    this.startColumn = startColumn;
+    this.endLine = endLine;
+    this.endColumn = endColumn;
+  }
+}
+
+export Marker createMarker(string resource, string owner, string message, int severity, int startLine, int startColumn, int endLine, int endColumn) {
+  return new Marker(resource, owner, message, severity, startLine, startColumn, endLine, endColumn);
+}
+
+export int compareMarkersBySeverity(Marker a, Marker b) {
+  if (a.severity > b.severity) {
+    return -1;
+  }
+  if (a.severity < b.severity) {
+    return 1;
+  }
+  return 0;
+}

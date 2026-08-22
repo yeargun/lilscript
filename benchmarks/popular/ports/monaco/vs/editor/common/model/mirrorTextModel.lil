@@ -1,0 +1,156 @@
+import { sliceOf, concat2, stringSplit, replaceEol, emptyBuf } from "../../../../js-host";
+
+export class Range {
+  int startLineNumber;
+  int startColumn;
+  int endLineNumber;
+  int endColumn;
+
+  init(int startLineNumber, int startColumn, int endLineNumber, int endColumn) {
+    this.startLineNumber = startLineNumber;
+    this.startColumn = startColumn;
+    this.endLineNumber = endLineNumber;
+    this.endColumn = endColumn;
+  }
+}
+
+export class MirrorChange {
+  Range range;
+  string text;
+
+  init(Range range, string text) {
+    this.range = range;
+    this.text = text;
+  }
+}
+
+export class MirrorTextModel {
+  string uri;
+  string[] lines;
+  string eol;
+  int versionId;
+  string cachedTextValue;
+  bool hasCachedTextValue;
+
+  init(string uri, string[] lines, string eol, int versionId) {
+    this.uri = uri;
+    this.lines = lines;
+    this.eol = eol;
+    this.versionId = versionId;
+    this.cachedTextValue = emptyBuf();
+    this.hasCachedTextValue = false;
+  }
+
+  void dispose() {
+    this.lines = [];
+    this.cachedTextValue = emptyBuf();
+    this.hasCachedTextValue = false;
+  }
+
+  int version() {
+    return this.versionId;
+  }
+
+  string getText() {
+    if (!this.hasCachedTextValue) {
+      string result = emptyBuf();
+      int i = 0;
+      while (i < this.lines.length) {
+        if (i > 0) {
+          result = concat2(result, this.eol);
+        }
+        result = concat2(result, this.lines[i]);
+        i = i + 1;
+      }
+      this.cachedTextValue = result;
+      this.hasCachedTextValue = true;
+    }
+    return this.cachedTextValue;
+  }
+
+  void acceptDeleteRange(Range range) {
+    int startIndex = range.startLineNumber - 1;
+    int endIndex = range.endLineNumber - 1;
+    if (startIndex == endIndex) {
+      string line = this.lines[startIndex];
+      this.lines[startIndex] = concat2(
+        sliceOf(line, 0, range.startColumn - 1),
+        sliceOf(line, range.endColumn - 1, line.length)
+      );
+      return;
+    }
+    string first = this.lines[startIndex];
+    string last = this.lines[endIndex];
+    string merged = concat2(
+      sliceOf(first, 0, range.startColumn - 1),
+      sliceOf(last, range.endColumn - 1, last.length)
+    );
+    string[] next = [];
+    int i = 0;
+    while (i < startIndex) {
+      next.push(this.lines[i]);
+      i = i + 1;
+    }
+    next.push(merged);
+    i = endIndex + 1;
+    while (i < this.lines.length) {
+      next.push(this.lines[i]);
+      i = i + 1;
+    }
+    this.lines = next;
+  }
+
+  void acceptInsertText(int lineNumber, int column, string insertText) {
+    if (insertText.length == 0) {
+      return;
+    }
+    string[] insertLines = stringSplit(replaceEol(insertText, "\n"), "\n");
+    int index = lineNumber - 1;
+    string current = this.lines[index];
+    string before = sliceOf(current, 0, column - 1);
+    string after = sliceOf(current, column - 1, current.length);
+    if (insertLines.length == 1) {
+      this.lines[index] = concat2(concat2(before, insertLines[0]), after);
+      return;
+    }
+    string[] next = [];
+    int i = 0;
+    while (i < index) {
+      next.push(this.lines[i]);
+      i = i + 1;
+    }
+    next.push(concat2(before, insertLines[0]));
+    i = 1;
+    while (i < insertLines.length - 1) {
+      next.push(insertLines[i]);
+      i = i + 1;
+    }
+    next.push(concat2(insertLines[insertLines.length - 1], after));
+    i = index + 1;
+    while (i < this.lines.length) {
+      next.push(this.lines[i]);
+      i = i + 1;
+    }
+    this.lines = next;
+  }
+
+  void onEvents(string newEOL, MirrorChange[] changes, int versionId) {
+    if (newEOL.length > 0) {
+      this.eol = newEOL;
+    }
+    int i = 0;
+    while (i < changes.length) {
+      MirrorChange change = changes[i];
+      this.acceptDeleteRange(change.range);
+      this.acceptInsertText(change.range.startLineNumber, change.range.startColumn, change.text);
+      i = i + 1;
+    }
+    this.versionId = versionId;
+    this.cachedTextValue = emptyBuf();
+    this.hasCachedTextValue = false;
+  }
+}
+
+export MirrorTextModel createMirrorTextModel(string uri, string[] lines, string eol, int versionId) {
+  return new MirrorTextModel(uri, lines, eol, versionId);
+}

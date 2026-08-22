@@ -1,0 +1,127 @@
+export class LinkedTextNode {
+  bool isLink;
+  string text;
+  string href;
+  string title;
+
+  init(bool isLink, string text, string href, string title) {
+    this.isLink = isLink;
+    this.text = text;
+    this.href = href;
+    this.title = title;
+  }
+}
+
+export class LinkedText {
+  LinkedTextNode[] nodes;
+
+  init(LinkedTextNode[] nodes) {
+    this.nodes = nodes;
+  }
+
+  string asString() {
+    string out = "";
+    int i = 0;
+    while (i < this.nodes.length) {
+      out = out + this.nodes[i].text;
+      i = i + 1;
+    }
+    return out;
+  }
+}
+
+bool linkedTextIsScheme(string href) {
+  return href.startsWith("http://") || href.startsWith("https://") || href.startsWith("command:") || href.startsWith("file:");
+}
+
+export LinkedText parseLinkedText(string text) {
+  LinkedTextNode[] result = [];
+  int index = 0;
+  int i = 0;
+  while (i < text.length) {
+    if (text.charAt(i) != "[") {
+      i = i + 1;
+      continue;
+    }
+    int labelStart = i + 1;
+    int labelEnd = labelStart;
+    while (labelEnd < text.length && text.charAt(labelEnd) != "]") {
+      labelEnd = labelEnd + 1;
+    }
+    if (labelEnd >= text.length || labelEnd + 1 >= text.length || text.charAt(labelEnd + 1) != "(") {
+      i = i + 1;
+      continue;
+    }
+    int hrefStart = labelEnd + 2;
+    int hrefEnd = hrefStart;
+    while (hrefEnd < text.length && text.charAt(hrefEnd) != ")" && text.charAt(hrefEnd) != " ") {
+      hrefEnd = hrefEnd + 1;
+    }
+    if (hrefEnd > text.length) {
+      break;
+    }
+    string href = "";
+    int n = hrefStart;
+    while (n < hrefEnd) {
+      href = href + text.charAt(n);
+      n = n + 1;
+    }
+    if (!linkedTextIsScheme(href)) {
+      i = i + 1;
+      continue;
+    }
+    string title = "";
+    int close = hrefEnd;
+    if (close < text.length && text.charAt(close) == " ") {
+      close = close + 1;
+      if (close < text.length && (text.charAt(close) == "\"" || text.charAt(close) == "'")) {
+        string quote = text.charAt(close);
+        close = close + 1;
+        int titleStart = close;
+        while (close < text.length && text.charAt(close) != quote) {
+          close = close + 1;
+        }
+        int t = titleStart;
+        while (t < close) {
+          title = title + text.charAt(t);
+          t = t + 1;
+        }
+        if (close < text.length && text.charAt(close) == quote) {
+          close = close + 1;
+        }
+      }
+    }
+    if (close >= text.length || text.charAt(close) != ")") {
+      i = i + 1;
+      continue;
+    }
+    if (i - index > 0) {
+      string plain = "";
+      int p = index;
+      while (p < i) {
+        plain = plain + text.charAt(p);
+        p = p + 1;
+      }
+      result.push(new LinkedTextNode(false, plain, "", ""));
+    }
+    string label = "";
+    int l = labelStart;
+    while (l < labelEnd) {
+      label = label + text.charAt(l);
+      l = l + 1;
+    }
+    result.push(new LinkedTextNode(true, label, href, title));
+    index = close + 1;
+    i = index;
+  }
+  if (index < text.length) {
+    string tail = "";
+    int t = index;
+    while (t < text.length) {
+      tail = tail + text.charAt(t);
+      t = t + 1;
+    }
+    result.push(new LinkedTextNode(false, tail, "", ""));
+  }
+  return new LinkedText(result);
+}

@@ -1,0 +1,69 @@
+import { domCreateElement, appendChild, setClassName, setTextContent, setStyle, hostCall, jsUndefined, stringSlice } from "../../../../../js-host";
+
+export class CountBadge {
+  JsValue element;
+  int count;
+  string countFormat;
+  string titleFormat;
+  string badgeBackground;
+  string badgeForeground;
+  string badgeBorder;
+  bool disposed;
+
+  init(JsValue container, int count, string countFormat, string titleFormat, string badgeBackground, string badgeForeground, string badgeBorder) {
+    this.count = count;
+    this.countFormat = countFormat;
+    this.titleFormat = titleFormat;
+    this.badgeBackground = badgeBackground;
+    this.badgeForeground = badgeForeground;
+    this.badgeBorder = badgeBorder;
+    this.disposed = false;
+    this.element = domCreateElement("div");
+    setClassName(this.element, "monaco-count-badge");
+    appendChild(container, this.element);
+    this.render();
+  }
+
+  string formatCount(string format, int value) {
+    int idx = format.indexOf("{0}");
+    if (idx < 0) {
+      return format + value.toString();
+    }
+    return stringSlice(format, 0, idx) + value.toString() + stringSlice(format, idx + 3, format.length);
+  }
+
+  void setCount(int count) {
+    this.count = count;
+    this.render();
+  }
+
+  void setTitleFormat(string titleFormat) {
+    this.titleFormat = titleFormat;
+    this.render();
+  }
+
+  void render() {
+    setTextContent(this.element, this.formatCount(this.countFormat, this.count));
+    setStyle(this.element, "background-color", this.badgeBackground);
+    setStyle(this.element, "color", this.badgeForeground);
+    if (this.badgeBorder.length > 0) {
+      setStyle(this.element, "border", "1px solid " + this.badgeBorder);
+    }
+    if (this.titleFormat.length > 0) {
+      setStyle(this.element, "title", this.formatCount(this.titleFormat, this.count));
+      setTextContent(this.element, this.formatCount(this.countFormat, this.count));
+    }
+  }
+
+  void dispose() {
+    this.disposed = true;
+    JsValue parent = this.element["parentElement"];
+    if (parent.truthy()) {
+      hostCall(parent, "removeChild", this.element, jsUndefined(), jsUndefined());
+    }
+  }
+}
+
+export CountBadge createCountBadge(JsValue container, int count = 0, string countFormat = "{0}", string titleFormat = "", string badgeBackground = "", string badgeForeground = "", string badgeBorder = "") {
+  return new CountBadge(container, count, countFormat, titleFormat, badgeBackground, badgeForeground, badgeBorder);
+}

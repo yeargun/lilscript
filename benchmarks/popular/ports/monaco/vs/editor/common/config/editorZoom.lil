@@ -1,0 +1,48 @@
+export class EditorZoomController {
+  int zoomLevel;
+  (func(int)->void)[] listeners;
+
+  init() {
+    this.zoomLevel = 0;
+    this.listeners = [];
+  }
+
+  int getZoomLevel() {
+    return this.zoomLevel;
+  }
+
+  void setZoomLevel(int value) {
+    int next = value;
+    if (next < -5) {
+      next = -5;
+    }
+    if (next > 20) {
+      next = 20;
+    }
+    if (next == this.zoomLevel) {
+      return;
+    }
+    this.zoomLevel = next;
+    int i = 0;
+    while (i < this.listeners.length) {
+      this.listeners[i](next);
+      i = i + 1;
+    }
+  }
+
+  func()->void onDidChangeZoomLevel(func(int)->void listener) {
+    this.listeners.push(listener);
+    return () => {
+      int index = this.listeners.indexOf(listener);
+      if (index >= 0) {
+        this.listeners.splice(index, 1);
+      }
+    };
+  }
+}
+
+export EditorZoomController EditorZoom = new EditorZoomController();
+
+export EditorZoomController createEditorZoom() {
+  return new EditorZoomController();
+}

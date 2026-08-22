@@ -1,0 +1,67 @@
+export class MemItem {
+  string kind;
+  string type;
+  string insertText;
+  int touch;
+
+  init(string kind, string typeName, string insertText, int touch) {
+    this.kind = kind;
+    this.type = typeName;
+    this.insertText = insertText;
+    this.touch = touch;
+  }
+}
+
+export class SuggestMemory {
+  MemItem[] items;
+  int seq;
+  int strategy;
+
+  init() {
+    this.items = [];
+    this.seq = 0;
+    this.strategy = 0;
+  }
+
+  void memorize(string kind, string typeName, string insertText) {
+    this.seq = this.seq + 1;
+    int i = 0;
+    while (i < this.items.length) {
+      if (this.items[i].insertText == insertText && this.items[i].kind == kind) {
+        this.items[i].touch = this.seq;
+        this.items[i].type = typeName;
+        return;
+      }
+      i = i + 1;
+    }
+    this.items.push(new MemItem(kind, typeName, insertText, this.seq));
+  }
+
+  int select(string[] labels, string[] insertTexts, string prefix) {
+    if (this.strategy == 0) {
+      return 0;
+    }
+    int best = -1;
+    int bestTouch = -1;
+    int i = 0;
+    while (i < insertTexts.length) {
+      int j = 0;
+      while (j < this.items.length) {
+        if (this.items[j].insertText == insertTexts[i] && this.items[j].touch > bestTouch) {
+          bestTouch = this.items[j].touch;
+          best = i;
+        }
+        j = j + 1;
+      }
+      i = i + 1;
+    }
+    if (best < 0) {
+      return 0;
+    }
+    return best;
+  }
+}
+
+export SuggestMemory createSuggestMemory() {
+  return new SuggestMemory();
+}

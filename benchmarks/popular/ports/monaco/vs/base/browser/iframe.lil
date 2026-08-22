@@ -1,0 +1,79 @@
+import { rectLeft, rectTop } from "../../../js-host";
+
+export class WindowPosition {
+  float top;
+  float left;
+
+  init(float top, float left) {
+    this.top = top;
+    this.left = left;
+  }
+}
+
+export class SameOriginWindow {
+  JsValue targetWindow;
+  JsValue iframeElement;
+
+  init(JsValue targetWindow, JsValue iframeElement) {
+    this.targetWindow = targetWindow;
+    this.iframeElement = iframeElement;
+  }
+}
+
+export class IframeUtils {
+  SameOriginWindow[] getSameOriginWindowChain(JsValue targetWindow) {
+    SameOriginWindow[] result = [];
+    JsValue current = targetWindow;
+    int guard = 0;
+    while (current.truthy() && guard < 100) {
+      JsValue parent = current["parent"];
+      JsValue frame = current["frameElement"];
+      if (parent.truthy() && parent != current) {
+        result.push(new SameOriginWindow(current, frame));
+        current = parent;
+      } else {
+        result.push(new SameOriginWindow(current, null));
+        break;
+      }
+      guard = guard + 1;
+    }
+    return result;
+  }
+
+  WindowPosition getPositionOfChildWindowRelativeToAncestorWindow(JsValue childWindow, JsValue ancestorWindow) {
+    if (!ancestorWindow.truthy() || childWindow == ancestorWindow) {
+      return new WindowPosition(0.0, 0.0);
+    }
+    float top = 0.0;
+    float left = 0.0;
+    SameOriginWindow[] chain = this.getSameOriginWindowChain(childWindow);
+    int i = 0;
+    while (i < chain.length) {
+      SameOriginWindow item = chain[i];
+      JsValue scrollY = item.targetWindow["scrollY"];
+      if (scrollY is float) {
+        float y = scrollY;
+        top = top + y;
+      }
+      JsValue scrollX = item.targetWindow["scrollX"];
+      if (scrollX is float) {
+        float x = scrollX;
+        left = left + x;
+      }
+      if (item.targetWindow == ancestorWindow) {
+        break;
+      }
+      if (!item.iframeElement.truthy()) {
+        break;
+      }
+      top = top + rectTop(item.iframeElement);
+      left = left + rectLeft(item.iframeElement);
+      i = i + 1;
+    }
+    return new WindowPosition(top, left);
+  }
+}
+
+export IframeUtils createIframeUtils() {
+  return new IframeUtils();
+}

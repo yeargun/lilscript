@@ -1,0 +1,62 @@
+export string[] editorMainModules() {
+  string[] mods = [];
+  mods.push("editor.all");
+  mods.push("standalone/browser/iPadShowKeyboard/iPadShowKeyboard");
+  mods.push("standalone/browser/inspectTokens/inspectTokens");
+  mods.push("standalone/browser/quickAccess/standaloneHelpQuickAccess");
+  mods.push("standalone/browser/quickAccess/standaloneGotoLineQuickAccess");
+  mods.push("standalone/browser/quickAccess/standaloneGotoSymbolQuickAccess");
+  mods.push("standalone/browser/quickAccess/standaloneCommandsQuickAccess");
+  mods.push("standalone/browser/referenceSearch/standaloneReferenceSearch");
+  mods.push("standalone/browser/toggleHighContrast/toggleHighContrast");
+  mods.push("editor.api");
+  return mods;
+}
+
+export string editorMainModuleAt(int index) {
+  string[] mods = editorMainModules();
+  if (index < 0 || index >= mods.length) {
+    return "";
+  }
+  return mods[index];
+}
+
+export string loadEditorAll() {
+  return "editor.all";
+}
+
+export string loadIPadShowKeyboard() {
+  return "standalone/browser/iPadShowKeyboard/iPadShowKeyboard";
+}
+
+export string loadInspectTokens() {
+  return "standalone/browser/inspectTokens/inspectTokens";
+}
+
+export string loadStandaloneHelpQuickAccess() {
+  return "standalone/browser/quickAccess/standaloneHelpQuickAccess";
+}
+
+export string loadStandaloneGotoLineQuickAccess() {
+  return "standalone/browser/quickAccess/standaloneGotoLineQuickAccess";
+}
+
+export string loadStandaloneGotoSymbolQuickAccess() {
+  return "standalone/browser/quickAccess/standaloneGotoSymbolQuickAccess";
+}
+
+export string loadStandaloneCommandsQuickAccess() {
+  return "standalone/browser/quickAccess/standaloneCommandsQuickAccess";
+}
+
+export string loadStandaloneReferenceSearch() {
+  return "standalone/browser/referenceSearch/standaloneReferenceSearch";
+}
+
+export string loadToggleHighContrast() {
+  return "standalone/browser/toggleHighContrast/toggleHighContrast";
+}
+
+export string loadEditorApi() {
+  return "editor.api";
+}

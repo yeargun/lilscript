@@ -1,0 +1,33 @@
+export class CommitCharacterController {
+  string characters;
+  bool enabled;
+  bool widgetVisible;
+
+  init() {
+    this.characters = "";
+    this.enabled = true;
+    this.widgetVisible = false;
+  }
+
+  void onItem(string commitCharacters) {
+    this.characters = commitCharacters;
+  }
+
+  bool shouldAccept(string ch) {
+    if (!this.enabled || !this.widgetVisible) {
+      return false;
+    }
+    if (this.characters.length == 0) {
+      return false;
+    }
+    return this.characters.indexOf(ch) >= 0;
+  }
+
+  void reset() {
+    this.characters = "";
+  }
+}
+
+export CommitCharacterController createCommitCharacterController() {
+  return new CommitCharacterController();
+}

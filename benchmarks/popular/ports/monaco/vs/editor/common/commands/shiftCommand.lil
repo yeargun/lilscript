@@ -1,0 +1,170 @@
+import { emptyBuf, repeatChar, sliceFrom, sliceOf } from "../../../../js-host";
+
+pure int shiftMin(int a, int b) {
+  if (a < b) {
+    return a;
+  }
+  return b;
+}
+
+int firstNonWhitespaceIndex(string line) {
+  int i = 0;
+  while (i < line.length) {
+    int code = line.charCodeAt(i);
+    if (code != 32 && code != 9) {
+      return i;
+    }
+    i = i + 1;
+  }
+  return -1;
+}
+
+int nextTabStop(int visibleColumn, int tabSize) {
+  if (tabSize <= 0) {
+    return visibleColumn + 1;
+  }
+  return visibleColumn + tabSize - visibleColumn % tabSize;
+}
+
+int previousTabStop(int visibleColumn, int tabSize) {
+  if (visibleColumn <= 0 || tabSize <= 0) {
+    return 0;
+  }
+  return visibleColumn - 1 - (visibleColumn - 1) % tabSize;
+}
+
+int visibleColumnFromColumn(string line, int column, int tabSize) {
+  int end = column - 1;
+  if (end > line.length) {
+    end = line.length;
+  }
+  int visibleColumn = 0;
+  int i = 0;
+  while (i < end) {
+    if (line.charCodeAt(i) == 9) {
+      visibleColumn = nextTabStop(visibleColumn, tabSize);
+    } else {
+      visibleColumn = visibleColumn + 1;
+    }
+    i = i + 1;
+  }
+  return visibleColumn;
+}
+
+export string unshiftIndent(
+  string line,
+  int column,
+  int tabSize,
+  int indentSize,
+  bool insertSpaces
+) {
+  int visibleColumn = visibleColumnFromColumn(line, column, tabSize);
+  if (insertSpaces) {
+    int desiredTabStop = previousTabStop(visibleColumn, indentSize);
+    return repeatChar(" ", desiredTabStop);
+  }
+  int desiredTabStop = previousTabStop(visibleColumn, tabSize);
+  int count = 0;
+  if (tabSize > 0) {
+    count = desiredTabStop / tabSize;
+  }
+  return repeatChar("\t", count);
+}
+
+export string shiftIndent(
+  string line,
+  int column,
+  int tabSize,
+  int indentSize,
+  bool insertSpaces
+) {
+  int visibleColumn = visibleColumnFromColumn(line, column, tabSize);
+  if (insertSpaces) {
+    int desiredTabStop = nextTabStop(visibleColumn, indentSize);
+    return repeatChar(" ", desiredTabStop);
+  }
+  int desiredTabStop = nextTabStop(visibleColumn, tabSize);
+  int count = 0;
+  if (tabSize > 0) {
+    count = desiredTabStop / tabSize;
+  }
+  return repeatChar("\t", count);
+}
+
+export class ShiftEdit {
+  int lineNumber;
+  int endColumn;
+  string text;
+
+  init(int lineNumber, int endColumn, string text) {
+    this.lineNumber = lineNumber;
+    this.endColumn = endColumn;
+    this.text = text;
+  }
+}
+
+export ShiftEdit[] getShiftEdits(
+  string[] lines,
+  int startLineNumber,
+  int endLineNumber,
+  int tabSize,
+  int indentSize,
+  bool insertSpaces,
+  bool isUnshift,
+  bool useTabStops
+) {
+  ShiftEdit[] edits = [];
+  int firstLine = startLineNumber;
+  if (firstLine < 1) {
+    firstLine = 1;
+  }
+  int lastLine = endLineNumber;
+  if (lastLine > lines.length) {
+    lastLine = lines.length;
+  }
+  int lineNumber = firstLine;
+  while (lineNumber <= lastLine) {
+    string line = lines[lineNumber - 1];
+    int indentationEndIndex = firstNonWhitespaceIndex(line);
+    if (indentationEndIndex < 0) {
+      indentationEndIndex = line.length;
+    }
+    if (isUnshift && indentationEndIndex == 0) {
+      lineNumber = lineNumber + 1;
+      continue;
+    }
+    if (useTabStops) {
+      string desiredIndent = emptyBuf();
+      if (isUnshift) {
+        desiredIndent = unshiftIndent(line, indentationEndIndex + 1, tabSize, indentSize, insertSpaces);
+      } else {
+        desiredIndent = shiftIndent(line, indentationEndIndex + 1, tabSize, indentSize, insertSpaces);
+      }
+      edits.push(new ShiftEdit(lineNumber, indentationEndIndex + 1, desiredIndent));
+    } else if (isUnshift) {
+      int removeCount = shiftMin(indentationEndIndex, indentSize);
+      int i = 0;
+      while (i < removeCount) {
+        if (line.charCodeAt(i) == 9) {
+          removeCount = i + 1;
+          break;
+        }
+        i = i + 1;
+      }
+      edits.push(new ShiftEdit(lineNumber, removeCount + 1, emptyBuf()));
+    } else {
+      string oneIndent = "\t";
+      if (insertSpaces) {
+        oneIndent = repeatChar(" ", indentSize);
+      }
+      edits.push(new ShiftEdit(lineNumber, 1, oneIndent));
+    }
+    lineNumber = lineNumber + 1;
+  }
+  return edits;
+}
+
+export string applyShiftEdit(string line, ShiftEdit edit) {
+  int replaceEnd = edit.endColumn - 1;
+  return edit.text + sliceFrom(line, replaceEnd);
+}

@@ -1,0 +1,361 @@
+export class BoundingBox {
+  int left;
+  int top;
+  int right;
+  int bottom;
+
+  init(int left, int top, int right, int bottom) {
+    this.left = left;
+    this.top = top;
+    this.right = right;
+    this.bottom = bottom;
+  }
+}
+
+export class OriginOffset {
+  int x;
+  int y;
+
+  init(int x, int y) {
+    this.x = x;
+    this.y = y;
+  }
+}
+
+export class RasterizedGlyph {
+  BoundingBox boundingBox;
+  OriginOffset originOffset;
+  float fontBoundingBoxAscent;
+  float fontBoundingBoxDescent;
+
+  init(BoundingBox boundingBox, OriginOffset originOffset, float ascent, float descent) {
+    this.boundingBox = boundingBox;
+    this.originOffset = originOffset;
+    this.fontBoundingBoxAscent = ascent;
+    this.fontBoundingBoxDescent = descent;
+  }
+}
+
+export class AtlasGlyph {
+  int pageIndex;
+  int glyphIndex;
+  int x;
+  int y;
+  int w;
+  int h;
+  int originOffsetX;
+  int originOffsetY;
+  float fontBoundingBoxAscent;
+  float fontBoundingBoxDescent;
+
+  init(int pageIndex, int glyphIndex, int x, int y, int w, int h) {
+    this.pageIndex = pageIndex;
+    this.glyphIndex = glyphIndex;
+    this.x = x;
+    this.y = y;
+    this.w = w;
+    this.h = h;
+    this.originOffsetX = 0;
+    this.originOffsetY = 0;
+    this.fontBoundingBoxAscent = 0.0;
+    this.fontBoundingBoxDescent = 0.0;
+  }
+}
+
+export class Slab {
+  int x;
+  int y;
+  int entryW;
+  int entryH;
+  int count;
+
+  init(int x, int y, int entryW, int entryH) {
+    this.x = x;
+    this.y = y;
+    this.entryW = entryW;
+    this.entryH = entryH;
+    this.count = 0;
+  }
+}
+
+export class OpenRect {
+  int x;
+  int y;
+  int w;
+  int h;
+
+  init(int x, int y, int w, int h) {
+    this.x = x;
+    this.y = y;
+    this.w = w;
+    this.h = h;
+  }
+}
+
+export class OpenRegionBucket {
+  int key;
+  OpenRect[] rects;
+
+  init(int key) {
+    this.key = key;
+    this.rects = [];
+  }
+}
+
+int ifloorDiv(int a, int b) {
+  if (b == 0) {
+    return 0;
+  }
+  return a / b;
+}
+
+OpenRegionBucket? findBucket(OpenRegionBucket[] buckets, int key) {
+  int i = 0;
+  while (i < buckets.length) {
+    if (buckets[i].key == key) {
+      return buckets[i];
+    }
+    i = i + 1;
+  }
+  return null;
+}
+
+void addEntryToBuckets(OpenRegionBucket[] buckets, int key, OpenRect entry) {
+  OpenRegionBucket? existing = findBucket(buckets, key);
+  if (existing != null) {
+    existing.rects.push(entry);
+    return;
+  }
+  OpenRegionBucket created = new OpenRegionBucket(key);
+  created.rects.push(entry);
+  buckets.push(created);
+}
+
+export class TextureAtlasSlabAllocator {
+  int canvasWidth;
+  int canvasHeight;
+  int textureIndex;
+  int slabW;
+  int slabH;
+  int slabsPerRow;
+  int slabsPerColumn;
+  Slab[] slabs;
+  Slab[] activeSlabs;
+  int[] activeW;
+  int[] activeH;
+  OpenRect[] unusedRects;
+  OpenRegionBucket[] openRegionsByHeight;
+  OpenRegionBucket[] openRegionsByWidth;
+  AtlasGlyph[] allocatedGlyphs;
+  int nextIndex;
+
+  init(int canvasWidth, int canvasHeight, int textureIndex, int slabW, int slabH) {
+    this.canvasWidth = canvasWidth;
+    this.canvasHeight = canvasHeight;
+    this.textureIndex = textureIndex;
+    this.slabW = slabW;
+    if (this.slabW > canvasWidth) {
+      this.slabW = canvasWidth;
+    }
+    this.slabH = slabH;
+    if (this.slabH > canvasHeight) {
+      this.slabH = canvasHeight;
+    }
+    this.slabsPerRow = ifloorDiv(canvasWidth, this.slabW);
+    this.slabsPerColumn = ifloorDiv(canvasHeight, this.slabH);
+    this.slabs = [];
+    this.activeSlabs = [];
+    this.activeW = [];
+    this.activeH = [];
+    this.unusedRects = [];
+    this.openRegionsByHeight = [];
+    this.openRegionsByWidth = [];
+    this.allocatedGlyphs = [];
+    this.nextIndex = 0;
+  }
+
+  Slab? activeSlabFor(int w, int h) {
+    int i = 0;
+    while (i < this.activeSlabs.length) {
+      if (this.activeW[i] == w && this.activeH[i] == h) {
+        return this.activeSlabs[i];
+      }
+      i = i + 1;
+    }
+    return null;
+  }
+
+  void setActiveSlab(int w, int h, Slab slab) {
+    int i = 0;
+    while (i < this.activeSlabs.length) {
+      if (this.activeW[i] == w && this.activeH[i] == h) {
+        this.activeSlabs[i] = slab;
+        return;
+      }
+      i = i + 1;
+    }
+    this.activeSlabs.push(slab);
+    this.activeW.push(w);
+    this.activeH.push(h);
+  }
+
+  AtlasGlyph? allocate(RasterizedGlyph rasterizedGlyph) {
+    int glyphWidth = rasterizedGlyph.boundingBox.right - rasterizedGlyph.boundingBox.left + 1;
+    int glyphHeight = rasterizedGlyph.boundingBox.bottom - rasterizedGlyph.boundingBox.top + 1;
+    if (glyphWidth > this.canvasWidth || glyphHeight > this.canvasHeight) {
+      throw "Glyph is too large for the atlas page";
+    }
+    if (glyphWidth > this.slabW || glyphHeight > this.slabH) {
+      if (this.allocatedGlyphs.length > 0) {
+        return null;
+      }
+      int sizeCandidate = this.canvasWidth;
+      while (glyphWidth * 2 < sizeCandidate && glyphHeight * 2 < sizeCandidate) {
+        sizeCandidate = sizeCandidate / 2;
+      }
+      this.slabW = sizeCandidate;
+      this.slabH = sizeCandidate;
+      this.slabsPerRow = ifloorDiv(this.canvasWidth, this.slabW);
+      this.slabsPerColumn = ifloorDiv(this.canvasHeight, this.slabH);
+    }
+    int desiredW = glyphWidth;
+    int desiredH = glyphHeight;
+    Slab? slab = this.activeSlabFor(desiredW, desiredH);
+    if (slab != null) {
+      int glyphsPerSlab = ifloorDiv(this.slabW, slab.entryW) * ifloorDiv(this.slabH, slab.entryH);
+      if (slab.count >= glyphsPerSlab) {
+        slab = null;
+      }
+    }
+    int dx = 0;
+    int dy = 0;
+    bool foundUnused = false;
+    if (slab == null) {
+      if (glyphWidth < glyphHeight) {
+        OpenRegionBucket? openW = findBucket(this.openRegionsByWidth, glyphWidth);
+        if (openW != null && openW.rects.length > 0) {
+          int i = openW.rects.length - 1;
+          while (i >= 0) {
+            OpenRect r = openW.rects[i];
+            if (r.w >= glyphWidth && r.h >= glyphHeight) {
+              dx = r.x;
+              dy = r.y;
+              foundUnused = true;
+              if (glyphWidth < r.w) {
+                this.unusedRects.push(new OpenRect(r.x + glyphWidth, r.y, r.w - glyphWidth, glyphHeight));
+              }
+              r.y = r.y + glyphHeight;
+              r.h = r.h - glyphHeight;
+              if (r.h == 0) {
+                if (i == openW.rects.length - 1) {
+                  openW.rects.pop();
+                } else {
+                  openW.rects.splice(i, 1);
+                }
+              }
+              break;
+            }
+            i = i - 1;
+          }
+        }
+      } else {
+        OpenRegionBucket? openH = findBucket(this.openRegionsByHeight, glyphHeight);
+        if (openH != null && openH.rects.length > 0) {
+          int i = openH.rects.length - 1;
+          while (i >= 0) {
+            OpenRect r = openH.rects[i];
+            if (r.w >= glyphWidth && r.h >= glyphHeight) {
+              dx = r.x;
+              dy = r.y;
+              foundUnused = true;
+              if (glyphHeight < r.h) {
+                this.unusedRects.push(new OpenRect(r.x, r.y + glyphHeight, glyphWidth, r.h - glyphHeight));
+              }
+              r.x = r.x + glyphWidth;
+              r.w = r.w - glyphWidth;
+              if (r.w == 0) {
+                if (i == openH.rects.length - 1) {
+                  openH.rects.pop();
+                } else {
+                  openH.rects.splice(i, 1);
+                }
+              }
+              break;
+            }
+            i = i - 1;
+          }
+        }
+      }
+    }
+    if (!foundUnused) {
+      Slab useSlab = new Slab(0, 0, desiredW, desiredH);
+      bool haveSlab = false;
+      Slab? current = slab;
+      if (current != null) {
+        useSlab = current;
+        haveSlab = true;
+      }
+      if (!haveSlab) {
+        if (this.slabs.length >= this.slabsPerRow * this.slabsPerColumn) {
+          return null;
+        }
+        Slab created = new Slab(
+          (this.slabs.length % this.slabsPerRow) * this.slabW,
+          ifloorDiv(this.slabs.length, this.slabsPerRow) * this.slabH,
+          desiredW,
+          desiredH
+        );
+        int unusedW = this.slabW % created.entryW;
+        int unusedH = this.slabH % created.entryH;
+        if (unusedW != 0) {
+          addEntryToBuckets(this.openRegionsByWidth, unusedW, new OpenRect(created.x + this.slabW - unusedW, created.y, unusedW, this.slabH - unusedH));
+        }
+        if (unusedH != 0) {
+          addEntryToBuckets(this.openRegionsByHeight, unusedH, new OpenRect(created.x, created.y + this.slabH - unusedH, this.slabW, unusedH));
+        }
+        this.slabs.push(created);
+        this.setActiveSlab(desiredW, desiredH, created);
+        useSlab = created;
+      }
+      int glyphsPerRow = ifloorDiv(this.slabW, useSlab.entryW);
+      if (glyphsPerRow < 1) {
+        glyphsPerRow = 1;
+      }
+      dx = useSlab.x + (useSlab.count % glyphsPerRow) * useSlab.entryW;
+      dy = useSlab.y + ifloorDiv(useSlab.count, glyphsPerRow) * useSlab.entryH;
+      useSlab.count = useSlab.count + 1;
+    }
+    AtlasGlyph glyph = new AtlasGlyph(this.textureIndex, this.nextIndex, dx, dy, glyphWidth, glyphHeight);
+    this.nextIndex = this.nextIndex + 1;
+    glyph.originOffsetX = rasterizedGlyph.originOffset.x;
+    glyph.originOffsetY = rasterizedGlyph.originOffset.y;
+    glyph.fontBoundingBoxAscent = rasterizedGlyph.fontBoundingBoxAscent;
+    glyph.fontBoundingBoxDescent = rasterizedGlyph.fontBoundingBoxDescent;
+    this.allocatedGlyphs.push(glyph);
+    return glyph;
+  }
+
+  string getStats() {
+    int totalPixels = this.canvasWidth * this.canvasHeight;
+    int usedPixels = 0;
+    int i = 0;
+    while (i < this.allocatedGlyphs.length) {
+      AtlasGlyph g = this.allocatedGlyphs[i];
+      usedPixels = usedPixels + g.w * g.h;
+      i = i + 1;
+    }
+    int usedPct = 0;
+    if (totalPixels > 0) {
+      usedPct = (usedPixels * 100) / totalPixels;
+    }
+    return "page[" + this.textureIndex.toString() + "]:\n     Total: " + totalPixels.toString() + "px (" + this.canvasWidth.toString() + "x" + this.canvasHeight.toString() + ")\n      Used: " + usedPixels.toString() + "px (" + usedPct.toString() + "%)\n     Slabs: " + this.slabs.length.toString() + " of " + (this.slabsPerRow * this.slabsPerColumn).toString();
+  }
+}
+
+export TextureAtlasSlabAllocator createTextureAtlasSlabAllocator(int canvasWidth, int canvasHeight, int textureIndex, int slabW = 64, int slabH = 64) {
+  return new TextureAtlasSlabAllocator(canvasWidth, canvasHeight, textureIndex, slabW, slabH);
+}
+
+export RasterizedGlyph createRasterizedGlyph(int w, int h) {
+  return new RasterizedGlyph(new BoundingBox(0, 0, w - 1, h - 1), new OriginOffset(0, 0), 0.0, 0.0);
+}

@@ -1,0 +1,66 @@
+export string SHOW_OR_FOCUS_HOVER = "editor.action.showHover";
+export string SHOW_DEFINITION_PREVIEW_HOVER = "editor.action.showDefinitionPreviewHover";
+export string HIDE_HOVER = "editor.action.hideHover";
+export string SCROLL_UP_HOVER = "editor.action.scrollUpHover";
+export string SCROLL_DOWN_HOVER = "editor.action.scrollDownHover";
+export string SCROLL_LEFT_HOVER = "editor.action.scrollLeftHover";
+export string SCROLL_RIGHT_HOVER = "editor.action.scrollRightHover";
+export string PAGE_UP_HOVER = "editor.action.pageUpHover";
+export string PAGE_DOWN_HOVER = "editor.action.pageDownHover";
+export string GO_TO_TOP_HOVER = "editor.action.goToTopHover";
+export string GO_TO_BOTTOM_HOVER = "editor.action.goToBottomHover";
+export string INCREASE_HOVER_VERBOSITY = "editor.action.increaseHoverVerbosity";
+export string DECREASE_HOVER_VERBOSITY = "editor.action.decreaseHoverVerbosity";
+
+export string[] hoverActionIds() {
+  return [
+    SHOW_OR_FOCUS_HOVER,
+    SHOW_DEFINITION_PREVIEW_HOVER,
+    HIDE_HOVER,
+    SCROLL_UP_HOVER,
+    SCROLL_DOWN_HOVER,
+    SCROLL_LEFT_HOVER,
+    SCROLL_RIGHT_HOVER,
+    PAGE_UP_HOVER,
+    PAGE_DOWN_HOVER,
+    GO_TO_TOP_HOVER,
+    GO_TO_BOTTOM_HOVER,
+    INCREASE_HOVER_VERBOSITY,
+    DECREASE_HOVER_VERBOSITY
+  ];
+}
+
+export class HoverScrollState {
+  int scrollTop;
+  int scrollLeft;
+  int maxTop;
+  int maxLeft;
+
+  init() {
+    this.scrollTop = 0;
+    this.scrollLeft = 0;
+    this.maxTop = 0;
+    this.maxLeft = 0;
+  }
+
+  void scroll(int dy, int dx) {
+    this.scrollTop = this.scrollTop + dy;
+    this.scrollLeft = this.scrollLeft + dx;
+    if (this.scrollTop < 0) {
+      this.scrollTop = 0;
+    }
+    if (this.scrollLeft < 0) {
+      this.scrollLeft = 0;
+    }
+    if (this.scrollTop > this.maxTop) {
+      this.scrollTop = this.maxTop;
+    }
+    if (this.scrollLeft > this.maxLeft) {
+      this.scrollLeft = this.maxLeft;
+    }
+  }
+}
+
+export HoverScrollState createHoverActions() {
+  return new HoverScrollState();
+}

@@ -1,0 +1,143 @@
+int LengthFactor = 67108864;
+
+export class LengthValue {
+  int lineCount;
+  int columnCount;
+
+  init(int lineCount, int columnCount) {
+    this.lineCount = lineCount;
+    this.columnCount = columnCount;
+  }
+}
+
+int toLength(int lineCount, int columnCount) {
+  return lineCount * LengthFactor + columnCount;
+}
+
+LengthValue lengthToObj(int length) {
+  int lineCount = length / LengthFactor;
+  return new LengthValue(lineCount, length - lineCount * LengthFactor);
+}
+
+int lengthAdd(int first, int second) {
+  int result = first + second;
+  if (second >= LengthFactor) {
+    result = result - first % LengthFactor;
+  }
+  return result;
+}
+
+export class TextEditInfo {
+  int startOffset;
+  int endOffset;
+  int newLength;
+
+  init(int startOffset, int endOffset, int newLength) {
+    this.startOffset = startOffset;
+    this.endOffset = endOffset;
+    this.newLength = newLength;
+  }
+}
+
+class TextEditInfoCache {
+  LengthValue endOffsetBeforeObj;
+  LengthValue endOffsetAfterObj;
+  LengthValue offsetObj;
+
+  init(TextEditInfo edit) {
+    this.endOffsetBeforeObj = lengthToObj(edit.endOffset);
+    this.endOffsetAfterObj = lengthToObj(lengthAdd(edit.startOffset, edit.newLength));
+    this.offsetObj = lengthToObj(edit.startOffset);
+  }
+}
+
+export class BeforeEditPositionMapper {
+  int nextEditIndex;
+  int deltaOldToNewLineCount;
+  int deltaOldToNewColumnCount;
+  int deltaLineIndexInOld;
+  TextEditInfoCache[] edits;
+
+  init(TextEditInfo[] edits) {
+    this.nextEditIndex = 0;
+    this.deltaOldToNewLineCount = 0;
+    this.deltaOldToNewColumnCount = 0;
+    this.deltaLineIndexInOld = -1;
+    this.edits = [];
+    int i = 0;
+    while (i < edits.length) {
+      this.edits.push(new TextEditInfoCache(edits[i]));
+      i = i + 1;
+    }
+  }
+
+  int translateOldToCurrent(LengthValue oldOffset) {
+    int column = oldOffset.columnCount;
+    if (oldOffset.lineCount == this.deltaLineIndexInOld) {
+      column = column + this.deltaOldToNewColumnCount;
+    }
+    return toLength(oldOffset.lineCount + this.deltaOldToNewLineCount, column);
+  }
+
+  int translateCurrentToOld(int newOffset) {
+    LengthValue offset = lengthToObj(newOffset);
+    int oldLine = offset.lineCount - this.deltaOldToNewLineCount;
+    int column = offset.columnCount;
+    if (oldLine == this.deltaLineIndexInOld) {
+      column = column - this.deltaOldToNewColumnCount;
+    }
+    return toLength(oldLine, column);
+  }
+
+  void adjustNextEdit(int offset) {
+    while (this.nextEditIndex < this.edits.length) {
+      TextEditInfoCache next = this.edits[this.nextEditIndex];
+      int endAfter = this.translateOldToCurrent(next.endOffsetAfterObj);
+      if (endAfter > offset) {
+        break;
+      }
+      this.nextEditIndex = this.nextEditIndex + 1;
+      LengthValue after = lengthToObj(endAfter);
+      LengthValue before = lengthToObj(this.translateOldToCurrent(next.endOffsetBeforeObj));
+      int lineDelta = after.lineCount - before.lineCount;
+      this.deltaOldToNewLineCount = this.deltaOldToNewLineCount + lineDelta;
+      int previousColumnDelta = 0;
+      if (this.deltaLineIndexInOld == next.endOffsetBeforeObj.lineCount) {
+        previousColumnDelta = this.deltaOldToNewColumnCount;
+      }
+      this.deltaOldToNewColumnCount = previousColumnDelta + after.columnCount - before.columnCount;
+      this.deltaLineIndexInOld = next.endOffsetBeforeObj.lineCount;
+    }
+  }
+
+  int getOffsetBeforeChange(int offset) {
+    this.adjustNextEdit(offset);
+    return this.translateCurrentToOld(offset);
+  }
+
+  int getDistanceToNextChange(int offset) {
+    this.adjustNextEdit(offset);
+    if (this.nextEditIndex >= this.edits.length) {
+      return -1;
+    }
+    int next = this.translateOldToCurrent(this.edits[this.nextEditIndex].offsetObj);
+    if (next <= offset) {
+      return 0;
+    }
+    int firstLine = offset / LengthFactor;
+    int secondLine = next / LengthFactor;
+    int secondColumn = next - secondLine * LengthFactor;
+    if (firstLine == secondLine) {
+      return toLength(0, secondColumn - (offset - firstLine * LengthFactor));
+    }
+    return toLength(secondLine - firstLine, secondColumn);
+  }
+}
+
+export TextEditInfo createTextEditInfo(int startOffset, int endOffset, int newLength) {
+  return new TextEditInfo(startOffset, endOffset, newLength);
+}
+
+export BeforeEditPositionMapper createBeforeEditPositionMapper(TextEditInfo[] edits) {
+  return new BeforeEditPositionMapper(edits);
+}

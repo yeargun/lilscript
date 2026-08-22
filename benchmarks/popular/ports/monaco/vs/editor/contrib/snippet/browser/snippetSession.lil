@@ -1,0 +1,204 @@
+export class SnippetRange {
+  int startLineNumber;
+  int startColumn;
+  int endLineNumber;
+  int endColumn;
+
+  init(int startLineNumber, int startColumn, int endLineNumber, int endColumn) {
+    this.startLineNumber = startLineNumber;
+    this.startColumn = startColumn;
+    this.endLineNumber = endLineNumber;
+    this.endColumn = endColumn;
+  }
+}
+
+export class OneSnippet {
+  string text;
+  SnippetRange[] tabstops;
+  int[] tabstopIndices;
+  int activeIndex;
+
+  init(string text) {
+    this.text = text;
+    this.tabstops = [];
+    this.tabstopIndices = [];
+    this.activeIndex = 0;
+  }
+
+  bool move(bool forward) {
+    if (this.tabstopIndices.length == 0) {
+      return false;
+    }
+    if (forward) {
+      this.activeIndex = this.activeIndex + 1;
+      if (this.activeIndex >= this.tabstopIndices.length) {
+        this.activeIndex = this.tabstopIndices.length - 1;
+        return false;
+      }
+    } else {
+      this.activeIndex = this.activeIndex - 1;
+      if (this.activeIndex < 0) {
+        this.activeIndex = 0;
+        return false;
+      }
+    }
+    return true;
+  }
+
+  SnippetRange? activeTabstop() {
+    if (this.activeIndex < 0 || this.activeIndex >= this.tabstops.length) {
+      return null;
+    }
+    return this.tabstops[this.activeIndex];
+  }
+
+  bool isAtFinalTabstop() {
+    if (this.tabstopIndices.length == 0) {
+      return true;
+    }
+    return this.tabstopIndices[this.activeIndex] == 0;
+  }
+}
+
+int parseIndex(string text) {
+  int n = 0;
+  int i = 0;
+  while (i < text.length) {
+    int c = text.charCodeAt(i);
+    if (c >= 48 && c <= 57) {
+      n = n * 10 + (c - 48);
+    }
+    i = i + 1;
+  }
+  return n;
+}
+
+export class SnippetSession {
+  OneSnippet[] snippets;
+  int snippetIndex;
+
+  init() {
+    this.snippets = [];
+    this.snippetIndex = 0;
+  }
+
+  OneSnippet insert(string template, int startLine, int startColumn) {
+    string text = "";
+    SnippetRange[] stops = [];
+    int[] indices = [];
+    int line = startLine;
+    int column = startColumn;
+    int i = 0;
+    while (i < template.length) {
+      string ch = template.charAt(i);
+      if (ch == "$" && i + 1 < template.length) {
+        int j = i + 1;
+        if (template.charAt(j) == "{") {
+          j = j + 1;
+          string num = "";
+          while (j < template.length) {
+            int code = template.charCodeAt(j);
+            if (code >= 48 && code <= 57) {
+              num = num + template.charAt(j);
+              j = j + 1;
+            } else {
+              break;
+            }
+          }
+          while (j < template.length && template.charAt(j) != "}") {
+            j = j + 1;
+          }
+          if (j < template.length && template.charAt(j) == "}") {
+            j = j + 1;
+          }
+          int index = parseIndex(num);
+          stops.push(new SnippetRange(line, column, line, column));
+          indices.push(index);
+          i = j;
+          continue;
+        }
+        string num = "";
+        while (j < template.length) {
+          int code = template.charCodeAt(j);
+          if (code >= 48 && code <= 57) {
+            num = num + template.charAt(j);
+            j = j + 1;
+          } else {
+            break;
+          }
+        }
+        if (num.length > 0) {
+          int index = parseIndex(num);
+          stops.push(new SnippetRange(line, column, line, column));
+          indices.push(index);
+          i = j;
+          continue;
+        }
+      }
+      if (ch == "\n") {
+        text = text + ch;
+        line = line + 1;
+        column = 1;
+      } else {
+        text = text + ch;
+        column = column + 1;
+      }
+      i = i + 1;
+    }
+    int a = 0;
+    while (a < indices.length) {
+      int b = a + 1;
+      while (b < indices.length) {
+        int ia = indices[a];
+        int ib = indices[b];
+        bool aFinal = ia == 0;
+        bool bFinal = ib == 0;
+        bool swap = false;
+        if (aFinal && !bFinal) {
+          swap = true;
+        } else if (!aFinal && !bFinal && ib < ia) {
+          swap = true;
+        }
+        if (swap) {
+          int ti = indices[a];
+          indices[a] = indices[b];
+          indices[b] = ti;
+          SnippetRange tr = stops[a];
+          stops[a] = stops[b];
+          stops[b] = tr;
+        }
+        b = b + 1;
+      }
+      a = a + 1;
+    }
+    OneSnippet snippet = new OneSnippet(text);
+    snippet.tabstops = stops;
+    snippet.tabstopIndices = indices;
+    snippet.activeIndex = 0;
+    this.snippets.push(snippet);
+    this.snippetIndex = this.snippets.length - 1;
+    return snippet;
+  }
+
+  bool next() {
+    if (this.snippets.length == 0) {
+      return false;
+    }
+    return this.snippets[this.snippetIndex].move(true);
+  }
+
+  bool prev() {
+    if (this.snippets.length == 0) {
+      return false;
+    }
+    return this.snippets[this.snippetIndex].move(false);
+  }
+
+  bool isInSnippet() {
+    return this.snippets.length > 0;
+  }
+}
+
+export SnippetSession createSnippetSession() {
+  return new SnippetSession();
+}

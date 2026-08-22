@@ -1,0 +1,72 @@
+export class StringSpliceable {
+  string[] elements;
+
+  init(string[] elements = []) {
+    this.elements = elements;
+  }
+
+  string[] splice(int start, int deleteCount, string[] inserted = []) {
+    int index = start;
+    if (index < 0) {
+      index = 0;
+    }
+    if (index > this.elements.length) {
+      index = this.elements.length;
+    }
+    int count = deleteCount;
+    if (count < 0) {
+      count = 0;
+    }
+    if (index + count > this.elements.length) {
+      count = this.elements.length - index;
+    }
+    string[] deleted = [];
+    string[] next = [];
+    int i = 0;
+    while (i < index) {
+      next.push(this.elements[i]);
+      i = i + 1;
+    }
+    i = index;
+    while (i < index + count) {
+      deleted.push(this.elements[i]);
+      i = i + 1;
+    }
+    i = 0;
+    while (i < inserted.length) {
+      next.push(inserted[i]);
+      i = i + 1;
+    }
+    i = index + count;
+    while (i < this.elements.length) {
+      next.push(this.elements[i]);
+      i = i + 1;
+    }
+    this.elements = next;
+    return deleted;
+  }
+}
+
+export class CombinedSpliceable {
+  StringSpliceable[] spliceables;
+
+  init(StringSpliceable[] spliceables = []) {
+    this.spliceables = spliceables;
+  }
+
+  void splice(int start, int deleteCount, string[] elements = []) {
+    int i = 0;
+    while (i < this.spliceables.length) {
+      this.spliceables[i].splice(start, deleteCount, elements);
+      i = i + 1;
+    }
+  }
+}
+
+export StringSpliceable createStringSpliceable(string[] elements) {
+  return new StringSpliceable(elements);
+}
+
+export CombinedSpliceable createCombinedSpliceable(StringSpliceable[] spliceables) {
+  return new CombinedSpliceable(spliceables);
+}

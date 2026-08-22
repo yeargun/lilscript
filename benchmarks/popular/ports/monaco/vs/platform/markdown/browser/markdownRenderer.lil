@@ -1,0 +1,64 @@
+export string escapeHtml(string text) {
+  string out = "";
+  int i = 0;
+  while (i < text.length) {
+    string ch = text.charAt(i);
+    if (ch == "<") {
+      out = out + "&lt;";
+    } else {
+      if (ch == ">") {
+        out = out + "&gt;";
+      } else {
+        if (ch == "&") {
+          out = out + "&amp;";
+        } else {
+          out = out + ch;
+        }
+      }
+    }
+    i = i + 1;
+  }
+  return out;
+}
+
+export string renderMarkdown(string source) {
+  string html = "";
+  int i = 0;
+  bool inCode = false;
+  while (i < source.length) {
+    if (i + 1 < source.length && source.charAt(i) == "`") {
+      if (inCode) {
+        html = html + "</code>";
+        inCode = false;
+      } else {
+        html = html + "<code>";
+        inCode = true;
+      }
+      i = i + 1;
+      continue;
+    }
+    html = html + escapeHtml(source.charAt(i));
+    i = i + 1;
+  }
+  if (inCode) {
+    html = html + "</code>";
+  }
+  return html;
+}
+
+export class MarkdownRenderer {
+  string lastHtml;
+
+  init() {
+    this.lastHtml = "";
+  }
+
+  string render(string source) {
+    this.lastHtml = renderMarkdown(source);
+    return this.lastHtml;
+  }
+}
+
+export MarkdownRenderer createMarkdownRenderer() {
+  return new MarkdownRenderer();
+}

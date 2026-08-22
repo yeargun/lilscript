@@ -1,0 +1,5 @@
+export string defaultQuickAccessPrefix = "";
+export string helpQuickAccessPrefix = "?";
+export string commandsQuickAccessPrefix = ">";
+export string gotoLinePrefix = ":";
+export string gotoSymbolPrefix = "@";

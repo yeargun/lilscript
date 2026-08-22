@@ -11,7 +11,9 @@ import {
   jsArrayLen,
   jsArrayAt,
   jsPropString,
-  emptyBuf
+  emptyBuf,
+  hostThen,
+  hostWorkbenchCommand
 } from "../js-host";
 import { EditorView } from "../editor/view";
 import { Pos } from "../base/position";
@@ -112,38 +114,42 @@ export void replaceAll(EditorView view) {
   view.render();
 }
 
-export void showSuggest(EditorView view) {
-  SuggestItem[] items = suggestAtModel(view.model, new Pos(view.selection.positionLineNumber, view.selection.positionColumn));
-  JsValue[] extra = providersFor("completion", view.languageId);
-  int p = 0;
-  while (p < extra.length) {
-    JsValue raw = invokeProvider(extra[p], "provideCompletionItems", view.modelFacade, record{
-      lineNumber: view.selection.positionLineNumber,
-      column: view.selection.positionColumn
-    }, jsUndefined());
-    SuggestItem[] more = suggestItemsFromJs(raw);
-    int m = 0;
-    while (m < more.length) {
-      items.push(more[m]);
-      m++;
-    }
-    p++;
+int suggestSeq = 0;
+
+void mergeSuggest(EditorView view, int gen, JsValue resolved) {
+  if (gen != suggestSeq) {
+    return;
   }
-  view.suggestItems = items;
-  view.suggestIndex = 0;
+  SuggestItem[] more = suggestItemsFromJs(resolved);
+  int m = 0;
+  while (m < more.length) {
+    view.suggestItems.push(more[m]);
+    m++;
+  }
+  paintSuggest(view);
+}
+
+void paintSuggest(EditorView view) {
+  SuggestItem[] items = view.suggestItems;
   view.suggestOpen = items.length > 0;
   if (!view.suggestOpen) {
     setDisplay(view.suggestWidget, "none");
     return;
   }
+  if (view.suggestIndex < 0) {
+    view.suggestIndex = 0;
+  }
+  if (view.suggestIndex >= items.length) {
+    view.suggestIndex = 0;
+  }
   string html = emptyBuf();
   int i = 0;
-  while (i < items.length && i < 12) {
+  while (i < items.length && i < 16) {
     string mark = "";
     if (i == view.suggestIndex) {
       mark = " background:#04395e;";
     }
-    html = html + "<div data-suggest=\"" + i.toString() + "\" style=\"padding:2px 6px;" + mark + "\">" + items[i].label + "</div>";
+    html = html + "<div class=\"monaco-list-row\" data-suggest=\"" + i.toString() + "\" style=\"padding:2px 6px;" + mark + "\">" + items[i].label + "</div>";
     i++;
   }
   setInnerHTML(view.suggestWidget, html);
@@ -152,6 +158,30 @@ export void showSuggest(EditorView view) {
   setStyle(view.suggestWidget, "top", top.toString() + "px");
   setStyle(view.suggestWidget, "left", left.toString() + "px");
   setDisplay(view.suggestWidget, "block");
+}
+
+export void showSuggest(EditorView view) {
+  SuggestItem[] items = suggestAtModel(view.model, new Pos(view.selection.positionLineNumber, view.selection.positionColumn));
+  view.suggestItems = items;
+  view.suggestIndex = 0;
+  paintSuggest(view);
+  JsValue[] extra = providersFor("completion", view.languageId);
+  if (extra.length == 0) {
+    return;
+  }
+  suggestSeq = suggestSeq + 1;
+  int gen = suggestSeq;
+  int p = 0;
+  while (p < extra.length) {
+    JsValue raw = invokeProvider(extra[p], "provideCompletionItems", view.modelFacade, record{
+      lineNumber: view.selection.positionLineNumber,
+      column: view.selection.positionColumn
+    }, jsUndefined());
+    hostThen(raw, (JsValue resolved) => {
+      mergeSuggest(view, gen, resolved);
+    });
+    p++;
+  }
 }
 
 export void hideSuggest(EditorView view) {
@@ -190,25 +220,33 @@ export void moveSuggest(EditorView view, int dir) {
   showSuggest(view);
 }
 
+void mergeHover(EditorView view, Pos pos, string text, JsValue resolved) {
+  string more = hoverFromJs(resolved);
+  if (more.length == 0) {
+    return;
+  }
+  string next = text;
+  if (next.length > 0) {
+    next = next + "\n";
+  }
+  paintHover(view, next + more, pos);
+}
+
+void paintHover(EditorView view, string text, Pos pos) {
+  view.hoverOpen = text.length > 0;
+  if (!view.hoverOpen) {
+    setDisplay(view.hoverWidget, "none");
+    return;
+  }
+  setTextContent(view.hoverWidget, text);
+  setStyle(view.hoverWidget, "top", ((pos.lineNumber) * view.lineHeight).toString() + "px");
+  setStyle(view.hoverWidget, "left", ((pos.column - 1) * view.charWidth + 56).toString() + "px");
+  setDisplay(view.hoverWidget, "block");
+}
+
 export void showHover(EditorView view) {
   Pos pos = new Pos(view.selection.positionLineNumber, view.selection.positionColumn);
   string text = hoverAtModel(view.model, pos);
-  JsValue[] extra = providersFor("hover", view.languageId);
-  int p = 0;
-  while (p < extra.length) {
-    JsValue raw = invokeProvider(extra[p], "provideHover", view.modelFacade, record{
-      lineNumber: pos.lineNumber,
-      column: pos.column
-    }, jsUndefined());
-    string more = hoverFromJs(raw);
-    if (more.length > 0) {
-      if (text.length > 0) {
-        text = text + "\n";
-      }
-      text = text + more;
-    }
-    p++;
-  }
   Marker[] marks = markersForModel(view.model);
   int m = 0;
   while (m < marks.length) {
@@ -220,15 +258,19 @@ export void showHover(EditorView view) {
     }
     m++;
   }
-  view.hoverOpen = text.length > 0;
-  if (!view.hoverOpen) {
-    setDisplay(view.hoverWidget, "none");
-    return;
+  paintHover(view, text, pos);
+  JsValue[] extra = providersFor("hover", view.languageId);
+  int p = 0;
+  while (p < extra.length) {
+    JsValue raw = invokeProvider(extra[p], "provideHover", view.modelFacade, record{
+      lineNumber: pos.lineNumber,
+      column: pos.column
+    }, jsUndefined());
+    hostThen(raw, (JsValue resolved) => {
+      mergeHover(view, pos, text, resolved);
+    });
+    p++;
   }
-  setTextContent(view.hoverWidget, text);
-  setStyle(view.hoverWidget, "top", ((pos.lineNumber) * view.lineHeight).toString() + "px");
-  setStyle(view.hoverWidget, "left", ((pos.column - 1) * view.charWidth + 56).toString() + "px");
-  setDisplay(view.hoverWidget, "block");
 }
 
 export void hideHover(EditorView view) {
@@ -288,16 +330,36 @@ export void acceptRename(EditorView view) {
   focusElement(view.textarea);
 }
 
+string contextItem(string cmd, string label, string keys) {
+  string kb = "";
+  if (keys.length > 0) {
+    kb = "<span class=\"keybinding\">" + keys + "</span>";
+  }
+  return "<div class=\"action-item\" data-cmd=\"" + cmd + "\"><span class=\"action-label\">" + label + "</span>" + kb + "</div>";
+}
+
 export void showContext(EditorView view, int x, int y) {
   view.contextOpen = true;
-  string html = "<div data-cmd=\"editor.action.clipboardCutAction\">Cut</div>";
-  html = html + "<div data-cmd=\"editor.action.clipboardCopyAction\">Copy</div>";
-  html = html + "<div data-cmd=\"editor.action.clipboardPasteAction\">Paste</div>";
-  html = html + "<div data-cmd=\"editor.action.commentLine\">Toggle Line Comment</div>";
-  html = html + "<div data-cmd=\"editor.action.formatDocument\">Format Document</div>";
-  html = html + "<div data-cmd=\"editor.action.rename\">Rename Symbol</div>";
-  html = html + "<div data-cmd=\"editor.action.goToDefinition\">Go to Definition</div>";
-  html = html + "<div data-cmd=\"editor.action.peekDefinition\">Peek References</div>";
+  string html = "<div class=\"monaco-menu\">";
+  html = html + contextItem("editor.action.goToDefinition", "Go to Definition", "⌘F12");
+  html = html + contextItem("editor.action.goToReferences", "Go to References", "⇧F12");
+  html = html + contextItem("editor.action.gotoSymbol", "Go to Symbol...", "⇧⌘O");
+  html = html + "<div class=\"action-item has-submenu\"><span class=\"action-label\">Peek</span><span class=\"submenu-hint\">▶</span>";
+  html = html + "<div class=\"submenu\">";
+  html = html + contextItem("editor.action.peekDefinition", "Peek Definition", "⌥F12");
+  html = html + contextItem("editor.action.referenceSearch.trigger", "Peek References", "⇧F12");
+  html = html + "</div></div>";
+  html = html + "<div class=\"separator\"></div>";
+  html = html + contextItem("editor.action.rename", "Rename Symbol", "F2");
+  html = html + contextItem("editor.action.changeAll", "Change All Occurrences", "⌘F2");
+  html = html + contextItem("editor.action.formatDocument", "Format Document", "⇧⌥F");
+  html = html + "<div class=\"separator\"></div>";
+  html = html + contextItem("editor.action.clipboardCutAction", "Cut", "");
+  html = html + contextItem("editor.action.clipboardCopyAction", "Copy", "");
+  html = html + contextItem("editor.action.clipboardPasteAction", "Paste", "");
+  html = html + "<div class=\"separator\"></div>";
+  html = html + contextItem("editor.action.quickCommand", "Command Palette", "F1");
+  html = html + "</div>";
   setInnerHTML(view.contextWidget, html);
   setStyle(view.contextWidget, "top", y.toString() + "px");
   setStyle(view.contextWidget, "left", x.toString() + "px");
@@ -331,6 +393,19 @@ export void hideParameterHints(EditorView view) {
   setDisplay(view.paramWidget, "none");
 }
 
+void applyDefinition(EditorView view, JsValue resolved) {
+  if (!resolved.truthy()) {
+    return;
+  }
+  JsValue loc = resolved;
+  if (resolved[0].truthy()) {
+    loc = resolved[0];
+  }
+  Rng r = rangeFromJs(loc);
+  setPosition(view, r.startLineNumber, r.startColumn);
+  view.render();
+}
+
 export void goToDefinition(EditorView view) {
   JsValue[] extra = providersFor("definition", view.languageId);
   if (extra.length > 0) {
@@ -338,16 +413,10 @@ export void goToDefinition(EditorView view) {
       lineNumber: view.selection.positionLineNumber,
       column: view.selection.positionColumn
     }, jsUndefined());
-    if (raw.truthy()) {
-      JsValue loc = raw;
-    if (raw[0].truthy()) {
-      loc = raw[0];
-    }
-    Rng r = rangeFromJs(loc);
-      setPosition(view, r.startLineNumber, r.startColumn);
-      view.render();
-      return;
-    }
+    hostThen(raw, (JsValue resolved) => {
+      applyDefinition(view, resolved);
+    });
+    return;
   }
   WordRange word = wordAt(view.model.getLineContent(view.selection.positionLineNumber), view.selection.positionColumn);
   FindMatch[] found = findInModel(view.model, word.word, false, true, true);
@@ -371,26 +440,41 @@ export void peekReferences(EditorView view) {
   view.hoverOpen = true;
 }
 
+void applyFormatResult(EditorView view, JsValue raw) {
+  int n = jsArrayLen(raw);
+  if (n == 0) {
+    view.model.setValue(formatValue(view.model.getValue()));
+    view.render();
+    return;
+  }
+  int i = n - 1;
+  while (i >= 0) {
+    JsValue row = jsArrayAt(raw, i);
+    Rng r = rangeFromJs(row);
+    string text = jsPropString(row, "text", "");
+    view.model.applyEdits([editOp(r.startLineNumber, r.startColumn, r.endLineNumber, r.endColumn, text)], true);
+    i--;
+  }
+  view.render();
+}
+
 export void formatDocument(EditorView view) {
   JsValue[] extra = providersFor("documentFormatting", view.languageId);
   if (extra.length > 0) {
-    JsValue raw = invokeProvider(extra[0], "provideDocumentFormattingEdits", view.modelFacade, jsUndefined(), jsUndefined());
-    int n = 0;
-    if (raw.truthy()) {
-      n = 1;
+    JsValue range = JS.object();
+    int last = view.model.getLineCount();
+    range["startLineNumber"] = 1;
+    range["startColumn"] = 1;
+    range["endLineNumber"] = last;
+    range["endColumn"] = view.model.getLineLength(last) + 1;
+    JsValue raw = invokeProvider(extra[0], "provideDocumentRangeFormattingEdits", view.modelFacade, range, jsUndefined());
+    if (!raw.truthy()) {
+      raw = invokeProvider(extra[0], "provideDocumentFormattingEdits", view.modelFacade, jsUndefined(), jsUndefined());
     }
-    if (n > 0 && raw[0].truthy()) {
-      string text = emptyBuf();
-      if (raw[0]["text"].truthy()) {
-        text = JS.string(raw[0]["text"]);
-      }
-      if (text.length > 0) {
-        int last = view.model.getLineCount();
-        view.model.applyEdits([editOp(1, 1, last, view.model.getLineLength(last) + 1, text)], true);
-        view.render();
-        return;
-      }
-    }
+    hostThen(raw, (JsValue resolved) => {
+      applyFormatResult(view, resolved);
+    });
+    return;
   }
   view.model.setValue(formatValue(view.model.getValue()));
   view.render();
@@ -592,7 +676,11 @@ export bool runEditorAction(EditorView view, string id, string text) {
     return true;
   }
   if (id == "editor.action.quickOutline" || id == "editor.action.gotoSymbol") {
-    peekReferences(view);
+    hostWorkbenchCommand("symbols");
+    return true;
+  }
+  if (id == "editor.action.quickCommand" || id == "workbench.action.showCommands") {
+    hostWorkbenchCommand("commands");
     return true;
   }
   if (id == "editor.action.marker.next" || id == "editor.action.gotoErrorNext" || id == "editor.action.marker.nextInFiles") {

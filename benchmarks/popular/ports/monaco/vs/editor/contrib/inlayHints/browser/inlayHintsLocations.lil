@@ -1,0 +1,110 @@
+
+export class TextRange {
+  int startLineNumber;
+  int startColumn;
+  int endLineNumber;
+  int endColumn;
+
+  init(int startLineNumber, int startColumn, int endLineNumber, int endColumn) {
+    this.startLineNumber = startLineNumber;
+    this.startColumn = startColumn;
+    this.endLineNumber = endLineNumber;
+    this.endColumn = endColumn;
+  }
+}
+
+export class TextPos {
+  int lineNumber;
+  int column;
+
+  init(int lineNumber, int column) {
+    this.lineNumber = lineNumber;
+    this.column = column;
+  }
+}
+
+bool posBefore(TextPos a, TextPos b) {
+  if (a.lineNumber < b.lineNumber) {
+    return true;
+  }
+  if (a.lineNumber > b.lineNumber) {
+    return false;
+  }
+  return a.column < b.column;
+}
+
+bool rangeContainsPos(TextRange range, int lineNumber, int column) {
+  if (lineNumber < range.startLineNumber || lineNumber > range.endLineNumber) {
+    return false;
+  }
+  if (lineNumber == range.startLineNumber && column < range.startColumn) {
+    return false;
+  }
+  if (lineNumber == range.endLineNumber && column > range.endColumn) {
+    return false;
+  }
+  return true;
+}
+
+export TextRange createTextRange(int startLine, int startColumn, int endLine, int endColumn) {
+  return new TextRange(startLine, startColumn, endLine, endColumn);
+}
+
+export TextPos createTextPos(int lineNumber, int column) {
+  return new TextPos(lineNumber, column);
+}
+
+export int INLAY_TYPE = 1;
+export int INLAY_PARAMETER = 2;
+
+export class InlayHint {
+  int lineNumber;
+  int column;
+  string label;
+  int kind;
+  bool paddingLeft;
+  bool paddingRight;
+
+  init(int lineNumber, int column, string label, int kind) {
+    this.lineNumber = lineNumber;
+    this.column = column;
+    this.label = label;
+    this.kind = kind;
+    this.paddingLeft = kind == INLAY_TYPE;
+    this.paddingRight = kind == INLAY_PARAMETER;
+  }
+}
+
+export InlayHint[] hintsInViewport(InlayHint[] all, int startLine, int endLine) {
+  InlayHint[] result = [];
+  int i = 0;
+  while (i < all.length) {
+    if (all[i].lineNumber >= startLine && all[i].lineNumber <= endLine) {
+      result.push(all[i]);
+    }
+    i = i + 1;
+  }
+  return result;
+}
+
+export class InlayHintsController {
+  bool enabled;
+  InlayHint[] hints;
+
+  init() {
+    this.enabled = true;
+    this.hints = [];
+  }
+
+  void toggle() {
+    this.enabled = !this.enabled;
+  }
+}
+
+export InlayHint createInlayHint(int lineNumber, int column, string label, int kind) {
+  return new InlayHint(lineNumber, column, label, kind);
+}
+
+export InlayHintsController createInlayHintsController() {
+  return new InlayHintsController();
+}

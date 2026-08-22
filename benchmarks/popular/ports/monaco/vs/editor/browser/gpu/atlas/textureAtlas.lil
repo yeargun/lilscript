@@ -1,0 +1,352 @@
+export int ATLAS_MAXIMUM_PAGE_COUNT = 16;
+export int LANGUAGEID_MASK = 255;
+export int TOKEN_TYPE_MASK = 768;
+export int BALANCED_BRACKETS_MASK = 1024;
+export int FOREGROUND_OFFSET = 15;
+export int FOREGROUND_MASK = 16744448;
+
+string charFromCode(int code) {
+  string printable = "!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~";
+  int index = code - 33;
+  if (index < 0 || index >= printable.length) {
+    return "";
+  }
+  return printable.charAt(index);
+}
+
+export class BoundingBox {
+  int left;
+  int top;
+  int right;
+  int bottom;
+
+  init(int left, int top, int right, int bottom) {
+    this.left = left;
+    this.top = top;
+    this.right = right;
+    this.bottom = bottom;
+  }
+}
+
+export class RasterizedGlyph {
+  BoundingBox boundingBox;
+  int originX;
+  int originY;
+  float ascent;
+  float descent;
+
+  init(int w, int h) {
+    this.boundingBox = new BoundingBox(0, 0, w - 1, h - 1);
+    this.originX = 0;
+    this.originY = 0;
+    this.ascent = h * 0.8;
+    this.descent = h * 0.2;
+  }
+}
+
+export class AtlasGlyph {
+  int pageIndex;
+  int glyphIndex;
+  int x;
+  int y;
+  int w;
+  int h;
+  string chars;
+  int tokenMetadata;
+  int decorationStyleSetId;
+  string cacheKey;
+  float fontBoundingBoxAscent;
+  float fontBoundingBoxDescent;
+
+  init(int pageIndex, int glyphIndex, int x, int y, int w, int h) {
+    this.pageIndex = pageIndex;
+    this.glyphIndex = glyphIndex;
+    this.x = x;
+    this.y = y;
+    this.w = w;
+    this.h = h;
+    this.chars = "";
+    this.tokenMetadata = 0;
+    this.decorationStyleSetId = 0;
+    this.cacheKey = "";
+    this.fontBoundingBoxAscent = 0.0;
+    this.fontBoundingBoxDescent = 0.0;
+  }
+}
+
+export class AtlasPage {
+  int index;
+  int pageSize;
+  AtlasGlyph[] glyphs;
+  int rowX;
+  int rowY;
+  int rowH;
+  int nextIndex;
+  int version;
+
+  init(int index, int pageSize) {
+    this.index = index;
+    this.pageSize = pageSize;
+    this.glyphs = [];
+    this.rowX = 0;
+    this.rowY = 0;
+    this.rowH = 0;
+    this.nextIndex = 0;
+    this.version = 0;
+  }
+
+  AtlasGlyph? find(string chars, int tokenMetadata, int decorationStyleSetId, string cacheKey) {
+    int i = 0;
+    while (i < this.glyphs.length) {
+      AtlasGlyph g = this.glyphs[i];
+      if (g.chars == chars && g.tokenMetadata == tokenMetadata && g.decorationStyleSetId == decorationStyleSetId && g.cacheKey == cacheKey) {
+        return g;
+      }
+      i = i + 1;
+    }
+    return null;
+  }
+
+  AtlasGlyph? allocate(RasterizedGlyph rasterized, string chars, int tokenMetadata, int decorationStyleSetId, string cacheKey) {
+    if (this.glyphs.length >= 5000) {
+      return null;
+    }
+    int w = rasterized.boundingBox.right - rasterized.boundingBox.left + 1;
+    int h = rasterized.boundingBox.bottom - rasterized.boundingBox.top + 1;
+    if (w > this.pageSize || h > this.pageSize) {
+      return null;
+    }
+    if (w > this.pageSize - this.rowX) {
+      this.rowX = 0;
+      this.rowY = this.rowY + this.rowH;
+      this.rowH = 1;
+    }
+    if (this.rowY + h > this.pageSize) {
+      return null;
+    }
+    AtlasGlyph glyph = new AtlasGlyph(this.index, this.nextIndex, this.rowX, this.rowY, w, h);
+    this.nextIndex = this.nextIndex + 1;
+    glyph.chars = chars;
+    glyph.tokenMetadata = tokenMetadata;
+    glyph.decorationStyleSetId = decorationStyleSetId;
+    glyph.cacheKey = cacheKey;
+    glyph.fontBoundingBoxAscent = rasterized.ascent;
+    glyph.fontBoundingBoxDescent = rasterized.descent;
+    this.rowX = this.rowX + w;
+    if (h > this.rowH) {
+      this.rowH = h;
+    }
+    this.glyphs.push(glyph);
+    this.version = this.version + 1;
+    return glyph;
+  }
+
+  void dispose() {
+    this.glyphs = [];
+    this.pageSize = 1;
+  }
+
+  string getStats() {
+    return "page" + this.index.toString() + " glyphs=" + this.glyphs.length.toString();
+  }
+}
+
+export class TextureAtlas {
+  int maxTextureSize;
+  int pageSize;
+  string allocatorType;
+  AtlasPage[] pages;
+  int[] glyphPageIndex;
+  string[] glyphPageKeys;
+  int[] warmedRasterizers;
+  string[] colorMap;
+  int deleteGeneration;
+
+  init(int maxTextureSize, float devicePixelRatio, string allocatorType) {
+    this.maxTextureSize = maxTextureSize;
+    int dprFactor = devicePixelRatio.floor().toInt();
+    if (dprFactor < 1) {
+      dprFactor = 1;
+    }
+    int size = 1024 * dprFactor;
+    if (size > maxTextureSize) {
+      size = maxTextureSize;
+    }
+    this.pageSize = size;
+    this.allocatorType = allocatorType;
+    this.pages = [];
+    this.glyphPageIndex = [];
+    this.glyphPageKeys = [];
+    this.warmedRasterizers = [];
+    this.colorMap = [];
+    this.deleteGeneration = 0;
+    this.initFirstPage();
+  }
+
+  void initFirstPage() {
+    AtlasPage first = new AtlasPage(0, this.pageSize);
+    this.pages.push(first);
+    RasterizedGlyph empty = new RasterizedGlyph(0, 0);
+    empty.boundingBox = new BoundingBox(0, 0, -1, -1);
+    first.allocate(empty, "", 0, 0, "_null");
+  }
+
+  void clear() {
+    int i = 0;
+    while (i < this.pages.length) {
+      this.pages[i].dispose();
+      i = i + 1;
+    }
+    this.pages = [];
+    this.glyphPageIndex = [];
+    this.glyphPageKeys = [];
+    this.warmedRasterizers = [];
+    this.initFirstPage();
+    this.deleteGeneration = this.deleteGeneration + 1;
+  }
+
+  int sanitizeTokenMetadata(int tokenMetadata, float x) {
+    int mask = LANGUAGEID_MASK | TOKEN_TYPE_MASK | BALANCED_BRACKETS_MASK;
+    int cleaned = tokenMetadata ^ (tokenMetadata & mask);
+    float frac = x - x.floor();
+    int subpixel = (frac * 10.0).floor().toInt();
+    return cleaned | subpixel;
+  }
+
+  string glyphLookupKey(string chars, int tokenMetadata, int decorationStyleSetId, string cacheKey) {
+    return chars + "/" + tokenMetadata.toString() + "/" + decorationStyleSetId.toString() + "/" + cacheKey;
+  }
+
+  int pageIndexForKey(string key) {
+    int i = 0;
+    while (i < this.glyphPageKeys.length) {
+      if (this.glyphPageKeys[i] == key) {
+        return this.glyphPageIndex[i];
+      }
+      i = i + 1;
+    }
+    return 0;
+  }
+
+  void setPageIndexForKey(string key, int pageIndex) {
+    int i = 0;
+    while (i < this.glyphPageKeys.length) {
+      if (this.glyphPageKeys[i] == key) {
+        this.glyphPageIndex[i] = pageIndex;
+        return;
+      }
+      i = i + 1;
+    }
+    this.glyphPageKeys.push(key);
+    this.glyphPageIndex.push(pageIndex);
+  }
+
+  AtlasGlyph? getGlyphFromNewPage(RasterizedGlyph rasterized, string chars, int tokenMetadata, int decorationStyleSetId, string cacheKey) {
+    if (this.pages.length >= ATLAS_MAXIMUM_PAGE_COUNT) {
+      throw "Attempt to create a texture atlas page past the limit 16";
+    }
+    AtlasPage page = new AtlasPage(this.pages.length, this.pageSize);
+    this.pages.push(page);
+    this.setPageIndexForKey(this.glyphLookupKey(chars, tokenMetadata, decorationStyleSetId, cacheKey), this.pages.length - 1);
+    return page.allocate(rasterized, chars, tokenMetadata, decorationStyleSetId, cacheKey);
+  }
+
+  AtlasGlyph? tryGetGlyph(int pageIndex, RasterizedGlyph rasterized, string chars, int tokenMetadata, int decorationStyleSetId, string cacheKey) {
+    this.setPageIndexForKey(this.glyphLookupKey(chars, tokenMetadata, decorationStyleSetId, cacheKey), pageIndex);
+    if (pageIndex < 0 || pageIndex >= this.pages.length) {
+      return this.getGlyphFromNewPage(rasterized, chars, tokenMetadata, decorationStyleSetId, cacheKey);
+    }
+    AtlasPage page = this.pages[pageIndex];
+    AtlasGlyph? existing = page.find(chars, tokenMetadata, decorationStyleSetId, cacheKey);
+    if (existing != null) {
+      return existing;
+    }
+    AtlasGlyph? allocated = page.allocate(rasterized, chars, tokenMetadata, decorationStyleSetId, cacheKey);
+    if (allocated != null) {
+      return allocated;
+    }
+    if (pageIndex + 1 < this.pages.length) {
+      return this.tryGetGlyph(pageIndex + 1, rasterized, chars, tokenMetadata, decorationStyleSetId, cacheKey);
+    }
+    return this.getGlyphFromNewPage(rasterized, chars, tokenMetadata, decorationStyleSetId, cacheKey);
+  }
+
+  bool hasWarmed(int rasterizerId) {
+    int i = 0;
+    while (i < this.warmedRasterizers.length) {
+      if (this.warmedRasterizers[i] == rasterizerId) {
+        return true;
+      }
+      i = i + 1;
+    }
+    return false;
+  }
+
+  void warmUpAtlas(int rasterizerId, string cacheKey, int glyphW, int glyphH) {
+    int colorCount = this.colorMap.length;
+    if (colorCount < 1) {
+      colorCount = 1;
+    }
+    int code = 65;
+    while (code <= 90) {
+      int fg = 0;
+      while (fg < colorCount) {
+        int token = (fg << FOREGROUND_OFFSET) & FOREGROUND_MASK;
+        string ch = charFromCode(code);
+        RasterizedGlyph rasterized = new RasterizedGlyph(glyphW, glyphH);
+        this.getGlyph(rasterizerId, cacheKey, rasterized, ch, token, 0, 0.0);
+        fg = fg + 1;
+      }
+      code = code + 1;
+    }
+    code = 97;
+    while (code <= 122) {
+      int fg = 0;
+      while (fg < colorCount) {
+        int token = (fg << FOREGROUND_OFFSET) & FOREGROUND_MASK;
+        string ch = charFromCode(code);
+        RasterizedGlyph rasterized = new RasterizedGlyph(glyphW, glyphH);
+        this.getGlyph(rasterizerId, cacheKey, rasterized, ch, token, 0, 0.0);
+        fg = fg + 1;
+      }
+      code = code + 1;
+    }
+    code = 33;
+    while (code <= 126) {
+      int fg = 0;
+      while (fg < colorCount) {
+        int token = (fg << FOREGROUND_OFFSET) & FOREGROUND_MASK;
+        string ch = charFromCode(code);
+        RasterizedGlyph rasterized = new RasterizedGlyph(glyphW, glyphH);
+        this.getGlyph(rasterizerId, cacheKey, rasterized, ch, token, 0, 0.0);
+        fg = fg + 1;
+      }
+      code = code + 1;
+    }
+  }
+
+  AtlasGlyph? getGlyph(int rasterizerId, string cacheKey, RasterizedGlyph rasterized, string chars, int tokenMetadata, int decorationStyleSetId, float x) {
+    int sanitized = this.sanitizeTokenMetadata(tokenMetadata, x);
+    if (!this.hasWarmed(rasterizerId)) {
+      this.warmedRasterizers.push(rasterizerId);
+      this.warmUpAtlas(rasterizerId, cacheKey, rasterized.boundingBox.right - rasterized.boundingBox.left + 1, rasterized.boundingBox.bottom - rasterized.boundingBox.top + 1);
+    }
+    string key = this.glyphLookupKey(chars, sanitized, decorationStyleSetId, cacheKey);
+    int pageIndex = this.pageIndexForKey(key);
+    return this.tryGetGlyph(pageIndex, rasterized, chars, sanitized, decorationStyleSetId, cacheKey);
+  }
+
+  string[] getStats() {
+    string[] stats = [];
+    int i = 0;
+    while (i < this.pages.length) {
+      stats.push(this.pages[i].getStats());
+      i = i + 1;
+    }
+    return stats;
+  }
+}
+
+export TextureAtlas createTextureAtlas(int maxTextureSize, float devicePixelRatio, string allocatorType = "slab") {
+  return new TextureAtlas(maxTextureSize, devicePixelRatio, allocatorType);
+}

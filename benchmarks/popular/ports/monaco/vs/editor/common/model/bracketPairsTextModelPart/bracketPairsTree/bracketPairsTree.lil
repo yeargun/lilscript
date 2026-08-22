@@ -1,0 +1,479 @@
+export class Position {
+  int lineNumber;
+  int column;
+
+  init(int lineNumber, int column) {
+    this.lineNumber = lineNumber;
+    this.column = column;
+  }
+}
+
+export class Range {
+  int startLineNumber;
+  int startColumn;
+  int endLineNumber;
+  int endColumn;
+
+  init(int startLineNumber, int startColumn, int endLineNumber, int endColumn) {
+    this.startLineNumber = startLineNumber;
+    this.startColumn = startColumn;
+    this.endLineNumber = endLineNumber;
+    this.endColumn = endColumn;
+  }
+}
+
+export class BracketRule {
+  string text;
+  int id;
+  int[] closesIds;
+  bool opening;
+
+  init(string text, int id, int[] closesIds, bool opening) {
+    this.text = text;
+    this.id = id;
+    this.closesIds = closesIds;
+    this.opening = opening;
+  }
+}
+
+export class BracketInfo {
+  string bracketText;
+  Range range;
+  int nestingLevel;
+  int nestingLevelOfEqualBracketType;
+  bool isInvalid;
+
+  init(
+    string bracketText,
+    Range range,
+    int nestingLevel,
+    int nestingLevelOfEqualBracketType,
+    bool isInvalid
+  ) {
+    this.bracketText = bracketText;
+    this.range = range;
+    this.nestingLevel = nestingLevel;
+    this.nestingLevelOfEqualBracketType = nestingLevelOfEqualBracketType;
+    this.isInvalid = isInvalid;
+  }
+}
+
+export class BracketPairInfo {
+  Range range;
+  Range openingBracketRange;
+  Range? closingBracketRange;
+  int nestingLevel;
+  int nestingLevelOfEqualBracketType;
+  int minVisibleColumnIndentation;
+
+  init(
+    Range range,
+    Range openingBracketRange,
+    Range? closingBracketRange,
+    int nestingLevel,
+    int nestingLevelOfEqualBracketType,
+    int minVisibleColumnIndentation
+  ) {
+    this.range = range;
+    this.openingBracketRange = openingBracketRange;
+    this.closingBracketRange = closingBracketRange;
+    this.nestingLevel = nestingLevel;
+    this.nestingLevelOfEqualBracketType = nestingLevelOfEqualBracketType;
+    this.minVisibleColumnIndentation = minVisibleColumnIndentation;
+  }
+}
+
+class StackEntry {
+  int ruleId;
+  int bracketIndex;
+  int startOffset;
+  int level;
+  int equalLevel;
+
+  init(int ruleId, int bracketIndex, int startOffset, int level, int equalLevel) {
+    this.ruleId = ruleId;
+    this.bracketIndex = bracketIndex;
+    this.startOffset = startOffset;
+    this.level = level;
+    this.equalLevel = equalLevel;
+  }
+}
+
+class PairOffsets {
+  int startOffset;
+  int openEndOffset;
+  int closeStartOffset;
+  int endOffset;
+  int level;
+  int equalLevel;
+
+  init(
+    int startOffset,
+    int openEndOffset,
+    int closeStartOffset,
+    int endOffset,
+    int level,
+    int equalLevel
+  ) {
+    this.startOffset = startOffset;
+    this.openEndOffset = openEndOffset;
+    this.closeStartOffset = closeStartOffset;
+    this.endOffset = endOffset;
+    this.level = level;
+    this.equalLevel = equalLevel;
+  }
+}
+
+Range offsetRange(string text, int startOffset, int endOffset) {
+  int startLine = 1;
+  int startColumn = 1;
+  int endLine = 1;
+  int endColumn = 1;
+  int line = 1;
+  int column = 1;
+  int i = 0;
+  while (i < endOffset) {
+    if (i == startOffset) {
+      startLine = line;
+      startColumn = column;
+    }
+    int code = text.charCodeAt(i);
+    if (code == 13) {
+      if (i + 1 < endOffset && text.charCodeAt(i + 1) == 10) {
+        i = i + 1;
+      }
+      line = line + 1;
+      column = 1;
+    } else if (code == 10) {
+      line = line + 1;
+      column = 1;
+    } else {
+      column = column + 1;
+    }
+    i = i + 1;
+  }
+  if (startOffset == endOffset) {
+    startLine = line;
+    startColumn = column;
+  }
+  endLine = line;
+  endColumn = column;
+  return new Range(startLine, startColumn, endLine, endColumn);
+}
+
+int positionOffset(string text, Position position) {
+  int line = 1;
+  int column = 1;
+  int i = 0;
+  while (i < text.length) {
+    if (line == position.lineNumber && column == position.column) {
+      return i;
+    }
+    int code = text.charCodeAt(i);
+    if (code == 13 || code == 10) {
+      if (code == 13 && i + 1 < text.length && text.charCodeAt(i + 1) == 10) {
+        i = i + 1;
+      }
+      line = line + 1;
+      column = 1;
+    } else {
+      column = column + 1;
+    }
+    i = i + 1;
+  }
+  return text.length;
+}
+
+bool rangeIntersects(Range first, Range second) {
+  if (first.endLineNumber < second.startLineNumber) {
+    return false;
+  }
+  if (
+    first.endLineNumber == second.startLineNumber
+    && first.endColumn < second.startColumn
+  ) {
+    return false;
+  }
+  if (second.endLineNumber < first.startLineNumber) {
+    return false;
+  }
+  if (
+    second.endLineNumber == first.startLineNumber
+    && second.endColumn < first.startColumn
+  ) {
+    return false;
+  }
+  return true;
+}
+
+export class BracketPairsTree {
+  string text;
+  BracketRule[] rules;
+  BracketInfo[] brackets;
+  PairOffsets[] pairs;
+
+  init(string text, BracketRule[] rules) {
+    this.text = text;
+    this.rules = rules;
+    this.brackets = [];
+    this.pairs = [];
+    this.parse();
+  }
+
+  BracketRule? ruleAt(int offset) {
+    BracketRule? result = null;
+    int bestLength = -1;
+    int i = 0;
+    while (i < this.rules.length) {
+      BracketRule rule = this.rules[i];
+      if (offset + rule.text.length <= this.text.length && rule.text.length > bestLength) {
+        int j = 0;
+        bool equal = true;
+        while (j < rule.text.length && equal) {
+          if (
+            this.text.charAt(offset + j).toLowerCase()
+            != rule.text.charAt(j).toLowerCase()
+          ) {
+            equal = false;
+          }
+          j = j + 1;
+        }
+        if (equal) {
+          result = rule;
+          bestLength = rule.text.length;
+        }
+      }
+      i = i + 1;
+    }
+    return result;
+  }
+
+  int equalNestingLevel(StackEntry[] stack, int id) {
+    int result = 0;
+    int i = 0;
+    while (i < stack.length) {
+      if (stack[i].ruleId == id) {
+        result = result + 1;
+      }
+      i = i + 1;
+    }
+    return result;
+  }
+
+  void parse() {
+    this.brackets = [];
+    this.pairs = [];
+    StackEntry[] stack = [];
+    int i = 0;
+    while (i < this.text.length) {
+      BracketRule? rule = this.ruleAt(i);
+      if (rule == null) {
+        i = i + 1;
+      } else {
+        int end = i + rule.text.length;
+        if (rule.opening) {
+          int level = stack.length;
+          int equalLevel = this.equalNestingLevel(stack, rule.id);
+          int bracketIndex = this.brackets.length;
+          this.brackets.push(
+            new BracketInfo(rule.text, offsetRange(this.text, i, end), level, equalLevel, false)
+          );
+          stack.push(new StackEntry(rule.id, bracketIndex, i, level, equalLevel));
+        } else {
+          int top = stack.length - 1;
+          if (top >= 0 && rule.closesIds.indexOf(stack[top].ruleId) >= 0) {
+            StackEntry opening = stack[top];
+            stack.splice(top, 1);
+            this.brackets.push(
+              new BracketInfo(
+                rule.text,
+                offsetRange(this.text, i, end),
+                opening.level,
+                opening.equalLevel,
+                false
+              )
+            );
+            BracketInfo openingInfo = this.brackets[opening.bracketIndex];
+            this.pairs.push(
+              new PairOffsets(
+                opening.startOffset,
+                positionOffset(
+                  this.text,
+                  new Position(openingInfo.range.endLineNumber, openingInfo.range.endColumn)
+                ),
+                i,
+                end,
+                opening.level,
+                opening.equalLevel
+              )
+            );
+          } else {
+            this.brackets.push(
+              new BracketInfo(rule.text, offsetRange(this.text, i, end), stack.length, 0, true)
+            );
+          }
+        }
+        i = end;
+      }
+    }
+    int s = 0;
+    while (s < stack.length) {
+      StackEntry opening = stack[s];
+      BracketInfo openingInfo = this.brackets[opening.bracketIndex];
+      this.pairs.push(
+        new PairOffsets(
+          opening.startOffset,
+          positionOffset(
+            this.text,
+            new Position(openingInfo.range.endLineNumber, openingInfo.range.endColumn)
+          ),
+          -1,
+          this.text.length,
+          opening.level,
+          opening.equalLevel
+        )
+      );
+      s = s + 1;
+    }
+  }
+
+  void handleContentChanged(string nextText) {
+    this.text = nextText;
+    this.parse();
+  }
+
+  bool didLanguageChange(string languageId) {
+    return false;
+  }
+
+  BracketInfo[] getBracketsInRange(Range range, bool onlyColorizedBrackets) {
+    BracketInfo[] result = [];
+    int i = 0;
+    while (i < this.brackets.length) {
+      BracketInfo bracket = this.brackets[i];
+      if (rangeIntersects(bracket.range, range)) {
+        result.push(bracket);
+      }
+      i = i + 1;
+    }
+    return result;
+  }
+
+  BracketPairInfo[] getBracketPairsInRange(Range range, bool includeMinIndentation) {
+    BracketPairInfo[] result = [];
+    int i = 0;
+    while (i < this.pairs.length) {
+      PairOffsets pair = this.pairs[i];
+      Range pairRange = offsetRange(this.text, pair.startOffset, pair.endOffset);
+      if (rangeIntersects(pairRange, range)) {
+        Range openingRange = offsetRange(this.text, pair.startOffset, pair.openEndOffset);
+        Range? closingRange = null;
+        if (pair.closeStartOffset >= 0) {
+          closingRange = offsetRange(this.text, pair.closeStartOffset, pair.endOffset);
+        }
+        int indentation = -1;
+        if (includeMinIndentation) {
+          indentation = this.computeMinIndentation(pair.openEndOffset, pair.endOffset);
+        }
+        result.push(
+          new BracketPairInfo(
+            pairRange,
+            openingRange,
+            closingRange,
+            pair.level,
+            pair.equalLevel,
+            indentation
+          )
+        );
+      }
+      i = i + 1;
+    }
+    return result;
+  }
+
+  int computeMinIndentation(int startOffset, int endOffset) {
+    int minimum = -1;
+    int indentation = 0;
+    bool atLineStart = false;
+    int i = startOffset;
+    while (i < endOffset) {
+      int code = this.text.charCodeAt(i);
+      if (code == 10 || code == 13) {
+        atLineStart = true;
+        indentation = 0;
+      } else if (atLineStart && (code == 32 || code == 9)) {
+        if (code == 9) {
+          indentation = indentation + 4;
+        } else {
+          indentation = indentation + 1;
+        }
+      } else if (atLineStart) {
+        if (minimum < 0 || indentation < minimum) {
+          minimum = indentation;
+        }
+        atLineStart = false;
+      }
+      i = i + 1;
+    }
+    return minimum;
+  }
+
+  BracketInfo? getFirstBracketAfter(Position position) {
+    int offset = positionOffset(this.text, position);
+    int i = 0;
+    while (i < this.brackets.length) {
+      BracketInfo bracket = this.brackets[i];
+      int bracketOffset = positionOffset(
+        this.text,
+        new Position(bracket.range.startLineNumber, bracket.range.startColumn)
+      );
+      if (bracketOffset >= offset && !bracket.isInvalid) {
+        return bracket;
+      }
+      i = i + 1;
+    }
+    return null;
+  }
+
+  BracketInfo? getFirstBracketBefore(Position position) {
+    int offset = positionOffset(this.text, position);
+    int i = this.brackets.length - 1;
+    while (i >= 0) {
+      BracketInfo bracket = this.brackets[i];
+      int bracketOffset = positionOffset(
+        this.text,
+        new Position(bracket.range.startLineNumber, bracket.range.startColumn)
+      );
+      if (bracketOffset < offset && !bracket.isInvalid) {
+        return bracket;
+      }
+      i = i - 1;
+    }
+    return null;
+  }
+}
+
+export BracketRule createOpeningBracketRule(string text, int id) {
+  return new BracketRule(text, id, [id], true);
+}
+
+export BracketRule createClosingBracketRule(string text, int[] closesIds) {
+  int id = -1;
+  if (closesIds.length > 0) {
+    id = closesIds[0];
+  }
+  return new BracketRule(text, id, closesIds, false);
+}
+
+export BracketPairsTree createBracketPairsTree(string text, BracketRule[] rules) {
+  return new BracketPairsTree(text, rules);
+}
+
+export Range createBracketRange(
+  int startLineNumber,
+  int startColumn,
+  int endLineNumber,
+  int endColumn
+) {
+  return new Range(startLineNumber, startColumn, endLineNumber, endColumn);
+}

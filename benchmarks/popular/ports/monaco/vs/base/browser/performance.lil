@@ -1,0 +1,167 @@
+import { dateNow } from "../../../js-host";
+
+export class CumulativeMeasurement {
+  float total;
+  float minimum;
+  float maximum;
+
+  init() {
+    this.total = 0.0;
+    this.minimum = 9007199254740991.0;
+    this.maximum = 0.0;
+  }
+
+  void add(float duration) {
+    this.total = this.total + duration;
+    if (duration < this.minimum) {
+      this.minimum = duration;
+    }
+    if (duration > this.maximum) {
+      this.maximum = duration;
+    }
+  }
+
+  void clear() {
+    this.total = 0.0;
+    this.minimum = 9007199254740991.0;
+    this.maximum = 0.0;
+  }
+}
+
+export class InputLatency {
+  int keydownState;
+  int inputState;
+  int renderState;
+  float totalStart;
+  float keydownStart;
+  float keydownEnd;
+  float inputStart;
+  float inputEnd;
+  float renderStart;
+  float renderEnd;
+  int measurementsCount;
+  int sampleCount;
+  CumulativeMeasurement keydown;
+  CumulativeMeasurement input;
+  CumulativeMeasurement render;
+  CumulativeMeasurement total;
+
+  init() {
+    this.keydownState = 0;
+    this.inputState = 0;
+    this.renderState = 0;
+    this.totalStart = 0.0;
+    this.keydownStart = 0.0;
+    this.keydownEnd = 0.0;
+    this.inputStart = 0.0;
+    this.inputEnd = 0.0;
+    this.renderStart = 0.0;
+    this.renderEnd = 0.0;
+    this.measurementsCount = 0;
+    this.sampleCount = 0;
+    this.keydown = new CumulativeMeasurement();
+    this.input = new CumulativeMeasurement();
+    this.render = new CumulativeMeasurement();
+    this.total = new CumulativeMeasurement();
+  }
+
+  void onKeyDown() {
+    this.recordIfFinished();
+    float now = dateNow();
+    this.totalStart = now;
+    this.keydownStart = now;
+    this.keydownState = 1;
+  }
+
+  void markKeyDownEnd() {
+    if (this.keydownState == 1) {
+      this.keydownEnd = dateNow();
+      this.keydownState = 2;
+    }
+  }
+
+  void onBeforeInput() {
+    this.inputStart = dateNow();
+    this.inputState = 1;
+  }
+
+  void onInput() {
+    if (this.inputState == 0) {
+      this.onBeforeInput();
+    }
+    this.inputEnd = dateNow();
+    this.inputState = 2;
+  }
+
+  void onKeyUp() {
+    this.markKeyDownEnd();
+    this.recordIfFinished();
+  }
+
+  void onSelectionChange() {
+    this.recordIfFinished();
+  }
+
+  void onRenderStart() {
+    if (this.keydownState == 2 && this.inputState == 2 && this.renderState == 0) {
+      this.renderStart = dateNow();
+      this.renderState = 1;
+    }
+  }
+
+  void markRenderEnd() {
+    if (this.renderState == 1) {
+      this.renderEnd = dateNow();
+      this.renderState = 2;
+      this.recordIfFinished();
+    }
+  }
+
+  void recordIfFinished() {
+    if (this.keydownState != 2 || this.inputState != 2 || this.renderState != 2) {
+      return;
+    }
+    float now = dateNow();
+    this.keydown.add(this.keydownEnd - this.keydownStart);
+    this.input.add(this.inputEnd - this.inputStart);
+    this.render.add(this.renderEnd - this.renderStart);
+    this.total.add(now - this.totalStart);
+    this.measurementsCount = this.measurementsCount + 1;
+    this.sampleCount = this.sampleCount + 1;
+    this.reset();
+  }
+
+  void reset() {
+    this.keydownState = 0;
+    this.inputState = 0;
+    this.renderState = 0;
+  }
+
+  JsValue getAndClearMeasurements() {
+    JsValue result = JS.object();
+    if (this.measurementsCount == 0) {
+      return result;
+    }
+    result["sampleCount"] = this.measurementsCount;
+    result["keydown"] = this.finalMeasurement(this.keydown);
+    result["input"] = this.finalMeasurement(this.input);
+    result["render"] = this.finalMeasurement(this.render);
+    result["total"] = this.finalMeasurement(this.total);
+    this.keydown.clear();
+    this.input.clear();
+    this.render.clear();
+    this.total.clear();
+    this.measurementsCount = 0;
+    return result;
+  }
+
+  JsValue finalMeasurement(CumulativeMeasurement value) {
+    JsValue result = JS.object();
+    result["average"] = value.total / (this.measurementsCount * 1.0);
+    result["min"] = value.minimum;
+    result["max"] = value.maximum;
+    return result;
+  }
+}
+
+export InputLatency inputLatency = new InputLatency();

@@ -1,0 +1,71 @@
+export class ViewportRange {
+  int startLineNumber;
+  int startColumn;
+  int endLineNumber;
+  int endColumn;
+
+  init(int startLineNumber, int startColumn, int endLineNumber, int endColumn) {
+    this.startLineNumber = startLineNumber;
+    this.startColumn = startColumn;
+    this.endLineNumber = endLineNumber;
+    this.endColumn = endColumn;
+  }
+}
+
+export class PartialViewportData {
+  int startLineNumber;
+  int endLineNumber;
+  int[] relativeVerticalOffset;
+  int bigNumbersDelta;
+  int lineHeight;
+
+  init(int startLineNumber, int endLineNumber, int[] relativeVerticalOffset, int bigNumbersDelta, int lineHeight) {
+    this.startLineNumber = startLineNumber;
+    this.endLineNumber = endLineNumber;
+    this.relativeVerticalOffset = relativeVerticalOffset;
+    this.bigNumbersDelta = bigNumbersDelta;
+    this.lineHeight = lineHeight;
+  }
+}
+
+export class ViewportData {
+  ViewportRange[] selections;
+  int startLineNumber;
+  int endLineNumber;
+  int[] relativeVerticalOffset;
+  int bigNumbersDelta;
+  int lineHeight;
+  int[] whitespaceViewportData;
+  ViewportRange visibleRange;
+  func(int)->string getRenderingData;
+  func(ViewportRange)->string[] getDecorations;
+
+  init(ViewportRange[] selections, PartialViewportData partialData, int[] whitespaceViewportData, int startColumn, int endColumn, func(int)->string getRenderingData, func(ViewportRange)->string[] getDecorations) {
+    this.selections = selections;
+    this.startLineNumber = partialData.startLineNumber;
+    this.endLineNumber = partialData.endLineNumber;
+    this.relativeVerticalOffset = partialData.relativeVerticalOffset;
+    this.bigNumbersDelta = partialData.bigNumbersDelta;
+    this.lineHeight = partialData.lineHeight;
+    this.whitespaceViewportData = whitespaceViewportData;
+    this.visibleRange = new ViewportRange(partialData.startLineNumber, startColumn, partialData.endLineNumber, endColumn);
+    this.getRenderingData = getRenderingData;
+    this.getDecorations = getDecorations;
+  }
+
+  string getViewLineRenderingData(int lineNumber) {
+    return this.getRenderingData(lineNumber);
+  }
+
+  string[] getDecorationsInViewport() {
+    return this.getDecorations(this.visibleRange);
+  }
+}
+
+export PartialViewportData createPartialViewportData(int startLineNumber, int endLineNumber, int[] relativeVerticalOffset, int bigNumbersDelta, int lineHeight) {
+  return new PartialViewportData(startLineNumber, endLineNumber, relativeVerticalOffset, bigNumbersDelta, lineHeight);
+}
+
+export ViewportData createViewportData(ViewportRange[] selections, PartialViewportData partialData, int[] whitespaceViewportData, int startColumn, int endColumn, func(int)->string getRenderingData, func(ViewportRange)->string[] getDecorations) {
+  return new ViewportData(selections, partialData, whitespaceViewportData, startColumn, endColumn, getRenderingData, getDecorations);
+}

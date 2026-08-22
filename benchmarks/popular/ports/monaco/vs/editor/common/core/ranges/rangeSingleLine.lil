@@ -1,0 +1,11 @@
+import { ColumnRange } from "./columnRange";
+
+export class RangeSingleLine {
+  int lineNumber;
+  ColumnRange columnRange;
+
+  init(int lineNumber, ColumnRange columnRange) {
+    this.lineNumber = lineNumber;
+    this.columnRange = columnRange;
+  }
+}

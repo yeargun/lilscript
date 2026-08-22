@@ -1,0 +1,17 @@
+export enum CursorChangeReason {
+  NotSet,
+  ContentFlush,
+  RecoverFromMarkers,
+  Explicit,
+  Paste,
+  Undo,
+  Redo
+}
+
+export bool cursorChangeReasonIsHistory(CursorChangeReason reason) {
+  return reason == CursorChangeReason.Undo || reason == CursorChangeReason.Redo;
+}
+
+export bool cursorChangeReasonIsUserInput(CursorChangeReason reason) {
+  return reason == CursorChangeReason.Explicit || reason == CursorChangeReason.Paste;
+}

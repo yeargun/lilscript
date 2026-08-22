@@ -1,0 +1,22 @@
+export class MemoTable {
+  Map<string, JsValue> values;
+
+  init() {
+    this.values = new Map();
+  }
+
+  JsValue remember(string key, func()->JsValue compute) {
+    JsValue? existing = this.values.get(key);
+    if (existing != null) {
+      JsValue hit = existing;
+      return hit;
+    }
+    JsValue created = compute();
+    this.values.set(key, created);
+    return created;
+  }
+}
+
+export string memoizeKey(string key) {
+  return "$memoize$" + key;
+}

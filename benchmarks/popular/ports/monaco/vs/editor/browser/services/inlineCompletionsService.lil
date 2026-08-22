@@ -1,0 +1,112 @@
+export string IInlineCompletionsServiceId() {
+  return "inlineCompletionsService";
+}
+
+export class InlineCompletionItem {
+  string insertText;
+  int startLineNumber;
+  int startColumn;
+  int endLineNumber;
+  int endColumn;
+  int score;
+
+  init(string insertText, int startLineNumber, int startColumn, int endLineNumber, int endColumn, int score) {
+    this.insertText = insertText;
+    this.startLineNumber = startLineNumber;
+    this.startColumn = startColumn;
+    this.endLineNumber = endLineNumber;
+    this.endColumn = endColumn;
+    this.score = score;
+  }
+}
+
+export class InlineCompletionsService {
+  InlineCompletionItem[] items;
+  int selectedIndex;
+  bool enabled;
+
+  init() {
+    this.items = [];
+    this.selectedIndex = 0;
+    this.enabled = true;
+  }
+
+  void setCompletions(InlineCompletionItem[] items) {
+    this.items = items;
+    this.selectedIndex = 0;
+  }
+
+  InlineCompletionItem? selected() {
+    if (this.selectedIndex < 0 || this.selectedIndex >= this.items.length) {
+      return null;
+    }
+    return this.items[this.selectedIndex];
+  }
+
+  void next() {
+    if (this.items.length == 0) {
+      return;
+    }
+    this.selectedIndex = (this.selectedIndex + 1) % this.items.length;
+  }
+
+  void previous() {
+    if (this.items.length == 0) {
+      return;
+    }
+    this.selectedIndex = this.selectedIndex - 1;
+    if (this.selectedIndex < 0) {
+      this.selectedIndex = this.items.length - 1;
+    }
+  }
+
+  void clear() {
+    this.items = [];
+    this.selectedIndex = 0;
+  }
+}
+
+export InlineCompletionsService createInlineCompletionsService() {
+  return new InlineCompletionsService();
+}
+
+export InlineCompletionItem createInlineCompletionItem(string insertText, int sl, int sc, int el, int ec, int score) {
+  return new InlineCompletionItem(insertText, sl, sc, el, ec, score);
+}
+
+int scoreCompletion(string insertText, string prefix) {
+  if (insertText.indexOf(prefix) == 0) {
+    return 100 - insertText.length;
+  }
+  if (insertText.indexOf(prefix) >= 0) {
+    return 50 - insertText.length;
+  }
+  return 0;
+}
+
+export InlineCompletionItem[] filterCompletions(InlineCompletionItem[] items, string prefix) {
+  InlineCompletionItem[] out = [];
+  int i = 0;
+  while (i < items.length) {
+    int score = scoreCompletion(items[i].insertText, prefix);
+    if (score > 0) {
+      items[i].score = score;
+      out.push(items[i]);
+    }
+    i = i + 1;
+  }
+  int a = 0;
+  while (a < out.length) {
+    int b = a + 1;
+    while (b < out.length) {
+      if (out[b].score > out[a].score) {
+        InlineCompletionItem tmp = out[a];
+        out[a] = out[b];
+        out[b] = tmp;
+      }
+      b = b + 1;
+    }
+    a = a + 1;
+  }
+  return out;
+}

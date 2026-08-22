@@ -1,0 +1,97 @@
+export class BaseRenderStrategy {
+  string type;
+  bool registered;
+  bool disposed;
+  bool needsRender;
+  int devicePixelRatioTimes1000;
+  int visibleObjectCount;
+
+  init(string type) {
+    this.type = type;
+    this.registered = true;
+    this.disposed = false;
+    this.needsRender = true;
+    this.devicePixelRatioTimes1000 = 1000;
+    this.visibleObjectCount = 0;
+  }
+
+  void addEventHandler() {
+    this.registered = true;
+  }
+
+  void removeEventHandler() {
+    this.registered = false;
+  }
+
+  void dispose() {
+    this.disposed = true;
+    this.registered = false;
+  }
+
+  bool shouldRender() {
+    return this.needsRender;
+  }
+
+  void onDidRender() {
+    this.needsRender = false;
+  }
+
+  bool onConfigurationChanged() {
+    this.needsRender = true;
+    return true;
+  }
+
+  bool onDecorationsChanged() {
+    this.needsRender = true;
+    return true;
+  }
+
+  bool onTokensChanged() {
+    this.needsRender = true;
+    return true;
+  }
+
+  bool onLinesDeleted() {
+    this.needsRender = true;
+    return true;
+  }
+
+  bool onLinesInserted() {
+    this.needsRender = true;
+    return true;
+  }
+
+  bool onLinesChanged() {
+    this.needsRender = true;
+    return true;
+  }
+
+  bool onScrollChanged() {
+    this.needsRender = true;
+    return true;
+  }
+
+  bool onThemeChanged() {
+    this.needsRender = true;
+    return true;
+  }
+
+  bool onLineMappingChanged() {
+    this.needsRender = true;
+    return true;
+  }
+
+  bool onZonesChanged() {
+    this.needsRender = true;
+    return true;
+  }
+
+  void reset() {
+    this.visibleObjectCount = 0;
+    this.needsRender = true;
+  }
+}
+
+export BaseRenderStrategy createBaseRenderStrategy(string type = "base") {
+  return new BaseRenderStrategy(type);
+}

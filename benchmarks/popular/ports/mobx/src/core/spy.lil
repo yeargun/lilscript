@@ -1,0 +1,82 @@
+import { DEV } from "../dev-flag.lil";
+import {
+  len,
+  call1,
+  undef,
+  assign3,
+  push,
+  once,
+  warn
+} from "../host.lil";
+import { globalState } from "./globalstate.lil";
+
+export bool isSpyEnabled() {
+  return DEV && len(globalState["spyListeners"]) > 0;
+}
+
+export void spyReport(JsValue event) {
+  if (!DEV) {
+    return;
+  }
+  JsValue listeners = globalState["spyListeners"];
+  int n = len(listeners);
+  if (n == 0) {
+    return;
+  }
+  int i = 0;
+  while (i < n) {
+    call1(listeners[i], undef(), event);
+    i = i + 1;
+  }
+}
+
+export void spyReportStart(JsValue event) {
+  if (!DEV) {
+    return;
+  }
+  spyReport(assign3(JS.object(), event, JS.object("spyReportStart", true)));
+}
+
+JsValue END_EVENT = JS.object("type", "report-end", "spyReportEnd", true);
+
+export void spyReportEnd(JsValue change) {
+  if (!DEV) {
+    return;
+  }
+  if (change.truthy()) {
+    spyReport(assign3(JS.object(), change, JS.object("type", "report-end", "spyReportEnd", true)));
+  } else {
+    spyReport(END_EVENT);
+  }
+}
+
+export void spyReportEnd0() {
+  spyReportEnd(undef());
+}
+
+export JsValue spy = JS.method1((JsValue _self, JsValue listener) => {
+  if (!DEV) {
+    warn("[mobx.spy] Is a no-op in production builds");
+    return JS.method0((JsValue __self) => {
+      return undef();
+    });
+  }
+  push(globalState["spyListeners"], listener);
+  return once(JS.method0((JsValue __self) => {
+    globalState["spyListeners"] = filterArrKeep(globalState["spyListeners"], listener);
+    return undef();
+  }));
+});
+
+JsValue filterArrKeep(JsValue arr, JsValue skip) {
+  JsValue out = JS.array();
+  int n = len(arr);
+  int i = 0;
+  while (i < n) {
+    if (!JS.strictEqual(arr[i], skip)) {
+      push(out, arr[i]);
+    }
+    i = i + 1;
+  }
+  return out;
+}

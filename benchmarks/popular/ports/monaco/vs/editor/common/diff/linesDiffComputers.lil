@@ -1,0 +1,30 @@
+import { DefaultLinesDiffComputer } from "./defaultLinesDiffComputer/defaultLinesDiffComputer";
+import {
+  ExternalLinesDiffComputer,
+  getExternalLinesDiffComputer
+} from "./externalLinesDiffComputer";
+import { LegacyLinesDiffComputer } from "./legacyLinesDiffComputer";
+
+export class LinesDiffComputers {
+  LegacyLinesDiffComputer getLegacy() {
+    return new LegacyLinesDiffComputer();
+  }
+
+  DefaultLinesDiffComputer getDefault() {
+    return new DefaultLinesDiffComputer();
+  }
+
+  ExternalLinesDiffComputer getAdvancedExternal() {
+    return getExternalLinesDiffComputer(false);
+  }
+
+  ExternalLinesDiffComputer getAdvancedWasm() {
+    return getExternalLinesDiffComputer(true);
+  }
+}
+
+export LinesDiffComputers linesDiffComputers = new LinesDiffComputers();
+
+export LinesDiffComputers createLinesDiffComputers() {
+  return new LinesDiffComputers();
+}

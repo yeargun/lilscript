@@ -1,0 +1,312 @@
+import { emptyBuf, repeatChar } from "../../../js-host";
+
+export enum SelectionStartKind {
+  Simple,
+  Word,
+  Line
+}
+
+export enum EditOperationType {
+  Other,
+  TypingFirstSpace,
+  TypingConsecutiveSpace,
+  TypingOther,
+  DeletingLeft,
+  DeletingRight
+}
+
+export class CursorPosition {
+  int lineNumber;
+  int column;
+
+  init(int lineNumber, int column) {
+    this.lineNumber = lineNumber;
+    this.column = column;
+  }
+
+  bool equals(CursorPosition other) {
+    return this.lineNumber == other.lineNumber && this.column == other.column;
+  }
+
+  bool isBeforeOrEqual(CursorPosition other) {
+    if (this.lineNumber != other.lineNumber) {
+      return this.lineNumber < other.lineNumber;
+    }
+    return this.column <= other.column;
+  }
+}
+
+export class CursorRange {
+  int startLineNumber;
+  int startColumn;
+  int endLineNumber;
+  int endColumn;
+
+  init(int startLineNumber, int startColumn, int endLineNumber, int endColumn) {
+    if (startLineNumber > endLineNumber || (startLineNumber == endLineNumber && startColumn > endColumn)) {
+      this.startLineNumber = endLineNumber;
+      this.startColumn = endColumn;
+      this.endLineNumber = startLineNumber;
+      this.endColumn = startColumn;
+    } else {
+      this.startLineNumber = startLineNumber;
+      this.startColumn = startColumn;
+      this.endLineNumber = endLineNumber;
+      this.endColumn = endColumn;
+    }
+  }
+
+  bool isEmpty() {
+    return this.startLineNumber == this.endLineNumber && this.startColumn == this.endColumn;
+  }
+
+  bool equalsRange(CursorRange other) {
+    return this.startLineNumber == other.startLineNumber
+      && this.startColumn == other.startColumn
+      && this.endLineNumber == other.endLineNumber
+      && this.endColumn == other.endColumn;
+  }
+
+  CursorPosition getStartPosition() {
+    return new CursorPosition(this.startLineNumber, this.startColumn);
+  }
+
+  CursorPosition getEndPosition() {
+    return new CursorPosition(this.endLineNumber, this.endColumn);
+  }
+}
+
+export class CursorSelection {
+  int startLineNumber;
+  int startColumn;
+  int endLineNumber;
+  int endColumn;
+  int selectionStartLineNumber;
+  int selectionStartColumn;
+  int positionLineNumber;
+  int positionColumn;
+
+  init(CursorRange selectionStart, CursorPosition position) {
+    CursorPosition anchor = selectionStart.getStartPosition();
+    if (!selectionStart.isEmpty() && position.isBeforeOrEqual(anchor)) {
+      anchor = selectionStart.getEndPosition();
+    }
+    this.selectionStartLineNumber = anchor.lineNumber;
+    this.selectionStartColumn = anchor.column;
+    this.positionLineNumber = position.lineNumber;
+    this.positionColumn = position.column;
+    if (
+      anchor.lineNumber > position.lineNumber
+      || (anchor.lineNumber == position.lineNumber && anchor.column > position.column)
+    ) {
+      this.startLineNumber = position.lineNumber;
+      this.startColumn = position.column;
+      this.endLineNumber = anchor.lineNumber;
+      this.endColumn = anchor.column;
+    } else {
+      this.startLineNumber = anchor.lineNumber;
+      this.startColumn = anchor.column;
+      this.endLineNumber = position.lineNumber;
+      this.endColumn = position.column;
+    }
+  }
+
+  bool isEmpty() {
+    return this.startLineNumber == this.endLineNumber && this.startColumn == this.endColumn;
+  }
+}
+
+export class CursorConfiguration {
+  int tabSize;
+  int indentSize;
+  bool insertSpaces;
+  bool stickyTabStops;
+  int lineHeight;
+  int pageSize;
+  bool useTabStops;
+  bool trimWhitespaceOnDelete;
+  string wordSeparators;
+  bool readOnly;
+
+  init(
+    int tabSize,
+    int indentSize,
+    bool insertSpaces,
+    bool stickyTabStops,
+    int lineHeight,
+    int viewportHeight,
+    bool useTabStops,
+    bool trimWhitespaceOnDelete,
+    string wordSeparators,
+    bool readOnly
+  ) {
+    this.tabSize = tabSize;
+    this.indentSize = indentSize;
+    this.insertSpaces = insertSpaces;
+    this.stickyTabStops = stickyTabStops;
+    this.lineHeight = lineHeight;
+    int pageSize = 1;
+    if (lineHeight > 0) {
+      pageSize = viewportHeight / lineHeight - 2;
+      if (pageSize < 1) {
+        pageSize = 1;
+      }
+    }
+    this.pageSize = pageSize;
+    this.useTabStops = useTabStops;
+    this.trimWhitespaceOnDelete = trimWhitespaceOnDelete;
+    this.wordSeparators = wordSeparators;
+    this.readOnly = readOnly;
+  }
+
+  string normalizeIndentation(string indentation) {
+    int visibleColumn = this.visibleColumnFromColumn(indentation, indentation.length + 1);
+    if (this.insertSpaces) {
+      return repeatChar(" ", visibleColumn);
+    }
+    int tabCount = 0;
+    if (this.tabSize > 0) {
+      tabCount = visibleColumn / this.tabSize;
+    }
+    return repeatChar("\t", tabCount)
+      + repeatChar(" ", visibleColumn - tabCount * this.tabSize);
+  }
+
+  int visibleColumnFromColumn(string line, int column) {
+    int visibleColumn = 0;
+    int end = column - 1;
+    int i = 0;
+    while (i < end && i < line.length) {
+      if (line.charCodeAt(i) == 9) {
+        visibleColumn = visibleColumn + this.tabSize - visibleColumn % this.tabSize;
+      } else {
+        visibleColumn = visibleColumn + 1;
+      }
+      i = i + 1;
+    }
+    return visibleColumn;
+  }
+
+  int columnFromVisibleColumn(string line, int visibleColumn) {
+    int currentVisibleColumn = 0;
+    int i = 0;
+    while (i < line.length) {
+      int nextVisibleColumn = currentVisibleColumn + 1;
+      if (line.charCodeAt(i) == 9) {
+        nextVisibleColumn = currentVisibleColumn + this.tabSize - currentVisibleColumn % this.tabSize;
+      }
+      if (nextVisibleColumn >= visibleColumn) {
+        if (nextVisibleColumn - visibleColumn < visibleColumn - currentVisibleColumn) {
+          return i + 2;
+        }
+        return i + 1;
+      }
+      currentVisibleColumn = nextVisibleColumn;
+      i = i + 1;
+    }
+    return line.length + 1;
+  }
+
+  bool shouldAutoCloseBefore(string character) {
+    return character.length == 0 || character == " " || character == "\t";
+  }
+}
+
+export class SingleCursorState {
+  CursorRange selectionStart;
+  SelectionStartKind selectionStartKind;
+  int selectionStartLeftoverVisibleColumns;
+  CursorPosition position;
+  int leftoverVisibleColumns;
+  CursorSelection selection;
+
+  init(
+    CursorRange selectionStart,
+    SelectionStartKind selectionStartKind,
+    int selectionStartLeftoverVisibleColumns,
+    CursorPosition position,
+    int leftoverVisibleColumns
+  ) {
+    this.selectionStart = selectionStart;
+    this.selectionStartKind = selectionStartKind;
+    this.selectionStartLeftoverVisibleColumns = selectionStartLeftoverVisibleColumns;
+    this.position = position;
+    this.leftoverVisibleColumns = leftoverVisibleColumns;
+    this.selection = new CursorSelection(selectionStart, position);
+  }
+
+  bool equals(SingleCursorState other) {
+    return this.selectionStartLeftoverVisibleColumns == other.selectionStartLeftoverVisibleColumns
+      && this.leftoverVisibleColumns == other.leftoverVisibleColumns
+      && this.selectionStartKind == other.selectionStartKind
+      && this.position.equals(other.position)
+      && this.selectionStart.equalsRange(other.selectionStart);
+  }
+
+  bool hasSelection() {
+    return !this.selection.isEmpty() || !this.selectionStart.isEmpty();
+  }
+
+  SingleCursorState move(
+    bool inSelectionMode,
+    int lineNumber,
+    int column,
+    int leftoverVisibleColumns
+  ) {
+    CursorPosition position = new CursorPosition(lineNumber, column);
+    if (inSelectionMode) {
+      return new SingleCursorState(
+        this.selectionStart,
+        this.selectionStartKind,
+        this.selectionStartLeftoverVisibleColumns,
+        position,
+        leftoverVisibleColumns
+      );
+    }
+    CursorRange range = new CursorRange(lineNumber, column, lineNumber, column);
+    return new SingleCursorState(
+      range,
+      SelectionStartKind.Simple,
+      leftoverVisibleColumns,
+      position,
+      leftoverVisibleColumns
+    );
+  }
+}
+
+export class CursorState {
+  SingleCursorState modelState;
+  SingleCursorState viewState;
+
+  init(SingleCursorState modelState, SingleCursorState viewState) {
+    this.modelState = modelState;
+    this.viewState = viewState;
+  }
+
+  bool equals(CursorState other) {
+    return this.modelState.equals(other.modelState) && this.viewState.equals(other.viewState);
+  }
+}
+
+export class EditOperationResult {
+  EditOperationType operationType;
+  JsValue[] commands;
+  bool shouldPushStackElementBefore;
+  bool shouldPushStackElementAfter;
+
+  init(
+    EditOperationType operationType,
+    JsValue[] commands,
+    bool shouldPushStackElementBefore,
+    bool shouldPushStackElementAfter
+  ) {
+    this.operationType = operationType;
+    this.commands = commands;
+    this.shouldPushStackElementBefore = shouldPushStackElementBefore;
+    this.shouldPushStackElementAfter = shouldPushStackElementAfter;
+  }
+}
+
+export bool isQuote(string character) {
+  return character == "'" || character == "\"" || character == "`";
+}

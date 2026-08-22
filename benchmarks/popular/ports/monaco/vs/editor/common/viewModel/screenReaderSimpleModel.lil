@@ -1,0 +1,56 @@
+import { sliceOf } from "../../../../js-host";
+
+export class ScreenReaderSimpleModel {
+  string[] lines;
+  string eol;
+
+  init(string[] lines, string eol) {
+    this.lines = lines;
+    this.eol = eol;
+  }
+
+  int getLineCount() {
+    return this.lines.length;
+  }
+
+  string getLineContent(int lineNumber) {
+    if (lineNumber < 1 || lineNumber > this.lines.length) {
+      return "";
+    }
+    return this.lines[lineNumber - 1];
+  }
+
+  int getLineMaxColumn(int lineNumber) {
+    return this.getLineContent(lineNumber).length + 1;
+  }
+
+  string getValue() {
+    string result = "";
+    int i = 0;
+    while (i < this.lines.length) {
+      if (i > 0) {
+        result = result + this.eol;
+      }
+      result = result + this.lines[i];
+      i = i + 1;
+    }
+    return result;
+  }
+
+  string getValueInRange(int startLineNumber, int startColumn, int endLineNumber, int endColumn) {
+    if (startLineNumber == endLineNumber) {
+      return sliceOf(this.getLineContent(startLineNumber), startColumn - 1, endColumn - 1);
+    }
+    string result = sliceOf(this.getLineContent(startLineNumber), startColumn - 1, this.getLineContent(startLineNumber).length);
+    int lineNumber = startLineNumber + 1;
+    while (lineNumber < endLineNumber) {
+      result = result + this.eol + this.getLineContent(lineNumber);
+      lineNumber = lineNumber + 1;
+    }
+    return result + this.eol + sliceOf(this.getLineContent(endLineNumber), 0, endColumn - 1);
+  }
+}
+
+export ScreenReaderSimpleModel createScreenReaderSimpleModel(string[] lines, string eol = "\n") {
+  return new ScreenReaderSimpleModel(lines, eol);
+}

@@ -1,0 +1,198 @@
+void migrateBooleanOption(
+  JsValue options,
+  string key,
+  JsValue enabledValue,
+  JsValue disabledValue
+) {
+  if (options != null && JS.typeOf(options[key]) == "boolean") {
+    if (options[key].truthy()) {
+      options[key] = enabledValue;
+    } else {
+      options[key] = disabledValue;
+    }
+  }
+}
+
+export JsValue migrateEditorOptions(JsValue options) {
+  if (options == null) {
+    return JS.object();
+  }
+  migrateBooleanOption(options, "wordWrap", "on", "off");
+  migrateBooleanOption(options, "lineNumbers", "on", "off");
+  migrateBooleanOption(options, "renderWhitespace", "boundary", "none");
+  migrateBooleanOption(options, "renderLineHighlight", "line", "none");
+  migrateBooleanOption(options, "acceptSuggestionOnEnter", "on", "off");
+  migrateBooleanOption(options, "tabCompletion", "onlySnippets", "off");
+  migrateBooleanOption(options, "autoIndent", "full", "advanced");
+  migrateBooleanOption(options, "matchBrackets", "always", "never");
+  migrateBooleanOption(options, "renderFinalNewline", "on", "off");
+  migrateBooleanOption(options, "cursorSmoothCaretAnimation", "on", "off");
+  migrateBooleanOption(options, "occurrencesHighlight", "singleFile", "off");
+  migrateBooleanOption(options, "wordBasedSuggestions", "matchingDocuments", "off");
+  migrateBooleanOption(options, "defaultColorDecorators", "auto", "never");
+  if (JS.typeOf(options["quickSuggestions"]) == "boolean") {
+    string value = "off";
+    if (options["quickSuggestions"].truthy()) {
+      value = "on";
+    }
+    JsValue quickSuggestions = JS.object();
+    quickSuggestions["comments"] = value;
+    quickSuggestions["strings"] = value;
+    quickSuggestions["other"] = value;
+    options["quickSuggestions"] = quickSuggestions;
+  }
+  if (
+    JS.typeOf(options["autoClosingBrackets"]) == "boolean" &&
+    !options["autoClosingBrackets"].truthy()
+  ) {
+    options["autoClosingBrackets"] = "never";
+    if (options["autoClosingQuotes"] == null) {
+      options["autoClosingQuotes"] = "never";
+    }
+    if (options["autoSurround"] == null) {
+      options["autoSurround"] = "never";
+    }
+  }
+  return options;
+}
+
+string[] knownEditorOptionNames() {
+  return [
+    "wordWrap",
+    "lineNumbers",
+    "cursorBlinking",
+    "renderWhitespace",
+    "renderLineHighlight",
+    "acceptSuggestionOnEnter",
+    "tabCompletion",
+    "hover",
+    "parameterHints",
+    "autoIndent",
+    "matchBrackets",
+    "renderFinalNewline",
+    "cursorSmoothCaretAnimation",
+    "occurrencesHighlight",
+    "wordBasedSuggestions",
+    "defaultColorDecorators",
+    "autoClosingBrackets",
+    "autoClosingQuotes",
+    "autoSurround",
+    "quickSuggestions",
+    "fontFamily",
+    "fontSize",
+    "fontWeight",
+    "lineHeight",
+    "letterSpacing",
+    "tabSize",
+    "insertSpaces",
+    "readOnly",
+    "glyphMargin",
+    "minimap",
+    "scrollbar",
+    "padding",
+    "suggest",
+    "inlineSuggest",
+    "stickyScroll",
+    "unicodeHighlighting",
+    "renderControlCharacters",
+    "smoothScrolling",
+    "links",
+    "folding",
+    "automaticLayout"
+  ];
+}
+
+export class EditorConfigurationChangeEvent {
+  string[] changedOptions;
+
+  init(string[] changedOptions) {
+    this.changedOptions = changedOptions;
+  }
+
+  bool hasChanged(string optionName) {
+    return this.changedOptions.indexOf(optionName) >= 0;
+  }
+}
+
+export class EditorConfiguration {
+  JsValue rawOptions;
+  JsValue environment;
+  (func(EditorConfigurationChangeEvent)->void)[] listeners;
+
+  init(JsValue rawOptions = null, JsValue environment = null) {
+    if (rawOptions == null) {
+      rawOptions = JS.object();
+    }
+    if (environment == null) {
+      environment = JS.object();
+    }
+    this.rawOptions = migrateEditorOptions(rawOptions);
+    this.environment = environment;
+    this.listeners = [];
+  }
+
+  JsValue getRawOptions() {
+    return this.rawOptions;
+  }
+
+  JsValue getOptions() {
+    return this.rawOptions;
+  }
+
+  JsValue getOption(string optionName) {
+    return this.rawOptions[optionName];
+  }
+
+  bool updateOptions(JsValue update) {
+    if (update == null) {
+      return false;
+    }
+    migrateEditorOptions(update);
+    string[] names = knownEditorOptionNames();
+    string[] changed = [];
+    int i = 0;
+    while (i < names.length) {
+      string name = names[i];
+      if (update[name] != null) {
+        this.rawOptions[name] = update[name];
+        changed.push(name);
+      }
+      i = i + 1;
+    }
+    if (changed.length == 0) {
+      return false;
+    }
+    EditorConfigurationChangeEvent event =
+      new EditorConfigurationChangeEvent(changed);
+    i = 0;
+    while (i < this.listeners.length) {
+      this.listeners[i](event);
+      i = i + 1;
+    }
+    return true;
+  }
+
+  EditorConfigurationChangeEvent setEnvironment(JsValue environment) {
+    this.environment = environment;
+    return new EditorConfigurationChangeEvent([]);
+  }
+
+  func()->void onDidChangeConfiguration(
+    func(EditorConfigurationChangeEvent)->void listener
+  ) {
+    this.listeners.push(listener);
+    return () => {
+      int index = this.listeners.indexOf(listener);
+      if (index >= 0) {
+        this.listeners.splice(index, 1);
+      }
+    };
+  }
+}
+
+export EditorConfiguration createEditorConfiguration(
+  JsValue rawOptions = null,
+  JsValue environment = null
+) {
+  return new EditorConfiguration(rawOptions, environment);
+}

@@ -1,0 +1,28 @@
+Map<string, int> codiconFontCharacters = new Map();
+
+export string registerCodicon(string id, int fontCharacter) {
+  codiconFontCharacters.set(id, fontCharacter);
+  return id;
+}
+
+export string registerCodiconAlias(string id, string fromId) {
+  int? existing = codiconFontCharacters.get(fromId);
+  if (existing == null) {
+    throw id + " references an unknown codicon: " + fromId;
+  }
+  int value = existing;
+  codiconFontCharacters.set(id, value);
+  return id;
+}
+
+export int getCodiconFontCharacter(string id) {
+  int? existing = codiconFontCharacters.get(id);
+  if (existing == null) {
+    return 0;
+  }
+  return existing;
+}
+
+export Map<string, int> getCodiconFontCharacters() {
+  return codiconFontCharacters;
+}

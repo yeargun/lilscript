@@ -1,0 +1,89 @@
+export class StandaloneServiceSlot {
+  string id;
+  string instance;
+
+  init(string id, string instance) {
+    this.id = id;
+    this.instance = instance;
+  }
+}
+
+export class StandaloneServices {
+  StandaloneServiceSlot[] slots;
+  bool initialized;
+
+  init() {
+    this.slots = [];
+    this.initialized = false;
+  }
+
+  int indexOf(string id) {
+    int i = 0;
+    while (i < this.slots.length) {
+      if (this.slots[i].id == id) {
+        return i;
+      }
+      i = i + 1;
+    }
+    return -1;
+  }
+
+  string get(string id) {
+    int idx = this.indexOf(id);
+    if (idx >= 0) {
+      return this.slots[idx].instance;
+    }
+    return "";
+  }
+
+  void set(string id, string instance) {
+    int idx = this.indexOf(id);
+    if (idx >= 0) {
+      this.slots[idx].instance = instance;
+      return;
+    }
+    this.slots.push(new StandaloneServiceSlot(id, instance));
+  }
+
+  void initialize(string[] overrideIds, string[] overrideInstances) {
+    this.set("configurationService", "standalone-configuration");
+    this.set("contextKeyService", "standalone-contextkey");
+    this.set("instantiationService", "standalone-instantiation");
+    this.set("keybindingService", "standalone-keybinding");
+    this.set("themeService", "standalone-theme");
+    this.set("notificationService", "standalone-notification");
+    this.set("commandService", "standalone-command");
+    this.set("codeEditorService", "standalone-code-editor");
+    this.set("modelService", "standalone-model");
+    this.set("languageService", "standalone-language");
+    int i = 0;
+    while (i < overrideIds.length && i < overrideInstances.length) {
+      this.set(overrideIds[i], overrideInstances[i]);
+      i = i + 1;
+    }
+    this.initialized = true;
+  }
+}
+
+StandaloneServices standaloneServices = new StandaloneServices();
+
+export StandaloneServices getStandaloneServices() {
+  if (!standaloneServices.initialized) {
+    string[] ids = [];
+    string[] inst = [];
+    standaloneServices.initialize(ids, inst);
+  }
+  return standaloneServices;
+}
+
+export string standaloneServicesGet(string id) {
+  return getStandaloneServices().get(id);
+}
+
+export void standaloneServicesInitialize(string[] overrideIds, string[] overrideInstances) {
+  standaloneServices.initialize(overrideIds, overrideInstances);
+}
+
+export StandaloneServices createStandaloneServices() {
+  return new StandaloneServices();
+}

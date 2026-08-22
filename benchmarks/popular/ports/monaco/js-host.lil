@@ -6,6 +6,8 @@ import extern {
   newRegexp,
   regexTest,
   regexExec,
+  regexLastIndex,
+  regexSetLastIndex,
   dateNow,
   mathRandom,
   scheduleTimeoutMs,
@@ -47,6 +49,7 @@ import extern {
   clearChildren,
   setTabIndex,
   jsUndefined,
+  windowSelf,
   throwError,
   clipboardRead,
   clipboardWrite,
@@ -79,6 +82,7 @@ import extern {
   hostPaintEditor,
   hostCoordsToPosition,
   hostStyleFindWidget,
+  hostWorkbenchCommand,
   eventIsComposing,
   eventDeltaY
 } from "./js-host.ts";
@@ -90,6 +94,8 @@ export extern string stringFromCharCode1(float a);
 export extern Regex newRegexp(string pattern, string flags = "");
 export extern bool regexTest(Regex re, string s);
 export extern JsValue regexExec(Regex re, string s);
+export extern int regexLastIndex(Regex re);
+export extern void regexSetLastIndex(Regex re, int value);
 export extern float dateNow();
 export extern float mathRandom();
 export extern JsValue scheduleTimeoutMs(JsValue fn, float ms);
@@ -131,6 +137,7 @@ export extern void canvasFillRect(JsValue ctx, float x, float y, float w, float 
 export extern void clearChildren(JsValue el);
 export extern void setTabIndex(JsValue el, int value);
 export extern JsValue jsUndefined();
+export extern JsValue windowSelf();
 export extern void throwError(string msg);
 export extern string clipboardRead();
 export extern void clipboardWrite(string text);
@@ -194,6 +201,7 @@ export extern int[] hostCoordsToPosition(
   int scrollTop
 );
 export extern void hostStyleFindWidget(JsValue findWidget, JsValue findInput, JsValue replaceInput);
+export extern void hostWorkbenchCommand(string kind);
 export extern bool eventIsComposing(JsValue event);
 export extern int eventDeltaY(JsValue event);
 

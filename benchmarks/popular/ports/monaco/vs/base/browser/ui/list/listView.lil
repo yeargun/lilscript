@@ -1,0 +1,288 @@
+export class ViewSizeGroup {
+  int start;
+  int end;
+  int size;
+
+  init(int start, int end, int size) {
+    this.start = start;
+    this.end = end;
+    this.size = size;
+  }
+}
+
+export class ViewRangeMap {
+  ViewSizeGroup[] groups;
+  int paddingTop;
+  int totalSize;
+
+  init(int paddingTop = 0) {
+    this.groups = [];
+    this.paddingTop = paddingTop;
+    this.totalSize = paddingTop;
+  }
+
+  void rebuild(int[] sizes) {
+    this.groups = [];
+    this.totalSize = this.paddingTop;
+    int i = 0;
+    while (i < sizes.length) {
+      int size = sizes[i];
+      if (size < 1) {
+        size = 1;
+      }
+      if (this.groups.length > 0 && this.groups[this.groups.length - 1].size == size) {
+        this.groups[this.groups.length - 1].end = i + 1;
+      } else {
+        this.groups.push(new ViewSizeGroup(i, i + 1, size));
+      }
+      this.totalSize = this.totalSize + size;
+      i = i + 1;
+    }
+  }
+
+  int count() {
+    if (this.groups.length == 0) {
+      return 0;
+    }
+    return this.groups[this.groups.length - 1].end;
+  }
+
+  int indexAt(int position) {
+    if (position < 0) {
+      return -1;
+    }
+    if (position < this.paddingTop) {
+      return 0;
+    }
+    int offset = this.paddingTop;
+    int i = 0;
+    while (i < this.groups.length) {
+      ViewSizeGroup group = this.groups[i];
+      int groupSize = (group.end - group.start) * group.size;
+      if (position < offset + groupSize) {
+        return group.start + ((position - offset) / group.size);
+      }
+      offset = offset + groupSize;
+      i = i + 1;
+    }
+    return this.count();
+  }
+
+  int indexAfter(int position) {
+    int result = this.indexAt(position) + 1;
+    int length = this.count();
+    if (result > length) {
+      result = length;
+    }
+    return result;
+  }
+
+  int positionAt(int index) {
+    if (index < 0 || index >= this.count()) {
+      return -1;
+    }
+    int offset = this.paddingTop;
+    int i = 0;
+    while (i < this.groups.length) {
+      ViewSizeGroup group = this.groups[i];
+      if (index < group.end) {
+        return offset + (index - group.start) * group.size;
+      }
+      offset = offset + (group.end - group.start) * group.size;
+      i = i + 1;
+    }
+    return -1;
+  }
+
+  int itemSize(int index) {
+    int i = 0;
+    while (i < this.groups.length) {
+      ViewSizeGroup group = this.groups[i];
+      if (index >= group.start && index < group.end) {
+        return group.size;
+      }
+      i = i + 1;
+    }
+    return 0;
+  }
+}
+
+export class RenderedRange {
+  int start;
+  int end;
+
+  init(int start, int end) {
+    this.start = start;
+    this.end = end;
+  }
+}
+
+export class ListView {
+  string[] elements;
+  int[] heights;
+  ViewRangeMap rangeMap;
+  int scrollTop;
+  int viewportHeight;
+  int overscan;
+  RenderedRange rendered;
+
+  init(int viewportHeight = 0, int paddingTop = 0, int overscan = 1) {
+    this.elements = [];
+    this.heights = [];
+    this.rangeMap = new ViewRangeMap(paddingTop);
+    this.scrollTop = 0;
+    this.viewportHeight = viewportHeight;
+    this.overscan = overscan;
+    this.rendered = new RenderedRange(0, 0);
+  }
+
+  int length() {
+    return this.elements.length;
+  }
+
+  int scrollHeight() {
+    return this.rangeMap.totalSize;
+  }
+
+  string element(int index) {
+    if (index < 0 || index >= this.elements.length) {
+      return "";
+    }
+    return this.elements[index];
+  }
+
+  void splice(int start, int deleteCount, string[] inserted, int[] insertedHeights) {
+    int index = start;
+    if (index < 0) {
+      index = 0;
+    }
+    if (index > this.elements.length) {
+      index = this.elements.length;
+    }
+    int count = deleteCount;
+    if (count < 0) {
+      count = 0;
+    }
+    if (index + count > this.elements.length) {
+      count = this.elements.length - index;
+    }
+    string[] nextElements = [];
+    int[] nextHeights = [];
+    int i = 0;
+    while (i < index) {
+      nextElements.push(this.elements[i]);
+      nextHeights.push(this.heights[i]);
+      i = i + 1;
+    }
+    i = 0;
+    while (i < inserted.length) {
+      nextElements.push(inserted[i]);
+      int height = 20;
+      if (i < insertedHeights.length) {
+        height = insertedHeights[i];
+      }
+      if (height < 1) {
+        height = 1;
+      }
+      nextHeights.push(height);
+      i = i + 1;
+    }
+    i = index + count;
+    while (i < this.elements.length) {
+      nextElements.push(this.elements[i]);
+      nextHeights.push(this.heights[i]);
+      i = i + 1;
+    }
+    this.elements = nextElements;
+    this.heights = nextHeights;
+    this.rangeMap.rebuild(this.heights);
+    this.setScrollTop(this.scrollTop);
+  }
+
+  void updateElementHeight(int index, int height) {
+    if (index < 0 || index >= this.heights.length) {
+      return;
+    }
+    int nextHeight = height;
+    if (nextHeight < 1) {
+      nextHeight = 1;
+    }
+    this.heights[index] = nextHeight;
+    this.rangeMap.rebuild(this.heights);
+    this.setScrollTop(this.scrollTop);
+  }
+
+  void layout(int viewportHeight) {
+    this.viewportHeight = viewportHeight;
+    if (this.viewportHeight < 0) {
+      this.viewportHeight = 0;
+    }
+    this.setScrollTop(this.scrollTop);
+  }
+
+  void setScrollTop(int value) {
+    int maximum = this.rangeMap.totalSize - this.viewportHeight;
+    if (maximum < 0) {
+      maximum = 0;
+    }
+    int next = value;
+    if (next < 0) {
+      next = 0;
+    }
+    if (next > maximum) {
+      next = maximum;
+    }
+    this.scrollTop = next;
+    this.updateRenderedRange();
+  }
+
+  void updateRenderedRange() {
+    int start = this.rangeMap.indexAt(this.scrollTop);
+    if (start < 0) {
+      start = 0;
+    }
+    int end = this.rangeMap.indexAfter(this.scrollTop + this.viewportHeight);
+    start = start - this.overscan;
+    end = end + this.overscan;
+    if (start < 0) {
+      start = 0;
+    }
+    if (end > this.elements.length) {
+      end = this.elements.length;
+    }
+    this.rendered = new RenderedRange(start, end);
+  }
+
+  void reveal(int index, int relativeTop = -1) {
+    if (index < 0 || index >= this.elements.length) {
+      return;
+    }
+    int top = this.rangeMap.positionAt(index);
+    int bottom = top + this.rangeMap.itemSize(index);
+    if (relativeTop >= 0) {
+      int available = this.viewportHeight - this.rangeMap.itemSize(index);
+      if (available < 0) {
+        available = 0;
+      }
+      this.setScrollTop(top - (available * relativeTop / 100));
+    } else if (top < this.scrollTop) {
+      this.setScrollTop(top);
+    } else if (bottom > this.scrollTop + this.viewportHeight) {
+      this.setScrollTop(bottom - this.viewportHeight);
+    }
+  }
+
+  string[] renderedElements() {
+    string[] result = [];
+    int i = this.rendered.start;
+    while (i < this.rendered.end) {
+      result.push(this.elements[i]);
+      i = i + 1;
+    }
+    return result;
+  }
+}
+
+export ListView createListView(int viewportHeight = 0, int paddingTop = 0, int overscan = 1) {
+  return new ListView(viewportHeight, paddingTop, overscan);
+}

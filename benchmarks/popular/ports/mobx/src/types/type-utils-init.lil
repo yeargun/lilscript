@@ -1,0 +1,27 @@
+import { DEV } from "../dev-flag.lil";
+import { undef, call0 } from "../host.lil";
+import { startBatch, endBatch } from "../core/observable.lil";
+import {
+  untrackedStart,
+  untrackedEnd,
+  allowStateChangesStart,
+  allowStateChangesEnd
+} from "../core/derivation.lil";
+
+export JsValue initObservable(JsValue cb) {
+  JsValue derivation = untrackedStart();
+  bool allow = true;
+  if (DEV) {
+    allow = allowStateChangesStart(true);
+  }
+  startBatch();
+  try {
+    return call0(cb, undef());
+  } finally {
+    endBatch();
+    if (DEV) {
+      allowStateChangesEnd(allow);
+    }
+    untrackedEnd(derivation);
+  }
+}

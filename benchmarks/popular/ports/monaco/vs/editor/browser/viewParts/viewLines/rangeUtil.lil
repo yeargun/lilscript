@@ -1,0 +1,95 @@
+export class FloatHorizontalRange {
+  float left;
+  float width;
+
+  init(float left, float width) {
+    this.left = left;
+    this.width = width;
+  }
+}
+
+int compareRanges(FloatHorizontalRange a, FloatHorizontalRange b) {
+  if (a.left < b.left) {
+    return -1;
+  }
+  if (a.left > b.left) {
+    return 1;
+  }
+  return 0;
+}
+
+export class RangeUtil {
+  FloatHorizontalRange[] mergeAdjacentRanges(FloatHorizontalRange[] ranges) {
+    if (ranges.length <= 1) {
+      return ranges;
+    }
+    int i = 1;
+    while (i < ranges.length) {
+      FloatHorizontalRange key = ranges[i];
+      int j = i - 1;
+      while (j >= 0 && compareRanges(ranges[j], key) > 0) {
+        ranges[j + 1] = ranges[j];
+        j = j - 1;
+      }
+      ranges[j + 1] = key;
+      i = i + 1;
+    }
+    FloatHorizontalRange[] result = [];
+    FloatHorizontalRange prev = ranges[0];
+    i = 1;
+    while (i < ranges.length) {
+      FloatHorizontalRange range = ranges[i];
+      if (prev.left + prev.width + 0.9 >= range.left) {
+        float nextWidth = range.left + range.width - prev.left;
+        if (nextWidth > prev.width) {
+          prev.width = nextWidth;
+        }
+      } else {
+        result.push(prev);
+        prev = range;
+      }
+      i = i + 1;
+    }
+    result.push(prev);
+    return result;
+  }
+
+  FloatHorizontalRange[] createHorizontalRangesFromClientRects(float[] lefts, float[] widths, float clientRectDeltaLeft, float clientRectScale) {
+    FloatHorizontalRange[] result = [];
+    int i = 0;
+    while (i < lefts.length && i < widths.length) {
+      float left = (lefts[i] - clientRectDeltaLeft) / clientRectScale;
+      if (left < 0.0) {
+        left = 0.0;
+      }
+      result.push(new FloatHorizontalRange(left, widths[i] / clientRectScale));
+      i = i + 1;
+    }
+    return this.mergeAdjacentRanges(result);
+  }
+
+  int clampChildIndex(int index, int minIndex, int maxIndex) {
+    if (index < minIndex) {
+      return minIndex;
+    }
+    if (index > maxIndex) {
+      return maxIndex;
+    }
+    return index;
+  }
+
+  bool adjustEmptySpanOffsets(int startChildIndex, int startOffset, int endChildIndex, int endOffset) {
+    if (startChildIndex != endChildIndex && endChildIndex > 0 && endOffset == 0) {
+      return true;
+    }
+    return false;
+  }
+}
+
+export FloatHorizontalRange createFloatHorizontalRange(float left, float width) {
+  return new FloatHorizontalRange(left, width);
+}
+
+export RangeUtil createRangeUtil() {
+  return new RangeUtil();
+}

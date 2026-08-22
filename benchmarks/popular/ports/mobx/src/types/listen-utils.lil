@@ -1,0 +1,48 @@
+import {
+  isUndef,
+  undef,
+  len,
+  push,
+  indexOf,
+  splice1,
+  slice,
+  call1,
+  once
+} from "../host.lil";
+import { untrackedStart, untrackedEnd } from "../core/derivation.lil";
+
+export bool hasListeners(JsValue listenable) {
+  return !isUndef(listenable["changeListeners_"]) && len(listenable["changeListeners_"]) > 0;
+}
+
+export JsValue registerListener(JsValue listenable, JsValue handler) {
+  if (isUndef(listenable["changeListeners_"])) {
+    listenable["changeListeners_"] = JS.array();
+  }
+  JsValue listeners = listenable["changeListeners_"];
+  push(listeners, handler);
+  return once(JS.method0((JsValue _self) => {
+    int idx = indexOf(listeners, handler);
+    if (idx != -1) {
+      splice1(listeners, idx, 1);
+    }
+    return undef();
+  }));
+}
+
+export void notifyListeners(JsValue listenable, JsValue change) {
+  JsValue prevU = untrackedStart();
+  JsValue listeners = listenable["changeListeners_"];
+  if (!listeners.truthy()) {
+    untrackedEnd(prevU);
+    return;
+  }
+  listeners = slice(listeners);
+  int n = len(listeners);
+  int i = 0;
+  while (i < n) {
+    call1(listeners[i], undef(), change);
+    i = i + 1;
+  }
+  untrackedEnd(prevU);
+}

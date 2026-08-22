@@ -1,0 +1,15 @@
+export class ForwardingTelemetryService {
+  string[] events;
+
+  init() {
+    this.events = [];
+  }
+
+  void publicLog(string eventName, string data) {
+    this.events.push(eventName + ":" + data);
+  }
+}
+
+export ForwardingTelemetryService createForwardingTelemetryService() {
+  return new ForwardingTelemetryService();
+}

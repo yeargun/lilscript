@@ -1,0 +1,32 @@
+export class TreeViewsDnDService {
+  Map<string, JsValue> dragOperations;
+
+  init() {
+    this.dragOperations = new Map();
+  }
+
+  void addDragOperationTransfer(string uuid, JsValue operation) {
+    this.dragOperations.set(uuid, operation);
+  }
+
+  JsValue removeDragOperationTransfer(string uuid) {
+    JsValue? operation = this.dragOperations.get(uuid);
+    if (operation == null) {
+      return null;
+    }
+    this.dragOperations.delete(uuid);
+    return operation;
+  }
+}
+
+export class DraggedTreeItemsIdentifier {
+  string identifier;
+
+  init(string identifier) {
+    this.identifier = identifier;
+  }
+}
+
+export TreeViewsDnDService createTreeViewsDnDService() {
+  return new TreeViewsDnDService();
+}

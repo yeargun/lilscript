@@ -1,0 +1,34 @@
+export class TabFocusController {
+  bool tabFocus;
+  int changeCount;
+
+  init() {
+    this.tabFocus = false;
+    this.changeCount = 0;
+  }
+
+  bool getTabFocusMode() {
+    return this.tabFocus;
+  }
+
+  void setTabFocusMode(bool tabFocusMode) {
+    if (this.tabFocus != tabFocusMode) {
+      this.tabFocus = tabFocusMode;
+      this.changeCount = this.changeCount + 1;
+    }
+  }
+}
+
+TabFocusController tabFocusSingleton = new TabFocusController();
+
+export TabFocusController createTabFocusController() {
+  return new TabFocusController();
+}
+
+export bool getTabFocusMode() {
+  return tabFocusSingleton.getTabFocusMode();
+}
+
+export void setTabFocusMode(bool tabFocusMode) {
+  tabFocusSingleton.setTabFocusMode(tabFocusMode);
+}

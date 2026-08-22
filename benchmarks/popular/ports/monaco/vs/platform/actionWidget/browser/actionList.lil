@@ -1,0 +1,116 @@
+export string acceptSelectedActionCommand = "acceptSelectedCodeAction";
+export string previewSelectedActionCommand = "previewSelectedCodeAction";
+export string ActionKindHeader = "header";
+export string ActionKindSeparator = "separator";
+export string ActionKindAction = "action";
+
+export class ActionListItem {
+  string kind;
+  string label;
+  string group;
+  bool disabled;
+  bool hidden;
+
+  init(string kind, string label, string group, bool disabled) {
+    this.kind = kind;
+    this.label = label;
+    this.group = group;
+    this.disabled = disabled;
+    this.hidden = false;
+  }
+}
+
+bool canFocus(ActionListItem item) {
+  return item.kind == ActionKindAction && !item.disabled && !item.hidden;
+}
+
+export class ActionList {
+  ActionListItem[] items;
+  int focusIndex;
+  bool preview;
+  string lastAccepted;
+
+  init() {
+    this.items = [];
+    this.focusIndex = -1;
+    this.preview = false;
+    this.lastAccepted = "";
+  }
+
+  void setItems(ActionListItem[] items) {
+    this.items = items;
+    this.focusIndex = this.firstFocusable(0, 1);
+  }
+
+  int firstFocusable(int start, int dir) {
+    int n = this.items.length;
+    if (n == 0) {
+      return -1;
+    }
+    int i = start;
+    int guard = 0;
+    while (guard < n) {
+      if (i < 0) {
+        i = n - 1;
+      }
+      if (i >= n) {
+        i = 0;
+      }
+      if (canFocus(this.items[i])) {
+        return i;
+      }
+      i = i + dir;
+      guard = guard + 1;
+    }
+    return -1;
+  }
+
+  void focusNext() {
+    int start = this.focusIndex + 1;
+    if (this.focusIndex < 0) {
+      start = 0;
+    }
+    this.focusIndex = this.firstFocusable(start, 1);
+  }
+
+  void focusPrevious() {
+    int start = this.focusIndex - 1;
+    if (this.focusIndex < 0) {
+      start = this.items.length - 1;
+    }
+    this.focusIndex = this.firstFocusable(start, -1);
+  }
+
+  ActionListItem? focused() {
+    if (this.focusIndex < 0 || this.focusIndex >= this.items.length) {
+      return null;
+    }
+    return this.items[this.focusIndex];
+  }
+
+  bool acceptSelected(bool preview) {
+    ActionListItem? item = this.focused();
+    if (item == null) {
+      return false;
+    }
+    if (item.disabled) {
+      return false;
+    }
+    this.preview = preview;
+    this.lastAccepted = item.label;
+    return true;
+  }
+
+  void hide() {
+    this.focusIndex = -1;
+    this.lastAccepted = "";
+  }
+}
+
+export ActionList createActionList() {
+  return new ActionList();
+}
+
+export ActionListItem createActionListItem(string kind, string label, string group, bool disabled) {
+  return new ActionListItem(kind, label, group, disabled);
+}

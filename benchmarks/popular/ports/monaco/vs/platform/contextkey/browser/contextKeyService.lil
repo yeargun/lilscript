@@ -1,0 +1,131 @@
+export class ContextNode {
+  int id;
+  int parentId;
+  Record<string> values;
+
+  init(int id, int parentId) {
+    this.id = id;
+    this.parentId = parentId;
+    this.values = record {};
+  }
+
+  bool setValue(string key, string value) {
+    string? prev = this.values[key];
+    if (prev != null && prev == value) {
+      return false;
+    }
+    this.values[key] = value;
+    return true;
+  }
+
+  bool removeValue(string key) {
+    string? prev = this.values[key];
+    if (prev != null) {
+      this.values[key] = "";
+      return true;
+    }
+    return false;
+  }
+
+  string? getLocal(string key) {
+    return this.values[key];
+  }
+}
+
+export class ContextKeyService {
+  ContextNode[] contexts;
+  int nextId;
+  int lastFocusedId;
+  string[] changedKeys;
+
+  init() {
+    this.contexts = [];
+    this.contexts.push(new ContextNode(0, -1));
+    this.nextId = 1;
+    this.lastFocusedId = 0;
+    this.changedKeys = [];
+  }
+
+  ContextNode? find(int id) {
+    int i = 0;
+    while (i < this.contexts.length) {
+      if (this.contexts[i].id == id) {
+        return this.contexts[i];
+      }
+      i = i + 1;
+    }
+    return null;
+  }
+
+  int createChild(int parentId) {
+    int id = this.nextId;
+    this.nextId = this.nextId + 1;
+    this.contexts.push(new ContextNode(id, parentId));
+    return id;
+  }
+
+  void disposeContext(int id) {
+    if (id == 0) {
+      return;
+    }
+    ContextNode[] next = [];
+    int i = 0;
+    while (i < this.contexts.length) {
+      if (this.contexts[i].id != id) {
+        next.push(this.contexts[i]);
+      }
+      i = i + 1;
+    }
+    this.contexts = next;
+  }
+
+  string getValue(int id, string key) {
+    int cursor = id;
+    int guard = 0;
+    while (cursor >= 0 && guard < 64) {
+      ContextNode? node = this.find(cursor);
+      if (node == null) {
+        return "";
+      }
+      string? found = node.getLocal(key);
+      if (found != null && found != "") {
+        return found;
+      }
+      cursor = node.parentId;
+      guard = guard + 1;
+    }
+    return "";
+  }
+
+  bool setValue(int id, string key, string value) {
+    ContextNode? node = this.find(id);
+    if (node == null) {
+      return false;
+    }
+    bool changed = node.setValue(key, value);
+    if (changed) {
+      this.changedKeys.push(key);
+    }
+    return changed;
+  }
+
+  bool removeValue(int id, string key) {
+    ContextNode? node = this.find(id);
+    if (node == null) {
+      return false;
+    }
+    return node.removeValue(key);
+  }
+
+  void setInputFocus(bool focused) {
+    string value = "false";
+    if (focused) {
+      value = "true";
+    }
+    this.setValue(0, "inputFocus", value);
+  }
+}
+
+export ContextKeyService createContextKeyService() {
+  return new ContextKeyService();
+}

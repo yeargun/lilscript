@@ -1,0 +1,18 @@
+export class OpenerService {
+  string[] opened;
+
+  init() {
+    this.opened = [];
+  }
+
+  bool open(string resource) {
+    this.opened.push(resource);
+    return true;
+  }
+}
+
+export OpenerService createOpenerService() {
+  return new OpenerService();
+}
+
+export string IOpenerServiceId = "openerService";

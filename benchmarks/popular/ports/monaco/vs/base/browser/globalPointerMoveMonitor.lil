@@ -1,0 +1,88 @@
+import { addEventListener, removeEventListener, preventDefault, hostCall, jsUndefined } from "../../../js-host";
+
+export class GlobalPointerMoveMonitor {
+  JsValue eventSource;
+  JsValue initialElement;
+  int pointerId;
+  int initialButtons;
+  bool monitoring;
+  func(JsValue)->void pointerMoveCallback;
+  func(JsValue)->void stopCallback;
+  func(JsValue)->void moveListener;
+  func(JsValue)->void upListener;
+
+  init() {
+    this.eventSource = jsUndefined();
+    this.initialElement = jsUndefined();
+    this.pointerId = 0;
+    this.initialButtons = 0;
+    this.monitoring = false;
+    this.pointerMoveCallback = (JsValue event) => {};
+    this.stopCallback = (JsValue event) => {};
+    GlobalPointerMoveMonitor owner = this;
+    this.moveListener = (JsValue event) => {
+      owner.handleMove(event);
+    };
+    this.upListener = (JsValue event) => {
+      owner.stopMonitoring(true, event);
+    };
+  }
+
+  bool isMonitoring() {
+    return this.monitoring;
+  }
+
+  void handleMove(JsValue event) {
+    int buttons = this.initialButtons;
+    JsValue rawButtons = event["buttons"];
+    if (rawButtons is float) {
+      float count = rawButtons;
+      buttons = count.toInt();
+    }
+    if (buttons != this.initialButtons) {
+      this.stopMonitoring(true, event);
+      return;
+    }
+    preventDefault(event);
+    this.pointerMoveCallback(event);
+  }
+
+  void startMonitoring(JsValue initialElement, int pointerId, int initialButtons, func(JsValue)->void pointerMoveCallback, func(JsValue)->void onStopCallback) {
+    if (this.monitoring) {
+      this.stopMonitoring(false, jsUndefined());
+    }
+    this.initialElement = initialElement;
+    this.eventSource = initialElement;
+    this.pointerId = pointerId;
+    this.initialButtons = initialButtons;
+    this.pointerMoveCallback = pointerMoveCallback;
+    this.stopCallback = onStopCallback;
+    this.monitoring = true;
+    JsValue missing = jsUndefined();
+    hostCall(initialElement, "setPointerCapture", pointerId, missing, missing);
+    addEventListener(this.eventSource, "pointermove", this.moveListener, false);
+    addEventListener(this.eventSource, "pointerup", this.upListener, false);
+  }
+
+  void stopMonitoring(bool invokeStopCallback, JsValue browserEvent) {
+    if (!this.monitoring) {
+      return;
+    }
+    removeEventListener(this.eventSource, "pointermove", this.moveListener, false);
+    removeEventListener(this.eventSource, "pointerup", this.upListener, false);
+    JsValue missing = jsUndefined();
+    hostCall(this.initialElement, "releasePointerCapture", this.pointerId, missing, missing);
+    this.monitoring = false;
+    if (invokeStopCallback) {
+      this.stopCallback(browserEvent);
+    }
+  }
+
+  void dispose() {
+    this.stopMonitoring(false, jsUndefined());
+  }
+}
+
+export GlobalPointerMoveMonitor createGlobalPointerMoveMonitor() {
+  return new GlobalPointerMoveMonitor();
+}

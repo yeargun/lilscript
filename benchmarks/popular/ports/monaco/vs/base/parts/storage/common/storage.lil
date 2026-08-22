@@ -1,0 +1,137 @@
+export int StorageHintDoesNotExist = 0;
+export int StorageHintInMemory = 1;
+export int StorageStateNone = 0;
+export int StorageStateInitialized = 1;
+export int StorageStateClosed = 2;
+
+export class Storage {
+  int state;
+  string[] keys;
+  string[] values;
+  string[] pendingDeletes;
+  string[] pendingInsertKeys;
+  string[] pendingInsertValues;
+
+  init() {
+    this.state = StorageStateNone;
+    this.keys = [];
+    this.values = [];
+    this.pendingDeletes = [];
+    this.pendingInsertKeys = [];
+    this.pendingInsertValues = [];
+  }
+
+  int indexOf(string key) {
+    int i = 0;
+    while (i < this.keys.length) {
+      if (this.keys[i] == key) {
+        return i;
+      }
+      i = i + 1;
+    }
+    return -1;
+  }
+
+  void initStorage() {
+    this.state = StorageStateInitialized;
+  }
+
+  string get(string key, string fallback) {
+    int idx = this.indexOf(key);
+    if (idx >= 0) {
+      return this.values[idx];
+    }
+    return fallback;
+  }
+
+  bool getBoolean(string key, bool fallback) {
+    string raw = this.get(key, "");
+    if (raw == "true") {
+      return true;
+    }
+    if (raw == "false") {
+      return false;
+    }
+    return fallback;
+  }
+
+  int getInteger(string key, int fallback) {
+    string raw = this.get(key, "");
+    if (raw.length == 0) {
+      return fallback;
+    }
+    int n = 0;
+    int i = 0;
+    bool neg = false;
+    if (raw.charAt(0) == "-") {
+      neg = true;
+      i = 1;
+    }
+    while (i < raw.length) {
+      int c = raw.charCodeAt(i);
+      if (c < 48 || c > 57) {
+        return fallback;
+      }
+      n = n * 10 + (c - 48);
+      i = i + 1;
+    }
+    if (neg) {
+      return 0 - n;
+    }
+    return n;
+  }
+
+  void set(string key, string value) {
+    int idx = this.indexOf(key);
+    if (idx >= 0) {
+      this.values[idx] = value;
+    } else {
+      this.keys.push(key);
+      this.values.push(value);
+    }
+    this.pendingInsertKeys.push(key);
+    this.pendingInsertValues.push(value);
+  }
+
+  bool remove(string key) {
+    int idx = this.indexOf(key);
+    if (idx < 0) {
+      return false;
+    }
+    string[] nextKeys = [];
+    string[] nextValues = [];
+    int i = 0;
+    while (i < this.keys.length) {
+      if (i != idx) {
+        nextKeys.push(this.keys[i]);
+        nextValues.push(this.values[i]);
+      }
+      i = i + 1;
+    }
+    this.keys = nextKeys;
+    this.values = nextValues;
+    this.pendingDeletes.push(key);
+    return true;
+  }
+
+  void close() {
+    this.state = StorageStateClosed;
+  }
+}
+
+export class InMemoryStorageDatabase {
+  Storage storage;
+
+  init() {
+    this.storage = new Storage();
+    this.storage.initStorage();
+  }
+}
+
+export Storage createStorage() {
+  return new Storage();
+}
+
+export InMemoryStorageDatabase createInMemoryStorageDatabase() {
+  return new InMemoryStorageDatabase();
+}

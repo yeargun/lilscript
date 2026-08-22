@@ -1,0 +1,82 @@
+export class MultiDiffEditorItemViewModel {
+  string originalUri;
+  string modifiedUri;
+  bool collapsed;
+  int contentHeight;
+
+  init(string originalUri, string modifiedUri) {
+    this.originalUri = originalUri;
+    this.modifiedUri = modifiedUri;
+    this.collapsed = false;
+    this.contentHeight = 0;
+  }
+
+  void setCollapsed(bool collapsed) {
+    this.collapsed = collapsed;
+  }
+
+  int headerHeight() {
+    return 40;
+  }
+
+  int totalHeight() {
+    if (this.collapsed) {
+      return this.headerHeight();
+    }
+    return this.headerHeight() + this.contentHeight;
+  }
+}
+
+export class MultiDiffEditorViewModel {
+  MultiDiffEditorItemViewModel[] items;
+  int scrollTop;
+  int activeIndex;
+
+  init() {
+    this.items = [];
+    this.scrollTop = 0;
+    this.activeIndex = 0;
+  }
+
+  void setItems(MultiDiffEditorItemViewModel[] items) {
+    this.items = items;
+    if (this.activeIndex >= this.items.length) {
+      this.activeIndex = 0;
+    }
+  }
+
+  int contentHeight() {
+    int h = 0;
+    int i = 0;
+    while (i < this.items.length) {
+      h = h + this.items[i].totalHeight();
+      i = i + 1;
+    }
+    return h;
+  }
+
+  void focusNext() {
+    if (this.items.length == 0) {
+      return;
+    }
+    this.activeIndex = (this.activeIndex + 1) % this.items.length;
+  }
+
+  void focusPrevious() {
+    if (this.items.length == 0) {
+      return;
+    }
+    this.activeIndex = this.activeIndex - 1;
+    if (this.activeIndex < 0) {
+      this.activeIndex = this.items.length - 1;
+    }
+  }
+}
+
+export MultiDiffEditorViewModel createMultiDiffEditorViewModel() {
+  return new MultiDiffEditorViewModel();
+}
+
+export MultiDiffEditorItemViewModel createMultiDiffEditorItemViewModel(string originalUri, string modifiedUri) {
+  return new MultiDiffEditorItemViewModel(originalUri, modifiedUri);
+}

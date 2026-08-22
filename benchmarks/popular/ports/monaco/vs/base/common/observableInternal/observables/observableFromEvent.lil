@@ -1,0 +1,143 @@
+export class EventObservableObserver {
+  func(FromEventObservable)->void beginFn;
+  func(FromEventObservable)->void endFn;
+  func(FromEventObservable, JsValue)->void changeFn;
+  func(FromEventObservable)->void possibleFn;
+
+  init(
+    func(FromEventObservable)->void beginFn,
+    func(FromEventObservable)->void endFn,
+    func(FromEventObservable, JsValue)->void changeFn,
+    func(FromEventObservable)->void possibleFn
+  ) {
+    this.beginFn = beginFn;
+    this.endFn = endFn;
+    this.changeFn = changeFn;
+    this.possibleFn = possibleFn;
+  }
+}
+
+export class FromEventObservable {
+  string debugName;
+  func(func(JsValue)->void)->func()->void eventFn;
+  func(JsValue)->JsValue getValueFn;
+  func(JsValue, JsValue)->bool equalityComparator;
+  EventObservableObserver[] observers;
+  bool hasSubscription;
+  func()->void disposeSubscription;
+  bool hasValue;
+  JsValue value;
+
+  init(
+    string debugName,
+    func(func(JsValue)->void)->func()->void eventFn,
+    func(JsValue)->JsValue getValueFn,
+    func(JsValue, JsValue)->bool equalityComparator
+  ) {
+    this.debugName = debugName;
+    this.eventFn = eventFn;
+    this.getValueFn = getValueFn;
+    this.equalityComparator = equalityComparator;
+    this.observers = [];
+    this.hasSubscription = false;
+    this.disposeSubscription = () => {};
+    this.hasValue = false;
+    this.value = 0;
+  }
+
+  void handleEvent(JsValue eventArgs) {
+    JsValue newValue = this.getValueFn(eventArgs);
+    bool didChange = !this.hasValue || !this.equalityComparator(this.value, newValue);
+    bool hadValue = this.hasValue;
+    this.value = newValue;
+    this.hasValue = true;
+    if (!didChange || !hadValue) {
+      return;
+    }
+    EventObservableObserver[] snapshot = this.observers.slice();
+    int i = 0;
+    while (i < snapshot.length) {
+      snapshot[i].beginFn(this);
+      snapshot[i].changeFn(this, eventArgs);
+      snapshot[i].endFn(this);
+      i = i + 1;
+    }
+  }
+
+  void addObserver(EventObservableObserver observer) {
+    if (this.observers.indexOf(observer) >= 0) {
+      return;
+    }
+    bool wasEmpty = this.observers.length == 0;
+    this.observers.push(observer);
+    if (wasEmpty) {
+      this.disposeSubscription = this.eventFn((JsValue args) => {
+        this.handleEvent(args);
+      });
+      this.hasSubscription = true;
+    }
+  }
+
+  void removeObserver(EventObservableObserver observer) {
+    int index = this.observers.indexOf(observer);
+    if (index >= 0) {
+      this.observers.splice(index, 1);
+    }
+    if (this.observers.length == 0 && this.hasSubscription) {
+      this.disposeSubscription();
+      this.hasSubscription = false;
+      this.hasValue = false;
+      this.value = 0;
+    }
+  }
+
+  JsValue get() {
+    if (!this.hasSubscription) {
+      return this.getValueFn(0);
+    }
+    if (!this.hasValue) {
+      this.handleEvent(0);
+    }
+    return this.value;
+  }
+
+  void reportChanges() {
+    this.get();
+  }
+
+  void debugSetValue(JsValue newValue) {
+    this.value = newValue;
+    this.hasValue = true;
+  }
+
+  JsValue debugGetState() {
+    JsValue state = JS.object();
+    state["value"] = this.value;
+    state["hasValue"] = this.hasValue;
+    return state;
+  }
+}
+
+export FromEventObservable observableFromEvent(
+  string debugName,
+  func(func(JsValue)->void)->func()->void eventFn,
+  func(JsValue)->JsValue getValueFn
+) {
+  return new FromEventObservable(
+    debugName,
+    eventFn,
+    getValueFn,
+    (JsValue a, JsValue b) => {
+      return a == b;
+    }
+  );
+}
+
+export FromEventObservable observableFromEventOpts(
+  string debugName,
+  func(func(JsValue)->void)->func()->void eventFn,
+  func(JsValue)->JsValue getValueFn,
+  func(JsValue, JsValue)->bool equalsFn
+) {
+  return new FromEventObservable(debugName, eventFn, getValueFn, equalsFn);
+}

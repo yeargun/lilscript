@@ -1,0 +1,126 @@
+import { domCreateElement, appendChild, setClassName, classListAdd, setAttribute, setTextContent, setStyle, clearChildren } from "../../../../../js-host";
+
+export class FastLabelNode {
+  JsValue element;
+  string textContent;
+  string classNames;
+  bool empty;
+  bool disposed;
+
+  init(JsValue element) {
+    this.element = element;
+    this.textContent = "";
+    this.classNames = "";
+    this.empty = false;
+    this.disposed = false;
+  }
+
+  void setTextContent(string content) {
+    if (this.disposed || content == this.textContent) {
+      return;
+    }
+    this.textContent = content;
+    setTextContent(this.element, content);
+  }
+
+  void setClassNames(string classNames) {
+    if (this.disposed || classNames == this.classNames) {
+      return;
+    }
+    this.classNames = classNames;
+    setClassName(this.element, classNames);
+  }
+
+  void setEmpty(bool empty) {
+    if (this.disposed || empty == this.empty) {
+      return;
+    }
+    this.empty = empty;
+    if (empty) {
+      setStyle(this.element, "margin-left", "0");
+    } else {
+      setStyle(this.element, "margin-left", "");
+    }
+  }
+
+  void dispose() {
+    this.disposed = true;
+  }
+}
+
+export class IconLabel {
+  FastLabelNode domNode;
+  JsValue labelContainer;
+  JsValue nameContainer;
+  JsValue descriptionContainer;
+  JsValue nameNode;
+  bool supportHighlights;
+  bool supportIcons;
+  bool disposed;
+
+  init(JsValue container, bool supportHighlights, bool supportIcons) {
+    this.supportHighlights = supportHighlights;
+    this.supportIcons = supportIcons;
+    this.disposed = false;
+    JsValue root = domCreateElement("div");
+    setClassName(root, "monaco-icon-label");
+    appendChild(container, root);
+    this.domNode = new FastLabelNode(root);
+    this.labelContainer = domCreateElement("div");
+    setClassName(this.labelContainer, "monaco-icon-label-container");
+    appendChild(root, this.labelContainer);
+    this.nameContainer = domCreateElement("span");
+    setClassName(this.nameContainer, "monaco-icon-name-container");
+    appendChild(this.labelContainer, this.nameContainer);
+    this.descriptionContainer = null;
+    this.nameNode = this.nameContainer;
+  }
+
+  JsValue element() {
+    return this.domNode.element;
+  }
+
+  void setLabel(string label, string description, string extraClasses, bool bold, bool italic, bool strikethrough, bool disabled) {
+    string classes = "monaco-icon-label";
+    if (extraClasses.length > 0) {
+      classes = classes + " " + extraClasses;
+    }
+    if (bold) {
+      classes = classes + " bold";
+    }
+    if (italic) {
+      classes = classes + " italic";
+    }
+    if (strikethrough) {
+      classes = classes + " strikethrough";
+    }
+    if (disabled) {
+      classes = classes + " disabled";
+    }
+    this.domNode.setClassNames(classes);
+    setTextContent(this.nameNode, label);
+    if (description.length > 0) {
+      if (!this.descriptionContainer.truthy()) {
+        this.descriptionContainer = domCreateElement("span");
+        setClassName(this.descriptionContainer, "monaco-icon-description-container");
+        appendChild(this.labelContainer, this.descriptionContainer);
+      }
+      setTextContent(this.descriptionContainer, description);
+      this.domNode.setEmpty(false);
+    } else {
+      if (this.descriptionContainer.truthy()) {
+        clearChildren(this.descriptionContainer);
+      }
+      this.domNode.setEmpty(true);
+    }
+  }
+
+  void dispose() {
+    this.disposed = true;
+    this.domNode.dispose();
+  }
+}
+
+export IconLabel createIconLabel(JsValue container, bool supportHighlights = false, bool supportIcons = false) {
+  return new IconLabel(container, supportHighlights, supportIcons);
+}

@@ -1,0 +1,19 @@
+export class NativeEditContextHandle {
+  JsValue context;
+
+  init(JsValue context) {
+    this.context = context;
+  }
+}
+
+export NativeEditContextHandle createEditContext(JsValue win, int selectionStartOffset, int selectionEndOffset) {
+  JsValue ctor = win["EditContext"];
+  if (!ctor.truthy()) {
+    return new NativeEditContextHandle(win);
+  }
+  return new NativeEditContextHandle(ctor);
+}
+
+export bool isEditContextSupported(JsValue win) {
+  return win["EditContext"].truthy();
+}

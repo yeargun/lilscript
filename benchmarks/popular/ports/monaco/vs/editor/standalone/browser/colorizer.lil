@@ -1,0 +1,50 @@
+import { setInnerHTML } from "../../../../js-host";
+
+export class Colorizer {
+  string[] tokenTypes;
+  string[] tokenColors;
+
+  init() {
+    this.tokenTypes = [];
+    this.tokenColors = [];
+  }
+
+  void define(string token, string color) {
+    this.tokenTypes.push(token);
+    this.tokenColors.push(color);
+  }
+
+  string colorFor(string token) {
+    int i = 0;
+    while (i < this.tokenTypes.length) {
+      if (this.tokenTypes[i] == token) {
+        return this.tokenColors[i];
+      }
+      i = i + 1;
+    }
+    return "";
+  }
+
+  string colorizeLine(string[] tokens, string[] types) {
+    string html = "";
+    int i = 0;
+    while (i < tokens.length && i < types.length) {
+      string color = this.colorFor(types[i]);
+      if (color.length > 0) {
+        html = html + "<span style=\"color:#" + color + "\">" + tokens[i] + "</span>";
+      } else {
+        html = html + tokens[i];
+      }
+      i = i + 1;
+    }
+    return html;
+  }
+
+  void render(JsValue host, string html) {
+    setInnerHTML(host, html);
+  }
+}
+
+export Colorizer createColorizer() {
+  return new Colorizer();
+}

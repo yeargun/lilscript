@@ -1,0 +1,10 @@
+import { startBatch, endBatch } from "../core/observable.lil";
+
+export JsValue transaction = JS.method2((JsValue _self, JsValue actionFn, JsValue thisArg) => {
+  startBatch();
+  try {
+    return JS.invoke(actionFn, "apply", thisArg);
+  } finally {
+    endBatch();
+  }
+});

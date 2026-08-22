@@ -1,0 +1,18 @@
+export class UserInteractionServiceImpl {
+  float lastInteraction;
+  int count;
+
+  init() {
+    this.lastInteraction = 0.0;
+    this.count = 0;
+  }
+
+  void onEvent(float now) {
+    this.lastInteraction = now;
+    this.count = this.count + 1;
+  }
+}
+
+export UserInteractionServiceImpl createUserInteractionServiceImpl() {
+  return new UserInteractionServiceImpl();
+}

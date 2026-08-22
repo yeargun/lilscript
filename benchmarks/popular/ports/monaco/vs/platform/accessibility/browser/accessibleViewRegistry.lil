@@ -1,0 +1,21 @@
+export class AccessibleViewRegistry {
+  string[] ids;
+
+  init() {
+    this.ids = [];
+  }
+
+  void register(string id) {
+    if (!this.ids.includes(id)) {
+      this.ids.push(id);
+    }
+  }
+
+  string[] getViews() {
+    return this.ids;
+  }
+}
+
+export AccessibleViewRegistry createAccessibleViewRegistry() {
+  return new AccessibleViewRegistry();
+}

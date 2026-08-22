@@ -1,0 +1,156 @@
+int imin(int a, int b) {
+  if (a < b) {
+    return a;
+  }
+  return b;
+}
+
+int imax(int a, int b) {
+  if (a > b) {
+    return a;
+  }
+  return b;
+}
+
+export class DecorationToRender {
+  int startLineNumber;
+  int endLineNumber;
+  string className;
+  string tooltip;
+  int zIndex;
+
+  init(int startLineNumber, int endLineNumber, string className, string tooltip, int zIndex) {
+    this.startLineNumber = startLineNumber;
+    this.endLineNumber = endLineNumber;
+    this.className = className;
+    this.tooltip = tooltip;
+    this.zIndex = zIndex;
+  }
+}
+
+export class LineDecorationToRender {
+  string className;
+  int zIndex;
+  string tooltip;
+
+  init(string className, int zIndex, string tooltip) {
+    this.className = className;
+    this.zIndex = zIndex;
+    this.tooltip = tooltip;
+  }
+}
+
+int compareDecorations(DecorationToRender a, DecorationToRender b) {
+  if (a.className == b.className) {
+    if (a.startLineNumber == b.startLineNumber) {
+      return a.endLineNumber - b.endLineNumber;
+    }
+    return a.startLineNumber - b.startLineNumber;
+  }
+  if (a.className < b.className) {
+    return -1;
+  }
+  return 1;
+}
+
+LineDecorationToRender[][] dedupRender(int visibleStartLineNumber, int visibleEndLineNumber, DecorationToRender[] decorations) {
+  LineDecorationToRender[][] output = [];
+  int lineNumber = visibleStartLineNumber;
+  while (lineNumber <= visibleEndLineNumber) {
+    LineDecorationToRender[] row = [];
+    output.push(row);
+    lineNumber = lineNumber + 1;
+  }
+  if (decorations.length == 0) {
+    return output;
+  }
+  int i = 1;
+  while (i < decorations.length) {
+    DecorationToRender key = decorations[i];
+    int j = i - 1;
+    while (j >= 0 && compareDecorations(decorations[j], key) > 0) {
+      decorations[j + 1] = decorations[j];
+      j = j - 1;
+    }
+    decorations[j + 1] = key;
+    i = i + 1;
+  }
+  string prevClassName = "";
+  int prevEndLineIndex = 0;
+  bool hasPrev = false;
+  i = 0;
+  while (i < decorations.length) {
+    DecorationToRender d = decorations[i];
+    int startLineIndex = imax(d.startLineNumber, visibleStartLineNumber) - visibleStartLineNumber;
+    int endLineIndex = imin(d.endLineNumber, visibleEndLineNumber) - visibleStartLineNumber;
+    if (hasPrev && prevClassName == d.className) {
+      startLineIndex = imax(prevEndLineIndex + 1, startLineIndex);
+      prevEndLineIndex = imax(prevEndLineIndex, endLineIndex);
+    } else {
+      prevClassName = d.className;
+      prevEndLineIndex = endLineIndex;
+      hasPrev = true;
+    }
+    int lineIndex = startLineIndex;
+    while (lineIndex <= prevEndLineIndex) {
+      if (lineIndex >= 0 && lineIndex < output.length) {
+        output[lineIndex].push(new LineDecorationToRender(d.className, d.zIndex, d.tooltip));
+      }
+      lineIndex = lineIndex + 1;
+    }
+    i = i + 1;
+  }
+  return output;
+}
+
+export class LinesDecorationsOverlay {
+  int decorationsLeft;
+  int decorationsWidth;
+  string[] renderResult;
+
+  init(int decorationsLeft, int decorationsWidth) {
+    this.decorationsLeft = decorationsLeft;
+    this.decorationsWidth = decorationsWidth;
+    this.renderResult = [];
+  }
+
+  void prepareRender(int visibleStartLineNumber, int visibleEndLineNumber, DecorationToRender[] decorations) {
+    LineDecorationToRender[][] toRender = dedupRender(visibleStartLineNumber, visibleEndLineNumber, decorations);
+    this.renderResult = [];
+    string common = "\" style=\"left:" + this.decorationsLeft.toString() + "px;width:" + this.decorationsWidth.toString() + "px;\"></div>";
+    int lineIndex = 0;
+    while (lineIndex < toRender.length) {
+      LineDecorationToRender[] row = toRender[lineIndex];
+      string lineOutput = "";
+      int i = 0;
+      while (i < row.length) {
+        LineDecorationToRender decoration = row[i];
+        string addition = "<div class=\"cldr " + decoration.className;
+        if (decoration.tooltip.length > 0) {
+          addition = addition + "\" title=\"" + decoration.tooltip;
+        }
+        addition = addition + common;
+        lineOutput = lineOutput + addition;
+        i = i + 1;
+      }
+      this.renderResult.push(lineOutput);
+      lineIndex = lineIndex + 1;
+    }
+  }
+
+  string render(int startLineNumber, int lineNumber) {
+    int lineIndex = lineNumber - startLineNumber;
+    if (lineIndex < 0 || lineIndex >= this.renderResult.length) {
+      return "";
+    }
+    return this.renderResult[lineIndex];
+  }
+}
+
+export DecorationToRender createLinesDecorationToRender(int startLineNumber, int endLineNumber, string className, string tooltip, int zIndex) {
+  return new DecorationToRender(startLineNumber, endLineNumber, className, tooltip, zIndex);
+}
+
+export LinesDecorationsOverlay createLinesDecorationsOverlay(int decorationsLeft, int decorationsWidth) {
+  return new LinesDecorationsOverlay(decorationsLeft, decorationsWidth);
+}

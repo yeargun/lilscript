@@ -1,0 +1,90 @@
+string unknownErrorMessage() {
+  return "An unknown error occurred. Please consult the log for more details.";
+}
+
+string valueAsString(JsValue value, string fallback) {
+  if (value is string) {
+    string result = value;
+    return result;
+  }
+  return fallback;
+}
+
+string exceptionToErrorMessage(JsValue exception, bool verbose) {
+  string message = valueAsString(exception["message"], unknownErrorMessage());
+  string code = valueAsString(exception["code"], "");
+  if (code == "ERR_UNC_HOST_NOT_ALLOWED") {
+    message = message + ". Please update the 'security.allowedUNCHosts' setting if you want to allow this host.";
+  }
+  if (verbose) {
+    JsValue stack = exception["stack"];
+    if (stack is string) {
+      string stackText = stack;
+      if (stackText.length > 0) {
+        return message + ": " + stackText;
+      }
+    } else if (stack.isArray()) {
+      string[] rows = [];
+      int i = 0;
+      int count = stack.length.toInt();
+      while (i < count) {
+        JsValue item = stack[i];
+        if (item is string) {
+          string row = item;
+          rows.push(row);
+        }
+        i = i + 1;
+      }
+      if (rows.length > 0) {
+        return message + ": " + rows.join("\n");
+      }
+    }
+  }
+  return message;
+}
+
+export string toErrorMessage(JsValue error, bool verbose) {
+  if (!error.truthy()) {
+    return unknownErrorMessage();
+  }
+  if (error is string) {
+    string text = error;
+    return text;
+  }
+  if (error.isArray()) {
+    int count = error.length.toInt();
+    string first = unknownErrorMessage();
+    int actual = 0;
+    int i = 0;
+    while (i < count) {
+      if (error[i].truthy()) {
+        if (actual == 0) {
+          first = toErrorMessage(error[i], verbose);
+        }
+        actual = actual + 1;
+      }
+      i = i + 1;
+    }
+    if (actual > 1) {
+      return first + " (" + actual.toString() + " errors in total)";
+    }
+    return first;
+  }
+  if (error.isObject()) {
+    JsValue detail = error["detail"];
+    if (detail.truthy() && detail.isObject()) {
+      JsValue detailError = detail["error"];
+      if (detailError.truthy()) {
+        return exceptionToErrorMessage(detailError, verbose);
+      }
+      JsValue detailException = detail["exception"];
+      if (detailException.truthy()) {
+        return exceptionToErrorMessage(detailException, verbose);
+      }
+    }
+    if (error["stack"].truthy() || error["message"].truthy()) {
+      return exceptionToErrorMessage(error, verbose);
+    }
+  }
+  return unknownErrorMessage();
+}

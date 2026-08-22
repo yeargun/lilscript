@@ -1,0 +1,219 @@
+import { DEV } from "../dev-flag.lil";
+import {
+  toStr,
+  undef,
+  yes,
+  call0,
+  call1,
+  call2,
+  invoke0,
+  construct1,
+  throwErr,
+  createInstanceofPredicate,
+  wellKnown,
+  newSet,
+  toPrimitive,
+  warn
+} from "../host.lil";
+import {
+  NOT_TRACKING,
+  UP_TO_DATE,
+  UPDATE
+} from "../constants.lil";
+import { die, die1, die2 } from "../errors.lil";
+import { defaultEquals } from "../utils/comparer.lil";
+import { getNextId, globalState } from "./globalstate.lil";
+import {
+  startBatch,
+  endBatch,
+  reportObserved,
+  propagateMaybeChanged,
+  propagateChangeConfirmed
+} from "./observable.lil";
+import {
+  shouldCompute,
+  trackDerivedFunction,
+  clearObserving,
+  isCaughtException,
+  CaughtException,
+  allowStateChangesStart,
+  allowStateChangesEnd
+} from "./derivation.lil";
+import { createAction } from "./action.lil";
+import { isSpyEnabled, spyReport } from "./spy.lil";
+import { isComputedValuePred } from "./predicates.lil";
+import { onBOImpl, onBUOImpl, installComputedFlags, isBoolish } from "./shared.lil";
+
+export JsValue ComputedValue = JS.method1((JsValue self, JsValue options) => {
+  if (!options["get"].truthy()) {
+    die(31);
+  }
+  self["derivation"] = options["get"];
+  string name = "ComputedValue";
+  if (options["name"].truthy()) {
+    name = toStr(options["name"]);
+  } else if (DEV) {
+    name = "ComputedValue@" + getNextId();
+  }
+  self["name_"] = name;
+  if (options["set"].truthy()) {
+    string setterName = "ComputedValue-setter";
+    if (DEV) {
+      setterName = name + "-setter";
+    }
+    self["setter_"] = createAction(setterName, options["set"], false, undef());
+  } else {
+    self["setter_"] = undef();
+  }
+  self["equals_"] = defaultEquals;
+  if (options["equals"].truthy()) {
+    self["equals_"] = options["equals"];
+  }
+  self["scope_"] = options["context"];
+  self["requiresReaction_"] = options["requiresReaction"];
+  self["keepAlive_"] = options["keepAlive"].truthy();
+  self["dependenciesState_"] = NOT_TRACKING;
+  self["observing_"] = JS.array();
+  self["newObserving_"] = null;
+  self["observers_"] = newSet();
+  self["runId_"] = 0;
+  self["lastAccessedBy_"] = 0;
+  self["lowestObserverState_"] = UP_TO_DATE;
+  self["unboundDepsCount_"] = 0;
+  self["value_"] = construct1(CaughtException, null);
+  self["flags_"] = 0;
+  return self;
+});
+
+ComputedValue["prototype"]["onBecomeStale_"] = JS.method0((JsValue self) => {
+  propagateMaybeChanged(self);
+  return undef();
+});
+ComputedValue["prototype"]["onBO"] = JS.method0((JsValue self) => {
+  onBOImpl(self);
+  return undef();
+});
+ComputedValue["prototype"]["onBUO"] = JS.method0((JsValue self) => {
+  onBUOImpl(self);
+  return undef();
+});
+ComputedValue["prototype"]["computeValue_"] = JS.method1((JsValue self, JsValue track) => {
+  self["isComputing"] = true;
+  bool prev = false;
+  if (DEV) {
+    prev = allowStateChangesStart(false);
+  }
+  JsValue res = undef();
+  if (track.truthy()) {
+    res = trackDerivedFunction(self, self["derivation"], self["scope_"]);
+  } else {
+    if (JS.strictEqual(globalState["disableErrorBoundaries"], true)) {
+      res = call0(self["derivation"], self["scope_"]);
+    } else {
+      try {
+        res = call0(self["derivation"], self["scope_"]);
+      } catch (JsValue e) {
+        res = construct1(CaughtException, e);
+      }
+    }
+  }
+  if (DEV) {
+    allowStateChangesEnd(prev);
+  }
+  self["isComputing"] = false;
+  return res;
+});
+ComputedValue["prototype"]["trackAndCompute"] = JS.method0((JsValue self) => {
+  JsValue oldValue = self["value_"];
+  bool wasSuspended = JS.strictEqual(self["dependenciesState_"], NOT_TRACKING);
+  JsValue newValue = call1(self["computeValue_"], self, true);
+  bool changed = wasSuspended || isCaughtException(oldValue) || isCaughtException(newValue) || !yes(call2(self["equals_"], self, oldValue, newValue));
+  if (changed) {
+    self["value_"] = newValue;
+    if (DEV && isSpyEnabled()) {
+      spyReport(JS.object("observableKind", "computed", "debugObjectName", self["name_"], "object", self["scope_"], "type", UPDATE, "oldValue", oldValue, "newValue", newValue));
+    }
+  }
+  return changed;
+});
+ComputedValue["prototype"]["get"] = JS.method0((JsValue self) => {
+  if (self["isComputing"].truthy()) {
+    die2(32, self["name_"], self["derivation"]);
+  }
+  if (!globalState["inBatch"].truthy() && !self["observers_"]["size"].truthy() && !self["keepAlive_"].truthy()) {
+    if (shouldCompute(self)) {
+      if (DEV) {
+        invoke0(self, "warnAboutUntrackedRead_");
+      }
+      startBatch();
+      self["value_"] = call1(self["computeValue_"], self, false);
+      endBatch();
+    }
+  } else {
+    reportObserved(self);
+    if (shouldCompute(self)) {
+      JsValue prevTrackingContext = globalState["trackingContext"];
+      if (self["keepAlive_"].truthy() && !prevTrackingContext.truthy()) {
+        globalState["trackingContext"] = self;
+      }
+      if (invoke0(self, "trackAndCompute").truthy()) {
+        propagateChangeConfirmed(self);
+      }
+      globalState["trackingContext"] = prevTrackingContext;
+    }
+  }
+  JsValue result = self["value_"];
+  if (isCaughtException(result)) {
+    throwErr(result["cause"]);
+  }
+  return result;
+});
+ComputedValue["prototype"]["set"] = JS.method1((JsValue self, JsValue value) => {
+  if (self["setter_"].truthy()) {
+    if (self["isRunningSetter"].truthy()) {
+      die1(33, self["name_"]);
+    }
+    self["isRunningSetter"] = true;
+    try {
+      call1(self["setter_"], self["scope_"], value);
+    } finally {
+      self["isRunningSetter"] = false;
+    }
+  } else {
+    die1(34, self["name_"]);
+  }
+  return undef();
+});
+ComputedValue["prototype"]["suspend_"] = JS.method0((JsValue self) => {
+  if (!self["keepAlive_"].truthy()) {
+    clearObserving(self);
+    self["value_"] = undef();
+  }
+  return undef();
+});
+ComputedValue["prototype"]["warnAboutUntrackedRead_"] = JS.method0((JsValue self) => {
+  if (!DEV) {
+    return undef();
+  }
+  bool required = false;
+  if (isBoolish(self["requiresReaction_"])) {
+    required = self["requiresReaction_"].truthy();
+  } else {
+    required = globalState["computedRequiresReaction"].truthy();
+  }
+  if (required) {
+    warn("[mobx] Computed value '" + toStr(self["name_"]) + "' is being read outside a reactive context. Doing a full recompute.");
+  }
+  return undef();
+});
+ComputedValue["prototype"]["toString"] = JS.method0((JsValue self) => {
+  return toStr(self["name_"]) + "[" + toStr(JS.invoke(self["derivation"], "toString")) + "]";
+});
+ComputedValue["prototype"]["valueOf"] = JS.method0((JsValue self) => {
+  return toPrimitive(call0(self["get"], self));
+});
+ComputedValue["prototype"][wellKnown("toPrimitive")] = JS.method0((JsValue self) => {
+  return call0(self["valueOf"], self);
+});
+isComputedValuePred = createInstanceofPredicate("ComputedValue", ComputedValue);
+installComputedFlags(ComputedValue["prototype"]);

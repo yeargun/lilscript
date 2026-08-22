@@ -1,0 +1,201 @@
+import { sliceOf } from "../../../../js-host";
+
+export class OptionBag {
+  Map<string, string> values;
+
+  init() {
+    this.values = new Map<string, string>();
+  }
+
+  string? read(string key) {
+    return this.values.get(key);
+  }
+
+  bool has(string key) {
+    return this.values.has(key);
+  }
+
+  void write(string key, string value) {
+    this.values.set(key, value);
+  }
+
+  void erase(string key) {
+    this.values.delete(key);
+  }
+}
+
+string? readNested(OptionBag options, string key) {
+  return options.read(key);
+}
+
+void writeNested(OptionBag options, string key, string value) {
+  options.write(key, value);
+}
+
+void migrateBoolPair(OptionBag options, string key, string trueValue, string falseValue) {
+  string? value = readNested(options, key);
+  if (value == null) {
+    return;
+  }
+  if (value == "true") {
+    writeNested(options, key, trueValue);
+    return;
+  }
+  if (value == "false") {
+    writeNested(options, key, falseValue);
+  }
+}
+
+export void migrateOptions(OptionBag options) {
+  migrateBoolPair(options, "wordWrap", "on", "off");
+  migrateBoolPair(options, "lineNumbers", "on", "off");
+  string? cursorBlinking = readNested(options, "cursorBlinking");
+  if (cursorBlinking != null && cursorBlinking == "visible") {
+    writeNested(options, "cursorBlinking", "solid");
+  }
+  migrateBoolPair(options, "renderWhitespace", "boundary", "none");
+  migrateBoolPair(options, "renderLineHighlight", "line", "none");
+  migrateBoolPair(options, "acceptSuggestionOnEnter", "on", "off");
+  string? tabCompletion = readNested(options, "tabCompletion");
+  if (tabCompletion != null) {
+    if (tabCompletion == "false") {
+      writeNested(options, "tabCompletion", "off");
+    }
+    if (tabCompletion == "true") {
+      writeNested(options, "tabCompletion", "onlySnippets");
+    }
+  }
+  string? hover = readNested(options, "hover");
+  if (hover != null) {
+    if (hover == "true") {
+      writeNested(options, "hover.enabled", "on");
+    }
+    if (hover == "false") {
+      writeNested(options, "hover.enabled", "off");
+    }
+  }
+  string? parameterHints = readNested(options, "parameterHints");
+  if (parameterHints != null) {
+    if (parameterHints == "true") {
+      writeNested(options, "parameterHints.enabled", "true");
+    }
+    if (parameterHints == "false") {
+      writeNested(options, "parameterHints.enabled", "false");
+    }
+  }
+  migrateBoolPair(options, "autoIndent", "full", "advanced");
+  migrateBoolPair(options, "matchBrackets", "always", "never");
+  migrateBoolPair(options, "renderFinalNewline", "on", "off");
+  migrateBoolPair(options, "cursorSmoothCaretAnimation", "on", "off");
+  migrateBoolPair(options, "occurrencesHighlight", "singleFile", "off");
+  migrateBoolPair(options, "wordBasedSuggestions", "matchingDocuments", "off");
+  migrateBoolPair(options, "defaultColorDecorators", "auto", "never");
+  migrateBoolPair(options, "minimap.autohide", "mouseover", "none");
+  string? autoClosingBrackets = readNested(options, "autoClosingBrackets");
+  if (autoClosingBrackets != null && autoClosingBrackets == "false") {
+    writeNested(options, "autoClosingBrackets", "never");
+    if (!options.has("autoClosingQuotes")) {
+      writeNested(options, "autoClosingQuotes", "never");
+    }
+    if (!options.has("autoSurround")) {
+      writeNested(options, "autoSurround", "never");
+    }
+  }
+  string? renderIndentGuides = readNested(options, "renderIndentGuides");
+  if (renderIndentGuides != null) {
+    options.erase("renderIndentGuides");
+    if (!options.has("guides.indentation")) {
+      writeNested(options, "guides.indentation", renderIndentGuides);
+    }
+  }
+  string? highlightActiveIndentGuide = readNested(options, "highlightActiveIndentGuide");
+  if (highlightActiveIndentGuide != null) {
+    options.erase("highlightActiveIndentGuide");
+    if (!options.has("guides.highlightActiveIndentation")) {
+      writeNested(options, "guides.highlightActiveIndentation", highlightActiveIndentGuide);
+    }
+  }
+  string? quickSuggestions = readNested(options, "quickSuggestions");
+  if (quickSuggestions != null) {
+    if (quickSuggestions == "true" || quickSuggestions == "false") {
+      string mapped = "off";
+      if (quickSuggestions == "true") {
+        mapped = "on";
+      }
+      writeNested(options, "quickSuggestions.comments", mapped);
+      writeNested(options, "quickSuggestions.strings", mapped);
+      writeNested(options, "quickSuggestions.other", mapped);
+      writeNested(options, "quickSuggestions", mapped);
+    }
+  }
+  string? stickyEnabled = readNested(options, "experimental.stickyScroll.enabled");
+  if (stickyEnabled != null) {
+    options.erase("experimental.stickyScroll.enabled");
+    if (!options.has("stickyScroll.enabled")) {
+      writeNested(options, "stickyScroll.enabled", stickyEnabled);
+    }
+  }
+  string? stickyMax = readNested(options, "experimental.stickyScroll.maxLineCount");
+  if (stickyMax != null) {
+    options.erase("experimental.stickyScroll.maxLineCount");
+    if (!options.has("stickyScroll.maxLineCount")) {
+      writeNested(options, "stickyScroll.maxLineCount", stickyMax);
+    }
+  }
+  string? experimentalEditContext = readNested(options, "editor.experimentalEditContextEnabled");
+  if (experimentalEditContext != null) {
+    options.erase("editor.experimentalEditContextEnabled");
+    if (!options.has("editor.editContext")) {
+      writeNested(options, "editor.editContext", experimentalEditContext);
+    }
+  }
+  string? nearby = readNested(options, "codeActionWidget.includeNearbyQuickfixes");
+  if (nearby != null) {
+    options.erase("codeActionWidget.includeNearbyQuickfixes");
+    if (!options.has("codeActionWidget.includeNearbyQuickFixes")) {
+      writeNested(options, "codeActionWidget.includeNearbyQuickFixes", nearby);
+    }
+  }
+  string? lightbulb = readNested(options, "lightbulb.enabled");
+  if (lightbulb != null && lightbulb == "false") {
+    writeNested(options, "lightbulb.enabled", "off");
+  }
+  string? codeShifting = readNested(options, "inlineSuggest.edits.codeShifting");
+  if (codeShifting != null) {
+    options.erase("inlineSuggest.edits.codeShifting");
+    string allow = "never";
+    if (codeShifting == "true") {
+      allow = "always";
+    }
+    writeNested(options, "inlineSuggest.edits.allowCodeShifting", allow);
+  }
+  string? hoverEnabled = readNested(options, "hover.enabled");
+  if (hoverEnabled != null) {
+    if (hoverEnabled == "true") {
+      writeNested(options, "hover.enabled", "on");
+    }
+    if (hoverEnabled == "false") {
+      writeNested(options, "hover.enabled", "off");
+    }
+  }
+}
+
+export OptionBag createOptionBag() {
+  return new OptionBag();
+}
+
+export string firstKeySegment(string key) {
+  int dot = key.indexOf(".");
+  if (dot < 0) {
+    return key;
+  }
+  return sliceOf(key, 0, dot);
+}
+
+export string restKeySegment(string key) {
+  int dot = key.indexOf(".");
+  if (dot < 0) {
+    return "";
+  }
+  return sliceOf(key, dot + 1, key.length);
+}

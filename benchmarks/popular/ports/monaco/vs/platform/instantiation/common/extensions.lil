@@ -1,0 +1,26 @@
+export class SingletonDescriptor {
+  string id;
+  string ctorId;
+  bool delayed;
+
+  init(string id, string ctorId, bool delayed) {
+    this.id = id;
+    this.ctorId = ctorId;
+    this.delayed = delayed;
+  }
+}
+
+SingletonDescriptor[] singletonRegistry = [];
+
+export void registerSingleton(string id, string ctorId, bool delayed = false) {
+  singletonRegistry.push(new SingletonDescriptor(id, ctorId, delayed));
+}
+
+export SingletonDescriptor[] getSingletonServiceDescriptors() {
+  return singletonRegistry;
+}
+
+export void clearSingletonServiceDescriptors() {
+  SingletonDescriptor[] empty = [];
+  singletonRegistry = empty;
+}

@@ -1,0 +1,13 @@
+export class CursorContext {
+  JsValue model;
+  JsValue viewModel;
+  JsValue coordinatesConverter;
+  JsValue cursorConfig;
+
+  init(JsValue model, JsValue viewModel, JsValue coordinatesConverter, JsValue cursorConfig) {
+    this.model = model;
+    this.viewModel = viewModel;
+    this.coordinatesConverter = coordinatesConverter;
+    this.cursorConfig = cursorConfig;
+  }
+}

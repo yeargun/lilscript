@@ -1,0 +1,38 @@
+export class RevertButton {
+  int lineNumber;
+  bool isOriginal;
+
+  init(int lineNumber, bool isOriginal) {
+    this.lineNumber = lineNumber;
+    this.isOriginal = isOriginal;
+  }
+}
+
+export RevertButton[] revertButtonsForChanges(int[] origStarts, bool readOnly, bool sideBySide) {
+  RevertButton[] out = [];
+  if (readOnly || !sideBySide) {
+    return out;
+  }
+  int i = 0;
+  while (i < origStarts.length) {
+    out.push(new RevertButton(origStarts[i], true));
+    i = i + 1;
+  }
+  return out;
+}
+
+export class RevertButtonsFeature {
+  RevertButton[] buttons;
+
+  init() {
+    this.buttons = [];
+  }
+
+  void update(int[] origStarts, bool readOnly, bool sideBySide) {
+    this.buttons = revertButtonsForChanges(origStarts, readOnly, sideBySide);
+  }
+}
+
+export RevertButtonsFeature createRevertButtonsFeature() {
+  return new RevertButtonsFeature();
+}

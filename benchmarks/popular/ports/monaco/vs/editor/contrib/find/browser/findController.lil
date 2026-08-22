@@ -1,0 +1,227 @@
+export int SEARCH_STRING_MAX_LENGTH = 524288;
+export string FIND_CONTROLLER_ID = "editor.contrib.findController";
+
+export class FindSel {
+  int startLineNumber;
+  int startColumn;
+  int endLineNumber;
+  int endColumn;
+
+  init(int startLineNumber, int startColumn, int endLineNumber, int endColumn) {
+    this.startLineNumber = startLineNumber;
+    this.startColumn = startColumn;
+    this.endLineNumber = endLineNumber;
+    this.endColumn = endColumn;
+  }
+}
+
+export class FindWord {
+  string word;
+  int startColumn;
+  int endColumn;
+
+  init(string word, int startColumn, int endColumn) {
+    this.word = word;
+    this.startColumn = startColumn;
+    this.endColumn = endColumn;
+  }
+}
+
+bool isWordChar(string ch) {
+  int code = ch.charCodeAt(0);
+  if (code >= 97 && code <= 122) {
+    return true;
+  }
+  if (code >= 65 && code <= 90) {
+    return true;
+  }
+  if (code >= 48 && code <= 57) {
+    return true;
+  }
+  return ch == "_" || ch == "$";
+}
+
+export FindWord? wordAtColumn(string line, int column) {
+  int i = column - 1;
+  if (i < 0) {
+    i = 0;
+  }
+  if (i > line.length) {
+    i = line.length;
+  }
+  int start = i;
+  while (start > 0 && isWordChar(line.charAt(start - 1))) {
+    start = start - 1;
+  }
+  int end = i;
+  while (end < line.length && isWordChar(line.charAt(end))) {
+    end = end + 1;
+  }
+  if (start == end) {
+    return null;
+  }
+  string word = "";
+  int k = start;
+  while (k < end) {
+    word = word + line.charAt(k);
+    k = k + 1;
+  }
+  return new FindWord(word, start + 1, end + 1);
+}
+
+export string? getSelectionSearchString(
+  string[] lines,
+  FindSel selection,
+  string seedMode,
+  bool seedFromNonEmpty
+) {
+  bool singleLine = selection.startLineNumber == selection.endLineNumber;
+  if (seedMode == "single" && !singleLine) {
+    return null;
+  }
+  if (singleLine && selection.startColumn == selection.endColumn) {
+    if (seedFromNonEmpty) {
+      return null;
+    }
+    if (selection.startLineNumber < 1 || selection.startLineNumber > lines.length) {
+      return null;
+    }
+    FindWord? word = wordAtColumn(lines[selection.startLineNumber - 1], selection.startColumn);
+    if (word != null) {
+      return word.word;
+    }
+    return null;
+  }
+  if (selection.startLineNumber < 1 || selection.endLineNumber > lines.length) {
+    return null;
+  }
+  string text = "";
+  if (singleLine) {
+    string line = lines[selection.startLineNumber - 1];
+    int from = selection.startColumn - 1;
+    int to = selection.endColumn - 1;
+    if (from < 0) {
+      from = 0;
+    }
+    if (to > line.length) {
+      to = line.length;
+    }
+    int i = from;
+    while (i < to) {
+      text = text + line.charAt(i);
+      i = i + 1;
+    }
+  } else {
+    int line = selection.startLineNumber;
+    while (line <= selection.endLineNumber) {
+      string content = lines[line - 1];
+      int from = 0;
+      int to = content.length;
+      if (line == selection.startLineNumber) {
+        from = selection.startColumn - 1;
+      }
+      if (line == selection.endLineNumber) {
+        to = selection.endColumn - 1;
+      }
+      if (from < 0) {
+        from = 0;
+      }
+      if (to > content.length) {
+        to = content.length;
+      }
+      if (line > selection.startLineNumber) {
+        text = text + "\n";
+      }
+      int i = from;
+      while (i < to) {
+        text = text + content.charAt(i);
+        i = i + 1;
+      }
+      line = line + 1;
+    }
+  }
+  if (text.length >= SEARCH_STRING_MAX_LENGTH) {
+    return null;
+  }
+  return text;
+}
+
+export class CommonFindController {
+  bool revealed;
+  bool replaceRevealed;
+  string searchString;
+  string replaceString;
+  bool isRegex;
+  bool matchCase;
+  bool wholeWord;
+  bool preserveCase;
+  bool globalFindClipboard;
+  int matchesPosition;
+  int matchesCount;
+
+  init() {
+    this.revealed = false;
+    this.replaceRevealed = false;
+    this.searchString = "";
+    this.replaceString = "";
+    this.isRegex = false;
+    this.matchCase = false;
+    this.wholeWord = false;
+    this.preserveCase = false;
+    this.globalFindClipboard = false;
+    this.matchesPosition = 0;
+    this.matchesCount = 0;
+  }
+
+  string getId() {
+    return FIND_CONTROLLER_ID;
+  }
+
+  void startFind(string[] lines, FindSel selection, bool replace, bool seedFromSelection) {
+    if (seedFromSelection) {
+      string? seeded = getSelectionSearchString(lines, selection, "single", false);
+      if (seeded != null) {
+        this.searchString = seeded;
+      }
+    }
+    this.revealed = true;
+    this.replaceRevealed = replace;
+  }
+
+  void closeFind() {
+    this.revealed = false;
+    this.replaceRevealed = false;
+  }
+
+  void toggleCaseSensitive() {
+    this.matchCase = !this.matchCase;
+  }
+
+  void toggleWholeWord() {
+    this.wholeWord = !this.wholeWord;
+  }
+
+  void toggleRegex() {
+    this.isRegex = !this.isRegex;
+  }
+
+  void togglePreserveCase() {
+    this.preserveCase = !this.preserveCase;
+  }
+
+  void setSearchString(string value) {
+    this.searchString = value;
+  }
+
+  void setReplaceString(string value) {
+    this.replaceString = value;
+  }
+}
+
+export CommonFindController createFindController() {
+  return new CommonFindController();
+}
+
+export FindSel createFindSel(int startLine, int startColumn, int endLine, int endColumn) {
+  return new FindSel(startLine, startColumn, endLine, endColumn);
+}

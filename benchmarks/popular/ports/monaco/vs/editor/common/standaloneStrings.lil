@@ -1,0 +1,31 @@
+export string inspectTokensAction = "Developer: Inspect Tokens";
+export string gotoLineActionLabel = "Go to Line/Column...";
+export string gotoOffsetActionLabel = "Go to Offset...";
+export string helpQuickAccessActionLabel = "Show all Quick Access Providers";
+export string quickCommandActionLabel = "Command Palette";
+export string quickCommandHelp = "Show And Run Commands";
+export string quickOutlineActionLabel = "Go to Symbol...";
+export string quickOutlineByCategoryActionLabel = "Go to Symbol by Category...";
+export string editorViewAccessibleLabel = "Editor content";
+export string toggleHighContrast = "Toggle High Contrast Theme";
+export string bulkEditServiceSummary = "Made {0} edits in {1} files";
+
+export JsValue InspectTokensNLS() {
+  JsValue value = JS.object();
+  value["inspectTokensAction"] = inspectTokensAction;
+  return value;
+}
+
+export JsValue GoToLineNLS() {
+  JsValue value = JS.object();
+  value["gotoLineActionLabel"] = gotoLineActionLabel;
+  value["gotoOffsetActionLabel"] = gotoOffsetActionLabel;
+  return value;
+}
+
+export JsValue QuickCommandNLS() {
+  JsValue value = JS.object();
+  value["quickCommandActionLabel"] = quickCommandActionLabel;
+  value["quickCommandHelp"] = quickCommandHelp;
+  return value;
+}

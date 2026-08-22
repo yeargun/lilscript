@@ -1,0 +1,107 @@
+import {
+  bind,
+  call2,
+  defineProperty,
+  isFn,
+  isGenerator,
+  isNullish,
+  stringifyKey,
+  undef
+} from "../host.lil";
+import {
+  MAKE_CANCEL,
+  MAKE_CONTINUE
+} from "../constants.lil";
+import { createAction } from "../core/action.lil";
+import { isAction } from "../core/predicates.lil";
+import {
+  computed,
+  flow,
+  flowBound,
+  autoAction,
+  autoActionBound,
+  observable,
+  observableRef,
+  autoAnnotation
+} from "../api/bindings.lil";
+import { admProxyOrTarget } from "./adm-proxy.lil";
+
+JsValue autoAnnotationMake = JS.methodRest((JsValue self, JsValue args) => {
+  JsValue adm = args[0];
+  JsValue key = args[1];
+  JsValue descriptor = args[2];
+  JsValue source = args[3];
+  if (descriptor["get"].truthy()) {
+    return JS.call(computed["make_"], computed, adm, key, descriptor, source);
+  }
+  if (descriptor["set"].truthy()) {
+    JsValue setter = descriptor["set"];
+    if (!isAction(setter)) {
+      setter = createAction(stringifyKey(key), setter, false, undef());
+    }
+    if (JS.strictEqual(source, adm["target_"])) {
+      JsValue outcome = call2(adm["defineProperty_"], adm, key, JS.object("configurable", true, "set", setter));
+      if (JS.isNullish(outcome)) {
+        return MAKE_CANCEL;
+      }
+      return MAKE_CONTINUE;
+    }
+    defineProperty(source, key, JS.object("configurable", true, "set", setter));
+    return MAKE_CONTINUE;
+  }
+  if (!JS.strictEqual(source, adm["target_"]) && isFn(descriptor["value"])) {
+    if (isGenerator(descriptor["value"])) {
+      JsValue flowAnn = flow;
+      if (self["options_"].truthy() && self["options_"]["autoBind"].truthy()) {
+        flowAnn = flowBound;
+      }
+      return JS.call(flowAnn["make_"], flowAnn, adm, key, descriptor, source);
+    }
+    JsValue actionAnn = autoAction;
+    if (self["options_"].truthy() && self["options_"]["autoBind"].truthy()) {
+      actionAnn = autoActionBound;
+    }
+    return JS.call(actionAnn["make_"], actionAnn, adm, key, descriptor, source);
+  }
+  JsValue observableAnn = observable;
+  if (self["options_"].truthy() && JS.strictEqual(self["options_"]["deep"], false)) {
+    observableAnn = observableRef;
+  }
+  if (isFn(descriptor["value"]) && self["options_"].truthy() && self["options_"]["autoBind"].truthy()) {
+    descriptor["value"] = bind(descriptor["value"], admProxyOrTarget(adm));
+  }
+  return JS.call(observableAnn["make_"], observableAnn, adm, key, descriptor, source);
+});
+
+JsValue autoAnnotationExtend = JS.methodRest((JsValue self, JsValue args) => {
+  JsValue adm = args[0];
+  JsValue key = args[1];
+  JsValue descriptor = args[2];
+  JsValue proxyTrap = args[3];
+  if (descriptor["get"].truthy()) {
+    return JS.call(computed["extend_"], computed, adm, key, descriptor, proxyTrap);
+  }
+  if (descriptor["set"].truthy()) {
+    return JS.call(adm["defineProperty_"], adm, key, JS.object("configurable", true, "set", createAction(stringifyKey(key), descriptor["set"], false, undef())), proxyTrap);
+  }
+  if (isFn(descriptor["value"]) && self["options_"].truthy() && self["options_"]["autoBind"].truthy()) {
+    descriptor["value"] = bind(descriptor["value"], admProxyOrTarget(adm));
+  }
+  JsValue observableAnn = observable;
+  if (self["options_"].truthy() && JS.strictEqual(self["options_"]["deep"], false)) {
+    observableAnn = observableRef;
+  }
+  return JS.call(observableAnn["extend_"], observableAnn, adm, key, descriptor, proxyTrap);
+});
+
+export JsValue createAutoAnnotation(JsValue options) {
+  JsValue annotation = JS.object();
+  annotation["annotationType_"] = "true";
+  annotation["options_"] = options;
+  annotation["make_"] = autoAnnotationMake;
+  annotation["extend_"] = autoAnnotationExtend;
+  return annotation;
+}
+
+autoAnnotation = createAutoAnnotation(undef());
+export { autoAnnotation };

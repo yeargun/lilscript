@@ -1,0 +1,111 @@
+export class ColorContribution {
+  string id;
+  string description;
+  string dark;
+  string light;
+  string hcDark;
+  string hcLight;
+  bool needsTransparency;
+
+  init(string id, string description, string dark, string light, string hcDark, string hcLight, bool needsTransparency) {
+    this.id = id;
+    this.description = description;
+    this.dark = dark;
+    this.light = light;
+    this.hcDark = hcDark;
+    this.hcLight = hcLight;
+    this.needsTransparency = needsTransparency;
+  }
+}
+
+export string asCssVariableName(string colorIdent) {
+  string out = "--vscode-";
+  int i = 0;
+  while (i < colorIdent.length) {
+    string ch = colorIdent.charAt(i);
+    if (ch == ".") {
+      out = out + "-";
+    } else {
+      out = out + ch;
+    }
+    i = i + 1;
+  }
+  return out;
+}
+
+export string asCssVariable(string color) {
+  return "var(" + asCssVariableName(color) + ")";
+}
+
+export string asCssVariableWithDefault(string color, string defaultCssValue) {
+  return "var(" + asCssVariableName(color) + ", " + defaultCssValue + ")";
+}
+
+export class ColorRegistry {
+  ColorContribution[] colors;
+
+  init() {
+    this.colors = [];
+  }
+
+  int indexOf(string id) {
+    int i = 0;
+    while (i < this.colors.length) {
+      if (this.colors[i].id == id) {
+        return i;
+      }
+      i = i + 1;
+    }
+    return -1;
+  }
+
+  string registerColor(string id, string dark, string light, string hcDark, string hcLight, string description, bool needsTransparency = false) {
+    int idx = this.indexOf(id);
+    ColorContribution contrib = new ColorContribution(id, description, dark, light, hcDark, hcLight, needsTransparency);
+    if (idx >= 0) {
+      this.colors[idx] = contrib;
+    } else {
+      this.colors.push(contrib);
+    }
+    return id;
+  }
+
+  ColorContribution[] getColors() {
+    return this.colors;
+  }
+
+  string resolveDefaultColor(string id, string themeType) {
+    int idx = this.indexOf(id);
+    if (idx < 0) {
+      return "";
+    }
+    ColorContribution c = this.colors[idx];
+    if (themeType == "light") {
+      return c.light;
+    }
+    if (themeType == "hcDark") {
+      return c.hcDark;
+    }
+    if (themeType == "hcLight") {
+      return c.hcLight;
+    }
+    return c.dark;
+  }
+}
+
+ColorRegistry workbenchColorRegistry = new ColorRegistry();
+
+export string registerColor(string id, string dark, string light, string hcDark, string hcLight, string description, bool needsTransparency = false) {
+  return workbenchColorRegistry.registerColor(id, dark, light, hcDark, hcLight, description, needsTransparency);
+}
+
+export ColorRegistry getColorRegistry() {
+  return workbenchColorRegistry;
+}
+
+export ColorRegistry createColorRegistry() {
+  return new ColorRegistry();
+}
+
+export string DEFAULT_COLOR_CONFIG_VALUE = "default";
+export string ColorContributionExt = "base.contributions.colors";

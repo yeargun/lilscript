@@ -1,0 +1,89 @@
+import { SequenceDiff } from "./algorithms/diffAlgorithm";
+
+SequenceDiff[] mergeWithMaximumGap(SequenceDiff[] diffs, int maximumGap) {
+  SequenceDiff[] result = [];
+  int i = 0;
+  while (i < diffs.length) {
+    SequenceDiff current = diffs[i];
+    if (result.length > 0) {
+      SequenceDiff previous = result[result.length - 1];
+      int gap1 = current.seq1Range.start - previous.seq1Range.endExclusive;
+      int gap2 = current.seq2Range.start - previous.seq2Range.endExclusive;
+      if (gap1 == gap2 && gap1 <= maximumGap) {
+        result[result.length - 1] = previous.join(current);
+      } else {
+        result.push(current);
+      }
+    } else {
+      result.push(current);
+    }
+    i = i + 1;
+  }
+  return result;
+}
+
+export SequenceDiff[] optimizeSequenceDiffs(
+  int[] sequence1,
+  int[] sequence2,
+  SequenceDiff[] sequenceDiffs
+) {
+  return mergeWithMaximumGap(sequenceDiffs, 0);
+}
+
+export SequenceDiff[] removeShortMatches(
+  int[] sequence1,
+  int[] sequence2,
+  SequenceDiff[] sequenceDiffs
+) {
+  return mergeWithMaximumGap(sequenceDiffs, 2);
+}
+
+export SequenceDiff[] extendDiffsToEntireWordIfAppropriate(
+  int[] sequence1,
+  int[] sequence2,
+  SequenceDiff[] sequenceDiffs,
+  bool force = false
+) {
+  return sequenceDiffs;
+}
+
+export SequenceDiff[] removeVeryShortMatchingLinesBetweenDiffs(
+  int[] sequence1,
+  int[] sequence2,
+  SequenceDiff[] sequenceDiffs
+) {
+  return mergeWithMaximumGap(sequenceDiffs, 1);
+}
+
+export SequenceDiff[] removeVeryShortMatchingTextBetweenLongDiffs(
+  int[] sequence1,
+  int[] sequence2,
+  SequenceDiff[] sequenceDiffs
+) {
+  SequenceDiff[] result = [];
+  int i = 0;
+  while (i < sequenceDiffs.length) {
+    SequenceDiff current = sequenceDiffs[i];
+    if (result.length > 0) {
+      SequenceDiff previous = result[result.length - 1];
+      int gap = current.seq1Range.start - previous.seq1Range.endExclusive;
+      bool previousLong =
+        previous.seq1Range.length() + previous.seq2Range.length() >= 20;
+      bool currentLong = current.seq1Range.length() + current.seq2Range.length() >= 20;
+      if (
+        gap == current.seq2Range.start - previous.seq2Range.endExclusive &&
+        gap <= 3 &&
+        previousLong &&
+        currentLong
+      ) {
+        result[result.length - 1] = previous.join(current);
+      } else {
+        result.push(current);
+      }
+    } else {
+      result.push(current);
+    }
+    i = i + 1;
+  }
+  return result;
+}

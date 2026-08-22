@@ -1,0 +1,5 @@
+export string IStandaloneThemeServiceId = "standaloneThemeService";
+export string standaloneThemeVs = "vs";
+export string standaloneThemeVsDark = "vs-dark";
+export string standaloneThemeHcBlack = "hc-black";
+export string standaloneThemeHcLight = "hc-light";

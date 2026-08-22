@@ -1,0 +1,20 @@
+import { DefaultLinesDiffComputer } from "./defaultLinesDiffComputer/defaultLinesDiffComputer";
+import { LinesDiff } from "./linesDiffComputer";
+
+export class ExternalLinesDiffComputer {
+  bool useWasm;
+  DefaultLinesDiffComputer fallback;
+
+  init(bool useWasm) {
+    this.useWasm = useWasm;
+    this.fallback = new DefaultLinesDiffComputer();
+  }
+
+  LinesDiff computeDiff(string[] originalLines, string[] modifiedLines, JsValue options) {
+    return this.fallback.computeDiff(originalLines, modifiedLines, options);
+  }
+}
+
+export ExternalLinesDiffComputer getExternalLinesDiffComputer(bool useWasm) {
+  return new ExternalLinesDiffComputer(useWasm);
+}

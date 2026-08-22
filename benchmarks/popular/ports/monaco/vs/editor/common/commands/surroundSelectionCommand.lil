@@ -1,0 +1,57 @@
+import { Rng, createRange } from "../../../../base/range";
+import { Sel, createSelection } from "../../../../base/selection";
+import { Pos } from "../../../../base/position";
+
+export class SurroundSelectionCommand {
+  Rng range;
+  string charBeforeSelection;
+  string charAfterSelection;
+
+  init(Rng range, string charBeforeSelection, string charAfterSelection) {
+    this.range = range;
+    this.charBeforeSelection = charBeforeSelection;
+    this.charAfterSelection = charAfterSelection;
+  }
+
+  Rng beforeRange() {
+    return createRange(this.range.startLineNumber, this.range.startColumn, this.range.startLineNumber, this.range.startColumn);
+  }
+
+  Rng afterRange() {
+    return createRange(this.range.endLineNumber, this.range.endColumn, this.range.endLineNumber, this.range.endColumn);
+  }
+
+  Sel computeCursorState(Rng firstOperationRange, Rng secondOperationRange) {
+    return createSelection(
+      firstOperationRange.endLineNumber,
+      firstOperationRange.endColumn,
+      secondOperationRange.endLineNumber,
+      secondOperationRange.endColumn - this.charAfterSelection.length
+    );
+  }
+}
+
+export class CompositionSurroundSelectionCommand {
+  Pos position;
+  string text;
+  string charAfter;
+
+  init(Pos position, string text, string charAfter) {
+    this.position = position;
+    this.text = text;
+    this.charAfter = charAfter;
+  }
+
+  string insertedText() {
+    return this.text + this.charAfter;
+  }
+
+  Sel computeCursorState(Rng opRange) {
+    return createSelection(
+      opRange.endLineNumber,
+      opRange.startColumn,
+      opRange.endLineNumber,
+      opRange.endColumn - this.charAfter.length
+    );
+  }
+}

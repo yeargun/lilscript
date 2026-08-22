@@ -1,0 +1,146 @@
+export string ParameterHintsControllerId = "editor.controller.parameterHints";
+export string TriggerParameterHintsActionId = "editor.action.triggerParameterHints";
+
+export class ParameterInformation {
+  string label;
+  string documentation;
+
+  init(string label, string documentation) {
+    this.label = label;
+    this.documentation = documentation;
+  }
+}
+
+export class SignatureInformation {
+  string label;
+  ParameterInformation[] parameters;
+  int activeParameter;
+
+  init(string label) {
+    this.label = label;
+    this.parameters = [];
+    this.activeParameter = 0;
+  }
+}
+
+export class SignatureHelp {
+  SignatureInformation[] signatures;
+  int activeSignature;
+  int activeParameter;
+
+  init() {
+    this.signatures = [];
+    this.activeSignature = 0;
+    this.activeParameter = 0;
+  }
+}
+
+export class ParameterHintsModel {
+  SignatureHelp? hints;
+  bool cycle;
+
+  init() {
+    this.hints = null;
+    this.cycle = true;
+  }
+
+  void trigger(SignatureHelp hints) {
+    if (hints.signatures.length == 0) {
+      this.cancel();
+      return;
+    }
+    this.hints = hints;
+  }
+
+  void next() {
+    SignatureHelp? maybe = this.hints;
+    if (maybe == null) {
+      return;
+    }
+    SignatureHelp help = maybe;
+    if (help.signatures.length < 2) {
+      if (!this.cycle) {
+        this.cancel();
+      }
+      return;
+    }
+    help.activeSignature = help.activeSignature + 1;
+    if (help.activeSignature >= help.signatures.length) {
+      if (this.cycle) {
+        help.activeSignature = 0;
+      } else {
+        help.activeSignature = help.signatures.length - 1;
+        this.cancel();
+      }
+    }
+  }
+
+  void previous() {
+    SignatureHelp? maybe = this.hints;
+    if (maybe == null) {
+      return;
+    }
+    SignatureHelp help = maybe;
+    if (help.signatures.length < 2) {
+      if (!this.cycle) {
+        this.cancel();
+      }
+      return;
+    }
+    help.activeSignature = help.activeSignature - 1;
+    if (help.activeSignature < 0) {
+      if (this.cycle) {
+        help.activeSignature = help.signatures.length - 1;
+      } else {
+        help.activeSignature = 0;
+        this.cancel();
+      }
+    }
+  }
+
+  void cancel() {
+    this.hints = null;
+  }
+}
+
+export class ParameterHintsController {
+  ParameterHintsModel model;
+  bool widgetVisible;
+
+  init() {
+    this.model = new ParameterHintsModel();
+    this.widgetVisible = false;
+  }
+
+  void trigger(SignatureHelp hints) {
+    this.model.trigger(hints);
+    SignatureHelp? maybe = this.model.hints;
+    this.widgetVisible = maybe != null;
+  }
+
+  void next() {
+    this.model.next();
+    SignatureHelp? maybe = this.model.hints;
+    this.widgetVisible = maybe != null;
+  }
+
+  void previous() {
+    this.model.previous();
+    SignatureHelp? maybe = this.model.hints;
+    this.widgetVisible = maybe != null;
+  }
+
+  void cancel() {
+    this.model.cancel();
+    this.widgetVisible = false;
+  }
+}
+
+export ParameterHintsController createParameterHintsController() {
+  return new ParameterHintsController();
+}
+
+export bool runTriggerParameterHints(ParameterHintsController controller, SignatureHelp hints) {
+  controller.trigger(hints);
+  return controller.widgetVisible;
+}

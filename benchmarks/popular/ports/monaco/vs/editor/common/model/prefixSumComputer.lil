@@ -1,0 +1,295 @@
+export class PrefixSumIndexOfResult {
+  int index;
+  int remainder;
+
+  init(int index, int remainder) {
+    this.index = index;
+    this.remainder = remainder;
+  }
+}
+
+export class PrefixSumComputer {
+  int[] values;
+  int[] prefixSum;
+  int prefixSumValidIndex;
+
+  init(int[] values) {
+    this.values = values;
+    this.prefixSum = [];
+    int i = 0;
+    while (i < values.length) {
+      this.prefixSum.push(0);
+      i = i + 1;
+    }
+    this.prefixSumValidIndex = -1;
+  }
+
+  bool insertValues(int insertIndex, int[] insertValues) {
+    if (insertValues.length == 0) {
+      return false;
+    }
+    int at = insertIndex;
+    if (at < 0) {
+      at = 0;
+    }
+    if (at > this.values.length) {
+      at = this.values.length;
+    }
+    int[] next = [];
+    int i = 0;
+    while (i < at) {
+      next.push(this.values[i]);
+      i = i + 1;
+    }
+    int j = 0;
+    while (j < insertValues.length) {
+      next.push(insertValues[j]);
+      j = j + 1;
+    }
+    while (i < this.values.length) {
+      next.push(this.values[i]);
+      i = i + 1;
+    }
+    this.values = next;
+    this.resizePrefixSum();
+    if (at - 1 < this.prefixSumValidIndex) {
+      this.prefixSumValidIndex = at - 1;
+    }
+    return true;
+  }
+
+  bool setValue(int index, int value) {
+    if (index < 0 || index >= this.values.length || this.values[index] == value) {
+      return false;
+    }
+    this.values[index] = value;
+    if (index - 1 < this.prefixSumValidIndex) {
+      this.prefixSumValidIndex = index - 1;
+    }
+    return true;
+  }
+
+  bool removeValues(int startIndex, int count) {
+    if (startIndex < 0 || startIndex >= this.values.length || count <= 0) {
+      return false;
+    }
+    int end = startIndex + count;
+    if (end > this.values.length) {
+      end = this.values.length;
+    }
+    int[] next = [];
+    int i = 0;
+    while (i < this.values.length) {
+      if (i < startIndex || i >= end) {
+        next.push(this.values[i]);
+      }
+      i = i + 1;
+    }
+    this.values = next;
+    this.resizePrefixSum();
+    if (startIndex - 1 < this.prefixSumValidIndex) {
+      this.prefixSumValidIndex = startIndex - 1;
+    }
+    return true;
+  }
+
+  void resizePrefixSum() {
+    int[] next = [];
+    int i = 0;
+    while (i < this.values.length) {
+      if (i <= this.prefixSumValidIndex && i < this.prefixSum.length) {
+        next.push(this.prefixSum[i]);
+      } else {
+        next.push(0);
+      }
+      i = i + 1;
+    }
+    this.prefixSum = next;
+  }
+
+  int getTotalSum() {
+    if (this.values.length == 0) {
+      return 0;
+    }
+    return this.getPrefixSum(this.values.length - 1);
+  }
+
+  int getPrefixSum(int index) {
+    if (index < 0 || this.values.length == 0) {
+      return 0;
+    }
+    int end = index;
+    if (end >= this.values.length) {
+      end = this.values.length - 1;
+    }
+    if (end <= this.prefixSumValidIndex) {
+      return this.prefixSum[end];
+    }
+    int start = this.prefixSumValidIndex + 1;
+    if (start == 0) {
+      this.prefixSum[0] = this.values[0];
+      start = 1;
+    }
+    int i = start;
+    while (i <= end) {
+      this.prefixSum[i] = this.prefixSum[i - 1] + this.values[i];
+      i = i + 1;
+    }
+    if (end > this.prefixSumValidIndex) {
+      this.prefixSumValidIndex = end;
+    }
+    return this.prefixSum[end];
+  }
+
+  PrefixSumIndexOfResult getIndexOf(int sum) {
+    this.getTotalSum();
+    if (this.values.length == 0) {
+      return new PrefixSumIndexOfResult(0, sum);
+    }
+    int low = 0;
+    int high = this.values.length - 1;
+    int mid = 0;
+    int midStart = 0;
+    while (low <= high) {
+      mid = low + ((high - low) / 2);
+      int midStop = this.prefixSum[mid];
+      midStart = midStop - this.values[mid];
+      if (sum < midStart) {
+        high = mid - 1;
+      } else if (sum >= midStop) {
+        low = mid + 1;
+      } else {
+        return new PrefixSumIndexOfResult(mid, sum - midStart);
+      }
+    }
+    if (low >= this.values.length) {
+      int last = this.values.length - 1;
+      int before = this.prefixSum[last] - this.values[last];
+      return new PrefixSumIndexOfResult(last, sum - before);
+    }
+    return new PrefixSumIndexOfResult(mid, sum - midStart);
+  }
+}
+
+export class ConstantTimePrefixSumComputer {
+  int[] values;
+  int[] prefixSum;
+  int[] indexBySum;
+  bool valid;
+
+  init(int[] values) {
+    this.values = values;
+    this.prefixSum = [];
+    this.indexBySum = [];
+    this.valid = false;
+  }
+
+  void rebuild() {
+    if (this.valid) {
+      return;
+    }
+    this.prefixSum = [];
+    this.indexBySum = [];
+    int total = 0;
+    int i = 0;
+    while (i < this.values.length) {
+      int value = this.values[i];
+      int j = 0;
+      while (j < value) {
+        this.indexBySum.push(i);
+        j = j + 1;
+      }
+      total = total + value;
+      this.prefixSum.push(total);
+      i = i + 1;
+    }
+    this.valid = true;
+  }
+
+  int getTotalSum() {
+    this.rebuild();
+    return this.indexBySum.length;
+  }
+
+  int getPrefixSum(int count) {
+    this.rebuild();
+    if (count <= 0) {
+      return 0;
+    }
+    int index = count - 1;
+    if (index >= this.prefixSum.length) {
+      return this.getTotalSum();
+    }
+    return this.prefixSum[index];
+  }
+
+  PrefixSumIndexOfResult getIndexOf(int sum) {
+    this.rebuild();
+    if (sum >= 0 && sum < this.indexBySum.length) {
+      int index = this.indexBySum[sum];
+      int before = 0;
+      if (index > 0) {
+        before = this.prefixSum[index - 1];
+      }
+      return new PrefixSumIndexOfResult(index, sum - before);
+    }
+    int last = this.values.length - 1;
+    if (last < 0) {
+      last = 0;
+    }
+    int before = 0;
+    if (last > 0) {
+      before = this.prefixSum[last - 1];
+    }
+    return new PrefixSumIndexOfResult(last, sum - before);
+  }
+
+  void removeValues(int start, int deleteCount) {
+    int[] next = [];
+    int end = start + deleteCount;
+    int i = 0;
+    while (i < this.values.length) {
+      if (i < start || i >= end) {
+        next.push(this.values[i]);
+      }
+      i = i + 1;
+    }
+    this.values = next;
+    this.valid = false;
+  }
+
+  void insertValues(int insertIndex, int[] insertValues) {
+    int[] next = [];
+    int i = 0;
+    while (i < insertIndex && i < this.values.length) {
+      next.push(this.values[i]);
+      i = i + 1;
+    }
+    int j = 0;
+    while (j < insertValues.length) {
+      next.push(insertValues[j]);
+      j = j + 1;
+    }
+    while (i < this.values.length) {
+      next.push(this.values[i]);
+      i = i + 1;
+    }
+    this.values = next;
+    this.valid = false;
+  }
+
+  void setValue(int index, int value) {
+    if (index >= 0 && index < this.values.length && this.values[index] != value) {
+      this.values[index] = value;
+      this.valid = false;
+    }
+  }
+}
+
+export PrefixSumComputer createPrefixSumComputer(int[] values) {
+  return new PrefixSumComputer(values);
+}
+
+export ConstantTimePrefixSumComputer createConstantTimePrefixSumComputer(int[] values) {
+  return new ConstantTimePrefixSumComputer(values);
+}

@@ -1,0 +1,65 @@
+import {
+  undef,
+  isFn,
+  isObj,
+  isNullish
+} from "../host.lil";
+import { $mobx } from "../constants.lil";
+
+export JsValue isAtomPred = undef();
+export JsValue isComputedValuePred = undef();
+export JsValue isReactionPred = undef();
+export JsValue isObservableValuePred = undef();
+export JsValue isObservableMapPred = undef();
+export JsValue isObservableSetPred = undef();
+export JsValue isObservableArrayAdmPred = undef();
+export JsValue isObservableObjectAdmPred = undef();
+
+export bool isAtom(JsValue x) {
+  return isObj(x) && JS.strictEqual(x["isMobXAtom"], true);
+}
+
+export bool isComputedValue(JsValue x) {
+  return isObj(x) && JS.strictEqual(x["isMobXComputedValue"], true);
+}
+
+export bool isReaction(JsValue x) {
+  return isObj(x) && JS.strictEqual(x["isMobXReaction"], true);
+}
+
+export bool isObservableValue(JsValue x) {
+  return JS.call(isObservableValuePred, undef(), x).truthy();
+}
+
+export bool isObservableMap(JsValue x) {
+  return JS.call(isObservableMapPred, undef(), x).truthy();
+}
+
+export bool isObservableSet(JsValue x) {
+  return JS.call(isObservableSetPred, undef(), x).truthy();
+}
+
+export bool isObservableArray(JsValue thing) {
+  if (!isObj(thing)) {
+    return false;
+  }
+  return JS.call(isObservableArrayAdmPred, undef(), thing[$mobx]).truthy();
+}
+
+export bool isObservableObject(JsValue thing) {
+  if (!isObj(thing)) {
+    return false;
+  }
+  return JS.call(isObservableObjectAdmPred, undef(), thing[$mobx]).truthy();
+}
+
+export bool isAction(JsValue thing) {
+  return isFn(thing) && JS.strictEqual(thing["isMobxAction"], true);
+}
+
+export bool isFlow(JsValue fn) {
+  if (JS.isNullish(fn)) {
+    return false;
+  }
+  return JS.strictEqual(fn["isMobXFlow"], true);
+}

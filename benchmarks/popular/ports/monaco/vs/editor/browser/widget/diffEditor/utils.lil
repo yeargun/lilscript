@@ -1,0 +1,75 @@
+int nmax(int a, int b) {
+  if (a > b) {
+    return a;
+  }
+  return b;
+}
+
+int nmin(int a, int b) {
+  if (a < b) {
+    return a;
+  }
+  return b;
+}
+
+export class IntPair {
+  int a;
+  int b;
+
+  init(int a, int b) {
+    this.a = a;
+    this.b = b;
+  }
+}
+
+export IntPair[] joinCombineInts(IntPair[] arr1, IntPair[] arr2) {
+  if (arr1.length == 0) {
+    return arr2;
+  }
+  if (arr2.length == 0) {
+    return arr1;
+  }
+  IntPair[] result = [];
+  int i = 0;
+  int j = 0;
+  while (i < arr1.length && j < arr2.length) {
+    if (arr1[i].a < arr2[j].a) {
+      result.push(arr1[i]);
+      i = i + 1;
+    } else if (arr1[i].a > arr2[j].a) {
+      result.push(arr2[j]);
+      j = j + 1;
+    } else {
+      result.push(new IntPair(arr1[i].a, arr1[i].b + arr2[j].b));
+      i = i + 1;
+      j = j + 1;
+    }
+  }
+  while (i < arr1.length) {
+    result.push(arr1[i]);
+    i = i + 1;
+  }
+  while (j < arr2.length) {
+    result.push(arr2[j]);
+    j = j + 1;
+  }
+  return result;
+}
+
+export int clampSash(int position, int width, int minSize) {
+  return nmax(minSize, nmin(position, width - minSize));
+}
+
+export class PlaceholderViewZone {
+  int afterLineNumber;
+  int heightInPx;
+
+  init(int afterLineNumber, int heightInPx) {
+    this.afterLineNumber = afterLineNumber;
+    this.heightInPx = heightInPx;
+  }
+}
+
+export PlaceholderViewZone createPlaceholderViewZone(int afterLineNumber, int heightInPx) {
+  return new PlaceholderViewZone(afterLineNumber, heightInPx);
+}

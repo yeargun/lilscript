@@ -1,0 +1,216 @@
+
+export class TextRange {
+  int startLineNumber;
+  int startColumn;
+  int endLineNumber;
+  int endColumn;
+
+  init(int startLineNumber, int startColumn, int endLineNumber, int endColumn) {
+    this.startLineNumber = startLineNumber;
+    this.startColumn = startColumn;
+    this.endLineNumber = endLineNumber;
+    this.endColumn = endColumn;
+  }
+}
+
+export class TextPos {
+  int lineNumber;
+  int column;
+
+  init(int lineNumber, int column) {
+    this.lineNumber = lineNumber;
+    this.column = column;
+  }
+}
+
+bool posBefore(TextPos a, TextPos b) {
+  if (a.lineNumber < b.lineNumber) {
+    return true;
+  }
+  if (a.lineNumber > b.lineNumber) {
+    return false;
+  }
+  return a.column < b.column;
+}
+
+bool rangeContainsPos(TextRange range, int lineNumber, int column) {
+  if (lineNumber < range.startLineNumber || lineNumber > range.endLineNumber) {
+    return false;
+  }
+  if (lineNumber == range.startLineNumber && column < range.startColumn) {
+    return false;
+  }
+  if (lineNumber == range.endLineNumber && column > range.endColumn) {
+    return false;
+  }
+  return true;
+}
+
+export TextRange createTextRange(int startLine, int startColumn, int endLine, int endColumn) {
+  return new TextRange(startLine, startColumn, endLine, endColumn);
+}
+
+export TextPos createTextPos(int lineNumber, int column) {
+  return new TextPos(lineNumber, column);
+}
+
+bool isIdentChar(string ch) {
+  int code = ch.charCodeAt(0);
+  if (code >= 97 && code <= 122) {
+    return true;
+  }
+  if (code >= 65 && code <= 90) {
+    return true;
+  }
+  if (code >= 48 && code <= 57) {
+    return true;
+  }
+  return ch == "_" || ch == "$";
+}
+
+string sliceChars(string text, int start, int end) {
+  string out = "";
+  int i = start;
+  if (i < 0) {
+    i = 0;
+  }
+  int last = end;
+  if (last > text.length) {
+    last = text.length;
+  }
+  while (i < last) {
+    out = out + text.charAt(i);
+    i = i + 1;
+  }
+  return out;
+}
+
+string wordAt(string line, int column) {
+  int i = column - 1;
+  if (i < 0) {
+    i = 0;
+  }
+  if (i > line.length) {
+    i = line.length;
+  }
+  int start = i;
+  while (start > 0 && isIdentChar(line.charAt(start - 1))) {
+    start = start - 1;
+  }
+  int end = i;
+  while (end < line.length && isIdentChar(line.charAt(end))) {
+    end = end + 1;
+  }
+  return sliceChars(line, start, end);
+}
+
+int wordStart(string line, int column) {
+  int i = column - 1;
+  if (i < 0) {
+    i = 0;
+  }
+  if (i > line.length) {
+    i = line.length;
+  }
+  while (i > 0 && isIdentChar(line.charAt(i - 1))) {
+    i = i - 1;
+  }
+  return i + 1;
+}
+
+int wordEnd(string line, int column) {
+  int i = column - 1;
+  if (i < 0) {
+    i = 0;
+  }
+  if (i > line.length) {
+    i = line.length;
+  }
+  while (i < line.length && isIdentChar(line.charAt(i))) {
+    i = i + 1;
+  }
+  return i + 1;
+}
+
+int leadingIndent(string line) {
+  int i = 0;
+  while (i < line.length) {
+    string ch = line.charAt(i);
+    if (ch != " " && ch != "\t") {
+      break;
+    }
+    i = i + 1;
+  }
+  return i;
+}
+
+export class ResizableContentWidget {
+  bool visible;
+  int width;
+  int height;
+  int minWidth;
+  int minHeight;
+  string content;
+  int verbosity;
+
+  init() {
+    this.visible = false;
+    this.width = 300;
+    this.height = 0;
+    this.minWidth = 150;
+    this.minHeight = 40;
+    this.content = "";
+    this.verbosity = 0;
+  }
+
+  void layout(int availableWidth, int availableHeight) {
+    this.width = availableWidth;
+    if (this.width < this.minWidth) {
+      this.width = this.minWidth;
+    }
+    this.height = availableHeight;
+    if (this.height < this.minHeight) {
+      this.height = this.minHeight;
+    }
+  }
+
+  void render(string markdown) {
+    this.content = markdown;
+    int lines = 1;
+    int i = 0;
+    while (i < markdown.length) {
+      if (markdown.charAt(i) == "\n") {
+        lines = lines + 1;
+      }
+      i = i + 1;
+    }
+    this.height = 24 + lines * 18;
+    this.visible = markdown.length > 0;
+  }
+
+  void resize(int dw, int dh) {
+    this.width = this.width + dw;
+    this.height = this.height + dh;
+    if (this.width < this.minWidth) {
+      this.width = this.minWidth;
+    }
+    if (this.height < this.minHeight) {
+      this.height = this.minHeight;
+    }
+  }
+
+  void increaseVerbosity() {
+    this.verbosity = this.verbosity + 1;
+  }
+
+  void decreaseVerbosity() {
+    this.verbosity = this.verbosity - 1;
+    if (this.verbosity < 0) {
+      this.verbosity = 0;
+    }
+  }
+}
+
+export ResizableContentWidget createResizableContentWidget() {
+  return new ResizableContentWidget();
+}

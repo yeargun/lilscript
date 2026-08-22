@@ -1,0 +1,130 @@
+export int TRIGGER_INVOKE = 1;
+export int TRIGGER_CHARACTER = 2;
+export int TRIGGER_CONTENT_CHANGE = 3;
+
+export class ParameterInformation {
+  string label;
+  string documentation;
+
+  init(string label, string documentation) {
+    this.label = label;
+    this.documentation = documentation;
+  }
+}
+
+export class SignatureInformation {
+  string label;
+  ParameterInformation[] parameters;
+  int activeParameter;
+
+  init(string label) {
+    this.label = label;
+    this.parameters = [];
+    this.activeParameter = 0;
+  }
+}
+
+export class SignatureHelp {
+  SignatureInformation[] signatures;
+  int activeSignature;
+  int activeParameter;
+
+  init() {
+    this.signatures = [];
+    this.activeSignature = 0;
+    this.activeParameter = 0;
+  }
+}
+
+export class SignatureHelpContext {
+  int triggerKind;
+  string triggerCharacter;
+  bool isRetrigger;
+
+  init(int triggerKind, string triggerCharacter, bool isRetrigger) {
+    this.triggerKind = triggerKind;
+    this.triggerCharacter = triggerCharacter;
+    this.isRetrigger = isRetrigger;
+  }
+}
+
+export class SignatureHelpProvider {
+  string[] triggerCharacters;
+  string[] retriggerCharacters;
+  SignatureHelp? value;
+
+  init() {
+    this.triggerCharacters = [];
+    this.retriggerCharacters = [];
+    this.value = null;
+  }
+}
+
+export class ParameterHintsContextKeys {
+  bool visible;
+  bool multipleSignatures;
+
+  init() {
+    this.visible = false;
+    this.multipleSignatures = false;
+  }
+}
+
+int countCommasBefore(string line, int column) {
+  int count = 0;
+  int depth = 0;
+  int i = 0;
+  int last = column - 1;
+  if (last > line.length) {
+    last = line.length;
+  }
+  while (i < last) {
+    string ch = line.charAt(i);
+    if (ch == "(") {
+      depth = depth + 1;
+    } else if (ch == ")") {
+      depth = depth - 1;
+    } else if (ch == "," && depth == 1) {
+      count = count + 1;
+    }
+    i = i + 1;
+  }
+  return count;
+}
+
+export int activeParameterAt(string line, int column) {
+  return countCommasBefore(line, column);
+}
+
+export SignatureHelp? provideSignatureHelp(SignatureHelpProvider[] providers) {
+  int i = 0;
+  while (i < providers.length) {
+    SignatureHelp? value = providers[i].value;
+    if (value != null) {
+      SignatureHelp help = value;
+      if (help.signatures.length > 0) {
+        return help;
+      }
+    }
+    i = i + 1;
+  }
+  return null;
+}
+
+export ParameterHintsContextKeys createParameterHintsContextKeys(SignatureHelp? hints) {
+  ParameterHintsContextKeys keys = new ParameterHintsContextKeys();
+  if (hints != null) {
+    SignatureHelp help = hints;
+    keys.visible = help.signatures.length > 0;
+    keys.multipleSignatures = help.signatures.length > 1;
+  }
+  return keys;
+}
+
+export SignatureHelpProvider createSignatureHelpProvider() {
+  return new SignatureHelpProvider();
+}
+
+export SignatureHelpContext createSignatureHelpContext(int triggerKind, string triggerCharacter, bool isRetrigger) {
+  return new SignatureHelpContext(triggerKind, triggerCharacter, isRetrigger);
+}

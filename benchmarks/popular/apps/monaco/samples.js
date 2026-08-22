@@ -8,10 +8,10 @@ export const FILES = [
 
 Two served editors, same chrome:
 
-- LilScript: compiled Lil editor (no monaco-editor JS)
+- LilScript: compiled Lil editor + official Microsoft TypeScript worker
 - JS: npm monaco-editor 0.56 (VS Code editor + JSON/CSS/HTML/TS workers)
 
-Open files from the explorer. Ctrl/Cmd+P quick-opens. Ctrl/Cmd+F finds in the current file.
+Open \`src/App.tsx\` for SolidJS + the real tsc language service. Ctrl/Cmd+P quick-opens. Ctrl/Cmd+F finds in the current file.
 `,
   },
   {
@@ -41,6 +41,26 @@ export function add(left: number, right: number): number {
 }
 
 export const sample: number = greet("world");
+`,
+  },
+  {
+    path: "src/App.tsx",
+    language: "typescript",
+    value: `import { For, createSignal } from "solid-js";
+import { greet } from "./app";
+
+export function App() {
+  const [items, setItems] = createSignal(["monaco", "solid"]);
+  return (
+    <main>
+      <h1>{greet("Solid")}</h1>
+      <For each={items()}>{(name: string) => <p>{name}</p>}</For>
+      <button type="button" onClick={() => setItems((cur) => [...cur, "tsx"])}>
+        add
+      </button>
+    </main>
+  );
+}
 `,
   },
   {

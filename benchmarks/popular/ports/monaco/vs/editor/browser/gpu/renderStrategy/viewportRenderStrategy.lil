@@ -1,0 +1,219 @@
+export int VIEWPORT_MAX_COLUMNS = 2000;
+export int INDICES_PER_CELL = 6;
+export int CELL_BIND_BUFFER_INITIAL_CAPACITY = 63;
+export int CELL_BIND_BUFFER_CAPACITY_INCREMENT = 32;
+
+export class ViewportLines {
+  int startLineNumber;
+  int endLineNumber;
+  int lineHeight;
+  bool[] canRenderLine;
+  int[] maxColumn;
+  bool[] containsRTL;
+
+  init(int startLineNumber, int endLineNumber, int lineHeight) {
+    this.startLineNumber = startLineNumber;
+    this.endLineNumber = endLineNumber;
+    this.lineHeight = lineHeight;
+    this.canRenderLine = [];
+    this.maxColumn = [];
+    this.containsRTL = [];
+    int i = 0;
+    int count = endLineNumber - startLineNumber + 1;
+    while (i < count) {
+      this.canRenderLine.push(true);
+      this.maxColumn.push(80);
+      this.containsRTL.push(false);
+      i = i + 1;
+    }
+  }
+
+  bool canRender(int lineNumber) {
+    int index = lineNumber - this.startLineNumber;
+    if (index < 0 || index >= this.canRenderLine.length) {
+      return false;
+    }
+    if (this.containsRTL[index]) {
+      return false;
+    }
+    if (this.maxColumn[index] > VIEWPORT_MAX_COLUMNS) {
+      return false;
+    }
+    return this.canRenderLine[index];
+  }
+}
+
+void fillZeros(float[] buf, int start, int end) {
+  int i = start;
+  while (i < end && i < buf.length) {
+    buf[i] = 0.0;
+    i = i + 1;
+  }
+}
+
+void ensureLen(float[] buf, int len) {
+  while (buf.length < len) {
+    buf.push(0.0);
+  }
+}
+
+export class ViewportRenderStrategy {
+  string type;
+  int cellBindBufferLineCapacity;
+  int activeDoubleBufferIndex;
+  int visibleObjectCount;
+  int lastViewportLineCount;
+  bool scrollInitialized;
+  float[] cellBuffer0;
+  float[] cellBuffer1;
+  float[] scrollOffset;
+  int bindGroupGeneration;
+
+  init() {
+    this.type = "viewport";
+    this.cellBindBufferLineCapacity = CELL_BIND_BUFFER_INITIAL_CAPACITY;
+    this.activeDoubleBufferIndex = 0;
+    this.visibleObjectCount = 0;
+    this.lastViewportLineCount = 0;
+    this.scrollInitialized = false;
+    this.cellBuffer0 = [];
+    this.cellBuffer1 = [];
+    this.scrollOffset = [];
+    this.scrollOffset.push(0.0);
+    this.scrollOffset.push(0.0);
+    this.bindGroupGeneration = 0;
+    this.rebuildCellBuffer(this.cellBindBufferLineCapacity);
+  }
+
+  void rebuildCellBuffer(int lineCount) {
+    int lineCountWithIncrement = (lineCount / CELL_BIND_BUFFER_CAPACITY_INCREMENT + 1) * CELL_BIND_BUFFER_CAPACITY_INCREMENT;
+    int bufferSize = lineCountWithIncrement * VIEWPORT_MAX_COLUMNS * INDICES_PER_CELL;
+    this.cellBuffer0 = [];
+    this.cellBuffer1 = [];
+    ensureLen(this.cellBuffer0, bufferSize);
+    ensureLen(this.cellBuffer1, bufferSize);
+    this.cellBindBufferLineCapacity = lineCountWithIncrement;
+    this.lastViewportLineCount = 0;
+    this.bindGroupGeneration = this.bindGroupGeneration + 1;
+  }
+
+  bool onConfigurationChanged() {
+    return true;
+  }
+
+  bool onDecorationsChanged() {
+    return true;
+  }
+
+  bool onTokensChanged() {
+    return true;
+  }
+
+  bool onLinesDeleted() {
+    return true;
+  }
+
+  bool onLinesInserted() {
+    return true;
+  }
+
+  bool onLinesChanged() {
+    return true;
+  }
+
+  bool onScrollChanged(float scrollLeft, float scrollTop, float dpr) {
+    this.scrollOffset[0] = scrollLeft * dpr;
+    this.scrollOffset[1] = scrollTop * dpr;
+    return true;
+  }
+
+  bool onThemeChanged() {
+    return true;
+  }
+
+  bool onLineMappingChanged() {
+    return true;
+  }
+
+  bool onZonesChanged() {
+    return true;
+  }
+
+  void reset() {
+    fillZeros(this.cellBuffer0, 0, this.cellBuffer0.length);
+    fillZeros(this.cellBuffer1, 0, this.cellBuffer1.length);
+    this.lastViewportLineCount = 0;
+  }
+
+  float[] activeBuffer() {
+    if (this.activeDoubleBufferIndex == 0) {
+      return this.cellBuffer0;
+    }
+    return this.cellBuffer1;
+  }
+
+  int update(ViewportLines viewport) {
+    if (!this.scrollInitialized) {
+      this.onScrollChanged(0.0, 0.0, 1.0);
+      this.scrollInitialized = true;
+    }
+    int viewportLineCount = viewport.endLineNumber - viewport.startLineNumber + 1;
+    if (this.cellBindBufferLineCapacity < viewportLineCount) {
+      this.rebuildCellBuffer(viewportLineCount);
+    }
+    float[] cellBuffer = this.activeBuffer();
+    fillZeros(cellBuffer, 0, cellBuffer.length);
+    int lineIndexCount = VIEWPORT_MAX_COLUMNS * INDICES_PER_CELL;
+    int y = viewport.startLineNumber;
+    while (y <= viewport.endLineNumber) {
+      if (!viewport.canRender(y)) {
+        y = y + 1;
+        continue;
+      }
+      int lineOffset = y - viewport.startLineNumber;
+      int maxCol = VIEWPORT_MAX_COLUMNS;
+      if (lineOffset >= 0 && lineOffset < viewport.maxColumn.length) {
+        int lineCols = viewport.maxColumn[lineOffset];
+        if (lineCols < maxCol) {
+          maxCol = lineCols;
+        }
+      }
+      int x = 0;
+      while (x < maxCol) {
+        int cellIndex = (lineOffset * VIEWPORT_MAX_COLUMNS + x) * INDICES_PER_CELL;
+        if (cellIndex + 5 < cellBuffer.length) {
+          cellBuffer[cellIndex] = x * 1.0;
+          cellBuffer[cellIndex + 1] = lineOffset * viewport.lineHeight * 1.0;
+          cellBuffer[cellIndex + 4] = x * 1.0;
+          cellBuffer[cellIndex + 5] = 0.0;
+        }
+        x = x + 1;
+      }
+      y = y + 1;
+    }
+    int visibleObjectCount = viewportLineCount * lineIndexCount;
+    this.visibleObjectCount = visibleObjectCount;
+    this.lastViewportLineCount = viewportLineCount;
+    if (this.activeDoubleBufferIndex == 0) {
+      this.activeDoubleBufferIndex = 1;
+    } else {
+      this.activeDoubleBufferIndex = 0;
+    }
+    return visibleObjectCount;
+  }
+
+  int draw() {
+    if (this.visibleObjectCount <= 0) {
+      throw "Attempt to draw 0 objects";
+    }
+    return this.visibleObjectCount;
+  }
+}
+
+export ViewportRenderStrategy createViewportRenderStrategy() {
+  return new ViewportRenderStrategy();
+}
+
+export ViewportLines createViewportLines(int startLineNumber, int endLineNumber, int lineHeight) {
+  return new ViewportLines(startLineNumber, endLineNumber, lineHeight);
+}

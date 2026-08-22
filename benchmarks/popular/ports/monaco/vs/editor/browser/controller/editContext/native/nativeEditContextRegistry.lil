@@ -1,0 +1,37 @@
+export class NativeEditContextRegistryImpl {
+  Map<int, int> mapping;
+
+  init() {
+    this.mapping = new Map<int, int>();
+  }
+
+  void register(int ownerID, int contextId) {
+    this.mapping.set(ownerID, contextId);
+  }
+
+  void unregister(int ownerID) {
+    this.mapping.delete(ownerID);
+  }
+
+  int? get(int ownerID) {
+    return this.mapping.get(ownerID);
+  }
+}
+
+NativeEditContextRegistryImpl nativeEditContextRegistry = new NativeEditContextRegistryImpl();
+
+export NativeEditContextRegistryImpl createNativeEditContextRegistry() {
+  return new NativeEditContextRegistryImpl();
+}
+
+export void registerNativeEditContext(int ownerID, int contextId) {
+  nativeEditContextRegistry.register(ownerID, contextId);
+}
+
+export int? getNativeEditContext(int ownerID) {
+  return nativeEditContextRegistry.get(ownerID);
+}
+
+export void unregisterNativeEditContext(int ownerID) {
+  nativeEditContextRegistry.unregister(ownerID);
+}

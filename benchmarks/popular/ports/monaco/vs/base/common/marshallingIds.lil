@@ -1,0 +1,22 @@
+export int MarshalledIdUri = 1;
+export int MarshalledIdRegexp = 2;
+export int MarshalledIdScmResource = 3;
+export int MarshalledIdScmResourceGroup = 4;
+export int MarshalledIdScmProvider = 5;
+export int MarshalledIdCommentController = 6;
+export int MarshalledIdCommentThread = 7;
+export int MarshalledIdCommentThreadReply = 8;
+export int MarshalledIdCommentNode = 9;
+export int MarshalledIdCommentThreadTs = 10;
+export int MarshalledIdTestItemContext = 11;
+export int MarshalledIdTimelineActionContext = 12;
+export int MarshalledIdNotebookCellActionContext = 13;
+export int MarshalledIdNotebookActionContext = 14;
+export int MarshalledIdTerminalContext = 15;
+export int MarshalledIdTestMessageMenuArgs = 16;
+export int MarshalledIdChatViewContext = 17;
+export int MarshalledIdLanguageModelToolResult = 18;
+
+export bool isMarshalledId(int id) {
+  return id >= MarshalledIdUri && id <= MarshalledIdLanguageModelToolResult;
+}

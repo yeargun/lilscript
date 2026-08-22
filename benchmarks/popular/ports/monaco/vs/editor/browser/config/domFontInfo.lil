@@ -1,0 +1,45 @@
+import { setStyle } from "../../../../js-host";
+
+export class BareFontInfo {
+  string fontFamily;
+  string fontWeight;
+  float fontSize;
+  string fontFeatureSettings;
+  string fontVariationSettings;
+  float lineHeight;
+  float letterSpacing;
+
+  init(string fontFamily, string fontWeight, float fontSize, string fontFeatureSettings, string fontVariationSettings, float lineHeight, float letterSpacing) {
+    this.fontFamily = fontFamily;
+    this.fontWeight = fontWeight;
+    this.fontSize = fontSize;
+    this.fontFeatureSettings = fontFeatureSettings;
+    this.fontVariationSettings = fontVariationSettings;
+    this.lineHeight = lineHeight;
+    this.letterSpacing = letterSpacing;
+  }
+
+  string getMassagedFontFamily() {
+    if (this.fontFamily.length == 0) {
+      return "monospace";
+    }
+    return this.fontFamily;
+  }
+}
+
+export BareFontInfo createBareFontInfo(string fontFamily, string fontWeight, float fontSize, string fontFeatureSettings, string fontVariationSettings, float lineHeight, float letterSpacing) {
+  return new BareFontInfo(fontFamily, fontWeight, fontSize, fontFeatureSettings, fontVariationSettings, lineHeight, letterSpacing);
+}
+
+export void applyFontInfo(JsValue domNode, BareFontInfo fontInfo) {
+  int sizePx = fontInfo.fontSize.round().toInt();
+  int linePx = fontInfo.lineHeight.round().toInt();
+  int spacingPx = fontInfo.letterSpacing.round().toInt();
+  setStyle(domNode, "font-family", fontInfo.getMassagedFontFamily());
+  setStyle(domNode, "font-weight", fontInfo.fontWeight);
+  setStyle(domNode, "font-size", sizePx.toString() + "px");
+  setStyle(domNode, "font-feature-settings", fontInfo.fontFeatureSettings);
+  setStyle(domNode, "font-variation-settings", fontInfo.fontVariationSettings);
+  setStyle(domNode, "line-height", linePx.toString() + "px");
+  setStyle(domNode, "letter-spacing", spacingPx.toString() + "px");
+}

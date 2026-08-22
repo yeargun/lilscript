@@ -1,0 +1,218 @@
+export int FOLD_SOURCE_PROVIDER = 0;
+export int FOLD_SOURCE_USER = 1;
+
+export class FoldRange {
+  int startLineNumber;
+  int endLineNumber;
+  string typeName;
+  bool isCollapsed;
+  int source;
+  int regionIndex;
+
+  init(int startLineNumber, int endLineNumber, string typeName, bool isCollapsed, int source, int regionIndex) {
+    this.startLineNumber = startLineNumber;
+    this.endLineNumber = endLineNumber;
+    this.typeName = typeName;
+    this.isCollapsed = isCollapsed;
+    this.source = source;
+    this.regionIndex = regionIndex;
+  }
+}
+
+int hashLine(string value) {
+  int h = 0;
+  int i = 0;
+  while (i < value.length) {
+    h = Math.imul(31, h) + value.charCodeAt(i);
+    i = i + 1;
+  }
+  return h;
+}
+
+export class FoldingModel {
+  FoldRange[] regions;
+  string[] lines;
+
+  init(string[] lines) {
+    this.regions = [];
+    this.lines = lines;
+  }
+
+  void toggleCollapseState(int[] indices) {
+    int i = 0;
+    while (i < indices.length) {
+      int index = indices[i];
+      if (index >= 0 && index < this.regions.length) {
+        this.regions[index].isCollapsed = !this.regions[index].isCollapsed;
+      }
+      i = i + 1;
+    }
+  }
+
+  void setAllCollapsed(bool collapsed) {
+    int i = 0;
+    while (i < this.regions.length) {
+      this.regions[i].isCollapsed = collapsed;
+      i = i + 1;
+    }
+  }
+
+  void toggleAtLine(int lineNumber) {
+    int i = this.regions.length - 1;
+    while (i >= 0) {
+      FoldRange range = this.regions[i];
+      if (range.startLineNumber <= lineNumber && range.endLineNumber >= lineNumber) {
+        range.isCollapsed = !range.isCollapsed;
+        return;
+      }
+      i = i - 1;
+    }
+  }
+
+  void setCollapseStateAtLevel(int level, bool collapse) {
+    int i = 0;
+    while (i < this.regions.length) {
+      int depth = this.regionLevel(i);
+      if (depth == level) {
+        this.regions[i].isCollapsed = collapse;
+      }
+      i = i + 1;
+    }
+  }
+
+  void setCollapseStateLevelsDown(int lineNumber, bool collapse, int levels) {
+    int i = 0;
+    while (i < this.regions.length) {
+      FoldRange range = this.regions[i];
+      if (range.startLineNumber <= lineNumber && range.endLineNumber >= lineNumber) {
+        range.isCollapsed = collapse;
+        int child = i + 1;
+        int remaining = levels - 1;
+        while (child < this.regions.length && remaining >= 0) {
+          FoldRange inner = this.regions[child];
+          if (inner.startLineNumber > range.endLineNumber) {
+            break;
+          }
+          if (inner.startLineNumber > range.startLineNumber) {
+            inner.isCollapsed = collapse;
+            remaining = remaining - 1;
+          }
+          child = child + 1;
+        }
+      }
+      i = i + 1;
+    }
+  }
+
+  void setCollapseStateLevelsUp(int lineNumber, bool collapse, int levels) {
+    int remaining = levels;
+    int i = this.regions.length - 1;
+    while (i >= 0 && remaining > 0) {
+      FoldRange range = this.regions[i];
+      if (range.startLineNumber <= lineNumber && range.endLineNumber >= lineNumber) {
+        range.isCollapsed = collapse;
+        remaining = remaining - 1;
+      }
+      i = i - 1;
+    }
+  }
+
+  void setCollapseStateForType(string typeName, bool collapse) {
+    int i = 0;
+    while (i < this.regions.length) {
+      if (this.regions[i].typeName == typeName) {
+        this.regions[i].isCollapsed = collapse;
+      }
+      i = i + 1;
+    }
+  }
+
+  int regionLevel(int index) {
+    FoldRange range = this.regions[index];
+    int level = 1;
+    int i = 0;
+    while (i < index) {
+      FoldRange outer = this.regions[i];
+      if (outer.startLineNumber < range.startLineNumber && outer.endLineNumber >= range.endLineNumber) {
+        level = level + 1;
+      }
+      i = i + 1;
+    }
+    return level;
+  }
+
+  int? getParentFoldLine(int lineNumber) {
+    int i = this.regions.length - 1;
+    while (i >= 0) {
+      FoldRange range = this.regions[i];
+      if (range.startLineNumber < lineNumber && range.endLineNumber >= lineNumber) {
+        return range.startLineNumber;
+      }
+      i = i - 1;
+    }
+    return null;
+  }
+
+  int? getPreviousFoldLine(int lineNumber) {
+    int best = -1;
+    int i = 0;
+    while (i < this.regions.length) {
+      int start = this.regions[i].startLineNumber;
+      if (start < lineNumber && start > best) {
+        best = start;
+      }
+      i = i + 1;
+    }
+    if (best < 0) {
+      return null;
+    }
+    return best;
+  }
+
+  int? getNextFoldLine(int lineNumber) {
+    int best = -1;
+    int i = 0;
+    while (i < this.regions.length) {
+      int start = this.regions[i].startLineNumber;
+      if (start > lineNumber) {
+        if (best < 0 || start < best) {
+          best = start;
+        }
+      }
+      i = i + 1;
+    }
+    if (best < 0) {
+      return null;
+    }
+    return best;
+  }
+
+  int linesChecksum(int lineNumber1, int lineNumber2) {
+    string a = "";
+    string b = "";
+    if (lineNumber1 >= 1 && lineNumber1 <= this.lines.length) {
+      a = this.lines[lineNumber1 - 1];
+    }
+    if (lineNumber2 >= 1 && lineNumber2 <= this.lines.length) {
+      b = this.lines[lineNumber2 - 1];
+    }
+    return hashLine(a + b);
+  }
+
+  void update(FoldRange[] newRegions) {
+    this.regions = newRegions;
+    int i = 0;
+    while (i < this.regions.length) {
+      this.regions[i].regionIndex = i;
+      i = i + 1;
+    }
+  }
+}
+
+export FoldingModel createFoldingModel(string[] lines) {
+  return new FoldingModel(lines);
+}
+
+export FoldRange createModelFoldRange(int startLine, int endLine, bool collapsed) {
+  return new FoldRange(startLine, endLine, "", collapsed, FOLD_SOURCE_PROVIDER, 0);
+}

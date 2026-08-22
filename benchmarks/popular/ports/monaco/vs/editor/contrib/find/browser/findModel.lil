@@ -1,0 +1,572 @@
+import {
+  newRegexp,
+  regexExec,
+  regexSetLastIndex,
+  regexLastIndex,
+  jsArrayLen,
+  jsArrayAt,
+  stringSlice,
+  stringSplit,
+  emptyBuf,
+  concat2
+} from "../../../../../js-host";
+
+export int MATCHES_LIMIT = 19999;
+export int RESEARCH_DELAY = 240;
+export string FIND_START = "actions.find";
+export string FIND_START_SELECTION = "actions.findWithSelection";
+export string FIND_START_ARGS = "editor.actions.findWithArgs";
+export string FIND_NEXT = "editor.action.nextMatchFindAction";
+export string FIND_PREV = "editor.action.previousMatchFindAction";
+export string FIND_GOTO_MATCH = "editor.action.goToMatchFindAction";
+export string FIND_NEXT_SELECTION = "editor.action.nextSelectionMatchFindAction";
+export string FIND_PREV_SELECTION = "editor.action.previousSelectionMatchFindAction";
+export string FIND_REPLACE_START = "editor.action.startFindReplaceAction";
+export string FIND_CLOSE = "closeFindWidget";
+export string FIND_TOGGLE_CASE = "toggleFindCaseSensitive";
+export string FIND_TOGGLE_WORD = "toggleFindWholeWord";
+export string FIND_TOGGLE_REGEX = "toggleFindRegex";
+export string FIND_TOGGLE_SCOPE = "toggleFindInSelection";
+export string FIND_TOGGLE_PRESERVE = "togglePreserveCase";
+export string FIND_REPLACE_ONE = "editor.action.replaceOne";
+export string FIND_REPLACE_ALL = "editor.action.replaceAll";
+export string FIND_SELECT_ALL = "editor.action.selectAllMatches";
+
+export string[] findCommandIds() {
+  return [
+    FIND_START,
+    FIND_START_SELECTION,
+    FIND_START_ARGS,
+    FIND_NEXT,
+    FIND_PREV,
+    FIND_GOTO_MATCH,
+    FIND_NEXT_SELECTION,
+    FIND_PREV_SELECTION,
+    FIND_REPLACE_START,
+    FIND_CLOSE,
+    FIND_TOGGLE_CASE,
+    FIND_TOGGLE_WORD,
+    FIND_TOGGLE_REGEX,
+    FIND_TOGGLE_SCOPE,
+    FIND_TOGGLE_PRESERVE,
+    FIND_REPLACE_ONE,
+    FIND_REPLACE_ALL,
+    FIND_SELECT_ALL
+  ];
+}
+
+export class FindPos {
+  int lineNumber;
+  int column;
+
+  init(int lineNumber, int column) {
+    this.lineNumber = lineNumber;
+    this.column = column;
+  }
+}
+
+export class FindRange {
+  int startLineNumber;
+  int startColumn;
+  int endLineNumber;
+  int endColumn;
+
+  init(int startLineNumber, int startColumn, int endLineNumber, int endColumn) {
+    this.startLineNumber = startLineNumber;
+    this.startColumn = startColumn;
+    this.endLineNumber = endLineNumber;
+    this.endColumn = endColumn;
+  }
+}
+
+export class FindMatchHit {
+  FindRange range;
+  string[] captures;
+
+  init(FindRange range, string[] captures) {
+    this.range = range;
+    this.captures = captures;
+  }
+}
+
+export class FindEdit {
+  FindRange range;
+  string text;
+
+  init(FindRange range, string text) {
+    this.range = range;
+    this.text = text;
+  }
+}
+
+bool posEquals(FindPos a, FindPos b) {
+  return a.lineNumber == b.lineNumber && a.column == b.column;
+}
+
+bool posBefore(FindPos a, FindPos b) {
+  if (a.lineNumber < b.lineNumber) {
+    return true;
+  }
+  if (a.lineNumber > b.lineNumber) {
+    return false;
+  }
+  return a.column < b.column;
+}
+
+bool rangeEquals(FindRange a, FindRange b) {
+  return a.startLineNumber == b.startLineNumber
+    && a.startColumn == b.startColumn
+    && a.endLineNumber == b.endLineNumber
+    && a.endColumn == b.endColumn;
+}
+
+bool rangeIsEmpty(FindRange range) {
+  return range.startLineNumber == range.endLineNumber && range.startColumn == range.endColumn;
+}
+
+bool rangeContains(FindRange outer, FindRange inner) {
+  FindPos start = new FindPos(inner.startLineNumber, inner.startColumn);
+  FindPos end = new FindPos(inner.endLineNumber, inner.endColumn);
+  FindPos outerStart = new FindPos(outer.startLineNumber, outer.startColumn);
+  FindPos outerEnd = new FindPos(outer.endLineNumber, outer.endColumn);
+  bool startOk = !posBefore(start, outerStart);
+  bool endOk = !posBefore(outerEnd, end);
+  return startOk && endOk;
+}
+
+export string escapeFindRegExp(string searchString) {
+  string result = emptyBuf();
+  int i = 0;
+  while (i < searchString.length) {
+    string ch = searchString.charAt(i);
+    if (
+      ch == "\\" || ch == "^" || ch == "$" || ch == "." || ch == "|" || ch == "?"
+      || ch == "*" || ch == "+" || ch == "(" || ch == ")" || ch == "[" || ch == "]"
+      || ch == "{" || ch == "}"
+    ) {
+      result = concat2(result, "\\");
+    }
+    result = concat2(result, ch);
+    i = i + 1;
+  }
+  return result;
+}
+
+bool isMultilineRegexSource(string searchString) {
+  int i = 0;
+  while (i < searchString.length) {
+    int code = searchString.charCodeAt(i);
+    if (code == 10 || code == 13) {
+      return true;
+    }
+    if (code == 92) {
+      i = i + 1;
+      if (i < searchString.length) {
+        int next = searchString.charCodeAt(i);
+        if (next == 110 || next == 114 || next == 87) {
+          return true;
+        }
+      }
+    }
+    i = i + 1;
+  }
+  return false;
+}
+
+bool isValidWordMatch(string wordSeparators, string text, int matchStartIndex, int matchLength) {
+  bool leftBoundary = matchStartIndex == 0;
+  if (!leftBoundary) {
+    string before = text.charAt(matchStartIndex - 1);
+    string first = emptyBuf();
+    if (matchLength > 0) {
+      first = text.charAt(matchStartIndex);
+    }
+    leftBoundary = wordSeparators.indexOf(before) >= 0 || (matchLength > 0 && wordSeparators.indexOf(first) >= 0);
+  }
+  bool rightBoundary = matchStartIndex + matchLength == text.length;
+  if (!rightBoundary) {
+    string after = text.charAt(matchStartIndex + matchLength);
+    string last = emptyBuf();
+    if (matchLength > 0) {
+      last = text.charAt(matchStartIndex + matchLength - 1);
+    }
+    rightBoundary = wordSeparators.indexOf(after) >= 0 || (matchLength > 0 && wordSeparators.indexOf(last) >= 0);
+  }
+  return leftBoundary && rightBoundary;
+}
+
+string[] captureGroups(JsValue raw) {
+  string[] result = [];
+  int count = jsArrayLen(raw);
+  int i = 0;
+  while (i < count) {
+    result.push(JS.string(jsArrayAt(raw, i)));
+    i = i + 1;
+  }
+  return result;
+}
+
+export class FindSearcher {
+  string wordSeparators;
+  Regex searchRegex;
+  int prevStart;
+  int prevLength;
+
+  init(string wordSeparators, Regex searchRegex) {
+    this.wordSeparators = wordSeparators;
+    this.searchRegex = searchRegex;
+    this.prevStart = -1;
+    this.prevLength = 0;
+  }
+
+  void reset(int lastIndex) {
+    regexSetLastIndex(this.searchRegex, lastIndex);
+    this.prevStart = -1;
+    this.prevLength = 0;
+  }
+
+  JsValue next(string text) {
+    while (this.prevStart + this.prevLength != text.length) {
+      JsValue found = regexExec(this.searchRegex, text);
+      if (!found.truthy()) {
+        return null;
+      }
+      int start = JS.number(found["index"]).toInt();
+      string value = JS.string(found[0]);
+      int length = value.length;
+      if (start == this.prevStart && length == this.prevLength) {
+        if (length == 0) {
+          regexSetLastIndex(this.searchRegex, regexLastIndex(this.searchRegex) + 1);
+          continue;
+        }
+        return null;
+      }
+      this.prevStart = start;
+      this.prevLength = length;
+      if (this.wordSeparators.length == 0 || isValidWordMatch(this.wordSeparators, text, start, length)) {
+        return found;
+      }
+    }
+    return null;
+  }
+}
+
+export class FindDocument {
+  string[] lines;
+
+  init(string[] lines) {
+    this.lines = lines;
+  }
+
+  int getLineCount() {
+    return this.lines.length;
+  }
+
+  string getLineContent(int lineNumber) {
+    if (lineNumber < 1 || lineNumber > this.lines.length) {
+      return emptyBuf();
+    }
+    return this.lines[lineNumber - 1];
+  }
+
+  int getLineMaxColumn(int lineNumber) {
+    return this.getLineContent(lineNumber).length + 1;
+  }
+
+  FindRange fullRange() {
+    int last = this.getLineCount();
+    if (last == 0) {
+      return new FindRange(1, 1, 1, 1);
+    }
+    return new FindRange(1, 1, last, this.getLineMaxColumn(last));
+  }
+}
+
+export class FindModelState {
+  string searchString;
+  string replaceString;
+  bool isRegex;
+  bool matchCase;
+  bool wholeWord;
+  bool preserveCase;
+  bool loop;
+  int matchesPosition;
+  int matchesCount;
+
+  init(string searchString, bool isRegex, bool matchCase, bool wholeWord) {
+    this.searchString = searchString;
+    this.replaceString = "";
+    this.isRegex = isRegex;
+    this.matchCase = matchCase;
+    this.wholeWord = wholeWord;
+    this.preserveCase = false;
+    this.loop = true;
+    this.matchesPosition = 0;
+    this.matchesCount = 0;
+  }
+
+  bool canNavigateBack() {
+    return this.loop || this.matchesPosition != 1;
+  }
+
+  bool canNavigateForward() {
+    return this.loop || this.matchesPosition < this.matchesCount;
+  }
+}
+
+string regexFlags(bool matchCase) {
+  if (matchCase) {
+    return "gu";
+  }
+  return "giu";
+}
+
+string searchSource(string searchString, bool isRegex) {
+  if (isRegex) {
+    return searchString;
+  }
+  return escapeFindRegExp(searchString);
+}
+
+FindRange searchRangeFor(FindDocument model, FindRange? scope) {
+  if (scope != null) {
+    return scope;
+  }
+  return model.fullRange();
+}
+
+FindMatchHit[] findInRange(FindDocument model, FindModelState state, FindRange range, bool captureMatches, int limit, string wordSeparators) {
+  FindMatchHit[] result = [];
+  if (state.searchString.length == 0) {
+    return result;
+  }
+  string source = searchSource(state.searchString, state.isRegex);
+  Regex regex = newRegexp(source, regexFlags(state.matchCase));
+  string seps = "";
+  if (state.wholeWord) {
+    seps = wordSeparators;
+  }
+  int line = range.startLineNumber;
+  while (line <= range.endLineNumber && result.length < limit) {
+    string lineText = model.getLineContent(line);
+    int from = 0;
+    int to = lineText.length;
+    if (line == range.startLineNumber) {
+      from = range.startColumn - 1;
+    }
+    if (line == range.endLineNumber) {
+      to = range.endColumn - 1;
+    }
+    if (from < 0) {
+      from = 0;
+    }
+    if (to > lineText.length) {
+      to = lineText.length;
+    }
+    string text = stringSlice(lineText, from, to);
+    FindSearcher searcher = new FindSearcher(seps, regex);
+    searcher.reset(0);
+    JsValue found = searcher.next(text);
+    while (found.truthy() && result.length < limit) {
+      int index = JS.number(found["index"]).toInt();
+      string foundText = JS.string(found[0]);
+      string[] captures = [];
+      if (captureMatches) {
+        captures = captureGroups(found);
+      }
+      int startCol = from + index + 1;
+      result.push(new FindMatchHit(new FindRange(line, startCol, line, startCol + foundText.length), captures));
+      found = searcher.next(text);
+    }
+    line = line + 1;
+  }
+  return result;
+}
+
+FindPos prevSearchPosition(FindDocument model, FindModelState state, FindPos before) {
+  bool lineStops = state.isRegex && (state.searchString.indexOf("^") >= 0 || state.searchString.indexOf("$") >= 0);
+  int lineNumber = before.lineNumber;
+  int column = before.column;
+  if (lineStops || column == 1) {
+    if (lineNumber == 1) {
+      lineNumber = model.getLineCount();
+    } else {
+      lineNumber = lineNumber - 1;
+    }
+    column = model.getLineMaxColumn(lineNumber);
+  } else {
+    column = column - 1;
+  }
+  return new FindPos(lineNumber, column);
+}
+
+FindPos nextSearchPosition(FindDocument model, FindModelState state, FindPos after) {
+  bool lineStops = state.isRegex && (state.searchString.indexOf("^") >= 0 || state.searchString.indexOf("$") >= 0);
+  int lineNumber = after.lineNumber;
+  int column = after.column;
+  int maxCol = model.getLineMaxColumn(lineNumber);
+  if (lineStops || column == maxCol) {
+    if (lineNumber == model.getLineCount()) {
+      lineNumber = 1;
+    } else {
+      lineNumber = lineNumber + 1;
+    }
+    column = 1;
+  } else {
+    column = column + 1;
+  }
+  return new FindPos(lineNumber, column);
+}
+
+int findFirstMatchIndex(FindMatchHit[] matches, FindPos position) {
+  int i = 0;
+  while (i < matches.length) {
+    FindRange range = matches[i].range;
+    if (!posBefore(new FindPos(range.startLineNumber, range.startColumn), position)) {
+      return i;
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+export class FindModelBoundToEditorModel {
+  FindDocument document;
+  FindModelState state;
+  FindMatchHit[] matches;
+  FindRange? findScope;
+  FindPos startPosition;
+  int currentIndex;
+  string wordSeparators;
+
+  init(FindDocument document, FindModelState state, string wordSeparators) {
+    this.document = document;
+    this.state = state;
+    this.matches = [];
+    this.findScope = null;
+    this.startPosition = new FindPos(1, 1);
+    this.currentIndex = -1;
+    this.wordSeparators = wordSeparators;
+  }
+
+  void research(bool moveCursor, FindRange? newScope) {
+    this.findScope = newScope;
+    FindRange range = searchRangeFor(this.document, newScope);
+    this.matches = findInRange(this.document, this.state, range, false, MATCHES_LIMIT, this.wordSeparators);
+    this.state.matchesCount = this.matches.length;
+    this.currentIndex = findFirstMatchIndex(this.matches, this.startPosition);
+    if (this.matches.length == 0) {
+      this.currentIndex = -1;
+      this.state.matchesPosition = 0;
+    } else {
+      this.state.matchesPosition = this.currentIndex + 1;
+    }
+    if (moveCursor && this.matches.length > 0) {
+      this.moveToNextMatch();
+    }
+  }
+
+  FindMatchHit? currentMatch() {
+    if (this.currentIndex < 0 || this.currentIndex >= this.matches.length) {
+      return null;
+    }
+    return this.matches[this.currentIndex];
+  }
+
+  void moveToPrevMatch() {
+    if (this.matches.length == 0) {
+      return;
+    }
+    if (!this.state.canNavigateBack()) {
+      this.currentIndex = 0;
+      this.state.matchesPosition = 1;
+      return;
+    }
+    this.currentIndex = this.currentIndex - 1;
+    if (this.currentIndex < 0) {
+      this.currentIndex = this.matches.length - 1;
+    }
+    this.state.matchesPosition = this.currentIndex + 1;
+  }
+
+  void moveToNextMatch() {
+    if (this.matches.length == 0) {
+      return;
+    }
+    if (!this.state.canNavigateForward()) {
+      this.currentIndex = this.matches.length - 1;
+      this.state.matchesPosition = this.matches.length;
+      return;
+    }
+    this.currentIndex = this.currentIndex + 1;
+    if (this.currentIndex >= this.matches.length) {
+      this.currentIndex = 0;
+    }
+    this.state.matchesPosition = this.currentIndex + 1;
+  }
+
+  void moveToMatch(int index) {
+    if (index < 0 || index >= this.matches.length) {
+      return;
+    }
+    this.currentIndex = index;
+    this.state.matchesPosition = index + 1;
+  }
+
+  FindEdit? replaceOne(string replaceText) {
+    FindMatchHit? hit = this.currentMatch();
+    if (hit == null) {
+      return null;
+    }
+    return new FindEdit(hit.range, replaceText);
+  }
+
+  FindEdit[] replaceAll(string replaceText) {
+    FindEdit[] ops = [];
+    int i = this.matches.length - 1;
+    while (i >= 0) {
+      ops.push(new FindEdit(this.matches[i].range, replaceText));
+      i = i - 1;
+    }
+    return ops;
+  }
+
+  FindRange[] selectAllMatches() {
+    FindRange[] ranges = [];
+    int i = 0;
+    while (i < this.matches.length) {
+      ranges.push(this.matches[i].range);
+      i = i + 1;
+    }
+    return ranges;
+  }
+}
+
+export FindDocument createFindDocument(string[] lines) {
+  return new FindDocument(lines);
+}
+
+export FindDocument createFindDocumentFromValue(string value) {
+  return new FindDocument(stringSplit(value, "\n"));
+}
+
+export FindModelState createFindModelState(string searchString, bool isRegex, bool matchCase, bool wholeWord) {
+  return new FindModelState(searchString, isRegex, matchCase, wholeWord);
+}
+
+export FindModelBoundToEditorModel createFindModel(FindDocument document, FindModelState state, string wordSeparators) {
+  return new FindModelBoundToEditorModel(document, state, wordSeparators);
+}
+
+export FindMatchHit[] findMatchesInDocument(
+  FindDocument document,
+  string searchString,
+  bool isRegex,
+  bool matchCase,
+  bool wholeWord,
+  string wordSeparators,
+  int limit
+) {
+  FindModelState state = new FindModelState(searchString, isRegex, matchCase, wholeWord);
+  return findInRange(document, state, document.fullRange(), true, limit, wordSeparators);
+}

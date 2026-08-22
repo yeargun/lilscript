@@ -1,0 +1,57 @@
+export string IEditorWorkerServiceId() {
+  return "editorWorkerService";
+}
+
+export class EditorWorkerService {
+  bool eager;
+  int computeCount;
+
+  init() {
+    this.eager = true;
+    this.computeCount = 0;
+  }
+
+  int[] computeDiff(string[] originalLines, string[] modifiedLines) {
+    this.computeCount = this.computeCount + 1;
+    int[] changes = [];
+    int i = 0;
+    int n = originalLines.length;
+    if (modifiedLines.length < n) {
+      n = modifiedLines.length;
+    }
+    while (i < n) {
+      if (originalLines[i] != modifiedLines[i]) {
+        changes.push(i + 1);
+      }
+      i = i + 1;
+    }
+    return changes;
+  }
+
+  bool canComputeDiff() {
+    return true;
+  }
+
+  string[] computeMoreMinimalEdits(string[] lines, string[] newLines) {
+    if (lines.length == newLines.length) {
+      bool equal = true;
+      int i = 0;
+      while (i < lines.length) {
+        if (lines[i] != newLines[i]) {
+          equal = false;
+          break;
+        }
+        i = i + 1;
+      }
+      if (equal) {
+        string[] empty = [];
+        return empty;
+      }
+    }
+    return newLines;
+  }
+}
+
+export EditorWorkerService createEditorWorkerService() {
+  return new EditorWorkerService();
+}

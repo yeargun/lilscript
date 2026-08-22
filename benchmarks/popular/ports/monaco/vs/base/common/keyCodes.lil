@@ -1,0 +1,377 @@
+export enum KeyCode {
+  Unknown,
+  Backspace,
+  Tab,
+  Enter,
+  Shift,
+  Ctrl,
+  Alt,
+  PauseBreak,
+  CapsLock,
+  Escape,
+  Space,
+  PageUp,
+  PageDown,
+  End,
+  Home,
+  LeftArrow,
+  UpArrow,
+  RightArrow,
+  DownArrow,
+  Insert,
+  Delete,
+  Digit0,
+  Digit1,
+  Digit2,
+  Digit3,
+  Digit4,
+  Digit5,
+  Digit6,
+  Digit7,
+  Digit8,
+  Digit9,
+  KeyA,
+  KeyB,
+  KeyC,
+  KeyD,
+  KeyE,
+  KeyF,
+  KeyG,
+  KeyH,
+  KeyI,
+  KeyJ,
+  KeyK,
+  KeyL,
+  KeyM,
+  KeyN,
+  KeyO,
+  KeyP,
+  KeyQ,
+  KeyR,
+  KeyS,
+  KeyT,
+  KeyU,
+  KeyV,
+  KeyW,
+  KeyX,
+  KeyY,
+  KeyZ,
+  Meta,
+  ContextMenu,
+  F1,
+  F2,
+  F3,
+  F4,
+  F5,
+  F6,
+  F7,
+  F8,
+  F9,
+  F10,
+  F11,
+  F12,
+  F13,
+  F14,
+  F15,
+  F16,
+  F17,
+  F18,
+  F19,
+  F20,
+  F21,
+  F22,
+  F23,
+  F24,
+  NumLock,
+  ScrollLock,
+  Semicolon,
+  Equal,
+  Comma,
+  Minus,
+  Period,
+  Slash,
+  Backquote,
+  BracketLeft,
+  Backslash,
+  BracketRight,
+  Quote,
+  OEM_8,
+  IntlBackslash,
+  Numpad0,
+  Numpad1,
+  Numpad2,
+  Numpad3,
+  Numpad4,
+  Numpad5,
+  Numpad6,
+  Numpad7,
+  Numpad8,
+  Numpad9,
+  NumpadMultiply,
+  NumpadAdd,
+  NUMPAD_SEPARATOR,
+  NumpadSubtract,
+  NumpadDecimal,
+  NumpadDivide,
+  KEY_IN_COMPOSITION,
+  ABNT_C1,
+  ABNT_C2,
+  AudioVolumeMute,
+  AudioVolumeUp,
+  AudioVolumeDown,
+  BrowserSearch,
+  BrowserHome,
+  BrowserBack,
+  BrowserForward,
+  MediaTrackNext,
+  MediaTrackPrevious,
+  MediaStop,
+  MediaPlayPause,
+  LaunchMediaPlayer,
+  LaunchMail,
+  LaunchApp2,
+  Clear,
+  MAX_VALUE
+}
+
+export int KeyCodeDependsOnKbLayout = -1;
+export int KeyModCtrlCmd = 2048;
+export int KeyModCtrl = 2048;
+export int KeyModShift = 1024;
+export int KeyModAlt = 512;
+export int KeyModWinCtrl = 256;
+
+string[] keyCodeLabels = [];
+string[] userSettingsLabels = [];
+Map<string, int> labelToKeyCode = new Map<string, int>();
+bool keyCodeMapsReady = false;
+
+void defineKeyCode(int code, string label, string userLabel) {
+  while (keyCodeLabels.length <= code) {
+    keyCodeLabels.push("");
+    userSettingsLabels.push("");
+  }
+  keyCodeLabels[code] = label;
+  string setting = userLabel;
+  if (setting.length == 0) {
+    setting = label;
+  }
+  userSettingsLabels[code] = setting;
+  labelToKeyCode.set(label.toLowerCase(), code);
+  labelToKeyCode.set(setting.toLowerCase(), code);
+}
+
+void ensureKeyCodeMaps() {
+  if (keyCodeMapsReady) {
+    return;
+  }
+  keyCodeMapsReady = true;
+  defineKeyCode(0, "unknown", "");
+  defineKeyCode(1, "Backspace", "");
+  defineKeyCode(2, "Tab", "");
+  defineKeyCode(3, "Enter", "");
+  defineKeyCode(4, "Shift", "");
+  defineKeyCode(5, "Ctrl", "");
+  defineKeyCode(6, "Alt", "");
+  defineKeyCode(7, "PauseBreak", "");
+  defineKeyCode(8, "CapsLock", "");
+  defineKeyCode(9, "Escape", "");
+  defineKeyCode(10, "Space", "");
+  defineKeyCode(11, "PageUp", "");
+  defineKeyCode(12, "PageDown", "");
+  defineKeyCode(13, "End", "");
+  defineKeyCode(14, "Home", "");
+  defineKeyCode(15, "LeftArrow", "Left");
+  defineKeyCode(16, "UpArrow", "Up");
+  defineKeyCode(17, "RightArrow", "Right");
+  defineKeyCode(18, "DownArrow", "Down");
+  defineKeyCode(19, "Insert", "");
+  defineKeyCode(20, "Del", "Delete");
+  int i = 0;
+  while (i <= 9) {
+    defineKeyCode(21 + i, i.toString(), "");
+    i = i + 1;
+  }
+  i = 0;
+  string alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  while (i < 26) {
+    defineKeyCode(31 + i, alphabet.charAt(i), "");
+    i = i + 1;
+  }
+  defineKeyCode(57, "Meta", "");
+  defineKeyCode(58, "ContextMenu", "");
+  i = 1;
+  while (i <= 24) {
+    defineKeyCode(58 + i, "F" + i.toString(), "");
+    i = i + 1;
+  }
+  defineKeyCode(83, "NumLock", "");
+  defineKeyCode(84, "ScrollLock", "");
+  defineKeyCode(85, ";", "OEM_1");
+  defineKeyCode(86, "=", "OEM_PLUS");
+  defineKeyCode(87, ",", "OEM_COMMA");
+  defineKeyCode(88, "-", "OEM_MINUS");
+  defineKeyCode(89, ".", "OEM_PERIOD");
+  defineKeyCode(90, "/", "OEM_2");
+  defineKeyCode(91, "`", "OEM_3");
+  defineKeyCode(92, "[", "OEM_4");
+  defineKeyCode(93, "\\", "OEM_5");
+  defineKeyCode(94, "]", "OEM_6");
+  defineKeyCode(95, "'", "OEM_7");
+  defineKeyCode(96, "OEM_8", "");
+  defineKeyCode(97, "OEM_102", "");
+  i = 0;
+  while (i <= 9) {
+    defineKeyCode(98 + i, "NumPad" + i.toString(), "");
+    i = i + 1;
+  }
+  defineKeyCode(108, "NumPad_Multiply", "");
+  defineKeyCode(109, "NumPad_Add", "");
+  defineKeyCode(110, "NumPad_Separator", "");
+  defineKeyCode(111, "NumPad_Subtract", "");
+  defineKeyCode(112, "NumPad_Decimal", "");
+  defineKeyCode(113, "NumPad_Divide", "");
+  defineKeyCode(114, "KeyInComposition", "");
+  defineKeyCode(115, "ABNT_C1", "");
+  defineKeyCode(116, "ABNT_C2", "");
+  defineKeyCode(117, "AudioVolumeMute", "");
+  defineKeyCode(118, "AudioVolumeUp", "");
+  defineKeyCode(119, "AudioVolumeDown", "");
+  defineKeyCode(120, "BrowserSearch", "");
+  defineKeyCode(121, "BrowserHome", "");
+  defineKeyCode(122, "BrowserBack", "");
+  defineKeyCode(123, "BrowserForward", "");
+  defineKeyCode(124, "MediaTrackNext", "");
+  defineKeyCode(125, "MediaTrackPrevious", "");
+  defineKeyCode(126, "MediaStop", "");
+  defineKeyCode(127, "MediaPlayPause", "");
+  defineKeyCode(128, "LaunchMediaPlayer", "");
+  defineKeyCode(129, "LaunchMail", "");
+  defineKeyCode(130, "LaunchApp2", "");
+  defineKeyCode(131, "Clear", "");
+}
+
+export string keyCodeToString(int keyCode) {
+  ensureKeyCodeMaps();
+  if (keyCode < 0 || keyCode >= keyCodeLabels.length) {
+    return "unknown";
+  }
+  return keyCodeLabels[keyCode];
+}
+
+export int keyCodeFromString(string key) {
+  ensureKeyCodeMaps();
+  int? value = labelToKeyCode.get(key.toLowerCase());
+  if (value != null) {
+    return value;
+  }
+  return 0;
+}
+
+export string keyCodeToUserSettingsUS(int keyCode) {
+  ensureKeyCodeMaps();
+  if (keyCode < 0 || keyCode >= userSettingsLabels.length) {
+    return "unknown";
+  }
+  return userSettingsLabels[keyCode];
+}
+
+export string keyCodeToUserSettingsGeneral(int keyCode) {
+  return keyCodeToUserSettingsUS(keyCode);
+}
+
+export int keyCodeFromUserSettings(string key) {
+  return keyCodeFromString(key);
+}
+
+export string keyCodeToElectronAccelerator(int keyCode) {
+  if (keyCode >= 98 && keyCode <= 113) {
+    return "";
+  }
+  if (keyCode == 16) {
+    return "Up";
+  }
+  if (keyCode == 18) {
+    return "Down";
+  }
+  if (keyCode == 15) {
+    return "Left";
+  }
+  if (keyCode == 17) {
+    return "Right";
+  }
+  if (keyCode == 20) {
+    return "Delete";
+  }
+  return keyCodeToString(keyCode);
+}
+
+export int KeyChord(int firstPart, int secondPart) {
+  return firstPart | ((secondPart & 65535) << 16);
+}
+
+export int chord(int firstPart, int secondPart) {
+  return KeyChord(firstPart, secondPart);
+}
+
+export bool isModifierKey(int keyCode) {
+  return keyCode == 5 || keyCode == 4 || keyCode == 6 || keyCode == 57;
+}
+
+export int eventKeyCodeToKeyCode(int eventKeyCode) {
+  if (eventKeyCode >= 65 && eventKeyCode <= 90) {
+    return 31 + eventKeyCode - 65;
+  }
+  if (eventKeyCode >= 48 && eventKeyCode <= 57) {
+    if (eventKeyCode == 48) {
+      return 21;
+    }
+    return 21 + eventKeyCode - 48;
+  }
+  if (eventKeyCode >= 112 && eventKeyCode <= 135) {
+    return 59 + eventKeyCode - 112;
+  }
+  if (eventKeyCode == 8) {
+    return 1;
+  }
+  if (eventKeyCode == 9) {
+    return 2;
+  }
+  if (eventKeyCode == 13) {
+    return 3;
+  }
+  if (eventKeyCode == 16) {
+    return 4;
+  }
+  if (eventKeyCode == 17) {
+    return 5;
+  }
+  if (eventKeyCode == 18) {
+    return 6;
+  }
+  if (eventKeyCode == 27) {
+    return 9;
+  }
+  if (eventKeyCode == 32) {
+    return 10;
+  }
+  if (eventKeyCode == 37) {
+    return 15;
+  }
+  if (eventKeyCode == 38) {
+    return 16;
+  }
+  if (eventKeyCode == 39) {
+    return 17;
+  }
+  if (eventKeyCode == 40) {
+    return 18;
+  }
+  if (eventKeyCode == 46) {
+    return 20;
+  }
+  if (eventKeyCode == 229) {
+    return 114;
+  }
+  return 0;
+}

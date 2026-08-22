@@ -1,0 +1,112 @@
+import { domCreateElement, createTextNode, appendChild, setTextContent, clearChildren, setAttribute } from "../../../js-host";
+
+int formatTagType(string ch, bool supportCodeSegments) {
+  if (ch == "*") {
+    return 3;
+  }
+  if (ch == "_") {
+    return 4;
+  }
+  if (ch == "[") {
+    return 5;
+  }
+  if (ch == "]") {
+    return 6;
+  }
+  if (ch == "`" && supportCodeSegments) {
+    return 7;
+  }
+  return 0;
+}
+
+JsValue createFormattedNode(int tagType, int actionIndex) {
+  if (tagType == 3) {
+    return domCreateElement("b");
+  }
+  if (tagType == 4) {
+    return domCreateElement("i");
+  }
+  if (tagType == 5) {
+    JsValue link = domCreateElement("a");
+    setAttribute(link, "data-action-index", actionIndex.toString());
+    setAttribute(link, "href", "#");
+    return link;
+  }
+  if (tagType == 7) {
+    return domCreateElement("code");
+  }
+  return domCreateElement("span");
+}
+
+export JsValue renderText(string text, JsValue options, JsValue target) {
+  JsValue element = target;
+  if (!element.truthy()) {
+    element = domCreateElement("div");
+  }
+  setTextContent(element, text);
+  return element;
+}
+
+export JsValue renderFormattedText(string formattedText, JsValue options, JsValue target) {
+  JsValue root = target;
+  if (!root.truthy()) {
+    root = domCreateElement("div");
+  }
+  clearChildren(root);
+  bool renderCodeSegments = options.truthy() && options["renderCodeSegments"].truthy();
+  JsValue[] elements = [root];
+  int[] types = [1];
+  int actionIndex = 0;
+  int i = 0;
+  string text = "";
+  while (i < formattedText.length) {
+    string ch = formattedText.charAt(i);
+    bool escaped = false;
+    if (ch == "\\" && i + 1 < formattedText.length) {
+      string afterSlash = formattedText.charAt(i + 1);
+      if (formatTagType(afterSlash, renderCodeSegments) != 0) {
+        escaped = true;
+        ch = afterSlash;
+        i = i + 1;
+      }
+    }
+    bool doubled = !escaped && i + 1 < formattedText.length && formattedText.charAt(i + 1) == ch;
+    int tagType = formatTagType(ch, renderCodeSegments);
+    if (doubled && tagType != 0) {
+      if (text.length > 0) {
+        appendChild(elements[elements.length - 1], createTextNode(text));
+        text = "";
+      }
+      int currentType = types[types.length - 1];
+      bool closesCurrent = currentType == tagType || (currentType == 5 && tagType == 6);
+      if (closesCurrent && elements.length > 1) {
+        elements.splice(elements.length - 1, 1);
+        types.splice(types.length - 1, 1);
+      } else if (tagType != 6) {
+        JsValue child = createFormattedNode(tagType, actionIndex);
+        if (tagType == 5) {
+          actionIndex = actionIndex + 1;
+        }
+        appendChild(elements[elements.length - 1], child);
+        elements.push(child);
+        types.push(tagType);
+      }
+      i = i + 2;
+      continue;
+    }
+    if (!escaped && ch == "\n") {
+      if (text.length > 0) {
+        appendChild(elements[elements.length - 1], createTextNode(text));
+        text = "";
+      }
+      appendChild(elements[elements.length - 1], domCreateElement("br"));
+    } else {
+      text = text + ch;
+    }
+    i = i + 1;
+  }
+  if (text.length > 0) {
+    appendChild(elements[elements.length - 1], createTextNode(text));
+  }
+  return root;
+}

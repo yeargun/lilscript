@@ -104,3 +104,31 @@ export Sel selectionFromRange(Rng range, SelectionDirection direction) {
   }
   return new Sel(range.endLineNumber, range.endColumn, range.startLineNumber, range.startColumn);
 }
+
+export Rng selectionAsRange(Sel sel) {
+  return sel.toRange();
+}
+
+export bool isISelection(JsValue value) {
+  if (!value.truthy()) {
+    return false;
+  }
+  return value["selectionStartLineNumber"].truthy() && value["positionLineNumber"].truthy();
+}
+
+export Sel liftSelection(JsValue value) {
+  if (!value.truthy()) {
+    return new Sel(1, 1, 1, 1);
+  }
+  int sl = JS.number(value["selectionStartLineNumber"]).toInt();
+  int sc = JS.number(value["selectionStartColumn"]).toInt();
+  int pl = JS.number(value["positionLineNumber"]).toInt();
+  int pc = JS.number(value["positionColumn"]).toInt();
+  if (sl < 1) {
+    sl = JS.number(value["startLineNumber"]).toInt();
+    sc = JS.number(value["startColumn"]).toInt();
+    pl = JS.number(value["endLineNumber"]).toInt();
+    pc = JS.number(value["endColumn"]).toInt();
+  }
+  return new Sel(sl, sc, pl, pc);
+}

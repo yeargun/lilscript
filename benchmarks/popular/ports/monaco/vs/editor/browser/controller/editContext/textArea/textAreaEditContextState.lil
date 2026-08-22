@@ -1,0 +1,202 @@
+import { sliceOf } from "../../../../../../js-host";
+
+int nmin(int a, int b) {
+  if (a < b) {
+    return a;
+  }
+  return b;
+}
+
+int commonPrefixLength(string a, string b) {
+  int n = nmin(a.length, b.length);
+  int i = 0;
+  while (i < n) {
+    if (a.charAt(i) != b.charAt(i)) {
+      return i;
+    }
+    i = i + 1;
+  }
+  return n;
+}
+
+int commonSuffixLength(string a, string b) {
+  int n = nmin(a.length, b.length);
+  int i = 0;
+  while (i < n) {
+    if (a.charAt(a.length - 1 - i) != b.charAt(b.length - 1 - i)) {
+      return i;
+    }
+    i = i + 1;
+  }
+  return n;
+}
+
+export class TextAreaState {
+  string value;
+  int selectionStart;
+  int selectionEnd;
+  int selectionLineNumber;
+  int selectionColumn;
+  bool hasSelectionRange;
+  int newlineCountBeforeSelection;
+
+  init(string value, int selectionStart, int selectionEnd, int selectionLineNumber, int selectionColumn, bool hasSelectionRange, int newlineCountBeforeSelection) {
+    this.value = value;
+    this.selectionStart = selectionStart;
+    this.selectionEnd = selectionEnd;
+    this.selectionLineNumber = selectionLineNumber;
+    this.selectionColumn = selectionColumn;
+    this.hasSelectionRange = hasSelectionRange;
+    this.newlineCountBeforeSelection = newlineCountBeforeSelection;
+  }
+}
+
+export class TypeInput {
+  string text;
+  int replacePrevCharCnt;
+  int replaceNextCharCnt;
+  int positionDelta;
+
+  init(string text, int replacePrevCharCnt, int replaceNextCharCnt, int positionDelta) {
+    this.text = text;
+    this.replacePrevCharCnt = replacePrevCharCnt;
+    this.replaceNextCharCnt = replaceNextCharCnt;
+    this.positionDelta = positionDelta;
+  }
+}
+
+export TextAreaState emptyTextAreaState() {
+  return new TextAreaState("", 0, 0, 0, 0, false, 0);
+}
+
+export TextAreaState createTextAreaState(string value, int selectionStart, int selectionEnd) {
+  return new TextAreaState(value, selectionStart, selectionEnd, 0, 0, false, 0);
+}
+
+export TextAreaState readFromTextArea(string value, int selectionStart, int selectionEnd, TextAreaState? previousState) {
+  int newlineCountBeforeSelection = 0;
+  if (previousState != null) {
+    string valueBefore = sliceOf(value, 0, selectionStart);
+    string previousBefore = sliceOf(previousState.value, 0, previousState.selectionStart);
+    if (valueBefore == previousBefore) {
+      newlineCountBeforeSelection = previousState.newlineCountBeforeSelection;
+    }
+  }
+  return new TextAreaState(value, selectionStart, selectionEnd, 0, 0, false, newlineCountBeforeSelection);
+}
+
+export TextAreaState collapseSelection(TextAreaState state) {
+  if (state.selectionStart == state.value.length) {
+    return state;
+  }
+  return new TextAreaState(state.value, state.value.length, state.value.length, 0, 0, false, 0);
+}
+
+export bool isWrittenToTextArea(TextAreaState state, string value, int selectionStart, int selectionEnd, bool select) {
+  if (state.value != value) {
+    return false;
+  }
+  if (!select) {
+    return true;
+  }
+  return state.selectionStart == selectionStart && state.selectionEnd == selectionEnd;
+}
+
+int countLineFeeds(string text) {
+  int result = 0;
+  int startIndex = -1;
+  while (true) {
+    startIndex = text.indexOf("\n", startIndex + 1);
+    if (startIndex == -1) {
+      break;
+    }
+    result = result + 1;
+  }
+  return result;
+}
+
+export TypeInput deduceInput(TextAreaState? previousState, TextAreaState currentState) {
+  if (previousState == null) {
+    return new TypeInput("", 0, 0, 0);
+  }
+  int prefixLength = nmin(commonPrefixLength(previousState.value, currentState.value), nmin(previousState.selectionStart, currentState.selectionStart));
+  int previousSuffix = previousState.value.length - previousState.selectionEnd;
+  int currentSuffix = currentState.value.length - currentState.selectionEnd;
+  int suffixLength = nmin(commonSuffixLength(previousState.value, currentState.value), nmin(previousSuffix, currentSuffix));
+  int prevEnd = previousState.value.length - suffixLength;
+  int curEnd = currentState.value.length - suffixLength;
+  if (prevEnd < prefixLength) {
+    prevEnd = prefixLength;
+  }
+  if (curEnd < prefixLength) {
+    curEnd = prefixLength;
+  }
+  string currentValue = sliceOf(currentState.value, prefixLength, curEnd);
+  int previousSelectionStart = previousState.selectionStart - prefixLength;
+  int previousSelectionEnd = previousState.selectionEnd - prefixLength;
+  int currentSelectionStart = currentState.selectionStart - prefixLength;
+  int currentSelectionEnd = currentState.selectionEnd - prefixLength;
+  if (currentSelectionStart == currentSelectionEnd) {
+    return new TypeInput(currentValue, previousState.selectionStart - prefixLength, 0, 0);
+  }
+  int replacePreviousCharacters = previousSelectionEnd - previousSelectionStart;
+  return new TypeInput(currentValue, replacePreviousCharacters, 0, 0);
+}
+
+export TypeInput deduceAndroidCompositionInput(TextAreaState? previousState, TextAreaState currentState) {
+  if (previousState == null) {
+    return new TypeInput("", 0, 0, 0);
+  }
+  if (previousState.value == currentState.value) {
+    return new TypeInput("", 0, 0, currentState.selectionEnd - previousState.selectionEnd);
+  }
+  int prefixLength = nmin(commonPrefixLength(previousState.value, currentState.value), previousState.selectionEnd);
+  int suffixLength = nmin(commonSuffixLength(previousState.value, currentState.value), previousState.value.length - previousState.selectionEnd);
+  int prevEnd = previousState.value.length - suffixLength;
+  int curEnd = currentState.value.length - suffixLength;
+  if (prevEnd < prefixLength) {
+    prevEnd = prefixLength;
+  }
+  if (curEnd < prefixLength) {
+    curEnd = prefixLength;
+  }
+  string previousValue = sliceOf(previousState.value, prefixLength, prevEnd);
+  string currentValue = sliceOf(currentState.value, prefixLength, curEnd);
+  int previousSelectionEnd = previousState.selectionEnd - prefixLength;
+  int currentSelectionEnd = currentState.selectionEnd - prefixLength;
+  return new TypeInput(currentValue, previousSelectionEnd, previousValue.length - previousSelectionEnd, currentSelectionEnd - currentValue.length);
+}
+
+export class DeducedPosition {
+  int lineNumber;
+  int column;
+  int deltaOffset;
+  int lineFeedCnt;
+
+  init(int lineNumber, int column, int deltaOffset, int lineFeedCnt) {
+    this.lineNumber = lineNumber;
+    this.column = column;
+    this.deltaOffset = deltaOffset;
+    this.lineFeedCnt = lineFeedCnt;
+  }
+}
+
+export DeducedPosition deduceEditorPosition(TextAreaState state, int offset) {
+  int signum = 1;
+  string str = "";
+  if (offset <= state.selectionStart) {
+    str = sliceOf(state.value, offset, state.selectionStart);
+    signum = -1;
+  } else if (offset >= state.selectionEnd) {
+    str = sliceOf(state.value, state.selectionEnd, offset);
+    signum = 1;
+  } else {
+    str = sliceOf(state.value, state.selectionStart, offset);
+    signum = 1;
+  }
+  return new DeducedPosition(state.selectionLineNumber, state.selectionColumn, signum * str.length, countLineFeeds(str));
+}
+
+export int newlineCountOf(string text) {
+  return countLineFeeds(text);
+}

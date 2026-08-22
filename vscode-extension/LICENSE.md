@@ -1,4 +1,4 @@
-# The LilScript License
+MIT License
 
 Copyright (c) 2026 yeargun
 
@@ -11,27 +11,6 @@ furnished to do so, subject to the following conditions:
 
 The above copyright notice and this permission notice shall be included in all
 copies or substantial portions of the Software.
-
-The Software must not be used, copied, modified, merged, published,
-distributed, sublicensed, sold, or combined together with React.js or any
-React-related technology. This grant does not include any right to use the
-Software in a React-related library, package, binding, compiler plugin,
-framework, application, or other product.
-
-React-related technology includes, without limitation:
-
-- React, React DOM, React Native, and official React renderers
-- Frameworks, meta-frameworks, and runtimes built on React, including Next.js,
-  Remix, Gatsby, Expo, and similar
-- Libraries, bindings, tools, or products whose purpose is to host, wrap,
-  embed, or interoperate with React
-- Using the Software, or code generated from the Software, inside a React
-  application or a React-related library
-
-If you are concerned about bundle size, stop using React.
-
-yeargun, as the IP owner of this Software, does not permit this code to be
-used in any React-related library.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,

@@ -1,0 +1,186 @@
+export class IndentationGuess {
+  bool insertSpaces;
+  int tabSize;
+
+  init(bool insertSpaces, int tabSize) {
+    this.insertSpaces = insertSpaces;
+    this.tabSize = tabSize;
+  }
+}
+
+export class IndentationSource {
+  string[] lines;
+
+  init(string[] lines) {
+    this.lines = lines;
+  }
+
+  int getLineCount() {
+    return this.lines.length;
+  }
+
+  int getLineLength(int lineNumber) {
+    return this.getLineContent(lineNumber).length;
+  }
+
+  string getLineContent(int lineNumber) {
+    if (lineNumber < 1 || lineNumber > this.lines.length) {
+      return "";
+    }
+    return this.lines[lineNumber - 1];
+  }
+
+  int getLineCharCode(int lineNumber, int index) {
+    return this.getLineContent(lineNumber).charCodeAt(index);
+  }
+}
+
+class SpacesDiffResult {
+  int spacesDiff;
+  bool looksLikeAlignment;
+
+  init() {
+    this.spacesDiff = 0;
+    this.looksLikeAlignment = false;
+  }
+}
+
+void computeSpacesDiff(string first, int firstLength, string second, int secondLength, SpacesDiffResult result) {
+  result.spacesDiff = 0;
+  result.looksLikeAlignment = false;
+  int i = 0;
+  while (i < firstLength && i < secondLength && first.charCodeAt(i) == second.charCodeAt(i)) {
+    i = i + 1;
+  }
+  int firstSpaces = 0;
+  int firstTabs = 0;
+  int j = i;
+  while (j < firstLength) {
+    if (first.charCodeAt(j) == 32) {
+      firstSpaces = firstSpaces + 1;
+    } else {
+      firstTabs = firstTabs + 1;
+    }
+    j = j + 1;
+  }
+  int secondSpaces = 0;
+  int secondTabs = 0;
+  j = i;
+  while (j < secondLength) {
+    if (second.charCodeAt(j) == 32) {
+      secondSpaces = secondSpaces + 1;
+    } else {
+      secondTabs = secondTabs + 1;
+    }
+    j = j + 1;
+  }
+  if ((firstSpaces > 0 && firstTabs > 0) || (secondSpaces > 0 && secondTabs > 0)) {
+    return;
+  }
+  int tabsDiff = firstTabs - secondTabs;
+  if (tabsDiff < 0) {
+    tabsDiff = 0 - tabsDiff;
+  }
+  int spacesDiff = firstSpaces - secondSpaces;
+  if (spacesDiff < 0) {
+    spacesDiff = 0 - spacesDiff;
+  }
+  if (tabsDiff == 0) {
+    result.spacesDiff = spacesDiff;
+    if (
+      spacesDiff > 0
+      && secondSpaces > 0
+      && secondSpaces - 1 < first.length
+      && secondSpaces < second.length
+      && second.charCodeAt(secondSpaces) != 32
+      && first.charCodeAt(secondSpaces - 1) == 32
+      && first.charCodeAt(first.length - 1) == 44
+    ) {
+      result.looksLikeAlignment = true;
+    }
+  } else if (spacesDiff % tabsDiff == 0) {
+    result.spacesDiff = spacesDiff / tabsDiff;
+  }
+}
+
+export IndentationGuess guessIndentation(IndentationSource source, int defaultTabSize, bool defaultInsertSpaces) {
+  int linesCount = source.getLineCount();
+  if (linesCount > 10000) {
+    linesCount = 10000;
+  }
+  int tabLines = 0;
+  int spaceLines = 0;
+  string previousText = "";
+  int previousIndent = 0;
+  int[] diffCounts = [0, 0, 0, 0, 0, 0, 0, 0, 0];
+  SpacesDiffResult diff = new SpacesDiffResult();
+  int lineNumber = 1;
+  while (lineNumber <= linesCount) {
+    string text = source.getLineContent(lineNumber);
+    int length = source.getLineLength(lineNumber);
+    bool hasContent = false;
+    int indentation = 0;
+    int spaces = 0;
+    int tabs = 0;
+    int j = 0;
+    while (j < length) {
+      int code = text.charCodeAt(j);
+      if (code == 9) {
+        tabs = tabs + 1;
+      } else if (code == 32) {
+        spaces = spaces + 1;
+      } else {
+        hasContent = true;
+        indentation = j;
+        break;
+      }
+      j = j + 1;
+    }
+    if (hasContent) {
+      if (tabs > 0) {
+        tabLines = tabLines + 1;
+      } else if (spaces > 1) {
+        spaceLines = spaceLines + 1;
+      }
+      computeSpacesDiff(previousText, previousIndent, text, indentation, diff);
+      bool accept = true;
+      if (diff.looksLikeAlignment && !(defaultInsertSpaces && defaultTabSize == diff.spacesDiff)) {
+        accept = false;
+      }
+      if (accept) {
+        if (diff.spacesDiff >= 0 && diff.spacesDiff <= 8) {
+          diffCounts[diff.spacesDiff] = diffCounts[diff.spacesDiff] + 1;
+        }
+        previousText = text;
+        previousIndent = indentation;
+      }
+    }
+    lineNumber = lineNumber + 1;
+  }
+  bool insertSpaces = defaultInsertSpaces;
+  if (tabLines != spaceLines) {
+    insertSpaces = tabLines < spaceLines;
+  }
+  int tabSize = defaultTabSize;
+  if (insertSpaces) {
+    int[] guesses = [2, 4, 6, 8, 3, 5, 7];
+    int bestScore = 0;
+    int i = 0;
+    while (i < guesses.length) {
+      int possible = guesses[i];
+      if (diffCounts[possible] > bestScore) {
+        bestScore = diffCounts[possible];
+        tabSize = possible;
+      }
+      i = i + 1;
+    }
+    if (tabSize == 4 && diffCounts[4] > 0 && diffCounts[2] > 0 && diffCounts[2] * 3 >= diffCounts[4] * 2) {
+      tabSize = 2;
+    }
+  }
+  return new IndentationGuess(insertSpaces, tabSize);
+}
+
+export IndentationSource createIndentationSource(string[] lines) {
+  return new IndentationSource(lines);
+}

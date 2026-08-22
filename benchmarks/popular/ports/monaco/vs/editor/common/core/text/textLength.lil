@@ -1,0 +1,88 @@
+import { Pos } from "../../../../../base/position";
+import { Rng, createRange } from "../../../../../base/range";
+import { LineRange, lineRangeOfLength } from "../ranges/lineRange";
+
+export class TextLength {
+  int lineCount;
+  int columnCount;
+
+  init(int lineCount, int columnCount) {
+    this.lineCount = lineCount;
+    this.columnCount = columnCount;
+  }
+
+  bool isGreaterThanOrEqualTo(TextLength other) {
+    if (this.lineCount != other.lineCount) {
+      return this.lineCount > other.lineCount;
+    }
+    return this.columnCount >= other.columnCount;
+  }
+
+  TextLength add(TextLength other) {
+    if (other.lineCount == 0) {
+      return new TextLength(this.lineCount, this.columnCount + other.columnCount);
+    }
+    return new TextLength(this.lineCount + other.lineCount, other.columnCount);
+  }
+
+  Rng createRangeFrom(Pos startPosition) {
+    if (this.lineCount == 0) {
+      return createRange(startPosition.lineNumber, startPosition.column, startPosition.lineNumber, startPosition.column + this.columnCount);
+    }
+    return createRange(startPosition.lineNumber, startPosition.column, startPosition.lineNumber + this.lineCount, this.columnCount + 1);
+  }
+
+  Rng toRange() {
+    return createRange(1, 1, this.lineCount + 1, this.columnCount + 1);
+  }
+
+  LineRange toLineRange() {
+    return lineRangeOfLength(1, this.lineCount + 1);
+  }
+
+  Pos addToPosition(Pos position) {
+    if (this.lineCount == 0) {
+      return new Pos(position.lineNumber, position.column + this.columnCount);
+    }
+    return new Pos(position.lineNumber + this.lineCount, this.columnCount + 1);
+  }
+
+  string toString() {
+    return this.lineCount.toString() + "," + this.columnCount.toString();
+  }
+}
+
+export TextLength textLengthZero() {
+  return new TextLength(0, 0);
+}
+
+export TextLength textLengthBetweenPositions(Pos position1, Pos position2) {
+  if (position1.lineNumber == position2.lineNumber) {
+    return new TextLength(0, position2.column - position1.column);
+  }
+  return new TextLength(position2.lineNumber - position1.lineNumber, position2.column - 1);
+}
+
+export TextLength textLengthFromPosition(Pos pos) {
+  return new TextLength(pos.lineNumber - 1, pos.column - 1);
+}
+
+export TextLength textLengthOfRange(Rng range) {
+  return textLengthBetweenPositions(new Pos(range.startLineNumber, range.startColumn), new Pos(range.endLineNumber, range.endColumn));
+}
+
+export TextLength textLengthOfText(string text) {
+  int line = 0;
+  int column = 0;
+  int i = 0;
+  while (i < text.length) {
+    if (text.charCodeAt(i) == 10) {
+      line = line + 1;
+      column = 0;
+    } else {
+      column = column + 1;
+    }
+    i = i + 1;
+  }
+  return new TextLength(line, column);
+}

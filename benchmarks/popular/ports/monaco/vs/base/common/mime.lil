@@ -1,0 +1,7 @@
+export string mimeText = "text/plain";
+export string mimeBinary = "application/octet-stream";
+export string mimeUnknown = "application/unknown";
+export string mimeMarkdown = "text/markdown";
+export string mimeLatex = "text/latex";
+export string mimeUriList = "text/uri-list";
+export string mimeHtml = "text/html";

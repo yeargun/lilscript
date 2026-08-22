@@ -1,0 +1,213 @@
+import { StringBuffer, createLineStartsFast, PieceTreeBase } from "./piece-tree";
+import { PieceTreeTextBuffer } from "./piece-tree-buffer";
+import { sliceOf, replaceEol, concat2, emptyBuf, stringFromCharCode1 } from "../js-host";
+
+int CR = 13;
+int LF = 10;
+int BOM = 65279;
+int HighSurrogateStart = 55296;
+int HighSurrogateEnd = 56319;
+
+class LineChunkStats {
+  int[] lineStarts;
+  int cr;
+  int lf;
+  int crlf;
+  bool isBasicASCII;
+  bool containsRTL;
+  bool containsUnusual;
+
+  init(int[] lineStarts, int cr, int lf, int crlf, bool isBasicASCII, bool containsRTL, bool containsUnusual) {
+    this.lineStarts = lineStarts;
+    this.cr = cr;
+    this.lf = lf;
+    this.crlf = crlf;
+    this.isBasicASCII = isBasicASCII;
+    this.containsRTL = containsRTL;
+    this.containsUnusual = containsUnusual;
+  }
+}
+
+bool isRtlCode(int code) {
+  if (code >= 1424 && code <= 1871) {
+    return true;
+  }
+  if (code >= 1872 && code <= 1919) {
+    return true;
+  }
+  if (code >= 2048 && code <= 2303) {
+    return true;
+  }
+  return false;
+}
+
+LineChunkStats scanChunk(string chunk) {
+  int[] starts = [0];
+  int cr = 0;
+  int lf = 0;
+  int crlf = 0;
+  bool basic = true;
+  bool rtl = false;
+  bool unusual = false;
+  int len = chunk.length;
+  int i = 0;
+  while (i < len) {
+    int chr = chunk.charCodeAt(i);
+    if (chr > 127) {
+      basic = false;
+      if (isRtlCode(chr)) {
+        rtl = true;
+      }
+      if (chr == 8232 || chr == 8233) {
+        unusual = true;
+      }
+    }
+    if (chr == CR) {
+      if (i + 1 < len && chunk.charCodeAt(i + 1) == LF) {
+        starts.push(i + 2);
+        crlf = crlf + 1;
+        i = i + 2;
+        continue;
+      }
+      starts.push(i + 1);
+      cr = cr + 1;
+    } else if (chr == LF) {
+      starts.push(i + 1);
+      lf = lf + 1;
+    }
+    i++;
+  }
+  return new LineChunkStats(starts, cr, lf, crlf, basic, rtl, unusual);
+}
+
+export class PieceTreeTextBufferBuilder {
+  StringBuffer[] chunks;
+  string BOM;
+  bool hasPreviousChar;
+  int previousChar;
+  int cr;
+  int lf;
+  int crlf;
+  bool containsRTL;
+  bool containsUnusualLineTerminators;
+  bool isBasicASCII;
+
+  init() {
+    this.chunks = [];
+    this.BOM = emptyBuf();
+    this.hasPreviousChar = false;
+    this.previousChar = 0;
+    this.cr = 0;
+    this.lf = 0;
+    this.crlf = 0;
+    this.containsRTL = false;
+    this.containsUnusualLineTerminators = false;
+    this.isBasicASCII = true;
+  }
+
+  void acceptChunk(string chunk) {
+    if (chunk.length == 0) {
+      return;
+    }
+    string text = chunk;
+    if (this.chunks.length == 0 && text.length > 0 && text.charCodeAt(0) == BOM) {
+      this.BOM = sliceOf(text, 0, 1);
+      text = sliceOf(text, 1, text.length);
+      if (text.length == 0) {
+        return;
+      }
+    }
+    int lastChar = text.charCodeAt(text.length - 1);
+    if (lastChar == CR || (lastChar >= HighSurrogateStart && lastChar <= HighSurrogateEnd)) {
+      this.acceptChunk1(sliceOf(text, 0, text.length - 1), false);
+      this.hasPreviousChar = true;
+      this.previousChar = lastChar;
+    } else {
+      this.acceptChunk1(text, false);
+      this.hasPreviousChar = false;
+      this.previousChar = lastChar;
+    }
+  }
+
+  void acceptChunk1(string chunk, bool allowEmptyStrings) {
+    if (!allowEmptyStrings && chunk.length == 0) {
+      return;
+    }
+    if (this.hasPreviousChar) {
+      this.acceptChunk2(concat2(stringFromCharCode1(this.previousChar * 1.0), chunk));
+      this.hasPreviousChar = false;
+    } else {
+      this.acceptChunk2(chunk);
+    }
+  }
+
+  void acceptChunk2(string chunk) {
+    LineChunkStats stats = scanChunk(chunk);
+    this.chunks.push(new StringBuffer(chunk, stats.lineStarts));
+    this.cr = this.cr + stats.cr;
+    this.lf = this.lf + stats.lf;
+    this.crlf = this.crlf + stats.crlf;
+    if (!stats.isBasicASCII) {
+      this.isBasicASCII = false;
+    }
+    if (stats.containsRTL) {
+      this.containsRTL = true;
+    }
+    if (stats.containsUnusual) {
+      this.containsUnusualLineTerminators = true;
+    }
+  }
+
+  string detectedEOL() {
+    int total = this.cr + this.lf + this.crlf;
+    if (total == 0) {
+      return "\n";
+    }
+    int crCount = this.cr + this.crlf;
+    if (crCount * 2 > total) {
+      return "\r\n";
+    }
+    return "\n";
+  }
+
+  void finishPending() {
+    if (this.chunks.length == 0) {
+      this.acceptChunk1(emptyBuf(), true);
+    }
+    if (this.hasPreviousChar) {
+      this.hasPreviousChar = false;
+      StringBuffer last = this.chunks[this.chunks.length - 1];
+      string next = concat2(last.buffer, stringFromCharCode1(this.previousChar * 1.0));
+      this.chunks[this.chunks.length - 1] = new StringBuffer(next, createLineStartsFast(next));
+      if (this.previousChar == CR) {
+        this.cr = this.cr + 1;
+      }
+    }
+  }
+
+  PieceTreeTextBuffer finish(bool normalizeEOL) {
+    this.finishPending();
+    string eol = this.detectedEOL();
+    StringBuffer[] chunks = this.chunks;
+    if (normalizeEOL) {
+      int i = 0;
+      while (i < chunks.length) {
+        string next = replaceEol(chunks[i].buffer, eol);
+        chunks[i] = new StringBuffer(next, createLineStartsFast(next));
+        i++;
+      }
+    }
+    PieceTreeBase tree = new PieceTreeBase(chunks, eol, normalizeEOL);
+    return new PieceTreeTextBuffer(tree, this.BOM, this.containsRTL, this.containsUnusualLineTerminators, this.isBasicASCII);
+  }
+}
+
+export PieceTreeTextBufferBuilder createPieceTreeTextBufferBuilder() {
+  return new PieceTreeTextBufferBuilder();
+}
+
+export PieceTreeTextBuffer buildPieceTreeTextBuffer(string value, bool normalizeEOL) {
+  PieceTreeTextBufferBuilder builder = new PieceTreeTextBufferBuilder();
+  builder.acceptChunk(value);
+  return builder.finish(normalizeEOL);
+}

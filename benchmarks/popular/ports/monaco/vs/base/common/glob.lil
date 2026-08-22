@@ -1,0 +1,214 @@
+import { newRegexp, regexTest } from "../../../js-host";
+
+export string GLOBSTAR = "**";
+export string GLOB_SPLIT = "/";
+
+string PATH_REGEX = "[/\\\\]";
+string NO_PATH_REGEX = "[^/\\\\]";
+
+export string[] splitGlobAware(string pattern, string splitChar) {
+  string[] segments = [];
+  if (pattern.length == 0) {
+    return segments;
+  }
+  bool inBraces = false;
+  bool inBrackets = false;
+  string curVal = "";
+  int i = 0;
+  while (i < pattern.length) {
+    string ch = pattern.charAt(i);
+    if (ch == splitChar && !inBraces && !inBrackets) {
+      segments.push(curVal);
+      curVal = "";
+      i = i + 1;
+      continue;
+    }
+    if (ch == "{") {
+      inBraces = true;
+    } else if (ch == "}") {
+      inBraces = false;
+    } else if (ch == "[") {
+      inBrackets = true;
+    } else if (ch == "]") {
+      inBrackets = false;
+    }
+    curVal = curVal + ch;
+    i = i + 1;
+  }
+  if (curVal.length > 0) {
+    segments.push(curVal);
+  }
+  return segments;
+}
+
+string escapeRegExpCharacters(string value) {
+  string source = "";
+  int i = 0;
+  while (i < value.length) {
+    string ch = value.charAt(i);
+    if (ch == "\\" || ch == "{" || ch == "}" || ch == "*" || ch == "+" || ch == "?" || ch == "|" || ch == "^" || ch == "$" || ch == "." || ch == "[" || ch == "]" || ch == "(" || ch == ")") {
+      source = source + "\\" + ch;
+    } else {
+      source = source + ch;
+    }
+    i = i + 1;
+  }
+  return source;
+}
+
+string starsToRegExp(int starCount, bool isLastPattern) {
+  if (starCount == 0) {
+    return "";
+  }
+  if (starCount == 1) {
+    return NO_PATH_REGEX + "*?";
+  }
+  string extra = "";
+  if (isLastPattern) {
+    extra = "|" + PATH_REGEX + NO_PATH_REGEX + "+";
+  }
+  return "(?:" + PATH_REGEX + "|" + NO_PATH_REGEX + "+" + PATH_REGEX + extra + ")*?";
+}
+
+bool allGlobstar(string[] segments) {
+  int i = 0;
+  while (i < segments.length) {
+    if (segments[i] != GLOBSTAR) {
+      return false;
+    }
+    i = i + 1;
+  }
+  return segments.length > 0;
+}
+
+export string parseRegExp(string pattern) {
+  if (pattern.length == 0) {
+    return "";
+  }
+  string[] segments = splitGlobAware(pattern, GLOB_SPLIT);
+  if (allGlobstar(segments)) {
+    return ".*";
+  }
+  string regEx = "";
+  bool previousSegmentWasGlobStar = false;
+  int index = 0;
+  while (index < segments.length) {
+    string segment = segments[index];
+    if (segment == GLOBSTAR) {
+      if (!previousSegmentWasGlobStar) {
+        bool last = index == segments.length - 1;
+        regEx = regEx + starsToRegExp(2, last);
+      }
+    } else {
+      bool inBraces = false;
+      string braceVal = "";
+      bool inBrackets = false;
+      string bracketVal = "";
+      int c = 0;
+      while (c < segment.length) {
+        string ch = segment.charAt(c);
+        if (ch != "}" && inBraces) {
+          braceVal = braceVal + ch;
+          c = c + 1;
+          continue;
+        }
+        if (inBrackets && (ch != "]" || bracketVal.length == 0)) {
+          string res = "";
+          if (ch == "-") {
+            res = ch;
+          } else if ((ch == "^" || ch == "!") && bracketVal.length == 0) {
+            res = "^";
+          } else if (ch == GLOB_SPLIT) {
+            res = "";
+          } else {
+            res = escapeRegExpCharacters(ch);
+          }
+          bracketVal = bracketVal + res;
+          c = c + 1;
+          continue;
+        }
+        if (ch == "{") {
+          inBraces = true;
+        } else if (ch == "[") {
+          inBrackets = true;
+        } else if (ch == "}") {
+          string[] choices = splitGlobAware(braceVal, ",");
+          string braceRegExp = "(?:";
+          int k = 0;
+          while (k < choices.length) {
+            if (k > 0) {
+              braceRegExp = braceRegExp + "|";
+            }
+            braceRegExp = braceRegExp + parseRegExp(choices[k]);
+            k = k + 1;
+          }
+          braceRegExp = braceRegExp + ")";
+          regEx = regEx + braceRegExp;
+          inBraces = false;
+          braceVal = "";
+        } else if (ch == "]") {
+          regEx = regEx + "[" + bracketVal + "]";
+          inBrackets = false;
+          bracketVal = "";
+        } else if (ch == "?") {
+          regEx = regEx + NO_PATH_REGEX;
+        } else if (ch == "*") {
+          regEx = regEx + starsToRegExp(1, false);
+        } else {
+          regEx = regEx + escapeRegExpCharacters(ch);
+        }
+        c = c + 1;
+      }
+      if (index < segments.length - 1) {
+        bool nextIsGlobStar = segments[index + 1] == GLOBSTAR;
+        if (!nextIsGlobStar || index + 2 < segments.length) {
+          regEx = regEx + PATH_REGEX;
+        }
+      }
+    }
+    previousSegmentWasGlobStar = segment == GLOBSTAR;
+    index = index + 1;
+  }
+  return regEx;
+}
+
+export bool matchGlob(string pattern, string path) {
+  string trimmed = "";
+  int i = 0;
+  int start = 0;
+  while (start < pattern.length && (pattern.charCodeAt(start) == 32 || pattern.charCodeAt(start) == 9)) {
+    start = start + 1;
+  }
+  int end = pattern.length;
+  while (end > start && (pattern.charCodeAt(end - 1) == 32 || pattern.charCodeAt(end - 1) == 9)) {
+    end = end - 1;
+  }
+  while (i < end - start) {
+    trimmed = trimmed + pattern.charAt(start + i);
+    i = i + 1;
+  }
+  if (trimmed.length == 0) {
+    return false;
+  }
+  if (trimmed == "**" || trimmed == "**/**") {
+    return true;
+  }
+  string src = "^" + parseRegExp(trimmed) + "$";
+  Regex re = newRegexp(src, "i");
+  return regexTest(re, path);
+}
+
+export bool globMatches(string[] patterns, string path) {
+  int i = 0;
+  while (i < patterns.length) {
+    if (matchGlob(patterns[i], path)) {
+      return true;
+    }
+    i = i + 1;
+  }
+  return false;
+}
+
+export bool isRelativePattern(string pattern) {
+  return pattern.length > 1 && pattern.charAt(0) == "." && (pattern.charAt(1) == "/" || pattern.charAt(1) == "\\");
+}

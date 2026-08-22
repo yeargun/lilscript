@@ -1,0 +1,20 @@
+export class IdGenerator {
+  string prefix;
+  int lastId;
+
+  init(string prefix) {
+    this.prefix = prefix;
+    this.lastId = 0;
+  }
+
+  string nextId() {
+    this.lastId = this.lastId + 1;
+    return this.prefix + this.lastId.toString();
+  }
+}
+
+IdGenerator sharedDefaultGenerator = new IdGenerator("id#");
+
+export IdGenerator defaultGenerator() {
+  return sharedDefaultGenerator;
+}

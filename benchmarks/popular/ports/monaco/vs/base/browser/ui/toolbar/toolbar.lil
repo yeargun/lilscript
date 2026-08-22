@@ -1,0 +1,380 @@
+import { domCreateElement, appendChild, setClassName, classListAdd, classListRemove, setStyle, setAttribute, hostCall, jsUndefined } from "../../../../../js-host";
+
+int ACTION_MIN_WIDTH = 20;
+int ACTION_PADDING = 4;
+
+export string TOGGLE_MENU_ACTION_ID = "toolbar.toggle.more";
+
+export class ToolbarAction {
+  string id;
+  string label;
+  bool enabled;
+  int minWidth;
+
+  init(string id, string label, bool enabled, int minWidth) {
+    this.id = id;
+    this.label = label;
+    this.enabled = enabled;
+    this.minWidth = minWidth;
+  }
+}
+
+export class HiddenActionEntry {
+  ToolbarAction action;
+  int size;
+
+  init(ToolbarAction action, int size) {
+    this.action = action;
+    this.size = size;
+  }
+}
+
+export class ToolBar {
+  JsValue container;
+  JsValue element;
+  ToolbarAction[] originalPrimaryActions;
+  ToolbarAction[] originalSecondaryActions;
+  HiddenActionEntry[] hiddenActions;
+  ToolbarAction[] visiblePrimary;
+  ToolbarAction toggleMenuAction;
+  ToolbarAction[] overflowMenuActions;
+  bool hasSecondaryActions;
+  bool responsiveEnabled;
+  string responsiveKind;
+  int minItems;
+  int actionMinWidth;
+  bool icon;
+  bool showLabel;
+
+  init(JsValue container, bool responsiveEnabled, string responsiveKind, int minItems) {
+    this.container = container;
+    this.responsiveEnabled = responsiveEnabled;
+    this.responsiveKind = responsiveKind;
+    this.minItems = minItems;
+    this.actionMinWidth = ACTION_MIN_WIDTH;
+    this.icon = true;
+    this.showLabel = false;
+    this.originalPrimaryActions = [];
+    this.originalSecondaryActions = [];
+    this.hiddenActions = [];
+    this.visiblePrimary = [];
+    this.overflowMenuActions = [];
+    this.hasSecondaryActions = false;
+    this.toggleMenuAction = new ToolbarAction(TOGGLE_MENU_ACTION_ID, "More Actions...", true, ACTION_MIN_WIDTH);
+    this.element = domCreateElement("div");
+    setClassName(this.element, "monaco-toolbar");
+    appendChild(container, this.element);
+  }
+
+  int getConfiguredActionMinWidth(ToolbarAction? action) {
+    if (action != null && action.id == TOGGLE_MENU_ACTION_ID) {
+      return ACTION_MIN_WIDTH;
+    }
+    if (action != null && action.minWidth > 0) {
+      return action.minWidth;
+    }
+    return this.actionMinWidth;
+  }
+
+  int getActionMinWidth(ToolbarAction? action) {
+    return this.getConfiguredActionMinWidth(action) + ACTION_PADDING;
+  }
+
+  int getItemWidth(int index) {
+    return this.getActionMinWidth(this.actionAt(index));
+  }
+
+  ToolbarAction? actionAt(int index) {
+    if (index < 0 || index >= this.visiblePrimary.length) {
+      return null;
+    }
+    return this.visiblePrimary[index];
+  }
+
+  bool hasToggleMenu() {
+    int i = 0;
+    while (i < this.visiblePrimary.length) {
+      if (this.visiblePrimary[i].id == TOGGLE_MENU_ACTION_ID) {
+        return true;
+      }
+      i = i + 1;
+    }
+    return false;
+  }
+
+  int actionBarLength() {
+    return this.visiblePrimary.length;
+  }
+
+  int actionBarWidth(bool actualWidth) {
+    if (this.responsiveKind == "last") {
+      bool hasToggle = this.hasToggleMenu();
+      int primaryCount = this.visiblePrimary.length;
+      if (hasToggle) {
+        primaryCount = primaryCount - 1;
+      }
+      if (primaryCount == 0) {
+        if (hasToggle) {
+          return ACTION_MIN_WIDTH + ACTION_PADDING;
+        }
+        return 0;
+      }
+      int itemsWidth = 0;
+      int i = 0;
+      while (i < primaryCount - 1) {
+        itemsWidth = itemsWidth + this.getItemWidth(i);
+        i = i + 1;
+      }
+      ToolbarAction? last = this.actionAt(primaryCount - 1);
+      if (actualWidth) {
+        itemsWidth = itemsWidth + this.getItemWidth(primaryCount - 1);
+      } else {
+        itemsWidth = itemsWidth + this.getActionMinWidth(last);
+      }
+      if (hasToggle) {
+        itemsWidth = itemsWidth + ACTION_MIN_WIDTH + ACTION_PADDING;
+      }
+      return itemsWidth;
+    }
+    int itemsWidth = 0;
+    int i = 0;
+    while (i < this.visiblePrimary.length) {
+      if (actualWidth) {
+        itemsWidth = itemsWidth + this.getItemWidth(i);
+      } else {
+        itemsWidth = itemsWidth + this.getActionMinWidth(this.actionAt(i));
+      }
+      i = i + 1;
+    }
+    return itemsWidth;
+  }
+
+  void setActions(ToolbarAction[] primaryActions, ToolbarAction[] secondaryActions) {
+    this.originalPrimaryActions = [];
+    int i = 0;
+    while (i < primaryActions.length) {
+      this.originalPrimaryActions.push(primaryActions[i]);
+      i = i + 1;
+    }
+    this.originalSecondaryActions = [];
+    i = 0;
+    while (i < secondaryActions.length) {
+      this.originalSecondaryActions.push(secondaryActions[i]);
+      i = i + 1;
+    }
+    this.hiddenActions = [];
+    this.visiblePrimary = [];
+    i = 0;
+    while (i < primaryActions.length) {
+      this.visiblePrimary.push(primaryActions[i]);
+      i = i + 1;
+    }
+    this.hasSecondaryActions = secondaryActions.length > 0;
+    if (this.hasSecondaryActions) {
+      this.visiblePrimary.push(this.toggleMenuAction);
+    }
+    this.updateOverflowClassName();
+    if (this.responsiveEnabled) {
+      int minWidth = this.actionMinWidth + ACTION_PADDING;
+      if (this.minItems > 0) {
+        int count = this.minItems;
+        if (count > this.originalPrimaryActions.length) {
+          count = this.originalPrimaryActions.length;
+        }
+        minWidth = 0;
+        i = 0;
+        while (i < count) {
+          minWidth = minWidth + this.getActionMinWidth(this.originalPrimaryActions[i]);
+          i = i + 1;
+        }
+        int overflowWidth = 0;
+        if (this.originalSecondaryActions.length > 0 || count < this.originalPrimaryActions.length) {
+          overflowWidth = ACTION_MIN_WIDTH + ACTION_PADDING;
+        }
+        minWidth = minWidth + overflowWidth;
+      }
+      setStyle(this.container, "min-width", minWidth.toString() + "px");
+      setStyle(this.element, "min-width", minWidth.toString() + "px");
+    }
+  }
+
+  void prependHidden(HiddenActionEntry entry) {
+    HiddenActionEntry[] next = [entry];
+    int i = 0;
+    while (i < this.hiddenActions.length) {
+      next.push(this.hiddenActions[i]);
+      i = i + 1;
+    }
+    this.hiddenActions = next;
+  }
+
+  HiddenActionEntry takeHiddenFront() {
+    HiddenActionEntry entry = this.hiddenActions[0];
+    HiddenActionEntry[] next = [];
+    int i = 1;
+    while (i < this.hiddenActions.length) {
+      next.push(this.hiddenActions[i]);
+      i = i + 1;
+    }
+    this.hiddenActions = next;
+    return entry;
+  }
+
+  void pullVisible(int index) {
+    ToolbarAction[] next = [];
+    int i = 0;
+    while (i < this.visiblePrimary.length) {
+      if (i != index) {
+        next.push(this.visiblePrimary[i]);
+      }
+      i = i + 1;
+    }
+    this.visiblePrimary = next;
+  }
+
+  void insertVisible(ToolbarAction action, int index) {
+    if (index < 0 || index >= this.visiblePrimary.length) {
+      this.visiblePrimary.push(action);
+      return;
+    }
+    ToolbarAction[] next = [];
+    int i = 0;
+    while (i < this.visiblePrimary.length) {
+      if (i == index) {
+        next.push(action);
+      }
+      next.push(this.visiblePrimary[i]);
+      i = i + 1;
+    }
+    this.visiblePrimary = next;
+  }
+
+  void updateOverflowClassName() {
+    if (this.hasToggleMenu()) {
+      classListAdd(this.element, "has-overflow");
+    } else {
+      classListRemove(this.element, "has-overflow");
+    }
+  }
+
+  void updateOverflowMenu() {
+    ToolbarAction[] hidden = [];
+    int i = 0;
+    while (i < this.hiddenActions.length) {
+      hidden.push(this.hiddenActions[i].action);
+      i = i + 1;
+    }
+    this.overflowMenuActions = [];
+    i = 0;
+    while (i < hidden.length) {
+      this.overflowMenuActions.push(hidden[i]);
+      i = i + 1;
+    }
+    i = 0;
+    while (i < this.originalSecondaryActions.length) {
+      this.overflowMenuActions.push(this.originalSecondaryActions[i]);
+      i = i + 1;
+    }
+  }
+
+  void updateActions(int containerWidth) {
+    if (this.visiblePrimary.length == 0) {
+      return;
+    }
+    int width = containerWidth;
+    int parsedMin = 0;
+    JsValue minStyle = this.element["style"]["minWidth"];
+    if (minStyle is string) {
+      string text = minStyle;
+      int px = text.indexOf("px");
+      if (px > 0) {
+        int n = 0;
+        int i = 0;
+        while (i < px) {
+          string ch = text.charAt(i);
+          if (ch >= "0" && ch <= "9") {
+            n = n * 10 + (ch.charCodeAt(0) - 48);
+          }
+          i = i + 1;
+        }
+        parsedMin = n;
+      }
+    }
+    if (width < parsedMin) {
+      width = parsedMin;
+    }
+    int minimumWidth = this.actionBarWidth(false);
+    if (minimumWidth <= width && this.hiddenActions.length == 0) {
+      return;
+    }
+    if (minimumWidth > width) {
+      if (this.minItems > 0) {
+        int primaryCount = this.visiblePrimary.length;
+        if (this.hasToggleMenu()) {
+          primaryCount = primaryCount - 1;
+        }
+        if (primaryCount <= this.minItems) {
+          return;
+        }
+      }
+      while (this.actionBarWidth(false) > width && this.visiblePrimary.length > 0) {
+        int index = this.originalPrimaryActions.length - this.hiddenActions.length - 1;
+        if (index < 0) {
+          break;
+        }
+        ToolbarAction action = this.originalPrimaryActions[index];
+        int size = this.getActionMinWidth(action);
+        int itemWidth = this.getItemWidth(index);
+        if (itemWidth < size) {
+          size = itemWidth;
+        }
+        this.prependHidden(new HiddenActionEntry(action, size));
+        this.pullVisible(index);
+        if (this.originalSecondaryActions.length == 0 && this.hiddenActions.length == 1) {
+          this.visiblePrimary.push(this.toggleMenuAction);
+          this.updateOverflowClassName();
+        }
+      }
+    } else {
+      while (this.hiddenActions.length > 0) {
+        HiddenActionEntry entry = this.takeHiddenFront();
+        if (this.actionBarWidth(true) + entry.size > width) {
+          this.prependHidden(entry);
+          break;
+        }
+        int insertAt = this.originalPrimaryActions.length - this.hiddenActions.length - 1;
+        this.insertVisible(entry.action, insertAt);
+        if (this.originalSecondaryActions.length == 0 && this.hiddenActions.length == 0) {
+          int last = this.visiblePrimary.length - 1;
+          if (last >= 0 && this.visiblePrimary[last].id == TOGGLE_MENU_ACTION_ID) {
+            this.pullVisible(last);
+          }
+          this.updateOverflowClassName();
+        }
+      }
+    }
+    this.updateOverflowMenu();
+    this.updateOverflowClassName();
+  }
+
+  JsValue getElement() {
+    return this.element;
+  }
+
+  void clear() {
+    this.visiblePrimary = [];
+    this.hiddenActions = [];
+  }
+
+  void dispose() {
+    this.clear();
+  }
+}
+
+export ToolBar createToolBar(JsValue container, bool responsiveEnabled = false, string responsiveKind = "", int minItems = 0) {
+  return new ToolBar(container, responsiveEnabled, responsiveKind, minItems);
+}
+
+export ToolbarAction createToolbarAction(string id, string label, bool enabled = true, int minWidth = 0) {
+  return new ToolbarAction(id, label, enabled, minWidth);
+}

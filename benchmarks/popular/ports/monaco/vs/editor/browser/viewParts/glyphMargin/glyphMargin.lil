@@ -1,0 +1,179 @@
+int imin(int a, int b) {
+  if (a < b) {
+    return a;
+  }
+  return b;
+}
+
+int imax(int a, int b) {
+  if (a > b) {
+    return a;
+  }
+  return b;
+}
+
+export class DecorationToRender {
+  int startLineNumber;
+  int endLineNumber;
+  string className;
+  string tooltip;
+  int zIndex;
+
+  init(int startLineNumber, int endLineNumber, string className, string tooltip, int zIndex) {
+    this.startLineNumber = startLineNumber;
+    this.endLineNumber = endLineNumber;
+    this.className = className;
+    this.tooltip = tooltip;
+    this.zIndex = zIndex;
+  }
+}
+
+export class GlyphRenderRequest {
+  int lineNumber;
+  int laneIndex;
+  int zIndex;
+  string className;
+  int requestType;
+
+  init(int lineNumber, int laneIndex, int zIndex, string className, int requestType) {
+    this.lineNumber = lineNumber;
+    this.laneIndex = laneIndex;
+    this.zIndex = zIndex;
+    this.className = className;
+    this.requestType = requestType;
+  }
+}
+
+export class GlyphRender {
+  int lineNumber;
+  int laneIndex;
+  int left;
+  int top;
+  int width;
+  int height;
+  string className;
+
+  init(int lineNumber, int laneIndex, int left, int top, int width, int height, string className) {
+    this.lineNumber = lineNumber;
+    this.laneIndex = laneIndex;
+    this.left = left;
+    this.top = top;
+    this.width = width;
+    this.height = height;
+    this.className = className;
+  }
+}
+
+export class GlyphMarginWidgets {
+  bool glyphMargin;
+  int glyphMarginLeft;
+  int glyphMarginWidth;
+  int glyphMarginDecorationLaneCount;
+  int lineHeight;
+  GlyphRender[] decorationGlyphsToRender;
+
+  init(bool glyphMargin, int glyphMarginLeft, int glyphMarginWidth, int glyphMarginDecorationLaneCount, int lineHeight) {
+    this.glyphMargin = glyphMargin;
+    this.glyphMarginLeft = glyphMarginLeft;
+    this.glyphMarginWidth = glyphMarginWidth;
+    this.glyphMarginDecorationLaneCount = glyphMarginDecorationLaneCount;
+    this.lineHeight = lineHeight;
+    this.decorationGlyphsToRender = [];
+  }
+
+  int laneXOffset(int laneIndex) {
+    return this.glyphMarginLeft + laneIndex * this.lineHeight;
+  }
+
+  int laneWidth() {
+    if (this.glyphMarginDecorationLaneCount <= 0) {
+      return this.glyphMarginWidth;
+    }
+    return this.glyphMarginWidth / this.glyphMarginDecorationLaneCount;
+  }
+
+  int compareRequests(GlyphRenderRequest a, GlyphRenderRequest b) {
+    if (a.lineNumber != b.lineNumber) {
+      return a.lineNumber - b.lineNumber;
+    }
+    if (a.laneIndex != b.laneIndex) {
+      return a.laneIndex - b.laneIndex;
+    }
+    if (a.zIndex != b.zIndex) {
+      return b.zIndex - a.zIndex;
+    }
+    if (a.requestType != b.requestType) {
+      return b.requestType - a.requestType;
+    }
+    if (a.className < b.className) {
+      return -1;
+    }
+    if (a.className > b.className) {
+      return 1;
+    }
+    return 0;
+  }
+
+  void sortRequests(GlyphRenderRequest[] requests) {
+    int i = 1;
+    while (i < requests.length) {
+      GlyphRenderRequest key = requests[i];
+      int j = i - 1;
+      while (j >= 0 && this.compareRequests(requests[j], key) > 0) {
+        requests[j + 1] = requests[j];
+        j = j - 1;
+      }
+      requests[j + 1] = key;
+      i = i + 1;
+    }
+  }
+
+  void prepareRender(GlyphRenderRequest[] requests, int[] relativeVerticalOffset, int viewportStartLineNumber) {
+    this.decorationGlyphsToRender = [];
+    if (!this.glyphMargin) {
+      return;
+    }
+    this.sortRequests(requests);
+    int width = this.laneWidth();
+    int i = 0;
+    while (i < requests.length) {
+      GlyphRenderRequest first = requests[i];
+      int j = i;
+      while (j < requests.length && requests[j].lineNumber == first.lineNumber && requests[j].laneIndex == first.laneIndex) {
+        j = j + 1;
+      }
+      GlyphRenderRequest winner = requests[i];
+      string classNames = winner.className;
+      int k = i + 1;
+      while (k < j) {
+        GlyphRenderRequest req = requests[k];
+        if (req.zIndex != winner.zIndex || req.requestType != winner.requestType) {
+          break;
+        }
+        if (req.className != classNames) {
+          classNames = classNames + " " + req.className;
+        }
+        k = k + 1;
+      }
+      int top = 0;
+      int offsetIndex = winner.lineNumber - viewportStartLineNumber;
+      if (offsetIndex >= 0 && offsetIndex < relativeVerticalOffset.length) {
+        top = relativeVerticalOffset[offsetIndex];
+      }
+      this.decorationGlyphsToRender.push(new GlyphRender(winner.lineNumber, winner.laneIndex, this.laneXOffset(winner.laneIndex), top, width, this.lineHeight, classNames));
+      i = j;
+    }
+  }
+}
+
+export DecorationToRender createDecorationToRender(int startLineNumber, int endLineNumber, string className, string tooltip, int zIndex) {
+  return new DecorationToRender(startLineNumber, endLineNumber, className, tooltip, zIndex);
+}
+
+export GlyphRenderRequest createGlyphRenderRequest(int lineNumber, int laneIndex, int zIndex, string className, int requestType) {
+  return new GlyphRenderRequest(lineNumber, laneIndex, zIndex, className, requestType);
+}
+
+export GlyphMarginWidgets createGlyphMarginWidgets(bool glyphMargin, int glyphMarginLeft, int glyphMarginWidth, int glyphMarginDecorationLaneCount, int lineHeight) {
+  return new GlyphMarginWidgets(glyphMargin, glyphMarginLeft, glyphMarginWidth, glyphMarginDecorationLaneCount, lineHeight);
+}

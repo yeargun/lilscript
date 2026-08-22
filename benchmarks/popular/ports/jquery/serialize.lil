@@ -3,18 +3,7 @@ import { toType } from "./core/toType";
 import { rcheckableType } from "./var/rcheckableType";
 import { isFunction } from "./var/isFunction";
 import { prop } from "./attributes/prop";
-import {
-  arrayIsArray,
-  arrayJoin,
-  call0,
-  regexTest,
-  stringReplace,
-  isNullish,
-  typeOf,
-  stringify,
-  encodeURIComponentValue,
-  jsUndefined
-} from "./js-host.lil";
+import { encodeURIComponentValue } from "./js-host.lil";
 
 
 struct NameValue {
@@ -79,10 +68,10 @@ export string param(JsValue aArg, bool traditional = false) {
   }
 
   if (isFormElementsArray) {
-    each(aArg, (JsValue index, JsValue elem) => {
+    each(aArg, JS.method0((JsValue elem) => {
       add(JS.string(elem["name"]), elem["value"]);
       return JS.undefined();
-    });
+    }));
   } else {
     for (string prefix in aArg) {
       buildParams(prefix, aArg[prefix], traditional, add);
@@ -95,62 +84,45 @@ export string param(JsValue aArg, bool traditional = false) {
 jQuery["param"] = param;
 
 JsValue fnSerializeArray() {
-  JsValue self = this;
-  JsValue mapped = JS.invoke(self, "map", (JsValue index, JsValue elem) => {
+  JsValue mapped = JS.invoke(this, "map", JS.method0((JsValue elem) => {
     JsValue elementsProp = prop(elem, "elements", JS.undefined());
     if (elementsProp.truthy()) {
       return makeArray(elementsProp);
     }
     return elem;
-  });
+  }));
 
-  JsValue filtered = JS.invoke(mapped, "filter", (JsValue index, JsValue elem) => {
+  JsValue filtered = JS.invoke(mapped, "filter", JS.method0((JsValue elem) => {
     JsValue typeRaw = elem["type"];
     string typeStr = JS.string(JS.or(typeRaw, ""));
+    return elem["name"].truthy()
+      && !JS.invoke(wrap(elem), "is", ":disabled").truthy()
+      && JS.regexTest(rsubmittable, JS.string(elem["nodeName"]))
+      && !JS.regexTest(rsubmitterTypes, typeStr)
+      && (elem["checked"].truthy() || !JS.regexTest(rcheckableType, typeStr));
+  }));
 
-    JsValue nameRaw = elem["name"];
-    bool hasName = nameRaw.truthy();
-
-    JsValue wrapped = wrap(elem);
-    bool isDisabled = JS.invoke(wrapped, "is", ":disabled").truthy();
-
-    string nodeNameStr = JS.string(elem["nodeName"]);
-
-    bool isSubmittable = JS.regexTest(rsubmittable, nodeNameStr);
-    bool isSubmitterType = JS.regexTest(rsubmitterTypes, typeStr);
-
-    bool checkedOrNotCheckable = elem["checked"].truthy() || !JS.regexTest(rcheckableType, typeStr);
-
-    return hasName && !isDisabled && isSubmittable && !isSubmitterType && checkedOrNotCheckable;
-  });
-
-  JsValue results = JS.invoke(filtered, "map", (JsValue _iArg, JsValue elem) => {
-    JsValue wrapped = wrap(elem);
-    JsValue val = JS.invoke(wrapped, "val");
-
+  JsValue results = JS.invoke(filtered, "map", JS.method0((JsValue elem) => {
+    JsValue val = JS.invoke(wrap(elem), "val");
     if (JS.isNullish(val)) {
       return null;
     }
 
     string elemName = JS.string(elem["name"]);
-
     if (JS.isArray(val)) {
-      func(JsValue, JsValue)->JsValue mapValueToRecord = (JsValue vIndex, JsValue vItem) => {
-        return NameValue{elemName, JS.stringReplace(JS.string(vItem), rCRLF, "\r\n")};
-      };
-      return map(val, mapValueToRecord);
+      return map(val, (JsValue item) => {
+        return NameValue{elemName, JS.stringReplace(JS.string(item), rCRLF, "\r\n")};
+      });
     }
 
     return NameValue{elemName, JS.stringReplace(JS.string(val), rCRLF, "\r\n")};
-  });
+  }));
 
   return JS.invoke(results, "get");
 }
 
 JsValue fnSerialize() {
-  JsValue self = this;
-  JsValue arr = JS.call(fnSerializeArray, self);
-  return param(arr, false);
+  return param(JS.invoke(this, "serializeArray"), false);
 }
 
 JsValue fn = jQuery["fn"];

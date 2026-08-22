@@ -1,0 +1,212 @@
+import {
+  arrayFrom,
+  call0,
+  call1,
+  call2,
+  len,
+  objectKeys,
+  push,
+  slice,
+  toInt,
+  undef
+} from "../host.lil";
+import { $mobx } from "../constants.lil";
+import { die } from "../errors.lil";
+import {
+  endBatch,
+  startBatch
+} from "../core/observable.lil";
+import {
+  isObservableArray,
+  isObservableMap,
+  isObservableObject,
+  isObservableSet
+} from "../core/predicates.lil";
+
+export JsValue keys = JS.method1((JsValue _s, JsValue obj) => {
+  if (isObservableObject(obj)) {
+    return call0(obj[$mobx]["keys_"], obj[$mobx]);
+  }
+  if (isObservableMap(obj) || isObservableSet(obj)) {
+    return arrayFrom(JS.invoke(obj, "keys"));
+  }
+  if (isObservableArray(obj)) {
+    JsValue out = JS.array();
+    int i = 0;
+    while (i < toInt(obj["length"])) {
+      push(out, i);
+      i = i + 1;
+    }
+    return out;
+  }
+  die(5);
+  return undef();
+});
+
+export JsValue values = JS.method1((JsValue _s, JsValue obj) => {
+  if (isObservableObject(obj)) {
+    JsValue ks = call1(keys, undef(), obj);
+    JsValue out = JS.array();
+    int i = 0;
+    while (i < len(ks)) {
+      push(out, obj[ks[i]]);
+      i = i + 1;
+    }
+    return out;
+  }
+  if (isObservableMap(obj)) {
+    JsValue ks = call1(keys, undef(), obj);
+    JsValue out = JS.array();
+    int i = 0;
+    while (i < len(ks)) {
+      push(out, call1(obj["get"], obj, ks[i]));
+      i = i + 1;
+    }
+    return out;
+  }
+  if (isObservableSet(obj)) {
+    return arrayFrom(JS.invoke(obj, "values"));
+  }
+  if (isObservableArray(obj)) {
+    return JS.invoke(obj, "slice");
+  }
+  die(6);
+  return undef();
+});
+
+export JsValue entries = JS.method1((JsValue _s, JsValue obj) => {
+  if (isObservableObject(obj) || isObservableMap(obj)) {
+    JsValue ks = call1(keys, undef(), obj);
+    JsValue out = JS.array();
+    int i = 0;
+    while (i < len(ks)) {
+      JsValue pair = JS.array();
+      push(pair, ks[i]);
+      if (isObservableMap(obj)) {
+        push(pair, call1(obj["get"], obj, ks[i]));
+      } else {
+        push(pair, obj[ks[i]]);
+      }
+      push(out, pair);
+      i = i + 1;
+    }
+    return out;
+  }
+  if (isObservableSet(obj)) {
+    return arrayFrom(JS.invoke(obj, "entries"));
+  }
+  if (isObservableArray(obj)) {
+    JsValue out = JS.array();
+    int i = 0;
+    while (i < toInt(obj["length"])) {
+      JsValue pair = JS.array();
+      push(pair, i);
+      push(pair, obj[i]);
+      push(out, pair);
+      i = i + 1;
+    }
+    return out;
+  }
+  die(7);
+  return undef();
+});
+
+export JsValue set = JS.methodRest((JsValue _s, JsValue args) => {
+  JsValue obj = args[0];
+  JsValue key = args[1];
+  JsValue value = undef();
+  if (len(args) > 2) {
+    value = args[2];
+  }
+  if (len(args) == 2 && !isObservableSet(obj)) {
+    startBatch();
+    try {
+      JsValue ks = objectKeys(key);
+      int i = 0;
+      while (i < len(ks)) {
+        JS.call(set, undef(), obj, ks[i], key[ks[i]]);
+        i = i + 1;
+      }
+    } finally {
+      endBatch();
+    }
+    return undef();
+  }
+  if (isObservableObject(obj)) {
+    call2(obj[$mobx]["set_"], obj[$mobx], key, value);
+  } else if (isObservableMap(obj)) {
+    JS.call(obj["set"], obj, key, value);
+  } else if (isObservableSet(obj)) {
+    call1(obj["add"], obj, key);
+  } else if (isObservableArray(obj)) {
+    startBatch();
+    if (toInt(key) >= toInt(obj["length"])) {
+      obj["length"] = toInt(key) + 1;
+    }
+    obj[key] = value;
+    endBatch();
+  } else {
+    die(8);
+  }
+  return undef();
+});
+
+export JsValue remove = JS.method2((JsValue _s, JsValue obj, JsValue key) => {
+  if (isObservableObject(obj)) {
+    call1(obj[$mobx]["delete_"], obj[$mobx], key);
+  } else if (isObservableMap(obj) || isObservableSet(obj)) {
+    call1(obj["delete"], obj, key);
+  } else if (isObservableArray(obj)) {
+    JS.invoke(obj, "splice", key, 1);
+  } else {
+    die(9);
+  }
+  return undef();
+});
+
+export JsValue has = JS.method2((JsValue _s, JsValue obj, JsValue key) => {
+  if (isObservableObject(obj)) {
+    return call1(obj[$mobx]["has_"], obj[$mobx], key);
+  }
+  if (isObservableMap(obj) || isObservableSet(obj)) {
+    return call1(obj["has"], obj, key);
+  }
+  if (isObservableArray(obj)) {
+    return toInt(key) >= 0 && toInt(key) < toInt(obj["length"]);
+  }
+  die(10);
+  return false;
+});
+
+export JsValue get = JS.method2((JsValue _s, JsValue obj, JsValue key) => {
+  if (!call2(has, undef(), obj, key).truthy()) {
+    return undef();
+  }
+  if (isObservableObject(obj)) {
+    return call1(obj[$mobx]["get_"], obj[$mobx], key);
+  }
+  if (isObservableMap(obj)) {
+    return call1(obj["get"], obj, key);
+  }
+  if (isObservableArray(obj)) {
+    return obj[key];
+  }
+  die(11);
+  return undef();
+});
+
+export JsValue ownKeysApi = JS.method1((JsValue _s, JsValue obj) => {
+  if (isObservableObject(obj)) {
+    return call0(obj[$mobx]["ownKeys_"], obj[$mobx]);
+  }
+  die(38);
+  return undef();
+});
+
+export JsValue definePropertyApi = JS.method3((JsValue _s, JsValue obj, JsValue key, JsValue descriptor) => {
+  if (isObservableObject(obj)) {
+    return call2(obj[$mobx]["defineProperty_"], obj[$mobx], key, descriptor);
+  }
+  die(39);
+  return undef();
+});

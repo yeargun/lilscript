@@ -1,0 +1,168 @@
+import { EditorZoom } from "./editorZoom";
+import { newRegexp, regexTest } from "../../../../js-host";
+
+export float GOLDEN_LINE_HEIGHT_RATIO = 1.5;
+export int MINIMUM_LINE_HEIGHT = 8;
+export int SERIALIZED_FONT_INFO_VERSION = 2;
+export string FONT_VARIATION_OFF = "normal";
+export string FONT_VARIATION_TRANSLATE = "translate";
+export string DEFAULT_WINDOWS_FONT_FAMILY = "Consolas, 'Courier New', monospace";
+export string DEFAULT_MAC_FONT_FAMILY = "Menlo, Monaco, 'Courier New', monospace";
+export string DEFAULT_LINUX_FONT_FAMILY = "'Droid Sans Mono', monospace";
+
+export class BareFontInfo {
+  float pixelRatio;
+  string fontFamily;
+  string fontWeight;
+  float fontSize;
+  string fontFeatureSettings;
+  string fontVariationSettings;
+  int lineHeight;
+  float letterSpacing;
+
+  init(
+    float pixelRatio,
+    string fontFamily,
+    string fontWeight,
+    float fontSize,
+    string fontFeatureSettings,
+    string fontVariationSettings,
+    int lineHeight,
+    float letterSpacing
+  ) {
+    this.pixelRatio = pixelRatio;
+    this.fontFamily = fontFamily;
+    this.fontWeight = fontWeight;
+    this.fontSize = fontSize;
+    this.fontFeatureSettings = fontFeatureSettings;
+    this.fontVariationSettings = fontVariationSettings;
+    this.lineHeight = lineHeight;
+    this.letterSpacing = letterSpacing;
+  }
+
+  string getId() {
+    return JS.string(this.pixelRatio) + "-" + this.fontFamily + "-" + this.fontWeight + "-" +
+      JS.string(this.fontSize) + "-" + this.fontFeatureSettings + "-" + this.fontVariationSettings +
+      "-" + this.lineHeight.toString() + "-" + JS.string(this.letterSpacing);
+  }
+
+  string getMassagedFontFamily() {
+    string family = wrapFontFamily(this.fontFamily);
+    if (this.fontFamily != DEFAULT_MAC_FONT_FAMILY) {
+      return family + ", " + DEFAULT_MAC_FONT_FAMILY;
+    }
+    return family;
+  }
+}
+
+string wrapFontFamily(string family) {
+  if (regexTest(newRegexp("[,\"']"), family)) {
+    return family;
+  }
+  if (regexTest(newRegexp("[+ ]"), family)) {
+    return "\"" + family + "\"";
+  }
+  return family;
+}
+
+export BareFontInfo createBareFontInfo(
+  string fontFamily,
+  string fontWeight,
+  float fontSize,
+  string fontFeatureSettings,
+  string fontVariationSettings,
+  float requestedLineHeight,
+  float letterSpacing,
+  float pixelRatio,
+  bool ignoreEditorZoom = false
+) {
+  float lineHeight = requestedLineHeight;
+  if (lineHeight == 0.0) {
+    lineHeight = GOLDEN_LINE_HEIGHT_RATIO * fontSize;
+  } else if (lineHeight < MINIMUM_LINE_HEIGHT) {
+    lineHeight = lineHeight * fontSize;
+  }
+  int roundedLineHeight = lineHeight.round().toInt();
+  if (roundedLineHeight < MINIMUM_LINE_HEIGHT) {
+    roundedLineHeight = MINIMUM_LINE_HEIGHT;
+  }
+  float multiplier = 1.0;
+  if (!ignoreEditorZoom) {
+    multiplier = 1.0 + EditorZoom.getZoomLevel() * 0.1;
+  }
+  float resolvedFontSize = fontSize * multiplier;
+  roundedLineHeight = (roundedLineHeight * multiplier).round().toInt();
+  string resolvedWeight = fontWeight;
+  string resolvedVariations = fontVariationSettings;
+  if (resolvedVariations == FONT_VARIATION_TRANSLATE) {
+    if (resolvedWeight == "normal" || resolvedWeight == "bold") {
+      resolvedVariations = FONT_VARIATION_OFF;
+    }
+  }
+  return new BareFontInfo(
+    pixelRatio,
+    fontFamily,
+    resolvedWeight,
+    resolvedFontSize,
+    fontFeatureSettings,
+    resolvedVariations,
+    roundedLineHeight,
+    letterSpacing
+  );
+}
+
+export class FontInfo {
+  BareFontInfo bare;
+  bool isTrusted;
+  bool isMonospace;
+  float typicalHalfwidthCharacterWidth;
+  float typicalFullwidthCharacterWidth;
+  bool canUseHalfwidthRightwardsArrow;
+  float spaceWidth;
+  float middotWidth;
+  float wsmiddotWidth;
+  float maxDigitWidth;
+
+  init(
+    BareFontInfo bare,
+    bool isTrusted,
+    bool isMonospace,
+    float typicalHalfwidthCharacterWidth,
+    float typicalFullwidthCharacterWidth,
+    bool canUseHalfwidthRightwardsArrow,
+    float spaceWidth,
+    float middotWidth,
+    float wsmiddotWidth,
+    float maxDigitWidth
+  ) {
+    this.bare = bare;
+    this.isTrusted = isTrusted;
+    this.isMonospace = isMonospace;
+    this.typicalHalfwidthCharacterWidth = typicalHalfwidthCharacterWidth;
+    this.typicalFullwidthCharacterWidth = typicalFullwidthCharacterWidth;
+    this.canUseHalfwidthRightwardsArrow = canUseHalfwidthRightwardsArrow;
+    this.spaceWidth = spaceWidth;
+    this.middotWidth = middotWidth;
+    this.wsmiddotWidth = wsmiddotWidth;
+    this.maxDigitWidth = maxDigitWidth;
+  }
+
+  bool equals(FontInfo other) {
+    return this.bare.getId() == other.bare.getId() &&
+      this.typicalHalfwidthCharacterWidth == other.typicalHalfwidthCharacterWidth &&
+      this.typicalFullwidthCharacterWidth == other.typicalFullwidthCharacterWidth &&
+      this.canUseHalfwidthRightwardsArrow == other.canUseHalfwidthRightwardsArrow &&
+      this.spaceWidth == other.spaceWidth && this.middotWidth == other.middotWidth &&
+      this.wsmiddotWidth == other.wsmiddotWidth && this.maxDigitWidth == other.maxDigitWidth;
+  }
+}
+
+export JsValue editorFontDefaults() {
+  JsValue result = JS.object();
+  result["fontFamily"] = DEFAULT_MAC_FONT_FAMILY;
+  result["fontWeight"] = "normal";
+  result["fontSize"] = 12;
+  result["lineHeight"] = 0;
+  result["letterSpacing"] = 0;
+  return result;
+}

@@ -1,0 +1,58 @@
+export bool empty(string s) {
+  return s.length == 0;
+}
+
+export string fixCase(bool ignoreCase, string str) {
+  if (ignoreCase) {
+    return str.toLowerCase();
+  }
+  return str;
+}
+
+export string sanitize(string s) {
+  string out = "";
+  int i = 0;
+  while (i < s.length) {
+    string ch = s.charAt(i);
+    if (ch == "&" || ch == "<" || ch == ">" || ch == "'" || ch == "\"" || ch == "_") {
+      out = out + "-";
+    } else {
+      out = out + ch;
+    }
+    i = i + 1;
+  }
+  return out;
+}
+
+export string substituteMatches(string str, string id, string[] matches, string state) {
+  string out = "";
+  int i = 0;
+  while (i < str.length) {
+    if (str.charAt(i) == "$" && i + 1 < str.length) {
+      string n = str.charAt(i + 1);
+      if (n == "$") {
+        out = out + "$";
+        i = i + 2;
+        continue;
+      }
+      if (n == "#") {
+        out = out + id;
+        i = i + 2;
+        continue;
+      }
+      int idx = n.charCodeAt(0) - 48;
+      if (idx >= 0 && idx <= 9 && idx < matches.length) {
+        out = out + matches[idx];
+        i = i + 2;
+        continue;
+      }
+    }
+    out = out + str.charAt(i);
+    i = i + 1;
+  }
+  return out;
+}
+
+export string createError(string languageId, string msg) {
+  return languageId + ": " + msg;
+}

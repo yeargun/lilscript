@@ -1,0 +1,93 @@
+import { domCreateElement, canvasGetContext2d, jsPropInt } from "../../../js-host";
+
+float pixelNumber(JsValue value, string key, float fallback) {
+  JsValue property = value[key];
+  if (property is float) {
+    float n = property;
+    return n;
+  }
+  return fallback;
+}
+
+export class PixelRatioMonitor {
+  JsValue targetWindow;
+  float value;
+  (func(float)->void)[] listeners;
+
+  init(JsValue targetWindow) {
+    this.targetWindow = targetWindow;
+    this.listeners = [];
+    this.value = this.getPixelRatio();
+  }
+
+  float getPixelRatio() {
+    JsValue canvas = domCreateElement("canvas");
+    JsValue context = canvasGetContext2d(canvas);
+    float deviceRatio = pixelNumber(this.targetWindow, "devicePixelRatio", 1.0);
+    float backingRatio = pixelNumber(context, "webkitBackingStorePixelRatio", 1.0);
+    if (backingRatio == 1.0) {
+      backingRatio = pixelNumber(context, "mozBackingStorePixelRatio", 1.0);
+    }
+    if (backingRatio == 0.0) {
+      backingRatio = 1.0;
+    }
+    return deviceRatio / backingRatio;
+  }
+
+  void refresh() {
+    float next = this.getPixelRatio();
+    if (next == this.value) {
+      return;
+    }
+    this.value = next;
+    int i = 0;
+    while (i < this.listeners.length) {
+      this.listeners[i](next);
+      i = i + 1;
+    }
+  }
+
+  func()->void onDidChange(func(float)->void listener) {
+    this.listeners.push(listener);
+    PixelRatioMonitor owner = this;
+    return () => {
+      int index = owner.listeners.indexOf(listener);
+      if (index >= 0) {
+        owner.listeners.splice(index, 1);
+      }
+    };
+  }
+
+  void dispose() {
+    this.listeners = [];
+  }
+}
+
+export class PixelRatioMonitorFacade {
+  Map<int, PixelRatioMonitor> monitors;
+
+  init() {
+    this.monitors = new Map<int, PixelRatioMonitor>();
+  }
+
+  PixelRatioMonitor getInstance(JsValue targetWindow) {
+    int id = jsPropInt(targetWindow, "vscodeWindowId", 1);
+    PixelRatioMonitor? monitor = this.monitors.get(id);
+    if (monitor != null) {
+      return monitor;
+    }
+    PixelRatioMonitor created = new PixelRatioMonitor(targetWindow);
+    this.monitors.set(id, created);
+    return created;
+  }
+
+  void removeInstance(int windowId) {
+    PixelRatioMonitor? monitor = this.monitors.get(windowId);
+    if (monitor != null) {
+      monitor.dispose();
+      this.monitors.delete(windowId);
+    }
+  }
+}
+
+export PixelRatioMonitorFacade PixelRatio = new PixelRatioMonitorFacade();

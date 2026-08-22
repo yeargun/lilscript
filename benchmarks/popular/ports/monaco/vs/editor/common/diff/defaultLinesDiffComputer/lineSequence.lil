@@ -1,0 +1,60 @@
+import { OffsetRange } from "../../core/ranges/offsetRange";
+
+export class LineSequence {
+  int[] trimmedHash;
+  string[] lines;
+
+  init(int[] trimmedHash, string[] lines) {
+    this.trimmedHash = trimmedHash;
+    this.lines = lines;
+  }
+
+  int getElement(int offset) {
+    return this.trimmedHash[offset];
+  }
+
+  int length() {
+    return this.trimmedHash.length;
+  }
+
+  int getBoundaryScore(int length) {
+    int indentationBefore = 0;
+    if (length != 0) {
+      indentationBefore = getIndentation(this.lines[length - 1]);
+    }
+    int indentationAfter = 0;
+    if (length != this.lines.length) {
+      indentationAfter = getIndentation(this.lines[length]);
+    }
+    return 1000 - (indentationBefore + indentationAfter);
+  }
+
+  string getText(OffsetRange range) {
+    string out = "";
+    int i = range.start;
+    while (i < range.endExclusive && i < this.lines.length) {
+      if (out.length > 0) {
+        out = out + "\n";
+      }
+      out = out + this.lines[i];
+      i = i + 1;
+    }
+    return out;
+  }
+
+  bool isStronglyEqual(int offset1, int offset2) {
+    return this.lines[offset1] == this.lines[offset2];
+  }
+}
+
+int getIndentation(string str) {
+  int i = 0;
+  while (i < str.length) {
+    int code = str.charCodeAt(i);
+    if (code != 32 && code != 9) {
+      break;
+    }
+    i = i + 1;
+  }
+  return i;
+}

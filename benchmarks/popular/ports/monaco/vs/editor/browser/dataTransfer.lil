@@ -1,0 +1,158 @@
+import { jsArrayAt, jsArrayLen, jsPropString } from "../../../js-host";
+
+export class VsDataItem {
+  string mime;
+  string kind;
+  string value;
+  string fileName;
+  string path;
+
+  init(string mime, string kind, string value, string fileName, string path) {
+    this.mime = mime;
+    this.kind = kind;
+    this.value = value;
+    this.fileName = fileName;
+    this.path = path;
+  }
+}
+
+export class VsDataTransfer {
+  VsDataItem[] items;
+
+  init() {
+    this.items = [];
+  }
+
+  void append(string mime, VsDataItem item) {
+    this.items.push(item);
+  }
+
+  VsDataItem? get(string mime) {
+    int i = 0;
+    while (i < this.items.length) {
+      if (this.items[i].mime == mime) {
+        return this.items[i];
+      }
+      i = i + 1;
+    }
+    return null;
+  }
+
+  bool has(string mime) {
+    return this.get(mime) != null;
+  }
+
+  void replace(string mime, VsDataItem item) {
+    int i = 0;
+    while (i < this.items.length) {
+      if (this.items[i].mime == mime) {
+        this.items[i] = item;
+        return;
+      }
+      i = i + 1;
+    }
+    this.items.push(item);
+  }
+
+  void deleteMime(string mime) {
+    int i = 0;
+    while (i < this.items.length) {
+      if (this.items[i].mime == mime) {
+        this.items.splice(i, 1);
+        return;
+      }
+      i = i + 1;
+    }
+  }
+}
+
+bool isInternalMime(string mime) {
+  if (mime == "codeeditors") {
+    return true;
+  }
+  if (mime == "CodeFiles") {
+    return true;
+  }
+  if (mime == "ResourceURLs") {
+    return true;
+  }
+  if (mime == "application/vnd.code.uri-list") {
+    return true;
+  }
+  return false;
+}
+
+export VsDataItem createStringDataTransferItem(string mime, string value) {
+  return new VsDataItem(mime, "string", value, "", "");
+}
+
+export VsDataItem createFileDataTransferItem(string mime, string fileName, string path) {
+  return new VsDataItem(mime, "file", "", fileName, path);
+}
+
+export VsDataTransfer toVSDataTransfer(JsValue dataTransfer) {
+  VsDataTransfer vsDataTransfer = new VsDataTransfer();
+  if (!dataTransfer.truthy()) {
+    return vsDataTransfer;
+  }
+  JsValue items = dataTransfer["items"];
+  int len = jsArrayLen(items);
+  int i = 0;
+  while (i < len) {
+    JsValue item = jsArrayAt(items, i);
+    string mime = jsPropString(item, "type", "");
+    string kind = jsPropString(item, "kind", "string");
+    if (kind == "string") {
+      string value = jsPropString(item, "value", "");
+      vsDataTransfer.append(mime, createStringDataTransferItem(mime, value));
+    } else if (kind == "file") {
+      string fileName = jsPropString(item, "name", "");
+      string path = jsPropString(item, "path", "");
+      vsDataTransfer.append(mime, createFileDataTransferItem(mime, fileName, path));
+    }
+    i = i + 1;
+  }
+  return vsDataTransfer;
+}
+
+export VsDataTransfer toExternalVSDataTransfer(JsValue sourceDataTransfer, bool overwriteUriList) {
+  VsDataTransfer vsDataTransfer = toVSDataTransfer(sourceDataTransfer);
+  VsDataItem? uriList = vsDataTransfer.get("application/vnd.code.uri-list");
+  if (uriList != null) {
+    vsDataTransfer.replace("text/uri-list", uriList);
+  } else if (overwriteUriList || !vsDataTransfer.has("text/uri-list")) {
+    string editorData = "";
+    int i = 0;
+    while (i < vsDataTransfer.items.length) {
+      VsDataItem item = vsDataTransfer.items[i];
+      if (item.kind == "file") {
+        string entry = item.path;
+        if (entry.length == 0) {
+          entry = item.fileName;
+        }
+        if (entry.length > 0) {
+          if (editorData.length > 0) {
+            editorData = editorData + "\r\n";
+          }
+          editorData = editorData + entry;
+        }
+      }
+      i = i + 1;
+    }
+    if (editorData.length > 0) {
+      vsDataTransfer.replace("text/uri-list", createStringDataTransferItem("text/uri-list", editorData));
+    }
+  }
+  int j = vsDataTransfer.items.length - 1;
+  while (j >= 0) {
+    if (isInternalMime(vsDataTransfer.items[j].mime)) {
+      vsDataTransfer.items.splice(j, 1);
+    }
+    j = j - 1;
+  }
+  return vsDataTransfer;
+}
+
+export VsDataTransfer createVsDataTransfer() {
+  return new VsDataTransfer();
+}

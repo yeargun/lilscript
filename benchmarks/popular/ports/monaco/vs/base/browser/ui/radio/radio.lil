@@ -1,0 +1,152 @@
+import { domCreateElement, appendChild, removeChild, setClassName, classListAdd, classListRemove, setAttribute, setTextContent, addEventListener } from "../../../../../js-host";
+
+export class RadioOption {
+  string text;
+  string tooltip;
+  bool isActive;
+  bool disabled;
+
+  init(string text, string tooltip, bool isActive, bool disabled) {
+    this.text = text;
+    this.tooltip = tooltip;
+    this.isActive = isActive;
+    this.disabled = disabled;
+  }
+}
+
+export class Radio {
+  JsValue domNode;
+  RadioOption[] items;
+  int activeIndex;
+  (func(int)->void)[] selectListeners;
+
+  init(RadioOption[] items) {
+    this.items = items;
+    this.activeIndex = 0;
+    this.selectListeners = [];
+    this.domNode = domCreateElement("div");
+    setClassName(this.domNode, "monaco-custom-radio");
+    setAttribute(this.domNode, "role", "radio");
+    this.setItems(items);
+  }
+
+  func()->void onDidSelect(func(int)->void listener) {
+    this.selectListeners.push(listener);
+    Radio owner = this;
+    return () => {
+      int index = owner.selectListeners.indexOf(listener);
+      if (index >= 0) {
+        owner.selectListeners.splice(index, 1);
+      }
+    };
+  }
+
+  void fireSelect(int index) {
+    int i = 0;
+    while (i < this.selectListeners.length) {
+      this.selectListeners[i](index);
+      i = i + 1;
+    }
+  }
+
+  void setItems(RadioOption[] items) {
+    this.items = items;
+    this.activeIndex = 0;
+    int i = 0;
+    while (i < items.length) {
+      if (items[i].isActive) {
+        this.activeIndex = i;
+        break;
+      }
+      i = i + 1;
+    }
+    this.render();
+  }
+
+  void setActiveItem(int index) {
+    if (index < 0 || index >= this.items.length) {
+      return;
+    }
+    this.activeIndex = index;
+    this.updateButtons();
+  }
+
+  void setEnabled(bool enabled) {
+    JsValue child = this.domNode["firstChild"];
+    int guard = 0;
+    while (child.truthy() && guard < 64) {
+      if (enabled) {
+        classListRemove(child, "disabled");
+      } else {
+        classListAdd(child, "disabled");
+      }
+      child = child["nextSibling"];
+      guard = guard + 1;
+    }
+  }
+
+  void updateButtons() {
+    JsValue child = this.domNode["firstChild"];
+    int i = 0;
+    bool previousActive = false;
+    while (child.truthy() && i < this.items.length) {
+      bool isActive = i == this.activeIndex;
+      if (isActive) {
+        classListAdd(child, "active");
+      } else {
+        classListRemove(child, "active");
+      }
+      if (previousActive) {
+        classListAdd(child, "previous-active");
+      } else {
+        classListRemove(child, "previous-active");
+      }
+      setTextContent(child, this.items[i].text);
+      previousActive = isActive;
+      child = child["nextSibling"];
+      i = i + 1;
+    }
+  }
+
+  void render() {
+    JsValue child = this.domNode["firstChild"];
+    while (child.truthy()) {
+      JsValue next = child["nextSibling"];
+      removeChild(this.domNode, child);
+      child = next;
+    }
+    Radio owner = this;
+    int i = 0;
+    while (i < this.items.length) {
+      RadioOption item = this.items[i];
+      JsValue button = domCreateElement("a");
+      setClassName(button, "monaco-button");
+      setTextContent(button, item.text);
+      if (item.tooltip.length > 0) {
+        setAttribute(button, "title", item.tooltip);
+      }
+      if (item.disabled) {
+        classListAdd(button, "disabled");
+      }
+      int index = i;
+      addEventListener(button, "click", (JsValue event) => {
+        if (!item.disabled && owner.activeIndex != index) {
+          owner.activeIndex = index;
+          owner.updateButtons();
+          owner.fireSelect(index);
+        }
+      }, false);
+      appendChild(this.domNode, button);
+      i = i + 1;
+    }
+    this.updateButtons();
+  }
+}
+
+export Radio createRadio(RadioOption[] items) {
+  return new Radio(items);
+}
+
+export RadioOption createRadioOption(string text, string tooltip = "", bool isActive = false, bool disabled = false) {
+  return new RadioOption(text, tooltip, isActive, disabled);
+}

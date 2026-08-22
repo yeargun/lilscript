@@ -1,0 +1,117 @@
+export int findLastIdx(int[] array, func(int, int)->bool predicate, int fromIndex) {
+  int i = fromIndex;
+  if (i >= array.length) {
+    i = array.length - 1;
+  }
+  while (i >= 0) {
+    if (predicate(array[i], i)) {
+      return i;
+    }
+    i = i - 1;
+  }
+  return -1;
+}
+
+export int findLast(int[] array, func(int, int)->bool predicate, int fromIndex) {
+  int idx = findLastIdx(array, predicate, fromIndex);
+  if (idx == -1) {
+    return 0;
+  }
+  return array[idx];
+}
+
+export int findLastIdxMonotonous(int[] array, func(int)->bool predicate, int startIdx, int endIdxEx) {
+  int i = startIdx;
+  int j = endIdxEx;
+  while (i < j) {
+    int k = (i + j) / 2;
+    if (predicate(array[k])) {
+      i = k + 1;
+    } else {
+      j = k;
+    }
+  }
+  return i - 1;
+}
+
+export int findFirstIdxMonotonousOrArrLen(int[] array, func(int)->bool predicate, int startIdx, int endIdxEx) {
+  int i = startIdx;
+  int j = endIdxEx;
+  while (i < j) {
+    int k = (i + j) / 2;
+    if (predicate(array[k])) {
+      j = k;
+    } else {
+      i = k + 1;
+    }
+  }
+  return i;
+}
+
+export class MonotonousArray {
+  int[] array;
+  int findLastMonotonousLastIdx;
+
+  init(int[] array) {
+    this.array = array;
+    this.findLastMonotonousLastIdx = 0;
+  }
+
+  int findLastMonotonous(func(int)->bool predicate) {
+    int idx = findLastIdxMonotonous(this.array, predicate, this.findLastMonotonousLastIdx, this.array.length);
+    this.findLastMonotonousLastIdx = idx + 1;
+    if (idx == -1) {
+      return 0;
+    }
+    return this.array[idx];
+  }
+}
+
+export int findFirstMax(int[] array, func(int, int)->int comparator) {
+  if (array.length == 0) {
+    return 0;
+  }
+  int max = array[0];
+  int i = 1;
+  while (i < array.length) {
+    if (comparator(array[i], max) > 0) {
+      max = array[i];
+    }
+    i = i + 1;
+  }
+  return max;
+}
+
+export int findLastMax(int[] array, func(int, int)->int comparator) {
+  if (array.length == 0) {
+    return 0;
+  }
+  int max = array[0];
+  int i = 1;
+  while (i < array.length) {
+    if (comparator(array[i], max) >= 0) {
+      max = array[i];
+    }
+    i = i + 1;
+  }
+  return max;
+}
+
+export int findFirstMin(int[] array, func(int, int)->int comparator) {
+  return findFirstMax(array, (int a, int b) => 0 - comparator(a, b));
+}
+
+export int findMaxIdx(int[] array, func(int, int)->int comparator) {
+  if (array.length == 0) {
+    return -1;
+  }
+  int maxIdx = 0;
+  int i = 1;
+  while (i < array.length) {
+    if (comparator(array[i], array[maxIdx]) > 0) {
+      maxIdx = i;
+    }
+    i = i + 1;
+  }
+  return maxIdx;
+}

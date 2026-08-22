@@ -1,0 +1,15 @@
+export class ActionRunnerWithContext {
+  string contextId;
+
+  init(string contextId) {
+    this.contextId = contextId;
+  }
+
+  string runAction(string actionId) {
+    return actionId + ":" + this.contextId;
+  }
+}
+
+export ActionRunnerWithContext createActionRunnerWithContext(string contextId) {
+  return new ActionRunnerWithContext(contextId);
+}

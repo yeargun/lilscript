@@ -1,0 +1,222 @@
+export class ValueObserver {
+  func(ObservableValue)->void beginUpdateFn;
+  func(ObservableValue)->void endUpdateFn;
+  func(ObservableValue, JsValue)->void handleChangeFn;
+  func(ObservableValue)->void handlePossibleChangeFn;
+
+  init(
+    func(ObservableValue)->void beginUpdateFn,
+    func(ObservableValue)->void endUpdateFn,
+    func(ObservableValue, JsValue)->void handleChangeFn,
+    func(ObservableValue)->void handlePossibleChangeFn
+  ) {
+    this.beginUpdateFn = beginUpdateFn;
+    this.endUpdateFn = endUpdateFn;
+    this.handleChangeFn = handleChangeFn;
+    this.handlePossibleChangeFn = handlePossibleChangeFn;
+  }
+
+  void beginUpdate(ObservableValue observable) {
+    this.beginUpdateFn(observable);
+  }
+
+  void endUpdate(ObservableValue observable) {
+    this.endUpdateFn(observable);
+  }
+
+  void handleChange(ObservableValue observable, JsValue change) {
+    this.handleChangeFn(observable, change);
+  }
+
+  void handlePossibleChange(ObservableValue observable) {
+    this.handlePossibleChangeFn(observable);
+  }
+}
+
+class ValueTransactionEntry {
+  ValueObserver observer;
+  ObservableValue observable;
+
+  init(ValueObserver observer, ObservableValue observable) {
+    this.observer = observer;
+    this.observable = observable;
+  }
+}
+
+export class ObservableValueTransaction {
+  ValueTransactionEntry[] entries;
+  bool active;
+
+  init() {
+    this.entries = [];
+    this.active = true;
+  }
+
+  void updateObserver(ValueObserver observer, ObservableValue observable) {
+    if (!this.active) {
+      throw "Transaction already finished";
+    }
+    this.entries.push(new ValueTransactionEntry(observer, observable));
+    observer.beginUpdate(observable);
+  }
+
+  void finish() {
+    if (!this.active) {
+      throw "Transaction already finished";
+    }
+    int i = 0;
+    while (i < this.entries.length) {
+      ValueTransactionEntry entry = this.entries[i];
+      entry.observer.endUpdate(entry.observable);
+      i = i + 1;
+    }
+    this.active = false;
+  }
+}
+
+export class ObservableValue {
+  string debugName;
+  JsValue value;
+  ValueObserver[] observers;
+  func(JsValue, JsValue)->bool equalityComparator;
+
+  init(
+    string debugName,
+    JsValue initialValue,
+    func(JsValue, JsValue)->bool equalityComparator
+  ) {
+    this.debugName = debugName;
+    this.value = initialValue;
+    this.observers = [];
+    this.equalityComparator = equalityComparator;
+  }
+
+  JsValue get() {
+    return this.value;
+  }
+
+  JsValue read() {
+    return this.get();
+  }
+
+  JsValue readWith(func(ObservableValue)->JsValue readObservable) {
+    return readObservable(this);
+  }
+
+  void reportChanges() {
+    this.get();
+  }
+
+  void addObserver(ValueObserver observer) {
+    if (this.observers.indexOf(observer) < 0) {
+      this.observers.push(observer);
+    }
+  }
+
+  void removeObserver(ValueObserver observer) {
+    int index = this.observers.indexOf(observer);
+    if (index >= 0) {
+      this.observers.splice(index, 1);
+    }
+  }
+
+  void set(
+    JsValue newValue,
+    ObservableValueTransaction? transactionValue,
+    bool hasChange,
+    JsValue change
+  ) {
+    if (!hasChange && this.equalityComparator(this.value, newValue)) {
+      return;
+    }
+    ObservableValueTransaction tx = new ObservableValueTransaction();
+    bool ownsTransaction = true;
+    if (transactionValue != null) {
+      tx = transactionValue;
+      ownsTransaction = false;
+    }
+    try {
+      this.value = newValue;
+      ValueObserver[] snapshot = this.observers.slice();
+      int i = 0;
+      while (i < snapshot.length) {
+        ValueObserver observer = snapshot[i];
+        tx.updateObserver(observer, this);
+        observer.handleChange(this, change);
+        i = i + 1;
+      }
+    } finally {
+      if (ownsTransaction) {
+        tx.finish();
+      }
+    }
+  }
+
+  void setValue(JsValue newValue) {
+    this.set(newValue, null, false, 0);
+  }
+
+  void setWithChange(JsValue newValue, JsValue change) {
+    this.set(newValue, null, true, change);
+  }
+
+  JsValue debugGetState() {
+    JsValue state = JS.object();
+    state["value"] = this.value;
+    return state;
+  }
+
+  void debugSetValue(JsValue newValue) {
+    this.value = newValue;
+  }
+}
+
+export class DisposableObservableValue {
+  ObservableValue observable;
+  bool hasDisposable;
+  func(JsValue)->void disposeValue;
+
+  init(
+    string debugName,
+    JsValue initialValue,
+    func(JsValue)->void disposeValue
+  ) {
+    this.observable = observableValue(debugName, initialValue);
+    this.hasDisposable = true;
+    this.disposeValue = disposeValue;
+  }
+
+  JsValue get() {
+    return this.observable.get();
+  }
+
+  void setValue(JsValue newValue) {
+    JsValue oldValue = this.observable.get();
+    if (oldValue == newValue) {
+      return;
+    }
+    this.disposeValue(oldValue);
+    this.observable.setValue(newValue);
+  }
+
+  void dispose() {
+    if (this.hasDisposable) {
+      this.hasDisposable = false;
+      this.disposeValue(this.observable.get());
+    }
+  }
+}
+
+export ObservableValue observableValue(string name, JsValue initialValue) {
+  return new ObservableValue(name, initialValue, (JsValue a, JsValue b) => {
+    return a == b;
+  });
+}
+
+export DisposableObservableValue disposableObservableValue(
+  string name,
+  JsValue initialValue,
+  func(JsValue)->void disposeValue
+) {
+  return new DisposableObservableValue(name, initialValue, disposeValue);
+}

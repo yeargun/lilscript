@@ -1,0 +1,167 @@
+export int LayoutAnchorModeAvoid = 0;
+export int LayoutAnchorModeAlign = 1;
+export int LayoutAnchorPositionBefore = 0;
+export int LayoutAnchorPositionAfter = 1;
+
+export class LayoutAnchor {
+  int offset;
+  int size;
+  int position;
+  int mode;
+
+  init(int offset, int size, int position, int mode) {
+    this.offset = offset;
+    this.size = size;
+    this.position = position;
+    this.mode = mode;
+  }
+}
+
+export class Layout1D {
+  int position;
+  string result;
+
+  init(int position, string result) {
+    this.position = position;
+    this.result = result;
+  }
+}
+
+export class LayoutBox {
+  int top;
+  int left;
+  int width;
+  int height;
+
+  init(int top, int left, int width, int height) {
+    this.top = top;
+    this.left = left;
+    this.width = width;
+    this.height = height;
+  }
+}
+
+export class Layout2D {
+  int top;
+  int left;
+  int bottom;
+  int right;
+  int anchorAlignment;
+  int anchorPosition;
+
+  init(int top, int left, int bottom, int right, int anchorAlignment, int anchorPosition) {
+    this.top = top;
+    this.left = left;
+    this.bottom = bottom;
+    this.right = right;
+    this.anchorAlignment = anchorAlignment;
+    this.anchorPosition = anchorPosition;
+  }
+}
+
+int layoutMax(int a, int b) {
+  if (a > b) {
+    return a;
+  }
+  return b;
+}
+
+bool layoutRangesIntersect(int start1, int end1, int start2, int end2) {
+  return start1 < end2 && start2 < end1;
+}
+
+export Layout1D layout1d(int viewportSize, int viewSize, LayoutAnchor anchor) {
+  int layoutAfter = anchor.offset + anchor.size;
+  int layoutBefore = anchor.offset;
+  if (anchor.mode == LayoutAnchorModeAlign) {
+    layoutAfter = anchor.offset;
+    layoutBefore = anchor.offset + anchor.size;
+  }
+  if (anchor.position == LayoutAnchorPositionBefore) {
+    if (viewSize <= viewportSize - layoutAfter) {
+      return new Layout1D(layoutAfter, "ok");
+    }
+    if (viewSize <= layoutBefore) {
+      return new Layout1D(layoutBefore - viewSize, "flipped");
+    }
+    return new Layout1D(layoutMax(viewportSize - viewSize, 0), "overlap");
+  }
+  if (viewSize <= layoutBefore) {
+    return new Layout1D(layoutBefore - viewSize, "ok");
+  }
+  if (viewSize <= viewportSize - layoutAfter && layoutBefore < viewSize / 2) {
+    return new Layout1D(layoutAfter, "flipped");
+  }
+  return new Layout1D(0, "overlap");
+}
+
+export Layout2D layout2d(LayoutBox viewport, LayoutBox view, LayoutBox anchor, int anchorAlignment, int anchorPosition, int anchorAxisAlignment) {
+  int alignment = anchorAlignment;
+  int position = anchorPosition;
+  int top = 0;
+  int left = 0;
+  if (anchorAxisAlignment == 0) {
+    LayoutAnchor verticalAnchor = new LayoutAnchor(anchor.top - viewport.top, anchor.height, 0, LayoutAnchorModeAvoid);
+    if (position != 0) {
+      verticalAnchor.position = LayoutAnchorPositionAfter;
+    }
+    LayoutAnchor horizontalAnchor = new LayoutAnchor(anchor.left, anchor.width, 0, LayoutAnchorModeAlign);
+    if (alignment != 0) {
+      horizontalAnchor.position = LayoutAnchorPositionAfter;
+    }
+    Layout1D verticalLayout = layout1d(viewport.height, view.height, verticalAnchor);
+    top = verticalLayout.position + viewport.top;
+    if (verticalLayout.result == "flipped") {
+      if (position == 0) {
+        position = 1;
+      } else {
+        position = 0;
+      }
+    }
+    if (layoutRangesIntersect(top, top + view.height, verticalAnchor.offset, verticalAnchor.offset + verticalAnchor.size)) {
+      horizontalAnchor.mode = LayoutAnchorModeAvoid;
+    }
+    Layout1D horizontalLayout = layout1d(viewport.width, view.width, horizontalAnchor);
+    left = horizontalLayout.position;
+    if (horizontalLayout.result == "flipped") {
+      if (alignment == 0) {
+        alignment = 1;
+      } else {
+        alignment = 0;
+      }
+    }
+  } else {
+    LayoutAnchor horizontalAnchor = new LayoutAnchor(anchor.left, anchor.width, 0, LayoutAnchorModeAvoid);
+    if (alignment != 0) {
+      horizontalAnchor.position = LayoutAnchorPositionAfter;
+    }
+    LayoutAnchor verticalAnchor = new LayoutAnchor(anchor.top, anchor.height, 0, LayoutAnchorModeAlign);
+    if (position != 0) {
+      verticalAnchor.position = LayoutAnchorPositionAfter;
+    }
+    Layout1D horizontalLayout = layout1d(viewport.width, view.width, horizontalAnchor);
+    left = horizontalLayout.position;
+    if (horizontalLayout.result == "flipped") {
+      if (alignment == 0) {
+        alignment = 1;
+      } else {
+        alignment = 0;
+      }
+    }
+    if (layoutRangesIntersect(left, left + view.width, horizontalAnchor.offset, horizontalAnchor.offset + horizontalAnchor.size)) {
+      verticalAnchor.mode = LayoutAnchorModeAvoid;
+    }
+    Layout1D verticalLayout = layout1d(viewport.height, view.height, verticalAnchor);
+    top = verticalLayout.position + viewport.top;
+    if (verticalLayout.result == "flipped") {
+      if (position == 0) {
+        position = 1;
+      } else {
+        position = 0;
+      }
+    }
+  }
+  int right = viewport.width - (left + view.width);
+  int bottom = viewport.height - (top + view.height);
+  return new Layout2D(top, left, bottom, right, alignment, position);
+}

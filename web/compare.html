@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="LilScript ports compared with npm, Vite, and Closure: Monaco, Motion, SolidLil, Zod, marked, jQuery, and the measured library grid."
+      content="LilScript ports compared with npm, Vite, and Closure: Monaco, Motion, SolidLil, Zod, marked, jQuery, posthog-js, and the measured library grid."
     />
     <title>Compare | LilScript</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -55,6 +55,7 @@
           <a href="#jquery">jQuery</a>
           <a href="#marked">marked</a>
           <a href="#zod">Zod</a>
+          <a href="#posthog">posthog-js</a>
           <a href="#live">Live pairs</a>
         </nav>
       </section>
@@ -493,6 +494,40 @@
         </div>
       </section>
 
+      <section class="landing-section landing-wrap" id="posthog" aria-labelledby="posthog-title">
+        <div class="landing-heading">
+          <p class="landing-kicker">Subset · posthog-js 1.418.10</p>
+          <h2 id="posthog-title">A capture kernel, scored against Oxc, Terser, and esbuild.</h2>
+          <p>
+            UUID, flag utils, cookie identity, request routing, a token bucket,
+            and queue batching — not the published PostHog IIFE. Official
+            JavaScript is that kernel, then Vite 8 Oxc, Terser, and esbuild.
+            LilScript is smaller raw and larger on gzip-9 and Brotli-11. The
+            loss stays on the page.
+          </p>
+        </div>
+        <div class="lib-grid">
+          <a
+            class="lib-card"
+            href="https://yeargun.github.io/posthoglil/"
+            target="_blank"
+            rel="noopener"
+          >
+            <span class="lib-card-kicker">Kernel only · not smaller</span>
+            <h3>posthog-js</h3>
+            <p>
+              Fair size lane is official Oxc with mangling on, not the npm
+              client bundle. 3,662 B → 3,915 B Brotli. Raw is 1.5% smaller.
+            </p>
+            <div class="lib-card-metrics">
+              <div><small>Oxc mangle</small><b>3,662</b></div>
+              <div><small>LilScript</small><b>3,915</b></div>
+              <div class="loss"><small>Brotli</small><b>+6.9%</b></div>
+            </div>
+          </a>
+        </div>
+      </section>
+
       <section class="landing-section landing-wrap" id="live" aria-labelledby="live-title">
         <div class="landing-heading">
           <p class="landing-kicker">Open the pairs</p>
@@ -568,6 +603,17 @@
             <h3>yeargun.github.io/zodlil</h3>
             <p>Zod 4.4.3 classic API. 34,152 B vs official Oxc closer-world 54,791 B.</p>
             <b>Open Zodlil</b>
+          </a>
+          <a
+            class="project-link"
+            href="https://yeargun.github.io/posthoglil/"
+            target="_blank"
+            rel="noopener"
+          >
+            <span>posthog-js</span>
+            <h3>yeargun.github.io/posthoglil</h3>
+            <p>Capture kernel of posthog-js 1.418.10. 3,915 B vs official Oxc 3,662 B Brotli.</p>
+            <b>Open Posthoglil</b>
           </a>
           <a
             class="project-link"

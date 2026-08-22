@@ -1,0 +1,41 @@
+export string CMD_TOGGLE_COLLAPSE = "diffEditor.toggleCollapseUnchangedRegions";
+export string CMD_TOGGLE_MOVES = "diffEditor.toggleShowMovedCodeBlocks";
+export string CMD_TOGGLE_INLINE = "diffEditor.toggleUseInlineViewWhenSpaceIsLimited";
+export string CMD_SWITCH_SIDE = "diffEditor.switchSide";
+export string CMD_EXIT_COMPARE = "diffEditor.exitCompareMove";
+export string CMD_COLLAPSE_ALL = "diffEditor.collapseAllUnchangedRegions";
+export string CMD_SHOW_ALL = "diffEditor.showAllUnchangedRegions";
+export string CMD_ACCESSIBLE_NEXT = "editor.action.accessibleDiffViewer.next";
+export string CMD_ACCESSIBLE_PREV = "editor.action.accessibleDiffViewer.prev";
+
+export bool toggleBool(bool value) {
+  return !value;
+}
+
+export int findNextDiffIndex(int currentLine, int[] starts, bool next) {
+  if (starts.length == 0) {
+    return -1;
+  }
+  if (next) {
+    int i = 0;
+    while (i < starts.length) {
+      if (starts[i] > currentLine) {
+        return i;
+      }
+      i = i + 1;
+    }
+    return 0;
+  }
+  int j = starts.length - 1;
+  while (j >= 0) {
+    if (starts[j] < currentLine) {
+      return j;
+    }
+    j = j - 1;
+  }
+  return starts.length - 1;
+}
+
+export bool findFocusedDiffEditor(string editorType) {
+  return editorType == "vs.editor.IDiffEditor";
+}

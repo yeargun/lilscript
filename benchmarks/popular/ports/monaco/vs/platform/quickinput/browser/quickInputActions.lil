@@ -1,0 +1,20 @@
+export string quickInputAcceptId = "quickInput.accept";
+export string quickInputHideId = "quickInput.hide";
+export string quickInputNextId = "quickInput.next";
+export string quickInputPreviousId = "quickInput.previous";
+
+export class QuickInputActions {
+  string lastAction;
+
+  init() {
+    this.lastAction = "";
+  }
+
+  void run(string id) {
+    this.lastAction = id;
+  }
+}
+
+export QuickInputActions createQuickInputActions() {
+  return new QuickInputActions();
+}

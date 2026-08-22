@@ -1,0 +1,34 @@
+export class StringStream {
+  string[] chunks;
+  bool ended;
+
+  init() {
+    this.chunks = [];
+    this.ended = false;
+  }
+
+  void write(string chunk) {
+    if (!this.ended) {
+      this.chunks.push(chunk);
+    }
+  }
+
+  void endStream() {
+    this.ended = true;
+  }
+
+  string consume() {
+    string out = "";
+    int i = 0;
+    while (i < this.chunks.length) {
+      out = out + this.chunks[i];
+      i = i + 1;
+    }
+    this.chunks = [];
+    return out;
+  }
+}
+
+export bool isReadableStream(JsValue obj) {
+  return obj.truthy() && obj.isObject();
+}

@@ -1,0 +1,258 @@
+import { domCreateElement, appendChild, setClassName, classListAdd, setStyle, scheduleTimeoutMs, hostCall, jsUndefined, mathRandom, getClientWidth, getClientHeight, rectLeft, rectTop, windowSelf } from "../../../../../js-host";
+
+export enum ClickAnimation {
+  None,
+  Confetti,
+  FloatingIcons,
+  PulseWave,
+  RadiantLines
+}
+
+string[] confettiColors = ["#007acc", "#005a9e", "#0098ff", "#4fc3f7", "#64b5f6", "#42a5f5"];
+
+float[] COS10 = [1.0, 0.809, 0.309, -0.309, -0.809, -1.0, -0.809, -0.309, 0.309, 0.809];
+float[] SIN10 = [0.0, 0.588, 0.951, 0.951, 0.588, 0.0, -0.588, -0.951, -0.951, -0.588];
+float[] COS6 = [1.0, 0.5, -0.5, -1.0, -0.5, 0.5];
+float[] SIN6 = [0.0, 0.866, 0.866, 0.0, -0.866, -0.866];
+float[] COS8 = [1.0, 0.707, 0.0, -0.707, -1.0, -0.707, 0.0, 0.707];
+float[] SIN8 = [0.0, 0.707, 1.0, 0.707, 0.0, -0.707, -1.0, -0.707];
+
+string fmtNum(float n) {
+  float v = n;
+  string sign = "";
+  if (v < 0.0) {
+    sign = "-";
+    v = 0.0 - v;
+  }
+  int whole = v.floor().toInt();
+  int frac = ((v - whole * 1.0) * 100.0 + 0.5).floor().toInt();
+  if (frac >= 100) {
+    whole = whole + 1;
+    frac = 0;
+  }
+  string pad = frac.toString();
+  if (frac < 10) {
+    pad = "0" + pad;
+  }
+  return sign + whole.toString() + "." + pad;
+}
+
+JsValue activeOverlay = null;
+
+JsValue createOverlay(JsValue element) {
+  if (activeOverlay.truthy()) {
+    return null;
+  }
+  int left = rectLeft(element);
+  int top = rectTop(element);
+  int width = getClientWidth(element);
+  int height = getClientHeight(element);
+  JsValue overlay = domCreateElement("div");
+  setClassName(overlay, "animation-overlay");
+  setStyle(overlay, "position", "fixed");
+  setStyle(overlay, "left", left.toString() + "px");
+  setStyle(overlay, "top", top.toString() + "px");
+  setStyle(overlay, "width", width.toString() + "px");
+  setStyle(overlay, "height", height.toString() + "px");
+  setStyle(overlay, "pointer-events", "none");
+  setStyle(overlay, "overflow", "visible");
+  setStyle(overlay, "z-index", "10000");
+  appendChild(windowSelf()["document"]["body"], overlay);
+  activeOverlay = overlay;
+  overlay["cx"] = width / 2;
+  overlay["cy"] = height / 2;
+  overlay["w"] = width;
+  overlay["h"] = height;
+  return overlay;
+}
+
+void cleanupOverlay(float duration) {
+  scheduleTimeoutMs(() => {
+    if (activeOverlay.truthy()) {
+      hostCall(activeOverlay, "remove", jsUndefined(), jsUndefined(), jsUndefined());
+      activeOverlay = null;
+    }
+  }, duration);
+}
+
+export void bounceElement(JsValue element, float[] scale, float[] rotate, float[] translateY, float duration) {
+  int steps = scale.length;
+  if (rotate.length > steps) {
+    steps = rotate.length;
+  }
+  if (translateY.length > steps) {
+    steps = translateY.length;
+  }
+  if (steps == 0) {
+    return;
+  }
+  string transform = "";
+  if (scale.length > 0) {
+    transform = transform + "scale(" + fmtNum(scale[scale.length - 1]) + ")";
+  }
+  if (rotate.length > 0) {
+    transform = transform + " rotate(" + fmtNum(rotate[rotate.length - 1]) + "deg)";
+  }
+  if (translateY.length > 0) {
+    transform = transform + " translateY(" + fmtNum(translateY[translateY.length - 1]) + "px)";
+  }
+  setStyle(element, "transform", transform);
+  scheduleTimeoutMs(() => {
+    setStyle(element, "transform", "");
+  }, duration);
+}
+
+JsValue particle(JsValue overlay, float size, float left, float top, string color) {
+  JsValue part = domCreateElement("div");
+  setClassName(part, "animation-particle");
+  setStyle(part, "position", "absolute");
+  setStyle(part, "width", fmtNum(size) + "px");
+  setStyle(part, "height", fmtNum(size) + "px");
+  setStyle(part, "border-radius", "50%");
+  setStyle(part, "background-color", color);
+  setStyle(part, "left", fmtNum(left) + "px");
+  setStyle(part, "top", fmtNum(top) + "px");
+  appendChild(overlay, part);
+  return part;
+}
+
+export void triggerConfettiAnimation(JsValue element) {
+  JsValue overlay = createOverlay(element);
+  if (!overlay.truthy()) {
+    return;
+  }
+  bounceElement(element, [1.0, 1.3, 1.0], [0.0, -10.0, 10.0, 0.0], [], 350.0);
+  float cx = 0.0;
+  float cy = 0.0;
+  JsValue rawCx = overlay["cx"];
+  if (rawCx is float) {
+    cx = rawCx;
+  }
+  JsValue rawCy = overlay["cy"];
+  if (rawCy is float) {
+    cy = rawCy;
+  }
+  int i = 0;
+  while (i < 10) {
+    float size = 3.0 + (i % 3) * 1.5;
+    float distance = 35.0;
+    float tx = COS10[i] * distance;
+    float ty = SIN10[i] * distance;
+    JsValue part = particle(overlay, size, cx - size / 2.0, cy - size / 2.0, confettiColors[i % confettiColors.length]);
+    setStyle(part, "transform", "translate(" + fmtNum(tx) + "px, " + fmtNum(ty) + "px)");
+    i = i + 1;
+  }
+  cleanupOverlay(2000.0);
+}
+
+export void triggerFloatingIconsAnimation(JsValue element, string iconClass) {
+  JsValue overlay = createOverlay(element);
+  if (!overlay.truthy()) {
+    return;
+  }
+  bounceElement(element, [], [], [0.0, -6.0, 0.0], 350.0);
+  float cx = 0.0;
+  float cy = 0.0;
+  JsValue rawCx = overlay["cx"];
+  if (rawCx is float) {
+    cx = rawCx;
+  }
+  JsValue rawCy = overlay["cy"];
+  if (rawCy is float) {
+    cy = rawCy;
+  }
+  int i = 0;
+  while (i < 6) {
+    float size = 12.0 + (i % 3) * 2.0;
+    JsValue iconEl = domCreateElement("div");
+    setClassName(iconEl, "animation-particle");
+    classListAdd(iconEl, "codicon");
+    if (iconClass.length > 0) {
+      classListAdd(iconEl, iconClass);
+    }
+    setStyle(iconEl, "position", "absolute");
+    setStyle(iconEl, "left", fmtNum(cx) + "px");
+    setStyle(iconEl, "top", fmtNum(cy) + "px");
+    setStyle(iconEl, "font-size", fmtNum(size) + "px");
+    float driftX = (mathRandom() - 0.5) * 50.0;
+    float floatY = -50.0 - (i % 3) * 10.0;
+    setStyle(iconEl, "transform", "translate(" + fmtNum(driftX) + "px, " + fmtNum(floatY) + "px)");
+    appendChild(overlay, iconEl);
+    i = i + 1;
+  }
+  cleanupOverlay(2000.0);
+}
+
+export void triggerPulseWaveAnimation(JsValue element) {
+  JsValue overlay = createOverlay(element);
+  if (!overlay.truthy()) {
+    return;
+  }
+  bounceElement(element, [1.0, 1.1, 1.0], [0.0, -12.0, 0.0], [], 400.0);
+  float cx = 0.0;
+  float cy = 0.0;
+  JsValue rawCx = overlay["cx"];
+  if (rawCx is float) {
+    cx = rawCx;
+  }
+  JsValue rawCy = overlay["cy"];
+  if (rawCy is float) {
+    cy = rawCy;
+  }
+  int i = 0;
+  while (i < 6) {
+    float distance = 30.0 + (i % 2) * 10.0;
+    float tx = COS6[i] * distance;
+    float ty = SIN6[i] * distance;
+    JsValue dot = particle(overlay, 3.5, cx - 1.75, cy - 1.75, "#0098ff");
+    setStyle(dot, "transform", "translate(" + fmtNum(tx) + "px, " + fmtNum(ty) + "px)");
+    i = i + 1;
+  }
+  cleanupOverlay(2000.0);
+}
+
+export void triggerRadiantLinesAnimation(JsValue element) {
+  JsValue overlay = createOverlay(element);
+  if (!overlay.truthy()) {
+    return;
+  }
+  bounceElement(element, [1.0, 1.15, 1.0], [], [], 350.0);
+  float cx = 0.0;
+  float cy = 0.0;
+  JsValue rawCx = overlay["cx"];
+  if (rawCx is float) {
+    cx = rawCx;
+  }
+  JsValue rawCy = overlay["cy"];
+  if (rawCy is float) {
+    cy = rawCy;
+  }
+  int i = 0;
+  while (i < 8) {
+    float endX = COS8[i] * 30.0;
+    float endY = SIN8[i] * 30.0;
+    JsValue dot = particle(overlay, 3.0, cx - 1.5, cy - 1.5, "#ffffff");
+    setStyle(dot, "transform", "translate(" + fmtNum(endX) + "px, " + fmtNum(endY) + "px)");
+    JsValue lineWrapper = domCreateElement("div");
+    setClassName(lineWrapper, "animation-particle");
+    setStyle(lineWrapper, "position", "absolute");
+    setStyle(lineWrapper, "left", fmtNum(cx) + "px");
+    setStyle(lineWrapper, "top", fmtNum(cy) + "px");
+    setStyle(lineWrapper, "transform", "rotate(" + (i * 45).toString() + "deg)");
+    appendChild(overlay, lineWrapper);
+    i = i + 1;
+  }
+  cleanupOverlay(2000.0);
+}
+
+export void triggerClickAnimation(JsValue element, ClickAnimation animation, string iconClass) {
+  if (animation == ClickAnimation.Confetti) {
+    triggerConfettiAnimation(element);
+  } else if (animation == ClickAnimation.FloatingIcons) {
+    triggerFloatingIconsAnimation(element, iconClass);
+  } else if (animation == ClickAnimation.PulseWave) {
+    triggerPulseWaveAnimation(element);
+  } else if (animation == ClickAnimation.RadiantLines) {
+    triggerRadiantLinesAnimation(element);
+  }
+}

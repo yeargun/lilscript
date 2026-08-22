@@ -1,0 +1,187 @@
+int START_CH_CODE = 32;
+int CHAR_COUNT = 96;
+int BASE_CHAR_WIDTH = 1;
+int BASE_CHAR_HEIGHT = 2;
+int RGBA_CHANNELS = 4;
+
+int getCharIndex(int chCode, int fontScale) {
+  int index = chCode - START_CH_CODE;
+  if (index < 0 || index > CHAR_COUNT) {
+    if (fontScale <= 2) {
+      int wrapped = (index + CHAR_COUNT) % CHAR_COUNT;
+      if (wrapped < 0) {
+        wrapped = wrapped + CHAR_COUNT;
+      }
+      return wrapped;
+    }
+    return CHAR_COUNT - 1;
+  }
+  return index;
+}
+
+int toUint8(float value) {
+  if (value < 0.0) {
+    return 0;
+  }
+  if (value > 255.0) {
+    return 255;
+  }
+  return value.round().toInt();
+}
+
+export class MinimapColor {
+  int r;
+  int g;
+  int b;
+
+  init(int r, int g, int b) {
+    this.r = r;
+    this.g = g;
+    this.b = b;
+  }
+}
+
+export class MinimapTarget {
+  int width;
+  int height;
+  float[] data;
+
+  init(int width, int height) {
+    this.width = width;
+    this.height = height;
+    this.data = [];
+    int n = width * height * RGBA_CHANNELS;
+    int i = 0;
+    while (i < n) {
+      this.data.push(0.0);
+      i = i + 1;
+    }
+  }
+}
+
+export class MinimapCharRenderer {
+  int scale;
+  Uint8ClampedArray charDataNormal;
+  Uint8ClampedArray charDataLight;
+
+  init(Uint8ClampedArray charData, int scale) {
+    this.scale = scale;
+    this.charDataNormal = soften(charData, 12.0 / 15.0);
+    this.charDataLight = soften(charData, 50.0 / 60.0);
+  }
+
+  void renderChar(MinimapTarget target, int dx, int dy, int chCode, MinimapColor color, int foregroundAlpha, MinimapColor backgroundColor, int backgroundAlpha, int fontScale, bool useLighterFont, bool force1pxHeight) {
+    int charWidth = BASE_CHAR_WIDTH * this.scale;
+    int charHeight = BASE_CHAR_HEIGHT * this.scale;
+    int renderHeight = charHeight;
+    if (force1pxHeight) {
+      renderHeight = 1;
+    }
+    if (dx + charWidth > target.width || dy + renderHeight > target.height) {
+      return;
+    }
+    Uint8ClampedArray charData = this.charDataNormal;
+    if (useLighterFont) {
+      charData = this.charDataLight;
+    }
+    int charIndex = getCharIndex(chCode, fontScale);
+    int destWidth = target.width * RGBA_CHANNELS;
+    int backgroundR = backgroundColor.r;
+    int backgroundG = backgroundColor.g;
+    int backgroundB = backgroundColor.b;
+    int deltaR = color.r - backgroundR;
+    int deltaG = color.g - backgroundG;
+    int deltaB = color.b - backgroundB;
+    int destAlpha = foregroundAlpha;
+    if (backgroundAlpha > destAlpha) {
+      destAlpha = backgroundAlpha;
+    }
+    int sourceOffset = charIndex * charWidth * charHeight;
+    int row = dy * destWidth + dx * RGBA_CHANNELS;
+    int y = 0;
+    while (y < renderHeight) {
+      int column = row;
+      int x = 0;
+      while (x < charWidth) {
+        float c = (charData[sourceOffset] * 1.0 / 255.0) * (foregroundAlpha * 1.0 / 255.0);
+        sourceOffset = sourceOffset + 1;
+        target.data[column] = backgroundR + deltaR * c;
+        column = column + 1;
+        target.data[column] = backgroundG + deltaG * c;
+        column = column + 1;
+        target.data[column] = backgroundB + deltaB * c;
+        column = column + 1;
+        target.data[column] = destAlpha * 1.0;
+        column = column + 1;
+        x = x + 1;
+      }
+      row = row + destWidth;
+      y = y + 1;
+    }
+  }
+
+  void blockRenderChar(MinimapTarget target, int dx, int dy, MinimapColor color, int foregroundAlpha, MinimapColor backgroundColor, int backgroundAlpha, bool force1pxHeight) {
+    int charWidth = BASE_CHAR_WIDTH * this.scale;
+    int charHeight = BASE_CHAR_HEIGHT * this.scale;
+    int renderHeight = charHeight;
+    if (force1pxHeight) {
+      renderHeight = 1;
+    }
+    if (dx + charWidth > target.width || dy + renderHeight > target.height) {
+      return;
+    }
+    int destWidth = target.width * RGBA_CHANNELS;
+    float c = 0.5 * (foregroundAlpha * 1.0 / 255.0);
+    int backgroundR = backgroundColor.r;
+    int backgroundG = backgroundColor.g;
+    int backgroundB = backgroundColor.b;
+    float colorR = backgroundR + (color.r - backgroundR) * c;
+    float colorG = backgroundG + (color.g - backgroundG) * c;
+    float colorB = backgroundB + (color.b - backgroundB) * c;
+    int destAlpha = foregroundAlpha;
+    if (backgroundAlpha > destAlpha) {
+      destAlpha = backgroundAlpha;
+    }
+    int row = dy * destWidth + dx * RGBA_CHANNELS;
+    int y = 0;
+    while (y < renderHeight) {
+      int column = row;
+      int x = 0;
+      while (x < charWidth) {
+        target.data[column] = colorR;
+        column = column + 1;
+        target.data[column] = colorG;
+        column = column + 1;
+        target.data[column] = colorB;
+        column = column + 1;
+        target.data[column] = destAlpha * 1.0;
+        column = column + 1;
+        x = x + 1;
+      }
+      row = row + destWidth;
+      y = y + 1;
+    }
+  }
+}
+
+Uint8ClampedArray soften(Uint8ClampedArray input, float ratio) {
+  Uint8ClampedArray result = new Uint8ClampedArray(input.length);
+  int i = 0;
+  while (i < input.length) {
+    result[i] = toUint8(input[i] * 1.0 * ratio);
+    i = i + 1;
+  }
+  return result;
+}
+
+export MinimapColor createMinimapColor(int r, int g, int b) {
+  return new MinimapColor(r, g, b);
+}
+
+export MinimapTarget createMinimapTarget(int width, int height) {
+  return new MinimapTarget(width, height);
+}
+
+export MinimapCharRenderer createMinimapCharRenderer(Uint8ClampedArray charData, int scale) {
+  return new MinimapCharRenderer(charData, scale);
+}

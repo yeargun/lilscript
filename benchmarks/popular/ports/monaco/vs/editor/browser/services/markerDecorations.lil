@@ -1,0 +1,16 @@
+export string MARKER_DECORATIONS_ID = "editor.contrib.markerDecorations";
+
+export class MarkerDecorationsContribution {
+  string id;
+
+  init() {
+    this.id = MARKER_DECORATIONS_ID;
+  }
+
+  void dispose() {
+  }
+}
+
+export MarkerDecorationsContribution createMarkerDecorationsContribution() {
+  return new MarkerDecorationsContribution();
+}

@@ -1,0 +1,134 @@
+class ListNode<T> {
+  T element;
+  ListNode<T>? next;
+  ListNode<T>? prev;
+
+  init(T element) {
+    this.element = element;
+    this.next = null;
+    this.prev = null;
+  }
+}
+
+export class LinkedList<T> {
+  ListNode<T>? first;
+  ListNode<T>? last;
+  int size;
+
+  init() {
+    this.first = null;
+    this.last = null;
+    this.size = 0;
+  }
+
+  bool isEmpty() {
+    return this.first == null;
+  }
+
+  void clear() {
+    ListNode<T>? node = this.first;
+    while (node != null) {
+      ListNode<T>? next = node.next;
+      node.prev = null;
+      node.next = null;
+      node = next;
+    }
+    this.first = null;
+    this.last = null;
+    this.size = 0;
+  }
+
+  func()->void unshift(T element) {
+    return this.insert(element, false);
+  }
+
+  func()->void push(T element) {
+    return this.insert(element, true);
+  }
+
+  func()->void insert(T element, bool atTheEnd) {
+    ListNode<T> newNode = new ListNode<T>(element);
+    if (this.first == null) {
+      this.first = newNode;
+      this.last = newNode;
+    } else if (atTheEnd) {
+      ListNode<T>? oldLast = this.last;
+      this.last = newNode;
+      newNode.prev = oldLast;
+      if (oldLast != null) {
+        oldLast.next = newNode;
+      }
+    } else {
+      ListNode<T>? oldFirst = this.first;
+      this.first = newNode;
+      newNode.next = oldFirst;
+      if (oldFirst != null) {
+        oldFirst.prev = newNode;
+      }
+    }
+    this.size = this.size + 1;
+    LinkedList<T> owner = this;
+    bool didRemove = false;
+    return () => {
+      if (!didRemove) {
+        didRemove = true;
+        owner.remove(newNode);
+      }
+    };
+  }
+
+  T? shift() {
+    ListNode<T>? head = this.first;
+    if (head == null) {
+      return null;
+    }
+    T res = head.element;
+    this.remove(head);
+    return res;
+  }
+
+  T? pop() {
+    ListNode<T>? tail = this.last;
+    if (tail == null) {
+      return null;
+    }
+    T res = tail.element;
+    this.remove(tail);
+    return res;
+  }
+
+  void remove(ListNode<T> node) {
+    ListNode<T>? prev = node.prev;
+    ListNode<T>? next = node.next;
+    if (prev != null && next != null) {
+      prev.next = next;
+      next.prev = prev;
+    } else if (prev == null && next == null) {
+      this.first = null;
+      this.last = null;
+    } else if (next == null) {
+      this.last = prev;
+      ListNode<T>? lastNode = this.last;
+      if (lastNode != null) {
+        lastNode.next = null;
+      }
+    } else {
+      this.first = next;
+      ListNode<T>? firstNode = this.first;
+      if (firstNode != null) {
+        firstNode.prev = null;
+      }
+    }
+    this.size = this.size - 1;
+  }
+
+  T[] toArray() {
+    T[] out = [];
+    ListNode<T>? node = this.first;
+    while (node != null) {
+      out.push(node.element);
+      node = node.next;
+    }
+    return out;
+  }
+}

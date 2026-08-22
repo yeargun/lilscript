@@ -1,0 +1,72 @@
+export class ConfigurationProperty {
+  string key;
+  string typeName;
+  string defaultValue;
+  string description;
+  bool overridden;
+
+  init(string key, string typeName, string defaultValue, string description) {
+    this.key = key;
+    this.typeName = typeName;
+    this.defaultValue = defaultValue;
+    this.description = description;
+    this.overridden = false;
+  }
+}
+
+export class ConfigurationRegistry {
+  ConfigurationProperty[] properties;
+  string[] excluded;
+
+  init() {
+    this.properties = [];
+    this.excluded = [];
+  }
+
+  int indexOf(string key) {
+    int i = 0;
+    while (i < this.properties.length) {
+      if (this.properties[i].key == key) {
+        return i;
+      }
+      i = i + 1;
+    }
+    return -1;
+  }
+
+  void registerConfiguration(string key, string typeName, string defaultValue, string description) {
+    int idx = this.indexOf(key);
+    ConfigurationProperty prop = new ConfigurationProperty(key, typeName, defaultValue, description);
+    if (idx >= 0) {
+      this.properties[idx] = prop;
+    } else {
+      this.properties.push(prop);
+    }
+  }
+
+  void override(string key, string defaultValue) {
+    int idx = this.indexOf(key);
+    if (idx >= 0) {
+      this.properties[idx].defaultValue = defaultValue;
+      this.properties[idx].overridden = true;
+    }
+  }
+
+  string getDefault(string key) {
+    int idx = this.indexOf(key);
+    if (idx >= 0) {
+      return this.properties[idx].defaultValue;
+    }
+    return "";
+  }
+
+  ConfigurationProperty[] getConfigurationProperties() {
+    return this.properties;
+  }
+}
+
+export ConfigurationRegistry createConfigurationRegistry() {
+  return new ConfigurationRegistry();
+}
+
+export string ExtensionsConfiguration = "base.contributions.configuration";

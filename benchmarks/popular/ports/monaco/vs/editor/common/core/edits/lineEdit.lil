@@ -1,0 +1,41 @@
+import { LineRange, lineRangeOfLength } from "../ranges/lineRange";
+
+export class LineReplacement {
+  LineRange lineRange;
+  string[] newLines;
+
+  init(LineRange lineRange, string[] newLines) {
+    this.lineRange = lineRange;
+    this.newLines = newLines;
+  }
+
+  string toString() {
+    return this.lineRange.toString();
+  }
+}
+
+export class LineEdit {
+  LineReplacement[] replacements;
+
+  init(LineReplacement[] replacements) {
+    this.replacements = replacements;
+  }
+
+  LineRange[] getNewLineRanges() {
+    LineRange[] ranges = [];
+    int offset = 0;
+    int i = 0;
+    while (i < this.replacements.length) {
+      LineReplacement e = this.replacements[i];
+      ranges.push(lineRangeOfLength(e.lineRange.startLineNumber + offset, e.newLines.length));
+      offset = offset + e.newLines.length - e.lineRange.length();
+      i = i + 1;
+    }
+    return ranges;
+  }
+}
+
+export LineEdit emptyLineEdit() {
+  LineReplacement[] none = [];
+  return new LineEdit(none);
+}

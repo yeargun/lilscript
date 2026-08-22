@@ -1,0 +1,61 @@
+export string IOpenerServiceId() {
+  return "openerService";
+}
+
+export class OpenerService {
+  string[] allowedSchemes;
+  int openCount;
+
+  init() {
+    this.allowedSchemes = ["http", "https", "mailto", "command"];
+    this.openCount = 0;
+  }
+
+  bool canOpen(string uri) {
+    int colon = uri.indexOf(":");
+    string scheme = uri;
+    if (colon >= 0) {
+      scheme = "";
+      int i = 0;
+      while (i < colon) {
+        scheme = scheme + uri.charAt(i);
+        i = i + 1;
+      }
+    }
+    int j = 0;
+    while (j < this.allowedSchemes.length) {
+      if (this.allowedSchemes[j] == scheme) {
+        return true;
+      }
+      j = j + 1;
+    }
+    return false;
+  }
+
+  bool open(string uri) {
+    if (!this.canOpen(uri)) {
+      return false;
+    }
+    this.openCount = this.openCount + 1;
+    return true;
+  }
+
+  void registerScheme(string scheme) {
+    int i = 0;
+    while (i < this.allowedSchemes.length) {
+      if (this.allowedSchemes[i] == scheme) {
+        return;
+      }
+      i = i + 1;
+    }
+    this.allowedSchemes.push(scheme);
+  }
+}
+
+export OpenerService createOpenerService() {
+  return new OpenerService();
+}
+
+export bool matchesOpenExternal(string uri) {
+  return uri.indexOf("http://") == 0 || uri.indexOf("https://") == 0;
+}

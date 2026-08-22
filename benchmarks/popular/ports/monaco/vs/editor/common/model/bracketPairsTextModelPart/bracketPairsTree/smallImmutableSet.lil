@@ -1,0 +1,97 @@
+export class SmallImmutableSet {
+  int[] keys;
+
+  init(int[] keys) {
+    this.keys = keys;
+  }
+
+  bool has(int key) {
+    int low = 0;
+    int high = this.keys.length - 1;
+    while (low <= high) {
+      int middle = low + ((high - low) / 2);
+      int current = this.keys[middle];
+      if (current == key) {
+        return true;
+      }
+      if (current < key) {
+        low = middle + 1;
+      } else {
+        high = middle - 1;
+      }
+    }
+    return false;
+  }
+
+  SmallImmutableSet add(int value) {
+    if (this.has(value)) {
+      return this;
+    }
+    int[] result = [];
+    bool inserted = false;
+    int i = 0;
+    while (i < this.keys.length) {
+      if (!inserted && value < this.keys[i]) {
+        result.push(value);
+        inserted = true;
+      }
+      result.push(this.keys[i]);
+      i = i + 1;
+    }
+    if (!inserted) {
+      result.push(value);
+    }
+    return new SmallImmutableSet(result);
+  }
+
+  SmallImmutableSet merge(SmallImmutableSet other) {
+    SmallImmutableSet result = this;
+    int i = 0;
+    while (i < other.keys.length) {
+      result = result.add(other.keys[i]);
+      i = i + 1;
+    }
+    return result;
+  }
+
+  bool intersects(SmallImmutableSet other) {
+    int i = 0;
+    int j = 0;
+    while (i < this.keys.length && j < other.keys.length) {
+      if (this.keys[i] == other.keys[j]) {
+        return true;
+      }
+      if (this.keys[i] < other.keys[j]) {
+        i = i + 1;
+      } else {
+        j = j + 1;
+      }
+    }
+    return false;
+  }
+}
+
+export class DenseKeyProvider {
+  string[] values;
+
+  init() {
+    this.values = [];
+  }
+
+  int getKey(string value) {
+    int existing = this.values.indexOf(value);
+    if (existing >= 0) {
+      return existing;
+    }
+    this.values.push(value);
+    return this.values.length - 1;
+  }
+}
+
+export SmallImmutableSet getEmptySmallImmutableSet() {
+  return new SmallImmutableSet([]);
+}
+
+export DenseKeyProvider createDenseKeyProvider() {
+  return new DenseKeyProvider();
+}

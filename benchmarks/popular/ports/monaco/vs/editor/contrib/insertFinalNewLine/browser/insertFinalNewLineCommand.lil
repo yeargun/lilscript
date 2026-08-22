@@ -1,0 +1,21 @@
+export string ensureFinalNewLine(string value, string eol) {
+  if (value.length == 0) {
+    return value;
+  }
+  string last = value.charAt(value.length - 1);
+  if (last == "\n") {
+    return value;
+  }
+  if (last == "\r") {
+    return value + "\n";
+  }
+  return value + eol;
+}
+
+export bool needsFinalNewLine(string value) {
+  if (value.length == 0) {
+    return false;
+  }
+  string last = value.charAt(value.length - 1);
+  return last != "\n";
+}

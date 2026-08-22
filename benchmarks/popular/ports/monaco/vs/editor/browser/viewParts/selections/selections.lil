@@ -1,0 +1,228 @@
+int CORNER_EXTERN = 0;
+int CORNER_INTERN = 1;
+int CORNER_FLAT = 2;
+int ROUNDED_PIECE_WIDTH = 10;
+
+int imin(int a, int b) {
+  if (a < b) {
+    return a;
+  }
+  return b;
+}
+
+int imax(int a, int b) {
+  if (a > b) {
+    return a;
+  }
+  return b;
+}
+
+float fabs(float n) {
+  if (n < 0.0) {
+    return 0.0 - n;
+  }
+  return n;
+}
+
+export class EditorSelection {
+  int startLineNumber;
+  int startColumn;
+  int endLineNumber;
+  int endColumn;
+
+  init(int startLineNumber, int startColumn, int endLineNumber, int endColumn) {
+    this.startLineNumber = startLineNumber;
+    this.startColumn = startColumn;
+    this.endLineNumber = endLineNumber;
+    this.endColumn = endColumn;
+  }
+
+  bool isEmpty() {
+    return this.startLineNumber == this.endLineNumber && this.startColumn == this.endColumn;
+  }
+}
+
+export class SelectionRect {
+  int lineNumber;
+  float left;
+  float width;
+  int startStyleTop;
+  int startStyleBottom;
+  int endStyleTop;
+  int endStyleBottom;
+
+  init(int lineNumber, float left, float width) {
+    this.lineNumber = lineNumber;
+    this.left = left;
+    this.width = width;
+    this.startStyleTop = CORNER_EXTERN;
+    this.startStyleBottom = CORNER_EXTERN;
+    this.endStyleTop = CORNER_EXTERN;
+    this.endStyleBottom = CORNER_EXTERN;
+  }
+}
+
+export class SelectionsOverlay {
+  bool roundedSelection;
+  float typicalHalfwidthCharacterWidth;
+  EditorSelection[] selections;
+  string[] renderResult;
+
+  init(bool roundedSelection, float typicalHalfwidthCharacterWidth) {
+    this.roundedSelection = roundedSelection;
+    this.typicalHalfwidthCharacterWidth = typicalHalfwidthCharacterWidth;
+    this.selections = [];
+    this.renderResult = [];
+  }
+
+  void setSelections(EditorSelection[] selections) {
+    this.selections = selections;
+  }
+
+  SelectionRect[] rectsForSelection(EditorSelection selection, float typicalHalfwidth) {
+    SelectionRect[] rects = [];
+    int lineNumber = selection.startLineNumber;
+    while (lineNumber <= selection.endLineNumber) {
+      int startCol = 1;
+      int endCol = 1;
+      if (lineNumber == selection.startLineNumber) {
+        startCol = selection.startColumn;
+      }
+      if (lineNumber == selection.endLineNumber) {
+        endCol = selection.endColumn;
+      } else {
+        endCol = imax(selection.endColumn, startCol + 1);
+      }
+      if (lineNumber != selection.endLineNumber && endCol < startCol + 1) {
+        endCol = startCol + 1;
+      }
+      float left = (startCol - 1) * 1.0 * typicalHalfwidth;
+      float width = (endCol - startCol) * 1.0 * typicalHalfwidth;
+      if (width < 0.0) {
+        width = 0.0;
+      }
+      rects.push(new SelectionRect(lineNumber, left, width));
+      lineNumber = lineNumber + 1;
+    }
+    return rects;
+  }
+
+  void enrichVisibleRangesWithStyle(SelectionRect[] ranges) {
+    float epsilon = this.typicalHalfwidthCharacterWidth / 4.0;
+    int i = 0;
+    while (i < ranges.length) {
+      SelectionRect cur = ranges[i];
+      float curLeft = cur.left;
+      float curRight = cur.left + cur.width;
+      int startTop = CORNER_EXTERN;
+      int startBottom = CORNER_EXTERN;
+      int endTop = CORNER_EXTERN;
+      int endBottom = CORNER_EXTERN;
+      if (i > 0) {
+        SelectionRect prev = ranges[i - 1];
+        float prevLeft = prev.left;
+        float prevRight = prev.left + prev.width;
+        if (fabs(curLeft - prevLeft) < epsilon) {
+          startTop = CORNER_FLAT;
+        } else {
+          if (curLeft > prevLeft) {
+            startTop = CORNER_INTERN;
+          }
+        }
+        if (fabs(curRight - prevRight) < epsilon) {
+          endTop = CORNER_FLAT;
+        } else {
+          if (prevLeft < curRight && curRight < prevRight) {
+            endTop = CORNER_INTERN;
+          }
+        }
+      }
+      if (i + 1 < ranges.length) {
+        SelectionRect next = ranges[i + 1];
+        float nextLeft = next.left;
+        float nextRight = next.left + next.width;
+        if (fabs(curLeft - nextLeft) < epsilon) {
+          startBottom = CORNER_FLAT;
+        } else {
+          if (nextLeft < curLeft && curLeft < nextRight) {
+            startBottom = CORNER_INTERN;
+          }
+        }
+        if (fabs(curRight - nextRight) < epsilon) {
+          endBottom = CORNER_FLAT;
+        } else {
+          if (curRight < nextRight) {
+            endBottom = CORNER_INTERN;
+          }
+        }
+      }
+      cur.startStyleTop = startTop;
+      cur.startStyleBottom = startBottom;
+      cur.endStyleTop = endTop;
+      cur.endStyleBottom = endBottom;
+      i = i + 1;
+    }
+  }
+
+  string createSelectionPiece(int top, int bottom, string className, float left, float width) {
+    return "<div class=\"cslr " + className + "\" style=\"top:" + top.toString() + "px;bottom:" + bottom.toString() + "px;left:" + left.round().toInt().toString() + "px;width:" + width.round().toInt().toString() + "px;\"></div>";
+  }
+
+  void prepareRender(int visibleStartLineNumber, int visibleEndLineNumber) {
+    this.renderResult = [];
+    int lineNumber = visibleStartLineNumber;
+    while (lineNumber <= visibleEndLineNumber) {
+      this.renderResult.push("");
+      lineNumber = lineNumber + 1;
+    }
+    int s = 0;
+    while (s < this.selections.length) {
+      EditorSelection selection = this.selections[s];
+      if (!selection.isEmpty()) {
+        SelectionRect[] rects = this.rectsForSelection(selection, this.typicalHalfwidthCharacterWidth);
+        if (this.roundedSelection) {
+          this.enrichVisibleRangesWithStyle(rects);
+        }
+        int r = 0;
+        while (r < rects.length) {
+          SelectionRect rect = rects[r];
+          int lineIndex = rect.lineNumber - visibleStartLineNumber;
+          if (lineIndex >= 0 && lineIndex < this.renderResult.length) {
+            string className = "selected-text";
+            if (rect.startStyleTop == CORNER_EXTERN) {
+              className = className + " top-left-radius";
+            }
+            if (rect.startStyleBottom == CORNER_EXTERN) {
+              className = className + " bottom-left-radius";
+            }
+            if (rect.endStyleTop == CORNER_EXTERN) {
+              className = className + " top-right-radius";
+            }
+            if (rect.endStyleBottom == CORNER_EXTERN) {
+              className = className + " bottom-right-radius";
+            }
+            this.renderResult[lineIndex] = this.renderResult[lineIndex] + this.createSelectionPiece(0, 0, className, rect.left, rect.width);
+          }
+          r = r + 1;
+        }
+      }
+      s = s + 1;
+    }
+  }
+
+  string render(int startLineNumber, int lineNumber) {
+    int lineIndex = lineNumber - startLineNumber;
+    if (lineIndex < 0 || lineIndex >= this.renderResult.length) {
+      return "";
+    }
+    return this.renderResult[lineIndex];
+  }
+}
+
+export EditorSelection createEditorSelection(int startLineNumber, int startColumn, int endLineNumber, int endColumn) {
+  return new EditorSelection(startLineNumber, startColumn, endLineNumber, endColumn);
+}
+
+export SelectionsOverlay createSelectionsOverlay(bool roundedSelection, float typicalHalfwidthCharacterWidth) {
+  return new SelectionsOverlay(roundedSelection, typicalHalfwidthCharacterWidth);
+}

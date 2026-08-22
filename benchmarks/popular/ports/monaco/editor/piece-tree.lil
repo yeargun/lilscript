@@ -1,6 +1,19 @@
 import { Pos } from "../base/position";
 import { Rng } from "../base/range";
-import { sliceOf, replaceEol, emptyBuf, concat2 } from "../js-host";
+import {
+  NodeColor,
+  BufferCursor,
+  Piece,
+  TreeNode,
+  SENTINEL,
+  leftest,
+  righttest,
+  nodeNext,
+  nodePrev,
+  calculateSize,
+  calculateLF
+} from "./rb-tree";
+import { sliceOf, replaceEol, emptyBuf, concat2, newRegexp, regexExec } from "../js-host";
 import extern {
   pushNewBuffer,
   rbDeleteTree,
@@ -17,24 +30,6 @@ int CR = 13;
 int LF = 10;
 int AverageBufferSize = 65535;
 
-enum NodeColor {
-  Black,
-  Red
-}
-
-struct BufferCursor {
-  int line;
-  int column;
-}
-
-struct Piece {
-  int bufferIndex;
-  BufferCursor start;
-  BufferCursor end;
-  int lineFeedCnt;
-  int length;
-}
-
 class StringBuffer {
   string buffer;
   int[] lineStarts;
@@ -44,39 +39,6 @@ class StringBuffer {
     this.lineStarts = lineStarts;
   }
 }
-
-Piece emptyPiece = Piece{0, BufferCursor{0, 0}, BufferCursor{0, 0}, 0, 0};
-
-class TreeNode {
-  TreeNode parent;
-  TreeNode left;
-  TreeNode right;
-  NodeColor color;
-  Piece piece;
-  int size_left;
-  int lf_left;
-  bool alive;
-
-  init(Piece piece, NodeColor color) {
-    this.piece = piece;
-    this.color = color;
-    this.size_left = 0;
-    this.lf_left = 0;
-    this.alive = true;
-    this.parent = this;
-    this.left = this;
-    this.right = this;
-  }
-
-  void detach() {
-    this.alive = false;
-    this.parent = this;
-    this.left = this;
-    this.right = this;
-  }
-}
-
-TreeNode SENTINEL = new TreeNode(emptyPiece, NodeColor.Black);
 
 extern void pushNewBuffer(JsValue tree, string text, int[] lineStarts);
 extern void rbDeleteTree(JsValue tree, TreeNode z, TreeNode sentinel);
@@ -127,72 +89,6 @@ int[] createLineStartsFast(string str) {
     }
   }
   return r;
-}
-
-TreeNode leftest(TreeNode node) {
-  TreeNode cur = node;
-  while (cur.left != SENTINEL) {
-    cur = cur.left;
-  }
-  return cur;
-}
-
-TreeNode righttest(TreeNode node) {
-  TreeNode cur = node;
-  while (cur.right != SENTINEL) {
-    cur = cur.right;
-  }
-  return cur;
-}
-
-TreeNode nodeNext(TreeNode node) {
-  if (node.right != SENTINEL) {
-    return leftest(node.right);
-  }
-  TreeNode cur = node;
-  int guard = 0;
-  while (cur.parent != SENTINEL && guard < 100000) {
-    guard++;
-    if (cur.parent.left == cur) {
-      break;
-    }
-    cur = cur.parent;
-  }
-  if (cur.parent == SENTINEL || guard >= 100000) {
-    return SENTINEL;
-  }
-  return cur.parent;
-}
-
-TreeNode nodePrev(TreeNode node) {
-  if (node.left != SENTINEL) {
-    return righttest(node.left);
-  }
-  TreeNode cur = node;
-  while (cur.parent != SENTINEL) {
-    if (cur.parent.right == cur) {
-      break;
-    }
-    cur = cur.parent;
-  }
-  if (cur.parent == SENTINEL) {
-    return SENTINEL;
-  }
-  return cur.parent;
-}
-
-int calculateSize(TreeNode node) {
-  if (node == SENTINEL) {
-    return 0;
-  }
-  return node.size_left + node.piece.length + calculateSize(node.right);
-}
-
-int calculateLF(TreeNode node) {
-  if (node == SENTINEL) {
-    return 0;
-  }
-  return node.lf_left + node.piece.lineFeedCnt + calculateLF(node.right);
 }
 
 class PieceTreeBase {
@@ -963,6 +859,65 @@ class PieceTreeBase {
     }
     this.deleteNodes(nodesToDel);
     this.computeBufferMetadata();
+  }
+
+  string escapeSearch(string searchString) {
+    string source = emptyBuf();
+    int i = 0;
+    while (i < searchString.length) {
+      string ch = searchString.charAt(i);
+      if (
+        ch == "\\" || ch == "^" || ch == "$" || ch == "." || ch == "|" || ch == "?"
+        || ch == "*" || ch == "+" || ch == "(" || ch == ")" || ch == "[" || ch == "]"
+        || ch == "{" || ch == "}"
+      ) {
+        source = concat2(concat2(source, "\\"), ch);
+      } else {
+        source = concat2(source, ch);
+      }
+      i++;
+    }
+    return source;
+  }
+
+  int[] findMatchesPacked(string searchString, bool isRegex, bool matchCase, bool wholeWord, int limit) {
+    int[] result = [];
+    if (searchString.length == 0 || limit <= 0) {
+      return result;
+    }
+    string flags = "g";
+    if (!matchCase) {
+      flags = "gi";
+    }
+    string source = searchString;
+    if (!isRegex) {
+      source = this.escapeSearch(searchString);
+    }
+    if (wholeWord) {
+      source = concat2(concat2("\\b(?:", source), ")\\b");
+    }
+    Regex re = newRegexp(source, flags);
+    int lineCount = this.getLineCount();
+    int line = 1;
+    int cap = limit * 3;
+    while (line <= lineCount && result.length < cap) {
+      string content = this.getLineContent(line);
+      JsValue found = regexExec(re, content);
+      while (found.truthy() && result.length < cap) {
+        int index = JS.number(found["index"]).toInt();
+        string text = JS.string(found[0]);
+        result.push(line);
+        result.push(index + 1);
+        result.push(index + text.length + 1);
+        found = regexExec(re, content);
+      }
+      line++;
+    }
+    return result;
+  }
+
+  int[] findMatchesLineByLine(string searchString, bool isRegex, bool matchCase, bool wholeWord, int limit) {
+    return this.findMatchesPacked(searchString, isRegex, matchCase, wholeWord, limit);
   }
 }
 

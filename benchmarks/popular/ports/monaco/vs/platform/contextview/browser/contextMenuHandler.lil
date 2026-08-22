@@ -1,0 +1,28 @@
+export class ContextMenuHandler {
+  bool blocked;
+  int lastX;
+  int lastY;
+
+  init() {
+    this.blocked = false;
+    this.lastX = 0;
+    this.lastY = 0;
+  }
+
+  bool onContextMenu(int x, int y) {
+    if (this.blocked) {
+      return false;
+    }
+    this.lastX = x;
+    this.lastY = y;
+    return true;
+  }
+
+  void setBlocked(bool blocked) {
+    this.blocked = blocked;
+  }
+}
+
+export ContextMenuHandler createContextMenuHandler() {
+  return new ContextMenuHandler();
+}

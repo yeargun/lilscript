@@ -1,0 +1,228 @@
+int ATLAS_PAGE_SIZE = 1024;
+int MAX_ATLAS_PAGES = 2;
+int MAX_GLYPHS_PER_PAGE = 2048;
+
+int imin(int a, int b) {
+  if (a < b) {
+    return a;
+  }
+  return b;
+}
+
+int imax(int a, int b) {
+  if (a > b) {
+    return a;
+  }
+  return b;
+}
+
+export class AtlasGlyph {
+  int page;
+  float u;
+  float v;
+  float width;
+  float height;
+  float originX;
+  float originY;
+
+  init(int page, float u, float v, float width, float height, float originX, float originY) {
+    this.page = page;
+    this.u = u;
+    this.v = v;
+    this.width = width;
+    this.height = height;
+    this.originX = originX;
+    this.originY = originY;
+  }
+}
+
+export class ViewportGpuLine {
+  int lineNumber;
+  int y;
+  int startColumn;
+  int endColumn;
+  float width;
+
+  init(int lineNumber, int y, int startColumn, int endColumn, float width) {
+    this.lineNumber = lineNumber;
+    this.y = y;
+    this.startColumn = startColumn;
+    this.endColumn = endColumn;
+    this.width = width;
+  }
+}
+
+export class GpuLineInstance {
+  float x;
+  float y;
+  int glyphIndex;
+  int page;
+
+  init(float x, float y, int glyphIndex, int page) {
+    this.x = x;
+    this.y = y;
+    this.glyphIndex = glyphIndex;
+    this.page = page;
+  }
+}
+
+export class ViewLinesGpu {
+  int lineHeight;
+  float spaceWidth;
+  float devicePixelRatio;
+  int contentLeft;
+  int maxLineWidth;
+  int atlasGlyphCount;
+  AtlasGlyph[] glyphs;
+  ViewportGpuLine[] viewportLines;
+
+  init(int lineHeight, float spaceWidth, float devicePixelRatio, int contentLeft) {
+    this.lineHeight = lineHeight;
+    this.spaceWidth = spaceWidth;
+    this.devicePixelRatio = devicePixelRatio;
+    this.contentLeft = contentLeft;
+    this.maxLineWidth = 0;
+    this.atlasGlyphCount = 0;
+    this.glyphs = [];
+    this.viewportLines = [];
+  }
+
+  AtlasGlyph atlasCoords(int glyphIndex) {
+    int glyphsPerRow = ATLAS_PAGE_SIZE / 16;
+    if (glyphsPerRow < 1) {
+      glyphsPerRow = 1;
+    }
+    int page = 0;
+    int index = glyphIndex;
+    while (index >= MAX_GLYPHS_PER_PAGE && page + 1 < MAX_ATLAS_PAGES) {
+      index = index - MAX_GLYPHS_PER_PAGE;
+      page = page + 1;
+    }
+    int col = index % glyphsPerRow;
+    int row = index / glyphsPerRow;
+    float glyphW = 16.0;
+    float glyphH = 16.0;
+    float u = col * glyphW;
+    float v = row * glyphH;
+    return new AtlasGlyph(page, u, v, glyphW, glyphH, 0.0, 0.0);
+  }
+
+  int nextRenderTabStop(int visibleColumn, int tabSize) {
+    return visibleColumn + (tabSize - visibleColumn % tabSize);
+  }
+
+  float computeLineWidth(string content, int tabSize, bool isBasicASCII, bool useMonospace) {
+    float width = 0.0;
+    int tabXOffset = 0;
+    int x = 0;
+    while (x < content.length) {
+      int code = content.charCodeAt(x);
+      if (code == 9) {
+        int offsetBefore = x + tabXOffset;
+        tabXOffset = this.nextRenderTabStop(x + tabXOffset, tabSize);
+        width = width + this.spaceWidth * (tabXOffset - offsetBefore);
+        tabXOffset = tabXOffset - (x + 1);
+      } else {
+        if (isBasicASCII && useMonospace) {
+          width = width + this.spaceWidth;
+        } else {
+          float extra = this.spaceWidth;
+          if (code > 127) {
+            extra = extra * 2.0;
+          }
+          width = width + extra;
+        }
+      }
+      x = x + 1;
+    }
+    return width;
+  }
+
+  void refreshViewport(int scrollTop, int viewportHeight, int lineCount, string[] lineContents, int tabSize) {
+    this.viewportLines = [];
+    int startLine = scrollTop / this.lineHeight + 1;
+    if (startLine < 1) {
+      startLine = 1;
+    }
+    int endLine = (scrollTop + viewportHeight + this.lineHeight - 1) / this.lineHeight;
+    if (endLine > lineCount) {
+      endLine = lineCount;
+    }
+    if (startLine > lineCount) {
+      startLine = lineCount;
+    }
+    int lineNumber = startLine;
+    float localMax = 0.0;
+    while (lineNumber <= endLine) {
+      int lineIndex = lineNumber - 1;
+      string content = "";
+      if (lineIndex >= 0 && lineIndex < lineContents.length) {
+        content = lineContents[lineIndex];
+      }
+      float width = this.computeLineWidth(content, tabSize, true, true);
+      if (width > localMax) {
+        localMax = width;
+      }
+      int y = (lineNumber - 1) * this.lineHeight - scrollTop;
+      this.viewportLines.push(new ViewportGpuLine(lineNumber, y, 1, content.length + 1, width));
+      lineNumber = lineNumber + 1;
+    }
+    int iLineWidth = localMax.ceil().toInt();
+    if (iLineWidth > this.maxLineWidth) {
+      this.maxLineWidth = iLineWidth;
+    }
+  }
+
+  GpuLineInstance[] instancesForViewportLine(ViewportGpuLine line, string content, int tabSize) {
+    GpuLineInstance[] instances = [];
+    float x = 0.0;
+    int visibleColumn = 0;
+    int i = 0;
+    while (i < content.length) {
+      int code = content.charCodeAt(i);
+      int glyphIndex = code;
+      if (code == 9) {
+        int next = this.nextRenderTabStop(visibleColumn, tabSize);
+        x = x + this.spaceWidth * (next - visibleColumn);
+        visibleColumn = next;
+      } else {
+        AtlasGlyph glyph = this.atlasCoords(glyphIndex);
+        instances.push(new GpuLineInstance(x * this.devicePixelRatio, line.y * 1.0 * this.devicePixelRatio, glyphIndex, glyph.page));
+        x = x + this.spaceWidth;
+        visibleColumn = visibleColumn + 1;
+      }
+      i = i + 1;
+    }
+    return instances;
+  }
+
+  float visibleRangeLeft(string content, int column, int tabSize) {
+    float width = 0.0;
+    int visibleColumn = 0;
+    int i = 0;
+    int last = column - 1;
+    if (last > content.length) {
+      last = content.length;
+    }
+    if (last < 0) {
+      last = 0;
+    }
+    while (i < last) {
+      int code = content.charCodeAt(i);
+      if (code == 9) {
+        int next = this.nextRenderTabStop(visibleColumn, tabSize);
+        width = width + this.spaceWidth * (next - visibleColumn);
+        visibleColumn = next;
+      } else {
+        width = width + this.spaceWidth;
+        visibleColumn = visibleColumn + 1;
+      }
+      i = i + 1;
+    }
+    return width;
+  }
+}
+
+export ViewLinesGpu createViewLinesGpu(int lineHeight, float spaceWidth, float devicePixelRatio, int contentLeft) {
+  return new ViewLinesGpu(lineHeight, spaceWidth, devicePixelRatio, contentLeft);
+}

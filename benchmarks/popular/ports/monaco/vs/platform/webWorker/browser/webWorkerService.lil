@@ -1,0 +1,18 @@
+export class WebWorkerService {
+  string[] workers;
+
+  init() {
+    this.workers = [];
+  }
+
+  string createWorker(string descriptor) {
+    this.workers.push(descriptor);
+    return descriptor;
+  }
+}
+
+export WebWorkerService createWebWorkerService() {
+  return new WebWorkerService();
+}
+
+export string IWebWorkerServiceId = "webWorkerService";

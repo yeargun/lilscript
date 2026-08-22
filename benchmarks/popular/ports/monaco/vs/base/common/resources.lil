@@ -1,0 +1,201 @@
+import { sliceOf, stringSplit } from "../../../js-host";
+
+export class ResourceUri {
+  string scheme;
+  string authority;
+  string path;
+  string query;
+  string fragment;
+
+  init(string scheme, string authority, string path, string query, string fragment) {
+    this.scheme = scheme;
+    this.authority = authority;
+    this.path = path;
+    this.query = query;
+    this.fragment = fragment;
+  }
+
+  ResourceUri withPath(string path) {
+    return new ResourceUri(this.scheme, this.authority, path, this.query, this.fragment);
+  }
+
+  string toString() {
+    string result = this.scheme + ":";
+    if (this.authority.length > 0 || this.scheme == "file") {
+      result = result + "//" + this.authority;
+    }
+    result = result + this.path;
+    if (this.query.length > 0) {
+      result = result + "?" + this.query;
+    }
+    if (this.fragment.length > 0) {
+      result = result + "#" + this.fragment;
+    }
+    return result;
+  }
+}
+
+string normalizePosixPath(string path) {
+  bool absolute = path.startsWith("/");
+  string[] parts = stringSplit(path, "/");
+  string[] result = [];
+  int i = 0;
+  while (i < parts.length) {
+    string part = parts[i];
+    if (part.length == 0 || part == ".") {
+    } else if (part == "..") {
+      if (result.length > 0 && result[result.length - 1] != "..") {
+        result.pop();
+      } else if (!absolute) {
+        result.push(part);
+      }
+    } else {
+      result.push(part);
+    }
+    i = i + 1;
+  }
+  string normalized = result.join("/");
+  if (absolute) {
+    normalized = "/" + normalized;
+  }
+  if (normalized.length == 0) {
+    if (absolute) {
+      return "/";
+    }
+    return ".";
+  }
+  return normalized;
+}
+
+export string basenamePath(string path) {
+  string normalized = path;
+  while (normalized.length > 1 && normalized.charAt(normalized.length - 1) == "/") {
+    normalized = sliceOf(normalized, 0, normalized.length - 1);
+  }
+  int slash = normalized.lastIndexOf("/");
+  if (slash < 0) {
+    return normalized;
+  }
+  return sliceOf(normalized, slash + 1, normalized.length);
+}
+
+export string extnamePath(string path) {
+  string base = basenamePath(path);
+  int dot = base.lastIndexOf(".");
+  if (dot <= 0) {
+    return "";
+  }
+  return sliceOf(base, dot, base.length);
+}
+
+export string dirnamePath(string path) {
+  string normalized = path;
+  while (normalized.length > 1 && normalized.charAt(normalized.length - 1) == "/") {
+    normalized = sliceOf(normalized, 0, normalized.length - 1);
+  }
+  int slash = normalized.lastIndexOf("/");
+  if (slash < 0) {
+    return ".";
+  }
+  if (slash == 0) {
+    return "/";
+  }
+  return sliceOf(normalized, 0, slash);
+}
+
+export ResourceUri dirname(ResourceUri resource) {
+  if (resource.path.length == 0) {
+    return resource;
+  }
+  string path = dirnamePath(resource.path);
+  if (resource.authority.length > 0 && !path.startsWith("/")) {
+    path = "/";
+  }
+  return resource.withPath(path);
+}
+
+export string basename(ResourceUri resource) {
+  return basenamePath(resource.path);
+}
+
+export string extname(ResourceUri resource) {
+  return extnamePath(resource.path);
+}
+
+export ResourceUri normalizePath(ResourceUri resource) {
+  if (resource.path.length == 0) {
+    return resource;
+  }
+  return resource.withPath(normalizePosixPath(resource.path));
+}
+
+export ResourceUri joinPath(ResourceUri resource, string[] fragments) {
+  string path = resource.path;
+  int i = 0;
+  while (i < fragments.length) {
+    if (path.length > 0 && !path.endsWith("/")) {
+      path = path + "/";
+    }
+    path = path + fragments[i];
+    i = i + 1;
+  }
+  return resource.withPath(normalizePosixPath(path));
+}
+
+export string relativePath(ResourceUri from, ResourceUri to) {
+  if (from.scheme != to.scheme || from.authority.toLowerCase() != to.authority.toLowerCase()) {
+    return "";
+  }
+  string[] fromParts = stringSplit(normalizePosixPath(from.path), "/");
+  string[] toParts = stringSplit(normalizePosixPath(to.path), "/");
+  int common = 0;
+  while (common < fromParts.length && common < toParts.length && fromParts[common] == toParts[common]) {
+    common = common + 1;
+  }
+  string[] result = [];
+  int i = common;
+  while (i < fromParts.length) {
+    if (fromParts[i].length > 0) {
+      result.push("..");
+    }
+    i = i + 1;
+  }
+  i = common;
+  while (i < toParts.length) {
+    if (toParts[i].length > 0) {
+      result.push(toParts[i]);
+    }
+    i = i + 1;
+  }
+  return result.join("/");
+}
+
+export bool isEqual(ResourceUri one, ResourceUri other) {
+  return one.scheme == other.scheme
+    && one.authority == other.authority
+    && one.path == other.path
+    && one.query == other.query
+    && one.fragment == other.fragment;
+}
+
+export bool isAbsolutePath(ResourceUri resource) {
+  return resource.path.startsWith("/");
+}
+
+export bool hasTrailingPathSeparator(ResourceUri resource) {
+  return resource.path.length > 1 && resource.path.endsWith("/");
+}
+
+export ResourceUri removeTrailingPathSeparator(ResourceUri resource) {
+  if (!hasTrailingPathSeparator(resource)) {
+    return resource;
+  }
+  return resource.withPath(sliceOf(resource.path, 0, resource.path.length - 1));
+}
+
+export ResourceUri addTrailingPathSeparator(ResourceUri resource) {
+  if (resource.path.length == 0 || resource.path.endsWith("/")) {
+    return resource;
+  }
+  return resource.withPath(resource.path + "/");
+}

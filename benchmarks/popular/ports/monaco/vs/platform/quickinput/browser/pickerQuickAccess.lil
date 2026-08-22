@@ -1,0 +1,26 @@
+export class PickerQuickAccessProvider {
+  string prefix;
+  string[] picks;
+
+  init(string prefix) {
+    this.prefix = prefix;
+    this.picks = [];
+  }
+
+  string[] getPicks(string filter) {
+    string[] out = [];
+    string q = filter.toLowerCase();
+    int i = 0;
+    while (i < this.picks.length) {
+      if (q.length == 0 || this.picks[i].toLowerCase().includes(q)) {
+        out.push(this.picks[i]);
+      }
+      i = i + 1;
+    }
+    return out;
+  }
+}
+
+export PickerQuickAccessProvider createPickerQuickAccessProvider(string prefix) {
+  return new PickerQuickAccessProvider(prefix);
+}

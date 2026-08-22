@@ -1,0 +1,104 @@
+export class EditorPos {
+  int lineNumber;
+  int column;
+
+  init(int lineNumber, int column) {
+    this.lineNumber = lineNumber;
+    this.column = column;
+  }
+}
+
+export class VisibleRange {
+  int startLineNumber;
+  int startColumn;
+  int endLineNumber;
+  int endColumn;
+
+  init(int startLineNumber, int startColumn, int endLineNumber, int endColumn) {
+    this.startLineNumber = startLineNumber;
+    this.startColumn = startColumn;
+    this.endLineNumber = endLineNumber;
+    this.endColumn = endColumn;
+  }
+
+  EditorPos getStartPosition() {
+    return new EditorPos(this.startLineNumber, this.startColumn);
+  }
+}
+
+export class StableEditorScrollState {
+  int initialScrollTop;
+  int initialContentHeight;
+  int visibleLineNumber;
+  int visibleColumn;
+  bool hasVisiblePosition;
+  int visiblePositionScrollDelta;
+  int cursorLineNumber;
+  int cursorColumn;
+  bool hasCursorPosition;
+
+  init(int initialScrollTop, int initialContentHeight, int visibleLineNumber, int visibleColumn, bool hasVisiblePosition, int visiblePositionScrollDelta, int cursorLineNumber, int cursorColumn, bool hasCursorPosition) {
+    this.initialScrollTop = initialScrollTop;
+    this.initialContentHeight = initialContentHeight;
+    this.visibleLineNumber = visibleLineNumber;
+    this.visibleColumn = visibleColumn;
+    this.hasVisiblePosition = hasVisiblePosition;
+    this.visiblePositionScrollDelta = visiblePositionScrollDelta;
+    this.cursorLineNumber = cursorLineNumber;
+    this.cursorColumn = cursorColumn;
+    this.hasCursorPosition = hasCursorPosition;
+  }
+}
+
+export int topForLine(int lineNumber, int lineHeight) {
+  int line = lineNumber;
+  if (line < 1) {
+    line = 1;
+  }
+  return (line - 1) * lineHeight;
+}
+
+export StableEditorScrollState captureStableScroll(int scrollTop, int contentHeight, bool hasPendingScrollAnimation, VisibleRange[] visibleRanges, int cursorLineNumber, int cursorColumn, int lineHeight) {
+  if (scrollTop == 0 || hasPendingScrollAnimation) {
+    return new StableEditorScrollState(scrollTop, contentHeight, 0, 0, false, 0, cursorLineNumber, cursorColumn, cursorLineNumber > 0);
+  }
+  bool hasVisible = false;
+  int visibleLine = 0;
+  int visibleCol = 0;
+  int visibleDelta = 0;
+  if (visibleRanges.length > 0) {
+    EditorPos visiblePosition = visibleRanges[0].getStartPosition();
+    visibleLine = visiblePosition.lineNumber;
+    visibleCol = visiblePosition.column;
+    hasVisible = true;
+    int visiblePositionScrollTop = topForLine(visibleLine, lineHeight);
+    visibleDelta = scrollTop - visiblePositionScrollTop;
+  }
+  return new StableEditorScrollState(scrollTop, contentHeight, visibleLine, visibleCol, hasVisible, visibleDelta, cursorLineNumber, cursorColumn, cursorLineNumber > 0);
+}
+
+export int restoreStableScroll(StableEditorScrollState state, int contentHeight, int scrollTop, int lineHeight) {
+  if (state.initialContentHeight == contentHeight && state.initialScrollTop == scrollTop) {
+    return scrollTop;
+  }
+  if (state.hasVisiblePosition) {
+    int visiblePositionScrollTop = topForLine(state.visibleLineNumber, lineHeight);
+    return visiblePositionScrollTop + state.visiblePositionScrollDelta;
+  }
+  return scrollTop;
+}
+
+export int restoreRelativeVerticalPositionOfCursor(StableEditorScrollState state, int contentHeight, int scrollTop, int currentCursorLineNumber, int lineHeight) {
+  if (state.initialContentHeight == contentHeight && state.initialScrollTop == scrollTop) {
+    return scrollTop;
+  }
+  if (!state.hasCursorPosition || currentCursorLineNumber <= 0) {
+    return scrollTop;
+  }
+  int offset = topForLine(currentCursorLineNumber, lineHeight) - topForLine(state.cursorLineNumber, lineHeight);
+  return scrollTop + offset;
+}
+
+export StableEditorScrollState createStableEditorScrollState(int scrollTop, int contentHeight) {
+  return new StableEditorScrollState(scrollTop, contentHeight, 0, 0, false, 0, 0, 0, false);
+}

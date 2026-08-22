@@ -1,0 +1,144 @@
+import { domCreateElement, appendChild, createTextNode, setClassName, classListAdd, clearChildren, setTextContent, stringSlice } from "../../../../../js-host";
+
+export class TextHighlight {
+  int start;
+  int end;
+  string extraClasses;
+
+  init(int start, int end, string extraClasses) {
+    this.start = start;
+    this.end = end;
+    this.extraClasses = extraClasses;
+  }
+}
+
+export string escapeNewLines(string text, TextHighlight[] highlights) {
+  string out = "";
+  int i = 0;
+  int extra = 0;
+  while (i < text.length) {
+    string ch = text.charAt(i);
+    if (ch == "\r" && i + 1 < text.length && text.charAt(i + 1) == "\n") {
+      extra = extra - 1;
+      int offset = i + extra + 1;
+      int h = 0;
+      while (h < highlights.length) {
+        TextHighlight highlight = highlights[h];
+        if (highlight.end > offset) {
+          if (highlight.start >= offset) {
+            highlight.start = highlight.start - 1;
+          }
+          if (highlight.end >= offset) {
+            highlight.end = highlight.end - 1;
+          }
+        }
+        h = h + 1;
+      }
+      out = out + "⏎";
+      i = i + 2;
+      continue;
+    }
+    if (ch == "\n" || ch == "\r") {
+      out = out + "⏎";
+      i = i + 1;
+      continue;
+    }
+    out = out + ch;
+    i = i + 1;
+  }
+  return out;
+}
+
+export class HighlightedLabel {
+  JsValue domNode;
+  string text;
+  string title;
+  TextHighlight[] highlights;
+  bool didEverRender;
+
+  init(JsValue container) {
+    this.text = "";
+    this.title = "";
+    this.highlights = [];
+    this.didEverRender = false;
+    this.domNode = domCreateElement("span");
+    setClassName(this.domNode, "monaco-highlighted-label");
+    appendChild(container, this.domNode);
+  }
+
+  JsValue element() {
+    return this.domNode;
+  }
+
+  bool highlightsEqual(TextHighlight[] other) {
+    if (this.highlights.length != other.length) {
+      return false;
+    }
+    int i = 0;
+    while (i < other.length) {
+      if (this.highlights[i].start != other[i].start || this.highlights[i].end != other[i].end || this.highlights[i].extraClasses != other[i].extraClasses) {
+        return false;
+      }
+      i = i + 1;
+    }
+    return true;
+  }
+
+  void set(string text, TextHighlight[] highlights, string title, bool escapeLines) {
+    string next = text;
+    if (escapeLines) {
+      next = escapeNewLines(text, highlights);
+    }
+    if (this.didEverRender && this.text == next && this.title == title && this.highlightsEqual(highlights)) {
+      return;
+    }
+    this.text = next;
+    this.title = title;
+    this.highlights = highlights;
+    this.render();
+  }
+
+  void render() {
+    clearChildren(this.domNode);
+    int pos = 0;
+    int i = 0;
+    while (i < this.highlights.length) {
+      TextHighlight highlight = this.highlights[i];
+      if (highlight.end == highlight.start) {
+        i = i + 1;
+        continue;
+      }
+      if (pos < highlight.start) {
+        appendChild(this.domNode, createTextNode(stringSlice(this.text, pos, highlight.start)));
+        pos = highlight.start;
+      }
+      int end = highlight.end;
+      if (end > this.text.length) {
+        end = this.text.length;
+      }
+      if (pos < end) {
+        JsValue mark = domCreateElement("span");
+        setClassName(mark, "highlight");
+        if (highlight.extraClasses.length > 0) {
+          classListAdd(mark, highlight.extraClasses);
+        }
+        setTextContent(mark, stringSlice(this.text, pos, end));
+        appendChild(this.domNode, mark);
+        pos = end;
+      }
+      i = i + 1;
+    }
+    if (pos < this.text.length) {
+      appendChild(this.domNode, createTextNode(stringSlice(this.text, pos, this.text.length)));
+    }
+    this.didEverRender = true;
+  }
+}
+
+export HighlightedLabel createHighlightedLabel(JsValue container) {
+  return new HighlightedLabel(container);
+}
+
+export TextHighlight createTextHighlight(int start, int end, string extraClasses = "") {
+  return new TextHighlight(start, end, extraClasses);
+}

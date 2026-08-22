@@ -1,0 +1,224 @@
+import { stringSlice } from "../../../../../js-host";
+
+string shorten(string value, int availableLength) {
+  if (availableLength <= 3) {
+    return "...";
+  }
+  if (value.length <= availableLength) {
+    return value;
+  }
+  return stringSlice(value, 0, availableLength - 3) + "...";
+}
+
+string formatArray(JsValue value, int availableLength) {
+  string result = "[ ";
+  int count = value.length.toInt();
+  int i = 0;
+  while (i < count) {
+    if (i > 0) {
+      result = result + ", ";
+    }
+    if (result.length + 5 > availableLength) {
+      result = result + "...";
+      i = count;
+    } else {
+      result = result + formatValue(value[i], availableLength - result.length);
+      i = i + 1;
+    }
+  }
+  return result + " ]";
+}
+
+string formatObject(JsValue value, int availableLength) {
+  string result = "{ ";
+  bool first = true;
+  for (string key in value) {
+    if (!first) {
+      result = result + ", ";
+    }
+    if (result.length + 5 > availableLength) {
+      result = result + "...";
+      return result + " }";
+    }
+    first = false;
+    result = result + key + ": "
+      + formatValue(value[key], availableLength - result.length);
+  }
+  return result + " }";
+}
+
+export string formatValue(JsValue value, int availableLength) {
+  if (value is string) {
+    string text = value;
+    return "\"" + shorten(text, availableLength - 2) + "\"";
+  }
+  if (value is bool) {
+    bool booleanValue = value;
+    if (booleanValue) {
+      return "true";
+    }
+    return "false";
+  }
+  if (value is float) {
+    float numericValue = value;
+    return numericValue.toInt().toString();
+  }
+  if (!value.truthy()) {
+    return "null";
+  }
+  if (value.isArray()) {
+    return formatArray(value, availableLength);
+  }
+  if (value.isObject()) {
+    return formatObject(value, availableLength);
+  }
+  return "[[Value]]";
+}
+
+export class ConsoleObservableLogger {
+  int indentation;
+  JsValue[] filteredObjects;
+  Map<JsValue, JsValue[]> changedObservables;
+  string[] lines;
+
+  init() {
+    this.indentation = 0;
+    this.filteredObjects = [];
+    this.changedObservables = new Map();
+    this.lines = [];
+  }
+
+  void addFilteredObj(JsValue obj) {
+    if (this.filteredObjects.indexOf(obj) < 0) {
+      this.filteredObjects.push(obj);
+    }
+  }
+
+  bool isIncluded(JsValue obj) {
+    return this.filteredObjects.length == 0
+      || this.filteredObjects.indexOf(obj) >= 0;
+  }
+
+  string prefix() {
+    string result = "";
+    int i = 0;
+    while (i < this.indentation) {
+      result = result + "|  ";
+      i = i + 1;
+    }
+    return result;
+  }
+
+  void append(string kind, JsValue subject, string detail) {
+    if (!this.isIncluded(subject)) {
+      return;
+    }
+    string name = "";
+    if (subject.truthy() && subject.isObject()) {
+      JsValue debugName = subject["debugName"];
+      if (debugName is string) {
+        name = debugName;
+      }
+    }
+    this.lines.push(this.prefix() + kind + ": " + name + detail);
+  }
+
+  void handleObservableCreated(JsValue observable, JsValue location) {
+    this.changedObservables.set(observable, []);
+    this.append("observable created", observable, "");
+  }
+
+  void handleOnListenerCountChanged(JsValue observable, int newCount) {
+    this.append("listeners", observable, " " + newCount.toString());
+  }
+
+  void handleObservableUpdated(JsValue observable, JsValue info) {
+    string detail = "";
+    if (info.truthy() && info.isObject()) {
+      detail = " " + formatValue(info["newValue"], 60);
+    }
+    this.append("observable value changed", observable, detail);
+    JsValue[]? changed = this.changedObservables.get(observable);
+    if (changed != null) {
+      JsValue[] cleared = [];
+      this.changedObservables.set(observable, cleared);
+    }
+  }
+
+  void handleDerivedDependencyChanged(
+    JsValue derivedValue,
+    JsValue observable,
+    JsValue change
+  ) {
+    JsValue[]? changed = this.changedObservables.get(derivedValue);
+    if (changed == null) {
+      JsValue[] created = [];
+      created.push(observable);
+      this.changedObservables.set(derivedValue, created);
+      return;
+    }
+    if (changed.indexOf(observable) < 0) {
+      changed.push(observable);
+    }
+  }
+
+  void handleDerivedCleared(JsValue derivedValue) {
+    this.append("derived cleared", derivedValue, "");
+  }
+
+  void handleAutorunCreated(JsValue autorunValue, JsValue location) {
+    this.changedObservables.set(autorunValue, []);
+  }
+
+  void handleAutorunDependencyChanged(
+    JsValue autorunValue,
+    JsValue observable,
+    JsValue change
+  ) {
+    this.handleDerivedDependencyChanged(autorunValue, observable, change);
+  }
+
+  void handleAutorunStarted(JsValue autorunValue) {
+    this.append("autorun", autorunValue, "");
+    this.indentation = this.indentation + 1;
+  }
+
+  void handleAutorunFinished(JsValue autorunValue) {
+    if (this.indentation > 0) {
+      this.indentation = this.indentation - 1;
+    }
+  }
+
+  void handleAutorunDisposed(JsValue autorunValue) {
+    this.append("autorun disposed", autorunValue, "");
+  }
+
+  void handleBeginTransaction(JsValue transactionValue) {
+    this.append("transaction", transactionValue, "");
+    this.indentation = this.indentation + 1;
+  }
+
+  void handleEndTransaction(JsValue transactionValue) {
+    if (this.indentation > 0) {
+      this.indentation = this.indentation - 1;
+    }
+  }
+
+  string[] getLines() {
+    return this.lines.slice();
+  }
+}
+
+ConsoleObservableLogger? globalConsoleObservableLogger = null;
+
+export ConsoleObservableLogger logObservableToConsole(JsValue observable) {
+  ConsoleObservableLogger? existing = globalConsoleObservableLogger;
+  if (existing != null) {
+    existing.addFilteredObj(observable);
+    return existing;
+  }
+  ConsoleObservableLogger created = new ConsoleObservableLogger();
+  created.addFilteredObj(observable);
+  globalConsoleObservableLogger = created;
+  return created;
+}

@@ -1,0 +1,2 @@
+import { handleTsWorker, tsWorkerCompletions, tsWorkerWithoutTsc } from "../../../workers/ts.worker";
+export { handleTsWorker, tsWorkerCompletions, tsWorkerWithoutTsc };

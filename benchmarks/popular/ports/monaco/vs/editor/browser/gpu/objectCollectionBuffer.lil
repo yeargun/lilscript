@@ -1,0 +1,206 @@
+export class PropertySpec {
+  string name;
+  int offset;
+
+  init(string name, int offset) {
+    this.name = name;
+    this.offset = offset;
+  }
+}
+
+export class BufferDirtyRange {
+  int startIndex;
+  int endIndex;
+  bool hasRange;
+
+  init() {
+    this.startIndex = 0;
+    this.endIndex = 0;
+    this.hasRange = false;
+  }
+
+  void flagIndex(int index) {
+    if (!this.hasRange || index < this.startIndex) {
+      this.startIndex = index;
+    }
+    if (!this.hasRange || index > this.endIndex) {
+      this.endIndex = index;
+    }
+    this.hasRange = true;
+  }
+
+  int flag(int index, int length = 1) {
+    this.flagIndex(index);
+    if (length > 1) {
+      this.flagIndex(index + length - 1);
+    }
+    return index;
+  }
+
+  int dirtySize() {
+    if (!this.hasRange) {
+      return 0;
+    }
+    return this.endIndex - this.startIndex + 1;
+  }
+
+  void clear() {
+    this.startIndex = 0;
+    this.endIndex = 0;
+    this.hasRange = false;
+  }
+}
+
+export class ObjectCollectionBufferEntry {
+  int i;
+  bool disposed;
+
+  init(int i) {
+    this.i = i;
+    this.disposed = false;
+  }
+}
+
+export class ObjectCollectionBuffer {
+  PropertySpec[] propertySpecs;
+  int capacity;
+  int entrySize;
+  float[] view;
+  ObjectCollectionBufferEntry[] entries;
+  BufferDirtyRange dirtyTracker;
+  int changeCount;
+  int bufferChangeCount;
+
+  init(PropertySpec[] propertySpecs, int capacity) {
+    this.propertySpecs = propertySpecs;
+    this.capacity = capacity;
+    this.entrySize = propertySpecs.length;
+    this.view = [];
+    this.entries = [];
+    this.dirtyTracker = new BufferDirtyRange();
+    this.changeCount = 0;
+    this.bufferChangeCount = 0;
+    int n = capacity * this.entrySize;
+    int i = 0;
+    while (i < n) {
+      this.view.push(0.0);
+      i = i + 1;
+    }
+  }
+
+  int entryCount() {
+    return this.entries.length;
+  }
+
+  void expandBuffer() {
+    this.capacity = this.capacity * 2;
+    int needed = this.capacity * this.entrySize;
+    while (this.view.length < needed) {
+      this.view.push(0.0);
+    }
+    this.bufferChangeCount = this.bufferChangeCount + 1;
+  }
+
+  int specOffset(string name) {
+    int i = 0;
+    while (i < this.propertySpecs.length) {
+      if (this.propertySpecs[i].name == name) {
+        return this.propertySpecs[i].offset;
+      }
+      i = i + 1;
+    }
+    return -1;
+  }
+
+  ObjectCollectionBufferEntry createEntry(float[] data) {
+    if (this.entries.length == this.capacity) {
+      this.expandBuffer();
+    }
+    int index = this.entries.length;
+    ObjectCollectionBufferEntry entry = new ObjectCollectionBufferEntry(index);
+    this.entries.push(entry);
+    int p = 0;
+    while (p < this.propertySpecs.length && p < data.length) {
+      this.view[index * this.entrySize + this.propertySpecs[p].offset] = data[p];
+      p = p + 1;
+    }
+    this.dirtyTracker.flag(index * this.entrySize, this.entrySize);
+    this.changeCount = this.changeCount + 1;
+    return entry;
+  }
+
+  void setRaw(ObjectCollectionBufferEntry entry, float[] data) {
+    if (data.length != this.entrySize) {
+      throw "Data length does not match the number of properties in the collection";
+    }
+    int base = entry.i * this.entrySize;
+    int i = 0;
+    while (i < data.length) {
+      this.view[base + i] = data[i];
+      i = i + 1;
+    }
+    this.dirtyTracker.flag(base, this.entrySize);
+    this.changeCount = this.changeCount + 1;
+  }
+
+  void disposeEntry(ObjectCollectionBufferEntry entry) {
+    if (entry.disposed) {
+      return;
+    }
+    entry.disposed = true;
+    int deletedEntryIndex = entry.i;
+    int removeAt = -1;
+    int i = 0;
+    while (i < this.entries.length) {
+      if (this.entries[i] == entry) {
+        removeAt = i;
+        break;
+      }
+      i = i + 1;
+    }
+    if (removeAt >= 0) {
+      this.entries.splice(removeAt, 1);
+    }
+    int from = deletedEntryIndex * this.entrySize + 2;
+    int to = this.entries.length * this.entrySize + 2;
+    int dest = deletedEntryIndex * this.entrySize;
+    while (from < to && from < this.view.length) {
+      this.view[dest] = this.view[from];
+      dest = dest + 1;
+      from = from + 1;
+    }
+    int e = 0;
+    while (e < this.entries.length) {
+      if (this.entries[e].i > deletedEntryIndex) {
+        this.entries[e].i = this.entries[e].i - 1;
+      }
+      e = e + 1;
+    }
+    this.dirtyTracker.flag(deletedEntryIndex, (this.entries.length - deletedEntryIndex) * this.entrySize);
+  }
+
+  int allocateSlot() {
+    if (this.entries.length == this.capacity) {
+      this.expandBuffer();
+    }
+    ObjectCollectionBufferEntry entry = this.createEntry([]);
+    return entry.i;
+  }
+}
+
+export PropertySpec[] rectanglePropertySpecs() {
+  PropertySpec[] specs = [];
+  specs.push(new PropertySpec("x", 0));
+  specs.push(new PropertySpec("y", 1));
+  specs.push(new PropertySpec("width", 2));
+  specs.push(new PropertySpec("height", 3));
+  specs.push(new PropertySpec("red", 4));
+  specs.push(new PropertySpec("green", 5));
+  specs.push(new PropertySpec("blue", 6));
+  specs.push(new PropertySpec("alpha", 7));
+  return specs;
+}
+
+export ObjectCollectionBuffer createObjectCollectionBuffer(PropertySpec[] propertySpecs, int capacity) {
+  return new ObjectCollectionBuffer(propertySpecs, capacity);
+}

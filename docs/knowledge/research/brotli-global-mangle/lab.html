@@ -1,0 +1,2928 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Brotli global-mangle lab</title>
+<style>
+:root {
+  --bg: #12110f; --bg2: #1b1916; --bg3: #24211c; --ink: #ece7dc;
+  --muted: #9a9283; --line: #3a342b; --accent: #d8a15a;
+  --win: #7dba7a; --lose: #d37a6a;
+  --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --sans: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 17px/1.5 var(--sans); }
+a { color: var(--accent); }
+code, pre, table { font-family: var(--mono); }
+header { padding: 48px 28px 28px; border-bottom: 1px solid var(--line); background: var(--bg2); }
+header p { max-width: 72ch; color: var(--muted); }
+nav {
+  display: flex; flex-wrap: wrap; gap: 12px 18px; padding: 14px 28px;
+  border-bottom: 1px solid var(--line); position: sticky; top: 0;
+  background: #12110fef; z-index: 2; font-size: 13px; font-family: var(--mono);
+}
+nav a { text-decoration: none; }
+main { padding: 28px; max-width: 1240px; }
+section { margin: 0 0 56px; }
+h1 { font-size: 34px; line-height: 1.15; margin: 0 0 12px; }
+h2 { font-size: 24px; margin: 0 0 12px; }
+h3 { font-size: 18px; margin: 28px 0 8px; }
+p, li { max-width: 74ch; }
+.lede { font-size: 20px; max-width: 68ch; color: var(--ink); }
+.tiny { font-size: 12px; color: var(--muted); }
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+th, td { border-bottom: 1px solid var(--line); padding: 6px 8px; text-align: left; vertical-align: top; }
+th { color: var(--muted); font-weight: 500; }
+.num { text-align: right; font-variant-numeric: tabular-nums; }
+.win { color: var(--win); }
+.lose { color: var(--lose); }
+.pill {
+  display: inline-block; border: 1px solid var(--line); padding: 1px 7px;
+  font-family: var(--mono); font-size: 11px; color: var(--muted);
+}
+.callout { border-left: 3px solid var(--accent); padding: 2px 0 2px 14px; margin: 16px 0; }
+</style>
+</head>
+<body>
+<header>
+  <div class="pill">diagnostic Node zlib · brotli 1.1.0 generic q11 lgwin=22 · gzip-9 · not lilscript-codec</div>
+  <h1>Global Brotli mangling lab</h1>
+  <p class="lede">Hundred-kilobyte jQuery / gl-matrix / Monaco mutations. Green is smaller than that file’s baseline. Several probes are semantically illegal. Playbook starts at <a href="README.md">README.md</a>.</p>
+</header>
+<nav>
+  <a href="00-thesis.md">thesis</a>
+  <a href="#corpora">mutations</a>
+  <a href="#surgical">color merge</a>
+  <a href="#inversions">inversions</a>
+  <a href="#audits">audits</a>
+  <a href="#monaco">monaco</a>
+  <a href="11-playbook.md">playbook</a>
+</nav>
+<main>
+<section>
+  <p class="callout">The large legal-looking lever is cross-scope reuse. The large <em>ugly</em> lever is merging the hottest local into <code>e</code>/<code>t</code> (often illegal). ROM words as names lose. gzip and q11 disagree on layout.</p>
+  <p class="tiny">Generated 2026-08-19T23:18:35.325Z · harness 34814 ms · 45 ranking inversions</p>
+</section>
+<section id="corpora">
+  <h2>24 mutations × 9 corpora</h2>
+  <h3 id="c-jquery-min">jquery-min</h3>
+  <p class="tiny">jquery.min.js · baseline raw 87533 · br11 27445</p>
+  <table>
+    <thead><tr><th>mutation</th><th class="num">raw</th><th class="num">gzip9</th><th class="num">br5</th><th class="num">br11</th><th class="num">Δ gzip</th><th class="num">Δ br5</th><th class="num">Δ br11</th></tr></thead>
+    <tbody><tr>
+        <td>baseline</td>
+        <td class="num">87533</td>
+        <td class="num">30342</td>
+        <td class="num">29763</td>
+        <td class="num">27445</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+      </tr>
+<tr>
+        <td>quotes-single</td>
+        <td class="num">87538</td>
+        <td class="num">30355</td>
+        <td class="num">29774</td>
+        <td class="num">27429</td>
+        <td class="num lose">+13</td>
+        <td class="num lose">+11</td>
+        <td class="num win">-16</td>
+      </tr>
+<tr>
+        <td>bool-minify</td>
+        <td class="num">87468</td>
+        <td class="num">30336</td>
+        <td class="num">29759</td>
+        <td class="num">27436</td>
+        <td class="num win">-6</td>
+        <td class="num win">-4</td>
+        <td class="num win">-9</td>
+      </tr>
+<tr>
+        <td>bool-expand</td>
+        <td class="num">88409</td>
+        <td class="num">30414</td>
+        <td class="num">29824</td>
+        <td class="num">27530</td>
+        <td class="num lose">+72</td>
+        <td class="num lose">+61</td>
+        <td class="num lose">+85</td>
+      </tr>
+<tr>
+        <td>var-to-let</td>
+        <td class="num">87533</td>
+        <td class="num">30341</td>
+        <td class="num">29765</td>
+        <td class="num">27462</td>
+        <td class="num win">-1</td>
+        <td class="num lose">+2</td>
+        <td class="num lose">+17</td>
+      </tr>
+<tr>
+        <td>let-to-var</td>
+        <td class="num">87533</td>
+        <td class="num">30342</td>
+        <td class="num">29763</td>
+        <td class="num">27445</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+      </tr>
+<tr>
+        <td>const-to-var</td>
+        <td class="num">87533</td>
+        <td class="num">30342</td>
+        <td class="num">29763</td>
+        <td class="num">27445</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+      </tr>
+<tr>
+        <td>rotate-short-1</td>
+        <td class="num">87533</td>
+        <td class="num">30524</td>
+        <td class="num">29918</td>
+        <td class="num">27523</td>
+        <td class="num lose">+182</td>
+        <td class="num lose">+155</td>
+        <td class="num lose">+78</td>
+      </tr>
+<tr>
+        <td>rotate-short-13</td>
+        <td class="num">87533</td>
+        <td class="num">30678</td>
+        <td class="num">30044</td>
+        <td class="num">27506</td>
+        <td class="num lose">+336</td>
+        <td class="num lose">+281</td>
+        <td class="num lose">+61</td>
+      </tr>
+<tr>
+        <td>alphabet-function-letters</td>
+        <td class="num">86985</td>
+        <td class="num">30277</td>
+        <td class="num">29676</td>
+        <td class="num">27378</td>
+        <td class="num win">-65</td>
+        <td class="num win">-87</td>
+        <td class="num win">-67</td>
+      </tr>
+<tr>
+        <td>alphabet-rare</td>
+        <td class="num">86985</td>
+        <td class="num">30661</td>
+        <td class="num">30004</td>
+        <td class="num">27412</td>
+        <td class="num lose">+319</td>
+        <td class="num lose">+241</td>
+        <td class="num win">-33</td>
+      </tr>
+<tr>
+        <td>locals-as-length-index-value</td>
+        <td class="num">109777</td>
+        <td class="num">32373</td>
+        <td class="num">32014</td>
+        <td class="num">29045</td>
+        <td class="num lose">+2031</td>
+        <td class="num lose">+2251</td>
+        <td class="num lose">+1600</td>
+      </tr>
+<tr>
+        <td>locals-as-function-return</td>
+        <td class="num">124910</td>
+        <td class="num">33116</td>
+        <td class="num">32692</td>
+        <td class="num">29561</td>
+        <td class="num lose">+2774</td>
+        <td class="num lose">+2929</td>
+        <td class="num lose">+2116</td>
+      </tr>
+<tr>
+        <td>uniquify-short</td>
+        <td class="num">112110</td>
+        <td class="num">49113</td>
+        <td class="num">47531</td>
+        <td class="num">41764</td>
+        <td class="num lose">+18771</td>
+        <td class="num lose">+17768</td>
+        <td class="num lose">+14319</td>
+      </tr>
+<tr>
+        <td>collapse-to-e</td>
+        <td class="num">87533</td>
+        <td class="num">26475</td>
+        <td class="num">25965</td>
+        <td class="num">23715</td>
+        <td class="num win">-3867</td>
+        <td class="num win">-3798</td>
+        <td class="num win">-3730</td>
+      </tr>
+<tr>
+        <td>pool-strings-4x6</td>
+        <td class="num">86875</td>
+        <td class="num">30420</td>
+        <td class="num">29846</td>
+        <td class="num">27469</td>
+        <td class="num lose">+78</td>
+        <td class="num lose">+83</td>
+        <td class="num lose">+24</td>
+      </tr>
+<tr>
+        <td>pool-strings-8x8</td>
+        <td class="num">87419</td>
+        <td class="num">30357</td>
+        <td class="num">29777</td>
+        <td class="num">27460</td>
+        <td class="num lose">+15</td>
+        <td class="num lose">+14</td>
+        <td class="num lose">+15</td>
+      </tr>
+<tr>
+        <td>bait-function-return</td>
+        <td class="num">87553</td>
+        <td class="num">30352</td>
+        <td class="num">29773</td>
+        <td class="num">27452</td>
+        <td class="num lose">+10</td>
+        <td class="num lose">+10</td>
+        <td class="num lose">+7</td>
+      </tr>
+<tr>
+        <td>bait-javascript-type</td>
+        <td class="num">87567</td>
+        <td class="num">30366</td>
+        <td class="num">29785</td>
+        <td class="num">27452</td>
+        <td class="num lose">+24</td>
+        <td class="num lose">+22</td>
+        <td class="num lose">+7</td>
+      </tr>
+<tr>
+        <td>bait-unique</td>
+        <td class="num">87553</td>
+        <td class="num">30358</td>
+        <td class="num">29780</td>
+        <td class="num">27432</td>
+        <td class="num lose">+16</td>
+        <td class="num lose">+17</td>
+        <td class="num win">-13</td>
+      </tr>
+<tr>
+        <td>fn-reverse</td>
+        <td class="num">87533</td>
+        <td class="num">30511</td>
+        <td class="num">29888</td>
+        <td class="num">27510</td>
+        <td class="num lose">+169</td>
+        <td class="num lose">+125</td>
+        <td class="num lose">+65</td>
+      </tr>
+<tr>
+        <td>fn-by-length</td>
+        <td class="num">87533</td>
+        <td class="num">31073</td>
+        <td class="num">30002</td>
+        <td class="num">27657</td>
+        <td class="num lose">+731</td>
+        <td class="num lose">+239</td>
+        <td class="num lose">+212</td>
+      </tr>
+<tr>
+        <td>fn-by-prefix</td>
+        <td class="num">87533</td>
+        <td class="num">30937</td>
+        <td class="num">30074</td>
+        <td class="num">27633</td>
+        <td class="num lose">+595</td>
+        <td class="num lose">+311</td>
+        <td class="num lose">+188</td>
+      </tr>
+<tr>
+        <td>dot-length-bracket</td>
+        <td class="num">88453</td>
+        <td class="num">30402</td>
+        <td class="num">29819</td>
+        <td class="num">27495</td>
+        <td class="num lose">+60</td>
+        <td class="num lose">+56</td>
+        <td class="num lose">+50</td>
+      </tr></tbody>
+  </table>
+<h3 id="c-jquery-src">jquery-src</h3>
+  <p class="tiny">jquery.js · baseline raw 285314 · br11 69545</p>
+  <table>
+    <thead><tr><th>mutation</th><th class="num">raw</th><th class="num">gzip9</th><th class="num">br5</th><th class="num">br11</th><th class="num">Δ gzip</th><th class="num">Δ br5</th><th class="num">Δ br11</th></tr></thead>
+    <tbody><tr>
+        <td>baseline</td>
+        <td class="num">285314</td>
+        <td class="num">83697</td>
+        <td class="num">79680</td>
+        <td class="num">69545</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+      </tr>
+<tr>
+        <td>quotes-single</td>
+        <td class="num">285319</td>
+        <td class="num">83810</td>
+        <td class="num">79786</td>
+        <td class="num">69662</td>
+        <td class="num lose">+113</td>
+        <td class="num lose">+106</td>
+        <td class="num lose">+117</td>
+      </tr>
+<tr>
+        <td>bool-minify</td>
+        <td class="num">284362</td>
+        <td class="num">83601</td>
+        <td class="num">79589</td>
+        <td class="num">69490</td>
+        <td class="num win">-96</td>
+        <td class="num win">-91</td>
+        <td class="num win">-55</td>
+      </tr>
+<tr>
+        <td>bool-expand</td>
+        <td class="num">285314</td>
+        <td class="num">83697</td>
+        <td class="num">79680</td>
+        <td class="num">69545</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+      </tr>
+<tr>
+        <td>var-to-let</td>
+        <td class="num">285314</td>
+        <td class="num">83683</td>
+        <td class="num">79672</td>
+        <td class="num">69581</td>
+        <td class="num win">-14</td>
+        <td class="num win">-8</td>
+        <td class="num lose">+36</td>
+      </tr>
+<tr>
+        <td>let-to-var</td>
+        <td class="num">285314</td>
+        <td class="num">83697</td>
+        <td class="num">79680</td>
+        <td class="num">69545</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+      </tr>
+<tr>
+        <td>const-to-var</td>
+        <td class="num">285314</td>
+        <td class="num">83697</td>
+        <td class="num">79680</td>
+        <td class="num">69545</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+      </tr>
+<tr>
+        <td>rotate-short-1</td>
+        <td class="num">285314</td>
+        <td class="num">83736</td>
+        <td class="num">79709</td>
+        <td class="num">69572</td>
+        <td class="num lose">+39</td>
+        <td class="num lose">+29</td>
+        <td class="num lose">+27</td>
+      </tr>
+<tr>
+        <td>rotate-short-13</td>
+        <td class="num">285314</td>
+        <td class="num">83740</td>
+        <td class="num">79709</td>
+        <td class="num">69576</td>
+        <td class="num lose">+43</td>
+        <td class="num lose">+29</td>
+        <td class="num lose">+31</td>
+      </tr>
+<tr>
+        <td>alphabet-function-letters</td>
+        <td class="num">285154</td>
+        <td class="num">83615</td>
+        <td class="num">79613</td>
+        <td class="num">69534</td>
+        <td class="num win">-82</td>
+        <td class="num win">-67</td>
+        <td class="num win">-11</td>
+      </tr>
+<tr>
+        <td>alphabet-rare</td>
+        <td class="num">285154</td>
+        <td class="num">83763</td>
+        <td class="num">79728</td>
+        <td class="num">69635</td>
+        <td class="num lose">+66</td>
+        <td class="num lose">+48</td>
+        <td class="num lose">+90</td>
+      </tr>
+<tr>
+        <td>locals-as-length-index-value</td>
+        <td class="num">288380</td>
+        <td class="num">83977</td>
+        <td class="num">79902</td>
+        <td class="num">69652</td>
+        <td class="num lose">+280</td>
+        <td class="num lose">+222</td>
+        <td class="num lose">+107</td>
+      </tr>
+<tr>
+        <td>locals-as-function-return</td>
+        <td class="num">290135</td>
+        <td class="num">84133</td>
+        <td class="num">80069</td>
+        <td class="num">69807</td>
+        <td class="num lose">+436</td>
+        <td class="num lose">+389</td>
+        <td class="num lose">+262</td>
+      </tr>
+<tr>
+        <td>uniquify-short</td>
+        <td class="num">287233</td>
+        <td class="num">86026</td>
+        <td class="num">81816</td>
+        <td class="num">71345</td>
+        <td class="num lose">+2329</td>
+        <td class="num lose">+2136</td>
+        <td class="num lose">+1800</td>
+      </tr>
+<tr>
+        <td>collapse-to-e</td>
+        <td class="num">285314</td>
+        <td class="num">83545</td>
+        <td class="num">79573</td>
+        <td class="num">69436</td>
+        <td class="num win">-152</td>
+        <td class="num win">-107</td>
+        <td class="num win">-109</td>
+      </tr>
+<tr>
+        <td>pool-strings-4x6</td>
+        <td class="num">284656</td>
+        <td class="num">83822</td>
+        <td class="num">79760</td>
+        <td class="num">69671</td>
+        <td class="num lose">+125</td>
+        <td class="num lose">+80</td>
+        <td class="num lose">+126</td>
+      </tr>
+<tr>
+        <td>pool-strings-8x8</td>
+        <td class="num">285200</td>
+        <td class="num">83734</td>
+        <td class="num">79702</td>
+        <td class="num">69567</td>
+        <td class="num lose">+37</td>
+        <td class="num lose">+22</td>
+        <td class="num lose">+22</td>
+      </tr>
+<tr>
+        <td>bait-function-return</td>
+        <td class="num">285334</td>
+        <td class="num">83707</td>
+        <td class="num">79694</td>
+        <td class="num">69527</td>
+        <td class="num lose">+10</td>
+        <td class="num lose">+14</td>
+        <td class="num win">-18</td>
+      </tr>
+<tr>
+        <td>bait-javascript-type</td>
+        <td class="num">285348</td>
+        <td class="num">83732</td>
+        <td class="num">79701</td>
+        <td class="num">69566</td>
+        <td class="num lose">+35</td>
+        <td class="num lose">+21</td>
+        <td class="num lose">+21</td>
+      </tr>
+<tr>
+        <td>bait-unique</td>
+        <td class="num">285334</td>
+        <td class="num">83717</td>
+        <td class="num">79701</td>
+        <td class="num">69551</td>
+        <td class="num lose">+20</td>
+        <td class="num lose">+21</td>
+        <td class="num lose">+6</td>
+      </tr>
+<tr>
+        <td>fn-reverse</td>
+        <td class="num">285314</td>
+        <td class="num">83697</td>
+        <td class="num">79680</td>
+        <td class="num">69545</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+      </tr>
+<tr>
+        <td>fn-by-length</td>
+        <td class="num">285314</td>
+        <td class="num">83697</td>
+        <td class="num">79680</td>
+        <td class="num">69545</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+      </tr>
+<tr>
+        <td>fn-by-prefix</td>
+        <td class="num">285314</td>
+        <td class="num">83697</td>
+        <td class="num">79680</td>
+        <td class="num">69545</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+      </tr>
+<tr>
+        <td>dot-length-bracket</td>
+        <td class="num">286238</td>
+        <td class="num">83854</td>
+        <td class="num">79768</td>
+        <td class="num">69646</td>
+        <td class="num lose">+157</td>
+        <td class="num lose">+88</td>
+        <td class="num lose">+101</td>
+      </tr></tbody>
+  </table>
+<h3 id="c-jquery-lil-raw">jquery-lil-raw</h3>
+  <p class="tiny">jquery-lilscript.raw.js · baseline raw 102681 · br11 33283</p>
+  <table>
+    <thead><tr><th>mutation</th><th class="num">raw</th><th class="num">gzip9</th><th class="num">br5</th><th class="num">br11</th><th class="num">Δ gzip</th><th class="num">Δ br5</th><th class="num">Δ br11</th></tr></thead>
+    <tbody><tr>
+        <td>baseline</td>
+        <td class="num">102681</td>
+        <td class="num">38948</td>
+        <td class="num">36306</td>
+        <td class="num">33283</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+      </tr>
+<tr>
+        <td>quotes-single</td>
+        <td class="num">102656</td>
+        <td class="num">38961</td>
+        <td class="num">36314</td>
+        <td class="num">33288</td>
+        <td class="num lose">+13</td>
+        <td class="num lose">+8</td>
+        <td class="num lose">+5</td>
+      </tr>
+<tr>
+        <td>bool-minify</td>
+        <td class="num">102630</td>
+        <td class="num">38942</td>
+        <td class="num">36301</td>
+        <td class="num">33260</td>
+        <td class="num win">-6</td>
+        <td class="num win">-5</td>
+        <td class="num win">-23</td>
+      </tr>
+<tr>
+        <td>bool-expand</td>
+        <td class="num">104199</td>
+        <td class="num">39055</td>
+        <td class="num">36443</td>
+        <td class="num">33399</td>
+        <td class="num lose">+107</td>
+        <td class="num lose">+137</td>
+        <td class="num lose">+116</td>
+      </tr>
+<tr>
+        <td>var-to-let</td>
+        <td class="num">102681</td>
+        <td class="num">38894</td>
+        <td class="num">36249</td>
+        <td class="num">33227</td>
+        <td class="num win">-54</td>
+        <td class="num win">-57</td>
+        <td class="num win">-56</td>
+      </tr>
+<tr>
+        <td>let-to-var</td>
+        <td class="num">102681</td>
+        <td class="num">38948</td>
+        <td class="num">36306</td>
+        <td class="num">33283</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+      </tr>
+<tr>
+        <td>const-to-var</td>
+        <td class="num">102681</td>
+        <td class="num">38948</td>
+        <td class="num">36306</td>
+        <td class="num">33283</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+      </tr>
+<tr>
+        <td>rotate-short-1</td>
+        <td class="num">102681</td>
+        <td class="num">39031</td>
+        <td class="num">36349</td>
+        <td class="num">33336</td>
+        <td class="num lose">+83</td>
+        <td class="num lose">+43</td>
+        <td class="num lose">+53</td>
+      </tr>
+<tr>
+        <td>rotate-short-13</td>
+        <td class="num">102681</td>
+        <td class="num">39256</td>
+        <td class="num">36579</td>
+        <td class="num">33402</td>
+        <td class="num lose">+308</td>
+        <td class="num lose">+273</td>
+        <td class="num lose">+119</td>
+      </tr>
+<tr>
+        <td>alphabet-function-letters</td>
+        <td class="num">102510</td>
+        <td class="num">38798</td>
+        <td class="num">36225</td>
+        <td class="num">33107</td>
+        <td class="num win">-150</td>
+        <td class="num win">-81</td>
+        <td class="num win">-176</td>
+      </tr>
+<tr>
+        <td>alphabet-rare</td>
+        <td class="num">102510</td>
+        <td class="num">39317</td>
+        <td class="num">36566</td>
+        <td class="num">33305</td>
+        <td class="num lose">+369</td>
+        <td class="num lose">+260</td>
+        <td class="num lose">+22</td>
+      </tr>
+<tr>
+        <td>locals-as-length-index-value</td>
+        <td class="num">135226</td>
+        <td class="num">41949</td>
+        <td class="num">39899</td>
+        <td class="num">35647</td>
+        <td class="num lose">+3001</td>
+        <td class="num lose">+3593</td>
+        <td class="num lose">+2364</td>
+      </tr>
+<tr>
+        <td>locals-as-function-return</td>
+        <td class="num">158399</td>
+        <td class="num">43021</td>
+        <td class="num">40883</td>
+        <td class="num">36431</td>
+        <td class="num lose">+4073</td>
+        <td class="num lose">+4577</td>
+        <td class="num lose">+3148</td>
+      </tr>
+<tr>
+        <td>uniquify-short</td>
+        <td class="num">140201</td>
+        <td class="num">65594</td>
+        <td class="num">63110</td>
+        <td class="num">54552</td>
+        <td class="num lose">+26646</td>
+        <td class="num lose">+26804</td>
+        <td class="num lose">+21269</td>
+      </tr>
+<tr>
+        <td>collapse-to-e</td>
+        <td class="num">102681</td>
+        <td class="num">32664</td>
+        <td class="num">30546</td>
+        <td class="num">27563</td>
+        <td class="num win">-6284</td>
+        <td class="num win">-5760</td>
+        <td class="num win">-5720</td>
+      </tr>
+<tr>
+        <td>pool-strings-4x6</td>
+        <td class="num">102462</td>
+        <td class="num">38964</td>
+        <td class="num">36316</td>
+        <td class="num">33265</td>
+        <td class="num lose">+16</td>
+        <td class="num lose">+10</td>
+        <td class="num win">-18</td>
+      </tr>
+<tr>
+        <td>pool-strings-8x8</td>
+        <td class="num">102681</td>
+        <td class="num">38948</td>
+        <td class="num">36306</td>
+        <td class="num">33283</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+      </tr>
+<tr>
+        <td>bait-function-return</td>
+        <td class="num">102701</td>
+        <td class="num">38962</td>
+        <td class="num">36312</td>
+        <td class="num">33293</td>
+        <td class="num lose">+14</td>
+        <td class="num lose">+6</td>
+        <td class="num lose">+10</td>
+      </tr>
+<tr>
+        <td>bait-javascript-type</td>
+        <td class="num">102715</td>
+        <td class="num">38974</td>
+        <td class="num">36318</td>
+        <td class="num">33301</td>
+        <td class="num lose">+26</td>
+        <td class="num lose">+12</td>
+        <td class="num lose">+18</td>
+      </tr>
+<tr>
+        <td>bait-unique</td>
+        <td class="num">102701</td>
+        <td class="num">38966</td>
+        <td class="num">36317</td>
+        <td class="num">33301</td>
+        <td class="num lose">+18</td>
+        <td class="num lose">+11</td>
+        <td class="num lose">+18</td>
+      </tr>
+<tr>
+        <td>fn-reverse</td>
+        <td class="num">102681</td>
+        <td class="num">38770</td>
+        <td class="num">36320</td>
+        <td class="num">33323</td>
+        <td class="num win">-178</td>
+        <td class="num lose">+14</td>
+        <td class="num lose">+40</td>
+      </tr>
+<tr>
+        <td>fn-by-length</td>
+        <td class="num">102681</td>
+        <td class="num">37760</td>
+        <td class="num">36473</td>
+        <td class="num">33468</td>
+        <td class="num win">-1188</td>
+        <td class="num lose">+167</td>
+        <td class="num lose">+185</td>
+      </tr>
+<tr>
+        <td>fn-by-prefix</td>
+        <td class="num">102681</td>
+        <td class="num">37894</td>
+        <td class="num">36598</td>
+        <td class="num">33445</td>
+        <td class="num win">-1054</td>
+        <td class="num lose">+292</td>
+        <td class="num lose">+162</td>
+      </tr>
+<tr>
+        <td>dot-length-bracket</td>
+        <td class="num">103969</td>
+        <td class="num">39030</td>
+        <td class="num">36386</td>
+        <td class="num">33271</td>
+        <td class="num lose">+82</td>
+        <td class="num lose">+80</td>
+        <td class="num win">-12</td>
+      </tr></tbody>
+  </table>
+<h3 id="c-jquery-lil-measured">jquery-lil-measured</h3>
+  <p class="tiny">jquery-measured.js · baseline raw 162971 · br11 38560</p>
+  <table>
+    <thead><tr><th>mutation</th><th class="num">raw</th><th class="num">gzip9</th><th class="num">br5</th><th class="num">br11</th><th class="num">Δ gzip</th><th class="num">Δ br5</th><th class="num">Δ br11</th></tr></thead>
+    <tbody><tr>
+        <td>baseline</td>
+        <td class="num">162971</td>
+        <td class="num">44309</td>
+        <td class="num">43391</td>
+        <td class="num">38560</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+      </tr>
+<tr>
+        <td>quotes-single</td>
+        <td class="num">162961</td>
+        <td class="num">44317</td>
+        <td class="num">43400</td>
+        <td class="num">38537</td>
+        <td class="num lose">+8</td>
+        <td class="num lose">+9</td>
+        <td class="num win">-23</td>
+      </tr>
+<tr>
+        <td>bool-minify</td>
+        <td class="num">161927</td>
+        <td class="num">44226</td>
+        <td class="num">43295</td>
+        <td class="num">38437</td>
+        <td class="num win">-83</td>
+        <td class="num win">-96</td>
+        <td class="num win">-123</td>
+      </tr>
+<tr>
+        <td>bool-expand</td>
+        <td class="num">163436</td>
+        <td class="num">44337</td>
+        <td class="num">43417</td>
+        <td class="num">38548</td>
+        <td class="num lose">+28</td>
+        <td class="num lose">+26</td>
+        <td class="num win">-12</td>
+      </tr>
+<tr>
+        <td>var-to-let</td>
+        <td class="num">162971</td>
+        <td class="num">44255</td>
+        <td class="num">43341</td>
+        <td class="num">38468</td>
+        <td class="num win">-54</td>
+        <td class="num win">-50</td>
+        <td class="num win">-92</td>
+      </tr>
+<tr>
+        <td>let-to-var</td>
+        <td class="num">162971</td>
+        <td class="num">44309</td>
+        <td class="num">43391</td>
+        <td class="num">38560</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+      </tr>
+<tr>
+        <td>const-to-var</td>
+        <td class="num">162953</td>
+        <td class="num">44307</td>
+        <td class="num">43389</td>
+        <td class="num">38507</td>
+        <td class="num win">-2</td>
+        <td class="num win">-2</td>
+        <td class="num win">-53</td>
+      </tr>
+<tr>
+        <td>rotate-short-1</td>
+        <td class="num">162971</td>
+        <td class="num">44517</td>
+        <td class="num">43528</td>
+        <td class="num">38579</td>
+        <td class="num lose">+208</td>
+        <td class="num lose">+137</td>
+        <td class="num lose">+19</td>
+      </tr>
+<tr>
+        <td>rotate-short-13</td>
+        <td class="num">162971</td>
+        <td class="num">44525</td>
+        <td class="num">43518</td>
+        <td class="num">38524</td>
+        <td class="num lose">+216</td>
+        <td class="num lose">+127</td>
+        <td class="num win">-36</td>
+      </tr>
+<tr>
+        <td>alphabet-function-letters</td>
+        <td class="num">161252</td>
+        <td class="num">44064</td>
+        <td class="num">43123</td>
+        <td class="num">38373</td>
+        <td class="num win">-245</td>
+        <td class="num win">-268</td>
+        <td class="num win">-187</td>
+      </tr>
+<tr>
+        <td>alphabet-rare</td>
+        <td class="num">161252</td>
+        <td class="num">44565</td>
+        <td class="num">43443</td>
+        <td class="num">38541</td>
+        <td class="num lose">+256</td>
+        <td class="num lose">+52</td>
+        <td class="num win">-19</td>
+      </tr>
+<tr>
+        <td>locals-as-length-index-value</td>
+        <td class="num">193600</td>
+        <td class="num">46890</td>
+        <td class="num">46295</td>
+        <td class="num">40178</td>
+        <td class="num lose">+2581</td>
+        <td class="num lose">+2904</td>
+        <td class="num lose">+1618</td>
+      </tr>
+<tr>
+        <td>locals-as-function-return</td>
+        <td class="num">215105</td>
+        <td class="num">47787</td>
+        <td class="num">47164</td>
+        <td class="num">40871</td>
+        <td class="num lose">+3478</td>
+        <td class="num lose">+3773</td>
+        <td class="num lose">+2311</td>
+      </tr>
+<tr>
+        <td>uniquify-short</td>
+        <td class="num">197329</td>
+        <td class="num">69901</td>
+        <td class="num">67860</td>
+        <td class="num">57595</td>
+        <td class="num lose">+25592</td>
+        <td class="num lose">+24469</td>
+        <td class="num lose">+19035</td>
+      </tr>
+<tr>
+        <td>collapse-to-e</td>
+        <td class="num">162971</td>
+        <td class="num">40642</td>
+        <td class="num">40039</td>
+        <td class="num">35009</td>
+        <td class="num win">-3667</td>
+        <td class="num win">-3352</td>
+        <td class="num win">-3551</td>
+      </tr>
+<tr>
+        <td>pool-strings-4x6</td>
+        <td class="num">161859</td>
+        <td class="num">44399</td>
+        <td class="num">43475</td>
+        <td class="num">38542</td>
+        <td class="num lose">+90</td>
+        <td class="num lose">+84</td>
+        <td class="num win">-18</td>
+      </tr>
+<tr>
+        <td>pool-strings-8x8</td>
+        <td class="num">162936</td>
+        <td class="num">44323</td>
+        <td class="num">43393</td>
+        <td class="num">38526</td>
+        <td class="num lose">+14</td>
+        <td class="num lose">+2</td>
+        <td class="num win">-34</td>
+      </tr>
+<tr>
+        <td>bait-function-return</td>
+        <td class="num">162991</td>
+        <td class="num">44317</td>
+        <td class="num">43391</td>
+        <td class="num">38531</td>
+        <td class="num lose">+8</td>
+        <td class="num">0</td>
+        <td class="num win">-29</td>
+      </tr>
+<tr>
+        <td>bait-javascript-type</td>
+        <td class="num">163005</td>
+        <td class="num">44331</td>
+        <td class="num">43404</td>
+        <td class="num">38552</td>
+        <td class="num lose">+22</td>
+        <td class="num lose">+13</td>
+        <td class="num win">-8</td>
+      </tr>
+<tr>
+        <td>bait-unique</td>
+        <td class="num">162991</td>
+        <td class="num">44323</td>
+        <td class="num">43397</td>
+        <td class="num">38509</td>
+        <td class="num lose">+14</td>
+        <td class="num lose">+6</td>
+        <td class="num win">-51</td>
+      </tr>
+<tr>
+        <td>fn-reverse</td>
+        <td class="num">162971</td>
+        <td class="num">44309</td>
+        <td class="num">43391</td>
+        <td class="num">38560</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+      </tr>
+<tr>
+        <td>fn-by-length</td>
+        <td class="num">162971</td>
+        <td class="num">44309</td>
+        <td class="num">43391</td>
+        <td class="num">38560</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+      </tr>
+<tr>
+        <td>fn-by-prefix</td>
+        <td class="num">162971</td>
+        <td class="num">44309</td>
+        <td class="num">43391</td>
+        <td class="num">38560</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+      </tr>
+<tr>
+        <td>dot-length-bracket</td>
+        <td class="num">164539</td>
+        <td class="num">44402</td>
+        <td class="num">43463</td>
+        <td class="num">38613</td>
+        <td class="num lose">+93</td>
+        <td class="num lose">+72</td>
+        <td class="num lose">+53</td>
+      </tr></tbody>
+  </table>
+<h3 id="c-jquery-lil-min">jquery-lil-min</h3>
+  <p class="tiny">jquery-lilscript.min.js · baseline raw 110749 · br11 37901</p>
+  <table>
+    <thead><tr><th>mutation</th><th class="num">raw</th><th class="num">gzip9</th><th class="num">br5</th><th class="num">br11</th><th class="num">Δ gzip</th><th class="num">Δ br5</th><th class="num">Δ br11</th></tr></thead>
+    <tbody><tr>
+        <td>baseline</td>
+        <td class="num">110749</td>
+        <td class="num">42826</td>
+        <td class="num">41380</td>
+        <td class="num">37901</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+      </tr>
+<tr>
+        <td>quotes-single</td>
+        <td class="num">110742</td>
+        <td class="num">42833</td>
+        <td class="num">41380</td>
+        <td class="num">37935</td>
+        <td class="num lose">+7</td>
+        <td class="num">0</td>
+        <td class="num lose">+34</td>
+      </tr>
+<tr>
+        <td>bool-minify</td>
+        <td class="num">110749</td>
+        <td class="num">42826</td>
+        <td class="num">41380</td>
+        <td class="num">37901</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+      </tr>
+<tr>
+        <td>bool-expand</td>
+        <td class="num">112885</td>
+        <td class="num">42975</td>
+        <td class="num">41549</td>
+        <td class="num">38043</td>
+        <td class="num lose">+149</td>
+        <td class="num lose">+169</td>
+        <td class="num lose">+142</td>
+      </tr>
+<tr>
+        <td>var-to-let</td>
+        <td class="num">110749</td>
+        <td class="num">42742</td>
+        <td class="num">41305</td>
+        <td class="num">37857</td>
+        <td class="num win">-84</td>
+        <td class="num win">-75</td>
+        <td class="num win">-44</td>
+      </tr>
+<tr>
+        <td>let-to-var</td>
+        <td class="num">110749</td>
+        <td class="num">42826</td>
+        <td class="num">41380</td>
+        <td class="num">37901</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+      </tr>
+<tr>
+        <td>const-to-var</td>
+        <td class="num">110749</td>
+        <td class="num">42826</td>
+        <td class="num">41380</td>
+        <td class="num">37901</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+      </tr>
+<tr>
+        <td>rotate-short-1</td>
+        <td class="num">110749</td>
+        <td class="num">43055</td>
+        <td class="num">41519</td>
+        <td class="num">38083</td>
+        <td class="num lose">+229</td>
+        <td class="num lose">+139</td>
+        <td class="num lose">+182</td>
+      </tr>
+<tr>
+        <td>rotate-short-13</td>
+        <td class="num">110749</td>
+        <td class="num">43208</td>
+        <td class="num">41628</td>
+        <td class="num">38038</td>
+        <td class="num lose">+382</td>
+        <td class="num lose">+248</td>
+        <td class="num lose">+137</td>
+      </tr>
+<tr>
+        <td>alphabet-function-letters</td>
+        <td class="num">110749</td>
+        <td class="num">42861</td>
+        <td class="num">41386</td>
+        <td class="num">37870</td>
+        <td class="num lose">+35</td>
+        <td class="num lose">+6</td>
+        <td class="num win">-31</td>
+      </tr>
+<tr>
+        <td>alphabet-rare</td>
+        <td class="num">110749</td>
+        <td class="num">43353</td>
+        <td class="num">41755</td>
+        <td class="num">38014</td>
+        <td class="num lose">+527</td>
+        <td class="num lose">+375</td>
+        <td class="num lose">+113</td>
+      </tr>
+<tr>
+        <td>locals-as-length-index-value</td>
+        <td class="num">149773</td>
+        <td class="num">46163</td>
+        <td class="num">45403</td>
+        <td class="num">40732</td>
+        <td class="num lose">+3337</td>
+        <td class="num lose">+4023</td>
+        <td class="num lose">+2831</td>
+      </tr>
+<tr>
+        <td>locals-as-function-return</td>
+        <td class="num">176092</td>
+        <td class="num">47284</td>
+        <td class="num">46527</td>
+        <td class="num">41565</td>
+        <td class="num lose">+4458</td>
+        <td class="num lose">+5147</td>
+        <td class="num lose">+3664</td>
+      </tr>
+<tr>
+        <td>uniquify-short</td>
+        <td class="num">161217</td>
+        <td class="num">79734</td>
+        <td class="num">76709</td>
+        <td class="num">65580</td>
+        <td class="num lose">+36908</td>
+        <td class="num lose">+35329</td>
+        <td class="num lose">+27679</td>
+      </tr>
+<tr>
+        <td>collapse-to-e</td>
+        <td class="num">110749</td>
+        <td class="num">35132</td>
+        <td class="num">34320</td>
+        <td class="num">30886</td>
+        <td class="num win">-7694</td>
+        <td class="num win">-7060</td>
+        <td class="num win">-7015</td>
+      </tr>
+<tr>
+        <td>pool-strings-4x6</td>
+        <td class="num">109670</td>
+        <td class="num">42800</td>
+        <td class="num">41354</td>
+        <td class="num">37842</td>
+        <td class="num win">-26</td>
+        <td class="num win">-26</td>
+        <td class="num win">-59</td>
+      </tr>
+<tr>
+        <td>pool-strings-8x8</td>
+        <td class="num">110720</td>
+        <td class="num">42833</td>
+        <td class="num">41389</td>
+        <td class="num">37978</td>
+        <td class="num lose">+7</td>
+        <td class="num lose">+9</td>
+        <td class="num lose">+77</td>
+      </tr>
+<tr>
+        <td>bait-function-return</td>
+        <td class="num">110769</td>
+        <td class="num">42834</td>
+        <td class="num">41387</td>
+        <td class="num">37885</td>
+        <td class="num lose">+8</td>
+        <td class="num lose">+7</td>
+        <td class="num win">-16</td>
+      </tr>
+<tr>
+        <td>bait-javascript-type</td>
+        <td class="num">110783</td>
+        <td class="num">42847</td>
+        <td class="num">41396</td>
+        <td class="num">38049</td>
+        <td class="num lose">+21</td>
+        <td class="num lose">+16</td>
+        <td class="num lose">+148</td>
+      </tr>
+<tr>
+        <td>bait-unique</td>
+        <td class="num">110769</td>
+        <td class="num">42839</td>
+        <td class="num">41392</td>
+        <td class="num">37916</td>
+        <td class="num lose">+13</td>
+        <td class="num lose">+12</td>
+        <td class="num lose">+15</td>
+      </tr>
+<tr>
+        <td>fn-reverse</td>
+        <td class="num">110749</td>
+        <td class="num">42895</td>
+        <td class="num">41610</td>
+        <td class="num">38118</td>
+        <td class="num lose">+69</td>
+        <td class="num lose">+230</td>
+        <td class="num lose">+217</td>
+      </tr>
+<tr>
+        <td>fn-by-length</td>
+        <td class="num">110749</td>
+        <td class="num">43021</td>
+        <td class="num">41613</td>
+        <td class="num">38043</td>
+        <td class="num lose">+195</td>
+        <td class="num lose">+233</td>
+        <td class="num lose">+142</td>
+      </tr>
+<tr>
+        <td>fn-by-prefix</td>
+        <td class="num">110749</td>
+        <td class="num">43426</td>
+        <td class="num">41913</td>
+        <td class="num">38255</td>
+        <td class="num lose">+600</td>
+        <td class="num lose">+533</td>
+        <td class="num lose">+354</td>
+      </tr>
+<tr>
+        <td>dot-length-bracket</td>
+        <td class="num">112069</td>
+        <td class="num">42905</td>
+        <td class="num">41450</td>
+        <td class="num">37972</td>
+        <td class="num lose">+79</td>
+        <td class="num lose">+70</td>
+        <td class="num lose">+71</td>
+      </tr></tbody>
+  </table>
+<h3 id="c-glmatrix-js-vite">glmatrix-js-vite</h3>
+  <p class="tiny">gl-matrix-vite-run.mjs · baseline raw 73505 · br11 14330</p>
+  <table>
+    <thead><tr><th>mutation</th><th class="num">raw</th><th class="num">gzip9</th><th class="num">br5</th><th class="num">br11</th><th class="num">Δ gzip</th><th class="num">Δ br5</th><th class="num">Δ br11</th></tr></thead>
+    <tbody><tr>
+        <td>baseline</td>
+        <td class="num">73505</td>
+        <td class="num">17722</td>
+        <td class="num">16504</td>
+        <td class="num">14330</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+      </tr>
+<tr>
+        <td>quotes-single</td>
+        <td class="num">73505</td>
+        <td class="num">17722</td>
+        <td class="num">16504</td>
+        <td class="num">14330</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+      </tr>
+<tr>
+        <td>bool-minify</td>
+        <td class="num">73505</td>
+        <td class="num">17722</td>
+        <td class="num">16504</td>
+        <td class="num">14330</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+      </tr>
+<tr>
+        <td>bool-expand</td>
+        <td class="num">73507</td>
+        <td class="num">17723</td>
+        <td class="num">16505</td>
+        <td class="num">14385</td>
+        <td class="num lose">+1</td>
+        <td class="num lose">+1</td>
+        <td class="num lose">+55</td>
+      </tr>
+<tr>
+        <td>var-to-let</td>
+        <td class="num">73505</td>
+        <td class="num">17712</td>
+        <td class="num">16509</td>
+        <td class="num">14340</td>
+        <td class="num win">-10</td>
+        <td class="num lose">+5</td>
+        <td class="num lose">+10</td>
+      </tr>
+<tr>
+        <td>let-to-var</td>
+        <td class="num">73505</td>
+        <td class="num">17722</td>
+        <td class="num">16504</td>
+        <td class="num">14330</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+      </tr>
+<tr>
+        <td>const-to-var</td>
+        <td class="num">73505</td>
+        <td class="num">17722</td>
+        <td class="num">16504</td>
+        <td class="num">14330</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+      </tr>
+<tr>
+        <td>rotate-short-1</td>
+        <td class="num">73505</td>
+        <td class="num">17791</td>
+        <td class="num">16541</td>
+        <td class="num">14326</td>
+        <td class="num lose">+69</td>
+        <td class="num lose">+37</td>
+        <td class="num win">-4</td>
+      </tr>
+<tr>
+        <td>rotate-short-13</td>
+        <td class="num">73505</td>
+        <td class="num">17833</td>
+        <td class="num">16566</td>
+        <td class="num">14382</td>
+        <td class="num lose">+111</td>
+        <td class="num lose">+62</td>
+        <td class="num lose">+52</td>
+      </tr>
+<tr>
+        <td>alphabet-function-letters</td>
+        <td class="num">73505</td>
+        <td class="num">17648</td>
+        <td class="num">16439</td>
+        <td class="num">14342</td>
+        <td class="num win">-74</td>
+        <td class="num win">-65</td>
+        <td class="num lose">+12</td>
+      </tr>
+<tr>
+        <td>alphabet-rare</td>
+        <td class="num">73505</td>
+        <td class="num">17852</td>
+        <td class="num">16589</td>
+        <td class="num">14306</td>
+        <td class="num lose">+130</td>
+        <td class="num lose">+85</td>
+        <td class="num win">-24</td>
+      </tr>
+<tr>
+        <td>locals-as-length-index-value</td>
+        <td class="num">107131</td>
+        <td class="num">19103</td>
+        <td class="num">18571</td>
+        <td class="num">15692</td>
+        <td class="num lose">+1381</td>
+        <td class="num lose">+2067</td>
+        <td class="num lose">+1362</td>
+      </tr>
+<tr>
+        <td>locals-as-function-return</td>
+        <td class="num">128546</td>
+        <td class="num">19651</td>
+        <td class="num">19127</td>
+        <td class="num">16072</td>
+        <td class="num lose">+1929</td>
+        <td class="num lose">+2623</td>
+        <td class="num lose">+1742</td>
+      </tr>
+<tr>
+        <td>uniquify-short</td>
+        <td class="num">110377</td>
+        <td class="num">45386</td>
+        <td class="num">41108</td>
+        <td class="num">32891</td>
+        <td class="num lose">+27664</td>
+        <td class="num lose">+24604</td>
+        <td class="num lose">+18561</td>
+      </tr>
+<tr>
+        <td>collapse-to-e</td>
+        <td class="num">73505</td>
+        <td class="num">12360</td>
+        <td class="num">12148</td>
+        <td class="num">10393</td>
+        <td class="num win">-5362</td>
+        <td class="num win">-4356</td>
+        <td class="num win">-3937</td>
+      </tr>
+<tr>
+        <td>pool-strings-4x6</td>
+        <td class="num">73505</td>
+        <td class="num">17722</td>
+        <td class="num">16504</td>
+        <td class="num">14330</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+      </tr>
+<tr>
+        <td>pool-strings-8x8</td>
+        <td class="num">73505</td>
+        <td class="num">17722</td>
+        <td class="num">16504</td>
+        <td class="num">14330</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+      </tr>
+<tr>
+        <td>bait-function-return</td>
+        <td class="num">73525</td>
+        <td class="num">17732</td>
+        <td class="num">16511</td>
+        <td class="num">14316</td>
+        <td class="num lose">+10</td>
+        <td class="num lose">+7</td>
+        <td class="num win">-14</td>
+      </tr>
+<tr>
+        <td>bait-javascript-type</td>
+        <td class="num">73539</td>
+        <td class="num">17755</td>
+        <td class="num">16523</td>
+        <td class="num">14365</td>
+        <td class="num lose">+33</td>
+        <td class="num lose">+19</td>
+        <td class="num lose">+35</td>
+      </tr>
+<tr>
+        <td>bait-unique</td>
+        <td class="num">73525</td>
+        <td class="num">17739</td>
+        <td class="num">16514</td>
+        <td class="num">14420</td>
+        <td class="num lose">+17</td>
+        <td class="num lose">+10</td>
+        <td class="num lose">+90</td>
+      </tr>
+<tr>
+        <td>fn-reverse</td>
+        <td class="num">73505</td>
+        <td class="num">17775</td>
+        <td class="num">16490</td>
+        <td class="num">14321</td>
+        <td class="num lose">+53</td>
+        <td class="num win">-14</td>
+        <td class="num win">-9</td>
+      </tr>
+<tr>
+        <td>fn-by-length</td>
+        <td class="num">73505</td>
+        <td class="num">17488</td>
+        <td class="num">16512</td>
+        <td class="num">14352</td>
+        <td class="num win">-234</td>
+        <td class="num lose">+8</td>
+        <td class="num lose">+22</td>
+      </tr>
+<tr>
+        <td>fn-by-prefix</td>
+        <td class="num">73505</td>
+        <td class="num">18786</td>
+        <td class="num">17252</td>
+        <td class="num">14738</td>
+        <td class="num lose">+1064</td>
+        <td class="num lose">+748</td>
+        <td class="num lose">+408</td>
+      </tr>
+<tr>
+        <td>dot-length-bracket</td>
+        <td class="num">73601</td>
+        <td class="num">17736</td>
+        <td class="num">16518</td>
+        <td class="num">14383</td>
+        <td class="num lose">+14</td>
+        <td class="num lose">+14</td>
+        <td class="num lose">+53</td>
+      </tr></tbody>
+  </table>
+<h3 id="c-glmatrix-lil-vite">glmatrix-lil-vite</h3>
+  <p class="tiny">gl-matrix-lilscript-vite-run.mjs · baseline raw 68496 · br11 14116</p>
+  <table>
+    <thead><tr><th>mutation</th><th class="num">raw</th><th class="num">gzip9</th><th class="num">br5</th><th class="num">br11</th><th class="num">Δ gzip</th><th class="num">Δ br5</th><th class="num">Δ br11</th></tr></thead>
+    <tbody><tr>
+        <td>baseline</td>
+        <td class="num">68496</td>
+        <td class="num">17192</td>
+        <td class="num">16396</td>
+        <td class="num">14116</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+      </tr>
+<tr>
+        <td>quotes-single</td>
+        <td class="num">68496</td>
+        <td class="num">17192</td>
+        <td class="num">16396</td>
+        <td class="num">14116</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+      </tr>
+<tr>
+        <td>bool-minify</td>
+        <td class="num">68496</td>
+        <td class="num">17192</td>
+        <td class="num">16396</td>
+        <td class="num">14116</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+      </tr>
+<tr>
+        <td>bool-expand</td>
+        <td class="num">68508</td>
+        <td class="num">17195</td>
+        <td class="num">16394</td>
+        <td class="num">14147</td>
+        <td class="num lose">+3</td>
+        <td class="num win">-2</td>
+        <td class="num lose">+31</td>
+      </tr>
+<tr>
+        <td>var-to-let</td>
+        <td class="num">68496</td>
+        <td class="num">17141</td>
+        <td class="num">16350</td>
+        <td class="num">14051</td>
+        <td class="num win">-51</td>
+        <td class="num win">-46</td>
+        <td class="num win">-65</td>
+      </tr>
+<tr>
+        <td>let-to-var</td>
+        <td class="num">68496</td>
+        <td class="num">17192</td>
+        <td class="num">16396</td>
+        <td class="num">14116</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+      </tr>
+<tr>
+        <td>const-to-var</td>
+        <td class="num">68496</td>
+        <td class="num">17192</td>
+        <td class="num">16396</td>
+        <td class="num">14116</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+      </tr>
+<tr>
+        <td>rotate-short-1</td>
+        <td class="num">68496</td>
+        <td class="num">17283</td>
+        <td class="num">16462</td>
+        <td class="num">14151</td>
+        <td class="num lose">+91</td>
+        <td class="num lose">+66</td>
+        <td class="num lose">+35</td>
+      </tr>
+<tr>
+        <td>rotate-short-13</td>
+        <td class="num">68496</td>
+        <td class="num">17319</td>
+        <td class="num">16472</td>
+        <td class="num">14151</td>
+        <td class="num lose">+127</td>
+        <td class="num lose">+76</td>
+        <td class="num lose">+35</td>
+      </tr>
+<tr>
+        <td>alphabet-function-letters</td>
+        <td class="num">68496</td>
+        <td class="num">17070</td>
+        <td class="num">16312</td>
+        <td class="num">14037</td>
+        <td class="num win">-122</td>
+        <td class="num win">-84</td>
+        <td class="num win">-79</td>
+      </tr>
+<tr>
+        <td>alphabet-rare</td>
+        <td class="num">68496</td>
+        <td class="num">17333</td>
+        <td class="num">16469</td>
+        <td class="num">14080</td>
+        <td class="num lose">+141</td>
+        <td class="num lose">+73</td>
+        <td class="num win">-36</td>
+      </tr>
+<tr>
+        <td>locals-as-length-index-value</td>
+        <td class="num">104060</td>
+        <td class="num">18681</td>
+        <td class="num">18788</td>
+        <td class="num">15864</td>
+        <td class="num lose">+1489</td>
+        <td class="num lose">+2392</td>
+        <td class="num lose">+1748</td>
+      </tr>
+<tr>
+        <td>locals-as-function-return</td>
+        <td class="num">126918</td>
+        <td class="num">19377</td>
+        <td class="num">19383</td>
+        <td class="num">16268</td>
+        <td class="num lose">+2185</td>
+        <td class="num lose">+2987</td>
+        <td class="num lose">+2152</td>
+      </tr>
+<tr>
+        <td>uniquify-short</td>
+        <td class="num">105068</td>
+        <td class="num">43586</td>
+        <td class="num">40162</td>
+        <td class="num">32743</td>
+        <td class="num lose">+26394</td>
+        <td class="num lose">+23766</td>
+        <td class="num lose">+18627</td>
+      </tr>
+<tr>
+        <td>collapse-to-e</td>
+        <td class="num">68496</td>
+        <td class="num">12148</td>
+        <td class="num">11953</td>
+        <td class="num">10320</td>
+        <td class="num win">-5044</td>
+        <td class="num win">-4443</td>
+        <td class="num win">-3796</td>
+      </tr>
+<tr>
+        <td>pool-strings-4x6</td>
+        <td class="num">68496</td>
+        <td class="num">17192</td>
+        <td class="num">16396</td>
+        <td class="num">14116</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+      </tr>
+<tr>
+        <td>pool-strings-8x8</td>
+        <td class="num">68496</td>
+        <td class="num">17192</td>
+        <td class="num">16396</td>
+        <td class="num">14116</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+      </tr>
+<tr>
+        <td>bait-function-return</td>
+        <td class="num">68516</td>
+        <td class="num">17205</td>
+        <td class="num">16405</td>
+        <td class="num">14139</td>
+        <td class="num lose">+13</td>
+        <td class="num lose">+9</td>
+        <td class="num lose">+23</td>
+      </tr>
+<tr>
+        <td>bait-javascript-type</td>
+        <td class="num">68530</td>
+        <td class="num">17226</td>
+        <td class="num">16418</td>
+        <td class="num">14114</td>
+        <td class="num lose">+34</td>
+        <td class="num lose">+22</td>
+        <td class="num win">-2</td>
+      </tr>
+<tr>
+        <td>bait-unique</td>
+        <td class="num">68516</td>
+        <td class="num">17212</td>
+        <td class="num">16412</td>
+        <td class="num">14188</td>
+        <td class="num lose">+20</td>
+        <td class="num lose">+16</td>
+        <td class="num lose">+72</td>
+      </tr>
+<tr>
+        <td>fn-reverse</td>
+        <td class="num">68496</td>
+        <td class="num">17222</td>
+        <td class="num">16313</td>
+        <td class="num">14048</td>
+        <td class="num lose">+30</td>
+        <td class="num win">-83</td>
+        <td class="num win">-68</td>
+      </tr>
+<tr>
+        <td>fn-by-length</td>
+        <td class="num">68496</td>
+        <td class="num">17065</td>
+        <td class="num">16237</td>
+        <td class="num">14121</td>
+        <td class="num win">-127</td>
+        <td class="num win">-159</td>
+        <td class="num lose">+5</td>
+      </tr>
+<tr>
+        <td>fn-by-prefix</td>
+        <td class="num">68496</td>
+        <td class="num">18028</td>
+        <td class="num">17038</td>
+        <td class="num">14500</td>
+        <td class="num lose">+836</td>
+        <td class="num lose">+642</td>
+        <td class="num lose">+384</td>
+      </tr>
+<tr>
+        <td>dot-length-bracket</td>
+        <td class="num">68580</td>
+        <td class="num">17207</td>
+        <td class="num">16412</td>
+        <td class="num">14132</td>
+        <td class="num lose">+15</td>
+        <td class="num lose">+16</td>
+        <td class="num lose">+16</td>
+      </tr></tbody>
+  </table>
+<h3 id="c-glmatrix-js-raw">glmatrix-js-raw</h3>
+  <p class="tiny">gl-matrix-raw.mjs · baseline raw 142374 · br11 17791</p>
+  <table>
+    <thead><tr><th>mutation</th><th class="num">raw</th><th class="num">gzip9</th><th class="num">br5</th><th class="num">br11</th><th class="num">Δ gzip</th><th class="num">Δ br5</th><th class="num">Δ br11</th></tr></thead>
+    <tbody><tr>
+        <td>baseline</td>
+        <td class="num">142374</td>
+        <td class="num">22769</td>
+        <td class="num">21093</td>
+        <td class="num">17791</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+      </tr>
+<tr>
+        <td>quotes-single</td>
+        <td class="num">142374</td>
+        <td class="num">22770</td>
+        <td class="num">21090</td>
+        <td class="num">17808</td>
+        <td class="num lose">+1</td>
+        <td class="num win">-3</td>
+        <td class="num lose">+17</td>
+      </tr>
+<tr>
+        <td>bool-minify</td>
+        <td class="num">142367</td>
+        <td class="num">22766</td>
+        <td class="num">21092</td>
+        <td class="num">17849</td>
+        <td class="num win">-3</td>
+        <td class="num win">-1</td>
+        <td class="num lose">+58</td>
+      </tr>
+<tr>
+        <td>bool-expand</td>
+        <td class="num">142374</td>
+        <td class="num">22769</td>
+        <td class="num">21093</td>
+        <td class="num">17791</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+      </tr>
+<tr>
+        <td>var-to-let</td>
+        <td class="num">142374</td>
+        <td class="num">22767</td>
+        <td class="num">21095</td>
+        <td class="num">17770</td>
+        <td class="num win">-2</td>
+        <td class="num lose">+2</td>
+        <td class="num win">-21</td>
+      </tr>
+<tr>
+        <td>let-to-var</td>
+        <td class="num">142374</td>
+        <td class="num">22769</td>
+        <td class="num">21093</td>
+        <td class="num">17791</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+      </tr>
+<tr>
+        <td>const-to-var</td>
+        <td class="num">142248</td>
+        <td class="num">22750</td>
+        <td class="num">21082</td>
+        <td class="num">17790</td>
+        <td class="num win">-19</td>
+        <td class="num win">-11</td>
+        <td class="num win">-1</td>
+      </tr>
+<tr>
+        <td>rotate-short-1</td>
+        <td class="num">142374</td>
+        <td class="num">22802</td>
+        <td class="num">21122</td>
+        <td class="num">17810</td>
+        <td class="num lose">+33</td>
+        <td class="num lose">+29</td>
+        <td class="num lose">+19</td>
+      </tr>
+<tr>
+        <td>rotate-short-13</td>
+        <td class="num">142374</td>
+        <td class="num">22863</td>
+        <td class="num">21177</td>
+        <td class="num">17822</td>
+        <td class="num lose">+94</td>
+        <td class="num lose">+84</td>
+        <td class="num lose">+31</td>
+      </tr>
+<tr>
+        <td>alphabet-function-letters</td>
+        <td class="num">142018</td>
+        <td class="num">22781</td>
+        <td class="num">21175</td>
+        <td class="num">17856</td>
+        <td class="num lose">+12</td>
+        <td class="num lose">+82</td>
+        <td class="num lose">+65</td>
+      </tr>
+<tr>
+        <td>alphabet-rare</td>
+        <td class="num">142018</td>
+        <td class="num">22774</td>
+        <td class="num">21131</td>
+        <td class="num">17803</td>
+        <td class="num lose">+5</td>
+        <td class="num lose">+38</td>
+        <td class="num lose">+12</td>
+      </tr>
+<tr>
+        <td>locals-as-length-index-value</td>
+        <td class="num">155304</td>
+        <td class="num">23479</td>
+        <td class="num">21714</td>
+        <td class="num">18134</td>
+        <td class="num lose">+710</td>
+        <td class="num lose">+621</td>
+        <td class="num lose">+343</td>
+      </tr>
+<tr>
+        <td>locals-as-function-return</td>
+        <td class="num">161642</td>
+        <td class="num">23765</td>
+        <td class="num">21853</td>
+        <td class="num">18247</td>
+        <td class="num lose">+996</td>
+        <td class="num lose">+760</td>
+        <td class="num lose">+456</td>
+      </tr>
+<tr>
+        <td>uniquify-short</td>
+        <td class="num">155602</td>
+        <td class="num">35769</td>
+        <td class="num">32743</td>
+        <td class="num">26296</td>
+        <td class="num lose">+13000</td>
+        <td class="num lose">+11650</td>
+        <td class="num lose">+8505</td>
+      </tr>
+<tr>
+        <td>collapse-to-e</td>
+        <td class="num">142374</td>
+        <td class="num">21925</td>
+        <td class="num">20560</td>
+        <td class="num">17258</td>
+        <td class="num win">-844</td>
+        <td class="num win">-533</td>
+        <td class="num win">-533</td>
+      </tr>
+<tr>
+        <td>pool-strings-4x6</td>
+        <td class="num">142374</td>
+        <td class="num">22769</td>
+        <td class="num">21093</td>
+        <td class="num">17791</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+      </tr>
+<tr>
+        <td>pool-strings-8x8</td>
+        <td class="num">142374</td>
+        <td class="num">22769</td>
+        <td class="num">21093</td>
+        <td class="num">17791</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+      </tr>
+<tr>
+        <td>bait-function-return</td>
+        <td class="num">142394</td>
+        <td class="num">22780</td>
+        <td class="num">21103</td>
+        <td class="num">17802</td>
+        <td class="num lose">+11</td>
+        <td class="num lose">+10</td>
+        <td class="num lose">+11</td>
+      </tr>
+<tr>
+        <td>bait-javascript-type</td>
+        <td class="num">142408</td>
+        <td class="num">22796</td>
+        <td class="num">21110</td>
+        <td class="num">17808</td>
+        <td class="num lose">+27</td>
+        <td class="num lose">+17</td>
+        <td class="num lose">+17</td>
+      </tr>
+<tr>
+        <td>bait-unique</td>
+        <td class="num">142394</td>
+        <td class="num">22783</td>
+        <td class="num">21113</td>
+        <td class="num">17777</td>
+        <td class="num lose">+14</td>
+        <td class="num lose">+20</td>
+        <td class="num win">-14</td>
+      </tr>
+<tr>
+        <td>fn-reverse</td>
+        <td class="num">142374</td>
+        <td class="num">22769</td>
+        <td class="num">21093</td>
+        <td class="num">17791</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+      </tr>
+<tr>
+        <td>fn-by-length</td>
+        <td class="num">142374</td>
+        <td class="num">22769</td>
+        <td class="num">21093</td>
+        <td class="num">17791</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+      </tr>
+<tr>
+        <td>fn-by-prefix</td>
+        <td class="num">142374</td>
+        <td class="num">22769</td>
+        <td class="num">21093</td>
+        <td class="num">17791</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+      </tr>
+<tr>
+        <td>dot-length-bracket</td>
+        <td class="num">142470</td>
+        <td class="num">22776</td>
+        <td class="num">21108</td>
+        <td class="num">17781</td>
+        <td class="num lose">+7</td>
+        <td class="num lose">+15</td>
+        <td class="num win">-10</td>
+      </tr></tbody>
+  </table>
+<h3 id="c-glmatrix-lil-raw">glmatrix-lil-raw</h3>
+  <p class="tiny">gl-matrix-lilscript-raw.mjs · baseline raw 116878 · br11 17352</p>
+  <table>
+    <thead><tr><th>mutation</th><th class="num">raw</th><th class="num">gzip9</th><th class="num">br5</th><th class="num">br11</th><th class="num">Δ gzip</th><th class="num">Δ br5</th><th class="num">Δ br11</th></tr></thead>
+    <tbody><tr>
+        <td>baseline</td>
+        <td class="num">116878</td>
+        <td class="num">21413</td>
+        <td class="num">19940</td>
+        <td class="num">17352</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+      </tr>
+<tr>
+        <td>quotes-single</td>
+        <td class="num">116878</td>
+        <td class="num">21413</td>
+        <td class="num">19932</td>
+        <td class="num">17364</td>
+        <td class="num">0</td>
+        <td class="num win">-8</td>
+        <td class="num lose">+12</td>
+      </tr>
+<tr>
+        <td>bool-minify</td>
+        <td class="num">116861</td>
+        <td class="num">21404</td>
+        <td class="num">19934</td>
+        <td class="num">17330</td>
+        <td class="num win">-9</td>
+        <td class="num win">-6</td>
+        <td class="num win">-22</td>
+      </tr>
+<tr>
+        <td>bool-expand</td>
+        <td class="num">116878</td>
+        <td class="num">21413</td>
+        <td class="num">19940</td>
+        <td class="num">17352</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+      </tr>
+<tr>
+        <td>var-to-let</td>
+        <td class="num">116878</td>
+        <td class="num">21340</td>
+        <td class="num">19891</td>
+        <td class="num">17284</td>
+        <td class="num win">-73</td>
+        <td class="num win">-49</td>
+        <td class="num win">-68</td>
+      </tr>
+<tr>
+        <td>let-to-var</td>
+        <td class="num">116878</td>
+        <td class="num">21413</td>
+        <td class="num">19940</td>
+        <td class="num">17352</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+      </tr>
+<tr>
+        <td>const-to-var</td>
+        <td class="num">116752</td>
+        <td class="num">21395</td>
+        <td class="num">19934</td>
+        <td class="num">17299</td>
+        <td class="num win">-18</td>
+        <td class="num win">-6</td>
+        <td class="num win">-53</td>
+      </tr>
+<tr>
+        <td>rotate-short-1</td>
+        <td class="num">116878</td>
+        <td class="num">21432</td>
+        <td class="num">19974</td>
+        <td class="num">17376</td>
+        <td class="num lose">+19</td>
+        <td class="num lose">+34</td>
+        <td class="num lose">+24</td>
+      </tr>
+<tr>
+        <td>rotate-short-13</td>
+        <td class="num">116878</td>
+        <td class="num">21479</td>
+        <td class="num">19981</td>
+        <td class="num">17336</td>
+        <td class="num lose">+66</td>
+        <td class="num lose">+41</td>
+        <td class="num win">-16</td>
+      </tr>
+<tr>
+        <td>alphabet-function-letters</td>
+        <td class="num">116878</td>
+        <td class="num">21221</td>
+        <td class="num">19856</td>
+        <td class="num">17190</td>
+        <td class="num win">-192</td>
+        <td class="num win">-84</td>
+        <td class="num win">-162</td>
+      </tr>
+<tr>
+        <td>alphabet-rare</td>
+        <td class="num">116878</td>
+        <td class="num">21412</td>
+        <td class="num">19943</td>
+        <td class="num">17271</td>
+        <td class="num win">-1</td>
+        <td class="num lose">+3</td>
+        <td class="num win">-81</td>
+      </tr>
+<tr>
+        <td>locals-as-length-index-value</td>
+        <td class="num">142563</td>
+        <td class="num">22643</td>
+        <td class="num">21886</td>
+        <td class="num">18730</td>
+        <td class="num lose">+1230</td>
+        <td class="num lose">+1946</td>
+        <td class="num lose">+1378</td>
+      </tr>
+<tr>
+        <td>locals-as-function-return</td>
+        <td class="num">157112</td>
+        <td class="num">23132</td>
+        <td class="num">22236</td>
+        <td class="num">19029</td>
+        <td class="num lose">+1719</td>
+        <td class="num lose">+2296</td>
+        <td class="num lose">+1677</td>
+      </tr>
+<tr>
+        <td>uniquify-short</td>
+        <td class="num">145155</td>
+        <td class="num">44460</td>
+        <td class="num">41498</td>
+        <td class="num">32577</td>
+        <td class="num lose">+23047</td>
+        <td class="num lose">+21558</td>
+        <td class="num lose">+15225</td>
+      </tr>
+<tr>
+        <td>collapse-to-e</td>
+        <td class="num">116878</td>
+        <td class="num">15754</td>
+        <td class="num">15474</td>
+        <td class="num">13106</td>
+        <td class="num win">-5659</td>
+        <td class="num win">-4466</td>
+        <td class="num win">-4246</td>
+      </tr>
+<tr>
+        <td>pool-strings-4x6</td>
+        <td class="num">116878</td>
+        <td class="num">21413</td>
+        <td class="num">19940</td>
+        <td class="num">17352</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+      </tr>
+<tr>
+        <td>pool-strings-8x8</td>
+        <td class="num">116878</td>
+        <td class="num">21413</td>
+        <td class="num">19940</td>
+        <td class="num">17352</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+      </tr>
+<tr>
+        <td>bait-function-return</td>
+        <td class="num">116898</td>
+        <td class="num">21423</td>
+        <td class="num">19946</td>
+        <td class="num">17317</td>
+        <td class="num lose">+10</td>
+        <td class="num lose">+6</td>
+        <td class="num win">-35</td>
+      </tr>
+<tr>
+        <td>bait-javascript-type</td>
+        <td class="num">116912</td>
+        <td class="num">21440</td>
+        <td class="num">19958</td>
+        <td class="num">17375</td>
+        <td class="num lose">+27</td>
+        <td class="num lose">+18</td>
+        <td class="num lose">+23</td>
+      </tr>
+<tr>
+        <td>bait-unique</td>
+        <td class="num">116898</td>
+        <td class="num">21429</td>
+        <td class="num">19952</td>
+        <td class="num">17300</td>
+        <td class="num lose">+16</td>
+        <td class="num lose">+12</td>
+        <td class="num win">-52</td>
+      </tr>
+<tr>
+        <td>fn-reverse</td>
+        <td class="num">116878</td>
+        <td class="num">21413</td>
+        <td class="num">19940</td>
+        <td class="num">17352</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+      </tr>
+<tr>
+        <td>fn-by-length</td>
+        <td class="num">116878</td>
+        <td class="num">21413</td>
+        <td class="num">19940</td>
+        <td class="num">17352</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+      </tr>
+<tr>
+        <td>fn-by-prefix</td>
+        <td class="num">116878</td>
+        <td class="num">21413</td>
+        <td class="num">19940</td>
+        <td class="num">17352</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+        <td class="num">0</td>
+      </tr>
+<tr>
+        <td>dot-length-bracket</td>
+        <td class="num">116962</td>
+        <td class="num">21424</td>
+        <td class="num">19965</td>
+        <td class="num">17359</td>
+        <td class="num lose">+11</td>
+        <td class="num lose">+25</td>
+        <td class="num lose">+7</td>
+      </tr></tbody>
+  </table>
+</section>
+<section id="surgical">
+  <h2>Surgical: one hottest name</h2>
+  <p>Usually illegal if the target letter is already a local in the same scope. Raw unchanged.</p>
+  <h3>jquery-min</h3><p class="tiny">top locals: e 1835, t 1186, n 872, r 701, ce 548, i 546, o 475, a 380, s 262, u 232, l 231, v 162</p>
+      <table><thead><tr><th>probe</th><th class="num">raw</th><th class="num">gzip9</th><th class="num">br11</th><th class="num">Δ gzip</th><th class="num">Δ br11</th></tr></thead><tbody><tr>
+          <td>baseline</td>
+          <td class="num">87533</td>
+          <td class="num">30342</td>
+          <td class="num">27445</td>
+          <td class="num">0</td>
+          <td class="num">0</td>
+        </tr>
+<tr>
+          <td>hottest-to-n</td>
+          <td class="num">87533</td>
+          <td class="num">30151</td>
+          <td class="num">27253</td>
+          <td class="num win">-191</td>
+          <td class="num win">-192</td>
+        </tr>
+<tr>
+          <td>hottest-to-t</td>
+          <td class="num">87533</td>
+          <td class="num">30008</td>
+          <td class="num">27157</td>
+          <td class="num win">-334</td>
+          <td class="num win">-288</td>
+        </tr>
+<tr>
+          <td>hottest-to-a</td>
+          <td class="num">87533</td>
+          <td class="num">30287</td>
+          <td class="num">27337</td>
+          <td class="num win">-55</td>
+          <td class="num win">-108</td>
+        </tr>
+<tr>
+          <td>hottest-to-q</td>
+          <td class="num">87533</td>
+          <td class="num">30427</td>
+          <td class="num">27463</td>
+          <td class="num lose">+85</td>
+          <td class="num lose">+18</td>
+        </tr>
+<tr>
+          <td>hottest-to-x</td>
+          <td class="num">87533</td>
+          <td class="num">30410</td>
+          <td class="num">27455</td>
+          <td class="num lose">+68</td>
+          <td class="num lose">+10</td>
+        </tr>
+<tr>
+          <td>alphabet-eni</td>
+          <td class="num">86985</td>
+          <td class="num">30277</td>
+          <td class="num">27378</td>
+          <td class="num win">-65</td>
+          <td class="num win">-67</td>
+        </tr>
+<tr>
+          <td>alphabet-eni+let</td>
+          <td class="num">86985</td>
+          <td class="num">30276</td>
+          <td class="num">27426</td>
+          <td class="num win">-66</td>
+          <td class="num win">-19</td>
+        </tr>
+<tr>
+          <td>alphabet-eni+bool</td>
+          <td class="num">86920</td>
+          <td class="num">30275</td>
+          <td class="num">27382</td>
+          <td class="num win">-67</td>
+          <td class="num win">-63</td>
+        </tr>
+<tr>
+          <td>let-only</td>
+          <td class="num">87533</td>
+          <td class="num">30341</td>
+          <td class="num">27462</td>
+          <td class="num win">-1</td>
+          <td class="num lose">+17</td>
+        </tr></tbody></table>
+<h3>jquery-lil-raw</h3><p class="tiny">top locals: a 2290, b 1766, c 1320, d 1257, e 971, f 689, g 555, h 532, i 414, jm 171, j 158, k 140</p>
+      <table><thead><tr><th>probe</th><th class="num">raw</th><th class="num">gzip9</th><th class="num">br11</th><th class="num">Δ gzip</th><th class="num">Δ br11</th></tr></thead><tbody><tr>
+          <td>baseline</td>
+          <td class="num">102681</td>
+          <td class="num">38948</td>
+          <td class="num">33283</td>
+          <td class="num">0</td>
+          <td class="num">0</td>
+        </tr>
+<tr>
+          <td>hottest-to-e</td>
+          <td class="num">102681</td>
+          <td class="num">38694</td>
+          <td class="num">32965</td>
+          <td class="num win">-254</td>
+          <td class="num win">-318</td>
+        </tr>
+<tr>
+          <td>hottest-to-n</td>
+          <td class="num">102681</td>
+          <td class="num">39008</td>
+          <td class="num">33278</td>
+          <td class="num lose">+60</td>
+          <td class="num win">-5</td>
+        </tr>
+<tr>
+          <td>hottest-to-t</td>
+          <td class="num">102681</td>
+          <td class="num">39000</td>
+          <td class="num">33298</td>
+          <td class="num lose">+52</td>
+          <td class="num lose">+15</td>
+        </tr>
+<tr>
+          <td>hottest-to-q</td>
+          <td class="num">102681</td>
+          <td class="num">39053</td>
+          <td class="num">33320</td>
+          <td class="num lose">+105</td>
+          <td class="num lose">+37</td>
+        </tr>
+<tr>
+          <td>hottest-to-x</td>
+          <td class="num">102681</td>
+          <td class="num">39055</td>
+          <td class="num">33336</td>
+          <td class="num lose">+107</td>
+          <td class="num lose">+53</td>
+        </tr>
+<tr>
+          <td>alphabet-eni</td>
+          <td class="num">102510</td>
+          <td class="num">38798</td>
+          <td class="num">33107</td>
+          <td class="num win">-150</td>
+          <td class="num win">-176</td>
+        </tr>
+<tr>
+          <td>alphabet-eni+let</td>
+          <td class="num">102510</td>
+          <td class="num">38744</td>
+          <td class="num">33133</td>
+          <td class="num win">-204</td>
+          <td class="num win">-150</td>
+        </tr>
+<tr>
+          <td>alphabet-eni+bool</td>
+          <td class="num">102459</td>
+          <td class="num">38786</td>
+          <td class="num">33186</td>
+          <td class="num win">-162</td>
+          <td class="num win">-97</td>
+        </tr>
+<tr>
+          <td>let-only</td>
+          <td class="num">102681</td>
+          <td class="num">38894</td>
+          <td class="num">33227</td>
+          <td class="num win">-54</td>
+          <td class="num win">-56</td>
+        </tr></tbody></table>
+<h3>jquery-lil-min</h3><p class="tiny">top locals: r 2836, e 2286, t 1609, n 1263, l 980, u 845, i 619, f 577, o 393, a 315, s 303, v 270</p>
+      <table><thead><tr><th>probe</th><th class="num">raw</th><th class="num">gzip9</th><th class="num">br11</th><th class="num">Δ gzip</th><th class="num">Δ br11</th></tr></thead><tbody><tr>
+          <td>baseline</td>
+          <td class="num">110749</td>
+          <td class="num">42826</td>
+          <td class="num">37901</td>
+          <td class="num">0</td>
+          <td class="num">0</td>
+        </tr>
+<tr>
+          <td>hottest-to-e</td>
+          <td class="num">110749</td>
+          <td class="num">42237</td>
+          <td class="num">37353</td>
+          <td class="num win">-589</td>
+          <td class="num win">-548</td>
+        </tr>
+<tr>
+          <td>hottest-to-n</td>
+          <td class="num">110749</td>
+          <td class="num">42532</td>
+          <td class="num">37672</td>
+          <td class="num win">-294</td>
+          <td class="num win">-229</td>
+        </tr>
+<tr>
+          <td>hottest-to-t</td>
+          <td class="num">110749</td>
+          <td class="num">42420</td>
+          <td class="num">37531</td>
+          <td class="num win">-406</td>
+          <td class="num win">-370</td>
+        </tr>
+<tr>
+          <td>hottest-to-a</td>
+          <td class="num">110749</td>
+          <td class="num">42747</td>
+          <td class="num">37859</td>
+          <td class="num win">-79</td>
+          <td class="num win">-42</td>
+        </tr>
+<tr>
+          <td>hottest-to-q</td>
+          <td class="num">110749</td>
+          <td class="num">42887</td>
+          <td class="num">37960</td>
+          <td class="num lose">+61</td>
+          <td class="num lose">+59</td>
+        </tr>
+<tr>
+          <td>hottest-to-x</td>
+          <td class="num">110749</td>
+          <td class="num">42886</td>
+          <td class="num">37915</td>
+          <td class="num lose">+60</td>
+          <td class="num lose">+14</td>
+        </tr>
+<tr>
+          <td>alphabet-eni</td>
+          <td class="num">110749</td>
+          <td class="num">42861</td>
+          <td class="num">37870</td>
+          <td class="num lose">+35</td>
+          <td class="num win">-31</td>
+        </tr>
+<tr>
+          <td>alphabet-eni+let</td>
+          <td class="num">110749</td>
+          <td class="num">42782</td>
+          <td class="num">37858</td>
+          <td class="num win">-44</td>
+          <td class="num win">-43</td>
+        </tr>
+<tr>
+          <td>alphabet-eni+bool</td>
+          <td class="num">110749</td>
+          <td class="num">42861</td>
+          <td class="num">37870</td>
+          <td class="num lose">+35</td>
+          <td class="num win">-31</td>
+        </tr>
+<tr>
+          <td>let-only</td>
+          <td class="num">110749</td>
+          <td class="num">42742</td>
+          <td class="num">37857</td>
+          <td class="num win">-84</td>
+          <td class="num win">-44</td>
+        </tr></tbody></table>
+<h3>glmatrix-lil-vite</h3><p class="tiny">top locals: e 2821, t 2061, n 1596, r 923, a 724, i 630, o 570, s 376, Math 322, c 311, Q 247, l 246</p>
+      <table><thead><tr><th>probe</th><th class="num">raw</th><th class="num">gzip9</th><th class="num">br11</th><th class="num">Δ gzip</th><th class="num">Δ br11</th></tr></thead><tbody><tr>
+          <td>baseline</td>
+          <td class="num">68496</td>
+          <td class="num">17192</td>
+          <td class="num">14116</td>
+          <td class="num">0</td>
+          <td class="num">0</td>
+        </tr>
+<tr>
+          <td>hottest-to-n</td>
+          <td class="num">68496</td>
+          <td class="num">17087</td>
+          <td class="num">13995</td>
+          <td class="num win">-105</td>
+          <td class="num win">-121</td>
+        </tr>
+<tr>
+          <td>hottest-to-t</td>
+          <td class="num">68496</td>
+          <td class="num">17014</td>
+          <td class="num">13930</td>
+          <td class="num win">-178</td>
+          <td class="num win">-186</td>
+        </tr>
+<tr>
+          <td>hottest-to-a</td>
+          <td class="num">68496</td>
+          <td class="num">17141</td>
+          <td class="num">14097</td>
+          <td class="num win">-51</td>
+          <td class="num win">-19</td>
+        </tr>
+<tr>
+          <td>hottest-to-q</td>
+          <td class="num">68496</td>
+          <td class="num">17208</td>
+          <td class="num">14125</td>
+          <td class="num lose">+16</td>
+          <td class="num lose">+9</td>
+        </tr>
+<tr>
+          <td>hottest-to-x</td>
+          <td class="num">68496</td>
+          <td class="num">17198</td>
+          <td class="num">14105</td>
+          <td class="num lose">+6</td>
+          <td class="num win">-11</td>
+        </tr>
+<tr>
+          <td>alphabet-eni</td>
+          <td class="num">68496</td>
+          <td class="num">17070</td>
+          <td class="num">14037</td>
+          <td class="num win">-122</td>
+          <td class="num win">-79</td>
+        </tr>
+<tr>
+          <td>alphabet-eni+let</td>
+          <td class="num">68496</td>
+          <td class="num">17017</td>
+          <td class="num">14053</td>
+          <td class="num win">-175</td>
+          <td class="num win">-63</td>
+        </tr>
+<tr>
+          <td>alphabet-eni+bool</td>
+          <td class="num">68496</td>
+          <td class="num">17070</td>
+          <td class="num">14037</td>
+          <td class="num win">-122</td>
+          <td class="num win">-79</td>
+        </tr>
+<tr>
+          <td>let-only</td>
+          <td class="num">68496</td>
+          <td class="num">17141</td>
+          <td class="num">14051</td>
+          <td class="num win">-51</td>
+          <td class="num win">-65</td>
+        </tr></tbody></table>
+<h3>glmatrix-js-vite</h3><p class="tiny">top locals: e 2975, t 1670, n 1283, r 851, a 742, i 720, o 562, Math 549, s 428, c 367, l 325, u 264</p>
+      <table><thead><tr><th>probe</th><th class="num">raw</th><th class="num">gzip9</th><th class="num">br11</th><th class="num">Δ gzip</th><th class="num">Δ br11</th></tr></thead><tbody><tr>
+          <td>baseline</td>
+          <td class="num">73505</td>
+          <td class="num">17722</td>
+          <td class="num">14330</td>
+          <td class="num">0</td>
+          <td class="num">0</td>
+        </tr>
+<tr>
+          <td>hottest-to-n</td>
+          <td class="num">73505</td>
+          <td class="num">17645</td>
+          <td class="num">14270</td>
+          <td class="num win">-77</td>
+          <td class="num win">-60</td>
+        </tr>
+<tr>
+          <td>hottest-to-t</td>
+          <td class="num">73505</td>
+          <td class="num">17491</td>
+          <td class="num">14130</td>
+          <td class="num win">-231</td>
+          <td class="num win">-200</td>
+        </tr>
+<tr>
+          <td>hottest-to-a</td>
+          <td class="num">73505</td>
+          <td class="num">17681</td>
+          <td class="num">14307</td>
+          <td class="num win">-41</td>
+          <td class="num win">-23</td>
+        </tr>
+<tr>
+          <td>hottest-to-q</td>
+          <td class="num">73505</td>
+          <td class="num">17737</td>
+          <td class="num">14301</td>
+          <td class="num lose">+15</td>
+          <td class="num win">-29</td>
+        </tr>
+<tr>
+          <td>hottest-to-x</td>
+          <td class="num">73505</td>
+          <td class="num">17732</td>
+          <td class="num">14319</td>
+          <td class="num lose">+10</td>
+          <td class="num win">-11</td>
+        </tr>
+<tr>
+          <td>alphabet-eni</td>
+          <td class="num">73505</td>
+          <td class="num">17648</td>
+          <td class="num">14342</td>
+          <td class="num win">-74</td>
+          <td class="num lose">+12</td>
+        </tr>
+<tr>
+          <td>alphabet-eni+let</td>
+          <td class="num">73505</td>
+          <td class="num">17637</td>
+          <td class="num">14329</td>
+          <td class="num win">-85</td>
+          <td class="num win">-1</td>
+        </tr>
+<tr>
+          <td>alphabet-eni+bool</td>
+          <td class="num">73505</td>
+          <td class="num">17648</td>
+          <td class="num">14342</td>
+          <td class="num win">-74</td>
+          <td class="num lose">+12</td>
+        </tr>
+<tr>
+          <td>let-only</td>
+          <td class="num">73505</td>
+          <td class="num">17712</td>
+          <td class="num">14340</td>
+          <td class="num win">-10</td>
+          <td class="num lose">+10</td>
+        </tr></tbody></table>
+</section>
+<section id="inversions">
+  <h2>gzip / q5 / q11 sign disagreements</h2>
+  <table>
+    <thead><tr><th>corpus</th><th>mutation</th><th class="num">Δ gzip</th><th class="num">Δ br5</th><th class="num">Δ br11</th></tr></thead>
+    <tbody><tr><td>jquery-lil-raw</td><td>fn-by-length</td>
+      <td class="num win">-1188</td>
+      <td class="num lose">+167</td>
+      <td class="num lose">+185</td></tr>
+<tr><td>jquery-lil-raw</td><td>fn-by-prefix</td>
+      <td class="num win">-1054</td>
+      <td class="num lose">+292</td>
+      <td class="num lose">+162</td></tr>
+<tr><td>jquery-min</td><td>alphabet-rare</td>
+      <td class="num lose">+319</td>
+      <td class="num lose">+241</td>
+      <td class="num win">-33</td></tr>
+<tr><td>jquery-lil-measured</td><td>alphabet-rare</td>
+      <td class="num lose">+256</td>
+      <td class="num lose">+52</td>
+      <td class="num win">-19</td></tr>
+<tr><td>glmatrix-js-vite</td><td>fn-by-length</td>
+      <td class="num win">-234</td>
+      <td class="num lose">+8</td>
+      <td class="num lose">+22</td></tr>
+<tr><td>jquery-lil-measured</td><td>rotate-short-13</td>
+      <td class="num lose">+216</td>
+      <td class="num lose">+127</td>
+      <td class="num win">-36</td></tr>
+<tr><td>jquery-lil-raw</td><td>fn-reverse</td>
+      <td class="num win">-178</td>
+      <td class="num lose">+14</td>
+      <td class="num lose">+40</td></tr>
+<tr><td>glmatrix-lil-vite</td><td>alphabet-rare</td>
+      <td class="num lose">+141</td>
+      <td class="num lose">+73</td>
+      <td class="num win">-36</td></tr>
+<tr><td>glmatrix-js-vite</td><td>alphabet-rare</td>
+      <td class="num lose">+130</td>
+      <td class="num lose">+85</td>
+      <td class="num win">-24</td></tr>
+<tr><td>glmatrix-lil-vite</td><td>fn-by-length</td>
+      <td class="num win">-127</td>
+      <td class="num win">-159</td>
+      <td class="num lose">+5</td></tr>
+<tr><td>jquery-lil-measured</td><td>pool-strings-4x6</td>
+      <td class="num lose">+90</td>
+      <td class="num lose">+84</td>
+      <td class="num win">-18</td></tr>
+<tr><td>glmatrix-lil-vite</td><td>fn-reverse</td>
+      <td class="num lose">+30</td>
+      <td class="num win">-83</td>
+      <td class="num win">-68</td></tr>
+<tr><td>jquery-lil-raw</td><td>dot-length-bracket</td>
+      <td class="num lose">+82</td>
+      <td class="num lose">+80</td>
+      <td class="num win">-12</td></tr>
+<tr><td>glmatrix-js-vite</td><td>alphabet-function-letters</td>
+      <td class="num win">-74</td>
+      <td class="num win">-65</td>
+      <td class="num lose">+12</td></tr>
+<tr><td>glmatrix-lil-raw</td><td>rotate-short-13</td>
+      <td class="num lose">+66</td>
+      <td class="num lose">+41</td>
+      <td class="num win">-16</td></tr>
+<tr><td>glmatrix-lil-raw</td><td>alphabet-rare</td>
+      <td class="num win">-1</td>
+      <td class="num lose">+3</td>
+      <td class="num win">-81</td></tr>
+<tr><td>glmatrix-js-vite</td><td>rotate-short-1</td>
+      <td class="num lose">+69</td>
+      <td class="num lose">+37</td>
+      <td class="num win">-4</td></tr>
+<tr><td>glmatrix-lil-raw</td><td>bait-unique</td>
+      <td class="num lose">+16</td>
+      <td class="num lose">+12</td>
+      <td class="num win">-52</td></tr>
+<tr><td>jquery-lil-min</td><td>alphabet-function-letters</td>
+      <td class="num lose">+35</td>
+      <td class="num lose">+6</td>
+      <td class="num win">-31</td></tr>
+<tr><td>jquery-lil-measured</td><td>bait-unique</td>
+      <td class="num lose">+14</td>
+      <td class="num lose">+6</td>
+      <td class="num win">-51</td></tr>
+<tr><td>glmatrix-js-vite</td><td>fn-reverse</td>
+      <td class="num lose">+53</td>
+      <td class="num win">-14</td>
+      <td class="num win">-9</td></tr>
+<tr><td>glmatrix-js-raw</td><td>bool-minify</td>
+      <td class="num win">-3</td>
+      <td class="num win">-1</td>
+      <td class="num lose">+58</td></tr>
+<tr><td>jquery-src</td><td>var-to-let</td>
+      <td class="num win">-14</td>
+      <td class="num win">-8</td>
+      <td class="num lose">+36</td></tr>
+<tr><td>jquery-lil-measured</td><td>pool-strings-8x8</td>
+      <td class="num lose">+14</td>
+      <td class="num lose">+2</td>
+      <td class="num win">-34</td></tr>
+<tr><td>glmatrix-lil-raw</td><td>bait-function-return</td>
+      <td class="num lose">+10</td>
+      <td class="num lose">+6</td>
+      <td class="num win">-35</td></tr>
+<tr><td>jquery-lil-min</td><td>quotes-single</td>
+      <td class="num lose">+7</td>
+      <td class="num">0</td>
+      <td class="num lose">+34</td></tr>
+<tr><td>jquery-lil-measured</td><td>bool-expand</td>
+      <td class="num lose">+28</td>
+      <td class="num lose">+26</td>
+      <td class="num win">-12</td></tr>
+<tr><td>jquery-lil-measured</td><td>bait-function-return</td>
+      <td class="num lose">+8</td>
+      <td class="num">0</td>
+      <td class="num win">-29</td></tr>
+<tr><td>glmatrix-lil-vite</td><td>bait-javascript-type</td>
+      <td class="num lose">+34</td>
+      <td class="num lose">+22</td>
+      <td class="num win">-2</td></tr>
+<tr><td>jquery-lil-raw</td><td>pool-strings-4x6</td>
+      <td class="num lose">+16</td>
+      <td class="num lose">+10</td>
+      <td class="num win">-18</td></tr>
+<tr><td>glmatrix-lil-vite</td><td>bool-expand</td>
+      <td class="num lose">+3</td>
+      <td class="num win">-2</td>
+      <td class="num lose">+31</td></tr>
+<tr><td>jquery-lil-measured</td><td>quotes-single</td>
+      <td class="num lose">+8</td>
+      <td class="num lose">+9</td>
+      <td class="num win">-23</td></tr>
+<tr><td>jquery-lil-measured</td><td>bait-javascript-type</td>
+      <td class="num lose">+22</td>
+      <td class="num lose">+13</td>
+      <td class="num win">-8</td></tr>
+<tr><td>jquery-min</td><td>quotes-single</td>
+      <td class="num lose">+13</td>
+      <td class="num lose">+11</td>
+      <td class="num win">-16</td></tr>
+<tr><td>jquery-min</td><td>bait-unique</td>
+      <td class="num lose">+16</td>
+      <td class="num lose">+17</td>
+      <td class="num win">-13</td></tr>
+<tr><td>jquery-src</td><td>bait-function-return</td>
+      <td class="num lose">+10</td>
+      <td class="num lose">+14</td>
+      <td class="num win">-18</td></tr>
+<tr><td>glmatrix-js-raw</td><td>bait-unique</td>
+      <td class="num lose">+14</td>
+      <td class="num lose">+20</td>
+      <td class="num win">-14</td></tr>
+<tr><td>jquery-lil-min</td><td>bait-function-return</td>
+      <td class="num lose">+8</td>
+      <td class="num lose">+7</td>
+      <td class="num win">-16</td></tr>
+<tr><td>glmatrix-js-vite</td><td>bait-function-return</td>
+      <td class="num lose">+10</td>
+      <td class="num lose">+7</td>
+      <td class="num win">-14</td></tr>
+<tr><td>glmatrix-js-raw</td><td>var-to-let</td>
+      <td class="num win">-2</td>
+      <td class="num lose">+2</td>
+      <td class="num win">-21</td></tr>
+<tr><td>glmatrix-js-vite</td><td>var-to-let</td>
+      <td class="num win">-10</td>
+      <td class="num lose">+5</td>
+      <td class="num lose">+10</td></tr>
+<tr><td>jquery-min</td><td>var-to-let</td>
+      <td class="num win">-1</td>
+      <td class="num lose">+2</td>
+      <td class="num lose">+17</td></tr>
+<tr><td>glmatrix-js-raw</td><td>quotes-single</td>
+      <td class="num lose">+1</td>
+      <td class="num win">-3</td>
+      <td class="num lose">+17</td></tr>
+<tr><td>glmatrix-js-raw</td><td>dot-length-bracket</td>
+      <td class="num lose">+7</td>
+      <td class="num lose">+15</td>
+      <td class="num win">-10</td></tr>
+<tr><td>glmatrix-lil-raw</td><td>quotes-single</td>
+      <td class="num">0</td>
+      <td class="num win">-8</td>
+      <td class="num lose">+12</td></tr></tbody>
+  </table>
+</section>
+<section id="audits">
+  <h2>In-tree jQuery audit emits</h2>
+  <p class="tiny">Duplicate byte-identical files collapsed to the first name. <code>audit-slim</code> is a smaller program.</p>
+  <table>
+    <thead><tr><th>file</th><th class="num">raw</th><th class="num">gzip9</th><th class="num">br5</th><th class="num">br11</th></tr></thead>
+    <tbody><tr><td>jquery-audit-slim.raw.js</td><td class="num">72920</td><td class="num">27357</td><td class="num">26673</td><td class="num">24635</td></tr>
+<tr><td>jquery-audit-positional-aggregates.raw.js</td><td class="num">96401</td><td class="num">37202</td><td class="num">36116</td><td class="num">33165</td></tr>
+<tr><td>jquery-audit-lean-balanced.raw.js</td><td class="num">98509</td><td class="num">37099</td><td class="num">36051</td><td class="num">33216</td></tr>
+<tr><td>jquery-audit-lean-no-inlining.raw.js</td><td class="num">98773</td><td class="num">37185</td><td class="num">36157</td><td class="num">33285</td></tr>
+<tr><td>jquery-audit-lean-minimal-transforms.raw.js</td><td class="num">99069</td><td class="num">37229</td><td class="num">36212</td><td class="num">33357</td></tr>
+<tr><td>jquery-audit-lean.raw.js</td><td class="num">99476</td><td class="num">37234</td><td class="num">36197</td><td class="num">33373</td></tr>
+<tr><td>jquery-audit-lean-inline-24.raw.js</td><td class="num">99584</td><td class="num">37243</td><td class="num">36195</td><td class="num">33380</td></tr>
+<tr><td>jquery-audit-lean-inline-48.raw.js</td><td class="num">103623</td><td class="num">37403</td><td class="num">36331</td><td class="num">33446</td></tr>
+<tr><td>jquery-audit-lean-inline-96.raw.js</td><td class="num">103651</td><td class="num">37391</td><td class="num">36306</td><td class="num">33484</td></tr>
+<tr><td>jquery-audit-no-closure-inlining.raw.js</td><td class="num">97543</td><td class="num">37577</td><td class="num">36500</td><td class="num">33563</td></tr>
+<tr><td>jquery-audit-balanced.raw.js</td><td class="num">97869</td><td class="num">37623</td><td class="num">36559</td><td class="num">33569</td></tr>
+<tr><td>jquery-audit-mangled-exports.raw.js</td><td class="num">98338</td><td class="num">37639</td><td class="num">36539</td><td class="num">33582</td></tr>
+<tr><td>jquery-audit-plain-ir.raw.js</td><td class="num">97726</td><td class="num">37647</td><td class="num">36580</td><td class="num">33596</td></tr>
+<tr><td>jquery-audit-no-inlining.raw.js</td><td class="num">97680</td><td class="num">37638</td><td class="num">36584</td><td class="num">33613</td></tr>
+<tr><td>jquery-audit-no-number-pool.raw.js</td><td class="num">98660</td><td class="num">37685</td><td class="num">36595</td><td class="num">33614</td></tr>
+<tr><td>jquery-audit-realistic-performance.raw.js</td><td class="num">98562</td><td class="num">37702</td><td class="num">36626</td><td class="num">33637</td></tr>
+<tr><td>jquery-audit-function-spelling.raw.js</td><td class="num">103062</td><td class="num">37815</td><td class="num">36706</td><td class="num">33647</td></tr>
+<tr><td>jquery-audit-current.raw.js</td><td class="num">98379</td><td class="num">37656</td><td class="num">36558</td><td class="num">33648</td></tr>
+<tr><td>jquery-audit-no-function-folding.raw.js</td><td class="num">98520</td><td class="num">37707</td><td class="num">36608</td><td class="num">33652</td></tr>
+<tr><td>jquery-audit-performance.raw.js</td><td class="num">103528</td><td class="num">38293</td><td class="num">37093</td><td class="num">34080</td></tr>
+<tr><td>jquery-audit-comma-conditionals.raw.js</td><td class="num">115537</td><td class="num">40209</td><td class="num">38884</td><td class="num">35555</td></tr>
+<tr><td>jquery-audit-lean-debug-names.raw.js</td><td class="num">197597</td><td class="num">63556</td><td class="num">59786</td><td class="num">52895</td></tr>
+<tr><td>jquery-audit-readable.raw.js</td><td class="num">229262</td><td class="num">71176</td><td class="num">66166</td><td class="num">58144</td></tr></tbody>
+  </table>
+</section>
+<section id="monaco">
+  <h2>Monaco LilScript IDE</h2>
+  <p>Full file raw 2371075 · gzip 539173 · br11 <strong>423674</strong> (q5 not scored). Prefix mutations below (last <code>;\n</code> before 400k = 210467 bytes).</p>
+  <table>
+    <thead><tr><th>mutation</th><th class="num">raw</th><th class="num">gzip9</th><th class="num">br11</th><th class="num">Δ br11</th></tr></thead>
+    <tbody><tr><td>baseline</td><td class="num">210467</td><td class="num">63606</td><td class="num">54426</td><td class="num">0</td></tr>
+<tr><td>quotes-single</td><td class="num">210435</td><td class="num">63685</td><td class="num">54490</td><td class="num lose">+64</td></tr>
+<tr><td>bool-minify</td><td class="num">210462</td><td class="num">63603</td><td class="num">54485</td><td class="num lose">+59</td></tr>
+<tr><td>rotate-short-1</td><td class="num">210467</td><td class="num">63782</td><td class="num">54506</td><td class="num lose">+80</td></tr>
+<tr><td>locals-as-length-index-value</td><td class="num">236267</td><td class="num">65475</td><td class="num">56294</td><td class="num lose">+1868</td></tr>
+<tr><td>pool-strings-4x6</td><td class="num">209216</td><td class="num">63742</td><td class="num">54490</td><td class="num lose">+64</td></tr>
+<tr><td>fn-by-prefix</td><td class="num">210467</td><td class="num">68469</td><td class="num">55965</td><td class="num lose">+1539</td></tr>
+<tr><td>bait-javascript-type</td><td class="num">210501</td><td class="num">63625</td><td class="num">54427</td><td class="num lose">+1</td></tr></tbody>
+  </table>
+  <p class="tiny">Independent chunks of jquery-lil-raw: whole 33283 · 64k 35554 · 32k 36730</p>
+</section>
+</main>
+</body>
+</html>

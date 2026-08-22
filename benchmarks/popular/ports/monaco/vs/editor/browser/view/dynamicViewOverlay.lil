@@ -1,0 +1,121 @@
+export class OverlayRenderEvent {
+  int type;
+  int fromLineNumber;
+  int toLineNumber;
+  bool isFocused;
+  bool scrollTopChanged;
+
+  init(int type = 0) {
+    this.type = type;
+    this.fromLineNumber = 1;
+    this.toLineNumber = 1;
+    this.isFocused = false;
+    this.scrollTopChanged = false;
+  }
+}
+
+export class DynamicViewOverlay {
+  bool disposed;
+  bool needsRender;
+  string[] lineHtml;
+
+  init() {
+    this.disposed = false;
+    this.needsRender = true;
+    this.lineHtml = [];
+  }
+
+  bool shouldRender() {
+    return this.needsRender;
+  }
+
+  void setShouldRender() {
+    this.needsRender = true;
+  }
+
+  void forceShouldRender() {
+    this.needsRender = true;
+  }
+
+  void onDidRender() {
+    this.needsRender = false;
+  }
+
+  void dispose() {
+    this.disposed = true;
+    this.needsRender = false;
+    this.lineHtml = [];
+  }
+
+  bool onConfigurationChanged(OverlayRenderEvent e) {
+    this.needsRender = true;
+    return true;
+  }
+
+  bool onFlushed(OverlayRenderEvent e) {
+    this.needsRender = true;
+    return true;
+  }
+
+  bool onLinesChanged(OverlayRenderEvent e) {
+    this.needsRender = true;
+    return true;
+  }
+
+  bool onLinesDeleted(OverlayRenderEvent e) {
+    this.needsRender = true;
+    return true;
+  }
+
+  bool onLinesInserted(OverlayRenderEvent e) {
+    this.needsRender = true;
+    return true;
+  }
+
+  bool onScrollChanged(OverlayRenderEvent e) {
+    if (e.scrollTopChanged) {
+      this.needsRender = true;
+      return true;
+    }
+    return false;
+  }
+
+  bool onZonesChanged(OverlayRenderEvent e) {
+    this.needsRender = true;
+    return true;
+  }
+
+  bool onDecorationsChanged(OverlayRenderEvent e) {
+    this.needsRender = true;
+    return true;
+  }
+
+  bool onTokensChanged(OverlayRenderEvent e) {
+    this.needsRender = true;
+    return true;
+  }
+
+  void prepareRender(int startLineNumber, int endLineNumber) {
+    this.lineHtml = [];
+    int lineNumber = startLineNumber;
+    while (lineNumber <= endLineNumber) {
+      this.lineHtml.push(this.render(startLineNumber, lineNumber));
+      lineNumber = lineNumber + 1;
+    }
+  }
+
+  string render(int startLineNumber, int lineNumber) {
+    return "";
+  }
+
+  string renderedLine(int index) {
+    if (index < 0 || index >= this.lineHtml.length) {
+      return "";
+    }
+    return this.lineHtml[index];
+  }
+}
+
+export DynamicViewOverlay createDynamicViewOverlay() {
+  return new DynamicViewOverlay();
+}

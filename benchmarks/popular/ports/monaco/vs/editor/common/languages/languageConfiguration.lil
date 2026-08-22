@@ -1,0 +1,116 @@
+import { stringFromCharCode1 } from "../../../../js-host";
+
+export int IndentActionNone = 0;
+export int IndentActionIndent = 1;
+export int IndentActionIndentOutdent = 2;
+export int IndentActionOutdent = 3;
+
+export class StandardAutoClosingPairConditional {
+  string open;
+  string close;
+  bool inString;
+  bool inComment;
+  bool inRegEx;
+
+  init(JsValue source) {
+    this.open = JS.string(source["open"]);
+    this.close = JS.string(source["close"]);
+    this.inString = true;
+    this.inComment = true;
+    this.inRegEx = true;
+    if (JS.isArray(source["notIn"])) {
+      JsValue values = source["notIn"];
+      int i = 0;
+      int length = JS.number(values["length"]).toInt();
+      while (i < length) {
+        string value = JS.string(values[i]);
+        if (value == "string") {
+          this.inString = false;
+        } else if (value == "comment") {
+          this.inComment = false;
+        } else if (value == "regex") {
+          this.inRegEx = false;
+        }
+        i = i + 1;
+      }
+    }
+  }
+
+  bool isOK(int standardToken) {
+    if (standardToken == 1) {
+      return this.inComment;
+    }
+    if (standardToken == 2) {
+      return this.inString;
+    }
+    if (standardToken == 3) {
+      return this.inRegEx;
+    }
+    return true;
+  }
+
+  string findNeutralCharacter() {
+    int code = 48;
+    while (code <= 122) {
+      string character = stringFromCharCode1(code);
+      if (this.open.indexOf(character) < 0 && this.close.indexOf(character) < 0) {
+        return character;
+      }
+      if (code == 57) {
+        code = 65;
+      } else if (code == 90) {
+        code = 97;
+      } else {
+        code = code + 1;
+      }
+    }
+    return "";
+  }
+}
+
+void appendPair(
+  Map<string, StandardAutoClosingPairConditional[]> target,
+  string key,
+  StandardAutoClosingPairConditional pair
+) {
+  StandardAutoClosingPairConditional[]? values = target.get(key);
+  if (values == null) {
+    StandardAutoClosingPairConditional[] created = [];
+    target.set(key, created);
+    created.push(pair);
+    return;
+  }
+  values.push(pair);
+}
+
+export class AutoClosingPairs {
+  Map<string, StandardAutoClosingPairConditional[]> autoClosingPairsOpenByStart;
+  Map<string, StandardAutoClosingPairConditional[]> autoClosingPairsOpenByEnd;
+  Map<string, StandardAutoClosingPairConditional[]> autoClosingPairsCloseByStart;
+  Map<string, StandardAutoClosingPairConditional[]> autoClosingPairsCloseByEnd;
+  Map<string, StandardAutoClosingPairConditional[]> autoClosingPairsCloseSingleChar;
+
+  init(StandardAutoClosingPairConditional[] pairs) {
+    this.autoClosingPairsOpenByStart = new Map();
+    this.autoClosingPairsOpenByEnd = new Map();
+    this.autoClosingPairsCloseByStart = new Map();
+    this.autoClosingPairsCloseByEnd = new Map();
+    this.autoClosingPairsCloseSingleChar = new Map();
+    int i = 0;
+    while (i < pairs.length) {
+      StandardAutoClosingPairConditional pair = pairs[i];
+      appendPair(this.autoClosingPairsOpenByStart, pair.open.charAt(0), pair);
+      appendPair(this.autoClosingPairsOpenByEnd, pair.open.charAt(pair.open.length - 1), pair);
+      appendPair(this.autoClosingPairsCloseByStart, pair.close.charAt(0), pair);
+      appendPair(this.autoClosingPairsCloseByEnd, pair.close.charAt(pair.close.length - 1), pair);
+      if (pair.open.length == 1 && pair.close.length == 1) {
+        appendPair(this.autoClosingPairsCloseSingleChar, pair.close, pair);
+      }
+      i = i + 1;
+    }
+  }
+}
+
+export StandardAutoClosingPairConditional createAutoClosingPair(JsValue source) {
+  return new StandardAutoClosingPairConditional(source);
+}

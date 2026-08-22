@@ -1,0 +1,222 @@
+export bool isPathSeparator(int code) {
+  return code == 47 || code == 92;
+}
+
+string replaceSlashes(string osPath, string sep) {
+  string out = "";
+  int i = 0;
+  while (i < osPath.length) {
+    int code = osPath.charCodeAt(i);
+    if (isPathSeparator(code)) {
+      out = out + sep;
+    } else {
+      out = out + osPath.charAt(i);
+    }
+    i = i + 1;
+  }
+  return out;
+}
+
+string slicePath(string path, int start, int end) {
+  int from = start;
+  int to = end;
+  if (from < 0) {
+    from = 0;
+  }
+  if (to > path.length) {
+    to = path.length;
+  }
+  string out = "";
+  int i = from;
+  while (i < to) {
+    out = out + path.charAt(i);
+    i = i + 1;
+  }
+  return out;
+}
+
+export string toSlashes(string osPath) {
+  return replaceSlashes(osPath, "/");
+}
+
+bool isWindowsDriveLetter(int char0) {
+  return (char0 >= 65 && char0 <= 90) || (char0 >= 97 && char0 <= 122);
+}
+
+export bool hasDriveLetter(string path, bool isWindowsOS) {
+  if (!isWindowsOS || path.length < 2) {
+    return false;
+  }
+  return isWindowsDriveLetter(path.charCodeAt(0)) && path.charCodeAt(1) == 58;
+}
+
+export string toPosixPath(string osPath) {
+  string path = osPath;
+  if (path.indexOf("/") == -1) {
+    path = toSlashes(path);
+  }
+  if (path.length >= 2 && isWindowsDriveLetter(path.charCodeAt(0)) && path.charCodeAt(1) == 58) {
+    if (path.length == 2 || path.charAt(2) == "/") {
+      path = "/" + path;
+    }
+  }
+  return path;
+}
+
+export string getRoot(string path, string sep) {
+  if (path.length == 0) {
+    return "";
+  }
+  int len = path.length;
+  int firstLetter = path.charCodeAt(0);
+  if (isPathSeparator(firstLetter)) {
+    if (len > 1 && isPathSeparator(path.charCodeAt(1))) {
+      if (len > 2 && !isPathSeparator(path.charCodeAt(2))) {
+        int pos = 3;
+        int start = pos;
+        while (pos < len) {
+          if (isPathSeparator(path.charCodeAt(pos))) {
+            break;
+          }
+          pos = pos + 1;
+        }
+        if (start != pos && pos + 1 < len && !isPathSeparator(path.charCodeAt(pos + 1))) {
+          pos = pos + 1;
+          while (pos < len) {
+            if (isPathSeparator(path.charCodeAt(pos))) {
+              return replaceSlashes(slicePath(path, 0, pos + 1), sep);
+            }
+            pos = pos + 1;
+          }
+        }
+      }
+    }
+    return sep;
+  }
+  if (isWindowsDriveLetter(firstLetter) && len >= 2 && path.charCodeAt(1) == 58) {
+    if (len > 2 && isPathSeparator(path.charCodeAt(2))) {
+      return slicePath(path, 0, 2) + sep;
+    }
+    return slicePath(path, 0, 2);
+  }
+  int uriPos = path.indexOf("://");
+  if (uriPos != -1) {
+    int pos = uriPos + 3;
+    while (pos < len) {
+      if (isPathSeparator(path.charCodeAt(pos))) {
+        return slicePath(path, 0, pos + 1);
+      }
+      pos = pos + 1;
+    }
+  }
+  return "";
+}
+
+bool startsWithIgnoreCase(string haystack, string needle) {
+  if (needle.length > haystack.length) {
+    return false;
+  }
+  int i = 0;
+  while (i < needle.length) {
+    if (haystack.charAt(i).toLowerCase() != needle.charAt(i).toLowerCase()) {
+      return false;
+    }
+    i = i + 1;
+  }
+  return true;
+}
+
+string[] splitPath(string path) {
+  string[] parts = [];
+  string cur = "";
+  int i = 0;
+  while (i < path.length) {
+    int code = path.charCodeAt(i);
+    if (isPathSeparator(code)) {
+      parts.push(cur);
+      cur = "";
+    } else {
+      cur = cur + path.charAt(i);
+    }
+    i = i + 1;
+  }
+  parts.push(cur);
+  return parts;
+}
+
+string posixNormalize(string path) {
+  string[] parts = splitPath(path);
+  string[] out = [];
+  int i = 0;
+  while (i < parts.length) {
+    string part = parts[i];
+    if (part == "." || part.length == 0) {
+      i = i + 1;
+      continue;
+    }
+    if (part == "..") {
+      if (out.length > 0 && out[out.length - 1] != "..") {
+        out.pop();
+      } else {
+        out.push(part);
+      }
+      i = i + 1;
+      continue;
+    }
+    out.push(part);
+    i = i + 1;
+  }
+  string result = "";
+  int k = 0;
+  while (k < out.length) {
+    if (k > 0) {
+      result = result + "/";
+    }
+    result = result + out[k];
+    k = k + 1;
+  }
+  if (path.length > 0 && isPathSeparator(path.charCodeAt(0))) {
+    result = "/" + result;
+  }
+  return result;
+}
+
+export bool isEqualOrParent(string basePath, string parentCandidate, bool ignoreCase) {
+  if (basePath == parentCandidate) {
+    return true;
+  }
+  if (basePath.length == 0 || parentCandidate.length == 0) {
+    return false;
+  }
+  string base = basePath;
+  string parent = parentCandidate;
+  if (base.indexOf("..") >= 0 || parent.indexOf("..") >= 0) {
+    base = posixNormalize(base);
+    parent = posixNormalize(parent);
+  }
+  if (parent.length > base.length) {
+    return false;
+  }
+  if (ignoreCase) {
+    if (!startsWithIgnoreCase(base, parent)) {
+      return false;
+    }
+    if (parent.length == base.length) {
+      return true;
+    }
+    int sepOffset = parent.length;
+    if (parent.charAt(parent.length - 1) == "/") {
+      sepOffset = sepOffset - 1;
+    }
+    return base.charAt(sepOffset) == "/";
+  }
+  string prefix = parent;
+  if (parent.charAt(parent.length - 1) != "/") {
+    prefix = parent + "/";
+  }
+  return base.indexOf(prefix) == 0;
+}
+
+export bool windowsDriveLetter(int char0) {
+  return isWindowsDriveLetter(char0);
+}

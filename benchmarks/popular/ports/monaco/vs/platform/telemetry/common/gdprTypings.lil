@@ -1,0 +1,6 @@
+export string GdprClassificationSystemMetaData = "SystemMetaData";
+export string GdprClassificationCallstackOrException = "CallstackOrException";
+export string GdprClassificationCustomerContent = "CustomerContent";
+export bool isGdprTypingsModule() {
+  return true;
+}

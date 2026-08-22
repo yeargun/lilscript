@@ -1,0 +1,64 @@
+import { addEventListener, focusElement, removeEventListener } from "../../../../../../js-host";
+
+export class FocusTracker {
+  JsValue domNode;
+  bool isFocused;
+  bool isPaused;
+
+  init(JsValue domNode) {
+    this.domNode = domNode;
+    this.isFocused = false;
+    this.isPaused = false;
+  }
+
+  void pause() {
+    this.isPaused = true;
+  }
+
+  void resume() {
+    this.isPaused = false;
+    this.refreshFocusState(true);
+  }
+
+  void handleFocusedChanged(bool focused) {
+    if (this.isFocused == focused) {
+      return;
+    }
+    this.isFocused = focused;
+  }
+
+  void onFocus() {
+    if (this.isPaused) {
+      return;
+    }
+    this.refreshFocusState(true);
+  }
+
+  void onBlur() {
+    if (this.isPaused) {
+      return;
+    }
+    this.handleFocusedChanged(false);
+  }
+
+  void focus() {
+    focusElement(this.domNode);
+    this.refreshFocusState(true);
+  }
+
+  void refreshFocusState(bool assumedFocused) {
+    this.handleFocusedChanged(assumedFocused);
+  }
+}
+
+export FocusTracker createFocusTracker(JsValue domNode) {
+  return new FocusTracker(domNode);
+}
+
+export void editContextAddDisposableListener(JsValue target, string type, JsValue listener, bool capture) {
+  addEventListener(target, type, listener, capture);
+}
+
+export void editContextRemoveDisposableListener(JsValue target, string type, JsValue listener, bool capture) {
+  removeEventListener(target, type, listener, capture);
+}

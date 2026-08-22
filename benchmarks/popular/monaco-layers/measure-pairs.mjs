@@ -2,9 +2,10 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { build as esbuild, transform as esbuildTransform } from "esbuild";
-import { minify as terserMinify } from "terser";
+import { build as esbuild } from "esbuild";
 import { canonicalCodecSizesForFile } from "../../codec-contract.mjs";
+import { minifyJqueryBundle } from "../jquery-measurement-lanes.mjs";
+import { writeKeepFile } from "./catalog-keep.mjs";
 import { coreEsm, labRoot, lilPath, monacoPath } from "./file-map.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -20,6 +21,18 @@ export const jsHostPlugin = {
     build.onResolve({ filter: /(^|\/)js-host(\.ts)?$/ }, () => ({
       path: join(labRoot, "ports/monaco/js-host.ts"),
     }));
+  },
+};
+
+export const tsLanguagePlugin = {
+  name: "monaco-ts-language",
+  setup(build) {
+    const register = join(labRoot, "node_modules/monaco-editor/esm/vs/languages/features/typescript/register.js");
+    const shim = join(labRoot, "ports/monaco/ts-language/monaco-api-shim.js");
+    const workers = join(labRoot, "ports/monaco/ts-language/worker-client.js");
+    build.onResolve({ filter: /^monaco-ts-register$/ }, () => ({ path: register }));
+    build.onResolve({ filter: /\/editor\/editor\.api\.js$/ }, () => ({ path: shim }));
+    build.onResolve({ filter: /\/internal\/common\/workers\.js$/ }, () => ({ path: workers }));
   },
 };
 
@@ -59,30 +72,7 @@ async function bundleToFile(options) {
 }
 
 async function minifyJsLanes(source, filename) {
-  if (typeof source !== "string" || source.length === 0) {
-    throw new Error(`${filename} is empty`);
-  }
-  const [esbuildResult, terserResult] = await Promise.all([
-    esbuildTransform(source, {
-      sourcefile: filename,
-      loader: "js",
-      format: "esm",
-      target: "esnext",
-      minify: true,
-      legalComments: "none",
-    }),
-    terserMinify(source, {
-      module: true,
-      compress: { passes: 3 },
-      mangle: true,
-      format: { comments: false },
-    }),
-  ]);
-  const esbuildCode = esbuildResult.code;
-  const terserCode = terserResult.code;
-  if (!esbuildCode) throw new Error(`esbuild produced no code for ${filename}`);
-  if (!terserCode) throw new Error(`terser produced no code for ${filename}`);
-  return { esbuild: esbuildCode, terser: terserCode };
+  return minifyJqueryBundle(source, filename);
 }
 
 export async function bestMinifiedSizes(source, filename, outDir) {
@@ -105,7 +95,15 @@ export async function bestMinifiedSizes(source, filename, outDir) {
 export async function compileLilPair(pair, outDir) {
   mkdirSync(outDir, { recursive: true });
   const compiledPath = join(outDir, "lilscript.raw.js");
-  runCompiler(lilPath(pair.lilEntry), compiledPath);
+  const lilAbs = lilPath(pair.lilEntry);
+  const src = readFileSync(lilAbs, "utf8");
+  const keep = writeKeepFile(src, lilAbs, join(outDir, "keep.lil"));
+  try {
+    runCompiler(keep || lilAbs, compiledPath);
+  } catch (err) {
+    if (!keep) throw err;
+    runCompiler(lilAbs, compiledPath);
+  }
   const compiledSource = readFileSync(compiledPath, "utf8");
   const needsHost = /from\s*["'][^"']*js-host/u.test(compiledSource);
   let artifact = compiledPath;

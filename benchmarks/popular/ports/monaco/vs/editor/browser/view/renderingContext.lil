@@ -1,0 +1,384 @@
+int iround(float value) {
+  if (value >= 0.0) {
+    return (value + 0.5).floor().toInt();
+  }
+  return (value - 0.5).floor().toInt();
+}
+
+string floatToString(float value) {
+  float v = value;
+  string sign = "";
+  if (v < 0.0) {
+    sign = "-";
+    v = 0.0 - v;
+  }
+  int whole = v.floor().toInt();
+  int frac = ((v - whole * 1.0) * 100.0 + 0.5).floor().toInt();
+  if (frac >= 100) {
+    whole = whole + 1;
+    frac = 0;
+  }
+  string fracText = frac.toString();
+  if (frac < 10) {
+    fracText = "0" + fracText;
+  }
+  return sign + whole.toString() + "." + fracText;
+}
+
+export class HorizontalRange {
+  int left;
+  int width;
+
+  init(float left, float width) {
+    this.left = iround(left);
+    this.width = iround(width);
+  }
+
+  string toString() {
+    return "[" + this.left.toString() + "," + this.width.toString() + "]";
+  }
+}
+
+export class FloatHorizontalRange {
+  float left;
+  float width;
+
+  init(float left, float width) {
+    this.left = left;
+    this.width = width;
+  }
+
+  string toString() {
+    return "[" + floatToString(this.left) + "," + floatToString(this.width) + "]";
+  }
+}
+
+export int compareFloatHorizontalRange(FloatHorizontalRange a, FloatHorizontalRange b) {
+  if (a.left < b.left) {
+    return -1;
+  }
+  if (a.left > b.left) {
+    return 1;
+  }
+  return 0;
+}
+
+export class LineVisibleRanges {
+  bool outsideRenderedLine;
+  int lineNumber;
+  HorizontalRange[] ranges;
+  bool continuesOnNextLine;
+
+  init(bool outsideRenderedLine, int lineNumber, HorizontalRange[] ranges, bool continuesOnNextLine) {
+    this.outsideRenderedLine = outsideRenderedLine;
+    this.lineNumber = lineNumber;
+    this.ranges = ranges;
+    this.continuesOnNextLine = continuesOnNextLine;
+  }
+}
+
+export class HorizontalPosition {
+  bool outsideRenderedLine;
+  float originalLeft;
+  int left;
+
+  init(bool outsideRenderedLine, float left) {
+    this.outsideRenderedLine = outsideRenderedLine;
+    this.originalLeft = left;
+    this.left = iround(left);
+  }
+}
+
+export class VisibleRanges {
+  bool outsideRenderedLine;
+  FloatHorizontalRange[] ranges;
+
+  init(bool outsideRenderedLine, FloatHorizontalRange[] ranges) {
+    this.outsideRenderedLine = outsideRenderedLine;
+    this.ranges = ranges;
+  }
+}
+
+export class ViewportRange {
+  int startLineNumber;
+  int startColumn;
+  int endLineNumber;
+  int endColumn;
+
+  init(int startLineNumber, int startColumn, int endLineNumber, int endColumn) {
+    this.startLineNumber = startLineNumber;
+    this.startColumn = startColumn;
+    this.endLineNumber = endLineNumber;
+    this.endColumn = endColumn;
+  }
+}
+
+export class ViewportBox {
+  int top;
+  int left;
+  int width;
+  int height;
+
+  init(int top, int left, int width, int height) {
+    this.top = top;
+    this.left = left;
+    this.width = width;
+    this.height = height;
+  }
+}
+
+export class ViewportData {
+  ViewportRange visibleRange;
+  float bigNumbersDelta;
+  int startLineNumber;
+  int endLineNumber;
+  int[] relativeVerticalOffset;
+  int lineHeight;
+  int decorationsStart;
+  int decorationsEnd;
+
+  init(int startLineNumber, int endLineNumber, int lineHeight) {
+    this.visibleRange = new ViewportRange(startLineNumber, 1, endLineNumber, 1);
+    this.bigNumbersDelta = 0.0;
+    this.startLineNumber = startLineNumber;
+    this.endLineNumber = endLineNumber;
+    this.relativeVerticalOffset = [];
+    this.lineHeight = lineHeight;
+    this.decorationsStart = startLineNumber;
+    this.decorationsEnd = endLineNumber;
+    int i = 0;
+    while (i <= endLineNumber - startLineNumber) {
+      this.relativeVerticalOffset.push(i * lineHeight);
+      i = i + 1;
+    }
+  }
+
+  ViewportRange getDecorationsInViewport() {
+    return new ViewportRange(this.decorationsStart, 1, this.decorationsEnd, 1);
+  }
+}
+
+export class ViewLayoutSnapshot {
+  int scrollWidth;
+  int scrollHeight;
+  int scrollTop;
+  int scrollLeft;
+  int viewportWidth;
+  int viewportHeight;
+  int[] lineOffsets;
+  int[] lineHeights;
+
+  init(int scrollWidth, int scrollHeight, ViewportBox viewport) {
+    this.scrollWidth = scrollWidth;
+    this.scrollHeight = scrollHeight;
+    this.scrollTop = viewport.top;
+    this.scrollLeft = viewport.left;
+    this.viewportWidth = viewport.width;
+    this.viewportHeight = viewport.height;
+    this.lineOffsets = [];
+    this.lineHeights = [];
+  }
+
+  void setLineMetrics(int[] lineHeights) {
+    this.lineHeights = lineHeights;
+    this.lineOffsets = [];
+    int offset = 0;
+    int i = 0;
+    while (i < lineHeights.length) {
+      this.lineOffsets.push(offset);
+      offset = offset + lineHeights[i];
+      i = i + 1;
+    }
+  }
+
+  int getVerticalOffsetForLineNumber(int lineNumber, bool includeViewZones = false) {
+    int index = lineNumber - 1;
+    if (index < 0) {
+      return 0;
+    }
+    if (index >= this.lineOffsets.length) {
+      if (this.lineOffsets.length == 0) {
+        return 0;
+      }
+      return this.lineOffsets[this.lineOffsets.length - 1];
+    }
+    int offset = this.lineOffsets[index];
+    if (includeViewZones && index > 0) {
+      offset = offset + 0;
+    }
+    return offset;
+  }
+
+  int getVerticalOffsetAfterLineNumber(int lineNumber, bool includeViewZones = false) {
+    int offset = this.getVerticalOffsetForLineNumber(lineNumber, includeViewZones);
+    int index = lineNumber - 1;
+    int height = 0;
+    if (index >= 0 && index < this.lineHeights.length) {
+      height = this.lineHeights[index];
+    }
+    return offset + height;
+  }
+
+  int getLineHeightForLineNumber(int lineNumber) {
+    int index = lineNumber - 1;
+    if (index < 0 || index >= this.lineHeights.length) {
+      return 0;
+    }
+    return this.lineHeights[index];
+  }
+}
+
+export class RestrictedRenderingContext {
+  ViewLayoutSnapshot layout;
+  ViewportData viewportData;
+  int scrollWidth;
+  int scrollHeight;
+  ViewportRange visibleRange;
+  float bigNumbersDelta;
+  int scrollTop;
+  int scrollLeft;
+  int viewportWidth;
+  int viewportHeight;
+
+  init(ViewLayoutSnapshot layout, ViewportData viewportData) {
+    this.layout = layout;
+    this.viewportData = viewportData;
+    this.scrollWidth = layout.scrollWidth;
+    this.scrollHeight = layout.scrollHeight;
+    this.visibleRange = viewportData.visibleRange;
+    this.bigNumbersDelta = viewportData.bigNumbersDelta;
+    this.scrollTop = layout.scrollTop;
+    this.scrollLeft = layout.scrollLeft;
+    this.viewportWidth = layout.viewportWidth;
+    this.viewportHeight = layout.viewportHeight;
+  }
+
+  int getScrolledTopFromAbsoluteTop(int absoluteTop) {
+    return absoluteTop - this.scrollTop;
+  }
+
+  int getVerticalOffsetForLineNumber(int lineNumber, bool includeViewZones = false) {
+    return this.layout.getVerticalOffsetForLineNumber(lineNumber, includeViewZones);
+  }
+
+  int getVerticalOffsetAfterLineNumber(int lineNumber, bool includeViewZones = false) {
+    return this.layout.getVerticalOffsetAfterLineNumber(lineNumber, includeViewZones);
+  }
+
+  int getLineHeightForLineNumber(int lineNumber) {
+    return this.layout.getLineHeightForLineNumber(lineNumber);
+  }
+
+  ViewportRange getDecorationsInViewport() {
+    return this.viewportData.getDecorationsInViewport();
+  }
+}
+
+export HorizontalRange[] horizontalRangesFrom(FloatHorizontalRange[] ranges) {
+  HorizontalRange[] result = [];
+  int i = 0;
+  while (i < ranges.length) {
+    FloatHorizontalRange range = ranges[i];
+    result.push(new HorizontalRange(range.left, range.width));
+    i = i + 1;
+  }
+  return result;
+}
+
+LineVisibleRanges[] sortLineVisibleRanges(LineVisibleRanges[] ranges) {
+  LineVisibleRanges[] copy = [];
+  int i = 0;
+  while (i < ranges.length) {
+    copy.push(ranges[i]);
+    i = i + 1;
+  }
+  int gap = copy.length;
+  bool swapped = true;
+  while (gap > 1 || swapped) {
+    gap = (gap * 10) / 13;
+    if (gap < 1) {
+      gap = 1;
+    }
+    swapped = false;
+    int j = 0;
+    while (j + gap < copy.length) {
+      if (copy[j].lineNumber > copy[j + gap].lineNumber) {
+        LineVisibleRanges tmp = copy[j];
+        copy[j] = copy[j + gap];
+        copy[j + gap] = tmp;
+        swapped = true;
+      }
+      j = j + 1;
+    }
+  }
+  return copy;
+}
+
+export class RenderingContext {
+  RestrictedRenderingContext restricted;
+  LineVisibleRanges[] domRanges;
+  LineVisibleRanges[] gpuRanges;
+  HorizontalPosition? domPosition;
+  HorizontalPosition? gpuPosition;
+
+  init(ViewLayoutSnapshot layout, ViewportData viewportData) {
+    this.restricted = new RestrictedRenderingContext(layout, viewportData);
+    this.domRanges = [];
+    this.gpuRanges = [];
+    this.domPosition = null;
+    this.gpuPosition = null;
+  }
+
+  LineVisibleRanges[]? linesVisibleRangesForRange(ViewportRange range, bool includeNewLines) {
+    LineVisibleRanges[] result = [];
+    int i = 0;
+    while (i < this.domRanges.length) {
+      LineVisibleRanges item = this.domRanges[i];
+      if (item.lineNumber >= range.startLineNumber && item.lineNumber <= range.endLineNumber) {
+        result.push(item);
+      }
+      i = i + 1;
+    }
+    int g = 0;
+    while (g < this.gpuRanges.length) {
+      LineVisibleRanges itemG = this.gpuRanges[g];
+      if (itemG.lineNumber >= range.startLineNumber && itemG.lineNumber <= range.endLineNumber) {
+        result.push(itemG);
+      }
+      g = g + 1;
+    }
+    if (result.length == 0) {
+      return null;
+    }
+    if (includeNewLines) {
+      return sortLineVisibleRanges(result);
+    }
+    return sortLineVisibleRanges(result);
+  }
+
+  HorizontalPosition? visibleRangeForPosition(int lineNumber, int column) {
+    if (this.domPosition != null) {
+      return this.domPosition;
+    }
+    if (this.gpuPosition != null) {
+      return this.gpuPosition;
+    }
+    return null;
+  }
+}
+
+export HorizontalRange createHorizontalRange(float left, float width) {
+  return new HorizontalRange(left, width);
+}
+
+export LineVisibleRanges createLineVisibleRanges(bool outsideRenderedLine, int lineNumber, HorizontalRange[] ranges, bool continuesOnNextLine) {
+  return new LineVisibleRanges(outsideRenderedLine, lineNumber, ranges, continuesOnNextLine);
+}
+
+export ViewportData createViewportData(int startLineNumber, int endLineNumber, int lineHeight) {
+  return new ViewportData(startLineNumber, endLineNumber, lineHeight);
+}
+
+export RenderingContext createRenderingContext(ViewLayoutSnapshot layout, ViewportData viewportData) {
+  return new RenderingContext(layout, viewportData);
+}

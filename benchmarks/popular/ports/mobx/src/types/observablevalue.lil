@@ -1,0 +1,154 @@
+import { DEV } from "../dev-flag.lil";
+import {
+  call0,
+  call1,
+  call2,
+  createInstanceofPredicate,
+  isUndef,
+  len,
+  setPrototypeOf,
+  toPrimitive,
+  toStr,
+  undef,
+  wellKnown,
+  yes
+} from "../host.lil";
+import { Atom } from "../core/atom.lil";
+import {
+  CREATE,
+  UPDATE
+} from "../constants.lil";
+import { checkIfStateModificationsAreAllowed } from "../core/derivation.lil";
+import { defaultEquals } from "../utils/comparer.lil";
+import {
+  getNextId,
+  globalState
+} from "../core/globalstate.lil";
+import {
+  hasInterceptors,
+  interceptChange
+} from "../types/intercept-utils.lil";
+import {
+  hasListeners,
+  notifyListeners
+} from "../types/listen-utils.lil";
+import {
+  isObservableValue,
+  isObservableValuePred
+} from "../core/predicates.lil";
+import {
+  isSpyEnabled,
+  spyReport,
+  spyReportEnd0,
+  spyReportStart
+} from "../core/spy.lil";
+import {
+  reportChanged,
+  reportObserved
+} from "../core/observable.lil";
+
+export JsValue ObservableValue = JS.methodRest((JsValue self, JsValue args) => {
+  JsValue value = args[0];
+  JsValue enhancer = args[1];
+  JsValue nameArg = undef();
+  if (len(args) > 2) {
+    nameArg = args[2];
+  }
+  bool notifySpy = true;
+  if (len(args) > 3) {
+    notifySpy = args[3].truthy();
+  }
+  JsValue equalsArg = undef();
+  if (len(args) > 4) {
+    equalsArg = args[4];
+  }
+  string name = "ObservableValue";
+  if (!isUndef(nameArg)) {
+    name = toStr(nameArg);
+  } else if (DEV) {
+    name = "ObservableValue@" + getNextId();
+  }
+  JS.call(Atom, self, name);
+  JsValue equals_ = defaultEquals;
+  if (equalsArg.truthy()) {
+    equals_ = equalsArg;
+  }
+  self["enhancer_"] = enhancer;
+  self["equals_"] = equals_;
+  self["hasUnreportedChange_"] = false;
+  self["dehancer"] = undef();
+  self["value_"] = JS.call(enhancer, undef(), value, undef(), name);
+  if (DEV && notifySpy && isSpyEnabled()) {
+    spyReport(JS.object("type", CREATE, "object", self, "observableKind", "value", "debugObjectName", self["name_"], "newValue", "" + self["value_"]));
+  }
+  return self;
+});
+
+setPrototypeOf(ObservableValue["prototype"], Atom["prototype"]);
+ObservableValue["prototype"]["prepareNewValue_"] = JS.method1((JsValue self, JsValue newValue) => {
+  if (DEV) {
+    checkIfStateModificationsAreAllowed(self);
+  }
+  if (hasInterceptors(self)) {
+    JsValue change = interceptChange(self, JS.object("object", self, "type", UPDATE, "newValue", newValue));
+    if (!change.truthy()) {
+      return globalState["UNCHANGED"];
+    }
+    newValue = change["newValue"];
+  }
+  newValue = JS.call(self["enhancer_"], self, newValue, self["value_"], self["name_"]);
+  if (yes(call2(self["equals_"], self, self["value_"], newValue))) {
+    return globalState["UNCHANGED"];
+  }
+  return newValue;
+});
+ObservableValue["prototype"]["setNewValue_"] = JS.method1((JsValue self, JsValue newValue) => {
+  JsValue oldValue = self["value_"];
+  self["value_"] = newValue;
+  reportChanged(self);
+  if (hasListeners(self)) {
+    notifyListeners(self, JS.object("type", UPDATE, "object", self, "newValue", newValue, "oldValue", oldValue));
+  }
+  return undef();
+});
+ObservableValue["prototype"]["set"] = JS.method1((JsValue self, JsValue newValue) => {
+  newValue = call1(self["prepareNewValue_"], self, newValue);
+  if (!JS.strictEqual(newValue, globalState["UNCHANGED"])) {
+    bool notifySpy = DEV && isSpyEnabled();
+    if (DEV && notifySpy) {
+      spyReportStart(JS.object("type", UPDATE, "object", self, "observableKind", "value", "debugObjectName", self["name_"], "newValue", newValue, "oldValue", self["value_"]));
+    }
+    call1(self["setNewValue_"], self, newValue);
+    if (DEV && notifySpy) {
+      spyReportEnd0();
+    }
+  }
+  return undef();
+});
+ObservableValue["prototype"]["get"] = JS.method0((JsValue self) => {
+  reportObserved(self);
+  if (isUndef(self["dehancer"])) {
+    return self["value_"];
+  }
+  return call1(self["dehancer"], undef(), self["value_"]);
+});
+ObservableValue["prototype"]["raw"] = JS.method0((JsValue self) => {
+  return self["value_"];
+});
+ObservableValue["prototype"]["toJSON"] = JS.method0((JsValue self) => {
+  return call0(self["get"], self);
+});
+ObservableValue["prototype"]["toString"] = JS.method0((JsValue self) => {
+  return toStr(self["name_"]) + "[" + toStr(self["value_"]) + "]";
+});
+ObservableValue["prototype"]["valueOf"] = JS.method0((JsValue self) => {
+  return toPrimitive(call0(self["get"], self));
+});
+ObservableValue["prototype"][wellKnown("toPrimitive")] = JS.method0((JsValue self) => {
+  return call0(self["valueOf"], self);
+});
+isObservableValuePred = createInstanceofPredicate("ObservableValue", ObservableValue);
+
+export bool isBoxedObservable(JsValue x) {
+  return isObservableValue(x);
+}

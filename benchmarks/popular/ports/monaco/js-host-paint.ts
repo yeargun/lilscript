@@ -685,14 +685,16 @@ export function hostPaintEditor(
   }
   if (textarea) {
     textarea.style.position = "absolute"
-    textarea.style.top = "0"
-    textarea.style.left = "56px"
-    textarea.style.width = "calc(100% - 120px)"
-    textarea.style.height = "100%"
+    textarea.style.top = caretTop + "px"
+    textarea.style.left = caretLeft + 56 + "px"
+    textarea.style.width = "1px"
+    textarea.style.height = lh + "px"
     textarea.style.opacity = "0"
-    textarea.style.zIndex = "6"
+    textarea.style.zIndex = "8"
     textarea.style.pointerEvents = "none"
-    textarea.value = ""
+    if (document.activeElement !== textarea) {
+      textarea.value = ""
+    }
   }
 
   if (minimap && showMinimap) {

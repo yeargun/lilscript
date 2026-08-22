@@ -1,0 +1,31 @@
+export class ToggleHighContrast {
+  string current;
+  string previous;
+
+  init(string current) {
+    this.current = current;
+    this.previous = current;
+  }
+
+  string toggle() {
+    this.previous = this.current;
+    if (this.current == "hc-black" || this.current == "hc-light") {
+      if (this.previous == "vs") {
+        this.current = "vs";
+      } else {
+        this.current = "vs-dark";
+      }
+    } else {
+      if (this.current == "vs") {
+        this.current = "hc-light";
+      } else {
+        this.current = "hc-black";
+      }
+    }
+    return this.current;
+  }
+}
+
+export ToggleHighContrast createToggleHighContrast(string current) {
+  return new ToggleHighContrast(current);
+}

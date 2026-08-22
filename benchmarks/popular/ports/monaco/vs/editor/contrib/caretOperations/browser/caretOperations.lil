@@ -1,0 +1,57 @@
+export class CaretPos {
+  int lineNumber;
+  int column;
+
+  init(int lineNumber, int column) {
+    this.lineNumber = lineNumber;
+    this.column = column;
+  }
+}
+
+export CaretPos moveCaret(string[] lines, int lineNumber, int column, bool left) {
+  if (left) {
+    if (column > 1) {
+      return new CaretPos(lineNumber, column - 1);
+    }
+    if (lineNumber > 1) {
+      return new CaretPos(lineNumber - 1, lines[lineNumber - 2].length + 1);
+    }
+    return new CaretPos(1, 1);
+  }
+  if (lineNumber < 1 || lineNumber > lines.length) {
+    return new CaretPos(lineNumber, column);
+  }
+  int maxCol = lines[lineNumber - 1].length + 1;
+  if (column < maxCol) {
+    return new CaretPos(lineNumber, column + 1);
+  }
+  if (lineNumber < lines.length) {
+    return new CaretPos(lineNumber + 1, 1);
+  }
+  return new CaretPos(lineNumber, maxCol);
+}
+
+export string transpose(string line, int column) {
+  if (column <= 1 || column > line.length) {
+    return line;
+  }
+  int a = column - 2;
+  int b = column - 1;
+  string out = "";
+  int i = 0;
+  while (i < line.length) {
+    if (i == a) {
+      out = out + line.charAt(b);
+    } else if (i == b) {
+      out = out + line.charAt(a);
+    } else {
+      out = out + line.charAt(i);
+    }
+    i = i + 1;
+  }
+  return out;
+}
+
+export CaretPos createCaretPos(int lineNumber, int column) {
+  return new CaretPos(lineNumber, column);
+}

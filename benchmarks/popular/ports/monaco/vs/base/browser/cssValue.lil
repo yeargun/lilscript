@@ -1,0 +1,83 @@
+import { stringReplace, stringSplit, newRegexp, regexExec, jsArrayLen, jsArrayAt, jsPropString, stringSlice } from "../../../js-host";
+
+string trimCss(string value) {
+  return stringReplace(value, newRegexp("^\\s+|\\s+$", "g"), "");
+}
+
+export string asCssValueWithDefault(string? cssPropertyValue, string defaultValue) {
+  if (cssPropertyValue == null) {
+    return defaultValue;
+  }
+  JsValue result = regexExec(newRegexp("^\\s*var\\((.+)\\)$"), cssPropertyValue);
+  if (result.truthy()) {
+    string argumentsText = jsPropString(result, "1", "");
+    string[] argumentsList = stringSplit(argumentsText, ",");
+    string fallback = defaultValue;
+    if (argumentsList.length >= 2) {
+      fallback = asCssValueWithDefault(trimCss(argumentsList[1]), defaultValue);
+    }
+    return "var(" + trimCss(argumentsList[0]) + ", " + fallback + ")";
+  }
+  return cssPropertyValue;
+}
+
+export string identValue(string value) {
+  return stringReplace(value, newRegexp("[^_\\-a-z0-9]", "gi"), "");
+}
+
+export string stringValue(string value) {
+  return "'" + stringReplace(value, newRegexp("'", "g"), "\\000027") + "'";
+}
+
+export string asCSSUrl(string uri) {
+  return "url('" + stringReplace(uri, newRegexp("'", "g"), "%27") + "')";
+}
+
+export string className(string value, bool escapingExpected = false) {
+  string safe = stringReplace(value, newRegexp("[^_\\-a-z0-9]", "gi"), "-");
+  if (safe.length > 0 && regexExec(newRegexp("^[0-9]"), safe).truthy()) {
+    safe = "\\3" + safe.charAt(0) + " " + stringSlice(safe, 1, safe.length);
+  }
+  return safe;
+}
+
+export string inlineCss(string[] strings, string[] values) {
+  string result = "";
+  int i = 0;
+  while (i < strings.length) {
+    result = result + strings[i];
+    if (i < values.length) {
+      result = result + values[i];
+    }
+    i = i + 1;
+  }
+  return result;
+}
+
+export class Builder {
+  string[] parts;
+
+  init() {
+    this.parts = [];
+  }
+
+  void push(string part) {
+    this.parts.push(part);
+  }
+
+  void pushMany(string[] parts) {
+    int i = 0;
+    while (i < parts.length) {
+      this.parts.push(parts[i]);
+      i = i + 1;
+    }
+  }
+
+  string join(string joiner = "\n") {
+    return this.parts.join(joiner);
+  }
+}
+
+export Builder createCssBuilder() {
+  return new Builder();
+}

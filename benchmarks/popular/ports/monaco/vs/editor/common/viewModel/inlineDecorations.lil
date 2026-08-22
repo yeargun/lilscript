@@ -1,0 +1,220 @@
+export class InlineRange {
+  int startLineNumber;
+  int startColumn;
+  int endLineNumber;
+  int endColumn;
+
+  init(int startLineNumber, int startColumn, int endLineNumber, int endColumn) {
+    this.startLineNumber = startLineNumber;
+    this.startColumn = startColumn;
+    this.endLineNumber = endLineNumber;
+    this.endColumn = endColumn;
+  }
+}
+
+export class InlineDecoration {
+  InlineRange range;
+  string inlineClassName;
+  int type;
+
+  init(InlineRange range, string inlineClassName, int type) {
+    this.range = range;
+    this.inlineClassName = inlineClassName;
+    this.type = type;
+  }
+}
+
+export class InlineModelDecoration {
+  string id;
+  InlineRange range;
+  string inlineClassName;
+  string beforeContentClassName;
+  string afterContentClassName;
+  bool affectsFont;
+  bool affectsLetterSpacing;
+  bool visible;
+
+  init(string id, InlineRange range, string inlineClassName, string beforeContentClassName, string afterContentClassName, bool affectsFont, bool affectsLetterSpacing, bool visible) {
+    this.id = id;
+    this.range = range;
+    this.inlineClassName = inlineClassName;
+    this.beforeContentClassName = beforeContentClassName;
+    this.afterContentClassName = afterContentClassName;
+    this.affectsFont = affectsFont;
+    this.affectsLetterSpacing = affectsLetterSpacing;
+    this.visible = visible;
+  }
+}
+
+export class DecorationsViewportData {
+  InlineModelDecoration[] decorations;
+  InlineDecoration[][] inlineDecorations;
+  bool[] hasVariableFonts;
+
+  init(InlineModelDecoration[] decorations, InlineDecoration[][] inlineDecorations, bool[] hasVariableFonts) {
+    this.decorations = decorations;
+    this.inlineDecorations = inlineDecorations;
+    this.hasVariableFonts = hasVariableFonts;
+  }
+}
+
+export class InlineModelDecorationsComputer {
+  func(InlineRange, bool, bool)->InlineModelDecoration[] getModelDecorations;
+  func(InlineRange)->InlineRange convertModelRangeToViewRange;
+
+  init(func(InlineRange, bool, bool)->InlineModelDecoration[] getModelDecorations, func(InlineRange)->InlineRange convertModelRangeToViewRange) {
+    this.getModelDecorations = getModelDecorations;
+    this.convertModelRangeToViewRange = convertModelRangeToViewRange;
+  }
+
+  DecorationsViewportData getDecorations(InlineRange viewRange, bool onlyMinimapDecorations = false, bool onlyMarginDecorations = false) {
+    InlineModelDecoration[] source = this.getModelDecorations(viewRange, onlyMinimapDecorations, onlyMarginDecorations);
+    InlineModelDecoration[] visibleDecorations = [];
+    InlineDecoration[][] inlineByLine = [];
+    bool[] variableFonts = [];
+    int lineNumber = viewRange.startLineNumber;
+    while (lineNumber <= viewRange.endLineNumber) {
+      InlineDecoration[] lineDecorations = [];
+      inlineByLine.push(lineDecorations);
+      variableFonts.push(false);
+      lineNumber = lineNumber + 1;
+    }
+    int i = 0;
+    while (i < source.length) {
+      InlineModelDecoration decoration = source[i];
+      if (!decoration.visible) {
+        i = i + 1;
+        continue;
+      }
+      InlineRange converted = this.convertModelRangeToViewRange(decoration.range);
+      InlineModelDecoration resolved = new InlineModelDecoration(decoration.id, converted, decoration.inlineClassName, decoration.beforeContentClassName, decoration.afterContentClassName, decoration.affectsFont, decoration.affectsLetterSpacing, true);
+      visibleDecorations.push(resolved);
+      if (decoration.inlineClassName.length > 0) {
+        int type = 0;
+        if (decoration.affectsLetterSpacing) {
+          type = 3;
+        }
+        int startLine = converted.startLineNumber;
+        if (startLine < viewRange.startLineNumber) {
+          startLine = viewRange.startLineNumber;
+        }
+        int endLine = converted.endLineNumber;
+        if (endLine > viewRange.endLineNumber) {
+          endLine = viewRange.endLineNumber;
+        }
+        lineNumber = startLine;
+        while (lineNumber <= endLine) {
+          inlineByLine[lineNumber - viewRange.startLineNumber].push(new InlineDecoration(converted, decoration.inlineClassName, type));
+          if (decoration.affectsFont) {
+            variableFonts[lineNumber - viewRange.startLineNumber] = true;
+          }
+          lineNumber = lineNumber + 1;
+        }
+      }
+      if (decoration.beforeContentClassName.length > 0 && converted.startLineNumber >= viewRange.startLineNumber && converted.startLineNumber <= viewRange.endLineNumber) {
+        InlineRange beforeRange = new InlineRange(converted.startLineNumber, converted.startColumn, converted.startLineNumber, converted.startColumn);
+        inlineByLine[converted.startLineNumber - viewRange.startLineNumber].push(new InlineDecoration(beforeRange, decoration.beforeContentClassName, 1));
+      }
+      if (decoration.afterContentClassName.length > 0 && converted.endLineNumber >= viewRange.startLineNumber && converted.endLineNumber <= viewRange.endLineNumber) {
+        InlineRange afterRange = new InlineRange(converted.endLineNumber, converted.endColumn, converted.endLineNumber, converted.endColumn);
+        inlineByLine[converted.endLineNumber - viewRange.startLineNumber].push(new InlineDecoration(afterRange, decoration.afterContentClassName, 2));
+      }
+      i = i + 1;
+    }
+    return new DecorationsViewportData(visibleDecorations, inlineByLine, variableFonts);
+  }
+}
+
+export class InjectedTextOption {
+  string content;
+  string inlineClassName;
+  bool affectsLetterSpacing;
+
+  init(string content, string inlineClassName, bool affectsLetterSpacing) {
+    this.content = content;
+    this.inlineClassName = inlineClassName;
+    this.affectsLetterSpacing = affectsLetterSpacing;
+  }
+}
+
+export class InjectedTextInlineDecorationsComputer {
+  int[] injectionOffsets;
+  InjectedTextOption[] injectionOptions;
+  int[] breakOffsets;
+  int wrappedTextIndentLength;
+  int baseViewLineNumber;
+
+  init(int[] injectionOffsets, InjectedTextOption[] injectionOptions, int[] breakOffsets, int wrappedTextIndentLength, int baseViewLineNumber) {
+    this.injectionOffsets = injectionOffsets;
+    this.injectionOptions = injectionOptions;
+    this.breakOffsets = breakOffsets;
+    this.wrappedTextIndentLength = wrappedTextIndentLength;
+    this.baseViewLineNumber = baseViewLineNumber;
+  }
+
+  InlineDecoration[][] getInlineDecorations() {
+    InlineDecoration[][] result = [];
+    int injectionIndex = 0;
+    int injectedLengthBefore = 0;
+    int outputLineIndex = 0;
+    while (outputLineIndex < this.breakOffsets.length) {
+      InlineDecoration[] lineDecorations = [];
+      int lineStart = 0;
+      if (outputLineIndex > 0) {
+        lineStart = this.breakOffsets[outputLineIndex - 1];
+      }
+      int lineEnd = this.breakOffsets[outputLineIndex];
+      while (injectionIndex < this.injectionOffsets.length) {
+        InjectedTextOption option = this.injectionOptions[injectionIndex];
+        int injectionStart = this.injectionOffsets[injectionIndex] + injectedLengthBefore;
+        int injectionEnd = injectionStart + option.content.length;
+        if (injectionStart > lineEnd) {
+          break;
+        }
+        if (lineStart < injectionEnd && option.inlineClassName.length > 0) {
+          int indent = 0;
+          if (outputLineIndex > 0) {
+            indent = this.wrappedTextIndentLength;
+          }
+          int startOffset = injectionStart - lineStart;
+          if (startOffset < 0) {
+            startOffset = 0;
+          }
+          int endOffset = injectionEnd - lineStart;
+          if (endOffset > lineEnd - lineStart) {
+            endOffset = lineEnd - lineStart;
+          }
+          if (startOffset < endOffset) {
+            int type = 0;
+            if (option.affectsLetterSpacing) {
+              type = 3;
+            }
+            int viewLine = this.baseViewLineNumber + outputLineIndex;
+            lineDecorations.push(new InlineDecoration(new InlineRange(viewLine, indent + startOffset + 1, viewLine, indent + endOffset + 1), option.inlineClassName, type));
+          }
+        }
+        if (injectionEnd <= lineEnd) {
+          injectedLengthBefore = injectedLengthBefore + option.content.length;
+          injectionIndex = injectionIndex + 1;
+        } else {
+          break;
+        }
+      }
+      result.push(lineDecorations);
+      outputLineIndex = outputLineIndex + 1;
+    }
+    return result;
+  }
+}
+
+export InlineDecoration createInlineDecoration(InlineRange range, string inlineClassName, int type) {
+  return new InlineDecoration(range, inlineClassName, type);
+}
+
+export InlineModelDecorationsComputer createInlineModelDecorationsComputer(func(InlineRange, bool, bool)->InlineModelDecoration[] getModelDecorations, func(InlineRange)->InlineRange convertModelRangeToViewRange) {
+  return new InlineModelDecorationsComputer(getModelDecorations, convertModelRangeToViewRange);
+}
+
+export InjectedTextInlineDecorationsComputer createInjectedTextInlineDecorationsComputer(int[] injectionOffsets, InjectedTextOption[] injectionOptions, int[] breakOffsets, int wrappedTextIndentLength, int baseViewLineNumber) {
+  return new InjectedTextInlineDecorationsComputer(injectionOffsets, injectionOptions, breakOffsets, wrappedTextIndentLength, baseViewLineNumber);
+}

@@ -1,0 +1,14 @@
+import { Pos } from "../../../../../base/position";
+import { PositionOffsetTransformer } from "./positionToOffsetImpl";
+
+export PositionOffsetTransformer getPositionOffsetTransformerFromText(string value) {
+  return new PositionOffsetTransformer(value);
+}
+
+export int offsetAtInText(string value, Pos pos) {
+  return new PositionOffsetTransformer(value).getOffset(pos);
+}
+
+export Pos positionAtInText(string value, int offset) {
+  return new PositionOffsetTransformer(value).getPosition(offset);
+}

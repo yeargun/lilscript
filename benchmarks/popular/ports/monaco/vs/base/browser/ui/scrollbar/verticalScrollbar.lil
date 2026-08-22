@@ -1,0 +1,56 @@
+import { AbstractScrollbar, createAbstractScrollbar } from "./abstractScrollbar";
+import { ScrollableElementOptions } from "./scrollableElementOptions";
+
+export class VerticalScrollbar {
+  AbstractScrollbar bar;
+  JsValue domNode;
+
+  init(JsValue scrollable, ScrollableElementOptions options, JsValue host) {
+    this.bar = createAbstractScrollbar(scrollable, options, host, false);
+    this.domNode = this.bar.domNode;
+  }
+
+  bool onDidScroll(JsValue e) {
+    return this.bar.onDidScroll(e);
+  }
+
+  void writeScrollPosition(JsValue target, int scrollPosition) {
+    this.bar.writeScrollPosition(target, scrollPosition);
+  }
+
+  void updateOptions(ScrollableElementOptions options) {
+    this.bar.updateOptions(options);
+  }
+
+  void updateScrollbarSize(int scrollbarSize) {
+    this.bar.updateScrollbarSize(scrollbarSize);
+  }
+
+  void beginReveal() {
+    this.bar.beginReveal();
+  }
+
+  void beginHide() {
+    this.bar.beginHide();
+  }
+
+  void render() {
+    this.bar.render();
+  }
+
+  bool isNeeded() {
+    return this.bar.isNeeded();
+  }
+
+  void delegatePointerDown(JsValue event) {
+    this.bar.delegatePointerDown(event);
+  }
+}
+
+export VerticalScrollbar createVerticalScrollbar(
+  JsValue scrollable,
+  ScrollableElementOptions options,
+  JsValue host
+) {
+  return new VerticalScrollbar(scrollable, options, host);
+}

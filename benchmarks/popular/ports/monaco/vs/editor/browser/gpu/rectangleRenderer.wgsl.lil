@@ -1,0 +1,96 @@
+int hashString(string s) {
+  int hash = 5381;
+  int i = 0;
+  while (i < s.length) {
+    hash = Math.imul(hash, 33) + s.charCodeAt(i);
+    i = i + 1;
+  }
+  return hash;
+}
+
+string shaderLine(string acc, string line) {
+  return acc + line + "\n";
+}
+
+export class ShaderModuleSource {
+  string source;
+  int length;
+  int hash;
+
+  init(string source) {
+    this.source = source;
+    this.length = source.length;
+    this.hash = hashString(source);
+  }
+}
+
+export string buildRectangleRendererWgsl() {
+  string s = "";
+  s = shaderLine(s, "struct Vertex {");
+  s = shaderLine(s, "	@location(0) position: vec2f,");
+  s = shaderLine(s, "};");
+  s = shaderLine(s, "");
+  s = shaderLine(s, "struct LayoutInfo {");
+  s = shaderLine(s, "	canvasDims: vec2f,");
+  s = shaderLine(s, "	viewportOffset: vec2f,");
+  s = shaderLine(s, "	viewportDims: vec2f,");
+  s = shaderLine(s, "}");
+  s = shaderLine(s, "");
+  s = shaderLine(s, "struct ScrollOffset {");
+  s = shaderLine(s, "	offset: vec2f,");
+  s = shaderLine(s, "}");
+  s = shaderLine(s, "");
+  s = shaderLine(s, "struct Shape {");
+  s = shaderLine(s, "	position: vec2f,");
+  s = shaderLine(s, "	size: vec2f,");
+  s = shaderLine(s, "	color: vec4f,");
+  s = shaderLine(s, "};");
+  s = shaderLine(s, "");
+  s = shaderLine(s, "struct VSOutput {");
+  s = shaderLine(s, "	@builtin(position) position: vec4f,");
+  s = shaderLine(s, "	@location(1)       color:    vec4f,");
+  s = shaderLine(s, "};");
+  s = shaderLine(s, "");
+  s = shaderLine(s, "@group(0) @binding(1) var<uniform>       layoutInfo:      LayoutInfo;");
+  s = shaderLine(s, "");
+  s = shaderLine(s, "@group(0) @binding(0)            var<storage, read> shapes:          array<Shape>;");
+  s = shaderLine(s, "@group(0) @binding(2)      var<uniform>       scrollOffset:    ScrollOffset;");
+  s = shaderLine(s, "");
+  s = shaderLine(s, "@vertex fn vs(");
+  s = shaderLine(s, "	vert: Vertex,");
+  s = shaderLine(s, "	@builtin(instance_index) instanceIndex: u32,");
+  s = shaderLine(s, "	@builtin(vertex_index) vertexIndex : u32");
+  s = shaderLine(s, ") -> VSOutput {");
+  s = shaderLine(s, "	let shape = shapes[instanceIndex];");
+  s = shaderLine(s, "");
+  s = shaderLine(s, "	var vsOut: VSOutput;");
+  s = shaderLine(s, "	vsOut.position = vec4f(");
+  s = shaderLine(s, "		(");
+  s = shaderLine(s, "			vec2f(-1,  1) +");
+  s = shaderLine(s, "			vec2f( 2, -2) / layoutInfo.canvasDims *");
+  s = shaderLine(s, "			(layoutInfo.viewportOffset - scrollOffset.offset + shape.position + vert.position * shape.size)");
+  s = shaderLine(s, "		),");
+  s = shaderLine(s, "		0.0,");
+  s = shaderLine(s, "		1.0");
+  s = shaderLine(s, "	);");
+  s = shaderLine(s, "	vsOut.color = shape.color;");
+  s = shaderLine(s, "	return vsOut;");
+  s = shaderLine(s, "}");
+  s = shaderLine(s, "");
+  s = shaderLine(s, "@fragment fn fs(vsOut: VSOutput) -> @location(0) vec4f {");
+  s = shaderLine(s, "	return vsOut.color;");
+  s = shaderLine(s, "}");
+  return s;
+}
+
+export ShaderModuleSource rectangleRendererWgsl() {
+  return new ShaderModuleSource(buildRectangleRendererWgsl());
+}
+
+export int rectangleRendererWgslLength() {
+  return buildRectangleRendererWgsl().length;
+}
+
+export int rectangleRendererWgslHash() {
+  return hashString(buildRectangleRendererWgsl());
+}

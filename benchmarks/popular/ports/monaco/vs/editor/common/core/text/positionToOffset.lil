@@ -1,0 +1,7 @@
+import { PositionOffsetTransformer, ensureTransformerReady } from "./positionToOffsetImpl";
+
+export { PositionOffsetTransformer, ensureTransformerReady };
+
+export void ensureDependenciesAreSet() {
+  ensureTransformerReady();
+}

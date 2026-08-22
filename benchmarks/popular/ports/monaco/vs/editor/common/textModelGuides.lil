@@ -1,0 +1,53 @@
+export int HorizontalGuidesStateDisabled = 0;
+export int HorizontalGuidesStateEnabledForActive = 1;
+export int HorizontalGuidesStateEnabled = 2;
+
+export class IndentGuideHorizontalLine {
+  int top;
+  int endColumn;
+
+  init(int top, int endColumn) {
+    this.top = top;
+    this.endColumn = endColumn;
+  }
+}
+
+export class IndentGuide {
+  int visibleColumn;
+  int column;
+  string className;
+  IndentGuideHorizontalLine? horizontalLine;
+  int forWrappedLinesAfterColumn;
+  int forWrappedLinesBeforeOrAtColumn;
+
+  init(
+    int visibleColumn,
+    int column,
+    string className,
+    IndentGuideHorizontalLine? horizontalLine,
+    int forWrappedLinesAfterColumn,
+    int forWrappedLinesBeforeOrAtColumn
+  ) {
+    this.visibleColumn = visibleColumn;
+    this.column = column;
+    this.className = className;
+    this.horizontalLine = horizontalLine;
+    this.forWrappedLinesAfterColumn = forWrappedLinesAfterColumn;
+    this.forWrappedLinesBeforeOrAtColumn = forWrappedLinesBeforeOrAtColumn;
+  }
+}
+
+export IndentGuide createIndentGuide(
+  int visibleColumn,
+  int column,
+  string className,
+  IndentGuideHorizontalLine? horizontalLine,
+  int afterColumn,
+  int beforeOrAtColumn
+) {
+  return new IndentGuide(visibleColumn, column, className, horizontalLine, afterColumn, beforeOrAtColumn);
+}
+
+export IndentGuideHorizontalLine createIndentGuideHorizontalLine(int top, int endColumn) {
+  return new IndentGuideHorizontalLine(top, endColumn);
+}

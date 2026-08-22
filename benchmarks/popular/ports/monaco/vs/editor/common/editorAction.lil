@@ -1,0 +1,40 @@
+import { jsUndefined } from "../../../js-host";
+
+export class InternalEditorAction {
+  string id;
+  string label;
+  string alias;
+  JsValue metadata;
+  JsValue precondition;
+  func(JsValue)->bool contextMatches;
+  func(JsValue)->JsValue runAction;
+
+  init(
+    string id,
+    string label,
+    string alias,
+    JsValue metadata,
+    JsValue precondition,
+    func(JsValue)->bool contextMatches,
+    func(JsValue)->JsValue runAction
+  ) {
+    this.id = id;
+    this.label = label;
+    this.alias = alias;
+    this.metadata = metadata;
+    this.precondition = precondition;
+    this.contextMatches = contextMatches;
+    this.runAction = runAction;
+  }
+
+  bool isSupported() {
+    return this.contextMatches(this.precondition);
+  }
+
+  JsValue run(JsValue args) {
+    if (!this.isSupported()) {
+      return jsUndefined();
+    }
+    return this.runAction(args);
+  }
+}

@@ -1,0 +1,55 @@
+int nmax(int a, int b) {
+  if (a > b) {
+    return a;
+  }
+  return b;
+}
+
+int nmin(int a, int b) {
+  if (a < b) {
+    return a;
+  }
+  return b;
+}
+
+export class DiffEditorSash {
+  int position;
+  int width;
+  int minSize;
+  bool enabled;
+
+  init(int width, float ratio) {
+    this.width = width;
+    this.minSize = 100;
+    this.enabled = true;
+    this.position = (width * 1.0 * ratio).round().toInt();
+    this.position = nmax(this.minSize, nmin(this.position, this.width - this.minSize));
+  }
+
+  void setWidth(int width) {
+    float ratio = 0.5;
+    if (this.width > 0) {
+      ratio = this.position * 1.0 / (this.width * 1.0);
+    }
+    this.width = width;
+    this.position = nmax(this.minSize, nmin((this.width * 1.0 * ratio).round().toInt(), this.width - this.minSize));
+  }
+
+  void dragTo(int x) {
+    if (!this.enabled) {
+      return;
+    }
+    this.position = nmax(this.minSize, nmin(x, this.width - this.minSize));
+  }
+
+  float ratio() {
+    if (this.width == 0) {
+      return 0.5;
+    }
+    return this.position * 1.0 / (this.width * 1.0);
+  }
+}
+
+export DiffEditorSash createDiffEditorSash(int width, float ratio) {
+  return new DiffEditorSash(width, ratio);
+}

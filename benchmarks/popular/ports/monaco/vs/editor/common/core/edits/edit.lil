@@ -1,0 +1,46 @@
+import { OffsetRange } from "../ranges/offsetRange";
+import { emptyBuf, concat2 } from "../../../../../js-host";
+
+export class BaseReplacement {
+  OffsetRange replaceRange;
+  string newText;
+
+  init(OffsetRange replaceRange, string newText) {
+    this.replaceRange = replaceRange;
+    this.newText = newText;
+  }
+
+  int getNewLength() {
+    return this.newText.length;
+  }
+
+  bool isEmpty() {
+    return this.replaceRange.isEmpty() && this.newText.length == 0;
+  }
+
+  string toString() {
+    return concat2(concat2(this.replaceRange.toString(), " -> "), this.newText);
+  }
+}
+
+export class BaseEdit {
+  BaseReplacement[] replacements;
+
+  init(BaseReplacement[] replacements) {
+    this.replacements = replacements;
+  }
+
+  string toString() {
+    string out = emptyBuf();
+    out = concat2(out, "[");
+    int i = 0;
+    while (i < this.replacements.length) {
+      if (i > 0) {
+        out = concat2(out, ", ");
+      }
+      out = concat2(out, this.replacements[i].toString());
+      i = i + 1;
+    }
+    return concat2(out, "]");
+  }
+}

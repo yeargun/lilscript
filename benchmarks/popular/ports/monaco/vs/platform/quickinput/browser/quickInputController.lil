@@ -1,0 +1,53 @@
+export class QuickInputController {
+  bool visible;
+  string value;
+  string[] items;
+  int activeIndex;
+  bool busy;
+
+  init() {
+    this.visible = false;
+    this.value = "";
+    this.items = [];
+    this.activeIndex = -1;
+    this.busy = false;
+  }
+
+  void show() {
+    this.visible = true;
+  }
+
+  void hide() {
+    this.visible = false;
+    this.busy = false;
+  }
+
+  void setValue(string value) {
+    this.value = value;
+  }
+
+  void setItems(string[] items) {
+    this.items = items;
+    if (items.length == 0) {
+      this.activeIndex = -1;
+    } else {
+      this.activeIndex = 0;
+    }
+  }
+
+  string? accept() {
+    if (!this.visible) {
+      return null;
+    }
+    if (this.activeIndex < 0 || this.activeIndex >= this.items.length) {
+      return null;
+    }
+    string chosen = this.items[this.activeIndex];
+    this.hide();
+    return chosen;
+  }
+}
+
+export QuickInputController createQuickInputController() {
+  return new QuickInputController();
+}

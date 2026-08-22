@@ -1,0 +1,54 @@
+export int GPU_BUFFER_MAP_READ = 1;
+export int GPU_BUFFER_MAP_WRITE = 2;
+export int GPU_BUFFER_COPY_SRC = 4;
+export int GPU_BUFFER_COPY_DST = 8;
+export int GPU_BUFFER_INDEX = 16;
+export int GPU_BUFFER_VERTEX = 32;
+export int GPU_BUFFER_UNIFORM = 64;
+export int GPU_BUFFER_STORAGE = 128;
+export int GPU_BUFFER_INDIRECT = 256;
+export int GPU_BUFFER_QUERY_RESOLVE = 512;
+
+export int INDICES_PER_CELL = 6;
+export int OFFSET_X = 0;
+export int OFFSET_Y = 1;
+export int OFFSET_UNUSED1 = 2;
+export int OFFSET_UNUSED2 = 3;
+export int OFFSET_GLYPH_INDEX = 4;
+export int OFFSET_TEXTURE_INDEX = 5;
+
+export int cellIndex(int lineIndex, int column, int maxColumns) {
+  return (lineIndex * maxColumns + column) * INDICES_PER_CELL;
+}
+
+export int bufferUsageStorageCopyDst() {
+  return GPU_BUFFER_STORAGE | GPU_BUFFER_COPY_DST;
+}
+
+export int bufferUsageUniformCopyDst() {
+  return GPU_BUFFER_UNIFORM | GPU_BUFFER_COPY_DST;
+}
+
+export int bufferUsageVertexCopyDst() {
+  return GPU_BUFFER_VERTEX | GPU_BUFFER_COPY_DST;
+}
+
+export bool gpuSupported(bool navigatorGpu, bool adapter) {
+  return navigatorGpu && adapter;
+}
+
+export class GpuCaps {
+  bool webgpu;
+  int maxTextureDimension2D;
+  float devicePixelRatio;
+
+  init(bool webgpu, int maxTextureDimension2D, float devicePixelRatio) {
+    this.webgpu = webgpu;
+    this.maxTextureDimension2D = maxTextureDimension2D;
+    this.devicePixelRatio = devicePixelRatio;
+  }
+}
+
+export GpuCaps createGpuCaps(bool webgpu, int maxTextureDimension2D, float devicePixelRatio) {
+  return new GpuCaps(webgpu, maxTextureDimension2D, devicePixelRatio);
+}

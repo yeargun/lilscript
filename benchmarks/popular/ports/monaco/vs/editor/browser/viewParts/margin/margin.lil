@@ -1,0 +1,50 @@
+int MAX_MARGIN_HEIGHT = 1000000;
+
+int imin(int a, int b) {
+  if (a < b) {
+    return a;
+  }
+  return b;
+}
+
+export class MarginLayout {
+  int top;
+  int width;
+  int height;
+  int glyphMarginLeft;
+  int glyphMarginWidth;
+  bool layerHinting;
+
+  init(int top, int width, int height, int glyphMarginLeft, int glyphMarginWidth, bool layerHinting) {
+    this.top = top;
+    this.width = width;
+    this.height = height;
+    this.glyphMarginLeft = glyphMarginLeft;
+    this.glyphMarginWidth = glyphMarginWidth;
+    this.layerHinting = layerHinting;
+  }
+}
+
+export class Margin {
+  bool canUseLayerHinting;
+  int contentLeft;
+  int glyphMarginLeft;
+  int glyphMarginWidth;
+
+  init(bool canUseLayerHinting, int contentLeft, int glyphMarginLeft, int glyphMarginWidth) {
+    this.canUseLayerHinting = canUseLayerHinting;
+    this.contentLeft = contentLeft;
+    this.glyphMarginLeft = glyphMarginLeft;
+    this.glyphMarginWidth = glyphMarginWidth;
+  }
+
+  MarginLayout layout(int scrollTop, int bigNumbersDelta, int scrollHeight) {
+    int adjustedScrollTop = scrollTop - bigNumbersDelta;
+    int height = imin(scrollHeight, MAX_MARGIN_HEIGHT);
+    return new MarginLayout(0 - adjustedScrollTop, this.contentLeft, height, this.glyphMarginLeft, this.glyphMarginWidth, this.canUseLayerHinting);
+  }
+}
+
+export Margin createMargin(bool canUseLayerHinting, int contentLeft, int glyphMarginLeft, int glyphMarginWidth) {
+  return new Margin(canUseLayerHinting, contentLeft, glyphMarginLeft, glyphMarginWidth);
+}

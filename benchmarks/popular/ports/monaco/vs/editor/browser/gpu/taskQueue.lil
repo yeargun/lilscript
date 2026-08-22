@@ -1,0 +1,169 @@
+export class Deadline {
+  float end;
+  float now;
+
+  init(float now, float durationMs) {
+    this.now = now;
+    this.end = now + durationMs;
+  }
+
+  float timeRemaining() {
+    float remaining = this.end - this.now;
+    if (remaining < 0.0) {
+      return 0.0;
+    }
+    return remaining;
+  }
+}
+
+export class QueuedTask {
+  int id;
+  bool done;
+  int workUnits;
+  int remaining;
+
+  init(int id, int workUnits) {
+    this.id = id;
+    this.done = false;
+    this.workUnits = workUnits;
+    this.remaining = workUnits;
+  }
+
+  bool run() {
+    if (this.remaining > 0) {
+      this.remaining = this.remaining - 1;
+    }
+    if (this.remaining <= 0) {
+      this.done = true;
+      return false;
+    }
+    return true;
+  }
+}
+
+export class TaskQueue {
+  QueuedTask[] tasks;
+  int index;
+  int idleCallback;
+  bool disposed;
+  int nextId;
+  float now;
+  float longestTask;
+  string lastWarn;
+
+  init() {
+    this.tasks = [];
+    this.index = 0;
+    this.idleCallback = 0;
+    this.disposed = false;
+    this.nextId = 1;
+    this.now = 0.0;
+    this.longestTask = 0.0;
+    this.lastWarn = "";
+  }
+
+  void enqueue(int workUnits) {
+    this.tasks.push(new QueuedTask(this.nextId, workUnits));
+    this.nextId = this.nextId + 1;
+    this.start();
+  }
+
+  void enqueueTask(QueuedTask task) {
+    this.tasks.push(task);
+    this.start();
+  }
+
+  void clear() {
+    this.idleCallback = 0;
+    this.index = 0;
+    this.tasks = [];
+  }
+
+  void start() {
+    if (this.idleCallback == 0) {
+      this.idleCallback = 1;
+    }
+  }
+
+  void tick(float ms) {
+    this.now = this.now + ms;
+  }
+
+  void process(Deadline deadline) {
+    this.idleCallback = 0;
+    float taskDuration = 0.0;
+    this.longestTask = 0.0;
+    float lastDeadlineRemaining = deadline.timeRemaining();
+    while (this.index < this.tasks.length) {
+      float started = this.now;
+      bool keep = this.tasks[this.index].run();
+      if (!keep) {
+        this.index = this.index + 1;
+      }
+      this.now = this.now + 1.0;
+      taskDuration = this.now - started;
+      if (taskDuration < 1.0) {
+        taskDuration = 1.0;
+      }
+      if (taskDuration > this.longestTask) {
+        this.longestTask = taskDuration;
+      }
+      deadline.now = this.now;
+      float deadlineRemaining = deadline.timeRemaining();
+      if (this.longestTask * 1.5 > deadlineRemaining) {
+        if (lastDeadlineRemaining - taskDuration < -20.0) {
+          float over = lastDeadlineRemaining - taskDuration;
+          if (over < 0.0) {
+            over = 0.0 - over;
+          }
+          this.lastWarn = "task queue exceeded allotted deadline by " + over.floor().toInt().toString() + "ms";
+        }
+        this.start();
+        return;
+      }
+      lastDeadlineRemaining = deadlineRemaining;
+    }
+    this.clear();
+  }
+
+  void runWithBudget(float durationMs) {
+    this.process(new Deadline(this.now, durationMs));
+  }
+
+  void dispose() {
+    this.clear();
+    this.disposed = true;
+  }
+}
+
+export class PriorityTaskQueue {
+  TaskQueue queue;
+
+  init() {
+    this.queue = new TaskQueue();
+  }
+
+  void enqueue(int workUnits) {
+    this.queue.enqueue(workUnits);
+  }
+
+  void flush() {
+    this.queue.runWithBudget(16.0);
+  }
+
+  Deadline createDeadline(float duration) {
+    return new Deadline(this.queue.now, duration);
+  }
+}
+
+export TaskQueue createTaskQueue() {
+  return new TaskQueue();
+}
+
+export PriorityTaskQueue createPriorityTaskQueue() {
+  return new PriorityTaskQueue();
+}
+
+export TaskQueue createIdleTaskQueue() {
+  return new TaskQueue();
+}

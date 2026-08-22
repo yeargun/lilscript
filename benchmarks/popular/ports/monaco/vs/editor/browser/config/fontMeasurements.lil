@@ -1,0 +1,223 @@
+export class FontInfo {
+  string fontFamily;
+  string fontWeight;
+  float fontSize;
+  string fontFeatureSettings;
+  string fontVariationSettings;
+  float lineHeight;
+  float letterSpacing;
+  bool isMonospace;
+  float typicalHalfwidthCharacterWidth;
+  float typicalFullwidthCharacterWidth;
+  bool canUseHalfwidthRightwardsArrow;
+  float spaceWidth;
+  float middotWidth;
+  float wsmiddotWidth;
+  float maxDigitWidth;
+  bool isTrusted;
+  float pixelRatio;
+
+  init() {
+    this.fontFamily = "monospace";
+    this.fontWeight = "normal";
+    this.fontSize = 14.0;
+    this.fontFeatureSettings = "\"liga\" 0, \"calt\" 0";
+    this.fontVariationSettings = "normal";
+    this.lineHeight = 19.0;
+    this.letterSpacing = 0.0;
+    this.isMonospace = true;
+    this.typicalHalfwidthCharacterWidth = 8.0;
+    this.typicalFullwidthCharacterWidth = 16.0;
+    this.canUseHalfwidthRightwardsArrow = true;
+    this.spaceWidth = 8.0;
+    this.middotWidth = 8.0;
+    this.wsmiddotWidth = 8.0;
+    this.maxDigitWidth = 8.0;
+    this.isTrusted = true;
+    this.pixelRatio = 1.0;
+  }
+
+  string getId() {
+    return this.fontFamily + ":" + this.fontWeight + ":" + this.fontSize.round().toInt().toString();
+  }
+}
+
+export class FontMeasurementsCache {
+  Map<string, FontInfo> values;
+  FontInfo[] stored;
+
+  init() {
+    this.values = new Map<string, FontInfo>();
+    this.stored = [];
+  }
+
+  bool has(string itemId) {
+    return this.values.has(itemId);
+  }
+
+  FontInfo? get(string itemId) {
+    return this.values.get(itemId);
+  }
+
+  void put(string itemId, FontInfo value) {
+    if (!this.values.has(itemId)) {
+      this.stored.push(value);
+    }
+    this.values.set(itemId, value);
+  }
+
+  void remove(string itemId) {
+    this.values.delete(itemId);
+    FontInfo[] next = [];
+    int i = 0;
+    while (i < this.stored.length) {
+      if (this.stored[i].getId() != itemId) {
+        next.push(this.stored[i]);
+      }
+      i = i + 1;
+    }
+    this.stored = next;
+  }
+
+  FontInfo[] getValues() {
+    FontInfo[] out = [];
+    int i = 0;
+    while (i < this.stored.length) {
+      out.push(this.stored[i]);
+      i = i + 1;
+    }
+    return out;
+  }
+}
+
+float fmax5(float width) {
+  if (width <= 2.0) {
+    return 5.0;
+  }
+  return width;
+}
+
+bool widthsMatch(float a, float b) {
+  float diff = a - b;
+  if (diff < -0.001) {
+    return false;
+  }
+  if (diff > 0.001) {
+    return false;
+  }
+  return true;
+}
+
+export class FontMeasurementsImpl {
+  Map<int, FontMeasurementsCache> cache;
+  int changeCount;
+
+  init() {
+    this.cache = new Map<int, FontMeasurementsCache>();
+    this.changeCount = 0;
+  }
+
+  void clearAllFontInfos() {
+    this.cache.clear();
+    this.changeCount = this.changeCount + 1;
+  }
+
+  FontMeasurementsCache ensureCache(int windowId) {
+    FontMeasurementsCache? existing = this.cache.get(windowId);
+    if (existing != null) {
+      return existing;
+    }
+    FontMeasurementsCache created = new FontMeasurementsCache();
+    this.cache.set(windowId, created);
+    return created;
+  }
+
+  void writeToCache(int windowId, FontInfo value) {
+    FontMeasurementsCache cache = this.ensureCache(windowId);
+    cache.put(value.getId(), value);
+  }
+
+  void evictUntrustedReadings(int windowId) {
+    FontMeasurementsCache cache = this.ensureCache(windowId);
+    FontInfo[] values = cache.getValues();
+    bool somethingRemoved = false;
+    int i = 0;
+    while (i < values.length) {
+      if (!values[i].isTrusted) {
+        cache.remove(values[i].getId());
+        somethingRemoved = true;
+      }
+      i = i + 1;
+    }
+    if (somethingRemoved) {
+      this.changeCount = this.changeCount + 1;
+    }
+  }
+
+  FontInfo readFontInfo(int windowId, FontInfo bare) {
+    FontMeasurementsCache cache = this.ensureCache(windowId);
+    string id = bare.getId();
+    FontInfo? cached = cache.get(id);
+    if (cached != null) {
+      return cached;
+    }
+    FontInfo readConfig = this.actualReadFontInfo(bare);
+    if (readConfig.typicalHalfwidthCharacterWidth <= 2.0 || readConfig.typicalFullwidthCharacterWidth <= 2.0 || readConfig.spaceWidth <= 2.0 || readConfig.maxDigitWidth <= 2.0) {
+      readConfig.typicalHalfwidthCharacterWidth = fmax5(readConfig.typicalHalfwidthCharacterWidth);
+      readConfig.typicalFullwidthCharacterWidth = fmax5(readConfig.typicalFullwidthCharacterWidth);
+      readConfig.spaceWidth = fmax5(readConfig.spaceWidth);
+      readConfig.middotWidth = fmax5(readConfig.middotWidth);
+      readConfig.wsmiddotWidth = fmax5(readConfig.wsmiddotWidth);
+      readConfig.maxDigitWidth = fmax5(readConfig.maxDigitWidth);
+      readConfig.isTrusted = false;
+    }
+    this.writeToCache(windowId, readConfig);
+    return readConfig;
+  }
+
+  FontInfo actualReadFontInfo(FontInfo bare) {
+    FontInfo info = new FontInfo();
+    info.fontFamily = bare.fontFamily;
+    info.fontWeight = bare.fontWeight;
+    info.fontSize = bare.fontSize;
+    info.fontFeatureSettings = bare.fontFeatureSettings;
+    info.fontVariationSettings = bare.fontVariationSettings;
+    info.lineHeight = bare.lineHeight;
+    info.letterSpacing = bare.letterSpacing;
+    info.pixelRatio = bare.pixelRatio;
+    info.typicalHalfwidthCharacterWidth = bare.fontSize * 0.6;
+    info.typicalFullwidthCharacterWidth = bare.fontSize * 1.2;
+    info.spaceWidth = bare.fontSize * 0.5;
+    info.middotWidth = bare.fontSize * 0.5;
+    info.wsmiddotWidth = bare.fontSize * 0.5;
+    info.maxDigitWidth = bare.fontSize * 0.6;
+    info.isMonospace = bare.fontFeatureSettings == "\"liga\" 0, \"calt\" 0";
+    info.canUseHalfwidthRightwardsArrow = info.isMonospace;
+    float referenceWidth = info.typicalHalfwidthCharacterWidth;
+    if (!widthsMatch(info.spaceWidth, referenceWidth)) {
+      info.isMonospace = false;
+    }
+    if (info.isMonospace && !widthsMatch(info.maxDigitWidth, referenceWidth)) {
+      info.isMonospace = false;
+    }
+    if (info.typicalFullwidthCharacterWidth > info.typicalHalfwidthCharacterWidth * 2.1) {
+      info.canUseHalfwidthRightwardsArrow = false;
+    }
+    info.isTrusted = true;
+    return info;
+  }
+}
+
+FontMeasurementsImpl fontMeasurementsSingleton = new FontMeasurementsImpl();
+
+export FontMeasurementsImpl createFontMeasurements() {
+  return new FontMeasurementsImpl();
+}
+
+export FontInfo readFontInfo(int windowId, FontInfo bare) {
+  return fontMeasurementsSingleton.readFontInfo(windowId, bare);
+}
+
+export void clearAllFontInfos() {
+  fontMeasurementsSingleton.clearAllFontInfos();
+}

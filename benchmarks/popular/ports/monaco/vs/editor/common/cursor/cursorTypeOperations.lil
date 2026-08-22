@@ -1,0 +1,373 @@
+export enum TypeOperationKind {
+  Other,
+  TypingFirstSpace,
+  TypingConsecutiveSpace,
+  TypingOther
+}
+
+export class TypeSelection {
+  int startLineNumber;
+  int startColumn;
+  int endLineNumber;
+  int endColumn;
+
+  init(int startLineNumber, int startColumn, int endLineNumber, int endColumn) {
+    if (startLineNumber > endLineNumber || (startLineNumber == endLineNumber && startColumn > endColumn)) {
+      this.startLineNumber = endLineNumber;
+      this.startColumn = endColumn;
+      this.endLineNumber = startLineNumber;
+      this.endColumn = startColumn;
+    } else {
+      this.startLineNumber = startLineNumber;
+      this.startColumn = startColumn;
+      this.endLineNumber = endLineNumber;
+      this.endColumn = endColumn;
+    }
+  }
+
+  bool isEmpty() {
+    return this.startLineNumber == this.endLineNumber && this.startColumn == this.endColumn;
+  }
+}
+
+export class TypeOperation {
+  TypeSelection range;
+  string text;
+  TypeOperationKind operation;
+  bool pushStackBefore;
+  bool pushStackAfter;
+  int cursorColumnDelta;
+
+  init(
+    TypeSelection range,
+    string text,
+    TypeOperationKind operation,
+    bool pushStackBefore,
+    bool pushStackAfter,
+    int cursorColumnDelta
+  ) {
+    this.range = range;
+    this.text = text;
+    this.operation = operation;
+    this.pushStackBefore = pushStackBefore;
+    this.pushStackAfter = pushStackAfter;
+    this.cursorColumnDelta = cursorColumnDelta;
+  }
+}
+
+export class CompositionOutcome {
+  string deletedText;
+  int deletedSelectionStart;
+  int deletedSelectionEnd;
+  string insertedText;
+  int insertedSelectionStart;
+  int insertedSelectionEnd;
+  TypeSelection insertedTextRange;
+
+  init(
+    string deletedText,
+    int deletedSelectionStart,
+    int deletedSelectionEnd,
+    string insertedText,
+    int insertedSelectionStart,
+    int insertedSelectionEnd,
+    TypeSelection insertedTextRange
+  ) {
+    this.deletedText = deletedText;
+    this.deletedSelectionStart = deletedSelectionStart;
+    this.deletedSelectionEnd = deletedSelectionEnd;
+    this.insertedText = insertedText;
+    this.insertedSelectionStart = insertedSelectionStart;
+    this.insertedSelectionEnd = insertedSelectionEnd;
+    this.insertedTextRange = insertedTextRange;
+  }
+}
+
+TypeOperationKind nextTypingKind(string text, TypeOperationKind previousOperation) {
+  if (text == " ") {
+    if (
+      previousOperation == TypeOperationKind.TypingFirstSpace
+      || previousOperation == TypeOperationKind.TypingConsecutiveSpace
+    ) {
+      return TypeOperationKind.TypingConsecutiveSpace;
+    }
+    return TypeOperationKind.TypingFirstSpace;
+  }
+  return TypeOperationKind.TypingOther;
+}
+
+bool isTypingKind(TypeOperationKind operation) {
+  return operation == TypeOperationKind.TypingFirstSpace
+    || operation == TypeOperationKind.TypingConsecutiveSpace
+    || operation == TypeOperationKind.TypingOther;
+}
+
+bool pushBeforeTyping(TypeOperationKind previousOperation, TypeOperationKind operation) {
+  if (isTypingKind(previousOperation) != isTypingKind(operation)) {
+    return true;
+  }
+  return previousOperation == TypeOperationKind.TypingFirstSpace
+    && operation != TypeOperationKind.TypingConsecutiveSpace;
+}
+
+string closeForOpen(string character, string openCharacters, string closeCharacters) {
+  int index = openCharacters.indexOf(character);
+  if (index < 0 || index >= closeCharacters.length) {
+    return "";
+  }
+  return closeCharacters.charAt(index);
+}
+
+bool allowedAutoCloseAfter(string line, int column) {
+  int offset = column - 1;
+  if (offset >= line.length) {
+    return true;
+  }
+  string character = line.charAt(offset);
+  int code = character.charCodeAt(0);
+  return code == 32
+    || code == 9
+    || ")]}>:;,.\"'`".indexOf(character) >= 0;
+}
+
+export TypeOperation typeWithoutInterceptors(
+  TypeOperationKind previousOperation,
+  TypeSelection selection,
+  string text
+) {
+  TypeOperationKind operation = nextTypingKind(text, previousOperation);
+  return new TypeOperation(
+    selection,
+    text,
+    operation,
+    pushBeforeTyping(previousOperation, operation),
+    false,
+    0
+  );
+}
+
+export TypeOperation typeWithInterceptors(
+  TypeOperationKind previousOperation,
+  TypeSelection selection,
+  string line,
+  string selectedText,
+  string character,
+  string openCharacters,
+  string closeCharacters,
+  bool overtype,
+  bool isDoingComposition
+) {
+  if (character == "\n" && !isDoingComposition) {
+    int i = 0;
+    string indentation = "";
+    while (i < line.length && i < selection.startColumn - 1) {
+      int code = line.charCodeAt(i);
+      if (code == 32) {
+        indentation = indentation + " ";
+      } else if (code == 9) {
+        indentation = indentation + "\t";
+      } else {
+        break;
+      }
+      i = i + 1;
+    }
+    return new TypeOperation(
+      selection,
+      "\n" + indentation,
+      TypeOperationKind.TypingOther,
+      true,
+      false,
+      0
+    );
+  }
+  string closeCharacter = closeForOpen(character, openCharacters, closeCharacters);
+  if (!selection.isEmpty() && closeCharacter.length > 0 && !isDoingComposition) {
+    return new TypeOperation(
+      selection,
+      character + selectedText + closeCharacter,
+      TypeOperationKind.Other,
+      true,
+      true,
+      0 - closeCharacter.length
+    );
+  }
+  if (
+    selection.isEmpty()
+    && closeCharacter.length > 0
+    && !isDoingComposition
+    && allowedAutoCloseAfter(line, selection.endColumn)
+  ) {
+    return new TypeOperation(
+      selection,
+      character + closeCharacter,
+      TypeOperationKind.TypingOther,
+      true,
+      false,
+      0 - closeCharacter.length
+    );
+  }
+  int offset = selection.endColumn - 1;
+  if (
+    selection.isEmpty()
+    && closeCharacters.indexOf(character) >= 0
+    && offset < line.length
+    && line.charAt(offset) == character
+  ) {
+    TypeSelection overtypeRange = new TypeSelection(
+      selection.startLineNumber,
+      selection.startColumn,
+      selection.endLineNumber,
+      selection.endColumn + 1
+    );
+    return new TypeOperation(
+      overtypeRange,
+      character,
+      TypeOperationKind.TypingOther,
+      false,
+      false,
+      0
+    );
+  }
+  TypeSelection target = selection;
+  if (overtype && selection.isEmpty() && offset < line.length) {
+    target = new TypeSelection(
+      selection.startLineNumber,
+      selection.startColumn,
+      selection.endLineNumber,
+      selection.endColumn + character.length
+    );
+  }
+  return typeWithoutInterceptors(previousOperation, target, character);
+}
+
+export TypeOperation compositionType(
+  TypeOperationKind previousOperation,
+  TypeSelection selection,
+  int lineMaxColumn,
+  string text,
+  int replacePreviousCharacterCount,
+  int replaceNextCharacterCount,
+  int positionDelta
+) {
+  int startColumn = selection.endColumn - replacePreviousCharacterCount;
+  if (startColumn < 1) {
+    startColumn = 1;
+  }
+  int endColumn = selection.endColumn + replaceNextCharacterCount;
+  if (endColumn > lineMaxColumn) {
+    endColumn = lineMaxColumn;
+  }
+  TypeSelection range = new TypeSelection(
+    selection.endLineNumber,
+    startColumn,
+    selection.endLineNumber,
+    endColumn
+  );
+  return new TypeOperation(
+    range,
+    text,
+    TypeOperationKind.TypingOther,
+    pushBeforeTyping(previousOperation, TypeOperationKind.TypingOther),
+    false,
+    positionDelta
+  );
+}
+
+export TypeOperation paste(
+  TypeSelection selection,
+  string text,
+  bool pasteOnNewLine,
+  bool overtype
+) {
+  TypeSelection range = selection;
+  if (pasteOnNewLine && selection.isEmpty()) {
+    range = new TypeSelection(
+      selection.endLineNumber,
+      1,
+      selection.endLineNumber,
+      1
+    );
+  } else if (overtype && selection.isEmpty()) {
+    range = new TypeSelection(
+      selection.endLineNumber,
+      selection.endColumn,
+      selection.endLineNumber,
+      selection.endColumn + text.length
+    );
+  }
+  return new TypeOperation(
+    range,
+    text,
+    TypeOperationKind.Other,
+    true,
+    true,
+    0
+  );
+}
+
+export TypeOperation indent(
+  TypeSelection selection,
+  int indentSize,
+  bool insertSpaces
+) {
+  string indentation = "\t";
+  if (insertSpaces) {
+    indentation = "";
+    int i = 0;
+    while (i < indentSize) {
+      indentation = indentation + " ";
+      i = i + 1;
+    }
+  }
+  TypeSelection range = new TypeSelection(
+    selection.startLineNumber,
+    1,
+    selection.startLineNumber,
+    1
+  );
+  return new TypeOperation(
+    range,
+    indentation,
+    TypeOperationKind.Other,
+    true,
+    true,
+    0
+  );
+}
+
+export TypeOperation outdent(
+  TypeSelection selection,
+  string line,
+  int indentSize
+) {
+  int endOffset = indentSize;
+  if (endOffset > line.length) {
+    endOffset = line.length;
+  }
+  int i = 0;
+  while (i < endOffset) {
+    if (line.charCodeAt(i) == 9) {
+      endOffset = i + 1;
+      break;
+    }
+    if (line.charCodeAt(i) != 32) {
+      endOffset = i;
+      break;
+    }
+    i = i + 1;
+  }
+  TypeSelection range = new TypeSelection(
+    selection.startLineNumber,
+    1,
+    selection.startLineNumber,
+    endOffset + 1
+  );
+  return new TypeOperation(
+    range,
+    "",
+    TypeOperationKind.Other,
+    true,
+    true,
+    0
+  );
+}

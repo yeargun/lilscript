@@ -1,0 +1,33 @@
+export class ScreenReaderSupport {
+  bool screenReaderOptimized;
+  int linesPerPage;
+  string ariaLabel;
+
+  init(bool screenReaderOptimized, int linesPerPage, string ariaLabel) {
+    this.screenReaderOptimized = screenReaderOptimized;
+    this.linesPerPage = linesPerPage;
+    this.ariaLabel = ariaLabel;
+  }
+
+  bool shouldWritePagedContent() {
+    return this.screenReaderOptimized;
+  }
+
+  int pageOfLine(int lineNumber) {
+    if (this.linesPerPage <= 0) {
+      return 0;
+    }
+    return ((lineNumber - 1) * 1.0 / (this.linesPerPage * 1.0)).floor().toInt();
+  }
+
+  string resolvedAriaLabel(int accessibilitySupport) {
+    if (accessibilitySupport == 1) {
+      return "The editor is not accessible at this time.";
+    }
+    return this.ariaLabel;
+  }
+}
+
+export ScreenReaderSupport createScreenReaderSupport(bool screenReaderOptimized, int linesPerPage, string ariaLabel) {
+  return new ScreenReaderSupport(screenReaderOptimized, linesPerPage, ariaLabel);
+}

@@ -1,0 +1,33 @@
+export class SuggestWidgetStatus {
+  string leftLabel;
+  string rightLabel;
+  bool visible;
+  bool showDetails;
+  bool showExplain;
+
+  init() {
+    this.leftLabel = "";
+    this.rightLabel = "";
+    this.visible = false;
+    this.showDetails = false;
+    this.showExplain = false;
+  }
+
+  void show(string left, string right) {
+    this.leftLabel = left;
+    this.rightLabel = right;
+    this.visible = left.length > 0 || right.length > 0;
+  }
+
+  void hide() {
+    this.visible = false;
+  }
+
+  void setDetailsEnabled(bool enabled) {
+    this.showDetails = enabled;
+  }
+}
+
+export SuggestWidgetStatus createSuggestWidgetStatus() {
+  return new SuggestWidgetStatus();
+}

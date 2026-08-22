@@ -1,0 +1,128 @@
+export class GraphNode {
+  string key;
+  string[] incoming;
+  string[] outgoing;
+
+  init(string key) {
+    this.key = key;
+    this.incoming = [];
+    this.outgoing = [];
+  }
+}
+
+export class Graph {
+  GraphNode[] nodes;
+
+  init() {
+    this.nodes = [];
+  }
+
+  GraphNode lookupOrInsert(string key) {
+    int i = 0;
+    while (i < this.nodes.length) {
+      if (this.nodes[i].key == key) {
+        return this.nodes[i];
+      }
+      i = i + 1;
+    }
+    GraphNode created = new GraphNode(key);
+    this.nodes.push(created);
+    return created;
+  }
+
+  void insertEdge(string fromKey, string toKey) {
+    GraphNode from = this.lookupOrInsert(fromKey);
+    GraphNode to = this.lookupOrInsert(toKey);
+    if (!from.outgoing.includes(toKey)) {
+      from.outgoing.push(toKey);
+    }
+    if (!to.incoming.includes(fromKey)) {
+      to.incoming.push(fromKey);
+    }
+  }
+
+  void removeNode(string key) {
+    GraphNode[] next = [];
+    int i = 0;
+    while (i < this.nodes.length) {
+      GraphNode node = this.nodes[i];
+      if (node.key != key) {
+        string[] incoming = [];
+        string[] outgoing = [];
+        int a = 0;
+        while (a < node.incoming.length) {
+          if (node.incoming[a] != key) {
+            incoming.push(node.incoming[a]);
+          }
+          a = a + 1;
+        }
+        int b = 0;
+        while (b < node.outgoing.length) {
+          if (node.outgoing[b] != key) {
+            outgoing.push(node.outgoing[b]);
+          }
+          b = b + 1;
+        }
+        node.incoming = incoming;
+        node.outgoing = outgoing;
+        next.push(node);
+      }
+      i = i + 1;
+    }
+    this.nodes = next;
+  }
+
+  GraphNode[] roots() {
+    GraphNode[] out = [];
+    int i = 0;
+    while (i < this.nodes.length) {
+      if (this.nodes[i].outgoing.length == 0) {
+        out.push(this.nodes[i]);
+      }
+      i = i + 1;
+    }
+    return out;
+  }
+
+  bool isEmpty() {
+    return this.nodes.length == 0;
+  }
+
+  string findCycle() {
+    int i = 0;
+    while (i < this.nodes.length) {
+      string[] seen = [];
+      seen.push(this.nodes[i].key);
+      string found = this.walkCycle(this.nodes[i], seen);
+      if (found.length > 0) {
+        return found;
+      }
+      i = i + 1;
+    }
+    return "";
+  }
+
+  string walkCycle(GraphNode node, string[] seen) {
+    int i = 0;
+    while (i < node.outgoing.length) {
+      string id = node.outgoing[i];
+      if (seen.includes(id)) {
+        string path = seen.join(" -> ");
+        return path + " -> " + id;
+      }
+      seen.push(id);
+      GraphNode next = this.lookupOrInsert(id);
+      string nested = this.walkCycle(next, seen);
+      if (nested.length > 0) {
+        return nested;
+      }
+      seen.splice(seen.length - 1, 1);
+      i = i + 1;
+    }
+    return "";
+  }
+}
+
+export Graph createGraph() {
+  return new Graph();
+}

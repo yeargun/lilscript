@@ -1,0 +1,23 @@
+export int WorkspaceTrustUnknown = 0;
+export int WorkspaceTrustUntrusted = 1;
+export int WorkspaceTrustTrusted = 2;
+
+export class WorkspaceTrustService {
+  int trust;
+
+  init() {
+    this.trust = WorkspaceTrustTrusted;
+  }
+
+  bool isWorkspaceTrusted() {
+    return this.trust == WorkspaceTrustTrusted;
+  }
+
+  void setTrust(int trust) {
+    this.trust = trust;
+  }
+}
+
+export WorkspaceTrustService createWorkspaceTrustService() {
+  return new WorkspaceTrustService();
+}

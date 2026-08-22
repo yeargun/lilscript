@@ -1,0 +1,2 @@
+export string ITextResourceConfigurationService = "textResourceConfigurationService";
+export string ITextResourcePropertiesService = "textResourcePropertiesService";

@@ -1,0 +1,228 @@
+export class CursorSelection {
+  int startLineNumber;
+  int startColumn;
+  int endLineNumber;
+  int endColumn;
+  int selectionStartLineNumber;
+  int selectionStartColumn;
+  int positionLineNumber;
+  int positionColumn;
+
+  init(
+    int selectionStartLineNumber,
+    int selectionStartColumn,
+    int positionLineNumber,
+    int positionColumn
+  ) {
+    this.selectionStartLineNumber = selectionStartLineNumber;
+    this.selectionStartColumn = selectionStartColumn;
+    this.positionLineNumber = positionLineNumber;
+    this.positionColumn = positionColumn;
+    if (
+      selectionStartLineNumber > positionLineNumber
+      || (selectionStartLineNumber == positionLineNumber && selectionStartColumn > positionColumn)
+    ) {
+      this.startLineNumber = positionLineNumber;
+      this.startColumn = positionColumn;
+      this.endLineNumber = selectionStartLineNumber;
+      this.endColumn = selectionStartColumn;
+    } else {
+      this.startLineNumber = selectionStartLineNumber;
+      this.startColumn = selectionStartColumn;
+      this.endLineNumber = positionLineNumber;
+      this.endColumn = positionColumn;
+    }
+  }
+
+  bool isEmpty() {
+    return this.startLineNumber == this.endLineNumber && this.startColumn == this.endColumn;
+  }
+
+  bool isLTR() {
+    return this.selectionStartLineNumber == this.startLineNumber
+      && this.selectionStartColumn == this.startColumn;
+  }
+
+  bool equalsSelection(CursorSelection other) {
+    return this.selectionStartLineNumber == other.selectionStartLineNumber
+      && this.selectionStartColumn == other.selectionStartColumn
+      && this.positionLineNumber == other.positionLineNumber
+      && this.positionColumn == other.positionColumn;
+  }
+}
+
+int compareSelectionStarts(CursorSelection a, CursorSelection b) {
+  if (a.startLineNumber != b.startLineNumber) {
+    return a.startLineNumber - b.startLineNumber;
+  }
+  if (a.startColumn != b.startColumn) {
+    return a.startColumn - b.startColumn;
+  }
+  if (a.endLineNumber != b.endLineNumber) {
+    return a.endLineNumber - b.endLineNumber;
+  }
+  return a.endColumn - b.endColumn;
+}
+
+bool positionBefore(
+  int leftLineNumber,
+  int leftColumn,
+  int rightLineNumber,
+  int rightColumn,
+  bool allowEqual
+) {
+  if (leftLineNumber != rightLineNumber) {
+    return leftLineNumber < rightLineNumber;
+  }
+  if (allowEqual) {
+    return leftColumn <= rightColumn;
+  }
+  return leftColumn < rightColumn;
+}
+
+CursorSelection mergeSelections(
+  CursorSelection left,
+  CursorSelection right,
+  bool resultIsLTR
+) {
+  int startLineNumber = left.startLineNumber;
+  int startColumn = left.startColumn;
+  int endLineNumber = left.endLineNumber;
+  int endColumn = left.endColumn;
+  if (positionBefore(right.startLineNumber, right.startColumn, startLineNumber, startColumn, false)) {
+    startLineNumber = right.startLineNumber;
+    startColumn = right.startColumn;
+  }
+  if (positionBefore(endLineNumber, endColumn, right.endLineNumber, right.endColumn, false)) {
+    endLineNumber = right.endLineNumber;
+    endColumn = right.endColumn;
+  }
+  if (resultIsLTR) {
+    return new CursorSelection(startLineNumber, startColumn, endLineNumber, endColumn);
+  }
+  return new CursorSelection(endLineNumber, endColumn, startLineNumber, startColumn);
+}
+
+export class CursorCollection {
+  CursorSelection[] selections;
+  int lastAddedCursorIndex;
+  bool mergeOverlapping;
+
+  init(CursorSelection primarySelection, bool mergeOverlapping) {
+    this.selections = [primarySelection];
+    this.lastAddedCursorIndex = 0;
+    this.mergeOverlapping = mergeOverlapping;
+  }
+
+  CursorSelection[] getSelections() {
+    return this.selections.slice();
+  }
+
+  CursorSelection getPrimaryCursor() {
+    return this.selections[0];
+  }
+
+  int getLastAddedCursorIndex() {
+    if (this.selections.length == 1 || this.lastAddedCursorIndex == 0) {
+      return 0;
+    }
+    return this.lastAddedCursorIndex;
+  }
+
+  void setSelections(CursorSelection[] selections) {
+    if (selections.length == 0) {
+      return;
+    }
+    this.selections = selections.slice();
+    if (this.lastAddedCursorIndex >= this.selections.length) {
+      this.lastAddedCursorIndex = this.selections.length - 1;
+    }
+  }
+
+  void addSecondaryCursor(CursorSelection selection) {
+    this.selections.push(selection);
+    this.lastAddedCursorIndex = this.selections.length - 1;
+  }
+
+  void removeSecondaryCursor(int index) {
+    if (index <= 0 || index >= this.selections.length) {
+      return;
+    }
+    this.selections.splice(index, 1);
+    if (this.lastAddedCursorIndex >= index) {
+      this.lastAddedCursorIndex = this.lastAddedCursorIndex - 1;
+    }
+  }
+
+  void killSecondaryCursors() {
+    while (this.selections.length > 1) {
+      this.selections.splice(this.selections.length - 1, 1);
+    }
+    this.lastAddedCursorIndex = 0;
+  }
+
+  CursorSelection getTopMostViewSelection() {
+    CursorSelection result = this.selections[0];
+    int i = 1;
+    while (i < this.selections.length) {
+      if (compareSelectionStarts(this.selections[i], result) < 0) {
+        result = this.selections[i];
+      }
+      i = i + 1;
+    }
+    return result;
+  }
+
+  CursorSelection getBottomMostViewSelection() {
+    CursorSelection result = this.selections[0];
+    int i = 1;
+    while (i < this.selections.length) {
+      if (compareSelectionStarts(this.selections[i], result) > 0) {
+        result = this.selections[i];
+      }
+      i = i + 1;
+    }
+    return result;
+  }
+
+  void normalize() {
+    if (!this.mergeOverlapping || this.selections.length < 2) {
+      return;
+    }
+    int i = 1;
+    while (i < this.selections.length) {
+      CursorSelection value = this.selections[i];
+      int j = i - 1;
+      while (j >= 0 && compareSelectionStarts(this.selections[j], value) > 0) {
+        this.selections[j + 1] = this.selections[j];
+        j = j - 1;
+      }
+      this.selections[j + 1] = value;
+      i = i + 1;
+    }
+    i = 0;
+    while (i + 1 < this.selections.length) {
+      CursorSelection current = this.selections[i];
+      CursorSelection next = this.selections[i + 1];
+      bool allowTouching = current.isEmpty() || next.isEmpty();
+      bool shouldMerge = positionBefore(
+        next.startLineNumber,
+        next.startColumn,
+        current.endLineNumber,
+        current.endColumn,
+        allowTouching
+      );
+      if (shouldMerge) {
+        bool direction = current.isLTR();
+        if (i + 1 == this.lastAddedCursorIndex) {
+          direction = next.isLTR();
+          this.lastAddedCursorIndex = i;
+        }
+        this.selections[i] = mergeSelections(current, next, direction);
+        this.selections.splice(i + 1, 1);
+      } else {
+        i = i + 1;
+      }
+    }
+  }
+}

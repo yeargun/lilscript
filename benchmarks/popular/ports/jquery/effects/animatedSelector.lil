@@ -1,14 +1,16 @@
-import { jQuery, grep } from "../core";
+import { jQuery } from "../core";
 import { expr } from "../selector";
-import {
-  call2
-} from "../js-host.lil";
 
 expr["pseudos"]["animated"] = (JsValue elem) => {
-  JsValue matched = grep(jQuery["timers"], (JsValue fn, JsValue _index) => {
-    return elem == fn["elem"];
-  });
-  return matched.length;
+  JsValue timers = jQuery["timers"];
+  float n = 0.0;
+  float i = 0.0;
+  for (; i < timers.length; i++) {
+    if (elem == timers[i]["elem"]) {
+      n = n + 1.0;
+    }
+  }
+  return n;
 };
 
 export { jQuery };

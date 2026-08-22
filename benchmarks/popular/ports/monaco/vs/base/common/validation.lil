@@ -1,0 +1,215 @@
+import { jsUndefined } from "../../../js-host";
+
+export class ValidationResult {
+  JsValue content;
+  string error;
+  bool hasError;
+
+  init(JsValue content, string error, bool hasError) {
+    this.content = content;
+    this.error = error;
+    this.hasError = hasError;
+  }
+}
+
+export class Validator {
+  int kind;
+  Map<string, Validator> properties;
+  string[] propertyKeys;
+  Validator[] validators;
+  string reference;
+
+  init(int kind) {
+    this.kind = kind;
+    this.properties = new Map<string, Validator>();
+    this.propertyKeys = [];
+    this.validators = [];
+    this.reference = "";
+  }
+
+  ValidationResult validate(JsValue content) {
+    if (this.kind == 0) {
+      return new ValidationResult(content, "", false);
+    }
+    if (this.kind == 1) {
+      if (content is string) {
+        return new ValidationResult(content, "", false);
+      }
+      return new ValidationResult(jsUndefined(), "Expected string", true);
+    }
+    if (this.kind == 2) {
+      if (content is float) {
+        return new ValidationResult(content, "", false);
+      }
+      return new ValidationResult(jsUndefined(), "Expected number", true);
+    }
+    if (this.kind == 3) {
+      if (content is bool) {
+        return new ValidationResult(content, "", false);
+      }
+      return new ValidationResult(jsUndefined(), "Expected boolean", true);
+    }
+    if (this.kind == 4) {
+      if (!content.truthy() && !(content is string) && !(content is float) && !(content is bool) && !content.isObject()) {
+        return new ValidationResult(content, "", false);
+      }
+      return new ValidationResult(jsUndefined(), "Expected undefined", true);
+    }
+    if (this.kind == 5) {
+      if (!content.truthy() || !content.isObject() || content.isArray()) {
+        return new ValidationResult(jsUndefined(), "Expected object", true);
+      }
+      JsValue result = JS.object();
+      int keyIndex = 0;
+      while (keyIndex < this.propertyKeys.length) {
+        string key = this.propertyKeys[keyIndex];
+        Validator? property = this.properties.get(key);
+        if (property != null) {
+          JsValue fieldValue = content[key];
+          if (property.kind == 6) {
+            if (!fieldValue.truthy() && !(fieldValue is string) && !(fieldValue is float) && !(fieldValue is bool) && !fieldValue.isObject()) {
+              continue;
+            }
+            ValidationResult optionalResult = property.validators[0].validate(fieldValue);
+            if (optionalResult.hasError) {
+              return new ValidationResult(jsUndefined(), "Error in property '" + key + "': " + optionalResult.error, true);
+            }
+            result[key] = optionalResult.content;
+          } else {
+            ValidationResult propertyResult = property.validate(fieldValue);
+            if (propertyResult.hasError) {
+              return new ValidationResult(jsUndefined(), "Error in property '" + key + "': " + propertyResult.error, true);
+            }
+            result[key] = propertyResult.content;
+          }
+        }
+        keyIndex = keyIndex + 1;
+      }
+      return new ValidationResult(result, "", false);
+    }
+    if (this.kind == 6) {
+      return this.validators[0].validate(content);
+    }
+    if (this.kind == 7) {
+      string lastError = "No union member matched";
+      int i = 0;
+      while (i < this.validators.length) {
+        ValidationResult candidate = this.validators[i].validate(content);
+        if (!candidate.hasError) {
+          return candidate;
+        }
+        lastError = candidate.error;
+        i = i + 1;
+      }
+      return new ValidationResult(jsUndefined(), lastError, true);
+    }
+    if (this.kind == 8) {
+      return this.validators[0].validate(content);
+    }
+    return new ValidationResult(content, "", false);
+  }
+
+  JsValue validateOrThrow(JsValue content) {
+    ValidationResult result = this.validate(content);
+    if (result.hasError) {
+      throw result.error;
+    }
+    return result.content;
+  }
+
+  JsValue getJSONSchema() {
+    JsValue schema = JS.object();
+    if (this.kind == 1) {
+      schema["type"] = "string";
+    } else if (this.kind == 2) {
+      schema["type"] = "number";
+    } else if (this.kind == 3) {
+      schema["type"] = "boolean";
+    } else if (this.kind == 5) {
+      schema["type"] = "object";
+      JsValue props = JS.object();
+      string[] required = [];
+      int keyIndex = 0;
+      while (keyIndex < this.propertyKeys.length) {
+        string key = this.propertyKeys[keyIndex];
+        Validator? property = this.properties.get(key);
+        if (property != null) {
+          if (property.kind == 6) {
+            props[key] = property.validators[0].getJSONSchema();
+          } else {
+            props[key] = property.getJSONSchema();
+            required.push(key);
+          }
+        }
+        keyIndex = keyIndex + 1;
+      }
+      schema["properties"] = props;
+      if (required.length > 0) {
+        schema["required"] = required;
+      }
+    } else if (this.kind == 7) {
+      JsValue[] choices = [];
+      int i = 0;
+      while (i < this.validators.length) {
+        if (this.validators[i].kind != 4) {
+          choices.push(this.validators[i].getJSONSchema());
+        }
+        i = i + 1;
+      }
+      schema["oneOf"] = choices;
+    } else if (this.kind == 8) {
+      schema["$ref"] = this.reference;
+    }
+    return schema;
+  }
+}
+
+export Validator vUnchecked() {
+  return new Validator(0);
+}
+
+export Validator vString() {
+  return new Validator(1);
+}
+
+export Validator vNumber() {
+  return new Validator(2);
+}
+
+export Validator vBoolean() {
+  return new Validator(3);
+}
+
+export Validator vUndefined() {
+  return new Validator(4);
+}
+
+export Validator vObj(string[] keys, Validator[] values) {
+  Validator validator = new Validator(5);
+  int i = 0;
+  while (i < keys.length && i < values.length) {
+    validator.properties.set(keys[i], values[i]);
+    validator.propertyKeys.push(keys[i]);
+    i = i + 1;
+  }
+  return validator;
+}
+
+export Validator vOptionalProp(Validator inner) {
+  Validator validator = new Validator(6);
+  validator.validators.push(inner);
+  return validator;
+}
+
+export Validator vUnion(Validator[] validators) {
+  Validator validator = new Validator(7);
+  validator.validators = validators;
+  return validator;
+}
+
+export Validator vWithJsonSchemaRef(string reference, Validator inner) {
+  Validator validator = new Validator(8);
+  validator.reference = reference;
+  validator.validators.push(inner);
+  return validator;
+}

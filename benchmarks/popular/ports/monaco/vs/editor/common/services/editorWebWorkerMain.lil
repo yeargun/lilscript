@@ -1,0 +1,18 @@
+export class EditorWebWorkerMain {
+  JsValue host;
+
+  init(JsValue host = null) {
+    this.host = host;
+  }
+
+  JsValue initialize(JsValue workerFactory) {
+    if (workerFactory == null) {
+      return null;
+    }
+    return workerFactory;
+  }
+}
+
+export EditorWebWorkerMain createEditorWebWorkerMain(JsValue host = null) {
+  return new EditorWebWorkerMain(host);
+}

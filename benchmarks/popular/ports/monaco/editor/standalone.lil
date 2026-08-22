@@ -14,6 +14,8 @@ import {
   eventClientY,
   eventButton,
   eventDetail,
+  rectLeft,
+  rectTop,
   hostCall,
   jsUndefined,
   eventAltKey,
@@ -107,7 +109,7 @@ export class CodeEditor {
     this.actions = [];
     this.modelFacade = jsUndefined();
     TextModel model = view.model;
-    model.onDidChangeContent.event(() => {
+    model.onDidChangeContent(() => {
       this.contentEmitter.fire();
     });
     this.bindInput();
@@ -231,7 +233,13 @@ export class CodeEditor {
       view.scrollTop = JS.number(view.scrollable["scrollTop"]).toInt();
       view.render();
     }, false);
+    addEventListener(view.root, "focus", (JsValue ev) => {
+      focusElement(view.textarea);
+    }, false);
     addEventListener(view.scrollable, "mousedown", (JsValue ev) => {
+      if (eventButton(ev) == 0) {
+        preventDefault(ev);
+      }
       hideContext(view);
       hideHover(view);
       Pos pos = view.coordsToPosition(eventClientX(ev), eventClientY(ev));
@@ -262,20 +270,29 @@ export class CodeEditor {
       this.cursorEmitter.fire();
     }, false);
     addEventListener(view.margin, "mousedown", (JsValue ev) => {
+      if (eventButton(ev) == 0) {
+        preventDefault(ev);
+      }
       Pos pos = view.coordsToPosition(eventClientX(ev), eventClientY(ev));
       view.toggleFoldAt(pos.lineNumber);
+      focusElement(view.textarea);
     }, false);
     addEventListener(view.root, "contextmenu", (JsValue ev) => {
       preventDefault(ev);
-      showContext(view, eventClientX(ev), eventClientY(ev));
+      showContext(view, eventClientX(ev) - rectLeft(view.root), eventClientY(ev) - rectTop(view.root));
     }, false);
     addEventListener(view.contextWidget, "mousedown", (JsValue ev) => {
+      preventDefault(ev);
       JsValue t = ev["target"];
       string cmd = JS.string(hostCall(t, "getAttribute", "data-cmd", jsUndefined(), jsUndefined()));
+      if (cmd.length == 0 || cmd == "undefined") {
+        JsValue parent = t["parentElement"];
+        cmd = JS.string(hostCall(parent, "getAttribute", "data-cmd", jsUndefined(), jsUndefined()));
+      }
       if (cmd.length > 0 && cmd != "undefined") {
         this.trigger("menu", cmd, jsUndefined());
+        hideContext(view);
       }
-      hideContext(view);
     }, false);
     addEventListener(view.findWidget, "mousedown", (JsValue ev) => {
       JsValue t = ev["target"];
@@ -556,6 +573,11 @@ Emitter createDiffEmitter = new Emitter();
 export CodeEditor createConfigured(JsValue dom, string value, string language, string theme) {
   registerPopularLanguages();
   TextModel model = createModel(value, language);
+  return createWithModel(dom, model, theme, language);
+}
+
+export CodeEditor createWithModel(JsValue dom, TextModel model, string theme, string language) {
+  registerPopularLanguages();
   EditorView view = createView(dom, model);
   view.theme = theme;
   view.languageId = language;
@@ -573,8 +595,6 @@ export CodeEditor create(JsValue dom, JsValue options) {
   string theme = optString(options, "theme", currentTheme);
   CodeEditor editor = createConfigured(dom, value, language, theme);
   editor.updateOptions(options);
-  if (options.truthy() && options["model"].truthy()) {
-  }
   editor.view.render();
   return editor;
 }
@@ -861,7 +881,7 @@ export bool modelRedo(TextModel model) {
 }
 
 export func()->void modelOnDidChangeContent(TextModel model, func()->void listener) {
-  return model.onDidChangeContent.event(listener);
+  return model.onDidChangeContent(listener);
 }
 
 export string modelGetValueInRange(TextModel model, Rng range) {

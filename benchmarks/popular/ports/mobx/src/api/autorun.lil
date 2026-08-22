@@ -1,0 +1,285 @@
+import { DEV } from "../dev-flag.lil";
+import {
+  undef,
+  isUndef,
+  isFn,
+  isNum,
+  toStr,
+  len,
+  call0,
+  call1,
+  call2,
+  apply,
+  invoke0,
+  invoke1,
+  assign,
+  fnName,
+  setTimeoutHost,
+  clearTimeoutHost,
+  makeError,
+  throwErr,
+  gPromise,
+  yes
+} from "../host.lil";
+import { EMPTY_OBJECT, $mobx } from "../constants.lil";
+import { die } from "../errors.lil";
+import { defaultEquals } from "../utils/comparer.lil";
+import { getNextId } from "../core/globalstate.lil";
+import { isAction } from "../core/predicates.lil";
+import { Reaction } from "../core/reaction.lil";
+import { createAction } from "../core/action.lil";
+import { allowStateChanges, allowStateChangesStart, allowStateChangesEnd } from "../core/derivation.lil";
+
+JsValue createSchedulerFromOptions(JsValue opts) {
+  if (opts["scheduler"].truthy()) {
+    return opts["scheduler"];
+  }
+  if (opts["delay"].truthy()) {
+    return JS.method1((JsValue _s, JsValue callback) => {
+      return setTimeoutHost(callback, opts["delay"]);
+    });
+  }
+  return JS.method1((JsValue _s, JsValue callback) => {
+    return call0(callback, undef());
+  });
+}
+
+export JsValue autorun = JS.method2((JsValue _s, JsValue view, JsValue optsArg) => {
+  JsValue opts = EMPTY_OBJECT;
+  if (optsArg.truthy()) {
+    opts = optsArg;
+  }
+  if (DEV && !isFn(view)) {
+    die("Autorun expects a function as first argument");
+  }
+  if (DEV && isAction(view)) {
+    die("Autorun does not accept actions since actions are untrackable");
+  }
+  string name = "Autorun";
+  if (opts["name"].truthy()) {
+    name = toStr(opts["name"]);
+  } else if (DEV) {
+    name = toStr(fnName(view));
+    if (name == "") {
+      name = "Autorun@" + getNextId();
+    }
+  }
+  bool runSync = !opts["scheduler"].truthy() && !opts["delay"].truthy();
+  JsValue reactionInst = undef();
+  JsValue reactionRunner = () => {
+    call1(view, undef(), reactionInst);
+    return undef();
+  };
+  if (runSync) {
+    reactionInst = JS.construct(Reaction, name, JS.method0((JsValue rself) => {
+      invoke1(rself, "track", reactionRunner);
+      return undef();
+    }), opts["onError"], opts["requiresObservable"]);
+  } else {
+    JsValue scheduler = createSchedulerFromOptions(opts);
+    bool isScheduled = false;
+    reactionInst = JS.construct(Reaction, name, JS.method0((JsValue rself) => {
+      if (!isScheduled) {
+        isScheduled = true;
+        call1(scheduler, undef(), () => {
+          isScheduled = false;
+          if (!rself["isDisposed"].truthy()) {
+            invoke1(rself, "track", reactionRunner);
+          }
+          return undef();
+        });
+      }
+      return undef();
+    }), opts["onError"], opts["requiresObservable"]);
+  }
+  if (!(opts["signal"].truthy() && opts["signal"]["aborted"].truthy())) {
+    invoke0(reactionInst, "schedule_");
+  }
+  return call1(reactionInst["getDisposer_"], reactionInst, opts["signal"]);
+});
+
+JsValue wrapErrorHandler(JsValue errorHandler, JsValue baseFn) {
+  if (!errorHandler.truthy()) {
+    return baseFn;
+  }
+  return JS.methodRest((JsValue self, JsValue args) => {
+    try {
+      return apply(baseFn, self, args);
+    } catch (JsValue e) {
+      call1(errorHandler, self, e);
+      return undef();
+    }
+  });
+}
+
+export JsValue reaction = JS.method3((JsValue _s, JsValue expression, JsValue effect, JsValue optsArg) => {
+  JsValue opts = EMPTY_OBJECT;
+  if (optsArg.truthy()) {
+    opts = optsArg;
+  }
+  string name = "Reaction";
+  if (opts["name"].truthy()) {
+    name = toStr(opts["name"]);
+  } else if (DEV) {
+    name = "Reaction@" + getNextId();
+  }
+  JsValue equalsFn = defaultEquals;
+  if (opts["equals"].truthy()) {
+    equalsFn = opts["equals"];
+  }
+  JsValue effectAction = createAction(name, wrapErrorHandler(opts["onError"], effect), false, undef());
+  JsValue currentValue = undef();
+  JsValue firstTimeFlag = true;
+  JsValue changedFlag = false;
+  JsValue r = undef();
+  JsValue exprTrack = () => {
+    bool prevAllow = allowStateChangesStart(false);
+    JsValue nextValue = undef();
+    try {
+      nextValue = call1(expression, undef(), r);
+    } finally {
+      allowStateChangesEnd(prevAllow);
+    }
+    if (firstTimeFlag.truthy()) {
+      changedFlag = true;
+    } else {
+      changedFlag = !yes(call2(equalsFn, undef(), currentValue, nextValue));
+    }
+    currentValue = nextValue;
+    return undef();
+  };
+  bool runSync = !opts["scheduler"].truthy() && !opts["delay"].truthy();
+  bool isScheduled = false;
+  JsValue scheduler = createSchedulerFromOptions(opts);
+  JsValue reactionRunner = () => {
+    isScheduled = false;
+    if (r["isDisposed"].truthy()) {
+      return undef();
+    }
+    JsValue oldValue = currentValue;
+    changedFlag = false;
+    call1(r["track"], r, exprTrack);
+    if (firstTimeFlag.truthy() && opts["fireImmediately"].truthy()) {
+      JS.call(effectAction, undef(), currentValue, oldValue, r);
+    } else if (!firstTimeFlag.truthy() && changedFlag.truthy()) {
+      JS.call(effectAction, undef(), currentValue, oldValue, r);
+    }
+    firstTimeFlag = false;
+    return undef();
+  };
+  r = JS.construct(Reaction, name, () => {
+    if (firstTimeFlag.truthy() || runSync) {
+      call0(reactionRunner, undef());
+    } else if (!isScheduled) {
+      isScheduled = true;
+      call1(scheduler, undef(), reactionRunner);
+    }
+    return undef();
+  }, opts["onError"], opts["requiresObservable"]);
+  if (!(opts["signal"].truthy() && opts["signal"]["aborted"].truthy())) {
+    call0(r["schedule_"], r);
+  }
+  return call1(r["getDisposer_"], r, opts["signal"]);
+});
+
+export JsValue when = JS.methodRest((JsValue _s, JsValue args) => {
+  JsValue predicate = args[0];
+  if (len(args) == 1 || (len(args) > 1 && args[1].truthy() && JS.typeOf(args[1]) == "object")) {
+    JsValue opts = undef();
+    if (len(args) > 1) {
+      opts = args[1];
+    }
+    return whenPromise(predicate, opts);
+  }
+  return whenEffect(predicate, args[1], args[2]);
+});
+
+JsValue whenEffect(JsValue predicate, JsValue effect, JsValue opts) {
+  if (!opts.truthy()) {
+    opts = JS.object();
+  }
+  JsValue disposer = undef();
+  JsValue timeoutHandle = undef();
+  if (isNum(opts["timeout"])) {
+    JsValue timeoutError = makeError("WHEN_TIMEOUT");
+    timeoutHandle = setTimeoutHost(JS.method0((JsValue _t) => {
+      if (!disposer[$mobx]["isDisposed"].truthy()) {
+        call0(disposer, undef());
+        if (opts["onError"].truthy()) {
+          call1(opts["onError"], undef(), timeoutError);
+        } else {
+          throwErr(timeoutError);
+        }
+      }
+      return undef();
+    }), opts["timeout"]);
+  }
+  if (!opts["name"].truthy()) {
+    if (DEV) {
+      opts["name"] = "When@" + getNextId();
+    } else {
+      opts["name"] = "When";
+    }
+  }
+  JsValue effectAction = createAction("When-effect", effect, false, undef());
+  if (DEV) {
+    effectAction = createAction(toStr(opts["name"]) + "-effect", effect, false, undef());
+  }
+  disposer = JS.call(autorun, undef(), JS.method1((JsValue _s, JsValue r) => {
+    JsValue cond = JS.call(allowStateChanges, undef(), false, predicate);
+    if (cond.truthy()) {
+      call0(r["dispose"], r);
+      if (timeoutHandle.truthy()) {
+        clearTimeoutHost(timeoutHandle);
+      }
+      call0(effectAction, undef());
+    }
+    return undef();
+  }), opts);
+  return disposer;
+}
+
+JsValue whenPromise(JsValue predicate, JsValue opts) {
+  if (DEV && opts.truthy() && opts["onError"].truthy()) {
+    die("the options 'onError' and 'promise' cannot be combined");
+  }
+  if (opts.truthy() && opts["signal"].truthy() && opts["signal"]["aborted"].truthy()) {
+    JsValue rejected = JS.invoke(gPromise(), "reject", makeError("WHEN_ABORTED"));
+    rejected["cancel"] = JS.method0((JsValue _c) => {
+      return null;
+    });
+    return rejected;
+  }
+  JsValue slot = JS.object();
+  slot["cancel"] = undef();
+  slot["abort"] = undef();
+  JsValue res = JS.construct(gPromise(), JS.methodRest((JsValue _s, JsValue pargs) => {
+    JsValue resolve = pargs[0];
+    JsValue reject = pargs[1];
+    JsValue wrapped = assign(JS.object(), opts);
+    wrapped["onError"] = reject;
+    JsValue disposer = whenEffect(predicate, resolve, wrapped);
+    slot["cancel"] = JS.method0((JsValue _c) => {
+      call0(disposer, undef());
+      call1(reject, undef(), makeError("WHEN_CANCELLED"));
+      return undef();
+    });
+    slot["abort"] = JS.method0((JsValue _a) => {
+      call0(disposer, undef());
+      call1(reject, undef(), makeError("WHEN_ABORTED"));
+      return undef();
+    });
+    if (opts.truthy() && opts["signal"].truthy() && isFn(opts["signal"]["addEventListener"])) {
+      JS.invoke(opts["signal"], "addEventListener", "abort", slot["abort"]);
+    }
+    return undef();
+  }));
+  if (opts.truthy() && opts["signal"].truthy() && isFn(opts["signal"]["removeEventListener"])) {
+    res = JS.invoke(res, "finally", JS.method0((JsValue _f) => {
+      JS.invoke(opts["signal"], "removeEventListener", "abort", slot["abort"]);
+      return undef();
+    }));
+  }
+  res["cancel"] = slot["cancel"];
+  return res;
+}

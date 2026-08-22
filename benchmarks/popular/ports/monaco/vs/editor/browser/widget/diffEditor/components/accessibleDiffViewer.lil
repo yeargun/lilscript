@@ -1,0 +1,65 @@
+int nmax(int a, int b) {
+  if (a > b) {
+    return a;
+  }
+  return b;
+}
+
+export class AccessibleDiffViewer {
+  int index;
+  int[] modifiedStarts;
+  bool visible;
+
+  init() {
+    this.index = 0;
+    this.modifiedStarts = [];
+    this.visible = false;
+  }
+
+  void setChanges(int[] modifiedStarts) {
+    this.modifiedStarts = modifiedStarts;
+    if (this.index >= this.modifiedStarts.length) {
+      this.index = nmax(0, this.modifiedStarts.length - 1);
+    }
+  }
+
+  void next() {
+    if (this.modifiedStarts.length == 0) {
+      return;
+    }
+    this.index = (this.index + 1) % this.modifiedStarts.length;
+  }
+
+  void previous() {
+    if (this.modifiedStarts.length == 0) {
+      return;
+    }
+    this.index = this.index - 1;
+    if (this.index < 0) {
+      this.index = this.modifiedStarts.length - 1;
+    }
+  }
+
+  int currentLine() {
+    if (this.index < 0 || this.index >= this.modifiedStarts.length) {
+      return 1;
+    }
+    return this.modifiedStarts[this.index];
+  }
+
+  void close() {
+    this.visible = false;
+  }
+
+  void open() {
+    this.visible = true;
+  }
+}
+
+export AccessibleDiffViewer createAccessibleDiffViewer() {
+  return new AccessibleDiffViewer();
+}
+
+export string groupHeader(int index, int total, int origStart, int origEnd, int modStart, int modEnd) {
+  return "Difference " + (index + 1).toString() + " of " + total.toString();
+}

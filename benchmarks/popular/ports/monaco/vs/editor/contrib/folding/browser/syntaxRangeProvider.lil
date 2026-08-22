@@ -1,0 +1,189 @@
+export int MAX_LINE_NUMBER = 16777215;
+export string ID_SYNTAX_PROVIDER = "syntax";
+
+export class SyntaxFoldRange {
+  int start;
+  int end;
+  int rank;
+  string kind;
+
+  init(int start, int end, int rank, string kind) {
+    this.start = start;
+    this.end = end;
+    this.rank = rank;
+    this.kind = kind;
+  }
+}
+
+export class FoldRange {
+  int startLineNumber;
+  int endLineNumber;
+  string typeName;
+
+  init(int startLineNumber, int endLineNumber, string typeName) {
+    this.startLineNumber = startLineNumber;
+    this.endLineNumber = endLineNumber;
+    this.typeName = typeName;
+  }
+}
+
+export class SyntaxRangesCollector {
+  int[] startIndexes;
+  int[] endIndexes;
+  int[] nestingLevels;
+  int[] nestingLevelCounts;
+  string[] types;
+  int length;
+  int limit;
+
+  init(int limit) {
+    this.startIndexes = [];
+    this.endIndexes = [];
+    this.nestingLevels = [];
+    this.nestingLevelCounts = [];
+    this.types = [];
+    this.length = 0;
+    this.limit = limit;
+  }
+
+  void add(int startLineNumber, int endLineNumber, string typeName, int nestingLevel) {
+    if (startLineNumber > MAX_LINE_NUMBER || endLineNumber > MAX_LINE_NUMBER) {
+      return;
+    }
+    this.startIndexes.push(startLineNumber);
+    this.endIndexes.push(endLineNumber);
+    this.nestingLevels.push(nestingLevel);
+    this.types.push(typeName);
+    this.length = this.length + 1;
+    if (nestingLevel < 30) {
+      while (this.nestingLevelCounts.length <= nestingLevel) {
+        this.nestingLevelCounts.push(0);
+      }
+      this.nestingLevelCounts[nestingLevel] = this.nestingLevelCounts[nestingLevel] + 1;
+    }
+  }
+
+  FoldRange[] toIndentRanges() {
+    FoldRange[] ranges = [];
+    int limit = this.limit;
+    if (this.length <= limit) {
+      int i = 0;
+      while (i < this.length) {
+        ranges.push(new FoldRange(this.startIndexes[i], this.endIndexes[i], this.types[i]));
+        i = i + 1;
+      }
+      return ranges;
+    }
+    int entries = 0;
+    int maxLevel = this.nestingLevelCounts.length;
+    int i = 0;
+    while (i < this.nestingLevelCounts.length) {
+      int n = this.nestingLevelCounts[i];
+      if (n > 0) {
+        if (n + entries > limit) {
+          maxLevel = i;
+          break;
+        }
+        entries = entries + n;
+      }
+      i = i + 1;
+    }
+    i = 0;
+    while (i < this.length && ranges.length < limit) {
+      int level = this.nestingLevels[i];
+      if (level < maxLevel || (level == maxLevel && entries < limit)) {
+        ranges.push(new FoldRange(this.startIndexes[i], this.endIndexes[i], this.types[i]));
+        if (level == maxLevel) {
+          entries = entries + 1;
+        }
+      }
+      i = i + 1;
+    }
+    return ranges;
+  }
+}
+
+export FoldRange[] sanitizeRanges(SyntaxFoldRange[] rangeData, int limit) {
+  int a = 0;
+  while (a < rangeData.length) {
+    int b = a + 1;
+    while (b < rangeData.length) {
+      bool swap = false;
+      if (rangeData[b].start < rangeData[a].start) {
+        swap = true;
+      } else if (rangeData[b].start == rangeData[a].start && rangeData[b].rank < rangeData[a].rank) {
+        swap = true;
+      }
+      if (swap) {
+        SyntaxFoldRange tmp = rangeData[a];
+        rangeData[a] = rangeData[b];
+        rangeData[b] = tmp;
+      }
+      b = b + 1;
+    }
+    a = a + 1;
+  }
+  SyntaxRangesCollector collector = new SyntaxRangesCollector(limit);
+  SyntaxFoldRange[] previous = [];
+  SyntaxFoldRange? top = null;
+  int i = 0;
+  while (i < rangeData.length) {
+    SyntaxFoldRange entry = rangeData[i];
+    if (top == null) {
+      top = entry;
+      collector.add(entry.start, entry.end, entry.kind, previous.length);
+    } else {
+      SyntaxFoldRange currentTop = top;
+      if (entry.start > currentTop.start) {
+        if (entry.end <= currentTop.end) {
+          previous.push(currentTop);
+          top = entry;
+          collector.add(entry.start, entry.end, entry.kind, previous.length);
+        } else {
+          if (entry.start > currentTop.end) {
+            while (top != null) {
+              if (entry.start <= top.end) {
+                break;
+              }
+              if (previous.length == 0) {
+                top = null;
+              } else {
+                top = previous[previous.length - 1];
+                previous.splice(previous.length - 1, 1);
+              }
+            }
+            if (top != null) {
+              previous.push(top);
+            }
+            top = entry;
+          }
+          collector.add(entry.start, entry.end, entry.kind, previous.length);
+        }
+      }
+    }
+    i = i + 1;
+  }
+  return collector.toIndentRanges();
+}
+
+export class SyntaxRangeProvider {
+  string id;
+  int limit;
+
+  init(int limit) {
+    this.id = ID_SYNTAX_PROVIDER;
+    this.limit = limit;
+  }
+
+  FoldRange[] compute(SyntaxFoldRange[] ranges) {
+    return sanitizeRanges(ranges, this.limit);
+  }
+}
+
+export SyntaxRangeProvider createSyntaxRangeProvider(int limit) {
+  return new SyntaxRangeProvider(limit);
+}
+
+export SyntaxFoldRange createSyntaxFoldRange(int start, int end, int rank, string kind) {
+  return new SyntaxFoldRange(start, end, rank, kind);
+}

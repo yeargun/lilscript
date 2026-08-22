@@ -1,0 +1,61 @@
+import { LineRangeMapping, DetailedLineRangeMapping } from "../rangeMapping";
+import { LineRangeFragment } from "./utils";
+
+export LineRangeMapping[] computeMovedLines(
+  DetailedLineRangeMapping[] changes,
+  string[] originalLines,
+  string[] modifiedLines,
+  int[] hashedOriginalLines,
+  int[] hashedModifiedLines
+) {
+  LineRangeMapping[] moves = [];
+  bool[] insertionUsed = [];
+  int i = 0;
+  while (i < changes.length) {
+    insertionUsed.push(false);
+    i = i + 1;
+  }
+  i = 0;
+  while (i < changes.length) {
+    DetailedLineRangeMapping deletion = changes[i];
+    if (deletion.modified.isEmpty() && deletion.original.length() >= 3) {
+      LineRangeFragment deletionFragment = new LineRangeFragment(
+        deletion.original,
+        originalLines,
+        "original"
+      );
+      float highestSimilarity = 0.90;
+      int bestIndex = -1;
+      int j = 0;
+      while (j < changes.length) {
+        DetailedLineRangeMapping insertion = changes[j];
+        if (
+          !insertionUsed[j] &&
+          insertion.original.isEmpty() &&
+          insertion.modified.length() >= 3
+        ) {
+          LineRangeFragment insertionFragment = new LineRangeFragment(
+            insertion.modified,
+            modifiedLines,
+            "modified"
+          );
+          float similarity = deletionFragment.computeSimilarity(insertionFragment);
+          if (similarity > highestSimilarity) {
+            highestSimilarity = similarity;
+            bestIndex = j;
+          }
+        }
+        j = j + 1;
+      }
+      if (bestIndex >= 0) {
+        insertionUsed[bestIndex] = true;
+        moves.push(new LineRangeMapping(
+          deletion.original,
+          changes[bestIndex].modified
+        ));
+      }
+    }
+    i = i + 1;
+  }
+  return moves;
+}

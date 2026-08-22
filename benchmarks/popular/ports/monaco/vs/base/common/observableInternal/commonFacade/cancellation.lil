@@ -1,0 +1,16 @@
+export string[] cancellationFacadeExports() {
+  string[] xs = [];
+  xs.push("CancellationError");
+  xs.push("CancellationToken");
+  xs.push("CancellationTokenSource");
+  xs.push("cancelOnDispose");
+  return xs;
+}
+
+export bool cancellationTokenNone() {
+  return false;
+}
+
+export bool cancellationTokenCancelled() {
+  return true;
+}

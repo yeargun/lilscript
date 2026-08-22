@@ -1,0 +1,123 @@
+export bool isFullWidthCharacter(int charCode) {
+  if (charCode >= 11904 && charCode <= 55215) {
+    return true;
+  }
+  if (charCode >= 63744 && charCode <= 64255) {
+    return true;
+  }
+  if (charCode >= 65281 && charCode <= 65374) {
+    return true;
+  }
+  if (charCode >= 65504 && charCode <= 65510) {
+    return true;
+  }
+  return false;
+}
+
+export bool isEmojiImprecise(int x) {
+  if (x >= 127462 && x <= 127487) {
+    return true;
+  }
+  if (x == 8986 || x == 8987 || x == 9200 || x == 9203 || x == 11088 || x == 11093) {
+    return true;
+  }
+  if (x >= 9728 && x <= 10175) {
+    return true;
+  }
+  if (x >= 127744 && x <= 128591) {
+    return true;
+  }
+  if (x >= 128640 && x <= 128764) {
+    return true;
+  }
+  if (x >= 128992 && x <= 129008) {
+    return true;
+  }
+  if (x >= 129280 && x <= 129535) {
+    return true;
+  }
+  if (x >= 129648 && x <= 129782) {
+    return true;
+  }
+  return false;
+}
+
+export int nextRenderTabStop(int visibleColumn, int tabSize) {
+  if (tabSize <= 0) {
+    return visibleColumn + 1;
+  }
+  return visibleColumn + tabSize - visibleColumn % tabSize;
+}
+
+export int nextIndentTabStop(int visibleColumn, int indentSize) {
+  return nextRenderTabStop(visibleColumn, indentSize);
+}
+
+export int prevRenderTabStop(int column, int tabSize) {
+  if (tabSize <= 0) {
+    return 0;
+  }
+  int prev = column - 1 - (column - 1) % tabSize;
+  if (prev < 0) {
+    return 0;
+  }
+  return prev;
+}
+
+export int prevIndentTabStop(int column, int indentSize) {
+  return prevRenderTabStop(column, indentSize);
+}
+
+int nextVisibleColumn(int codePoint, int visibleColumn, int tabSize) {
+  if (codePoint == 9) {
+    return nextRenderTabStop(visibleColumn, tabSize);
+  }
+  if (isFullWidthCharacter(codePoint) || isEmojiImprecise(codePoint)) {
+    return visibleColumn + 2;
+  }
+  return visibleColumn + 1;
+}
+
+export int visibleColumnFromColumn(string lineContent, int column, int tabSize) {
+  int n = lineContent.length;
+  int end = column - 1;
+  if (end > n) {
+    end = n;
+  }
+  if (end < 0) {
+    end = 0;
+  }
+  int result = 0;
+  int i = 0;
+  while (i < end) {
+    result = nextVisibleColumn(lineContent.charCodeAt(i), result, tabSize);
+    i = i + 1;
+  }
+  return result;
+}
+
+export int columnFromVisibleColumn(string lineContent, int visibleColumn, int tabSize) {
+  if (visibleColumn <= 0) {
+    return 1;
+  }
+  int n = lineContent.length;
+  int beforeVisible = 0;
+  int beforeColumn = 1;
+  int i = 0;
+  while (i < n) {
+    int afterVisible = nextVisibleColumn(lineContent.charCodeAt(i), beforeVisible, tabSize);
+    int afterColumn = i + 2;
+    if (afterVisible >= visibleColumn) {
+      int beforeDelta = visibleColumn - beforeVisible;
+      int afterDelta = afterVisible - visibleColumn;
+      if (afterDelta < beforeDelta) {
+        return afterColumn;
+      }
+      return beforeColumn;
+    }
+    beforeVisible = afterVisible;
+    beforeColumn = afterColumn;
+    i = i + 1;
+  }
+  return n + 1;
+}

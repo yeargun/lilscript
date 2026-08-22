@@ -14,8 +14,14 @@ JsValue composedRoot = makeComposedRoot();
 
 export bool isAttached(JsValue elem) {
   JsValue doc = JS.and(elem, elem["ownerDocument"]);
-  if (JS.invoke(doc, "contains", elem).truthy()) {
-    return true;
+  if (doc.truthy()) {
+    if (JS.invoke(doc, "contains", elem).truthy()) {
+      return true;
+    }
+  }
+
+  if (!elem.truthy()) {
+    return false;
   }
 
   JsValue getRootNode = elem["getRootNode"];

@@ -1,0 +1,918 @@
+import { jsUndefined, hostCall, windowSelf } from "../js-host";
+import {
+  create,
+  createWithModel,
+  createDiffEditor,
+  defineTheme,
+  setTheme,
+  createModel,
+  createModelWithUri,
+  getModels,
+  getEditors,
+  getDiffEditors,
+  setModelLanguage,
+  setModelMarkers,
+  getModelMarkers,
+  removeAllMarkers,
+  languagesRegisterCompletion,
+  languagesRegisterHover,
+  languagesRegisterDefinition,
+  languagesRegisterReference,
+  languagesRegisterDocumentSymbol,
+  languagesRegisterFormatting,
+  languagesRegisterRename,
+  languagesRegisterSignatureHelp,
+  languagesRegisterFolding,
+  languagesRegisterLink,
+  languagesRegisterCodeAction,
+  languagesRegisterCodeLens,
+  languagesRegisterColor,
+  languagesRegisterHighlight,
+  languagesRegisterInlayHints,
+  languagesRegisterInlineCompletions,
+  languagesRegisterKind,
+  editorGetValue,
+  editorSetValue,
+  editorGetModel,
+  editorSetModel,
+  editorGetPosition,
+  editorSetPosition,
+  editorGetSelection,
+  editorSetSelection,
+  editorTrigger,
+  editorLayout,
+  editorLayoutSize,
+  editorDispose,
+  editorFocus,
+  editorExecuteEdits,
+  editorDeltaDecorations,
+  editorRevealLine,
+  editorAddAction,
+  editorSetModelFacade,
+  editorOnDidChangeModelContent,
+  editorOnDidChangeCursorPosition,
+  onDidCreateEditor,
+  onDidCreateDiffEditor,
+  registerLanguageId,
+  setLanguageConfigurationJs,
+  setTokensProviderJs,
+  modelGetValue,
+  modelSetValue,
+  modelGetLineCount,
+  modelGetLineContent,
+  modelGetOffsetAt,
+  modelGetPositionAt,
+  modelGetLanguageId,
+  modelGetVersionId,
+  modelUriString,
+  modelFindMatches,
+  modelApplyEdits,
+  modelDispose,
+  modelGetValueInRange,
+  modelGetLinesContent,
+  modelGetValueLength,
+  languageIds,
+  editOp,
+  deco,
+  CodeEditor,
+  DiffEditor,
+  TextModel
+} from "./standalone";
+import { liftPosition, Pos } from "../base/position";
+import { liftRange } from "../base/range";
+import { liftSelection } from "../base/selection";
+import { parseUri, fileUri, Uri } from "../base/uri";
+import { WordRange } from "./word";
+import { Marker, MarkerSeverityHint, MarkerSeverityInfo, MarkerSeverityWarning, MarkerSeverityError } from "./markers";
+import { Emitter } from "../base/lifecycle";
+import { KeyModCtrl, KeyModShift, KeyModAlt, KeyModWinCtrl } from "../base/keycodes";
+import { IdentifiedEdit } from "./edit-stack";
+import { Decoration } from "./interval-tree";
+
+Emitter markerEmitter = new Emitter();
+Emitter modelCreatedEmitter = new Emitter();
+JsValue[] languageWaiters = [];
+string[] languageWaiterIds = [];
+CodeEditor[] editorWrapKeys = [];
+JsValue[] editorWrapVals = [];
+TextModel[] modelWrapKeys = [];
+JsValue[] modelWrapVals = [];
+
+JsValue disposable(func()->void fn) {
+  JsValue o = JS.object();
+  o["dispose"] = JS.method0((JsValue self) => {
+    fn();
+    return jsUndefined();
+  });
+  return o;
+}
+
+void callFn(JsValue listener, JsValue payload) {
+  hostCall(listener, "call", jsUndefined(), payload, jsUndefined());
+}
+
+string uriKey(JsValue value) {
+  if (!value.truthy()) {
+    return "";
+  }
+  if (value["__lilUri"].truthy()) {
+    return JS.string(value["__lilUri"]);
+  }
+  if (value["toString"].truthy()) {
+    return JS.string(hostCall(value, "toString", jsUndefined(), jsUndefined(), jsUndefined()));
+  }
+  if (value["path"].truthy()) {
+    return JS.string(value["path"]);
+  }
+  return JS.string(value);
+}
+
+JsValue wrapUri(Uri uri) {
+  JsValue o = JS.object();
+  string key = uri.toString();
+  o["scheme"] = uri.scheme;
+  o["authority"] = uri.authority;
+  o["path"] = uri.path;
+  o["query"] = uri.query;
+  o["fragment"] = uri.fragment;
+  o["fsPath"] = uri.path;
+  o["__lilUri"] = key;
+  o["toString"] = JS.method0((JsValue self) => {
+    return key;
+  });
+  return o;
+}
+
+JsValue wrapWord(WordRange word) {
+  if (word.word.length == 0) {
+    return jsUndefined();
+  }
+  JsValue o = JS.object();
+  o["word"] = word.word;
+  o["startColumn"] = word.startColumn;
+  o["endColumn"] = word.endColumn;
+  return o;
+}
+
+JsValue wrapMarker(Marker marker) {
+  JsValue o = JS.object();
+  o["owner"] = marker.owner;
+  o["message"] = marker.message;
+  o["severity"] = marker.severity;
+  o["startLineNumber"] = marker.startLineNumber;
+  o["startColumn"] = marker.startColumn;
+  o["endLineNumber"] = marker.endLineNumber;
+  o["endColumn"] = marker.endColumn;
+  o["resource"] = marker.resource;
+  return o;
+}
+
+JsValue wrapPos(Pos pos) {
+  JsValue o = JS.object();
+  o["lineNumber"] = pos.lineNumber;
+  o["column"] = pos.column;
+  return o;
+}
+
+TextModel? modelFromJs(JsValue value) {
+  if (!value.truthy()) {
+    return null;
+  }
+  string key = uriKey(value);
+  if (key.length == 0 && value["uri"].truthy()) {
+    key = uriKey(value["uri"]);
+  }
+  TextModel[] all = getModels();
+  int i = 0;
+  while (i < all.length) {
+    if (all[i].uri.toString() == key) {
+      return all[i];
+    }
+    i = i + 1;
+  }
+  return null;
+}
+
+IdentifiedEdit[] editsFromJs(JsValue edits) {
+  IdentifiedEdit[] out = [];
+  if (!edits.truthy()) {
+    return out;
+  }
+  int i = 0;
+  while (edits[i].truthy()) {
+    JsValue e = edits[i];
+    JsValue range = e["range"];
+    int sl = JS.number(range["startLineNumber"]).toInt();
+    int sc = JS.number(range["startColumn"]).toInt();
+    int el = JS.number(range["endLineNumber"]).toInt();
+    int ec = JS.number(range["endColumn"]).toInt();
+    string text = "";
+    if (e["text"].truthy()) {
+      text = JS.string(e["text"]);
+    }
+    out.push(editOp(sl, sc, el, ec, text));
+    i = i + 1;
+  }
+  return out;
+}
+
+Decoration[] decosFromJs(JsValue next) {
+  Decoration[] out = [];
+  if (!next.truthy()) {
+    return out;
+  }
+  int i = 0;
+  while (next[i].truthy()) {
+    JsValue d = next[i];
+    JsValue range = d["range"];
+    int sl = JS.number(range["startLineNumber"]).toInt();
+    int sc = JS.number(range["startColumn"]).toInt();
+    int el = JS.number(range["endLineNumber"]).toInt();
+    int ec = JS.number(range["endColumn"]).toInt();
+    string className = "";
+    if (d["options"].truthy()) {
+      JsValue opt = d["options"];
+      if (opt["inlineClassName"].truthy()) {
+        className = JS.string(opt["inlineClassName"]);
+      } else if (opt["className"].truthy()) {
+        className = JS.string(opt["className"]);
+      }
+    }
+    out.push(deco(sl, sc, el, ec, className));
+    i = i + 1;
+  }
+  return out;
+}
+
+JsValue wrapModel(TextModel model) {
+  int i = 0;
+  while (i < modelWrapKeys.length) {
+    if (modelWrapKeys[i] == model) {
+      return modelWrapVals[i];
+    }
+    i = i + 1;
+  }
+  JsValue o = JS.object();
+  modelWrapKeys.push(model);
+  modelWrapVals.push(o);
+  string key = model.uri.toString();
+  o["__lilUri"] = key;
+  o["uri"] = wrapUri(model.uri);
+  o["id"] = key;
+  o["getValue"] = JS.method0((JsValue self) => {
+    return modelGetValue(model);
+  });
+  o["setValue"] = JS.method1((JsValue self, JsValue value) => {
+    modelSetValue(model, JS.string(value));
+    return jsUndefined();
+  });
+  o["getLineCount"] = JS.method0((JsValue self) => {
+    return modelGetLineCount(model);
+  });
+  o["getLineContent"] = JS.method1((JsValue self, JsValue line) => {
+    return modelGetLineContent(model, JS.number(line).toInt());
+  });
+  o["getLineLength"] = JS.method1((JsValue self, JsValue line) => {
+    return modelGetLineContent(model, JS.number(line).toInt()).length;
+  });
+  o["getLanguageId"] = JS.method0((JsValue self) => {
+    return modelGetLanguageId(model);
+  });
+  o["getVersionId"] = JS.method0((JsValue self) => {
+    return modelGetVersionId(model);
+  });
+  o["getOffsetAt"] = JS.method1((JsValue self, JsValue pos) => {
+    return modelGetOffsetAt(model, liftPosition(pos));
+  });
+  o["getPositionAt"] = JS.method1((JsValue self, JsValue offset) => {
+    return wrapPos(modelGetPositionAt(model, JS.number(offset).toInt()));
+  });
+  o["getValueInRange"] = JS.method1((JsValue self, JsValue range) => {
+    return modelGetValueInRange(model, liftRange(range));
+  });
+  o["getWordAtPosition"] = JS.method1((JsValue self, JsValue pos) => {
+    return wrapWord(model.getWordAtPosition(liftPosition(pos)));
+  });
+  o["getWordUntilPosition"] = JS.method1((JsValue self, JsValue pos) => {
+    WordRange word = model.getWordAtPosition(liftPosition(pos));
+    int col = JS.number(pos["column"]).toInt();
+    JsValue until = JS.object();
+    if (word.word.length == 0) {
+      until["word"] = "";
+      until["startColumn"] = col;
+      until["endColumn"] = col;
+      return until;
+    }
+    until["word"] = word.word;
+    until["startColumn"] = word.startColumn;
+    until["endColumn"] = col;
+    return until;
+  });
+  o["isDisposed"] = JS.method0((JsValue self) => {
+    return false;
+  });
+  o["isAttachedToEditor"] = JS.method0((JsValue self) => {
+    return true;
+  });
+  o["isTooLargeForSyncing"] = JS.method0((JsValue self) => {
+    return false;
+  });
+  o["onDidChangeAttached"] = JS.method1((JsValue self, JsValue listener) => {
+    return disposable(() => {
+    });
+  });
+  o["getOptions"] = JS.method0((JsValue self) => {
+    JsValue options = JS.object();
+    options["tabSize"] = 2;
+    options["insertSpaces"] = true;
+    return options;
+  });
+  o["getFullModelRange"] = JS.method0((JsValue self) => {
+    int last = modelGetLineCount(model);
+    int col = modelGetLineContent(model, last).length + 1;
+    JsValue range = JS.object();
+    range["startLineNumber"] = 1;
+    range["startColumn"] = 1;
+    range["endLineNumber"] = last;
+    range["endColumn"] = col;
+    return range;
+  });
+  o["getEOL"] = JS.method0((JsValue self) => {
+    return "\n";
+  });
+  o["getValueLength"] = JS.method0((JsValue self) => {
+    return modelGetValueLength(model);
+  });
+  o["getLinesContent"] = JS.method0((JsValue self) => {
+    return modelGetLinesContent(model);
+  });
+  o["findMatches"] = JS.methodRest((JsValue self, JsValue args) => {
+    string query = JS.string(args[0]);
+    bool isRegex = args[2].truthy();
+    bool matchCase = JS.string(args[3]) != "false";
+    bool wholeWord = args[4].truthy();
+    int limit = 1000;
+    if (args[6].truthy()) {
+      limit = JS.number(args[6]).toInt();
+    }
+    return modelFindMatches(model, query, isRegex, matchCase, wholeWord, limit);
+  });
+  o["applyEdits"] = JS.method1((JsValue self, JsValue edits) => {
+    return modelApplyEdits(model, editsFromJs(edits));
+  });
+  o["onDidChangeContent"] = JS.method1((JsValue self, JsValue listener) => {
+    return disposable(model.onDidChangeContent(() => {
+      callFn(listener, JS.object());
+    }));
+  });
+  o["dispose"] = JS.method0((JsValue self) => {
+    modelDispose(model);
+    return jsUndefined();
+  });
+  return o;
+}
+
+JsValue wrapEditor(CodeEditor editor) {
+  int i = 0;
+  while (i < editorWrapKeys.length) {
+    if (editorWrapKeys[i] == editor) {
+      return editorWrapVals[i];
+    }
+    i = i + 1;
+  }
+  JsValue o = JS.object();
+  editorWrapKeys.push(editor);
+  editorWrapVals.push(o);
+  o["getValue"] = JS.method0((JsValue self) => {
+    return editorGetValue(editor);
+  });
+  o["setValue"] = JS.method1((JsValue self, JsValue value) => {
+    editorSetValue(editor, JS.string(value));
+    return jsUndefined();
+  });
+  o["getModel"] = JS.method0((JsValue self) => {
+    return wrapModel(editorGetModel(editor));
+  });
+  o["setModel"] = JS.method1((JsValue self, JsValue model) => {
+    TextModel? next = modelFromJs(model);
+    if (next != null) {
+      editorSetModel(editor, next);
+      editorSetModelFacade(editor, wrapModel(next));
+    }
+    return jsUndefined();
+  });
+  o["getPosition"] = JS.method0((JsValue self) => {
+    return wrapPos(editorGetPosition(editor));
+  });
+  o["setPosition"] = JS.method1((JsValue self, JsValue pos) => {
+    editorSetPosition(editor, liftPosition(pos));
+    return jsUndefined();
+  });
+  o["getSelection"] = JS.method0((JsValue self) => {
+    return editorGetSelection(editor);
+  });
+  o["setSelection"] = JS.method1((JsValue self, JsValue sel) => {
+    editorSetSelection(editor, liftSelection(sel));
+    return jsUndefined();
+  });
+  o["trigger"] = JS.methodRest((JsValue self, JsValue args) => {
+    string source = JS.string(args[0]);
+    string handlerId = JS.string(args[1]);
+    JsValue payload = args[2];
+    editorTrigger(editor, source, handlerId, payload);
+    return jsUndefined();
+  });
+  o["layout"] = JS.method1((JsValue self, JsValue dim) => {
+    if (dim.truthy() && dim["width"].truthy()) {
+      editorLayoutSize(editor, JS.number(dim["width"]).toInt(), JS.number(dim["height"]).toInt());
+    } else {
+      editorLayout(editor);
+    }
+    return jsUndefined();
+  });
+  o["focus"] = JS.method0((JsValue self) => {
+    editorFocus(editor);
+    return jsUndefined();
+  });
+  o["hasTextFocus"] = JS.method0((JsValue self) => {
+    return true;
+  });
+  o["dispose"] = JS.method0((JsValue self) => {
+    editorDispose(editor);
+    return jsUndefined();
+  });
+  o["executeEdits"] = JS.methodRest((JsValue self, JsValue args) => {
+    return editorExecuteEdits(editor, editsFromJs(args[1]));
+  });
+  o["deltaDecorations"] = JS.methodRest((JsValue self, JsValue args) => {
+    int[] none = [];
+    return editorDeltaDecorations(editor, none, decosFromJs(args[1]));
+  });
+  o["revealLine"] = JS.method1((JsValue self, JsValue line) => {
+    editorRevealLine(editor, JS.number(line).toInt());
+    return jsUndefined();
+  });
+  o["revealLineInCenter"] = JS.method1((JsValue self, JsValue line) => {
+    editorRevealLine(editor, JS.number(line).toInt());
+    return jsUndefined();
+  });
+  o["revealPosition"] = JS.method1((JsValue self, JsValue pos) => {
+    editorSetPosition(editor, liftPosition(pos));
+    return jsUndefined();
+  });
+  o["addAction"] = JS.method1((JsValue self, JsValue desc) => {
+    string id = JS.string(desc["id"]);
+    string label = id;
+    if (desc["label"].truthy()) {
+      label = JS.string(desc["label"]);
+    }
+    editorAddAction(editor, id, label, desc["run"]);
+    return disposable(() => {
+    });
+  });
+  o["getAction"] = JS.method1((JsValue self, JsValue idVal) => {
+    string id = JS.string(idVal);
+    JsValue action = JS.object();
+    action["id"] = id;
+    action["run"] = JS.staticRest((JsValue args) => {
+      editorTrigger(editor, "action", id, jsUndefined());
+      return jsUndefined();
+    });
+    return action;
+  });
+  o["updateOptions"] = JS.method1((JsValue self, JsValue options) => {
+    editor.updateOptions(options);
+    return jsUndefined();
+  });
+  o["onDidChangeModelContent"] = JS.method1((JsValue self, JsValue listener) => {
+    return disposable(editorOnDidChangeModelContent(editor, () => {
+      callFn(listener, JS.object());
+    }));
+  });
+  o["onDidChangeCursorPosition"] = JS.method1((JsValue self, JsValue listener) => {
+    return disposable(editorOnDidChangeCursorPosition(editor, () => {
+      JsValue ev = JS.object();
+      ev["position"] = wrapPos(editorGetPosition(editor));
+      callFn(listener, ev);
+    }));
+  });
+  o["getDomNode"] = JS.method0((JsValue self) => {
+    return editor.view.root;
+  });
+  editorSetModelFacade(editor, wrapModel(editorGetModel(editor)));
+  return o;
+}
+
+JsValue wrapDiff(DiffEditor diff) {
+  JsValue o = JS.object();
+  o["getOriginalEditor"] = JS.method0((JsValue self) => {
+    return wrapEditor(diff.getOriginalEditor());
+  });
+  o["getModifiedEditor"] = JS.method0((JsValue self) => {
+    return wrapEditor(diff.getModifiedEditor());
+  });
+  o["layout"] = JS.method0((JsValue self) => {
+    diff.layout();
+    return jsUndefined();
+  });
+  o["dispose"] = JS.method0((JsValue self) => {
+    diff.dispose();
+    return jsUndefined();
+  });
+  return o;
+}
+
+JsValue wrapModelList() {
+  TextModel[] all = getModels();
+  JsValue[] out = [];
+  int i = 0;
+  while (i < all.length) {
+    out.push(wrapModel(all[i]));
+    i = i + 1;
+  }
+  return out;
+}
+
+JsValue wrapEditorList() {
+  CodeEditor[] all = getEditors();
+  JsValue[] out = [];
+  int i = 0;
+  while (i < all.length) {
+    out.push(wrapEditor(all[i]));
+    i = i + 1;
+  }
+  return out;
+}
+
+JsValue wrapMarkerList(string owner, string resource, int take) {
+  Marker[] rows = getModelMarkers(owner, resource, take);
+  JsValue[] out = [];
+  int i = 0;
+  while (i < rows.length) {
+    out.push(wrapMarker(rows[i]));
+    i = i + 1;
+  }
+  return out;
+}
+
+JsValue completionKindNs() {
+  JsValue o = JS.object();
+  o["Method"] = 0;
+  o["Function"] = 1;
+  o["Constructor"] = 2;
+  o["Field"] = 3;
+  o["Variable"] = 4;
+  o["Class"] = 5;
+  o["Struct"] = 6;
+  o["Interface"] = 7;
+  o["Module"] = 8;
+  o["Property"] = 9;
+  o["Event"] = 10;
+  o["Operator"] = 11;
+  o["Unit"] = 12;
+  o["Value"] = 13;
+  o["Constant"] = 14;
+  o["Enum"] = 15;
+  o["EnumMember"] = 16;
+  o["Keyword"] = 17;
+  o["Text"] = 18;
+  o["Color"] = 19;
+  o["File"] = 20;
+  o["Reference"] = 21;
+  o["Folder"] = 23;
+  o["TypeParameter"] = 24;
+  return o;
+}
+
+JsValue markerSeverityNs() {
+  JsValue o = JS.object();
+  o["Hint"] = MarkerSeverityHint;
+  o["Info"] = MarkerSeverityInfo;
+  o["Warning"] = MarkerSeverityWarning;
+  o["Error"] = MarkerSeverityError;
+  return o;
+}
+
+JsValue keyModNs() {
+  JsValue o = JS.object();
+  o["CtrlCmd"] = KeyModCtrl;
+  o["Shift"] = KeyModShift;
+  o["Alt"] = KeyModAlt;
+  o["WinCtrl"] = KeyModWinCtrl;
+  o["chord"] = JS.staticRest((JsValue args) => {
+    return JS.number(args[0]).toInt() | JS.number(args[1]).toInt();
+  });
+  return o;
+}
+
+JsValue uriNs() {
+  JsValue ns = JS.staticRest((JsValue args) => {
+    string scheme = JS.string(args[0]);
+    string authority = "";
+    string path = "";
+    string query = "";
+    string fragment = "";
+    if (args[1].truthy()) {
+      authority = JS.string(args[1]);
+    }
+    if (args[2].truthy()) {
+      path = JS.string(args[2]);
+    }
+    if (args[3].truthy()) {
+      query = JS.string(args[3]);
+    }
+    if (args[4].truthy()) {
+      fragment = JS.string(args[4]);
+    }
+    return wrapUri(new Uri(scheme, authority, path, query, fragment));
+  });
+  ns["parse"] = JS.staticRest((JsValue args) => {
+    return wrapUri(parseUri(JS.string(args[0])));
+  });
+  ns["file"] = JS.staticRest((JsValue args) => {
+    return wrapUri(fileUri(JS.string(args[0])));
+  });
+  return ns;
+}
+
+JsValue languagesNs() {
+  JsValue ns = JS.object();
+  ns["register"] = JS.staticRest((JsValue args) => {
+    string id = JS.string(args[0]["id"]);
+    registerLanguageId(id);
+    int w = 0;
+    while (w < languageWaiterIds.length) {
+      if (languageWaiterIds[w] == id) {
+        callFn(languageWaiters[w], jsUndefined());
+      }
+      w = w + 1;
+    }
+    return jsUndefined();
+  });
+  ns["onLanguage"] = JS.staticRest((JsValue args) => {
+    string id = JS.string(args[0]);
+    JsValue cb = args[1];
+    string[] ids = languageIds();
+    int i = 0;
+    while (i < ids.length) {
+      if (ids[i] == id) {
+        callFn(cb, jsUndefined());
+        return disposable(() => {
+        });
+      }
+      i = i + 1;
+    }
+    languageWaiterIds.push(id);
+    languageWaiters.push(cb);
+    return disposable(() => {
+    });
+  });
+  ns["getLanguages"] = JS.staticRest((JsValue args) => {
+    string[] ids = languageIds();
+    JsValue[] out = [];
+    int i = 0;
+    while (i < ids.length) {
+      JsValue row = JS.object();
+      row["id"] = ids[i];
+      out.push(row);
+      i = i + 1;
+    }
+    return out;
+  });
+  ns["registerCompletionItemProvider"] = JS.staticRest((JsValue args) => {
+    return disposable(languagesRegisterCompletion(args[0], args[1]));
+  });
+  ns["registerHoverProvider"] = JS.staticRest((JsValue args) => {
+    return disposable(languagesRegisterHover(args[0], args[1]));
+  });
+  ns["registerDefinitionProvider"] = JS.staticRest((JsValue args) => {
+    return disposable(languagesRegisterDefinition(args[0], args[1]));
+  });
+  ns["registerReferenceProvider"] = JS.staticRest((JsValue args) => {
+    return disposable(languagesRegisterReference(args[0], args[1]));
+  });
+  ns["registerDocumentSymbolProvider"] = JS.staticRest((JsValue args) => {
+    return disposable(languagesRegisterDocumentSymbol(args[0], args[1]));
+  });
+  ns["registerDocumentFormattingEditProvider"] = JS.staticRest((JsValue args) => {
+    return disposable(languagesRegisterFormatting(args[0], args[1]));
+  });
+  ns["registerDocumentRangeFormattingEditProvider"] = JS.staticRest((JsValue args) => {
+    return disposable(languagesRegisterFormatting(args[0], args[1]));
+  });
+  ns["registerOnTypeFormattingEditProvider"] = JS.staticRest((JsValue args) => {
+    return disposable(languagesRegisterFormatting(args[0], args[1]));
+  });
+  ns["registerRenameProvider"] = JS.staticRest((JsValue args) => {
+    return disposable(languagesRegisterRename(args[0], args[1]));
+  });
+  ns["registerSignatureHelpProvider"] = JS.staticRest((JsValue args) => {
+    return disposable(languagesRegisterSignatureHelp(args[0], args[1]));
+  });
+  ns["registerFoldingRangeProvider"] = JS.staticRest((JsValue args) => {
+    return disposable(languagesRegisterFolding(args[0], args[1]));
+  });
+  ns["registerLinkProvider"] = JS.staticRest((JsValue args) => {
+    return disposable(languagesRegisterLink(args[0], args[1]));
+  });
+  ns["registerCodeActionProvider"] = JS.staticRest((JsValue args) => {
+    return disposable(languagesRegisterCodeAction(args[0], args[1]));
+  });
+  ns["registerCodeLensProvider"] = JS.staticRest((JsValue args) => {
+    return disposable(languagesRegisterCodeLens(args[0], args[1]));
+  });
+  ns["registerColorProvider"] = JS.staticRest((JsValue args) => {
+    return disposable(languagesRegisterColor(args[0], args[1]));
+  });
+  ns["registerDocumentHighlightProvider"] = JS.staticRest((JsValue args) => {
+    return disposable(languagesRegisterHighlight(args[0], args[1]));
+  });
+  ns["registerInlayHintsProvider"] = JS.staticRest((JsValue args) => {
+    return disposable(languagesRegisterInlayHints(args[0], args[1]));
+  });
+  ns["registerInlineCompletionsProvider"] = JS.staticRest((JsValue args) => {
+    return disposable(languagesRegisterInlineCompletions(args[0], args[1]));
+  });
+  ns["registerImplementationProvider"] = JS.staticRest((JsValue args) => {
+    return disposable(languagesRegisterKind("implementation", args[0], args[1]));
+  });
+  ns["setLanguageConfiguration"] = JS.staticRest((JsValue args) => {
+    setLanguageConfigurationJs(JS.string(args[0]), args[1]);
+    return disposable(() => {
+    });
+  });
+  ns["setTokensProvider"] = JS.staticRest((JsValue args) => {
+    setTokensProviderJs(JS.string(args[0]), args[1]);
+    return disposable(() => {
+    });
+  });
+  ns["CompletionItemKind"] = completionKindNs();
+  return ns;
+}
+
+string languageOf(JsValue options, TextModel model) {
+  if (options.truthy() && options["language"].truthy()) {
+    return JS.string(options["language"]);
+  }
+  return modelGetLanguageId(model);
+}
+
+JsValue editorNs() {
+  JsValue ns = JS.object();
+  ns["create"] = JS.staticRest((JsValue args) => {
+    JsValue options = args[1];
+    TextModel? existing = null;
+    if (options.truthy() && options["model"].truthy()) {
+      existing = modelFromJs(options["model"]);
+    }
+    if (existing != null) {
+      string language = languageOf(options, existing);
+      string theme = "vs";
+      if (options.truthy() && options["theme"].truthy()) {
+        theme = JS.string(options["theme"]);
+      }
+      CodeEditor editor = createWithModel(args[0], existing, theme, language);
+      editor.updateOptions(options);
+      return wrapEditor(editor);
+    }
+    return wrapEditor(create(args[0], options));
+  });
+  ns["createDiffEditor"] = JS.staticRest((JsValue args) => {
+    return wrapDiff(createDiffEditor(args[0], args[1]));
+  });
+  ns["createModel"] = JS.staticRest((JsValue args) => {
+    string value = JS.string(args[0]);
+    string language = "plaintext";
+    if (args[1].truthy()) {
+      language = JS.string(args[1]);
+    }
+    if (args[2].truthy()) {
+      JsValue created = wrapModel(createModelWithUri(value, language, parseUri(uriKey(args[2]))));
+      modelCreatedEmitter.fire();
+      return created;
+    }
+    JsValue createdPlain = wrapModel(createModel(value, language));
+    modelCreatedEmitter.fire();
+    return createdPlain;
+  });
+  ns["getModels"] = JS.staticRest((JsValue args) => {
+    return wrapModelList();
+  });
+  ns["getModel"] = JS.staticRest((JsValue args) => {
+    TextModel? found = modelFromJs(args[0]);
+    if (found == null) {
+      return jsUndefined();
+    }
+    return wrapModel(found);
+  });
+  ns["getEditors"] = JS.staticRest((JsValue args) => {
+    return wrapEditorList();
+  });
+  ns["getDiffEditors"] = JS.staticRest((JsValue args) => {
+    DiffEditor[] all = getDiffEditors();
+    JsValue[] out = [];
+    int i = 0;
+    while (i < all.length) {
+      out.push(wrapDiff(all[i]));
+      i = i + 1;
+    }
+    return out;
+  });
+  ns["setTheme"] = JS.staticRest((JsValue args) => {
+    setTheme(JS.string(args[0]));
+    return jsUndefined();
+  });
+  ns["defineTheme"] = JS.staticRest((JsValue args) => {
+    defineTheme(JS.string(args[0]), args[1]);
+    return jsUndefined();
+  });
+  ns["setModelLanguage"] = JS.staticRest((JsValue args) => {
+    TextModel? model = modelFromJs(args[0]);
+    if (model != null) {
+      setModelLanguage(model, JS.string(args[1]));
+    }
+    return jsUndefined();
+  });
+  ns["setModelMarkers"] = JS.staticRest((JsValue args) => {
+    TextModel? model = modelFromJs(args[0]);
+    if (model != null) {
+      setModelMarkers(model, JS.string(args[1]), args[2]);
+      markerEmitter.fire();
+    }
+    return jsUndefined();
+  });
+  ns["getModelMarkers"] = JS.staticRest((JsValue args) => {
+    string owner = "";
+    string resource = "";
+    int take = 0;
+    if (args[0].truthy()) {
+      JsValue filter = args[0];
+      if (filter["owner"].truthy()) {
+        owner = JS.string(filter["owner"]);
+      }
+      if (filter["resource"].truthy()) {
+        resource = uriKey(filter["resource"]);
+      }
+      if (filter["take"].truthy()) {
+        take = JS.number(filter["take"]).toInt();
+      }
+    }
+    return wrapMarkerList(owner, resource, take);
+  });
+  ns["removeAllMarkers"] = JS.staticRest((JsValue args) => {
+    removeAllMarkers(JS.string(args[0]));
+    return jsUndefined();
+  });
+  ns["onDidCreateModel"] = JS.staticRest((JsValue args) => {
+    JsValue listener = args[0];
+    return disposable(modelCreatedEmitter.event(() => {
+      callFn(listener, JS.object());
+    }));
+  });
+  ns["onWillDisposeModel"] = JS.staticRest((JsValue args) => {
+    return disposable(() => {
+    });
+  });
+  ns["onDidChangeModelLanguage"] = JS.staticRest((JsValue args) => {
+    return disposable(() => {
+    });
+  });
+  ns["onDidCreateEditor"] = JS.staticRest((JsValue args) => {
+    JsValue listener = args[0];
+    return disposable(onDidCreateEditor(() => {
+      callFn(listener, JS.object());
+    }));
+  });
+  ns["onDidCreateDiffEditor"] = JS.staticRest((JsValue args) => {
+    JsValue listener = args[0];
+    return disposable(onDidCreateDiffEditor(() => {
+      callFn(listener, JS.object());
+    }));
+  });
+  ns["onDidChangeMarkers"] = JS.staticRest((JsValue args) => {
+    JsValue listener = args[0];
+    return disposable(markerEmitter.event(() => {
+      callFn(listener, JS.object());
+    }));
+  });
+  return ns;
+}
+
+export JsValue monacoApi() {
+  JsValue api = JS.object();
+  api["editor"] = editorNs();
+  api["languages"] = languagesNs();
+  api["Uri"] = uriNs();
+  api["MarkerSeverity"] = markerSeverityNs();
+  api["KeyMod"] = keyModNs();
+  api["CompletionItemKind"] = completionKindNs();
+  return api;
+}
+
+export JsValue installMonaco() {
+  JsValue api = monacoApi();
+  JsValue win = windowSelf();
+  win["monaco"] = api;
+  win["__lilEditor"] = true;
+  return api;
+}

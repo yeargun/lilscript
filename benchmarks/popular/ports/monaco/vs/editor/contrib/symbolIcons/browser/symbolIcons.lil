@@ -1,0 +1,38 @@
+export string[] symbolIconClasses() {
+  return [
+    "codicon-symbol-file",
+    "codicon-symbol-module",
+    "codicon-symbol-namespace",
+    "codicon-symbol-package",
+    "codicon-symbol-class",
+    "codicon-symbol-method",
+    "codicon-symbol-property",
+    "codicon-symbol-field",
+    "codicon-symbol-constructor",
+    "codicon-symbol-enum",
+    "codicon-symbol-interface",
+    "codicon-symbol-function",
+    "codicon-symbol-variable",
+    "codicon-symbol-constant",
+    "codicon-symbol-string",
+    "codicon-symbol-number",
+    "codicon-symbol-boolean",
+    "codicon-symbol-array",
+    "codicon-symbol-object",
+    "codicon-symbol-key",
+    "codicon-symbol-null",
+    "codicon-symbol-enum-member",
+    "codicon-symbol-struct",
+    "codicon-symbol-event",
+    "codicon-symbol-operator",
+    "codicon-symbol-type-parameter"
+  ];
+}
+
+export string symbolIconClass(int kind) {
+  string[] icons = symbolIconClasses();
+  if (kind < 0 || kind >= icons.length) {
+    return "codicon-symbol-property";
+  }
+  return icons[kind];
+}

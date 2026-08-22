@@ -1,0 +1,31 @@
+export class WorkspaceFolder {
+  string uri;
+  string name;
+  int index;
+
+  init(string uri, string name, int index) {
+    this.uri = uri;
+    this.name = name;
+    this.index = index;
+  }
+}
+
+export class Workspace {
+  string id;
+  WorkspaceFolder[] folders;
+
+  init(string id) {
+    this.id = id;
+    this.folders = [];
+  }
+
+  void addFolder(string uri, string name) {
+    this.folders.push(new WorkspaceFolder(uri, name, this.folders.length));
+  }
+}
+
+export Workspace createWorkspace(string id) {
+  return new Workspace(id);
+}
+
+export string IWorkspaceContextServiceId = "workspaceContextService";

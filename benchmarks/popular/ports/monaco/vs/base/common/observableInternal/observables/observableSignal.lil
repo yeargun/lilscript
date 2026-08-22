@@ -1,0 +1,137 @@
+export class SignalObserver {
+  func(ObservableSignal)->void beginUpdateFn;
+  func(ObservableSignal)->void endUpdateFn;
+  func(ObservableSignal, JsValue)->void handleChangeFn;
+  func(ObservableSignal)->void handlePossibleChangeFn;
+
+  init(
+    func(ObservableSignal)->void beginUpdateFn,
+    func(ObservableSignal)->void endUpdateFn,
+    func(ObservableSignal, JsValue)->void handleChangeFn,
+    func(ObservableSignal)->void handlePossibleChangeFn
+  ) {
+    this.beginUpdateFn = beginUpdateFn;
+    this.endUpdateFn = endUpdateFn;
+    this.handleChangeFn = handleChangeFn;
+    this.handlePossibleChangeFn = handlePossibleChangeFn;
+  }
+
+  void beginUpdate(ObservableSignal observable) {
+    this.beginUpdateFn(observable);
+  }
+
+  void endUpdate(ObservableSignal observable) {
+    this.endUpdateFn(observable);
+  }
+
+  void handleChange(ObservableSignal observable, JsValue change) {
+    this.handleChangeFn(observable, change);
+  }
+
+  void handlePossibleChange(ObservableSignal observable) {
+    this.handlePossibleChangeFn(observable);
+  }
+}
+
+class SignalTransactionEntry {
+  SignalObserver observer;
+  ObservableSignal observable;
+
+  init(SignalObserver observer, ObservableSignal observable) {
+    this.observer = observer;
+    this.observable = observable;
+  }
+}
+
+export class SignalTransaction {
+  SignalTransactionEntry[] entries;
+  bool active;
+
+  init() {
+    this.entries = [];
+    this.active = true;
+  }
+
+  void updateObserver(SignalObserver observer, ObservableSignal observable) {
+    if (!this.active) {
+      throw "Transaction already finished";
+    }
+    this.entries.push(new SignalTransactionEntry(observer, observable));
+    observer.beginUpdate(observable);
+  }
+
+  void finish() {
+    int i = 0;
+    while (i < this.entries.length) {
+      SignalTransactionEntry entry = this.entries[i];
+      entry.observer.endUpdate(entry.observable);
+      i = i + 1;
+    }
+    this.active = false;
+  }
+}
+
+export class ObservableSignal {
+  string debugName;
+  int version;
+  SignalObserver[] observers;
+
+  init(string debugName) {
+    this.debugName = debugName;
+    this.version = 0;
+    this.observers = [];
+  }
+
+  int get() {
+    return this.version;
+  }
+
+  int read() {
+    return this.version;
+  }
+
+  void addObserver(SignalObserver observer) {
+    if (this.observers.indexOf(observer) < 0) {
+      this.observers.push(observer);
+    }
+  }
+
+  void removeObserver(SignalObserver observer) {
+    int index = this.observers.indexOf(observer);
+    if (index >= 0) {
+      this.observers.splice(index, 1);
+    }
+  }
+
+  void trigger(SignalTransaction? transactionValue, JsValue change) {
+    SignalTransaction tx = new SignalTransaction();
+    bool ownsTransaction = true;
+    if (transactionValue != null) {
+      tx = transactionValue;
+      ownsTransaction = false;
+    }
+    this.version = this.version + 1;
+    try {
+      SignalObserver[] snapshot = this.observers.slice();
+      int i = 0;
+      while (i < snapshot.length) {
+        SignalObserver observer = snapshot[i];
+        tx.updateObserver(observer, this);
+        observer.handleChange(this, change);
+        i = i + 1;
+      }
+    } finally {
+      if (ownsTransaction) {
+        tx.finish();
+      }
+    }
+  }
+
+  void triggerNow() {
+    this.trigger(null, 0);
+  }
+}
+
+export ObservableSignal observableSignal(string debugName) {
+  return new ObservableSignal(debugName);
+}

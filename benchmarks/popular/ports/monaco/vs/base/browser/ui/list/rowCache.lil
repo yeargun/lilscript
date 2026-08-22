@@ -1,0 +1,143 @@
+export class CachedRow {
+  int id;
+  string templateId;
+  JsValue templateData;
+  bool connected;
+
+  init(int id, string templateId, JsValue templateData) {
+    this.id = id;
+    this.templateId = templateId;
+    this.templateData = templateData;
+    this.connected = true;
+  }
+}
+
+export class RowAllocation {
+  CachedRow row;
+  bool isReusingConnectedDomNode;
+
+  init(CachedRow row, bool isReusingConnectedDomNode) {
+    this.row = row;
+    this.isReusingConnectedDomNode = isReusingConnectedDomNode;
+  }
+}
+
+export class RowCache {
+  Map<string, CachedRow[]> cache;
+  string[] templateIds;
+  int[] pendingRemoval;
+  bool inTransaction;
+  int nextId;
+
+  init() {
+    this.cache = new Map();
+    this.templateIds = [];
+    this.pendingRemoval = [];
+    this.inTransaction = false;
+    this.nextId = 1;
+  }
+
+  CachedRow[] getTemplateCache(string templateId) {
+    CachedRow[]? rows = this.cache.get(templateId);
+    if (rows != null) {
+      return rows;
+    }
+    CachedRow[] created = [];
+    this.cache.set(templateId, created);
+    this.templateIds.push(templateId);
+    return created;
+  }
+
+  RowAllocation alloc(string templateId, JsValue templateData = null) {
+    CachedRow[] rows = this.getTemplateCache(templateId);
+    CachedRow? existing = null;
+    bool stale = false;
+    if (rows.length > 0) {
+      existing = rows.pop();
+    }
+    CachedRow row = new CachedRow(this.nextId, templateId, templateData);
+    if (existing != null) {
+      row = existing;
+      int pendingIndex = this.pendingRemoval.indexOf(row.id);
+      if (pendingIndex >= 0) {
+        this.pendingRemoval.splice(pendingIndex, 1);
+        stale = true;
+      }
+      row.connected = true;
+    } else {
+      this.nextId = this.nextId + 1;
+    }
+    return new RowAllocation(row, stale);
+  }
+
+  void release(CachedRow? row) {
+    if (row == null) {
+      return;
+    }
+    if (this.inTransaction) {
+      if (this.pendingRemoval.indexOf(row.id) < 0) {
+        this.pendingRemoval.push(row.id);
+      }
+    } else {
+      row.connected = false;
+    }
+    this.getTemplateCache(row.templateId).push(row);
+  }
+
+  void beginTransaction() {
+    if (this.inTransaction) {
+      throw "Already in transaction";
+    }
+    this.inTransaction = true;
+  }
+
+  void endTransaction() {
+    int i = 0;
+    while (i < this.pendingRemoval.length) {
+      this.disconnect(this.pendingRemoval[i]);
+      i = i + 1;
+    }
+    this.pendingRemoval = [];
+    this.inTransaction = false;
+  }
+
+  void disconnect(int rowId) {
+    CachedRow[] allRows = this.rows();
+    int i = 0;
+    while (i < allRows.length) {
+      if (allRows[i].id == rowId) {
+        allRows[i].connected = false;
+        return;
+      }
+      i = i + 1;
+    }
+  }
+
+  CachedRow[] rows() {
+    CachedRow[] result = [];
+    int i = 0;
+    while (i < this.templateIds.length) {
+      CachedRow[]? rows = this.cache.get(this.templateIds[i]);
+      if (rows != null) {
+        int j = 0;
+        while (j < rows.length) {
+          result.push(rows[j]);
+          j = j + 1;
+        }
+      }
+      i = i + 1;
+    }
+    return result;
+  }
+
+  void dispose() {
+    this.cache = new Map();
+    this.templateIds = [];
+    this.pendingRemoval = [];
+    this.inTransaction = false;
+  }
+}
+
+export RowCache createRowCache() {
+  return new RowCache();
+}

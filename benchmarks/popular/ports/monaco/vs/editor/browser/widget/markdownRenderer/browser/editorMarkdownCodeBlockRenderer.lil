@@ -1,0 +1,50 @@
+import { concat2, emptyBuf, setInnerHTML } from "../../../../../../js-host";
+
+export string PLAINTEXT_LANGUAGE_ID = "plaintext";
+
+export class EditorMarkdownCodeBlockRenderer {
+  init() {
+  }
+
+  string resolveLanguageId(string languageAlias, string editorLanguageId) {
+    if (languageAlias.length > 0) {
+      return languageAlias;
+    }
+    if (editorLanguageId.length > 0) {
+      return editorLanguageId;
+    }
+    return PLAINTEXT_LANGUAGE_ID;
+  }
+
+  string escapeHtml(string value) {
+    string out = emptyBuf();
+    int i = 0;
+    while (i < value.length) {
+      string ch = value.charAt(i);
+      if (ch == "<") {
+        out = concat2(out, "&lt;");
+      } else if (ch == ">") {
+        out = concat2(out, "&gt;");
+      } else if (ch == "&") {
+        out = concat2(out, "&amp;");
+      } else {
+        out = concat2(out, ch);
+      }
+      i = i + 1;
+    }
+    return out;
+  }
+
+  string renderCodeBlock(string languageAlias, string value, string editorLanguageId) {
+    string languageId = this.resolveLanguageId(languageAlias, editorLanguageId);
+    return "<span class=\"monaco-tokenized-source\" data-lang=\"" + languageId + "\">" + this.escapeHtml(value) + "</span>";
+  }
+
+  void write(JsValue root, string html) {
+    setInnerHTML(root, html);
+  }
+}
+
+export EditorMarkdownCodeBlockRenderer createEditorMarkdownCodeBlockRenderer() {
+  return new EditorMarkdownCodeBlockRenderer();
+}

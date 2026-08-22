@@ -1,0 +1,488 @@
+import { sliceOf, repeatChar } from "../../../../js-host";
+
+export class ViewPosition {
+  int lineNumber;
+  int column;
+
+  init(int lineNumber, int column) {
+    this.lineNumber = lineNumber;
+    this.column = column;
+  }
+}
+
+export class ViewRange {
+  int startLineNumber;
+  int startColumn;
+  int endLineNumber;
+  int endColumn;
+
+  init(int startLineNumber, int startColumn, int endLineNumber, int endColumn) {
+    this.startLineNumber = startLineNumber;
+    this.startColumn = startColumn;
+    this.endLineNumber = endLineNumber;
+    this.endColumn = endColumn;
+  }
+}
+
+export class HiddenLineRange {
+  int startLineNumber;
+  int endLineNumber;
+
+  init(int startLineNumber, int endLineNumber) {
+    this.startLineNumber = startLineNumber;
+    this.endLineNumber = endLineNumber;
+  }
+}
+
+export class ViewLineInfo {
+  int modelLineNumber;
+  int wrappedLineIndex;
+
+  init(int modelLineNumber, int wrappedLineIndex) {
+    this.modelLineNumber = modelLineNumber;
+    this.wrappedLineIndex = wrappedLineIndex;
+  }
+}
+
+export class ProjectedModelLine {
+  string content;
+  int[] breakOffsets;
+  int[] visibleColumns;
+  int wrappedIndentLength;
+  bool visible;
+
+  init(string content, int[] breakOffsets, int[] visibleColumns, int wrappedIndentLength) {
+    this.content = content;
+    this.breakOffsets = breakOffsets;
+    this.visibleColumns = visibleColumns;
+    this.wrappedIndentLength = wrappedIndentLength;
+    this.visible = true;
+  }
+
+  int viewLineCount() {
+    if (!this.visible) {
+      return 0;
+    }
+    return this.breakOffsets.length;
+  }
+
+  int startOffset(int wrappedLineIndex) {
+    if (wrappedLineIndex == 0) {
+      return 0;
+    }
+    return this.breakOffsets[wrappedLineIndex - 1];
+  }
+
+  int endOffset(int wrappedLineIndex) {
+    return this.breakOffsets[wrappedLineIndex];
+  }
+
+  int minColumn(int wrappedLineIndex) {
+    if (wrappedLineIndex == 0) {
+      return 1;
+    }
+    return this.wrappedIndentLength + 1;
+  }
+
+  int maxColumn(int wrappedLineIndex) {
+    return this.endOffset(wrappedLineIndex) - this.startOffset(wrappedLineIndex) + this.minColumn(wrappedLineIndex);
+  }
+
+  string viewContent(int wrappedLineIndex) {
+    string result = sliceOf(this.content, this.startOffset(wrappedLineIndex), this.endOffset(wrappedLineIndex));
+    if (wrappedLineIndex > 0 && this.wrappedIndentLength > 0) {
+      result = repeatChar(" ", this.wrappedIndentLength) + result;
+    }
+    return result;
+  }
+
+  int modelColumn(int wrappedLineIndex, int viewColumn) {
+    int localColumn = viewColumn - this.minColumn(wrappedLineIndex);
+    if (localColumn < 0) {
+      localColumn = 0;
+    }
+    int lineLength = this.endOffset(wrappedLineIndex) - this.startOffset(wrappedLineIndex);
+    if (localColumn > lineLength) {
+      localColumn = lineLength;
+    }
+    return this.startOffset(wrappedLineIndex) + localColumn + 1;
+  }
+
+  ViewPosition viewPosition(int baseViewLineNumber, int modelColumn, int affinity) {
+    int offset = modelColumn - 1;
+    int index = 0;
+    while (index + 1 < this.breakOffsets.length && offset > this.breakOffsets[index]) {
+      index = index + 1;
+    }
+    if (affinity == 1 && index + 1 < this.breakOffsets.length && offset == this.breakOffsets[index]) {
+      index = index + 1;
+    }
+    int localOffset = offset - this.startOffset(index);
+    if (localOffset < 0) {
+      localOffset = 0;
+    }
+    int lineLength = this.endOffset(index) - this.startOffset(index);
+    if (localOffset > lineLength) {
+      localOffset = lineLength;
+    }
+    return new ViewPosition(baseViewLineNumber + index, this.minColumn(index) + localOffset);
+  }
+}
+
+export class ViewModelLines {
+  string[] modelLines;
+  ProjectedModelLine[] projections;
+  HiddenLineRange[] hiddenAreas;
+  int tabSize;
+  int wrappingColumn;
+  int wrappingIndent;
+
+  init(string[] modelLines, int tabSize, int wrappingColumn, int wrappingIndent) {
+    this.modelLines = modelLines;
+    this.projections = [];
+    this.hiddenAreas = [];
+    this.tabSize = tabSize;
+    this.wrappingColumn = wrappingColumn;
+    this.wrappingIndent = wrappingIndent;
+    this.rebuild();
+  }
+
+  int charWidth(int code, int visibleColumn) {
+    if (code == 9) {
+      return this.tabSize - visibleColumn % this.tabSize;
+    }
+    if ((code >= 4352 && code <= 4447) || (code >= 11904 && code <= 42191) || (code >= 44032 && code <= 55203) || (code >= 63744 && code <= 64255) || (code >= 65072 && code <= 65376)) {
+      return 2;
+    }
+    return 1;
+  }
+
+  int computeIndent(string content) {
+    if (this.wrappingIndent == 0) {
+      return 0;
+    }
+    int width = 0;
+    int i = 0;
+    while (i < content.length) {
+      int code = content.charCodeAt(i);
+      if (code != 32 && code != 9) {
+        break;
+      }
+      width = width + this.charWidth(code, width);
+      i = i + 1;
+    }
+    if (i == content.length) {
+      return 0;
+    }
+    int extra = 0;
+    if (this.wrappingIndent == 2) {
+      extra = 1;
+    }
+    if (this.wrappingIndent == 3) {
+      extra = 2;
+    }
+    i = 0;
+    while (i < extra) {
+      width = width + this.tabSize - width % this.tabSize;
+      i = i + 1;
+    }
+    if (width + 2 > this.wrappingColumn) {
+      return 0;
+    }
+    return width;
+  }
+
+  ProjectedModelLine projectLine(string content) {
+    int[] offsets = [];
+    int[] visible = [];
+    if (this.wrappingColumn < 1 || content.length == 0) {
+      offsets.push(content.length);
+      visible.push(content.length);
+      return new ProjectedModelLine(content, offsets, visible, 0);
+    }
+    int indent = this.computeIndent(content);
+    int continuationWidth = this.wrappingColumn - indent;
+    if (continuationWidth < 1) {
+      continuationWidth = this.wrappingColumn;
+      indent = 0;
+    }
+    int segmentStart = 0;
+    int visibleColumn = 0;
+    int limit = this.wrappingColumn;
+    int lastBreakOffset = -1;
+    int lastBreakColumn = 0;
+    int i = 0;
+    while (i < content.length) {
+      int code = content.charCodeAt(i);
+      if (code == 32 || code == 9 || code == 45 || code == 47 || code == 92) {
+        lastBreakOffset = i + 1;
+        lastBreakColumn = visibleColumn + this.charWidth(code, visibleColumn);
+      }
+      int width = this.charWidth(code, visibleColumn);
+      int nextColumn = visibleColumn + width;
+      if (nextColumn > limit) {
+        int breakOffset = lastBreakOffset;
+        int breakColumn = lastBreakColumn;
+        if (breakOffset <= segmentStart) {
+          breakOffset = i;
+          breakColumn = visibleColumn;
+        }
+        if (breakOffset <= segmentStart) {
+          breakOffset = i + 1;
+          breakColumn = nextColumn;
+        }
+        offsets.push(breakOffset);
+        visible.push(breakColumn);
+        segmentStart = breakOffset;
+        limit = breakColumn + continuationWidth;
+        lastBreakOffset = -1;
+        if (breakOffset <= i) {
+          continue;
+        }
+      }
+      visibleColumn = nextColumn;
+      i = i + 1;
+    }
+    if (offsets.length == 0 || offsets[offsets.length - 1] != content.length) {
+      offsets.push(content.length);
+      visible.push(visibleColumn);
+    }
+    return new ProjectedModelLine(content, offsets, visible, indent);
+  }
+
+  void rebuild() {
+    this.projections = [];
+    int i = 0;
+    while (i < this.modelLines.length) {
+      ProjectedModelLine projection = this.projectLine(this.modelLines[i]);
+      projection.visible = !this.isLineHidden(i + 1);
+      this.projections.push(projection);
+      i = i + 1;
+    }
+    if (this.getViewLineCount() == 0 && this.projections.length > 0) {
+      this.projections[0].visible = true;
+    }
+  }
+
+  bool isLineHidden(int lineNumber) {
+    int i = 0;
+    while (i < this.hiddenAreas.length) {
+      HiddenLineRange range = this.hiddenAreas[i];
+      if (lineNumber >= range.startLineNumber && lineNumber <= range.endLineNumber) {
+        return true;
+      }
+      i = i + 1;
+    }
+    return false;
+  }
+
+  bool setHiddenAreas(HiddenLineRange[] ranges) {
+    HiddenLineRange[] normalized = [];
+    int i = 0;
+    while (i < ranges.length) {
+      int startLine = ranges[i].startLineNumber;
+      int endLine = ranges[i].endLineNumber;
+      if (startLine < 1) {
+        startLine = 1;
+      }
+      if (endLine > this.modelLines.length) {
+        endLine = this.modelLines.length;
+      }
+      if (startLine <= endLine) {
+        int insertAt = 0;
+        while (insertAt < normalized.length && normalized[insertAt].startLineNumber <= startLine) {
+          insertAt = insertAt + 1;
+        }
+        normalized.push(new HiddenLineRange(startLine, endLine));
+        int move = normalized.length - 1;
+        while (move > insertAt) {
+          normalized[move] = normalized[move - 1];
+          move = move - 1;
+        }
+        normalized[insertAt] = new HiddenLineRange(startLine, endLine);
+      }
+      i = i + 1;
+    }
+    HiddenLineRange[] merged = [];
+    i = 0;
+    while (i < normalized.length) {
+      HiddenLineRange current = normalized[i];
+      if (merged.length > 0 && current.startLineNumber <= merged[merged.length - 1].endLineNumber + 1) {
+        if (current.endLineNumber > merged[merged.length - 1].endLineNumber) {
+          merged[merged.length - 1].endLineNumber = current.endLineNumber;
+        }
+      } else {
+        merged.push(current);
+      }
+      i = i + 1;
+    }
+    if (merged.length == 1 && merged[0].startLineNumber == 1 && merged[0].endLineNumber == this.modelLines.length) {
+      merged = [];
+    }
+    this.hiddenAreas = merged;
+    this.rebuild();
+    return true;
+  }
+
+  int getViewLineCount() {
+    int total = 0;
+    int i = 0;
+    while (i < this.projections.length) {
+      total = total + this.projections[i].viewLineCount();
+      i = i + 1;
+    }
+    return total;
+  }
+
+  int baseViewLineNumber(int modelLineIndex) {
+    int result = 1;
+    int i = 0;
+    while (i < modelLineIndex) {
+      result = result + this.projections[i].viewLineCount();
+      i = i + 1;
+    }
+    return result;
+  }
+
+  ViewLineInfo getViewLineInfo(int viewLineNumber) {
+    int target = viewLineNumber;
+    if (target < 1) {
+      target = 1;
+    }
+    int maxLine = this.getViewLineCount();
+    if (target > maxLine) {
+      target = maxLine;
+    }
+    int consumed = 0;
+    int i = 0;
+    while (i < this.projections.length) {
+      int count = this.projections[i].viewLineCount();
+      if (target <= consumed + count) {
+        return new ViewLineInfo(i + 1, target - consumed - 1);
+      }
+      consumed = consumed + count;
+      i = i + 1;
+    }
+    return new ViewLineInfo(1, 0);
+  }
+
+  string getViewLineContent(int viewLineNumber) {
+    ViewLineInfo info = this.getViewLineInfo(viewLineNumber);
+    return this.projections[info.modelLineNumber - 1].viewContent(info.wrappedLineIndex);
+  }
+
+  int getViewLineLength(int viewLineNumber) {
+    return this.getViewLineContent(viewLineNumber).length;
+  }
+
+  int getViewLineMinColumn(int viewLineNumber) {
+    ViewLineInfo info = this.getViewLineInfo(viewLineNumber);
+    return this.projections[info.modelLineNumber - 1].minColumn(info.wrappedLineIndex);
+  }
+
+  int getViewLineMaxColumn(int viewLineNumber) {
+    ViewLineInfo info = this.getViewLineInfo(viewLineNumber);
+    return this.projections[info.modelLineNumber - 1].maxColumn(info.wrappedLineIndex);
+  }
+
+  ViewPosition convertViewPositionToModelPosition(int viewLineNumber, int viewColumn) {
+    ViewLineInfo info = this.getViewLineInfo(viewLineNumber);
+    ProjectedModelLine projection = this.projections[info.modelLineNumber - 1];
+    return new ViewPosition(info.modelLineNumber, projection.modelColumn(info.wrappedLineIndex, viewColumn));
+  }
+
+  ViewRange convertViewRangeToModelRange(ViewRange viewRange) {
+    ViewPosition start = this.convertViewPositionToModelPosition(viewRange.startLineNumber, viewRange.startColumn);
+    ViewPosition end = this.convertViewPositionToModelPosition(viewRange.endLineNumber, viewRange.endColumn);
+    return new ViewRange(start.lineNumber, start.column, end.lineNumber, end.column);
+  }
+
+  ViewPosition convertModelPositionToViewPosition(int modelLineNumber, int modelColumn, int affinity = 2, bool belowHiddenRanges = false) {
+    int lineIndex = modelLineNumber - 1;
+    if (lineIndex < 0) {
+      lineIndex = 0;
+    }
+    if (lineIndex >= this.projections.length) {
+      lineIndex = this.projections.length - 1;
+    }
+    bool moved = false;
+    if (belowHiddenRanges) {
+      while (lineIndex + 1 < this.projections.length && !this.projections[lineIndex].visible) {
+        lineIndex = lineIndex + 1;
+        moved = true;
+      }
+    } else {
+      while (lineIndex > 0 && !this.projections[lineIndex].visible) {
+        lineIndex = lineIndex - 1;
+        moved = true;
+      }
+    }
+    ProjectedModelLine projection = this.projections[lineIndex];
+    int column = modelColumn;
+    if (moved) {
+      if (belowHiddenRanges) {
+        column = 1;
+      } else {
+        column = projection.content.length + 1;
+      }
+    }
+    if (column < 1) {
+      column = 1;
+    }
+    if (column > projection.content.length + 1) {
+      column = projection.content.length + 1;
+    }
+    return projection.viewPosition(this.baseViewLineNumber(lineIndex), column, affinity);
+  }
+
+  ViewRange convertModelRangeToViewRange(ViewRange modelRange, int affinity = 0) {
+    ViewPosition start = this.convertModelPositionToViewPosition(modelRange.startLineNumber, modelRange.startColumn, affinity);
+    ViewPosition end = this.convertModelPositionToViewPosition(modelRange.endLineNumber, modelRange.endColumn, affinity);
+    return new ViewRange(start.lineNumber, start.column, end.lineNumber, end.column);
+  }
+
+  void setLineContent(int modelLineNumber, string content) {
+    if (modelLineNumber < 1 || modelLineNumber > this.modelLines.length) {
+      return;
+    }
+    this.modelLines[modelLineNumber - 1] = content;
+    ProjectedModelLine replacement = this.projectLine(content);
+    replacement.visible = !this.isLineHidden(modelLineNumber);
+    this.projections[modelLineNumber - 1] = replacement;
+  }
+
+  bool setTabSize(int tabSize) {
+    if (tabSize == this.tabSize) {
+      return false;
+    }
+    this.tabSize = tabSize;
+    this.rebuild();
+    return true;
+  }
+
+  bool setWrappingSettings(int wrappingColumn, int wrappingIndent) {
+    if (wrappingColumn == this.wrappingColumn && wrappingIndent == this.wrappingIndent) {
+      return false;
+    }
+    this.wrappingColumn = wrappingColumn;
+    this.wrappingIndent = wrappingIndent;
+    this.rebuild();
+    return true;
+  }
+}
+
+export ViewModelLines createViewModelLines(string[] modelLines, int tabSize = 4, int wrappingColumn = -1, int wrappingIndent = 1) {
+  return new ViewModelLines(modelLines, tabSize, wrappingColumn, wrappingIndent);
+}
+
+export ViewPosition createViewPosition(int lineNumber, int column) {
+  return new ViewPosition(lineNumber, column);
+}
+
+export ViewRange createViewRange(int startLineNumber, int startColumn, int endLineNumber, int endColumn) {
+  return new ViewRange(startLineNumber, startColumn, endLineNumber, endColumn);
+}
+
+export HiddenLineRange createHiddenLineRange(int startLineNumber, int endLineNumber) {
+  return new HiddenLineRange(startLineNumber, endLineNumber);
+}

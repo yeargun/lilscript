@@ -1,0 +1,24 @@
+export int computeIndentLevel(string line, int tabSize) {
+  int indent = 0;
+  int i = 0;
+  int len = line.length;
+  int size = tabSize;
+  if (size <= 0) {
+    size = 4;
+  }
+  while (i < len) {
+    int chCode = line.charCodeAt(i);
+    if (chCode == 32) {
+      indent = indent + 1;
+    } else if (chCode == 9) {
+      indent = indent - indent % size + size;
+    } else {
+      break;
+    }
+    i = i + 1;
+  }
+  if (i == len) {
+    return -1;
+  }
+  return indent;
+}

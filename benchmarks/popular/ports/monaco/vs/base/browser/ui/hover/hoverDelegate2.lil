@@ -1,0 +1,88 @@
+import { jsUndefined } from "../../../../../js-host";
+
+export class HoverDelegate2 {
+  func(JsValue, bool)->JsValue showInstantHoverFn;
+  func(JsValue, JsValue)->JsValue showDelayedHoverFn;
+  func(JsValue, JsValue, JsValue)->JsValue setupDelayedHoverFn;
+  func(JsValue, JsValue, JsValue)->JsValue setupDelayedHoverAtMouseFn;
+  func(bool)->void hideHoverFn;
+  func()->void showAndFocusLastHoverFn;
+  func(JsValue, JsValue, JsValue, JsValue)->JsValue setupManagedHoverFn;
+  func(JsValue)->void showManagedHoverFn;
+
+  init() {
+    this.showInstantHoverFn = (JsValue options, bool focus) => {
+      return jsUndefined();
+    };
+    this.showDelayedHoverFn = (JsValue options, JsValue lifecycle) => {
+      return jsUndefined();
+    };
+    this.setupDelayedHoverFn = (JsValue target, JsValue options, JsValue lifecycle) => {
+      JsValue disposable = JS.object();
+      disposable["dispose"] = () => {};
+      return disposable;
+    };
+    this.setupDelayedHoverAtMouseFn = (JsValue target, JsValue options, JsValue lifecycle) => {
+      JsValue disposable = JS.object();
+      disposable["dispose"] = () => {};
+      return disposable;
+    };
+    this.hideHoverFn = (bool force) => {};
+    this.showAndFocusLastHoverFn = () => {};
+    this.setupManagedHoverFn = (JsValue hoverDelegate, JsValue target, JsValue content, JsValue options) => {
+      JsValue hover = JS.object();
+      hover["dispose"] = () => {};
+      hover["show"] = () => {};
+      hover["hide"] = () => {};
+      hover["update"] = () => {};
+      return hover;
+    };
+    this.showManagedHoverFn = (JsValue target) => {};
+  }
+
+  JsValue showInstantHover(JsValue options, bool focus) {
+    return this.showInstantHoverFn(options, focus);
+  }
+
+  JsValue showDelayedHover(JsValue options, JsValue lifecycle) {
+    return this.showDelayedHoverFn(options, lifecycle);
+  }
+
+  JsValue setupDelayedHover(JsValue target, JsValue options, JsValue lifecycle) {
+    return this.setupDelayedHoverFn(target, options, lifecycle);
+  }
+
+  JsValue setupDelayedHoverAtMouse(JsValue target, JsValue options, JsValue lifecycle) {
+    return this.setupDelayedHoverAtMouseFn(target, options, lifecycle);
+  }
+
+  void hideHover(bool force) {
+    this.hideHoverFn(force);
+  }
+
+  void showAndFocusLastHover() {
+    this.showAndFocusLastHoverFn();
+  }
+
+  JsValue setupManagedHover(JsValue hoverDelegate, JsValue target, JsValue content, JsValue options) {
+    return this.setupManagedHoverFn(hoverDelegate, target, content, options);
+  }
+
+  void showManagedHover(JsValue target) {
+    this.showManagedHoverFn(target);
+  }
+}
+
+HoverDelegate2 baseHoverDelegate = new HoverDelegate2();
+
+export void setBaseLayerHoverDelegate(HoverDelegate2 hoverDelegate) {
+  baseHoverDelegate = hoverDelegate;
+}
+
+export HoverDelegate2 getBaseLayerHoverDelegate() {
+  return baseHoverDelegate;
+}
+
+export HoverDelegate2 createHoverDelegate2() {
+  return new HoverDelegate2();
+}

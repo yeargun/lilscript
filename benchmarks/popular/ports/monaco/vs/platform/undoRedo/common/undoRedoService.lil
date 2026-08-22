@@ -1,0 +1,205 @@
+int stackElementCounter = 0;
+
+export class UndoElement {
+  int id;
+  string label;
+  string resource;
+  bool confirmBeforeUndo;
+  bool valid;
+  func()->void undoFn;
+  func()->void redoFn;
+
+  init(string label, string resource, func()->void undoFn, func()->void redoFn) {
+    stackElementCounter = stackElementCounter + 1;
+    this.id = stackElementCounter;
+    this.label = label;
+    this.resource = resource;
+    this.confirmBeforeUndo = false;
+    this.valid = true;
+    this.undoFn = undoFn;
+    this.redoFn = redoFn;
+  }
+}
+
+export class ResourceEditStack {
+  string resource;
+  UndoElement[] past;
+  UndoElement[] future;
+  bool locked;
+  int versionId;
+
+  init(string resource) {
+    this.resource = resource;
+    this.past = [];
+    this.future = [];
+    this.locked = false;
+    this.versionId = 1;
+  }
+
+  void pushElement(UndoElement element) {
+    UndoElement[] empty = [];
+    this.future = empty;
+    this.past.push(element);
+    this.versionId = this.versionId + 1;
+  }
+
+  bool hasPast() {
+    return this.past.length > 0;
+  }
+
+  bool hasFuture() {
+    return this.future.length > 0;
+  }
+
+  UndoElement? closestPast() {
+    if (this.past.length == 0) {
+      return null;
+    }
+    return this.past[this.past.length - 1];
+  }
+
+  UndoElement? closestFuture() {
+    if (this.future.length == 0) {
+      return null;
+    }
+    return this.future[this.future.length - 1];
+  }
+
+  UndoElement? popPast() {
+    if (this.past.length == 0) {
+      return null;
+    }
+    UndoElement[] next = [];
+    int i = 0;
+    int last = this.past.length - 1;
+    while (i < last) {
+      next.push(this.past[i]);
+      i = i + 1;
+    }
+    UndoElement taken = this.past[last];
+    this.past = next;
+    this.versionId = this.versionId + 1;
+    return taken;
+  }
+
+  UndoElement? popFuture() {
+    if (this.future.length == 0) {
+      return null;
+    }
+    UndoElement[] next = [];
+    int i = 0;
+    int last = this.future.length - 1;
+    while (i < last) {
+      next.push(this.future[i]);
+      i = i + 1;
+    }
+    UndoElement taken = this.future[last];
+    this.future = next;
+    this.versionId = this.versionId + 1;
+    return taken;
+  }
+
+  void flush() {
+    UndoElement[] emptyPast = [];
+    UndoElement[] emptyFuture = [];
+    this.past = emptyPast;
+    this.future = emptyFuture;
+    this.versionId = this.versionId + 1;
+  }
+}
+
+export class UndoRedoService {
+  ResourceEditStack[] stacks;
+
+  init() {
+    this.stacks = [];
+  }
+
+  ResourceEditStack stackFor(string resource) {
+    int i = 0;
+    while (i < this.stacks.length) {
+      if (this.stacks[i].resource == resource) {
+        return this.stacks[i];
+      }
+      i = i + 1;
+    }
+    ResourceEditStack created = new ResourceEditStack(resource);
+    this.stacks.push(created);
+    return created;
+  }
+
+  void pushElement(UndoElement element) {
+    ResourceEditStack stack = this.stackFor(element.resource);
+    stack.pushElement(element);
+  }
+
+  bool canUndo(string resource) {
+    int i = 0;
+    while (i < this.stacks.length) {
+      if (this.stacks[i].resource == resource) {
+        return this.stacks[i].hasPast();
+      }
+      i = i + 1;
+    }
+    return false;
+  }
+
+  bool canRedo(string resource) {
+    int i = 0;
+    while (i < this.stacks.length) {
+      if (this.stacks[i].resource == resource) {
+        return this.stacks[i].hasFuture();
+      }
+      i = i + 1;
+    }
+    return false;
+  }
+
+  bool undo(string resource) {
+    ResourceEditStack stack = this.stackFor(resource);
+    if (stack.locked) {
+      return false;
+    }
+    UndoElement? element = stack.popPast();
+    if (element == null) {
+      return false;
+    }
+    stack.locked = true;
+    element.undoFn();
+    stack.future.push(element);
+    stack.locked = false;
+    return true;
+  }
+
+  bool redo(string resource) {
+    ResourceEditStack stack = this.stackFor(resource);
+    if (stack.locked) {
+      return false;
+    }
+    UndoElement? element = stack.popFuture();
+    if (element == null) {
+      return false;
+    }
+    stack.locked = true;
+    element.redoFn();
+    stack.past.push(element);
+    stack.locked = false;
+    return true;
+  }
+
+  void flush(string resource) {
+    this.stackFor(resource).flush();
+  }
+}
+
+export UndoRedoService createUndoRedoService() {
+  return new UndoRedoService();
+}
+
+export UndoElement createUndoElement(string label, string resource, func()->void undoFn, func()->void redoFn) {
+  return new UndoElement(label, resource, undoFn, redoFn);
+}
+
+export ResourceEditStack createResourceEditStack(string resource) {
+  return new ResourceEditStack(resource);
+}

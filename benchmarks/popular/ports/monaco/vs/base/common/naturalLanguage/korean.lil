@@ -1,0 +1,95 @@
+import { stringFromCharCode1 } from "../../../../js-host";
+
+int[] modernConsonants = [
+  114, 82, 115, 101, 69, 102, 97, 113, 81, 116, 84, 100, 119, 87, 99, 122, 120, 118, 103
+];
+int[] modernVowels = [
+  107, 111, 105, 79, 106, 112, 117, 80, 104, 27496, 28520, 27752, 121, 110, 27246, 28782, 27758, 98, 109, 27757, 108
+];
+int[] modernFinalConsonants = [
+  114, 82, 29810, 115, 30579, 26483, 101, 102, 29286, 24934, 29030, 29798, 30822, 30310, 26470,
+  97, 113, 29809, 116, 84, 100, 119, 99, 122, 120, 118, 103
+];
+int[] compatibilityJamo = [
+  114, 82, 29810, 115, 30579, 26483, 101, 69, 102, 29286, 24934, 29030, 29798, 30822, 30310, 26470,
+  97, 113, 81, 29809, 116, 84, 100, 119, 87, 99, 122, 120, 118, 103,
+  107, 111, 105, 79, 106, 112, 117, 80, 104, 27496, 28520, 27752, 121, 110, 27246, 28782, 27758, 98, 109, 27757, 108
+];
+
+void addCodes(int value, int[] result) {
+  if (value == 0) {
+    return;
+  }
+  result.push(value & 255);
+  if ((value >> 8) != 0) {
+    result.push((value >> 8) & 255);
+  }
+  if ((value >> 16) != 0) {
+    result.push((value >> 16) & 255);
+  }
+}
+
+bool addFromArray(int code, int[] values, int start, int[] result) {
+  if (code >= start && code < start + values.length) {
+    addCodes(values[code - start], result);
+    return result.length > 0;
+  }
+  return false;
+}
+
+export bool isHangul(int code) {
+  return (code >= 4352 && code <= 4607)
+    || (code >= 12593 && code <= 12687)
+    || (code >= 44032 && code <= 55203);
+}
+
+export int[] getKoreanAltChars(int code) {
+  int[] result = [];
+  if (addFromArray(code, modernConsonants, 4352, result)) {
+    return result;
+  }
+  if (addFromArray(code, modernVowels, 4449, result)) {
+    return result;
+  }
+  if (addFromArray(code, modernFinalConsonants, 4520, result)) {
+    return result;
+  }
+  if (addFromArray(code, compatibilityJamo, 12593, result)) {
+    return result;
+  }
+  if (code >= 44032 && code <= 55203) {
+    int hangulIndex = code - 44032;
+    int vowelAndFinal = hangulIndex % 588;
+    int initialIndex = hangulIndex / 588;
+    int vowelIndex = vowelAndFinal / 28;
+    int finalIndex = vowelAndFinal % 28 - 1;
+    if (initialIndex < modernConsonants.length) {
+      addCodes(modernConsonants[initialIndex], result);
+    }
+    if (vowelIndex < modernVowels.length) {
+      addCodes(modernVowels[vowelIndex], result);
+    }
+    if (finalIndex >= 0 && finalIndex < modernFinalConsonants.length) {
+      addCodes(modernFinalConsonants[finalIndex], result);
+    }
+  }
+  return result;
+}
+
+string koreanInitialCharacters = "ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ";
+
+export string getKoreanInitials(string value) {
+  string result = "";
+  int i = 0;
+  while (i < value.length) {
+    int code = value.charCodeAt(i);
+    if (code >= 44032 && code <= 55203) {
+      int initialIndex = (code - 44032) / 588;
+      result = result + koreanInitialCharacters.charAt(initialIndex);
+    } else if (code >= 12593 && code <= 12622) {
+      result = result + stringFromCharCode1(code * 1.0);
+    }
+    i = i + 1;
+  }
+  return result;
+}

@@ -1,0 +1,119 @@
+export class KeyCodeChord {
+  bool ctrlKey;
+  bool shiftKey;
+  bool altKey;
+  bool metaKey;
+  int keyCode;
+
+  init(bool ctrlKey, bool shiftKey, bool altKey, bool metaKey, int keyCode) {
+    this.ctrlKey = ctrlKey;
+    this.shiftKey = shiftKey;
+    this.altKey = altKey;
+    this.metaKey = metaKey;
+    this.keyCode = keyCode;
+  }
+
+  bool isModifierKey() {
+    return this.keyCode == 0 || this.keyCode == 5 || this.keyCode == 57 || this.keyCode == 6 || this.keyCode == 4;
+  }
+
+  bool isDuplicateModifierCase() {
+    return (this.ctrlKey && this.keyCode == 5)
+      || (this.shiftKey && this.keyCode == 4)
+      || (this.altKey && this.keyCode == 6)
+      || (this.metaKey && this.keyCode == 57);
+  }
+}
+
+export class ScanCodeChord {
+  bool ctrlKey;
+  bool shiftKey;
+  bool altKey;
+  bool metaKey;
+  int scanCode;
+
+  init(bool ctrlKey, bool shiftKey, bool altKey, bool metaKey, int scanCode) {
+    this.ctrlKey = ctrlKey;
+    this.shiftKey = shiftKey;
+    this.altKey = altKey;
+    this.metaKey = metaKey;
+    this.scanCode = scanCode;
+  }
+
+  bool isDuplicateModifierCase() {
+    return (this.ctrlKey && (this.scanCode == 157 || this.scanCode == 161))
+      || (this.shiftKey && (this.scanCode == 158 || this.scanCode == 162))
+      || (this.altKey && (this.scanCode == 159 || this.scanCode == 163))
+      || (this.metaKey && (this.scanCode == 160 || this.scanCode == 164));
+  }
+}
+
+export class Keybinding {
+  KeyCodeChord[] chords;
+
+  init(KeyCodeChord[] chords) {
+    if (chords.length == 0) {
+      throw "chords";
+    }
+    this.chords = chords;
+  }
+}
+
+export class ResolvedChord {
+  bool ctrlKey;
+  bool shiftKey;
+  bool altKey;
+  bool metaKey;
+  string keyLabel;
+  string keyAriaLabel;
+
+  init(bool ctrlKey, bool shiftKey, bool altKey, bool metaKey, string keyLabel, string keyAriaLabel) {
+    this.ctrlKey = ctrlKey;
+    this.shiftKey = shiftKey;
+    this.altKey = altKey;
+    this.metaKey = metaKey;
+    this.keyLabel = keyLabel;
+    this.keyAriaLabel = keyAriaLabel;
+  }
+}
+
+export KeyCodeChord createSimpleKeybinding(int keybinding, int operatingSystem) {
+  bool ctrlCommand = (keybinding & 2048) != 0;
+  bool winControl = (keybinding & 256) != 0;
+  bool ctrl = ctrlCommand;
+  bool meta = winControl;
+  if (operatingSystem == 2) {
+    ctrl = winControl;
+    meta = ctrlCommand;
+  }
+  return new KeyCodeChord(
+    ctrl,
+    (keybinding & 1024) != 0,
+    (keybinding & 512) != 0,
+    meta,
+    keybinding & 255
+  );
+}
+
+export Keybinding? decodeKeybinding(int keybinding, int operatingSystem) {
+  if (keybinding == 0) {
+    return null;
+  }
+  int firstChord = keybinding & 65535;
+  int secondChord = (keybinding >> 16) & 65535;
+  KeyCodeChord[] chords = [createSimpleKeybinding(firstChord, operatingSystem)];
+  if (secondChord != 0) {
+    chords.push(createSimpleKeybinding(secondChord, operatingSystem));
+  }
+  return new Keybinding(chords);
+}
+
+export Keybinding decodeKeybindingArray(int[] values, int operatingSystem) {
+  KeyCodeChord[] chords = [];
+  int i = 0;
+  while (i < values.length) {
+    chords.push(createSimpleKeybinding(values[i], operatingSystem));
+    i = i + 1;
+  }
+  return new Keybinding(chords);
+}

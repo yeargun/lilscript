@@ -1,0 +1,311 @@
+export class ObjectTreeElement {
+  string element;
+  ObjectTreeElement[] children;
+  bool collapsible;
+  bool collapsed;
+  int visibility;
+
+  init(
+    string element,
+    ObjectTreeElement[] children = [],
+    bool collapsible = false,
+    bool collapsed = false,
+    int visibility = 1
+  ) {
+    this.element = element;
+    this.children = children;
+    this.collapsible = collapsible || children.length > 0;
+    this.collapsed = collapsed;
+    this.visibility = visibility;
+  }
+}
+
+export class ObjectTreeNode {
+  string element;
+  ObjectTreeNode? parent;
+  ObjectTreeNode[] children;
+  int depth;
+  bool collapsible;
+  bool collapsed;
+  int visibility;
+  bool visible;
+  int renderNodeCount;
+
+  init(string element, ObjectTreeNode? parent, int depth) {
+    this.element = element;
+    this.parent = parent;
+    this.children = [];
+    this.depth = depth;
+    this.collapsible = false;
+    this.collapsed = false;
+    this.visibility = 1;
+    this.visible = true;
+    this.renderNodeCount = 0;
+  }
+}
+
+export class ObjectTreeModel {
+  ObjectTreeNode root;
+  Map<string, ObjectTreeNode> nodes;
+
+  init(string rootElement = "") {
+    this.root = new ObjectTreeNode(rootElement, null, 0);
+    this.nodes = new Map();
+    if (rootElement.length > 0) {
+      this.nodes.set(rootElement, this.root);
+    }
+  }
+
+  ObjectTreeNode? getNode(string element) {
+    if (element.length == 0) {
+      return this.root;
+    }
+    return this.nodes.get(element);
+  }
+
+  bool has(string element) {
+    if (element.length == 0) {
+      return true;
+    }
+    return this.nodes.has(element);
+  }
+
+  ObjectTreeNode createNode(ObjectTreeElement source, ObjectTreeNode parent) {
+    ObjectTreeNode node = new ObjectTreeNode(source.element, parent, parent.depth + 1);
+    ObjectTreeNode? previous = this.nodes.get(source.element);
+    node.collapsible = source.collapsible || source.children.length > 0;
+    node.collapsed = source.collapsed;
+    if (previous != null) {
+      node.collapsible = previous.collapsible || source.children.length > 0;
+      node.collapsed = previous.collapsed;
+    }
+    node.visibility = source.visibility;
+    int i = 0;
+    while (i < source.children.length) {
+      node.children.push(this.createNode(source.children[i], node));
+      i = i + 1;
+    }
+    return node;
+  }
+
+  void unregister(ObjectTreeNode node) {
+    int i = 0;
+    while (i < node.children.length) {
+      this.unregister(node.children[i]);
+      i = i + 1;
+    }
+    if (node != this.root) {
+      this.nodes.delete(node.element);
+    }
+  }
+
+  void register(ObjectTreeNode node) {
+    if (node != this.root) {
+      this.nodes.set(node.element, node);
+    }
+    int i = 0;
+    while (i < node.children.length) {
+      this.register(node.children[i]);
+      i = i + 1;
+    }
+  }
+
+  bool setChildren(string element, ObjectTreeElement[] children = []) {
+    ObjectTreeNode? parent = this.getNode(element);
+    if (parent == null) {
+      return false;
+    }
+    ObjectTreeNode[] next = [];
+    int i = 0;
+    while (i < children.length) {
+      next.push(this.createNode(children[i], parent));
+      i = i + 1;
+    }
+    i = 0;
+    while (i < parent.children.length) {
+      this.unregister(parent.children[i]);
+      i = i + 1;
+    }
+    parent.children = next;
+    if (parent != this.root && parent.children.length > 0) {
+      parent.collapsible = true;
+    }
+    i = 0;
+    while (i < parent.children.length) {
+      this.register(parent.children[i]);
+      i = i + 1;
+    }
+    this.recompute();
+    return true;
+  }
+
+  int recomputeNode(ObjectTreeNode node) {
+    int childCount = 0;
+    int visibleChildren = 0;
+    int i = 0;
+    while (i < node.children.length) {
+      int count = this.recomputeNode(node.children[i]);
+      childCount = childCount + count;
+      if (node.children[i].visible) {
+        visibleChildren = visibleChildren + 1;
+      }
+      i = i + 1;
+    }
+    if (node == this.root) {
+      node.visible = true;
+      node.renderNodeCount = childCount;
+    } else {
+      node.visible = node.visibility == 1 || (node.visibility == 2 && visibleChildren > 0);
+      if (!node.visible) {
+        node.renderNodeCount = 0;
+      } else if (node.collapsed) {
+        node.renderNodeCount = 1;
+      } else {
+        node.renderNodeCount = 1 + childCount;
+      }
+    }
+    return node.renderNodeCount;
+  }
+
+  void recompute() {
+    this.recomputeNode(this.root);
+  }
+
+  bool setCollapsed(string element, bool collapsed, bool recursive = false) {
+    ObjectTreeNode? node = this.getNode(element);
+    if (node == null || node == this.root || !node.collapsible) {
+      return false;
+    }
+    bool changed = node.collapsed != collapsed;
+    node.collapsed = collapsed;
+    if (recursive) {
+      this.collapseChildren(node, collapsed);
+    }
+    this.recompute();
+    return changed;
+  }
+
+  void collapseChildren(ObjectTreeNode node, bool collapsed) {
+    int i = 0;
+    while (i < node.children.length) {
+      if (node.children[i].collapsible) {
+        node.children[i].collapsed = collapsed;
+      }
+      this.collapseChildren(node.children[i], collapsed);
+      i = i + 1;
+    }
+  }
+
+  bool setCollapsible(string element, bool collapsible) {
+    ObjectTreeNode? node = this.getNode(element);
+    if (node == null || node == this.root) {
+      return false;
+    }
+    bool changed = node.collapsible != collapsible;
+    node.collapsible = collapsible;
+    if (!collapsible) {
+      node.collapsed = false;
+    }
+    this.recompute();
+    return changed;
+  }
+
+  bool setVisibility(string element, int visibility) {
+    ObjectTreeNode? node = this.getNode(element);
+    if (node == null || node == this.root) {
+      return false;
+    }
+    bool changed = node.visibility != visibility;
+    node.visibility = visibility;
+    this.recompute();
+    return changed;
+  }
+
+  void expandTo(string element) {
+    ObjectTreeNode? node = this.getNode(element);
+    if (node == null) {
+      return;
+    }
+    ObjectTreeNode? parent = node.parent;
+    while (parent != null) {
+      if (parent != this.root && parent.collapsible) {
+        parent.collapsed = false;
+      }
+      parent = parent.parent;
+    }
+    this.recompute();
+  }
+
+  void collectRendered(ObjectTreeNode node, ObjectTreeNode[] result) {
+    if (node != this.root) {
+      if (!node.visible) {
+        return;
+      }
+      result.push(node);
+      if (node.collapsed) {
+        return;
+      }
+    }
+    int i = 0;
+    while (i < node.children.length) {
+      this.collectRendered(node.children[i], result);
+      i = i + 1;
+    }
+  }
+
+  ObjectTreeNode[] renderedNodes() {
+    ObjectTreeNode[] result = [];
+    this.collectRendered(this.root, result);
+    return result;
+  }
+
+  int getListIndex(string element) {
+    ObjectTreeNode? node = this.getNode(element);
+    if (node == null || node == this.root) {
+      return -1;
+    }
+    return this.renderedNodes().indexOf(node);
+  }
+
+  int getListRenderCount(string element) {
+    ObjectTreeNode? node = this.getNode(element);
+    if (node == null) {
+      return 0;
+    }
+    return node.renderNodeCount;
+  }
+
+  string getParentNodeLocation(string element) {
+    ObjectTreeNode? node = this.getNode(element);
+    if (node == null) {
+      return "";
+    }
+    ObjectTreeNode? parent = node.parent;
+    if (parent == null || parent == this.root) {
+      return "";
+    }
+    return parent.element;
+  }
+
+  string getFirstElementChild(string element) {
+    ObjectTreeNode? node = this.getNode(element);
+    if (node == null || node.children.length == 0) {
+      return "";
+    }
+    return node.children[0].element;
+  }
+}
+
+export ObjectTreeElement createObjectTreeElement(
+  string element,
+  ObjectTreeElement[] children,
+  bool collapsible,
+  bool collapsed,
+  int visibility
+) {
+  return new ObjectTreeElement(element, children, collapsible, collapsed, visibility);
+}
+
+export ObjectTreeModel createObjectTreeModel(string rootElement) {
+  return new ObjectTreeModel(rootElement);
+}

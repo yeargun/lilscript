@@ -1,0 +1,15 @@
+import {
+  isFn,
+  len,
+  undef
+} from "../host.lil";
+import { registerInterceptor } from "../types/intercept-utils.lil";
+import { getAdministration } from "../types/type-utils.lil";
+
+export JsValue intercept = JS.methodRest((JsValue _s, JsValue args) => {
+  JsValue thing = args[0];
+  if (len(args) > 2 && isFn(args[2])) {
+    return registerInterceptor(JS.call(getAdministration, undef(), thing, args[1]), args[2]);
+  }
+  return registerInterceptor(JS.call(getAdministration, undef(), thing), args[1]);
+});

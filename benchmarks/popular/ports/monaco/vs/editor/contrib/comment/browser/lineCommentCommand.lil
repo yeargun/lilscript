@@ -1,0 +1,268 @@
+
+export class TextRange {
+  int startLineNumber;
+  int startColumn;
+  int endLineNumber;
+  int endColumn;
+
+  init(int startLineNumber, int startColumn, int endLineNumber, int endColumn) {
+    this.startLineNumber = startLineNumber;
+    this.startColumn = startColumn;
+    this.endLineNumber = endLineNumber;
+    this.endColumn = endColumn;
+  }
+}
+
+export class TextPos {
+  int lineNumber;
+  int column;
+
+  init(int lineNumber, int column) {
+    this.lineNumber = lineNumber;
+    this.column = column;
+  }
+}
+
+bool posBefore(TextPos a, TextPos b) {
+  if (a.lineNumber < b.lineNumber) {
+    return true;
+  }
+  if (a.lineNumber > b.lineNumber) {
+    return false;
+  }
+  return a.column < b.column;
+}
+
+bool rangeContainsPos(TextRange range, int lineNumber, int column) {
+  if (lineNumber < range.startLineNumber || lineNumber > range.endLineNumber) {
+    return false;
+  }
+  if (lineNumber == range.startLineNumber && column < range.startColumn) {
+    return false;
+  }
+  if (lineNumber == range.endLineNumber && column > range.endColumn) {
+    return false;
+  }
+  return true;
+}
+
+export TextRange createTextRange(int startLine, int startColumn, int endLine, int endColumn) {
+  return new TextRange(startLine, startColumn, endLine, endColumn);
+}
+
+export TextPos createTextPos(int lineNumber, int column) {
+  return new TextPos(lineNumber, column);
+}
+
+bool isIdentChar(string ch) {
+  int code = ch.charCodeAt(0);
+  if (code >= 97 && code <= 122) {
+    return true;
+  }
+  if (code >= 65 && code <= 90) {
+    return true;
+  }
+  if (code >= 48 && code <= 57) {
+    return true;
+  }
+  return ch == "_" || ch == "$";
+}
+
+string sliceChars(string text, int start, int end) {
+  string out = "";
+  int i = start;
+  if (i < 0) {
+    i = 0;
+  }
+  int last = end;
+  if (last > text.length) {
+    last = text.length;
+  }
+  while (i < last) {
+    out = out + text.charAt(i);
+    i = i + 1;
+  }
+  return out;
+}
+
+string wordAt(string line, int column) {
+  int i = column - 1;
+  if (i < 0) {
+    i = 0;
+  }
+  if (i > line.length) {
+    i = line.length;
+  }
+  int start = i;
+  while (start > 0 && isIdentChar(line.charAt(start - 1))) {
+    start = start - 1;
+  }
+  int end = i;
+  while (end < line.length && isIdentChar(line.charAt(end))) {
+    end = end + 1;
+  }
+  return sliceChars(line, start, end);
+}
+
+int wordStart(string line, int column) {
+  int i = column - 1;
+  if (i < 0) {
+    i = 0;
+  }
+  if (i > line.length) {
+    i = line.length;
+  }
+  while (i > 0 && isIdentChar(line.charAt(i - 1))) {
+    i = i - 1;
+  }
+  return i + 1;
+}
+
+int wordEnd(string line, int column) {
+  int i = column - 1;
+  if (i < 0) {
+    i = 0;
+  }
+  if (i > line.length) {
+    i = line.length;
+  }
+  while (i < line.length && isIdentChar(line.charAt(i))) {
+    i = i + 1;
+  }
+  return i + 1;
+}
+
+int leadingIndent(string line) {
+  int i = 0;
+  while (i < line.length) {
+    string ch = line.charAt(i);
+    if (ch != " " && ch != "\t") {
+      break;
+    }
+    i = i + 1;
+  }
+  return i;
+}
+
+export int COMMENT_TOGGLE = 0;
+export int COMMENT_ADD = 1;
+export int COMMENT_REMOVE = 2;
+
+export class LineCommentData {
+  bool ignore;
+  string commentStr;
+  int commentStrOffset;
+  int commentStrLength;
+
+  init(string commentStr) {
+    this.ignore = false;
+    this.commentStr = commentStr;
+    this.commentStrOffset = 0;
+    this.commentStrLength = commentStr.length;
+  }
+}
+
+bool haystackHasNeedleAtOffset(string haystack, string needle, int offset) {
+  if (offset < 0 || offset + needle.length > haystack.length) {
+    return false;
+  }
+  int i = 0;
+  while (i < needle.length) {
+    if (haystack.charAt(offset + i) != needle.charAt(i)) {
+      return false;
+    }
+    i = i + 1;
+  }
+  return true;
+}
+
+export class CommentEdit {
+  int lineNumber;
+  int startColumn;
+  int endColumn;
+  string text;
+
+  init(int lineNumber, int startColumn, int endColumn, string text) {
+    this.lineNumber = lineNumber;
+    this.startColumn = startColumn;
+    this.endColumn = endColumn;
+    this.text = text;
+  }
+}
+
+export CommentEdit[] toggleLineComments(string[] lines, int startLine, int endLine, string commentStr, bool insertSpace, int kind) {
+  CommentEdit[] edits = [];
+  LineCommentData[] data = [];
+  int line = startLine;
+  bool shouldRemove = kind != COMMENT_ADD;
+  while (line <= endLine) {
+    LineCommentData item = new LineCommentData(commentStr);
+    string content = "";
+    if (line >= 1 && line <= lines.length) {
+      content = lines[line - 1];
+    }
+    int offset = leadingIndent(content);
+    item.commentStrOffset = offset;
+    if (shouldRemove && !haystackHasNeedleAtOffset(content, commentStr, offset)) {
+      if (kind == COMMENT_TOGGLE) {
+        shouldRemove = false;
+      }
+    }
+    data.push(item);
+    line = line + 1;
+  }
+  int i = 0;
+  while (i < data.length) {
+    int lineNumber = startLine + i;
+    string content = "";
+    if (lineNumber >= 1 && lineNumber <= lines.length) {
+      content = lines[lineNumber - 1];
+    }
+    LineCommentData item = data[i];
+    if (shouldRemove) {
+      int start = item.commentStrOffset + 1;
+      int end = start + item.commentStrLength;
+      if (insertSpace && end - 1 < content.length && content.charAt(end - 1) == " ") {
+        end = end + 1;
+      }
+      edits.push(new CommentEdit(lineNumber, start, end, ""));
+    } else {
+      string insert = commentStr;
+      if (insertSpace) {
+        insert = insert + " ";
+      }
+      edits.push(new CommentEdit(lineNumber, item.commentStrOffset + 1, item.commentStrOffset + 1, insert));
+    }
+    i = i + 1;
+  }
+  return edits;
+}
+
+export CommentEdit[] toggleBlockComment(string[] lines, TextRange selection, string startToken, string endToken, bool insertSpace) {
+  CommentEdit[] edits = [];
+  if (selection.startLineNumber < 1 || selection.startLineNumber > lines.length) {
+    return edits;
+  }
+  string startLine = lines[selection.startLineNumber - 1];
+  string endLine = lines[selection.endLineNumber - 1];
+  int startIndex = startLine.indexOf(startToken);
+  int endIndex = endLine.indexOf(endToken);
+  if (startIndex >= 0 && endIndex >= 0) {
+    edits.push(new CommentEdit(selection.startLineNumber, startIndex + 1, startIndex + 1 + startToken.length, ""));
+    edits.push(new CommentEdit(selection.endLineNumber, endIndex + 1, endIndex + 1 + endToken.length, ""));
+    return edits;
+  }
+  string open = startToken;
+  string close = endToken;
+  if (insertSpace) {
+    open = open + " ";
+    close = " " + close;
+  }
+  edits.push(new CommentEdit(selection.startLineNumber, selection.startColumn, selection.startColumn, open));
+  edits.push(new CommentEdit(selection.endLineNumber, selection.endColumn, selection.endColumn, close));
+  return edits;
+}
+
+export CommentEdit[] createCommentEdits(string[] lines, int startLine, int endLine, string commentStr) {
+  return toggleLineComments(lines, startLine, endLine, commentStr, true, COMMENT_TOGGLE);
+}

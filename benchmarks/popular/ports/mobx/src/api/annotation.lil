@@ -1,0 +1,5 @@
+import { isObj, isFn, isStr } from "../host.lil";
+
+export bool isAnnotation(JsValue thing) {
+  return (isObj(thing) || isFn(thing)) && isStr(thing["annotationType_"]) && isFn(thing["make_"]) && isFn(thing["extend_"]);
+}

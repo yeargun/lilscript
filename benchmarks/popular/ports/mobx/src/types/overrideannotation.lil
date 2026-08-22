@@ -1,0 +1,24 @@
+import { DEV } from "../dev-flag.lil";
+import { toStr, stringifyKey, hasOwn } from "../host.lil";
+import { die, die1 } from "../errors.lil";
+import { MAKE_CANCEL } from "../constants.lil";
+
+export bool isOverride(JsValue annotation) {
+  return toStr(annotation["annotationType_"]) == "override";
+}
+
+export JsValue override = JS.object();
+override["annotationType_"] = "override";
+override["make_"] = JS.method2((JsValue self, JsValue adm, JsValue key) => {
+  if (DEV && adm["isPlainObject_"].truthy()) {
+    die("Cannot apply '" + toStr(self["annotationType_"]) + "' to '" + toStr(adm["name_"]) + "." + stringifyKey(key) + "':\n'" + toStr(self["annotationType_"]) + "' cannot be used on plain objects.");
+  }
+  if (DEV && !hasOwn(adm["appliedAnnotations_"], key)) {
+    die("'" + toStr(adm["name_"]) + "." + stringifyKey(key) + "' is annotated with '" + toStr(self["annotationType_"]) + "', but no such annotated member was found on prototype.");
+  }
+  return MAKE_CANCEL;
+});
+override["extend_"] = JS.method0((JsValue self) => {
+  die1(44, self["annotationType_"]);
+  return false;
+});

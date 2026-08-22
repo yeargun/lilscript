@@ -1,0 +1,127 @@
+import { dateNow, eventButton, eventDetail, eventCtrlKey, eventShiftKey, eventAltKey, eventClientX, eventClientY, preventDefault, stopPropagation, jsPropString, windowSelf } from "../../../js-host";
+
+float eventNumber(JsValue event, string name, float fallback) {
+  JsValue value = event[name];
+  if (value is float) {
+    float n = value;
+    return n;
+  }
+  return fallback;
+}
+
+export class StandardMouseEvent {
+  float timestamp;
+  JsValue browserEvent;
+  bool leftButton;
+  bool middleButton;
+  bool rightButton;
+  int buttons;
+  bool defaultPrevented;
+  JsValue target;
+  int detail;
+  bool ctrlKey;
+  bool shiftKey;
+  bool altKey;
+  bool metaKey;
+  float posx;
+  float posy;
+
+  init(JsValue targetWindow, JsValue event) {
+    this.timestamp = dateNow();
+    this.browserEvent = event;
+    int button = eventButton(event);
+    this.leftButton = button == 0;
+    this.middleButton = button == 1;
+    this.rightButton = button == 2;
+    this.buttons = eventNumber(event, "buttons", 0.0).toInt();
+    this.defaultPrevented = event["defaultPrevented"].truthy();
+    this.target = event["target"];
+    this.detail = eventDetail(event);
+    if (this.detail == 0) {
+      this.detail = 1;
+    }
+    if (jsPropString(event, "type", "") == "dblclick") {
+      this.detail = 2;
+    }
+    this.ctrlKey = eventCtrlKey(event);
+    this.shiftKey = eventShiftKey(event);
+    this.altKey = eventAltKey(event);
+    this.metaKey = event["metaKey"].truthy();
+    this.posx = eventNumber(event, "pageX", eventClientX(event));
+    this.posy = eventNumber(event, "pageY", eventClientY(event));
+  }
+
+  void preventDefault() {
+    preventDefault(this.browserEvent);
+  }
+
+  void stopPropagation() {
+    stopPropagation(this.browserEvent);
+  }
+}
+
+export class StandardWheelEvent {
+  JsValue browserEvent;
+  JsValue target;
+  float deltaY;
+  float deltaX;
+
+  init(JsValue event, float initialDeltaX, float initialDeltaY) {
+    this.browserEvent = event;
+    this.target = event["target"];
+    if (!this.target.truthy()) {
+      this.target = event["targetNode"];
+    }
+    if (!this.target.truthy()) {
+      this.target = event["srcElement"];
+    }
+    this.deltaY = initialDeltaY;
+    this.deltaX = initialDeltaX;
+    float wheelDeltaY = eventNumber(event, "wheelDeltaY", 0.0);
+    float wheelDeltaX = eventNumber(event, "wheelDeltaX", 0.0);
+    string eventType = jsPropString(event, "type", "");
+    if (wheelDeltaY != 0.0) {
+      this.deltaY = wheelDeltaY / 120.0;
+    } else if (eventType == "wheel") {
+      float mode = eventNumber(event, "deltaMode", 0.0);
+      float divisor = 40.0;
+      if (mode == 1.0) {
+        divisor = 1.0;
+      }
+      this.deltaY = -eventNumber(event, "deltaY", 0.0) / divisor;
+    }
+    if (wheelDeltaX != 0.0) {
+      this.deltaX = wheelDeltaX / 120.0;
+    } else if (eventType == "wheel") {
+      float modeX = eventNumber(event, "deltaMode", 0.0);
+      float divisorX = 40.0;
+      if (modeX == 1.0) {
+        divisorX = 1.0;
+      }
+      this.deltaX = -eventNumber(event, "deltaX", 0.0) / divisorX;
+    }
+    if (this.deltaY == 0.0 && this.deltaX == 0.0) {
+      this.deltaY = eventNumber(event, "wheelDelta", 0.0) / 120.0;
+    }
+  }
+
+  void preventDefault() {
+    if (this.browserEvent.truthy()) {
+      preventDefault(this.browserEvent);
+    }
+  }
+
+  void stopPropagation() {
+    if (this.browserEvent.truthy()) {
+      stopPropagation(this.browserEvent);
+    }
+  }
+}
+
+export StandardMouseEvent createStandardMouseEvent(JsValue targetWindow, JsValue event) {
+  return new StandardMouseEvent(targetWindow, event);
+}
+
+export StandardWheelEvent createStandardWheelEvent(JsValue event, float deltaX = 0.0, float deltaY = 0.0) {
+  return new StandardWheelEvent(event, deltaX, deltaY);
+}

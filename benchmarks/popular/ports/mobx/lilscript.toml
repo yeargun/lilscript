@@ -1,0 +1,68 @@
+[package]
+name = "mobxlil"
+version = "7.0.0"
+abi = 1
+entry = "src/mobx.lil"
+
+[optimization]
+preset = "maximum"
+call_site_specialization = true
+capture_signature_cloning = true
+identical_function_folding = true
+
+[javascript]
+priority = "size-first"
+optimization_level = 15
+cost_model = "brotli"
+public_aggregate_abi = "named"
+assume_pristine_builtins = false
+strip_console = true
+pool_numeric_literals = true
+candidate_search = "production"
+candidate_limit = 1536
+candidate_byte_budget = 1048576
+candidate_beam_width = 12
+max_candidate_raw_growth_percent = 0
+local_name_reserve = 8
+stable_local_names = true
+compression = [
+  "identifier-mangling",
+  "entropy-aware-mangling",
+  "quote-style-selection",
+  "property-mangling",
+  "string-pooling",
+  "size-aware-inlining",
+  "compact-boolean-literals",
+  "standard-grammar-elision",
+  "structured-closure-inlining",
+  "pure-helper-inlining",
+  "dense-string-return-tables",
+  "host-alias-spelling",
+  "string-array-packing",
+  "regex-literals",
+  "unused-catch-binding-elision",
+  "compact-generator-star",
+  "callee-default-arguments",
+  "scalar-phi-copies",
+  "phi-affinity-coalescing",
+  "ir-inlining-variants",
+  "ir-closure-factory-variants",
+  "ir-phase-ordering-variants",
+  "loop-spelling-selection",
+  "mutation-spelling-selection",
+  "parameterized-function-merging",
+  "expression-superoptimization",
+  "path-sensitive-propagation",
+  "joint-representation-search",
+  "array-pipeline-fusion",
+  "partial-escape-sinking",
+]
+
+[mangle]
+identifiers = true
+properties = true
+exports = false
+pool_strings = true
+
+[bundle]
+mode = "single"

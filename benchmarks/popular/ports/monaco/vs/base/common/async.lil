@@ -1,0 +1,257 @@
+import { scheduleTimeoutMs, clearTimeoutId, dateNow } from "../../../js-host";
+
+export bool isThenable(JsValue obj) {
+  if (!obj.truthy() || !obj.isObject()) {
+    return false;
+  }
+  JsValue thenFn = obj["then"];
+  return thenFn.truthy();
+}
+
+export class TimeoutTimer {
+  JsValue? token;
+  bool cancelled;
+
+  init() {
+    this.token = null;
+    this.cancelled = false;
+  }
+
+  void cancel() {
+    JsValue? existing = this.token;
+    if (existing != null) {
+      clearTimeoutId(existing);
+      this.token = null;
+    }
+    this.cancelled = true;
+  }
+
+  void cancelAndSet(JsValue runner, float timeout) {
+    this.cancel();
+    this.cancelled = false;
+    this.token = scheduleTimeoutMs(runner, timeout);
+  }
+
+  void setIfNotSet(JsValue runner, float timeout) {
+    if (this.token != null) {
+      return;
+    }
+    this.cancelled = false;
+    this.token = scheduleTimeoutMs(runner, timeout);
+  }
+}
+
+export class Throttler {
+  bool active;
+  bool queued;
+  bool disposed;
+
+  init() {
+    this.active = false;
+    this.queued = false;
+    this.disposed = false;
+  }
+
+  bool queue() {
+    if (this.disposed) {
+      return false;
+    }
+    if (this.active) {
+      this.queued = true;
+      return true;
+    }
+    this.active = true;
+    return true;
+  }
+
+  void completeActive() {
+    this.active = false;
+    if (this.queued && !this.disposed) {
+      this.queued = false;
+      this.active = true;
+    }
+  }
+
+  void dispose() {
+    this.disposed = true;
+    this.queued = false;
+  }
+}
+
+export class Delayer {
+  TimeoutTimer timer;
+  bool pending;
+  float defaultDelay;
+
+  init(float defaultDelay) {
+    this.timer = new TimeoutTimer();
+    this.pending = false;
+    this.defaultDelay = defaultDelay;
+  }
+
+  void trigger(JsValue task, float delay) {
+    this.pending = true;
+    float wait = delay;
+    if (wait < 0.0) {
+      wait = this.defaultDelay;
+    }
+    this.timer.cancelAndSet(task, wait);
+  }
+
+  bool isTriggered() {
+    return this.pending && this.timer.token != null;
+  }
+
+  void cancel() {
+    this.pending = false;
+    this.timer.cancel();
+  }
+}
+
+export class Sequencer {
+  bool running;
+
+  init() {
+    this.running = false;
+  }
+
+  bool queue() {
+    if (this.running) {
+      return false;
+    }
+    this.running = true;
+    return true;
+  }
+
+  void done() {
+    this.running = false;
+  }
+}
+
+export class Queue {
+  int[] work;
+  bool running;
+  bool disposed;
+
+  init() {
+    this.work = [];
+    this.running = false;
+    this.disposed = false;
+  }
+
+  int size() {
+    return this.work.length;
+  }
+
+  void queue(int taskId) {
+    if (this.disposed) {
+      return;
+    }
+    this.work.push(taskId);
+  }
+
+  int? take() {
+    if (this.work.length == 0) {
+      return null;
+    }
+    int first = this.work[0];
+    int[] rest = [];
+    int i = 1;
+    while (i < this.work.length) {
+      rest.push(this.work[i]);
+      i = i + 1;
+    }
+    this.work = rest;
+    return first;
+  }
+
+  void clear() {
+    this.work = [];
+  }
+
+  void dispose() {
+    this.disposed = true;
+    this.clear();
+  }
+}
+
+export class RunOnceScheduler {
+  TimeoutTimer timer;
+  float delay;
+  bool scheduled;
+
+  init(float delay) {
+    this.timer = new TimeoutTimer();
+    this.delay = delay;
+    this.scheduled = false;
+  }
+
+  void schedule(JsValue runner) {
+    this.scheduled = true;
+    this.timer.cancelAndSet(runner, this.delay);
+  }
+
+  bool isScheduled() {
+    return this.scheduled && this.timer.token != null;
+  }
+
+  void cancel() {
+    this.scheduled = false;
+    this.timer.cancel();
+  }
+}
+
+export float timeoutNow() {
+  return dateNow();
+}
+
+export class Barrier {
+  bool open;
+
+  init() {
+    this.open = false;
+  }
+
+  bool isOpen() {
+    return this.open;
+  }
+
+  void openBarrier() {
+    this.open = true;
+  }
+}
+
+export class AutoOpenBarrier {
+  Barrier barrier;
+  TimeoutTimer timer;
+
+  init(float autoOpenMs, JsValue opener) {
+    this.barrier = new Barrier();
+    this.timer = new TimeoutTimer();
+    this.timer.cancelAndSet(opener, autoOpenMs);
+  }
+
+  void openNow() {
+    this.timer.cancel();
+    this.barrier.openBarrier();
+  }
+
+  bool isOpen() {
+    return this.barrier.isOpen();
+  }
+}
+
+export int[] raceWinner(bool[] settled, int preferred) {
+  int i = 0;
+  while (i < settled.length) {
+    if (settled[i]) {
+      int[] result = [];
+      result.push(i);
+      return result;
+    }
+    i = i + 1;
+  }
+  int[] none = [];
+  none.push(preferred);
+  return none;
+}

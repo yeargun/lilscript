@@ -1,0 +1,73 @@
+import { dateNow, requestAnimationFrameOrNull } from "../../../js-host";
+
+export float easeOutExpo(float passedTime, float start, float length, float totalDuration) {
+  if (passedTime == totalDuration) {
+    return start + length;
+  }
+  float power = (2.0.log() * (-10.0 * passedTime / totalDuration)).exp();
+  return length * (-power + 1.0) + start;
+}
+
+export float easeOutCubic(float passedTime, float start, float length, float totalDuration) {
+  float time = passedTime / totalDuration - 1.0;
+  return length * (time * time * time + 1.0) + start;
+}
+
+export class AnimatedValue {
+  float startValue;
+  float endValue;
+  float durationMs;
+  float startTimeMs;
+  func(float, float, float, float)->float interpolationFunction;
+
+  init(float startValue, float endValue, float durationMs, float startTimeMs, func(float, float, float, float)->float interpolationFunction) {
+    this.startValue = startValue;
+    this.endValue = endValue;
+    this.durationMs = durationMs;
+    this.startTimeMs = startTimeMs;
+    this.interpolationFunction = interpolationFunction;
+    if (startValue == endValue) {
+      this.durationMs = 0.0;
+    }
+  }
+
+  bool isFinished(float nowMs) {
+    return nowMs >= this.startTimeMs + this.durationMs;
+  }
+
+  float getValue(float nowMs) {
+    float timePassed = nowMs - this.startTimeMs;
+    if (timePassed >= this.durationMs) {
+      return this.endValue;
+    }
+    return this.interpolationFunction(timePassed, this.startValue, this.endValue - this.startValue, this.durationMs);
+  }
+}
+
+export AnimatedValue createAnimatedValue(float startValue, float endValue, float durationMs, float startTimeMs) {
+  return new AnimatedValue(startValue, endValue, durationMs, startTimeMs, easeOutExpo);
+}
+
+export AnimatedValue startAnimatedValueNow(float startValue, float endValue, float durationMs) {
+  return new AnimatedValue(startValue, endValue, durationMs, dateNow(), easeOutExpo);
+}
+
+export class ObservableAnimatedValue {
+  AnimatedValue value;
+
+  init(AnimatedValue value) {
+    this.value = value;
+  }
+
+  float getValue(JsValue reader) {
+    return this.value.getValue(dateNow());
+  }
+
+  bool isFinished(JsValue reader) {
+    return this.value.isFinished(dateNow());
+  }
+}
+
+export void invalidateOnNextAnimationFrame(JsValue callback) {
+  requestAnimationFrameOrNull(callback);
+}

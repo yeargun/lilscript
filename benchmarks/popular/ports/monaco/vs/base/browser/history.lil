@@ -1,0 +1,51 @@
+export class HistoryNavigationWidget {
+  JsValue element;
+  func()->void previous;
+  func()->void next;
+  (func()->void)[] focusListeners;
+  (func()->void)[] blurListeners;
+
+  init(JsValue element, func()->void previous, func()->void next) {
+    this.element = element;
+    this.previous = previous;
+    this.next = next;
+    this.focusListeners = [];
+    this.blurListeners = [];
+  }
+
+  void showPreviousValue() {
+    this.previous();
+  }
+
+  void showNextValue() {
+    this.next();
+  }
+
+  void onDidFocus(func()->void listener) {
+    this.focusListeners.push(listener);
+  }
+
+  void onDidBlur(func()->void listener) {
+    this.blurListeners.push(listener);
+  }
+
+  void fireFocus() {
+    int i = 0;
+    while (i < this.focusListeners.length) {
+      this.focusListeners[i]();
+      i = i + 1;
+    }
+  }
+
+  void fireBlur() {
+    int i = 0;
+    while (i < this.blurListeners.length) {
+      this.blurListeners[i]();
+      i = i + 1;
+    }
+  }
+}
+
+export HistoryNavigationWidget createHistoryNavigationWidget(JsValue element, func()->void previous, func()->void next) {
+  return new HistoryNavigationWidget(element, previous, next);
+}

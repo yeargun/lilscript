@@ -1,0 +1,55 @@
+export class UsLayoutResolvedKeybinding {
+  int ctrlKey;
+  int shiftKey;
+  int altKey;
+  int metaKey;
+  int keyCode;
+  string keyLabel;
+
+  init(int keyCode, int ctrlKey, int shiftKey, int altKey, int metaKey, string keyLabel) {
+    this.keyCode = keyCode;
+    this.ctrlKey = ctrlKey;
+    this.shiftKey = shiftKey;
+    this.altKey = altKey;
+    this.metaKey = metaKey;
+    this.keyLabel = keyLabel;
+  }
+
+  string getLabel() {
+    string out = "";
+    if (this.ctrlKey != 0) {
+      out = out + "Ctrl+";
+    }
+    if (this.shiftKey != 0) {
+      out = out + "Shift+";
+    }
+    if (this.altKey != 0) {
+      out = out + "Alt+";
+    }
+    if (this.metaKey != 0) {
+      out = out + "Meta+";
+    }
+    return out + this.keyLabel;
+  }
+
+  int getDispatchChords() {
+    int bits = this.keyCode;
+    if (this.ctrlKey != 0) {
+      bits = bits + 2048;
+    }
+    if (this.shiftKey != 0) {
+      bits = bits + 1024;
+    }
+    if (this.altKey != 0) {
+      bits = bits + 512;
+    }
+    if (this.metaKey != 0) {
+      bits = bits + 256;
+    }
+    return bits;
+  }
+}
+
+export UsLayoutResolvedKeybinding createUsLayoutResolvedKeybinding(int keyCode, int ctrlKey, int shiftKey, int altKey, int metaKey, string keyLabel) {
+  return new UsLayoutResolvedKeybinding(keyCode, ctrlKey, shiftKey, altKey, metaKey, keyLabel);
+}

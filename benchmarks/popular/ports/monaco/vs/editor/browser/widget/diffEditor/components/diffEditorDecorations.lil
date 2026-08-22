@@ -1,0 +1,44 @@
+export class DiffDecoration {
+  int startLineNumber;
+  int endLineNumber;
+  string className;
+  bool isOriginal;
+
+  init(int startLineNumber, int endLineNumber, string className, bool isOriginal) {
+    this.startLineNumber = startLineNumber;
+    this.endLineNumber = endLineNumber;
+    this.className = className;
+    this.isOriginal = isOriginal;
+  }
+}
+
+export DiffDecoration[] decorationsForMapping(int origStart, int origEndEx, int modStart, int modEndEx) {
+  DiffDecoration[] out = [];
+  if (origEndEx > origStart) {
+    out.push(new DiffDecoration(origStart, origEndEx - 1, "line-delete", true));
+  }
+  if (modEndEx > modStart) {
+    out.push(new DiffDecoration(modStart, modEndEx - 1, "line-insert", false));
+  }
+  return out;
+}
+
+export class DiffEditorDecorations {
+  DiffDecoration[] current;
+
+  init() {
+    this.current = [];
+  }
+
+  void set(DiffDecoration[] decorations) {
+    this.current = decorations;
+  }
+
+  void clear() {
+    this.current = [];
+  }
+}
+
+export DiffEditorDecorations createDiffEditorDecorations() {
+  return new DiffEditorDecorations();
+}

@@ -1,0 +1,17 @@
+export class HotClassWrapper {
+  string ctorId;
+  string instance;
+
+  init(string ctorId) {
+    this.ctorId = ctorId;
+    this.instance = ctorId;
+  }
+
+  void reload(string next) {
+    this.instance = next;
+  }
+}
+
+export HotClassWrapper wrapInHotClass(string ctorId) {
+  return new HotClassWrapper(ctorId);
+}

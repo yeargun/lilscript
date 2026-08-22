@@ -1,0 +1,236 @@
+export int HINT_DEFAULT = 0;
+export int HINT_ACTIVE = 1;
+export int HINT_PENDING = 2;
+
+export int TRIGGER_INVOKE = 1;
+export int TRIGGER_CHARACTER = 2;
+export int TRIGGER_CONTENT_CHANGE = 3;
+
+export class ParameterInformation {
+  string label;
+  string documentation;
+
+  init(string label, string documentation) {
+    this.label = label;
+    this.documentation = documentation;
+  }
+}
+
+export class SignatureInformation {
+  string label;
+  ParameterInformation[] parameters;
+  int activeParameter;
+
+  init(string label) {
+    this.label = label;
+    this.parameters = [];
+    this.activeParameter = 0;
+  }
+}
+
+export class SignatureHelp {
+  SignatureInformation[] signatures;
+  int activeSignature;
+  int activeParameter;
+
+  init() {
+    this.signatures = [];
+    this.activeSignature = 0;
+    this.activeParameter = 0;
+  }
+}
+
+export class TriggerContext {
+  int triggerKind;
+  string triggerCharacter;
+
+  init(int triggerKind, string triggerCharacter) {
+    this.triggerKind = triggerKind;
+    this.triggerCharacter = triggerCharacter;
+  }
+}
+
+export TriggerContext mergeTriggerContexts(TriggerContext previous, TriggerContext current) {
+  if (current.triggerKind == TRIGGER_INVOKE) {
+    return current;
+  }
+  if (current.triggerKind == TRIGGER_CONTENT_CHANGE) {
+    return previous;
+  }
+  return current;
+}
+
+export class ParameterHintsModel {
+  SignatureHelp? hints;
+  int state;
+  int delay;
+  bool cycle;
+  bool triggerOnType;
+  int[] triggerChars;
+  int[] retriggerChars;
+  TriggerContext[] pending;
+
+  init(int delay) {
+    this.hints = null;
+    this.state = HINT_DEFAULT;
+    this.delay = delay;
+    this.cycle = true;
+    this.triggerOnType = true;
+    this.triggerChars = [];
+    this.retriggerChars = [];
+    this.pending = [];
+  }
+
+  bool isTriggered() {
+    return this.state == HINT_ACTIVE || this.state == HINT_PENDING;
+  }
+
+  void trigger(SignatureHelp hints) {
+    if (hints.signatures.length == 0) {
+      this.cancel();
+      return;
+    }
+    this.hints = hints;
+    this.state = HINT_ACTIVE;
+    this.pending = [];
+  }
+
+  void queue(TriggerContext context) {
+    this.pending.push(context);
+    this.state = HINT_PENDING;
+  }
+
+  TriggerContext? takeMergedTrigger() {
+    if (this.pending.length == 0) {
+      return null;
+    }
+    TriggerContext merged = this.pending[0];
+    int i = 1;
+    while (i < this.pending.length) {
+      merged = mergeTriggerContexts(merged, this.pending[i]);
+      i = i + 1;
+    }
+    this.pending = [];
+    return merged;
+  }
+
+  void next() {
+    SignatureHelp? maybe = this.hints;
+    if (maybe == null || this.state != HINT_ACTIVE) {
+      return;
+    }
+    SignatureHelp help = maybe;
+    int length = help.signatures.length;
+    if (length < 1) {
+      this.cancel();
+      return;
+    }
+    int last = length - 1;
+    bool atLast = help.activeSignature == last;
+    if ((length < 2 || atLast) && !this.cycle) {
+      this.cancel();
+      return;
+    }
+    if (atLast && this.cycle) {
+      help.activeSignature = 0;
+    } else {
+      help.activeSignature = help.activeSignature + 1;
+    }
+  }
+
+  void previous() {
+    SignatureHelp? maybe = this.hints;
+    if (maybe == null || this.state != HINT_ACTIVE) {
+      return;
+    }
+    SignatureHelp help = maybe;
+    int length = help.signatures.length;
+    if (length < 1) {
+      this.cancel();
+      return;
+    }
+    bool atFirst = help.activeSignature == 0;
+    if ((length < 2 || atFirst) && !this.cycle) {
+      this.cancel();
+      return;
+    }
+    if (atFirst && this.cycle) {
+      help.activeSignature = length - 1;
+    } else {
+      help.activeSignature = help.activeSignature - 1;
+    }
+  }
+
+  void cancel() {
+    this.hints = null;
+    this.state = HINT_DEFAULT;
+    this.pending = [];
+  }
+
+  void registerTriggerChar(string ch) {
+    if (ch.length == 0) {
+      return;
+    }
+    int code = ch.charCodeAt(0);
+    this.triggerChars.push(code);
+    this.retriggerChars.push(code);
+  }
+
+  void registerRetriggerChar(string ch) {
+    if (ch.length == 0) {
+      return;
+    }
+    this.retriggerChars.push(ch.charCodeAt(0));
+  }
+
+  bool shouldTriggerOnType(string text) {
+    if (!this.triggerOnType || text.length == 0) {
+      return false;
+    }
+    int code = text.charCodeAt(text.length - 1);
+    int i = 0;
+    while (i < this.triggerChars.length) {
+      if (this.triggerChars[i] == code) {
+        return true;
+      }
+      i = i + 1;
+    }
+    if (!this.isTriggered()) {
+      return false;
+    }
+    i = 0;
+    while (i < this.retriggerChars.length) {
+      if (this.retriggerChars[i] == code) {
+        return true;
+      }
+      i = i + 1;
+    }
+    return false;
+  }
+
+  void onCursorChange(string source) {
+    if (source == "mouse") {
+      this.cancel();
+      return;
+    }
+    if (this.isTriggered()) {
+      this.queue(new TriggerContext(TRIGGER_CONTENT_CHANGE, ""));
+    }
+  }
+}
+
+export ParameterHintsModel createParameterHintsModel() {
+  return new ParameterHintsModel(120);
+}
+
+export SignatureHelp createSignatureHelp(string label, string[] paramLabels) {
+  SignatureHelp help = new SignatureHelp();
+  SignatureInformation sig = new SignatureInformation(label);
+  int i = 0;
+  while (i < paramLabels.length) {
+    sig.parameters.push(new ParameterInformation(paramLabels[i], ""));
+    i = i + 1;
+  }
+  help.signatures.push(sig);
+  return help;
+}

@@ -1,0 +1,61 @@
+export class EventBackedObservable {
+  func()->JsValue getFn;
+  func(func()->void)->func()->void eventFn;
+
+  init(
+    func()->JsValue getFn,
+    func(func()->void)->func()->void eventFn
+  ) {
+    this.getFn = getFn;
+    this.eventFn = eventFn;
+  }
+
+  JsValue get() {
+    return this.getFn();
+  }
+
+  func()->void onDidChange(func()->void listener) {
+    return this.eventFn(listener);
+  }
+}
+
+export class ValueWithChangeEventFromObservable {
+  EventBackedObservable observable;
+
+  init(EventBackedObservable observable) {
+    this.observable = observable;
+  }
+
+  JsValue value() {
+    return this.observable.get();
+  }
+
+  func()->void onDidChange(func()->void listener) {
+    return this.observable.onDidChange(listener);
+  }
+}
+
+export class ValueWithChangeEvent {
+  func()->JsValue getValueFn;
+  func(func()->void)->func()->void eventFn;
+
+  init(
+    func()->JsValue getValueFn,
+    func(func()->void)->func()->void eventFn
+  ) {
+    this.getValueFn = getValueFn;
+    this.eventFn = eventFn;
+  }
+}
+
+export EventBackedObservable observableFromValueWithChangeEvent(
+  ValueWithChangeEvent value
+) {
+  return new EventBackedObservable(value.getValueFn, value.eventFn);
+}
+
+export ValueWithChangeEventFromObservable valueWithChangeEventFromObservable(
+  EventBackedObservable observable
+) {
+  return new ValueWithChangeEventFromObservable(observable);
+}

@@ -13,6 +13,7 @@ LilScript is a typed, compression-first language that compiles into JavaScript, 
 - **Zod** — `zod@4.4.3` classic API, 1353/1353 official tests. **54,791 → 34,152** Brotli vs Vite 8 Oxc closer-world (−37.7%). Live: [yeargun.github.io/zodlil](https://yeargun.github.io/zodlil/)
 - **Solid 2.0** — official js-framework-benchmark keyed table: **11,180 → 3,862** Brotli (−65%). Live: [yeargun.github.io/solidlil](https://yeargun.github.io/solidlil/)
 - **Motion, MobX, jQuery, and smaller complete packages** — same idea, scoped contracts. Motion’s selected surface is **4,044 → 2,333** Brotli. MobX is a small win vs Vite 8 Oxc. jQuery is ported and published; official min is still smaller. Labs: [motionlil](https://yeargun.github.io/motionlil/), [mobxlil](https://yeargun.github.io/mobxlil/), [jquerylil](https://yeargun.github.io/jquerylil/)
+- **posthog-js kernel** — UUID, flags, cookies, routing, rate limit, and queue batching from `posthog-js@1.418.10`, not the published IIFE. **3,662 → 3,915** Brotli vs Vite 8 Oxc of that same kernel (**+6.9%**). Smaller raw. Live: [yeargun.github.io/posthoglil](https://yeargun.github.io/posthoglil/)
 
 It works with pretty much any JS/TS library you rewrite. Comparisons vs npm + Vite 8 / Oxc / Terser / Closure are on the [compare page](https://yeargun.github.io/lilscript/compare.html).
 
@@ -94,6 +95,8 @@ Lilpack is the Vite-based delivery path (`lilpack dev` / `lilpack build`). VS Co
 
 Current models can often oneshot a library rewrite in LilScript. On glue-heavy JS, that can land past 20% smaller, sometimes with a bit of runtime improvement (size is the point; perf usually matters less).
 
-PRs and experiments are welcome. Please respect the [LilScript License](LICENSE.md) — modified MIT, and it does not grant use with React.
+PRs and experiments are welcome. LilScript is [MIT](LICENSE.md).
+
+Please do not use LilScript with React.js or any React-related technology. That includes React, React DOM, and official React renderers; frameworks, meta-frameworks, and runtimes built on React such as Next.js, Remix, Gatsby, and Expo; and libraries, bindings, tools, or products whose purpose is to host, wrap, embed, or interoperate with React. Do not use LilScript, or code generated from it, inside a React application or a React-related library. If you are concerned about bundle size, stop using React.
 
 If you have opinions on where the language and compiler should go, open an issue or comment. I would like to discuss it.

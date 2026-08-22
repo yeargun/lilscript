@@ -1,0 +1,140 @@
+export string ILanguageFeatureDebounceService = "ILanguageFeatureDebounceService";
+
+float clampDebounce(float value, float minimum, float maximum) {
+  if (value < minimum) {
+    return minimum;
+  }
+  if (value > maximum) {
+    return maximum;
+  }
+  return value;
+}
+
+string modelKey(JsValue model) {
+  if (model["id"] != null) {
+    return JS.string(model["id"]);
+  }
+  if (model["uri"] != null) {
+    return JS.string(model["uri"]);
+  }
+  return "model";
+}
+
+export class LanguageFeatureDebounceInformation {
+  float defaultValue;
+  float minimum;
+  float maximum;
+  Map<string, float[]> samples;
+  string[] sampleKeys;
+
+  init(float defaultValue, float minimum, float maximum) {
+    this.defaultValue = defaultValue;
+    this.minimum = minimum;
+    this.maximum = maximum;
+    this.samples = new Map();
+    this.sampleKeys = [];
+  }
+
+  float average(float[] values) {
+    if (values.length == 0) {
+      return this.defaultValue;
+    }
+    float total = 0.0;
+    int i = 0;
+    while (i < values.length) {
+      total = total + values[i];
+      i = i + 1;
+    }
+    return total / values.length;
+  }
+
+  int get(JsValue model) {
+    float[]? values = this.samples.get(modelKey(model));
+    if (values == null) {
+      return this.defaultValue.round().toInt();
+    }
+    return clampDebounce(this.average(values), this.minimum, this.maximum).round().toInt();
+  }
+
+  int update(JsValue model, float value) {
+    string key = modelKey(model);
+    float[]? existing = this.samples.get(key);
+    float[] values = [];
+    if (existing == null) {
+      this.samples.set(key, values);
+      this.sampleKeys.push(key);
+    } else {
+      values = existing;
+    }
+    values.push(value);
+    if (values.length > 6) {
+      values.splice(0, 1);
+    }
+    return clampDebounce(this.average(values), this.minimum, this.maximum).round().toInt();
+  }
+
+  int defaultValueMs() {
+    float total = 0.0;
+    int count = 0;
+    int i = 0;
+    while (i < this.sampleKeys.length) {
+      float[]? values = this.samples.get(this.sampleKeys[i]);
+      if (values != null) {
+        total = total + this.average(values);
+        count = count + 1;
+      }
+      i = i + 1;
+    }
+    if (count == 0) {
+      return this.defaultValue.round().toInt();
+    }
+    return clampDebounce(total / count, this.minimum, this.maximum).round().toInt();
+  }
+}
+
+export class LanguageFeatureDebounceService {
+  Map<string, LanguageFeatureDebounceInformation> data;
+
+  init() {
+    this.data = new Map();
+  }
+
+  LanguageFeatureDebounceInformation forFeature(
+    JsValue feature,
+    string name,
+    JsValue config = null
+  ) {
+    float minimum = 50.0;
+    float maximum = 2500.0;
+    string extra = "";
+    if (config != null) {
+      if (config["min"] != null) {
+        minimum = JS.number(config["min"]);
+      }
+      if (config["max"] != null) {
+        maximum = JS.number(config["max"]);
+      } else {
+        maximum = minimum * minimum;
+      }
+      if (config["key"] != null) {
+        extra = JS.string(config["key"]);
+      }
+    }
+    string key = name + ":" + JS.string(minimum) + ":" + extra;
+    LanguageFeatureDebounceInformation? current = this.data.get(key);
+    if (current != null) {
+      return current;
+    }
+    LanguageFeatureDebounceInformation created = new LanguageFeatureDebounceInformation(
+      minimum * 1.5,
+      minimum,
+      maximum
+    );
+    this.data.set(key, created);
+    return created;
+  }
+}
+
+export LanguageFeatureDebounceService createLanguageFeatureDebounceService() {
+  return new LanguageFeatureDebounceService();
+}

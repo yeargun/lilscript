@@ -1,0 +1,39 @@
+import { domCreateElement, setClassName, setTextContent, setDisplay, appendChild, removeChild } from "../../../../js-host";
+
+export class HoverService {
+  JsValue? widget;
+  bool visible;
+  string lastContent;
+
+  init() {
+    this.widget = null;
+    this.visible = false;
+    this.lastContent = "";
+  }
+
+  JsValue showHover(JsValue parent, string content) {
+    JsValue el = this.widget ?? domCreateElement("div");
+    this.widget = el;
+    setClassName(el, "monaco-hover");
+    setTextContent(el, content);
+    setDisplay(el, "block");
+    appendChild(parent, el);
+    this.visible = true;
+    this.lastContent = content;
+    return el;
+  }
+
+  void hideHover() {
+    JsValue? el = this.widget;
+    if (el != null) {
+      setDisplay(el, "none");
+    }
+    this.visible = false;
+  }
+}
+
+export HoverService createHoverService() {
+  return new HoverService();
+}
+
+export string IHoverServiceId = "hoverService";

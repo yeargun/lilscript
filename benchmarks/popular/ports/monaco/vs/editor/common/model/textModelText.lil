@@ -1,0 +1,93 @@
+import { sliceOf, concat2, emptyBuf } from "../../../../js-host";
+
+export class TextLength {
+  int lineCount;
+  int columnCount;
+
+  init(int lineCount, int columnCount) {
+    this.lineCount = lineCount;
+    this.columnCount = columnCount;
+  }
+}
+
+export class Range {
+  int startLineNumber;
+  int startColumn;
+  int endLineNumber;
+  int endColumn;
+
+  init(int startLineNumber, int startColumn, int endLineNumber, int endColumn) {
+    this.startLineNumber = startLineNumber;
+    this.startColumn = startColumn;
+    this.endLineNumber = endLineNumber;
+    this.endColumn = endColumn;
+  }
+}
+
+export class TextModelValue {
+  string[] lines;
+  string eol;
+
+  init(string[] lines, string eol) {
+    this.lines = lines;
+    this.eol = eol;
+  }
+
+  int getLineCount() {
+    return this.lines.length;
+  }
+
+  int getLineLength(int lineNumber) {
+    if (lineNumber < 1 || lineNumber > this.lines.length) {
+      return 0;
+    }
+    return this.lines[lineNumber - 1].length;
+  }
+
+  string getValueInRange(Range range) {
+    if (range.startLineNumber == range.endLineNumber) {
+      string line = this.lines[range.startLineNumber - 1];
+      return sliceOf(line, range.startColumn - 1, range.endColumn - 1);
+    }
+    string result = sliceOf(
+      this.lines[range.startLineNumber - 1],
+      range.startColumn - 1,
+      this.lines[range.startLineNumber - 1].length
+    );
+    int lineNumber = range.startLineNumber + 1;
+    while (lineNumber < range.endLineNumber) {
+      result = concat2(concat2(result, this.eol), this.lines[lineNumber - 1]);
+      lineNumber = lineNumber + 1;
+    }
+    result = concat2(result, this.eol);
+    return concat2(result, sliceOf(this.lines[range.endLineNumber - 1], 0, range.endColumn - 1));
+  }
+}
+
+export class TextModelText {
+  TextModelValue textModel;
+
+  init(TextModelValue textModel) {
+    this.textModel = textModel;
+  }
+
+  string getValueOfRange(Range range) {
+    return this.textModel.getValueInRange(range);
+  }
+
+  int getLineLength(int lineNumber) {
+    return this.textModel.getLineLength(lineNumber);
+  }
+
+  TextLength length() {
+    int lastLineNumber = this.textModel.getLineCount();
+    if (lastLineNumber == 0) {
+      return new TextLength(0, 0);
+    }
+    return new TextLength(lastLineNumber - 1, this.textModel.getLineLength(lastLineNumber));
+  }
+}
+
+export TextModelText createTextModelText(string[] lines, string eol) {
+  return new TextModelText(new TextModelValue(lines, eol));
+}

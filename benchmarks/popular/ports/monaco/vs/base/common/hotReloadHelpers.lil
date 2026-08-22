@@ -1,0 +1,21 @@
+Map<string, JsValue> hotClasses = new Map<string, JsValue>();
+
+export JsValue readHotReloadableExport(JsValue value, JsValue reader) {
+  return value;
+}
+
+export void observeHotReloadableExports(JsValue[] values, JsValue reader) {
+}
+
+export JsValue createHotClass(string id, JsValue classValue, bool enabled) {
+  if (!enabled) {
+    return classValue;
+  }
+  JsValue? existing = hotClasses.get(id);
+  if (existing != null) {
+    hotClasses.set(id, classValue);
+    return existing;
+  }
+  hotClasses.set(id, classValue);
+  return classValue;
+}

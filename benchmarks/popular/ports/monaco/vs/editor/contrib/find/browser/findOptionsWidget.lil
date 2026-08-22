@@ -1,0 +1,61 @@
+export string FIND_OPTIONS_WIDGET_ID = "editor.contrib.findOptionsWidget";
+export int OVERLAY_TOP_RIGHT = 0;
+export int HIDE_DELAY_MS = 2000;
+
+export class FindOptionsWidget {
+  bool isVisible;
+  bool matchCase;
+  bool wholeWord;
+  bool isRegex;
+  int hideAfterMs;
+
+  init(bool matchCase, bool wholeWord, bool isRegex) {
+    this.isVisible = false;
+    this.matchCase = matchCase;
+    this.wholeWord = wholeWord;
+    this.isRegex = isRegex;
+    this.hideAfterMs = HIDE_DELAY_MS;
+  }
+
+  string getId() {
+    return FIND_OPTIONS_WIDGET_ID;
+  }
+
+  int getPositionPreference() {
+    return OVERLAY_TOP_RIGHT;
+  }
+
+  void highlightFindOptions() {
+    this.isVisible = true;
+  }
+
+  void hide() {
+    this.isVisible = false;
+  }
+
+  void setMatchCase(bool value) {
+    this.matchCase = value;
+    this.isVisible = true;
+  }
+
+  void setWholeWord(bool value) {
+    this.wholeWord = value;
+    this.isVisible = true;
+  }
+
+  void setRegex(bool value) {
+    this.isRegex = value;
+    this.isVisible = true;
+  }
+
+  string displayStyle() {
+    if (this.isVisible) {
+      return "block";
+    }
+    return "none";
+  }
+}
+
+export FindOptionsWidget createFindOptionsWidget(bool matchCase, bool wholeWord, bool isRegex) {
+  return new FindOptionsWidget(matchCase, wholeWord, isRegex);
+}

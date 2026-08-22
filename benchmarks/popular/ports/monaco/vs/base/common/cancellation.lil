@@ -1,0 +1,99 @@
+export class MutableToken {
+  bool cancelled;
+  bool disposed;
+  bool hasListener;
+  func()->void listener;
+
+  init() {
+    this.cancelled = false;
+    this.disposed = false;
+    this.hasListener = false;
+    this.listener = () => {};
+  }
+
+  void cancel() {
+    if (!this.cancelled) {
+      this.cancelled = true;
+      if (this.hasListener) {
+        this.listener();
+      }
+      this.dispose();
+    }
+  }
+
+  bool isCancellationRequested() {
+    return this.cancelled;
+  }
+
+  void onCancellationRequested(func()->void callback) {
+    if (this.cancelled) {
+      callback();
+      return;
+    }
+    this.listener = callback;
+    this.hasListener = true;
+  }
+
+  void dispose() {
+    this.hasListener = false;
+    this.listener = () => {};
+    this.disposed = true;
+  }
+}
+
+export class CancellationTokenSource {
+  MutableToken? tokenValue;
+  bool cancelledBeforeAsk;
+
+  init() {
+    this.tokenValue = null;
+    this.cancelledBeforeAsk = false;
+  }
+
+  MutableToken token() {
+    MutableToken? existing = this.tokenValue;
+    if (existing != null) {
+      return existing;
+    }
+    MutableToken created = new MutableToken();
+    if (this.cancelledBeforeAsk) {
+      created.cancel();
+    }
+    this.tokenValue = created;
+    return created;
+  }
+
+  void cancel() {
+    MutableToken? existing = this.tokenValue;
+    if (existing == null) {
+      this.cancelledBeforeAsk = true;
+    } else {
+      existing.cancel();
+    }
+  }
+
+  void dispose(bool cancel) {
+    if (cancel) {
+      this.cancel();
+    }
+    MutableToken? existing = this.tokenValue;
+    if (existing != null) {
+      existing.dispose();
+    }
+  }
+}
+
+export bool isCancellationToken(JsValue thing) {
+  if (!thing.truthy() || !thing.isObject()) {
+    return false;
+  }
+  return true;
+}
+
+export bool noneRequested() {
+  return false;
+}
+
+export bool cancelledRequested() {
+  return true;
+}

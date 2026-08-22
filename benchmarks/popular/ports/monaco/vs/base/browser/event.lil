@@ -1,0 +1,72 @@
+import { addEventListener, removeEventListener } from "../../../js-host";
+
+export class DomEmitter {
+  JsValue element;
+  string eventType;
+  bool useCapture;
+  bool disposed;
+  bool listening;
+  (func(JsValue)->void)[] listeners;
+  func(JsValue)->void forwarder;
+
+  init(JsValue element, string eventType, bool useCapture) {
+    this.element = element;
+    this.eventType = eventType;
+    this.useCapture = useCapture;
+    this.disposed = false;
+    this.listening = false;
+    this.listeners = [];
+    DomEmitter owner = this;
+    this.forwarder = (JsValue event) => {
+      owner.fire(event);
+    };
+  }
+
+  func()->void event(func(JsValue)->void listener) {
+    if (this.disposed) {
+      return () => {};
+    }
+    this.listeners.push(listener);
+    if (!this.listening) {
+      addEventListener(this.element, this.eventType, this.forwarder, this.useCapture);
+      this.listening = true;
+    }
+    DomEmitter owner = this;
+    return () => {
+      owner.removeListener(listener);
+    };
+  }
+
+  void removeListener(func(JsValue)->void listener) {
+    int index = this.listeners.indexOf(listener);
+    if (index >= 0) {
+      this.listeners.splice(index, 1);
+    }
+    if (this.listeners.length == 0 && this.listening) {
+      removeEventListener(this.element, this.eventType, this.forwarder, this.useCapture);
+      this.listening = false;
+    }
+  }
+
+  void fire(JsValue event) {
+    (func(JsValue)->void)[] snapshot = this.listeners.slice();
+    int i = 0;
+    while (i < snapshot.length) {
+      snapshot[i](event);
+      i = i + 1;
+    }
+  }
+
+  void dispose() {
+    if (this.listening) {
+      removeEventListener(this.element, this.eventType, this.forwarder, this.useCapture);
+    }
+    this.listening = false;
+    this.disposed = true;
+    this.listeners = [];
+  }
+}
+
+export DomEmitter createDomEmitter(JsValue element, string eventType, bool useCapture = false) {
+  return new DomEmitter(element, eventType, useCapture);
+}

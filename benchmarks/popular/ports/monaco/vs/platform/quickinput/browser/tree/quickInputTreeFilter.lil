@@ -1,0 +1,27 @@
+export class QuickInputTreeFilter {
+  string query;
+  bool matchOnLabel;
+
+  init() {
+    this.query = "";
+    this.matchOnLabel = true;
+  }
+
+  bool filter(string label) {
+    if (this.query.length == 0) {
+      return true;
+    }
+    if (!this.matchOnLabel) {
+      return true;
+    }
+    return label.toLowerCase().includes(this.query.toLowerCase());
+  }
+
+  void setQuery(string query) {
+    this.query = query;
+  }
+}
+
+export QuickInputTreeFilter createQuickInputTreeFilter() {
+  return new QuickInputTreeFilter();
+}

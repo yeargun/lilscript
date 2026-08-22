@@ -1,0 +1,97 @@
+import { domCreateElement, setClassName, getClientWidth, getClientHeight, focusElement, setTextContent } from "../../../../js-host";
+
+int lastCommandId = 0;
+
+export class StandaloneCodeEditor {
+  JsValue domElement;
+  string value;
+  string languageId;
+  int selStart;
+  int selEnd;
+  bool focused;
+  bool disposed;
+  string id;
+  Record<string> commands;
+  Record<string> contextKeys;
+
+  init(JsValue domElement, string value, string languageId) {
+    this.domElement = domElement;
+    this.value = value;
+    this.languageId = languageId;
+    this.selStart = 0;
+    this.selEnd = 0;
+    this.focused = false;
+    this.disposed = false;
+    lastCommandId = lastCommandId + 1;
+    this.id = "editor" + lastCommandId.toString();
+    this.commands = record {};
+    this.contextKeys = record {};
+    setClassName(domElement, "monaco-editor standalone-code-editor");
+  }
+
+  void setValue(string value) {
+    this.value = value;
+    setTextContent(this.domElement, value);
+  }
+
+  string getValue() {
+    return this.value;
+  }
+
+  void setSelection(int start, int end) {
+    this.selStart = start;
+    this.selEnd = end;
+  }
+
+  void layout() {
+    int w = getClientWidth(this.domElement);
+    int h = getClientHeight(this.domElement);
+    if (w < 0) {
+      w = 0;
+    }
+    if (h < 0) {
+      h = 0;
+    }
+  }
+
+  void focus() {
+    this.focused = true;
+    focusElement(this.domElement);
+  }
+
+  string addCommand(string keybinding, string handler, string context) {
+    lastCommandId = lastCommandId + 1;
+    string commandId = "DYNAMIC_" + lastCommandId.toString();
+    this.commands[commandId] = keybinding + "|" + handler + "|" + context;
+    return commandId;
+  }
+
+  void createContextKey(string key, string defaultValue) {
+    this.contextKeys[key] = defaultValue;
+  }
+
+  bool addAction(string id, string label) {
+    if (id.length == 0 || label.length == 0) {
+      return false;
+    }
+    this.commands[this.id + ":" + id] = label;
+    return true;
+  }
+
+  string getId() {
+    return this.id;
+  }
+
+  void dispose() {
+    this.disposed = true;
+    this.focused = false;
+  }
+}
+
+export StandaloneCodeEditor createStandaloneCodeEditor(JsValue domElement, string value, string languageId) {
+  return new StandaloneCodeEditor(domElement, value, languageId);
+}
+
+export JsValue createStandaloneHost() {
+  return domCreateElement("div");
+}

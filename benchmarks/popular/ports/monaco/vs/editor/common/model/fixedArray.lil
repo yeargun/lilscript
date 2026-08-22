@@ -1,0 +1,65 @@
+export class FixedArray<T> {
+  T defaultValue;
+  T[] store;
+
+  init(T defaultValue) {
+    this.defaultValue = defaultValue;
+    this.store = [];
+  }
+
+  T get(int index) {
+    if (index >= 0 && index < this.store.length) {
+      return this.store[index];
+    }
+    return this.defaultValue;
+  }
+
+  void set(int index, T value) {
+    while (index >= this.store.length) {
+      this.store.push(this.defaultValue);
+    }
+    this.store[index] = value;
+  }
+
+  void replace(int index, int oldLength, int newLength) {
+    if (index < 0 || index >= this.store.length) {
+      return;
+    }
+    int end = index + oldLength;
+    int i = 0;
+    T[] next = [];
+    while (i < index) {
+      next.push(this.store[i]);
+      i = i + 1;
+    }
+    int j = 0;
+    while (j < newLength) {
+      next.push(this.defaultValue);
+      j = j + 1;
+    }
+    i = end;
+    while (i < this.store.length) {
+      next.push(this.store[i]);
+      i = i + 1;
+    }
+    this.store = next;
+  }
+
+  void delete(int deleteIndex, int deleteCount) {
+    if (deleteCount <= 0 || deleteIndex < 0 || deleteIndex >= this.store.length) {
+      return;
+    }
+    this.replace(deleteIndex, deleteCount, 0);
+  }
+
+  void insert(int insertIndex, int insertCount) {
+    if (insertCount <= 0 || insertIndex < 0 || insertIndex >= this.store.length) {
+      return;
+    }
+    this.replace(insertIndex, 0, insertCount);
+  }
+}
+
+export FixedArray<JsValue> createFixedArray(JsValue defaultValue) {
+  return new FixedArray<JsValue>(defaultValue);
+}

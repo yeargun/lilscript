@@ -1,0 +1,149 @@
+import { OffsetRange } from "./offsetRange";
+import { Rng, createRange } from "../../../../../base/range";
+
+export class LineRange {
+  int startLineNumber;
+  int endLineNumberExclusive;
+
+  init(int startLineNumber, int endLineNumberExclusive) {
+    this.startLineNumber = startLineNumber;
+    this.endLineNumberExclusive = endLineNumberExclusive;
+  }
+
+  bool isEmpty() {
+    return this.startLineNumber == this.endLineNumberExclusive;
+  }
+
+  int length() {
+    return this.endLineNumberExclusive - this.startLineNumber;
+  }
+
+  bool contains(int lineNumber) {
+    return this.startLineNumber <= lineNumber && lineNumber < this.endLineNumberExclusive;
+  }
+
+  LineRange delta(int offset) {
+    return new LineRange(this.startLineNumber + offset, this.endLineNumberExclusive + offset);
+  }
+
+  LineRange deltaLength(int offset) {
+    return new LineRange(this.startLineNumber, this.endLineNumberExclusive + offset);
+  }
+
+  LineRange join(LineRange other) {
+    int s = this.startLineNumber;
+    if (other.startLineNumber < s) {
+      s = other.startLineNumber;
+    }
+    int e = this.endLineNumberExclusive;
+    if (other.endLineNumberExclusive > e) {
+      e = other.endLineNumberExclusive;
+    }
+    return new LineRange(s, e);
+  }
+
+  bool equals(LineRange other) {
+    return this.startLineNumber == other.startLineNumber && this.endLineNumberExclusive == other.endLineNumberExclusive;
+  }
+
+  bool intersectsStrict(LineRange other) {
+    return this.startLineNumber < other.endLineNumberExclusive && other.startLineNumber < this.endLineNumberExclusive;
+  }
+
+  bool intersectsOrTouches(LineRange other) {
+    return this.startLineNumber <= other.endLineNumberExclusive && other.startLineNumber <= this.endLineNumberExclusive;
+  }
+
+  LineRange? intersect(LineRange other) {
+    int s = this.startLineNumber;
+    if (other.startLineNumber > s) {
+      s = other.startLineNumber;
+    }
+    int e = this.endLineNumberExclusive;
+    if (other.endLineNumberExclusive < e) {
+      e = other.endLineNumberExclusive;
+    }
+    if (s >= e) {
+      return null;
+    }
+    return new LineRange(s, e);
+  }
+
+  Rng toExclusiveRange() {
+    return createRange(this.startLineNumber, 1, this.endLineNumberExclusive, 1);
+  }
+
+  OffsetRange toOffsetRange() {
+    return new OffsetRange(this.startLineNumber - 1, this.endLineNumberExclusive - 1);
+  }
+
+  LineRange addMargin(int marginTop, int marginBottom) {
+    return new LineRange(this.startLineNumber - marginTop, this.endLineNumberExclusive + marginBottom);
+  }
+
+  string toString() {
+    return "[" + this.startLineNumber.toString() + "," + this.endLineNumberExclusive.toString() + ")";
+  }
+}
+
+export LineRange lineRangeOfLength(int startLineNumber, int length) {
+  return new LineRange(startLineNumber, startLineNumber + length);
+}
+
+export LineRange lineRangeFromRange(Rng range) {
+  return new LineRange(range.startLineNumber, range.endLineNumber);
+}
+
+export LineRange lineRangeFromRangeInclusive(Rng range) {
+  return new LineRange(range.startLineNumber, range.endLineNumber + 1);
+}
+
+export LineRange lineRangeJoin(LineRange[] lineRanges) {
+  LineRange first = lineRanges[0];
+  int s = first.startLineNumber;
+  int e = first.endLineNumberExclusive;
+  int i = 1;
+  while (i < lineRanges.length) {
+    if (lineRanges[i].startLineNumber < s) {
+      s = lineRanges[i].startLineNumber;
+    }
+    if (lineRanges[i].endLineNumberExclusive > e) {
+      e = lineRanges[i].endLineNumberExclusive;
+    }
+    i = i + 1;
+  }
+  return new LineRange(s, e);
+}
+
+export class LineRangeSet {
+  LineRange[] normalizedRanges;
+
+  init(LineRange[] normalizedRanges) {
+    this.normalizedRanges = normalizedRanges;
+  }
+
+  LineRange[] ranges() {
+    return this.normalizedRanges;
+  }
+
+  bool contains(int lineNumber) {
+    int i = 0;
+    while (i < this.normalizedRanges.length) {
+      if (this.normalizedRanges[i].contains(lineNumber)) {
+        return true;
+      }
+      i = i + 1;
+    }
+    return false;
+  }
+
+  LineRangeSet getWithDelta(int value) {
+    LineRange[] next = [];
+    int i = 0;
+    while (i < this.normalizedRanges.length) {
+      next.push(this.normalizedRanges[i].delta(value));
+      i = i + 1;
+    }
+    return new LineRangeSet(next);
+  }
+}

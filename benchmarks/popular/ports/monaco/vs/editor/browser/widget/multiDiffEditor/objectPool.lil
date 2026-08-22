@@ -1,0 +1,91 @@
+export class PooledObject {
+  int id;
+  string dataId;
+  bool disposed;
+
+  init(int id, string dataId) {
+    this.id = id;
+    this.dataId = dataId;
+    this.disposed = false;
+  }
+
+  void setData(string dataId) {
+    this.dataId = dataId;
+  }
+
+  void dispose() {
+    this.disposed = true;
+  }
+}
+
+export class ObjectPool {
+  PooledObject[] unused;
+  PooledObject[] used;
+  int nextId;
+
+  init() {
+    this.unused = [];
+    this.used = [];
+    this.nextId = 1;
+  }
+
+  PooledObject getUnusedObj(string dataId) {
+    PooledObject obj = new PooledObject(this.nextId, dataId);
+    if (this.unused.length == 0) {
+      this.nextId = this.nextId + 1;
+    } else {
+      int found = -1;
+      int i = 0;
+      while (i < this.unused.length) {
+        if (this.unused[i].dataId == dataId) {
+          found = i;
+          break;
+        }
+        i = i + 1;
+      }
+      if (found < 0) {
+        found = 0;
+      }
+      obj = this.unused[found];
+      this.unused.splice(found, 1);
+      obj.setData(dataId);
+    }
+    this.used.push(obj);
+    return obj;
+  }
+
+  void release(PooledObject obj) {
+    int i = 0;
+    while (i < this.used.length) {
+      if (this.used[i].id == obj.id) {
+        this.used.splice(i, 1);
+        break;
+      }
+      i = i + 1;
+    }
+    if (this.unused.length > 5) {
+      obj.dispose();
+    } else {
+      this.unused.push(obj);
+    }
+  }
+
+  void dispose() {
+    int i = 0;
+    while (i < this.used.length) {
+      this.used[i].dispose();
+      i = i + 1;
+    }
+    int j = 0;
+    while (j < this.unused.length) {
+      this.unused[j].dispose();
+      j = j + 1;
+    }
+    this.used = [];
+    this.unused = [];
+  }
+}
+
+export ObjectPool createObjectPool() {
+  return new ObjectPool();
+}

@@ -1,0 +1,74 @@
+export class BracketInfo {
+  JsValue range;
+  int nestingLevel;
+  int nestingLevelOfEqualBracketType;
+  bool isInvalid;
+
+  init(JsValue range, int nestingLevel, int nestingLevelOfEqualBracketType, bool isInvalid) {
+    this.range = range;
+    this.nestingLevel = nestingLevel;
+    this.nestingLevelOfEqualBracketType = nestingLevelOfEqualBracketType;
+    this.isInvalid = isInvalid;
+  }
+}
+
+export class BracketPairInfo {
+  JsValue range;
+  JsValue openingBracketRange;
+  JsValue closingBracketRange;
+  int nestingLevel;
+  int nestingLevelOfEqualBracketType;
+  JsValue bracketPairNode;
+
+  init(
+    JsValue range,
+    JsValue openingBracketRange,
+    JsValue closingBracketRange,
+    int nestingLevel,
+    int nestingLevelOfEqualBracketType,
+    JsValue bracketPairNode
+  ) {
+    this.range = range;
+    this.openingBracketRange = openingBracketRange;
+    this.closingBracketRange = closingBracketRange;
+    this.nestingLevel = nestingLevel;
+    this.nestingLevelOfEqualBracketType = nestingLevelOfEqualBracketType;
+    this.bracketPairNode = bracketPairNode;
+  }
+
+  JsValue openingBracketInfo() {
+    return this.bracketPairNode["openingBracket"]["bracketInfo"];
+  }
+}
+
+export class BracketPairWithMinIndentationInfo {
+  JsValue range;
+  JsValue openingBracketRange;
+  JsValue closingBracketRange;
+  int nestingLevel;
+  int nestingLevelOfEqualBracketType;
+  JsValue bracketPairNode;
+  int minVisibleColumnIndentation;
+
+  init(
+    JsValue range,
+    JsValue openingBracketRange,
+    JsValue closingBracketRange,
+    int nestingLevel,
+    int nestingLevelOfEqualBracketType,
+    JsValue bracketPairNode,
+    int minVisibleColumnIndentation
+  ) {
+    this.range = range;
+    this.openingBracketRange = openingBracketRange;
+    this.closingBracketRange = closingBracketRange;
+    this.nestingLevel = nestingLevel;
+    this.nestingLevelOfEqualBracketType = nestingLevelOfEqualBracketType;
+    this.bracketPairNode = bracketPairNode;
+    this.minVisibleColumnIndentation = minVisibleColumnIndentation;
+  }
+}
+
+export BracketInfo createBracketInfo(JsValue range, int level, int equalLevel, bool invalid) {
+  return new BracketInfo(range, level, equalLevel, invalid);
+}

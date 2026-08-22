@@ -1,0 +1,153 @@
+export class ThemeColor {
+  string id;
+
+  init(string id) {
+    this.id = id;
+  }
+}
+
+export bool isThemeColor(JsValue obj) {
+  if (!obj.truthy() || !obj.isObject()) {
+    return false;
+  }
+  return obj["id"] is string;
+}
+
+export class ThemeIcon {
+  string id;
+  string colorId;
+
+  init(string id, string colorId) {
+    this.id = id;
+    this.colorId = colorId;
+  }
+}
+
+bool isIconNameChar(string ch) {
+  if (ch >= "A" && ch <= "Z") {
+    return true;
+  }
+  if (ch >= "a" && ch <= "z") {
+    return true;
+  }
+  if (ch >= "0" && ch <= "9") {
+    return true;
+  }
+  return ch == "-" || ch == "~";
+}
+
+export string[] themeIconClassNames(ThemeIcon icon) {
+  string id = icon.id;
+  string modifier = "";
+  int tilde = id.lastIndexOf("~");
+  if (tilde != -1) {
+    modifier = "";
+    int m = tilde + 1;
+    while (m < id.length) {
+      modifier = modifier + id.charAt(m);
+      m = m + 1;
+    }
+    string base = "";
+    int b = 0;
+    while (b < tilde) {
+      base = base + id.charAt(b);
+      b = b + 1;
+    }
+    id = base;
+  }
+  string[] classNames = [];
+  classNames.push("codicon");
+  classNames.push("codicon-" + id);
+  if (modifier.length > 0) {
+    classNames.push("codicon-modifier-" + modifier);
+  }
+  return classNames;
+}
+
+export string themeIconClassName(ThemeIcon icon) {
+  return themeIconClassNames(icon).join(" ");
+}
+
+export string themeIconCssSelector(ThemeIcon icon) {
+  return "." + themeIconClassNames(icon).join(".");
+}
+
+export bool isThemeIcon(JsValue obj) {
+  if (!obj.truthy() || !obj.isObject()) {
+    return false;
+  }
+  if (!(obj["id"] is string)) {
+    return false;
+  }
+  JsValue color = obj["color"];
+  if (!color.truthy()) {
+    return true;
+  }
+  return isThemeColor(color);
+}
+
+export ThemeIcon themeIconFromId(string id) {
+  return new ThemeIcon(id, "");
+}
+
+export ThemeIcon themeIconFromString(string str) {
+  if (!str.startsWith("$(") || !str.endsWith(")")) {
+    return new ThemeIcon("", "");
+  }
+  string name = "";
+  int i = 2;
+  int end = str.length - 1;
+  while (i < end) {
+    string ch = str.charAt(i);
+    if (!isIconNameChar(ch)) {
+      return new ThemeIcon("", "");
+    }
+    name = name + ch;
+    i = i + 1;
+  }
+  return new ThemeIcon(name, "");
+}
+
+export ThemeIcon themeIconModify(ThemeIcon icon, string modifier) {
+  string id = icon.id;
+  int tilde = id.lastIndexOf("~");
+  if (tilde != -1) {
+    string base = "";
+    int i = 0;
+    while (i < tilde) {
+      base = base + id.charAt(i);
+      i = i + 1;
+    }
+    id = base;
+  }
+  if (modifier.length > 0) {
+    id = id + "~" + modifier;
+  }
+  return new ThemeIcon(id, icon.colorId);
+}
+
+export string themeIconModifier(ThemeIcon icon) {
+  int tilde = icon.id.lastIndexOf("~");
+  if (tilde == -1) {
+    return "";
+  }
+  string modifier = "";
+  int i = tilde + 1;
+  while (i < icon.id.length) {
+    modifier = modifier + icon.id.charAt(i);
+    i = i + 1;
+  }
+  return modifier;
+}
+
+export bool themeIconEquals(ThemeIcon a, ThemeIcon b) {
+  return a.id == b.id && a.colorId == b.colorId;
+}
+
+export bool themeIconIsFile(ThemeIcon icon) {
+  return icon.id == "file";
+}
+
+export bool themeIconIsFolder(ThemeIcon icon) {
+  return icon.id == "folder";
+}

@@ -1,0 +1,32 @@
+export class Progress {
+  int total;
+  int worked;
+  bool done;
+
+  init(int total) {
+    this.total = total;
+    this.worked = 0;
+    this.done = false;
+  }
+
+  void report(int increment) {
+    this.worked = this.worked + increment;
+    if (this.worked >= this.total) {
+      this.worked = this.total;
+      this.done = true;
+    }
+  }
+
+  float ratio() {
+    if (this.total <= 0) {
+      return 0.0;
+    }
+    return this.worked / this.total;
+  }
+}
+
+export Progress createProgress(int total) {
+  return new Progress(total);
+}
+
+export string IEditorProgressServiceId = "editorProgressService";

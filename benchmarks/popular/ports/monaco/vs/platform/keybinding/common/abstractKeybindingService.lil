@@ -1,0 +1,55 @@
+export class ChordStatus {
+  string[] currentChords;
+  bool expectingMore;
+
+  init() {
+    this.currentChords = [];
+    this.expectingMore = false;
+  }
+}
+
+export class AbstractKeybindingService {
+  ChordStatus status;
+  string lastCommand;
+  int dispatchCount;
+
+  init() {
+    this.status = new ChordStatus();
+    this.lastCommand = "";
+    this.dispatchCount = 0;
+  }
+
+  void enterChord(string chord) {
+    this.status.currentChords.push(chord);
+    this.status.expectingMore = true;
+  }
+
+  void leaveChord() {
+    string[] empty = [];
+    this.status.currentChords = empty;
+    this.status.expectingMore = false;
+  }
+
+  string dispatch(string keypress, string resolvedCommand, bool moreNeeded) {
+    this.dispatchCount = this.dispatchCount + 1;
+    if (moreNeeded) {
+      this.enterChord(keypress);
+      return "";
+    }
+    this.lastCommand = resolvedCommand;
+    this.leaveChord();
+    return resolvedCommand;
+  }
+
+  bool mightProducePrintableCharacter(string key) {
+    if (key.length != 1) {
+      return false;
+    }
+    int code = key.charCodeAt(0);
+    return code >= 32 && code <= 126;
+  }
+}
+
+export AbstractKeybindingService createAbstractKeybindingService() {
+  return new AbstractKeybindingService();
+}

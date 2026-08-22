@@ -1,0 +1,22 @@
+export enum Severity {
+  Ignore,
+  Info,
+  Warning,
+  Error
+}
+
+export string severityIconClassName(Severity severity) {
+  if (severity == Severity.Ignore) {
+    return "severity-ignore codicon codicon-info";
+  }
+  if (severity == Severity.Info) {
+    return "codicon codicon-info";
+  }
+  if (severity == Severity.Warning) {
+    return "codicon codicon-warning";
+  }
+  if (severity == Severity.Error) {
+    return "codicon codicon-error";
+  }
+  return "";
+}

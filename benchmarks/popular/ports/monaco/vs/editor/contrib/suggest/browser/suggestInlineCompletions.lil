@@ -1,0 +1,39 @@
+export class SuggestInlineCompletion {
+  string insertText;
+  int startColumn;
+  int endColumn;
+  string filterText;
+  int kind;
+
+  init(string insertText, int startColumn, int endColumn, string filterText, int kind) {
+    this.insertText = insertText;
+    this.startColumn = startColumn;
+    this.endColumn = endColumn;
+    this.filterText = filterText;
+    this.kind = kind;
+  }
+}
+
+export SuggestInlineCompletion[] suggestAsInlineCompletions(
+  string[] labels,
+  string[] insertTexts,
+  string word,
+  int wordStart,
+  int wordEnd
+) {
+  SuggestInlineCompletion[] result = [];
+  string low = word.toLowerCase();
+  int i = 0;
+  while (i < labels.length) {
+    string filter = labels[i].toLowerCase();
+    if (low.length == 0 || filter.indexOf(low) == 0) {
+      result.push(new SuggestInlineCompletion(insertTexts[i], wordStart, wordEnd, labels[i], 18));
+    }
+    i = i + 1;
+  }
+  return result;
+}
+
+export SuggestInlineCompletion createSuggestInlineCompletion(string insertText, int startColumn, int endColumn) {
+  return new SuggestInlineCompletion(insertText, startColumn, endColumn, insertText, 18);
+}

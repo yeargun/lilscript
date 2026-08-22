@@ -1,0 +1,137 @@
+export class Range {
+  int startLineNumber;
+  int startColumn;
+  int endLineNumber;
+  int endColumn;
+
+  init(int startLineNumber, int startColumn, int endLineNumber, int endColumn) {
+    this.startLineNumber = startLineNumber;
+    this.startColumn = startColumn;
+    this.endLineNumber = endLineNumber;
+    this.endColumn = endColumn;
+  }
+}
+
+export class ColorizedBracket {
+  Range range;
+  int nestingLevel;
+  int nestingLevelOfEqualBracketType;
+  bool isInvalid;
+
+  init(
+    Range range,
+    int nestingLevel,
+    int nestingLevelOfEqualBracketType,
+    bool isInvalid
+  ) {
+    this.range = range;
+    this.nestingLevel = nestingLevel;
+    this.nestingLevelOfEqualBracketType = nestingLevelOfEqualBracketType;
+    this.isInvalid = isInvalid;
+  }
+}
+
+export class BracketDecoration {
+  string id;
+  Range range;
+  string inlineClassName;
+  int ownerId;
+
+  init(string id, Range range, string inlineClassName, int ownerId) {
+    this.id = id;
+    this.range = range;
+    this.inlineClassName = inlineClassName;
+    this.ownerId = ownerId;
+  }
+}
+
+export class ColorProvider {
+  string unexpectedClosingBracketClassName;
+
+  init() {
+    this.unexpectedClosingBracketClassName = "unexpected-closing-bracket";
+  }
+
+  string getInlineClassName(
+    ColorizedBracket bracket,
+    bool independentColorPoolPerBracketType
+  ) {
+    if (bracket.isInvalid) {
+      return this.unexpectedClosingBracketClassName;
+    }
+    int level = bracket.nestingLevel;
+    if (independentColorPoolPerBracketType) {
+      level = bracket.nestingLevelOfEqualBracketType;
+    }
+    return this.getInlineClassNameOfLevel(level);
+  }
+
+  string getInlineClassNameOfLevel(int level) {
+    return "bracket-highlighting-" + (level % 30).toString();
+  }
+}
+
+export class ColorizedBracketPairsDecorationProvider {
+  ColorProvider colorProvider;
+  bool enabled;
+  bool independentColorPoolPerBracketType;
+
+  init(bool enabled, bool independentColorPoolPerBracketType) {
+    this.colorProvider = new ColorProvider();
+    this.enabled = enabled;
+    this.independentColorPoolPerBracketType = independentColorPoolPerBracketType;
+  }
+
+  void handleDidChangeOptions(bool enabled, bool independentColorPoolPerBracketType) {
+    this.enabled = enabled;
+    this.independentColorPoolPerBracketType = independentColorPoolPerBracketType;
+  }
+
+  BracketDecoration[] getDecorationsInRange(
+    ColorizedBracket[] brackets,
+    int ownerId,
+    bool onlyMinimapDecorations
+  ) {
+    BracketDecoration[] result = [];
+    if (!this.enabled || onlyMinimapDecorations || ownerId < 0) {
+      return result;
+    }
+    int i = 0;
+    while (i < brackets.length) {
+      ColorizedBracket bracket = brackets[i];
+      string id = "bracket"
+        + bracket.range.startLineNumber.toString()
+        + ":"
+        + bracket.range.startColumn.toString()
+        + "-"
+        + bracket.range.endLineNumber.toString()
+        + ":"
+        + bracket.range.endColumn.toString()
+        + "-"
+        + bracket.nestingLevel.toString();
+      result.push(
+        new BracketDecoration(
+          id,
+          bracket.range,
+          this.colorProvider.getInlineClassName(
+            bracket,
+            this.independentColorPoolPerBracketType
+          ),
+          0
+        )
+      );
+      i = i + 1;
+    }
+    return result;
+  }
+}
+
+export ColorizedBracketPairsDecorationProvider createColorizedBracketPairsDecorationProvider(
+  bool enabled,
+  bool independentColorPoolPerBracketType
+) {
+  return new ColorizedBracketPairsDecorationProvider(
+    enabled,
+    independentColorPoolPerBracketType
+  );
+}

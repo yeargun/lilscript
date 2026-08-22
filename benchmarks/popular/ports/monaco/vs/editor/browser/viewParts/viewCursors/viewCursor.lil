@@ -1,0 +1,109 @@
+int CURSOR_LINE = 1;
+int CURSOR_BLOCK = 2;
+int CURSOR_UNDERLINE = 3;
+int CURSOR_LINE_THIN = 4;
+int CURSOR_UNDERLINE_THIN = 5;
+int CURSOR_BLOCK_OUTLINE = 6;
+
+int imin(int a, int b) {
+  if (a < b) {
+    return a;
+  }
+  return b;
+}
+
+export class ViewCursorRenderData {
+  int top;
+  int left;
+  int paddingLeft;
+  int width;
+  int height;
+  string textContent;
+
+  init(int top, int left, int paddingLeft, int width, int height, string textContent) {
+    this.top = top;
+    this.left = left;
+    this.paddingLeft = paddingLeft;
+    this.width = width;
+    this.height = height;
+    this.textContent = textContent;
+  }
+}
+
+export class ViewCursor {
+  int cursorStyle;
+  float typicalHalfwidthCharacterWidth;
+  int lineCursorWidth;
+  int lineCursorHeight;
+  int lineNumber;
+  int column;
+  bool isVisible;
+  ViewCursorRenderData? renderData;
+
+  init(int cursorStyle, float typicalHalfwidthCharacterWidth, int lineCursorWidth, int lineCursorHeight) {
+    this.cursorStyle = cursorStyle;
+    this.typicalHalfwidthCharacterWidth = typicalHalfwidthCharacterWidth;
+    int width = lineCursorWidth;
+    int half = this.typicalHalfwidthCharacterWidth.round().toInt();
+    if (width > half) {
+      width = half;
+    }
+    this.lineCursorWidth = width;
+    this.lineCursorHeight = lineCursorHeight;
+    this.lineNumber = 1;
+    this.column = 1;
+    this.isVisible = true;
+    this.renderData = null;
+  }
+
+  void setPosition(int lineNumber, int column) {
+    this.lineNumber = lineNumber;
+    this.column = column;
+  }
+
+  ViewCursorRenderData? prepareRender(int lineHeight, int scrollTop, int bigNumbersDelta, int viewportStartLine, int viewportEndLine) {
+    if (this.lineNumber < viewportStartLine || this.lineNumber > viewportEndLine) {
+      this.renderData = null;
+      return null;
+    }
+    int lineCursorHeight = this.lineCursorHeight;
+    if (lineCursorHeight == 0) {
+      lineCursorHeight = lineHeight;
+    }
+    if (lineCursorHeight > lineHeight) {
+      lineCursorHeight = lineHeight;
+    }
+    int lineHeightAdjustment = (lineHeight - lineCursorHeight) / 2;
+    int left = ((this.column - 1) * 1.0 * this.typicalHalfwidthCharacterWidth).round().toInt();
+    int top = (this.lineNumber - 1) * lineHeight - scrollTop - bigNumbersDelta;
+    if (this.cursorStyle == CURSOR_LINE || this.cursorStyle == CURSOR_LINE_THIN) {
+      int width = this.lineCursorWidth;
+      if (this.cursorStyle == CURSOR_LINE_THIN) {
+        width = 1;
+      } else {
+        if (width <= 0) {
+          width = 2;
+        }
+      }
+      int paddingLeft = 0;
+      if (width >= 2 && left >= 1) {
+        paddingLeft = 1;
+        left = left - paddingLeft;
+      }
+      this.renderData = new ViewCursorRenderData(top + lineHeightAdjustment, left, paddingLeft, width, lineCursorHeight, "");
+      return this.renderData;
+    }
+    int width = this.typicalHalfwidthCharacterWidth.round().toInt();
+    int height = lineHeight;
+    if (this.cursorStyle == CURSOR_UNDERLINE || this.cursorStyle == CURSOR_UNDERLINE_THIN) {
+      top = top + lineHeight - 2;
+      height = 2;
+    }
+    this.renderData = new ViewCursorRenderData(top, left, 0, width, height, "");
+    return this.renderData;
+  }
+}
+
+export ViewCursor createViewCursor(int cursorStyle, float typicalHalfwidthCharacterWidth, int lineCursorWidth, int lineCursorHeight) {
+  return new ViewCursor(cursorStyle, typicalHalfwidthCharacterWidth, lineCursorWidth, lineCursorHeight);
+}

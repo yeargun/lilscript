@@ -1,0 +1,31 @@
+import { dateNow } from "../../../js-host";
+
+export class StopWatch {
+  float startTime;
+  float stopTime;
+
+  init() {
+    this.startTime = dateNow();
+    this.stopTime = -1.0;
+  }
+
+  void stop() {
+    this.stopTime = dateNow();
+  }
+
+  void reset() {
+    this.startTime = dateNow();
+    this.stopTime = -1.0;
+  }
+
+  float elapsed() {
+    if (this.stopTime != -1.0) {
+      return this.stopTime - this.startTime;
+    }
+    return dateNow() - this.startTime;
+  }
+}
+
+export StopWatch createStopWatch() {
+  return new StopWatch();
+}

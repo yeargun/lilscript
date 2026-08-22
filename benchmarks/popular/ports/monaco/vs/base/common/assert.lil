@@ -1,0 +1,42 @@
+import { throwError } from "../../../js-host";
+import { BugIndicatingError } from "./errors";
+
+export void ok(bool value, string message) {
+  if (value) {
+    return;
+  }
+  if (message.length == 0) {
+    throwError("Assertion Failed");
+  }
+  throwError("Assertion failed (" + message + ")");
+}
+
+export void assertNever(string message) {
+  throwError(message);
+}
+
+export void assert(bool condition, string message) {
+  if (condition) {
+    return;
+  }
+  BugIndicatingError err = new BugIndicatingError("Assertion Failed: " + message);
+  throwError(err.message);
+}
+
+export void softAssert(bool condition, string message) {
+  if (!condition) {
+    BugIndicatingError err = new BugIndicatingError(message);
+    err.name = err.name;
+  }
+}
+
+export bool checkAdjacentItems(int[] items, func(int, int)->bool predicate) {
+  int i = 0;
+  while (i < items.length - 1) {
+    if (!predicate(items[i], items[i + 1])) {
+      return false;
+    }
+    i = i + 1;
+  }
+  return true;
+}

@@ -1,0 +1,5 @@
+export string acceptSelectedActionCommand = "acceptSelectedCodeAction";
+export string previewSelectedActionCommand = "previewSelectedCodeAction";
+export bool isActionWidgetTypes() {
+  return true;
+}

@@ -1,0 +1,58 @@
+import { concat2, emptyBuf } from "../../../../../../../js-host";
+
+export string copySelection(string[] lines, int sl, int sc, int el, int ec) {
+  if (lines.length == 0) {
+    return emptyBuf();
+  }
+  if (sl == el) {
+    string line = lines[sl - 1];
+    int from = sc - 1;
+    int to = ec - 1;
+    if (from < 0) {
+      from = 0;
+    }
+    if (to > line.length) {
+      to = line.length;
+    }
+    if (to < from) {
+      to = from;
+    }
+    string out = emptyBuf();
+    int i = from;
+    while (i < to) {
+      out = concat2(out, line.charAt(i));
+      i = i + 1;
+    }
+    return out;
+  }
+  string result = emptyBuf();
+  int lineNumber = sl;
+  while (lineNumber <= el && lineNumber <= lines.length) {
+    string line = lines[lineNumber - 1];
+    if (lineNumber == sl) {
+      int i = sc - 1;
+      if (i < 0) {
+        i = 0;
+      }
+      while (i < line.length) {
+        result = concat2(result, line.charAt(i));
+        i = i + 1;
+      }
+    } else if (lineNumber == el) {
+      result = concat2(result, "\n");
+      int j = 0;
+      int to = ec - 1;
+      if (to > line.length) {
+        to = line.length;
+      }
+      while (j < to) {
+        result = concat2(result, line.charAt(j));
+        j = j + 1;
+      }
+    } else {
+      result = concat2(concat2(result, "\n"), line);
+    }
+    lineNumber = lineNumber + 1;
+  }
+  return result;
+}

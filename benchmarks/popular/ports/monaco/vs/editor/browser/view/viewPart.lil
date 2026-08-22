@@ -1,0 +1,275 @@
+export int PART_NONE = 0;
+export int PART_CONTENT_WIDGETS = 1;
+export int PART_OVERFLOWING_CONTENT_WIDGETS = 2;
+export int PART_OVERFLOW_GUARD = 3;
+export int PART_OVERLAY_WIDGETS = 4;
+export int PART_OVERFLOWING_OVERLAY_WIDGETS = 5;
+export int PART_SCROLLABLE_ELEMENT = 6;
+export int PART_TEXT_AREA = 7;
+export int PART_VIEW_LINES = 8;
+export int PART_MINIMAP = 9;
+export int PART_VIEW_ZONES = 10;
+export int PART_VIEW_OVERLAYS = 11;
+export int PART_CONTENT = 12;
+export int PART_OVERVIEW_RULER = 13;
+export int PART_SCROLL_DECORATION = 14;
+export int PART_MARGIN = 15;
+
+export int EVENT_COMPOSITION_START = 0;
+export int EVENT_COMPOSITION_END = 1;
+export int EVENT_CONFIGURATION = 2;
+export int EVENT_CURSOR_STATE = 3;
+export int EVENT_DECORATIONS = 4;
+export int EVENT_FLUSHED = 5;
+export int EVENT_FOCUS = 6;
+export int EVENT_LANGUAGE_CONFIGURATION = 7;
+export int EVENT_LINE_MAPPING = 8;
+export int EVENT_LINES_CHANGED = 9;
+export int EVENT_LINES_DELETED = 10;
+export int EVENT_LINES_INSERTED = 11;
+export int EVENT_REVEAL_RANGE = 12;
+export int EVENT_SCROLL = 13;
+export int EVENT_THEME = 14;
+export int EVENT_TOKENS = 15;
+export int EVENT_TOKENS_COLORS = 16;
+export int EVENT_ZONES = 17;
+
+export int HANDLER_CONFIGURATION = 1;
+export int HANDLER_FLUSHED = 2;
+export int HANDLER_FOCUS = 4;
+export int HANDLER_LINES_CHANGED = 8;
+export int HANDLER_LINES_DELETED = 16;
+export int HANDLER_LINES_INSERTED = 32;
+export int HANDLER_SCROLL = 64;
+export int HANDLER_TOKENS = 128;
+export int HANDLER_ZONES = 256;
+export int HANDLER_DECORATIONS = 512;
+export int HANDLER_CURSOR = 1024;
+export int HANDLER_THEME = 2048;
+
+export class FingerprintNode {
+  int partId;
+  FingerprintNode? parent;
+  int nodeType;
+
+  init(int partId = 0, FingerprintNode? parent = null, int nodeType = 1) {
+    this.partId = partId;
+    this.parent = parent;
+    this.nodeType = nodeType;
+  }
+}
+
+export class ViewEvent {
+  int type;
+  int fromLineNumber;
+  int toLineNumber;
+  int count;
+  bool isFocused;
+  bool scrollTopChanged;
+  bool scrollWidthChanged;
+  bool scrollHeightChanged;
+
+  init(int type) {
+    this.type = type;
+    this.fromLineNumber = 1;
+    this.toLineNumber = 1;
+    this.count = 0;
+    this.isFocused = false;
+    this.scrollTopChanged = false;
+    this.scrollWidthChanged = false;
+    this.scrollHeightChanged = false;
+  }
+}
+
+int parseDecimal(string value) {
+  if (value.length == 0) {
+    return 0;
+  }
+  int n = 0;
+  int i = 0;
+  while (i < value.length) {
+    int code = value.charCodeAt(i);
+    if (code < 48 || code > 57) {
+      break;
+    }
+    n = n * 10 + (code - 48);
+    i = i + 1;
+  }
+  return n;
+}
+
+export void writePartFingerprint(FingerprintNode target, int partId) {
+  target.partId = partId;
+}
+
+export string writePartFingerprintAttr(int partId) {
+  return partId.toString();
+}
+
+export int readPartFingerprint(FingerprintNode target) {
+  return target.partId;
+}
+
+export int readPartFingerprintAttr(string raw) {
+  if (raw.length == 0) {
+    return PART_NONE;
+  }
+  return parseDecimal(raw);
+}
+
+export int[] collectPartFingerprints(FingerprintNode? child, FingerprintNode? stopAt) {
+  int[] stack = [];
+  FingerprintNode? cursor = child;
+  while (cursor != null) {
+    if (stopAt != null && cursor == stopAt) {
+      break;
+    }
+    if (cursor.nodeType == 1) {
+      stack.push(cursor.partId);
+    }
+    cursor = cursor.parent;
+  }
+  int[] result = [];
+  int i = stack.length - 1;
+  while (i >= 0) {
+    result.push(stack[i]);
+    i = i - 1;
+  }
+  return result;
+}
+
+export class ViewPart {
+  bool disposed;
+  bool needsRender;
+  bool registered;
+  int handlerFlags;
+
+  init(int handlerFlags = 0) {
+    this.disposed = false;
+    this.needsRender = true;
+    this.registered = true;
+    this.handlerFlags = handlerFlags;
+  }
+
+  bool shouldRender() {
+    return this.needsRender;
+  }
+
+  void forceShouldRender() {
+    this.needsRender = true;
+  }
+
+  void setShouldRender() {
+    this.needsRender = true;
+  }
+
+  void onDidRender() {
+    this.needsRender = false;
+  }
+
+  void dispose() {
+    this.registered = false;
+    this.disposed = true;
+  }
+
+  bool handles(int flag) {
+    return (this.handlerFlags & flag) != 0;
+  }
+
+  bool onConfigurationChanged(ViewEvent e) {
+    return this.handles(HANDLER_CONFIGURATION);
+  }
+
+  bool onFlushed(ViewEvent e) {
+    return this.handles(HANDLER_FLUSHED);
+  }
+
+  bool onFocusChanged(ViewEvent e) {
+    return this.handles(HANDLER_FOCUS);
+  }
+
+  bool onLinesChanged(ViewEvent e) {
+    return this.handles(HANDLER_LINES_CHANGED);
+  }
+
+  bool onLinesDeleted(ViewEvent e) {
+    return this.handles(HANDLER_LINES_DELETED);
+  }
+
+  bool onLinesInserted(ViewEvent e) {
+    return this.handles(HANDLER_LINES_INSERTED);
+  }
+
+  bool onScrollChanged(ViewEvent e) {
+    return this.handles(HANDLER_SCROLL);
+  }
+
+  bool onTokensChanged(ViewEvent e) {
+    return this.handles(HANDLER_TOKENS);
+  }
+
+  bool onZonesChanged(ViewEvent e) {
+    return this.handles(HANDLER_ZONES);
+  }
+
+  bool onDecorationsChanged(ViewEvent e) {
+    return this.handles(HANDLER_DECORATIONS);
+  }
+
+  bool onCursorStateChanged(ViewEvent e) {
+    return this.handles(HANDLER_CURSOR);
+  }
+
+  bool onThemeChanged(ViewEvent e) {
+    return this.handles(HANDLER_THEME);
+  }
+
+  bool dispatchEvent(ViewEvent e) {
+    bool handled = false;
+    if (e.type == EVENT_CONFIGURATION) {
+      handled = this.onConfigurationChanged(e);
+    } else if (e.type == EVENT_FLUSHED) {
+      handled = this.onFlushed(e);
+    } else if (e.type == EVENT_FOCUS) {
+      handled = this.onFocusChanged(e);
+    } else if (e.type == EVENT_LINES_CHANGED) {
+      handled = this.onLinesChanged(e);
+    } else if (e.type == EVENT_LINES_DELETED) {
+      handled = this.onLinesDeleted(e);
+    } else if (e.type == EVENT_LINES_INSERTED) {
+      handled = this.onLinesInserted(e);
+    } else if (e.type == EVENT_SCROLL) {
+      handled = this.onScrollChanged(e);
+    } else if (e.type == EVENT_TOKENS) {
+      handled = this.onTokensChanged(e);
+    } else if (e.type == EVENT_ZONES) {
+      handled = this.onZonesChanged(e);
+    } else if (e.type == EVENT_DECORATIONS) {
+      handled = this.onDecorationsChanged(e);
+    } else if (e.type == EVENT_CURSOR_STATE) {
+      handled = this.onCursorStateChanged(e);
+    } else if (e.type == EVENT_THEME) {
+      handled = this.onThemeChanged(e);
+    }
+    if (handled) {
+      this.needsRender = true;
+    }
+    return handled;
+  }
+
+  void handleEvents(ViewEvent[] events) {
+    int i = 0;
+    while (i < events.length) {
+      this.dispatchEvent(events[i]);
+      i = i + 1;
+    }
+  }
+}
+
+export ViewPart createViewPart(int handlerFlags = 0) {
+  return new ViewPart(handlerFlags);
+}
+
+export FingerprintNode createFingerprintNode(int partId = 0, FingerprintNode? parent = null) {
+  return new FingerprintNode(partId, parent, 1);
+}

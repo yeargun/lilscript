@@ -1,0 +1,62 @@
+export int LogLevelOff = 0;
+export int LogLevelTrace = 1;
+export int LogLevelDebug = 2;
+export int LogLevelInfo = 3;
+export int LogLevelWarning = 4;
+export int LogLevelError = 5;
+export int DEFAULT_LOG_LEVEL = 3;
+
+export bool canLog(int loggerLevel, int messageLevel) {
+  if (loggerLevel == LogLevelOff) {
+    return false;
+  }
+  return loggerLevel <= messageLevel;
+}
+
+export class Logger {
+  int level;
+  string[] lines;
+
+  init(int level) {
+    this.level = level;
+    this.lines = [];
+  }
+
+  void write(int messageLevel, string msg) {
+    if (!canLog(this.level, messageLevel)) {
+      return;
+    }
+    this.lines.push(msg);
+  }
+
+  void trace(string msg) {
+    this.write(LogLevelTrace, msg);
+  }
+
+  void debug(string msg) {
+    this.write(LogLevelDebug, msg);
+  }
+
+  void info(string msg) {
+    this.write(LogLevelInfo, msg);
+  }
+
+  void warn(string msg) {
+    this.write(LogLevelWarning, msg);
+  }
+
+  void error(string msg) {
+    this.write(LogLevelError, msg);
+  }
+
+  void setLevel(int level) {
+    this.level = level;
+  }
+}
+
+export Logger createLogger(int level) {
+  return new Logger(level);
+}
+
+export string ILogServiceId = "logService";
+export string ILoggerServiceId = "loggerService";

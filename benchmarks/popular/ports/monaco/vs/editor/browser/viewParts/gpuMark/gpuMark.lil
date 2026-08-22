@@ -1,0 +1,105 @@
+export class GpuCannotRender {
+  int lineNumber;
+  string[] reasons;
+
+  init(int lineNumber, string[] reasons) {
+    this.lineNumber = lineNumber;
+    this.reasons = reasons;
+  }
+}
+
+export class GpuMarkOverlay {
+  bool useGpu;
+  string[] renderResult;
+
+  init(bool useGpu) {
+    this.useGpu = useGpu;
+    this.renderResult = [];
+  }
+
+  string[] cannotRenderReasons(string lineContent, bool containsRTL, bool hasInlineDecorations, bool hasVariableFonts, bool continuesWithWrappedLine) {
+    string[] reasons = [];
+    if (!this.useGpu) {
+      reasons.push("gpu-disabled");
+    }
+    if (containsRTL) {
+      reasons.push("rtl");
+    }
+    if (hasInlineDecorations) {
+      reasons.push("inline-decorations");
+    }
+    if (hasVariableFonts) {
+      reasons.push("variable-fonts");
+    }
+    if (continuesWithWrappedLine) {
+      reasons.push("wrapped-line");
+    }
+    int i = 0;
+    while (i < lineContent.length) {
+      int code = lineContent.charCodeAt(i);
+      if (code < 32 && code != 9) {
+        reasons.push("control-char");
+        break;
+      }
+      if (code > 127) {
+        reasons.push("non-ascii");
+        break;
+      }
+      i = i + 1;
+    }
+    return reasons;
+  }
+
+  void prepareRender(int visibleStartLineNumber, int visibleEndLineNumber, string[] lines, bool[] rtl, bool[] decorations, bool[] variableFonts, bool[] wrapped) {
+    this.renderResult = [];
+    int lineNumber = visibleStartLineNumber;
+    while (lineNumber <= visibleEndLineNumber) {
+      int lineIndex = lineNumber - visibleStartLineNumber;
+      string content = "";
+      bool containsRTL = false;
+      bool hasInlineDecorations = false;
+      bool hasVariableFonts = false;
+      bool continuesWithWrappedLine = false;
+      if (lineIndex >= 0 && lineIndex < lines.length) {
+        content = lines[lineIndex];
+      }
+      if (lineIndex >= 0 && lineIndex < rtl.length) {
+        containsRTL = rtl[lineIndex];
+      }
+      if (lineIndex >= 0 && lineIndex < decorations.length) {
+        hasInlineDecorations = decorations[lineIndex];
+      }
+      if (lineIndex >= 0 && lineIndex < variableFonts.length) {
+        hasVariableFonts = variableFonts[lineIndex];
+      }
+      if (lineIndex >= 0 && lineIndex < wrapped.length) {
+        continuesWithWrappedLine = wrapped[lineIndex];
+      }
+      string[] reasons = this.cannotRenderReasons(content, containsRTL, hasInlineDecorations, hasVariableFonts, continuesWithWrappedLine);
+      if (reasons.length > 0) {
+        string title = reasons[0];
+        int r = 1;
+        while (r < reasons.length) {
+          title = title + ", " + reasons[r];
+          r = r + 1;
+        }
+        this.renderResult.push("<div class=\"gpu-mark\" title=\"Cannot render on GPU: " + title + "\"></div>");
+      } else {
+        this.renderResult.push("");
+      }
+      lineNumber = lineNumber + 1;
+    }
+  }
+
+  string render(int startLineNumber, int lineNumber) {
+    int lineIndex = lineNumber - startLineNumber;
+    if (lineIndex < 0 || lineIndex >= this.renderResult.length) {
+      return "";
+    }
+    return this.renderResult[lineIndex];
+  }
+}
+
+export GpuMarkOverlay createGpuMarkOverlay(bool useGpu) {
+  return new GpuMarkOverlay(useGpu);
+}

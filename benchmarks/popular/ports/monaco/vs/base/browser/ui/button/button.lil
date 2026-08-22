@@ -1,0 +1,201 @@
+import { domCreateElement, appendChild, setClassName, classListAdd, classListRemove, setAttribute, setStyle, setTextContent, setTabIndex, addEventListener, preventDefault, stopPropagation, eventKeyCode, focusElement, blurElement, hostCall, jsUndefined } from "../../../../../js-host";
+
+export class ButtonStyles {
+  string buttonBackground;
+  string buttonHoverBackground;
+  string buttonForeground;
+  string buttonBorder;
+  string buttonSecondaryBackground;
+  string buttonSecondaryHoverBackground;
+  string buttonSecondaryForeground;
+  string buttonSecondaryBorder;
+
+  init() {
+    this.buttonBackground = "#0E639C";
+    this.buttonHoverBackground = "#006BB3";
+    this.buttonForeground = "#FFFFFF";
+    this.buttonBorder = "";
+    this.buttonSecondaryBackground = "";
+    this.buttonSecondaryHoverBackground = "";
+    this.buttonSecondaryForeground = "";
+    this.buttonSecondaryBorder = "";
+  }
+}
+
+export ButtonStyles unthemedButtonStyles = new ButtonStyles();
+
+export class Button {
+  JsValue element;
+  string label;
+  bool enabled;
+  bool secondary;
+  bool small;
+  ButtonStyles styles;
+  (func(JsValue)->void)[] clickListeners;
+  (func(JsValue)->void)[] escapeListeners;
+
+  init(JsValue container, bool secondary, bool small, ButtonStyles styles, bool disabled) {
+    this.label = "";
+    this.enabled = !disabled;
+    this.secondary = secondary;
+    this.small = small;
+    this.styles = styles;
+    this.clickListeners = [];
+    this.escapeListeners = [];
+    this.element = domCreateElement("a");
+    setClassName(this.element, "monaco-button");
+    setTabIndex(this.element, 0);
+    setAttribute(this.element, "role", "button");
+    if (secondary) {
+      classListAdd(this.element, "secondary");
+    }
+    if (small) {
+      classListAdd(this.element, "small");
+    }
+    this.updateStyles(false);
+    appendChild(container, this.element);
+    if (disabled) {
+      this.setEnabled(false);
+    }
+    Button owner = this;
+    addEventListener(this.element, "click", (JsValue event) => {
+      if (!owner.enabled) {
+        preventDefault(event);
+        return;
+      }
+      owner.fireClick(event);
+    }, false);
+    addEventListener(this.element, "keydown", (JsValue event) => {
+      int key = eventKeyCode(event);
+      bool handled = false;
+      if (owner.enabled && (key == 13 || key == 32)) {
+        owner.fireClick(event);
+        handled = true;
+      } else if (key == 27) {
+        owner.fireEscape(event);
+        blurElement(owner.element);
+        handled = true;
+      }
+      if (handled) {
+        preventDefault(event);
+        stopPropagation(event);
+      }
+    }, false);
+    addEventListener(this.element, "mouseover", (JsValue event) => {
+      if (owner.enabled) {
+        owner.updateStyles(true);
+      }
+    }, false);
+    addEventListener(this.element, "mouseout", (JsValue event) => {
+      owner.updateStyles(false);
+    }, false);
+    addEventListener(this.element, "focus", (JsValue event) => {
+      if (owner.enabled) {
+        owner.updateStyles(true);
+      }
+    }, false);
+    addEventListener(this.element, "blur", (JsValue event) => {
+      owner.updateStyles(false);
+    }, false);
+  }
+
+  void fireClick(JsValue event) {
+    int i = 0;
+    while (i < this.clickListeners.length) {
+      this.clickListeners[i](event);
+      i = i + 1;
+    }
+  }
+
+  void fireEscape(JsValue event) {
+    int i = 0;
+    while (i < this.escapeListeners.length) {
+      this.escapeListeners[i](event);
+      i = i + 1;
+    }
+  }
+
+  func()->void onDidClick(func(JsValue)->void listener) {
+    this.clickListeners.push(listener);
+    Button owner = this;
+    return () => {
+      int index = owner.clickListeners.indexOf(listener);
+      if (index >= 0) {
+        owner.clickListeners.splice(index, 1);
+      }
+    };
+  }
+
+  void updateStyles(bool hover) {
+    string background = this.styles.buttonBackground;
+    string foreground = this.styles.buttonForeground;
+    string border = this.styles.buttonBorder;
+    if (this.secondary) {
+      background = this.styles.buttonSecondaryBackground;
+      foreground = this.styles.buttonSecondaryForeground;
+      border = this.styles.buttonSecondaryBorder;
+    }
+    if (hover) {
+      if (this.secondary) {
+        background = this.styles.buttonSecondaryHoverBackground;
+      } else {
+        background = this.styles.buttonHoverBackground;
+      }
+    }
+    setStyle(this.element, "color", foreground);
+    setStyle(this.element, "background-color", background);
+    if (border.length > 0) {
+      setStyle(this.element, "border", "1px solid " + border);
+    }
+  }
+
+  void setLabel(string label) {
+    this.label = label;
+    setTextContent(this.element, label);
+  }
+
+  void setEnabled(bool enabled) {
+    this.enabled = enabled;
+    if (enabled) {
+      classListRemove(this.element, "disabled");
+      setTabIndex(this.element, 0);
+    } else {
+      classListAdd(this.element, "disabled");
+      setTabIndex(this.element, -1);
+    }
+  }
+
+  void focus() {
+    focusElement(this.element);
+  }
+
+  void dispose() {
+    hostCall(this.element, "remove", jsUndefined(), jsUndefined(), jsUndefined());
+  }
+}
+
+export class ButtonBar {
+  JsValue element;
+  Button[] buttons;
+
+  init(JsValue container) {
+    this.buttons = [];
+    this.element = domCreateElement("div");
+    setClassName(this.element, "monaco-button-bar");
+    appendChild(container, this.element);
+  }
+
+  Button addButton(bool secondary, bool small, ButtonStyles styles) {
+    Button button = new Button(this.element, secondary, small, styles, false);
+    this.buttons.push(button);
+    return button;
+  }
+}
+
+export Button createButton(JsValue container, bool secondary = false, bool small = false, bool disabled = false) {
+  return new Button(container, secondary, small, unthemedButtonStyles, disabled);
+}
+
+export ButtonBar createButtonBar(JsValue container) {
+  return new ButtonBar(container);
+}

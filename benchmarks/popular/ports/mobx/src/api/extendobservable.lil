@@ -1,0 +1,66 @@
+import { DEV } from "../dev-flag.lil";
+import {
+  getDescriptors,
+  inOp,
+  isPlainObject,
+  len,
+  undef,
+  ownKeys as reflectOwnKeys
+} from "../host.lil";
+import { $mobx } from "../constants.lil";
+import { die } from "../errors.lil";
+import { initObservable } from "../types/type-utils-init.lil";
+import { isObservableMap } from "../core/predicates.lil";
+import { extendObservable } from "./bindings.lil";
+import { isObservableValueCheck } from "./isobservable.lil";
+import { asObservableObject } from "../types/observableobject.lil";
+
+extendObservable = JS.methodRest((JsValue _s, JsValue args) => {
+  JsValue target = args[0];
+  JsValue properties = args[1];
+  JsValue annotations = undef();
+  JsValue options = undef();
+  if (len(args) > 2) {
+    annotations = args[2];
+  }
+  if (len(args) > 3) {
+    options = args[3];
+  }
+  if (DEV) {
+    if (len(args) > 4) {
+      die("'extendObservable' expected 2-4 arguments");
+    }
+    if (JS.typeOf(target) != "object") {
+      die("'extendObservable' expects an object as first argument");
+    }
+    if (isObservableMap(target)) {
+      die("'extendObservable' should not be used on maps, use map.merge instead");
+    }
+    if (!isPlainObject(properties)) {
+      die("'extendObservable' only accepts plain objects as second argument");
+    }
+    if (isObservableValueCheck(properties) || isObservableValueCheck(annotations)) {
+      die("Extending an object with another observable (object) is not supported");
+    }
+  }
+  JsValue descriptors = getDescriptors(properties);
+  initObservable(JS.method0((JsValue __s) => {
+    JsValue adm = JS.call(asObservableObject, undef(), target, options)[$mobx];
+    JsValue keys = reflectOwnKeys(descriptors);
+    int i = 0;
+    while (i < len(keys)) {
+      JsValue key = keys[i];
+      JsValue annotation = true;
+      if (annotations.truthy()) {
+        if (inOp(key, annotations)) {
+          annotation = annotations[key];
+        }
+      }
+      JS.call(adm["extend_"], adm, key, descriptors[key], annotation);
+      i = i + 1;
+    }
+    return undef();
+  }));
+  return target;
+});
+export { extendObservable };

@@ -1,0 +1,44 @@
+import { DEV } from "../dev-flag.lil";
+import {
+  isStringish,
+  mapHas
+} from "../host.lil";
+import { $mobx } from "../constants.lil";
+import { die } from "../errors.lil";
+import {
+  isAtom,
+  isComputedValue,
+  isObservableObject,
+  isReaction
+} from "../core/predicates.lil";
+
+export bool isObservableValueCheck(JsValue value) {
+  if (!value.truthy()) {
+    return false;
+  }
+  return isObservableObject(value) || value[$mobx].truthy() || isAtom(value) || isReaction(value) || isComputedValue(value);
+}
+
+export JsValue isObservable = JS.method1((JsValue _s, JsValue value) => {
+  return isObservableValueCheck(value);
+});
+
+export JsValue isObservableProp = JS.method2((JsValue _s, JsValue value, JsValue property) => {
+  if (DEV && !isStringish(property)) {
+    die("expected a property name as second argument");
+  }
+  if (!isObservableObject(value)) {
+    return false;
+  }
+  JsValue adm = value[$mobx];
+  if (mapHas(adm["values_"], property)) {
+    return true;
+  }
+  if (adm["lazyComputedKeys_"].truthy() && mapHas(adm["lazyComputedKeys_"], property)) {
+    return true;
+  }
+  if (adm["lazyObservableKeys_"].truthy() && mapHas(adm["lazyObservableKeys_"], property)) {
+    return true;
+  }
+  return false;
+});

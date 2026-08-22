@@ -1,0 +1,9 @@
+import { DEV } from "../dev-flag.lil";
+import { includesStr, stringifyKey, toStr } from "../host.lil";
+import { die } from "../errors.lil";
+
+export void assert20223DecoratorType(JsValue context, JsValue types) {
+  if (DEV && !includesStr(types, context["kind"])) {
+    die("The decorator applied to '" + stringifyKey(context["name"]) + "' cannot be used on a " + toStr(context["kind"]) + " element");
+  }
+}

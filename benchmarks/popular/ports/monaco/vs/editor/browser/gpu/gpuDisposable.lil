@@ -1,0 +1,76 @@
+export class GpuHandle {
+  bool destroyed;
+  int id;
+  int size;
+
+  init(int id, int size) {
+    this.destroyed = false;
+    this.id = id;
+    this.size = size;
+  }
+
+  void destroy() {
+    this.destroyed = true;
+  }
+}
+
+export class DisposableGpu {
+  GpuHandle object;
+  bool disposed;
+
+  init(GpuHandle object) {
+    this.object = object;
+    this.disposed = false;
+  }
+
+  void dispose() {
+    if (!this.disposed) {
+      this.object.destroy();
+      this.disposed = true;
+    }
+  }
+}
+
+export DisposableGpu wrapDestroyableInDisposable(GpuHandle value) {
+  return new DisposableGpu(value);
+}
+
+export class GPULifecycle {
+  int nextId;
+  string lastError;
+
+  init() {
+    this.nextId = 1;
+    this.lastError = "";
+  }
+
+  DisposableGpu requestDevice(bool supported, bool adapterAvailable) {
+    if (!supported) {
+      this.lastError = "This browser does not support WebGPU";
+      throw this.lastError;
+    }
+    if (!adapterAvailable) {
+      this.lastError = "This browser supports WebGPU but it appears to be disabled";
+      throw this.lastError;
+    }
+    GpuHandle device = new GpuHandle(this.nextId, 0);
+    this.nextId = this.nextId + 1;
+    return wrapDestroyableInDisposable(device);
+  }
+
+  DisposableGpu createBuffer(int size, int usage) {
+    GpuHandle buffer = new GpuHandle(this.nextId, size);
+    this.nextId = this.nextId + 1;
+    return wrapDestroyableInDisposable(buffer);
+  }
+
+  DisposableGpu createTexture(int width, int height) {
+    GpuHandle texture = new GpuHandle(this.nextId, width * height);
+    this.nextId = this.nextId + 1;
+    return wrapDestroyableInDisposable(texture);
+  }
+}
+
+export GPULifecycle createGPULifecycle() {
+  return new GPULifecycle();
+}

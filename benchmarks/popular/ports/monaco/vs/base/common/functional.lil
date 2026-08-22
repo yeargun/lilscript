@@ -1,0 +1,12 @@
+export func()->JsValue createSingleCallFunction(func()->JsValue fn) {
+  bool didCall = false;
+  JsValue result = JS.object();
+  return () => {
+    if (didCall) {
+      return result;
+    }
+    didCall = true;
+    result = fn();
+    return result;
+  };
+}

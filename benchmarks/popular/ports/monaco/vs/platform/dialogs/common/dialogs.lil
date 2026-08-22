@@ -1,0 +1,38 @@
+export int SeverityIgnore = 0;
+export int SeverityInfo = 1;
+export int SeverityWarning = 2;
+export int SeverityError = 3;
+
+export class DialogService {
+  string lastMessage;
+  int lastSeverity;
+  bool confirmed;
+
+  init() {
+    this.lastMessage = "";
+    this.lastSeverity = 0;
+    this.confirmed = false;
+  }
+
+  bool confirm(string message) {
+    this.lastMessage = message;
+    this.confirmed = true;
+    return true;
+  }
+
+  void info(string message) {
+    this.lastMessage = message;
+    this.lastSeverity = SeverityInfo;
+  }
+
+  void error(string message) {
+    this.lastMessage = message;
+    this.lastSeverity = SeverityError;
+  }
+}
+
+export DialogService createDialogService() {
+  return new DialogService();
+}
+
+export string IDialogServiceId = "dialogService";

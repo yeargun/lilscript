@@ -1,0 +1,32 @@
+import { setDisplay, setClassName, domCreateElement, appendChild } from "../../../../js-host";
+
+export class ContextViewService {
+  JsValue container;
+  bool visible;
+  int x;
+  int y;
+
+  init(JsValue container) {
+    this.container = container;
+    this.visible = false;
+    this.x = 0;
+    this.y = 0;
+  }
+
+  void show(int x, int y) {
+    this.x = x;
+    this.y = y;
+    setClassName(this.container, "context-view");
+    setDisplay(this.container, "block");
+    this.visible = true;
+  }
+
+  void hide() {
+    setDisplay(this.container, "none");
+    this.visible = false;
+  }
+}
+
+export ContextViewService createContextViewService(JsValue container) {
+  return new ContextViewService(container);
+}

@@ -1,0 +1,93 @@
+import { TokenizationRegistryGlobal } from "../languages";
+import { LanguageIdCodec, LanguagesRegistry } from "./languagesRegistry";
+
+export class LanguageSelection {
+  string languageId;
+
+  init(string languageId) {
+    this.languageId = languageId;
+  }
+}
+
+export class LanguageService {
+  LanguagesRegistry registry;
+  LanguageIdCodec languageIdCodec;
+  Map<string, bool> requestedBasicLanguages;
+  Map<string, bool> requestedRichLanguages;
+  (func(string)->void)[] basicListeners;
+  (func(string)->void)[] richListeners;
+
+  init(bool warnOnOverwrite = false) {
+    this.registry = new LanguagesRegistry(true, warnOnOverwrite);
+    this.languageIdCodec = this.registry.languageIdCodec;
+    this.requestedBasicLanguages = new Map();
+    this.requestedRichLanguages = new Map();
+    this.basicListeners = [];
+    this.richListeners = [];
+  }
+
+  bool isRegisteredLanguageId(string languageId) {
+    return this.registry.isRegisteredLanguageId(languageId);
+  }
+
+  string? getLanguageIdByLanguageName(string languageName) {
+    return this.registry.getLanguageIdByLanguageName(languageName);
+  }
+
+  string? getLanguageIdByMimeType(string mimeType) {
+    return this.registry.getLanguageIdByMimeType(mimeType);
+  }
+
+  string? guessLanguageIdByFilepathOrFirstLine(JsValue resource, string firstLine = "") {
+    string[] guesses = this.registry.guessLanguageIdByFilepathOrFirstLine(resource, firstLine);
+    if (guesses.length == 0 || guesses[0] == "unknown") {
+      return null;
+    }
+    return guesses[0];
+  }
+
+  LanguageSelection createById(string languageId) {
+    if (!this.isRegisteredLanguageId(languageId)) {
+      return new LanguageSelection("plaintext");
+    }
+    return new LanguageSelection(languageId);
+  }
+
+  LanguageSelection createByFilepathOrFirstLine(JsValue resource, string firstLine = "") {
+    string? id = this.guessLanguageIdByFilepathOrFirstLine(resource, firstLine);
+    if (id == null) {
+      return new LanguageSelection("plaintext");
+    }
+    return new LanguageSelection(id);
+  }
+
+  void requestBasicLanguageFeatures(string languageId) {
+    if (this.requestedBasicLanguages.has(languageId)) {
+      return;
+    }
+    this.requestedBasicLanguages.set(languageId, true);
+    int i = 0;
+    while (i < this.basicListeners.length) {
+      this.basicListeners[i](languageId);
+      i = i + 1;
+    }
+  }
+
+  void requestRichLanguageFeatures(string languageId) {
+    if (this.requestedRichLanguages.has(languageId)) {
+      return;
+    }
+    this.requestedRichLanguages.set(languageId, true);
+    this.requestBasicLanguageFeatures(languageId);
+    TokenizationRegistryGlobal.getOrCreate(languageId);
+    int i = 0;
+    while (i < this.richListeners.length) {
+      this.richListeners[i](languageId);
+      i = i + 1;
+    }
+  }
+}
+
+export LanguageService createLanguageService(bool warnOnOverwrite = false) {
+  return new LanguageService(warnOnOverwrite);
+}

@@ -1,0 +1,37 @@
+export int SeverityIgnore = 0;
+export int SeverityInfo = 1;
+export int SeverityWarning = 2;
+export int SeverityError = 3;
+
+bool severityEqualsIgnoreCase(string a, string b) {
+  return a.toLowerCase() == b.toLowerCase();
+}
+
+export int severityFromValue(string value) {
+  if (value.length == 0) {
+    return SeverityIgnore;
+  }
+  if (severityEqualsIgnoreCase("error", value)) {
+    return SeverityError;
+  }
+  if (severityEqualsIgnoreCase("warning", value) || severityEqualsIgnoreCase("warn", value)) {
+    return SeverityWarning;
+  }
+  if (severityEqualsIgnoreCase("info", value)) {
+    return SeverityInfo;
+  }
+  return SeverityIgnore;
+}
+
+export string severityToString(int severity) {
+  if (severity == SeverityError) {
+    return "error";
+  }
+  if (severity == SeverityWarning) {
+    return "warning";
+  }
+  if (severity == SeverityInfo) {
+    return "info";
+  }
+  return "ignore";
+}

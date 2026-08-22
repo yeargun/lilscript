@@ -1,0 +1,165 @@
+export class ShapeEntry {
+  float x;
+  float y;
+  float width;
+  float height;
+  float red;
+  float green;
+  float blue;
+  float alpha;
+  bool disposed;
+
+  init(float x, float y, float width, float height, float red, float green, float blue, float alpha) {
+    this.x = x;
+    this.y = y;
+    this.width = width;
+    this.height = height;
+    this.red = red;
+    this.green = green;
+    this.blue = blue;
+    this.alpha = alpha;
+    this.disposed = false;
+  }
+}
+
+export class LayoutInfo {
+  float canvasWidth;
+  float canvasHeight;
+  float viewportOffsetX;
+  float viewportOffsetY;
+  float viewportWidth;
+  float viewportHeight;
+
+  init() {
+    this.canvasWidth = 0.0;
+    this.canvasHeight = 0.0;
+    this.viewportOffsetX = 0.0;
+    this.viewportOffsetY = 0.0;
+    this.viewportWidth = 0.0;
+    this.viewportHeight = 0.0;
+  }
+}
+
+int iceil(float value) {
+  int floored = value.floor().toInt();
+  if (value > floored * 1.0) {
+    return floored + 1;
+  }
+  return floored;
+}
+
+export class RectangleRenderer {
+  ShapeEntry[] shapes;
+  float[] instanceBuffer;
+  LayoutInfo layout;
+  float[] scrollOffset;
+  int canvasWidth;
+  int canvasHeight;
+  float contentLeft;
+  float devicePixelRatio;
+  bool initialized;
+  bool dirty;
+  int visibleInstances;
+  int scissorX;
+  int scissorY;
+  int scissorW;
+  int scissorH;
+
+  init(float contentLeft, float devicePixelRatio, int canvasWidth, int canvasHeight) {
+    this.shapes = [];
+    this.instanceBuffer = [];
+    this.layout = new LayoutInfo();
+    this.scrollOffset = [];
+    this.scrollOffset.push(0.0);
+    this.scrollOffset.push(0.0);
+    this.canvasWidth = canvasWidth;
+    this.canvasHeight = canvasHeight;
+    this.contentLeft = contentLeft;
+    this.devicePixelRatio = devicePixelRatio;
+    this.initialized = true;
+    this.dirty = false;
+    this.visibleInstances = 0;
+    this.scissorX = 0;
+    this.scissorY = 0;
+    this.scissorW = canvasWidth;
+    this.scissorH = canvasHeight;
+    this.updateLayout(canvasWidth, canvasHeight);
+  }
+
+  void updateLayout(int canvasDevicePixelWidth, int canvasDevicePixelHeight) {
+    this.layout.canvasWidth = canvasDevicePixelWidth * 1.0;
+    this.layout.canvasHeight = canvasDevicePixelHeight * 1.0;
+    this.layout.viewportOffsetX = iceil(this.contentLeft * this.devicePixelRatio) * 1.0;
+    this.layout.viewportOffsetY = 0.0;
+    this.layout.viewportWidth = this.layout.canvasWidth - this.layout.viewportOffsetX;
+    this.layout.viewportHeight = this.layout.canvasHeight - this.layout.viewportOffsetY;
+  }
+
+  ShapeEntry register(float x, float y, float width, float height, float red, float green, float blue, float alpha) {
+    ShapeEntry entry = new ShapeEntry(x, y, width, height, red, green, blue, alpha);
+    this.shapes.push(entry);
+    this.dirty = true;
+    return entry;
+  }
+
+  void rebuildInstanceBuffer() {
+    this.instanceBuffer = [];
+    int i = 0;
+    while (i < this.shapes.length) {
+      ShapeEntry s = this.shapes[i];
+      if (!s.disposed) {
+        this.instanceBuffer.push(s.x);
+        this.instanceBuffer.push(s.y);
+        this.instanceBuffer.push(s.width);
+        this.instanceBuffer.push(s.height);
+        this.instanceBuffer.push(s.red);
+        this.instanceBuffer.push(s.green);
+        this.instanceBuffer.push(s.blue);
+        this.instanceBuffer.push(s.alpha);
+      }
+      i = i + 1;
+    }
+    this.dirty = false;
+  }
+
+  bool onScrollChanged(float scrollLeft, float scrollTop) {
+    this.scrollOffset[0] = scrollLeft * this.devicePixelRatio;
+    this.scrollOffset[1] = scrollTop * this.devicePixelRatio;
+    return true;
+  }
+
+  int entryCount() {
+    int n = 0;
+    int i = 0;
+    while (i < this.shapes.length) {
+      if (!this.shapes[i].disposed) {
+        n = n + 1;
+      }
+      i = i + 1;
+    }
+    return n;
+  }
+
+  int draw() {
+    if (!this.initialized) {
+      return 0;
+    }
+    if (this.dirty) {
+      this.rebuildInstanceBuffer();
+    }
+    int contentLeftPx = iceil(this.contentLeft * this.devicePixelRatio);
+    this.scissorX = contentLeftPx;
+    this.scissorY = 0;
+    this.scissorW = this.canvasWidth - contentLeftPx;
+    if (this.scissorW < 0) {
+      this.scissorW = 0;
+    }
+    this.scissorH = this.canvasHeight;
+    this.visibleInstances = this.entryCount();
+    return this.visibleInstances;
+  }
+}
+
+export RectangleRenderer createRectangleRenderer(float contentLeft, float devicePixelRatio, int canvasWidth, int canvasHeight) {
+  return new RectangleRenderer(contentLeft, devicePixelRatio, canvasWidth, canvasHeight);
+}

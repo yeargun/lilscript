@@ -1,0 +1,514 @@
+import { DEV } from "../dev-flag.lil";
+import {
+  addHiddenFinalProp,
+  apply,
+  call0,
+  call1,
+  construct1,
+  createInstanceofPredicate,
+  gArray,
+  hasOwn,
+  hostIsNaN,
+  indexOf,
+  isArr,
+  isFn,
+  isNullish,
+  isNum,
+  isStr,
+  isSym,
+  isUndef,
+  len,
+  newProxy,
+  numberIsNaN,
+  parseIntHost,
+  pop,
+  push,
+  slice,
+  slice2,
+  toInt,
+  toStr,
+  undef
+} from "../host.lil";
+import {
+  $mobx,
+  EMPTY_ARRAY,
+  MAX_SPLICE_SIZE,
+  SPLICE,
+  UPDATE
+} from "../constants.lil";
+import { Atom } from "../core/atom.lil";
+import { checkIfStateModificationsAreAllowed } from "../core/derivation.lil";
+import {
+  die,
+  die1
+} from "../errors.lil";
+import {
+  getNextId,
+  globalState
+} from "../core/globalstate.lil";
+import {
+  hasInterceptors,
+  interceptChange
+} from "../types/intercept-utils.lil";
+import {
+  hasListeners,
+  notifyListeners
+} from "../types/listen-utils.lil";
+import { initObservable } from "../types/type-utils-init.lil";
+import { isObservableArrayAdmPred } from "../core/predicates.lil";
+import {
+  isSpyEnabled,
+  spyReportEnd0,
+  spyReportStart
+} from "../core/spy.lil";
+import {
+  reportChanged,
+  reportObserved
+} from "../core/observable.lil";
+
+JsValue arrayExtensions = JS.object();
+
+JsValue arrayTraps = JS.object();
+arrayTraps["get"] = JS.method2((JsValue _s, JsValue target, JsValue name) => {
+    JsValue adm = target[$mobx];
+    if (JS.strictEqual(name, $mobx)) {
+      return adm;
+    }
+    if (JS.strictEqual(name, "length")) {
+      return call0(adm["getArrayLength_"], adm);
+    }
+    if (isStr(name) && !hostIsNaN(name)) {
+      return call1(adm["get_"], adm, parseIntHost(name));
+    }
+    if (hasOwn(arrayExtensions, name)) {
+      return arrayExtensions[name];
+    }
+    return target[name];
+});
+arrayTraps["set"] = JS.method3((JsValue _s, JsValue target, JsValue name, JsValue value) => {
+    JsValue adm = target[$mobx];
+    if (JS.strictEqual(name, "length")) {
+      call1(adm["setArrayLength_"], adm, value);
+    }
+    if (isSym(name) || hostIsNaN(name)) {
+      target[name] = value;
+    } else {
+      JS.call(adm["set_"], adm, parseIntHost(name), value);
+    }
+    return true;
+});
+arrayTraps["preventExtensions"] = JS.method0((JsValue _s) => {
+    die(15);
+    return false;
+});
+
+export JsValue ObservableArrayAdministration = JS.methodRest((JsValue self, JsValue args) => {
+  string name = "ObservableArray";
+  if (len(args) > 0 && !isUndef(args[0])) {
+    name = toStr(args[0]);
+  } else if (DEV) {
+    name = "ObservableArray@" + getNextId();
+  }
+  JsValue enhancer = args[1];
+  self["owned_"] = false;
+  if (len(args) > 2) {
+    self["owned_"] = args[2].truthy();
+  }
+  self["atom_"] = construct1(Atom, name);
+  self["values_"] = JS.array();
+  self["interceptors_"] = undef();
+  self["changeListeners_"] = undef();
+  self["dehancer"] = undef();
+  self["proxy_"] = undef();
+  self["lastKnownLength_"] = 0;
+  string enhName = "ObservableArray[..]";
+  if (DEV) {
+    enhName = name + "[..]";
+  }
+  self["enhancer_"] = JS.method3((JsValue _s, JsValue newV, JsValue oldV, JsValue _n) => {
+    return JS.call(enhancer, undef(), newV, oldV, enhName);
+  });
+  return self;
+});
+
+ObservableArrayAdministration["prototype"]["dehanceValue_"] = JS.method1((JsValue self, JsValue value) => {
+  if (!isUndef(self["dehancer"])) {
+    return call1(self["dehancer"], undef(), value);
+  }
+  return value;
+});
+ObservableArrayAdministration["prototype"]["dehanceValues_"] = JS.method1((JsValue self, JsValue values) => {
+  if (!isUndef(self["dehancer"]) && len(values) > 0) {
+    return JS.invoke(values, "map", self["dehancer"]);
+  }
+  return values;
+});
+ObservableArrayAdministration["prototype"]["getArrayLength_"] = JS.method0((JsValue self) => {
+  reportObserved(self["atom_"]);
+  return self["values_"]["length"];
+});
+ObservableArrayAdministration["prototype"]["setArrayLength_"] = JS.method1((JsValue self, JsValue newLengthVal) => {
+  if (!isNum(newLengthVal) || numberIsNaN(newLengthVal) || toInt(newLengthVal) < 0) {
+    die1(40, newLengthVal);
+  }
+  int newLength = toInt(newLengthVal);
+  int currentLength = len(self["values_"]);
+  if (newLength == currentLength) {
+    return undef();
+  }
+  if (newLength > currentLength) {
+    JsValue newItems = JS.construct(gArray(), newLength - currentLength);
+    JS.call(self["spliceWithArray_"], self, currentLength, 0, newItems);
+  } else {
+    JS.call(self["spliceWithArray_"], self, newLength, currentLength - newLength);
+  }
+  return undef();
+});
+JsValue spliceWithArrayImpl(JsValue self, int index, int deleteCount, JsValue newItems) {
+  if (DEV) {
+    checkIfStateModificationsAreAllowed(self["atom_"]);
+  }
+  int length = len(self["values_"]);
+  if (index > length) {
+    index = length;
+  } else if (index < 0) {
+    int next = length + index;
+    if (next < 0) {
+      next = 0;
+    }
+    index = next;
+  }
+  if (deleteCount < 0) {
+    deleteCount = 0;
+  }
+  int maxDel = length - index;
+  if (deleteCount > maxDel) {
+    deleteCount = maxDel;
+  }
+  if (isUndef(newItems) || JS.isNullish(newItems)) {
+    newItems = JS.array();
+  } else if (!isArr(newItems)) {
+    newItems = JS.call(gArray()["prototype"]["slice"], newItems);
+  }
+  if (hasInterceptors(self)) {
+    JsValue change = interceptChange(self, JS.object("object", self["proxy_"], "type", SPLICE, "index", index, "removedCount", deleteCount, "added", newItems));
+    if (!change.truthy()) {
+      return EMPTY_ARRAY;
+    }
+    deleteCount = toInt(change["removedCount"]);
+    newItems = change["added"];
+  }
+  if (len(newItems) != 0) {
+    JsValue enhanced = JS.array();
+    int ni = 0;
+    int nlen = len(newItems);
+    while (ni < nlen) {
+      push(enhanced, JS.call(self["enhancer_"], undef(), newItems[ni], undef()));
+      ni = ni + 1;
+    }
+    newItems = enhanced;
+  }
+  JsValue res = callSpliceItems(self, index, deleteCount, newItems);
+  if (deleteCount != 0 || len(newItems) != 0) {
+    callNotifySplice(self, index, newItems, res);
+  }
+  return call1(self["dehanceValues_"], self, res);
+}
+
+ObservableArrayAdministration["prototype"]["spliceWithArray_"] = JS.methodRest((JsValue self, JsValue args) => {
+  int length = len(self["values_"]);
+  int index = 0;
+  if (len(args) > 0 && !isUndef(args[0])) {
+    index = toInt(args[0]);
+  }
+  int deleteCount = 0;
+  if (len(args) == 1) {
+    deleteCount = length - index;
+  } else if (len(args) > 1 && !isUndef(args[1]) && !JS.isNullish(args[1])) {
+    deleteCount = toInt(args[1]);
+  }
+  JsValue newItems = undef();
+  if (len(args) > 2) {
+    newItems = args[2];
+  }
+  return spliceWithArrayImpl(self, index, deleteCount, newItems);
+});
+ObservableArrayAdministration["prototype"]["get_"] = JS.method1((JsValue self, JsValue index) => {
+  reportObserved(self["atom_"]);
+  return call1(self["dehanceValue_"], self, self["values_"][index]);
+});
+ObservableArrayAdministration["prototype"]["set_"] = JS.method2((JsValue self, JsValue indexVal, JsValue newValue) => {
+  int index = toInt(indexVal);
+  JsValue values = self["values_"];
+  if (index < len(values)) {
+    if (DEV) {
+      checkIfStateModificationsAreAllowed(self["atom_"]);
+    }
+    JsValue oldValue = values[index];
+    if (hasInterceptors(self)) {
+      JsValue change = interceptChange(self, JS.object("type", UPDATE, "object", self["proxy_"], "index", index, "newValue", newValue));
+      if (!change.truthy()) {
+        return undef();
+      }
+      newValue = change["newValue"];
+    }
+    newValue = JS.call(self["enhancer_"], undef(), newValue, oldValue);
+    if (!JS.strictEqual(newValue, oldValue)) {
+      values[index] = newValue;
+      callNotifyUpdate(self, index, newValue, oldValue);
+    }
+  } else {
+    JsValue newItems = JS.construct(gArray(), index + 1 - len(values));
+    newItems[len(newItems) - 1] = newValue;
+    spliceWithArrayImpl(self, len(values), 0, newItems);
+  }
+  return undef();
+});
+
+JsValue callSpliceItems(JsValue self, int index, int deleteCount, JsValue newItems) {
+  JsValue values = self["values_"];
+  int nAdd = len(newItems);
+  if (deleteCount == 0 && index == len(values)) {
+    int i = 0;
+    while (i < nAdd) {
+      push(values, newItems[i]);
+      i = i + 1;
+    }
+    return EMPTY_ARRAY;
+  }
+  if (nAdd < MAX_SPLICE_SIZE) {
+    JsValue callArgs = JS.array();
+    push(callArgs, index);
+    push(callArgs, deleteCount);
+    int i = 0;
+    while (i < len(newItems)) {
+      push(callArgs, newItems[i]);
+      i = i + 1;
+    }
+    return apply(values["splice"], values, callArgs);
+  }
+  JsValue res = slice2(values, index, index + deleteCount);
+  JsValue oldItems = slice2(values, index + deleteCount, len(values));
+  values["length"] = len(values) + len(newItems) - deleteCount;
+  int i = 0;
+  while (i < len(newItems)) {
+    values[index + i] = newItems[i];
+    i = i + 1;
+  }
+  i = 0;
+  while (i < len(oldItems)) {
+    values[index + len(newItems) + i] = oldItems[i];
+    i = i + 1;
+  }
+  return res;
+}
+
+void callNotifyUpdate(JsValue self, int index, JsValue newValue, JsValue oldValue) {
+  bool notifySpy = DEV && !self["owned_"].truthy() && isSpyEnabled();
+  bool notify = hasListeners(self);
+  JsValue change = null;
+  if (notify || notifySpy) {
+    change = JS.object("observableKind", "array", "object", self["proxy_"], "type", UPDATE, "debugObjectName", self["atom_"]["name_"], "index", index, "newValue", newValue, "oldValue", oldValue);
+  }
+  if (DEV && notifySpy) {
+    spyReportStart(change);
+  }
+  reportChanged(self["atom_"]);
+  if (notify) {
+    notifyListeners(self, change);
+  }
+  if (DEV && notifySpy) {
+    spyReportEnd0();
+  }
+}
+
+void callNotifySplice(JsValue self, int index, JsValue added, JsValue removed) {
+  bool notifySpy = DEV && !self["owned_"].truthy() && isSpyEnabled();
+  bool notify = hasListeners(self);
+  JsValue change = null;
+  if (notify || notifySpy) {
+    change = JS.object("observableKind", "array", "object", self["proxy_"], "debugObjectName", self["atom_"]["name_"], "type", SPLICE, "index", index, "removed", removed, "added", added, "removedCount", len(removed), "addedCount", len(added));
+  }
+  if (DEV && notifySpy) {
+    spyReportStart(change);
+  }
+  reportChanged(self["atom_"]);
+  if (notify) {
+    notifyListeners(self, change);
+  }
+  if (DEV && notifySpy) {
+    spyReportEnd0();
+  }
+}
+
+export JsValue createObservableArray = JS.methodRest((JsValue _s, JsValue args) => {
+  JsValue initialValues = args[0];
+  JsValue enhancer = args[1];
+  string name = "ObservableArray";
+  if (len(args) > 2 && !isUndef(args[2])) {
+    name = toStr(args[2]);
+  } else if (DEV) {
+    name = "ObservableArray@" + getNextId();
+  }
+  bool owned = false;
+  if (len(args) > 3) {
+    owned = args[3].truthy();
+  }
+  return initObservable(JS.method0((JsValue __s) => {
+    JsValue adm = JS.construct(ObservableArrayAdministration, name, enhancer, owned);
+    addHiddenFinalProp(adm["values_"], $mobx, adm);
+    JsValue proxy = newProxy(adm["values_"], arrayTraps);
+    adm["proxy_"] = proxy;
+    if (initialValues.truthy() && len(initialValues) > 0) {
+      JS.call(adm["spliceWithArray_"], adm, 0, 0, initialValues);
+    }
+    return proxy;
+  }));
+});
+
+isObservableArrayAdmPred = createInstanceofPredicate("ObservableArrayAdministration", ObservableArrayAdministration);
+
+arrayExtensions["clear"] = JS.method0((JsValue self) => {
+  return JS.invoke(self, "splice", 0);
+});
+arrayExtensions["replace"] = JS.method1((JsValue self, JsValue newItems) => {
+  JsValue adm = self[$mobx];
+  return JS.call(adm["spliceWithArray_"], adm, 0, len(adm["values_"]), newItems);
+});
+arrayExtensions["toJSON"] = JS.method0((JsValue self) => {
+  return JS.invoke(self, "slice");
+});
+arrayExtensions["splice"] = JS.methodRest((JsValue self, JsValue args) => {
+  JsValue adm = self[$mobx];
+  if (len(args) == 0) {
+    return JS.array();
+  }
+  if (len(args) == 1) {
+    return call1(adm["spliceWithArray_"], adm, args[0]);
+  }
+  if (len(args) == 2) {
+    return JS.call(adm["spliceWithArray_"], adm, args[0], args[1]);
+  }
+  JsValue newItems = slice2(args, 2, len(args));
+  return JS.call(adm["spliceWithArray_"], adm, args[0], args[1], newItems);
+});
+arrayExtensions["spliceWithArray"] = JS.methodRest((JsValue self, JsValue args) => {
+  return apply(self[$mobx]["spliceWithArray_"], self[$mobx], args);
+});
+arrayExtensions["push"] = JS.methodRest((JsValue self, JsValue args) => {
+  JsValue adm = self[$mobx];
+  spliceWithArrayImpl(adm, len(adm["values_"]), 0, args);
+  return adm["values_"]["length"];
+});
+arrayExtensions["pop"] = JS.method0((JsValue self) => {
+  int last = len(self[$mobx]["values_"]) - 1;
+  if (last < 0) {
+    last = 0;
+  }
+  return JS.invoke(self, "splice", last, 1)[0];
+});
+arrayExtensions["shift"] = JS.method0((JsValue self) => {
+  return JS.invoke(self, "splice", 0, 1)[0];
+});
+arrayExtensions["unshift"] = JS.methodRest((JsValue self, JsValue args) => {
+  JsValue adm = self[$mobx];
+  spliceWithArrayImpl(adm, 0, 0, args);
+  return adm["values_"]["length"];
+});
+arrayExtensions["reverse"] = JS.method0((JsValue self) => {
+  if (globalState["trackingDerivation"].truthy()) {
+    die1(37, "reverse");
+  }
+  JS.invoke(self, "replace", JS.invoke(JS.invoke(self, "slice"), "reverse"));
+  return self;
+});
+arrayExtensions["sort"] = JS.methodRest((JsValue self, JsValue args) => {
+  if (globalState["trackingDerivation"].truthy()) {
+    die1(37, "sort");
+  }
+  JsValue copy = JS.invoke(self, "slice");
+  apply(copy["sort"], copy, args);
+  JS.invoke(self, "replace", copy);
+  return self;
+});
+arrayExtensions["remove"] = JS.method1((JsValue self, JsValue value) => {
+  JsValue adm = self[$mobx];
+  int idx = indexOf(call1(adm["dehanceValues_"], adm, adm["values_"]), value);
+  if (idx > -1) {
+    JS.invoke(self, "splice", idx, 1);
+    return true;
+  }
+  return false;
+});
+
+void addSimpleArrayExt(string funcName) {
+  if (isFn(gArray()["prototype"][funcName])) {
+    arrayExtensions[funcName] = JS.methodRest((JsValue self, JsValue args) => {
+      JsValue adm = self[$mobx];
+      reportObserved(adm["atom_"]);
+      JsValue dehanced = call1(adm["dehanceValues_"], adm, adm["values_"]);
+      return apply(dehanced[funcName], dehanced, args);
+    });
+  }
+}
+
+void addMapLikeArrayExt(string funcName) {
+  if (isFn(gArray()["prototype"][funcName])) {
+    arrayExtensions[funcName] = JS.methodRest((JsValue self, JsValue args) => {
+      JsValue adm = self[$mobx];
+      reportObserved(adm["atom_"]);
+      JsValue dehanced = call1(adm["dehanceValues_"], adm, adm["values_"]);
+      JsValue callback = args[0];
+      JsValue thisArg = undef();
+      if (len(args) > 1) {
+        thisArg = args[1];
+      }
+      return JS.invoke(dehanced, funcName, JS.methodRest((JsValue _s, JsValue cargs) => {
+        return JS.call(callback, thisArg, cargs[0], cargs[1], self);
+      }));
+    });
+  }
+}
+
+addSimpleArrayExt("at");
+addSimpleArrayExt("concat");
+addSimpleArrayExt("flat");
+addSimpleArrayExt("includes");
+addSimpleArrayExt("indexOf");
+addSimpleArrayExt("join");
+addSimpleArrayExt("lastIndexOf");
+addSimpleArrayExt("slice");
+addSimpleArrayExt("toString");
+addSimpleArrayExt("toLocaleString");
+addSimpleArrayExt("toSorted");
+addSimpleArrayExt("toSpliced");
+addSimpleArrayExt("with");
+addMapLikeArrayExt("every");
+addMapLikeArrayExt("filter");
+addMapLikeArrayExt("find");
+addMapLikeArrayExt("findIndex");
+addMapLikeArrayExt("findLast");
+addMapLikeArrayExt("findLastIndex");
+addMapLikeArrayExt("flatMap");
+addMapLikeArrayExt("forEach");
+addMapLikeArrayExt("map");
+addMapLikeArrayExt("some");
+addMapLikeArrayExt("toReversed");
+
+void addReduceLikeArrayExt(string funcName) {
+  if (isFn(gArray()["prototype"][funcName])) {
+    arrayExtensions[funcName] = JS.methodRest((JsValue self, JsValue args) => {
+      JsValue adm = self[$mobx];
+      reportObserved(adm["atom_"]);
+      JsValue dehanced = call1(adm["dehanceValues_"], adm, adm["values_"]);
+      JsValue callback = args[0];
+      args[0] = JS.methodRest((JsValue _c, JsValue cargs) => {
+        return JS.call(callback, undef(), cargs[0], cargs[1], cargs[2], self);
+      });
+      return apply(dehanced[funcName], dehanced, args);
+    });
+  }
+}
+
+addReduceLikeArrayExt("reduce");
+addReduceLikeArrayExt("reduceRight");

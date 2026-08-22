@@ -1,0 +1,120 @@
+export class ListWidget {
+  string id;
+  bool focused;
+  int focusIndex;
+  string[] elements;
+  int width;
+  int height;
+
+  init(string id) {
+    this.id = id;
+    this.focused = false;
+    this.focusIndex = -1;
+    this.elements = [];
+    this.width = 0;
+    this.height = 0;
+  }
+
+  void focus() {
+    this.focused = true;
+    if (this.focusIndex < 0 && this.elements.length > 0) {
+      this.focusIndex = 0;
+    }
+  }
+
+  void blur() {
+    this.focused = false;
+  }
+
+  void open(int index) {
+    if (index < 0 || index >= this.elements.length) {
+      return;
+    }
+    this.focusIndex = index;
+    this.focused = true;
+  }
+
+  void layout(int width, int height) {
+    this.width = width;
+    this.height = height;
+  }
+}
+
+export class ListService {
+  ListWidget[] lists;
+  int lastFocused;
+
+  init() {
+    this.lists = [];
+    this.lastFocused = -1;
+  }
+
+  int indexOfWidget(string id) {
+    int i = 0;
+    while (i < this.lists.length) {
+      if (this.lists[i].id == id) {
+        return i;
+      }
+      i = i + 1;
+    }
+    return -1;
+  }
+
+  ListWidget register(string id) {
+    int idx = this.indexOfWidget(id);
+    if (idx >= 0) {
+      return this.lists[idx];
+    }
+    ListWidget widget = new ListWidget(id);
+    this.lists.push(widget);
+    return widget;
+  }
+
+  void unregister(string id) {
+    ListWidget[] next = [];
+    int i = 0;
+    while (i < this.lists.length) {
+      if (this.lists[i].id != id) {
+        next.push(this.lists[i]);
+      } else {
+        if (this.lastFocused == i) {
+          this.lastFocused = -1;
+        }
+      }
+      i = i + 1;
+    }
+    this.lists = next;
+  }
+
+  void setLastFocused(string id) {
+    int i = 0;
+    while (i < this.lists.length) {
+      if (this.lists[i].id == id) {
+        this.lists[i].focus();
+        this.lastFocused = i;
+      } else {
+        this.lists[i].blur();
+      }
+      i = i + 1;
+    }
+  }
+
+  ListWidget? lastFocusedList() {
+    if (this.lastFocused < 0 || this.lastFocused >= this.lists.length) {
+      return null;
+    }
+    return this.lists[this.lastFocused];
+  }
+}
+
+export ListService createListService() {
+  return new ListService();
+}
+
+export ListWidget createListWidget(string id) {
+  return new ListWidget(id);
+}
+
+export string IListServiceId = "listService";
+export string WorkbenchListFocusContextKey = "listFocus";
+export string WorkbenchListSupportsMultiSelectContextKey = "listSupportsMultiselect";

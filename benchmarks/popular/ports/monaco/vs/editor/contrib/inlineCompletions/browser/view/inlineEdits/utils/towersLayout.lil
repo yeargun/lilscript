@@ -1,0 +1,51 @@
+export class LayoutBox {
+  int x;
+  int y;
+  int width;
+  int height;
+
+  init(int x, int y, int width, int height) {
+    this.x = x;
+    this.y = y;
+    this.width = width;
+    this.height = height;
+  }
+}
+
+export LayoutBox[] layoutRow(int[] widths, int[] heights, int gap, int startX, int startY) {
+  LayoutBox[] boxes = [];
+  int x = startX;
+  int i = 0;
+  while (i < widths.length) {
+    int h = 0;
+    if (i < heights.length) {
+      h = heights[i];
+    }
+    boxes.push(new LayoutBox(x, startY, widths[i], h));
+    x = x + widths[i] + gap;
+    i = i + 1;
+  }
+  return boxes;
+}
+
+export LayoutBox[] layoutTowers(int[] sizes, int maxHeight, int gap) {
+  LayoutBox[] boxes = [];
+  int y = 0;
+  int col = 0;
+  int i = 0;
+  while (i < sizes.length) {
+    int h = sizes[i];
+    if (y + h > maxHeight && y > 0) {
+      col = col + 1;
+      y = 0;
+    }
+    boxes.push(new LayoutBox(col * (sizes[i] + gap), y, sizes[i], h));
+    y = y + h + gap;
+    i = i + 1;
+  }
+  return boxes;
+}
+
+export LayoutBox createTowersLayout(int x, int y, int w, int h) {
+  return new LayoutBox(x, y, w, h);
+}

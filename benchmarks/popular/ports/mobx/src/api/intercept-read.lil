@@ -1,0 +1,41 @@
+import { DEV } from "../dev-flag.lil";
+import {
+  isStringish,
+  isUndef,
+  undef
+} from "../host.lil";
+import { die } from "../errors.lil";
+import {
+  isObservableArray,
+  isObservableMap,
+  isObservableObject,
+  isObservableSet,
+  isObservableValue
+} from "../core/predicates.lil";
+import { getAdministration } from "../types/type-utils.lil";
+
+export JsValue interceptReads = JS.methodRest((JsValue _s, JsValue args) => {
+  JsValue thing = args[0];
+  JsValue target = undef();
+  JsValue handler = undef();
+  if (isObservableMap(thing) || isObservableArray(thing) || isObservableValue(thing) || isObservableSet(thing)) {
+    target = JS.call(getAdministration, undef(), thing);
+    handler = args[1];
+  } else if (isObservableObject(thing)) {
+    if (DEV && !isStringish(args[1])) {
+      die("InterceptReads can only be used with a specific property, not with an object in general");
+    }
+    target = JS.call(getAdministration, undef(), thing, args[1]);
+    handler = args[2];
+  } else if (DEV) {
+    die("Expected observable map, object or array as first array");
+  }
+  if (DEV && !isUndef(target["dehancer"])) {
+    die("An intercept reader was already established");
+  }
+  target["dehancer"] = handler;
+  return JS.method0((JsValue _d) => {
+    target["dehancer"] = undef();
+    return undef();
+  });
+});

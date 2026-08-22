@@ -1,0 +1,311 @@
+import { hostCall, jsUndefined } from "../../../../js-host";
+
+export string DEFAULT_CHANNEL = "default";
+export string INITIALIZE = "$initialize";
+export int MessageTypeRequest = 0;
+export int MessageTypeReply = 1;
+export int MessageTypeSubscribeEvent = 2;
+export int MessageTypeEvent = 3;
+export int MessageTypeUnsubscribeEvent = 4;
+
+export JsValue createRequestMessage(int worker, string request, string channel, string method, JsValue arguments) {
+  JsValue message = JS.object();
+  message["vsWorker"] = worker;
+  message["req"] = request;
+  message["channel"] = channel;
+  message["method"] = method;
+  message["args"] = arguments;
+  message["type"] = MessageTypeRequest;
+  return message;
+}
+
+export JsValue createReplyMessage(int worker, string sequence, JsValue result, JsValue error) {
+  JsValue message = JS.object();
+  message["vsWorker"] = worker;
+  message["seq"] = sequence;
+  message["res"] = result;
+  message["err"] = error;
+  message["type"] = MessageTypeReply;
+  return message;
+}
+
+export JsValue createSubscribeEventMessage(int worker, string request, string channel, string eventName, JsValue argument) {
+  JsValue message = JS.object();
+  message["vsWorker"] = worker;
+  message["req"] = request;
+  message["channel"] = channel;
+  message["eventName"] = eventName;
+  message["arg"] = argument;
+  message["type"] = MessageTypeSubscribeEvent;
+  return message;
+}
+
+export JsValue createEventMessage(int worker, string request, JsValue event) {
+  JsValue message = JS.object();
+  message["vsWorker"] = worker;
+  message["req"] = request;
+  message["event"] = event;
+  message["type"] = MessageTypeEvent;
+  return message;
+}
+
+export JsValue createUnsubscribeEventMessage(int worker, string request) {
+  JsValue message = JS.object();
+  message["vsWorker"] = worker;
+  message["req"] = request;
+  message["type"] = MessageTypeUnsubscribeEvent;
+  return message;
+}
+
+string messageString(JsValue message, string key) {
+  JsValue value = message[key];
+  if (value is string) {
+    string result = value;
+    return result;
+  }
+  return "";
+}
+
+int messageInt(JsValue message, string key, int fallback) {
+  JsValue value = message[key];
+  if (value is float) {
+    float numericValue = value;
+    return numericValue.toInt();
+  }
+  return fallback;
+}
+
+export bool propertyIsEvent(string name) {
+  return name.length >= 3
+    && name.charAt(0) == "o"
+    && name.charAt(1) == "n"
+    && name.charCodeAt(2) >= 65
+    && name.charCodeAt(2) <= 90;
+}
+
+export bool propertyIsDynamicEvent(string name) {
+  return name.length >= 10
+    && name.startsWith("onDynamic")
+    && name.charCodeAt(9) >= 65
+    && name.charCodeAt(9) <= 90;
+}
+
+class ValueCallback {
+  func(JsValue)->void callback;
+
+  init(func(JsValue)->void callback) {
+    this.callback = callback;
+  }
+}
+
+class VoidCallback {
+  func()->void callback;
+
+  init(func()->void callback) {
+    this.callback = callback;
+  }
+}
+
+export class WebWorkerProtocol {
+  int workerId;
+  int lastSentRequest;
+  JsValue handler;
+  Map<string, ValueCallback> pendingReplies;
+  Map<string, ValueCallback> pendingErrors;
+  Map<string, ValueCallback> pendingEmitters;
+  Map<string, VoidCallback> pendingEvents;
+
+  init(JsValue handler) {
+    this.workerId = -1;
+    this.lastSentRequest = 0;
+    this.handler = handler;
+    this.pendingReplies = new Map<string, ValueCallback>();
+    this.pendingErrors = new Map<string, ValueCallback>();
+    this.pendingEmitters = new Map<string, ValueCallback>();
+    this.pendingEvents = new Map<string, VoidCallback>();
+  }
+
+  void setWorkerId(int workerId) {
+    this.workerId = workerId;
+  }
+
+  string nextRequest() {
+    this.lastSentRequest = this.lastSentRequest + 1;
+    return this.lastSentRequest.toString();
+  }
+
+  string sendMessage(string channel, string method, JsValue arguments, func(JsValue)->void resolve, func(JsValue)->void reject) {
+    string request = this.nextRequest();
+    this.pendingReplies.set(request, new ValueCallback(resolve));
+    this.pendingErrors.set(request, new ValueCallback(reject));
+    this.send(createRequestMessage(this.workerId, request, channel, method, arguments));
+    return request;
+  }
+
+  string listen(string channel, string eventName, JsValue argument, func(JsValue)->void listener) {
+    string request = this.nextRequest();
+    this.pendingEmitters.set(request, new ValueCallback(listener));
+    this.send(createSubscribeEventMessage(this.workerId, request, channel, eventName, argument));
+    return request;
+  }
+
+  void unlisten(string request) {
+    this.pendingEmitters.delete(request);
+    this.send(createUnsubscribeEventMessage(this.workerId, request));
+  }
+
+  void handleMessage(JsValue message) {
+    if (!message.truthy() || !message.isObject()) {
+      return;
+    }
+    int messageWorker = messageInt(message, "vsWorker", -1);
+    if (messageWorker < 0 || (this.workerId != -1 && messageWorker != this.workerId)) {
+      return;
+    }
+    int messageType = messageInt(message, "type", -1);
+    if (messageType == MessageTypeReply) {
+      this.handleReply(message);
+    } else if (messageType == MessageTypeRequest) {
+      this.handleRequest(message);
+    } else if (messageType == MessageTypeSubscribeEvent) {
+      this.handleSubscribe(message);
+    } else if (messageType == MessageTypeEvent) {
+      this.handleEvent(message);
+    } else if (messageType == MessageTypeUnsubscribeEvent) {
+      this.handleUnsubscribe(message);
+    }
+  }
+
+  void handleReply(JsValue message) {
+    string sequence = messageString(message, "seq");
+    JsValue error = message["err"];
+    if (error.truthy()) {
+      ValueCallback? reject = this.pendingErrors.get(sequence);
+      if (reject != null) {
+        reject.callback(error);
+      }
+    } else {
+      ValueCallback? resolve = this.pendingReplies.get(sequence);
+      if (resolve != null) {
+        resolve.callback(message["res"]);
+      }
+    }
+    this.pendingReplies.delete(sequence);
+    this.pendingErrors.delete(sequence);
+  }
+
+  void handleRequest(JsValue message) {
+    string request = messageString(message, "req");
+    JsValue result = hostCall(
+      this.handler,
+      "handleMessage",
+      message["channel"],
+      message["method"],
+      message["args"]
+    );
+    this.send(createReplyMessage(this.workerId, request, result, jsUndefined()));
+  }
+
+  void handleSubscribe(JsValue message) {
+    string request = messageString(message, "req");
+    WebWorkerProtocol owner = this;
+    JsValue disposable = hostCall(
+      this.handler,
+      "handleEvent",
+      message["channel"],
+      message["eventName"],
+      message["arg"]
+    );
+    this.pendingEvents.set(request, new VoidCallback(() => {
+      hostCall(disposable, "dispose", jsUndefined(), jsUndefined(), jsUndefined());
+    }));
+  }
+
+  void handleEvent(JsValue message) {
+    string request = messageString(message, "req");
+    ValueCallback? listener = this.pendingEmitters.get(request);
+    if (listener != null) {
+      listener.callback(message["event"]);
+    }
+  }
+
+  void handleUnsubscribe(JsValue message) {
+    string request = messageString(message, "req");
+    VoidCallback? disposable = this.pendingEvents.get(request);
+    if (disposable != null) {
+      disposable.callback();
+      this.pendingEvents.delete(request);
+    }
+  }
+
+  void send(JsValue message) {
+    JsValue[] transferValues = [];
+    JsValue transfer = transferValues;
+    hostCall(this.handler, "sendMessage", message, transfer, jsUndefined());
+  }
+}
+
+export class WebWorkerClient {
+  JsValue worker;
+  WebWorkerProtocol protocol;
+  Map<string, JsValue> localChannels;
+
+  init(JsValue worker) {
+    this.worker = worker;
+    JsValue protocolHandler = JS.object();
+    protocolHandler["sendMessage"] = (JsValue message, JsValue transfer) => {
+      hostCall(worker, "postMessage", message, transfer, jsUndefined());
+    };
+    this.protocol = new WebWorkerProtocol(protocolHandler);
+    this.localChannels = new Map<string, JsValue>();
+    JsValue id = hostCall(worker, "getId", jsUndefined(), jsUndefined(), jsUndefined());
+    if (id is float) {
+      float workerId = id;
+      this.protocol.setWorkerId(workerId.toInt());
+    }
+  }
+
+  void setChannel(string channel, JsValue handler) {
+    this.localChannels.set(channel, handler);
+  }
+
+  void handleMessage(JsValue message) {
+    this.protocol.handleMessage(message);
+  }
+}
+
+export class WebWorkerServer {
+  WebWorkerProtocol protocol;
+  JsValue requestHandler;
+  Map<string, JsValue> localChannels;
+
+  init(JsValue protocolHandler, JsValue requestHandler) {
+    this.protocol = new WebWorkerProtocol(protocolHandler);
+    this.requestHandler = requestHandler;
+    this.localChannels = new Map<string, JsValue>();
+  }
+
+  void onmessage(JsValue message) {
+    this.protocol.handleMessage(message);
+  }
+
+  void initialize(int workerId) {
+    this.protocol.setWorkerId(workerId);
+  }
+
+  void setChannel(string channel, JsValue handler) {
+    this.localChannels.set(channel, handler);
+  }
+}
+
+export WebWorkerProtocol createWebWorkerProtocol(JsValue handler) {
+  return new WebWorkerProtocol(handler);
+}
+
+export WebWorkerClient createWebWorkerClient(JsValue worker) {
+  return new WebWorkerClient(worker);
+}
+
+export WebWorkerServer createWebWorkerServer(JsValue protocolHandler, JsValue requestHandler) {
+  return new WebWorkerServer(protocolHandler, requestHandler);
+}

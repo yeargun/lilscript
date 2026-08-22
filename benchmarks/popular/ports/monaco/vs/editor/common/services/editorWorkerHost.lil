@@ -1,0 +1,29 @@
+import { hostCall, jsUndefined } from "../../../../js-host";
+
+export string EDITOR_WORKER_HOST_CHANNEL_NAME = "editorWorkerHost";
+
+export class EditorWorkerHost {
+  JsValue getChannel(JsValue workerServer) {
+    return hostCall(
+      workerServer,
+      "getChannel",
+      EDITOR_WORKER_HOST_CHANNEL_NAME,
+      jsUndefined(),
+      jsUndefined()
+    );
+  }
+
+  void setChannel(JsValue workerClient, JsValue object) {
+    hostCall(
+      workerClient,
+      "setChannel",
+      EDITOR_WORKER_HOST_CHANNEL_NAME,
+      object,
+      jsUndefined()
+    );
+  }
+}
+
+export EditorWorkerHost createEditorWorkerHost() {
+  return new EditorWorkerHost();
+}

@@ -1,0 +1,80 @@
+export class ListColorsRegistry {
+  string[] ids;
+
+  init() {
+    this.ids = [];
+  }
+
+  string register(string id) {
+    if (!this.ids.includes(id)) {
+      this.ids.push(id);
+    }
+    return id;
+  }
+
+  bool has(string id) {
+    return this.ids.includes(id);
+  }
+
+  string asCssVariableName(string id) {
+    string out = "--vscode-";
+    int i = 0;
+    while (i < id.length) {
+      string ch = id.charAt(i);
+      if (ch == ".") {
+        out = out + "-";
+      } else {
+        out = out + ch;
+      }
+      i = i + 1;
+    }
+    return out;
+  }
+}
+
+ListColorsRegistry colors = new ListColorsRegistry();
+
+export ListColorsRegistry getListColorsRegistry() {
+  return colors;
+}
+
+export string c0 = colors.register("list.focusBackground");
+export string c1 = colors.register("list.focusForeground");
+export string c2 = colors.register("list.focusOutline");
+export string c3 = colors.register("list.focusAndSelectionOutline");
+export string c4 = colors.register("list.activeSelectionBackground");
+export string c5 = colors.register("list.activeSelectionForeground");
+export string c6 = colors.register("list.activeSelectionIconForeground");
+export string c7 = colors.register("list.inactiveSelectionBackground");
+export string c8 = colors.register("list.inactiveSelectionForeground");
+export string c9 = colors.register("list.inactiveSelectionIconForeground");
+export string c10 = colors.register("list.inactiveFocusBackground");
+export string c11 = colors.register("list.inactiveFocusOutline");
+export string c12 = colors.register("list.hoverBackground");
+export string c13 = colors.register("list.hoverForeground");
+export string c14 = colors.register("list.dropBackground");
+export string c15 = colors.register("list.dropBetweenBackground");
+export string c16 = colors.register("list.highlightForeground");
+export string c17 = colors.register("list.focusHighlightForeground");
+export string c18 = colors.register("list.invalidItemForeground");
+export string c19 = colors.register("list.errorForeground");
+export string c20 = colors.register("list.warningForeground");
+export string c21 = colors.register("listFilterWidget.background");
+export string c22 = colors.register("listFilterWidget.outline");
+export string c23 = colors.register("listFilterWidget.noMatchesOutline");
+export string c24 = colors.register("listFilterWidget.shadow");
+export string c25 = colors.register("list.filterMatchBackground");
+export string c26 = colors.register("list.filterMatchBorder");
+export string c27 = colors.register("list.deemphasizedForeground");
+export string c28 = colors.register("tree.indentGuidesStroke");
+export string c29 = colors.register("tree.inactiveIndentGuidesStroke");
+export string c30 = colors.register("tree.tableColumnsBorder");
+export string c31 = colors.register("tree.tableOddRowsBackground");
+export string c32 = colors.register("editorActionList.background");
+export string c33 = colors.register("editorActionList.foreground");
+export string c34 = colors.register("editorActionList.focusForeground");
+export string c35 = colors.register("editorActionList.focusBackground");
+
+export string[] colorIds() {
+  return colors.ids;
+}

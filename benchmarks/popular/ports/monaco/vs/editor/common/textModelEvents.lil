@@ -1,0 +1,229 @@
+import { sliceOf, concat2 } from "../../../js-host";
+
+export class ModelRawFlush {
+  int changeType;
+
+  init() {
+    this.changeType = 1;
+  }
+}
+
+export class InjectedTextOptions {
+  string content;
+
+  init(string content) {
+    this.content = content;
+  }
+}
+
+export class LineInjectedText {
+  int ownerId;
+  int lineNumber;
+  int column;
+  InjectedTextOptions options;
+  int order;
+
+  init(int ownerId, int lineNumber, int column, InjectedTextOptions options, int order) {
+    this.ownerId = ownerId;
+    this.lineNumber = lineNumber;
+    this.column = column;
+    this.options = options;
+    this.order = order;
+  }
+}
+
+export string applyInjectedText(string lineText, LineInjectedText[] injectedTexts) {
+  if (injectedTexts.length == 0) {
+    return lineText;
+  }
+  string result = "";
+  int lastOffset = 0;
+  int i = 0;
+  while (i < injectedTexts.length) {
+    LineInjectedText injected = injectedTexts[i];
+    int offset = injected.column - 1;
+    if (offset < lastOffset) {
+      offset = lastOffset;
+    }
+    if (offset > lineText.length) {
+      offset = lineText.length;
+    }
+    result = concat2(result, sliceOf(lineText, lastOffset, offset));
+    result = concat2(result, injected.options.content);
+    lastOffset = offset;
+    i = i + 1;
+  }
+  return concat2(result, sliceOf(lineText, lastOffset, lineText.length));
+}
+
+export class ModelRawLineChanged {
+  int changeType;
+  int lineNumber;
+  int lineNumberPostEdit;
+
+  init(int lineNumber, int lineNumberPostEdit) {
+    this.changeType = 2;
+    this.lineNumber = lineNumber;
+    this.lineNumberPostEdit = lineNumberPostEdit;
+  }
+}
+
+export class ModelLineHeightChanged {
+  int ownerId;
+  string decorationId;
+  int lineNumber;
+  float lineHeightMultiplier;
+
+  init(int ownerId, string decorationId, int lineNumber, float lineHeightMultiplier) {
+    this.ownerId = ownerId;
+    this.decorationId = decorationId;
+    this.lineNumber = lineNumber;
+    this.lineHeightMultiplier = lineHeightMultiplier;
+  }
+}
+
+export class ModelFontChanged {
+  int ownerId;
+  int lineNumber;
+
+  init(int ownerId, int lineNumber) {
+    this.ownerId = ownerId;
+    this.lineNumber = lineNumber;
+  }
+}
+
+export class ModelRawLinesDeleted {
+  int changeType;
+  int fromLineNumber;
+  int toLineNumber;
+  int lastUntouchedLinePostEdit;
+
+  init(int fromLineNumber, int toLineNumber, int lastUntouchedLinePostEdit) {
+    this.changeType = 3;
+    this.fromLineNumber = fromLineNumber;
+    this.toLineNumber = toLineNumber;
+    this.lastUntouchedLinePostEdit = lastUntouchedLinePostEdit;
+  }
+}
+
+export class ModelRawLinesInserted {
+  int changeType;
+  int fromLineNumber;
+  int fromLineNumberPostEdit;
+  int count;
+
+  init(int fromLineNumber, int fromLineNumberPostEdit, int count) {
+    this.changeType = 4;
+    this.fromLineNumber = fromLineNumber;
+    this.fromLineNumberPostEdit = fromLineNumberPostEdit;
+    this.count = count;
+  }
+
+  int toLineNumber() {
+    return this.fromLineNumber + this.count - 1;
+  }
+
+  int toLineNumberPostEdit() {
+    return this.fromLineNumberPostEdit + this.count - 1;
+  }
+}
+
+export class ModelRawEOLChanged {
+  int changeType;
+
+  init() {
+    this.changeType = 5;
+  }
+}
+
+export class RawModelChange {
+  int changeType;
+
+  init(int changeType) {
+    this.changeType = changeType;
+  }
+}
+
+export class ModelRawContentChangedEvent {
+  RawModelChange[] changes;
+  int versionId;
+  bool isUndoing;
+  bool isRedoing;
+  JsValue resultingSelection;
+
+  init(RawModelChange[] changes, int versionId, bool isUndoing, bool isRedoing) {
+    this.changes = changes;
+    this.versionId = versionId;
+    this.isUndoing = isUndoing;
+    this.isRedoing = isRedoing;
+    this.resultingSelection = null;
+  }
+
+  bool containsEvent(int type) {
+    int i = 0;
+    while (i < this.changes.length) {
+      if (this.changes[i].changeType == type) {
+        return true;
+      }
+      i = i + 1;
+    }
+    return false;
+  }
+}
+
+export ModelRawContentChangedEvent mergeRawContentEvents(
+  ModelRawContentChangedEvent first,
+  ModelRawContentChangedEvent second
+) {
+  RawModelChange[] changes = first.changes.concat(second.changes);
+  return new ModelRawContentChangedEvent(
+    changes,
+    second.versionId,
+    first.isUndoing || second.isUndoing,
+    first.isRedoing || second.isRedoing
+  );
+}
+
+export class ModelInjectedTextChangedEvent {
+  JsValue[] changes;
+
+  init(JsValue[] changes) {
+    this.changes = changes;
+  }
+}
+
+export class ModelLineHeightChangedEvent {
+  ModelLineHeightChanged[] changes;
+
+  init(ModelLineHeightChanged[] changes) {
+    this.changes = changes;
+  }
+}
+
+export class ModelFontChangedEvent {
+  ModelFontChanged[] changes;
+
+  init(ModelFontChanged[] changes) {
+    this.changes = changes;
+  }
+}
+
+export class InternalModelContentChangeEvent {
+  ModelRawContentChangedEvent rawContentChangedEvent;
+  JsValue contentChangedEvent;
+
+  init(ModelRawContentChangedEvent rawContentChangedEvent, JsValue contentChangedEvent) {
+    this.rawContentChangedEvent = rawContentChangedEvent;
+    this.contentChangedEvent = contentChangedEvent;
+  }
+}
+
+export LineInjectedText createLineInjectedText(
+  int ownerId,
+  int lineNumber,
+  int column,
+  string content,
+  int order
+) {
+  return new LineInjectedText(ownerId, lineNumber, column, new InjectedTextOptions(content), order);
+}

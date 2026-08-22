@@ -1,0 +1,178 @@
+void sortStrings(string[] keys) {
+  int i = 1;
+  while (i < keys.length) {
+    string key = keys[i];
+    int j = i;
+    while (j > 0 && keys[j - 1] > key) {
+      keys[j] = keys[j - 1];
+      j = j - 1;
+    }
+    keys[j] = key;
+    i = i + 1;
+  }
+}
+
+export JsValue deepClone(JsValue obj) {
+  if (!obj.truthy()) {
+    return obj;
+  }
+  if (!obj.isObject()) {
+    return obj;
+  }
+  JsValue result = JS.object();
+  if (obj.isArray()) {
+    JsValue[] rows = [];
+    int i = 0;
+    int n = obj.length.toInt();
+    while (i < n) {
+      rows.push(deepClone(obj[i]));
+      i = i + 1;
+    }
+    JsValue boxed = rows;
+    return boxed;
+  }
+  for (string key in obj) {
+    JsValue value = obj[key];
+    if (value.truthy() && value.isObject()) {
+      result[key] = deepClone(value);
+    } else {
+      result[key] = value;
+    }
+  }
+  return result;
+}
+
+export JsValue deepFreeze(JsValue obj) {
+  if (!obj.truthy()) {
+    return obj;
+  }
+  if (!obj.isObject()) {
+    return obj;
+  }
+  JsValue[] stack = [];
+  stack.push(obj);
+  while (stack.length > 0) {
+    JsValue current = stack[0];
+    stack.splice(0, 1);
+    for (string key in current) {
+      JsValue prop = current[key];
+      if (prop.truthy() && prop.isObject() && !prop.isArray()) {
+        stack.push(prop);
+      }
+    }
+  }
+  return obj;
+}
+
+JsValue cloneAndChangeWalk(JsValue obj, func(JsValue)->JsValue? changer, Set<JsValue> seen) {
+  JsValue? changed = changer(obj);
+  if (changed != null) {
+    JsValue next = changed;
+    return next;
+  }
+  if (obj.isArray()) {
+    JsValue[] rows = [];
+    int i = 0;
+    int n = obj.length.toInt();
+    while (i < n) {
+      rows.push(cloneAndChangeWalk(obj[i], changer, seen));
+      i = i + 1;
+    }
+    JsValue boxed = rows;
+    return boxed;
+  }
+  if (obj.isObject() && obj.truthy()) {
+    if (seen.has(obj)) {
+      throw "Cannot clone recursive data-structure";
+    }
+    seen.add(obj);
+    JsValue copy = JS.object();
+    for (string key in obj) {
+      copy[key] = cloneAndChangeWalk(obj[key], changer, seen);
+    }
+    seen.delete(obj);
+    return copy;
+  }
+  return obj;
+}
+
+export JsValue cloneAndChange(JsValue obj, func(JsValue)->JsValue? changer) {
+  Set<JsValue> seen = new Set();
+  return cloneAndChangeWalk(obj, changer, seen);
+}
+
+export JsValue mixin(JsValue destination, JsValue source, bool overwrite) {
+  if (!destination.isObject() || !destination.truthy()) {
+    return source;
+  }
+  if (source.isObject() && source.truthy()) {
+    for (string key in source) {
+      JsValue existing = destination[key];
+      if (existing.truthy() || existing is float || existing is bool || existing is string) {
+        if (overwrite) {
+          if (existing.isObject() && existing.truthy() && source[key].isObject() && source[key].truthy()) {
+            mixin(existing, source[key], overwrite);
+          } else {
+            destination[key] = source[key];
+          }
+        }
+      } else {
+        destination[key] = source[key];
+      }
+    }
+  }
+  return destination;
+}
+
+export bool objectEquals(JsValue one, JsValue other) {
+  if (one == other) {
+    return true;
+  }
+  if (!one.truthy() || !other.truthy()) {
+    return false;
+  }
+  if (one.isArray() != other.isArray()) {
+    return false;
+  }
+  if (one.isArray()) {
+    int n = one.length.toInt();
+    if (n != other.length.toInt()) {
+      return false;
+    }
+    int i = 0;
+    while (i < n) {
+      if (!objectEquals(one[i], other[i])) {
+        return false;
+      }
+      i = i + 1;
+    }
+    return true;
+  }
+  if (!one.isObject() || !other.isObject()) {
+    return false;
+  }
+  string[] oneKeys = [];
+  for (string key in one) {
+    oneKeys.push(key);
+  }
+  sortStrings(oneKeys);
+  string[] otherKeys = [];
+  for (string key in other) {
+    otherKeys.push(key);
+  }
+  sortStrings(otherKeys);
+  if (oneKeys.length != otherKeys.length) {
+    return false;
+  }
+  int k = 0;
+  while (k < oneKeys.length) {
+    if (oneKeys[k] != otherKeys[k]) {
+      return false;
+    }
+    if (!objectEquals(one[oneKeys[k]], other[otherKeys[k]])) {
+      return false;
+    }
+    k = k + 1;
+  }
+  return true;
+}

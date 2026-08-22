@@ -1,0 +1,146 @@
+import { addEventListener, eventClientX, eventClientY, getClientWidth, getClientHeight, rectLeft, rectTop } from "../../../js-host";
+
+export class PageCoordinates {
+  int x;
+  int y;
+
+  init(int x, int y) {
+    this.x = x;
+    this.y = y;
+  }
+
+  ClientCoordinates toClientCoordinates(int scrollX, int scrollY) {
+    return new ClientCoordinates(this.x - scrollX, this.y - scrollY);
+  }
+}
+
+export class ClientCoordinates {
+  int clientX;
+  int clientY;
+
+  init(int clientX, int clientY) {
+    this.clientX = clientX;
+    this.clientY = clientY;
+  }
+
+  PageCoordinates toPageCoordinates(int scrollX, int scrollY) {
+    return new PageCoordinates(this.clientX + scrollX, this.clientY + scrollY);
+  }
+}
+
+export class EditorPagePosition {
+  int x;
+  int y;
+  int width;
+  int height;
+
+  init(int x, int y, int width, int height) {
+    this.x = x;
+    this.y = y;
+    this.width = width;
+    this.height = height;
+  }
+}
+
+export class CoordinatesRelativeToEditor {
+  float x;
+  float y;
+
+  init(float x, float y) {
+    this.x = x;
+    this.y = y;
+  }
+}
+
+export PageCoordinates createPageCoordinates(int x, int y) {
+  return new PageCoordinates(x, y);
+}
+
+export EditorPagePosition createEditorPagePosition(JsValue editorViewDomNode) {
+  int left = rectLeft(editorViewDomNode);
+  int top = rectTop(editorViewDomNode);
+  int width = getClientWidth(editorViewDomNode);
+  int height = getClientHeight(editorViewDomNode);
+  return new EditorPagePosition(left, top, width, height);
+}
+
+export CoordinatesRelativeToEditor createCoordinatesRelativeToEditor(JsValue editorViewDomNode, EditorPagePosition editorPagePosition, PageCoordinates pos) {
+  int offsetWidth = getClientWidth(editorViewDomNode);
+  int offsetHeight = getClientHeight(editorViewDomNode);
+  float scaleX = 1.0;
+  float scaleY = 1.0;
+  if (offsetWidth > 0) {
+    scaleX = editorPagePosition.width * 1.0 / (offsetWidth * 1.0);
+  }
+  if (offsetHeight > 0) {
+    scaleY = editorPagePosition.height * 1.0 / (offsetHeight * 1.0);
+  }
+  if (scaleX == 0.0) {
+    scaleX = 1.0;
+  }
+  if (scaleY == 0.0) {
+    scaleY = 1.0;
+  }
+  float relativeX = (pos.x - editorPagePosition.x) * 1.0 / scaleX;
+  float relativeY = (pos.y - editorPagePosition.y) * 1.0 / scaleY;
+  return new CoordinatesRelativeToEditor(relativeX, relativeY);
+}
+
+export class EditorMouseEvent {
+  PageCoordinates pos;
+  EditorPagePosition editorPos;
+  CoordinatesRelativeToEditor relativePos;
+  bool isFromPointerCapture;
+  int button;
+  bool ctrlKey;
+  bool shiftKey;
+  bool altKey;
+
+  init(PageCoordinates pos, EditorPagePosition editorPos, CoordinatesRelativeToEditor relativePos, bool isFromPointerCapture) {
+    this.pos = pos;
+    this.editorPos = editorPos;
+    this.relativePos = relativePos;
+    this.isFromPointerCapture = isFromPointerCapture;
+    this.button = 0;
+    this.ctrlKey = false;
+    this.shiftKey = false;
+    this.altKey = false;
+  }
+}
+
+export EditorMouseEvent createEditorMouseEvent(JsValue editorViewDomNode, JsValue browserEvent, bool isFromPointerCapture) {
+  int x = eventClientX(browserEvent);
+  int y = eventClientY(browserEvent);
+  PageCoordinates pos = new PageCoordinates(x, y);
+  EditorPagePosition editorPos = createEditorPagePosition(editorViewDomNode);
+  CoordinatesRelativeToEditor relativePos = createCoordinatesRelativeToEditor(editorViewDomNode, editorPos, pos);
+  return new EditorMouseEvent(pos, editorPos, relativePos, isFromPointerCapture);
+}
+
+export class DynamicCssRule {
+  string _className;
+  JsValue _domNode;
+  bool attached;
+
+  init(JsValue domNode, string className) {
+    this._domNode = domNode;
+    this._className = className;
+    this.attached = false;
+  }
+
+  string getClassName() {
+    return this._className;
+  }
+
+  bool hasClassName(string className) {
+    return this._className == className;
+  }
+}
+
+export DynamicCssRule createCSSRule(JsValue domNode, string className) {
+  return new DynamicCssRule(domNode, className);
+}
+
+export void listenMouse(JsValue target, string type, JsValue handler) {
+  addEventListener(target, type, handler, false);
+}

@@ -1,0 +1,34 @@
+export int HOVER_PADDING = 3;
+
+export bool isMousePositionWithinElement(int left, int top, int width, int height, int posx, int posy) {
+  if (posx < left + HOVER_PADDING) {
+    return false;
+  }
+  if (posx > left + width - HOVER_PADDING) {
+    return false;
+  }
+  if (posy < top + HOVER_PADDING) {
+    return false;
+  }
+  if (posy > top + height - HOVER_PADDING) {
+    return false;
+  }
+  return true;
+}
+
+export bool shouldShowHover(string hoverEnabled, string multiCursorModifier, bool altKey, bool ctrlKey, bool metaKey) {
+  if (hoverEnabled == "on") {
+    return true;
+  }
+  if (hoverEnabled == "off") {
+    return false;
+  }
+  return isTriggerModifierPressed(multiCursorModifier, altKey, ctrlKey, metaKey);
+}
+
+export bool isTriggerModifierPressed(string multiCursorModifier, bool altKey, bool ctrlKey, bool metaKey) {
+  if (multiCursorModifier == "altKey") {
+    return ctrlKey || metaKey;
+  }
+  return altKey;
+}

@@ -1,0 +1,16 @@
+export class TabFocusMode {
+  bool enabled;
+
+  init() {
+    this.enabled = false;
+  }
+
+  bool toggle() {
+    this.enabled = !this.enabled;
+    return this.enabled;
+  }
+}
+
+export TabFocusMode createTabFocusMode() {
+  return new TabFocusMode();
+}

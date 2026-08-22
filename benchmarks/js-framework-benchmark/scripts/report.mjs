@@ -4,7 +4,10 @@ import { benchmarkRoot, metadataPath } from "./paths.mjs";
 import { geometricMean, hashString, summarize } from "./measurement-utils.mjs";
 
 const artifactsRoot = resolve(benchmarkRoot, "artifacts");
-const checkpointPath = resolve(artifactsRoot, "checkpoint.json");
+const checkpointArg = process.argv.includes("--checkpoint")
+  ? process.argv[process.argv.indexOf("--checkpoint") + 1]
+  : "checkpoint.json";
+const checkpointPath = resolve(artifactsRoot, checkpointArg);
 const resultsPath = resolve(artifactsRoot, "results.json");
 const reportPath = resolve(benchmarkRoot, "report.html");
 const templatePath = resolve(benchmarkRoot, "report-template.html");
@@ -45,14 +48,28 @@ function displayName(name) {
     "react-compiler-hooks": "React Compiler Hooks",
     "react-zustand": "React + Zustand",
     solidlil: "SolidLil",
+    "solid-v2": "Solid 2.0",
+    "solidlil-v2": "solidlil",
   };
   return names[name] ?? name;
 }
 
 function frameworkKey(name) {
-  const key = frameworkKeys.find((candidate) => candidate.startsWith(`${name}-v`));
-  if (!key) throw new Error(`Missing size result for ${name}`);
-  return key;
+  const matches = frameworkKeys.filter((candidate) =>
+    candidate.startsWith(`${name}-v`),
+  );
+  return (
+    matches.find((candidate) =>
+      !metadata.frameworks.some(({ path }) => {
+        const other = path.slice(path.lastIndexOf("/") + 1);
+        return (
+          other !== name &&
+          other.startsWith(`${name}-`) &&
+          candidate.startsWith(`${other}-v`)
+        );
+      }),
+    ) ?? null
+  );
 }
 
 function sampleValues(phase, key, workload, metric) {
@@ -85,16 +102,17 @@ function aggregate(phase, key, workload, metric) {
       };
 }
 
-const frameworks = metadata.frameworks.map(({ path, version }) => {
+const frameworks = metadata.frameworks.flatMap(({ path, version }) => {
   const name = path.slice(path.lastIndexOf("/") + 1);
   const key = frameworkKey(name);
+  if (!key || !state.sizes[key]) return [];
   const size = state.sizes[key];
-  return {
+  return [{
     id: name,
     key,
     name: displayName(name),
     version,
-    solidlil: name === "solidlil",
+    solidlil: name === "solidlil" || name === "solidlil-v2",
     size: {
       jsBrotli: size.bundle.brotliBytes,
       pageBrotli: size.pageBrotliBytes,
@@ -126,7 +144,7 @@ const frameworks = metadata.frameworks.map(({ path, version }) => {
         firstPaint: aggregate("cold", key, "cold-page-load", "firstPaintMs"),
       },
     },
-  };
+  }];
 });
 
 function normalizedScores(section, workloads, metric) {

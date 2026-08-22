@@ -1,0 +1,137 @@
+export class ObservableLogEvent {
+  string kind;
+  JsValue subject;
+  JsValue detail;
+
+  init(string kind, JsValue subject, JsValue detail) {
+    this.kind = kind;
+    this.subject = subject;
+    this.detail = detail;
+  }
+}
+
+export class ObservableLogger {
+  ObservableLogEvent[] events;
+
+  init() {
+    this.events = [];
+  }
+
+  void record(string kind, JsValue subject, JsValue detail) {
+    this.events.push(new ObservableLogEvent(kind, subject, detail));
+  }
+
+  void handleObservableCreated(JsValue observable, JsValue location) {
+    this.record("observableCreated", observable, location);
+  }
+
+  void handleOnListenerCountChanged(JsValue observable, int newCount) {
+    this.record("listenerCountChanged", observable, newCount);
+  }
+
+  void handleObservableUpdated(JsValue observable, JsValue info) {
+    this.record("observableUpdated", observable, info);
+  }
+
+  void handleAutorunCreated(JsValue autorunValue, JsValue location) {
+    this.record("autorunCreated", autorunValue, location);
+  }
+
+  void handleAutorunDisposed(JsValue autorunValue) {
+    this.record("autorunDisposed", autorunValue, 0);
+  }
+
+  void handleAutorunDependencyChanged(
+    JsValue autorunValue,
+    JsValue observable,
+    JsValue change
+  ) {
+    JsValue detail = JS.object();
+    detail["observable"] = observable;
+    detail["change"] = change;
+    this.record("autorunDependencyChanged", autorunValue, detail);
+  }
+
+  void handleAutorunStarted(JsValue autorunValue) {
+    this.record("autorunStarted", autorunValue, 0);
+  }
+
+  void handleAutorunFinished(JsValue autorunValue) {
+    this.record("autorunFinished", autorunValue, 0);
+  }
+
+  void handleDerivedDependencyChanged(
+    JsValue derivedValue,
+    JsValue observable,
+    JsValue change
+  ) {
+    JsValue detail = JS.object();
+    detail["observable"] = observable;
+    detail["change"] = change;
+    this.record("derivedDependencyChanged", derivedValue, detail);
+  }
+
+  void handleDerivedCleared(JsValue observable) {
+    this.record("derivedCleared", observable, 0);
+  }
+
+  void handleBeginTransaction(JsValue transactionValue) {
+    this.record("beginTransaction", transactionValue, 0);
+  }
+
+  void handleEndTransaction(JsValue transactionValue) {
+    this.record("endTransaction", transactionValue, 0);
+  }
+
+  ObservableLogEvent[] getEvents() {
+    return this.events.slice();
+  }
+
+  void clear() {
+    this.events = [];
+  }
+}
+
+ObservableLogger[] globalObservableLoggers = [];
+bool hasLogObservableFn = false;
+func(JsValue)->void globalLogObservableFn = (JsValue observable) => {};
+
+export void addLogger(ObservableLogger logger) {
+  if (globalObservableLoggers.indexOf(logger) < 0) {
+    globalObservableLoggers.push(logger);
+  }
+}
+
+export ObservableLogger? getLogger() {
+  if (globalObservableLoggers.length == 0) {
+    return null;
+  }
+  return globalObservableLoggers[0];
+}
+
+export ObservableLogger[] getLoggers() {
+  return globalObservableLoggers.slice();
+}
+
+export void setLogObservableFn(func(JsValue)->void fn) {
+  globalLogObservableFn = fn;
+  hasLogObservableFn = true;
+}
+
+export void logObservable(JsValue observable) {
+  if (hasLogObservableFn) {
+    globalLogObservableFn(observable);
+  }
+}
+
+export void dispatchObservableCreated(JsValue observable, JsValue location) {
+  int i = 0;
+  while (i < globalObservableLoggers.length) {
+    globalObservableLoggers[i].handleObservableCreated(observable, location);
+    i = i + 1;
+  }
+}
+
+export ObservableLogger createObservableLogger() {
+  return new ObservableLogger();
+}

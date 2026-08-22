@@ -1,0 +1,146 @@
+
+export class TextRange {
+  int startLineNumber;
+  int startColumn;
+  int endLineNumber;
+  int endColumn;
+
+  init(int startLineNumber, int startColumn, int endLineNumber, int endColumn) {
+    this.startLineNumber = startLineNumber;
+    this.startColumn = startColumn;
+    this.endLineNumber = endLineNumber;
+    this.endColumn = endColumn;
+  }
+}
+
+export class TextPos {
+  int lineNumber;
+  int column;
+
+  init(int lineNumber, int column) {
+    this.lineNumber = lineNumber;
+    this.column = column;
+  }
+}
+
+bool posBefore(TextPos a, TextPos b) {
+  if (a.lineNumber < b.lineNumber) {
+    return true;
+  }
+  if (a.lineNumber > b.lineNumber) {
+    return false;
+  }
+  return a.column < b.column;
+}
+
+bool rangeContainsPos(TextRange range, int lineNumber, int column) {
+  if (lineNumber < range.startLineNumber || lineNumber > range.endLineNumber) {
+    return false;
+  }
+  if (lineNumber == range.startLineNumber && column < range.startColumn) {
+    return false;
+  }
+  if (lineNumber == range.endLineNumber && column > range.endColumn) {
+    return false;
+  }
+  return true;
+}
+
+export TextRange createTextRange(int startLine, int startColumn, int endLine, int endColumn) {
+  return new TextRange(startLine, startColumn, endLine, endColumn);
+}
+
+export TextPos createTextPos(int lineNumber, int column) {
+  return new TextPos(lineNumber, column);
+}
+
+export class FormattingEdit {
+  TextRange range;
+  string text;
+
+  init(TextRange range, string text) {
+    this.range = range;
+    this.text = text;
+  }
+}
+
+export string formatValue(string value, int tabSize) {
+  string out = "";
+  int indent = 0;
+  int i = 0;
+  bool start = true;
+  while (i < value.length) {
+    string ch = value.charAt(i);
+    if (ch == "{") {
+      out = out + ch + "\n";
+      indent = indent + tabSize;
+      start = true;
+    } else if (ch == "}") {
+      indent = indent - tabSize;
+      if (indent < 0) {
+        indent = 0;
+      }
+      if (!start) {
+        out = out + "\n";
+      }
+      int s = 0;
+      while (s < indent) {
+        out = out + " ";
+        s = s + 1;
+      }
+      out = out + ch;
+      start = false;
+    } else if (ch == "\n") {
+      out = out + ch;
+      start = true;
+    } else {
+      if (start) {
+        int s = 0;
+        while (s < indent) {
+          out = out + " ";
+          s = s + 1;
+        }
+        start = false;
+      }
+      out = out + ch;
+    }
+    i = i + 1;
+  }
+  return out;
+}
+
+export FormattingEdit formatDocumentEdit(string[] lines, int tabSize) {
+  string value = "";
+  int i = 0;
+  while (i < lines.length) {
+    if (i > 0) {
+      value = value + "\n";
+    }
+    value = value + lines[i];
+    i = i + 1;
+  }
+  string formatted = formatValue(value, tabSize);
+  int last = lines.length;
+  if (last == 0) {
+    last = 1;
+  }
+  int lastCol = 1;
+  if (lines.length > 0) {
+    lastCol = lines[lines.length - 1].length + 1;
+  }
+  return new FormattingEdit(new TextRange(1, 1, last, lastCol), formatted);
+}
+
+export FormattingEdit[] mergeFormattingEdits(FormattingEdit[] edits) {
+  FormattingEdit[] result = [];
+  int i = 0;
+  while (i < edits.length) {
+    result.push(edits[i]);
+    i = i + 1;
+  }
+  return result;
+}
+
+export FormattingEdit createFormattingEdit(int sl, int sc, int el, int ec, string text) {
+  return new FormattingEdit(new TextRange(sl, sc, el, ec), text);
+}

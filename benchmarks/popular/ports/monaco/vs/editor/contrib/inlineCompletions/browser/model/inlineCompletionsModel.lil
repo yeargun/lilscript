@@ -1,0 +1,165 @@
+
+export class TextRange {
+  int startLineNumber;
+  int startColumn;
+  int endLineNumber;
+  int endColumn;
+
+  init(int startLineNumber, int startColumn, int endLineNumber, int endColumn) {
+    this.startLineNumber = startLineNumber;
+    this.startColumn = startColumn;
+    this.endLineNumber = endLineNumber;
+    this.endColumn = endColumn;
+  }
+}
+
+export class TextPos {
+  int lineNumber;
+  int column;
+
+  init(int lineNumber, int column) {
+    this.lineNumber = lineNumber;
+    this.column = column;
+  }
+}
+
+bool posBefore(TextPos a, TextPos b) {
+  if (a.lineNumber < b.lineNumber) {
+    return true;
+  }
+  if (a.lineNumber > b.lineNumber) {
+    return false;
+  }
+  return a.column < b.column;
+}
+
+bool rangeContainsPos(TextRange range, int lineNumber, int column) {
+  if (lineNumber < range.startLineNumber || lineNumber > range.endLineNumber) {
+    return false;
+  }
+  if (lineNumber == range.startLineNumber && column < range.startColumn) {
+    return false;
+  }
+  if (lineNumber == range.endLineNumber && column > range.endColumn) {
+    return false;
+  }
+  return true;
+}
+
+export TextRange createTextRange(int startLine, int startColumn, int endLine, int endColumn) {
+  return new TextRange(startLine, startColumn, endLine, endColumn);
+}
+
+export TextPos createTextPos(int lineNumber, int column) {
+  return new TextPos(lineNumber, column);
+}
+
+export class InlineSuggestion {
+  string insertText;
+  TextRange range;
+  string filterText;
+  bool isSnippet;
+  int source;
+
+  init(string insertText, TextRange range, string filterText, bool isSnippet, int source) {
+    this.insertText = insertText;
+    this.range = range;
+    this.filterText = filterText;
+    this.isSnippet = isSnippet;
+    this.source = source;
+  }
+}
+
+bool prefixMatch(string word, string candidate) {
+  if (word.length == 0) {
+    return true;
+  }
+  if (candidate.length < word.length) {
+    return false;
+  }
+  return candidate.toLowerCase().indexOf(word.toLowerCase()) == 0;
+}
+
+export class InlineCompletionsModel {
+  InlineSuggestion[] items;
+  int selectedIndex;
+  bool enabled;
+  string prefix;
+
+  init() {
+    this.items = [];
+    this.selectedIndex = 0;
+    this.enabled = true;
+    this.prefix = "";
+  }
+
+  void setCompletions(InlineSuggestion[] items, string prefix) {
+    this.prefix = prefix;
+    InlineSuggestion[] filtered = [];
+    int i = 0;
+    while (i < items.length) {
+      string filter = items[i].filterText;
+      if (filter.length == 0) {
+        filter = items[i].insertText;
+      }
+      if (prefixMatch(prefix, filter)) {
+        filtered.push(items[i]);
+      }
+      i = i + 1;
+    }
+    this.items = filtered;
+    this.selectedIndex = 0;
+  }
+
+  InlineSuggestion? current() {
+    if (this.selectedIndex < 0 || this.selectedIndex >= this.items.length) {
+      return null;
+    }
+    return this.items[this.selectedIndex];
+  }
+
+  string? accept() {
+    InlineSuggestion? item = this.current();
+    if (item == null) {
+      return null;
+    }
+    string text = item.insertText;
+    this.items = [];
+    return text;
+  }
+
+  bool next() {
+    if (this.items.length == 0) {
+      return false;
+    }
+    this.selectedIndex = this.selectedIndex + 1;
+    if (this.selectedIndex >= this.items.length) {
+      this.selectedIndex = 0;
+    }
+    return true;
+  }
+
+  bool prev() {
+    if (this.items.length == 0) {
+      return false;
+    }
+    this.selectedIndex = this.selectedIndex - 1;
+    if (this.selectedIndex < 0) {
+      this.selectedIndex = this.items.length - 1;
+    }
+    return true;
+  }
+
+  void stop() {
+    this.items = [];
+    this.selectedIndex = 0;
+  }
+}
+
+export InlineCompletionsModel createInlineCompletionsModel() {
+  return new InlineCompletionsModel();
+}
+
+export InlineSuggestion createInlineSuggestion(string insertText, int sl, int sc, int el, int ec) {
+  return new InlineSuggestion(insertText, new TextRange(sl, sc, el, ec), insertText, false, 0);
+}

@@ -1,0 +1,37 @@
+export class TypingSpeed {
+  int[] timestamps;
+  int windowMs;
+
+  init(int windowMs) {
+    this.timestamps = [];
+    this.windowMs = windowMs;
+  }
+
+  void keystroke(int nowMs) {
+    this.timestamps.push(nowMs);
+    int cutoff = nowMs - this.windowMs;
+    while (this.timestamps.length > 0 && this.timestamps[0] < cutoff) {
+      this.timestamps.splice(0, 1);
+    }
+  }
+
+  int charsPerMinute(int nowMs) {
+    int cutoff = nowMs - this.windowMs;
+    int n = 0;
+    int i = 0;
+    while (i < this.timestamps.length) {
+      if (this.timestamps[i] >= cutoff) {
+        n = n + 1;
+      }
+      i = i + 1;
+    }
+    if (this.windowMs <= 0) {
+      return 0;
+    }
+    return (n * 60000) / this.windowMs;
+  }
+}
+
+export TypingSpeed createTypingSpeed(int windowMs) {
+  return new TypingSpeed(windowMs);
+}

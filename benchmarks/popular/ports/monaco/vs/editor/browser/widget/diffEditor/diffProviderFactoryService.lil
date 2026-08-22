@@ -1,0 +1,27 @@
+export class DiffProviderFactoryService {
+  string algorithm;
+  int timeoutMs;
+
+  init() {
+    this.algorithm = "advanced";
+    this.timeoutMs = 5000;
+  }
+
+  void setAlgorithm(string algorithm) {
+    if (algorithm == "legacy" || algorithm == "advanced") {
+      this.algorithm = algorithm;
+    }
+  }
+
+  bool shouldCancel(int elapsedMs) {
+    return elapsedMs > this.timeoutMs;
+  }
+}
+
+export DiffProviderFactoryService createDiffProviderFactoryService() {
+  return new DiffProviderFactoryService();
+}
+
+export string IDiffProviderFactoryServiceId() {
+  return "diffProviderFactoryService";
+}

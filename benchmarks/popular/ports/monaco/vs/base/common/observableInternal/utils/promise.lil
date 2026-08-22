@@ -1,0 +1,131 @@
+import { hostThen } from "../../../../../js-host";
+
+export class PromiseResult {
+  bool hasData;
+  JsValue data;
+  bool hasError;
+  JsValue error;
+
+  init(bool hasData, JsValue data, bool hasError, JsValue error) {
+    this.hasData = hasData;
+    this.data = data;
+    this.hasError = hasError;
+    this.error = error;
+  }
+
+  JsValue getDataOrThrow() {
+    if (this.hasError) {
+      throw this.error;
+    }
+    return this.data;
+  }
+}
+
+export class PromiseResultObservable {
+  bool hasResult;
+  PromiseResult result;
+  (func(PromiseResult)->void)[] listeners;
+
+  init() {
+    this.hasResult = false;
+    this.result = new PromiseResult(false, 0, false, 0);
+    this.listeners = [];
+  }
+
+  void set(PromiseResult result) {
+    this.result = result;
+    this.hasResult = true;
+    (func(PromiseResult)->void)[] snapshot = this.listeners.slice();
+    int i = 0;
+    while (i < snapshot.length) {
+      snapshot[i](result);
+      i = i + 1;
+    }
+  }
+
+  PromiseResult? get() {
+    if (!this.hasResult) {
+      return null;
+    }
+    return this.result;
+  }
+
+  func()->void onChange(func(PromiseResult)->void listener) {
+    this.listeners.push(listener);
+    return () => {
+      int index = this.listeners.indexOf(listener);
+      if (index >= 0) {
+        this.listeners.splice(index, 1);
+      }
+    };
+  }
+}
+
+export class ObservablePromise {
+  JsValue promise;
+  PromiseResultObservable promiseResult;
+
+  init(JsValue promise) {
+    this.promise = promise;
+    this.promiseResult = new PromiseResultObservable();
+    hostThen(promise, (JsValue value) => {
+      this.promiseResult.set(new PromiseResult(true, value, false, 0));
+    });
+  }
+
+  void reject(JsValue error) {
+    this.promiseResult.set(new PromiseResult(false, 0, true, error));
+  }
+}
+
+export class ObservableResolvedPromise {
+  bool isResolving;
+  JsValue lastResolved;
+  ObservablePromise runningPromise;
+  func()->void disposeListener;
+
+  init(ObservablePromise source, JsValue initialValue) {
+    this.isResolving = true;
+    this.lastResolved = initialValue;
+    this.runningPromise = source;
+    this.disposeListener = source.promiseResult.onChange(
+      (PromiseResult result) => {
+        if (source == this.runningPromise) {
+          this.isResolving = false;
+          this.lastResolved = result.getDataOrThrow();
+        }
+      }
+    );
+    PromiseResult? current = source.promiseResult.get();
+    if (current != null) {
+      this.isResolving = false;
+      this.lastResolved = current.getDataOrThrow();
+    }
+  }
+
+  void setSource(ObservablePromise source) {
+    this.disposeListener();
+    this.runningPromise = source;
+    this.isResolving = true;
+    this.disposeListener = source.promiseResult.onChange(
+      (PromiseResult result) => {
+        if (source == this.runningPromise) {
+          this.isResolving = false;
+          this.lastResolved = result.getDataOrThrow();
+        }
+      }
+    );
+  }
+
+  void dispose() {
+    this.disposeListener();
+  }
+}
+
+export ObservablePromise observablePromise(JsValue promise) {
+  return new ObservablePromise(promise);
+}
+
+export ObservablePromise resolvedObservablePromise(JsValue value) {
+  return new ObservablePromise(value);
+}

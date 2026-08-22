@@ -1,0 +1,504 @@
+export class CompressibleElement {
+  string element;
+  CompressibleElement[] children;
+  bool collapsible;
+  bool collapsed;
+  bool incompressible;
+  int visibility;
+
+  init(
+    string element,
+    CompressibleElement[] children = [],
+    bool collapsible = false,
+    bool collapsed = false,
+    bool incompressible = false,
+    int visibility = 1
+  ) {
+    this.element = element;
+    this.children = children;
+    this.collapsible = collapsible || children.length > 0;
+    this.collapsed = collapsed;
+    this.incompressible = incompressible;
+    this.visibility = visibility;
+  }
+}
+
+export class CompressedPath {
+  string[] elements;
+  bool incompressible;
+
+  init(string[] elements, bool incompressible) {
+    this.elements = elements;
+    this.incompressible = incompressible;
+  }
+
+  string last() {
+    if (this.elements.length == 0) {
+      return "";
+    }
+    return this.elements[this.elements.length - 1];
+  }
+}
+
+export class CompressedTreeElement {
+  CompressedPath path;
+  CompressedTreeElement[] children;
+  bool collapsible;
+  bool collapsed;
+
+  init(CompressedPath path, CompressedTreeElement[] children, bool collapsible, bool collapsed) {
+    this.path = path;
+    this.children = children;
+    this.collapsible = collapsible;
+    this.collapsed = collapsed;
+  }
+}
+
+export class CompressedTreeNode {
+  CompressedPath path;
+  CompressedTreeNode? parent;
+  CompressedTreeNode[] children;
+  int depth;
+  bool collapsible;
+  bool collapsed;
+  int visibility;
+  bool visible;
+  int renderNodeCount;
+
+  init(CompressedPath path, CompressedTreeNode? parent, int depth) {
+    this.path = path;
+    this.parent = parent;
+    this.children = [];
+    this.depth = depth;
+    this.collapsible = false;
+    this.collapsed = false;
+    this.visibility = 1;
+    this.visible = true;
+    this.renderNodeCount = 0;
+  }
+}
+
+bool compressedPathsEqual(CompressedPath left, CompressedPath right) {
+  if (left.incompressible != right.incompressible) {
+    return false;
+  }
+  if (left.elements.length != right.elements.length) {
+    return false;
+  }
+  int i = 0;
+  while (i < left.elements.length) {
+    if (left.elements[i] != right.elements[i]) {
+      return false;
+    }
+    i = i + 1;
+  }
+  return true;
+}
+
+CompressedTreeElement[] compressChildren(CompressibleElement[] children) {
+  CompressedTreeElement[] result = [];
+  int i = 0;
+  while (i < children.length) {
+    result.push(compress(children[i]));
+    i = i + 1;
+  }
+  return result;
+}
+
+CompressedTreeElement[] noCompressChildren(CompressibleElement[] children) {
+  CompressedTreeElement[] result = [];
+  int i = 0;
+  while (i < children.length) {
+    result.push(noCompress(children[i]));
+    i = i + 1;
+  }
+  return result;
+}
+
+export CompressedTreeElement noCompress(CompressibleElement element) {
+  string[] elements = [];
+  elements.push(element.element);
+  CompressedPath path = new CompressedPath(elements, element.incompressible);
+  return new CompressedTreeElement(
+    path,
+    noCompressChildren(element.children),
+    element.collapsible || element.children.length > 0,
+    element.collapsed
+  );
+}
+
+export CompressedTreeElement compress(CompressibleElement element) {
+  string[] elements = [];
+  elements.push(element.element);
+  bool incompressible = element.incompressible;
+  CompressibleElement current = element;
+  while (current.children.length == 1 && !current.children[0].incompressible) {
+    current = current.children[0];
+    elements.push(current.element);
+  }
+  CompressedPath path = new CompressedPath(elements, incompressible);
+  return new CompressedTreeElement(
+    path,
+    compressChildren(current.children),
+    current.collapsible || current.children.length > 0,
+    current.collapsed
+  );
+}
+
+CompressibleElement decompressAt(CompressedTreeElement element, int index) {
+  CompressibleElement[] children = [];
+  if (index < element.path.elements.length - 1) {
+    children.push(decompressAt(element, index + 1));
+  } else {
+    int i = 0;
+    while (i < element.children.length) {
+      children.push(decompress(element.children[i]));
+      i = i + 1;
+    }
+  }
+  bool incompressible = index == 0 && element.path.incompressible;
+  return new CompressibleElement(
+    element.path.elements[index],
+    children,
+    element.collapsible,
+    element.collapsed,
+    incompressible,
+    1
+  );
+}
+
+export CompressibleElement decompress(CompressedTreeElement element) {
+  return decompressAt(element, 0);
+}
+
+void replaceChildrenAt(CompressibleElement node, string element, CompressibleElement[] children) {
+  if (node.element == element) {
+    node.children = children;
+    if (children.length > 0) {
+      node.collapsible = true;
+    }
+    return;
+  }
+  int i = 0;
+  while (i < node.children.length) {
+    replaceChildrenAt(node.children[i], element, children);
+    i = i + 1;
+  }
+}
+
+export class CompressedObjectTreeModel {
+  CompressedTreeNode root;
+  Map<string, CompressedTreeNode> nodes;
+  bool enabled;
+
+  init(string rootElement = "", bool compressionEnabled = true) {
+    string[] rootPath = [];
+    if (rootElement.length > 0) {
+      rootPath.push(rootElement);
+    }
+    this.root = new CompressedTreeNode(new CompressedPath(rootPath, false), null, 0);
+    this.nodes = new Map();
+    if (rootElement.length > 0) {
+      this.nodes.set(rootElement, this.root);
+    }
+    this.enabled = compressionEnabled;
+  }
+
+  bool isCompressionEnabled() {
+    return this.enabled;
+  }
+
+  CompressedTreeElement toElement(CompressedTreeNode node) {
+    CompressedTreeElement[] children = [];
+    int i = 0;
+    while (i < node.children.length) {
+      children.push(this.toElement(node.children[i]));
+      i = i + 1;
+    }
+    return new CompressedTreeElement(node.path, children, node.collapsible, node.collapsed);
+  }
+
+  void unregister(CompressedTreeNode node) {
+    int i = 0;
+    while (i < node.path.elements.length) {
+      string id = node.path.elements[i];
+      CompressedTreeNode? mapped = this.nodes.get(id);
+      if (mapped != null && mapped == node) {
+        this.nodes.delete(id);
+      }
+      i = i + 1;
+    }
+    i = 0;
+    while (i < node.children.length) {
+      this.unregister(node.children[i]);
+      i = i + 1;
+    }
+  }
+
+  void register(CompressedTreeNode node) {
+    int i = 0;
+    while (i < node.path.elements.length) {
+      this.nodes.set(node.path.elements[i], node);
+      i = i + 1;
+    }
+    i = 0;
+    while (i < node.children.length) {
+      this.register(node.children[i]);
+      i = i + 1;
+    }
+  }
+
+  CompressedTreeNode materialize(CompressedTreeElement source, CompressedTreeNode parent) {
+    CompressedTreeNode node = new CompressedTreeNode(source.path, parent, parent.depth + 1);
+    node.collapsible = source.collapsible || source.children.length > 0;
+    node.collapsed = source.collapsed;
+    int i = 0;
+    while (i < source.children.length) {
+      node.children.push(this.materialize(source.children[i], node));
+      i = i + 1;
+    }
+    this.register(node);
+    return node;
+  }
+
+  CompressedTreeElement encode(CompressibleElement element) {
+    if (this.enabled) {
+      return compress(element);
+    }
+    return noCompress(element);
+  }
+
+  bool setChildren(string element, CompressibleElement[] children) {
+    if (element.length == 0) {
+      int i = 0;
+      while (i < this.root.children.length) {
+        this.unregister(this.root.children[i]);
+        i = i + 1;
+      }
+      CompressedTreeNode[] next = [];
+      i = 0;
+      while (i < children.length) {
+        next.push(this.materialize(this.encode(children[i]), this.root));
+        i = i + 1;
+      }
+      this.root.children = next;
+      if (this.root.children.length > 0) {
+        this.root.collapsible = true;
+      }
+      this.recompute();
+      return true;
+    }
+    CompressedTreeNode? host = this.nodes.get(element);
+    if (host == null) {
+      throw "Unknown compressed tree node";
+    }
+    CompressibleElement decompressed = decompress(this.toElement(host));
+    replaceChildrenAt(decompressed, element, children);
+    CompressedTreeElement recompressed = this.encode(decompressed);
+    if (compressedPathsEqual(recompressed.path, host.path)) {
+      int i = 0;
+      while (i < host.children.length) {
+        this.unregister(host.children[i]);
+        i = i + 1;
+      }
+      CompressedTreeNode[] nextChildren = [];
+      i = 0;
+      while (i < recompressed.children.length) {
+        nextChildren.push(this.materialize(recompressed.children[i], host));
+        i = i + 1;
+      }
+      host.children = nextChildren;
+      host.collapsible = host.collapsible || host.children.length > 0;
+      host.collapsed = recompressed.collapsed;
+    } else {
+      CompressedTreeNode? parent = host.parent;
+      if (parent == null) {
+        throw "Unknown compressed tree parent";
+      }
+      this.unregister(host);
+      CompressedTreeNode replacement = this.materialize(recompressed, parent);
+      CompressedTreeNode[] next = [];
+      int i = 0;
+      while (i < parent.children.length) {
+        if (parent.children[i] == host) {
+          next.push(replacement);
+        } else {
+          next.push(parent.children[i]);
+        }
+        i = i + 1;
+      }
+      parent.children = next;
+    }
+    this.recompute();
+    return true;
+  }
+
+  void setCompressionEnabled(bool enabled) {
+    if (this.enabled == enabled) {
+      return;
+    }
+    CompressibleElement[] raw = [];
+    int i = 0;
+    while (i < this.root.children.length) {
+      raw.push(decompress(this.toElement(this.root.children[i])));
+      i = i + 1;
+    }
+    this.enabled = enabled;
+    this.setChildren("", raw);
+  }
+
+  bool has(string element) {
+    if (element.length == 0) {
+      return true;
+    }
+    return this.nodes.has(element);
+  }
+
+  CompressedTreeNode? getCompressedNode(string element) {
+    if (element.length == 0) {
+      return this.root;
+    }
+    return this.nodes.get(element);
+  }
+
+  int recomputeNode(CompressedTreeNode node) {
+    int childCount = 0;
+    int visibleChildren = 0;
+    int i = 0;
+    while (i < node.children.length) {
+      int count = this.recomputeNode(node.children[i]);
+      childCount = childCount + count;
+      if (node.children[i].visible) {
+        visibleChildren = visibleChildren + 1;
+      }
+      i = i + 1;
+    }
+    if (node == this.root) {
+      node.visible = true;
+      node.renderNodeCount = childCount;
+    } else {
+      node.visible = node.visibility == 1 || (node.visibility == 2 && visibleChildren > 0);
+      if (!node.visible) {
+        node.renderNodeCount = 0;
+      } else if (node.collapsed) {
+        node.renderNodeCount = 1;
+      } else {
+        node.renderNodeCount = 1 + childCount;
+      }
+    }
+    return node.renderNodeCount;
+  }
+
+  void recompute() {
+    this.recomputeNode(this.root);
+  }
+
+  bool setCollapsed(string element, bool collapsed, bool recursive = false) {
+    CompressedTreeNode? node = this.getCompressedNode(element);
+    if (node == null || node == this.root || !node.collapsible) {
+      return false;
+    }
+    bool changed = node.collapsed != collapsed;
+    node.collapsed = collapsed;
+    if (recursive) {
+      this.collapseChildren(node, collapsed);
+    }
+    this.recompute();
+    return changed;
+  }
+
+  void collapseChildren(CompressedTreeNode node, bool collapsed) {
+    int i = 0;
+    while (i < node.children.length) {
+      if (node.children[i].collapsible) {
+        node.children[i].collapsed = collapsed;
+      }
+      this.collapseChildren(node.children[i], collapsed);
+      i = i + 1;
+    }
+  }
+
+  void expandTo(string element) {
+    CompressedTreeNode? node = this.getCompressedNode(element);
+    if (node == null) {
+      return;
+    }
+    CompressedTreeNode? parent = node.parent;
+    while (parent != null) {
+      if (parent != this.root && parent.collapsible) {
+        parent.collapsed = false;
+      }
+      parent = parent.parent;
+    }
+    this.recompute();
+  }
+
+  void collectRendered(CompressedTreeNode node, CompressedTreeNode[] result) {
+    if (node != this.root) {
+      if (!node.visible) {
+        return;
+      }
+      result.push(node);
+      if (node.collapsed) {
+        return;
+      }
+    }
+    int i = 0;
+    while (i < node.children.length) {
+      this.collectRendered(node.children[i], result);
+      i = i + 1;
+    }
+  }
+
+  CompressedTreeNode[] renderedNodes() {
+    CompressedTreeNode[] result = [];
+    this.collectRendered(this.root, result);
+    return result;
+  }
+
+  int getListIndex(string element) {
+    CompressedTreeNode? node = this.getCompressedNode(element);
+    if (node == null || node == this.root) {
+      return -1;
+    }
+    return this.renderedNodes().indexOf(node);
+  }
+
+  int getListRenderCount(string element) {
+    CompressedTreeNode? node = this.getCompressedNode(element);
+    if (node == null) {
+      return 0;
+    }
+    return node.renderNodeCount;
+  }
+
+  string getParentNodeLocation(string element) {
+    CompressedTreeNode? node = this.getCompressedNode(element);
+    if (node == null) {
+      return "";
+    }
+    CompressedTreeNode? parent = node.parent;
+    if (parent == null || parent == this.root) {
+      return "";
+    }
+    return parent.path.last();
+  }
+
+  string getNodeLocation(CompressedTreeNode node) {
+    return node.path.last();
+  }
+}
+
+export CompressibleElement createCompressibleElement(
+  string element,
+  CompressibleElement[] children,
+  bool collapsible,
+  bool collapsed,
+  bool incompressible
+) {
+  return new CompressibleElement(element, children, collapsible, collapsed, incompressible, 1);
+}
+
+export CompressedObjectTreeModel createCompressedObjectTreeModel(string rootElement, bool compressionEnabled) {
+  return new CompressedObjectTreeModel(rootElement, compressionEnabled);
+}

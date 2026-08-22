@@ -1,0 +1,47 @@
+export class SearchColorsRegistry {
+  string[] ids;
+
+  init() {
+    this.ids = [];
+  }
+
+  string register(string id) {
+    if (!this.ids.includes(id)) {
+      this.ids.push(id);
+    }
+    return id;
+  }
+
+  bool has(string id) {
+    return this.ids.includes(id);
+  }
+
+  string asCssVariableName(string id) {
+    string out = "--vscode-";
+    int i = 0;
+    while (i < id.length) {
+      string ch = id.charAt(i);
+      if (ch == ".") {
+        out = out + "-";
+      } else {
+        out = out + ch;
+      }
+      i = i + 1;
+    }
+    return out;
+  }
+}
+
+SearchColorsRegistry colors = new SearchColorsRegistry();
+
+export SearchColorsRegistry getSearchColorsRegistry() {
+  return colors;
+}
+
+export string c0 = colors.register("search.resultsInfoForeground");
+export string c1 = colors.register("searchEditor.findMatchBackground");
+export string c2 = colors.register("searchEditor.findMatchBorder");
+
+export string[] colorIds() {
+  return colors.ids;
+}

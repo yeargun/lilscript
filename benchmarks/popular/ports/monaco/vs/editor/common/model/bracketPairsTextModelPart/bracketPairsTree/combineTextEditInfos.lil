@@ -1,0 +1,192 @@
+int LengthFactor = 67108864;
+
+int lengthAdd(int first, int second) {
+  int result = first + second;
+  if (second >= LengthFactor) {
+    result = result - first % LengthFactor;
+  }
+  return result;
+}
+
+int lengthDiffNonNegative(int first, int second) {
+  if (second <= first) {
+    return 0;
+  }
+  int firstLine = first / LengthFactor;
+  int secondLine = second / LengthFactor;
+  int secondColumn = second - secondLine * LengthFactor;
+  if (firstLine == secondLine) {
+    return secondColumn - (first - firstLine * LengthFactor);
+  }
+  return (secondLine - firstLine) * LengthFactor + secondColumn;
+}
+
+export class TextEditInfo {
+  int startOffset;
+  int endOffset;
+  int newLength;
+
+  init(int startOffset, int endOffset, int newLength) {
+    this.startOffset = startOffset;
+    this.endOffset = endOffset;
+    this.newLength = newLength;
+  }
+}
+
+class LengthMapping {
+  bool modified;
+  int lengthBefore;
+  int lengthAfter;
+
+  init(bool modified, int lengthBefore, int lengthAfter) {
+    this.modified = modified;
+    this.lengthBefore = lengthBefore;
+    this.lengthAfter = lengthAfter;
+  }
+}
+
+class MappingCursor {
+  LengthMapping[] mappings;
+  int index;
+  LengthMapping? current;
+
+  init(LengthMapping[] mappings) {
+    this.mappings = mappings;
+    this.index = 0;
+    this.current = null;
+    if (mappings.length > 0) {
+      this.current = mappings[0];
+      this.index = 1;
+    }
+  }
+
+  void advance() {
+    if (this.index < this.mappings.length) {
+      this.current = this.mappings[this.index];
+      this.index = this.index + 1;
+    } else {
+      this.current = null;
+    }
+  }
+
+  LengthMapping[] takeLengthAfter(int requestedLength, bool infinite) {
+    LengthMapping[] result = [];
+    int remaining = requestedLength;
+    LengthMapping? current = this.current;
+    while (current != null && (infinite || remaining > 0)) {
+      LengthMapping concrete = current;
+      if (infinite || concrete.lengthAfter <= remaining) {
+        result.push(concrete);
+        if (!infinite) {
+          remaining = lengthDiffNonNegative(concrete.lengthAfter, remaining);
+        }
+        this.advance();
+        current = this.current;
+      } else {
+        int tail = lengthDiffNonNegative(remaining, concrete.lengthAfter);
+        if (concrete.modified) {
+          result.push(new LengthMapping(true, concrete.lengthBefore, remaining));
+          this.current = new LengthMapping(true, 0, tail);
+        } else {
+          result.push(new LengthMapping(false, remaining, remaining));
+          this.current = new LengthMapping(false, tail, tail);
+        }
+        remaining = 0;
+        current = null;
+      }
+    }
+    if (!infinite && remaining > 0) {
+      result.push(new LengthMapping(false, remaining, remaining));
+    }
+    return result;
+  }
+}
+
+LengthMapping[] toLengthMapping(TextEditInfo[] edits) {
+  LengthMapping[] result = [];
+  int lastOffset = 0;
+  int i = 0;
+  while (i < edits.length) {
+    TextEditInfo edit = edits[i];
+    int spaceLength = lengthDiffNonNegative(lastOffset, edit.startOffset);
+    if (spaceLength != 0) {
+      result.push(new LengthMapping(false, spaceLength, spaceLength));
+    }
+    result.push(
+      new LengthMapping(
+        true,
+        lengthDiffNonNegative(edit.startOffset, edit.endOffset),
+        edit.newLength
+      )
+    );
+    lastOffset = edit.endOffset;
+    i = i + 1;
+  }
+  return result;
+}
+
+int sumBefore(LengthMapping[] mappings) {
+  int result = 0;
+  int i = 0;
+  while (i < mappings.length) {
+    result = lengthAdd(result, mappings[i].lengthBefore);
+    i = i + 1;
+  }
+  return result;
+}
+
+void pushCombinedEdit(TextEditInfo[] result, int start, int end, int newLength) {
+  if (result.length > 0 && result[result.length - 1].endOffset == start) {
+    TextEditInfo previous = result[result.length - 1];
+    result[result.length - 1] = new TextEditInfo(
+      previous.startOffset,
+      end,
+      lengthAdd(previous.newLength, newLength)
+    );
+  } else {
+    result.push(new TextEditInfo(start, end, newLength));
+  }
+}
+
+export TextEditInfo[] combineTextEditInfos(TextEditInfo[] first, TextEditInfo[] second) {
+  if (first.length == 0) {
+    return second;
+  }
+  if (second.length == 0) {
+    return first;
+  }
+  MappingCursor cursor = new MappingCursor(toLengthMapping(first));
+  LengthMapping[] secondMappings = toLengthMapping(second);
+  secondMappings.push(new LengthMapping(false, 0, 0));
+  TextEditInfo[] result = [];
+  int oldOffset = 0;
+  int i = 0;
+  while (i < secondMappings.length) {
+    LengthMapping secondMapping = secondMappings[i];
+    bool infinite = i == secondMappings.length - 1;
+    LengthMapping[] consumed = cursor.takeLengthAfter(secondMapping.lengthBefore, infinite);
+    if (secondMapping.modified) {
+      int oldLength = sumBefore(consumed);
+      int oldEnd = lengthAdd(oldOffset, oldLength);
+      pushCombinedEdit(result, oldOffset, oldEnd, secondMapping.lengthAfter);
+      oldOffset = oldEnd;
+    } else {
+      int j = 0;
+      while (j < consumed.length) {
+        LengthMapping firstMapping = consumed[j];
+        int start = oldOffset;
+        oldOffset = lengthAdd(oldOffset, firstMapping.lengthBefore);
+        if (firstMapping.modified) {
+          pushCombinedEdit(result, start, oldOffset, firstMapping.lengthAfter);
+        }
+        j = j + 1;
+      }
+    }
+    i = i + 1;
+  }
+  return result;
+}
+
+export TextEditInfo createTextEditInfo(int startOffset, int endOffset, int newLength) {
+  return new TextEditInfo(startOffset, endOffset, newLength);
+}

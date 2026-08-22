@@ -1,0 +1,320 @@
+import {
+  newRegexp,
+  regexExec,
+  regexTest,
+  sliceOf,
+  stringReplace,
+  stringSplit
+} from "../../../../../js-host";
+
+export class ParsedTokenThemeRule {
+  string token;
+  int index;
+  int fontStyle;
+  string foreground;
+  string background;
+
+  init(string token, int index, int fontStyle, string foreground, string background) {
+    this.token = token;
+    this.index = index;
+    this.fontStyle = fontStyle;
+    this.foreground = foreground;
+    this.background = background;
+  }
+}
+
+export ParsedTokenThemeRule[] parseTokenTheme(JsValue source) {
+  ParsedTokenThemeRule[] result = [];
+  if (!JS.isArray(source)) {
+    return result;
+  }
+  int i = 0;
+  int length = JS.number(source["length"]).toInt();
+  while (i < length) {
+    JsValue entry = source[i];
+    int fontStyle = -1;
+    if (JS.typeOf(entry["fontStyle"]) == "string") {
+      fontStyle = 0;
+      string[] segments = stringSplit(JS.string(entry["fontStyle"]), " ");
+      int j = 0;
+      while (j < segments.length) {
+        if (segments[j] == "italic") {
+          fontStyle = fontStyle | 1;
+        } else if (segments[j] == "bold") {
+          fontStyle = fontStyle | 2;
+        } else if (segments[j] == "underline") {
+          fontStyle = fontStyle | 4;
+        } else if (segments[j] == "strikethrough") {
+          fontStyle = fontStyle | 8;
+        }
+        j = j + 1;
+      }
+    }
+    string foreground = "";
+    string background = "";
+    if (JS.typeOf(entry["foreground"]) == "string") {
+      foreground = JS.string(entry["foreground"]);
+    }
+    if (JS.typeOf(entry["background"]) == "string") {
+      background = JS.string(entry["background"]);
+    }
+    string token = "";
+    if (JS.typeOf(entry["token"]) == "string") {
+      token = JS.string(entry["token"]);
+    }
+    result.push(new ParsedTokenThemeRule(token, i, fontStyle, foreground, background));
+    i = i + 1;
+  }
+  return result;
+}
+
+export class ColorMap {
+  int lastColorId;
+  string[] idToColor;
+  Map<string, int> colorToId;
+
+  init() {
+    this.lastColorId = 0;
+    this.idToColor = [""];
+    this.colorToId = new Map();
+  }
+
+  int getId(string color) {
+    if (color.length == 0) {
+      return 0;
+    }
+    string normalized = color;
+    if (normalized.charCodeAt(0) == 35) {
+      normalized = sliceOf(normalized, 1, normalized.length);
+    }
+    if (normalized.length == 8) {
+      normalized = sliceOf(normalized, 0, 6);
+    }
+    if (!regexTest(newRegexp("^[0-9A-Fa-f]{6}$"), normalized)) {
+      return 0;
+    }
+    normalized = normalized.toUpperCase();
+    int? existing = this.colorToId.get(normalized);
+    if (existing != null) {
+      return existing;
+    }
+    this.lastColorId = this.lastColorId + 1;
+    this.colorToId.set(normalized, this.lastColorId);
+    this.idToColor.push("#" + normalized);
+    return this.lastColorId;
+  }
+
+  string[] getColorMap() {
+    return this.idToColor.slice();
+  }
+}
+
+export class ThemeTrieElementRule {
+  int fontStyle;
+  int foreground;
+  int background;
+  int metadata;
+
+  init(int fontStyle, int foreground, int background) {
+    this.fontStyle = fontStyle;
+    this.foreground = foreground;
+    this.background = background;
+    this.recompute();
+  }
+
+  void recompute() {
+    this.metadata = (this.fontStyle << 11) | (this.foreground << 15) | (this.background << 24);
+  }
+
+  ThemeTrieElementRule clone() {
+    return new ThemeTrieElementRule(this.fontStyle, this.foreground, this.background);
+  }
+
+  void acceptOverwrite(int fontStyle, int foreground, int background) {
+    if (fontStyle != -1) {
+      this.fontStyle = fontStyle;
+    }
+    if (foreground != 0) {
+      this.foreground = foreground;
+    }
+    if (background != 0) {
+      this.background = background;
+    }
+    this.recompute();
+  }
+}
+
+export class ThemeTrieElement {
+  ThemeTrieElementRule mainRule;
+  Map<string, ThemeTrieElement> children;
+
+  init(ThemeTrieElementRule mainRule) {
+    this.mainRule = mainRule;
+    this.children = new Map();
+  }
+
+  ThemeTrieElementRule find(string token) {
+    if (token.length == 0) {
+      return this.mainRule;
+    }
+    int dot = token.indexOf(".");
+    string prefix = token;
+    string remainder = "";
+    if (dot >= 0) {
+      prefix = sliceOf(token, 0, dot);
+      remainder = sliceOf(token, dot + 1, token.length);
+    }
+    ThemeTrieElement? child = this.children.get(prefix);
+    if (child == null) {
+      return this.mainRule;
+    }
+    return child.find(remainder);
+  }
+
+  void insert(string token, int fontStyle, int foreground, int background) {
+    if (token.length == 0) {
+      this.mainRule.acceptOverwrite(fontStyle, foreground, background);
+      return;
+    }
+    int dot = token.indexOf(".");
+    string prefix = token;
+    string remainder = "";
+    if (dot >= 0) {
+      prefix = sliceOf(token, 0, dot);
+      remainder = sliceOf(token, dot + 1, token.length);
+    }
+    ThemeTrieElement? existing = this.children.get(prefix);
+    ThemeTrieElement child = new ThemeTrieElement(this.mainRule.clone());
+    if (existing != null) {
+      child = existing;
+    } else {
+      this.children.set(prefix, child);
+    }
+    child.insert(remainder, fontStyle, foreground, background);
+  }
+}
+
+export int toStandardTokenType(string tokenType) {
+  JsValue found = regexExec(newRegexp("\\b(comment|string|regex|regexp)\\b"), tokenType);
+  if (found == null) {
+    return 0;
+  }
+  string value = JS.string(found[1]);
+  if (value == "comment") {
+    return 1;
+  }
+  if (value == "string") {
+    return 2;
+  }
+  return 3;
+}
+
+export int strcmp(string a, string b) {
+  if (a < b) {
+    return -1;
+  }
+  if (a > b) {
+    return 1;
+  }
+  return 0;
+}
+
+export class TokenTheme {
+  ColorMap colorMap;
+  ThemeTrieElement root;
+  Map<string, int> cache;
+
+  init(ColorMap colorMap, ThemeTrieElement root) {
+    this.colorMap = colorMap;
+    this.root = root;
+    this.cache = new Map();
+  }
+
+  string[] getColorMap() {
+    return this.colorMap.getColorMap();
+  }
+
+  int match(int languageId, string token) {
+    int? cached = this.cache.get(token);
+    int value = 0;
+    if (cached != null) {
+      value = cached;
+    } else {
+      ThemeTrieElementRule rule = this.root.find(token);
+      value = rule.metadata | (toStandardTokenType(token) << 8);
+      this.cache.set(token, value);
+    }
+    return value | languageId;
+  }
+}
+
+export TokenTheme createTokenTheme(ParsedTokenThemeRule[] rules, string[] customTokenColors) {
+  ColorMap colorMap = new ColorMap();
+  int i = 0;
+  while (i < customTokenColors.length) {
+    colorMap.getId(customTokenColors[i]);
+    i = i + 1;
+  }
+  int defaultFontStyle = 0;
+  string defaultForeground = "000000";
+  string defaultBackground = "ffffff";
+  i = 0;
+  while (i < rules.length) {
+    ParsedTokenThemeRule rule = rules[i];
+    if (rule.token.length == 0) {
+      if (rule.fontStyle != -1) {
+        defaultFontStyle = rule.fontStyle;
+      }
+      if (rule.foreground.length > 0) {
+        defaultForeground = rule.foreground;
+      }
+      if (rule.background.length > 0) {
+        defaultBackground = rule.background;
+      }
+    }
+    i = i + 1;
+  }
+  ThemeTrieElement root = new ThemeTrieElement(new ThemeTrieElementRule(
+    defaultFontStyle,
+    colorMap.getId(defaultForeground),
+    colorMap.getId(defaultBackground)
+  ));
+  i = 0;
+  while (i < rules.length) {
+    ParsedTokenThemeRule rule = rules[i];
+    if (rule.token.length > 0) {
+      root.insert(
+        rule.token,
+        rule.fontStyle,
+        colorMap.getId(rule.foreground),
+        colorMap.getId(rule.background)
+      );
+    }
+    i = i + 1;
+  }
+  return new TokenTheme(colorMap, root);
+}
+
+export string generateTokensCSSForColorMap(string[] colorMap) {
+  string result = "";
+  int i = 1;
+  while (i < colorMap.length) {
+    if (result.length > 0) {
+      result = result + "\n";
+    }
+    result = result + ".mtk" + i.toString() + " { color: " + colorMap[i] + "; }";
+    i = i + 1;
+  }
+  return result + "\n.mtki { font-style: italic; }\n.mtkb { font-weight: bold; }" +
+    "\n.mtku { text-decoration: underline; text-underline-position: under; }" +
+    "\n.mtks { text-decoration: line-through; }";
+}
+
+export string classNameForFontTokenDecorations(string fontFamily, int fontSize) {
+  string normalized = stringReplace(fontFamily.toLowerCase(), newRegexp("^\\s+|\\s+$", "g"), "");
+  if (normalized.length == 0) {
+    normalized = "default";
+  }
+  normalized = stringReplace(normalized, newRegexp("[^a-z0-9_-]", "gi"), "-");
+  return "font-decoration-" + normalized + "-" + fontSize.toString();
+}

@@ -1,0 +1,521 @@
+export class VisibleLine {
+  int lineNumber;
+  bool hasDom;
+  bool contentChanged;
+  bool tokensChanged;
+  string html;
+  int top;
+  int height;
+
+  init() {
+    this.lineNumber = 0;
+    this.hasDom = false;
+    this.contentChanged = false;
+    this.tokensChanged = false;
+    this.html = "";
+    this.top = 0;
+    this.height = 0;
+  }
+
+  void onContentChanged() {
+    this.contentChanged = true;
+    this.hasDom = false;
+  }
+
+  void onTokensChanged() {
+    this.tokensChanged = true;
+    this.hasDom = false;
+  }
+
+  bool renderLine(int lineNumber, int deltaTop, int lineHeight) {
+    this.lineNumber = lineNumber;
+    this.top = deltaTop;
+    this.height = lineHeight;
+    this.html = "<div style=\"top:" + deltaTop.toString() + "px;height:" + lineHeight.toString() + "px;\"></div>";
+    this.contentChanged = false;
+    this.tokensChanged = false;
+    return true;
+  }
+
+  void layoutLine(int lineNumber, int deltaTop, int lineHeight) {
+    this.lineNumber = lineNumber;
+    this.top = deltaTop;
+    this.height = lineHeight;
+  }
+
+  void setDom() {
+    this.hasDom = true;
+  }
+
+  void removeDom() {
+    this.hasDom = false;
+  }
+}
+
+export class TokenLineRange {
+  int fromLineNumber;
+  int toLineNumber;
+
+  init(int fromLineNumber, int toLineNumber) {
+    this.fromLineNumber = fromLineNumber;
+    this.toLineNumber = toLineNumber;
+  }
+}
+
+export class RenderContext {
+  int rendLineNumberStart;
+  VisibleLine[] lines;
+  int linesLength;
+
+  init(int rendLineNumberStart, VisibleLine[] lines) {
+    this.rendLineNumberStart = rendLineNumberStart;
+    this.lines = lines;
+    this.linesLength = lines.length;
+  }
+}
+
+int imaxLocal(int a, int b) {
+  if (a > b) {
+    return a;
+  }
+  return b;
+}
+
+int iminLocal(int a, int b) {
+  if (a < b) {
+    return a;
+  }
+  return b;
+}
+
+VisibleLine[] copyLines(VisibleLine[] source, int start, int end) {
+  VisibleLine[] result = [];
+  int i = start;
+  if (i < 0) {
+    i = 0;
+  }
+  int stop = end;
+  if (stop > source.length) {
+    stop = source.length;
+  }
+  while (i < stop) {
+    result.push(source[i]);
+    i = i + 1;
+  }
+  return result;
+}
+
+VisibleLine[] concatLines(VisibleLine[] a, VisibleLine[] b) {
+  VisibleLine[] result = [];
+  int i = 0;
+  while (i < a.length) {
+    result.push(a[i]);
+    i = i + 1;
+  }
+  int j = 0;
+  while (j < b.length) {
+    result.push(b[j]);
+    j = j + 1;
+  }
+  return result;
+}
+
+export class RenderedLinesCollection {
+  int rendLineNumberStart;
+  VisibleLine[] lines;
+
+  init() {
+    this.rendLineNumberStart = 1;
+    this.lines = [];
+  }
+
+  void flush() {
+    this.rendLineNumberStart = 1;
+    this.lines = [];
+  }
+
+  void setLines(int rendLineNumberStart, VisibleLine[] lines) {
+    this.rendLineNumberStart = rendLineNumberStart;
+    this.lines = lines;
+  }
+
+  RenderContext getContext() {
+    return new RenderContext(this.rendLineNumberStart, this.lines);
+  }
+
+  int getStartLineNumber() {
+    return this.rendLineNumberStart;
+  }
+
+  int getEndLineNumber() {
+    return this.rendLineNumberStart + this.lines.length - 1;
+  }
+
+  int getCount() {
+    return this.lines.length;
+  }
+
+  VisibleLine getLine(int lineNumber) {
+    int lineIndex = lineNumber - this.rendLineNumberStart;
+    if (lineIndex < 0 || lineIndex >= this.lines.length) {
+      throw "Illegal value for lineNumber";
+    }
+    return this.lines[lineIndex];
+  }
+
+  VisibleLine[]? onLinesDeleted(int deleteFromLineNumber, int deleteToLineNumber) {
+    if (this.getCount() == 0) {
+      return null;
+    }
+    int startLineNumber = this.getStartLineNumber();
+    int endLineNumber = this.getEndLineNumber();
+    if (deleteToLineNumber < startLineNumber) {
+      int deleteCnt = deleteToLineNumber - deleteFromLineNumber + 1;
+      this.rendLineNumberStart = this.rendLineNumberStart - deleteCnt;
+      return null;
+    }
+    if (deleteFromLineNumber > endLineNumber) {
+      return null;
+    }
+    int deleteStartIndex = 0;
+    int deleteCount = 0;
+    int lineNumber = startLineNumber;
+    while (lineNumber <= endLineNumber) {
+      int lineIndex = lineNumber - this.rendLineNumberStart;
+      if (deleteFromLineNumber <= lineNumber && lineNumber <= deleteToLineNumber) {
+        if (deleteCount == 0) {
+          deleteStartIndex = lineIndex;
+          deleteCount = 1;
+        } else {
+          deleteCount = deleteCount + 1;
+        }
+      }
+      lineNumber = lineNumber + 1;
+    }
+    if (deleteFromLineNumber < startLineNumber) {
+      int deleteAboveCount = 0;
+      if (deleteToLineNumber < startLineNumber) {
+        deleteAboveCount = deleteToLineNumber - deleteFromLineNumber + 1;
+      } else {
+        deleteAboveCount = startLineNumber - deleteFromLineNumber;
+      }
+      this.rendLineNumberStart = this.rendLineNumberStart - deleteAboveCount;
+    }
+    VisibleLine[] deleted = this.lines.splice(deleteStartIndex, deleteCount);
+    return deleted;
+  }
+
+  bool onLinesChanged(int changeFromLineNumber, int changeCount) {
+    int changeToLineNumber = changeFromLineNumber + changeCount - 1;
+    if (this.getCount() == 0) {
+      return false;
+    }
+    int startLineNumber = this.getStartLineNumber();
+    int endLineNumber = this.getEndLineNumber();
+    bool someoneNotified = false;
+    int changedLineNumber = changeFromLineNumber;
+    while (changedLineNumber <= changeToLineNumber) {
+      if (changedLineNumber >= startLineNumber && changedLineNumber <= endLineNumber) {
+        this.lines[changedLineNumber - this.rendLineNumberStart].onContentChanged();
+        someoneNotified = true;
+      }
+      changedLineNumber = changedLineNumber + 1;
+    }
+    return someoneNotified;
+  }
+
+  VisibleLine[]? onLinesInserted(int insertFromLineNumber, int insertToLineNumber) {
+    if (this.getCount() == 0) {
+      return null;
+    }
+    int insertCnt = insertToLineNumber - insertFromLineNumber + 1;
+    int startLineNumber = this.getStartLineNumber();
+    int endLineNumber = this.getEndLineNumber();
+    if (insertFromLineNumber <= startLineNumber) {
+      this.rendLineNumberStart = this.rendLineNumberStart + insertCnt;
+      return null;
+    }
+    if (insertFromLineNumber > endLineNumber) {
+      return null;
+    }
+    if (insertCnt + insertFromLineNumber > endLineNumber) {
+      VisibleLine[] deletedTail = this.lines.splice(insertFromLineNumber - this.rendLineNumberStart, endLineNumber - insertFromLineNumber + 1);
+      return deletedTail;
+    }
+    VisibleLine[] newLines = [];
+    int created = 0;
+    while (created < insertCnt) {
+      newLines.push(new VisibleLine());
+      created = created + 1;
+    }
+    int insertIndex = insertFromLineNumber - this.rendLineNumberStart;
+    VisibleLine[] beforeLines = copyLines(this.lines, 0, insertIndex);
+    VisibleLine[] afterLines = copyLines(this.lines, insertIndex, this.lines.length - insertCnt);
+    VisibleLine[] deletedLines = copyLines(this.lines, this.lines.length - insertCnt, this.lines.length);
+    this.lines = concatLines(concatLines(beforeLines, newLines), afterLines);
+    return deletedLines;
+  }
+
+  bool onTokensChanged(TokenLineRange[] ranges) {
+    if (this.getCount() == 0) {
+      return false;
+    }
+    int startLineNumber = this.getStartLineNumber();
+    int endLineNumber = this.getEndLineNumber();
+    bool notifiedSomeone = false;
+    int i = 0;
+    while (i < ranges.length) {
+      TokenLineRange rng = ranges[i];
+      if (rng.toLineNumber < startLineNumber || rng.fromLineNumber > endLineNumber) {
+        i = i + 1;
+        continue;
+      }
+      int from = imaxLocal(startLineNumber, rng.fromLineNumber);
+      int to = iminLocal(endLineNumber, rng.toLineNumber);
+      int lineNumber = from;
+      while (lineNumber <= to) {
+        int lineIndex = lineNumber - this.rendLineNumberStart;
+        this.lines[lineIndex].onTokensChanged();
+        notifiedSomeone = true;
+        lineNumber = lineNumber + 1;
+      }
+      i = i + 1;
+    }
+    return notifiedSomeone;
+  }
+}
+
+export class ViewLayerRenderer {
+  int lineHeight;
+
+  init(int lineHeight = 18) {
+    this.lineHeight = lineHeight;
+  }
+
+  void renderUntouchedLines(RenderContext ctx, int startIndex, int endIndex, int[] deltaTop, int deltaLN) {
+    int rendLineNumberStart = ctx.rendLineNumberStart;
+    int i = startIndex;
+    while (i <= endIndex) {
+      int lineNumber = rendLineNumberStart + i;
+      int topIndex = lineNumber - deltaLN;
+      int top = 0;
+      if (topIndex >= 0 && topIndex < deltaTop.length) {
+        top = deltaTop[topIndex];
+      }
+      ctx.lines[i].layoutLine(lineNumber, top, this.lineHeight);
+      i = i + 1;
+    }
+  }
+
+  void insertLinesBefore(RenderContext ctx, int fromLineNumber, int toLineNumber) {
+    VisibleLine[] newLines = [];
+    int lineNumber = fromLineNumber;
+    while (lineNumber <= toLineNumber) {
+      newLines.push(new VisibleLine());
+      lineNumber = lineNumber + 1;
+    }
+    ctx.lines = concatLines(newLines, ctx.lines);
+  }
+
+  void removeLinesBefore(RenderContext ctx, int removeCount) {
+    int i = 0;
+    while (i < removeCount && i < ctx.lines.length) {
+      ctx.lines[i].removeDom();
+      i = i + 1;
+    }
+    ctx.lines.splice(0, removeCount);
+  }
+
+  void insertLinesAfter(RenderContext ctx, int fromLineNumber, int toLineNumber) {
+    VisibleLine[] newLines = [];
+    int lineNumber = fromLineNumber;
+    while (lineNumber <= toLineNumber) {
+      newLines.push(new VisibleLine());
+      lineNumber = lineNumber + 1;
+    }
+    ctx.lines = concatLines(ctx.lines, newLines);
+  }
+
+  void removeLinesAfter(RenderContext ctx, int removeCount) {
+    int removeIndex = ctx.linesLength - removeCount;
+    int i = 0;
+    while (i < removeCount) {
+      int idx = removeIndex + i;
+      if (idx >= 0 && idx < ctx.lines.length) {
+        ctx.lines[idx].removeDom();
+      }
+      i = i + 1;
+    }
+    ctx.lines.splice(removeIndex, removeCount);
+  }
+
+  void finishRendering(RenderContext ctx, bool domNodeIsEmpty, int[] deltaTop) {
+    int i = 0;
+    while (i < ctx.linesLength) {
+      VisibleLine line = ctx.lines[i];
+      if (!line.hasDom) {
+        int renderedLineNumber = i + ctx.rendLineNumberStart;
+        int top = 0;
+        if (i < deltaTop.length) {
+          top = deltaTop[i];
+        }
+        line.renderLine(renderedLineNumber, top, this.lineHeight);
+        line.setDom();
+      }
+      i = i + 1;
+    }
+  }
+
+  RenderContext render(RenderContext inContext, int startLineNumber, int stopLineNumber, int[] deltaTop) {
+    RenderContext ctx = new RenderContext(inContext.rendLineNumberStart, copyLines(inContext.lines, 0, inContext.lines.length));
+    ctx.linesLength = inContext.linesLength;
+    if (ctx.rendLineNumberStart + ctx.linesLength - 1 < startLineNumber || stopLineNumber < ctx.rendLineNumberStart) {
+      ctx.rendLineNumberStart = startLineNumber;
+      ctx.linesLength = stopLineNumber - startLineNumber + 1;
+      ctx.lines = [];
+      int x = startLineNumber;
+      while (x <= stopLineNumber) {
+        ctx.lines.push(new VisibleLine());
+        x = x + 1;
+      }
+      this.finishRendering(ctx, true, deltaTop);
+      return ctx;
+    }
+    this.renderUntouchedLines(
+      ctx,
+      imaxLocal(startLineNumber - ctx.rendLineNumberStart, 0),
+      iminLocal(stopLineNumber - ctx.rendLineNumberStart, ctx.linesLength - 1),
+      deltaTop,
+      startLineNumber
+    );
+    if (ctx.rendLineNumberStart > startLineNumber) {
+      int fromLineNumber = startLineNumber;
+      int toLineNumber = iminLocal(stopLineNumber, ctx.rendLineNumberStart - 1);
+      if (fromLineNumber <= toLineNumber) {
+        this.insertLinesBefore(ctx, fromLineNumber, toLineNumber);
+        ctx.linesLength = ctx.linesLength + (toLineNumber - fromLineNumber + 1);
+      }
+    } else if (ctx.rendLineNumberStart < startLineNumber) {
+      int removeCnt = iminLocal(ctx.linesLength, startLineNumber - ctx.rendLineNumberStart);
+      if (removeCnt > 0) {
+        this.removeLinesBefore(ctx, removeCnt);
+        ctx.linesLength = ctx.linesLength - removeCnt;
+      }
+    }
+    ctx.rendLineNumberStart = startLineNumber;
+    if (ctx.rendLineNumberStart + ctx.linesLength - 1 < stopLineNumber) {
+      int fromAfter = ctx.rendLineNumberStart + ctx.linesLength;
+      int toAfter = stopLineNumber;
+      if (fromAfter <= toAfter) {
+        this.insertLinesAfter(ctx, fromAfter, toAfter);
+        ctx.linesLength = ctx.linesLength + (toAfter - fromAfter + 1);
+      }
+    } else if (ctx.rendLineNumberStart + ctx.linesLength - 1 > stopLineNumber) {
+      int fromRemove = imaxLocal(0, stopLineNumber - ctx.rendLineNumberStart + 1);
+      int toRemove = ctx.linesLength - 1;
+      int removeAfter = toRemove - fromRemove + 1;
+      if (removeAfter > 0) {
+        this.removeLinesAfter(ctx, removeAfter);
+        ctx.linesLength = ctx.linesLength - removeAfter;
+      }
+    }
+    this.finishRendering(ctx, false, deltaTop);
+    return ctx;
+  }
+}
+
+export class VisibleLinesCollection {
+  RenderedLinesCollection linesCollection;
+  ViewLayerRenderer renderer;
+  bool flushDom;
+
+  init(int lineHeight = 18) {
+    this.linesCollection = new RenderedLinesCollection();
+    this.renderer = new ViewLayerRenderer(lineHeight);
+    this.flushDom = false;
+  }
+
+  int getStartLineNumber() {
+    return this.linesCollection.getStartLineNumber();
+  }
+
+  int getEndLineNumber() {
+    return this.linesCollection.getEndLineNumber();
+  }
+
+  VisibleLine getVisibleLine(int lineNumber) {
+    return this.linesCollection.getLine(lineNumber);
+  }
+
+  bool onConfigurationChanged() {
+    return true;
+  }
+
+  bool onFlushed(bool flushDom) {
+    if (flushDom) {
+      int start = this.linesCollection.getStartLineNumber();
+      int end = this.linesCollection.getEndLineNumber();
+      int i = start;
+      while (i <= end && this.linesCollection.getCount() > 0) {
+        this.linesCollection.getLine(i).removeDom();
+        i = i + 1;
+      }
+    }
+    this.linesCollection.flush();
+    return true;
+  }
+
+  bool onLinesChanged(int fromLineNumber, int count) {
+    return this.linesCollection.onLinesChanged(fromLineNumber, count);
+  }
+
+  bool onLinesDeleted(int fromLineNumber, int toLineNumber) {
+    VisibleLine[]? deleted = this.linesCollection.onLinesDeleted(fromLineNumber, toLineNumber);
+    if (deleted != null) {
+      int i = 0;
+      while (i < deleted.length) {
+        deleted[i].removeDom();
+        i = i + 1;
+      }
+    }
+    return true;
+  }
+
+  bool onLinesInserted(int fromLineNumber, int toLineNumber) {
+    VisibleLine[]? deleted = this.linesCollection.onLinesInserted(fromLineNumber, toLineNumber);
+    if (deleted != null) {
+      int i = 0;
+      while (i < deleted.length) {
+        deleted[i].removeDom();
+        i = i + 1;
+      }
+    }
+    return true;
+  }
+
+  bool onScrollChanged(bool scrollTopChanged) {
+    return scrollTopChanged;
+  }
+
+  bool onTokensChanged(TokenLineRange[] ranges) {
+    return this.linesCollection.onTokensChanged(ranges);
+  }
+
+  bool onZonesChanged() {
+    return true;
+  }
+
+  void renderLines(int startLineNumber, int endLineNumber, int[] relativeVerticalOffset) {
+    RenderContext inp = this.linesCollection.getContext();
+    RenderContext res = this.renderer.render(inp, startLineNumber, endLineNumber, relativeVerticalOffset);
+    this.linesCollection.setLines(res.rendLineNumberStart, res.lines);
+  }
+}
+
+export VisibleLinesCollection createVisibleLinesCollection(int lineHeight = 18) {
+  return new VisibleLinesCollection(lineHeight);
+}
+
+export RenderedLinesCollection createRenderedLinesCollection() {
+  return new RenderedLinesCollection();
+}

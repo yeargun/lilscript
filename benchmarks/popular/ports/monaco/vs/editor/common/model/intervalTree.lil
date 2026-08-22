@@ -1,0 +1,702 @@
+export class IntervalOptions {
+  string className;
+  string glyphMarginClassName;
+  int stickiness;
+  bool collapseOnReplaceEdit;
+  bool affectsFont;
+
+  init(
+    string className,
+    string glyphMarginClassName,
+    int stickiness,
+    bool collapseOnReplaceEdit,
+    bool affectsFont
+  ) {
+    this.className = className;
+    this.glyphMarginClassName = glyphMarginClassName;
+    this.stickiness = stickiness;
+    this.collapseOnReplaceEdit = collapseOnReplaceEdit;
+    this.affectsFont = affectsFont;
+  }
+}
+
+export class IntervalNode {
+  string id;
+  int start;
+  int end;
+  int delta;
+  int maxEnd;
+  int ownerId;
+  IntervalOptions? options;
+  int color;
+  bool isForValidation;
+  bool isInGlyphMargin;
+  bool affectsFont;
+  int stickiness;
+  bool collapseOnReplaceEdit;
+  int cachedVersionId;
+  int cachedAbsoluteStart;
+  int cachedAbsoluteEnd;
+  JsValue range;
+  IntervalNode parent;
+  IntervalNode left;
+  IntervalNode right;
+  bool detached;
+
+  init(string id, int start, int end) {
+    this.id = id;
+    this.start = start;
+    this.end = end;
+    this.delta = 0;
+    this.maxEnd = end;
+    this.ownerId = 0;
+    this.options = null;
+    this.color = 1;
+    this.isForValidation = false;
+    this.isInGlyphMargin = false;
+    this.affectsFont = false;
+    this.stickiness = 1;
+    this.collapseOnReplaceEdit = false;
+    this.cachedVersionId = 0;
+    this.cachedAbsoluteStart = start;
+    this.cachedAbsoluteEnd = end;
+    this.range = null;
+    this.parent = this;
+    this.left = this;
+    this.right = this;
+    this.detached = false;
+  }
+
+  void reset(int versionId, int start, int end, JsValue range) {
+    this.start = start;
+    this.end = end;
+    this.maxEnd = end;
+    this.cachedVersionId = versionId;
+    this.cachedAbsoluteStart = start;
+    this.cachedAbsoluteEnd = end;
+    this.range = range;
+  }
+
+  void setOptions(IntervalOptions options) {
+    this.options = options;
+    string className = options.className;
+    this.isForValidation = className == "squiggly-error"
+      || className == "squiggly-warning"
+      || className == "squiggly-info";
+    this.isInGlyphMargin = options.glyphMarginClassName.length > 0;
+    this.stickiness = options.stickiness;
+    this.collapseOnReplaceEdit = options.collapseOnReplaceEdit;
+    this.affectsFont = options.affectsFont;
+  }
+
+  void setCachedOffsets(int absoluteStart, int absoluteEnd, int versionId) {
+    if (this.cachedVersionId != versionId) {
+      this.range = null;
+    }
+    this.cachedVersionId = versionId;
+    this.cachedAbsoluteStart = absoluteStart;
+    this.cachedAbsoluteEnd = absoluteEnd;
+  }
+
+  void detach() {
+    this.parent = this;
+    this.left = this;
+    this.right = this;
+    this.detached = true;
+  }
+}
+
+export IntervalNode SENTINEL = new IntervalNode("", 0, 0);
+
+export int getNodeColor(IntervalNode node) {
+  return node.color;
+}
+
+export int intervalCompare(int firstStart, int firstEnd, int secondStart, int secondEnd) {
+  if (firstStart == secondStart) {
+    if (firstEnd == secondEnd) {
+      return 0;
+    }
+    if (firstEnd < secondEnd) {
+      return -1;
+    }
+    return 1;
+  }
+  if (firstStart < secondStart) {
+    return -1;
+  }
+  return 1;
+}
+
+int nodeMaxEnd(IntervalNode node) {
+  if (node == SENTINEL) {
+    return 0;
+  }
+  int result = node.end;
+  if (node.left != SENTINEL && node.left.maxEnd > result) {
+    result = node.left.maxEnd;
+  }
+  if (node.right != SENTINEL && node.right.maxEnd > result) {
+    result = node.right.maxEnd;
+  }
+  return result;
+}
+
+export void recomputeMaxEnd(IntervalNode node) {
+  node.maxEnd = nodeMaxEnd(node);
+}
+
+void recomputeWalk(IntervalNode node) {
+  IntervalNode current = node;
+  while (current != SENTINEL) {
+    int old = current.maxEnd;
+    recomputeMaxEnd(current);
+    if (old == current.maxEnd) {
+      current = current.parent;
+    } else {
+      current = current.parent;
+    }
+  }
+}
+
+bool includeNode(
+  IntervalNode node,
+  int filterOwnerId,
+  bool filterOutValidation,
+  bool filterFontDecorations,
+  bool onlyMarginDecorations
+) {
+  if (filterOwnerId != 0 && node.ownerId != filterOwnerId) {
+    return false;
+  }
+  if (filterOutValidation && node.isForValidation) {
+    return false;
+  }
+  if (filterFontDecorations && node.affectsFont) {
+    return false;
+  }
+  if (onlyMarginDecorations && !node.isInGlyphMargin) {
+    return false;
+  }
+  return true;
+}
+
+export class IntervalTree {
+  IntervalNode root;
+
+  init() {
+    this.root = SENTINEL;
+    SENTINEL.color = 0;
+    SENTINEL.parent = SENTINEL;
+    SENTINEL.left = SENTINEL;
+    SENTINEL.right = SENTINEL;
+  }
+
+  void leftRotate(IntervalNode x) {
+    IntervalNode y = x.right;
+    x.right = y.left;
+    if (y.left != SENTINEL) {
+      y.left.parent = x;
+    }
+    y.parent = x.parent;
+    if (x.parent == SENTINEL) {
+      this.root = y;
+    } else if (x == x.parent.left) {
+      x.parent.left = y;
+    } else {
+      x.parent.right = y;
+    }
+    y.left = x;
+    x.parent = y;
+    recomputeMaxEnd(x);
+    recomputeMaxEnd(y);
+  }
+
+  void rightRotate(IntervalNode y) {
+    IntervalNode x = y.left;
+    y.left = x.right;
+    if (x.right != SENTINEL) {
+      x.right.parent = y;
+    }
+    x.parent = y.parent;
+    if (y.parent == SENTINEL) {
+      this.root = x;
+    } else if (y == y.parent.right) {
+      y.parent.right = x;
+    } else {
+      y.parent.left = x;
+    }
+    x.right = y;
+    y.parent = x;
+    recomputeMaxEnd(y);
+    recomputeMaxEnd(x);
+  }
+
+  void insertFix(IntervalNode node) {
+    IntervalNode current = node;
+    while (current.parent.color == 1) {
+      if (current.parent == current.parent.parent.left) {
+        IntervalNode uncle = current.parent.parent.right;
+        if (uncle.color == 1) {
+          current.parent.color = 0;
+          uncle.color = 0;
+          current.parent.parent.color = 1;
+          current = current.parent.parent;
+        } else {
+          if (current == current.parent.right) {
+            current = current.parent;
+            this.leftRotate(current);
+          }
+          current.parent.color = 0;
+          current.parent.parent.color = 1;
+          this.rightRotate(current.parent.parent);
+        }
+      } else {
+        IntervalNode uncle = current.parent.parent.left;
+        if (uncle.color == 1) {
+          current.parent.color = 0;
+          uncle.color = 0;
+          current.parent.parent.color = 1;
+          current = current.parent.parent;
+        } else {
+          if (current == current.parent.left) {
+            current = current.parent;
+            this.rightRotate(current);
+          }
+          current.parent.color = 0;
+          current.parent.parent.color = 1;
+          this.leftRotate(current.parent.parent);
+        }
+      }
+    }
+    this.root.color = 0;
+  }
+
+  void insert(IntervalNode node) {
+    IntervalNode parent = SENTINEL;
+    IntervalNode current = this.root;
+    while (current != SENTINEL) {
+      parent = current;
+      if (intervalCompare(node.start, node.end, current.start, current.end) < 0) {
+        current = current.left;
+      } else {
+        current = current.right;
+      }
+    }
+    node.parent = parent;
+    node.left = SENTINEL;
+    node.right = SENTINEL;
+    node.color = 1;
+    node.maxEnd = node.end;
+    node.detached = false;
+    if (parent == SENTINEL) {
+      this.root = node;
+    } else if (intervalCompare(node.start, node.end, parent.start, parent.end) < 0) {
+      parent.left = node;
+    } else {
+      parent.right = node;
+    }
+    recomputeWalk(node);
+    this.insertFix(node);
+  }
+
+  IntervalNode minimum(IntervalNode node) {
+    IntervalNode current = node;
+    while (current.left != SENTINEL) {
+      current = current.left;
+    }
+    return current;
+  }
+
+  void transplant(IntervalNode from, IntervalNode to) {
+    if (from.parent == SENTINEL) {
+      this.root = to;
+    } else if (from == from.parent.left) {
+      from.parent.left = to;
+    } else {
+      from.parent.right = to;
+    }
+    to.parent = from.parent;
+  }
+
+  void deleteFix(IntervalNode node) {
+    IntervalNode current = node;
+    while (current != this.root && current.color == 0) {
+      if (current == current.parent.left) {
+        IntervalNode sibling = current.parent.right;
+        if (sibling.color == 1) {
+          sibling.color = 0;
+          current.parent.color = 1;
+          this.leftRotate(current.parent);
+          sibling = current.parent.right;
+        }
+        if (sibling.left.color == 0 && sibling.right.color == 0) {
+          sibling.color = 1;
+          current = current.parent;
+        } else {
+          if (sibling.right.color == 0) {
+            sibling.left.color = 0;
+            sibling.color = 1;
+            this.rightRotate(sibling);
+            sibling = current.parent.right;
+          }
+          sibling.color = current.parent.color;
+          current.parent.color = 0;
+          sibling.right.color = 0;
+          this.leftRotate(current.parent);
+          current = this.root;
+        }
+      } else {
+        IntervalNode sibling = current.parent.left;
+        if (sibling.color == 1) {
+          sibling.color = 0;
+          current.parent.color = 1;
+          this.rightRotate(current.parent);
+          sibling = current.parent.left;
+        }
+        if (sibling.left.color == 0 && sibling.right.color == 0) {
+          sibling.color = 1;
+          current = current.parent;
+        } else {
+          if (sibling.left.color == 0) {
+            sibling.right.color = 0;
+            sibling.color = 1;
+            this.leftRotate(sibling);
+            sibling = current.parent.left;
+          }
+          sibling.color = current.parent.color;
+          current.parent.color = 0;
+          sibling.left.color = 0;
+          this.rightRotate(current.parent);
+          current = this.root;
+        }
+      }
+    }
+    current.color = 0;
+  }
+
+  void delete(IntervalNode node) {
+    IntervalNode removed = node;
+    int originalColor = removed.color;
+    IntervalNode replacement = SENTINEL;
+    IntervalNode recomputeFrom = node.parent;
+    if (node.left == SENTINEL) {
+      replacement = node.right;
+      this.transplant(node, node.right);
+    } else if (node.right == SENTINEL) {
+      replacement = node.left;
+      this.transplant(node, node.left);
+    } else {
+      removed = this.minimum(node.right);
+      originalColor = removed.color;
+      replacement = removed.right;
+      if (removed.parent == node) {
+        replacement.parent = removed;
+      } else {
+        recomputeFrom = removed.parent;
+        this.transplant(removed, removed.right);
+        removed.right = node.right;
+        removed.right.parent = removed;
+      }
+      this.transplant(node, removed);
+      removed.left = node.left;
+      removed.left.parent = removed;
+      removed.color = node.color;
+      recomputeMaxEnd(removed);
+    }
+    recomputeWalk(recomputeFrom);
+    if (originalColor == 0) {
+      this.deleteFix(replacement);
+    }
+    node.detach();
+    if (this.root != SENTINEL) {
+      this.root.parent = SENTINEL;
+    }
+    SENTINEL.parent = SENTINEL;
+    SENTINEL.color = 0;
+  }
+
+  void collectInterval(
+    IntervalNode node,
+    int start,
+    int end,
+    int filterOwnerId,
+    bool filterOutValidation,
+    bool filterFontDecorations,
+    bool onlyMarginDecorations,
+    int cachedVersionId,
+    IntervalNode[] result
+  ) {
+    if (node == SENTINEL || node.maxEnd < start) {
+      return;
+    }
+    this.collectInterval(
+      node.left,
+      start,
+      end,
+      filterOwnerId,
+      filterOutValidation,
+      filterFontDecorations,
+      onlyMarginDecorations,
+      cachedVersionId,
+      result
+    );
+    if (node.start <= end && node.end >= start) {
+      if (includeNode(node, filterOwnerId, filterOutValidation, filterFontDecorations, onlyMarginDecorations)) {
+        node.setCachedOffsets(node.start, node.end, cachedVersionId);
+        result.push(node);
+      }
+    }
+    if (node.start <= end) {
+      this.collectInterval(
+        node.right,
+        start,
+        end,
+        filterOwnerId,
+        filterOutValidation,
+        filterFontDecorations,
+        onlyMarginDecorations,
+        cachedVersionId,
+        result
+      );
+    }
+  }
+
+  IntervalNode[] intervalSearch(
+    int start,
+    int end,
+    int filterOwnerId,
+    bool filterOutValidation,
+    bool filterFontDecorations,
+    int cachedVersionId,
+    bool onlyMarginDecorations
+  ) {
+    IntervalNode[] result = [];
+    this.collectInterval(
+      this.root,
+      start,
+      end,
+      filterOwnerId,
+      filterOutValidation,
+      filterFontDecorations,
+      onlyMarginDecorations,
+      cachedVersionId,
+      result
+    );
+    return result;
+  }
+
+  void collectSearch(
+    IntervalNode node,
+    int filterOwnerId,
+    bool filterOutValidation,
+    bool filterFontDecorations,
+    bool onlyMarginDecorations,
+    int cachedVersionId,
+    IntervalNode[] result
+  ) {
+    if (node == SENTINEL) {
+      return;
+    }
+    this.collectSearch(
+      node.left,
+      filterOwnerId,
+      filterOutValidation,
+      filterFontDecorations,
+      onlyMarginDecorations,
+      cachedVersionId,
+      result
+    );
+    if (includeNode(node, filterOwnerId, filterOutValidation, filterFontDecorations, onlyMarginDecorations)) {
+      node.setCachedOffsets(node.start, node.end, cachedVersionId);
+      result.push(node);
+    }
+    this.collectSearch(
+      node.right,
+      filterOwnerId,
+      filterOutValidation,
+      filterFontDecorations,
+      onlyMarginDecorations,
+      cachedVersionId,
+      result
+    );
+  }
+
+  IntervalNode[] search(
+    int filterOwnerId,
+    bool filterOutValidation,
+    bool filterFontDecorations,
+    int cachedVersionId,
+    bool onlyMarginDecorations
+  ) {
+    IntervalNode[] result = [];
+    this.collectSearch(
+      this.root,
+      filterOwnerId,
+      filterOutValidation,
+      filterFontDecorations,
+      onlyMarginDecorations,
+      cachedVersionId,
+      result
+    );
+    return result;
+  }
+
+  IntervalNode[] collectNodesFromOwner(int ownerId) {
+    return this.search(ownerId, false, false, 0, false);
+  }
+
+  void collectPostOrder(IntervalNode node, IntervalNode[] result) {
+    if (node == SENTINEL) {
+      return;
+    }
+    this.collectPostOrder(node.left, result);
+    this.collectPostOrder(node.right, result);
+    result.push(node);
+  }
+
+  IntervalNode[] collectNodesPostOrder() {
+    IntervalNode[] result = [];
+    this.collectPostOrder(this.root, result);
+    return result;
+  }
+
+  void resolveNode(IntervalNode node, int cachedVersionId) {
+    node.setCachedOffsets(node.start, node.end, cachedVersionId);
+  }
+
+  void acceptReplace(int offset, int length, int textLength, bool forceMoveMarkers) {
+    IntervalNode[] nodes = this.collectNodesPostOrder();
+    int i = 0;
+    while (i < nodes.length) {
+      IntervalNode node = nodes[i];
+      this.delete(node);
+      node.start = node.cachedAbsoluteStart;
+      node.end = node.cachedAbsoluteEnd;
+      nodeAcceptEdit(node, offset, offset + length, textLength, forceMoveMarkers);
+      node.maxEnd = node.end;
+      this.insert(node);
+      i = i + 1;
+    }
+  }
+}
+
+bool markerBefore(int markerOffset, bool sticksPrevious, int checkOffset, int moveSemantics) {
+  if (markerOffset < checkOffset) {
+    return true;
+  }
+  if (markerOffset > checkOffset) {
+    return false;
+  }
+  if (moveSemantics == 1) {
+    return false;
+  }
+  if (moveSemantics == 2) {
+    return true;
+  }
+  return sticksPrevious;
+}
+
+export void nodeAcceptEdit(IntervalNode node, int start, int end, int textLength, bool forceMoveMarkers) {
+  bool startSticksPrevious = node.stickiness == 0 || node.stickiness == 2;
+  bool endSticksPrevious = node.stickiness == 1 || node.stickiness == 2;
+  int deletingCount = end - start;
+  int commonLength = deletingCount;
+  if (textLength < commonLength) {
+    commonLength = textLength;
+  }
+  int nodeStart = node.start;
+  int nodeEnd = node.end;
+  bool startDone = false;
+  bool endDone = false;
+  if (start <= nodeStart && nodeEnd <= end && node.collapseOnReplaceEdit) {
+    node.start = start;
+    node.end = start;
+    startDone = true;
+    endDone = true;
+  }
+  int firstSemantics = 0;
+  if (forceMoveMarkers) {
+    firstSemantics = 1;
+  } else if (deletingCount > 0) {
+    firstSemantics = 2;
+  }
+  if (!startDone && markerBefore(nodeStart, startSticksPrevious, start, firstSemantics)) {
+    startDone = true;
+  }
+  if (!endDone && markerBefore(nodeEnd, endSticksPrevious, start, firstSemantics)) {
+    endDone = true;
+  }
+  if (commonLength > 0 && !forceMoveMarkers) {
+    int commonSemantics = 0;
+    if (deletingCount > textLength) {
+      commonSemantics = 2;
+    }
+    if (!startDone && markerBefore(nodeStart, startSticksPrevious, start + commonLength, commonSemantics)) {
+      startDone = true;
+    }
+    if (!endDone && markerBefore(nodeEnd, endSticksPrevious, start + commonLength, commonSemantics)) {
+      endDone = true;
+    }
+  }
+  int finalSemantics = 0;
+  if (forceMoveMarkers) {
+    finalSemantics = 1;
+  }
+  if (!startDone && markerBefore(nodeStart, startSticksPrevious, end, finalSemantics)) {
+    node.start = start + textLength;
+    startDone = true;
+  }
+  if (!endDone && markerBefore(nodeEnd, endSticksPrevious, end, finalSemantics)) {
+    node.end = start + textLength;
+    endDone = true;
+  }
+  int delta = textLength - deletingCount;
+  if (!startDone) {
+    node.start = nodeStart + delta;
+    if (node.start < 0) {
+      node.start = 0;
+    }
+  }
+  if (!endDone) {
+    node.end = nodeEnd + delta;
+    if (node.end < 0) {
+      node.end = 0;
+    }
+  }
+  if (node.start > node.end) {
+    node.end = node.start;
+  }
+}
+
+export IntervalTree createIntervalTree() {
+  return new IntervalTree();
+}
+
+export IntervalNode createIntervalNode(string id, int start, int end) {
+  return new IntervalNode(id, start, end);
+}
+
+export IntervalOptions createIntervalOptions(
+  string className,
+  string glyphMarginClassName,
+  int stickiness,
+  bool collapseOnReplaceEdit,
+  bool affectsFont
+) {
+  return new IntervalOptions(className, glyphMarginClassName, stickiness, collapseOnReplaceEdit, affectsFont);
+}
+
+export int decoMetadata(bool stickiness, bool affectsOverviewRuler, bool isWholeLine) {
+  int result = 0;
+  if (stickiness) {
+    result = result + 1;
+  }
+  if (affectsOverviewRuler) {
+    result = result + 2;
+  }
+  if (isWholeLine) {
+    result = result + 4;
+  }
+  return result;
+}

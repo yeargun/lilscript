@@ -1,0 +1,267 @@
+import { domCreateElement, appendChild, setClassName, classListAdd, classListRemove, setAttribute, setStyle, setTabIndex, addEventListener, focusElement, clearChildren, hostCall, jsUndefined } from "../../../../../js-host";
+
+export class BreadcrumbsItem {
+  string id;
+  func(JsValue)->void renderFn;
+  func(BreadcrumbsItem)->bool equalsFn;
+
+  init(string id, func(JsValue)->void renderFn, func(BreadcrumbsItem)->bool equalsFn) {
+    this.id = id;
+    this.renderFn = renderFn;
+    this.equalsFn = equalsFn;
+  }
+
+  bool equals(BreadcrumbsItem other) {
+    return this.equalsFn(other);
+  }
+
+  void render(JsValue container) {
+    this.renderFn(container);
+  }
+
+  void dispose() {
+  }
+}
+
+int commonPrefixLength(BreadcrumbsItem[] a, BreadcrumbsItem[] b) {
+  int n = a.length;
+  if (b.length < n) {
+    n = b.length;
+  }
+  int i = 0;
+  while (i < n) {
+    if (!a[i].equals(b[i])) {
+      return i;
+    }
+    i = i + 1;
+  }
+  return n;
+}
+
+export class BreadcrumbsWidget {
+  JsValue domNode;
+  BreadcrumbsItem[] items;
+  JsValue[] nodes;
+  JsValue[] freeNodes;
+  int focusedItemIdx;
+  int selectedItemIdx;
+  bool enabled;
+  int dimWidth;
+  int dimHeight;
+  (func(int)->void)[] selectListeners;
+  (func(int)->void)[] focusListeners;
+  (func(bool)->void)[] changeFocusListeners;
+
+  init(JsValue container) {
+    this.items = [];
+    this.nodes = [];
+    this.freeNodes = [];
+    this.focusedItemIdx = -1;
+    this.selectedItemIdx = -1;
+    this.enabled = true;
+    this.dimWidth = 0;
+    this.dimHeight = 0;
+    this.selectListeners = [];
+    this.focusListeners = [];
+    this.changeFocusListeners = [];
+    this.domNode = domCreateElement("div");
+    setClassName(this.domNode, "monaco-breadcrumbs");
+    setTabIndex(this.domNode, 0);
+    setAttribute(this.domNode, "role", "list");
+    appendChild(container, this.domNode);
+    BreadcrumbsWidget owner = this;
+    addEventListener(this.domNode, "click", (JsValue event) => {
+      owner.onClick(event);
+    }, false);
+    addEventListener(this.domNode, "focus", (JsValue event) => {
+      owner.fireFocusChange(true);
+    }, false);
+    addEventListener(this.domNode, "blur", (JsValue event) => {
+      owner.fireFocusChange(false);
+    }, false);
+  }
+
+  void fireFocusChange(bool focused) {
+    int i = 0;
+    while (i < this.changeFocusListeners.length) {
+      this.changeFocusListeners[i](focused);
+      i = i + 1;
+    }
+  }
+
+  void setEnabled(bool value) {
+    this.enabled = value;
+    if (value) {
+      classListRemove(this.domNode, "disabled");
+    } else {
+      classListAdd(this.domNode, "disabled");
+    }
+  }
+
+  void layout(int width, int height) {
+    if (width == this.dimWidth && height == this.dimHeight && width != 0) {
+      return;
+    }
+    this.dimWidth = width;
+    this.dimHeight = height;
+    if (width > 0) {
+      setStyle(this.domNode, "width", width.toString() + "px");
+    }
+    if (height > 0) {
+      setStyle(this.domNode, "height", height.toString() + "px");
+    }
+  }
+
+  void onClick(JsValue event) {
+    if (!this.enabled) {
+      return;
+    }
+    JsValue target = event["target"];
+    int i = 0;
+    while (i < this.nodes.length) {
+      if (this.nodes[i] == target || containsNode(this.nodes[i], target)) {
+        this.focusAt(i);
+        this.selectAt(i);
+        return;
+      }
+      i = i + 1;
+    }
+  }
+
+  void focusAt(int nth) {
+    this.focusedItemIdx = -1;
+    int i = 0;
+    while (i < this.nodes.length) {
+      if (i != nth) {
+        classListRemove(this.nodes[i], "focused");
+      } else {
+        this.focusedItemIdx = i;
+        classListAdd(this.nodes[i], "focused");
+        focusElement(this.nodes[i]);
+      }
+      i = i + 1;
+    }
+    int f = 0;
+    while (f < this.focusListeners.length) {
+      this.focusListeners[f](this.focusedItemIdx);
+      f = f + 1;
+    }
+  }
+
+  void selectAt(int nth) {
+    this.selectedItemIdx = -1;
+    int i = 0;
+    while (i < this.nodes.length) {
+      if (i != nth) {
+        classListRemove(this.nodes[i], "selected");
+      } else {
+        this.selectedItemIdx = i;
+        classListAdd(this.nodes[i], "selected");
+      }
+      i = i + 1;
+    }
+    int s = 0;
+    while (s < this.selectListeners.length) {
+      this.selectListeners[s](this.selectedItemIdx);
+      s = s + 1;
+    }
+  }
+
+  void focusPrev() {
+    if (this.focusedItemIdx > 0) {
+      this.focusAt(this.focusedItemIdx - 1);
+    }
+  }
+
+  void focusNext() {
+    if (this.focusedItemIdx + 1 < this.nodes.length) {
+      this.focusAt(this.focusedItemIdx + 1);
+    }
+  }
+
+  void setItems(BreadcrumbsItem[] items) {
+    int prefix = commonPrefixLength(this.items, items);
+    BreadcrumbsItem[] next = [];
+    int i = 0;
+    while (i < prefix) {
+      next.push(this.items[i]);
+      i = i + 1;
+    }
+    i = prefix;
+    while (i < items.length) {
+      next.push(items[i]);
+      i = i + 1;
+    }
+    this.items = next;
+    this.renderFrom(prefix);
+    this.focusAt(-1);
+  }
+
+  void renderFrom(int start) {
+    int i = start;
+    while (i < this.items.length && i < this.nodes.length) {
+      this.renderItem(this.items[i], this.nodes[i]);
+      i = i + 1;
+    }
+    while (i < this.nodes.length) {
+      JsValue free = this.nodes[this.nodes.length - 1];
+      this.nodes.splice(this.nodes.length - 1, 1);
+      this.freeNodes.push(free);
+      hostCall(free, "remove", jsUndefined(), jsUndefined(), jsUndefined());
+    }
+    while (i < this.items.length) {
+      JsValue node = null;
+      if (this.freeNodes.length > 0) {
+        node = this.freeNodes[this.freeNodes.length - 1];
+        this.freeNodes.splice(this.freeNodes.length - 1, 1);
+      } else {
+        node = domCreateElement("div");
+      }
+      this.renderItem(this.items[i], node);
+      appendChild(this.domNode, node);
+      this.nodes.push(node);
+      i = i + 1;
+    }
+  }
+
+  void renderItem(BreadcrumbsItem item, JsValue container) {
+    clearChildren(container);
+    setClassName(container, "");
+    item.render(container);
+    setTabIndex(container, -1);
+    setAttribute(container, "role", "listitem");
+    classListAdd(container, "monaco-breadcrumb-item");
+  }
+
+  BreadcrumbsItem[] getItems() {
+    return this.items;
+  }
+
+  void dispose() {
+    hostCall(this.domNode, "remove", jsUndefined(), jsUndefined(), jsUndefined());
+    this.items = [];
+    this.nodes = [];
+    this.freeNodes = [];
+  }
+}
+
+bool containsNode(JsValue container, JsValue target) {
+  JsValue current = target;
+  int guard = 0;
+  while (current.truthy() && guard < 32) {
+    if (current == container) {
+      return true;
+    }
+    current = current["parentNode"];
+    guard = guard + 1;
+  }
+  return false;
+}
+
+export BreadcrumbsWidget createBreadcrumbsWidget(JsValue container) {
+  return new BreadcrumbsWidget(container);
+}
+
+export BreadcrumbsItem createBreadcrumbsItem(string id, func(JsValue)->void renderFn, func(BreadcrumbsItem)->bool equalsFn) {
+  return new BreadcrumbsItem(id, renderFn, equalsFn);
+}

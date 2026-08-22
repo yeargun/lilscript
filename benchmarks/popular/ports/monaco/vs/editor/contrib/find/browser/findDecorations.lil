@@ -1,0 +1,172 @@
+export class FindRange {
+  int startLineNumber;
+  int startColumn;
+  int endLineNumber;
+  int endColumn;
+
+  init(int startLineNumber, int startColumn, int endLineNumber, int endColumn) {
+    this.startLineNumber = startLineNumber;
+    this.startColumn = startColumn;
+    this.endLineNumber = endLineNumber;
+    this.endColumn = endColumn;
+  }
+}
+
+export class FindPosition {
+  int lineNumber;
+  int column;
+
+  init(int lineNumber, int column) {
+    this.lineNumber = lineNumber;
+    this.column = column;
+  }
+}
+
+bool rangeEquals(FindRange a, FindRange b) {
+  return a.startLineNumber == b.startLineNumber
+    && a.startColumn == b.startColumn
+    && a.endLineNumber == b.endLineNumber
+    && a.endColumn == b.endColumn;
+}
+
+bool positionBefore(FindPosition a, FindPosition b) {
+  if (a.lineNumber < b.lineNumber) {
+    return true;
+  }
+  if (a.lineNumber > b.lineNumber) {
+    return false;
+  }
+  return a.column < b.column;
+}
+
+FindPosition rangeStart(FindRange range) {
+  return new FindPosition(range.startLineNumber, range.startColumn);
+}
+
+FindPosition rangeEnd(FindRange range) {
+  return new FindPosition(range.endLineNumber, range.endColumn);
+}
+
+export class FindDecorations {
+  FindRange[] matches;
+  FindRange[] findScopes;
+  int highlightedIndex;
+  FindPosition startPosition;
+
+  init(FindPosition startPosition) {
+    this.matches = [];
+    this.findScopes = [];
+    this.highlightedIndex = -1;
+    this.startPosition = startPosition;
+  }
+
+  void reset() {
+    this.matches = [];
+    this.findScopes = [];
+    this.highlightedIndex = -1;
+  }
+
+  int getCount() {
+    return this.matches.length;
+  }
+
+  FindRange? getFindScope() {
+    if (this.findScopes.length == 0) {
+      return null;
+    }
+    return this.findScopes[0];
+  }
+
+  FindRange[] getFindScopes() {
+    return this.findScopes;
+  }
+
+  FindPosition getStartPosition() {
+    return this.startPosition;
+  }
+
+  void setStartPosition(FindPosition position) {
+    this.startPosition = position;
+    this.highlightedIndex = -1;
+  }
+
+  void set(FindRange[] matches, FindRange[] scopes) {
+    this.matches = matches;
+    this.findScopes = scopes;
+    this.highlightedIndex = -1;
+  }
+
+  FindRange? getDecorationRangeAt(int index) {
+    if (index < 0 || index >= this.matches.length) {
+      return null;
+    }
+    return this.matches[index];
+  }
+
+  int getCurrentMatchesPosition(FindRange desired) {
+    int i = 0;
+    while (i < this.matches.length) {
+      if (rangeEquals(this.matches[i], desired)) {
+        return i + 1;
+      }
+      i = i + 1;
+    }
+    return 0;
+  }
+
+  int setCurrentFindMatch(FindRange? nextMatch) {
+    this.highlightedIndex = -1;
+    if (nextMatch == null) {
+      return 0;
+    }
+    int i = 0;
+    while (i < this.matches.length) {
+      if (rangeEquals(this.matches[i], nextMatch)) {
+        this.highlightedIndex = i;
+        return i + 1;
+      }
+      i = i + 1;
+    }
+    return 0;
+  }
+
+  FindRange? matchAfterPosition(FindPosition position) {
+    int i = 0;
+    while (i < this.matches.length) {
+      FindRange range = this.matches[i];
+      if (!positionBefore(rangeEnd(range), position) && !(range.endLineNumber == position.lineNumber && range.endColumn == position.column && range.startLineNumber == range.endLineNumber && range.startColumn == range.endColumn)) {
+        if (!positionBefore(rangeEnd(range), position) && (positionBefore(position, rangeStart(range)) || range.startLineNumber == position.lineNumber && range.startColumn == position.column || positionBefore(position, rangeEnd(range)))) {
+          return range;
+        }
+      }
+      i = i + 1;
+    }
+    if (this.matches.length > 0) {
+      return this.matches[0];
+    }
+    return null;
+  }
+
+  FindRange? matchBeforePosition(FindPosition position) {
+    int i = this.matches.length - 1;
+    while (i >= 0) {
+      FindRange range = this.matches[i];
+      if (positionBefore(rangeStart(range), position) || range.startLineNumber == position.lineNumber && range.startColumn == position.column) {
+        return range;
+      }
+      i = i - 1;
+    }
+    if (this.matches.length > 0) {
+      return this.matches[this.matches.length - 1];
+    }
+    return null;
+  }
+}
+
+export FindDecorations createFindDecorations(int lineNumber, int column) {
+  return new FindDecorations(new FindPosition(lineNumber, column));
+}
+
+export FindRange createDecorationRange(int startLine, int startColumn, int endLine, int endColumn) {
+  return new FindRange(startLine, startColumn, endLine, endColumn);
+}

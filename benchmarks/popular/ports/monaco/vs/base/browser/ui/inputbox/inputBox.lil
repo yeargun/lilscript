@@ -1,0 +1,365 @@
+import { domCreateElement, appendChild, setClassName, classListAdd, classListRemove, setAttribute, setTextContent, setStyle, setPlaceholder, inputGetValue, inputSetValue, addEventListener, focusElement, blurElement, getClientWidth, clearChildren, createTextNode, hostCall, jsUndefined } from "../../../../../js-host";
+
+export enum MessageType {
+  INFO,
+  WARNING,
+  ERROR
+}
+
+export class InputBoxMessage {
+  string content;
+  MessageType messageType;
+  bool formatContent;
+
+  init(string content, MessageType messageType, bool formatContent) {
+    this.content = content;
+    this.messageType = messageType;
+    this.formatContent = formatContent;
+  }
+}
+
+export class InputBoxValidation {
+  bool hasMessage;
+  InputBoxMessage message;
+
+  init(bool hasMessage, InputBoxMessage message) {
+    this.hasMessage = hasMessage;
+    this.message = message;
+  }
+}
+
+export class InputBoxStyles {
+  string border;
+  string background;
+  string foreground;
+
+  init(string border, string background, string foreground) {
+    this.border = border;
+    this.background = background;
+    this.foreground = foreground;
+  }
+}
+
+export class InputBox {
+  JsValue element;
+  JsValue input;
+  JsValue wrapper;
+  string placeholder;
+  string ariaLabel;
+  bool flexibleHeight;
+  int flexibleMaxHeight;
+  InputBoxMessage? message;
+  string state;
+  func(string)->InputBoxValidation validation;
+  bool hasValidation;
+  (func(string)->void)[] changeListeners;
+  func(JsValue)->void contextShow;
+  func()->void contextHide;
+  func()->void contextLayout;
+  string infoBorder;
+  string infoBackground;
+  string infoForeground;
+  string warningBorder;
+  string warningBackground;
+  string warningForeground;
+  string errorBorder;
+  string errorBackground;
+  string errorForeground;
+  string idleBorder;
+
+  init(JsValue container, string placeholder, string ariaLabel, bool flexibleHeight, int flexibleMaxHeight) {
+    this.placeholder = placeholder;
+    this.ariaLabel = ariaLabel;
+    this.flexibleHeight = flexibleHeight;
+    this.flexibleMaxHeight = flexibleMaxHeight;
+    this.message = null;
+    this.state = "idle";
+    this.hasValidation = false;
+    this.validation = (string value) => {
+      return new InputBoxValidation(false, new InputBoxMessage("", MessageType.INFO, false));
+    };
+    this.changeListeners = [];
+    this.contextShow = (JsValue delegate) => {};
+    this.contextHide = () => {};
+    this.contextLayout = () => {};
+    this.infoBorder = "";
+    this.infoBackground = "";
+    this.infoForeground = "";
+    this.warningBorder = "";
+    this.warningBackground = "";
+    this.warningForeground = "";
+    this.errorBorder = "";
+    this.errorBackground = "";
+    this.errorForeground = "";
+    this.idleBorder = "";
+    this.element = domCreateElement("div");
+    setClassName(this.element, "monaco-inputbox idle");
+    this.wrapper = domCreateElement("div");
+    setClassName(this.wrapper, "ibwrapper");
+    if (flexibleHeight) {
+      this.input = domCreateElement("textarea");
+      classListAdd(this.input, "input");
+      setAttribute(this.input, "wrap", "off");
+      setAttribute(this.input, "spellcheck", "false");
+    } else {
+      this.input = domCreateElement("input");
+      setAttribute(this.input, "type", "text");
+      classListAdd(this.input, "input");
+      setAttribute(this.input, "spellcheck", "false");
+    }
+    if (placeholder.length > 0) {
+      setPlaceholder(this.input, placeholder);
+    }
+    if (ariaLabel.length > 0) {
+      setAttribute(this.input, "aria-label", ariaLabel);
+    }
+    appendChild(this.wrapper, this.input);
+    appendChild(this.element, this.wrapper);
+    appendChild(container, this.element);
+    InputBox owner = this;
+    addEventListener(this.input, "input", (JsValue event) => {
+      owner.onValueChange();
+    }, false);
+    addEventListener(this.input, "blur", (JsValue event) => {
+      owner._hideMessage();
+    }, false);
+    addEventListener(this.input, "focus", (JsValue event) => {
+      owner._showMessage();
+    }, false);
+  }
+
+  string value() {
+    return inputGetValue(this.input);
+  }
+
+  void setValue(string value) {
+    if (inputGetValue(this.input) != value) {
+      inputSetValue(this.input, value);
+      this.onValueChange();
+    }
+  }
+
+  func()->void onDidChange(func(string)->void listener) {
+    this.changeListeners.push(listener);
+    InputBox owner = this;
+    return () => {
+      int index = owner.changeListeners.indexOf(listener);
+      if (index >= 0) {
+        owner.changeListeners.splice(index, 1);
+      }
+    };
+  }
+
+  InputBoxStyles stylesForType(MessageType messageType) {
+    if (messageType == MessageType.INFO) {
+      return new InputBoxStyles(this.infoBorder, this.infoBackground, this.infoForeground);
+    }
+    if (messageType == MessageType.WARNING) {
+      return new InputBoxStyles(this.warningBorder, this.warningBackground, this.warningForeground);
+    }
+    return new InputBoxStyles(this.errorBorder, this.errorBackground, this.errorForeground);
+  }
+
+  string classForType(MessageType messageType) {
+    if (messageType == MessageType.INFO) {
+      return "info";
+    }
+    if (messageType == MessageType.WARNING) {
+      return "warning";
+    }
+    return "error";
+  }
+
+  void showMessage(InputBoxMessage message, bool force) {
+    InputBoxMessage? current = this.message;
+    bool same = false;
+    if (this.state == "open" && current != null) {
+      if (current.content == message.content && current.messageType == message.messageType) {
+        same = true;
+      }
+    }
+    if (same) {
+      return;
+    }
+    this.message = message;
+    classListRemove(this.element, "idle");
+    classListRemove(this.element, "info");
+    classListRemove(this.element, "warning");
+    classListRemove(this.element, "error");
+    classListAdd(this.element, this.classForType(message.messageType));
+    InputBoxStyles styles = this.stylesForType(message.messageType);
+    string border = styles.border;
+    if (border.length == 0) {
+      border = "transparent";
+    }
+    setStyle(this.element, "border", "1px solid " + border);
+    if (message.content.length > 0 && (this.hasFocus() || force)) {
+      this._showMessage();
+    }
+  }
+
+  void hideMessage() {
+    this.message = null;
+    classListRemove(this.element, "info");
+    classListRemove(this.element, "warning");
+    classListRemove(this.element, "error");
+    classListAdd(this.element, "idle");
+    this._hideMessage();
+    this.applyStyles();
+  }
+
+  InputBoxValidation validate() {
+    InputBoxValidation none = new InputBoxValidation(false, new InputBoxMessage("", MessageType.INFO, false));
+    if (!this.hasValidation) {
+      return none;
+    }
+    InputBoxValidation errorMsg = this.validation(this.value());
+    if (errorMsg.hasMessage) {
+      setAttribute(this.input, "aria-invalid", "true");
+      this.showMessage(errorMsg.message, false);
+      return errorMsg;
+    }
+    hostCall(this.input, "removeAttribute", "aria-invalid", jsUndefined(), jsUndefined());
+    this.hideMessage();
+    return none;
+  }
+
+  void _showMessage() {
+    InputBoxMessage? message = this.message;
+    if (message != null) {
+      JsValue box = JS.object();
+      box["getAnchor"] = this.element;
+      box["content"] = message.content;
+      box["type"] = this.classForType(message.messageType);
+      box["width"] = getClientWidth(this.element);
+      this.contextShow(box);
+      this.state = "open";
+    }
+  }
+
+  void _hideMessage() {
+    if (this.state == "open") {
+      this.contextHide();
+    }
+    this.state = "idle";
+  }
+
+  void layoutMessage() {
+    if (this.state == "open") {
+      this.contextLayout();
+    }
+  }
+
+  void onValueChange() {
+    string next = this.value();
+    int i = 0;
+    while (i < this.changeListeners.length) {
+      this.changeListeners[i](next);
+      i = i + 1;
+    }
+    this.validate();
+    if (next.length == 0) {
+      classListAdd(this.input, "empty");
+    } else {
+      classListRemove(this.input, "empty");
+    }
+    if (this.state == "open") {
+      this.contextLayout();
+    }
+  }
+
+  bool hasFocus() {
+    return this.input["ownerDocument"]["activeElement"] == this.input;
+  }
+
+  void focus() {
+    focusElement(this.input);
+  }
+
+  void blur() {
+    blurElement(this.input);
+  }
+
+  void applyStyles() {
+    if (this.idleBorder.length > 0) {
+      setStyle(this.element, "border", "1px solid " + this.idleBorder);
+    }
+  }
+
+  JsValue inputElement() {
+    return this.input;
+  }
+
+  void dispose() {
+    this._hideMessage();
+  }
+}
+
+export class HistoryInputBox {
+  InputBox box;
+  string[] history;
+  int historyIndex;
+  string currentUncommitted;
+
+  init(JsValue container, string placeholder, string ariaLabel) {
+    this.box = new InputBox(container, placeholder, ariaLabel, false, 0);
+    this.history = [];
+    this.historyIndex = -1;
+    this.currentUncommitted = "";
+  }
+
+  void addToHistory() {
+    string value = this.box.value();
+    if (value.length == 0) {
+      return;
+    }
+    int existing = this.history.indexOf(value);
+    if (existing >= 0) {
+      this.history.splice(existing, 1);
+    }
+    this.history.push(value);
+    this.historyIndex = this.history.length;
+  }
+
+  void showNextValue() {
+    if (this.history.length == 0) {
+      return;
+    }
+    if (this.historyIndex == this.history.length) {
+      this.currentUncommitted = this.box.value();
+    }
+    this.historyIndex = this.historyIndex + 1;
+    if (this.historyIndex >= this.history.length) {
+      this.historyIndex = this.history.length;
+      this.box.setValue(this.currentUncommitted);
+      return;
+    }
+    this.box.setValue(this.history[this.historyIndex]);
+  }
+
+  void showPreviousValue() {
+    if (this.history.length == 0) {
+      return;
+    }
+    if (this.historyIndex == this.history.length) {
+      this.currentUncommitted = this.box.value();
+    }
+    this.historyIndex = this.historyIndex - 1;
+    if (this.historyIndex < 0) {
+      this.historyIndex = 0;
+    }
+    this.box.setValue(this.history[this.historyIndex]);
+  }
+}
+
+export InputBox createInputBox(JsValue container, string placeholder = "", string ariaLabel = "", bool flexibleHeight = false, int flexibleMaxHeight = 0) {
+  return new InputBox(container, placeholder, ariaLabel, flexibleHeight, flexibleMaxHeight);
+}
+
+export HistoryInputBox createHistoryInputBox(JsValue container, string placeholder = "", string ariaLabel = "") {
+  return new HistoryInputBox(container, placeholder, ariaLabel);
+}
+
+export InputBoxMessage createInputBoxMessage(string content, MessageType messageType, bool formatContent = false) {
+  return new InputBoxMessage(content, messageType, formatContent);
+}

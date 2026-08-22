@@ -1,0 +1,85 @@
+export class EditorContextKey {
+  string key;
+  bool defaultValue;
+  bool negated;
+
+  init(string key, bool defaultValue, bool negated) {
+    this.key = key;
+    this.defaultValue = defaultValue;
+    this.negated = negated;
+  }
+
+  EditorContextKey toNegated() {
+    return new EditorContextKey(this.key, !this.defaultValue, !this.negated);
+  }
+
+  bool matches(bool value) {
+    if (this.negated) {
+      return !value;
+    }
+    return value;
+  }
+}
+
+export EditorContextKey editorSimpleInput = new EditorContextKey("editorSimpleInput", false, false);
+export EditorContextKey editorTextFocus = new EditorContextKey("editorTextFocus", false, false);
+export EditorContextKey editorFocus = new EditorContextKey("editorFocus", false, false);
+export EditorContextKey textInputFocus = new EditorContextKey("textInputFocus", false, false);
+export EditorContextKey readOnly = new EditorContextKey("editorReadonly", false, false);
+export EditorContextKey writable = new EditorContextKey("editorReadonly", true, true);
+export EditorContextKey inDiffEditor = new EditorContextKey("inDiffEditor", false, false);
+export EditorContextKey isEmbeddedDiffEditor = new EditorContextKey("isEmbeddedDiffEditor", false, false);
+export EditorContextKey inMultiDiffEditor = new EditorContextKey("inMultiDiffEditor", false, false);
+export EditorContextKey multiDiffEditorAllCollapsed = new EditorContextKey("multiDiffEditorAllCollapsed", false, false);
+export EditorContextKey hasChanges = new EditorContextKey("diffEditorHasChanges", false, false);
+export EditorContextKey comparingMovedCode = new EditorContextKey("comparingMovedCode", false, false);
+export EditorContextKey accessibleDiffViewerVisible = new EditorContextKey("accessibleDiffViewerVisible", false, false);
+export EditorContextKey diffEditorRenderSideBySideInlineBreakpointReached = new EditorContextKey("diffEditorRenderSideBySideInlineBreakpointReached", false, false);
+export EditorContextKey diffEditorInlineMode = new EditorContextKey("diffEditorInlineMode", false, false);
+export EditorContextKey diffEditorOriginalWritable = new EditorContextKey("diffEditorOriginalWritable", false, false);
+export EditorContextKey diffEditorModifiedWritable = new EditorContextKey("diffEditorModifiedWritable", false, false);
+export EditorContextKey diffEditorOriginalUri = new EditorContextKey("diffEditorOriginalUri", false, false);
+export EditorContextKey diffEditorModifiedUri = new EditorContextKey("diffEditorModifiedUri", false, false);
+export EditorContextKey columnSelection = new EditorContextKey("editorColumnSelection", false, false);
+export EditorContextKey hasNonEmptySelection = new EditorContextKey("editorHasSelection", false, false);
+export EditorContextKey hasOnlyEmptySelection = new EditorContextKey("editorHasSelection", true, true);
+export EditorContextKey hasMultipleSelections = new EditorContextKey("editorHasMultipleSelections", false, false);
+export EditorContextKey hasSingleSelection = new EditorContextKey("editorHasMultipleSelections", true, true);
+export EditorContextKey tabMovesFocus = new EditorContextKey("editorTabMovesFocus", false, false);
+export EditorContextKey tabDoesNotMoveFocus = new EditorContextKey("editorTabMovesFocus", true, true);
+export EditorContextKey isInEmbeddedEditor = new EditorContextKey("isInEmbeddedEditor", false, false);
+export EditorContextKey canUndo = new EditorContextKey("canUndo", false, false);
+export EditorContextKey canRedo = new EditorContextKey("canRedo", false, false);
+export EditorContextKey hoverVisible = new EditorContextKey("editorHoverVisible", false, false);
+export EditorContextKey hoverFocused = new EditorContextKey("editorHoverFocused", false, false);
+export EditorContextKey stickyScrollFocused = new EditorContextKey("stickyScrollFocused", false, false);
+export EditorContextKey stickyScrollVisible = new EditorContextKey("stickyScrollVisible", false, false);
+export EditorContextKey standaloneColorPickerVisible = new EditorContextKey("standaloneColorPickerVisible", false, false);
+export EditorContextKey standaloneColorPickerFocused = new EditorContextKey("standaloneColorPickerFocused", false, false);
+export EditorContextKey isComposing = new EditorContextKey("isComposing", false, false);
+export EditorContextKey inCompositeEditor = new EditorContextKey("inCompositeEditor", false, false);
+export EditorContextKey notInCompositeEditor = new EditorContextKey("inCompositeEditor", true, true);
+export EditorContextKey languageId = new EditorContextKey("editorLangId", false, false);
+export EditorContextKey hasCompletionItemProvider = new EditorContextKey("editorHasCompletionItemProvider", false, false);
+export EditorContextKey hasCodeActionsProvider = new EditorContextKey("editorHasCodeActionsProvider", false, false);
+export EditorContextKey hasCodeLensProvider = new EditorContextKey("editorHasCodeLensProvider", false, false);
+export EditorContextKey hasDefinitionProvider = new EditorContextKey("editorHasDefinitionProvider", false, false);
+export EditorContextKey hasDeclarationProvider = new EditorContextKey("editorHasDeclarationProvider", false, false);
+export EditorContextKey hasImplementationProvider = new EditorContextKey("editorHasImplementationProvider", false, false);
+export EditorContextKey hasTypeDefinitionProvider = new EditorContextKey("editorHasTypeDefinitionProvider", false, false);
+export EditorContextKey hasHoverProvider = new EditorContextKey("editorHasHoverProvider", false, false);
+export EditorContextKey hasDocumentHighlightProvider = new EditorContextKey("editorHasDocumentHighlightProvider", false, false);
+export EditorContextKey hasDocumentSymbolProvider = new EditorContextKey("editorHasDocumentSymbolProvider", false, false);
+export EditorContextKey hasReferenceProvider = new EditorContextKey("editorHasReferenceProvider", false, false);
+export EditorContextKey hasRenameProvider = new EditorContextKey("editorHasRenameProvider", false, false);
+export EditorContextKey hasSignatureHelpProvider = new EditorContextKey("editorHasSignatureHelpProvider", false, false);
+export EditorContextKey hasInlayHintsProvider = new EditorContextKey("editorHasInlayHintsProvider", false, false);
+export EditorContextKey hasDocumentFormattingProvider = new EditorContextKey("editorHasDocumentFormattingProvider", false, false);
+export EditorContextKey hasDocumentSelectionFormattingProvider = new EditorContextKey("editorHasDocumentSelectionFormattingProvider", false, false);
+export EditorContextKey hasMultipleDocumentFormattingProvider = new EditorContextKey("editorHasMultipleDocumentFormattingProvider", false, false);
+export EditorContextKey hasMultipleDocumentSelectionFormattingProvider = new EditorContextKey("editorHasMultipleDocumentSelectionFormattingProvider", false, false);
+export EditorContextKey selectionHasDiagnostics = new EditorContextKey("editorSelectionHasDiagnostics", false, false);
+
+export EditorContextKey createEditorContextKey(string key, bool defaultValue) {
+  return new EditorContextKey(key, defaultValue, false);
+}

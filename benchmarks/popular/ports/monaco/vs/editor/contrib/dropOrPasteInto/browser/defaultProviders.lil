@@ -1,0 +1,121 @@
+
+export class TextRange {
+  int startLineNumber;
+  int startColumn;
+  int endLineNumber;
+  int endColumn;
+
+  init(int startLineNumber, int startColumn, int endLineNumber, int endColumn) {
+    this.startLineNumber = startLineNumber;
+    this.startColumn = startColumn;
+    this.endLineNumber = endLineNumber;
+    this.endColumn = endColumn;
+  }
+}
+
+export class TextPos {
+  int lineNumber;
+  int column;
+
+  init(int lineNumber, int column) {
+    this.lineNumber = lineNumber;
+    this.column = column;
+  }
+}
+
+bool posBefore(TextPos a, TextPos b) {
+  if (a.lineNumber < b.lineNumber) {
+    return true;
+  }
+  if (a.lineNumber > b.lineNumber) {
+    return false;
+  }
+  return a.column < b.column;
+}
+
+bool rangeContainsPos(TextRange range, int lineNumber, int column) {
+  if (lineNumber < range.startLineNumber || lineNumber > range.endLineNumber) {
+    return false;
+  }
+  if (lineNumber == range.startLineNumber && column < range.startColumn) {
+    return false;
+  }
+  if (lineNumber == range.endLineNumber && column > range.endColumn) {
+    return false;
+  }
+  return true;
+}
+
+export TextRange createTextRange(int startLine, int startColumn, int endLine, int endColumn) {
+  return new TextRange(startLine, startColumn, endLine, endColumn);
+}
+
+export TextPos createTextPos(int lineNumber, int column) {
+  return new TextPos(lineNumber, column);
+}
+
+export class DropEdit {
+  TextRange range;
+  string text;
+  string mime;
+
+  init(TextRange range, string text, string mime) {
+    this.range = range;
+    this.text = text;
+    this.mime = mime;
+  }
+}
+
+export DropEdit dropAsText(int lineNumber, int column, string text) {
+  return new DropEdit(new TextRange(lineNumber, column, lineNumber, column), text, "text/plain");
+}
+
+export DropEdit[] defaultPasteEdits(TextRange selection, string text, string mime) {
+  DropEdit[] edits = [];
+  edits.push(new DropEdit(selection, text, mime));
+  if (mime == "text/uri-list") {
+    string md = "[" + text + "](" + text + ")";
+    edits.push(new DropEdit(selection, md, "text/markdown"));
+  }
+  return edits;
+}
+
+export class PostEditWidget {
+  bool visible;
+  DropEdit[] edits;
+  int selected;
+
+  init() {
+    this.visible = false;
+    this.edits = [];
+    this.selected = 0;
+  }
+
+  void show(DropEdit[] edits) {
+    this.edits = edits;
+    this.selected = 0;
+    this.visible = edits.length > 1;
+  }
+
+  DropEdit? current() {
+    if (this.selected < 0 || this.selected >= this.edits.length) {
+      return null;
+    }
+    return this.edits[this.selected];
+  }
+
+  void selectNext() {
+    if (this.edits.length == 0) {
+      return;
+    }
+    this.selected = (this.selected + 1) % this.edits.length;
+  }
+}
+
+export PostEditWidget createPostEditWidget() {
+  return new PostEditWidget();
+}
+
+export DropEdit createDropEdit(int line, int column, string text) {
+  return new DropEdit(new TextRange(line, column, line, column), text, "text/plain");
+}

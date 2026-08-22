@@ -1,0 +1,199 @@
+
+bool isIdentChar(string ch) {
+  int code = ch.charCodeAt(0);
+  if (code >= 97 && code <= 122) {
+    return true;
+  }
+  if (code >= 65 && code <= 90) {
+    return true;
+  }
+  if (code >= 48 && code <= 57) {
+    return true;
+  }
+  return ch == "_" || ch == "$";
+}
+
+string sliceChars(string text, int start, int end) {
+  string out = "";
+  int i = start;
+  if (i < 0) {
+    i = 0;
+  }
+  int last = end;
+  if (last > text.length) {
+    last = text.length;
+  }
+  while (i < last) {
+    out = out + text.charAt(i);
+    i = i + 1;
+  }
+  return out;
+}
+
+string wordAt(string line, int column) {
+  int i = column - 1;
+  if (i < 0) {
+    i = 0;
+  }
+  if (i > line.length) {
+    i = line.length;
+  }
+  int start = i;
+  while (start > 0 && isIdentChar(line.charAt(start - 1))) {
+    start = start - 1;
+  }
+  int end = i;
+  while (end < line.length && isIdentChar(line.charAt(end))) {
+    end = end + 1;
+  }
+  return sliceChars(line, start, end);
+}
+
+int wordStart(string line, int column) {
+  int i = column - 1;
+  if (i < 0) {
+    i = 0;
+  }
+  if (i > line.length) {
+    i = line.length;
+  }
+  while (i > 0 && isIdentChar(line.charAt(i - 1))) {
+    i = i - 1;
+  }
+  return i + 1;
+}
+
+int wordEnd(string line, int column) {
+  int i = column - 1;
+  if (i < 0) {
+    i = 0;
+  }
+  if (i > line.length) {
+    i = line.length;
+  }
+  while (i < line.length && isIdentChar(line.charAt(i))) {
+    i = i + 1;
+  }
+  return i + 1;
+}
+
+int leadingIndent(string line) {
+  int i = 0;
+  while (i < line.length) {
+    string ch = line.charAt(i);
+    if (ch != " " && ch != "\t") {
+      break;
+    }
+    i = i + 1;
+  }
+  return i;
+}
+
+export class WordPos {
+  int lineNumber;
+  int column;
+
+  init(int lineNumber, int column) {
+    this.lineNumber = lineNumber;
+    this.column = column;
+  }
+}
+
+bool isPartStart(string prev, string ch) {
+  if (!isIdentChar(ch)) {
+    return false;
+  }
+  if (!isIdentChar(prev)) {
+    return true;
+  }
+  bool prevUpper = prev.toUpperCase() == prev && prev.toLowerCase() != prev;
+  bool chUpper = ch.toUpperCase() == ch && ch.toLowerCase() != ch;
+  bool prevLower = !prevUpper && isIdentChar(prev);
+  return !prevUpper && chUpper;
+}
+
+export WordPos moveWordLeft(string[] lines, int lineNumber, int column) {
+  if (lineNumber < 1 || lineNumber > lines.length) {
+    return new WordPos(lineNumber, column);
+  }
+  string line = lines[lineNumber - 1];
+  int i = column - 1;
+  if (i > line.length) {
+    i = line.length;
+  }
+  if (i <= 0) {
+    if (lineNumber == 1) {
+      return new WordPos(1, 1);
+    }
+    return new WordPos(lineNumber - 1, lines[lineNumber - 2].length + 1);
+  }
+  i = i - 1;
+  while (i > 0 && !isIdentChar(line.charAt(i))) {
+    i = i - 1;
+  }
+  while (i > 0 && isIdentChar(line.charAt(i - 1))) {
+    i = i - 1;
+  }
+  return new WordPos(lineNumber, i + 1);
+}
+
+export WordPos moveWordRight(string[] lines, int lineNumber, int column) {
+  if (lineNumber < 1 || lineNumber > lines.length) {
+    return new WordPos(lineNumber, column);
+  }
+  string line = lines[lineNumber - 1];
+  int i = column - 1;
+  if (i < 0) {
+    i = 0;
+  }
+  if (i >= line.length) {
+    if (lineNumber >= lines.length) {
+      return new WordPos(lineNumber, line.length + 1);
+    }
+    return new WordPos(lineNumber + 1, 1);
+  }
+  while (i < line.length && isIdentChar(line.charAt(i))) {
+    i = i + 1;
+  }
+  while (i < line.length && !isIdentChar(line.charAt(i))) {
+    i = i + 1;
+  }
+  return new WordPos(lineNumber, i + 1);
+}
+
+export WordPos moveWordPartLeft(string line, int column) {
+  int i = column - 1;
+  if (i <= 0) {
+    return new WordPos(1, 1);
+  }
+  i = i - 1;
+  while (i > 0) {
+    if (isPartStart(line.charAt(i - 1), line.charAt(i))) {
+      break;
+    }
+    i = i - 1;
+  }
+  return new WordPos(1, i + 1);
+}
+
+export WordPos moveWordPartRight(string line, int column) {
+  int i = column - 1;
+  if (i < 0) {
+    i = 0;
+  }
+  if (i >= line.length) {
+    return new WordPos(1, line.length + 1);
+  }
+  i = i + 1;
+  while (i < line.length) {
+    if (isPartStart(line.charAt(i - 1), line.charAt(i))) {
+      break;
+    }
+    i = i + 1;
+  }
+  return new WordPos(1, i + 1);
+}
+
+export WordPos createWordPos(int lineNumber, int column) {
+  return new WordPos(lineNumber, column);
+}

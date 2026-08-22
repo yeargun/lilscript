@@ -1,0 +1,34 @@
+export class LogService {
+  int level;
+  string[] lines;
+
+  init() {
+    this.level = 3;
+    this.lines = [];
+  }
+
+  void log(int messageLevel, string msg) {
+    if (this.level == 0) {
+      return;
+    }
+    if (this.level <= messageLevel) {
+      this.lines.push(msg);
+    }
+  }
+
+  void info(string msg) {
+    this.log(3, msg);
+  }
+
+  void error(string msg) {
+    this.log(5, msg);
+  }
+
+  void setLevel(int level) {
+    this.level = level;
+  }
+}
+
+export LogService createLogService() {
+  return new LogService();
+}

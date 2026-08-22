@@ -171,15 +171,13 @@ export JsValue text(JsValue elem) {
 }
 
 export JsValue merge(JsValue first, JsValue second) {
+  float start = first.length;
   float len = JS.number(second["length"]);
+  first["length"] = start + len;
   float j = 0.0;
-  float i = first.length;
-
   for (; j < len; j++) {
-    first[i++] = second[j];
+    first[start + j] = second[j];
   }
-
-  first["length"] = i;
   return first;
 }
 

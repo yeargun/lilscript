@@ -1,0 +1,33 @@
+export class StandaloneWebWorker {
+  string url;
+  bool running;
+  string[] messages;
+
+  init(string url) {
+    this.url = url;
+    this.running = false;
+    this.messages = [];
+  }
+
+  void start() {
+    this.running = true;
+  }
+
+  void post(string msg) {
+    if (this.running) {
+      this.messages.push(msg);
+    }
+  }
+
+  void dispose() {
+    this.running = false;
+    string[] empty = [];
+    this.messages = empty;
+  }
+}
+
+export StandaloneWebWorker createWebWorker(string url) {
+  StandaloneWebWorker worker = new StandaloneWebWorker(url);
+  worker.start();
+  return worker;
+}

@@ -1,0 +1,63 @@
+export class CodeLens {
+  int lineNumber;
+  string title;
+  string commandId;
+  bool resolved;
+
+  init(int lineNumber, string title, string commandId) {
+    this.lineNumber = lineNumber;
+    this.title = title;
+    this.commandId = commandId;
+    this.resolved = title.length > 0;
+  }
+}
+
+export class CodeLensCache {
+  CodeLens[] items;
+
+  init() {
+    this.items = [];
+  }
+
+  void put(CodeLens lens) {
+    int i = 0;
+    while (i < this.items.length) {
+      if (this.items[i].lineNumber == lens.lineNumber && this.items[i].commandId == lens.commandId) {
+        this.items[i] = lens;
+        return;
+      }
+      i = i + 1;
+    }
+    this.items.push(lens);
+  }
+
+  CodeLens[] forLine(int lineNumber) {
+    CodeLens[] result = [];
+    int i = 0;
+    while (i < this.items.length) {
+      if (this.items[i].lineNumber == lineNumber) {
+        result.push(this.items[i]);
+      }
+      i = i + 1;
+    }
+    return result;
+  }
+}
+
+export CodeLens[] lensesFromSymbols(int[] lines, string[] titles) {
+  CodeLens[] result = [];
+  int i = 0;
+  while (i < lines.length && i < titles.length) {
+    result.push(new CodeLens(lines[i], titles[i], "editor.codelens.action"));
+    i = i + 1;
+  }
+  return result;
+}
+
+export CodeLensCache createCodeLensCache() {
+  return new CodeLensCache();
+}
+
+export CodeLens createCodeLens(int lineNumber, string title) {
+  return new CodeLens(lineNumber, title, "editor.codelens.action");
+}

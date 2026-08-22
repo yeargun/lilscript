@@ -1,0 +1,142 @@
+
+export class TextRange {
+  int startLineNumber;
+  int startColumn;
+  int endLineNumber;
+  int endColumn;
+
+  init(int startLineNumber, int startColumn, int endLineNumber, int endColumn) {
+    this.startLineNumber = startLineNumber;
+    this.startColumn = startColumn;
+    this.endLineNumber = endLineNumber;
+    this.endColumn = endColumn;
+  }
+}
+
+export class TextPos {
+  int lineNumber;
+  int column;
+
+  init(int lineNumber, int column) {
+    this.lineNumber = lineNumber;
+    this.column = column;
+  }
+}
+
+bool posBefore(TextPos a, TextPos b) {
+  if (a.lineNumber < b.lineNumber) {
+    return true;
+  }
+  if (a.lineNumber > b.lineNumber) {
+    return false;
+  }
+  return a.column < b.column;
+}
+
+bool rangeContainsPos(TextRange range, int lineNumber, int column) {
+  if (lineNumber < range.startLineNumber || lineNumber > range.endLineNumber) {
+    return false;
+  }
+  if (lineNumber == range.startLineNumber && column < range.startColumn) {
+    return false;
+  }
+  if (lineNumber == range.endLineNumber && column > range.endColumn) {
+    return false;
+  }
+  return true;
+}
+
+export TextRange createTextRange(int startLine, int startColumn, int endLine, int endColumn) {
+  return new TextRange(startLine, startColumn, endLine, endColumn);
+}
+
+export TextPos createTextPos(int lineNumber, int column) {
+  return new TextPos(lineNumber, column);
+}
+
+export class BracketMatch {
+  TextRange open;
+  TextRange close;
+
+  init(TextRange open, TextRange close) {
+    this.open = open;
+    this.close = close;
+  }
+}
+
+int kindOf(string ch) {
+  if (ch == "(" || ch == ")") {
+    return 0;
+  }
+  if (ch == "[" || ch == "]") {
+    return 1;
+  }
+  if (ch == "{" || ch == "}") {
+    return 2;
+  }
+  return -1;
+}
+
+bool isOpen(string ch) {
+  return ch == "(" || ch == "[" || ch == "{";
+}
+
+export BracketMatch? matchBracket(string text, int offset) {
+  if (offset < 0 || offset >= text.length) {
+    return null;
+  }
+  string ch = text.charAt(offset);
+  int kind = kindOf(ch);
+  if (kind < 0) {
+    return null;
+  }
+  string open = "([{";
+  string close = ")]}";
+  if (isOpen(ch)) {
+    int depth = 1;
+    int i = offset + 1;
+    while (i < text.length) {
+      string cur = text.charAt(i);
+      if (cur == open.charAt(kind)) {
+        depth = depth + 1;
+      } else if (cur == close.charAt(kind)) {
+        depth = depth - 1;
+        if (depth == 0) {
+          return new BracketMatch(new TextRange(1, offset + 1, 1, offset + 2), new TextRange(1, i + 1, 1, i + 2));
+        }
+      }
+      i = i + 1;
+    }
+    return null;
+  }
+  int depth = 1;
+  int i = offset - 1;
+  while (i >= 0) {
+    string cur = text.charAt(i);
+    if (cur == close.charAt(kind)) {
+      depth = depth + 1;
+    } else if (cur == open.charAt(kind)) {
+      depth = depth - 1;
+      if (depth == 0) {
+        return new BracketMatch(new TextRange(1, i + 1, 1, i + 2), new TextRange(1, offset + 1, 1, offset + 2));
+      }
+    }
+    i = i - 1;
+  }
+  return null;
+}
+
+export int jumpToBracketOffset(string text, int offset) {
+  BracketMatch? found = matchBracket(text, offset);
+  if (found == null) {
+    return offset;
+  }
+  if (offset + 1 >= found.open.startColumn && offset + 1 <= found.open.endColumn) {
+    return found.close.startColumn - 1;
+  }
+  return found.open.startColumn - 1;
+}
+
+export BracketMatch createBracketMatch(int openCol, int closeCol) {
+  return new BracketMatch(new TextRange(1, openCol, 1, openCol + 1), new TextRange(1, closeCol, 1, closeCol + 1));
+}

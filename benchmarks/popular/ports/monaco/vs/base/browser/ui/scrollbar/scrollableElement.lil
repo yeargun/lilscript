@@ -1,0 +1,1207 @@
+import {
+  addEventListener,
+  appendChild,
+  dateNow,
+  domCreateElement,
+  eventAltKey,
+  eventShiftKey,
+  getClientHeight,
+  getClientWidth,
+  getScrollHeight,
+  getScrollLeft,
+  getScrollTop,
+  hostCall,
+  jsPropInt,
+  jsPropString,
+  jsUndefined,
+  preventDefault,
+  removeEventListener,
+  scheduleTimeoutMs,
+  setAttribute,
+  setClassName,
+  setScrollLeft,
+  setScrollTop,
+  setStyle,
+  stopPropagation,
+  throwError,
+  windowSelf
+} from "../../../../../js-host";
+import { HorizontalScrollbar, createHorizontalScrollbar } from "./horizontalScrollbar";
+import { VerticalScrollbar, createVerticalScrollbar } from "./verticalScrollbar";
+import { ScrollableElementOptions, resolveOptions } from "./scrollableElementOptions";
+
+int HIDE_TIMEOUT = 500;
+float SCROLL_WHEEL_SENSITIVITY = 50.0;
+bool SCROLL_WHEEL_SMOOTH_SCROLL_ENABLED = true;
+int WHEEL_MEMORY = 5;
+
+AbstractScrollableElement[] scrollableElements = [];
+bool hideRunnerScheduled = false;
+bool inertialRunnerScheduled = false;
+
+float seNumber(JsValue value, float fallback) {
+  if (value is float) {
+    float n = value;
+    return n;
+  }
+  return fallback;
+}
+
+int seInt(JsValue value, int fallback) {
+  return seNumber(value, fallback * 1.0).round().toInt();
+}
+
+float absFloat(float value) {
+  if (value < 0.0) {
+    return 0.0 - value;
+  }
+  return value;
+}
+
+int snapAwayFromZero(float value) {
+  if (value < 0.0) {
+    return value.floor().toInt();
+  }
+  int floored = value.floor().toInt();
+  if (value > floored * 1.0) {
+    return floored + 1;
+  }
+  return floored;
+}
+
+bool almostInt(float value) {
+  float delta = value.round() - value;
+  if (delta < 0.0) {
+    delta = 0.0 - delta;
+  }
+  return delta < 0.01;
+}
+
+bool isMacintoshHost() {
+  JsValue nav = windowSelf()["navigator"];
+  string plat = jsPropString(nav, "platform", "");
+  string ua = jsPropString(nav, "userAgent", "");
+  if (plat.indexOf("Mac") >= 0) {
+    return true;
+  }
+  if (ua.indexOf("Mac") >= 0) {
+    return true;
+  }
+  return false;
+}
+
+class WheelMemoryItem {
+  float timestamp;
+  float deltaX;
+  float deltaY;
+  float score;
+
+  init(float timestamp, float deltaX, float deltaY) {
+    this.timestamp = timestamp;
+    this.deltaX = deltaX;
+    this.deltaY = deltaY;
+    this.score = 0.0;
+  }
+}
+
+export class MouseWheelClassifier {
+  int capacity;
+  WheelMemoryItem[] memory;
+  int front;
+  int rear;
+
+  init() {
+    this.capacity = WHEEL_MEMORY;
+    this.memory = [];
+    int i = 0;
+    while (i < WHEEL_MEMORY) {
+      this.memory.push(new WheelMemoryItem(0.0, 0.0, 0.0));
+      i = i + 1;
+    }
+    this.front = -1;
+    this.rear = -1;
+  }
+
+  bool isPhysicalMouseWheel() {
+    if (this.front == -1 && this.rear == -1) {
+      return false;
+    }
+    float remainingInfluence = 1.0;
+    float score = 0.0;
+    int iteration = 1;
+    int index = this.rear;
+    int guard = 0;
+    bool looping = true;
+    while (looping) {
+      float influence = remainingInfluence;
+      if (index != this.front) {
+        influence = 1.0;
+        int p = 0;
+        while (p < iteration) {
+          influence = influence / 2.0;
+          p = p + 1;
+        }
+      }
+      remainingInfluence = remainingInfluence - influence;
+      score = score + this.memory[index].score * influence;
+      if (index == this.front) {
+        looping = false;
+      } else {
+        index = (this.capacity + index - 1) % this.capacity;
+        iteration = iteration + 1;
+      }
+      guard = guard + 1;
+      if (guard > this.capacity) {
+        looping = false;
+      }
+    }
+    return score <= 0.5;
+  }
+
+  float computeScore(WheelMemoryItem item, WheelMemoryItem? previousItem) {
+    if (absFloat(item.deltaX) > 0.0 && absFloat(item.deltaY) > 0.0) {
+      return 1.0;
+    }
+    float score = 0.5;
+    if (!almostInt(item.deltaX) || !almostInt(item.deltaY)) {
+      score = score + 0.25;
+    }
+    if (previousItem != null) {
+      float absDeltaX = absFloat(item.deltaX);
+      float absDeltaY = absFloat(item.deltaY);
+      float absPreviousDeltaX = absFloat(previousItem.deltaX);
+      float absPreviousDeltaY = absFloat(previousItem.deltaY);
+      float minDeltaX = absDeltaX;
+      if (absPreviousDeltaX < minDeltaX) {
+        minDeltaX = absPreviousDeltaX;
+      }
+      if (minDeltaX < 1.0) {
+        minDeltaX = 1.0;
+      }
+      float minDeltaY = absDeltaY;
+      if (absPreviousDeltaY < minDeltaY) {
+        minDeltaY = absPreviousDeltaY;
+      }
+      if (minDeltaY < 1.0) {
+        minDeltaY = 1.0;
+      }
+      float maxDeltaX = absDeltaX;
+      if (absPreviousDeltaX > maxDeltaX) {
+        maxDeltaX = absPreviousDeltaX;
+      }
+      float maxDeltaY = absDeltaY;
+      if (absPreviousDeltaY > maxDeltaY) {
+        maxDeltaY = absPreviousDeltaY;
+      }
+      int minX = minDeltaX.round().toInt();
+      int minY = minDeltaY.round().toInt();
+      int maxX = maxDeltaX.round().toInt();
+      int maxY = maxDeltaY.round().toInt();
+      if (minX < 1) {
+        minX = 1;
+      }
+      if (minY < 1) {
+        minY = 1;
+      }
+      if (maxX % minX == 0 && maxY % minY == 0) {
+        score = score - 0.5;
+      }
+    }
+    if (score < 0.0) {
+      score = 0.0;
+    }
+    if (score > 1.0) {
+      score = 1.0;
+    }
+    return score;
+  }
+
+  void accept(float timestamp, float deltaX, float deltaY) {
+    WheelMemoryItem? previousItem = null;
+    WheelMemoryItem item = new WheelMemoryItem(timestamp, deltaX, deltaY);
+    if (this.front == -1 && this.rear == -1) {
+      this.memory[0] = item;
+      this.front = 0;
+      this.rear = 0;
+    } else {
+      previousItem = this.memory[this.rear];
+      this.rear = (this.rear + 1) % this.capacity;
+      if (this.rear == this.front) {
+        this.front = (this.front + 1) % this.capacity;
+      }
+      this.memory[this.rear] = item;
+    }
+    item.score = this.computeScore(item, previousItem);
+  }
+
+  void acceptStandardWheelEvent(float deltaX, float deltaY) {
+    this.accept(dateNow(), deltaX, deltaY);
+  }
+}
+
+MouseWheelClassifier sharedWheelClassifier = new MouseWheelClassifier();
+
+void convertBrowserWheel(JsValue event, WheelMemoryItem out) {
+  out.deltaX = 0.0;
+  out.deltaY = 0.0;
+  if (event == null) {
+    return;
+  }
+  float wheelDeltaY = seNumber(event["wheelDeltaY"], 0.0);
+  float wheelDeltaX = seNumber(event["wheelDeltaX"], 0.0);
+  string eventType = jsPropString(event, "type", "");
+  if (wheelDeltaY != 0.0) {
+    out.deltaY = wheelDeltaY / 120.0;
+  } else if (eventType == "wheel") {
+    float mode = seNumber(event["deltaMode"], 0.0);
+    float divisor = 40.0;
+    if (mode == 1.0) {
+      divisor = 1.0;
+    }
+    out.deltaY = (0.0 - seNumber(event["deltaY"], 0.0)) / divisor;
+  }
+  if (wheelDeltaX != 0.0) {
+    out.deltaX = wheelDeltaX / 120.0;
+  } else if (eventType == "wheel") {
+    float modeX = seNumber(event["deltaMode"], 0.0);
+    float divisorX = 40.0;
+    if (modeX == 1.0) {
+      divisorX = 1.0;
+    }
+    out.deltaX = (0.0 - seNumber(event["deltaX"], 0.0)) / divisorX;
+  }
+  if (out.deltaY == 0.0 && out.deltaX == 0.0) {
+    out.deltaY = seNumber(event["wheelDelta"], 0.0) / 120.0;
+  }
+}
+
+void runHideDeadlines() {
+  hideRunnerScheduled = false;
+  float now = dateNow();
+  float next = 0.0;
+  int i = 0;
+  while (i < scrollableElements.length) {
+    AbstractScrollableElement el = scrollableElements[i];
+    float deadline = el.hideDeadline;
+    if (deadline > 0.0) {
+      if (now >= deadline) {
+        el.hideDeadline = 0.0;
+        el.hideIfIdle();
+      } else {
+        float remain = deadline - now;
+        if (next == 0.0 || remain < next) {
+          next = remain;
+        }
+      }
+    }
+    i = i + 1;
+  }
+  if (next > 0.0) {
+    hideRunnerScheduled = true;
+    scheduleTimeoutMs(runHideDeadlines, next);
+  }
+}
+
+void runInertialTicks() {
+  inertialRunnerScheduled = false;
+  bool again = false;
+  int i = 0;
+  while (i < scrollableElements.length) {
+    if (scrollableElements[i].periodicSync()) {
+      again = true;
+    }
+    i = i + 1;
+  }
+  if (again) {
+    inertialRunnerScheduled = true;
+    scheduleTimeoutMs(runInertialTicks, 1000.0 / 60.0);
+  }
+}
+
+void onScrollableMouseOver(JsValue event) {
+  int id = seInt(event["currentTarget"]["_scrollableElementId"], -1);
+  if (id < 0 || id >= scrollableElements.length) {
+    return;
+  }
+  scrollableElements[id].onMouseOver();
+}
+
+void onScrollableMouseLeave(JsValue event) {
+  int id = seInt(event["currentTarget"]["_scrollableElementId"], -1);
+  if (id < 0 || id >= scrollableElements.length) {
+    return;
+  }
+  scrollableElements[id].onMouseLeave();
+}
+
+void onScrollableBrowserWheel(JsValue event) {
+  int id = seInt(event["currentTarget"]["_scrollableElementId"], -1);
+  if (id < 0 || id >= scrollableElements.length) {
+    return;
+  }
+  if (event["defaultPrevented"].truthy()) {
+    return;
+  }
+  WheelMemoryItem converted = new WheelMemoryItem(0.0, 0.0, 0.0);
+  convertBrowserWheel(event, converted);
+  scrollableElements[id].onStandardWheel(converted.deltaX, converted.deltaY, event);
+}
+
+void hostOnMouseWheel(JsValue payload, JsValue b, JsValue c) {
+  int id = seInt(payload["ownerId"], -1);
+  if (id < 0 || id >= scrollableElements.length) {
+    return;
+  }
+  float dx = seNumber(payload["deltaX"], 0.0);
+  float dy = seNumber(payload["deltaY"], 0.0);
+  JsValue browserEvent = payload["browserEvent"];
+  scrollableElements[id].onStandardWheel(dx, dy, browserEvent);
+}
+
+void hostOnDragStart(JsValue idValue, JsValue b, JsValue c) {
+  int id = seInt(idValue, -1);
+  if (id < 0 || id >= scrollableElements.length) {
+    return;
+  }
+  scrollableElements[id].onDragStart();
+}
+
+void hostOnDragEnd(JsValue idValue, JsValue b, JsValue c) {
+  int id = seInt(idValue, -1);
+  if (id < 0 || id >= scrollableElements.length) {
+    return;
+  }
+  scrollableElements[id].onDragEnd();
+}
+
+void hostOnBarScroll(JsValue update, JsValue b, JsValue c) {
+  int id = seInt(update["ownerId"], -1);
+  if (id < 0 || id >= scrollableElements.length) {
+    return;
+  }
+  scrollableElements[id].onBarScroll(update);
+}
+
+class AbstractScrollableElement {
+  int id;
+  int kind;
+  ScrollableElementOptions options;
+  JsValue element;
+  JsValue scrollable;
+  JsValue host;
+  JsValue domNode;
+  JsValue listenOnDomNode;
+  JsValue leftShadowDomNode;
+  JsValue topShadowDomNode;
+  JsValue topLeftShadowDomNode;
+  HorizontalScrollbar horizontalScrollbar;
+  VerticalScrollbar verticalScrollbar;
+  bool mouseWheelListening;
+  bool isDragging;
+  bool mouseIsOver;
+  bool shouldRender;
+  bool revealOnScroll;
+  bool listening;
+  float hideDeadline;
+  float inertialX;
+  float inertialY;
+  int width;
+  int scrollWidth;
+  int scrollLeft;
+  int height;
+  int scrollHeight;
+  int scrollTop;
+  bool ownsScrollable;
+  bool syncDomScroll;
+
+  init(JsValue element, JsValue optionsValue, JsValue scrollable, int kind) {
+    this.id = scrollableElements.length;
+    this.kind = kind;
+    this.element = element;
+    this.ownsScrollable = scrollable == null;
+    this.syncDomScroll = kind == 2;
+    this.listening = true;
+    this.options = resolveOptions(optionsValue);
+    if (kind == 0 || kind == 2) {
+      this.options.mouseWheelSmoothScroll = false;
+    }
+    if (isMacintoshHost()) {
+      this.options.className = this.options.className + " mac";
+    }
+    this.host = JS.object();
+    this.host["_id"] = this.id;
+    this.host["onMouseWheel"] = hostOnMouseWheel;
+    this.host["onDragStart"] = hostOnDragStart;
+    this.host["onDragEnd"] = hostOnDragEnd;
+    this.host["onBarScroll"] = hostOnBarScroll;
+    this.mouseWheelListening = false;
+    this.isDragging = false;
+    this.mouseIsOver = false;
+    this.shouldRender = true;
+    this.revealOnScroll = true;
+    this.hideDeadline = 0.0;
+    this.inertialX = 0.0;
+    this.inertialY = 0.0;
+    this.leftShadowDomNode = null;
+    this.topShadowDomNode = null;
+    this.topLeftShadowDomNode = null;
+    this.width = getClientWidth(element);
+    this.height = getClientHeight(element);
+    this.scrollWidth = jsPropInt(element, "scrollWidth", this.width);
+    this.scrollHeight = getScrollHeight(element);
+    this.scrollLeft = getScrollLeft(element);
+    this.scrollTop = getScrollTop(element);
+    if (this.ownsScrollable) {
+      this.scrollable = JS.object();
+      this.writeModel();
+    } else {
+      this.scrollable = scrollable;
+      this.pullFromScrollable();
+    }
+    if (element != null && element["style"] != null) {
+      setStyle(element, "overflow", "hidden");
+    }
+    this.verticalScrollbar = createVerticalScrollbar(this.scrollable, this.options, this.host);
+    this.horizontalScrollbar = createHorizontalScrollbar(this.scrollable, this.options, this.host);
+    this.domNode = domCreateElement("div");
+    setClassName(this.domNode, "monaco-scrollable-element " + this.options.className);
+    setAttribute(this.domNode, "role", "presentation");
+    setStyle(this.domNode, "position", "relative");
+    setStyle(this.domNode, "overflow", "hidden");
+    appendChild(this.domNode, element);
+    appendChild(this.domNode, this.horizontalScrollbar.domNode);
+    appendChild(this.domNode, this.verticalScrollbar.domNode);
+    if (this.options.useShadows) {
+      this.leftShadowDomNode = domCreateElement("div");
+      setClassName(this.leftShadowDomNode, "shadow");
+      appendChild(this.domNode, this.leftShadowDomNode);
+      this.topShadowDomNode = domCreateElement("div");
+      setClassName(this.topShadowDomNode, "shadow");
+      appendChild(this.domNode, this.topShadowDomNode);
+      this.topLeftShadowDomNode = domCreateElement("div");
+      setClassName(this.topLeftShadowDomNode, "shadow");
+      appendChild(this.domNode, this.topLeftShadowDomNode);
+    }
+    this.listenOnDomNode = this.options.listenOnDomNode;
+    if (this.listenOnDomNode == null) {
+      this.listenOnDomNode = this.domNode;
+    }
+    this.listenOnDomNode["_scrollableElementId"] = this.id;
+    this.domNode["_scrollableElementId"] = this.id;
+    this.setListeningToMouseWheel(this.options.handleMouseWheel);
+    addEventListener(this.listenOnDomNode, "mouseover", onScrollableMouseOver, false);
+    addEventListener(this.listenOnDomNode, "mouseleave", onScrollableMouseLeave, false);
+    scrollableElements.push(this);
+    this.syncBars();
+    this.render();
+  }
+
+  void writeModel() {
+    this.scrollable["width"] = this.width;
+    this.scrollable["clientWidth"] = this.width;
+    this.scrollable["height"] = this.height;
+    this.scrollable["clientHeight"] = this.height;
+    this.scrollable["scrollWidth"] = this.scrollWidth;
+    this.scrollable["scrollHeight"] = this.scrollHeight;
+    this.scrollable["scrollLeft"] = this.scrollLeft;
+    this.scrollable["scrollTop"] = this.scrollTop;
+  }
+
+  void pullFromScrollable() {
+    if (this.scrollable == null) {
+      return;
+    }
+    if (this.scrollable["getScrollDimensions"].truthy()) {
+      JsValue dims = hostCall(
+        this.scrollable,
+        "getScrollDimensions",
+        jsUndefined(),
+        jsUndefined(),
+        jsUndefined()
+      );
+      if (dims != null) {
+        this.width = seInt(dims["width"], this.width);
+        this.scrollWidth = seInt(dims["scrollWidth"], this.scrollWidth);
+        this.height = seInt(dims["height"], this.height);
+        this.scrollHeight = seInt(dims["scrollHeight"], this.scrollHeight);
+      }
+    }
+    if (this.scrollable["getCurrentScrollPosition"].truthy()) {
+      JsValue pos = hostCall(
+        this.scrollable,
+        "getCurrentScrollPosition",
+        jsUndefined(),
+        jsUndefined(),
+        jsUndefined()
+      );
+      if (pos != null) {
+        this.scrollLeft = seInt(pos["scrollLeft"], this.scrollLeft);
+        this.scrollTop = seInt(pos["scrollTop"], this.scrollTop);
+      }
+    } else {
+      this.scrollLeft = seInt(this.scrollable["scrollLeft"], this.scrollLeft);
+      this.scrollTop = seInt(this.scrollable["scrollTop"], this.scrollTop);
+    }
+  }
+
+  int clampLeft(int value) {
+    int max = this.scrollWidth - this.width;
+    int next = value;
+    if (next < 0) {
+      next = 0;
+    }
+    if (max < 0) {
+      max = 0;
+    }
+    if (next > max) {
+      next = max;
+    }
+    return next;
+  }
+
+  int clampTop(int value) {
+    int max = this.scrollHeight - this.height;
+    int next = value;
+    if (next < 0) {
+      next = 0;
+    }
+    if (max < 0) {
+      max = 0;
+    }
+    if (next > max) {
+      next = max;
+    }
+    return next;
+  }
+
+  void applyScroll(int scrollLeft, int scrollTop, bool smooth) {
+    int nextLeft = this.clampLeft(scrollLeft);
+    int nextTop = this.clampTop(scrollTop);
+    bool changed = nextLeft != this.scrollLeft || nextTop != this.scrollTop;
+    this.scrollLeft = nextLeft;
+    this.scrollTop = nextTop;
+    if (this.ownsScrollable) {
+      this.writeModel();
+    }
+    JsValue update = JS.object();
+    update["scrollLeft"] = nextLeft;
+    update["scrollTop"] = nextTop;
+    if (this.scrollable != null && smooth && this.scrollable["setScrollPositionSmooth"].truthy()) {
+      hostCall(
+        this.scrollable,
+        "setScrollPositionSmooth",
+        update,
+        jsUndefined(),
+        jsUndefined()
+      );
+    } else if (this.scrollable != null && this.scrollable["setScrollPositionNow"].truthy()) {
+      hostCall(
+        this.scrollable,
+        "setScrollPositionNow",
+        update,
+        jsUndefined(),
+        jsUndefined()
+      );
+    } else if (this.scrollable != null && this.scrollable["style"] != null) {
+      setScrollLeft(this.scrollable, nextLeft);
+      setScrollTop(this.scrollable, nextTop);
+    }
+    if (this.syncDomScroll && this.element != null) {
+      setScrollLeft(this.element, nextLeft);
+      setScrollTop(this.element, nextTop);
+    }
+    if (changed) {
+      this.syncBars();
+      if (this.revealOnScroll) {
+        this.reveal();
+      }
+      if (!this.options.lazyRender) {
+        this.render();
+      }
+    }
+  }
+
+  void syncBars() {
+    JsValue e = JS.object();
+    e["width"] = this.width;
+    e["scrollWidth"] = this.scrollWidth;
+    e["scrollLeft"] = this.scrollLeft;
+    e["height"] = this.height;
+    e["scrollHeight"] = this.scrollHeight;
+    e["scrollTop"] = this.scrollTop;
+    this.shouldRender = this.horizontalScrollbar.onDidScroll(e) || this.shouldRender;
+    this.shouldRender = this.verticalScrollbar.onDidScroll(e) || this.shouldRender;
+    if (this.options.useShadows) {
+      this.shouldRender = true;
+    }
+  }
+
+  void onBarScroll(JsValue update) {
+    if (update["scrollLeft"] != null) {
+      this.scrollLeft = this.clampLeft(seInt(update["scrollLeft"], this.scrollLeft));
+    }
+    if (update["scrollTop"] != null) {
+      this.scrollTop = this.clampTop(seInt(update["scrollTop"], this.scrollTop));
+    }
+    if (this.ownsScrollable) {
+      this.writeModel();
+    }
+    if (this.syncDomScroll && this.element != null) {
+      setScrollLeft(this.element, this.scrollLeft);
+      setScrollTop(this.element, this.scrollTop);
+    }
+    this.syncBars();
+    if (this.revealOnScroll) {
+      this.reveal();
+    }
+    if (!this.options.lazyRender) {
+      this.render();
+    }
+  }
+
+  void onStandardWheel(float incomingDeltaX, float incomingDeltaY, JsValue browserEvent) {
+    if (browserEvent != null && browserEvent["defaultPrevented"].truthy()) {
+      return;
+    }
+    if (SCROLL_WHEEL_SMOOTH_SCROLL_ENABLED) {
+      sharedWheelClassifier.acceptStandardWheelEvent(incomingDeltaX, incomingDeltaY);
+    }
+    bool didScroll = false;
+    if (incomingDeltaY != 0.0 || incomingDeltaX != 0.0) {
+      float deltaY = incomingDeltaY * this.options.mouseWheelScrollSensitivity;
+      float deltaX = incomingDeltaX * this.options.mouseWheelScrollSensitivity;
+      if (this.options.scrollPredominantAxis) {
+        if (this.options.scrollYToX && deltaX + deltaY == 0.0) {
+          deltaX = 0.0;
+          deltaY = 0.0;
+        } else if (absFloat(deltaY) >= absFloat(deltaX)) {
+          deltaX = 0.0;
+        } else {
+          deltaY = 0.0;
+        }
+      }
+      if (this.options.flipAxes) {
+        float swapped = deltaY;
+        deltaY = deltaX;
+        deltaX = swapped;
+      }
+      bool shiftConvert = false;
+      if (!isMacintoshHost() && browserEvent != null && eventShiftKey(browserEvent)) {
+        shiftConvert = true;
+      }
+      if ((this.options.scrollYToX || shiftConvert) && deltaX == 0.0) {
+        deltaX = deltaY;
+        deltaY = 0.0;
+      }
+      if (browserEvent != null && eventAltKey(browserEvent)) {
+        deltaX = deltaX * this.options.fastScrollSensitivity;
+        deltaY = deltaY * this.options.fastScrollSensitivity;
+      }
+      this.pullFromScrollable();
+      int desiredTop = this.scrollTop;
+      int desiredLeft = this.scrollLeft;
+      if (deltaY != 0.0) {
+        float deltaScrollTop = SCROLL_WHEEL_SENSITIVITY * deltaY;
+        desiredTop = this.scrollTop - snapAwayFromZero(deltaScrollTop);
+      }
+      if (deltaX != 0.0) {
+        float deltaScrollLeft = SCROLL_WHEEL_SENSITIVITY * deltaX;
+        desiredLeft = this.scrollLeft - snapAwayFromZero(deltaScrollLeft);
+      }
+      desiredTop = this.clampTop(desiredTop);
+      desiredLeft = this.clampLeft(desiredLeft);
+      if (this.options.inertialScroll && (deltaX != 0.0 || deltaY != 0.0) && !sharedWheelClassifier.isPhysicalMouseWheel()) {
+        bool startPeriodic = this.inertialX == 0.0 && this.inertialY == 0.0;
+        float magY = absFloat(deltaY);
+        float magX = absFloat(deltaX);
+        if (deltaY < 0.0) {
+          this.inertialY = 0.0 - magY;
+        } else {
+          this.inertialY = magY;
+        }
+        if (deltaX < 0.0) {
+          this.inertialX = 0.0 - magX;
+        } else {
+          this.inertialX = magX;
+        }
+        if (startPeriodic) {
+          this.periodicSync();
+          if (!inertialRunnerScheduled) {
+            inertialRunnerScheduled = true;
+            scheduleTimeoutMs(runInertialTicks, 1000.0 / 60.0);
+          }
+        }
+      }
+      if (this.scrollLeft != desiredLeft || this.scrollTop != desiredTop) {
+        bool canSmooth = SCROLL_WHEEL_SMOOTH_SCROLL_ENABLED
+          && this.options.mouseWheelSmoothScroll
+          && sharedWheelClassifier.isPhysicalMouseWheel();
+        this.applyScroll(desiredLeft, desiredTop, canSmooth);
+        didScroll = true;
+      }
+    }
+    bool consumeMouseWheel = didScroll;
+    if (!consumeMouseWheel && this.options.alwaysConsumeMouseWheel) {
+      consumeMouseWheel = true;
+    }
+    if (!consumeMouseWheel && this.options.consumeMouseWheelIfScrollbarIsNeeded) {
+      if (this.verticalScrollbar.isNeeded() || this.horizontalScrollbar.isNeeded()) {
+        consumeMouseWheel = true;
+      }
+    }
+    if (consumeMouseWheel && browserEvent != null) {
+      preventDefault(browserEvent);
+      stopPropagation(browserEvent);
+    }
+  }
+
+  bool periodicSync() {
+    bool scheduleAgain = false;
+    if (this.inertialX != 0.0 || this.inertialY != 0.0) {
+      this.pullFromScrollable();
+      int nextTop = this.scrollTop - (this.inertialY * 100.0).round().toInt();
+      int nextLeft = this.scrollLeft - (this.inertialX * 100.0).round().toInt();
+      this.applyScroll(nextLeft, nextTop, false);
+      this.inertialX = this.inertialX * 0.9;
+      this.inertialY = this.inertialY * 0.9;
+      if (absFloat(this.inertialX) < 0.01) {
+        this.inertialX = 0.0;
+      }
+      if (absFloat(this.inertialY) < 0.01) {
+        this.inertialY = 0.0;
+      }
+      if (this.inertialX != 0.0 || this.inertialY != 0.0) {
+        scheduleAgain = true;
+      }
+    }
+    return scheduleAgain;
+  }
+
+  void setListeningToMouseWheel(bool shouldListen) {
+    if (this.mouseWheelListening == shouldListen) {
+      return;
+    }
+    if (this.mouseWheelListening) {
+      removeEventListener(this.listenOnDomNode, "wheel", onScrollableBrowserWheel, false);
+      this.mouseWheelListening = false;
+    }
+    if (shouldListen) {
+      addEventListener(this.listenOnDomNode, "wheel", onScrollableBrowserWheel, false);
+      this.mouseWheelListening = true;
+    }
+  }
+
+  void render() {
+    if (!this.shouldRender) {
+      return;
+    }
+    this.shouldRender = false;
+    this.horizontalScrollbar.render();
+    this.verticalScrollbar.render();
+    if (this.options.useShadows) {
+      bool enableTop = this.scrollTop > 0;
+      bool enableLeft = this.scrollLeft > 0;
+      string leftClassName = "shadow";
+      if (enableLeft) {
+        leftClassName = "shadow left";
+      }
+      string topClassName = "shadow";
+      if (enableTop) {
+        topClassName = "shadow top";
+      }
+      string topLeftClassName = "shadow";
+      if (enableLeft || enableTop) {
+        topLeftClassName = "shadow top-left-corner";
+      }
+      if (enableTop) {
+        topLeftClassName = topLeftClassName + " top";
+      }
+      if (enableLeft) {
+        topLeftClassName = topLeftClassName + " left";
+      }
+      if (this.leftShadowDomNode != null) {
+        setClassName(this.leftShadowDomNode, leftClassName);
+      }
+      if (this.topShadowDomNode != null) {
+        setClassName(this.topShadowDomNode, topClassName);
+      }
+      if (this.topLeftShadowDomNode != null) {
+        setClassName(this.topLeftShadowDomNode, topLeftClassName);
+      }
+    }
+  }
+
+  void onDragStart() {
+    this.isDragging = true;
+    this.reveal();
+  }
+
+  void onDragEnd() {
+    this.isDragging = false;
+    this.hideIfIdle();
+  }
+
+  void onMouseLeave() {
+    this.mouseIsOver = false;
+    this.hideIfIdle();
+  }
+
+  void onMouseOver() {
+    this.mouseIsOver = true;
+    this.reveal();
+  }
+
+  void reveal() {
+    this.verticalScrollbar.beginReveal();
+    this.horizontalScrollbar.beginReveal();
+    this.scheduleHide();
+  }
+
+  void hideIfIdle() {
+    if (!this.mouseIsOver && !this.isDragging) {
+      this.verticalScrollbar.beginHide();
+      this.horizontalScrollbar.beginHide();
+    }
+  }
+
+  void scheduleHide() {
+    if (!this.mouseIsOver && !this.isDragging) {
+      this.hideDeadline = dateNow() + HIDE_TIMEOUT * 1.0;
+      if (!hideRunnerScheduled) {
+        hideRunnerScheduled = true;
+        scheduleTimeoutMs(runHideDeadlines, HIDE_TIMEOUT * 1.0);
+      }
+    }
+  }
+
+  JsValue getDomNode() {
+    return this.domNode;
+  }
+
+  JsValue getOverviewRulerLayoutInfo() {
+    JsValue info = JS.object();
+    info["parent"] = this.domNode;
+    info["insertBefore"] = this.verticalScrollbar.domNode;
+    return info;
+  }
+
+  void delegateVerticalScrollbarPointerDown(JsValue browserEvent) {
+    this.verticalScrollbar.delegatePointerDown(browserEvent);
+  }
+
+  void setScrollDimensions(JsValue dimensions) {
+    if (dimensions["width"] != null) {
+      this.width = seInt(dimensions["width"], this.width);
+    }
+    if (dimensions["scrollWidth"] != null) {
+      this.scrollWidth = seInt(dimensions["scrollWidth"], this.scrollWidth);
+    }
+    if (dimensions["height"] != null) {
+      this.height = seInt(dimensions["height"], this.height);
+    }
+    if (dimensions["scrollHeight"] != null) {
+      this.scrollHeight = seInt(dimensions["scrollHeight"], this.scrollHeight);
+    }
+    this.scrollLeft = this.clampLeft(this.scrollLeft);
+    this.scrollTop = this.clampTop(this.scrollTop);
+    if (this.ownsScrollable) {
+      this.writeModel();
+    } else if (this.scrollable != null && this.scrollable["setScrollDimensions"].truthy()) {
+      hostCall(
+        this.scrollable,
+        "setScrollDimensions",
+        dimensions,
+        jsUndefined(),
+        jsUndefined()
+      );
+    }
+    this.syncBars();
+    if (!this.options.lazyRender) {
+      this.render();
+    }
+  }
+
+  JsValue getScrollDimensions() {
+    if (this.scrollable != null && this.scrollable["getScrollDimensions"].truthy()) {
+      return hostCall(
+        this.scrollable,
+        "getScrollDimensions",
+        jsUndefined(),
+        jsUndefined(),
+        jsUndefined()
+      );
+    }
+    JsValue dims = JS.object();
+    dims["width"] = this.width;
+    dims["scrollWidth"] = this.scrollWidth;
+    dims["height"] = this.height;
+    dims["scrollHeight"] = this.scrollHeight;
+    return dims;
+  }
+
+  void setScrollPositionNow(JsValue update) {
+    int nextLeft = this.scrollLeft;
+    int nextTop = this.scrollTop;
+    if (update["scrollLeft"] != null) {
+      nextLeft = seInt(update["scrollLeft"], nextLeft);
+    }
+    if (update["scrollTop"] != null) {
+      nextTop = seInt(update["scrollTop"], nextTop);
+    }
+    this.applyScroll(nextLeft, nextTop, false);
+  }
+
+  void setScrollPositionSmooth(JsValue update) {
+    int nextLeft = this.scrollLeft;
+    int nextTop = this.scrollTop;
+    if (update["scrollLeft"] != null) {
+      nextLeft = seInt(update["scrollLeft"], nextLeft);
+    }
+    if (update["scrollTop"] != null) {
+      nextTop = seInt(update["scrollTop"], nextTop);
+    }
+    bool reuse = update["reuseAnimation"].truthy();
+    this.applyScroll(nextLeft, nextTop, reuse || this.options.mouseWheelSmoothScroll);
+  }
+
+  JsValue getScrollPosition() {
+    JsValue pos = JS.object();
+    pos["scrollLeft"] = this.scrollLeft;
+    pos["scrollTop"] = this.scrollTop;
+    return pos;
+  }
+
+  void updateClassName(string newClassName) {
+    this.options.className = newClassName;
+    if (isMacintoshHost()) {
+      this.options.className = this.options.className + " mac";
+    }
+    setClassName(this.domNode, "monaco-scrollable-element " + this.options.className);
+  }
+
+  void updateOptions(JsValue newOptions) {
+    if (newOptions["handleMouseWheel"] != null) {
+      this.options.handleMouseWheel = newOptions["handleMouseWheel"].truthy();
+      this.setListeningToMouseWheel(this.options.handleMouseWheel);
+    }
+    if (newOptions["mouseWheelScrollSensitivity"] != null) {
+      this.options.mouseWheelScrollSensitivity = seNumber(
+        newOptions["mouseWheelScrollSensitivity"],
+        this.options.mouseWheelScrollSensitivity
+      );
+    }
+    if (newOptions["fastScrollSensitivity"] != null) {
+      this.options.fastScrollSensitivity = seNumber(
+        newOptions["fastScrollSensitivity"],
+        this.options.fastScrollSensitivity
+      );
+    }
+    if (newOptions["scrollPredominantAxis"] != null) {
+      this.options.scrollPredominantAxis = newOptions["scrollPredominantAxis"].truthy();
+    }
+    if (newOptions["horizontal"] != null) {
+      this.options.horizontal = seInt(newOptions["horizontal"], this.options.horizontal);
+    }
+    if (newOptions["vertical"] != null) {
+      this.options.vertical = seInt(newOptions["vertical"], this.options.vertical);
+    }
+    if (newOptions["horizontalScrollbarSize"] != null) {
+      this.options.horizontalScrollbarSize = seInt(
+        newOptions["horizontalScrollbarSize"],
+        this.options.horizontalScrollbarSize
+      );
+    }
+    if (newOptions["verticalScrollbarSize"] != null) {
+      this.options.verticalScrollbarSize = seInt(
+        newOptions["verticalScrollbarSize"],
+        this.options.verticalScrollbarSize
+      );
+    }
+    if (newOptions["scrollByPage"] != null) {
+      this.options.scrollByPage = newOptions["scrollByPage"].truthy();
+    }
+    this.horizontalScrollbar.updateOptions(this.options);
+    this.verticalScrollbar.updateOptions(this.options);
+    if (!this.options.lazyRender) {
+      this.render();
+    }
+  }
+
+  void renderNow() {
+    if (!this.options.lazyRender) {
+      throwError("Please use `lazyRender` together with `renderNow`!");
+    }
+    this.shouldRender = true;
+    this.render();
+  }
+
+  void scanDomNode() {
+    this.width = getClientWidth(this.element);
+    this.scrollWidth = jsPropInt(this.element, "scrollWidth", this.width);
+    this.height = getClientHeight(this.element);
+    this.scrollHeight = getScrollHeight(this.element);
+    this.scrollLeft = getScrollLeft(this.element);
+    this.scrollTop = getScrollTop(this.element);
+    if (this.ownsScrollable) {
+      this.writeModel();
+    }
+    this.syncBars();
+    if (!this.options.lazyRender) {
+      this.render();
+    }
+  }
+
+  void dispose() {
+    this.setListeningToMouseWheel(false);
+    this.hideDeadline = 0.0;
+    this.inertialX = 0.0;
+    this.inertialY = 0.0;
+  }
+
+  void delegateScrollFromMouseWheelEvent(JsValue browserEvent) {
+    WheelMemoryItem converted = new WheelMemoryItem(0.0, 0.0, 0.0);
+    convertBrowserWheel(browserEvent, converted);
+    this.onStandardWheel(converted.deltaX, converted.deltaY, browserEvent);
+  }
+}
+
+export class ScrollableElement {
+  AbstractScrollableElement inner;
+
+  init(JsValue element, JsValue options) {
+    this.inner = new AbstractScrollableElement(element, options, null, 0);
+  }
+
+  JsValue getDomNode() {
+    return this.inner.getDomNode();
+  }
+
+  void setScrollPosition(JsValue update) {
+    this.inner.setScrollPositionNow(update);
+  }
+
+  void setScrollDimensions(JsValue dimensions) {
+    this.inner.setScrollDimensions(dimensions);
+  }
+
+  JsValue getScrollDimensions() {
+    return this.inner.getScrollDimensions();
+  }
+
+  void updateOptions(JsValue newOptions) {
+    this.inner.updateOptions(newOptions);
+  }
+
+  void renderNow() {
+    this.inner.renderNow();
+  }
+
+  void dispose() {
+    this.inner.dispose();
+  }
+
+  void delegateVerticalScrollbarPointerDown(JsValue browserEvent) {
+    this.inner.delegateVerticalScrollbarPointerDown(browserEvent);
+  }
+
+  void delegateScrollFromMouseWheelEvent(JsValue browserEvent) {
+    this.inner.delegateScrollFromMouseWheelEvent(browserEvent);
+  }
+}
+
+export class SmoothScrollableElement {
+  AbstractScrollableElement inner;
+
+  init(JsValue element, JsValue options, JsValue scrollable) {
+    this.inner = new AbstractScrollableElement(element, options, scrollable, 1);
+  }
+
+  JsValue getDomNode() {
+    return this.inner.getDomNode();
+  }
+
+  void setScrollPosition(JsValue update) {
+    if (update["reuseAnimation"].truthy()) {
+      this.inner.setScrollPositionSmooth(update);
+    } else {
+      this.inner.setScrollPositionNow(update);
+    }
+  }
+
+  JsValue getScrollPosition() {
+    return this.inner.getScrollPosition();
+  }
+
+  void setScrollDimensions(JsValue dimensions) {
+    this.inner.setScrollDimensions(dimensions);
+  }
+
+  void updateOptions(JsValue newOptions) {
+    this.inner.updateOptions(newOptions);
+  }
+
+  void renderNow() {
+    this.inner.renderNow();
+  }
+
+  void dispose() {
+    this.inner.dispose();
+  }
+}
+
+export class DomScrollableElement {
+  AbstractScrollableElement inner;
+
+  init(JsValue element, JsValue options) {
+    this.inner = new AbstractScrollableElement(element, options, null, 2);
+    this.inner.scanDomNode();
+  }
+
+  JsValue getDomNode() {
+    return this.inner.getDomNode();
+  }
+
+  void setScrollPosition(JsValue update) {
+    this.inner.setScrollPositionNow(update);
+  }
+
+  JsValue getScrollPosition() {
+    return this.inner.getScrollPosition();
+  }
+
+  void scanDomNode() {
+    this.inner.scanDomNode();
+  }
+
+  void setScrollDimensions(JsValue dimensions) {
+    this.inner.setScrollDimensions(dimensions);
+  }
+
+  void updateOptions(JsValue newOptions) {
+    this.inner.updateOptions(newOptions);
+  }
+
+  void dispose() {
+    this.inner.dispose();
+  }
+}
+
+export ScrollableElement createScrollableElement(JsValue element, JsValue options) {
+  return new ScrollableElement(element, options);
+}
+
+export SmoothScrollableElement createSmoothScrollableElement(
+  JsValue element,
+  JsValue options,
+  JsValue scrollable
+) {
+  return new SmoothScrollableElement(element, options, scrollable);
+}
+
+export DomScrollableElement createDomScrollableElement(JsValue element, JsValue options) {
+  return new DomScrollableElement(element, options);
+}
+
+export MouseWheelClassifier createMouseWheelClassifier() {
+  return new MouseWheelClassifier();
+}

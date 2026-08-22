@@ -1,0 +1,180 @@
+export int PAGE_UNRESOLVED = 0;
+export int PAGE_RESOLVING = 1;
+export int PAGE_RESOLVED = 2;
+export int PAGE_FAILED = 3;
+
+export class PagedEntry {
+  int index;
+  int state;
+  int generation;
+  JsValue value;
+  JsValue error;
+  JsValue promise;
+
+  init(int index) {
+    this.index = index;
+    this.state = PAGE_UNRESOLVED;
+    this.generation = 0;
+    this.value = null;
+    this.error = null;
+    this.promise = null;
+  }
+
+  int beginResolve(JsValue promise) {
+    this.generation = this.generation + 1;
+    this.state = PAGE_RESOLVING;
+    this.promise = promise;
+    this.error = null;
+    return this.generation;
+  }
+
+  bool complete(int generation, JsValue value) {
+    if (generation != this.generation || this.state != PAGE_RESOLVING) {
+      return false;
+    }
+    this.value = value;
+    this.promise = null;
+    this.state = PAGE_RESOLVED;
+    return true;
+  }
+
+  bool fail(int generation, JsValue error) {
+    if (generation != this.generation || this.state != PAGE_RESOLVING) {
+      return false;
+    }
+    this.error = error;
+    this.promise = null;
+    this.state = PAGE_FAILED;
+    return true;
+  }
+
+  void invalidate() {
+    this.generation = this.generation + 1;
+    this.state = PAGE_UNRESOLVED;
+    this.value = null;
+    this.error = null;
+    this.promise = null;
+  }
+}
+
+export class PagedList {
+  PagedEntry[] entries;
+  int[] focus;
+  int[] selection;
+
+  init(int length = 0) {
+    this.entries = [];
+    this.focus = [];
+    this.selection = [];
+    this.setLength(length);
+  }
+
+  int length() {
+    return this.entries.length;
+  }
+
+  void setLength(int length) {
+    int nextLength = length;
+    if (nextLength < 0) {
+      nextLength = 0;
+    }
+    while (this.entries.length < nextLength) {
+      this.entries.push(new PagedEntry(this.entries.length));
+    }
+    if (this.entries.length > nextLength) {
+      this.entries.splice(nextLength, this.entries.length - nextLength);
+    }
+    this.focus = this.validIndexes(this.focus);
+    this.selection = this.validIndexes(this.selection);
+  }
+
+  int[] validIndexes(int[] indexes) {
+    int[] result = [];
+    int i = 0;
+    while (i < indexes.length) {
+      int index = indexes[i];
+      if (index >= 0 && index < this.entries.length && result.indexOf(index) < 0) {
+        result.push(index);
+      }
+      i = i + 1;
+    }
+    return result;
+  }
+
+  bool isResolved(int index) {
+    return index >= 0
+      && index < this.entries.length
+      && this.entries[index].state == PAGE_RESOLVED;
+  }
+
+  JsValue get(int index) {
+    if (!this.isResolved(index)) {
+      throw "Paged entry is not resolved";
+    }
+    return this.entries[index].value;
+  }
+
+  int beginResolve(int index, JsValue promise) {
+    if (index < 0 || index >= this.entries.length) {
+      return -1;
+    }
+    return this.entries[index].beginResolve(promise);
+  }
+
+  bool completeResolve(int index, int generation, JsValue value) {
+    if (index < 0 || index >= this.entries.length) {
+      return false;
+    }
+    return this.entries[index].complete(generation, value);
+  }
+
+  bool failResolve(int index, int generation, JsValue error) {
+    if (index < 0 || index >= this.entries.length) {
+      return false;
+    }
+    return this.entries[index].fail(generation, error);
+  }
+
+  void invalidate(int index) {
+    if (index >= 0 && index < this.entries.length) {
+      this.entries[index].invalidate();
+    }
+  }
+
+  void setFocus(int[] indexes) {
+    this.focus = this.validIndexes(indexes);
+  }
+
+  int[] getFocus() {
+    return this.focus.slice();
+  }
+
+  void setSelection(int[] indexes) {
+    this.selection = this.validIndexes(indexes);
+  }
+
+  int[] getSelection() {
+    return this.selection.slice();
+  }
+
+  JsValue[] getSelectedElements() {
+    JsValue[] result = [];
+    int i = 0;
+    while (i < this.selection.length) {
+      int index = this.selection[i];
+      if (this.entries[index].state == PAGE_RESOLVED) {
+        result.push(this.entries[index].value);
+      }
+      i = i + 1;
+    }
+    return result;
+  }
+}
+
+export PagedEntry createPagedEntry(int index) {
+  return new PagedEntry(index);
+}
+
+export PagedList createPagedList(int length = 0) {
+  return new PagedList(length);
+}

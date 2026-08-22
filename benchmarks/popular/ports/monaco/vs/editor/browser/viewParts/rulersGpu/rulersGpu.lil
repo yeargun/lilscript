@@ -1,0 +1,85 @@
+int imax(int a, int b) {
+  if (a > b) {
+    return a;
+  }
+  return b;
+}
+
+export class GpuRuler {
+  int column;
+  float r;
+  float g;
+  float b;
+  float a;
+
+  init(int column, float r, float g, float b, float a) {
+    this.column = column;
+    this.r = r;
+    this.g = g;
+    this.b = b;
+    this.a = a;
+  }
+}
+
+export class GpuRulerShape {
+  float x;
+  float y;
+  float w;
+  float h;
+  float r;
+  float g;
+  float b;
+  float a;
+
+  init(float x, float y, float w, float h, float r, float g, float b, float a) {
+    this.x = x;
+    this.y = y;
+    this.w = w;
+    this.h = h;
+    this.r = r;
+    this.g = g;
+    this.b = b;
+    this.a = a;
+  }
+}
+
+export class RulersGpu {
+  GpuRuler[] rulers;
+  float typicalHalfwidthCharacterWidth;
+  float devicePixelRatio;
+  GpuRulerShape[] shapes;
+
+  init(float typicalHalfwidthCharacterWidth, float devicePixelRatio) {
+    this.rulers = [];
+    this.typicalHalfwidthCharacterWidth = typicalHalfwidthCharacterWidth;
+    this.devicePixelRatio = devicePixelRatio;
+    this.shapes = [];
+  }
+
+  void setRulers(GpuRuler[] rulers) {
+    this.rulers = rulers;
+  }
+
+  void updateEntries() {
+    this.shapes = [];
+    int i = 0;
+    while (i < this.rulers.length) {
+      GpuRuler ruler = this.rulers[i];
+      float x = ruler.column * this.typicalHalfwidthCharacterWidth * this.devicePixelRatio;
+      float w = this.devicePixelRatio.ceil();
+      if (w < 1.0) {
+        w = 1.0;
+      }
+      this.shapes.push(new GpuRulerShape(x, 0.0, w, 9007199254740991.0, ruler.r, ruler.g, ruler.b, ruler.a));
+      i = i + 1;
+    }
+  }
+}
+
+export GpuRuler createGpuRuler(int column, float r, float g, float b, float a) {
+  return new GpuRuler(column, r, g, b, a);
+}
+
+export RulersGpu createRulersGpu(float typicalHalfwidthCharacterWidth, float devicePixelRatio) {
+  return new RulersGpu(typicalHalfwidthCharacterWidth, devicePixelRatio);
+}

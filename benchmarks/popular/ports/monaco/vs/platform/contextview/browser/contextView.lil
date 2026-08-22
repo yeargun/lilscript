@@ -1,0 +1,20 @@
+export class AnchorRect {
+  int x;
+  int y;
+  int width;
+  int height;
+
+  init(int x, int y, int width, int height) {
+    this.x = x;
+    this.y = y;
+    this.width = width;
+    this.height = height;
+  }
+}
+
+export AnchorRect getAnchorRect(int x, int y, int width, int height) {
+  return new AnchorRect(x, y, width, height);
+}
+
+export string IContextViewServiceId = "contextViewService";
+export string IContextMenuServiceId = "contextMenuService";

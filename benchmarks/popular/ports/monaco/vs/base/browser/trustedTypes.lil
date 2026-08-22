@@ -1,0 +1,15 @@
+import { windowSelf, hostCall, jsUndefined } from "../../../js-host";
+
+export JsValue createTrustedTypesPolicy(string policyName, JsValue policyOptions) {
+  JsValue root = windowSelf();
+  JsValue environment = root["MonacoEnvironment"];
+  JsValue missing = jsUndefined();
+  if (environment.truthy() && environment["createTrustedTypesPolicy"].truthy()) {
+    return hostCall(environment, "createTrustedTypesPolicy", policyName, policyOptions, missing);
+  }
+  JsValue trustedTypes = root["trustedTypes"];
+  if (trustedTypes.truthy()) {
+    return hostCall(trustedTypes, "createPolicy", policyName, policyOptions, missing);
+  }
+  return missing;
+}

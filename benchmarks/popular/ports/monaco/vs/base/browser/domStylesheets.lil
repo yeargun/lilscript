@@ -1,0 +1,108 @@
+import { windowSelf, domCreateElement, appendChild, setAttribute, setTextContent, jsArrayLen, jsArrayAt, jsPropString, hostCall, jsUndefined } from "../../../js-host";
+
+JsValue sharedStyleSheet = null;
+
+JsValue documentHead() {
+  return windowSelf()["document"]["head"];
+}
+
+export JsValue createStyleSheet(JsValue container, func(JsValue)->void beforeAppend) {
+  JsValue style = domCreateElement("style");
+  setAttribute(style, "type", "text/css");
+  setAttribute(style, "media", "screen");
+  beforeAppend(style);
+  JsValue parent = container;
+  if (!parent.truthy()) {
+    parent = documentHead();
+  }
+  appendChild(parent, style);
+  return style;
+}
+
+export JsValue createEmptyStyleSheet() {
+  JsValue style = domCreateElement("style");
+  setAttribute(style, "type", "text/css");
+  setAttribute(style, "media", "screen");
+  appendChild(documentHead(), style);
+  return style;
+}
+
+JsValue getSharedStyleSheet() {
+  if (!sharedStyleSheet.truthy()) {
+    sharedStyleSheet = createEmptyStyleSheet();
+  }
+  return sharedStyleSheet;
+}
+
+export void createCSSRule(string selector, string cssText, JsValue style) {
+  if (cssText.length == 0) {
+    return;
+  }
+  JsValue target = style;
+  if (!target.truthy()) {
+    target = getSharedStyleSheet();
+  }
+  JsValue sheet = target["sheet"];
+  JsValue missing = jsUndefined();
+  hostCall(sheet, "insertRule", selector + " {" + cssText + "}", 0, missing);
+}
+
+export void removeCSSRulesContainingSelector(string ruleName, JsValue style) {
+  JsValue target = style;
+  if (!target.truthy()) {
+    target = getSharedStyleSheet();
+  }
+  JsValue sheet = target["sheet"];
+  JsValue rules = sheet["cssRules"];
+  int[] toDelete = [];
+  int i = 0;
+  while (i < jsArrayLen(rules)) {
+    JsValue rule = jsArrayAt(rules, i);
+    string selector = jsPropString(rule, "selectorText", "");
+    if (selector.indexOf(ruleName) >= 0) {
+      toDelete.push(i);
+    }
+    i = i + 1;
+  }
+  JsValue missing = jsUndefined();
+  i = toDelete.length - 1;
+  while (i >= 0) {
+    hostCall(sheet, "deleteRule", toDelete[i], missing, missing);
+    i = i - 1;
+  }
+}
+
+export class WrappedStyleElement {
+  string currentCssStyle;
+  JsValue styleSheet;
+
+  init() {
+    this.currentCssStyle = "";
+    this.styleSheet = null;
+  }
+
+  void setStyle(string cssStyle) {
+    if (cssStyle == this.currentCssStyle) {
+      return;
+    }
+    this.currentCssStyle = cssStyle;
+    if (!this.styleSheet.truthy()) {
+      this.styleSheet = createEmptyStyleSheet();
+    }
+    setTextContent(this.styleSheet, cssStyle);
+  }
+
+  void dispose() {
+    if (this.styleSheet.truthy()) {
+      JsValue missing = jsUndefined();
+      hostCall(this.styleSheet, "remove", missing, missing, missing);
+    }
+    this.styleSheet = null;
+  }
+}
+
+export WrappedStyleElement createStyleSheetFromObservable(string css) {
+  WrappedStyleElement element = new WrappedStyleElement();
+  element.setStyle(css);
+  return element;
+}

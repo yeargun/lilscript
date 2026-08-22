@@ -1,0 +1,46 @@
+import { DEV } from "../dev-flag.lil";
+import {
+  apply,
+  inOp,
+  isNullish,
+  stringifyKey,
+  toStr
+} from "../host.lil";
+import {
+  MAKE_BREAK,
+  MAKE_CANCEL
+} from "../constants.lil";
+import { die } from "../errors.lil";
+import { deepEnhancerFn } from "./modifiers.lil";
+
+export JsValue annotationOwnMake = JS.method3((JsValue self, JsValue adm, JsValue key, JsValue descriptor) => {
+  JsValue outcome = JS.call(self["extend_"], self, adm, key, descriptor, false);
+  if (JS.isNullish(outcome)) {
+    return MAKE_CANCEL;
+  }
+  return MAKE_BREAK;
+});
+
+JsValue observableAnnotationExtend = JS.methodRest((JsValue self, JsValue args) => {
+  JsValue adm = args[0];
+  JsValue key = args[1];
+  JsValue descriptor = args[2];
+  JsValue proxyTrap = args[3];
+  if (DEV && !inOp("value", descriptor)) {
+    die("Cannot apply '" + toStr(self["annotationType_"]) + "' to '" + toStr(adm["name_"]) + "." + stringifyKey(key) + "':\n'" + toStr(self["annotationType_"]) + "' cannot be used on getter/setter properties");
+  }
+  JsValue enhancer = deepEnhancerFn;
+  if (self["options_"].truthy() && self["options_"]["enhancer_"].truthy()) {
+    enhancer = self["options_"]["enhancer_"];
+  }
+  return JS.call(adm["defineObservableProperty_"], adm, key, descriptor["value"], enhancer, proxyTrap);
+});
+
+export JsValue createObservableAnnotation(string name, JsValue options) {
+  JsValue annotation = JS.object();
+  annotation["annotationType_"] = name;
+  annotation["options_"] = options;
+  annotation["make_"] = annotationOwnMake;
+  annotation["extend_"] = observableAnnotationExtend;
+  return annotation;
+}

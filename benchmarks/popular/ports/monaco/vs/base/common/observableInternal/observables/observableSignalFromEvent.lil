@@ -1,0 +1,85 @@
+export class EventSignalObserver {
+  func(FromEventObservableSignal)->void beginFn;
+  func(FromEventObservableSignal)->void endFn;
+  func(FromEventObservableSignal)->void changeFn;
+
+  init(
+    func(FromEventObservableSignal)->void beginFn,
+    func(FromEventObservableSignal)->void endFn,
+    func(FromEventObservableSignal)->void changeFn
+  ) {
+    this.beginFn = beginFn;
+    this.endFn = endFn;
+    this.changeFn = changeFn;
+  }
+}
+
+export class FromEventObservableSignal {
+  string debugName;
+  func(func()->void)->func()->void eventFn;
+  EventSignalObserver[] observers;
+  bool subscribed;
+  func()->void disposeSubscription;
+  int version;
+
+  init(string debugName, func(func()->void)->func()->void eventFn) {
+    this.debugName = debugName;
+    this.eventFn = eventFn;
+    this.observers = [];
+    this.subscribed = false;
+    this.disposeSubscription = () => {};
+    this.version = 0;
+  }
+
+  void handleEvent() {
+    this.version = this.version + 1;
+    EventSignalObserver[] snapshot = this.observers.slice();
+    int i = 0;
+    while (i < snapshot.length) {
+      snapshot[i].beginFn(this);
+      snapshot[i].changeFn(this);
+      snapshot[i].endFn(this);
+      i = i + 1;
+    }
+  }
+
+  void addObserver(EventSignalObserver observer) {
+    if (this.observers.indexOf(observer) >= 0) {
+      return;
+    }
+    bool wasEmpty = this.observers.length == 0;
+    this.observers.push(observer);
+    if (wasEmpty) {
+      this.disposeSubscription = this.eventFn(() => {
+        this.handleEvent();
+      });
+      this.subscribed = true;
+    }
+  }
+
+  void removeObserver(EventSignalObserver observer) {
+    int index = this.observers.indexOf(observer);
+    if (index >= 0) {
+      this.observers.splice(index, 1);
+    }
+    if (this.observers.length == 0 && this.subscribed) {
+      this.disposeSubscription();
+      this.subscribed = false;
+    }
+  }
+
+  int get() {
+    return this.version;
+  }
+
+  int read() {
+    return this.version;
+  }
+}
+
+export FromEventObservableSignal observableSignalFromEvent(
+  string debugName,
+  func(func()->void)->func()->void eventFn
+) {
+  return new FromEventObservableSignal(debugName, eventFn);
+}

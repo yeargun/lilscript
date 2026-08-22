@@ -1,0 +1,101 @@
+export class GlyphLineRange {
+  int startLineNumber;
+  int endLineNumber;
+
+  init(int startLineNumber, int endLineNumber) {
+    this.startLineNumber = startLineNumber;
+    this.endLineNumber = endLineNumber;
+  }
+}
+
+export class GlyphMarginLanesModel {
+  int persist;
+  int requiredLanes;
+  int[] laneMasks;
+
+  init(int maxLine) {
+    this.persist = 0;
+    this.requiredLanes = 1;
+    this.laneMasks = [];
+    int i = 0;
+    while (i <= maxLine) {
+      this.laneMasks.push(0);
+      i = i + 1;
+    }
+  }
+
+  void reset(int maxLine) {
+    this.requiredLanes = 1;
+    this.laneMasks = [];
+    int i = 0;
+    while (i <= maxLine) {
+      this.laneMasks.push(0);
+      i = i + 1;
+    }
+  }
+
+  int countAtLine(int lineNumber) {
+    int mask = this.persist;
+    if (lineNumber >= 0 && lineNumber < this.laneMasks.length) {
+      mask = mask | this.laneMasks[lineNumber];
+    }
+    int count = 0;
+    int lane = 0;
+    while (lane < 3) {
+      if ((mask & (1 << lane)) != 0) {
+        count = count + 1;
+      }
+      lane = lane + 1;
+    }
+    return count;
+  }
+
+  void push(int lane, GlyphLineRange range, bool shouldPersist) {
+    if (lane < 1 || lane > 3) {
+      return;
+    }
+    int laneBit = 1 << (lane - 1);
+    if (shouldPersist) {
+      this.persist = this.persist | laneBit;
+    }
+    int lineNumber = range.startLineNumber;
+    while (lineNumber <= range.endLineNumber) {
+      while (lineNumber >= this.laneMasks.length) {
+        this.laneMasks.push(0);
+      }
+      this.laneMasks[lineNumber] = this.laneMasks[lineNumber] | laneBit;
+      int count = this.countAtLine(lineNumber);
+      if (count > this.requiredLanes) {
+        this.requiredLanes = count;
+      }
+      lineNumber = lineNumber + 1;
+    }
+  }
+
+  int[] getLanesAtLine(int lineNumber) {
+    int[] result = [];
+    int mask = this.persist;
+    if (lineNumber >= 0 && lineNumber < this.laneMasks.length) {
+      mask = mask | this.laneMasks[lineNumber];
+    }
+    int lane = 0;
+    while (lane < 3) {
+      if ((mask & (1 << lane)) != 0) {
+        result.push(lane + 1);
+      }
+      lane = lane + 1;
+    }
+    if (result.length == 0) {
+      result.push(2);
+    }
+    return result;
+  }
+}
+
+export GlyphMarginLanesModel createGlyphMarginLanesModel(int maxLine) {
+  return new GlyphMarginLanesModel(maxLine);
+}
+
+export GlyphLineRange createGlyphLineRange(int startLineNumber, int endLineNumber) {
+  return new GlyphLineRange(startLineNumber, endLineNumber);
+}

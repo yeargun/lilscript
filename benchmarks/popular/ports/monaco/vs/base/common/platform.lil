@@ -1,0 +1,39 @@
+import { scheduleTimeoutMs } from "../../../js-host";
+
+export string LANGUAGE_DEFAULT = "en";
+export int PlatformWeb = 0;
+export int PlatformMac = 1;
+export int PlatformLinux = 2;
+export int PlatformWindows = 3;
+export int OperatingSystemWindows = 1;
+export int OperatingSystemMacintosh = 2;
+export int OperatingSystemLinux = 3;
+export bool isWindows = false;
+export bool isMacintosh = false;
+export bool isLinux = true;
+export bool isNative = false;
+export bool isElectron = false;
+export bool isWeb = true;
+export bool isWebWorker = false;
+export bool isIOS = false;
+export bool isMobile = false;
+export int platform = 2;
+export int OS = 3;
+export string language = "en";
+export string locale = "en";
+export string platformLocale = "en";
+export string userAgent = "";
+export bool setTimeout0IsFaster = false;
+export bool isChrome = false;
+export bool isFirefox = false;
+export bool isSafari = false;
+export bool isEdge = false;
+export bool isAndroid = false;
+
+export JsValue setTimeout0(JsValue callback) {
+  return scheduleTimeoutMs(callback, 0.0);
+}
+
+export bool isLittleEndian() {
+  return true;
+}

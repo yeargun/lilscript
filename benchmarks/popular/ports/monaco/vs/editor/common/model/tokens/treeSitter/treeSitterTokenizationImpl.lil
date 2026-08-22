@@ -1,0 +1,344 @@
+export int TokenQualityNone = 0;
+export int TokenQualityEditGuess = 1;
+export int TokenQualityViewportGuess = 2;
+export int TokenQualityAccurate = 3;
+
+export class Capture {
+  string name;
+  string text;
+  int startIndex;
+  int endIndex;
+  int encodedLanguageId;
+  int metadata;
+
+  init(
+    string name,
+    string text,
+    int startIndex,
+    int endIndex,
+    int encodedLanguageId,
+    int metadata
+  ) {
+    this.name = name;
+    this.text = text;
+    this.startIndex = startIndex;
+    this.endIndex = endIndex;
+    this.encodedLanguageId = encodedLanguageId;
+    this.metadata = metadata;
+  }
+}
+
+export class EndOffsetToken {
+  int endOffset;
+  int metadata;
+  bool containsBracket;
+
+  init(int endOffset, int metadata, bool containsBracket) {
+    this.endOffset = endOffset;
+    this.metadata = metadata;
+    this.containsBracket = containsBracket;
+  }
+}
+
+export class TokenUpdate {
+  int startOffsetInclusive;
+  int length;
+  int token;
+
+  init(int startOffsetInclusive, int length, int token) {
+    this.startOffsetInclusive = startOffsetInclusive;
+    this.length = length;
+    this.token = token;
+  }
+}
+
+bool textContainsBracket(string text) {
+  int i = 0;
+  while (i < text.length) {
+    string ch = text.charAt(i);
+    if (
+      ch == "{" || ch == "}" || ch == "[" || ch == "]" || ch == "<"
+      || ch == ">" || ch == "(" || ch == ")"
+    ) {
+      return true;
+    }
+    i = i + 1;
+  }
+  return false;
+}
+
+void sortInts(int[] values) {
+  int i = 1;
+  while (i < values.length) {
+    int value = values[i];
+    int j = i - 1;
+    while (j >= 0 && values[j] > value) {
+      values[j + 1] = values[j];
+      j = j - 1;
+    }
+    values[j + 1] = value;
+    i = i + 1;
+  }
+}
+
+export class TreeSitterTokenizationImpl {
+  int encodedLanguageId;
+  int emptyMetadata;
+  TokenUpdate[] store;
+  int accurateVersion;
+  int guessVersion;
+
+  init(int encodedLanguageId, int emptyMetadata) {
+    this.encodedLanguageId = encodedLanguageId;
+    this.emptyMetadata = emptyMetadata;
+    this.store = [];
+    this.accurateVersion = -1;
+    this.guessVersion = -1;
+  }
+
+  EndOffsetToken[] createTokensFromCaptures(
+    Capture[] captures,
+    int rangeStartOffset,
+    int rangeEndOffset
+  ) {
+    int rangeLength = rangeEndOffset - rangeStartOffset;
+    int[] boundaries = [0, rangeLength];
+    int i = 0;
+    while (i < captures.length) {
+      int start = captures[i].startIndex - rangeStartOffset;
+      int end = captures[i].endIndex - rangeStartOffset;
+      if (start < 0) {
+        start = 0;
+      }
+      if (end > rangeLength) {
+        end = rangeLength;
+      }
+      if (start < end) {
+        if (boundaries.indexOf(start) < 0) {
+          boundaries.push(start);
+        }
+        if (boundaries.indexOf(end) < 0) {
+          boundaries.push(end);
+        }
+      }
+      i = i + 1;
+    }
+    sortInts(boundaries);
+    EndOffsetToken[] result = [];
+    i = 0;
+    while (i + 1 < boundaries.length) {
+      int segmentStart = boundaries[i];
+      int segmentEnd = boundaries[i + 1];
+      int metadata = this.emptyMetadata;
+      bool containsBracket = false;
+      int bestLength = rangeLength + 1;
+      int c = 0;
+      while (c < captures.length) {
+        int captureStart = captures[c].startIndex - rangeStartOffset;
+        int captureEnd = captures[c].endIndex - rangeStartOffset;
+        if (captureStart <= segmentStart && captureEnd >= segmentEnd) {
+          int captureLength = captureEnd - captureStart;
+          if (captureLength <= bestLength) {
+            metadata = captures[c].metadata;
+            bestLength = captureLength;
+            if (
+              captures[c].name.indexOf("punctuation") >= 0
+              && textContainsBracket(captures[c].text)
+            ) {
+              containsBracket = true;
+            }
+          }
+        }
+        c = c + 1;
+      }
+      if (
+        result.length > 0
+        && result[result.length - 1].metadata == metadata
+        && result[result.length - 1].containsBracket == containsBracket
+      ) {
+        result[result.length - 1].endOffset = segmentEnd;
+      } else {
+        result.push(new EndOffsetToken(segmentEnd, metadata, containsBracket));
+      }
+      i = i + 1;
+    }
+    return result;
+  }
+
+  TokenUpdate[] rangeTokensAsUpdates(
+    int rangeOffset,
+    EndOffsetToken[] tokens,
+    int startingOffsetInArray
+  ) {
+    TokenUpdate[] updates = [];
+    int lastEnd = 0;
+    int i = 0;
+    while (i < tokens.length) {
+      EndOffsetToken token = tokens[i];
+      if (token.endOffset > lastEnd && token.endOffset >= startingOffsetInArray) {
+        int start = lastEnd;
+        if (start < startingOffsetInArray) {
+          start = startingOffsetInArray;
+        }
+        updates.push(
+          new TokenUpdate(
+            rangeOffset + start,
+            token.endOffset - start,
+            token.metadata
+          )
+        );
+        lastEnd = token.endOffset;
+      }
+      i = i + 1;
+    }
+    return updates;
+  }
+
+  void buildStore(int modelLength) {
+    this.store = [new TokenUpdate(0, modelLength, this.emptyMetadata)];
+  }
+
+  void updateStore(int oldRangeLength, TokenUpdate[] newTokens, int quality) {
+    if (newTokens.length == 0) {
+      return;
+    }
+    int start = newTokens[0].startOffsetInclusive;
+    int end = start + oldRangeLength;
+    TokenUpdate[] result = [];
+    int i = 0;
+    while (i < this.store.length) {
+      TokenUpdate token = this.store[i];
+      int tokenEnd = token.startOffsetInclusive + token.length;
+      if (tokenEnd <= start || token.startOffsetInclusive >= end) {
+        result.push(token);
+      }
+      i = i + 1;
+    }
+    i = 0;
+    while (i < newTokens.length) {
+      result.push(newTokens[i]);
+      i = i + 1;
+    }
+    this.sortStore(result);
+    this.store = result;
+  }
+
+  void sortStore(TokenUpdate[] tokens) {
+    int i = 1;
+    while (i < tokens.length) {
+      TokenUpdate value = tokens[i];
+      int j = i - 1;
+      while (
+        j >= 0
+        && tokens[j].startOffsetInclusive > value.startOffsetInclusive
+      ) {
+        tokens[j + 1] = tokens[j];
+        j = j - 1;
+      }
+      tokens[j + 1] = value;
+      i = i + 1;
+    }
+  }
+
+  void handleContentChanged(
+    int rangeOffset,
+    int rangeLength,
+    int insertedLength,
+    int versionId
+  ) {
+    this.guessVersion = versionId;
+    int delta = insertedLength - rangeLength;
+    int i = 0;
+    while (i < this.store.length) {
+      TokenUpdate token = this.store[i];
+      int tokenEnd = token.startOffsetInclusive + token.length;
+      if (
+        token.startOffsetInclusive <= rangeOffset
+        && tokenEnd >= rangeOffset
+      ) {
+        token.length = token.length + delta;
+      } else if (token.startOffsetInclusive > rangeOffset + rangeLength) {
+        token.startOffsetInclusive = token.startOffsetInclusive + delta;
+      }
+      i = i + 1;
+    }
+  }
+
+  EndOffsetToken[] getTokens(int lineStartOffset, int lineEndOffset) {
+    EndOffsetToken[] result = [];
+    int i = 0;
+    while (i < this.store.length) {
+      TokenUpdate token = this.store[i];
+      int tokenEnd = token.startOffsetInclusive + token.length;
+      if (
+        token.startOffsetInclusive < lineEndOffset
+        && tokenEnd > lineStartOffset
+      ) {
+        int end = tokenEnd;
+        if (end > lineEndOffset) {
+          end = lineEndOffset;
+        }
+        result.push(new EndOffsetToken(end - lineStartOffset, token.token, false));
+      }
+      i = i + 1;
+    }
+    return result;
+  }
+
+  int[] endOffsetTokensToIntArray(EndOffsetToken[] tokens) {
+    int[] result = [];
+    int i = 0;
+    while (i < tokens.length) {
+      result.push(tokens[i].endOffset);
+      result.push(tokens[i].metadata);
+      i = i + 1;
+    }
+    return result;
+  }
+
+  bool hasTokens() {
+    return this.store.length > 0;
+  }
+
+  bool hasAccurateTokensForLine(int lineStartOffset, int lineEndOffset) {
+    if (this.accurateVersion == this.guessVersion) {
+      return true;
+    }
+    return this.getTokens(lineStartOffset, lineEndOffset).length > 0;
+  }
+
+  TokenUpdate[] tokenizeRange(
+    Capture[] captures,
+    int rangeStartOffset,
+    int rangeEndOffset,
+    int versionId
+  ) {
+    EndOffsetToken[] tokens = this.createTokensFromCaptures(
+      captures,
+      rangeStartOffset,
+      rangeEndOffset
+    );
+    TokenUpdate[] updates = this.rangeTokensAsUpdates(rangeStartOffset, tokens, 0);
+    this.updateStore(rangeEndOffset - rangeStartOffset, updates, TokenQualityAccurate);
+    this.accurateVersion = versionId;
+    return updates;
+  }
+}
+
+export Capture createTreeSitterCapture(
+  string name,
+  string text,
+  int startIndex,
+  int endIndex,
+  int encodedLanguageId,
+  int metadata
+) {
+  return new Capture(name, text, startIndex, endIndex, encodedLanguageId, metadata);
+}
+
+export TreeSitterTokenizationImpl createTreeSitterTokenizationImpl(
+  int encodedLanguageId,
+  int emptyMetadata
+) {
+  return new TreeSitterTokenizationImpl(encodedLanguageId, emptyMetadata);
+}

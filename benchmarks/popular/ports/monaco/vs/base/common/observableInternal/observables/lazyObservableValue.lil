@@ -1,0 +1,217 @@
+export class LazyValueObserver {
+  func(LazyObservableValue)->void beginUpdateFn;
+  func(LazyObservableValue)->void endUpdateFn;
+  func(LazyObservableValue, JsValue)->void handleChangeFn;
+  func(LazyObservableValue)->void handlePossibleChangeFn;
+
+  init(
+    func(LazyObservableValue)->void beginUpdateFn,
+    func(LazyObservableValue)->void endUpdateFn,
+    func(LazyObservableValue, JsValue)->void handleChangeFn,
+    func(LazyObservableValue)->void handlePossibleChangeFn
+  ) {
+    this.beginUpdateFn = beginUpdateFn;
+    this.endUpdateFn = endUpdateFn;
+    this.handleChangeFn = handleChangeFn;
+    this.handlePossibleChangeFn = handlePossibleChangeFn;
+  }
+
+  void beginUpdate(LazyObservableValue observable) {
+    this.beginUpdateFn(observable);
+  }
+
+  void endUpdate(LazyObservableValue observable) {
+    this.endUpdateFn(observable);
+  }
+
+  void handleChange(LazyObservableValue observable, JsValue change) {
+    this.handleChangeFn(observable, change);
+  }
+
+  void handlePossibleChange(LazyObservableValue observable) {
+    this.handlePossibleChangeFn(observable);
+  }
+}
+
+export class LazyValueTransaction {
+  LazyObservableValue[] values;
+  bool active;
+
+  init() {
+    this.values = [];
+    this.active = true;
+  }
+
+  void updateObservable(LazyObservableValue observable) {
+    if (!this.active) {
+      throw "Transaction already finished";
+    }
+    this.values.push(observable);
+    observable.beginDeferredUpdate();
+  }
+
+  void finish() {
+    int i = 0;
+    while (i < this.values.length) {
+      this.values[i].endDeferredUpdate();
+      i = i + 1;
+    }
+    this.active = false;
+  }
+}
+
+export class LazyObservableValue {
+  string debugName;
+  JsValue value;
+  bool upToDate;
+  JsValue[] deltas;
+  int updateCounter;
+  LazyValueObserver[] observers;
+  func(JsValue, JsValue)->bool equalityComparator;
+
+  init(
+    string debugName,
+    JsValue initialValue,
+    func(JsValue, JsValue)->bool equalityComparator
+  ) {
+    this.debugName = debugName;
+    this.value = initialValue;
+    this.upToDate = true;
+    this.deltas = [];
+    this.updateCounter = 0;
+    this.observers = [];
+    this.equalityComparator = equalityComparator;
+  }
+
+  JsValue get() {
+    this.update();
+    return this.value;
+  }
+
+  void reportChanges() {
+    this.update();
+  }
+
+  void update() {
+    if (this.upToDate) {
+      return;
+    }
+    this.upToDate = true;
+    LazyValueObserver[] snapshot = this.observers.slice();
+    if (this.deltas.length > 0) {
+      int d = 0;
+      while (d < this.deltas.length) {
+        int i = 0;
+        while (i < snapshot.length) {
+          snapshot[i].handleChange(this, this.deltas[d]);
+          i = i + 1;
+        }
+        d = d + 1;
+      }
+      this.deltas = [];
+      return;
+    }
+    int i = 0;
+    while (i < snapshot.length) {
+      snapshot[i].handleChange(this, 0);
+      i = i + 1;
+    }
+  }
+
+  void beginDeferredUpdate() {
+    this.updateCounter = this.updateCounter + 1;
+    if (this.updateCounter == 1) {
+      LazyValueObserver[] snapshot = this.observers.slice();
+      int i = 0;
+      while (i < snapshot.length) {
+        snapshot[i].beginUpdate(this);
+        i = i + 1;
+      }
+    }
+  }
+
+  void endDeferredUpdate() {
+    this.updateCounter = this.updateCounter - 1;
+    if (this.updateCounter == 0) {
+      this.update();
+      LazyValueObserver[] snapshot = this.observers.slice();
+      int i = 0;
+      while (i < snapshot.length) {
+        snapshot[i].endUpdate(this);
+        i = i + 1;
+      }
+    }
+  }
+
+  void addObserver(LazyValueObserver observer) {
+    if (this.observers.indexOf(observer) >= 0) {
+      return;
+    }
+    this.observers.push(observer);
+    if (this.updateCounter > 0) {
+      observer.beginUpdate(this);
+    }
+  }
+
+  void removeObserver(LazyValueObserver observer) {
+    int index = this.observers.indexOf(observer);
+    if (index < 0) {
+      return;
+    }
+    this.observers.splice(index, 1);
+    if (this.updateCounter > 0) {
+      observer.endUpdate(this);
+    }
+  }
+
+  void set(
+    JsValue newValue,
+    LazyValueTransaction? transactionValue,
+    bool hasChange,
+    JsValue change
+  ) {
+    if (!hasChange && this.equalityComparator(this.value, newValue)) {
+      return;
+    }
+    LazyValueTransaction tx = new LazyValueTransaction();
+    bool ownsTransaction = true;
+    if (transactionValue != null) {
+      tx = transactionValue;
+      ownsTransaction = false;
+    }
+    this.upToDate = false;
+    this.value = newValue;
+    if (hasChange) {
+      this.deltas.push(change);
+    }
+    tx.updateObservable(this);
+    if (this.updateCounter > 1) {
+      LazyValueObserver[] snapshot = this.observers.slice();
+      int i = 0;
+      while (i < snapshot.length) {
+        snapshot[i].handlePossibleChange(this);
+        i = i + 1;
+      }
+    }
+    if (ownsTransaction) {
+      tx.finish();
+    }
+  }
+
+  void setValue(JsValue newValue) {
+    this.set(newValue, null, false, 0);
+  }
+}
+
+export LazyObservableValue lazyObservableValue(
+  string debugName,
+  JsValue initialValue
+) {
+  return new LazyObservableValue(
+    debugName,
+    initialValue,
+    (JsValue a, JsValue b) => {
+      return a == b;
+    }
+  );
+}

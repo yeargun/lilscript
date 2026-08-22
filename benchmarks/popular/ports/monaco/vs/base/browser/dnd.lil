@@ -1,0 +1,15 @@
+export string DataTransfersRESOURCES = "ResourceURLs";
+export string DataTransfersDOWNLOAD_URL = "DownloadURL";
+export string DataTransfersFILES = "Files";
+export string DataTransfersTEXT = "text/plain";
+export string DataTransfersINTERNAL_URI_LIST = "application/vnd.code.uri-list";
+
+export JsValue createDataTransfers() {
+  JsValue value = JS.object();
+  value["RESOURCES"] = DataTransfersRESOURCES;
+  value["DOWNLOAD_URL"] = DataTransfersDOWNLOAD_URL;
+  value["FILES"] = DataTransfersFILES;
+  value["TEXT"] = DataTransfersTEXT;
+  value["INTERNAL_URI_LIST"] = DataTransfersINTERNAL_URI_LIST;
+  return value;
+}

@@ -16,6 +16,8 @@ be expressed as a semantic proof, an eligible candidate, and a reproducible abla
 - [Terser, Oxc, esbuild, and Vite](terser-oxc-vite.md) — baseline roles, assumptions, and
   options that should become cases rather than copied unsafe rewrites
 - [Gzip and Brotli](gzip-brotli.md) — why raw-local choices are not transfer optima
+- [Brotli mangling lab](brotli-mangle-lab.html) — static dictionary, transforms, and measured JS spelling quirks
+- [Brotli global-mangle playbook](brotli-global-mangle/README.md) — hundred-KB artifacts, reuse / alphabet / color-merge, gzip vs q11 fights
 
 ## Research-to-compiler rule
 

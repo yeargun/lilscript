@@ -1,0 +1,8 @@
+export string DIFF_EDITOR_CONTRIBUTION_ID = "diffEditor";
+
+export bool isInDiffEditorContext(bool isInDiffEditor) {
+  return isInDiffEditor;
+}
+
+export void registerDiffEditorContributions() {
+}

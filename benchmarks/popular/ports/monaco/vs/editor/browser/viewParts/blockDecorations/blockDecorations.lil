@@ -1,0 +1,109 @@
+int imax(int a, int b) {
+  if (a > b) {
+    return a;
+  }
+  return b;
+}
+
+export class BlockDecoration {
+  int startLineNumber;
+  int endLineNumber;
+  string className;
+  bool blockIsAfterEnd;
+  bool blockDoesNotCollapse;
+  int paddingTop;
+  int paddingRight;
+  int paddingBottom;
+  int paddingLeft;
+
+  init(int startLineNumber, int endLineNumber, string className, bool blockIsAfterEnd, bool blockDoesNotCollapse, int paddingTop, int paddingRight, int paddingBottom, int paddingLeft) {
+    this.startLineNumber = startLineNumber;
+    this.endLineNumber = endLineNumber;
+    this.className = className;
+    this.blockIsAfterEnd = blockIsAfterEnd;
+    this.blockDoesNotCollapse = blockDoesNotCollapse;
+    this.paddingTop = paddingTop;
+    this.paddingRight = paddingRight;
+    this.paddingBottom = paddingBottom;
+    this.paddingLeft = paddingLeft;
+  }
+
+  bool isEmpty() {
+    return this.startLineNumber == this.endLineNumber;
+  }
+}
+
+export class BlockLayout {
+  int left;
+  int width;
+  int top;
+  int height;
+  string className;
+
+  init(int left, int width, int top, int height, string className) {
+    this.left = left;
+    this.width = width;
+    this.top = top;
+    this.height = height;
+    this.className = className;
+  }
+}
+
+export class BlockDecorations {
+  int contentWidth;
+  int contentLeft;
+  int lineHeight;
+
+  init(int contentWidth, int contentLeft, int lineHeight) {
+    this.contentWidth = contentWidth;
+    this.contentLeft = contentLeft;
+    this.lineHeight = lineHeight;
+  }
+
+  int verticalOffsetForLine(int lineNumber) {
+    return (lineNumber - 1) * this.lineHeight;
+  }
+
+  int verticalOffsetAfterLine(int lineNumber, bool includeViewZones) {
+    int offset = lineNumber * this.lineHeight;
+    if (includeViewZones) {
+      return offset;
+    }
+    return offset;
+  }
+
+  BlockLayout[] layout(BlockDecoration[] decorations, int scrollTop) {
+    BlockLayout[] blocks = [];
+    int i = 0;
+    while (i < decorations.length) {
+      BlockDecoration decoration = decorations[i];
+      int top = 0;
+      int bottom = 0;
+      if (decoration.blockIsAfterEnd) {
+        top = this.verticalOffsetAfterLine(decoration.endLineNumber, false);
+        bottom = this.verticalOffsetAfterLine(decoration.endLineNumber, true);
+      } else {
+        top = this.verticalOffsetForLine(decoration.startLineNumber);
+        if (decoration.isEmpty() && !decoration.blockDoesNotCollapse) {
+          bottom = this.verticalOffsetForLine(decoration.startLineNumber);
+        } else {
+          bottom = this.verticalOffsetAfterLine(decoration.endLineNumber, true);
+        }
+      }
+      int left = this.contentLeft - decoration.paddingLeft;
+      int width = this.contentWidth + decoration.paddingLeft + decoration.paddingRight;
+      int height = bottom - top + decoration.paddingTop + decoration.paddingBottom;
+      blocks.push(new BlockLayout(left, width, top - scrollTop - decoration.paddingTop, height, decoration.className));
+      i = i + 1;
+    }
+    return blocks;
+  }
+}
+
+export BlockDecoration createBlockDecoration(int startLineNumber, int endLineNumber, string className, bool blockIsAfterEnd, bool blockDoesNotCollapse, int paddingTop, int paddingRight, int paddingBottom, int paddingLeft) {
+  return new BlockDecoration(startLineNumber, endLineNumber, className, blockIsAfterEnd, blockDoesNotCollapse, paddingTop, paddingRight, paddingBottom, paddingLeft);
+}
+
+export BlockDecorations createBlockDecorations(int contentWidth, int contentLeft, int lineHeight) {
+  return new BlockDecorations(contentWidth, contentLeft, lineHeight);
+}

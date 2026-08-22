@@ -1,0 +1,265 @@
+pure int oneCursorClamp(int value, int low, int high) {
+  if (value < low) {
+    return low;
+  }
+  if (value > high) {
+    return high;
+  }
+  return value;
+}
+
+export class CursorPosition {
+  int lineNumber;
+  int column;
+
+  init(int lineNumber, int column) {
+    this.lineNumber = lineNumber;
+    this.column = column;
+  }
+
+  bool equals(CursorPosition other) {
+    return this.lineNumber == other.lineNumber && this.column == other.column;
+  }
+
+  bool isBeforeOrEqual(CursorPosition other) {
+    if (this.lineNumber != other.lineNumber) {
+      return this.lineNumber < other.lineNumber;
+    }
+    return this.column <= other.column;
+  }
+}
+
+export class CursorRange {
+  int startLineNumber;
+  int startColumn;
+  int endLineNumber;
+  int endColumn;
+
+  init(int startLineNumber, int startColumn, int endLineNumber, int endColumn) {
+    if (startLineNumber > endLineNumber || (startLineNumber == endLineNumber && startColumn > endColumn)) {
+      this.startLineNumber = endLineNumber;
+      this.startColumn = endColumn;
+      this.endLineNumber = startLineNumber;
+      this.endColumn = startColumn;
+    } else {
+      this.startLineNumber = startLineNumber;
+      this.startColumn = startColumn;
+      this.endLineNumber = endLineNumber;
+      this.endColumn = endColumn;
+    }
+  }
+
+  bool isEmpty() {
+    return this.startLineNumber == this.endLineNumber && this.startColumn == this.endColumn;
+  }
+
+  bool equalsRange(CursorRange other) {
+    return this.startLineNumber == other.startLineNumber
+      && this.startColumn == other.startColumn
+      && this.endLineNumber == other.endLineNumber
+      && this.endColumn == other.endColumn;
+  }
+
+  CursorPosition getStartPosition() {
+    return new CursorPosition(this.startLineNumber, this.startColumn);
+  }
+
+  CursorPosition getEndPosition() {
+    return new CursorPosition(this.endLineNumber, this.endColumn);
+  }
+}
+
+export class CursorSelection {
+  int startLineNumber;
+  int startColumn;
+  int endLineNumber;
+  int endColumn;
+  int selectionStartLineNumber;
+  int selectionStartColumn;
+  int positionLineNumber;
+  int positionColumn;
+
+  init(CursorRange selectionStart, CursorPosition position) {
+    CursorPosition anchor = selectionStart.getStartPosition();
+    if (!selectionStart.isEmpty() && position.isBeforeOrEqual(anchor)) {
+      anchor = selectionStart.getEndPosition();
+    }
+    this.selectionStartLineNumber = anchor.lineNumber;
+    this.selectionStartColumn = anchor.column;
+    this.positionLineNumber = position.lineNumber;
+    this.positionColumn = position.column;
+    if (
+      anchor.lineNumber > position.lineNumber
+      || (anchor.lineNumber == position.lineNumber && anchor.column > position.column)
+    ) {
+      this.startLineNumber = position.lineNumber;
+      this.startColumn = position.column;
+      this.endLineNumber = anchor.lineNumber;
+      this.endColumn = anchor.column;
+    } else {
+      this.startLineNumber = anchor.lineNumber;
+      this.startColumn = anchor.column;
+      this.endLineNumber = position.lineNumber;
+      this.endColumn = position.column;
+    }
+  }
+
+  bool isEmpty() {
+    return this.startLineNumber == this.endLineNumber && this.startColumn == this.endColumn;
+  }
+}
+
+export class SingleCursorState {
+  CursorRange selectionStart;
+  int selectionStartKind;
+  int selectionStartLeftoverVisibleColumns;
+  CursorPosition position;
+  int leftoverVisibleColumns;
+  CursorSelection selection;
+
+  init(
+    CursorRange selectionStart,
+    int selectionStartKind,
+    int selectionStartLeftoverVisibleColumns,
+    CursorPosition position,
+    int leftoverVisibleColumns
+  ) {
+    this.selectionStart = selectionStart;
+    this.selectionStartKind = selectionStartKind;
+    this.selectionStartLeftoverVisibleColumns = selectionStartLeftoverVisibleColumns;
+    this.position = position;
+    this.leftoverVisibleColumns = leftoverVisibleColumns;
+    this.selection = new CursorSelection(selectionStart, position);
+  }
+
+  bool equals(SingleCursorState other) {
+    return this.selectionStartLeftoverVisibleColumns == other.selectionStartLeftoverVisibleColumns
+      && this.leftoverVisibleColumns == other.leftoverVisibleColumns
+      && this.selectionStartKind == other.selectionStartKind
+      && this.position.equals(other.position)
+      && this.selectionStart.equalsRange(other.selectionStart);
+  }
+
+  bool hasSelection() {
+    return !this.selection.isEmpty() || !this.selectionStart.isEmpty();
+  }
+
+  SingleCursorState move(
+    bool inSelectionMode,
+    int lineNumber,
+    int column,
+    int leftoverVisibleColumns
+  ) {
+    CursorPosition position = new CursorPosition(lineNumber, column);
+    if (inSelectionMode) {
+      return new SingleCursorState(
+        this.selectionStart,
+        this.selectionStartKind,
+        this.selectionStartLeftoverVisibleColumns,
+        position,
+        leftoverVisibleColumns
+      );
+    }
+    CursorRange range = new CursorRange(lineNumber, column, lineNumber, column);
+    return new SingleCursorState(range, 0, leftoverVisibleColumns, position, leftoverVisibleColumns);
+  }
+}
+
+CursorPosition validateCursorPosition(int[] lineMaxColumns, CursorPosition position) {
+  if (lineMaxColumns.length == 0) {
+    return new CursorPosition(1, 1);
+  }
+  int lineNumber = oneCursorClamp(position.lineNumber, 1, lineMaxColumns.length);
+  int column = oneCursorClamp(position.column, 1, lineMaxColumns[lineNumber - 1]);
+  return new CursorPosition(lineNumber, column);
+}
+
+CursorRange validateCursorRange(int[] lineMaxColumns, CursorRange range) {
+  CursorPosition start = validateCursorPosition(
+    lineMaxColumns,
+    new CursorPosition(range.startLineNumber, range.startColumn)
+  );
+  CursorPosition end = validateCursorPosition(
+    lineMaxColumns,
+    new CursorPosition(range.endLineNumber, range.endColumn)
+  );
+  return new CursorRange(start.lineNumber, start.column, end.lineNumber, end.column);
+}
+
+export class Cursor {
+  SingleCursorState modelState;
+  SingleCursorState viewState;
+  bool trackSelection;
+  CursorRange? trackedRange;
+
+  init(int[] lineMaxColumns) {
+    CursorRange range = new CursorRange(1, 1, 1, 1);
+    CursorPosition position = new CursorPosition(1, 1);
+    this.modelState = new SingleCursorState(range, 0, 0, position, 0);
+    this.viewState = new SingleCursorState(range, 0, 0, position, 0);
+    this.trackSelection = true;
+    this.trackedRange = range;
+    this.ensureValidState(lineMaxColumns);
+  }
+
+  void startTrackingSelection() {
+    this.trackSelection = true;
+    this.trackedRange = new CursorRange(
+      this.modelState.selection.startLineNumber,
+      this.modelState.selection.startColumn,
+      this.modelState.selection.endLineNumber,
+      this.modelState.selection.endColumn
+    );
+  }
+
+  void stopTrackingSelection() {
+    this.trackSelection = false;
+    this.trackedRange = null;
+  }
+
+  void setState(
+    int[] lineMaxColumns,
+    SingleCursorState modelState,
+    SingleCursorState viewState
+  ) {
+    CursorRange selectionStart = validateCursorRange(lineMaxColumns, modelState.selectionStart);
+    CursorPosition position = validateCursorPosition(lineMaxColumns, modelState.position);
+    int selectionLeftover = modelState.selectionStartLeftoverVisibleColumns;
+    if (!selectionStart.equalsRange(modelState.selectionStart)) {
+      selectionLeftover = 0;
+    }
+    int positionLeftover = modelState.leftoverVisibleColumns;
+    if (!position.equals(modelState.position)) {
+      positionLeftover = 0;
+    }
+    this.modelState = new SingleCursorState(
+      selectionStart,
+      modelState.selectionStartKind,
+      selectionLeftover,
+      position,
+      positionLeftover
+    );
+    this.viewState = new SingleCursorState(
+      selectionStart,
+      viewState.selectionStartKind,
+      selectionLeftover,
+      position,
+      positionLeftover
+    );
+    if (this.trackSelection) {
+      this.startTrackingSelection();
+    }
+  }
+
+  void ensureValidState(int[] lineMaxColumns) {
+    this.setState(lineMaxColumns, this.modelState, this.viewState);
+  }
+
+  CursorSelection readSelectionFromMarkers() {
+    CursorRange? tracked = this.trackedRange;
+    if (tracked != null) {
+      return new CursorSelection(tracked, tracked.getEndPosition());
+    }
+    return this.modelState.selection;
+  }
+}

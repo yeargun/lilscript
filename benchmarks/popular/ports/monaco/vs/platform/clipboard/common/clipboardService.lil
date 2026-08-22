@@ -1,0 +1,21 @@
+export class ClipboardService {
+  string text;
+
+  init() {
+    this.text = "";
+  }
+
+  void writeText(string value) {
+    this.text = value;
+  }
+
+  string readText() {
+    return this.text;
+  }
+}
+
+export ClipboardService createClipboardService() {
+  return new ClipboardService();
+}
+
+export string IClipboardServiceId = "clipboardService";

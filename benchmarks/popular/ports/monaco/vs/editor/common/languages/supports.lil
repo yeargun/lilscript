@@ -1,0 +1,75 @@
+import { hostCall, jsUndefined, sliceOf } from "../../../../js-host";
+
+export class ScopedLineTokens {
+  JsValue actual;
+  int languageId;
+  int firstTokenIndex;
+  int lastTokenIndex;
+  int firstCharOffset;
+  int lastCharOffset;
+
+  init(
+    JsValue actual,
+    int languageId,
+    int firstTokenIndex,
+    int lastTokenIndex,
+    int firstCharOffset,
+    int lastCharOffset
+  ) {
+    this.actual = actual;
+    this.languageId = languageId;
+    this.firstTokenIndex = firstTokenIndex;
+    this.lastTokenIndex = lastTokenIndex;
+    this.firstCharOffset = firstCharOffset;
+    this.lastCharOffset = lastCharOffset;
+  }
+
+  string getLineContent() {
+    string content = JS.string(hostCall(this.actual, "getLineContent", jsUndefined(), jsUndefined(), jsUndefined()));
+    return sliceOf(content, this.firstCharOffset, this.lastCharOffset);
+  }
+
+  int getLineLength() {
+    return this.lastCharOffset - this.firstCharOffset;
+  }
+
+  string getActualLineContentBefore(int offset) {
+    string content = JS.string(hostCall(this.actual, "getLineContent", jsUndefined(), jsUndefined(), jsUndefined()));
+    return sliceOf(content, 0, this.firstCharOffset + offset);
+  }
+
+  int getTokenCount() {
+    return this.lastTokenIndex - this.firstTokenIndex;
+  }
+
+  int findTokenIndexAtOffset(int offset) {
+    return JS.number(hostCall(this.actual, "findTokenIndexAtOffset", offset + this.firstCharOffset, jsUndefined(), jsUndefined())).toInt() - this.firstTokenIndex;
+  }
+
+  int getStandardTokenType(int tokenIndex) {
+    return JS.number(hostCall(this.actual, "getStandardTokenType", tokenIndex + this.firstTokenIndex, jsUndefined(), jsUndefined())).toInt();
+  }
+}
+
+export ScopedLineTokens createScopedLineTokens(JsValue context, int offset) {
+  int tokenCount = JS.number(hostCall(context, "getCount", jsUndefined(), jsUndefined(), jsUndefined())).toInt();
+  int tokenIndex = JS.number(hostCall(context, "findTokenIndexAtOffset", offset, jsUndefined(), jsUndefined())).toInt();
+  int languageId = JS.number(hostCall(context, "getLanguageId", tokenIndex, jsUndefined(), jsUndefined())).toInt();
+  int last = tokenIndex;
+  while (last + 1 < tokenCount &&
+    JS.number(hostCall(context, "getLanguageId", last + 1, jsUndefined(), jsUndefined())).toInt() == languageId) {
+    last = last + 1;
+  }
+  int first = tokenIndex;
+  while (first > 0 &&
+    JS.number(hostCall(context, "getLanguageId", first - 1, jsUndefined(), jsUndefined())).toInt() == languageId) {
+    first = first - 1;
+  }
+  int start = JS.number(hostCall(context, "getStartOffset", first, jsUndefined(), jsUndefined())).toInt();
+  int end = JS.number(hostCall(context, "getEndOffset", last, jsUndefined(), jsUndefined())).toInt();
+  return new ScopedLineTokens(context, languageId, first, last + 1, start, end);
+}
+
+export bool ignoreBracketsInToken(int standardTokenType) {
+  return (standardTokenType & 3) != 0;
+}

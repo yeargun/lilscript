@@ -1,0 +1,36 @@
+import { Point2D } from "./point";
+import { Size2D } from "./size";
+
+export class Rect {
+  int left;
+  int top;
+  int right;
+  int bottom;
+
+  init(int left, int top, int right, int bottom) {
+    this.left = left;
+    this.top = top;
+    this.right = right;
+    this.bottom = bottom;
+  }
+
+  int width() {
+    return this.right - this.left;
+  }
+
+  int height() {
+    return this.bottom - this.top;
+  }
+}
+
+export Rect rectFromLeftTopWidthHeight(int left, int top, int width, int height) {
+  return new Rect(left, top, left + width, top + height);
+}
+
+export Rect rectFromPointSize(Point2D point, Size2D size) {
+  return new Rect(point.x, point.y, point.x + size.width, point.y + size.height);
+}
+
+export Rect rectFromPoints(Point2D topLeft, Point2D bottomRight) {
+  return new Rect(topLeft.x, topLeft.y, bottomRight.x, bottomRight.y);
+}

@@ -1,0 +1,96 @@
+import { DEV } from "../dev-flag.lil";
+import {
+  call0,
+  call1,
+  isFn,
+  len,
+  slice,
+  undef
+} from "../host.lil";
+import {
+  SPLICE,
+  UPDATE
+} from "../constants.lil";
+import { die } from "../errors.lil";
+import {
+  isComputedValue,
+  isObservableArray,
+  isObservableMap,
+  isObservableObject,
+  isObservableSet
+} from "../core/predicates.lil";
+import { registerListener } from "../types/listen-utils.lil";
+import {
+  untrackedEnd,
+  untrackedStart
+} from "../core/derivation.lil";
+import { autorun } from "./autorun.lil";
+import { getAdministration } from "../types/type-utils.lil";
+
+export JsValue observe = JS.methodRest((JsValue _s, JsValue args) => {
+  JsValue thing = args[0];
+  if (len(args) > 2 && isFn(args[2])) {
+    bool fireImmediately = false;
+    if (len(args) > 3) {
+      fireImmediately = args[3].truthy();
+    }
+    return observeValue(JS.call(getAdministration, undef(), thing, args[1]), args[2], fireImmediately);
+  }
+  bool fireImmediately = false;
+  if (len(args) > 2) {
+    fireImmediately = args[2].truthy();
+  }
+  return observeObservable(thing, args[1], fireImmediately);
+});
+
+JsValue observeObservable(JsValue thing, JsValue listener, bool fireImmediately) {
+  JsValue adm = JS.call(getAdministration, undef(), thing);
+  if (isObservableArray(thing)) {
+    if (fireImmediately) {
+      JsValue added = slice(adm["values_"]);
+      call1(listener, undef(), JS.object("observableKind", "array", "object", adm["proxy_"], "debugObjectName", adm["atom_"]["name_"], "type", SPLICE, "index", 0, "added", added, "addedCount", len(added), "removed", JS.array(), "removedCount", 0));
+    }
+    return registerListener(adm, listener);
+  }
+  if (isObservableMap(thing)) {
+    if (DEV && fireImmediately) {
+      die("`observe` doesn't support fireImmediately=true in combination with maps.");
+    }
+    return registerListener(adm, listener);
+  }
+  if (isObservableSet(thing)) {
+    if (DEV && fireImmediately) {
+      die("`observe` doesn't support fireImmediately=true in combination with sets.");
+    }
+    return registerListener(adm, listener);
+  }
+  if (isObservableObject(thing)) {
+    if (DEV && fireImmediately) {
+      die("`observe` doesn't support the fire immediately property for observable objects.");
+    }
+    return registerListener(adm, listener);
+  }
+  return observeValue(adm, listener, fireImmediately);
+}
+
+JsValue observeValue(JsValue adm, JsValue listener, bool fireImmediately) {
+  if (isComputedValue(adm)) {
+    bool firstTime = true;
+    JsValue prevValue = undef();
+    return JS.call(autorun, undef(), JS.method0((JsValue _r) => {
+      JsValue newValue = call0(adm["get"], adm);
+      if (!firstTime || fireImmediately) {
+        JsValue prevU = untrackedStart();
+        call1(listener, undef(), JS.object("observableKind", "computed", "debugObjectName", adm["name_"], "type", UPDATE, "object", adm, "newValue", newValue, "oldValue", prevValue));
+        untrackedEnd(prevU);
+      }
+      firstTime = false;
+      prevValue = newValue;
+      return undef();
+    }));
+  }
+  if (fireImmediately) {
+    call1(listener, undef(), JS.object("observableKind", "value", "debugObjectName", adm["name_"], "object", adm, "type", UPDATE, "newValue", adm["value_"], "oldValue", undef()));
+  }
+  return registerListener(adm, listener);
+}

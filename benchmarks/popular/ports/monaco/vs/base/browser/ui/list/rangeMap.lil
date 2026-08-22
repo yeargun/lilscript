@@ -1,0 +1,186 @@
+export class IndexRange {
+  int start;
+  int end;
+
+  init(int start, int end) {
+    this.start = start;
+    this.end = end;
+  }
+}
+
+export class RangeGroup {
+  IndexRange range;
+  int size;
+
+  init(IndexRange range, int size) {
+    this.range = range;
+    this.size = size;
+  }
+}
+
+export RangeGroup[] groupIntersect(IndexRange range, RangeGroup[] groups) {
+  RangeGroup[] result = [];
+  int i = 0;
+  while (i < groups.length) {
+    RangeGroup r = groups[i];
+    if (range.start >= r.range.end) {
+      i = i + 1;
+      continue;
+    }
+    if (range.end < r.range.start) {
+      break;
+    }
+    int start = range.start;
+    if (r.range.start > start) {
+      start = r.range.start;
+    }
+    int end = range.end;
+    if (r.range.end < end) {
+      end = r.range.end;
+    }
+    if (start < end) {
+      result.push(new RangeGroup(new IndexRange(start, end), r.size));
+    }
+    i = i + 1;
+  }
+  return result;
+}
+
+export IndexRange shiftRange(IndexRange range, int much) {
+  return new IndexRange(range.start + much, range.end + much);
+}
+
+export RangeGroup[] consolidate(RangeGroup[] groups) {
+  RangeGroup[] result = [];
+  RangeGroup? previous = null;
+  int i = 0;
+  while (i < groups.length) {
+    RangeGroup group = groups[i];
+    if (previous != null && group.size == previous.size) {
+      previous.range.end = group.range.end;
+    } else {
+      RangeGroup next = new RangeGroup(new IndexRange(group.range.start, group.range.end), group.size);
+      result.push(next);
+      previous = next;
+    }
+    i = i + 1;
+  }
+  return result;
+}
+
+export class RangeMap {
+  RangeGroup[] groups;
+  int size;
+  int paddingTop;
+
+  init(int topPadding) {
+    this.groups = [];
+    this.paddingTop = topPadding;
+    this.size = topPadding;
+  }
+
+  void splice(int index, int deleteCount, int[] itemSizes) {
+    RangeGroup[] before = [];
+    RangeGroup[] after = [];
+    int i = 0;
+    while (i < this.groups.length) {
+      RangeGroup g = this.groups[i];
+      if (g.range.end <= index) {
+        before.push(g);
+      } else if (g.range.start >= index + deleteCount) {
+        int delta = itemSizes.length - deleteCount;
+        after.push(new RangeGroup(shiftRange(g.range, delta), g.size));
+      } else {
+        if (g.range.start < index) {
+          before.push(new RangeGroup(new IndexRange(g.range.start, index), g.size));
+        }
+        if (g.range.end > index + deleteCount) {
+          int delta = itemSizes.length - deleteCount;
+          after.push(new RangeGroup(new IndexRange(index + itemSizes.length, g.range.end + delta), g.size));
+        }
+      }
+      i = i + 1;
+    }
+    RangeGroup[] inserted = [];
+    int pos = index;
+    int k = 0;
+    while (k < itemSizes.length) {
+      inserted.push(new RangeGroup(new IndexRange(pos, pos + 1), itemSizes[k]));
+      pos = pos + 1;
+      k = k + 1;
+    }
+    RangeGroup[] next = [];
+    int a = 0;
+    while (a < before.length) {
+      next.push(before[a]);
+      a = a + 1;
+    }
+    int b = 0;
+    while (b < inserted.length) {
+      next.push(inserted[b]);
+      b = b + 1;
+    }
+    int c = 0;
+    while (c < after.length) {
+      next.push(after[c]);
+      c = c + 1;
+    }
+    this.groups = consolidate(next);
+    this.size = this.paddingTop;
+    int g = 0;
+    while (g < this.groups.length) {
+      RangeGroup group = this.groups[g];
+      this.size = this.size + (group.range.end - group.range.start) * group.size;
+      g = g + 1;
+    }
+  }
+
+  int indexAt(int position) {
+    if (position < this.paddingTop) {
+      return 0;
+    }
+    int pos = this.paddingTop;
+    int i = 0;
+    while (i < this.groups.length) {
+      RangeGroup group = this.groups[i];
+      int count = group.range.end - group.range.start;
+      int groupSize = count * group.size;
+      if (position < pos + groupSize) {
+        return group.range.start + ((position - pos) / group.size);
+      }
+      pos = pos + groupSize;
+      i = i + 1;
+    }
+    if (this.groups.length == 0) {
+      return 0;
+    }
+    return this.groups[this.groups.length - 1].range.end;
+  }
+
+  int positionAt(int index) {
+    if (index < 0) {
+      return -1;
+    }
+    int pos = this.paddingTop;
+    int i = 0;
+    while (i < this.groups.length) {
+      RangeGroup group = this.groups[i];
+      if (index < group.range.end) {
+        if (index < group.range.start) {
+          return -1;
+        }
+        return pos + (index - group.range.start) * group.size;
+      }
+      pos = pos + (group.range.end - group.range.start) * group.size;
+      i = i + 1;
+    }
+    return -1;
+  }
+
+  int count() {
+    if (this.groups.length == 0) {
+      return 0;
+    }
+    return this.groups[this.groups.length - 1].range.end;
+  }
+}

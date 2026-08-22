@@ -1,0 +1,20 @@
+import { intArrayEquals } from "./arrays";
+
+export bool strictEqualsInt(int a, int b) {
+  return a == b;
+}
+
+export bool arrayEqualsInt(int[] a, int[] b) {
+  return intArrayEquals(a, b);
+}
+
+export bool equalsIfDefinedInt(int v1, int v2, bool defined1, bool defined2, func(int, int)->bool equals) {
+  if (!defined1 || !defined2) {
+    return defined1 == defined2;
+  }
+  return equals(v1, v2);
+}
+
+export bool structuralEqualsInts(int[] a, int[] b) {
+  return intArrayEquals(a, b);
+}

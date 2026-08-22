@@ -13,6 +13,13 @@ back-references and prefix coding, with a configurable sliding window plus a sta
 dictionary. Therefore token choice, repetition, frequency, and distance matter—not
 only source length.
 
+Measured dictionary / mangling quirks live in the
+[Brotli mangling lab](brotli-mangle-lab.html) (regenerate with
+`brotli-mangle-lab.mjs` + `render-brotli-mangle-lab.mjs`).
+Hundred-kilobyte global-optimum playbook (jQuery, gl-matrix, Monaco,
+in-tree audits, no compiler changes):
+[brotli-global-mangle](brotli-global-mangle/README.md).
+
 Consequences for JavaScript emission:
 
 - deleting punctuation can remove a repeated context and lose compressed bytes;

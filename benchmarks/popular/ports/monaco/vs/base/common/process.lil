@@ -1,0 +1,25 @@
+export string cwd() {
+  return "/";
+}
+
+export string platform(bool windows, bool macintosh) {
+  if (windows) {
+    return "win32";
+  }
+  if (macintosh) {
+    return "darwin";
+  }
+  return "linux";
+}
+
+export string webPlatform() {
+  return "linux";
+}
+
+export JsValue env() {
+  return JS.object();
+}
+
+export string arch() {
+  return "";
+}

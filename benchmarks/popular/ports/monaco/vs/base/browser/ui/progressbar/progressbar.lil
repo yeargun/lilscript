@@ -1,0 +1,161 @@
+import { domCreateElement, appendChild, setClassName, classListAdd, classListRemove, setAttribute, setStyle, scheduleTimeoutMs, clearTimeoutId, jsPropString } from "../../../../../js-host";
+
+string CSS_DONE = "done";
+string CSS_ACTIVE = "active";
+string CSS_INFINITE = "infinite";
+string CSS_INFINITE_LONG_RUNNING = "infinite-long-running";
+string CSS_DISCRETE = "discrete";
+int LONG_RUNNING_INFINITE_THRESHOLD = 10000;
+
+export class ProgressBar {
+  JsValue element;
+  JsValue bit;
+  int workedVal;
+  int totalWork;
+  bool hasTotal;
+  JsValue longRunningId;
+  bool disposed;
+
+  init(JsValue container, string progressBarBackground, string ariaLabel) {
+    this.workedVal = 0;
+    this.totalWork = 0;
+    this.hasTotal = false;
+    this.disposed = false;
+    this.longRunningId = null;
+    this.element = domCreateElement("div");
+    setClassName(this.element, "monaco-progress-container");
+    setAttribute(this.element, "role", "progressbar");
+    setAttribute(this.element, "aria-valuemin", "0");
+    string label = ariaLabel;
+    if (label.length == 0) {
+      label = "Progress";
+    }
+    setAttribute(this.element, "aria-label", label);
+    appendChild(container, this.element);
+    this.bit = domCreateElement("div");
+    setClassName(this.bit, "progress-bit");
+    string background = progressBarBackground;
+    if (background.length == 0) {
+      background = "#0E70C0";
+    }
+    setStyle(this.bit, "background-color", background);
+    appendChild(this.element, this.bit);
+  }
+
+  void cancelLongRunning() {
+    if (this.longRunningId.truthy()) {
+      clearTimeoutId(this.longRunningId);
+      this.longRunningId = null;
+    }
+  }
+
+  void off() {
+    setStyle(this.bit, "width", "inherit");
+    setStyle(this.bit, "opacity", "1");
+    classListRemove(this.element, CSS_ACTIVE);
+    classListRemove(this.element, CSS_INFINITE);
+    classListRemove(this.element, CSS_INFINITE_LONG_RUNNING);
+    classListRemove(this.element, CSS_DISCRETE);
+    this.workedVal = 0;
+    this.hasTotal = false;
+    this.cancelLongRunning();
+  }
+
+  ProgressBar doDone(bool delayed) {
+    classListAdd(this.element, CSS_DONE);
+    ProgressBar owner = this;
+    if (jsPropString(this.element, "className", "").indexOf(CSS_INFINITE) < 0) {
+      setStyle(this.bit, "width", "inherit");
+    } else {
+      setStyle(this.bit, "opacity", "0");
+    }
+    if (delayed) {
+      scheduleTimeoutMs(() => {
+        owner.off();
+      }, 200.0);
+    } else {
+      this.off();
+    }
+    return this;
+  }
+
+  ProgressBar stop() {
+    return this.doDone(false);
+  }
+
+  ProgressBar done() {
+    return this.doDone(true);
+  }
+
+  void infiniteLongRunning() {
+    classListAdd(this.element, CSS_INFINITE_LONG_RUNNING);
+  }
+
+  ProgressBar infinite() {
+    setStyle(this.bit, "width", "2%");
+    setStyle(this.bit, "opacity", "1");
+    classListRemove(this.element, CSS_DISCRETE);
+    classListRemove(this.element, CSS_DONE);
+    classListRemove(this.element, CSS_INFINITE_LONG_RUNNING);
+    classListAdd(this.element, CSS_ACTIVE);
+    classListAdd(this.element, CSS_INFINITE);
+    this.cancelLongRunning();
+    ProgressBar owner = this;
+    this.longRunningId = scheduleTimeoutMs(() => {
+      owner.infiniteLongRunning();
+    }, LONG_RUNNING_INFINITE_THRESHOLD * 1.0);
+    return this;
+  }
+
+  ProgressBar total(int value) {
+    this.workedVal = 0;
+    this.totalWork = value;
+    this.hasTotal = true;
+    classListRemove(this.element, CSS_INFINITE);
+    classListRemove(this.element, CSS_INFINITE_LONG_RUNNING);
+    classListRemove(this.element, CSS_DONE);
+    classListAdd(this.element, CSS_ACTIVE);
+    classListAdd(this.element, CSS_DISCRETE);
+    setAttribute(this.element, "aria-valuemax", value.toString());
+    return this;
+  }
+
+  ProgressBar worked(int value) {
+    return this.setWorked(this.workedVal + value);
+  }
+
+  ProgressBar setWorked(int value) {
+    if (!this.hasTotal) {
+      this.total(100);
+    }
+    int next = value;
+    if (next < 1) {
+      next = 1;
+    }
+    this.workedVal = next;
+    int pct = 100;
+    if (this.totalWork > 0) {
+      pct = (this.workedVal * 100) / this.totalWork;
+      if (pct > 100) {
+        pct = 100;
+      }
+    }
+    setStyle(this.bit, "width", pct.toString() + "%");
+    setAttribute(this.element, "aria-valuenow", this.workedVal.toString());
+    return this;
+  }
+
+  JsValue getContainer() {
+    return this.element;
+  }
+
+  void dispose() {
+    this.disposed = true;
+    this.cancelLongRunning();
+    this.off();
+  }
+}
+
+export ProgressBar createProgressBar(JsValue container, string progressBarBackground = "", string ariaLabel = "") {
+  return new ProgressBar(container, progressBarBackground, ariaLabel);
+}

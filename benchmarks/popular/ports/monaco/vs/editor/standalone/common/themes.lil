@@ -1,0 +1,81 @@
+export class ThemeRule {
+  string token;
+  string foreground;
+  string fontStyle;
+
+  init(string token, string foreground, string fontStyle) {
+    this.token = token;
+    this.foreground = foreground;
+    this.fontStyle = fontStyle;
+  }
+}
+
+export class StandaloneTheme {
+  string base;
+  bool inherit;
+  ThemeRule[] rules;
+  string background;
+  string foreground;
+
+  init(string base, bool inherit, string background, string foreground) {
+    this.base = base;
+    this.inherit = inherit;
+    this.rules = [];
+    this.background = background;
+    this.foreground = foreground;
+  }
+
+  void addRule(string token, string foreground, string fontStyle) {
+    this.rules.push(new ThemeRule(token, foreground, fontStyle));
+  }
+
+  string colorFor(string token) {
+    int i = 0;
+    while (i < this.rules.length) {
+      if (this.rules[i].token == token) {
+        return this.rules[i].foreground;
+      }
+      i = i + 1;
+    }
+    return this.foreground;
+  }
+}
+
+export StandaloneTheme createVsTheme() {
+  StandaloneTheme theme = new StandaloneTheme("vs", false, "fffffe", "000000");
+  theme.addRule("", "000000", "");
+  theme.addRule("invalid", "cd3131", "");
+  theme.addRule("comment", "008000", "");
+  theme.addRule("number", "098658", "");
+  theme.addRule("string", "a31515", "");
+  theme.addRule("keyword", "0000ff", "");
+  theme.addRule("type", "008080", "");
+  theme.addRule("regexp", "800000", "");
+  return theme;
+}
+
+export StandaloneTheme createVsDarkTheme() {
+  StandaloneTheme theme = new StandaloneTheme("vs-dark", false, "1e1e1e", "d4d4d4");
+  theme.addRule("", "d4d4d4", "");
+  theme.addRule("invalid", "f44747", "");
+  theme.addRule("comment", "6a9955", "");
+  theme.addRule("number", "b5cea8", "");
+  theme.addRule("string", "ce9178", "");
+  theme.addRule("keyword", "569cd6", "");
+  theme.addRule("type", "4ec9b0", "");
+  theme.addRule("regexp", "d16969", "");
+  return theme;
+}
+
+export StandaloneTheme createHcBlackTheme() {
+  StandaloneTheme theme = new StandaloneTheme("hc-black", false, "000000", "ffffff");
+  theme.addRule("", "ffffff", "");
+  theme.addRule("comment", "7ca668", "");
+  theme.addRule("keyword", "569cd6", "");
+  theme.addRule("string", "ce9178", "");
+  return theme;
+}
+
+export StandaloneTheme vs = createVsTheme();
+export StandaloneTheme vsDark = createVsDarkTheme();
+export StandaloneTheme hcBlack = createHcBlackTheme();

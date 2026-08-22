@@ -1,0 +1,200 @@
+import {
+  newRegexp,
+  regexExec,
+  regexSetLastIndex,
+  sliceOf,
+  stringFromCharCode1,
+  stringReplace
+} from "../../../../../js-host";
+
+string escapeRegex(string text) {
+  return stringReplace(text, newRegexp("[\\\\{}()\\[\\].+*?$^|]", "g"), "\\$&");
+}
+
+string reverseText(string text) {
+  string result = "";
+  int i = text.length - 1;
+  while (i >= 0) {
+    result = result + stringFromCharCode1(text.charCodeAt(i));
+    i = i - 1;
+  }
+  return result;
+}
+
+string bracketPattern(string value) {
+  string escaped = escapeRegex(value);
+  bool words = true;
+  int i = 0;
+  while (i < value.length) {
+    int code = value.charCodeAt(i);
+    if (!((code >= 48 && code <= 57) || (code >= 65 && code <= 90) ||
+      (code >= 97 && code <= 122) || code == 95 || code == 32)) {
+      words = false;
+      break;
+    }
+    i = i + 1;
+  }
+  if (words) {
+    return "\\b" + escaped + "\\b";
+  }
+  return escaped;
+}
+
+export Regex createBracketOrRegExp(string[] pieces) {
+  string pattern = "(";
+  int i = 0;
+  while (i < pieces.length) {
+    if (i > 0) {
+      pattern = pattern + ")|(";
+    }
+    pattern = pattern + bracketPattern(pieces[i]);
+    i = i + 1;
+  }
+  return newRegexp(pattern + ")", "gi");
+}
+
+export class RichEditBracket {
+  string languageId;
+  int index;
+  string[] open;
+  string[] close;
+  Regex forwardRegex;
+  Regex reversedRegex;
+
+  init(string languageId, int index, string[] open, string[] close) {
+    this.languageId = languageId;
+    this.index = index;
+    this.open = open;
+    this.close = close;
+    string[] pieces = open.slice();
+    int i = 0;
+    while (i < close.length) {
+      pieces.push(close[i]);
+      i = i + 1;
+    }
+    this.forwardRegex = createBracketOrRegExp(pieces);
+    string[] reversed = [];
+    i = 0;
+    while (i < pieces.length) {
+      reversed.push(reverseText(pieces[i]));
+      i = i + 1;
+    }
+    this.reversedRegex = createBracketOrRegExp(reversed);
+  }
+
+  bool isOpen(string text) {
+    return this.open.indexOf(text.toLowerCase()) >= 0;
+  }
+
+  bool isClose(string text) {
+    return this.close.indexOf(text.toLowerCase()) >= 0;
+  }
+}
+
+export class RichEditBrackets {
+  string languageId;
+  RichEditBracket[] brackets;
+  Regex forwardRegex;
+  Regex reversedRegex;
+  Map<string, RichEditBracket> textIsBracket;
+  Map<string, bool> textIsOpenBracket;
+  int maxBracketLength;
+
+  init(string languageId, JsValue source) {
+    this.languageId = languageId;
+    this.brackets = [];
+    this.textIsBracket = new Map();
+    this.textIsOpenBracket = new Map();
+    this.maxBracketLength = 0;
+    string[] all = [];
+    if (JS.isArray(source)) {
+      int i = 0;
+      int length = JS.number(source["length"]).toInt();
+      while (i < length) {
+        JsValue pair = source[i];
+        if (JS.isArray(pair) && JS.number(pair["length"]).toInt() == 2) {
+          string open = JS.string(pair[0]).toLowerCase();
+          string close = JS.string(pair[1]).toLowerCase();
+          RichEditBracket bracket = new RichEditBracket(languageId, this.brackets.length, [open], [close]);
+          this.brackets.push(bracket);
+          this.textIsBracket.set(open, bracket);
+          this.textIsBracket.set(close, bracket);
+          this.textIsOpenBracket.set(open, true);
+          this.textIsOpenBracket.set(close, false);
+          all.push(open);
+          all.push(close);
+          if (open.length > this.maxBracketLength) {
+            this.maxBracketLength = open.length;
+          }
+          if (close.length > this.maxBracketLength) {
+            this.maxBracketLength = close.length;
+          }
+        }
+        i = i + 1;
+      }
+    }
+    this.forwardRegex = createBracketOrRegExp(all);
+    string[] reversed = [];
+    int i = 0;
+    while (i < all.length) {
+      reversed.push(reverseText(all[i]));
+      i = i + 1;
+    }
+    this.reversedRegex = createBracketOrRegExp(reversed);
+  }
+}
+
+JsValue bracketRange(int lineNumber, int startColumn, int endColumn) {
+  JsValue range = JS.object();
+  range["startLineNumber"] = lineNumber;
+  range["startColumn"] = startColumn;
+  range["endLineNumber"] = lineNumber;
+  range["endColumn"] = endColumn;
+  return range;
+}
+
+export class BracketsUtils {
+  JsValue findPrevBracketInRange(
+    Regex reversedBracketRegex,
+    int lineNumber,
+    string lineText,
+    int startOffset,
+    int endOffset
+  ) {
+    string reversed = reverseText(sliceOf(lineText, startOffset, endOffset));
+    regexSetLastIndex(reversedBracketRegex, 0);
+    JsValue found = regexExec(reversedBracketRegex, reversed);
+    if (found == null) {
+      return null;
+    }
+    int index = JS.number(found["index"]).toInt();
+    string text = JS.string(found[0]);
+    int endColumn = endOffset - index + 1;
+    return bracketRange(lineNumber, endColumn - text.length, endColumn);
+  }
+
+  JsValue findNextBracketInRange(
+    Regex bracketRegex,
+    int lineNumber,
+    string lineText,
+    int startOffset,
+    int endOffset
+  ) {
+    regexSetLastIndex(bracketRegex, 0);
+    JsValue found = regexExec(bracketRegex, sliceOf(lineText, startOffset, endOffset));
+    if (found == null) {
+      return null;
+    }
+    int index = JS.number(found["index"]).toInt();
+    string text = JS.string(found[0]);
+    return bracketRange(lineNumber, startOffset + index + 1, startOffset + index + text.length + 1);
+  }
+}
+
+export RichEditBrackets createRichEditBrackets(string languageId, JsValue pairs) {
+  return new RichEditBrackets(languageId, pairs);
+}
+
+export BracketsUtils createBracketsUtils() {
+  return new BracketsUtils();
+}

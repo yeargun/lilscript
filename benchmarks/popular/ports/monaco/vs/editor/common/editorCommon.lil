@@ -1,0 +1,10 @@
+export string ICodeEditor = "vs.editor.ICodeEditor";
+export string IDiffEditor = "vs.editor.IDiffEditor";
+
+export bool isCodeEditorType(string editorType) {
+  return editorType == ICodeEditor;
+}
+
+export bool isDiffEditorType(string editorType) {
+  return editorType == IDiffEditor;
+}

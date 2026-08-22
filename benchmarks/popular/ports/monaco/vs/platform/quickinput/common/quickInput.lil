@@ -1,0 +1,6 @@
+export int QuickInputHideReasonBlur = 1;
+export int QuickInputHideReasonGesture = 2;
+export int QuickInputHideReasonOther = 3;
+
+export string IQuickInputServiceId = "quickInputService";
+export string quickInputTitle = "Quick Input";

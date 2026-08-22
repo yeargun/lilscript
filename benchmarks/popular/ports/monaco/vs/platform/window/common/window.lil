@@ -1,0 +1,17 @@
+export class WindowService {
+  int zoomLevel;
+  bool fullscreen;
+
+  init() {
+    this.zoomLevel = 0;
+    this.fullscreen = false;
+  }
+
+  void setZoomLevel(int level) {
+    this.zoomLevel = level;
+  }
+}
+
+export WindowService createWindowService() {
+  return new WindowService();
+}

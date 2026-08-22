@@ -1,0 +1,286 @@
+import { DEV } from "../dev-flag.lil";
+import {
+  undef,
+  isNullish,
+  toInt,
+  toNum,
+  toStr,
+  len,
+  sizeOf,
+  call0,
+  call1,
+  invoke0,
+  construct1,
+  isObj,
+  newArrayLen,
+  warn
+} from "../host.lil";
+import {
+  NOT_TRACKING,
+  UP_TO_DATE,
+  POSSIBLY_STALE,
+  STALE
+} from "../constants.lil";
+import { globalState } from "./globalstate.lil";
+import { die, die2 } from "../errors.lil";
+import { isComputedValue } from "./predicates.lil";
+import {
+  addObserver,
+  removeObserver,
+  startBatch
+} from "./observable.lil";
+import { isBoolish } from "./shared.lil";
+
+export JsValue untrackedStart() {
+  JsValue prev = globalState["trackingDerivation"];
+  globalState["trackingDerivation"] = null;
+  return prev;
+}
+
+export void untrackedEnd(JsValue prev) {
+  globalState["trackingDerivation"] = prev;
+}
+
+export JsValue untracked = JS.method1((JsValue _self, JsValue actionFn) => {
+  JsValue prev = untrackedStart();
+  try {
+    return call0(actionFn, undef());
+  } finally {
+    untrackedEnd(prev);
+  }
+});
+
+export bool allowStateReadsStart(bool allowStateReads) {
+  bool prev = globalState["allowStateReads"].truthy();
+  globalState["allowStateReads"] = allowStateReads;
+  return prev;
+}
+
+export void allowStateReadsEnd(bool prev) {
+  globalState["allowStateReads"] = prev;
+}
+
+export bool allowStateChangesStart(bool allow) {
+  bool prev = globalState["allowStateChanges"].truthy();
+  globalState["allowStateChanges"] = allow;
+  return prev;
+}
+
+export void allowStateChangesEnd(bool prev) {
+  globalState["allowStateChanges"] = prev;
+}
+
+export JsValue allowStateChanges = JS.method2((JsValue _self, JsValue allow, JsValue callback) => {
+  bool prev = allowStateChangesStart(allow.truthy());
+  try {
+    return call0(callback, undef());
+  } finally {
+    allowStateChangesEnd(prev);
+  }
+});
+
+export void checkIfStateModificationsAreAllowed(JsValue atom) {
+  if (!DEV) {
+    return;
+  }
+  bool hasObs = sizeOf(atom["observers_"]) > 0;
+  if (!globalState["allowStateChanges"].truthy() && (hasObs || JS.strictEqual(globalState["enforceActions"], "always"))) {
+    string msg = "Side effects like changing state are not allowed at this point. Are you trying to modify state from, for example, a computed value or the render function of a React component? You can wrap side effects in 'runInAction' (or decorate functions with 'action') if needed. Tried to modify: ";
+    if (globalState["enforceActions"].truthy()) {
+      msg = "Since strict-mode is enabled, changing (observed) observable values without using an action is not allowed. Tried to modify: ";
+    }
+    warn("[MobX] " + msg + toStr(atom["name_"]));
+  }
+}
+
+export void changeDependenciesStateTo0(JsValue derivation) {
+  if (JS.strictEqual(derivation["dependenciesState_"], UP_TO_DATE)) {
+    return;
+  }
+  derivation["dependenciesState_"] = UP_TO_DATE;
+  JsValue obs = derivation["observing_"];
+  int i = len(obs);
+  while (i > 0) {
+    i = i - 1;
+    obs[i]["lowestObserverState_"] = UP_TO_DATE;
+  }
+}
+
+export bool isComputingDerivation() {
+  return !JS.isNullish(globalState["trackingDerivation"]);
+}
+
+export JsValue CaughtException = JS.method1((JsValue self, JsValue cause) => {
+  self["cause"] = cause;
+  return self;
+});
+CaughtException["prototype"]["isMobXCaughtException"] = true;
+
+export bool isCaughtException(JsValue e) {
+  return isObj(e) && JS.strictEqual(e["isMobXCaughtException"], true);
+}
+export bool shouldCompute(JsValue derivation) {
+  if (JS.strictEqual(derivation["dependenciesState_"], UP_TO_DATE)) {
+    return false;
+  }
+  if (JS.strictEqual(derivation["dependenciesState_"], NOT_TRACKING) || JS.strictEqual(derivation["dependenciesState_"], STALE)) {
+    return true;
+  }
+  if (JS.strictEqual(derivation["dependenciesState_"], POSSIBLY_STALE)) {
+    bool prevAllowStateReads = true;
+    if (DEV) {
+      prevAllowStateReads = allowStateReadsStart(true);
+    }
+    JsValue prevUntracked = untrackedStart();
+    JsValue obs = derivation["observing_"];
+    int n = len(obs);
+    int i = 0;
+    while (i < n) {
+      JsValue obj = obs[i];
+      if (isComputedValue(obj)) {
+        if (JS.strictEqual(globalState["disableErrorBoundaries"], true)) {
+          invoke0(obj, "get");
+        } else {
+          try {
+            invoke0(obj, "get");
+          } catch (JsValue e) {
+            untrackedEnd(prevUntracked);
+            if (DEV) {
+              allowStateReadsEnd(prevAllowStateReads);
+            }
+            return true;
+          }
+        }
+        if (JS.strictEqual(derivation["dependenciesState_"], STALE)) {
+          untrackedEnd(prevUntracked);
+          if (DEV) {
+            allowStateReadsEnd(prevAllowStateReads);
+          }
+          return true;
+        }
+      }
+      i = i + 1;
+    }
+    changeDependenciesStateTo0(derivation);
+    untrackedEnd(prevUntracked);
+    if (DEV) {
+      allowStateReadsEnd(prevAllowStateReads);
+    }
+    return false;
+  }
+  return false;
+}
+
+void warnAboutDerivationWithoutDependencies(JsValue derivation) {
+  if (!DEV) {
+    return;
+  }
+  if (len(derivation["observing_"]) != 0) {
+    return;
+  }
+  bool required = false;
+  if (isBoolish(derivation["requiresObservable_"])) {
+    required = derivation["requiresObservable_"].truthy();
+  } else {
+    required = globalState["reactionRequiresObservable"].truthy();
+  }
+  if (required) {
+    warn("[mobx] Derivation '" + toStr(derivation["name_"]) + "' is created/updated without reading any observable value.");
+  }
+}
+
+void bindDependencies(JsValue derivation) {
+  JsValue prevObserving = derivation["observing_"];
+  JsValue observing = derivation["newObserving_"];
+  derivation["observing_"] = observing;
+  int lowestNewObservingDerivationState = UP_TO_DATE;
+  int i0 = 0;
+  int l = toInt(derivation["unboundDepsCount_"]);
+  int i = 0;
+  while (i < l) {
+    JsValue dep = observing[i];
+    if (!dep["diffValue"].truthy()) {
+      dep["diffValue"] = 1;
+      observing[i0] = dep;
+      i0 = i0 + 1;
+    }
+    if (toNum(dep["lowestObserverState_"]) > lowestNewObservingDerivationState) {
+      lowestNewObservingDerivationState = toInt(dep["lowestObserverState_"]);
+    }
+    i = i + 1;
+  }
+  observing["length"] = i0;
+  derivation["newObserving_"] = null;
+  l = len(prevObserving);
+  while (l > 0) {
+    l = l - 1;
+    JsValue dep = prevObserving[l];
+    if (!dep["diffValue"].truthy()) {
+      removeObserver(dep, derivation);
+    }
+    dep["diffValue"] = 0;
+  }
+  while (i0 > 0) {
+    i0 = i0 - 1;
+    JsValue dep = observing[i0];
+    if (dep["diffValue"].truthy()) {
+      dep["diffValue"] = 0;
+      addObserver(dep, derivation);
+    }
+  }
+  if (lowestNewObservingDerivationState != UP_TO_DATE) {
+    derivation["dependenciesState_"] = lowestNewObservingDerivationState;
+    invoke0(derivation, "onBecomeStale_");
+  }
+}
+
+export JsValue trackDerivedFunction(JsValue derivation, JsValue f, JsValue context) {
+  bool prevAllowStateReads = true;
+  if (DEV) {
+    prevAllowStateReads = allowStateReadsStart(true);
+  }
+  changeDependenciesStateTo0(derivation);
+  int reserve = 100;
+  if (derivation["runId_"].truthy()) {
+    reserve = len(derivation["observing_"]);
+  }
+  derivation["newObserving_"] = newArrayLen(reserve);
+  derivation["unboundDepsCount_"] = 0;
+  float runId = toNum(globalState["runId"]) + 1.0;
+  globalState["runId"] = runId;
+  derivation["runId_"] = runId;
+  JsValue prevTracking = globalState["trackingDerivation"];
+  globalState["trackingDerivation"] = derivation;
+  globalState["inBatch"] = toNum(globalState["inBatch"]) + 1.0;
+  JsValue result = undef();
+  if (JS.strictEqual(globalState["disableErrorBoundaries"], true)) {
+    result = call0(f, context);
+  } else {
+    try {
+      result = call0(f, context);
+    } catch (JsValue e) {
+      result = construct1(CaughtException, e);
+    }
+  }
+  globalState["inBatch"] = toNum(globalState["inBatch"]) - 1.0;
+  globalState["trackingDerivation"] = prevTracking;
+  bindDependencies(derivation);
+  if (DEV) {
+    warnAboutDerivationWithoutDependencies(derivation);
+  }
+  if (DEV) {
+    allowStateReadsEnd(prevAllowStateReads);
+  }
+  return result;
+}
+
+export void clearObserving(JsValue derivation) {
+  JsValue obs = derivation["observing_"];
+  derivation["observing_"] = JS.array();
+  int i = len(obs);
+  while (i > 0) {
+    i = i - 1;
+    removeObserver(obs[i], derivation);
+  }
+  derivation["dependenciesState_"] = NOT_TRACKING;
+}

@@ -1,0 +1,57 @@
+export enum HoverPosition {
+  LEFT,
+  RIGHT,
+  BELOW,
+  ABOVE
+}
+
+export class HoverDelegateOptions {
+  JsValue content;
+  JsValue target;
+  JsValue container;
+  HoverPosition hoverPosition;
+  bool showPointer;
+  bool showHoverHint;
+  bool skipFadeInAnimation;
+
+  init(JsValue content, JsValue target) {
+    this.content = content;
+    this.target = target;
+    this.container = null;
+    this.hoverPosition = HoverPosition.ABOVE;
+    this.showPointer = false;
+    this.showHoverHint = false;
+    this.skipFadeInAnimation = false;
+  }
+}
+
+export class HoverDelegate {
+  int delayMs;
+  string placement;
+  bool showNativeHover;
+  func(HoverDelegateOptions, bool)->JsValue showHoverFn;
+  func()->void onDidHideHoverFn;
+
+  init(int delayMs, string placement, func(HoverDelegateOptions, bool)->JsValue showHoverFn) {
+    this.delayMs = delayMs;
+    this.placement = placement;
+    this.showNativeHover = false;
+    this.showHoverFn = showHoverFn;
+    this.onDidHideHoverFn = () => {};
+  }
+
+  JsValue showHover(HoverDelegateOptions options, bool focus) {
+    return this.showHoverFn(options, focus);
+  }
+
+  void dispose() {
+  }
+}
+
+export HoverDelegate createHoverDelegate(int delayMs, string placement, func(HoverDelegateOptions, bool)->JsValue showHoverFn) {
+  return new HoverDelegate(delayMs, placement, showHoverFn);
+}
+
+export HoverDelegateOptions createHoverDelegateOptions(JsValue content, JsValue target) {
+  return new HoverDelegateOptions(content, target);
+}

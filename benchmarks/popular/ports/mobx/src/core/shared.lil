@@ -1,0 +1,91 @@
+import {
+  defineProperty,
+  toInt,
+  call0,
+  undef
+} from "../host.lil";
+
+export bool getFlag(JsValue flags, int mask) {
+  return (toInt(flags) & mask) != 0;
+}
+
+export int setFlag(int flags, int mask, bool on) {
+  if (on) {
+    return flags | mask;
+  }
+  return flags & (mask ^ -1);
+}
+
+export void installFlagAccessor(JsValue proto, string name, int mask) {
+  defineProperty(proto, name, JS.object(
+    "configurable", true,
+    "get", JS.method0((JsValue self) => {
+      return getFlag(self["flags_"], mask);
+    }),
+    "set", JS.method1((JsValue self, JsValue value) => {
+      self["flags_"] = setFlag(toInt(self["flags_"]), mask, value.truthy());
+      return undef();
+    })
+  ));
+}
+
+export void installNumericFlagAccessor(JsValue proto, string name, int mask) {
+  defineProperty(proto, name, JS.object(
+    "configurable", true,
+    "get", JS.method0((JsValue self) => {
+      if (getFlag(self["flags_"], mask)) {
+        return 1;
+      }
+      return 0;
+    }),
+    "set", JS.method1((JsValue self, JsValue value) => {
+      self["flags_"] = setFlag(toInt(self["flags_"]), mask, toInt(value) == 1);
+      return undef();
+    })
+  ));
+}
+
+export void onBOImpl(JsValue self) {
+  if (self["onBOL"].truthy()) {
+    JS.invoke(self["onBOL"], "forEach", JS.method1((JsValue _self, JsValue listener) => {
+      call0(listener, undef());
+      return undef();
+    }));
+  }
+}
+
+export void onBUOImpl(JsValue self) {
+  if (self["onBUOL"].truthy()) {
+    JS.invoke(self["onBUOL"], "forEach", JS.method1((JsValue _self, JsValue listener) => {
+      call0(listener, undef());
+      return undef();
+    }));
+  }
+}
+
+export bool isBoolish(JsValue value) {
+  return JS.typeOf(value) == "boolean";
+}
+
+
+export void installAtomFlags(JsValue proto) {
+  installFlagAccessor(proto, "isBeingObserved", 1);
+  installFlagAccessor(proto, "isPendingUnobservation", 2);
+  installNumericFlagAccessor(proto, "diffValue", 4);
+}
+
+export void installReactionFlags(JsValue proto) {
+  installFlagAccessor(proto, "isDisposed", 1);
+  installFlagAccessor(proto, "isScheduled", 2);
+  installFlagAccessor(proto, "isTrackPending", 4);
+  installFlagAccessor(proto, "isRunning", 8);
+  installNumericFlagAccessor(proto, "diffValue", 16);
+}
+
+export void installComputedFlags(JsValue proto) {
+  installFlagAccessor(proto, "isComputing", 1);
+  installFlagAccessor(proto, "isRunningSetter", 2);
+  installFlagAccessor(proto, "isBeingObserved", 4);
+  installFlagAccessor(proto, "isPendingUnobservation", 8);
+  installNumericFlagAccessor(proto, "diffValue", 16);
+}

@@ -9,32 +9,10 @@ import { param } from "./serialize";
 import { location } from "./ajax/var/location";
 import { nonce } from "./ajax/var/nonce";
 import { rquery } from "./ajax/var/rquery";
+import { parseXML } from "./core/parseXML";
 import {
-  createEmptyObject,
-  deleteProp,
-  typeOf,
-  isNullish,
-  isUndefined,
-  hasProp,
-  arrayPush,
-  arrayShift,
-  arraySlice,
-  arrayUnshift,
-  stringMatch,
-  stringSplit,
-  stringReplace,
-  stringSlice,
-  stringIndexOf,
-  regexTest,
-  regexExec,
-  jsUndefined,
-  call1,
-  call2,
-  call3,
-  call4,
   scheduleTimeoutMs,
-  clearTimeoutId,
-  stringify
+  clearTimeoutId
 } from "./js-host.lil";
 
 /*
@@ -127,16 +105,25 @@ string allTypes = "*/*";
 JsValue originAnchor = JS.invoke(document, "createElement", "a");
 originAnchor["href"] = location["href"];
 
+JsValue conversionPair(JsValue from, JsValue to) {
+  return JS.add(JS.add(from, " "), to);
+}
+
+JsValue headerLookupKey(JsValue name) {
+  return JS.add(JS.invoke(name, "toLowerCase"), " ");
+}
+
 void addToStructure(JsValue structure, JsValue dataType, JsValue handlerFn) {
   JsValue dt = dataType;
-  if (JS.strictEqual(dt[0], "+")) {
+  bool prepend = JS.strictEqual(dt[0], "+");
+  if (prepend) {
     dt = JS.or(JS.invoke(dt, "slice", 1.0), "*");
-    JsValue list = JS.or(structure[dt], JS.array());
-    structure[dt] = list;
+  }
+  JsValue list = JS.or(structure[dt], JS.array());
+  structure[dt] = list;
+  if (prepend) {
     JS.unshift(list, handlerFn);
   } else {
-    JsValue list = JS.or(structure[dt], JS.array());
-    structure[dt] = list;
     JS.push(list, handlerFn);
   }
 }
@@ -234,7 +221,7 @@ JsValue ajaxExtend(JsValue target, JsValue src) {
 JsValue findConvertibleResponseType(JsValue s, JsValue responses, JsValue firstOfDataTypes) {
   JsValue firstDataType = null;
   for (string type in responses) {
-    if (!firstOfDataTypes.truthy() || s["converters"][JS.add(JS.add(type, " "), firstOfDataTypes)].truthy()) {
+    if (!firstOfDataTypes.truthy() || s["converters"][conversionPair(type, firstOfDataTypes)].truthy()) {
       return type;
     }
     if (!firstDataType.truthy()) {
@@ -318,18 +305,18 @@ ConvertResult ajaxConvert(JsValue s, JsValue responseArg, JsValue jqXHR, bool is
       if (JS.strictEqual(current, "*")) {
         current = prev;
       } else if (!JS.strictEqual(prev, "*") && !JS.strictEqual(prev, current)) {
-        JsValue conv = converters[JS.add(JS.add(prev, " "), current)];
+        JsValue conv = converters[conversionPair(prev, current)];
         if (!conv.truthy()) {
-          conv = converters[JS.add("* ", current)];
+          conv = converters[conversionPair("*", current)];
         }
 
         if (!conv.truthy()) {
           for (string conv2 in converters) {
             JsValue tmp = JS.invoke(conv2, "split", " ");
             if (tmp.length > 1.0 && JS.strictEqual(tmp[1], current)) {
-              JsValue candidate = converters[JS.add(JS.add(prev, " "), tmp[0])];
+              JsValue candidate = converters[conversionPair(prev, tmp[0])];
               if (!candidate.truthy()) {
-                candidate = converters[JS.add("* ", tmp[0])];
+                candidate = converters[conversionPair("*", tmp[0])];
               }
               if (candidate.truthy()) {
                 conv = candidate;
@@ -371,7 +358,7 @@ JsValue buildResponseHeaders(string headersString) {
   JsValue headers = JS.object();
   JsValue headerMatch = JS.regexExec(rheaders, headersString);
   while (headerMatch.truthy()) {
-    JsValue key = JS.add(JS.invoke(headerMatch[1], "toLowerCase"), " ");
+    JsValue key = headerLookupKey(headerMatch[1]);
     JsValue value = headerMatch[2];
     JsValue list = JS.or(headers[key], JS.array());
     headers[key] = list;
@@ -379,14 +366,6 @@ JsValue buildResponseHeaders(string headersString) {
     headerMatch = JS.regexExec(rheaders, headersString);
   }
   return headers;
-}
-
-string stringConverter(JsValue value) {
-  return JS.string(value);
-}
-
-JsValue jsonParseConverter(JsValue value) {
-  return JSON.parse(JS.string(value));
 }
 
 JsValue ajaxAccepts = AjaxAccepts{
@@ -406,17 +385,17 @@ JsValue ajaxContents = AjaxContents{
 JsValue ajaxResponseFields = AjaxResponseFields{"responseXML", "responseText", "responseJSON"};
 
 JsValue ajaxConverters = JS.object();
-ajaxConverters["* text"] = stringConverter;
+ajaxConverters["* text"] = (JsValue value) => JS.string(value);
 ajaxConverters["text html"] = true;
-ajaxConverters["text json"] = jsonParseConverter;
-ajaxConverters["text xml"] = jQuery["parseXML"];
+ajaxConverters["text json"] = (JsValue value) => JSON.parse(JS.string(value));
+ajaxConverters["text xml"] = parseXML;
 
 JsValue ajaxFlatOptions = AjaxFlatOptions{true, true};
 
 JsValue ajaxSettings = AjaxSettings{
   location["href"],
   "GET",
-  JS.regexTest(rlocalProtocol, JS.string(location["protocol"])),
+  JS.regexTest(rlocalProtocol, location["protocol"]),
   true,
   true,
   true,
@@ -474,7 +453,7 @@ JsValue ajax(JsValue urlArg, JsValue optionsArg) {
     0.0,
     JS.method1((JsValue _self, JsValue key) => {
     if (completed.truthy()) {
-      JsValue headerKey = JS.add(JS.invoke(key, "toLowerCase"), " ");
+      JsValue headerKey = headerLookupKey(key);
       JsValue list = null;
       if (responseHeaders.truthy()) {
         list = responseHeaders[headerKey];
@@ -490,18 +469,12 @@ JsValue ajax(JsValue urlArg, JsValue optionsArg) {
     }
     return null;
   }),
-    JS.methodRest((JsValue self, JsValue args) => {
-    string name = JS.string(args[0]);
-    JsValue value = args[1];
+    JS.method2((JsValue self, JsValue name, JsValue value) => {
     if (JS.isNullish(completed)) {
-      string lowerName = name.toLowerCase();
-      JsValue existing = requestHeadersNames[lowerName];
-      string canonicalName = name;
-      if (existing.truthy()) {
-        canonicalName = JS.string(existing);
-      }
-      requestHeadersNames[lowerName] = canonicalName;
-      requestHeaders[canonicalName] = value;
+      JsValue lowerName = JS.invoke(name, "toLowerCase");
+      JsValue canonical = JS.or(requestHeadersNames[lowerName], name);
+      requestHeadersNames[lowerName] = canonical;
+      requestHeaders[canonical] = value;
     }
     return self;
   }),
@@ -648,7 +621,7 @@ JsValue ajax(JsValue urlArg, JsValue optionsArg) {
   if (dt0.truthy() && s["accepts"][dt0].truthy()) {
     JsValue acceptsBase = s["accepts"][dt0];
     if (!JS.strictEqual(dt0, "*")) {
-      acceptsVal = JS.add(acceptsBase, ", " + allTypes + "; q=0.01");
+      acceptsVal = JS.string(acceptsBase) + ", " + allTypes + "; q=0.01";
     } else {
       acceptsVal = acceptsBase;
     }
@@ -851,53 +824,46 @@ JsValue ajaxMethod(string method, JsValue urlArg, JsValue dataArg, JsValue callb
   return ajax(merged, JS.undefined());
 }
 
-JsValue getJSON(JsValue url, JsValue data, JsValue callback) {
-  return ajaxMethod("get", url, data, callback, "json");
-}
+jQuery["active"] = 0.0;
+jQuery["lastModified"] = JS.object();
+jQuery["etag"] = JS.object();
 
-JsValue getScript(JsValue url, JsValue callback) {
-  return ajaxMethod("get", url, JS.undefined(), callback, "script");
-}
+jQuery["ajaxSettings"] = ajaxSettings;
+jQuery["ajaxSetup"] = ajaxSetup;
+jQuery["ajaxPrefilter"] = addToPrefiltersOrTransports(prefilters);
+jQuery["ajaxTransport"] = addToPrefiltersOrTransports(transports);
+jQuery["ajax"] = ajax;
 
-void install() {
-  jQuery["active"] = 0.0;
-  jQuery["lastModified"] = JS.object();
-  jQuery["etag"] = JS.object();
+each(["get", "post"], (JsValue _i, JsValue method) => {
+  string methodName = JS.string(method);
+  jQuery[methodName] = (JsValue urlArg, JsValue dataArg, JsValue callbackArg, JsValue typeArg) => {
+    return ajaxMethod(methodName, urlArg, dataArg, callbackArg, typeArg);
+  };
+  return JS.undefined();
+});
 
-  jQuery["ajaxSettings"] = ajaxSettings;
-  jQuery["ajaxSetup"] = ajaxSetup;
-  jQuery["ajaxPrefilter"] = addToPrefiltersOrTransports(prefilters);
-  jQuery["ajaxTransport"] = addToPrefiltersOrTransports(transports);
-  jQuery["ajax"] = ajax;
-  jQuery["getJSON"] = getJSON;
-  jQuery["getScript"] = getScript;
+jQuery["getJSON"] = (JsValue url, JsValue data, JsValue callback) => {
+  return jQuery["get"](url, data, callback, "json");
+};
+jQuery["getScript"] = (JsValue url, JsValue callback) => {
+  return jQuery["get"](url, JS.undefined(), callback, "script");
+};
 
-  each(["get", "post"], (JsValue _i, JsValue method) => {
-    string methodName = JS.string(method);
-    jQuery[methodName] = (JsValue urlArg, JsValue dataArg, JsValue callbackArg, JsValue typeArg) => {
-      return ajaxMethod(methodName, urlArg, dataArg, callbackArg, typeArg);
-    };
-    return JS.undefined();
-  });
-
-  addToPrefiltersOrTransportsImpl(prefilters, "*", (JsValue s) => {
-    JsValue headers = s["headers"];
-    if (headers.truthy()) {
-      for (string headerName in headers) {
-        if (headerName.toLowerCase() == "content-type") {
-          JsValue value = headers[headerName];
-          string contentType = "";
-          if (value.truthy()) {
-            contentType = JS.string(value);
-          }
-          s["contentType"] = contentType;
+addToPrefiltersOrTransportsImpl(prefilters, "*", (JsValue s) => {
+  JsValue headers = s["headers"];
+  if (headers.truthy()) {
+    for (string headerName in headers) {
+      if (headerName.toLowerCase() == "content-type") {
+        JsValue value = headers[headerName];
+        string contentType = "";
+        if (value.truthy()) {
+          contentType = JS.string(value);
         }
+        s["contentType"] = contentType;
       }
     }
-    return JS.undefined();
-  });
-}
-
-install();
+  }
+  return JS.undefined();
+});
 
 export { jQuery, ajax, ajaxSettings, ajaxSetup, ajaxExtend, ajaxConvert, ajaxHandleResponses, inspectPrefiltersOrTransports, prefilters, transports, allTypes };

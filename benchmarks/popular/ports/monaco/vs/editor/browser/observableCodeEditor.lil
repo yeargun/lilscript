@@ -1,0 +1,92 @@
+export class ObservableCodeEditor {
+  int updateCounter;
+  int cursorLineNumber;
+  int cursorColumn;
+  int scrollTop;
+  int scrollLeft;
+  int modelVersion;
+  bool focused;
+  int selectionStartLine;
+  int selectionStartColumn;
+  int selectionEndLine;
+  int selectionEndColumn;
+
+  init() {
+    this.updateCounter = 0;
+    this.cursorLineNumber = 1;
+    this.cursorColumn = 1;
+    this.scrollTop = 0;
+    this.scrollLeft = 0;
+    this.modelVersion = 0;
+    this.focused = false;
+    this.selectionStartLine = 1;
+    this.selectionStartColumn = 1;
+    this.selectionEndLine = 1;
+    this.selectionEndColumn = 1;
+  }
+
+  void beginUpdate() {
+    this.updateCounter = this.updateCounter + 1;
+  }
+
+  void endUpdate() {
+    this.updateCounter = this.updateCounter - 1;
+    if (this.updateCounter < 0) {
+      this.updateCounter = 0;
+    }
+  }
+
+  bool isUpdating() {
+    return this.updateCounter > 0;
+  }
+
+  void setPosition(int lineNumber, int column) {
+    this.beginUpdate();
+    this.cursorLineNumber = lineNumber;
+    this.cursorColumn = column;
+    this.selectionStartLine = lineNumber;
+    this.selectionStartColumn = column;
+    this.selectionEndLine = lineNumber;
+    this.selectionEndColumn = column;
+    this.endUpdate();
+  }
+
+  void setSelection(int sl, int sc, int el, int ec) {
+    this.beginUpdate();
+    this.selectionStartLine = sl;
+    this.selectionStartColumn = sc;
+    this.selectionEndLine = el;
+    this.selectionEndColumn = ec;
+    this.cursorLineNumber = el;
+    this.cursorColumn = ec;
+    this.endUpdate();
+  }
+
+  void setScrollTop(int scrollTop) {
+    this.scrollTop = scrollTop;
+  }
+
+  void setFocused(bool focused) {
+    this.focused = focused;
+  }
+}
+
+Map<int, ObservableCodeEditor> observableEditors = new Map<int, ObservableCodeEditor>();
+
+export ObservableCodeEditor observableCodeEditor(int editorId) {
+  ObservableCodeEditor? existing = observableEditors.get(editorId);
+  if (existing != null) {
+    return existing;
+  }
+  ObservableCodeEditor created = new ObservableCodeEditor();
+  observableEditors.set(editorId, created);
+  return created;
+}
+
+export void disposeObservableCodeEditor(int editorId) {
+  observableEditors.delete(editorId);
+}
+
+export ObservableCodeEditor createObservableCodeEditor() {
+  return new ObservableCodeEditor();
+}

@@ -1,0 +1,23 @@
+export class Action {
+  string id;
+  string label;
+  string tooltip;
+  bool enabled;
+  bool checked;
+
+  init(string id, string label) {
+    this.id = id;
+    this.label = label;
+    this.tooltip = label;
+    this.enabled = true;
+    this.checked = false;
+  }
+
+  void run() {
+    this.checked = !this.checked;
+  }
+}
+
+export Action createAction(string id, string label) {
+  return new Action(id, label);
+}

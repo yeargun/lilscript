@@ -1,0 +1,58 @@
+import {
+  isUndef,
+  undef,
+  len,
+  push,
+  indexOf,
+  splice1,
+  slice,
+  call1,
+  once
+} from "../host.lil";
+import { die } from "../errors.lil";
+import { untrackedStart, untrackedEnd } from "../core/derivation.lil";
+
+export bool hasInterceptors(JsValue interceptable) {
+  return !isUndef(interceptable["interceptors_"]) && len(interceptable["interceptors_"]) > 0;
+}
+
+export JsValue registerInterceptor(JsValue interceptable, JsValue handler) {
+  if (isUndef(interceptable["interceptors_"])) {
+    interceptable["interceptors_"] = JS.array();
+  }
+  JsValue interceptors = interceptable["interceptors_"];
+  push(interceptors, handler);
+  return once(JS.method0((JsValue _self) => {
+    int idx = indexOf(interceptors, handler);
+    if (idx != -1) {
+      splice1(interceptors, idx, 1);
+    }
+    return undef();
+  }));
+}
+
+export JsValue interceptChange(JsValue interceptable, JsValue change) {
+  JsValue prevU = untrackedStart();
+  try {
+    JsValue interceptorsSrc = JS.array();
+    if (interceptable["interceptors_"].truthy()) {
+      interceptorsSrc = interceptable["interceptors_"];
+    }
+    JsValue interceptors = slice(interceptorsSrc);
+    int n = len(interceptors);
+    int i = 0;
+    while (i < n) {
+      change = call1(interceptors[i], undef(), change);
+      if (change.truthy() && !change["type"].truthy()) {
+        die(14);
+      }
+      if (!change.truthy()) {
+        break;
+      }
+      i = i + 1;
+    }
+    return change;
+  } finally {
+    untrackedEnd(prevU);
+  }
+}

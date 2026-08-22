@@ -1,0 +1,25 @@
+export class CachedDerived {
+  bool hasValue;
+  JsValue stored;
+
+  init() {
+    this.hasValue = false;
+    this.stored = 0;
+  }
+
+  JsValue valueOrCompute(func()->JsValue compute) {
+    if (this.hasValue) {
+      return this.stored;
+    }
+    JsValue next = compute();
+    if (next.truthy() || next is float || next is bool || next is string) {
+      this.stored = next;
+      this.hasValue = true;
+    }
+    return next;
+  }
+}
+
+export CachedDerived derivedConstOnceDefined() {
+  return new CachedDerived();
+}

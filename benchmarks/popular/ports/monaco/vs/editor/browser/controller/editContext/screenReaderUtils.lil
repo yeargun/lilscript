@@ -1,0 +1,159 @@
+import { concat2, emptyBuf, sliceOf, stringFromCharCode1 } from "../../../../../js-host";
+
+int nmin(int a, int b) {
+  if (a < b) {
+    return a;
+  }
+  return b;
+}
+
+int nmax(int a, int b) {
+  if (a > b) {
+    return a;
+  }
+  return b;
+}
+
+export class ScreenReaderContentState {
+  string value;
+  int selectionStart;
+  int selectionEnd;
+  int startLineNumber;
+  int startColumn;
+  int newlineCountBeforeSelection;
+
+  init(string value, int selectionStart, int selectionEnd, int startLineNumber, int startColumn, int newlineCountBeforeSelection) {
+    this.value = value;
+    this.selectionStart = selectionStart;
+    this.selectionEnd = selectionEnd;
+    this.startLineNumber = startLineNumber;
+    this.startColumn = startColumn;
+    this.newlineCountBeforeSelection = newlineCountBeforeSelection;
+  }
+}
+
+int getPageOfLine(int lineNumber, int linesPerPage) {
+  if (linesPerPage <= 0) {
+    return 0;
+  }
+  return ((lineNumber - 1) * 1.0 / (linesPerPage * 1.0)).floor().toInt();
+}
+
+export class LineRange {
+  int startLineNumber;
+  int endLineNumberExclusive;
+
+  init(int startLineNumber, int endLineNumberExclusive) {
+    this.startLineNumber = startLineNumber;
+    this.endLineNumberExclusive = endLineNumberExclusive;
+  }
+}
+
+LineRange rangeForPage(int page, int linesPerPage) {
+  int offset = page * linesPerPage;
+  return new LineRange(offset + 1, offset + linesPerPage + 1);
+}
+
+int intersectStart(int a1, int a2) {
+  return nmax(a1, a2);
+}
+
+int intersectEnd(int a1, int a2) {
+  return nmin(a1, a2);
+}
+
+export int newlinecount(string text) {
+  int result = 0;
+  int startIndex = -1;
+  while (true) {
+    startIndex = text.indexOf("\n", startIndex + 1);
+    if (startIndex == -1) {
+      break;
+    }
+    result = result + 1;
+  }
+  return result;
+}
+
+export ScreenReaderContentState fromEditorSelection(string[] lines, int startLineNumber, int startColumn, int endLineNumber, int endColumn, int linesPerPage, bool trimLongText, bool ltr) {
+  int LIMIT_CHARS = 500;
+  int selectionStartPage = getPageOfLine(startLineNumber, linesPerPage);
+  int selectionEndPage = getPageOfLine(endLineNumber, linesPerPage);
+  LineRange startPageRange = rangeForPage(selectionStartPage, linesPerPage);
+  string pretext = valueInRange(lines, startPageRange.startLineNumber, 1, startLineNumber, startColumn);
+  if (trimLongText && pretext.length > LIMIT_CHARS) {
+    pretext = sliceOf(pretext, pretext.length - LIMIT_CHARS, pretext.length);
+  }
+  string posttext = valueInRange(lines, endLineNumber, endColumn, lines.length, lineMaxColumn(lines, lines.length));
+  if (trimLongText && posttext.length > LIMIT_CHARS) {
+    posttext = sliceOf(posttext, 0, LIMIT_CHARS);
+  }
+  string text = "";
+  if (selectionStartPage == selectionEndPage || selectionStartPage + 1 == selectionEndPage) {
+    text = valueInRange(lines, startLineNumber, startColumn, endLineNumber, endColumn);
+  } else {
+    LineRange endPageRange = rangeForPage(selectionEndPage, linesPerPage);
+    string a = valueInRange(lines, startLineNumber, startColumn, startPageRange.endLineNumberExclusive - 1, lineMaxColumn(lines, startPageRange.endLineNumberExclusive - 1));
+    string b = valueInRange(lines, endPageRange.startLineNumber, 1, endLineNumber, endColumn);
+    text = concat2(concat2(a, stringFromCharCode1(8230.0)), b);
+  }
+  if (trimLongText && text.length > 2 * LIMIT_CHARS) {
+    text = concat2(concat2(sliceOf(text, 0, LIMIT_CHARS), stringFromCharCode1(8230.0)), sliceOf(text, text.length - LIMIT_CHARS, text.length));
+  }
+  int selectionStart = pretext.length;
+  int selectionEnd = pretext.length + text.length;
+  if (!ltr) {
+    selectionEnd = pretext.length;
+    selectionStart = pretext.length + text.length;
+  }
+  return new ScreenReaderContentState(concat2(concat2(pretext, text), posttext), selectionStart, selectionEnd, startLineNumber, startColumn, newlinecount(pretext));
+}
+
+int lineMaxColumn(string[] lines, int lineNumber) {
+  int idx = lineNumber - 1;
+  if (idx < 0 || idx >= lines.length) {
+    return 1;
+  }
+  return lines[idx].length + 1;
+}
+
+string valueInRange(string[] lines, int sl, int sc, int el, int ec) {
+  if (lines.length == 0) {
+    return emptyBuf();
+  }
+  int startLine = nmax(1, sl);
+  int endLine = nmin(lines.length, el);
+  if (startLine > endLine) {
+    return emptyBuf();
+  }
+  if (startLine == endLine) {
+    string line = lines[startLine - 1];
+    int from = nmax(0, sc - 1);
+    int to = nmin(line.length, ec - 1);
+    if (to < from) {
+      to = from;
+    }
+    return sliceOf(line, from, to);
+  }
+  string out = emptyBuf();
+  int lineNumber = startLine;
+  while (lineNumber <= endLine) {
+    string line = lines[lineNumber - 1];
+    if (lineNumber == startLine) {
+      out = concat2(out, sliceOf(line, nmax(0, sc - 1), line.length));
+    } else if (lineNumber == endLine) {
+      out = concat2(concat2(out, "\n"), sliceOf(line, 0, nmin(line.length, ec - 1)));
+    } else {
+      out = concat2(concat2(out, "\n"), line);
+    }
+    lineNumber = lineNumber + 1;
+  }
+  return out;
+}
+
+export string ariaLabelForScreenReaderContent(int accessibilitySupport, string ariaLabel) {
+  if (accessibilitySupport == 1) {
+    return "The editor is not accessible at this time.";
+  }
+  return ariaLabel;
+}

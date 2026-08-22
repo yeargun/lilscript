@@ -1,0 +1,55 @@
+export int OBJECT_TREE_EXPANDED = 0;
+export int OBJECT_TREE_COLLAPSED = 1;
+export int OBJECT_TREE_PRESERVE_OR_EXPANDED = 2;
+export int OBJECT_TREE_PRESERVE_OR_COLLAPSED = 3;
+
+export int TREE_MOUSE_UNKNOWN = 0;
+export int TREE_MOUSE_TWISTIE = 1;
+export int TREE_MOUSE_ELEMENT = 2;
+export int TREE_MOUSE_FILTER = 3;
+
+export class TreeError {
+  string user;
+  string message;
+
+  init(string user, string message) {
+    this.user = user;
+    this.message = message;
+  }
+
+  string toString() {
+    return "TreeError [" + this.user + "] " + this.message;
+  }
+}
+
+export class WeakMapper {
+  Map<string, string> values;
+  func(string)->string mapper;
+
+  init(func(string)->string mapper) {
+    this.values = new Map();
+    this.mapper = mapper;
+  }
+
+  string map(string key) {
+    string? cached = this.values.get(key);
+    if (cached != null) {
+      return cached;
+    }
+    string value = this.mapper(key);
+    this.values.set(key, value);
+    return value;
+  }
+
+  int size() {
+    return this.values.size;
+  }
+}
+
+export TreeError createTreeError(string user, string message) {
+  return new TreeError(user, message);
+}
+
+export WeakMapper createWeakMapper(func(string)->string mapper) {
+  return new WeakMapper(mapper);
+}

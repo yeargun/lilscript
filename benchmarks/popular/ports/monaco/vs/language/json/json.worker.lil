@@ -1,0 +1,2 @@
+import { handleJsonWorker, jsonWorkerSymbols } from "../../../workers/json.worker";
+export { handleJsonWorker, jsonWorkerSymbols };

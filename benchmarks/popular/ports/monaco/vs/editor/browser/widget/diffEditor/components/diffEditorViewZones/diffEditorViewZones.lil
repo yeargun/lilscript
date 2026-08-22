@@ -1,0 +1,49 @@
+export class DiffViewZone {
+  int afterLineNumber;
+  int heightInPx;
+  bool isOriginal;
+
+  init(int afterLineNumber, int heightInPx, bool isOriginal) {
+    this.afterLineNumber = afterLineNumber;
+    this.heightInPx = heightInPx;
+    this.isOriginal = isOriginal;
+  }
+}
+
+export DiffViewZone[] alignViewZones(int origStart, int origLen, int modStart, int modLen, int lineHeight) {
+  DiffViewZone[] out = [];
+  if (origLen < modLen) {
+    int extra = (modLen - origLen) * lineHeight;
+    out.push(new DiffViewZone(origStart + origLen - 1, extra, true));
+  } else if (modLen < origLen) {
+    int extra = (origLen - modLen) * lineHeight;
+    out.push(new DiffViewZone(modStart + modLen - 1, extra, false));
+  }
+  return out;
+}
+
+export bool allowsTrueInlineDiffRendering(int origLen, int modLen) {
+  if (origLen == 0 || modLen == 0) {
+    return true;
+  }
+  return origLen == 1 && modLen == 1;
+}
+
+export class DiffEditorViewZones {
+  DiffViewZone[] original;
+  DiffViewZone[] modified;
+
+  init() {
+    this.original = [];
+    this.modified = [];
+  }
+
+  void set(DiffViewZone[] original, DiffViewZone[] modified) {
+    this.original = original;
+    this.modified = modified;
+  }
+}
+
+export DiffEditorViewZones createDiffEditorViewZones() {
+  return new DiffEditorViewZones();
+}

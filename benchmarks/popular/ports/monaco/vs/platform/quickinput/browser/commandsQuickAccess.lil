@@ -1,0 +1,30 @@
+export class CommandsQuickAccessProvider {
+  string[] commands;
+
+  init() {
+    this.commands = [];
+  }
+
+  void addCommand(string id) {
+    if (!this.commands.includes(id)) {
+      this.commands.push(id);
+    }
+  }
+
+  string[] getPicks(string filter) {
+    string[] out = [];
+    string q = filter.toLowerCase();
+    int i = 0;
+    while (i < this.commands.length) {
+      if (q.length == 0 || this.commands[i].toLowerCase().includes(q)) {
+        out.push(this.commands[i]);
+      }
+      i = i + 1;
+    }
+    return out;
+  }
+}
+
+export CommandsQuickAccessProvider createCommandsQuickAccessProvider() {
+  return new CommandsQuickAccessProvider();
+}

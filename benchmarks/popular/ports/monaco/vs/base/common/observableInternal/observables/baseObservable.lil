@@ -1,0 +1,116 @@
+export class ObservableObserver {
+  func(BaseObservable)->void beginUpdateFn;
+  func(BaseObservable)->void endUpdateFn;
+  func(BaseObservable, JsValue)->void handleChangeFn;
+  func(BaseObservable)->void handlePossibleChangeFn;
+
+  init(
+    func(BaseObservable)->void beginUpdateFn,
+    func(BaseObservable)->void endUpdateFn,
+    func(BaseObservable, JsValue)->void handleChangeFn,
+    func(BaseObservable)->void handlePossibleChangeFn
+  ) {
+    this.beginUpdateFn = beginUpdateFn;
+    this.endUpdateFn = endUpdateFn;
+    this.handleChangeFn = handleChangeFn;
+    this.handlePossibleChangeFn = handlePossibleChangeFn;
+  }
+
+  void beginUpdate(BaseObservable observable) {
+    this.beginUpdateFn(observable);
+  }
+
+  void endUpdate(BaseObservable observable) {
+    this.endUpdateFn(observable);
+  }
+
+  void handleChange(BaseObservable observable, JsValue change) {
+    this.handleChangeFn(observable, change);
+  }
+
+  void handlePossibleChange(BaseObservable observable) {
+    this.handlePossibleChangeFn(observable);
+  }
+}
+
+export class ObservableReader {
+  func(BaseObservable)->JsValue readObservableFn;
+
+  init(func(BaseObservable)->JsValue readObservableFn) {
+    this.readObservableFn = readObservableFn;
+  }
+
+  JsValue readObservable(BaseObservable observable) {
+    return this.readObservableFn(observable);
+  }
+}
+
+export class BaseObservable {
+  string debugName;
+  ObservableObserver[] observers;
+  func()->JsValue getValueFn;
+  func()->void firstObserverAddedFn;
+  func()->void lastObserverRemovedFn;
+
+  init(string debugName, func()->JsValue getValueFn) {
+    this.debugName = debugName;
+    this.observers = [];
+    this.getValueFn = getValueFn;
+    this.firstObserverAddedFn = () => {};
+    this.lastObserverRemovedFn = () => {};
+  }
+
+  void setObserverHooks(
+    func()->void firstObserverAddedFn,
+    func()->void lastObserverRemovedFn
+  ) {
+    this.firstObserverAddedFn = firstObserverAddedFn;
+    this.lastObserverRemovedFn = lastObserverRemovedFn;
+  }
+
+  JsValue get() {
+    return this.getValueFn();
+  }
+
+  void reportChanges() {
+    this.get();
+  }
+
+  JsValue read(ObservableReader? reader) {
+    if (reader != null) {
+      return reader.readObservable(this);
+    }
+    return this.get();
+  }
+
+  void addObserver(ObservableObserver observer) {
+    int previousSize = this.observers.length;
+    if (this.observers.indexOf(observer) < 0) {
+      this.observers.push(observer);
+    }
+    if (previousSize == 0 && this.observers.length == 1) {
+      this.firstObserverAddedFn();
+    }
+  }
+
+  void removeObserver(ObservableObserver observer) {
+    int index = this.observers.indexOf(observer);
+    if (index >= 0) {
+      this.observers.splice(index, 1);
+    }
+    if (index >= 0 && this.observers.length == 0) {
+      this.lastObserverRemovedFn();
+    }
+  }
+
+  ObservableObserver[] debugGetObservers() {
+    return this.observers.slice();
+  }
+}
+
+export BaseObservable createBaseObservable(
+  string debugName,
+  func()->JsValue getValueFn
+) {
+  return new BaseObservable(debugName, getValueFn);
+}

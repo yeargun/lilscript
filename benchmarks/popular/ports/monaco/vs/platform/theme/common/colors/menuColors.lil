@@ -1,0 +1,51 @@
+export class MenuColorsRegistry {
+  string[] ids;
+
+  init() {
+    this.ids = [];
+  }
+
+  string register(string id) {
+    if (!this.ids.includes(id)) {
+      this.ids.push(id);
+    }
+    return id;
+  }
+
+  bool has(string id) {
+    return this.ids.includes(id);
+  }
+
+  string asCssVariableName(string id) {
+    string out = "--vscode-";
+    int i = 0;
+    while (i < id.length) {
+      string ch = id.charAt(i);
+      if (ch == ".") {
+        out = out + "-";
+      } else {
+        out = out + ch;
+      }
+      i = i + 1;
+    }
+    return out;
+  }
+}
+
+MenuColorsRegistry colors = new MenuColorsRegistry();
+
+export MenuColorsRegistry getMenuColorsRegistry() {
+  return colors;
+}
+
+export string c0 = colors.register("menu.border");
+export string c1 = colors.register("menu.foreground");
+export string c2 = colors.register("menu.background");
+export string c3 = colors.register("menu.selectionForeground");
+export string c4 = colors.register("menu.selectionBackground");
+export string c5 = colors.register("menu.selectionBorder");
+export string c6 = colors.register("menu.separatorBackground");
+
+export string[] colorIds() {
+  return colors.ids;
+}

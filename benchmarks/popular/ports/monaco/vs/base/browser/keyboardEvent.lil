@@ -1,0 +1,147 @@
+import { eventKeyCode, eventCtrlKey, eventShiftKey, eventAltKey, eventCode, preventDefault, stopPropagation, jsPropInt } from "../../../js-host";
+
+int extractKeyCode(JsValue event) {
+  int keyCode = eventKeyCode(event);
+  if (keyCode >= 65 && keyCode <= 90) {
+    return 31 + keyCode - 65;
+  }
+  if (keyCode >= 48 && keyCode <= 57) {
+    return 21 + keyCode - 48;
+  }
+  if (keyCode >= 112 && keyCode <= 135) {
+    return 59 + keyCode - 112;
+  }
+  if (keyCode >= 96 && keyCode <= 105) {
+    return 98 + keyCode - 96;
+  }
+  if (keyCode == 3 || keyCode == 19) {
+    return 7;
+  }
+  if (keyCode == 8) { return 1; }
+  if (keyCode == 9) { return 2; }
+  if (keyCode == 13) { return 3; }
+  if (keyCode == 16) { return 4; }
+  if (keyCode == 17) { return 5; }
+  if (keyCode == 18) { return 6; }
+  if (keyCode == 20) { return 8; }
+  if (keyCode == 27) { return 9; }
+  if (keyCode == 32) { return 10; }
+  if (keyCode == 33) { return 11; }
+  if (keyCode == 34) { return 12; }
+  if (keyCode == 35) { return 13; }
+  if (keyCode == 36) { return 14; }
+  if (keyCode == 37) { return 15; }
+  if (keyCode == 38) { return 16; }
+  if (keyCode == 39) { return 17; }
+  if (keyCode == 40) { return 18; }
+  if (keyCode == 45) { return 19; }
+  if (keyCode == 46) { return 20; }
+  if (keyCode == 91 || keyCode == 92 || keyCode == 93 || keyCode == 224) { return 57; }
+  if (keyCode == 59 || keyCode == 186) { return 85; }
+  if (keyCode == 61 || keyCode == 187) { return 86; }
+  if (keyCode == 188) { return 87; }
+  if (keyCode == 173 || keyCode == 189) { return 88; }
+  if (keyCode == 190) { return 89; }
+  if (keyCode == 191) { return 90; }
+  if (keyCode == 192) { return 91; }
+  if (keyCode == 219) { return 92; }
+  if (keyCode == 220) { return 93; }
+  if (keyCode == 221) { return 94; }
+  if (keyCode == 222) { return 95; }
+  if (keyCode == 106) { return 108; }
+  if (keyCode == 107) { return 109; }
+  if (keyCode == 109) { return 111; }
+  if (keyCode == 110) { return 112; }
+  if (keyCode == 111) { return 113; }
+  if (keyCode == 229) { return 114; }
+  return 0;
+}
+
+bool isModifierKey(int keyCode) {
+  return keyCode == 4 || keyCode == 5 || keyCode == 6 || keyCode == 57;
+}
+
+export class KeyCodeChord {
+  bool ctrlKey;
+  bool shiftKey;
+  bool altKey;
+  bool metaKey;
+  int keyCode;
+
+  init(bool ctrlKey, bool shiftKey, bool altKey, bool metaKey, int keyCode) {
+    this.ctrlKey = ctrlKey;
+    this.shiftKey = shiftKey;
+    this.altKey = altKey;
+    this.metaKey = metaKey;
+    this.keyCode = keyCode;
+  }
+}
+
+export class StandardKeyboardEvent {
+  JsValue browserEvent;
+  JsValue target;
+  bool ctrlKey;
+  bool shiftKey;
+  bool altKey;
+  bool metaKey;
+  bool altGraphKey;
+  int keyCode;
+  string code;
+  int keybinding;
+  KeyCodeChord keyCodeChord;
+
+  init(JsValue source) {
+    this.browserEvent = source;
+    this.target = source["target"];
+    this.ctrlKey = eventCtrlKey(source);
+    this.shiftKey = eventShiftKey(source);
+    this.altKey = eventAltKey(source);
+    this.metaKey = source["metaKey"].truthy();
+    this.altGraphKey = false;
+    this.keyCode = extractKeyCode(source);
+    this.code = eventCode(source);
+    this.ctrlKey = this.ctrlKey || this.keyCode == 5;
+    this.altKey = this.altKey || this.keyCode == 6;
+    this.shiftKey = this.shiftKey || this.keyCode == 4;
+    this.metaKey = this.metaKey || this.keyCode == 57;
+    int key = this.keyCode;
+    if (isModifierKey(key)) {
+      key = 0;
+    }
+    int result = key;
+    if (this.ctrlKey) {
+      result = result | 2048;
+    }
+    if (this.altKey) {
+      result = result | 512;
+    }
+    if (this.shiftKey) {
+      result = result | 1024;
+    }
+    if (this.metaKey) {
+      result = result | 256;
+    }
+    this.keybinding = result;
+    this.keyCodeChord = new KeyCodeChord(this.ctrlKey, this.shiftKey, this.altKey, this.metaKey, key);
+  }
+
+  void preventDefault() {
+    preventDefault(this.browserEvent);
+  }
+
+  void stopPropagation() {
+    stopPropagation(this.browserEvent);
+  }
+
+  KeyCodeChord toKeyCodeChord() {
+    return this.keyCodeChord;
+  }
+
+  bool equals(int other) {
+    return this.keybinding == other;
+  }
+}
+
+export StandardKeyboardEvent createStandardKeyboardEvent(JsValue source) {
+  return new StandardKeyboardEvent(source);
+}

@@ -36,6 +36,10 @@ pub struct IrJsOptions {
     pub mangle_identifiers: bool,
     pub mangle_properties: bool,
     pub mangle_exports: bool,
+    /// Keep `extern class` member spellings exact. Closed LilScript programs
+    /// can set this false so those names enter property mangling; host reads
+    /// such as `string.length` stay pinned because they are not extern fields.
+    pub mangle_extern_fields: bool,
     pub public_aggregate_fields: bool,
     pub named_aggregate_fields: bool,
     pub pool_strings: bool,
@@ -220,6 +224,7 @@ impl Default for IrJsOptions {
             mangle_identifiers: true,
             mangle_properties: false,
             mangle_exports: false,
+            mangle_extern_fields: true,
             public_aggregate_fields: true,
             named_aggregate_fields: false,
             pool_strings: true,
@@ -1721,6 +1726,7 @@ struct IrJsEmitter<'module, 'src> {
     emitted_named_clusters: AHashSet<usize>,
     nested_once_run_helpers: AHashMap<FunctionId, Vec<FunctionId>>,
     clustered_helpers: AHashSet<FunctionId>,
+    emitting_function: Option<FunctionId>,
     sunk_entry_functions: AHashSet<FunctionId>,
     emitted_sunk_functions: AHashSet<FunctionId>,
     inline_fresh_empty_array_factories: AHashSet<FunctionId>,
@@ -1800,6 +1806,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             emitted_named_clusters: AHashSet::default(),
             nested_once_run_helpers: AHashMap::default(),
             clustered_helpers: AHashSet::default(),
+            emitting_function: None,
             sunk_entry_functions: AHashSet::default(),
             emitted_sunk_functions: AHashSet::default(),
             inline_fresh_empty_array_factories: AHashSet::default(),
@@ -1916,6 +1923,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         self.assign_inline_pure_helpers();
         self.release_nested_helpers_of_pure_inline_hosts();
         self.release_stranded_cluster_helpers();
+        self.uncluster_helpers_called_from_top_level_bodies();
         self.assign_external_export_aliases();
         self.assign_constant_global_strings();
         self.assign_deferred_global_declarations();
@@ -1923,6 +1931,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         self.assign_numeric_aliases();
         self.assign_named_field_aggregates();
         self.assign_property_names();
+        self.assign_missing_function_names();
     }
 
     /// Complex typed defaults are recreated at every omitted LilScript call
@@ -3471,6 +3480,30 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         !self.function_is_inlined(function)
     }
 
+    fn assign_missing_function_names(&mut self) {
+        let mut missing = Vec::new();
+        for function in &self.module.functions {
+            if !function.live
+                || function.kind == FunctionKind::Entry
+                || self.function_names.contains_key(&function.id)
+                || self.clustered_helpers.contains(&function.id)
+                || self.inline_pure_helpers.contains(&function.id)
+                || self.inline_single_use_functions.contains(&function.id)
+                || self.inline_exclusive_closures.contains(&function.id)
+                || self
+                    .inline_fresh_empty_array_factories
+                    .contains(&function.id)
+                || self.js_host_alias_skips_binding(function.id)
+                || self.function_is_inlined(function)
+                || self.is_imported_extern(function)
+            {
+                continue;
+            }
+            missing.push(function.id);
+        }
+        self.assign_released_helper_names(missing);
+    }
+
     fn assign_released_helper_names(&mut self, released: Vec<FunctionId>) {
         for helper in released {
             if self.function_names.contains_key(&helper)
@@ -3547,9 +3580,13 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         let mut kept_named = Vec::new();
         let mut kept_root_index = AHashMap::default();
         for (roots, helpers) in named_clusters {
-            if roots
-                .iter()
-                .any(|root| self.cluster_root_emits_wrapper(*root))
+            // A named cluster IIFE only binds helpers locally. If any root is
+            // inlined into a foreign body, that body emits a call to the helper
+            // before (or outside) the IIFE and needs a top-level spelling.
+            if !roots.is_empty()
+                && roots
+                    .iter()
+                    .all(|root| self.cluster_root_emits_wrapper(*root))
             {
                 let index = kept_named.len();
                 for root in &roots {
@@ -3564,6 +3601,118 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         self.named_cluster_by_root = kept_root_index;
         self.reconcile_clustered_helpers();
         self.assign_released_helper_names(released);
+    }
+
+    fn emits_top_level_body_outside_helper_iife(&self, id: FunctionId) -> bool {
+        let Some(function) = self.module.functions.get(id.0 as usize) else {
+            return false;
+        };
+        if !function.live
+            || function.kind == FunctionKind::Entry
+            || self.is_imported_extern(function)
+            || self.js_host_alias_spelling(id).is_some()
+            || self.function_is_inlined(function)
+            || self.inline_single_use_functions.contains(&id)
+            || self.inline_fresh_empty_array_factories.contains(&id)
+            || self.inline_pure_helpers.contains(&id)
+            || self.clustered_helpers.contains(&id)
+            || self.sunk_entry_functions.contains(&id)
+        {
+            return false;
+        }
+        if self.private_callee_clusters.contains_key(&id) {
+            return false;
+        }
+        if self.named_cluster_by_root.contains_key(&id) {
+            return false;
+        }
+        true
+    }
+
+    fn collect_emitted_direct_callees(
+        &self,
+        id: FunctionId,
+        callees: &mut AHashSet<FunctionId>,
+        visited: &mut AHashSet<FunctionId>,
+    ) {
+        if !visited.insert(id) {
+            return;
+        }
+        let Some(function) = self.module.functions.get(id.0 as usize) else {
+            return;
+        };
+        for instruction in function.blocks.iter().flat_map(|block| &block.instructions) {
+            match &instruction.op {
+                ControlFlowOp::CallDirect {
+                    function: callee, ..
+                }
+                | ControlFlowOp::CallMethod {
+                    function: callee, ..
+                }
+                | ControlFlowOp::NewClass {
+                    constructor: Some(callee),
+                    ..
+                } => {
+                    callees.insert(*callee);
+                    if self.callee_body_nests_in_caller(*callee) {
+                        self.collect_emitted_direct_callees(*callee, callees, visited);
+                    }
+                }
+                ControlFlowOp::Closure {
+                    function: inner, ..
+                } => {
+                    let Some(closure) = self.module.functions.get(inner.0 as usize) else {
+                        continue;
+                    };
+                    if self.function_is_inlined(closure)
+                        || self.inline_exclusive_closures.contains(inner)
+                    {
+                        self.collect_emitted_direct_callees(*inner, callees, visited);
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    fn uncluster_helpers_called_from_top_level_bodies(&mut self) {
+        if self.clustered_helpers.is_empty() {
+            return;
+        }
+        let mut escaped = AHashSet::default();
+        let mut hosts = vec![self.module.entry];
+        hosts.extend(
+            self.module
+                .functions
+                .iter()
+                .filter(|function| self.emits_top_level_body_outside_helper_iife(function.id))
+                .map(|function| function.id),
+        );
+        for host in hosts {
+            let mut callees = AHashSet::default();
+            let mut visited = AHashSet::default();
+            self.collect_emitted_direct_callees(host, &mut callees, &mut visited);
+            for callee in &callees {
+                if self.clustered_helpers.contains(callee) {
+                    escaped.insert(*callee);
+                }
+            }
+        }
+        if escaped.is_empty() {
+            return;
+        }
+        self.strip_ids_from_cluster_helper_lists(&escaped);
+        self.named_callee_clusters
+            .retain(|(_, helpers)| helpers.len() >= MIN_IIFE_CLUSTER_HELPERS);
+        let mut kept_root_index = AHashMap::default();
+        for (index, (roots, _)) in self.named_callee_clusters.iter().enumerate() {
+            for root in roots {
+                kept_root_index.insert(*root, index);
+            }
+        }
+        self.named_cluster_by_root = kept_root_index;
+        self.reconcile_clustered_helpers();
+        self.assign_released_helper_names(escaped.into_iter().collect());
     }
 
     fn uncluster_helpers_with_external_callers(
@@ -5426,6 +5575,14 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         if !self.options.mangle_properties {
             return;
         }
+        let extern_member_names = self
+            .module
+            .structs
+            .iter()
+            .chain(&self.module.classes)
+            .filter(|layout| layout.external)
+            .flat_map(|layout| layout.fields.iter().map(|field| field.name.to_string()))
+            .collect::<AHashSet<_>>();
         let mut stable_public_fields = self
             .module
             .structs
@@ -5449,7 +5606,11 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     if let ControlFlowOp::HostFieldGet { property, .. }
                     | ControlFlowOp::HostFieldSet { property, .. } = &instruction.op
                     {
-                        stable_public_fields.insert((*property).to_string());
+                        if self.options.mangle_extern_fields
+                            || !extern_member_names.contains(*property)
+                        {
+                            stable_public_fields.insert((*property).to_string());
+                        }
                     }
                 }
             }
@@ -5490,6 +5651,16 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         field.filter(|field| !stable_public_fields.contains(*field))
                     {
                         *frequencies.entry(field.to_string()).or_insert(0) += loop_weight;
+                    }
+                    if !self.options.mangle_extern_fields {
+                        if let ControlFlowOp::HostFieldGet { property, .. }
+                        | ControlFlowOp::HostFieldSet { property, .. } = &instruction.op
+                        {
+                            if extern_member_names.contains(*property) {
+                                *frequencies.entry((*property).to_string()).or_insert(0) +=
+                                    loop_weight;
+                            }
+                        }
                     }
                     for key in js_member_keys_in_op(&instruction.op, &string_constants) {
                         if mangleable_internal_js_key(&key) {
@@ -6192,6 +6363,17 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         function: &ControlFlowFunction<'src>,
         out: &mut String,
     ) -> Result<(), CodegenError> {
+        let previous = self.emitting_function.replace(function.id);
+        let result = self.emit_function_inner(function, out);
+        self.emitting_function = previous;
+        result
+    }
+
+    fn emit_function_inner(
+        &mut self,
+        function: &ControlFlowFunction<'src>,
+        out: &mut String,
+    ) -> Result<(), CodegenError> {
         if !self.function_is_inlined(function) {
             if let Some(&index) = self.named_cluster_by_root.get(&function.id) {
                 return self.emit_named_callee_cluster(index, out);
@@ -6663,6 +6845,19 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
     }
 
     fn emit_function_body(
+        &mut self,
+        function: &ControlFlowFunction<'src>,
+        name: String,
+        anonymous_expression: bool,
+        out: &mut String,
+    ) -> Result<(), CodegenError> {
+        let previous = self.emitting_function.replace(function.id);
+        let result = self.emit_function_body_inner(function, name, anonymous_expression, out);
+        self.emitting_function = previous;
+        result
+    }
+
+    fn emit_function_body_inner(
         &mut self,
         function: &ControlFlowFunction<'src>,
         name: String,
@@ -10951,7 +11146,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             ControlFlowOp::HostFieldGet { object, property }
                 if matches!(instruction.ty, Some(Type::Nullable(_))) =>
             {
-                let property = *property;
+                let property = self.property_name(property);
                 if context.is_js_value(*object) {
                     let object = take_value(*object, context, cache)?.at_least(JsPrecedence::Call);
                     return Ok(JsExpression::raw(
@@ -11276,7 +11471,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             }
             ControlFlowOp::HostFieldGet { object, property } => JsExpression::member(
                 value(*object, cache)?,
-                property,
+                self.property_name(property),
                 self.options.elide_call_chain_parentheses,
             ),
             ControlFlowOp::RecordFieldGet { object, property } => {
@@ -11332,7 +11527,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     "{}={}",
                     JsExpression::member(
                         value(*object, cache)?,
-                        property,
+                        self.property_name(property),
                         self.options.elide_call_chain_parentheses,
                     ),
                     strip_outer_parens(value(*assigned, cache)?)
@@ -13620,7 +13815,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 CodegenError::new(
                     function.map_or(crate::span::Span::empty(0), |function| function.span),
                     format!(
-                        "function {} (`{}`, {kind}) has no emitted name (live={} inlined={} single_use={} clustered={} host_skip={} private_root={} named_root={} {})",
+                        "function {} (`{}`, {kind}) has no emitted name (live={} inlined={} single_use={} clustered={} host_skip={} private_root={} named_root={} {}{})",
                         id.0,
                         function.and_then(|function| function.name).unwrap_or("<unnamed>"),
                         function.is_some_and(|function| function.live),
@@ -13631,6 +13826,17 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         self.private_callee_clusters.contains_key(&id),
                         self.named_cluster_by_root.contains_key(&id),
                         self.function_name_debug_clusters(id),
+                        self.emitting_function
+                            .and_then(|function| {
+                                self.module.functions.get(function.0 as usize).map(|item| {
+                                    format!(
+                                        " emitting={} (`{}`)",
+                                        function.0,
+                                        item.name.unwrap_or("<unnamed>")
+                                    )
+                                })
+                            })
+                            .unwrap_or_default(),
                     ),
                 )
             })
@@ -13654,8 +13860,34 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         .contains(&id)
                         .then(|| {
                             format!(
-                                "named-helper-of-{:?}",
-                                roots.iter().map(|r| r.0).collect::<Vec<_>>()
+                                "named-helper-of-[{}] pure={} wraps={}",
+                                roots
+                                    .iter()
+                                    .map(|r| {
+                                        let name = self
+                                            .module
+                                            .functions
+                                            .get(r.0 as usize)
+                                            .and_then(|function| function.name)
+                                            .unwrap_or("?");
+                                        format!(
+                                            "{}:{} wrap={} pure={} single={} inlined={} exclusive={} name={}",
+                                            r.0,
+                                            name,
+                                            self.cluster_root_emits_wrapper(*r),
+                                            self.inline_pure_helpers.contains(r),
+                                            self.inline_single_use_functions.contains(r),
+                                            self.module.functions.get(r.0 as usize).is_some_and(|function| {
+                                                self.function_is_inlined(function)
+                                            }),
+                                            self.inline_exclusive_closures.contains(r),
+                                            self.function_names.contains_key(r),
+                                        )
+                                    })
+                                    .collect::<Vec<_>>()
+                                    .join("; "),
+                                self.inline_pure_helpers.contains(&id),
+                                roots.iter().all(|root| self.cluster_root_emits_wrapper(*root)),
                             )
                         })
                         .or_else(|| roots.contains(&id).then(|| format!("named-root-{index}")))
@@ -27909,6 +28141,23 @@ install();
         );
         assert!(output.contains(";(function(){"), "{output}");
         assert_eq!(run_javascript(&output), "33\n", "{output}");
+    }
+
+    #[test]
+    fn named_cluster_helpers_called_from_a_foreign_emit_body_keep_names() {
+        let output = compile_without_inlining_with_options(
+            "int h1(int x){return x+1;}int h2(int x){return x+2;}int h3(int x){return x+3;}int h4(int x){return x+4;}int left(int x){return h1(x)+h2(x)+h3(x)+h4(x);}int right(int x){return h1(x)+h2(x)+h3(x)+h4(x)+1;}int foreign(int x){return h1(x)+h2(x);}print(left(1)+right(2)+foreign(3));",
+            false,
+            IrJsOptions {
+                mangle_identifiers: true,
+                iife_private_callee_clusters: true,
+                nested_once_run_helpers: true,
+                local_name_reserve: 48,
+                function_spelling: FunctionSpelling::Function,
+                ..IrJsOptions::default()
+            },
+        );
+        assert_eq!(run_javascript(&output), "42\n", "{output}");
     }
 
     #[test]

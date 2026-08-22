@@ -1,0 +1,236 @@
+import { addEventListener, removeEventListener, clearChildren, getClientWidth, getClientHeight, getScrollTop, getScrollHeight, getScrollLeft, appendChild, removeChild, setClassName, classListAdd, classListRemove, setStyle, setAttribute, setTextContent, getTextContent, setInnerHTML, getInnerHTML, focusElement, blurElement, preventDefault, stopPropagation, windowSelf } from "../../../js-host";
+
+Map<int, bool> registeredWindows = new Map<int, bool>();
+int mainWindowId = 1;
+
+export void registerWindowId(int windowId) {
+  registeredWindows.set(windowId, true);
+}
+
+export bool hasWindow(int windowId) {
+  return registeredWindows.has(windowId);
+}
+
+export int getWindowsCount() {
+  return registeredWindows.size;
+}
+
+export void clearNode(JsValue node) {
+  clearChildren(node);
+}
+
+export class DomSize {
+  int width;
+  int height;
+
+  init(int width, int height) {
+    this.width = width;
+    this.height = height;
+  }
+}
+
+export DomSize getClientArea(JsValue element) {
+  int w = getClientWidth(element);
+  int h = getClientHeight(element);
+  if (w == 0) {
+    w = 1;
+  }
+  if (h == 0) {
+    h = 1;
+  }
+  return new DomSize(w, h);
+}
+
+export int getTotalScrollHeight(JsValue element) {
+  return getScrollHeight(element);
+}
+
+export int getTotalScrollTop(JsValue element) {
+  return getScrollTop(element);
+}
+
+export int getTotalScrollLeft(JsValue element) {
+  return getScrollLeft(element);
+}
+
+export void addDisposableListener(JsValue node, string type, JsValue handler, bool capture) {
+  addEventListener(node, type, handler, capture);
+}
+
+export void removeDisposableListener(JsValue node, string type, JsValue handler, bool capture) {
+  removeEventListener(node, type, handler, capture);
+}
+
+export bool isAncestor(JsValue testChild, JsValue testAncestor) {
+  if (!testChild.truthy() || !testAncestor.truthy()) {
+    return false;
+  }
+  JsValue current = testChild;
+  int guard = 0;
+  while (current.truthy() && guard < 1000) {
+    if (current == testAncestor) {
+      return true;
+    }
+    JsValue parent = current["parentNode"];
+    current = parent;
+    guard = guard + 1;
+  }
+  return false;
+}
+
+export void append(JsValue parent, JsValue child) {
+  appendChild(parent, child);
+}
+
+export void remove(JsValue parent, JsValue child) {
+  removeChild(parent, child);
+}
+
+export void addClass(JsValue node, string className) {
+  classListAdd(node, className);
+}
+
+export void removeClass(JsValue node, string className) {
+  classListRemove(node, className);
+}
+
+export void setClass(JsValue node, string className) {
+  setClassName(node, className);
+}
+
+export void setDomAttribute(JsValue node, string name, string value) {
+  setAttribute(node, name, value);
+}
+
+export void setDomStyle(JsValue node, string prop, string value) {
+  setStyle(node, prop, value);
+}
+
+export void setDomText(JsValue node, string text) {
+  setTextContent(node, text);
+}
+
+export string getDomText(JsValue node) {
+  return getTextContent(node);
+}
+
+export void setDomHtml(JsValue node, string html) {
+  setInnerHTML(node, html);
+}
+
+export string getDomHtml(JsValue node) {
+  return getInnerHTML(node);
+}
+
+export void trackFocus(JsValue element) {
+  focusElement(element);
+}
+
+export void trackBlur(JsValue element) {
+  blurElement(element);
+}
+
+export void eventPreventDefault(JsValue event) {
+  preventDefault(event);
+}
+
+export void eventStopPropagation(JsValue event) {
+  stopPropagation(event);
+}
+
+export JsValue getActiveWindow() {
+  return windowSelf();
+}
+
+export string EventTypeCLICK = "click";
+export string EventTypeDBLCLICK = "dblclick";
+export string EventTypeMOUSE_UP = "mouseup";
+export string EventTypeMOUSE_DOWN = "mousedown";
+export string EventTypeMOUSE_OVER = "mouseover";
+export string EventTypeMOUSE_MOVE = "mousemove";
+export string EventTypeMOUSE_OUT = "mouseout";
+export string EventTypeMOUSE_ENTER = "mouseenter";
+export string EventTypeMOUSE_LEAVE = "mouseleave";
+export string EventTypeCONTEXT_MENU = "contextmenu";
+export string EventTypeWHEEL = "wheel";
+export string EventTypeKEY_DOWN = "keydown";
+export string EventTypeKEY_PRESS = "keypress";
+export string EventTypeKEY_UP = "keyup";
+export string EventTypeLOAD = "load";
+export string EventTypeBEFORE_UNLOAD = "beforeunload";
+export string EventTypeUNLOAD = "unload";
+export string EventTypeFOCUS = "focus";
+export string EventTypeBLUR = "blur";
+export string EventTypeINPUT = "input";
+export string EventTypeCHANGE = "change";
+export string EventTypeSCROLL = "scroll";
+export string EventTypeRESIZE = "resize";
+export string EventTypeDRAG_START = "dragstart";
+export string EventTypeDRAG = "drag";
+export string EventTypeDRAG_ENTER = "dragenter";
+export string EventTypeDRAG_LEAVE = "dragleave";
+export string EventTypeDRAG_OVER = "dragover";
+export string EventTypeDROP = "drop";
+export string EventTypeDRAG_END = "dragend";
+
+export class Dimension {
+  int width;
+  int height;
+
+  init(int width, int height) {
+    this.width = width;
+    this.height = height;
+  }
+
+  bool equals(Dimension other) {
+    return this.width == other.width && this.height == other.height;
+  }
+}
+
+export Dimension getDomNodePagePosition(JsValue element) {
+  DomSize size = getClientArea(element);
+  return new Dimension(size.width, size.height);
+}
+
+export int computeSizeHash(int width, int height) {
+  return ((width << 16) ^ height) | 0;
+}
+
+export bool isHTMLElement(JsValue e) {
+  if (!e.truthy() || !e.isObject()) {
+    return false;
+  }
+  JsValue nodeType = e["nodeType"];
+  if (nodeType is float) {
+    float n = nodeType;
+    return n == 1.0;
+  }
+  return false;
+}
+
+export bool isShadowRoot(JsValue e) {
+  if (!e.truthy() || !e.isObject()) {
+    return false;
+  }
+  JsValue host = e["host"];
+  return host.truthy();
+}
+
+bool windowsSeeded = false;
+
+void ensureMainWindow() {
+  if (!windowsSeeded) {
+    registeredWindows.set(mainWindowId, true);
+    windowsSeeded = true;
+  }
+}
+
+export int getWindowId(JsValue targetWindow) {
+  ensureMainWindow();
+  JsValue id = targetWindow["vscodeWindowId"];
+  if (id is float) {
+    float n = id;
+    return n.toInt();
+  }
+  return mainWindowId;
+}

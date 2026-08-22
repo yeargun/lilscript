@@ -1,0 +1,17 @@
+export class ReloadableClassWrapper {
+  string ctorId;
+  int generation;
+
+  init(string ctorId) {
+    this.ctorId = ctorId;
+    this.generation = 0;
+  }
+
+  void reload() {
+    this.generation = this.generation + 1;
+  }
+}
+
+export ReloadableClassWrapper wrapInReloadableClass(string ctorId) {
+  return new ReloadableClassWrapper(ctorId);
+}

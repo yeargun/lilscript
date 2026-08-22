@@ -1,0 +1,6 @@
+export JsValue admProxyOrTarget(JsValue self) {
+  if (self["proxy_"].truthy()) {
+    return self["proxy_"];
+  }
+  return self["target_"];
+}

@@ -1,0 +1,162 @@
+export class Viewport {
+  int top;
+  int left;
+  int width;
+  int height;
+
+  init(int top, int left, int width, int height) {
+    this.top = top;
+    this.left = left;
+    this.width = width;
+    this.height = height;
+  }
+}
+
+export class MinimapLinesRenderingData {
+  int tabSize;
+  string[] data;
+
+  init(int tabSize, string[] data) {
+    this.tabSize = tabSize;
+    this.data = data;
+  }
+}
+
+export class ViewLineData {
+  string content;
+  bool continuesWithWrappedLine;
+  int minColumn;
+  int maxColumn;
+  int startVisibleColumn;
+  string[] tokenClasses;
+  string[] inlineDecorations;
+
+  init(string content, bool continuesWithWrappedLine, int minColumn, int maxColumn, int startVisibleColumn, string[] tokenClasses, string[] inlineDecorations) {
+    this.content = content;
+    this.continuesWithWrappedLine = continuesWithWrappedLine;
+    this.minColumn = minColumn;
+    this.maxColumn = maxColumn;
+    this.startVisibleColumn = startVisibleColumn;
+    this.tokenClasses = tokenClasses;
+    this.inlineDecorations = inlineDecorations;
+  }
+}
+
+export class ViewLineRenderingData {
+  int minColumn;
+  int maxColumn;
+  string content;
+  bool continuesWithWrappedLine;
+  bool isBasicASCII;
+  bool containsRTL;
+  string[] tokenClasses;
+  string[] inlineDecorations;
+  int tabSize;
+  int startVisibleColumn;
+  int textDirection;
+  bool hasVariableFonts;
+
+  init(int minColumn, int maxColumn, string content, bool continuesWithWrappedLine, bool mightContainRTL, bool mightContainNonBasicASCII, string[] tokenClasses, string[] inlineDecorations, int tabSize, int startVisibleColumn, int textDirection, bool hasVariableFonts) {
+    this.minColumn = minColumn;
+    this.maxColumn = maxColumn;
+    this.content = content;
+    this.continuesWithWrappedLine = continuesWithWrappedLine;
+    this.isBasicASCII = !mightContainNonBasicASCII || checkBasicASCII(content);
+    this.containsRTL = mightContainRTL && !this.isBasicASCII && checkContainsRTL(content);
+    this.tokenClasses = tokenClasses;
+    this.inlineDecorations = inlineDecorations;
+    this.tabSize = tabSize;
+    this.startVisibleColumn = startVisibleColumn;
+    this.textDirection = textDirection;
+    this.hasVariableFonts = hasVariableFonts;
+  }
+}
+
+export class ViewDecorationRange {
+  int startLineNumber;
+  int startColumn;
+  int endLineNumber;
+  int endColumn;
+
+  init(int startLineNumber, int startColumn, int endLineNumber, int endColumn) {
+    this.startLineNumber = startLineNumber;
+    this.startColumn = startColumn;
+    this.endLineNumber = endLineNumber;
+    this.endColumn = endColumn;
+  }
+}
+
+export class ViewModelDecoration {
+  ViewDecorationRange range;
+  string className;
+
+  init(ViewDecorationRange range, string className) {
+    this.range = range;
+    this.className = className;
+  }
+}
+
+export class OverviewRulerDecorationsGroup {
+  string color;
+  int zIndex;
+  int[] data;
+
+  init(string color, int zIndex, int[] data) {
+    this.color = color;
+    this.zIndex = zIndex;
+    this.data = data;
+  }
+
+  bool equals(OverviewRulerDecorationsGroup other) {
+    if (this.color != other.color || this.zIndex != other.zIndex || this.data.length != other.data.length) {
+      return false;
+    }
+    int i = 0;
+    while (i < this.data.length) {
+      if (this.data[i] != other.data[i]) {
+        return false;
+      }
+      i = i + 1;
+    }
+    return true;
+  }
+}
+
+bool checkBasicASCII(string content) {
+  int i = 0;
+  while (i < content.length) {
+    if (content.charCodeAt(i) > 127) {
+      return false;
+    }
+    i = i + 1;
+  }
+  return true;
+}
+
+bool checkContainsRTL(string content) {
+  int i = 0;
+  while (i < content.length) {
+    int code = content.charCodeAt(i);
+    if ((code >= 1424 && code <= 1791) || (code >= 1872 && code <= 2207) || (code >= 64285 && code <= 65023) || (code >= 65136 && code <= 65279)) {
+      return true;
+    }
+    i = i + 1;
+  }
+  return false;
+}
+
+export Viewport createViewport(int top, int left, int width, int height) {
+  return new Viewport(top, left, width, height);
+}
+
+export ViewLineData createViewLineData(string content, bool continuesWithWrappedLine, int minColumn, int maxColumn, int startVisibleColumn, string[] tokenClasses, string[] inlineDecorations) {
+  return new ViewLineData(content, continuesWithWrappedLine, minColumn, maxColumn, startVisibleColumn, tokenClasses, inlineDecorations);
+}
+
+export ViewDecorationRange createViewDecorationRange(int startLineNumber, int startColumn, int endLineNumber, int endColumn) {
+  return new ViewDecorationRange(startLineNumber, startColumn, endLineNumber, endColumn);
+}
+
+export OverviewRulerDecorationsGroup createOverviewRulerDecorationsGroup(string color, int zIndex, int[] data) {
+  return new OverviewRulerDecorationsGroup(color, zIndex, data);
+}

@@ -1,0 +1,35 @@
+import {
+  symbol,
+  emptyArrayFrozen,
+  emptyObjectFrozen
+} from "./host.lil";
+
+export JsValue EMPTY_ARRAY = emptyArrayFrozen();
+export JsValue EMPTY_OBJECT = emptyObjectFrozen();
+export JsValue $mobx = symbol("mobx administration");
+export string ACTION = "action";
+export string ACTION_BOUND = "action.bound";
+export string AUTOACTION = "autoAction";
+export string AUTOACTION_BOUND = "autoAction.bound";
+export string OBSERVABLE = "observable";
+export string OBSERVABLE_REF = "observable.ref";
+export string OBSERVABLE_SHALLOW = "observable.shallow";
+export string OBSERVABLE_STRUCT = "observable.struct";
+export string COMPUTED = "computed";
+export string COMPUTED_STRUCT = "computed.struct";
+export string FLOW = "flow";
+export string UPDATE = "update";
+export string ADD = "add";
+export string DELETE = "delete";
+export string SPLICE = "splice";
+export string REMOVE = "remove";
+export string CREATE = "create";
+export int NOT_TRACKING = -1;
+export int UP_TO_DATE = 0;
+export int POSSIBLY_STALE = 1;
+export int STALE = 2;
+export int MAX_REACTION_ITERATIONS = 100;
+export int MAX_SPLICE_SIZE = 10000;
+export int MAKE_CANCEL = 0;
+export int MAKE_BREAK = 1;
+export int MAKE_CONTINUE = 2;

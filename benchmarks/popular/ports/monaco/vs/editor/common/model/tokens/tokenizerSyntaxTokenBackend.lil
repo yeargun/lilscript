@@ -1,0 +1,266 @@
+export int BackgroundTokenizationStateInProgress = 1;
+export int BackgroundTokenizationStateCompleted = 2;
+export int StandardTokenTypeOther = 0;
+
+export class LineTokens {
+  string content;
+  int[] endOffsetsAndMetadata;
+
+  init(string content, int[] endOffsetsAndMetadata) {
+    this.content = content;
+    this.endOffsetsAndMetadata = endOffsetsAndMetadata;
+  }
+}
+
+export class TokenizerSyntaxTokenBackend {
+  string languageId;
+  string[] lines;
+  int[][] tokens;
+  int[] endStates;
+  bool[] accurate;
+  func(string, int)->int[] tokenizeLine;
+  func(string, int)->int getEndState;
+  int backgroundTokenizationState;
+
+  init(
+    string languageId,
+    string[] lines,
+    func(string, int)->int[] tokenizeLine,
+    func(string, int)->int getEndState
+  ) {
+    this.languageId = languageId;
+    this.lines = lines;
+    this.tokens = [];
+    this.endStates = [];
+    this.accurate = [];
+    this.tokenizeLine = tokenizeLine;
+    this.getEndState = getEndState;
+    this.backgroundTokenizationState = BackgroundTokenizationStateInProgress;
+    this.resetTokenization();
+  }
+
+  void resetTokenization() {
+    this.tokens = [];
+    this.endStates = [];
+    this.accurate = [];
+    int i = 0;
+    while (i < this.lines.length) {
+      this.tokens.push([this.lines[i].length, 0]);
+      this.endStates.push(0);
+      this.accurate.push(false);
+      i = i + 1;
+    }
+    this.backgroundTokenizationState = BackgroundTokenizationStateInProgress;
+  }
+
+  bool tokenizeOneLine(int lineIndex) {
+    if (lineIndex < 0 || lineIndex >= this.lines.length) {
+      return false;
+    }
+    int previousState = 0;
+    if (lineIndex > 0) {
+      previousState = this.endStates[lineIndex - 1];
+    }
+    int[] nextTokens = this.tokenizeLine(this.lines[lineIndex], previousState);
+    int nextState = this.getEndState(this.lines[lineIndex], previousState);
+    bool changed = nextState != this.endStates[lineIndex];
+    this.tokens[lineIndex] = nextTokens;
+    this.endStates[lineIndex] = nextState;
+    this.accurate[lineIndex] = true;
+    return changed;
+  }
+
+  void refreshRange(int startLineNumber, int endLineNumber) {
+    if (this.lines.length == 0) {
+      return;
+    }
+    int start = startLineNumber - 1;
+    if (start < 0) {
+      start = 0;
+    }
+    int end = endLineNumber - 1;
+    if (end >= this.lines.length) {
+      end = this.lines.length - 1;
+    }
+    int i = start;
+    bool propagate = true;
+    while (i < this.lines.length && (i <= end || propagate)) {
+      propagate = this.tokenizeOneLine(i);
+      i = i + 1;
+    }
+    this.checkFinished();
+  }
+
+  void forceTokenization(int lineNumber) {
+    int i = 0;
+    while (i < lineNumber && i < this.lines.length) {
+      if (!this.accurate[i]) {
+        this.tokenizeOneLine(i);
+      }
+      i = i + 1;
+    }
+    this.checkFinished();
+  }
+
+  void checkFinished() {
+    int i = 0;
+    while (i < this.accurate.length) {
+      if (!this.accurate[i]) {
+        return;
+      }
+      i = i + 1;
+    }
+    this.backgroundTokenizationState = BackgroundTokenizationStateCompleted;
+  }
+
+  void handleDidChangeContent(
+    int startLineNumber,
+    int deletedLineCount,
+    string[] insertedLines,
+    bool isFlush
+  ) {
+    if (isFlush) {
+      this.lines = insertedLines;
+      this.resetTokenization();
+      return;
+    }
+    int index = startLineNumber - 1;
+    if (index < 0) {
+      index = 0;
+    }
+    if (deletedLineCount > 0) {
+      this.lines.splice(index, deletedLineCount);
+      this.tokens.splice(index, deletedLineCount);
+      this.endStates.splice(index, deletedLineCount);
+      this.accurate.splice(index, deletedLineCount);
+    }
+    string[] nextLines = [];
+    int[][] nextTokens = [];
+    int[] nextStates = [];
+    bool[] nextAccurate = [];
+    int i = 0;
+    while (i < index && i < this.lines.length) {
+      nextLines.push(this.lines[i]);
+      nextTokens.push(this.tokens[i]);
+      nextStates.push(this.endStates[i]);
+      nextAccurate.push(this.accurate[i]);
+      i = i + 1;
+    }
+    i = 0;
+    while (i < insertedLines.length) {
+      nextLines.push(insertedLines[i]);
+      nextTokens.push([insertedLines[i].length, 0]);
+      nextStates.push(0);
+      nextAccurate.push(false);
+      i = i + 1;
+    }
+    i = index;
+    while (i < this.lines.length) {
+      nextLines.push(this.lines[i]);
+      nextTokens.push(this.tokens[i]);
+      nextStates.push(this.endStates[i]);
+      nextAccurate.push(false);
+      i = i + 1;
+    }
+    this.lines = nextLines;
+    this.tokens = nextTokens;
+    this.endStates = nextStates;
+    this.accurate = nextAccurate;
+    this.backgroundTokenizationState = BackgroundTokenizationStateInProgress;
+  }
+
+  void setTokens(int startLineNumber, int[][] multilineTokens) {
+    int i = 0;
+    while (i < multilineTokens.length) {
+      int index = startLineNumber - 1 + i;
+      if (index >= 0 && index < this.tokens.length) {
+        this.tokens[index] = multilineTokens[i];
+        this.accurate[index] = true;
+      }
+      i = i + 1;
+    }
+    this.checkFinished();
+  }
+
+  LineTokens getLineTokens(int lineNumber) {
+    int index = lineNumber - 1;
+    if (index < 0 || index >= this.lines.length) {
+      return new LineTokens("", [0, 0]);
+    }
+    return new LineTokens(this.lines[index], this.tokens[index]);
+  }
+
+  bool hasAccurateTokensForLine(int lineNumber) {
+    int index = lineNumber - 1;
+    if (index < 0 || index >= this.accurate.length) {
+      return true;
+    }
+    return this.accurate[index];
+  }
+
+  bool isCheapToTokenize(int lineNumber) {
+    int index = lineNumber - 1;
+    return index < 0 || index >= this.lines.length || this.lines[index].length < 20000;
+  }
+
+  int getTokenTypeIfInsertingCharacter(
+    int lineNumber,
+    int column,
+    string character
+  ) {
+    if (lineNumber < 1 || lineNumber > this.lines.length) {
+      return StandardTokenTypeOther;
+    }
+    this.forceTokenization(lineNumber);
+    int[] lineTokenData = this.tokens[lineNumber - 1];
+    int i = 0;
+    while (i + 1 < lineTokenData.length) {
+      if (column - 1 < lineTokenData[i]) {
+        return lineTokenData[i + 1] / 256 % 4;
+      }
+      i = i + 2;
+    }
+    return StandardTokenTypeOther;
+  }
+
+  LineTokens[] tokenizeLinesAt(int lineNumber, string[] nextLines) {
+    LineTokens[] result = [];
+    int state = 0;
+    if (lineNumber > 1 && lineNumber - 2 < this.endStates.length) {
+      state = this.endStates[lineNumber - 2];
+    }
+    int i = 0;
+    while (i < nextLines.length) {
+      int[] lineTokenData = this.tokenizeLine(nextLines[i], state);
+      result.push(new LineTokens(nextLines[i], lineTokenData));
+      state = this.getEndState(nextLines[i], state);
+      i = i + 1;
+    }
+    return result;
+  }
+
+  bool hasTokens() {
+    int i = 0;
+    while (i < this.tokens.length) {
+      if (this.accurate[i]) {
+        return true;
+      }
+      i = i + 1;
+    }
+    return false;
+  }
+}
+
+export TokenizerSyntaxTokenBackend createTokenizerSyntaxTokenBackend(
+  string languageId,
+  string[] lines,
+  func(string, int)->int[] tokenizeLine,
+  func(string, int)->int getEndState
+) {
+  return new TokenizerSyntaxTokenBackend(
+    languageId,
+    lines,
+    tokenizeLine,
+    getEndState
+  );
+}

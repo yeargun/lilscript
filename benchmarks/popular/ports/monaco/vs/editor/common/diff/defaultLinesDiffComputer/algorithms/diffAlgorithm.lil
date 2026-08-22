@@ -1,0 +1,151 @@
+import { OffsetRange, offsetRangeOfLength } from "../../../core/ranges/offsetRange";
+import { dateNow } from "../../../../../../js-host";
+
+export class OffsetPair {
+  int offset1;
+  int offset2;
+
+  init(int offset1, int offset2) {
+    this.offset1 = offset1;
+    this.offset2 = offset2;
+  }
+
+  string toString() {
+    return this.offset1.toString() + " <-> " + this.offset2.toString();
+  }
+
+  OffsetPair delta(int offset) {
+    if (offset == 0) {
+      return this;
+    }
+    return new OffsetPair(this.offset1 + offset, this.offset2 + offset);
+  }
+
+  bool equals(OffsetPair other) {
+    return this.offset1 == other.offset1 && this.offset2 == other.offset2;
+  }
+}
+
+OffsetPair offsetPairZero = new OffsetPair(0, 0);
+
+export OffsetPair offsetPairOrigin() {
+  return offsetPairZero;
+}
+
+export class SequenceDiff {
+  OffsetRange seq1Range;
+  OffsetRange seq2Range;
+
+  init(OffsetRange seq1Range, OffsetRange seq2Range) {
+    this.seq1Range = seq1Range;
+    this.seq2Range = seq2Range;
+  }
+
+  SequenceDiff swap() {
+    return new SequenceDiff(this.seq2Range, this.seq1Range);
+  }
+
+  string toString() {
+    return this.seq1Range.toString() + " <-> " + this.seq2Range.toString();
+  }
+
+  SequenceDiff join(SequenceDiff other) {
+    return new SequenceDiff(this.seq1Range.join(other.seq1Range), this.seq2Range.join(other.seq2Range));
+  }
+
+  SequenceDiff delta(int offset) {
+    if (offset == 0) {
+      return this;
+    }
+    return new SequenceDiff(this.seq1Range.delta(offset), this.seq2Range.delta(offset));
+  }
+
+  SequenceDiff deltaStart(int offset) {
+    if (offset == 0) {
+      return this;
+    }
+    return new SequenceDiff(this.seq1Range.deltaStart(offset), this.seq2Range.deltaStart(offset));
+  }
+
+  SequenceDiff deltaEnd(int offset) {
+    if (offset == 0) {
+      return this;
+    }
+    return new SequenceDiff(this.seq1Range.deltaEnd(offset), this.seq2Range.deltaEnd(offset));
+  }
+
+  SequenceDiff? intersect(SequenceDiff other) {
+    OffsetRange? i1 = this.seq1Range.intersect(other.seq1Range);
+    OffsetRange? i2 = this.seq2Range.intersect(other.seq2Range);
+    if (i1 == null || i2 == null) {
+      return null;
+    }
+    return new SequenceDiff(i1, i2);
+  }
+
+  OffsetPair getStarts() {
+    return new OffsetPair(this.seq1Range.start, this.seq2Range.start);
+  }
+
+  OffsetPair getEndExclusives() {
+    return new OffsetPair(this.seq1Range.endExclusive, this.seq2Range.endExclusive);
+  }
+}
+
+export SequenceDiff sequenceDiffFromOffsetPairs(OffsetPair start, OffsetPair endExclusive) {
+  return new SequenceDiff(new OffsetRange(start.offset1, endExclusive.offset1), new OffsetRange(start.offset2, endExclusive.offset2));
+}
+
+export class DiffAlgorithmResult {
+  SequenceDiff[] diffs;
+  bool hitTimeout;
+
+  init(SequenceDiff[] diffs, bool hitTimeout) {
+    this.diffs = diffs;
+    this.hitTimeout = hitTimeout;
+  }
+}
+
+export DiffAlgorithmResult trivialDiff(int seq1Length, int seq2Length) {
+  SequenceDiff[] diffs = [];
+  diffs.push(new SequenceDiff(offsetRangeOfLength(seq1Length), offsetRangeOfLength(seq2Length)));
+  return new DiffAlgorithmResult(diffs, false);
+}
+
+export DiffAlgorithmResult trivialTimedOutDiff(int seq1Length, int seq2Length) {
+  SequenceDiff[] diffs = [];
+  diffs.push(new SequenceDiff(offsetRangeOfLength(seq1Length), offsetRangeOfLength(seq2Length)));
+  return new DiffAlgorithmResult(diffs, true);
+}
+
+export class InfiniteTimeout {
+  bool isValid() {
+    return true;
+  }
+}
+
+InfiniteTimeout infiniteTimeoutInstance = new InfiniteTimeout();
+
+export InfiniteTimeout infiniteTimeout() {
+  return infiniteTimeoutInstance;
+}
+
+export class DateTimeout {
+  float timeout;
+  float startTime;
+  bool valid;
+
+  init(float timeout) {
+    this.timeout = timeout;
+    this.startTime = dateNow();
+    this.valid = true;
+  }
+
+  bool isValid() {
+    bool still = dateNow() - this.startTime < this.timeout;
+    if (!still && this.valid) {
+      this.valid = false;
+    }
+    return this.valid;
+  }
+}

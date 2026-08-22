@@ -1,0 +1,434 @@
+export int TouchNone = 0;
+export int TouchAsOld = 1;
+export int TouchAsNew = 2;
+
+class LinkedItem {
+  string key;
+  string value;
+  LinkedItem? next;
+  LinkedItem? previous;
+
+  init(string key, string value) {
+    this.key = key;
+    this.value = value;
+    this.next = null;
+    this.previous = null;
+  }
+}
+
+export class LinkedMap {
+  Map<string, LinkedItem> items;
+  LinkedItem? head;
+  LinkedItem? tail;
+  int size;
+  int state;
+
+  init() {
+    this.items = new Map();
+    this.head = null;
+    this.tail = null;
+    this.size = 0;
+    this.state = 0;
+  }
+
+  void clear() {
+    this.items.clear();
+    this.head = null;
+    this.tail = null;
+    this.size = 0;
+    this.state = this.state + 1;
+  }
+
+  bool isEmpty() {
+    return this.head == null && this.tail == null;
+  }
+
+  bool has(string key) {
+    return this.items.has(key);
+  }
+
+  string? get(string key, int touch) {
+    LinkedItem? item = this.items.get(key);
+    if (item == null) {
+      return null;
+    }
+    if (touch != TouchNone) {
+      this.touch(item, touch);
+    }
+    return item.value;
+  }
+
+  void addItemFirst(LinkedItem item) {
+    if (this.head == null && this.tail == null) {
+      this.tail = item;
+    } else {
+      LinkedItem? currentHead = this.head;
+      if (currentHead != null) {
+        item.next = currentHead;
+        currentHead.previous = item;
+      }
+    }
+    this.head = item;
+    this.state = this.state + 1;
+  }
+
+  void addItemLast(LinkedItem item) {
+    if (this.head == null && this.tail == null) {
+      this.head = item;
+    } else {
+      LinkedItem? currentTail = this.tail;
+      if (currentTail != null) {
+        item.previous = currentTail;
+        currentTail.next = item;
+      }
+    }
+    this.tail = item;
+    this.state = this.state + 1;
+  }
+
+  void removeItem(LinkedItem item) {
+    if (item == this.head && item == this.tail) {
+      this.head = null;
+      this.tail = null;
+    } else if (item == this.head) {
+      LinkedItem? next = item.next;
+      if (next != null) {
+        next.previous = null;
+        this.head = next;
+      }
+    } else if (item == this.tail) {
+      LinkedItem? previous = item.previous;
+      if (previous != null) {
+        previous.next = null;
+        this.tail = previous;
+      }
+    } else {
+      LinkedItem? next = item.next;
+      LinkedItem? previous = item.previous;
+      if (next != null && previous != null) {
+        next.previous = previous;
+        previous.next = next;
+      }
+    }
+    item.next = null;
+    item.previous = null;
+    this.state = this.state + 1;
+  }
+
+  void touch(LinkedItem item, int touchKind) {
+    LinkedItem? headItem = this.head;
+    LinkedItem? tailItem = this.tail;
+    if (headItem == null || tailItem == null) {
+      return;
+    }
+    if (touchKind != TouchAsOld && touchKind != TouchAsNew) {
+      return;
+    }
+    if (touchKind == TouchAsOld) {
+      if (item == headItem) {
+        return;
+      }
+      LinkedItem? next = item.next;
+      LinkedItem? previous = item.previous;
+      if (item == tailItem) {
+        if (previous != null) {
+          previous.next = null;
+          this.tail = previous;
+        }
+      } else {
+        if (next != null && previous != null) {
+          next.previous = previous;
+          previous.next = next;
+        }
+      }
+      item.previous = null;
+      item.next = headItem;
+      headItem.previous = item;
+      this.head = item;
+      this.state = this.state + 1;
+    } else if (touchKind == TouchAsNew) {
+      if (item == tailItem) {
+        return;
+      }
+      LinkedItem? next = item.next;
+      LinkedItem? previous = item.previous;
+      if (item == headItem) {
+        if (next != null) {
+          next.previous = null;
+          this.head = next;
+        }
+      } else {
+        if (next != null && previous != null) {
+          next.previous = previous;
+          previous.next = next;
+        }
+      }
+      item.next = null;
+      item.previous = tailItem;
+      tailItem.next = item;
+      this.tail = item;
+      this.state = this.state + 1;
+    }
+  }
+
+  LinkedMap set(string key, string value, int touch) {
+    LinkedItem? existing = this.items.get(key);
+    if (existing != null) {
+      existing.value = value;
+      if (touch != TouchNone) {
+        this.touch(existing, touch);
+      }
+    } else {
+      LinkedItem item = new LinkedItem(key, value);
+      if (touch == TouchAsOld) {
+        this.addItemFirst(item);
+      } else {
+        this.addItemLast(item);
+      }
+      this.items.set(key, item);
+      this.size = this.size + 1;
+    }
+    return this;
+  }
+
+  bool delete(string key) {
+    string? removed = this.remove(key);
+    return removed != null;
+  }
+
+  string? remove(string key) {
+    LinkedItem? existing = this.items.get(key);
+    if (existing == null) {
+      return null;
+    }
+    this.items.delete(key);
+    this.removeItem(existing);
+    this.size = this.size - 1;
+    return existing.value;
+  }
+
+  string? shift() {
+    LinkedItem? currentHead = this.head;
+    if (currentHead == null) {
+      return null;
+    }
+    this.items.delete(currentHead.key);
+    this.removeItem(currentHead);
+    this.size = this.size - 1;
+    return currentHead.value;
+  }
+
+  void trimOld(int newSize) {
+    if (newSize >= this.size) {
+      return;
+    }
+    if (newSize == 0) {
+      this.clear();
+      return;
+    }
+    LinkedItem? current = this.head;
+    int currentSize = this.size;
+    while (current != null && currentSize > newSize) {
+      this.items.delete(current.key);
+      current = current.next;
+      currentSize = currentSize - 1;
+    }
+    this.head = current;
+    this.size = currentSize;
+    if (current != null) {
+      current.previous = null;
+    }
+    this.state = this.state + 1;
+  }
+
+  string? first() {
+    LinkedItem? current = this.head;
+    if (current == null) {
+      return null;
+    }
+    return current.value;
+  }
+
+  string? last() {
+    LinkedItem? current = this.tail;
+    if (current == null) {
+      return null;
+    }
+    return current.value;
+  }
+
+  string[] keys() {
+    string[] result = [];
+    LinkedItem? current = this.head;
+    while (current != null) {
+      LinkedItem item = current;
+      result.push(item.key);
+      current = item.next;
+    }
+    return result;
+  }
+}
+
+export class LRUCache {
+  LinkedMap map;
+  int limit;
+  float ratio;
+
+  init(int limit, float ratio) {
+    this.map = new LinkedMap();
+    this.limit = limit;
+    this.ratio = ratio;
+  }
+
+  int size() {
+    return this.map.size;
+  }
+
+  string? get(string key) {
+    return this.map.get(key, TouchAsNew);
+  }
+
+  string? peek(string key) {
+    return this.map.get(key, TouchNone);
+  }
+
+  LRUCache set(string key, string value) {
+    this.map.set(key, value, TouchAsNew);
+    this.checkLimit();
+    return this;
+  }
+
+  void checkLimit() {
+    if (this.limit <= 0) {
+      return;
+    }
+    if (this.map.size <= this.limit) {
+      return;
+    }
+    int keep = (this.limit * 1.0 * this.ratio).floor().toInt();
+    if (keep < 1) {
+      keep = 1;
+    }
+    this.map.trimOld(keep);
+  }
+
+  bool delete(string key) {
+    return this.map.delete(key);
+  }
+
+  void clear() {
+    this.map.clear();
+  }
+}
+
+export class ResourceMap {
+  Map<string, string> map;
+
+  init() {
+    this.map = new Map();
+  }
+
+  string toKey(string resource) {
+    return resource;
+  }
+
+  ResourceMap set(string resource, string value) {
+    this.map.set(this.toKey(resource), value);
+    return this;
+  }
+
+  string? get(string resource) {
+    return this.map.get(this.toKey(resource));
+  }
+
+  bool has(string resource) {
+    return this.map.has(this.toKey(resource));
+  }
+
+  int size() {
+    return this.map.size;
+  }
+
+  void clear() {
+    this.map.clear();
+  }
+
+  bool delete(string resource) {
+    return this.map.delete(this.toKey(resource));
+  }
+}
+
+export class ResourceSet {
+  ResourceMap map;
+
+  init() {
+    this.map = new ResourceMap();
+  }
+
+  int size() {
+    return this.map.size();
+  }
+
+  ResourceSet add(string value) {
+    this.map.set(value, value);
+    return this;
+  }
+
+  void clear() {
+    this.map.clear();
+  }
+
+  bool delete(string value) {
+    return this.map.delete(value);
+  }
+
+  bool has(string value) {
+    return this.map.has(value);
+  }
+}
+
+export class CounterSet {
+  Map<string, int> map;
+
+  init() {
+    this.map = new Map();
+  }
+
+  CounterSet add(string value) {
+    int? existing = this.map.get(value);
+    int next = 1;
+    if (existing != null) {
+      next = existing + 1;
+    }
+    this.map.set(value, next);
+    return this;
+  }
+
+  bool delete(string value) {
+    int? existing = this.map.get(value);
+    if (existing == null) {
+      return false;
+    }
+    int count = existing;
+    if (count == 1) {
+      this.map.delete(value);
+    } else {
+      this.map.set(value, count - 1);
+    }
+    return true;
+  }
+
+  bool has(string value) {
+    return this.map.has(value);
+  }
+}
+
+export int[] SetN(int from, int to) {
+  int[] result = [];
+  int i = from;
+  while (i <= to) {
+    result.push(i);
+    i = i + 1;
+  }
+  return result;
+}

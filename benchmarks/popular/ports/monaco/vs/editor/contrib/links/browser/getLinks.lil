@@ -1,0 +1,156 @@
+
+export class TextRange {
+  int startLineNumber;
+  int startColumn;
+  int endLineNumber;
+  int endColumn;
+
+  init(int startLineNumber, int startColumn, int endLineNumber, int endColumn) {
+    this.startLineNumber = startLineNumber;
+    this.startColumn = startColumn;
+    this.endLineNumber = endLineNumber;
+    this.endColumn = endColumn;
+  }
+}
+
+export class TextPos {
+  int lineNumber;
+  int column;
+
+  init(int lineNumber, int column) {
+    this.lineNumber = lineNumber;
+    this.column = column;
+  }
+}
+
+bool posBefore(TextPos a, TextPos b) {
+  if (a.lineNumber < b.lineNumber) {
+    return true;
+  }
+  if (a.lineNumber > b.lineNumber) {
+    return false;
+  }
+  return a.column < b.column;
+}
+
+bool rangeContainsPos(TextRange range, int lineNumber, int column) {
+  if (lineNumber < range.startLineNumber || lineNumber > range.endLineNumber) {
+    return false;
+  }
+  if (lineNumber == range.startLineNumber && column < range.startColumn) {
+    return false;
+  }
+  if (lineNumber == range.endLineNumber && column > range.endColumn) {
+    return false;
+  }
+  return true;
+}
+
+export TextRange createTextRange(int startLine, int startColumn, int endLine, int endColumn) {
+  return new TextRange(startLine, startColumn, endLine, endColumn);
+}
+
+export TextPos createTextPos(int lineNumber, int column) {
+  return new TextPos(lineNumber, column);
+}
+
+export class Link {
+  TextRange range;
+  string url;
+  string tooltip;
+
+  init(TextRange range, string url, string tooltip) {
+    this.range = range;
+    this.url = url;
+    this.tooltip = tooltip;
+  }
+}
+
+bool isUrlChar(string ch) {
+  int code = ch.charCodeAt(0);
+  if (ch == ":" || ch == "/" || ch == "." || ch == "-" || ch == "_" || ch == "?" || ch == "=" || ch == "&" || ch == "%") {
+    return true;
+  }
+  if (code >= 97 && code <= 122) {
+    return true;
+  }
+  if (code >= 65 && code <= 90) {
+    return true;
+  }
+  if (code >= 48 && code <= 57) {
+    return true;
+  }
+  return false;
+}
+
+export Link[] computeLinks(string[] lines) {
+  Link[] links = [];
+  int line = 1;
+  while (line <= lines.length) {
+    string content = lines[line - 1];
+    int i = 0;
+    while (i < content.length) {
+      if (content.indexOf("http") == i || (i <= content.length - 4 && sliceHttp(content, i) == "http")) {
+        int start = i;
+        while (i < content.length && isUrlChar(content.charAt(i))) {
+          i = i + 1;
+        }
+        string url = "";
+        int k = start;
+        while (k < i) {
+          url = url + content.charAt(k);
+          k = k + 1;
+        }
+        if (url.startsWith("http://") || url.startsWith("https://")) {
+          links.push(new Link(new TextRange(line, start + 1, line, i + 1), url, url));
+        }
+        continue;
+      }
+      i = i + 1;
+    }
+    line = line + 1;
+  }
+  return links;
+}
+
+string sliceHttp(string content, int i) {
+  string out = "";
+  int k = i;
+  while (k < i + 4 && k < content.length) {
+    out = out + content.charAt(k);
+    k = k + 1;
+  }
+  return out;
+}
+
+export Link[] mergeLinks(Link[] a, Link[] b) {
+  Link[] result = [];
+  int i = 0;
+  while (i < a.length) {
+    result.push(a[i]);
+    i = i + 1;
+  }
+  i = 0;
+  while (i < b.length) {
+    bool overlap = false;
+    int j = 0;
+    while (j < result.length) {
+      if (result[j].range.startLineNumber == b[i].range.startLineNumber
+        && result[j].range.startColumn <= b[i].range.endColumn
+        && b[i].range.startColumn <= result[j].range.endColumn) {
+        overlap = true;
+        break;
+      }
+      j = j + 1;
+    }
+    if (!overlap) {
+      result.push(b[i]);
+    }
+    i = i + 1;
+  }
+  return result;
+}
+
+export Link createLink(int line, int start, int end, string url) {
+  return new Link(new TextRange(line, start, line, end), url, url);
+}

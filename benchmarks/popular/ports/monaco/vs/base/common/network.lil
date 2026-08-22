@@ -1,0 +1,125 @@
+export string SchemasInMemory = "inmemory";
+export string SchemasVscode = "vscode";
+export string SchemasInternal = "private";
+export string SchemasWalkThrough = "walkThrough";
+export string SchemasWalkThroughSnippet = "walkThroughSnippet";
+export string SchemasHttp = "http";
+export string SchemasHttps = "https";
+export string SchemasFile = "file";
+export string SchemasMailto = "mailto";
+export string SchemasUntitled = "untitled";
+export string SchemasData = "data";
+export string SchemasCommand = "command";
+export string SchemasVscodeRemote = "vscode-remote";
+export string SchemasVscodeRemoteResource = "vscode-remote-resource";
+export string SchemasVscodeManagedRemoteResource = "vscode-managed-remote-resource";
+export string SchemasVscodeUserData = "vscode-userdata";
+export string SchemasVscodeCustomEditor = "vscode-custom-editor";
+export string SchemasVscodeNotebookCell = "vscode-notebook-cell";
+export string SchemasVscodeNotebookCellMetadata = "vscode-notebook-cell-metadata";
+export string SchemasVscodeNotebookCellMetadataDiff = "vscode-notebook-cell-metadata-diff";
+export string SchemasVscodeNotebookCellOutput = "vscode-notebook-cell-output";
+export string SchemasVscodeNotebookCellOutputDiff = "vscode-notebook-cell-output-diff";
+export string SchemasVscodeNotebookMetadata = "vscode-notebook-metadata";
+export string SchemasVscodeInteractiveInput = "vscode-interactive-input";
+export string SchemasVscodeSettings = "vscode-settings";
+export string SchemasVscodeWorkspaceTrust = "vscode-workspace-trust";
+export string SchemasVscodeTerminal = "vscode-terminal";
+export string SchemasVscodeImageCarousel = "vscode-image-carousel";
+export string SchemasVscodeChatCodeBlock = "vscode-chat-code-block";
+export string SchemasVscodeChatCodeCompareBlock = "vscode-chat-code-compare-block";
+export string SchemasVscodeChatEditor = "vscode-chat-editor";
+export string SchemasVscodeChatInput = "chatSessionInput";
+export string SchemasVscodeLocalChatSession = "vscode-chat-session";
+export string SchemasWebviewPanel = "webview-panel";
+export string SchemasVscodeWebview = "vscode-webview";
+export string SchemasVscodeBrowser = "vscode-browser";
+export string SchemasExtension = "extension";
+export string SchemasVscodeFileResource = "vscode-file";
+export string SchemasTmp = "tmp";
+export string SchemasVsls = "vsls";
+export string SchemasVscodeSourceControl = "vscode-scm";
+export string SchemasCommentsInput = "comment";
+export string SchemasCodeSetting = "code-setting";
+export string SchemasOutputChannel = "output";
+export string SchemasAccessibleView = "accessible-view";
+export string SchemasChatEditingSnapshot = "chat-editing-snapshot-text-model";
+export string SchemasChatEditingModel = "chat-editing-text-model";
+export string SchemasCopilotPr = "copilot-pr";
+export string connectionTokenQueryName = "tkn";
+export string nodeModulesPath = "vs/../../node_modules";
+export string nodeModulesAsarPath = "vs/../../node_modules.asar";
+export string VSCODE_AUTHORITY = "vscode-app";
+
+export JsValue createSchemas() {
+  JsValue result = JS.object();
+  result["inMemory"] = SchemasInMemory;
+  result["vscode"] = SchemasVscode;
+  result["internal"] = SchemasInternal;
+  result["walkThrough"] = SchemasWalkThrough;
+  result["walkThroughSnippet"] = SchemasWalkThroughSnippet;
+  result["http"] = SchemasHttp;
+  result["https"] = SchemasHttps;
+  result["file"] = SchemasFile;
+  result["mailto"] = SchemasMailto;
+  result["untitled"] = SchemasUntitled;
+  result["data"] = SchemasData;
+  result["command"] = SchemasCommand;
+  result["vscodeRemote"] = SchemasVscodeRemote;
+  result["vscodeRemoteResource"] = SchemasVscodeRemoteResource;
+  result["vscodeManagedRemoteResource"] = SchemasVscodeManagedRemoteResource;
+  result["vscodeUserData"] = SchemasVscodeUserData;
+  result["vscodeCustomEditor"] = SchemasVscodeCustomEditor;
+  result["vscodeNotebookCell"] = SchemasVscodeNotebookCell;
+  result["vscodeNotebookCellMetadata"] = SchemasVscodeNotebookCellMetadata;
+  result["vscodeNotebookCellMetadataDiff"] = SchemasVscodeNotebookCellMetadataDiff;
+  result["vscodeNotebookCellOutput"] = SchemasVscodeNotebookCellOutput;
+  result["vscodeNotebookCellOutputDiff"] = SchemasVscodeNotebookCellOutputDiff;
+  result["vscodeNotebookMetadata"] = SchemasVscodeNotebookMetadata;
+  result["vscodeInteractiveInput"] = SchemasVscodeInteractiveInput;
+  result["vscodeSettings"] = SchemasVscodeSettings;
+  result["vscodeWorkspaceTrust"] = SchemasVscodeWorkspaceTrust;
+  result["vscodeTerminal"] = SchemasVscodeTerminal;
+  result["vscodeImageCarousel"] = SchemasVscodeImageCarousel;
+  result["vscodeChatCodeBlock"] = SchemasVscodeChatCodeBlock;
+  result["vscodeChatCodeCompareBlock"] = SchemasVscodeChatCodeCompareBlock;
+  result["vscodeChatEditor"] = SchemasVscodeChatEditor;
+  result["vscodeChatInput"] = SchemasVscodeChatInput;
+  result["vscodeLocalChatSession"] = SchemasVscodeLocalChatSession;
+  result["webviewPanel"] = SchemasWebviewPanel;
+  result["vscodeWebview"] = SchemasVscodeWebview;
+  result["vscodeBrowser"] = SchemasVscodeBrowser;
+  result["extension"] = SchemasExtension;
+  result["vscodeFileResource"] = SchemasVscodeFileResource;
+  result["tmp"] = SchemasTmp;
+  result["vsls"] = SchemasVsls;
+  result["vscodeSourceControl"] = SchemasVscodeSourceControl;
+  result["commentsInput"] = SchemasCommentsInput;
+  result["codeSetting"] = SchemasCodeSetting;
+  result["outputChannel"] = SchemasOutputChannel;
+  result["accessibleView"] = SchemasAccessibleView;
+  result["chatEditingSnapshotScheme"] = SchemasChatEditingSnapshot;
+  result["chatEditingModel"] = SchemasChatEditingModel;
+  result["copilotPr"] = SchemasCopilotPr;
+  return result;
+}
+
+export bool matchesScheme(string target, string scheme) {
+  string expected = scheme.toLowerCase() + ":";
+  return target.toLowerCase().startsWith(expected);
+}
+
+export bool matchesUriScheme(string targetScheme, string scheme) {
+  return targetScheme.toLowerCase() == scheme.toLowerCase();
+}
+
+export bool matchesSomeScheme(string target, string[] schemes) {
+  int i = 0;
+  while (i < schemes.length) {
+    if (matchesScheme(target, schemes[i])) {
+      return true;
+    }
+    i = i + 1;
+  }
+  return false;
+}

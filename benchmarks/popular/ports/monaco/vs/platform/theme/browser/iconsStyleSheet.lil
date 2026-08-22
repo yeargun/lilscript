@@ -1,0 +1,9 @@
+export string getIconsStyleSheet(string[] ids, string[] characters) {
+  string css = "";
+  int i = 0;
+  while (i < ids.length && i < characters.length) {
+    css = css + ".codicon-" + ids[i] + ":before{content:\"" + characters[i] + "\"}";
+    i = i + 1;
+  }
+  return css;
+}

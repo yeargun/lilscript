@@ -1,0 +1,422 @@
+import { domCreateElement, appendChild, setClassName, classListAdd, classListRemove, setAttribute, setStyle, setTextContent, addEventListener, preventDefault, stopPropagation, eventKeyCode, eventCode, focusElement, blurElement, setTabIndex, getClientWidth, rectTop, windowSelf, hostCall, jsUndefined, imin, imax } from "../../../../../js-host";
+
+int DEFAULT_MINIMUM_VISIBLE_OPTIONS = 3;
+int DEFAULT_DROPDOWN_MINIMUM_TOP_MARGIN = 32;
+int DEFAULT_ROW_HEIGHT = 22;
+
+export class CustomSelectOption {
+  string text;
+  string detail;
+  string decoratorRight;
+  string description;
+  bool isDisabled;
+  bool isSeparator;
+
+  init(string text, string detail, string decoratorRight, string description, bool isDisabled, bool isSeparator) {
+    this.text = text;
+    this.detail = detail;
+    this.decoratorRight = decoratorRight;
+    this.description = description;
+    this.isDisabled = isDisabled;
+    this.isSeparator = isSeparator;
+  }
+}
+
+int jsInt(JsValue obj, string key) {
+  JsValue value = obj[key];
+  if (value is float) {
+    float n = value;
+    return n.toInt();
+  }
+  return 0;
+}
+
+export class SelectBoxList {
+  JsValue selectElement;
+  JsValue selectDropDownContainer;
+  JsValue selectDropDownListContainer;
+  JsValue selectionDetailsPane;
+  JsValue widthControlElement;
+  CustomSelectOption[] options;
+  int selected;
+  int currentSelection;
+  bool isVisible;
+  bool skipLayout;
+  bool hasDetails;
+  int cachedMaxDetailsHeight;
+  bool dropDownAbove;
+  int minBottomMargin;
+  int rowHeight;
+  (func(int, string)->void)[] selectListeners;
+  string selectBackground;
+  string selectForeground;
+  string selectBorder;
+
+  init(CustomSelectOption[] options, int selected, string selectBackground, string selectForeground, string selectBorder, int minBottomMargin) {
+    this.options = [];
+    this.selected = 0;
+    this.currentSelection = 0;
+    this.isVisible = false;
+    this.skipLayout = false;
+    this.hasDetails = false;
+    this.cachedMaxDetailsHeight = 0;
+    this.dropDownAbove = false;
+    this.minBottomMargin = minBottomMargin;
+    this.rowHeight = DEFAULT_ROW_HEIGHT;
+    this.selectListeners = [];
+    this.selectBackground = selectBackground;
+    this.selectForeground = selectForeground;
+    this.selectBorder = selectBorder;
+    this.selectElement = domCreateElement("select");
+    setClassName(this.selectElement, "monaco-select-box");
+    this.selectDropDownContainer = domCreateElement("div");
+    setClassName(this.selectDropDownContainer, "monaco-select-box-dropdown-container");
+    this.selectDropDownListContainer = domCreateElement("div");
+    setClassName(this.selectDropDownListContainer, "select-box-dropdown-list-container");
+    this.selectionDetailsPane = domCreateElement("div");
+    setClassName(this.selectionDetailsPane, "select-box-details-pane");
+    this.widthControlElement = domCreateElement("div");
+    setClassName(this.widthControlElement, "select-box-dropdown-container-width-control");
+    appendChild(this.selectDropDownContainer, this.selectDropDownListContainer);
+    appendChild(this.selectDropDownContainer, this.selectionDetailsPane);
+    this.setOptions(options, selected);
+    SelectBoxList owner = this;
+    addEventListener(this.selectElement, "click", (JsValue event) => {
+      preventDefault(event);
+      stopPropagation(event);
+      owner.showSelectDropDown();
+    }, false);
+    addEventListener(this.selectElement, "keydown", (JsValue event) => {
+      int key = eventKeyCode(event);
+      if (key == 13 || key == 32 || key == 40) {
+        preventDefault(event);
+        stopPropagation(event);
+        owner.showSelectDropDown();
+      }
+    }, false);
+    addEventListener(this.selectDropDownListContainer, "keydown", (JsValue event) => {
+      owner.onListKeyDown(event);
+    }, false);
+  }
+
+  int getHeight() {
+    return this.rowHeight;
+  }
+
+  func()->void onDidSelect(func(int, string)->void listener) {
+    this.selectListeners.push(listener);
+    SelectBoxList owner = this;
+    return () => {
+      int index = owner.selectListeners.indexOf(listener);
+      if (index >= 0) {
+        owner.selectListeners.splice(index, 1);
+      }
+    };
+  }
+
+  void fireSelect() {
+    string text = "";
+    if (this.selected >= 0 && this.selected < this.options.length) {
+      text = this.options[this.selected].text;
+    }
+    int i = 0;
+    while (i < this.selectListeners.length) {
+      this.selectListeners[i](this.selected, text);
+      i = i + 1;
+    }
+  }
+
+  void setOptions(CustomSelectOption[] options, int selected) {
+    this.options = options;
+    this.hasDetails = false;
+    this.cachedMaxDetailsHeight = 0;
+    int i = 0;
+    while (i < options.length) {
+      if (options[i].description.length > 0) {
+        this.hasDetails = true;
+      }
+      i = i + 1;
+    }
+    if (selected >= 0) {
+      this.select(selected);
+      this.currentSelection = this.selected;
+    }
+  }
+
+  void select(int index) {
+    if (index >= 0 && index < this.options.length) {
+      this.selected = index;
+    } else if (index > this.options.length - 1 && this.options.length > 0) {
+      this.select(this.options.length - 1);
+      return;
+    } else if (this.selected < 0) {
+      this.selected = 0;
+    }
+    this.selectElement["selectedIndex"] = this.selected;
+    if (this.selected >= 0 && this.selected < this.options.length) {
+      setAttribute(this.selectElement, "title", this.options[this.selected].text);
+    }
+  }
+
+  int setWidthControlElement() {
+    int longest = 0;
+    int longestLength = 0;
+    int i = 0;
+    while (i < this.options.length) {
+      CustomSelectOption option = this.options[i];
+      int len = option.text.length + option.detail.length + option.decoratorRight.length;
+      if (len > longestLength) {
+        longest = i;
+        longestLength = len;
+      }
+      i = i + 1;
+    }
+    if (this.options.length == 0) {
+      return 0;
+    }
+    string text = this.options[longest].text;
+    if (this.options[longest].decoratorRight.length > 0) {
+      text = text + this.options[longest].decoratorRight + " ";
+    }
+    setTextContent(this.widthControlElement, text);
+    return getClientWidth(this.widthControlElement);
+  }
+
+  bool layoutSelectDropDown(bool preLayoutPosition) {
+    if (this.skipLayout) {
+      return false;
+    }
+    classListAdd(this.selectDropDownContainer, "visible");
+    JsValue win = windowSelf();
+    int innerHeight = jsInt(win, "innerHeight");
+    int selectTop = rectTop(this.selectElement);
+    int selectHeight = getClientWidth(this.selectElement);
+    JsValue h = this.selectElement["offsetHeight"];
+    if (h is float) {
+      float n = h;
+      selectHeight = n.toInt();
+    }
+    int maxBelow = innerHeight - selectTop - selectHeight - this.minBottomMargin;
+    int maxAbove = selectTop - DEFAULT_DROPDOWN_MINIMUM_TOP_MARGIN;
+    int selectWidth = 0;
+    JsValue w = this.selectElement["offsetWidth"];
+    if (w is float) {
+      float n = w;
+      selectWidth = n.toInt();
+    }
+    int selectMinWidth = this.setWidthControlElement();
+    int optimal = selectMinWidth;
+    if (selectWidth > optimal) {
+      optimal = selectWidth;
+    }
+    setStyle(this.selectDropDownContainer, "width", optimal.toString() + "px");
+    int listHeight = this.options.length * this.getHeight();
+    int maxDetails = 0;
+    if (this.hasDetails) {
+      maxDetails = this.cachedMaxDetailsHeight;
+    }
+    int minRequired = listHeight + maxDetails;
+    int maxVisibleBelow = 0;
+    int denom = this.getHeight();
+    if (denom > 0) {
+      maxVisibleBelow = ((maxBelow - maxDetails) * 1.0 / (denom * 1.0)).floor().toInt();
+    }
+    int maxVisibleAbove = 0;
+    if (denom > 0) {
+      maxVisibleAbove = ((maxAbove - maxDetails) * 1.0 / (denom * 1.0)).floor().toInt();
+    }
+    if (preLayoutPosition) {
+      if (selectTop + selectHeight > innerHeight - 22 || selectTop < DEFAULT_DROPDOWN_MINIMUM_TOP_MARGIN || (maxVisibleBelow < 1 && maxVisibleAbove < 1)) {
+        return false;
+      }
+      if (maxVisibleBelow < DEFAULT_MINIMUM_VISIBLE_OPTIONS && maxVisibleAbove > maxVisibleBelow && this.options.length > maxVisibleBelow) {
+        this.dropDownAbove = true;
+        classListRemove(this.selectionDetailsPane, "border-top");
+        classListAdd(this.selectionDetailsPane, "border-bottom");
+      } else {
+        this.dropDownAbove = false;
+        classListRemove(this.selectionDetailsPane, "border-bottom");
+        classListAdd(this.selectionDetailsPane, "border-top");
+      }
+      return true;
+    }
+    if (selectTop + selectHeight > innerHeight - 22 || selectTop < DEFAULT_DROPDOWN_MINIMUM_TOP_MARGIN) {
+      this.hideSelectDropDown(true);
+      return false;
+    }
+    if (!this.dropDownAbove && maxVisibleBelow < 1) {
+      this.hideSelectDropDown(true);
+      return false;
+    }
+    if (this.dropDownAbove && maxVisibleAbove < 1) {
+      this.hideSelectDropDown(true);
+      return false;
+    }
+    if (!this.dropDownAbove) {
+      if (this.isVisible && maxVisibleBelow + maxVisibleAbove < 1) {
+        this.hideSelectDropDown(true);
+        return false;
+      }
+      if (minRequired > maxBelow) {
+        listHeight = maxVisibleBelow * this.getHeight();
+      }
+    } else {
+      if (minRequired > maxAbove) {
+        listHeight = maxVisibleAbove * this.getHeight();
+      }
+    }
+    if (this.hasDetails) {
+      setStyle(this.selectDropDownListContainer, "height", listHeight.toString() + "px");
+    } else {
+      setStyle(this.selectDropDownContainer, "height", listHeight.toString() + "px");
+    }
+    this.updateDetail(this.selected);
+    setAttribute(this.selectDropDownListContainer, "tabindex", "0");
+    return true;
+  }
+
+  void updateDetail(int index) {
+    string description = "";
+    if (index >= 0 && index < this.options.length) {
+      description = this.options[index].description;
+    }
+    setTextContent(this.selectionDetailsPane, description);
+  }
+
+  void showSelectDropDown() {
+    if (this.options.length == 0) {
+      return;
+    }
+    if (!this.layoutSelectDropDown(true)) {
+      return;
+    }
+    this.isVisible = true;
+    this.layoutSelectDropDown(false);
+    focusElement(this.selectDropDownListContainer);
+  }
+
+  void hideSelectDropDown(bool focusSelect) {
+    this.isVisible = false;
+    classListRemove(this.selectDropDownContainer, "visible");
+    if (focusSelect) {
+      focusElement(this.selectElement);
+    }
+  }
+
+  int skipDisabled(int start, int direction) {
+    int index = start;
+    int guard = 0;
+    while (guard < this.options.length) {
+      if (index < 0) {
+        index = 0;
+      }
+      if (index >= this.options.length) {
+        index = this.options.length - 1;
+      }
+      if (!this.options[index].isDisabled && !this.options[index].isSeparator) {
+        return index;
+      }
+      index = index + direction;
+      guard = guard + 1;
+    }
+    return start;
+  }
+
+  void onListKeyDown(JsValue event) {
+    int key = eventKeyCode(event);
+    if (key == 13 || key == 9) {
+      this.currentSelection = this.selected;
+      this.fireSelect();
+      this.hideSelectDropDown(true);
+      preventDefault(event);
+      return;
+    }
+    if (key == 27) {
+      this.select(this.currentSelection);
+      this.hideSelectDropDown(true);
+      preventDefault(event);
+      return;
+    }
+    if (key == 38) {
+      this.select(this.skipDisabled(this.selected - 1, -1));
+      preventDefault(event);
+      return;
+    }
+    if (key == 40) {
+      this.select(this.skipDisabled(this.selected + 1, 1));
+      preventDefault(event);
+      return;
+    }
+    if (key == 36) {
+      this.select(this.skipDisabled(0, 1));
+      preventDefault(event);
+      return;
+    }
+    if (key == 35) {
+      this.select(this.skipDisabled(this.options.length - 1, -1));
+      preventDefault(event);
+      return;
+    }
+    if (key == 33) {
+      this.select(this.skipDisabled(this.selected - 10, -1));
+      preventDefault(event);
+      return;
+    }
+    if (key == 34) {
+      this.select(this.skipDisabled(this.selected + 10, 1));
+      preventDefault(event);
+      return;
+    }
+    string code = eventCode(event);
+    if (code.length == 1) {
+      string ch = code;
+      int i = this.selected + 1;
+      int guard = 0;
+      while (guard < this.options.length) {
+        if (i >= this.options.length) {
+          i = 0;
+        }
+        if (this.options[i].text.length > 0 && this.options[i].text.charAt(0).toLowerCase() == ch.toLowerCase() && !this.options[i].isDisabled) {
+          this.select(i);
+          break;
+        }
+        i = i + 1;
+        guard = guard + 1;
+      }
+    }
+  }
+
+  void focus() {
+    setTabIndex(this.selectElement, 0);
+    focusElement(this.selectElement);
+  }
+
+  void blur() {
+    setTabIndex(this.selectElement, -1);
+    blurElement(this.selectElement);
+  }
+
+  void setFocusable(bool focusable) {
+    if (focusable) {
+      setTabIndex(this.selectElement, 0);
+    } else {
+      setTabIndex(this.selectElement, -1);
+    }
+  }
+
+  void render(JsValue container) {
+    classListAdd(container, "select-container");
+    appendChild(container, this.selectElement);
+    setStyle(this.selectElement, "background-color", this.selectBackground);
+    setStyle(this.selectElement, "color", this.selectForeground);
+    setStyle(this.selectElement, "border-color", this.selectBorder);
+  }
+}
+
+export SelectBoxList createSelectBoxList(CustomSelectOption[] options, int selected, string selectBackground = "", string selectForeground = "", string selectBorder = "", int minBottomMargin = 0) {
+  return new SelectBoxList(options, selected, selectBackground, selectForeground, selectBorder, minBottomMargin);
+}
+
+export CustomSelectOption createCustomSelectOption(string text, string detail = "", string decoratorRight = "", string description = "", bool isDisabled = false, bool isSeparator = false) {
+  return new CustomSelectOption(text, detail, decoratorRight, description, isDisabled, isSeparator);
+}

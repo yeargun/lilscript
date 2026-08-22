@@ -1,0 +1,85 @@
+export class BracketRule {
+  string text;
+  int id;
+  int[] closesIds;
+  string closingText;
+  bool opening;
+
+  init(string text, int id, int[] closesIds, string closingText, bool opening) {
+    this.text = text;
+    this.id = id;
+    this.closesIds = closesIds;
+    this.closingText = closingText;
+    this.opening = opening;
+  }
+}
+
+BracketRule? ruleAt(string line, int offset, BracketRule[] rules) {
+  BracketRule? result = null;
+  int bestLength = -1;
+  int i = 0;
+  while (i < rules.length) {
+    BracketRule rule = rules[i];
+    if (offset + rule.text.length <= line.length && rule.text.length > bestLength) {
+      bool equal = true;
+      int j = 0;
+      while (j < rule.text.length && equal) {
+        if (
+          line.charAt(offset + j).toLowerCase()
+          != rule.text.charAt(j).toLowerCase()
+        ) {
+          equal = false;
+        }
+        j = j + 1;
+      }
+      if (equal) {
+        result = rule;
+        bestLength = rule.text.length;
+      }
+    }
+    i = i + 1;
+  }
+  return result;
+}
+
+export string fixBracketsInLine(string line, BracketRule[] rules) {
+  string result = "";
+  BracketRule[] stack = [];
+  int i = 0;
+  while (i < line.length) {
+    BracketRule? rule = ruleAt(line, i, rules);
+    if (rule == null) {
+      result = result + line.charAt(i);
+      i = i + 1;
+    } else if (rule.opening) {
+      result = result + rule.text;
+      stack.push(rule);
+      i = i + rule.text.length;
+    } else {
+      int top = stack.length - 1;
+      if (top >= 0 && rule.closesIds.indexOf(stack[top].id) >= 0) {
+        result = result + rule.text;
+        stack.splice(top, 1);
+      }
+      i = i + rule.text.length;
+    }
+  }
+  int s = stack.length - 1;
+  while (s >= 0) {
+    result = result + stack[s].closingText;
+    s = s - 1;
+  }
+  return result;
+}
+
+export BracketRule createOpeningBracketRule(string text, int id, string closingText) {
+  return new BracketRule(text, id, [id], closingText, true);
+}
+
+export BracketRule createClosingBracketRule(string text, int[] closesIds) {
+  int id = -1;
+  if (closesIds.length > 0) {
+    id = closesIds[0];
+  }
+  return new BracketRule(text, id, closesIds, "", false);
+}

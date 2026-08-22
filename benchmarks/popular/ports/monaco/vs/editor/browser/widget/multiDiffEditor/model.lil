@@ -1,0 +1,20 @@
+export class MultiDiffItem {
+  string originalUri;
+  string modifiedUri;
+  bool collapsed;
+  int originalLineCount;
+  int modifiedLineCount;
+
+  init(string originalUri, string modifiedUri, int originalLineCount, int modifiedLineCount) {
+    this.originalUri = originalUri;
+    this.modifiedUri = modifiedUri;
+    this.collapsed = false;
+    this.originalLineCount = originalLineCount;
+    this.modifiedLineCount = modifiedLineCount;
+  }
+}
+
+export enum MultiDiffItemKind {
+  File,
+  Untitled
+}

@@ -1,0 +1,172 @@
+import { domCreateElement, appendChild, setClassName, classListAdd, classListRemove, setTextContent, addEventListener, preventDefault, stopPropagation, eventButton, eventKeyCode, hostCall, jsUndefined } from "../../../../../js-host";
+
+export class DropdownAction {
+  string id;
+  string label;
+  bool enabled;
+
+  init(string id, string label, bool enabled) {
+    this.id = id;
+    this.label = label;
+    this.enabled = enabled;
+  }
+}
+
+export class BaseDropdown {
+  JsValue element;
+  JsValue label;
+  bool visible;
+  (func(bool)->void)[] visibilityListeners;
+  DropdownAction[] actions;
+  func(JsValue)->void showContextMenuFn;
+  bool disposed;
+
+  init(JsValue container, string labelText) {
+    this.visible = false;
+    this.disposed = false;
+    this.visibilityListeners = [];
+    this.actions = [];
+    this.showContextMenuFn = (JsValue delegate) => {};
+    this.element = domCreateElement("div");
+    setClassName(this.element, "monaco-dropdown");
+    this.label = domCreateElement("div");
+    setClassName(this.label, "dropdown-label");
+    setTextContent(this.label, labelText);
+    appendChild(this.element, this.label);
+    appendChild(container, this.element);
+    BaseDropdown owner = this;
+    addEventListener(this.element, "click", (JsValue event) => {
+      preventDefault(event);
+      stopPropagation(event);
+    }, false);
+    addEventListener(this.label, "mousedown", (JsValue event) => {
+      if (eventButton(event) != 0) {
+        return;
+      }
+      if (owner.visible) {
+        owner.hide();
+      } else {
+        owner.show();
+      }
+    }, false);
+    addEventListener(this.label, "keydown", (JsValue event) => {
+      int key = eventKeyCode(event);
+      if (key == 13 || key == 32) {
+        preventDefault(event);
+        stopPropagation(event);
+        if (owner.visible) {
+          owner.hide();
+        } else {
+          owner.show();
+        }
+      }
+    }, false);
+  }
+
+  func()->void onDidChangeVisibility(func(bool)->void listener) {
+    this.visibilityListeners.push(listener);
+    BaseDropdown owner = this;
+    return () => {
+      int index = owner.visibilityListeners.indexOf(listener);
+      if (index >= 0) {
+        owner.visibilityListeners.splice(index, 1);
+      }
+    };
+  }
+
+  void fireVisibility(bool visible) {
+    int i = 0;
+    while (i < this.visibilityListeners.length) {
+      this.visibilityListeners[i](visible);
+      i = i + 1;
+    }
+  }
+
+  void show() {
+    if (!this.visible) {
+      this.visible = true;
+      this.fireVisibility(true);
+    }
+  }
+
+  void hide() {
+    if (this.visible) {
+      this.visible = false;
+      this.fireVisibility(false);
+    }
+  }
+
+  void dispose() {
+    this.disposed = true;
+    this.hide();
+    hostCall(this.element, "remove", jsUndefined(), jsUndefined(), jsUndefined());
+  }
+}
+
+export class DropdownMenu {
+  BaseDropdown base;
+  DropdownAction[] actions;
+  func(JsValue)->void showContextMenuFn;
+  string menuClassName;
+  bool skipTelemetry;
+  bool menuAsChild;
+
+  init(JsValue container, string labelText) {
+    this.base = new BaseDropdown(container, labelText);
+    this.actions = [];
+    this.showContextMenuFn = (JsValue delegate) => {};
+    this.menuClassName = "";
+    this.skipTelemetry = false;
+    this.menuAsChild = false;
+    DropdownMenu owner = this;
+    this.base.onDidChangeVisibility((bool visible) => {
+      if (visible) {
+        owner.openMenu();
+      }
+    });
+  }
+
+  void setActions(DropdownAction[] actions) {
+    this.actions = actions;
+    this.base.actions = actions;
+  }
+
+  void openMenu() {
+    classListAdd(this.base.element, "active");
+    JsValue delegate = JS.object();
+    delegate["anchor"] = this.base.element;
+    delegate["actions"] = this.actions.length;
+    delegate["menuClassName"] = this.menuClassName;
+    delegate["skipTelemetry"] = this.skipTelemetry;
+    this.showContextMenuFn(delegate);
+  }
+
+  void show() {
+    this.base.show();
+  }
+
+  void hide() {
+    this.base.hide();
+    classListRemove(this.base.element, "active");
+  }
+
+  void onHide() {
+    this.hide();
+  }
+
+  void dispose() {
+    this.base.dispose();
+  }
+}
+
+export BaseDropdown createBaseDropdown(JsValue container, string labelText) {
+  return new BaseDropdown(container, labelText);
+}
+
+export DropdownMenu createDropdownMenu(JsValue container, string labelText) {
+  return new DropdownMenu(container, labelText);
+}
+
+export DropdownAction createDropdownAction(string id, string label, bool enabled = true) {
+  return new DropdownAction(id, label, enabled);
+}

@@ -1,0 +1,110 @@
+string nlsLanguage = "en";
+string[] nlsMessages = [];
+
+export string getNLSLanguage() {
+  return nlsLanguage;
+}
+
+export void setNLSLanguage(string language) {
+  nlsLanguage = language;
+}
+
+export string[] getNLSMessages() {
+  return nlsMessages;
+}
+
+export void setNLSMessages(string[] messages) {
+  nlsMessages = messages;
+}
+
+bool isPseudoLanguage() {
+  return nlsLanguage == "pseudo";
+}
+
+string lookupMessage(int index, string fallback) {
+  if (index >= 0 && index < nlsMessages.length) {
+    return nlsMessages[index];
+  }
+  if (fallback.length > 0) {
+    return fallback;
+  }
+  return "!!! NLS MISSING: " + index.toString() + " !!!";
+}
+
+string replaceIndexedArgs(string message, string[] args) {
+  if (args.length == 0) {
+    return message;
+  }
+  string result = "";
+  int i = 0;
+  while (i < message.length) {
+    string ch = message.charAt(i);
+    if (ch == "{" && i + 2 < message.length && message.charAt(i + 2) == "}") {
+      int code = message.charCodeAt(i + 1);
+      if (code >= 48 && code <= 57) {
+        int index = code - 48;
+        if (index < args.length) {
+          result = result + args[index];
+          i = i + 3;
+          continue;
+        }
+      }
+    }
+    result = result + ch;
+    i = i + 1;
+  }
+  return result;
+}
+
+string applyPseudo(string value) {
+  if (!isPseudoLanguage()) {
+    return value;
+  }
+  string doubled = "";
+  int i = 0;
+  while (i < value.length) {
+    string ch = value.charAt(i);
+    if (ch == "a" || ch == "e" || ch == "i" || ch == "o" || ch == "u") {
+      doubled = doubled + ch + ch;
+    } else {
+      doubled = doubled + ch;
+    }
+    i = i + 1;
+  }
+  return "［" + doubled + "］";
+}
+
+export string formatNls(string message, string[] args) {
+  return applyPseudo(replaceIndexedArgs(message, args));
+}
+
+export string localize(string data, string message) {
+  return formatNls(message, []);
+}
+
+export string localizeArgs(string message, string[] args) {
+  return formatNls(message, args);
+}
+
+export string localizeIndex(int index, string fallback, string[] args) {
+  return formatNls(lookupMessage(index, fallback), args);
+}
+
+export string localizeMessage(string message) {
+  return formatNls(message, []);
+}
+
+export class Localized2 {
+  string value;
+  string original;
+
+  init(string value, string original) {
+    this.value = value;
+    this.original = original;
+  }
+}
+
+export Localized2 localize2(string originalMessage, string[] args) {
+  string value = formatNls(originalMessage, args);
+  return new Localized2(value, value);
+}

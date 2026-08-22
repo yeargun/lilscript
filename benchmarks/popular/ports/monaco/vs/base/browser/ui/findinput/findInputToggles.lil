@@ -1,0 +1,190 @@
+import { domCreateElement, appendChild, setClassName, classListAdd, classListRemove, setAttribute, setTabIndex, addEventListener, preventDefault, stopPropagation, eventKeyCode } from "../../../../../js-host";
+
+string boolAttr(bool value) {
+  if (value) {
+    return "true";
+  }
+  return "false";
+}
+
+export class Toggle {
+  JsValue domNode;
+  bool checked;
+  bool enabled;
+  string title;
+  string iconClass;
+  (func(bool)->void)[] changeListeners;
+  (func(JsValue)->void)[] keyDownListeners;
+
+  init(string title, bool isChecked, string iconClass, string actionClassName, bool notFocusable, string border, string foreground, string background) {
+    this.title = title;
+    this.checked = isChecked;
+    this.enabled = true;
+    this.iconClass = iconClass;
+    this.changeListeners = [];
+    this.keyDownListeners = [];
+    this.domNode = domCreateElement("div");
+    setClassName(this.domNode, "monaco-custom-toggle");
+    if (iconClass.length > 0) {
+      classListAdd(this.domNode, "codicon");
+      classListAdd(this.domNode, iconClass);
+    }
+    if (actionClassName.length > 0) {
+      classListAdd(this.domNode, actionClassName);
+    }
+    if (isChecked) {
+      classListAdd(this.domNode, "checked");
+    }
+    if (!notFocusable) {
+      setTabIndex(this.domNode, 0);
+    }
+    setAttribute(this.domNode, "role", "checkbox");
+    setAttribute(this.domNode, "aria-checked", boolAttr(isChecked));
+    setAttribute(this.domNode, "title", title);
+    this.applyStyles(border, foreground, background);
+    Toggle owner = this;
+    addEventListener(this.domNode, "click", (JsValue event) => {
+      if (owner.enabled) {
+        owner.setChecked(!owner.checked, border, foreground, background);
+        owner.fireChange(false);
+        preventDefault(event);
+        stopPropagation(event);
+      }
+    }, false);
+    addEventListener(this.domNode, "keydown", (JsValue event) => {
+      if (!owner.enabled) {
+        return;
+      }
+      int key = eventKeyCode(event);
+      if (key == 32 || key == 13) {
+        owner.setChecked(!owner.checked, border, foreground, background);
+        owner.fireChange(true);
+        preventDefault(event);
+        stopPropagation(event);
+        return;
+      }
+      int i = 0;
+      while (i < owner.keyDownListeners.length) {
+        owner.keyDownListeners[i](event);
+        i = i + 1;
+      }
+    }, false);
+  }
+
+  void applyStyles(string border, string foreground, string background) {
+    if (this.checked) {
+      if (border.length > 0) {
+        this.domNode["style"]["borderColor"] = border;
+      }
+      if (foreground.length > 0) {
+        this.domNode["style"]["color"] = foreground;
+      }
+      if (background.length > 0) {
+        this.domNode["style"]["backgroundColor"] = background;
+      }
+    } else {
+      this.domNode["style"]["borderColor"] = "";
+      this.domNode["style"]["color"] = "inherit";
+      this.domNode["style"]["backgroundColor"] = "";
+    }
+  }
+
+  void fireChange(bool viaKeyboard) {
+    int i = 0;
+    while (i < this.changeListeners.length) {
+      this.changeListeners[i](viaKeyboard);
+      i = i + 1;
+    }
+  }
+
+  void setChecked(bool value, string border, string foreground, string background) {
+    this.checked = value;
+    setAttribute(this.domNode, "aria-checked", boolAttr(value));
+    if (value) {
+      classListAdd(this.domNode, "checked");
+    } else {
+      classListRemove(this.domNode, "checked");
+    }
+    this.applyStyles(border, foreground, background);
+  }
+
+  func()->void onChange(func(bool)->void listener) {
+    this.changeListeners.push(listener);
+    Toggle owner = this;
+    return () => {
+      int index = owner.changeListeners.indexOf(listener);
+      if (index >= 0) {
+        owner.changeListeners.splice(index, 1);
+      }
+    };
+  }
+
+  func()->void onKeyDown(func(JsValue)->void listener) {
+    this.keyDownListeners.push(listener);
+    Toggle owner = this;
+    return () => {
+      int index = owner.keyDownListeners.indexOf(listener);
+      if (index >= 0) {
+        owner.keyDownListeners.splice(index, 1);
+      }
+    };
+  }
+
+  int width() {
+    return 22;
+  }
+
+  void enable() {
+    this.enabled = true;
+    setAttribute(this.domNode, "aria-disabled", "false");
+    classListRemove(this.domNode, "disabled");
+  }
+
+  void disable() {
+    this.enabled = false;
+    setAttribute(this.domNode, "aria-disabled", "true");
+    classListAdd(this.domNode, "disabled");
+  }
+
+  void setTitle(string title) {
+    this.title = title;
+    setAttribute(this.domNode, "title", title);
+    setAttribute(this.domNode, "aria-label", title);
+  }
+}
+
+export class CaseSensitiveToggle {
+  Toggle toggle;
+
+  init(string appendTitle, bool isChecked, string border, string foreground, string background) {
+    this.toggle = new Toggle("Match Case" + appendTitle, isChecked, "codicon-case-sensitive", "", false, border, foreground, background);
+  }
+}
+
+export class WholeWordsToggle {
+  Toggle toggle;
+
+  init(string appendTitle, bool isChecked, string border, string foreground, string background) {
+    this.toggle = new Toggle("Match Whole Word" + appendTitle, isChecked, "codicon-whole-word", "", false, border, foreground, background);
+  }
+}
+
+export class RegexToggle {
+  Toggle toggle;
+
+  init(string appendTitle, bool isChecked, string border, string foreground, string background) {
+    this.toggle = new Toggle("Use Regular Expression" + appendTitle, isChecked, "codicon-regex", "", false, border, foreground, background);
+  }
+}
+
+export CaseSensitiveToggle createCaseSensitiveToggle(string appendTitle, bool isChecked, string border = "", string foreground = "", string background = "") {
+  return new CaseSensitiveToggle(appendTitle, isChecked, border, foreground, background);
+}
+
+export WholeWordsToggle createWholeWordsToggle(string appendTitle, bool isChecked, string border = "", string foreground = "", string background = "") {
+  return new WholeWordsToggle(appendTitle, isChecked, border, foreground, background);
+}
+
+export RegexToggle createRegexToggle(string appendTitle, bool isChecked, string border = "", string foreground = "", string background = "") {
+  return new RegexToggle(appendTitle, isChecked, border, foreground, background);
+}

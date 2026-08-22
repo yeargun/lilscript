@@ -1,0 +1,261 @@
+export int MOUSE_UNKNOWN = 0;
+export int MOUSE_TEXTAREA = 1;
+export int MOUSE_GUTTER_GLYPH_MARGIN = 2;
+export int MOUSE_GUTTER_LINE_NUMBERS = 3;
+export int MOUSE_GUTTER_LINE_DECORATIONS = 4;
+export int MOUSE_GUTTER_VIEW_ZONE = 5;
+export int MOUSE_CONTENT_TEXT = 6;
+export int MOUSE_CONTENT_EMPTY = 7;
+export int MOUSE_CONTENT_VIEW_ZONE = 8;
+export int MOUSE_CONTENT_WIDGET = 9;
+export int MOUSE_OVERVIEW_RULER = 10;
+export int MOUSE_SCROLLBAR = 11;
+export int MOUSE_OVERLAY_WIDGET = 12;
+export int MOUSE_OUTSIDE_EDITOR = 13;
+
+export class InputPosition {
+  int lineNumber;
+  int column;
+
+  init(int lineNumber, int column) {
+    this.lineNumber = lineNumber;
+    this.column = column;
+  }
+}
+
+export class InputRange {
+  int startLineNumber;
+  int startColumn;
+  int endLineNumber;
+  int endColumn;
+
+  init(int startLineNumber, int startColumn, int endLineNumber, int endColumn) {
+    this.startLineNumber = startLineNumber;
+    this.startColumn = startColumn;
+    this.endLineNumber = endLineNumber;
+    this.endColumn = endColumn;
+  }
+}
+
+export class ViewZoneHit {
+  int viewZoneId;
+  InputPosition? positionBefore;
+  InputPosition? positionAfter;
+  InputPosition position;
+  int afterLineNumber;
+
+  init(int viewZoneId, InputPosition position, int afterLineNumber) {
+    this.viewZoneId = viewZoneId;
+    this.positionBefore = null;
+    this.positionAfter = null;
+    this.position = position;
+    this.afterLineNumber = afterLineNumber;
+  }
+}
+
+export class MouseTarget {
+  int type;
+  InputPosition? position;
+  InputRange? range;
+  ViewZoneHit? zone;
+
+  init(int type) {
+    this.type = type;
+    this.position = null;
+    this.range = null;
+    this.zone = null;
+  }
+}
+
+export class EditorMouseEvent {
+  int button;
+  int clientX;
+  int clientY;
+  bool altKey;
+  bool ctrlKey;
+  bool shiftKey;
+  bool metaKey;
+
+  init(int button, int clientX, int clientY) {
+    this.button = button;
+    this.clientX = clientX;
+    this.clientY = clientY;
+    this.altKey = false;
+    this.ctrlKey = false;
+    this.shiftKey = false;
+    this.metaKey = false;
+  }
+}
+
+export class EditorKeyEvent {
+  string key;
+  int keyCode;
+  bool ctrlKey;
+  bool shiftKey;
+  bool altKey;
+  bool metaKey;
+
+  init(string key, int keyCode) {
+    this.key = key;
+    this.keyCode = keyCode;
+    this.ctrlKey = false;
+    this.shiftKey = false;
+    this.altKey = false;
+    this.metaKey = false;
+  }
+}
+
+export class ModelMouseEvent {
+  EditorMouseEvent event;
+  MouseTarget target;
+
+  init(EditorMouseEvent event, MouseTarget target) {
+    this.event = event;
+    this.target = target;
+  }
+}
+
+export class CoordinatesConverter {
+  int viewToModelDelta;
+
+  init(int viewToModelDelta = 0) {
+    this.viewToModelDelta = viewToModelDelta;
+  }
+
+  InputPosition convertViewPositionToModelPosition(InputPosition viewPosition) {
+    int line = viewPosition.lineNumber + this.viewToModelDelta;
+    if (line < 1) {
+      line = 1;
+    }
+    return new InputPosition(line, viewPosition.column);
+  }
+
+  InputRange convertViewRangeToModelRange(InputRange viewRange) {
+    InputPosition start = this.convertViewPositionToModelPosition(new InputPosition(viewRange.startLineNumber, viewRange.startColumn));
+    InputPosition end = this.convertViewPositionToModelPosition(new InputPosition(viewRange.endLineNumber, viewRange.endColumn));
+    return new InputRange(start.lineNumber, start.column, end.lineNumber, end.column);
+  }
+}
+
+export ViewZoneHit convertViewToModelViewZoneData(ViewZoneHit data, CoordinatesConverter converter) {
+  ViewZoneHit result = new ViewZoneHit(data.viewZoneId, converter.convertViewPositionToModelPosition(data.position), data.afterLineNumber);
+  InputPosition? before = data.positionBefore;
+  if (before != null) {
+    result.positionBefore = converter.convertViewPositionToModelPosition(before);
+  }
+  InputPosition? afterPos = data.positionAfter;
+  if (afterPos != null) {
+    result.positionAfter = converter.convertViewPositionToModelPosition(afterPos);
+  }
+  InputPosition after = converter.convertViewPositionToModelPosition(new InputPosition(data.afterLineNumber, 1));
+  result.afterLineNumber = after.lineNumber;
+  return result;
+}
+
+export MouseTarget convertViewToModelMouseTarget(MouseTarget target, CoordinatesConverter converter) {
+  MouseTarget result = new MouseTarget(target.type);
+  InputPosition? position = target.position;
+  if (position != null) {
+    result.position = converter.convertViewPositionToModelPosition(position);
+  }
+  InputRange? range = target.range;
+  if (range != null) {
+    result.range = converter.convertViewRangeToModelRange(range);
+  }
+  if (target.type == MOUSE_GUTTER_VIEW_ZONE || target.type == MOUSE_CONTENT_VIEW_ZONE) {
+    ViewZoneHit? zone = target.zone;
+    if (zone != null) {
+      result.zone = convertViewToModelViewZoneData(zone, converter);
+    }
+  }
+  return result;
+}
+
+export class ViewUserInputEvents {
+  CoordinatesConverter converter;
+  EditorKeyEvent[] keyDowns;
+  EditorKeyEvent[] keyUps;
+  ModelMouseEvent[] contextMenus;
+  ModelMouseEvent[] mouseMoves;
+  ModelMouseEvent[] mouseLeaves;
+  ModelMouseEvent[] mouseDowns;
+  ModelMouseEvent[] mouseUps;
+  ModelMouseEvent[] mouseDrags;
+  ModelMouseEvent[] mouseDrops;
+  int mouseDropCanceledCount;
+  int mouseWheelCount;
+  int lastWheelDelta;
+
+  init(CoordinatesConverter converter) {
+    this.converter = converter;
+    this.keyDowns = [];
+    this.keyUps = [];
+    this.contextMenus = [];
+    this.mouseMoves = [];
+    this.mouseLeaves = [];
+    this.mouseDowns = [];
+    this.mouseUps = [];
+    this.mouseDrags = [];
+    this.mouseDrops = [];
+    this.mouseDropCanceledCount = 0;
+    this.mouseWheelCount = 0;
+    this.lastWheelDelta = 0;
+  }
+
+  ModelMouseEvent convertViewToModelMouseEvent(EditorMouseEvent event, MouseTarget? target) {
+    MouseTarget converted = new MouseTarget(MOUSE_UNKNOWN);
+    if (target != null) {
+      converted = convertViewToModelMouseTarget(target, this.converter);
+    }
+    return new ModelMouseEvent(event, converted);
+  }
+
+  void emitKeyDown(EditorKeyEvent e) {
+    this.keyDowns.push(e);
+  }
+
+  void emitKeyUp(EditorKeyEvent e) {
+    this.keyUps.push(e);
+  }
+
+  void emitContextMenu(EditorMouseEvent e, MouseTarget? target) {
+    this.contextMenus.push(this.convertViewToModelMouseEvent(e, target));
+  }
+
+  void emitMouseMove(EditorMouseEvent e, MouseTarget? target) {
+    this.mouseMoves.push(this.convertViewToModelMouseEvent(e, target));
+  }
+
+  void emitMouseLeave(EditorMouseEvent e, MouseTarget? target) {
+    this.mouseLeaves.push(this.convertViewToModelMouseEvent(e, target));
+  }
+
+  void emitMouseDown(EditorMouseEvent e, MouseTarget? target) {
+    this.mouseDowns.push(this.convertViewToModelMouseEvent(e, target));
+  }
+
+  void emitMouseUp(EditorMouseEvent e, MouseTarget? target) {
+    this.mouseUps.push(this.convertViewToModelMouseEvent(e, target));
+  }
+
+  void emitMouseDrag(EditorMouseEvent e, MouseTarget? target) {
+    this.mouseDrags.push(this.convertViewToModelMouseEvent(e, target));
+  }
+
+  void emitMouseDrop(EditorMouseEvent e, MouseTarget? target) {
+    this.mouseDrops.push(this.convertViewToModelMouseEvent(e, target));
+  }
+
+  void emitMouseDropCanceled() {
+    this.mouseDropCanceledCount = this.mouseDropCanceledCount + 1;
+  }
+
+  void emitMouseWheel(int deltaY) {
+    this.mouseWheelCount = this.mouseWheelCount + 1;
+    this.lastWheelDelta = deltaY;
+  }
+}
+
+export ViewUserInputEvents createViewUserInputEvents(int viewToModelDelta = 0) {
+  return new ViewUserInputEvents(new CoordinatesConverter(viewToModelDelta));
+}

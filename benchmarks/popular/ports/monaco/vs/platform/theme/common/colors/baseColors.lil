@@ -1,0 +1,63 @@
+export class BaseColorsRegistry {
+  string[] ids;
+
+  init() {
+    this.ids = [];
+  }
+
+  string register(string id) {
+    if (!this.ids.includes(id)) {
+      this.ids.push(id);
+    }
+    return id;
+  }
+
+  bool has(string id) {
+    return this.ids.includes(id);
+  }
+
+  string asCssVariableName(string id) {
+    string out = "--vscode-";
+    int i = 0;
+    while (i < id.length) {
+      string ch = id.charAt(i);
+      if (ch == ".") {
+        out = out + "-";
+      } else {
+        out = out + ch;
+      }
+      i = i + 1;
+    }
+    return out;
+  }
+}
+
+BaseColorsRegistry colors = new BaseColorsRegistry();
+
+export BaseColorsRegistry getBaseColorsRegistry() {
+  return colors;
+}
+
+export string c0 = colors.register("foreground");
+export string c1 = colors.register("strongForeground");
+export string c2 = colors.register("disabledForeground");
+export string c3 = colors.register("errorForeground");
+export string c4 = colors.register("descriptionForeground");
+export string c5 = colors.register("icon.foreground");
+export string c6 = colors.register("focusBorder");
+export string c7 = colors.register("contrastBorder");
+export string c8 = colors.register("contrastActiveBorder");
+export string c9 = colors.register("selection.background");
+export string c10 = colors.register("textLink.foreground");
+export string c11 = colors.register("textLink.activeForeground");
+export string c12 = colors.register("textSeparator.foreground");
+export string c13 = colors.register("textPreformat.foreground");
+export string c14 = colors.register("textPreformat.background");
+export string c15 = colors.register("textPreformat.border");
+export string c16 = colors.register("textBlockQuote.background");
+export string c17 = colors.register("textBlockQuote.border");
+export string c18 = colors.register("textCodeBlock.background");
+
+export string[] colorIds() {
+  return colors.ids;
+}

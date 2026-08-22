@@ -1,0 +1,23 @@
+export class DefaultAccount {
+  string id;
+  string label;
+  bool signedIn;
+
+  init(string id, string label, bool signedIn) {
+    this.id = id;
+    this.label = label;
+    this.signedIn = signedIn;
+  }
+}
+
+DefaultAccount sharedDefaultAccount = new DefaultAccount("", "", false);
+
+export DefaultAccount defaultAccount() {
+  return sharedDefaultAccount;
+}
+
+export void setDefaultAccount(string id, string label, bool signedIn) {
+  sharedDefaultAccount.id = id;
+  sharedDefaultAccount.label = label;
+  sharedDefaultAccount.signedIn = signedIn;
+}

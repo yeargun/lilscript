@@ -1,0 +1,46 @@
+import { concat2, emptyBuf, sliceOf } from "../../../../../../js-host";
+
+export class ScreenReaderContentSimple {
+  string value;
+  int selectionStart;
+  int selectionEnd;
+
+  init() {
+    this.value = emptyBuf();
+    this.selectionStart = 0;
+    this.selectionEnd = 0;
+  }
+
+  void setContent(string value, int selectionStart, int selectionEnd) {
+    this.value = value;
+    this.selectionStart = selectionStart;
+    this.selectionEnd = selectionEnd;
+  }
+
+  string selectedText() {
+    return sliceOf(this.value, this.selectionStart, this.selectionEnd);
+  }
+
+  void replaceSelection(string text) {
+    string before = sliceOf(this.value, 0, this.selectionStart);
+    string after = sliceOf(this.value, this.selectionEnd, this.value.length);
+    this.value = concat2(concat2(before, text), after);
+    this.selectionStart = before.length + text.length;
+    this.selectionEnd = this.selectionStart;
+  }
+}
+
+export ScreenReaderContentSimple createScreenReaderContentSimple() {
+  return new ScreenReaderContentSimple();
+}
+
+export string simplePagedValue(string lineText, int column) {
+  int col = column;
+  if (col < 1) {
+    col = 1;
+  }
+  if (col - 1 > lineText.length) {
+    col = lineText.length + 1;
+  }
+  return lineText;
+}

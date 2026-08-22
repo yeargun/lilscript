@@ -1,0 +1,103 @@
+pure int coordinatesClamp(int value, int low, int high) {
+  if (value < low) {
+    return low;
+  }
+  if (value > high) {
+    return high;
+  }
+  return value;
+}
+
+export class Position {
+  int lineNumber;
+  int column;
+
+  init(int lineNumber, int column) {
+    this.lineNumber = lineNumber;
+    this.column = column;
+  }
+}
+
+export class Range {
+  int startLineNumber;
+  int startColumn;
+  int endLineNumber;
+  int endColumn;
+
+  init(int startLineNumber, int startColumn, int endLineNumber, int endColumn) {
+    if (startLineNumber > endLineNumber || (startLineNumber == endLineNumber && startColumn > endColumn)) {
+      this.startLineNumber = endLineNumber;
+      this.startColumn = endColumn;
+      this.endLineNumber = startLineNumber;
+      this.endColumn = startColumn;
+    } else {
+      this.startLineNumber = startLineNumber;
+      this.startColumn = startColumn;
+      this.endLineNumber = endLineNumber;
+      this.endColumn = endColumn;
+    }
+  }
+}
+
+export class IdentityCoordinatesConverter {
+  int[] lineMaxColumns;
+
+  init(int[] lineMaxColumns) {
+    this.lineMaxColumns = lineMaxColumns;
+  }
+
+  Position validPosition(Position position) {
+    int lineCount = this.lineMaxColumns.length;
+    if (lineCount == 0) {
+      return new Position(1, 1);
+    }
+    int lineNumber = coordinatesClamp(position.lineNumber, 1, lineCount);
+    int column = coordinatesClamp(position.column, 1, this.lineMaxColumns[lineNumber - 1]);
+    return new Position(lineNumber, column);
+  }
+
+  Range validRange(Range range) {
+    Position start = this.validPosition(new Position(range.startLineNumber, range.startColumn));
+    Position end = this.validPosition(new Position(range.endLineNumber, range.endColumn));
+    return new Range(start.lineNumber, start.column, end.lineNumber, end.column);
+  }
+
+  Position convertViewPositionToModelPosition(Position viewPosition) {
+    return this.validPosition(viewPosition);
+  }
+
+  Range convertViewRangeToModelRange(Range viewRange) {
+    return this.validRange(viewRange);
+  }
+
+  Position validateViewPosition(Position viewPosition, Position expectedModelPosition) {
+    return this.validPosition(expectedModelPosition);
+  }
+
+  Range validateViewRange(Range viewRange, Range expectedModelRange) {
+    return this.validRange(expectedModelRange);
+  }
+
+  Position convertModelPositionToViewPosition(Position modelPosition) {
+    return this.validPosition(modelPosition);
+  }
+
+  Range convertModelRangeToViewRange(Range modelRange) {
+    return this.validRange(modelRange);
+  }
+
+  bool modelPositionIsVisible(Position modelPosition) {
+    return modelPosition.lineNumber >= 1 && modelPosition.lineNumber <= this.lineMaxColumns.length;
+  }
+
+  int getModelLineViewLineCount(int modelLineNumber) {
+    if (modelLineNumber < 1 || modelLineNumber > this.lineMaxColumns.length) {
+      return 0;
+    }
+    return 1;
+  }
+
+  int getViewLineNumberOfModelPosition(int modelLineNumber, int modelColumn) {
+    return modelLineNumber;
+  }
+}

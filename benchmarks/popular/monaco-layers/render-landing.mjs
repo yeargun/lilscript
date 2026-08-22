@@ -16,6 +16,41 @@ function shortName(path) {
   return bits.slice(-2).join("/");
 }
 
+function folderRows(folders) {
+  return (folders ?? [])
+    .map((row) => {
+      const lilBr = row.lil?.brotli;
+      const jsBr = row.js.brotli;
+      const scored = row.scoredLil ?? 0;
+      return `<tr>
+  <td><code>${row.key}</code></td>
+  <td class="num">${fmt(row.files)}</td>
+  <td class="num">${fmt(jsBr)}</td>
+  <td class="num">${scored ? fmt(lilBr) : "—"}</td>
+  <td class="num">${scored ? ratio(jsBr, lilBr) : "—"}</td>
+  <td class="note">${scored ? `${fmt(scored)} Lil module${scored === 1 ? "" : "s"} scored` : "Lil not scored yet"}</td>
+</tr>`;
+    })
+    .join("\n");
+}
+
+function catalogFileRows(files) {
+  return (files ?? [])
+    .map((row) => {
+      const jsBr = row.js?.brotli;
+      const lilBr = row.lil?.brotli;
+      const win = jsBr != null && lilBr != null ? (lilBr <= jsBr ? "win" : "loss") : "";
+      return `<tr>
+  <td><code>${row.monaco}</code></td>
+  <td>${row.status}</td>
+  <td class="num">${jsBr == null ? "—" : fmt(jsBr)}</td>
+  <td class="num ${win}">${lilBr == null ? "—" : fmt(lilBr)}</td>
+  <td class="num">${jsBr != null && lilBr != null ? ratio(jsBr, lilBr) : "—"}</td>
+</tr>`;
+    })
+    .join("\n");
+}
+
 function pairRows(pairs) {
   return pairs
     .map((row) => {
@@ -48,6 +83,18 @@ function pairRows(pairs) {
 
 export function renderLanding(doc) {
   const p = doc.production;
+  const jsWorkers = p.workers?.files ?? [];
+  const lilWorkers = p.lilWorkers?.files ?? [];
+  const tsJs = jsWorkers.find((row) => row.name === "ts.worker.js");
+  const tsLil = lilWorkers.find((row) => row.name === "ts.worker.js");
+  const jsWorkersNoTs = {
+    raw: p.js.workers.raw - (tsJs?.sizes.raw ?? 0),
+    brotli: p.js.workers.brotli - (tsJs?.sizes.brotli ?? 0),
+  };
+  const lilWorkersNoTs = {
+    raw: p.lil.workers.raw - (tsLil?.sizes.raw ?? 0),
+    brotli: p.lil.workers.brotli - (tsLil?.sizes.brotli ?? 0),
+  };
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -63,7 +110,9 @@ export function renderLanding(doc) {
       font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
     body { overflow: auto; padding: 32px 20px 64px; }
-    main { max-width: 920px; margin: 0 auto; }
+    main { max-width: 1080px; margin: 0 auto; }
+    table.catalog { font-size: 12px; }
+    table.catalog td { padding: 4px 6px; }
     h1 { font-size: 22px; font-weight: 600; color: #fff; margin: 0 0 8px; }
     h2 { font-size: 16px; color: #fff; margin: 28px 0 10px; }
     p, li { max-width: 78ch; }
@@ -103,7 +152,7 @@ export function renderLanding(doc) {
   <div class="cards">
     <a href="./lil/">
       <strong>Open LilScript monaco</strong>
-      <span>compiled Lil editor · ide.js Brotli ${fmt(p.lil.ide.brotli)}</span>
+      <span>compiled Lil editor + catalog · ide.js Brotli ${fmt(p.lil.ide.brotli)}</span>
     </a>
     <a href="./js/">
       <strong>Open JS monaco-editor</strong>
@@ -116,8 +165,8 @@ export function renderLanding(doc) {
     JS: esbuild minify of <code>monaco-editor</code> ESM plus its workers, then
     <code>lilscript-codec</code> Brotli-11 / gzip-9 (stock zlib ${doc.codec.gzip} /
     official Brotli C ${doc.codec.brotli}).
-    Lil: LilScript compiler of the full editor entry, tree-shaken js-host, monaco.d.ts facade, same workbench chrome, esbuild minify, same codec.
-    The HTTP server sends Brotli-11. Lil has no editor/json/css/html/ts workers — tokenize and language features run in the Lil bundle.
+    Lil: LilScript compiler of the runtime editor plus the monaco-editor-core catalog (992 modules compiled as reusable libraries so class methods stay in the artifact), one js-host, same workbench chrome, esbuild minify, same codec.
+    The HTTP server sends Brotli-11. Lil language hosts remain compiled LilScript for JSON/CSS/HTML/editor workers. Both pages load the same Microsoft <code>ts.worker</code> (<code>typescriptServices.js</code>) so TypeScript and Solid TSX use the real language service.
   </p>
   <table>
     <thead>
@@ -131,25 +180,32 @@ export function renderLanding(doc) {
     </thead>
     <tbody>
       <tr>
-        <td><code>ide.js</code></td>
+        <td><code>ide.js</code> (JS monaco-editor / Lil runtime + catalog)</td>
         <td class="num">${fmt(p.js.ide.raw)}</td>
         <td class="num">${fmt(p.js.ide.brotli)}</td>
         <td class="num">${fmt(p.lil.ide.raw)}</td>
         <td class="num">${fmt(p.lil.ide.brotli)}</td>
       </tr>
       <tr>
-        <td>Workers (editor, json, css, html, ts)</td>
-        <td class="num">${fmt(p.js.workers.raw)}</td>
-        <td class="num">${fmt(p.js.workers.brotli)}</td>
-        <td class="num">0</td>
-        <td class="num">0</td>
+        <td>Workers except <code>ts.worker</code></td>
+        <td class="num">${fmt(jsWorkersNoTs.raw)}</td>
+        <td class="num">${fmt(jsWorkersNoTs.brotli)}</td>
+        <td class="num">${fmt(lilWorkersNoTs.raw)}</td>
+        <td class="num">${fmt(lilWorkersNoTs.brotli)}</td>
       </tr>
       <tr>
-        <td>JS + workers / Lil editor</td>
-        <td class="num">${fmt(p.js.ide.raw + p.js.workers.raw)}</td>
-        <td class="num">${fmt(p.js.ide.brotli + p.js.workers.brotli)}</td>
-        <td class="num">${fmt(p.lil.ide.raw)}</td>
-        <td class="num">${fmt(p.lil.ide.brotli)}</td>
+        <td><code>ts.worker</code> (same Microsoft <code>typescriptServices.js</code> on both pages)</td>
+        <td class="num">${fmt(tsJs?.sizes.raw ?? 0)}</td>
+        <td class="num">${fmt(tsJs?.sizes.brotli ?? 0)}</td>
+        <td class="num">${fmt(tsLil?.sizes.raw ?? 0)}</td>
+        <td class="num">${fmt(tsLil?.sizes.brotli ?? 0)}</td>
+      </tr>
+      <tr>
+        <td>JS + workers / Lil editor + workers, excluding tsc</td>
+        <td class="num">${fmt(p.js.ide.raw + jsWorkersNoTs.raw)}</td>
+        <td class="num">${fmt(p.js.ide.brotli + jsWorkersNoTs.brotli)}</td>
+        <td class="num">${fmt(p.lil.ide.raw + lilWorkersNoTs.raw)}</td>
+        <td class="num">${fmt(p.lil.ide.brotli + lilWorkersNoTs.brotli)}</td>
       </tr>
       <tr>
         <td>Editor CSS</td>
@@ -161,8 +217,15 @@ export function renderLanding(doc) {
     </tbody>
   </table>
   <p class="note">
-    monaco-editor-core ships ${fmt(doc.coreJsFiles)} <code>.js</code> files. The Lil page is already a LilScript editor;
-    the table below is which of those files already have a matching <code>.lil</code> source. Files without a row are still being ported into this editor — not left as JS on the Lil page.
+    monaco-editor-core ships ${fmt(doc.coreJsFiles)} <code>.js</code> files. Catalog:
+    <strong>${fmt(doc.catalog?.ported ?? 0)} implemented</strong>,
+    ${fmt(doc.catalog?.shim ?? 0)} shims to those implementations,
+    ${fmt(doc.catalog?.thin ?? 0)} thin view bindings,
+    ${fmt(doc.catalog?.stub ?? 0)} stubs,
+    ${fmt(doc.catalog?.extern ?? 0)} externs
+    (${fmt(doc.catalog?.mapped ?? doc.coreJsFiles)} mapped paths).
+    Implemented files are independently compiled with js-module keepers (exported class methods retained) and scored Brotli-for-Brotli against the matching monaco JS module.
+    The Lil <code>ide.js</code> bundles those catalog modules with the running editor.
   </p>
 
   <h2>monaco files already in LilScript</h2>
@@ -193,31 +256,56 @@ export function renderLanding(doc) {
   </table>
   <p class="note">
     Unscored rows still have Lil sources; they are not a complete API match of the monaco file yet.
-    Microsoft <code>tsc</code> is not rewritten — the Lil editor uses Monarch + contrib on the main thread instead of <code>ts.worker</code>.
+    Microsoft <code>tsc</code> is not rewritten in LilScript. The served Lil page uses the official <code>ts.worker.js</code> so diagnostics, complete, hover, and Solid TSX match JS monaco.
   </p>
 
-  <h2>Still being written in LilScript</h2>
+  <h2>Full monaco-editor-core comparison (${fmt(doc.coreJsFiles)} files)</h2>
+  <p>
+    Every core JS file is esbuild-minified with other monaco imports left external, then scored with the same Brotli-11 codec as production.
+    Lil columns are filled for independently compiled implementations with keepers so class methods are not DCE'd; the two vendored externs (<code>marked</code>, <code>dompurify</code>) stay external.
+    Folder Brotli is the sum of those JS files; Lil folder totals count each implementation once.
+  </p>
   <table>
     <thead>
-      <tr><th>Lil file</th><th>monaco file</th><th>Gap</th></tr>
+      <tr>
+        <th>Folder</th>
+        <th>Files</th>
+        <th>JS Brotli</th>
+        <th>Lil Brotli</th>
+        <th>JS / Lil</th>
+        <th></th>
+      </tr>
     </thead>
     <tbody>
-      ${doc.notOneToOne
-        .map(
-          (row) => `<tr>
-  <td><code>${row.lil}</code></td>
-  <td><code>${row.monaco}</code></td>
-  <td class="note">${row.reason}</td>
-</tr>`,
-        )
-        .join("\n")}
+      ${folderRows(doc.coreComparison?.folders)}
+      <tr>
+        <td><strong>all ${fmt(doc.coreJsFiles)}</strong></td>
+        <td class="num">${fmt(doc.coreComparison?.totals?.files ?? doc.coreJsFiles)}</td>
+        <td class="num">${fmt(doc.coreComparison?.totals?.js?.brotli ?? 0)}</td>
+        <td class="num">${doc.coreComparison?.totals?.lil ? fmt(doc.coreComparison.totals.lil.brotli) : "—"}</td>
+        <td class="num">${doc.coreComparison?.totals?.lil ? ratio(doc.coreComparison.totals.js.brotli, doc.coreComparison.totals.lil.brotli) : "—"}</td>
+        <td class="note">${fmt(doc.coreComparison?.scoredLil ?? 0)} unique Lil modules scored</td>
+      </tr>
+    </tbody>
+  </table>
+  <table class="catalog">
+    <thead>
+      <tr>
+        <th>monaco-editor-core file</th>
+        <th>Status</th>
+        <th>JS Brotli</th>
+        <th>Lil Brotli</th>
+        <th>JS / Lil</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${catalogFileRows(doc.coreComparison?.files)}
     </tbody>
   </table>
 
   <h2>Toward a vscode / monaco fork</h2>
   <p>
-    The Lil page is already a LilScript editor. Remaining work is filling every monaco-editor-core file with a Lil counterpart
-    inside that editor (GPU view parts, full URI, tsc). The JS page stays stock monaco so you can compare behavior and Brotli.
+    The Lil page is a LilScript editor, including the public <code>monaco</code> object and the monaco-editor-core catalog pack. monaco-editor-core is catalogued file-for-file (992 Lil ports, 2 externs). The JS page stays stock monaco so you can compare behavior and Brotli.
   </p>
   <p class="note">
     Encoder: ${doc.codec.implementation}; gzip ${doc.codec.gzip}; Brotli ${doc.codec.brotli} q11.

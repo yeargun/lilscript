@@ -1,0 +1,26 @@
+export string parseLabelWithIcons(string label) {
+  string out = "";
+  int i = 0;
+  while (i < label.length) {
+    if (i + 1 < label.length && label.charAt(i) == "$" && label.charAt(i + 1) == "(") {
+      int j = i + 2;
+      while (j < label.length && label.charAt(j) != ")") {
+        j = j + 1;
+      }
+      if (j < label.length) {
+        i = j + 1;
+        continue;
+      }
+    }
+    out = out + label.charAt(i);
+    i = i + 1;
+  }
+  return out;
+}
+
+export bool matchesContiguous(string query, string word) {
+  if (query.length == 0) {
+    return true;
+  }
+  return word.toLowerCase().includes(query.toLowerCase());
+}

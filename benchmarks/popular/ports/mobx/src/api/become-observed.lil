@@ -1,0 +1,44 @@
+import {
+  isFn,
+  len,
+  newSet,
+  setAdd,
+  setDelete,
+  sizeOf,
+  undef
+} from "../host.lil";
+import { getAtom } from "../types/type-utils.lil";
+
+export JsValue onBecomeObserved = JS.methodRest((JsValue _s, JsValue args) => {
+  return interceptHook("onBOL", args);
+});
+export JsValue onBecomeUnobserved = JS.methodRest((JsValue _s, JsValue args) => {
+  return interceptHook("onBUOL", args);
+});
+
+JsValue interceptHook(string listenersKey, JsValue args) {
+  JsValue atomNode = undef();
+  JsValue cb = args[1];
+  if (len(args) > 2 && isFn(args[2])) {
+    atomNode = JS.call(getAtom, undef(), args[0], args[1]);
+    cb = args[2];
+  } else {
+    atomNode = JS.call(getAtom, undef(), args[0]);
+  }
+  if (atomNode[listenersKey].truthy()) {
+    setAdd(atomNode[listenersKey], cb);
+  } else {
+    atomNode[listenersKey] = newSet();
+    setAdd(atomNode[listenersKey], cb);
+  }
+  return JS.method0((JsValue _d) => {
+    JsValue hookListeners = atomNode[listenersKey];
+    if (hookListeners.truthy()) {
+      setDelete(hookListeners, cb);
+      if (sizeOf(hookListeners) == 0) {
+        JS.delete(atomNode, listenersKey);
+      }
+    }
+    return undef();
+  });
+}

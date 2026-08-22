@@ -34,8 +34,8 @@ complete Solid package surface has been reimplemented.
 
 | Project | Raw JS | Terser | Closure (actual level) | npm Vite 8 | LilScript pre-Vite (diagnostic triplet) | LilScript Vite (Brotli objective) | Brotli (Lil / npm) |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Nano ID | 1564 / gz 681 / br 603 | 719 / gz 447 / br 408 | ADVANCED: 750 / gz 461 / br 414 | 732 / gz 456 / br 409 | 1223 / gz 619 / br 555 | 731 / gz 458 / br 409 | 409 / 409 |
-| mitt | 1125 / gz 503 / br 452 | 511 / gz 311 / br 284 | ADVANCED: 595 / gz 336 / br 311 | 595 / gz 331 / br 300 | 1066 / gz 485 / br 442 | 598 / gz 332 / br 300 | 300 / 300 |
-| clsx | 1906 / gz 735 / br 665 | 1158 / gz 539 / br 490 | ADVANCED: 1158 / gz 546 / br 499 | 1156 / gz 536 / br 493 | 2047 / gz 737 / br 662 | 1169 / gz 548 / br 502 | 502 / 493 |
-| gl-matrix | 142374 / gz 22693 / br 17791 | 73693 / gz 17744 / br 14277 | ADVANCED: 73296 / gz 17747 / br 14328 | 73505 / gz 17646 / br 14330 | 117592 / gz 21414 / br 17433 | 68503 / gz 17108 / br 14138 | 14138 / 14330 |
+| Nano ID | 1564 / gz 681 / br 603 | 719 / gz 447 / br 408 | ADVANCED: 750 / gz 461 / br 414 | 732 / gz 456 / br 409 | 1211 / gz 615 / br 552 | 735 / gz 459 / br 408 | 408 / 409 |
+| mitt | 1125 / gz 503 / br 452 | 511 / gz 311 / br 284 | ADVANCED: 595 / gz 336 / br 311 | 595 / gz 331 / br 300 | 1055 / gz 499 / br 447 | 597 / gz 334 / br 302 | 302 / 300 |
+| clsx | 1906 / gz 735 / br 665 | 1158 / gz 539 / br 490 | ADVANCED: 1158 / gz 546 / br 499 | 1156 / gz 536 / br 493 | 1976 / gz 724 / br 646 | 1151 / gz 542 / br 497 | 497 / 493 |
+| gl-matrix | 142374 / gz 22693 / br 17791 | 73693 / gz 17744 / br 14277 | ADVANCED: 73296 / gz 17747 / br 14328 | 73505 / gz 17646 / br 14330 | 116878 / gz 21357 / br 17352 | 68496 / gz 17110 / br 14116 | 14116 / 14330 |
 | motion (mix/wrap/stagger/spring) | 30150 / gz 7852 / br 7116 | 10169 / gz 4500 / br 4081 | ADVANCED: 8908 / gz 4183 / br 3810 | 10356 / gz 4348 / br 4044 | 10332 / gz 3417 / br 2982 | 5495 / gz 2606 / br 2333 | 2333 / 4044 |

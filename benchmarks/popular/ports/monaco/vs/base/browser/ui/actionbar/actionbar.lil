@@ -1,0 +1,619 @@
+import { domCreateElement, appendChild, setClassName, classListAdd, classListRemove, setAttribute, setTextContent, setTabIndex, addEventListener, preventDefault, stopPropagation, eventKeyCode, eventShiftKey, eventButton, focusElement, blurElement, clearChildren, hostCall, jsUndefined } from "../../../../../js-host";
+
+string boolAttr(bool value) {
+  if (value) {
+    return "true";
+  }
+  return "false";
+}
+
+export string SEPARATOR_ID = "vs.actions.separator";
+
+export enum ActionsOrientation {
+  HORIZONTAL,
+  VERTICAL
+}
+
+export class BarAction {
+  string id;
+  string label;
+  string tooltip;
+  string cssClass;
+  bool enabled;
+  bool checked;
+  bool hasChecked;
+  (func(JsValue)->void)[] changeListeners;
+
+  init(string id, string label, string cssClass, bool enabled) {
+    this.id = id;
+    this.label = label;
+    this.tooltip = "";
+    this.cssClass = cssClass;
+    this.enabled = enabled;
+    this.checked = false;
+    this.hasChecked = false;
+    this.changeListeners = [];
+  }
+}
+
+export class ActionViewItem {
+  BarAction action;
+  JsValue element;
+  JsValue label;
+  JsValue context;
+  bool icon;
+  bool showLabel;
+  string keybinding;
+  bool isMenu;
+  bool isTabList;
+  bool focusable;
+  bool trapsArrowNavigation;
+  func(BarAction, JsValue)->void runFn;
+
+  init(JsValue context, BarAction action, bool icon, bool showLabel, string keybinding, bool isMenu, bool isTabList) {
+    this.action = action;
+    this.element = null;
+    this.label = null;
+    this.context = context;
+    this.icon = icon;
+    this.showLabel = showLabel;
+    this.keybinding = keybinding;
+    this.isMenu = isMenu;
+    this.isTabList = isTabList;
+    this.focusable = false;
+    this.trapsArrowNavigation = false;
+    this.runFn = (BarAction action, JsValue ctx) => {};
+  }
+
+  bool isEnabled() {
+    return this.action.enabled;
+  }
+
+  void setActionContext(JsValue context) {
+    this.context = context;
+  }
+
+  string defaultRole() {
+    if (this.action.id == SEPARATOR_ID) {
+      return "presentation";
+    }
+    if (this.isMenu) {
+      return "menuitem";
+    }
+    if (this.isTabList) {
+      return "tab";
+    }
+    return "button";
+  }
+
+  void render(JsValue container) {
+    this.element = container;
+    this.label = domCreateElement("a");
+    classListAdd(this.label, "action-label");
+    setAttribute(this.label, "role", this.defaultRole());
+    appendChild(container, this.label);
+    if (this.showLabel && this.keybinding.length > 0) {
+      JsValue kb = domCreateElement("span");
+      classListAdd(kb, "keybinding");
+      setTextContent(kb, this.keybinding);
+      appendChild(container, kb);
+    }
+    this.updateClass();
+    this.updateLabel();
+    this.updateEnabled();
+    this.updateChecked();
+    ActionViewItem owner = this;
+    addEventListener(container, "click", (JsValue event) => {
+      preventDefault(event);
+      stopPropagation(event);
+      if (!owner.isMenu) {
+        owner.onClick(event);
+      }
+    }, false);
+    addEventListener(container, "mousedown", (JsValue event) => {
+      if (eventButton(event) == 0 && owner.action.enabled) {
+        classListAdd(container, "active");
+      }
+    }, false);
+    addEventListener(container, "mouseup", (JsValue event) => {
+      classListRemove(container, "active");
+    }, false);
+    addEventListener(container, "mouseout", (JsValue event) => {
+      classListRemove(container, "active");
+    }, false);
+  }
+
+  void onClick(JsValue event) {
+    preventDefault(event);
+    stopPropagation(event);
+    this.runFn(this.action, this.context);
+  }
+
+  void focus() {
+    if (this.label.truthy()) {
+      setTabIndex(this.label, 0);
+      focusElement(this.label);
+      classListAdd(this.label, "focused");
+    }
+  }
+
+  void blur() {
+    if (this.label.truthy()) {
+      blurElement(this.label);
+      setTabIndex(this.label, -1);
+      classListRemove(this.label, "focused");
+    }
+  }
+
+  void setFocusable(bool focusable) {
+    this.focusable = focusable;
+    if (this.label.truthy()) {
+      if (focusable) {
+        setTabIndex(this.label, 0);
+      } else {
+        setTabIndex(this.label, -1);
+      }
+    }
+  }
+
+  void updateLabel() {
+    if (this.showLabel && this.label.truthy()) {
+      setTextContent(this.label, this.action.label);
+    }
+  }
+
+  void updateClass() {
+    if (this.icon && this.label.truthy()) {
+      classListAdd(this.label, "codicon");
+      if (this.action.cssClass.length > 0) {
+        classListAdd(this.label, this.action.cssClass);
+      }
+    }
+  }
+
+  void updateEnabled() {
+    if (this.action.enabled) {
+      if (this.label.truthy()) {
+        classListRemove(this.label, "disabled");
+      }
+      if (this.element.truthy()) {
+        classListRemove(this.element, "disabled");
+      }
+    } else {
+      if (this.label.truthy()) {
+        setAttribute(this.label, "aria-disabled", "true");
+        classListAdd(this.label, "disabled");
+      }
+      if (this.element.truthy()) {
+        classListAdd(this.element, "disabled");
+      }
+    }
+  }
+
+  void updateChecked() {
+    if (!this.label.truthy()) {
+      return;
+    }
+    if (this.action.hasChecked) {
+      if (this.action.checked) {
+        classListAdd(this.label, "checked");
+      } else {
+        classListRemove(this.label, "checked");
+      }
+      if (this.isTabList) {
+        setAttribute(this.label, "aria-selected", boolAttr(this.action.checked));
+      } else {
+        setAttribute(this.label, "aria-pressed", boolAttr(this.action.checked));
+      }
+    } else {
+      classListRemove(this.label, "checked");
+    }
+  }
+
+  void showHover() {
+  }
+
+  void dispose() {
+    if (this.element.truthy()) {
+      hostCall(this.element, "remove", jsUndefined(), jsUndefined(), jsUndefined());
+    }
+  }
+}
+
+export class ActionBar {
+  JsValue domNode;
+  JsValue actionsList;
+  ActionViewItem[] viewItems;
+  JsValue context;
+  ActionsOrientation orientation;
+  int[] triggerKeys;
+  bool triggerKeyDown;
+  bool triggerArmed;
+  bool focusable;
+  bool focusOnlyEnabledItems;
+  bool preventLoopNavigation;
+  bool highlightToggledItems;
+  string ariaRole;
+  int focusedItem;
+  bool hasFocus;
+  (func()->void)[] blurListeners;
+  (func()->void)[] cancelListeners;
+  func(BarAction, JsValue)->void runner;
+
+  init(JsValue container, ActionsOrientation orientation, string ariaRole, bool focusOnlyEnabledItems, bool preventLoopNavigation) {
+    this.orientation = orientation;
+    this.ariaRole = ariaRole;
+    this.focusOnlyEnabledItems = focusOnlyEnabledItems;
+    this.preventLoopNavigation = preventLoopNavigation;
+    this.viewItems = [];
+    this.context = null;
+    this.triggerKeys = [13, 32];
+    this.triggerKeyDown = false;
+    this.triggerArmed = false;
+    this.focusable = true;
+    this.highlightToggledItems = false;
+    this.focusedItem = -1;
+    this.hasFocus = false;
+    this.blurListeners = [];
+    this.cancelListeners = [];
+    this.runner = (BarAction action, JsValue ctx) => {};
+    this.domNode = domCreateElement("div");
+    setClassName(this.domNode, "monaco-action-bar");
+    if (orientation == ActionsOrientation.VERTICAL) {
+      classListAdd(this.domNode, "vertical");
+    }
+    this.actionsList = domCreateElement("ul");
+    setClassName(this.actionsList, "actions-container");
+    string role = ariaRole;
+    if (role.length == 0) {
+      role = "toolbar";
+    }
+    setAttribute(this.actionsList, "role", role);
+    appendChild(this.domNode, this.actionsList);
+    appendChild(container, this.domNode);
+    ActionBar owner = this;
+    addEventListener(this.domNode, "keydown", (JsValue event) => {
+      owner.onKeyDown(event);
+    }, false);
+    addEventListener(this.domNode, "keyup", (JsValue event) => {
+      owner.onKeyUp(event);
+    }, false);
+  }
+
+  bool isTriggerKey(int keyCode) {
+    int i = 0;
+    while (i < this.triggerKeys.length) {
+      if (this.triggerKeys[i] == keyCode) {
+        return true;
+      }
+      i = i + 1;
+    }
+    return false;
+  }
+
+  void onKeyDown(JsValue event) {
+    int key = eventKeyCode(event);
+    bool handled = true;
+    int previousKey = 15;
+    int nextKey = 17;
+    if (this.orientation == ActionsOrientation.VERTICAL) {
+      previousKey = 16;
+      nextKey = 18;
+    }
+    if (key == previousKey) {
+      handled = this.focusPrevious(false);
+    } else if (key == nextKey) {
+      handled = this.focusNext(false, false);
+    } else if (key == 27 && this.cancelListeners.length > 0) {
+      int i = 0;
+      while (i < this.cancelListeners.length) {
+        this.cancelListeners[i]();
+        i = i + 1;
+      }
+    } else if (key == 36) {
+      handled = this.focusFirst();
+    } else if (key == 35) {
+      handled = this.focusLast();
+    } else if (key == 9 && this.focusedItem >= 0 && this.focusedItem < this.viewItems.length && this.viewItems[this.focusedItem].trapsArrowNavigation) {
+      handled = this.focusNext(false, true);
+    } else if (this.isTriggerKey(key)) {
+      if (this.triggerKeyDown) {
+        this.doTrigger();
+      } else {
+        this.triggerArmed = true;
+      }
+    } else {
+      handled = false;
+    }
+    if (handled) {
+      preventDefault(event);
+      stopPropagation(event);
+    }
+  }
+
+  void onKeyUp(JsValue event) {
+    int key = eventKeyCode(event);
+    if (this.isTriggerKey(key)) {
+      if (!this.triggerKeyDown && this.triggerArmed) {
+        this.triggerArmed = false;
+        this.doTrigger();
+      }
+      preventDefault(event);
+      stopPropagation(event);
+    }
+  }
+
+  void refreshRole() {
+    if (this.length() >= 1) {
+      string role = this.ariaRole;
+      if (role.length == 0) {
+        role = "toolbar";
+      }
+      setAttribute(this.actionsList, "role", role);
+    } else {
+      setAttribute(this.actionsList, "role", "presentation");
+    }
+  }
+
+  void setFocusable(bool focusable) {
+    this.focusable = focusable;
+    if (focusable) {
+      int i = 0;
+      while (i < this.viewItems.length) {
+        if (this.viewItems[i].isEnabled()) {
+          this.viewItems[i].setFocusable(true);
+          return;
+        }
+        i = i + 1;
+      }
+    } else {
+      int i = 0;
+      while (i < this.viewItems.length) {
+        this.viewItems[i].setFocusable(false);
+        i = i + 1;
+      }
+    }
+  }
+
+  int length() {
+    return this.viewItems.length;
+  }
+
+  bool isEmpty() {
+    return this.viewItems.length == 0;
+  }
+
+  bool hasAction(BarAction action) {
+    int i = 0;
+    while (i < this.viewItems.length) {
+      if (this.viewItems[i].action.id == action.id) {
+        return true;
+      }
+      i = i + 1;
+    }
+    return false;
+  }
+
+  BarAction? getAction(int index) {
+    if (index < 0 || index >= this.viewItems.length) {
+      return null;
+    }
+    return this.viewItems[index].action;
+  }
+
+  int getWidth(int index) {
+    if (index < 0 || index >= this.viewItems.length) {
+      return 0;
+    }
+    JsValue el = this.viewItems[index].element;
+    if (!el.truthy()) {
+      return 0;
+    }
+    JsValue w = el["clientWidth"];
+    if (w is float) {
+      float n = w;
+      return n.toInt();
+    }
+    return 0;
+  }
+
+  void push(BarAction action, int index, bool icon, bool showLabel, string keybinding) {
+    JsValue li = domCreateElement("li");
+    setClassName(li, "action-item");
+    setAttribute(li, "role", "presentation");
+    ActionViewItem item = new ActionViewItem(this.context, action, icon, showLabel, keybinding, this.ariaRole == "menu", this.ariaRole == "tablist");
+    item.runFn = this.runner;
+    item.render(li);
+    if (index < 0 || index >= this.viewItems.length) {
+      appendChild(this.actionsList, li);
+      this.viewItems.push(item);
+    } else {
+      ActionViewItem[] next = [];
+      int i = 0;
+      while (i < this.viewItems.length) {
+        if (i == index) {
+          next.push(item);
+        }
+        next.push(this.viewItems[i]);
+        i = i + 1;
+      }
+      this.viewItems = next;
+      appendChild(this.actionsList, li);
+    }
+    this.applyFirstFocusable();
+    this.refreshRole();
+  }
+
+  void applyFirstFocusable() {
+    if (!this.focusable) {
+      return;
+    }
+    bool didFocus = false;
+    int i = 0;
+    while (i < this.viewItems.length) {
+      ActionViewItem item = this.viewItems[i];
+      bool canFocus = item.action.id != SEPARATOR_ID && (item.isEnabled() || !this.focusOnlyEnabledItems);
+      if (canFocus && !didFocus) {
+        item.setFocusable(true);
+        didFocus = true;
+      } else {
+        item.setFocusable(false);
+      }
+      i = i + 1;
+    }
+  }
+
+  void pull(int index) {
+    if (index < 0 || index >= this.viewItems.length) {
+      return;
+    }
+    this.viewItems[index].dispose();
+    ActionViewItem[] next = [];
+    int i = 0;
+    while (i < this.viewItems.length) {
+      if (i != index) {
+        next.push(this.viewItems[i]);
+      }
+      i = i + 1;
+    }
+    this.viewItems = next;
+    this.refreshRole();
+  }
+
+  void clear() {
+    int i = 0;
+    while (i < this.viewItems.length) {
+      this.viewItems[i].dispose();
+      i = i + 1;
+    }
+    this.viewItems = [];
+    clearChildren(this.actionsList);
+    this.refreshRole();
+  }
+
+  void focusAt(int index) {
+    this.focusedItem = index;
+    this.updateFocus(false, true);
+  }
+
+  void focusFirstEnabled() {
+    int i = 0;
+    while (i < this.viewItems.length) {
+      if (this.viewItems[i].isEnabled()) {
+        this.focusedItem = i;
+        this.updateFocus(false, true);
+        return;
+      }
+      i = i + 1;
+    }
+  }
+
+  bool focusFirst() {
+    this.focusedItem = this.length() - 1;
+    return this.focusNext(true, false);
+  }
+
+  bool focusLast() {
+    this.focusedItem = 0;
+    return this.focusPrevious(true);
+  }
+
+  bool focusNext(bool forceLoop, bool forceFocus) {
+    if (this.focusedItem < 0) {
+      this.focusedItem = this.viewItems.length - 1;
+    } else if (this.viewItems.length <= 1) {
+      return false;
+    }
+    int startIndex = this.focusedItem;
+    while (true) {
+      if (!forceLoop && this.preventLoopNavigation && this.focusedItem + 1 >= this.viewItems.length) {
+        this.focusedItem = startIndex;
+        return false;
+      }
+      this.focusedItem = (this.focusedItem + 1) % this.viewItems.length;
+      ActionViewItem item = this.viewItems[this.focusedItem];
+      bool skip = (this.focusOnlyEnabledItems && !item.isEnabled()) || item.action.id == SEPARATOR_ID;
+      if (this.focusedItem == startIndex || !skip) {
+        break;
+      }
+    }
+    this.updateFocus(false, forceFocus);
+    return true;
+  }
+
+  bool focusPrevious(bool forceLoop) {
+    if (this.focusedItem < 0) {
+      this.focusedItem = 0;
+    } else if (this.viewItems.length <= 1) {
+      return false;
+    }
+    int startIndex = this.focusedItem;
+    while (true) {
+      this.focusedItem = this.focusedItem - 1;
+      if (this.focusedItem < 0) {
+        if (!forceLoop && this.preventLoopNavigation) {
+          this.focusedItem = startIndex;
+          return false;
+        }
+        this.focusedItem = this.viewItems.length - 1;
+      }
+      ActionViewItem item = this.viewItems[this.focusedItem];
+      bool skip = (this.focusOnlyEnabledItems && !item.isEnabled()) || item.action.id == SEPARATOR_ID;
+      if (this.focusedItem == startIndex || !skip) {
+        break;
+      }
+    }
+    this.updateFocus(true, false);
+    return true;
+  }
+
+  void updateFocus(bool fromRight, bool forceFocus) {
+    if (this.focusedItem < 0) {
+      focusElement(this.actionsList);
+      return;
+    }
+    if (this.focusedItem >= this.viewItems.length) {
+      return;
+    }
+    ActionViewItem item = this.viewItems[this.focusedItem];
+    bool focusItem = item.action.id != SEPARATOR_ID;
+    if (this.focusOnlyEnabledItems && !item.isEnabled()) {
+      focusItem = false;
+    }
+    if (!focusItem) {
+      focusElement(this.actionsList);
+    } else {
+      item.focus();
+      item.showHover();
+    }
+  }
+
+  void doTrigger() {
+    if (this.focusedItem < 0 || this.focusedItem >= this.viewItems.length) {
+      return;
+    }
+    ActionViewItem item = this.viewItems[this.focusedItem];
+    this.runner(item.action, item.context);
+  }
+
+  JsValue getContainer() {
+    return this.domNode;
+  }
+
+  void dispose() {
+    this.clear();
+    hostCall(this.domNode, "remove", jsUndefined(), jsUndefined(), jsUndefined());
+  }
+}
+
+export ActionBar createActionBar(JsValue container, ActionsOrientation orientation, string ariaRole = "", bool focusOnlyEnabledItems = false, bool preventLoopNavigation = false) {
+  return new ActionBar(container, orientation, ariaRole, focusOnlyEnabledItems, preventLoopNavigation);
+}
+
+export BarAction createBarAction(string id, string label, string cssClass = "", bool enabled = true) {
+  return new BarAction(id, label, cssClass, enabled);
+}
+
+export ActionViewItem createActionViewItem(JsValue context, BarAction action, bool icon = false, bool showLabel = true, string keybinding = "") {
+  return new ActionViewItem(context, action, icon, showLabel, keybinding, false, false);
+}

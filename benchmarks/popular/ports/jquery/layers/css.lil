@@ -1,5 +1,6 @@
 import { jQuery } from "./manipulation";
 import "../css";
+import "../css/showHide";
 import "../css/adjustCSS";
 import "../css/hiddenVisibleSelectors";
 

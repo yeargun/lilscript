@@ -1,0 +1,199 @@
+
+export class TextRange {
+  int startLineNumber;
+  int startColumn;
+  int endLineNumber;
+  int endColumn;
+
+  init(int startLineNumber, int startColumn, int endLineNumber, int endColumn) {
+    this.startLineNumber = startLineNumber;
+    this.startColumn = startColumn;
+    this.endLineNumber = endLineNumber;
+    this.endColumn = endColumn;
+  }
+}
+
+export class TextPos {
+  int lineNumber;
+  int column;
+
+  init(int lineNumber, int column) {
+    this.lineNumber = lineNumber;
+    this.column = column;
+  }
+}
+
+bool posBefore(TextPos a, TextPos b) {
+  if (a.lineNumber < b.lineNumber) {
+    return true;
+  }
+  if (a.lineNumber > b.lineNumber) {
+    return false;
+  }
+  return a.column < b.column;
+}
+
+bool rangeContainsPos(TextRange range, int lineNumber, int column) {
+  if (lineNumber < range.startLineNumber || lineNumber > range.endLineNumber) {
+    return false;
+  }
+  if (lineNumber == range.startLineNumber && column < range.startColumn) {
+    return false;
+  }
+  if (lineNumber == range.endLineNumber && column > range.endColumn) {
+    return false;
+  }
+  return true;
+}
+
+export TextRange createTextRange(int startLine, int startColumn, int endLine, int endColumn) {
+  return new TextRange(startLine, startColumn, endLine, endColumn);
+}
+
+export TextPos createTextPos(int lineNumber, int column) {
+  return new TextPos(lineNumber, column);
+}
+
+export class LineEdit {
+  int startLineNumber;
+  int endLineNumber;
+  string[] lines;
+
+  init(int startLineNumber, int endLineNumber, string[] lines) {
+    this.startLineNumber = startLineNumber;
+    this.endLineNumber = endLineNumber;
+    this.lines = lines;
+  }
+}
+
+export string[] copyLines(string[] lines, int startLine, int endLine, bool down) {
+  string[] result = [];
+  int i = 0;
+  while (i < lines.length) {
+    result.push(lines[i]);
+    i = i + 1;
+  }
+  string[] copied = [];
+  i = startLine - 1;
+  while (i < endLine && i < lines.length) {
+    if (i >= 0) {
+      copied.push(lines[i]);
+    }
+    i = i + 1;
+  }
+  int insertAt = endLine;
+  if (!down) {
+    insertAt = startLine - 1;
+  }
+  if (insertAt < 0) {
+    insertAt = 0;
+  }
+  string[] next = [];
+  i = 0;
+  while (i < insertAt && i < result.length) {
+    next.push(result[i]);
+    i = i + 1;
+  }
+  int c = 0;
+  while (c < copied.length) {
+    next.push(copied[c]);
+    c = c + 1;
+  }
+  while (i < result.length) {
+    next.push(result[i]);
+    i = i + 1;
+  }
+  return next;
+}
+
+export string[] moveLines(string[] lines, int startLine, int endLine, bool down) {
+  if (down) {
+    if (endLine >= lines.length) {
+      return lines;
+    }
+  } else {
+    if (startLine <= 1) {
+      return lines;
+    }
+  }
+  string[] result = [];
+  int i = 0;
+  while (i < lines.length) {
+    result.push(lines[i]);
+    i = i + 1;
+  }
+  if (down) {
+    string below = result[endLine];
+    i = endLine;
+    while (i > startLine - 1) {
+      result[i] = result[i - 1];
+      i = i - 1;
+    }
+    result[startLine - 1] = below;
+  } else {
+    string above = result[startLine - 2];
+    i = startLine - 2;
+    while (i < endLine - 1) {
+      result[i] = result[i + 1];
+      i = i + 1;
+    }
+    result[endLine - 1] = above;
+  }
+  return result;
+}
+
+export string[] sortLines(string[] lines, int startLine, int endLine, bool descending) {
+  string[] slice = [];
+  int i = startLine - 1;
+  while (i < endLine && i < lines.length) {
+    if (i >= 0) {
+      slice.push(lines[i]);
+    }
+    i = i + 1;
+  }
+  int a = 0;
+  while (a < slice.length) {
+    int b = a + 1;
+    while (b < slice.length) {
+      bool swap = slice[b] < slice[a];
+      if (descending) {
+        swap = slice[b] > slice[a];
+      }
+      if (swap) {
+        string tmp = slice[a];
+        slice[a] = slice[b];
+        slice[b] = tmp;
+      }
+      b = b + 1;
+    }
+    a = a + 1;
+  }
+  string[] result = [];
+  i = 0;
+  while (i < lines.length) {
+    if (i >= startLine - 1 && i < endLine) {
+      result.push(slice[i - (startLine - 1)]);
+    } else {
+      result.push(lines[i]);
+    }
+    i = i + 1;
+  }
+  return result;
+}
+
+export string[] deleteLines(string[] lines, int startLine, int endLine) {
+  string[] result = [];
+  int i = 0;
+  while (i < lines.length) {
+    int lineNumber = i + 1;
+    if (lineNumber < startLine || lineNumber > endLine) {
+      result.push(lines[i]);
+    }
+    i = i + 1;
+  }
+  return result;
+}
+
+export LineEdit createLineEdit(int startLine, int endLine, string[] lines) {
+  return new LineEdit(startLine, endLine, lines);
+}

@@ -1,0 +1,51 @@
+import { windowSelf, jsPropString, jsPropInt, addEventListener, hostCall } from "../../../js-host";
+
+string browserUserAgent = jsPropString(windowSelf()["navigator"], "userAgent", "");
+export bool isFirefox = browserUserAgent.indexOf("Firefox") >= 0;
+export bool isWebKit = browserUserAgent.indexOf("AppleWebKit") >= 0;
+export bool isChrome = browserUserAgent.indexOf("Chrome") >= 0;
+export bool isSafari = !isChrome && browserUserAgent.indexOf("Safari") >= 0;
+export bool isWebkitWebView = !isChrome && !isSafari && isWebKit;
+export bool isElectron = browserUserAgent.indexOf("Electron/") >= 0;
+export bool isAndroid = browserUserAgent.indexOf("Android") >= 0;
+
+Map<int, float> zoomFactors = new Map<int, float>();
+bool standalone = false;
+
+export void addMatchMediaChangeListener(JsValue targetWindow, JsValue query, JsValue callback) {
+  JsValue mediaQuery = query;
+  if (query is string) {
+    string queryText = query;
+    mediaQuery = hostCall(targetWindow, "matchMedia", queryText, null, null);
+  }
+  addEventListener(mediaQuery, "change", callback, false);
+}
+
+export int getBrowserWindowId(JsValue targetWindow) {
+  return jsPropInt(targetWindow, "vscodeWindowId", 1);
+}
+
+export float getZoomFactor(JsValue targetWindow) {
+  int id = getBrowserWindowId(targetWindow);
+  float? value = zoomFactors.get(id);
+  if (value != null) {
+    return value;
+  }
+  return 1.0;
+}
+
+export void setZoomFactor(JsValue targetWindow, float factor) {
+  zoomFactors.set(getBrowserWindowId(targetWindow), factor);
+}
+
+export bool isStandalone() {
+  return standalone;
+}
+
+export void setStandalone(bool value) {
+  standalone = value;
+}
+
+export JsValue getMonacoEnvironment() {
+  return windowSelf()["MonacoEnvironment"];
+}

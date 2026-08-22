@@ -1,0 +1,31 @@
+export class Dimension {
+  float width;
+  float height;
+
+  init(float width, float height) {
+    this.width = width;
+    this.height = height;
+  }
+
+  bool equals(Dimension other) {
+    return this.width == other.width && this.height == other.height;
+  }
+
+  Dimension withWidth(float width) {
+    if (width == this.width) {
+      return this;
+    }
+    return new Dimension(width, this.height);
+  }
+
+  Dimension withHeight(float height) {
+    if (height == this.height) {
+      return this;
+    }
+    return new Dimension(this.width, height);
+  }
+}
+
+export Dimension createDimension(float width, float height) {
+  return new Dimension(width, height);
+}

@@ -1,0 +1,105 @@
+export class DebugChannelMessage {
+  string name;
+  JsValue[] args;
+
+  init(string name, JsValue[] args) {
+    this.name = name;
+    this.args = args;
+  }
+}
+
+export class DebugChannelClient {
+  func(string, JsValue[])->void notificationHandler;
+  func(string, JsValue[])->JsValue requestHandler;
+
+  init(
+    func(string, JsValue[])->void notificationHandler,
+    func(string, JsValue[])->JsValue requestHandler
+  ) {
+    this.notificationHandler = notificationHandler;
+    this.requestHandler = requestHandler;
+  }
+}
+
+export class DebugChannel {
+  string channelId;
+  DebugChannelMessage[] queuedNotifications;
+  bool hasHost;
+  DebugChannelClient host;
+  bool hasClient;
+  DebugChannelClient client;
+
+  init(string channelId) {
+    this.channelId = channelId;
+    this.queuedNotifications = [];
+    this.hasHost = false;
+    this.host = new DebugChannelClient(
+      (string name, JsValue[] args) => {},
+      (string name, JsValue[] args) => {
+        return 0;
+      }
+    );
+    this.hasClient = false;
+    this.client = new DebugChannelClient(
+      (string name, JsValue[] args) => {},
+      (string name, JsValue[] args) => {
+        return 0;
+      }
+    );
+  }
+
+  void attachHost(DebugChannelClient host) {
+    this.host = host;
+    this.hasHost = true;
+    int i = 0;
+    while (i < this.queuedNotifications.length) {
+      DebugChannelMessage message = this.queuedNotifications[i];
+      host.notificationHandler(message.name, message.args);
+      i = i + 1;
+    }
+    this.queuedNotifications = [];
+  }
+
+  void attachClient(DebugChannelClient client) {
+    this.client = client;
+    this.hasClient = true;
+  }
+
+  void sendNotification(string name, JsValue[] args) {
+    if (this.hasHost) {
+      this.host.notificationHandler(name, args);
+      return;
+    }
+    this.queuedNotifications.push(new DebugChannelMessage(name, args));
+  }
+
+  void receiveNotification(string name, JsValue[] args) {
+    if (!this.hasClient) {
+      throw "Debug channel client is not attached";
+    }
+    this.client.notificationHandler(name, args);
+  }
+
+  JsValue receiveRequest(string name, JsValue[] args) {
+    if (!this.hasClient) {
+      throw "Debug channel client is not attached";
+    }
+    return this.client.requestHandler(name, args);
+  }
+}
+
+Map<string, DebugChannel> debugChannels = new Map();
+
+export DebugChannel registerDebugChannel(
+  string channelId,
+  DebugChannelClient client
+) {
+  DebugChannel channel = new DebugChannel(channelId);
+  channel.attachClient(client);
+  debugChannels.set(channelId, channel);
+  return channel;
+}
+
+export DebugChannel? getDebugChannel(string channelId) {
+  return debugChannels.get(channelId);
+}

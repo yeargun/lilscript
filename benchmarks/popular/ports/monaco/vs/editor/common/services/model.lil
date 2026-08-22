@@ -1,0 +1,11 @@
+export string IModelService = "modelService";
+
+export bool shouldSynchronizeModel(JsValue model) {
+  if (model == null) {
+    return false;
+  }
+  if (model["isTooLargeForSyncing"] != null && model["isTooLargeForSyncing"].truthy()) {
+    return false;
+  }
+  return true;
+}

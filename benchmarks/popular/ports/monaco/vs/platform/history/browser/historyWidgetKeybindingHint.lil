@@ -1,0 +1,6 @@
+export string getHistoryKeybindingHint(bool show, string up, string down) {
+  if (!show) {
+    return "";
+  }
+  return up + "/" + down;
+}

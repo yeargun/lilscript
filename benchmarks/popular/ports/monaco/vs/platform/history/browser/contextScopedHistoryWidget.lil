@@ -1,0 +1,42 @@
+export class ContextScopedHistoryWidget {
+  string[] history;
+  int index;
+
+  init() {
+    this.history = [];
+    this.index = -1;
+  }
+
+  void add(string value) {
+    if (value.length == 0) {
+      return;
+    }
+    this.history.push(value);
+    this.index = this.history.length;
+  }
+
+  string showPrevious() {
+    if (this.history.length == 0) {
+      return "";
+    }
+    if (this.index > 0) {
+      this.index = this.index - 1;
+    } else {
+      this.index = 0;
+    }
+    return this.history[this.index];
+  }
+
+  string showNext() {
+    if (this.index < this.history.length - 1) {
+      this.index = this.index + 1;
+      return this.history[this.index];
+    }
+    this.index = this.history.length;
+    return "";
+  }
+}
+
+export ContextScopedHistoryWidget createContextScopedHistoryWidget() {
+  return new ContextScopedHistoryWidget();
+}

@@ -1,0 +1,145 @@
+bool globMatches(string pattern, string value) {
+  int p = 0;
+  int v = 0;
+  int star = -1;
+  int retry = 0;
+  while (v < value.length) {
+    if (p < pattern.length && (pattern.charCodeAt(p) == 63 || pattern.charCodeAt(p) == value.charCodeAt(v))) {
+      p = p + 1;
+      v = v + 1;
+    } else if (p < pattern.length && pattern.charCodeAt(p) == 42) {
+      star = p;
+      retry = v;
+      p = p + 1;
+    } else if (star >= 0) {
+      retry = retry + 1;
+      v = retry;
+      p = star + 1;
+    } else {
+      return false;
+    }
+  }
+  while (p < pattern.length && pattern.charCodeAt(p) == 42) {
+    p = p + 1;
+  }
+  return p == pattern.length;
+}
+
+string selectorString(JsValue selector, string key) {
+  if (selector[key] == null) {
+    return "";
+  }
+  return JS.string(selector[key]);
+}
+
+export int score(
+  JsValue selector,
+  JsValue candidateUri,
+  string candidateLanguage,
+  bool candidateIsSynchronized,
+  JsValue candidateNotebookUri = null,
+  string candidateNotebookType = ""
+) {
+  if (JS.isArray(selector)) {
+    int best = 0;
+    int i = 0;
+    int length = JS.number(selector["length"]).toInt();
+    while (i < length) {
+      int value = score(
+        selector[i],
+        candidateUri,
+        candidateLanguage,
+        candidateIsSynchronized,
+        candidateNotebookUri,
+        candidateNotebookType
+      );
+      if (value == 10) {
+        return 10;
+      }
+      if (value > best) {
+        best = value;
+      }
+      i = i + 1;
+    }
+    return best;
+  }
+  if (JS.typeOf(selector) == "string") {
+    if (!candidateIsSynchronized) {
+      return 0;
+    }
+    string language = JS.string(selector);
+    if (language == "*") {
+      return 5;
+    }
+    if (language == candidateLanguage) {
+      return 10;
+    }
+    return 0;
+  }
+  if (!selector.truthy()) {
+    return 0;
+  }
+  bool allModels = false;
+  if (selector["hasAccessToAllModels"] != null) {
+    allModels = selector["hasAccessToAllModels"].truthy();
+  }
+  if (!candidateIsSynchronized && !allModels) {
+    return 0;
+  }
+  string notebookType = selectorString(selector, "notebookType");
+  JsValue uri = candidateUri;
+  if (notebookType.length > 0 && candidateNotebookUri != null) {
+    uri = candidateNotebookUri;
+  }
+  int result = 0;
+  string scheme = selectorString(selector, "scheme");
+  if (scheme.length > 0) {
+    string candidateScheme = selectorString(uri, "scheme");
+    if (scheme == candidateScheme) {
+      result = 10;
+    } else if (scheme == "*") {
+      result = 5;
+    } else {
+      return 0;
+    }
+  }
+  string language = selectorString(selector, "language");
+  if (language.length > 0) {
+    if (language == candidateLanguage) {
+      result = 10;
+    } else if (language == "*") {
+      if (result < 5) {
+        result = 5;
+      }
+    } else {
+      return 0;
+    }
+  }
+  if (notebookType.length > 0) {
+    if (notebookType == candidateNotebookType) {
+      result = 10;
+    } else if (notebookType == "*" && candidateNotebookType.length > 0) {
+      if (result < 5) {
+        result = 5;
+      }
+    } else {
+      return 0;
+    }
+  }
+  if (selector["pattern"] != null) {
+    string pattern = JS.string(selector["pattern"]);
+    if (JS.typeOf(selector["pattern"]) != "string") {
+      JsValue patternObject = selector["pattern"];
+      pattern = selectorString(patternObject, "pattern");
+    }
+    string fsPath = selectorString(uri, "fsPath");
+    if (fsPath.length == 0) {
+      fsPath = selectorString(uri, "path");
+    }
+    if (pattern != fsPath && !globMatches(pattern, fsPath)) {
+      return 0;
+    }
+    result = 10;
+  }
+  return result;
+}

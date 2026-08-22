@@ -1,0 +1,219 @@
+export class AutorunSourceObserver {
+  func(AutorunSource)->void beginFn;
+  func(AutorunSource)->void endFn;
+  func(AutorunSource, JsValue)->void changeFn;
+  func(AutorunSource)->void possibleFn;
+
+  init(
+    func(AutorunSource)->void beginFn,
+    func(AutorunSource)->void endFn,
+    func(AutorunSource, JsValue)->void changeFn,
+    func(AutorunSource)->void possibleFn
+  ) {
+    this.beginFn = beginFn;
+    this.endFn = endFn;
+    this.changeFn = changeFn;
+    this.possibleFn = possibleFn;
+  }
+}
+
+export class AutorunSource {
+  func()->JsValue getFn;
+  func(AutorunSourceObserver)->void addFn;
+  func(AutorunSourceObserver)->void removeFn;
+
+  init(
+    func()->JsValue getFn,
+    func(AutorunSourceObserver)->void addFn,
+    func(AutorunSourceObserver)->void removeFn
+  ) {
+    this.getFn = getFn;
+    this.addFn = addFn;
+    this.removeFn = removeFn;
+  }
+}
+
+export class Autorun {
+  string debugName;
+  func(Autorun)->void action;
+  AutorunSource[] dependencies;
+  AutorunSource[] oldDependencies;
+  AutorunSourceObserver sourceObserver;
+  bool running;
+  bool stale;
+  bool disposed;
+  int updateCount;
+  (func()->void)[] store;
+
+  init(string debugName, func(Autorun)->void action) {
+    this.debugName = debugName;
+    this.action = action;
+    this.dependencies = [];
+    this.oldDependencies = [];
+    this.running = false;
+    this.stale = true;
+    this.disposed = false;
+    this.updateCount = 0;
+    this.store = [];
+    this.sourceObserver = new AutorunSourceObserver(
+      (AutorunSource source) => {
+        this.beginUpdate(source);
+      },
+      (AutorunSource source) => {
+        this.endUpdate(source);
+      },
+      (AutorunSource source, JsValue change) => {
+        this.handleChange(source, change);
+      },
+      (AutorunSource source) => {
+        this.handlePossibleChange(source);
+      }
+    );
+    this.run();
+  }
+
+  void clearStore() {
+    int i = this.store.length - 1;
+    while (i >= 0) {
+      this.store[i]();
+      i = i - 1;
+    }
+    this.store = [];
+  }
+
+  void addDisposable(func()->void disposeFn) {
+    if (!this.running) {
+      throw "Autorun store used outside run";
+    }
+    this.store.push(disposeFn);
+  }
+
+  JsValue read(AutorunSource source) {
+    if (!this.running) {
+      throw "Autorun reader used outside run";
+    }
+    source.addFn(this.sourceObserver);
+    if (this.dependencies.indexOf(source) < 0) {
+      this.dependencies.push(source);
+    }
+    int index = this.oldDependencies.indexOf(source);
+    if (index >= 0) {
+      this.oldDependencies.splice(index, 1);
+    }
+    return source.getFn();
+  }
+
+  void run() {
+    if (this.disposed) {
+      return;
+    }
+    this.oldDependencies = this.dependencies;
+    this.dependencies = [];
+    this.clearStore();
+    this.stale = false;
+    this.running = true;
+    try {
+      this.action(this);
+    } finally {
+      this.running = false;
+      int i = 0;
+      while (i < this.oldDependencies.length) {
+        this.oldDependencies[i].removeFn(this.sourceObserver);
+        i = i + 1;
+      }
+      this.oldDependencies = [];
+    }
+  }
+
+  void beginUpdate(AutorunSource source) {
+    this.updateCount = this.updateCount + 1;
+  }
+
+  void handlePossibleChange(AutorunSource source) {
+    if (this.dependencies.indexOf(source) >= 0) {
+      this.stale = true;
+    }
+  }
+
+  void handleChange(AutorunSource source, JsValue change) {
+    if (this.dependencies.indexOf(source) >= 0) {
+      this.stale = true;
+    }
+  }
+
+  void endUpdate(AutorunSource source) {
+    this.updateCount = this.updateCount - 1;
+    if (this.updateCount < 0) {
+      throw "Autorun update count became negative";
+    }
+    if (this.updateCount == 0 && this.stale) {
+      this.run();
+    }
+  }
+
+  void dispose() {
+    if (this.disposed) {
+      return;
+    }
+    this.disposed = true;
+    int i = 0;
+    while (i < this.dependencies.length) {
+      this.dependencies[i].removeFn(this.sourceObserver);
+      i = i + 1;
+    }
+    this.dependencies = [];
+    this.oldDependencies = [];
+    this.clearStore();
+  }
+}
+
+export Autorun autorun(string debugName, func(Autorun)->void action) {
+  return new Autorun(debugName, action);
+}
+
+export Autorun autorunOpts(string debugName, func(Autorun)->void action) {
+  return new Autorun(debugName, action);
+}
+
+export Autorun autorunHandleChanges(
+  string debugName,
+  func(Autorun)->void action
+) {
+  return new Autorun(debugName, action);
+}
+
+export Autorun autorunWithStore(string debugName, func(Autorun)->void action) {
+  return new Autorun(debugName, action);
+}
+
+export Autorun autorunWithStoreHandleChanges(
+  string debugName,
+  func(Autorun)->void action
+) {
+  return new Autorun(debugName, action);
+}
+
+export Autorun autorunDelta(
+  AutorunSource source,
+  func(JsValue, JsValue)->void handler
+) {
+  bool hasLastValue = false;
+  JsValue lastValue = 0;
+  return new Autorun("autorunDelta", (Autorun reader) => {
+    JsValue newValue = reader.read(source);
+    JsValue previousValue = lastValue;
+    lastValue = newValue;
+    if (hasLastValue) {
+      handler(previousValue, newValue);
+    }
+    hasLastValue = true;
+  });
+}
+
+export AutorunSource createAutorunSource(
+  func()->JsValue getFn,
+  func(AutorunSourceObserver)->void addFn,
+  func(AutorunSourceObserver)->void removeFn
+) {
+  return new AutorunSource(getFn, addFn, removeFn);
+}

@@ -1,0 +1,274 @@
+import { domCreateElement, appendChild, setClassName, classListAdd, classListRemove, setAttribute, addEventListener, preventDefault, eventKeyCode, focusElement } from "../../../../../js-host";
+
+string boolAttr(bool value) {
+  if (value) {
+    return "true";
+  }
+  return "false";
+}
+
+export class FindToggle {
+  JsValue domNode;
+  bool checked;
+  (func(bool)->void)[] changeListeners;
+  (func(JsValue)->void)[] keyDownListeners;
+
+  init(string title, string iconClass) {
+    this.checked = false;
+    this.changeListeners = [];
+    this.keyDownListeners = [];
+    this.domNode = domCreateElement("div");
+    setClassName(this.domNode, "monaco-custom-toggle");
+    classListAdd(this.domNode, "codicon");
+    classListAdd(this.domNode, iconClass);
+    setAttribute(this.domNode, "role", "checkbox");
+    setAttribute(this.domNode, "title", title);
+    setAttribute(this.domNode, "aria-checked", "false");
+    FindToggle owner = this;
+    addEventListener(this.domNode, "click", (JsValue event) => {
+      owner.setChecked(!owner.checked);
+      owner.fireChange(false);
+    }, false);
+    addEventListener(this.domNode, "keydown", (JsValue event) => {
+      int key = eventKeyCode(event);
+      if (key == 13 || key == 32) {
+        owner.setChecked(!owner.checked);
+        owner.fireChange(true);
+        preventDefault(event);
+        return;
+      }
+      int i = 0;
+      while (i < owner.keyDownListeners.length) {
+        owner.keyDownListeners[i](event);
+        i = i + 1;
+      }
+    }, false);
+  }
+
+  void setChecked(bool value) {
+    this.checked = value;
+    setAttribute(this.domNode, "aria-checked", boolAttr(value));
+    if (value) {
+      classListAdd(this.domNode, "checked");
+    } else {
+      classListRemove(this.domNode, "checked");
+    }
+  }
+
+  void fireChange(bool viaKeyboard) {
+    int i = 0;
+    while (i < this.changeListeners.length) {
+      this.changeListeners[i](viaKeyboard);
+      i = i + 1;
+    }
+  }
+
+  func()->void onChange(func(bool)->void listener) {
+    this.changeListeners.push(listener);
+    return () => {};
+  }
+
+  func()->void onKeyDown(func(JsValue)->void listener) {
+    this.keyDownListeners.push(listener);
+    return () => {};
+  }
+}
+
+export class HistoryBox {
+  JsValue input;
+  (func()->void)[] inputListeners;
+  func(string)->string validation;
+
+  init(JsValue parent, string placeholder, string ariaLabel) {
+    this.inputListeners = [];
+    this.validation = (string value) => {
+      return "";
+    };
+    this.input = domCreateElement("input");
+    setAttribute(this.input, "type", "text");
+    classListAdd(this.input, "input");
+    if (placeholder.length > 0) {
+      setAttribute(this.input, "placeholder", placeholder);
+    }
+    if (ariaLabel.length > 0) {
+      setAttribute(this.input, "aria-label", ariaLabel);
+    }
+    appendChild(parent, this.input);
+    HistoryBox owner = this;
+    addEventListener(this.input, "input", (JsValue event) => {
+      int i = 0;
+      while (i < owner.inputListeners.length) {
+        owner.inputListeners[i]();
+        i = i + 1;
+      }
+    }, false);
+  }
+
+  void focus() {
+    focusElement(this.input);
+  }
+
+  string value() {
+    JsValue v = this.input["value"];
+    if (v is string) {
+      string s = v;
+      return s;
+    }
+    return "";
+  }
+
+  void setValue(string value) {
+    this.input["value"] = value;
+  }
+
+  string validate() {
+    return this.validation(this.value());
+  }
+}
+
+export class FindInput {
+  JsValue domNode;
+  HistoryBox inputBox;
+  FindToggle regex;
+  FindToggle wholeWords;
+  FindToggle caseSensitive;
+  bool showCommonFindToggles;
+  bool fixFocusOnOptionClickEnabled;
+  (func(bool)->void)[] optionChangeListeners;
+  (func(JsValue)->void)[] keyDownListeners;
+  (func(JsValue)->void)[] mouseDownListeners;
+  (func(JsValue)->void)[] caseSensitiveKeyDownListeners;
+  (func(JsValue)->void)[] regexKeyDownListeners;
+  int lastHighlightFindOptions;
+
+  init(JsValue parent, string placeholder, string label, bool showCommonFindToggles) {
+    this.showCommonFindToggles = showCommonFindToggles;
+    this.fixFocusOnOptionClickEnabled = true;
+    this.optionChangeListeners = [];
+    this.keyDownListeners = [];
+    this.mouseDownListeners = [];
+    this.caseSensitiveKeyDownListeners = [];
+    this.regexKeyDownListeners = [];
+    this.lastHighlightFindOptions = 0;
+    this.domNode = domCreateElement("div");
+    setClassName(this.domNode, "monaco-findInput");
+    this.inputBox = new HistoryBox(this.domNode, placeholder, label);
+    this.regex = new FindToggle("Use Regular Expression", "codicon-regex");
+    this.wholeWords = new FindToggle("Match Whole Word", "codicon-whole-word");
+    this.caseSensitive = new FindToggle("Match Case", "codicon-case-sensitive");
+    if (showCommonFindToggles) {
+      appendChild(this.domNode, this.caseSensitive.domNode);
+      appendChild(this.domNode, this.wholeWords.domNode);
+      appendChild(this.domNode, this.regex.domNode);
+    }
+    FindInput owner = this;
+    this.regex.onChange((bool viaKeyboard) => {
+      owner.onOptionChange(viaKeyboard);
+    });
+    this.wholeWords.onChange((bool viaKeyboard) => {
+      owner.onOptionChange(viaKeyboard);
+    });
+    this.caseSensitive.onChange((bool viaKeyboard) => {
+      owner.onOptionChange(viaKeyboard);
+    });
+    this.regex.onKeyDown((JsValue event) => {
+      int i = 0;
+      while (i < owner.regexKeyDownListeners.length) {
+        owner.regexKeyDownListeners[i](event);
+        i = i + 1;
+      }
+    });
+    this.caseSensitive.onKeyDown((JsValue event) => {
+      int i = 0;
+      while (i < owner.caseSensitiveKeyDownListeners.length) {
+        owner.caseSensitiveKeyDownListeners[i](event);
+        i = i + 1;
+      }
+    });
+    addEventListener(this.domNode, "keydown", (JsValue event) => {
+      int i = 0;
+      while (i < owner.keyDownListeners.length) {
+        owner.keyDownListeners[i](event);
+        i = i + 1;
+      }
+    }, false);
+    addEventListener(this.domNode, "mousedown", (JsValue event) => {
+      int i = 0;
+      while (i < owner.mouseDownListeners.length) {
+        owner.mouseDownListeners[i](event);
+        i = i + 1;
+      }
+    }, false);
+    if (parent.truthy()) {
+      appendChild(parent, this.domNode);
+    }
+  }
+
+  void onOptionChange(bool viaKeyboard) {
+    int i = 0;
+    while (i < this.optionChangeListeners.length) {
+      this.optionChangeListeners[i](viaKeyboard);
+      i = i + 1;
+    }
+    if (!viaKeyboard && this.fixFocusOnOptionClickEnabled) {
+      this.inputBox.focus();
+    }
+    this.validate();
+  }
+
+  func()->void onDidOptionChange(func(bool)->void listener) {
+    this.optionChangeListeners.push(listener);
+    return () => {};
+  }
+
+  string getValue() {
+    return this.inputBox.value();
+  }
+
+  void setValue(string value) {
+    this.inputBox.setValue(value);
+  }
+
+  bool getCaseSensitive() {
+    return this.caseSensitive.checked;
+  }
+
+  void setCaseSensitive(bool value) {
+    this.caseSensitive.setChecked(value);
+  }
+
+  bool getWholeWords() {
+    return this.wholeWords.checked;
+  }
+
+  void setWholeWords(bool value) {
+    this.wholeWords.setChecked(value);
+  }
+
+  bool getRegex() {
+    return this.regex.checked;
+  }
+
+  void setRegex(bool value) {
+    this.regex.setChecked(value);
+  }
+
+  void validate() {
+    this.inputBox.validate();
+  }
+
+  void focus() {
+    this.inputBox.focus();
+  }
+
+  void highlightFindOptions() {
+    this.lastHighlightFindOptions = 1 - this.lastHighlightFindOptions;
+    classListRemove(this.domNode, "highlight-0");
+    classListRemove(this.domNode, "highlight-1");
+    classListAdd(this.domNode, "highlight-" + this.lastHighlightFindOptions.toString());
+  }
+}
+
+export FindInput createFindInput(JsValue parent, string placeholder = "", string label = "input", bool showCommonFindToggles = true) {
+  return new FindInput(parent, placeholder, label, showCommonFindToggles);
+}

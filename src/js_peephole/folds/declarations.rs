@@ -1,12 +1,13 @@
 use super::copies::assignment_span_to_remove;
 use crate::js_peephole::rewrite::{
     apply_token_rewrites, assign_is_in_declaration, identifier_is_read, identifier_occurs,
-    is_property_identifier, is_statement_boundary, replacement_overlaps, top_level_stop,
+    is_property_identifier, is_statement_boundary, next_statement_end, replacement_overlaps,
+    top_level_stop,
 };
 use crate::js_peephole::scope::{
     collect_same_scope_name_uses, enclosing_block_end, enclosing_function_span,
     function_scope_declares, name_is_declared_in_any_enclosing_function_scope,
-    name_is_declared_in_any_enclosing_scope, name_is_used_in_scope,
+    name_is_declared_in_any_enclosing_scope, name_is_module_var_binding, name_is_used_in_scope,
 };
 use crate::js_peephole::token::{
     lex, lex_certainly, matching_closers, matching_openers, Token, TokenKind,
@@ -1467,47 +1468,60 @@ pub(crate) fn declare_implicit_assignment_bindings(
         }
         if at
             .checked_sub(1)
-            .is_some_and(|previous| matches!(tokens[previous].text, "var" | "let" | "const"))
+            .is_some_and(|previous| matches!(tokens[previous].text, "var" | "let" | "const" | "." | "?."))
         {
             continue;
         }
         let comma_sequence_assignment = is_comma_sequence_assignment_target(&tokens, at);
-        if !is_statement_boundary(&tokens, at)
-            && !is_bare_for_init_assignment(&tokens, at)
-            && !is_chained_assignment_target(&tokens, at)
-            && !comma_sequence_assignment
-        {
+        let statement_like = is_statement_boundary(&tokens, at)
+            || is_bare_for_init_assignment(&tokens, at)
+            || is_chained_assignment_target(&tokens, at)
+            || comma_sequence_assignment;
+        let expression_embedded = matches!(
+            tokens.get(at.saturating_sub(1)).map(|token| token.text),
+            Some("(" | "&&" | "||" | "?" | ":")
+        );
+        if !statement_like && !expression_embedded {
             continue;
         }
         let name = tokens[at].text;
-        let Some(function_span) = enclosing_function_span(&tokens, &matching_close, at) else {
+        let Some((function_body, _)) = enclosing_function_span(&tokens, &matching_close, at) else {
+            if !statement_like
+                || declared
+                    .iter()
+                    .any(|(body, declared_name)| *body == usize::MAX && *declared_name == name)
+                || name_is_declared_in_any_enclosing_scope(&tokens, &matching_close, at, name)
+            {
+                continue;
+            }
+            replacements.push((0, 0, format!("var {name};")));
+            declared.push((usize::MAX, name));
             continue;
         };
-        let function_body = function_span.0;
         if declared
             .iter()
             .any(|(body, declared_name)| *body == function_body && *declared_name == name)
         {
             continue;
         }
-        if is_chained_assignment_target(&tokens, at) {
-            // Chained assignments inside a nested function may intentionally
-            // write a captured local from an enclosing function. Module
-            // bindings remain excluded here: generated inner temporaries must
-            // shadow those instead of clobbering a top-level helper.
-            if name_is_declared_in_any_enclosing_function_scope(&tokens, &matching_close, at, name)
-            {
-                continue;
-            }
-        } else if name_is_declared_in_any_enclosing_scope(&tokens, &matching_close, at, name) {
+        if name_is_declared_in_any_enclosing_function_scope(&tokens, &matching_close, at, name) {
+            continue;
+        }
+        if name_is_module_var_binding(&tokens, &matching_close, name)
+            && !is_chained_assignment_target(&tokens, at)
+        {
             continue;
         }
         let insert_at = if is_bare_for_init_assignment(&tokens, at) {
             tokens[at - 2].start
         } else if is_chained_assignment_target(&tokens, at) || comma_sequence_assignment {
             statement_start(&tokens, at)
-        } else {
+        } else if statement_like {
             tokens[at].start
+        } else if tokens[function_body].text == "{" {
+            tokens[function_body].end
+        } else {
+            continue;
         };
         replacements.push((insert_at, insert_at, format!("var {name};")));
         declared.push((function_body, name));
@@ -1649,8 +1663,6 @@ pub(crate) fn fold_dead_pure_identifier_assigns(
                     | "throw"
                     | "break"
                     | "continue"
-                    | "function"
-                    | "class"
                     | "?"
             ) {
                 break;
@@ -1705,4 +1717,156 @@ pub(crate) fn fold_dead_pure_identifier_assigns(
         cursor = write_at;
     }
     Ok(apply_token_rewrites(source, replacements))
+}
+
+pub(crate) fn fold_unread_prototype_aliases(
+    source: &str,
+) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+    let mut cursor = 0usize;
+    while cursor + 4 < tokens.len() {
+        let Some(alias) = prototype_alias_at(&tokens, cursor) else {
+            cursor += 1;
+            continue;
+        };
+        if prototype_alias_is_live_before_rewrite(&tokens, alias.after + 1, alias.name) {
+            cursor += 1;
+            continue;
+        }
+        let preceded_by_comma = cursor > 0 && tokens[cursor - 1].text == ",";
+        let preceded_by_decl = cursor > 0
+            && matches!(tokens[cursor - 1].text, "var" | "let" | "const");
+        let start = if preceded_by_comma {
+            tokens[cursor - 1].start
+        } else if preceded_by_decl && tokens[alias.after].text == ";" {
+            tokens[cursor - 1].start
+        } else {
+            tokens[cursor].start
+        };
+        let mut end_token = alias.after;
+        let mut scan = alias.after + 1;
+        while let Some(next) = prototype_alias_at(&tokens, scan) {
+            if prototype_alias_is_live_before_rewrite(&tokens, next.after + 1, next.name) {
+                break;
+            }
+            end_token = next.after;
+            scan = next.after + 1;
+        }
+        let replacement = if preceded_by_comma {
+            tokens[end_token].text.to_string()
+        } else {
+            String::new()
+        };
+        if !replacement_overlaps(&replacements, start, tokens[end_token].end) {
+            replacements.push((start, tokens[end_token].end, replacement));
+        }
+        cursor = end_token + 1;
+    }
+    Ok(apply_token_rewrites(source, replacements))
+}
+
+struct PrototypeAlias<'a> {
+    name: &'a str,
+    after: usize,
+}
+
+fn prototype_alias_at<'a>(tokens: &'a [Token<'a>], cursor: usize) -> Option<PrototypeAlias<'a>> {
+    if tokens.get(cursor)?.kind != TokenKind::Identifier
+        || is_property_identifier(tokens, cursor)
+        || tokens.get(cursor + 1).map(|token| token.text) != Some("=")
+        || tokens.get(cursor + 2).map(|token| token.kind) != Some(TokenKind::Identifier)
+        || tokens.get(cursor + 3).map(|token| token.text) != Some(".")
+        || tokens.get(cursor + 4).map(|token| token.text) != Some("prototype")
+    {
+        return None;
+    }
+    let after = cursor + 5;
+    if !matches!(tokens.get(after).map(|token| token.text), Some("," | ";")) {
+        return None;
+    }
+    Some(PrototypeAlias {
+        name: tokens[cursor].text,
+        after,
+    })
+}
+
+fn prototype_alias_is_live_before_rewrite(tokens: &[Token<'_>], start: usize, name: &str) -> bool {
+    let matching_close = matching_closers(tokens);
+    let mut index = start;
+    while index < tokens.len() {
+        if matches!(
+            tokens[index].text,
+            "if" | "else"
+                | "for"
+                | "while"
+                | "do"
+                | "switch"
+                | "try"
+                | "catch"
+                | "finally"
+                | "return"
+                | "throw"
+        ) {
+            let end = next_statement_end(tokens, index + 1);
+            if identifier_is_read(tokens, index + 1, end, name) {
+                return true;
+            }
+            index = end + 1;
+            continue;
+        }
+        if tokens[index].text == "function" || tokens[index].text == "class" {
+            if let Some(next) = skip_function_or_class(tokens, &matching_close, index) {
+                index = next;
+                continue;
+            }
+            return true;
+        }
+        match tokens[index].text {
+            "(" | "[" | "{" => {
+                let Some(close) = matching_close.get(index).copied().flatten() else {
+                    return true;
+                };
+                if identifier_is_read(tokens, index + 1, close, name) {
+                    return true;
+                }
+                index = close + 1;
+                continue;
+            }
+            ")" | "]" | "}" => return true,
+            _ => {}
+        }
+        if tokens[index].kind == TokenKind::Identifier
+            && tokens[index].text == name
+            && !is_property_identifier(tokens, index)
+        {
+            return tokens.get(index + 1).map(|token| token.text) != Some("=");
+        }
+        index += 1;
+    }
+    false
+}
+
+fn skip_function_or_class(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    start: usize,
+) -> Option<usize> {
+    let mut index = start + 1;
+    if tokens.get(index).map(|token| token.kind) == Some(TokenKind::Identifier) {
+        index += 1;
+    }
+    if tokens.get(index).map(|token| token.text) == Some("extends") {
+        index += 1;
+        if tokens.get(index).map(|token| token.kind) == Some(TokenKind::Identifier) {
+            index += 1;
+        }
+    }
+    if tokens.get(index).map(|token| token.text) == Some("(") {
+        index = matching_close.get(index).copied().flatten()? + 1;
+    }
+    if tokens.get(index).map(|token| token.text) == Some("{") {
+        return Some(matching_close.get(index).copied().flatten()? + 1);
+    }
+    None
 }

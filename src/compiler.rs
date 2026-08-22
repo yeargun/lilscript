@@ -5670,10 +5670,14 @@ fn finalize_javascript_candidates_with_parallelism(
                             };
                             metrics
                         };
-                        vec![
-                            (declaration, original_metrics, 0, true),
-                            (optimized.code, optimized.metrics, optimized.rewrites, false),
-                        ]
+                        if analyze_generated_javascript(&optimized.code).is_ok() {
+                            vec![
+                                (declaration, original_metrics, 0, true),
+                                (optimized.code, optimized.metrics, optimized.rewrites, false),
+                            ]
+                        } else {
+                            vec![(declaration, original_metrics, 0, true)]
+                        }
                     }
                 }
             } else {
@@ -5801,8 +5805,10 @@ fn finalize_javascript_candidates_with_parallelism(
             "startup limits rejected every JavaScript candidate",
         )
     })?;
-    let selected = apply_unused_letter_binding_remaps(selected, config)?;
-    let selected = apply_late_javascript_cleanup(selected, config)?;
+    let remapped = apply_unused_letter_binding_remaps(selected.clone(), config)?;
+    let selected = retain_resolved_javascript(selected, remapped);
+    let cleaned = apply_late_javascript_cleanup(selected.clone(), config)?;
+    let selected = retain_resolved_javascript(selected, cleaned);
     Ok(SelectedJavaScriptCandidate {
         plan_identity: selected.plan_identity,
         code: selected.code,
@@ -6776,6 +6782,17 @@ fn unused_letter_remap_pair_budget(code_len: usize) -> usize {
         8_192..16_384 => 192,
         16_384..65_536 => 96,
         _ => 48,
+    }
+}
+
+fn retain_resolved_javascript(
+    previous: ScoredJavaScriptCandidate,
+    next: ScoredJavaScriptCandidate,
+) -> ScoredJavaScriptCandidate {
+    if next.code == previous.code || analyze_generated_javascript(&next.code).is_ok() {
+        next
+    } else {
+        previous
     }
 }
 
@@ -12781,6 +12798,91 @@ mod tests {
         assert!(error
             .to_string()
             .contains("extern global bindings are read-only"));
+    }
+
+    #[test]
+    fn extern_class_members_stay_exact_when_owned_fields_reuse_the_name() {
+        let source = r#"
+            class Lexer {
+                bool gfm;
+                bool breaks;
+                init(bool gfm = true, bool breaks = false) {
+                    this.gfm = gfm;
+                    this.breaks = breaks;
+                }
+            }
+            extern class Options {
+                JsValue gfm;
+                JsValue breaks;
+            }
+            export JsValue getDefaults() {
+                Options opt = JS.assume(JS.object());
+                opt.gfm = true;
+                opt.breaks = false;
+                return opt;
+            }
+            export bool readGfm(JsValue opt) {
+                Options incoming = JS.assume(opt);
+                if (JS.isUndefined(incoming.gfm)) {
+                    return true;
+                }
+                return incoming.gfm.truthy();
+            }
+            export bool lexGfm(Lexer lexer) {
+                return lexer.gfm;
+            }
+        "#;
+        let arena = Bump::new();
+        let program = parse_source(&arena, source).unwrap();
+        let mut config = ProjectConfig::default();
+        config.javascript.candidate_search = crate::config::CandidateSearch::Off;
+        config.mangle.identifiers = Some(true);
+        config.mangle.properties = Some(true);
+        config.mangle.extern_fields = Some(true);
+        let output = compile_program_to_js_module_configured(&program, &config).unwrap();
+        assert!(
+            output.contains(".gfm") && output.contains(".breaks"),
+            "extern class option keys must stay exact under property mangling:\n{output}"
+        );
+        assert!(
+            !output.contains("{n:!0") && !output.contains("{n:true"),
+            "owned Lexer field names must not steal the public option keys:\n{output}"
+        );
+    }
+
+    #[test]
+    fn closed_world_can_release_extern_class_fields_without_renaming_host_length() {
+        let source = r#"
+            extern class Options {
+                JsValue gfm;
+                JsValue breaks;
+            }
+            export JsValue getDefaults() {
+                Options opt = JS.assume(JS.object());
+                opt.gfm = true;
+                opt.breaks = false;
+                return opt;
+            }
+            export int hostLength(string src) {
+                return src.length;
+            }
+        "#;
+        let arena = Bump::new();
+        let program = parse_source(&arena, source).unwrap();
+        let mut config = ProjectConfig::default();
+        config.javascript.candidate_search = crate::config::CandidateSearch::Off;
+        config.mangle.identifiers = Some(true);
+        config.mangle.properties = Some(true);
+        config.mangle.extern_fields = Some(false);
+        let output = compile_program_to_js_module_configured(&program, &config).unwrap();
+        assert!(
+            !output.contains(".gfm") && !output.contains(".breaks"),
+            "closed-world extern fields must enter property mangling:\n{output}"
+        );
+        assert!(
+            output.contains(".length"),
+            "host members such as string.length must stay exact:\n{output}"
+        );
     }
 
     #[test]

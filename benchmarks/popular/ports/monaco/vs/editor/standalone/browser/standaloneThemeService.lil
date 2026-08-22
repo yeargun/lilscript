@@ -1,0 +1,41 @@
+export class StandaloneThemeService {
+  string themeName;
+  string[] known;
+  (func(string)->void)[] listeners;
+
+  init() {
+    this.themeName = "vs";
+    this.known = [];
+    this.known.push("vs");
+    this.known.push("vs-dark");
+    this.known.push("hc-black");
+    this.known.push("hc-light");
+    this.listeners = [];
+  }
+
+  void defineTheme(string name) {
+    if (!this.known.includes(name)) {
+      this.known.push(name);
+    }
+  }
+
+  void setTheme(string name) {
+    if (!this.known.includes(name)) {
+      return;
+    }
+    this.themeName = name;
+    int i = 0;
+    while (i < this.listeners.length) {
+      this.listeners[i](name);
+      i = i + 1;
+    }
+  }
+
+  string getColorTheme() {
+    return this.themeName;
+  }
+}
+
+export StandaloneThemeService createStandaloneThemeService() {
+  return new StandaloneThemeService();
+}

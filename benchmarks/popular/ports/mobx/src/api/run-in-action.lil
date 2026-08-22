@@ -1,0 +1,10 @@
+import { toStr, fnName, undef } from "../host.lil";
+import { executeAction } from "../core/action.lil";
+
+export JsValue runInAction = JS.method1((JsValue self, JsValue fn) => {
+  string n = toStr(fnName(fn));
+  if (n == "") {
+    n = "<unnamed action>";
+  }
+  return executeAction(n, false, fn, self, undef());
+});

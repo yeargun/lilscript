@@ -1,0 +1,50 @@
+export class MultiDiffEditorWidgetImpl {
+  int width;
+  int height;
+  int scrollTop;
+  int itemCount;
+  int headerHeight;
+
+  init(int width, int height) {
+    this.width = width;
+    this.height = height;
+    this.scrollTop = 0;
+    this.itemCount = 0;
+    this.headerHeight = 40;
+  }
+
+  void layout(int width, int height) {
+    this.width = width;
+    this.height = height;
+  }
+
+  int[] visibleItemIndexes(int[] itemHeights) {
+    int[] out = [];
+    int y = 0;
+    int i = 0;
+    while (i < itemHeights.length) {
+      int h = itemHeights[i];
+      int top = y - this.scrollTop;
+      if (top + h >= 0 && top <= this.height) {
+        out.push(i);
+      }
+      y = y + h;
+      i = i + 1;
+    }
+    return out;
+  }
+
+  int offsetOf(int index, int[] itemHeights) {
+    int y = 0;
+    int i = 0;
+    while (i < index && i < itemHeights.length) {
+      y = y + itemHeights[i];
+      i = i + 1;
+    }
+    return y;
+  }
+}
+
+export MultiDiffEditorWidgetImpl createMultiDiffEditorWidgetImpl(int width, int height) {
+  return new MultiDiffEditorWidgetImpl(width, height);
+}

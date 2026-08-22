@@ -1,0 +1,466 @@
+import { asciiLower, startsWithIgnoreCase } from "./strings";
+import { isEmojiImprecise } from "../../editor/common/core/cursorColumns";
+
+export class Match {
+  int start;
+  int end;
+
+  init(int start, int end) {
+    this.start = start;
+    this.end = end;
+  }
+}
+
+Match[]? matchesPrefixInner(bool ignoreCase, string word, string wordToMatchAgainst) {
+  if (wordToMatchAgainst.length < word.length) {
+    return null;
+  }
+  bool matches = false;
+  if (ignoreCase) {
+    matches = startsWithIgnoreCase(wordToMatchAgainst, word);
+  } else {
+    matches = wordToMatchAgainst.indexOf(word) == 0;
+  }
+  if (!matches) {
+    return null;
+  }
+  Match[] out = [];
+  if (word.length > 0) {
+    out.push(new Match(0, word.length));
+  }
+  return out;
+}
+
+export Match[]? matchesStrictPrefix(string word, string wordToMatchAgainst) {
+  return matchesPrefixInner(false, word, wordToMatchAgainst);
+}
+
+export Match[]? matchesPrefix(string word, string wordToMatchAgainst) {
+  return matchesPrefixInner(true, word, wordToMatchAgainst);
+}
+
+export Match[]? matchesContiguousSubString(string word, string wordToMatchAgainst) {
+  if (word.length > wordToMatchAgainst.length) {
+    return null;
+  }
+  int index = asciiLower(wordToMatchAgainst).indexOf(asciiLower(word));
+  if (index == -1) {
+    return null;
+  }
+  Match[] out = [];
+  out.push(new Match(index, index + word.length));
+  return out;
+}
+
+Match[]? matchesSubStringFrom(string word, string wordToMatchAgainst, int i, int j) {
+  if (i == word.length) {
+    Match[] empty = [];
+    return empty;
+  }
+  if (j == wordToMatchAgainst.length) {
+    return null;
+  }
+  if (word.charAt(i) == wordToMatchAgainst.charAt(j)) {
+    Match[]? result = matchesSubStringFrom(word, wordToMatchAgainst, i + 1, j + 1);
+    if (result != null) {
+      Match[] joined = [];
+      joined.push(new Match(j, j + 1));
+      int k = 0;
+      while (k < result.length) {
+        joined.push(result[k]);
+        k = k + 1;
+      }
+      return joined;
+    }
+    return null;
+  }
+  return matchesSubStringFrom(word, wordToMatchAgainst, i, j + 1);
+}
+
+export Match[]? matchesSubString(string word, string wordToMatchAgainst) {
+  if (word.length > wordToMatchAgainst.length) {
+    return null;
+  }
+  return matchesSubStringFrom(asciiLower(word), asciiLower(wordToMatchAgainst), 0, 0);
+}
+
+export bool isLower(int code) {
+  return 97 <= code && code <= 122;
+}
+
+export bool isUpper(int code) {
+  return 65 <= code && code <= 90;
+}
+
+bool isSeparatorAtPos(string value, int index) {
+  if (index < 0 || index >= value.length) {
+    return false;
+  }
+  int code = value.charCodeAt(index);
+  if (
+    code == 95 || code == 45 || code == 46 || code == 32 || code == 47 || code == 92
+    || code == 39 || code == 34 || code == 58 || code == 36 || code == 60 || code == 62
+    || code == 40 || code == 41 || code == 91 || code == 93 || code == 123 || code == 125
+  ) {
+    return true;
+  }
+  return isEmojiImprecise(code);
+}
+
+bool isWhitespaceAtPos(string value, int index) {
+  if (index < 0 || index >= value.length) {
+    return false;
+  }
+  int code = value.charCodeAt(index);
+  return code == 32 || code == 9;
+}
+
+bool isUpperCaseAtPos(int pos, string word, string wordLow) {
+  return word.charAt(pos) != wordLow.charAt(pos);
+}
+
+int fuzzyMaxLen = 128;
+int[] minWordMatchPos = [];
+int[] maxWordMatchPos = [];
+int[][] scoreTable = [];
+int[][] arrowTable = [];
+int[][] diagTable = [];
+bool tablesReady = false;
+
+void ensureTables() {
+  if (tablesReady) {
+    return;
+  }
+  int i = 0;
+  while (i <= fuzzyMaxLen * 2) {
+    minWordMatchPos.push(0);
+    maxWordMatchPos.push(0);
+    i = i + 1;
+  }
+  int r = 0;
+  while (r <= fuzzyMaxLen) {
+    int[] rowA = [];
+    int[] rowB = [];
+    int[] rowC = [];
+    int c = 0;
+    while (c <= fuzzyMaxLen) {
+      rowA.push(0);
+      rowB.push(0);
+      rowC.push(0);
+      c = c + 1;
+    }
+    scoreTable.push(rowA);
+    arrowTable.push(rowB);
+    diagTable.push(rowC);
+    r = r + 1;
+  }
+  tablesReady = true;
+}
+
+export bool isPatternInWord(string patternLow, int patternPos, int patternLen, string wordLow, int wordPos, int wordLen, bool fillMinWordPosArr) {
+  int p = patternPos;
+  int w = wordPos;
+  while (p < patternLen && w < wordLen) {
+    if (patternLow.charAt(p) == wordLow.charAt(w)) {
+      if (fillMinWordPosArr) {
+        minWordMatchPos[p] = w;
+      }
+      p = p + 1;
+    }
+    w = w + 1;
+  }
+  return p == patternLen;
+}
+
+void fillInMaxWordMatchPos(int patternLen, int wordLen, int patternStart, int wordStart, string patternLow, string wordLow) {
+  int patternPos = patternLen - 1;
+  int wordPos = wordLen - 1;
+  while (patternPos >= patternStart && wordPos >= wordStart) {
+    if (patternLow.charAt(patternPos) == wordLow.charAt(wordPos)) {
+      maxWordMatchPos[patternPos] = wordPos;
+      patternPos = patternPos - 1;
+    }
+    wordPos = wordPos - 1;
+  }
+}
+
+int doScore(
+  string pattern,
+  string patternLow,
+  int patternPos,
+  int patternStart,
+  string word,
+  string wordLow,
+  int wordPos,
+  int wordLen,
+  int wordStart,
+  bool newMatchStart,
+  bool[] outFirstMatchStrong
+) {
+  if (patternLow.charAt(patternPos) != wordLow.charAt(wordPos)) {
+    return -2147483647;
+  }
+  int score = 1;
+  bool isGapLocation = false;
+  if (wordPos == (patternPos - patternStart)) {
+    if (pattern.charAt(patternPos) == word.charAt(wordPos)) {
+      score = 7;
+    } else {
+      score = 5;
+    }
+  } else if (isUpperCaseAtPos(wordPos, word, wordLow) && (wordPos == 0 || !isUpperCaseAtPos(wordPos - 1, word, wordLow))) {
+    if (pattern.charAt(patternPos) == word.charAt(wordPos)) {
+      score = 7;
+    } else {
+      score = 5;
+    }
+    isGapLocation = true;
+  } else if (isSeparatorAtPos(wordLow, wordPos) && (wordPos == 0 || !isSeparatorAtPos(wordLow, wordPos - 1))) {
+    score = 5;
+  } else if (isSeparatorAtPos(wordLow, wordPos - 1) || isWhitespaceAtPos(wordLow, wordPos - 1)) {
+    score = 5;
+    isGapLocation = true;
+  }
+  if (score > 1 && patternPos == patternStart) {
+    outFirstMatchStrong[0] = true;
+  }
+  if (!isGapLocation) {
+    isGapLocation = isUpperCaseAtPos(wordPos, word, wordLow) || isSeparatorAtPos(wordLow, wordPos - 1) || isWhitespaceAtPos(wordLow, wordPos - 1);
+  }
+  if (patternPos == patternStart) {
+    if (wordPos > wordStart) {
+      if (isGapLocation) {
+        score = score - 3;
+      } else {
+        score = score - 5;
+      }
+    }
+  } else {
+    if (newMatchStart) {
+      if (isGapLocation) {
+        score = score + 2;
+      }
+    } else {
+      if (!isGapLocation) {
+        score = score + 1;
+      }
+    }
+  }
+  if (wordPos + 1 == wordLen) {
+    if (isGapLocation) {
+      score = score - 3;
+    } else {
+      score = score - 5;
+    }
+  }
+  return score;
+}
+
+export class FuzzyScoreOptions {
+  bool firstMatchCanBeWeak;
+  bool boostFullMatch;
+
+  init(bool firstMatchCanBeWeak, bool boostFullMatch) {
+    this.firstMatchCanBeWeak = firstMatchCanBeWeak;
+    this.boostFullMatch = boostFullMatch;
+  }
+}
+
+FuzzyScoreOptions defaultFuzzyOptions = new FuzzyScoreOptions(false, true);
+
+export FuzzyScoreOptions fuzzyScoreOptionsDefault() {
+  return defaultFuzzyOptions;
+}
+
+export int[]? fuzzyScore(
+  string pattern,
+  string patternLow,
+  int patternStart,
+  string word,
+  string wordLow,
+  int wordStart,
+  FuzzyScoreOptions options
+) {
+  ensureTables();
+  int patternLen = pattern.length;
+  if (patternLen > fuzzyMaxLen) {
+    patternLen = fuzzyMaxLen;
+  }
+  int wordLen = word.length;
+  if (wordLen > fuzzyMaxLen) {
+    wordLen = fuzzyMaxLen;
+  }
+  if (patternStart >= patternLen || wordStart >= wordLen || (patternLen - patternStart) > (wordLen - wordStart)) {
+    return null;
+  }
+  if (!isPatternInWord(patternLow, patternStart, patternLen, wordLow, wordStart, wordLen, true)) {
+    return null;
+  }
+  fillInMaxWordMatchPos(patternLen, wordLen, patternStart, wordStart, patternLow, wordLow);
+  bool[] hasStrongFirstMatch = [false];
+  int row = 1;
+  int patternPos = patternStart;
+  while (patternPos < patternLen) {
+    int minPos = minWordMatchPos[patternPos];
+    int maxPos = maxWordMatchPos[patternPos];
+    int nextMaxWordMatchPos = wordLen;
+    if (patternPos + 1 < patternLen) {
+      nextMaxWordMatchPos = maxWordMatchPos[patternPos + 1];
+    }
+    int column = minPos - wordStart + 1;
+    int wordPos = minPos;
+    while (wordPos < nextMaxWordMatchPos) {
+      int score = -2147483647;
+      bool canComeDiag = false;
+      if (wordPos <= maxPos) {
+        score = doScore(
+          pattern,
+          patternLow,
+          patternPos,
+          patternStart,
+          word,
+          wordLow,
+          wordPos,
+          wordLen,
+          wordStart,
+          diagTable[row - 1][column - 1] == 0,
+          hasStrongFirstMatch
+        );
+      }
+      int diagScore = 0;
+      if (score != -2147483647) {
+        canComeDiag = true;
+        diagScore = score + scoreTable[row - 1][column - 1];
+      }
+      bool canComeLeft = wordPos > minPos;
+      int leftScore = 0;
+      if (canComeLeft) {
+        int gap = 0;
+        if (diagTable[row][column - 1] > 0) {
+          gap = -5;
+        }
+        leftScore = scoreTable[row][column - 1] + gap;
+      }
+      bool canComeLeftLeft = wordPos > minPos + 1 && diagTable[row][column - 1] > 0;
+      int leftLeftScore = 0;
+      if (canComeLeftLeft) {
+        int gap2 = 0;
+        if (diagTable[row][column - 2] > 0) {
+          gap2 = -5;
+        }
+        leftLeftScore = scoreTable[row][column - 2] + gap2;
+      }
+      if (canComeLeftLeft && (!canComeLeft || leftLeftScore >= leftScore) && (!canComeDiag || leftLeftScore >= diagScore)) {
+        scoreTable[row][column] = leftLeftScore;
+        arrowTable[row][column] = 3;
+        diagTable[row][column] = 0;
+      } else if (canComeLeft && (!canComeDiag || leftScore >= diagScore)) {
+        scoreTable[row][column] = leftScore;
+        arrowTable[row][column] = 2;
+        diagTable[row][column] = 0;
+      } else if (canComeDiag) {
+        scoreTable[row][column] = diagScore;
+        arrowTable[row][column] = 1;
+        diagTable[row][column] = diagTable[row - 1][column - 1] + 1;
+      } else {
+        scoreTable[row][column] = 0;
+        arrowTable[row][column] = 0;
+        diagTable[row][column] = 0;
+      }
+      column = column + 1;
+      wordPos = wordPos + 1;
+    }
+    row = row + 1;
+    patternPos = patternPos + 1;
+  }
+  if (!hasStrongFirstMatch[0] && !options.firstMatchCanBeWeak) {
+    return null;
+  }
+  row = row - 1;
+  int column = maxWordMatchPos[patternLen - 1] - wordStart;
+  int[] result = [];
+  result.push(scoreTable[row][column]);
+  result.push(wordStart);
+  int backwardsDiagLength = 0;
+  int maxMatchColumn = 0;
+  while (row >= 1) {
+    int diagColumn = column;
+    while (diagColumn >= 1) {
+      int arrow = arrowTable[row][diagColumn];
+      if (arrow == 3) {
+        diagColumn = diagColumn - 2;
+      } else if (arrow == 2) {
+        diagColumn = diagColumn - 1;
+      } else {
+        break;
+      }
+    }
+    if (
+      backwardsDiagLength > 1
+      && patternLow.charAt(patternStart + row - 1) == wordLow.charAt(wordStart + column - 1)
+      && !isUpperCaseAtPos(diagColumn + wordStart - 1, word, wordLow)
+      && backwardsDiagLength + 1 > diagTable[row][diagColumn]
+    ) {
+      diagColumn = column;
+    }
+    if (diagColumn == column) {
+      backwardsDiagLength = backwardsDiagLength + 1;
+    } else {
+      backwardsDiagLength = 1;
+    }
+    if (maxMatchColumn == 0) {
+      maxMatchColumn = diagColumn;
+    }
+    row = row - 1;
+    column = diagColumn - 1;
+    result.push(column);
+  }
+  if (wordLen - wordStart == patternLen && options.boostFullMatch) {
+    result[0] = result[0] + 2;
+  }
+  int skippedCharsCount = maxMatchColumn - patternLen;
+  result[0] = result[0] - skippedCharsCount;
+  return result;
+}
+
+export Match[] createMatches(int[] score) {
+  Match[] res = [];
+  if (score.length < 2) {
+    return res;
+  }
+  int wordPos = score[1];
+  int i = score.length - 1;
+  while (i > 1) {
+    int pos = score[i] + wordPos;
+    if (res.length > 0 && res[res.length - 1].end == pos) {
+      res[res.length - 1].end = pos + 1;
+    } else {
+      res.push(new Match(pos, pos + 1));
+    }
+    i = i - 1;
+  }
+  return res;
+}
+
+export Match[]? matchesFuzzy2(string pattern, string word) {
+  int[]? score = fuzzyScore(pattern, asciiLower(pattern), 0, word, asciiLower(word), 0, new FuzzyScoreOptions(true, true));
+  if (score == null) {
+    return null;
+  }
+  return createMatches(score);
+}
+
+export Match[]? matchesFuzzy(string word, string wordToMatchAgainst, bool enableSeparateSubstringMatching) {
+  Match[]? prefix = matchesPrefix(word, wordToMatchAgainst);
+  if (prefix != null) {
+    return prefix;
+  }
+  Match[]? contig = matchesContiguousSubString(word, wordToMatchAgainst);
+  if (contig != null) {
+    return contig;
+  }
+  if (enableSeparateSubstringMatching) {
+    return matchesSubString(word, wordToMatchAgainst);
+  }
+  return null;
+}

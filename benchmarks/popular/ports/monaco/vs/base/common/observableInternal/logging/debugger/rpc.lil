@@ -1,0 +1,145 @@
+export class RpcResponse {
+  bool isError;
+  JsValue value;
+
+  init(bool isError, JsValue value) {
+    this.isError = isError;
+    this.value = value;
+  }
+}
+
+class RpcRequestEntry {
+  string name;
+  func(JsValue[])->JsValue fn;
+
+  init(string name, func(JsValue[])->JsValue fn) {
+    this.name = name;
+    this.fn = fn;
+  }
+}
+
+class RpcNotificationEntry {
+  string name;
+  func(JsValue[])->void fn;
+
+  init(string name, func(JsValue[])->void fn) {
+    this.name = name;
+    this.fn = fn;
+  }
+}
+
+export class RpcHandler {
+  RpcRequestEntry[] requests;
+  RpcNotificationEntry[] notifications;
+
+  init() {
+    this.requests = [];
+    this.notifications = [];
+  }
+
+  void registerRequest(string name, func(JsValue[])->JsValue fn) {
+    this.requests.push(new RpcRequestEntry(name, fn));
+  }
+
+  void registerNotification(string name, func(JsValue[])->void fn) {
+    this.notifications.push(new RpcNotificationEntry(name, fn));
+  }
+
+  RpcResponse handleRequest(string name, JsValue[] args) {
+    int i = 0;
+    while (i < this.requests.length) {
+      RpcRequestEntry entry = this.requests[i];
+      if (entry.name == name) {
+        try {
+          return new RpcResponse(false, entry.fn(args));
+        } catch (JsValue error) {
+          return new RpcResponse(true, error);
+        }
+      }
+      i = i + 1;
+    }
+    return new RpcResponse(true, "Unknown request \"" + name + "\"");
+  }
+
+  void handleNotification(string name, JsValue[] args) {
+    int i = 0;
+    while (i < this.notifications.length) {
+      RpcNotificationEntry entry = this.notifications[i];
+      if (entry.name == name) {
+        entry.fn(args);
+        return;
+      }
+      i = i + 1;
+    }
+    throw "Unknown notification \"" + name + "\"";
+  }
+}
+
+export class RpcChannel {
+  func(string, JsValue[])->RpcResponse requestFn;
+  func(string, JsValue[])->void notificationFn;
+
+  init(
+    func(string, JsValue[])->RpcResponse requestFn,
+    func(string, JsValue[])->void notificationFn
+  ) {
+    this.requestFn = requestFn;
+    this.notificationFn = notificationFn;
+  }
+
+  RpcResponse sendRequest(string name, JsValue[] args) {
+    return this.requestFn(name, args);
+  }
+
+  void sendNotification(string name, JsValue[] args) {
+    this.notificationFn(name, args);
+  }
+}
+
+export class SimpleTypedRpcConnection {
+  RpcChannel channel;
+  RpcHandler handler;
+
+  init(RpcChannel channel, RpcHandler handler) {
+    this.channel = channel;
+    this.handler = handler;
+  }
+
+  JsValue request(string name, JsValue[] args) {
+    RpcResponse result = this.channel.sendRequest(name, args);
+    if (result.isError) {
+      throw result.value;
+    }
+    return result.value;
+  }
+
+  void notify(string name, JsValue[] args) {
+    this.channel.sendNotification(name, args);
+  }
+
+  RpcResponse handleRequest(string name, JsValue[] args) {
+    return this.handler.handleRequest(name, args);
+  }
+
+  void handleNotification(string name, JsValue[] args) {
+    this.handler.handleNotification(name, args);
+  }
+}
+
+export SimpleTypedRpcConnection createRpcConnection(
+  RpcChannel channel,
+  RpcHandler handler
+) {
+  return new SimpleTypedRpcConnection(channel, handler);
+}
+
+export RpcChannel createLocalRpcChannel(RpcHandler remoteHandler) {
+  return new RpcChannel(
+    (string name, JsValue[] args) => {
+      return remoteHandler.handleRequest(name, args);
+    },
+    (string name, JsValue[] args) => {
+      remoteHandler.handleNotification(name, args);
+    }
+  );
+}

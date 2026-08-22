@@ -1,0 +1,176 @@
+import { hostCall, jsUndefined, sliceOf } from "../../../../js-host";
+import { IndentRulesSupport } from "./supports/indentRules";
+
+string leadingWhitespace(string line) {
+  int i = 0;
+  while (i < line.length) {
+    int code = line.charCodeAt(i);
+    if (code != 32 && code != 9) {
+      break;
+    }
+    i = i + 1;
+  }
+  return sliceOf(line, 0, i);
+}
+
+string shiftIndent(string indentation, JsValue converter) {
+  if (converter != null && converter["shiftIndent"] != null) {
+    return JS.string(hostCall(converter, "shiftIndent", indentation, jsUndefined(), jsUndefined()));
+  }
+  return indentation + "\t";
+}
+
+string reduceIndent(string indentation) {
+  if (indentation.length == 0) {
+    return indentation;
+  }
+  if (indentation.charCodeAt(indentation.length - 1) == 9) {
+    return sliceOf(indentation, 0, indentation.length - 1);
+  }
+  int remove = 0;
+  int i = indentation.length - 1;
+  while (i >= 0 && remove < 4 && indentation.charCodeAt(i) == 32) {
+    remove = remove + 1;
+    i = i - 1;
+  }
+  return sliceOf(indentation, 0, indentation.length - remove);
+}
+
+JsValue languageConfiguration(JsValue model, int lineNumber, JsValue service) {
+  string languageId = "";
+  if (model["getLanguageIdAtPosition"] != null) {
+    languageId = JS.string(hostCall(model, "getLanguageIdAtPosition", lineNumber, 1, jsUndefined()));
+  } else if (model["getLanguageId"] != null) {
+    languageId = JS.string(hostCall(model, "getLanguageId", jsUndefined(), jsUndefined(), jsUndefined()));
+  }
+  if (service != null && service["getLanguageConfiguration"] != null) {
+    return hostCall(service, "getLanguageConfiguration", languageId, jsUndefined(), jsUndefined());
+  }
+  return service;
+}
+
+IndentRulesSupport rulesFor(JsValue configuration) {
+  if (configuration != null && configuration["indentationRules"] != null) {
+    return new IndentRulesSupport(configuration["indentationRules"]);
+  }
+  return new IndentRulesSupport(null);
+}
+
+export JsValue getInheritIndentForLine(
+  int autoIndent,
+  JsValue model,
+  int lineNumber,
+  bool honorIntentionalIndent = true,
+  JsValue languageConfigurationService = null
+) {
+  if (autoIndent < 4 || lineNumber <= 1) {
+    return null;
+  }
+  JsValue configuration = languageConfiguration(model, lineNumber, languageConfigurationService);
+  IndentRulesSupport rules = rulesFor(configuration);
+  int previous = lineNumber - 1;
+  while (previous >= 1) {
+    string line = JS.string(hostCall(model, "getLineContent", previous, jsUndefined(), jsUndefined()));
+    if (!rules.shouldIgnore(line)) {
+      JsValue result = JS.object();
+      result["indentation"] = leadingWhitespace(line);
+      int action = 0;
+      if (rules.shouldIncrease(line) || rules.shouldIndentNextLine(line)) {
+        action = 1;
+      }
+      result["action"] = action;
+      result["line"] = previous;
+      return result;
+    }
+    previous = previous - 1;
+  }
+  return null;
+}
+
+export string getGoodIndentForLine(
+  int autoIndent,
+  JsValue model,
+  string languageId,
+  int lineNumber,
+  JsValue indentConverter,
+  JsValue languageConfigurationService
+) {
+  JsValue inherited = getInheritIndentForLine(
+    autoIndent,
+    model,
+    lineNumber,
+    true,
+    languageConfigurationService
+  );
+  if (inherited == null) {
+    return "";
+  }
+  string indentation = JS.string(inherited["indentation"]);
+  if (JS.number(inherited["action"]).toInt() == 1) {
+    indentation = shiftIndent(indentation, indentConverter);
+  }
+  string current = JS.string(hostCall(model, "getLineContent", lineNumber, jsUndefined(), jsUndefined()));
+  JsValue configuration = languageConfiguration(model, lineNumber, languageConfigurationService);
+  if (rulesFor(configuration).shouldDecrease(current)) {
+    indentation = reduceIndent(indentation);
+  }
+  return indentation;
+}
+
+export JsValue getIndentForEnter(
+  int autoIndent,
+  JsValue model,
+  JsValue range,
+  JsValue indentConverter,
+  JsValue languageConfigurationService
+) {
+  if (autoIndent < 3) {
+    return null;
+  }
+  int lineNumber = JS.number(range["startLineNumber"]).toInt();
+  int column = JS.number(range["startColumn"]).toInt();
+  string line = JS.string(hostCall(model, "getLineContent", lineNumber, jsUndefined(), jsUndefined()));
+  string before = sliceOf(line, 0, column - 1);
+  string after = sliceOf(line, column - 1, line.length);
+  string beforeIndent = leadingWhitespace(before);
+  string afterIndent = beforeIndent;
+  JsValue configuration = languageConfiguration(model, lineNumber, languageConfigurationService);
+  IndentRulesSupport rules = rulesFor(configuration);
+  if (rules.shouldIncrease(before) || rules.shouldIndentNextLine(before)) {
+    afterIndent = shiftIndent(beforeIndent, indentConverter);
+  }
+  if (rules.shouldDecrease(after)) {
+    afterIndent = reduceIndent(afterIndent);
+  }
+  JsValue result = JS.object();
+  result["beforeEnter"] = beforeIndent;
+  result["afterEnter"] = afterIndent;
+  return result;
+}
+
+export JsValue getIndentActionForType(
+  JsValue cursorConfig,
+  JsValue model,
+  JsValue range,
+  string character,
+  JsValue indentConverter,
+  JsValue languageConfigurationService
+) {
+  int lineNumber = JS.number(range["startLineNumber"]).toInt();
+  string line = JS.string(hostCall(model, "getLineContent", lineNumber, jsUndefined(), jsUndefined()));
+  int column = JS.number(range["startColumn"]).toInt();
+  string candidate = sliceOf(line, 0, column - 1) + character;
+  JsValue configuration = languageConfiguration(model, lineNumber, languageConfigurationService);
+  if (!rulesFor(configuration).shouldDecrease(candidate)) {
+    return null;
+  }
+  JsValue result = JS.object();
+  result["text"] = reduceIndent(leadingWhitespace(line));
+  return result;
+}
+
+export int getIndentMetadata(JsValue model, int lineNumber, JsValue languageConfigurationService) {
+  string line = JS.string(hostCall(model, "getLineContent", lineNumber, jsUndefined(), jsUndefined()));
+  JsValue configuration = languageConfiguration(model, lineNumber, languageConfigurationService);
+  return rulesFor(configuration).getIndentMetadata(line);
+}

@@ -1,0 +1,102 @@
+export class GhostTextPart {
+  int column;
+  string text;
+  bool preview;
+
+  init(int column, string text, bool preview) {
+    this.column = column;
+    this.text = text;
+    this.preview = preview;
+  }
+
+  string[] lines() {
+    string[] result = [];
+    string current = "";
+    int i = 0;
+    while (i <= this.text.length) {
+      if (i == this.text.length || this.text.charAt(i) == "\n") {
+        result.push(current);
+        current = "";
+      } else {
+        current = current + this.text.charAt(i);
+      }
+      i = i + 1;
+    }
+    if (result.length == 0) {
+      result.push("");
+    }
+    return result;
+  }
+}
+
+export class GhostText {
+  int lineNumber;
+  GhostTextPart[] parts;
+
+  init(int lineNumber, GhostTextPart[] parts) {
+    this.lineNumber = lineNumber;
+    this.parts = parts;
+  }
+
+  bool isEmpty() {
+    int i = 0;
+    while (i < this.parts.length) {
+      if (this.parts[i].text.length > 0) {
+        return false;
+      }
+      i = i + 1;
+    }
+    return true;
+  }
+
+  int lineCount() {
+    int extra = 0;
+    int i = 0;
+    while (i < this.parts.length) {
+      extra = extra + this.parts[i].lines().length - 1;
+      i = i + 1;
+    }
+    return 1 + extra;
+  }
+
+  string renderForScreenReader(string lineText) {
+    if (this.parts.length == 0) {
+      return "";
+    }
+    string out = "";
+    int col = 1;
+    int p = 0;
+    while (p < this.parts.length) {
+      GhostTextPart part = this.parts[p];
+      while (col < part.column && col - 1 < lineText.length) {
+        out = out + lineText.charAt(col - 1);
+        col = col + 1;
+      }
+      out = out + part.text;
+      p = p + 1;
+    }
+    return out;
+  }
+
+  bool equalsGhost(GhostText other) {
+    if (this.lineNumber != other.lineNumber || this.parts.length != other.parts.length) {
+      return false;
+    }
+    int i = 0;
+    while (i < this.parts.length) {
+      if (this.parts[i].column != other.parts[i].column || this.parts[i].text != other.parts[i].text) {
+        return false;
+      }
+      i = i + 1;
+    }
+    return true;
+  }
+}
+
+export GhostText createGhostText(int lineNumber, int column, string text) {
+  return new GhostText(lineNumber, [new GhostTextPart(column, text, false)]);
+}
+
+export GhostTextPart createGhostTextPart(int column, string text, bool preview) {
+  return new GhostTextPart(column, text, preview);
+}

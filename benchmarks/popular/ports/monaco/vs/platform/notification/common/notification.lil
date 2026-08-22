@@ -1,0 +1,33 @@
+export int NotificationSeverityIgnore = 0;
+export int NotificationSeverityInfo = 1;
+export int NotificationSeverityWarning = 2;
+export int NotificationSeverityError = 3;
+
+export class NotificationService {
+  string[] messages;
+  int[] severities;
+
+  init() {
+    this.messages = [];
+    this.severities = [];
+  }
+
+  void notify(int severity, string message) {
+    this.messages.push(message);
+    this.severities.push(severity);
+  }
+
+  void info(string message) {
+    this.notify(NotificationSeverityInfo, message);
+  }
+
+  void error(string message) {
+    this.notify(NotificationSeverityError, message);
+  }
+}
+
+export NotificationService createNotificationService() {
+  return new NotificationService();
+}
+
+export string INotificationServiceId = "notificationService";

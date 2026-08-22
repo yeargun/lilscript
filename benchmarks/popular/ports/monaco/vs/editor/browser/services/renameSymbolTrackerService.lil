@@ -1,0 +1,27 @@
+export string IRenameSymbolTrackerServiceId() {
+  return "renameSymbolTrackerService";
+}
+
+export class NullRenameSymbolTrackerService {
+  string trackedWord;
+
+  init() {
+    this.trackedWord = "";
+  }
+
+  void setTrackedWord(string word) {
+    this.trackedWord = word;
+  }
+
+  string getTrackedWord() {
+    return this.trackedWord;
+  }
+
+  void clear() {
+    this.trackedWord = "";
+  }
+}
+
+export NullRenameSymbolTrackerService createNullRenameSymbolTrackerService() {
+  return new NullRenameSymbolTrackerService();
+}

@@ -1,0 +1,27 @@
+export class GutterFeature {
+  bool showMenu;
+  bool showRevert;
+  int width;
+
+  init(bool showMenu, bool showRevert) {
+    this.showMenu = showMenu;
+    this.showRevert = showRevert;
+    this.width = 0;
+    if (showMenu || showRevert) {
+      this.width = 26;
+    }
+  }
+
+  void update(bool showMenu, bool showRevert) {
+    this.showMenu = showMenu;
+    this.showRevert = showRevert;
+    this.width = 0;
+    if (showMenu || showRevert) {
+      this.width = 26;
+    }
+  }
+}
+
+export GutterFeature createGutterFeature(bool showMenu, bool showRevert) {
+  return new GutterFeature(showMenu, showRevert);
+}

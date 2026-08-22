@@ -1,0 +1,163 @@
+export int OverviewRulerLaneLeft = 1;
+export int OverviewRulerLaneCenter = 2;
+export int OverviewRulerLaneRight = 4;
+export int OverviewRulerLaneFull = 7;
+export int GlyphMarginLaneLeft = 1;
+export int GlyphMarginLaneCenter = 2;
+export int GlyphMarginLaneRight = 3;
+export int TextDirectionLTR = 0;
+export int TextDirectionRTL = 1;
+export int InjectedTextCursorStopsBoth = 0;
+export int InjectedTextCursorStopsRight = 1;
+export int InjectedTextCursorStopsLeft = 2;
+export int InjectedTextCursorStopsNone = 3;
+
+export class TextModelResolvedOptions {
+  int tabSize;
+  int indentSize;
+  bool indentSizeIsTabSize;
+  bool insertSpaces;
+  int defaultEOL;
+  bool trimAutoWhitespace;
+  JsValue bracketPairColorizationOptions;
+
+  init(
+    int tabSize,
+    int indentSize,
+    bool indentSizeIsTabSize,
+    bool insertSpaces,
+    int defaultEOL,
+    bool trimAutoWhitespace,
+    JsValue bracketPairColorizationOptions
+  ) {
+    this.tabSize = tabSize;
+    if (this.tabSize < 1) {
+      this.tabSize = 1;
+    }
+    this.indentSizeIsTabSize = indentSizeIsTabSize;
+    this.indentSize = indentSize;
+    if (indentSizeIsTabSize) {
+      this.indentSize = this.tabSize;
+    } else if (this.indentSize < 1) {
+      this.indentSize = 1;
+    }
+    this.insertSpaces = insertSpaces;
+    this.defaultEOL = defaultEOL;
+    this.trimAutoWhitespace = trimAutoWhitespace;
+    this.bracketPairColorizationOptions = bracketPairColorizationOptions;
+  }
+
+  string originalIndentSize() {
+    if (this.indentSizeIsTabSize) {
+      return "tabSize";
+    }
+    return this.indentSize.toString();
+  }
+
+  bool equals(TextModelResolvedOptions other) {
+    return this.tabSize == other.tabSize
+      && this.indentSize == other.indentSize
+      && this.indentSizeIsTabSize == other.indentSizeIsTabSize
+      && this.insertSpaces == other.insertSpaces
+      && this.defaultEOL == other.defaultEOL
+      && this.trimAutoWhitespace == other.trimAutoWhitespace
+      && this.bracketPairColorizationOptions == other.bracketPairColorizationOptions;
+  }
+}
+
+export class FindMatch {
+  JsValue range;
+  string[] matches;
+
+  init(JsValue range, string[] matches) {
+    this.range = range;
+    this.matches = matches;
+  }
+}
+
+export bool isITextSnapshot(JsValue value) {
+  if (!value.truthy()) {
+    return false;
+  }
+  return value["read"].truthy();
+}
+
+export class ValidAnnotatedEditOperation {
+  JsValue identifier;
+  JsValue range;
+  string text;
+  bool forceMoveMarkers;
+  bool isAutoWhitespaceEdit;
+  bool isTracked;
+
+  init(JsValue identifier, JsValue range, string text, bool forceMoveMarkers, bool isAutoWhitespaceEdit, bool isTracked) {
+    this.identifier = identifier;
+    this.range = range;
+    this.text = text;
+    this.forceMoveMarkers = forceMoveMarkers;
+    this.isAutoWhitespaceEdit = isAutoWhitespaceEdit;
+    this.isTracked = isTracked;
+  }
+}
+
+export class SearchData {
+  Regex regex;
+  string wordSeparators;
+  string simpleSearch;
+
+  init(Regex regex, string wordSeparators, string simpleSearch) {
+    this.regex = regex;
+    this.wordSeparators = wordSeparators;
+    this.simpleSearch = simpleSearch;
+  }
+}
+
+export class ApplyEditsResult {
+  JsValue[] reverseEdits;
+  JsValue[] changes;
+  int[] trimAutoWhitespaceLineNumbers;
+
+  init(JsValue[] reverseEdits, JsValue[] changes, int[] trimAutoWhitespaceLineNumbers) {
+    this.reverseEdits = reverseEdits;
+    this.changes = changes;
+    this.trimAutoWhitespaceLineNumbers = trimAutoWhitespaceLineNumbers;
+  }
+}
+
+export class SynchronizableModel {
+  bool tooLargeForSyncing;
+  bool isForSimpleWidget;
+
+  init(bool tooLargeForSyncing, bool isForSimpleWidget) {
+    this.tooLargeForSyncing = tooLargeForSyncing;
+    this.isForSimpleWidget = isForSimpleWidget;
+  }
+
+  bool isTooLargeForSyncing() {
+    return this.tooLargeForSyncing;
+  }
+}
+
+export bool shouldSynchronizeModel(SynchronizableModel model) {
+  return !model.isTooLargeForSyncing() && !model.isForSimpleWidget;
+}
+
+export TextModelResolvedOptions createTextModelResolvedOptions(
+  int tabSize,
+  int indentSize,
+  bool indentSizeIsTabSize,
+  bool insertSpaces,
+  int defaultEOL,
+  bool trimAutoWhitespace,
+  JsValue bracketPairColorizationOptions
+) {
+  return new TextModelResolvedOptions(
+    tabSize,
+    indentSize,
+    indentSizeIsTabSize,
+    insertSpaces,
+    defaultEOL,
+    trimAutoWhitespace,
+    bracketPairColorizationOptions
+  );
+}

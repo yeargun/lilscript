@@ -1,0 +1,735 @@
+{
+  "schemaVersion": 1,
+  "provenance": {
+    "generatedAt": "2026-08-19T15:13:17.541Z",
+    "upstreamRepository": "https://github.com/krausest/js-framework-benchmark.git",
+    "upstreamCommit": "afe7c118dd217ccae4c10813613ac0d7566b1ef1",
+    "lilscriptCommit": "440405254fbfaa53b5e0745c92bfeec8a66178c1",
+    "compilerSha256": "989393adb9df10d90e83c03f361f243f6bcd2a0902225c80b07872da27833040",
+    "node": "v22.21.1",
+    "chrome": "Google Chrome 151.0.7922.169",
+    "platform": "darwin 24.6.0 arm64",
+    "cpu": "Apple M3 Pro",
+    "logicalCpuCount": 12,
+    "totalMemoryBytes": 19327352832
+  },
+  "configuration": {
+    "runner": "upstream Playwright implementation",
+    "browser": "installed Google Chrome",
+    "blocks": 3,
+    "seed": 20260814,
+    "cpuThrottling": true,
+    "warmups": "upstream workload-specific warmupCount",
+    "memoryCollection": "forceGC + performance.measureUserAgentSpecificMemory",
+    "coldLoad": "fresh browser context with an empty cache",
+    "brotliQuality": 11,
+    "frameworkFilter": "keyed/solid-v2,keyed/solidlil-v2",
+    "measurementFingerprint": "0605b95d91ff332500169947451d852cc8611bfc1f0574b15bc8c3a585a19a98"
+  },
+  "sizes": {},
+  "samples": [
+    {
+      "phase": "cpu",
+      "block": 0,
+      "workload": "05_swap1k",
+      "framework": "solidlil-v2-v0.1.0-keyed",
+      "elapsedMs": 2203,
+      "value": {
+        "total": 20.014,
+        "script": 1.176,
+        "paint": 15.222
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 0,
+      "workload": "05_swap1k",
+      "framework": "solid-v2-v2.0.0-rc.0-keyed",
+      "elapsedMs": 1726,
+      "value": {
+        "total": 20.178,
+        "script": 1.241,
+        "paint": 17.176
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 0,
+      "workload": "02_replace1k",
+      "framework": "solid-v2-v2.0.0-rc.0-keyed",
+      "elapsedMs": 1793,
+      "value": {
+        "total": 28.399,
+        "script": 5.52,
+        "paint": 22.316
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 0,
+      "workload": "02_replace1k",
+      "framework": "solidlil-v2-v0.1.0-keyed",
+      "elapsedMs": 2085,
+      "value": {
+        "total": 27.748,
+        "script": 5.257,
+        "paint": 22.002
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 0,
+      "workload": "03_update10th1k_x16",
+      "framework": "solidlil-v2-v0.1.0-keyed",
+      "elapsedMs": 1696,
+      "value": {
+        "total": 14.413,
+        "script": 1.405,
+        "paint": 11.728
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 0,
+      "workload": "03_update10th1k_x16",
+      "framework": "solid-v2-v2.0.0-rc.0-keyed",
+      "elapsedMs": 1785,
+      "value": {
+        "total": 19.142,
+        "script": 1.828,
+        "paint": 13.781
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 0,
+      "workload": "09_clear1k_x8",
+      "framework": "solidlil-v2-v0.1.0-keyed",
+      "elapsedMs": 1987,
+      "value": {
+        "total": 11.659,
+        "script": 8.978,
+        "paint": 1.37
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 0,
+      "workload": "09_clear1k_x8",
+      "framework": "solid-v2-v2.0.0-rc.0-keyed",
+      "elapsedMs": 1967,
+      "value": {
+        "total": 12.048,
+        "script": 9.971,
+        "paint": 1.265
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 0,
+      "workload": "06_remove-one-1k",
+      "framework": "solidlil-v2-v0.1.0-keyed",
+      "elapsedMs": 1961,
+      "value": {
+        "total": 16.06,
+        "script": 0.498,
+        "paint": 13.72
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 0,
+      "workload": "06_remove-one-1k",
+      "framework": "solid-v2-v2.0.0-rc.0-keyed",
+      "elapsedMs": 1947,
+      "value": {
+        "total": 14.198,
+        "script": 0.509,
+        "paint": 12.553
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 0,
+      "workload": "04_select1k",
+      "framework": "solidlil-v2-v0.1.0-keyed",
+      "elapsedMs": 1875,
+      "value": {
+        "total": 7.456,
+        "script": 1.589,
+        "paint": 3.786
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 0,
+      "workload": "04_select1k",
+      "framework": "solid-v2-v2.0.0-rc.0-keyed",
+      "elapsedMs": 2052,
+      "value": {
+        "total": 11.287,
+        "script": 4.468,
+        "paint": 4.821
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 0,
+      "workload": "07_create10k",
+      "framework": "solid-v2-v2.0.0-rc.0-keyed",
+      "elapsedMs": 2652,
+      "value": {
+        "total": 277.469,
+        "script": 25.373,
+        "paint": 242.121
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 0,
+      "workload": "07_create10k",
+      "framework": "solidlil-v2-v0.1.0-keyed",
+      "elapsedMs": 2531,
+      "value": {
+        "total": 282.318,
+        "script": 34.254,
+        "paint": 239.084
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 0,
+      "workload": "01_run1k",
+      "framework": "solidlil-v2-v0.1.0-keyed",
+      "elapsedMs": 1916,
+      "value": {
+        "total": 25.436,
+        "script": 3.489,
+        "paint": 21.342
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 0,
+      "workload": "01_run1k",
+      "framework": "solid-v2-v2.0.0-rc.0-keyed",
+      "elapsedMs": 1842,
+      "value": {
+        "total": 24.534,
+        "script": 2.657,
+        "paint": 21.371
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 0,
+      "workload": "08_create1k-after1k_x2",
+      "framework": "solidlil-v2-v0.1.0-keyed",
+      "elapsedMs": 2020,
+      "value": {
+        "total": 28.556,
+        "script": 3.365,
+        "paint": 24.243
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 0,
+      "workload": "08_create1k-after1k_x2",
+      "framework": "solid-v2-v2.0.0-rc.0-keyed",
+      "elapsedMs": 1963,
+      "value": {
+        "total": 31.128,
+        "script": 3.168,
+        "paint": 26.701
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 1,
+      "workload": "04_select1k",
+      "framework": "solid-v2-v2.0.0-rc.0-keyed",
+      "elapsedMs": 1610,
+      "value": {
+        "total": 8.617,
+        "script": 3.94,
+        "paint": 3.21
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 1,
+      "workload": "04_select1k",
+      "framework": "solidlil-v2-v0.1.0-keyed",
+      "elapsedMs": 1602,
+      "value": {
+        "total": 5.093,
+        "script": 1.078,
+        "paint": 3.213
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 1,
+      "workload": "05_swap1k",
+      "framework": "solid-v2-v2.0.0-rc.0-keyed",
+      "elapsedMs": 1802,
+      "value": {
+        "total": 19.137,
+        "script": 2.098,
+        "paint": 14.345
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 1,
+      "workload": "05_swap1k",
+      "framework": "solidlil-v2-v0.1.0-keyed",
+      "elapsedMs": 1829,
+      "value": {
+        "total": 20.345,
+        "script": 0.793,
+        "paint": 16.775
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 1,
+      "workload": "07_create10k",
+      "framework": "solid-v2-v2.0.0-rc.0-keyed",
+      "elapsedMs": 2448,
+      "value": {
+        "total": 275.496,
+        "script": 25.356,
+        "paint": 240.973
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 1,
+      "workload": "07_create10k",
+      "framework": "solidlil-v2-v0.1.0-keyed",
+      "elapsedMs": 2454,
+      "value": {
+        "total": 280.639,
+        "script": 31.935,
+        "paint": 239.27
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 1,
+      "workload": "01_run1k",
+      "framework": "solid-v2-v2.0.0-rc.0-keyed",
+      "elapsedMs": 1916,
+      "value": {
+        "total": 24.502,
+        "script": 2.764,
+        "paint": 21.245
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 1,
+      "workload": "01_run1k",
+      "framework": "solidlil-v2-v0.1.0-keyed",
+      "elapsedMs": 1861,
+      "value": {
+        "total": 27.506,
+        "script": 3.635,
+        "paint": 23.257
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 1,
+      "workload": "08_create1k-after1k_x2",
+      "framework": "solidlil-v2-v0.1.0-keyed",
+      "elapsedMs": 1959,
+      "value": {
+        "total": 29.691,
+        "script": 3.438,
+        "paint": 25.272
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 1,
+      "workload": "08_create1k-after1k_x2",
+      "framework": "solid-v2-v2.0.0-rc.0-keyed",
+      "elapsedMs": 1950,
+      "value": {
+        "total": 30.026,
+        "script": 3.504,
+        "paint": 25.446
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 1,
+      "workload": "06_remove-one-1k",
+      "framework": "solidlil-v2-v0.1.0-keyed",
+      "elapsedMs": 1824,
+      "value": {
+        "total": 13.224,
+        "script": 0.501,
+        "paint": 11.19
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 1,
+      "workload": "06_remove-one-1k",
+      "framework": "solid-v2-v2.0.0-rc.0-keyed",
+      "elapsedMs": 2001,
+      "value": {
+        "total": 15.448,
+        "script": 0.564,
+        "paint": 13.414
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 1,
+      "workload": "09_clear1k_x8",
+      "framework": "solidlil-v2-v0.1.0-keyed",
+      "elapsedMs": 2286,
+      "value": {
+        "total": 13.498,
+        "script": 10.549,
+        "paint": 1.297
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 1,
+      "workload": "09_clear1k_x8",
+      "framework": "solid-v2-v2.0.0-rc.0-keyed",
+      "elapsedMs": 2064,
+      "value": {
+        "total": 13.286,
+        "script": 10.974,
+        "paint": 1.764
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 1,
+      "workload": "02_replace1k",
+      "framework": "solidlil-v2-v0.1.0-keyed",
+      "elapsedMs": 1905,
+      "value": {
+        "total": 27.263,
+        "script": 5.215,
+        "paint": 21.549
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 1,
+      "workload": "02_replace1k",
+      "framework": "solid-v2-v2.0.0-rc.0-keyed",
+      "elapsedMs": 1873,
+      "value": {
+        "total": 29.12,
+        "script": 6.251,
+        "paint": 22.326
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 1,
+      "workload": "03_update10th1k_x16",
+      "framework": "solidlil-v2-v0.1.0-keyed",
+      "elapsedMs": 1701,
+      "value": {
+        "total": 18.451,
+        "script": 1.579,
+        "paint": 15.039
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 1,
+      "workload": "03_update10th1k_x16",
+      "framework": "solid-v2-v2.0.0-rc.0-keyed",
+      "elapsedMs": 1720,
+      "value": {
+        "total": 19.055,
+        "script": 1.844,
+        "paint": 14.876
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 2,
+      "workload": "02_replace1k",
+      "framework": "solidlil-v2-v0.1.0-keyed",
+      "elapsedMs": 1855,
+      "value": {
+        "total": 28.434,
+        "script": 5.446,
+        "paint": 22.441
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 2,
+      "workload": "02_replace1k",
+      "framework": "solid-v2-v2.0.0-rc.0-keyed",
+      "elapsedMs": 1804,
+      "value": {
+        "total": 28.536,
+        "script": 5.8,
+        "paint": 22.214
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 2,
+      "workload": "07_create10k",
+      "framework": "solidlil-v2-v0.1.0-keyed",
+      "elapsedMs": 2438,
+      "value": {
+        "total": 290.998,
+        "script": 32.589,
+        "paint": 249.163
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 2,
+      "workload": "07_create10k",
+      "framework": "solid-v2-v2.0.0-rc.0-keyed",
+      "elapsedMs": 2410,
+      "value": {
+        "total": 275.388,
+        "script": 24.896,
+        "paint": 241.327
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 2,
+      "workload": "01_run1k",
+      "framework": "solidlil-v2-v0.1.0-keyed",
+      "elapsedMs": 1880,
+      "value": {
+        "total": 25.453,
+        "script": 3.569,
+        "paint": 21.26
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 2,
+      "workload": "01_run1k",
+      "framework": "solid-v2-v2.0.0-rc.0-keyed",
+      "elapsedMs": 1917,
+      "value": {
+        "total": 26.916,
+        "script": 2.728,
+        "paint": 23.273
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 2,
+      "workload": "06_remove-one-1k",
+      "framework": "solidlil-v2-v0.1.0-keyed",
+      "elapsedMs": 1934,
+      "value": {
+        "total": 14.154,
+        "script": 0.518,
+        "paint": 12.478
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 2,
+      "workload": "06_remove-one-1k",
+      "framework": "solid-v2-v2.0.0-rc.0-keyed",
+      "elapsedMs": 1821,
+      "value": {
+        "total": 13.328,
+        "script": 0.513,
+        "paint": 11.956
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 2,
+      "workload": "03_update10th1k_x16",
+      "framework": "solidlil-v2-v0.1.0-keyed",
+      "elapsedMs": 1841,
+      "value": {
+        "total": 21.356,
+        "script": 2.031,
+        "paint": 16.938
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 2,
+      "workload": "03_update10th1k_x16",
+      "framework": "solid-v2-v2.0.0-rc.0-keyed",
+      "elapsedMs": 1723,
+      "value": {
+        "total": 18.876,
+        "script": 1.506,
+        "paint": 14.411
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 2,
+      "workload": "05_swap1k",
+      "framework": "solid-v2-v2.0.0-rc.0-keyed",
+      "elapsedMs": 1835,
+      "value": {
+        "total": 19.819,
+        "script": 1.521,
+        "paint": 16.049
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 2,
+      "workload": "05_swap1k",
+      "framework": "solidlil-v2-v0.1.0-keyed",
+      "elapsedMs": 1882,
+      "value": {
+        "total": 20.932,
+        "script": 1.139,
+        "paint": 16.459
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 2,
+      "workload": "08_create1k-after1k_x2",
+      "framework": "solidlil-v2-v0.1.0-keyed",
+      "elapsedMs": 2025,
+      "value": {
+        "total": 28.746,
+        "script": 3.347,
+        "paint": 24.423
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 2,
+      "workload": "08_create1k-after1k_x2",
+      "framework": "solid-v2-v2.0.0-rc.0-keyed",
+      "elapsedMs": 1951,
+      "value": {
+        "total": 28.999,
+        "script": 3.201,
+        "paint": 24.768
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 2,
+      "workload": "04_select1k",
+      "framework": "solid-v2-v2.0.0-rc.0-keyed",
+      "elapsedMs": 1673,
+      "value": {
+        "total": 9.987,
+        "script": 4.305,
+        "paint": 3.947
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 2,
+      "workload": "04_select1k",
+      "framework": "solidlil-v2-v0.1.0-keyed",
+      "elapsedMs": 1639,
+      "value": {
+        "total": 5.039,
+        "script": 1.123,
+        "paint": 2.921
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 2,
+      "workload": "09_clear1k_x8",
+      "framework": "solid-v2-v2.0.0-rc.0-keyed",
+      "elapsedMs": 1945,
+      "value": {
+        "total": 12.902,
+        "script": 10.425,
+        "paint": 1.652
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 2,
+      "workload": "09_clear1k_x8",
+      "framework": "solidlil-v2-v0.1.0-keyed",
+      "elapsedMs": 1970,
+      "value": {
+        "total": 11.953,
+        "script": 9.48,
+        "paint": 1.133
+      },
+      "warnings": []
+    }
+  ],
+  "completedAt": "2026-08-19T15:15:03.149Z"
+}

@@ -1,0 +1,123 @@
+import { concat2 } from "../../../js-host";
+
+int nextSuggestionId = 1;
+
+export class TextModelEditSource {
+  string source;
+  string kind;
+  string name;
+  bool nextEditSuggestion;
+  string details;
+
+  init(string source, string kind, string name, bool nextEditSuggestion, string details) {
+    this.source = source;
+    this.kind = kind;
+    this.name = name;
+    this.nextEditSuggestion = nextEditSuggestion;
+    this.details = details;
+  }
+
+  string toString() {
+    return this.source;
+  }
+
+  string getType() {
+    if (this.source == "cursor") {
+      return this.kind;
+    }
+    if (this.source == "inlineCompletionAccept") {
+      if (this.nextEditSuggestion) {
+        return "inlineCompletionAccept:nes";
+      }
+      return this.source;
+    }
+    if (this.source == "unknown") {
+      if (this.name.length > 0) {
+        return this.name;
+      }
+      return "unknown";
+    }
+    return this.source;
+  }
+
+  string toKey(int level) {
+    string key = concat2("source:", this.source);
+    if (level >= 0 && this.kind.length > 0) {
+      key = concat2(concat2(key, "-kind:"), this.kind);
+    }
+    if (level >= 0 && this.name.length > 0) {
+      key = concat2(concat2(key, "-name:"), this.name);
+    }
+    if (level >= 1 && this.nextEditSuggestion) {
+      key = concat2(key, "-$nes:true");
+    }
+    if (level >= 2 && this.details.length > 0) {
+      key = concat2(concat2(key, "-$$details:"), this.details);
+    }
+    return key;
+  }
+}
+
+export class EditDeltaInfo {
+  int linesAdded;
+  int linesRemoved;
+  int charsAdded;
+  int charsRemoved;
+
+  init(int linesAdded, int linesRemoved, int charsAdded, int charsRemoved) {
+    this.linesAdded = linesAdded;
+    this.linesRemoved = linesRemoved;
+    this.charsAdded = charsAdded;
+    this.charsRemoved = charsRemoved;
+  }
+}
+
+export EditDeltaInfo editDeltaFromText(string text) {
+  int linesAdded = 0;
+  int i = 0;
+  while (i < text.length) {
+    int code = text.charCodeAt(i);
+    if (code == 13) {
+      if (i + 1 < text.length && text.charCodeAt(i + 1) == 10) {
+        i = i + 1;
+      }
+      linesAdded = linesAdded + 1;
+    } else if (code == 10) {
+      linesAdded = linesAdded + 1;
+    }
+    i = i + 1;
+  }
+  return new EditDeltaInfo(linesAdded, 0, text.length, 0);
+}
+
+export EditDeltaInfo createEditDeltaInfo(int linesAdded, int linesRemoved, int charsAdded, int charsRemoved) {
+  return new EditDeltaInfo(linesAdded, linesRemoved, charsAdded, charsRemoved);
+}
+
+export TextModelEditSource createEditSource(
+  string source,
+  string kind,
+  string name,
+  bool nextEditSuggestion,
+  string details
+) {
+  return new TextModelEditSource(source, kind, name, nextEditSuggestion, details);
+}
+
+export TextModelEditSource unknownEditSource(string name) {
+  return createEditSource("unknown", "", name, false, "");
+}
+
+export TextModelEditSource cursorEditSource(string kind, string detailedSource) {
+  return createEditSource("cursor", kind, "", false, detailedSource);
+}
+
+export TextModelEditSource simpleEditSource(string source) {
+  return createEditSource(source, "", "", false, "");
+}
+
+export string newEditSuggestionId() {
+  string id = concat2("sgt-", nextSuggestionId.toString());
+  nextSuggestionId = nextSuggestionId + 1;
+  return id;
+}

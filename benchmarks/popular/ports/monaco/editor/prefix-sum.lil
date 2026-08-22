@@ -1,0 +1,177 @@
+export class PrefixSumIndexOfResult {
+  int index;
+  int remainder;
+
+  init(int index, int remainder) {
+    this.index = index;
+    this.remainder = remainder;
+  }
+}
+
+export class PrefixSumComputer {
+  int[] values;
+  int[] prefixSum;
+  int validIndex;
+
+  init(int[] values) {
+    this.values = values;
+    this.prefixSum = [];
+    int i = 0;
+    while (i < values.length) {
+      this.prefixSum.push(0);
+      i++;
+    }
+    this.validIndex = -1;
+  }
+
+  bool insertValues(int insertIndex, int[] insertValues) {
+    if (insertValues.length == 0) {
+      return false;
+    }
+    int at = insertIndex;
+    if (at < 0) {
+      at = 0;
+    }
+    if (at > this.values.length) {
+      at = this.values.length;
+    }
+    int[] next = [];
+    int i = 0;
+    while (i < at) {
+      next.push(this.values[i]);
+      i++;
+    }
+    int k = 0;
+    while (k < insertValues.length) {
+      next.push(insertValues[k]);
+      k++;
+    }
+    while (i < this.values.length) {
+      next.push(this.values[i]);
+      i++;
+    }
+    this.values = next;
+    this.prefixSum = [];
+    int p = 0;
+    while (p < this.values.length) {
+      this.prefixSum.push(0);
+      p++;
+    }
+    if (at - 1 < this.validIndex) {
+      this.validIndex = at - 1;
+    }
+    return true;
+  }
+
+  bool setValue(int index, int value) {
+    if (index < 0 || index >= this.values.length) {
+      return false;
+    }
+    if (this.values[index] == value) {
+      return false;
+    }
+    this.values[index] = value;
+    if (index - 1 < this.validIndex) {
+      this.validIndex = index - 1;
+    }
+    return true;
+  }
+
+  bool removeValues(int startIndex, int count) {
+    if (startIndex >= this.values.length || count <= 0) {
+      return false;
+    }
+    int take = count;
+    int maxCount = this.values.length - startIndex;
+    if (take > maxCount) {
+      take = maxCount;
+    }
+    int[] next = [];
+    int i = 0;
+    while (i < startIndex) {
+      next.push(this.values[i]);
+      i++;
+    }
+    i = startIndex + take;
+    while (i < this.values.length) {
+      next.push(this.values[i]);
+      i++;
+    }
+    this.values = next;
+    this.prefixSum = [];
+    int p = 0;
+    while (p < this.values.length) {
+      this.prefixSum.push(0);
+      p++;
+    }
+    if (startIndex - 1 < this.validIndex) {
+      this.validIndex = startIndex - 1;
+    }
+    return true;
+  }
+
+  int getPrefixSum(int index) {
+    if (index < 0 || this.values.length == 0) {
+      return 0;
+    }
+    int at = index;
+    if (at >= this.values.length) {
+      at = this.values.length - 1;
+    }
+    int start = this.validIndex + 1;
+    if (start < 0) {
+      start = 0;
+    }
+    if (start == 0) {
+      this.prefixSum[0] = this.values[0];
+      start = 1;
+    }
+    int i = start;
+    while (i <= at) {
+      this.prefixSum[i] = this.prefixSum[i - 1] + this.values[i];
+      i++;
+    }
+    if (at > this.validIndex) {
+      this.validIndex = at;
+    }
+    return this.prefixSum[at];
+  }
+
+  int getTotalSum() {
+    if (this.values.length == 0) {
+      return 0;
+    }
+    return this.getPrefixSum(this.values.length - 1);
+  }
+
+  PrefixSumIndexOfResult getIndexOf(int sum) {
+    int total = this.getTotalSum();
+    if (this.values.length == 0) {
+      return new PrefixSumIndexOfResult(0, 0);
+    }
+    int low = 0;
+    int high = this.values.length - 1;
+    int mid = 0;
+    while (low <= high) {
+      mid = low + ((high - low) / 2);
+      int midStop = this.prefixSum[mid];
+      int midStart = midStop - this.values[mid];
+      if (sum < midStart) {
+        high = mid - 1;
+      } else if (sum >= midStop) {
+        low = mid + 1;
+      } else {
+        return new PrefixSumIndexOfResult(mid, sum - midStart);
+      }
+    }
+    if (sum >= total) {
+      int last = this.values.length - 1;
+      return new PrefixSumIndexOfResult(last, this.values[last]);
+    }
+    return new PrefixSumIndexOfResult(mid, 0);
+  }
+}
+
+export PrefixSumComputer createPrefixSumComputer(int[] values) {
+  return new PrefixSumComputer(values);
+}

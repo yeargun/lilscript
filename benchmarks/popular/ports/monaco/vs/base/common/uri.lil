@@ -1,0 +1,283 @@
+import { hostCall, jsUndefined, sliceOf, stringFromCharCode1, stringSplit, windowSelf } from "../../../js-host";
+
+string decodePercent(string value) {
+  if (value.indexOf("%") < 0) {
+    return value;
+  }
+  JsValue input = value;
+  try {
+    JsValue decoded = hostCall(windowSelf(), "decodeURIComponent", input, jsUndefined(), jsUndefined());
+    if (decoded is string) {
+      string result = decoded;
+      return result;
+    }
+  } catch (JsValue error) {
+  }
+  return value;
+}
+
+string hexDigit(int value) {
+  string digits = "0123456789ABCDEF";
+  return digits.charAt(value & 15);
+}
+
+string encodeComponent(string value, bool path, bool authority, bool minimal) {
+  string result = "";
+  int i = 0;
+  while (i < value.length) {
+    int code = value.charCodeAt(i);
+    bool unreserved = (code >= 97 && code <= 122)
+      || (code >= 65 && code <= 90)
+      || (code >= 48 && code <= 57)
+      || code == 45 || code == 46 || code == 95 || code == 126
+      || (path && code == 47)
+      || (authority && (code == 91 || code == 93 || code == 58));
+    if (unreserved || (minimal && code != 35 && code != 63)) {
+      result = result + value.charAt(i);
+    } else if (code < 128) {
+      result = result + "%" + hexDigit(code >> 4) + hexDigit(code);
+    } else {
+      result = result + value.charAt(i);
+    }
+    i = i + 1;
+  }
+  return result;
+}
+
+string normalizeJoinedPath(string value) {
+  bool absolute = value.startsWith("/");
+  string[] parts = stringSplit(value, "/");
+  string[] result = [];
+  int i = 0;
+  while (i < parts.length) {
+    if (parts[i].length == 0 || parts[i] == ".") {
+    } else if (parts[i] == "..") {
+      if (result.length > 0) {
+        result.pop();
+      } else if (!absolute) {
+        result.push("..");
+      }
+    } else {
+      result.push(parts[i]);
+    }
+    i = i + 1;
+  }
+  string path = result.join("/");
+  if (absolute) {
+    path = "/" + path;
+  }
+  if (path.length == 0 && absolute) {
+    return "/";
+  }
+  return path;
+}
+
+export class URI {
+  string scheme;
+  string authority;
+  string path;
+  string query;
+  string fragment;
+
+  init(string scheme, string authority, string path, string query, string fragment) {
+    this.scheme = scheme;
+    this.authority = authority;
+    this.path = path;
+    this.query = query;
+    this.fragment = fragment;
+  }
+
+  URI with(string scheme, string authority, string path, string query, string fragment) {
+    return new URI(scheme, authority, path, query, fragment);
+  }
+
+  URI withPath(string path) {
+    if (path == this.path) {
+      return this;
+    }
+    return new URI(this.scheme, this.authority, path, this.query, this.fragment);
+  }
+
+  string fsPath() {
+    return uriToFsPath(this, false, false);
+  }
+
+  string toString() {
+    return formatUri(this, false);
+  }
+
+  JsValue toJSON() {
+    JsValue result = JS.object();
+    result["$mid"] = 1;
+    if (this.scheme.length > 0) {
+      result["scheme"] = this.scheme;
+    }
+    if (this.authority.length > 0) {
+      result["authority"] = this.authority;
+    }
+    if (this.path.length > 0) {
+      result["path"] = this.path;
+    }
+    if (this.query.length > 0) {
+      result["query"] = this.query;
+    }
+    if (this.fragment.length > 0) {
+      result["fragment"] = this.fragment;
+    }
+    return result;
+  }
+}
+
+export URI createUri(string scheme, string authority, string path, string query, string fragment) {
+  string actualScheme = scheme;
+  if (actualScheme.length == 0) {
+    actualScheme = "file";
+  }
+  string actualPath = path;
+  if ((actualScheme == "http" || actualScheme == "https" || actualScheme == "file") && !actualPath.startsWith("/")) {
+    actualPath = "/" + actualPath;
+  }
+  return new URI(actualScheme, authority, actualPath, query, fragment);
+}
+
+export URI parseUri(string value) {
+  string scheme = "";
+  string authority = "";
+  string path = "";
+  string query = "";
+  string fragment = "";
+  int colon = value.indexOf(":");
+  int firstSlash = value.indexOf("/");
+  int firstQuery = value.indexOf("?");
+  int firstHash = value.indexOf("#");
+  bool colonIsScheme = colon > 0
+    && (firstSlash < 0 || colon < firstSlash)
+    && (firstQuery < 0 || colon < firstQuery)
+    && (firstHash < 0 || colon < firstHash);
+  int index = 0;
+  if (colonIsScheme) {
+    scheme = sliceOf(value, 0, colon);
+    index = colon + 1;
+  }
+  if (index + 1 < value.length && value.charAt(index) == "/" && value.charAt(index + 1) == "/") {
+    index = index + 2;
+    int authorityEnd = index;
+    while (authorityEnd < value.length && value.charAt(authorityEnd) != "/" && value.charAt(authorityEnd) != "?" && value.charAt(authorityEnd) != "#") {
+      authorityEnd = authorityEnd + 1;
+    }
+    authority = decodePercent(sliceOf(value, index, authorityEnd));
+    index = authorityEnd;
+  }
+  int pathEnd = index;
+  while (pathEnd < value.length && value.charAt(pathEnd) != "?" && value.charAt(pathEnd) != "#") {
+    pathEnd = pathEnd + 1;
+  }
+  path = decodePercent(sliceOf(value, index, pathEnd));
+  index = pathEnd;
+  if (index < value.length && value.charAt(index) == "?") {
+    int queryEnd = index + 1;
+    while (queryEnd < value.length && value.charAt(queryEnd) != "#") {
+      queryEnd = queryEnd + 1;
+    }
+    query = decodePercent(sliceOf(value, index + 1, queryEnd));
+    index = queryEnd;
+  }
+  if (index < value.length && value.charAt(index) == "#") {
+    fragment = decodePercent(sliceOf(value, index + 1, value.length));
+  }
+  return createUri(scheme, authority, path, query, fragment);
+}
+
+export URI fileUri(string filePath) {
+  string path = filePath;
+  string authority = "";
+  if (path.startsWith("//")) {
+    int slash = path.indexOf("/", 2);
+    if (slash < 0) {
+      authority = sliceOf(path, 2, path.length);
+      path = "/";
+    } else {
+      authority = sliceOf(path, 2, slash);
+      path = sliceOf(path, slash, path.length);
+    }
+  }
+  return new URI("file", authority, path, "", "");
+}
+
+export URI joinPath(URI uri, string[] fragments) {
+  if (uri.path.length == 0) {
+    throw "cannot call joinPath on URI without path";
+  }
+  string path = uri.path;
+  int i = 0;
+  while (i < fragments.length) {
+    if (!path.endsWith("/")) {
+      path = path + "/";
+    }
+    path = path + fragments[i];
+    i = i + 1;
+  }
+  return uri.withPath(normalizeJoinedPath(path));
+}
+
+export string uriToFsPath(URI uri, bool keepDriveLetterCasing, bool windows) {
+  string value = uri.path;
+  if (uri.authority.length > 0 && uri.path.length > 1 && uri.scheme == "file") {
+    value = "//" + uri.authority + uri.path;
+  } else if (uri.path.length >= 3 && uri.path.charAt(0) == "/" && uri.path.charAt(2) == ":") {
+    string drive = uri.path.charAt(1);
+    if (!keepDriveLetterCasing) {
+      drive = drive.toLowerCase();
+    }
+    value = drive + sliceOf(uri.path, 2, uri.path.length);
+  }
+  if (windows) {
+    string result = "";
+    int i = 0;
+    while (i < value.length) {
+      if (value.charAt(i) == "/") {
+        result = result + "\\";
+      } else {
+        result = result + value.charAt(i);
+      }
+      i = i + 1;
+    }
+    return result;
+  }
+  return value;
+}
+
+export string formatUri(URI uri, bool skipEncoding) {
+  string result = "";
+  if (uri.scheme.length > 0) {
+    result = result + uri.scheme + ":";
+  }
+  if (uri.authority.length > 0 || uri.scheme == "file") {
+    result = result + "//";
+  }
+  if (uri.authority.length > 0) {
+    result = result + encodeComponent(uri.authority.toLowerCase(), false, true, skipEncoding);
+  }
+  string path = uri.path;
+  if (path.length >= 3 && path.charAt(0) == "/" && path.charAt(2) == ":") {
+    int code = path.charCodeAt(1);
+    if (code >= 65 && code <= 90) {
+      path = "/" + stringFromCharCode1((code + 32) * 1.0) + sliceOf(path, 2, path.length);
+    }
+  }
+  result = result + encodeComponent(path, true, false, skipEncoding);
+  if (uri.query.length > 0) {
+    result = result + "?" + encodeComponent(uri.query, false, false, skipEncoding);
+  }
+  if (uri.fragment.length > 0) {
+    result = result + "#" + encodeComponent(uri.fragment, false, false, skipEncoding);
+  }
+  return result;
+}
+
+int inMemoryUriId = 0;
+
+export URI inmemoryUri() {
+  inMemoryUriId = inMemoryUriId + 1;
+  return new URI("inmemory", "", "/model/" + inMemoryUriId.toString(), "", "");
+}

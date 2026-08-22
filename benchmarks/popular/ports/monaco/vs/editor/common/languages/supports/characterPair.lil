@@ -1,0 +1,68 @@
+import { StandardAutoClosingPairConditional } from "../languageConfiguration";
+
+StandardAutoClosingPairConditional[] readPairs(JsValue source) {
+  StandardAutoClosingPairConditional[] pairs = [];
+  if (!JS.isArray(source)) {
+    return pairs;
+  }
+  int i = 0;
+  int length = JS.number(source["length"]).toInt();
+  while (i < length) {
+    JsValue value = source[i];
+    if (JS.isArray(value)) {
+      JsValue pair = JS.object();
+      pair["open"] = value[0];
+      pair["close"] = value[1];
+      pairs.push(new StandardAutoClosingPairConditional(pair));
+    } else {
+      pairs.push(new StandardAutoClosingPairConditional(value));
+    }
+    i = i + 1;
+  }
+  return pairs;
+}
+
+export class CharacterPairSupport {
+  StandardAutoClosingPairConditional[] autoClosingPairs;
+  StandardAutoClosingPairConditional[] surroundingPairs;
+  string autoCloseBeforeForQuotes;
+  string autoCloseBeforeForBrackets;
+
+  init(JsValue config) {
+    if (config["autoClosingPairs"] != null) {
+      this.autoClosingPairs = readPairs(config["autoClosingPairs"]);
+    } else {
+      this.autoClosingPairs = readPairs(config["brackets"]);
+    }
+    if (config["surroundingPairs"] != null) {
+      this.surroundingPairs = readPairs(config["surroundingPairs"]);
+    } else {
+      this.surroundingPairs = this.autoClosingPairs;
+    }
+    this.autoCloseBeforeForQuotes = ";:.,=}])> \n\t";
+    this.autoCloseBeforeForBrackets = "'\"`;:.,=}])> \n\t";
+    if (JS.typeOf(config["autoCloseBefore"]) == "string") {
+      this.autoCloseBeforeForQuotes = JS.string(config["autoCloseBefore"]);
+      this.autoCloseBeforeForBrackets = this.autoCloseBeforeForQuotes;
+    }
+  }
+
+  StandardAutoClosingPairConditional[] getAutoClosingPairs() {
+    return this.autoClosingPairs;
+  }
+
+  string getAutoCloseBeforeSet(bool forQuotes) {
+    if (forQuotes) {
+      return this.autoCloseBeforeForQuotes;
+    }
+    return this.autoCloseBeforeForBrackets;
+  }
+
+  StandardAutoClosingPairConditional[] getSurroundingPairs() {
+    return this.surroundingPairs;
+  }
+}
+
+export CharacterPairSupport createCharacterPairSupport(JsValue config) {
+  return new CharacterPairSupport(config);
+}

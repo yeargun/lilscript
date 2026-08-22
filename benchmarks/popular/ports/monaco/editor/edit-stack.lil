@@ -16,17 +16,24 @@ export class EditStack {
   IdentifiedEdit[][] past;
   IdentifiedEdit[][] future;
   int versionId;
+  int alternativeVersionId;
 
   init() {
     this.past = [];
     this.future = [];
     this.versionId = 1;
+    this.alternativeVersionId = 1;
+  }
+
+  void bump() {
+    this.versionId = this.versionId + 1;
+    this.alternativeVersionId = this.alternativeVersionId + 1;
   }
 
   void push(IdentifiedEdit[] inverse) {
     this.past.push(inverse);
     this.future = [];
-    this.versionId = this.versionId + 1;
+    this.bump();
   }
 
   IdentifiedEdit[]? popPast() {
@@ -35,7 +42,7 @@ export class EditStack {
     }
     IdentifiedEdit[] op = this.past[this.past.length - 1];
     this.past.splice(this.past.length - 1, 1);
-    this.versionId = this.versionId + 1;
+    this.bump();
     return op;
   }
 
@@ -45,7 +52,7 @@ export class EditStack {
     }
     IdentifiedEdit[] op = this.future[this.future.length - 1];
     this.future.splice(this.future.length - 1, 1);
-    this.versionId = this.versionId + 1;
+    this.bump();
     return op;
   }
 

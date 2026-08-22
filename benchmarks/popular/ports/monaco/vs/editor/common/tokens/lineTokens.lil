@@ -1,0 +1,180 @@
+import { sliceOf } from "../../../../js-host";
+import { OffsetRange } from "../core/ranges/offsetRange";
+import {
+  tokenType,
+  tokenForeground,
+  tokenClassNameFromMetadata,
+  tokenLanguageId
+} from "../encodedTokenAttributes";
+
+export int defaultTokenMetadata = (0 << 11) | (1 << 15) | (2 << 24);
+
+export class LineTokens {
+  int[] tokens;
+  int tokensCount;
+  string text;
+
+  init(int[] tokens, string text) {
+    this.tokens = tokens;
+    this.tokensCount = tokens.length >>> 1;
+    this.text = text;
+  }
+
+  int getTextLength() {
+    return this.text.length;
+  }
+
+  string getLineContent() {
+    return this.text;
+  }
+
+  int getCount() {
+    return this.tokensCount;
+  }
+
+  int getStartOffset(int tokenIndex) {
+    if (tokenIndex > 0) {
+      return this.tokens[(tokenIndex - 1) << 1];
+    }
+    return 0;
+  }
+
+  int getMetadata(int tokenIndex) {
+    return this.tokens[(tokenIndex << 1) + 1];
+  }
+
+  int getStandardTokenType(int tokenIndex) {
+    return tokenType(this.getMetadata(tokenIndex));
+  }
+
+  int getForeground(int tokenIndex) {
+    return tokenForeground(this.getMetadata(tokenIndex));
+  }
+
+  string getClassName(int tokenIndex) {
+    return tokenClassNameFromMetadata(this.getMetadata(tokenIndex));
+  }
+
+  int getLanguageId(int tokenIndex) {
+    return tokenLanguageId(this.getMetadata(tokenIndex));
+  }
+
+  int getEndOffset(int tokenIndex) {
+    return this.tokens[tokenIndex << 1];
+  }
+
+  bool slicedEquals(LineTokens other, int sliceFromTokenIndex, int sliceTokenCount) {
+    if (this.text != other.text) {
+      return false;
+    }
+    if (this.tokensCount != other.tokensCount) {
+      return false;
+    }
+    int from = sliceFromTokenIndex << 1;
+    int to = from + (sliceTokenCount << 1);
+    int i = from;
+    while (i < to) {
+      if (this.tokens[i] != other.tokens[i]) {
+        return false;
+      }
+      i = i + 1;
+    }
+    return true;
+  }
+
+  bool equals(LineTokens other) {
+    return this.slicedEquals(other, 0, this.tokensCount);
+  }
+
+  int findTokenIndexAtOffset(int offset) {
+    return findIndexInTokensArray(this.tokens, offset);
+  }
+
+  LineTokens sliceAndInflate(int startOffset, int endOffset, int deltaOffset) {
+    return new SliceLineTokens(this, startOffset, endOffset, deltaOffset).inflate();
+  }
+
+  LineTokens sliceZeroCopy(OffsetRange range) {
+    return this.sliceAndInflate(range.start, range.endExclusive, 0);
+  }
+}
+
+class SliceLineTokens {
+  LineTokens source;
+  int startOffset;
+  int endOffset;
+  int deltaOffset;
+
+  init(LineTokens source, int startOffset, int endOffset, int deltaOffset) {
+    this.source = source;
+    this.startOffset = startOffset;
+    this.endOffset = endOffset;
+    this.deltaOffset = deltaOffset;
+  }
+
+  LineTokens inflate() {
+    int[] tokens = [];
+    int startIdx = this.source.findTokenIndexAtOffset(this.startOffset);
+    int endIdx = this.source.findTokenIndexAtOffset(this.endOffset);
+    if (endIdx < startIdx) {
+      endIdx = startIdx;
+    }
+    int i = startIdx;
+    while (i <= endIdx && i < this.source.tokensCount) {
+      int end = this.source.getEndOffset(i);
+      if (end > this.endOffset) {
+        end = this.endOffset;
+      }
+      int shifted = end - this.startOffset + this.deltaOffset;
+      if (shifted < 0) {
+        shifted = 0;
+      }
+      tokens.push(shifted);
+      tokens.push(this.source.getMetadata(i));
+      i = i + 1;
+    }
+    string text = sliceOf(this.source.text, this.startOffset, this.endOffset);
+    return new LineTokens(tokens, text);
+  }
+}
+
+export LineTokens createEmptyLineTokens(string lineContent) {
+  int[] tokens = [];
+  tokens.push(lineContent.length);
+  tokens.push(defaultTokenMetadata);
+  return new LineTokens(tokens, lineContent);
+}
+
+export void convertToEndOffset(int[] tokens, int lineTextLength) {
+  int tokenCount = tokens.length >>> 1;
+  int lastTokenIndex = tokenCount - 1;
+  int tokenIndex = 0;
+  while (tokenIndex < lastTokenIndex) {
+    tokens[tokenIndex << 1] = tokens[(tokenIndex + 1) << 1];
+    tokenIndex = tokenIndex + 1;
+  }
+  if (lastTokenIndex >= 0) {
+    tokens[lastTokenIndex << 1] = lineTextLength;
+  }
+}
+
+export int findIndexInTokensArray(int[] tokens, int desiredIndex) {
+  if (tokens.length <= 2) {
+    return 0;
+  }
+  int low = 0;
+  int high = (tokens.length >>> 1) - 1;
+  while (low < high) {
+    int mid = low + (high - low) / 2;
+    int endOffset = tokens[mid << 1];
+    if (endOffset == desiredIndex) {
+      return mid + 1;
+    }
+    if (endOffset < desiredIndex) {
+      low = mid + 1;
+    } else {
+      high = mid;
+    }
+  }
+  return low;
+}

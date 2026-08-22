@@ -1,0 +1,72 @@
+import { hostCall, jsUndefined, sliceOf } from "../../../../../js-host";
+import { RichEditBrackets } from "./richEditBrackets";
+import { ignoreBracketsInToken } from "../supports";
+
+bool whitespaceOnly(string text) {
+  int i = 0;
+  while (i < text.length) {
+    int code = text.charCodeAt(i);
+    if (code != 32 && code != 9) {
+      return false;
+    }
+    i = i + 1;
+  }
+  return true;
+}
+
+export class BracketElectricCharacterSupport {
+  RichEditBrackets brackets;
+
+  init(RichEditBrackets brackets) {
+    this.brackets = brackets;
+  }
+
+  string[] getElectricCharacters() {
+    string[] result = [];
+    int i = 0;
+    while (i < this.brackets.brackets.length) {
+      string[] closes = this.brackets.brackets[i].close;
+      int j = 0;
+      while (j < closes.length) {
+        string close = closes[j];
+        string last = close.charAt(close.length - 1);
+        if (result.indexOf(last) < 0) {
+          result.push(last);
+        }
+        j = j + 1;
+      }
+      i = i + 1;
+    }
+    return result;
+  }
+
+  JsValue onElectricCharacter(string character, JsValue context, int column) {
+    int tokenIndex = JS.number(hostCall(context, "findTokenIndexAtOffset", column - 1, jsUndefined(), jsUndefined())).toInt();
+    int tokenType = JS.number(hostCall(context, "getStandardTokenType", tokenIndex, jsUndefined(), jsUndefined())).toInt();
+    if (ignoreBracketsInToken(tokenType)) {
+      return null;
+    }
+    string line = JS.string(hostCall(context, "getLineContent", jsUndefined(), jsUndefined(), jsUndefined()));
+    string text = sliceOf(line, 0, column - 1) + character;
+    int i = 0;
+    while (i < this.brackets.brackets.length) {
+      string[] closes = this.brackets.brackets[i].close;
+      int j = 0;
+      while (j < closes.length) {
+        string close = closes[j];
+        if (text.toLowerCase().endsWith(close) && whitespaceOnly(sliceOf(text, 0, text.length - close.length))) {
+          JsValue result = JS.object();
+          result["matchOpenBracket"] = close;
+          return result;
+        }
+        j = j + 1;
+      }
+      i = i + 1;
+    }
+    return null;
+  }
+}
+
+export BracketElectricCharacterSupport createBracketElectricCharacterSupport(RichEditBrackets brackets) {
+  return new BracketElectricCharacterSupport(brackets);
+}

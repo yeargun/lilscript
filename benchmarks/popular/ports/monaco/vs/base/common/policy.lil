@@ -1,0 +1,43 @@
+export string PolicyCategoryExtensions = "Extensions";
+export string PolicyCategoryIntegratedTerminal = "IntegratedTerminal";
+export string PolicyCategoryInteractiveSession = "InteractiveSession";
+export string PolicyCategoryTelemetry = "Telemetry";
+export string PolicyCategoryUpdate = "Update";
+
+export string policyCategoryName(string category) {
+  if (category == PolicyCategoryExtensions) {
+    return "Extensions";
+  }
+  if (category == PolicyCategoryIntegratedTerminal) {
+    return "Integrated Terminal";
+  }
+  if (category == PolicyCategoryInteractiveSession) {
+    return "Chat";
+  }
+  if (category == PolicyCategoryTelemetry) {
+    return "Telemetry";
+  }
+  if (category == PolicyCategoryUpdate) {
+    return "Update";
+  }
+  return "";
+}
+
+export string policyCategoryKey(string category) {
+  if (category == PolicyCategoryExtensions) {
+    return "extensionsConfigurationTitle";
+  }
+  if (category == PolicyCategoryIntegratedTerminal) {
+    return "terminalIntegratedConfigurationTitle";
+  }
+  if (category == PolicyCategoryInteractiveSession) {
+    return "interactiveSessionConfigurationTitle";
+  }
+  if (category == PolicyCategoryTelemetry) {
+    return "telemetryConfigurationTitle";
+  }
+  if (category == PolicyCategoryUpdate) {
+    return "updateConfigurationTitle";
+  }
+  return "";
+}

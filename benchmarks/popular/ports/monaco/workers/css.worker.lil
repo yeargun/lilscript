@@ -1,0 +1,35 @@
+import { cssPropertyNames } from "../contrib/language-data";
+import { emptyBuf, concat2 } from "../js-host";
+
+export string[] cssWorkerCompletions(string prefix) {
+  string[] props = cssPropertyNames();
+  string[] items = [];
+  int i = 0;
+  while (i < props.length) {
+    if (prefix.length == 0 || props[i].indexOf(prefix) == 0) {
+      items.push(props[i]);
+    }
+    i++;
+  }
+  return items;
+}
+
+export string handleCssWorker(string method, string uri, string value) {
+  if (method == "ping" || method == "initialize") {
+    return "pong";
+  }
+  if (method == "completions") {
+    string[] items = cssWorkerCompletions(value);
+    string out = emptyBuf();
+    int i = 0;
+    while (i < items.length) {
+      if (i > 0) {
+        out = concat2(out, ",");
+      }
+      out = concat2(out, items[i]);
+      i++;
+    }
+    return out;
+  }
+  return concat2(emptyBuf(), uri);
+}

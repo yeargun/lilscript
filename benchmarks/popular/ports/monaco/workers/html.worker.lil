@@ -1,0 +1,35 @@
+import { htmlTagNames } from "../contrib/language-data";
+import { emptyBuf, concat2 } from "../js-host";
+
+export string[] htmlWorkerCompletions(string prefix) {
+  string[] tags = htmlTagNames();
+  string[] items = [];
+  int i = 0;
+  while (i < tags.length) {
+    if (prefix.length == 0 || tags[i].indexOf(prefix) == 0) {
+      items.push(tags[i]);
+    }
+    i++;
+  }
+  return items;
+}
+
+export string handleHtmlWorker(string method, string uri, string value) {
+  if (method == "ping" || method == "initialize") {
+    return "pong";
+  }
+  if (method == "completions") {
+    string[] items = htmlWorkerCompletions(value);
+    string out = emptyBuf();
+    int i = 0;
+    while (i < items.length) {
+      if (i > 0) {
+        out = concat2(out, ",");
+      }
+      out = concat2(out, items[i]);
+      i++;
+    }
+    return out;
+  }
+  return concat2(emptyBuf(), uri);
+}

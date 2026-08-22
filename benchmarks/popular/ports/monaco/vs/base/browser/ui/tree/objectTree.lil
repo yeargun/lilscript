@@ -1,0 +1,525 @@
+export int OBJECT_TREE_EXPANDED = 0;
+export int OBJECT_TREE_COLLAPSED = 1;
+export int OBJECT_TREE_PRESERVE_OR_EXPANDED = 2;
+export int OBJECT_TREE_PRESERVE_OR_COLLAPSED = 3;
+
+export class ObjectTreeItem {
+  string element;
+  string label;
+  ObjectTreeItem[] children;
+  bool collapsible;
+  bool collapsed;
+  bool incompressible;
+
+  init(
+    string element,
+    string label,
+    ObjectTreeItem[] children = [],
+    bool collapsible = false,
+    bool collapsed = false,
+    bool incompressible = false
+  ) {
+    this.element = element;
+    this.label = label;
+    this.children = children;
+    this.collapsible = collapsible || children.length > 0;
+    this.collapsed = collapsed;
+    this.incompressible = incompressible;
+  }
+}
+
+export class ObjectTreeNode {
+  string element;
+  string label;
+  ObjectTreeNode? parent;
+  ObjectTreeNode[] children;
+  int depth;
+  bool collapsible;
+  bool collapsed;
+  bool incompressible;
+  bool visible;
+  int renderNodeCount;
+  string[] compressedPath;
+
+  init(string element, string label, ObjectTreeNode? parent, int depth) {
+    this.element = element;
+    this.label = label;
+    this.parent = parent;
+    this.children = [];
+    this.depth = depth;
+    this.collapsible = false;
+    this.collapsed = false;
+    this.incompressible = false;
+    this.visible = true;
+    this.renderNodeCount = 0;
+    this.compressedPath = [];
+    this.compressedPath.push(element);
+  }
+}
+
+export class StickyScrollNode {
+  string element;
+  string[] path;
+  bool incompressible;
+  int startIndex;
+  int endIndex;
+  int position;
+  int height;
+
+  init(
+    string element,
+    string[] path,
+    bool incompressible,
+    int startIndex,
+    int endIndex,
+    int position,
+    int height
+  ) {
+    this.element = element;
+    this.path = path;
+    this.incompressible = incompressible;
+    this.startIndex = startIndex;
+    this.endIndex = endIndex;
+    this.position = position;
+    this.height = height;
+  }
+}
+
+export class ObjectTree {
+  ObjectTreeNode root;
+  Map<string, ObjectTreeNode> nodes;
+  bool compressionEnabled;
+  ObjectTreeNode[] rendered;
+  string[] focus;
+  string[] selection;
+  int scrollTop;
+  int viewportHeight;
+  int rowHeight;
+
+  init(string rootElement = "", bool compressionEnabled = false) {
+    this.root = new ObjectTreeNode(rootElement, rootElement, null, 0);
+    this.nodes = new Map();
+    if (rootElement.length > 0) {
+      this.nodes.set(rootElement, this.root);
+    }
+    this.compressionEnabled = compressionEnabled;
+    this.rendered = [];
+    this.focus = [];
+    this.selection = [];
+    this.scrollTop = 0;
+    this.viewportHeight = 0;
+    this.rowHeight = 22;
+  }
+
+  ObjectTreeNode? getNode(string element) {
+    if (element.length == 0) {
+      return this.root;
+    }
+    return this.nodes.get(element);
+  }
+
+  bool has(string element) {
+    if (element.length == 0) {
+      return true;
+    }
+    return this.nodes.has(element);
+  }
+
+  ObjectTreeNode createNode(ObjectTreeItem source, ObjectTreeNode parent) {
+    ObjectTreeNode node = new ObjectTreeNode(source.element, source.label, parent, parent.depth + 1);
+    ObjectTreeNode? previous = this.nodes.get(source.element);
+    node.collapsible = source.collapsible || source.children.length > 0;
+    node.incompressible = source.incompressible;
+    if (previous != null) {
+      node.collapsed = previous.collapsed;
+      node.collapsible = previous.collapsible || source.children.length > 0;
+    } else {
+      node.collapsed = source.collapsed;
+    }
+    int i = 0;
+    while (i < source.children.length) {
+      node.children.push(this.createNode(source.children[i], node));
+      i = i + 1;
+    }
+    return node;
+  }
+
+  void unregister(ObjectTreeNode node) {
+    int i = 0;
+    while (i < node.children.length) {
+      this.unregister(node.children[i]);
+      i = i + 1;
+    }
+    if (node != this.root) {
+      this.nodes.delete(node.element);
+    }
+  }
+
+  void register(ObjectTreeNode node) {
+    if (node != this.root) {
+      this.nodes.set(node.element, node);
+    }
+    int i = 0;
+    while (i < node.children.length) {
+      this.register(node.children[i]);
+      i = i + 1;
+    }
+  }
+
+  bool setChildren(string element, ObjectTreeItem[] children) {
+    ObjectTreeNode? parent = this.getNode(element);
+    if (parent == null) {
+      return false;
+    }
+    ObjectTreeNode[] next = [];
+    int i = 0;
+    while (i < children.length) {
+      next.push(this.createNode(children[i], parent));
+      i = i + 1;
+    }
+    i = 0;
+    while (i < parent.children.length) {
+      this.unregister(parent.children[i]);
+      i = i + 1;
+    }
+    parent.children = next;
+    if (parent != this.root && parent.children.length > 0) {
+      parent.collapsible = true;
+    }
+    i = 0;
+    while (i < parent.children.length) {
+      this.register(parent.children[i]);
+      i = i + 1;
+    }
+    this.recompute();
+    return true;
+  }
+
+  int compareLabels(ObjectTreeNode left, ObjectTreeNode right) {
+    if (left.label < right.label) {
+      return -1;
+    }
+    if (left.label > right.label) {
+      return 1;
+    }
+    return 0;
+  }
+
+  void sortNodes(ObjectTreeNode[] nodes) {
+    int i = 1;
+    while (i < nodes.length) {
+      ObjectTreeNode current = nodes[i];
+      int j = i;
+      while (j > 0 && this.compareLabels(nodes[j - 1], current) > 0) {
+        nodes[j] = nodes[j - 1];
+        j = j - 1;
+      }
+      nodes[j] = current;
+      i = i + 1;
+    }
+  }
+
+  void resortNode(ObjectTreeNode node, bool recursive) {
+    this.sortNodes(node.children);
+    if (recursive) {
+      int i = 0;
+      while (i < node.children.length) {
+        this.resortNode(node.children[i], true);
+        i = i + 1;
+      }
+    }
+  }
+
+  bool resort(string element, bool recursive = true) {
+    ObjectTreeNode? node = this.getNode(element);
+    if (node == null) {
+      return false;
+    }
+    this.resortNode(node, recursive);
+    this.recompute();
+    return true;
+  }
+
+  int recomputeNode(ObjectTreeNode node) {
+    int childCount = 0;
+    int i = 0;
+    while (i < node.children.length) {
+      childCount = childCount + this.recomputeNode(node.children[i]);
+      i = i + 1;
+    }
+    if (node == this.root) {
+      node.visible = true;
+      node.renderNodeCount = childCount;
+    } else if (!node.visible) {
+      node.renderNodeCount = 0;
+    } else if (node.collapsed) {
+      node.renderNodeCount = 1;
+    } else {
+      node.renderNodeCount = 1 + childCount;
+    }
+    return node.renderNodeCount;
+  }
+
+  void collectRendered(ObjectTreeNode node, ObjectTreeNode[] result) {
+    if (node != this.root) {
+      if (!node.visible) {
+        return;
+      }
+      result.push(node);
+      if (node.collapsed) {
+        return;
+      }
+    }
+    int i = 0;
+    while (i < node.children.length) {
+      this.collectRendered(node.children[i], result);
+      i = i + 1;
+    }
+  }
+
+  void recompute() {
+    this.recomputeNode(this.root);
+    ObjectTreeNode[] result = [];
+    this.collectRendered(this.root, result);
+    this.rendered = result;
+  }
+
+  bool setCollapsed(string element, bool collapsed, bool recursive = false) {
+    ObjectTreeNode? node = this.getNode(element);
+    if (node == null || node == this.root || !node.collapsible) {
+      return false;
+    }
+    bool changed = node.collapsed != collapsed;
+    node.collapsed = collapsed;
+    if (recursive) {
+      this.collapseChildren(node, collapsed);
+    }
+    this.recompute();
+    return changed;
+  }
+
+  void collapseChildren(ObjectTreeNode node, bool collapsed) {
+    int i = 0;
+    while (i < node.children.length) {
+      if (node.children[i].collapsible) {
+        node.children[i].collapsed = collapsed;
+      }
+      this.collapseChildren(node.children[i], collapsed);
+      i = i + 1;
+    }
+  }
+
+  bool collapse(string element, bool recursive = false) {
+    return this.setCollapsed(element, true, recursive);
+  }
+
+  bool expand(string element, bool recursive = false) {
+    return this.setCollapsed(element, false, recursive);
+  }
+
+  void expandTo(string element) {
+    ObjectTreeNode? node = this.getNode(element);
+    if (node == null) {
+      return;
+    }
+    ObjectTreeNode? parent = node.parent;
+    while (parent != null) {
+      if (parent != this.root && parent.collapsible) {
+        parent.collapsed = false;
+      }
+      parent = parent.parent;
+    }
+    this.recompute();
+  }
+
+  int getListIndex(string element) {
+    ObjectTreeNode? node = this.getNode(element);
+    if (node == null || node == this.root) {
+      return -1;
+    }
+    return this.rendered.indexOf(node);
+  }
+
+  void setFocus(string[] elements) {
+    this.focus = elements.slice();
+  }
+
+  string[] getFocus() {
+    return this.focus.slice();
+  }
+
+  void setSelection(string[] elements) {
+    this.selection = elements.slice();
+  }
+
+  string[] getSelection() {
+    return this.selection.slice();
+  }
+
+  void reveal(string element, float relativeTop = -1.0) {
+    this.expandTo(element);
+    int index = this.getListIndex(element);
+    if (index < 0) {
+      return;
+    }
+    int top = index * this.rowHeight;
+    int bottom = top + this.rowHeight;
+    if (relativeTop >= 0.0) {
+      float ratio = relativeTop;
+      if (ratio > 1.0) {
+        ratio = 1.0;
+      }
+      int available = this.viewportHeight - this.rowHeight;
+      if (available < 0) {
+        available = 0;
+      }
+      this.scrollTop = top - (available * 1.0 * ratio).floor().toInt();
+    } else if (top < this.scrollTop) {
+      this.scrollTop = top;
+    } else if (bottom > this.scrollTop + this.viewportHeight) {
+      this.scrollTop = bottom - this.viewportHeight;
+    }
+    if (this.scrollTop < 0) {
+      this.scrollTop = 0;
+    }
+  }
+
+  string[] compressedNodePath(string element) {
+    ObjectTreeNode? node = this.getNode(element);
+    if (node == null) {
+      string[] empty = [];
+      return empty;
+    }
+    return node.compressedPath.slice();
+  }
+
+  void setCompressionEnabled(bool enabled) {
+    this.compressionEnabled = enabled;
+  }
+}
+
+StickyScrollNode compressStickyGroup(StickyScrollNode[] stickyNodes) {
+  if (stickyNodes.length == 0) {
+    return new StickyScrollNode("", [], false, 0, 0, 0, 0);
+  }
+  string[] elements = [];
+  int i = 0;
+  while (i < stickyNodes.length) {
+    StickyScrollNode sticky = stickyNodes[i];
+    if (i != 0 && sticky.incompressible) {
+      break;
+    }
+    int p = 0;
+    while (p < sticky.path.length) {
+      elements.push(sticky.path[p]);
+      p = p + 1;
+    }
+    i = i + 1;
+  }
+  if (elements.length < 2) {
+    return stickyNodes[0];
+  }
+  StickyScrollNode first = stickyNodes[0];
+  StickyScrollNode last = stickyNodes[stickyNodes.length - 1];
+  return new StickyScrollNode(first.element, elements, false, first.startIndex, last.endIndex, first.position, first.height);
+}
+
+export StickyScrollNode[] constrainStickyScrollNodes(
+  StickyScrollNode[] stickyNodes,
+  int stickyScrollMaxItemCount,
+  int maxWidgetHeight
+) {
+  if (stickyNodes.length == 0) {
+    return stickyNodes;
+  }
+  int i = 0;
+  while (i < stickyNodes.length) {
+    StickyScrollNode sticky = stickyNodes[i];
+    int stickyBottom = sticky.position + sticky.height;
+    bool followingReachesMax = false;
+    if (i + 1 < stickyNodes.length) {
+      followingReachesMax = stickyBottom + stickyNodes[i + 1].height > maxWidgetHeight;
+    }
+    bool overflowCount = i >= stickyScrollMaxItemCount - 1 && stickyScrollMaxItemCount < stickyNodes.length;
+    if (followingReachesMax || overflowCount) {
+      StickyScrollNode[] kept = [];
+      int k = 0;
+      while (k < i) {
+        kept.push(stickyNodes[k]);
+        k = k + 1;
+      }
+      StickyScrollNode[] overflowing = [];
+      k = i;
+      while (k < stickyNodes.length) {
+        overflowing.push(stickyNodes[k]);
+        k = k + 1;
+      }
+      kept.push(compressStickyGroup(overflowing));
+      return kept;
+    }
+    i = i + 1;
+  }
+  return stickyNodes;
+}
+
+export class CompressibleObjectTree {
+  ObjectTree tree;
+
+  init(string rootElement = "") {
+    this.tree = new ObjectTree(rootElement, true);
+  }
+
+  bool setChildren(string element, ObjectTreeItem[] children) {
+    return this.tree.setChildren(element, children);
+  }
+
+  void setCompressionEnabled(bool enabled) {
+    this.tree.setCompressionEnabled(enabled);
+  }
+
+  bool isCompressionEnabled() {
+    return this.tree.compressionEnabled;
+  }
+
+  StickyScrollNode[] constrainSticky(
+    StickyScrollNode[] stickyNodes,
+    int stickyScrollMaxItemCount,
+    int maxWidgetHeight
+  ) {
+    if (!this.tree.compressionEnabled) {
+      return stickyNodes;
+    }
+    return constrainStickyScrollNodes(stickyNodes, stickyScrollMaxItemCount, maxWidgetHeight);
+  }
+}
+
+export ObjectTreeItem createObjectTreeItem(
+  string element,
+  string label,
+  ObjectTreeItem[] children,
+  bool collapsible,
+  bool collapsed,
+  bool incompressible
+) {
+  return new ObjectTreeItem(element, label, children, collapsible, collapsed, incompressible);
+}
+
+export ObjectTree createObjectTree(string rootElement, bool compressionEnabled) {
+  return new ObjectTree(rootElement, compressionEnabled);
+}
+
+export CompressibleObjectTree createCompressibleObjectTree(string rootElement) {
+  return new CompressibleObjectTree(rootElement);
+}
+
+export StickyScrollNode createStickyScrollNode(
+  string element,
+  string[] path,
+  bool incompressible,
+  int startIndex,
+  int endIndex,
+  int position,
+  int height
+) {
+  return new StickyScrollNode(element, path, incompressible, startIndex, endIndex, position, height);
+}

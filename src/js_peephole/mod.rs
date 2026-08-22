@@ -5,7 +5,13 @@ pub(crate) use crate::js_peephole::folds::fold_constructor_prototype_tables_to_c
 use crate::js_peephole::parse::{
     compound_assignment_rewrite, parse_expression_regions, syntax_metrics,
 };
-use crate::js_peephole::rewrite::{apply_rewrites, non_overlapping_rewrites};
+use crate::js_peephole::rewrite::{
+    apply_rewrites, assign_is_in_declaration, is_property_identifier, non_overlapping_rewrites,
+};
+use crate::js_peephole::scope::{
+    identifier_is_arrow_parameter, identifier_is_catch_parameter, identifier_is_function_parameter,
+    name_is_bound_as_non_enclosing_function_local, name_is_visible_generated_binding,
+};
 use crate::js_peephole::token::{lex, matching_closers, validate_delimiters, Token, TokenKind};
 
 mod folds;
@@ -247,6 +253,9 @@ pub fn analyze_generated_javascript(
     let tokens = lex(source)?;
     let delimiter_nesting = validate_delimiters(&tokens)?;
     validate_unique_top_level_bindings(&tokens)?;
+    validate_class_body_members(&tokens)?;
+    validate_for_heads(&tokens)?;
+    validate_resolved_generated_bindings(&tokens)?;
     let parsed = parse_expression_regions(&tokens);
     Ok(syntax_metrics(source, &tokens, &parsed, delimiter_nesting))
 }
@@ -349,6 +358,249 @@ fn validate_unique_top_level_bindings(tokens: &[Token<'_>]) -> Result<(), JavaSc
             _ => {}
         }
         index += 1;
+    }
+    Ok(())
+}
+
+fn class_body_spans(tokens: &[Token<'_>], matching_close: &[Option<usize>]) -> Vec<(usize, usize)> {
+    let mut spans = Vec::new();
+    let mut index = 0usize;
+    while index < tokens.len() {
+        if tokens[index].text == "class" {
+            let mut body = index + 1;
+            if tokens
+                .get(body)
+                .is_some_and(|token| token.kind == TokenKind::Identifier)
+            {
+                body += 1;
+            }
+            if tokens.get(body).map(|token| token.text) == Some("extends") {
+                body += 2;
+            }
+            if tokens.get(body).map(|token| token.text) == Some("{") {
+                if let Some(close) = matching_close.get(body).copied().flatten() {
+                    spans.push((body, close));
+                    index = close + 1;
+                    continue;
+                }
+            }
+        }
+        index += 1;
+    }
+    spans
+}
+
+/// Search may propose a class member that starts with a compact boolean
+/// (`}!1{...}`). That is not a method, field, or static block, so the
+/// candidate must lose instead of reaching a runtime parse error.
+fn class_body_has_dotted_method(tokens: &[Token<'_>], index: usize) -> bool {
+    tokens.get(index).is_some_and(|token| token.kind == TokenKind::Identifier)
+        && tokens.get(index + 1).map(|token| token.text) == Some(".")
+        && tokens.get(index + 2).is_some_and(|token| {
+            token.kind == TokenKind::Identifier || token.kind == TokenKind::Keyword
+        })
+        && tokens.get(index + 3).map(|token| token.text) == Some("(")
+}
+
+fn validate_class_body_members(tokens: &[Token<'_>]) -> Result<(), JavaScriptParseError> {
+    let matching_close = matching_closers(tokens);
+    for (open, close) in class_body_spans(tokens, &matching_close) {
+        let mut paren = 0i32;
+        let mut bracket = 0i32;
+        let mut brace = 0i32;
+        for index in open + 1..close {
+            if paren == 0 && bracket == 0 && brace == 0 {
+                if tokens[index].text == "!"
+                    || class_body_has_dotted_method(tokens, index)
+                {
+                    return Err(JavaScriptParseError {
+                        offset: tokens[index].start,
+                        message: "invalid generated class element",
+                    });
+                }
+            }
+            match tokens[index].text {
+                "(" => paren += 1,
+                ")" => paren -= 1,
+                "[" => bracket += 1,
+                "]" => bracket -= 1,
+                "{" => brace += 1,
+                "}" => brace -= 1,
+                _ => {}
+            }
+        }
+    }
+    Ok(())
+}
+
+fn validate_for_heads(tokens: &[Token<'_>]) -> Result<(), JavaScriptParseError> {
+    let matching_close = matching_closers(tokens);
+    for index in 0..tokens.len() {
+        if tokens[index].text != "for"
+            || tokens.get(index + 1).map(|token| token.text) != Some("(")
+        {
+            continue;
+        }
+        let open = index + 1;
+        let Some(close) = matching_close.get(open).copied().flatten() else {
+            continue;
+        };
+        let mut paren = 0i32;
+        let mut bracket = 0i32;
+        let mut brace = 0i32;
+        let mut semis = 0u8;
+        for scan in open + 1..close {
+            if paren == 0 && bracket == 0 && brace == 0 {
+                if tokens[scan].text == ";" {
+                    semis = semis.saturating_add(1);
+                } else if semis >= 2
+                    && matches!(tokens[scan].text, "var" | "let" | "const" | "function")
+                {
+                    return Err(JavaScriptParseError {
+                        offset: tokens[scan].start,
+                        message: "invalid generated for-update clause",
+                    });
+                }
+            }
+            match tokens[scan].text {
+                "(" => paren += 1,
+                ")" => paren -= 1,
+                "[" => bracket += 1,
+                "]" => bracket -= 1,
+                "{" => brace += 1,
+                "}" => brace -= 1,
+                _ => {}
+            }
+        }
+    }
+    Ok(())
+}
+
+fn generated_identifier_is_binding(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    index: usize,
+) -> bool {
+    if identifier_is_arrow_parameter(tokens, index)
+        || identifier_is_function_parameter(tokens, matching_close, index)
+        || identifier_is_catch_parameter(tokens, matching_close, index)
+    {
+        return true;
+    }
+    let previous = index
+        .checked_sub(1)
+        .map(|prev| tokens[prev].text)
+        .unwrap_or(";");
+    if matches!(
+        previous,
+        "var" | "let" | "const" | "function" | "class" | "catch"
+    ) {
+        return true;
+    }
+    if previous == "*"
+        && index
+            .checked_sub(2)
+            .is_some_and(|prev| tokens[prev].text == "function")
+    {
+        return true;
+    }
+    previous == "," && assign_is_in_declaration(tokens, index)
+}
+
+fn generated_identifier_is_ambient(name: &str) -> bool {
+    matches!(
+        name,
+        "undefined"
+            | "NaN"
+            | "Infinity"
+            | "Math"
+            | "Object"
+            | "Array"
+            | "String"
+            | "Number"
+            | "Boolean"
+            | "Date"
+            | "RegExp"
+            | "Error"
+            | "TypeError"
+            | "RangeError"
+            | "SyntaxError"
+            | "Map"
+            | "Set"
+            | "WeakMap"
+            | "WeakSet"
+            | "JSON"
+            | "console"
+            | "document"
+            | "window"
+            | "globalThis"
+            | "global"
+            | "self"
+            | "Promise"
+            | "Symbol"
+            | "Reflect"
+            | "Proxy"
+            | "Intl"
+            | "parseInt"
+            | "parseFloat"
+            | "isNaN"
+            | "isFinite"
+            | "encodeURIComponent"
+            | "decodeURIComponent"
+            | "encodeURI"
+            | "decodeURI"
+            | "eval"
+            | "Function"
+            | "Uint8Array"
+            | "Uint16Array"
+            | "Uint32Array"
+            | "Int8Array"
+            | "Int16Array"
+            | "Int32Array"
+            | "Float32Array"
+            | "Float64Array"
+            | "ArrayBuffer"
+            | "DataView"
+            | "BigInt"
+            | "setTimeout"
+            | "clearTimeout"
+            | "setInterval"
+            | "clearInterval"
+            | "crypto"
+            | "performance"
+            | "fetch"
+            | "URL"
+            | "Buffer"
+            | "process"
+            | "arguments"
+    )
+}
+
+/// A candidate may not win by emitting a name that is bound in one function
+/// and read from another. Host and language globals stay legal; a local that
+/// leaked across a function boundary is the ident-05 failure mode.
+fn validate_resolved_generated_bindings(tokens: &[Token<'_>]) -> Result<(), JavaScriptParseError> {
+    let matching_close = matching_closers(tokens);
+    for (index, token) in tokens.iter().enumerate() {
+        if token.kind != TokenKind::Identifier
+            || is_property_identifier(tokens, index)
+            || generated_identifier_is_binding(tokens, &matching_close, index)
+            || generated_identifier_is_ambient(token.text)
+            || name_is_visible_generated_binding(tokens, &matching_close, index, token.text)
+        {
+            continue;
+        }
+        if name_is_bound_as_non_enclosing_function_local(
+            tokens,
+            &matching_close,
+            index,
+            token.text,
+        ) {
+            return Err(JavaScriptParseError {
+                offset: token.start,
+                message: "unresolved generated identifier",
+            });
+        }
     }
     Ok(())
 }
@@ -680,6 +932,26 @@ pub fn remap_single_character_identifiers(
 /// The parser is deliberately conservative. Unsupported expressions still
 /// contribute to token metrics but are never rewritten.
 pub fn optimize_generated_javascript(source: &str) -> Result<PeepholeResult, JavaScriptParseError> {
+    let first = optimize_generated_javascript_pass(source)?;
+    if first.rewrites == 0 || !constructor_table_remains(&first.code) {
+        return Ok(first);
+    }
+    match optimize_generated_javascript_pass(&first.code) {
+        Ok(second) if second.rewrites > 0 => Ok(PeepholeResult {
+            code: second.code,
+            metrics: second.metrics,
+            rewrites: first.rewrites.saturating_add(second.rewrites),
+        }),
+        Ok(_) | Err(_) => Ok(first),
+    }
+}
+
+fn constructor_table_remains(source: &str) -> bool {
+    source.contains(".prototype")
+        && (source.contains("(0,function") || source.contains("=function("))
+}
+
+fn optimize_generated_javascript_pass(source: &str) -> Result<PeepholeResult, JavaScriptParseError> {
     let tokens = lex(source)?;
     validate_delimiters(&tokens)?;
     let parsed = parse_expression_regions(&tokens);
@@ -838,6 +1110,12 @@ pub fn optimize_generated_javascript(source: &str) -> Result<PeepholeResult, Jav
     session.run(split_fused_keyword_identifiers)?;
     session.run(strip_stale_set_prototype_of)?;
     session.run(terminate_bare_prototype_before_statement)?;
+    session.run(fold_constructor_prototype_tables_to_classes)?;
+    session.run(strip_stale_set_prototype_of)?;
+    session.run(terminate_bare_prototype_before_statement)?;
+    session.run(fold_dead_pure_identifier_assigns)?;
+    session.run(fold_unread_prototype_aliases)?;
+    session.run(remove_unused_standalone_vars)?;
 
     let final_tokens = if session.rewrites == 0 {
         tokens
@@ -846,6 +1124,7 @@ pub fn optimize_generated_javascript(source: &str) -> Result<PeepholeResult, Jav
     };
     let final_nesting = validate_delimiters(&final_tokens)?;
     validate_unique_top_level_bindings(&final_tokens)?;
+    validate_class_body_members(&final_tokens)?;
     let final_parsed = parse_expression_regions(&final_tokens);
     let metrics = syntax_metrics(&session.code, &final_tokens, &final_parsed, final_nesting);
     Ok(PeepholeResult {

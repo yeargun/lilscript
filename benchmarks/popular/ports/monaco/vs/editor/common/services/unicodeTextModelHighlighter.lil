@@ -1,0 +1,208 @@
+import { hostCall, jsUndefined, stringFromCharCode1 } from "../../../../js-host";
+
+bool optionEnabled(JsValue options, string key) {
+  return options != null && options[key] != null && options[key].truthy();
+}
+
+bool allowedCodePoint(JsValue options, int code) {
+  if (options == null || !JS.isArray(options["allowedCodePoints"])) {
+    return false;
+  }
+  JsValue values = options["allowedCodePoints"];
+  int i = 0;
+  int length = JS.number(values["length"]).toInt();
+  while (i < length) {
+    if (JS.number(values[i]).toInt() == code) {
+      return true;
+    }
+    i = i + 1;
+  }
+  return false;
+}
+
+bool invisibleCodePoint(int code) {
+  return code == 160 || code == 173 || code == 847 || code == 1564 ||
+    code == 4447 || code == 4448 || code == 6068 || code == 6069 ||
+    (code >= 6155 && code <= 6159) || (code >= 8203 && code <= 8207) ||
+    (code >= 8234 && code <= 8238) || (code >= 8288 && code <= 8303) ||
+    code == 65279;
+}
+
+string confusableWith(int code) {
+  if (code == 1072 || code == 945) {
+    return "a";
+  }
+  if (code == 1040 || code == 913) {
+    return "A";
+  }
+  if (code == 1077 || code == 949) {
+    return "e";
+  }
+  if (code == 1045 || code == 917) {
+    return "E";
+  }
+  if (code == 1086 || code == 959) {
+    return "o";
+  }
+  if (code == 1054 || code == 927) {
+    return "O";
+  }
+  if (code == 1088 || code == 961) {
+    return "p";
+  }
+  if (code == 1056 || code == 929) {
+    return "P";
+  }
+  if (code == 1089 || code == 1010) {
+    return "c";
+  }
+  if (code == 1057) {
+    return "C";
+  }
+  if (code == 1093 || code == 967) {
+    return "x";
+  }
+  if (code == 1061 || code == 935) {
+    return "X";
+  }
+  if (code == 1110) {
+    return "i";
+  }
+  if (code == 1030) {
+    return "I";
+  }
+  if (code == 1112) {
+    return "j";
+  }
+  if (code == 1091 || code == 965) {
+    return "y";
+  }
+  if (code == 1042) {
+    return "B";
+  }
+  if (code == 1053) {
+    return "H";
+  }
+  if (code == 1050) {
+    return "K";
+  }
+  if (code == 1052) {
+    return "M";
+  }
+  if (code == 1058 || code == 932) {
+    return "T";
+  }
+  return "";
+}
+
+int highlightReason(int code, JsValue options) {
+  if (allowedCodePoint(options, code) || code == 9 || code == 10 || code == 13 ||
+    (code >= 32 && code <= 126)) {
+    return 0;
+  }
+  if (optionEnabled(options, "nonBasicASCII")) {
+    return 1;
+  }
+  if (optionEnabled(options, "invisibleCharacters") && invisibleCodePoint(code)) {
+    return 2;
+  }
+  if (optionEnabled(options, "ambiguousCharacters") && confusableWith(code).length > 0) {
+    return 3;
+  }
+  return 0;
+}
+
+JsValue rangeValue(int lineNumber, int startColumn, int endColumn) {
+  JsValue range = JS.object();
+  range["startLineNumber"] = lineNumber;
+  range["startColumn"] = startColumn;
+  range["endLineNumber"] = lineNumber;
+  range["endColumn"] = endColumn;
+  return range;
+}
+
+export class UnicodeTextModelHighlighter {
+  JsValue computeUnicodeHighlights(JsValue model, JsValue options, JsValue searchRange = null) {
+    int startLine = 1;
+    int endLine = JS.number(hostCall(model, "getLineCount", jsUndefined(), jsUndefined(), jsUndefined())).toInt();
+    if (searchRange != null) {
+      startLine = JS.number(searchRange["startLineNumber"]).toInt();
+      endLine = JS.number(searchRange["endLineNumber"]).toInt();
+    }
+    JsValue[] ranges = [];
+    int ambiguousCount = 0;
+    int invisibleCount = 0;
+    int nonBasicCount = 0;
+    bool hasMore = false;
+    int lineNumber = startLine;
+    while (lineNumber <= endLine && !hasMore) {
+      string line = JS.string(hostCall(model, "getLineContent", lineNumber, jsUndefined(), jsUndefined()));
+      int i = 0;
+      while (i < line.length) {
+        int code = line.charCodeAt(i);
+        int width = 1;
+        if (code >= 55296 && code <= 56319 && i + 1 < line.length) {
+          int low = line.charCodeAt(i + 1);
+          if (low >= 56320 && low <= 57343) {
+            code = 65536 + (code - 55296) * 1024 + low - 56320;
+            width = 2;
+          }
+        }
+        int reason = highlightReason(code, options);
+        if (reason != 0) {
+          if (ranges.length >= 1000) {
+            hasMore = true;
+            break;
+          }
+          ranges.push(rangeValue(lineNumber, i + 1, i + width + 1));
+          if (reason == 1) {
+            nonBasicCount = nonBasicCount + 1;
+          } else if (reason == 2) {
+            invisibleCount = invisibleCount + 1;
+          } else {
+            ambiguousCount = ambiguousCount + 1;
+          }
+        }
+        i = i + width;
+      }
+      lineNumber = lineNumber + 1;
+    }
+    JsValue result = JS.object();
+    result["ranges"] = ranges;
+    result["hasMore"] = hasMore;
+    result["ambiguousCharacterCount"] = ambiguousCount;
+    result["invisibleCharacterCount"] = invisibleCount;
+    result["nonBasicAsciiCharacterCount"] = nonBasicCount;
+    return result;
+  }
+
+  JsValue computeUnicodeHighlightReason(string character, JsValue options) {
+    if (character.length == 0) {
+      return null;
+    }
+    int code = character.charCodeAt(0);
+    int reason = highlightReason(code, options);
+    if (reason == 0) {
+      return null;
+    }
+    JsValue result = JS.object();
+    if (reason == 2) {
+      result["kind"] = 1;
+    } else if (reason == 3) {
+      result["kind"] = 0;
+      result["confusableWith"] = confusableWith(code);
+      result["notAmbiguousInLocales"] = JS.array();
+    } else {
+      result["kind"] = 2;
+    }
+    return result;
+  }
+}
+
+export JsValue computeUnicodeHighlights(JsValue model, JsValue options, JsValue range = null) {
+  return new UnicodeTextModelHighlighter().computeUnicodeHighlights(model, options, range);
+}
+
+export JsValue computeUnicodeHighlightReason(string character, JsValue options) {
+  return new UnicodeTextModelHighlighter().computeUnicodeHighlightReason(character, options);
+}

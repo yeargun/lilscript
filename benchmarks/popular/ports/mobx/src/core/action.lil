@@ -1,0 +1,142 @@
+import { DEV } from "../dev-flag.lil";
+import {
+  isFn,
+  isStr,
+  isNullish,
+  isUndef,
+  undef,
+  toInt,
+  apply,
+  arrayFrom,
+  defineProperty,
+  getDescriptor,
+  now
+} from "../host.lil";
+import { ACTION, EMPTY_ARRAY } from "../constants.lil";
+import { die } from "../errors.lil";
+import { globalState } from "./globalstate.lil";
+import {
+  startBatch,
+  endBatch
+} from "./observable.lil";
+import {
+  untrackedStart,
+  untrackedEnd,
+  allowStateChangesStart,
+  allowStateChangesEnd,
+  allowStateReadsStart,
+  allowStateReadsEnd
+} from "./derivation.lil";
+import { isSpyEnabled, spyReportStart, spyReportEnd } from "./spy.lil";
+
+int currentActionId = 0;
+int nextActionId = 1;
+
+JsValue tmpNameDescriptor = JS.object("value", "action", "configurable", true, "writable", false, "enumerable", false);
+
+JsValue isFunctionNameConfigurableDesc = getDescriptor(JS.method0((JsValue _self) => {
+  return undef();
+}), "name");
+bool isFunctionNameConfigurable = !isNullish(isFunctionNameConfigurableDesc) && isFunctionNameConfigurableDesc["configurable"].truthy();
+
+export JsValue createAction(string actionName, JsValue fn, bool autoActionFlag, JsValue ref) {
+  if (DEV) {
+    if (!isFn(fn)) {
+      die("`action` can only be invoked on functions");
+    }
+    if (!isStr(actionName) || actionName == "") {
+      die("actions should have valid names, got: '" + actionName + "'");
+    }
+  }
+  JsValue res = JS.methodRest((JsValue self, JsValue args) => {
+    JsValue scope = ref;
+    if (isNullish(ref)) {
+      scope = self;
+    }
+    return executeAction(actionName, autoActionFlag, fn, scope, args);
+  });
+  res["isMobxAction"] = true;
+  res["toString"] = JS.method0((JsValue _s) => {
+    return JS.invoke(fn, "toString");
+  });
+  if (isFunctionNameConfigurable) {
+    tmpNameDescriptor["value"] = actionName;
+    defineProperty(res, "name", tmpNameDescriptor);
+  }
+  return res;
+}
+
+export JsValue _startAction(string actionName, bool canRunAsDerivation, JsValue scope, JsValue args) {
+  bool notifySpy_ = DEV && isSpyEnabled() && actionName.truthy();
+  JsValue startTime_ = 0;
+  if (notifySpy_) {
+    startTime_ = now();
+    JsValue flattenedArgs = EMPTY_ARRAY;
+    if (args.truthy()) {
+      flattenedArgs = arrayFrom(args);
+    }
+    spyReportStart(JS.object("type", ACTION, "name", actionName, "object", scope, "arguments", flattenedArgs));
+  }
+  JsValue prevDerivation_ = globalState["trackingDerivation"];
+  bool runAsAction = !canRunAsDerivation || JS.isNullish(prevDerivation_);
+  startBatch();
+  bool prevAllowStateChanges_ = globalState["allowStateChanges"].truthy();
+  if (runAsAction) {
+    untrackedStart();
+    if (DEV) {
+      prevAllowStateChanges_ = allowStateChangesStart(true);
+    }
+  }
+  bool prevAllowStateReads_ = globalState["allowStateReads"].truthy();
+  if (DEV) {
+    allowStateReadsStart(true);
+  }
+  int actionId_ = nextActionId;
+  nextActionId = nextActionId + 1;
+  int parentActionId_ = currentActionId;
+  currentActionId = actionId_;
+  JsValue runInfo = JS.object();
+  runInfo["runAsAction_"] = runAsAction;
+  runInfo["prevDerivation_"] = prevDerivation_;
+  runInfo["prevAllowStateChanges_"] = prevAllowStateChanges_;
+  runInfo["prevAllowStateReads_"] = prevAllowStateReads_;
+  runInfo["notifySpy_"] = notifySpy_;
+  runInfo["startTime_"] = startTime_;
+  runInfo["actionId_"] = actionId_;
+  runInfo["parentActionId_"] = parentActionId_;
+  return runInfo;
+}
+
+export void _endAction(JsValue runInfo) {
+  if (currentActionId != toInt(runInfo["actionId_"])) {
+    die(30);
+  }
+  currentActionId = toInt(runInfo["parentActionId_"]);
+  if (!isUndef(runInfo["error_"])) {
+    globalState["suppressReactionErrors"] = true;
+  }
+  if (DEV) {
+    allowStateChangesEnd(runInfo["prevAllowStateChanges_"].truthy());
+    allowStateReadsEnd(runInfo["prevAllowStateReads_"].truthy());
+  }
+  endBatch();
+  if (runInfo["runAsAction_"].truthy()) {
+    untrackedEnd(runInfo["prevDerivation_"]);
+  }
+  if (DEV && runInfo["notifySpy_"].truthy()) {
+    spyReportEnd(JS.object("time", toInt(now()) - toInt(runInfo["startTime_"])));
+  }
+  globalState["suppressReactionErrors"] = false;
+}
+
+export JsValue executeAction(string actionName, bool canRunAsDerivation, JsValue fn, JsValue scope, JsValue args) {
+  JsValue runInfo = _startAction(actionName, canRunAsDerivation, scope, args);
+  try {
+    return apply(fn, scope, args);
+  } catch (JsValue err) {
+    runInfo["error_"] = err;
+    throw err;
+  } finally {
+    _endAction(runInfo);
+  }
+}

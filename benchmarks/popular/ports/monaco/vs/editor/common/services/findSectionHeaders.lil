@@ -1,0 +1,144 @@
+import {
+  hostCall,
+  jsUndefined,
+  newRegexp,
+  regexExec,
+  regexSetLastIndex,
+  sliceOf,
+  stringReplace
+} from "../../../../js-host";
+
+string trimHeader(string text) {
+  string result = stringReplace(text, newRegexp("^\\s+|\\s+$", "g"), "");
+  return stringReplace(result, newRegexp("^-+|-+$", "g"), "");
+}
+
+JsValue sectionRange(int lineNumber, int startColumn, int endColumn) {
+  JsValue range = JS.object();
+  range["startLineNumber"] = lineNumber;
+  range["startColumn"] = startColumn;
+  range["endLineNumber"] = lineNumber;
+  range["endColumn"] = endColumn;
+  return range;
+}
+
+JsValue createHeader(
+  int lineNumber,
+  int startColumn,
+  int endColumn,
+  string text,
+  bool separator,
+  bool comments
+) {
+  JsValue header = JS.object();
+  header["range"] = sectionRange(lineNumber, startColumn, endColumn);
+  header["text"] = text;
+  header["hasSeparatorLine"] = separator;
+  header["shouldBeInComments"] = comments;
+  return header;
+}
+
+JsValue[] collectRegionHeaders(JsValue model, JsValue options) {
+  JsValue[] result = [];
+  if (options["foldingRules"] == null ||
+    options["foldingRules"]["markers"] == null ||
+    options["foldingRules"]["markers"]["start"] == null) {
+    return result;
+  }
+  JsValue expression = options["foldingRules"]["markers"]["start"];
+  int lineCount = JS.number(hostCall(model, "getLineCount", jsUndefined(), jsUndefined(), jsUndefined())).toInt();
+  int lineNumber = 1;
+  while (lineNumber <= lineCount) {
+    string line = JS.string(hostCall(model, "getLineContent", lineNumber, jsUndefined(), jsUndefined()));
+    expression["lastIndex"] = 0;
+    JsValue found = hostCall(expression, "exec", line, jsUndefined(), jsUndefined());
+    if (found != null) {
+      string prefix = JS.string(found[0]);
+      string raw = sliceOf(line, prefix.length, line.length);
+      string text = trimHeader(raw);
+      bool separator = stringReplace(raw, newRegexp("^\\s+", "g"), "").startsWith("-");
+      if (text.length > 0 || separator) {
+        result.push(createHeader(
+          lineNumber,
+          prefix.length + 1,
+          line.length + 1,
+          text,
+          separator,
+          false
+        ));
+      }
+    }
+    lineNumber = lineNumber + 1;
+  }
+  return result;
+}
+
+export JsValue[] collectMarkHeaders(JsValue model, JsValue options) {
+  JsValue[] result = [];
+  if (options["markSectionHeaderRegex"] == null) {
+    return result;
+  }
+  string source = JS.string(options["markSectionHeaderRegex"]);
+  if (source.length == 0) {
+    return result;
+  }
+  Regex expression = newRegexp(source, "g");
+  int lineCount = JS.number(hostCall(model, "getLineCount", jsUndefined(), jsUndefined(), jsUndefined())).toInt();
+  int lineNumber = 1;
+  while (lineNumber <= lineCount) {
+    string line = JS.string(hostCall(model, "getLineContent", lineNumber, jsUndefined(), jsUndefined()));
+    regexSetLastIndex(expression, 0);
+    JsValue found = regexExec(expression, line);
+    if (found != null) {
+      int index = JS.number(found["index"]).toInt();
+      string matchedText = JS.string(found[0]);
+      string text = "";
+      bool separator = false;
+      if (found["groups"] != null) {
+        JsValue groups = found["groups"];
+        if (groups["label"] != null) {
+          text = JS.string(groups["label"]);
+        }
+        separator = groups["separator"] != null && JS.string(groups["separator"]).length > 0;
+      }
+      if (text.length == 0) {
+        text = trimHeader(matchedText);
+      }
+      if (text.length > 0 || separator) {
+        result.push(createHeader(
+          lineNumber,
+          index + 1,
+          index + matchedText.length + 1,
+          text,
+          separator,
+          true
+        ));
+      }
+    }
+    lineNumber = lineNumber + 1;
+  }
+  return result;
+}
+
+export JsValue[] findSectionHeaders(JsValue model, JsValue options) {
+  JsValue[] result = [];
+  if (options["findRegionSectionHeaders"] != null &&
+    options["findRegionSectionHeaders"].truthy()) {
+    JsValue[] regions = collectRegionHeaders(model, options);
+    int i = 0;
+    while (i < regions.length) {
+      result.push(regions[i]);
+      i = i + 1;
+    }
+  }
+  if (options["findMarkSectionHeaders"] != null &&
+    options["findMarkSectionHeaders"].truthy()) {
+    JsValue[] marks = collectMarkHeaders(model, options);
+    int i = 0;
+    while (i < marks.length) {
+      result.push(marks[i]);
+      i = i + 1;
+    }
+  }
+  return result;
+}

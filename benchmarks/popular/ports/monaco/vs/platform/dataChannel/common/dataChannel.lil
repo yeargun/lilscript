@@ -1,0 +1,19 @@
+export class DataChannel {
+  string id;
+  string[] messages;
+
+  init(string id) {
+    this.id = id;
+    this.messages = [];
+  }
+
+  void send(string msg) {
+    this.messages.push(msg);
+  }
+}
+
+export DataChannel createDataChannel(string id) {
+  return new DataChannel(id);
+}
+
+export string IDataChannelServiceId = "dataChannelService";

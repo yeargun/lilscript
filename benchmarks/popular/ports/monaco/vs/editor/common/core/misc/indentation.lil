@@ -1,0 +1,51 @@
+import { emptyBuf, concat2, sliceOf } from "../../../../../js-host";
+import { nextIndentTabStop } from "../cursorColumns";
+
+int firstNonWhitespaceIndex(string str) {
+  int i = 0;
+  while (i < str.length) {
+    int c = str.charCodeAt(i);
+    if (c != 32 && c != 9) {
+      return i;
+    }
+    i = i + 1;
+  }
+  return -1;
+}
+
+string normalizeIndentationFromWhitespace(string str, int indentSize, bool insertSpaces) {
+  int spacesCnt = 0;
+  int i = 0;
+  while (i < str.length) {
+    if (str.charAt(i) == "\t") {
+      spacesCnt = nextIndentTabStop(spacesCnt, indentSize);
+    } else {
+      spacesCnt = spacesCnt + 1;
+    }
+    i = i + 1;
+  }
+  string result = emptyBuf();
+  if (!insertSpaces) {
+    int tabsCnt = spacesCnt / indentSize;
+    spacesCnt = spacesCnt % indentSize;
+    int t = 0;
+    while (t < tabsCnt) {
+      result = concat2(result, "\t");
+      t = t + 1;
+    }
+  }
+  int s = 0;
+  while (s < spacesCnt) {
+    result = concat2(result, " ");
+    s = s + 1;
+  }
+  return result;
+}
+
+export string normalizeIndentation(string str, int indentSize, bool insertSpaces) {
+  int first = firstNonWhitespaceIndex(str);
+  if (first < 0) {
+    first = str.length;
+  }
+  return concat2(normalizeIndentationFromWhitespace(sliceOf(str, 0, first), indentSize, insertSpaces), sliceOf(str, first, str.length));
+}

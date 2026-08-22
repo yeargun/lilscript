@@ -1,0 +1,216 @@
+export class ColumnWidth {
+  string id;
+  int weight;
+  int minimum;
+  int maximum;
+  int width;
+
+  init(string id, int weight, int minimum = 120, int maximum = 2147483647) {
+    this.id = id;
+    this.weight = weight;
+    if (this.weight < 1) {
+      this.weight = 1;
+    }
+    this.minimum = minimum;
+    if (this.minimum < 0) {
+      this.minimum = 0;
+    }
+    this.maximum = maximum;
+    if (this.maximum < this.minimum) {
+      this.maximum = this.minimum;
+    }
+    this.width = this.minimum;
+  }
+
+  int clamp(int value) {
+    if (value < this.minimum) {
+      return this.minimum;
+    }
+    if (value > this.maximum) {
+      return this.maximum;
+    }
+    return value;
+  }
+}
+
+export class TableWidget {
+  ColumnWidth[] columns;
+  string[][] rows;
+  int width;
+  int height;
+
+  init(ColumnWidth[] columns = []) {
+    this.columns = columns;
+    this.rows = [];
+    this.width = 0;
+    this.height = 0;
+  }
+
+  void layout(int width, int height) {
+    this.width = width;
+    if (this.width < 0) {
+      this.width = 0;
+    }
+    this.height = height;
+    if (this.height < 0) {
+      this.height = 0;
+    }
+    int minimumWidth = 0;
+    int i = 0;
+    while (i < this.columns.length) {
+      this.columns[i].width = this.columns[i].minimum;
+      minimumWidth = minimumWidth + this.columns[i].minimum;
+      i = i + 1;
+    }
+    int remaining = this.width - minimumWidth;
+    if (remaining <= 0) {
+      return;
+    }
+    int guard = 0;
+    while (remaining > 0 && guard < this.columns.length + 2) {
+      int activeWeight = 0;
+      i = 0;
+      while (i < this.columns.length) {
+        if (this.columns[i].width < this.columns[i].maximum) {
+          activeWeight = activeWeight + this.columns[i].weight;
+        }
+        i = i + 1;
+      }
+      if (activeWeight == 0) {
+        return;
+      }
+      int passRemaining = remaining;
+      int distributed = 0;
+      i = 0;
+      while (i < this.columns.length && remaining > 0) {
+        ColumnWidth column = this.columns[i];
+        if (column.width < column.maximum) {
+          int share = (passRemaining * 1.0 * column.weight / activeWeight).floor().toInt();
+          if (share < 1) {
+            share = 1;
+          }
+          if (share > remaining) {
+            share = remaining;
+          }
+          int next = column.clamp(column.width + share);
+          int added = next - column.width;
+          column.width = next;
+          remaining = remaining - added;
+          distributed = distributed + added;
+        }
+        i = i + 1;
+      }
+      if (distributed == 0) {
+        return;
+      }
+      guard = guard + 1;
+    }
+  }
+
+  int totalColumnWidth() {
+    int result = 0;
+    int i = 0;
+    while (i < this.columns.length) {
+      result = result + this.columns[i].width;
+      i = i + 1;
+    }
+    return result;
+  }
+
+  int getColumnWidth(int index) {
+    if (index < 0 || index >= this.columns.length) {
+      return 0;
+    }
+    return this.columns[index].width;
+  }
+
+  int resizeColumn(int index, int requestedWidth) {
+    if (index < 0 || index >= this.columns.length) {
+      return 0;
+    }
+    ColumnWidth target = this.columns[index];
+    int previous = target.width;
+    target.width = target.clamp(requestedWidth);
+    int delta = target.width - previous;
+    if (delta == 0) {
+      return target.width;
+    }
+    int i = index + 1;
+    while (i < this.columns.length && delta != 0) {
+      ColumnWidth other = this.columns[i];
+      int otherPrevious = other.width;
+      other.width = other.clamp(other.width - delta);
+      int absorbed = otherPrevious - other.width;
+      delta = delta - absorbed;
+      i = i + 1;
+    }
+    if (delta != 0) {
+      target.width = target.width - delta;
+    }
+    return target.width;
+  }
+
+  int resetColumn(int index) {
+    if (index < 0 || index >= this.columns.length) {
+      return 0;
+    }
+    int totalWeight = 0;
+    int i = 0;
+    while (i < this.columns.length) {
+      totalWeight = totalWeight + this.columns[i].weight;
+      i = i + 1;
+    }
+    if (totalWeight == 0) {
+      return this.columns[index].width;
+    }
+    int requested = (this.width * 1.0 * this.columns[index].weight / totalWeight).round().toInt();
+    return this.resizeColumn(index, requested);
+  }
+
+  void splice(int start, int deleteCount, string[][] inserted = []) {
+    int index = start;
+    if (index < 0) {
+      index = 0;
+    }
+    if (index > this.rows.length) {
+      index = this.rows.length;
+    }
+    int count = deleteCount;
+    if (count < 0) {
+      count = 0;
+    }
+    if (index + count > this.rows.length) {
+      count = this.rows.length - index;
+    }
+    string[][] next = [];
+    int i = 0;
+    while (i < index) {
+      next.push(this.rows[i]);
+      i = i + 1;
+    }
+    i = 0;
+    while (i < inserted.length) {
+      next.push(inserted[i]);
+      i = i + 1;
+    }
+    i = index + count;
+    while (i < this.rows.length) {
+      next.push(this.rows[i]);
+      i = i + 1;
+    }
+    this.rows = next;
+  }
+}
+
+export ColumnWidth createColumnWidth(
+  string id,
+  int weight,
+  int minimum = 120,
+  int maximum = 2147483647
+) {
+  return new ColumnWidth(id, weight, minimum, maximum);
+}
+
+export TableWidget createTableWidget(ColumnWidth[] columns) {
+  return new TableWidget(columns);
+}

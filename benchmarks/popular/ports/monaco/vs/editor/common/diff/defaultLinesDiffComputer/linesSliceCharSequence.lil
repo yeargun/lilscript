@@ -1,0 +1,259 @@
+import { sliceOf } from "../../../../../js-host";
+import { Position } from "../../core/position";
+import { Range } from "../../core/range";
+import { OffsetRange } from "../../core/ranges/offsetRange";
+import { isSpace } from "./utils";
+
+bool wordCharacter(int code) {
+  return (code >= 97 && code <= 122) ||
+    (code >= 65 && code <= 90) ||
+    (code >= 48 && code <= 57);
+}
+
+bool upperCaseCharacter(int code) {
+  return code >= 65 && code <= 90;
+}
+
+int characterCategory(int code) {
+  if (code == 10) {
+    return 8;
+  }
+  if (code == 13) {
+    return 7;
+  }
+  if (isSpace(code)) {
+    return 6;
+  }
+  if (code >= 97 && code <= 122) {
+    return 0;
+  }
+  if (code >= 65 && code <= 90) {
+    return 1;
+  }
+  if (code >= 48 && code <= 57) {
+    return 2;
+  }
+  if (code == -1) {
+    return 3;
+  }
+  if (code == 44 || code == 59) {
+    return 5;
+  }
+  return 4;
+}
+
+int categoryScore(int category) {
+  if (category == 3) {
+    return 10;
+  }
+  if (category == 4) {
+    return 2;
+  }
+  if (category == 5) {
+    return 30;
+  }
+  if (category == 6) {
+    return 3;
+  }
+  if (category == 7 || category == 8) {
+    return 10;
+  }
+  return 0;
+}
+
+export class LinesSliceCharSequence {
+  string[] lines;
+  Range range;
+  bool considerWhitespaceChanges;
+  int[] elements;
+  int[] firstElementOffsetByLineIndex;
+  int[] lineStartOffsets;
+  int[] trimmedWhitespaceLengths;
+
+  init(string[] lines, Range range, bool considerWhitespaceChanges) {
+    this.lines = lines;
+    this.range = range;
+    this.considerWhitespaceChanges = considerWhitespaceChanges;
+    this.elements = [];
+    this.firstElementOffsetByLineIndex = [0];
+    this.lineStartOffsets = [];
+    this.trimmedWhitespaceLengths = [];
+    int lineNumber = range.startLineNumber;
+    while (lineNumber <= range.endLineNumber) {
+      string line = lines[lineNumber - 1];
+      int lineStart = 0;
+      if (lineNumber == range.startLineNumber && range.startColumn > 1) {
+        lineStart = range.startColumn - 1;
+        line = sliceOf(line, lineStart, line.length);
+      }
+      this.lineStartOffsets.push(lineStart);
+      int trimmedStart = 0;
+      int trimmedEnd = line.length;
+      if (!considerWhitespaceChanges) {
+        while (trimmedStart < trimmedEnd && isSpace(line.charCodeAt(trimmedStart))) {
+          trimmedStart = trimmedStart + 1;
+        }
+        while (trimmedEnd > trimmedStart && isSpace(line.charCodeAt(trimmedEnd - 1))) {
+          trimmedEnd = trimmedEnd - 1;
+        }
+      }
+      this.trimmedWhitespaceLengths.push(trimmedStart);
+      int lineLength = trimmedEnd - trimmedStart;
+      if (lineNumber == range.endLineNumber) {
+        int requested = range.endColumn - 1 - lineStart - trimmedStart;
+        if (requested < lineLength) {
+          lineLength = requested;
+        }
+        if (lineLength < 0) {
+          lineLength = 0;
+        }
+      }
+      int i = 0;
+      while (i < lineLength) {
+        this.elements.push(line.charCodeAt(trimmedStart + i));
+        i = i + 1;
+      }
+      if (lineNumber < range.endLineNumber) {
+        this.elements.push(10);
+        this.firstElementOffsetByLineIndex.push(this.elements.length);
+      }
+      lineNumber = lineNumber + 1;
+    }
+  }
+
+  int length() {
+    return this.elements.length;
+  }
+
+  int getElement(int offset) {
+    return this.elements[offset];
+  }
+
+  bool isStronglyEqual(int offset1, int offset2) {
+    return this.elements[offset1] == this.elements[offset2];
+  }
+
+  int getBoundaryScore(int offset) {
+    int previousCode = -1;
+    int nextCode = -1;
+    if (offset > 0) {
+      previousCode = this.elements[offset - 1];
+    }
+    if (offset < this.elements.length) {
+      nextCode = this.elements[offset];
+    }
+    int previous = characterCategory(previousCode);
+    int next = characterCategory(nextCode);
+    if (previous == 7 && next == 8) {
+      return 0;
+    }
+    if (previous == 8) {
+      return 150;
+    }
+    int result = categoryScore(previous) + categoryScore(next);
+    if (previous != next) {
+      result = result + 10;
+      if (previous == 0 && next == 1) {
+        result = result + 1;
+      }
+    }
+    return result;
+  }
+
+  Position translateOffset(int offset, bool preferLeft = false) {
+    int lineIndex = 0;
+    while (
+      lineIndex + 1 < this.firstElementOffsetByLineIndex.length &&
+      this.firstElementOffsetByLineIndex[lineIndex + 1] <= offset
+    ) {
+      lineIndex = lineIndex + 1;
+    }
+    int lineOffset = offset - this.firstElementOffsetByLineIndex[lineIndex];
+    int whitespaceOffset = this.trimmedWhitespaceLengths[lineIndex];
+    if (lineOffset == 0 && preferLeft) {
+      whitespaceOffset = 0;
+    }
+    return new Position(
+      this.range.startLineNumber + lineIndex,
+      1 + this.lineStartOffsets[lineIndex] + lineOffset + whitespaceOffset
+    );
+  }
+
+  Range translateRange(OffsetRange offsets) {
+    Position start = this.translateOffset(offsets.start);
+    Position end = this.translateOffset(offsets.endExclusive, true);
+    if (end.isBefore(start)) {
+      return new Range(end.lineNumber, end.column, end.lineNumber, end.column);
+    }
+    return new Range(start.lineNumber, start.column, end.lineNumber, end.column);
+  }
+
+  OffsetRange? findWordContaining(int offset) {
+    if (offset < 0 || offset >= this.elements.length || !wordCharacter(this.elements[offset])) {
+      return null;
+    }
+    int start = offset;
+    while (start > 0 && wordCharacter(this.elements[start - 1])) {
+      start = start - 1;
+    }
+    int end = offset;
+    while (end < this.elements.length && wordCharacter(this.elements[end])) {
+      end = end + 1;
+    }
+    return new OffsetRange(start, end);
+  }
+
+  OffsetRange? findSubWordContaining(int offset) {
+    if (offset < 0 || offset >= this.elements.length || !wordCharacter(this.elements[offset])) {
+      return null;
+    }
+    int start = offset;
+    while (
+      start > 0 &&
+      wordCharacter(this.elements[start - 1]) &&
+      !upperCaseCharacter(this.elements[start])
+    ) {
+      start = start - 1;
+    }
+    int end = offset;
+    while (
+      end < this.elements.length &&
+      wordCharacter(this.elements[end]) &&
+      !upperCaseCharacter(this.elements[end])
+    ) {
+      end = end + 1;
+    }
+    return new OffsetRange(start, end);
+  }
+
+  int countLinesIn(OffsetRange offsets) {
+    return this.translateOffset(offsets.endExclusive).lineNumber -
+      this.translateOffset(offsets.start).lineNumber;
+  }
+
+  OffsetRange extendToFullLines(OffsetRange offsets) {
+    int start = 0;
+    int end = this.elements.length;
+    int i = 0;
+    while (i < this.firstElementOffsetByLineIndex.length) {
+      int value = this.firstElementOffsetByLineIndex[i];
+      if (value <= offsets.start) {
+        start = value;
+      }
+      if (offsets.endExclusive <= value) {
+        end = value;
+        return new OffsetRange(start, end);
+      }
+      i = i + 1;
+    }
+    return new OffsetRange(start, end);
+  }
+}
+
+export LinesSliceCharSequence createLinesSliceCharSequence(
+  string[] lines,
+  Range range,
+  bool considerWhitespaceChanges
+) {
+  return new LinesSliceCharSequence(lines, range, considerWhitespaceChanges);
+}

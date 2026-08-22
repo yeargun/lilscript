@@ -1,0 +1,179 @@
+import {
+  hostCall,
+  jsUndefined,
+  replaceEol,
+  sliceOf,
+  stringSplit
+} from "../../../../../js-host";
+
+export int STOP_SYNC_MODEL_DELTA_TIME_MS = 60000;
+
+string joinLines(string[] lines, string EOL) {
+  string result = "";
+  int i = 0;
+  while (i < lines.length) {
+    if (i > 0) {
+      result = result + EOL;
+    }
+    result = result + lines[i];
+    i = i + 1;
+  }
+  return result;
+}
+
+export class MirrorModel {
+  string uri;
+  string[] lines;
+  string EOL;
+  int version;
+
+  init(string uri, string[] lines, string EOL, int version) {
+    this.uri = uri;
+    this.lines = lines;
+    this.EOL = EOL;
+    this.version = version;
+  }
+
+  string getValue() {
+    return joinLines(this.lines, this.EOL);
+  }
+
+  string[] getLinesContent() {
+    return this.lines.slice();
+  }
+
+  string getLineContent(int lineNumber) {
+    if (lineNumber < 1 || lineNumber > this.lines.length) {
+      return "";
+    }
+    return this.lines[lineNumber - 1];
+  }
+
+  int getLineCount() {
+    return this.lines.length;
+  }
+
+  int getVersionId() {
+    return this.version;
+  }
+
+  void setValue(string value, int version) {
+    this.lines = stringSplit(replaceEol(value, "\n"), "\n");
+    this.version = version;
+  }
+}
+
+export class WorkerTextModelSyncServer {
+  Map<string, MirrorModel> models;
+  string[] modelKeys;
+
+  init() {
+    this.models = new Map();
+    this.modelKeys = [];
+  }
+
+  void acceptNewModel(JsValue data) {
+    string url = JS.string(data["url"]);
+    string[] lines = [];
+    JsValue sourceLines = data["lines"];
+    int i = 0;
+    int length = JS.number(sourceLines["length"]).toInt();
+    while (i < length) {
+      lines.push(JS.string(sourceLines[i]));
+      i = i + 1;
+    }
+    string EOL = JS.string(data["EOL"]);
+    int versionId = JS.number(data["versionId"]).toInt();
+    if (!this.models.has(url)) {
+      this.modelKeys.push(url);
+    }
+    this.models.set(url, new MirrorModel(url, lines, EOL, versionId));
+  }
+
+  void acceptModelChanged(string url, JsValue event) {
+    MirrorModel? model = this.models.get(url);
+    if (model == null) {
+      return;
+    }
+    if (event["value"] != null) {
+      int version = model.version + 1;
+      if (event["versionId"] != null) {
+        version = JS.number(event["versionId"]).toInt();
+      }
+      model.setValue(JS.string(event["value"]), version);
+    }
+  }
+
+  void acceptRemovedModel(string url) {
+    this.models.delete(url);
+    int index = this.modelKeys.indexOf(url);
+    if (index >= 0) {
+      this.modelKeys.splice(index, 1);
+    }
+  }
+
+  MirrorModel? getModel(string url) {
+    return this.models.get(url);
+  }
+
+  MirrorModel[] getModels() {
+    MirrorModel[] result = [];
+    int i = 0;
+    while (i < this.modelKeys.length) {
+      MirrorModel? model = this.models.get(this.modelKeys[i]);
+      if (model != null) {
+        result.push(model);
+      }
+      i = i + 1;
+    }
+    return result;
+  }
+}
+
+export class WorkerTextModelSyncClient {
+  JsValue proxy;
+  Map<string, bool> syncedModels;
+  string[] syncedModelKeys;
+
+  init(JsValue proxy) {
+    this.proxy = proxy;
+    this.syncedModels = new Map();
+    this.syncedModelKeys = [];
+  }
+
+  void ensureSyncedResources(JsValue[] resources, JsValue modelService) {
+    int i = 0;
+    while (i < resources.length) {
+      JsValue resource = resources[i];
+      string key = JS.string(resource);
+      if (!this.syncedModels.has(key)) {
+        JsValue model = hostCall(modelService, "getModel", resource, jsUndefined(), jsUndefined());
+        if (model != null) {
+          JsValue data = JS.object();
+          data["url"] = key;
+          data["lines"] = hostCall(model, "getLinesContent", jsUndefined(), jsUndefined(), jsUndefined());
+          data["EOL"] = hostCall(model, "getEOL", jsUndefined(), jsUndefined(), jsUndefined());
+          data["versionId"] = hostCall(model, "getVersionId", jsUndefined(), jsUndefined(), jsUndefined());
+          hostCall(this.proxy, "$acceptNewModel", data, jsUndefined(), jsUndefined());
+          this.syncedModels.set(key, true);
+          this.syncedModelKeys.push(key);
+        }
+      }
+      i = i + 1;
+    }
+  }
+
+  void dispose() {
+    int i = 0;
+    while (i < this.syncedModelKeys.length) {
+      hostCall(this.proxy, "$acceptRemovedModel", this.syncedModelKeys[i], jsUndefined(), jsUndefined());
+      i = i + 1;
+    }
+    this.syncedModels = new Map();
+    this.syncedModelKeys = [];
+  }
+}
+
+export WorkerTextModelSyncServer createWorkerTextModelSyncServer() {
+  return new WorkerTextModelSyncServer();
+}

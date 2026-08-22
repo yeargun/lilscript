@@ -146,9 +146,7 @@ JsValue CallbacksFactory(JsValue optionsArg = null) {
     () => {
       return locked.truthy();
     },
-    JS.methodRest((JsValue thisArg, JsValue args) => {
-      JsValue context = args[0];
-      JsValue fireArgs = args[1];
+    JS.method2((JsValue thisArg, JsValue context, JsValue fireArgs) => {
       if (!locked.truthy()) {
         fireArgs = JS.or(fireArgs, emptyArray());
         if (fireArgs["slice"].truthy()) {

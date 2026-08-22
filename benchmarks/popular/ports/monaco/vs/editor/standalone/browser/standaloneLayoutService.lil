@@ -1,0 +1,26 @@
+import { getClientWidth, getClientHeight } from "../../../../js-host";
+
+export class StandaloneLayoutService {
+  JsValue container;
+  int width;
+  int height;
+
+  init(JsValue container) {
+    this.container = container;
+    this.width = 0;
+    this.height = 0;
+  }
+
+  void layout() {
+    this.width = getClientWidth(this.container);
+    this.height = getClientHeight(this.container);
+  }
+
+  int getContainerOffset() {
+    return 0;
+  }
+}
+
+export StandaloneLayoutService createStandaloneLayoutService(JsValue container) {
+  return new StandaloneLayoutService(container);
+}

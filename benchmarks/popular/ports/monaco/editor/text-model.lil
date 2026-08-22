@@ -1,4 +1,4 @@
-import { PieceTreeBase, createPieceTree } from "./piece-tree";
+import { PieceTreeTextBuffer, createPieceTreeTextBuffer } from "./piece-tree-buffer";
 import { Pos } from "../base/position";
 import { Rng, createRange } from "../base/range";
 import { Uri, inmemoryUri } from "../base/uri";
@@ -10,22 +10,22 @@ import { wordAt, WordRange } from "./word";
 import { sliceOf, emptyBuf, concat2, beginIdList, pushId, takeIdList } from "../js-host";
 
 export class TextModel {
-  PieceTreeBase buffer;
+  PieceTreeTextBuffer buffer;
   Uri uri;
   string languageId;
   EditStack stack;
   IntervalTree decorations;
-  Emitter onDidChangeContent;
+  Emitter contentEmitter;
   int versionId;
   int decoScratchIdx;
 
   init(string value, string languageId, Uri uri) {
-    this.buffer = createPieceTree(value, "\n");
+    this.buffer = createPieceTreeTextBuffer(value, "\n");
     this.languageId = languageId;
     this.uri = uri;
     this.stack = createEditStack();
     this.decorations = createIntervalTree();
-    this.onDidChangeContent = new Emitter();
+    this.contentEmitter = new Emitter();
     this.versionId = 1;
     this.decoScratchIdx = 0;
   }
@@ -35,9 +35,9 @@ export class TextModel {
   }
 
   void setValue(string value) {
-    this.buffer = createPieceTree(value, "\n");
+    this.buffer = createPieceTreeTextBuffer(value, "\n");
     this.versionId = this.versionId + 1;
-    this.onDidChangeContent.fire();
+    this.contentEmitter.fire();
   }
 
   int getLineCount() {
@@ -128,7 +128,7 @@ export class TextModel {
     if (pushUndo) {
       this.stack.push(inverse);
     }
-    this.onDidChangeContent.fire();
+    this.contentEmitter.fire();
     return inverse;
   }
 
@@ -182,11 +182,15 @@ export class TextModel {
   }
 
   FindMatch[] findMatches(string searchString, bool isRegex, bool matchCase, bool wholeWord, int limit) {
-    return findMatches(this.buffer, searchString, isRegex, matchCase, wholeWord, limit);
+    return findMatches(this.buffer.getPieceTree(), searchString, isRegex, matchCase, wholeWord, limit);
   }
 
   WordRange getWordAtPosition(Pos position) {
     return wordAt(this.getLineContent(position.lineNumber), position.column);
+  }
+
+  func()->void onDidChangeContent(func()->void listener) {
+    return this.contentEmitter.event(listener);
   }
 
   string getLanguageId() {
@@ -202,7 +206,7 @@ export class TextModel {
   }
 
   void dispose() {
-    this.onDidChangeContent.dispose();
+    this.contentEmitter.dispose();
   }
 }
 

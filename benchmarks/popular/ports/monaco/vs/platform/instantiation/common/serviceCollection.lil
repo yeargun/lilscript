@@ -1,0 +1,58 @@
+export class ServiceEntry {
+  string id;
+  string instanceId;
+  bool hasInstance;
+
+  init(string id, string instanceId) {
+    this.id = id;
+    this.instanceId = instanceId;
+    this.hasInstance = instanceId.length > 0;
+  }
+}
+
+export class ServiceCollection {
+  ServiceEntry[] entries;
+
+  init() {
+    this.entries = [];
+  }
+
+  int indexOf(string id) {
+    int i = 0;
+    while (i < this.entries.length) {
+      if (this.entries[i].id == id) {
+        return i;
+      }
+      i = i + 1;
+    }
+    return -1;
+  }
+
+  string set(string id, string instanceId) {
+    int idx = this.indexOf(id);
+    if (idx >= 0) {
+      string prev = this.entries[idx].instanceId;
+      this.entries[idx].instanceId = instanceId;
+      this.entries[idx].hasInstance = instanceId.length > 0;
+      return prev;
+    }
+    this.entries.push(new ServiceEntry(id, instanceId));
+    return "";
+  }
+
+  string get(string id) {
+    int idx = this.indexOf(id);
+    if (idx >= 0) {
+      return this.entries[idx].instanceId;
+    }
+    return "";
+  }
+
+  bool has(string id) {
+    return this.indexOf(id) >= 0;
+  }
+}
+
+export ServiceCollection createServiceCollection() {
+  return new ServiceCollection();
+}

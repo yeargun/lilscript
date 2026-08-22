@@ -1,0 +1,179 @@
+import {
+  hostCall,
+  jsUndefined,
+  newRegexp,
+  regexTest,
+  sliceOf,
+  stringReplace,
+  stringSplit
+} from "../../../../js-host";
+
+int hexDigit(int code) {
+  if (code >= 48 && code <= 57) {
+    return code - 48;
+  }
+  if (code >= 65 && code <= 70) {
+    return code - 55;
+  }
+  if (code >= 97 && code <= 102) {
+    return code - 87;
+  }
+  return -1;
+}
+
+int hexByte(string value, int offset) {
+  return hexDigit(value.charCodeAt(offset)) * 16 + hexDigit(value.charCodeAt(offset + 1));
+}
+
+JsValue colorRange(JsValue model, int start, int end) {
+  JsValue startPosition = hostCall(model, "positionAt", start, jsUndefined(), jsUndefined());
+  JsValue endPosition = hostCall(model, "positionAt", end, jsUndefined(), jsUndefined());
+  JsValue range = JS.object();
+  range["startLineNumber"] = startPosition["lineNumber"];
+  range["startColumn"] = startPosition["column"];
+  range["endLineNumber"] = endPosition["lineNumber"];
+  range["endColumn"] = endPosition["column"];
+  return range;
+}
+
+JsValue colorInformation(JsValue model, int start, int end, float red, float green, float blue, float alpha) {
+  JsValue color = JS.object();
+  color["red"] = red;
+  color["green"] = green;
+  color["blue"] = blue;
+  color["alpha"] = alpha;
+  JsValue info = JS.object();
+  info["range"] = colorRange(model, start, end);
+  info["color"] = color;
+  return info;
+}
+
+bool isHexSequence(string text, int offset, int count) {
+  if (offset + count > text.length) {
+    return false;
+  }
+  int i = 0;
+  while (i < count) {
+    if (hexDigit(text.charCodeAt(offset + i)) < 0) {
+      return false;
+    }
+    i = i + 1;
+  }
+  if (offset + count < text.length && hexDigit(text.charCodeAt(offset + count)) >= 0) {
+    return false;
+  }
+  return true;
+}
+
+JsValue parseHexColor(JsValue model, string text, int start, int digits) {
+  int red = 0;
+  int green = 0;
+  int blue = 0;
+  int alphaByte = 255;
+  if (digits == 3 || digits == 4) {
+    red = hexDigit(text.charCodeAt(start + 1)) * 17;
+    green = hexDigit(text.charCodeAt(start + 2)) * 17;
+    blue = hexDigit(text.charCodeAt(start + 3)) * 17;
+    if (digits == 4) {
+      alphaByte = hexDigit(text.charCodeAt(start + 4)) * 17;
+    }
+  } else {
+    red = hexByte(text, start + 1);
+    green = hexByte(text, start + 3);
+    blue = hexByte(text, start + 5);
+    if (digits == 8) {
+      alphaByte = hexByte(text, start + 7);
+    }
+  }
+  return colorInformation(
+    model,
+    start,
+    start + digits + 1,
+    red / 255.0,
+    green / 255.0,
+    blue / 255.0,
+    alphaByte / 255.0
+  );
+}
+
+float[] parseColorNumbers(string body) {
+  string normalized = stringReplace(body, newRegexp("[,/%]+", "g"), " ");
+  string[] pieces = stringSplit(normalized, " ");
+  float[] values = [];
+  int i = 0;
+  while (i < pieces.length) {
+    string value = pieces[i];
+    if (value.length > 0 && regexTest(newRegexp("^[0-9]*\\.?[0-9]+$"), value)) {
+      values.push(JS.number(value));
+    }
+    i = i + 1;
+  }
+  return values;
+}
+
+export JsValue[] computeDefaultDocumentColors(JsValue model) {
+  JsValue[] result = [];
+  if (model == null) {
+    return result;
+  }
+  string text = JS.string(hostCall(model, "getValue", jsUndefined(), jsUndefined(), jsUndefined()));
+  int i = 0;
+  while (i < text.length) {
+    if (text.charCodeAt(i) == 35) {
+      int digits = 0;
+      if (isHexSequence(text, i + 1, 8)) {
+        digits = 8;
+      } else if (isHexSequence(text, i + 1, 6)) {
+        digits = 6;
+      } else if (isHexSequence(text, i + 1, 4)) {
+        digits = 4;
+      } else if (isHexSequence(text, i + 1, 3)) {
+        digits = 3;
+      }
+      if (digits > 0) {
+        result.push(parseHexColor(model, text, i, digits));
+        i = i + digits + 1;
+      } else {
+        i = i + 1;
+      }
+    } else {
+      bool rgba = false;
+      int prefixLength = 0;
+      if (i + 5 <= text.length && sliceOf(text, i, i + 5).toLowerCase() == "rgba(") {
+        rgba = true;
+        prefixLength = 5;
+      } else if (i + 4 <= text.length && sliceOf(text, i, i + 4).toLowerCase() == "rgb(") {
+        prefixLength = 4;
+      }
+      if (prefixLength == 0) {
+        i = i + 1;
+      } else {
+        int close = text.indexOf(")", i + prefixLength);
+        if (close < 0) {
+          i = i + prefixLength;
+        } else {
+          float[] values = parseColorNumbers(sliceOf(text, i + prefixLength, close));
+          if ((!rgba && values.length == 3) || (rgba && values.length == 4)) {
+            float alpha = 1.0;
+            if (rgba) {
+              alpha = values[3];
+            }
+            if (values[0] <= 255.0 && values[1] <= 255.0 && values[2] <= 255.0 && alpha <= 1.0) {
+              result.push(colorInformation(
+                model,
+                i,
+                close + 1,
+                values[0] / 255.0,
+                values[1] / 255.0,
+                values[2] / 255.0,
+                alpha
+              ));
+            }
+          }
+          i = close + 1;
+        }
+      }
+    }
+  }
+  return result;
+}

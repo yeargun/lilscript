@@ -1,0 +1,47 @@
+import {
+  undef,
+  isUndef,
+  call0,
+  inOp
+} from "../host.lil";
+import { globalState, isolateGlobalState } from "../core/globalstate.lil";
+import { setReactionScheduler } from "../core/observable.lil";
+
+export JsValue configure = JS.method1((JsValue _s, JsValue options) => {
+  if (JS.strictEqual(options["isolateGlobalState"], true)) {
+    call0(isolateGlobalState, undef());
+  }
+  if (!isUndef(options["enforceActions"])) {
+    JsValue ea = options["enforceActions"];
+    if (JS.strictEqual(ea, "always")) {
+      globalState["enforceActions"] = "always";
+      globalState["allowStateChanges"] = false;
+    } else if (JS.strictEqual(ea, "observed")) {
+      globalState["enforceActions"] = true;
+      globalState["allowStateChanges"] = false;
+    } else {
+      globalState["enforceActions"] = false;
+      globalState["allowStateChanges"] = true;
+    }
+  }
+  if (inOp("computedRequiresReaction", options)) {
+    globalState["computedRequiresReaction"] = options["computedRequiresReaction"].truthy();
+  }
+  if (inOp("reactionRequiresObservable", options)) {
+    globalState["reactionRequiresObservable"] = options["reactionRequiresObservable"].truthy();
+  }
+  if (inOp("observableRequiresReaction", options)) {
+    globalState["observableRequiresReaction"] = options["observableRequiresReaction"].truthy();
+  }
+  if (inOp("disableErrorBoundaries", options)) {
+    globalState["disableErrorBoundaries"] = options["disableErrorBoundaries"].truthy();
+  }
+  if (inOp("safeDescriptors", options)) {
+    globalState["safeDescriptors"] = options["safeDescriptors"].truthy();
+  }
+  globalState["allowStateReads"] = !globalState["observableRequiresReaction"].truthy();
+  if (options["reactionScheduler"].truthy()) {
+    setReactionScheduler(options["reactionScheduler"]);
+  }
+  return undef();
+});

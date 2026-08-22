@@ -1,0 +1,70 @@
+export class GraphNode {
+  int id;
+  int[] outgoing;
+
+  init(int id) {
+    this.id = id;
+    this.outgoing = [];
+  }
+}
+
+export class DirectedGraph {
+  GraphNode[] nodes;
+
+  init() {
+    this.nodes = [];
+  }
+
+  GraphNode addNode() {
+    GraphNode node = new GraphNode(this.nodes.length);
+    this.nodes.push(node);
+    return node;
+  }
+
+  void addEdge(int from, int to) {
+    if (from < 0 || from >= this.nodes.length) {
+      return;
+    }
+    this.nodes[from].outgoing.push(to);
+  }
+
+  bool hasCycle() {
+    int[] state = [];
+    int i = 0;
+    while (i < this.nodes.length) {
+      state.push(0);
+      i = i + 1;
+    }
+    i = 0;
+    while (i < this.nodes.length) {
+      if (dfsCycle(this.nodes, state, i)) {
+        return true;
+      }
+      i = i + 1;
+    }
+    return false;
+  }
+}
+
+bool dfsCycle(GraphNode[] nodes, int[] state, int index) {
+  if (state[index] == 1) {
+    return true;
+  }
+  if (state[index] == 2) {
+    return false;
+  }
+  state[index] = 1;
+  int i = 0;
+  while (i < nodes[index].outgoing.length) {
+    if (dfsCycle(nodes, state, nodes[index].outgoing[i])) {
+      return true;
+    }
+    i = i + 1;
+  }
+  state[index] = 2;
+  return false;
+}
+
+export DirectedGraph createDirectedGraph() {
+  return new DirectedGraph();
+}

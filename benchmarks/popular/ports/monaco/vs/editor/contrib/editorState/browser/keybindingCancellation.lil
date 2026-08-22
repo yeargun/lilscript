@@ -1,0 +1,43 @@
+export class EditorState {
+  int modelVersion;
+  int scrollTop;
+  int scrollLeft;
+  int positionLine;
+  int positionColumn;
+
+  init(int modelVersion, int scrollTop, int scrollLeft, int positionLine, int positionColumn) {
+    this.modelVersion = modelVersion;
+    this.scrollTop = scrollTop;
+    this.scrollLeft = scrollLeft;
+    this.positionLine = positionLine;
+    this.positionColumn = positionColumn;
+  }
+
+  bool validate(int modelVersion, int scrollTop, int scrollLeft, int positionLine, int positionColumn) {
+    return this.modelVersion == modelVersion
+      && this.scrollTop == scrollTop
+      && this.scrollLeft == scrollLeft
+      && this.positionLine == positionLine
+      && this.positionColumn == positionColumn;
+  }
+}
+
+export class CancellationToken {
+  bool cancelled;
+
+  init() {
+    this.cancelled = false;
+  }
+
+  void cancel() {
+    this.cancelled = true;
+  }
+}
+
+export EditorState createEditorState(int modelVersion, int scrollTop, int scrollLeft, int line, int column) {
+  return new EditorState(modelVersion, scrollTop, scrollLeft, line, column);
+}
+
+export CancellationToken createCancellationToken() {
+  return new CancellationToken();
+}

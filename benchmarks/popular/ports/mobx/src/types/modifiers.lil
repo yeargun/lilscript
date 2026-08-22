@@ -1,0 +1,132 @@
+import { DEV } from "../dev-flag.lil";
+import {
+  gObject,
+  isArr,
+  isES6Map,
+  isES6Set,
+  isFn,
+  isGenerator,
+  isNullish,
+  isPlainObject,
+  undef
+} from "../host.lil";
+import { die } from "../errors.lil";
+import {
+  isAction,
+  isFlow,
+  isObservableArray,
+  isObservableMap,
+  isObservableObject,
+  isObservableSet
+} from "../core/predicates.lil";
+import {
+  observable,
+  autoAction,
+  flow
+} from "../api/bindings.lil";
+import { isObservableValueCheck } from "../api/isobservable.lil";
+import { deepEqual } from "../utils/eq.lil";
+
+export JsValue deepEnhancerFn = undef();
+export JsValue shallowEnhancerFn = undef();
+export JsValue referenceEnhancerFn = undef();
+export JsValue refStructEnhancerFn = undef();
+
+referenceEnhancerFn = JS.method1((JsValue _s, JsValue v) => {
+  return v;
+});
+
+deepEnhancerFn = JS.method3((JsValue _s, JsValue v, JsValue _old, JsValue name) => {
+  if (isObservableValueCheck(v)) {
+    return v;
+  }
+  if (isArr(v)) {
+    if (name.truthy()) {
+      return JS.call(observable["array"], observable, v, JS.object("name", name));
+    }
+    return JS.call(observable["array"], observable, v);
+  }
+  if (isPlainObject(v)) {
+    if (name.truthy()) {
+      return JS.call(observable["object"], observable, v, undef(), JS.object("name", name));
+    }
+    return JS.call(observable["object"], observable, v);
+  }
+  if (isES6Map(v)) {
+    if (name.truthy()) {
+      return JS.call(observable["map"], observable, v, JS.object("name", name));
+    }
+    return JS.call(observable["map"], observable, v);
+  }
+  if (isES6Set(v)) {
+    if (name.truthy()) {
+      return JS.call(observable["set"], observable, v, JS.object("name", name));
+    }
+    return JS.call(observable["set"], observable, v);
+  }
+  if (isFn(v) && !isAction(v) && !isFlow(v)) {
+    if (isGenerator(v)) {
+      return JS.call(flow, undef(), v);
+    }
+    return JS.call(autoAction, undef(), name, v);
+  }
+  return v;
+});
+
+shallowEnhancerFn = JS.method3((JsValue _s, JsValue v, JsValue _old, JsValue name) => {
+  if (JS.isNullish(v)) {
+    return v;
+  }
+  if (isObservableObject(v) || isObservableArray(v) || isObservableMap(v) || isObservableSet(v)) {
+    return v;
+  }
+  if (isArr(v)) {
+    return JS.call(observable["array"], observable, v, JS.object("name", name, "deep", false));
+  }
+  if (isPlainObject(v)) {
+    return JS.call(observable["object"], observable, v, undef(), JS.object("name", name, "deep", false));
+  }
+  if (isES6Map(v)) {
+    return JS.call(observable["map"], observable, v, JS.object("name", name, "deep", false));
+  }
+  if (isES6Set(v)) {
+    return JS.call(observable["set"], observable, v, JS.object("name", name, "deep", false));
+  }
+  if (DEV) {
+    die("The shallow modifier / decorator can only used in combination with arrays, objects, maps and sets");
+  }
+  return v;
+});
+
+refStructEnhancerFn = JS.method2((JsValue _s, JsValue v, JsValue oldValue) => {
+  if (DEV && isObservableValueCheck(v)) {
+    die("observable.struct should not be used with observable values");
+  }
+  if (deepEqual(v, oldValue, -1)) {
+    return oldValue;
+  }
+  return v;
+});
+
+export JsValue getEnhancerFromOptions(JsValue options) {
+  if (JS.strictEqual(options["deep"], true)) {
+    return deepEnhancerFn;
+  }
+  if (JS.strictEqual(options["deep"], false)) {
+    return referenceEnhancerFn;
+  }
+  if (options["defaultDecorator"].truthy() && options["defaultDecorator"]["options_"].truthy() && options["defaultDecorator"]["options_"]["enhancer_"].truthy()) {
+    return options["defaultDecorator"]["options_"]["enhancer_"];
+  }
+  return deepEnhancerFn;
+}
+
+JsValue defaultCreateObservableOptions = JS.object("deep", true, "name", undef(), "defaultDecorator", undef());
+JS.invoke(gObject(), "freeze", defaultCreateObservableOptions);
+
+export JsValue asCreateObservableOptions(JsValue thing) {
+  if (thing.truthy()) {
+    return thing;
+  }
+  return defaultCreateObservableOptions;
+}

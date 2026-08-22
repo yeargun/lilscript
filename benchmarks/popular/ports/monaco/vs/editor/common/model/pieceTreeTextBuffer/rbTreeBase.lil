@@ -1,0 +1,394 @@
+export int NodeColorBlack = 0;
+export int NodeColorRed = 1;
+
+export class Piece {
+  int length;
+  int lineFeedCnt;
+  int bufferIndex;
+  int startOffset;
+  int endOffset;
+
+  init(int length, int lineFeedCnt, int bufferIndex, int startOffset, int endOffset) {
+    this.length = length;
+    this.lineFeedCnt = lineFeedCnt;
+    this.bufferIndex = bufferIndex;
+    this.startOffset = startOffset;
+    this.endOffset = endOffset;
+  }
+}
+
+export class TreeNode {
+  Piece? piece;
+  int color;
+  int size_left;
+  int lf_left;
+  TreeNode parent;
+  TreeNode left;
+  TreeNode right;
+  bool detached;
+
+  init(Piece? piece, int color) {
+    this.piece = piece;
+    this.color = color;
+    this.size_left = 0;
+    this.lf_left = 0;
+    this.parent = this;
+    this.left = this;
+    this.right = this;
+    this.detached = false;
+  }
+
+  TreeNode next() {
+    if (this.right.piece != null) {
+      return leftest(this.right);
+    }
+    TreeNode node = this;
+    while (node.parent.piece != null && node.parent.right == node) {
+      node = node.parent;
+    }
+    return node.parent;
+  }
+
+  TreeNode prev() {
+    if (this.left.piece != null) {
+      return righttest(this.left);
+    }
+    TreeNode node = this;
+    while (node.parent.piece != null && node.parent.left == node) {
+      node = node.parent;
+    }
+    return node.parent;
+  }
+
+  void detach() {
+    this.parent = this;
+    this.left = this;
+    this.right = this;
+    this.detached = true;
+  }
+}
+
+export TreeNode SENTINEL = new TreeNode(null, NodeColorBlack);
+
+export class PieceTreeTree {
+  TreeNode root;
+
+  init() {
+    this.root = SENTINEL;
+  }
+}
+
+int pieceLength(TreeNode node) {
+  Piece? piece = node.piece;
+  if (piece != null) {
+    return piece.length;
+  }
+  return 0;
+}
+
+int pieceLineFeeds(TreeNode node) {
+  Piece? piece = node.piece;
+  if (piece != null) {
+    return piece.lineFeedCnt;
+  }
+  return 0;
+}
+
+export TreeNode leftest(TreeNode node) {
+  TreeNode current = node;
+  while (current.left != SENTINEL) {
+    current = current.left;
+  }
+  return current;
+}
+
+export TreeNode righttest(TreeNode node) {
+  TreeNode current = node;
+  while (current.right != SENTINEL) {
+    current = current.right;
+  }
+  return current;
+}
+
+export TreeNode nodeNext(TreeNode node) {
+  return node.next();
+}
+
+export TreeNode nodePrev(TreeNode node) {
+  return node.prev();
+}
+
+int calculateSize(TreeNode node) {
+  if (node == SENTINEL) {
+    return 0;
+  }
+  return node.size_left + pieceLength(node) + calculateSize(node.right);
+}
+
+int calculateLF(TreeNode node) {
+  if (node == SENTINEL) {
+    return 0;
+  }
+  return node.lf_left + pieceLineFeeds(node) + calculateLF(node.right);
+}
+
+void resetSentinel() {
+  SENTINEL.parent = SENTINEL;
+  SENTINEL.left = SENTINEL;
+  SENTINEL.right = SENTINEL;
+  SENTINEL.color = NodeColorBlack;
+}
+
+export void leftRotate(PieceTreeTree tree, TreeNode x) {
+  TreeNode y = x.right;
+  y.size_left = y.size_left + x.size_left + pieceLength(x);
+  y.lf_left = y.lf_left + x.lf_left + pieceLineFeeds(x);
+  x.right = y.left;
+  if (y.left != SENTINEL) {
+    y.left.parent = x;
+  }
+  y.parent = x.parent;
+  if (x.parent == SENTINEL) {
+    tree.root = y;
+  } else if (x.parent.left == x) {
+    x.parent.left = y;
+  } else {
+    x.parent.right = y;
+  }
+  y.left = x;
+  x.parent = y;
+}
+
+export void rightRotate(PieceTreeTree tree, TreeNode y) {
+  TreeNode x = y.left;
+  y.left = x.right;
+  if (x.right != SENTINEL) {
+    x.right.parent = y;
+  }
+  x.parent = y.parent;
+  y.size_left = y.size_left - x.size_left - pieceLength(x);
+  y.lf_left = y.lf_left - x.lf_left - pieceLineFeeds(x);
+  if (y.parent == SENTINEL) {
+    tree.root = x;
+  } else if (y.parent.right == y) {
+    y.parent.right = x;
+  } else {
+    y.parent.left = x;
+  }
+  x.right = y;
+  y.parent = x;
+}
+
+export void updateTreeMetadata(PieceTreeTree tree, TreeNode node, int delta, int lineFeedCntDelta) {
+  TreeNode current = node;
+  while (current != tree.root && current != SENTINEL) {
+    if (current.parent.left == current) {
+      current.parent.size_left = current.parent.size_left + delta;
+      current.parent.lf_left = current.parent.lf_left + lineFeedCntDelta;
+    }
+    current = current.parent;
+  }
+}
+
+export void recomputeTreeMetadata(PieceTreeTree tree, TreeNode node) {
+  TreeNode current = node;
+  if (current == tree.root) {
+    return;
+  }
+  while (current != tree.root && current == current.parent.right) {
+    current = current.parent;
+  }
+  if (current == tree.root) {
+    return;
+  }
+  current = current.parent;
+  int delta = calculateSize(current.left) - current.size_left;
+  int lfDelta = calculateLF(current.left) - current.lf_left;
+  current.size_left = current.size_left + delta;
+  current.lf_left = current.lf_left + lfDelta;
+  while (current != tree.root && (delta != 0 || lfDelta != 0)) {
+    if (current.parent.left == current) {
+      current.parent.size_left = current.parent.size_left + delta;
+      current.parent.lf_left = current.parent.lf_left + lfDelta;
+    }
+    current = current.parent;
+  }
+}
+
+export void fixInsert(PieceTreeTree tree, TreeNode inserted) {
+  recomputeTreeMetadata(tree, inserted);
+  TreeNode x = inserted;
+  while (x != tree.root && x.parent.color == NodeColorRed) {
+    if (x.parent == x.parent.parent.left) {
+      TreeNode uncle = x.parent.parent.right;
+      if (uncle.color == NodeColorRed) {
+        x.parent.color = NodeColorBlack;
+        uncle.color = NodeColorBlack;
+        x.parent.parent.color = NodeColorRed;
+        x = x.parent.parent;
+      } else {
+        if (x == x.parent.right) {
+          x = x.parent;
+          leftRotate(tree, x);
+        }
+        x.parent.color = NodeColorBlack;
+        x.parent.parent.color = NodeColorRed;
+        rightRotate(tree, x.parent.parent);
+      }
+    } else {
+      TreeNode uncle = x.parent.parent.left;
+      if (uncle.color == NodeColorRed) {
+        x.parent.color = NodeColorBlack;
+        uncle.color = NodeColorBlack;
+        x.parent.parent.color = NodeColorRed;
+        x = x.parent.parent;
+      } else {
+        if (x == x.parent.left) {
+          x = x.parent;
+          rightRotate(tree, x);
+        }
+        x.parent.color = NodeColorBlack;
+        x.parent.parent.color = NodeColorRed;
+        leftRotate(tree, x.parent.parent);
+      }
+    }
+  }
+  tree.root.color = NodeColorBlack;
+}
+
+void deleteFixup(PieceTreeTree tree, TreeNode start) {
+  TreeNode x = start;
+  while (x != tree.root && x.color == NodeColorBlack) {
+    if (x == x.parent.left) {
+      TreeNode sibling = x.parent.right;
+      if (sibling.color == NodeColorRed) {
+        sibling.color = NodeColorBlack;
+        x.parent.color = NodeColorRed;
+        leftRotate(tree, x.parent);
+        sibling = x.parent.right;
+      }
+      if (sibling.left.color == NodeColorBlack && sibling.right.color == NodeColorBlack) {
+        sibling.color = NodeColorRed;
+        x = x.parent;
+      } else {
+        if (sibling.right.color == NodeColorBlack) {
+          sibling.left.color = NodeColorBlack;
+          sibling.color = NodeColorRed;
+          rightRotate(tree, sibling);
+          sibling = x.parent.right;
+        }
+        sibling.color = x.parent.color;
+        x.parent.color = NodeColorBlack;
+        sibling.right.color = NodeColorBlack;
+        leftRotate(tree, x.parent);
+        x = tree.root;
+      }
+    } else {
+      TreeNode sibling = x.parent.left;
+      if (sibling.color == NodeColorRed) {
+        sibling.color = NodeColorBlack;
+        x.parent.color = NodeColorRed;
+        rightRotate(tree, x.parent);
+        sibling = x.parent.left;
+      }
+      if (sibling.left.color == NodeColorBlack && sibling.right.color == NodeColorBlack) {
+        sibling.color = NodeColorRed;
+        x = x.parent;
+      } else {
+        if (sibling.left.color == NodeColorBlack) {
+          sibling.right.color = NodeColorBlack;
+          sibling.color = NodeColorRed;
+          leftRotate(tree, sibling);
+          sibling = x.parent.left;
+        }
+        sibling.color = x.parent.color;
+        x.parent.color = NodeColorBlack;
+        sibling.left.color = NodeColorBlack;
+        rightRotate(tree, x.parent);
+        x = tree.root;
+      }
+    }
+  }
+  x.color = NodeColorBlack;
+}
+
+export void rbDelete(PieceTreeTree tree, TreeNode z) {
+  TreeNode y = z;
+  if (z.left != SENTINEL && z.right != SENTINEL) {
+    y = leftest(z.right);
+  }
+  TreeNode x = y.left;
+  if (x == SENTINEL) {
+    x = y.right;
+  }
+  int removedColor = y.color;
+  TreeNode oldParent = y.parent;
+  x.parent = oldParent;
+  if (oldParent == SENTINEL) {
+    tree.root = x;
+  } else if (y == oldParent.left) {
+    oldParent.left = x;
+  } else {
+    oldParent.right = x;
+  }
+  recomputeTreeMetadata(tree, x);
+  if (y != z) {
+    y.parent = z.parent;
+    y.left = z.left;
+    y.right = z.right;
+    y.color = z.color;
+    y.size_left = z.size_left;
+    y.lf_left = z.lf_left;
+    if (y.left != SENTINEL) {
+      y.left.parent = y;
+    }
+    if (y.right != SENTINEL) {
+      y.right.parent = y;
+    }
+    if (z.parent == SENTINEL) {
+      tree.root = y;
+    } else if (z.parent.left == z) {
+      z.parent.left = y;
+    } else {
+      z.parent.right = y;
+    }
+    recomputeTreeMetadata(tree, y);
+  }
+  z.detach();
+  if (removedColor == NodeColorBlack) {
+    deleteFixup(tree, x);
+  }
+  if (tree.root != SENTINEL) {
+    tree.root.parent = SENTINEL;
+  }
+  resetSentinel();
+}
+
+export TreeNode insertAfter(PieceTreeTree tree, TreeNode node, Piece piece) {
+  TreeNode inserted = new TreeNode(piece, NodeColorRed);
+  inserted.left = SENTINEL;
+  inserted.right = SENTINEL;
+  inserted.parent = SENTINEL;
+  if (tree.root == SENTINEL) {
+    tree.root = inserted;
+    inserted.color = NodeColorBlack;
+  } else if (node.right == SENTINEL) {
+    node.right = inserted;
+    inserted.parent = node;
+    fixInsert(tree, inserted);
+  } else {
+    TreeNode next = leftest(node.right);
+    next.left = inserted;
+    inserted.parent = next;
+    fixInsert(tree, inserted);
+  }
+  return inserted;
+}
+
+export Piece createPiece(int length, int lineFeedCnt, int bufferIndex, int startOffset, int endOffset) {
+  return new Piece(length, lineFeedCnt, bufferIndex, startOffset, endOffset);
+}
+
+export PieceTreeTree createPieceTreeTree() {
+  return new PieceTreeTree();
+}

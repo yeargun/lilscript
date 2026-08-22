@@ -1,0 +1,33 @@
+import { domCreateElement, setClassName, setTextContent, setDisplay } from "../../../../js-host";
+
+export class HoverWidget {
+  JsValue container;
+  bool visible;
+  int x;
+  int y;
+
+  init() {
+    this.container = domCreateElement("div");
+    setClassName(this.container, "monaco-hover");
+    this.visible = false;
+    this.x = 0;
+    this.y = 0;
+  }
+
+  void showAt(int x, int y, string content) {
+    this.x = x;
+    this.y = y;
+    setTextContent(this.container, content);
+    setDisplay(this.container, "block");
+    this.visible = true;
+  }
+
+  void hide() {
+    setDisplay(this.container, "none");
+    this.visible = false;
+  }
+}
+
+export HoverWidget createHoverWidget() {
+  return new HoverWidget();
+}

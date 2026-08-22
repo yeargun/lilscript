@@ -1,0 +1,1125 @@
+export int CkFalse = 0;
+export int CkTrue = 1;
+export int CkDefined = 2;
+export int CkNot = 3;
+export int CkEquals = 4;
+export int CkNotEquals = 5;
+export int CkAnd = 6;
+export int CkRegex = 7;
+export int CkNotRegex = 8;
+export int CkOr = 9;
+export int CkIn = 10;
+export int CkNotIn = 11;
+export int CkGreater = 12;
+export int CkGreaterEq = 13;
+export int CkSmaller = 14;
+export int CkSmallerEq = 15;
+
+export int TokLParen = 0;
+export int TokRParen = 1;
+export int TokNeg = 2;
+export int TokEq = 3;
+export int TokNotEq = 4;
+export int TokLt = 5;
+export int TokLtEq = 6;
+export int TokGt = 7;
+export int TokGtEq = 8;
+export int TokRegexOp = 9;
+export int TokRegexStr = 10;
+export int TokTrue = 11;
+export int TokFalse = 12;
+export int TokIn = 13;
+export int TokNot = 14;
+export int TokAnd = 15;
+export int TokOr = 16;
+export int TokStr = 17;
+export int TokQuotedStr = 18;
+export int TokError = 19;
+export int TokEOF = 20;
+
+string sliceStr(string s, int start, int end) {
+  int from = start;
+  int to = end;
+  if (from < 0) {
+    from = 0;
+  }
+  if (to > s.length) {
+    to = s.length;
+  }
+  string out = "";
+  int i = from;
+  while (i < to) {
+    out = out + s.charAt(i);
+    i = i + 1;
+  }
+  return out;
+}
+
+int lastSlash(string s) {
+  int i = s.length - 1;
+  while (i >= 0) {
+    if (s.charAt(i) == "/") {
+      return i;
+    }
+    i = i - 1;
+  }
+  return -1;
+}
+
+bool isCkStringChar(int code) {
+  if (code >= 48 && code <= 57) {
+    return true;
+  }
+  if (code >= 65 && code <= 90) {
+    return true;
+  }
+  if (code >= 97 && code <= 122) {
+    return true;
+  }
+  if (code == 95 || code == 60 || code == 62 || code == 45 || code == 46) {
+    return true;
+  }
+  if (code == 47 || code == 92 || code == 58 || code == 42 || code == 63 || code == 43) {
+    return true;
+  }
+  if (code == 91 || code == 93 || code == 94 || code == 44 || code == 35 || code == 64) {
+    return true;
+  }
+  if (code == 59 || code == 34 || code == 37 || code == 36) {
+    return true;
+  }
+  if (code > 127) {
+    return true;
+  }
+  return false;
+}
+
+bool isRegexFlagChar(int code) {
+  return code == 105 || code == 103 || code == 115 || code == 109 || code == 121 || code == 117;
+}
+
+string stripGY(string flags) {
+  string out = "";
+  int i = 0;
+  while (i < flags.length) {
+    string ch = flags.charAt(i);
+    if (ch != "g" && ch != "y") {
+      out = out + ch;
+    }
+    i = i + 1;
+  }
+  return out;
+}
+
+export class ParsedNum {
+  float value;
+  bool ok;
+
+  init(float value, bool ok) {
+    this.value = value;
+    this.ok = ok;
+  }
+}
+
+export ParsedNum parseFloatStr(string s) {
+  if (s.length == 0) {
+    return new ParsedNum(0.0, false);
+  }
+  int i = 0;
+  float sign = 1.0;
+  if (s.charAt(0) == "-") {
+    sign = -1.0;
+    i = 1;
+  } else {
+    if (s.charAt(0) == "+") {
+      i = 1;
+    }
+  }
+  if (i >= s.length) {
+    return new ParsedNum(0.0, false);
+  }
+  float n = 0.0;
+  bool any = false;
+  while (i < s.length) {
+    int c = s.charCodeAt(i);
+    if (c >= 48 && c <= 57) {
+      n = n * 10.0 + (c - 48);
+      any = true;
+      i = i + 1;
+    } else {
+      break;
+    }
+  }
+  if (i < s.length && s.charAt(i) == ".") {
+    i = i + 1;
+    float place = 0.1;
+    while (i < s.length) {
+      int c = s.charCodeAt(i);
+      if (c >= 48 && c <= 57) {
+        n = n + (c - 48) * place;
+        place = place * 0.1;
+        any = true;
+        i = i + 1;
+      } else {
+        break;
+      }
+    }
+  }
+  if (!any || i != s.length) {
+    return new ParsedNum(0.0, false);
+  }
+  return new ParsedNum(n * sign, true);
+}
+
+export class CkToken {
+  int type;
+  int offset;
+  string lexeme;
+
+  init(int type, int offset, string lexeme) {
+    this.type = type;
+    this.offset = offset;
+    this.lexeme = lexeme;
+  }
+}
+
+export class ContextKeyExpr {
+  int kind;
+  string key;
+  string value;
+  ContextKeyExpr[] children;
+  Regex? compiled;
+
+  init(int kind, string key, string value, ContextKeyExpr[] children, Regex? compiled = null) {
+    this.kind = kind;
+    this.key = key;
+    this.value = value;
+    this.children = children;
+    this.compiled = compiled;
+  }
+
+  string serialize() {
+    if (this.kind == CkFalse) {
+      return "false";
+    }
+    if (this.kind == CkTrue) {
+      return "true";
+    }
+    if (this.kind == CkDefined) {
+      return this.key;
+    }
+    if (this.kind == CkNot) {
+      return "!" + this.key;
+    }
+    if (this.kind == CkEquals) {
+      return this.key + " == '" + this.value + "'";
+    }
+    if (this.kind == CkNotEquals) {
+      return this.key + " != '" + this.value + "'";
+    }
+    if (this.kind == CkRegex) {
+      return this.key + " =~ /" + this.value + "/";
+    }
+    if (this.kind == CkNotRegex) {
+      return this.key + " =~ /" + this.value + "/";
+    }
+    if (this.kind == CkIn) {
+      return this.key + " in '" + this.value + "'";
+    }
+    if (this.kind == CkNotIn) {
+      return this.key + " not in '" + this.value + "'";
+    }
+    if (this.kind == CkGreater) {
+      return this.key + " > " + this.value;
+    }
+    if (this.kind == CkGreaterEq) {
+      return this.key + " >= " + this.value;
+    }
+    if (this.kind == CkSmaller) {
+      return this.key + " < " + this.value;
+    }
+    if (this.kind == CkSmallerEq) {
+      return this.key + " <= " + this.value;
+    }
+    if (this.kind == CkAnd) {
+      string out = "";
+      int i = 0;
+      while (i < this.children.length) {
+        if (i > 0) {
+          out = out + " && ";
+        }
+        out = out + this.children[i].serialize();
+        i = i + 1;
+      }
+      return out;
+    }
+    if (this.kind == CkOr) {
+      string out = "";
+      int i = 0;
+      while (i < this.children.length) {
+        if (i > 0) {
+          out = out + " || ";
+        }
+        out = out + this.children[i].serialize();
+        i = i + 1;
+      }
+      return out;
+    }
+    return this.key;
+  }
+}
+
+export ContextKeyExpr ckFalse() {
+  ContextKeyExpr[] empty = [];
+  return new ContextKeyExpr(CkFalse, "", "", empty);
+}
+
+export ContextKeyExpr ckTrue() {
+  ContextKeyExpr[] empty = [];
+  return new ContextKeyExpr(CkTrue, "", "", empty);
+}
+
+export ContextKeyExpr ckHas(string key) {
+  ContextKeyExpr[] empty = [];
+  return new ContextKeyExpr(CkDefined, key, "", empty);
+}
+
+export ContextKeyExpr ckNot(string key) {
+  ContextKeyExpr[] empty = [];
+  return new ContextKeyExpr(CkNot, key, "", empty);
+}
+
+export ContextKeyExpr ckEquals(string key, string value) {
+  ContextKeyExpr[] empty = [];
+  if (value == "true") {
+    return ckHas(key);
+  }
+  if (value == "false") {
+    return ckNot(key);
+  }
+  return new ContextKeyExpr(CkEquals, key, value, empty);
+}
+
+export ContextKeyExpr ckNotEquals(string key, string value) {
+  ContextKeyExpr[] empty = [];
+  if (value == "true") {
+    return ckNot(key);
+  }
+  if (value == "false") {
+    return ckHas(key);
+  }
+  return new ContextKeyExpr(CkNotEquals, key, value, empty);
+}
+
+export ContextKeyExpr ckRegex(string key, string source, string flags) {
+  ContextKeyExpr[] empty = [];
+  Regex? compiled = null;
+  try {
+    compiled = new Regex(source, stripGY(flags));
+  } catch (auto _err) {
+    compiled = null;
+  }
+  return new ContextKeyExpr(CkRegex, key, source, empty, compiled);
+}
+
+export ContextKeyExpr ckIn(string key, string valueKey) {
+  ContextKeyExpr[] empty = [];
+  return new ContextKeyExpr(CkIn, key, valueKey, empty);
+}
+
+export ContextKeyExpr ckNotIn(string key, string valueKey) {
+  ContextKeyExpr[] empty = [];
+  return new ContextKeyExpr(CkNotIn, key, valueKey, empty);
+}
+
+export ContextKeyExpr ckCmp(int kind, string key, string value) {
+  ContextKeyExpr[] empty = [];
+  return new ContextKeyExpr(kind, key, value, empty);
+}
+
+export ContextKeyExpr ckAnd(ContextKeyExpr[] parts) {
+  ContextKeyExpr[] flat = [];
+  int i = 0;
+  while (i < parts.length) {
+    ContextKeyExpr p = parts[i];
+    if (p.kind == CkFalse) {
+      return ckFalse();
+    }
+    if (p.kind == CkTrue) {
+      i = i + 1;
+      continue;
+    }
+    if (p.kind == CkAnd) {
+      int j = 0;
+      while (j < p.children.length) {
+        flat.push(p.children[j]);
+        j = j + 1;
+      }
+    } else {
+      flat.push(p);
+    }
+    i = i + 1;
+  }
+  if (flat.length == 0) {
+    return ckTrue();
+  }
+  if (flat.length == 1) {
+    return flat[0];
+  }
+  return new ContextKeyExpr(CkAnd, "", "", flat);
+}
+
+export ContextKeyExpr ckOr(ContextKeyExpr[] parts) {
+  ContextKeyExpr[] flat = [];
+  int i = 0;
+  while (i < parts.length) {
+    ContextKeyExpr p = parts[i];
+    if (p.kind == CkTrue) {
+      return ckTrue();
+    }
+    if (p.kind == CkFalse) {
+      i = i + 1;
+      continue;
+    }
+    if (p.kind == CkOr) {
+      int j = 0;
+      while (j < p.children.length) {
+        flat.push(p.children[j]);
+        j = j + 1;
+      }
+    } else {
+      flat.push(p);
+    }
+    i = i + 1;
+  }
+  if (flat.length == 0) {
+    return ckFalse();
+  }
+  if (flat.length == 1) {
+    return flat[0];
+  }
+  return new ContextKeyExpr(CkOr, "", "", flat);
+}
+
+export class ContextKeyScanner {
+  string input;
+  int startPos;
+  int current;
+  CkToken[] tokens;
+
+  init() {
+    this.input = "";
+    this.startPos = 0;
+    this.current = 0;
+    this.tokens = [];
+  }
+
+  void reset(string value) {
+    this.input = value;
+    this.startPos = 0;
+    this.current = 0;
+    CkToken[] next = [];
+    this.tokens = next;
+  }
+
+  bool atEnd() {
+    return this.current >= this.input.length;
+  }
+
+  int advanceCode() {
+    int code = this.input.charCodeAt(this.current);
+    this.current = this.current + 1;
+    return code;
+  }
+
+  int peekCode() {
+    if (this.atEnd()) {
+      return 0;
+    }
+    return this.input.charCodeAt(this.current);
+  }
+
+  bool eat(int expected) {
+    if (this.atEnd()) {
+      return false;
+    }
+    if (this.input.charCodeAt(this.current) != expected) {
+      return false;
+    }
+    this.current = this.current + 1;
+    return true;
+  }
+
+  void addTok(int type, string lexeme) {
+    this.tokens.push(new CkToken(type, this.startPos, lexeme));
+  }
+
+  void scanQuoted() {
+    while (this.peekCode() != 39 && !this.atEnd()) {
+      this.advanceCode();
+    }
+    if (this.atEnd()) {
+      this.addTok(TokError, sliceStr(this.input, this.startPos, this.current));
+      return;
+    }
+    this.advanceCode();
+    string lexeme = sliceStr(this.input, this.startPos + 1, this.current - 1);
+    this.tokens.push(new CkToken(TokQuotedStr, this.startPos + 1, lexeme));
+  }
+
+  void scanRegex() {
+    int p = this.current;
+    bool inEscape = false;
+    bool inClass = false;
+    bool closed = false;
+    while (p < this.input.length) {
+      int ch = this.input.charCodeAt(p);
+      if (inEscape) {
+        inEscape = false;
+      } else {
+        if (ch == 47 && !inClass) {
+          p = p + 1;
+          closed = true;
+          break;
+        }
+        if (ch == 91) {
+          inClass = true;
+        } else {
+          if (ch == 92) {
+            inEscape = true;
+          } else {
+            if (ch == 93) {
+              inClass = false;
+            }
+          }
+        }
+      }
+      p = p + 1;
+    }
+    if (!closed) {
+      this.current = p;
+      this.addTok(TokError, sliceStr(this.input, this.startPos, this.current));
+      return;
+    }
+    while (p < this.input.length && isRegexFlagChar(this.input.charCodeAt(p))) {
+      p = p + 1;
+    }
+    this.current = p;
+    this.addTok(TokRegexStr, sliceStr(this.input, this.startPos, this.current));
+  }
+
+  void scanString() {
+    int pos = this.startPos;
+    while (pos < this.input.length && isCkStringChar(this.input.charCodeAt(pos))) {
+      pos = pos + 1;
+    }
+    this.current = pos;
+    string lexeme = sliceStr(this.input, this.startPos, this.current);
+    if (lexeme == "not") {
+      this.addTok(TokNot, lexeme);
+    } else {
+      if (lexeme == "in") {
+        this.addTok(TokIn, lexeme);
+      } else {
+        if (lexeme == "false") {
+          this.addTok(TokFalse, lexeme);
+        } else {
+          if (lexeme == "true") {
+            this.addTok(TokTrue, lexeme);
+          } else {
+            this.addTok(TokStr, lexeme);
+          }
+        }
+      }
+    }
+  }
+
+  CkToken[] scan() {
+    while (!this.atEnd()) {
+      this.startPos = this.current;
+      int ch = this.advanceCode();
+      if (ch == 40) {
+        this.addTok(TokLParen, "(");
+      } else {
+        if (ch == 41) {
+          this.addTok(TokRParen, ")");
+        } else {
+          if (ch == 33) {
+            if (this.eat(61)) {
+              this.eat(61);
+              this.addTok(TokNotEq, "!=");
+            } else {
+              this.addTok(TokNeg, "!");
+            }
+          } else {
+            if (ch == 39) {
+              this.scanQuoted();
+            } else {
+              if (ch == 47) {
+                this.scanRegex();
+              } else {
+                if (ch == 61) {
+                  if (this.eat(61)) {
+                    this.eat(61);
+                    this.addTok(TokEq, "==");
+                  } else {
+                    if (this.eat(126)) {
+                      this.addTok(TokRegexOp, "=~");
+                    } else {
+                      this.addTok(TokError, "=");
+                    }
+                  }
+                } else {
+                  if (ch == 60) {
+                    if (this.eat(61)) {
+                      this.addTok(TokLtEq, "<=");
+                    } else {
+                      this.addTok(TokLt, "<");
+                    }
+                  } else {
+                    if (ch == 62) {
+                      if (this.eat(61)) {
+                        this.addTok(TokGtEq, ">=");
+                      } else {
+                        this.addTok(TokGt, ">");
+                      }
+                    } else {
+                      if (ch == 38) {
+                        if (this.eat(38)) {
+                          this.addTok(TokAnd, "&&");
+                        } else {
+                          this.addTok(TokError, "&");
+                        }
+                      } else {
+                        if (ch == 124) {
+                          if (this.eat(124)) {
+                            this.addTok(TokOr, "||");
+                          } else {
+                            this.addTok(TokError, "|");
+                          }
+                        } else {
+                          if (ch == 32 || ch == 13 || ch == 9 || ch == 10 || ch == 160) {
+                            ch = ch;
+                          } else {
+                            this.scanString();
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    this.startPos = this.current;
+    this.addTok(TokEOF, "EOF");
+    return this.tokens;
+  }
+}
+
+export class ContextKeyParser {
+  ContextKeyScanner scanner;
+  CkToken[] tokens;
+  int current;
+  bool failed;
+
+  init() {
+    this.scanner = new ContextKeyScanner();
+    this.tokens = [];
+    this.current = 0;
+    this.failed = false;
+  }
+
+  CkToken peekTok() {
+    if (this.current >= this.tokens.length) {
+      return new CkToken(TokEOF, 0, "EOF");
+    }
+    return this.tokens[this.current];
+  }
+
+  bool checkTok(int type) {
+    return this.peekTok().type == type;
+  }
+
+  bool atEndTok() {
+    return this.peekTok().type == TokEOF;
+  }
+
+  CkToken advanceTok() {
+    CkToken prev = this.peekTok();
+    if (!this.atEndTok()) {
+      this.current = this.current + 1;
+    }
+    return prev;
+  }
+
+  bool matchTok(int type) {
+    if (this.checkTok(type)) {
+      this.advanceTok();
+      return true;
+    }
+    return false;
+  }
+
+  CkToken previousTok() {
+    if (this.current <= 0) {
+      return new CkToken(TokEOF, 0, "EOF");
+    }
+    return this.tokens[this.current - 1];
+  }
+
+  ContextKeyExpr failExpr() {
+    this.failed = true;
+    return ckFalse();
+  }
+
+  string parseValue() {
+    CkToken token = this.peekTok();
+    if (token.type == TokStr || token.type == TokQuotedStr) {
+      this.advanceTok();
+      return token.lexeme;
+    }
+    if (token.type == TokTrue) {
+      this.advanceTok();
+      return "true";
+    }
+    if (token.type == TokFalse) {
+      this.advanceTok();
+      return "false";
+    }
+    if (token.type == TokIn) {
+      this.advanceTok();
+      return "in";
+    }
+    return "";
+  }
+
+  ContextKeyExpr parseRegex(string key) {
+    CkToken expr = this.peekTok();
+    if (expr.type != TokRegexStr && expr.type != TokQuotedStr) {
+      return this.failExpr();
+    }
+    this.advanceTok();
+    if (expr.type == TokQuotedStr) {
+      int start = expr.lexeme.indexOf("/");
+      int end = lastSlash(expr.lexeme);
+      if (start < 0 || start == end) {
+        return this.failExpr();
+      }
+      string source = sliceStr(expr.lexeme, start + 1, end);
+      string flags = "";
+      if (end + 1 < expr.lexeme.length && expr.lexeme.charAt(end + 1) == "i") {
+        flags = "i";
+      }
+      return ckRegex(key, source, flags);
+    }
+    string lexeme = expr.lexeme;
+    int close = lastSlash(lexeme);
+    if (close <= 0) {
+      return this.failExpr();
+    }
+    string source = sliceStr(lexeme, 1, close);
+    string flags = "";
+    if (close + 1 < lexeme.length) {
+      flags = stripGY(sliceStr(lexeme, close + 1, lexeme.length));
+    }
+    return ckRegex(key, source, flags);
+  }
+
+  ContextKeyExpr parsePrimary() {
+    CkToken peek = this.peekTok();
+    if (peek.type == TokTrue) {
+      this.advanceTok();
+      return ckTrue();
+    }
+    if (peek.type == TokFalse) {
+      this.advanceTok();
+      return ckFalse();
+    }
+    if (peek.type == TokLParen) {
+      this.advanceTok();
+      ContextKeyExpr inner = this.parseOr();
+      if (!this.matchTok(TokRParen)) {
+        return this.failExpr();
+      }
+      return inner;
+    }
+    if (peek.type == TokStr) {
+      string key = peek.lexeme;
+      this.advanceTok();
+      if (this.matchTok(TokRegexOp)) {
+        return this.parseRegex(key);
+      }
+      if (this.matchTok(TokNot)) {
+        if (!this.matchTok(TokIn)) {
+          return this.failExpr();
+        }
+        return ckNotIn(key, this.parseValue());
+      }
+      int op = this.peekTok().type;
+      if (op == TokEq) {
+        this.advanceTok();
+        string right = this.parseValue();
+        if (this.previousTok().type == TokQuotedStr) {
+          ContextKeyExpr[] empty = [];
+          return new ContextKeyExpr(CkEquals, key, right, empty);
+        }
+        return ckEquals(key, right);
+      }
+      if (op == TokNotEq) {
+        this.advanceTok();
+        string right = this.parseValue();
+        if (this.previousTok().type == TokQuotedStr) {
+          ContextKeyExpr[] empty = [];
+          return new ContextKeyExpr(CkNotEquals, key, right, empty);
+        }
+        return ckNotEquals(key, right);
+      }
+      if (op == TokLt) {
+        this.advanceTok();
+        return ckCmp(CkSmaller, key, this.parseValue());
+      }
+      if (op == TokLtEq) {
+        this.advanceTok();
+        return ckCmp(CkSmallerEq, key, this.parseValue());
+      }
+      if (op == TokGt) {
+        this.advanceTok();
+        return ckCmp(CkGreater, key, this.parseValue());
+      }
+      if (op == TokGtEq) {
+        this.advanceTok();
+        return ckCmp(CkGreaterEq, key, this.parseValue());
+      }
+      if (op == TokIn) {
+        this.advanceTok();
+        return ckIn(key, this.parseValue());
+      }
+      return ckHas(key);
+    }
+    if (peek.type == TokEOF) {
+      return this.failExpr();
+    }
+    return this.failExpr();
+  }
+
+  ContextKeyExpr parseTerm() {
+    if (this.matchTok(TokNeg)) {
+      CkToken peek = this.peekTok();
+      if (peek.type == TokTrue) {
+        this.advanceTok();
+        return ckFalse();
+      }
+      if (peek.type == TokFalse) {
+        this.advanceTok();
+        return ckTrue();
+      }
+      if (peek.type == TokLParen) {
+        this.advanceTok();
+        ContextKeyExpr inner = this.parseOr();
+        if (!this.matchTok(TokRParen)) {
+          return this.failExpr();
+        }
+        return ckNegate(inner);
+      }
+      if (peek.type == TokStr) {
+        this.advanceTok();
+        return ckNot(peek.lexeme);
+      }
+      return this.failExpr();
+    }
+    return this.parsePrimary();
+  }
+
+  ContextKeyExpr parseAnd() {
+    ContextKeyExpr[] parts = [];
+    parts.push(this.parseTerm());
+    while (this.matchTok(TokAnd)) {
+      parts.push(this.parseTerm());
+    }
+    return ckAnd(parts);
+  }
+
+  ContextKeyExpr parseOr() {
+    ContextKeyExpr[] parts = [];
+    parts.push(this.parseAnd());
+    while (this.matchTok(TokOr)) {
+      parts.push(this.parseAnd());
+    }
+    return ckOr(parts);
+  }
+
+  ContextKeyExpr? parse(string input) {
+    this.failed = false;
+    this.scanner.reset(input);
+    this.tokens = this.scanner.scan();
+    this.current = 0;
+    if (input.length == 0) {
+      return null;
+    }
+    ContextKeyExpr expr = this.parseOr();
+    if (!this.atEndTok()) {
+      this.failed = true;
+    }
+    if (this.failed) {
+      return null;
+    }
+    return expr;
+  }
+}
+
+export ContextKeyExpr ckNegate(ContextKeyExpr expr) {
+  if (expr.kind == CkFalse) {
+    return ckTrue();
+  }
+  if (expr.kind == CkTrue) {
+    return ckFalse();
+  }
+  if (expr.kind == CkDefined) {
+    return ckNot(expr.key);
+  }
+  if (expr.kind == CkNot) {
+    return ckHas(expr.key);
+  }
+  if (expr.kind == CkEquals) {
+    return ckNotEquals(expr.key, expr.value);
+  }
+  if (expr.kind == CkNotEquals) {
+    return ckEquals(expr.key, expr.value);
+  }
+  if (expr.kind == CkIn) {
+    return ckNotIn(expr.key, expr.value);
+  }
+  if (expr.kind == CkNotIn) {
+    return ckIn(expr.key, expr.value);
+  }
+  if (expr.kind == CkRegex) {
+    ContextKeyExpr[] kids = [];
+    kids.push(expr);
+    return new ContextKeyExpr(CkNotRegex, expr.key, expr.value, kids, expr.compiled);
+  }
+  if (expr.kind == CkNotRegex) {
+    if (expr.children.length > 0) {
+      return expr.children[0];
+    }
+    return ckRegex(expr.key, expr.value, "");
+  }
+  if (expr.kind == CkAnd) {
+    ContextKeyExpr[] parts = [];
+    int i = 0;
+    while (i < expr.children.length) {
+      parts.push(ckNegate(expr.children[i]));
+      i = i + 1;
+    }
+    return ckOr(parts);
+  }
+  if (expr.kind == CkOr) {
+    ContextKeyExpr[] parts = [];
+    int i = 0;
+    while (i < expr.children.length) {
+      parts.push(ckNegate(expr.children[i]));
+      i = i + 1;
+    }
+    return ckAnd(parts);
+  }
+  return expr;
+}
+
+export class ContextMap {
+  Record<string> values;
+  Map<string, string[]> lists;
+
+  init() {
+    this.values = record {};
+    this.lists = new Map<string, string[]>();
+  }
+
+  void setValue(string key, string value) {
+    this.values[key] = value;
+  }
+
+  void setList(string key, string[] items) {
+    this.lists.set(key, items);
+  }
+
+  string getValue(string key) {
+    string? found = this.values[key];
+    if (found != null) {
+      return found;
+    }
+    return "";
+  }
+
+  bool hasValue(string key) {
+    string? found = this.values[key];
+    return found != null && found != "" && found != "false";
+  }
+}
+
+bool listContains(string[] items, string item) {
+  int i = 0;
+  while (i < items.length) {
+    if (items[i] == item) {
+      return true;
+    }
+    i = i + 1;
+  }
+  return false;
+}
+
+bool evalCmp(int kind, string left, string right) {
+  ParsedNum a = parseFloatStr(left);
+  ParsedNum b = parseFloatStr(right);
+  if (!a.ok || !b.ok) {
+    return false;
+  }
+  if (kind == CkGreater) {
+    return a.value > b.value;
+  }
+  if (kind == CkGreaterEq) {
+    return a.value > b.value || a.value == b.value;
+  }
+  if (kind == CkSmaller) {
+    return a.value < b.value;
+  }
+  if (kind == CkSmallerEq) {
+    return a.value < b.value || a.value == b.value;
+  }
+  return false;
+}
+
+bool valuesEqual(string left, string right) {
+  if (left == right) {
+    return true;
+  }
+  ParsedNum a = parseFloatStr(left);
+  ParsedNum b = parseFloatStr(right);
+  if (a.ok && b.ok) {
+    return a.value == b.value;
+  }
+  return false;
+}
+
+export bool evaluateContextKey(ContextKeyExpr expr, ContextMap context) {
+  if (expr.kind == CkFalse) {
+    return false;
+  }
+  if (expr.kind == CkTrue) {
+    return true;
+  }
+  if (expr.kind == CkDefined) {
+    return context.hasValue(expr.key);
+  }
+  if (expr.kind == CkNot) {
+    return !context.hasValue(expr.key);
+  }
+  if (expr.kind == CkEquals) {
+    return valuesEqual(context.getValue(expr.key), expr.value);
+  }
+  if (expr.kind == CkNotEquals) {
+    return !valuesEqual(context.getValue(expr.key), expr.value);
+  }
+  if (expr.kind == CkRegex) {
+    Regex? re = expr.compiled;
+    if (re != null) {
+      return re.test(context.getValue(expr.key));
+    }
+    return false;
+  }
+  if (expr.kind == CkNotRegex) {
+    if (expr.children.length > 0) {
+      return !evaluateContextKey(expr.children[0], context);
+    }
+    return true;
+  }
+  if (expr.kind == CkIn) {
+    string item = context.getValue(expr.key);
+    string[]? source = context.lists.get(expr.value);
+    if (source != null) {
+      return listContains(source, item);
+    }
+    string packed = context.getValue(expr.value);
+    if (packed.length == 0) {
+      return false;
+    }
+    return packed.includes(item);
+  }
+  if (expr.kind == CkNotIn) {
+    ContextKeyExpr inner = ckIn(expr.key, expr.value);
+    return !evaluateContextKey(inner, context);
+  }
+  if (expr.kind == CkGreater || expr.kind == CkGreaterEq || expr.kind == CkSmaller || expr.kind == CkSmallerEq) {
+    return evalCmp(expr.kind, context.getValue(expr.key), expr.value);
+  }
+  if (expr.kind == CkAnd) {
+    int i = 0;
+    while (i < expr.children.length) {
+      if (!evaluateContextKey(expr.children[i], context)) {
+        return false;
+      }
+      i = i + 1;
+    }
+    return true;
+  }
+  if (expr.kind == CkOr) {
+    int i = 0;
+    while (i < expr.children.length) {
+      if (evaluateContextKey(expr.children[i], context)) {
+        return true;
+      }
+      i = i + 1;
+    }
+    return false;
+  }
+  return false;
+}
+
+export ContextKeyExpr? parseContextKey(string input) {
+  ContextKeyParser parser = new ContextKeyParser();
+  return parser.parse(input);
+}
+
+export ContextKeyExpr? deserializeContextKey(string serialized) {
+  return parseContextKey(serialized);
+}
+
+export ContextMap createContextMap() {
+  return new ContextMap();
+}
+
+export class RawContextKey {
+  string key;
+  string defaultValue;
+
+  init(string key, string defaultValue = "") {
+    this.key = key;
+    this.defaultValue = defaultValue;
+  }
+
+  ContextKeyExpr isEqualTo(string value) {
+    return ckEquals(this.key, value);
+  }
+
+  ContextKeyExpr notEqualsTo(string value) {
+    return ckNotEquals(this.key, value);
+  }
+
+  ContextKeyExpr toNegated() {
+    return ckNot(this.key);
+  }
+}
+
+export RawContextKey createRawContextKey(string key, string defaultValue) {
+  return new RawContextKey(key, defaultValue);
+}
+
+export ContextKeyScanner createContextKeyScanner() {
+  return new ContextKeyScanner();
+}
+
+export ContextKeyParser createContextKeyParser() {
+  return new ContextKeyParser();
+}

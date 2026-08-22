@@ -1,0 +1,32 @@
+import { DEV } from "../dev-flag.lil";
+import {
+  isStringish,
+  mapGet,
+  mapHas
+} from "../host.lil";
+import { $mobx } from "../constants.lil";
+import { die } from "../errors.lil";
+import {
+  isComputedValue,
+  isObservableObject
+} from "../core/predicates.lil";
+
+export JsValue isComputed = JS.method1((JsValue _s, JsValue value) => {
+  return isComputedValue(value);
+});
+export JsValue isComputedProp = JS.method2((JsValue _s, JsValue value, JsValue property) => {
+  if (DEV && !isStringish(property)) {
+    die("isComputed expected a property name as second argument");
+  }
+  if (!isObservableObject(value)) {
+    return false;
+  }
+  JsValue adm = value[$mobx];
+  if (adm["lazyComputedKeys_"].truthy() && mapHas(adm["lazyComputedKeys_"], property)) {
+    return true;
+  }
+  if (!mapHas(adm["values_"], property)) {
+    return false;
+  }
+  return isComputedValue(mapGet(adm["values_"], property));
+});

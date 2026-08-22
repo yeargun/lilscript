@@ -1,0 +1,76 @@
+export class LanguageRegistration {
+  string id;
+  string[] extensions;
+  string[] aliases;
+
+  init(string id) {
+    this.id = id;
+    this.extensions = [];
+    this.aliases = [];
+  }
+}
+
+export class StandaloneLanguages {
+  LanguageRegistration[] languages;
+  string[] completion;
+  string[] hover;
+
+  init() {
+    this.languages = [];
+    this.completion = [];
+    this.hover = [];
+  }
+
+  void registerLanguageId(string id) {
+    this.languages.push(new LanguageRegistration(id));
+  }
+
+  void languagesRegisterCompletion(string id) {
+    this.completion.push(id);
+  }
+
+  void languagesRegisterHover(string id) {
+    this.hover.push(id);
+  }
+
+  void setLanguageConfigurationJs(string id, string config) {
+    int i = 0;
+    while (i < this.languages.length) {
+      if (this.languages[i].id == id) {
+        this.languages[i].aliases.push(config);
+        return;
+      }
+      i = i + 1;
+    }
+  }
+
+  void setTokensProviderJs(string id, string provider) {
+    this.languagesRegisterCompletion(id + ":" + provider);
+  }
+}
+
+StandaloneLanguages standaloneLanguages = new StandaloneLanguages();
+
+export void registerLanguageId(string id) {
+  standaloneLanguages.registerLanguageId(id);
+}
+
+export void languagesRegisterCompletion(string id) {
+  standaloneLanguages.languagesRegisterCompletion(id);
+}
+
+export void languagesRegisterHover(string id) {
+  standaloneLanguages.languagesRegisterHover(id);
+}
+
+export void setLanguageConfigurationJs(string id, string config) {
+  standaloneLanguages.setLanguageConfigurationJs(id, config);
+}
+
+export void setTokensProviderJs(string id, string provider) {
+  standaloneLanguages.setTokensProviderJs(id, provider);
+}
+
+export StandaloneLanguages getStandaloneLanguages() {
+  return standaloneLanguages;
+}

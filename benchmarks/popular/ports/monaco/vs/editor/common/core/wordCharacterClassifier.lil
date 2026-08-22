@@ -1,0 +1,39 @@
+import { CharacterClassifier } from "./characterClassifier";
+
+export int WordCharacterClassRegular = 0;
+export int WordCharacterClassWhitespace = 1;
+export int WordCharacterClassWordSeparator = 2;
+
+export class WordCharacterClassifier {
+  CharacterClassifier inner;
+  string separators;
+
+  init(string wordSeparators) {
+    this.separators = wordSeparators;
+    this.inner = new CharacterClassifier(WordCharacterClassRegular);
+    int i = 0;
+    while (i < wordSeparators.length) {
+      this.inner.set(wordSeparators.charCodeAt(i), WordCharacterClassWordSeparator);
+      i = i + 1;
+    }
+    this.inner.set(32, WordCharacterClassWhitespace);
+    this.inner.set(9, WordCharacterClassWhitespace);
+  }
+
+  int get(int charCode) {
+    return this.inner.get(charCode);
+  }
+}
+
+string lastSepKey = "";
+WordCharacterClassifier? cachedClassifier = null;
+
+export WordCharacterClassifier getMapForWordSeparators(string wordSeparators) {
+  if (cachedClassifier != null && lastSepKey == wordSeparators) {
+    return cachedClassifier;
+  }
+  WordCharacterClassifier next = new WordCharacterClassifier(wordSeparators);
+  lastSepKey = wordSeparators;
+  cachedClassifier = next;
+  return next;
+}

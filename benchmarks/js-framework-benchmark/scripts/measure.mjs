@@ -63,9 +63,14 @@ const checkpointPath = resolve(
   argumentValue("--checkpoint") ?? "checkpoint.json",
 );
 const checkpointTemporaryPath = `${checkpointPath}.tmp`;
-const selectedFrameworkMetadata = requestedFramework
+const requestedFrameworks = requestedFramework
+  ? requestedFramework.split(",").map((value) => value.trim()).filter(Boolean)
+  : [];
+const selectedFrameworkMetadata = requestedFrameworks.length > 0
   ? metadata.frameworks.filter(({ path }) =>
-      [path, path.split("/").at(-1)].includes(requestedFramework),
+      requestedFrameworks.some((requested) =>
+        [path, path.split("/").at(-1)].includes(requested),
+      ),
     )
   : metadata.frameworks;
 
@@ -318,6 +323,7 @@ async function measureSizes() {
       );
     }
   } finally {
+    await fetch("http://localhost:8080/disableCompression").catch(() => {});
     await browser.close();
   }
 }
@@ -353,7 +359,7 @@ function runOfficialPlaywright(framework, workload) {
     const timeout = setTimeout(() => {
       child.kill("SIGTERM");
       rejectPromise(new Error(`${framework.name}/${workload} timed out\n${log}`));
-    }, 120_000);
+    }, 300_000);
     child.once("message", (message) => {
       clearTimeout(timeout);
       if (message.error) {

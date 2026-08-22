@@ -1,0 +1,224 @@
+import { stringFromCharCode1 } from "../../../../../js-host";
+
+int imin(int a, int b) {
+  if (a < b) {
+    return a;
+  }
+  return b;
+}
+
+int imax(int a, int b) {
+  if (a > b) {
+    return a;
+  }
+  return b;
+}
+
+export class RenderToken {
+  int endIndex;
+  string className;
+
+  init(int endIndex, string className) {
+    this.endIndex = endIndex;
+    this.className = className;
+  }
+}
+
+export class RenderedLinePart {
+  string text;
+  string className;
+  float width;
+  int startColumn;
+  int endColumn;
+
+  init(string text, string className, float width, int startColumn, int endColumn) {
+    this.text = text;
+    this.className = className;
+    this.width = width;
+    this.startColumn = startColumn;
+    this.endColumn = endColumn;
+  }
+}
+
+export class CharacterMapping {
+  int[] horizontalOffsets;
+  int[] partIndices;
+
+  init() {
+    this.horizontalOffsets = [];
+    this.partIndices = [];
+  }
+
+  void push(int horizontalOffset, int partIndex) {
+    this.horizontalOffsets.push(horizontalOffset);
+    this.partIndices.push(partIndex);
+  }
+
+  int getHorizontalOffset(int column) {
+    if (this.horizontalOffsets.length == 0) {
+      return 0;
+    }
+    int index = column - 1;
+    if (index < 0) {
+      index = 0;
+    }
+    if (index >= this.horizontalOffsets.length) {
+      index = this.horizontalOffsets.length - 1;
+    }
+    return this.horizontalOffsets[index];
+  }
+}
+
+int charColumns(int code, int visibleColumn, int tabSize) {
+  if (code == 9) {
+    return tabSize - visibleColumn % tabSize;
+  }
+  if ((code >= 4352 && code <= 4447) || (code >= 11904 && code <= 42191) || (code >= 44032 && code <= 55203) || (code >= 63744 && code <= 64255) || (code >= 65072 && code <= 65376)) {
+    return 2;
+  }
+  return 1;
+}
+
+string renderedCharacter(int code, int width, bool renderWhitespace, bool renderControlCharacters) {
+  if (code == 9) {
+    if (renderWhitespace) {
+      if (width > 1) {
+        string pad = "";
+        int i = 1;
+        while (i < width) {
+          pad = pad + " ";
+          i = i + 1;
+        }
+        return "→" + pad;
+      }
+      return "→";
+    }
+    string spaces = "";
+    int s = 0;
+    while (s < width) {
+      spaces = spaces + " ";
+      s = s + 1;
+    }
+    return spaces;
+  }
+  if (code == 32 && renderWhitespace) {
+    return "·";
+  }
+  if (renderControlCharacters && code < 32) {
+    return stringFromCharCode1(9216 + code);
+  }
+  if (renderControlCharacters && code == 127) {
+    return stringFromCharCode1(9249);
+  }
+  if (code == 0 || code == 8232 || code == 8233 || code == 133 || code == 65279) {
+    return "�";
+  }
+  return stringFromCharCode1(code);
+}
+
+export class ViewLine {
+  float typicalHalfwidthCharacterWidth;
+  int tabSize;
+  int stopRenderingLineAfter;
+  bool renderWhitespace;
+  bool renderControlCharacters;
+  RenderedLinePart[] parts;
+  CharacterMapping mapping;
+  float renderedWidth;
+
+  init(float typicalHalfwidthCharacterWidth, int tabSize, int stopRenderingLineAfter, bool renderWhitespace, bool renderControlCharacters) {
+    this.typicalHalfwidthCharacterWidth = typicalHalfwidthCharacterWidth;
+    this.tabSize = tabSize;
+    this.stopRenderingLineAfter = stopRenderingLineAfter;
+    this.renderWhitespace = renderWhitespace;
+    this.renderControlCharacters = renderControlCharacters;
+    this.parts = [];
+    this.mapping = new CharacterMapping();
+    this.renderedWidth = 0.0;
+  }
+
+  void renderLine(string lineContent, RenderToken[] tokens) {
+    this.parts = [];
+    this.mapping = new CharacterMapping();
+    this.renderedWidth = 0.0;
+    int length = lineContent.length;
+    if (this.stopRenderingLineAfter >= 0 && this.stopRenderingLineAfter < length) {
+      length = this.stopRenderingLineAfter;
+    }
+    int tokenIndex = 0;
+    int visibleColumn = 0;
+    int i = 0;
+    string currentText = "";
+    string currentClass = "";
+    int partStart = 1;
+    int partVisible = 0;
+    int partIndex = 0;
+    while (i < length) {
+      while (tokenIndex < tokens.length && tokens[tokenIndex].endIndex <= i) {
+        tokenIndex = tokenIndex + 1;
+      }
+      string tokenClass = "";
+      if (tokenIndex < tokens.length) {
+        tokenClass = tokens[tokenIndex].className;
+      }
+      int code = lineContent.charCodeAt(i);
+      int width = charColumns(code, visibleColumn, this.tabSize);
+      string ch = renderedCharacter(code, width, this.renderWhitespace, this.renderControlCharacters);
+      if (currentText.length == 0) {
+        currentClass = tokenClass;
+        partStart = i + 1;
+        partVisible = 0;
+      } else {
+        if (currentClass != tokenClass) {
+          float px = partVisible * 1.0 * this.typicalHalfwidthCharacterWidth;
+          this.parts.push(new RenderedLinePart(currentText, currentClass, px, partStart, i + 1));
+          partIndex = partIndex + 1;
+          currentText = "";
+          currentClass = tokenClass;
+          partStart = i + 1;
+          partVisible = 0;
+        }
+      }
+      currentText = currentText + ch;
+      partVisible = partVisible + width;
+      int col = 0;
+      while (col < width) {
+        this.mapping.push(visibleColumn + col, partIndex);
+        col = col + 1;
+      }
+      visibleColumn = visibleColumn + width;
+      i = i + 1;
+    }
+    if (currentText.length > 0 || this.parts.length == 0) {
+      float px = partVisible * 1.0 * this.typicalHalfwidthCharacterWidth;
+      this.parts.push(new RenderedLinePart(currentText, currentClass, px, partStart, length + 1));
+    }
+    this.renderedWidth = visibleColumn * 1.0 * this.typicalHalfwidthCharacterWidth;
+  }
+
+  float getWidth() {
+    return this.renderedWidth;
+  }
+
+  float leftForColumn(int column) {
+    return this.mapping.getHorizontalOffset(column) * 1.0 * this.typicalHalfwidthCharacterWidth;
+  }
+
+  float widthForRange(int startColumn, int endColumn) {
+    float left = this.leftForColumn(startColumn);
+    float right = this.leftForColumn(endColumn);
+    float width = right - left;
+    if (width < 0.0) {
+      return 0.0;
+    }
+    return width;
+  }
+}
+
+export RenderToken createRenderToken(int endIndex, string className) {
+  return new RenderToken(endIndex, className);
+}
+
+export ViewLine createViewLine(float typicalHalfwidthCharacterWidth, int tabSize, int stopRenderingLineAfter, bool renderWhitespace, bool renderControlCharacters) {
+  return new ViewLine(typicalHalfwidthCharacterWidth, tabSize, stopRenderingLineAfter, renderWhitespace, renderControlCharacters);
+}

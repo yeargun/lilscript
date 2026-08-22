@@ -1,0 +1,102 @@
+import { throwError } from "../../../js-host";
+
+export string canceledName = "Canceled";
+
+export class CancellationError {
+  string name;
+  string message;
+
+  init() {
+    this.name = canceledName;
+    this.message = canceledName;
+  }
+}
+
+export class BugIndicatingError {
+  string name;
+  string message;
+
+  init(string message) {
+    this.name = "BugIndicatingError";
+    this.message = message;
+  }
+}
+
+export class ErrorNoTelemetry {
+  string name;
+  string message;
+
+  init(string message) {
+    this.name = "CodeExpectedError";
+    this.message = message;
+  }
+}
+
+export class NotSupportedError {
+  string name;
+  string message;
+
+  init(string message) {
+    this.name = "NotSupported";
+    this.message = message;
+  }
+}
+
+export class ErrorHandler {
+  (func(string)->void)[] listeners;
+
+  init() {
+    this.listeners = [];
+  }
+
+  void emit(string e) {
+    int i = 0;
+    while (i < this.listeners.length) {
+      this.listeners[i](e);
+      i = i + 1;
+    }
+  }
+
+  void onUnexpectedError(string e) {
+    this.emit(e);
+  }
+}
+
+ErrorHandler sharedErrorHandler = new ErrorHandler();
+
+export ErrorHandler errorHandler() {
+  return sharedErrorHandler;
+}
+
+export bool isCancellationError(string name) {
+  return name == canceledName;
+}
+
+export void onUnexpectedError(string e) {
+  if (isCancellationError(e)) {
+    return;
+  }
+  sharedErrorHandler.onUnexpectedError(e);
+}
+
+export void onBugIndicatingError(string e) {
+  sharedErrorHandler.onUnexpectedError(e);
+}
+
+export string illegalArgument(string name) {
+  if (name.length == 0) {
+    return "Illegal argument";
+  }
+  return "Illegal argument: " + name;
+}
+
+export string illegalState(string name) {
+  if (name.length == 0) {
+    return "Illegal state";
+  }
+  return "Illegal state: " + name;
+}
+
+export void bug(string message) {
+  throwError(message);
+}

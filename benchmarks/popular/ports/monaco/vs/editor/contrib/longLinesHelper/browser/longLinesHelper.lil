@@ -1,0 +1,10 @@
+export bool shouldStopTokenization(int lineLength, int maxTokenizationLineLength) {
+  return lineLength > maxTokenizationLineLength;
+}
+
+export int clampVisibleColumns(int columns, int max) {
+  if (columns > max) {
+    return max;
+  }
+  return columns;
+}

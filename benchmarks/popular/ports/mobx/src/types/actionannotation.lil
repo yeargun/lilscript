@@ -1,0 +1,90 @@
+import { DEV } from "../dev-flag.lil";
+import {
+  apply,
+  bind,
+  defineProperty,
+  isFn,
+  isNullish,
+  stringifyKey,
+  toStr,
+  undef
+} from "../host.lil";
+import {
+  MAKE_BREAK,
+  MAKE_CANCEL,
+  MAKE_CONTINUE
+} from "../constants.lil";
+import { createAction } from "../core/action.lil";
+import { die } from "../errors.lil";
+import { globalState } from "../core/globalstate.lil";
+import { isAction } from "../core/predicates.lil";
+import { admProxyOrTarget } from "./adm-proxy.lil";
+
+JsValue createActionDescriptor(JsValue adm, JsValue annotation, JsValue key, JsValue descriptor, bool safeDescriptors) {
+  if (DEV && !isFn(descriptor["value"])) {
+    die("Cannot apply '" + toStr(annotation["annotationType_"]) + "' to '" + toStr(adm["name_"]) + "." + stringifyKey(key) + "':\n'" + toStr(annotation["annotationType_"]) + "' can only be used on properties with a function value.");
+  }
+  JsValue value = descriptor["value"];
+  if (annotation["options_"].truthy() && annotation["options_"]["bound"].truthy()) {
+    value = bind(value, admProxyOrTarget(adm));
+  }
+  string actionName = stringifyKey(key);
+  if (annotation["options_"].truthy() && annotation["options_"]["name"].truthy()) {
+    actionName = toStr(annotation["options_"]["name"]);
+  }
+  bool autoFlag = false;
+  if (annotation["options_"].truthy() && annotation["options_"]["autoAction"].truthy()) {
+    autoFlag = true;
+  }
+  JsValue boundRef = undef();
+  if (annotation["options_"].truthy() && annotation["options_"]["bound"].truthy()) {
+    boundRef = admProxyOrTarget(adm);
+  }
+  bool configurable = true;
+  bool writable = true;
+  if (safeDescriptors) {
+    configurable = adm["isPlainObject_"].truthy();
+    writable = false;
+  }
+  return JS.object("value", createAction(actionName, value, autoFlag, boundRef), "configurable", configurable, "enumerable", false, "writable", writable);
+}
+
+JsValue actionAnnotationMake = JS.methodRest((JsValue self, JsValue args) => {
+  JsValue adm = args[0];
+  JsValue key = args[1];
+  JsValue descriptor = args[2];
+  JsValue source = args[3];
+  if (self["options_"].truthy() && self["options_"]["bound"].truthy()) {
+    JsValue outcome = JS.call(self["extend_"], self, adm, key, descriptor, false);
+    if (JS.isNullish(outcome)) {
+      return MAKE_CANCEL;
+    }
+    return MAKE_BREAK;
+  }
+  if (JS.strictEqual(source, adm["target_"])) {
+    JsValue outcome = JS.call(self["extend_"], self, adm, key, descriptor, false);
+    if (JS.isNullish(outcome)) {
+      return MAKE_CANCEL;
+    }
+    return MAKE_CONTINUE;
+  }
+  if (isAction(descriptor["value"])) {
+    return MAKE_BREAK;
+  }
+  defineProperty(source, key, createActionDescriptor(adm, self, key, descriptor, false));
+  return MAKE_CONTINUE;
+});
+
+JsValue actionAnnotationExtend = JS.methodRest((JsValue self, JsValue args) => {
+  JsValue adm = args[0];
+  return JS.call(adm["defineProperty_"], adm, args[1], createActionDescriptor(adm, self, args[1], args[2], globalState["safeDescriptors"].truthy()), args[3]);
+});
+
+export JsValue createActionAnnotation(string name, JsValue options) {
+  JsValue annotation = JS.object();
+  annotation["annotationType_"] = name;
+  annotation["options_"] = options;
+  annotation["make_"] = actionAnnotationMake;
+  annotation["extend_"] = actionAnnotationExtend;
+  return annotation;
+}

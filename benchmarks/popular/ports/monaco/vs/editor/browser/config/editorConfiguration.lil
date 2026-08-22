@@ -1,0 +1,339 @@
+int nmax(int a, int b) {
+  if (a > b) {
+    return a;
+  }
+  return b;
+}
+
+int nmin(int a, int b) {
+  if (a < b) {
+    return a;
+  }
+  return b;
+}
+
+int digitCount(int n) {
+  if (n == 0) {
+    return 1;
+  }
+  int r = 0;
+  int x = n;
+  if (x < 0) {
+    x = 0 - x;
+  }
+  while (x > 0) {
+    x = x / 10;
+    r = r + 1;
+  }
+  if (r == 0) {
+    return 1;
+  }
+  return r;
+}
+
+export class EditorLayoutInfo {
+  int width;
+  int height;
+  int glyphMarginLeft;
+  int glyphMarginWidth;
+  int glyphMarginDecorationLaneCount;
+  int lineNumbersLeft;
+  int lineNumbersWidth;
+  int decorationsLeft;
+  int decorationsWidth;
+  int contentLeft;
+  int contentWidth;
+  int minimapLeft;
+  int minimapWidth;
+  int viewportColumn;
+  bool isWordWrapMinified;
+  bool isViewportWrapping;
+  int wrappingColumn;
+  int verticalScrollbarWidth;
+  int horizontalScrollbarHeight;
+  int overviewRulerTop;
+  int overviewRulerWidth;
+  int overviewRulerHeight;
+
+  init() {
+    this.width = 0;
+    this.height = 0;
+    this.glyphMarginLeft = 0;
+    this.glyphMarginWidth = 0;
+    this.glyphMarginDecorationLaneCount = 1;
+    this.lineNumbersLeft = 0;
+    this.lineNumbersWidth = 0;
+    this.decorationsLeft = 0;
+    this.decorationsWidth = 0;
+    this.contentLeft = 0;
+    this.contentWidth = 0;
+    this.minimapLeft = 0;
+    this.minimapWidth = 0;
+    this.viewportColumn = 1;
+    this.isWordWrapMinified = false;
+    this.isViewportWrapping = false;
+    this.wrappingColumn = -1;
+    this.verticalScrollbarWidth = 14;
+    this.horizontalScrollbarHeight = 12;
+    this.overviewRulerTop = 0;
+    this.overviewRulerWidth = 14;
+    this.overviewRulerHeight = 0;
+  }
+}
+
+export class ValidatedEditorOptions {
+  bool glyphMargin;
+  string lineNumbers;
+  int lineNumbersMinChars;
+  bool folding;
+  string showFoldingControls;
+  int lineDecorationsWidth;
+  string wordWrap;
+  int wordWrapColumn;
+  bool minimapEnabled;
+  string minimapSide;
+  bool scrollBeyondLastLine;
+  int verticalScrollbarSize;
+  int horizontalScrollbarSize;
+  bool verticalHasArrows;
+  int scrollbarArrowSize;
+  bool automaticLayout;
+  int fontSize;
+  float typicalHalfwidthCharacterWidth;
+  float maxDigitWidth;
+  int lineHeight;
+  bool tabFocusMode;
+
+  init() {
+    this.glyphMargin = true;
+    this.lineNumbers = "on";
+    this.lineNumbersMinChars = 5;
+    this.folding = true;
+    this.showFoldingControls = "mouseover";
+    this.lineDecorationsWidth = 10;
+    this.wordWrap = "off";
+    this.wordWrapColumn = 80;
+    this.minimapEnabled = true;
+    this.minimapSide = "right";
+    this.scrollBeyondLastLine = true;
+    this.verticalScrollbarSize = 14;
+    this.horizontalScrollbarSize = 12;
+    this.verticalHasArrows = false;
+    this.scrollbarArrowSize = 11;
+    this.automaticLayout = false;
+    this.fontSize = 14;
+    this.typicalHalfwidthCharacterWidth = 8.0;
+    this.maxDigitWidth = 8.0;
+    this.lineHeight = 19;
+    this.tabFocusMode = false;
+  }
+}
+
+export EditorLayoutInfo computeLayout(ValidatedEditorOptions options, int outerWidth, int outerHeight, int viewLineCount, int modelLineCount, int glyphMarginDecorationLaneCount, bool isDominatedByLongLines) {
+  EditorLayoutInfo layout = new EditorLayoutInfo();
+  layout.width = outerWidth;
+  layout.height = outerHeight;
+  layout.verticalScrollbarWidth = options.verticalScrollbarSize;
+  layout.horizontalScrollbarHeight = options.horizontalScrollbarSize;
+  layout.glyphMarginDecorationLaneCount = glyphMarginDecorationLaneCount;
+  int lineDecorationsWidth = options.lineDecorationsWidth;
+  if (options.folding && options.showFoldingControls != "never") {
+    lineDecorationsWidth = lineDecorationsWidth + 16;
+  }
+  int lineNumbersWidth = 0;
+  if (options.lineNumbers != "off") {
+    int digits = nmax(digitCount(modelLineCount), options.lineNumbersMinChars);
+    lineNumbersWidth = (digits * 1.0 * options.maxDigitWidth).round().toInt();
+  }
+  int glyphMarginWidth = 0;
+  if (options.glyphMargin) {
+    glyphMarginWidth = options.lineHeight * glyphMarginDecorationLaneCount;
+  }
+  int glyphMarginLeft = 0;
+  int lineNumbersLeft = glyphMarginLeft + glyphMarginWidth;
+  int decorationsLeft = lineNumbersLeft + lineNumbersWidth;
+  int contentLeft = decorationsLeft + lineDecorationsWidth;
+  int remainingWidth = outerWidth - glyphMarginWidth - lineNumbersWidth - lineDecorationsWidth;
+  bool isWordWrapMinified = false;
+  bool isViewportWrapping = false;
+  int wrappingColumn = -1;
+  if (isDominatedByLongLines && options.wordWrap == "off") {
+    isWordWrapMinified = true;
+    isViewportWrapping = true;
+  } else if (options.wordWrap == "on" || options.wordWrap == "bounded") {
+    isViewportWrapping = true;
+  } else if (options.wordWrap == "wordWrapColumn") {
+    wrappingColumn = options.wordWrapColumn;
+  }
+  int minimapWidth = 0;
+  int minimapLeft = 0;
+  if (options.minimapEnabled && remainingWidth > 0) {
+    float minimapCharWidth = 1.0 / 2.0;
+    float denom = options.typicalHalfwidthCharacterWidth + minimapCharWidth;
+    int computed = 0;
+    if (denom > 0.0) {
+      computed = (((remainingWidth - options.verticalScrollbarSize - 2) * 1.0 * minimapCharWidth) / denom).floor().toInt();
+    }
+    if (computed < 0) {
+      computed = 0;
+    }
+    int minimapMaxWidth = (120.0 * minimapCharWidth).floor().toInt();
+    minimapWidth = nmin(minimapMaxWidth, computed) + 2;
+    if (options.minimapSide == "left") {
+      minimapLeft = 0;
+    } else {
+      minimapLeft = outerWidth - minimapWidth - options.verticalScrollbarSize;
+    }
+  }
+  if (minimapWidth > 0 && minimapLeft == 0) {
+    glyphMarginLeft = glyphMarginLeft + minimapWidth;
+    lineNumbersLeft = lineNumbersLeft + minimapWidth;
+    decorationsLeft = decorationsLeft + minimapWidth;
+    contentLeft = contentLeft + minimapWidth;
+  }
+  int contentWidth = remainingWidth - minimapWidth;
+  int viewportInner = contentWidth - options.verticalScrollbarSize - 2;
+  int viewportColumn = 1;
+  if (options.typicalHalfwidthCharacterWidth > 0.0) {
+    viewportColumn = nmax(1, (viewportInner * 1.0 / options.typicalHalfwidthCharacterWidth).floor().toInt());
+  }
+  int verticalArrowSize = 0;
+  if (options.verticalHasArrows) {
+    verticalArrowSize = options.scrollbarArrowSize;
+  }
+  if (isViewportWrapping) {
+    wrappingColumn = nmax(1, viewportColumn);
+    if (options.wordWrap == "bounded") {
+      wrappingColumn = nmin(wrappingColumn, options.wordWrapColumn);
+    }
+  }
+  layout.glyphMarginLeft = glyphMarginLeft;
+  layout.glyphMarginWidth = glyphMarginWidth;
+  layout.lineNumbersLeft = lineNumbersLeft;
+  layout.lineNumbersWidth = lineNumbersWidth;
+  layout.decorationsLeft = decorationsLeft;
+  layout.decorationsWidth = lineDecorationsWidth;
+  layout.contentLeft = contentLeft;
+  layout.contentWidth = contentWidth;
+  layout.minimapLeft = minimapLeft;
+  layout.minimapWidth = minimapWidth;
+  layout.viewportColumn = viewportColumn;
+  layout.isWordWrapMinified = isWordWrapMinified;
+  layout.isViewportWrapping = isViewportWrapping;
+  layout.wrappingColumn = wrappingColumn;
+  layout.overviewRulerTop = verticalArrowSize;
+  layout.overviewRulerWidth = options.verticalScrollbarSize;
+  layout.overviewRulerHeight = outerHeight - 2 * verticalArrowSize;
+  return layout;
+}
+
+export class EditorConfiguration {
+  bool isSimpleWidget;
+  string contextMenuId;
+  ValidatedEditorOptions validated;
+  EditorLayoutInfo layoutInfo;
+  int containerWidth;
+  int containerHeight;
+  bool isDominatedByLongLines;
+  int viewLineCount;
+  int lineNumbersDigitCount;
+  int reservedHeight;
+  int glyphMarginDecorationLaneCount;
+  int changeCount;
+
+  init(bool isSimpleWidget, string contextMenuId, int containerWidth, int containerHeight) {
+    this.isSimpleWidget = isSimpleWidget;
+    this.contextMenuId = contextMenuId;
+    this.validated = new ValidatedEditorOptions();
+    this.containerWidth = containerWidth;
+    this.containerHeight = containerHeight;
+    this.isDominatedByLongLines = false;
+    this.viewLineCount = 1;
+    this.lineNumbersDigitCount = 1;
+    this.reservedHeight = 0;
+    this.glyphMarginDecorationLaneCount = 1;
+    this.changeCount = 0;
+    this.layoutInfo = computeLayout(this.validated, containerWidth, nmax(0, containerHeight - this.reservedHeight), this.viewLineCount, 1, this.glyphMarginDecorationLaneCount, this.isDominatedByLongLines);
+  }
+
+  void recomputeOptions() {
+    this.layoutInfo = computeLayout(this.validated, this.containerWidth, nmax(0, this.containerHeight - this.reservedHeight), this.viewLineCount, this.lineNumbersDigitCount, this.glyphMarginDecorationLaneCount, this.isDominatedByLongLines);
+    this.changeCount = this.changeCount + 1;
+  }
+
+  void observeContainer(int width, int height) {
+    if (width == this.containerWidth && height == this.containerHeight) {
+      return;
+    }
+    this.containerWidth = width;
+    this.containerHeight = height;
+    this.recomputeOptions();
+  }
+
+  void setIsDominatedByLongLines(bool isDominatedByLongLines) {
+    if (this.isDominatedByLongLines == isDominatedByLongLines) {
+      return;
+    }
+    this.isDominatedByLongLines = isDominatedByLongLines;
+    this.recomputeOptions();
+  }
+
+  void setModelLineCount(int modelLineCount) {
+    int next = digitCount(modelLineCount);
+    if (this.lineNumbersDigitCount == next) {
+      return;
+    }
+    this.lineNumbersDigitCount = next;
+    this.recomputeOptions();
+  }
+
+  void setViewLineCount(int viewLineCount) {
+    if (this.viewLineCount == viewLineCount) {
+      return;
+    }
+    this.viewLineCount = viewLineCount;
+    this.recomputeOptions();
+  }
+
+  void setReservedHeight(int reservedHeight) {
+    if (this.reservedHeight == reservedHeight) {
+      return;
+    }
+    this.reservedHeight = reservedHeight;
+    this.recomputeOptions();
+  }
+
+  void setGlyphMarginDecorationLaneCount(int decorationLaneCount) {
+    if (this.glyphMarginDecorationLaneCount == decorationLaneCount) {
+      return;
+    }
+    this.glyphMarginDecorationLaneCount = decorationLaneCount;
+    this.recomputeOptions();
+  }
+
+  EditorLayoutInfo getLayoutInfo() {
+    return this.layoutInfo;
+  }
+}
+
+export EditorConfiguration createEditorConfiguration(bool isSimpleWidget, string contextMenuId, int containerWidth, int containerHeight) {
+  return new EditorConfiguration(isSimpleWidget, contextMenuId, containerWidth, containerHeight);
+}
+
+export int lineNumbersDigitCount(int modelLineCount) {
+  return digitCount(modelLineCount);
+}
+
+export string extraEditorClassName(bool isSafari, bool isMacintosh) {
+  string extra = "";
+  if (isSafari) {
+    extra = extra + "no-minimap-shadow ";
+    extra = extra + "enable-user-select ";
+  } else {
+    extra = extra + "no-user-select ";
+  }
+  if (isMacintosh) {
+    extra = extra + "mac ";
+  }
+  return extra;
+}

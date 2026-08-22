@@ -1,0 +1,18 @@
+export class PlaceholderTextContribution {
+  string text;
+  bool visible;
+
+  init(string text) {
+    this.text = text;
+    this.visible = text.length > 0;
+  }
+
+  void update(string value, string placeholder) {
+    this.text = placeholder;
+    this.visible = value.length == 0 && placeholder.length > 0;
+  }
+}
+
+export PlaceholderTextContribution createPlaceholderTextContribution(string text) {
+  return new PlaceholderTextContribution(text);
+}

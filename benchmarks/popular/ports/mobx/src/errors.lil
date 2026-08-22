@@ -1,0 +1,34 @@
+import {
+  toStr,
+  throwErr,
+  makeError,
+  len,
+  gString,
+  slice2,
+  undef
+} from "./host.lil";
+
+JsValue dieImpl = JS.staticRest((JsValue args) => {
+  string extra = "";
+  if (len(args) > 1) {
+    extra = " " + toStr(JS.invoke(JS.invoke(slice2(args, 1, len(args)), "map", gString()), "join", ","));
+  }
+  throwErr(makeError("[MobX] minified error nr: " + toStr(args[0]) + extra + ". See mobx.js.org/errors"));
+  return undef();
+});
+
+export void die(JsValue error) {
+  JS.call(dieImpl, undef(), error);
+}
+
+export void die1(JsValue error, JsValue a) {
+  JS.call(dieImpl, undef(), error, a);
+}
+
+export void die2(JsValue error, JsValue a, JsValue b) {
+  JS.call(dieImpl, undef(), error, a, b);
+}
+
+export void die3(JsValue error, JsValue a, JsValue b, JsValue c) {
+  JS.call(dieImpl, undef(), error, a, b, c);
+}

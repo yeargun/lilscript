@@ -1,0 +1,166 @@
+import { stringSlice } from "../../../../js-host";
+
+Map<string, int> countPerName = new Map();
+Map<string, int> countPerClassName = new Map();
+Map<JsValue, string> cachedDebugNames = new Map();
+Map<JsValue, string> ownerIds = new Map();
+
+export class DebugNameData {
+  JsValue owner;
+  bool hasOwner;
+  string debugNameSource;
+  bool hasDebugNameSource;
+  string referenceName;
+
+  init(
+    JsValue owner,
+    bool hasOwner,
+    string debugNameSource,
+    bool hasDebugNameSource,
+    string referenceName
+  ) {
+    this.owner = owner;
+    this.hasOwner = hasOwner;
+    this.debugNameSource = debugNameSource;
+    this.hasDebugNameSource = hasDebugNameSource;
+    this.referenceName = referenceName;
+  }
+
+  string getDebugName(JsValue target) {
+    return getDebugName(target, this);
+  }
+}
+
+export DebugNameData namedDebugData(string name) {
+  return new DebugNameData(0, false, name, true, "");
+}
+
+export DebugNameData ownedDebugData(JsValue owner, string referenceName) {
+  return new DebugNameData(owner, true, "", false, referenceName);
+}
+
+string uniqueName(string name) {
+  int count = 0;
+  int? existing = countPerName.get(name);
+  if (existing != null) {
+    count = existing;
+  }
+  count = count + 1;
+  countPerName.set(name, count);
+  if (count == 1) {
+    return name;
+  }
+  return name + "#" + count.toString();
+}
+
+export string getDebugName(JsValue target, DebugNameData data) {
+  string? cached = cachedDebugNames.get(target);
+  if (cached != null) {
+    return cached;
+  }
+  string computed = computeDebugName(target, data);
+  if (computed.length == 0) {
+    return "";
+  }
+  string result = uniqueName(computed);
+  cachedDebugNames.set(target, result);
+  return result;
+}
+
+string computeDebugName(JsValue target, DebugNameData data) {
+  string ownerPrefix = "";
+  if (data.hasOwner) {
+    ownerPrefix = formatOwner(data.owner) + ".";
+  }
+  if (data.hasDebugNameSource && data.debugNameSource.length > 0) {
+    return ownerPrefix + data.debugNameSource;
+  }
+  if (data.referenceName.length > 0) {
+    return ownerPrefix + data.referenceName;
+  }
+  if (data.hasOwner) {
+    string key = findKey(data.owner, target);
+    if (key.length > 0) {
+      return ownerPrefix + key;
+    }
+  }
+  return "";
+}
+
+string findKey(JsValue obj, JsValue value) {
+  if (!obj.truthy() || !obj.isObject()) {
+    return "";
+  }
+  for (string key in obj) {
+    if (obj[key] == value) {
+      return key;
+    }
+  }
+  return "";
+}
+
+string formatOwner(JsValue owner) {
+  string? cached = ownerIds.get(owner);
+  if (cached != null) {
+    return cached;
+  }
+  string className = getClassName(owner);
+  if (className.length == 0) {
+    className = "Object";
+  }
+  int count = 0;
+  int? existing = countPerClassName.get(className);
+  if (existing != null) {
+    count = existing;
+  }
+  count = count + 1;
+  countPerClassName.set(className, count);
+  string result = className;
+  if (count > 1) {
+    result = className + "#" + count.toString();
+  }
+  ownerIds.set(owner, result);
+  return result;
+}
+
+export string getClassName(JsValue obj) {
+  if (!obj.truthy() || !obj.isObject()) {
+    return "";
+  }
+  JsValue constructor = obj["constructor"];
+  if (!constructor.truthy() || !constructor.isObject()) {
+    return "";
+  }
+  JsValue nameValue = constructor["name"];
+  if (!(nameValue is string)) {
+    return "";
+  }
+  string name = nameValue;
+  if (name == "Object") {
+    return "";
+  }
+  return name;
+}
+
+export string getFunctionName(string functionSource) {
+  string marker = "@description";
+  int start = functionSource.indexOf(marker);
+  if (start < 0) {
+    return "";
+  }
+  start = start + marker.length;
+  int end = functionSource.indexOf("*/", start);
+  if (end < 0) {
+    return "";
+  }
+  string result = stringSlice(functionSource, start, end);
+  int from = 0;
+  int to = result.length;
+  while (from < to && result.charCodeAt(from) <= 32) {
+    from = from + 1;
+  }
+  while (to > from && result.charCodeAt(to - 1) <= 32) {
+    to = to - 1;
+  }
+  return stringSlice(result, from, to);
+}

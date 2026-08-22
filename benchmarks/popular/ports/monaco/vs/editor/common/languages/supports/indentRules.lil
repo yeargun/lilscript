@@ -1,0 +1,57 @@
+import { hostCall, jsUndefined } from "../../../../../js-host";
+
+bool testRule(JsValue rules, string key, string text) {
+  if (rules == null || rules[key] == null) {
+    return false;
+  }
+  JsValue expression = rules[key];
+  if (expression["global"] != null && expression["global"].truthy()) {
+    expression["lastIndex"] = 0;
+  }
+  return hostCall(expression, "test", text, jsUndefined(), jsUndefined()).truthy();
+}
+
+export class IndentRulesSupport {
+  JsValue indentationRules;
+
+  init(JsValue indentationRules) {
+    this.indentationRules = indentationRules;
+  }
+
+  bool shouldIncrease(string text) {
+    return testRule(this.indentationRules, "increaseIndentPattern", text);
+  }
+
+  bool shouldDecrease(string text) {
+    return testRule(this.indentationRules, "decreaseIndentPattern", text);
+  }
+
+  bool shouldIndentNextLine(string text) {
+    return testRule(this.indentationRules, "indentNextLinePattern", text);
+  }
+
+  bool shouldIgnore(string text) {
+    return testRule(this.indentationRules, "unIndentedLinePattern", text);
+  }
+
+  int getIndentMetadata(string text) {
+    int result = 0;
+    if (this.shouldIncrease(text)) {
+      result = result + 1;
+    }
+    if (this.shouldDecrease(text)) {
+      result = result + 2;
+    }
+    if (this.shouldIndentNextLine(text)) {
+      result = result + 4;
+    }
+    if (this.shouldIgnore(text)) {
+      result = result + 8;
+    }
+    return result;
+  }
+}
+
+export IndentRulesSupport createIndentRulesSupport(JsValue rules) {
+  return new IndentRulesSupport(rules);
+}

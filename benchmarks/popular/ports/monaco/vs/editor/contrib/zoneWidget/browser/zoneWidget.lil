@@ -1,0 +1,92 @@
+
+export class TextRange {
+  int startLineNumber;
+  int startColumn;
+  int endLineNumber;
+  int endColumn;
+
+  init(int startLineNumber, int startColumn, int endLineNumber, int endColumn) {
+    this.startLineNumber = startLineNumber;
+    this.startColumn = startColumn;
+    this.endLineNumber = endLineNumber;
+    this.endColumn = endColumn;
+  }
+}
+
+export class TextPos {
+  int lineNumber;
+  int column;
+
+  init(int lineNumber, int column) {
+    this.lineNumber = lineNumber;
+    this.column = column;
+  }
+}
+
+bool posBefore(TextPos a, TextPos b) {
+  if (a.lineNumber < b.lineNumber) {
+    return true;
+  }
+  if (a.lineNumber > b.lineNumber) {
+    return false;
+  }
+  return a.column < b.column;
+}
+
+bool rangeContainsPos(TextRange range, int lineNumber, int column) {
+  if (lineNumber < range.startLineNumber || lineNumber > range.endLineNumber) {
+    return false;
+  }
+  if (lineNumber == range.startLineNumber && column < range.startColumn) {
+    return false;
+  }
+  if (lineNumber == range.endLineNumber && column > range.endColumn) {
+    return false;
+  }
+  return true;
+}
+
+export TextRange createTextRange(int startLine, int startColumn, int endLine, int endColumn) {
+  return new TextRange(startLine, startColumn, endLine, endColumn);
+}
+
+export TextPos createTextPos(int lineNumber, int column) {
+  return new TextPos(lineNumber, column);
+}
+
+export class ZoneWidget {
+  int afterLineNumber;
+  int heightInLines;
+  bool showFrame;
+  bool isVisible;
+
+  init(int afterLineNumber, int heightInLines) {
+    this.afterLineNumber = afterLineNumber;
+    this.heightInLines = heightInLines;
+    this.showFrame = true;
+    this.isVisible = false;
+  }
+
+  int top(int lineHeight, int scrollTop) {
+    return this.afterLineNumber * lineHeight - scrollTop;
+  }
+
+  void show() {
+    this.isVisible = true;
+  }
+
+  void hide() {
+    this.isVisible = false;
+  }
+
+  void layout(int heightInLines) {
+    this.heightInLines = heightInLines;
+    if (this.heightInLines < 1) {
+      this.heightInLines = 1;
+    }
+  }
+}
+
+export ZoneWidget createZoneWidget(int afterLineNumber, int heightInLines) {
+  return new ZoneWidget(afterLineNumber, heightInLines);
+}

@@ -1,0 +1,15 @@
+import { emptyBuf, concat2 } from "../js-host";
+
+export string editorWorkerPing() {
+  return "pong";
+}
+
+export string handleEditorWorker(string method, string uri, string value) {
+  if (method == "ping" || method == "initialize") {
+    return editorWorkerPing();
+  }
+  if (method == "length") {
+    return value.length.toString();
+  }
+  return concat2(emptyBuf(), uri);
+}

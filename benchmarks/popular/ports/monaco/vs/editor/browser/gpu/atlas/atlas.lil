@@ -1,0 +1,41 @@
+export int USAGE_UNUSED = 0;
+export int USAGE_USED = 1;
+export int USAGE_WASTED = 2;
+export int USAGE_RESTRICTED = 3;
+
+export string USAGE_COLOR_UNUSED = "#808080";
+export string USAGE_COLOR_USED = "#4040FF";
+export string USAGE_COLOR_WASTED = "#FF0000";
+export string USAGE_COLOR_RESTRICTED = "#FF000088";
+
+export int ATLAS_MAXIMUM_PAGE_COUNT = 16;
+export int ATLAS_MAXIMUM_GLYPH_COUNT = 5000;
+
+export class GlyphKey {
+  string chars;
+  int tokenMetadata;
+  int decorationStyleSetId;
+  string rasterizerCacheKey;
+
+  init(string chars, int tokenMetadata, int decorationStyleSetId, string rasterizerCacheKey) {
+    this.chars = chars;
+    this.tokenMetadata = tokenMetadata;
+    this.decorationStyleSetId = decorationStyleSetId;
+    this.rasterizerCacheKey = rasterizerCacheKey;
+  }
+
+  string encode() {
+    return this.chars + "|" + this.tokenMetadata.toString() + "|" + this.decorationStyleSetId.toString() + "|" + this.rasterizerCacheKey;
+  }
+}
+
+export int glyphKeyEqual(GlyphKey a, GlyphKey b) {
+  if (a.chars == b.chars && a.tokenMetadata == b.tokenMetadata && a.decorationStyleSetId == b.decorationStyleSetId && a.rasterizerCacheKey == b.rasterizerCacheKey) {
+    return 1;
+  }
+  return 0;
+}
+
+export GlyphKey createGlyphKey(string chars, int tokenMetadata, int decorationStyleSetId, string rasterizerCacheKey) {
+  return new GlyphKey(chars, tokenMetadata, decorationStyleSetId, rasterizerCacheKey);
+}

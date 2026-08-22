@@ -1,0 +1,24 @@
+export class MenuEntryActionViewItem {
+  string id;
+  string label;
+  bool enabled;
+  string keybinding;
+
+  init(string id, string label, string keybinding) {
+    this.id = id;
+    this.label = label;
+    this.enabled = true;
+    this.keybinding = keybinding;
+  }
+
+  string renderLabel() {
+    if (this.keybinding.length == 0) {
+      return this.label;
+    }
+    return this.label + " (" + this.keybinding + ")";
+  }
+}
+
+export MenuEntryActionViewItem createMenuEntryActionViewItem(string id, string label, string keybinding) {
+  return new MenuEntryActionViewItem(id, label, keybinding);
+}

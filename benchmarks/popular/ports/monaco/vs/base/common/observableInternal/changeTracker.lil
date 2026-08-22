@@ -1,0 +1,119 @@
+export class TrackedObservable {
+  string key;
+  JsValue identity;
+  func(JsValue)->JsValue readFn;
+
+  init(string key, JsValue identity, func(JsValue)->JsValue readFn) {
+    this.key = key;
+    this.identity = identity;
+    this.readFn = readFn;
+  }
+
+  JsValue read(JsValue reader) {
+    return this.readFn(reader);
+  }
+}
+
+export class RecordedChange {
+  string key;
+  JsValue change;
+
+  init(string key, JsValue change) {
+    this.key = key;
+    this.change = change;
+  }
+}
+
+export class ChangeSummary {
+  RecordedChange[] changes;
+  JsValue values;
+
+  init() {
+    this.changes = [];
+    this.values = JS.object();
+  }
+}
+
+export class ChangeContext {
+  JsValue changedObservable;
+  JsValue change;
+
+  init(JsValue changedObservable, JsValue change) {
+    this.changedObservable = changedObservable;
+    this.change = change;
+  }
+
+  bool didChange(JsValue observable) {
+    return this.changedObservable == observable;
+  }
+}
+
+export class ChangeTracker {
+  TrackedObservable[] observables;
+  bool lazy;
+  bool loaded;
+  func()->TrackedObservable[] getObservables;
+
+  init(TrackedObservable[] observables) {
+    this.observables = observables;
+    this.lazy = false;
+    this.loaded = true;
+    this.getObservables = () => {
+      TrackedObservable[] none = [];
+      return none;
+    };
+  }
+
+  void configureLazy(func()->TrackedObservable[] getObservables) {
+    this.lazy = true;
+    this.loaded = false;
+    this.getObservables = getObservables;
+  }
+
+  void ensureLoaded() {
+    if (this.lazy && !this.loaded) {
+      this.observables = this.getObservables();
+      this.loaded = true;
+    }
+  }
+
+  ChangeSummary createChangeSummary(ChangeSummary? previousChangeSummary) {
+    return new ChangeSummary();
+  }
+
+  bool handleChange(ChangeContext context, ChangeSummary changeSummary) {
+    this.ensureLoaded();
+    int i = 0;
+    while (i < this.observables.length) {
+      TrackedObservable observable = this.observables[i];
+      if (context.didChange(observable.identity)) {
+        changeSummary.changes.push(new RecordedChange(observable.key, context.change));
+      }
+      i = i + 1;
+    }
+    return true;
+  }
+
+  void beforeUpdate(JsValue reader, ChangeSummary changeSummary) {
+    this.ensureLoaded();
+    int i = 0;
+    while (i < this.observables.length) {
+      TrackedObservable observable = this.observables[i];
+      if (observable.key == "changes") {
+        throw "property name \"changes\" is reserved for change tracking";
+      }
+      changeSummary.values[observable.key] = observable.read(reader);
+      i = i + 1;
+    }
+  }
+}
+
+export ChangeTracker recordChanges(TrackedObservable[] observables) {
+  return new ChangeTracker(observables);
+}
+
+export ChangeTracker recordChangesLazy(func()->TrackedObservable[] getObservables) {
+  ChangeTracker tracker = new ChangeTracker([]);
+  tracker.configureLazy(getObservables);
+  return tracker;
+}

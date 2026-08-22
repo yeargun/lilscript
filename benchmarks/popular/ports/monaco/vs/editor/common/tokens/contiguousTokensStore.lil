@@ -1,0 +1,248 @@
+import { hostCall, jsUndefined } from "../../../../js-host";
+import { ContiguousMultilineTokens } from "./contiguousMultilineTokens";
+import { ContiguousTokensEditing } from "./contiguousTokensEditing";
+import { LineTokens } from "./lineTokens";
+
+class TokenLineData {
+  bool present;
+  int[] tokens;
+
+  init(bool present = false, int[] tokens = []) {
+    this.present = present;
+    this.tokens = tokens;
+  }
+}
+
+int defaultMetadata(int languageId) {
+  return languageId | (1 << 15) | (2 << 24) | 1024;
+}
+
+bool tokenArraysEqual(TokenLineData a, TokenLineData b) {
+  if (a.present != b.present || a.tokens.length != b.tokens.length) {
+    return false;
+  }
+  int i = 0;
+  while (i < a.tokens.length) {
+    if (a.tokens[i] != b.tokens[i]) {
+      return false;
+    }
+    i = i + 1;
+  }
+  return true;
+}
+
+export class ContiguousTokensStore {
+  TokenLineData[] lineTokens;
+  JsValue languageIdCodec;
+  ContiguousTokensEditing editing;
+
+  init(JsValue languageIdCodec = null) {
+    this.lineTokens = [];
+    this.languageIdCodec = languageIdCodec;
+    this.editing = new ContiguousTokensEditing();
+  }
+
+  void flush() {
+    this.lineTokens = [];
+  }
+
+  bool hasTokens() {
+    return this.lineTokens.length > 0;
+  }
+
+  int encodeLanguageId(string languageId) {
+    if (this.languageIdCodec == null) {
+      return 0;
+    }
+    return JS.number(hostCall(
+      this.languageIdCodec,
+      "encodeLanguageId",
+      languageId,
+      jsUndefined(),
+      jsUndefined()
+    )).toInt();
+  }
+
+  LineTokens getTokens(string topLevelLanguageId, int lineIndex, string lineText) {
+    if (lineIndex >= 0 && lineIndex < this.lineTokens.length &&
+      this.lineTokens[lineIndex].present && this.lineTokens[lineIndex].tokens.length > 0) {
+      return new LineTokens(this.lineTokens[lineIndex].tokens, lineText);
+    }
+    return new LineTokens(
+      [lineText.length, defaultMetadata(this.encodeLanguageId(topLevelLanguageId))],
+      lineText
+    );
+  }
+
+  void ensureLine(int lineIndex) {
+    while (lineIndex >= this.lineTokens.length) {
+      this.lineTokens.push(new TokenLineData());
+    }
+  }
+
+  bool setTokens(
+    string topLevelLanguageId,
+    int lineIndex,
+    int lineTextLength,
+    int[] tokens,
+    bool checkEquality
+  ) {
+    this.ensureLine(lineIndex);
+    TokenLineData next = new TokenLineData();
+    if (lineTextLength == 0 && tokens.length == 0) {
+      next = new TokenLineData(true, []);
+    } else if (tokens.length == 0) {
+      next = new TokenLineData(
+        true,
+        [lineTextLength, defaultMetadata(this.encodeLanguageId(topLevelLanguageId))]
+      );
+    } else {
+      int[] massaged = tokens.slice();
+      massaged[massaged.length - 2] = lineTextLength;
+      next = new TokenLineData(true, massaged);
+    }
+    TokenLineData previous = this.lineTokens[lineIndex];
+    this.lineTokens[lineIndex] = next;
+    return checkEquality && !tokenArraysEqual(previous, next);
+  }
+
+  void deleteLines(int start, int count) {
+    if (count <= 0 || start >= this.lineTokens.length) {
+      return;
+    }
+    if (start + count > this.lineTokens.length) {
+      count = this.lineTokens.length - start;
+    }
+    this.lineTokens.splice(start, count);
+  }
+
+  void insertLines(int index, int count) {
+    int i = 0;
+    while (i < count) {
+      this.lineTokens.push(new TokenLineData());
+      int move = this.lineTokens.length - 1;
+      while (move > index) {
+        this.lineTokens[move] = this.lineTokens[move - 1];
+        move = move - 1;
+      }
+      this.lineTokens[index] = new TokenLineData();
+      i = i + 1;
+    }
+  }
+
+  void acceptEdit(JsValue range, int eolCount, int firstLineLength) {
+    int startLine = JS.number(range["startLineNumber"]).toInt();
+    int startColumn = JS.number(range["startColumn"]).toInt();
+    int endLine = JS.number(range["endLineNumber"]).toInt();
+    int endColumn = JS.number(range["endColumn"]).toInt();
+    int firstIndex = startLine - 1;
+    if (firstIndex >= this.lineTokens.length) {
+      return;
+    }
+    TokenLineData first = this.lineTokens[firstIndex];
+    if (startLine == endLine) {
+      if (startColumn != endColumn && first.present) {
+        int[]? changed = this.editing.deleteRange(first.tokens, startColumn - 1, endColumn - 1);
+        if (changed != null) {
+          first.tokens = changed;
+        }
+      }
+    } else {
+      if (first.present) {
+        int[]? changed = this.editing.deleteEnding(first.tokens, startColumn - 1);
+        if (changed != null) {
+          first.tokens = changed;
+        }
+      }
+      int lastIndex = endLine - 1;
+      if (lastIndex < this.lineTokens.length && this.lineTokens[lastIndex].present) {
+        int[]? remaining = this.editing.deleteBeginning(
+          this.lineTokens[lastIndex].tokens,
+          endColumn - 1
+        );
+        if (remaining != null) {
+          int[]? combined = this.editing.append(first.tokens, remaining);
+          if (combined != null) {
+            first.tokens = combined;
+          }
+        }
+      }
+      this.deleteLines(startLine, endLine - startLine);
+    }
+    if (eolCount == 0) {
+      if (first.present) {
+        int[]? inserted = this.editing.insert(first.tokens, startColumn - 1, firstLineLength);
+        if (inserted != null) {
+          first.tokens = inserted;
+        }
+      }
+    } else {
+      if (first.present) {
+        int[]? shortened = this.editing.deleteEnding(first.tokens, startColumn - 1);
+        if (shortened != null) {
+          first.tokens = shortened;
+        }
+        int[]? inserted = this.editing.insert(first.tokens, startColumn - 1, firstLineLength);
+        if (inserted != null) {
+          first.tokens = inserted;
+        }
+      }
+      this.insertLines(startLine, eolCount);
+    }
+  }
+
+  JsValue setMultilineTokens(ContiguousMultilineTokens[] tokens, JsValue textModel) {
+    JsValue[] changes = [];
+    int i = 0;
+    while (i < tokens.length) {
+      ContiguousMultilineTokens block = tokens[i];
+      int lineNumber = block.startLineNumber;
+      int firstChanged = 0;
+      int lastChanged = 0;
+      while (lineNumber <= block.endLineNumber()) {
+        string languageId = JS.string(hostCall(
+          textModel,
+          "getLanguageId",
+          jsUndefined(),
+          jsUndefined(),
+          jsUndefined()
+        ));
+        int lineLength = JS.number(hostCall(
+          textModel,
+          "getLineLength",
+          lineNumber,
+          jsUndefined(),
+          jsUndefined()
+        )).toInt();
+        bool changed = this.setTokens(
+          languageId,
+          lineNumber - 1,
+          lineLength,
+          block.getLineTokens(lineNumber),
+          firstChanged == 0
+        );
+        if (changed && firstChanged == 0) {
+          firstChanged = lineNumber;
+        }
+        if (firstChanged > 0) {
+          lastChanged = lineNumber;
+        }
+        lineNumber = lineNumber + 1;
+      }
+      if (firstChanged > 0) {
+        JsValue range = JS.object();
+        range["fromLineNumber"] = firstChanged;
+        range["toLineNumber"] = lastChanged;
+        changes.push(range);
+      }
+      i = i + 1;
+    }
+    JsValue result = JS.object();
+    result["changes"] = changes;
+    return result;
+  }
+}
+
+export ContiguousTokensStore createContiguousTokensStore(JsValue languageIdCodec = null) {
+  return new ContiguousTokensStore(languageIdCodec);
+}

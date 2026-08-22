@@ -1,14 +1,14 @@
 {
   "schemaVersion": 2,
   "metadata": {
-    "generatedAt": "2026-08-15T23:38:20.725Z",
-    "compilerRevision": "51ee9b9-dirty",
+    "generatedAt": "2026-08-18T16:11:35.438Z",
+    "compilerRevision": "1e3b916-dirty",
     "node": "v22.21.1",
     "vite": "8.2.1",
     "esbuild": "0.28.1",
     "terser": "5.43.1",
     "closure": "20260804.0.0",
-    "performanceRounds": 1,
+    "performanceRounds": 9,
     "runtimeObjective": "brotli",
     "runtimeConfig": "lilscript.toml",
     "materialRegressionLimit": 1.05,
@@ -17,8 +17,8 @@
       "schemaVersion": 1,
       "scorer": {
         "path": "target/release/lilscript-codec",
-        "sha256": "c2eef048db71a45c882ba23232a0c492569ef74cfbfddf9e98da5793e4fe5e39",
-        "bytes": 1805568
+        "sha256": "be73d751afc7c5a7f4c211a2932fcba62f30dadfcd1453b5e57ca6c74234a56b",
+        "bytes": 1805664
       },
       "gzip9": {
         "encoder": "upstream-stock-zlib-c",
@@ -41,8 +41,8 @@
     },
     "compiler": {
       "path": "target/release/lilscript",
-      "sha256": "29440d198fd5270e36823166cbf5fd306d5c2f7ad2c0c85dd379e3345f3b8997",
-      "configSha256": "0439fb50706edca48925c43ae57f5eae5ef55cfc24521cb812d1a41ebcbf6c7f"
+      "sha256": "b3c5864fb6036ce75aff24a4a8a8c87786fd72a507fecece2b7702bc256aa853",
+      "configSha256": "25fb7b8cd90777cee373198ddbcd935016c0bd31c22610fee6288bbdf03d8435"
     },
     "objectiveContract": {
       "candidateArtifact": "lilscriptVite",
@@ -100,8 +100,8 @@
         "schemaVersion": 1,
         "scorer": {
           "path": "target/release/lilscript-codec",
-          "sha256": "c2eef048db71a45c882ba23232a0c492569ef74cfbfddf9e98da5793e4fe5e39",
-          "bytes": 1805568
+          "sha256": "be73d751afc7c5a7f4c211a2932fcba62f30dadfcd1453b5e57ca6c74234a56b",
+          "bytes": 1805664
         },
         "gzip9": {
           "encoder": "upstream-stock-zlib-c",
@@ -124,8 +124,8 @@
       },
       "compiler": {
         "path": "target/release/lilscript",
-        "sha256": "29440d198fd5270e36823166cbf5fd306d5c2f7ad2c0c85dd379e3345f3b8997",
-        "configSha256": "0439fb50706edca48925c43ae57f5eae5ef55cfc24521cb812d1a41ebcbf6c7f"
+        "sha256": "b3c5864fb6036ce75aff24a4a8a8c87786fd72a507fecece2b7702bc256aa853",
+        "configSha256": "25fb7b8cd90777cee373198ddbcd935016c0bd31c22610fee6288bbdf03d8435"
       },
       "rawJs": {
         "raw": 1564,
@@ -148,14 +148,14 @@
         "brotli": 409
       },
       "lilscript": {
-        "raw": 1223,
-        "gzip": 619,
-        "brotli": 555
+        "raw": 1211,
+        "gzip": 615,
+        "brotli": 552
       },
       "lilscriptVite": {
-        "raw": 731,
-        "gzip": 458,
-        "brotli": 409
+        "raw": 735,
+        "gzip": 459,
+        "brotli": 408
       },
       "expected": "nanoid:8:64",
       "status": "exact-browser-entrypoint",
@@ -176,14 +176,14 @@
       "compatibilityNotes": "All five exports of index.browser.js are ported and exposed with the same ESM names. Differential checks cover defaults and coercions, deterministic customRandom vectors, randomness/distribution, Uint8Array output, export keys, and the Number-valued 2147483648 callback step. The separately portable algorithm also passes a linked native C smoke contract. This claim intentionally excludes Nano ID's distinct pooled Node entrypoint.",
       "performance": {
         "performance": {
-          "npmMs": 6.809041999999998,
-          "lilscriptMs": 7.027000000000001,
-          "ratio": 1.0320100830630803
+          "npmMs": 7.851666000000002,
+          "lilscriptMs": 7.788209000000002,
+          "ratio": 0.9919180209652322
         },
         "retainedMemory": {
-          "npmBytes": 619432,
+          "npmBytes": 618280,
           "lilscriptBytes": 618208,
-          "ratio": 0.9980239961771429
+          "ratio": 0.9998835479070971
         }
       },
       "exactSurface": true,
@@ -217,8 +217,8 @@
         "schemaVersion": 1,
         "scorer": {
           "path": "target/release/lilscript-codec",
-          "sha256": "c2eef048db71a45c882ba23232a0c492569ef74cfbfddf9e98da5793e4fe5e39",
-          "bytes": 1805568
+          "sha256": "be73d751afc7c5a7f4c211a2932fcba62f30dadfcd1453b5e57ca6c74234a56b",
+          "bytes": 1805664
         },
         "gzip9": {
           "encoder": "upstream-stock-zlib-c",
@@ -241,8 +241,8 @@
       },
       "compiler": {
         "path": "target/release/lilscript",
-        "sha256": "29440d198fd5270e36823166cbf5fd306d5c2f7ad2c0c85dd379e3345f3b8997",
-        "configSha256": "0439fb50706edca48925c43ae57f5eae5ef55cfc24521cb812d1a41ebcbf6c7f"
+        "sha256": "b3c5864fb6036ce75aff24a4a8a8c87786fd72a507fecece2b7702bc256aa853",
+        "configSha256": "25fb7b8cd90777cee373198ddbcd935016c0bd31c22610fee6288bbdf03d8435"
       },
       "rawJs": {
         "raw": 1125,
@@ -265,14 +265,14 @@
         "brotli": 300
       },
       "lilscript": {
-        "raw": 1066,
-        "gzip": 485,
-        "brotli": 442
+        "raw": 1055,
+        "gzip": 499,
+        "brotli": 447
       },
       "lilscriptVite": {
-        "raw": 598,
-        "gzip": 332,
-        "brotli": 300
+        "raw": 597,
+        "gzip": 334,
+        "brotli": 302
       },
       "expected": "mitt:3:6",
       "status": "exact-root-entrypoint",
@@ -287,20 +287,20 @@
       "compatibilityNotes": "The default export's exact {all,on,off,emit} object surface is preserved, including supplied Map identity, string and Symbol keys, first-only removal of duplicate handlers, snapshot behavior when listeners mutate registration during emit, omitted payload undefined, and direct-before-wildcard dispatch. The tiny measured JavaScript boundary only exposes the compiled function; all of its bytes are counted.",
       "performance": {
         "performance": {
-          "npmMs": 25.051208000000003,
-          "lilscriptMs": 19.247666999999996,
-          "ratio": 0.7683328883780772
+          "npmMs": 8.021417,
+          "lilscriptMs": 8.078707999999999,
+          "ratio": 1.007142254292477
         },
         "retainedMemory": {
           "npmBytes": 2088760,
-          "lilscriptBytes": 2088832,
-          "ratio": 1.0000344702119919
+          "lilscriptBytes": 2093416,
+          "ratio": 1.0022290737088033
         }
       },
       "exactSurface": true,
       "performanceGate": true,
-      "sizeGate": true,
-      "eligible": true
+      "sizeGate": false,
+      "eligible": false
     },
     {
       "id": "clsx",
@@ -328,8 +328,8 @@
         "schemaVersion": 1,
         "scorer": {
           "path": "target/release/lilscript-codec",
-          "sha256": "c2eef048db71a45c882ba23232a0c492569ef74cfbfddf9e98da5793e4fe5e39",
-          "bytes": 1805568
+          "sha256": "be73d751afc7c5a7f4c211a2932fcba62f30dadfcd1453b5e57ca6c74234a56b",
+          "bytes": 1805664
         },
         "gzip9": {
           "encoder": "upstream-stock-zlib-c",
@@ -352,8 +352,8 @@
       },
       "compiler": {
         "path": "target/release/lilscript",
-        "sha256": "29440d198fd5270e36823166cbf5fd306d5c2f7ad2c0c85dd379e3345f3b8997",
-        "configSha256": "0439fb50706edca48925c43ae57f5eae5ef55cfc24521cb812d1a41ebcbf6c7f"
+        "sha256": "b3c5864fb6036ce75aff24a4a8a8c87786fd72a507fecece2b7702bc256aa853",
+        "configSha256": "25fb7b8cd90777cee373198ddbcd935016c0bd31c22610fee6288bbdf03d8435"
       },
       "rawJs": {
         "raw": 1906,
@@ -376,14 +376,14 @@
         "brotli": 493
       },
       "lilscript": {
-        "raw": 2047,
-        "gzip": 737,
-        "brotli": 662
+        "raw": 1976,
+        "gzip": 724,
+        "brotli": 646
       },
       "lilscriptVite": {
-        "raw": 1169,
-        "gzip": 548,
-        "brotli": 502
+        "raw": 1151,
+        "gzip": 542,
+        "brotli": 497
       },
       "expected": "clsx:13:foo bar baz||1 2|foo baz|foo --foobar|foo bar|foo bar baz hello there|foo bar hello world cya|foo foo foo foo|hello world push|1 a 12||",
       "status": "exact-root-entrypoint",
@@ -400,14 +400,14 @@
       "compatibilityNotes": "Default/named export identity and 10,000 deterministic recursive differential inputs match clsx 2.1.1, including inherited enumerable keys and ignored bigint/Symbol/function values. JsValue, direct dynamic indexing, raw truthiness, and for-in lowering preserve the upstream recursive algorithm without an intermediate conversion tree.",
       "performance": {
         "performance": {
-          "npmMs": 26.716625,
-          "lilscriptMs": 27.746082999999995,
-          "ratio": 1.0385324867942711
+          "npmMs": 10.987167,
+          "lilscriptMs": 10.977,
+          "ratio": 0.9990746477231119
         },
         "retainedMemory": {
           "npmBytes": 1785952,
-          "lilscriptBytes": 1786784,
-          "ratio": 1.000465857984985
+          "lilscriptBytes": 1786824,
+          "ratio": 1.000488255003494
         }
       },
       "exactSurface": true,
@@ -441,8 +441,8 @@
         "schemaVersion": 1,
         "scorer": {
           "path": "target/release/lilscript-codec",
-          "sha256": "c2eef048db71a45c882ba23232a0c492569ef74cfbfddf9e98da5793e4fe5e39",
-          "bytes": 1805568
+          "sha256": "be73d751afc7c5a7f4c211a2932fcba62f30dadfcd1453b5e57ca6c74234a56b",
+          "bytes": 1805664
         },
         "gzip9": {
           "encoder": "upstream-stock-zlib-c",
@@ -465,8 +465,8 @@
       },
       "compiler": {
         "path": "target/release/lilscript",
-        "sha256": "29440d198fd5270e36823166cbf5fd306d5c2f7ad2c0c85dd379e3345f3b8997",
-        "configSha256": "0439fb50706edca48925c43ae57f5eae5ef55cfc24521cb812d1a41ebcbf6c7f"
+        "sha256": "b3c5864fb6036ce75aff24a4a8a8c87786fd72a507fecece2b7702bc256aa853",
+        "configSha256": "25fb7b8cd90777cee373198ddbcd935016c0bd31c22610fee6288bbdf03d8435"
       },
       "rawJs": {
         "raw": 30927,
@@ -489,14 +489,14 @@
         "brotli": 4133
       },
       "lilscript": {
-        "raw": 25003,
-        "gzip": 5285,
-        "brotli": 4803
+        "raw": 24348,
+        "gzip": 5256,
+        "brotli": 4761
       },
       "lilscriptVite": {
-        "raw": 14212,
-        "gzip": 4108,
-        "brotli": 3755
+        "raw": 14230,
+        "gzip": 4091,
+        "brotli": 3721
       },
       "expected": "immer:33:111111111111111111111111111111111",
       "status": "candidate",
@@ -549,8 +549,8 @@
         "schemaVersion": 1,
         "scorer": {
           "path": "target/release/lilscript-codec",
-          "sha256": "c2eef048db71a45c882ba23232a0c492569ef74cfbfddf9e98da5793e4fe5e39",
-          "bytes": 1805568
+          "sha256": "be73d751afc7c5a7f4c211a2932fcba62f30dadfcd1453b5e57ca6c74234a56b",
+          "bytes": 1805664
         },
         "gzip9": {
           "encoder": "upstream-stock-zlib-c",
@@ -573,8 +573,8 @@
       },
       "compiler": {
         "path": "target/release/lilscript",
-        "sha256": "29440d198fd5270e36823166cbf5fd306d5c2f7ad2c0c85dd379e3345f3b8997",
-        "configSha256": "0439fb50706edca48925c43ae57f5eae5ef55cfc24521cb812d1a41ebcbf6c7f"
+        "sha256": "b3c5864fb6036ce75aff24a4a8a8c87786fd72a507fecece2b7702bc256aa853",
+        "configSha256": "25fb7b8cd90777cee373198ddbcd935016c0bd31c22610fee6288bbdf03d8435"
       },
       "rawJs": {
         "raw": 78119,
@@ -597,14 +597,14 @@
         "brotli": 6212
       },
       "lilscript": {
-        "raw": 22623,
-        "gzip": 4946,
-        "brotli": 4510
+        "raw": 21713,
+        "gzip": 4863,
+        "brotli": 4456
       },
       "lilscriptVite": {
-        "raw": 12636,
-        "gzip": 3807,
-        "brotli": 3484
+        "raw": 12591,
+        "gzip": 3776,
+        "brotli": 3442
       },
       "expected": "rtk:5:11111:1:1",
       "status": "candidate-core-subset",
@@ -656,8 +656,8 @@
         "schemaVersion": 1,
         "scorer": {
           "path": "target/release/lilscript-codec",
-          "sha256": "c2eef048db71a45c882ba23232a0c492569ef74cfbfddf9e98da5793e4fe5e39",
-          "bytes": 1805568
+          "sha256": "be73d751afc7c5a7f4c211a2932fcba62f30dadfcd1453b5e57ca6c74234a56b",
+          "bytes": 1805664
         },
         "gzip9": {
           "encoder": "upstream-stock-zlib-c",
@@ -680,8 +680,8 @@
       },
       "compiler": {
         "path": "target/release/lilscript",
-        "sha256": "29440d198fd5270e36823166cbf5fd306d5c2f7ad2c0c85dd379e3345f3b8997",
-        "configSha256": "0439fb50706edca48925c43ae57f5eae5ef55cfc24521cb812d1a41ebcbf6c7f"
+        "sha256": "b3c5864fb6036ce75aff24a4a8a8c87786fd72a507fecece2b7702bc256aa853",
+        "configSha256": "25fb7b8cd90777cee373198ddbcd935016c0bd31c22610fee6288bbdf03d8435"
       },
       "rawJs": {
         "raw": 130408,
@@ -704,14 +704,14 @@
         "brotli": 12518
       },
       "lilscript": {
-        "raw": 30294,
-        "gzip": 5436,
-        "brotli": 4904
+        "raw": 29241,
+        "gzip": 5489,
+        "brotli": 4921
       },
       "lilscriptVite": {
-        "raw": 19495,
-        "gzip": 4559,
-        "brotli": 4126
+        "raw": 19220,
+        "gzip": 4598,
+        "brotli": 4138
       },
       "expected": "zod:52:ok:\"hi\"|err:invalid_type@:Expected string, received number|err:too_small@:String must contain at least 3 character(s)|err:too_big@:String must contain at most 2 character(s)|ok:\"ab@c.com\"|err:invalid_string@:Invalid email|err:invalid_string@:Invalid email|err:invalid_string@:Invalid email;too_small@:String must contain at least 5 character(s)|ok:1.5|err:invalid_type@:Expected number, received string|err:too_small@:Number must be greater than or equal to 0|err:too_big@:Number must be less than or equal to 10|ok:true|err:invalid_type@:Expected boolean, received number|ok:\"admin\"|err:invalid_literal@:Invalid literal value, expected \"admin\"|ok:1|ok:true|ok:[\"a\",\"b\"]|err:too_small@1:Number must be greater than or equal to 0|err:invalid_type@:Expected array, received string|ok:undefined|err:invalid_type@:Expected string, received null|ok:null|err:invalid_type@:Required|ok:{\"email\":\"a@b.co\",\"age\":20,\"admin\":false,\"role\":\"owner\",\"bio\":null}|ok:{\"email\":\"test@example.com\",\"age\":0,\"admin\":true,\"role\":\"owner\",\"tags\":[\"x\"],\"bio\":\"hi\"}|err:invalid_string@email:Invalid email;too_small@email:String must contain at least 5 character(s);too_big@age:Number must be less than or equal to 150;invalid_type@admin:Expected boolean, received string;invalid_literal@role:Invalid literal value, expected \"owner\";too_small@tags/0:String must contain at least 1 character(s);invalid_type@bio:Expected string, received number|err:invalid_type@email:Required;invalid_type@age:Required;invalid_type@admin:Required;invalid_literal@role:Invalid literal value, expected \"owner\";invalid_type@bio:Required|ok:{\"a\":\"x\"}|parse:ok@ex.com:9|throw:1|ok:\"red\"|err:invalid_enum_value@:Invalid enum value. Expected 'red' | 'green', received 'blue'|err:invalid_type@:Expected 'red' | 'green', received number|ok:\"a\"|ok:1|err:invalid_union@:Invalid input|ok:{\"type\":\"a\",\"v\":\"x\"}|err:invalid_union_discriminator@type:Invalid discriminator value. Expected 'a' | 'b'|err:invalid_type@v:Expected string, received number|ok:[\"a\",1]|err:too_small@:Array must contain at least 2 element(s)|err:too_big@:Array must contain at most 2 element(s)|err:invalid_type@1:Expected number, received string|ok:\"hi\"|ok:\"x\"|ok:3|err:invalid_type@:Expected string, received number|ok:{\"a\":1,\"b\":2}|err:invalid_type@a:Expected number, received string|err:invalid_type@:Expected object, received string",
       "status": "candidate-core-subset",
@@ -777,8 +777,8 @@
         "schemaVersion": 1,
         "scorer": {
           "path": "target/release/lilscript-codec",
-          "sha256": "c2eef048db71a45c882ba23232a0c492569ef74cfbfddf9e98da5793e4fe5e39",
-          "bytes": 1805568
+          "sha256": "be73d751afc7c5a7f4c211a2932fcba62f30dadfcd1453b5e57ca6c74234a56b",
+          "bytes": 1805664
         },
         "gzip9": {
           "encoder": "upstream-stock-zlib-c",
@@ -801,8 +801,8 @@
       },
       "compiler": {
         "path": "target/release/lilscript",
-        "sha256": "29440d198fd5270e36823166cbf5fd306d5c2f7ad2c0c85dd379e3345f3b8997",
-        "configSha256": "0439fb50706edca48925c43ae57f5eae5ef55cfc24521cb812d1a41ebcbf6c7f"
+        "sha256": "b3c5864fb6036ce75aff24a4a8a8c87786fd72a507fecece2b7702bc256aa853",
+        "configSha256": "25fb7b8cd90777cee373198ddbcd935016c0bd31c22610fee6288bbdf03d8435"
       },
       "rawJs": {
         "raw": 206243,
@@ -825,9 +825,9 @@
         "brotli": 29529
       },
       "lilscript": {
-        "raw": 50335,
-        "gzip": 6024,
-        "brotli": 5021
+        "raw": 50356,
+        "gzip": 6020,
+        "brotli": 5016
       },
       "lilscriptVite": {
         "raw": 30419,
@@ -881,8 +881,8 @@
         "schemaVersion": 1,
         "scorer": {
           "path": "target/release/lilscript-codec",
-          "sha256": "c2eef048db71a45c882ba23232a0c492569ef74cfbfddf9e98da5793e4fe5e39",
-          "bytes": 1805568
+          "sha256": "be73d751afc7c5a7f4c211a2932fcba62f30dadfcd1453b5e57ca6c74234a56b",
+          "bytes": 1805664
         },
         "gzip9": {
           "encoder": "upstream-stock-zlib-c",
@@ -905,8 +905,8 @@
       },
       "compiler": {
         "path": "target/release/lilscript",
-        "sha256": "29440d198fd5270e36823166cbf5fd306d5c2f7ad2c0c85dd379e3345f3b8997",
-        "configSha256": "0439fb50706edca48925c43ae57f5eae5ef55cfc24521cb812d1a41ebcbf6c7f"
+        "sha256": "b3c5864fb6036ce75aff24a4a8a8c87786fd72a507fecece2b7702bc256aa853",
+        "configSha256": "25fb7b8cd90777cee373198ddbcd935016c0bd31c22610fee6288bbdf03d8435"
       },
       "rawJs": {
         "raw": 25999,
@@ -929,14 +929,14 @@
         "brotli": 5988
       },
       "lilscript": {
-        "raw": 15961,
-        "gzip": 3908,
-        "brotli": 3511
+        "raw": 15414,
+        "gzip": 4043,
+        "brotli": 3608
       },
       "lilscriptVite": {
-        "raw": 9865,
-        "gzip": 3180,
-        "brotli": 2860
+        "raw": 9314,
+        "gzip": 3119,
+        "brotli": 2789
       },
       "expected": "preact:<div class=\"app\" id=\"root\"><span data-doubled=\"0\" id=\"count\">0</span><span id=\"memo\">0</span><ul><li>a</li><li>b</li></ul><div class=\"badge\" data-n=\"0\">0</div></div>|<div class=\"app\" id=\"root\"><span data-doubled=\"2\" id=\"count\">1</span><span id=\"memo\">2</span><ul><li>a</li><li>b</li><li>c</li></ul><div class=\"badge\" data-n=\"1\">1</div></div>",
       "status": "candidate-core-subset",
@@ -1063,8 +1063,8 @@
         "schemaVersion": 1,
         "scorer": {
           "path": "target/release/lilscript-codec",
-          "sha256": "c2eef048db71a45c882ba23232a0c492569ef74cfbfddf9e98da5793e4fe5e39",
-          "bytes": 1805568
+          "sha256": "be73d751afc7c5a7f4c211a2932fcba62f30dadfcd1453b5e57ca6c74234a56b",
+          "bytes": 1805664
         },
         "gzip9": {
           "encoder": "upstream-stock-zlib-c",
@@ -1087,8 +1087,8 @@
       },
       "compiler": {
         "path": "target/release/lilscript",
-        "sha256": "29440d198fd5270e36823166cbf5fd306d5c2f7ad2c0c85dd379e3345f3b8997",
-        "configSha256": "0439fb50706edca48925c43ae57f5eae5ef55cfc24521cb812d1a41ebcbf6c7f"
+        "sha256": "b3c5864fb6036ce75aff24a4a8a8c87786fd72a507fecece2b7702bc256aa853",
+        "configSha256": "25fb7b8cd90777cee373198ddbcd935016c0bd31c22610fee6288bbdf03d8435"
       },
       "rawJs": {
         "raw": 142374,
@@ -1111,14 +1111,14 @@
         "brotli": 14330
       },
       "lilscript": {
-        "raw": 117592,
-        "gzip": 21414,
-        "brotli": 17433
+        "raw": 116878,
+        "gzip": 21357,
+        "brotli": 17352
       },
       "lilscriptVite": {
-        "raw": 68503,
-        "gzip": 17108,
-        "brotli": 14138
+        "raw": 68496,
+        "gzip": 17110,
+        "brotli": 14116
       },
       "expected": "gl-matrix-root:1\ngl-matrix-common:10\ngl-matrix-vec2:37\ngl-matrix-vec3:42\ngl-matrix-vec4:34\ngl-matrix-mat2:26\ngl-matrix-mat2d:24\ngl-matrix-mat3:33\ngl-matrix-mat4:56\ngl-matrix-quat:37\ngl-matrix-quat2:35",
       "nativeExpected": "5\n4\n6\n10\n-2",
@@ -1145,14 +1145,14 @@
       "compatibilityNotes": "The complete ESM root namespace is measured: glMatrix common utilities plus every export and alias in vec2, vec3, vec4, mat2, mat2d, mat3, mat4, quat, and quat2. Namespace export keys are differentially checked against gl-matrix 3.4.3. ARRAY_TYPE is a live binding; setMatrixArrayType switches subsequent allocations between Float32Array, Array, or another supplied constructor. The shared behavioral contract invokes every module export in the default Float32Array mode and also verifies Array mode. The measured state/common adapter provides the constructor-valued host binding and all of its bytes are included. Native C remains an additional vec2+mat2+mat2d smoke contract, not part of the JavaScript compatibility claim.",
       "performance": {
         "performance": {
-          "npmMs": 2.853208000000002,
-          "lilscriptMs": 2.3168330000000026,
-          "ratio": 0.8120098499653726
+          "npmMs": 1.1123340000000006,
+          "lilscriptMs": 1.0880829999999975,
+          "ratio": 0.978198095176446
         },
         "retainedMemory": {
           "npmBytes": 1813368,
-          "lilscriptBytes": 1823264,
-          "ratio": 1.0054572486114237
+          "lilscriptBytes": 1821768,
+          "ratio": 1.0046322643831809
         }
       },
       "exactSurface": true,
@@ -1188,8 +1188,8 @@
         "schemaVersion": 1,
         "scorer": {
           "path": "target/release/lilscript-codec",
-          "sha256": "c2eef048db71a45c882ba23232a0c492569ef74cfbfddf9e98da5793e4fe5e39",
-          "bytes": 1805568
+          "sha256": "be73d751afc7c5a7f4c211a2932fcba62f30dadfcd1453b5e57ca6c74234a56b",
+          "bytes": 1805664
         },
         "gzip9": {
           "encoder": "upstream-stock-zlib-c",
@@ -1212,8 +1212,8 @@
       },
       "compiler": {
         "path": "target/release/lilscript",
-        "sha256": "29440d198fd5270e36823166cbf5fd306d5c2f7ad2c0c85dd379e3345f3b8997",
-        "configSha256": "0439fb50706edca48925c43ae57f5eae5ef55cfc24521cb812d1a41ebcbf6c7f"
+        "sha256": "b3c5864fb6036ce75aff24a4a8a8c87786fd72a507fecece2b7702bc256aa853",
+        "configSha256": "25fb7b8cd90777cee373198ddbcd935016c0bd31c22610fee6288bbdf03d8435"
       },
       "rawJs": {
         "raw": 30150,
@@ -1272,17 +1272,17 @@
       "id": "jquery",
       "project": "jQuery",
       "eligibility": "candidate",
-      "evidenceStatus": "current-measurement",
+      "evidenceStatus": "historical-noncanonical",
       "blockers": [
         "Full 3.7.1 LilScript surface is ported (LilScript-native selector). Not an exact published-entrypoint eligibility claim yet: Closure ADVANCED lane and representative perf/memory gates remain open."
       ],
       "verification": {
-        "differential": "jquery-upstream:core:ok | jquery-upstream:deferred:ok | jquery-upstream:data:ok | jquery-upstream:queue:ok | jquery-upstream:attributes:ok | jquery-upstream:events:ok artifact=c71f40fffdf6ff60222aef3f1aa4eecf8f0f43a437c1e3fb6b1d82474796982a",
+        "differential": "jquery-upstream:core:ok | jquery-upstream:deferred:ok | jquery-upstream:data:ok | jquery-upstream:queue:ok | jquery-upstream:attributes:ok | jquery-upstream:events:ok artifact=c0c981140759cc6ceec6413345cd3d7303c3381dc5d6dc2efafa6ebfaebd1b19",
         "measuredArtifactDifferential": {
           "artifact": "measurementLanes.lilscriptBundledUnminified",
           "artifactPath": "benchmarks/popular/build/jquery-measured.bundle.js",
-          "sha256": "c71f40fffdf6ff60222aef3f1aa4eecf8f0f43a437c1e3fb6b1d82474796982a",
-          "result": "jquery-upstream:core:ok | jquery-upstream:deferred:ok | jquery-upstream:data:ok | jquery-upstream:queue:ok | jquery-upstream:attributes:ok | jquery-upstream:events:ok artifact=c71f40fffdf6ff60222aef3f1aa4eecf8f0f43a437c1e3fb6b1d82474796982a"
+          "sha256": "c0c981140759cc6ceec6413345cd3d7303c3381dc5d6dc2efafa6ebfaebd1b19",
+          "result": "jquery-upstream:core:ok | jquery-upstream:deferred:ok | jquery-upstream:data:ok | jquery-upstream:queue:ok | jquery-upstream:attributes:ok | jquery-upstream:events:ok artifact=c0c981140759cc6ceec6413345cd3d7303c3381dc5d6dc2efafa6ebfaebd1b19"
         },
         "npmDevelopmentContract": "jquery:8:ok",
         "selectedEntrypoint": "jquery/dist/jquery.js"
@@ -1290,18 +1290,8 @@
       "closureLevel": null,
       "costModel": "brotli",
       "objectiveContract": {
-        "artifact": "measurementLanes.lilscriptBundledUnminified",
-        "baselineArtifacts": [
-          "measurementLanes.npmMinified"
-        ],
-        "gateMetric": "brotli",
-        "diagnosticMetrics": [
-          "raw",
-          "gzip"
-        ],
-        "diagnosticCrossMetricsMayLose": true,
-        "matchingArtifactOnly": true,
-        "scope": "ineligible candidate diagnostic; no size claim is published"
+        "gateMetric": null,
+        "scope": "stale candidate retained without byte claims until measure-jquery.mjs is rerun with the current compiler/scorer pair"
       },
       "candidateSelection": {
         "policy": "fixed single compiler-selected output at the linked library boundary; no downstream minifier selection",
@@ -1312,7 +1302,7 @@
           "measurementLanes.lilscriptBundledUnminified"
         ],
         "selectedArtifact": "measurementLanes.lilscriptBundledUnminified",
-        "selectedBrotliBytes": 35176,
+        "selectedBrotliBytes": 35308,
         "diagnosticCompetitors": [
           "measurementLanes.lilscriptEsbuildMinified",
           "measurementLanes.lilscriptTerserMinified",
@@ -1358,10 +1348,10 @@
           "role": "selected-candidate",
           "label": "LilScript compiler-selected jQuery linked bundle (esbuild minification disabled)",
           "artifactPath": "benchmarks/popular/build/jquery-measured.bundle.js",
-          "sha256": "c71f40fffdf6ff60222aef3f1aa4eecf8f0f43a437c1e3fb6b1d82474796982a",
+          "sha256": "c0c981140759cc6ceec6413345cd3d7303c3381dc5d6dc2efafa6ebfaebd1b19",
           "inputArtifact": {
             "path": "benchmarks/popular/ports/jquery/jquery-measured.raw.js",
-            "sha256": "e98212d718938f0972096674b3673b0f792415ea281e73b29c8210d9cc16b57f"
+            "sha256": "f1ed2d294390f7405c2ff64686c9da4677c41af852f33a4d6f6a02e17c238970"
           },
           "tool": {
             "name": "esbuild",
@@ -1374,19 +1364,19 @@
             }
           },
           "sizes": {
-            "raw": 138722,
-            "gzip": 39885,
-            "brotli": 35176
+            "raw": 144665,
+            "gzip": 40307,
+            "brotli": 35308
           }
         },
         "lilscriptEsbuildMinified": {
           "role": "diagnostic-competitor",
           "label": "Diagnostic: LilScript linked bundle minified by esbuild",
           "artifactPath": "benchmarks/popular/build/jquery-measured.esbuild.min.js",
-          "sha256": "d582c33e6f50c2ae4e0df12977bdfd8804ea73d9aa701c7de97d2ed5240634e5",
+          "sha256": "05a2e3733fd9a62ecd5099f61b8ab7ae07001e2b46ffc0bdb49bcc3773ef57a6",
           "inputArtifact": {
             "path": "benchmarks/popular/build/jquery-measured.bundle.js",
-            "sha256": "c71f40fffdf6ff60222aef3f1aa4eecf8f0f43a437c1e3fb6b1d82474796982a"
+            "sha256": "c0c981140759cc6ceec6413345cd3d7303c3381dc5d6dc2efafa6ebfaebd1b19"
           },
           "tool": {
             "name": "esbuild",
@@ -1400,19 +1390,19 @@
             }
           },
           "sizes": {
-            "raw": 89377,
-            "gzip": 33641,
-            "brotli": 30182
+            "raw": 90168,
+            "gzip": 33599,
+            "brotli": 30109
           }
         },
         "lilscriptTerserMinified": {
           "role": "diagnostic-competitor",
           "label": "Diagnostic: LilScript linked bundle minified by Terser",
           "artifactPath": "benchmarks/popular/build/jquery-measured.terser.min.js",
-          "sha256": "9af441d9dbde5e4835901e13b43e8f62b8a9979517d7ec62f099919074c8181b",
+          "sha256": "59901e2c7d621726f195db46a4e15741829f19737196dba322dcd69dca1ed2ac",
           "inputArtifact": {
             "path": "benchmarks/popular/build/jquery-measured.bundle.js",
-            "sha256": "c71f40fffdf6ff60222aef3f1aa4eecf8f0f43a437c1e3fb6b1d82474796982a"
+            "sha256": "c0c981140759cc6ceec6413345cd3d7303c3381dc5d6dc2efafa6ebfaebd1b19"
           },
           "tool": {
             "name": "terser",
@@ -1428,19 +1418,19 @@
             }
           },
           "sizes": {
-            "raw": 88189,
-            "gzip": 32536,
-            "brotli": 29143
+            "raw": 88981,
+            "gzip": 32766,
+            "brotli": 29303
           }
         },
         "lilscriptOxcMinified": {
           "role": "diagnostic-competitor",
           "label": "Diagnostic: LilScript linked bundle minified by Oxc through vite.minify()",
           "artifactPath": "benchmarks/popular/build/jquery-measured.oxc.min.js",
-          "sha256": "f4e697c506f2fffb42f56dda8ae8cf1fe2ebff5d156d1b627170748cb2fba0e8",
+          "sha256": "fae0c2cc8ceebe2e9ed3fa197e2001214d7a0b415a709ca5993fb33d75844d78",
           "inputArtifact": {
             "path": "benchmarks/popular/build/jquery-measured.bundle.js",
-            "sha256": "c71f40fffdf6ff60222aef3f1aa4eecf8f0f43a437c1e3fb6b1d82474796982a"
+            "sha256": "c0c981140759cc6ceec6413345cd3d7303c3381dc5d6dc2efafa6ebfaebd1b19"
           },
           "tool": {
             "name": "Oxc",
@@ -1458,9 +1448,9 @@
             }
           },
           "sizes": {
-            "raw": 88468,
-            "gzip": 32763,
-            "brotli": 29529
+            "raw": 89280,
+            "gzip": 32952,
+            "brotli": 29551
           }
         }
       },
@@ -1472,105 +1462,15 @@
         "lilscript": "measurementLanes.lilscriptBundledUnminified.sizes",
         "lilscriptVite": "measurementLanes.lilscriptBundledUnminified.sizes (legacy key; no downstream minifier is selected)"
       },
-      "rawJs": {
-        "raw": 285314,
-        "gzip": 83619,
-        "brotli": 69545
-      },
-      "terser": {
-        "raw": 87533,
-        "gzip": 30336,
-        "brotli": 27445
-      },
-      "closure": {
-        "raw": "—",
-        "gzip": "—",
-        "brotli": "—"
-      },
-      "vite": {
-        "raw": 87533,
-        "gzip": 30336,
-        "brotli": 27445
-      },
-      "lilscript": {
-        "raw": 138722,
-        "gzip": 39885,
-        "brotli": 35176
-      },
-      "lilscriptVite": {
-        "raw": 138722,
-        "gzip": 39885,
-        "brotli": 35176
-      },
-      "libraryArtifacts": {
-        "npmDevelopment": {
-          "raw": 285314,
-          "gzip": 83619,
-          "brotli": 69545
-        },
-        "npmMinified": {
-          "raw": 87533,
-          "gzip": 30336,
-          "brotli": 27445
-        },
-        "lilscriptBundledUnminified": {
-          "raw": 138722,
-          "gzip": 39885,
-          "brotli": 35176
-        },
-        "lilscriptEsbuildMinified": {
-          "raw": 89377,
-          "gzip": 33641,
-          "brotli": 30182
-        },
-        "lilscriptTerserMinified": {
-          "raw": 88189,
-          "gzip": 32536,
-          "brotli": 29143
-        },
-        "lilscriptOxcMinified": {
-          "raw": 88468,
-          "gzip": 32763,
-          "brotli": 29529
-        }
-      },
-      "codecs": {
-        "implementation": "lilscript-codec",
-        "schemaVersion": 1,
-        "scorer": {
-          "path": "target/release/lilscript-codec",
-          "sha256": "c2eef048db71a45c882ba23232a0c492569ef74cfbfddf9e98da5793e4fe5e39",
-          "bytes": 1805568
-        },
-        "gzip9": {
-          "encoder": "upstream-stock-zlib-c",
-          "libraryVersion": "1.3.1",
-          "cargoPackage": "libz-sys",
-          "cargoPackageVersion": "1.1.24",
-          "level": 9,
-          "mtime": 0
-        },
-        "brotli11": {
-          "encoder": "official-google-brotli-c",
-          "libraryVersion": "1.1.0",
-          "cargoPackage": "compu-brotli-sys",
-          "cargoPackageVersion": "1.1.0",
-          "quality": 11,
-          "lgwin": 22,
-          "mode": "generic"
-        },
-        "nodeCodecsAreDiagnosticOnly": true
-      },
-      "compiler": {
-        "path": "target/release/lilscript",
-        "sha256": "29440d198fd5270e36823166cbf5fd306d5c2f7ad2c0c85dd379e3345f3b8997",
-        "config": "benchmarks/popular/ports/jquery/lilscript.toml",
-        "configSha256": "59b74b3355e3373bec7b8b07f531966466efe82b0f253fc66ea5488d9e320ba1",
-        "generatedArtifact": {
-          "path": "benchmarks/popular/ports/jquery/jquery-measured.raw.js",
-          "sha256": "e98212d718938f0972096674b3673b0f792415ea281e73b29c8210d9cc16b57f"
-        }
-      },
+      "rawJs": null,
+      "terser": null,
+      "closure": null,
+      "vite": null,
+      "lilscript": null,
+      "lilscriptVite": null,
+      "libraryArtifacts": null,
+      "codecs": null,
+      "compiler": null,
       "expected": "jquery:8:ok",
       "status": "candidate-full-library",
       "packages": [

@@ -1,0 +1,36 @@
+export class StandaloneQuickInputService {
+  bool visible;
+  string[] items;
+  string value;
+
+  init() {
+    this.visible = false;
+    this.items = [];
+    this.value = "";
+  }
+
+  string pick(string[] items, string query) {
+    this.items = items;
+    this.value = query;
+    this.visible = true;
+    string chosen = "";
+    int i = 0;
+    while (i < items.length) {
+      if (query.length == 0 || items[i].toLowerCase().includes(query.toLowerCase())) {
+        chosen = items[i];
+        break;
+      }
+      i = i + 1;
+    }
+    this.visible = false;
+    return chosen;
+  }
+
+  void hide() {
+    this.visible = false;
+  }
+}
+
+export StandaloneQuickInputService createStandaloneQuickInputService() {
+  return new StandaloneQuickInputService();
+}

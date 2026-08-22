@@ -1,0 +1,39 @@
+export class MovedBlock {
+  int originalStart;
+  int originalEndEx;
+  int modifiedStart;
+  int modifiedEndEx;
+
+  init(int originalStart, int originalEndEx, int modifiedStart, int modifiedEndEx) {
+    this.originalStart = originalStart;
+    this.originalEndEx = originalEndEx;
+    this.modifiedStart = modifiedStart;
+    this.modifiedEndEx = modifiedEndEx;
+  }
+}
+
+export class MovedBlocksLinesFeature {
+  MovedBlock[] blocks;
+  bool enabled;
+
+  init() {
+    this.blocks = [];
+    this.enabled = false;
+  }
+
+  void setBlocks(MovedBlock[] blocks) {
+    this.blocks = blocks;
+  }
+
+  int connectorTop(int lineNumber, int lineHeight, int scrollTop) {
+    return (lineNumber - 1) * lineHeight - scrollTop;
+  }
+}
+
+export MovedBlocksLinesFeature createMovedBlocksLinesFeature() {
+  return new MovedBlocksLinesFeature();
+}
+
+export MovedBlock createMovedBlock(int originalStart, int originalEndEx, int modifiedStart, int modifiedEndEx) {
+  return new MovedBlock(originalStart, originalEndEx, modifiedStart, modifiedEndEx);
+}

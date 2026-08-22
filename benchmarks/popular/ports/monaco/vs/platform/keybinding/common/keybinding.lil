@@ -1,0 +1,53 @@
+export class ResolvedKeybinding {
+  string label;
+  string ariaLabel;
+  string[] chords;
+  bool isWYSIWYG;
+
+  init(string label, string[] chords) {
+    this.label = label;
+    this.ariaLabel = label;
+    this.chords = chords;
+    this.isWYSIWYG = true;
+  }
+
+  string getLabel() {
+    return this.label;
+  }
+
+  string[] getChords() {
+    return this.chords;
+  }
+}
+
+export class KeybindingService {
+  ResolvedKeybinding[] items;
+  string[] commands;
+
+  init() {
+    this.items = [];
+    this.commands = [];
+  }
+
+  void register(string command, string label, string[] chords) {
+    this.commands.push(command);
+    this.items.push(new ResolvedKeybinding(label, chords));
+  }
+
+  ResolvedKeybinding? lookupKeybinding(string command) {
+    int i = 0;
+    while (i < this.commands.length) {
+      if (this.commands[i] == command) {
+        return this.items[i];
+      }
+      i = i + 1;
+    }
+    return null;
+  }
+}
+
+export KeybindingService createKeybindingService() {
+  return new KeybindingService();
+}
+
+export string IKeybindingServiceId = "keybindingService";

@@ -1,0 +1,121 @@
+import { DEV } from "../dev-flag.lil";
+import {
+  assign,
+  call0,
+  call1,
+  construct1,
+  fnName,
+  gWeakMap,
+  isFn,
+  isPlainObject,
+  isStr,
+  mapDelete,
+  mapGet,
+  mapSet,
+  newMap,
+  push,
+  stringifyKey,
+  toStr,
+  undef
+} from "../host.lil";
+import {
+  $mobx,
+  COMPUTED,
+  COMPUTED_STRUCT
+} from "../constants.lil";
+import { ComputedValue } from "../core/computedvalue.lil";
+import { assert20223DecoratorType } from "../api/decorators.lil";
+import { createDecoratorAnnotation } from "../api/decoratorannotation.lil";
+import { die } from "../errors.lil";
+import { isComputedValue } from "../core/predicates.lil";
+import {
+  computed,
+  computedStruct
+} from "./bindings.lil";
+import { compareStructural } from "../utils/eq.lil";
+import { createComputedAnnotation } from "../types/computedannotation.lil";
+import { asObservableObject } from "../types/observableobject.lil";
+
+JsValue decorateComputed20223_ = JS.method3((JsValue _s, JsValue annotation, JsValue getter, JsValue context) => {
+  if (DEV) {
+    JsValue kinds = JS.array();
+    push(kinds, "getter");
+    assert20223DecoratorType(context, kinds);
+  }
+  JsValue keyName = context["name"];
+  JsValue computedValues = undef();
+  JsValue createComputedValue = JS.method2((JsValue _c, JsValue target, JsValue adm) => {
+    JsValue options = assign(JS.object(), annotation["options_"]);
+    options["get"] = getter;
+    options["context"] = target;
+    if (!options["name"].truthy()) {
+      if (DEV) {
+        options["name"] = toStr(adm["name_"]) + "." + stringifyKey(keyName);
+      } else {
+        options["name"] = "ObservableObject." + stringifyKey(keyName);
+      }
+    }
+    return construct1(ComputedValue, options);
+  });
+  call1(context["addInitializer"], context, JS.method0((JsValue self) => {
+    JsValue adm = JS.call(asObservableObject, undef(), self)[$mobx];
+    JsValue existing = mapGet(adm["values_"], keyName);
+    if (isComputedValue(existing) && !JS.strictEqual(existing["derivation"], getter)) {
+      mapDelete(adm["values_"], keyName);
+    }
+    if (!adm["lazyComputedKeys_"].truthy()) {
+      adm["lazyComputedKeys_"] = newMap();
+    }
+    mapSet(adm["lazyComputedKeys_"], keyName, JS.method0((JsValue _f) => {
+      return JS.call(createComputedValue, undef(), self, adm);
+    }));
+    return undef();
+  }));
+  return JS.method0((JsValue self) => {
+    JsValue adm = self[$mobx];
+    JsValue existing = mapGet(adm["values_"], keyName);
+    if (isComputedValue(existing) && !JS.strictEqual(existing["derivation"], getter)) {
+      if (!computedValues.truthy()) {
+        computedValues = JS.construct(gWeakMap());
+      }
+      JsValue cached = JS.invoke(computedValues, "get", self);
+      if (!cached.truthy()) {
+        cached = JS.call(createComputedValue, undef(), self, adm);
+        JS.invoke(computedValues, "set", self, cached);
+      }
+      return call0(cached["get"], cached);
+    }
+    return call1(adm["getObservablePropValue_"], adm, keyName);
+  });
+});
+
+JsValue computedAnnotation = createComputedAnnotation(COMPUTED, undef());
+JsValue computedStructAnnotation = createComputedAnnotation(COMPUTED_STRUCT, JS.object("equals", JS.method2((JsValue _s, JsValue a, JsValue b) => {
+  return compareStructural(a, b);
+})));
+
+computed = assign(JS.method2((JsValue _s, JsValue arg1, JsValue arg2) => {
+  if (arg2.truthy() && isStr(arg2["kind"])) {
+    return JS.call(decorateComputed20223_, undef(), computedAnnotation, arg1, arg2);
+  }
+  if (isPlainObject(arg1)) {
+    return createDecoratorAnnotation(createComputedAnnotation(COMPUTED, arg1), decorateComputed20223_);
+  }
+  if (DEV && !isFn(arg1)) {
+    die("First argument to `computed` should be an expression.");
+  }
+  if (DEV && isFn(arg2)) {
+    die("A setter as second argument is no longer supported, use `{ set: fn }` option instead");
+  }
+  JsValue opts = JS.object();
+  if (isPlainObject(arg2)) {
+    opts = assign(JS.object(), arg2);
+  }
+  opts["get"] = arg1;
+  if (!opts["name"].truthy()) {
+    opts["name"] = fnName(arg1);
+  }
+  return construct1(ComputedValue, opts);
+}), computedAnnotation);
+computedStruct = createDecoratorAnnotation(computedStructAnnotation, decorateComputed20223_);
+export { computed, computedStruct };

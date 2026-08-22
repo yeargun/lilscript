@@ -1,0 +1,268 @@
+export int AutorunStateDependenciesMightHaveChanged = 1;
+export int AutorunStateStale = 2;
+export int AutorunStateUpToDate = 3;
+
+export string autorunStateToString(int state) {
+  if (state == AutorunStateDependenciesMightHaveChanged) {
+    return "dependenciesMightHaveChanged";
+  }
+  if (state == AutorunStateStale) {
+    return "stale";
+  }
+  if (state == AutorunStateUpToDate) {
+    return "upToDate";
+  }
+  return "<unknown>";
+}
+
+export class AutorunDependencyObserver {
+  func(AutorunDependency)->void beginFn;
+  func(AutorunDependency)->void endFn;
+  func(AutorunDependency, JsValue)->void changeFn;
+  func(AutorunDependency)->void possibleFn;
+
+  init(
+    func(AutorunDependency)->void beginFn,
+    func(AutorunDependency)->void endFn,
+    func(AutorunDependency, JsValue)->void changeFn,
+    func(AutorunDependency)->void possibleFn
+  ) {
+    this.beginFn = beginFn;
+    this.endFn = endFn;
+    this.changeFn = changeFn;
+    this.possibleFn = possibleFn;
+  }
+}
+
+export class AutorunDependency {
+  func()->JsValue getFn;
+  func()->void reportFn;
+  func(AutorunDependencyObserver)->void addFn;
+  func(AutorunDependencyObserver)->void removeFn;
+
+  init(
+    func()->JsValue getFn,
+    func()->void reportFn,
+    func(AutorunDependencyObserver)->void addFn,
+    func(AutorunDependencyObserver)->void removeFn
+  ) {
+    this.getFn = getFn;
+    this.reportFn = reportFn;
+    this.addFn = addFn;
+    this.removeFn = removeFn;
+  }
+}
+
+export class AutorunObserver {
+  string debugName;
+  func(AutorunObserver)->void runFn;
+  int state;
+  int updateCount;
+  bool disposed;
+  bool isRunning;
+  int iteration;
+  AutorunDependency[] dependencies;
+  AutorunDependency[] dependenciesToBeRemoved;
+  AutorunDependencyObserver dependencyObserver;
+  (func()->void)[] store;
+
+  init(string debugName, func(AutorunObserver)->void runFn) {
+    this.debugName = debugName;
+    this.runFn = runFn;
+    this.state = AutorunStateStale;
+    this.updateCount = 0;
+    this.disposed = false;
+    this.isRunning = false;
+    this.iteration = 0;
+    this.dependencies = [];
+    this.dependenciesToBeRemoved = [];
+    this.store = [];
+    this.dependencyObserver = new AutorunDependencyObserver(
+      (AutorunDependency dependency) => {
+        this.beginUpdate(dependency);
+      },
+      (AutorunDependency dependency) => {
+        this.endUpdate(dependency);
+      },
+      (AutorunDependency dependency, JsValue change) => {
+        this.handleChange(dependency, change);
+      },
+      (AutorunDependency dependency) => {
+        this.handlePossibleChange(dependency);
+      }
+    );
+    this.run();
+  }
+
+  void clearStore() {
+    int i = this.store.length - 1;
+    while (i >= 0) {
+      this.store[i]();
+      i = i - 1;
+    }
+    this.store = [];
+  }
+
+  void addToStore(func()->void disposeFn) {
+    if (!this.isRunning || this.disposed) {
+      throw "Cannot access autorun store outside a run";
+    }
+    this.store.push(disposeFn);
+  }
+
+  void dispose() {
+    if (this.disposed) {
+      return;
+    }
+    this.disposed = true;
+    int i = 0;
+    while (i < this.dependencies.length) {
+      this.dependencies[i].removeFn(this.dependencyObserver);
+      i = i + 1;
+    }
+    this.dependencies = [];
+    this.dependenciesToBeRemoved = [];
+    this.clearStore();
+  }
+
+  void run() {
+    if (this.disposed) {
+      return;
+    }
+    this.dependenciesToBeRemoved = this.dependencies;
+    this.dependencies = [];
+    this.state = AutorunStateUpToDate;
+    this.clearStore();
+    this.isRunning = true;
+    try {
+      this.runFn(this);
+    } finally {
+      this.isRunning = false;
+      int i = 0;
+      while (i < this.dependenciesToBeRemoved.length) {
+        this.dependenciesToBeRemoved[i].removeFn(this.dependencyObserver);
+        i = i + 1;
+      }
+      this.dependenciesToBeRemoved = [];
+    }
+  }
+
+  bool isDependency(AutorunDependency dependency) {
+    return this.dependencies.indexOf(dependency) >= 0
+      && this.dependenciesToBeRemoved.indexOf(dependency) < 0;
+  }
+
+  void beginUpdate(AutorunDependency dependency) {
+    if (this.state == AutorunStateUpToDate) {
+      this.state = AutorunStateDependenciesMightHaveChanged;
+    }
+    this.updateCount = this.updateCount + 1;
+  }
+
+  void endUpdate(AutorunDependency dependency) {
+    if (this.updateCount == 1) {
+      this.iteration = 0;
+      bool done = false;
+      while (!done) {
+        if (this.iteration > 100) {
+          throw "Autorun is stuck in an infinite update loop";
+        }
+        if (this.state == AutorunStateDependenciesMightHaveChanged) {
+          this.state = AutorunStateUpToDate;
+          int i = 0;
+          while (i < this.dependencies.length) {
+            this.dependencies[i].reportFn();
+            if (this.state == AutorunStateStale) {
+              i = this.dependencies.length;
+            } else {
+              i = i + 1;
+            }
+          }
+        }
+        if (this.state != AutorunStateUpToDate) {
+          this.run();
+        }
+        this.iteration = this.iteration + 1;
+        done = this.state == AutorunStateUpToDate;
+      }
+    }
+    this.updateCount = this.updateCount - 1;
+    if (this.updateCount < 0) {
+      throw "Autorun update count became negative";
+    }
+  }
+
+  void handlePossibleChange(AutorunDependency dependency) {
+    if (
+      this.state == AutorunStateUpToDate
+      && this.isDependency(dependency)
+    ) {
+      this.state = AutorunStateDependenciesMightHaveChanged;
+    }
+  }
+
+  void handleChange(AutorunDependency dependency, JsValue change) {
+    if (this.isDependency(dependency)) {
+      this.state = AutorunStateStale;
+    }
+  }
+
+  JsValue readObservable(AutorunDependency dependency) {
+    if (!this.isRunning) {
+      throw "Reader used outside autorun";
+    }
+    if (this.disposed) {
+      return dependency.getFn();
+    }
+    dependency.addFn(this.dependencyObserver);
+    JsValue result = dependency.getFn();
+    if (this.dependencies.indexOf(dependency) < 0) {
+      this.dependencies.push(dependency);
+    }
+    int removalIndex = this.dependenciesToBeRemoved.indexOf(dependency);
+    if (removalIndex >= 0) {
+      this.dependenciesToBeRemoved.splice(removalIndex, 1);
+    }
+    return result;
+  }
+
+  JsValue debugGetState() {
+    JsValue result = JS.object();
+    result["isRunning"] = this.isRunning;
+    result["updateCount"] = this.updateCount;
+    result["dependencies"] = this.dependencies;
+    result["state"] = this.state;
+    result["stateStr"] = autorunStateToString(this.state);
+    return result;
+  }
+
+  void debugRerun() {
+    if (this.isRunning) {
+      this.state = AutorunStateStale;
+      return;
+    }
+    this.run();
+  }
+}
+
+export AutorunObserver createAutorunObserver(
+  string debugName,
+  func(AutorunObserver)->void runFn
+) {
+  return new AutorunObserver(debugName, runFn);
+}
+
+export AutorunDependency createAutorunDependency(
+  func()->JsValue getFn,
+  func(AutorunDependencyObserver)->void addFn,
+  func(AutorunDependencyObserver)->void removeFn
+) {
+  return new AutorunDependency(
+    getFn,
+    () => {
+      getFn();
+    },
+    addFn,
+    removeFn
+  );
+}

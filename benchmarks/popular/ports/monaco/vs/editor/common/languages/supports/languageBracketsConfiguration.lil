@@ -1,0 +1,175 @@
+import { createBracketOrRegExp } from "./richEditBrackets";
+
+export class BracketKindBase {
+  string languageId;
+  string bracketText;
+
+  init(string languageId, string bracketText) {
+    this.languageId = languageId;
+    this.bracketText = bracketText;
+  }
+}
+
+export class OpeningBracketKind {
+  string languageId;
+  string bracketText;
+  ClosingBracketKind[] openedBrackets;
+  bool isOpeningBracket;
+
+  init(string languageId, string bracketText) {
+    this.languageId = languageId;
+    this.bracketText = bracketText;
+    this.openedBrackets = [];
+    this.isOpeningBracket = true;
+  }
+}
+
+export class ClosingBracketKind {
+  string languageId;
+  string bracketText;
+  OpeningBracketKind[] openingBrackets;
+  OpeningBracketKind[] openingColorizedBrackets;
+  bool isOpeningBracket;
+
+  init(string languageId, string bracketText) {
+    this.languageId = languageId;
+    this.bracketText = bracketText;
+    this.openingBrackets = [];
+    this.openingColorizedBrackets = [];
+    this.isOpeningBracket = false;
+  }
+
+  bool closes(OpeningBracketKind other) {
+    return other.languageId == this.languageId && this.openingBrackets.indexOf(other) >= 0;
+  }
+
+  bool closesColorized(OpeningBracketKind other) {
+    return other.languageId == this.languageId && this.openingColorizedBrackets.indexOf(other) >= 0;
+  }
+
+  OpeningBracketKind[] getOpeningBrackets() {
+    return this.openingBrackets.slice();
+  }
+}
+
+export class LanguageBracketsConfiguration {
+  string languageId;
+  Map<string, OpeningBracketKind> openingByText;
+  Map<string, ClosingBracketKind> closingByText;
+  OpeningBracketKind[] openingBrackets;
+  ClosingBracketKind[] closingBrackets;
+
+  init(string languageId, JsValue config) {
+    this.languageId = languageId;
+    this.openingByText = new Map();
+    this.closingByText = new Map();
+    this.openingBrackets = [];
+    this.closingBrackets = [];
+    this.addPairs(config["brackets"], false);
+    if (config["colorizedBracketPairs"] != null) {
+      this.addPairs(config["colorizedBracketPairs"], true);
+    } else {
+      this.addDefaultColorizedPairs(config["brackets"]);
+    }
+  }
+
+  OpeningBracketKind getOrCreateOpening(string text) {
+    OpeningBracketKind? value = this.openingByText.get(text);
+    if (value != null) {
+      return value;
+    }
+    OpeningBracketKind created = new OpeningBracketKind(this.languageId, text);
+    this.openingByText.set(text, created);
+    this.openingBrackets.push(created);
+    return created;
+  }
+
+  ClosingBracketKind getOrCreateClosing(string text) {
+    ClosingBracketKind? value = this.closingByText.get(text);
+    if (value != null) {
+      return value;
+    }
+    ClosingBracketKind created = new ClosingBracketKind(this.languageId, text);
+    this.closingByText.set(text, created);
+    this.closingBrackets.push(created);
+    return created;
+  }
+
+  void addPair(string open, string close, bool colorized) {
+    if (open.length == 0 || close.length == 0) {
+      return;
+    }
+    OpeningBracketKind opening = this.getOrCreateOpening(open);
+    ClosingBracketKind closing = this.getOrCreateClosing(close);
+    if (opening.openedBrackets.indexOf(closing) < 0) {
+      opening.openedBrackets.push(closing);
+    }
+    if (closing.openingBrackets.indexOf(opening) < 0) {
+      closing.openingBrackets.push(opening);
+    }
+    if (colorized && closing.openingColorizedBrackets.indexOf(opening) < 0) {
+      closing.openingColorizedBrackets.push(opening);
+    }
+  }
+
+  void addPairs(JsValue pairs, bool colorized) {
+    if (!JS.isArray(pairs)) {
+      return;
+    }
+    int i = 0;
+    int length = JS.number(pairs["length"]).toInt();
+    while (i < length) {
+      JsValue pair = pairs[i];
+      if (JS.isArray(pair) && JS.number(pair["length"]).toInt() == 2) {
+        this.addPair(JS.string(pair[0]), JS.string(pair[1]), colorized);
+      }
+      i = i + 1;
+    }
+  }
+
+  void addDefaultColorizedPairs(JsValue pairs) {
+    if (!JS.isArray(pairs)) {
+      return;
+    }
+    int i = 0;
+    int length = JS.number(pairs["length"]).toInt();
+    while (i < length) {
+      JsValue pair = pairs[i];
+      if (JS.isArray(pair) && JS.number(pair["length"]).toInt() == 2) {
+        string open = JS.string(pair[0]);
+        string close = JS.string(pair[1]);
+        if (open != "<" || close != ">") {
+          this.addPair(open, close, true);
+        }
+      }
+      i = i + 1;
+    }
+  }
+
+  OpeningBracketKind? getOpeningBracketInfo(string text) {
+    return this.openingByText.get(text);
+  }
+
+  ClosingBracketKind? getClosingBracketInfo(string text) {
+    return this.closingByText.get(text);
+  }
+
+  Regex getBracketRegExp() {
+    string[] pieces = [];
+    int i = 0;
+    while (i < this.openingBrackets.length) {
+      pieces.push(this.openingBrackets[i].bracketText);
+      i = i + 1;
+    }
+    i = 0;
+    while (i < this.closingBrackets.length) {
+      pieces.push(this.closingBrackets[i].bracketText);
+      i = i + 1;
+    }
+    return createBracketOrRegExp(pieces);
+  }
+}
+
+export LanguageBracketsConfiguration createLanguageBracketsConfiguration(string languageId, JsValue config) {
+  return new LanguageBracketsConfiguration(languageId, config);
+}

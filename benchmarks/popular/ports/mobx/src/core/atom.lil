@@ -1,0 +1,78 @@
+import { DEV } from "../dev-flag.lil";
+import {
+  construct1,
+  createInstanceofPredicate,
+  isUndef,
+  newSet,
+  noop,
+  setAdd,
+  toStr,
+  undef
+} from "../host.lil";
+import { NOT_TRACKING } from "../constants.lil";
+import { getNextId } from "./globalstate.lil";
+import {
+  reportObserved as reportObservedAtom,
+  reportChanged as reportChangedAtom
+} from "./observable.lil";
+import { onBOImpl, onBUOImpl, installAtomFlags } from "./shared.lil";
+import { isAtomPred } from "./predicates.lil";
+
+export JsValue Atom = JS.method1((JsValue self, JsValue nameArg) => {
+  string name = "Atom";
+  if (!isUndef(nameArg)) {
+    name = toStr(nameArg);
+  } else if (DEV) {
+    name = "Atom@" + getNextId();
+  }
+  self["name_"] = name;
+  self["observers_"] = newSet();
+  self["lastAccessedBy_"] = 0;
+  self["lowestObserverState_"] = NOT_TRACKING;
+  self["flags_"] = 0;
+  self["onBOL"] = undef();
+  self["onBUOL"] = undef();
+  return self;
+});
+
+Atom["prototype"]["onBO"] = JS.method0((JsValue self) => {
+  onBOImpl(self);
+  return undef();
+});
+Atom["prototype"]["onBUO"] = JS.method0((JsValue self) => {
+  onBUOImpl(self);
+  return undef();
+});
+Atom["prototype"]["reportObserved"] = JS.method0((JsValue self) => {
+  return reportObservedAtom(self);
+});
+Atom["prototype"]["reportChanged"] = JS.method0((JsValue self) => {
+  reportChangedAtom(self);
+  return undef();
+});
+Atom["prototype"]["toString"] = JS.method0((JsValue self) => {
+  return self["name_"];
+});
+installAtomFlags(Atom["prototype"]);
+isAtomPred = createInstanceofPredicate("Atom", Atom);
+
+export JsValue createAtom = JS.method3((JsValue _self, JsValue nameArg, JsValue onObsArg, JsValue onUnobsArg) => {
+  JsValue atom = construct1(Atom, nameArg);
+  JsValue onObs = onObsArg;
+  if (isUndef(onObs)) {
+    onObs = noop;
+  }
+  JsValue onUnobs = onUnobsArg;
+  if (isUndef(onUnobs)) {
+    onUnobs = noop;
+  }
+  if (!JS.strictEqual(onObs, noop)) {
+    atom["onBOL"] = newSet();
+    setAdd(atom["onBOL"], onObs);
+  }
+  if (!JS.strictEqual(onUnobs, noop)) {
+    atom["onBUOL"] = newSet();
+    setAdd(atom["onBUOL"], onUnobs);
+  }
+  return atom;
+});

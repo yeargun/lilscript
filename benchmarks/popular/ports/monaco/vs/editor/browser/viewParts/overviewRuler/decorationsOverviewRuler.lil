@@ -1,0 +1,222 @@
+int MIN_DECORATION_HEIGHT = 6;
+
+int imin(int a, int b) {
+  if (a < b) {
+    return a;
+  }
+  return b;
+}
+
+int imax(int a, int b) {
+  if (a > b) {
+    return a;
+  }
+  return b;
+}
+
+export class OverviewLaneOffsets {
+  int[] x;
+  int[] w;
+
+  init(int[] x, int[] w) {
+    this.x = x;
+    this.w = w;
+  }
+}
+
+export OverviewLaneOffsets initLanes(int canvasLeftOffset, int canvasWidth, int laneCount) {
+  int remainingWidth = canvasWidth - canvasLeftOffset;
+  int[] x = [0, 0, 0, 0, 0, 0, 0, 0];
+  int[] w = [0, 0, 0, 0, 0, 0, 0, 0];
+  if (laneCount >= 3) {
+    int leftWidth = remainingWidth / 3;
+    int rightWidth = remainingWidth / 3;
+    int centerWidth = remainingWidth - leftWidth - rightWidth;
+    int leftOffset = canvasLeftOffset;
+    int centerOffset = leftOffset + leftWidth;
+    int rightOffset = leftOffset + leftWidth + centerWidth;
+    x[1] = leftOffset;
+    x[2] = centerOffset;
+    x[3] = leftOffset;
+    x[4] = rightOffset;
+    x[5] = leftOffset;
+    x[6] = centerOffset;
+    x[7] = leftOffset;
+    w[1] = leftWidth;
+    w[2] = centerWidth;
+    w[3] = leftWidth + centerWidth;
+    w[4] = rightWidth;
+    w[5] = leftWidth + centerWidth + rightWidth;
+    w[6] = centerWidth + rightWidth;
+    w[7] = leftWidth + centerWidth + rightWidth;
+  } else {
+    if (laneCount == 2) {
+      int leftWidth = remainingWidth / 2;
+      int rightWidth = remainingWidth - leftWidth;
+      int leftOffset = canvasLeftOffset;
+      int rightOffset = leftOffset + leftWidth;
+      x[1] = leftOffset;
+      x[2] = leftOffset;
+      x[3] = leftOffset;
+      x[4] = rightOffset;
+      x[5] = leftOffset;
+      x[6] = leftOffset;
+      x[7] = leftOffset;
+      w[1] = leftWidth;
+      w[2] = leftWidth;
+      w[3] = leftWidth;
+      w[4] = rightWidth;
+      w[5] = leftWidth + rightWidth;
+      w[6] = leftWidth + rightWidth;
+      w[7] = leftWidth + rightWidth;
+    } else {
+      int offset = canvasLeftOffset;
+      int width = remainingWidth;
+      int i = 1;
+      while (i <= 7) {
+        x[i] = offset;
+        w[i] = width;
+        i = i + 1;
+      }
+    }
+  }
+  return new OverviewLaneOffsets(x, w);
+}
+
+export class OverviewDecoration {
+  int lane;
+  int startLineNumber;
+  int endLineNumber;
+  string color;
+
+  init(int lane, int startLineNumber, int endLineNumber, string color) {
+    this.lane = lane;
+    this.startLineNumber = startLineNumber;
+    this.endLineNumber = endLineNumber;
+    this.color = color;
+  }
+}
+
+export class OverviewFill {
+  int x;
+  int y;
+  int w;
+  int h;
+  string color;
+
+  init(int x, int y, int w, int h, string color) {
+    this.x = x;
+    this.y = y;
+    this.w = w;
+    this.h = h;
+    this.color = color;
+  }
+}
+
+export class DecorationsOverviewRuler {
+  int lineHeight;
+  float pixelRatio;
+  int overviewRulerLanes;
+  int canvasWidth;
+  int canvasHeight;
+  OverviewLaneOffsets lanes;
+
+  init(int lineHeight, float pixelRatio, int overviewRulerLanes, int domWidth, int domHeight) {
+    this.lineHeight = lineHeight;
+    this.pixelRatio = pixelRatio;
+    this.overviewRulerLanes = overviewRulerLanes;
+    this.canvasWidth = (domWidth * 1.0 * pixelRatio).floor().toInt();
+    this.canvasHeight = (domHeight * 1.0 * pixelRatio).floor().toInt();
+    if (overviewRulerLanes == 0) {
+      this.canvasWidth = 0;
+      this.canvasHeight = 0;
+    }
+    this.lanes = initLanes(1, this.canvasWidth, overviewRulerLanes);
+  }
+
+  int yForLine(int lineNumber, int outerHeight) {
+    if (outerHeight <= 0) {
+      return 0;
+    }
+    float heightRatio = this.canvasHeight * 1.0 / outerHeight;
+    int offset = (lineNumber - 1) * this.lineHeight;
+    return (offset * 1.0 * heightRatio).floor().toInt();
+  }
+
+  OverviewFill[] renderDecorations(OverviewDecoration[] decorations, int outerHeight) {
+    OverviewFill[] fills = [];
+    if (this.overviewRulerLanes == 0) {
+      return fills;
+    }
+    int minDecorationHeight = (MIN_DECORATION_HEIGHT * 1.0 * this.pixelRatio).floor().toInt();
+    int halfMinDecorationHeight = minDecorationHeight / 2;
+    int i = 0;
+    int prevLane = 0;
+    int prevY1 = 0;
+    int prevY2 = 0;
+    string prevColor = "";
+    while (i < decorations.length) {
+      OverviewDecoration decoration = decorations[i];
+      int y1 = this.yForLine(decoration.startLineNumber, outerHeight);
+      int y2 = this.yForLine(decoration.endLineNumber, outerHeight) + (this.lineHeight * 1.0 * this.canvasHeight / outerHeight).floor().toInt();
+      int height = y2 - y1;
+      if (height < minDecorationHeight) {
+        int yCenter = (y1 + y2) / 2;
+        if (yCenter < halfMinDecorationHeight) {
+          yCenter = halfMinDecorationHeight;
+        } else {
+          if (yCenter + halfMinDecorationHeight > this.canvasHeight) {
+            yCenter = this.canvasHeight - halfMinDecorationHeight;
+          }
+        }
+        y1 = yCenter - halfMinDecorationHeight;
+        y2 = yCenter + halfMinDecorationHeight;
+      }
+      if (i == 0) {
+        prevLane = decoration.lane;
+        prevY1 = y1;
+        prevY2 = y2;
+        prevColor = decoration.color;
+      } else {
+        if (y1 > prevY2 + 1 || decoration.lane != prevLane || decoration.color != prevColor) {
+          int lane = prevLane;
+          if (lane < 0) {
+            lane = 0;
+          }
+          if (lane > 7) {
+            lane = 7;
+          }
+          fills.push(new OverviewFill(this.lanes.x[lane], prevY1, this.lanes.w[lane], prevY2 - prevY1, prevColor));
+          prevLane = decoration.lane;
+          prevY1 = y1;
+          prevY2 = y2;
+          prevColor = decoration.color;
+        } else {
+          if (y2 > prevY2) {
+            prevY2 = y2;
+          }
+        }
+      }
+      i = i + 1;
+    }
+    if (decorations.length > 0) {
+      int lane = prevLane;
+      if (lane < 0) {
+        lane = 0;
+      }
+      if (lane > 7) {
+        lane = 7;
+      }
+      fills.push(new OverviewFill(this.lanes.x[lane], prevY1, this.lanes.w[lane], prevY2 - prevY1, prevColor));
+    }
+    return fills;
+  }
+}
+
+export OverviewDecoration createOverviewDecoration(int lane, int startLineNumber, int endLineNumber, string color) {
+  return new OverviewDecoration(lane, startLineNumber, endLineNumber, color);
+}
+
+export DecorationsOverviewRuler createDecorationsOverviewRuler(int lineHeight, float pixelRatio, int overviewRulerLanes, int domWidth, int domHeight) {
+  return new DecorationsOverviewRuler(lineHeight, pixelRatio, overviewRulerLanes, domWidth, domHeight);
+}

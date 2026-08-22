@@ -1,0 +1,27 @@
+import { dateNow } from "../../../../js-host";
+
+export class RateLimiter {
+  float timesPerSecond;
+  float lastRun;
+  float minimumTimeBetweenRuns;
+
+  init(float timesPerSecond = 5.0) {
+    this.timesPerSecond = timesPerSecond;
+    this.lastRun = 0.0;
+    this.minimumTimeBetweenRuns = 1000.0 / timesPerSecond;
+  }
+
+  bool runIfNotLimited(func()->void callback) {
+    float now = dateNow();
+    if (now - this.lastRun < this.minimumTimeBetweenRuns) {
+      return false;
+    }
+    this.lastRun = now;
+    callback();
+    return true;
+  }
+}
+
+export RateLimiter createRateLimiter(float timesPerSecond = 5.0) {
+  return new RateLimiter(timesPerSecond);
+}

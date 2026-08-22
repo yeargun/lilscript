@@ -1,0 +1,16 @@
+export int TextModelSyncKindFull = 0;
+export int TextModelSyncKindIncremental = 1;
+
+export class TextModelSyncData {
+  string url;
+  string[] lines;
+  string EOL;
+  int versionId;
+
+  init(string url, string[] lines, string EOL, int versionId) {
+    this.url = url;
+    this.lines = lines;
+    this.EOL = EOL;
+    this.versionId = versionId;
+  }
+}

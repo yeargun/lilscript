@@ -1,0 +1,29 @@
+import { ContiguousMultilineTokens } from "./contiguousMultilineTokens";
+
+export class ContiguousMultilineTokensBuilder {
+  ContiguousMultilineTokens[] tokens;
+
+  init() {
+    this.tokens = [];
+  }
+
+  void add(int lineNumber, int[] lineTokens) {
+    if (this.tokens.length > 0) {
+      ContiguousMultilineTokens last = this.tokens[this.tokens.length - 1];
+      if (last.endLineNumber() + 1 == lineNumber) {
+        last.appendLineTokens(lineTokens);
+        return;
+      }
+    }
+    int[][] lines = [lineTokens];
+    this.tokens.push(new ContiguousMultilineTokens(lineNumber, lines));
+  }
+
+  ContiguousMultilineTokens[] finalize() {
+    return this.tokens;
+  }
+}
+
+export ContiguousMultilineTokensBuilder createContiguousMultilineTokensBuilder() {
+  return new ContiguousMultilineTokensBuilder();
+}

@@ -1,0 +1,56 @@
+export class SuggestDetailsWidget {
+  bool visible;
+  bool explainMode;
+  string markdown;
+  string typeInfo;
+  int width;
+  int height;
+  bool renderCloseButton;
+
+  init() {
+    this.visible = false;
+    this.explainMode = false;
+    this.markdown = "";
+    this.typeInfo = "";
+    this.width = 330;
+    this.height = 0;
+    this.renderCloseButton = true;
+  }
+
+  void render(string typeInfo, string documentation) {
+    this.typeInfo = typeInfo;
+    this.markdown = documentation;
+    int lines = 1;
+    int i = 0;
+    while (i < documentation.length) {
+      if (documentation.charAt(i) == "\n") {
+        lines = lines + 1;
+      }
+      i = i + 1;
+    }
+    this.height = 22 + lines * 18;
+    if (this.height > 400) {
+      this.height = 400;
+    }
+    this.visible = typeInfo.length > 0 || documentation.length > 0;
+  }
+
+  void clear() {
+    this.visible = false;
+    this.markdown = "";
+    this.typeInfo = "";
+    this.height = 0;
+  }
+
+  void scrollDown(int amount) {
+    this.height = this.height;
+  }
+
+  void toggleExplainMode() {
+    this.explainMode = !this.explainMode;
+  }
+}
+
+export SuggestDetailsWidget createSuggestDetailsWidget() {
+  return new SuggestDetailsWidget();
+}

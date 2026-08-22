@@ -1,0 +1,30 @@
+import { Pos } from "../../../../base/position";
+import { Rng, createRange } from "../../../../base/range";
+
+export class IdentifiedSingleEdit {
+  Rng range;
+  string text;
+  bool forceMoveMarkers;
+
+  init(Rng range, string text, bool forceMoveMarkers) {
+    this.range = range;
+    this.text = text;
+    this.forceMoveMarkers = forceMoveMarkers;
+  }
+}
+
+export IdentifiedSingleEdit editInsert(Pos position, string text) {
+  return new IdentifiedSingleEdit(createRange(position.lineNumber, position.column, position.lineNumber, position.column), text, true);
+}
+
+export IdentifiedSingleEdit editDelete(Rng range) {
+  return new IdentifiedSingleEdit(range, "", false);
+}
+
+export IdentifiedSingleEdit editReplace(Rng range, string text) {
+  return new IdentifiedSingleEdit(range, text, false);
+}
+
+export IdentifiedSingleEdit editReplaceMove(Rng range, string text) {
+  return new IdentifiedSingleEdit(range, text, true);
+}

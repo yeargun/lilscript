@@ -1,0 +1,160 @@
+export class VSBuffer {
+  int[] bytes;
+
+  init(int[] bytes) {
+    this.bytes = bytes;
+    this.byteLength = bytes.length;
+  }
+
+  int byteLength;
+}
+
+export VSBuffer wrapBytes(int[] actual) {
+  return new VSBuffer(actual);
+}
+
+export VSBuffer allocBuffer(int byteLength) {
+  int[] bytes = [];
+  int i = 0;
+  while (i < byteLength) {
+    bytes.push(0);
+    i = i + 1;
+  }
+  return new VSBuffer(bytes);
+}
+
+export int readUInt16LE(int[] source, int offset) {
+  return ((source[offset + 0] << 0) >>> 0) | ((source[offset + 1] << 8) >>> 0);
+}
+
+export void writeUInt16LE(int[] destination, int value, int offset) {
+  destination[offset + 0] = value & 255;
+  int shifted = value >>> 8;
+  destination[offset + 1] = shifted & 255;
+}
+
+export int readUInt32BE(int[] source, int offset) {
+  return source[offset] * 16777216 + source[offset + 1] * 65536 + source[offset + 2] * 256 + source[offset + 3];
+}
+
+export void writeUInt32BE(int[] destination, int value, int offset) {
+  destination[offset + 3] = value & 255;
+  int v = value >>> 8;
+  destination[offset + 2] = v & 255;
+  v = v >>> 8;
+  destination[offset + 1] = v & 255;
+  v = v >>> 8;
+  destination[offset] = v & 255;
+}
+
+export int readUInt8(int[] source, int offset) {
+  return source[offset];
+}
+
+export void writeUInt8(int[] destination, int value, int offset) {
+  destination[offset] = value;
+}
+
+export int readUInt32LE(int[] source, int offset) {
+  return ((source[offset + 0] << 0) >>> 0) | ((source[offset + 1] << 8) >>> 0) | ((source[offset + 2] << 16) >>> 0) | ((source[offset + 3] << 24) >>> 0);
+}
+
+export void writeUInt32LE(int[] destination, int value, int offset) {
+  destination[offset + 0] = value & 255;
+  int v = value >>> 8;
+  destination[offset + 1] = v & 255;
+  v = v >>> 8;
+  destination[offset + 2] = v & 255;
+  v = v >>> 8;
+  destination[offset + 3] = v & 255;
+}
+
+string hexChars = "0123456789abcdef";
+
+export string encodeHex(VSBuffer buf) {
+  string result = "";
+  int i = 0;
+  while (i < buf.bytes.length) {
+    int byte = buf.bytes[i];
+    result = result + hexChars.charAt(byte >>> 4);
+    result = result + hexChars.charAt(byte & 15);
+    i = i + 1;
+  }
+  return result;
+}
+
+int hexValue(int code) {
+  if (code >= 48 && code <= 57) {
+    return code - 48;
+  }
+  if (code >= 97 && code <= 102) {
+    return code - 97 + 10;
+  }
+  if (code >= 65 && code <= 70) {
+    return code - 65 + 10;
+  }
+  return 0;
+}
+
+export VSBuffer decodeHex(string str) {
+  int[] bytes = [];
+  int i = 0;
+  while (i + 1 < str.length) {
+    int hi = hexValue(str.charCodeAt(i));
+    int lo = hexValue(str.charCodeAt(i + 1));
+    bytes.push((hi << 4) | lo);
+    i = i + 2;
+  }
+  return new VSBuffer(bytes);
+}
+
+export VSBuffer concatBuffers(VSBuffer[] buffers) {
+  int[] bytes = [];
+  int i = 0;
+  while (i < buffers.length) {
+    int[] src = buffers[i].bytes;
+    int j = 0;
+    while (j < src.length) {
+      bytes.push(src[j]);
+      j = j + 1;
+    }
+    i = i + 1;
+  }
+  return new VSBuffer(bytes);
+}
+
+export VSBuffer fromStringBytes(string value) {
+  int[] bytes = [];
+  int i = 0;
+  while (i < value.length) {
+    bytes.push(value.charCodeAt(i) & 255);
+    i = i + 1;
+  }
+  return new VSBuffer(bytes);
+}
+
+export string bufferToString(VSBuffer buf) {
+  string out = "";
+  int i = 0;
+  while (i < buf.bytes.length) {
+    out = out + stringFromCharCode(buf.bytes[i]);
+    i = i + 1;
+  }
+  return out;
+}
+
+string stringFromCharCode(int code) {
+  if (code == 10) {
+    return "\n";
+  }
+  if (code == 13) {
+    return "\r";
+  }
+  if (code == 9) {
+    return "\t";
+  }
+  if (code == 32) {
+    return " ";
+  }
+  return "";
+}

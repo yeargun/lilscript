@@ -1,0 +1,319 @@
+export class DerivedSourceObserver {
+  func(DerivedSource)->void beginFn;
+  func(DerivedSource)->void endFn;
+  func(DerivedSource, JsValue)->void changeFn;
+  func(DerivedSource)->void possibleFn;
+
+  init(
+    func(DerivedSource)->void beginFn,
+    func(DerivedSource)->void endFn,
+    func(DerivedSource, JsValue)->void changeFn,
+    func(DerivedSource)->void possibleFn
+  ) {
+    this.beginFn = beginFn;
+    this.endFn = endFn;
+    this.changeFn = changeFn;
+    this.possibleFn = possibleFn;
+  }
+}
+
+export class DerivedSource {
+  func()->JsValue getFn;
+  func(DerivedSourceObserver)->void addFn;
+  func(DerivedSourceObserver)->void removeFn;
+
+  init(
+    func()->JsValue getFn,
+    func(DerivedSourceObserver)->void addFn,
+    func(DerivedSourceObserver)->void removeFn
+  ) {
+    this.getFn = getFn;
+    this.addFn = addFn;
+    this.removeFn = removeFn;
+  }
+
+  JsValue get() {
+    return this.getFn();
+  }
+}
+
+export class DerivedNotificationObserver {
+  func(DerivedObservable)->void beginFn;
+  func(DerivedObservable)->void endFn;
+  func(DerivedObservable, JsValue)->void changeFn;
+  func(DerivedObservable)->void possibleFn;
+
+  init(
+    func(DerivedObservable)->void beginFn,
+    func(DerivedObservable)->void endFn,
+    func(DerivedObservable, JsValue)->void changeFn,
+    func(DerivedObservable)->void possibleFn
+  ) {
+    this.beginFn = beginFn;
+    this.endFn = endFn;
+    this.changeFn = changeFn;
+    this.possibleFn = possibleFn;
+  }
+}
+
+export class DerivedReader {
+  DerivedObservable owner;
+
+  init(DerivedObservable owner) {
+    this.owner = owner;
+  }
+
+  JsValue readObservable(DerivedSource source) {
+    return this.owner.readObservable(source);
+  }
+}
+
+export class DerivedObservable {
+  string debugName;
+  func(DerivedReader)->JsValue computeFn;
+  func(JsValue, JsValue)->bool equalsFn;
+  JsValue value;
+  bool hasValue;
+  bool stale;
+  bool computing;
+  bool readerValid;
+  int updateCount;
+  DerivedSource[] dependencies;
+  DerivedSource[] nextDependencies;
+  DerivedNotificationObserver[] observers;
+  DerivedSourceObserver sourceObserver;
+  DerivedReader reader;
+
+  init(
+    string debugName,
+    func(DerivedReader)->JsValue computeFn,
+    func(JsValue, JsValue)->bool equalsFn
+  ) {
+    this.debugName = debugName;
+    this.computeFn = computeFn;
+    this.equalsFn = equalsFn;
+    this.value = 0;
+    this.hasValue = false;
+    this.stale = true;
+    this.computing = false;
+    this.readerValid = false;
+    this.updateCount = 0;
+    this.dependencies = [];
+    this.nextDependencies = [];
+    this.observers = [];
+    this.reader = new DerivedReader(this);
+    this.sourceObserver = new DerivedSourceObserver(
+      (DerivedSource source) => {
+        this.beginSourceUpdate(source);
+      },
+      (DerivedSource source) => {
+        this.endSourceUpdate(source);
+      },
+      (DerivedSource source, JsValue change) => {
+        this.sourceChanged(source, change);
+      },
+      (DerivedSource source) => {
+        this.sourceMightHaveChanged(source);
+      }
+    );
+  }
+
+  JsValue readObservable(DerivedSource source) {
+    if (!this.readerValid) {
+      throw "Reader used outside derived computation";
+    }
+    if (this.nextDependencies.indexOf(source) < 0) {
+      this.nextDependencies.push(source);
+      source.addFn(this.sourceObserver);
+    }
+    return source.get();
+  }
+
+  void recompute() {
+    if (this.computing) {
+      throw "Cyclic derived computation";
+    }
+    this.computing = true;
+    DerivedSource[] previousDependencies = this.dependencies;
+    this.nextDependencies = [];
+    this.readerValid = true;
+    JsValue nextValue = 0;
+    try {
+      nextValue = this.computeFn(this.reader);
+    } finally {
+      this.readerValid = false;
+      int i = 0;
+      while (i < previousDependencies.length) {
+        DerivedSource source = previousDependencies[i];
+        if (this.nextDependencies.indexOf(source) < 0) {
+          source.removeFn(this.sourceObserver);
+        }
+        i = i + 1;
+      }
+      this.dependencies = this.nextDependencies;
+      this.nextDependencies = [];
+      this.computing = false;
+    }
+    bool changed = this.hasValue && !this.equalsFn(this.value, nextValue);
+    this.value = nextValue;
+    this.hasValue = true;
+    this.stale = false;
+    if (changed) {
+      DerivedNotificationObserver[] snapshot = this.observers.slice();
+      int i = 0;
+      while (i < snapshot.length) {
+        snapshot[i].changeFn(this, 0);
+        i = i + 1;
+      }
+    }
+  }
+
+  JsValue get() {
+    if (this.stale || !this.hasValue) {
+      this.recompute();
+    }
+    return this.value;
+  }
+
+  void reportChanges() {
+    this.get();
+  }
+
+  void beginSourceUpdate(DerivedSource source) {
+    this.updateCount = this.updateCount + 1;
+    if (this.updateCount == 1) {
+      DerivedNotificationObserver[] snapshot = this.observers.slice();
+      int i = 0;
+      while (i < snapshot.length) {
+        snapshot[i].beginFn(this);
+        i = i + 1;
+      }
+    }
+  }
+
+  void endSourceUpdate(DerivedSource source) {
+    this.updateCount = this.updateCount - 1;
+    if (this.updateCount == 0) {
+      DerivedNotificationObserver[] snapshot = this.observers.slice();
+      int i = 0;
+      while (i < snapshot.length) {
+        snapshot[i].endFn(this);
+        i = i + 1;
+      }
+    }
+  }
+
+  void sourceMightHaveChanged(DerivedSource source) {
+    if (this.dependencies.indexOf(source) < 0) {
+      return;
+    }
+    this.stale = true;
+    DerivedNotificationObserver[] snapshot = this.observers.slice();
+    int i = 0;
+    while (i < snapshot.length) {
+      snapshot[i].possibleFn(this);
+      i = i + 1;
+    }
+  }
+
+  void sourceChanged(DerivedSource source, JsValue change) {
+    if (this.dependencies.indexOf(source) < 0) {
+      return;
+    }
+    this.stale = true;
+  }
+
+  void addObserver(DerivedNotificationObserver observer) {
+    if (this.observers.indexOf(observer) < 0) {
+      this.observers.push(observer);
+    }
+  }
+
+  void removeObserver(DerivedNotificationObserver observer) {
+    int index = this.observers.indexOf(observer);
+    if (index >= 0) {
+      this.observers.splice(index, 1);
+    }
+    if (this.observers.length == 0) {
+      int i = 0;
+      while (i < this.dependencies.length) {
+        this.dependencies[i].removeFn(this.sourceObserver);
+        i = i + 1;
+      }
+      this.dependencies = [];
+      this.stale = true;
+    }
+  }
+}
+
+export class SettableDerived {
+  DerivedObservable observable;
+  func(JsValue, JsValue)->void setter;
+
+  init(
+    DerivedObservable observable,
+    func(JsValue, JsValue)->void setter
+  ) {
+    this.observable = observable;
+    this.setter = setter;
+  }
+
+  JsValue get() {
+    return this.observable.get();
+  }
+
+  void set(JsValue value, JsValue change) {
+    this.setter(value, change);
+  }
+}
+
+export DerivedObservable derived(
+  string debugName,
+  func(DerivedReader)->JsValue computeFn
+) {
+  return new DerivedObservable(
+    debugName,
+    computeFn,
+    (JsValue a, JsValue b) => {
+      return a == b;
+    }
+  );
+}
+
+export DerivedObservable derivedOpts(
+  string debugName,
+  func(DerivedReader)->JsValue computeFn,
+  func(JsValue, JsValue)->bool equalsFn
+) {
+  return new DerivedObservable(debugName, computeFn, equalsFn);
+}
+
+export SettableDerived derivedWithSetter(
+  string debugName,
+  func(DerivedReader)->JsValue computeFn,
+  func(JsValue, JsValue)->void setter
+) {
+  return new SettableDerived(derived(debugName, computeFn), setter);
+}
+
+export DerivedObservable derivedHandleChanges(
+  string debugName,
+  func(DerivedReader)->JsValue computeFn
+) {
+  return derived(debugName, computeFn);
+}
+
+export DerivedObservable derivedDisposable(
+  string debugName,
+  func(DerivedReader)->JsValue computeFn
+) {
+  return derived(debugName, computeFn);
+}
+
+export DerivedSource createDerivedSource(
+  func()->JsValue getFn,
+  func(DerivedSourceObserver)->void addFn,
+  func(DerivedSourceObserver)->void removeFn
+) {
+  return new DerivedSource(getFn, addFn, removeFn);
+}

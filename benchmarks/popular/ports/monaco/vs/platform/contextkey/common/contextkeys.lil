@@ -1,0 +1,67 @@
+export string InputFocusedContextKey = "inputFocus";
+
+export class PlatformContextKeys {
+  bool isMac;
+  bool isLinux;
+  bool isWindows;
+  bool isWeb;
+  bool isIOS;
+  bool isMobile;
+  bool isDevelopment;
+  string productQuality;
+  bool inputFocus;
+
+  init() {
+    this.isMac = false;
+    this.isLinux = false;
+    this.isWindows = false;
+    this.isWeb = true;
+    this.isIOS = false;
+    this.isMobile = false;
+    this.isDevelopment = false;
+    this.productQuality = "";
+    this.inputFocus = false;
+  }
+
+  void detectFromUserAgent(string agent) {
+    string lower = agent.toLowerCase();
+    this.isMac = lower.includes("mac");
+    this.isLinux = lower.includes("linux");
+    this.isWindows = lower.includes("win");
+    this.isIOS = lower.includes("iphone") || lower.includes("ipad");
+    this.isMobile = this.isIOS || lower.includes("android") || lower.includes("mobile");
+    this.isWeb = true;
+  }
+
+  bool isMacNative() {
+    return this.isMac && !this.isWeb;
+  }
+}
+
+export PlatformContextKeys createPlatformContextKeys() {
+  return new PlatformContextKeys();
+}
+
+export string contextKeyIsMac() {
+  return "isMac";
+}
+
+export string contextKeyIsLinux() {
+  return "isLinux";
+}
+
+export string contextKeyIsWindows() {
+  return "isWindows";
+}
+
+export string contextKeyIsWeb() {
+  return "isWeb";
+}
+
+export string contextKeyIsIOS() {
+  return "isIOS";
+}
+
+export string contextKeyIsMobile() {
+  return "isMobile";
+}

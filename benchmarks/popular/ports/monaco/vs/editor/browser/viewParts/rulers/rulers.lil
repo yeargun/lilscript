@@ -1,0 +1,66 @@
+int MAX_RULER_HEIGHT = 1000000;
+
+int imin(int a, int b) {
+  if (a < b) {
+    return a;
+  }
+  return b;
+}
+
+export class RulerSpec {
+  int column;
+  string color;
+
+  init(int column, string color) {
+    this.column = column;
+    this.color = color;
+  }
+}
+
+export class RenderedRuler {
+  int left;
+  int height;
+  string color;
+
+  init(int left, int height, string color) {
+    this.left = left;
+    this.height = height;
+    this.color = color;
+  }
+}
+
+export class Rulers {
+  RulerSpec[] rulers;
+  float typicalHalfwidthCharacterWidth;
+  RenderedRuler[] rendered;
+
+  init(float typicalHalfwidthCharacterWidth) {
+    this.rulers = [];
+    this.typicalHalfwidthCharacterWidth = typicalHalfwidthCharacterWidth;
+    this.rendered = [];
+  }
+
+  void setRulers(RulerSpec[] rulers) {
+    this.rulers = rulers;
+  }
+
+  void render(int scrollHeight) {
+    this.rendered = [];
+    int height = imin(scrollHeight, MAX_RULER_HEIGHT);
+    int i = 0;
+    while (i < this.rulers.length) {
+      RulerSpec ruler = this.rulers[i];
+      int left = (ruler.column * 1.0 * this.typicalHalfwidthCharacterWidth).round().toInt();
+      this.rendered.push(new RenderedRuler(left, height, ruler.color));
+      i = i + 1;
+    }
+  }
+}
+
+export RulerSpec createRulerSpec(int column, string color) {
+  return new RulerSpec(column, color);
+}
+
+export Rulers createRulers(float typicalHalfwidthCharacterWidth) {
+  return new Rulers(typicalHalfwidthCharacterWidth);
+}

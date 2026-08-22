@@ -1,0 +1,3 @@
+export string vs_base_browser_dompurify_dompurify() {
+  return "base/browser/dompurify/dompurify";
+}

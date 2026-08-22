@@ -1,0 +1,396 @@
+import { sliceOf, stringFromCharCode1, repeatChar } from "../../../../js-host";
+
+export class RenderToken {
+  int endIndex;
+  string className;
+  int metadata;
+  bool containsRTL;
+
+  init(int endIndex, string className, int metadata, bool containsRTL) {
+    this.endIndex = endIndex;
+    this.className = className;
+    this.metadata = metadata;
+    this.containsRTL = containsRTL;
+  }
+}
+
+export class RenderDecoration {
+  int startColumn;
+  int endColumn;
+  string className;
+  int type;
+
+  init(int startColumn, int endColumn, string className, int type) {
+    this.startColumn = startColumn;
+    this.endColumn = endColumn;
+    this.className = className;
+    this.type = type;
+  }
+}
+
+export class RenderLineInput {
+  string lineContent;
+  RenderToken[] lineTokens;
+  RenderDecoration[] lineDecorations;
+  int tabSize;
+  int startVisibleColumn;
+  int stopRenderingLineAfter;
+  int renderWhitespace;
+  bool renderControlCharacters;
+
+  init(string lineContent, RenderToken[] lineTokens, RenderDecoration[] lineDecorations, int tabSize, int startVisibleColumn, int stopRenderingLineAfter, int renderWhitespace, bool renderControlCharacters) {
+    this.lineContent = lineContent;
+    this.lineTokens = lineTokens;
+    this.lineDecorations = lineDecorations;
+    this.tabSize = tabSize;
+    this.startVisibleColumn = startVisibleColumn;
+    this.stopRenderingLineAfter = stopRenderingLineAfter;
+    this.renderWhitespace = renderWhitespace;
+    this.renderControlCharacters = renderControlCharacters;
+  }
+}
+
+export class RenderedLinePart {
+  string text;
+  string className;
+  int width;
+  int startColumn;
+  int endColumn;
+  int metadata;
+
+  init(string text, string className, int width, int startColumn, int endColumn, int metadata) {
+    this.text = text;
+    this.className = className;
+    this.width = width;
+    this.startColumn = startColumn;
+    this.endColumn = endColumn;
+    this.metadata = metadata;
+  }
+}
+
+export class DomPosition {
+  int partIndex;
+  int charIndex;
+
+  init(int partIndex, int charIndex) {
+    this.partIndex = partIndex;
+    this.charIndex = charIndex;
+  }
+}
+
+export class CharacterMapping {
+  int[] partIndices;
+  int[] charIndices;
+  int[] horizontalOffsets;
+
+  init(int length) {
+    this.partIndices = [];
+    this.charIndices = [];
+    this.horizontalOffsets = [];
+    int i = 0;
+    while (i < length) {
+      this.partIndices.push(0);
+      this.charIndices.push(0);
+      this.horizontalOffsets.push(0);
+      i = i + 1;
+    }
+  }
+
+  void setColumnInfo(int column, int partIndex, int charIndex, int horizontalOffset) {
+    int index = column - 1;
+    if (index >= 0 && index < this.partIndices.length) {
+      this.partIndices[index] = partIndex;
+      this.charIndices[index] = charIndex;
+      this.horizontalOffsets[index] = horizontalOffset;
+    }
+  }
+
+  int getHorizontalOffset(int column) {
+    if (this.horizontalOffsets.length == 0) {
+      return 0;
+    }
+    int index = column - 1;
+    if (index < 0) {
+      index = 0;
+    }
+    if (index >= this.horizontalOffsets.length) {
+      index = this.horizontalOffsets.length - 1;
+    }
+    return this.horizontalOffsets[index];
+  }
+
+  DomPosition getDomPosition(int column) {
+    int index = column - 1;
+    if (index < 0) {
+      index = 0;
+    }
+    if (index >= this.partIndices.length) {
+      index = this.partIndices.length - 1;
+    }
+    if (index < 0) {
+      return new DomPosition(0, 0);
+    }
+    return new DomPosition(this.partIndices[index], this.charIndices[index]);
+  }
+
+  int getColumn(DomPosition position) {
+    int best = 0;
+    int bestDistance = 2147483647;
+    int i = 0;
+    while (i < this.partIndices.length) {
+      if (this.partIndices[i] == position.partIndex) {
+        int distance = this.charIndices[i] - position.charIndex;
+        if (distance < 0) {
+          distance = -distance;
+        }
+        if (distance < bestDistance) {
+          bestDistance = distance;
+          best = i;
+        }
+      }
+      i = i + 1;
+    }
+    return best + 1;
+  }
+}
+
+export class RenderLineOutput {
+  CharacterMapping characterMapping;
+  RenderedLinePart[] parts;
+  string html;
+  int containsForeignElements;
+  int renderedWidth;
+
+  init(CharacterMapping characterMapping, RenderedLinePart[] parts, string html, int containsForeignElements, int renderedWidth) {
+    this.characterMapping = characterMapping;
+    this.parts = parts;
+    this.html = html;
+    this.containsForeignElements = containsForeignElements;
+    this.renderedWidth = renderedWidth;
+  }
+}
+
+string escapeHtml(string text) {
+  string result = "";
+  int i = 0;
+  while (i < text.length) {
+    int code = text.charCodeAt(i);
+    if (code == 38) {
+      result = result + "&amp;";
+    } else {
+      if (code == 60) {
+        result = result + "&lt;";
+      } else {
+        if (code == 62) {
+          result = result + "&gt;";
+        } else {
+          result = result + sliceOf(text, i, i + 1);
+        }
+      }
+    }
+    i = i + 1;
+  }
+  return result;
+}
+
+string renderedCharacter(int code, int width, bool renderWhitespace, bool renderControlCharacters) {
+  if (code == 9) {
+    if (renderWhitespace) {
+      if (width > 1) {
+        return "→" + repeatChar(" ", width - 1);
+      }
+      return "→";
+    }
+    return repeatChar(" ", width);
+  }
+  if (code == 32 && renderWhitespace) {
+    return "·";
+  }
+  if (renderControlCharacters && code < 32) {
+    return stringFromCharCode1(9216 + code);
+  }
+  if (renderControlCharacters && code == 127) {
+    return stringFromCharCode1(9249);
+  }
+  if (code == 0 || code == 8232 || code == 8233 || code == 133 || code == 65279) {
+    return "�";
+  }
+  return stringFromCharCode1(code);
+}
+
+int renderedCharWidth(int code, int visibleColumn, int tabSize) {
+  if (code == 9) {
+    return tabSize - visibleColumn % tabSize;
+  }
+  if ((code >= 4352 && code <= 4447) || (code >= 11904 && code <= 42191) || (code >= 44032 && code <= 55203) || (code >= 63744 && code <= 64255) || (code >= 65072 && code <= 65376)) {
+    return 2;
+  }
+  return 1;
+}
+
+string classAtColumn(RenderLineInput input, int offset, string tokenClass) {
+  string result = tokenClass;
+  int column = offset + 1;
+  int i = 0;
+  while (i < input.lineDecorations.length) {
+    RenderDecoration decoration = input.lineDecorations[i];
+    if ((decoration.type == 0 || decoration.type == 3) && column >= decoration.startColumn && column < decoration.endColumn) {
+      if (result.length > 0) {
+        result = result + " ";
+      }
+      result = result + decoration.className;
+    }
+    i = i + 1;
+  }
+  return result;
+}
+
+void appendRenderedPart(RenderedLinePart[] parts, string text, string className, int width, int startColumn, int endColumn, int metadata) {
+  if (parts.length > 0) {
+    RenderedLinePart previous = parts[parts.length - 1];
+    if (previous.className == className && previous.endColumn == startColumn && previous.metadata == metadata) {
+      previous.text = previous.text + text;
+      previous.width = previous.width + width;
+      previous.endColumn = endColumn;
+      return;
+    }
+  }
+  parts.push(new RenderedLinePart(text, className, width, startColumn, endColumn, metadata));
+}
+
+void appendPseudoParts(RenderLineInput input, RenderedLinePart[] parts, int column, int type) {
+  int i = 0;
+  while (i < input.lineDecorations.length) {
+    RenderDecoration decoration = input.lineDecorations[i];
+    if (decoration.type == type) {
+      int target = decoration.startColumn;
+      if (type == 2) {
+        target = decoration.endColumn;
+      }
+      if (target == column) {
+        int metadata = 2;
+        if (type == 2) {
+          metadata = 4;
+        }
+        parts.push(new RenderedLinePart("", decoration.className, 0, column, column, metadata));
+      }
+    }
+    i = i + 1;
+  }
+}
+
+string partsToHtml(RenderedLinePart[] parts) {
+  string result = "<span>";
+  int i = 0;
+  while (i < parts.length) {
+    RenderedLinePart part = parts[i];
+    result = result + "<span class=\"" + part.className + "\"";
+    if (part.width > 0 && part.text.length == 0) {
+      result = result + " style=\"width:" + part.width.toString() + "ch\"";
+    }
+    result = result + ">" + escapeHtml(part.text) + "</span>";
+    i = i + 1;
+  }
+  return result + "</span>";
+}
+
+export RenderLineOutput renderViewLine2(RenderLineInput input) {
+  int length = input.lineContent.length;
+  bool overflowing = false;
+  if (input.stopRenderingLineAfter >= 0 && input.stopRenderingLineAfter < length) {
+    length = input.stopRenderingLineAfter;
+    overflowing = true;
+  }
+  RenderedLinePart[] parts = [];
+  CharacterMapping mapping = new CharacterMapping(length + 1);
+  int tokenIndex = 0;
+  int visibleColumn = input.startVisibleColumn;
+  int horizontalOffset = 0;
+  int offset = 0;
+  while (offset <= length) {
+    appendPseudoParts(input, parts, offset + 1, 1);
+    if (offset == length) {
+      appendPseudoParts(input, parts, offset + 1, 2);
+      int finalPart = parts.length - 1;
+      if (finalPart < 0) {
+        finalPart = 0;
+      }
+      mapping.setColumnInfo(offset + 1, finalPart, 0, horizontalOffset);
+      break;
+    }
+    while (tokenIndex + 1 < input.lineTokens.length && offset >= input.lineTokens[tokenIndex].endIndex) {
+      tokenIndex = tokenIndex + 1;
+    }
+    string tokenClass = "mtk1";
+    int metadata = 0;
+    if (input.lineTokens.length > 0) {
+      tokenClass = input.lineTokens[tokenIndex].className;
+      metadata = input.lineTokens[tokenIndex].metadata;
+    }
+    int code = input.lineContent.charCodeAt(offset);
+    int width = renderedCharWidth(code, visibleColumn, input.tabSize);
+    bool renderWhitespace = false;
+    if (input.renderWhitespace == 4) {
+      renderWhitespace = true;
+    }
+    if (input.renderWhitespace == 3 && (code == 32 || code == 9)) {
+      int check = offset;
+      renderWhitespace = true;
+      while (check < length) {
+        int checkCode = input.lineContent.charCodeAt(check);
+        if (checkCode != 32 && checkCode != 9) {
+          renderWhitespace = false;
+          break;
+        }
+        check = check + 1;
+      }
+    }
+    string text = renderedCharacter(code, width, renderWhitespace, input.renderControlCharacters);
+    string className = classAtColumn(input, offset, tokenClass);
+    int partIndex = parts.length;
+    if (parts.length > 0 && parts[parts.length - 1].className == className && parts[parts.length - 1].metadata == metadata && parts[parts.length - 1].endColumn == offset + 1) {
+      partIndex = parts.length - 1;
+    }
+    int charIndex = 0;
+    if (partIndex < parts.length) {
+      charIndex = parts[partIndex].text.length;
+    }
+    mapping.setColumnInfo(offset + 1, partIndex, charIndex, horizontalOffset);
+    appendRenderedPart(parts, text, className, width, offset + 1, offset + 2, metadata);
+    appendPseudoParts(input, parts, offset + 2, 2);
+    visibleColumn = visibleColumn + width;
+    horizontalOffset = horizontalOffset + width;
+    offset = offset + 1;
+  }
+  if (overflowing) {
+    parts.push(new RenderedLinePart("Show more", "mtkoverflow", 0, length + 1, length + 1, 0));
+  }
+  int foreignElements = 0;
+  int i = 0;
+  while (i < input.lineDecorations.length) {
+    if (input.lineDecorations[i].type == 1 || input.lineDecorations[i].type == 3) {
+      foreignElements = foreignElements | 1;
+    }
+    if (input.lineDecorations[i].type == 2) {
+      foreignElements = foreignElements | 2;
+    }
+    i = i + 1;
+  }
+  return new RenderLineOutput(mapping, parts, partsToHtml(parts), foreignElements, horizontalOffset);
+}
+
+export RenderLineOutput renderViewLine(RenderLineInput input) {
+  return renderViewLine2(input);
+}
+
+export RenderLineInput createRenderLineInput(string lineContent, RenderToken[] lineTokens, RenderDecoration[] lineDecorations, int tabSize = 4, int startVisibleColumn = 0, int stopRenderingLineAfter = -1, int renderWhitespace = 0, bool renderControlCharacters = false) {
+  return new RenderLineInput(lineContent, lineTokens, lineDecorations, tabSize, startVisibleColumn, stopRenderingLineAfter, renderWhitespace, renderControlCharacters);
+}
+
+export RenderToken createRenderToken(int endIndex, string className, int metadata = 0, bool containsRTL = false) {
+  return new RenderToken(endIndex, className, metadata, containsRTL);
+}
+
+export RenderDecoration createRenderDecoration(int startColumn, int endColumn, string className, int type = 0) {
+  return new RenderDecoration(startColumn, endColumn, className, type);
+}

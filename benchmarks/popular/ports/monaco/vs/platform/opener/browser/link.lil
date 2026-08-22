@@ -1,0 +1,15 @@
+export class Link {
+  string href;
+  string label;
+  bool enabled;
+
+  init(string href, string label) {
+    this.href = href;
+    this.label = label;
+    this.enabled = true;
+  }
+}
+
+export Link createLink(string href, string label) {
+  return new Link(href, label);
+}

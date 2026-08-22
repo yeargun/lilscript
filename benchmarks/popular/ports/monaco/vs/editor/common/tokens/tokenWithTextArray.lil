@@ -1,0 +1,90 @@
+import { sliceOf } from "../../../../js-host";
+import { OffsetRange } from "../core/ranges/offsetRange";
+import { LineTokens } from "./lineTokens";
+
+export class TokenWithTextInfo {
+  string text;
+  int metadata;
+
+  init(string text, int metadata) {
+    this.text = text;
+    this.metadata = metadata;
+  }
+}
+
+export class TokenWithTextArray {
+  TokenWithTextInfo[] tokenInfo;
+
+  init(TokenWithTextInfo[] tokenInfo) {
+    this.tokenInfo = tokenInfo;
+  }
+
+  LineTokens toLineTokens() {
+    int[] tokens = [];
+    string text = "";
+    int offset = 0;
+    int i = 0;
+    while (i < this.tokenInfo.length) {
+      TokenWithTextInfo info = this.tokenInfo[i];
+      text = text + info.text;
+      offset = offset + info.text.length;
+      tokens.push(offset);
+      tokens.push(info.metadata);
+      i = i + 1;
+    }
+    return new LineTokens(tokens, text);
+  }
+
+  TokenWithTextArray slice(OffsetRange range) {
+    TokenWithTextInfo[] result = [];
+    int offset = 0;
+    int i = 0;
+    while (i < this.tokenInfo.length) {
+      TokenWithTextInfo info = this.tokenInfo[i];
+      int tokenStart = offset;
+      int tokenEnd = tokenStart + info.text.length;
+      if (tokenEnd > range.start && tokenStart < range.endExclusive) {
+        int from = range.start - tokenStart;
+        if (from < 0) {
+          from = 0;
+        }
+        int to = range.endExclusive - tokenStart;
+        if (to > info.text.length) {
+          to = info.text.length;
+        }
+        result.push(new TokenWithTextInfo(sliceOf(info.text, from, to), info.metadata));
+      }
+      offset = tokenEnd;
+      i = i + 1;
+    }
+    return new TokenWithTextArray(result);
+  }
+
+  TokenWithTextArray append(TokenWithTextArray other) {
+    TokenWithTextInfo[] result = this.tokenInfo.slice();
+    int i = 0;
+    while (i < other.tokenInfo.length) {
+      result.push(other.tokenInfo[i]);
+      i = i + 1;
+    }
+    return new TokenWithTextArray(result);
+  }
+}
+
+export TokenWithTextArray tokenWithTextArrayFromLineTokens(LineTokens lineTokens) {
+  TokenWithTextInfo[] result = [];
+  int i = 0;
+  string content = lineTokens.getLineContent();
+  while (i < lineTokens.getCount()) {
+    result.push(new TokenWithTextInfo(
+      sliceOf(content, lineTokens.getStartOffset(i), lineTokens.getEndOffset(i)),
+      lineTokens.getMetadata(i)
+    ));
+    i = i + 1;
+  }
+  return new TokenWithTextArray(result);
+}
+
+export TokenWithTextArray createTokenWithTextArray(TokenWithTextInfo[] tokenInfo) {
+  return new TokenWithTextArray(tokenInfo);
+}

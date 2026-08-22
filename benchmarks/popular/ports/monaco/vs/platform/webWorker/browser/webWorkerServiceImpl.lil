@@ -1,0 +1,43 @@
+export class WebWorkerClient {
+  string id;
+  string[] inbox;
+  bool disposed;
+
+  init(string id) {
+    this.id = id;
+    this.inbox = [];
+    this.disposed = false;
+  }
+
+  void post(string msg) {
+    if (!this.disposed) {
+      this.inbox.push(msg);
+    }
+  }
+
+  void dispose() {
+    this.disposed = true;
+  }
+}
+
+export class WebWorkerServiceImpl {
+  WebWorkerClient[] clients;
+  int nextId;
+
+  init() {
+    this.clients = [];
+    this.nextId = 1;
+  }
+
+  WebWorkerClient create() {
+    string id = "w" + this.nextId.toString();
+    this.nextId = this.nextId + 1;
+    WebWorkerClient client = new WebWorkerClient(id);
+    this.clients.push(client);
+    return client;
+  }
+}
+
+export WebWorkerServiceImpl createWebWorkerServiceImpl() {
+  return new WebWorkerServiceImpl();
+}

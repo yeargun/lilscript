@@ -1,0 +1,378 @@
+import { sliceOf, concat2 } from "../../../../js-host";
+
+export class Selection {
+  int selectionStartLineNumber;
+  int selectionStartColumn;
+  int positionLineNumber;
+  int positionColumn;
+
+  init(int startLine, int startColumn, int positionLine, int positionColumn) {
+    this.selectionStartLineNumber = startLine;
+    this.selectionStartColumn = startColumn;
+    this.positionLineNumber = positionLine;
+    this.positionColumn = positionColumn;
+  }
+}
+
+export class TextChange {
+  int oldPosition;
+  string oldText;
+  int newPosition;
+  string newText;
+
+  init(int oldPosition, string oldText, int newPosition, string newText) {
+    this.oldPosition = oldPosition;
+    this.oldText = oldText;
+    this.newPosition = newPosition;
+    this.newText = newText;
+  }
+}
+
+export class IdentifiedEdit {
+  int start;
+  int end;
+  string text;
+  int identifier;
+
+  init(int start, int end, string text, int identifier) {
+    this.start = start;
+    this.end = end;
+    this.text = text;
+    this.identifier = identifier;
+  }
+}
+
+export class EditModel {
+  string uri;
+  string value;
+  string eol;
+  int alternativeVersionId;
+
+  init(string uri, string value, string eol) {
+    this.uri = uri;
+    this.value = value;
+    this.eol = eol;
+    this.alternativeVersionId = 1;
+  }
+
+  string replace(int start, int end, string text) {
+    string oldText = sliceOf(this.value, start, end);
+    this.value = concat2(concat2(sliceOf(this.value, 0, start), text), sliceOf(this.value, end, this.value.length));
+    this.alternativeVersionId = this.alternativeVersionId + 1;
+    return oldText;
+  }
+
+  void applyUndo(TextChange[] changes, string eol, int versionId) {
+    int i = changes.length - 1;
+    while (i >= 0) {
+      TextChange change = changes[i];
+      int end = change.newPosition + change.newText.length;
+      this.value = concat2(
+        concat2(sliceOf(this.value, 0, change.newPosition), change.oldText),
+        sliceOf(this.value, end, this.value.length)
+      );
+      i = i - 1;
+    }
+    this.eol = eol;
+    this.alternativeVersionId = versionId;
+  }
+
+  void applyRedo(TextChange[] changes, string eol, int versionId) {
+    int i = changes.length - 1;
+    while (i >= 0) {
+      TextChange change = changes[i];
+      int end = change.oldPosition + change.oldText.length;
+      this.value = concat2(
+        concat2(sliceOf(this.value, 0, change.oldPosition), change.newText),
+        sliceOf(this.value, end, this.value.length)
+      );
+      i = i - 1;
+    }
+    this.eol = eol;
+    this.alternativeVersionId = versionId;
+  }
+}
+
+export class SingleModelEditStackData {
+  int beforeVersionId;
+  int afterVersionId;
+  string beforeEOL;
+  string afterEOL;
+  Selection[] beforeCursorState;
+  Selection[] afterCursorState;
+  TextChange[] changes;
+
+  init(
+    int beforeVersionId,
+    int afterVersionId,
+    string beforeEOL,
+    string afterEOL,
+    Selection[] beforeCursorState,
+    Selection[] afterCursorState,
+    TextChange[] changes
+  ) {
+    this.beforeVersionId = beforeVersionId;
+    this.afterVersionId = afterVersionId;
+    this.beforeEOL = beforeEOL;
+    this.afterEOL = afterEOL;
+    this.beforeCursorState = beforeCursorState;
+    this.afterCursorState = afterCursorState;
+    this.changes = changes;
+  }
+
+  void append(
+    TextChange[] textChanges,
+    string afterEOL,
+    int afterVersionId,
+    Selection[] afterCursorState
+  ) {
+    int i = 0;
+    while (i < textChanges.length) {
+      this.changes.push(textChanges[i]);
+      i = i + 1;
+    }
+    this.afterEOL = afterEOL;
+    this.afterVersionId = afterVersionId;
+    this.afterCursorState = afterCursorState;
+  }
+}
+
+export class SingleModelEditStackElement {
+  string label;
+  string code;
+  EditModel model;
+  SingleModelEditStackData data;
+  bool openFlag;
+
+  init(string label, string code, EditModel model, Selection[] beforeCursorState) {
+    this.label = label;
+    this.code = code;
+    this.model = model;
+    this.data = new SingleModelEditStackData(
+      model.alternativeVersionId,
+      model.alternativeVersionId,
+      model.eol,
+      model.eol,
+      beforeCursorState,
+      beforeCursorState,
+      []
+    );
+    this.openFlag = true;
+  }
+
+  bool matchesResource(string resource) {
+    return this.model.uri == resource;
+  }
+
+  bool canAppend(EditModel model) {
+    return this.openFlag && this.model == model;
+  }
+
+  void append(TextChange[] changes, string afterEOL, int afterVersionId, Selection[] afterCursorState) {
+    this.data.append(changes, afterEOL, afterVersionId, afterCursorState);
+  }
+
+  void close() {
+    this.openFlag = false;
+  }
+
+  void open() {
+    this.openFlag = true;
+  }
+
+  void undo() {
+    this.model.applyUndo(this.data.changes, this.data.beforeEOL, this.data.beforeVersionId);
+  }
+
+  void redo() {
+    this.model.applyRedo(this.data.changes, this.data.afterEOL, this.data.afterVersionId);
+  }
+
+  int heapSize() {
+    int size = 168;
+    int i = 0;
+    while (i < this.data.changes.length) {
+      size = size + this.data.changes[i].oldText.length + this.data.changes[i].newText.length + 16;
+      i = i + 1;
+    }
+    return size;
+  }
+}
+
+export class MultiModelEditStackElement {
+  string label;
+  string code;
+  SingleModelEditStackElement[] elements;
+  bool openFlag;
+
+  init(string label, string code, SingleModelEditStackElement[] elements) {
+    this.label = label;
+    this.code = code;
+    this.elements = elements.slice();
+    this.openFlag = true;
+  }
+
+  bool matchesResource(string resource) {
+    int i = 0;
+    while (i < this.elements.length) {
+      if (this.elements[i].matchesResource(resource)) {
+        return true;
+      }
+      i = i + 1;
+    }
+    return false;
+  }
+
+  void close() {
+    this.openFlag = false;
+    int i = 0;
+    while (i < this.elements.length) {
+      this.elements[i].close();
+      i = i + 1;
+    }
+  }
+
+  void undo() {
+    this.openFlag = false;
+    int i = 0;
+    while (i < this.elements.length) {
+      this.elements[i].undo();
+      i = i + 1;
+    }
+  }
+
+  void redo() {
+    int i = 0;
+    while (i < this.elements.length) {
+      this.elements[i].redo();
+      i = i + 1;
+    }
+  }
+
+  SingleModelEditStackElement[] split() {
+    return this.elements.slice();
+  }
+}
+
+export class EditStack {
+  EditModel model;
+  SingleModelEditStackElement[] past;
+  SingleModelEditStackElement[] future;
+  SingleModelEditStackElement? current;
+
+  init(EditModel model) {
+    this.model = model;
+    this.past = [];
+    this.future = [];
+    this.current = null;
+  }
+
+  SingleModelEditStackElement getOrCreate(Selection[] beforeCursorState) {
+    SingleModelEditStackElement? element = this.current;
+    if (element != null && element.canAppend(this.model)) {
+      return element;
+    }
+    SingleModelEditStackElement created = new SingleModelEditStackElement(
+      "Typing",
+      "undoredo.textBufferEdit",
+      this.model,
+      beforeCursorState
+    );
+    this.past.push(created);
+    this.current = created;
+    this.future = [];
+    return created;
+  }
+
+  void pushStackElement() {
+    SingleModelEditStackElement? element = this.current;
+    if (element != null) {
+      element.close();
+    }
+    this.current = null;
+  }
+
+  void popStackElement() {
+    if (this.past.length > 0) {
+      SingleModelEditStackElement element = this.past[this.past.length - 1];
+      element.open();
+      this.current = element;
+    }
+  }
+
+  void clear() {
+    this.past = [];
+    this.future = [];
+    this.current = null;
+  }
+
+  void pushEOL(string eol) {
+    SingleModelEditStackElement element = this.getOrCreate([]);
+    this.model.eol = eol;
+    this.model.alternativeVersionId = this.model.alternativeVersionId + 1;
+    element.append([], eol, this.model.alternativeVersionId, []);
+  }
+
+  Selection[] pushEditOperation(Selection[] beforeCursorState, IdentifiedEdit[] editOperations) {
+    SingleModelEditStackElement element = this.getOrCreate(beforeCursorState);
+    TextChange[] changes = [];
+    int delta = 0;
+    int i = 0;
+    while (i < editOperations.length) {
+      IdentifiedEdit edit = editOperations[i];
+      int start = edit.start + delta;
+      string oldText = this.model.replace(start, edit.end + delta, edit.text);
+      changes.push(new TextChange(edit.start, oldText, start, edit.text));
+      delta = delta + edit.text.length - oldText.length;
+      i = i + 1;
+    }
+    element.append(changes, this.model.eol, this.model.alternativeVersionId, beforeCursorState);
+    return beforeCursorState;
+  }
+
+  bool canUndo() {
+    return this.past.length > 0;
+  }
+
+  bool canRedo() {
+    return this.future.length > 0;
+  }
+
+  void undo() {
+    if (this.past.length == 0) {
+      return;
+    }
+    SingleModelEditStackElement element = this.past[this.past.length - 1];
+    this.past.splice(this.past.length - 1, 1);
+    element.undo();
+    this.future.push(element);
+    this.current = null;
+  }
+
+  void redo() {
+    if (this.future.length == 0) {
+      return;
+    }
+    SingleModelEditStackElement element = this.future[this.future.length - 1];
+    this.future.splice(this.future.length - 1, 1);
+    element.redo();
+    this.past.push(element);
+    this.current = null;
+  }
+}
+
+export bool isEditStackElement(JsValue element) {
+  return element.truthy();
+}
+
+export EditModel createEditModel(string uri, string value, string eol) {
+  return new EditModel(uri, value, eol);
+}
+
+export EditStack createEditStack(EditModel model) {
+  return new EditStack(model);
+}
+
+export IdentifiedEdit createIdentifiedEdit(int start, int end, string text, int identifier) {
+  return new IdentifiedEdit(start, end, text, identifier);
+}

@@ -1,0 +1,14 @@
+export enum WorkbenchUIElementKind {
+  Button,
+  Toolbar,
+  Dropdown
+}
+
+export class WorkbenchUIElementFactory {
+  init() {
+  }
+}
+
+export WorkbenchUIElementFactory createWorkbenchUIElementFactory() {
+  return new WorkbenchUIElementFactory();
+}

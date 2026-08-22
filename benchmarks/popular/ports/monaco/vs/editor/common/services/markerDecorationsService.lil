@@ -1,0 +1,159 @@
+import { hostCall, jsUndefined } from "../../../../js-host";
+
+string uriKey(JsValue uri) {
+  if (uri == null) {
+    return "";
+  }
+  if (uri["path"] != null) {
+    string scheme = "";
+    if (uri["scheme"] != null) {
+      scheme = JS.string(uri["scheme"]);
+    }
+    return scheme + ":" + JS.string(uri["path"]);
+  }
+  return JS.string(uri);
+}
+
+JsValue markerDecoration(JsValue marker) {
+  int severity = 8;
+  if (marker["severity"] != null) {
+    severity = JS.number(marker["severity"]).toInt();
+  }
+  string className = "squiggly-error";
+  int zIndex = 30;
+  if (severity == 1) {
+    className = "squiggly-hint";
+    zIndex = 0;
+  } else if (severity == 2) {
+    className = "squiggly-info";
+    zIndex = 10;
+  } else if (severity == 4) {
+    className = "squiggly-warning";
+    zIndex = 20;
+  }
+  JsValue options = JS.object();
+  options["description"] = "marker-decoration";
+  options["className"] = className;
+  options["showIfCollapsed"] = true;
+  options["zIndex"] = zIndex;
+  JsValue decoration = JS.object();
+  decoration["range"] = marker;
+  decoration["options"] = options;
+  return decoration;
+}
+
+export class MarkerDecorations {
+  JsValue model;
+  JsValue[] markers;
+  string[] decorationIds;
+  Map<string, JsValue> markersByDecoration;
+
+  init(JsValue model) {
+    this.model = model;
+    this.markers = [];
+    this.decorationIds = [];
+    this.markersByDecoration = new Map();
+  }
+
+  bool update(JsValue[] nextMarkers) {
+    JsValue[] decorations = [];
+    int i = 0;
+    while (i < nextMarkers.length) {
+      decorations.push(markerDecoration(nextMarkers[i]));
+      i = i + 1;
+    }
+    JsValue idsValue = hostCall(this.model, "deltaDecorations", this.decorationIds, decorations, jsUndefined());
+    string[] nextIds = [];
+    this.markersByDecoration = new Map();
+    i = 0;
+    int idCount = JS.number(idsValue["length"]).toInt();
+    while (i < idCount) {
+      string id = JS.string(idsValue[i]);
+      nextIds.push(id);
+      if (i < nextMarkers.length) {
+        this.markersByDecoration.set(id, nextMarkers[i]);
+      }
+      i = i + 1;
+    }
+    bool changed = nextMarkers.length != this.markers.length;
+    this.markers = nextMarkers;
+    this.decorationIds = nextIds;
+    return changed;
+  }
+
+  JsValue getMarker(JsValue decoration) {
+    if (decoration == null || decoration["id"] == null) {
+      return null;
+    }
+    JsValue? marker = this.markersByDecoration.get(JS.string(decoration["id"]));
+    if (marker == null) {
+      return null;
+    }
+    return marker;
+  }
+}
+
+export class MarkerDecorationsService {
+  JsValue markerService;
+  Map<string, MarkerDecorations> decorations;
+  (func(JsValue)->void)[] listeners;
+
+  init(JsValue modelService, JsValue markerService) {
+    this.markerService = markerService;
+    this.decorations = new Map();
+    this.listeners = [];
+    JsValue models = hostCall(modelService, "getModels", jsUndefined(), jsUndefined(), jsUndefined());
+    int i = 0;
+    int length = JS.number(models["length"]).toInt();
+    while (i < length) {
+      this.addModel(models[i]);
+      i = i + 1;
+    }
+  }
+
+  void addModel(JsValue model) {
+    MarkerDecorations value = new MarkerDecorations(model);
+    this.decorations.set(uriKey(model["uri"]), value);
+    this.updateDecorations(value);
+  }
+
+  void removeModel(JsValue model) {
+    this.decorations.delete(uriKey(model["uri"]));
+  }
+
+  void updateDecorations(MarkerDecorations value) {
+    JsValue filter = JS.object();
+    filter["resource"] = value.model["uri"];
+    filter["take"] = 500;
+    JsValue raw = hostCall(this.markerService, "read", filter, jsUndefined(), jsUndefined());
+    JsValue[] markers = [];
+    int i = 0;
+    int length = JS.number(raw["length"]).toInt();
+    while (i < length) {
+      markers.push(raw[i]);
+      i = i + 1;
+    }
+    if (value.update(markers)) {
+      i = 0;
+      while (i < this.listeners.length) {
+        this.listeners[i](value.model);
+        i = i + 1;
+      }
+    }
+  }
+
+  JsValue getMarker(JsValue uri, JsValue decoration) {
+    MarkerDecorations? value = this.decorations.get(uriKey(uri));
+    if (value == null) {
+      return null;
+    }
+    return value.getMarker(decoration);
+  }
+}
+
+export MarkerDecorationsService createMarkerDecorationsService(
+  JsValue modelService,
+  JsValue markerService
+) {
+  return new MarkerDecorationsService(modelService, markerService);
+}

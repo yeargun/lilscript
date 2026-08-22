@@ -1,0 +1,23 @@
+export class InlineDiffDeletedCodeMargin {
+  int lineNumber;
+  int height;
+  bool copied;
+
+  init(int lineNumber, int height) {
+    this.lineNumber = lineNumber;
+    this.height = height;
+    this.copied = false;
+  }
+
+  void copy() {
+    this.copied = true;
+  }
+}
+
+export InlineDiffDeletedCodeMargin createInlineDiffDeletedCodeMargin(int lineNumber, int height) {
+  return new InlineDiffDeletedCodeMargin(lineNumber, height);
+}
+
+export int marginTop(int lineNumber, int lineHeight, int scrollTop) {
+  return (lineNumber - 1) * lineHeight - scrollTop;
+}

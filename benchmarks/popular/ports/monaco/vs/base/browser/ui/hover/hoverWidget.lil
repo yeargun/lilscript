@@ -1,0 +1,216 @@
+import { domCreateElement, appendChild, setClassName, classListAdd, classListRemove, setAttribute, setTextContent, setTabIndex, addEventListener, preventDefault, stopPropagation, eventKeyCode, jsUndefined, hostCall, imin, imax } from "../../../../../js-host";
+
+export enum HoverPosition {
+  LEFT,
+  RIGHT,
+  BELOW,
+  ABOVE
+}
+
+export class HoverLayoutBox {
+  int top;
+  int left;
+  int width;
+  int height;
+
+  init(int top, int left, int width, int height) {
+    this.top = top;
+    this.left = left;
+    this.width = width;
+    this.height = height;
+  }
+}
+
+export class HoverLayoutResult {
+  int top;
+  int left;
+  HoverPosition position;
+
+  init(int top, int left, HoverPosition position) {
+    this.top = top;
+    this.left = left;
+    this.position = position;
+  }
+}
+
+int clampInt(int value, int lo, int hi) {
+  if (value < lo) {
+    return lo;
+  }
+  if (value > hi) {
+    return hi;
+  }
+  return value;
+}
+
+export HoverLayoutResult layoutHover(HoverLayoutBox viewport, HoverLayoutBox hover, HoverLayoutBox target, HoverPosition requested, bool forcePosition) {
+  HoverPosition position = requested;
+  int top = 0;
+  int left = 0;
+  if (position == HoverPosition.ABOVE) {
+    top = target.top - hover.height;
+    left = target.left;
+    if (!forcePosition && top < viewport.top && target.top + target.height + hover.height <= viewport.top + viewport.height) {
+      position = HoverPosition.BELOW;
+      top = target.top + target.height;
+    }
+  } else if (position == HoverPosition.BELOW) {
+    top = target.top + target.height;
+    left = target.left;
+    if (!forcePosition && top + hover.height > viewport.top + viewport.height && target.top - hover.height >= viewport.top) {
+      position = HoverPosition.ABOVE;
+      top = target.top - hover.height;
+    }
+  } else if (position == HoverPosition.LEFT) {
+    top = target.top;
+    left = target.left - hover.width;
+    if (!forcePosition && left < viewport.left && target.left + target.width + hover.width <= viewport.left + viewport.width) {
+      position = HoverPosition.RIGHT;
+      left = target.left + target.width;
+    }
+  } else {
+    top = target.top;
+    left = target.left + target.width;
+    if (!forcePosition && left + hover.width > viewport.left + viewport.width && target.left - hover.width >= viewport.left) {
+      position = HoverPosition.LEFT;
+      left = target.left - hover.width;
+    }
+  }
+  if (forcePosition) {
+    if (position == HoverPosition.ABOVE || position == HoverPosition.BELOW) {
+      int maxHeight = 0;
+      if (position == HoverPosition.ABOVE) {
+        maxHeight = target.top - viewport.top;
+      } else {
+        maxHeight = viewport.top + viewport.height - (target.top + target.height);
+      }
+      if (hover.height > maxHeight && maxHeight > 0) {
+        hover.height = maxHeight;
+      }
+    }
+  }
+  top = clampInt(top, viewport.top, imax(viewport.top, viewport.top + viewport.height - hover.height));
+  left = clampInt(left, viewport.left, imax(viewport.left, viewport.left + viewport.width - hover.width));
+  return new HoverLayoutResult(top, left, position);
+}
+
+export class HoverWidget {
+  JsValue containerDomNode;
+  JsValue contentsDomNode;
+  JsValue scrollbarDomNode;
+  bool fadeIn;
+  bool disposed;
+
+  init(bool fadeIn) {
+    this.fadeIn = fadeIn;
+    this.disposed = false;
+    this.containerDomNode = domCreateElement("div");
+    setClassName(this.containerDomNode, "monaco-hover");
+    if (fadeIn) {
+      classListAdd(this.containerDomNode, "fade-in");
+    }
+    setTabIndex(this.containerDomNode, 0);
+    setAttribute(this.containerDomNode, "role", "tooltip");
+    this.contentsDomNode = domCreateElement("div");
+    setClassName(this.contentsDomNode, "monaco-hover-content");
+    this.scrollbarDomNode = this.contentsDomNode;
+    appendChild(this.containerDomNode, this.contentsDomNode);
+  }
+
+  void onContentsChanged() {
+  }
+
+  void dispose() {
+    this.disposed = true;
+    hostCall(this.containerDomNode, "remove", jsUndefined(), jsUndefined(), jsUndefined());
+  }
+}
+
+export class HoverAction {
+  string actionLabel;
+  string actionKeybindingLabel;
+  string actionRenderedLabel;
+  JsValue actionContainer;
+  JsValue action;
+  bool enabled;
+  func(JsValue)->void run;
+
+  init(JsValue parent, string label, string iconClass, string keybindingLabel, func(JsValue)->void run) {
+    this.actionLabel = label;
+    this.actionKeybindingLabel = keybindingLabel;
+    this.run = run;
+    this.enabled = true;
+    this.actionContainer = domCreateElement("div");
+    setClassName(this.actionContainer, "action-container");
+    setAttribute(this.actionContainer, "tabindex", "0");
+    this.action = domCreateElement("a");
+    setClassName(this.action, "action");
+    setAttribute(this.action, "role", "button");
+    if (iconClass.length > 0) {
+      JsValue iconElement = domCreateElement("span");
+      setClassName(iconElement, "icon " + iconClass);
+      appendChild(this.action, iconElement);
+    }
+    if (keybindingLabel.length > 0) {
+      this.actionRenderedLabel = label + " (" + keybindingLabel + ")";
+    } else {
+      this.actionRenderedLabel = label;
+    }
+    JsValue labelNode = domCreateElement("span");
+    setTextContent(labelNode, this.actionRenderedLabel);
+    appendChild(this.action, labelNode);
+    appendChild(this.actionContainer, this.action);
+    appendChild(parent, this.actionContainer);
+    HoverAction owner = this;
+    addEventListener(this.actionContainer, "click", (JsValue event) => {
+      stopPropagation(event);
+      preventDefault(event);
+      if (owner.enabled) {
+        owner.run(owner.actionContainer);
+      }
+    }, false);
+    addEventListener(this.actionContainer, "keydown", (JsValue event) => {
+      int key = eventKeyCode(event);
+      if (key == 13 || key == 32) {
+        stopPropagation(event);
+        preventDefault(event);
+        if (owner.enabled) {
+          owner.run(owner.actionContainer);
+        }
+      }
+    }, false);
+  }
+
+  void setEnabled(bool enabled) {
+    this.enabled = enabled;
+    if (enabled) {
+      classListRemove(this.actionContainer, "disabled");
+      hostCall(this.actionContainer, "removeAttribute", "aria-disabled", jsUndefined(), jsUndefined());
+    } else {
+      classListAdd(this.actionContainer, "disabled");
+      setAttribute(this.actionContainer, "aria-disabled", "true");
+    }
+  }
+}
+
+export string getHoverAccessibleViewHint(bool shouldHaveHint, string keybinding) {
+  if (shouldHaveHint && keybinding.length > 0) {
+    return "Inspect this in the accessible view with " + keybinding + ".";
+  }
+  if (shouldHaveHint) {
+    return "Inspect this in the accessible view via the command Open Accessible View which is currently not triggerable via keybinding.";
+  }
+  return "";
+}
+
+export HoverWidget createHoverWidget(bool fadeIn) {
+  return new HoverWidget(fadeIn);
+}
+
+export HoverAction createHoverAction(JsValue parent, string label, string iconClass, string keybindingLabel, func(JsValue)->void run) {
+  return new HoverAction(parent, label, iconClass, keybindingLabel, run);
+}
+
+export HoverLayoutBox createHoverLayoutBox(int top, int left, int width, int height) {
+  return new HoverLayoutBox(top, left, width, height);
+}

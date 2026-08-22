@@ -1,0 +1,483 @@
+import { sliceOf, concat2, replaceEol, newRegexp, regexExec, emptyBuf } from "../../../../../js-host";
+
+export class Position {
+  int lineNumber;
+  int column;
+
+  init(int lineNumber, int column) {
+    this.lineNumber = lineNumber;
+    this.column = column;
+  }
+}
+
+export class Range {
+  int startLineNumber;
+  int startColumn;
+  int endLineNumber;
+  int endColumn;
+
+  init(int startLineNumber, int startColumn, int endLineNumber, int endColumn) {
+    this.startLineNumber = startLineNumber;
+    this.startColumn = startColumn;
+    this.endLineNumber = endLineNumber;
+    this.endColumn = endColumn;
+  }
+}
+
+export class StringBuffer {
+  string buffer;
+  int[] lineStarts;
+
+  init(string buffer, int[] lineStarts) {
+    this.buffer = buffer;
+    this.lineStarts = lineStarts;
+  }
+}
+
+export class Piece {
+  int bufferIndex;
+  int startOffset;
+  int endOffset;
+  int lineFeedCnt;
+  int length;
+
+  init(int bufferIndex, int startOffset, int endOffset, int lineFeedCnt) {
+    this.bufferIndex = bufferIndex;
+    this.startOffset = startOffset;
+    this.endOffset = endOffset;
+    this.lineFeedCnt = lineFeedCnt;
+    this.length = endOffset - startOffset;
+  }
+}
+
+export class PieceNode {
+  Piece piece;
+  PieceNode? left;
+  PieceNode? right;
+  int subtreeLength;
+  int subtreeLineFeeds;
+  int color;
+
+  init(Piece piece) {
+    this.piece = piece;
+    this.left = null;
+    this.right = null;
+    this.subtreeLength = piece.length;
+    this.subtreeLineFeeds = piece.lineFeedCnt;
+    this.color = 0;
+  }
+}
+
+export int[] createLineStartsFast(string text) {
+  int[] starts = [0];
+  int i = 0;
+  while (i < text.length) {
+    int code = text.charCodeAt(i);
+    if (code == 13) {
+      if (i + 1 < text.length && text.charCodeAt(i + 1) == 10) {
+        i = i + 1;
+      }
+      starts.push(i + 1);
+    } else if (code == 10) {
+      starts.push(i + 1);
+    }
+    i = i + 1;
+  }
+  return starts;
+}
+
+int countLineFeeds(string text, int start, int end) {
+  int count = 0;
+  int i = start;
+  while (i < end) {
+    int code = text.charCodeAt(i);
+    if (code == 13) {
+      if (i + 1 < end && text.charCodeAt(i + 1) == 10) {
+        i = i + 1;
+      }
+      count = count + 1;
+    } else if (code == 10) {
+      count = count + 1;
+    }
+    i = i + 1;
+  }
+  return count;
+}
+
+export class PieceTreeBase {
+  StringBuffer[] buffers;
+  Piece[] pieces;
+  PieceNode? root;
+  string eol;
+  bool eolNormalized;
+  int length;
+  int lineCnt;
+
+  init(StringBuffer[] buffers, string eol, bool eolNormalized) {
+    this.buffers = buffers;
+    this.pieces = [];
+    this.root = null;
+    this.eol = eol;
+    this.eolNormalized = eolNormalized;
+    this.length = 0;
+    this.lineCnt = 1;
+    int i = 0;
+    while (i < buffers.length) {
+      string text = buffers[i].buffer;
+      if (text.length > 0) {
+        this.pieces.push(new Piece(i, 0, text.length, countLineFeeds(text, 0, text.length)));
+      }
+      i = i + 1;
+    }
+    this.rebuild();
+  }
+
+  PieceNode? buildTree(int start, int end) {
+    if (start >= end) {
+      return null;
+    }
+    int middle = start + ((end - start) / 2);
+    PieceNode node = new PieceNode(this.pieces[middle]);
+    node.left = this.buildTree(start, middle);
+    node.right = this.buildTree(middle + 1, end);
+    int leftLength = 0;
+    int leftFeeds = 0;
+    PieceNode? left = node.left;
+    if (left != null) {
+      leftLength = left.subtreeLength;
+      leftFeeds = left.subtreeLineFeeds;
+    }
+    int rightLength = 0;
+    int rightFeeds = 0;
+    PieceNode? right = node.right;
+    if (right != null) {
+      rightLength = right.subtreeLength;
+      rightFeeds = right.subtreeLineFeeds;
+    }
+    node.subtreeLength = leftLength + node.piece.length + rightLength;
+    node.subtreeLineFeeds = leftFeeds + node.piece.lineFeedCnt + rightFeeds;
+    return node;
+  }
+
+  void rebuild() {
+    this.length = 0;
+    int feeds = 0;
+    int i = 0;
+    while (i < this.pieces.length) {
+      this.length = this.length + this.pieces[i].length;
+      feeds = feeds + this.pieces[i].lineFeedCnt;
+      i = i + 1;
+    }
+    this.lineCnt = feeds + 1;
+    this.root = this.buildTree(0, this.pieces.length);
+  }
+
+  string pieceContent(Piece piece) {
+    return sliceOf(this.buffers[piece.bufferIndex].buffer, piece.startOffset, piece.endOffset);
+  }
+
+  string getLinesRawContent() {
+    string result = emptyBuf();
+    int i = 0;
+    while (i < this.pieces.length) {
+      result = concat2(result, this.pieceContent(this.pieces[i]));
+      i = i + 1;
+    }
+    return result;
+  }
+
+  string getValueInRange(Range range) {
+    int start = this.getOffsetAt(range.startLineNumber, range.startColumn);
+    int end = this.getOffsetAt(range.endLineNumber, range.endColumn);
+    return this.getValueBetweenOffsets(start, end);
+  }
+
+  string getValueBetweenOffsets(int start, int end) {
+    int from = start;
+    int to = end;
+    if (from < 0) {
+      from = 0;
+    }
+    if (to > this.length) {
+      to = this.length;
+    }
+    if (from >= to) {
+      return emptyBuf();
+    }
+    string result = emptyBuf();
+    int offset = 0;
+    int i = 0;
+    while (i < this.pieces.length && offset < to) {
+      Piece piece = this.pieces[i];
+      int pieceEnd = offset + piece.length;
+      if (pieceEnd > from && offset < to) {
+        int localStart = 0;
+        if (from > offset) {
+          localStart = from - offset;
+        }
+        int localEnd = piece.length;
+        if (to < pieceEnd) {
+          localEnd = to - offset;
+        }
+        result = concat2(
+          result,
+          sliceOf(this.buffers[piece.bufferIndex].buffer, piece.startOffset + localStart, piece.startOffset + localEnd)
+        );
+      }
+      offset = pieceEnd;
+      i = i + 1;
+    }
+    return result;
+  }
+
+  int getOffsetAt(int lineNumber, int column) {
+    if (lineNumber <= 1) {
+      int first = column - 1;
+      if (first < 0) {
+        return 0;
+      }
+      if (first > this.length) {
+        return this.length;
+      }
+      return first;
+    }
+    string text = this.getLinesRawContent();
+    int line = 1;
+    int offset = 0;
+    while (offset < text.length && line < lineNumber) {
+      int code = text.charCodeAt(offset);
+      if (code == 13) {
+        if (offset + 1 < text.length && text.charCodeAt(offset + 1) == 10) {
+          offset = offset + 1;
+        }
+        line = line + 1;
+      } else if (code == 10) {
+        line = line + 1;
+      }
+      offset = offset + 1;
+    }
+    int result = offset + column - 1;
+    if (result < offset) {
+      result = offset;
+    }
+    if (result > text.length) {
+      result = text.length;
+    }
+    return result;
+  }
+
+  Position getPositionAt(int requestedOffset) {
+    int end = requestedOffset;
+    if (end < 0) {
+      end = 0;
+    }
+    if (end > this.length) {
+      end = this.length;
+    }
+    string text = this.getLinesRawContent();
+    int line = 1;
+    int column = 1;
+    int i = 0;
+    while (i < end) {
+      int code = text.charCodeAt(i);
+      if (code == 13) {
+        if (i + 1 < end && text.charCodeAt(i + 1) == 10) {
+          i = i + 1;
+        }
+        line = line + 1;
+        column = 1;
+      } else if (code == 10) {
+        line = line + 1;
+        column = 1;
+      } else {
+        column = column + 1;
+      }
+      i = i + 1;
+    }
+    return new Position(line, column);
+  }
+
+  Piece subPiece(Piece piece, int localStart, int localEnd) {
+    int start = piece.startOffset + localStart;
+    int end = piece.startOffset + localEnd;
+    string buffer = this.buffers[piece.bufferIndex].buffer;
+    return new Piece(piece.bufferIndex, start, end, countLineFeeds(buffer, start, end));
+  }
+
+  void insert(int requestedOffset, string value) {
+    if (value.length == 0) {
+      return;
+    }
+    int at = requestedOffset;
+    if (at < 0) {
+      at = 0;
+    }
+    if (at > this.length) {
+      at = this.length;
+    }
+    int bufferIndex = this.buffers.length;
+    this.buffers.push(new StringBuffer(value, createLineStartsFast(value)));
+    Piece inserted = new Piece(bufferIndex, 0, value.length, countLineFeeds(value, 0, value.length));
+    Piece[] next = [];
+    int offset = 0;
+    bool didInsert = false;
+    int i = 0;
+    while (i < this.pieces.length) {
+      Piece piece = this.pieces[i];
+      int pieceEnd = offset + piece.length;
+      if (!didInsert && at <= pieceEnd) {
+        int local = at - offset;
+        if (local > 0) {
+          next.push(this.subPiece(piece, 0, local));
+        }
+        next.push(inserted);
+        if (local < piece.length) {
+          next.push(this.subPiece(piece, local, piece.length));
+        }
+        didInsert = true;
+      } else {
+        next.push(piece);
+      }
+      offset = pieceEnd;
+      i = i + 1;
+    }
+    if (!didInsert) {
+      next.push(inserted);
+    }
+    this.pieces = next;
+    this.rebuild();
+  }
+
+  void delete(int requestedOffset, int count) {
+    if (count <= 0 || this.pieces.length == 0) {
+      return;
+    }
+    int start = requestedOffset;
+    if (start < 0) {
+      start = 0;
+    }
+    int end = start + count;
+    if (end > this.length) {
+      end = this.length;
+    }
+    if (start >= end) {
+      return;
+    }
+    Piece[] next = [];
+    int offset = 0;
+    int i = 0;
+    while (i < this.pieces.length) {
+      Piece piece = this.pieces[i];
+      int pieceEnd = offset + piece.length;
+      if (pieceEnd <= start || offset >= end) {
+        next.push(piece);
+      } else {
+        if (start > offset) {
+          next.push(this.subPiece(piece, 0, start - offset));
+        }
+        if (end < pieceEnd) {
+          next.push(this.subPiece(piece, end - offset, piece.length));
+        }
+      }
+      offset = pieceEnd;
+      i = i + 1;
+    }
+    this.pieces = next;
+    this.rebuild();
+  }
+
+  string getLineContent(int lineNumber) {
+    int start = this.getOffsetAt(lineNumber, 1);
+    int end = this.length;
+    if (lineNumber < this.lineCnt) {
+      end = this.getOffsetAt(lineNumber + 1, 1);
+    }
+    string text = this.getValueBetweenOffsets(start, end);
+    while (text.length > 0) {
+      int code = text.charCodeAt(text.length - 1);
+      if (code == 10 || code == 13) {
+        text = sliceOf(text, 0, text.length - 1);
+      } else {
+        break;
+      }
+    }
+    return text;
+  }
+
+  int getLineLength(int lineNumber) {
+    return this.getLineContent(lineNumber).length;
+  }
+
+  int getLineCount() {
+    return this.lineCnt;
+  }
+
+  int getLength() {
+    return this.length;
+  }
+
+  string getEOL() {
+    return this.eol;
+  }
+
+  int[] findMatchesLineByLine(string searchString, bool isRegex, bool matchCase, bool wholeWord, int limit) {
+    int[] result = [];
+    if (searchString.length == 0 || limit <= 0) {
+      return result;
+    }
+    string source = searchString;
+    if (!isRegex) {
+      string escaped = emptyBuf();
+      int e = 0;
+      while (e < source.length) {
+        string ch = source.charAt(e);
+        if (
+          ch == "\\" || ch == "^" || ch == "$" || ch == "." || ch == "|" || ch == "?"
+          || ch == "*" || ch == "+" || ch == "(" || ch == ")" || ch == "[" || ch == "]"
+          || ch == "{" || ch == "}"
+        ) {
+          escaped = concat2(escaped, "\\");
+        }
+        escaped = concat2(escaped, ch);
+        e = e + 1;
+      }
+      source = escaped;
+    }
+    if (wholeWord) {
+      source = concat2(concat2("\\b(?:", source), ")\\b");
+    }
+    string flags = "g";
+    if (!matchCase) {
+      flags = "gi";
+    }
+    Regex regex = newRegexp(source, flags);
+    int line = 1;
+    while (line <= this.lineCnt && result.length < limit * 3) {
+      string text = this.getLineContent(line);
+      JsValue found = regexExec(regex, text);
+      while (found.truthy() && result.length < limit * 3) {
+        int index = JS.number(found["index"]).toInt();
+        string foundText = JS.string(found[0]);
+        result.push(line);
+        result.push(index + 1);
+        result.push(index + foundText.length + 1);
+        if (foundText.length == 0) {
+          break;
+        }
+        found = regexExec(regex, text);
+      }
+      line = line + 1;
+    }
+    return result;
+  }
+}
+
+export PieceTreeBase createPieceTree(string value, string eol) {
+  string text = replaceEol(value, eol);
+  StringBuffer buffer = new StringBuffer(text, createLineStartsFast(text));
+  return new PieceTreeBase([buffer], eol, true);
+}
+
+export Range createRange(int startLineNumber, int startColumn, int endLineNumber, int endColumn) {
+  return new Range(startLineNumber, startColumn, endLineNumber, endColumn);
+}

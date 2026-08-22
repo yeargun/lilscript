@@ -1,0 +1,344 @@
+export class OffsetRange {
+  int start;
+  int endExclusive;
+
+  init(int start, int endExclusive) {
+    this.start = start;
+    this.endExclusive = endExclusive;
+  }
+
+  int length() {
+    return this.endExclusive - this.start;
+  }
+
+  bool contains(int value) {
+    return this.start <= value && value < this.endExclusive;
+  }
+
+  bool isEmpty() {
+    return this.start >= this.endExclusive;
+  }
+
+  OffsetRange delta(int amount) {
+    return new OffsetRange(this.start + amount, this.endExclusive + amount);
+  }
+}
+
+export class FirstInvalidLine {
+  int lineNumber;
+  JsValue startState;
+
+  init(int lineNumber, JsValue startState) {
+    this.lineNumber = lineNumber;
+    this.startState = startState;
+  }
+}
+
+export class RangePriorityQueueImpl {
+  OffsetRange[] ranges;
+
+  init() {
+    this.ranges = [];
+  }
+
+  int min() {
+    if (this.ranges.length == 0) {
+      return 0;
+    }
+    return this.ranges[0].start;
+  }
+
+  bool hasMin() {
+    return this.ranges.length > 0;
+  }
+
+  void delete(int value) {
+    int index = -1;
+    int i = 0;
+    while (i < this.ranges.length) {
+      if (this.ranges[i].contains(value)) {
+        index = i;
+        break;
+      }
+      i = i + 1;
+    }
+    if (index < 0) {
+      return;
+    }
+    OffsetRange range = this.ranges[index];
+    OffsetRange[] next = [];
+    i = 0;
+    while (i < this.ranges.length) {
+      if (i != index) {
+        next.push(this.ranges[i]);
+      } else {
+        if (range.start < value) {
+          next.push(new OffsetRange(range.start, value));
+        }
+        if (value + 1 < range.endExclusive) {
+          next.push(new OffsetRange(value + 1, range.endExclusive));
+        }
+      }
+      i = i + 1;
+    }
+    this.ranges = next;
+  }
+
+  void addRange(OffsetRange range) {
+    if (range.isEmpty()) {
+      return;
+    }
+    OffsetRange[] result = [];
+    int start = range.start;
+    int end = range.endExclusive;
+    bool inserted = false;
+    int i = 0;
+    while (i < this.ranges.length) {
+      OffsetRange current = this.ranges[i];
+      if (current.endExclusive < start) {
+        result.push(current);
+      } else if (end < current.start) {
+        if (!inserted) {
+          result.push(new OffsetRange(start, end));
+          inserted = true;
+        }
+        result.push(current);
+      } else {
+        if (current.start < start) {
+          start = current.start;
+        }
+        if (current.endExclusive > end) {
+          end = current.endExclusive;
+        }
+      }
+      i = i + 1;
+    }
+    if (!inserted) {
+      result.push(new OffsetRange(start, end));
+    }
+    this.ranges = result;
+  }
+
+  void addRangeAndResize(OffsetRange range, int newLength) {
+    int delta = newLength - range.length();
+    OffsetRange[] result = [];
+    int i = 0;
+    while (i < this.ranges.length) {
+      OffsetRange current = this.ranges[i];
+      if (current.endExclusive <= range.start) {
+        result.push(current);
+      } else if (current.start >= range.endExclusive) {
+        result.push(current.delta(delta));
+      } else {
+        int start = current.start;
+        if (start > range.start) {
+          start = range.start;
+        }
+        int end = current.endExclusive + delta;
+        int replacementEnd = range.start + newLength;
+        if (end < replacementEnd) {
+          end = replacementEnd;
+        }
+        if (end > start) {
+          result.push(new OffsetRange(start, end));
+        }
+      }
+      i = i + 1;
+    }
+    this.ranges = [];
+    i = 0;
+    while (i < result.length) {
+      this.addRange(result[i]);
+      i = i + 1;
+    }
+    if (result.length == 0 && newLength > 0) {
+      this.addRange(new OffsetRange(range.start, range.start + newLength));
+    }
+  }
+}
+
+export class TokenizationStateStore {
+  JsValue[] lineEndStates;
+  bool[] hasState;
+
+  init() {
+    this.lineEndStates = [];
+    this.hasState = [];
+  }
+
+  JsValue getEndState(int lineNumber) {
+    if (lineNumber < 0 || lineNumber >= this.lineEndStates.length || !this.hasState[lineNumber]) {
+      return null;
+    }
+    return this.lineEndStates[lineNumber];
+  }
+
+  bool setEndState(int lineNumber, JsValue state) {
+    while (lineNumber >= this.lineEndStates.length) {
+      this.lineEndStates.push(null);
+      this.hasState.push(false);
+    }
+    if (this.hasState[lineNumber] && this.lineEndStates[lineNumber] == state) {
+      return false;
+    }
+    this.lineEndStates[lineNumber] = state;
+    this.hasState[lineNumber] = true;
+    return true;
+  }
+
+  void acceptChange(OffsetRange range, int newLineCount) {
+    int oldLength = range.length();
+    if (newLineCount > 0 && oldLength > 0) {
+      oldLength = oldLength - 1;
+      newLineCount = newLineCount - 1;
+    }
+    JsValue[] states = [];
+    bool[] presence = [];
+    int i = 0;
+    while (i < range.start && i < this.lineEndStates.length) {
+      states.push(this.lineEndStates[i]);
+      presence.push(this.hasState[i]);
+      i = i + 1;
+    }
+    int j = 0;
+    while (j < newLineCount) {
+      states.push(null);
+      presence.push(false);
+      j = j + 1;
+    }
+    i = range.start + oldLength;
+    while (i < this.lineEndStates.length) {
+      states.push(this.lineEndStates[i]);
+      presence.push(this.hasState[i]);
+      i = i + 1;
+    }
+    this.lineEndStates = states;
+    this.hasState = presence;
+  }
+}
+
+export class TrackingTokenizationStateStore {
+  int lineCount;
+  TokenizationStateStore tokenizationStateStore;
+  RangePriorityQueueImpl invalidEndStatesLineNumbers;
+
+  init(int lineCount) {
+    this.lineCount = lineCount;
+    this.tokenizationStateStore = new TokenizationStateStore();
+    this.invalidEndStatesLineNumbers = new RangePriorityQueueImpl();
+    this.invalidEndStatesLineNumbers.addRange(new OffsetRange(1, lineCount + 1));
+  }
+
+  JsValue getEndState(int lineNumber) {
+    return this.tokenizationStateStore.getEndState(lineNumber);
+  }
+
+  bool setEndState(int lineNumber, JsValue state) {
+    this.invalidEndStatesLineNumbers.delete(lineNumber);
+    bool changed = this.tokenizationStateStore.setEndState(lineNumber, state);
+    if (changed && lineNumber < this.lineCount) {
+      this.invalidEndStatesLineNumbers.addRange(new OffsetRange(lineNumber + 1, lineNumber + 2));
+    }
+    return changed;
+  }
+
+  void acceptChange(OffsetRange range, int newLineCount) {
+    this.lineCount = this.lineCount + newLineCount - range.length();
+    this.tokenizationStateStore.acceptChange(range, newLineCount);
+    this.invalidEndStatesLineNumbers.addRangeAndResize(range, newLineCount);
+  }
+
+  void invalidateEndStateRange(OffsetRange range) {
+    this.invalidEndStatesLineNumbers.addRange(range);
+  }
+
+  int getFirstInvalidEndStateLineNumber() {
+    return this.invalidEndStatesLineNumbers.min();
+  }
+
+  int getFirstInvalidEndStateLineNumberOrMax() {
+    if (!this.invalidEndStatesLineNumbers.hasMin()) {
+      return 2147483647;
+    }
+    return this.invalidEndStatesLineNumbers.min();
+  }
+
+  bool allStatesValid() {
+    return !this.invalidEndStatesLineNumbers.hasMin();
+  }
+
+  JsValue getStartState(int lineNumber, JsValue initialState) {
+    if (lineNumber == 1) {
+      return initialState;
+    }
+    return this.getEndState(lineNumber - 1);
+  }
+
+  FirstInvalidLine? getFirstInvalidLine(JsValue initialState) {
+    if (!this.invalidEndStatesLineNumbers.hasMin()) {
+      return null;
+    }
+    int lineNumber = this.invalidEndStatesLineNumbers.min();
+    JsValue state = this.getStartState(lineNumber, initialState);
+    if (!state.truthy()) {
+      return null;
+    }
+    return new FirstInvalidLine(lineNumber, state);
+  }
+}
+
+export class TokenizerWithStateStore {
+  JsValue initialState;
+  TrackingTokenizationStateStore store;
+
+  init(int lineCount, JsValue initialState) {
+    this.initialState = initialState;
+    this.store = new TrackingTokenizationStateStore(lineCount);
+  }
+
+  JsValue getStartState(int lineNumber) {
+    return this.store.getStartState(lineNumber, this.initialState);
+  }
+
+  FirstInvalidLine? getFirstInvalidLine() {
+    return this.store.getFirstInvalidLine(this.initialState);
+  }
+}
+
+export class DefaultBackgroundTokenizer {
+  TokenizerWithStateStore tokenizer;
+  bool disposed;
+  bool scheduled;
+
+  init(TokenizerWithStateStore tokenizer) {
+    this.tokenizer = tokenizer;
+    this.disposed = false;
+    this.scheduled = false;
+  }
+
+  void dispose() {
+    this.disposed = true;
+  }
+
+  bool hasLinesToTokenize() {
+    return !this.disposed && !this.tokenizer.store.allStatesValid();
+  }
+
+  void requestTokens(int startLineNumber, int endLineNumberExclusive) {
+    this.tokenizer.store.invalidateEndStateRange(
+      new OffsetRange(startLineNumber, endLineNumberExclusive)
+    );
+  }
+}
+
+export RangePriorityQueueImpl createRangePriorityQueue() {
+  return new RangePriorityQueueImpl();
+}
+
+export TrackingTokenizationStateStore createTrackingTokenizationStateStore(int lineCount) {
+  return new TrackingTokenizationStateStore(lineCount);
+}
+
+export TokenizerWithStateStore createTokenizerWithStateStore(int lineCount, JsValue initialState) {
+  return new TokenizerWithStateStore(lineCount, initialState);
+}

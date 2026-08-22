@@ -1,0 +1,40 @@
+export class OverviewRulerZone {
+  int startLineNumber;
+  int endLineNumber;
+  string color;
+
+  init(int startLineNumber, int endLineNumber, string color) {
+    this.startLineNumber = startLineNumber;
+    this.endLineNumber = endLineNumber;
+    this.color = color;
+  }
+}
+
+export OverviewRulerZone[] overviewZonesForDiff(int origStart, int origEndEx, int modStart, int modEndEx) {
+  OverviewRulerZone[] out = [];
+  if (origEndEx > origStart) {
+    out.push(new OverviewRulerZone(origStart, origEndEx - 1, "diffOverviewRulerRemoved"));
+  }
+  if (modEndEx > modStart) {
+    out.push(new OverviewRulerZone(modStart, modEndEx - 1, "diffOverviewRulerInserted"));
+  }
+  return out;
+}
+
+export class OverviewRulerFeature {
+  OverviewRulerZone[] zones;
+  int width;
+
+  init(int width) {
+    this.zones = [];
+    this.width = width;
+  }
+
+  void setZones(OverviewRulerZone[] zones) {
+    this.zones = zones;
+  }
+}
+
+export OverviewRulerFeature createOverviewRulerFeature(int width) {
+  return new OverviewRulerFeature(width);
+}

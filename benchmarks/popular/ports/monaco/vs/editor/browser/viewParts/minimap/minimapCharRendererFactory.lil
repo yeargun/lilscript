@@ -1,0 +1,107 @@
+int SAMPLED_CHAR_HEIGHT = 16;
+int SAMPLED_CHAR_WIDTH = 10;
+int BASE_CHAR_WIDTH = 1;
+int BASE_CHAR_HEIGHT = 2;
+int RGBA_CHANNELS = 4;
+int CHAR_COUNT = 96;
+int RGBA_SAMPLED_ROW_WIDTH = 3840;
+
+int toUint8(float value) {
+  if (value < 0.0) {
+    return 0;
+  }
+  if (value > 255.0) {
+    return 255;
+  }
+  return value.round().toInt();
+}
+
+float fmax(float a, float b) {
+  if (a > b) {
+    return a;
+  }
+  return b;
+}
+
+float downsampleChar(Uint8ClampedArray source, int sourceOffset, Uint8ClampedArray dest, int destOffset, int scale) {
+  int width = BASE_CHAR_WIDTH * scale;
+  int height = BASE_CHAR_HEIGHT * scale;
+  int targetIndex = destOffset;
+  float brightest = 0.0;
+  int y = 0;
+  while (y < height) {
+    float sourceY1 = (y * 1.0 / height) * SAMPLED_CHAR_HEIGHT;
+    float sourceY2 = ((y + 1) * 1.0 / height) * SAMPLED_CHAR_HEIGHT;
+    int x = 0;
+    while (x < width) {
+      float sourceX1 = (x * 1.0 / width) * SAMPLED_CHAR_WIDTH;
+      float sourceX2 = ((x + 1) * 1.0 / width) * SAMPLED_CHAR_WIDTH;
+      float value = 0.0;
+      float samples = 0.0;
+      float sy = sourceY1;
+      while (sy < sourceY2) {
+        int sourceRow = sourceOffset + sy.floor().toInt() * RGBA_SAMPLED_ROW_WIDTH;
+        float yBalance = 1.0 - (sy - sy.floor());
+        float sx = sourceX1;
+        while (sx < sourceX2) {
+          float xBalance = 1.0 - (sx - sx.floor());
+          int sourceIndex = sourceRow + sx.floor().toInt() * RGBA_CHANNELS;
+          float weight = xBalance * yBalance;
+          samples = samples + weight;
+          if (sourceIndex >= 0 && sourceIndex + 3 < source.length) {
+            value = value + ((source[sourceIndex] * 1.0 * source[sourceIndex + 3] * 1.0) / 255.0) * weight;
+          }
+          sx = sx + 1.0;
+        }
+        sy = sy + 1.0;
+      }
+      float final = 0.0;
+      if (samples > 0.0) {
+        final = value / samples;
+      }
+      brightest = fmax(brightest, final);
+      dest[targetIndex] = toUint8(final);
+      targetIndex = targetIndex + 1;
+      x = x + 1;
+    }
+    y = y + 1;
+  }
+  return brightest;
+}
+
+export Uint8ClampedArray downsample(Uint8ClampedArray data, int scale) {
+  int pixelsPerCharacter = BASE_CHAR_HEIGHT * scale * BASE_CHAR_WIDTH * scale;
+  int resultLen = pixelsPerCharacter * CHAR_COUNT;
+  Uint8ClampedArray result = new Uint8ClampedArray(resultLen);
+  int resultOffset = 0;
+  int sourceOffset = 0;
+  float brightest = 0.0;
+  int charIndex = 0;
+  while (charIndex < CHAR_COUNT) {
+    brightest = fmax(brightest, downsampleChar(data, sourceOffset, result, resultOffset, scale));
+    resultOffset = resultOffset + pixelsPerCharacter;
+    sourceOffset = sourceOffset + SAMPLED_CHAR_WIDTH * RGBA_CHANNELS;
+    charIndex = charIndex + 1;
+  }
+  if (brightest > 0.0) {
+    float adjust = 255.0 / brightest;
+    int i = 0;
+    while (i < resultLen) {
+      result[i] = toUint8(result[i] * 1.0 * adjust);
+      i = i + 1;
+    }
+  }
+  return result;
+}
+
+export int expectedSampleLength() {
+  return SAMPLED_CHAR_HEIGHT * SAMPLED_CHAR_WIDTH * RGBA_CHANNELS * CHAR_COUNT;
+}
+
+export Uint8ClampedArray createFromSampleData(Uint8ClampedArray source, int scale) {
+  int expected = expectedSampleLength();
+  if (source.length != expected) {
+    return new Uint8ClampedArray(BASE_CHAR_HEIGHT * scale * BASE_CHAR_WIDTH * scale * CHAR_COUNT);
+  }
+  return downsample(source, scale);
+}

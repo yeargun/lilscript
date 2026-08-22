@@ -1,0 +1,14 @@
+export bool canUseGpu(bool configured, bool supported) {
+  return configured && supported;
+}
+
+export int gpuAtlasSize(int devicePixelRatio) {
+  int size = 1024 * devicePixelRatio;
+  if (size < 1024) {
+    return 1024;
+  }
+  if (size > 4096) {
+    return 4096;
+  }
+  return size;
+}

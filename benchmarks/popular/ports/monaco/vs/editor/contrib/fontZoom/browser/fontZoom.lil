@@ -1,0 +1,16 @@
+export int FONT_ZOOM_DEFAULT = 0;
+
+export int nextFontZoom(int current, int delta) {
+  int next = current + delta;
+  if (next < -5) {
+    return -5;
+  }
+  if (next > 15) {
+    return 15;
+  }
+  return next;
+}
+
+export int resetFontZoom() {
+  return FONT_ZOOM_DEFAULT;
+}

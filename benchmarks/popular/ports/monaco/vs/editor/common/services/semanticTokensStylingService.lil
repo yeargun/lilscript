@@ -1,0 +1,40 @@
+import { hostCall, jsUndefined } from "../../../../js-host";
+import { SemanticTokensProviderStyling } from "./semanticTokensProviderStyling";
+
+export class SemanticTokensStylingService {
+  JsValue themeService;
+  JsValue languageService;
+  Map<JsValue, SemanticTokensProviderStyling> caches;
+
+  init(JsValue themeService = null, JsValue languageService = null) {
+    this.themeService = themeService;
+    this.languageService = languageService;
+    this.caches = new Map();
+  }
+
+  SemanticTokensProviderStyling getStyling(JsValue provider) {
+    SemanticTokensProviderStyling? current = this.caches.get(provider);
+    if (current != null) {
+      return current;
+    }
+    JsValue legend = hostCall(provider, "getLegend", jsUndefined(), jsUndefined(), jsUndefined());
+    SemanticTokensProviderStyling created = new SemanticTokensProviderStyling(
+      legend,
+      this.themeService,
+      this.languageService
+    );
+    this.caches.set(provider, created);
+    return created;
+  }
+
+  void clearCaches() {
+    this.caches = new Map();
+  }
+}
+
+export SemanticTokensStylingService createSemanticTokensStylingService(
+  JsValue themeService = null,
+  JsValue languageService = null
+) {
+  return new SemanticTokensStylingService(themeService, languageService);
+}

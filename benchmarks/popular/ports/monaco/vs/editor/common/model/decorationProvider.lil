@@ -1,0 +1,56 @@
+import { concat2 } from "../../../../js-host";
+
+export class LineHeightChangingDecoration {
+  int ownerId;
+  string decorationId;
+  int lineNumber;
+  int lineHeight;
+
+  init(int ownerId, string decorationId, int lineNumber, int lineHeight) {
+    this.ownerId = ownerId;
+    this.decorationId = decorationId;
+    this.lineNumber = lineNumber;
+    this.lineHeight = lineHeight;
+  }
+}
+
+export class LineFontChangingDecoration {
+  int ownerId;
+  string decorationId;
+  int lineNumber;
+
+  init(int ownerId, string decorationId, int lineNumber) {
+    this.ownerId = ownerId;
+    this.decorationId = decorationId;
+    this.lineNumber = lineNumber;
+  }
+}
+
+export string lineHeightDecorationKey(LineHeightChangingDecoration decoration) {
+  return concat2(
+    concat2(
+      concat2(decoration.ownerId.toString(), ";"),
+      concat2(decoration.decorationId, ";")
+    ),
+    decoration.lineNumber.toString()
+  );
+}
+
+export string lineFontDecorationKey(LineFontChangingDecoration decoration) {
+  return concat2(
+    concat2(
+      concat2(decoration.ownerId.toString(), ";"),
+      concat2(decoration.decorationId, ";")
+    ),
+    decoration.lineNumber.toString()
+  );
+}
+
+export LineHeightChangingDecoration createLineHeightChangingDecoration(
+  int ownerId,
+  string decorationId,
+  int lineNumber,
+  int lineHeight
+) {
+  return new LineHeightChangingDecoration(ownerId, decorationId, lineNumber, lineHeight);
+}

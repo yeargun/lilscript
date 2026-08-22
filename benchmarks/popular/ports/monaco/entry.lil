@@ -115,10 +115,25 @@ import { KeyCode, KeyModCtrl, KeyModShift, KeyModAlt, KeyModWinCtrl } from "./ba
 import { MarkerSeverityError, MarkerSeverityWarning, MarkerSeverityInfo, MarkerSeverityHint } from "./editor/markers";
 import { Uri, parseUri, fileUri } from "./base/uri";
 import { tokenizeText, Token, Lexer, tokenTypes } from "./editor/monarch";
+import { monarchLexerTokenize } from "./editor/monarch-lexer";
+import { PrefixSumComputer, createPrefixSumComputer } from "./editor/prefix-sum";
+import { PieceTreeTextBuffer, createPieceTreeTextBuffer } from "./editor/piece-tree-buffer";
+import { localize } from "./base/nls";
+import { liftPosition, isIPosition } from "./base/position";
+import { liftRange, isIRange } from "./base/range";
+import { selectionAsRange, liftSelection } from "./base/selection";
+import { decoMetadata } from "./editor/interval-tree";
+import { CompletionItemKindMethod, SelectionDirectionLTR } from "./editor/standalone-enums";
+import { installMonaco, monacoApi } from "./editor/monaco-api";
 
 export void bootLanguages() {
   registerPopularLanguages();
   registerRemainingLanguages();
+}
+
+export JsValue bootMonaco() {
+  bootLanguages();
+  return installMonaco();
 }
 
 export Token[] tokenize(string languageId, string text) {
@@ -262,5 +277,22 @@ export {
   MarkerSeverityHint,
   Uri,
   parseUri,
-  fileUri
+  fileUri,
+  monarchLexerTokenize,
+  PrefixSumComputer,
+  createPrefixSumComputer,
+  PieceTreeTextBuffer,
+  createPieceTreeTextBuffer,
+  localize,
+  liftPosition,
+  isIPosition,
+  liftRange,
+  isIRange,
+  selectionAsRange,
+  liftSelection,
+  decoMetadata,
+  CompletionItemKindMethod,
+  SelectionDirectionLTR,
+  installMonaco,
+  monacoApi
 };

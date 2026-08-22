@@ -1,0 +1,126 @@
+import { PieceTreeBase, createPieceTree } from "./piece-tree";
+import { Pos } from "../base/position";
+import { Rng, createRange } from "../base/range";
+import { emptyBuf, concat2 } from "../js-host";
+
+export class PieceTreeTextBuffer {
+  PieceTreeBase tree;
+  string bom;
+  bool mightContainRTLFlag;
+  bool mightContainUnusualLineTerminatorsFlag;
+  bool mightContainNonBasicASCII;
+
+  init(PieceTreeBase tree, string bom, bool containsRTL, bool unusual, bool isBasicASCII) {
+    this.tree = tree;
+    this.bom = bom;
+    this.mightContainRTLFlag = containsRTL;
+    this.mightContainUnusualLineTerminatorsFlag = unusual;
+    this.mightContainNonBasicASCII = !isBasicASCII;
+  }
+
+  bool mightContainRTL() {
+    return this.mightContainRTLFlag;
+  }
+
+  bool mightContainUnusualLineTerminators() {
+    return this.mightContainUnusualLineTerminatorsFlag;
+  }
+
+  void resetMightContainUnusualLineTerminators() {
+    this.mightContainUnusualLineTerminatorsFlag = false;
+  }
+
+  bool mightContainNonBasicASCIIValue() {
+    return this.mightContainNonBasicASCII;
+  }
+
+  string getBOM() {
+    return this.bom;
+  }
+
+  string getEOL() {
+    return this.tree.getEOL();
+  }
+
+  void setEOL(string eol) {
+    this.tree = createPieceTree(this.tree.getLinesRawContent(), eol);
+  }
+
+  int getOffsetAt(int lineNumber, int column) {
+    return this.tree.getOffsetAt(lineNumber, column);
+  }
+
+  Pos getPositionAt(int offset) {
+    return this.tree.getPositionAt(offset);
+  }
+
+  Rng getRangeAt(int start, int length) {
+    Pos startPos = this.tree.getPositionAt(start);
+    Pos endPos = this.tree.getPositionAt(start + length);
+    return createRange(startPos.lineNumber, startPos.column, endPos.lineNumber, endPos.column);
+  }
+
+  string getValueInRange(Rng range) {
+    if (range.startLineNumber == range.endLineNumber && range.startColumn == range.endColumn) {
+      return emptyBuf();
+    }
+    return this.tree.getValueInRange(range);
+  }
+
+  int getValueLengthInRange(Rng range) {
+    if (range.startLineNumber == range.endLineNumber && range.startColumn == range.endColumn) {
+      return 0;
+    }
+    if (range.startLineNumber == range.endLineNumber) {
+      return range.endColumn - range.startColumn;
+    }
+    int start = this.getOffsetAt(range.startLineNumber, range.startColumn);
+    int end = this.getOffsetAt(range.endLineNumber, range.endColumn);
+    return end - start;
+  }
+
+  int getLineCount() {
+    return this.tree.getLineCount();
+  }
+
+  int getLength() {
+    return this.tree.getLength();
+  }
+
+  string getLinesRawContent() {
+    return this.tree.getLinesRawContent();
+  }
+
+  string getLineContent(int lineNumber) {
+    return this.tree.getLineContent(lineNumber);
+  }
+
+  int getLineLength(int lineNumber) {
+    return this.tree.getLineLength(lineNumber);
+  }
+
+  void insert(int offset, string value) {
+    this.tree.insert(offset, value);
+  }
+
+  void delete(int offset, int cnt) {
+    this.tree.delete(offset, cnt);
+  }
+
+  PieceTreeBase getPieceTree() {
+    return this.tree;
+  }
+
+  string snapshot(bool preserveBOM) {
+    if (preserveBOM) {
+      return concat2(this.bom, this.tree.getLinesRawContent());
+    }
+    return this.tree.getLinesRawContent();
+  }
+}
+
+export PieceTreeTextBuffer createPieceTreeTextBuffer(string value, string eol) {
+  return new PieceTreeTextBuffer(createPieceTree(value, eol), emptyBuf(), false, false, true);
+}
+
+export { PieceTreeBase, Rng, Pos };

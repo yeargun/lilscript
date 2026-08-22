@@ -1,0 +1,693 @@
+import { sliceOf, emptyBuf, concat2 } from "../../../js-host";
+
+int nmax(int a, int b) {
+  if (a > b) {
+    return a;
+  }
+  return b;
+}
+
+int nmin(int a, int b) {
+  if (a < b) {
+    return a;
+  }
+  return b;
+}
+
+export class CursorState {
+  int positionLineNumber;
+  int positionColumn;
+  int selectionStartLineNumber;
+  int selectionStartColumn;
+
+  init(int selectionStartLineNumber, int selectionStartColumn, int positionLineNumber, int positionColumn) {
+    this.selectionStartLineNumber = selectionStartLineNumber;
+    this.selectionStartColumn = selectionStartColumn;
+    this.positionLineNumber = positionLineNumber;
+    this.positionColumn = positionColumn;
+  }
+
+  bool isEmpty() {
+    return this.selectionStartLineNumber == this.positionLineNumber && this.selectionStartColumn == this.positionColumn;
+  }
+
+  int startLineNumber() {
+    if (this.selectionStartLineNumber < this.positionLineNumber) {
+      return this.selectionStartLineNumber;
+    }
+    if (this.selectionStartLineNumber > this.positionLineNumber) {
+      return this.positionLineNumber;
+    }
+    if (this.selectionStartColumn < this.positionColumn) {
+      return this.selectionStartLineNumber;
+    }
+    return this.positionLineNumber;
+  }
+
+  int startColumn() {
+    if (this.selectionStartLineNumber < this.positionLineNumber) {
+      return this.selectionStartColumn;
+    }
+    if (this.selectionStartLineNumber > this.positionLineNumber) {
+      return this.positionColumn;
+    }
+    if (this.selectionStartColumn < this.positionColumn) {
+      return this.selectionStartColumn;
+    }
+    return this.positionColumn;
+  }
+
+  int endLineNumber() {
+    if (this.selectionStartLineNumber < this.positionLineNumber) {
+      return this.positionLineNumber;
+    }
+    if (this.selectionStartLineNumber > this.positionLineNumber) {
+      return this.selectionStartLineNumber;
+    }
+    if (this.selectionStartColumn < this.positionColumn) {
+      return this.positionLineNumber;
+    }
+    return this.selectionStartLineNumber;
+  }
+
+  int endColumn() {
+    if (this.selectionStartLineNumber < this.positionLineNumber) {
+      return this.positionColumn;
+    }
+    if (this.selectionStartLineNumber > this.positionLineNumber) {
+      return this.selectionStartColumn;
+    }
+    if (this.selectionStartColumn < this.positionColumn) {
+      return this.positionColumn;
+    }
+    return this.selectionStartColumn;
+  }
+}
+
+export class TypeResult {
+  string[] lines;
+  CursorState cursor;
+
+  init(string[] lines, CursorState cursor) {
+    this.lines = lines;
+    this.cursor = cursor;
+  }
+}
+
+export class CommandIds {
+  init() {
+  }
+}
+
+int lineCountOf(string[] lines) {
+  if (lines.length == 0) {
+    return 1;
+  }
+  return lines.length;
+}
+
+int lineLengthOf(string[] lines, int lineNumber) {
+  int idx = lineNumber - 1;
+  if (idx < 0 || idx >= lines.length) {
+    return 0;
+  }
+  return lines[idx].length;
+}
+
+CursorState clampCursor(CursorState state, string[] lines) {
+  int linesN = lineCountOf(lines);
+  int line = state.positionLineNumber;
+  if (line < 1) {
+    line = 1;
+  }
+  if (line > linesN) {
+    line = linesN;
+  }
+  int maxCol = lineLengthOf(lines, line) + 1;
+  int col = state.positionColumn;
+  if (col < 1) {
+    col = 1;
+  }
+  if (col > maxCol) {
+    col = maxCol;
+  }
+  int sl = state.selectionStartLineNumber;
+  if (sl < 1) {
+    sl = 1;
+  }
+  if (sl > linesN) {
+    sl = linesN;
+  }
+  int sMax = lineLengthOf(lines, sl) + 1;
+  int sc = state.selectionStartColumn;
+  if (sc < 1) {
+    sc = 1;
+  }
+  if (sc > sMax) {
+    sc = sMax;
+  }
+  return new CursorState(sl, sc, line, col);
+}
+
+CursorState moveTo(CursorState state, int line, int column, bool select) {
+  if (select) {
+    return new CursorState(state.selectionStartLineNumber, state.selectionStartColumn, line, column);
+  }
+  return new CursorState(line, column, line, column);
+}
+
+export CursorState cursorLeft(CursorState state, string[] lines, bool select) {
+  CursorState cur = clampCursor(state, lines);
+  int line = cur.positionLineNumber;
+  int col = cur.positionColumn;
+  if (col > 1) {
+    col = col - 1;
+  } else if (line > 1) {
+    line = line - 1;
+    col = lineLengthOf(lines, line) + 1;
+  }
+  return clampCursor(moveTo(cur, line, col, select), lines);
+}
+
+export CursorState cursorRight(CursorState state, string[] lines, bool select) {
+  CursorState cur = clampCursor(state, lines);
+  int line = cur.positionLineNumber;
+  int col = cur.positionColumn;
+  int maxCol = lineLengthOf(lines, line) + 1;
+  if (col < maxCol) {
+    col = col + 1;
+  } else if (line < lineCountOf(lines)) {
+    line = line + 1;
+    col = 1;
+  }
+  return clampCursor(moveTo(cur, line, col, select), lines);
+}
+
+export CursorState cursorUp(CursorState state, string[] lines, bool select) {
+  CursorState cur = clampCursor(state, lines);
+  int line = cur.positionLineNumber - 1;
+  if (line < 1) {
+    line = 1;
+  }
+  return clampCursor(moveTo(cur, line, cur.positionColumn, select), lines);
+}
+
+export CursorState cursorDown(CursorState state, string[] lines, bool select) {
+  CursorState cur = clampCursor(state, lines);
+  int line = cur.positionLineNumber + 1;
+  int last = lineCountOf(lines);
+  if (line > last) {
+    line = last;
+  }
+  return clampCursor(moveTo(cur, line, cur.positionColumn, select), lines);
+}
+
+export CursorState cursorHome(CursorState state, string[] lines, bool select) {
+  CursorState cur = clampCursor(state, lines);
+  return clampCursor(moveTo(cur, cur.positionLineNumber, 1, select), lines);
+}
+
+export CursorState cursorEnd(CursorState state, string[] lines, bool select) {
+  CursorState cur = clampCursor(state, lines);
+  int col = lineLengthOf(lines, cur.positionLineNumber) + 1;
+  return clampCursor(moveTo(cur, cur.positionLineNumber, col, select), lines);
+}
+
+export CursorState cursorLineStart(CursorState state, string[] lines, bool select) {
+  return cursorHome(state, lines, select);
+}
+
+export CursorState cursorLineEnd(CursorState state, string[] lines, bool select) {
+  return cursorEnd(state, lines, select);
+}
+
+export CursorState cursorTop(CursorState state, string[] lines, bool select) {
+  CursorState cur = clampCursor(state, lines);
+  return clampCursor(moveTo(cur, 1, 1, select), lines);
+}
+
+export CursorState cursorBottom(CursorState state, string[] lines, bool select) {
+  CursorState cur = clampCursor(state, lines);
+  int last = lineCountOf(lines);
+  int col = lineLengthOf(lines, last) + 1;
+  return clampCursor(moveTo(cur, last, col, select), lines);
+}
+
+export CursorState cursorPageUp(CursorState state, string[] lines, int pageSize, bool select) {
+  CursorState cur = clampCursor(state, lines);
+  int size = pageSize;
+  if (size < 1) {
+    size = 1;
+  }
+  int line = cur.positionLineNumber - size;
+  if (line < 1) {
+    line = 1;
+  }
+  return clampCursor(moveTo(cur, line, cur.positionColumn, select), lines);
+}
+
+export CursorState cursorPageDown(CursorState state, string[] lines, int pageSize, bool select) {
+  CursorState cur = clampCursor(state, lines);
+  int size = pageSize;
+  if (size < 1) {
+    size = 1;
+  }
+  int line = cur.positionLineNumber + size;
+  int last = lineCountOf(lines);
+  if (line > last) {
+    line = last;
+  }
+  return clampCursor(moveTo(cur, line, cur.positionColumn, select), lines);
+}
+
+export CursorState cancelSelection(CursorState state, string[] lines) {
+  CursorState cur = clampCursor(state, lines);
+  return new CursorState(cur.positionLineNumber, cur.positionColumn, cur.positionLineNumber, cur.positionColumn);
+}
+
+export CursorState selectAll(string[] lines) {
+  int last = lineCountOf(lines);
+  int col = lineLengthOf(lines, last) + 1;
+  return new CursorState(1, 1, last, col);
+}
+
+export CursorState setSelection(int sl, int sc, int pl, int pc, string[] lines) {
+  return clampCursor(new CursorState(sl, sc, pl, pc), lines);
+}
+
+export CursorState moveToPosition(int line, int column, bool select, CursorState state, string[] lines) {
+  return clampCursor(moveTo(state, line, column, select), lines);
+}
+
+string joinLines(string[] lines) {
+  string out = emptyBuf();
+  int i = 0;
+  while (i < lines.length) {
+    if (i != 0) {
+      out = concat2(out, "\n");
+    }
+    out = concat2(out, lines[i]);
+    i = i + 1;
+  }
+  return out;
+}
+
+string[] splitLines(string text) {
+  string[] out = [];
+  string current = emptyBuf();
+  int i = 0;
+  while (i < text.length) {
+    string ch = text.charAt(i);
+    if (ch == "\n") {
+      out.push(current);
+      current = emptyBuf();
+    } else if (ch != "\r") {
+      current = concat2(current, ch);
+    }
+    i = i + 1;
+  }
+  out.push(current);
+  return out;
+}
+
+TypeResult replaceRange(string[] lines, int sl, int sc, int el, int ec, string text) {
+  string before = emptyBuf();
+  string after = emptyBuf();
+  if (sl >= 1 && sl <= lines.length) {
+    before = sliceOf(lines[sl - 1], 0, nmax(0, sc - 1));
+  }
+  if (el >= 1 && el <= lines.length) {
+    after = sliceOf(lines[el - 1], nmax(0, ec - 1), lines[el - 1].length);
+  }
+  string[] inserted = splitLines(concat2(concat2(before, text), after));
+  string[] next = [];
+  int i = 0;
+  while (i < sl - 1) {
+    if (i < lines.length) {
+      next.push(lines[i]);
+    }
+    i = i + 1;
+  }
+  int j = 0;
+  while (j < inserted.length) {
+    next.push(inserted[j]);
+    j = j + 1;
+  }
+  int k = el;
+  while (k < lines.length) {
+    next.push(lines[k]);
+    k = k + 1;
+  }
+  if (next.length == 0) {
+    next.push(emptyBuf());
+  }
+  int endLine = sl + inserted.length - 1;
+  int endCol = 1;
+  if (inserted.length > 0) {
+    endCol = inserted[inserted.length - 1].length - after.length + 1;
+    if (endCol < 1) {
+      endCol = 1;
+    }
+  }
+  return new TypeResult(next, new CursorState(endLine, endCol, endLine, endCol));
+}
+
+export TypeResult typeText(CursorState state, string[] lines, string text) {
+  CursorState cur = clampCursor(state, lines);
+  return replaceRange(lines, cur.startLineNumber(), cur.startColumn(), cur.endLineNumber(), cur.endColumn(), text);
+}
+
+export TypeResult deleteLeft(CursorState state, string[] lines) {
+  CursorState cur = clampCursor(state, lines);
+  if (!cur.isEmpty()) {
+    return replaceRange(lines, cur.startLineNumber(), cur.startColumn(), cur.endLineNumber(), cur.endColumn(), emptyBuf());
+  }
+  if (cur.positionColumn > 1) {
+    return replaceRange(lines, cur.positionLineNumber, cur.positionColumn - 1, cur.positionLineNumber, cur.positionColumn, emptyBuf());
+  }
+  if (cur.positionLineNumber > 1) {
+    int prevLen = lineLengthOf(lines, cur.positionLineNumber - 1) + 1;
+    return replaceRange(lines, cur.positionLineNumber - 1, prevLen, cur.positionLineNumber, 1, emptyBuf());
+  }
+  return new TypeResult(lines, cur);
+}
+
+export TypeResult deleteRight(CursorState state, string[] lines) {
+  CursorState cur = clampCursor(state, lines);
+  if (!cur.isEmpty()) {
+    return replaceRange(lines, cur.startLineNumber(), cur.startColumn(), cur.endLineNumber(), cur.endColumn(), emptyBuf());
+  }
+  int maxCol = lineLengthOf(lines, cur.positionLineNumber) + 1;
+  if (cur.positionColumn < maxCol) {
+    return replaceRange(lines, cur.positionLineNumber, cur.positionColumn, cur.positionLineNumber, cur.positionColumn + 1, emptyBuf());
+  }
+  if (cur.positionLineNumber < lineCountOf(lines)) {
+    return replaceRange(lines, cur.positionLineNumber, maxCol, cur.positionLineNumber + 1, 1, emptyBuf());
+  }
+  return new TypeResult(lines, cur);
+}
+
+export TypeResult tabIndent(CursorState state, string[] lines, int tabSize) {
+  int size = tabSize;
+  if (size < 1) {
+    size = 4;
+  }
+  string indent = "";
+  int i = 0;
+  while (i < size) {
+    indent = concat2(indent, " ");
+    i = i + 1;
+  }
+  return typeText(state, lines, indent);
+}
+
+export TypeResult outdent(CursorState state, string[] lines, int tabSize) {
+  CursorState cur = clampCursor(state, lines);
+  int idx = cur.positionLineNumber - 1;
+  if (idx < 0 || idx >= lines.length) {
+    return new TypeResult(lines, cur);
+  }
+  string line = lines[idx];
+  int remove = 0;
+  int size = tabSize;
+  if (size < 1) {
+    size = 4;
+  }
+  while (remove < size && remove < line.length && line.charAt(remove) == " ") {
+    remove = remove + 1;
+  }
+  if (remove == 0 && line.length > 0 && line.charAt(0) == "\t") {
+    remove = 1;
+  }
+  if (remove == 0) {
+    return new TypeResult(lines, cur);
+  }
+  return replaceRange(lines, cur.positionLineNumber, 1, cur.positionLineNumber, remove + 1, emptyBuf());
+}
+
+export int parseScrollDirection(string to) {
+  if (to == "up") {
+    return 1;
+  }
+  if (to == "right") {
+    return 2;
+  }
+  if (to == "down") {
+    return 3;
+  }
+  if (to == "left") {
+    return 4;
+  }
+  return 0;
+}
+
+export int parseScrollUnit(string by) {
+  if (by == "line") {
+    return 1;
+  }
+  if (by == "wrappedLine") {
+    return 2;
+  }
+  if (by == "page") {
+    return 3;
+  }
+  if (by == "halfPage") {
+    return 4;
+  }
+  if (by == "editor") {
+    return 5;
+  }
+  if (by == "column") {
+    return 6;
+  }
+  return 2;
+}
+
+export int computeScrollDelta(int direction, int unit, int value, int lineHeight, int viewportHeight, int contentHeight) {
+  int amount = value;
+  if (amount < 1) {
+    amount = 1;
+  }
+  int delta = 0;
+  if (unit == 1 || unit == 2) {
+    delta = amount * lineHeight;
+  } else if (unit == 3) {
+    delta = amount * viewportHeight;
+  } else if (unit == 4) {
+    delta = amount * (viewportHeight / 2);
+  } else if (unit == 5) {
+    delta = contentHeight;
+  } else {
+    delta = amount * lineHeight;
+  }
+  if (direction == 1 || direction == 4) {
+    return 0 - delta;
+  }
+  return delta;
+}
+
+export int revealLineScrollTop(int lineNumber, int lineHeight, int viewportHeight, int revealType, int contentHeight) {
+  int line = nmax(1, lineNumber);
+  int top = (line - 1) * lineHeight;
+  if (revealType == 1) {
+    top = top - viewportHeight / 2 + lineHeight / 2;
+  }
+  if (revealType == 5) {
+    top = top - viewportHeight / 5;
+  }
+  if (top < 0) {
+    top = 0;
+  }
+  int maxScroll = nmax(0, contentHeight - viewportHeight);
+  if (top > maxScroll) {
+    top = maxScroll;
+  }
+  return top;
+}
+
+export string commandIdCursorLeft() {
+  return "cursorLeft";
+}
+
+export string commandIdCursorLeftSelect() {
+  return "cursorLeftSelect";
+}
+
+export string commandIdCursorRight() {
+  return "cursorRight";
+}
+
+export string commandIdCursorRightSelect() {
+  return "cursorRightSelect";
+}
+
+export string commandIdCursorUp() {
+  return "cursorUp";
+}
+
+export string commandIdCursorUpSelect() {
+  return "cursorUpSelect";
+}
+
+export string commandIdCursorDown() {
+  return "cursorDown";
+}
+
+export string commandIdCursorDownSelect() {
+  return "cursorDownSelect";
+}
+
+export string commandIdCursorHome() {
+  return "cursorHome";
+}
+
+export string commandIdCursorEnd() {
+  return "cursorEnd";
+}
+
+export string commandIdCursorTop() {
+  return "cursorTop";
+}
+
+export string commandIdCursorBottom() {
+  return "cursorBottom";
+}
+
+export string commandIdDeleteLeft() {
+  return "deleteLeft";
+}
+
+export string commandIdDeleteRight() {
+  return "deleteRight";
+}
+
+export string commandIdTab() {
+  return "tab";
+}
+
+export string commandIdOutdent() {
+  return "outdent";
+}
+
+export string commandIdType() {
+  return "type";
+}
+
+export string commandIdUndo() {
+  return "undo";
+}
+
+export string commandIdRedo() {
+  return "redo";
+}
+
+export string commandIdSelectAll() {
+  return "selectAll";
+}
+
+export string commandIdRevealLine() {
+  return "revealLine";
+}
+
+export CursorState triggerCommand(string id, CursorState state, string[] lines, int pageSize) {
+  if (id == "cursorLeft") {
+    return cursorLeft(state, lines, false);
+  }
+  if (id == "cursorLeftSelect") {
+    return cursorLeft(state, lines, true);
+  }
+  if (id == "cursorRight") {
+    return cursorRight(state, lines, false);
+  }
+  if (id == "cursorRightSelect") {
+    return cursorRight(state, lines, true);
+  }
+  if (id == "cursorUp") {
+    return cursorUp(state, lines, false);
+  }
+  if (id == "cursorUpSelect") {
+    return cursorUp(state, lines, true);
+  }
+  if (id == "cursorDown") {
+    return cursorDown(state, lines, false);
+  }
+  if (id == "cursorDownSelect") {
+    return cursorDown(state, lines, true);
+  }
+  if (id == "cursorHome" || id == "cursorHomeSelect" && false) {
+    return cursorHome(state, lines, false);
+  }
+  if (id == "cursorHomeSelect") {
+    return cursorHome(state, lines, true);
+  }
+  if (id == "cursorEnd") {
+    return cursorEnd(state, lines, false);
+  }
+  if (id == "cursorEndSelect") {
+    return cursorEnd(state, lines, true);
+  }
+  if (id == "cursorLineStart") {
+    return cursorLineStart(state, lines, false);
+  }
+  if (id == "cursorLineEnd") {
+    return cursorLineEnd(state, lines, false);
+  }
+  if (id == "cursorTop") {
+    return cursorTop(state, lines, false);
+  }
+  if (id == "cursorTopSelect") {
+    return cursorTop(state, lines, true);
+  }
+  if (id == "cursorBottom") {
+    return cursorBottom(state, lines, false);
+  }
+  if (id == "cursorBottomSelect") {
+    return cursorBottom(state, lines, true);
+  }
+  if (id == "cursorPageUp") {
+    return cursorPageUp(state, lines, pageSize, false);
+  }
+  if (id == "cursorPageUpSelect") {
+    return cursorPageUp(state, lines, pageSize, true);
+  }
+  if (id == "cursorPageDown") {
+    return cursorPageDown(state, lines, pageSize, false);
+  }
+  if (id == "cursorPageDownSelect") {
+    return cursorPageDown(state, lines, pageSize, true);
+  }
+  if (id == "cancelSelection") {
+    return cancelSelection(state, lines);
+  }
+  if (id == "selectAll") {
+    return selectAll(lines);
+  }
+  return clampCursor(state, lines);
+}
+
+export TypeResult triggerEditCommand(string id, CursorState state, string[] lines, string text, int tabSize) {
+  if (id == "type") {
+    return typeText(state, lines, text);
+  }
+  if (id == "deleteLeft") {
+    return deleteLeft(state, lines);
+  }
+  if (id == "deleteRight") {
+    return deleteRight(state, lines);
+  }
+  if (id == "tab") {
+    return tabIndent(state, lines, tabSize);
+  }
+  if (id == "outdent") {
+    return outdent(state, lines, tabSize);
+  }
+  return new TypeResult(lines, clampCursor(state, lines));
+}
+
+export string joinLineTexts(string[] lines) {
+  return joinLines(lines);
+}
+
+export CursorState createCursorState(int sl, int sc, int pl, int pc) {
+  return new CursorState(sl, sc, pl, pc);
+}

@@ -1,0 +1,385 @@
+export int FULL_FILE_MAX_LINES = 3000;
+export int FULL_FILE_MAX_COLUMNS = 200;
+export int INDICES_PER_CELL = 6;
+export int EVENT_CONFIGURATION = 2;
+export int EVENT_LINE_MAPPING = 8;
+export int EVENT_LINES_DELETED = 10;
+export int EVENT_ZONES = 17;
+
+export class QueuedBufferUpdate {
+  int type;
+  int fromLineNumber;
+  int toLineNumber;
+
+  init(int type, int fromLineNumber, int toLineNumber) {
+    this.type = type;
+    this.fromLineNumber = fromLineNumber;
+    this.toLineNumber = toLineNumber;
+  }
+}
+
+export class ViewportLines {
+  int startLineNumber;
+  int endLineNumber;
+  int lineHeight;
+  int[] relativeVerticalOffset;
+  bool[] canRenderLine;
+  int[] maxColumn;
+  bool[] containsRTL;
+
+  init(int startLineNumber, int endLineNumber, int lineHeight) {
+    this.startLineNumber = startLineNumber;
+    this.endLineNumber = endLineNumber;
+    this.lineHeight = lineHeight;
+    this.relativeVerticalOffset = [];
+    this.canRenderLine = [];
+    this.maxColumn = [];
+    this.containsRTL = [];
+    int i = 0;
+    int count = endLineNumber - startLineNumber + 1;
+    while (i < count) {
+      this.relativeVerticalOffset.push(i * lineHeight);
+      this.canRenderLine.push(true);
+      this.maxColumn.push(80);
+      this.containsRTL.push(false);
+      i = i + 1;
+    }
+  }
+
+  bool canRender(int lineNumber) {
+    int index = lineNumber - this.startLineNumber;
+    if (index < 0 || index >= this.canRenderLine.length) {
+      return false;
+    }
+    if (this.containsRTL[index]) {
+      return false;
+    }
+    if (this.maxColumn[index] > 2000) {
+      return false;
+    }
+    return this.canRenderLine[index];
+  }
+}
+
+int imin2(int a, int b) {
+  if (a < b) {
+    return a;
+  }
+  return b;
+}
+
+int imax2(int a, int b) {
+  if (a > b) {
+    return a;
+  }
+  return b;
+}
+
+bool setHas(int[] values, int value) {
+  int i = 0;
+  while (i < values.length) {
+    if (values[i] == value) {
+      return true;
+    }
+    i = i + 1;
+  }
+  return false;
+}
+
+void setDelete(int[] values, int value) {
+  int i = 0;
+  while (i < values.length) {
+    if (values[i] == value) {
+      values.splice(i, 1);
+      return;
+    }
+    i = i + 1;
+  }
+}
+
+void setAdd(int[] values, int value) {
+  if (!setHas(values, value)) {
+    values.push(value);
+  }
+}
+
+void fillZeros(float[] buf, int start, int end) {
+  int i = start;
+  while (i < end && i < buf.length) {
+    buf[i] = 0.0;
+    i = i + 1;
+  }
+}
+
+void ensureLen(float[] buf, int len) {
+  while (buf.length < len) {
+    buf.push(0.0);
+  }
+}
+
+export class FullFileRenderStrategy {
+  string type;
+  int activeDoubleBufferIndex;
+  int[] upToDate0;
+  int[] upToDate1;
+  int visibleObjectCount;
+  int finalRenderedLine;
+  bool scrollInitialized;
+  QueuedBufferUpdate[] queued0;
+  QueuedBufferUpdate[] queued1;
+  float[] cellBuffer0;
+  float[] cellBuffer1;
+  float[] scrollOffset;
+  int maxGpuCols;
+
+  init() {
+    this.type = "fullfile";
+    this.activeDoubleBufferIndex = 0;
+    this.upToDate0 = [];
+    this.upToDate1 = [];
+    this.visibleObjectCount = 0;
+    this.finalRenderedLine = 0;
+    this.scrollInitialized = false;
+    this.queued0 = [];
+    this.queued1 = [];
+    this.cellBuffer0 = [];
+    this.cellBuffer1 = [];
+    this.scrollOffset = [];
+    this.scrollOffset.push(0.0);
+    this.scrollOffset.push(0.0);
+    this.maxGpuCols = 2000;
+  }
+
+  int[] upToDateLines() {
+    if (this.activeDoubleBufferIndex == 0) {
+      return this.upToDate0;
+    }
+    return this.upToDate1;
+  }
+
+  float[] cellBuffer() {
+    if (this.activeDoubleBufferIndex == 0) {
+      return this.cellBuffer0;
+    }
+    return this.cellBuffer1;
+  }
+
+  void invalidateAllLines() {
+    this.upToDate0 = [];
+    this.upToDate1 = [];
+  }
+
+  void invalidateLinesFrom(int lineNumber) {
+    int pass = 0;
+    while (pass < 2) {
+      int[] upToDate = this.upToDate0;
+      if (pass == 1) {
+        upToDate = this.upToDate1;
+      }
+      int i = 0;
+      while (i < upToDate.length) {
+        if (upToDate[i] >= lineNumber) {
+          upToDate.splice(i, 1);
+        } else {
+          i = i + 1;
+        }
+      }
+      pass = pass + 1;
+    }
+  }
+
+  void invalidateLineRange(int fromLineNumber, int toLineNumber) {
+    int i = fromLineNumber;
+    while (i <= toLineNumber) {
+      setDelete(this.upToDate0, i);
+      setDelete(this.upToDate1, i);
+      i = i + 1;
+    }
+  }
+
+  void queueBufferUpdate(int type, int fromLineNumber, int toLineNumber) {
+    this.queued0.push(new QueuedBufferUpdate(type, fromLineNumber, toLineNumber));
+    this.queued1.push(new QueuedBufferUpdate(type, fromLineNumber, toLineNumber));
+  }
+
+  bool onConfigurationChanged() {
+    this.invalidateAllLines();
+    this.queueBufferUpdate(EVENT_CONFIGURATION, 1, 1);
+    return true;
+  }
+
+  bool onDecorationsChanged() {
+    this.invalidateAllLines();
+    return true;
+  }
+
+  bool onTokensChanged(int fromLineNumber, int toLineNumber) {
+    this.invalidateLineRange(fromLineNumber, toLineNumber);
+    return true;
+  }
+
+  bool onLinesDeleted(int fromLineNumber, int toLineNumber) {
+    this.invalidateLinesFrom(fromLineNumber);
+    this.queueBufferUpdate(EVENT_LINES_DELETED, fromLineNumber, toLineNumber);
+    return true;
+  }
+
+  bool onLinesInserted(int fromLineNumber) {
+    this.invalidateLinesFrom(fromLineNumber);
+    return true;
+  }
+
+  bool onLinesChanged(int fromLineNumber, int count) {
+    this.invalidateLineRange(fromLineNumber, fromLineNumber + count);
+    return true;
+  }
+
+  bool onScrollChanged(float scrollLeft, float scrollTop, float dpr) {
+    this.scrollOffset[0] = scrollLeft * dpr;
+    this.scrollOffset[1] = scrollTop * dpr;
+    return true;
+  }
+
+  bool onThemeChanged() {
+    this.invalidateAllLines();
+    return true;
+  }
+
+  bool onLineMappingChanged() {
+    this.invalidateAllLines();
+    this.queueBufferUpdate(EVENT_LINE_MAPPING, 1, 1);
+    return true;
+  }
+
+  bool onZonesChanged() {
+    this.invalidateAllLines();
+    this.queueBufferUpdate(EVENT_ZONES, 1, 1);
+    return true;
+  }
+
+  void reset() {
+    this.invalidateAllLines();
+    this.cellBuffer0 = [];
+    this.cellBuffer1 = [];
+    this.finalRenderedLine = 0;
+  }
+
+  int applyQueuedUpdates(float[] cellBuffer, QueuedBufferUpdate[] queued) {
+    int dirtyLineStart = FULL_FILE_MAX_LINES;
+    int dirtyLineEnd = 0;
+    int lineIndexCount = FULL_FILE_MAX_COLUMNS * INDICES_PER_CELL;
+    while (queued.length > 0) {
+      QueuedBufferUpdate e = queued[0];
+      queued.splice(0, 1);
+      if (e.type == EVENT_CONFIGURATION || e.type == EVENT_LINE_MAPPING || e.type == EVENT_ZONES) {
+        fillZeros(cellBuffer, 0, cellBuffer.length);
+        dirtyLineStart = 1;
+        dirtyLineEnd = imax2(dirtyLineEnd, this.finalRenderedLine);
+        this.finalRenderedLine = 0;
+      } else if (e.type == EVENT_LINES_DELETED) {
+        int deletedStart = (e.fromLineNumber - 1) * lineIndexCount;
+        int deletedEnd = e.toLineNumber * lineIndexCount;
+        int dest = deletedStart;
+        int src = deletedEnd;
+        while (src < cellBuffer.length) {
+          cellBuffer[dest] = cellBuffer[src];
+          dest = dest + 1;
+          src = src + 1;
+        }
+        int removed = e.toLineNumber - e.fromLineNumber + 1;
+        int nullStart = (this.finalRenderedLine - removed) * lineIndexCount;
+        fillZeros(cellBuffer, nullStart, cellBuffer.length);
+        dirtyLineStart = imin2(dirtyLineStart, e.fromLineNumber);
+        dirtyLineEnd = imax2(dirtyLineEnd, this.finalRenderedLine);
+        this.finalRenderedLine = this.finalRenderedLine - removed;
+      }
+    }
+    return (dirtyLineStart << 16) | (dirtyLineEnd & 65535);
+  }
+
+  int update(ViewportLines viewport) {
+    if (!this.scrollInitialized) {
+      this.onScrollChanged(0.0, 0.0, 1.0);
+      this.scrollInitialized = true;
+    }
+    float[] cellBuffer = this.cellBuffer();
+    int lineIndexCount = FULL_FILE_MAX_COLUMNS * INDICES_PER_CELL;
+    int needed = FULL_FILE_MAX_LINES * lineIndexCount;
+    ensureLen(cellBuffer, needed);
+    int[] upToDate = this.upToDateLines();
+    QueuedBufferUpdate[] queued = this.queued0;
+    if (this.activeDoubleBufferIndex == 1) {
+      queued = this.queued1;
+    }
+    int packed = this.applyQueuedUpdates(cellBuffer, queued);
+    int dirtyLineStart = packed >> 16;
+    int dirtyLineEnd = packed & 65535;
+    int y = viewport.startLineNumber;
+    while (y <= viewport.endLineNumber) {
+      if (!viewport.canRender(y) || y > FULL_FILE_MAX_LINES) {
+        int fillStart = (y - 1) * lineIndexCount;
+        int fillEnd = y * lineIndexCount;
+        fillZeros(cellBuffer, fillStart, fillEnd);
+        dirtyLineStart = imin2(dirtyLineStart, y);
+        dirtyLineEnd = imax2(dirtyLineEnd, y);
+        y = y + 1;
+        continue;
+      }
+      if (setHas(upToDate, y)) {
+        y = y + 1;
+        continue;
+      }
+      dirtyLineStart = imin2(dirtyLineStart, y);
+      dirtyLineEnd = imax2(dirtyLineEnd, y);
+      int cellIndex = (y - 1) * lineIndexCount;
+      int col = 0;
+      int maxCol = FULL_FILE_MAX_COLUMNS;
+      int index = y - viewport.startLineNumber;
+      if (index >= 0 && index < viewport.maxColumn.length) {
+        int lineCols = viewport.maxColumn[index];
+        if (lineCols < maxCol) {
+          maxCol = lineCols;
+        }
+      }
+      while (col < maxCol) {
+        int at = cellIndex + col * INDICES_PER_CELL;
+        if (at + 5 < cellBuffer.length) {
+          cellBuffer[at] = col * 1.0;
+          cellBuffer[at + 1] = (y - viewport.startLineNumber) * viewport.lineHeight * 1.0;
+          cellBuffer[at + 4] = col * 1.0;
+          cellBuffer[at + 5] = 0.0;
+        }
+        col = col + 1;
+      }
+      fillZeros(cellBuffer, cellIndex + maxCol * INDICES_PER_CELL, y * lineIndexCount);
+      setAdd(upToDate, y);
+      y = y + 1;
+    }
+    int visibleObjectCount = (viewport.endLineNumber - viewport.startLineNumber + 1) * lineIndexCount;
+    dirtyLineStart = imin2(dirtyLineStart, FULL_FILE_MAX_LINES);
+    dirtyLineEnd = imin2(dirtyLineEnd, FULL_FILE_MAX_LINES);
+    this.finalRenderedLine = imax2(this.finalRenderedLine, dirtyLineEnd);
+    if (this.activeDoubleBufferIndex == 0) {
+      this.activeDoubleBufferIndex = 1;
+    } else {
+      this.activeDoubleBufferIndex = 0;
+    }
+    this.visibleObjectCount = visibleObjectCount;
+    return visibleObjectCount;
+  }
+
+  int draw(int startLineNumber) {
+    if (this.visibleObjectCount <= 0) {
+      throw "Attempt to draw 0 objects";
+    }
+    return (startLineNumber - 1) * FULL_FILE_MAX_COLUMNS;
+  }
+}
+
+export FullFileRenderStrategy createFullFileRenderStrategy() {
+  return new FullFileRenderStrategy();
+}
+
+export ViewportLines createViewportLines(int startLineNumber, int endLineNumber, int lineHeight) {
+  return new ViewportLines(startLineNumber, endLineNumber, lineHeight);
+}

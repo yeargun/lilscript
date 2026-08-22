@@ -1,0 +1,33 @@
+export class Token {
+  int startIndex;
+  string typeName;
+
+  init(int startIndex, string typeName) {
+    this.startIndex = startIndex;
+    this.typeName = typeName;
+  }
+}
+
+export Token[] forceTokenization(string line) {
+  Token[] tokens = [];
+  tokens.push(new Token(0, ""));
+  int i = 0;
+  bool inWord = false;
+  while (i < line.length) {
+    int code = line.charCodeAt(i);
+    bool word = (code >= 97 && code <= 122) || (code >= 65 && code <= 90) || (code >= 48 && code <= 57);
+    if (word && !inWord) {
+      tokens.push(new Token(i, "identifier"));
+      inWord = true;
+    } else if (!word && inWord) {
+      tokens.push(new Token(i, ""));
+      inWord = false;
+    }
+    i = i + 1;
+  }
+  return tokens;
+}
+
+export Token createToken(int startIndex, string typeName) {
+  return new Token(startIndex, typeName);
+}

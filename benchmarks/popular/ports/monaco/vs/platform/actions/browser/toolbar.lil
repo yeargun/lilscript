@@ -1,0 +1,25 @@
+export class Toolbar {
+  string[] actions;
+  bool visible;
+
+  init() {
+    this.actions = [];
+    this.visible = true;
+  }
+
+  void setActions(string[] actions) {
+    this.actions = actions;
+  }
+
+  void hide() {
+    this.visible = false;
+  }
+
+  void show() {
+    this.visible = true;
+  }
+}
+
+export Toolbar createToolbar() {
+  return new Toolbar();
+}

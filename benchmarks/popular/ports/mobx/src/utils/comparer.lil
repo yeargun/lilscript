@@ -1,0 +1,13 @@
+import { objectIs } from "../host.lil";
+
+export bool compareIdentity(JsValue a, JsValue b) {
+  return JS.strictEqual(a, b);
+}
+
+export bool compareDefault(JsValue a, JsValue b) {
+  return objectIs(a, b);
+}
+
+export JsValue defaultEquals = JS.method2((JsValue _self, JsValue a, JsValue b) => {
+  return objectIs(a, b);
+});

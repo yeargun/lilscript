@@ -1,0 +1,19 @@
+export class TextModelPart {
+  bool disposed;
+
+  init() {
+    this.disposed = false;
+  }
+
+  void dispose() {
+    this.disposed = true;
+  }
+
+  bool assertNotDisposed() {
+    return !this.disposed;
+  }
+}
+
+export TextModelPart createTextModelPart() {
+  return new TextModelPart();
+}

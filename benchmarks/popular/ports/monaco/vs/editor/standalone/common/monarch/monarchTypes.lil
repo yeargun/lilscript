@@ -1,0 +1,9 @@
+export string monarchTokenComment = "comment";
+export string monarchTokenString = "string";
+export string monarchTokenKeyword = "keyword";
+export string monarchTokenNumber = "number";
+export string monarchTokenRegexp = "regexp";
+export string monarchTokenOperator = "operator";
+export bool isMonarchTypesModule() {
+  return true;
+}

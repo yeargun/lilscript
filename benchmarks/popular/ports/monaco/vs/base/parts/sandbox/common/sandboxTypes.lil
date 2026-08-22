@@ -1,0 +1,4 @@
+export string IpcChannel = "vscode:";
+export bool isSandboxTypesModule() {
+  return true;
+}

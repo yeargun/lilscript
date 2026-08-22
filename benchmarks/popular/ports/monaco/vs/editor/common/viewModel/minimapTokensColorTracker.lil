@@ -1,0 +1,85 @@
+export class RGBA8 {
+  int r;
+  int g;
+  int b;
+  int a;
+
+  init(int r, int g, int b, int a) {
+    this.r = r;
+    this.g = g;
+    this.b = b;
+    this.a = a;
+  }
+}
+
+export class MinimapTokensColorTracker {
+  RGBA8[] colors;
+  bool lightBackground;
+  int version;
+
+  init() {
+    this.colors = [];
+    this.lightBackground = true;
+    this.version = 0;
+    this.colors.push(new RGBA8(0, 0, 0, 0));
+    this.colors.push(new RGBA8(0, 0, 0, 0));
+    this.colors.push(new RGBA8(255, 255, 255, 255));
+  }
+
+  void setColorMap(RGBA8[] colorMap) {
+    this.colors = [];
+    this.colors.push(new RGBA8(0, 0, 0, 0));
+    int i = 1;
+    while (i < colorMap.length) {
+      RGBA8 source = colorMap[i];
+      this.colors.push(new RGBA8(source.r, source.g, source.b, source.a));
+      i = i + 1;
+    }
+    if (this.colors.length <= 2) {
+      while (this.colors.length <= 2) {
+        this.colors.push(new RGBA8(0, 0, 0, 0));
+      }
+      this.lightBackground = true;
+    } else {
+      RGBA8 background = this.colors[2];
+      int luminosity = background.r * 299 + background.g * 587 + background.b * 114;
+      this.lightBackground = luminosity >= 127500;
+    }
+    this.version = this.version + 1;
+  }
+
+  RGBA8 getColor(int colorId) {
+    int id = colorId;
+    if (id < 1 || id >= this.colors.length) {
+      id = 2;
+    }
+    if (id >= this.colors.length) {
+      return new RGBA8(0, 0, 0, 0);
+    }
+    return this.colors[id];
+  }
+
+  bool backgroundIsLight() {
+    return this.lightBackground;
+  }
+}
+
+MinimapTokensColorTracker? minimapTokensColorTrackerInstance = null;
+
+export MinimapTokensColorTracker getMinimapTokensColorTracker() {
+  MinimapTokensColorTracker? existing = minimapTokensColorTrackerInstance;
+  if (existing != null) {
+    return existing;
+  }
+  MinimapTokensColorTracker created = new MinimapTokensColorTracker();
+  minimapTokensColorTrackerInstance = created;
+  return created;
+}
+
+export MinimapTokensColorTracker createMinimapTokensColorTracker() {
+  return new MinimapTokensColorTracker();
+}
+
+export RGBA8 createRGBA8(int r, int g, int b, int a = 255) {
+  return new RGBA8(r, g, b, a);
+}

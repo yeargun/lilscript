@@ -1,0 +1,40 @@
+export class DelegatingEditor {
+  int id;
+  int targetCursorLine;
+  int targetCursorColumn;
+  int scrollTop;
+
+  init(int id) {
+    this.id = id;
+    this.targetCursorLine = 1;
+    this.targetCursorColumn = 1;
+    this.scrollTop = 0;
+  }
+
+  string getId() {
+    return "vs.editor.IDiffEditor:v2:" + this.id.toString();
+  }
+
+  string getEditorType() {
+    return "vs.editor.IDiffEditor";
+  }
+
+  void setPosition(int lineNumber, int column) {
+    this.targetCursorLine = lineNumber;
+    this.targetCursorColumn = column;
+  }
+
+  void revealLine(int lineNumber, int lineHeight) {
+    this.scrollTop = (lineNumber - 1) * lineHeight;
+    if (this.scrollTop < 0) {
+      this.scrollTop = 0;
+    }
+  }
+}
+
+int delegatingIdCounter = 0;
+
+export DelegatingEditor createDelegatingEditor() {
+  delegatingIdCounter = delegatingIdCounter + 1;
+  return new DelegatingEditor(delegatingIdCounter);
+}

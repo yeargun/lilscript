@@ -1,0 +1,329 @@
+export class TextPoint {
+  int row;
+  int column;
+
+  init(int row, int column) {
+    this.row = row;
+    this.column = column;
+  }
+}
+
+export class TreeRange {
+  int startIndex;
+  int endIndex;
+  TextPoint startPosition;
+  TextPoint endPosition;
+
+  init(
+    int startIndex,
+    int endIndex,
+    TextPoint startPosition,
+    TextPoint endPosition
+  ) {
+    this.startIndex = startIndex;
+    this.endIndex = endIndex;
+    this.startPosition = startPosition;
+    this.endPosition = endPosition;
+  }
+}
+
+export class TreeEdit {
+  int startIndex;
+  int oldEndIndex;
+  int newEndIndex;
+  TextPoint startPosition;
+  TextPoint oldEndPosition;
+  TextPoint newEndPosition;
+
+  init(
+    int startIndex,
+    int oldEndIndex,
+    int newEndIndex,
+    TextPoint startPosition,
+    TextPoint oldEndPosition,
+    TextPoint newEndPosition
+  ) {
+    this.startIndex = startIndex;
+    this.oldEndIndex = oldEndIndex;
+    this.newEndIndex = newEndIndex;
+    this.startPosition = startPosition;
+    this.oldEndPosition = oldEndPosition;
+    this.newEndPosition = newEndPosition;
+  }
+}
+
+export class SyntaxNode {
+  int id;
+  int startIndex;
+  int endIndex;
+  TextPoint startPosition;
+  TextPoint endPosition;
+  bool hasChanges;
+  bool hasError;
+  bool isNamed;
+  SyntaxNode[] children;
+
+  init(
+    int id,
+    int startIndex,
+    int endIndex,
+    TextPoint startPosition,
+    TextPoint endPosition,
+    bool isNamed
+  ) {
+    this.id = id;
+    this.startIndex = startIndex;
+    this.endIndex = endIndex;
+    this.startPosition = startPosition;
+    this.endPosition = endPosition;
+    this.hasChanges = false;
+    this.hasError = false;
+    this.isNamed = isNamed;
+    this.children = [];
+  }
+
+  void appendChild(SyntaxNode child) {
+    this.children.push(child);
+  }
+}
+
+export bool rangesEqual(TreeRange first, TreeRange second) {
+  return first.startPosition.row == second.startPosition.row
+    && first.startPosition.column == second.startPosition.column
+    && first.endPosition.row == second.endPosition.row
+    && first.endPosition.column == second.endPosition.column
+    && first.startIndex == second.startIndex
+    && first.endIndex == second.endIndex;
+}
+
+export bool rangesIntersect(TreeRange first, TreeRange second) {
+  return (
+    first.startIndex <= second.startIndex && first.endIndex >= second.startIndex
+  ) || (
+    second.startIndex <= first.startIndex && second.endIndex >= first.startIndex
+  );
+}
+
+void collectChangedNodes(SyntaxNode node, SyntaxNode[] result) {
+  if (!node.hasChanges) {
+    return;
+  }
+  int changedChildren = 0;
+  SyntaxNode? singleChangedChild = null;
+  int i = 0;
+  while (i < node.children.length) {
+    if (node.children[i].hasChanges) {
+      changedChildren = changedChildren + 1;
+      singleChangedChild = node.children[i];
+    }
+    i = i + 1;
+  }
+  if (changedChildren == 1 && singleChangedChild != null && !node.hasError) {
+    collectChangedNodes(singleChangedChild, result);
+  } else {
+    result.push(node);
+  }
+}
+
+export class TreeSitterTree {
+  string languageId;
+  string text;
+  TreeRange[] ranges;
+  SyntaxNode? root;
+  int treeLastParsedVersion;
+  TreeEdit[] pendingEdits;
+
+  init(string languageId, string text, TreeRange[] ranges) {
+    this.languageId = languageId;
+    this.text = text;
+    this.ranges = ranges;
+    this.root = null;
+    this.treeLastParsedVersion = -1;
+    this.pendingEdits = [];
+  }
+
+  TreeRange[] setRanges(TreeRange[] nextRanges) {
+    TreeRange[] unknown = [];
+    int i = 0;
+    while (i < nextRanges.length) {
+      bool covered = false;
+      int j = 0;
+      while (j < this.ranges.length && !covered) {
+        if (
+          rangesEqual(this.ranges[j], nextRanges[i])
+          || rangesIntersect(this.ranges[j], nextRanges[i])
+        ) {
+          covered = true;
+        }
+        j = j + 1;
+      }
+      if (!covered) {
+        unknown.push(nextRanges[i]);
+      }
+      i = i + 1;
+    }
+    this.ranges = nextRanges;
+    return unknown;
+  }
+
+  void applyEdits(TreeEdit[] edits) {
+    int i = 0;
+    while (i < edits.length) {
+      TreeEdit edit = edits[i];
+      this.pendingEdits.push(edit);
+      int removed = edit.oldEndIndex - edit.startIndex;
+      int inserted = edit.newEndIndex - edit.startIndex;
+      int delta = inserted - removed;
+      SyntaxNode? root = this.root;
+      if (root != null) {
+        this.applyEditToNode(root, edit, delta);
+      }
+      i = i + 1;
+    }
+  }
+
+  void applyEditToNode(SyntaxNode node, TreeEdit edit, int delta) {
+    if (node.endIndex < edit.startIndex) {
+      return;
+    }
+    if (node.startIndex > edit.oldEndIndex) {
+      node.startIndex = node.startIndex + delta;
+      node.endIndex = node.endIndex + delta;
+      return;
+    }
+    node.hasChanges = true;
+    node.endIndex = node.endIndex + delta;
+    int i = 0;
+    while (i < node.children.length) {
+      this.applyEditToNode(node.children[i], edit, delta);
+      i = i + 1;
+    }
+  }
+
+  SyntaxNode[] findChangedNodes() {
+    SyntaxNode[] result = [];
+    SyntaxNode? root = this.root;
+    if (root != null) {
+      collectChangedNodes(root, result);
+    }
+    return result;
+  }
+
+  TreeRange[] findTreeChanges(TreeRange[] changedNodes, TreeRange[] newRanges) {
+    TreeRange[] merged = [];
+    int i = 0;
+    while (i < changedNodes.length) {
+      TreeRange current = changedNodes[i];
+      int j = 0;
+      while (j < newRanges.length) {
+        if (rangesIntersect(current, newRanges[j])) {
+          if (newRanges[j].startIndex < current.startIndex) {
+            current.startIndex = newRanges[j].startIndex;
+            current.startPosition = newRanges[j].startPosition;
+          }
+          if (newRanges[j].endIndex > current.endIndex) {
+            current.endIndex = newRanges[j].endIndex;
+            current.endPosition = newRanges[j].endPosition;
+          }
+        }
+        j = j + 1;
+      }
+      if (
+        merged.length > 0
+        && merged[merged.length - 1].endIndex >= current.startIndex
+      ) {
+        TreeRange previous = merged[merged.length - 1];
+        if (current.endIndex > previous.endIndex) {
+          previous.endIndex = current.endIndex;
+          previous.endPosition = current.endPosition;
+        }
+      } else {
+        merged.push(current);
+      }
+      i = i + 1;
+    }
+    return this.constrainRanges(merged);
+  }
+
+  TreeRange[] constrainRanges(TreeRange[] changes) {
+    if (this.ranges.length == 0) {
+      return changes;
+    }
+    TreeRange[] result = [];
+    int i = 0;
+    while (i < changes.length) {
+      int j = 0;
+      while (j < this.ranges.length) {
+        TreeRange allowed = this.ranges[j];
+        if (rangesIntersect(changes[i], allowed)) {
+          int startIndex = changes[i].startIndex;
+          TextPoint startPosition = changes[i].startPosition;
+          if (allowed.startIndex > startIndex) {
+            startIndex = allowed.startIndex;
+            startPosition = allowed.startPosition;
+          }
+          int endIndex = changes[i].endIndex;
+          TextPoint endPosition = changes[i].endPosition;
+          if (allowed.endIndex < endIndex) {
+            endIndex = allowed.endIndex;
+            endPosition = allowed.endPosition;
+          }
+          result.push(new TreeRange(startIndex, endIndex, startPosition, endPosition));
+        }
+        j = j + 1;
+      }
+      i = i + 1;
+    }
+    return result;
+  }
+
+  void updateTree(SyntaxNode root, int version) {
+    this.root = root;
+    this.treeLastParsedVersion = version;
+    this.pendingEdits = [];
+  }
+
+  string parseChunk(int index, int maxLength) {
+    if (index < 0 || index >= this.text.length) {
+      return "";
+    }
+    int end = index + maxLength;
+    if (end > this.text.length) {
+      end = this.text.length;
+    }
+    string result = "";
+    int i = index;
+    while (i < end) {
+      result = result + this.text.charAt(i);
+      i = i + 1;
+    }
+    return result;
+  }
+
+  void handleContentChange(string nextText, TreeEdit[] edits, int version) {
+    this.applyEdits(edits);
+    this.text = nextText;
+    this.treeLastParsedVersion = version;
+  }
+}
+
+export TextPoint createTextPoint(int row, int column) {
+  return new TextPoint(row, column);
+}
+
+export TreeRange createTreeRange(
+  int startIndex,
+  int endIndex,
+  TextPoint startPosition,
+  TextPoint endPosition
+) {
+  return new TreeRange(startIndex, endIndex, startPosition, endPosition);
+}
+
+export TreeSitterTree createTreeSitterTree(
+  string languageId,
+  string text,
+  TreeRange[] ranges
+) {
+  return new TreeSitterTree(languageId, text, ranges);
+}

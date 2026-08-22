@@ -1,0 +1,259 @@
+import {
+  addEventListener,
+  appendChild,
+  dateNow,
+  domCreateElement,
+  eventButton,
+  hostCall,
+  jsUndefined,
+  preventDefault,
+  removeEventListener,
+  scheduleTimeoutMs,
+  setClassName,
+  setScrollLeft,
+  setScrollTop,
+  setStyle,
+  windowSelf
+} from "../../../../../js-host";
+
+export int ARROW_IMG_SIZE = 11;
+
+ScrollbarArrow[] scrollbarArrows = [];
+int activeArrowId = -1;
+bool arrowRepeatScheduled = false;
+
+float arrowNumber(JsValue value, float fallback) {
+  if (value is float) {
+    float n = value;
+    return n;
+  }
+  return fallback;
+}
+
+int arrowIntOption(JsValue options, string key, int fallback) {
+  if (options == null) {
+    return fallback;
+  }
+  return arrowNumber(options[key], fallback * 1.0).round().toInt();
+}
+
+string arrowStringOption(JsValue options, string key, string fallback) {
+  if (options == null) {
+    return fallback;
+  }
+  JsValue value = options[key];
+  if (value is string) {
+    string text = value;
+    return text;
+  }
+  return fallback;
+}
+
+void positionArrowNode(
+  JsValue node,
+  JsValue options,
+  string key,
+  bool background
+) {
+  if (options == null || options[key] == null) {
+    return;
+  }
+  int value = arrowIntOption(options, key, 0);
+  if (background) {
+    value = 0;
+  }
+  setStyle(node, key, value.toString() + "px");
+}
+
+int scrollablePosition(JsValue scrollable, bool horizontal) {
+  JsValue undefinedValue = jsUndefined();
+  if (scrollable != null && scrollable["getCurrentScrollPosition"].truthy()) {
+    JsValue position = hostCall(
+      scrollable,
+      "getCurrentScrollPosition",
+      undefinedValue,
+      undefinedValue,
+      undefinedValue
+    );
+    string key = "scrollTop";
+    if (horizontal) {
+      key = "scrollLeft";
+    }
+    return arrowNumber(position[key], 0.0).round().toInt();
+  }
+  string key = "scrollTop";
+  if (horizontal) {
+    key = "scrollLeft";
+  }
+  return arrowNumber(scrollable[key], 0.0).round().toInt();
+}
+
+void writeArrowScrollPosition(
+  JsValue scrollable,
+  bool horizontal,
+  int position
+) {
+  if (scrollable == null) {
+    return;
+  }
+  if (scrollable["setScrollPositionNow"].truthy()) {
+    JsValue update = JS.object();
+    if (horizontal) {
+      update["scrollLeft"] = position;
+    } else {
+      update["scrollTop"] = position;
+    }
+    JsValue undefinedValue = jsUndefined();
+    hostCall(
+      scrollable,
+      "setScrollPositionNow",
+      update,
+      undefinedValue,
+      undefinedValue
+    );
+    return;
+  }
+  if (horizontal) {
+    setScrollLeft(scrollable, position);
+  } else {
+    setScrollTop(scrollable, position);
+  }
+}
+
+void repeatActiveArrow() {
+  arrowRepeatScheduled = false;
+  if (activeArrowId < 0 || activeArrowId >= scrollbarArrows.length) {
+    return;
+  }
+  scrollbarArrows[activeArrowId].activate();
+  arrowRepeatScheduled = true;
+  scheduleTimeoutMs(repeatActiveArrow, 1000.0 / 24.0);
+}
+
+void stopArrowRepeat(JsValue event) {
+  activeArrowId = -1;
+  removeEventListener(windowSelf(), "pointerup", stopArrowRepeat, false);
+  removeEventListener(windowSelf(), "pointercancel", stopArrowRepeat, false);
+}
+
+void startArrowRepeat(JsValue event) {
+  if (eventButton(event) != 0) {
+    return;
+  }
+  JsValue currentTarget = event["currentTarget"];
+  int id = arrowNumber(currentTarget["_scrollbarArrowId"], -1.0)
+    .round()
+    .toInt();
+  if (id < 0 || id >= scrollbarArrows.length) {
+    return;
+  }
+  activeArrowId = id;
+  scrollbarArrows[id].activate();
+  addEventListener(windowSelf(), "pointerup", stopArrowRepeat, false);
+  addEventListener(windowSelf(), "pointercancel", stopArrowRepeat, false);
+  if (!arrowRepeatScheduled) {
+    arrowRepeatScheduled = true;
+    scheduleTimeoutMs(repeatActiveArrow, 200.0);
+  }
+  preventDefault(event);
+}
+
+export class ScrollbarArrow {
+  int id;
+  JsValue scrollable;
+  JsValue host;
+  bool horizontal;
+  int direction;
+  int step;
+  JsValue bgDomNode;
+  JsValue domNode;
+
+  init(JsValue options) {
+    this.id = scrollbarArrows.length;
+    this.scrollable = options["scrollable"];
+    this.host = null;
+    if (options != null && options["host"] != null) {
+      this.host = options["host"];
+    }
+    this.horizontal = options["horizontal"].truthy();
+    this.direction = arrowIntOption(options, "direction", 1);
+    this.step = arrowIntOption(options, "step", 50);
+    this.bgDomNode = domCreateElement("div");
+    setClassName(this.bgDomNode, "arrow-background");
+    setStyle(this.bgDomNode, "position", "absolute");
+    setStyle(
+      this.bgDomNode,
+      "width",
+      arrowIntOption(options, "bgWidth", ARROW_IMG_SIZE).toString() + "px"
+    );
+    setStyle(
+      this.bgDomNode,
+      "height",
+      arrowIntOption(options, "bgHeight", ARROW_IMG_SIZE).toString() + "px"
+    );
+    positionArrowNode(this.bgDomNode, options, "top", true);
+    positionArrowNode(this.bgDomNode, options, "left", true);
+    positionArrowNode(this.bgDomNode, options, "bottom", true);
+    positionArrowNode(this.bgDomNode, options, "right", true);
+
+    this.domNode = domCreateElement("div");
+    string className = arrowStringOption(options, "className", "scra");
+    string iconClassName = arrowStringOption(options, "iconClassName", "");
+    if (iconClassName.length > 0) {
+      className = className + " " + iconClassName;
+    }
+    setClassName(this.domNode, className);
+    setStyle(this.domNode, "position", "absolute");
+    setStyle(this.domNode, "width", ARROW_IMG_SIZE.toString() + "px");
+    setStyle(this.domNode, "height", ARROW_IMG_SIZE.toString() + "px");
+    positionArrowNode(this.domNode, options, "top", false);
+    positionArrowNode(this.domNode, options, "left", false);
+    positionArrowNode(this.domNode, options, "bottom", false);
+    positionArrowNode(this.domNode, options, "right", false);
+
+    this.bgDomNode["_scrollbarArrowId"] = this.id;
+    this.domNode["_scrollbarArrowId"] = this.id;
+    scrollbarArrows.push(this);
+    addEventListener(this.bgDomNode, "pointerdown", startArrowRepeat, false);
+    addEventListener(this.domNode, "pointerdown", startArrowRepeat, false);
+  }
+
+  void activate() {
+    if (this.host != null && this.host["onMouseWheel"].truthy()) {
+      JsValue wheel = JS.object();
+      float dx = 0.0;
+      float dy = 0.0;
+      if (this.horizontal) {
+        dx = (0 - this.direction) * 1.0;
+      } else {
+        dy = (0 - this.direction) * 1.0;
+      }
+      wheel["deltaX"] = dx;
+      wheel["deltaY"] = dy;
+      wheel["ownerId"] = this.host["_id"];
+      hostCall(
+        this.host,
+        "onMouseWheel",
+        wheel,
+        jsUndefined(),
+        jsUndefined()
+      );
+      return;
+    }
+    int current = scrollablePosition(this.scrollable, this.horizontal);
+    writeArrowScrollPosition(
+      this.scrollable,
+      this.horizontal,
+      current + this.direction * this.step
+    );
+  }
+
+  void appendTo(JsValue parent) {
+    appendChild(parent, this.bgDomNode);
+    appendChild(parent, this.domNode);
+  }
+}
+
+export ScrollbarArrow createScrollbarArrow(JsValue options) {
+  return new ScrollbarArrow(options);
+}

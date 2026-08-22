@@ -1,0 +1,201 @@
+int HORIZONTAL_EXTRA_PX = 30;
+int REVEAL_SIMPLE = 0;
+int REVEAL_CENTER = 1;
+int REVEAL_CENTER_IF_OUTSIDE = 2;
+int REVEAL_TOP = 3;
+int REVEAL_BOTTOM = 4;
+int REVEAL_NEAR_TOP = 5;
+int REVEAL_NEAR_TOP_IF_OUTSIDE = 6;
+
+int imin(int a, int b) {
+  if (a < b) {
+    return a;
+  }
+  return b;
+}
+
+int imax(int a, int b) {
+  if (a > b) {
+    return a;
+  }
+  return b;
+}
+
+export class VisibleLineRange {
+  int startLineNumber;
+  int endLineNumber;
+  int completelyVisibleStartLineNumber;
+  int completelyVisibleEndLineNumber;
+
+  init(int startLineNumber, int endLineNumber, int completelyVisibleStartLineNumber, int completelyVisibleEndLineNumber) {
+    this.startLineNumber = startLineNumber;
+    this.endLineNumber = endLineNumber;
+    this.completelyVisibleStartLineNumber = completelyVisibleStartLineNumber;
+    this.completelyVisibleEndLineNumber = completelyVisibleEndLineNumber;
+  }
+}
+
+export class RevealRequest {
+  int minLineNumber;
+  int maxLineNumber;
+  int startColumn;
+  int endColumn;
+  bool minimalReveal;
+  int startScrollTop;
+  int stopScrollTop;
+
+  init(int minLineNumber, int maxLineNumber, int startColumn, int endColumn, bool minimalReveal, int startScrollTop, int stopScrollTop) {
+    this.minLineNumber = minLineNumber;
+    this.maxLineNumber = maxLineNumber;
+    this.startColumn = startColumn;
+    this.endColumn = endColumn;
+    this.minimalReveal = minimalReveal;
+    this.startScrollTop = startScrollTop;
+    this.stopScrollTop = stopScrollTop;
+  }
+}
+
+export class ViewLines {
+  int lineHeight;
+  float typicalHalfwidthCharacterWidth;
+  bool isViewportWrapping;
+  int revealHorizontalRightPadding;
+  int cursorSurroundingLines;
+  int maxLineWidth;
+  RevealRequest? horizontalRevealRequest;
+
+  init(int lineHeight, float typicalHalfwidthCharacterWidth, bool isViewportWrapping, int revealHorizontalRightPadding, int cursorSurroundingLines) {
+    this.lineHeight = lineHeight;
+    this.typicalHalfwidthCharacterWidth = typicalHalfwidthCharacterWidth;
+    this.isViewportWrapping = isViewportWrapping;
+    this.revealHorizontalRightPadding = revealHorizontalRightPadding;
+    this.cursorSurroundingLines = cursorSurroundingLines;
+    this.maxLineWidth = 0;
+    this.horizontalRevealRequest = null;
+  }
+
+  VisibleLineRange visibleRangeFromScroll(int scrollTop, int viewportHeight, int lineCount) {
+    int startLine = scrollTop / this.lineHeight + 1;
+    if (startLine < 1) {
+      startLine = 1;
+    }
+    int endOffset = scrollTop + viewportHeight;
+    int endLine = (endOffset + this.lineHeight - 1) / this.lineHeight;
+    if (endLine < 1) {
+      endLine = 1;
+    }
+    if (endLine > lineCount) {
+      endLine = lineCount;
+    }
+    if (startLine > lineCount) {
+      startLine = lineCount;
+    }
+    int completeStart = startLine;
+    if (scrollTop % this.lineHeight != 0) {
+      completeStart = startLine + 1;
+    }
+    int completeEnd = endLine;
+    if (endOffset % this.lineHeight != 0) {
+      completeEnd = endLine - 1;
+    }
+    if (completeStart > completeEnd) {
+      completeStart = startLine;
+      completeEnd = endLine;
+    }
+    return new VisibleLineRange(startLine, endLine, completeStart, completeEnd);
+  }
+
+  int computeMinimumScrolling(int viewportStart, int viewportEnd, int boxStart, int boxEnd, bool revealAtStart, bool revealAtEnd) {
+    int viewportLength = viewportEnd - viewportStart;
+    int boxLength = boxEnd - boxStart;
+    if (boxLength < viewportLength) {
+      if (revealAtStart) {
+        return boxStart;
+      }
+      if (revealAtEnd) {
+        return imax(0, boxEnd - viewportLength);
+      }
+      if (boxStart < viewportStart) {
+        return boxStart;
+      }
+      if (boxEnd > viewportEnd) {
+        return imax(0, boxEnd - viewportLength);
+      }
+      return viewportStart;
+    }
+    return boxStart;
+  }
+
+  int computeScrollTopToRevealRange(int viewportTop, int viewportHeight, int boxStartY, int boxEndY, bool boxIsSingleRange, bool minimalReveal, int verticalType, string source) {
+    int viewportStartY = viewportTop;
+    int viewportEndY = viewportStartY + viewportHeight;
+    bool shouldIgnoreScrollOff = (source == "mouse" || minimalReveal);
+    int paddingTop = 0;
+    int paddingBottom = 0;
+    if (!shouldIgnoreScrollOff) {
+      int maxLinesInViewport = viewportHeight / this.lineHeight;
+      int context = this.cursorSurroundingLines;
+      if (context > maxLinesInViewport / 2) {
+        context = maxLinesInViewport / 2;
+      }
+      paddingTop = context * this.lineHeight;
+      paddingBottom = imax(0, context - 1) * this.lineHeight;
+    } else {
+      if (!minimalReveal) {
+        paddingTop = this.lineHeight;
+      }
+    }
+    if (!minimalReveal) {
+      if (verticalType == REVEAL_SIMPLE || verticalType == REVEAL_BOTTOM) {
+        paddingBottom = paddingBottom + this.lineHeight;
+      }
+    }
+    boxStartY = boxStartY - paddingTop;
+    boxEndY = boxEndY + paddingBottom;
+    if (boxEndY - boxStartY > viewportHeight) {
+      if (!boxIsSingleRange) {
+        return -1;
+      }
+      return boxStartY;
+    }
+    if (verticalType == REVEAL_NEAR_TOP || verticalType == REVEAL_NEAR_TOP_IF_OUTSIDE) {
+      if (verticalType == REVEAL_NEAR_TOP_IF_OUTSIDE && viewportStartY <= boxStartY && boxEndY <= viewportEndY) {
+        return viewportStartY;
+      }
+      int desiredGapAbove = imax(5 * this.lineHeight, (viewportHeight * 0.2).round().toInt());
+      int desiredScrollTop = boxStartY - desiredGapAbove;
+      int minScrollTop = boxEndY - viewportHeight;
+      return imax(minScrollTop, desiredScrollTop);
+    }
+    if (verticalType == REVEAL_CENTER || verticalType == REVEAL_CENTER_IF_OUTSIDE) {
+      if (verticalType == REVEAL_CENTER_IF_OUTSIDE && viewportStartY <= boxStartY && boxEndY <= viewportEndY) {
+        return viewportStartY;
+      }
+      int boxMiddleY = (boxStartY + boxEndY) / 2;
+      return imax(0, boxMiddleY - viewportHeight / 2);
+    }
+    return this.computeMinimumScrolling(viewportStartY, viewportEndY, boxStartY, boxEndY, verticalType == REVEAL_TOP, verticalType == REVEAL_BOTTOM);
+  }
+
+  int computeScrollLeftToReveal(int viewportLeft, int viewportWidth, int boxStartX, int boxEndX, bool minimalReveal) {
+    if (!minimalReveal) {
+      boxStartX = imax(0, boxStartX - HORIZONTAL_EXTRA_PX);
+      boxEndX = boxEndX + this.revealHorizontalRightPadding;
+    }
+    return this.computeMinimumScrolling(viewportLeft, viewportLeft + viewportWidth, boxStartX, boxEndX, false, false);
+  }
+
+  int columnLeft(int column) {
+    return ((column - 1) * 1.0 * this.typicalHalfwidthCharacterWidth).round().toInt();
+  }
+
+  void ensureMaxLineWidth(int lineWidth) {
+    if (this.maxLineWidth < lineWidth) {
+      this.maxLineWidth = lineWidth;
+    }
+  }
+}
+
+export ViewLines createViewLines(int lineHeight, float typicalHalfwidthCharacterWidth, bool isViewportWrapping, int revealHorizontalRightPadding, int cursorSurroundingLines) {
+  return new ViewLines(lineHeight, typicalHalfwidthCharacterWidth, isViewportWrapping, revealHorizontalRightPadding, cursorSurroundingLines);
+}

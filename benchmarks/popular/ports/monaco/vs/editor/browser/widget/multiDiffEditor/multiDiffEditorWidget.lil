@@ -1,0 +1,28 @@
+export class MultiDiffEditorWidget {
+  int width;
+  int height;
+  int scrollTop;
+
+  init(int width, int height) {
+    this.width = width;
+    this.height = height;
+    this.scrollTop = 0;
+  }
+
+  void layout(int width, int height) {
+    this.width = width;
+    this.height = height;
+  }
+
+  void setScrollTop(int scrollTop) {
+    if (scrollTop < 0) {
+      this.scrollTop = 0;
+      return;
+    }
+    this.scrollTop = scrollTop;
+  }
+}
+
+export MultiDiffEditorWidget createMultiDiffEditorWidget(int width, int height) {
+  return new MultiDiffEditorWidget(width, height);
+}

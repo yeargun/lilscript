@@ -1,0 +1,79 @@
+import { hostCall, jsUndefined, newRegexp, windowSelf } from "../../../js-host";
+
+export JsValue revive(JsValue object, int depth) {
+  if (!object.truthy() || depth > 200 || !object.isObject()) {
+    return object;
+  }
+  JsValue midValue = object["$mid"];
+  if (midValue is float) {
+    float midNumber = midValue;
+    int mid = midNumber.toInt();
+    if (mid == 1) {
+      JsValue uri = JS.object();
+      uri["$mid"] = 1;
+      uri["scheme"] = object["scheme"];
+      uri["authority"] = object["authority"];
+      uri["path"] = object["path"];
+      uri["query"] = object["query"];
+      uri["fragment"] = object["fragment"];
+      return uri;
+    }
+    if (mid == 2) {
+      string source = "";
+      string flags = "";
+      JsValue sourceValue = object["source"];
+      if (sourceValue is string) {
+        string sourceText = sourceValue;
+        source = sourceText;
+      }
+      JsValue flagsValue = object["flags"];
+      if (flagsValue is string) {
+        string flagsText = flagsValue;
+        flags = flagsText;
+      }
+      Regex result = newRegexp(source, flags);
+      JsValue boxed = result;
+      return boxed;
+    }
+    if (mid == 17) {
+      JsValue dateValue = JS.object();
+      dateValue["$mid"] = 17;
+      dateValue["source"] = object["source"];
+      return dateValue;
+    }
+  }
+  if (object.isArray()) {
+    int i = 0;
+    int length = object.length.toInt();
+    while (i < length) {
+      object[i] = revive(object[i], depth + 1);
+      i = i + 1;
+    }
+  } else {
+    for (string key in object) {
+      object[key] = revive(object[key], depth + 1);
+    }
+  }
+  return object;
+}
+
+export JsValue reviveRoot(JsValue object) {
+  return revive(object, 0);
+}
+
+export string stringify(JsValue object) {
+  JsValue json = windowSelf()["JSON"];
+  JsValue result = hostCall(json, "stringify", object, jsUndefined(), jsUndefined());
+  if (result is string) {
+    string text = result;
+    return text;
+  }
+  return "";
+}
+
+export JsValue parse(string text) {
+  JsValue json = windowSelf()["JSON"];
+  JsValue source = text;
+  JsValue parsed = hostCall(json, "parse", source, jsUndefined(), jsUndefined());
+  return revive(parsed, 0);
+}

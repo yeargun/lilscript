@@ -1,0 +1,232 @@
+export class DeletePosition {
+  int lineNumber;
+  int column;
+
+  init(int lineNumber, int column) {
+    this.lineNumber = lineNumber;
+    this.column = column;
+  }
+}
+
+export class DeleteRange {
+  int startLineNumber;
+  int startColumn;
+  int endLineNumber;
+  int endColumn;
+
+  init(int startLineNumber, int startColumn, int endLineNumber, int endColumn) {
+    if (startLineNumber > endLineNumber || (startLineNumber == endLineNumber && startColumn > endColumn)) {
+      this.startLineNumber = endLineNumber;
+      this.startColumn = endColumn;
+      this.endLineNumber = startLineNumber;
+      this.endColumn = startColumn;
+    } else {
+      this.startLineNumber = startLineNumber;
+      this.startColumn = startColumn;
+      this.endLineNumber = endLineNumber;
+      this.endColumn = endColumn;
+    }
+  }
+
+  bool isEmpty() {
+    return this.startLineNumber == this.endLineNumber && this.startColumn == this.endColumn;
+  }
+}
+
+int deleteNextTabStop(int visibleColumn, int tabSize) {
+  if (tabSize <= 0) {
+    return visibleColumn + 1;
+  }
+  return visibleColumn + tabSize - visibleColumn % tabSize;
+}
+
+int deletePreviousTabStop(int visibleColumn, int indentSize) {
+  if (visibleColumn <= 0 || indentSize <= 0) {
+    return 0;
+  }
+  return visibleColumn - 1 - (visibleColumn - 1) % indentSize;
+}
+
+int deleteVisibleColumn(string line, int column, int tabSize) {
+  int visibleColumn = 0;
+  int i = 0;
+  int end = column - 1;
+  while (i < end && i < line.length) {
+    if (line.charCodeAt(i) == 9) {
+      visibleColumn = deleteNextTabStop(visibleColumn, tabSize);
+    } else {
+      visibleColumn = visibleColumn + 1;
+    }
+    i = i + 1;
+  }
+  return visibleColumn;
+}
+
+int deleteColumnFromVisible(string line, int targetVisibleColumn, int tabSize) {
+  int visibleColumn = 0;
+  int i = 0;
+  while (i < line.length) {
+    int nextVisibleColumn = visibleColumn + 1;
+    if (line.charCodeAt(i) == 9) {
+      nextVisibleColumn = deleteNextTabStop(visibleColumn, tabSize);
+    }
+    if (nextVisibleColumn >= targetVisibleColumn) {
+      return i + 1;
+    }
+    visibleColumn = nextVisibleColumn;
+    i = i + 1;
+  }
+  return line.length + 1;
+}
+
+int deleteFirstNonWhitespace(string line) {
+  int i = 0;
+  while (i < line.length) {
+    int code = line.charCodeAt(i);
+    if (code != 32 && code != 9) {
+      return i;
+    }
+    i = i + 1;
+  }
+  return -1;
+}
+
+int leftDeleteOffset(string line, int offset) {
+  if (offset <= 0) {
+    return 0;
+  }
+  int result = offset - 1;
+  int code = line.charCodeAt(result);
+  if (code >= 56320 && code <= 57343 && result > 0) {
+    int previous = line.charCodeAt(result - 1);
+    if (previous >= 55296 && previous <= 56319) {
+      result = result - 1;
+    }
+  }
+  while (result > 0) {
+    int combining = line.charCodeAt(result);
+    if (
+      (combining >= 768 && combining <= 879)
+      || (combining >= 65024 && combining <= 65039)
+    ) {
+      result = result - 1;
+    } else {
+      break;
+    }
+  }
+  return result;
+}
+
+int rightDeleteOffset(string line, int offset) {
+  if (offset >= line.length) {
+    return line.length;
+  }
+  int result = offset + 1;
+  int code = line.charCodeAt(offset);
+  if (code >= 55296 && code <= 56319 && result < line.length) {
+    int next = line.charCodeAt(result);
+    if (next >= 56320 && next <= 57343) {
+      result = result + 1;
+    }
+  }
+  while (result < line.length) {
+    int combining = line.charCodeAt(result);
+    if (
+      (combining >= 768 && combining <= 879)
+      || (combining >= 65024 && combining <= 65039)
+    ) {
+      result = result + 1;
+    } else {
+      break;
+    }
+  }
+  return result;
+}
+
+export DeleteRange getDeleteLeftRange(
+  string[] lines,
+  DeleteRange selection,
+  int tabSize,
+  int indentSize,
+  bool useTabStops
+) {
+  if (!selection.isEmpty()) {
+    return selection;
+  }
+  int lineNumber = selection.endLineNumber;
+  int column = selection.endColumn;
+  string line = lines[lineNumber - 1];
+  if (useTabStops && column > 1) {
+    int firstNonWhitespace = deleteFirstNonWhitespace(line);
+    int indentationColumn = line.length + 1;
+    if (firstNonWhitespace >= 0) {
+      indentationColumn = firstNonWhitespace + 1;
+    }
+    if (column <= indentationColumn) {
+      int fromVisibleColumn = deleteVisibleColumn(line, column, tabSize);
+      int toVisibleColumn = deletePreviousTabStop(fromVisibleColumn, indentSize);
+      int toColumn = deleteColumnFromVisible(line, toVisibleColumn, tabSize);
+      return new DeleteRange(lineNumber, toColumn, lineNumber, column);
+    }
+  }
+  if (column > 1) {
+    int offset = leftDeleteOffset(line, column - 1);
+    return new DeleteRange(lineNumber, offset + 1, lineNumber, column);
+  }
+  if (lineNumber > 1) {
+    int previousLineNumber = lineNumber - 1;
+    return new DeleteRange(
+      previousLineNumber,
+      lines[previousLineNumber - 1].length + 1,
+      lineNumber,
+      column
+    );
+  }
+  return new DeleteRange(1, 1, 1, 1);
+}
+
+export DeleteRange getDeleteRightRange(
+  string[] lines,
+  DeleteRange selection,
+  bool trimWhitespaceOnDelete
+) {
+  if (!selection.isEmpty()) {
+    return selection;
+  }
+  int lineNumber = selection.endLineNumber;
+  int column = selection.endColumn;
+  string line = lines[lineNumber - 1];
+  if (column <= line.length) {
+    int offset = rightDeleteOffset(line, column - 1);
+    return new DeleteRange(lineNumber, column, lineNumber, offset + 1);
+  }
+  if (lineNumber < lines.length) {
+    int nextLineNumber = lineNumber + 1;
+    int nextColumn = 1;
+    if (trimWhitespaceOnDelete) {
+      int currentFirstNonWhitespace = deleteFirstNonWhitespace(line);
+      int nextFirstNonWhitespace = deleteFirstNonWhitespace(lines[nextLineNumber - 1]);
+      if (currentFirstNonWhitespace >= 0 && nextFirstNonWhitespace >= 0) {
+        nextColumn = nextFirstNonWhitespace + 1;
+      }
+    }
+    return new DeleteRange(lineNumber, column, nextLineNumber, nextColumn);
+  }
+  return new DeleteRange(lineNumber, column, lineNumber, column);
+}
+
+export bool isAutoClosingPair(string line, int column, string openCharacters, string closeCharacters) {
+  if (column < 2 || column > line.length) {
+    return false;
+  }
+  string before = line.charAt(column - 2);
+  int pairIndex = openCharacters.indexOf(before);
+  if (pairIndex < 0 || pairIndex >= closeCharacters.length) {
+    return false;
+  }
+  return line.charAt(column - 1) == closeCharacters.charAt(pairIndex);
+}
+
+export DeleteRange getAutoClosingPairDeleteRange(int lineNumber, int column) {
+  return new DeleteRange(lineNumber, column - 1, lineNumber, column + 1);
+}

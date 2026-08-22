@@ -1,0 +1,29 @@
+export class IMEImpl {
+  bool enabledFlag;
+  int generation;
+
+  init() {
+    this.enabledFlag = true;
+    this.generation = 0;
+  }
+
+  bool enabled() {
+    return this.enabledFlag;
+  }
+
+  void enable() {
+    this.enabledFlag = true;
+    this.generation = this.generation + 1;
+  }
+
+  void disable() {
+    this.enabledFlag = false;
+    this.generation = this.generation + 1;
+  }
+}
+
+IMEImpl sharedIME = new IMEImpl();
+
+export IMEImpl ime() {
+  return sharedIME;
+}

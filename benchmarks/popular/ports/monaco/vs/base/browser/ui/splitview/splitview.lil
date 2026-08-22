@@ -1,0 +1,876 @@
+import { domCreateElement, appendChild, setClassName, classListAdd, classListRemove, setStyle, addEventListener, removeEventListener, preventDefault, eventAltKey, windowSelf, hostCall, jsUndefined, imin, imax } from "../../../../../js-host";
+
+export enum SplitOrientation {
+  VERTICAL,
+  HORIZONTAL
+}
+
+export enum LayoutPriority {
+  Normal,
+  Low,
+  High
+}
+
+export enum SashState {
+  Disabled,
+  AtMinimum,
+  AtMaximum,
+  Enabled
+}
+
+int SIZE_MAX = 2147483647;
+int SIZE_MIN = -2147483647;
+
+int clampSize(int n, int lo, int hi) {
+  if (n < lo) {
+    return lo;
+  }
+  if (n > hi) {
+    return hi;
+  }
+  return n;
+}
+
+int[] rangeTo(int from, int to) {
+  int[] result = [];
+  if (from <= to) {
+    int i = from;
+    while (i < to) {
+      result.push(i);
+      i = i + 1;
+    }
+  } else {
+    int i = from;
+    while (i > to) {
+      result.push(i);
+      i = i - 1;
+    }
+  }
+  return result;
+}
+
+void pushIndexToStart(int[] indexes, int index) {
+  int found = indexes.indexOf(index);
+  if (found < 0) {
+    return;
+  }
+  indexes.splice(found, 1);
+  int[] rest = [];
+  int i = 0;
+  while (i < indexes.length) {
+    rest.push(indexes[i]);
+    i = i + 1;
+  }
+  indexes.splice(0, indexes.length);
+  indexes.push(index);
+  i = 0;
+  while (i < rest.length) {
+    indexes.push(rest[i]);
+    i = i + 1;
+  }
+}
+
+void pushIndexToEnd(int[] indexes, int index) {
+  int found = indexes.indexOf(index);
+  if (found < 0) {
+    return;
+  }
+  indexes.splice(found, 1);
+  indexes.push(index);
+}
+
+export class SplitViewItem {
+  JsValue container;
+  JsValue element;
+  int size;
+  int minimumSize;
+  int maximumSize;
+  LayoutPriority priority;
+  bool visible;
+  bool snap;
+  bool proportionalLayout;
+  int cachedVisibleSize;
+  bool enabled;
+
+  init(JsValue container, JsValue element, int size, int minimumSize, int maximumSize, LayoutPriority priority, bool snap, bool proportionalLayout) {
+    this.container = container;
+    this.element = element;
+    this.size = size;
+    this.minimumSize = minimumSize;
+    this.maximumSize = maximumSize;
+    this.priority = priority;
+    this.visible = true;
+    this.snap = snap;
+    this.proportionalLayout = proportionalLayout;
+    this.cachedVisibleSize = size;
+    this.enabled = true;
+    appendChild(container, element);
+  }
+
+  int viewMinimumSize() {
+    if (this.visible) {
+      return this.minimumSize;
+    }
+    return 0;
+  }
+
+  int viewMaximumSize() {
+    if (this.visible) {
+      return this.maximumSize;
+    }
+    return 0;
+  }
+
+  void setVisible(bool visible, int size) {
+    if (this.visible == visible) {
+      return;
+    }
+    if (visible) {
+      this.size = size;
+      if (this.size < this.minimumSize) {
+        this.size = this.minimumSize;
+      }
+      this.visible = true;
+      classListRemove(this.container, "invisible");
+    } else {
+      this.cachedVisibleSize = this.size;
+      this.size = 0;
+      this.visible = false;
+      classListAdd(this.container, "invisible");
+    }
+  }
+
+  void layout(int offset, SplitOrientation orientation) {
+    if (orientation == SplitOrientation.VERTICAL) {
+      setStyle(this.container, "top", offset.toString() + "px");
+      setStyle(this.container, "height", this.size.toString() + "px");
+    } else {
+      setStyle(this.container, "left", offset.toString() + "px");
+      setStyle(this.container, "width", this.size.toString() + "px");
+    }
+  }
+}
+
+export class SnapState {
+  int index;
+  int limitDelta;
+  int size;
+  bool used;
+
+  init(int index, int limitDelta, int size) {
+    this.index = index;
+    this.limitDelta = limitDelta;
+    this.size = size;
+    this.used = true;
+  }
+}
+
+export class SashDragState {
+  int start;
+  int current;
+  int index;
+  int[] sizes;
+  int minDelta;
+  int maxDelta;
+  bool alt;
+  SnapState snapBefore;
+  SnapState snapAfter;
+
+  init(int start, int index, int[] sizes, int minDelta, int maxDelta, bool alt, SnapState snapBefore, SnapState snapAfter) {
+    this.start = start;
+    this.current = start;
+    this.index = index;
+    this.sizes = sizes;
+    this.minDelta = minDelta;
+    this.maxDelta = maxDelta;
+    this.alt = alt;
+    this.snapBefore = snapBefore;
+    this.snapAfter = snapAfter;
+  }
+}
+
+export class SplitView {
+  JsValue el;
+  JsValue viewContainer;
+  SplitOrientation orientation;
+  bool inverseAltBehavior;
+  bool proportionalLayout;
+  bool startSnappingEnabled;
+  bool endSnappingEnabled;
+  int size;
+  int contentSize;
+  SplitViewItem[] viewItems;
+  float[] proportions;
+  bool hasProportions;
+  SashDragState? drag;
+  SashState[] sashStates;
+  (func(int)->void)[] sashChangeListeners;
+  (func(int)->void)[] sashResetListeners;
+
+  init(JsValue container, SplitOrientation orientation, bool proportionalLayout, bool inverseAltBehavior) {
+    this.orientation = orientation;
+    this.proportionalLayout = proportionalLayout;
+    this.inverseAltBehavior = inverseAltBehavior;
+    this.startSnappingEnabled = true;
+    this.endSnappingEnabled = true;
+    this.size = 0;
+    this.contentSize = 0;
+    this.viewItems = [];
+    this.proportions = [];
+    this.hasProportions = false;
+    this.drag = null;
+    this.sashStates = [];
+    this.sashChangeListeners = [];
+    this.sashResetListeners = [];
+    this.el = domCreateElement("div");
+    setClassName(this.el, "monaco-split-view2");
+    if (orientation == SplitOrientation.VERTICAL) {
+      classListAdd(this.el, "vertical");
+    } else {
+      classListAdd(this.el, "horizontal");
+    }
+    this.viewContainer = domCreateElement("div");
+    setClassName(this.viewContainer, "split-view-container");
+    appendChild(this.el, this.viewContainer);
+    appendChild(container, this.el);
+  }
+
+  int getViewSize(int index) {
+    if (index < 0 || index >= this.viewItems.length) {
+      return -1;
+    }
+    return this.viewItems[index].size;
+  }
+
+  bool isViewExpanded(int index) {
+    if (index < 0 || index >= this.viewItems.length) {
+      return false;
+    }
+    int i = 0;
+    while (i < this.viewItems.length) {
+      if (i != index && this.viewItems[i].size > this.viewItems[i].minimumSize) {
+        return false;
+      }
+      i = i + 1;
+    }
+    return true;
+  }
+
+  void addView(JsValue element, int size, int minimumSize, int maximumSize, LayoutPriority priority, bool snap, bool proportional, int index) {
+    JsValue container = domCreateElement("div");
+    setClassName(container, "split-view-view");
+    SplitViewItem item = new SplitViewItem(container, element, size, minimumSize, maximumSize, priority, snap, proportional);
+    int at = index;
+    if (at < 0 || at >= this.viewItems.length) {
+      this.viewItems.push(item);
+      appendChild(this.viewContainer, container);
+    } else {
+      SplitViewItem[] next = [];
+      int i = 0;
+      while (i < this.viewItems.length) {
+        if (i == at) {
+          next.push(item);
+        }
+        next.push(this.viewItems[i]);
+        i = i + 1;
+      }
+      this.viewItems = next;
+      appendChild(this.viewContainer, container);
+    }
+    this.sashStates.push(SashState.Enabled);
+    this.relayout([this.viewItems.length - 1], []);
+  }
+
+  void removeView(int index) {
+    if (index < 0 || index >= this.viewItems.length) {
+      return;
+    }
+    SplitViewItem[] next = [];
+    int i = 0;
+    while (i < this.viewItems.length) {
+      if (i != index) {
+        next.push(this.viewItems[i]);
+      }
+      i = i + 1;
+    }
+    this.viewItems = next;
+    if (this.sashStates.length > 0) {
+      this.sashStates.splice(this.sashStates.length - 1, 1);
+    }
+    this.relayout([], []);
+  }
+
+  void setViewVisible(int index, bool visible) {
+    if (index < 0 || index >= this.viewItems.length) {
+      return;
+    }
+    SplitViewItem item = this.viewItems[index];
+    item.setVisible(visible, item.cachedVisibleSize);
+    this.distributeEmptySpace(index);
+    this.layoutViews();
+    this.saveProportions();
+  }
+
+  void layout(int size) {
+    int previousSize = this.size;
+    if (this.contentSize > previousSize) {
+      previousSize = this.contentSize;
+    }
+    this.size = size;
+    if (!this.hasProportions) {
+      int[] indexes = rangeTo(0, this.viewItems.length);
+      int[] lowPriority = [];
+      int[] highPriority = [];
+      int i = 0;
+      while (i < indexes.length) {
+        LayoutPriority p = this.viewItems[indexes[i]].priority;
+        if (p == LayoutPriority.Low) {
+          lowPriority.push(indexes[i]);
+        } else if (p == LayoutPriority.High) {
+          highPriority.push(indexes[i]);
+        }
+        i = i + 1;
+      }
+      this.resize(this.viewItems.length - 1, size - previousSize, [], lowPriority, highPriority, SIZE_MIN, SIZE_MAX, new SnapState(-1, 0, 0), new SnapState(-1, 0, 0));
+    } else {
+      int remaining = size;
+      float total = 0.0;
+      int i = 0;
+      while (i < this.viewItems.length) {
+        if (i < this.proportions.length && this.proportions[i] >= 0.0) {
+          total = total + this.proportions[i];
+        } else {
+          remaining = remaining - this.viewItems[i].size;
+        }
+        i = i + 1;
+      }
+      i = 0;
+      while (i < this.viewItems.length) {
+        if (i < this.proportions.length && this.proportions[i] >= 0.0 && total > 0.0) {
+          SplitViewItem item = this.viewItems[i];
+          int nextSize = (this.proportions[i] * remaining * 1.0 / total).round().toInt();
+          item.size = clampSize(nextSize, item.minimumSize, item.maximumSize);
+        }
+        i = i + 1;
+      }
+    }
+    this.distributeEmptySpace(-1);
+    this.layoutViews();
+  }
+
+  void saveProportions() {
+    if (!this.proportionalLayout || this.contentSize <= 0) {
+      return;
+    }
+    this.proportions = [];
+    this.hasProportions = true;
+    int i = 0;
+    while (i < this.viewItems.length) {
+      SplitViewItem item = this.viewItems[i];
+      if (item.proportionalLayout && item.visible) {
+        this.proportions.push(item.size * 1.0 / (this.contentSize * 1.0));
+      } else {
+        this.proportions.push(-1.0);
+      }
+      i = i + 1;
+    }
+  }
+
+  void resizeView(int index, int size) {
+    if (index < 0 || index >= this.viewItems.length) {
+      return;
+    }
+    int[] indexes = rangeTo(0, this.viewItems.length);
+    int[] lowPriority = [];
+    int[] highPriority = [];
+    int i = 0;
+    while (i < indexes.length) {
+      if (indexes[i] != index) {
+        if (this.viewItems[indexes[i]].priority == LayoutPriority.Low) {
+          lowPriority.push(indexes[i]);
+        } else if (this.viewItems[indexes[i]].priority == LayoutPriority.High) {
+          highPriority.push(indexes[i]);
+        }
+      }
+      i = i + 1;
+    }
+    lowPriority.push(index);
+    SplitViewItem item = this.viewItems[index];
+    int next = clampSize(size, item.minimumSize, imin(item.maximumSize, this.size));
+    item.size = next;
+    this.relayout(lowPriority, highPriority);
+  }
+
+  void distributeViewSizes() {
+    SplitViewItem[] flexible = [];
+    int flexibleSize = 0;
+    int i = 0;
+    while (i < this.viewItems.length) {
+      SplitViewItem item = this.viewItems[i];
+      if (item.maximumSize - item.minimumSize > 0) {
+        flexible.push(item);
+        flexibleSize = flexibleSize + item.size;
+      }
+      i = i + 1;
+    }
+    if (flexible.length == 0) {
+      return;
+    }
+    int share = flexibleSize / flexible.length;
+    i = 0;
+    while (i < flexible.length) {
+      SplitViewItem item = flexible[i];
+      item.size = clampSize(share, item.minimumSize, item.maximumSize);
+      i = i + 1;
+    }
+    int[] indexes = rangeTo(0, this.viewItems.length);
+    int[] lowPriority = [];
+    int[] highPriority = [];
+    i = 0;
+    while (i < indexes.length) {
+      if (this.viewItems[indexes[i]].priority == LayoutPriority.Low) {
+        lowPriority.push(indexes[i]);
+      } else if (this.viewItems[indexes[i]].priority == LayoutPriority.High) {
+        highPriority.push(indexes[i]);
+      }
+      i = i + 1;
+    }
+    this.relayout(lowPriority, highPriority);
+  }
+
+  void relayout(int[] lowPriorityIndexes, int[] highPriorityIndexes) {
+    int contentSize = 0;
+    int i = 0;
+    while (i < this.viewItems.length) {
+      contentSize = contentSize + this.viewItems[i].size;
+      i = i + 1;
+    }
+    this.resize(this.viewItems.length - 1, this.size - contentSize, [], lowPriorityIndexes, highPriorityIndexes, SIZE_MIN, SIZE_MAX, new SnapState(-1, 0, 0), new SnapState(-1, 0, 0));
+    this.distributeEmptySpace(-1);
+    this.layoutViews();
+    this.saveProportions();
+  }
+
+  int[] currentSizes() {
+    int[] sizes = [];
+    int i = 0;
+    while (i < this.viewItems.length) {
+      sizes.push(this.viewItems[i].size);
+      i = i + 1;
+    }
+    return sizes;
+  }
+
+  int findFirstSnapIndex(int[] indexes) {
+    int i = 0;
+    while (i < indexes.length) {
+      SplitViewItem item = this.viewItems[indexes[i]];
+      if (item.visible && item.snap) {
+        return indexes[i];
+      }
+      i = i + 1;
+    }
+    i = 0;
+    while (i < indexes.length) {
+      SplitViewItem item = this.viewItems[indexes[i]];
+      if (item.visible && item.maximumSize - item.minimumSize > 0) {
+        return -1;
+      }
+      if (!item.visible && item.snap) {
+        return indexes[i];
+      }
+      i = i + 1;
+    }
+    return -1;
+  }
+
+  int resize(int index, int delta, int[] sizes, int[] lowPriorityIndexes, int[] highPriorityIndexes, int overloadMinDelta, int overloadMaxDelta, SnapState snapBefore, SnapState snapAfter) {
+    if (index < 0 || index >= this.viewItems.length) {
+      return 0;
+    }
+    int[] usedSizes = sizes;
+    if (usedSizes.length == 0) {
+      usedSizes = this.currentSizes();
+    }
+    int[] upIndexes = rangeTo(index, -1);
+    int[] downIndexes = rangeTo(index + 1, this.viewItems.length);
+    int p = 0;
+    while (p < highPriorityIndexes.length) {
+      pushIndexToStart(upIndexes, highPriorityIndexes[p]);
+      pushIndexToStart(downIndexes, highPriorityIndexes[p]);
+      p = p + 1;
+    }
+    p = 0;
+    while (p < lowPriorityIndexes.length) {
+      pushIndexToEnd(upIndexes, lowPriorityIndexes[p]);
+      pushIndexToEnd(downIndexes, lowPriorityIndexes[p]);
+      p = p + 1;
+    }
+    int minDeltaUp = 0;
+    int maxDeltaUp = 0;
+    int i = 0;
+    while (i < upIndexes.length) {
+      SplitViewItem item = this.viewItems[upIndexes[i]];
+      minDeltaUp = minDeltaUp + (item.minimumSize - usedSizes[upIndexes[i]]);
+      maxDeltaUp = maxDeltaUp + (item.maximumSize - usedSizes[upIndexes[i]]);
+      i = i + 1;
+    }
+    int maxDeltaDown = SIZE_MAX;
+    int minDeltaDown = SIZE_MIN;
+    if (downIndexes.length > 0) {
+      maxDeltaDown = 0;
+      minDeltaDown = 0;
+      i = 0;
+      while (i < downIndexes.length) {
+        SplitViewItem item = this.viewItems[downIndexes[i]];
+        maxDeltaDown = maxDeltaDown + (usedSizes[downIndexes[i]] - item.minimumSize);
+        minDeltaDown = minDeltaDown + (usedSizes[downIndexes[i]] - item.maximumSize);
+        i = i + 1;
+      }
+    }
+    int minDelta = minDeltaUp;
+    if (minDeltaDown > minDelta) {
+      minDelta = minDeltaDown;
+    }
+    if (overloadMinDelta > minDelta) {
+      minDelta = overloadMinDelta;
+    }
+    int maxDelta = maxDeltaDown;
+    if (maxDeltaUp < maxDelta) {
+      maxDelta = maxDeltaUp;
+    }
+    if (overloadMaxDelta < maxDelta) {
+      maxDelta = overloadMaxDelta;
+    }
+    bool snapped = false;
+    if (snapBefore.used && snapBefore.index >= 0) {
+      SplitViewItem snapView = this.viewItems[snapBefore.index];
+      bool visible = delta >= snapBefore.limitDelta;
+      snapped = visible != snapView.visible;
+      snapView.setVisible(visible, snapBefore.size);
+    }
+    if (!snapped && snapAfter.used && snapAfter.index >= 0) {
+      SplitViewItem snapView = this.viewItems[snapAfter.index];
+      bool visible = delta < snapAfter.limitDelta;
+      snapped = visible != snapView.visible;
+      snapView.setVisible(visible, snapAfter.size);
+    }
+    if (snapped) {
+      return this.resize(index, delta, usedSizes, lowPriorityIndexes, highPriorityIndexes, overloadMinDelta, overloadMaxDelta, new SnapState(-1, 0, 0), new SnapState(-1, 0, 0));
+    }
+    int clamped = clampSize(delta, minDelta, maxDelta);
+    int deltaUp = clamped;
+    i = 0;
+    while (i < upIndexes.length) {
+      SplitViewItem item = this.viewItems[upIndexes[i]];
+      int next = clampSize(usedSizes[upIndexes[i]] + deltaUp, item.minimumSize, item.maximumSize);
+      int viewDelta = next - usedSizes[upIndexes[i]];
+      deltaUp = deltaUp - viewDelta;
+      item.size = next;
+      i = i + 1;
+    }
+    int deltaDown = clamped;
+    i = 0;
+    while (i < downIndexes.length) {
+      SplitViewItem item = this.viewItems[downIndexes[i]];
+      int next = clampSize(usedSizes[downIndexes[i]] - deltaDown, item.minimumSize, item.maximumSize);
+      int viewDelta = next - usedSizes[downIndexes[i]];
+      deltaDown = deltaDown + viewDelta;
+      item.size = next;
+      i = i + 1;
+    }
+    return clamped;
+  }
+
+  void distributeEmptySpace(int lowPriorityIndex) {
+    int contentSize = 0;
+    int i = 0;
+    while (i < this.viewItems.length) {
+      contentSize = contentSize + this.viewItems[i].size;
+      i = i + 1;
+    }
+    int emptyDelta = this.size - contentSize;
+    int[] indexes = rangeTo(this.viewItems.length - 1, -1);
+    int[] lowPriority = [];
+    int[] highPriority = [];
+    i = 0;
+    while (i < indexes.length) {
+      if (this.viewItems[indexes[i]].priority == LayoutPriority.Low) {
+        lowPriority.push(indexes[i]);
+      } else if (this.viewItems[indexes[i]].priority == LayoutPriority.High) {
+        highPriority.push(indexes[i]);
+      }
+      i = i + 1;
+    }
+    i = 0;
+    while (i < highPriority.length) {
+      pushIndexToStart(indexes, highPriority[i]);
+      i = i + 1;
+    }
+    i = 0;
+    while (i < lowPriority.length) {
+      pushIndexToEnd(indexes, lowPriority[i]);
+      i = i + 1;
+    }
+    if (lowPriorityIndex >= 0) {
+      pushIndexToEnd(indexes, lowPriorityIndex);
+    }
+    i = 0;
+    while (emptyDelta != 0 && i < indexes.length) {
+      SplitViewItem item = this.viewItems[indexes[i]];
+      int next = clampSize(item.size + emptyDelta, item.minimumSize, item.maximumSize);
+      int viewDelta = next - item.size;
+      emptyDelta = emptyDelta - viewDelta;
+      item.size = next;
+      i = i + 1;
+    }
+  }
+
+  void layoutViews() {
+    this.contentSize = 0;
+    int i = 0;
+    while (i < this.viewItems.length) {
+      this.contentSize = this.contentSize + this.viewItems[i].size;
+      i = i + 1;
+    }
+    int offset = 0;
+    i = 0;
+    while (i < this.viewItems.length) {
+      this.viewItems[i].layout(offset, this.orientation);
+      offset = offset + this.viewItems[i].size;
+      i = i + 1;
+    }
+    this.updateSashEnablement();
+  }
+
+  void updateSashEnablement() {
+    int n = this.viewItems.length;
+    if (n == 0) {
+      return;
+    }
+    bool[] collapsesDown = [];
+    bool[] expandsDown = [];
+    bool[] collapsesUp = [];
+    bool[] expandsUp = [];
+    bool previous = false;
+    int i = 0;
+    while (i < n) {
+      previous = (this.viewItems[i].size - this.viewItems[i].minimumSize > 0) || previous;
+      collapsesDown.push(previous);
+      i = i + 1;
+    }
+    previous = false;
+    i = 0;
+    while (i < n) {
+      previous = (this.viewItems[i].maximumSize - this.viewItems[i].size > 0) || previous;
+      expandsDown.push(previous);
+      i = i + 1;
+    }
+    previous = false;
+    i = n - 1;
+    while (i >= 0) {
+      previous = (this.viewItems[i].size - this.viewItems[i].minimumSize > 0) || previous;
+      collapsesUp.push(false);
+      i = i - 1;
+    }
+    previous = false;
+    i = n - 1;
+    bool[] collapsesUpRev = [];
+    while (i >= 0) {
+      previous = (this.viewItems[i].size - this.viewItems[i].minimumSize > 0) || previous;
+      collapsesUpRev.push(previous);
+      i = i - 1;
+    }
+    collapsesUp = [];
+    i = collapsesUpRev.length - 1;
+    while (i >= 0) {
+      collapsesUp.push(collapsesUpRev[i]);
+      i = i - 1;
+    }
+    previous = false;
+    bool[] expandsUpRev = [];
+    i = n - 1;
+    while (i >= 0) {
+      previous = (this.viewItems[i].maximumSize - this.viewItems[i].size > 0) || previous;
+      expandsUpRev.push(previous);
+      i = i - 1;
+    }
+    expandsUp = [];
+    i = expandsUpRev.length - 1;
+    while (i >= 0) {
+      expandsUp.push(expandsUpRev[i]);
+      i = i - 1;
+    }
+    int sashCount = n - 1;
+    int position = 0;
+    i = 0;
+    while (i < sashCount) {
+      position = position + this.viewItems[i].size;
+      bool min = !(collapsesDown[i] && expandsUp[i + 1]);
+      bool max = !(expandsDown[i] && collapsesUp[i + 1]);
+      SashState next = SashState.Enabled;
+      if (min && max) {
+        int snapBeforeIndex = this.findFirstSnapIndex(rangeTo(i, -1));
+        int snapAfterIndex = this.findFirstSnapIndex(rangeTo(i + 1, n));
+        bool snappedBefore = snapBeforeIndex >= 0 && !this.viewItems[snapBeforeIndex].visible;
+        bool snappedAfter = snapAfterIndex >= 0 && !this.viewItems[snapAfterIndex].visible;
+        if (snappedBefore && collapsesUp[i] && (position > 0 || this.startSnappingEnabled)) {
+          next = SashState.AtMinimum;
+        } else if (snappedAfter && collapsesDown[i] && (position < this.contentSize || this.endSnappingEnabled)) {
+          next = SashState.AtMaximum;
+        } else {
+          next = SashState.Disabled;
+        }
+      } else if (min && !max) {
+        next = SashState.AtMinimum;
+      } else if (!min && max) {
+        next = SashState.AtMaximum;
+      }
+      if (i < this.sashStates.length) {
+        this.sashStates[i] = next;
+      }
+      i = i + 1;
+    }
+  }
+
+  void onSashStart(int index, int start, bool alt) {
+    bool useAlt = alt;
+    if (this.inverseAltBehavior) {
+      useAlt = !useAlt;
+    }
+    int[] sizes = this.currentSizes();
+    int minDelta = SIZE_MIN;
+    int maxDelta = SIZE_MAX;
+    SnapState snapBefore = new SnapState(-1, 0, 0);
+    snapBefore.used = false;
+    SnapState snapAfter = new SnapState(-1, 0, 0);
+    snapAfter.used = false;
+    if (useAlt) {
+      bool isLastSash = index == this.viewItems.length - 2;
+      if (isLastSash) {
+        SplitViewItem item = this.viewItems[index];
+        minDelta = (item.minimumSize - item.size) / 2;
+        maxDelta = (item.maximumSize - item.size) / 2;
+      } else {
+        SplitViewItem item = this.viewItems[index + 1];
+        minDelta = (item.size - item.maximumSize) / 2;
+        maxDelta = (item.size - item.minimumSize) / 2;
+      }
+    } else {
+      int[] upIndexes = rangeTo(index, -1);
+      int[] downIndexes = rangeTo(index + 1, this.viewItems.length);
+      int minDeltaUp = 0;
+      int maxDeltaUp = 0;
+      int i = 0;
+      while (i < upIndexes.length) {
+        minDeltaUp = minDeltaUp + (this.viewItems[upIndexes[i]].minimumSize - sizes[upIndexes[i]]);
+        maxDeltaUp = maxDeltaUp + (this.viewItems[upIndexes[i]].maximumSize - sizes[upIndexes[i]]);
+        i = i + 1;
+      }
+      int maxDeltaDown = SIZE_MAX;
+      int minDeltaDown = SIZE_MIN;
+      if (downIndexes.length > 0) {
+        maxDeltaDown = 0;
+        minDeltaDown = 0;
+        i = 0;
+        while (i < downIndexes.length) {
+          maxDeltaDown = maxDeltaDown + (sizes[downIndexes[i]] - this.viewItems[downIndexes[i]].minimumSize);
+          minDeltaDown = minDeltaDown + (sizes[downIndexes[i]] - this.viewItems[downIndexes[i]].maximumSize);
+          i = i + 1;
+        }
+      }
+      minDelta = minDeltaUp;
+      if (minDeltaDown > minDelta) {
+        minDelta = minDeltaDown;
+      }
+      maxDelta = maxDeltaDown;
+      if (maxDeltaUp < maxDelta) {
+        maxDelta = maxDeltaUp;
+      }
+      int snapBeforeIndex = this.findFirstSnapIndex(upIndexes);
+      int snapAfterIndex = this.findFirstSnapIndex(downIndexes);
+      if (snapBeforeIndex >= 0) {
+        SplitViewItem item = this.viewItems[snapBeforeIndex];
+        int halfSize = item.minimumSize / 2;
+        int limit = minDelta + halfSize;
+        if (item.visible) {
+          limit = minDelta - halfSize;
+        }
+        snapBefore = new SnapState(snapBeforeIndex, limit, item.size);
+      }
+      if (snapAfterIndex >= 0) {
+        SplitViewItem item = this.viewItems[snapAfterIndex];
+        int halfSize = item.minimumSize / 2;
+        int limit = maxDelta - halfSize;
+        if (item.visible) {
+          limit = maxDelta + halfSize;
+        }
+        snapAfter = new SnapState(snapAfterIndex, limit, item.size);
+      }
+    }
+    this.drag = new SashDragState(start, index, sizes, minDelta, maxDelta, useAlt, snapBefore, snapAfter);
+  }
+
+  void onSashChange(int current) {
+    SashDragState? drag = this.drag;
+    if (drag == null) {
+      return;
+    }
+    drag.current = current;
+    int delta = current - drag.start;
+    int newDelta = this.resize(drag.index, delta, drag.sizes, [], [], drag.minDelta, drag.maxDelta, drag.snapBefore, drag.snapAfter);
+    if (drag.alt) {
+      bool isLastSash = drag.index == this.viewItems.length - 2;
+      int[] newSizes = this.currentSizes();
+      int viewItemIndex = drag.index + 1;
+      if (isLastSash) {
+        viewItemIndex = drag.index;
+      }
+      SplitViewItem item = this.viewItems[viewItemIndex];
+      int newMinDelta = item.size - item.maximumSize;
+      int newMaxDelta = item.size - item.minimumSize;
+      int resizeIndex = drag.index + 1;
+      if (isLastSash) {
+        resizeIndex = drag.index - 1;
+      }
+      this.resize(resizeIndex, 0 - newDelta, newSizes, [], [], newMinDelta, newMaxDelta, new SnapState(-1, 0, 0), new SnapState(-1, 0, 0));
+    }
+    this.distributeEmptySpace(-1);
+    this.layoutViews();
+  }
+
+  void onSashEnd(int index) {
+    this.drag = null;
+    this.saveProportions();
+    int i = 0;
+    while (i < this.sashChangeListeners.length) {
+      this.sashChangeListeners[i](index);
+      i = i + 1;
+    }
+  }
+
+  int sashCount() {
+    if (this.viewItems.length == 0) {
+      return 0;
+    }
+    return this.viewItems.length - 1;
+  }
+
+  int getSashPosition(int sashIndex) {
+    int position = 0;
+    int i = 0;
+    while (i <= sashIndex && i < this.viewItems.length) {
+      position = position + this.viewItems[i].size;
+      i = i + 1;
+    }
+    return position;
+  }
+}
+
+export SplitView createSplitView(JsValue container, SplitOrientation orientation, bool proportionalLayout = true, bool inverseAltBehavior = false) {
+  return new SplitView(container, orientation, proportionalLayout, inverseAltBehavior);
+}
+
+export SplitViewItem createSplitViewItem(JsValue container, JsValue element, int size, int minimumSize, int maximumSize, LayoutPriority priority, bool snap = false, bool proportionalLayout = true) {
+  return new SplitViewItem(container, element, size, minimumSize, maximumSize, priority, snap, proportionalLayout);
+}

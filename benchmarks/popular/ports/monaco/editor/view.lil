@@ -4,7 +4,6 @@ import {
   setClassName,
   setStyle,
   setAttribute,
-  setTextContent,
   setInnerHTML,
   getInnerHTML,
   clearChildren,
@@ -170,7 +169,7 @@ export class EditorView {
     setClassName(this.root, "monaco-editor " + this.theme);
     setStyle(this.root, "position", "relative");
     setStyle(this.root, "overflow", "hidden");
-    setTabIndex(this.root, 0);
+    setTabIndex(this.root, -1);
     setStyle(this.root, "font-family", "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace");
     setStyle(this.root, "font-size", this.fontSize.toString() + "px");
     setStyle(this.root, "line-height", this.lineHeight.toString() + "px");
@@ -238,9 +237,6 @@ export class EditorView {
     appendChild(this.root, this.widgetsHost);
     this.applyTheme();
     this.hideWidgets();
-    JsValue style = domCreateElement("style");
-    setTextContent(style, ".mtk-keyword{color:#569cd6}.mtk-string{color:#ce9178}.mtk-comment{color:#6a9955}.mtk-number{color:#b5cea8}.mtk-tag{color:#569cd6}.mtk-attr{color:#9cdcfe}.squiggly-error{text-decoration:underline wavy #f14c4c}.squiggly-warning{text-decoration:underline wavy #cca700}.squiggly-info{text-decoration:underline wavy #3794ff}.squiggly-hint{text-decoration:underline dotted #eeeeee}.folding{cursor:pointer;display:inline-block;width:12px}");
-    appendChild(this.root, style);
   }
 
   void mountBox(JsValue el, string className) {
@@ -249,12 +245,6 @@ export class EditorView {
     setStyle(el, "pointer-events", "auto");
     setStyle(el, "z-index", "40");
     setStyle(el, "display", "none");
-    setStyle(el, "max-width", "420px");
-    setStyle(el, "padding", "6px 8px");
-    setStyle(el, "border", "1px solid #454545");
-    setStyle(el, "background", "#252526");
-    setStyle(el, "color", "#cccccc");
-    setStyle(el, "font-size", "12px");
     appendChild(this.widgetsHost, el);
   }
 
@@ -266,9 +256,6 @@ export class EditorView {
     setStyle(this.findWidget, "z-index", "50");
     setStyle(this.findWidget, "pointer-events", "auto");
     setStyle(this.findWidget, "display", "none");
-    setStyle(this.findWidget, "background", "#252526");
-    setStyle(this.findWidget, "border", "1px solid #454545");
-    setStyle(this.findWidget, "padding", "8px");
     setPlaceholder(this.findInput, "Find");
     setPlaceholder(this.replaceInput, "Replace");
     setAttribute(this.findInput, "data-monaco", "find");
@@ -303,15 +290,6 @@ export class EditorView {
   void applyTheme() {
     setClassName(this.root, "monaco-editor " + this.theme);
     setStyle(this.root, "font-size", this.fontSize.toString() + "px");
-    if (this.theme == "vs-dark" || this.theme == "hc-black") {
-      setStyle(this.root, "background", "#1e1e1e");
-      setStyle(this.root, "color", "#d4d4d4");
-      setStyle(this.cursorEl, "background", "#aeafad");
-    } else {
-      setStyle(this.root, "background", "#fffffe");
-      setStyle(this.root, "color", "#000000");
-      setStyle(this.cursorEl, "background", "#000000");
-    }
     if (this.wordWrap) {
       setStyle(this.linesHost, "white-space", "pre-wrap");
       setAttribute(this.textarea, "wrap", "soft");

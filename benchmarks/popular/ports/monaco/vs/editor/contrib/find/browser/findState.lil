@@ -1,0 +1,146 @@
+export int FIND_OPTION_NOT_SET = 0;
+export int FIND_OPTION_TRUE = 1;
+export int FIND_OPTION_FALSE = 2;
+export int MATCHES_LIMIT = 19999;
+
+export class FindRange {
+  int startLineNumber;
+  int startColumn;
+  int endLineNumber;
+  int endColumn;
+
+  init(int startLineNumber, int startColumn, int endLineNumber, int endColumn) {
+    this.startLineNumber = startLineNumber;
+    this.startColumn = startColumn;
+    this.endLineNumber = endLineNumber;
+    this.endColumn = endColumn;
+  }
+}
+
+bool rangeEquals(FindRange? a, FindRange? b) {
+  if (a == null && b == null) {
+    return true;
+  }
+  if (a == null || b == null) {
+    return false;
+  }
+  return a.startLineNumber == b.startLineNumber
+    && a.startColumn == b.startColumn
+    && a.endLineNumber == b.endLineNumber
+    && a.endColumn == b.endColumn;
+}
+
+bool effectiveOption(int overrideValue, bool value) {
+  if (overrideValue == FIND_OPTION_TRUE) {
+    return true;
+  }
+  if (overrideValue == FIND_OPTION_FALSE) {
+    return false;
+  }
+  return value;
+}
+
+export class FindReplaceState {
+  string searchString;
+  string replaceString;
+  bool isRevealed;
+  bool isReplaceRevealed;
+  bool isRegex;
+  int isRegexOverride;
+  bool wholeWord;
+  int wholeWordOverride;
+  bool matchCase;
+  int matchCaseOverride;
+  bool preserveCase;
+  int preserveCaseOverride;
+  FindRange[] searchScope;
+  bool hasSearchScope;
+  int matchesPosition;
+  int matchesCount;
+  FindRange? currentMatch;
+  bool loop;
+  bool isSearching;
+
+  init() {
+    this.searchString = "";
+    this.replaceString = "";
+    this.isRevealed = false;
+    this.isReplaceRevealed = false;
+    this.isRegex = false;
+    this.isRegexOverride = FIND_OPTION_NOT_SET;
+    this.wholeWord = false;
+    this.wholeWordOverride = FIND_OPTION_NOT_SET;
+    this.matchCase = false;
+    this.matchCaseOverride = FIND_OPTION_NOT_SET;
+    this.preserveCase = false;
+    this.preserveCaseOverride = FIND_OPTION_NOT_SET;
+    this.searchScope = [];
+    this.hasSearchScope = false;
+    this.matchesPosition = 0;
+    this.matchesCount = 0;
+    this.currentMatch = null;
+    this.loop = true;
+    this.isSearching = false;
+  }
+
+  bool effectiveIsRegex() {
+    return effectiveOption(this.isRegexOverride, this.isRegex);
+  }
+
+  bool effectiveWholeWord() {
+    return effectiveOption(this.wholeWordOverride, this.wholeWord);
+  }
+
+  bool effectiveMatchCase() {
+    return effectiveOption(this.matchCaseOverride, this.matchCase);
+  }
+
+  bool effectivePreserveCase() {
+    return effectiveOption(this.preserveCaseOverride, this.preserveCase);
+  }
+
+  bool changeMatchInfo(int matchesPosition, int matchesCount, FindRange? currentMatch) {
+    int position = matchesPosition;
+    int count = matchesCount;
+    if (count == 0) {
+      position = 0;
+    }
+    if (position > count) {
+      position = count;
+    }
+    bool changed = false;
+    if (this.matchesPosition != position) {
+      this.matchesPosition = position;
+      changed = true;
+    }
+    if (this.matchesCount != count) {
+      this.matchesCount = count;
+      changed = true;
+    }
+    if (!rangeEquals(this.currentMatch, currentMatch)) {
+      this.currentMatch = currentMatch;
+      changed = true;
+    }
+    return changed;
+  }
+
+  bool canNavigateInLoop() {
+    return this.loop || this.matchesCount >= MATCHES_LIMIT;
+  }
+
+  bool canNavigateBack() {
+    return this.canNavigateInLoop() || this.matchesPosition != 1;
+  }
+
+  bool canNavigateForward() {
+    return this.canNavigateInLoop() || this.matchesPosition < this.matchesCount;
+  }
+}
+
+export FindReplaceState createFindReplaceState() {
+  return new FindReplaceState();
+}
+
+export FindRange createFindRange(int startLine, int startColumn, int endLine, int endColumn) {
+  return new FindRange(startLine, startColumn, endLine, endColumn);
+}

@@ -1,0 +1,111 @@
+export class SelectOption {
+  string text;
+  string detail;
+  string decoratorRight;
+  string description;
+  bool isDisabled;
+  bool isSeparator;
+
+  init(string text, string detail, string decoratorRight, string description, bool isDisabled, bool isSeparator) {
+    this.text = text;
+    this.detail = detail;
+    this.decoratorRight = decoratorRight;
+    this.description = description;
+    this.isDisabled = isDisabled;
+    this.isSeparator = isSeparator;
+  }
+}
+
+export SelectOption SeparatorSelectOption = new SelectOption("─────────", "", "", "", true, true);
+
+export class SelectBox {
+  SelectOption[] options;
+  int selected;
+  bool useCustomDrawn;
+  bool macos;
+  (func(int, string)->void)[] selectListeners;
+  bool rendered;
+  JsValue container;
+
+  init(SelectOption[] options, int selected, bool macos, bool useCustomDrawn) {
+    this.options = options;
+    this.selected = selected;
+    this.macos = macos;
+    this.useCustomDrawn = useCustomDrawn;
+    if (macos && !useCustomDrawn) {
+      this.useCustomDrawn = false;
+    } else {
+      this.useCustomDrawn = true;
+    }
+    this.selectListeners = [];
+    this.rendered = false;
+    this.container = null;
+  }
+
+  func()->void onDidSelect(func(int, string)->void listener) {
+    this.selectListeners.push(listener);
+    SelectBox owner = this;
+    return () => {
+      int index = owner.selectListeners.indexOf(listener);
+      if (index >= 0) {
+        owner.selectListeners.splice(index, 1);
+      }
+    };
+  }
+
+  void setOptions(SelectOption[] options, int selected) {
+    this.options = options;
+    if (selected >= 0) {
+      this.select(selected);
+    }
+  }
+
+  void select(int index) {
+    if (this.options.length == 0) {
+      this.selected = 0;
+      return;
+    }
+    if (index >= 0 && index < this.options.length) {
+      this.selected = index;
+    } else if (index > this.options.length - 1) {
+      this.select(this.options.length - 1);
+    } else if (this.selected < 0) {
+      this.selected = 0;
+    }
+    this.fireSelect();
+  }
+
+  void fireSelect() {
+    string text = "";
+    if (this.selected >= 0 && this.selected < this.options.length) {
+      text = this.options[this.selected].text;
+    }
+    int i = 0;
+    while (i < this.selectListeners.length) {
+      this.selectListeners[i](this.selected, text);
+      i = i + 1;
+    }
+  }
+
+  void focus() {
+  }
+
+  void blur() {
+  }
+
+  void setFocusable(bool focusable) {
+  }
+
+  void render(JsValue container) {
+    this.container = container;
+    this.rendered = true;
+  }
+}
+
+export SelectBox createSelectBox(SelectOption[] options, int selected, bool macos = false, bool useCustomDrawn = false) {
+  return new SelectBox(options, selected, macos, useCustomDrawn);
+}
+
+export SelectOption createSelectOption(string text, bool isDisabled = false, bool isSeparator = false) {
+  return new SelectOption(text, "", "", "", isDisabled, isSeparator);
+}

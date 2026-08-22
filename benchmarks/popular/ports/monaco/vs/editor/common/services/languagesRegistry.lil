@@ -1,0 +1,209 @@
+import { ModesRegistry } from "../languages/modesRegistry";
+import {
+  clearPlatformLanguageAssociations,
+  getLanguageIds,
+  registerPlatformLanguageAssociation
+} from "./languagesAssociations";
+
+export class LanguageIdCodec {
+  string[] idToLanguage;
+  Map<string, int> languageToId;
+  int nextLanguageId;
+
+  init() {
+    this.idToLanguage = ["vs.editor.nullLanguage", "plaintext"];
+    this.languageToId = new Map();
+    this.languageToId.set("vs.editor.nullLanguage", 0);
+    this.languageToId.set("plaintext", 1);
+    this.nextLanguageId = 2;
+  }
+
+  void register(string language) {
+    if (this.languageToId.has(language)) {
+      return;
+    }
+    this.languageToId.set(language, this.nextLanguageId);
+    this.idToLanguage.push(language);
+    this.nextLanguageId = this.nextLanguageId + 1;
+  }
+
+  int encodeLanguageId(string languageId) {
+    int? value = this.languageToId.get(languageId);
+    if (value == null) {
+      return 0;
+    }
+    return value;
+  }
+
+  string decodeLanguageId(int languageId) {
+    if (languageId < 0 || languageId >= this.idToLanguage.length) {
+      return "vs.editor.nullLanguage";
+    }
+    return this.idToLanguage[languageId];
+  }
+}
+
+export class ResolvedLanguage {
+  string identifier;
+  string name;
+  string[] mimetypes;
+  string[] aliases;
+  string[] extensions;
+  string[] filenames;
+  JsValue source;
+
+  init(string identifier) {
+    this.identifier = identifier;
+    this.name = identifier;
+    this.mimetypes = [];
+    this.aliases = [identifier];
+    this.extensions = [];
+    this.filenames = [];
+    this.source = null;
+  }
+}
+
+void appendStrings(string[] target, JsValue source) {
+  if (!JS.isArray(source)) {
+    return;
+  }
+  int i = 0;
+  int length = JS.number(source["length"]).toInt();
+  while (i < length) {
+    string value = JS.string(source[i]);
+    if (target.indexOf(value) < 0) {
+      target.push(value);
+    }
+    i = i + 1;
+  }
+}
+
+export class LanguagesRegistry {
+  LanguageIdCodec languageIdCodec;
+  Map<string, ResolvedLanguage> languages;
+  Map<string, string> mimeTypes;
+  Map<string, string> names;
+  (func()->void)[] listeners;
+
+  init(bool useModesRegistry = true, bool warnOnOverwrite = false) {
+    this.languageIdCodec = new LanguageIdCodec();
+    this.languages = new Map();
+    this.mimeTypes = new Map();
+    this.names = new Map();
+    this.listeners = [];
+    if (useModesRegistry) {
+      JsValue[] definitions = ModesRegistry.getLanguages();
+      int i = 0;
+      while (i < definitions.length) {
+        this.registerLanguage(definitions[i]);
+        i = i + 1;
+      }
+    }
+  }
+
+  void fireChange() {
+    int i = 0;
+    while (i < this.listeners.length) {
+      this.listeners[i]();
+      i = i + 1;
+    }
+  }
+
+  func()->void onDidChange(func()->void listener) {
+    this.listeners.push(listener);
+    return () => {
+      int index = this.listeners.indexOf(listener);
+      if (index >= 0) {
+        this.listeners.splice(index, 1);
+      }
+    };
+  }
+
+  void registerLanguage(JsValue definition) {
+    string id = JS.string(definition["id"]);
+    ResolvedLanguage? current = this.languages.get(id);
+    ResolvedLanguage language = new ResolvedLanguage(id);
+    if (current != null) {
+      language = current;
+    } else {
+      this.languages.set(id, language);
+      this.languageIdCodec.register(id);
+    }
+    language.source = definition;
+    appendStrings(language.aliases, definition["aliases"]);
+    appendStrings(language.extensions, definition["extensions"]);
+    appendStrings(language.filenames, definition["filenames"]);
+    appendStrings(language.mimetypes, definition["mimetypes"]);
+    if (language.mimetypes.length == 0) {
+      language.mimetypes.push("text/x-" + id);
+    }
+    if (JS.isArray(definition["aliases"]) && JS.number(definition["aliases"]["length"]).toInt() > 0) {
+      language.name = JS.string(definition["aliases"][0]);
+    }
+    int i = 0;
+    while (i < language.aliases.length) {
+      this.names.set(language.aliases[i].toLowerCase(), id);
+      i = i + 1;
+    }
+    i = 0;
+    while (i < language.mimetypes.length) {
+      this.mimeTypes.set(language.mimetypes[i], id);
+      i = i + 1;
+    }
+    i = 0;
+    while (i < language.extensions.length) {
+      JsValue association = JS.object();
+      association["id"] = id;
+      association["mime"] = language.mimetypes[0];
+      association["extension"] = language.extensions[i];
+      registerPlatformLanguageAssociation(association);
+      i = i + 1;
+    }
+    i = 0;
+    while (i < language.filenames.length) {
+      JsValue association = JS.object();
+      association["id"] = id;
+      association["mime"] = language.mimetypes[0];
+      association["filename"] = language.filenames[i];
+      registerPlatformLanguageAssociation(association);
+      i = i + 1;
+    }
+    this.fireChange();
+  }
+
+  bool isRegisteredLanguageId(string languageId) {
+    return this.languages.has(languageId);
+  }
+
+  string[] getRegisteredLanguageIds() {
+    string[] result = [];
+    int i = 0;
+    while (i < this.languageIdCodec.idToLanguage.length) {
+      string id = this.languageIdCodec.idToLanguage[i];
+      if (this.languages.has(id)) {
+        result.push(id);
+      }
+      i = i + 1;
+    }
+    return result;
+  }
+
+  string? getLanguageIdByLanguageName(string languageName) {
+    return this.names.get(languageName.toLowerCase());
+  }
+
+  string? getLanguageIdByMimeType(string mimeType) {
+    return this.mimeTypes.get(mimeType);
+  }
+
+  string[] guessLanguageIdByFilepathOrFirstLine(JsValue resource, string firstLine = "") {
+    return getLanguageIds(resource, firstLine);
+  }
+}
+
+export LanguagesRegistry createLanguagesRegistry(
+  bool useModesRegistry = true,
+  bool warnOnOverwrite = false
+) {
+  return new LanguagesRegistry(useModesRegistry, warnOnOverwrite);
+}

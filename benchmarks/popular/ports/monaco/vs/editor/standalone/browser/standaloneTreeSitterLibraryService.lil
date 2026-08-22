@@ -1,0 +1,21 @@
+export class StandaloneTreeSitterLibraryService {
+  string[] languages;
+
+  init() {
+    this.languages = [];
+  }
+
+  void register(string languageId) {
+    if (!this.languages.includes(languageId)) {
+      this.languages.push(languageId);
+    }
+  }
+
+  bool supports(string languageId) {
+    return this.languages.includes(languageId);
+  }
+}
+
+export StandaloneTreeSitterLibraryService createStandaloneTreeSitterLibraryService() {
+  return new StandaloneTreeSitterLibraryService();
+}

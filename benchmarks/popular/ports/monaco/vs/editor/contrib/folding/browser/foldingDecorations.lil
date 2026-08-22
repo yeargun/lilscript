@@ -1,0 +1,78 @@
+export string foldingExpandedIcon = "folding-expanded";
+export string foldingCollapsedIcon = "folding-collapsed";
+export string foldingManualCollapsedIcon = "folding-manual-collapsed";
+export string foldingManualExpandedIcon = "folding-manual-expanded";
+
+export int SHOW_ALWAYS = 0;
+export int SHOW_MOUSEOVER = 1;
+export int SHOW_NEVER = 2;
+
+export class FoldingDecoration {
+  string className;
+  string firstLineDecorationClassName;
+  string afterContentClassName;
+  string tooltip;
+  bool isCollapsed;
+  bool isHidden;
+  bool isManual;
+
+  init(string className, string firstLineDecorationClassName, string afterContentClassName, string tooltip, bool isCollapsed, bool isHidden, bool isManual) {
+    this.className = className;
+    this.firstLineDecorationClassName = firstLineDecorationClassName;
+    this.afterContentClassName = afterContentClassName;
+    this.tooltip = tooltip;
+    this.isCollapsed = isCollapsed;
+    this.isHidden = isHidden;
+    this.isManual = isManual;
+  }
+}
+
+export class FoldingDecorationProvider {
+  int showFoldingControls;
+  bool showFoldingHighlights;
+
+  init() {
+    this.showFoldingControls = SHOW_ALWAYS;
+    this.showFoldingHighlights = true;
+  }
+
+  FoldingDecoration getDecorationOption(bool isCollapsed, bool isHidden, bool isManual) {
+    if (this.showFoldingControls == SHOW_NEVER) {
+      if (isCollapsed) {
+        string cls = "";
+        if (this.showFoldingHighlights) {
+          cls = "folded-background";
+        }
+        return new FoldingDecoration(cls, "", "inline-folded", "Click to expand the range.", true, isHidden, isManual);
+      }
+      return new FoldingDecoration("", "", "", "", false, isHidden, isManual);
+    }
+    if (isCollapsed) {
+      string icon = foldingCollapsedIcon;
+      if (isManual) {
+        icon = foldingManualCollapsedIcon;
+      }
+      string cls = "";
+      if (this.showFoldingHighlights) {
+        cls = "folded-background";
+      }
+      return new FoldingDecoration(cls, icon, "inline-folded", "Click to expand the range.", true, isHidden, isManual);
+    }
+    if (isHidden) {
+      return new FoldingDecoration("", "", "", "", false, true, isManual);
+    }
+    string icon = foldingExpandedIcon;
+    if (isManual) {
+      icon = foldingManualExpandedIcon;
+    }
+    string prefix = "";
+    if (this.showFoldingControls == SHOW_ALWAYS) {
+      prefix = "alwaysShowFoldIcons ";
+    }
+    return new FoldingDecoration("", prefix + icon, "", "Click to collapse the range.", false, false, isManual);
+  }
+}
+
+export FoldingDecorationProvider createFoldingDecorationProvider() {
+  return new FoldingDecorationProvider();
+}

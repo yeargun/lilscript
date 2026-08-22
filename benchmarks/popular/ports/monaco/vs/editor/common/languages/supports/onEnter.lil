@@ -1,0 +1,105 @@
+import { hostCall, jsUndefined, sliceOf } from "../../../../../js-host";
+
+bool regexMatches(JsValue expression, string text) {
+  if (expression == null) {
+    return true;
+  }
+  expression["lastIndex"] = 0;
+  return hostCall(expression, "test", text, jsUndefined(), jsUndefined()).truthy();
+}
+
+string trimRightWhitespace(string text) {
+  int end = text.length;
+  while (end > 0) {
+    int code = text.charCodeAt(end - 1);
+    if (code != 32 && code != 9) {
+      break;
+    }
+    end = end - 1;
+  }
+  return sliceOf(text, 0, end);
+}
+
+string trimLeftWhitespace(string text) {
+  int start = 0;
+  while (start < text.length) {
+    int code = text.charCodeAt(start);
+    if (code != 32 && code != 9) {
+      break;
+    }
+    start = start + 1;
+  }
+  return sliceOf(text, start, text.length);
+}
+
+export class OnEnterSupport {
+  string[] opens;
+  string[] closes;
+  JsValue rules;
+
+  init(JsValue options) {
+    this.opens = [];
+    this.closes = [];
+    JsValue brackets = options["brackets"];
+    if (!JS.isArray(brackets)) {
+      brackets = [["(", ")"], ["{", "}"], ["[", "]"]];
+    }
+    int i = 0;
+    int length = JS.number(brackets["length"]).toInt();
+    while (i < length) {
+      JsValue pair = brackets[i];
+      if (JS.isArray(pair) && JS.number(pair["length"]).toInt() == 2) {
+        this.opens.push(JS.string(pair[0]));
+        this.closes.push(JS.string(pair[1]));
+      }
+      i = i + 1;
+    }
+    this.rules = options["onEnterRules"];
+    if (!JS.isArray(this.rules)) {
+      this.rules = JS.array();
+    }
+  }
+
+  JsValue onEnter(
+    int autoIndent,
+    string previousLineText,
+    string beforeEnterText,
+    string afterEnterText
+  ) {
+    if (autoIndent >= 3) {
+      int i = 0;
+      int length = JS.number(this.rules["length"]).toInt();
+      while (i < length) {
+        JsValue rule = this.rules[i];
+        if (regexMatches(rule["beforeText"], beforeEnterText) &&
+          regexMatches(rule["afterText"], afterEnterText) &&
+          regexMatches(rule["previousLineText"], previousLineText)) {
+          return rule["action"];
+        }
+        i = i + 1;
+      }
+    }
+    if (autoIndent >= 2) {
+      string before = trimRightWhitespace(beforeEnterText);
+      string after = trimLeftWhitespace(afterEnterText);
+      int i = 0;
+      while (i < this.opens.length) {
+        if (before.endsWith(this.opens[i])) {
+          JsValue action = JS.object();
+          if (after.startsWith(this.closes[i])) {
+            action["indentAction"] = 2;
+          } else {
+            action["indentAction"] = 1;
+          }
+          return action;
+        }
+        i = i + 1;
+      }
+    }
+    return null;
+  }
+}
+
+export OnEnterSupport createOnEnterSupport(JsValue options) {
+  return new OnEnterSupport(options);
+}

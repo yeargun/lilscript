@@ -27,6 +27,14 @@ export function regexExec(re: RegExp, s: string): RegExpExecArray | null {
   return re.exec(s)
 }
 
+export function regexLastIndex(re: RegExp): number {
+  return re.lastIndex
+}
+
+export function regexSetLastIndex(re: RegExp, value: number): void {
+  re.lastIndex = value
+}
+
 export function dateNow(): number {
   return Date.now()
 }
@@ -310,7 +318,8 @@ export function hostCall(obj: any, name: string, a?: any, b?: any, c?: any): any
   }
   try {
     return fn.call(obj, a, b, c)
-  } catch {
+  } catch (err) {
+    console.warn("hostCall", name, err)
     return undefined
   }
 }
@@ -1157,8 +1166,16 @@ export function hostComputeLineDiff(original: string, modified: string) {
   return reversed
 }
 
+export function hostWorkbenchCommand(kind: string) {
+  window.dispatchEvent(new CustomEvent("lil-workbench", { detail: String(kind || "") }))
+}
+
 export function jsUndefined(): any {
   return undefined
+}
+
+export function windowSelf(): typeof globalThis {
+  return globalThis
 }
 
 export function throwError(msg: string): never {

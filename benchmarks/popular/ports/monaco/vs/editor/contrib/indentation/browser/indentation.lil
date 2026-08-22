@@ -1,0 +1,177 @@
+
+bool isIdentChar(string ch) {
+  int code = ch.charCodeAt(0);
+  if (code >= 97 && code <= 122) {
+    return true;
+  }
+  if (code >= 65 && code <= 90) {
+    return true;
+  }
+  if (code >= 48 && code <= 57) {
+    return true;
+  }
+  return ch == "_" || ch == "$";
+}
+
+string sliceChars(string text, int start, int end) {
+  string out = "";
+  int i = start;
+  if (i < 0) {
+    i = 0;
+  }
+  int last = end;
+  if (last > text.length) {
+    last = text.length;
+  }
+  while (i < last) {
+    out = out + text.charAt(i);
+    i = i + 1;
+  }
+  return out;
+}
+
+string wordAt(string line, int column) {
+  int i = column - 1;
+  if (i < 0) {
+    i = 0;
+  }
+  if (i > line.length) {
+    i = line.length;
+  }
+  int start = i;
+  while (start > 0 && isIdentChar(line.charAt(start - 1))) {
+    start = start - 1;
+  }
+  int end = i;
+  while (end < line.length && isIdentChar(line.charAt(end))) {
+    end = end + 1;
+  }
+  return sliceChars(line, start, end);
+}
+
+int wordStart(string line, int column) {
+  int i = column - 1;
+  if (i < 0) {
+    i = 0;
+  }
+  if (i > line.length) {
+    i = line.length;
+  }
+  while (i > 0 && isIdentChar(line.charAt(i - 1))) {
+    i = i - 1;
+  }
+  return i + 1;
+}
+
+int wordEnd(string line, int column) {
+  int i = column - 1;
+  if (i < 0) {
+    i = 0;
+  }
+  if (i > line.length) {
+    i = line.length;
+  }
+  while (i < line.length && isIdentChar(line.charAt(i))) {
+    i = i + 1;
+  }
+  return i + 1;
+}
+
+int leadingIndent(string line) {
+  int i = 0;
+  while (i < line.length) {
+    string ch = line.charAt(i);
+    if (ch != " " && ch != "\t") {
+      break;
+    }
+    i = i + 1;
+  }
+  return i;
+}
+
+export int indentSize(string line, int tabSize) {
+  int size = 0;
+  int i = 0;
+  int tab = tabSize;
+  if (tab < 1) {
+    tab = 4;
+  }
+  while (i < line.length) {
+    int code = line.charCodeAt(i);
+    if (code == 32) {
+      size = size + 1;
+    } else if (code == 9) {
+      size = size - (size % tab) + tab;
+    } else {
+      break;
+    }
+    i = i + 1;
+  }
+  return size;
+}
+
+export string indentString(int size, bool insertSpaces, int tabSize) {
+  string out = "";
+  if (insertSpaces) {
+    int i = 0;
+    while (i < size) {
+      out = out + " ";
+      i = i + 1;
+    }
+    return out;
+  }
+  int tab = tabSize;
+  if (tab < 1) {
+    tab = 4;
+  }
+  int tabs = size / tab;
+  int spaces = size % tab;
+  int i = 0;
+  while (i < tabs) {
+    out = out + "\t";
+    i = i + 1;
+  }
+  i = 0;
+  while (i < spaces) {
+    out = out + " ";
+    i = i + 1;
+  }
+  return out;
+}
+
+export string reindentLine(string line, int fromSize, int toSize, bool insertSpaces, int tabSize) {
+  int current = indentSize(line, tabSize);
+  int next = current - fromSize + toSize;
+  if (next < 0) {
+    next = 0;
+  }
+  int i = 0;
+  while (i < line.length) {
+    string ch = line.charAt(i);
+    if (ch != " " && ch != "\t") {
+      break;
+    }
+    i = i + 1;
+  }
+  return indentString(next, insertSpaces, tabSize) + sliceChars(line, i, line.length);
+}
+
+export string[] reindentLines(string[] lines, int startLine, int endLine, int delta, bool insertSpaces, int tabSize) {
+  string[] result = [];
+  int i = 0;
+  while (i < lines.length) {
+    int lineNumber = i + 1;
+    if (lineNumber >= startLine && lineNumber <= endLine) {
+      int current = indentSize(lines[i], tabSize);
+      int next = current + delta;
+      if (next < 0) {
+        next = 0;
+      }
+      result.push(reindentLine(lines[i], current, next, insertSpaces, tabSize));
+    } else {
+      result.push(lines[i]);
+    }
+    i = i + 1;
+  }
+  return result;
+}

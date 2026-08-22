@@ -1,0 +1,125 @@
+import { sliceOf, emptyBuf, concat2, newRegexp, regexExec, regexLastIndex, regexSetLastIndex, dateNow } from "../../../../js-host";
+
+export string USUAL_WORD_SEPARATORS = "`~!@#$%^&*()-=+[{]}\\\\|;:'\",.<>/?";
+
+export class WordAtText {
+  string word;
+  int startColumn;
+  int endColumn;
+
+  init(string word, int startColumn, int endColumn) {
+    this.word = word;
+    this.startColumn = startColumn;
+    this.endColumn = endColumn;
+  }
+}
+
+export class WordGetConfig {
+  int maxLen;
+  int windowSize;
+  int timeBudget;
+
+  init(int maxLen, int windowSize, int timeBudget) {
+    this.maxLen = maxLen;
+    this.windowSize = windowSize;
+    this.timeBudget = timeBudget;
+  }
+}
+
+WordGetConfig defaultWordConfig = new WordGetConfig(1000, 15, 150);
+
+export Regex createWordRegExp(string allowInWords) {
+  string source = emptyBuf();
+  source = concat2(source, "(-?\\\\d*\\\\.\\\\d\\\\w*)|([^");
+  int i = 0;
+  while (i < USUAL_WORD_SEPARATORS.length) {
+    string sep = USUAL_WORD_SEPARATORS.charAt(i);
+    if (allowInWords.indexOf(sep) < 0) {
+      source = concat2(concat2(source, "\\\\"), sep);
+    }
+    i = i + 1;
+  }
+  source = concat2(source, "\\\\s]+)");
+  return newRegexp(source, "g");
+}
+
+Regex defaultWordRegexp = createWordRegExp("");
+
+export Regex DEFAULT_WORD_REGEXP() {
+  return defaultWordRegexp;
+}
+
+export WordGetConfig defaultGetWordAtTextConfig() {
+  return defaultWordConfig;
+}
+
+JsValue findRegexMatchEnclosingPosition(Regex wordDefinition, string text, int pos, int stopPos) {
+  JsValue found = regexExec(wordDefinition, text);
+  while (found.truthy()) {
+    int foundIndex = JS.number(found["index"]).toInt();
+    int lastIndex = regexLastIndex(wordDefinition);
+    if (foundIndex <= pos && lastIndex >= pos) {
+      return found;
+    }
+    if (stopPos > 0 && foundIndex > stopPos) {
+      return JS.object();
+    }
+    found = regexExec(wordDefinition, text);
+  }
+  return JS.object();
+}
+
+export WordAtText? getWordAtText(int column, Regex wordDefinition, string text, int textOffset, WordGetConfig config) {
+  regexSetLastIndex(wordDefinition, 0);
+  if (text.length > config.maxLen) {
+    int start = column - config.maxLen / 2;
+    int nextOffset = textOffset;
+    if (start < 0) {
+      start = 0;
+    } else {
+      nextOffset = textOffset + start;
+    }
+    string clipped = sliceOf(text, start, column + config.maxLen / 2);
+    return getWordAtText(column, wordDefinition, clipped, nextOffset, config);
+  }
+  float t1 = dateNow();
+  int pos = column - 1 - textOffset;
+  int prevRegexIndex = -1;
+  JsValue found = JS.object();
+  int i = 1;
+  while (true) {
+    if (dateNow() - t1 >= config.timeBudget * 1.0) {
+      break;
+    }
+    int regexIndex = pos - config.windowSize * i;
+    int startAt = regexIndex;
+    if (startAt < 0) {
+      startAt = 0;
+    }
+    regexSetLastIndex(wordDefinition, startAt);
+    JsValue thisFound = findRegexMatchEnclosingPosition(wordDefinition, text, pos, prevRegexIndex);
+    if (!thisFound.truthy() && found.truthy()) {
+      break;
+    }
+    found = thisFound;
+    if (regexIndex <= 0) {
+      break;
+    }
+    prevRegexIndex = regexIndex;
+    i = i + 1;
+  }
+  if (found.truthy()) {
+    string word = JS.string(found[0]);
+    int index = JS.number(found["index"]).toInt();
+    regexSetLastIndex(wordDefinition, 0);
+    return new WordAtText(word, textOffset + 1 + index, textOffset + 1 + index + word.length);
+  }
+  return null;
+}
+
+export bool isWordSeparatorChar(string ch) {
+  if (ch.length == 0) {
+    return false;
+  }
+  return USUAL_WORD_SEPARATORS.indexOf(ch) >= 0;
+}

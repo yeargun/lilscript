@@ -1,0 +1,281 @@
+export int AstNodeKindText = 0;
+export int AstNodeKindBracket = 1;
+export int AstNodeKindPair = 2;
+export int AstNodeKindUnexpectedClosingBracket = 3;
+export int AstNodeKindList = 4;
+export int TokenKindText = 0;
+export int TokenKindOpeningBracket = 1;
+export int TokenKindClosingBracket = 2;
+
+int LengthFactor = 67108864;
+
+int lengthAdd(int first, int second) {
+  int result = first + second;
+  if (second >= LengthFactor) {
+    result = result - first % LengthFactor;
+  }
+  return result;
+}
+
+bool idsIntersect(int[] first, int[] second) {
+  int i = 0;
+  while (i < first.length) {
+    if (second.indexOf(first[i]) >= 0) {
+      return true;
+    }
+    i = i + 1;
+  }
+  return false;
+}
+
+int[] mergeIds(int[] first, int[] second) {
+  int[] result = first.slice();
+  int i = 0;
+  while (i < second.length) {
+    if (result.indexOf(second[i]) < 0) {
+      result.push(second[i]);
+    }
+    i = i + 1;
+  }
+  return result;
+}
+
+export class AstNode {
+  int kind;
+  int length;
+  AstNode[] children;
+  int[] bracketIds;
+  string text;
+  bool immutable;
+
+  init(
+    int kind,
+    int length,
+    AstNode[] children,
+    int[] bracketIds,
+    string text,
+    bool immutable
+  ) {
+    this.kind = kind;
+    this.length = length;
+    this.children = children;
+    this.bracketIds = bracketIds;
+    this.text = text;
+    this.immutable = immutable;
+  }
+}
+
+export class Token {
+  int length;
+  int kind;
+  int bracketId;
+  int[] bracketIds;
+  string text;
+
+  init(int length, int kind, int bracketId, int[] bracketIds, string text) {
+    this.length = length;
+    this.kind = kind;
+    this.bracketId = bracketId;
+    this.bracketIds = bracketIds;
+    this.text = text;
+  }
+}
+
+export class Tokenizer {
+  Token[] tokens;
+  int index;
+  int offset;
+
+  init(Token[] tokens) {
+    this.tokens = tokens;
+    this.index = 0;
+    this.offset = 0;
+  }
+
+  Token? peek() {
+    if (this.index >= this.tokens.length) {
+      return null;
+    }
+    return this.tokens[this.index];
+  }
+
+  Token? read() {
+    Token? token = this.peek();
+    if (token != null) {
+      this.index = this.index + 1;
+      this.offset = lengthAdd(this.offset, token.length);
+    }
+    return token;
+  }
+
+  bool skip(int length) {
+    int target = lengthAdd(this.offset, length);
+    while (this.offset < target && this.index < this.tokens.length) {
+      Token? token = this.read();
+      if (token == null) {
+        break;
+      }
+    }
+    return this.offset == target;
+  }
+}
+
+AstNode createList(AstNode[] children, bool immutable) {
+  int length = 0;
+  int i = 0;
+  while (i < children.length) {
+    length = lengthAdd(length, children[i].length);
+    i = i + 1;
+  }
+  return new AstNode(AstNodeKindList, length, children, [], "", immutable);
+}
+
+AstNode createPair(
+  AstNode opening,
+  AstNode? child,
+  AstNode? closing,
+  bool immutable
+) {
+  AstNode[] children = [opening];
+  int length = opening.length;
+  if (child != null) {
+    children.push(child);
+    length = lengthAdd(length, child.length);
+  }
+  if (closing != null) {
+    children.push(closing);
+    length = lengthAdd(length, closing.length);
+  }
+  return new AstNode(AstNodeKindPair, length, children, opening.bracketIds, "", immutable);
+}
+
+export class Parser {
+  Tokenizer tokenizer;
+  bool createImmutableLists;
+  int itemsConstructed;
+  int itemsFromCache;
+
+  init(Tokenizer tokenizer, bool createImmutableLists) {
+    this.tokenizer = tokenizer;
+    this.createImmutableLists = createImmutableLists;
+    this.itemsConstructed = 0;
+    this.itemsFromCache = 0;
+  }
+
+  AstNode parseDocument() {
+    this.itemsConstructed = 0;
+    this.itemsFromCache = 0;
+    AstNode? result = this.parseList([], 0);
+    if (result == null) {
+      return createList([], true);
+    }
+    return result;
+  }
+
+  AstNode? parseList(int[] openedBracketIds, int level) {
+    AstNode[] items = [];
+    bool reading = true;
+    while (reading) {
+      Token? token = this.tokenizer.peek();
+      if (token == null) {
+        reading = false;
+      } else if (
+        token.kind == TokenKindClosingBracket
+        && idsIntersect(token.bracketIds, openedBracketIds)
+      ) {
+        reading = false;
+      } else {
+        AstNode? child = this.parseChild(openedBracketIds, level + 1);
+        if (child != null) {
+          if (!(child.kind == AstNodeKindList && child.children.length == 0)) {
+            items.push(child);
+          }
+        } else {
+          reading = false;
+        }
+      }
+    }
+    if (items.length == 0) {
+      return null;
+    }
+    return createList(items, this.createImmutableLists);
+  }
+
+  AstNode? parseChild(int[] openedBracketIds, int level) {
+    Token? token = this.tokenizer.read();
+    if (token == null) {
+      return null;
+    }
+    this.itemsConstructed = this.itemsConstructed + 1;
+    if (token.kind == TokenKindClosingBracket) {
+      return new AstNode(
+        AstNodeKindUnexpectedClosingBracket,
+        token.length,
+        [],
+        token.bracketIds,
+        token.text,
+        true
+      );
+    }
+    if (token.kind == TokenKindText) {
+      return new AstNode(AstNodeKindText, token.length, [], [], token.text, true);
+    }
+    if (level > 300) {
+      return new AstNode(AstNodeKindText, token.length, [], [], token.text, true);
+    }
+    AstNode opening = new AstNode(
+      AstNodeKindBracket,
+      token.length,
+      [],
+      token.bracketIds,
+      token.text,
+      true
+    );
+    int[] nextOpened = mergeIds(openedBracketIds, token.bracketIds);
+    AstNode? child = this.parseList(nextOpened, level + 1);
+    Token? next = this.tokenizer.peek();
+    if (
+      next != null
+      && next.kind == TokenKindClosingBracket
+      && (
+        next.bracketId == token.bracketId
+        || idsIntersect(next.bracketIds, token.bracketIds)
+      )
+    ) {
+      Token? consumed = this.tokenizer.read();
+      if (consumed != null) {
+        AstNode closing = new AstNode(
+          AstNodeKindBracket,
+          consumed.length,
+          [],
+          consumed.bracketIds,
+          consumed.text,
+          true
+        );
+        return createPair(opening, child, closing, this.createImmutableLists);
+      }
+    }
+    return createPair(opening, child, null, this.createImmutableLists);
+  }
+}
+
+export AstNode parseDocument(
+  Tokenizer tokenizer,
+  bool createImmutableLists
+) {
+  return new Parser(tokenizer, createImmutableLists).parseDocument();
+}
+
+export Token createParserToken(
+  int length,
+  int kind,
+  int bracketId,
+  int[] bracketIds,
+  string text
+) {
+  return new Token(length, kind, bracketId, bracketIds, text);
+}
+
+export Tokenizer createParserTokenizer(Token[] tokens) {
+  return new Tokenizer(tokens);
+}

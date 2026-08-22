@@ -1,0 +1,51 @@
+import { windowSelf } from "../../../js-host";
+
+export enum KeyboardSupport {
+  Always,
+  FullScreen,
+  None
+}
+
+export class ClipboardFeatures {
+  bool writeText;
+  bool readText;
+
+  init(bool writeText, bool readText) {
+    this.writeText = writeText;
+    this.readText = readText;
+  }
+}
+
+export class BrowserFeatureSet {
+  ClipboardFeatures clipboard;
+  KeyboardSupport keyboard;
+  bool touch;
+  bool pointerEvents;
+
+  init(ClipboardFeatures clipboard, KeyboardSupport keyboard, bool touch, bool pointerEvents) {
+    this.clipboard = clipboard;
+    this.keyboard = keyboard;
+    this.touch = touch;
+    this.pointerEvents = pointerEvents;
+  }
+}
+
+export BrowserFeatureSet detectBrowserFeatures() {
+  JsValue root = windowSelf();
+  JsValue navigatorValue = root["navigator"];
+  JsValue clipboard = navigatorValue["clipboard"];
+  bool canWrite = clipboard.truthy() && clipboard["writeText"].truthy();
+  bool canRead = clipboard.truthy() && clipboard["readText"].truthy();
+  bool touch = root["ontouchstart"].truthy();
+  JsValue points = navigatorValue["maxTouchPoints"];
+  if (points is float) {
+    float pointCount = points;
+    touch = touch || pointCount > 0.0;
+  }
+  KeyboardSupport keyboard = KeyboardSupport.None;
+  if (navigatorValue["keyboard"].truthy()) {
+    keyboard = KeyboardSupport.FullScreen;
+  }
+  bool pointerEvents = root["PointerEvent"].truthy() && touch;
+  return new BrowserFeatureSet(new ClipboardFeatures(canWrite, canRead), keyboard, touch, pointerEvents);
+}

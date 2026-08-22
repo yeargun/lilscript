@@ -1,0 +1,118 @@
+export int inlineDecorationRegular = 0;
+export int inlineDecorationBefore = 1;
+export int inlineDecorationAfter = 2;
+
+export class LineDecoration {
+  int startColumn;
+  int endColumn;
+  string className;
+  int type;
+
+  init(int startColumn, int endColumn, string className, int type) {
+    this.startColumn = startColumn;
+    this.endColumn = endColumn;
+    this.className = className;
+    this.type = type;
+  }
+}
+
+bool lineDecorationEquals(LineDecoration a, LineDecoration b) {
+  return a.startColumn == b.startColumn && a.endColumn == b.endColumn && a.className == b.className && a.type == b.type;
+}
+
+export bool lineDecorationEqualsArr(LineDecoration[] a, LineDecoration[] b) {
+  if (a.length != b.length) {
+    return false;
+  }
+  int i = 0;
+  while (i < a.length) {
+    if (!lineDecorationEquals(a[i], b[i])) {
+      return false;
+    }
+    i = i + 1;
+  }
+  return true;
+}
+
+export LineDecoration[] extractWrapped(LineDecoration[] arr, int startOffset, int endOffset) {
+  if (arr.length == 0) {
+    return arr;
+  }
+  int startColumn = startOffset + 1;
+  int endColumn = endOffset + 1;
+  LineDecoration[] r = [];
+  int i = 0;
+  while (i < arr.length) {
+    LineDecoration d = arr[i];
+    if (d.endColumn <= startColumn || d.startColumn >= endColumn) {
+      i = i + 1;
+      continue;
+    }
+    int s = d.startColumn;
+    if (s < startColumn) {
+      s = startColumn;
+    }
+    int e = d.endColumn;
+    if (e > endColumn) {
+      e = endColumn;
+    }
+    r.push(new LineDecoration(s - startOffset, e - startOffset, d.className, d.type));
+    i = i + 1;
+  }
+  return r;
+}
+
+export LineDecoration[] filterRange(LineDecoration[] decorations, int startColumn, int endColumn) {
+  LineDecoration[] r = [];
+  int i = 0;
+  while (i < decorations.length) {
+    LineDecoration d = decorations[i];
+    if (d.endColumn <= startColumn || d.startColumn >= endColumn) {
+      i = i + 1;
+      continue;
+    }
+    r.push(d);
+    i = i + 1;
+  }
+  return r;
+}
+
+export int compareLineDecorations(LineDecoration a, LineDecoration b) {
+  if (a.startColumn == b.startColumn) {
+    if (a.endColumn == b.endColumn) {
+      if (a.type == b.type) {
+        if (a.className < b.className) {
+          return -1;
+        }
+        if (a.className > b.className) {
+          return 1;
+        }
+        return 0;
+      }
+      return a.type - b.type;
+    }
+    return a.endColumn - b.endColumn;
+  }
+  return a.startColumn - b.startColumn;
+}
+
+export LineDecoration[] sortLineDecorations(LineDecoration[] decorations) {
+  LineDecoration[] out = [];
+  int i = 0;
+  while (i < decorations.length) {
+    out.push(decorations[i]);
+    i = i + 1;
+  }
+  i = 1;
+  while (i < out.length) {
+    LineDecoration key = out[i];
+    int j = i - 1;
+    while (j >= 0 && compareLineDecorations(out[j], key) > 0) {
+      out[j + 1] = out[j];
+      j = j - 1;
+    }
+    out[j + 1] = key;
+    i = i + 1;
+  }
+  return out;
+}

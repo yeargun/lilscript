@@ -1,0 +1,506 @@
+import { dateNow } from "../../../../../js-host";
+
+export int ASYNC_IDLE = 0;
+export int ASYNC_REFRESHING = 1;
+export int ASYNC_RENDERED = 2;
+export int ASYNC_FAILED = 3;
+export int ASYNC_WAITING = 4;
+
+export int ASYNC_SLOW_MS = 800;
+
+export int COLLAPSE_EXPANDED = 0;
+export int COLLAPSE_COLLAPSED = 1;
+export int COLLAPSE_PRESERVE_OR_EXPANDED = 2;
+export int COLLAPSE_PRESERVE_OR_COLLAPSED = 3;
+
+export class AsyncDataTreeNode {
+  string element;
+  string id;
+  AsyncDataTreeNode? parent;
+  AsyncDataTreeNode[] children;
+  bool hasChildren;
+  bool stale;
+  bool slow;
+  bool forceExpanded;
+  bool collapsed;
+  bool collapsible;
+  int state;
+  int generation;
+  float refreshStartedAt;
+  int defaultCollapseState;
+
+  init(string element, string id, AsyncDataTreeNode? parent, bool hasChildren, int defaultCollapseState) {
+    this.element = element;
+    this.id = id;
+    this.parent = parent;
+    this.children = [];
+    this.hasChildren = hasChildren;
+    this.stale = true;
+    this.slow = false;
+    this.forceExpanded = false;
+    this.collapsed = defaultCollapseState == COLLAPSE_COLLAPSED || defaultCollapseState == COLLAPSE_PRESERVE_OR_COLLAPSED;
+    this.collapsible = hasChildren;
+    this.state = ASYNC_IDLE;
+    this.generation = 0;
+    this.refreshStartedAt = 0.0;
+    this.defaultCollapseState = defaultCollapseState;
+  }
+}
+
+export class AsyncRefreshWaiter {
+  string element;
+  bool recursive;
+  int generation;
+
+  init(string element, bool recursive, int generation) {
+    this.element = element;
+    this.recursive = recursive;
+    this.generation = generation;
+  }
+}
+
+bool asyncIsAncestor(AsyncDataTreeNode ancestor, AsyncDataTreeNode descendant) {
+  AsyncDataTreeNode? parent = descendant.parent;
+  while (parent != null) {
+    if (parent == ancestor) {
+      return true;
+    }
+    parent = parent.parent;
+  }
+  return false;
+}
+
+bool asyncIntersects(AsyncDataTreeNode node, AsyncDataTreeNode other) {
+  if (node == other) {
+    return true;
+  }
+  if (asyncIsAncestor(node, other)) {
+    return true;
+  }
+  return asyncIsAncestor(other, node);
+}
+
+export class AsyncDataTree {
+  AsyncDataTreeNode root;
+  Map<string, AsyncDataTreeNode> nodes;
+  Map<int, AsyncDataTreeNode> generations;
+  AsyncDataTreeNode[] refreshing;
+  AsyncRefreshWaiter[] waiters;
+  int nextGeneration;
+  bool autoExpandSingleChildren;
+  int defaultCollapseState;
+  bool disposed;
+
+  init(string rootElement = "", bool autoExpandSingleChildren = false, int defaultCollapseState = COLLAPSE_PRESERVE_OR_COLLAPSED) {
+    this.root = new AsyncDataTreeNode(rootElement, "", null, true, COLLAPSE_EXPANDED);
+    this.root.collapsed = false;
+    this.root.stale = true;
+    this.nodes = new Map();
+    this.generations = new Map();
+    this.refreshing = [];
+    this.waiters = [];
+    this.nextGeneration = 1;
+    this.autoExpandSingleChildren = autoExpandSingleChildren;
+    this.defaultCollapseState = defaultCollapseState;
+    this.disposed = false;
+    if (rootElement.length > 0) {
+      this.nodes.set(rootElement, this.root);
+    }
+  }
+
+  AsyncDataTreeNode? getDataNode(string element) {
+    if (element.length == 0 || element == this.root.element) {
+      return this.root;
+    }
+    return this.nodes.get(element);
+  }
+
+  bool has(string element) {
+    return this.getDataNode(element) != null;
+  }
+
+  int allocateGeneration() {
+    int generation = this.nextGeneration;
+    this.nextGeneration = this.nextGeneration + 1;
+    return generation;
+  }
+
+  AsyncDataTreeNode? intersectingRefresh(AsyncDataTreeNode? node) {
+    if (node == null) {
+      return null;
+    }
+    int i = 0;
+    while (i < this.refreshing.length) {
+      AsyncDataTreeNode other = this.refreshing[i];
+      if (other.state == ASYNC_REFRESHING && asyncIntersects(other, node)) {
+        return other;
+      }
+      i = i + 1;
+    }
+    return null;
+  }
+
+  void removeRefreshing(AsyncDataTreeNode? node) {
+    if (node == null) {
+      return;
+    }
+    AsyncDataTreeNode[] next = [];
+    int i = 0;
+    while (i < this.refreshing.length) {
+      if (this.refreshing[i] != node) {
+        next.push(this.refreshing[i]);
+      }
+      i = i + 1;
+    }
+    this.refreshing = next;
+  }
+
+  void forgetNode(AsyncDataTreeNode node) {
+    int i = 0;
+    while (i < node.children.length) {
+      this.forgetNode(node.children[i]);
+      i = i + 1;
+    }
+    if (node != this.root) {
+      this.nodes.delete(node.element);
+      if (node.id.length > 0) {
+        this.nodes.delete(node.id);
+      }
+    }
+  }
+
+  AsyncDataTreeNode[] setChildren(
+    AsyncDataTreeNode? node,
+    string[] childIds,
+    bool[] childHasChildren,
+    bool recursive
+  ) {
+    AsyncDataTreeNode[] empty = [];
+    if (node == null) {
+      return empty;
+    }
+    Map<string, AsyncDataTreeNode> byId = new Map();
+    int i = 0;
+    while (i < node.children.length) {
+      AsyncDataTreeNode child = node.children[i];
+      if (child.id.length > 0) {
+        byId.set(child.id, child);
+      }
+      i = i + 1;
+    }
+    AsyncDataTreeNode[] next = [];
+    AsyncDataTreeNode[] childrenToRefresh = [];
+    i = 0;
+    while (i < childIds.length) {
+      string id = childIds[i];
+      bool hasChildren = false;
+      if (i < childHasChildren.length) {
+        hasChildren = childHasChildren[i];
+      }
+      AsyncDataTreeNode? existing = byId.get(id);
+      if (existing != null) {
+        this.nodes.delete(existing.element);
+        existing.element = id;
+        existing.id = id;
+        existing.hasChildren = hasChildren;
+        existing.collapsible = hasChildren;
+        this.nodes.set(id, existing);
+        if (recursive) {
+          if (existing.collapsed) {
+            this.forgetNode(existing);
+            existing.children = [];
+            existing.stale = true;
+            this.nodes.set(id, existing);
+          } else {
+            childrenToRefresh.push(existing);
+          }
+        } else if (hasChildren && !existing.collapsed) {
+          childrenToRefresh.push(existing);
+        }
+        next.push(existing);
+      } else {
+        AsyncDataTreeNode created = new AsyncDataTreeNode(id, id, node, hasChildren, this.defaultCollapseState);
+        if (hasChildren && created.defaultCollapseState == COLLAPSE_PRESERVE_OR_EXPANDED) {
+          childrenToRefresh.push(created);
+        }
+        this.nodes.set(id, created);
+        next.push(created);
+      }
+      i = i + 1;
+    }
+    AsyncDataTreeNode[] oldChildren = node.children;
+    node.children = next;
+    i = 0;
+    while (i < oldChildren.length) {
+      if (next.indexOf(oldChildren[i]) < 0) {
+        this.forgetNode(oldChildren[i]);
+      }
+      i = i + 1;
+    }
+    if (node != this.root && this.autoExpandSingleChildren && next.length == 1 && childrenToRefresh.length == 0) {
+      next[0].forceExpanded = true;
+      next[0].collapsed = false;
+      childrenToRefresh.push(next[0]);
+    }
+    return childrenToRefresh;
+  }
+
+  int beginRefresh(AsyncDataTreeNode? node, bool recursive) {
+    if (node == null) {
+      return 0;
+    }
+    int generation = this.allocateGeneration();
+    node.generation = generation;
+    node.state = ASYNC_REFRESHING;
+    node.slow = false;
+    node.refreshStartedAt = dateNow();
+    this.generations.set(generation, node);
+    this.refreshing.push(node);
+    return generation;
+  }
+
+  int refresh(string element, bool recursive = true) {
+    if (this.disposed) {
+      return -1;
+    }
+    AsyncDataTreeNode? node = this.getDataNode(element);
+    if (node == null) {
+      throw "Data tree node not found";
+    }
+    AsyncDataTreeNode? blocking = this.intersectingRefresh(node);
+    if (blocking != null) {
+      int generation = this.allocateGeneration();
+      this.waiters.push(new AsyncRefreshWaiter(node.element, recursive, generation));
+      node.state = ASYNC_WAITING;
+      node.generation = generation;
+      this.generations.set(generation, node);
+      return generation;
+    }
+    if (node != this.root && node.collapsed) {
+      node.stale = true;
+      node.children = [];
+      node.state = ASYNC_IDLE;
+      return 0;
+    }
+    return this.beginRefresh(node, recursive);
+  }
+
+  int setInput(string input) {
+    this.cancelAllRefreshPromises(true);
+    this.root.element = input;
+    if (input.length > 0) {
+      this.nodes.set(input, this.root);
+    }
+    this.root.stale = true;
+    this.root.collapsed = false;
+    return this.refresh(input, true);
+  }
+
+  void cancelAllRefreshPromises(bool includeSubTrees) {
+    this.refreshing = [];
+    this.generations = new Map();
+    this.waiters = [];
+    if (includeSubTrees) {
+      this.nextGeneration = this.nextGeneration + 1;
+    }
+  }
+
+  bool isSlow(AsyncDataTreeNode node, float now) {
+    if (node.state != ASYNC_REFRESHING) {
+      return false;
+    }
+    return now - node.refreshStartedAt >= ASYNC_SLOW_MS * 1.0;
+  }
+
+  void refreshSlowFlags(float now) {
+    int i = 0;
+    while (i < this.refreshing.length) {
+      AsyncDataTreeNode node = this.refreshing[i];
+      if (this.isSlow(node, now)) {
+        node.slow = true;
+      }
+      i = i + 1;
+    }
+  }
+
+  void startWaiters() {
+    AsyncRefreshWaiter[] remaining = [];
+    int i = 0;
+    while (i < this.waiters.length) {
+      AsyncRefreshWaiter waiter = this.waiters[i];
+      AsyncDataTreeNode? node = this.getDataNode(waiter.element);
+      if (node == null) {
+        i = i + 1;
+      } else {
+        AsyncDataTreeNode? blocking = this.intersectingRefresh(node);
+        if (blocking != null) {
+          remaining.push(waiter);
+        } else if (node != this.root && node.collapsed) {
+          node.stale = true;
+          node.children = [];
+          node.state = ASYNC_IDLE;
+          this.generations.delete(waiter.generation);
+        } else {
+          node.generation = waiter.generation;
+          node.state = ASYNC_REFRESHING;
+          node.slow = false;
+          node.refreshStartedAt = dateNow();
+          this.generations.set(waiter.generation, node);
+          this.refreshing.push(node);
+        }
+        i = i + 1;
+      }
+    }
+    this.waiters = remaining;
+  }
+
+  int[] completeRefresh(int generation, string[] childIds, bool[] childHasChildren, bool recursive) {
+    AsyncDataTreeNode? node = this.generations.get(generation);
+    if (node == null) {
+      return [];
+    }
+    if (node.state == ASYNC_WAITING) {
+      return [];
+    }
+    if (node.generation != generation || node.state != ASYNC_REFRESHING) {
+      return [];
+    }
+    if (this.disposed) {
+      return [];
+    }
+    int[] started = [];
+    try {
+      AsyncDataTreeNode[] childrenToRefresh = this.setChildren(node, childIds, childHasChildren, recursive);
+      node.stale = false;
+      node.state = ASYNC_RENDERED;
+      node.slow = false;
+      this.generations.delete(generation);
+      this.removeRefreshing(node);
+      if (recursive) {
+        int i = 0;
+        while (i < childrenToRefresh.length) {
+          AsyncDataTreeNode child = childrenToRefresh[i];
+          if (!child.collapsed || child.forceExpanded) {
+            child.collapsed = false;
+            child.forceExpanded = false;
+            started.push(this.refresh(child.element, recursive));
+          }
+          i = i + 1;
+        }
+      }
+    } catch {
+      if (node != this.root) {
+        node.collapsed = true;
+      }
+      node.state = ASYNC_FAILED;
+      node.slow = false;
+      this.generations.delete(generation);
+      this.removeRefreshing(node);
+    }
+    this.startWaiters();
+    return started;
+  }
+
+  bool failRefresh(int generation) {
+    AsyncDataTreeNode? node = this.generations.get(generation);
+    if (node == null || node.generation != generation) {
+      return false;
+    }
+    if (node != this.root) {
+      node.collapsed = true;
+    }
+    node.state = ASYNC_FAILED;
+    node.slow = false;
+    this.generations.delete(generation);
+    this.removeRefreshing(node);
+    this.startWaiters();
+    return true;
+  }
+
+  bool collapse(string element, bool recursive = false) {
+    AsyncDataTreeNode? node = this.getDataNode(element);
+    if (node == null || node == this.root || !node.collapsible) {
+      return false;
+    }
+    bool changed = !node.collapsed;
+    node.collapsed = true;
+    if (recursive) {
+      this.collapseChildren(node);
+    }
+    return changed;
+  }
+
+  void collapseChildren(AsyncDataTreeNode node) {
+    int i = 0;
+    while (i < node.children.length) {
+      node.children[i].collapsed = true;
+      this.collapseChildren(node.children[i]);
+      i = i + 1;
+    }
+  }
+
+  int expand(string element, bool recursive = false) {
+    AsyncDataTreeNode? node = this.getDataNode(element);
+    if (node == null) {
+      throw "Data tree node not found";
+    }
+    if (!node.collapsible && node != this.root) {
+      return 0;
+    }
+    if (node != this.root && !node.collapsed && node.generation == 0 && !node.stale) {
+      return 0;
+    }
+    node.collapsed = false;
+    if (node.stale) {
+      return this.refresh(element, recursive);
+    }
+    return 0;
+  }
+
+  void onDidChangeCollapseState(string element, bool deep) {
+    AsyncDataTreeNode? node = this.getDataNode(element);
+    if (node == null) {
+      return;
+    }
+    if (!node.collapsed && node.stale) {
+      if (deep) {
+        this.collapse(element, false);
+      } else {
+        this.refresh(element, false);
+      }
+    }
+  }
+
+  string[] renderedIds(AsyncDataTreeNode node, string[] result) {
+    if (node != this.root) {
+      result.push(node.element);
+      if (node.collapsed) {
+        return result;
+      }
+    }
+    int i = 0;
+    while (i < node.children.length) {
+      this.renderedIds(node.children[i], result);
+      i = i + 1;
+    }
+    return result;
+  }
+
+  string[] renderedNodes() {
+    string[] result = [];
+    return this.renderedIds(this.root, result);
+  }
+
+  void dispose() {
+    this.disposed = true;
+    this.cancelAllRefreshPromises(true);
+  }
+}
+
+export AsyncDataTree createAsyncDataTree(
+  string rootElement,
+  bool autoExpandSingleChildren,
+  int defaultCollapseState
+) {
+  return new AsyncDataTree(rootElement, autoExpandSingleChildren, defaultCollapseState);
+}

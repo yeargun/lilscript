@@ -1,0 +1,157 @@
+bool isIconNameCharacter(string ch) {
+  if (ch.length == 0) {
+    return false;
+  }
+  int code = ch.charCodeAt(0);
+  return (code >= 48 && code <= 57)
+    || (code >= 65 && code <= 90)
+    || (code >= 97 && code <= 122)
+    || ch == "-" || ch == "~" || ch == "_";
+}
+
+int iconEnd(string text, int start) {
+  if (start + 3 >= text.length || text.charAt(start) != "$" || text.charAt(start + 1) != "(") {
+    return -1;
+  }
+  int i = start + 2;
+  bool hasName = false;
+  while (i < text.length && text.charAt(i) != ")") {
+    if (!isIconNameCharacter(text.charAt(i))) {
+      return -1;
+    }
+    hasName = true;
+    i = i + 1;
+  }
+  if (hasName && i < text.length && text.charAt(i) == ")") {
+    return i;
+  }
+  return -1;
+}
+
+export string escapeIcons(string text) {
+  string result = "";
+  int i = 0;
+  while (i < text.length) {
+    int end = iconEnd(text, i);
+    if (end >= 0) {
+      bool escaped = i > 0 && text.charAt(i - 1) == "\\";
+      if (!escaped) {
+        result = result + "\\";
+      }
+      int j = i;
+      while (j <= end) {
+        result = result + text.charAt(j);
+        j = j + 1;
+      }
+      i = end + 1;
+    } else {
+      result = result + text.charAt(i);
+      i = i + 1;
+    }
+  }
+  return result;
+}
+
+export string markdownEscapeEscapedIcons(string text) {
+  string result = "";
+  int i = 0;
+  while (i < text.length) {
+    if (text.charAt(i) == "\\" && iconEnd(text, i + 1) >= 0) {
+      result = result + "\\\\";
+    } else {
+      result = result + text.charAt(i);
+    }
+    i = i + 1;
+  }
+  return result;
+}
+
+export string stripIcons(string text) {
+  if (text.indexOf("$(") < 0) {
+    return text;
+  }
+  string result = "";
+  int i = 0;
+  while (i < text.length) {
+    int end = iconEnd(text, i);
+    bool escaped = i > 0 && text.charAt(i - 1) == "\\";
+    if (end >= 0 && !escaped) {
+      bool beforeSpace = result.length > 0 && result.charAt(result.length - 1) == " ";
+      bool afterSpace = end + 1 < text.length && text.charAt(end + 1) == " ";
+      if (beforeSpace && afterSpace) {
+        i = end + 2;
+      } else {
+        i = end + 1;
+      }
+    } else {
+      result = result + text.charAt(i);
+      i = i + 1;
+    }
+  }
+  return result;
+}
+
+export string getCodiconAriaLabel(string text) {
+  string result = "";
+  int i = 0;
+  while (i < text.length) {
+    int end = iconEnd(text, i);
+    if (end >= 0) {
+      result = result + " ";
+      int j = i + 2;
+      while (j < end) {
+        result = result + text.charAt(j);
+        j = j + 1;
+      }
+      result = result + " ";
+      i = end + 1;
+    } else {
+      result = result + text.charAt(i);
+      i = i + 1;
+    }
+  }
+  int start = 0;
+  while (start < result.length && result.charAt(start) == " ") {
+    start = start + 1;
+  }
+  int end = result.length;
+  while (end > start && result.charAt(end - 1) == " ") {
+    end = end - 1;
+  }
+  string trimmed = "";
+  int index = start;
+  while (index < end) {
+    trimmed = trimmed + result.charAt(index);
+    index = index + 1;
+  }
+  return trimmed;
+}
+
+export class ParsedLabelWithIcons {
+  string text;
+  int[] iconOffsets;
+
+  init(string text, int[] iconOffsets) {
+    this.text = text;
+    this.iconOffsets = iconOffsets;
+  }
+}
+
+export ParsedLabelWithIcons parseLabelWithIcons(string input) {
+  string text = "";
+  int[] offsets = [];
+  int removed = 0;
+  int i = 0;
+  while (i < input.length) {
+    int end = iconEnd(input, i);
+    if (end >= 0) {
+      removed = removed + end - i + 1;
+      i = end + 1;
+    } else {
+      text = text + input.charAt(i);
+      offsets.push(removed);
+      i = i + 1;
+    }
+  }
+  return new ParsedLabelWithIcons(text, offsets);
+}

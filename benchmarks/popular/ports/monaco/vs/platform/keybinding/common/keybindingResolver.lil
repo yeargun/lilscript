@@ -1,0 +1,172 @@
+export int ResultNoMatchingKb = 0;
+export int ResultMoreChordsNeeded = 1;
+export int ResultKbFound = 2;
+
+export class ResolvedKeybindingItem {
+  string command;
+  string[] chords;
+  string when;
+  bool bubble;
+  string commandArgs;
+
+  init(string command, string[] chords, string when, bool bubble) {
+    this.command = command;
+    this.chords = chords;
+    this.when = when;
+    this.bubble = bubble;
+    this.commandArgs = "";
+  }
+}
+
+export class ResolveResult {
+  int kind;
+  string commandId;
+  bool isBubble;
+
+  init(int kind, string commandId, bool isBubble) {
+    this.kind = kind;
+    this.commandId = commandId;
+    this.isBubble = isBubble;
+  }
+}
+
+bool chordsEqualPrefix(string[] candidate, string[] pressed) {
+  if (pressed.length > candidate.length) {
+    return false;
+  }
+  int i = 0;
+  while (i < pressed.length) {
+    if (candidate[i] != pressed[i]) {
+      return false;
+    }
+    i = i + 1;
+  }
+  return true;
+}
+
+export class KeybindingResolver {
+  ResolvedKeybindingItem[] keybindings;
+  ResolvedKeybindingItem[] firstChordIndex;
+
+  init(ResolvedKeybindingItem[] defaults, ResolvedKeybindingItem[] overrides) {
+    this.keybindings = handleRemovals(defaults, overrides);
+    this.firstChordIndex = [];
+  }
+
+  ResolveResult resolve(string[] currentChords, string keypress, func(string)->bool whenMatches) {
+    string[] pressed = [];
+    int i = 0;
+    while (i < currentChords.length) {
+      pressed.push(currentChords[i]);
+      i = i + 1;
+    }
+    pressed.push(keypress);
+    if (pressed.length == 0) {
+      return new ResolveResult(ResultNoMatchingKb, "", false);
+    }
+    ResolvedKeybindingItem[] lookup = [];
+    int k = 0;
+    while (k < this.keybindings.length) {
+      ResolvedKeybindingItem candidate = this.keybindings[k];
+      if (candidate.chords.length == 0) {
+        k = k + 1;
+        continue;
+      }
+      if (candidate.chords[0] != pressed[0]) {
+        k = k + 1;
+        continue;
+      }
+      if (chordsEqualPrefix(candidate.chords, pressed)) {
+        lookup.push(candidate);
+      }
+      k = k + 1;
+    }
+    ResolvedKeybindingItem? found = null;
+    int r = lookup.length - 1;
+    while (r >= 0) {
+      ResolvedKeybindingItem item = lookup[r];
+      if (item.when.length == 0 || whenMatches(item.when)) {
+        found = item;
+        break;
+      }
+      r = r - 1;
+    }
+    if (found == null) {
+      return new ResolveResult(ResultNoMatchingKb, "", false);
+    }
+    if (pressed.length < found.chords.length) {
+      return new ResolveResult(ResultMoreChordsNeeded, "", false);
+    }
+    return new ResolveResult(ResultKbFound, found.command, found.bubble);
+  }
+
+  ResolvedKeybindingItem? lookupPrimary(string commandId) {
+    int i = this.keybindings.length - 1;
+    while (i >= 0) {
+      if (this.keybindings[i].command == commandId) {
+        return this.keybindings[i];
+      }
+      i = i - 1;
+    }
+    return null;
+  }
+}
+
+export ResolvedKeybindingItem[] handleRemovals(ResolvedKeybindingItem[] defaults, ResolvedKeybindingItem[] overrides) {
+  ResolvedKeybindingItem[] out = [];
+  int i = 0;
+  while (i < defaults.length) {
+    ResolvedKeybindingItem rule = defaults[i];
+    bool removed = false;
+    int j = 0;
+    while (j < overrides.length) {
+      ResolvedKeybindingItem ov = overrides[j];
+      if (ov.command.length > 0 && ov.command.charAt(0) == "-") {
+        string target = "";
+        int c = 1;
+        while (c < ov.command.length) {
+          target = target + ov.command.charAt(c);
+          c = c + 1;
+        }
+        if (target == rule.command) {
+          bool chordsOk = true;
+          if (ov.chords.length > 0) {
+            int p = 0;
+            while (p < ov.chords.length) {
+              if (p >= rule.chords.length || ov.chords[p] != rule.chords[p]) {
+                chordsOk = false;
+                break;
+              }
+              p = p + 1;
+            }
+          }
+          if (chordsOk) {
+            removed = true;
+            break;
+          }
+        }
+      }
+      j = j + 1;
+    }
+    if (!removed) {
+      out.push(rule);
+    }
+    i = i + 1;
+  }
+  int o = 0;
+  while (o < overrides.length) {
+    if (overrides[o].command.length == 0 || overrides[o].command.charAt(0) != "-") {
+      out.push(overrides[o]);
+    }
+    o = o + 1;
+  }
+  return out;
+}
+
+export KeybindingResolver createKeybindingResolver(ResolvedKeybindingItem[] defaults, ResolvedKeybindingItem[] overrides) {
+  return new KeybindingResolver(defaults, overrides);
+}
+
+export ResolvedKeybindingItem createResolvedKeybindingItem(string command, string[] chords, string when, bool bubble) {
+  return new ResolvedKeybindingItem(command, chords, when, bubble);
+}

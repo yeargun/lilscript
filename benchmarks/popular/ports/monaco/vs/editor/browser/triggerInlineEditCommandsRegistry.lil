@@ -1,0 +1,38 @@
+string[] registeredInlineEditCommands = [];
+
+export class TriggerInlineEditCommandsRegistry {
+  init() {
+  }
+}
+
+export string[] getRegisteredInlineEditCommands() {
+  string[] copy = [];
+  int i = 0;
+  while (i < registeredInlineEditCommands.length) {
+    copy.push(registeredInlineEditCommands[i]);
+    i = i + 1;
+  }
+  return copy;
+}
+
+export void registerInlineEditCommand(string commandId) {
+  int i = 0;
+  while (i < registeredInlineEditCommands.length) {
+    if (registeredInlineEditCommands[i] == commandId) {
+      return;
+    }
+    i = i + 1;
+  }
+  registeredInlineEditCommands.push(commandId);
+}
+
+export bool isInlineEditCommand(string commandId) {
+  int i = 0;
+  while (i < registeredInlineEditCommands.length) {
+    if (registeredInlineEditCommands[i] == commandId) {
+      return true;
+    }
+    i = i + 1;
+  }
+  return false;
+}

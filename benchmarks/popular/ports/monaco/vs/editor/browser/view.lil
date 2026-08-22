@@ -1,0 +1,154 @@
+export int DEFAULT_LINE_HEIGHT = 19;
+export int DEFAULT_CHAR_WIDTH = 8;
+export int MARGIN_WIDTH = 0;
+
+export class ViewPartSlot {
+  string name;
+  bool shouldRender;
+
+  init(string name) {
+    this.name = name;
+    this.shouldRender = true;
+  }
+
+  void forceShouldRender() {
+    this.shouldRender = true;
+  }
+}
+
+export class View {
+  int width;
+  int height;
+  int lineHeight;
+  int typicalHalfwidthCharacterWidth;
+  int scrollTop;
+  int scrollLeft;
+  int viewLineCount;
+  bool dirty;
+  bool everything;
+  ViewPartSlot[] parts;
+
+  init(int width, int height, int lineHeight, int typicalHalfwidthCharacterWidth) {
+    this.width = width;
+    this.height = height;
+    this.lineHeight = lineHeight;
+    this.typicalHalfwidthCharacterWidth = typicalHalfwidthCharacterWidth;
+    this.scrollTop = 0;
+    this.scrollLeft = 0;
+    this.viewLineCount = 1;
+    this.dirty = true;
+    this.everything = false;
+    this.parts = [];
+    this.parts.push(new ViewPartSlot("viewLines"));
+    this.parts.push(new ViewPartSlot("lineNumbers"));
+    this.parts.push(new ViewPartSlot("minimap"));
+    this.parts.push(new ViewPartSlot("selections"));
+    this.parts.push(new ViewPartSlot("viewCursors"));
+    this.parts.push(new ViewPartSlot("scrollDecoration"));
+    this.parts.push(new ViewPartSlot("overviewRuler"));
+    this.parts.push(new ViewPartSlot("indentGuides"));
+    this.parts.push(new ViewPartSlot("whitespace"));
+    this.parts.push(new ViewPartSlot("rulers"));
+    this.parts.push(new ViewPartSlot("glyphMargin"));
+    this.parts.push(new ViewPartSlot("editorScrollbar"));
+    this.parts.push(new ViewPartSlot("contentWidgets"));
+    this.parts.push(new ViewPartSlot("overlayWidgets"));
+    this.parts.push(new ViewPartSlot("viewZones"));
+  }
+
+  void scheduleRender() {
+    this.dirty = true;
+  }
+
+  void forceShouldRender() {
+    int i = 0;
+    while (i < this.parts.length) {
+      this.parts[i].forceShouldRender();
+      i = i + 1;
+    }
+    this.everything = true;
+    this.dirty = true;
+  }
+
+  void render(bool now, bool everything) {
+    if (everything) {
+      this.forceShouldRender();
+    }
+    if (now) {
+      this.flushAccumulatedAndRenderNow();
+    } else {
+      this.scheduleRender();
+    }
+  }
+
+  void flushAccumulatedAndRenderNow() {
+    int i = 0;
+    while (i < this.parts.length) {
+      if (this.parts[i].shouldRender || this.everything) {
+        this.parts[i].shouldRender = false;
+      }
+      i = i + 1;
+    }
+    this.everything = false;
+    this.dirty = false;
+  }
+
+  int startLineNumber() {
+    if (this.lineHeight <= 0) {
+      return 1;
+    }
+    int line = this.scrollTop / this.lineHeight + 1;
+    if (line < 1) {
+      return 1;
+    }
+    return line;
+  }
+
+  int endLineNumber() {
+    if (this.lineHeight <= 0) {
+      return this.viewLineCount;
+    }
+    int visible = this.height / this.lineHeight + 1;
+    int end = this.startLineNumber() + visible;
+    if (end > this.viewLineCount) {
+      return this.viewLineCount;
+    }
+    return end;
+  }
+
+  int getOffsetForColumn(int lineNumber, int column) {
+    if (column < 1) {
+      return 0;
+    }
+    return (column - 1) * this.typicalHalfwidthCharacterWidth - this.scrollLeft;
+  }
+
+  int getLineWidth(int lineNumber) {
+    return this.width;
+  }
+
+  void setScrollPosition(int scrollTop, int scrollLeft) {
+    this.scrollTop = scrollTop;
+    this.scrollLeft = scrollLeft;
+    this.scheduleRender();
+  }
+
+  void restoreState(int scrollTop, int scrollLeft) {
+    this.setScrollPosition(scrollTop, scrollLeft);
+    this.flushAccumulatedAndRenderNow();
+  }
+
+  void layout(int width, int height) {
+    this.width = width;
+    this.height = height;
+    this.forceShouldRender();
+  }
+}
+
+export View createView(int width, int height) {
+  return new View(width, height, DEFAULT_LINE_HEIGHT, DEFAULT_CHAR_WIDTH);
+}
+
+export View createViewWithMetrics(int width, int height, int lineHeight, int typicalHalfwidthCharacterWidth) {
+  return new View(width, height, lineHeight, typicalHalfwidthCharacterWidth);
+}

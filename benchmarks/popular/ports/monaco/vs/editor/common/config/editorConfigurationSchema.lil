@@ -1,0 +1,298 @@
+import { DiffEditorDefaultOptions, diffEditorDefaultOptions } from "./diffEditor";
+
+JsValue propertySchema(string typeName, JsValue defaultValue, string description) {
+  JsValue result = JS.object();
+  result["type"] = typeName;
+  result["default"] = defaultValue;
+  result["description"] = description;
+  return result;
+}
+
+JsValue enumPropertySchema(
+  string[] values,
+  JsValue defaultValue,
+  string description
+) {
+  JsValue result = JS.object();
+  result["type"] = "string";
+  result["enum"] = values;
+  result["default"] = defaultValue;
+  result["description"] = description;
+  return result;
+}
+
+string[] configurationKeys() {
+  return [
+    "editor.tabSize",
+    "editor.indentSize",
+    "editor.insertSpaces",
+    "editor.detectIndentation",
+    "editor.trimAutoWhitespace",
+    "editor.largeFileOptimizations",
+    "editor.wordBasedSuggestions",
+    "editor.semanticHighlighting.enabled",
+    "editor.stablePeek",
+    "editor.maxTokenizationLineLength",
+    "editor.experimental.asyncTokenization",
+    "editor.experimental.asyncTokenizationLogging",
+    "editor.experimental.asyncTokenizationVerification",
+    "editor.experimental.treeSitterTelemetry",
+    "editor.experimental.preferTreeSitter.css",
+    "editor.experimental.preferTreeSitter.typescript",
+    "editor.experimental.preferTreeSitter.ini",
+    "editor.experimental.preferTreeSitter.regex",
+    "editor.language.brackets",
+    "editor.language.colorizedBracketPairs",
+    "diffEditor.maxComputationTime",
+    "diffEditor.maxFileSize",
+    "diffEditor.renderSideBySide",
+    "diffEditor.renderSideBySideInlineBreakpoint",
+    "diffEditor.useInlineViewWhenSpaceIsLimited",
+    "diffEditor.renderMarginRevertIcon",
+    "diffEditor.renderGutterMenu",
+    "diffEditor.ignoreTrimWhitespace",
+    "diffEditor.renderIndicators",
+    "diffEditor.codeLens",
+    "diffEditor.wordWrap",
+    "diffEditor.diffAlgorithm",
+    "diffEditor.hideUnchangedRegions.enabled",
+    "diffEditor.hideUnchangedRegions.revealLineCount",
+    "diffEditor.hideUnchangedRegions.minimumLineCount",
+    "diffEditor.hideUnchangedRegions.contextLineCount",
+    "diffEditor.experimental.showMoves",
+    "diffEditor.experimental.showEmptyDecorations",
+    "diffEditor.experimental.useTrueInlineView"
+  ];
+}
+
+JsValue buildEditorConfigurationBaseNode() {
+  JsValue result = JS.object();
+  result["id"] = "editor";
+  result["order"] = 5;
+  result["type"] = "object";
+  result["title"] = "Editor";
+  result["scope"] = 6;
+  return result;
+}
+
+JsValue buildEditorConfiguration() {
+  JsValue result = buildEditorConfigurationBaseNode();
+  JsValue properties = JS.object();
+  properties["editor.tabSize"] = propertySchema(
+    "number",
+    4,
+    "The number of spaces a tab is equal to."
+  );
+  properties["editor.indentSize"] = enumPropertySchema(
+    ["tabSize"],
+    "tabSize",
+    "The number of spaces used for indentation."
+  );
+  properties["editor.insertSpaces"] = propertySchema(
+    "boolean",
+    true,
+    "Insert spaces when pressing Tab."
+  );
+  properties["editor.detectIndentation"] = propertySchema(
+    "boolean",
+    true,
+    "Detect indentation from file contents."
+  );
+  properties["editor.trimAutoWhitespace"] = propertySchema(
+    "boolean",
+    true,
+    "Remove trailing automatically inserted whitespace."
+  );
+  properties["editor.largeFileOptimizations"] = propertySchema(
+    "boolean",
+    true,
+    "Use memory-saving behavior for large files."
+  );
+  properties["editor.wordBasedSuggestions"] = enumPropertySchema(
+    ["off", "offWithInlineSuggestions", "currentDocument", "matchingDocuments", "allDocuments"],
+    "offWithInlineSuggestions",
+    "Controls word-based completion suggestions."
+  );
+  properties["editor.semanticHighlighting.enabled"] = enumPropertySchema(
+    ["configuredByTheme"],
+    "configuredByTheme",
+    "Controls semantic highlighting."
+  );
+  properties["editor.stablePeek"] = propertySchema(
+    "boolean",
+    false,
+    "Keep peek editors open."
+  );
+  properties["editor.maxTokenizationLineLength"] = propertySchema(
+    "integer",
+    20000,
+    "Lines above this length are not tokenized."
+  );
+  properties["editor.experimental.asyncTokenization"] = propertySchema(
+    "boolean",
+    true,
+    "Tokenize asynchronously in a worker."
+  );
+  properties["editor.experimental.asyncTokenizationLogging"] = propertySchema(
+    "boolean",
+    false,
+    "Log asynchronous tokenization."
+  );
+  properties["editor.experimental.asyncTokenizationVerification"] = propertySchema(
+    "boolean",
+    false,
+    "Verify asynchronous tokenization."
+  );
+  properties["editor.experimental.treeSitterTelemetry"] = propertySchema(
+    "boolean",
+    false,
+    "Enable tree-sitter telemetry."
+  );
+  string[] treeSitterLanguages = ["css", "typescript", "ini", "regex"];
+  int i = 0;
+  while (i < treeSitterLanguages.length) {
+    string key = "editor.experimental.preferTreeSitter." + treeSitterLanguages[i];
+    properties[key] = propertySchema(
+      "boolean",
+      false,
+      "Prefer tree-sitter for this language."
+    );
+    i = i + 1;
+  }
+  properties["editor.language.brackets"] = propertySchema(
+    "array",
+    null,
+    "Defines indentation bracket pairs."
+  );
+  properties["editor.language.colorizedBracketPairs"] = propertySchema(
+    "array",
+    null,
+    "Defines colorized bracket pairs."
+  );
+  DiffEditorDefaultOptions defaults = diffEditorDefaultOptions;
+  properties["diffEditor.maxComputationTime"] = propertySchema(
+    "number",
+    defaults.maxComputationTime,
+    "Diff computation timeout in milliseconds."
+  );
+  properties["diffEditor.maxFileSize"] = propertySchema(
+    "number",
+    defaults.maxFileSize,
+    "Maximum file size in MB for diffing."
+  );
+  properties["diffEditor.renderSideBySide"] = propertySchema(
+    "boolean",
+    defaults.renderSideBySide,
+    "Show diffs side by side."
+  );
+  properties["diffEditor.renderSideBySideInlineBreakpoint"] = propertySchema(
+    "number",
+    defaults.renderSideBySideInlineBreakpoint,
+    "Use inline view below this width."
+  );
+  properties["diffEditor.useInlineViewWhenSpaceIsLimited"] = propertySchema(
+    "boolean",
+    defaults.useInlineViewWhenSpaceIsLimited,
+    "Use inline view when space is limited."
+  );
+  properties["diffEditor.renderMarginRevertIcon"] = propertySchema(
+    "boolean",
+    defaults.renderMarginRevertIcon,
+    "Show margin revert controls."
+  );
+  properties["diffEditor.renderGutterMenu"] = propertySchema(
+    "boolean",
+    defaults.renderGutterMenu,
+    "Show the diff gutter menu."
+  );
+  properties["diffEditor.ignoreTrimWhitespace"] = propertySchema(
+    "boolean",
+    defaults.ignoreTrimWhitespace,
+    "Ignore leading and trailing whitespace."
+  );
+  properties["diffEditor.renderIndicators"] = propertySchema(
+    "boolean",
+    defaults.renderIndicators,
+    "Show addition and removal indicators."
+  );
+  properties["diffEditor.codeLens"] = propertySchema(
+    "boolean",
+    defaults.diffCodeLens,
+    "Show CodeLens in diff editors."
+  );
+  properties["diffEditor.wordWrap"] = enumPropertySchema(
+    ["off", "on", "inherit"],
+    defaults.diffWordWrap,
+    "Controls diff editor word wrapping."
+  );
+  properties["diffEditor.diffAlgorithm"] = enumPropertySchema(
+    ["legacy", "advanced", "advanced-external", "advanced-wasm"],
+    defaults.diffAlgorithm,
+    "Selects the diff algorithm."
+  );
+  properties["diffEditor.hideUnchangedRegions.enabled"] = propertySchema(
+    "boolean",
+    defaults.hideUnchangedRegions.enabled,
+    "Hide unchanged regions."
+  );
+  properties["diffEditor.hideUnchangedRegions.revealLineCount"] = propertySchema(
+    "integer",
+    defaults.hideUnchangedRegions.revealLineCount,
+    "Number of lines revealed in unchanged regions."
+  );
+  properties["diffEditor.hideUnchangedRegions.minimumLineCount"] = propertySchema(
+    "integer",
+    defaults.hideUnchangedRegions.minimumLineCount,
+    "Minimum unchanged region size."
+  );
+  properties["diffEditor.hideUnchangedRegions.contextLineCount"] = propertySchema(
+    "integer",
+    defaults.hideUnchangedRegions.contextLineCount,
+    "Context lines around changes."
+  );
+  properties["diffEditor.experimental.showMoves"] = propertySchema(
+    "boolean",
+    defaults.experimental.showMoves,
+    "Show detected code moves."
+  );
+  properties["diffEditor.experimental.showEmptyDecorations"] = propertySchema(
+    "boolean",
+    defaults.experimental.showEmptyDecorations,
+    "Show empty insertion and deletion decorations."
+  );
+  properties["diffEditor.experimental.useTrueInlineView"] = propertySchema(
+    "boolean",
+    defaults.experimental.useTrueInlineView,
+    "Render character changes inline."
+  );
+  result["properties"] = properties;
+  return result;
+}
+
+export JsValue editorConfigurationBaseNode = buildEditorConfigurationBaseNode();
+export JsValue editorConfiguration = buildEditorConfiguration();
+export string[] editorConfigurationKeys = configurationKeys();
+
+export bool isEditorConfigurationKey(string key) {
+  string expected = "editor." + key;
+  int i = 0;
+  while (i < editorConfigurationKeys.length) {
+    if (editorConfigurationKeys[i] == expected) {
+      return true;
+    }
+    i = i + 1;
+  }
+  return false;
+}
+
+export bool isDiffEditorConfigurationKey(string key) {
+  string expected = "diffEditor." + key;
+  int i = 0;
+  while (i < editorConfigurationKeys.length) {
+    if (editorConfigurationKeys[i] == expected) {
+      return true;
+    }
+    i = i + 1;
+  }
+  return false;
+}

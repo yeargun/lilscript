@@ -1,0 +1,23 @@
+export class DragAndDropObserver {
+  bool dragging;
+  string data;
+
+  init() {
+    this.dragging = false;
+    this.data = "";
+  }
+
+  void onDragStart(string data) {
+    this.dragging = true;
+    this.data = data;
+  }
+
+  string onDrop() {
+    this.dragging = false;
+    return this.data;
+  }
+}
+
+export DragAndDropObserver createDragAndDropObserver() {
+  return new DragAndDropObserver();
+}

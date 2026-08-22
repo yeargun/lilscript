@@ -1,0 +1,121 @@
+import { domCreateElement, setClassName, getClientWidth, getClientHeight, focusElement } from "../../../../js-host";
+
+export class StandaloneCodeEditor {
+  JsValue domElement;
+  string value;
+  string languageId;
+  string theme;
+  int width;
+  int height;
+  bool focused;
+  bool disposed;
+  string id;
+  Record<string> contextKeys;
+
+  init(JsValue domElement, string value, string languageId, string theme) {
+    this.domElement = domElement;
+    this.value = value;
+    this.languageId = languageId;
+    this.theme = theme;
+    this.width = 0;
+    this.height = 0;
+    this.focused = false;
+    this.disposed = false;
+    this.id = "standalone";
+    this.contextKeys = record {};
+    setClassName(domElement, "monaco-editor");
+  }
+
+  void setValue(string value) {
+    this.value = value;
+  }
+
+  string getValue() {
+    return this.value;
+  }
+
+  void setModelLanguage(string languageId) {
+    this.languageId = languageId;
+  }
+
+  void layout() {
+    this.width = getClientWidth(this.domElement);
+    this.height = getClientHeight(this.domElement);
+  }
+
+  void focus() {
+    this.focused = true;
+    focusElement(this.domElement);
+  }
+
+  bool hasTextFocus() {
+    return this.focused;
+  }
+
+  void dispose() {
+    this.disposed = true;
+    this.focused = false;
+  }
+
+  string addCommand(string keybinding, string handlerId, string context) {
+    this.contextKeys[handlerId] = keybinding + ":" + context;
+    return handlerId;
+  }
+
+  void createContextKey(string key, string defaultValue) {
+    this.contextKeys[key] = defaultValue;
+  }
+
+  string getId() {
+    return this.id;
+  }
+}
+
+export class StandaloneDiffEditor {
+  StandaloneCodeEditor original;
+  StandaloneCodeEditor modified;
+
+  init(StandaloneCodeEditor original, StandaloneCodeEditor modified) {
+    this.original = original;
+    this.modified = modified;
+  }
+
+  void dispose() {
+    this.original.dispose();
+    this.modified.dispose();
+  }
+}
+
+StandaloneCodeEditor[] editors = [];
+StandaloneDiffEditor[] diffEditors = [];
+
+export StandaloneCodeEditor create(JsValue domElement, string value, string languageId, string theme) {
+  StandaloneCodeEditor editor = new StandaloneCodeEditor(domElement, value, languageId, theme);
+  editor.layout();
+  editors.push(editor);
+  return editor;
+}
+
+export StandaloneDiffEditor createDiffEditor(JsValue origHost, JsValue modHost, string original, string modified, string languageId, string theme) {
+  StandaloneCodeEditor orig = create(origHost, original, languageId, theme);
+  StandaloneCodeEditor mod = create(modHost, modified, languageId, theme);
+  StandaloneDiffEditor diff = new StandaloneDiffEditor(orig, mod);
+  diffEditors.push(diff);
+  return diff;
+}
+
+export StandaloneCodeEditor[] getEditors() {
+  return editors;
+}
+
+export StandaloneDiffEditor[] getDiffEditors() {
+  return diffEditors;
+}
+
+export JsValue createEditorHost() {
+  return domCreateElement("div");
+}
+
+export string createTextModel(string value, string languageId) {
+  return languageId + ":" + value.length.toString();
+}

@@ -1,0 +1,129 @@
+
+export class TextRange {
+  int startLineNumber;
+  int startColumn;
+  int endLineNumber;
+  int endColumn;
+
+  init(int startLineNumber, int startColumn, int endLineNumber, int endColumn) {
+    this.startLineNumber = startLineNumber;
+    this.startColumn = startColumn;
+    this.endLineNumber = endLineNumber;
+    this.endColumn = endColumn;
+  }
+}
+
+export class TextPos {
+  int lineNumber;
+  int column;
+
+  init(int lineNumber, int column) {
+    this.lineNumber = lineNumber;
+    this.column = column;
+  }
+}
+
+bool posBefore(TextPos a, TextPos b) {
+  if (a.lineNumber < b.lineNumber) {
+    return true;
+  }
+  if (a.lineNumber > b.lineNumber) {
+    return false;
+  }
+  return a.column < b.column;
+}
+
+bool rangeContainsPos(TextRange range, int lineNumber, int column) {
+  if (lineNumber < range.startLineNumber || lineNumber > range.endLineNumber) {
+    return false;
+  }
+  if (lineNumber == range.startLineNumber && column < range.startColumn) {
+    return false;
+  }
+  if (lineNumber == range.endLineNumber && column > range.endColumn) {
+    return false;
+  }
+  return true;
+}
+
+export TextRange createTextRange(int startLine, int startColumn, int endLine, int endColumn) {
+  return new TextRange(startLine, startColumn, endLine, endColumn);
+}
+
+export TextPos createTextPos(int lineNumber, int column) {
+  return new TextPos(lineNumber, column);
+}
+
+export class ClipboardText {
+  string text;
+  bool empty;
+
+  init(string text) {
+    this.text = text;
+    this.empty = text.length == 0;
+  }
+}
+
+export ClipboardText copyFromSelection(string[] lines, TextRange selection) {
+  if (selection.startLineNumber == selection.endLineNumber) {
+    if (selection.startLineNumber < 1 || selection.startLineNumber > lines.length) {
+      return new ClipboardText("");
+    }
+    string line = lines[selection.startLineNumber - 1];
+    int from = selection.startColumn - 1;
+    int to = selection.endColumn - 1;
+    if (from == to) {
+      return new ClipboardText(line + "\n");
+    }
+    string out = "";
+    int i = from;
+    if (i < 0) {
+      i = 0;
+    }
+    if (to > line.length) {
+      to = line.length;
+    }
+    while (i < to) {
+      out = out + line.charAt(i);
+      i = i + 1;
+    }
+    return new ClipboardText(out);
+  }
+  string out = "";
+  int line = selection.startLineNumber;
+  while (line <= selection.endLineNumber) {
+    if (line < 1 || line > lines.length) {
+      line = line + 1;
+      continue;
+    }
+    string content = lines[line - 1];
+    int from = 0;
+    int to = content.length;
+    if (line == selection.startLineNumber) {
+      from = selection.startColumn - 1;
+    }
+    if (line == selection.endLineNumber) {
+      to = selection.endColumn - 1;
+    }
+    if (line > selection.startLineNumber) {
+      out = out + "\n";
+    }
+    int i = from;
+    if (i < 0) {
+      i = 0;
+    }
+    if (to > content.length) {
+      to = content.length;
+    }
+    while (i < to) {
+      out = out + content.charAt(i);
+      i = i + 1;
+    }
+    line = line + 1;
+  }
+  return new ClipboardText(out);
+}
+
+export ClipboardText createClipboardText(string text) {
+  return new ClipboardText(text);
+}

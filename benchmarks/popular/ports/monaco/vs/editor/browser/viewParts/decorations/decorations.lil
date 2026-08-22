@@ -1,0 +1,158 @@
+int imin(int a, int b) {
+  if (a < b) {
+    return a;
+  }
+  return b;
+}
+
+int imax(int a, int b) {
+  if (a > b) {
+    return a;
+  }
+  return b;
+}
+
+export class DecoRange {
+  int startLineNumber;
+  int startColumn;
+  int endLineNumber;
+  int endColumn;
+  string className;
+  int zIndex;
+  bool isWholeLine;
+  bool showIfCollapsed;
+  bool shouldFillLineOnLineBreak;
+
+  init(int startLineNumber, int startColumn, int endLineNumber, int endColumn, string className, int zIndex, bool isWholeLine, bool showIfCollapsed, bool shouldFillLineOnLineBreak) {
+    this.startLineNumber = startLineNumber;
+    this.startColumn = startColumn;
+    this.endLineNumber = endLineNumber;
+    this.endColumn = endColumn;
+    this.className = className;
+    this.zIndex = zIndex;
+    this.isWholeLine = isWholeLine;
+    this.showIfCollapsed = showIfCollapsed;
+    this.shouldFillLineOnLineBreak = shouldFillLineOnLineBreak;
+  }
+}
+
+export class DecorationsOverlay {
+  float typicalHalfwidthCharacterWidth;
+  string[] renderResult;
+
+  init(float typicalHalfwidthCharacterWidth) {
+    this.typicalHalfwidthCharacterWidth = typicalHalfwidthCharacterWidth;
+    this.renderResult = [];
+  }
+
+  int compareDecorations(DecoRange a, DecoRange b) {
+    if (a.zIndex < b.zIndex) {
+      return -1;
+    }
+    if (a.zIndex > b.zIndex) {
+      return 1;
+    }
+    if (a.className < b.className) {
+      return -1;
+    }
+    if (a.className > b.className) {
+      return 1;
+    }
+    if (a.startLineNumber != b.startLineNumber) {
+      return a.startLineNumber - b.startLineNumber;
+    }
+    return a.startColumn - b.startColumn;
+  }
+
+  void sortDecorations(DecoRange[] decorations) {
+    int i = 1;
+    while (i < decorations.length) {
+      DecoRange key = decorations[i];
+      int j = i - 1;
+      while (j >= 0 && this.compareDecorations(decorations[j], key) > 0) {
+        decorations[j + 1] = decorations[j];
+        j = j - 1;
+      }
+      decorations[j + 1] = key;
+      i = i + 1;
+    }
+  }
+
+  void prepareRender(int visibleStartLineNumber, int visibleEndLineNumber, DecoRange[] decorations) {
+    this.sortDecorations(decorations);
+    this.renderResult = [];
+    int lineNumber = visibleStartLineNumber;
+    while (lineNumber <= visibleEndLineNumber) {
+      this.renderResult.push("");
+      lineNumber = lineNumber + 1;
+    }
+    int i = 0;
+    while (i < decorations.length) {
+      DecoRange d = decorations[i];
+      if (d.isWholeLine) {
+        int startLine = imax(d.startLineNumber, visibleStartLineNumber);
+        int endLine = imin(d.endLineNumber, visibleEndLineNumber);
+        string decorationOutput = "<div class=\"cdr " + d.className + "\" style=\"left:0;width:100%;\"></div>";
+        int j = startLine;
+        while (j <= endLine) {
+          int lineIndex = j - visibleStartLineNumber;
+          this.renderResult[lineIndex] = this.renderResult[lineIndex] + decorationOutput;
+          j = j + 1;
+        }
+      }
+      i = i + 1;
+    }
+    i = 0;
+    while (i < decorations.length) {
+      DecoRange d = decorations[i];
+      if (!d.isWholeLine) {
+        int startLine = imax(d.startLineNumber, visibleStartLineNumber);
+        int endLine = imin(d.endLineNumber, visibleEndLineNumber);
+        int j = startLine;
+        while (j <= endLine) {
+          int startCol = 1;
+          int endCol = 1;
+          if (j == d.startLineNumber) {
+            startCol = d.startColumn;
+          }
+          if (j == d.endLineNumber) {
+            endCol = d.endColumn;
+          } else {
+            endCol = imax(d.endColumn, startCol + 1);
+          }
+          float left = (startCol - 1) * 1.0 * this.typicalHalfwidthCharacterWidth;
+          float width = (endCol - startCol) * 1.0 * this.typicalHalfwidthCharacterWidth;
+          if (d.showIfCollapsed && width < this.typicalHalfwidthCharacterWidth) {
+            float center = left + width / 2.0;
+            left = center - this.typicalHalfwidthCharacterWidth / 2.0;
+            if (left < 0.0) {
+              left = 0.0;
+            }
+            width = this.typicalHalfwidthCharacterWidth;
+          }
+          string decorationOutput = "<div class=\"cdr " + d.className + "\" style=\"left:" + left.round().toInt().toString() + "px;width:" + width.round().toInt().toString() + "px;\"></div>";
+          int lineIndex = j - visibleStartLineNumber;
+          this.renderResult[lineIndex] = this.renderResult[lineIndex] + decorationOutput;
+          j = j + 1;
+        }
+      }
+      i = i + 1;
+    }
+  }
+
+  string render(int startLineNumber, int lineNumber) {
+    int lineIndex = lineNumber - startLineNumber;
+    if (lineIndex < 0 || lineIndex >= this.renderResult.length) {
+      return "";
+    }
+    return this.renderResult[lineIndex];
+  }
+}
+
+export DecoRange createDecoRange(int startLineNumber, int startColumn, int endLineNumber, int endColumn, string className, int zIndex, bool isWholeLine, bool showIfCollapsed, bool shouldFillLineOnLineBreak) {
+  return new DecoRange(startLineNumber, startColumn, endLineNumber, endColumn, className, zIndex, isWholeLine, showIfCollapsed, shouldFillLineOnLineBreak);
+}
+
+export DecorationsOverlay createDecorationsOverlay(float typicalHalfwidthCharacterWidth) {
+  return new DecorationsOverlay(typicalHalfwidthCharacterWidth);
+}

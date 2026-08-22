@@ -1,0 +1,234 @@
+export enum EditorContributionInstantiation {
+  Eager,
+  AfterFirstRender,
+  BeforeFirstInteraction,
+  Eventually
+}
+
+export class EditorCommandDesc {
+  string id;
+  string precondition;
+  int weight;
+  int primary;
+  bool canTriggerInlineEdits;
+
+  init(string id, string precondition, int weight, int primary, bool canTriggerInlineEdits) {
+    this.id = id;
+    this.precondition = precondition;
+    this.weight = weight;
+    this.primary = primary;
+    this.canTriggerInlineEdits = canTriggerInlineEdits;
+  }
+}
+
+export class CommandImpl {
+  string id;
+  int priority;
+  string name;
+
+  init(string id, int priority, string name) {
+    this.id = id;
+    this.priority = priority;
+    this.name = name;
+  }
+}
+
+export class MultiCommand {
+  string id;
+  string precondition;
+  CommandImpl[] implementations;
+
+  init(string id, string precondition) {
+    this.id = id;
+    this.precondition = precondition;
+    this.implementations = [];
+  }
+
+  void addImplementation(int priority, string name) {
+    this.implementations.push(new CommandImpl(this.id, priority, name));
+    int i = 0;
+    while (i < this.implementations.length) {
+      int j = i + 1;
+      while (j < this.implementations.length) {
+        if (this.implementations[j].priority > this.implementations[i].priority) {
+          CommandImpl tmp = this.implementations[i];
+          this.implementations[i] = this.implementations[j];
+          this.implementations[j] = tmp;
+        }
+        j = j + 1;
+      }
+      i = i + 1;
+    }
+  }
+
+  bool runCommand() {
+    int i = 0;
+    while (i < this.implementations.length) {
+      return true;
+    }
+    return false;
+  }
+}
+
+export class EditorCommand {
+  string id;
+  string precondition;
+  int weight;
+  int primary;
+  bool canTriggerInlineEdits;
+
+  init(string id, string precondition, int weight, int primary, bool canTriggerInlineEdits) {
+    this.id = id;
+    this.precondition = precondition;
+    this.weight = weight;
+    this.primary = primary;
+    this.canTriggerInlineEdits = canTriggerInlineEdits;
+  }
+}
+
+export class EditorAction {
+  string id;
+  string label;
+  string alias;
+  string precondition;
+
+  init(string id, string label, string alias, string precondition) {
+    this.id = id;
+    this.label = label;
+    this.alias = alias;
+    this.precondition = precondition;
+  }
+}
+
+export class EditorContributionDesc {
+  string id;
+  EditorContributionInstantiation instantiation;
+
+  init(string id, EditorContributionInstantiation instantiation) {
+    this.id = id;
+    this.instantiation = instantiation;
+  }
+}
+
+export class EditorContributionRegistry {
+  Map<string, EditorCommand> commands;
+  EditorAction[] actions;
+  EditorContributionDesc[] contributions;
+  string[] inlineEditCommands;
+
+  init() {
+    this.commands = new Map<string, EditorCommand>();
+    this.actions = [];
+    this.contributions = [];
+    this.inlineEditCommands = [];
+  }
+
+  EditorCommand registerEditorCommand(EditorCommand command) {
+    this.commands.set(command.id, command);
+    if (command.canTriggerInlineEdits) {
+      this.inlineEditCommands.push(command.id);
+    }
+    return command;
+  }
+
+  EditorAction registerEditorAction(EditorAction action) {
+    this.actions.push(action);
+    return action;
+  }
+
+  void registerEditorContribution(string id, EditorContributionInstantiation instantiation) {
+    int i = 0;
+    while (i < this.contributions.length) {
+      if (this.contributions[i].id == id) {
+        return;
+      }
+      i = i + 1;
+    }
+    this.contributions.push(new EditorContributionDesc(id, instantiation));
+  }
+
+  EditorCommand? getEditorCommand(string commandId) {
+    return this.commands.get(commandId);
+  }
+
+  EditorAction[] getEditorActions() {
+    EditorAction[] copy = [];
+    int i = 0;
+    while (i < this.actions.length) {
+      copy.push(this.actions[i]);
+      i = i + 1;
+    }
+    return copy;
+  }
+
+  EditorContributionDesc[] getEditorContributions() {
+    EditorContributionDesc[] copy = [];
+    int i = 0;
+    while (i < this.contributions.length) {
+      copy.push(this.contributions[i]);
+      i = i + 1;
+    }
+    return copy;
+  }
+
+  EditorContributionDesc[] getSomeEditorContributions(EditorContributionInstantiation instantiation) {
+    EditorContributionDesc[] copy = [];
+    int i = 0;
+    while (i < this.contributions.length) {
+      if (this.contributions[i].instantiation == instantiation) {
+        copy.push(this.contributions[i]);
+      }
+      i = i + 1;
+    }
+    return copy;
+  }
+}
+
+EditorContributionRegistry editorContributionRegistry = new EditorContributionRegistry();
+
+export EditorContributionRegistry createEditorContributionRegistry() {
+  return new EditorContributionRegistry();
+}
+
+export EditorCommand registerEditorCommand(EditorCommand editorCommand) {
+  return editorContributionRegistry.registerEditorCommand(editorCommand);
+}
+
+export EditorAction registerEditorAction(EditorAction action) {
+  return editorContributionRegistry.registerEditorAction(action);
+}
+
+export void registerEditorContribution(string id, EditorContributionInstantiation instantiation) {
+  editorContributionRegistry.registerEditorContribution(id, instantiation);
+}
+
+export EditorCommand? getEditorCommand(string commandId) {
+  return editorContributionRegistry.getEditorCommand(commandId);
+}
+
+export EditorAction[] getEditorActions() {
+  return editorContributionRegistry.getEditorActions();
+}
+
+export EditorContributionDesc[] getEditorContributions() {
+  return editorContributionRegistry.getEditorContributions();
+}
+
+export EditorCommand createEditorCommand(string id, string precondition, int weight, int primary, bool canTriggerInlineEdits) {
+  return new EditorCommand(id, precondition, weight, primary, canTriggerInlineEdits);
+}
+
+export EditorAction createEditorAction(string id, string label, string alias, string precondition) {
+  return new EditorAction(id, label, alias, precondition);
+}
+
+export MultiCommand createMultiCommand(string id, string precondition) {
+  return new MultiCommand(id, precondition);
+}
+
+export bool contextMatches(string rules, string context) {
+  if (rules.length == 0) {
+    return true;
+  }
+  return context.indexOf(rules) >= 0;
+}

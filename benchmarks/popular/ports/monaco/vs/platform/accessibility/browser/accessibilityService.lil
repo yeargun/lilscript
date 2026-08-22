@@ -1,0 +1,26 @@
+export class AccessibilityService {
+  bool screenReaderOptimized;
+  int support;
+
+  init() {
+    this.screenReaderOptimized = false;
+    this.support = 0;
+  }
+
+  void setScreenReaderOptimized(bool value) {
+    this.screenReaderOptimized = value;
+    if (value) {
+      this.support = 2;
+    } else {
+      this.support = 1;
+    }
+  }
+
+  bool isScreenReaderOptimized() {
+    return this.screenReaderOptimized;
+  }
+}
+
+export AccessibilityService createAccessibilityService() {
+  return new AccessibilityService();
+}

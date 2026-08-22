@@ -1,0 +1,198 @@
+export class LineRange {
+  int startLineNumber;
+  int endLineNumberExclusive;
+
+  init(int startLineNumber, int endLineNumberExclusive) {
+    this.startLineNumber = startLineNumber;
+    this.endLineNumberExclusive = endLineNumberExclusive;
+  }
+
+  bool equals(LineRange other) {
+    return this.startLineNumber == other.startLineNumber
+      && this.endLineNumberExclusive == other.endLineNumberExclusive;
+  }
+}
+
+export class AttachedViewState {
+  LineRange[] visibleLineRanges;
+  bool stabilized;
+
+  init(LineRange[] visibleLineRanges, bool stabilized) {
+    this.visibleLineRanges = visibleLineRanges;
+    this.stabilized = stabilized;
+  }
+
+  bool equals(AttachedViewState other) {
+    if (this.stabilized != other.stabilized || this.visibleLineRanges.length != other.visibleLineRanges.length) {
+      return false;
+    }
+    int i = 0;
+    while (i < this.visibleLineRanges.length) {
+      if (!this.visibleLineRanges[i].equals(other.visibleLineRanges[i])) {
+        return false;
+      }
+      i = i + 1;
+    }
+    return true;
+  }
+}
+
+export class AttachedView {
+  AttachedViewState? state;
+
+  init() {
+    this.state = null;
+  }
+
+  void setVisibleLines(LineRange[] visibleLines, bool stabilized) {
+    this.state = new AttachedViewState(visibleLines, stabilized);
+  }
+}
+
+export class AttachedViews {
+  AttachedView[] views;
+
+  init() {
+    this.views = [];
+  }
+
+  AttachedView attachView() {
+    AttachedView view = new AttachedView();
+    this.views.push(view);
+    return view;
+  }
+
+  void detachView(AttachedView view) {
+    int index = this.views.indexOf(view);
+    if (index >= 0) {
+      this.views.splice(index, 1);
+    }
+  }
+
+  LineRange[] visibleLineRanges() {
+    LineRange[] all = [];
+    int i = 0;
+    while (i < this.views.length) {
+      AttachedViewState? state = this.views[i].state;
+      if (state != null) {
+        int j = 0;
+        while (j < state.visibleLineRanges.length) {
+          all.push(state.visibleLineRanges[j]);
+          j = j + 1;
+        }
+      }
+      i = i + 1;
+    }
+    LineRange[] merged = [];
+    i = 0;
+    while (i < all.length) {
+      LineRange current = all[i];
+      int j = i + 1;
+      while (j < all.length) {
+        if (all[j].startLineNumber < current.startLineNumber) {
+          LineRange temp = current;
+          current = all[j];
+          all[j] = temp;
+        }
+        j = j + 1;
+      }
+      if (
+        merged.length > 0
+        && current.startLineNumber <= merged[merged.length - 1].endLineNumberExclusive
+      ) {
+        if (current.endLineNumberExclusive > merged[merged.length - 1].endLineNumberExclusive) {
+          merged[merged.length - 1].endLineNumberExclusive = current.endLineNumberExclusive;
+        }
+      } else {
+        merged.push(current);
+      }
+      i = i + 1;
+    }
+    return merged;
+  }
+
+  void dispose() {
+    this.views = [];
+  }
+}
+
+export class AttachedViewHandler {
+  LineRange[] computedLineRanges;
+  LineRange[] lineRanges;
+  bool pending;
+
+  init() {
+    this.computedLineRanges = [];
+    this.lineRanges = [];
+    this.pending = false;
+  }
+
+  bool update() {
+    if (this.computedLineRanges.length == this.lineRanges.length) {
+      bool equal = true;
+      int i = 0;
+      while (i < this.lineRanges.length) {
+        if (!this.computedLineRanges[i].equals(this.lineRanges[i])) {
+          equal = false;
+          break;
+        }
+        i = i + 1;
+      }
+      if (equal) {
+        return false;
+      }
+    }
+    this.computedLineRanges = this.lineRanges.slice();
+    this.pending = false;
+    return true;
+  }
+
+  void handleStateChange(AttachedViewState state) {
+    this.lineRanges = state.visibleLineRanges;
+    if (state.stabilized) {
+      this.update();
+    } else {
+      this.pending = true;
+    }
+  }
+}
+
+export class AbstractSyntaxTokenBackend {
+  int backgroundTokenizationState;
+  bool disposed;
+  int[] changedLines;
+  int[] changedFontLines;
+
+  init() {
+    this.backgroundTokenizationState = 1;
+    this.disposed = false;
+    this.changedLines = [];
+    this.changedFontLines = [];
+  }
+
+  void dispose() {
+    this.disposed = true;
+    this.changedLines = [];
+    this.changedFontLines = [];
+  }
+
+  bool isCheapToTokenize(int lineNumber) {
+    return lineNumber > 0;
+  }
+
+  bool tokenizeIfCheap(int lineNumber) {
+    if (this.isCheapToTokenize(lineNumber)) {
+      this.changedLines.push(lineNumber);
+      return true;
+    }
+    return false;
+  }
+}
+
+export AttachedViews createAttachedViews() {
+  return new AttachedViews();
+}
+
+export AbstractSyntaxTokenBackend createAbstractSyntaxTokenBackend() {
+  return new AbstractSyntaxTokenBackend();
+}

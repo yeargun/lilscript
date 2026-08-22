@@ -1,0 +1,44 @@
+import { clipboardRead, clipboardWrite, clipboardReadEvent, clipboardWriteEvent } from "../../../../js-host";
+
+export class BrowserClipboardService {
+  string fallback;
+
+  init() {
+    this.fallback = "";
+  }
+
+  string readText() {
+    string text = clipboardRead();
+    if (text.length == 0) {
+      return this.fallback;
+    }
+    this.fallback = text;
+    return text;
+  }
+
+  void writeText(string text) {
+    this.fallback = text;
+    clipboardWrite(text);
+  }
+
+  string readTextSync() {
+    return this.fallback;
+  }
+
+  string readEvent(JsValue event) {
+    string text = clipboardReadEvent(event);
+    if (text.length > 0) {
+      this.fallback = text;
+    }
+    return this.fallback;
+  }
+
+  void writeEvent(JsValue event, string text) {
+    this.fallback = text;
+    clipboardWriteEvent(event, text);
+  }
+}
+
+export BrowserClipboardService createBrowserClipboardService() {
+  return new BrowserClipboardService();
+}

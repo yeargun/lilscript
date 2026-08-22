@@ -1,0 +1,92 @@
+export class InputColorsRegistry {
+  string[] ids;
+
+  init() {
+    this.ids = [];
+  }
+
+  string register(string id) {
+    if (!this.ids.includes(id)) {
+      this.ids.push(id);
+    }
+    return id;
+  }
+
+  bool has(string id) {
+    return this.ids.includes(id);
+  }
+
+  string asCssVariableName(string id) {
+    string out = "--vscode-";
+    int i = 0;
+    while (i < id.length) {
+      string ch = id.charAt(i);
+      if (ch == ".") {
+        out = out + "-";
+      } else {
+        out = out + ch;
+      }
+      i = i + 1;
+    }
+    return out;
+  }
+}
+
+InputColorsRegistry colors = new InputColorsRegistry();
+
+export InputColorsRegistry getInputColorsRegistry() {
+  return colors;
+}
+
+export string c0 = colors.register("input.background");
+export string c1 = colors.register("input.foreground");
+export string c2 = colors.register("input.border");
+export string c3 = colors.register("inputOption.activeBorder");
+export string c4 = colors.register("inputOption.hoverBackground");
+export string c5 = colors.register("inputOption.activeBackground");
+export string c6 = colors.register("inputOption.activeForeground");
+export string c7 = colors.register("input.placeholderForeground");
+export string c8 = colors.register("inputValidation.infoBackground");
+export string c9 = colors.register("inputValidation.infoForeground");
+export string c10 = colors.register("inputValidation.infoBorder");
+export string c11 = colors.register("inputValidation.warningBackground");
+export string c12 = colors.register("inputValidation.warningForeground");
+export string c13 = colors.register("inputValidation.warningBorder");
+export string c14 = colors.register("inputValidation.errorBackground");
+export string c15 = colors.register("inputValidation.errorForeground");
+export string c16 = colors.register("inputValidation.errorBorder");
+export string c17 = colors.register("dropdown.background");
+export string c18 = colors.register("dropdown.listBackground");
+export string c19 = colors.register("dropdown.foreground");
+export string c20 = colors.register("dropdown.border");
+export string c21 = colors.register("button.foreground");
+export string c22 = colors.register("button.separator");
+export string c23 = colors.register("button.background");
+export string c24 = colors.register("button.hoverBackground");
+export string c25 = colors.register("button.border");
+export string c26 = colors.register("button.secondaryForeground");
+export string c27 = colors.register("button.secondaryBackground");
+export string c28 = colors.register("button.secondaryBorder");
+export string c29 = colors.register("button.secondaryHoverBackground");
+export string c30 = colors.register("radio.activeForeground");
+export string c31 = colors.register("radio.activeBackground");
+export string c32 = colors.register("radio.activeBorder");
+export string c33 = colors.register("radio.inactiveForeground");
+export string c34 = colors.register("radio.inactiveBackground");
+export string c35 = colors.register("radio.inactiveBorder");
+export string c36 = colors.register("radio.inactiveHoverBackground");
+export string c37 = colors.register("checkbox.background");
+export string c38 = colors.register("checkbox.selectBackground");
+export string c39 = colors.register("checkbox.foreground");
+export string c40 = colors.register("checkbox.border");
+export string c41 = colors.register("checkbox.selectBorder");
+export string c42 = colors.register("checkbox.disabled.background");
+export string c43 = colors.register("checkbox.disabled.foreground");
+export string c44 = colors.register("keybindingLabel.background");
+export string c45 = colors.register("keybindingLabel.foreground");
+export string c46 = colors.register("keybindingLabel.border");
+export string c47 = colors.register("keybindingLabel.bottomBorder");
+
+export string[] colorIds() {
+  return colors.ids;
+}

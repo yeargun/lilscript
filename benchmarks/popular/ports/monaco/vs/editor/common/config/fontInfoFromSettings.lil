@@ -1,0 +1,79 @@
+import { BareFontInfo, createBareFontInfo } from "./fontInfo";
+import { hostCall, jsUndefined } from "../../../../js-host";
+
+JsValue optionValue(JsValue options, int id, string name) {
+  if (options[name] != null) {
+    return options[name];
+  }
+  return hostCall(options, "get", id, jsUndefined(), jsUndefined());
+}
+
+export BareFontInfo createBareFontInfoFromValidatedSettings(
+  JsValue options,
+  float pixelRatio,
+  bool ignoreEditorZoom = false
+) {
+  return createBareFontInfo(
+    JS.string(optionValue(options, 58, "fontFamily")),
+    JS.string(optionValue(options, 62, "fontWeight")),
+    JS.number(optionValue(options, 61, "fontSize")),
+    JS.string(optionValue(options, 60, "fontLigatures")),
+    JS.string(optionValue(options, 63, "fontVariations")),
+    JS.number(optionValue(options, 75, "lineHeight")),
+    JS.number(optionValue(options, 72, "letterSpacing")),
+    pixelRatio,
+    ignoreEditorZoom
+  );
+}
+
+export BareFontInfo createBareFontInfoFromRawSettings(
+  JsValue options,
+  float pixelRatio,
+  bool ignoreEditorZoom = false
+) {
+  string family = "Menlo, Monaco, 'Courier New', monospace";
+  string weight = "normal";
+  float size = 12.0;
+  string ligatures = "off";
+  string variations = "normal";
+  float lineHeight = 0.0;
+  float letterSpacing = 0.0;
+  if (options["fontFamily"] != null) {
+    family = JS.string(options["fontFamily"]);
+  }
+  if (options["fontWeight"] != null) {
+    weight = JS.string(options["fontWeight"]);
+  }
+  if (options["fontSize"] != null) {
+    size = JS.number(options["fontSize"]);
+  }
+  if (options["fontLigatures"] != null) {
+    ligatures = JS.string(options["fontLigatures"]);
+  }
+  if (options["fontVariations"] != null) {
+    variations = JS.string(options["fontVariations"]);
+  }
+  if (options["lineHeight"] != null) {
+    lineHeight = JS.number(options["lineHeight"]);
+  }
+  if (options["letterSpacing"] != null) {
+    letterSpacing = JS.number(options["letterSpacing"]);
+  }
+  if (size < 6.0) {
+    size = 6.0;
+  }
+  if (size > 100.0) {
+    size = 100.0;
+  }
+  return createBareFontInfo(
+    family,
+    weight,
+    size,
+    ligatures,
+    variations,
+    lineHeight,
+    letterSpacing,
+    pixelRatio,
+    ignoreEditorZoom
+  );
+}

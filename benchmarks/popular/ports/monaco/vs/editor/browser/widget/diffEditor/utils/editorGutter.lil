@@ -1,0 +1,52 @@
+export class EditorGutterItem {
+  int id;
+  int lineNumber;
+  int height;
+
+  init(int id, int lineNumber, int height) {
+    this.id = id;
+    this.lineNumber = lineNumber;
+    this.height = height;
+  }
+}
+
+export class EditorGutter {
+  EditorGutterItem[] items;
+  int scrollTop;
+  int lineHeight;
+
+  init(int lineHeight) {
+    this.items = [];
+    this.scrollTop = 0;
+    this.lineHeight = lineHeight;
+  }
+
+  void setItems(EditorGutterItem[] items) {
+    this.items = items;
+  }
+
+  int itemTop(EditorGutterItem item) {
+    return (item.lineNumber - 1) * this.lineHeight - this.scrollTop;
+  }
+
+  EditorGutterItem[] visibleItems(int viewportHeight) {
+    EditorGutterItem[] out = [];
+    int i = 0;
+    while (i < this.items.length) {
+      int top = this.itemTop(this.items[i]);
+      if (top + this.items[i].height >= 0 && top <= viewportHeight) {
+        out.push(this.items[i]);
+      }
+      i = i + 1;
+    }
+    return out;
+  }
+}
+
+export EditorGutter createEditorGutter(int lineHeight) {
+  return new EditorGutter(lineHeight);
+}
+
+export EditorGutterItem createEditorGutterItem(int id, int lineNumber, int height) {
+  return new EditorGutterItem(id, lineNumber, height);
+}

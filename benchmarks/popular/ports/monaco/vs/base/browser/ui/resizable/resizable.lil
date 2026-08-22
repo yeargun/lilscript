@@ -1,0 +1,238 @@
+import { domCreateElement, setClassName, setStyle, hostCall, jsUndefined, imin, imax } from "../../../../../js-host";
+
+export enum OrthogonalEdge {
+  North,
+  South,
+  East,
+  West
+}
+
+export enum SashState {
+  Disabled,
+  AtMinimum,
+  AtMaximum,
+  Enabled
+}
+
+export class Dimension {
+  int width;
+  int height;
+
+  init(int width, int height) {
+    this.width = width;
+    this.height = height;
+  }
+}
+
+bool dimensionEquals(Dimension a, Dimension b) {
+  return a.width == b.width && a.height == b.height;
+}
+
+export class ResizeEvent {
+  Dimension dimension;
+  bool done;
+  bool north;
+  bool east;
+  bool south;
+  bool west;
+
+  init(Dimension dimension, bool done, bool north, bool east, bool south, bool west) {
+    this.dimension = dimension;
+    this.done = done;
+    this.north = north;
+    this.east = east;
+    this.south = south;
+    this.west = west;
+  }
+}
+
+export class ResizableHTMLElement {
+  JsValue domNode;
+  Dimension size;
+  Dimension minSize;
+  Dimension maxSize;
+  Dimension? preferredSize;
+  SashState northState;
+  SashState eastState;
+  SashState southState;
+  SashState westState;
+  (func()->void)[] willResizeListeners;
+  (func(ResizeEvent)->void)[] resizeListeners;
+  int dragStartX;
+  int dragStartY;
+  int dragBaseW;
+  int dragBaseH;
+  int deltaX;
+  int deltaY;
+  bool dragging;
+
+  init() {
+    this.size = new Dimension(0, 0);
+    this.minSize = new Dimension(0, 0);
+    this.maxSize = new Dimension(2147483647, 2147483647);
+    this.preferredSize = null;
+    this.northState = SashState.Enabled;
+    this.eastState = SashState.Enabled;
+    this.southState = SashState.Enabled;
+    this.westState = SashState.Enabled;
+    this.willResizeListeners = [];
+    this.resizeListeners = [];
+    this.dragStartX = 0;
+    this.dragStartY = 0;
+    this.dragBaseW = 0;
+    this.dragBaseH = 0;
+    this.deltaX = 0;
+    this.deltaY = 0;
+    this.dragging = false;
+    this.domNode = domCreateElement("div");
+  }
+
+  void fireWillResize() {
+    int i = 0;
+    while (i < this.willResizeListeners.length) {
+      this.willResizeListeners[i]();
+      i = i + 1;
+    }
+  }
+
+  void fireResize(bool done, bool north, bool east, bool south, bool west) {
+    ResizeEvent event = new ResizeEvent(this.size, done, north, east, south, west);
+    int i = 0;
+    while (i < this.resizeListeners.length) {
+      this.resizeListeners[i](event);
+      i = i + 1;
+    }
+  }
+
+  func()->void onDidWillResize(func()->void listener) {
+    this.willResizeListeners.push(listener);
+    return () => {};
+  }
+
+  func()->void onDidResize(func(ResizeEvent)->void listener) {
+    this.resizeListeners.push(listener);
+    return () => {};
+  }
+
+  void beginResize() {
+    if (!this.dragging) {
+      this.fireWillResize();
+      this.dragging = true;
+      this.dragBaseW = this.size.width;
+      this.dragBaseH = this.size.height;
+      this.deltaX = 0;
+      this.deltaY = 0;
+    }
+  }
+
+  void endResize() {
+    if (this.dragging) {
+      this.dragging = false;
+      this.deltaX = 0;
+      this.deltaY = 0;
+      this.fireResize(true, false, false, false, false);
+    }
+  }
+
+  void onEast(int currentX, int startX) {
+    this.beginResize();
+    this.deltaX = currentX - startX;
+    this.layout(this.dragBaseH + this.deltaY, this.dragBaseW + this.deltaX);
+    this.fireResize(false, false, true, false, false);
+  }
+
+  void onWest(int currentX, int startX) {
+    this.beginResize();
+    this.deltaX = 0 - (currentX - startX);
+    this.layout(this.dragBaseH + this.deltaY, this.dragBaseW + this.deltaX);
+    this.fireResize(false, false, false, false, true);
+  }
+
+  void onNorth(int currentY, int startY) {
+    this.beginResize();
+    this.deltaY = 0 - (currentY - startY);
+    this.layout(this.dragBaseH + this.deltaY, this.dragBaseW + this.deltaX);
+    this.fireResize(false, true, false, false, false);
+  }
+
+  void onSouth(int currentY, int startY) {
+    this.beginResize();
+    this.deltaY = currentY - startY;
+    this.layout(this.dragBaseH + this.deltaY, this.dragBaseW + this.deltaX);
+    this.fireResize(false, false, false, true, false);
+  }
+
+  void resetWidth() {
+    Dimension? preferred = this.preferredSize;
+    if (preferred != null) {
+      this.layout(this.size.height, preferred.width);
+      this.fireResize(true, false, false, false, false);
+    }
+  }
+
+  void resetHeight() {
+    Dimension? preferred = this.preferredSize;
+    if (preferred != null) {
+      this.layout(preferred.height, this.size.width);
+      this.fireResize(true, false, false, false, false);
+    }
+  }
+
+  void enableSashes(bool north, bool east, bool south, bool west) {
+    if (north) {
+      this.northState = SashState.Enabled;
+    } else {
+      this.northState = SashState.Disabled;
+    }
+    if (east) {
+      this.eastState = SashState.Enabled;
+    } else {
+      this.eastState = SashState.Disabled;
+    }
+    if (south) {
+      this.southState = SashState.Enabled;
+    } else {
+      this.southState = SashState.Disabled;
+    }
+    if (west) {
+      this.westState = SashState.Enabled;
+    } else {
+      this.westState = SashState.Disabled;
+    }
+  }
+
+  void layout(int height, int width) {
+    int nextH = imax(this.minSize.height, imin(this.maxSize.height, height));
+    int nextW = imax(this.minSize.width, imin(this.maxSize.width, width));
+    Dimension next = new Dimension(nextW, nextH);
+    if (!dimensionEquals(next, this.size)) {
+      setStyle(this.domNode, "height", nextH.toString() + "px");
+      setStyle(this.domNode, "width", nextW.toString() + "px");
+      this.size = next;
+    }
+  }
+
+  void setMaxSize(Dimension value) {
+    this.maxSize = value;
+  }
+
+  void setMinSize(Dimension value) {
+    this.minSize = value;
+  }
+
+  void setPreferredSize(Dimension value) {
+    this.preferredSize = value;
+  }
+
+  void dispose() {
+    hostCall(this.domNode, "remove", jsUndefined(), jsUndefined(), jsUndefined());
+  }
+}
+
+export ResizableHTMLElement createResizableHTMLElement() {
+  return new ResizableHTMLElement();
+}
+
+export Dimension createDimension(int width, int height) {
+  return new Dimension(width, height);
+}

@@ -1,0 +1,225 @@
+import { OffsetRange } from "../../../core/ranges/offsetRange";
+import { DiffAlgorithmResult, SequenceDiff, trivialDiff } from "./diffAlgorithm";
+
+class SnakePath {
+  SnakePath prev;
+  int x;
+  int y;
+  int length;
+  bool present;
+
+  init() {
+    this.prev = this;
+    this.x = 0;
+    this.y = 0;
+    this.length = 0;
+    this.present = false;
+  }
+}
+
+SnakePath noneSnake = new SnakePath();
+
+SnakePath makeSnake(SnakePath prev, int x, int y, int length) {
+  SnakePath node = new SnakePath();
+  node.prev = prev;
+  node.x = x;
+  node.y = y;
+  node.length = length;
+  node.present = true;
+  return node;
+}
+
+class FastInt32Array {
+  int[] positiveArr;
+  int[] negativeArr;
+
+  init() {
+    this.positiveArr = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    this.negativeArr = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  }
+
+  int get(int idx) {
+    if (idx < 0) {
+      int n = 0 - idx - 1;
+      if (n >= this.negativeArr.length) {
+        return 0;
+      }
+      return this.negativeArr[n];
+    }
+    if (idx >= this.positiveArr.length) {
+      return 0;
+    }
+    return this.positiveArr[idx];
+  }
+
+  void set(int idx, int value) {
+    if (idx < 0) {
+      int n = 0 - idx - 1;
+      while (n >= this.negativeArr.length) {
+        this.negativeArr.push(0);
+      }
+      this.negativeArr[n] = value;
+      return;
+    }
+    while (idx >= this.positiveArr.length) {
+      this.positiveArr.push(0);
+    }
+    this.positiveArr[idx] = value;
+  }
+}
+
+class FastArrayNegativeIndices {
+  SnakePath[] positiveArr;
+  SnakePath[] negativeArr;
+
+  init() {
+    this.positiveArr = [];
+    this.negativeArr = [];
+  }
+
+  SnakePath get(int idx) {
+    if (idx < 0) {
+      int n = 0 - idx - 1;
+      if (n >= this.negativeArr.length) {
+        return noneSnake;
+      }
+      return this.negativeArr[n];
+    }
+    if (idx >= this.positiveArr.length) {
+      return noneSnake;
+    }
+    return this.positiveArr[idx];
+  }
+
+  void set(int idx, SnakePath value) {
+    if (idx < 0) {
+      int n = 0 - idx - 1;
+      while (n >= this.negativeArr.length) {
+        this.negativeArr.push(noneSnake);
+      }
+      this.negativeArr[n] = value;
+      return;
+    }
+    while (idx >= this.positiveArr.length) {
+      this.positiveArr.push(noneSnake);
+    }
+    this.positiveArr[idx] = value;
+  }
+}
+
+int getXAfterSnake(int[] seqX, int[] seqY, int x, int y) {
+  int xx = x;
+  int yy = y;
+  while (xx < seqX.length && yy < seqY.length && seqX[xx] == seqY[yy]) {
+    xx = xx + 1;
+    yy = yy + 1;
+  }
+  return xx;
+}
+
+int minInt(int a, int b) {
+  if (a < b) {
+    return a;
+  }
+  return b;
+}
+
+int maxInt(int a, int b) {
+  if (a > b) {
+    return a;
+  }
+  return b;
+}
+
+export class MyersDiffAlgorithm {
+  DiffAlgorithmResult compute(int[] seq1, int[] seq2) {
+    if (seq1.length == 0 || seq2.length == 0) {
+      return trivialDiff(seq1.length, seq2.length);
+    }
+    int[] seqX = seq1;
+    int[] seqY = seq2;
+    FastInt32Array V = new FastInt32Array();
+    FastArrayNegativeIndices paths = new FastArrayNegativeIndices();
+    int snake0 = getXAfterSnake(seqX, seqY, 0, 0);
+    V.set(0, snake0);
+    if (snake0 == 0) {
+      paths.set(0, noneSnake);
+    } else {
+      paths.set(0, makeSnake(noneSnake, 0, 0, snake0));
+    }
+    int d = 0;
+    int k = 0;
+    bool found = false;
+    while (!found) {
+      d = d + 1;
+      int dMod = d % 2;
+      int lowerBound = 0 - minInt(d, seqY.length + dMod);
+      int upperBound = minInt(d, seqX.length + dMod);
+      k = lowerBound;
+      while (k <= upperBound) {
+        int maxXofDLineTop = -1;
+        if (k != upperBound) {
+          maxXofDLineTop = V.get(k + 1);
+        }
+        int maxXofDLineLeft = -1;
+        if (k != lowerBound) {
+          maxXofDLineLeft = V.get(k - 1) + 1;
+        }
+        int x = minInt(maxInt(maxXofDLineTop, maxXofDLineLeft), seqX.length);
+        int y = x - k;
+        if (x > seqX.length || y > seqY.length) {
+          k = k + 2;
+          continue;
+        }
+        int newMaxX = getXAfterSnake(seqX, seqY, x, y);
+        V.set(k, newMaxX);
+        SnakePath lastPath = paths.get(k - 1);
+        if (x == maxXofDLineTop) {
+          lastPath = paths.get(k + 1);
+        }
+        if (newMaxX != x) {
+          paths.set(k, makeSnake(lastPath, x, y, newMaxX - x));
+        } else {
+          paths.set(k, lastPath);
+        }
+        if (V.get(k) == seqX.length && V.get(k) - k == seqY.length) {
+          found = true;
+          break;
+        }
+        k = k + 2;
+      }
+    }
+    SnakePath path = paths.get(k);
+    SequenceDiff[] result = [];
+    int lastAligningPosS1 = seqX.length;
+    int lastAligningPosS2 = seqY.length;
+    while (true) {
+      int endX = 0;
+      int endY = 0;
+      if (path.present) {
+        endX = path.x + path.length;
+        endY = path.y + path.length;
+      }
+      if (endX != lastAligningPosS1 || endY != lastAligningPosS2) {
+        result.push(new SequenceDiff(new OffsetRange(endX, lastAligningPosS1), new OffsetRange(endY, lastAligningPosS2)));
+      }
+      if (!path.present) {
+        break;
+      }
+      lastAligningPosS1 = path.x;
+      lastAligningPosS2 = path.y;
+      path = path.prev;
+    }
+    SequenceDiff[] ordered = [];
+    int i = result.length - 1;
+    while (i >= 0) {
+      ordered.push(result[i]);
+      i = i - 1;
+    }
+    return new DiffAlgorithmResult(ordered, false);
+  }
+}
+
+export MyersDiffAlgorithm createMyersDiffAlgorithm() {
+  return new MyersDiffAlgorithm();
+}

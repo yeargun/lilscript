@@ -1,0 +1,102 @@
+import { stringSlice, stringSplit } from "../../../../js-host";
+
+bool debugLocationsEnabled = false;
+
+export class DebugLocation {
+  string fileName;
+  int line;
+  int column;
+  string id;
+
+  init(string fileName, int line, int column, string id) {
+    this.fileName = fileName;
+    this.line = line;
+    this.column = column;
+    this.id = id;
+  }
+}
+
+export void enableDebugLocation() {
+  debugLocationsEnabled = true;
+}
+
+export bool isDebugLocationEnabled() {
+  return debugLocationsEnabled;
+}
+
+int parseDecimal(string value) {
+  int result = 0;
+  int i = 0;
+  while (i < value.length) {
+    int digit = value.charCodeAt(i) - 48;
+    if (digit < 0 || digit > 9) {
+      return -1;
+    }
+    result = result * 10 + digit;
+    i = i + 1;
+  }
+  return result;
+}
+
+string trimStackLine(string value) {
+  int from = 0;
+  int to = value.length;
+  while (from < to && value.charCodeAt(from) <= 32) {
+    from = from + 1;
+  }
+  while (to > from && value.charCodeAt(to - 1) <= 32) {
+    to = to - 1;
+  }
+  return stringSlice(value, from, to);
+}
+
+export DebugLocation? parseDebugLocation(string stackLine) {
+  string lineText = trimStackLine(stackLine);
+  if (lineText.length == 0) {
+    return null;
+  }
+  int end = lineText.length;
+  if (lineText.charAt(end - 1) == ")") {
+    end = end - 1;
+  }
+  int columnSeparator = lineText.lastIndexOf(":", end - 1);
+  if (columnSeparator < 0) {
+    return null;
+  }
+  int lineSeparator = lineText.lastIndexOf(":", columnSeparator - 1);
+  if (lineSeparator < 0) {
+    return null;
+  }
+  int fileStart = lineText.indexOf("(");
+  if (fileStart >= 0 && fileStart < lineSeparator) {
+    fileStart = fileStart + 1;
+  } else {
+    fileStart = lineText.indexOf("at ");
+    if (fileStart >= 0) {
+      fileStart = fileStart + 3;
+    } else {
+      fileStart = 0;
+    }
+  }
+  string fileName = stringSlice(lineText, fileStart, lineSeparator);
+  string linePart = stringSlice(lineText, lineSeparator + 1, columnSeparator);
+  string columnPart = stringSlice(lineText, columnSeparator + 1, end);
+  int line = parseDecimal(linePart);
+  int column = parseDecimal(columnPart);
+  if (fileName.length == 0 || line < 0 || column < 0) {
+    return null;
+  }
+  return new DebugLocation(fileName, line, column, stackLine);
+}
+
+export DebugLocation? debugLocationFromStack(string stack, int parentIndex) {
+  if (!debugLocationsEnabled) {
+    return null;
+  }
+  string[] lines = stringSplit(stack, "\n");
+  int index = parentIndex + 1;
+  if (index < 0 || index >= lines.length) {
+    return null;
+  }
+  return parseDebugLocation(lines[index]);
+}

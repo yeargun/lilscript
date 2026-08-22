@@ -1,0 +1,15 @@
+export class DefaultAccount {
+  string id;
+  string label;
+
+  init(string id, string label) {
+    this.id = id;
+    this.label = label;
+  }
+}
+
+export DefaultAccount createDefaultAccount(string id, string label) {
+  return new DefaultAccount(id, label);
+}
+
+export string IDefaultAccountServiceId = "defaultAccountService";

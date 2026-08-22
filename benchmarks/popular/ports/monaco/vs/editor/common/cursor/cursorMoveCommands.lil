@@ -1,0 +1,276 @@
+export enum CursorMoveDirection {
+  Left,
+  Right,
+  Up,
+  Down,
+  PreviousBlankLine,
+  NextBlankLine,
+  WrappedLineStart,
+  WrappedLineFirstNonWhitespaceCharacter,
+  WrappedLineColumnCenter,
+  WrappedLineEnd,
+  WrappedLineLastNonWhitespaceCharacter,
+  ViewPortTop,
+  ViewPortCenter,
+  ViewPortBottom,
+  ViewPortIfOutside
+}
+
+export enum CursorMoveUnit {
+  None,
+  Line,
+  WrappedLine,
+  Character,
+  HalfLine,
+  FoldedLine
+}
+
+export class CursorMoveCommand {
+  CursorMoveDirection direction;
+  CursorMoveUnit unit;
+  bool select;
+  int value;
+  bool noHistory;
+
+  init(
+    CursorMoveDirection direction,
+    CursorMoveUnit unit,
+    bool select,
+    int value,
+    bool noHistory
+  ) {
+    this.direction = direction;
+    this.unit = unit;
+    this.select = select;
+    this.value = value;
+    this.noHistory = noHistory;
+  }
+}
+
+export class CursorPosition {
+  int lineNumber;
+  int column;
+
+  init(int lineNumber, int column) {
+    this.lineNumber = lineNumber;
+    this.column = column;
+  }
+}
+
+export class FoldedRange {
+  int startLineNumber;
+  int endLineNumber;
+
+  init(int startLineNumber, int endLineNumber) {
+    this.startLineNumber = startLineNumber;
+    this.endLineNumber = endLineNumber;
+  }
+}
+
+CursorMoveDirection parseDirection(string rawDirection) {
+  if (rawDirection == "right") {
+    return CursorMoveDirection.Right;
+  }
+  if (rawDirection == "up") {
+    return CursorMoveDirection.Up;
+  }
+  if (rawDirection == "down") {
+    return CursorMoveDirection.Down;
+  }
+  if (rawDirection == "prevBlankLine") {
+    return CursorMoveDirection.PreviousBlankLine;
+  }
+  if (rawDirection == "nextBlankLine") {
+    return CursorMoveDirection.NextBlankLine;
+  }
+  if (rawDirection == "wrappedLineStart") {
+    return CursorMoveDirection.WrappedLineStart;
+  }
+  if (rawDirection == "wrappedLineFirstNonWhitespaceCharacter") {
+    return CursorMoveDirection.WrappedLineFirstNonWhitespaceCharacter;
+  }
+  if (rawDirection == "wrappedLineColumnCenter") {
+    return CursorMoveDirection.WrappedLineColumnCenter;
+  }
+  if (rawDirection == "wrappedLineEnd") {
+    return CursorMoveDirection.WrappedLineEnd;
+  }
+  if (rawDirection == "wrappedLineLastNonWhitespaceCharacter") {
+    return CursorMoveDirection.WrappedLineLastNonWhitespaceCharacter;
+  }
+  if (rawDirection == "viewPortTop") {
+    return CursorMoveDirection.ViewPortTop;
+  }
+  if (rawDirection == "viewPortCenter") {
+    return CursorMoveDirection.ViewPortCenter;
+  }
+  if (rawDirection == "viewPortBottom") {
+    return CursorMoveDirection.ViewPortBottom;
+  }
+  if (rawDirection == "viewPortIfOutside") {
+    return CursorMoveDirection.ViewPortIfOutside;
+  }
+  return CursorMoveDirection.Left;
+}
+
+CursorMoveUnit parseUnit(string rawUnit) {
+  if (rawUnit == "line") {
+    return CursorMoveUnit.Line;
+  }
+  if (rawUnit == "wrappedLine") {
+    return CursorMoveUnit.WrappedLine;
+  }
+  if (rawUnit == "character") {
+    return CursorMoveUnit.Character;
+  }
+  if (rawUnit == "halfLine") {
+    return CursorMoveUnit.HalfLine;
+  }
+  if (rawUnit == "foldedLine") {
+    return CursorMoveUnit.FoldedLine;
+  }
+  return CursorMoveUnit.None;
+}
+
+bool validDirection(string rawDirection) {
+  return rawDirection == "left"
+    || rawDirection == "right"
+    || rawDirection == "up"
+    || rawDirection == "down"
+    || rawDirection == "prevBlankLine"
+    || rawDirection == "nextBlankLine"
+    || rawDirection == "wrappedLineStart"
+    || rawDirection == "wrappedLineFirstNonWhitespaceCharacter"
+    || rawDirection == "wrappedLineColumnCenter"
+    || rawDirection == "wrappedLineEnd"
+    || rawDirection == "wrappedLineLastNonWhitespaceCharacter"
+    || rawDirection == "viewPortTop"
+    || rawDirection == "viewPortCenter"
+    || rawDirection == "viewPortBottom"
+    || rawDirection == "viewPortIfOutside";
+}
+
+export CursorMoveCommand? parseCursorMove(
+  string rawDirection,
+  string rawUnit,
+  bool select,
+  int value,
+  bool noHistory
+) {
+  if (!validDirection(rawDirection)) {
+    return null;
+  }
+  int moveValue = value;
+  if (moveValue <= 0) {
+    moveValue = 1;
+  }
+  return new CursorMoveCommand(
+    parseDirection(rawDirection),
+    parseUnit(rawUnit),
+    select,
+    moveValue,
+    noHistory
+  );
+}
+
+export int targetFoldedDown(
+  int startLine,
+  int count,
+  FoldedRange[] hiddenAreas,
+  int lineCount
+) {
+  int lineNumber = startLine;
+  int rangeIndex = 0;
+  while (
+    rangeIndex < hiddenAreas.length
+    && hiddenAreas[rangeIndex].endLineNumber < lineNumber + 1
+  ) {
+    rangeIndex = rangeIndex + 1;
+  }
+  int step = 0;
+  while (step < count) {
+    if (lineNumber >= lineCount) {
+      return lineCount;
+    }
+    int candidate = lineNumber + 1;
+    while (
+      rangeIndex < hiddenAreas.length
+      && hiddenAreas[rangeIndex].endLineNumber < candidate
+    ) {
+      rangeIndex = rangeIndex + 1;
+    }
+    if (
+      rangeIndex < hiddenAreas.length
+      && hiddenAreas[rangeIndex].startLineNumber <= candidate
+    ) {
+      candidate = hiddenAreas[rangeIndex].endLineNumber + 1;
+    }
+    if (candidate > lineCount) {
+      return lineNumber;
+    }
+    lineNumber = candidate;
+    step = step + 1;
+  }
+  return lineNumber;
+}
+
+export int targetFoldedUp(int startLine, int count, FoldedRange[] hiddenAreas) {
+  int lineNumber = startLine;
+  int rangeIndex = hiddenAreas.length - 1;
+  while (
+    rangeIndex >= 0
+    && hiddenAreas[rangeIndex].startLineNumber > lineNumber - 1
+  ) {
+    rangeIndex = rangeIndex - 1;
+  }
+  int step = 0;
+  while (step < count) {
+    if (lineNumber <= 1) {
+      return 1;
+    }
+    int candidate = lineNumber - 1;
+    while (
+      rangeIndex >= 0
+      && hiddenAreas[rangeIndex].startLineNumber > candidate
+    ) {
+      rangeIndex = rangeIndex - 1;
+    }
+    if (
+      rangeIndex >= 0
+      && hiddenAreas[rangeIndex].endLineNumber >= candidate
+    ) {
+      candidate = hiddenAreas[rangeIndex].startLineNumber - 1;
+    }
+    if (candidate < 1) {
+      return lineNumber;
+    }
+    lineNumber = candidate;
+    step = step + 1;
+  }
+  return lineNumber;
+}
+
+export CursorPosition moveLogicalLine(
+  int[] lineMaxColumns,
+  CursorPosition position,
+  int lineDelta
+) {
+  if (lineMaxColumns.length == 0) {
+    return new CursorPosition(1, 1);
+  }
+  int lineNumber = position.lineNumber + lineDelta;
+  if (lineNumber < 1) {
+    lineNumber = 1;
+  }
+  if (lineNumber > lineMaxColumns.length) {
+    lineNumber = lineMaxColumns.length;
+  }
+  int column = position.column;
+  if (column > lineMaxColumns[lineNumber - 1]) {
+    column = lineMaxColumns[lineNumber - 1];
+  }
+  if (column < 1) {
+    column = 1;
+  }
+  return new CursorPosition(lineNumber, column);
+}

@@ -1,0 +1,261 @@
+int LengthFactor = 67108864;
+
+int lengthAdd(int first, int second) {
+  int result = first + second;
+  if (second >= LengthFactor) {
+    result = result - first % LengthFactor;
+  }
+  return result;
+}
+
+int[] mergeIds(int[] first, int[] second) {
+  int[] result = first.slice();
+  int i = 0;
+  while (i < second.length) {
+    if (result.indexOf(second[i]) < 0) {
+      result.push(second[i]);
+    }
+    i = i + 1;
+  }
+  return result;
+}
+
+bool idsIntersect(int[] first, int[] second) {
+  int i = 0;
+  while (i < first.length) {
+    if (second.indexOf(first[i]) >= 0) {
+      return true;
+    }
+    i = i + 1;
+  }
+  return false;
+}
+
+export class BracketInfo {
+  string bracketText;
+  string languageId;
+
+  init(string bracketText, string languageId) {
+    this.bracketText = bracketText;
+    this.languageId = languageId;
+  }
+}
+
+export class AstNode {
+  int kind;
+  int length;
+  int listHeight;
+  AstNode[] children;
+  int[] missingOpeningBracketIds;
+  int[] bracketIds;
+  BracketInfo? bracketInfo;
+  bool immutable;
+  int cachedMinIndentation;
+
+  init(
+    int kind,
+    int length,
+    int listHeight,
+    AstNode[] children,
+    int[] missingOpeningBracketIds,
+    int[] bracketIds,
+    BracketInfo? bracketInfo,
+    bool immutable
+  ) {
+    this.kind = kind;
+    this.length = length;
+    this.listHeight = listHeight;
+    this.children = children;
+    this.missingOpeningBracketIds = missingOpeningBracketIds;
+    this.bracketIds = bracketIds;
+    this.bracketInfo = bracketInfo;
+    this.immutable = immutable;
+    this.cachedMinIndentation = -1;
+  }
+
+  int childrenLength() {
+    return this.children.length;
+  }
+
+  AstNode? getChild(int index) {
+    if (index < 0 || index >= this.children.length) {
+      return null;
+    }
+    return this.children[index];
+  }
+
+  void setChild(int index, AstNode node) {
+    if (!this.immutable && index >= 0 && index < this.children.length) {
+      this.children[index] = node;
+      this.handleChildrenChanged();
+    }
+  }
+
+  AstNode toMutable() {
+    if (!this.immutable) {
+      return this;
+    }
+    return new AstNode(
+      this.kind,
+      this.length,
+      this.listHeight,
+      this.children.slice(),
+      this.missingOpeningBracketIds.slice(),
+      this.bracketIds.slice(),
+      this.bracketInfo,
+      false
+    );
+  }
+
+  AstNode deepClone() {
+    AstNode[] cloned = [];
+    int i = 0;
+    while (i < this.children.length) {
+      cloned.push(this.children[i].deepClone());
+      i = i + 1;
+    }
+    return new AstNode(
+      this.kind,
+      this.length,
+      this.listHeight,
+      cloned,
+      this.missingOpeningBracketIds.slice(),
+      this.bracketIds.slice(),
+      this.bracketInfo,
+      this.immutable
+    );
+  }
+
+  bool canBeReused(int[] openedBracketIds) {
+    if (idsIntersect(openedBracketIds, this.missingOpeningBracketIds)) {
+      return false;
+    }
+    if (this.kind == 2 && this.children.length < 3) {
+      return false;
+    }
+    if (this.kind == 1) {
+      return false;
+    }
+    if (this.kind == 4) {
+      if (this.children.length == 0) {
+        return false;
+      }
+      return this.children[this.children.length - 1].canBeReused(openedBracketIds);
+    }
+    return true;
+  }
+
+  void handleChildrenChanged() {
+    if (this.children.length == 0) {
+      this.length = 0;
+      this.missingOpeningBracketIds = [];
+      return;
+    }
+    int resultLength = 0;
+    int[] missing = [];
+    int i = 0;
+    while (i < this.children.length) {
+      resultLength = lengthAdd(resultLength, this.children[i].length);
+      missing = mergeIds(missing, this.children[i].missingOpeningBracketIds);
+      i = i + 1;
+    }
+    this.length = resultLength;
+    this.missingOpeningBracketIds = missing;
+    this.cachedMinIndentation = -1;
+  }
+
+  void appendChildOfSameHeight(AstNode node) {
+    if (!this.immutable && this.children.length < 3 && node.listHeight + 1 == this.listHeight) {
+      this.children.push(node);
+      this.handleChildrenChanged();
+    }
+  }
+
+  AstNode? unappendChild() {
+    if (this.immutable || this.children.length < 3) {
+      return null;
+    }
+    AstNode result = this.children[this.children.length - 1];
+    this.children.splice(this.children.length - 1, 1);
+    this.handleChildrenChanged();
+    return result;
+  }
+
+  void prependChildOfSameHeight(AstNode node) {
+    if (this.immutable || this.children.length >= 3 || node.listHeight + 1 != this.listHeight) {
+      return;
+    }
+    AstNode[] next = [node];
+    int i = 0;
+    while (i < this.children.length) {
+      next.push(this.children[i]);
+      i = i + 1;
+    }
+    this.children = next;
+    this.handleChildrenChanged();
+  }
+
+  AstNode? unprependChild() {
+    if (this.immutable || this.children.length < 3) {
+      return null;
+    }
+    AstNode result = this.children[0];
+    this.children.splice(0, 1);
+    this.handleChildrenChanged();
+    return result;
+  }
+}
+
+export AstNode createPairAstNode(AstNode openingBracket, AstNode? child, AstNode? closingBracket) {
+  AstNode[] children = [openingBracket];
+  int[] missing = [];
+  if (child != null) {
+    children.push(child);
+    missing = child.missingOpeningBracketIds;
+  }
+  if (closingBracket != null) {
+    children.push(closingBracket);
+  }
+  int length = 0;
+  int i = 0;
+  while (i < children.length) {
+    length = lengthAdd(length, children[i].length);
+    i = i + 1;
+  }
+  return new AstNode(2, length, 0, children, missing, [], null, true);
+}
+
+export AstNode createListAstNode(AstNode first, AstNode second, AstNode? third, bool immutable) {
+  AstNode[] children = [first, second];
+  if (third != null) {
+    children.push(third);
+  }
+  AstNode result = new AstNode(4, 0, first.listHeight + 1, children, [], [], null, immutable);
+  result.handleChildrenChanged();
+  return result;
+}
+
+export AstNode createEmptyListAstNode() {
+  return new AstNode(4, 0, 0, [], [], [], null, true);
+}
+
+export AstNode createTextAstNode(int length) {
+  return new AstNode(0, length, 0, [], [], [], null, true);
+}
+
+export AstNode createBracketAstNode(int length, string bracketText, string languageId, int[] bracketIds) {
+  return new AstNode(
+    1,
+    length,
+    0,
+    [],
+    [],
+    bracketIds,
+    new BracketInfo(bracketText, languageId),
+    true
+  );
+}
+
+export AstNode createInvalidBracketAstNode(int length, int[] closingBracketIds) {
+  return new AstNode(3, length, 0, [], closingBracketIds, [], null, true);
+}

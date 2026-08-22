@@ -1,0 +1,140 @@
+export enum EditorContributionInstantiation {
+  Eager,
+  AfterFirstRender,
+  BeforeFirstInteraction,
+  Eventually
+}
+
+export class ContributionDesc {
+  string id;
+  EditorContributionInstantiation instantiation;
+
+  init(string id, EditorContributionInstantiation instantiation) {
+    this.id = id;
+    this.instantiation = instantiation;
+  }
+}
+
+export class CodeEditorContributions {
+  Map<string, ContributionDesc> pending;
+  Map<string, int> instances;
+  string[] pendingIds;
+  string[] instanceIds;
+  bool eagerDone;
+  bool afterFirstRenderDone;
+  bool beforeFirstInteractionDone;
+  bool eventuallyDone;
+
+  init() {
+    this.pending = new Map<string, ContributionDesc>();
+    this.instances = new Map<string, int>();
+    this.pendingIds = [];
+    this.instanceIds = [];
+    this.eagerDone = false;
+    this.afterFirstRenderDone = false;
+    this.beforeFirstInteractionDone = false;
+    this.eventuallyDone = false;
+  }
+
+  void initialize(ContributionDesc[] contributions) {
+    int i = 0;
+    while (i < contributions.length) {
+      ContributionDesc desc = contributions[i];
+      if (!this.pending.has(desc.id) && !this.instances.has(desc.id)) {
+        this.pending.set(desc.id, desc);
+        this.pendingIds.push(desc.id);
+      }
+      i = i + 1;
+    }
+    this.instantiateSome(EditorContributionInstantiation.Eager);
+  }
+
+  void instantiateSome(EditorContributionInstantiation kind) {
+    if (kind == EditorContributionInstantiation.Eager) {
+      this.eagerDone = true;
+    }
+    if (kind == EditorContributionInstantiation.AfterFirstRender) {
+      this.afterFirstRenderDone = true;
+    }
+    if (kind == EditorContributionInstantiation.BeforeFirstInteraction) {
+      this.beforeFirstInteractionDone = true;
+    }
+    if (kind == EditorContributionInstantiation.Eventually) {
+      this.eventuallyDone = true;
+    }
+    string[] ids = [];
+    int i = 0;
+    while (i < this.pendingIds.length) {
+      ids.push(this.pendingIds[i]);
+      i = i + 1;
+    }
+    int j = 0;
+    while (j < ids.length) {
+      ContributionDesc? desc = this.pending.get(ids[j]);
+      if (desc != null) {
+        if (desc.instantiation == kind) {
+          this.instantiateById(desc.id);
+        }
+      }
+      j = j + 1;
+    }
+  }
+
+  void instantiateById(string id) {
+    if (this.instances.has(id)) {
+      return;
+    }
+    ContributionDesc? desc = this.pending.get(id);
+    if (desc == null) {
+      return;
+    }
+    this.pending.delete(id);
+    int i = 0;
+    while (i < this.pendingIds.length) {
+      if (this.pendingIds[i] == id) {
+        this.pendingIds.splice(i, 1);
+        break;
+      }
+      i = i + 1;
+    }
+    this.instances.set(id, 1);
+    this.instanceIds.push(id);
+  }
+
+  bool get(string id) {
+    this.instantiateById(id);
+    return this.instances.has(id);
+  }
+
+  void onBeforeInteractionEvent() {
+    this.instantiateSome(EditorContributionInstantiation.BeforeFirstInteraction);
+  }
+
+  void onAfterRender() {
+    this.instantiateSome(EditorContributionInstantiation.AfterFirstRender);
+  }
+
+  void saveViewState(Map<string, string> into) {
+    int i = 0;
+    while (i < this.instanceIds.length) {
+      into.set(this.instanceIds[i], "1");
+      i = i + 1;
+    }
+  }
+
+  void restoreViewState(Map<string, string> from, string[] ids) {
+    int i = 0;
+    while (i < ids.length) {
+      this.instantiateById(ids[i]);
+      i = i + 1;
+    }
+  }
+}
+
+export CodeEditorContributions createCodeEditorContributions() {
+  return new CodeEditorContributions();
+}
+
+export ContributionDesc createContributionDesc(string id, EditorContributionInstantiation instantiation) {
+  return new ContributionDesc(id, instantiation);
+}

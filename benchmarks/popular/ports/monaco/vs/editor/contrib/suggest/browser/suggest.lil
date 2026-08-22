@@ -1,0 +1,147 @@
+export int CompletionItemKindMethod = 0;
+export int CompletionItemKindFunction = 1;
+export int CompletionItemKindConstructor = 2;
+export int CompletionItemKindField = 3;
+export int CompletionItemKindVariable = 4;
+export int CompletionItemKindClass = 5;
+export int CompletionItemKindStruct = 6;
+export int CompletionItemKindInterface = 7;
+export int CompletionItemKindModule = 8;
+export int CompletionItemKindProperty = 9;
+export int CompletionItemKindEvent = 10;
+export int CompletionItemKindOperator = 11;
+export int CompletionItemKindUnit = 12;
+export int CompletionItemKindValue = 13;
+export int CompletionItemKindConstant = 14;
+export int CompletionItemKindEnum = 15;
+export int CompletionItemKindEnumMember = 16;
+export int CompletionItemKindKeyword = 17;
+export int CompletionItemKindText = 18;
+export int CompletionItemKindColor = 19;
+export int CompletionItemKindFile = 20;
+export int CompletionItemKindReference = 21;
+export int CompletionItemKindCustomcolor = 22;
+export int CompletionItemKindFolder = 23;
+export int CompletionItemKindTypeParameter = 24;
+export int CompletionItemKindUser = 25;
+export int CompletionItemKindIssue = 26;
+export int CompletionItemKindSnippet = 27;
+export int CompletionItemKindTool = 28;
+
+export class SuggestItem {
+  string label;
+  string insertText;
+  int kind;
+  string filterText;
+  string sortText;
+  bool preselect;
+  string commitCharacters;
+  int rangeStartColumn;
+  int rangeEndColumn;
+
+  init(string label, string insertText, int kind) {
+    this.label = label;
+    this.insertText = insertText;
+    this.kind = kind;
+    this.filterText = label;
+    this.sortText = label;
+    this.preselect = false;
+    this.commitCharacters = "";
+    this.rangeStartColumn = 1;
+    this.rangeEndColumn = 1;
+  }
+}
+
+export bool isWordChar(string ch) {
+  int code = ch.charCodeAt(0);
+  if (code >= 97 && code <= 122) {
+    return true;
+  }
+  if (code >= 65 && code <= 90) {
+    return true;
+  }
+  if (code >= 48 && code <= 57) {
+    return true;
+  }
+  return ch == "_" || ch == "$";
+}
+
+export class WordAt {
+  string word;
+  int startColumn;
+  int endColumn;
+
+  init(string word, int startColumn, int endColumn) {
+    this.word = word;
+    this.startColumn = startColumn;
+    this.endColumn = endColumn;
+  }
+}
+
+export WordAt provideSuggestionItemsWord(string line, int column) {
+  int i = column - 1;
+  if (i < 0) {
+    i = 0;
+  }
+  if (i > line.length) {
+    i = line.length;
+  }
+  int start = i;
+  while (start > 0 && isWordChar(line.charAt(start - 1))) {
+    start = start - 1;
+  }
+  int end = i;
+  while (end < line.length && isWordChar(line.charAt(end))) {
+    end = end + 1;
+  }
+  string word = "";
+  int k = start;
+  while (k < end) {
+    word = word + line.charAt(k);
+    k = k + 1;
+  }
+  return new WordAt(word, start + 1, end + 1);
+}
+
+export SuggestItem[] collectSuggestItems(string[] lines, int lineNumber, int column) {
+  SuggestItem[] items = [];
+  string[] seen = [];
+  string prefix = "";
+  if (lineNumber >= 1 && lineNumber <= lines.length) {
+    prefix = provideSuggestionItemsWord(lines[lineNumber - 1], column).word.toLowerCase();
+  }
+  int line = 1;
+  while (line <= lines.length && items.length < 200) {
+    string content = lines[line - 1];
+    string current = "";
+    int i = 0;
+    while (i <= content.length) {
+      bool inWord = false;
+      if (i < content.length) {
+        inWord = isWordChar(content.charAt(i));
+      }
+      if (inWord) {
+        current = current + content.charAt(i);
+      } else {
+        if (current.length > 0 && seen.indexOf(current) < 0) {
+          if (prefix.length == 0 || current.toLowerCase().indexOf(prefix) == 0) {
+            items.push(new SuggestItem(current, current, CompletionItemKindText));
+            seen.push(current);
+          }
+        }
+        current = "";
+      }
+      i = i + 1;
+    }
+    line = line + 1;
+  }
+  return items;
+}
+
+export string getSuggestionComparatorKey(SuggestItem item) {
+  return item.sortText + "\0" + item.label;
+}
+
+export SuggestItem createSuggestItem(string label, string insertText, int kind) {
+  return new SuggestItem(label, insertText, kind);
+}

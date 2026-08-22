@@ -1,0 +1,51 @@
+int nmax(int a, int b) {
+  if (a > b) {
+    return a;
+  }
+  return b;
+}
+
+export class HiddenArea {
+  int startLineNumber;
+  int endLineNumberExclusive;
+
+  init(int startLineNumber, int endLineNumberExclusive) {
+    this.startLineNumber = startLineNumber;
+    this.endLineNumberExclusive = endLineNumberExclusive;
+  }
+
+  int length() {
+    return nmax(0, this.endLineNumberExclusive - this.startLineNumber);
+  }
+}
+
+export HiddenArea[] hiddenAreasFromUnchanged(int start, int count, int visibleTop, int visibleBottom) {
+  int hiddenStart = start + visibleTop;
+  int hiddenLen = count - visibleTop - visibleBottom;
+  HiddenArea[] out = [];
+  if (hiddenLen > 0) {
+    out.push(new HiddenArea(hiddenStart, hiddenStart + hiddenLen));
+  }
+  return out;
+}
+
+export class HideUnchangedRegionsFeature {
+  HiddenArea[] originalHidden;
+  HiddenArea[] modifiedHidden;
+  bool enabled;
+
+  init() {
+    this.originalHidden = [];
+    this.modifiedHidden = [];
+    this.enabled = false;
+  }
+
+  void setHidden(HiddenArea[] originalHidden, HiddenArea[] modifiedHidden) {
+    this.originalHidden = originalHidden;
+    this.modifiedHidden = modifiedHidden;
+  }
+}
+
+export HideUnchangedRegionsFeature createHideUnchangedRegionsFeature() {
+  return new HideUnchangedRegionsFeature();
+}

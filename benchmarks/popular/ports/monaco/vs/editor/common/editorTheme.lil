@@ -1,0 +1,25 @@
+import { hostCall, jsUndefined } from "../../../js-host";
+
+export class EditorTheme {
+  JsValue theme;
+
+  init(JsValue theme) {
+    this.theme = theme;
+  }
+
+  JsValue value() {
+    return this.theme;
+  }
+
+  string themeType() {
+    return JS.string(this.theme["type"]);
+  }
+
+  void update(JsValue theme) {
+    this.theme = theme;
+  }
+
+  JsValue getColor(JsValue color) {
+    return hostCall(this.theme, "getColor", color, jsUndefined(), jsUndefined());
+  }
+}

@@ -1,0 +1,166 @@
+export class QuickPickItem {
+  string label;
+  string description;
+  string detail;
+  bool alwaysShow;
+  bool picked;
+  bool hidden;
+
+  init(string label, string description, string detail, bool alwaysShow) {
+    this.label = label;
+    this.description = description;
+    this.detail = detail;
+    this.alwaysShow = alwaysShow;
+    this.picked = false;
+    this.hidden = false;
+  }
+}
+
+bool containsIgnoreCase(string hay, string needle) {
+  if (needle.length == 0) {
+    return true;
+  }
+  return hay.toLowerCase().includes(needle.toLowerCase());
+}
+
+export class QuickInputList {
+  QuickPickItem[] items;
+  int focusIndex;
+  bool matchOnLabel;
+  bool matchOnDescription;
+  bool matchOnDetail;
+  bool visible;
+
+  init() {
+    this.items = [];
+    this.focusIndex = -1;
+    this.matchOnLabel = true;
+    this.matchOnDescription = true;
+    this.matchOnDetail = false;
+    this.visible = true;
+  }
+
+  void setItems(QuickPickItem[] items) {
+    this.items = items;
+    this.focusIndex = this.firstVisible(0);
+  }
+
+  int firstVisible(int start) {
+    int i = start;
+    while (i < this.items.length) {
+      if (!this.items[i].hidden) {
+        return i;
+      }
+      i = i + 1;
+    }
+    int j = 0;
+    while (j < start && j < this.items.length) {
+      if (!this.items[j].hidden) {
+        return j;
+      }
+      j = j + 1;
+    }
+    return -1;
+  }
+
+  bool filter(string query) {
+    string trimmed = query;
+    int start = 0;
+    int end = trimmed.length;
+    while (start < end && trimmed.charAt(start) == " ") {
+      start = start + 1;
+    }
+    while (end > start && trimmed.charAt(end - 1) == " ") {
+      end = end - 1;
+    }
+    string q = "";
+    int c = start;
+    while (c < end) {
+      q = q + trimmed.charAt(c);
+      c = c + 1;
+    }
+    if (q.length == 0) {
+      int i = 0;
+      while (i < this.items.length) {
+        this.items[i].hidden = false;
+        i = i + 1;
+      }
+      this.focusIndex = this.firstVisible(0);
+      return false;
+    }
+    int n = 0;
+    while (n < this.items.length) {
+      QuickPickItem item = this.items[n];
+      bool hit = false;
+      if (this.matchOnLabel && containsIgnoreCase(item.label, q)) {
+        hit = true;
+      }
+      if (this.matchOnDescription && containsIgnoreCase(item.description, q)) {
+        hit = true;
+      }
+      if (this.matchOnDetail && containsIgnoreCase(item.detail, q)) {
+        hit = true;
+      }
+      if (hit) {
+        item.hidden = false;
+      } else {
+        item.hidden = !item.alwaysShow;
+      }
+      n = n + 1;
+    }
+    this.focusIndex = this.firstVisible(0);
+    return true;
+  }
+
+  int visibleCount() {
+    int count = 0;
+    int i = 0;
+    while (i < this.items.length) {
+      if (!this.items[i].hidden) {
+        count = count + 1;
+      }
+      i = i + 1;
+    }
+    return count;
+  }
+
+  void focusNext() {
+    if (this.focusIndex < 0) {
+      this.focusIndex = this.firstVisible(0);
+      return;
+    }
+    this.focusIndex = this.firstVisible(this.focusIndex + 1);
+  }
+
+  QuickPickItem? focused() {
+    if (this.focusIndex < 0 || this.focusIndex >= this.items.length) {
+      return null;
+    }
+    return this.items[this.focusIndex];
+  }
+
+  QuickPickItem? pick() {
+    QuickPickItem? item = this.focused();
+    if (item == null) {
+      return null;
+    }
+    item.picked = true;
+    return item;
+  }
+
+  void hide() {
+    this.visible = false;
+  }
+
+  void show() {
+    this.visible = true;
+  }
+}
+
+export QuickInputList createQuickInputList() {
+  return new QuickInputList();
+}
+
+export QuickPickItem createQuickPickItem(string label, string description, string detail, bool alwaysShow) {
+  return new QuickPickItem(label, description, detail, alwaysShow);
+}

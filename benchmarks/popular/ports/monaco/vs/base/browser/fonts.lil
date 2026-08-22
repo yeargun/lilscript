@@ -1,0 +1,29 @@
+import { windowSelf, hostCall, jsArrayLen, jsArrayAt, jsPropString, jsUndefined } from "../../../js-host";
+
+export string DEFAULT_FONT_FAMILY = "system-ui, \"Ubuntu\", \"Droid Sans\", sans-serif";
+
+export string[] getFonts() {
+  string[] families = [];
+  JsValue missing = jsUndefined();
+  JsValue fonts = hostCall(windowSelf(), "queryLocalFonts", missing, missing, missing);
+  int count = jsArrayLen(fonts);
+  int i = 0;
+  while (i < count) {
+    families.push(jsPropString(jsArrayAt(fonts, i), "family", ""));
+    i = i + 1;
+  }
+  return families;
+}
+
+export JsValue[] getFontSnippets() {
+  string[] fonts = getFonts();
+  JsValue[] snippets = [];
+  int i = 0;
+  while (i < fonts.length) {
+    JsValue snippet = JS.object();
+    snippet["body"] = fonts[i];
+    snippets.push(snippet);
+    i = i + 1;
+  }
+  return snippets;
+}

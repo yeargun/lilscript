@@ -1,0 +1,59 @@
+export string IBulkEditServiceId() {
+  return "IWorkspaceEditService";
+}
+
+export class ResourceTextEdit {
+  string resource;
+  int startLineNumber;
+  int startColumn;
+  int endLineNumber;
+  int endColumn;
+  string text;
+  int versionId;
+
+  init(string resource, int startLineNumber, int startColumn, int endLineNumber, int endColumn, string text, int versionId) {
+    this.resource = resource;
+    this.startLineNumber = startLineNumber;
+    this.startColumn = startColumn;
+    this.endLineNumber = endLineNumber;
+    this.endColumn = endColumn;
+    this.text = text;
+    this.versionId = versionId;
+  }
+}
+
+export class ResourceFileEdit {
+  string oldResource;
+  string newResource;
+  bool overwrite;
+  bool ignoreIfExists;
+  bool recursive;
+
+  init(string oldResource, string newResource, bool overwrite, bool ignoreIfExists, bool recursive) {
+    this.oldResource = oldResource;
+    this.newResource = newResource;
+    this.overwrite = overwrite;
+    this.ignoreIfExists = ignoreIfExists;
+    this.recursive = recursive;
+  }
+}
+
+export bool isResourceTextEdit(string kind) {
+  return kind == "text";
+}
+
+export bool isResourceFileEdit(string kind) {
+  return kind == "file";
+}
+
+export ResourceTextEdit createResourceTextEdit(string resource, int sl, int sc, int el, int ec, string text, int versionId) {
+  return new ResourceTextEdit(resource, sl, sc, el, ec, text, versionId);
+}
+
+export ResourceFileEdit createResourceFileEdit(string oldResource, string newResource, bool overwrite, bool ignoreIfExists, bool recursive) {
+  return new ResourceFileEdit(oldResource, newResource, overwrite, ignoreIfExists, recursive);
+}
+
+export int applyTextEdits(string[] lines, ResourceTextEdit[] edits) {
+  return edits.length;
+}

@@ -1,0 +1,129 @@
+export int[] EMPTY_LINE_TOKENS = [];
+
+int findTokenIndex(int[] tokens, int offset) {
+  int count = tokens.length >>> 1;
+  int low = 0;
+  int high = count - 1;
+  while (low < high) {
+    int middle = low + ((high - low) / 2);
+    if (tokens[middle << 1] <= offset) {
+      low = middle + 1;
+    } else {
+      high = middle;
+    }
+  }
+  return low;
+}
+
+export class ContiguousTokensEditing {
+  int[]? deleteBeginning(int[]? lineTokens, int toCharacterIndex) {
+    return this.deleteRange(lineTokens, 0, toCharacterIndex);
+  }
+
+  int[]? deleteEnding(int[]? lineTokens, int fromCharacterIndex) {
+    if (lineTokens == null || lineTokens.length == 0) {
+      return lineTokens;
+    }
+    return this.deleteRange(
+      lineTokens,
+      fromCharacterIndex,
+      lineTokens[lineTokens.length - 2]
+    );
+  }
+
+  int[]? deleteRange(int[]? lineTokens, int fromCharacterIndex, int toCharacterIndex) {
+    if (lineTokens == null || lineTokens.length == 0 || fromCharacterIndex == toCharacterIndex) {
+      return lineTokens;
+    }
+    int[] tokens = lineTokens.slice();
+    if (fromCharacterIndex == 0 && tokens[tokens.length - 2] == toCharacterIndex) {
+      return EMPTY_LINE_TOKENS.slice();
+    }
+    int count = tokens.length >>> 1;
+    int fromTokenIndex = findTokenIndex(tokens, fromCharacterIndex);
+    int fromTokenStart = 0;
+    if (fromTokenIndex > 0) {
+      fromTokenStart = tokens[(fromTokenIndex - 1) << 1];
+    }
+    int fromTokenEnd = tokens[fromTokenIndex << 1];
+    int delta = toCharacterIndex - fromCharacterIndex;
+    if (toCharacterIndex < fromTokenEnd) {
+      int i = fromTokenIndex;
+      while (i < count) {
+        tokens[i << 1] = tokens[i << 1] - delta;
+        i = i + 1;
+      }
+      return tokens;
+    }
+    int[] result = [];
+    int lastEnd = fromTokenStart;
+    int i = 0;
+    while (i < fromTokenIndex) {
+      result.push(tokens[i << 1]);
+      result.push(tokens[(i << 1) + 1]);
+      i = i + 1;
+    }
+    if (fromTokenStart != fromCharacterIndex) {
+      result.push(fromCharacterIndex);
+      result.push(tokens[(fromTokenIndex << 1) + 1]);
+      lastEnd = fromCharacterIndex;
+    }
+    i = fromTokenIndex + 1;
+    while (i < count) {
+      int end = tokens[i << 1] - delta;
+      if (end > lastEnd) {
+        result.push(end);
+        result.push(tokens[(i << 1) + 1]);
+        lastEnd = end;
+      }
+      i = i + 1;
+    }
+    return result;
+  }
+
+  int[]? append(int[]? lineTokens, int[]? otherTokens) {
+    if (lineTokens == null || otherTokens == null) {
+      return null;
+    }
+    if (lineTokens.length == 0) {
+      return otherTokens.slice();
+    }
+    if (otherTokens.length == 0) {
+      return lineTokens.slice();
+    }
+    int[] result = lineTokens.slice();
+    int delta = lineTokens[lineTokens.length - 2];
+    int i = 0;
+    while (i < otherTokens.length) {
+      result.push(otherTokens[i] + delta);
+      result.push(otherTokens[i + 1]);
+      i = i + 2;
+    }
+    return result;
+  }
+
+  int[]? insert(int[]? lineTokens, int characterIndex, int textLength) {
+    if (lineTokens == null || lineTokens.length == 0) {
+      return lineTokens;
+    }
+    int[] result = lineTokens.slice();
+    int tokenIndex = findTokenIndex(result, characterIndex);
+    if (tokenIndex > 0 && result[(tokenIndex - 1) << 1] == characterIndex) {
+      tokenIndex = tokenIndex - 1;
+    }
+    int count = result.length >>> 1;
+    while (tokenIndex < count) {
+      result[tokenIndex << 1] = result[tokenIndex << 1] + textLength;
+      tokenIndex = tokenIndex + 1;
+    }
+    return result;
+  }
+}
+
+export int[] toUint32Array(int[] values) {
+  return values;
+}
+
+export ContiguousTokensEditing createContiguousTokensEditing() {
+  return new ContiguousTokensEditing();
+}
