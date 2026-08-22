@@ -285,6 +285,50 @@ pub(crate) fn fold_unit_counter_updates(
     Ok((output, count))
 }
 
+/// Preserve the value of a self-update used as an expression while shortening
+/// its spelling. Unlike postfix `x++`, `x+=1` returns the newly assigned value
+/// just like `x=x+1`.
+pub(crate) fn fold_expression_self_assignments(
+    source: &str,
+) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+    let mut cursor = 0usize;
+    while cursor + 4 < tokens.len() {
+        let expression_self_update = tokens[cursor].kind == TokenKind::Identifier
+            && !crate::js_peephole::rewrite::is_property_identifier(&tokens, cursor)
+            && tokens.get(cursor + 1).map(|token| token.text) == Some("=")
+            && tokens.get(cursor + 2).map(|token| token.text) == Some(tokens[cursor].text)
+            && matches!(
+                tokens.get(cursor + 3).map(|token| token.text),
+                Some("+") | Some("-")
+            )
+            && tokens.get(cursor + 4).is_some_and(|token| {
+                matches!(token.kind, TokenKind::Number | TokenKind::String)
+            })
+            && matches!(
+                tokens.get(cursor + 5).map(|token| token.text),
+                Some(";") | Some("}") | Some(")") | Some(",") | None
+            );
+        if !expression_self_update {
+            cursor += 1;
+            continue;
+        }
+        replacements.push((
+            tokens[cursor].start,
+            tokens[cursor + 4].end,
+            format!(
+                "{}{}={}",
+                tokens[cursor].text,
+                tokens[cursor + 3].text,
+                tokens[cursor + 4].text
+            ),
+        ));
+        cursor += 5;
+    }
+    Ok(apply_token_rewrites(source, replacements))
+}
+
 fn member_unit_int32_update(tokens: &[Token<'_>], cursor: usize) -> Option<(usize, String)> {
     if !matches!(
         cursor

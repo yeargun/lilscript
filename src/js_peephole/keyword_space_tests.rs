@@ -1,6 +1,7 @@
 use super::{
-    late_generated_javascript_cleanup, late_generated_javascript_cleanup_pass,
-    optimize_generated_javascript, LateJavaScriptCleanupPass,
+    late_generated_javascript_cleanup, late_generated_javascript_cleanup_local_variants,
+    late_generated_javascript_cleanup_pass, optimize_generated_javascript,
+    LateJavaScriptCleanupPass,
 };
 
 #[test]
@@ -1670,6 +1671,41 @@ fn beta_reduces_identity_arrow_iifes() {
 }
 
 #[test]
+fn beta_reduced_arrow_iife_keeps_low_precedence_body_grouped() {
+    let reduced = optimize_generated_javascript(
+        "function f(c){if(!(e=>tag(e)&&e===e)(c))return 1;return 0}",
+    )
+    .unwrap();
+    assert!(reduced.code.contains("!(tag(c)&&c===c)"), "{}", reduced.code);
+    assert!(!reduced.code.contains("!tag(c)&&c===c"), "{}", reduced.code);
+}
+
+#[test]
+fn reduces_zero_argument_return_only_function_iifes() {
+    let reduced = late_generated_javascript_cleanup_pass(
+        "var api=(function(){return{run:work,stop:halt}})();use(api)",
+        LateJavaScriptCleanupPass::ZeroArgumentReturnIife,
+    )
+    .unwrap();
+    assert!(reduced.contains("{run:work,stop:halt}"), "{reduced}");
+    assert!(!reduced.contains("function(){return"), "{reduced}");
+
+    for source in [
+        "var value=(function(){return this.value})()",
+        "var value=(function(){return arguments.length})()",
+        "var value=(function(){return new.target})()",
+        "var value=(function(){return()=>1})()",
+    ] {
+        let kept = late_generated_javascript_cleanup_pass(
+            source,
+            LateJavaScriptCleanupPass::ZeroArgumentReturnIife,
+        )
+        .unwrap();
+        assert!(kept.contains("function"), "{source} -> {kept}");
+    }
+}
+
+#[test]
 fn folds_ident_ternary_to_or_and_length_not_gt_zero() {
     let queue = optimize_generated_javascript(
         "function y(a){var b=a;return b?b:[]}function z(){var c=[];var d=c.length;c.shift();return !(d>0)&&c}",
@@ -2013,6 +2049,286 @@ fn inverts_bare_return_guards_over_the_remaining_function_body() {
     assert!(optimized.contains("a!=null"), "{optimized}");
     assert!(optimized.contains("!(!a&&b)"), "{optimized}");
     assert!(optimized.matches("if(").count() >= 2, "{optimized}");
+}
+
+#[test]
+fn folds_guarded_returns_over_expression_only_suffixes() {
+    let source = "function warn(){}function clamp(value){if(typeof value!='number')return 3e3;value=+value;warn(value);return value>5e3?5e3:value}console.log(clamp('x'));console.log(clamp(7))";
+    let optimized = late_generated_javascript_cleanup_pass(
+        source,
+        LateJavaScriptCleanupPass::GuardReturnExpressionSuffixes,
+    )
+    .unwrap();
+
+    assert_eq!(run_node(source), run_node(&optimized), "{optimized}");
+    assert!(
+        optimized.contains("return typeof value!='number'?3e3:(value=+value,warn(value),"),
+        "{optimized}"
+    );
+    assert!(!optimized.contains("if("), "{optimized}");
+}
+
+#[test]
+fn guarded_return_suffix_folding_rejects_declarations_and_nested_statements() {
+    for source in [
+        "function f(c){if(c)return 1;var x=read();return x}",
+        "function f(c){if(c)return 1;let x=read();return x}",
+        "function f(c,d){if(c)return 1;if(d)use();return 2}",
+        "function f(c){if(c)return 1;try{use()}finally{done()}return 2}",
+    ] {
+        let optimized = late_generated_javascript_cleanup_pass(
+            source,
+            LateJavaScriptCleanupPass::GuardReturnExpressionSuffixes,
+        )
+        .unwrap();
+        assert_eq!(optimized, source, "{source} -> {optimized}");
+    }
+}
+
+#[test]
+fn folds_expression_suffixes_into_terminal_returns() {
+    let source = "function touch(){}function f(x){var y=x;touch(y);y+=2;return y}function g(){'use strict';touch();return this}";
+    let optimized = late_generated_javascript_cleanup_pass(
+        source,
+        LateJavaScriptCleanupPass::ExpressionSuffixReturns,
+    )
+    .unwrap();
+
+    assert!(optimized.contains("return touch(y),y+=2,y"), "{optimized}");
+    assert!(optimized.contains("'use strict';return touch(),this"), "{optimized}");
+    assert_eq!(run_node(&format!("{source};console.log(f(1))")), run_node(&format!("{optimized};console.log(f(1))")));
+
+    let declaration = "function f(){var x={a:1};x.a=2;return x}console.log(f().a)";
+    let declaration_optimized = late_generated_javascript_cleanup_pass(
+        declaration,
+        LateJavaScriptCleanupPass::ExpressionSuffixReturns,
+    )
+    .unwrap();
+    assert!(declaration_optimized.contains("var x={a:1};return x.a=2,x"), "{declaration_optimized}");
+    assert_eq!(run_node(declaration), run_node(&declaration_optimized));
+}
+
+#[test]
+fn exposes_return_sequences_as_independent_objective_candidates() {
+    let source = "function f(){a();return 1}function g(){b();return 2}";
+    let variants = late_generated_javascript_cleanup_local_variants(
+        source,
+        LateJavaScriptCleanupPass::ExpressionSuffixReturns,
+    )
+    .unwrap();
+
+    assert_eq!(variants.len(), 2, "{variants:?}");
+    assert!(variants.iter().any(|code| {
+        code.contains("return a(),1") && code.contains("b();return 2")
+    }));
+    assert!(variants.iter().any(|code| {
+        code.contains("a();return 1") && code.contains("return b(),2")
+    }));
+}
+
+#[test]
+fn terminal_return_sequences_do_not_enter_for_heads() {
+    let source = "function use(){}function f(a){var i=0;for(;i<a.length;i++){use(a[i])}use(i);return i}console.log(f([1,2]))";
+    let optimized = late_generated_javascript_cleanup_pass(
+        source,
+        LateJavaScriptCleanupPass::ExpressionSuffixReturns,
+    )
+    .unwrap();
+
+    assert!(optimized.contains("for(;i<a.length;i++)"), "{optimized}");
+    assert!(optimized.contains("return use(i),i"), "{optimized}");
+    assert_eq!(run_node(source), run_node(&optimized), "{optimized}");
+}
+
+#[test]
+fn folds_boolean_conditional_values_without_leaking_operand_values() {
+    let source = "function a(x){return x?true:false}function b(x,y){return x?true:!!y}function c(x,y){return x?false:!!y}function d(x,y){return x?!!y:false}function e(x,y){return x?!!y:true}for(const x of [0,1,'yes'])console.log(a(x),b(x,0),c(x,1),d(x,1),e(x,0))";
+    let optimized = late_generated_javascript_cleanup_pass(
+        source,
+        LateJavaScriptCleanupPass::BooleanConditionalValues,
+    )
+    .unwrap();
+
+    assert_eq!(run_node(source), run_node(&optimized), "{optimized}");
+    assert!(!optimized.contains("?true:false"), "{optimized}");
+    assert!(optimized.contains("!!x"), "{optimized}");
+    assert!(optimized.contains("||"), "{optimized}");
+    assert!(optimized.contains("&&"), "{optimized}");
+}
+
+#[test]
+fn folds_false_conditional_with_a_boolean_sequence_tail() {
+    let source = "function f(x){return\"number\"!=typeof x?false:(x=+x,Number.isFinite(x)&&x>=0&&x<=1)}";
+    let optimized = late_generated_javascript_cleanup_pass(
+        source,
+        LateJavaScriptCleanupPass::BooleanConditionalValues,
+    )
+    .unwrap();
+
+    assert!(!optimized.contains("?false:"), "{optimized}");
+    assert_eq!(run_node(source), run_node(&optimized), "{optimized}");
+}
+
+#[test]
+fn folds_boolean_arms_against_the_complete_logical_condition() {
+    let source = "function f(x){return x===void 0||!Array.isArray(x)?false:x.length>0}console.log(f(),f([]),f([1]))";
+    let optimized = late_generated_javascript_cleanup_pass(
+        source,
+        LateJavaScriptCleanupPass::BooleanConditionalValues,
+    )
+    .unwrap();
+
+    assert!(!optimized.contains("x===void 0||!!Array.isArray"), "{optimized}");
+    assert_eq!(run_node(source), run_node(&optimized), "{optimized}");
+}
+
+#[test]
+fn swaps_negated_conditional_arms_without_reordering_values() {
+    let source = "function hit(x){return x}function f(x){return!x?hit(1):hit(2)}console.log(f(0),f(1))";
+    let optimized = late_generated_javascript_cleanup_pass(
+        source,
+        LateJavaScriptCleanupPass::NegatedConditionalArms,
+    )
+    .unwrap();
+
+    assert!(optimized.contains("x?hit(2):hit(1)"), "{optimized}");
+    assert_eq!(run_node(source), run_node(&optimized), "{optimized}");
+}
+
+#[test]
+fn keeps_negated_terms_inside_larger_logical_conditions() {
+    let source = "function f(a,b){return a||!b?1:2}function g(a,b){return a&&!b?3:4}function h(a,b){return a??!b?5:6}console.log(f(0,0),f(1,1),g(1,0),g(0,0),h(null,0),h(0,0))";
+    let optimized = late_generated_javascript_cleanup_pass(
+        source,
+        LateJavaScriptCleanupPass::NegatedConditionalArms,
+    )
+    .unwrap();
+
+    assert_eq!(optimized, source);
+    assert_eq!(run_node(source), run_node(&optimized), "{optimized}");
+}
+
+#[test]
+fn swaps_invertible_disjunction_conditions_with_demorgan() {
+    let source = "function clamp(x){return\"number\"!=typeof x||!Number.isFinite(+x)?3000:x>5000?5000:x}function custom(x){return x===void 0||!Array.isArray(x)?false:x.length>0}console.log(clamp('x'),clamp(6000),custom(),custom([]),custom([1]))";
+    let optimized = late_generated_javascript_cleanup_pass(
+        source,
+        LateJavaScriptCleanupPass::NegatedConditionalArms,
+    )
+    .unwrap();
+
+    assert!(
+        optimized.contains("\"number\"==typeof x&&Number.isFinite(+x)?"),
+        "{optimized}"
+    );
+    assert!(
+        optimized.contains("x!==void 0&&Array.isArray(x)?"),
+        "{optimized}"
+    );
+    assert_eq!(run_node(source), run_node(&optimized), "{optimized}");
+}
+
+#[test]
+fn compounds_expression_position_identifier_updates() {
+    let source = "function f(x){return(x=x+1)}function g(x){return(x=x+'-')}console.log(f(2),g('a'))";
+    let optimized = late_generated_javascript_cleanup_pass(
+        source,
+        LateJavaScriptCleanupPass::UnitCounterUpdates,
+    )
+    .unwrap();
+
+    assert!(optimized.contains("x+=1"), "{optimized}");
+    assert!(optimized.contains("x+='-'"), "{optimized}");
+    assert_eq!(run_node(source), run_node(&optimized), "{optimized}");
+}
+
+#[test]
+fn factors_repeated_conditional_arms_without_reordering_tests() {
+    let source = "function f(a,b){return a?hit(1):b?hit(1):hit(2)}function g(a,b){return a?(b?hit(1):hit(2)):hit(2)}";
+    let optimized = late_generated_javascript_cleanup_pass(
+        source,
+        LateJavaScriptCleanupPass::CommonConditionalArms,
+    )
+    .unwrap();
+
+    assert!(optimized.contains("a||b?hit(1):hit(2)"), "{optimized}");
+    assert!(optimized.contains("a&&b?hit(1):hit(2)"), "{optimized}");
+
+    let sequence = "function f(a,x){return a?x:(log(),x>0?x:0)}";
+    let sequence_optimized = late_generated_javascript_cleanup_pass(
+        sequence,
+        LateJavaScriptCleanupPass::CommonConditionalArms,
+    )
+    .unwrap();
+    assert_eq!(
+        sequence_optimized,
+        "function f(a,x){return a||(log(),x>0)?x:0}"
+    );
+}
+
+#[test]
+fn folds_effectful_return_branches_into_conditional_sequences() {
+    let source = "function f(x){if(x>1){warn('high');return 1}touch();return 2}function g(x){if(x){a();b();return 3}return 4}";
+    let optimized = late_generated_javascript_cleanup_pass(
+        source,
+        LateJavaScriptCleanupPass::ExpressionReturnBranches,
+    )
+    .unwrap();
+
+    assert!(
+        optimized.contains("return x>1?(warn('high'),1):(touch(),2)"),
+        "{optimized}"
+    );
+    assert!(
+        optimized.contains("return x?(a(),b(),3):4"),
+        "{optimized}"
+    );
+}
+
+#[test]
+fn sinks_sequence_assignments_only_across_inert_test_prefixes() {
+    let source = "function f(e,k,r){return e==null?r:(e=e[k],\"number\"==typeof e?+e:r)}function g(e,k){return ok&&(e=e[k],\"boolean\"==typeof e)}";
+    let optimized = late_generated_javascript_cleanup_pass(
+        source,
+        LateJavaScriptCleanupPass::SequenceAssignmentFirstUse,
+    )
+    .unwrap();
+
+    assert!(
+        optimized.contains("\"number\"==typeof(e=e[k])?+e:r"),
+        "{optimized}"
+    );
+    assert!(
+        optimized.contains("ok&&\"boolean\"==typeof(e=e[k])"),
+        "{optimized}"
+    );
+
+    let effectful = "function f(e,k){return(e=e[k],probe()==e)}";
+    assert_eq!(
+        late_generated_javascript_cleanup_pass(
+            effectful,
+            LateJavaScriptCleanupPass::SequenceAssignmentFirstUse,
+        )
+        .unwrap(),
+        effectful
+    );
+}
+
+#[test]
+fn shortens_self_strict_equality_only_for_proven_generated_bindings() {
+    let local = late_generated_javascript_cleanup_pass(
+        "function valid(value){return value===value}",
+        LateJavaScriptCleanupPass::SameBindingStrictEquality,
+    )
+    .unwrap();
+    assert!(local.contains("value==value"), "{local}");
+
+    let unresolved = late_generated_javascript_cleanup_pass(
+        "function valid(){return ambient===ambient}",
+        LateJavaScriptCleanupPass::SameBindingStrictEquality,
+    )
+    .unwrap();
+    assert!(unresolved.contains("ambient===ambient"), "{unresolved}");
 }
 
 #[test]

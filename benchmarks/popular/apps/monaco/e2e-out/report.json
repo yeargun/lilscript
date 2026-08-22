@@ -1,0 +1,232 @@
+{
+  "lil": {
+    "name": "lil",
+    "url": "http://127.0.0.1:8787/apps/monaco/lil/",
+    "console": [],
+    "pageErrors": [],
+    "dom": {
+      "editorSize": {
+        "w": 1112,
+        "h": 785
+      },
+      "viewLineCount": 10,
+      "viewLineSample": [
+        "export function greet(name: string): string {",
+        "  return \"hello, \" + name;",
+        "}",
+        " ",
+        "export function add(left: number, right: number): number {",
+        "  return left + right;",
+        "}",
+        " ",
+        "export const sample: number = greet(\"world\");",
+        " "
+      ],
+      "tokenSpans": 76,
+      "textarea": {
+        "w": 8.421875,
+        "h": 19,
+        "opacity": "0",
+        "tag": "TEXTAREA"
+      },
+      "suggestDisplay": "none",
+      "hoverDisplay": "none",
+      "findDisplay": "none",
+      "monaco": "object",
+      "langs": 83,
+      "hasTs": false,
+      "models": [
+        {
+          "lang": "markdown",
+          "len": 294,
+          "uri": "file:///demo-ide/README.md"
+        },
+        {
+          "lang": "typescript",
+          "len": 212,
+          "uri": "file:///demo-ide/src/main.ts"
+        },
+        {
+          "lang": "typescript",
+          "len": 207,
+          "uri": "file:///demo-ide/src/app.ts"
+        },
+        {
+          "lang": "css",
+          "len": 221,
+          "uri": "file:///demo-ide/src/styles.css"
+        },
+        {
+          "lang": "html",
+          "len": 278,
+          "uri": "file:///demo-ide/index.html"
+        },
+        {
+          "lang": "json",
+          "len": 125,
+          "uri": "file:///demo-ide/package.json"
+        },
+        {
+          "lang": "json",
+          "len": 104,
+          "uri": "file:///demo-ide/data.json"
+        },
+        {
+          "lang": "typescript",
+          "len": 207,
+          "uri": "inmemory:///model/1"
+        }
+      ],
+      "markers": [
+        {
+          "msg": "Type 'string' is not assignable to type 'number' (sample marker; Lil has no tsc worker).",
+          "line": 9,
+          "sev": 8
+        },
+        {
+          "msg": "Cannot find module './app'. Did you mean to set the 'moduleResolution' option to 'nodenext', or to add aliases to the 'paths' option?",
+          "line": 1,
+          "sev": 8
+        },
+        {
+          "msg": "Type 'string' is not assignable to type 'number'.",
+          "line": 9,
+          "sev": 8
+        },
+        {
+          "msg": "Type 'string' is not assignable to type 'number'.",
+          "line": 9,
+          "sev": 8
+        }
+      ],
+      "valueHead": "export function greet(name: string): string {\n  return \"hello, \" + name;\n}\n\nexport function add(left: number, right: num"
+    },
+    "afterType": {
+      "hasTyped": false,
+      "pos": {
+        "lineNumber": 2,
+        "column": 8
+      },
+      "viewLineCount": 10
+    },
+    "suggest": [
+      {
+        "className": "suggest-widget",
+        "display": "none",
+        "text": "",
+        "w": 0,
+        "h": 0
+      }
+    ],
+    "find": {
+      "display": "block",
+      "text": "NextPrevReplaceAll",
+      "inputs": 2
+    },
+    "hover": {
+      "className": "monaco-hover",
+      "display": "none",
+      "text": ""
+    },
+    "problems": "error   file:///demo-ide/src/app.ts:9  Type 'string' is not assignable to type 'number' (sample marker; Lil has no tsc worker).\nerror   file:///demo-ide/src/main.ts:1  Cannot find module './app'. Did you mean to set the 'moduleResolution' option to 'nodenext', or to add aliases to the 'paths' option?\nerror   file:///demo-ide/src/app.ts:9  Type 'string' is not assignable to type 'number'.\nerror   inmemory:///model/1:9  Type 'string' is not assignable to type 'number'.",
+    "status": "Ln 2, Col 15 typescript UTF-8"
+  },
+  "js": {
+    "name": "js",
+    "url": "http://127.0.0.1:8787/apps/monaco/js/",
+    "console": [],
+    "pageErrors": [],
+    "dom": {
+      "editorSize": {
+        "w": 1112,
+        "h": 785
+      },
+      "viewLineCount": 10,
+      "viewLineSample": [
+        "export function greet(name: string): string {",
+        "  return \"hello, \" + name;",
+        "}",
+        "",
+        "export function add(left: number, right: number): number {",
+        "  return left + right;",
+        "}",
+        "",
+        "export const sample: number = greet(\"world\");",
+        ""
+      ],
+      "tokenSpans": 65,
+      "textarea": {
+        "w": 160,
+        "h": 30,
+        "opacity": "1",
+        "tag": "TEXTAREA"
+      },
+      "suggestDisplay": "missing",
+      "hoverDisplay": "missing",
+      "findDisplay": "missing",
+      "monaco": "undefined",
+      "langs": 0,
+      "hasTs": false
+    },
+    "afterType": {
+      "hasTyped": false,
+      "viewLineCount": 10
+    },
+    "suggest": [
+      {
+        "className": "editor-widget suggest-widget visible",
+        "display": "block",
+        "text": "exportexportexport.monaco-list.list_id_1:focus .monaco-list-row.focused { background-color: var(--vscode-list-focusBackground); }\n.monaco-list.list_id_1:focus .monaco-list-row.focused:hover { backgrou",
+        "w": 430,
+        "h": 44
+      },
+      {
+        "className": "suggest-icon codicon codicon-symbol-keyword",
+        "display": "flex",
+        "text": "",
+        "w": 412,
+        "h": 16
+      },
+      {
+        "className": "readMore codicon codicon-suggest-more-info",
+        "display": "block",
+        "text": "",
+        "w": 21,
+        "h": 21
+      },
+      {
+        "className": "suggest-icon codicon codicon-symbol-keyword",
+        "display": "flex",
+        "text": "",
+        "w": 412,
+        "h": 16
+      },
+      {
+        "className": "readMore codicon codicon-suggest-more-info",
+        "display": "none",
+        "text": "",
+        "w": 0,
+        "h": 0
+      },
+      {
+        "className": "suggest-status-bar",
+        "display": "none",
+        "text": "Insert (⏎)Show More (⌃Space)",
+        "w": 0,
+        "h": 0
+      }
+    ],
+    "find": {
+      "display": "block",
+      "text": "function1 of 2 ",
+      "inputs": 0
+    },
+    "hover": {
+      "className": "monaco-resizable-hover",
+      "display": "none",
+      "text": ""
+    },
+    "problems": "error   /demo-ide/src/app.ts:9  Type 'string' is not assignable to type 'number' (sample marker; Lil has no tsc worker).\nerror   /demo-ide/src/main.ts:1  Cannot find module './app'. Did you mean to set the 'moduleResolution' option to 'nodenext', or to add aliases to the 'paths' option?\nerror   /demo-ide/src/app.ts:9  Type 'string' is not assignable to type 'number'.",
+    "status": "Ln 1, Col 8 typescript UTF-8"
+  }
+}

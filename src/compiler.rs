@@ -25,11 +25,13 @@ use crate::ir::{ControlFlowModule, FunctionId};
 use crate::ir::{ControlFlowOp, Intrinsic};
 use crate::js_peephole::{
     analyze_generated_javascript, declared_identifier_character_use_counts,
-    function_leading_declaration_variant, identifier_name_is_clear_binding,
-    late_generated_javascript_cleanup, late_generated_javascript_cleanup_pass,
-    optimize_generated_javascript, remap_identifier, remap_single_character_identifiers,
-    repair_fused_keyword_identifiers, single_character_identifier_use_counts,
-    single_character_identifiers, single_character_name_is_clear_binding,
+    function_leading_declaration_variant, function_local_binding_swap_variants,
+    identifier_name_is_clear_binding,
+    late_generated_javascript_cleanup, late_generated_javascript_cleanup_local_variants,
+    late_generated_javascript_cleanup_pass, optimize_generated_javascript, remap_identifier,
+    remap_single_character_identifiers, repair_fused_keyword_identifiers,
+    single_character_identifier_use_counts, single_character_identifiers,
+    single_character_name_is_clear_binding, single_character_resolved_binding_identifiers,
     two_character_identifier_use_counts, JavaScriptSyntaxMetrics, LateJavaScriptCleanupPass,
 };
 use crate::lower::lower_to_control_flow;
@@ -5799,16 +5801,88 @@ fn finalize_javascript_candidates_with_parallelism(
     let mut seen_code = crate::stable_hash::StableHashSet::default();
     scored.retain(|candidate| seen_code.insert(candidate.code.clone()));
     let candidates_evaluated = scored.len();
-    let selected = scored.into_iter().next().ok_or_else(|| {
+    // A representation that is slightly worse before syntax recovery can win
+    // after branch/conditional cleanup (single-use function inlining is a
+    // common example). Give a small set of independently emitted finalists a
+    // structural late pass before making the irreversible plan choice.
+    const LATE_IR_RANKED_FINALIST_WIDTH: usize = 4;
+    const LATE_IR_TOTAL_FINALIST_WIDTH: usize = 12;
+    let mut finalist_indices = (0..scored.len().min(LATE_IR_RANKED_FINALIST_WIDTH))
+        .collect::<Vec<_>>();
+    let mut represented_contexts = finalist_indices
+        .iter()
+        .map(|index| scored[*index].plan_identity.context_id)
+        .collect::<crate::stable_hash::StableHashSet<_>>();
+    for (index, candidate) in scored.iter().enumerate() {
+        if finalist_indices.len() == LATE_IR_TOTAL_FINALIST_WIDTH {
+            break;
+        }
+        if represented_contexts.insert(candidate.plan_identity.context_id) {
+            finalist_indices.push(index);
+        }
+    }
+    finalist_indices.sort_unstable();
+    let mut late_finalists = finalist_indices
+        .into_iter()
+        .map(|index| scored[index].clone())
+        .map(|candidate| {
+            let cleaned = apply_late_javascript_cleanup(candidate.clone(), config, 0)?;
+            let mut candidate = retain_resolved_javascript(candidate, cleaned);
+            candidate.rank = javascript_candidate_rank(
+                config,
+                candidate.transfer_cost,
+                baseline_transfer,
+                candidate.performance.score,
+                baseline_performance.score,
+            );
+            Ok(candidate)
+        })
+        .collect::<Result<Vec<_>, CompileError>>()?;
+    sort_scored_javascript_candidates(&mut late_finalists);
+    // Naming and structural cleanup interact strongly under dictionary
+    // codecs. Do not make the irreversible plan choice from the pre-remap
+    // score: a runner-up can become the exact whole-artifact winner after its
+    // local namespaces are permuted. Keep this terminal frontier deliberately
+    // small because every member receives the complete codec-scored remap.
+    const TERMINAL_JAVASCRIPT_FINALIST_WIDTH: usize = 2;
+    let mut terminal_finalists = late_finalists
+        .into_iter()
+        .take(TERMINAL_JAVASCRIPT_FINALIST_WIDTH)
+        .map(|selected| {
+            let remapped = apply_unused_letter_binding_remaps(selected.clone(), config, true)?;
+            let selected = retain_resolved_javascript(selected, remapped);
+            let cleaned = apply_late_javascript_cleanup(selected.clone(), config, 6)?;
+            let selected = retain_resolved_javascript(selected, cleaned);
+            // Late control/sequence selection changes identifier adjacency and
+            // use frequency. Re-run the exact codec-scored remapper on those
+            // final bytes; the pre-cleanup optimum is not necessarily optimal
+            // for the transformed artifact, and unchanged naming remains the
+            // incumbent candidate.
+            let remapped = apply_unused_letter_binding_remaps(selected.clone(), config, true)?;
+            let selected = retain_resolved_javascript(selected, remapped);
+            let mut selected = apply_terminal_boolean_binding_remap(selected, config)?;
+            selected.rank = javascript_candidate_rank(
+                config,
+                selected.transfer_cost,
+                baseline_transfer,
+                selected.performance.score,
+                baseline_performance.score,
+            );
+            Ok(selected)
+        })
+        .collect::<Result<Vec<_>, CompileError>>()?;
+    sort_scored_javascript_candidates(&mut terminal_finalists);
+    let selected = terminal_finalists.into_iter().next().ok_or_else(|| {
         crate::codegen_js::CodegenError::new(
             Span::empty(0),
             "startup limits rejected every JavaScript candidate",
         )
     })?;
-    let remapped = apply_unused_letter_binding_remaps(selected.clone(), config)?;
-    let selected = retain_resolved_javascript(selected, remapped);
-    let cleaned = apply_late_javascript_cleanup(selected.clone(), config)?;
-    let selected = retain_resolved_javascript(selected, cleaned);
+    // The complete normal remap/cleanup pipeline above decides the structural
+    // plan. Coordinate descent is a terminal namespace fine-tune and cannot
+    // expose more structure, so run it once on that exact winner instead of
+    // duplicating its exhaustive swap neighborhood for every finalist.
+    let selected = apply_terminal_binding_coordinate_descent(selected, config)?;
     Ok(SelectedJavaScriptCandidate {
         plan_identity: selected.plan_identity,
         code: selected.code,
@@ -6799,10 +6873,10 @@ fn retain_resolved_javascript(
 fn apply_unused_letter_binding_remaps(
     mut selected: ScoredJavaScriptCandidate,
     config: &ProjectConfig,
+    include_live_swaps: bool,
 ) -> Result<ScoredJavaScriptCandidate, CompileError> {
     if !config.js_options().mangle_identifiers
         || !config.entropy_aware_mangling_enabled()
-        || matches!(config.javascript.cost_model, CompressionCostModel::Raw)
     {
         return Ok(selected);
     }
@@ -6817,6 +6891,20 @@ fn apply_unused_letter_binding_remaps(
     if let Some((next, cost)) = best_short_binding_remaps(&code, config.javascript.cost_model)? {
         code = next;
         transfer_cost = cost;
+    }
+    if include_live_swaps {
+        if let Some((next, cost)) =
+            best_live_letter_binding_remaps(&code, config.javascript.cost_model)?
+        {
+            code = next;
+            transfer_cost = cost;
+        }
+        if let Some((next, cost)) =
+            best_function_local_binding_remaps(&code, config.javascript.cost_model)?
+        {
+            code = next;
+            transfer_cost = cost;
+        }
     }
     if code == selected.code {
         return Ok(selected);
@@ -6833,9 +6921,127 @@ fn apply_unused_letter_binding_remaps(
     Ok(selected)
 }
 
+fn apply_terminal_boolean_binding_remap(
+    mut selected: ScoredJavaScriptCandidate,
+    config: &ProjectConfig,
+) -> Result<ScoredJavaScriptCandidate, CompileError> {
+    if !config.js_options().mangle_identifiers
+        || !config.entropy_aware_mangling_enabled()
+        || matches!(config.javascript.cost_model, CompressionCostModel::Raw)
+    {
+        return Ok(selected);
+    }
+    let Ok(boolean_code) = late_generated_javascript_cleanup_pass(
+        &selected.code,
+        LateJavaScriptCleanupPass::BooleanConditionalValues,
+    ) else {
+        return Ok(selected);
+    };
+    let boolean_code = repair_late_javascript_candidate(boolean_code);
+    if boolean_code == selected.code || analyze_generated_javascript(&boolean_code).is_err() {
+        return Ok(selected);
+    }
+    let boolean_cost = compressed_size(boolean_code.as_bytes(), config.javascript.cost_model)
+        .map_err(|message| crate::codegen_js::CodegenError::new(Span::empty(0), message))?;
+    let (candidate, candidate_cost) = if matches!(
+        config.javascript.cost_model,
+        CompressionCostModel::Raw
+    ) {
+        (boolean_code, boolean_cost)
+    } else {
+        best_function_local_binding_remaps_with_passes(
+            &boolean_code,
+            config.javascript.cost_model,
+            TERMINAL_BOOLEAN_BINDING_REMAP_PASSES,
+        )?
+        .unwrap_or((boolean_code, boolean_cost))
+    };
+    if candidate_cost >= selected.transfer_cost {
+        return Ok(selected);
+    }
+    let metrics = analyze_generated_javascript(&candidate).map_err(generated_javascript_parse_error)?;
+    selected.startup_score = metrics.startup_score(
+        config.javascript.startup.parse_weight,
+        config.javascript.startup.compile_weight,
+        config.javascript.startup.memory_weight,
+    );
+    selected.metrics = metrics;
+    selected.code = candidate;
+    selected.transfer_cost = candidate_cost;
+    Ok(selected)
+}
+
+fn apply_terminal_binding_coordinate_descent(
+    mut selected: ScoredJavaScriptCandidate,
+    config: &ProjectConfig,
+) -> Result<ScoredJavaScriptCandidate, CompileError> {
+    if !config.js_options().mangle_identifiers
+        || !config.entropy_aware_mangling_enabled()
+        || matches!(config.javascript.cost_model, CompressionCostModel::Raw)
+    {
+        return Ok(selected);
+    }
+
+    const LOCAL_PASSES: usize = 4;
+    const LOCAL_BEAM_WIDTH: usize = 24;
+    const GLOBAL_PASSES: usize = 4;
+    const GLOBAL_BEAM_WIDTH: usize = 48;
+
+    let mut code = selected.code.clone();
+    let mut transfer_cost = selected.transfer_cost;
+    if let Some((next, cost)) = best_function_local_binding_remaps_with_beam(
+        &code,
+        config.javascript.cost_model,
+        LOCAL_PASSES,
+        LOCAL_BEAM_WIDTH,
+    )? {
+        code = next;
+        transfer_cost = cost;
+    }
+    // Local permutations change cross-function token adjacency. Re-open the
+    // whole-program namespace afterward and retain temporary non-winners so a
+    // short sequence of bijective swaps can escape the greedy local minimum.
+    if let Some((next, cost)) = best_live_letter_binding_remaps_with_beam(
+        &code,
+        config.javascript.cost_model,
+        GLOBAL_PASSES,
+        GLOBAL_BEAM_WIDTH,
+    )? {
+        code = next;
+        transfer_cost = cost;
+    }
+    if code == selected.code {
+        return Ok(selected);
+    }
+    let metrics = analyze_generated_javascript(&code).map_err(generated_javascript_parse_error)?;
+    selected.startup_score = metrics.startup_score(
+        config.javascript.startup.parse_weight,
+        config.javascript.startup.compile_weight,
+        config.javascript.startup.memory_weight,
+    );
+    selected.metrics = metrics;
+    selected.code = code;
+    selected.transfer_cost = transfer_cost;
+    Ok(selected)
+}
+
+fn repair_late_javascript_candidate(mut code: String) -> String {
+    if let Ok(repaired) = late_generated_javascript_cleanup_pass(
+        &code,
+        LateJavaScriptCleanupPass::OrAssignmentParens,
+    ) {
+        code = repaired;
+    }
+    if let Ok(repaired) = repair_fused_keyword_identifiers(&code) {
+        code = repaired;
+    }
+    code
+}
+
 fn apply_late_javascript_cleanup(
     mut selected: ScoredJavaScriptCandidate,
     config: &ProjectConfig,
+    terminal_local_rounds: usize,
 ) -> Result<ScoredJavaScriptCandidate, CompileError> {
     #[derive(Clone)]
     struct CleanupCandidate {
@@ -6843,7 +7049,10 @@ fn apply_late_javascript_cleanup(
         cost: usize,
     }
 
-    const BEAM_WIDTH: usize = 4;
+    // Keep enough independently valid spellings for later passes to skip a
+    // locally attractive rewrite. Small codec differences can otherwise
+    // discard the topology that wins after terminal namespace remapping.
+    const BEAM_WIDTH: usize = 8;
     const ROUNDS: usize = 2;
 
     let original = CleanupCandidate {
@@ -6886,14 +7095,187 @@ fn apply_late_javascript_cleanup(
     // normally rediscovers it, but an individually losing precursor can be
     // necessary for a later fold and may have been pruned at an earlier step.
     if let Ok(code) = late_generated_javascript_cleanup(&original.code) {
+        let code = repair_late_javascript_candidate(code);
         if code != original.code
             && analyze_generated_javascript(&code).is_ok()
             && !beam.iter().any(|candidate| candidate.code == code)
         {
             let cost = compressed_size(code.as_bytes(), config.javascript.cost_model)
                 .map_err(|message| crate::codegen_js::CodegenError::new(Span::empty(0), message))?;
+            if let Some((remapped, remapped_cost)) = best_one_function_local_binding_remap(
+                &code,
+                config.javascript.cost_model,
+                cost,
+            )? {
+                beam.push(CleanupCandidate {
+                    code: remapped,
+                    cost: remapped_cost,
+                });
+            }
             beam.push(CleanupCandidate { code, cost });
         }
+    }
+    // Expression-prefixed branch returns expose adjacent lone-return ladders,
+    // which in turn expose common conditional arms. Score that interaction as
+    // one structural challenger while preserving every incumbent beam entry.
+    let structural_sources = beam.clone();
+    for candidate in structural_sources {
+        for include_statement_assignments in [false, true] {
+            for include_single_use_functions in [false, true] {
+                let mut code = candidate.code.clone();
+                let passes = [
+                    include_single_use_functions
+                        .then_some(LateJavaScriptCleanupPass::SingleUseFunctionExpressions),
+                    include_statement_assignments
+                        .then_some(LateJavaScriptCleanupPass::StatementAssignmentFirstUse),
+                    include_statement_assignments
+                        .then_some(LateJavaScriptCleanupPass::StatementAssignmentFirstUse),
+                    Some(LateJavaScriptCleanupPass::ExpressionReturnBranches),
+                    Some(LateJavaScriptCleanupPass::ConditionalReturnTails),
+                    Some(LateJavaScriptCleanupPass::CommonConditionalArms),
+                    Some(LateJavaScriptCleanupPass::NegatedConditionalArms),
+                    Some(LateJavaScriptCleanupPass::BooleanConditionalValues),
+                    Some(LateJavaScriptCleanupPass::UnitCounterUpdates),
+                    Some(LateJavaScriptCleanupPass::SequenceAssignmentFirstUse),
+                    Some(LateJavaScriptCleanupPass::SequenceAssignmentFirstUse),
+                    Some(LateJavaScriptCleanupPass::CommonConditionalArms),
+                ];
+                for pass in passes.into_iter().flatten() {
+                    let Ok(next) = late_generated_javascript_cleanup_pass(&code, pass) else {
+                        continue;
+                    };
+                    code = next;
+                }
+                code = repair_late_javascript_candidate(code);
+                if code == candidate.code
+                    || analyze_generated_javascript(&code).is_err()
+                    || beam.iter().any(|proposal| proposal.code == code)
+                {
+                    continue;
+                }
+                let cost = compressed_size(code.as_bytes(), config.javascript.cost_model)
+                    .map_err(|message| {
+                        crate::codegen_js::CodegenError::new(Span::empty(0), message)
+                    })?;
+                if let Some((remapped, remapped_cost)) = best_one_function_local_binding_remap(
+                    &code,
+                    config.javascript.cost_model,
+                    cost,
+                )? {
+                    beam.push(CleanupCandidate {
+                        code: remapped,
+                        cost: remapped_cost,
+                    });
+                }
+                beam.push(CleanupCandidate { code, cost });
+            }
+        }
+    }
+    beam.sort_by(|left, right| (left.cost, left.code.len()).cmp(&(right.cost, right.code.len())));
+    beam.dedup_by(|left, right| left.code == right.code);
+    beam.truncate(BEAM_WIDTH);
+
+    // Sequence-return topology is terminal. Feeding `return E,V` back into
+    // loop-header reconstruction can make that older syntax fold mistake the
+    // statement for an update expression. More importantly, applying every
+    // raw-neutral sequence rewrite as one switch is the wrong abstraction for
+    // gzip/Brotli: a sparse subset can improve the dictionary while the global
+    // spelling loses. Walk independently proven local variants with the exact
+    // configured scorer, retaining the unchanged spelling at every round.
+    const MAX_LOCAL_VARIANTS_PER_PASS_AND_SOURCE: usize = 24;
+    const TERMINAL_LOCAL_PASSES: [LateJavaScriptCleanupPass; 1] =
+        [LateJavaScriptCleanupPass::ExpressionSuffixReturns];
+    for round in 0..terminal_local_rounds {
+        let previous_codes = beam
+            .iter()
+            .map(|candidate| candidate.code.clone())
+            .collect::<Vec<_>>();
+        let terminal_sources = beam.clone();
+        let mut proposals = beam.clone();
+        let mut proposal_codes = Vec::new();
+        for candidate in terminal_sources {
+            for pass in TERMINAL_LOCAL_PASSES {
+                let mut variants = late_generated_javascript_cleanup_local_variants(
+                    &candidate.code,
+                    pass,
+                )
+                .unwrap_or_default();
+                // Keep each all-sites spelling as a synergy challenger. It is
+                // scored once per retained starting topology; later rounds
+                // build sparse combinations one local edit at a time.
+                if round == 0 {
+                    if let Ok(code) = late_generated_javascript_cleanup_pass(&candidate.code, pass) {
+                        variants.push(code);
+                    }
+                }
+                let stride = variants
+                    .len()
+                    .div_ceil(MAX_LOCAL_VARIANTS_PER_PASS_AND_SOURCE)
+                    .max(1);
+                for code in variants
+                    .into_iter()
+                    .step_by(stride)
+                    .take(MAX_LOCAL_VARIANTS_PER_PASS_AND_SOURCE)
+                {
+                    let code = repair_late_javascript_candidate(code);
+                    if code == candidate.code
+                        || analyze_generated_javascript(&code).is_err()
+                        || proposals.iter().any(|proposal| proposal.code == code)
+                        || proposal_codes.contains(&code)
+                    {
+                        continue;
+                    }
+                    proposal_codes.push(code);
+                }
+            }
+        }
+        let measured = proposal_codes
+            .into_par_iter()
+            .map(|code| {
+                compressed_size(code.as_bytes(), config.javascript.cost_model)
+                    .map(|cost| CleanupCandidate { code, cost })
+            })
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|message| {
+                crate::codegen_js::CodegenError::new(Span::empty(0), message)
+            })?;
+        proposals.extend(measured);
+        proposals.sort_by(|left, right| {
+            (left.cost, left.code.len()).cmp(&(right.cost, right.code.len()))
+        });
+        proposals.dedup_by(|left, right| left.code == right.code);
+        proposals.truncate(BEAM_WIDTH);
+        let next_codes = proposals
+            .iter()
+            .map(|candidate| candidate.code.clone())
+            .collect::<Vec<_>>();
+        beam = proposals;
+        if next_codes == previous_codes {
+            break;
+        }
+    }
+    // Common-arm factoring is a terminal challenger rather than another
+    // member of the fixed-width interaction beam. Adding a new optional pass
+    // must not evict a previously winning topology merely because several
+    // candidates tie before later sequence scoring.
+    let terminal_sources = beam.clone();
+    for candidate in terminal_sources {
+        let Ok(code) = late_generated_javascript_cleanup_pass(
+            &candidate.code,
+            LateJavaScriptCleanupPass::CommonConditionalArms,
+        ) else {
+            continue;
+        };
+        let code = repair_late_javascript_candidate(code);
+        if code == candidate.code
+            || analyze_generated_javascript(&code).is_err()
+            || beam.iter().any(|proposal| proposal.code == code)
+        {
+            continue;
+        }
+        let cost = compressed_size(code.as_bytes(), config.javascript.cost_model)
+            .map_err(|message| crate::codegen_js::CodegenError::new(Span::empty(0), message))?;
+        beam.push(CleanupCandidate { code, cost });
     }
     beam.push(original);
     beam.sort_by(|left, right| (left.cost, left.code.len()).cmp(&(right.cost, right.code.len())));
@@ -6954,6 +7336,237 @@ fn parenthesize_logical_assignments(
 }
 
 const TWO_BYTE_RESERVED_BINDINGS: &[&str] = &["do", "if", "in"];
+
+const LIVE_LETTER_REMAP_PASSES: usize = 8;
+
+fn live_letter_remap_pair_budget(code_len: usize) -> usize {
+    match code_len {
+        0..32_768 => 1_536,
+        32_768..65_536 => 768,
+        65_536..262_144 => 384,
+        _ => 192,
+    }
+}
+
+fn best_live_letter_binding_remaps(
+    code: &str,
+    model: CompressionCostModel,
+) -> Result<Option<(String, usize)>, CompileError> {
+    let mut current = code.to_string();
+    let mut current_cost = compressed_size(current.as_bytes(), model)
+        .map_err(|message| crate::codegen_js::CodegenError::new(Span::empty(0), message))?;
+    let mut improved = false;
+    for _ in 0..LIVE_LETTER_REMAP_PASSES {
+        let Some((next, cost)) = best_one_live_letter_binding_remap(&current, model, current_cost)?
+        else {
+            break;
+        };
+        current = next;
+        current_cost = cost;
+        improved = true;
+    }
+    Ok(improved.then_some((current, current_cost)))
+}
+
+fn best_one_live_letter_binding_remap(
+    code: &str,
+    model: CompressionCostModel,
+    current_cost: usize,
+) -> Result<Option<(String, usize)>, CompileError> {
+    let counts =
+        single_character_identifier_use_counts(code).map_err(generated_javascript_parse_error)?;
+    let mut identifiers = single_character_resolved_binding_identifiers(code)
+        .map_err(generated_javascript_parse_error)?;
+    identifiers.sort_unstable_by(|left, right| {
+        counts[*right as usize]
+            .cmp(&counts[*left as usize])
+            .then_with(|| left.cmp(right))
+    });
+    let budget = live_letter_remap_pair_budget(code.len());
+    let mut pairs = Vec::new();
+    'pairs: for (index, left) in identifiers.iter().copied().enumerate() {
+        for right in identifiers.iter().copied().skip(index + 1) {
+            pairs.push((left, right));
+            if pairs.len() == budget {
+                break 'pairs;
+            }
+        }
+    }
+    let best = pairs
+        .into_par_iter()
+        .filter_map(|(left, right)| {
+            let mut mapping = std::array::from_fn(|index| index as u8);
+            mapping[left as usize] = right;
+            mapping[right as usize] = left;
+            let remapped = remap_single_character_identifiers(code, &mapping).ok()?;
+            let cost = compressed_size(remapped.as_bytes(), model).ok()?;
+            (cost < current_cost).then_some((remapped, cost))
+        })
+        .min_by(|left, right| (left.1, left.0.as_str()).cmp(&(right.1, right.0.as_str())));
+    Ok(best)
+}
+
+fn best_live_letter_binding_remaps_with_beam(
+    code: &str,
+    model: CompressionCostModel,
+    passes: usize,
+    beam_width: usize,
+) -> Result<Option<(String, usize)>, CompileError> {
+    let initial_cost = compressed_size(code.as_bytes(), model)
+        .map_err(|message| crate::codegen_js::CodegenError::new(Span::empty(0), message))?;
+    let mut beam = vec![(code.to_string(), initial_cost)];
+    for _ in 0..passes {
+        let proposal_groups = beam
+            .par_iter()
+            .map(|(candidate, _)| live_letter_binding_swap_variants(candidate))
+            .collect::<Result<Vec<_>, CompileError>>()?;
+        let mut proposals = proposal_groups.into_iter().flatten().collect::<Vec<_>>();
+        proposals.sort();
+        proposals.dedup();
+        let mut next = proposals
+            .into_par_iter()
+            .filter_map(|candidate| {
+                let cost = compressed_size(candidate.as_bytes(), model).ok()?;
+                Some((candidate, cost))
+            })
+            .collect::<Vec<_>>();
+        next.extend(beam.iter().cloned());
+        next.sort_by(|left, right| (left.1, left.0.as_str()).cmp(&(right.1, right.0.as_str())));
+        next.dedup_by(|left, right| left.0 == right.0);
+        next.truncate(beam_width);
+        let unchanged = next.len() == beam.len()
+            && next
+                .iter()
+                .zip(&beam)
+                .all(|(left, right)| left.0 == right.0);
+        beam = next;
+        if unchanged {
+            break;
+        }
+    }
+    let (best, best_cost) = beam.into_iter().next().expect("binding remap beam is non-empty");
+    Ok((best_cost < initial_cost).then_some((best, best_cost)))
+}
+
+fn live_letter_binding_swap_variants(code: &str) -> Result<Vec<String>, CompileError> {
+    let counts =
+        single_character_identifier_use_counts(code).map_err(generated_javascript_parse_error)?;
+    let mut identifiers = single_character_resolved_binding_identifiers(code)
+        .map_err(generated_javascript_parse_error)?;
+    identifiers.sort_unstable_by(|left, right| {
+        counts[*right as usize]
+            .cmp(&counts[*left as usize])
+            .then_with(|| left.cmp(right))
+    });
+    let budget = live_letter_remap_pair_budget(code.len());
+    let mut pairs = Vec::new();
+    'pairs: for (index, left) in identifiers.iter().copied().enumerate() {
+        for right in identifiers.iter().copied().skip(index + 1) {
+            pairs.push((left, right));
+            if pairs.len() == budget {
+                break 'pairs;
+            }
+        }
+    }
+    Ok(pairs
+        .into_iter()
+        .filter_map(|(left, right)| {
+            let mut mapping = std::array::from_fn(|index| index as u8);
+            mapping[left as usize] = right;
+            mapping[right as usize] = left;
+            remap_single_character_identifiers(code, &mapping).ok()
+        })
+        .collect())
+}
+
+const FUNCTION_LOCAL_BINDING_REMAP_PASSES: usize = 6;
+const FUNCTION_LOCAL_BINDING_REMAP_BEAM_WIDTH: usize = 12;
+const TERMINAL_BOOLEAN_BINDING_REMAP_PASSES: usize = 12;
+
+fn best_function_local_binding_remaps(
+    code: &str,
+    model: CompressionCostModel,
+) -> Result<Option<(String, usize)>, CompileError> {
+    best_function_local_binding_remaps_with_passes(
+        code,
+        model,
+        FUNCTION_LOCAL_BINDING_REMAP_PASSES,
+    )
+}
+
+fn best_function_local_binding_remaps_with_passes(
+    code: &str,
+    model: CompressionCostModel,
+    passes: usize,
+) -> Result<Option<(String, usize)>, CompileError> {
+    best_function_local_binding_remaps_with_beam(
+        code,
+        model,
+        passes,
+        FUNCTION_LOCAL_BINDING_REMAP_BEAM_WIDTH,
+    )
+}
+
+fn best_function_local_binding_remaps_with_beam(
+    code: &str,
+    model: CompressionCostModel,
+    passes: usize,
+    beam_width: usize,
+) -> Result<Option<(String, usize)>, CompileError> {
+    let initial_cost = compressed_size(code.as_bytes(), model)
+        .map_err(|message| crate::codegen_js::CodegenError::new(Span::empty(0), message))?;
+    let mut beam = vec![(code.to_string(), initial_cost)];
+    for _ in 0..passes {
+        let proposal_groups = beam
+            .par_iter()
+            .map(|(candidate, _)| {
+                function_local_binding_swap_variants(candidate)
+                    .map_err(generated_javascript_parse_error)
+            })
+            .collect::<Result<Vec<_>, CompileError>>()?;
+        let mut proposals = proposal_groups.into_iter().flatten().collect::<Vec<_>>();
+        proposals.sort();
+        proposals.dedup();
+        let mut next = proposals
+            .into_par_iter()
+            .filter_map(|candidate| {
+                let cost = compressed_size(candidate.as_bytes(), model).ok()?;
+                Some((candidate, cost))
+            })
+            .collect::<Vec<_>>();
+        next.extend(beam.iter().cloned());
+        next.sort_by(|left, right| (left.1, left.0.as_str()).cmp(&(right.1, right.0.as_str())));
+        next.dedup_by(|left, right| left.0 == right.0);
+        next.truncate(beam_width);
+        let unchanged = next.len() == beam.len()
+            && next
+                .iter()
+                .zip(&beam)
+                .all(|(left, right)| left.0 == right.0);
+        beam = next;
+        if unchanged {
+            break;
+        }
+    }
+    let (best, best_cost) = beam.into_iter().next().expect("binding remap beam is non-empty");
+    Ok((best_cost < initial_cost).then_some((best, best_cost)))
+}
+
+fn best_one_function_local_binding_remap(
+    code: &str,
+    model: CompressionCostModel,
+    current_cost: usize,
+) -> Result<Option<(String, usize)>, CompileError> {
+    let variants =
+        function_local_binding_swap_variants(code).map_err(generated_javascript_parse_error)?;
+    Ok(variants
+        .into_par_iter()
+        .filter_map(|remapped| {
+            let cost = compressed_size(remapped.as_bytes(), model).ok()?;
+            (cost < current_cost).then_some((remapped, cost))
+        })
+        .min_by(|left, right| (left.1, left.0.as_str()).cmp(&(right.1, right.0.as_str()))))
+}
 
 fn best_short_binding_remaps(
     code: &str,
@@ -11709,7 +12322,7 @@ mod tests {
         let optimized = optimize_generated_javascript(original).unwrap();
         assert_eq!(
             optimized.code,
-            "let a=0,b=1,s=\"a = a + b \";a+=b;console.log(a,s)"
+            "let a=0,b=1,s=\"a = a + b \";a+=b,console.log(a,s)"
         );
         assert!(
             compressed_size(original.as_bytes(), CompressionCostModel::Brotli).unwrap()

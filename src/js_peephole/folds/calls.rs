@@ -3,9 +3,12 @@ use crate::js_peephole::rewrite::{
     top_level_stop,
 };
 use crate::js_peephole::scope::{
-    enclosing_function_span, parse_function_expression, simple_identifier_params,
+    enclosing_function_span, function_binds_name, name_is_declared_in_any_enclosing_function_scope,
+    parse_function_expression, simple_identifier_params,
 };
-use crate::js_peephole::token::{lex, matching_closers, Token, TokenKind};
+use crate::js_peephole::token::{
+    lex, matching_closers, matching_openers, Token, TokenKind,
+};
 use crate::js_peephole::JavaScriptParseError;
 
 pub(crate) fn fold_comma_assign_into_trailing_call_arg(
@@ -324,11 +327,217 @@ fn previous_statement_start(tokens: &[Token<'_>], semi: usize) -> usize {
     0
 }
 
-/// Beta-reduce `(params)=>expr(args)` when every argument is a primary and
-/// every parameter is a simple identifier. Generated wrappers that close over a
-/// constant and immediately apply it become a direct call.
+/// Beta-reduce a generated arrow IIFE when every substituted argument is a
+/// primary and every parameter is a simple identifier.
 pub(crate) fn fold_identity_arrow_iife(
     source: &str,
+) -> Result<(String, usize), JavaScriptParseError> {
+    fold_return_only_iife(source, false)
+}
+
+/// Offer an unnamed, zero-argument classic return-only IIFE as an independent
+/// late candidate. Keeping this out of the canonical pass lets each configured
+/// whole-artifact objective decide whether removing the function boundary is a
+/// compression win.
+pub(crate) fn fold_zero_argument_return_iife(
+    source: &str,
+) -> Result<(String, usize), JavaScriptParseError> {
+    fold_return_only_iife(source, true)
+}
+
+/// Move a private top-level function declaration to its only direct call.
+///
+/// The declaration and every non-property occurrence of its name prove that
+/// function identity is unobservable. Free names are checked against every
+/// enclosing function scope at the call site before the body moves, avoiding
+/// the capture bug in a purely textual `reduce_funcs` rewrite. The anonymous
+/// expression may be allocated on repeated calls, but the named function was
+/// neither address-taken nor observable; configured whole-artifact scoring
+/// decides whether that size/runtime trade is worthwhile.
+pub(crate) fn fold_single_use_function_expressions(
+    source: &str,
+) -> Result<(String, usize), JavaScriptParseError> {
+    #[derive(Clone)]
+    struct Candidate {
+        declaration_start: usize,
+        declaration_end: usize,
+        call_start: usize,
+        call_end: usize,
+        replacement: String,
+    }
+
+    let tokens = lex(source)?;
+    let matching_close = matching_closers(&tokens);
+    let matching_open = matching_openers(&matching_close);
+    let mut candidates = Vec::<Candidate>::new();
+
+    for function_at in 0..tokens.len() {
+        if tokens[function_at].text != "function"
+            || enclosing_function_span(&tokens, &matching_close, function_at).is_some()
+        {
+            continue;
+        }
+        let mut name_at = function_at + 1;
+        if tokens.get(name_at).map(|token| token.text) == Some("*") {
+            // Generator calls have distinct suspension and allocation
+            // behavior; leave them to the IR-level proof.
+            continue;
+        }
+        let Some(name) = tokens
+            .get(name_at)
+            .filter(|token| token.kind == TokenKind::Identifier)
+            .map(|token| token.text)
+        else {
+            continue;
+        };
+        name_at += 1;
+        if tokens.get(name_at).map(|token| token.text) != Some("(") {
+            continue;
+        }
+        let params_open = name_at;
+        let Some(params_close) = matching_close.get(params_open).copied().flatten() else {
+            continue;
+        };
+        if !simple_identifier_params(&tokens, params_open + 1, params_close) {
+            continue;
+        }
+        let body_open = params_close + 1;
+        if tokens.get(body_open).map(|token| token.text) != Some("{") {
+            continue;
+        }
+        let Some(body_close) = matching_close.get(body_open).copied().flatten() else {
+            continue;
+        };
+        if tokens[body_open + 1..body_close].iter().any(|token| {
+            matches!(token.text, "function" | "=>" | "class" | "arguments" | "super")
+                || token.kind == TokenKind::Template
+        }) {
+            continue;
+        }
+
+        let references = tokens
+            .iter()
+            .enumerate()
+            .filter(|(index, token)| {
+                token.kind == TokenKind::Identifier
+                    && token.text == name
+                    && tokens
+                        .get(index.saturating_sub(1))
+                        .is_none_or(|previous| previous.text != ".")
+                    && tokens.get(index + 1).is_none_or(|next| next.text != ":")
+            })
+            .map(|(index, _)| index)
+            .collect::<Vec<_>>();
+        if references.len() != 2 || !references.contains(&(function_at + 1)) {
+            continue;
+        }
+        let Some(call_at) = references
+            .into_iter()
+            .find(|reference| *reference != function_at + 1)
+        else {
+            continue;
+        };
+        if tokens.get(call_at + 1).map(|token| token.text) != Some("(")
+            || call_at
+                .checked_sub(1)
+                .and_then(|index| tokens.get(index))
+                .is_some_and(|token| matches!(token.text, "new" | "." | "?."))
+        {
+            continue;
+        }
+        let Some(call_close) = matching_close.get(call_at + 1).copied().flatten() else {
+            continue;
+        };
+
+        let mut capture_safe = true;
+        for (index, token) in tokens
+            .iter()
+            .enumerate()
+            .take(body_close)
+            .skip(body_open + 1)
+        {
+            if token.kind != TokenKind::Identifier
+                || token.text == name
+                || is_property_identifier(&tokens, index)
+                || function_binds_name(
+                    &tokens,
+                    &matching_close,
+                    &matching_open,
+                    body_open,
+                    body_close,
+                    token.text,
+                )
+            {
+                continue;
+            }
+            let previous = index
+                .checked_sub(1)
+                .and_then(|previous| tokens.get(previous))
+                .map(|previous| previous.text);
+            let next = tokens.get(index + 1).map(|next| next.text);
+            if matches!(previous, Some("{") | Some(","))
+                && matches!(next, Some("}") | Some(",") | Some("("))
+                || name_is_declared_in_any_enclosing_function_scope(
+                    &tokens,
+                    &matching_close,
+                    call_at,
+                    token.text,
+                )
+            {
+                capture_safe = false;
+                break;
+            }
+        }
+        if !capture_safe {
+            continue;
+        }
+
+        let params = &source[tokens[params_open].start..tokens[params_close].end];
+        let body = &source[tokens[body_open].start..tokens[body_close].end];
+        let args = &source[tokens[call_at + 1].start..tokens[call_close].end];
+        candidates.push(Candidate {
+            declaration_start: tokens[function_at].start,
+            declaration_end: tokens[body_close].end,
+            call_start: tokens[call_at].start,
+            call_end: tokens[call_close].end,
+            replacement: format!("(function{params}{body}){args}"),
+        });
+    }
+
+    // If one eligible helper is called from another eligible helper, deleting
+    // both declarations would strand the inner call in the moved outer body.
+    // Keep only independent sites in this round; a later cleanup round can
+    // reconsider the remaining declaration against the already-moved code.
+    let spans = candidates
+        .iter()
+        .map(|candidate| (candidate.declaration_start, candidate.declaration_end))
+        .collect::<Vec<_>>();
+    candidates.retain(|candidate| {
+        spans.iter().all(|(start, end)| {
+            (*start == candidate.declaration_start && *end == candidate.declaration_end)
+                || candidate.call_start < *start
+                || candidate.call_start >= *end
+        })
+    });
+    let mut replacements = Vec::with_capacity(candidates.len() * 2);
+    for candidate in candidates {
+        replacements.push((
+            candidate.declaration_start,
+            candidate.declaration_end,
+            String::new(),
+        ));
+        replacements.push((
+            candidate.call_start,
+            candidate.call_end,
+            candidate.replacement,
+        ));
+    }
+    Ok(apply_token_rewrites(source, replacements))
+}
+
+fn fold_return_only_iife(
+    source: &str,
+    classic_only: bool,
 ) -> Result<(String, usize), JavaScriptParseError> {
     let tokens = lex(source)?;
     let matching_close = matching_closers(&tokens);
@@ -354,7 +563,12 @@ pub(crate) fn fold_identity_arrow_iife(
             cursor += 1;
             continue;
         };
-        if !function.is_arrow
+        let accepted_kind = if classic_only {
+            !function.is_arrow && function.params_from == function.params_to
+        } else {
+            function.is_arrow
+        };
+        if !accepted_kind
             || function.named
             || !simple_identifier_params(&tokens, function.params_from, function.params_to)
         {
@@ -391,6 +605,7 @@ pub(crate) fn fold_identity_arrow_iife(
         if body_assigns_any(&tokens, body_from, body_to, &params)
             || body_has_this_or_arguments(&tokens, &matching_close, body_from, body_to)
             || body_has_nested_function(&tokens, &matching_close, body_from, body_to)
+            || (!function.is_arrow && body_has_new_target(&tokens, body_from, body_to))
         {
             cursor += 1;
             continue;
@@ -400,10 +615,126 @@ pub(crate) fn fold_identity_arrow_iife(
             cursor += 1;
             continue;
         }
-        replacements.push((tokens[cursor].start, tokens[call_close].end, rewritten));
+        // The IIFE is a call expression, while its returned body can have much
+        // lower precedence. Keep grouping where a surrounding operator can
+        // capture part of the body; return/assignment/argument positions can
+        // use the expression directly and avoid inert parentheses.
+        let rewritten = if beta_reduction_needs_grouping(
+            &tokens,
+            cursor,
+            call_close,
+            body_from,
+            body_to,
+        ) {
+            format!("({rewritten})")
+        } else {
+            rewritten
+        };
+        replacements.push((
+            tokens[cursor].start,
+            tokens[call_close].end,
+            rewritten,
+        ));
         cursor = call_close + 1;
     }
     Ok(apply_token_rewrites(source, replacements))
+}
+
+fn beta_reduction_needs_grouping(
+    tokens: &[Token<'_>],
+    start: usize,
+    call_close: usize,
+    body_from: usize,
+    body_to: usize,
+) -> bool {
+    let previous = start.checked_sub(1).and_then(|index| tokens.get(index));
+    if previous.is_some_and(|token| {
+        matches!(
+            token.text,
+            "!" | "~"
+                | "+"
+                | "-"
+                | "*"
+                | "/"
+                | "%"
+                | "**"
+                | "<<"
+                | ">>"
+                | ">>>"
+                | "<"
+                | "<="
+                | ">"
+                | ">="
+                | "=="
+                | "!="
+                | "==="
+                | "!=="
+                | "&"
+                | "^"
+                | "|"
+                | "&&"
+                | "||"
+                | "??"
+                | "typeof"
+                | "void"
+                | "delete"
+                | "await"
+                | "new"
+        )
+    }) {
+        return true;
+    }
+    if tokens.get(call_close + 1).is_some_and(|token| {
+        matches!(
+            token.text,
+            "." | "["
+                | "("
+                | "?."
+                | "+"
+                | "-"
+                | "*"
+                | "/"
+                | "%"
+                | "**"
+                | "<<"
+                | ">>"
+                | ">>>"
+                | "<"
+                | "<="
+                | ">"
+                | ">="
+                | "=="
+                | "!="
+                | "==="
+                | "!=="
+                | "&"
+                | "^"
+                | "|"
+                | "&&"
+                | "||"
+                | "??"
+        )
+    }) {
+        return true;
+    }
+    let mut depth = 0i32;
+    for token in &tokens[body_from..body_to] {
+        match token.text {
+            "(" | "[" | "{" => depth += 1,
+            ")" | "]" | "}" => depth -= 1,
+            "," if depth == 0 && previous.is_none_or(|token| token.text != "return") => {
+                return true;
+            }
+            _ => {}
+        }
+    }
+    false
+}
+
+fn body_has_new_target(tokens: &[Token<'_>], from: usize, to: usize) -> bool {
+    tokens[from..to].windows(3).any(|window| {
+        window[0].text == "new" && window[1].text == "." && window[2].text == "target"
+    })
 }
 
 fn identifier_list<'tok>(tokens: &'tok [Token<'tok>], from: usize, to: usize) -> Vec<&'tok str> {

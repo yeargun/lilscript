@@ -262,6 +262,31 @@ fn expression_statement_texts<'src>(
     start: usize,
     end: usize,
 ) -> Option<Vec<String>> {
+    let mut delimiters = Vec::new();
+    for token in &tokens[start..end] {
+        match token.text {
+            "(" | "[" | "{" => delimiters.push(token.text),
+            ")" => {
+                if delimiters.pop() != Some("(") {
+                    return None;
+                }
+            }
+            "]" => {
+                if delimiters.pop() != Some("[") {
+                    return None;
+                }
+            }
+            "}" => {
+                if delimiters.pop() != Some("{") {
+                    return None;
+                }
+            }
+            _ => {}
+        }
+    }
+    if !delimiters.is_empty() {
+        return None;
+    }
     let mut index = start;
     let mut exprs = Vec::new();
     while index < end {
@@ -271,7 +296,15 @@ fn expression_statement_texts<'src>(
         }
         if matches!(
             tokens[index].text,
-            "if" | "for"
+            ")" | "]"
+                | "}"
+                | ","
+                | ":"
+                | "else"
+                | "case"
+                | "default"
+                | "if"
+                | "for"
                 | "while"
                 | "var"
                 | "let"
@@ -1580,6 +1613,421 @@ pub(crate) fn fold_conditional_return_tails(
             output.replace_range(start..end, &replacement);
         }
     }
+}
+
+/// Fold a value-returning guard over an expression-only function/block tail.
+///
+/// `if(C)return A;E;return B` and `return C?A:(E,B)` perform the same
+/// evaluations in the same order and return from the same paths.  Keeping
+/// this separate from [`fold_conditional_return_tails`] matters for transfer
+/// objectives: the comma/conditional spelling is usually shorter, but a
+/// repeated statement-shaped tail can still be better input for a codec.
+pub(crate) fn fold_guard_return_expression_suffixes(
+    source: &str,
+) -> Result<(String, usize), JavaScriptParseError> {
+    let mut output = source.to_string();
+    let mut folded = 0usize;
+    loop {
+        let tokens = lex(&output)?;
+        let matching_close = matching_closers(&tokens);
+        let mut replacement = None;
+
+        // Prefer the rightmost candidate.  A following round can then fold
+        // the newly exposed parent guard without overlapping token ranges.
+        for guard in (0..tokens.len()).rev() {
+            if tokens[guard].text != "if"
+                || tokens.get(guard + 1).map(|token| token.text) != Some("(")
+                || guard
+                    .checked_sub(1)
+                    .is_some_and(|previous| !matches!(tokens[previous].text, "{" | "}" | ";"))
+            {
+                continue;
+            }
+            let condition_open = guard + 1;
+            let Some(condition_close) = matching_close[condition_open] else {
+                continue;
+            };
+
+            let arm_start = condition_close + 1;
+            let (guarded_return, guarded_end, after_guard) =
+                if tokens.get(arm_start).map(|token| token.text) == Some("{") {
+                    let Some(arm_close) = matching_close[arm_start] else {
+                        continue;
+                    };
+                    let return_at = arm_start + 1;
+                    if tokens.get(return_at).map(|token| token.text) != Some("return") {
+                        continue;
+                    }
+                    let Some((return_end, _)) = statement_terminator(&tokens, return_at + 1)
+                    else {
+                        continue;
+                    };
+                    if return_end != arm_close
+                        && !(return_end + 1 == arm_close && tokens[return_end].text == ";")
+                    {
+                        continue;
+                    }
+                    (return_at, return_end, arm_close + 1)
+                } else {
+                    if tokens.get(arm_start).map(|token| token.text) != Some("return") {
+                        continue;
+                    }
+                    let Some((return_end, semicolon)) =
+                        statement_terminator(&tokens, arm_start + 1)
+                    else {
+                        continue;
+                    };
+                    if !semicolon {
+                        continue;
+                    }
+                    (arm_start, return_end, return_end + 1)
+                };
+            if tokens.get(after_guard).map(|token| token.text) == Some("else") {
+                continue;
+            }
+
+            let Some(container_open) = enclosing_block_start(&matching_close, guard) else {
+                continue;
+            };
+            let Some(container_close) = matching_close[container_open] else {
+                continue;
+            };
+            if after_guard >= container_close {
+                continue;
+            }
+            let Some((prefixes, tail_return, tail_end, tail_semicolon)) =
+                expression_suffix_return(&output, &tokens, after_guard, container_close)
+            else {
+                continue;
+            };
+            // The adjacent-return family already owns the empty-prefix case.
+            // Requiring a real expression also prevents two late proposals
+            // from spelling the same candidate under different identities.
+            if prefixes.is_empty() {
+                continue;
+            }
+
+            let mut end = if tail_semicolon {
+                tokens[tail_end].end
+            } else {
+                tokens[tail_end].start
+            };
+            while end < tokens[container_close].start
+                && output.as_bytes().get(end).is_some_and(u8::is_ascii_whitespace)
+            {
+                end += 1;
+            }
+            let start = tokens[guard].start;
+            if spans_line_terminator(&output[start..end]) {
+                continue;
+            }
+
+            let condition = &output[tokens[condition_open].end..tokens[condition_close].start];
+            let condition =
+                if conditional_test_needs_grouping(&tokens[condition_open + 1..condition_close]) {
+                    format!("({condition})")
+                } else {
+                    condition.to_string()
+                };
+            let guarded = conditional_return_arm(
+                &output,
+                &tokens,
+                guarded_return + 1,
+                guarded_end,
+            );
+            let tail = conditional_return_arm(&output, &tokens, tail_return + 1, tail_end);
+            let mut suffix = prefixes;
+            suffix.push(tail);
+            let suffix = format!("({})", suffix.join(","));
+            let mut rewritten = format!("return {condition}?{guarded}:{suffix}");
+            if tail_semicolon {
+                rewritten.push(';');
+            }
+            replacement = Some((start, end, rewritten));
+            break;
+        }
+
+        let Some((start, end, rewritten)) = replacement else {
+            return Ok((output, folded));
+        };
+        output.replace_range(start..end, &rewritten);
+        folded += 1;
+    }
+}
+
+/// Fold expression-prefixed return arms and an expression/return tail.
+///
+/// `if(C){E;return A}F;return B` becomes
+/// `return C?(E,A):(F,B)`. Both spellings evaluate `C` first, then exactly
+/// one sequence in the same order. This complements the lone-return folds:
+/// generated warning/logging calls and assignments commonly precede the
+/// value returned by a branch.
+pub(crate) fn fold_expression_return_branches(
+    source: &str,
+) -> Result<(String, usize), JavaScriptParseError> {
+    let mut output = source.to_string();
+    let mut folded = 0usize;
+    loop {
+        let tokens = lex(&output)?;
+        let matching_close = matching_closers(&tokens);
+        let mut replacement = None;
+
+        for guard in (0..tokens.len()).rev() {
+            if tokens[guard].text != "if"
+                || tokens.get(guard + 1).map(|token| token.text) != Some("(")
+                || guard
+                    .checked_sub(1)
+                    .is_some_and(|previous| !matches!(tokens[previous].text, "{" | "}" | ";"))
+            {
+                continue;
+            }
+            let condition_open = guard + 1;
+            let Some(condition_close) = matching_close[condition_open] else {
+                continue;
+            };
+            let arm_open = condition_close + 1;
+            if tokens.get(arm_open).map(|token| token.text) != Some("{") {
+                continue;
+            }
+            let Some(arm_close) = matching_close[arm_open] else {
+                continue;
+            };
+            if tokens.get(arm_close + 1).map(|token| token.text) == Some("else") {
+                continue;
+            }
+            let Some((guard_prefix, guard_return, guard_end, _)) =
+                expression_suffix_return(&output, &tokens, arm_open + 1, arm_close)
+            else {
+                continue;
+            };
+            // The lone-return family already owns an empty guarded prefix.
+            if guard_prefix.is_empty() {
+                continue;
+            }
+
+            let Some(container_open) = enclosing_block_start(&matching_close, guard) else {
+                continue;
+            };
+            let Some(container_close) = matching_close[container_open] else {
+                continue;
+            };
+            let after_guard = arm_close + 1;
+            if after_guard >= container_close {
+                continue;
+            }
+            let Some((tail_prefix, tail_return, tail_end, tail_semicolon)) =
+                expression_suffix_return(&output, &tokens, after_guard, container_close)
+            else {
+                continue;
+            };
+
+            let mut end = if tail_semicolon {
+                tokens[tail_end].end
+            } else {
+                tokens[tail_end].start
+            };
+            while end < tokens[container_close].start
+                && output.as_bytes().get(end).is_some_and(u8::is_ascii_whitespace)
+            {
+                end += 1;
+            }
+            let start = tokens[guard].start;
+            if spans_line_terminator(&output[start..end]) {
+                continue;
+            }
+
+            let condition = &output[tokens[condition_open].end..tokens[condition_close].start];
+            let condition =
+                if conditional_test_needs_grouping(&tokens[condition_open + 1..condition_close]) {
+                    format!("({condition})")
+                } else {
+                    condition.to_string()
+                };
+            let guarded = return_sequence_arm(
+                guard_prefix,
+                conditional_return_arm(&output, &tokens, guard_return + 1, guard_end),
+            );
+            let tail = return_sequence_arm(
+                tail_prefix,
+                conditional_return_arm(&output, &tokens, tail_return + 1, tail_end),
+            );
+            let mut rewritten = format!("return {condition}?{guarded}:{tail}");
+            if tail_semicolon {
+                rewritten.push(';');
+            }
+            if rewritten.len() < end - start {
+                replacement = Some((start, end, rewritten));
+                break;
+            }
+        }
+
+        let Some((start, end, rewritten)) = replacement else {
+            return Ok((output, folded));
+        };
+        output.replace_range(start..end, &rewritten);
+        folded += 1;
+    }
+}
+
+fn return_sequence_arm(mut prefix: Vec<String>, returned: String) -> String {
+    prefix.push(returned);
+    if prefix.len() == 1 {
+        prefix.pop().expect("one return expression")
+    } else {
+        format!("({})", prefix.join(","))
+    }
+}
+
+fn expression_suffix_return(
+    source: &str,
+    tokens: &[Token<'_>],
+    mut cursor: usize,
+    block_close: usize,
+) -> Option<(Vec<String>, usize, usize, bool)> {
+    let mut expressions = Vec::new();
+    while cursor < block_close {
+        while cursor < block_close && tokens[cursor].text == ";" {
+            cursor += 1;
+        }
+        if cursor >= block_close {
+            return None;
+        }
+        if tokens[cursor].text == "return" {
+            let (end, semicolon) = statement_terminator(tokens, cursor + 1)?;
+            let mut after = end + usize::from(semicolon);
+            while after < block_close && tokens[after].text == ";" {
+                after += 1;
+            }
+            return (after == block_close).then_some((expressions, cursor, end, semicolon));
+        }
+        let semicolon = top_level_stop(tokens, cursor, &[";"])?;
+        if semicolon >= block_close {
+            return None;
+        }
+        let mut statement = expression_statement_texts(source, tokens, cursor, semicolon)?;
+        if statement.len() != 1 {
+            return None;
+        }
+        expressions.push(statement.pop()?);
+        cursor = semicolon + 1;
+    }
+    None
+}
+
+/// Move the expression-only suffix of a block into its terminal return.
+///
+/// `E1;E2;return V` becomes `return E1,E2,V`. This is deliberately a late
+/// proposal rather than part of the emitter's broad comma-expression option:
+/// raw size is normally unchanged, while gzip and Brotli may prefer either
+/// token topology. The configured whole-artifact codec makes that decision
+/// without also committing to commas everywhere else in the bundle.
+pub(crate) fn fold_expression_suffix_returns(
+    source: &str,
+) -> Result<(String, usize), JavaScriptParseError> {
+    let replacements = expression_suffix_return_rewrites(source)?;
+    let (output, count) = apply_token_rewrites(source, replacements);
+    Ok((output, count))
+}
+
+/// Return one candidate per independently selectable suffix-to-return rewrite.
+///
+/// Dictionary codecs are contextual: applying every raw-neutral sequence fold
+/// can lose even when a few individual sites win.  Keeping the rewrite ranges
+/// here, beside the grammar proof that produced them, lets the compiler score
+/// those sites against the configured whole-artifact objective without trying
+/// to reconstruct edits from an all-at-once textual diff.
+pub(crate) fn expression_suffix_return_variants(
+    source: &str,
+) -> Result<Vec<String>, JavaScriptParseError> {
+    let replacements = expression_suffix_return_rewrites(source)?;
+    let mut variants = Vec::with_capacity(replacements.len());
+    for (start, end, replacement) in replacements {
+        let mut variant = source.to_string();
+        variant.replace_range(start..end, &replacement);
+        if !variants.contains(&variant) {
+            variants.push(variant);
+        }
+    }
+    Ok(variants)
+}
+
+fn expression_suffix_return_rewrites(
+    source: &str,
+) -> Result<Vec<(usize, usize, String)>, JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let matching_close = matching_closers(&tokens);
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+
+    for return_at in 0..tokens.len() {
+        if tokens[return_at].text != "return" {
+            continue;
+        }
+        let Some(block_open) = enclosing_block_start(&matching_close, return_at) else {
+            continue;
+        };
+        let Some(block_close) = matching_close[block_open] else {
+            continue;
+        };
+        let Some((return_end, semicolon)) = statement_terminator(&tokens, return_at + 1) else {
+            continue;
+        };
+        let mut after_return = return_end + usize::from(semicolon);
+        while after_return < block_close && tokens[after_return].text == ";" {
+            after_return += 1;
+        }
+        if after_return != block_close || return_at + 1 >= return_end {
+            continue;
+        }
+        if spans_line_terminator(&source[tokens[return_at].end..tokens[return_at + 1].start]) {
+            continue;
+        }
+
+        let mut suffix_start = None;
+        for start in block_open + 1..return_at {
+            if tokens[start].text == ";"
+                || enclosing_block_start(&matching_close, start) != Some(block_open)
+                || (start != block_open + 1
+                    && !matches!(tokens[start - 1].text, ";" | "}"))
+            {
+                continue;
+            }
+            // A leading string expression can be a directive prologue. Leave
+            // it outside the sequence so strictness and other directives keep
+            // their grammar-level meaning.
+            if start == block_open + 1
+                && matches!(tokens[start].kind, TokenKind::String | TokenKind::Template)
+            {
+                continue;
+            }
+            if expression_statement_texts(source, &tokens, start, return_at).is_some() {
+                suffix_start = Some(start);
+                break;
+            }
+        }
+        let Some(suffix_start) = suffix_start else {
+            continue;
+        };
+        let Some(mut expressions) =
+            expression_statement_texts(source, &tokens, suffix_start, return_at)
+        else {
+            continue;
+        };
+        expressions.push(conditional_return_arm(
+            source,
+            &tokens,
+            return_at + 1,
+            return_end,
+        ));
+        let mut rewritten = format!("return {}", expressions.join(","));
+        let end = if semicolon {
+            rewritten.push(';');
+            tokens[return_end].end
+        } else {
+            tokens[return_end].start
+        };
+        replacements.push((tokens[suffix_start].start, end, rewritten));
+    }
+    Ok(replacements)
 }
 
 /// Spell an arrow whose body is a lone `return` as a concise body.

@@ -5,8 +5,9 @@ use crate::js_peephole::JavaScriptSyntaxMetrics;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum Expression<'src> {
     Identifier(&'src str),
-    Literal,
+    Literal(&'src str),
     Unary {
+        operator: &'src str,
         operand: Box<Self>,
     },
     Binary {
@@ -39,8 +40,8 @@ pub(crate) enum Expression<'src> {
 impl Expression<'_> {
     pub(crate) fn node_count(&self) -> usize {
         match self {
-            Self::Identifier(_) | Self::Literal => 1,
-            Self::Unary { operand } => 1 + operand.node_count(),
+            Self::Identifier(_) | Self::Literal(_) => 1,
+            Self::Unary { operand, .. } => 1 + operand.node_count(),
             Self::Binary { lhs, rhs, .. } | Self::Assignment { lhs, rhs, .. } => {
                 1 + lhs.node_count() + rhs.node_count()
             }
@@ -61,8 +62,8 @@ impl Expression<'_> {
 
     fn max_depth(&self) -> usize {
         match self {
-            Self::Identifier(_) | Self::Literal => 1,
-            Self::Unary { operand } => 1 + operand.max_depth(),
+            Self::Identifier(_) | Self::Literal(_) => 1,
+            Self::Unary { operand, .. } => 1 + operand.max_depth(),
             Self::Binary { lhs, rhs, .. } | Self::Assignment { lhs, rhs, .. } => {
                 1 + lhs.max_depth().max(rhs.max_depth())
             }
@@ -428,6 +429,7 @@ impl<'tokens, 'src> ExpressionParser<'tokens, 'src> {
         ) {
             self.cursor += 1;
             return Some(Expression::Unary {
+                operator: token.text,
                 operand: Box::new(self.parse_expression(15)?),
             });
         }
@@ -435,12 +437,12 @@ impl<'tokens, 'src> ExpressionParser<'tokens, 'src> {
         match token.kind {
             TokenKind::Identifier => Some(Expression::Identifier(token.text)),
             TokenKind::Number | TokenKind::String | TokenKind::Template => {
-                Some(Expression::Literal)
+                Some(Expression::Literal(token.text))
             }
             TokenKind::Keyword
                 if matches!(token.text, "true" | "false" | "null" | "this" | "undefined") =>
             {
-                Some(Expression::Literal)
+                Some(Expression::Literal(token.text))
             }
             TokenKind::Punct if token.text == "(" => {
                 let expression = self.parse_expression(1)?;
@@ -512,8 +514,10 @@ impl<'tokens, 'src> ExpressionParser<'tokens, 'src> {
                     };
                 }
                 Some("++" | "--") => {
+                    let operator = self.peek()?.text;
                     self.cursor += 1;
                     expression = Expression::Unary {
+                        operator,
                         operand: Box::new(expression),
                     };
                 }

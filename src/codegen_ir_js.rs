@@ -17582,13 +17582,17 @@ impl LocalNames {
                 .iter()
                 .map(|(value, range)| (*value, *range))
                 .collect(),
-            elidable_i32_coercions: function
-                .blocks
-                .iter()
-                .flat_map(|block| &block.instructions)
-                .filter_map(|instruction| instruction.out)
-                .filter(|value| integer_facts.can_elide_coercion(*value))
-                .collect(),
+            elidable_i32_coercions: {
+                let mut elidable = function
+                    .blocks
+                    .iter()
+                    .flat_map(|block| &block.instructions)
+                    .filter_map(|instruction| instruction.out)
+                    .filter(|value| integer_facts.can_elide_coercion(*value))
+                    .collect::<AHashSet<_>>();
+                elidable.extend(consumer_elided_i32_coercions(function));
+                elidable
+            },
             elidable_map_get_normalizations: map_get_normalization_elisions(function),
             null_values,
             js_undefined_values,
@@ -20928,6 +20932,114 @@ fn map_get_normalization_elisions(function: &ControlFlowFunction<'_>) -> AHashSe
         .collect()
 }
 
+fn integer_element_typed_array(function: &ControlFlowFunction<'_>, object: ValueId) -> bool {
+    value_type(function, object).is_some_and(|ty| {
+        matches!(
+            TypedArrayKind::from_type(&ty),
+            Some(
+                TypedArrayKind::Int8
+                    | TypedArrayKind::Uint8
+                    | TypedArrayKind::Uint8Clamped
+                    | TypedArrayKind::Int16
+                    | TypedArrayKind::Uint16
+                    | TypedArrayKind::Int32
+                    | TypedArrayKind::Uint32
+            )
+        )
+    })
+}
+
+fn record_integer_conversion_uses(
+    function: &ControlFlowFunction<'_>,
+    op: &ControlFlowOp<'_>,
+    mut record: impl FnMut(ValueId, bool),
+) {
+    match op {
+        ControlFlowOp::Binary { op, lhs, rhs }
+            if matches!(
+                op,
+                IrBinaryOp::BitAnd
+                    | IrBinaryOp::BitOr
+                    | IrBinaryOp::Xor
+                    | IrBinaryOp::ShiftLeft
+                    | IrBinaryOp::ShiftRight
+                    | IrBinaryOp::UnsignedShiftRight
+            ) =>
+        {
+            record(*lhs, true);
+            record(*rhs, true);
+        }
+        ControlFlowOp::IndexGet { object, index } => {
+            record(*object, false);
+            record(*index, true);
+        }
+        ControlFlowOp::IndexSet {
+            object,
+            index,
+            value,
+        } => {
+            record(*object, false);
+            record(*index, true);
+            record(*value, integer_element_typed_array(function, *object));
+        }
+        ControlFlowOp::Intrinsic {
+            intrinsic: Intrinsic::StringCharAt | Intrinsic::StringCharCodeAt,
+            receiver,
+            args,
+        } => {
+            if let Some(receiver) = receiver {
+                record(*receiver, false);
+            }
+            match args.as_slice() {
+                [index] => record(*index, true),
+                [index, end] => {
+                    record(*index, true);
+                    record(*end, true);
+                }
+                _ => {
+                    for arg in args {
+                        record(*arg, false);
+                    }
+                }
+            }
+        }
+        other => {
+            for value in op_values(other) {
+                record(value, false);
+            }
+        }
+    }
+}
+
+fn consumer_elided_i32_coercions(function: &ControlFlowFunction<'_>) -> AHashSet<ValueId> {
+    let mut verdicts = AHashMap::<ValueId, bool>::default();
+    let mut record = |value: ValueId, converts: bool| {
+        let slot = verdicts.entry(value).or_insert(true);
+        *slot &= converts;
+    };
+    for block in &function.blocks {
+        for phi in &block.phis {
+            for (_, value) in &phi.incoming {
+                record(*value, false);
+            }
+        }
+        for instruction in &block.instructions {
+            record_integer_conversion_uses(function, &instruction.op, &mut record);
+        }
+        match block.terminator.as_ref() {
+            Some(Terminator::Branch { condition, .. }) => record(*condition, false),
+            Some(Terminator::Return(Some(value)) | Terminator::Throw(value)) => {
+                record(*value, false)
+            }
+            _ => {}
+        }
+    }
+    verdicts
+        .into_iter()
+        .filter_map(|(value, converts)| converts.then_some(value))
+        .collect()
+}
+
 fn safe_int_array_reads(
     function: &ControlFlowFunction<'_>,
     integer_facts: &FunctionIntegerFacts,
@@ -22355,10 +22467,25 @@ fn render_const(value: &ConstValue, compact_boolean_literals: bool, quote: Strin
     }
 }
 
+fn power_of_two_spelling(value: i64) -> Option<String> {
+    if value <= 1 {
+        return None;
+    }
+    let magnitude = value as u64;
+    if !magnitude.is_power_of_two() {
+        return None;
+    }
+    Some(format!("2**{}", magnitude.trailing_zeros()))
+}
+
 fn shortest_integer(value: i64) -> String {
     let decimal = value.to_string();
     if value == 0 {
         return decimal;
+    }
+    let mut candidates = vec![decimal.clone()];
+    if let Some(power) = power_of_two_spelling(value) {
+        candidates.push(power);
     }
     let negative = value < 0;
     let digits = decimal.trim_start_matches('-');
@@ -22367,19 +22494,21 @@ fn shortest_integer(value: i64) -> String {
         .rev()
         .take_while(|byte| *byte == b'0')
         .count();
-    if zeros == 0 {
-        return decimal;
+    if zeros > 0 {
+        candidates.push(format!(
+            "{}{}e{zeros}",
+            if negative { "-" } else { "" },
+            &digits[..digits.len() - zeros]
+        ));
     }
-    let exponent = format!(
-        "{}{}e{zeros}",
-        if negative { "-" } else { "" },
-        &digits[..digits.len() - zeros]
-    );
-    if exponent.len() < decimal.len() {
-        exponent
-    } else {
-        decimal
-    }
+    candidates
+        .into_iter()
+        .min_by(|left, right| {
+            left.len().cmp(&right.len()).then_with(|| {
+                right.starts_with("2**").cmp(&left.starts_with("2**"))
+            })
+        })
+        .unwrap_or(decimal)
 }
 
 fn shortest_float(value: f64) -> String {
@@ -22405,9 +22534,21 @@ fn shortest_float(value: f64) -> String {
     candidates.push(trim_leading_zero(scientific));
     candidates
         .into_iter()
-        .filter(|candidate| candidate.parse::<f64>().ok() == Some(value))
+        .filter(|candidate| javascript_numeric_literal_value(candidate) == Some(value))
         .min_by_key(String::len)
         .unwrap_or_else(|| value.to_string())
+}
+
+fn javascript_numeric_literal_value(candidate: &str) -> Option<f64> {
+    if let Some(exponent) = candidate.strip_prefix("2**") {
+        let exponent = exponent.parse::<i32>().ok()?;
+        return Some(2.0f64.powi(exponent));
+    }
+    if let Some(exponent) = candidate.strip_prefix("-2**") {
+        let exponent = exponent.parse::<i32>().ok()?;
+        return Some(-2.0f64.powi(exponent));
+    }
+    candidate.parse::<f64>().ok()
 }
 
 fn trim_leading_zero(value: String) -> String {
@@ -28912,6 +29053,10 @@ install();
     #[test]
     fn renders_shortest_exact_numeric_literals() {
         assert_eq!(shortest_integer(120_000), "12e4");
+        assert_eq!(shortest_integer(1_099_511_627_776), "2**40");
+        assert_eq!(shortest_integer(65_536), "2**16");
+        assert_eq!(shortest_integer(256), "256");
+        assert_eq!(shortest_float(1_099_511_627_776.0), "2**40");
         assert_eq!(shortest_float(0.5), ".5");
         assert_eq!(shortest_float(0.0000001), "1e-7");
         assert_eq!(shortest_float(-0.25), "-.25");
@@ -29555,6 +29700,25 @@ install();
             "Uint8Array values=new Uint8Array(4);for(int index=0;index<values.length;index++){print(values[index]);}",
         );
         assert!(!output.contains("]|0"), "{output}");
+    }
+
+    #[test]
+    fn elides_integer_coercion_when_stored_to_uint8_array() {
+        let output = compile(
+            "extern float read();Uint8Array bytes=new Uint8Array(1);bytes[0]=read().toInt();print(bytes.length);",
+        );
+        assert!(
+            !output.contains("|0"),
+            "{output}"
+        );
+    }
+
+    #[test]
+    fn elides_typed_array_read_coercion_when_all_uses_are_bitwise() {
+        let output = compile_module(
+            "export string nibble(Uint8Array bytes){int value=bytes[0];return \"0123456789abcdef\".charAt(value>>>4);}",
+        );
+        assert!(!output.contains("|0"), "{output}");
     }
 
     #[test]
@@ -31113,7 +31277,7 @@ print(start(0.5));
             "generator int range(){yield 1;}int total=0;for(int value of range()){total+=value;}print(total);",
             enabled,
         );
-        assert!(generator.contains(" of function*()"), "{generator}");
+        assert!(generator.contains(" of (function*()"), "{generator}");
         assert!(!generator.starts_with("function*"), "{generator}");
 
         let compact_loop = compile_with_options(
@@ -31141,7 +31305,7 @@ print(start(0.5));
             "extern int mode();int guarded(int value){try{if(value==0){throw \"bad\";}return value;}catch{return 7;}finally{print(value);}}print(guarded(mode()));",
             enabled,
         );
-        assert!(guarded.contains("console.log(function("), "{guarded}");
+        assert!(guarded.contains("console.log((function("), "{guarded}");
         assert!(!guarded.contains(";}catch"), "{guarded}");
         assert!(!guarded.contains(";}finally"), "{guarded}");
 

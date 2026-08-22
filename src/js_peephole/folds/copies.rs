@@ -1478,6 +1478,386 @@ fn fold_single_use_literals(
     Ok(apply_token_rewrites(source, replacements))
 }
 
+/// Move the leading assignment of a parenthesized sequence into its first use.
+///
+/// `(x=R,"number"==typeof x?A:B)` becomes
+/// `"number"==typeof(x=R)?A:B`. Only literal/operator tokens may precede the
+/// first use, so delaying the assignment across that prefix cannot reorder an
+/// observable evaluation. This is the small, proven `collapse_vars` subset
+/// generated control-flow tends to expose after return-branch folding.
+pub(crate) fn fold_sequence_assignments_into_first_use(
+    source: &str,
+) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let matching_close = matching_closers(&tokens);
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+
+    for open in 0..tokens.len() {
+        if tokens[open].text != "("
+            || tokens
+                .get(open + 1)
+                .is_none_or(|token| token.kind != TokenKind::Identifier)
+            || tokens.get(open + 2).map(|token| token.text) != Some("=")
+        {
+            continue;
+        }
+        let Some(close) = matching_close[open] else {
+            continue;
+        };
+        let Some(comma) = top_level_stop(&tokens, open + 3, &[","]) else {
+            continue;
+        };
+        if comma >= close || comma == open + 3 {
+            continue;
+        }
+        // A second root comma would remain a sequence after the leading
+        // assignment moved, so the outer parentheses could not be elided.
+        if top_level_stop(&tokens, comma + 1, &[","])
+            .is_some_and(|next| next < close)
+        {
+            continue;
+        }
+        let name = tokens[open + 1].text;
+        let mut use_at = None;
+        for index in comma + 1..close {
+            let token = &tokens[index];
+            if token.kind == TokenKind::Identifier {
+                if token.text == name
+                    && !is_property_identifier(&tokens, index)
+                    && !name_use_is_mutated(&tokens, index)
+                {
+                    use_at = Some(index);
+                } else if !matches!(token.text, "typeof" | "void" | "true" | "false" | "null")
+                {
+                    break;
+                }
+            } else if !sequence_assignment_inert_prefix_token(token) {
+                break;
+            }
+            if use_at.is_some() {
+                break;
+            }
+        }
+        let Some(use_at) = use_at else {
+            continue;
+        };
+
+        let previous = open
+            .checked_sub(1)
+            .and_then(|index| tokens.get(index))
+            .map(|token| token.text);
+        let next = tokens.get(close + 1).map(|token| token.text);
+        if next.is_some_and(|token| matches!(token, "." | "[" | "(" | "?." | "**")) {
+            continue;
+        }
+        let tail_has_conditional = has_top_level_token(&tokens, comma + 1, close, "?");
+        let can_drop_outer = if tail_has_conditional {
+            previous.is_some_and(|token| matches!(token, ":" | "?" | "return" | "=>"))
+        } else if previous == Some("&&") {
+            !["||", "??", "="].into_iter().any(|operator| {
+                has_top_level_token(&tokens, comma + 1, close, operator)
+            })
+        } else {
+            previous.is_some_and(|token| matches!(token, ":" | "?" | "return" | "=>"))
+        };
+        if !can_drop_outer {
+            continue;
+        }
+
+        let assignment = &source[tokens[open + 1].start..tokens[comma].start];
+        let prefix = source[tokens[comma].end..tokens[use_at].start].trim_end();
+        let suffix = &source[tokens[use_at].end..tokens[close].start];
+        replacements.push((
+            tokens[open].start,
+            tokens[close].end,
+            format!("{prefix}({assignment}){suffix}"),
+        ));
+    }
+
+    Ok(apply_token_rewrites(source, replacements))
+}
+
+/// Delay a standalone assignment across an inert prefix into its first read.
+///
+/// `x=R;return typeof x=="number"` becomes
+/// `return typeof(x=R)=="number"`. Calls, property reads, short-circuit
+/// operators, and other observable prefixes stop the scan, so the assignment
+/// never crosses a value-producing or conditional evaluation.
+pub(crate) fn fold_statement_assignments_into_first_use(
+    source: &str,
+) -> Result<(String, usize), JavaScriptParseError> {
+    #[derive(Clone)]
+    struct Candidate {
+        start: usize,
+        finish: usize,
+        remove_start: usize,
+        remove_end: usize,
+        use_start: usize,
+        use_end: usize,
+        assignment: String,
+    }
+
+    let tokens = lex(source)?;
+    let matching_close = matching_closers(&tokens);
+    let mut matching_open = vec![None; tokens.len()];
+    for (open, close) in matching_close.iter().enumerate() {
+        if let Some(close) = *close {
+            matching_open[close] = Some(open);
+        }
+    }
+    let mut paren_depth = vec![0i32; tokens.len()];
+    let mut bracket_depth = vec![0i32; tokens.len()];
+    let mut brace_depth = vec![0i32; tokens.len()];
+    let (mut parens, mut brackets, mut braces) = (0i32, 0i32, 0i32);
+    for (index, token) in tokens.iter().enumerate() {
+        paren_depth[index] = parens;
+        bracket_depth[index] = brackets;
+        brace_depth[index] = braces;
+        match token.text {
+            "(" => parens += 1,
+            ")" => parens -= 1,
+            "[" => brackets += 1,
+            "]" => brackets -= 1,
+            "{" => braces += 1,
+            "}" => braces -= 1,
+            _ => {}
+        }
+    }
+
+    let mut candidates = Vec::new();
+    for cursor in 0..tokens.len().saturating_sub(3) {
+        if tokens[cursor].kind != TokenKind::Identifier
+            || tokens.get(cursor + 1).map(|token| token.text) != Some("=")
+            || paren_depth[cursor] != 0
+            || bracket_depth[cursor] != 0
+            || is_property_identifier(&tokens, cursor)
+        {
+            continue;
+        }
+        let previous = cursor
+            .checked_sub(1)
+            .and_then(|index| tokens.get(index))
+            .map(|token| token.text);
+        let statement_start = matches!(previous, None | Some("{") | Some(";"))
+            || cursor.checked_sub(1).is_some_and(|close| {
+                tokens[close].text == ")"
+                    && matching_open[close].is_some_and(|open| {
+                        open.checked_sub(1).is_some_and(|before| {
+                            matches!(tokens[before].text, "for" | "while")
+                        })
+                    })
+            });
+        if !statement_start {
+            continue;
+        }
+        // A comma-separated declarator is not a sequence expression. Walk to
+        // the current root statement boundary and reject the complete
+        // declaration family together.
+        let mut statement = cursor;
+        while statement > 0 {
+            let previous = statement - 1;
+            if paren_depth[previous] == paren_depth[cursor]
+                && bracket_depth[previous] == bracket_depth[cursor]
+                && brace_depth[previous] == brace_depth[cursor]
+                && matches!(tokens[previous].text, ";" | "{" | "}")
+            {
+                break;
+            }
+            statement -= 1;
+        }
+        if tokens[statement..cursor]
+            .iter()
+            .any(|token| matches!(token.text, "var" | "let" | "const"))
+        {
+            continue;
+        }
+
+        let mut delimiter = None;
+        for index in cursor + 2..tokens.len() {
+            if paren_depth[index] == paren_depth[cursor]
+                && bracket_depth[index] == bracket_depth[cursor]
+                && brace_depth[index] == brace_depth[cursor]
+                && matches!(tokens[index].text, "," | ";")
+            {
+                delimiter = Some(index);
+                break;
+            }
+            if brace_depth[index] < brace_depth[cursor] {
+                break;
+            }
+        }
+        let Some(delimiter) = delimiter else {
+            continue;
+        };
+        if delimiter == cursor + 2 {
+            continue;
+        }
+        let next_start = delimiter + 1;
+        if next_start >= tokens.len() || tokens[next_start].text == "}" {
+            continue;
+        }
+        let mut next_end = tokens.len();
+        for index in next_start..tokens.len() {
+            if paren_depth[index] == paren_depth[cursor]
+                && bracket_depth[index] == bracket_depth[cursor]
+                && brace_depth[index] == brace_depth[cursor]
+                && matches!(tokens[index].text, "," | ";")
+            {
+                next_end = index;
+                break;
+            }
+            if brace_depth[index] < brace_depth[cursor] {
+                next_end = index;
+                break;
+            }
+        }
+        let name = tokens[cursor].text;
+        let mut use_at = None;
+        for index in next_start..next_end {
+            let token = &tokens[index];
+            if token.kind == TokenKind::Identifier {
+                if token.text == name && !is_property_identifier(&tokens, index) {
+                    if name_use_is_mutated(&tokens, index) {
+                        // A simple assignment target itself has no observable
+                        // evaluation. Search its right side for the first read.
+                        if tokens.get(index + 1).map(|token| token.text) == Some("=") {
+                            continue;
+                        }
+                        break;
+                    }
+                    use_at = Some(index);
+                    break;
+                }
+                if matches!(
+                    token.text,
+                    "return"
+                        | "typeof"
+                        | "void"
+                        | "if"
+                        | "while"
+                        | "true"
+                        | "false"
+                        | "null"
+                        | "undefined"
+                ) || tokens.get(index + 1).map(|token| token.text) == Some("=")
+                {
+                    continue;
+                }
+                break;
+            }
+            if !statement_assignment_inert_prefix_token(token) {
+                break;
+            }
+        }
+        let Some(use_at) = use_at else {
+            continue;
+        };
+        candidates.push(Candidate {
+            start: tokens[cursor].start,
+            finish: tokens[use_at].end,
+            remove_start: tokens[cursor].start,
+            remove_end: tokens[delimiter].end,
+            use_start: tokens[use_at].start,
+            use_end: tokens[use_at].end,
+            assignment: source[tokens[cursor].start..tokens[delimiter].start].to_string(),
+        });
+    }
+
+    candidates.sort_by_key(|candidate| (candidate.start, candidate.finish));
+    let mut retained = Vec::new();
+    let mut last_end = 0usize;
+    for candidate in candidates {
+        if candidate.start >= last_end {
+            last_end = candidate.finish;
+            retained.push(candidate);
+        }
+    }
+    let mut replacements = Vec::with_capacity(retained.len() * 2);
+    for candidate in retained {
+        replacements.push((
+            candidate.remove_start,
+            candidate.remove_end,
+            String::new(),
+        ));
+        replacements.push((
+            candidate.use_start,
+            candidate.use_end,
+            format!("({})", candidate.assignment),
+        ));
+    }
+    Ok(apply_token_rewrites(source, replacements))
+}
+
+fn statement_assignment_inert_prefix_token(token: &Token<'_>) -> bool {
+    matches!(token.kind, TokenKind::Number | TokenKind::String)
+        || matches!(
+            token.text,
+            "("
+                | ")"
+                | "return"
+                | "if"
+                | "while"
+                | "typeof"
+                | "void"
+                | "true"
+                | "false"
+                | "null"
+                | "undefined"
+                | "!"
+                | "~"
+                | "+"
+                | "-"
+                | "="
+                | "=="
+                | "!="
+                | "==="
+                | "!=="
+                | "<"
+                | "<="
+                | ">"
+                | ">="
+        )
+}
+
+fn sequence_assignment_inert_prefix_token(token: &Token<'_>) -> bool {
+    matches!(token.kind, TokenKind::Number | TokenKind::String)
+        || matches!(
+            token.text,
+            "(" | ")"
+                | "typeof"
+                | "void"
+                | "true"
+                | "false"
+                | "null"
+                | "undefined"
+                | "!"
+                | "~"
+                | "+"
+                | "-"
+                | "=="
+                | "!="
+                | "==="
+                | "!=="
+                | "<"
+                | "<="
+                | ">"
+                | ">="
+        )
+}
+
+fn has_top_level_token(tokens: &[Token<'_>], start: usize, end: usize, needle: &str) -> bool {
+    let mut depth = 0i32;
+    for token in &tokens[start..end] {
+        match token.text {
+            "(" | "[" | "{" => depth += 1,
+            ")" | "]" | "}" => depth -= 1,
+            text if depth == 0 && text == needle => return true,
+            _ => {}
+        }
+    }
+    false
+}
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum PrototypeToStringKind {
     Object,

@@ -6,11 +6,13 @@ use crate::js_peephole::parse::{
     compound_assignment_rewrite, parse_expression_regions, syntax_metrics,
 };
 use crate::js_peephole::rewrite::{
-    apply_rewrites, assign_is_in_declaration, is_property_identifier, non_overlapping_rewrites,
+    apply_rewrites, apply_token_rewrites, assign_is_in_declaration, is_property_identifier,
+    non_overlapping_rewrites,
 };
 use crate::js_peephole::scope::{
     identifier_is_arrow_parameter, identifier_is_catch_parameter, identifier_is_function_parameter,
-    name_is_bound_as_non_enclosing_function_local, name_is_visible_generated_binding,
+    name_is_bound_as_non_enclosing_function_local,
+    name_is_declared_in_any_enclosing_function_scope, name_is_visible_generated_binding,
 };
 use crate::js_peephole::token::{lex, matching_closers, validate_delimiters, Token, TokenKind};
 
@@ -451,7 +453,12 @@ fn validate_for_heads(tokens: &[Token<'_>]) -> Result<(), JavaScriptParseError> 
         let mut semis = 0u8;
         for scan in open + 1..close {
             if paren == 0 && bracket == 0 && brace == 0 {
-                if tokens[scan].text == ";" {
+                if matches!(tokens[scan].text, "return" | "throw" | "break" | "continue") {
+                    return Err(JavaScriptParseError {
+                        offset: tokens[scan].start,
+                        message: "statement keyword in generated for head",
+                    });
+                } else if tokens[scan].text == ";" {
                     semis = semis.saturating_add(1);
                 } else if semis >= 2
                     && matches!(tokens[scan].text, "var" | "let" | "const" | "function")
@@ -630,6 +637,56 @@ pub fn single_character_identifiers(source: &str) -> Result<Vec<u8>, JavaScriptP
     identifiers.sort_unstable();
     identifiers.dedup();
     Ok(identifiers)
+}
+
+/// Returns one-byte identifier spellings whose every occurrence resolves to
+/// a generated binding and can therefore participate in a whole-program
+/// bijective rename. Unlike the broader entropy probe, this deliberately
+/// rejects ambient reads, property names, shorthand properties, labels, and
+/// template substitutions that the lightweight scope proof cannot resolve.
+pub fn single_character_resolved_binding_identifiers(
+    source: &str,
+) -> Result<Vec<u8>, JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let matching_close = matching_closers(&tokens);
+    let mut candidates = std::collections::BTreeSet::new();
+    let mut rejected = std::collections::BTreeSet::new();
+
+    for (index, token) in tokens.iter().enumerate() {
+        if token.kind == TokenKind::Identifier && token.text.len() == 1 {
+            let byte = token.text.as_bytes()[0];
+            candidates.insert(byte);
+            if !identifier_occurrence_is_clear_binding(&tokens, index)
+                || (!generated_identifier_is_binding(&tokens, &matching_close, index)
+                    && !name_is_visible_generated_binding(
+                        &tokens,
+                        &matching_close,
+                        index,
+                        token.text,
+                    ))
+            {
+                rejected.insert(byte);
+            }
+        } else if token.kind == TokenKind::Template {
+            // Template expressions are stored inside one lexer token. The
+            // remapper can update simple `${x}` spellings, but this function
+            // cannot prove their lexical owner without parsing the embedded
+            // expression, so keep those names fixed.
+            for window in token.text.as_bytes().windows(4) {
+                if window[0] == b'$'
+                    && window[1] == b'{'
+                    && window[2].is_ascii_alphabetic()
+                    && window[3] == b'}'
+                {
+                    rejected.insert(window[2]);
+                }
+            }
+        }
+    }
+    Ok(candidates
+        .difference(&rejected)
+        .copied()
+        .collect::<Vec<_>>())
 }
 
 pub fn single_character_identifier_use_counts(
@@ -926,6 +983,258 @@ pub fn remap_single_character_identifiers(
     Ok(output)
 }
 
+/// Produces one candidate for each bijective swap of two one-byte local
+/// bindings inside one simple top-level function. The rewrite is deliberately
+/// scope-local: module bindings and locals in sibling functions retain their
+/// spelling, allowing the whole-artifact codec scorer to optimize the same
+/// per-scope namespace that JavaScript engines expose.
+pub fn function_local_binding_swap_variants(
+    source: &str,
+) -> Result<Vec<String>, JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let matching_close = matching_closers(&tokens);
+    let mut functions = Vec::<std::collections::BTreeMap<u8, Vec<usize>>>::new();
+
+    for cursor in 0..tokens.len() {
+        if tokens[cursor].text != "function"
+            || crate::js_peephole::scope::enclosing_function_span(
+                &tokens,
+                &matching_close,
+                cursor,
+            )
+            .is_some()
+        {
+            continue;
+        }
+        let mut name = cursor + 1;
+        if tokens.get(name).map(|token| token.text) == Some("*") {
+            name += 1;
+        }
+        if tokens
+            .get(name)
+            .is_none_or(|token| token.kind != TokenKind::Identifier)
+            || tokens.get(name + 1).map(|token| token.text) != Some("(")
+        {
+            continue;
+        }
+        let params_open = name + 1;
+        let Some(params_close) = matching_close.get(params_open).copied().flatten() else {
+            continue;
+        };
+        let body_open = params_close + 1;
+        if tokens.get(body_open).map(|token| token.text) != Some("{") {
+            continue;
+        }
+        let Some(body_close) = matching_close.get(body_open).copied().flatten() else {
+            continue;
+        };
+        if !crate::js_peephole::scope::simple_identifier_params(
+            &tokens,
+            params_open + 1,
+            params_close,
+        ) || tokens[body_open + 1..body_close].iter().any(|token| {
+            matches!(token.text, "function" | "=>" | "class" | "catch")
+                || token.kind == TokenKind::Template
+        }) {
+            continue;
+        }
+
+        let mut bindings = std::collections::BTreeSet::<u8>::new();
+        for token in &tokens[params_open + 1..params_close] {
+            if token.kind == TokenKind::Identifier && token.text.len() == 1 {
+                bindings.insert(token.text.as_bytes()[0]);
+            }
+        }
+        let mut declaration_scan = body_open + 1;
+        let mut declarations_are_simple = true;
+        while declaration_scan < body_close {
+            if !matches!(tokens[declaration_scan].text, "var" | "let" | "const") {
+                declaration_scan += 1;
+                continue;
+            }
+            declaration_scan += 1;
+            let mut delimiter_depth = 0usize;
+            let mut expects_name = true;
+            while declaration_scan < body_close {
+                let token = tokens[declaration_scan];
+                if delimiter_depth == 0 && matches!(token.text, ";" | "of" | "in" | ")") {
+                    break;
+                }
+                if delimiter_depth == 0 && expects_name {
+                    if token.kind != TokenKind::Identifier {
+                        declarations_are_simple = false;
+                        break;
+                    }
+                    if token.text.len() == 1 {
+                        bindings.insert(token.text.as_bytes()[0]);
+                    }
+                    expects_name = false;
+                }
+                match token.text {
+                    "(" | "[" | "{" => delimiter_depth += 1,
+                    ")" | "]" | "}" if delimiter_depth > 0 => delimiter_depth -= 1,
+                    "," if delimiter_depth == 0 => expects_name = true,
+                    "=" if delimiter_depth == 0 => expects_name = false,
+                    _ => {}
+                }
+                declaration_scan += 1;
+            }
+            if !declarations_are_simple {
+                break;
+            }
+        }
+        if !declarations_are_simple || bindings.len() < 2 {
+            continue;
+        }
+
+        let mut occurrences = bindings
+            .iter()
+            .copied()
+            .map(|binding| (binding, Vec::new()))
+            .collect::<std::collections::BTreeMap<_, _>>();
+        let mut rejected = std::collections::BTreeSet::new();
+        for index in params_open + 1..body_close {
+            let token = tokens[index];
+            if token.kind != TokenKind::Identifier || token.text.len() != 1 {
+                continue;
+            }
+            let byte = token.text.as_bytes()[0];
+            if !bindings.contains(&byte) {
+                continue;
+            }
+            if !identifier_occurrence_is_clear_binding(&tokens, index) {
+                rejected.insert(byte);
+            } else {
+                occurrences.entry(byte).or_default().push(index);
+            }
+        }
+        occurrences.retain(|binding, uses| !uses.is_empty() && !rejected.contains(binding));
+        if occurrences.len() >= 2 {
+            functions.push(occurrences);
+        }
+    }
+
+    // A helper moved to its only call creates a nested IIFE. Optimize that
+    // caller as one lexical namespace permutation: every declaration and
+    // resolved local reference in the complete function tree is swapped,
+    // while a spelling with even one module/global or property occurrence is
+    // frozen. A bijection over the whole tree preserves shadowing and capture
+    // relationships, including sibling and nested functions.
+    for cursor in 0..tokens.len() {
+        if tokens[cursor].text != "function"
+            || crate::js_peephole::scope::enclosing_function_span(
+                &tokens,
+                &matching_close,
+                cursor,
+            )
+            .is_some()
+        {
+            continue;
+        }
+        let mut name = cursor + 1;
+        if tokens.get(name).map(|token| token.text) == Some("*") {
+            name += 1;
+        }
+        let Some(function_name) = tokens
+            .get(name)
+            .filter(|token| token.kind == TokenKind::Identifier)
+            .map(|token| token.text)
+        else {
+            continue;
+        };
+        if tokens.get(name + 1).map(|token| token.text) != Some("(") {
+            continue;
+        }
+        let params_open = name + 1;
+        let Some(params_close) = matching_close.get(params_open).copied().flatten() else {
+            continue;
+        };
+        let body_open = params_close + 1;
+        if tokens.get(body_open).map(|token| token.text) != Some("{") {
+            continue;
+        }
+        let Some(body_close) = matching_close.get(body_open).copied().flatten() else {
+            continue;
+        };
+        if !tokens[body_open + 1..body_close]
+            .iter()
+            .any(|token| matches!(token.text, "function" | "=>"))
+        {
+            continue;
+        }
+
+        let mut occurrences = std::collections::BTreeMap::<u8, Vec<usize>>::new();
+        let mut rejected = std::collections::BTreeSet::<u8>::new();
+        if function_name.len() == 1 {
+            rejected.insert(function_name.as_bytes()[0]);
+        }
+        for index in params_open + 1..body_close {
+            let token = tokens[index];
+            if token.kind == TokenKind::Template {
+                for window in token.text.as_bytes().windows(4) {
+                    if window[0] == b'$'
+                        && window[1] == b'{'
+                        && window[2].is_ascii_alphabetic()
+                        && window[3] == b'}'
+                    {
+                        rejected.insert(window[2]);
+                    }
+                }
+                continue;
+            }
+            if token.kind != TokenKind::Identifier || token.text.len() != 1 {
+                continue;
+            }
+            let byte = token.text.as_bytes()[0];
+            if !identifier_occurrence_is_clear_binding(&tokens, index)
+                || (!generated_identifier_is_binding(&tokens, &matching_close, index)
+                    && !name_is_declared_in_any_enclosing_function_scope(
+                        &tokens,
+                        &matching_close,
+                        index,
+                        token.text,
+                    ))
+            {
+                rejected.insert(byte);
+            } else {
+                occurrences.entry(byte).or_default().push(index);
+            }
+        }
+        occurrences.retain(|binding, uses| !uses.is_empty() && !rejected.contains(binding));
+        if occurrences.len() >= 2 {
+            functions.push(occurrences);
+        }
+    }
+
+    let mut variants = Vec::new();
+    for occurrences in functions {
+        let names = occurrences.keys().copied().collect::<Vec<_>>();
+        for (left_index, left) in names.iter().copied().enumerate() {
+            for right in names.iter().copied().skip(left_index + 1) {
+                let mut replacements = Vec::new();
+                for index in &occurrences[&left] {
+                    replacements.push((
+                        tokens[*index].start,
+                        tokens[*index].end,
+                        char::from(right).to_string(),
+                    ));
+                }
+                for index in &occurrences[&right] {
+                    replacements.push((
+                        tokens[*index].start,
+                        tokens[*index].end,
+                        char::from(left).to_string(),
+                    ));
+                }
+                variants.push(apply_token_rewrites(source, replacements).0);
+            }
+        }
+    }
+    variants.sort();
+    variants.dedup();
+    Ok(variants)
+}
+
 /// Parses generated JavaScript, applies semantics-preserving local rewrites,
 /// and derives deterministic engine-startup proxies from the parsed program.
 ///
@@ -1100,7 +1409,7 @@ fn optimize_generated_javascript_pass(source: &str) -> Result<PeepholeResult, Ja
     session.run(canonicalize_leaf_syntax)?;
     session.run(elide_separating_keyword_spaces)?;
 
-    late_generated_javascript_cleanup_into(&mut session)?;
+    canonical_late_generated_javascript_cleanup_into(&mut session)?;
     session.run(fold_unit_counter_updates)?;
     session.run(fold_int32_coercions)?;
     session.run(fold_adjacent_binding_into_leading_call_arg)?;
@@ -1147,6 +1456,15 @@ pub fn late_generated_javascript_cleanup(source: &str) -> Result<String, JavaScr
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum LateJavaScriptCleanupPass {
     ConditionalReturnTails,
+    GuardReturnExpressionSuffixes,
+    ExpressionReturnBranches,
+    ExpressionSuffixReturns,
+    SequenceAssignmentFirstUse,
+    StatementAssignmentFirstUse,
+    NegatedConditionalArms,
+    BooleanConditionalValues,
+    UnitCounterUpdates,
+    CommonConditionalArms,
     EarlyExitGuards,
     ContinueTailGuards,
     InvertedContinueTailGuards,
@@ -1157,15 +1475,22 @@ pub(crate) enum LateJavaScriptCleanupPass {
     OrAssignmentParens,
     NotGtZeroLength,
     IdentityArrowIife,
+    ZeroArgumentReturnIife,
+    SingleUseFunctionExpressions,
     EmptyTernaryThenComma,
     UnusedStandaloneVars,
     ArgumentsLengthCountdownFor,
     CanonicalLeafSyntax,
+    SameBindingStrictEquality,
 }
 
 impl LateJavaScriptCleanupPass {
-    pub(crate) const ALL: [Self; 15] = [
+    pub(crate) const ALL: [Self; 21] = [
         Self::ConditionalReturnTails,
+        Self::GuardReturnExpressionSuffixes,
+        Self::NegatedConditionalArms,
+        Self::BooleanConditionalValues,
+        Self::UnitCounterUpdates,
         Self::EarlyExitGuards,
         Self::ContinueTailGuards,
         Self::InvertedContinueTailGuards,
@@ -1176,11 +1501,31 @@ impl LateJavaScriptCleanupPass {
         Self::OrAssignmentParens,
         Self::NotGtZeroLength,
         Self::IdentityArrowIife,
+        Self::ZeroArgumentReturnIife,
         Self::EmptyTernaryThenComma,
         Self::UnusedStandaloneVars,
         Self::ArgumentsLengthCountdownFor,
         Self::CanonicalLeafSyntax,
+        Self::SameBindingStrictEquality,
     ];
+
+    const fn objective_only(self) -> bool {
+        matches!(
+            self,
+            Self::GuardReturnExpressionSuffixes
+                | Self::ExpressionReturnBranches
+                | Self::ExpressionSuffixReturns
+                | Self::SequenceAssignmentFirstUse
+                | Self::StatementAssignmentFirstUse
+                | Self::NegatedConditionalArms
+                | Self::BooleanConditionalValues
+                | Self::UnitCounterUpdates
+                | Self::CommonConditionalArms
+                | Self::ZeroArgumentReturnIife
+                | Self::SingleUseFunctionExpressions
+                | Self::SameBindingStrictEquality
+        )
+    }
 }
 
 /// Apply one late syntax proposal and close any implicit-assignment bindings
@@ -1196,6 +1541,34 @@ pub(crate) fn late_generated_javascript_cleanup_pass(
     Ok(session.code)
 }
 
+/// Produce candidates that apply one independently proven local rewrite.
+///
+/// Most late passes intentionally expose one all-sites spelling. Sequence
+/// topology is different: it is often raw-neutral, and dictionary codecs can
+/// prefer a sparse subset of sites. The compiler walks these local variants
+/// with its exact configured scorer instead of treating Terser-style global
+/// sequence normalization as universally beneficial.
+pub(crate) fn late_generated_javascript_cleanup_local_variants(
+    source: &str,
+    pass: LateJavaScriptCleanupPass,
+) -> Result<Vec<String>, JavaScriptParseError> {
+    let mut variants = match pass {
+        LateJavaScriptCleanupPass::ExpressionSuffixReturns => {
+            expression_suffix_return_variants(source)?
+        }
+        LateJavaScriptCleanupPass::BooleanConditionalValues => {
+            boolean_conditional_value_variants(source)?
+        }
+        _ => Vec::new(),
+    };
+    for variant in &mut variants {
+        let mut session = RewriteSession::new(std::mem::take(variant));
+        session.run(declare_implicit_assignment_bindings)?;
+        *variant = session.code;
+    }
+    Ok(variants)
+}
+
 fn late_generated_javascript_cleanup_pass_into(
     session: &mut RewriteSession,
     pass: LateJavaScriptCleanupPass,
@@ -1203,6 +1576,34 @@ fn late_generated_javascript_cleanup_pass_into(
     match pass {
         LateJavaScriptCleanupPass::ConditionalReturnTails => {
             session.run(fold_conditional_return_tails)?
+        }
+        LateJavaScriptCleanupPass::GuardReturnExpressionSuffixes => {
+            session.run(fold_guard_return_expression_suffixes)?
+        }
+        LateJavaScriptCleanupPass::ExpressionReturnBranches => {
+            session.run(fold_expression_return_branches)?
+        }
+        LateJavaScriptCleanupPass::ExpressionSuffixReturns => {
+            session.run(fold_expression_suffix_returns)?
+        }
+        LateJavaScriptCleanupPass::SequenceAssignmentFirstUse => {
+            session.run(fold_sequence_assignments_into_first_use)?
+        }
+        LateJavaScriptCleanupPass::StatementAssignmentFirstUse => {
+            session.run(fold_statement_assignments_into_first_use)?
+        }
+        LateJavaScriptCleanupPass::NegatedConditionalArms => {
+            session.run(fold_negated_conditional_arms)?
+        }
+        LateJavaScriptCleanupPass::BooleanConditionalValues => {
+            session.run(fold_boolean_conditional_values)?
+        }
+        LateJavaScriptCleanupPass::UnitCounterUpdates => {
+            session.run(fold_unit_counter_updates)?;
+            session.run(fold_expression_self_assignments)?
+        }
+        LateJavaScriptCleanupPass::CommonConditionalArms => {
+            session.run(fold_common_conditional_arms)?
         }
         LateJavaScriptCleanupPass::EarlyExitGuards => session.run(fold_early_exit_guards)?,
         LateJavaScriptCleanupPass::ContinueTailGuards => session.run(fold_continue_tail_guards)?,
@@ -1220,6 +1621,12 @@ fn late_generated_javascript_cleanup_pass_into(
         LateJavaScriptCleanupPass::OrAssignmentParens => session.run(fold_or_assignment_parens)?,
         LateJavaScriptCleanupPass::NotGtZeroLength => session.run(fold_not_gt_zero_length)?,
         LateJavaScriptCleanupPass::IdentityArrowIife => session.run(fold_identity_arrow_iife)?,
+        LateJavaScriptCleanupPass::ZeroArgumentReturnIife => {
+            session.run(fold_zero_argument_return_iife)?
+        }
+        LateJavaScriptCleanupPass::SingleUseFunctionExpressions => {
+            session.run(fold_single_use_function_expressions)?
+        }
         LateJavaScriptCleanupPass::EmptyTernaryThenComma => {
             session.run(fold_empty_ternary_then_comma)?
         }
@@ -1230,6 +1637,9 @@ fn late_generated_javascript_cleanup_pass_into(
             session.run(fold_arguments_length_countdown_for)?
         }
         LateJavaScriptCleanupPass::CanonicalLeafSyntax => session.run(canonicalize_leaf_syntax)?,
+        LateJavaScriptCleanupPass::SameBindingStrictEquality => {
+            session.run(fold_same_binding_strict_equality)?
+        }
     }
     Ok(())
 }
@@ -1239,6 +1649,18 @@ fn late_generated_javascript_cleanup_into(
 ) -> Result<(), JavaScriptParseError> {
     for pass in LateJavaScriptCleanupPass::ALL {
         late_generated_javascript_cleanup_pass_into(session, pass)?;
+    }
+    session.run(declare_implicit_assignment_bindings)?;
+    Ok(())
+}
+
+fn canonical_late_generated_javascript_cleanup_into(
+    session: &mut RewriteSession,
+) -> Result<(), JavaScriptParseError> {
+    for pass in LateJavaScriptCleanupPass::ALL {
+        if !pass.objective_only() {
+            late_generated_javascript_cleanup_pass_into(session, pass)?;
+        }
     }
     session.run(declare_implicit_assignment_bindings)?;
     Ok(())

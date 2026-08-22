@@ -1006,6 +1006,14 @@ fn rejects_a_sibling_local_leaked_through_a_shared_iife() {
 }
 
 #[test]
+fn permits_sibling_function_declarations_inside_an_iife() {
+    analyze_generated_javascript(
+        "var ea=(function(){function a(){return 1}function b(m){return a()+m}return b})();var W=0",
+    )
+    .unwrap();
+}
+
+#[test]
 fn permits_sibling_functions_that_reuse_the_same_parameter_name() {
     analyze_generated_javascript("function a(e){return e}function b(e){return e}").unwrap();
 }
@@ -1474,4 +1482,66 @@ fn declares_top_level_implicit_export_bindings() {
         "{}",
         optimized.code
     );
+}
+
+#[test]
+fn moves_single_use_function_to_its_capture_safe_call() {
+    let source = "var g=2;function helper(e){return e+g}function run(t){return helper(t)}console.log(run(5))";
+    let (folded, count) =
+        super::folds::fold_single_use_function_expressions(source).unwrap();
+    assert_eq!(count, 2, "{folded}");
+    assert!(!folded.contains("function helper"), "{folded}");
+    assert!(folded.contains("(function(e){return e+g})(t)"), "{folded}");
+    assert_eq!(run_javascript(&folded), run_javascript(source));
+}
+
+#[test]
+fn keeps_single_use_function_when_moving_would_capture_a_caller_local() {
+    let source =
+        "var g=2;function helper(e){return e+g}function run(g){return helper(1)}console.log(run(5))";
+    let (folded, count) =
+        super::folds::fold_single_use_function_expressions(source).unwrap();
+    assert_eq!(count, 0, "{folded}");
+    assert_eq!(folded, source);
+}
+
+#[test]
+fn moves_statement_assignment_into_its_first_inertly_prefixed_read() {
+    let source = "function trim(e){e=e.trim();return e.endsWith('/')?e.slice(0,e.length-1):e}console.log(trim('x/'))";
+    let (folded, count) =
+        super::folds::fold_statement_assignments_into_first_use(source).unwrap();
+    assert!(count >= 2, "{folded}");
+    assert!(!folded.contains("e=e.trim();return"), "{folded}");
+    assert!(folded.contains("(e=e.trim()).endsWith"), "{folded}");
+    assert_eq!(run_javascript(&folded), run_javascript(source));
+}
+
+#[test]
+fn keeps_statement_assignment_before_an_effectful_prefix() {
+    let source = "function run(){x=read();tick(),use(x)}";
+    let (folded, count) =
+        super::folds::fold_statement_assignments_into_first_use(source).unwrap();
+    assert_eq!(count, 0, "{folded}");
+    assert_eq!(folded, source);
+}
+
+#[test]
+fn keeps_comma_expression_assignments_out_of_statement_return_folding() {
+    let source = "function run(c){c?(x=1):(x=2),x=3;return x}console.log(run(true))";
+    let (folded, count) =
+        super::folds::fold_statement_assignments_into_first_use(source).unwrap();
+    assert_eq!(count, 0, "{folded}");
+    assert_eq!(folded, source);
+    assert_eq!(run_javascript(&folded), run_javascript(source));
+}
+
+#[test]
+fn swaps_bindings_across_a_nested_function_tree_without_touching_globals() {
+    let source = "var g=7;function run(e,t){return(function(e){return e+t+g})(e)}console.log(run(2,3))";
+    let variants = super::function_local_binding_swap_variants(source).unwrap();
+    assert!(!variants.is_empty());
+    for variant in variants {
+        assert!(variant.contains("+g"), "{variant}");
+        assert_eq!(run_javascript(&variant), run_javascript(source), "{variant}");
+    }
 }

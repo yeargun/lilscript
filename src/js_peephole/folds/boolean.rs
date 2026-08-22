@@ -1944,6 +1944,638 @@ fn ternary_condition_start(tokens: &[Token<'_>], question: usize) -> usize {
     0
 }
 
+fn ternary_logical_condition_start(tokens: &[Token<'_>], question: usize) -> usize {
+    let mut start = ternary_condition_start(tokens, question);
+    while let Some(operator) = start.checked_sub(1).filter(|index| {
+        matches!(tokens[*index].text, "&&" | "||" | "??")
+    }) {
+        let earlier = ternary_condition_start(tokens, operator);
+        if earlier == start {
+            break;
+        }
+        start = earlier;
+    }
+    start
+}
+
+fn inverted_disjunction_condition(
+    source: &str,
+    tokens: &[Token<'_>],
+    start: usize,
+    end: usize,
+) -> Option<String> {
+    let mut depth = 0i32;
+    let mut term_start = start;
+    let mut terms = Vec::new();
+    for index in start..end {
+        match tokens[index].text {
+            "(" | "[" | "{" => depth += 1,
+            ")" | "]" | "}" => depth -= 1,
+            "||" if depth == 0 => {
+                terms.push((term_start, index));
+                term_start = index + 1;
+            }
+            "&&" | "??" if depth == 0 => return None,
+            _ => {}
+        }
+    }
+    if terms.is_empty() || term_start >= end {
+        return None;
+    }
+    terms.push((term_start, end));
+    let inverted = terms
+        .into_iter()
+        .map(|(from, to)| inverted_condition_term(source, tokens, from, to))
+        .collect::<Option<Vec<_>>>()?;
+    Some(inverted.join("&&"))
+}
+
+fn inverted_condition_term(
+    source: &str,
+    tokens: &[Token<'_>],
+    start: usize,
+    end: usize,
+) -> Option<String> {
+    if start >= end {
+        return None;
+    }
+    let mut depth = 0i32;
+    let mut equality = None;
+    for index in start..end {
+        match tokens[index].text {
+            "(" | "[" | "{" => depth += 1,
+            ")" | "]" | "}" => depth -= 1,
+            "==" | "!=" | "===" | "!==" if depth == 0 => {
+                if equality.replace(index).is_some() {
+                    return None;
+                }
+            }
+            _ => {}
+        }
+    }
+    if let Some(operator) = equality {
+        let replacement = match tokens[operator].text {
+            "==" => "!=",
+            "!=" => "==",
+            "===" => "!==",
+            "!==" => "===",
+            _ => unreachable!(),
+        };
+        return Some(format!(
+            "{}{replacement}{}",
+            &source[tokens[start].start..tokens[operator].start],
+            &source[tokens[operator].end..tokens[end - 1].end]
+        ));
+    }
+    if tokens[start].text != "!" || start + 1 >= end {
+        return None;
+    }
+    depth = 0;
+    for token in &tokens[start + 1..end] {
+        match token.text {
+            "(" | "[" | "{" => depth += 1,
+            ")" | "]" | "}" => depth -= 1,
+            "=" | "+=" | "-=" | "*=" | "/=" | "%=" | "**=" | "<<=" | ">>="
+            | ">>>=" | "&=" | "^=" | "|=" | "&&=" | "||=" | "??=" | "?" | ":"
+            | "&&" | "||" | "??" | "|" | "^" | "&" | "<" | "<=" | ">" | ">="
+            | "in" | "instanceof" | "<<" | ">>" | ">>>" | "+" | "-" | "*" | "/"
+            | "%" | "**" if depth == 0 => return None,
+            _ => {}
+        }
+    }
+    Some(source[tokens[start + 1].start..tokens[end - 1].end].to_string())
+}
+
+/// Replace boolean-valued conditional arms with native short-circuit boolean
+/// expressions. Unknown conditions are explicitly coerced, so the rewrite
+/// preserves the conditional's `true`/`false` result instead of leaking a
+/// truthy or falsy operand value through `&&`/`||`.
+pub(crate) fn fold_boolean_conditional_values(
+    source: &str,
+) -> Result<(String, usize), JavaScriptParseError> {
+    let mut output = source.to_string();
+    let mut folded = 0usize;
+    loop {
+        let Some((start, end, rewritten)) = boolean_conditional_value_rewrites(&output)?
+            .into_iter()
+            .next()
+        else {
+            return Ok((output, folded));
+        };
+        output.replace_range(start..end, &rewritten);
+        folded += 1;
+    }
+}
+
+pub(crate) fn boolean_conditional_value_variants(
+    source: &str,
+) -> Result<Vec<String>, JavaScriptParseError> {
+    let mut variants = Vec::new();
+    for (start, end, rewritten) in boolean_conditional_value_rewrites(source)? {
+        let mut variant = source.to_string();
+        variant.replace_range(start..end, &rewritten);
+        if !variants.contains(&variant) {
+            variants.push(variant);
+        }
+    }
+    Ok(variants)
+}
+
+/// Remove a leading logical negation by exchanging the conditional arms.
+///
+/// `!test?yes:no` and `test?no:yes` have identical truthiness and evaluation
+/// order. Keeping this as an objective-scored late spelling lets dictionary
+/// codecs decide whether the arm topology is preferable for the artifact.
+pub(crate) fn fold_negated_conditional_arms(
+    source: &str,
+) -> Result<(String, usize), JavaScriptParseError> {
+    let mut output = source.to_string();
+    let mut folded = 0usize;
+    loop {
+        let tokens = lex(&output)?;
+        let mut replacement = None;
+        for question in (0..tokens.len()).rev() {
+            if tokens[question].text != "?"
+                || matches!(
+                    tokens.get(question + 1).map(|token| token.text),
+                    Some(".") | Some("[")
+                )
+            {
+                continue;
+            }
+            let condition_start = ternary_condition_start(&tokens, question);
+            let condition_is_complete_negation = tokens
+                .get(condition_start)
+                .is_some_and(|token| token.text == "!")
+                && condition_start + 1 < question
+                && condition_start.checked_sub(1).is_none_or(|previous| {
+                    !matches!(tokens[previous].text, "&&" | "||" | "??")
+                });
+            let (condition_start, condition) = if condition_is_complete_negation {
+                (
+                    condition_start,
+                    output[tokens[condition_start + 1].start..tokens[question].start].to_string(),
+                )
+            } else {
+                let full_start = ternary_logical_condition_start(&tokens, question);
+                let Some(condition) =
+                    inverted_disjunction_condition(&output, &tokens, full_start, question)
+                else {
+                    continue;
+                };
+                (full_start, condition)
+            };
+            let Some(colon) = ternary_colon(&tokens, question) else {
+                continue;
+            };
+            let end = ternary_end(&tokens, colon + 1);
+            if question + 1 >= colon || colon + 1 >= end {
+                continue;
+            }
+            let then_value = &output[tokens[question + 1].start..tokens[colon].start];
+            let else_value = &output[tokens[colon + 1].start..tokens[end - 1].end];
+            let separator = (tokens[condition_start].start > 0
+                && output.as_bytes()[tokens[condition_start].start - 1]
+                    .is_ascii_alphanumeric()
+                && condition
+                    .as_bytes()
+                    .first()
+                    .is_some_and(|byte| byte.is_ascii_alphabetic() || matches!(byte, b'_' | b'$')))
+            .then_some(" ")
+            .unwrap_or("");
+            replacement = Some((
+                tokens[condition_start].start,
+                tokens[end - 1].end,
+                format!("{separator}{condition}?{else_value}:{then_value}"),
+            ));
+            break;
+        }
+        let Some((start, end, rewritten)) = replacement else {
+            return Ok((output, folded));
+        };
+        output.replace_range(start..end, &rewritten);
+        folded += 1;
+    }
+}
+
+fn boolean_conditional_value_rewrites(
+    source: &str,
+) -> Result<Vec<(usize, usize, String)>, JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let matching_close = matching_closers(&tokens);
+    let mut replacements = Vec::new();
+    for question in (0..tokens.len()).rev() {
+        if tokens[question].text != "?"
+            || matches!(
+                tokens.get(question + 1).map(|token| token.text),
+                Some(".") | Some("[")
+            )
+        {
+            continue;
+        }
+        let Some(colon) = ternary_colon(&tokens, question) else {
+            continue;
+        };
+        let else_end = ternary_end(&tokens, colon + 1);
+        let condition_start = ternary_logical_condition_start(&tokens, question);
+        if condition_start >= question || colon <= question + 1 || else_end <= colon + 1 {
+            continue;
+        }
+
+        let then_constant =
+            constant_boolean_tokens(&tokens, &matching_close, question + 1, colon);
+        let else_constant =
+            constant_boolean_tokens(&tokens, &matching_close, colon + 1, else_end);
+        let condition_boolean = parsed_boolean_expression(&tokens, condition_start, question);
+
+        let condition = &source[tokens[condition_start].start..tokens[question].start];
+        let then_value = &source[tokens[question + 1].start..tokens[colon].start];
+        let else_value = &source[tokens[colon + 1].start..tokens[else_end - 1].end];
+        let boolean_condition = render_booleanized_operand(
+            condition,
+            &tokens,
+            condition_start,
+            question,
+            condition_boolean,
+        );
+        let negated_condition =
+            render_negated_operand(condition, &tokens, condition_start, question);
+
+        let rewritten = match (then_constant, else_constant) {
+            (Some(true), Some(false)) => Some(boolean_condition),
+            (Some(false), Some(true)) => Some(negated_condition),
+            (Some(true), _) => Some(format!(
+                "{}||{}",
+                boolean_condition,
+                render_logical_operand(else_value, &tokens, colon + 1, else_end, false)
+            )),
+            (Some(false), _) => Some(format!(
+                "{}&&{}",
+                negated_condition,
+                render_logical_operand(else_value, &tokens, colon + 1, else_end, true)
+            )),
+            (_, Some(false)) => Some(format!(
+                "{}&&{}",
+                boolean_condition,
+                render_logical_operand(then_value, &tokens, question + 1, colon, true)
+            )),
+            (_, Some(true)) => Some(format!(
+                "{}||{}",
+                negated_condition,
+                render_logical_operand(then_value, &tokens, question + 1, colon, false)
+            )),
+            _ => None,
+        };
+        let Some(rewritten) = rewritten else {
+            continue;
+        };
+        replacements.push((
+            tokens[condition_start].start,
+            tokens[else_end - 1].end,
+            rewritten,
+        ));
+    }
+    Ok(replacements)
+}
+
+/// Factor a repeated conditional arm through the condition.
+///
+/// `A?X:B?X:Y` is `(A||B)?X:Y`, while `A?(B?X:Y):Y` is
+/// `(A&&B)?X:Y`. JavaScript evaluates the retained arm at exactly the same
+/// point on every path; only the two tests are joined. Sequence-valued tests
+/// are parenthesized by [`render_logical_operand`].
+pub(crate) fn fold_common_conditional_arms(
+    source: &str,
+) -> Result<(String, usize), JavaScriptParseError> {
+    let mut output = source.to_string();
+    let mut folded = 0usize;
+    loop {
+        let tokens = lex(&output)?;
+        let matching_close = matching_closers(&tokens);
+        let mut replacement = None;
+
+        for question in (0..tokens.len()).rev() {
+            if tokens[question].text != "?"
+                || matches!(
+                    tokens.get(question + 1).map(|token| token.text),
+                    Some(".") | Some("[")
+                )
+            {
+                continue;
+            }
+            let Some(colon) = ternary_colon(&tokens, question) else {
+                continue;
+            };
+            let end = ternary_end(&tokens, colon + 1);
+            let condition_start = ternary_logical_condition_start(&tokens, question);
+            if condition_start >= question || end <= colon + 1 {
+                continue;
+            }
+
+            let outer_condition =
+                &output[tokens[condition_start].start..tokens[question].start];
+            let outer_then = strip_parenthesized_range(
+                &tokens,
+                &matching_close,
+                question + 1,
+                colon,
+            );
+            let outer_else =
+                strip_parenthesized_range(&tokens, &matching_close, colon + 1, end);
+
+            if let Some(inner_question) =
+                root_ternary_question(&tokens, outer_else.0, outer_else.1)
+            {
+                let Some(inner_colon) = ternary_colon(&tokens, inner_question) else {
+                    continue;
+                };
+                let inner_end = ternary_end(&tokens, inner_colon + 1);
+                if inner_end != outer_else.1 {
+                    continue;
+                }
+                let inner_then = strip_parenthesized_range(
+                    &tokens,
+                    &matching_close,
+                    inner_question + 1,
+                    inner_colon,
+                );
+                if expression_range_text(&output, &tokens, outer_then)
+                    == expression_range_text(&output, &tokens, inner_then)
+                {
+                    let inner_condition = &output[tokens[outer_else.0].start
+                        ..tokens[inner_question].start];
+                    let left = render_logical_operand(
+                        outer_condition,
+                        &tokens,
+                        condition_start,
+                        question,
+                        false,
+                    );
+                    let right = render_logical_operand(
+                        inner_condition,
+                        &tokens,
+                        outer_else.0,
+                        inner_question,
+                        false,
+                    );
+                    let then_value = expression_range_text(&output, &tokens, outer_then);
+                    let else_value = expression_range_text(
+                        &output,
+                        &tokens,
+                        strip_parenthesized_range(
+                            &tokens,
+                            &matching_close,
+                            inner_colon + 1,
+                            inner_end,
+                        ),
+                    );
+                    replacement = Some((
+                        tokens[condition_start].start,
+                        tokens[end - 1].end,
+                        format!("{left}||{right}?{then_value}:{else_value}"),
+                    ));
+                    break;
+                }
+            }
+
+            if let Some(inner_question) =
+                root_ternary_question(&tokens, outer_then.0, outer_then.1)
+            {
+                let Some(inner_colon) = ternary_colon(&tokens, inner_question) else {
+                    continue;
+                };
+                let inner_end = ternary_end(&tokens, inner_colon + 1);
+                if inner_end != outer_then.1 {
+                    continue;
+                }
+                let inner_else = strip_parenthesized_range(
+                    &tokens,
+                    &matching_close,
+                    inner_colon + 1,
+                    inner_end,
+                );
+                if expression_range_text(&output, &tokens, inner_else)
+                    == expression_range_text(&output, &tokens, outer_else)
+                {
+                    let inner_condition = &output[tokens[outer_then.0].start
+                        ..tokens[inner_question].start];
+                    let left = render_logical_operand(
+                        outer_condition,
+                        &tokens,
+                        condition_start,
+                        question,
+                        true,
+                    );
+                    let right = render_logical_operand(
+                        inner_condition,
+                        &tokens,
+                        outer_then.0,
+                        inner_question,
+                        true,
+                    );
+                    let then_value = expression_range_text(
+                        &output,
+                        &tokens,
+                        strip_parenthesized_range(
+                            &tokens,
+                            &matching_close,
+                            inner_question + 1,
+                            inner_colon,
+                        ),
+                    );
+                    let else_value = expression_range_text(&output, &tokens, outer_else);
+                    replacement = Some((
+                        tokens[condition_start].start,
+                        tokens[end - 1].end,
+                        format!("{left}&&{right}?{then_value}:{else_value}"),
+                    ));
+                    break;
+                }
+            }
+        }
+
+        let Some((start, end, rewritten)) = replacement else {
+            return Ok((output, folded));
+        };
+        output.replace_range(start..end, &rewritten);
+        folded += 1;
+    }
+}
+
+fn strip_parenthesized_range(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    mut start: usize,
+    mut end: usize,
+) -> (usize, usize) {
+    while start < end
+        && tokens[start].text == "("
+        && matching_close.get(start).copied().flatten() == end.checked_sub(1)
+    {
+        start += 1;
+        end -= 1;
+    }
+    (start, end)
+}
+
+fn root_ternary_question(tokens: &[Token<'_>], start: usize, end: usize) -> Option<usize> {
+    let mut depth = 0usize;
+    for index in start..end {
+        match tokens[index].text {
+            "(" | "[" | "{" => depth += 1,
+            ")" | "]" | "}" => depth = depth.checked_sub(1)?,
+            "?" if depth == 0
+                && !matches!(
+                    tokens.get(index + 1).map(|token| token.text),
+                    Some(".") | Some("[")
+                ) =>
+            {
+                return Some(index);
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
+fn expression_range_text<'a>(
+    source: &'a str,
+    tokens: &[Token<'_>],
+    (start, end): (usize, usize),
+) -> &'a str {
+    &source[tokens[start].start..tokens[end - 1].end]
+}
+
+fn parsed_boolean_expression(tokens: &[Token<'_>], start: usize, end: usize) -> bool {
+    if start >= end {
+        return false;
+    }
+    let mut parser = ExpressionParser::new(&tokens[start..end]);
+    parser
+        .parse_complete()
+        .is_some_and(|expression| expression_is_boolean(&expression))
+}
+
+fn expression_is_boolean(expression: &Expression<'_>) -> bool {
+    match expression {
+        Expression::Literal(value) => matches!(*value, "true" | "false"),
+        Expression::Unary { operator, .. } => matches!(*operator, "!" | "delete"),
+        Expression::Binary { operator, lhs, rhs } => match *operator {
+            "==" | "!=" | "===" | "!==" | "<" | "<=" | ">" | ">=" | "in"
+            | "instanceof" => true,
+            "&&" | "||" | "??" => expression_is_boolean(lhs) && expression_is_boolean(rhs),
+            _ => false,
+        },
+        Expression::Assignment { operator, rhs, .. } => {
+            *operator == "=" && expression_is_boolean(rhs)
+        }
+        Expression::Conditional {
+            then_value,
+            else_value,
+            ..
+        } => expression_is_boolean(then_value) && expression_is_boolean(else_value),
+        Expression::Sequence(values) => values.last().is_some_and(expression_is_boolean),
+        Expression::Identifier(_)
+        | Expression::Call { .. }
+        | Expression::Member { .. }
+        | Expression::Array(_) => false,
+    }
+}
+
+fn constant_boolean_tokens(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    mut start: usize,
+    mut end: usize,
+) -> Option<bool> {
+    while start < end
+        && tokens[start].text == "("
+        && matching_close.get(start).copied().flatten() == end.checked_sub(1)
+    {
+        start += 1;
+        end -= 1;
+    }
+    match &tokens[start..end] {
+        [token] if token.text == "true" => Some(true),
+        [token] if token.text == "false" => Some(false),
+        [not, zero] if not.text == "!" && zero.text == "0" => Some(true),
+        [not, one] if not.text == "!" && one.text == "1" => Some(false),
+        _ => None,
+    }
+}
+
+fn render_booleanized_operand(
+    source: &str,
+    tokens: &[Token<'_>],
+    start: usize,
+    end: usize,
+    already_boolean: bool,
+) -> String {
+    if already_boolean {
+        return render_logical_operand(source, tokens, start, end, false);
+    }
+    render_unary_operand("!!", source, tokens, start, end)
+}
+
+fn render_negated_operand(
+    source: &str,
+    tokens: &[Token<'_>],
+    start: usize,
+    end: usize,
+) -> String {
+    render_unary_operand("!", source, tokens, start, end)
+}
+
+fn render_unary_operand(
+    operator: &str,
+    source: &str,
+    tokens: &[Token<'_>],
+    start: usize,
+    end: usize,
+) -> String {
+    let mut parser = ExpressionParser::new(&tokens[start..end]);
+    let simple = parser.parse_complete().is_some_and(|expression| {
+        matches!(
+            expression,
+            Expression::Identifier(_)
+                | Expression::Literal(_)
+                | Expression::Unary { .. }
+                | Expression::Call { .. }
+                | Expression::Member { .. }
+                | Expression::Array(_)
+        )
+    });
+    if simple {
+        format!("{operator}{source}")
+    } else {
+        format!("{operator}({source})")
+    }
+}
+
+fn render_logical_operand(
+    source: &str,
+    tokens: &[Token<'_>],
+    start: usize,
+    end: usize,
+    for_and: bool,
+) -> String {
+    let mut parser = ExpressionParser::new(&tokens[start..end]);
+    let needs_grouping = parser.parse_complete().is_none_or(|expression| match expression {
+        Expression::Assignment { .. }
+        | Expression::Conditional { .. }
+        | Expression::Sequence(_) => true,
+        Expression::Binary { operator, .. } => {
+            operator == "??" || (for_and && operator == "||")
+        }
+        _ => false,
+    });
+    if needs_grouping {
+        format!("({source})")
+    } else {
+        source.to_string()
+    }
+}
+
 fn token_starts_primary(token: &Token<'_>) -> bool {
     matches!(
         token.kind,
@@ -1989,7 +2621,7 @@ pub(crate) fn fold_same_lvalue_ternary(
             cursor += 1;
             continue;
         }
-        let cond_start = ternary_condition_start(&tokens, cursor);
+        let cond_start = ternary_logical_condition_start(&tokens, cursor);
         if cond_start >= cursor {
             cursor += 1;
             continue;
@@ -2233,7 +2865,7 @@ pub(crate) fn fold_ident_ternary_to_or(
             || tokens.get(cursor + 1).map(|token| token.text) != Some("?")
             || tokens.get(cursor + 2).map(|token| token.text) != Some(tokens[cursor].text)
             || tokens.get(cursor + 3).map(|token| token.text) != Some(":")
-            || ternary_condition_start(&tokens, cursor + 1) != cursor
+            || ternary_logical_condition_start(&tokens, cursor + 1) != cursor
         {
             cursor += 1;
             continue;

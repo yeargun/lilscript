@@ -502,8 +502,10 @@
             UUID, flag utils, cookie identity, request routing, token and
             bucketed rate limits, queue batching, bot detection, and portable
             helpers — not the published PostHog IIFE. Official JavaScript is
-            that kernel, then Vite 8 Oxc, Terser, and esbuild. LilScript is
-            larger on raw, gzip-9, and Brotli-11. The loss stays on the page.
+            that kernel, then Vite 8 Oxc, Terser, and esbuild. The current
+            Brotli-scored compiler artifact is 16 bytes smaller than Oxc and 20
+            bytes smaller than Terser. The lab reports the packaged license
+            banner and prior raw/gzip objective snapshots separately.
           </p>
         </div>
         <div class="lib-grid">
@@ -513,16 +515,16 @@
             target="_blank"
             rel="noopener"
           >
-            <span class="lib-card-kicker">Kernel only · not smaller</span>
+            <span class="lib-card-kicker">Kernel only · direct compiler win</span>
             <h3>posthog-js</h3>
             <p>
               Fair size lane is official Oxc with mangling on, not the npm
-              client bundle. 5,622 B → 5,793 B Brotli.
+              client bundle. 5,622 B → 5,606 B Brotli.
             </p>
             <div class="lib-card-metrics">
               <div><small>Oxc mangle</small><b>5,622</b></div>
-              <div><small>LilScript</small><b>5,793</b></div>
-              <div class="loss"><small>Brotli</small><b>+3.0%</b></div>
+              <div><small>LilScript</small><b>5,606</b></div>
+              <div class="win"><small>Brotli</small><b>−0.3%</b></div>
             </div>
           </a>
         </div>
@@ -612,7 +614,7 @@
           >
             <span>posthog-js</span>
             <h3>yeargun.github.io/posthoglil</h3>
-            <p>Capture kernel of posthog-js 1.418.10. 5,793 B vs official Oxc 5,622 B Brotli.</p>
+            <p>Capture kernel of posthog-js 1.418.10. Direct compiler output is 5,606 B vs official Oxc 5,622 B Brotli.</p>
             <b>Open Posthoglil</b>
           </a>
           <a

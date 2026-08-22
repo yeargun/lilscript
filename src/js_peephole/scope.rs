@@ -783,6 +783,18 @@ fn function_directly_binds_name(
     }
     let mut cursor = body + 1;
     while cursor < end {
+        if tokens[cursor].text == "function" {
+            let mut index = cursor + 1;
+            if tokens.get(index).map(|token| token.text) == Some("*") {
+                index += 1;
+            }
+            if tokens
+                .get(index)
+                .is_some_and(|token| token.kind == TokenKind::Identifier && token.text == name)
+            {
+                return true;
+            }
+        }
         if let Some(close) = nested_function_end(tokens, matching_close, cursor) {
             cursor = close + 1;
             continue;
