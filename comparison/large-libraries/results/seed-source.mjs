@@ -184,6 +184,8 @@ export function seedSource(matrixSha256) {
       artifacts: [
         artifact({
           id: "package",
+          objective: "brotli11",
+          gateMetrics: ["brotli11"],
           relativePath: "dist/core.js",
           configSha256: pins.solidlil.configSha256,
           sha256: "43d16ab858adf61bbd7cfb2043ab533430636c02a083fe27bea42558b2322371",
@@ -280,6 +282,8 @@ export function seedSource(matrixSha256) {
       artifacts: [
         artifact({
           id: "production-esm",
+          objective: "brotli11",
+          gateMetrics: ["brotli11"],
           relativePath: "dist/mobx.esm.js",
           configSha256: pins.mobxlil.configSha256,
           sha256: "d953a70c359ff3c13ab6439916155d82eb89680c8c6ba74cb04992473d1c3c96",
@@ -313,6 +317,8 @@ export function seedSource(matrixSha256) {
       artifacts: [
         artifact({
           id: "shipped-esm",
+          objective: "brotli11",
+          gateMetrics: ["brotli11"],
           relativePath: "dist/jquery.esm.js",
           configSha256: pins.jquerylil.configSha256,
           sha256: "865b0cbf9a52a692390bc5fa1bd4cee153d51256b911f6458199e71ef15c4d21",
@@ -346,6 +352,8 @@ export function seedSource(matrixSha256) {
       artifacts: [
         artifact({
           id: "package",
+          objective: "brotli11",
+          gateMetrics: ["brotli11"],
           relativePath: "dist/core.js",
           configSha256: pins.solidlil.configSha256,
           sha256: "6a4f146db92fd6552ed94d42d87d9203bcaec11bfa1d2cd772d130d49f7ca823",
@@ -386,6 +394,8 @@ export function seedSource(matrixSha256) {
       artifacts: [
         artifact({
           id: "package",
+          objective: "brotli11",
+          gateMetrics: ["brotli11"],
           relativePath: "dist/core.js",
           configSha256: pins.solidlil.configSha256,
           sha256: "395656a56981cc88c4b79a436fff8631b2d8a81acf2d540377597f08f7ba4d52",

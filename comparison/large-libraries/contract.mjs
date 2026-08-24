@@ -126,9 +126,7 @@ function artifactMetrics(artifacts, label) {
       );
     }
   }
-  for (const metric of metrics) {
-    if (!owners.has(metric)) throw new Error(`${label} does not assign ${metric}`);
-  }
+  if (owners.size === 0) throw new Error(`${label} does not assign a gate metric`);
 }
 
 function validateSemantic(value, label, { aggregate = false } = {}) {
@@ -524,6 +522,13 @@ export function buildComparisons(
       };
       if (!before || !after) {
         comparison.reason = "missing exact baseline or checkpoint observation";
+      } else if (
+        !library.build.artifacts.some(
+          (artifact) =>
+            artifact.role !== "diagnostic" && artifact.gateMetrics.includes(metric),
+        )
+      ) {
+        comparison.reason = `library has no configured ${metric} objective lane`;
       } else if (before.status !== "passed" || after.status !== "passed") {
         comparison.reason =
           "both exact revisions must emit every configured artifact";

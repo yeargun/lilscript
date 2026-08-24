@@ -31,7 +31,7 @@
       "maxRegressionBytes": 0,
       "metric": "raw",
       "outcome": "ineligible",
-      "reason": "both exact revisions must emit every configured artifact"
+      "reason": "library has no configured raw objective lane"
     },
     {
       "afterObservation": "fresh.jquerylil.checkpoint",
@@ -41,7 +41,7 @@
       "maxRegressionBytes": 0,
       "metric": "gzip9",
       "outcome": "ineligible",
-      "reason": "both exact revisions must emit every configured artifact"
+      "reason": "library has no configured gzip9 objective lane"
     },
     {
       "afterObservation": "fresh.jquerylil.checkpoint",
@@ -91,7 +91,7 @@
       "maxRegressionBytes": 0,
       "metric": "raw",
       "outcome": "ineligible",
-      "reason": "both exact revisions must emit every configured artifact"
+      "reason": "library has no configured raw objective lane"
     },
     {
       "afterObservation": "fresh.mobxlil.checkpoint",
@@ -101,7 +101,7 @@
       "maxRegressionBytes": 0,
       "metric": "gzip9",
       "outcome": "ineligible",
-      "reason": "both exact revisions must emit every configured artifact"
+      "reason": "library has no configured gzip9 objective lane"
     },
     {
       "afterObservation": "fresh.mobxlil.checkpoint",
@@ -120,18 +120,18 @@
       "library": "solidlil",
       "maxRegressionBytes": 0,
       "metric": "raw",
-      "outcome": "regression",
-      "reason": "checkpoint 8225 bytes vs baseline 8131 bytes; allowed regression 0 bytes"
+      "outcome": "ineligible",
+      "reason": "library has no configured raw objective lane"
     },
     {
       "afterObservation": "fresh.solidlil.checkpoint",
       "beforeObservation": "fresh.solidlil.baseline",
-      "gatePassed": true,
+      "gatePassed": false,
       "library": "solidlil",
       "maxRegressionBytes": 0,
       "metric": "gzip9",
-      "outcome": "tie",
-      "reason": "checkpoint 3263 bytes vs baseline 3263 bytes; allowed regression 0 bytes"
+      "outcome": "ineligible",
+      "reason": "library has no configured gzip9 objective lane"
     },
     {
       "afterObservation": "fresh.solidlil.checkpoint",
@@ -144,9 +144,9 @@
       "reason": "checkpoint 2931 bytes vs baseline 2922 bytes; allowed regression 0 bytes"
     }
   ],
-  "evidenceFingerprint": "ce19b265c8d9c42855e5f7c64776583e8de5b991e67e7ffd3cdcccd2e4905fdc",
+  "evidenceFingerprint": "f80cc12dece1b1cf822b2b6732e102fcbf2616746e3f4b5ffeb840fc801dbd37",
   "format": "lilscript-large-library-observations",
-  "matrixSha256": "e4fa24f390b97de242ca1387f37b9fb1e33d22d5283aced3fc0c814840d45d3e",
+  "matrixSha256": "cfa94e51ed651845d479ed84faa18e26ce69f66702a3aff735a5e611999c6228",
   "observations": [
     {
       "artifacts": [],
@@ -567,12 +567,10 @@
             "kind": "identity"
           },
           "gateMetrics": [
-            "raw",
-            "gzip9",
             "brotli11"
           ],
           "id": "package",
-          "objective": null,
+          "objective": "brotli11",
           "relativePath": "dist/core.js",
           "role": "gate",
           "semantic": {
@@ -665,12 +663,10 @@
             "kind": "identity"
           },
           "gateMetrics": [
-            "raw",
-            "gzip9",
             "brotli11"
           ],
           "id": "package",
-          "objective": null,
+          "objective": "brotli11",
           "relativePath": "dist/core.js",
           "role": "gate",
           "semantic": {
@@ -740,12 +736,10 @@
             "kind": "identity"
           },
           "gateMetrics": [
-            "raw",
-            "gzip9",
             "brotli11"
           ],
           "id": "shipped-esm",
-          "objective": null,
+          "objective": "brotli11",
           "relativePath": "dist/jquery.esm.js",
           "role": "gate",
           "semantic": {
@@ -937,12 +931,10 @@
             "kind": "identity"
           },
           "gateMetrics": [
-            "raw",
-            "gzip9",
             "brotli11"
           ],
           "id": "production-esm",
-          "objective": null,
+          "objective": "brotli11",
           "relativePath": "dist/mobx.esm.js",
           "role": "gate",
           "semantic": {
@@ -1010,12 +1002,10 @@
             "kind": "identity"
           },
           "gateMetrics": [
-            "raw",
-            "gzip9",
             "brotli11"
           ],
           "id": "package",
-          "objective": null,
+          "objective": "brotli11",
           "relativePath": "dist/core.js",
           "role": "gate",
           "semantic": {

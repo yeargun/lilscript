@@ -79,8 +79,8 @@
         "artifacts": [
           {
             "id": "package",
-            "objective": null,
-            "gateMetrics": ["raw", "gzip9", "brotli11"],
+            "objective": "brotli11",
+            "gateMetrics": ["brotli11"],
             "path": "dist/core.js",
             "configPath": "src/lilscript.toml",
             "derivation": { "kind": "identity" }
@@ -205,8 +205,8 @@
         "artifacts": [
           {
             "id": "production-esm",
-            "objective": null,
-            "gateMetrics": ["raw", "gzip9", "brotli11"],
+            "objective": "brotli11",
+            "gateMetrics": ["brotli11"],
             "path": "dist/mobx.esm.js",
             "configPath": "lilscript.toml",
             "derivation": { "kind": "identity" }
@@ -250,8 +250,8 @@
         "artifacts": [
           {
             "id": "shipped-esm",
-            "objective": null,
-            "gateMetrics": ["raw", "gzip9", "brotli11"],
+            "objective": "brotli11",
+            "gateMetrics": ["brotli11"],
             "path": "dist/jquery.esm.js",
             "configPath": "lilscript.toml",
             "derivation": { "kind": "identity" }

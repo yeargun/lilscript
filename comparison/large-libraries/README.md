@@ -44,11 +44,13 @@ Timing is never a size gate. Contended, paused, rounded, or unavailable timing
 is recorded explicitly. A timeout, crash, or compile error has no artifact
 sizes; the harness never falls back to a pre-existing `dist/` file.
 
-Semantic eligibility is artifact-level. This matters for MarkedLil: its raw,
-gzip, and Brotli objectives are three independently compiled files. The runner
-executes the full corpus/API lane separately for each and a passing shipped ESM
-cannot make either alternate objective eligible. A metric can be a win only
-when both exact artifacts have fresh `passed` semantic evidence.
+Semantic eligibility is artifact-level. MarkedLil has raw, gzip, and Brotli
+objective files, while the pinned SolidLil, MobXLil, and jQueryLil configs are
+Brotli-only lanes. Incidental raw/gzip measurements of a Brotli artifact remain
+diagnostic and cannot become wins or regressions. The runner executes the full
+corpus/API lane separately for every configured artifact, and a metric can be a
+win only when both exact artifacts for that objective have fresh `passed`
+semantic evidence.
 
 ## Validate without building
 

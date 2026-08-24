@@ -56,7 +56,7 @@ test("the reviewed seed source deterministically reproduces seed.json", () => {
   assert.equal(stableJson(regenerated), stableJson(seed));
 });
 
-test("every metric has exactly one honest artifact lane", () => {
+test("every configured objective has exactly one honest artifact lane", () => {
   const marked = matrix.libraries.find((library) => library.id === "markedlil");
   assert.deepEqual(
     marked.build.artifacts.map(({ objective, gateMetrics, configPath }) => ({
@@ -87,12 +87,8 @@ test("every metric has exactly one honest artifact lane", () => {
     (item) => item.id !== "markedlil",
   )) {
     assert.equal(library.build.artifacts.length, 1);
-    assert.equal(library.build.artifacts[0].objective, null);
-    assert.deepEqual(library.build.artifacts[0].gateMetrics, [
-      "raw",
-      "gzip9",
-      "brotli11",
-    ]);
+    assert.equal(library.build.artifacts[0].objective, "brotli11");
+    assert.deepEqual(library.build.artifacts[0].gateMetrics, ["brotli11"]);
   }
 });
 
@@ -178,18 +174,22 @@ test("per-metric regression thresholds are configurable but do not create wins",
   const after = structuredClone(baseline);
   after.id = "fixture.solidlil.checkpoint";
   after.compiler = exactCompiler("checkpoint");
-  artifactForMetric(after, "raw").sizes.raw += 1;
+  artifactForMetric(after, "brotli11").sizes.brotli11 += 1;
   const rows = buildComparisons(
     [baseline, after],
     {
       ...matrix,
       libraries: [matrix.libraries.find((item) => item.id === "solidlil")],
     },
-    { maxRegressionBytes: { raw: 1, gzip9: 0, brotli11: 0 } },
+    { maxRegressionBytes: { raw: 0, gzip9: 0, brotli11: 1 } },
   );
-  const raw = rows.find((item) => item.metric === "raw");
-  assert.equal(raw.outcome, "regression");
-  assert.equal(raw.gatePassed, true);
+  const brotli = rows.find((item) => item.metric === "brotli11");
+  assert.equal(brotli.outcome, "regression");
+  assert.equal(brotli.gatePassed, true);
+  assert.equal(
+    rows.find((item) => item.metric === "raw").reason,
+    "library has no configured raw objective lane",
+  );
 });
 
 test("objective lookup selects the matching Marked artifact", () => {
