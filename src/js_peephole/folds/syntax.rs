@@ -266,7 +266,10 @@ pub(crate) fn split_fused_keyword_identifiers(
             bindings = Some(GeneratedBindingIndex::new(&tokens, matching_close));
         }
         let bindings = bindings.as_ref().expect("binding index was initialized");
-        if bindings.name_is_visible(index, token.text) || !bindings.name_is_visible(index, rest) {
+        let rest_starts_with_digit = rest.as_bytes().first().is_some_and(u8::is_ascii_digit);
+        if bindings.name_is_visible(index, token.text)
+            || (!rest_starts_with_digit && !bindings.name_is_visible(index, rest))
+        {
             continue;
         }
         // A fused keyword is lexed as an expression identifier. A later

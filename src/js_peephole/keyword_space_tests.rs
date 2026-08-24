@@ -119,6 +119,22 @@ fn repairs_a_fused_return_before_a_multichar_visible_helper() {
 }
 
 #[test]
+fn repairs_a_fused_return_before_a_numeric_literal() {
+    let source = "function f(a){if(a)return 1;return0}process.stdout.write(String(f(false)))";
+    let optimized = repair_fused_keyword_identifiers(source).unwrap();
+    assert!(
+        optimized.contains("return 0"),
+        "fused numeric return: {}",
+        optimized
+    );
+    asserts_parses(&optimized);
+    assert_eq!(run_node(&optimized).trim(), "0");
+
+    let bound = "function return0(){return 2}function f(){return return0()}";
+    assert_eq!(repair_fused_keyword_identifiers(bound).unwrap(), bound);
+}
+
+#[test]
 fn elided_output_still_runs_identically() {
     let source = "function f(a){if(a)return -1;return (a,0)}function g(){return /b/.test(\"abc\")}";
     let optimized = optimize_generated_javascript(source).unwrap();
