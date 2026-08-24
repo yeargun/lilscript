@@ -462,6 +462,33 @@
   font-size: 16px;
 }
 
+.lib-card-metrics.compression-rates {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  padding-top: 0;
+  background: var(--line);
+}
+
+.compression-rate {
+  min-width: 0;
+  padding: 14px 12px;
+  background: var(--sheet);
+}
+
+.compression-rate b {
+  font-size: 19px;
+}
+
+.compression-rate span {
+  display: block;
+  margin-top: 6px;
+  overflow-wrap: anywhere;
+  color: var(--muted);
+  font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  font-size: 9px;
+  line-height: 1.45;
+}
+
 .lib-card .win b {
   color: var(--good);
 }
@@ -484,6 +511,51 @@
 
 .dark-band .lib-card .loss b {
   color: #e08a78;
+}
+
+.news-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 44px;
+}
+
+.news-item {
+  display: flex;
+  min-height: 210px;
+  flex-direction: column;
+  padding: 22px;
+  border: 1px solid var(--line);
+  background: var(--sheet);
+}
+
+.news-item time {
+  color: var(--gold);
+  font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  font-size: 10px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.news-item h3 {
+  margin: 22px 0 8px;
+  font-size: 22px;
+  letter-spacing: -0.03em;
+}
+
+.news-item p {
+  margin: 0 0 18px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.news-item a {
+  margin-top: auto;
+  color: var(--accent-ink);
+  font-size: 13px;
+  font-weight: 650;
+  text-decoration: none;
 }
 
 .project-links {
@@ -710,6 +782,7 @@
   .monaco-feature,
   .idea-grid,
   .lib-grid,
+  .news-grid,
   .project-links,
   .config-grid {
     grid-template-columns: 1fr;
@@ -731,7 +804,8 @@
 
   .lib-grid,
   .monaco-stats,
-  .lib-card-metrics {
+  .lib-card-metrics,
+  .lib-card-metrics.compression-rates {
     grid-template-columns: 1fr;
   }
 

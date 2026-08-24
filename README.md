@@ -13,7 +13,7 @@ LilScript is a typed, compression-first language that compiles into JavaScript, 
 - **Zod** — `zod@4.4.3` classic API, 1353/1353 official tests. **54,791 → 34,152** Brotli vs Vite 8 Oxc closer-world (−37.7%). Live: [yeargun.github.io/zodlil](https://yeargun.github.io/zodlil/)
 - **Solid 2.0** — official js-framework-benchmark keyed table: **11,180 → 3,862** Brotli (−65%). Live: [yeargun.github.io/solidlil](https://yeargun.github.io/solidlil/)
 - **Motion, MobX, jQuery, and smaller complete packages** — same idea, scoped contracts. Motion’s selected surface is **4,044 → 2,333** Brotli. MobX is a small win vs Vite 8 Oxc. jQuery is ported and published; official min is still smaller. Labs: [motionlil](https://yeargun.github.io/motionlil/), [mobxlil](https://yeargun.github.io/mobxlil/), [jquerylil](https://yeargun.github.io/jquerylil/)
-- **posthog-js kernel** — UUID, flags, cookies, routing, rate limits, queue, bot detection, and portable helpers from `posthog-js@1.418.10`, not the published IIFE. **5,622 → 5,606** Brotli vs Vite 8 Oxc of that same kernel (**−0.3%**, direct compiler output; package metadata is reported separately). Live: [yeargun.github.io/posthoglil](https://yeargun.github.io/posthoglil/)
+- **posthog-js modules** — the capture kernel plus five independent, tabbed packs from `posthog-js@1.418.10`, not the published IIFE. Autocapture utilities are **4,215 → 3,065** Brotli vs Vite 8 Oxc (**−27.3%**); replay core is **4,258 → 3,432** (**−19.4%**). Live: [yeargun.github.io/posthoglil](https://yeargun.github.io/posthoglil/)
 
 It works with pretty much any JS/TS library you rewrite. Comparisons vs npm + Vite 8 / Oxc / Terser / Closure are on the [compare page](https://yeargun.github.io/lilscript/compare.html).
 

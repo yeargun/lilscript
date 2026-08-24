@@ -41,11 +41,12 @@
         <h1>Same work. Count the bytes.</h1>
         <p class="lead">
           These are libraries and apps we rewrote in LilScript to see what the
-          compiler actually does. Numbers are Brotli-11 of the selected
-          JavaScript, scored with the same stock zlib / official Brotli
-          binaries. Typical complete ports sit around 5–10% smaller. The cards
-          also show the larger cuts and the rows that have not moved, or have
-          moved the wrong way.
+          compiler actually does. Numbers are independently measured gzip-9 and
+          Brotli-11 bytes of the selected JavaScript, scored with the same stock
+          zlib / official Brotli binaries. On the 15 currently comparable
+          landing rows, the median result is 7.7% smaller under gzip and 7.5%
+          smaller under Brotli. Zod is visible but excluded after its package
+          surface audit invalidated the old core-only size row.
         </p>
         <nav class="compare-jumps" aria-label="Compare sections">
           <a href="#monaco">Monaco</a>
@@ -58,6 +59,21 @@
           <a href="#posthog">posthog-js</a>
           <a href="#live">Live pairs</a>
         </nav>
+        <div class="note-box">
+          <strong>Mangling contract.</strong> On reusable-library rows,
+          <code>mangle: true</code> means identifier mangling only. Oxc renames
+          variables and private class fields; Terser property mangling is a
+          separate option and is off here. Public ESM names and documented
+          object keys must survive, and behavior gates run on the measured
+          artifacts. Property mangling appears only on explicitly labeled
+          closed-world app lanes or on LilScript-owned internals whose public
+          ABI remains named. If <code>Function.name</code>, arity, or
+          constructibility belongs to a library contract, the verifier must pin
+          it too. See the
+          <a href="https://oxc.rs/docs/guide/usage/minifier/mangling">Oxc mangling documentation</a>
+          and
+          <a href="https://terser.org/docs/api-reference/">Terser API reference</a>.
+        </div>
       </section>
 
       <section class="dark-band" id="monaco">
@@ -424,12 +440,14 @@
       <section class="landing-section landing-wrap" id="marked" aria-labelledby="marked-title">
         <div class="landing-heading">
           <p class="landing-kicker">Parse API</p>
-          <h2 id="marked-title">marked 18.0.10, scored without the extension system.</h2>
+          <h2 id="marked-title">marked 18.0.13 package, scored without the extension system.</h2>
           <p>
-            The parse API, GFM and CommonMark HTML, 660/660 against
+            The 18.0.13 package exposes the parse API, live option methods, GFM,
+            and CommonMark HTML, with 660/660 against
             <code>marked@18.0.10</code>. This port has no <code>use()</code>.
             Official JavaScript is the parse-only 18.0.10 sources, then Oxc and
-            Terser, mangling on and off. The published LilScript artifact is
+            Terser with identifier mangling enabled or disabled; property
+            mangling is off. The published LilScript artifact is
             the compiler-selected ESM — not bundled, not post-minified, and
             still smaller on raw, gzip-9, and Brotli-11 than either minifier,
             while parsing the same corpus faster in Chromium.
@@ -445,14 +463,15 @@
             <span class="lib-card-kicker">Parse API only</span>
             <h3>marked</h3>
             <p>
-              Fair size lane is parse-only official Oxc with mangling on, not
-              the npm file that still includes Hooks and <code>use()</code>.
-              Smaller on all three metrics, and the fastest lane measured.
+              Fair size lane is parse-only official Oxc with identifier
+              mangling, not the npm file that still includes Hooks and
+              <code>use()</code>. All measured lanes run the same 660-case
+              browser corpus.
             </p>
             <div class="lib-card-metrics">
-              <div><small>Oxc mangle</small><b>10,092</b></div>
-              <div><small>LilScript</small><b>9,580</b></div>
-              <div class="win"><small>Brotli</small><b>−5.1%</b></div>
+              <div><small>Oxc identifiers</small><b>10,092</b></div>
+              <div><small>LilScript</small><b>9,589</b></div>
+              <div class="win"><small>Brotli</small><b>−5.0%</b></div>
             </div>
           </a>
         </div>
@@ -460,15 +479,17 @@
 
       <section class="landing-section landing-wrap" id="zod" aria-labelledby="zod-title">
         <div class="landing-heading">
-          <p class="landing-kicker">Published · Zod 4.4.3</p>
-          <h2 id="zod-title">The classic API, 1353 official tests, compiled.</h2>
+          <p class="landing-kicker">Zod 4.4.3 · size audit open</p>
+          <h2 id="zod-title">The behavior result remains; the size win does not.</h2>
           <p>
             <code>zod@4.4.3</code> rewritten in LilScript and published as
-            <code>@itslil/zod</code>. The official classic suite is 1353/1353.
-            Internals can be mangled; the public API stays named. The size lane
-            is official <code>v4</code> through Vite 8 Oxc closer-world, not the
-            in-repo Zod 3 subset on this site. Parse is not faster; the win is
-            transfer size.
+            <code>@itslil/zod</code>. The adapted official suite is 1,353/1,353,
+            but the old 34,152 B Brotli figure measured only
+            <code>zod.core.js</code> while the official lane bundled the full
+            <code>zod/v4</code> entry. Linking the actual package entry produces
+            62,763 B gzip and 52,583 B Brotli, before any claim about parity.
+            That package exposes 192 ESM names versus 240 on the official entry,
+            so no compression rate is published until the boundary matches.
           </p>
         </div>
         <div class="lib-grid">
@@ -478,17 +499,17 @@
             target="_blank"
             rel="noopener"
           >
-            <span class="lib-card-kicker">Classic API</span>
+            <span class="lib-card-kicker">Classic-compatible API · not size-eligible</span>
             <h3>Zod</h3>
             <p>
-              Fair size lane is official Oxc closer-world of
-              <code>zod/v4</code>. Closer-world LilScript is smaller on raw,
-              gzip-9, and Brotli-11.
+              The old core-only row is withdrawn. The linked package is a useful
+              diagnostic, but 192 and 240 exports are not the same reusable
+              library surface.
             </p>
             <div class="lib-card-metrics">
-              <div><small>Oxc closer</small><b>54,791</b></div>
-              <div><small>LilScript</small><b>34,152</b></div>
-              <div class="win"><small>Brotli</small><b>−37.7%</b></div>
+              <div><small>Official exports</small><b>240</b></div>
+              <div><small>Port exports</small><b>192</b></div>
+              <div class="loss"><small>Size claim</small><b>Withdrawn</b></div>
             </div>
           </a>
         </div>
@@ -496,16 +517,19 @@
 
       <section class="landing-section landing-wrap" id="posthog" aria-labelledby="posthog-title">
         <div class="landing-heading">
-          <p class="landing-kicker">Subset · posthog-js 1.418.10</p>
-          <h2 id="posthog-title">A capture kernel, scored against Oxc, Terser, and esbuild.</h2>
+          <p class="landing-kicker">Six scoped lanes · posthog-js 1.418.10</p>
+          <h2 id="posthog-title">A capture kernel plus five independently measured packs.</h2>
           <p>
             UUID, flag utils, cookie identity, request routing, token and
             bucketed rate limits, queue batching, bot detection, and portable
             helpers — not the published PostHog IIFE. Official JavaScript is
             that kernel, then Vite 8 Oxc, Terser, and esbuild. The current
             Brotli-scored compiler artifact is 16 bytes smaller than Oxc and 20
-            bytes smaller than Terser. The lab reports the packaged license
-            banner and prior raw/gzip objective snapshots separately.
+            bytes smaller than Terser. Autocapture utilities, replay core,
+            surveys, error tracking, and OTLP now have separate public surfaces
+            and tabbed comparison lanes. The two new browser packs are 27.3%
+            and 19.4% smaller than Oxc on Brotli; the lab reports every pack's
+            wins and losses without folding them into the kernel result.
           </p>
         </div>
         <div class="lib-grid">
@@ -515,14 +539,16 @@
             target="_blank"
             rel="noopener"
           >
-            <span class="lib-card-kicker">Kernel only · direct compiler win</span>
+            <span class="lib-card-kicker">Kernel result · 5 packs on the lab</span>
             <h3>posthog-js</h3>
             <p>
-              Fair size lane is official Oxc with mangling on, not the npm
-              client bundle. 5,622 B → 5,606 B Brotli.
+              Fair size lane is official Oxc with identifier mangling only, not
+              the npm client bundle. Property mangling is off; the source
+              kernel and port share the same behavior contract. 5,622 B →
+              5,606 B Brotli.
             </p>
             <div class="lib-card-metrics">
-              <div><small>Oxc mangle</small><b>5,622</b></div>
+              <div><small>Oxc identifiers</small><b>5,622</b></div>
               <div><small>LilScript</small><b>5,606</b></div>
               <div class="win"><small>Brotli</small><b>−0.3%</b></div>
             </div>
@@ -559,7 +585,7 @@
           >
             <span>Motion</span>
             <h3>yeargun.github.io/motionlil</h3>
-            <p>16 paired Motion fixtures.</p>
+            <p>Full Motion 13 DOM runtime exports and 16 paired browser fixtures.</p>
             <b>Open Motionlil</b>
           </a>
           <a
@@ -592,7 +618,7 @@
           >
             <span>marked</span>
             <h3>yeargun.github.io/markedlil</h3>
-            <p>marked 18.0.10 parse API. 9,580 B vs parse-only official Oxc 10,092 B, not the full <code>use()</code> package.</p>
+            <p>marked 18.0.13 package with the 18.0.10-compatible parse API. 9,589 B vs parse-only official Oxc 10,092 B, not the full <code>use()</code> package.</p>
             <b>Open Markedlil</b>
           </a>
           <a
@@ -603,7 +629,7 @@
           >
             <span>Zod</span>
             <h3>yeargun.github.io/zodlil</h3>
-            <p>Zod 4.4.3 classic API. 34,152 B vs official Oxc closer-world 54,791 B.</p>
+            <p>Zod 4.4.3 classic-compatible API. Size claim withdrawn: the linked package exposes 192 ESM names versus the official entry's 240.</p>
             <b>Open Zodlil</b>
           </a>
           <a
@@ -614,7 +640,7 @@
           >
             <span>posthog-js</span>
             <h3>yeargun.github.io/posthoglil</h3>
-            <p>Capture kernel of posthog-js 1.418.10. Direct compiler output is 5,606 B vs official Oxc 5,622 B Brotli.</p>
+            <p>Capture kernel plus five tabbed lanes. Autocapture is 4,215 → 3,065 B and replay core is 4,258 → 3,432 B Brotli versus Oxc.</p>
             <b>Open Posthoglil</b>
           </a>
           <a

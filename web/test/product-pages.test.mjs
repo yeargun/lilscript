@@ -68,6 +68,50 @@ test("the product site gives every major surface a production entry", () => {
     assert.match(home, /class="repo-star"/);
     assert.match(home, /class="repo-star-chip"/);
     assert.match(home, /class="repo-star-label"/);
+    assert.match(home, /id="latest-title"/);
+    assert.match(home, /Global compression search/);
+    assert.match(home, /posthog-js adds two browser packs/);
+});
+
+test("every comparable landing project publishes recalculated gzip and Brotli rates", () => {
+  const ratePattern = /<div class="(?:win|loss|hold) compression-rate" data-compression-rate data-baseline="(\d+)" data-candidate="(\d+)">\s*<small>([^<]+)<\/small><b>([^<]+)<\/b>/g;
+  const rates = [...home.matchAll(ratePattern)].map((match) => ({
+    baseline: Number(match[1]),
+    candidate: Number(match[2]),
+    codec: match[3],
+    displayed: match[4],
+  }));
+
+  assert.equal((home.match(/class="lib-card"/g) ?? []).length, 16);
+  assert.equal(rates.length, 30);
+  const zodCard = home.match(/<a\s+[^>]*href="https:\/\/yeargun\.github\.io\/zodlil\/"[^>]*>[\s\S]*?<\/a>/)?.[0];
+  assert.ok(zodCard);
+  assert.doesNotMatch(zodCard, /data-compression-rate/);
+  assert.match(zodCard, /Size claim<\/small><b>Withdrawn/);
+
+  for (const rate of rates) {
+    const delta = ((rate.candidate - rate.baseline) / rate.baseline) * 100;
+    const displayed = delta === 0
+      ? "0.0%"
+      : `${delta < 0 ? "−" : "+"}${Math.abs(delta).toFixed(1)}%`;
+    assert.equal(rate.displayed, displayed, `${rate.codec}: ${rate.baseline} → ${rate.candidate}`);
+  }
+
+  const medianReduction = (codec) => {
+    const reductions = rates
+      .filter((rate) => rate.codec.startsWith(codec))
+      .map((rate) => ((rate.baseline - rate.candidate) / rate.baseline) * 100)
+      .sort((a, b) => a - b);
+    const middle = Math.floor(reductions.length / 2);
+    return reductions.length % 2 === 1
+      ? reductions[middle]
+      : (reductions[middle - 1] + reductions[middle]) / 2;
+  };
+
+  assert.equal(medianReduction("gzip").toFixed(1), "7.7");
+  assert.equal(medianReduction("Brotli").toFixed(1), "7.5");
+  assert.match(home, /median project result is 7\.7% smaller under\s+gzip-9 and 7\.5% smaller under Brotli-11/);
+  assert.match(home, /Zod stays visible but has no vote/);
 });
 
 test("Lilastro, Lastro, and SolidLil state distinct implementation boundaries", () => {
@@ -110,23 +154,33 @@ test("language and compare pages cover syntax, config, and measured ports", () =
   assert.match(compare, /11,180/);
   assert.match(compare, /3,862/);
   assert.match(compare, /30,973/);
-  assert.match(compare, /9,580/);
+  assert.match(compare, /9,589/);
   assert.match(compare, /id="jquery"/);
   assert.match(compare, /id="marked"/);
   assert.match(compare, /id="zod"/);
   assert.match(compare, /id="posthog"/);
-  assert.match(compare, /54,791/);
-  assert.match(compare, /34,152/);
+  assert.match(compare, /62,763/);
+  assert.match(compare, /52,583/);
+  assert.match(compare, /192 ESM names versus 240/);
+  assert.match(compare, /Size claim[\s\S]*Withdrawn/);
   assert.match(compare, /5,622/);
   assert.match(compare, /5,606/);
+  assert.match(compare, /4,215/);
+  assert.match(compare, /3,065/);
+  assert.match(compare, /4,258/);
+  assert.match(compare, /3,432/);
   assert.match(home, /887,420/);
   assert.match(home, /11,180/);
   assert.match(home, /30,973/);
-  assert.match(home, /9,580/);
-  assert.match(home, /54,791/);
-  assert.match(home, /34,152/);
+  assert.match(home, /9,589/);
+  assert.match(home, /62,763/);
+  assert.match(home, /52,583/);
+  assert.match(home, /Official exports<\/small><b>240/);
+  assert.match(home, /Port exports<\/small><b>192/);
   assert.match(home, /5,622/);
   assert.match(home, /5,606/);
+  assert.match(home, /27\.3%/);
+  assert.match(home, /19\.4%/);
   assert.match(compare, /href="\/demos.html#solidlil-keyed"/);
   assert.match(compare, /href="\/demos.html#motion-showcase-carousel"/);
   assert.match(compare, /https:\/\/yeargun\.github\.io\/solidlil\//);
@@ -135,7 +189,11 @@ test("language and compare pages cover syntax, config, and measured ports", () =
   assert.match(compare, /https:\/\/yeargun\.github\.io\/zodlil\//);
   assert.match(compare, /https:\/\/yeargun\.github\.io\/posthoglil\//);
   assert.match(compare, /href="\/delivery.html"/);
-  assert.match(home, /5–10%/);
+  assert.match(compare, /mangle: true<\/code> means identifier mangling only/);
+  assert.match(compare, /Terser property mangling is a\s+separate option and is off here/);
+  assert.doesNotMatch(compare, /Oxc closer-world/);
+  assert.doesNotMatch(compare, /Oxc mangle<\/small>/);
+  assert.doesNotMatch(home, /5–10%/);
 });
 
 test("Parcel Market starts accessibly and keeps the fake-payment boundary explicit", () => {

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="LilScript is a typed language that compiles to mangled, codec-scored JavaScript. Lilpack delivers it with Vite-speed reloads. Typical ports are 5–10% smaller under gzip or Brotli."
+      content="LilScript is a typed language that compiles to mangled, codec-scored JavaScript. Across the 15 currently comparable project rows, the median result is 7.7% smaller with gzip and 7.5% smaller with Brotli."
     />
     <title>LilScript — compiles to smaller JavaScript</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -79,11 +79,13 @@
               </dd>
             </div>
             <div>
-              <dt>Typical cut</dt>
+              <dt>Measured median</dt>
               <dd>
-                Ports we keep measuring land around <strong>5–10%</strong>
-                smaller after gzip or Brotli. Some surfaces do better. A few
-                stay even. jQuery is not a win yet.
+                Across the 15 currently comparable project rows, with one vote
+                per project: <strong>7.7%</strong> smaller under gzip-9 and
+                <strong>7.5%</strong> smaller under Brotli-11. The Zod card is
+                visible but excluded while its package-surface size lane is
+                rebuilt.
               </dd>
             </div>
           </dl>
@@ -229,9 +231,10 @@ console.log(`sum=${c}`)</code></pre>
           <p class="landing-kicker">03 · Libraries we actually port</p>
           <h2 id="ports-title">A grid of measured rewrites, not a slogan.</h2>
           <p>
-            Each card is a scoped contract: same behavior, Brotli-11 of the
-            selected JavaScript, npm + Vite 8 unless noted. Open a card for the
-            live pair, the project page, or the compare notes.
+            Each card is a scoped contract: same behavior and the selected
+            JavaScript measured independently with gzip-9 and Brotli-11, npm +
+            Vite 8 unless noted. The arrow is baseline → LilScript. Open a
+            card for the live pair, project page, or compare notes.
           </p>
         </div>
         <div class="lib-grid">
@@ -247,10 +250,13 @@ console.log(`sum=${c}`)</code></pre>
               Compiled Lil editor + catalog versus npm monaco-editor. TypeScript
               <code>ts.worker</code> is still Microsoft’s.
             </p>
-            <div class="lib-card-metrics">
-              <div><small>npm Brotli</small><b>887,420</b></div>
-              <div><small>LilScript</small><b>413,607</b></div>
-              <div class="win"><small>ide.js</small><b>−53%</b></div>
+            <div class="lib-card-metrics compression-rates">
+              <div class="win compression-rate" data-compression-rate data-baseline="1148595" data-candidate="526268">
+                <small>gzip-9</small><b>−54.2%</b><span>1,148,595 → 526,268 B</span>
+              </div>
+              <div class="win compression-rate" data-compression-rate data-baseline="887420" data-candidate="413607">
+                <small>Brotli-11</small><b>−53.4%</b><span>887,420 → 413,607 B</span>
+              </div>
             </div>
           </a>
           <a
@@ -259,17 +265,19 @@ console.log(`sum=${c}`)</code></pre>
             target="_blank"
             rel="noopener"
           >
-            <span class="lib-card-kicker">Selected surface</span>
+            <span class="lib-card-kicker">Full DOM runtime · 16 paired demos</span>
             <h3>Motion</h3>
             <p>
-              <code>mix</code>, <code>wrap</code>, <code>stagger</code>,
-              <code>spring</code> — same equations as npm motion@13. Not the
-              full DOM package.
+              Every runtime export from Motion 13’s DOM entrypoint. All 16
+              behavior-matched browser demos ship smaller under Brotli.
             </p>
-            <div class="lib-card-metrics">
-              <div><small>npm Vite</small><b>4,044</b></div>
-              <div><small>LilScript</small><b>2,333</b></div>
-              <div class="win"><small>Brotli</small><b>−42%</b></div>
+            <div class="lib-card-metrics compression-rates">
+              <div class="win compression-rate" data-compression-rate data-baseline="314064" data-candidate="282059">
+                <small>gzip-9 total</small><b>−10.2%</b><span>314,064 → 282,059 B</span>
+              </div>
+              <div class="win compression-rate" data-compression-rate data-baseline="287404" data-candidate="251703">
+                <small>Brotli-11 total</small><b>−12.4%</b><span>287,404 → 251,703 B</span>
+              </div>
             </div>
           </a>
           <a
@@ -284,80 +292,104 @@ console.log(`sum=${c}`)</code></pre>
               Official js-framework-benchmark keyed table. Solid 2.0 versus the
               LilScript compile. Live pairs are on the SolidLil lab.
             </p>
-            <div class="lib-card-metrics">
-              <div><small>Solid 2.0</small><b>11,180</b></div>
-              <div><small>SolidLil</small><b>3,862</b></div>
-              <div class="win"><small>Brotli</small><b>−65%</b></div>
+            <div class="lib-card-metrics compression-rates">
+              <div class="win compression-rate" data-compression-rate data-baseline="12318" data-candidate="4343">
+                <small>gzip-9</small><b>−64.7%</b><span>12,318 → 4,343 B</span>
+              </div>
+              <div class="win compression-rate" data-compression-rate data-baseline="11180" data-candidate="3862">
+                <small>Brotli-11</small><b>−65.5%</b><span>11,180 → 3,862 B</span>
+              </div>
             </div>
           </a>
           <a class="lib-card" href="/demos.html#lib-gl-matrix">
             <span class="lib-card-kicker">Exact entrypoint</span>
             <h3>gl-matrix</h3>
             <p>Complete ESM root namespace, aliases, and live array type.</p>
-            <div class="lib-card-metrics">
-              <div><small>npm Vite</small><b>14,330</b></div>
-              <div><small>LilScript</small><b>14,116</b></div>
-              <div class="win"><small>Brotli</small><b>−1.5%</b></div>
+            <div class="lib-card-metrics compression-rates">
+              <div class="win compression-rate" data-compression-rate data-baseline="17646" data-candidate="17110">
+                <small>gzip-9</small><b>−3.0%</b><span>17,646 → 17,110 B</span>
+              </div>
+              <div class="win compression-rate" data-compression-rate data-baseline="14330" data-candidate="14116">
+                <small>Brotli-11</small><b>−1.5%</b><span>14,330 → 14,116 B</span>
+              </div>
             </div>
           </a>
           <a class="lib-card" href="/demos.html#port-murmurhash-js">
             <span class="lib-card-kicker">Complete package</span>
             <h3>murmurhash-js</h3>
             <p>MurmurHash 2 and 3, reusable root API, same checksums.</p>
-            <div class="lib-card-metrics">
-              <div><small>npm Vite</small><b>902</b></div>
-              <div><small>LilScript</small><b>409</b></div>
-              <div class="win"><small>Brotli</small><b>−55%</b></div>
+            <div class="lib-card-metrics compression-rates">
+              <div class="win compression-rate" data-compression-rate data-baseline="1029" data-candidate="446">
+                <small>gzip-9</small><b>−56.7%</b><span>1,029 → 446 B</span>
+              </div>
+              <div class="win compression-rate" data-compression-rate data-baseline="902" data-candidate="409">
+                <small>Brotli-11</small><b>−54.7%</b><span>902 → 409 B</span>
+              </div>
             </div>
           </a>
           <a class="lib-card" href="/demos.html#port-js-levenshtein">
             <span class="lib-card-kicker">Complete package</span>
             <h3>js-levenshtein</h3>
             <p>Full root entrypoint. Eligible on size and the 1.05× runtime gate.</p>
-            <div class="lib-card-metrics">
-              <div><small>npm Vite</small><b>825</b></div>
-              <div><small>LilScript</small><b>404</b></div>
-              <div class="win"><small>Brotli</small><b>−51%</b></div>
+            <div class="lib-card-metrics compression-rates">
+              <div class="win compression-rate" data-compression-rate data-baseline="914" data-candidate="438">
+                <small>gzip-9</small><b>−52.1%</b><span>914 → 438 B</span>
+              </div>
+              <div class="win compression-rate" data-compression-rate data-baseline="825" data-candidate="404">
+                <small>Brotli-11</small><b>−51.0%</b><span>825 → 404 B</span>
+              </div>
             </div>
           </a>
           <a class="lib-card" href="/demos.html#port-micro-math">
             <span class="lib-card-kicker">Complete package</span>
             <h3>clamp + lerp</h3>
             <p>Both published roots. Types let the wrappers disappear.</p>
-            <div class="lib-card-metrics">
-              <div><small>npm Vite</small><b>519</b></div>
-              <div><small>LilScript</small><b>112</b></div>
-              <div class="win"><small>Brotli</small><b>−78%</b></div>
+            <div class="lib-card-metrics compression-rates">
+              <div class="win compression-rate" data-compression-rate data-baseline="577" data-candidate="142">
+                <small>gzip-9</small><b>−75.4%</b><span>577 → 142 B</span>
+              </div>
+              <div class="win compression-rate" data-compression-rate data-baseline="519" data-candidate="112">
+                <small>Brotli-11</small><b>−78.4%</b><span>519 → 112 B</span>
+              </div>
             </div>
           </a>
           <a class="lib-card" href="/demos.html#port-emotion-hash">
             <span class="lib-card-kicker">Complete package</span>
             <h3>@emotion/hash</h3>
             <p>Published root. Eligible against Vite and Closure ADVANCED.</p>
-            <div class="lib-card-metrics">
-              <div><small>npm Vite</small><b>330</b></div>
-              <div><small>LilScript</small><b>231</b></div>
-              <div class="win"><small>Brotli</small><b>−30%</b></div>
+            <div class="lib-card-metrics compression-rates">
+              <div class="win compression-rate" data-compression-rate data-baseline="348" data-candidate="265">
+                <small>gzip-9</small><b>−23.9%</b><span>348 → 265 B</span>
+              </div>
+              <div class="win compression-rate" data-compression-rate data-baseline="330" data-candidate="231">
+                <small>Brotli-11</small><b>−30.0%</b><span>330 → 231 B</span>
+              </div>
             </div>
           </a>
           <a class="lib-card" href="/demos.html#port-robust-predicates">
             <span class="lib-card-kicker">Complete package</span>
             <h3>robust-predicates</h3>
             <p>Geometric predicates. Large typed corpus, modest transfer cut.</p>
-            <div class="lib-card-metrics">
-              <div><small>npm Vite</small><b>6,456</b></div>
-              <div><small>LilScript</small><b>5,972</b></div>
-              <div class="win"><small>Brotli</small><b>−7.5%</b></div>
+            <div class="lib-card-metrics compression-rates">
+              <div class="win compression-rate" data-compression-rate data-baseline="8329" data-candidate="7691">
+                <small>gzip-9</small><b>−7.7%</b><span>8,329 → 7,691 B</span>
+              </div>
+              <div class="win compression-rate" data-compression-rate data-baseline="6456" data-candidate="5972">
+                <small>Brotli-11</small><b>−7.5%</b><span>6,456 → 5,972 B</span>
+              </div>
             </div>
           </a>
           <a class="lib-card" href="/demos.html#lib-nanoid">
             <span class="lib-card-kicker">Exact entrypoint</span>
             <h3>Nano ID</h3>
             <p>Published browser entrypoint. Effectively even on Brotli.</p>
-            <div class="lib-card-metrics">
-              <div><small>npm Vite</small><b>409</b></div>
-              <div><small>LilScript</small><b>408</b></div>
-              <div class="win"><small>Brotli</small><b>−0.2%</b></div>
+            <div class="lib-card-metrics compression-rates">
+              <div class="loss compression-rate" data-compression-rate data-baseline="456" data-candidate="459">
+                <small>gzip-9</small><b>+0.7%</b><span>456 → 459 B</span>
+              </div>
+              <div class="win compression-rate" data-compression-rate data-baseline="409" data-candidate="408">
+                <small>Brotli-11</small><b>−0.2%</b><span>409 → 408 B</span>
+              </div>
             </div>
           </a>
           <a
@@ -369,13 +401,17 @@ console.log(`sum=${c}`)</code></pre>
             <span class="lib-card-kicker">Exact package</span>
             <h3>MobX 7</h3>
             <p>
-              Public API, 769 official tests. 17,159 B → 16,736 B Brotli versus
-              Vite 8 Oxc of npm.
+              Public API, 769 official tests. Compared with Vite 8 Oxc of the
+              official ESM; the smaller DEV-stripped official build is a
+              separate lane.
             </p>
-            <div class="lib-card-metrics">
-              <div><small>Vite 8 Oxc</small><b>17,159</b></div>
-              <div><small>LilScript</small><b>16,736</b></div>
-              <div class="win"><small>Brotli</small><b>−2.5%</b></div>
+            <div class="lib-card-metrics compression-rates">
+              <div class="win compression-rate" data-compression-rate data-baseline="19282" data-candidate="18690">
+                <small>gzip-9</small><b>−3.1%</b><span>19,282 → 18,690 B</span>
+              </div>
+              <div class="win compression-rate" data-compression-rate data-baseline="17159" data-candidate="16736">
+                <small>Brotli-11</small><b>−2.5%</b><span>17,159 → 16,736 B</span>
+              </div>
             </div>
           </a>
           <a class="lib-card" href="/demos.html#lastro">
@@ -384,10 +420,13 @@ console.log(`sum=${c}`)</code></pre>
             <p>
               Parcel Market next to the Astro control. Same CSS and behavior.
             </p>
-            <div class="lib-card-metrics">
-              <div><small>Astro</small><b>2,672</b></div>
-              <div><small>Lastro</small><b>2,665</b></div>
-              <div class="win"><small>Brotli</small><b>−0.3%</b></div>
+            <div class="lib-card-metrics compression-rates">
+              <div class="hold compression-rate" data-compression-rate data-baseline="3132" data-candidate="3132">
+                <small>gzip-9</small><b>0.0%</b><span>3,132 → 3,132 B</span>
+              </div>
+              <div class="win compression-rate" data-compression-rate data-baseline="2672" data-candidate="2665">
+                <small>Brotli-11</small><b>−0.3%</b><span>2,672 → 2,665 B</span>
+              </div>
             </div>
           </a>
           <a
@@ -402,10 +441,13 @@ console.log(`sum=${c}`)</code></pre>
               Drop-in public API. Official <code>jquery.min.js</code> is still
               the Brotli lane to beat. Public names stay a config choice.
             </p>
-            <div class="lib-card-metrics">
-              <div><small>npm min</small><b>27,445</b></div>
-              <div><small>LilScript</small><b>30,973</b></div>
-              <div class="loss"><small>Brotli</small><b>+13%</b></div>
+            <div class="lib-card-metrics compression-rates">
+              <div class="loss compression-rate" data-compression-rate data-baseline="30336" data-candidate="34544">
+                <small>gzip-9</small><b>+13.9%</b><span>30,336 → 34,544 B</span>
+              </div>
+              <div class="loss compression-rate" data-compression-rate data-baseline="27445" data-candidate="30973">
+                <small>Brotli-11</small><b>+12.9%</b><span>27,445 → 30,973 B</span>
+              </div>
             </div>
           </a>
           <a
@@ -414,17 +456,20 @@ console.log(`sum=${c}`)</code></pre>
             target="_blank"
             rel="noopener"
           >
-            <span class="lib-card-kicker">Parse API</span>
+            <span class="lib-card-kicker">18.0.13 package · 18.0.10 parse API</span>
             <h3>marked 18</h3>
             <p>
-              GFM + CommonMark parse API. 660/660 HTML match, smaller than the
-              parse-only official sources minified by Oxc, and 13% faster in
-              Chromium. This port has no extension system.
+              GFM + CommonMark parse API with live option methods. 660/660 HTML
+              match, smaller than the same parse-only sources through Oxc, and
+              13% faster in Chromium. No extension system.
             </p>
-            <div class="lib-card-metrics">
-              <div><small>Oxc mangle</small><b>10,092</b></div>
-              <div><small>LilScript</small><b>9,580</b></div>
-              <div class="win"><small>Brotli</small><b>−5.1%</b></div>
+            <div class="lib-card-metrics compression-rates">
+              <div class="win compression-rate" data-compression-rate data-baseline="10930" data-candidate="10727">
+                <small>gzip-9</small><b>−1.9%</b><span>10,930 → 10,727 B</span>
+              </div>
+              <div class="win compression-rate" data-compression-rate data-baseline="10092" data-candidate="9589">
+                <small>Brotli-11</small><b>−5.0%</b><span>10,092 → 9,589 B</span>
+              </div>
             </div>
           </a>
           <a
@@ -433,16 +478,23 @@ console.log(`sum=${c}`)</code></pre>
             target="_blank"
             rel="noopener"
           >
-            <span class="lib-card-kicker">Classic API</span>
+            <span class="lib-card-kicker">Classic-compatible API · audit open</span>
             <h3>Zod 4</h3>
             <p>
-              <code>zod@4.4.3</code> classic API. 1353/1353 official tests.
-              54,791 B → 34,152 B Brotli versus Vite 8 Oxc closer-world.
+              The port passes 1,353 adapted official tests, but the old size
+              row counted only <code>zod.core.js</code>. The linked package is
+              62,763 B gzip / 52,583 B Brotli and exposes 192 ESM names versus
+              the official entry's 240, so the size claim is withdrawn until
+              those surfaces match.
             </p>
             <div class="lib-card-metrics">
-              <div><small>Oxc closer</small><b>54,791</b></div>
-              <div><small>LilScript</small><b>34,152</b></div>
-              <div class="win"><small>Brotli</small><b>−37.7%</b></div>
+              <div>
+                <small>Official exports</small><b>240</b>
+              </div>
+              <div>
+                <small>Port exports</small><b>192</b>
+              </div>
+              <div class="loss"><small>Size claim</small><b>Withdrawn</b></div>
             </div>
           </a>
           <a
@@ -451,36 +503,97 @@ console.log(`sum=${c}`)</code></pre>
             target="_blank"
             rel="noopener"
           >
-            <span class="lib-card-kicker">Kernel · direct compiler win</span>
+            <span class="lib-card-kicker">Kernel + 5 independent packs</span>
             <h3>posthog-js</h3>
             <p>
               UUID, flags, cookies, routing, rate limits, queue, bot detection,
-              and portable helpers from <code>posthog-js@1.418.10</code>. Not
-              the published IIFE. The direct Brotli-scored compiler artifact is
-              narrowly smaller than official Oxc of that kernel; package
-              metadata is reported separately on the lab page.
+              and portable helpers from <code>posthog-js@1.418.10</code>, plus
+              five tabbed pack lanes: autocapture utilities, replay core,
+              surveys, error tracking, and OTLP. Autocapture is 27.3% smaller
+              and replay core is 19.4% smaller on Brotli versus Oxc. The kernel
+              remains a narrow win; this is not the published IIFE.
             </p>
-            <div class="lib-card-metrics">
-              <div><small>Oxc mangle</small><b>5,622</b></div>
-              <div><small>LilScript</small><b>5,606</b></div>
-              <div class="win"><small>Brotli</small><b>−0.3%</b></div>
+            <div class="lib-card-metrics compression-rates">
+              <div class="loss compression-rate" data-compression-rate data-baseline="6194" data-candidate="6415">
+                <small>gzip-9</small><b>+3.6%</b><span>6,194 → 6,415 B</span>
+              </div>
+              <div class="win compression-rate" data-compression-rate data-baseline="5622" data-candidate="5606">
+                <small>Brotli-11</small><b>−0.3%</b><span>5,622 → 5,606 B</span>
+              </div>
             </div>
           </a>
         </div>
         <p class="note-box">
-          <strong>How to read this.</strong> Brotli-11 of the selected
-          JavaScript, same <code>lilscript-codec</code> scorers. Kernels move
-          more than public libraries. mitt and clsx are currently a few bytes
-          larger. Subset ports (Preact, the in-repo Zod 3 surface, Acorn, Redux
+          <strong>How to read this.</strong> Each percentage is recalculated as
+          <code>(candidate / baseline − 1) × 100</code> from the byte pair
+          beside it. gzip-9 and Brotli-11 are independent codec measurements;
+          they can disagree, as Nano ID and posthog-js do. The 7.7% / 7.5%
+          headline is the median of the 15 currently comparable project rows,
+          not a byte-weighted blend. Zod stays visible but has no vote while
+          its package-surface mismatch is open. Subset ports (Preact, the
+          in-repo Zod 3 surface, Acorn, Redux
           Toolkit) live on the <a href="/compare.html">compare page</a> and are
           labeled as such. The published Zod 4 port is
           <a href="https://yeargun.github.io/zodlil/">zodlil</a>.
         </p>
       </section>
 
+      <section class="landing-section landing-wrap" aria-labelledby="latest-title">
+        <div class="landing-heading">
+          <p class="landing-kicker">04 · Latest · updated 24 August 2026</p>
+          <h2 id="latest-title">What changed across LilScript and its ports.</h2>
+          <p>
+            A dated changelog for the work that used to disappear into the
+            comparison grid. Each item links to the repository or lab carrying
+            the evidence.
+          </p>
+        </div>
+        <div class="news-grid">
+          <article class="news-item">
+            <time datetime="2026-08-23">23 Aug 2026</time>
+            <h3>Global compression search</h3>
+            <p>
+              JavaScript spelling search now optimizes names, literals,
+              declarations, and layout as one codec-scored artifact.
+            </p>
+            <a href="https://github.com/yeargun/lilscript/commit/62374f1" target="_blank" rel="noopener">Read the compiler change</a>
+          </article>
+          <article class="news-item">
+            <time datetime="2026-08-24">24 Aug 2026</time>
+            <h3>posthog-js adds two browser packs</h3>
+            <p>
+              Autocapture utilities and session-replay core join surveys, error
+              tracking, and OTLP in a tabbed, behavior-checked benchmark lab;
+              the new Brotli cuts are 27.3% and 19.4% versus Oxc.
+            </p>
+            <a href="https://yeargun.github.io/posthoglil/" target="_blank" rel="noopener">Open posthoglil</a>
+          </article>
+          <article class="news-item">
+            <time datetime="2026-08-24">24 Aug 2026</time>
+            <h3>Zod size claim withdrawn after surface audit</h3>
+            <p>
+              The port still passes 1,353 adapted official tests. Its old size
+              row omitted the compatibility facade, though, and 192 exported
+              names do not equal the official entry's 240. It is no longer in
+              the aggregate until the package boundary is exact.
+            </p>
+            <a href="https://yeargun.github.io/zodlil/" target="_blank" rel="noopener">Open zodlil</a>
+          </article>
+          <article class="news-item">
+            <time datetime="2026-08-20">20 Aug 2026</time>
+            <h3>marked 18.0.13 refresh</h3>
+            <p>
+              Live option methods and matched raw, gzip, and Brotli compiles are
+              now published for the 18.0.10-compatible parse surface.
+            </p>
+            <a href="https://yeargun.github.io/markedlil/" target="_blank" rel="noopener">Open markedlil</a>
+          </article>
+        </div>
+      </section>
+
       <section class="landing-section landing-wrap" aria-labelledby="projects-title">
         <div class="landing-heading">
-          <p class="landing-kicker">04 · Published ports</p>
+          <p class="landing-kicker">05 · Published ports</p>
           <h2 id="projects-title">The github.io labs, one per library.</h2>
           <p>
             Each port has its own site: install the package, open the paired
@@ -498,8 +611,8 @@ console.log(`sum=${c}`)</code></pre>
             <span>@itslil/solidjs</span>
             <h3>SolidLil</h3>
             <p>
-              Solid 2.0 client and LSX. Official keyed table: 11,180 B → 3,862 B
-              Brotli.
+              Solid 2.0 client and LSX. Official keyed table: 64.7% smaller
+              gzip and 65.5% smaller Brotli.
             </p>
             <b>yeargun.github.io/solidlil</b>
           </a>
@@ -509,9 +622,12 @@ console.log(`sum=${c}`)</code></pre>
             target="_blank"
             rel="noopener"
           >
-            <span>motionlil</span>
+            <span>motionlil 0.1.2</span>
             <h3>Motion</h3>
-            <p>16 paired browser fixtures. Carousel, spring, gestures, scroll.</p>
+            <p>
+              Full Motion 13 DOM runtime exports. 16/16 paired demos; 10.2%
+              smaller gzip and 12.4% smaller Brotli in total.
+            </p>
             <b>yeargun.github.io/motionlil</b>
           </a>
           <a
@@ -523,8 +639,8 @@ console.log(`sum=${c}`)</code></pre>
             <span>@itslil/mobx</span>
             <h3>MobX</h3>
             <p>
-              MobX 7 public API. Official tests pass; Vite 8 Oxc Brotli is the
-              fair size lane.
+              MobX 7 public API. 769 official tests; 3.1% smaller gzip and 2.5%
+              smaller Brotli than the Vite 8 Oxc lane.
             </p>
             <b>yeargun.github.io/mobxlil</b>
           </a>
@@ -537,8 +653,9 @@ console.log(`sum=${c}`)</code></pre>
             <span>@itslil/jquery</span>
             <h3>jQuery</h3>
             <p>
-              jQuery 3.7.1 public API. Published drop-in; official min is still
-              1.13× smaller on Brotli.
+              jQuery 3.7.1 public API. Published drop-in; the LilScript ESM is
+              still 13.9% larger under gzip and 12.9% larger under Brotli than
+              the official minified file.
             </p>
             <b>yeargun.github.io/jquerylil</b>
           </a>
@@ -548,11 +665,11 @@ console.log(`sum=${c}`)</code></pre>
             target="_blank"
             rel="noopener"
           >
-            <span>@itslil/marked</span>
+            <span>@itslil/marked 18.0.13</span>
             <h3>marked</h3>
             <p>
-              marked 18.0.10 parse API. 660 spec cases; 9,580 B vs parse-only
-              official Oxc 10,092 B, not the full npm file with <code>use()</code>.
+              18.0.10-compatible parse API. 660 cases; 1.9% smaller gzip and
+              5.0% smaller Brotli than parse-only Oxc.
             </p>
             <b>yeargun.github.io/markedlil</b>
           </a>
@@ -565,8 +682,9 @@ console.log(`sum=${c}`)</code></pre>
             <span>@itslil/zod</span>
             <h3>Zod</h3>
             <p>
-              Zod 4.4.3 classic API. 1353 official tests; 34,152 B vs Oxc
-              closer-world 54,791 B.
+              Zod 4.4.3 classic-compatible API. The old core-only size claim is
+              withdrawn; the linked package and official export inventories do
+              not yet match.
             </p>
             <b>yeargun.github.io/zodlil</b>
           </a>
@@ -579,8 +697,8 @@ console.log(`sum=${c}`)</code></pre>
             <span>@itslil/posthog-js</span>
             <h3>posthog-js</h3>
             <p>
-              Capture kernel of posthog-js 1.418.10. Direct compiler output is
-              5,606 B vs official Oxc at 5,622 B Brotli.
+              Capture kernel plus five tabbed packs. Autocapture is 27.3%
+              smaller and replay core is 19.4% smaller on Brotli than Oxc.
             </p>
             <b>yeargun.github.io/posthoglil</b>
           </a>
@@ -593,7 +711,8 @@ console.log(`sum=${c}`)</code></pre>
             <span>@itslil/monaco-editor</span>
             <h3>Monaco</h3>
             <p>
-              monaco-editor 0.56, submodule-by-submodule, plus the paired IDE.
+              monaco-editor 0.56, submodule-by-submodule, plus the paired IDE:
+              54.2% smaller gzip and 53.4% smaller Brotli.
             </p>
             <b>yeargun.github.io/monacolil</b>
           </a>
@@ -620,7 +739,7 @@ console.log(`sum=${c}`)</code></pre>
 
       <section class="landing-section landing-wrap" aria-labelledby="toolchain-title">
         <div class="landing-heading">
-          <p class="landing-kicker">05 · Tooling</p>
+          <p class="landing-kicker">06 · Tooling</p>
           <h2 id="toolchain-title">The language has to feel like a web toolchain.</h2>
           <p>
             Closure’s Advanced mode is the closest ancestor. The Java stack
@@ -660,15 +779,17 @@ console.log(`sum=${c}`)</code></pre>
 
       <section class="landing-section landing-wrap" aria-labelledby="models-title">
         <div class="landing-heading">
-          <p class="landing-kicker">06 · Models, and the 5–10%</p>
+          <p class="landing-kicker">07 · Models, and the measured median</p>
           <h2 id="models-title">Current models write LilScript without much invention.</h2>
           <p>
             That was not the plan; it is just what we keep seeing. A library
             rewrite is often close to one-shot, and the compiled file is usually
-            smaller once gzip or Brotli is applied. Across the ports we
-            maintain, that cut is typically about 5% to 10%. The cards above are
-            the measured exceptions and the near-ties — not a promise that every
-            file will move that far.
+            smaller once gzip or Brotli is applied. Across the 15 currently
+            comparable rows, the median project result is 7.7% smaller under
+            gzip-9 and 7.5% smaller under Brotli-11. Zod remains visible but is
+            excluded until its package surface matches. This is a snapshot with
+            one vote per project, including losses and near-ties — not a
+            promise that every file will move that far.
           </p>
         </div>
       </section>
