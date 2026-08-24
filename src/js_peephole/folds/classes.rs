@@ -1658,7 +1658,15 @@ pub(crate) fn fold_constructor_prototype_tables_to_classes(
             }
             if let Some((alias, last)) = match_base_proto_decl(&tokens, scan) {
                 base_alias = Some(alias);
-                fused_end = tokens[last].end;
+                // The base prototype alias is only part of the class table if
+                // the following setPrototypeOf call is recognized and
+                // consumed.  Generated code may call it through an object
+                // factory (`ObjectFactory().setPrototypeOf(child, parent)`).
+                // If that spelling is outside our matcher, retaining the call
+                // while deleting `parent = Base.prototype` makes it observe a
+                // stale value from an earlier assignment.  Keep the alias out
+                // of the replacement span until a later matched call extends
+                // `fused_end` over both pieces.
                 scan = skip_separators(&tokens, last + 1);
                 continue;
             }

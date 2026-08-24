@@ -489,6 +489,28 @@ fn defers_dependent_identifier_copies_until_the_source_rewrite_is_visible() {
 }
 
 #[test]
+fn preserves_a_base_prototype_alias_for_unrecognized_set_prototype_factories() {
+    let source = concat!(
+        "let Z=()=>globalThis.Object;",
+        "var a=globalThis.Symbol.toPrimitive,h;",
+        "var oa=(0,function(g){this.g=g;return this});",
+        "var ea=(0,function(e){oa.call(this,e);this.e=e;return this});",
+        "h=ea.prototype;a=oa.prototype;Z().setPrototypeOf(h,a);",
+        "h=ea.prototype;h.constructor=ea;h=ea.prototype;",
+        "h.get=function(){return this.e};",
+        "let value=new ea(7);console.log(value instanceof oa,value.get(),typeof a)",
+    );
+    let optimized = optimize_generated_javascript(source).unwrap();
+    assert_eq!(run_node(source), "true 7 object\n");
+    assert_eq!(
+        run_node(&optimized.code),
+        "true 7 object\n",
+        "{}",
+        optimized.code
+    );
+}
+
+#[test]
 fn preserves_temp_computed_key_evaluation_order() {
     let optimized = optimize_generated_javascript(
         "function add(h,E){let i=\"[object \"+E+\"]\";h[i]=E.toLowerCase();return h}",
