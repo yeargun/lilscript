@@ -1760,6 +1760,13 @@ struct IrJsEmitter<'module, 'src> {
     dynamic_chunk_files: AHashMap<u32, String>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+enum HelperClusterOwner {
+    Named(usize),
+    Nested(FunctionId),
+    Private(FunctionId),
+}
+
 impl<'module, 'src> IrJsEmitter<'module, 'src> {
     fn new(
         module: &'module ControlFlowModule<'src>,
@@ -3115,6 +3122,11 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             if inner == root
                                 || nested.contains(&inner)
                                 || reachable.contains(&inner)
+                                || self
+                                    .module
+                                    .functions
+                                    .get(inner.0 as usize)
+                                    .is_none_or(|function| !self.function_is_inlined(function))
                             {
                                 continue;
                             }
@@ -3465,7 +3477,8 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 .extend(self.private_callee_clusters.values().flatten().copied());
         }
         self.uncluster_named_cluster_roots();
-        self.uncluster_helpers_with_external_callers(&callers);
+        let binding_users = self.function_binding_users();
+        self.reconcile_cluster_helper_ownership(&binding_users);
         self.reconcile_clustered_helpers();
     }
 
@@ -3496,6 +3509,265 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         for helpers in self.nested_once_run_helpers.values_mut() {
             helpers.retain(|id| !ids.contains(id));
         }
+    }
+
+    fn function_binding_users(&self) -> AHashMap<FunctionId, AHashSet<FunctionId>> {
+        let mut users = AHashMap::<FunctionId, AHashSet<FunctionId>>::default();
+        for caller in self
+            .module
+            .functions
+            .iter()
+            .filter(|function| function.live)
+        {
+            for instruction in caller.blocks.iter().flat_map(|block| &block.instructions) {
+                let referenced = match instruction.op {
+                    ControlFlowOp::CallDirect { function, .. }
+                    | ControlFlowOp::CallMethod { function, .. }
+                    | ControlFlowOp::NewClass {
+                        constructor: Some(function),
+                        ..
+                    }
+                    | ControlFlowOp::Closure { function, .. } => Some(function),
+                    _ => None,
+                };
+                if let Some(function) = referenced {
+                    users.entry(function).or_default().insert(caller.id);
+                }
+            }
+        }
+        users
+    }
+
+    fn cluster_helper_owners(&self) -> AHashMap<FunctionId, Vec<HelperClusterOwner>> {
+        let mut owners = AHashMap::<FunctionId, Vec<HelperClusterOwner>>::default();
+        for (root, helpers) in &self.private_callee_clusters {
+            for helper in helpers {
+                owners
+                    .entry(*helper)
+                    .or_default()
+                    .push(HelperClusterOwner::Private(*root));
+            }
+        }
+        for (index, (_, helpers)) in self.named_callee_clusters.iter().enumerate() {
+            for helper in helpers {
+                owners
+                    .entry(*helper)
+                    .or_default()
+                    .push(HelperClusterOwner::Named(index));
+            }
+        }
+        for (host, helpers) in &self.nested_once_run_helpers {
+            for helper in helpers {
+                owners
+                    .entry(*helper)
+                    .or_default()
+                    .push(HelperClusterOwner::Nested(*host));
+            }
+        }
+        owners
+    }
+
+    fn cluster_owner_members(&self, owner: HelperClusterOwner) -> AHashSet<FunctionId> {
+        let mut members = AHashSet::default();
+        match owner {
+            HelperClusterOwner::Private(root) => {
+                members.insert(root);
+                members.extend(
+                    self.private_callee_clusters
+                        .get(&root)
+                        .into_iter()
+                        .flatten()
+                        .copied(),
+                );
+                members.extend(
+                    self.private_cluster_scopes
+                        .get(&root)
+                        .into_iter()
+                        .flatten()
+                        .copied(),
+                );
+            }
+            HelperClusterOwner::Named(index) => {
+                if let Some((roots, helpers)) = self.named_callee_clusters.get(index) {
+                    members.extend(roots.iter().copied());
+                    members.extend(helpers.iter().copied());
+                    for root in roots {
+                        members.extend(
+                            self.private_cluster_scopes
+                                .get(root)
+                                .into_iter()
+                                .flatten()
+                                .copied(),
+                        );
+                    }
+                }
+            }
+            HelperClusterOwner::Nested(host) => {
+                members.insert(host);
+                members.extend(
+                    self.nested_once_run_helpers
+                        .get(&host)
+                        .into_iter()
+                        .flatten()
+                        .copied(),
+                );
+                members.extend(
+                    self.private_cluster_scopes
+                        .get(&host)
+                        .into_iter()
+                        .flatten()
+                        .copied(),
+                );
+            }
+        }
+        members
+    }
+
+    fn remove_helper_from_cluster_owner(
+        &mut self,
+        helper: FunctionId,
+        owner: HelperClusterOwner,
+    ) -> bool {
+        let Some(helpers) = (match owner {
+            HelperClusterOwner::Private(root) => self.private_callee_clusters.get_mut(&root),
+            HelperClusterOwner::Named(index) => self
+                .named_callee_clusters
+                .get_mut(index)
+                .map(|(_, helpers)| helpers),
+            HelperClusterOwner::Nested(host) => self.nested_once_run_helpers.get_mut(&host),
+        }) else {
+            return false;
+        };
+        let old_len = helpers.len();
+        helpers.retain(|id| *id != helper);
+        helpers.len() != old_len
+    }
+
+    fn rebuild_named_cluster_root_index(&mut self) {
+        let mut by_root = AHashMap::default();
+        for (index, (roots, _)) in self.named_callee_clusters.iter().enumerate() {
+            for root in roots {
+                debug_assert!(
+                    by_root.insert(*root, index).is_none(),
+                    "named cluster root {} belongs to more than one final scope",
+                    root.0
+                );
+            }
+        }
+        self.named_cluster_by_root = by_root;
+    }
+
+    fn prune_unprofitable_cluster_scopes(&mut self) -> bool {
+        let private_len = self.private_callee_clusters.len();
+        self.private_callee_clusters
+            .retain(|_, helpers| helpers.len() >= MIN_IIFE_CLUSTER_HELPERS);
+        let mut changed = self.private_callee_clusters.len() != private_len;
+
+        let named_len = self.named_callee_clusters.len();
+        self.named_callee_clusters
+            .retain(|(_, helpers)| helpers.len() >= MIN_IIFE_CLUSTER_HELPERS);
+        changed |= self.named_callee_clusters.len() != named_len;
+        self.rebuild_named_cluster_root_index();
+
+        let nested_len = self.nested_once_run_helpers.len();
+        self.nested_once_run_helpers
+            .retain(|_, helpers| !helpers.is_empty());
+        changed |= self.nested_once_run_helpers.len() != nested_len;
+        changed
+    }
+
+    fn cluster_helper_ownership_is_disjoint(&self) -> bool {
+        let mut seen = AHashSet::default();
+        self.private_callee_clusters
+            .values()
+            .chain(
+                self.named_callee_clusters
+                    .iter()
+                    .map(|(_, helpers)| helpers),
+            )
+            .chain(self.nested_once_run_helpers.values())
+            .flat_map(|helpers| helpers.iter().copied())
+            .all(|helper| seen.insert(helper))
+    }
+
+    /// Assign every helper declaration to one lexical scope. Provisional
+    /// private trees intentionally overlap while candidates are discovered,
+    /// but final JavaScript cannot: one declaration cannot be local to two
+    /// sibling IIFEs. Validate each possible owner independently rather than
+    /// unioning their members, and repeat after every removal because releasing
+    /// one helper can make its callees escape too.
+    fn reconcile_cluster_helper_ownership(
+        &mut self,
+        binding_users: &AHashMap<FunctionId, AHashSet<FunctionId>>,
+    ) {
+        loop {
+            for helpers in self.private_callee_clusters.values_mut() {
+                helpers.sort_by_key(|id| id.0);
+                helpers.dedup();
+            }
+            for (_, helpers) in &mut self.named_callee_clusters {
+                helpers.sort_by_key(|id| id.0);
+                helpers.dedup();
+            }
+            for helpers in self.nested_once_run_helpers.values_mut() {
+                helpers.sort_by_key(|id| id.0);
+                helpers.dedup();
+            }
+
+            let mut changed = self.prune_unprofitable_cluster_scopes();
+            self.reconcile_clustered_helpers();
+            let owners_by_helper = self.cluster_helper_owners();
+            let mut helpers = owners_by_helper.keys().copied().collect::<Vec<_>>();
+            helpers.sort_by_key(|id| id.0);
+            let mut owners = owners_by_helper
+                .values()
+                .flatten()
+                .copied()
+                .collect::<Vec<_>>();
+            owners.sort_unstable();
+            owners.dedup();
+            let owner_members = owners
+                .into_iter()
+                .map(|owner| (owner, self.cluster_owner_members(owner)))
+                .collect::<AHashMap<_, _>>();
+
+            for helper in helpers {
+                let mut owners = owners_by_helper[&helper].clone();
+                owners.sort_unstable();
+                let sites = binding_users.get(&helper);
+                let mut valid = owners
+                    .iter()
+                    .copied()
+                    .filter_map(|owner| {
+                        let members = &owner_members[&owner];
+                        sites
+                            .is_none_or(|sites| {
+                                sites
+                                    .iter()
+                                    .all(|caller| *caller == helper || members.contains(caller))
+                            })
+                            .then_some((members.len(), owner))
+                    })
+                    .collect::<Vec<_>>();
+                valid.sort_unstable();
+                let selected = valid.first().map(|(_, owner)| *owner);
+                for owner in owners {
+                    if Some(owner) != selected {
+                        changed |= self.remove_helper_from_cluster_owner(helper, owner);
+                    }
+                }
+            }
+
+            changed |= self.prune_unprofitable_cluster_scopes();
+            self.reconcile_clustered_helpers();
+            if !changed {
+                break;
+            }
+        }
+        debug_assert!(
+            self.cluster_helper_ownership_is_disjoint(),
+            "a helper declaration belongs to multiple final lexical scopes"
+        );
     }
 
     fn reconcile_clustered_helpers(&mut self) {
@@ -3730,129 +4002,47 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         if self.clustered_helpers.is_empty() {
             return;
         }
-        let mut escaped = AHashSet::default();
-        let mut hosts = vec![self.module.entry];
-        hosts.extend(
-            self.module
-                .functions
-                .iter()
-                .filter(|function| self.emits_top_level_body_outside_helper_iife(function.id))
-                .map(|function| function.id),
-        );
-        for host in hosts {
-            let mut callees = AHashSet::default();
-            let mut visited = AHashSet::default();
-            self.collect_emitted_direct_callees(host, &mut callees, &mut visited);
-            for callee in &callees {
-                if self.clustered_helpers.contains(callee) {
-                    escaped.insert(*callee);
-                }
-            }
-        }
-        if escaped.is_empty() {
-            return;
-        }
-        self.strip_ids_from_cluster_helper_lists(&escaped);
-        self.named_callee_clusters
-            .retain(|(_, helpers)| helpers.len() >= MIN_IIFE_CLUSTER_HELPERS);
-        let mut kept_root_index = AHashMap::default();
-        for (index, (roots, _)) in self.named_callee_clusters.iter().enumerate() {
-            for root in roots {
-                kept_root_index.insert(*root, index);
-            }
-        }
-        self.named_cluster_by_root = kept_root_index;
-        self.reconcile_clustered_helpers();
-        self.assign_released_helper_names(escaped.into_iter().collect());
-    }
+        let initially_clustered = self.clustered_helpers.clone();
+        let binding_users = self.function_binding_users();
+        loop {
+            let before = self.clustered_helpers.clone();
+            self.reconcile_cluster_helper_ownership(&binding_users);
 
-    fn uncluster_helpers_with_external_callers(
-        &mut self,
-        callers: &AHashMap<FunctionId, AHashSet<FunctionId>>,
-    ) {
-        let mut members_of = AHashMap::<FunctionId, AHashSet<FunctionId>>::default();
-        for (root, helpers) in &self.private_callee_clusters {
-            let mut members = helpers.iter().copied().collect::<AHashSet<_>>();
-            members.insert(*root);
-            if let Some(nested) = self.private_cluster_scopes.get(root) {
-                members.extend(nested.iter().copied());
-            }
-            for helper in helpers {
-                members_of
-                    .entry(*helper)
-                    .or_default()
-                    .extend(members.iter().copied());
-            }
-        }
-        for (roots, helpers) in &self.named_callee_clusters {
-            let mut members = helpers
-                .iter()
-                .copied()
-                .chain(roots.iter().copied())
-                .collect::<AHashSet<_>>();
-            for root in roots {
-                if let Some(nested) = self.private_cluster_scopes.get(root) {
-                    members.extend(nested.iter().copied());
+            let mut escaped = AHashSet::default();
+            let mut hosts = vec![self.module.entry];
+            hosts.extend(
+                self.module
+                    .functions
+                    .iter()
+                    .filter(|function| self.emits_top_level_body_outside_helper_iife(function.id))
+                    .map(|function| function.id),
+            );
+            for host in hosts {
+                let mut callees = AHashSet::default();
+                let mut visited = AHashSet::default();
+                self.collect_emitted_direct_callees(host, &mut callees, &mut visited);
+                for callee in &callees {
+                    if self.clustered_helpers.contains(callee) {
+                        escaped.insert(*callee);
+                    }
                 }
             }
-            for helper in helpers {
-                members_of
-                    .entry(*helper)
-                    .or_default()
-                    .extend(members.iter().copied());
+
+            if !escaped.is_empty() {
+                self.strip_ids_from_cluster_helper_lists(&escaped);
+            }
+            self.prune_unprofitable_cluster_scopes();
+            self.reconcile_clustered_helpers();
+            if self.clustered_helpers == before {
+                break;
             }
         }
-        for (host, helpers) in &self.nested_once_run_helpers {
-            let mut members = helpers.iter().copied().collect::<AHashSet<_>>();
-            members.insert(*host);
-            if let Some(nested) = self.private_cluster_scopes.get(host) {
-                // Calls emitted inside an exclusive inlined closure are in
-                // the host's lexical helper scope just as direct host calls
-                // are. Omitting these members falsely classifies the helper
-                // as externally referenced and immediately releases it back
-                // to the top level.
-                members.extend(nested.iter().copied());
-            }
-            for helper in helpers {
-                members_of
-                    .entry(*helper)
-                    .or_default()
-                    .extend(members.iter().copied());
-            }
-        }
-        let escaped = self
-            .clustered_helpers
-            .iter()
+        debug_assert!(self.cluster_helper_ownership_is_disjoint());
+        let released = initially_clustered
+            .difference(&self.clustered_helpers)
             .copied()
-            .filter(|helper| {
-                callers.get(helper).is_some_and(|sites| {
-                    sites.iter().any(|caller| {
-                        *caller != *helper
-                            && members_of
-                                .get(helper)
-                                .is_none_or(|members| !members.contains(caller))
-                    })
-                })
-            })
             .collect::<Vec<_>>();
-        if escaped.is_empty() {
-            return;
-        }
-        let escaped_set = escaped.iter().copied().collect::<AHashSet<_>>();
-        for helper in &escaped_set {
-            self.clustered_helpers.remove(helper);
-        }
-        for helpers in self.private_callee_clusters.values_mut() {
-            helpers.retain(|id| !escaped_set.contains(id));
-        }
-        self.private_callee_clusters
-            .retain(|_, helpers| helpers.len() >= MIN_IIFE_CLUSTER_HELPERS);
-        for (_, helpers) in &mut self.named_callee_clusters {
-            helpers.retain(|id| !escaped_set.contains(id));
-        }
-        for helpers in self.nested_once_run_helpers.values_mut() {
-            helpers.retain(|id| !escaped_set.contains(id));
-        }
+        self.assign_released_helper_names(released);
     }
 
     fn assign_inline_fresh_empty_array_factories(&mut self) {
@@ -13425,21 +13615,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         // declaration, which already carries its cluster helpers. Wrapping
         // the reference in another helper IIFE would duplicate every helper
         // body at each closure site.
-        // An inlined closure may also have been discovered as a provisional
-        // cluster root while an enclosing root was being analyzed. When that
-        // enclosing root owns the closure's lexical scope, its helper
-        // declarations are already live around this expression; wrapping the
-        // closure again both duplicates bindings and can retarget calls to a
-        // second set of functions.
-        let enclosed_by_emitting_cluster = self.emitting_function.is_some_and(|host| {
-            self.private_cluster_scopes
-                .get(&host)
-                .is_some_and(|nested| nested.contains(&function.id))
-                && (self.private_callee_clusters.contains_key(&host)
-                    || self.named_cluster_by_root.contains_key(&host)
-                    || self.nested_once_run_helpers.contains_key(&host))
-        });
-        let helpers = if self.function_is_inlined(&function) && !enclosed_by_emitting_cluster {
+        // Provisional outer and inner cluster trees can overlap, but ownership
+        // reconciliation leaves each helper in exactly one final list. Thus an
+        // inlined closure wraps precisely its own surviving helpers; helpers
+        // selected for an enclosing scope are absent here and are not emitted
+        // twice.
+        let helpers = if self.function_is_inlined(&function) {
             self.private_callee_clusters
                 .get(&function.id)
                 .cloned()
@@ -28802,6 +28983,115 @@ run();
             },
         );
         assert_eq!(run_javascript(&output), "42\n", "{output}");
+    }
+
+    #[test]
+    fn overlapping_named_cluster_trees_have_one_final_helper_owner() {
+        let source = "extern int read();int h1(int x){if(x<0){return 0;}return x+1;}int h2(int x){if(x<0){return 0;}return x+2;}int h3(int x){if(x<0){return 0;}return x+3;}int h4(int x){if(x<0){return 0;}return x+4;}int left(int x){return h1(x)+h2(x)+h3(x)+h4(x);}int right(int x){return h1(x)+h2(x)+h3(x)+h4(x)+1;}int g1(int x){if(x<0){return 0;}return x+5;}int g2(int x){if(x<0){return 0;}return x+6;}int g3(int x){if(x<0){return 0;}return x+7;}int g4(int x){if(x<0){return 0;}return x+8;}int outerLeft(int x){return g1(x)+g2(x)+g3(x)+g4(x)+left(x)+right(x);}int outerRight(int x){return g1(x)+g2(x)+g3(x)+g4(x)+2;}print(outerLeft(read())+outerRight(read()));";
+        let options = IrJsOptions {
+            mangle_identifiers: true,
+            iife_private_callee_clusters: true,
+            nested_once_run_helpers: true,
+            local_name_reserve: 48,
+            function_spelling: FunctionSpelling::Function,
+            ..IrJsOptions::default()
+        };
+        let arena = Bump::new();
+        let program = parse_source(&arena, source).unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut ir = lower_to_control_flow(&program, &semantics).unwrap();
+        optimize_control_flow_with_options(
+            &mut ir,
+            &OptimizationOptions {
+                inlining: false,
+                ..OptimizationOptions::default()
+            },
+            false,
+        )
+        .unwrap();
+
+        let mut emitter = IrJsEmitter::new(&ir, false, options);
+        emitter.prepare();
+        assert!(
+            emitter.named_callee_clusters.len() >= 2,
+            "the fixture must retain both shared-root opportunities"
+        );
+        assert!(emitter.cluster_helper_ownership_is_disjoint());
+        for (helper, owners) in emitter.cluster_helper_owners() {
+            assert_eq!(owners.len(), 1, "helper {} belongs to {owners:?}", helper.0);
+        }
+
+        let conservative = compile_without_inlining_with_options(
+            source,
+            false,
+            IrJsOptions {
+                mangle_identifiers: true,
+                iife_private_callee_clusters: false,
+                nested_once_run_helpers: false,
+                local_name_reserve: 48,
+                function_spelling: FunctionSpelling::Function,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(!conservative.contains(";(function(){"), "{conservative}");
+        let conservative_trace = run_javascript(&format!(
+            "let values=[1,1];function read(){{return values.shift()}};{conservative}"
+        ));
+        assert_eq!(conservative_trace, "91\n", "{conservative}");
+
+        let output = emit_optimized_ir_js_with_options(&ir, &options).unwrap();
+        let trace = run_javascript(&format!(
+            "let values=[1,1];function read(){{return values.shift()}};{output}"
+        ));
+        assert_eq!(trace, "91\n", "{output}");
+    }
+
+    #[test]
+    fn cluster_escape_reconciliation_reaches_a_fixed_point() {
+        let source = "extern int read();int leaf(int x){if(x<0){return 0;}return x+1;}int bridge(int x){return leaf(x);}int stableA(int x){if(x<0){return 0;}return x+2;}int stableB(int x){if(x<0){return 0;}return x+3;}int left(int x){return bridge(x)+stableA(x)+stableB(x);}int right(int x){return bridge(x)+stableA(x)+stableB(x);}int foreign(int x){return bridge(x);}print(left(read())+right(read())+foreign(read()));";
+        let arena = Bump::new();
+        let program = parse_source(&arena, source).unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut ir = lower_to_control_flow(&program, &semantics).unwrap();
+        optimize_control_flow_with_options(
+            &mut ir,
+            &OptimizationOptions {
+                inlining: false,
+                ..OptimizationOptions::default()
+            },
+            false,
+        )
+        .unwrap();
+        let id = |name: &str| {
+            ir.functions
+                .iter()
+                .find(|function| function.name == Some(name))
+                .map(|function| function.id)
+                .unwrap()
+        };
+        let leaf = id("leaf");
+        let bridge = id("bridge");
+        let stable_a = id("stableA");
+        let stable_b = id("stableB");
+        let left = id("left");
+        let right = id("right");
+
+        let mut emitter = IrJsEmitter::new(&ir, false, IrJsOptions::default());
+        emitter.named_callee_clusters =
+            vec![(vec![left, right], vec![leaf, bridge, stable_a, stable_b])];
+        emitter.rebuild_named_cluster_root_index();
+        emitter.reconcile_clustered_helpers();
+        let users = emitter.function_binding_users();
+        emitter.reconcile_cluster_helper_ownership(&users);
+
+        let retained = &emitter.named_callee_clusters[0].1;
+        assert!(!retained.contains(&bridge));
+        assert!(
+            !retained.contains(&leaf),
+            "leaf must escape after its released caller bridge"
+        );
+        assert!(retained.contains(&stable_a) && retained.contains(&stable_b));
+        assert!(emitter.cluster_helper_ownership_is_disjoint());
     }
 
     #[test]
