@@ -1023,6 +1023,7 @@ fn analyze_function(
     } else {
         None
     };
+    elidable_coercions.extend(bounded_follower_unit_updates(function, &ranges));
     FunctionIntegerFacts {
         ranges,
         elidable_coercions,
@@ -1524,6 +1525,273 @@ fn seed_induction_ranges(
     any_changed
 }
 
+/// Proves unit updates of a secondary loop counter that cannot advance faster
+/// than a strict, unit-step induction. This is the common stable-compaction
+/// shape: `write` starts no later than `index` and each iteration either keeps
+/// it unchanged or increments it once. On every path where the body runs,
+/// `index < bound <= i32::MAX`, so `write + 1` cannot overflow.
+///
+/// Keep this as an instruction fact rather than narrowing the secondary phi's
+/// global range. At the false header edge the final count may equal the bound;
+/// assigning the body-only range to that phi would be unsound for post-loop
+/// arithmetic.
+fn bounded_follower_unit_updates(
+    function: &ControlFlowFunction<'_>,
+    ranges: &AHashMap<ValueId, I32Range>,
+) -> AHashSet<ValueId> {
+    if !function.shapes.iter().any(|shape| {
+        matches!(shape, ControlShape::Loop { header, update: Some(_), .. }
+            if function.blocks[header.0 as usize]
+                .phis
+                .iter()
+                .filter(|phi| phi.ty == Type::Int)
+                .count()
+                >= 2)
+    }) {
+        return AHashSet::default();
+    }
+
+    fn int_constant(
+        definitions: &AHashMap<ValueId, &ControlFlowOp<'_>>,
+        value: ValueId,
+    ) -> Option<i64> {
+        match definitions.get(&value) {
+            Some(ControlFlowOp::Const(ConstValue::Int(value))) => Some(*value),
+            _ => None,
+        }
+    }
+
+    fn loop_phi_inputs(
+        phi: &crate::ir::Phi<'_>,
+        update: crate::ir::BlockId,
+    ) -> Option<(ValueId, ValueId)> {
+        if phi.incoming.len() != 2 {
+            return None;
+        }
+        let mut initial = None;
+        let mut backedge = None;
+        for (block, value) in &phi.incoming {
+            let slot = if *block == update {
+                &mut backedge
+            } else {
+                &mut initial
+            };
+            if slot.replace(*value).is_some() {
+                return None;
+            }
+        }
+        initial.zip(backedge)
+    }
+
+    fn is_direct_unit_increment(
+        definitions: &AHashMap<ValueId, &ControlFlowOp<'_>>,
+        value: ValueId,
+        base: ValueId,
+    ) -> bool {
+        matches!(
+            definitions.get(&value),
+            Some(ControlFlowOp::Binary {
+                op: IrBinaryOp::Add,
+                lhs,
+                rhs,
+            }) if (*lhs == base && int_constant(definitions, *rhs) == Some(1))
+                || (*rhs == base && int_constant(definitions, *lhs) == Some(1))
+        )
+    }
+
+    fn follower_backedge_is_unit_bounded(
+        value: ValueId,
+        base: ValueId,
+        definitions: &AHashMap<ValueId, &ControlFlowOp<'_>>,
+        phis: &AHashMap<ValueId, &crate::ir::Phi<'_>>,
+        visiting: &mut AHashSet<ValueId>,
+        increments: &mut AHashSet<ValueId>,
+    ) -> bool {
+        if value == base {
+            return true;
+        }
+        if !visiting.insert(value) {
+            return false;
+        }
+        let valid = if is_direct_unit_increment(definitions, value, base) {
+            increments.insert(value);
+            true
+        } else if let Some(phi) = phis.get(&value) {
+            !phi.incoming.is_empty()
+                && phi.incoming.iter().all(|(_, incoming)| {
+                    follower_backedge_is_unit_bounded(
+                        *incoming,
+                        base,
+                        definitions,
+                        phis,
+                        visiting,
+                        increments,
+                    )
+                })
+        } else {
+            false
+        };
+        visiting.remove(&value);
+        valid
+    }
+
+    fn block_successors(block: &crate::ir::ControlFlowBlock<'_>) -> Vec<crate::ir::BlockId> {
+        match block.terminator {
+            Some(Terminator::Jump(target)) => vec![target],
+            Some(Terminator::Branch {
+                then_block,
+                else_block,
+                ..
+            }) => vec![then_block, else_block],
+            Some(Terminator::Try { body, catch_block }) => {
+                std::iter::once(body).chain(catch_block).collect()
+            }
+            _ => Vec::new(),
+        }
+    }
+
+    let definitions = function
+        .blocks
+        .iter()
+        .flat_map(|block| &block.instructions)
+        .filter_map(|instruction| instruction.out.map(|out| (out, &instruction.op)))
+        .collect::<AHashMap<_, _>>();
+    let definition_blocks = function
+        .blocks
+        .iter()
+        .flat_map(|block| {
+            block
+                .instructions
+                .iter()
+                .filter_map(move |instruction| instruction.out.map(|out| (out, block.id)))
+        })
+        .collect::<AHashMap<_, _>>();
+    let phis = function
+        .blocks
+        .iter()
+        .flat_map(|block| &block.phis)
+        .map(|phi| (phi.out, phi))
+        .collect::<AHashMap<_, _>>();
+    let mut safe = AHashSet::default();
+
+    for shape in &function.shapes {
+        let ControlShape::Loop {
+            header,
+            body,
+            update: Some(update),
+            exit,
+        } = shape
+        else {
+            continue;
+        };
+        let header = &function.blocks[header.0 as usize];
+        let Some(Terminator::Branch {
+            condition,
+            then_block,
+            else_block,
+        }) = header.terminator
+        else {
+            continue;
+        };
+        // The proof below applies on the true `<` edge only. Inverted or
+        // inclusive conditions need a different bound and stay normalized.
+        if then_block != *body || else_block != *exit {
+            continue;
+        }
+        let Some(ControlFlowOp::Binary {
+            op: IrBinaryOp::Less,
+            lhs: induction,
+            rhs: bound,
+        }) = definitions.get(&condition)
+        else {
+            continue;
+        };
+        if int_constant(&definitions, *bound)
+            .map(I32Range::exact)
+            .or_else(|| ranges.get(bound).copied())
+            .is_none()
+        {
+            continue;
+        }
+        let Some(induction_phi) = header.phis.iter().find(|phi| phi.out == *induction) else {
+            continue;
+        };
+        let Some((induction_initial, induction_backedge)) = loop_phi_inputs(induction_phi, *update)
+        else {
+            continue;
+        };
+        let Some(induction_initial) = int_constant(&definitions, induction_initial) else {
+            continue;
+        };
+        if !is_direct_unit_increment(&definitions, induction_backedge, *induction) {
+            continue;
+        }
+        // A value feeding the backedge may theoretically have been computed
+        // in the header before the strict comparison. Only body-edge blocks
+        // inherit `induction < bound`, so only updates in this region may use
+        // the relational proof.
+        let mut body_region = AHashSet::default();
+        let mut pending = vec![*body];
+        while let Some(block) = pending.pop() {
+            if block == header.id || block == *exit || !body_region.insert(block) {
+                continue;
+            }
+            pending.extend(block_successors(&function.blocks[block.0 as usize]));
+        }
+        let body_edge_dominates_region = function.blocks.iter().all(|predecessor| {
+            block_successors(predecessor).into_iter().all(|successor| {
+                !body_region.contains(&successor)
+                    || body_region.contains(&predecessor.id)
+                    || (predecessor.id == header.id && successor == *body)
+            })
+        });
+        if !body_edge_dominates_region {
+            continue;
+        }
+
+        // Every update admitted below is now dominated by the true body edge;
+        // there is no alternate predecessor that can bypass the strict bound.
+        if body_region.is_empty() {
+            continue;
+        }
+
+        for follower in header
+            .phis
+            .iter()
+            .filter(|phi| phi.ty == Type::Int && phi.out != *induction)
+        {
+            let Some((follower_initial, follower_backedge)) = loop_phi_inputs(follower, *update)
+            else {
+                continue;
+            };
+            let Some(follower_initial) = int_constant(&definitions, follower_initial) else {
+                continue;
+            };
+            if follower_initial > induction_initial {
+                continue;
+            }
+            let mut increments = AHashSet::default();
+            if follower_backedge_is_unit_bounded(
+                follower_backedge,
+                follower.out,
+                &definitions,
+                &phis,
+                &mut AHashSet::default(),
+                &mut increments,
+            ) && !increments.is_empty()
+                && increments.iter().all(|value| {
+                    definition_blocks
+                        .get(value)
+                        .is_some_and(|block| body_region.contains(block))
+                })
+            {
+                safe.extend(increments);
+            }
+        }
+    }
+    safe
+}
+
 fn join_known(values: impl IntoIterator<Item = Option<I32Range>>) -> Option<I32Range> {
     let mut values = values.into_iter();
     let first = values.next()??;
@@ -1612,7 +1880,9 @@ mod tests {
 
     use super::*;
     use crate::{
-        analyze, lower_to_control_flow,
+        analyze,
+        codegen_ir_js::{emit_optimized_ir_js_with_options, IrJsOptions},
+        lower_to_control_flow,
         optimizer::{optimize_control_flow_with_options, OptimizationOptions},
         parse_source,
     };
@@ -1739,6 +2009,110 @@ mod tests {
                 .function(entry.id)
                 .can_elide_coercion(increments[0]),
             "{entry:#?}"
+        );
+    }
+
+    #[test]
+    fn proves_filtered_compaction_count_bounded_by_array_induction() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "extern int[] readValues();extern bool keep(int value);int[] values=readValues();int write=0;for(int index=0;index<values.length;index++){int value=values[index];if(keep(value)){values[write]=value;write+=1;}}print(write);",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut ir = lower_to_control_flow(&program, &semantics).unwrap();
+        let options = OptimizationOptions {
+            inlining: false,
+            ..OptimizationOptions::default()
+        };
+        optimize_control_flow_with_options(&mut ir, &options, false).unwrap();
+        let analysis = analyze_integer_values(&ir);
+        let entry = &ir.functions[ir.entry.0 as usize];
+        let increments = unit_increment_outputs(entry);
+
+        assert_eq!(increments.len(), 2, "{entry:#?}");
+        assert!(
+            increments
+                .iter()
+                .all(|value| analysis.function(entry.id).can_elide_coercion(*value)),
+            "{entry:#?}"
+        );
+        let output = emit_optimized_ir_js_with_options(
+            &ir,
+            &IrJsOptions {
+                mangle_identifiers: false,
+                ..IrJsOptions::default()
+            },
+        )
+        .unwrap();
+        assert!(!output.contains("+1|0"), "{output}");
+    }
+
+    #[test]
+    fn keeps_filtered_compaction_count_normalized_at_inclusive_i32_max() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "extern bool keep(int value);int write=2147483646;for(int index=2147483646;index<=2147483647;index++){if(keep(index)){write+=1;}}print(write);",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut ir = lower_to_control_flow(&program, &semantics).unwrap();
+        let options = OptimizationOptions {
+            inlining: false,
+            ..OptimizationOptions::default()
+        };
+        optimize_control_flow_with_options(&mut ir, &options, false).unwrap();
+        let analysis = analyze_integer_values(&ir);
+        let entry = &ir.functions[ir.entry.0 as usize];
+        let increments = unit_increment_outputs(entry);
+
+        assert_eq!(increments.len(), 2, "{entry:#?}");
+        assert!(
+            increments
+                .iter()
+                .all(|value| !analysis.function(entry.id).can_elide_coercion(*value)),
+            "{entry:#?}"
+        );
+        let output = emit_optimized_ir_js_with_options(
+            &ir,
+            &IrJsOptions {
+                mangle_identifiers: false,
+                ..IrJsOptions::default()
+            },
+        )
+        .unwrap();
+        assert_eq!(output.matches("+1|0").count(), 2, "{output}");
+    }
+
+    #[test]
+    fn keeps_follower_normalized_when_it_can_advance_twice_per_iteration() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "extern int[] readValues();extern bool keep(int value);int[] values=readValues();int write=0;for(int index=0;index<values.length;index++){if(keep(index)){write+=1;write+=1;}}print(write);",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut ir = lower_to_control_flow(&program, &semantics).unwrap();
+        let options = OptimizationOptions {
+            inlining: false,
+            ..OptimizationOptions::default()
+        };
+        optimize_control_flow_with_options(&mut ir, &options, false).unwrap();
+        let analysis = analyze_integer_values(&ir);
+        let entry = &ir.functions[ir.entry.0 as usize];
+        let increments = unit_increment_outputs(entry);
+        let elidable = increments
+            .iter()
+            .filter(|value| analysis.function(entry.id).can_elide_coercion(**value))
+            .count();
+
+        assert_eq!(increments.len(), 3, "{entry:#?}");
+        assert_eq!(
+            elidable, 1,
+            "only the primary induction is bounded\n{entry:#?}"
         );
     }
 
