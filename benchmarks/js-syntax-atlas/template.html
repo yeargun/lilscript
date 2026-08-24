@@ -1,0 +1,519 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <title>JavaScript compression syntax atlas</title>
+    <style>
+      :root {
+        --bg: #090b10;
+        --panel: #11151c;
+        --panel-2: #161b24;
+        --line: #293140;
+        --ink: #f1f5f9;
+        --muted: #95a1b2;
+        --faint: #687386;
+        --acid: #c8ff5a;
+        --cyan: #62e8ff;
+        --purple: #bd9cff;
+        --amber: #ffc857;
+        --rose: #ff7b9c;
+        --green: #67e8a5;
+        --radius: 15px;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+      * { box-sizing: border-box; }
+      html { background: var(--bg); scroll-behavior: smooth; }
+      body {
+        margin: 0;
+        color: var(--ink);
+        background:
+          radial-gradient(circle at 12% -8%, rgba(98, 232, 255, .11), transparent 31rem),
+          radial-gradient(circle at 93% 4%, rgba(189, 156, 255, .10), transparent 30rem),
+          var(--bg);
+        line-height: 1.5;
+      }
+      button, input, select { font: inherit; }
+      button, select, input[type="search"] {
+        color: var(--ink);
+        background: #0c1016;
+        border: 1px solid var(--line);
+      }
+      button { cursor: pointer; }
+      code, pre, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+      a { color: var(--cyan); }
+      .shell { width: min(1280px, calc(100% - 32px)); margin: 0 auto; }
+      .topbar {
+        position: sticky;
+        top: 0;
+        z-index: 5;
+        border-bottom: 1px solid rgba(41, 49, 64, .85);
+        background: rgba(9, 11, 16, .88);
+        backdrop-filter: blur(14px);
+      }
+      .topbar .shell {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        min-height: 48px;
+        overflow-x: auto;
+      }
+      .brand { color: var(--acid); font: 800 12px/1 ui-monospace, monospace; letter-spacing: .12em; white-space: nowrap; }
+      .topbar a { color: var(--muted); text-decoration: none; font-size: 12px; white-space: nowrap; }
+      .topbar a:hover { color: var(--ink); }
+      .hero { padding: 68px 0 28px; }
+      .eyebrow { margin: 0 0 12px; color: var(--acid); font: 800 12px/1 ui-monospace, monospace; letter-spacing: .18em; text-transform: uppercase; }
+      h1 { max-width: 15ch; margin: 0; font-size: clamp(42px, 7vw, 82px); line-height: .92; letter-spacing: -.065em; }
+      .lede { max-width: 790px; margin: 24px 0 0; color: var(--muted); font-size: clamp(16px, 2vw, 19px); }
+      .hero-note { max-width: 950px; margin: 24px 0 0; padding: 14px 16px; border-left: 3px solid var(--amber); background: rgba(255, 200, 87, .065); color: #d9d1b6; }
+      .stats { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; margin: 30px 0 0; }
+      .stat { min-height: 126px; padding: 17px; border: 1px solid var(--line); border-radius: var(--radius); background: rgba(17, 21, 28, .9); }
+      .stat span { color: var(--faint); font-size: 10px; letter-spacing: .09em; text-transform: uppercase; }
+      .stat strong { display: block; margin-top: 10px; font-size: clamp(27px, 4vw, 40px); line-height: 1; letter-spacing: -.045em; }
+      .stat small { display: block; margin-top: 10px; color: var(--muted); font-size: 11px; }
+      .stat.hot strong { color: var(--acid); }
+      section { scroll-margin-top: 66px; }
+      .section-head { margin: 48px 0 18px; }
+      .section-head h2 { margin: 0; font-size: clamp(25px, 3vw, 34px); letter-spacing: -.04em; }
+      .section-head p { max-width: 850px; margin: 8px 0 0; color: var(--muted); }
+      .lane-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+      .lane-card { padding: 20px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
+      .lane-card .number { color: var(--cyan); font: 800 11px/1 ui-monospace, monospace; letter-spacing: .1em; }
+      .lane-card h3 { margin: 12px 0 7px; font-size: 18px; }
+      .lane-card p { margin: 0; color: var(--muted); font-size: 13px; }
+      .metric-strip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 12px; }
+      .metric { padding: 17px 19px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
+      .metric b { display: block; margin-bottom: 5px; font-size: 15px; }
+      .metric p { margin: 0; color: var(--muted); font-size: 12px; }
+      .metric.raw b { color: var(--acid); }
+      .metric.gzip b { color: var(--cyan); }
+      .metric.brotli b { color: var(--purple); }
+      .laws { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+      .law { padding: 18px 20px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
+      .law b { display: block; margin-bottom: 6px; }
+      .law p { margin: 0; color: var(--muted); font-size: 13px; }
+      .inversions { overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
+      .inversion { display: grid; grid-template-columns: minmax(180px, 1fr) 1fr 1fr; gap: 16px; padding: 14px 18px; border-top: 1px solid var(--line); align-items: center; }
+      .inversion:first-child { border-top: 0; }
+      .inversion h3 { margin: 0; font-size: 14px; }
+      .inversion small { display: block; margin-top: 3px; color: var(--faint); }
+      .inversion .winner { color: var(--muted); font-size: 12px; }
+      .inversion .winner b { display: block; color: var(--ink); font-size: 13px; }
+      .empty { padding: 22px; color: var(--muted); }
+      .labbar {
+        position: sticky;
+        top: 48px;
+        z-index: 4;
+        display: grid;
+        grid-template-columns: minmax(220px, 1fr) 190px auto auto;
+        gap: 10px;
+        align-items: center;
+        padding: 12px;
+        margin: 18px 0;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: rgba(17, 21, 28, .94);
+        backdrop-filter: blur(12px);
+      }
+      .labbar input[type="search"], .labbar select { width: 100%; min-height: 38px; padding: 8px 10px; border-radius: 9px; }
+      .lane-tabs { display: flex; gap: 5px; }
+      .lane-tabs button { min-height: 38px; padding: 7px 10px; border-radius: 9px; color: var(--muted); font-size: 12px; white-space: nowrap; }
+      .lane-tabs button[aria-pressed="true"] { color: #0b0e12; border-color: var(--acid); background: var(--acid); }
+      .trap-toggle { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 12px; white-space: nowrap; }
+      .result-line { margin: 0 0 12px; color: var(--muted); font-size: 12px; }
+      .catalog { display: grid; gap: 14px; }
+      .race { overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
+      .race:target { border-color: var(--cyan); box-shadow: 0 0 0 2px rgba(98, 232, 255, .12); }
+      .race-head { display: grid; grid-template-columns: 1fr minmax(310px, .8fr); gap: 22px; padding: 21px 22px 17px; background: linear-gradient(105deg, rgba(98,232,255,.035), transparent 40%); }
+      .group { margin: 0 0 7px; color: var(--cyan); font: 750 10px/1 ui-monospace, monospace; letter-spacing: .12em; text-transform: uppercase; }
+      .race h3 { margin: 0; font-size: 20px; letter-spacing: -.025em; }
+      .contract, .caveat { margin: 0; font-size: 12px; }
+      .contract { color: #c9d2df; }
+      .caveat { margin-top: 7px; color: var(--muted); }
+      .contract b, .caveat b { color: var(--faint); font-size: 9px; letter-spacing: .08em; text-transform: uppercase; }
+      .variant-table { width: 100%; border-collapse: collapse; }
+      .variant-table th, .variant-table td { border-top: 1px solid var(--line); padding: 11px 12px; vertical-align: middle; }
+      .variant-table th { color: var(--faint); font-size: 9px; letter-spacing: .09em; text-align: left; text-transform: uppercase; }
+      .variant-table th:first-child, .variant-table td:first-child { padding-left: 22px; }
+      .variant-table th:last-child, .variant-table td:last-child { padding-right: 22px; }
+      .variant-name { width: 170px; }
+      .variant-name b { display: block; font-size: 12px; }
+      .badge { display: inline-block; margin-top: 5px; padding: 2px 6px; border: 1px solid var(--line); border-radius: 99px; color: var(--muted); font: 700 8px/1.4 ui-monospace, monospace; text-transform: uppercase; }
+      .badge.narrow { color: var(--amber); border-color: rgba(255, 200, 87, .35); }
+      .badge.trap { color: var(--rose); border-color: rgba(255, 123, 156, .4); }
+      .variant-code { min-width: 350px; }
+      .variant-code code { display: block; color: #dbe5f0; font-size: 11px; white-space: pre-wrap; overflow-wrap: anywhere; }
+      .variant-code small { display: block; margin-top: 5px; color: var(--faint); font-size: 10px; }
+      .size { width: 94px; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+      .size strong { display: block; font-size: 13px; }
+      .size small { color: var(--faint); font-size: 9px; }
+      .size.best strong { color: var(--green); }
+      .size.raw.best strong { color: var(--acid); }
+      .size.gzip.best strong { color: var(--cyan); }
+      .size.brotli.best strong { color: var(--purple); }
+      tr.trap { background: rgba(255, 123, 156, .025); }
+      .context-box { border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); overflow: hidden; }
+      .context-box td.narrow { color: var(--amber); }
+      .context-box td.trap { color: var(--rose); }
+      .context-meta { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--line); }
+      .context-meta div { padding: 14px 16px; background: var(--panel-2); }
+      .context-meta span { display: block; color: var(--faint); font-size: 9px; letter-spacing: .08em; text-transform: uppercase; }
+      .context-meta b { display: block; margin-top: 4px; font-size: 13px; overflow-wrap: anywhere; }
+      details summary { cursor: pointer; padding: 14px 16px; color: var(--muted); font-size: 12px; }
+      details pre { max-height: 360px; margin: 0; padding: 18px; overflow: auto; border-top: 1px solid var(--line); background: #0a0d12; color: #cbd5e1; font-size: 11px; }
+      footer { padding: 42px 0 64px; color: var(--faint); font-size: 11px; }
+      @media (max-width: 1000px) {
+        .stats { grid-template-columns: repeat(2, 1fr); }
+        .lane-grid, .metric-strip { grid-template-columns: 1fr; }
+        .labbar { grid-template-columns: 1fr 1fr; }
+        .race-head { grid-template-columns: 1fr; }
+        .variant-table { display: block; overflow-x: auto; }
+      }
+      @media (max-width: 680px) {
+        .shell { width: min(100% - 20px, 1280px); }
+        .hero { padding-top: 44px; }
+        .stats, .laws, .labbar, .context-meta { grid-template-columns: 1fr; }
+        .labbar { position: static; }
+        .lane-tabs { overflow-x: auto; }
+        .inversion { grid-template-columns: 1fr; gap: 7px; }
+      }
+    </style>
+  </head>
+  <body>
+    <nav class="topbar">
+      <div class="shell">
+        <span class="brand">LILSCRIPT / SYNTAX ATLAS</span>
+        <a href="#method">Method</a>
+        <a href="#findings">Compression laws</a>
+        <a href="#tactics">Weird tactics</a>
+        <a href="#identity">Sharing rules</a>
+        <a href="#inversions">Inversions</a>
+        <a href="#atlas">All races</a>
+        <a href="#context">Context bytes</a>
+      </div>
+    </nav>
+
+    <main class="shell">
+      <header class="hero">
+        <p class="eyebrow">Raw · gzip-9 · Brotli-11</p>
+        <h1>Same intent. Different bytes.</h1>
+        <p class="lede">
+          A semantics-aware atlas of minified JavaScript spellings: loops,
+          branches, array algorithms, object enumeration, prototype tricks,
+          functions, numbers, strings, collections, expressions, and async.
+          Every race is measured alone, repeated, and inside the same app-shaped
+          compression dictionary.
+        </p>
+        <p class="hero-note">
+          <strong>The contract is part of the code.</strong> “Interchangeable”
+          here always means interchangeable under the sentence printed beside
+          that race. Rows marked <em>trap</em> are measured because they are
+          tempting, but they are excluded from winners. This is a byte-size lab,
+          not a runtime-speed recommendation.
+        </p>
+        <div class="stats">
+          <div class="stat hot"><span>Syntax races</span><strong id="race-count">—</strong><small>independent semantic contracts</small></div>
+          <div class="stat"><span>Spellings measured</span><strong id="variant-count">—</strong><small>three codec lanes each</small></div>
+          <div class="stat"><span>Single: raw ≠ Brotli</span><strong id="single-disagree">—</strong><small>races with different winners</small></div>
+          <div class="stat"><span>Context: raw ≠ Brotli</span><strong id="context-disagree">—</strong><small>dictionary-conditioned winners</small></div>
+          <div class="stat"><span>Brotli lane flips</span><strong id="brotli-flips">—</strong><small>single winner changes in context</small></div>
+        </div>
+      </header>
+
+      <section id="method">
+        <div class="section-head">
+          <h2>Three different questions</h2>
+          <p>A compressor does not price a token in isolation. These lanes deliberately answer different questions; none is “the one true size.”</p>
+        </div>
+        <div class="lane-grid">
+          <article class="lane-card"><span class="number">01 / LOCAL</span><h3>Single spelling</h3><p>Exact displayed bytes as an independent stream. Honest for raw. For tiny gzip/Brotli inputs, framing and stream setup dominate.</p></article>
+          <article class="lane-card"><span class="number">02 / AMORTIZED</span><h3>32× repeated</h3><p>The same spelling in separate blocks, compressed together. This exposes keyword, punctuation, and identifier repetition.</p></article>
+          <article class="lane-card"><span class="number">03 / DICTIONARY</span><h3>In app context</h3><p>Marginal bytes after appending one spelling to a fixed app-shaped corpus. A longer raw form can become cheaper if its vocabulary is already warm.</p></article>
+        </div>
+        <div class="metric-strip">
+          <article class="metric raw"><b>Raw UTF-8</b><p>Exact source byte count. No newline is added in the single lane.</p></article>
+          <article class="metric gzip"><b>gzip level 9</b><p>Stock zlib 1.3.1, deterministic mtime 0, complete stream bytes.</p></article>
+          <article class="metric brotli"><b>Brotli quality 11</b><p>Official Google Brotli 1.1.0, lgwin 22, generic mode.</p></article>
+        </div>
+      </section>
+
+      <section id="findings">
+        <div class="section-head">
+          <h2>Compression laws worth stealing</h2>
+          <p>These are optimizer tactics, not blind rewrite rules. The atlas below gives the evidence and the boundary conditions.</p>
+        </div>
+        <div class="laws">
+          <article class="law"><b>Optimize the bundle, not the node.</b><p id="law-context">A local winner often stops winning after a fixed dictionary is introduced.</p></article>
+          <article class="law"><b>Long built-in names can amortize.</b><p>Object, Array, prototype, length, return, and method names become cheap after repetition; fresh punctuation-heavy control flow may not.</p></article>
+          <article class="law"><b>Give raw, gzip, and Brotli separate objectives.</b><p id="law-codecs">Their winner sets disagree often enough that a single source-length heuristic throws away real bytes.</p></article>
+          <article class="law"><b>Model semantic preconditions explicitly.</b><p>Holes, getters, proxies, callback arguments, iterator closing, NaN, -0, Array species, this, hoisting, and promise timing are common rewrite landmines.</p></article>
+          <article class="law"><b>Repeated shapes are a currency.</b><p>A compiler can intentionally standardize loop or branch spelling across a file, accepting a tiny local raw loss to build a better dictionary.</p></article>
+          <article class="law"><b>Do not spend runtime to save transfer bytes blindly.</b><p>map-for-effects, table dispatch, JSON cloning, Set construction, spread, and bind can allocate or change complexity. Size and execution need separate gates.</p></article>
+        </div>
+      </section>
+
+      <section id="tactics">
+        <div class="section-head">
+          <h2>A weird-tactics queue for LilScript</h2>
+          <p>Ideas suggested by the races, deliberately left as research directions rather than compiler changes.</p>
+        </div>
+        <div class="laws">
+          <article class="law"><b>Whole-file spelling portfolios</b><p>Keep several proven-equivalent loop, branch, literal, and mutation forms alive until mangling finishes; score combinations against the final target codec instead of committing node by node.</p></article>
+          <article class="law"><b>Vocabulary standardization</b><p>Prefer one repeated structural dialect across a bundle—perhaps more <code>if</code>, one loop header, or one object-copy form—when dictionary reuse repays local raw losses.</p></article>
+          <article class="law"><b>Warm-token marginal scoring</b><p>Price a candidate as a delta against nearby or full-bundle bytes. Cache the codec state or rescore bounded regions; isolated snippet streams are mainly a diagnostic.</p></article>
+          <article class="law"><b>Built-in break-even search</b><p>Let long spellings such as <code>Object.create</code>, <code>slice</code>, <code>prototype</code>, and <code>function</code> compete after repetition. Brotli’s dictionary can reverse obvious source-length choices.</p></article>
+          <article class="law"><b>Lexical shape competition</b><p>Choose quote kind, number radix/exponent, Boolean/undefined spelling, key quoting, RegExp construction, and semicolon/comma layout using actual surrounding bytes.</p></article>
+          <article class="law"><b>Alias portfolio search</b><p>Introduce aliases for repeated property paths or built-ins only after jointly pricing declaration cost, call-site savings, mangled name choice, and gzip/Brotli reuse.</p></article>
+          <article class="law"><b>Prototype representation races</b><p>When the ABI proof permits it, compare class syntax, prototype assignment, object-literal <code>__proto__</code>, <code>Object.create</code>, and closure factories as complete families.</p></article>
+          <article class="law"><b>Proof-keyed candidate menus</b><p>Generate risky compact forms only when analysis proves the exact preconditions: dense arrays, pristine built-ins, no getters/proxies, stable methods, finite numeric ranges, ignored results, or closed-world prototypes.</p></article>
+          <article class="law"><b>Codec-specific artifacts</b><p>Raw, gzip, and Brotli outputs should be allowed to differ. The atlas records enough disagreement that forcing one universal JavaScript spelling is an avoidable constraint.</p></article>
+          <article class="law"><b>Runtime veto after size search</b><p>Reject candidates that add harmful allocation or complexity—map-for-effects, repeated table creation, JSON cloning, Set setup—unless the surrounding workload makes that cost acceptable.</p></article>
+        </div>
+      </section>
+
+      <section id="identity">
+        <div class="section-head">
+          <h2>What can actually be shared?</h2>
+          <p>
+            Pure ECMAScript does not specify execution speed or allocation count,
+            but it absolutely exposes identity, evaluation order, property-read
+            counts, iterator hooks, live bindings, and direct-eval scope. Matching
+            printed output is not enough; 32 focused executable probes treat all
+            of those as behavior.
+          </p>
+        </div>
+        <div class="laws">
+          <article class="law"><b>Primitive values: often yes</b><p>Numbers, strings, Booleans, BigInts, null, and undefined have no object identity. Reusing a computed primitive is exact only when its inputs are stable and its evaluation is pure and stays in the same ordering region.</p></article>
+          <article class="law"><b>Symbol: the primitive exception</b><p>Every <code>Symbol()</code> call produces a distinct identity. <code>Symbol.for()</code> deliberately shares through the global registry. One cannot replace the other.</p></article>
+          <article class="law"><b>Objects and arrays: no generic sharing</b><p>Equal contents do not erase <code>===</code>, mutation coupling, prototypes, descriptors, WeakMap keys, proxies, or retention. <code>Object.freeze</code> prevents writes; it does not remove identity.</p></article>
+          <article class="law"><b>Functions, RegExps, and Promises: also no</b><p>Functions carry identity and properties; global/sticky RegExps carry <code>lastIndex</code>; Promises remain distinguishable even with equal settlement. Factories may preserve freshness, but add calls and closure behavior.</p></article>
+          <article class="law"><b>Non-escaping aggregates: potentially removable</b><p>If whole-program analysis proves an object never escapes to a call, eval, proxy, weak reference, or reflection, scalar replacement can preserve every reachable language result while deleting the allocation.</p></article>
+          <article class="law"><b>Tagged templates: site identity is data</b><p>A tag receives one frozen template object cached per syntactic site. Merging identical sites into one loop/helper changes the object passed to the tag.</p></article>
+        </div>
+
+        <div class="section-head">
+          <h2>Are extra sub-closures transparent?</h2>
+          <p>Usually not. They are candidate representations only inside a closed, proven-safe region.</p>
+        </div>
+        <div class="context-box">
+          <table class="variant-table">
+            <thead><tr><th>Transformation</th><th>Default judgment</th><th>Required proof</th></tr></thead>
+            <tbody>
+              <tr><td><code>{let x=…}{let x=…}</code></td><td>Best first candidate</td><td>No binding crosses regions; TDZ, eval, labels, and Annex-B function behavior remain valid.</td></tr>
+              <tr><td>Arrow IIFE around a region</td><td class="narrow">Not transparent</td><td>No direct eval, caller/stack observation, return/break/continue crossing, await/yield boundary, or capture-lifetime change.</td></tr>
+              <tr><td>IIFE parameters as aliases</td><td class="narrow">Proof-keyed</td><td>Argument is evaluated at the same point; property/getter reads and live binding behavior may be reduced to a snapshot.</td></tr>
+              <tr><td>Reuse one callback closure</td><td class="trap">Unsafe generally</td><td>Every consumer is closed-world and cannot retain, compare, mutate, weakly key, or inspect the callback.</td></tr>
+              <tr><td>Closure factory per use</td><td>Can preserve freshness</td><td>Returned closure capture semantics, this/arguments, name/prototype, call frames, and exceptions are all unobserved or equivalent.</td></tr>
+              <tr><td>Cache a pure computation</td><td class="narrow">Proof-keyed</td><td>Total deterministic operation, stable primitive inputs/result, no observable call/read count, and no movement across effects or throws.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="inversions">
+        <div class="section-head">
+          <h2>Raw/Brotli winner inversions</h2>
+          <p>The current lane’s cases where the shortest eligible raw spelling and the cheapest Brotli spelling are different. This is the most direct evidence against “minify first, compression follows.”</p>
+        </div>
+        <div id="inversion-list" class="inversions"></div>
+      </section>
+
+      <section id="atlas">
+        <div class="section-head">
+          <h2>All syntax races</h2>
+          <p>Green/colored values are metric winners among contract and narrow rows. Trap rows stay visible by default but never win.</p>
+        </div>
+        <div class="labbar">
+          <input id="search" type="search" aria-label="Search races and code" placeholder="Search: prototype, forEach, NaN…" />
+          <select id="group" aria-label="Filter by syntax group"><option value="all">All groups</option></select>
+          <div id="lane-tabs" class="lane-tabs" aria-label="Measurement lane"></div>
+          <label class="trap-toggle"><input id="traps" type="checkbox" checked /> show traps</label>
+        </div>
+        <p id="result-line" class="result-line"></p>
+        <div id="catalog-list" class="catalog"></div>
+      </section>
+
+      <section id="context">
+        <div class="section-head">
+          <h2>The exact contextual dictionary</h2>
+          <p>The context lane reports <code>compressed(context + "\n" + snippet) - compressed(context)</code>. Marginal compressed cost is contextual, can be non-intuitive, and is not a standalone stream size.</p>
+        </div>
+        <div class="context-box">
+          <div class="context-meta">
+            <div><span>Raw bytes</span><b id="context-raw">—</b></div>
+            <div><span>gzip-9 bytes</span><b id="context-gzip">—</b></div>
+            <div><span>Brotli-11 bytes</span><b id="context-brotli">—</b></div>
+            <div><span>SHA-256</span><b id="context-hash" class="mono">—</b></div>
+          </div>
+          <details><summary>Show exact source bytes</summary><pre id="context-source"></pre></details>
+        </div>
+      </section>
+
+      <footer>
+        Generated from a reviewable catalog by the repository’s canonical codec scorer. The report is self-contained: no network requests, fonts, scripts, or stylesheets.
+      </footer>
+    </main>
+
+    <script id="atlas-data" type="application/json">__ATLAS_DATA__</script>
+    <script>
+      (() => {
+        "use strict";
+        const data = JSON.parse(document.getElementById("atlas-data").textContent);
+        const metrics = ["raw", "gzip", "brotli"];
+        const metricLabels = { raw: "Raw", gzip: "gzip-9", brotli: "Brotli-11" };
+        const state = { lane: "single", group: "all", search: "", traps: true };
+        const byId = id => document.getElementById(id);
+        const node = (tag, className, text) => {
+          const value = document.createElement(tag);
+          if (className) value.className = className;
+          if (text !== undefined) value.textContent = text;
+          return value;
+        };
+        const eligible = race => race.variants.filter(variant => variant.safety !== "trap");
+        const minimum = (race, metric) => Math.min(...eligible(race).map(variant => variant.sizes[state.lane][metric]));
+        const winners = (race, metric) => {
+          const best = minimum(race, metric);
+          return eligible(race).filter(variant => variant.sizes[state.lane][metric] === best);
+        };
+        const format = value => new Intl.NumberFormat("en-US").format(value);
+
+        byId("race-count").textContent = data.counts.races;
+        byId("variant-count").textContent = data.counts.variants;
+        byId("single-disagree").textContent = data.summary.disagreements.single.rawVsBrotli;
+        byId("context-disagree").textContent = data.summary.disagreements.context.rawVsBrotli;
+        byId("brotli-flips").textContent = data.summary.laneFlips.brotli.singleVsContext;
+        byId("law-context").textContent = `${data.summary.laneFlips.brotli.singleVsContext} of ${data.counts.races} Brotli winner sets change between a tiny isolated stream and the fixed app context.`;
+        byId("law-codecs").textContent = `In the repeated lane, raw and gzip disagree in ${data.summary.disagreements.repeated.rawVsGzip} races; raw and Brotli disagree in ${data.summary.disagreements.repeated.rawVsBrotli}.`;
+        byId("context-raw").textContent = format(data.context.sizes.raw);
+        byId("context-gzip").textContent = format(data.context.sizes.gzip);
+        byId("context-brotli").textContent = format(data.context.sizes.brotli);
+        byId("context-hash").textContent = data.context.sha256;
+        byId("context-source").textContent = data.context.source;
+
+        const groupSelect = byId("group");
+        [...new Set(data.races.map(race => race.group))].forEach(group => {
+          const option = node("option", "", group);
+          option.value = group;
+          groupSelect.append(option);
+        });
+
+        const laneTabs = byId("lane-tabs");
+        Object.entries(data.lanes).forEach(([id, lane]) => {
+          const button = node("button", "", lane.label);
+          button.type = "button";
+          button.dataset.lane = id;
+          button.setAttribute("aria-pressed", String(id === state.lane));
+          button.title = lane.description;
+          button.addEventListener("click", () => {
+            state.lane = id;
+            [...laneTabs.children].forEach(child => child.setAttribute("aria-pressed", String(child.dataset.lane === id)));
+            render();
+          });
+          laneTabs.append(button);
+        });
+
+        function metricCell(race, variant, metric) {
+          const value = variant.sizes[state.lane][metric];
+          const best = variant.safety !== "trap" && value === minimum(race, metric);
+          const cell = node("td", `size ${metric}${best ? " best" : ""}`);
+          cell.append(node("strong", "", format(value)));
+          const delta = value - minimum(race, metric);
+          cell.append(node("small", "", variant.safety === "trap" ? "not ranked" : best ? "best" : `+${format(delta)}`));
+          return cell;
+        }
+
+        function raceCard(race) {
+          const article = node("article", "race");
+          article.id = race.id;
+          const head = node("div", "race-head");
+          const identity = node("div");
+          identity.append(node("p", "group", race.group));
+          const heading = node("h3");
+          const link = node("a", "", race.title);
+          link.href = `#${race.id}`;
+          heading.append(link);
+          identity.append(heading);
+          const semantics = node("div");
+          const contract = node("p", "contract");
+          contract.append(node("b", "", "Contract "), document.createTextNode(race.contract));
+          const caveat = node("p", "caveat");
+          caveat.append(node("b", "", "Breaks when "), document.createTextNode(race.caveat));
+          semantics.append(contract, caveat);
+          head.append(identity, semantics);
+          article.append(head);
+
+          const table = node("table", "variant-table");
+          const thead = node("thead");
+          const header = node("tr");
+          ["Spelling", "Exact minified source", ...metrics.map(metric => metricLabels[metric])].forEach(label => header.append(node("th", "", label)));
+          thead.append(header);
+          const tbody = node("tbody");
+          race.variants.filter(variant => state.traps || variant.safety !== "trap").forEach(variant => {
+            const row = node("tr", variant.safety);
+            const name = node("td", "variant-name");
+            name.append(node("b", "", variant.name));
+            name.append(node("span", `badge ${variant.safety}`, variant.safety === "contract" ? "under contract" : variant.safety));
+            const source = node("td", "variant-code");
+            source.append(node("code", "", variant.code));
+            if (variant.note) source.append(node("small", "", variant.note));
+            row.append(name, source, ...metrics.map(metric => metricCell(race, variant, metric)));
+            tbody.append(row);
+          });
+          table.append(thead, tbody);
+          article.append(table);
+          return article;
+        }
+
+        function renderInversions(visibleRaces) {
+          const list = byId("inversion-list");
+          list.replaceChildren();
+          const inverted = visibleRaces.filter(race => {
+            const raw = new Set(winners(race, "raw").map(variant => variant.id));
+            const brotli = winners(race, "brotli");
+            return brotli.some(variant => !raw.has(variant.id)) || raw.size !== brotli.length;
+          });
+          if (!inverted.length) {
+            list.append(node("p", "empty", "No raw/Brotli winner inversions in this filtered view and lane."));
+            return;
+          }
+          inverted.slice(0, 12).forEach(race => {
+            const row = node("article", "inversion");
+            const title = node("div");
+            title.append(node("h3", "", race.title), node("small", "", race.group));
+            const raw = node("div", "winner", "Raw winner");
+            raw.append(node("b", "", winners(race, "raw").map(variant => variant.name).join(" / ")));
+            const br = node("div", "winner", "Brotli winner");
+            br.append(node("b", "", winners(race, "brotli").map(variant => variant.name).join(" / ")));
+            row.append(title, raw, br);
+            row.addEventListener("click", () => { location.hash = race.id; });
+            list.append(row);
+          });
+        }
+
+        function currentRaces() {
+          const query = state.search.toLowerCase();
+          return data.races.filter(race => {
+            if (state.group !== "all" && race.group !== state.group) return false;
+            if (!query) return true;
+            return [race.group, race.title, race.contract, race.caveat, ...race.variants.flatMap(variant => [variant.name, variant.code, variant.note])]
+              .join("\n").toLowerCase().includes(query);
+          });
+        }
+
+        function render() {
+          const races = currentRaces();
+          const catalog = byId("catalog-list");
+          catalog.replaceChildren(...races.map(raceCard));
+          byId("result-line").textContent = `${races.length} of ${data.counts.races} races · ${data.lanes[state.lane].description}`;
+          renderInversions(races);
+        }
+
+        byId("search").addEventListener("input", event => { state.search = event.target.value; render(); });
+        groupSelect.addEventListener("change", event => { state.group = event.target.value; render(); });
+        byId("traps").addEventListener("change", event => { state.traps = event.target.checked; render(); });
+        render();
+      })();
+    </script>
+  </body>
+</html>
