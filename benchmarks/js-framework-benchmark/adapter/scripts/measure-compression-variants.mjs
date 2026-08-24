@@ -126,7 +126,8 @@ for (const variant of variants) {
     const minified = await minify(code, {
       module: true,
       compress: { passes: 3 },
-      mangle: true,
+      // This downstream comparison renames bindings, not object properties.
+      mangle: { properties: false },
       format: { comments: false },
     });
     if (!minified.code) throw new Error(`Terser produced no JavaScript for ${variant.id}`);

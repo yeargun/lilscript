@@ -148,7 +148,8 @@ async function terserLane(code, name, expected) {
   const result = await terserMinify(code, {
     module: true,
     compress: { passes: 3 },
-    mangle: true,
+    // Reusable-library lane: rename bindings, never public object keys.
+    mangle: { properties: false },
   });
   const output = join(buildRoot, `${name}-terser.mjs`);
   writeFileSync(output, result.code);

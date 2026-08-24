@@ -44,12 +44,14 @@ export async function minifyJqueryBundle(source, filename) {
     terserMinify(source, {
       module: true,
       compress: { passes: 3 },
-      mangle: true,
+      // Identifier mangling only. Terser property mangling is deliberately off.
+      mangle: { properties: false },
       format: { comments: false },
     }),
     viteOxcMinify(filename, source, {
       module: true,
       compress: true,
+      // Oxc's mangler covers bindings/private class fields, not ordinary keys.
       mangle: true,
       codegen: {
         removeWhitespace: true,

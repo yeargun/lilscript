@@ -171,7 +171,7 @@ const measurementLanes = {
   }),
   lilscriptTerserMinified: measurementLane({
     role: "diagnostic-competitor",
-    label: "Diagnostic: LilScript linked bundle minified by Terser",
+    label: "Diagnostic: LilScript linked bundle identifier-minified by Terser",
     path: terserMinifiedLil,
     inputArtifact: bundledArtifact,
     tool: {
@@ -181,7 +181,8 @@ const measurementLanes = {
       options: {
         module: true,
         compress: { passes: 3 },
-        mangle: true,
+        mangle: { properties: false },
+        ordinaryPropertyMangling: false,
         comments: false,
       },
     },
@@ -189,7 +190,7 @@ const measurementLanes = {
   lilscriptOxcMinified: measurementLane({
     role: "diagnostic-competitor",
     label:
-      "Diagnostic: LilScript linked bundle minified by Oxc through vite.minify()",
+      "Diagnostic: LilScript linked bundle identifier-minified by Oxc through vite.minify()",
     path: oxcMinifiedLil,
     inputArtifact: bundledArtifact,
     tool: {
@@ -202,6 +203,7 @@ const measurementLanes = {
         module: true,
         compress: true,
         mangle: true,
+        ordinaryPropertyMangling: false,
         removeWhitespace: true,
         legalComments: "none",
         sourcemap: false,

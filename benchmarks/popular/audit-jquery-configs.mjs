@@ -204,7 +204,8 @@ for (const variant of variants) {
       await terserMinify(bundle.toString("utf8"), {
         module: true,
         compress: { passes: 3 },
-        mangle: true,
+        // Keep jQuery's observable object keys out of the mangler.
+        mangle: { properties: false },
       })
     ).code,
   );

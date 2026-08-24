@@ -6,7 +6,10 @@ import { minifyJqueryBundle } from "../jquery-measurement-lanes.mjs";
 const source = `
 export function addOne(needlesslyLongArgumentName) {
   const unusedValue = 42;
-  return needlesslyLongArgumentName + 1;
+  return {
+    publicValue: needlesslyLongArgumentName + 1,
+    publicMethod() { return this.publicValue; },
+  };
 }
 `;
 
@@ -19,7 +22,14 @@ test("all diagnostic jQuery minifiers consume the same linked ESM source", async
     const module = await import(
       `data:text/javascript;charset=utf-8,${encodeURIComponent(code)}`
     );
-    assert.equal(module.addOne(4), 5, `${lane} output should remain executable`);
+    assert.deepEqual(Object.keys(module), ["addOne"], `${lane} export surface`);
+    const value = module.addOne(4);
+    assert.deepEqual(
+      Object.keys(value).sort(),
+      ["publicMethod", "publicValue"],
+      `${lane} public object keys`,
+    );
+    assert.equal(value.publicMethod(), 5, `${lane} public method contract`);
   }
 });
 
