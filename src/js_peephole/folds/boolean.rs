@@ -295,9 +295,7 @@ fn equality_replacement_requires_grouping(tokens: &[Token<'_>], bang: usize, clo
             "!" | "~" | "+" | "-" | "." | "typeof" | "void" | "delete" | "await" | "new"
         ) || tighter_or_equal(token)
     });
-    let postfix_parent = tokens
-        .get(close + 1)
-        .is_some_and(|token| tighter_or_equal(token));
+    let postfix_parent = tokens.get(close + 1).is_some_and(tighter_or_equal);
     prefix_parent || postfix_parent
 }
 
@@ -529,131 +527,6 @@ fn guarded_assign_statement_tail(
         }
     }
     None
-}
-
-pub(crate) fn fold_conditional_singleton_arrays(
-    source: &str,
-) -> Result<(String, usize), JavaScriptParseError> {
-    let tokens = lex(source)?;
-    let matching_close = matching_closers(&tokens);
-    let mut replacements = Vec::<(usize, usize, String)>::new();
-    let mut cursor = 0usize;
-    while cursor + 12 < tokens.len() {
-        let binding_start = cursor;
-        let name_index = if matches!(tokens[cursor].text, "var" | "let" | "const") {
-            cursor + 1
-        } else {
-            cursor
-        };
-        if tokens
-            .get(name_index)
-            .is_none_or(|token| token.kind != TokenKind::Identifier)
-            || tokens.get(name_index + 1).map(|token| token.text) != Some("=")
-            || tokens.get(name_index + 2).map(|token| token.text) != Some("[")
-            || tokens.get(name_index + 3).map(|token| token.text) != Some("]")
-            || tokens.get(name_index + 4).map(|token| token.text) != Some(";")
-        {
-            cursor += 1;
-            continue;
-        }
-        let name = tokens[name_index].text;
-        let comma_declarator = name_index
-            .checked_sub(1)
-            .is_some_and(|index| tokens[index].text == ",");
-        let cond_start = name_index + 5;
-        let Some(and) = tokens
-            .iter()
-            .enumerate()
-            .skip(cond_start)
-            .find_map(|(index, token)| {
-                (token.text == "&&"
-                    && tokens.get(index + 1).map(|next| next.text) == Some(name)
-                    && tokens.get(index + 2).map(|next| next.text) == Some(".")
-                    && tokens.get(index + 3).map(|next| next.text) == Some("push")
-                    && tokens.get(index + 4).map(|next| next.text) == Some("("))
-                .then_some(index)
-            })
-        else {
-            cursor += 1;
-            continue;
-        };
-        if identifier_occurs(&tokens, cond_start, and, name)
-            || tokens[cond_start..and]
-                .iter()
-                .any(|token| matches!(token.text, ";" | "{" | "}"))
-        {
-            cursor += 1;
-            continue;
-        }
-        let Some(push_close) = matching_close.get(and + 4).copied().flatten() else {
-            cursor += 1;
-            continue;
-        };
-        if tokens.get(push_close + 1).map(|token| token.text) != Some(";")
-            || tokens.get(push_close + 2).map(|token| token.text) != Some("return")
-        {
-            cursor += 1;
-            continue;
-        }
-        let elem = &source[tokens[and + 5].start..tokens[push_close].start];
-        if identifier_occurs(&tokens, and + 5, push_close, name) || elem.is_empty() {
-            cursor += 1;
-            continue;
-        }
-        let cond = &source[tokens[cond_start].start..tokens[and].start];
-        let return_at = push_close + 2;
-        let replace_from = if comma_declarator {
-            tokens[name_index - 1].start
-        } else {
-            tokens[binding_start].start
-        };
-        let prefix = if comma_declarator { ";" } else { "" };
-        let replacement = if tokens.get(return_at + 1).map(|token| token.text) == Some(name)
-            && matches!(
-                tokens.get(return_at + 2).map(|token| token.text),
-                Some(";") | Some("}") | None
-            ) {
-            let end = tokens
-                .get(return_at + 2)
-                .filter(|token| token.text == ";")
-                .map(|token| token.end)
-                .unwrap_or(tokens[return_at + 1].end);
-            (
-                replace_from,
-                end,
-                format!("{prefix}return {cond}?[{elem}]:[]"),
-            )
-        } else if tokens
-            .get(return_at + 1)
-            .is_some_and(|token| token.kind == TokenKind::Identifier || token.text == "this")
-            && tokens.get(return_at + 2).map(|token| token.text) == Some(".")
-            && tokens
-                .get(return_at + 3)
-                .is_some_and(|token| token.kind == TokenKind::Identifier)
-            && tokens.get(return_at + 4).map(|token| token.text) == Some("(")
-            && tokens.get(return_at + 5).map(|token| token.text) == Some(name)
-            && tokens.get(return_at + 6).map(|token| token.text) == Some(")")
-        {
-            let end = tokens
-                .get(return_at + 7)
-                .filter(|token| token.text == ";")
-                .map(|token| token.end)
-                .unwrap_or(tokens[return_at + 6].end);
-            let callee = &source[tokens[return_at + 1].start..tokens[return_at + 4].start];
-            (
-                replace_from,
-                end,
-                format!("{prefix}return {callee}({cond}?[{elem}]:[])"),
-            )
-        } else {
-            cursor += 1;
-            continue;
-        };
-        replacements.push(replacement);
-        cursor = push_close + 3;
-    }
-    let (output, count) = apply_token_rewrites(source, replacements);
-    Ok((output, count))
 }
 
 pub(crate) fn fold_guarded_and_addends(
@@ -1136,13 +1009,14 @@ fn name_is_local_zero_counter(
             index += 2;
             continue;
         }
-        if tokens[index].kind == TokenKind::Identifier && tokens[index].text == name {
-            if matches!(
+        if tokens[index].kind == TokenKind::Identifier
+            && tokens[index].text == name
+            && matches!(
                 tokens.get(index + 1).map(|token| token.text),
                 Some("=") | Some("--") | Some("+=") | Some("-=")
-            ) {
-                proven = false;
-            }
+            )
+        {
+            proven = false;
         }
         index += 1;
     }
@@ -1837,8 +1711,8 @@ fn side_effect_free_lvalue(tokens: &[Token<'_>], start: usize, eq_at: usize) -> 
 
 fn assign_arm(tokens: &[Token<'_>], start: usize, end: usize) -> Option<(usize, usize)> {
     let mut depth = 0i32;
-    for index in start..end {
-        match tokens[index].text {
+    for (index, token) in tokens.iter().enumerate().take(end).skip(start) {
+        match token.text {
             "(" | "[" | "{" => depth += 1,
             ")" | "]" | "}" => depth -= 1,
             "=" if depth == 0 && tokens.get(index + 1).map(|token| token.text) != Some("=") => {
@@ -1946,9 +1820,10 @@ fn ternary_condition_start(tokens: &[Token<'_>], question: usize) -> usize {
 
 fn ternary_logical_condition_start(tokens: &[Token<'_>], question: usize) -> usize {
     let mut start = ternary_condition_start(tokens, question);
-    while let Some(operator) = start.checked_sub(1).filter(|index| {
-        matches!(tokens[*index].text, "&&" | "||" | "??")
-    }) {
+    while let Some(operator) = start
+        .checked_sub(1)
+        .filter(|index| matches!(tokens[*index].text, "&&" | "||" | "??"))
+    {
         let earlier = ternary_condition_start(tokens, operator);
         if earlier == start {
             break;
@@ -1967,8 +1842,8 @@ fn inverted_disjunction_condition(
     let mut depth = 0i32;
     let mut term_start = start;
     let mut terms = Vec::new();
-    for index in start..end {
-        match tokens[index].text {
+    for (index, token) in tokens.iter().enumerate().take(end).skip(start) {
+        match token.text {
             "(" | "[" | "{" => depth += 1,
             ")" | "]" | "}" => depth -= 1,
             "||" if depth == 0 => {
@@ -2001,14 +1876,12 @@ fn inverted_condition_term(
     }
     let mut depth = 0i32;
     let mut equality = None;
-    for index in start..end {
-        match tokens[index].text {
+    for (index, token) in tokens.iter().enumerate().take(end).skip(start) {
+        match token.text {
             "(" | "[" | "{" => depth += 1,
             ")" | "]" | "}" => depth -= 1,
-            "==" | "!=" | "===" | "!==" if depth == 0 => {
-                if equality.replace(index).is_some() {
-                    return None;
-                }
+            "==" | "!=" | "===" | "!==" if depth == 0 && equality.replace(index).is_some() => {
+                return None;
             }
             _ => {}
         }
@@ -2035,11 +1908,14 @@ fn inverted_condition_term(
         match token.text {
             "(" | "[" | "{" => depth += 1,
             ")" | "]" | "}" => depth -= 1,
-            "=" | "+=" | "-=" | "*=" | "/=" | "%=" | "**=" | "<<=" | ">>="
-            | ">>>=" | "&=" | "^=" | "|=" | "&&=" | "||=" | "??=" | "?" | ":"
-            | "&&" | "||" | "??" | "|" | "^" | "&" | "<" | "<=" | ">" | ">="
-            | "in" | "instanceof" | "<<" | ">>" | ">>>" | "+" | "-" | "*" | "/"
-            | "%" | "**" if depth == 0 => return None,
+            "=" | "+=" | "-=" | "*=" | "/=" | "%=" | "**=" | "<<=" | ">>=" | ">>>=" | "&="
+            | "^=" | "|=" | "&&=" | "||=" | "??=" | "?" | ":" | "&&" | "||" | "??" | "|" | "^"
+            | "&" | "<" | "<=" | ">" | ">=" | "in" | "instanceof" | "<<" | ">>" | ">>>" | "+"
+            | "-" | "*" | "/" | "%" | "**"
+                if depth == 0 =>
+            {
+                return None
+            }
             _ => {}
         }
     }
@@ -2108,9 +1984,9 @@ pub(crate) fn fold_negated_conditional_arms(
                 .get(condition_start)
                 .is_some_and(|token| token.text == "!")
                 && condition_start + 1 < question
-                && condition_start.checked_sub(1).is_none_or(|previous| {
-                    !matches!(tokens[previous].text, "&&" | "||" | "??")
-                });
+                && condition_start
+                    .checked_sub(1)
+                    .is_none_or(|previous| !matches!(tokens[previous].text, "&&" | "||" | "??"));
             let (condition_start, condition) = if condition_is_complete_negation {
                 (
                     condition_start,
@@ -2134,15 +2010,17 @@ pub(crate) fn fold_negated_conditional_arms(
             }
             let then_value = &output[tokens[question + 1].start..tokens[colon].start];
             let else_value = &output[tokens[colon + 1].start..tokens[end - 1].end];
-            let separator = (tokens[condition_start].start > 0
-                && output.as_bytes()[tokens[condition_start].start - 1]
-                    .is_ascii_alphanumeric()
+            let separator = if tokens[condition_start].start > 0
+                && output.as_bytes()[tokens[condition_start].start - 1].is_ascii_alphanumeric()
                 && condition
                     .as_bytes()
                     .first()
-                    .is_some_and(|byte| byte.is_ascii_alphabetic() || matches!(byte, b'_' | b'$')))
-            .then_some(" ")
-            .unwrap_or("");
+                    .is_some_and(|byte| byte.is_ascii_alphabetic() || matches!(byte, b'_' | b'$'))
+            {
+                " "
+            } else {
+                ""
+            };
             replacement = Some((
                 tokens[condition_start].start,
                 tokens[end - 1].end,
@@ -2182,10 +2060,8 @@ fn boolean_conditional_value_rewrites(
             continue;
         }
 
-        let then_constant =
-            constant_boolean_tokens(&tokens, &matching_close, question + 1, colon);
-        let else_constant =
-            constant_boolean_tokens(&tokens, &matching_close, colon + 1, else_end);
+        let then_constant = constant_boolean_tokens(&tokens, &matching_close, question + 1, colon);
+        let else_constant = constant_boolean_tokens(&tokens, &matching_close, colon + 1, else_end);
         let condition_boolean = parsed_boolean_expression(&tokens, condition_start, question);
 
         let condition = &source[tokens[condition_start].start..tokens[question].start];
@@ -2272,19 +2148,12 @@ pub(crate) fn fold_common_conditional_arms(
                 continue;
             }
 
-            let outer_condition =
-                &output[tokens[condition_start].start..tokens[question].start];
-            let outer_then = strip_parenthesized_range(
-                &tokens,
-                &matching_close,
-                question + 1,
-                colon,
-            );
-            let outer_else =
-                strip_parenthesized_range(&tokens, &matching_close, colon + 1, end);
+            let outer_condition = &output[tokens[condition_start].start..tokens[question].start];
+            let outer_then =
+                strip_parenthesized_range(&tokens, &matching_close, question + 1, colon);
+            let outer_else = strip_parenthesized_range(&tokens, &matching_close, colon + 1, end);
 
-            if let Some(inner_question) =
-                root_ternary_question(&tokens, outer_else.0, outer_else.1)
+            if let Some(inner_question) = root_ternary_question(&tokens, outer_else.0, outer_else.1)
             {
                 let Some(inner_colon) = ternary_colon(&tokens, inner_question) else {
                     continue;
@@ -2302,8 +2171,8 @@ pub(crate) fn fold_common_conditional_arms(
                 if expression_range_text(&output, &tokens, outer_then)
                     == expression_range_text(&output, &tokens, inner_then)
                 {
-                    let inner_condition = &output[tokens[outer_else.0].start
-                        ..tokens[inner_question].start];
+                    let inner_condition =
+                        &output[tokens[outer_else.0].start..tokens[inner_question].start];
                     let left = render_logical_operand(
                         outer_condition,
                         &tokens,
@@ -2338,8 +2207,7 @@ pub(crate) fn fold_common_conditional_arms(
                 }
             }
 
-            if let Some(inner_question) =
-                root_ternary_question(&tokens, outer_then.0, outer_then.1)
+            if let Some(inner_question) = root_ternary_question(&tokens, outer_then.0, outer_then.1)
             {
                 let Some(inner_colon) = ternary_colon(&tokens, inner_question) else {
                     continue;
@@ -2348,17 +2216,13 @@ pub(crate) fn fold_common_conditional_arms(
                 if inner_end != outer_then.1 {
                     continue;
                 }
-                let inner_else = strip_parenthesized_range(
-                    &tokens,
-                    &matching_close,
-                    inner_colon + 1,
-                    inner_end,
-                );
+                let inner_else =
+                    strip_parenthesized_range(&tokens, &matching_close, inner_colon + 1, inner_end);
                 if expression_range_text(&output, &tokens, inner_else)
                     == expression_range_text(&output, &tokens, outer_else)
                 {
-                    let inner_condition = &output[tokens[outer_then.0].start
-                        ..tokens[inner_question].start];
+                    let inner_condition =
+                        &output[tokens[outer_then.0].start..tokens[inner_question].start];
                     let left = render_logical_operand(
                         outer_condition,
                         &tokens,
@@ -2461,8 +2325,7 @@ fn expression_is_boolean(expression: &Expression<'_>) -> bool {
         Expression::Literal(value) => matches!(*value, "true" | "false"),
         Expression::Unary { operator, .. } => matches!(*operator, "!" | "delete"),
         Expression::Binary { operator, lhs, rhs } => match *operator {
-            "==" | "!=" | "===" | "!==" | "<" | "<=" | ">" | ">=" | "in"
-            | "instanceof" => true,
+            "==" | "!=" | "===" | "!==" | "<" | "<=" | ">" | ">=" | "in" | "instanceof" => true,
             "&&" | "||" | "??" => expression_is_boolean(lhs) && expression_is_boolean(rhs),
             _ => false,
         },
@@ -2517,12 +2380,7 @@ fn render_booleanized_operand(
     render_unary_operand("!!", source, tokens, start, end)
 }
 
-fn render_negated_operand(
-    source: &str,
-    tokens: &[Token<'_>],
-    start: usize,
-    end: usize,
-) -> String {
+fn render_negated_operand(source: &str, tokens: &[Token<'_>], start: usize, end: usize) -> String {
     render_unary_operand("!", source, tokens, start, end)
 }
 
@@ -2560,15 +2418,17 @@ fn render_logical_operand(
     for_and: bool,
 ) -> String {
     let mut parser = ExpressionParser::new(&tokens[start..end]);
-    let needs_grouping = parser.parse_complete().is_none_or(|expression| match expression {
-        Expression::Assignment { .. }
-        | Expression::Conditional { .. }
-        | Expression::Sequence(_) => true,
-        Expression::Binary { operator, .. } => {
-            operator == "??" || (for_and && operator == "||")
-        }
-        _ => false,
-    });
+    let needs_grouping = parser
+        .parse_complete()
+        .is_none_or(|expression| match expression {
+            Expression::Assignment { .. }
+            | Expression::Conditional { .. }
+            | Expression::Sequence(_) => true,
+            Expression::Binary { operator, .. } => {
+                operator == "??" || (for_and && operator == "||")
+            }
+            _ => false,
+        });
     if needs_grouping {
         format!("({source})")
     } else {

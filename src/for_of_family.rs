@@ -2,9 +2,9 @@ use bumpalo::collections::Vec as BumpVec;
 use bumpalo::Bump;
 
 use crate::ast::{
-    ArrayBinding, ArrayElement, ArrowBody, BinaryOp, CatchBinding, CatchClause, Expr, ForInitializer,
-    FunctionDecl, Ident, Item, MatchArm, Param, Program, RecordBinding, RecordElement, RecordEntry,
-    Stmt, TemplatePart, TypeKind, TypeRef, VarDecl,
+    ArrayBinding, ArrayElement, ArrowBody, BinaryOp, CatchBinding, CatchClause, Expr,
+    ForInitializer, FunctionDecl, Ident, Item, MatchArm, Param, Program, RecordBinding,
+    RecordElement, RecordEntry, Stmt, TemplatePart, TypeKind, TypeRef, VarDecl,
 };
 use crate::span::Span;
 
@@ -134,10 +134,7 @@ fn unrolled_clone<'arena, 'src>(
         }),
         span,
     });
-    let body_stmts = arena.alloc_slice_clone(&[
-        assign,
-        shift_stmt(arena, site.body, delta),
-    ]);
+    let body_stmts = arena.alloc_slice_clone(&[assign, shift_stmt(arena, site.body, delta)]);
     let inline = Stmt::ForOf {
         element_type: TypeRef {
             kind: TypeKind::Int,
@@ -510,9 +507,13 @@ fn shift_stmt<'arena, 'src>(
                         .map(|value| shift_expr(arena, value, delta)),
                     span: shift_span(decl.span, delta),
                 }),
-                ForInitializer::Expr(value) => ForInitializer::Expr(shift_expr(arena, value, delta)),
+                ForInitializer::Expr(value) => {
+                    ForInitializer::Expr(shift_expr(arena, value, delta))
+                }
             }),
-            condition: condition.as_ref().map(|value| shift_expr(arena, value, delta)),
+            condition: condition
+                .as_ref()
+                .map(|value| shift_expr(arena, value, delta)),
             update: update.as_ref().map(|value| shift_expr(arena, value, delta)),
             body: arena.alloc(shift_stmt(arena, body, delta)),
             span: shift_span(*span, delta),
@@ -570,7 +571,7 @@ fn shift_expr<'arena, 'src>(
     match expr {
         Expr::Int(value, span) => Expr::Int(*value, shift_span(*span, delta)),
         Expr::Float(value, span) => Expr::Float(*value, shift_span(*span, delta)),
-        Expr::String(value, span) => Expr::String(*value, shift_span(*span, delta)),
+        Expr::String(value, span) => Expr::String(value, shift_span(*span, delta)),
         Expr::Bool(value, span) => Expr::Bool(*value, shift_span(*span, delta)),
         Expr::Null(span) => Expr::Null(shift_span(*span, delta)),
         Expr::Ident(ident) => Expr::Ident(shift_ident(*ident, delta)),
@@ -578,7 +579,9 @@ fn shift_expr<'arena, 'src>(
             let mut out = BumpVec::new_in(arena);
             for element in *elements {
                 out.push(match element {
-                    ArrayElement::Value(value) => ArrayElement::Value(shift_expr(arena, value, delta)),
+                    ArrayElement::Value(value) => {
+                        ArrayElement::Value(shift_expr(arena, value, delta))
+                    }
                     ArrayElement::Spread { value, span } => ArrayElement::Spread {
                         value: shift_expr(arena, value, delta),
                         span: shift_span(*span, delta),
@@ -669,7 +672,9 @@ fn shift_expr<'arena, 'src>(
             Expr::ArrowFunction {
                 params: arena.alloc_slice_clone(&shifted),
                 body: match body {
-                    ArrowBody::Expr(value) => ArrowBody::Expr(arena.alloc(shift_expr(arena, value, delta))),
+                    ArrowBody::Expr(value) => {
+                        ArrowBody::Expr(arena.alloc(shift_expr(arena, value, delta)))
+                    }
                     ArrowBody::Block(stmts) => ArrowBody::Block(shift_stmts(arena, stmts, delta)),
                 },
                 span: shift_span(*span, delta),
@@ -684,12 +689,7 @@ fn shift_expr<'arena, 'src>(
             task: arena.alloc(shift_expr(arena, task, delta)),
             span: shift_span(*span, delta),
         },
-        Expr::Binary {
-            op,
-            lhs,
-            rhs,
-            span,
-        } => Expr::Binary {
+        Expr::Binary { op, lhs, rhs, span } => Expr::Binary {
             op: *op,
             lhs: arena.alloc(shift_expr(arena, lhs, delta)),
             rhs: arena.alloc(shift_expr(arena, rhs, delta)),
@@ -764,9 +764,11 @@ fn shift_expr<'arena, 'src>(
             for part in *parts {
                 out.push(match part {
                     TemplatePart::String(text, span) => {
-                        TemplatePart::String(*text, shift_span(*span, delta))
+                        TemplatePart::String(text, shift_span(*span, delta))
                     }
-                    TemplatePart::Expr(value) => TemplatePart::Expr(shift_expr(arena, value, delta)),
+                    TemplatePart::Expr(value) => {
+                        TemplatePart::Expr(shift_expr(arena, value, delta))
+                    }
                 });
             }
             Expr::Template {

@@ -146,15 +146,13 @@ fn folds_index_assigns_into_postfix_updates() {
 }
 
 #[test]
-fn folds_conditional_push_into_a_singleton_array() {
+fn preserves_conditional_array_push() {
     let optimized = optimize_generated_javascript(
         "function eq(f){var i=this.length;g=[];f>=0&&f<i&&g.push(this[f]);return this.pushStack(g)}",
     )
     .unwrap();
     assert!(
-        optimized
-            .code
-            .contains("return this.pushStack(f>=0&&f<i?[this[f]]:[])"),
+        optimized.code.contains("g.push(this[f])"),
         "{}",
         optimized.code
     );
@@ -243,7 +241,7 @@ fn cached_member_reads_do_not_drop_this_on_calls() {
 }
 
 #[test]
-fn drops_unread_pure_member_assigns_after_rematerialized_calls() {
+fn preserves_unread_member_assignments_for_getter_effects() {
     let optimized = optimize_generated_javascript(
         "function prepare(a){var t=this.enhancer_,r=this.value_;a=this.enhancer_(a,r,this.name_),t=this.equals_;return this.equals_(r,a)}",
     )
@@ -254,8 +252,13 @@ fn drops_unread_pure_member_assigns_after_rematerialized_calls() {
         optimized.code
     );
     assert!(
-        !optimized.code.contains("t=this.enhancer_") && !optimized.code.contains("t=this.equals_"),
-        "dead member temps should be dropped:\n{}",
+        optimized.code.contains("t=this.enhancer_"),
+        "{}",
+        optimized.code
+    );
+    assert!(
+        optimized.code.contains("t=this.equals_"),
+        "{}",
         optimized.code
     );
 }
@@ -468,15 +471,14 @@ fn copies_identifier_aliases_into_their_only_reads() {
 }
 
 #[test]
-fn folds_temp_computed_keys_into_the_member() {
+fn preserves_temp_computed_key_evaluation_order() {
     let optimized = optimize_generated_javascript(
         "function add(h,E){let i=\"[object \"+E+\"]\";h[i]=E.toLowerCase();return h}",
     )
     .unwrap();
     assert!(
-        optimized
-            .code
-            .contains("h[\"[object \"+E+\"]\"]=E.toLowerCase()"),
+        optimized.code.contains("i=\"[object \"+E+\"]\"")
+            && optimized.code.contains("h[i]=E.toLowerCase()"),
         "{}",
         optimized.code
     );
@@ -486,11 +488,15 @@ fn folds_temp_computed_keys_into_the_member() {
     )
     .unwrap();
     assert!(
-        arrow.code.contains("h[\"[object \"+E+\"]\"]"),
+        arrow.code.contains("i=\"[object \"+E+\"]\"") && arrow.code.contains("h[i]="),
         "{}",
         arrow.code
     );
     assert!(arrow.code.contains("}"), "{}", arrow.code);
+
+    let order = "function assign(h,other){let i=(h=other,'x');h[i]=1;return other.x}console.log(assign({},{}))";
+    let order_optimized = optimize_generated_javascript(order).unwrap();
+    assert_eq!(run_node(&order_optimized.code).trim(), "1");
 }
 
 #[test]
@@ -571,25 +577,24 @@ fn does_not_lift_trailing_increment_when_continue_skips_it() {
 }
 
 #[test]
-fn uses_cached_length_in_the_for_condition() {
+fn preserves_length_reads_in_for_conditions() {
     let each = optimize_generated_javascript(
         "function each(j,t){for(var n=j.length,r=0;r<j.length&&t(j[r]);r++);return j}",
     )
     .unwrap();
-    assert!(each.code.contains("r<n&&"), "{}", each.code);
-    assert!(!each.code.contains("r<j.length"), "{}", each.code);
+    assert!(each.code.contains("r<j.length&&"), "{}", each.code);
 
     let grep = optimize_generated_javascript(
         "function g(j,t,r){var n=[],i=j.length,o=!r;for(r=0;r<j.length;r++)n.push(j[r]);return n}",
     )
     .unwrap();
-    assert!(grep.code.contains("r<i"), "{}", grep.code);
+    assert!(grep.code.contains("r<j.length"), "{}", grep.code);
 
     let prefix = optimize_generated_javascript(
         "let v=(i,q,t)=>{var b=[],d=i.length,p=!t;for(t=0;t<i.length;++t)!q(i[t],t)!=p&&b.push(i[t]);return b}",
     )
     .unwrap();
-    assert!(prefix.code.contains("t<d"), "{}", prefix.code);
+    assert!(prefix.code.contains("t<i.length"), "{}", prefix.code);
 }
 
 #[test]
@@ -753,10 +758,13 @@ fn keeps_call_argument_member_copies_after_the_receiver_is_rebound() {
     assert_eq!(run_node(&script).trim(), "/url|title");
     assert!(
         !optimized.code.contains("b.href")
-            || optimized.code.find("b=b.title").is_none_or(|assign| optimized
+            || optimized
                 .code
-                .find("b.href")
-                .is_some_and(|href| href < assign)),
+                .find("b=b.title")
+                .is_none_or(|assign| optimized
+                    .code
+                    .find("b.href")
+                    .is_some_and(|href| href < assign)),
         "must not rematerialize obj.href after obj was rebound:\n{}",
         optimized.code
     );
@@ -829,31 +837,31 @@ fn keeps_object_literal_across_intervening_calls() {
 }
 
 #[test]
-fn prefers_a_cached_member_binding_over_rereading_the_property() {
+fn preserves_repeated_member_reads_for_getter_effects() {
     let text = optimize_generated_javascript(
         "function text(t){var r=t.nodeType;if(!t.nodeType){return\"\"}return r}",
     )
     .unwrap();
     assert!(
-        text.code.contains("!r") && text.code.contains("return"),
+        text.code.contains("!t.nodeType") && text.code.contains("return"),
         "{}",
         text.code
     );
-    assert_eq!(text.code.matches("nodeType").count(), 1, "{}", text.code);
+    assert!(text.code.matches("nodeType").count() >= 2, "{}", text.code);
 
     let grep = optimize_generated_javascript(
         "let i=z=>z,l=(z,t,r)=>{var n=[],i=z.length,o=!r;for(r=0;r<z.length;r++)n.push(z[r]);return n}",
     )
     .unwrap();
-    assert!(grep.code.contains("r<i"), "{}", grep.code);
+    assert!(grep.code.contains("r<z.length"), "{}", grep.code);
 }
 
 #[test]
-fn drops_unused_member_copy_declarators() {
+fn preserves_unused_member_copy_declarators_for_getter_effects() {
     let optimized =
         optimize_generated_javascript("let q=k.push,T=k.sort;k={push:k.push,sort:k.sort}").unwrap();
-    assert!(!optimized.code.contains("q="), "{}", optimized.code);
-    assert!(!optimized.code.contains("T="), "{}", optimized.code);
+    assert!(optimized.code.contains("q=k.push"), "{}", optimized.code);
+    assert!(optimized.code.contains("T=k.sort"), "{}", optimized.code);
     assert!(optimized.code.contains("push:k.push"), "{}", optimized.code);
 
     let used_before = optimize_generated_javascript(
@@ -865,7 +873,11 @@ fn drops_unused_member_copy_declarators() {
         "{}",
         used_before.code
     );
-    assert!(!used_before.code.contains("q="), "{}", used_before.code);
+    assert!(
+        used_before.code.contains("q=k.push"),
+        "{}",
+        used_before.code
+    );
 }
 
 #[test]
@@ -901,13 +913,26 @@ fn removing_a_middle_declarator_keeps_one_separator() {
 }
 
 #[test]
-fn rematerializes_same_scope_single_use_empty_functions_and_regexes() {
+fn preserves_inferred_names_for_single_use_function_values() {
     let noop = optimize_generated_javascript("let H=()=>{},o=1;k={noop:H,id:o}").unwrap();
     assert!(
-        (noop.code.contains("noop(){}") || noop.code.contains("noop:()=>{}"))
-            && !noop.code.contains("H="),
+        noop.code.contains("H=()=>{}") && noop.code.contains("noop:H"),
         "{}",
         noop.code
+    );
+
+    let reflected_source = concat!(
+        "let H=()=>{};let k={noop:H};",
+        "console.log(H.name+'|'+k.noop.name+'|'+Object.hasOwn(H,'prototype'))"
+    );
+    let reflected = optimize_generated_javascript(reflected_source).unwrap();
+    assert!(reflected.code.contains("H=()=>{}"), "{}", reflected.code);
+    assert_eq!(run_node(reflected_source).trim(), "H|H|false");
+    assert_eq!(
+        run_node(&reflected.code).trim(),
+        "H|H|false",
+        "{}",
+        reflected.code
     );
 
     let regex = optimize_generated_javascript(
@@ -932,13 +957,13 @@ fn rematerializes_same_scope_single_use_empty_functions_and_regexes() {
 }
 
 #[test]
-fn reuses_existing_tostring_aliases_for_prototype_calls() {
+fn preserves_prototype_tostring_lookup_and_evaluation_points() {
     let object = optimize_generated_javascript(
         "let K=a=>k[Object.prototype.toString.call(a)];var k={},C=k.toString",
     )
     .unwrap();
     assert!(
-        object.code.contains("C.call(a)") && !object.code.contains("Object.prototype.toString"),
+        object.code.contains("Object.prototype.toString.call(a)"),
         "{}",
         object.code
     );
@@ -948,9 +973,11 @@ fn reuses_existing_tostring_aliases_for_prototype_calls() {
     )
     .unwrap();
     assert!(
-        function.code.contains("D.call(a)==D.call(Object)")
-            && !function.code.contains("Function.prototype.toString")
-            && !function.code.contains("w="),
+        function.code.contains("D.call(a)==w")
+            && function
+                .code
+                .contains("Function.prototype.toString.call(Object)")
+            && function.code.contains("w="),
         "{}",
         function.code
     );
@@ -982,24 +1009,33 @@ fn reuses_existing_tostring_aliases_for_prototype_calls() {
     )
     .unwrap();
     assert!(
-        eager_alias
+        eager_alias.code.contains("E=D.call(Object)"),
+        "{}",
+        eager_alias.code
+    );
+    assert!(
+        !eager_alias
             .code
             .contains("Function.prototype.toString.call(Object)"),
         "{}",
         eager_alias.code
     );
-    assert!(
-        !eager_alias.code.contains("=D.call(Object)"),
-        "{}",
-        eager_alias.code
+
+    let throwing = concat!(
+        "var outcome;try{var value=missing.call(Object),holder={},",
+        "method=holder.hasOwnProperty,missing=method.toString;outcome='no-throw'}",
+        "catch(error){outcome=error.name}console.log(outcome)"
     );
+    let throwing_optimized = optimize_generated_javascript(throwing).unwrap();
+    assert_eq!(run_node(throwing).trim(), "TypeError");
+    assert_eq!(run_node(&throwing_optimized.code).trim(), "TypeError");
 }
 
 #[test]
-fn chains_repeated_member_assigns_of_the_same_binding() {
+fn preserves_repeated_member_assignment_order() {
     let optimized = optimize_generated_javascript("k={};j.fn=k;j.prototype=k;j.extend=c").unwrap();
     assert!(
-        optimized.code.contains("j.fn=j.prototype=k"),
+        optimized.code.contains("j.fn=k") && optimized.code.contains("j.prototype=k"),
         "{}",
         optimized.code
     );
@@ -1185,13 +1221,13 @@ fn folds_braced_if_else_expression_sequences() {
 }
 
 #[test]
-fn rematerializes_single_use_index_chains() {
+fn preserves_single_use_index_chain_snapshots() {
     let optimized = optimize_generated_javascript(
         "function then(i,e,A,F){var o=i[0][3];o.add(e(0,A,F,A.notifyWith));i[1][3].add(e(0,A,F,null))}",
     )
     .unwrap();
     assert!(
-        optimized.code.contains("i[0][3].add(") && !optimized.code.contains("var o="),
+        optimized.code.contains("o=i[0][3]") && optimized.code.contains("o.add("),
         "{}",
         optimized.code
     );
@@ -1201,7 +1237,7 @@ fn rematerializes_single_use_index_chains() {
     )
     .unwrap();
     assert!(
-        key.code.contains("r[s[0]]=") && !key.code.contains("var F="),
+        key.code.contains("F=s[0]") && key.code.contains("r[F]="),
         "{}",
         key.code
     );
@@ -1211,7 +1247,7 @@ fn rematerializes_single_use_index_chains() {
     )
     .unwrap();
     assert!(
-        thenable.code.contains("i[t]&&i[t].then") && !thenable.code.contains("r=i[t]"),
+        thenable.code.contains("r=i[t]") && thenable.code.contains("r&&r.then"),
         "{}",
         thenable.code
     );
@@ -1231,10 +1267,8 @@ fn rematerializes_nested_single_use_literals_and_expression_calls() {
         optimize_generated_javascript("let N={type:!0};function f(){for(var i in N)return i}")
             .unwrap();
     assert!(
-        (object.code.contains("for(var i in {type:!0})")
-            || object.code.contains("for(var i in{type:!0})"))
-            && !object.code.contains("N="),
-        "{}",
+        object.code.contains("N={type:!0}") && object.code.contains("for(var i in N)"),
+        "a nested function may run repeatedly, so its object must retain one shared identity: {}",
         object.code
     );
 
@@ -1276,7 +1310,7 @@ fn rematerializes_nested_single_use_literals_and_expression_calls() {
     )
     .unwrap();
     assert!(
-        nonce.code.contains("P(e,{nonce:t&&t.nonce},n)") && !nonce.code.contains("var r="),
+        nonce.code.contains("r={}") && nonce.code.contains("r.nonce=t&&t.nonce"),
         "{}",
         nonce.code
     );
@@ -1286,7 +1320,7 @@ fn rematerializes_nested_single_use_literals_and_expression_calls() {
     )
     .unwrap();
     assert!(
-        nonce_iife.code.contains("{nonce:t&&t.nonce}") && !nonce_iife.code.contains("var r={}"),
+        nonce_iife.code.contains("r={}") && nonce_iife.code.contains("r.nonce=t&&t.nonce"),
         "{}",
         nonce_iife.code
     );
@@ -1302,9 +1336,8 @@ fn rematerializes_nested_single_use_literals_and_expression_calls() {
     let later_object =
         optimize_generated_javascript("let P=()=>{for(var i in N)return i},N={type:!0};").unwrap();
     assert!(
-        (later_object.code.contains("in {type:!0}") || later_object.code.contains("in{type:!0}"))
-            && !later_object.code.contains("N="),
-        "{}",
+        later_object.code.contains("N={type:!0}") && later_object.code.contains("for(var i in N)"),
+        "a reusable arrow must observe one shared object rather than allocate per call: {}",
         later_object.code
     );
 
@@ -1358,47 +1391,40 @@ fn rematerializes_nested_single_use_literals_and_expression_calls() {
 }
 
 #[test]
-fn rematerializes_single_use_predicate_ternaries() {
+fn preserves_single_use_predicate_ternary_evaluation_points() {
     let optimized = optimize_generated_javascript(
         "function then(z,h,i,e,A){var F=c(z)?z:h;i[0][3].add(e(0,A,F,A.notifyWith))}",
     )
     .unwrap();
     assert!(
-        optimized.code.contains("e(0,A,c(z)?z:h,A.notifyWith)"),
+        optimized.code.contains("F=c(z)?z:h") && optimized.code.contains("e(0,A,F,A.notifyWith)"),
         "{}",
         optimized.code
     );
-    assert!(!optimized.code.contains("var F="), "{}", optimized.code);
+    assert!(optimized.code.contains("var F="), "{}", optimized.code);
 
     let assigned = optimize_generated_javascript(
         "function then(r,s,h,f,i,e,A){var C,G;i[0][3].add(e(0,A,c(z)?z:h,A.notifyWith)),C=c(r)?r:h,i[1][3].add(e(0,A,C,null)),G=c(s)?s:f,i[2][3].add(e(0,A,G,null))}",
     )
     .unwrap();
     assert!(
-        assigned.code.contains("e(0,A,c(r)?r:h,null)")
-            && assigned.code.contains("e(0,A,c(s)?s:f,null)"),
+        assigned.code.contains("C=c(r)?r:h")
+            && assigned.code.contains("e(0,A,C,null)")
+            && assigned.code.contains("G=c(s)?s:f")
+            && assigned.code.contains("e(0,A,G,null)"),
         "{}",
         assigned.code
     );
-    assert!(
-        !assigned.code.contains("C=c(r)") && !assigned.code.contains("G=c(s)"),
-        "{}",
-        assigned.code
-    );
-
     let calls = optimize_generated_javascript(
         "function then(e,t,r,h,s,f,l,ge){++t;var me=e(t,r,h,s),he=e(t,r,f,s);l.call(ge,me,he,e(t,r,h,r.notifyWith))}",
     )
     .unwrap();
     assert!(
-        calls
-            .code
-            .contains("l.call(ge,e(t,r,h,s),e(t,r,f,s),e(t,r,h,r.notifyWith))"),
-        "{}",
-        calls.code
-    );
-    assert!(
-        !calls.code.contains("var he") && !calls.code.contains("var me"),
+        calls.code.contains("me=e(t,r,h,s)")
+            && calls.code.contains("he=e(t,r,f,s)")
+            && calls
+                .code
+                .contains("l.call(ge,me,he,e(t,r,h,r.notifyWith))"),
         "{}",
         calls.code
     );
@@ -1408,49 +1434,50 @@ fn rematerializes_single_use_predicate_ternaries() {
     )
     .unwrap();
     assert!(
-        method.code.contains("n.done(s(e)).resolve"),
+        method.code.contains("E=n.done(s(e))")
+            && method.code.contains("u=E.resolve")
+            && method.code.contains("use(u)"),
         "{}",
         method.code
     );
 }
 
 #[test]
-fn folds_copied_receiver_method_and_false_phi() {
+fn preserves_copied_receiver_snapshots_and_false_phi() {
     let optimized = optimize_generated_javascript(
         "function hook(n,e,C){var r;(n&&n.warn)&&e?(r=C,r=r.test(e.name)):r=!1,r&&n.warn(e)}",
     )
     .unwrap();
     assert!(
-        optimized.code.contains("e&&C.test(e.name)&&n.warn")
-            || optimized.code.contains("&&C.test(e.name)&&"),
+        optimized.code.contains("r=C,r=r.test(e.name)"),
         "{}",
         optimized.code
     );
     assert!(
-        !optimized.code.contains("r=C,r=r.test") && !optimized.code.contains("r=!1"),
+        optimized.code.contains("r=!1") && optimized.code.contains("var r"),
         "{}",
         optimized.code
     );
-    assert!(!optimized.code.contains("var r"), "{}", optimized.code);
 
     let remat = optimize_generated_javascript(
         "var C=/x/;function hook(n,e){var r;(n&&n.warn)&&e?(r=C,r=r.test(e.name)):r=!1,r&&n.warn(e)}",
     )
     .unwrap();
     assert!(
-        remat.code.contains("/x/.test") || remat.code.contains("(/x/).test"),
+        remat.code.contains("var C=/x/") && remat.code.contains("r=C,r=r.test(e.name)"),
         "{}",
         remat.code
     );
-    assert!(!remat.code.contains("var C="), "{}", remat.code);
-    assert!(!remat.code.contains("r=/x/"), "{}", remat.code);
 
     let outer = optimize_generated_javascript(
         "var p={};function then(J){!hook||(p=J,p.error=hook());return J}",
     )
     .unwrap();
-    assert!(outer.code.contains("J.error="), "{}", outer.code);
-    assert!(!outer.code.contains("p=J"), "{}", outer.code);
+    assert!(
+        outer.code.contains("p=J,p.error=") && !outer.code.contains("J.error="),
+        "{}",
+        outer.code
+    );
 }
 
 #[test]
@@ -1672,11 +1699,14 @@ fn beta_reduces_identity_arrow_iifes() {
 
 #[test]
 fn beta_reduced_arrow_iife_keeps_low_precedence_body_grouped() {
-    let reduced = optimize_generated_javascript(
-        "function f(c){if(!(e=>tag(e)&&e===e)(c))return 1;return 0}",
-    )
-    .unwrap();
-    assert!(reduced.code.contains("!(tag(c)&&c===c)"), "{}", reduced.code);
+    let reduced =
+        optimize_generated_javascript("function f(c){if(!(e=>tag(e)&&e===e)(c))return 1;return 0}")
+            .unwrap();
+    assert!(
+        reduced.code.contains("!(tag(c)&&c===c)"),
+        "{}",
+        reduced.code
+    );
     assert!(!reduced.code.contains("!tag(c)&&c===c"), "{}", reduced.code);
 }
 
@@ -1930,15 +1960,30 @@ fn does_not_var_shadow_module_bindings_in_expression_guards() {
         "{}",
         keep_out.code
     );
-    assert_eq!(run_node(&keep_out.code).trim(), "merged:true", "{}", keep_out.code);
-    assert_eq!(run_node(&flip_out.code).trim(), "isolated:false", "{}", flip_out.code);
+    assert_eq!(
+        run_node(&keep_out.code).trim(),
+        "merged:true",
+        "{}",
+        keep_out.code
+    );
+    assert_eq!(
+        run_node(&flip_out.code).trim(),
+        "isolated:false",
+        "{}",
+        flip_out.code
+    );
 }
 
 #[test]
 fn does_not_var_shadow_module_bindings_in_comma_sequences() {
     let source = "var gs={old:1};function isolate(flag){flag&&(gs={neu:1});return gs}var next=isolate(true);console.log(next.neu+\":\"+gs.neu)";
     let optimized = optimize_generated_javascript(source).unwrap();
-    assert_eq!(run_node(&optimized.code).trim(), "1:1", "{}", optimized.code);
+    assert_eq!(
+        run_node(&optimized.code).trim(),
+        "1:1",
+        "{}",
+        optimized.code
+    );
 }
 
 #[test]
@@ -1967,7 +2012,12 @@ fn declares_implicit_temps_after_a_switch_case() {
     let source = "function k(a,b,c){return a.call(b,c)}function step(flag){for(;;){switch(0){case 0:k=!!flag;return k}}}console.log(step(true));console.log(typeof k)";
     let optimized = optimize_generated_javascript(source).unwrap();
     let script = format!("\"use strict\";{}", optimized.code);
-    assert_eq!(run_node(&script).trim(), "true\nfunction", "{}", optimized.code);
+    assert_eq!(
+        run_node(&script).trim(),
+        "true\nfunction",
+        "{}",
+        optimized.code
+    );
 }
 
 #[test]
@@ -2095,8 +2145,14 @@ fn folds_expression_suffixes_into_terminal_returns() {
     .unwrap();
 
     assert!(optimized.contains("return touch(y),y+=2,y"), "{optimized}");
-    assert!(optimized.contains("'use strict';return touch(),this"), "{optimized}");
-    assert_eq!(run_node(&format!("{source};console.log(f(1))")), run_node(&format!("{optimized};console.log(f(1))")));
+    assert!(
+        optimized.contains("'use strict';return touch(),this"),
+        "{optimized}"
+    );
+    assert_eq!(
+        run_node(&format!("{source};console.log(f(1))")),
+        run_node(&format!("{optimized};console.log(f(1))"))
+    );
 
     let declaration = "function f(){var x={a:1};x.a=2;return x}console.log(f().a)";
     let declaration_optimized = late_generated_javascript_cleanup_pass(
@@ -2104,7 +2160,10 @@ fn folds_expression_suffixes_into_terminal_returns() {
         LateJavaScriptCleanupPass::ExpressionSuffixReturns,
     )
     .unwrap();
-    assert!(declaration_optimized.contains("var x={a:1};return x.a=2,x"), "{declaration_optimized}");
+    assert!(
+        declaration_optimized.contains("var x={a:1};return x.a=2,x"),
+        "{declaration_optimized}"
+    );
     assert_eq!(run_node(declaration), run_node(&declaration_optimized));
 }
 
@@ -2118,12 +2177,12 @@ fn exposes_return_sequences_as_independent_objective_candidates() {
     .unwrap();
 
     assert_eq!(variants.len(), 2, "{variants:?}");
-    assert!(variants.iter().any(|code| {
-        code.contains("return a(),1") && code.contains("b();return 2")
-    }));
-    assert!(variants.iter().any(|code| {
-        code.contains("a();return 1") && code.contains("return b(),2")
-    }));
+    assert!(variants
+        .iter()
+        .any(|code| { code.contains("return a(),1") && code.contains("b();return 2") }));
+    assert!(variants
+        .iter()
+        .any(|code| { code.contains("a();return 1") && code.contains("return b(),2") }));
 }
 
 #[test]
@@ -2158,7 +2217,8 @@ fn folds_boolean_conditional_values_without_leaking_operand_values() {
 
 #[test]
 fn folds_false_conditional_with_a_boolean_sequence_tail() {
-    let source = "function f(x){return\"number\"!=typeof x?false:(x=+x,Number.isFinite(x)&&x>=0&&x<=1)}";
+    let source =
+        "function f(x){return\"number\"!=typeof x?false:(x=+x,Number.isFinite(x)&&x>=0&&x<=1)}";
     let optimized = late_generated_javascript_cleanup_pass(
         source,
         LateJavaScriptCleanupPass::BooleanConditionalValues,
@@ -2178,13 +2238,17 @@ fn folds_boolean_arms_against_the_complete_logical_condition() {
     )
     .unwrap();
 
-    assert!(!optimized.contains("x===void 0||!!Array.isArray"), "{optimized}");
+    assert!(
+        !optimized.contains("x===void 0||!!Array.isArray"),
+        "{optimized}"
+    );
     assert_eq!(run_node(source), run_node(&optimized), "{optimized}");
 }
 
 #[test]
 fn swaps_negated_conditional_arms_without_reordering_values() {
-    let source = "function hit(x){return x}function f(x){return!x?hit(1):hit(2)}console.log(f(0),f(1))";
+    let source =
+        "function hit(x){return x}function f(x){return!x?hit(1):hit(2)}console.log(f(0),f(1))";
     let optimized = late_generated_javascript_cleanup_pass(
         source,
         LateJavaScriptCleanupPass::NegatedConditionalArms,
@@ -2230,7 +2294,8 @@ fn swaps_invertible_disjunction_conditions_with_demorgan() {
 
 #[test]
 fn compounds_expression_position_identifier_updates() {
-    let source = "function f(x){return(x=x+1)}function g(x){return(x=x+'-')}console.log(f(2),g('a'))";
+    let source =
+        "function f(x){return(x=x+1)}function g(x){return(x=x+'-')}console.log(f(2),g('a'))";
     let optimized = late_generated_javascript_cleanup_pass(
         source,
         LateJavaScriptCleanupPass::UnitCounterUpdates,
@@ -2279,10 +2344,7 @@ fn folds_effectful_return_branches_into_conditional_sequences() {
         optimized.contains("return x>1?(warn('high'),1):(touch(),2)"),
         "{optimized}"
     );
-    assert!(
-        optimized.contains("return x?(a(),b(),3):4"),
-        "{optimized}"
-    );
+    assert!(optimized.contains("return x?(a(),b(),3):4"), "{optimized}");
 }
 
 #[test]
@@ -2423,8 +2485,7 @@ fn restores_semicolon_when_unwrapping_object_literal_before_else() {
     .unwrap();
     asserts_parses(&try_optimized);
     assert!(
-        try_optimized.contains("catch(e){use(e)}else")
-            || try_optimized.contains("}else{use(0)}"),
+        try_optimized.contains("catch(e){use(e)}else") || try_optimized.contains("}else{use(0)}"),
         "{try_optimized}"
     );
     assert!(
@@ -2588,17 +2649,12 @@ fn folds_predicate_reassign_and_if_prefix_return() {
     )
     .unwrap();
     assert!(
-        guard.code.contains("e<=1&&(")
-            && (guard.code.contains("return n.then()") || guard.code.contains("?n.then():n")),
+        guard.code.contains("if(e<=1)") && guard.code.contains("return n.then()"),
         "{}",
         guard.code
     );
-    assert!(!guard.code.contains("if(\"pending\""), "{}", guard.code);
-    assert!(
-        guard.code.contains("s.reject") && !guard.code.contains("var d="),
-        "{}",
-        guard.code
-    );
+    assert!(guard.code.contains("if(\"pending\""), "{}", guard.code);
+    assert!(guard.code.contains("var d=s.reject"), "{}", guard.code);
 
     let after_for = optimize_generated_javascript(
         "function when(){if(e<=1&&(y(),c))return n.then();for(;i--;)y();return n}",
@@ -2617,21 +2673,25 @@ fn folds_predicate_reassign_and_if_prefix_return() {
         apply.code
     );
 
-    let comma_src = "(s=x?[i]:arguments,o[u](this,s))";
-    let (comma_direct, comma_count) =
-        super::fold_comma_assign_into_trailing_call_arg(comma_src).unwrap();
-    assert!(
-        comma_count > 0 && comma_direct.contains("o[u](this,x?[i]:arguments)"),
-        "{comma_count} {comma_direct}"
-    );
     let comma_arg = optimize_generated_javascript(
         "function pipe(x,i,o,u){return i?o.p():(s=x?[i]:arguments,o[u](this,s))}",
     )
     .unwrap();
     assert!(
-        comma_arg.code.contains("o[u](this,x?[i]:arguments)"),
+        comma_arg.code.contains("s=x?[i]:arguments") && comma_arg.code.contains("o[u](this,s)"),
         "{}",
         comma_arg.code
+    );
+
+    let comma_order = concat!(
+        "var order='',s;function rhs(){order+='rhs;';return 1}",
+        "var o={get call(){order+='callee;';return function(){order+='call;'}}};",
+        "(s=rhs(),o.call(s));console.log(order)"
+    );
+    let comma_order_optimized = optimize_generated_javascript(comma_order).unwrap();
+    assert_eq!(
+        run_node(&comma_order_optimized.code).trim(),
+        "rhs;callee;call;"
     );
 }
 
@@ -2748,24 +2808,27 @@ fn absorbs_prior_assigns_into_a_nonempty_for_init() {
 }
 
 #[test]
-fn folds_statement_or_assign_into_for_init() {
+fn keeps_member_reads_at_their_guarded_assignment_point() {
     let and_form = optimize_generated_javascript(
         "function f(o,e,r,n,c,i){!r&&(r=o.once);for(c=n=!0;e.length;i=-1)e.pop();return r}",
     )
     .unwrap();
     assert!(
-        and_form.code.contains("for(r=r||o.once,c=n=!0;") || and_form.code.contains("r=r||o.once"),
+        and_form.code.contains("r=r||o.once") || and_form.code.contains("!r&&(r=o.once)"),
         "{}",
         and_form.code
     );
-    assert!(!and_form.code.contains("!r&&(r="), "{}", and_form.code);
 
     let if_temp = optimize_generated_javascript(
         "function f(o,e,r,n,c,i){if(!r){var t=o.once;r=t}for(c=n=!0;e.length;i=-1)e.pop();return r}",
     )
     .unwrap();
-    assert!(if_temp.code.contains("r=r||o.once"), "{}", if_temp.code);
-    assert!(!if_temp.code.contains("if(!r)"), "{}", if_temp.code);
+    assert!(
+        (if_temp.code.contains("if(!r)") && if_temp.code.contains("t=o.once"))
+            || if_temp.code.contains("r=r||o.once"),
+        "{}",
+        if_temp.code
+    );
 
     let original = "function f(o,e,r,n,c,i){!r&&(r=o.once);for(c=n=!0;e.length;i=-1)e.pop();return r}console.log(f({once:7},[1],0,0,0,0)+','+f({once:8},[],1,0,0,0))";
     let folded = optimize_generated_javascript(original).unwrap();
@@ -2935,13 +2998,15 @@ fn keeps_index_copies_that_are_reassigned_later() {
 }
 
 #[test]
-fn inlines_single_use_index_temps_in_a_fire_loop() {
+fn preserves_single_use_index_temps_in_a_fire_loop() {
     let optimized = optimize_generated_javascript(
         "function f(a,i,m){i++;for(;;i++){var t=i;if(i>=a.length){break}t=a[i];var c=m[0];!1===t.apply(c,m[1])&&(i=+a.length)}}",
     )
     .unwrap();
     assert!(
-        optimized.code.contains("a[i].apply(m[0],m[1])"),
+        optimized.code.contains("t=a[i]")
+            && optimized.code.contains("c=m[0]")
+            && optimized.code.contains("t.apply(c,m[1])"),
         "{}",
         optimized.code
     );
@@ -2983,13 +3048,13 @@ fn folds_trailing_return_this_into_a_comma() {
 }
 
 #[test]
-fn rematerializes_single_use_function_values_and_object_methods() {
+fn rematerializes_only_function_values_whose_names_stay_stable() {
     let deferred = optimize_generated_javascript(
         "let B=n=>{var r={id:n};return r};a.extend({Deferred:B,when(r){return r}})",
     )
     .unwrap();
     assert!(
-        deferred.code.contains("Deferred(n){") && !deferred.code.contains("let B="),
+        deferred.code.contains("B=n=>") && deferred.code.contains("Deferred:B"),
         "{}",
         deferred.code
     );
@@ -2999,7 +3064,7 @@ fn rematerializes_single_use_function_values_and_object_methods() {
     )
     .unwrap();
     assert!(
-        callbacks.code.contains("a.Callbacks=a=>{") && !callbacks.code.contains("let Y="),
+        callbacks.code.contains("Y=a=>{") && callbacks.code.contains("a.Callbacks=Y"),
         "{}",
         callbacks.code
     );
@@ -3026,8 +3091,8 @@ fn rematerializes_single_use_function_values_and_object_methods() {
     )
     .unwrap();
     assert!(
-        console_cache.code.contains("window.console")
-            && !console_cache.code.contains("var n=window.console"),
+        console_cache.code.contains("var n=window.console")
+            && console_cache.code.contains("n.warn"),
         "{}",
         console_cache.code
     );
@@ -3037,9 +3102,7 @@ fn rematerializes_single_use_function_values_and_object_methods() {
     )
     .unwrap();
     assert!(
-        (shadowed_inner.code.contains("makeArray(e,t){")
-            || shadowed_inner.code.contains("makeArray:(e,t)=>{"))
-            && !shadowed_inner.code.contains("let F="),
+        shadowed_inner.code.contains("F=(e,t)=>{") && shadowed_inner.code.contains("makeArray:F"),
         "{}",
         shadowed_inner.code
     );
@@ -3109,13 +3172,13 @@ fn keeps_exported_bindings_out_of_export_clauses() {
 }
 
 #[test]
-fn reuses_member_aliases_inside_unshadowed_nested_functions() {
+fn preserves_member_reads_inside_nested_functions() {
     let when = optimize_generated_javascript(
         "var l=[],g=l.slice;a.extend({when(r){return l.slice.call(arguments)}})",
     )
     .unwrap();
     assert!(
-        when.code.contains("g.call(arguments)") && !when.code.contains("l.slice.call"),
+        when.code.contains("l.slice.call(arguments)"),
         "{}",
         when.code
     );
@@ -3287,25 +3350,30 @@ fn overlapping_index_temp_chains_remain_bound() {
 }
 
 #[test]
-fn rematerializes_a_single_use_object_after_aliasing_index_writes() {
+fn preserves_a_single_use_object_across_aliasing_index_writes() {
     let optimized = optimize_generated_javascript(
         "let V={jquery:\"3.7.1\",length:0};a.fn=V;a.prototype=V;V[Symbol.iterator]=Array.prototype[Symbol.iterator];use(a)",
     )
     .unwrap();
     assert!(
-        optimized.code.contains("a.fn=a.prototype={")
-            && optimized.code.contains("a.fn[Symbol.iterator]")
-            && !optimized.code.contains("let V="),
+        optimized.code.contains("let V={")
+            && optimized.code.contains("a.fn=V")
+            && optimized.code.contains("a.prototype=V")
+            && optimized.code.contains("V[Symbol.iterator]")
+            && optimized.code.contains("use(a)"),
         "{}",
         optimized.code
     );
 
     let prototype = optimize_generated_javascript(
-        "let V={jquery:\"3.7.1\",constructor:a,length:0,toArray(){return g.call(this)},get(e){return e==null?g.call(this):e<0?this[e+this.length]:this[e]},pushStack(e){e=w(this.constructor(),e),e.prevObject=this;return e},each(e){return d(this,e)},map(e){return this.pushStack(z(this,(t,n)=>e.call(t,n,t),null))},slice(){return this.pushStack(g.apply(this,arguments))},first(){return this.eq(0)},last(){return this.eq(-1)},even(){return this.pushStack(k(this,(e,t)=>(t+1)%2,!1))},odd(){return this.pushStack(k(this,(e,t)=>t%2,!1))},eq(e){var n=this.length,t=e<0&&n;e+=t;return this.pushStack(e>=0&&e<n?[this[e]]:[])},end(){return this.prevObject||this.constructor()},push:l.push,sort:l.sort,splice:l.splice,extend:j};a.fn=a.prototype=V;a.extend=j;a.fn[Symbol.iterator]=Array.prototype[Symbol.iterator];",
+        "let V={jquery:\"3.7.1\",constructor:a,length:0,toArray(){return g.call(this)},get(e){return e==null?g.call(this):e<0?this[e+this.length]:this[e]},pushStack(e){e=w(this.constructor(),e),e.prevObject=this;return e},each(e){return d(this,e)},map(e){return this.pushStack(z(this,(t,n)=>e.call(t,n,t),null))},slice(){return this.pushStack(g.apply(this,arguments))},first(){return this.eq(0)},last(){return this.eq(-1)},even(){return this.pushStack(k(this,(e,t)=>(t+1)%2,!1))},odd(){return this.pushStack(k(this,(e,t)=>t%2,!1))},eq(e){var n=this.length,t=e<0&&n;e+=t;return this.pushStack(e>=0&&e<n?[this[e]]:[])},end(){return this.prevObject||this.constructor()},push:l.push,sort:l.sort,splice:l.splice,extend:j};a.fn=V;a.prototype=V;a.extend=j;V[Symbol.iterator]=Array.prototype[Symbol.iterator];",
     )
     .unwrap();
     assert!(
-        prototype.code.contains("a.fn=a.prototype={") && !prototype.code.contains("let V="),
+        prototype.code.contains("let V={")
+            && prototype.code.contains("a.fn=V")
+            && prototype.code.contains("a.prototype=V")
+            && prototype.code.contains("V[Symbol.iterator]"),
         "{}",
         prototype.code
     );
@@ -3318,8 +3386,8 @@ fn rematerializes_a_single_use_object_after_aliasing_index_writes() {
         if emit.contains("let V=") {
             let again = optimize_generated_javascript(&emit).unwrap();
             assert!(
-                !again.code.contains("let V="),
-                "second peephole pass must rematerialize V: {}",
+                again.code.contains("let V="),
+                "the second peephole pass must retain V's creation point: {}",
                 &again.code[again.code.find("a.fn.init").unwrap_or(0)
                     ..again
                         .code
@@ -3329,6 +3397,88 @@ fn rematerializes_a_single_use_object_after_aliasing_index_writes() {
             );
         }
     }
+}
+
+#[test]
+fn keeps_single_use_object_captures_at_outer_creation_time() {
+    for (source, expected) in [
+        (
+            concat!(
+                "function make(){",
+                "let target={x:1,dispose(){this.x=2}};",
+                "let snapshot={value:target.x};",
+                "return function(){target.dispose();return snapshot.value}",
+                "}",
+                "let callback=make();console.log(callback(),callback())"
+            ),
+            "1 1\n",
+        ),
+        (
+            concat!(
+                "function probe(){",
+                "let target={x:1,dispose(){this.x=2}};",
+                "let snapshot={};snapshot.value=target.x;",
+                "(function(){let value=snapshot.value;target.dispose();console.log(value)})();",
+                "console.log(target.x)",
+                "}probe()"
+            ),
+            "1\n2\n",
+        ),
+    ] {
+        let optimized = optimize_generated_javascript(source).unwrap();
+        assert_eq!(run_node(source), expected, "{source}");
+        assert_eq!(run_node(&optimized.code), expected, "{}", optimized.code);
+    }
+}
+
+#[test]
+fn keeps_single_use_object_values_at_their_creation_point() {
+    let source = concat!(
+        "var order='';",
+        "function read(v){order+='read-'+v+';';return v}",
+        "function mutate(){order+='mutate;'}",
+        "function f(y){let x={v:read(y)};y=2;mutate();return x}",
+        "console.log(f(1).v+'|'+order)"
+    );
+    let optimized = optimize_generated_javascript(source).unwrap();
+
+    assert!(
+        optimized.code.contains("x={v:read(y)}"),
+        "{}",
+        optimized.code
+    );
+    assert_eq!(run_node(source).trim(), "1|read-1;mutate;");
+    assert_eq!(
+        run_node(&optimized.code).trim(),
+        "1|read-1;mutate;",
+        "{}",
+        optimized.code
+    );
+}
+
+#[test]
+fn keeps_object_property_arrows_lexical() {
+    let source = concat!(
+        "class Base{get x(){return'base'}}",
+        "class Derived extends Base{constructor(){super();this.newTarget={f:()=>new.target}.f}",
+        "make(){return{f:()=>super.x}}}",
+        "let value=new Derived;console.log(value.make().f()+'|'+(value.newTarget()===Derived))"
+    );
+    let optimized = optimize_generated_javascript(source).unwrap();
+
+    assert!(optimized.code.contains("=>super.x"), "{}", optimized.code);
+    assert!(
+        optimized.code.contains("=>new.target"),
+        "{}",
+        optimized.code
+    );
+    assert_eq!(run_node(source).trim(), "base|true");
+    assert_eq!(
+        run_node(&optimized.code).trim(),
+        "base|true",
+        "{}",
+        optimized.code
+    );
 }
 
 #[test]

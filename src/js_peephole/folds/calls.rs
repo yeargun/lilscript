@@ -1,86 +1,12 @@
 use crate::js_peephole::rewrite::{
     apply_token_rewrites, identifier_occurs, is_property_identifier, next_statement_end,
-    top_level_stop,
 };
 use crate::js_peephole::scope::{
     enclosing_function_span, function_binds_name, name_is_declared_in_any_enclosing_function_scope,
     parse_function_expression, simple_identifier_params,
 };
-use crate::js_peephole::token::{
-    lex, matching_closers, matching_openers, Token, TokenKind,
-};
+use crate::js_peephole::token::{lex, matching_closers, matching_openers, Token, TokenKind};
 use crate::js_peephole::JavaScriptParseError;
-
-pub(crate) fn fold_comma_assign_into_trailing_call_arg(
-    source: &str,
-) -> Result<(String, usize), JavaScriptParseError> {
-    let tokens = lex(source)?;
-    let matching_close = matching_closers(&tokens);
-    let mut replacements = Vec::<(usize, usize, String)>::new();
-    let mut cursor = 0usize;
-    while cursor + 6 < tokens.len() {
-        if tokens[cursor].text != "("
-            || tokens
-                .get(cursor + 1)
-                .is_none_or(|token| token.kind != TokenKind::Identifier)
-            || tokens.get(cursor + 2).map(|token| token.text) != Some("=")
-        {
-            cursor += 1;
-            continue;
-        }
-        let name = tokens[cursor + 1].text;
-        let Some(paren_close) = matching_close.get(cursor).copied().flatten() else {
-            cursor += 1;
-            continue;
-        };
-        let Some(comma) = top_level_stop(&tokens, cursor + 3, &[","]) else {
-            cursor += 1;
-            continue;
-        };
-        if comma >= paren_close {
-            cursor += 1;
-            continue;
-        }
-        let rhs = &source[tokens[cursor + 3].start..tokens[comma].start];
-        if rhs.is_empty() || identifier_occurs(&tokens, cursor + 3, comma, name) {
-            cursor += 1;
-            continue;
-        }
-        if tokens.get(paren_close - 1).map(|token| token.text) != Some(")")
-            || tokens.get(paren_close - 2).map(|token| token.text) != Some(name)
-            || !matches!(
-                tokens.get(paren_close - 3).map(|token| token.text),
-                Some(",") | Some("(")
-            )
-        {
-            cursor += 1;
-            continue;
-        }
-        if identifier_occurs(&tokens, comma + 1, paren_close - 2, name) {
-            cursor += 1;
-            continue;
-        }
-        // Dropping the assignment is only sound when nothing reads the name
-        // after this group.
-        let scope_end = enclosing_function_span(&tokens, &matching_close, cursor)
-            .map(|(_, close)| close)
-            .unwrap_or(tokens.len());
-        if identifier_occurs(&tokens, paren_close + 1, scope_end, name) {
-            cursor += 1;
-            continue;
-        }
-        replacements.push((
-            tokens[cursor].start,
-            tokens[paren_close].end,
-            format!(
-                "{}{rhs})",
-                &source[tokens[comma + 1].start..tokens[paren_close - 2].start]
-            ),
-        ));
-        cursor = paren_close + 1;
-    }
-    Ok(apply_token_rewrites(source, replacements))
-}
 
 pub(crate) fn fold_omissible_trailing_false_args(
     source: &str,
@@ -373,6 +299,10 @@ pub(crate) fn fold_single_use_function_expressions(
 
     for function_at in 0..tokens.len() {
         if tokens[function_at].text != "function"
+            || function_at
+                .checked_sub(1)
+                .and_then(|index| tokens.get(index))
+                .is_some_and(|token| token.text == "async")
             || enclosing_function_span(&tokens, &matching_close, function_at).is_some()
         {
             continue;
@@ -409,8 +339,10 @@ pub(crate) fn fold_single_use_function_expressions(
             continue;
         };
         if tokens[body_open + 1..body_close].iter().any(|token| {
-            matches!(token.text, "function" | "=>" | "class" | "arguments" | "super")
-                || token.kind == TokenKind::Template
+            matches!(
+                token.text,
+                "function" | "=>" | "class" | "arguments" | "super"
+            ) || token.kind == TokenKind::Template
         }) {
             continue;
         }
@@ -619,22 +551,13 @@ fn fold_return_only_iife(
         // lower precedence. Keep grouping where a surrounding operator can
         // capture part of the body; return/assignment/argument positions can
         // use the expression directly and avoid inert parentheses.
-        let rewritten = if beta_reduction_needs_grouping(
-            &tokens,
-            cursor,
-            call_close,
-            body_from,
-            body_to,
-        ) {
-            format!("({rewritten})")
-        } else {
-            rewritten
-        };
-        replacements.push((
-            tokens[cursor].start,
-            tokens[call_close].end,
-            rewritten,
-        ));
+        let rewritten =
+            if beta_reduction_needs_grouping(&tokens, cursor, call_close, body_from, body_to) {
+                format!("({rewritten})")
+            } else {
+                rewritten
+            };
+        replacements.push((tokens[cursor].start, tokens[call_close].end, rewritten));
         cursor = call_close + 1;
     }
     Ok(apply_token_rewrites(source, replacements))
@@ -966,59 +889,4 @@ fn is_expression_statement_span(tokens: &[Token<'_>], start: usize, end: usize) 
             | "case"
             | "default"
     )
-}
-
-pub(crate) fn fold_same_receiver_method_call(
-    source: &str,
-) -> Result<(String, usize), JavaScriptParseError> {
-    let tokens = lex(source)?;
-    let matching_close = matching_closers(&tokens);
-    let mut replacements = Vec::<(usize, usize, String)>::new();
-    let mut cursor = 0usize;
-    while cursor + 6 < tokens.len() {
-        if (tokens[cursor].kind != TokenKind::Identifier && tokens[cursor].text != "this")
-            || is_property_identifier(&tokens, cursor)
-        {
-            cursor += 1;
-            continue;
-        }
-        if tokens.get(cursor + 1).map(|token| token.text) != Some(".")
-            || !tokens
-                .get(cursor + 2)
-                .is_some_and(|token| matches!(token.kind, TokenKind::Identifier | TokenKind::Keyword))
-            || tokens.get(cursor + 3).map(|token| token.text) != Some(".")
-            || tokens.get(cursor + 4).map(|token| token.text) != Some("call")
-            || tokens.get(cursor + 5).map(|token| token.text) != Some("(")
-        {
-            cursor += 1;
-            continue;
-        }
-        let open = cursor + 5;
-        let Some(close) = matching_close.get(open).copied().flatten() else {
-            cursor += 1;
-            continue;
-        };
-        if tokens.get(open + 1).map(|token| token.text) != Some(tokens[cursor].text) {
-            cursor += 1;
-            continue;
-        }
-        if tokens.get(open + 2).map(|token| token.text) != Some(",")
-            && open + 2 != close
-        {
-            cursor += 1;
-            continue;
-        }
-        let args = if open + 2 == close {
-            String::new()
-        } else {
-            source[tokens[open + 3].start..tokens[close].start].to_string()
-        };
-        replacements.push((
-            tokens[cursor].start,
-            tokens[close].end,
-            format!("{}.{}({args})", tokens[cursor].text, tokens[cursor + 2].text),
-        ));
-        cursor = close + 1;
-    }
-    Ok(apply_token_rewrites(source, replacements))
 }

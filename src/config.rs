@@ -308,6 +308,7 @@ impl ProjectConfig {
             scalar_phi_copies: self
                 .javascript
                 .compression_enabled(CompressionDecision::ScalarPhiCopies),
+            local_name_coalescing: self.javascript.local_name_coalescing,
             phi_affinity_mode: if self
                 .javascript
                 .compression_enabled(CompressionDecision::PhiAffinityCoalescing)
@@ -469,6 +470,14 @@ impl ProjectConfig {
                 JavaScriptOptimization::SsaDestructionVariants,
                 Some(CompressionDecision::PhiAffinityCoalescing),
             )
+    }
+
+    /// The full coalesced/uncoalesced spelling is another bounded
+    /// SSA-destruction variant. It intentionally shares the existing
+    /// phi-affinity allowlist for backward-compatible configuration, while
+    /// callers can distinguish it from choosing an affinity mode.
+    pub fn js_local_name_coalescing_variants_enabled(&self) -> bool {
+        self.js_phi_affinity_variants_enabled()
     }
 
     pub fn javascript_optimization_configured(&self, feature: JavaScriptOptimization) -> bool {
@@ -1017,6 +1026,12 @@ pub struct JavaScriptConfig {
     pub function_layout_exact_limit: usize,
     pub local_name_reserve: usize,
     pub stable_local_names: bool,
+    /// Reuse bindings for noninterfering SSA values in identifier-mangled
+    /// output. Candidate search may still score the opposite spelling because
+    /// fewer names can require more assignment and parenthesis syntax in the
+    /// final JavaScript. Unmangled output preserves source-oriented names and
+    /// does not use this switch.
+    pub local_name_coalescing: bool,
     /// Wrap exclusive callees of a named root in a once-run IIFE so those
     /// helpers can reuse short names. Off only for oracles that need the
     /// three-address helper spelling their fixture was written against.
@@ -1071,6 +1086,7 @@ impl Default for JavaScriptConfig {
             function_layout_exact_limit: 13,
             local_name_reserve: 16,
             stable_local_names: true,
+            local_name_coalescing: true,
             iife_private_callee_clusters: true,
             nested_once_run_helpers: true,
             operand_order_fusion: true,
@@ -1983,6 +1999,7 @@ compression = [
 inline_instruction_limit = 7
 inline_control_flow_limit = 9
 max_inline_growth = 3
+local_name_coalescing = false
 "#,
         )
         .unwrap();
@@ -2002,6 +2019,7 @@ max_inline_growth = 3
         assert!(!codegen.elide_new_parentheses);
         assert!(!codegen.elide_call_chain_parentheses);
         assert!(!codegen.compact_generator_star);
+        assert!(!codegen.local_name_coalescing);
         assert!(!custom.ir_inlining_variants_enabled());
         assert!(!custom.ir_closure_factory_variants_enabled());
         assert!(!custom.ir_phase_ordering_variants_enabled());
@@ -2052,7 +2070,7 @@ max_inline_growth = 3
 
     #[test]
     fn paired_variant_searches_require_both_exact_allowlists() {
-        fn states(config: &ProjectConfig) -> [bool; 10] {
+        fn states(config: &ProjectConfig) -> [bool; 11] {
             [
                 config.ir_inlining_variants_enabled(),
                 config.ir_closure_factory_variants_enabled(),
@@ -2064,6 +2082,7 @@ max_inline_growth = 3
                 config.js_default_argument_variants_enabled(),
                 config.js_scalar_phi_copy_variants_enabled(),
                 config.js_phi_affinity_variants_enabled(),
+                config.js_local_name_coalescing_variants_enabled(),
             ]
         }
 
@@ -2094,20 +2113,20 @@ max_inline_growth = 3
         let mut enabled = ProjectConfig::default();
         enabled.javascript.optimizations = Some(all_optimizations.clone());
         enabled.javascript.compression = Some(all_compression.clone());
-        assert_eq!(states(&enabled), [true; 10]);
+        assert_eq!(states(&enabled), [true; 11]);
 
         let mut no_compression = enabled.clone();
         no_compression.javascript.compression = Some(Vec::new());
-        assert_eq!(states(&no_compression), [false; 10]);
+        assert_eq!(states(&no_compression), [false; 11]);
 
         let mut no_optimizations = enabled.clone();
         no_optimizations.javascript.optimizations = Some(Vec::new());
-        assert_eq!(states(&no_optimizations), [false; 10]);
+        assert_eq!(states(&no_optimizations), [false; 11]);
 
         let mut exact_empty = ProjectConfig::default();
         exact_empty.javascript.optimizations = Some(Vec::new());
         exact_empty.javascript.compression = Some(Vec::new());
-        assert_eq!(states(&exact_empty), [false; 10]);
+        assert_eq!(states(&exact_empty), [false; 11]);
 
         let mut mixed = ProjectConfig::default();
         mixed.javascript.optimizations = Some(vec![
@@ -2122,13 +2141,13 @@ max_inline_growth = 3
         ]);
         assert_eq!(
             states(&mixed),
-            [false, false, false, false, false, false, false, true, true, false]
+            [false, false, false, false, false, false, false, true, true, false, false,]
         );
 
         let mut legacy = ProjectConfig::default();
         legacy.javascript.optimizations = None;
         legacy.javascript.compression = Some(all_compression);
-        assert_eq!(states(&legacy), [true; 10]);
+        assert_eq!(states(&legacy), [true; 11]);
     }
 
     #[test]

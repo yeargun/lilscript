@@ -303,9 +303,9 @@ pub(crate) fn fold_expression_self_assignments(
                 tokens.get(cursor + 3).map(|token| token.text),
                 Some("+") | Some("-")
             )
-            && tokens.get(cursor + 4).is_some_and(|token| {
-                matches!(token.kind, TokenKind::Number | TokenKind::String)
-            })
+            && tokens
+                .get(cursor + 4)
+                .is_some_and(|token| matches!(token.kind, TokenKind::Number | TokenKind::String))
             && matches!(
                 tokens.get(cursor + 5).map(|token| token.text),
                 Some(";") | Some("}") | Some(")") | Some(",") | None
@@ -344,9 +344,9 @@ fn member_unit_int32_update(tokens: &[Token<'_>], cursor: usize) -> Option<(usiz
         return None;
     }
     if tokens.get(cursor + 1).map(|token| token.text) != Some(".")
-        || !tokens.get(cursor + 2).is_some_and(|token| {
-            matches!(token.kind, TokenKind::Identifier | TokenKind::Keyword)
-        })
+        || !tokens
+            .get(cursor + 2)
+            .is_some_and(|token| matches!(token.kind, TokenKind::Identifier | TokenKind::Keyword))
         || tokens.get(cursor + 3).map(|token| token.text) != Some("=")
         || tokens.get(cursor + 4).map(|token| token.text) != Some(object.text)
         || tokens.get(cursor + 5).map(|token| token.text) != Some(".")
@@ -1636,9 +1636,7 @@ fn let_for_init_names_escape(
                 }
             }
             _ => {
-                if token.kind == TokenKind::Identifier
-                    && declared.iter().any(|name| *name == token.text)
-                {
+                if token.kind == TokenKind::Identifier && declared.contains(&token.text) {
                     return true;
                 }
             }

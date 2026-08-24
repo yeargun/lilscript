@@ -17,6 +17,7 @@ minifier flags.
 | `pool_numeric_literals` | `true` | allows repeated-number aliases when candidate search finds a win |
 | `local_name_reserve` | 16 struct default | reserves short module spellings for reuse inside lexical functions |
 | `stable_local_names` | `true` | uses source-local affinity to stabilize same-scope colors |
+| `local_name_coalescing` | `true` | in identifier-mangled output, reuses a local binding for proven noninterfering SSA values; `false` retains distinct declarations |
 | `function_layout_exact_limit` | 13 | exact declaration-order search cutoff, max 18 |
 
 `[mangle]` then controls identifiers, owned properties, exports/public fields, and

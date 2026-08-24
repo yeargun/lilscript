@@ -4,10 +4,10 @@ use std::hash::{Hash, Hasher};
 use crate::stable_hash::{StableHashMap as AHashMap, StableHashSet as AHashSet};
 
 use crate::ir::{
-    AggregateField, AggregateLayout, ArrayOperand, BlockId, ConstValue, ControlFlowBlock,
-    ControlFlowFunction, ControlFlowInstruction, ControlFlowModule, ControlFlowOp, ControlShape,
-    ExportBinding, FunctionId, FunctionKind, FunctionOrigin, Instruction, Intrinsic, IrBinaryOp,
-    IrLocal, IrModule, IrUnaryOp, JsHostAlias, JsHostAliasConvention, LocalId, Phi, RecordOperand,
+    AggregateField, AggregateLayout, ArrayOperand, BlockId, ConstValue, ControlFlowFunction,
+    ControlFlowInstruction, ControlFlowModule, ControlFlowOp, ControlShape, ExportBinding,
+    FunctionId, FunctionKind, FunctionOrigin, Instruction, Intrinsic, IrBinaryOp, IrLocal,
+    IrModule, IrUnaryOp, JsHostAlias, JsHostAliasConvention, LocalId, Phi, RecordOperand,
     TemplateOperand, Terminator, ValueId,
 };
 use crate::profile::OptimizationProfile;
@@ -515,11 +515,8 @@ fn optimize_inlining_fixed_point(
     loop {
         let reachability = eliminate_dead_functions(module);
         let inlining = inline_small_functions(module, options, protected_callees);
-        let cfg_inlining = inline_single_use_control_flow_function(
-            module,
-            options.inline_control_flow_limit,
-            protected_callees,
-        );
+        let cfg_inlining =
+            inline_single_use_control_flow_function(module, options, protected_callees);
         let changed = reachability.changed || inlining.changed || cfg_inlining.changed;
         reports.push(reachability);
         reports.push(inlining);
@@ -885,11 +882,13 @@ fn js_host_inline_op(
             args: vec![*pattern],
             pure: false,
         })),
-        ("regexSetLastIndex", [regex, value]) => Some(HostInline::Op(ControlFlowOp::HostFieldSet {
-            object: *regex,
-            property: "lastIndex",
-            value: *value,
-        })),
+        ("regexSetLastIndex", [regex, value]) => {
+            Some(HostInline::Op(ControlFlowOp::HostFieldSet {
+                object: *regex,
+                property: "lastIndex",
+                value: *value,
+            }))
+        }
         ("arrayPush", [arr, item]) => Some(js_intrinsic(
             Intrinsic::JsArrayPush,
             Some(*arr),
@@ -1843,9 +1842,9 @@ fn optimize_scalar_fixed_point(
             .common_subexpression_elimination
             .then(|| eliminate_common_subexpressions(module));
         let unreachable = remove_unreachable_control_flow(module);
-        let empty_arrays = substitute_fresh_empty_array_factories(module);
-        let object_literals = fuse_plain_object_index_sets(module);
-        let array_literals = fuse_plain_array_pushes(module);
+        // Keep allocation and mutation distinct in the neutral IR. Unlike
+        // literal initialization, `Array#push` and ordinary-object assignment
+        // use [[Set]] and can invoke inherited setters in open-world JavaScript.
         let stringify = elide_single_use_stringify(module);
         let changed = propagation.as_ref().is_some_and(|report| report.changed)
             || phis.changed
@@ -1854,18 +1853,12 @@ fn optimize_scalar_fixed_point(
                 .as_ref()
                 .is_some_and(|report| report.changed)
             || unreachable.changed
-            || empty_arrays.changed
-            || object_literals.changed
-            || array_literals.changed
             || stringify.changed;
         reports.extend(propagation);
         reports.push(phis);
         reports.extend(algebraic);
         reports.extend(value_numbering);
         reports.push(unreachable);
-        reports.push(empty_arrays);
-        reports.push(object_literals);
-        reports.push(array_literals);
         reports.push(stringify);
         if !changed {
             break;
@@ -1927,230 +1920,6 @@ fn fold_known_js_type_check(known_typeof: Option<&str>, target: &Type<'_>) -> Op
         Type::Function(_) | Type::GenericFunction(_) => Some(name == "function"),
         _ => None,
     }
-}
-
-fn fresh_empty_array_factory_ids(module: &ControlFlowModule<'_>) -> AHashSet<FunctionId> {
-    let exported = module
-        .exports
-        .iter()
-        .chain(
-            module
-                .lazy_modules
-                .iter()
-                .flat_map(|module| module.exports.iter()),
-        )
-        .filter_map(|export| match export.binding {
-            ExportBinding::Function(function) => Some(function),
-            _ => None,
-        })
-        .collect::<AHashSet<_>>();
-    let mut direct_calls = AHashSet::default();
-    let mut rejected = AHashSet::default();
-    for caller in module.functions.iter().filter(|function| function.live) {
-        for instruction in caller.blocks.iter().flat_map(|block| &block.instructions) {
-            match &instruction.op {
-                ControlFlowOp::CallDirect {
-                    function,
-                    args,
-                    provided_args,
-                } => {
-                    if args.is_empty() && *provided_args == 0 {
-                        direct_calls.insert(*function);
-                    } else {
-                        rejected.insert(*function);
-                    }
-                }
-                ControlFlowOp::Closure { function, .. }
-                | ControlFlowOp::CallMethod { function, .. }
-                | ControlFlowOp::NewClass {
-                    constructor: Some(function),
-                    ..
-                } => {
-                    rejected.insert(*function);
-                }
-                _ => {}
-            }
-        }
-    }
-    module
-        .functions
-        .iter()
-        .filter(|function| {
-            function.live
-                && function.kind == FunctionKind::Function
-                && function.capture_count == 0
-                && function.params.is_empty()
-                && !function.is_async
-                && !function.is_generator
-                && function.shapes.is_empty()
-                && direct_calls.contains(&function.id)
-                && !exported.contains(&function.id)
-                && !rejected.contains(&function.id)
-                && matches!(function.blocks.as_slice(), [block]
-                    if block.phis.is_empty()
-                        && matches!(block.instructions.as_slice(), [instruction]
-                            if matches!((instruction.out, &instruction.op),
-                                (Some(array), ControlFlowOp::Array(values))
-                                    if values.is_empty()
-                                        && matches!(&block.terminator,
-                                            Some(Terminator::Return(Some(result))) if *result == array))))
-        })
-        .map(|function| function.id)
-        .collect()
-}
-
-fn substitute_fresh_empty_array_factories(
-    module: &mut ControlFlowModule<'_>,
-) -> OptimizationReport {
-    let factories = fresh_empty_array_factory_ids(module);
-    if factories.is_empty() {
-        return OptimizationReport {
-            pass_name: "fresh-empty-array-factory-substitution",
-            changed: false,
-        };
-    }
-    let mut changed = false;
-    for function in &mut module.functions {
-        if !function.live {
-            continue;
-        }
-        for block in &mut function.blocks {
-            for instruction in &mut block.instructions {
-                let ControlFlowOp::CallDirect {
-                    function: callee,
-                    args,
-                    provided_args,
-                } = &instruction.op
-                else {
-                    continue;
-                };
-                if !factories.contains(callee) || !args.is_empty() || *provided_args != 0 {
-                    continue;
-                }
-                instruction.op = ControlFlowOp::Array(Vec::new());
-                changed = true;
-            }
-        }
-    }
-    OptimizationReport {
-        pass_name: "fresh-empty-array-factory-substitution",
-        changed,
-    }
-}
-
-fn empty_array_out(instruction: &ControlFlowInstruction<'_>) -> Option<ValueId> {
-    match (&instruction.op, instruction.out) {
-        (ControlFlowOp::Array(values), Some(out)) if values.is_empty() => Some(out),
-        _ => None,
-    }
-}
-
-fn array_push_element(
-    instruction: &ControlFlowInstruction<'_>,
-    array: ValueId,
-    uses: &AHashMap<ValueId, usize>,
-) -> Option<ValueId> {
-    let ControlFlowOp::Intrinsic {
-        intrinsic: Intrinsic::ArrayPush | Intrinsic::JsArrayPush,
-        receiver: Some(receiver),
-        args,
-    } = &instruction.op
-    else {
-        return None;
-    };
-    if *receiver != array || args.len() != 1 || args[0] == array {
-        return None;
-    }
-    if instruction
-        .out
-        .is_some_and(|out| uses.get(&out).copied().unwrap_or(0) != 0)
-    {
-        return None;
-    }
-    Some(args[0])
-}
-
-fn fuse_plain_array_pushes(module: &mut ControlFlowModule<'_>) -> OptimizationReport {
-    let mut changed = false;
-    for function in &mut module.functions {
-        if !function.live {
-            continue;
-        }
-        let try_blocks = exception_region_blocks(function);
-        let uses = control_flow_use_counts(function);
-        for block in &mut function.blocks {
-            if try_blocks.contains(&block.id) {
-                continue;
-            }
-            if fuse_plain_array_pushes_in_block(block, &uses) {
-                changed = true;
-            }
-        }
-    }
-    OptimizationReport {
-        pass_name: "plain-array-literal-fusion",
-        changed,
-    }
-}
-
-fn fuse_plain_array_pushes_in_block(
-    block: &mut ControlFlowBlock<'_>,
-    uses: &AHashMap<ValueId, usize>,
-) -> bool {
-    let mut changed = false;
-    let mut index = 0;
-    while index < block.instructions.len() {
-        let Some(array) = empty_array_out(&block.instructions[index]) else {
-            index += 1;
-            continue;
-        };
-        let mut elements = Vec::new();
-        let mut fused_at = AHashSet::default();
-        let mut last_fused = None;
-        for scan in index + 1..block.instructions.len() {
-            let instruction = &block.instructions[scan];
-            if let Some(element) = array_push_element(instruction, array, uses) {
-                elements.push(element);
-                fused_at.insert(scan);
-                last_fused = Some(scan);
-                continue;
-            }
-            if control_flow_used_values(&instruction.op).contains(&array) {
-                break;
-            }
-        }
-        let Some(last) = last_fused else {
-            index += 1;
-            continue;
-        };
-        let alloc_ty = block.instructions[index].ty.clone();
-        let alloc_span = block.instructions[index].span;
-        let mut rewritten = Vec::with_capacity(block.instructions.len());
-        for (scan, instruction) in std::mem::take(&mut block.instructions)
-            .into_iter()
-            .enumerate()
-        {
-            if scan == index {
-                continue;
-            }
-            if fused_at.contains(&scan) {
-                if scan == last {
-                    rewritten.push(ControlFlowInstruction {
-                        out: Some(array),
-                        ty: alloc_ty.clone(),
-                        op: ControlFlowOp::Array(elements.clone()),
-                        span: alloc_span,
-                    });
-                }
-                continue;
-            }
-            rewritten.push(instruction);
-        }
-        block.instructions = rewritten;
-        changed = true;
-        index = 0;
-    }
-    changed
 }
 
 fn is_string_prototype_method(name: &str) -> bool {
@@ -2247,9 +2016,9 @@ fn elide_stringify_in_op(
         ControlFlowOp::Intrinsic {
             intrinsic:
                 Intrinsic::JsParseFloat
-                    | Intrinsic::JsParseInt
-                    | Intrinsic::JsEncodeURI
-                    | Intrinsic::JsEncodeURIComponent,
+                | Intrinsic::JsParseInt
+                | Intrinsic::JsEncodeURI
+                | Intrinsic::JsEncodeURIComponent,
             args,
             ..
         } => args
@@ -2391,134 +2160,6 @@ fn elide_single_use_stringify(module: &mut ControlFlowModule<'_>) -> Optimizatio
         pass_name: "single-use-stringify-elision",
         changed,
     }
-}
-
-fn empty_plain_object_out(instruction: &ControlFlowInstruction<'_>) -> Option<ValueId> {
-    match (&instruction.op, instruction.out) {
-        (
-            ControlFlowOp::Intrinsic {
-                intrinsic: Intrinsic::JsPlainObject,
-                args,
-                ..
-            },
-            Some(out),
-        ) if args.is_empty() => Some(out),
-        _ => None,
-    }
-}
-
-fn fuse_plain_object_index_sets(module: &mut ControlFlowModule<'_>) -> OptimizationReport {
-    let mut changed = false;
-    for function in &mut module.functions {
-        if !function.live {
-            continue;
-        }
-        let try_blocks = exception_region_blocks(function);
-        let constants = function
-            .blocks
-            .iter()
-            .flat_map(|block| &block.instructions)
-            .filter_map(|instruction| match (instruction.out, &instruction.op) {
-                (Some(out), ControlFlowOp::Const(ConstValue::String(value))) => {
-                    Some((out, value.clone()))
-                }
-                _ => None,
-            })
-            .collect::<AHashMap<_, _>>();
-        for block in &mut function.blocks {
-            if try_blocks.contains(&block.id) {
-                continue;
-            }
-            if fuse_plain_object_index_sets_in_block(block, &constants) {
-                changed = true;
-            }
-        }
-    }
-    OptimizationReport {
-        pass_name: "plain-object-literal-fusion",
-        changed,
-    }
-}
-
-fn fuse_plain_object_index_sets_in_block(
-    block: &mut ControlFlowBlock<'_>,
-    constants: &AHashMap<ValueId, String>,
-) -> bool {
-    let mut changed = false;
-    let mut index = 0;
-    while index < block.instructions.len() {
-        let Some(object) = empty_plain_object_out(&block.instructions[index]) else {
-            index += 1;
-            continue;
-        };
-        let mut pairs = Vec::new();
-        let mut fused_at = AHashSet::default();
-        let mut last_fused = None;
-        for scan in index + 1..block.instructions.len() {
-            let instruction = &block.instructions[scan];
-            if let ControlFlowOp::IndexSet {
-                object: target,
-                index: key,
-                value,
-            } = &instruction.op
-            {
-                if *target == object {
-                    let Some(key_text) = constants.get(key) else {
-                        break;
-                    };
-                    if key_text == "__proto__" || instruction.out.is_some() || *value == object {
-                        break;
-                    }
-                    pairs.push((*key, *value));
-                    fused_at.insert(scan);
-                    last_fused = Some(scan);
-                    continue;
-                }
-            }
-            if control_flow_used_values(&instruction.op).contains(&object) {
-                break;
-            }
-        }
-        let Some(last) = last_fused else {
-            index += 1;
-            continue;
-        };
-        let alloc_ty = block.instructions[index].ty.clone();
-        let alloc_span = block.instructions[index].span;
-        let args = pairs
-            .iter()
-            .flat_map(|(key, value)| [*key, *value])
-            .collect::<Vec<_>>();
-        let mut rewritten = Vec::with_capacity(block.instructions.len());
-        for (scan, instruction) in std::mem::take(&mut block.instructions)
-            .into_iter()
-            .enumerate()
-        {
-            if scan == index {
-                continue;
-            }
-            if fused_at.contains(&scan) {
-                if scan == last {
-                    rewritten.push(ControlFlowInstruction {
-                        out: Some(object),
-                        ty: alloc_ty.clone(),
-                        op: ControlFlowOp::Intrinsic {
-                            intrinsic: Intrinsic::JsPlainObject,
-                            receiver: None,
-                            args: args.clone(),
-                        },
-                        span: alloc_span,
-                    });
-                }
-                continue;
-            }
-            rewritten.push(instruction);
-        }
-        block.instructions = rewritten;
-        changed = true;
-        index = 0;
-    }
-    changed
 }
 
 fn field_store_barrier(op: &ControlFlowOp<'_>) -> bool {
@@ -3715,18 +3356,33 @@ fn clone_function_with_specialization<'src>(
     let mut constants = Vec::new();
     for (index, value) in signature {
         let parameter = &clone.params[*index];
+        let parameter_value = parameter.value;
+        let parameter_hint = clone
+            .value_local_hints
+            .get(parameter.value.0 as usize)
+            .copied()
+            .flatten()
+            .or(Some(parameter.name));
+        let parameter_span = parameter.span;
+        let parameter_ty = parameter.ty.clone();
         let out = ValueId(clone.value_count);
         clone.value_count += 1;
         clone.value_escapes.push(EscapeState::LocalOnly);
-        clone.value_local_hints.push(
-            clone
-                .value_local_hints
-                .get(parameter.value.0 as usize)
-                .copied()
-                .flatten()
-                .or(Some(parameter.name)),
-        );
-        replacements.insert(parameter.value, out);
+        clone.value_local_hints.push(parameter_hint);
+        replacements.insert(parameter_value, out);
+        for dependent in &mut clone.params {
+            let Some(crate::ir::IrParamDefault::Value(default)) = &dependent.default else {
+                continue;
+            };
+            if *default == parameter_value {
+                dependent.default = Some(match value {
+                    SpecializationValue::Constant(value) => {
+                        crate::ir::IrParamDefault::Const(value.to_value())
+                    }
+                    SpecializationValue::Function(_) => crate::ir::IrParamDefault::Value(out),
+                });
+            }
+        }
         let operation = match value {
             SpecializationValue::Constant(value) => ControlFlowOp::Const(value.to_value()),
             SpecializationValue::Function(function) => ControlFlowOp::Closure {
@@ -3736,9 +3392,9 @@ fn clone_function_with_specialization<'src>(
         };
         constants.push(ControlFlowInstruction {
             out: Some(out),
-            ty: Some(parameter.ty.clone()),
+            ty: Some(parameter_ty),
             op: operation,
-            span: parameter.span,
+            span: parameter_span,
         });
     }
     rewrite_control_flow_function(&mut clone, &replacements);
@@ -5261,28 +4917,30 @@ fn is_trivial_js_host_passthrough(function: &ControlFlowFunction<'_>) -> bool {
     let mut saw_host = false;
     for instruction in &block.instructions {
         match &instruction.op {
-            ControlFlowOp::Const(_) | ControlFlowOp::LoadLocal(_) | ControlFlowOp::Unary { .. } => {}
+            ControlFlowOp::Const(_) | ControlFlowOp::LoadLocal(_) | ControlFlowOp::Unary { .. } => {
+            }
             ControlFlowOp::IndexGet { .. }
             | ControlFlowOp::HostFieldGet { .. }
             | ControlFlowOp::RecordFieldGet { .. } => {
                 saw_host = true;
             }
-            ControlFlowOp::Binary { op, .. }
-                if matches!(op, IrBinaryOp::Eq | IrBinaryOp::NotEq) =>
-            {
+            ControlFlowOp::Binary {
+                op: IrBinaryOp::Eq | IrBinaryOp::NotEq,
+                ..
+            } => {
                 saw_host = true;
             }
             ControlFlowOp::Intrinsic {
                 intrinsic:
                     Intrinsic::JsStringify
-                        | Intrinsic::JsNumber
-                        | Intrinsic::JsTypeOf
-                        | Intrinsic::JsIsNullish
-                        | Intrinsic::JsIsUndefined
-                        | Intrinsic::JsIsFalse
-                        | Intrinsic::JsStrictEqual
-                        | Intrinsic::JsGetProperty
-                        | Intrinsic::FloatToInt,
+                    | Intrinsic::JsNumber
+                    | Intrinsic::JsTypeOf
+                    | Intrinsic::JsIsNullish
+                    | Intrinsic::JsIsUndefined
+                    | Intrinsic::JsIsFalse
+                    | Intrinsic::JsStrictEqual
+                    | Intrinsic::JsGetProperty
+                    | Intrinsic::FloatToInt,
                 ..
             } => {
                 saw_host = true;
@@ -5310,6 +4968,39 @@ fn inline_small_functions(
     let exported = exported_functions(module);
     let mut call_counts = AHashMap::<FunctionId, usize>::default();
     let mut address_taken = AHashSet::<FunctionId>::default();
+    let mut js_adapter_targets = AHashSet::<FunctionId>::default();
+    for caller in module.functions.iter().filter(|function| function.live) {
+        let closure_values = caller
+            .blocks
+            .iter()
+            .flat_map(|block| &block.instructions)
+            .filter_map(|instruction| match (instruction.out, &instruction.op) {
+                (Some(out), ControlFlowOp::Closure { function, .. }) => Some((out, *function)),
+                _ => None,
+            })
+            .collect::<AHashMap<_, _>>();
+        for instruction in caller.blocks.iter().flat_map(|block| &block.instructions) {
+            let ControlFlowOp::Intrinsic {
+                intrinsic:
+                    Intrinsic::JsMethod0
+                    | Intrinsic::JsMethod1
+                    | Intrinsic::JsMethod2
+                    | Intrinsic::JsMethod3
+                    | Intrinsic::JsMethodRest
+                    | Intrinsic::JsStaticRest,
+                receiver: None,
+                args,
+            } = &instruction.op
+            else {
+                continue;
+            };
+            if let [callback] = args.as_slice() {
+                if let Some(function) = closure_values.get(callback) {
+                    js_adapter_targets.insert(*function);
+                }
+            }
+        }
+    }
     for instruction in module
         .functions
         .iter()
@@ -5345,6 +5036,15 @@ fn inline_small_functions(
                 && !recursive.contains(&function.id)
                 && !exported.contains(&function.id)
                 && !protected_callees.contains(&function.id)
+                // Adapter fusion is an alternate JavaScript ABI. When the
+                // same target also has a direct typed call, retain that call
+                // in neutral IR so codegen can see both uses and keep the
+                // zero-length, anonymous, constructible binder. Erasing the
+                // direct use here incorrectly made a MethodRest target look
+                // adapter-exclusive and exposed a promoted argument formal
+                // through Function#length.
+                && !(js_adapter_targets.contains(&function.id)
+                    && call_counts.get(&function.id).copied().unwrap_or(0) != 0)
                 && !function_has_type_parameters(function)
                 && function.blocks.len() == 1
                 && function.blocks[0].phis.is_empty()
@@ -5663,8 +5363,8 @@ fn direct_constructor_summaries<'src>(
                             DirectConstructorInitializer::Constant { value, ty, span }
                         };
                         fields.push(DirectConstructorField {
-                            owner: *owner,
-                            field: *field,
+                            owner,
+                            field,
                             index: *index,
                             value,
                             span: instruction.span,
@@ -5791,7 +5491,7 @@ pub(crate) fn project_direct_constructor_initializers_for_javascript(
 
 fn inline_single_use_control_flow_function(
     module: &mut ControlFlowModule<'_>,
-    inline_limit: usize,
+    options: &OptimizationOptions,
     protected_callees: &AHashSet<FunctionId>,
 ) -> OptimizationReport {
     let recursive = recursive_functions(module);
@@ -5838,13 +5538,19 @@ fn inline_single_use_control_flow_function(
                 && !protected_callees.contains(&function.id)
                 && !address_taken.contains(&function.id)
                 && !function_has_structured_early_return(function)
+                && (options.inline_closure_factories
+                    || !function
+                        .blocks
+                        .iter()
+                        .flat_map(|block| &block.instructions)
+                        .any(|instruction| matches!(instruction.op, ControlFlowOp::Closure { .. })))
                 && call_counts.get(&function.id) == Some(&1)
                 && function
                     .blocks
                     .iter()
                     .map(|block| block.instructions.len())
                     .sum::<usize>()
-                    <= inline_limit
+                    <= options.inline_control_flow_limit
         })
         .map(|function| (function.id, function.clone()))
         .collect::<AHashMap<_, _>>();
@@ -12889,6 +12595,16 @@ fn rewrite_control_flow_function(
     function: &mut ControlFlowFunction<'_>,
     aliases: &AHashMap<ValueId, ValueId>,
 ) {
+    // Parameter defaults are operands too. In particular, capture
+    // specialization can replace and then remove a captured parameter that a
+    // later public parameter uses as its default. Leaving the metadata behind
+    // would create a dangling SSA reference even though every executable
+    // operand was rewritten correctly.
+    for parameter in &mut function.params {
+        if let Some(crate::ir::IrParamDefault::Value(value)) = &mut parameter.default {
+            *value = resolve_alias(*value, aliases);
+        }
+    }
     for block in &mut function.blocks {
         for phi in &mut block.phis {
             for (_, value) in &mut phi.incoming {
@@ -16054,7 +15770,10 @@ mod tests {
         assert!(output.contains("pollutePrototype()"), "{output}");
         assert!(!output.contains(".toString"), "{output}");
         assert!(!output.contains("JSON.stringify"), "{output}");
-        assert!(output.contains("null??-1"), "{output}");
+        let trace = run_javascript(&format!(
+            "let calls=0;function pollutePrototype(){{calls++;Object.prototype.toString=99}}{output};process.stdout.write('TRACE:'+calls)"
+        ));
+        assert_eq!(trace, "-1\n{\"safe\":1}\nTRACE:1", "{output}");
     }
 
     #[test]

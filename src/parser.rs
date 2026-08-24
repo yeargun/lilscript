@@ -1101,10 +1101,7 @@ impl<'arena, 'src> Parser<'arena, 'src> {
             && self.check_next(|kind| matches!(kind, TokenKind::For))
     }
 
-    fn parse_for_after_keyword(
-        &mut self,
-        inline: bool,
-    ) -> Result<Stmt<'arena, 'src>, ParseError> {
+    fn parse_for_after_keyword(&mut self, inline: bool) -> Result<Stmt<'arena, 'src>, ParseError> {
         let start = self.previous_span();
         self.expect(
             |kind| matches!(kind, TokenKind::LParen),
@@ -2473,12 +2470,8 @@ mod tests {
     #[test]
     fn rejects_inline_for_in() {
         let arena = Bump::new();
-        let error = parse_source(&arena, "inline for(string key in value){}")
-            .unwrap_err();
-        assert!(
-            error.message.contains("`inline for` requires"),
-            "{error:?}"
-        );
+        let error = parse_source(&arena, "inline for(string key in value){}").unwrap_err();
+        assert!(error.message.contains("`inline for` requires"), "{error:?}");
     }
 
     #[test]

@@ -8,6 +8,9 @@ for app in "$ROOT"/apps/*; do
 done
 node "$ROOT/lib/summarize.mjs" "$ROOT"
 node "$ROOT/lib/check-size-gate.mjs" "$ROOT"
+node --test "$ROOT/cases/coverage.test.mjs"
+node --test "$ROOT/effort/contract.test.mjs"
 CARGO="$CARGO" node "$ROOT/cases/run.mjs"
 CARGO="$CARGO" node "$ROOT/algorithms/run.mjs"
+CARGO="$CARGO" node "$ROOT/effort/run.mjs"
 node "$ROOT/lib/check-provenance.mjs" "$ROOT"

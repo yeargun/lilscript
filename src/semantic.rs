@@ -904,11 +904,8 @@ impl<'src> Analyzer<'src> {
                             ));
                         }
                     }
-                    let mut next_index = info.fields.len();
-                    for (name, field) in fields {
-                        let mut field = field;
+                    for (next_index, (name, mut field)) in (info.fields.len()..).zip(fields) {
                         field.index = next_index;
-                        next_index += 1;
                         info.fields.insert(name, field);
                     }
                     info.methods.extend(methods);
@@ -2046,7 +2043,14 @@ impl<'src> Analyzer<'src> {
                 ));
             }
             let mut ty = inferred;
-            strip_parameter_defaults_from_type(&mut ty);
+            // A named callable carries declaration-stable default metadata, so
+            // an inferred alias can retain its optional-call contract. Defaults
+            // originating in a computed first-class value are erased when that
+            // value enters mutable storage; otherwise a later call could cache
+            // an initializer's defaults independently of the stored callable.
+            if !matches!(initializer, Expr::Ident(_)) {
+                strip_parameter_defaults_from_type(&mut ty);
+            }
             self.declare(decl.name, ty)?;
             return Ok(());
         }
@@ -3810,11 +3814,76 @@ impl<'src> Analyzer<'src> {
                 ),
             ));
         }
+        self.require_omitted_defaults_in_scope(signature, args.len(), span)?;
         for (arg, expected) in args.iter().zip(&signature.params) {
             let actual = self.analyze_expr(arg, Some(expected))?;
             self.require_assignable(expected, &actual, arg.span())?;
         }
         Ok((*signature.return_type).clone())
+    }
+
+    fn require_omitted_defaults_in_scope(
+        &self,
+        signature: &FunctionType<'src>,
+        provided: usize,
+        span: Span,
+    ) -> Result<(), SemanticError> {
+        for default in signature.defaults.iter().skip(provided).flatten() {
+            self.require_default_in_scope(default, span)?;
+        }
+        Ok(())
+    }
+
+    fn require_default_in_scope(
+        &self,
+        default: &DefaultValue<'src>,
+        span: Span,
+    ) -> Result<(), SemanticError> {
+        let symbol = match default {
+            DefaultValue::Symbol(symbol) => Some(*symbol),
+            DefaultValue::PendingIdentifier(default_span) => {
+                self.model.identifier_symbol(*default_span)
+            }
+            DefaultValue::Array(values) => {
+                for value in values {
+                    self.require_default_in_scope(value, span)?;
+                }
+                None
+            }
+            DefaultValue::Struct { values, .. } => {
+                for value in values {
+                    self.require_default_in_scope(value, span)?;
+                }
+                None
+            }
+            DefaultValue::NewClass { args, .. } => {
+                for argument in args {
+                    self.require_default_in_scope(argument, span)?;
+                }
+                None
+            }
+            DefaultValue::Int(_)
+            | DefaultValue::Float(_)
+            | DefaultValue::String(_)
+            | DefaultValue::Bool(_)
+            | DefaultValue::Null
+            | DefaultValue::Undefined
+            | DefaultValue::Parameter(_)
+            | DefaultValue::PendingUndefined(_)
+            | DefaultValue::Arrow(_) => None,
+        };
+        if symbol.is_some_and(|symbol| {
+            !self
+                .scopes
+                .iter()
+                .any(|scope| scope.values().any(|candidate| *candidate == symbol))
+        }) {
+            return Err(SemanticError::new(
+                span,
+                "parameter default depends on a local binding that is unavailable at this call site",
+            ));
+        }
+        Ok(())
     }
 
     fn analyze_static_namespace_call<'ast>(
@@ -4036,7 +4105,7 @@ impl<'src> Analyzer<'src> {
         let (builtin, result, expected_args): (BuiltinCall, Type<'src>, Vec<Type<'src>>) =
             match method {
                 "object" => {
-                    if args.len() % 2 != 0 {
+                    if !args.len().is_multiple_of(2) {
                         return Err(SemanticError::new(
                             span,
                             format!(
@@ -4485,6 +4554,7 @@ impl<'src> Analyzer<'src> {
                 ),
             ));
         }
+        self.require_omitted_defaults_in_scope(&function.signature, args.len(), span)?;
         let parameters = function
             .type_params
             .iter()
@@ -5409,14 +5479,14 @@ fn resolve_analyzed_parameter_defaults<'ast, 'src>(
     global_symbols: &AHashSet<SymbolId>,
 ) -> Result<Vec<Option<DefaultValue<'src>>>, SemanticError> {
     let mut defaults = resolve_parameter_defaults(params, types)?;
-    let parameter_symbols = parameter_defaults_in_scope
-        .then(|| {
-            params
-                .iter()
-                .filter_map(|parameter| model.identifier_symbol(parameter.name.span))
-                .collect::<AHashSet<_>>()
-        })
-        .unwrap_or_default();
+    let parameter_symbols = if parameter_defaults_in_scope {
+        params
+            .iter()
+            .filter_map(|parameter| model.identifier_symbol(parameter.name.span))
+            .collect::<AHashSet<_>>()
+    } else {
+        AHashSet::default()
+    };
     for (index, param) in params.iter().enumerate() {
         let Some(expression) = &param.default else {
             continue;
@@ -6323,14 +6393,17 @@ fn statement_contains_loop_control(statement: &Stmt<'_, '_>, inside_loop: bool) 
                         .iter()
                         .any(|stmt| statement_contains_loop_control(stmt, inside_loop))
                 })
-                || finally
-                    .as_ref()
-                    .is_some_and(|body| body.iter().any(|stmt| statement_contains_loop_control(stmt, inside_loop)))
+                || finally.as_ref().is_some_and(|body| {
+                    body.iter()
+                        .any(|stmt| statement_contains_loop_control(stmt, inside_loop))
+                })
         }
         Stmt::While { body, .. } | Stmt::For { body, .. } | Stmt::ForIn { body, .. } => {
             statement_contains_loop_control(body, true)
         }
-        Stmt::ForOf { inline: true, body, .. } => statement_contains_loop_control(body, inside_loop),
+        Stmt::ForOf {
+            inline: true, body, ..
+        } => statement_contains_loop_control(body, inside_loop),
         Stmt::ForOf { body, .. } => statement_contains_loop_control(body, true),
         _ => false,
     }
@@ -6995,8 +7068,7 @@ mod tests {
             "{runtime}"
         );
 
-        let control =
-            check("inline for(int value of [1,2]){break;}").unwrap_err();
+        let control = check("inline for(int value of [1,2]){break;}").unwrap_err();
         assert!(
             control.message.contains("`break` or `continue`"),
             "{control}"
@@ -7726,7 +7798,7 @@ mod tests {
 
     #[test]
     fn validates_javascript_regex_construction_testing_and_metadata() {
-        check("Regex pattern=new Regex(\"sale\",\"gi\");bool found=pattern.test(\"SALE\");string source=pattern.source;string flags=pattern.flags;bool global=pattern.global;bool insensitive=pattern.ignoreCase;").unwrap();
+        check("Regex pattern=new Regex(\"sale\",\"gi\");bool found=pattern.test(\"SALE\");JsValue matched=pattern.exec(\"SALE\");string source=pattern.source;string flags=pattern.flags;bool global=pattern.global;bool insensitive=pattern.ignoreCase;float index=pattern.lastIndex;").unwrap();
 
         let arity = check("Regex pattern=new Regex();").unwrap_err();
         assert!(
@@ -7737,9 +7809,9 @@ mod tests {
         let argument = check("Regex pattern=new Regex(1);").unwrap_err();
         assert!(argument.message.contains("expected `string`"), "{argument}");
 
-        let unknown = check("Regex pattern=new Regex(\"x\");pattern.exec(\"x\");").unwrap_err();
+        let unknown = check("Regex pattern=new Regex(\"x\");pattern.matches(\"x\");").unwrap_err();
         assert!(
-            unknown.message.contains("has no member `exec`"),
+            unknown.message.contains("has no member `matches`"),
             "{unknown}"
         );
     }
@@ -7827,6 +7899,13 @@ mod tests {
                 .message
                 .contains("cannot read `boom` in its own initializer"),
             "{during_init}"
+        );
+        let shadowing_during_init = check("int value=1;{int value=value+1;}").unwrap_err();
+        assert!(
+            shadowing_during_init
+                .message
+                .contains("cannot read `value` in its own initializer"),
+            "{shadowing_during_init}"
         );
     }
 

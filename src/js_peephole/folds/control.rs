@@ -266,21 +266,9 @@ fn expression_statement_texts<'src>(
     for token in &tokens[start..end] {
         match token.text {
             "(" | "[" | "{" => delimiters.push(token.text),
-            ")" => {
-                if delimiters.pop() != Some("(") {
-                    return None;
-                }
-            }
-            "]" => {
-                if delimiters.pop() != Some("[") {
-                    return None;
-                }
-            }
-            "}" => {
-                if delimiters.pop() != Some("{") {
-                    return None;
-                }
-            }
+            ")" if delimiters.pop() != Some("(") => return None,
+            "]" if delimiters.pop() != Some("[") => return None,
+            "}" if delimiters.pop() != Some("{") => return None,
             _ => {}
         }
     }
@@ -1419,8 +1407,8 @@ fn negate_early_exit_condition(
     let mut depth = 0i32;
     let mut equality = None;
     let mut ambiguous = false;
-    for index in start..end {
-        match tokens[index].text {
+    for (index, token) in tokens.iter().enumerate().take(end).skip(start) {
+        match token.text {
             "(" | "[" | "{" => depth += 1,
             ")" | "]" | "}" => depth -= 1,
             "==" | "!=" | "===" | "!==" if depth == 0 => {
@@ -1658,8 +1646,7 @@ pub(crate) fn fold_guard_return_expression_suffixes(
                     if tokens.get(return_at).map(|token| token.text) != Some("return") {
                         continue;
                     }
-                    let Some((return_end, _)) = statement_terminator(&tokens, return_at + 1)
-                    else {
+                    let Some((return_end, _)) = statement_terminator(&tokens, return_at + 1) else {
                         continue;
                     };
                     if return_end != arm_close
@@ -1713,7 +1700,10 @@ pub(crate) fn fold_guard_return_expression_suffixes(
                 tokens[tail_end].start
             };
             while end < tokens[container_close].start
-                && output.as_bytes().get(end).is_some_and(u8::is_ascii_whitespace)
+                && output
+                    .as_bytes()
+                    .get(end)
+                    .is_some_and(u8::is_ascii_whitespace)
             {
                 end += 1;
             }
@@ -1729,12 +1719,7 @@ pub(crate) fn fold_guard_return_expression_suffixes(
                 } else {
                     condition.to_string()
                 };
-            let guarded = conditional_return_arm(
-                &output,
-                &tokens,
-                guarded_return + 1,
-                guarded_end,
-            );
+            let guarded = conditional_return_arm(&output, &tokens, guarded_return + 1, guarded_end);
             let tail = conditional_return_arm(&output, &tokens, tail_return + 1, tail_end);
             let mut suffix = prefixes;
             suffix.push(tail);
@@ -1827,7 +1812,10 @@ pub(crate) fn fold_expression_return_branches(
                 tokens[tail_end].start
             };
             while end < tokens[container_close].start
-                && output.as_bytes().get(end).is_some_and(u8::is_ascii_whitespace)
+                && output
+                    .as_bytes()
+                    .get(end)
+                    .is_some_and(u8::is_ascii_whitespace)
             {
                 end += 1;
             }
@@ -1986,8 +1974,7 @@ fn expression_suffix_return_rewrites(
         for start in block_open + 1..return_at {
             if tokens[start].text == ";"
                 || enclosing_block_start(&matching_close, start) != Some(block_open)
-                || (start != block_open + 1
-                    && !matches!(tokens[start - 1].text, ";" | "}"))
+                || (start != block_open + 1 && !matches!(tokens[start - 1].text, ";" | "}"))
             {
                 continue;
             }
@@ -2138,8 +2125,8 @@ fn top_level_token_in(tokens: &[Token<'_>], start: usize, end: usize, needles: &
 
 fn single_expression_statement(tokens: &[Token<'_>], start: usize, end: usize) -> bool {
     let mut depth = 0i32;
-    for index in start..end {
-        match tokens[index].text {
+    for (index, token) in tokens.iter().enumerate().take(end).skip(start) {
+        match token.text {
             "(" | "[" | "{" => depth += 1,
             ")" | "]" | "}" => depth -= 1,
             ";" if depth == 0 && index + 1 < end => return false,
@@ -2301,9 +2288,7 @@ pub(crate) fn fold_single_use_if_assigns(
             } else {
                 tokens[name_at].start
             };
-            let assign_to = if tokens[stop].text == "," {
-                tokens[stop].end
-            } else if tokens[stop].text == ";" {
+            let assign_to = if matches!(tokens[stop].text, "," | ";") {
                 tokens[stop].end
             } else {
                 tokens[stop].start

@@ -166,26 +166,6 @@ pub(crate) fn simple_identifier_params(tokens: &[Token<'_>], from: usize, to: us
     !expect_name
 }
 
-pub(crate) fn own_body_has_this_or_arguments(
-    tokens: &[Token<'_>],
-    matching_close: &[Option<usize>],
-    block_open: usize,
-    block_close: usize,
-) -> bool {
-    let mut index = block_open + 1;
-    while index < block_close {
-        if let Some(close) = nested_function_end(tokens, matching_close, index) {
-            index = close + 1;
-            continue;
-        }
-        if matches!(tokens[index].text, "this" | "arguments") {
-            return true;
-        }
-        index += 1;
-    }
-    false
-}
-
 pub(crate) fn function_binds_name(
     tokens: &[Token<'_>],
     matching_close: &[Option<usize>],
@@ -719,14 +699,7 @@ pub(crate) fn name_is_visible_generated_binding(
     let Some((body, end)) = enclosing_function_span(tokens, matching_close, at) else {
         return false;
     };
-    if function_directly_binds_name(
-        tokens,
-        matching_close,
-        &matching_open,
-        body,
-        end,
-        name,
-    ) {
+    if function_directly_binds_name(tokens, matching_close, &matching_open, body, end, name) {
         return true;
     }
     let mut cursor = Some(body);
@@ -1036,29 +1009,6 @@ pub(crate) fn name_is_declared_in_visible_scope(
             }
         }
         scan += 1;
-    }
-    false
-}
-
-pub(crate) fn identifier_assigned_before(
-    tokens: &[Token<'_>],
-    name: &str,
-    position: usize,
-) -> bool {
-    let mut depth = 0usize;
-    for index in 0..position.saturating_sub(1) {
-        match tokens[index].text {
-            "{" => depth += 1,
-            "}" => depth = depth.saturating_sub(1),
-            _ => {}
-        }
-        if depth == 0
-            && tokens[index].kind == TokenKind::Identifier
-            && tokens[index].text == name
-            && tokens[index + 1].text == "="
-        {
-            return true;
-        }
     }
     false
 }

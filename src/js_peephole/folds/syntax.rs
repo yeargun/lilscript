@@ -143,7 +143,12 @@ pub(crate) fn fold_same_binding_strict_equality(
             replacements.push((
                 tokens[index + 1].start,
                 tokens[index + 1].end,
-                if tokens[index + 1].text == "===" { "==" } else { "!=" }.to_string(),
+                if tokens[index + 1].text == "===" {
+                    "=="
+                } else {
+                    "!="
+                }
+                .to_string(),
             ));
         }
     }

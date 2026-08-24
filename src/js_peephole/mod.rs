@@ -1,7 +1,7 @@
 use serde::Serialize;
 
-use crate::js_peephole::folds::*;
 pub(crate) use crate::js_peephole::folds::fold_constructor_prototype_tables_to_classes;
+use crate::js_peephole::folds::*;
 use crate::js_peephole::parse::{
     compound_assignment_rewrite, parse_expression_regions, syntax_metrics,
 };
@@ -396,7 +396,9 @@ fn class_body_spans(tokens: &[Token<'_>], matching_close: &[Option<usize>]) -> V
 /// (`}!1{...}`). That is not a method, field, or static block, so the
 /// candidate must lose instead of reaching a runtime parse error.
 fn class_body_has_dotted_method(tokens: &[Token<'_>], index: usize) -> bool {
-    tokens.get(index).is_some_and(|token| token.kind == TokenKind::Identifier)
+    tokens
+        .get(index)
+        .is_some_and(|token| token.kind == TokenKind::Identifier)
         && tokens.get(index + 1).map(|token| token.text) == Some(".")
         && tokens.get(index + 2).is_some_and(|token| {
             token.kind == TokenKind::Identifier || token.kind == TokenKind::Keyword
@@ -411,15 +413,15 @@ fn validate_class_body_members(tokens: &[Token<'_>]) -> Result<(), JavaScriptPar
         let mut bracket = 0i32;
         let mut brace = 0i32;
         for index in open + 1..close {
-            if paren == 0 && bracket == 0 && brace == 0 {
-                if tokens[index].text == "!"
-                    || class_body_has_dotted_method(tokens, index)
-                {
-                    return Err(JavaScriptParseError {
-                        offset: tokens[index].start,
-                        message: "invalid generated class element",
-                    });
-                }
+            if paren == 0
+                && bracket == 0
+                && brace == 0
+                && (tokens[index].text == "!" || class_body_has_dotted_method(tokens, index))
+            {
+                return Err(JavaScriptParseError {
+                    offset: tokens[index].start,
+                    message: "invalid generated class element",
+                });
             }
             match tokens[index].text {
                 "(" => paren += 1,
@@ -438,8 +440,7 @@ fn validate_class_body_members(tokens: &[Token<'_>]) -> Result<(), JavaScriptPar
 fn validate_for_heads(tokens: &[Token<'_>]) -> Result<(), JavaScriptParseError> {
     let matching_close = matching_closers(tokens);
     for index in 0..tokens.len() {
-        if tokens[index].text != "for"
-            || tokens.get(index + 1).map(|token| token.text) != Some("(")
+        if tokens[index].text != "for" || tokens.get(index + 1).map(|token| token.text) != Some("(")
         {
             continue;
         }
@@ -451,25 +452,23 @@ fn validate_for_heads(tokens: &[Token<'_>]) -> Result<(), JavaScriptParseError> 
         let mut bracket = 0i32;
         let mut brace = 0i32;
         let mut semis = 0u8;
-        for scan in open + 1..close {
+        for token in tokens.iter().take(close).skip(open + 1) {
             if paren == 0 && bracket == 0 && brace == 0 {
-                if matches!(tokens[scan].text, "return" | "throw" | "break" | "continue") {
+                if matches!(token.text, "return" | "throw" | "break" | "continue") {
                     return Err(JavaScriptParseError {
-                        offset: tokens[scan].start,
+                        offset: token.start,
                         message: "statement keyword in generated for head",
                     });
-                } else if tokens[scan].text == ";" {
+                } else if token.text == ";" {
                     semis = semis.saturating_add(1);
-                } else if semis >= 2
-                    && matches!(tokens[scan].text, "var" | "let" | "const" | "function")
-                {
+                } else if semis >= 2 && matches!(token.text, "var" | "let" | "const" | "function") {
                     return Err(JavaScriptParseError {
-                        offset: tokens[scan].start,
+                        offset: token.start,
                         message: "invalid generated for-update clause",
                     });
                 }
             }
-            match tokens[scan].text {
+            match token.text {
                 "(" => paren += 1,
                 ")" => paren -= 1,
                 "[" => bracket += 1,
@@ -597,12 +596,8 @@ fn validate_resolved_generated_bindings(tokens: &[Token<'_>]) -> Result<(), Java
         {
             continue;
         }
-        if name_is_bound_as_non_enclosing_function_local(
-            tokens,
-            &matching_close,
-            index,
-            token.text,
-        ) {
+        if name_is_bound_as_non_enclosing_function_local(tokens, &matching_close, index, token.text)
+        {
             return Err(JavaScriptParseError {
                 offset: token.start,
                 message: "unresolved generated identifier",
@@ -997,12 +992,8 @@ pub fn function_local_binding_swap_variants(
 
     for cursor in 0..tokens.len() {
         if tokens[cursor].text != "function"
-            || crate::js_peephole::scope::enclosing_function_span(
-                &tokens,
-                &matching_close,
-                cursor,
-            )
-            .is_some()
+            || crate::js_peephole::scope::enclosing_function_span(&tokens, &matching_close, cursor)
+                .is_some()
         {
             continue;
         }
@@ -1122,12 +1113,8 @@ pub fn function_local_binding_swap_variants(
     // relationships, including sibling and nested functions.
     for cursor in 0..tokens.len() {
         if tokens[cursor].text != "function"
-            || crate::js_peephole::scope::enclosing_function_span(
-                &tokens,
-                &matching_close,
-                cursor,
-            )
-            .is_some()
+            || crate::js_peephole::scope::enclosing_function_span(&tokens, &matching_close, cursor)
+                .is_some()
         {
             continue;
         }
@@ -1260,7 +1247,9 @@ fn constructor_table_remains(source: &str) -> bool {
         && (source.contains("(0,function") || source.contains("=function("))
 }
 
-fn optimize_generated_javascript_pass(source: &str) -> Result<PeepholeResult, JavaScriptParseError> {
+fn optimize_generated_javascript_pass(
+    source: &str,
+) -> Result<PeepholeResult, JavaScriptParseError> {
     let tokens = lex(source)?;
     validate_delimiters(&tokens)?;
     let parsed = parse_expression_regions(&tokens);
@@ -1274,8 +1263,6 @@ fn optimize_generated_javascript_pass(source: &str) -> Result<PeepholeResult, Ja
 
     let mut session = RewriteSession::new(apply_rewrites(source, &compound));
     session.rewrites += compound.len();
-    session.run(fold_object_assign_literal_to_writes)?;
-    session.run(fold_grouped_zero_function_expressions)?;
     session.run(fold_constructor_prototype_tables_to_classes)?;
     session.run(fold_indexed_arguments_to_formals)?;
     session.run(fold_undefined_defaults_into_formals)?;
@@ -1288,29 +1275,15 @@ fn optimize_generated_javascript_pass(source: &str) -> Result<PeepholeResult, Ja
     session.run(fold_assignment_guards)?;
     session.run(fold_guarded_assign_into_call_predicate)?;
     session.run(fold_index_postfix_updates)?;
-    session.run(fold_conditional_singleton_arrays)?;
-    session.run(fold_consecutive_array_pushes)?;
-    session.run(fold_push_built_arrays)?;
-    session.run(fold_push_only_init_function)?;
-    session.run(fold_while_push_to_map)?;
     session.run(fold_guarded_and_addends)?;
     session.run(fold_unit_counter_updates)?;
     session.run(fold_int32_coercions)?;
     session.repeat(fold_identifier_copies, 8)?;
-    session.run(fold_cached_length_conditions)?;
-    session.run(fold_cached_member_reads)?;
     session.run(strip_unused_simple_declarators)?;
     session.repeat(fold_single_use_literal_bindings, 8)?;
     session.run(fold_single_use_function_values)?;
-    session.run(fold_copied_object_index_writes)?;
-    session.run(fold_single_use_object_values)?;
-    session.run(fold_object_property_functions_to_methods)?;
     session.run(fold_single_use_function_values)?;
-    session.run(fold_single_use_object_values)?;
     session.run(fold_typeof_identifier_caches)?;
-    session.run(fold_window_property_caches)?;
-    session.run(fold_prototype_tostring_aliases)?;
-    session.run(fold_temp_index_keys)?;
     session.run(fold_coalesced_or_returns)?;
     session.run(flatten_associative_string_concats)?;
     session.run(fold_for_false_breaks)?;
@@ -1319,15 +1292,11 @@ fn optimize_generated_javascript_pass(source: &str) -> Result<PeepholeResult, Ja
     session.run(strip_unused_for_init_vars)?;
     session.run(fold_chained_identifier_assigns)?;
     session.run(fold_single_use_function_values)?;
-    session.run(fold_single_use_object_values)?;
-    session.run(fold_object_property_functions_to_methods)?;
     session.run(fold_prefix_increment_for_bounds)?;
     session.run(fold_increment_infinite_for_bounds)?;
     session.run(fold_dead_initializer_reassigns)?;
-    session.run(fold_dead_pure_member_assigns)?;
     session.run(fold_void_then_reassign)?;
     session.run(strip_void_initializer_before_write)?;
-    session.repeat(fold_single_use_index_temps, 4)?;
     session.run(remove_unused_standalone_vars)?;
     session.run(fold_assigned_index_for_conditions)?;
     session.run(fold_index_scan_for_headers)?;
@@ -1343,10 +1312,7 @@ fn optimize_generated_javascript_pass(source: &str) -> Result<PeepholeResult, Ja
     session.run(fold_arguments_length_eq_zero_to_not)?;
     session.run(fold_integer_neq_zero_in_boolean)?;
     session.run(fold_guarded_uninitialized_assign)?;
-    session.run(fold_single_use_call_argument_members)?;
-    session.run(fold_comma_assign_into_trailing_call_arg)?;
     session.run(fold_identity_arrow_iife)?;
-    session.run(fold_same_receiver_method_call)?;
     session.run(fold_empty_ternary_then_comma)?;
     session.repeat(fold_single_use_if_assigns, 6)?;
     session.run(fold_if_expression_to_and)?;
@@ -1356,30 +1322,14 @@ fn optimize_generated_javascript_pass(source: &str) -> Result<PeepholeResult, Ja
     session.run(fold_boolean_context_double_not)?;
     session.run(fold_redundant_and_parens)?;
     session.run(flip_false_equalities)?;
-    session.run(fold_single_property_objects)?;
-    session.run(fold_repeated_member_assigns)?;
-    session.run(fold_copied_object_index_writes)?;
     session.run(fold_single_use_function_values)?;
-    session.run(fold_single_use_object_values)?;
-    session.run(fold_object_property_functions_to_methods)?;
-    session.run(fold_copied_receiver_method_reassign)?;
-    session.run(fold_copied_method_call)?;
     session.run(fold_single_use_regex_bindings)?;
-    session.run(fold_grouped_zero_function_expressions)?;
     session.run(fold_constructor_prototype_tables_to_classes)?;
     session.run(fold_indexed_arguments_to_formals)?;
     session.run(fold_undefined_defaults_into_formals)?;
     session.run(fold_arguments_length_formal_copies)?;
     session.run(fold_arguments_slice_to_rest)?;
-    session.run(fold_empty_object_method_assigns)?;
-    session.run(fold_consecutive_array_pushes)?;
-    session.run(fold_push_built_arrays)?;
-    session.run(fold_push_only_init_function)?;
-    session.run(fold_while_push_to_map)?;
     session.run(fold_dead_pure_identifier_assigns)?;
-    session.run(fold_copied_method_call)?;
-    session.run(fold_same_receiver_method_call)?;
-    session.run(fold_outer_copy_property_assign)?;
     session.run(fold_conditional_assigned_false_phi)?;
     session.run(remove_unused_standalone_vars)?;
     session.run(fold_uninitialized_var_into_assign)?;
@@ -1412,7 +1362,6 @@ fn optimize_generated_javascript_pass(source: &str) -> Result<PeepholeResult, Ja
     canonical_late_generated_javascript_cleanup_into(&mut session)?;
     session.run(fold_unit_counter_updates)?;
     session.run(fold_int32_coercions)?;
-    session.run(fold_adjacent_binding_into_leading_call_arg)?;
     session.run(fold_top_level_adjacent_expression_statements)?;
     session.run(fold_or_assignment_parens)?;
     session.run(declare_implicit_assignment_bindings)?;

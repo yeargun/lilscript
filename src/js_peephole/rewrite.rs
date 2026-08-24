@@ -361,8 +361,8 @@ pub(crate) fn assign_is_in_declaration(tokens: &[Token<'_>], at: usize) -> bool 
 pub(crate) fn next_statement_end(tokens: &[Token<'_>], start: usize) -> usize {
     let mut depth_paren = 0i32;
     let mut depth_brace = 0i32;
-    for index in start..tokens.len() {
-        match tokens[index].text {
+    for (index, token) in tokens.iter().enumerate().skip(start) {
+        match token.text {
             "(" | "[" => depth_paren += 1,
             ")" | "]" => depth_paren -= 1,
             "{" => depth_brace += 1,
@@ -446,26 +446,22 @@ fn fragment_loosest_tightness(expression: &str) -> u8 {
 }
 
 fn previous_token_is_operand(tokens: &[Token<'_>], operator_at: usize) -> bool {
-    let Some(previous) = operator_at
-        .checked_sub(1)
-        .map(|index| tokens[index].text)
-    else {
+    let Some(previous) = operator_at.checked_sub(1).map(|index| tokens[index].text) else {
         return false;
     };
     matches!(
         previous,
-        ")" | "]"
-            | "}"
-            | "this"
-            | "true"
-            | "false"
-            | "null"
-            | "undefined"
-            | "++"
-            | "--"
-    ) || tokens
-        .get(operator_at - 1)
-        .is_some_and(|token| matches!(token.kind, TokenKind::Identifier | TokenKind::Number | TokenKind::String | TokenKind::Regex | TokenKind::Template))
+        ")" | "]" | "}" | "this" | "true" | "false" | "null" | "undefined" | "++" | "--"
+    ) || tokens.get(operator_at - 1).is_some_and(|token| {
+        matches!(
+            token.kind,
+            TokenKind::Identifier
+                | TokenKind::Number
+                | TokenKind::String
+                | TokenKind::Regex
+                | TokenKind::Template
+        )
+    })
 }
 
 pub(crate) fn substituted_expression_needs_grouping(
@@ -490,7 +486,8 @@ pub(crate) fn substituted_expression_needs_grouping(
         return false;
     };
     let previous = tokens[previous_at].text;
-    if prefix_operator_tightness(previous).is_some() && !previous_token_is_operand(tokens, previous_at)
+    if prefix_operator_tightness(previous).is_some()
+        && !previous_token_is_operand(tokens, previous_at)
     {
         return true;
     }

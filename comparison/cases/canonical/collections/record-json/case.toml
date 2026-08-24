@@ -1,1 +1,3 @@
 expect = "le"
+terser_properties = false
+terser_property_reason = "Object.keys and JSON.stringify expose the record's public key spellings"

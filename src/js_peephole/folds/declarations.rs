@@ -1,17 +1,14 @@
-use super::copies::assignment_span_to_remove;
 use crate::js_peephole::rewrite::{
     apply_token_rewrites, assign_is_in_declaration, identifier_is_read, identifier_occurs,
     is_property_identifier, is_statement_boundary, next_statement_end, replacement_overlaps,
     top_level_stop,
 };
 use crate::js_peephole::scope::{
-    collect_same_scope_name_uses, enclosing_block_end, enclosing_function_span,
-    function_scope_declares, name_is_declared_in_any_enclosing_function_scope,
-    name_is_declared_in_any_enclosing_scope, name_is_module_var_binding, name_is_used_in_scope,
+    enclosing_block_end, enclosing_function_span, function_scope_declares,
+    name_is_declared_in_any_enclosing_function_scope, name_is_declared_in_any_enclosing_scope,
+    name_is_module_var_binding, name_is_used_in_scope,
 };
-use crate::js_peephole::token::{
-    lex, lex_certainly, matching_closers, matching_openers, Token, TokenKind,
-};
+use crate::js_peephole::token::{lex, lex_certainly, matching_closers, Token, TokenKind};
 use crate::js_peephole::JavaScriptParseError;
 
 /// Move declaration-only function-local `var` bindings before the initialized
@@ -296,13 +293,11 @@ pub(crate) fn strip_unused_simple_declarators(
                     Some(",") | Some(";")
                 )
             {
-                let name = tokens[name_at].text;
                 let stop = name_at + 5;
-                if name_is_used_in_scope(&tokens, &matching_close, name_at, stop + 1, name) {
-                    kept.push((name_at, stop));
-                } else {
-                    any_removed = true;
-                }
+                // A syntactically plain member read can still invoke a getter
+                // or Proxy trap. Without ownership/purity proof, an unused
+                // destination does not make the read removable.
+                kept.push((name_at, stop));
                 if tokens[stop].text == ";" {
                     break;
                 }
@@ -319,13 +314,8 @@ pub(crate) fn strip_unused_simple_declarators(
                     Some(",") | Some(";")
                 )
             {
-                let name = tokens[name_at].text;
                 let stop = name_at + 6;
-                if name_is_used_in_scope(&tokens, &matching_close, name_at, stop + 1, name) {
-                    kept.push((name_at, stop));
-                } else {
-                    any_removed = true;
-                }
+                kept.push((name_at, stop));
                 if tokens[stop].text == ";" {
                     break;
                 }
@@ -398,199 +388,6 @@ pub(crate) fn strip_unused_simple_declarators(
     }
     let (output, count) = apply_token_rewrites(source, replacements);
     Ok((output, count))
-}
-
-fn pure_member_rhs_end(tokens: &[Token<'_>], rhs: usize) -> Option<usize> {
-    let base = tokens.get(rhs)?;
-    if base.kind != TokenKind::Identifier && base.text != "this" {
-        return None;
-    }
-    if tokens.get(rhs + 1).map(|token| token.text) != Some(".") {
-        return None;
-    }
-    if tokens
-        .get(rhs + 2)
-        .is_none_or(|token| token.kind != TokenKind::Identifier)
-    {
-        return None;
-    }
-    match tokens.get(rhs + 3).map(|token| token.text) {
-        Some(",") | Some(";") | Some("}") => Some(rhs + 2),
-        None => Some(rhs + 2),
-        _ => None,
-    }
-}
-
-fn simple_assign_name_at(tokens: &[Token<'_>], index: usize) -> Option<usize> {
-    let name_at = if matches!(
-        tokens.get(index).map(|token| token.text),
-        Some("var") | Some("let")
-    ) && tokens
-        .get(index + 1)
-        .is_some_and(|token| token.kind == TokenKind::Identifier)
-    {
-        index + 1
-    } else if tokens
-        .get(index)
-        .is_some_and(|token| token.kind == TokenKind::Identifier)
-        && !is_property_identifier(tokens, index)
-    {
-        index
-    } else {
-        return None;
-    };
-    if tokens.get(name_at + 1).map(|token| token.text) != Some("=")
-        || tokens.get(name_at + 2).map(|token| token.text) == Some("=")
-    {
-        return None;
-    }
-    Some(name_at)
-}
-
-fn assignment_is_inside_loop(
-    tokens: &[Token<'_>],
-    matching_close: &[Option<usize>],
-    assignment: usize,
-) -> bool {
-    for loop_at in 0..assignment {
-        match tokens[loop_at].text {
-            "for" | "while" if tokens.get(loop_at + 1).map(|token| token.text) == Some("(") => {
-                let Some(header_close) = matching_close[loop_at + 1] else {
-                    continue;
-                };
-                if assignment < header_close {
-                    return true;
-                }
-                let body = header_close + 1;
-                if tokens.get(body).map(|token| token.text) == Some("{") {
-                    if matching_close[body].is_some_and(|body_close| assignment < body_close) {
-                        return true;
-                    }
-                } else if body <= assignment
-                    && top_level_stop(tokens, body, &[";"])
-                        .is_some_and(|body_end| assignment <= body_end)
-                {
-                    return true;
-                }
-            }
-            "do" => {
-                let body = loop_at + 1;
-                if tokens.get(body).map(|token| token.text) == Some("{") {
-                    if matching_close[body].is_some_and(|body_close| assignment < body_close) {
-                        return true;
-                    }
-                } else if body <= assignment
-                    && top_level_stop(tokens, body, &[";"])
-                        .is_some_and(|body_end| assignment <= body_end)
-                {
-                    return true;
-                }
-            }
-            _ => {}
-        }
-    }
-    false
-}
-
-pub(crate) fn fold_dead_pure_member_assigns(
-    source: &str,
-) -> Result<(String, usize), JavaScriptParseError> {
-    let tokens = lex(source)?;
-    let matching_close = matching_closers(&tokens);
-    let matching_open = matching_openers(&matching_close);
-    let mut replacements = Vec::<(usize, usize, String)>::new();
-    let mut cursor = 0usize;
-    while cursor < tokens.len() {
-        let Some(name_at) = simple_assign_name_at(&tokens, cursor) else {
-            cursor += 1;
-            continue;
-        };
-        let Some(rhs_end) = pure_member_rhs_end(&tokens, name_at + 2) else {
-            cursor += 1;
-            continue;
-        };
-        // Linear token order is not a liveness proof across a loop backedge.
-        // The assigned value can feed the next condition or the next trip
-        // through the body even when there is no textual read after it. Keep
-        // all loop-local candidates; generated loops are normally braced, and
-        // the unbraced fallback covers the simple statement form as well.
-        if assignment_is_inside_loop(&tokens, &matching_close, name_at) {
-            cursor = rhs_end + 1;
-            continue;
-        }
-        let name = tokens[name_at].text;
-        let after = rhs_end + 1;
-        let Some((body, scope_end)) = enclosing_function_span(&tokens, &matching_close, name_at)
-        else {
-            cursor = after;
-            continue;
-        };
-        if !function_scope_declares(&tokens, &matching_open, body, scope_end, name) {
-            cursor = after;
-            continue;
-        }
-        let scope_start = body + 1;
-        let (_, nested_use) = collect_same_scope_name_uses(
-            &tokens,
-            &matching_close,
-            name,
-            scope_start,
-            scope_end,
-            name_at,
-        );
-        if nested_use {
-            cursor = after;
-            continue;
-        }
-        let (uses, _) =
-            collect_same_scope_name_uses(&tokens, &matching_close, name, after, scope_end, name_at);
-        let next_assign = uses
-            .iter()
-            .copied()
-            .find(|&use_at| simple_assign_name_at(&tokens, use_at) == Some(use_at));
-        let next_rhs_reads_old = next_assign.is_some_and(|assign_at| {
-            top_level_stop(&tokens, assign_at + 2, &[",", ";", ")", "]", "}"])
-                .is_some_and(|rhs_stop| identifier_occurs(&tokens, assign_at + 2, rhs_stop, name))
-        });
-        let region_end = next_assign.unwrap_or(scope_end);
-        let has_read = next_rhs_reads_old
-            || uses.iter().any(|&use_at| {
-                use_at < region_end && simple_assign_name_at(&tokens, use_at) != Some(use_at)
-            });
-        if has_read {
-            cursor = after;
-            continue;
-        }
-        let later_read = uses
-            .iter()
-            .any(|&use_at| simple_assign_name_at(&tokens, use_at) != Some(use_at));
-        let prev = name_at
-            .checked_sub(1)
-            .map(|index| tokens[index].text)
-            .unwrap_or(";");
-        let (from, to, replacement) = if later_read && matches!(prev, "var" | "let") {
-            (
-                tokens[name_at + 1].start,
-                tokens[rhs_end].end,
-                String::new(),
-            )
-        } else {
-            let (from, to) = assignment_span_to_remove(&tokens, name_at, rhs_end);
-            let replacement = if matches!(prev, ")" | "else") {
-                ";".to_string()
-            } else {
-                String::new()
-            };
-            (from, to, replacement)
-        };
-        if replacement_overlaps(&replacements, from, to) {
-            cursor = after;
-            continue;
-        }
-        replacements.push((from, to, replacement));
-        cursor = after;
-    }
-    Ok(apply_token_rewrites(source, replacements))
 }
 
 pub(crate) fn strip_unused_for_init_vars(
@@ -1466,10 +1263,9 @@ pub(crate) fn declare_implicit_assignment_bindings(
         {
             continue;
         }
-        if at
-            .checked_sub(1)
-            .is_some_and(|previous| matches!(tokens[previous].text, "var" | "let" | "const" | "." | "?."))
-        {
+        if at.checked_sub(1).is_some_and(|previous| {
+            matches!(tokens[previous].text, "var" | "let" | "const" | "." | "?.")
+        }) {
             continue;
         }
         let comma_sequence_assignment = is_comma_sequence_assignment_target(&tokens, at);
@@ -1558,12 +1354,13 @@ fn statement_start(tokens: &[Token<'_>], at: usize) -> usize {
 }
 
 fn simple_pure_rhs_end(tokens: &[Token<'_>], at: usize) -> Option<usize> {
-    if matches!(tokens.get(at).map(|token| token.kind), Some(TokenKind::Number | TokenKind::String))
-        || matches!(
-            tokens.get(at).map(|token| token.text),
-            Some("true" | "false" | "null" | "undefined")
-        )
-    {
+    if matches!(
+        tokens.get(at).map(|token| token.kind),
+        Some(TokenKind::Number | TokenKind::String)
+    ) || matches!(
+        tokens.get(at).map(|token| token.text),
+        Some("true" | "false" | "null" | "undefined")
+    ) {
         return Some(at);
     }
     if !tokens
@@ -1640,8 +1437,10 @@ pub(crate) fn fold_dead_pure_identifier_assigns(
                     break;
                 };
                 let next_after = next_rhs + 1;
-                if !matches!(tokens.get(next_after).map(|token| token.text), Some("," | ";"))
-                {
+                if !matches!(
+                    tokens.get(next_after).map(|token| token.text),
+                    Some("," | ";")
+                ) {
                     break;
                 }
                 survivor = Some(scan);
@@ -1696,11 +1495,7 @@ pub(crate) fn fold_dead_pure_identifier_assigns(
                 ));
             }
         } else if tokens[first_after].text == "," {
-            replacements.push((
-                tokens[cursor].start,
-                tokens[first_after].end,
-                String::new(),
-            ));
+            replacements.push((tokens[cursor].start, tokens[first_after].end, String::new()));
         } else if tokens.get(first_after + 1).map(|token| token.text) == Some(",") {
             replacements.push((
                 tokens[cursor].start,
@@ -1708,11 +1503,7 @@ pub(crate) fn fold_dead_pure_identifier_assigns(
                 String::new(),
             ));
         } else {
-            replacements.push((
-                tokens[cursor].start,
-                tokens[first_after].end,
-                String::new(),
-            ));
+            replacements.push((tokens[cursor].start, tokens[first_after].end, String::new()));
         }
         cursor = write_at;
     }
@@ -1735,11 +1526,9 @@ pub(crate) fn fold_unread_prototype_aliases(
             continue;
         }
         let preceded_by_comma = cursor > 0 && tokens[cursor - 1].text == ",";
-        let preceded_by_decl = cursor > 0
-            && matches!(tokens[cursor - 1].text, "var" | "let" | "const");
-        let start = if preceded_by_comma {
-            tokens[cursor - 1].start
-        } else if preceded_by_decl && tokens[alias.after].text == ";" {
+        let preceded_by_decl =
+            cursor > 0 && matches!(tokens[cursor - 1].text, "var" | "let" | "const");
+        let start = if preceded_by_comma || (preceded_by_decl && tokens[alias.after].text == ";") {
             tokens[cursor - 1].start
         } else {
             tokens[cursor].start

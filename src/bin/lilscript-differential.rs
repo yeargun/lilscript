@@ -347,8 +347,16 @@ impl ProgramGenerator {
             .expect("writing to String cannot fail");
         writeln!(source, "int[] values=[a,b];int[] alias=values;int prior=alias[0]++;alias[1]+=prior;int appended=values.push(x^y);int removed=values.pop();{array_pipeline}")
             .expect("writing to String cannot fail");
-        writeln!(source, "{{int a={shadow};b+=a;}}return b;}}")
-            .expect("writing to String cannot fail");
+        // Evaluate the source before introducing the nested `a`. LilScript
+        // puts a lexical binding in scope for its entire initializer, so
+        // `{ int a = a; }` is a self-read rather than a read of the outer `a`.
+        // Keeping the value in a temporary preserves the intended shadowing
+        // coverage without generating an invalid program.
+        writeln!(
+            source,
+            "{{int shadowSource={shadow};{{int a=shadowSource;b+=a;}}}}return b;}}"
+        )
+        .expect("writing to String cannot fail");
     }
 
     fn integer_expression(&mut self, depth: usize, variables: &[&str]) -> String {

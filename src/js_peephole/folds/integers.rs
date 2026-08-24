@@ -18,13 +18,9 @@ pub(crate) fn fold_int32_coercions(source: &str) -> Result<(String, usize), Java
     let mut replacements = Vec::<(usize, usize, String)>::new();
     let mut cursor = 0usize;
     while cursor < tokens.len() {
-        if let Some(next) = fold_known_integer_length(
-            source,
-            &tokens,
-            &matching_close,
-            cursor,
-            &mut replacements,
-        ) {
+        if let Some(next) =
+            fold_known_integer_length(source, &tokens, &matching_close, cursor, &mut replacements)
+        {
             cursor = next;
             continue;
         }
@@ -114,23 +110,15 @@ pub(crate) fn fold_int32_coercions(source: &str) -> Result<(String, usize), Java
             cursor = next;
             continue;
         }
-        if let Some(next) = fold_grouped_plus_int32(
-            source,
-            &tokens,
-            &matching_close,
-            cursor,
-            &mut replacements,
-        ) {
+        if let Some(next) =
+            fold_grouped_plus_int32(source, &tokens, &matching_close, cursor, &mut replacements)
+        {
             cursor = next;
             continue;
         }
-        if let Some(next) = fold_bitflag_field_update(
-            source,
-            &tokens,
-            &matching_close,
-            cursor,
-            &mut replacements,
-        ) {
+        if let Some(next) =
+            fold_bitflag_field_update(source, &tokens, &matching_close, cursor, &mut replacements)
+        {
             cursor = next;
             continue;
         }
@@ -347,7 +335,11 @@ fn fold_known_integer_length(
     {
         return None;
     }
-    replacements.push((tokens[cursor + 2].start, tokens[cursor + 3].end, String::new()));
+    replacements.push((
+        tokens[cursor + 2].start,
+        tokens[cursor + 3].end,
+        String::new(),
+    ));
     Some(cursor + 4)
 }
 
@@ -962,7 +954,9 @@ fn plus_is_unary(tokens: &[Token<'_>], cursor: usize) -> bool {
         return true;
     };
     match prev.kind {
-        TokenKind::Identifier | TokenKind::Number | TokenKind::String | TokenKind::Template => false,
+        TokenKind::Identifier | TokenKind::Number | TokenKind::String | TokenKind::Template => {
+            false
+        }
         TokenKind::Keyword if matches!(prev.text, "this" | "super" | "true" | "false" | "null") => {
             false
         }
@@ -976,8 +970,7 @@ fn fold_unary_plus_before_bitwise(
     cursor: usize,
     replacements: &mut Vec<(usize, usize, String)>,
 ) -> Option<usize> {
-    if tokens.get(cursor).map(|token| token.text) != Some("+") || !plus_is_unary(tokens, cursor)
-    {
+    if tokens.get(cursor).map(|token| token.text) != Some("+") || !plus_is_unary(tokens, cursor) {
         return None;
     }
     let operand_end = simple_member_end(tokens, cursor + 1)?;
@@ -1036,10 +1029,12 @@ fn fold_bitflag_field_update(
     cursor: usize,
     replacements: &mut Vec<(usize, usize, String)>,
 ) -> Option<usize> {
-    let name_at = if matches!(tokens.get(cursor).map(|token| token.text), Some("var" | "let"))
-        && tokens
-            .get(cursor + 1)
-            .is_some_and(|token| token.kind == TokenKind::Identifier)
+    let name_at = if matches!(
+        tokens.get(cursor).map(|token| token.text),
+        Some("var" | "let")
+    ) && tokens
+        .get(cursor + 1)
+        .is_some_and(|token| token.kind == TokenKind::Identifier)
     {
         cursor + 1
     } else if tokens
@@ -1154,7 +1149,10 @@ mod tests {
         let source = "function g(){return 0!=(+this.y&4)}function s(e){var n=+this.y|0;e?this.y=n|4:this.y=n&(4^-1)}";
         let (out, count) = fold_int32_coercions(source).unwrap();
         assert!(count >= 1, "{out}");
-        assert!(out.contains("this.y&4") || out.contains("this.y&4"), "{out}");
+        assert!(
+            out.contains("this.y&4") || out.contains("this.y&4"),
+            "{out}"
+        );
         assert!(!out.contains("+this.y&"), "{out}");
         assert!(
             out.contains("this.y|=4") && out.contains("this.y&=4^-1"),
@@ -1167,7 +1165,10 @@ mod tests {
         let source = "r=n+i|0;i=n+a.length+r|0;n=o+n|0;x=+this.y|0";
         let (out, _) = fold_int32_coercions(source).unwrap();
         assert!(out.contains("n+i|0") || out.contains("n+i"), "{out}");
-        assert!(out.contains("a.length+r") || out.contains("n+a.length"), "{out}");
+        assert!(
+            out.contains("a.length+r") || out.contains("n+a.length"),
+            "{out}"
+        );
         assert!(out.contains("o+n|0") || out.contains("o+n"), "{out}");
         assert!(!out.contains("ni|0"), "{out}");
         assert!(!out.contains("lengthr"), "{out}");

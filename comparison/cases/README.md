@@ -16,12 +16,21 @@ node comparison/cases/run.mjs
 ## Hard gate
 
 1. The original JavaScript defines the stdout oracle.
-2. Every Terser, Oxc, and esbuild candidate must preserve that stdout.
+2. Every Terser, Oxc, and esbuild candidate must preserve that stdout. The
+   Terser frontier includes both ordinary identifier mangling and a separate
+   property-mangling lane that reserves quoted, built-in, and
+   prototype-sensitive names. Cases whose contract intentionally observes
+   dynamic property spelling opt out explicitly with a required non-empty
+   reason; every enabled property candidate must preserve stdout or the case
+   fails. Open-world host keys such as AMD's public `define.amd` are never
+   treated as safe merely because the default test process does not install
+   that host API.
 3. LilScript is compiled three times with the checked-in `raw`, `gzip`, and
    `brotli` gold configs. Each uses `candidate_search = "always"`, so the stated
    1536 limit is real rather than production mode's 384-candidate cap. Every
    artifact must preserve the same stdout.
-4. The raw lane must be no larger than the smallest raw JavaScript candidate.
+4. The raw lane must be no larger than the smallest raw JavaScript candidate,
+   including the valid Terser property-mangled candidate.
 5. The gzip lane must be no larger than the smallest gzip-9 candidate.
 6. The Brotli lane must be no larger than the smallest Brotli-11 candidate.
 7. A case marked `"expect": "lt"` must be strictly smaller in all three lanes.
@@ -47,6 +56,14 @@ runner are the durable source of truth. The checked-in oracle is one digest for
 the complete generated catalog. Canonical folders are reviewed in git. Every run,
 including `--only` and `--canonical-only`, verifies the catalog oracle before selecting cases.
 
+Every generated template owns an explicit `behavior` id. Numeric and textual
+seeds sharing that id are parameter variants, not new coverage. The runner and
+`coverage.test.mjs` fail closed below 100 unique generated behaviors and report
+unique templates, parameter variants, objective rows, and total case instances
+separately. A literal-normalized source-shape audit also rejects assigning two
+behavior ids to programs that differ only in numeric or string parameters.
+Canonical folders add one independently reviewed case each.
+
 After intentionally reviewing a reference-program or expected-output change,
 update the oracle explicitly:
 
@@ -55,7 +72,8 @@ node comparison/cases/run.mjs --update-oracles
 ```
 
 All baseline lanes target ES2022. Terser gets three compression passes and
-top-level compression/mangling; Oxc gets top-level mangling; and esbuild is
+top-level compression/mangling, plus the separate safe-property frontier;
+Oxc gets top-level mangling; and esbuild is
 measured both as a semantics-preserving script transform and as a closed-world
 IIFE that permits top-level name mangling. The wrapper is not assumed to win:
 the best valid artifact is selected independently for each metric.
@@ -80,11 +98,15 @@ unrelated compiler and codec builds. This avoids silently benchmarking a stale
 minifier dependencies, and `comparison/run-all.sh` invokes this suite, making it
 part of `scripts/release-check.sh`.
 
-The schema-5 `summary.json` records each candidate's semantic validity, sizes,
+The schema-6 `summary.json` records behavior-template coverage, each candidate's semantic validity, sizes,
 artifact digest, and duration; the exact minifier options and ES target;
 metric-specific winners; separate failed-case and failure-event counts; Node,
 codec, platform, Oxc binding, and compiler provenance; and digests for every
-source, oracle, corpus, runner, and lane config. A baseline candidate that
+source, oracle, generated and complete corpus, runner, coverage contract, and
+lane config. It includes a reproducible result digest that excludes only the
+explicitly diagnostic compile/minifier timings. Property-eligible rows must
+record a property-mangled candidate; a missing row is itself a hard failure.
+A baseline candidate that
 changes stdout fails its case and is excluded from size selection. Runtime
 checks time out after 10 seconds and each LilScript case compilation after 120
 seconds, so a hanging optimizer or program is a gate failure instead of a

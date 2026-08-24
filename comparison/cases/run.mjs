@@ -17,6 +17,11 @@ import {
   requireCanonicalCodecRuntime,
 } from "../../benchmarks/codec-contract.mjs";
 import { catalog } from "./catalog.mjs";
+import {
+  assertNoBehaviorLabelSplits,
+  MIN_UNIQUE_GENERATED_BEHAVIORS,
+  summarizeBehaviorCoverage,
+} from "./coverage.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repo = resolve(here, "../..");
@@ -37,7 +42,13 @@ const buildRoot = join(here, "build");
 const oraclePath = join(here, "oracle-manifest.json");
 const metrics = ["raw", "gzip9", "brotli11"];
 const javascriptTarget = "es2022";
-const baselineToolNames = ["terser", "oxc", "esbuild-script", "esbuild-iife"];
+const baselineToolNames = [
+  "terser",
+  "terser-properties",
+  "oxc",
+  "esbuild-script",
+  "esbuild-iife",
+];
 const baselineOptions = {
   terser: {
     ecma: 2022,
@@ -48,6 +59,24 @@ const baselineOptions = {
       toplevel: true,
     },
     mangle: { toplevel: true },
+    format: { ecma: 2022, comments: false },
+  },
+  "terser-properties": {
+    ecma: 2022,
+    compress: {
+      ecma: 2022,
+      passes: 3,
+      drop_console: false,
+      toplevel: true,
+    },
+    mangle: {
+      toplevel: true,
+      properties: {
+        builtins: false,
+        keep_quoted: true,
+        reserved: ["__proto__", "constructor", "prototype"],
+      },
+    },
     format: { ecma: 2022, comments: false },
   },
   oxc: {
@@ -113,21 +142,67 @@ function artifactStem(name) {
   return name.replaceAll("/", "--");
 }
 
-function parseCaseToml(text) {
-  const out = { expect: "le" };
-  for (const raw of text.split("\n")) {
+function compareCodeUnits(left, right) {
+  return left < right ? -1 : left > right ? 1 : 0;
+}
+
+function parseCaseToml(text, label) {
+  const out = { terserProperties: true, terserPropertyReason: null };
+  const seen = new Set();
+  for (const [index, raw] of text.split("\n").entries()) {
     const line = raw.replace(/#.*$/, "").trim();
     if (!line) continue;
     const match = line.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+)$/);
-    if (!match) continue;
-    let value = match[2].trim();
-    if (
-      (value.startsWith('"') && value.endsWith('"')) ||
-      (value.startsWith("'") && value.endsWith("'"))
-    ) {
-      value = value.slice(1, -1);
+    if (!match) {
+      throw new Error(`${label}:${index + 1}: invalid case metadata`);
     }
-    out[match[1]] = value;
+    const [, key, rawValue] = match;
+    if (seen.has(key)) {
+      throw new Error(`${label}:${index + 1}: duplicate ${key}`);
+    }
+    seen.add(key);
+    const value = rawValue.trim();
+    if (key === "expect") {
+      const parsed = value.match(/^(?:"(le|lt)"|'(le|lt)')$/);
+      if (!parsed) {
+        throw new Error(`${label}:${index + 1}: expect must be "le" or "lt"`);
+      }
+      out.expect = parsed[1] ?? parsed[2];
+      continue;
+    }
+    if (key === "terser_properties") {
+      if (value !== "true" && value !== "false") {
+        throw new Error(
+          `${label}:${index + 1}: terser_properties must be true or false`,
+        );
+      }
+      out.terserProperties = value === "true";
+      continue;
+    }
+    if (key === "terser_property_reason") {
+      const parsed = value.match(/^(?:"([^"]+)"|'([^']+)')$/);
+      if (!parsed) {
+        throw new Error(
+          `${label}:${index + 1}: terser_property_reason must be a non-empty quoted string`,
+        );
+      }
+      out.terserPropertyReason = parsed[1] ?? parsed[2];
+      continue;
+    }
+    throw new Error(`${label}:${index + 1}: unknown case metadata key ${key}`);
+  }
+  if (!out.expect) {
+    throw new Error(`${label}: missing required expect metadata`);
+  }
+  if (!out.terserProperties && !out.terserPropertyReason) {
+    throw new Error(
+      `${label}: terser_properties=false requires terser_property_reason`,
+    );
+  }
+  if (out.terserProperties && out.terserPropertyReason) {
+    throw new Error(
+      `${label}: terser_property_reason is only valid when terser_properties=false`,
+    );
   }
   return out;
 }
@@ -147,7 +222,7 @@ function loadCanonicalCases() {
       }
       if (ent.name !== "case.toml") continue;
       const folder = dirname(path);
-      const meta = parseCaseToml(readFileSync(path, "utf8"));
+      const meta = parseCaseToml(readFileSync(path, "utf8"), path);
       const lilPath = existsSync(join(folder, "main.lil"))
         ? join(folder, "main.lil")
         : join(folder, "lilscript", "main.lil");
@@ -160,7 +235,10 @@ function loadCanonicalCases() {
       const rel = relative(root, folder).replaceAll("\\", "/");
       cases.push({
         name: rel,
-        expect: meta.expect === "lt" ? "lt" : "le",
+        behavior: `canonical/${rel}`,
+        expect: meta.expect,
+        terserProperties: meta.terserProperties,
+        terserPropertyReason: meta.terserPropertyReason,
         lil: readFileSync(lilPath, "utf8"),
         js: readFileSync(jsPath, "utf8"),
         origin: "canonical",
@@ -168,7 +246,7 @@ function loadCanonicalCases() {
     }
   };
   walk(root);
-  cases.sort((left, right) => left.name.localeCompare(right.name));
+  cases.sort((left, right) => compareCodeUnits(left.name, right.name));
   return cases;
 }
 
@@ -277,7 +355,8 @@ async function loadMinifiers() {
   }
 }
 
-async function minifyJavaScript(source, name, minifiers) {
+async function minifyJavaScript(entry, minifiers) {
+  const { js: source, name } = entry;
   const { terserMinify, esbuild, oxcMinify } = minifiers;
   let started = process.hrtime.bigint();
   const terser = await terserMinify(
@@ -288,6 +367,22 @@ async function minifyJavaScript(source, name, minifiers) {
     Number(process.hrtime.bigint() - started) / 1_000_000;
   if (!terser.code) {
     throw new Error(`terser failed: ${terser.error}`);
+  }
+  let terserProperties = null;
+  let terserPropertiesDurationMs = null;
+  if (entry.terserProperties) {
+    started = process.hrtime.bigint();
+    terserProperties = await terserMinify(
+      source,
+      structuredClone(baselineOptions["terser-properties"]),
+    );
+    terserPropertiesDurationMs =
+      Number(process.hrtime.bigint() - started) / 1_000_000;
+    if (!terserProperties.code) {
+      throw new Error(
+        `terser property mangling failed: ${terserProperties.error}`,
+      );
+    }
   }
   started = process.hrtime.bigint();
   const oxc = oxcMinify(
@@ -313,7 +408,7 @@ async function minifyJavaScript(source, name, minifiers) {
   );
   const esbuildIifeDurationMs =
     Number(process.hrtime.bigint() - started) / 1_000_000;
-  return [
+  const candidates = [
     { tool: "terser", code: terser.code, durationMs: terserDurationMs },
     { tool: "oxc", code: oxc.code, durationMs: oxcDurationMs },
     {
@@ -326,7 +421,15 @@ async function minifyJavaScript(source, name, minifiers) {
       code: esbuildIife.code,
       durationMs: esbuildIifeDurationMs,
     },
-  ].map((candidate) => ({
+  ];
+  if (terserProperties) {
+    candidates.splice(1, 0, {
+      tool: "terser-properties",
+      code: terserProperties.code,
+      durationMs: terserPropertiesDurationMs,
+    });
+  }
+  return candidates.map((candidate) => ({
     ...candidate,
     digest: sha256(candidate.code),
   }));
@@ -337,8 +440,8 @@ function bestForMetric(candidates, metric) {
     (left, right) =>
       left.sizes[metric] - right.sizes[metric] ||
       left.sizes.raw - right.sizes.raw ||
-      left.tool.localeCompare(right.tool) ||
-      left.code.localeCompare(right.code),
+      compareCodeUnits(left.tool, right.tool) ||
+      compareCodeUnits(left.code, right.code),
   )[0];
 }
 
@@ -350,7 +453,17 @@ function writeCase(entry, expected) {
   writeFileSync(join(dir, "expected.txt"), expected);
   writeFileSync(
     join(dir, "case.json"),
-    `${JSON.stringify({ name: entry.name, expect: entry.expect }, null, 2)}\n`,
+    `${JSON.stringify(
+      {
+        name: entry.name,
+        behavior: entry.behavior,
+        expect: entry.expect,
+        terserProperties: entry.terserProperties,
+        terserPropertyReason: entry.terserPropertyReason,
+      },
+      null,
+      2,
+    )}\n`,
   );
   return dir;
 }
@@ -402,6 +515,36 @@ function toolVersions(compilerProvenance) {
   };
 }
 
+function corpusDigest(entries) {
+  return sha256(
+    JSON.stringify(
+      entries.map((entry) => ({
+        name: entry.name,
+        behavior: entry.behavior,
+        terserProperties: entry.terserProperties,
+        terserPropertyReason: entry.terserPropertyReason,
+        lilscript: entry.lil,
+        javascript: entry.js,
+        expect: entry.expect,
+      })),
+    ),
+  );
+}
+
+function withoutDiagnosticTimings(value) {
+  if (Array.isArray(value)) {
+    return value.map(withoutDiagnosticTimings);
+  }
+  if (value === null || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(
+        ([key]) => key !== "durationMs" && key !== "compileDurationMs",
+      )
+      .map(([key, child]) => [key, withoutDiagnosticTimings(child)]),
+  );
+}
+
 function evaluateCatalog(entries) {
   const names = new Set();
   const expectedByName = new Map();
@@ -417,6 +560,23 @@ function evaluateCatalog(entries) {
     if (entry.expect !== "le" && entry.expect !== "lt") {
       throw new Error(`${entry.name}: expect must be \"le\" or \"lt\"`);
     }
+    if (typeof entry.terserProperties !== "boolean") {
+      throw new Error(`${entry.name}: terserProperties must be boolean`);
+    }
+    if (
+      !entry.terserProperties &&
+      (typeof entry.terserPropertyReason !== "string" ||
+        entry.terserPropertyReason.length === 0)
+    ) {
+      throw new Error(
+        `${entry.name}: property-mangling opt-outs require a reason`,
+      );
+    }
+    if (entry.terserProperties && entry.terserPropertyReason !== null) {
+      throw new Error(
+        `${entry.name}: property-mangling reasons are only valid for opt-outs`,
+      );
+    }
     let expected;
     try {
       expected = execute(entry.js);
@@ -428,6 +588,9 @@ function evaluateCatalog(entries) {
     expectedByName.set(entry.name, expected);
     oracleRecords.push({
       name: entry.name,
+      behavior: entry.behavior,
+      terserProperties: entry.terserProperties,
+      terserPropertyReason: entry.terserPropertyReason,
       expect: entry.expect,
       javascript: entry.js,
       stdout: expected,
@@ -436,21 +599,12 @@ function evaluateCatalog(entries) {
   return {
     expectedByName,
     manifest: {
-      schemaVersion: 1,
+      schemaVersion: 3,
       algorithm: "sha256",
       cases: entries.length,
       digest: sha256(JSON.stringify(oracleRecords)),
     },
-    corpusDigest: sha256(
-      JSON.stringify(
-        entries.map((entry) => ({
-          name: entry.name,
-          lilscript: entry.lil,
-          javascript: entry.js,
-          expect: entry.expect,
-        })),
-      ),
-    ),
+    corpusDigest: corpusDigest(entries),
   };
 }
 
@@ -459,6 +613,20 @@ if (catalogEntries.length === 0) {
   throw new Error("catalog is empty");
 }
 const canonicalEntries = loadCanonicalCases();
+const generatedBehaviorLabelAudit = assertNoBehaviorLabelSplits(catalogEntries, {
+  label: "generated catalog",
+});
+const catalogCoverage = summarizeBehaviorCoverage(catalogEntries, {
+  label: "generated catalog",
+  minimumUniqueBehaviors: MIN_UNIQUE_GENERATED_BEHAVIORS,
+});
+const canonicalCoverage = summarizeBehaviorCoverage(canonicalEntries, {
+  label: "canonical corpus",
+});
+const fullCoverage = summarizeBehaviorCoverage(
+  [...catalogEntries, ...canonicalEntries],
+  { label: "complete micro corpus" },
+);
 const catalogNames = new Set(catalogEntries.map((entry) => entry.name));
 for (const entry of canonicalEntries) {
   if (catalogNames.has(entry.name)) {
@@ -466,6 +634,10 @@ for (const entry of canonicalEntries) {
   }
 }
 const catalogEvaluation = evaluateCatalog(catalogEntries);
+const completeCorpusDigest = corpusDigest([
+  ...catalogEntries,
+  ...canonicalEntries,
+]);
 if (updateOracles) {
   if (only) {
     throw new Error("--update-oracles cannot be combined with --only");
@@ -565,12 +737,16 @@ for (const [caseIndex, entry] of selected.entries()) {
   const caseFailures = [];
   let baselines;
   try {
-    baselines = await minifyJavaScript(entry.js, entry.name, minifiers);
+    baselines = await minifyJavaScript(entry, minifiers);
   } catch (error) {
     recordFailure(caseFailures, `${entry.name}: minify\n${error.message}`);
     rows.push({
       name: entry.name,
+      behavior: entry.behavior,
       expect: entry.expect,
+      terserProperties: entry.terserProperties,
+      terserPropertyReason: entry.terserPropertyReason,
+      origin: entry.origin ?? "catalog",
       passed: false,
       failures: caseFailures,
       lilscript: {},
@@ -747,9 +923,14 @@ for (const [caseIndex, entry] of selected.entries()) {
   }
   rows.push({
     name: entry.name,
+    behavior: entry.behavior,
     expect: entry.expect,
+    terserProperties: entry.terserProperties,
+    terserPropertyReason: entry.terserPropertyReason,
     origin: entry.origin ?? "catalog",
-    boundary: "closed-world-script",
+    boundary: entry.terserProperties
+      ? "closed-world-script"
+      : "observable-property-spelling",
     target: javascriptTarget,
     passed: caseFailures.length === 0,
     failures: caseFailures,
@@ -776,21 +957,110 @@ for (const [caseIndex, entry] of selected.entries()) {
   reportProgress(caseIndex);
 }
 
-rows.sort((left, right) => left.name.localeCompare(right.name));
+for (const row of rows) {
+  const hasPropertyCandidate = Object.hasOwn(
+    row.baselineCandidates,
+    "terser-properties",
+  );
+  if (hasPropertyCandidate === row.terserProperties) continue;
+  const message = row.terserProperties
+    ? `${row.name}: eligible Terser property candidate was not recorded`
+    : `${row.name}: opted-out Terser property candidate was unexpectedly recorded`;
+  failures.push(message);
+  row.failures.push(message);
+  row.passed = false;
+}
+
+rows.sort((left, right) => compareCodeUnits(left.name, right.name));
 const passedCases = rows.filter((row) => row.passed).length;
 const failedCases = rows.length - passedCases;
+const selectedBy = only ?? (canonicalOnly ? "canonical" : "all");
+const codecProvenance = canonicalCodecProvenance("comparison/cases report");
+const versions = toolVersions(compilerProvenance);
+const configProvenance = Object.fromEntries(
+  lanes.map((lane) => [
+    lane.name,
+    {
+      path: lane.config.slice(repo.length + 1),
+      digest: sha256(readFileSync(lane.config)),
+    },
+  ]),
+);
+const deterministicResultsDigest = sha256(
+  JSON.stringify({
+    selectedBy,
+    oracle: checkedInOracle,
+    generatedCorpusDigest: catalogEvaluation.corpusDigest,
+    completeCorpusDigest,
+    configs: configProvenance,
+    tools: {
+      node: versions.node,
+      lilscript: versions.lilscript.digest,
+      terser: versions.terser,
+      oxcViaRolldown: versions.oxcViaRolldown,
+      esbuild: versions.esbuild,
+      codec: codecProvenance.scorer.sha256,
+    },
+    rows: withoutDiagnosticTimings(rows),
+  }),
+);
 const report = {
-  schemaVersion: 5,
+  schemaVersion: 6,
   catalogCases: catalogEntries.length,
   canonicalCases: canonicalEntries.length,
   // Keep full reports self-identifying. A JSON null is too easy to mistake for
   // missing provenance when a focused run can overwrite the same build file.
-  selectedBy: only ?? (canonicalOnly ? "canonical" : "all"),
+  selectedBy,
   cases: rows.length,
   passedCases,
   failedCases,
   failureEvents: failures.length,
   failureDetails: failures,
+  coverage: {
+    minimumUniqueGeneratedBehaviors: MIN_UNIQUE_GENERATED_BEHAVIORS,
+    generated: catalogCoverage,
+    canonical: canonicalCoverage,
+    complete: fullCoverage,
+    generatedBehaviorLabelAudit,
+    selected: summarizeBehaviorCoverage(selected, {
+      label: "selected micro corpus",
+    }),
+    compilerObjectiveRows: rows.length * lanes.length,
+    baselineCandidateRows: rows.reduce(
+      (total, row) => total + Object.keys(row.baselineCandidates).length,
+      0,
+    ),
+    terserPropertyMangling: {
+      eligibleCases: [...catalogEntries, ...canonicalEntries].filter(
+        (entry) => entry.terserProperties,
+      ).length,
+      excludedCases: [...catalogEntries, ...canonicalEntries]
+        .filter((entry) => !entry.terserProperties)
+        .map((entry) => ({
+          name: entry.name,
+          reason: entry.terserPropertyReason,
+        })),
+      selectedEligibleCases: selected.filter((entry) => entry.terserProperties)
+        .length,
+      selectedCandidateRows: rows.filter((row) =>
+        Object.hasOwn(row.baselineCandidates, "terser-properties"),
+      ).length,
+      selectedSemanticallyValidCandidates: rows.filter(
+        (row) =>
+          row.baselineCandidates["terser-properties"]?.semanticValid === true,
+      ).length,
+      selectedSemanticallyInvalidCandidates: rows.filter(
+        (row) =>
+          row.baselineCandidates["terser-properties"]?.semanticValid === false,
+      ).length,
+      missingEligibleCandidateRows: rows.filter(
+        (row) =>
+          row.terserProperties &&
+          !Object.hasOwn(row.baselineCandidates, "terser-properties"),
+      ).length,
+      eligibilityIsFailClosed: true,
+    },
+  },
   expectations: {
     le: "LilScript must be no larger in each metric-specific compiler lane",
     lt: "LilScript must be strictly smaller in each metric-specific compiler lane",
@@ -805,24 +1075,24 @@ const report = {
       },
     ]),
   ),
-  codecs: canonicalCodecProvenance("comparison/cases report"),
+  codecs: codecProvenance,
   javascriptTarget,
   baselineOptions,
   provenance: {
     oracle: checkedInOracle,
     corpusDigest: catalogEvaluation.corpusDigest,
+    generatedCorpusDigest: catalogEvaluation.corpusDigest,
+    completeCorpusDigest,
     runnerDigest: sha256(readFileSync(fileURLToPath(import.meta.url))),
-    configs: Object.fromEntries(
-      lanes.map((lane) => [
-        lane.name,
-        {
-          path: lane.config.slice(repo.length + 1),
-          digest: sha256(readFileSync(lane.config)),
-        },
-      ]),
-    ),
+    coverageContractDigest: sha256(readFileSync(join(here, "coverage.mjs"))),
+    deterministicResultsDigest,
+    deterministicResultsExclude: [
+      "rows[].baselineCandidates.*.durationMs",
+      "rows[].lilscript.*.compileDurationMs",
+    ],
+    configs: configProvenance,
   },
-  toolVersions: toolVersions(compilerProvenance),
+  toolVersions: versions,
   runtime: {
     platform: process.platform,
     architecture: process.arch,
@@ -864,6 +1134,9 @@ writeFileSync(
   `# Web minifier micro suite\n\n` +
     `${rows.length} selected cases; ${passedCases} passed, ${failedCases} failed ` +
     `with ${failures.length} failure events. ` +
+    `${catalogCoverage.uniqueBehaviorTemplates} generated behavior templates and ` +
+    `${canonicalCoverage.caseInstances} independently reviewed canonical cases; ` +
+    `parameter variants are reported separately. ` +
     `Strict objective wins — raw-target/raw ${strictWins.raw}, ` +
     `gzip-target/gzip ${strictWins.gzip9}, ` +
     `Brotli-target/Brotli ${strictWins.brotli11}.\n\n` +

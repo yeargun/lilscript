@@ -820,10 +820,14 @@ static inline LilScriptString lilscript_json_record(LilScriptMap m){LilScriptJso
             let bounded = allocation_is_function_bounded(self.module, function, value);
             let storage = match &instruction.op {
                 ControlFlowOp::Array(values)
-                    if escape == EscapeState::LocalOnly
-                        && bounded
-                        && array_capacity_is_fixed(function, value) =>
+                    if bounded && array_capacity_is_fixed(function, value) =>
                 {
+                    // Aggregate escape propagation intentionally follows values through
+                    // element reads. Consequently, an array whose element is printed or
+                    // returned can have a non-local escape state even when the array
+                    // reference itself never leaves this function. Storage duration is a
+                    // property of the reference, so use the direct lifetime proof above
+                    // rather than the element-sensitive escape state here.
                     if self.options.stack_allocation
                         && values.len() <= self.options.stack_array_element_limit
                     {

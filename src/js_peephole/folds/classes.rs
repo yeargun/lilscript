@@ -28,14 +28,17 @@ struct Accessor {
 fn statement_boundary(prev: Option<&str>) -> bool {
     matches!(
         prev,
-        None | Some(";") | Some("{") | Some("}") | Some(",") | Some("var") | Some("let") | Some("const")
+        None | Some(";")
+            | Some("{")
+            | Some("}")
+            | Some(",")
+            | Some("var")
+            | Some("let")
+            | Some("const")
     )
 }
 
-fn skip_group_zero_function<'a>(
-    tokens: &'a [Token<'a>],
-    at: usize,
-) -> Option<(usize, bool)> {
+fn skip_group_zero_function<'a>(tokens: &'a [Token<'a>], at: usize) -> Option<(usize, bool)> {
     if tokens.get(at).map(|token| token.text) == Some("function") {
         return Some((at, false));
     }
@@ -187,8 +190,7 @@ fn rewrite_super_call(body: &str, base: &str) -> String {
     let mut search = 0usize;
     while let Some(rel) = body[search..].find(&needle) {
         let start = search + rel;
-        let before_ok = start == 0
-            || !is_ident_continue(body.as_bytes()[start - 1]);
+        let before_ok = start == 0 || !is_ident_continue(body.as_bytes()[start - 1]);
         if before_ok {
             let after = start + needle.len();
             let rest = &body[after..];
@@ -233,7 +235,8 @@ fn is_method_name(token: &Token<'_>) -> bool {
     }
     matches!(
         token.text,
-        "get" | "set"
+        "get"
+            | "set"
             | "delete"
             | "catch"
             | "finally"
@@ -317,9 +320,7 @@ fn wrapper_returns_receiver_call(
     let Some(close) = close else {
         return false;
     };
-    if close + 1 != body_close
-        && tokens.get(close + 1).map(|token| token.text) != Some(";")
-    {
+    if close + 1 != body_close && tokens.get(close + 1).map(|token| token.text) != Some(";") {
         return false;
     }
     if tokens.get(close + 1).map(|token| token.text) == Some(";") && close + 2 != body_close {
@@ -388,14 +389,7 @@ fn take_bind_this_method<'a>(
     let this_param = adapted_params[0];
     let method_params = adapted_params[1..].to_vec();
     let body = if let Some(block) = adapted.block_open {
-        rewrite_identifier_span(
-            source,
-            tokens,
-            block + 1,
-            adapted.end,
-            this_param,
-            "this",
-        )
+        rewrite_identifier_span(source, tokens, block + 1, adapted.end, this_param, "this")
     } else {
         let mut body_at = adapted.params_to;
         while tokens.get(body_at).map(|token| token.text) != Some("=>") {
@@ -564,6 +558,7 @@ fn next_formal_name(used: &[&str], index: usize) -> String {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn recover_constructor_formals(
     _source: &str,
     tokens: &[Token<'_>],
@@ -588,7 +583,10 @@ fn recover_constructor_formals(
     else {
         return recover_default_params(params, body, &existing);
     };
-    let mut formals = existing.iter().map(|name| (*name).to_string()).collect::<Vec<_>>();
+    let mut formals = existing
+        .iter()
+        .map(|name| (*name).to_string())
+        .collect::<Vec<_>>();
     let used = existing;
     while formals.len() <= max_index {
         formals.push(next_formal_name(&used, formals.len()));
@@ -769,10 +767,7 @@ fn rewrite_optional_length_guards(body: &str, formals: &[&str]) -> String {
             format!("arguments.length>{index}&&"),
         ];
         for guard in &guards {
-            loop {
-                let Some(at) = rewritten.find(guard) else {
-                    break;
-                };
+            while let Some(at) = rewritten.find(guard) {
                 let after = at + guard.len();
                 let rest = &rewritten[after..];
                 if rest.starts_with(&format!("{formal}!==void 0"))
@@ -800,6 +795,7 @@ fn rewrite_optional_length_guards(body: &str, formals: &[&str]) -> String {
     rewritten
 }
 
+#[allow(clippy::too_many_arguments)]
 fn emit_class(
     name: &str,
     base: Option<&str>,
@@ -816,7 +812,7 @@ fn emit_class(
         class.push_str(name);
         class.push('=');
     }
-        class.push_str("class");
+    class.push_str("class");
     if declaration {
         class.push(' ');
         class.push_str(name);
@@ -989,8 +985,10 @@ fn match_proto_assign<'a>(
     scan: usize,
     name: &str,
 ) -> Option<(&'a str, usize)> {
-    let start = if matches!(tokens.get(scan).map(|token| token.text), Some("var" | "let" | "const"))
-    {
+    let start = if matches!(
+        tokens.get(scan).map(|token| token.text),
+        Some("var" | "let" | "const")
+    ) {
         scan + 1
     } else {
         scan
@@ -1011,8 +1009,10 @@ fn match_base_proto_decl<'a>(
     tokens: &'a [Token<'a>],
     scan: usize,
 ) -> Option<((&'a str, &'a str), usize)> {
-    let start = if matches!(tokens.get(scan).map(|token| token.text), Some("var" | "let" | "const"))
-    {
+    let start = if matches!(
+        tokens.get(scan).map(|token| token.text),
+        Some("var" | "let" | "const")
+    ) {
         scan + 1
     } else {
         scan
@@ -1053,15 +1053,12 @@ fn set_prototype_of_open(
     None
 }
 
-fn split_two_arg_call(
-    tokens: &[Token<'_>],
-    open: usize,
-) -> Option<(usize, usize, usize, usize)> {
+fn split_two_arg_call(tokens: &[Token<'_>], open: usize) -> Option<(usize, usize, usize, usize)> {
     let mut depth = 0i32;
     let mut comma = None;
     let mut close = None;
-    for index in open + 1..tokens.len() {
-        match tokens[index].text {
+    for (index, token) in tokens.iter().enumerate().skip(open + 1) {
+        match token.text {
             "(" | "[" | "{" => depth += 1,
             ")" | "]" | "}" => {
                 if depth == 0 {
@@ -1373,9 +1370,7 @@ fn strip_set_prototype_of_call(
     replacements.push((start, tokens[close].end, String::new()));
 }
 
-fn strip_redundant_set_prototype_of(
-    source: &str,
-) -> Result<(String, usize), JavaScriptParseError> {
+fn strip_redundant_set_prototype_of(source: &str) -> Result<(String, usize), JavaScriptParseError> {
     let tokens = lex(source)?;
     let matching_close = matching_closers(&tokens);
     let wrappers = set_prototype_of_wrappers(&tokens, &matching_close);
@@ -1403,11 +1398,7 @@ fn strip_redundant_set_prototype_of(
     Ok(apply_token_rewrites(source, replacements))
 }
 
-fn identifier_is_later_non_prototype(
-    tokens: &[Token<'_>],
-    name: &str,
-    after: usize,
-) -> bool {
+fn identifier_is_later_non_prototype(tokens: &[Token<'_>], name: &str, after: usize) -> bool {
     let mut index = after;
     while index + 2 < tokens.len() {
         let name_at = if matches!(tokens[index].text, "var" | "let" | "const")
@@ -1435,11 +1426,7 @@ fn identifier_is_later_non_prototype(
     false
 }
 
-fn identifier_has_prototype_assign_before(
-    tokens: &[Token<'_>],
-    name: &str,
-    before: usize,
-) -> bool {
+fn identifier_has_prototype_assign_before(tokens: &[Token<'_>], name: &str, before: usize) -> bool {
     let mut index = 0usize;
     while index + 3 < before && index + 3 < tokens.len() {
         let name_at = if matches!(tokens[index].text, "var" | "let" | "const")
@@ -1503,9 +1490,7 @@ fn parent_alias_is_unusable_prototype(
         && !identifier_has_prototype_assign_before(tokens, name, call_at)
 }
 
-fn strip_dangling_set_prototype_of(
-    source: &str,
-) -> Result<(String, usize), JavaScriptParseError> {
+fn strip_dangling_set_prototype_of(source: &str) -> Result<(String, usize), JavaScriptParseError> {
     let tokens = lex(source)?;
     let matching_close = matching_closers(&tokens);
     let wrappers = set_prototype_of_wrappers(&tokens, &matching_close);
@@ -1586,51 +1571,9 @@ pub(crate) fn terminate_bare_prototype_before_statement(
     Ok(apply_token_rewrites(source, replacements))
 }
 
-pub(crate) fn fold_grouped_zero_function_expressions(
-    source: &str,
-) -> Result<(String, usize), JavaScriptParseError> {
-    let tokens = lex(source)?;
-    let matching_close = matching_closers(&tokens);
-    let mut replacements = Vec::<(usize, usize, String)>::new();
-    let mut index = 0usize;
-    while index + 4 < tokens.len() {
-        let Some((function_at, grouped)) = skip_group_zero_function(&tokens, index) else {
-            index += 1;
-            continue;
-        };
-        if !grouped {
-            index += 1;
-            continue;
-        }
-        let Some(function) = parse_function_expression(&tokens, &matching_close, function_at) else {
-            index += 1;
-            continue;
-        };
-        if tokens.get(function.end + 1).map(|token| token.text) != Some(")") {
-            index += 1;
-            continue;
-        }
-        let close = function.end + 1;
-        if tokens.get(close + 1).map(|token| token.text) == Some("(") {
-            index = close + 1;
-            continue;
-        }
-        replacements.push((
-            tokens[index].start,
-            tokens[function_at].start,
-            String::new(),
-        ));
-        replacements.push((tokens[close].start, tokens[close].end, String::new()));
-        index = close + 1;
-    }
-    Ok(apply_token_rewrites(source, replacements))
-}
-
 pub(crate) fn fold_constructor_prototype_tables_to_classes(
     source: &str,
 ) -> Result<(String, usize), JavaScriptParseError> {
-    let (expanded, _) = super::fold_object_assign_literal_to_writes(source)?;
-    let source = expanded.as_str();
     let tokens = lex(source)?;
     let matching_close = matching_closers(&tokens);
     let set_proto_wrappers = set_prototype_of_wrappers(&tokens, &matching_close);
@@ -1656,7 +1599,8 @@ pub(crate) fn fold_constructor_prototype_tables_to_classes(
             cursor += 1;
             continue;
         };
-        let Some(function) = parse_function_expression(&tokens, &matching_close, function_at) else {
+        let Some(function) = parse_function_expression(&tokens, &matching_close, function_at)
+        else {
             cursor += 1;
             continue;
         };
@@ -1664,7 +1608,9 @@ pub(crate) fn fold_constructor_prototype_tables_to_classes(
             cursor += 1;
             continue;
         };
-        if function.named || function.is_arrow || !last_return_this(&tokens, block_open, function.end)
+        if function.named
+            || function.is_arrow
+            || !last_return_this(&tokens, block_open, function.end)
         {
             cursor += 1;
             continue;
@@ -1729,13 +1675,9 @@ pub(crate) fn fold_constructor_prototype_tables_to_classes(
                 scan = skip_separators(&tokens, last + 1);
                 continue;
             }
-            if let Some(last) = consume_set_prototype_of(
-                &tokens,
-                scan,
-                name,
-                proto_alias,
-                &set_proto_wrappers,
-            ) {
+            if let Some(last) =
+                consume_set_prototype_of(&tokens, scan, name, proto_alias, &set_proto_wrappers)
+            {
                 fused_end = tokens[last].end;
                 scan = skip_separators(&tokens, last + 1);
                 continue;
@@ -1833,29 +1775,27 @@ pub(crate) fn fold_constructor_prototype_tables_to_classes(
                     tokens.get(scan + 2).map(|token| token.text),
                     Some("\"prototype\"") | Some("'prototype'")
                 )
+                && tokens.get(scan + 3).map(|token| token.text) == Some("]")
+                && tokens.get(scan + 4).map(|token| token.text) == Some("[")
             {
-                if tokens.get(scan + 3).map(|token| token.text) == Some("]")
-                    && tokens.get(scan + 4).map(|token| token.text) == Some("[")
-                {
-                    let close = matching_close.get(scan + 4).copied().flatten();
-                    if let Some(close) = close {
-                        if tokens.get(close + 1).map(|token| token.text) == Some("=") {
-                            if let Some((params, body, method_end)) =
-                                take_class_method_value(source, &tokens, &matching_close, close + 2)
-                            {
-                                let key = ascii_identifier_name_string(tokens[scan + 5].text)
-                                    .unwrap_or(tokens[scan + 5].text);
-                                methods.push(Method {
-                                    name: key.to_string(),
-                                    params,
-                                    body,
-                                    computed: ascii_identifier_name_string(tokens[scan + 5].text)
-                                        .is_none(),
-                                });
-                                fused_end = tokens[method_end].end;
-                                scan = skip_separators(&tokens, method_end + 1);
-                                continue;
-                            }
+                let close = matching_close.get(scan + 4).copied().flatten();
+                if let Some(close) = close {
+                    if tokens.get(close + 1).map(|token| token.text) == Some("=") {
+                        if let Some((params, body, method_end)) =
+                            take_class_method_value(source, &tokens, &matching_close, close + 2)
+                        {
+                            let key = ascii_identifier_name_string(tokens[scan + 5].text)
+                                .unwrap_or(tokens[scan + 5].text);
+                            methods.push(Method {
+                                name: key.to_string(),
+                                params,
+                                body,
+                                computed: ascii_identifier_name_string(tokens[scan + 5].text)
+                                    .is_none(),
+                            });
+                            fused_end = tokens[method_end].end;
+                            scan = skip_separators(&tokens, method_end + 1);
+                            continue;
                         }
                     }
                 }
@@ -1884,8 +1824,7 @@ pub(crate) fn fold_constructor_prototype_tables_to_classes(
         );
         let mut ctor_body = ctor_body;
         if base.is_none() {
-            if let Some(parent) =
-                infer_base_from_ctor_call(&tokens, block_open, function.end, name)
+            if let Some(parent) = infer_base_from_ctor_call(&tokens, block_open, function.end, name)
             {
                 if let Some(last) = match_set_prototype_of(
                     &tokens,
@@ -1897,15 +1836,8 @@ pub(crate) fn fold_constructor_prototype_tables_to_classes(
                 )
                 .map(|(_, last)| last)
                 .or_else(|| {
-                    consume_set_prototype_of(
-                        &tokens,
-                        scan,
-                        name,
-                        proto_alias,
-                        &set_proto_wrappers,
-                    )
-                })
-                {
+                    consume_set_prototype_of(&tokens, scan, name, proto_alias, &set_proto_wrappers)
+                }) {
                     fused_end = tokens[last].end;
                     scan = skip_separators(&tokens, last + 1);
                 }
@@ -1981,7 +1913,11 @@ fn object_aliases<'a>(tokens: &'a [Token<'a>]) -> std::collections::HashSet<&'a 
     names
 }
 
-fn looks_like_define_property_callee(tokens: &[Token<'_>], at: usize, objects: &std::collections::HashSet<&str>) -> bool {
+fn looks_like_define_property_callee(
+    tokens: &[Token<'_>],
+    at: usize,
+    objects: &std::collections::HashSet<&str>,
+) -> bool {
     (tokens.get(at).map(|token| token.text) == Some("Object")
         && tokens.get(at + 1).map(|token| token.text) == Some(".")
         && tokens.get(at + 2).map(|token| token.text) == Some("defineProperty"))
@@ -1992,7 +1928,10 @@ fn looks_like_define_property_callee(tokens: &[Token<'_>], at: usize, objects: &
             && tokens.get(at + 2).map(|token| token.text) == Some("defineProperty"))
 }
 
-fn assignment_name_and_value<'a>(tokens: &'a [Token<'a>], index: usize) -> Option<(&'a str, usize)> {
+fn assignment_name_and_value<'a>(
+    tokens: &'a [Token<'a>],
+    index: usize,
+) -> Option<(&'a str, usize)> {
     if tokens
         .get(index)
         .is_some_and(|token| token.kind == TokenKind::Identifier)
@@ -2107,11 +2046,7 @@ fn parse_call_args(
     Some(args)
 }
 
-fn installer_call_open(
-    tokens: &[Token<'_>],
-    aliases: &[&str],
-    body: usize,
-) -> Option<usize> {
+fn installer_call_open(tokens: &[Token<'_>], aliases: &[&str], body: usize) -> Option<usize> {
     if aliases.contains(&tokens.get(body).map(|token| token.text).unwrap_or(""))
         && tokens.get(body + 1).map(|token| token.text) == Some("(")
     {
@@ -2151,8 +2086,7 @@ fn installer_from_value<'a>(
         return None;
     }
     let call_args = parse_call_args(tokens, matching_close, call_open)?;
-    if call_args.is_empty()
-        || tokens[call_args[0].0].text != params.first().copied().unwrap_or("")
+    if call_args.is_empty() || tokens[call_args[0].0].text != params.first().copied().unwrap_or("")
     {
         return None;
     }
@@ -2237,16 +2171,20 @@ fn inline_define_property_installers(
     let mut inlined_names = std::collections::HashSet::new();
     let mut cursor = 0usize;
     while cursor + 2 < tokens.len() {
-        if let Some((name, params, body, call_close)) = installers.iter().find_map(|(name, params, body, call_close)| {
-            (tokens[cursor].text == *name
-                && tokens.get(cursor + 1).map(|token| token.text) == Some("(")
-                && !is_property_identifier(&tokens, cursor)
-                && !tokens
-                    .get(cursor.saturating_sub(1))
-                    .is_some_and(|token| token.text == "function")
-                && !call_is_method_or_function_definition(&tokens, &matching_close, cursor))
-            .then_some((*name, params, *body, *call_close))
-        }) {
+        if let Some((name, params, body, call_close)) =
+            installers
+                .iter()
+                .find_map(|(name, params, body, call_close)| {
+                    (tokens[cursor].text == *name
+                        && tokens.get(cursor + 1).map(|token| token.text) == Some("(")
+                        && !is_property_identifier(&tokens, cursor)
+                        && !tokens
+                            .get(cursor.saturating_sub(1))
+                            .is_some_and(|token| token.text == "function")
+                        && !call_is_method_or_function_definition(&tokens, &matching_close, cursor))
+                    .then_some((*name, params, *body, *call_close))
+                })
+        {
             let open = cursor + 1;
             if let Some(args) = parse_call_args(&tokens, &matching_close, open) {
                 if args.len() == params.len() {
@@ -2276,11 +2214,7 @@ fn inline_define_property_installers(
                         copy += 1;
                     }
                     inlined.push_str(&source[last..tokens[call_close].end]);
-                    let end = matching_close
-                        .get(open)
-                        .copied()
-                        .flatten()
-                        .unwrap_or(open);
+                    let end = matching_close.get(open).copied().flatten().unwrap_or(open);
                     replacements.push((tokens[cursor].start, tokens[end].end, inlined));
                     inlined_names.insert(name);
                     cursor = end + 1;
@@ -2305,11 +2239,8 @@ fn inline_define_property_installers(
                             name,
                             &replacements,
                         ) {
-                            let (start, end) = super::assignment_span_to_remove(
-                                &tokens,
-                                index,
-                                function.end,
-                            );
+                            let (start, end) =
+                                super::assignment_span_to_remove(&tokens, index, function.end);
                             replacements.push((start, end, String::new()));
                         }
                     }
@@ -2322,17 +2253,12 @@ fn inline_define_property_installers(
                 && inlined_names.contains(tokens[index + 1].text)
             {
                 let name = tokens[index + 1].text;
-                if let Some(function) =
-                    parse_function_expression(&tokens, &matching_close, index)
-                {
-                    if !installer_name_still_called(
-                        &tokens,
-                        &matching_close,
-                        name,
-                        &replacements,
-                    ) && !replacements.iter().any(|(_, _, text)| {
-                        text.contains(&format!("{name}("))
-                    }) {
+                if let Some(function) = parse_function_expression(&tokens, &matching_close, index) {
+                    if !installer_name_still_called(&tokens, &matching_close, name, &replacements)
+                        && !replacements
+                            .iter()
+                            .any(|(_, _, text)| text.contains(&format!("{name}(")))
+                    {
                         replacements.push((
                             tokens[index].start,
                             tokens[function.end].end,
@@ -2528,9 +2454,7 @@ fn class_constructor_span(
             && tokens[index].text == "constructor"
             && tokens.get(index + 1).map(|token| token.text) == Some("(")
         {
-            let Some(params_close) = matching_close.get(index + 1).copied().flatten() else {
-                return None;
-            };
+            let params_close = matching_close.get(index + 1).copied().flatten()?;
             if tokens.get(params_close + 1).map(|token| token.text) != Some("{") {
                 return None;
             }
@@ -2593,8 +2517,7 @@ fn fold_inferred_extends_into_bare_classes(
         if constructor_contains_super(&tokens, ctor_open, ctor_close) {
             continue;
         }
-        let Some(base) =
-            constructor_leading_base_call(&tokens, ctor_open, ctor_close, site.name)
+        let Some(base) = constructor_leading_base_call(&tokens, ctor_open, ctor_close, site.name)
         else {
             continue;
         };
@@ -2647,9 +2570,7 @@ fn class_spans<'a>(
     spans
 }
 
-fn prototype_alias_assignments<'a>(
-    tokens: &'a [Token<'a>],
-) -> Vec<(usize, &'a str, &'a str)> {
+fn prototype_alias_assignments<'a>(tokens: &'a [Token<'a>]) -> Vec<(usize, &'a str, &'a str)> {
     let mut aliases = Vec::new();
     let mut index = 0usize;
     while index + 4 < tokens.len() {
@@ -2748,16 +2669,21 @@ fn fold_define_property_accessors_into_classes(
             cursor += 1;
             continue;
         };
-        let (class_name, key_at) = if tokens.get(open + 1).is_some_and(|token| token.kind == TokenKind::Identifier)
+        let (class_name, key_at) = if tokens
+            .get(open + 1)
+            .is_some_and(|token| token.kind == TokenKind::Identifier)
             && tokens.get(open + 2).map(|token| token.text) == Some(".")
             && tokens.get(open + 3).map(|token| token.text) == Some("prototype")
             && tokens.get(open + 4).map(|token| token.text) == Some(",")
         {
             (tokens[open + 1].text, open + 5)
-        } else if tokens.get(open + 1).is_some_and(|token| token.kind == TokenKind::Identifier)
+        } else if tokens
+            .get(open + 1)
+            .is_some_and(|token| token.kind == TokenKind::Identifier)
             && tokens.get(open + 2).map(|token| token.text) == Some(",")
         {
-            let Some(class_name) = class_for_proto_alias(&proto_aliases, tokens[open + 1].text, open)
+            let Some(class_name) =
+                class_for_proto_alias(&proto_aliases, tokens[open + 1].text, open)
             else {
                 cursor += 1;
                 continue;
@@ -2775,8 +2701,7 @@ fn fold_define_property_accessors_into_classes(
             cursor += 1;
             continue;
         };
-        let Some((key, computed)) =
-            computed_key_name(&tokens, key_token, key_at, *class_close)
+        let Some((key, computed)) = computed_key_name(&tokens, key_token, key_at, *class_close)
         else {
             cursor += 1;
             continue;
@@ -2798,7 +2723,8 @@ fn fold_define_property_accessors_into_classes(
         let mut scan = key_at + 3;
         while scan < desc_close {
             let field = tokens[scan].text;
-            if (field == "get" || field == "set") && tokens.get(scan + 1).map(|token| token.text) == Some(":")
+            if (field == "get" || field == "set")
+                && tokens.get(scan + 1).map(|token| token.text) == Some(":")
             {
                 if let Some((params, body, end)) =
                     take_method_function(source, &tokens, &matching_close, scan + 2)
@@ -2846,7 +2772,11 @@ fn fold_define_property_accessors_into_classes(
     Ok(apply_token_rewrites(source, replacements))
 }
 
-fn skip_call_statement(tokens: &[Token<'_>], matching_close: &[Option<usize>], at: usize) -> Option<usize> {
+fn skip_call_statement(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    at: usize,
+) -> Option<usize> {
     if tokens
         .get(at)
         .is_some_and(|token| token.kind == TokenKind::Identifier)
@@ -2865,7 +2795,10 @@ fn skip_call_statement(tokens: &[Token<'_>], matching_close: &[Option<usize>], a
 }
 
 fn is_symbol_binding(tokens: &[Token<'_>], at: usize) -> Option<usize> {
-    let start = if matches!(tokens.get(at).map(|token| token.text), Some("var" | "let" | "const")) {
+    let start = if matches!(
+        tokens.get(at).map(|token| token.text),
+        Some("var" | "let" | "const")
+    ) {
         at + 1
     } else {
         at
@@ -2885,11 +2818,7 @@ fn is_symbol_binding(tokens: &[Token<'_>], at: usize) -> Option<usize> {
     None
 }
 
-fn reaching_constant_key_expr(
-    tokens: &[Token<'_>],
-    name: &str,
-    before: usize,
-) -> Option<String> {
+fn reaching_constant_key_expr(tokens: &[Token<'_>], name: &str, before: usize) -> Option<String> {
     let mut last = None;
     let mut index = 0usize;
     while index + 2 < before && index + 2 < tokens.len() {
@@ -2973,7 +2902,10 @@ fn skip_non_ctor_declaration(
     matching_close: &[Option<usize>],
     at: usize,
 ) -> Option<usize> {
-    if !matches!(tokens.get(at).map(|token| token.text), Some("var" | "let" | "const")) {
+    if !matches!(
+        tokens.get(at).map(|token| token.text),
+        Some("var" | "let" | "const")
+    ) {
         return None;
     }
     let mut cursor = at + 1;
@@ -3007,8 +2939,15 @@ fn skip_non_ctor_declaration(
     }
 }
 
-fn is_new_function_or_class_value(tokens: &[Token<'_>], matching_close: &[Option<usize>], at: usize) -> bool {
-    if matches!(tokens.get(at).map(|token| token.text), Some("class" | "function")) {
+fn is_new_function_or_class_value(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    at: usize,
+) -> bool {
+    if matches!(
+        tokens.get(at).map(|token| token.text),
+        Some("class" | "function")
+    ) {
         return true;
     }
     skip_group_zero_function(tokens, at).is_some()
@@ -3115,14 +3054,15 @@ fn absorb_prototype_members_into_classes(
                     }
                     break;
                 };
-                class_inserts.entry(*class_close).or_default().push_str(&emit_class_method(
-                    &Method {
+                class_inserts
+                    .entry(*class_close)
+                    .or_default()
+                    .push_str(&emit_class_method(&Method {
                         name: method_name.to_string(),
                         params,
                         body,
                         computed: false,
-                    },
-                ));
+                    }));
                 replacements.push((deleted_start(scan), tokens[method_end].end, String::new()));
                 scan = method_end + 1;
                 continue;
@@ -3145,14 +3085,15 @@ fn absorb_prototype_members_into_classes(
                 else {
                     break;
                 };
-                class_inserts.entry(*class_close).or_default().push_str(&emit_class_method(
-                    &Method {
+                class_inserts
+                    .entry(*class_close)
+                    .or_default()
+                    .push_str(&emit_class_method(&Method {
                         name: method_name.to_string(),
                         params,
                         body,
                         computed: false,
-                    },
-                ));
+                    }));
                 replacements.push((deleted_start(scan), tokens[method_end].end, String::new()));
                 scan = method_end + 1;
                 continue;
@@ -3210,14 +3151,15 @@ fn absorb_prototype_members_into_classes(
                 else {
                     break;
                 };
-                class_inserts.entry(*class_close).or_default().push_str(&emit_class_method(
-                    &Method {
+                class_inserts
+                    .entry(*class_close)
+                    .or_default()
+                    .push_str(&emit_class_method(&Method {
                         name,
                         params,
                         body,
                         computed,
-                    },
-                ));
+                    }));
                 replacements.push((deleted_start(scan), tokens[method_end].end, String::new()));
                 scan = method_end + 1;
                 continue;
@@ -3258,47 +3200,46 @@ pub(crate) fn fold_undefined_defaults_into_formals(
         let method = !constructor
             && function_at.is_none()
             && is_class_method_head(&tokens, &matching_close, cursor);
-        let (params_open, block_open, block_close, params_from, params_to) = if constructor
-            || method
-        {
-            let open = cursor + 1;
-            let Some(close) = matching_close.get(open).copied().flatten() else {
+        let (params_open, block_open, block_close, params_from, params_to) =
+            if constructor || method {
+                let open = cursor + 1;
+                let Some(close) = matching_close.get(open).copied().flatten() else {
+                    cursor += 1;
+                    continue;
+                };
+                if tokens.get(close + 1).map(|token| token.text) != Some("{") {
+                    cursor += 1;
+                    continue;
+                }
+                let Some(end) = matching_close.get(close + 1).copied().flatten() else {
+                    cursor += 1;
+                    continue;
+                };
+                (open, close + 1, end, open + 1, close)
+            } else if let Some(at) = function_at {
+                let Some(function) = parse_function_expression(&tokens, &matching_close, at) else {
+                    cursor += 1;
+                    continue;
+                };
+                if function.is_arrow {
+                    cursor += 1;
+                    continue;
+                }
+                let Some(open) = function.block_open else {
+                    cursor += 1;
+                    continue;
+                };
+                (
+                    at,
+                    open,
+                    function.end,
+                    function.params_from,
+                    function.params_to,
+                )
+            } else {
                 cursor += 1;
                 continue;
             };
-            if tokens.get(close + 1).map(|token| token.text) != Some("{") {
-                cursor += 1;
-                continue;
-            }
-            let Some(end) = matching_close.get(close + 1).copied().flatten() else {
-                cursor += 1;
-                continue;
-            };
-            (open, close + 1, end, open + 1, close)
-        } else if let Some(at) = function_at {
-            let Some(function) = parse_function_expression(&tokens, &matching_close, at) else {
-                cursor += 1;
-                continue;
-            };
-            if function.is_arrow {
-                cursor += 1;
-                continue;
-            }
-            let Some(open) = function.block_open else {
-                cursor += 1;
-                continue;
-            };
-            (
-                at,
-                open,
-                function.end,
-                function.params_from,
-                function.params_to,
-            )
-        } else {
-            cursor += 1;
-            continue;
-        };
         if simple_formals(&tokens, params_from, params_to).is_none() {
             cursor = block_close + 1;
             continue;
@@ -3327,13 +3268,7 @@ pub(crate) fn fold_undefined_defaults_into_formals(
             cursor = block_close + 1;
             continue;
         }
-        if constructor {
-            replacements.push((
-                tokens[params_open].start,
-                tokens[block_close].end,
-                format!("({params}){{{body}}}"),
-            ));
-        } else if method {
+        if constructor || method {
             replacements.push((
                 tokens[params_open].start,
                 tokens[block_close].end,
@@ -3372,8 +3307,7 @@ pub(crate) fn fold_arguments_length_formal_copies(
     let mut replacements = Vec::<(usize, usize, String)>::new();
     let mut cursor = 0usize;
     while cursor < tokens.len() {
-        let (params_from, params_to, block_open, block_close) = if tokens[cursor].text
-            == "function"
+        let (params_from, params_to, block_open, block_close) = if tokens[cursor].text == "function"
         {
             let Some(function) = parse_function_expression(&tokens, &matching_close, cursor) else {
                 cursor += 1;
@@ -3453,32 +3387,17 @@ pub(crate) fn fold_arguments_length_formal_copies(
                 continue;
             }
             let temp = tokens[scan + 7].text;
-            let rhs_ok = if tokens.get(scan + 9).map(|token| token.text) == Some(formal)
-                && scan + 10 == close
-            {
-                true
-            } else if tokens.get(scan + 9).map(|token| token.text) == Some("!!")
-                || (tokens.get(scan + 9).map(|token| token.text) == Some("!")
-                    && tokens.get(scan + 10).map(|token| token.text) == Some("!"))
-            {
-                false
-            } else {
-                false
-            };
-            let (rhs_start, bangs) = if tokens.get(scan + 9).map(|token| token.text) == Some("!")
+            let rhs_ok =
+                tokens.get(scan + 9).map(|token| token.text) == Some(formal) && scan + 10 == close;
+            let bangs = tokens.get(scan + 9).map(|token| token.text) == Some("!")
                 && tokens.get(scan + 10).map(|token| token.text) == Some("!")
                 && tokens.get(scan + 11).map(|token| token.text) == Some(formal)
-                && scan + 12 == close
-            {
-                (scan + 9, true)
-            } else if rhs_ok {
-                (scan + 9, false)
-            } else {
+                && scan + 12 == close;
+            if !bangs && !rhs_ok {
                 scan += 1;
                 continue;
-            };
-            let _ = (rhs_start, bangs);
-            let rewritten = if tokens.get(scan + 9).map(|token| token.text) == Some("!") {
+            }
+            let rewritten = if bangs {
                 format!("{temp}=!!{formal}")
             } else {
                 format!("{temp}={formal}")
@@ -3491,7 +3410,9 @@ pub(crate) fn fold_arguments_length_formal_copies(
     Ok(apply_token_rewrites(source, replacements))
 }
 
-fn array_prototype_slice_aliases<'a>(tokens: &'a [Token<'a>]) -> std::collections::HashSet<&'a str> {
+fn array_prototype_slice_aliases<'a>(
+    tokens: &'a [Token<'a>],
+) -> std::collections::HashSet<&'a str> {
     let mut names = std::collections::HashSet::new();
     names.insert("Array.prototype.slice");
     let mut index = 0usize;
@@ -3577,54 +3498,54 @@ pub(crate) fn fold_arguments_slice_to_rest(
     let mut replacements = Vec::<(usize, usize, String)>::new();
     let mut cursor = 0usize;
     while cursor < tokens.len() {
-        let (params_from, params_to, params_open, block_open, block_close) =
-            if tokens[cursor].text == "function" {
-                let Some(function) = parse_function_expression(&tokens, &matching_close, cursor)
-                else {
-                    cursor += 1;
-                    continue;
-                };
-                if function.is_arrow {
-                    cursor += 1;
-                    continue;
-                }
-                let Some(open) = function.block_open else {
-                    cursor += 1;
-                    continue;
-                };
-                (
-                    function.params_from,
-                    function.params_to,
-                    if tokens.get(cursor + 1).map(|token| token.text) == Some("(") {
-                        cursor + 1
-                    } else {
-                        cursor + 2
-                    },
-                    open,
-                    function.end,
-                )
-            } else if (tokens[cursor].text == "constructor"
-                && tokens.get(cursor + 1).map(|token| token.text) == Some("("))
-                || is_class_method_head(&tokens, &matching_close, cursor)
-            {
-                let open = cursor + 1;
-                let Some(close) = matching_close.get(open).copied().flatten() else {
-                    cursor += 1;
-                    continue;
-                };
-                if tokens.get(close + 1).map(|token| token.text) != Some("{") {
-                    cursor += 1;
-                    continue;
-                }
-                let Some(end) = matching_close.get(close + 1).copied().flatten() else {
-                    cursor += 1;
-                    continue;
-                };
-                (open + 1, close, open, close + 1, end)
-            } else {
+        let (params_from, params_to, params_open, block_open, block_close) = if tokens[cursor].text
+            == "function"
+        {
+            let Some(function) = parse_function_expression(&tokens, &matching_close, cursor) else {
                 cursor += 1;
                 continue;
             };
+            if function.is_arrow {
+                cursor += 1;
+                continue;
+            }
+            let Some(open) = function.block_open else {
+                cursor += 1;
+                continue;
+            };
+            (
+                function.params_from,
+                function.params_to,
+                if tokens.get(cursor + 1).map(|token| token.text) == Some("(") {
+                    cursor + 1
+                } else {
+                    cursor + 2
+                },
+                open,
+                function.end,
+            )
+        } else if (tokens[cursor].text == "constructor"
+            && tokens.get(cursor + 1).map(|token| token.text) == Some("("))
+            || is_class_method_head(&tokens, &matching_close, cursor)
+        {
+            let open = cursor + 1;
+            let Some(close) = matching_close.get(open).copied().flatten() else {
+                cursor += 1;
+                continue;
+            };
+            if tokens.get(close + 1).map(|token| token.text) != Some("{") {
+                cursor += 1;
+                continue;
+            }
+            let Some(end) = matching_close.get(close + 1).copied().flatten() else {
+                cursor += 1;
+                continue;
+            };
+            (open + 1, close, open, close + 1, end)
+        } else {
+            cursor += 1;
+            continue;
+        };
         let Some(formals) = simple_formals(&tokens, params_from, params_to) else {
             cursor = block_close + 1;
             continue;
@@ -3654,7 +3575,7 @@ pub(crate) fn fold_arguments_slice_to_rest(
             cursor = block_close + 1;
             continue;
         }
-        let used: Vec<&str> = formals.iter().copied().collect();
+        let used: Vec<&str> = formals.to_vec();
         let rest = next_formal_name(&used, used.len());
         let old_params = parse_params(source, &tokens, params_from, params_to);
         let params = if old_params.is_empty() {
@@ -3767,7 +3688,10 @@ pub(crate) fn fold_indexed_arguments_to_formals(
                 used.push(token.text);
             }
         }
-        let mut formals = existing.iter().map(|name| (*name).to_string()).collect::<Vec<_>>();
+        let mut formals = existing
+            .iter()
+            .map(|name| (*name).to_string())
+            .collect::<Vec<_>>();
         while formals.len() <= max_index {
             let mut seen = used.clone();
             seen.extend(formals.iter().map(String::as_str));
@@ -3803,21 +3727,7 @@ pub(crate) fn fold_indexed_arguments_to_formals(
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        fold_constructor_prototype_tables_to_classes, fold_grouped_zero_function_expressions,
-        fold_indexed_arguments_to_formals,
-    };
-
-    #[test]
-    fn unwraps_grouped_zero_function_values_but_keeps_iifes() {
-        let source = r#"var i=(0,function(){return 1}),j=(0,function(a){return a});(0,function(){return 2})();k=(0,function(){return this})"#;
-        let (out, count) = fold_grouped_zero_function_expressions(source).unwrap();
-        assert!(count >= 1, "{out}");
-        assert!(out.contains("var i=function(){return 1}"), "{out}");
-        assert!(out.contains("j=function(a){return a}"), "{out}");
-        assert!(out.contains("k=function(){return this}"), "{out}");
-        assert!(out.contains("(0,function(){return 2})()"), "{out}");
-    }
+    use super::{fold_constructor_prototype_tables_to_classes, fold_indexed_arguments_to_formals};
 
     #[test]
     fn leftover_proto_alias_is_semicolon_terminated() {
@@ -3825,7 +3735,9 @@ mod tests {
         let (out, count) = fold_constructor_prototype_tables_to_classes(source).unwrap();
         assert!(count >= 1, "{out}");
         assert!(
-            out.contains(".prototype;") || out.contains(".prototype;var") || !out.contains("prototypevar"),
+            out.contains(".prototype;")
+                || out.contains(".prototype;var")
+                || !out.contains("prototypevar"),
             "{out}"
         );
         assert!(!out.contains("prototypevar"), "{out}");
@@ -3851,7 +3763,10 @@ mod tests {
         let computed = out.split("class D{").nth(1).unwrap_or("");
         assert!(atom.contains("get isBeingObserved("), "{out}");
         assert!(atom.contains("set isBeingObserved("), "{out}");
-        assert!(!atom.contains("set isBeingObserved(\"isBeingObserved\")"), "{out}");
+        assert!(
+            !atom.contains("set isBeingObserved(\"isBeingObserved\")"),
+            "{out}"
+        );
         assert!(computed.contains("get isComputing("), "{out}");
         assert!(!computed.contains("get isBeingObserved("), "{out}");
         assert!(!out.contains("prototypevar"), "{out}");
@@ -3862,7 +3777,10 @@ mod tests {
         let source = r#"var M=(0,function(n){this.b=n;return this});a=M.prototype,a.toString=function(){return this.b};var x=(0,function(v,n){M.call(this,n),this.g=v;return this});k=x.prototype;Object.setPrototypeOf(k,l);k=x.prototype,k.get=function(){return this.g}"#;
         let (out, count) = fold_constructor_prototype_tables_to_classes(source).unwrap();
         assert!(count >= 1, "{out}");
-        assert!(out.contains("class x extends M{") || out.contains("x=class extends M{"), "{out}");
+        assert!(
+            out.contains("class x extends M{") || out.contains("x=class extends M{"),
+            "{out}"
+        );
         assert!(out.contains("super("), "{out}");
         assert!(!out.contains("setPrototypeOf"), "{out}");
         assert!(out.contains("get(){return this.g}"), "{out}");
@@ -3906,7 +3824,11 @@ mod tests {
             "{}",
             optimized.code
         );
-        assert!(!optimized.code.contains("setPrototypeOf"), "{}", optimized.code);
+        assert!(
+            !optimized.code.contains("setPrototypeOf"),
+            "{}",
+            optimized.code
+        );
     }
 
     #[test]
@@ -3914,7 +3836,10 @@ mod tests {
         let source = r#"var M=(0,function(n){this.b=n;return this});a=M.prototype,a.toString=function(){return this.b};var x=(0,function(v,n){M.call(this,n),this.g=v;return this});Object.setPrototypeOf(x.prototype,M.prototype);x.prototype.get=function(){return this.g}"#;
         let (out, count) = fold_constructor_prototype_tables_to_classes(source).unwrap();
         assert!(count >= 1, "{out}");
-        assert!(out.contains("class x extends M{") || out.contains("x=class extends M{"), "{out}");
+        assert!(
+            out.contains("class x extends M{") || out.contains("x=class extends M{"),
+            "{out}"
+        );
         assert!(out.contains("get(){return this.g}"), "{out}");
         assert!(!out.contains("setPrototypeOf"), "{out}");
     }
@@ -3924,7 +3849,10 @@ mod tests {
         let source = r#"var f=Object;var M=(0,function(n){this.b=n;return this});a=M.prototype,a.toString=function(){return this.b};var x=(0,function(v,n){M.call(this,n),this.g=v;return this});k=x.prototype;f.setPrototypeOf(k,M.prototype);k.constructor=x;k.get=function(){return this.g}"#;
         let (out, count) = fold_constructor_prototype_tables_to_classes(source).unwrap();
         assert!(count >= 1, "{out}");
-        assert!(out.contains("class x extends M{") || out.contains("x=class extends M{"), "{out}");
+        assert!(
+            out.contains("class x extends M{") || out.contains("x=class extends M{"),
+            "{out}"
+        );
         assert!(out.contains("get(){return this.g}"), "{out}");
         assert!(!out.contains("setPrototypeOf"), "{out}");
     }
@@ -3934,7 +3862,10 @@ mod tests {
         let source = r#"function N(a,b){return Object.setPrototypeOf(a,b)}var M=(0,function(n){this.b=n;return this});a=M.prototype,a.toString=function(){return this.b};var x=(0,function(v,n){M.call(this,n),this.g=v;return this});k=x.prototype;N(k,M.prototype);k.constructor=x;k.get=function(){return this.g}"#;
         let (out, count) = fold_constructor_prototype_tables_to_classes(source).unwrap();
         assert!(count >= 1, "{out}");
-        assert!(out.contains("class x extends M{") || out.contains("x=class extends M{"), "{out}");
+        assert!(
+            out.contains("class x extends M{") || out.contains("x=class extends M{"),
+            "{out}"
+        );
         assert!(out.contains("get(){return this.g}"), "{out}");
         assert!(!out.contains("N(k"), "{out}");
     }
@@ -3944,7 +3875,10 @@ mod tests {
         let source = r#"var M=(0,function(n){this.b=n;return this});a=M.prototype,a.toString=function(){return this.b};var x=(0,function(v,n){M.call(this,n),this.g=v;return this});Object.setPrototypeOf(x.prototype,M.prototype);x.prototype.constructor=x;x.prototype.get=function(){return this.g}"#;
         let (out, count) = fold_constructor_prototype_tables_to_classes(source).unwrap();
         assert!(count >= 1, "{out}");
-        assert!(out.contains("class x extends M{") || out.contains("x=class extends M{"), "{out}");
+        assert!(
+            out.contains("class x extends M{") || out.contains("x=class extends M{"),
+            "{out}"
+        );
         assert!(out.contains("get(){return this.g}"), "{out}");
         assert!(!out.contains("setPrototypeOf"), "{out}");
         assert!(!out.contains("prototype.constructor"), "{out}");
@@ -3960,8 +3894,16 @@ mod tests {
             "{}",
             optimized.code
         );
-        assert!(optimized.code.contains("get(){return this.g}"), "{}", optimized.code);
-        assert!(!optimized.code.contains("setPrototypeOf"), "{}", optimized.code);
+        assert!(
+            optimized.code.contains("get(){return this.g}"),
+            "{}",
+            optimized.code
+        );
+        assert!(
+            !optimized.code.contains("setPrototypeOf"),
+            "{}",
+            optimized.code
+        );
     }
 
     #[test]
@@ -3969,9 +3911,15 @@ mod tests {
         let source = r#"var R=(0,function(c){var a=(+arguments.length)>0&&c!==void 0?c+"":"Atom";this.a=a;return this});P=R.prototype,P.m=function(){return this.a}"#;
         let (out, count) = fold_constructor_prototype_tables_to_classes(source).unwrap();
         assert!(count >= 1, "{out}");
-        assert!(out.contains("constructor(c=\"Atom\")") || out.contains("constructor(c=\"Atom\"){"), "{out}");
+        assert!(
+            out.contains("constructor(c=\"Atom\")") || out.contains("constructor(c=\"Atom\"){"),
+            "{out}"
+        );
         assert!(!out.contains("arguments.length"), "{out}");
-        assert!(out.contains("this.a=a") || out.contains("this.a=c"), "{out}");
+        assert!(
+            out.contains("this.a=a") || out.contains("this.a=c"),
+            "{out}"
+        );
     }
 
     #[test]
@@ -3979,7 +3927,10 @@ mod tests {
         let source = r#"var R=(0,function(q,k,B,R){var _=(arguments.length|0)>0&&q!==void 0?q+"":`Reaction`;this.n=_;return this});P=R.prototype,P.m=function(){return this.n}"#;
         let (out, count) = fold_constructor_prototype_tables_to_classes(source).unwrap();
         assert!(count >= 1, "{out}");
-        assert!(out.contains("constructor(q=`Reaction`") || out.contains("constructor(q=\"Reaction\""), "{out}");
+        assert!(
+            out.contains("constructor(q=`Reaction`") || out.contains("constructor(q=\"Reaction\""),
+            "{out}"
+        );
         assert!(!out.contains("arguments.length"), "{out}");
     }
 
@@ -4055,7 +4006,8 @@ mod tests {
 
     #[test]
     fn fuses_quoted_prototype_methods() {
-        let source = "var C=(0,function(){return this});P=C.prototype,P[\"get\"]=function(){return 1}";
+        let source =
+            "var C=(0,function(){return this});P=C.prototype,P[\"get\"]=function(){return 1}";
         let (out, count) = fold_constructor_prototype_tables_to_classes(source).unwrap();
         assert!(count >= 1, "{out}");
         assert!(out.contains("get(){return 1}"), "{out}");
@@ -4116,11 +4068,11 @@ mod tests {
         let source = r#"let b="value_";var a=(0,function(e){this.name_=e;return this});let c=a.prototype;c.report=function(){return this.name_};c=a.prototype;c.kind=function(){return "atom"};c=(0,function(g,e){a.call(this,e);this.value_=g;return this});let d=c.prototype,e=a.prototype;Object.setPrototypeOf(d,e);d=c.prototype;d.get=function(){return this.value_};d=c.prototype;d.set=function(d){this.value_=d;return d};c=new c(7,"n")"#;
         let (out, count) = fold_constructor_prototype_tables_to_classes(source).unwrap();
         assert!(count >= 1, "{out}");
-        assert!(out.contains("class a{") || out.contains("class a "), "{out}");
         assert!(
-            out.contains("c=class") || out.contains("class c"),
+            out.contains("class a{") || out.contains("class a "),
             "{out}"
         );
+        assert!(out.contains("c=class") || out.contains("class c"), "{out}");
         assert!(out.contains("let c=a.prototype"), "{out}");
         assert!(out.contains("c=class extends a{"), "{out}");
     }
@@ -4197,7 +4149,10 @@ mod tests {
         let source = r#"var f=Object;q=(e,t,a)=>{f.defineProperty(e,t,a)};G=(e,c,a)=>{q(e,c,{configurable:!0,get:function(){return 0!=(this.y&a)},set:function(i){var t=+this.y|0;i?this.y=t|a:this.y=t&(a^-1)}})};var D=(0,function(){this.y=0;return this});P=D.prototype;P.m=function(){return this.y};G(P,"on",1)"#;
         let (out, count) = fold_constructor_prototype_tables_to_classes(source).unwrap();
         assert!(count >= 1, "{out}");
-        assert!(out.contains("var t=+this.y") || out.contains("var t =+this.y"), "{out}");
+        assert!(
+            out.contains("var t=+this.y") || out.contains("var t =+this.y"),
+            "{out}"
+        );
         assert!(!out.contains("vart"), "{out}");
     }
 
@@ -4272,7 +4227,11 @@ mod tests {
         assert!(out.contains("set(e){"), "{out}");
         assert!(!out.contains("t.set="), "{out}");
         let full = crate::js_peephole::optimize_generated_javascript(source).unwrap();
-        assert!(full.code.contains("set(e){") || full.code.contains("set(e){"), "{}", full.code);
+        assert!(
+            full.code.contains("set(e){") || full.code.contains("set(e){"),
+            "{}",
+            full.code
+        );
         assert!(!full.code.contains("t.set="), "{}", full.code);
     }
 
@@ -4291,18 +4250,23 @@ mod tests {
         let source = r#"class j{constructor(a){this.a=a}get(){return this.a}}mn=j.prototype;mn.set=(e=>function(a){return e(this,a)})((e,i)=>{e.a=i})"#;
         let (out, count) = fold_constructor_prototype_tables_to_classes(source).unwrap();
         assert!(count >= 1, "{out}");
-        assert!(out.contains("set(i){this.a=i}") || out.contains("set(i){this.a=i;}"), "{out}");
+        assert!(
+            out.contains("set(i){this.a=i}") || out.contains("set(i){this.a=i;}"),
+            "{out}"
+        );
         assert!(!out.contains("mn.set="), "{out}");
     }
 
     #[test]
-    fn expands_object_assign_this_and_lifts_constructor_default() {
+    fn keeps_object_assign_this_and_lifts_constructor_default() {
         let source = r#"class C{constructor(c){c=c!==void 0?c+"":"Atom",Object.assign(this,{a:c,f:new Set,K:0})}}"#;
         let (out, count) = fold_constructor_prototype_tables_to_classes(source).unwrap();
         assert!(count >= 1, "{out}");
         assert!(out.contains("constructor(c=\"Atom\")"), "{out}");
-        assert!(out.contains("this.a="), "{out}");
-        assert!(!out.contains("Object.assign"), "{out}");
+        assert!(
+            out.contains("Object.assign(this,{a:c,f:new Set,K:0})"),
+            "{out}"
+        );
     }
 
     #[test]
@@ -4312,7 +4276,10 @@ mod tests {
         assert!(count >= 1, "{out}");
         assert!(out.contains("constructor(i=\"Reaction\""), "{out}");
         assert!(!out.contains("arguments.length"), "{out}");
-        assert!(out.contains("s!==void 0&&(this.ee=s)") || out.contains("this.ee=s"), "{out}");
+        assert!(
+            out.contains("s!==void 0&&(this.ee=s)") || out.contains("this.ee=s"),
+            "{out}"
+        );
     }
 
     #[test]
@@ -4321,7 +4288,11 @@ mod tests {
         let (out, count) = fold_constructor_prototype_tables_to_classes(source).unwrap();
         assert!(count >= 1, "{out}");
         assert!(out.contains("[Symbol.iterator](){"), "{out}");
-        assert!(out.contains("get [Symbol.toStringTag](){") || out.contains("get[Symbol.toStringTag](){"), "{out}");
+        assert!(
+            out.contains("get [Symbol.toStringTag](){")
+                || out.contains("get[Symbol.toStringTag](){"),
+            "{out}"
+        );
         assert!(!out.contains("get[xn]()"), "{out}");
         assert!(!out.contains("q(Cn,xn"), "{out}");
     }
@@ -4331,14 +4302,18 @@ mod tests {
         let source = r#"var ne=Array.prototype.slice;class W{j(b,v,w){var t=arguments.length>0&&b!==void 0?+b|0:0;return t}}var k={};k.splice=function(u,h){var n=this[b];if(0==arguments.length)return[];return n.j(u,h,ne.call(arguments,2,arguments.length))}"#;
         let (out, count) = fold_constructor_prototype_tables_to_classes(source).unwrap();
         assert!(count >= 1, "{out}");
-        assert!(out.contains("j(b=0") || out.contains("constructor") && out.contains("b=0"), "{out}");
+        assert!(
+            out.contains("j(b=0") || out.contains("constructor") && out.contains("b=0"),
+            "{out}"
+        );
         assert!(out.contains("..."), "{out}");
         assert!(!out.contains("ne.call(arguments"), "{out}");
     }
 
     #[test]
     fn length_guard_before_assigned_formal_keeps_rhs() {
-        let source = r#"class D{s(t,a,o,r){var e;e=arguments.length>3&&r;!0===o&&(o=this.V);return e}}"#;
+        let source =
+            r#"class D{s(t,a,o,r){var e;e=arguments.length>3&&r;!0===o&&(o=this.V);return e}}"#;
         let (out, count) = fold_constructor_prototype_tables_to_classes(source).unwrap();
         assert!(count >= 1, "{out}");
         assert!(out.contains("e=r") || out.contains("return r"), "{out}");

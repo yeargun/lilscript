@@ -50,6 +50,7 @@ These are IR instruction budgets, not output-byte caps. jQuery’s inline TOMLs 
 | `integer_coercions` | omit = drop proven `|0` on size-first/balanced, keep on performance-first and realistic-performance-first; `true` keeps `|0` |
 | `local_name_reserve` | 0–256; production search also tries 0/8/16/32 |
 | `stable_local_names` | default true |
+| `local_name_coalescing` | default true; in identifier-mangled output, reuse bindings only for proven noninterfering SSA live ranges; maximum SSA-destruction search may score both regimes |
 | `function_layout_exact_limit` | Held-Karp cutoff 0–18, default 13 |
 
 ## Startup and performance subtables

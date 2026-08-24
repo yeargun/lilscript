@@ -1,4 +1,4 @@
-function add(cases, name, spec) {
+function add(cases, behavior, name, spec) {
   if (cases.some((entry) => entry.name === name)) {
     throw new Error(`duplicate case ${name}`);
   }
@@ -9,9 +9,26 @@ function add(cases, name, spec) {
       `${name}: reference Math.imul calls (${jsImulCalls}) must match explicit LilScript Math.imul calls (${lilImulCalls})`,
     );
   }
+  const terserProperties = spec.terserProperties ?? true;
+  const terserPropertyReason = spec.terserPropertyReason ?? null;
+  if (
+    !terserProperties &&
+    (typeof terserPropertyReason !== "string" ||
+      terserPropertyReason.trim().length === 0)
+  ) {
+    throw new Error(
+      `${name}: a Terser property-mangling opt-out needs a non-empty reason`,
+    );
+  }
+  if (terserProperties && terserPropertyReason !== null) {
+    throw new Error(`${name}: property-mangling reasons are only for opt-outs`);
+  }
   cases.push({
     name,
+    behavior,
     expect: spec.expect ?? "le",
+    terserProperties,
+    terserPropertyReason,
     lil: spec.lil.trim() + "\n",
     js: spec.js.trim() + "\n",
   });
@@ -70,15 +87,15 @@ export function catalog() {
   const cases = [];
 
   for (const [left, right] of i32Pairs()) {
-    add(cases, `fold-add-${left}-${right}`, {
+    add(cases, "constant-fold/add", `fold-add-${left}-${right}`, {
       lil: `print(${left}+${right});`,
       js: `console.log(${left}+${right});`,
     });
-    add(cases, `fold-sub-${left}-${right}`, {
+    add(cases, "constant-fold/subtract", `fold-sub-${left}-${right}`, {
       lil: `print(${left}-${right});`,
       js: `console.log(${left}-${right});`,
     });
-    add(cases, `fold-mul-${left}-${right}`, {
+    add(cases, "constant-fold/multiply", `fold-mul-${left}-${right}`, {
       lil: `print(${left}*${right});`,
       js: `console.log(${left}*${right}|0);`,
     });
@@ -91,7 +108,7 @@ export function catalog() {
   ];
   for (const [tag, lilOp, jsOp] of mixOps) {
     for (const [left, right] of i32Pairs().slice(0, 8)) {
-      add(cases, `fold-${tag}-${left}-${right}`, {
+      add(cases, `constant-fold/${tag}`, `fold-${tag}-${left}-${right}`, {
         lil: `print(${lilOp(left, right)});`,
         js: `console.log(${jsOp(left, right)});`,
       });
@@ -100,7 +117,7 @@ export function catalog() {
 
   for (const values of valueLists()) {
     const name = `loop-sum-${values.join("-")}`;
-    add(cases, name, {
+    add(cases, "loop/sum", name, {
       lil: `int[] values = [${intList(values)}];
 int total = 0;
 for (int i = 0; i < values.length; i++) {
@@ -117,7 +134,7 @@ console.log(total);`,
   }
 
   for (const values of valueLists()) {
-    add(cases, `loop-product-${values.join("-")}`, {
+    add(cases, "loop/product-with-zero-guard", `loop-product-${values.join("-")}`, {
       lil: `int[] values = [${intList(values)}];
 int total = 1;
 for (int i = 0; i < values.length; i++) {
@@ -138,7 +155,7 @@ console.log(total);`,
   }
 
   for (const values of valueLists()) {
-    add(cases, `struct-pairs-${values.join("-")}`, {
+    add(cases, "aggregate/struct-pair-layout", `struct-pairs-${values.join("-")}`, {
       expect: "lt",
       lil: `struct Point {
   int x;
@@ -168,7 +185,7 @@ console.log(total);`,
   }
 
   for (const values of valueLists().slice(0, 10)) {
-    add(cases, `nested-struct-${values.join("-")}`, {
+    add(cases, "aggregate/nested-struct-layout", `nested-struct-${values.join("-")}`, {
       expect: "lt",
       lil: `struct Point {
   int x;
@@ -227,7 +244,7 @@ console.log(total);`,
     [8, 7],
     [6, 18],
   ]) {
-    add(cases, `class-counter-${start}-${steps}`, {
+    add(cases, "aggregate/class-counter-mutation", `class-counter-${start}-${steps}`, {
       expect: "lt",
       lil: `class Counter {
   int value;
@@ -269,7 +286,7 @@ console.log(counter.value);`,
   }
 
   for (const n of [4, 5, 6, 7, 8, 9, 10, 11, 12]) {
-    add(cases, `nested-loop-score-${n}`, {
+    add(cases, "loop/nested-score", `nested-loop-score-${n}`, {
       lil: `int score(int limit) {
   int total = 0;
   for (int outer = 0; outer < limit; outer++) {
@@ -311,7 +328,7 @@ console.log(score(${n}));`,
   }
 
   for (const n of [5, 6, 7, 8, 9, 10]) {
-    add(cases, `factorial-${n}`, {
+    add(cases, "function/recursive-factorial", `factorial-${n}`, {
       lil: `int factorial(int value) {
   if (value <= 1) {
     return 1;
@@ -338,7 +355,7 @@ console.log(factorial(${n}));`,
     [512, 48],
   ];
   for (const [left, right] of gcdPairs) {
-    add(cases, `gcd-${left}-${right}`, {
+    add(cases, "loop/euclidean-gcd", `gcd-${left}-${right}`, {
       lil: `int gcd(int left, int right) {
   while (right != 0) {
     int remainder = left % right;
@@ -361,7 +378,7 @@ console.log(gcd(${left}, ${right}));`,
   }
 
   for (const n of [8, 10, 12, 14, 16, 18]) {
-    add(cases, `fibonacci-${n}`, {
+    add(cases, "function/iterative-fibonacci", `fibonacci-${n}`, {
       lil: `int fibonacci(int count) {
   int previous = 0;
   int current = 1;
@@ -402,7 +419,7 @@ console.log(fibonacci(${n}));`,
     ["codec", "bytes"],
   ];
   for (const [left, right] of words) {
-    add(cases, `string-concat-${left}-${right}`, {
+    add(cases, "string/constant-concatenation", `string-concat-${left}-${right}`, {
       lil: `string left = "${left}";
 string right = "${right}";
 print(left + "-" + right);
@@ -424,7 +441,7 @@ console.log(left.length + right.length);`,
     ["functionToString", "To"],
     ["objectHasOwn", "Has"],
   ]) {
-    add(cases, `string-search-${word}-${needle}`, {
+    add(cases, "string/search-predicates", `string-search-${word}-${needle}`, {
       lil: `string word = "${word}";
 if (word.includes("${needle}")) {
   print(1);
@@ -449,7 +466,7 @@ console.log(word.endsWith("${needle}") ? 1 : 0);`,
   }
 
   for (const values of valueLists().slice(0, 8)) {
-    add(cases, `pipeline-${values.join("-")}`, {
+    add(cases, "collection/array-pipeline", `pipeline-${values.join("-")}`, {
       expect: "lt",
       lil: `int factor = 3;
 int[] values = [${intList(values)}];
@@ -469,7 +486,7 @@ console.log(selected.length);`,
   }
 
   for (const n of [3, 4, 5, 6, 7, 8]) {
-    add(cases, `dce-unused-${n}`, {
+    add(cases, "function/dead-helper-elimination", `dce-unused-${n}`, {
       lil: `int live(int value) {
   return value * ${n} + 1;
 }
@@ -488,7 +505,7 @@ console.log(live(${n}));`,
   }
 
   for (const n of [2, 3, 4, 5, 6, 7, 8, 9]) {
-    add(cases, `identical-helpers-${n}`, {
+    add(cases, "function/identical-helper-folding", `identical-helpers-${n}`, {
       lil: `int doubleA(int value) {
   return value + value;
 }
@@ -509,7 +526,7 @@ console.log(doubleB(${n + 3}));`,
   }
 
   for (const n of [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]) {
-    add(cases, `if-chain-${n}`, {
+    add(cases, "control/if-chain", `if-chain-${n}`, {
       lil: `int classify(int value) {
   if (value < 3) {
     return 1;
@@ -534,7 +551,7 @@ console.log(classify(${n}));`,
   }
 
   for (const [left, right] of i32Pairs().slice(0, 12)) {
-    add(cases, `bitops-${left}-${right}`, {
+    add(cases, "integer/bitwise-operations", `bitops-${left}-${right}`, {
       lil: `print(${left}&${right});
 print(${left}|${right});
 print(${left}^${right});
@@ -549,26 +566,32 @@ console.log(${right}>>1);`,
   }
 
   for (const n of [2, 3, 4, 5, 6, 7, 8]) {
-    add(cases, `closure-capture-${n}`, {
-      lil: `int factor = ${n};
+    add(cases, "closure/capture", `closure-capture-${n}`, {
+      lil: `int run() {
+  int factor = ${n};
 func(int)->int scale = (int value) => value * factor;
 int total = 0;
 for (int i = 1; i <= 6; i++) {
   total += scale(i);
 }
-print(total);`,
-      js: `const factor = ${n};
+  return total;
+}
+print(run());`,
+      js: `function run() {
+  const factor = ${n};
 const scale = (value) => value * factor | 0;
 let total = 0;
 for (let i = 1; i <= 6; i++) {
   total = total + scale(i) | 0;
 }
-console.log(total);`,
+  return total;
+}
+console.log(run());`,
     });
   }
 
   for (const n of [0, 1, 2, 3, 4, 5, 6, 7]) {
-    add(cases, `bool-logic-${n}`, {
+    add(cases, "boolean/logical-folding", `bool-logic-${n}`, {
       lil: `bool a = ${n} % 2 == 0;
 bool b = ${n} > 3;
 if (a && b) {
@@ -595,7 +618,7 @@ console.log(!a ? 1 : 0);`,
   }
 
   for (const n of [0, 1, 2, 3, 4, 5, 6, 7, 8]) {
-    add(cases, `early-return-${n}`, {
+    add(cases, "control/early-return", `early-return-${n}`, {
       lil: `int firstPositive(int[] values) {
   for (int i = 0; i < values.length; i++) {
     if (values[i] > ${n}) {
@@ -616,7 +639,7 @@ console.log(firstPositive([1, 3, 5, 7, 9]));`,
   }
 
   for (const n of [3, 4, 5, 6, 7]) {
-    add(cases, `dead-branch-${n}`, {
+    add(cases, "control/dead-branch", `dead-branch-${n}`, {
       lil: `int live = ${n} * 2;
 print(live);
 if (false) {
@@ -636,7 +659,7 @@ if (false) {
     "closed-world-mangling-token",
   ];
   for (const label of labels) {
-    add(cases, `string-pool-${label}`, {
+    add(cases, "string/pooling", `string-pool-${label}`, {
       expect: "lt",
       lil: `print("${label}");
 print("${label}");
@@ -650,7 +673,7 @@ console.log("${label}");`,
   }
 
   for (const n of [4, 6, 8, 10, 12]) {
-    add(cases, `enum-int-dispatch-${n}`, {
+    add(cases, "control/integer-tag-dispatch", `enum-int-dispatch-${n}`, {
       expect: "lt",
       lil: `int dispatch(int kind, int value) {
   if (kind == 0) {
@@ -684,7 +707,7 @@ console.log(total);`,
   }
 
   for (const values of valueLists().slice(0, 6)) {
-    add(cases, `matrix2-${values.join("-")}`, {
+    add(cases, "aggregate/fixed-matrix", `matrix2-${values.join("-")}`, {
       expect: "lt",
       lil: `struct Mat2 {
   int a;
@@ -716,7 +739,7 @@ console.log(total);`,
   }
 
   for (const n of [5, 6, 7, 8, 9, 10, 12, 14]) {
-    add(cases, `host-math-max-${n}`, {
+    add(cases, "host/math-max", `host-math-max-${n}`, {
       lil: `extern float mathMax(float a, float b);
 extern float mathMin(float a, float b);
 float hi = 0.0;
@@ -764,7 +787,7 @@ console.log(lo);`,
   console.log(0);
 }`)
       .join("\n");
-    add(cases, `host-hasown-${keys.join("-")}`, {
+    add(cases, "host/object-has-own", `host-hasown-${keys.join("-")}`, {
       lil: `extern bool objectHasOwn(JsValue obj, string key);
 JsValue object = JS.object();
 ${sets}
@@ -784,7 +807,10 @@ ${jsChecks}`,
     });
   }
 
-  add(cases, `host-hasown-as-value`, {
+  add(cases, "host/object-has-own-detached", `host-hasown-as-value`, {
+    terserProperties: false,
+    terserPropertyReason:
+      "Object.hasOwn receives quoted public keys whose spelling is observable",
     lil: `extern bool objectHasOwn(JsValue obj, string key);
 JsValue object = JS.object();
 JS.set(object, "keep", 1);
@@ -814,7 +840,7 @@ if (has(object, "gone")) {
   });
 
   for (const n of [3, 4, 5, 6, 7, 8]) {
-    add(cases, `default-extra-args-${n}`, {
+    add(cases, "function/default-arguments", `default-extra-args-${n}`, {
       lil: `int add(int left, int right = 1, int extra = 0) {
   return left + right + extra;
 }
@@ -833,7 +859,7 @@ console.log(add(${n}, 2, 3));`,
   }
 
   for (const values of valueLists().slice(0, 8)) {
-    add(cases, `minmax-scan-${values.join("-")}`, {
+    add(cases, "collection/minmax-scan", `minmax-scan-${values.join("-")}`, {
       lil: `int[] values = [${intList(values)}];
 int lo = values[0];
 int hi = values[0];
@@ -862,7 +888,7 @@ console.log(hi);`,
   }
 
   for (const n of [4, 5, 6, 7, 8, 9, 10]) {
-    add(cases, `while-countdown-${n}`, {
+    add(cases, "loop/while-countdown", `while-countdown-${n}`, {
       lil: `int value = ${n};
 int total = 0;
 while (value > 0) {
@@ -881,7 +907,7 @@ console.log(total);`,
   }
 
   for (const n of [2, 3, 4, 5, 6]) {
-    add(cases, `nested-fn-local-${n}`, {
+    add(cases, "function/helper-composition", `nested-fn-local-${n}`, {
       lil: `int inner(int x, int value) {
   return x * ${n} + value;
 }
@@ -899,7 +925,7 @@ console.log(outer(${n}));`,
     });
   }
 
-  add(cases, `win-aggregate-model`, {
+  add(cases, "winner/aggregate-model", `win-aggregate-model`, {
     expect: "lt",
     lil: `struct Point {
   int x;
@@ -953,7 +979,7 @@ console.log(counter.add(rectangle.width));
 console.log(counter.add(rectangle.height));`,
   });
 
-  add(cases, `win-optimizer-pressure`, {
+  add(cases, "winner/optimizer-pressure", `win-optimizer-pressure`, {
     expect: "lt",
     lil: `int factor = 6;
 int increment(int value) {
@@ -1024,7 +1050,7 @@ if (false) {
 }`,
   });
 
-  add(cases, `win-control-flow`, {
+  add(cases, "loop/nested-score", `win-control-flow`, {
     expect: "lt",
     lil: `int score(int limit) {
   int total = 0;
@@ -1076,7 +1102,7 @@ console.log(score(12));`,
     [1, 100, 50],
     [1, 100, 0],
   ]) {
-    add(cases, `clamp-${lo}-${hi}-${value}`.replaceAll("-", "n"), {
+    add(cases, "number/clamp", `clamp-${lo}-${hi}-${value}`.replaceAll("-", "n"), {
       lil: `int clamp(int value, int lo, int hi) {
   if (value < lo) {
     return lo;
@@ -1097,7 +1123,7 @@ console.log(clamp(${value}, ${lo}, ${hi}));`,
   }
 
   for (const values of valueLists().slice(0, 8)) {
-    add(cases, `prefix-sum-${values.join("-")}`, {
+    add(cases, "collection/prefix-sum", `prefix-sum-${values.join("-")}`, {
       lil: `int[] values = [${intList(values)}];
 int running = 0;
 for (int i = 0; i < values.length; i++) {
@@ -1114,7 +1140,7 @@ for (let i = 0; i < values.length; i++) {
   }
 
   for (const n of [3, 4, 5, 6, 7, 8, 9, 10]) {
-    add(cases, `triangle-sum-${n}`, {
+    add(cases, "loop/triangle-sum", `triangle-sum-${n}`, {
       lil: `int total = 0;
 for (int i = 1; i <= ${n}; i++) {
   for (int j = 1; j <= i; j++) {
@@ -1133,7 +1159,7 @@ console.log(total);`,
   }
 
   for (const word of ["compress", "lilscript", "javascript", "brotli", "mangling", "aggregate"]) {
-    add(cases, `string-chars-${word}`, {
+    add(cases, "string/character-iteration", `string-chars-${word}`, {
       lil: `string word = "${word}";
 int total = 0;
 for (int i = 0; i < word.length; i++) {
@@ -1154,7 +1180,7 @@ console.log(word.toUpperCase());`,
   }
 
   for (const n of [2, 3, 4, 5, 6, 7]) {
-    add(cases, `record-transform-${n}`, {
+    add(cases, "aggregate/struct-property-transform", `record-transform-${n}`, {
       expect: "lt",
       lil: `struct Item {
   int id;
@@ -1182,7 +1208,7 @@ console.log(total);`,
   }
 
   for (const n of [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 18, 20, 24, 25, 30, 32, 36]) {
-    add(cases, `mod-bucket-${n}`, {
+    add(cases, "integer/modulo-bucket", `mod-bucket-${n}`, {
       lil: `int total = 0;
 for (int i = 0; i < ${n}; i++) {
   int bucket = i % 4;
@@ -1210,7 +1236,7 @@ console.log(total);`,
   }
 
   for (const word of ["Ab", "CdEf", "HiJkLm", "NoPqRsTu", "VwXyZ", "Script", "Encode", "Decode"]) {
-    add(cases, `string-index-${word}`, {
+    add(cases, "string/index-access", `string-index-${word}`, {
       lil: `string word = "${word}";
 print(word.indexOf("a"));
 print(word.indexOf("A"));
@@ -1222,7 +1248,7 @@ console.log(word.toLowerCase().indexOf("a"));`,
     });
   }
 
-  add(cases, `win-point-batch`, {
+  add(cases, "winner/point-batch", `win-point-batch`, {
     expect: "lt",
     lil: `struct Point {
   int x;
@@ -1262,7 +1288,7 @@ for (let i = 0; i + 1 < values.length; i += 2) {
 console.log(total);`,
   });
 
-  add(cases, `win-class-scale`, {
+  add(cases, "winner/class-scale", `win-class-scale`, {
     expect: "lt",
     lil: `class Scale {
   int factor;
@@ -1315,7 +1341,7 @@ console.log(scale.factor);`,
     [-1, 2147483647, 1, 3, -23],
   ]) {
     const tag = `${seed}-${factor}-${offset}-${rounds}-${divisor}`.replaceAll("-", "n");
-    add(cases, `edge-i32-churn-${tag}`, {
+    add(cases, "integer/i32-overflow-churn", `edge-i32-churn-${tag}`, {
       lil: `int churn(int value, int factor, int offset, int rounds) {
   for (int i = 0; i < rounds; i++) {
     value = value * factor + offset;
@@ -1354,7 +1380,7 @@ console.log(value >>> 5);`,
     [7.5, 1.5, 0.25, 7],
   ]) {
     const tag = `${start}-${delta}-${scale}-${rounds}`.replaceAll("-", "n").replaceAll(".", "p");
-    add(cases, `edge-number-flow-${tag}`, {
+    add(cases, "number/fractional-flow", `edge-number-flow-${tag}`, {
       lil: `number evolve(number value, number delta, number scale, int rounds) {
   for (int i = 0; i < rounds; i++) {
     value = (value + delta) * scale;
@@ -1380,7 +1406,7 @@ console.log(value === evolve(${start}, ${delta}, ${scale}, ${rounds}));`,
     [0, 2, 4], [1, 2, 4], [2, 3, 5], [3, 4, 6], [4, 5, 8],
     [5, 7, 9], [6, 8, 10], [7, 9, 12], [8, 11, 14], [9, 12, 16],
   ]) {
-    add(cases, `edge-short-circuit-${first}-${second}-${third}`, {
+    add(cases, "control/short-circuit-effects", `edge-short-circuit-${first}-${second}-${third}`, {
       lil: `int calls = 0;
 bool probe(int value) {
   calls += value;
@@ -1404,7 +1430,7 @@ console.log(calls);`,
     [8, 2, 7], [9, 3, 8], [10, 4, 9], [11, 5, 10], [12, 2, 9],
     [13, 3, 11], [14, 4, 12], [15, 5, 13], [16, 6, 14], [18, 7, 15],
   ]) {
-    add(cases, `edge-loop-control-${limit}-${skip}-${stop}`, {
+    add(cases, "loop/break-continue", `edge-loop-control-${limit}-${skip}-${stop}`, {
       lil: `int scan(int limit, int skip, int stop) {
   int total = 0;
   for (int i = 0; i < limit; i++) {
@@ -1445,8 +1471,9 @@ console.log(scan(${limit}, ${skip}, ${stop}));`,
     [-4, 5, 6], [20, -3, 4], [2, 7, 5], [9, 1, 8], [-8, -2, 6],
   ]) {
     const tag = `${seed}-${step}-${count}`.replaceAll("-", "n");
-    add(cases, `edge-closure-mutation-${tag}`, {
-      lil: `int current = ${seed};
+    add(cases, "closure/mutable-capture", `edge-closure-mutation-${tag}`, {
+      lil: `void run() {
+  int current = ${seed};
 int calls = 0;
 func(int)->int advance = (int amount) => {
   calls++;
@@ -1459,8 +1486,11 @@ for (int i = 0; i < ${count}; i++) {
 }
 print(total);
 print(current);
-print(calls);`,
-      js: `let current = ${seed};
+  print(calls);
+}
+run();`,
+      js: `function run() {
+  let current = ${seed};
 let calls = 0;
 const advance = amount => {
   calls++;
@@ -1471,7 +1501,9 @@ let total = 0;
 for (let i = 0; i < ${count}; i++) total = total + advance(${step} + i | 0) | 0;
 console.log(total);
 console.log(current);
-console.log(calls);`,
+  console.log(calls);
+}
+run();`,
     });
   }
 
@@ -1488,7 +1520,7 @@ console.log(calls);`,
     ["snapshot", "int seen = 0; alias.forEach((int value) => { seen += value; if (value == 1) { alias.push(10); } }); print(seen); print(values.length);", "let seen = 0; alias.forEach(value => { seen = seen + value | 0; if (value === 1) alias.push(10); }); console.log(seen); console.log(values.length);"],
   ];
   for (const [tag, lilBody, jsBody] of arrayCases) {
-    add(cases, `edge-array-${tag}`, {
+    add(cases, `collection/array-${tag}`, `edge-array-${tag}`, {
       lil: `int[] values = [1, 2, 3, 4, 5];
 int[] alias = values;
 print(alias == values);
@@ -1505,7 +1537,10 @@ ${jsBody}`,
     [4, "alpha", "void"], [5, "beta", "unknown"], [6, "gamma", "gone"],
     [7, "delta", "lost"], [8, "first", "last"], [9, "hot", "cold"], [10, "live", "dead"],
   ]) {
-    add(cases, `edge-record-json-${seed}-${removed}`, {
+    add(cases, "record/json-enumeration", `edge-record-json-${seed}-${removed}`, {
+      terserProperties: false,
+      terserPropertyReason:
+        "Object.keys and JSON.stringify expose the record's public key spellings",
       lil: `Record<int> source = record{left:${seed}, right:${seed + 1}, middle:${seed + 2}};
 Record<int> copy = record{...source, right:${seed + 10}};
 source.left = ${seed + 20};
@@ -1529,7 +1564,7 @@ console.log(JSON.stringify(copy));`,
     [1, 1, 2], [2, 2, 3], [3, 1, 4], [4, 3, 5], [5, 5, 1],
     [6, 2, 7], [7, 4, 8], [8, 6, 9], [9, 3, 10], [10, 8, 11],
   ]) {
-    add(cases, `edge-map-set-${seed}-${duplicate}-${remove}`, {
+    add(cases, "collection/map-set-mutation", `edge-map-set-${seed}-${duplicate}-${remove}`, {
       lil: `Map<string,int> scores = new Map<string,int>();
 scores.set("a", ${seed}).set("b", ${seed + 1});
 print(scores.get("a") ?? -1);
@@ -1559,7 +1594,7 @@ console.log(seen.size);`,
     [true, 0, 9], [false, 0, 8], [true, 1, 7], [false, 1, 6], [true, 2, 5],
     [false, 2, 4], [true, 3, 3], [false, 3, 2], [true, 4, 1], [false, 4, 0],
   ]) {
-    add(cases, `edge-nullish-optional-${present ? "present" : "missing"}-${index}-${fallback}`, {
+    add(cases, "nullish/optional-indexing", `edge-nullish-optional-${present ? "present" : "missing"}-${index}-${fallback}`, {
       lil: `int calls = 0;
 int nextIndex() {
   calls++;
@@ -1601,7 +1636,7 @@ console.log(calls);`,
     ["surrogate", "🙂🙃🙂", "🙃", 1],
     ["mixed", "A😀éZ😀", "Z", 0],
   ]) {
-    add(cases, `edge-string-utf16-${tag}`, {
+    add(cases, "string/utf16-indexing", `edge-string-utf16-${tag}`, {
       lil: `string text = "${text}";
 string needle = "${needle}";
 print(text.length);
@@ -1623,7 +1658,7 @@ console.log(text.charCodeAt(0));`,
     [0, 1, 3], [1, 2, 4], [2, 3, 5], [0, 4, 6], [1, 5, 7],
     [2, 6, 8], [0, 7, 9], [1, 8, 10], [2, 9, 11], [0, 10, 12],
   ]) {
-    add(cases, `edge-exception-finally-${mode}-${start}-${increment}`, {
+    add(cases, "effect/exception-finally", `edge-exception-finally-${mode}-${start}-${increment}`, {
       lil: `int guarded(int mode, int start) {
   int value = start;
   try {
@@ -1666,7 +1701,7 @@ console.log(guarded(${mode}, ${start}));`,
     [-3, 4, 2], [5, 16, 3], [6, 14, 2], [7, 11, 1], [8, 20, 4],
   ]) {
     const tag = `${start}-${stop}-${step}`.replaceAll("-", "n");
-    add(cases, `edge-generator-range-${tag}`, {
+    add(cases, "effect/generator-range", `edge-generator-range-${tag}`, {
       lil: `generator int range(int start, int stop, int step) {
   for (int value = start; value < stop; value += step) {
     yield value;
@@ -1704,7 +1739,7 @@ console.log(count);`,
 
   for (const [seed, delta] of [[1, 2], [3, 5], [7, -2], [11, 4], [-5, 9]]) {
     const tag = `${seed}-${delta}`.replaceAll("-", "n");
-    add(cases, `edge-async-task-${tag}`, {
+    add(cases, "effect/async-task", `edge-async-task-${tag}`, {
       lil: `async int resolveValue(int value) {
   int resolved = await Task.resolve(value + ${delta});
   return resolved * 2;
@@ -1718,7 +1753,7 @@ resolveValue(${seed}).then(value => console.log(value));`,
     });
   }
 
-  add(cases, `host-callable-object`, {
+  add(cases, "host/callable-predicate", `host-callable-object`, {
     lil: `extern bool isFunctionValue(JsValue obj);
 if (isFunctionValue(JS.object())) {
   print(1);
@@ -1733,7 +1768,7 @@ if (typeof value == "function" && typeof value.nodeType != "number" && typeof va
 }`,
   });
 
-  add(cases, `host-callable-fn`, {
+  add(cases, "host/callable-predicate", `host-callable-fn`, {
     lil: `extern bool isFunctionValue(JsValue obj);
 JsValue value = JS.method0((JsValue self) => self);
 if (isFunctionValue(value)) {
@@ -1749,7 +1784,7 @@ if (typeof value == "function" && typeof value.nodeType != "number" && typeof va
 }`,
   });
 
-  add(cases, `host-callable-undefined`, {
+  add(cases, "host/callable-predicate", `host-callable-undefined`, {
     lil: `extern bool isFunctionValue(JsValue obj);
 if (isFunctionValue(JS.undefined())) {
   print(1);
@@ -1764,7 +1799,7 @@ if (typeof value == "function" && typeof value.nodeType != "number" && typeof va
 }`,
   });
 
-  add(cases, `host-callable-as-value`, {
+  add(cases, "host/callable-detached-value", `host-callable-as-value`, {
     lil: `extern bool isFunctionValue(JsValue obj);
 JsValue value = JS.method0((JsValue self) => self);
 func(JsValue)->bool isFn = isFunctionValue;
@@ -1774,14 +1809,14 @@ if (isFn(value)) {
   print(0);
 }`,
     js: `const isFn = a => typeof a == "function" && typeof a.nodeType != "number" && typeof a.item != "function";
-if (isFn(function(){})) {
+if (isFn(function(){ return this; })) {
   console.log(1);
 } else {
   console.log(0);
 }`,
   });
 
-  add(cases, `host-is-window-object`, {
+  add(cases, "host/window-identity-predicate", `host-is-window-object`, {
     lil: `extern bool isWindowValue(JsValue obj);
 if (isWindowValue(JS.object())) {
   print(1);
@@ -1796,7 +1831,7 @@ if (value != null && value === value.window) {
 }`,
   });
 
-  add(cases, `host-is-window-self`, {
+  add(cases, "host/window-identity-predicate", `host-is-window-self`, {
     lil: `extern bool isWindowValue(JsValue obj);
 JsValue value = JS.object();
 JS.set(value, "window", value);
@@ -1814,7 +1849,7 @@ if (value != null && value === value.window) {
 }`,
   });
 
-  add(cases, `host-is-window-nullish`, {
+  add(cases, "host/window-identity-predicate", `host-is-window-nullish`, {
     lil: `extern bool isWindowValue(JsValue obj);
 if (isWindowValue(JS.undefined())) {
   print(1);
@@ -1829,7 +1864,7 @@ if (value != null && value === value.window) {
 }`,
   });
 
-  add(cases, `host-window-document-type`, {
+  add(cases, "host/window-document-type", `host-window-document-type`, {
     lil: `extern JsValue windowSelf();
 extern JsValue windowDocument();
 extern string typeOf(JsValue value);
@@ -1840,49 +1875,7 @@ console.log(typeof win);
 console.log(typeof win.document);`,
   });
 
-  add(cases, `host-array-flat-objects`, {
-    lil: `extern JsValue arrayFlat(JsValue array);
-JsValue nested = JS.array();
-JS.push(nested, JS.object());
-JsValue inner = JS.array();
-JS.push(inner, JS.object());
-JS.push(nested, inner);
-JsValue flat = arrayFlat(nested);
-print(JS.string(JS.get(flat, "length")));`,
-    js: `console.log(String([{}, [{}]].flat().length));`,
-  });
-
-  add(cases, `host-array-flat-empty`, {
-    lil: `extern JsValue arrayFlat(JsValue array);
-JsValue nested = JS.array();
-JsValue inner = JS.array();
-JS.push(nested, inner);
-JsValue flat = arrayFlat(nested);
-print(JS.string(JS.get(flat, "length")));`,
-    js: `console.log(String([[]].flat().length));`,
-  });
-
-  for (const name of ["DIV", "SPAN", "P", "A"]) {
-    add(cases, `js-and-member-${name.toLowerCase()}`, {
-      lil: `JsValue input = JS.object();
-JS.set(input, "nodeName", "${name}");
-JsValue node = JS.and(input, input["nodeName"]);
-if (node is string) {
-  print(node);
-} else {
-  print("none");
-}`,
-      js: `const input = {nodeName: "${name}"};
-const node = input && input.nodeName;
-if (typeof node == "string") {
-  console.log(node);
-} else {
-  console.log("none");
-}`,
-    });
-  }
-
-  add(cases, `js-and-member-missing`, {
+  add(cases, "host/missing-member-fallback", `js-and-member-missing`, {
     lil: `JsValue input = JS.object();
 JsValue node = JS.and(input, input["nodeName"]);
 if (node is string) {
@@ -1899,7 +1892,10 @@ if (typeof node == "string") {
 }`,
   });
 
-  add(cases, `host-define-configurable`, {
+  add(cases, "host/define-property-configurable", `host-define-configurable`, {
+    terserProperties: false,
+    terserPropertyReason:
+      "Object.defineProperty and Object.hasOwn share a quoted public key",
     lil: `extern void defineConfigurable(JsValue obj, string key, JsValue value);
 JsValue object = JS.object();
 defineConfigurable(object, "keep", JS.object());
@@ -1917,7 +1913,7 @@ if (Object.hasOwn(object, "keep")) {
 }`,
   });
 
-  add(cases, `host-iterator-assign`, {
+  add(cases, "host/iterator-assignment", `host-iterator-assign`, {
     lil: `extern void defineIterator(JsValue obj, JsValue iterator);
 extern JsValue getArrayIterator();
 JsValue object = JS.object();
@@ -1928,7 +1924,7 @@ object[Symbol.iterator] = Array.prototype[Symbol.iterator];
 console.log(typeof object);`,
   });
 
-  add(cases, `host-raf-or-null-type`, {
+  add(cases, "host/raf-nullish-type", `host-raf-or-null-type`, {
     lil: `extern JsValue requestAnimationFrameOrNull(JsValue fn);
 extern string typeOf(JsValue value);
 print(typeOf(requestAnimationFrameOrNull((JsValue self) => self)));`,
@@ -1936,7 +1932,7 @@ print(typeOf(requestAnimationFrameOrNull((JsValue self) => self)));`,
 console.log(typeof raf);`,
   });
 
-  add(cases, `host-typeof-plain-object`, {
+  add(cases, "host/typeof-object", `host-typeof-plain-object`, {
     lil: `print(JS.typeOf(JS.object()));
 print(JS.typeOf(JS.undefined()));
 print(JS.typeOf(JS.array()));`,
@@ -1945,7 +1941,7 @@ console.log(typeof void 0);
 console.log(typeof []);`,
   });
 
-  add(cases, `bool-typeof-predicate`, {
+  add(cases, "boolean/typeof-predicate", `bool-typeof-predicate`, {
     lil: `bool isFn(JsValue obj) {
   return JS.typeOf(obj) == "function" && JS.typeOf(obj["nodeType"]) != "number" && JS.typeOf(obj["item"]) != "function";
 }
@@ -1960,7 +1956,7 @@ if (isFn(fn)) { console.log(1); } else { console.log(0); }
 if (isFn(void 0)) { console.log(1); } else { console.log(0); }`,
   });
 
-  add(cases, `js-array-or-null`, {
+  add(cases, "host/array-or-null", `js-array-or-null`, {
     lil: `JsValue? asArray(JsValue value) {
   if (JS.isArray(value)) {
     return value;
@@ -1976,7 +1972,10 @@ if (asArray({}) == null) { console.log(0); } else { console.log(1); }
 if (asArray(void 0) == null) { console.log(0); } else { console.log(1); }`,
   });
 
-  add(cases, `amd-define-guard`, {
+  add(cases, "host/amd-define-guard", `amd-define-guard`, {
+    terserProperties: false,
+    terserPropertyReason:
+      "amd is a public property supplied by an open-world module loader",
     lil: `extern JsValue windowSelf();
 JsValue root = windowSelf();
 JsValue define = root["define"];
@@ -1994,32 +1993,7 @@ if (typeof define == "function" && define.amd) {
 }`,
   });
 
-  add(cases, `array-extra-field`, {
-    lil: `JsValue handlers = JS.array();
-handlers["delegateCount"] = 0.0;
-JsValue count = handlers["delegateCount"];
-if (count is float) {
-  print(count);
-} else {
-  print(0.0);
-}
-handlers["delegateCount"] = 2.0;
-JsValue next = handlers["delegateCount"];
-if (next is float) {
-  print(next);
-} else {
-  print(0.0);
-}`,
-    js: `const handlers = [];
-handlers.delegateCount = 0;
-const count = handlers.delegateCount;
-console.log(typeof count == "number" ? count : 0);
-handlers.delegateCount = 2;
-const next = handlers.delegateCount;
-console.log(typeof next == "number" ? next : 0);`,
-  });
-
-  add(cases, `host-window-repeat`, {
+  add(cases, "host/window-repeated-read", `host-window-repeat`, {
     lil: `extern JsValue windowSelf();
 print(JS.typeOf(windowSelf()["document"]));
 print(JS.typeOf(windowSelf()["location"]));
@@ -2028,6 +2002,429 @@ print(JS.typeOf(windowSelf()["console"]));`,
 console.log(typeof w.document);
 console.log(typeof w.location);
 console.log(typeof w.console);`,
+  });
+
+  add(cases, "integer/division-by-zero", "semantic-integer-division-by-zero", {
+    lil: `int divide(int value, int divisor) {
+  return value / divisor;
+}
+print(divide(17, 0));
+print(divide(-17, 0));`,
+    js: `function divide(value, divisor) {
+  return value / divisor | 0;
+}
+console.log(divide(17, 0));
+console.log(divide(-17, 0));`,
+  });
+
+  add(cases, "integer/remainder-by-zero", "semantic-integer-remainder-by-zero", {
+    lil: `int remainder(int value, int divisor) {
+  return value % divisor;
+}
+print(remainder(17, 0));
+print(remainder(-17, 0));`,
+    js: `function remainder(value, divisor) {
+  return value % divisor | 0;
+}
+console.log(remainder(17, 0));
+console.log(remainder(-17, 0));`,
+  });
+
+  add(cases, "integer/shift-count-masking", "semantic-integer-shift-count-masking", {
+    lil: `print(1 << 33);`,
+    js: `console.log(1 << 33);`,
+  });
+
+  add(cases, "integer/update-expression-values", "semantic-integer-update-values", {
+    lil: `int value = 4;
+print(value++);
+print(++value);
+print(value--);
+print(--value);
+print(value);`,
+    js: `let value = 4;
+console.log(value++);
+console.log(++value);
+console.log(value--);
+console.log(--value);
+console.log(value);`,
+  });
+
+  add(cases, "integer/radix-formatting", "semantic-integer-radix-formatting", {
+    lil: `int negative = -1;
+print(negative.toString(16));
+print(negative.toUnsignedString(16));
+print(35.toString(36));`,
+    js: `const negative = -1;
+console.log(negative.toString(16));
+console.log((negative >>> 0).toString(16));
+console.log((35).toString(36));`,
+  });
+
+  add(cases, "nullish/lazy-assignment", "semantic-nullish-lazy-assignment", {
+    lil: `int calls = 0;
+int fallback() {
+  calls++;
+  return 7;
+}
+int? value = null;
+int assigned = value ??= fallback();
+value ??= fallback();
+print(assigned);
+print(value ?? 0);
+print(calls);`,
+    js: `let calls = 0;
+function fallback() {
+  calls++;
+  return 7;
+}
+let value = null;
+const assigned = value ??= fallback();
+value ??= fallback();
+console.log(assigned);
+console.log(value ?? 0);
+console.log(calls);`,
+  });
+
+  add(cases, "number/math-intrinsics", "semantic-number-math-intrinsics", {
+    lil: `print(9.0.sqrt());
+print((-4.0).abs());
+print(1.5.round());`,
+    js: `console.log(Math.sqrt(9));
+console.log(Math.abs(-4));
+console.log(Math.round(1.5));`,
+  });
+
+  add(cases, "string/repeat", "semantic-string-repeat", {
+    lil: `print("ab".repeat(3));
+print("x".repeat(0).length);`,
+    js: `console.log("ab".repeat(3));
+console.log("x".repeat(0).length);`,
+  });
+
+  add(cases, "string/code-point-length", "semantic-string-code-point-length", {
+    lil: `print("A😀é".length);
+print("A😀é".codePointLength());`,
+    js: `console.log("A😀é".length);
+console.log([..."A😀é"].length);`,
+  });
+
+  add(cases, "string/out-of-range-code-unit", "semantic-string-out-of-range-code-unit", {
+    lil: `string value = "abc";
+print(value.charCodeAt(99));
+print(value.charAt(99));`,
+    js: `const value = "abc";
+console.log(value.charCodeAt(99) || 0);
+console.log(value.charAt(99));`,
+  });
+
+  add(cases, "collection/array-splice", "semantic-array-splice", {
+    lil: `int[] values = [1, 2, 3, 4, 5];
+int[] removed = values.splice(-3, 2);
+print(removed.join("-"));
+print(values.join("-"));`,
+    js: `const values = [1, 2, 3, 4, 5];
+const removed = values.splice(-3, 2);
+console.log(removed.join("-"));
+console.log(values.join("-"));`,
+  });
+
+  add(cases, "collection/array-nan-membership", "semantic-array-nan-membership", {
+    lil: `float nan = 0.0 / 0.0;
+float[] values = [nan];
+print(values.includes(nan));
+print(values.indexOf(nan));
+print(values.includes(nan, -1));
+print(values.indexOf(nan));`,
+    js: `const nan = 0 / 0;
+const values = [nan];
+console.log(values.includes(nan));
+console.log(values.indexOf(nan));
+console.log(values.includes(nan, -1));
+console.log(values.indexOf(nan));`,
+  });
+
+  add(cases, "number/to-int-boundaries", "semantic-number-to-int-boundaries", {
+    lil: `print(3.9.toInt());
+print((-3.9).toInt());
+print(4294967297.0.toInt());
+print(2147483648.0.toInt());`,
+    js: `console.log(3.9 | 0);
+console.log(-3.9 | 0);
+console.log(4294967297 | 0);
+console.log(2147483648 | 0);`,
+  });
+
+  add(cases, "integer/minimum-divide-negative-one", "semantic-integer-min-div-neg-one", {
+    lil: `int minimum = -2147483647 - 1;
+print(minimum / -1);`,
+    js: `const minimum = -2147483647 - 1;
+console.log(minimum / -1 | 0);`,
+  });
+
+  add(cases, "collection/array-copy-within", "semantic-array-copy-within", {
+    lil: `int[] values = [1, 2, 3, 4, 5];
+values.copyWithin(1, 3);
+print(values.join("-"));`,
+    js: `const values = [1, 2, 3, 4, 5];
+values.copyWithin(1, 3);
+console.log(values.join("-"));`,
+  });
+
+  add(cases, "collection/array-fill", "semantic-array-fill", {
+    lil: `int[] values = [1, 2, 3, 4];
+values.fill(9);
+print(values.join("-"));`,
+    js: `const values = [1, 2, 3, 4];
+values.fill(9);
+console.log(values.join("-"));`,
+  });
+
+  add(cases, "string/split-empty-fields", "semantic-string-split-empty-fields", {
+    lil: `string[] parts = "a,,b,".split(",");
+print(parts.length);
+print(parts.join("|"));`,
+    js: `const parts = "a,,b,".split(",");
+console.log(parts.length);
+console.log(parts.join("|"));`,
+  });
+
+  add(cases, "collection/array-some-short-circuit", "semantic-array-some-short-circuit", {
+    lil: `int calls = 0;
+int[] values = [1, 2, 3, 4];
+bool found = values.some((int value) => {
+  calls++;
+  return value == 2;
+});
+print(found);
+print(calls);`,
+    js: `let calls = 0;
+const values = [1, 2, 3, 4];
+const found = values.some(value => {
+  calls++;
+  return value === 2;
+});
+console.log(found);
+console.log(calls);`,
+  });
+
+  add(cases, "function/default-array-freshness", "semantic-default-array-freshness", {
+    lil: `int append(int[] values = []) {
+  values.push(1);
+  return values.length;
+}
+print(append());
+print(append());`,
+    js: `function append(values = []) {
+  values.push(1);
+  return values.length;
+}
+console.log(append());
+console.log(append());`,
+  });
+
+  add(cases, "union/string-int-flow", "semantic-union-string-int-flow", {
+    lil: `string|int choose(bool text) {
+  if (text) { return "hello"; }
+  return 42;
+}
+string|int first = choose(true);
+string|int second = choose(false);
+print(first);
+print(second);`,
+    js: `function choose(text) {
+  if (text) return "hello";
+  return 42;
+}
+const first = choose(true);
+const second = choose(false);
+console.log(first);
+console.log(second);`,
+  });
+
+  add(cases, "function/array-dispatch", "semantic-function-array-dispatch", {
+    lil: `int doubleValue(int value) { return value * 2; }
+int increment(int value) { return value + 1; }
+(func(int)->int)[] transforms = [doubleValue, increment];
+int value = 3;
+for (int index = 0; index < transforms.length; index++) {
+  value = transforms[index](value);
+}
+print(value);`,
+    js: `function doubleValue(value) { return value * 2 | 0; }
+function increment(value) { return value + 1 | 0; }
+const transforms = [doubleValue, increment];
+let value = 3;
+for (let index = 0; index < transforms.length; index++) {
+  value = transforms[index](value);
+}
+console.log(value);`,
+  });
+
+  add(cases, "string/template-interpolation", "semantic-template-interpolation", {
+    lil: `string language = "Lil" + "Script";
+int version = 1;
+bool stable = true;
+print(\`\${language}:\${version}:\${stable}\`);`,
+    js: `const language = "Lil" + "Script";
+const version = 1;
+const stable = true;
+console.log(\`\${language}:\${version}:\${stable}\`);`,
+  });
+
+  add(cases, "generic/equality-object-identity", "frontier-generic-equality", {
+    lil: `bool same<T>(T left, T right) {
+  return left == right;
+}
+class Box {
+  int value;
+  init(int value) { this.value = value; }
+}
+Box shared = new Box(1);
+print(same(7, 7));
+print(same("lil", "script"));
+print(same(shared, shared));
+print(same(shared, new Box(1)));`,
+    js: `function same(left, right) {
+  return left === right;
+}
+class Box {
+  constructor(value) { this.value = value; }
+}
+const shared = new Box(1);
+console.log(same(7, 7));
+console.log(same("lil", "script"));
+console.log(same(shared, shared));
+console.log(same(shared, new Box(1)));`,
+  });
+
+  add(cases, "control/inline-for-unrolling", "frontier-inline-for", {
+    lil: `int total = 0;
+inline for (int value of [1, 2, 3, 4]) {
+  total += value;
+}
+print(total);
+string joined = "";
+inline for (string part of ["ab", "cd"]) {
+  joined = joined + part;
+}
+print(joined);`,
+    js: `let total = 0;
+for (const value of [1, 2, 3, 4]) {
+  total = total + value | 0;
+}
+console.log(total);
+let joined = "";
+for (const part of ["ab", "cd"]) {
+  joined += part;
+}
+console.log(joined);`,
+  });
+
+  add(cases, "aggregate/default-constructor-freshness", "frontier-default-constructor", {
+    lil: `class Counter {
+  int value;
+  init() { this.value = 0; }
+  int increment() {
+    this.value += 1;
+    return this.value;
+  }
+}
+int bump(Counter counter = new Counter()) {
+  return counter.increment();
+}
+print(bump());
+print(bump());`,
+    js: `class Counter {
+  constructor() { this.value = 0; }
+  increment() {
+    this.value += 1;
+    return this.value;
+  }
+}
+function bump(counter = new Counter()) {
+  return counter.increment();
+}
+console.log(bump());
+console.log(bump());`,
+  });
+
+  add(cases, "control/enum-lazy-match", "frontier-enum-lazy-match", {
+    lil: `enum Status { Draft, Active, Sold }
+int calls = 0;
+string mark(string value) {
+  calls++;
+  return value;
+}
+string label(Status value) {
+  return match (value) {
+    Status.Draft => mark("draft"),
+    Status.Active => mark("active"),
+    Status.Sold => mark("sold")
+  };
+}
+print(label(Status.Active));
+print(calls);`,
+    js: `let calls = 0;
+function mark(value) {
+  calls++;
+  return value;
+}
+function label(value) {
+  return value === 0 ? mark("draft") : value === 1 ? mark("active") : mark("sold");
+}
+console.log(label(1));
+console.log(calls);`,
+  });
+
+  add(cases, "collection/array-spread-order", "frontier-array-spread-order", {
+    lil: `int calls = 0;
+int[] source() {
+  calls++;
+  return [1, 2];
+}
+int[] values = [0, ...source(), 3];
+print(values.join("-"));
+print(calls);`,
+    js: `let calls = 0;
+function source() {
+  calls++;
+  return [1, 2];
+}
+const values = [0, ...source(), 3];
+console.log(values.join("-"));
+console.log(calls);`,
+  });
+
+  add(cases, "aggregate/inheritance-super", "frontier-inheritance-super", {
+    lil: `class Base {
+  int value;
+  init(int value) { this.value = value; }
+  int get() { return this.value; }
+}
+class Child extends Base {
+  int bonus;
+  init(int value, int bonus) {
+    super(value);
+    this.bonus = bonus;
+  }
+  int total() { return this.get() + this.bonus; }
+}
+Child child = new Child(4, 3);
+print(child.total());`,
+    js: `class Base {
+  constructor(value) { this.value = value; }
+  get() { return this.value; }
+}
+class Child extends Base {
+  constructor(value, bonus) {
+    super(value);
+    this.bonus = bonus;
+  }
+  total() { return this.get() + this.bonus | 0; }
+}
+const child = new Child(4, 3);
+console.log(child.total());`,
   });
 
   return cases;

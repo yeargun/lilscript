@@ -2535,7 +2535,10 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
             }
             "split" => {
                 let Some(Value::String(separator)) = arguments.first() else {
-                    return Err(InterpretError::new(span, "split requires a string separator"));
+                    return Err(InterpretError::new(
+                        span,
+                        "split requires a string separator",
+                    ));
                 };
                 Ok(Value::Array(Rc::new(RefCell::new(
                     js_string_split(receiver, separator)

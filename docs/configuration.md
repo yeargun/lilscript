@@ -52,6 +52,7 @@ max_candidate_raw_growth_percent = 0 # raw-side admission allowance; maximum 100
 function_layout_exact_limit = 13 # 0 = heuristic only; maximum 18
 local_name_reserve = 48 # consistent short identifiers reserved for lexical locals
 stable_local_names = true # preserve source-local affinity across generated kernels
+local_name_coalescing = true # reuse bindings for SSA values with disjoint live ranges
 # function_spelling = "arrow" # arrow | function; see public-ABI note below
 # strip_console = true # drop print()/debugLog; default on. Tests/oracles set false.
 # assume_pristine_builtins = false # required before regex literals may bypass ambient RegExp
@@ -166,7 +167,8 @@ organize_imports = true
 JavaScript compilation. Omitting it preserves the process-global Rayon policy,
 including `RAYON_NUM_THREADS`. `compiler.resources.codec_workers` defaults to
 `4` and is capped by the active pool size. It bounds terminal Brotli plan
-finalization, where every worker finalizes its assigned plans serially.
+finalization, where every worker finalizes its assigned plans serially, and the
+same ceiling applies to terminal binding-remap codec probes.
 Selected-model candidate scoring uses the active Rayon pool, while the short
 entropy-alphabet source searches stay serial to avoid multiplying Brotli-11
 workspaces. These controls change scheduling and peak concurrent working state,
@@ -176,6 +178,9 @@ with `-j N` / `--jobs N` and `--codec-jobs N`.
 `javascript.candidate_limit`, `candidate_byte_budget`, and
 `candidate_beam_width` are different: they bound search effort and retained
 whole-artifact source bytes, so changing them can change the selected output.
+Terminal scope-naming and string-pooling challengers debit the remaining shared
+plan and source-byte ledger before codec scoring; the already-retained incumbent
+remains eligible when that tail is exhausted.
 `candidate_byte_budget` is not a promise about total process RSS; optimizer IR
 clones and codec workspaces are outside that accounting.
 
@@ -547,6 +552,15 @@ colors using non-semantic source-local affinity, with deterministic definition
 order as the fallback. It does not alter liveness or the number of slots; it
 makes duplicated numerical and generated kernels retain similar local
 spellings for transport compression.
+`local_name_coalescing = true` (the default) lets identifier-mangled JavaScript
+reuse one local binding for SSA values whose live ranges provably do not
+interfere. Setting it to `false` retains distinct bindings; liveness and
+interference remain hard correctness constraints in both regimes. Unmangled
+output keeps source-oriented names and does not use this switch.
+Maximum-effort SSA-destruction search may retain both mangled regimes through
+finalization. The exact whole-artifact raw/gzip/Brotli scorer then chooses
+between them because the coalesced form's reassignments and the uncoalesced
+form's declarations can have codec-dependent costs.
 
 `max_candidate_raw_growth_percent` participates in candidate admission both
 within one emitted-IR search and across optimizer variants. Under the `raw`

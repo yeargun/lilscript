@@ -36,3 +36,18 @@ lane, where no renamed field crosses the declared contract.
 jQuery dual configs: `lilscript.toml` / `lilscript.public.toml` keep export names; `lilscript.app.toml` mangles exports for a closed LilScript app. See [jQuery](../evidence/jquery.md).
 
 Identifier **alphabet** and **layout** are not `[mangle]` keys; they are compression/optimization search (`entropy-aware-mangling`, `function-layout-variants`, `local_name_reserve`).
+
+## Local binding coalescing
+
+`[javascript].local_name_coalescing` is configured separately from `[mangle]`
+but applies only when identifier mangling is enabled. Its default, `true`,
+permits one JavaScript local binding to represent SSA values only when their
+live ranges are proven not to interfere. `false` keeps those values in distinct
+bindings, so it tends to trade reassignment syntax for declaration syntax
+without changing the interference proof. Unmangled output keeps its
+source-oriented names and ignores this spelling switch.
+
+Maximum-effort candidate search may retain both the configured and opposite
+regimes. Exact whole-artifact raw, gzip, or Brotli scoring selects the published
+form because reassignment and declaration byte patterns can rank differently
+under each codec.
