@@ -25661,6 +25661,51 @@ inspect(JS.call(valueCase,null));
     }
 
     #[test]
+    fn transitive_nested_shadowing_keeps_rest_formals_off_defaulted_locals() {
+        let output = compile_with_options(
+            r#"
+                extern void keep(JsValue value);
+                extern void observe(JsValue first, JsValue second, JsValue third);
+                void alpha() { print(1); }
+                void beta() { print(2); }
+                void gamma() { print(3); }
+                keep(alpha);
+                keep(beta);
+                keep(gamma);
+                JsValue callback = JS.methodRest((JsValue _self, JsValue args) => {
+                    JsValue second = JS.undefined();
+                    JsValue third = JS.undefined();
+                    if (JS.number(args["length"]).toInt() > 1) {
+                        second = args[1];
+                    }
+                    if (JS.number(args["length"]).toInt() > 2) {
+                        third = args[2];
+                    }
+                    JsValue nested = JS.method0((JsValue _nestedSelf) => {
+                        observe(args[0], second, third);
+                        return JS.undefined();
+                    });
+                    JS.call(nested, JS.undefined());
+                    return args[0];
+                });
+                keep(callback);
+            "#,
+            IrJsOptions {
+                mangle_identifiers: true,
+                cross_scope_name_reuse: true,
+                transitive_nested_shadowing: true,
+                local_name_reserve: 12,
+                function_spelling: FunctionSpelling::Function,
+                ..IrJsOptions::default()
+            },
+        );
+        let trace = run_javascript(&format!(
+            "let callback,seen=[];function keep(value){{if(typeof value==='function'&&value.length>=3)callback=value}}function observe(a,b,c){{seen.push([a,b,c].join(':'))}};{output};callback(1,2,3);process.stdout.write(seen.join(','))"
+        ));
+        assert_eq!(trace, "1:2:3", "{output}");
+    }
+
+    #[test]
     fn precise_shadowing_does_not_let_host_locals_steal_nested_helper_names() {
         let options = IrJsOptions {
             mangle_identifiers: true,
