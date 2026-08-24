@@ -1,6 +1,6 @@
 use crate::js_peephole::rewrite::{
     apply_token_rewrites, identifier_occurs, is_property_identifier, is_statement_boundary,
-    top_level_stop,
+    replacement_overlaps, top_level_stop,
 };
 use crate::js_peephole::scope::{
     collect_unbound_name_uses, enclosing_block_end, function_binds_name, nested_function_end,
@@ -429,10 +429,20 @@ pub(crate) fn fold_single_property_objects(
             continue;
         }
         let use_at = uses[0];
-        replacements.push((tokens[cursor].start, tokens[value_stop].end, String::new()));
+        let from = tokens[cursor].start;
+        let to = tokens[value_stop].end;
+        let use_from = tokens[use_at].start;
+        let use_to = tokens[use_at].end;
+        if replacement_overlaps(&replacements, from, to)
+            || replacement_overlaps(&replacements, use_from, use_to)
+        {
+            cursor = value_stop + 1;
+            continue;
+        }
+        replacements.push((from, to, String::new()));
         replacements.push((
-            tokens[use_at].start,
-            tokens[use_at].end,
+            use_from,
+            use_to,
             format!("{{{prop}:{value}}}"),
         ));
         cursor = value_stop + 1;
@@ -1465,7 +1475,20 @@ pub(crate) fn fold_push_only_init_function(
 
 #[cfg(test)]
 mod tests {
-    use super::fold_object_assign_literal_to_writes;
+    use super::{fold_object_assign_literal_to_writes, fold_single_property_objects};
+
+    #[test]
+    fn folds_nested_single_property_objects_without_dropping_the_inner_value() {
+        let source = "function encode(){var inner={};inner.values=read();var outer={};outer.item=inner;return outer}";
+        let (once, first_count) = fold_single_property_objects(source).unwrap();
+        assert_eq!(first_count, 2, "{once}");
+        assert!(once.contains("outer.item={values:read()}"), "{once}");
+        assert!(!once.contains("outer.item=inner"), "{once}");
+
+        let (twice, second_count) = fold_single_property_objects(&once).unwrap();
+        assert_eq!(second_count, 2, "{twice}");
+        assert!(twice.contains("return {item:{values:read()}}"), "{twice}");
+    }
 
     #[test]
     fn expands_unused_object_assign_literal() {
