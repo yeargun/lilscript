@@ -1,6 +1,7 @@
 use crate::js_peephole::rewrite::{
-    apply_token_rewrites, expression_has_top_level_token, identifier_occurs, is_statement_boundary,
-    paren_depth_at, parse_bare_assign, rewrite_identifier_span, top_level_stop,
+    apply_token_rewrites, assign_is_in_declaration, expression_has_top_level_token,
+    identifier_occurs, is_statement_boundary, paren_depth_at, parse_bare_assign,
+    rewrite_identifier_span, top_level_stop,
 };
 use crate::js_peephole::scope::{
     enclosing_block_start, name_is_arguments_length_copy, name_is_declared_in_any_enclosing_scope,
@@ -143,14 +144,28 @@ pub(crate) fn fold_index_postfix_updates(
             if tokens.get(stop + 1).map(|token| token.text) == Some(index)
                 && tokens.get(stop + 2).map(|token| token.text) == Some("++")
             {
-                let end = tokens[stop + 2].end;
+                // An adjacent-expression fold can spell the update as
+                // `var item=list[index];index++,receiver.field=item.field`.
+                // Folding through the update while retaining that comma would
+                // turn the member assignment into an invalid declarator:
+                // `var item=list[index++],receiver.field=item.field`.
+                // Consume the comma and restore a statement boundary when the
+                // indexed assignment belongs to a declaration.
+                let declaration_sequence = assign_is_in_declaration(&tokens, cursor + 1)
+                    && tokens.get(stop + 3).map(|token| token.text) == Some(",");
+                let end = if declaration_sequence {
+                    tokens[stop + 3].end
+                } else {
+                    tokens[stop + 2].end
+                };
                 replacements.push((
                     tokens[cursor].start,
                     end,
                     format!(
-                        "{}={}[{index}++]",
+                        "{}={}[{index}++]{}",
                         tokens[cursor].text,
-                        tokens[cursor + 2].text
+                        tokens[cursor + 2].text,
+                        if declaration_sequence { ";" } else { "" }
                     ),
                 ));
                 cursor = stop + 3;

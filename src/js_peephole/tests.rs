@@ -1295,6 +1295,22 @@ fn folds_int32_index_temps_into_postfix_member_indexes() {
 }
 
 #[test]
+fn postfix_index_fold_terminates_declaration_before_member_assignment() {
+    let source = "function dispatch(queue,event){var index=0;var item=queue[index];index++,event.currentTarget=item.elem;return event.currentTarget}console.log(dispatch([{elem:7}],{}))";
+    let (folded, rewrites) = super::folds::fold_index_postfix_updates(source).unwrap();
+    assert_eq!(rewrites, 1, "{folded}");
+    assert!(
+        folded.contains("var item=queue[index++];event.currentTarget=item.elem"),
+        "{folded}"
+    );
+    assert!(!folded.contains("index++],event.currentTarget"), "{folded}");
+    assert_eq!(run_javascript(&folded).trim(), "7");
+
+    let optimized = optimize_generated_javascript(source).unwrap();
+    assert_eq!(run_javascript(&optimized.code).trim(), "7");
+}
+
+#[test]
 fn keeps_int32_index_temps_that_are_read_after_the_store() {
     let source = "let B=e=>+e|0;function track(e,t){var r=B(t.unboundDepsCount_);t.newObserving_[r]=e;t.unboundDepsCount_=r+1|0;return r}let obs={};let der={unboundDepsCount_:4,newObserving_:[0,0,0,0,0]};console.log(track(obs,der))";
     let folded = super::folds::fold_int32_coercions(source).unwrap();
