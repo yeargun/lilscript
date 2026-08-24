@@ -1,7 +1,7 @@
 use crate::js_peephole::rewrite::{
     apply_token_rewrites, is_property_identifier, parenthesized_expression_has_postfix_continuation,
 };
-use crate::js_peephole::scope::GeneratedBindingIndex;
+use crate::js_peephole::scope::{enclosing_block_start, GeneratedBindingIndex};
 use crate::js_peephole::token::{
     ascii_identifier_name_string, is_identifier_start, lex, lex_certainly, matching_closers, Token,
     TokenKind,
@@ -222,6 +222,8 @@ pub(crate) fn split_fused_keyword_identifiers(
     source: &str,
 ) -> Result<(String, usize), JavaScriptParseError> {
     let tokens = lex(source)?;
+    let mut matching_close = None;
+    let mut bindings = None;
     let mut replacements = Vec::<(usize, usize, String)>::new();
     for (index, token) in tokens.iter().enumerate() {
         if token.kind != TokenKind::Identifier || is_property_identifier(&tokens, index) {
@@ -247,10 +249,59 @@ pub(crate) fn split_fused_keyword_identifiers(
             continue;
         };
         let rest = &token.text[keyword.len()..];
-        if rest.len() != 1 {
+        let previous = index.checked_sub(1).and_then(|at| tokens.get(at));
+        let comma_statement_boundary = if previous.is_some_and(|token| token.text == ",") {
+            let matching_close = matching_close.get_or_insert_with(|| matching_closers(&tokens));
+            comma_is_directly_inside_enclosing_block(&tokens, matching_close, index - 1)
+        } else {
+            false
+        };
+        if !comma_statement_boundary
+            && previous.is_none_or(|previous| !matches!(previous.text, "{" | "}" | ";"))
+        {
             continue;
+        }
+        let matching_close = matching_close.get_or_insert_with(|| matching_closers(&tokens));
+        if bindings.is_none() {
+            bindings = Some(GeneratedBindingIndex::new(&tokens, matching_close));
+        }
+        let bindings = bindings.as_ref().expect("binding index was initialized");
+        if bindings.name_is_visible(index, token.text) || !bindings.name_is_visible(index, rest) {
+            continue;
+        }
+        // A fused keyword is lexed as an expression identifier. A later
+        // sequencing pass can consequently turn the preceding statement
+        // terminator into a comma. Restore that boundary together with
+        // the keyword separator, otherwise `E,return od()` is still
+        // invalid JavaScript.
+        if comma_statement_boundary {
+            let previous = previous.expect("comma boundary was checked");
+            replacements.push((previous.start, previous.end, ";".to_string()));
         }
         replacements.push((token.start, token.end, format!("{keyword} {rest}")));
     }
     Ok(apply_token_rewrites(source, replacements))
+}
+
+fn comma_is_directly_inside_enclosing_block(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    comma: usize,
+) -> bool {
+    let Some(block_open) = enclosing_block_start(matching_close, comma) else {
+        return false;
+    };
+    let (mut parens, mut brackets, mut braces) = (0i32, 0i32, 0i32);
+    for token in &tokens[block_open + 1..comma] {
+        match token.text {
+            "(" => parens += 1,
+            ")" => parens -= 1,
+            "[" => brackets += 1,
+            "]" => brackets -= 1,
+            "{" => braces += 1,
+            "}" => braces -= 1,
+            _ => {}
+        }
+    }
+    parens == 0 && brackets == 0 && braces == 0
 }

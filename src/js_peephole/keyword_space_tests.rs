@@ -1,7 +1,7 @@
 use super::{
     late_generated_javascript_cleanup, late_generated_javascript_cleanup_local_variants,
     late_generated_javascript_cleanup_pass, optimize_generated_javascript,
-    LateJavaScriptCleanupPass,
+    repair_fused_keyword_identifiers, LateJavaScriptCleanupPass,
 };
 
 #[test]
@@ -94,6 +94,28 @@ fn does_not_split_returned_as_a_function_name() {
         "{}",
         optimized.code
     );
+}
+
+#[test]
+fn repairs_a_fused_return_before_a_multichar_visible_helper() {
+    let source = "function od(a){return a}function f(a){a=a||[],returnod(a)};process.stdout.write(String(f(7)))";
+    let optimized = repair_fused_keyword_identifiers(source).unwrap();
+    assert!(
+        optimized.contains("a=a||[];return od(a)"),
+        "fused return: {}",
+        optimized
+    );
+    asserts_parses(&optimized);
+    assert_eq!(run_node(&optimized).trim(), "7");
+
+    let bound =
+        "function od(){return 1}function returnod(){return 2}function f(){return returnod()}";
+    assert_eq!(repair_fused_keyword_identifiers(bound).unwrap(), bound);
+
+    let one_letter = "function returne(){return 2}function f(){return returne()}process.stdout.write(String(f()))";
+    let unchanged = repair_fused_keyword_identifiers(one_letter).unwrap();
+    assert_eq!(unchanged, one_letter);
+    assert_eq!(run_node(&unchanged).trim(), "2");
 }
 
 #[test]
