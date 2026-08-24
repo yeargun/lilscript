@@ -59,6 +59,26 @@ pub(crate) fn fold_identifier_copies(
             cursor += 1;
             continue;
         }
+        // Rewrites in one pass are derived from the same token snapshot. If
+        // the source binding was itself established by an earlier identifier
+        // copy, that earlier copy can be removed while rewriting this copy's
+        // uses with the now-stale source name. Defer the dependent copy until
+        // the next fixed-point pass has reparsed the earlier rewrite. For
+        // example, folding both `slot=first;slot=second` and `out=slot` at
+        // once must not leave `out`'s reads pointing at `first`.
+        let binding_scope_start = enclosing_function_span(&tokens, &matching_close, cursor)
+            .map(|(body, _)| body + 1)
+            .unwrap_or(0);
+        if has_prior_identifier_copy_assignment(
+            &tokens,
+            &matching_close,
+            binding_scope_start,
+            cursor,
+            &rhs,
+        ) {
+            cursor += 1;
+            continue;
+        }
         // Reads are only replaceable inside the enclosing block: the copy may
         // execute conditionally, so a use beyond the block cannot take the
         // source expression. But `var` hoists past the block, so any use out
@@ -289,6 +309,43 @@ pub(crate) fn fold_identifier_copies(
     }
     let (output, count) = apply_token_rewrites(source, replacements);
     Ok((output, count / 2 + count % 2))
+}
+
+fn has_prior_identifier_copy_assignment(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    start: usize,
+    end: usize,
+    name: &str,
+) -> bool {
+    let mut scan = start;
+    while scan + 3 < end {
+        if let Some(close) = nested_function_end(tokens, matching_close, scan) {
+            scan = close + 1;
+            continue;
+        }
+        let previous = scan
+            .checked_sub(1)
+            .and_then(|index| tokens.get(index))
+            .map(|token| token.text)
+            .unwrap_or(";");
+        if tokens[scan].kind == TokenKind::Identifier
+            && tokens[scan].text == name
+            && tokens.get(scan + 1).map(|token| token.text) == Some("=")
+            && tokens
+                .get(scan + 2)
+                .is_some_and(|token| token.kind == TokenKind::Identifier)
+            && matches!(
+                tokens.get(scan + 3).map(|token| token.text),
+                Some(";") | Some(",") | Some("}")
+            )
+            && matches!(previous, ";" | "{" | "}" | "let" | "var" | "const" | ",")
+        {
+            return true;
+        }
+        scan += 1;
+    }
+    false
 }
 
 fn source_may_change_across_calls(

@@ -23065,7 +23065,15 @@ fn render_js_type_check(
 
 fn render_string_literal(value: &str, quote: StringQuote) -> String {
     if quote == StringQuote::Template {
-        let decoded = decoded_source_string(value);
+        // LilScript keeps the source spelling of string contents. JSON is a
+        // useful decoder for the common subset, but valid JavaScript strings
+        // may contain raw horizontal tabs (and escapes such as `\v`) that JSON
+        // rejects. Treating the undecoded spelling as semantic text would
+        // escape every existing backslash a second time. Keep the original
+        // double-quoted spelling when conversion cannot be proven sound.
+        let Ok(decoded) = serde_json::from_str::<String>(&format!("\"{value}\"")) else {
+            return format!("\"{value}\"");
+        };
         let mut rendered = String::with_capacity(decoded.len() + 2);
         rendered.push('`');
         let mut pending_dollar = false;
@@ -23089,7 +23097,9 @@ fn render_string_literal(value: &str, quote: StringQuote) -> String {
         return format!("\"{value}\"");
     }
     let encoded = format!("\"{value}\"");
-    let decoded = serde_json::from_str::<String>(&encoded).unwrap_or_else(|_| value.to_string());
+    let Ok(decoded) = serde_json::from_str::<String>(&encoded) else {
+        return encoded;
+    };
     let mut rendered = String::with_capacity(decoded.len() + 2);
     rendered.push('\'');
     for character in decoded.chars() {
@@ -29927,6 +29937,26 @@ run();
             render_string_literal(r#"say \"hi\" and it's\nready"#, StringQuote::Single),
             r#"'say "hi" and it\'s\nready'"#
         );
+    }
+
+    #[test]
+    fn quote_variants_preserve_non_json_javascript_string_payloads() {
+        // The raw tab is valid in a JavaScript string but invalid in a JSON
+        // string. The preceding `\\n` must remain one regex escape at runtime,
+        // rather than becoming a regex that matches a literal backslash.
+        let pattern = "^a\\\\nb\t$";
+        let double = render_string_literal(pattern, StringQuote::Double);
+        for quote in [StringQuote::Single, StringQuote::Template] {
+            let rendered = render_string_literal(pattern, quote);
+            assert_eq!(rendered, double);
+            assert_eq!(
+                run_javascript(&format!(
+                    "process.stdout.write(String(new RegExp({rendered}).test('a\\nb\\t')))"
+                )),
+                "true",
+                "{rendered}"
+            );
+        }
     }
 
     #[test]

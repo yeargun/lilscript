@@ -471,6 +471,24 @@ fn copies_identifier_aliases_into_their_only_reads() {
 }
 
 #[test]
+fn defers_dependent_identifier_copies_until_the_source_rewrite_is_visible() {
+    let source = "var defaults={},marked=(0,function(){}),slot;slot=defaults;Object.assign(slot,{gfm:!0});slot=marked;Object.assign(slot,{parse:marked});var exported=slot;console.log(exported===marked,exported.parse===marked)";
+    let optimized = optimize_generated_javascript(source).unwrap();
+    assert_eq!(
+        run_node(&optimized.code),
+        run_node(source),
+        "{}",
+        optimized.code
+    );
+    assert_eq!(
+        run_node(&optimized.code),
+        "true true\n",
+        "{}",
+        optimized.code
+    );
+}
+
+#[test]
 fn preserves_temp_computed_key_evaluation_order() {
     let optimized = optimize_generated_javascript(
         "function add(h,E){let i=\"[object \"+E+\"]\";h[i]=E.toLowerCase();return h}",
