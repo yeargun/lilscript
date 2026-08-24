@@ -1056,6 +1056,173 @@ fn permits_a_nested_function_to_read_an_outer_var() {
         .unwrap();
 }
 
+fn assert_generated_binding_index_matches_reference(source: &str) {
+    let tokens = lex(source).unwrap();
+    let matching_close = super::token::matching_closers(&tokens);
+    let bindings = super::scope::GeneratedBindingIndex::new(&tokens, &matching_close);
+    for (index, token) in tokens.iter().enumerate() {
+        if token.kind != super::token::TokenKind::Identifier {
+            continue;
+        }
+        let indexed_binding = bindings.identifier_is_binding(index);
+        let reference_binding =
+            super::generated_identifier_is_binding(&tokens, &matching_close, index);
+        assert_eq!(
+            indexed_binding, reference_binding,
+            "binding occurrence differed for {:?} at {} in {source}",
+            token.text, token.start,
+        );
+        assert_eq!(
+            bindings.enclosing_function_span(index),
+            super::scope::enclosing_function_span(&tokens, &matching_close, index),
+            "enclosing function differed for {:?} at {} in {source}",
+            token.text,
+            token.start,
+        );
+        assert_eq!(
+            bindings.name_is_declared_in_any_scope(index, token.text),
+            super::scope::name_is_declared_in_any_enclosing_scope(
+                &tokens,
+                &matching_close,
+                index,
+                token.text,
+            ),
+            "enclosing declaration differed for {:?} at {} in {source}",
+            token.text,
+            token.start,
+        );
+        assert_eq!(
+            bindings.name_is_module_var_binding(token.text),
+            super::scope::name_is_module_var_binding(&tokens, &matching_close, token.text),
+            "module var binding differed for {:?} at {} in {source}",
+            token.text,
+            token.start,
+        );
+        if bindings.enclosing_function_span(index).is_some() {
+            assert_eq!(
+                bindings.name_is_declared_in_enclosing_function_scope(index, token.text),
+                super::scope::name_is_declared_in_any_enclosing_function_scope(
+                    &tokens,
+                    &matching_close,
+                    index,
+                    token.text,
+                ),
+                "enclosing function declaration differed for {:?} at {} in {source}",
+                token.text,
+                token.start,
+            );
+        }
+        if super::identifier_occurrence_is_clear_binding(&tokens, index) {
+            assert_eq!(
+                indexed_binding || bindings.name_is_visible(index, token.text),
+                reference_binding
+                    || super::scope::name_is_visible_generated_binding(
+                        &tokens,
+                        &matching_close,
+                        index,
+                        token.text,
+                    ),
+                "resolved binding differed for {:?} at {} in {source}",
+                token.text,
+                token.start,
+            );
+        }
+        if super::rewrite::is_property_identifier(&tokens, index)
+            || reference_binding
+            || super::generated_identifier_is_ambient(token.text)
+        {
+            continue;
+        }
+        let indexed_visible = bindings.name_is_visible(index, token.text);
+        let reference_visible = super::scope::name_is_visible_generated_binding(
+            &tokens,
+            &matching_close,
+            index,
+            token.text,
+        );
+        assert_eq!(
+            indexed_visible, reference_visible,
+            "visible binding differed for {:?} at {} in {source}",
+            token.text, token.start,
+        );
+        if reference_visible {
+            continue;
+        }
+        assert_eq!(
+            bindings.name_is_bound_as_non_enclosing_function_local(index, token.text),
+            super::scope::name_is_bound_as_non_enclosing_function_local(
+                &tokens,
+                &matching_close,
+                index,
+                token.text,
+            ),
+            "non-enclosing binding differed for {:?} at {} in {source}",
+            token.text,
+            token.start,
+        );
+    }
+}
+
+#[test]
+fn generated_binding_scope_index_matches_the_reference_scope_model() {
+    for source in [
+        "let m=1;const top=x=>x+m;function outer(a,b=m){var v=a;let l=b;function inner(c){return v+l+c}return inner}console.log(top(Math.max(m,2)))",
+        "function outer(a){let block=x=>{let y=x+a;return y};let expression=(x,y)=>x+y+a;try{return block(expression(1,2))}catch(error){return error.message}}",
+        "var api=(function(root){function first(shared){var local=shared;return ()=>local+root}function second(shared){return first(shared)}return second})(globalThis);export{api}",
+        "class Box{constructor(value){this.value=value}map(callback){return new Box(callback(this.value))}};let box=new Box(1);box.map(value=>value+1)",
+        "function one(reused){var sibling=1;return reused+sibling}function two(reused){let own=2;return reused+own+sibling}",
+        "function generator(seed){var make=function inner(value){var nested=value;return nested+seed};return make}function sibling(nested){return nested}",
+    ] {
+        assert_generated_binding_index_matches_reference(source);
+    }
+}
+
+#[test]
+fn generated_binding_validation_keeps_ambient_and_nested_scope_behavior() {
+    analyze_generated_javascript(
+        "let choose=x=>Math.max(x,1);function run(value){try{return choose(value)}catch(error){console.log(error);return undefined}};run(2)",
+    )
+    .unwrap();
+    let source =
+        "function left(){let privateValue=1;return privateValue}function right(){return privateValue}";
+    let error = analyze_generated_javascript(source).unwrap_err();
+    assert_eq!(error.offset(), source.rfind("privateValue").unwrap());
+    assert!(error
+        .to_string()
+        .contains("unresolved generated identifier"));
+}
+
+#[test]
+fn generated_binding_scope_index_construction_has_a_linear_work_bound() {
+    fn indexed_work(functions: usize) -> (usize, usize) {
+        let mut source = String::new();
+        for function in 0..functions {
+            source.push_str(&format!(
+                "function f{function}(p{function}){{var v{function}=p{function};let l{function}=v{function};return l{function}}}"
+            ));
+        }
+        let tokens = lex(&source).unwrap();
+        let matching_close = super::token::matching_closers(&tokens);
+        let bindings = super::scope::GeneratedBindingIndex::new(&tokens, &matching_close);
+        (tokens.len(), bindings.construction_token_visits())
+    }
+
+    let (small_tokens, small_work) = indexed_work(200);
+    let (large_tokens, large_work) = indexed_work(400);
+    assert!(
+        small_work <= small_tokens * 16,
+        "{small_work} for {small_tokens} tokens"
+    );
+    assert!(
+        large_work <= large_tokens * 16,
+        "{large_work} for {large_tokens} tokens"
+    );
+    assert!(
+        large_work <= small_work * 2 + 32,
+        "doubling a flat generated module grew indexed work from {small_work} to {large_work}"
+    );
+}
+
 #[test]
 fn inlines_bit_or_zero_into_subtract_without_stealing_the_minus() {
     let source = r#"function f(x){if(x){var l=x+2|0;return l-1|0}return 0}console.log(f(5))"#;
@@ -1661,6 +1828,46 @@ fn declares_top_level_implicit_export_bindings() {
         "{}",
         optimized.code
     );
+}
+
+#[test]
+fn implicit_binding_index_preserves_outer_captures_and_parameter_shadowing() {
+    let captured =
+        "function outer(){var shared=0;return function update(){shared=1;return shared}}";
+    let (captured_out, captured_rewrites) =
+        super::folds::declare_implicit_assignment_bindings(captured).unwrap();
+    assert_eq!(captured_rewrites, 0, "{captured_out}");
+    assert_eq!(captured_out, captured);
+
+    let shadowed =
+        "function outer(){var shared=0;return function update(shared){shared=1;return shared}}";
+    let (shadowed_out, shadowed_rewrites) =
+        super::folds::declare_implicit_assignment_bindings(shadowed).unwrap();
+    assert_eq!(shadowed_rewrites, 0, "{shadowed_out}");
+    assert_eq!(shadowed_out, shadowed);
+}
+
+#[test]
+fn implicit_binding_index_localizes_sibling_and_unbound_assignments() {
+    let sibling = "function left(){var temporary=1;return temporary}function right(){temporary=2;return temporary}";
+    let (sibling_out, sibling_rewrites) =
+        super::folds::declare_implicit_assignment_bindings(sibling).unwrap();
+    assert_eq!(sibling_rewrites, 1, "{sibling_out}");
+    assert!(
+        sibling_out.contains("function right(){var temporary;temporary=2"),
+        "{sibling_out}"
+    );
+    analyze_generated_javascript(&sibling_out).unwrap();
+
+    let unbound = "function create(){missing=1;return missing}";
+    let (unbound_out, unbound_rewrites) =
+        super::folds::declare_implicit_assignment_bindings(unbound).unwrap();
+    assert_eq!(unbound_rewrites, 1, "{unbound_out}");
+    assert!(
+        unbound_out.contains("function create(){var missing;missing=1"),
+        "{unbound_out}"
+    );
+    analyze_generated_javascript(&unbound_out).unwrap();
 }
 
 #[test]

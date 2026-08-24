@@ -11,8 +11,7 @@ use crate::js_peephole::rewrite::{
 };
 use crate::js_peephole::scope::{
     identifier_is_arrow_parameter, identifier_is_catch_parameter, identifier_is_function_parameter,
-    name_is_bound_as_non_enclosing_function_local,
-    name_is_declared_in_any_enclosing_function_scope, name_is_visible_generated_binding,
+    name_is_declared_in_any_enclosing_function_scope, GeneratedBindingIndex,
 };
 use crate::js_peephole::token::{lex, matching_closers, validate_delimiters, Token, TokenKind};
 
@@ -587,17 +586,17 @@ fn generated_identifier_is_ambient(name: &str) -> bool {
 /// leaked across a function boundary is the ident-05 failure mode.
 fn validate_resolved_generated_bindings(tokens: &[Token<'_>]) -> Result<(), JavaScriptParseError> {
     let matching_close = matching_closers(tokens);
+    let bindings = GeneratedBindingIndex::new(tokens, &matching_close);
     for (index, token) in tokens.iter().enumerate() {
         if token.kind != TokenKind::Identifier
             || is_property_identifier(tokens, index)
-            || generated_identifier_is_binding(tokens, &matching_close, index)
+            || bindings.identifier_is_binding(index)
             || generated_identifier_is_ambient(token.text)
-            || name_is_visible_generated_binding(tokens, &matching_close, index, token.text)
+            || bindings.name_is_visible(index, token.text)
         {
             continue;
         }
-        if name_is_bound_as_non_enclosing_function_local(tokens, &matching_close, index, token.text)
-        {
+        if bindings.name_is_bound_as_non_enclosing_function_local(index, token.text) {
             return Err(JavaScriptParseError {
                 offset: token.start,
                 message: "unresolved generated identifier",
@@ -644,6 +643,7 @@ pub fn single_character_resolved_binding_identifiers(
 ) -> Result<Vec<u8>, JavaScriptParseError> {
     let tokens = lex(source)?;
     let matching_close = matching_closers(&tokens);
+    let bindings = GeneratedBindingIndex::new(&tokens, &matching_close);
     let mut candidates = std::collections::BTreeSet::new();
     let mut rejected = std::collections::BTreeSet::new();
 
@@ -652,13 +652,8 @@ pub fn single_character_resolved_binding_identifiers(
             let byte = token.text.as_bytes()[0];
             candidates.insert(byte);
             if !identifier_occurrence_is_clear_binding(&tokens, index)
-                || (!generated_identifier_is_binding(&tokens, &matching_close, index)
-                    && !name_is_visible_generated_binding(
-                        &tokens,
-                        &matching_close,
-                        index,
-                        token.text,
-                    ))
+                || (!bindings.identifier_is_binding(index)
+                    && !bindings.name_is_visible(index, token.text))
             {
                 rejected.insert(byte);
             }

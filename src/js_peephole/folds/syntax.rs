@@ -1,7 +1,7 @@
 use crate::js_peephole::rewrite::{
     apply_token_rewrites, is_property_identifier, parenthesized_expression_has_postfix_continuation,
 };
-use crate::js_peephole::scope::name_is_visible_generated_binding;
+use crate::js_peephole::scope::GeneratedBindingIndex;
 use crate::js_peephole::token::{
     ascii_identifier_name_string, is_identifier_start, lex, lex_certainly, matching_closers, Token,
     TokenKind,
@@ -127,19 +127,21 @@ pub(crate) fn fold_same_binding_strict_equality(
 ) -> Result<(String, usize), JavaScriptParseError> {
     let tokens = lex(source)?;
     let matching_close = matching_closers(&tokens);
+    let candidates = (0..tokens.len().saturating_sub(2))
+        .filter(|index| {
+            tokens[*index].kind == TokenKind::Identifier
+                && matches!(tokens[*index + 1].text, "===" | "!==")
+                && tokens[*index + 2].kind == TokenKind::Identifier
+                && tokens[*index + 2].text == tokens[*index].text
+        })
+        .collect::<Vec<_>>();
+    if candidates.is_empty() {
+        return Ok((source.to_string(), 0));
+    }
+    let bindings = GeneratedBindingIndex::new(&tokens, &matching_close);
     let mut replacements = Vec::<(usize, usize, String)>::new();
-    for index in 0..tokens.len().saturating_sub(2) {
-        if tokens[index].kind == TokenKind::Identifier
-            && matches!(tokens[index + 1].text, "===" | "!==")
-            && tokens[index + 2].kind == TokenKind::Identifier
-            && tokens[index + 2].text == tokens[index].text
-            && name_is_visible_generated_binding(
-                &tokens,
-                &matching_close,
-                index,
-                tokens[index].text,
-            )
-        {
+    for index in candidates {
+        if bindings.name_is_visible(index, tokens[index].text) {
             replacements.push((
                 tokens[index + 1].start,
                 tokens[index + 1].end,

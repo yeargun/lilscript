@@ -1,5 +1,710 @@
 use crate::js_peephole::rewrite::{identifier_occurs, is_property_identifier, top_level_stop};
 use crate::js_peephole::token::{matching_openers, Token, TokenKind};
+use std::collections::{HashMap, HashSet};
+
+#[derive(Debug)]
+struct IndexedGeneratedFunction<'src> {
+    body: usize,
+    end: usize,
+    parent: Option<usize>,
+    // The sibling-leak reference check considers only actual brace bodies,
+    // even though enclosing visibility uses the broader legacy span rule.
+    is_non_enclosing_local_scope: bool,
+    direct_bindings: HashSet<&'src str>,
+    broad_bindings: HashSet<&'src str>,
+}
+
+#[derive(Debug)]
+struct IndexedGeneratedBindingSpan<'src> {
+    start: usize,
+    end: usize,
+    bindings: HashSet<&'src str>,
+}
+
+/// Scope facts used by generated-JavaScript admission checks.
+///
+/// The older query helpers below deliberately remain as the independent,
+/// conservative reference implementation used by the rewrite passes. They
+/// discover an enclosing block and rescan its declarations for every name
+/// occurrence, which is appropriate for one-off rewrite proofs but quadratic
+/// when validating every identifier in a large candidate. This index computes
+/// the same emitter-oriented scope model once and answers each admission query
+/// by walking only the (normally tiny) lexical parent chain.
+pub(crate) struct GeneratedBindingIndex<'src> {
+    module_bindings: HashSet<&'src str>,
+    module_var_bindings: HashSet<&'src str>,
+    functions: Vec<IndexedGeneratedFunction<'src>>,
+    enclosing_function: Vec<Option<usize>>,
+    scoped_bindings: HashMap<&'src str, Vec<(usize, usize)>>,
+    non_enclosing_functions: HashMap<&'src str, Vec<usize>>,
+    binding_occurrences: Vec<bool>,
+    #[cfg(test)]
+    construction_token_visits: usize,
+}
+
+impl<'src> GeneratedBindingIndex<'src> {
+    pub(crate) fn new(tokens: &[Token<'src>], matching_close: &[Option<usize>]) -> Self {
+        let matching_open = matching_openers(matching_close);
+        let mut construction_token_visits = 0usize;
+
+        let mut functions = Vec::<IndexedGeneratedFunction<'src>>::new();
+        let mut function_at_body = vec![None; tokens.len()];
+        for body in 0..tokens.len() {
+            construction_token_visits += 1;
+            if !generated_delimiter_opens_function_span(tokens, &matching_open, body) {
+                continue;
+            }
+            let Some(end) = matching_close.get(body).copied().flatten() else {
+                continue;
+            };
+            let function = functions.len();
+            function_at_body[body] = Some(function);
+            functions.push(IndexedGeneratedFunction {
+                body,
+                end,
+                parent: None,
+                is_non_enclosing_local_scope: tokens[body].text == "{",
+                direct_bindings: HashSet::new(),
+                broad_bindings: HashSet::new(),
+            });
+        }
+
+        // The legacy proof treats any delimiter immediately following `=>` or
+        // a non-control `)` as a function span. That includes a few conservative
+        // call/grouping false positives, not just `{` bodies. Retaining those
+        // decisions is important: this index is a speedup, not a scope-policy
+        // change. Delimiter spans are properly nested, so one sweep records the
+        // legacy parent and every token's nearest span.
+        let mut enclosing_function = vec![None; tokens.len()];
+        let mut active_functions = Vec::<usize>::new();
+        for at in 0..tokens.len() {
+            construction_token_visits += 1;
+            while active_functions
+                .last()
+                .is_some_and(|function| functions[*function].end <= at)
+            {
+                active_functions.pop();
+            }
+            enclosing_function[at] = active_functions.last().copied();
+            if let Some(function) = function_at_body[at] {
+                functions[function].parent = active_functions.last().copied();
+                active_functions.push(function);
+            }
+        }
+
+        for function in &mut functions {
+            let (direct, direct_lexical) = collect_direct_generated_function_bindings(
+                tokens,
+                matching_close,
+                &matching_open,
+                function.body,
+                function.end,
+                &mut construction_token_visits,
+            );
+            let mut broad = collect_generated_function_parameter_bindings(
+                tokens,
+                &matching_open,
+                function.body,
+                &mut construction_token_visits,
+            );
+            broad.extend(direct_lexical);
+            collect_generated_function_wide_var_bindings(
+                tokens,
+                function.body,
+                function.end,
+                &mut broad,
+                &mut construction_token_visits,
+            );
+            function.direct_bindings = direct;
+            function.broad_bindings = broad;
+        }
+
+        let mut non_enclosing_functions = HashMap::<&'src str, Vec<usize>>::new();
+        for (function, scope) in functions.iter().enumerate() {
+            if !scope.is_non_enclosing_local_scope {
+                continue;
+            }
+            for name in &scope.broad_bindings {
+                non_enclosing_functions
+                    .entry(*name)
+                    .or_default()
+                    .push(function);
+            }
+        }
+
+        let (module_bindings, module_var_bindings) = collect_generated_module_bindings(
+            tokens,
+            matching_close,
+            &mut construction_token_visits,
+        );
+        let scoped_binding_spans = collect_generated_non_function_binding_spans(
+            tokens,
+            matching_close,
+            &matching_open,
+            &mut construction_token_visits,
+        );
+        let mut scoped_bindings = HashMap::<&'src str, Vec<(usize, usize)>>::new();
+        for span in scoped_binding_spans {
+            for name in span.bindings {
+                scoped_bindings
+                    .entry(name)
+                    .or_default()
+                    .push((span.start, span.end));
+            }
+        }
+        let binding_occurrences = collect_generated_binding_occurrences(
+            tokens,
+            matching_close,
+            &matching_open,
+            &mut construction_token_visits,
+        );
+
+        Self {
+            module_bindings,
+            module_var_bindings,
+            functions,
+            enclosing_function,
+            scoped_bindings,
+            non_enclosing_functions,
+            binding_occurrences,
+            #[cfg(test)]
+            construction_token_visits,
+        }
+    }
+
+    pub(crate) fn identifier_is_binding(&self, at: usize) -> bool {
+        self.binding_occurrences.get(at).copied().unwrap_or(false)
+    }
+
+    pub(crate) fn name_is_visible(&self, at: usize, name: &str) -> bool {
+        if self.module_bindings.contains(name)
+            || self
+                .scoped_bindings
+                .get(name)
+                .is_some_and(|spans| spans.iter().any(|(start, end)| at > *start && at < *end))
+        {
+            return true;
+        }
+        let mut function = self.enclosing_function.get(at).copied().flatten();
+        while let Some(current) = function {
+            if self.functions[current].direct_bindings.contains(name) {
+                return true;
+            }
+            function = self.functions[current].parent;
+        }
+        false
+    }
+
+    pub(crate) fn name_is_bound_as_non_enclosing_function_local(
+        &self,
+        at: usize,
+        name: &str,
+    ) -> bool {
+        self.non_enclosing_functions
+            .get(name)
+            .is_some_and(|functions| {
+                functions.iter().any(|function| {
+                    let function = &self.functions[*function];
+                    !(at > function.body && at < function.end)
+                })
+            })
+    }
+
+    pub(crate) fn enclosing_function_span(&self, at: usize) -> Option<(usize, usize)> {
+        let function = self.enclosing_function.get(at).copied().flatten()?;
+        Some((self.functions[function].body, self.functions[function].end))
+    }
+
+    pub(crate) fn name_is_declared_in_enclosing_function_scope(
+        &self,
+        at: usize,
+        name: &str,
+    ) -> bool {
+        let mut function = self.enclosing_function.get(at).copied().flatten();
+        while let Some(current) = function {
+            if self.functions[current].broad_bindings.contains(name) {
+                return true;
+            }
+            function = self.functions[current].parent;
+        }
+        false
+    }
+
+    pub(crate) fn name_is_declared_in_any_scope(&self, at: usize, name: &str) -> bool {
+        self.name_is_declared_in_enclosing_function_scope(at, name)
+            || self.module_bindings.contains(name)
+    }
+
+    pub(crate) fn name_is_module_var_binding(&self, name: &str) -> bool {
+        self.module_var_bindings.contains(name)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn construction_token_visits(&self) -> usize {
+        self.construction_token_visits
+    }
+}
+
+fn generated_delimiter_opens_function_span(
+    tokens: &[Token<'_>],
+    matching_open: &[Option<usize>],
+    body: usize,
+) -> bool {
+    let Some(before) = body.checked_sub(1) else {
+        return false;
+    };
+    tokens[before].text == "=>"
+        || (tokens[before].text == ")"
+            && !generated_paren_close_is_control_header(tokens, matching_open, before))
+}
+
+fn generated_paren_close_is_control_header(
+    tokens: &[Token<'_>],
+    matching_open: &[Option<usize>],
+    close: usize,
+) -> bool {
+    matching_open
+        .get(close)
+        .copied()
+        .flatten()
+        .and_then(|open| open.checked_sub(1))
+        .is_some_and(|before| {
+            matches!(
+                tokens[before].text,
+                "while" | "for" | "if" | "switch" | "catch" | "with"
+            )
+        })
+}
+
+fn generated_function_parameter_range(
+    tokens: &[Token<'_>],
+    matching_open: &[Option<usize>],
+    body: usize,
+) -> Option<(usize, usize)> {
+    let before_body = body.checked_sub(1)?;
+    if tokens[before_body].text == "=>" {
+        let before_arrow = before_body.checked_sub(1)?;
+        if tokens[before_arrow].text == ")" {
+            matching_open[before_arrow].map(|open| (open + 1, before_arrow))
+        } else {
+            Some((before_arrow, before_arrow + 1))
+        }
+    } else if tokens[before_body].text == ")" {
+        matching_open[before_body].map(|open| (open + 1, before_body))
+    } else {
+        None
+    }
+}
+
+fn collect_generated_function_parameter_bindings<'src>(
+    tokens: &[Token<'src>],
+    matching_open: &[Option<usize>],
+    body: usize,
+    work: &mut usize,
+) -> HashSet<&'src str> {
+    let mut bindings = HashSet::new();
+    if let Some((start, finish)) = generated_function_parameter_range(tokens, matching_open, body) {
+        for token in &tokens[start..finish] {
+            *work += 1;
+            if token.kind == TokenKind::Identifier {
+                bindings.insert(token.text);
+            }
+        }
+    }
+    bindings
+}
+
+fn collect_direct_generated_function_bindings<'src>(
+    tokens: &[Token<'src>],
+    matching_close: &[Option<usize>],
+    matching_open: &[Option<usize>],
+    body: usize,
+    end: usize,
+    work: &mut usize,
+) -> (HashSet<&'src str>, HashSet<&'src str>) {
+    let mut bindings =
+        collect_generated_function_parameter_bindings(tokens, matching_open, body, work);
+    let mut lexical_bindings = HashSet::new();
+    let mut cursor = body + 1;
+    while cursor < end {
+        *work += 1;
+        if tokens[cursor].text == "function" {
+            let mut name = cursor + 1;
+            if tokens.get(name).map(|token| token.text) == Some("*") {
+                name += 1;
+            }
+            if let Some(token) = tokens
+                .get(name)
+                .filter(|token| token.kind == TokenKind::Identifier)
+            {
+                bindings.insert(token.text);
+            }
+        }
+        if let Some(close) = nested_function_end(tokens, matching_close, cursor) {
+            cursor = close + 1;
+            continue;
+        }
+        let declaration = tokens[cursor].text;
+        if !matches!(declaration, "var" | "let" | "const") {
+            cursor += 1;
+            continue;
+        }
+        cursor += 1;
+        let mut delimiter_depth = 0usize;
+        let mut expects_name = true;
+        while cursor < end {
+            *work += 1;
+            let token = tokens[cursor];
+            if delimiter_depth == 0 && token.text == ";" {
+                break;
+            }
+            if let Some(close) = nested_function_end(tokens, matching_close, cursor) {
+                cursor = close + 1;
+                expects_name = false;
+                continue;
+            }
+            if expects_name && token.kind == TokenKind::Identifier {
+                bindings.insert(token.text);
+                if matches!(declaration, "let" | "const") {
+                    lexical_bindings.insert(token.text);
+                }
+                expects_name = false;
+            }
+            match token.text {
+                ")" | "]" | "}" if delimiter_depth == 0 => break,
+                "(" | "[" | "{" => delimiter_depth += 1,
+                ")" | "]" | "}" => delimiter_depth -= 1,
+                "," if delimiter_depth == 0 => expects_name = true,
+                _ => {}
+            }
+            cursor += 1;
+        }
+    }
+    (bindings, lexical_bindings)
+}
+
+fn collect_generated_function_wide_var_bindings<'src>(
+    tokens: &[Token<'src>],
+    body: usize,
+    end: usize,
+    bindings: &mut HashSet<&'src str>,
+    work: &mut usize,
+) {
+    let mut cursor = body + 1;
+    while cursor < end {
+        *work += 1;
+        if tokens[cursor].text != "var" {
+            cursor += 1;
+            continue;
+        }
+        cursor += 1;
+        let mut delimiter_depth = 0usize;
+        let mut expects_name = true;
+        while cursor < end {
+            *work += 1;
+            let token = tokens[cursor];
+            if delimiter_depth == 0 && token.text == ";" {
+                break;
+            }
+            if expects_name && token.kind == TokenKind::Identifier {
+                bindings.insert(token.text);
+                expects_name = false;
+            }
+            match token.text {
+                ")" | "]" | "}" if delimiter_depth == 0 => break,
+                "(" | "[" | "{" => delimiter_depth += 1,
+                ")" | "]" | "}" => delimiter_depth -= 1,
+                "," if delimiter_depth == 0 => expects_name = true,
+                _ => {}
+            }
+            cursor += 1;
+        }
+    }
+}
+
+fn collect_generated_module_bindings<'src>(
+    tokens: &[Token<'src>],
+    matching_close: &[Option<usize>],
+    work: &mut usize,
+) -> (HashSet<&'src str>, HashSet<&'src str>) {
+    let mut bindings = HashSet::new();
+    let mut var_bindings = HashSet::new();
+    let mut scan = 0usize;
+    while scan < tokens.len() {
+        *work += 1;
+        if let Some(close) = nested_function_end(tokens, matching_close, scan) {
+            if tokens[scan].text == "function" {
+                let mut name = scan + 1;
+                if tokens.get(name).map(|token| token.text) == Some("*") {
+                    name += 1;
+                }
+                if let Some(token) = tokens
+                    .get(name)
+                    .filter(|token| token.kind == TokenKind::Identifier)
+                {
+                    bindings.insert(token.text);
+                }
+            }
+            scan = close + 1;
+            continue;
+        }
+        if tokens[scan].text == "class" {
+            let mut body = scan + 1;
+            if let Some(token) = tokens
+                .get(body)
+                .filter(|token| token.kind == TokenKind::Identifier)
+            {
+                bindings.insert(token.text);
+                body += 1;
+            }
+            if tokens.get(body).map(|token| token.text) == Some("extends") {
+                body += 2;
+            }
+            if tokens.get(body).map(|token| token.text) == Some("{") {
+                if let Some(close) = matching_close.get(body).copied().flatten() {
+                    scan = close + 1;
+                    continue;
+                }
+            }
+        }
+        if matches!(tokens[scan].text, "let" | "var" | "const") {
+            let mut declaration_bindings = HashSet::new();
+            scan = collect_generated_declaration_names(
+                tokens,
+                matching_close,
+                scan,
+                tokens.len(),
+                &mut declaration_bindings,
+                work,
+            );
+            bindings.extend(declaration_bindings.iter().copied());
+            var_bindings.extend(declaration_bindings);
+            continue;
+        }
+        scan += 1;
+    }
+    (bindings, var_bindings)
+}
+
+fn collect_generated_declaration_names<'src>(
+    tokens: &[Token<'src>],
+    matching_close: &[Option<usize>],
+    declaration: usize,
+    end: usize,
+    bindings: &mut HashSet<&'src str>,
+    work: &mut usize,
+) -> usize {
+    let mut index = declaration + 1;
+    let mut delimiter_depth = 0usize;
+    let mut expects_name = true;
+    while index < end {
+        *work += 1;
+        let token = tokens[index];
+        if delimiter_depth == 0 && token.text == ";" {
+            return index;
+        }
+        if let Some(close) = nested_function_end(tokens, matching_close, index) {
+            index = close + 1;
+            expects_name = false;
+            continue;
+        }
+        if expects_name && token.kind == TokenKind::Identifier {
+            bindings.insert(token.text);
+            expects_name = false;
+        }
+        match token.text {
+            ")" | "]" | "}" if delimiter_depth == 0 => return index,
+            "(" | "[" | "{" => delimiter_depth += 1,
+            ")" | "]" | "}" => delimiter_depth -= 1,
+            "," if delimiter_depth == 0 => expects_name = true,
+            _ => {}
+        }
+        index += 1;
+    }
+    index
+}
+
+fn collect_generated_non_function_binding_spans<'src>(
+    tokens: &[Token<'src>],
+    matching_close: &[Option<usize>],
+    matching_open: &[Option<usize>],
+    work: &mut usize,
+) -> Vec<IndexedGeneratedBindingSpan<'src>> {
+    let mut spans = Vec::new();
+    let expression_stops = generated_expression_stops(tokens, work);
+    for (body, token) in tokens.iter().enumerate() {
+        *work += 1;
+        if token.text == "{" {
+            let Some(close_paren) = body.checked_sub(1) else {
+                continue;
+            };
+            if tokens[close_paren].text == ")" {
+                if let Some(open_paren) = matching_open.get(close_paren).copied().flatten() {
+                    if open_paren
+                        .checked_sub(1)
+                        .is_some_and(|before| tokens[before].text == "catch")
+                    {
+                        let bindings = tokens[open_paren + 1..close_paren]
+                            .iter()
+                            .filter(|token| token.kind == TokenKind::Identifier)
+                            .map(|token| token.text)
+                            .collect::<HashSet<_>>();
+                        *work += close_paren.saturating_sub(open_paren + 1);
+                        if let Some(end) = matching_close.get(body).copied().flatten() {
+                            spans.push(IndexedGeneratedBindingSpan {
+                                start: body,
+                                end,
+                                bindings,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+        if token.text != "=>" || tokens.get(body + 1).map(|next| next.text) == Some("{") {
+            continue;
+        }
+        let end = expression_stops
+            .get(body + 1)
+            .copied()
+            .flatten()
+            .unwrap_or(tokens.len());
+        let Some(before_arrow) = body.checked_sub(1) else {
+            continue;
+        };
+        let range = if tokens[before_arrow].text == ")" {
+            matching_open
+                .get(before_arrow)
+                .copied()
+                .flatten()
+                .map(|open| (open + 1, before_arrow))
+        } else if tokens[before_arrow].kind == TokenKind::Identifier {
+            Some((before_arrow, before_arrow + 1))
+        } else {
+            None
+        };
+        let Some((start, finish)) = range else {
+            continue;
+        };
+        let bindings = tokens[start..finish]
+            .iter()
+            .filter(|token| token.kind == TokenKind::Identifier)
+            .map(|token| token.text)
+            .collect::<HashSet<_>>();
+        *work += finish.saturating_sub(start);
+        spans.push(IndexedGeneratedBindingSpan {
+            start: body,
+            end,
+            bindings,
+        });
+    }
+    spans
+}
+
+fn generated_expression_stops(tokens: &[Token<'_>], work: &mut usize) -> Vec<Option<usize>> {
+    let mut depth_before = vec![0usize; tokens.len()];
+    let mut depth = 0usize;
+    let mut maximum_depth = 0usize;
+    for (index, token) in tokens.iter().enumerate() {
+        *work += 1;
+        depth_before[index] = depth;
+        match token.text {
+            "(" | "[" | "{" => {
+                depth += 1;
+                maximum_depth = maximum_depth.max(depth);
+            }
+            ")" | "]" | "}" => depth = depth.saturating_sub(1),
+            _ => {}
+        }
+    }
+
+    let mut next_at_depth = vec![None; maximum_depth + 1];
+    let mut stops = vec![None; tokens.len()];
+    for index in (0..tokens.len()).rev() {
+        *work += 1;
+        let depth = depth_before[index];
+        if matches!(tokens[index].text, "," | ";" | ")" | "]" | "}") {
+            next_at_depth[depth] = Some(index);
+        }
+        stops[index] = next_at_depth[depth];
+    }
+    stops
+}
+
+fn collect_generated_binding_occurrences(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    matching_open: &[Option<usize>],
+    work: &mut usize,
+) -> Vec<bool> {
+    let mut parameter_delta = vec![0i32; tokens.len() + 1];
+    for (open, close) in matching_close.iter().enumerate() {
+        *work += 1;
+        let Some(close) = *close else {
+            continue;
+        };
+        if tokens[open].text != "(" {
+            continue;
+        }
+        let function_parameter =
+            matches!(
+                tokens.get(close + 1).map(|token| token.text),
+                Some("{") | Some("=>")
+            ) && !generated_paren_close_is_control_header(tokens, matching_open, close);
+        let catch_parameter = open
+            .checked_sub(1)
+            .is_some_and(|before| tokens[before].text == "catch");
+        if function_parameter || catch_parameter {
+            parameter_delta[open + 1] += 1;
+            parameter_delta[close] -= 1;
+        }
+    }
+
+    let mut occurrences = vec![false; tokens.len()];
+    let mut parameter_depth = 0i32;
+    let mut declaration_at_depth = vec![false];
+    for (index, token) in tokens.iter().enumerate() {
+        *work += 1;
+        parameter_depth += parameter_delta[index];
+        if token.kind == TokenKind::Identifier {
+            let previous = index
+                .checked_sub(1)
+                .map(|previous| tokens[previous].text)
+                .unwrap_or(";");
+            occurrences[index] = parameter_depth > 0
+                || tokens.get(index + 1).map(|next| next.text) == Some("=>")
+                || matches!(
+                    previous,
+                    "var" | "let" | "const" | "function" | "class" | "catch"
+                )
+                || (previous == "*"
+                    && index
+                        .checked_sub(2)
+                        .is_some_and(|before| tokens[before].text == "function"))
+                || (previous == "," && declaration_at_depth.last().copied().unwrap_or(false));
+        }
+        match token.text {
+            "(" | "[" | "{" => declaration_at_depth.push(false),
+            ")" | "]" | "}" => {
+                if declaration_at_depth.len() > 1 {
+                    declaration_at_depth.pop();
+                }
+            }
+            ";" => {
+                if let Some(active) = declaration_at_depth.last_mut() {
+                    *active = false;
+                }
+            }
+            "var" | "let" | "const" => {
+                if let Some(active) = declaration_at_depth.last_mut() {
+                    *active = true;
+                }
+            }
+            _ => {}
+        }
+    }
+    occurrences
+}
 
 pub(crate) fn nested_function_end(
     tokens: &[Token<'_>],
@@ -283,6 +988,7 @@ fn nested_function_binds_name(
     function_binds_name(tokens, matching_close, matching_open, body, close, name)
 }
 
+#[cfg(test)]
 fn catch_block_binds_name(
     tokens: &[Token<'_>],
     matching_open: &[Option<usize>],
@@ -311,6 +1017,7 @@ fn catch_block_binds_name(
         .any(|token| token.kind == TokenKind::Identifier && token.text == name)
 }
 
+#[cfg(test)]
 pub(crate) fn name_is_declared_in_enclosing_catch(
     tokens: &[Token<'_>],
     matching_close: &[Option<usize>],
@@ -328,6 +1035,7 @@ pub(crate) fn name_is_declared_in_enclosing_catch(
     false
 }
 
+#[cfg(test)]
 pub(crate) fn name_is_declared_in_enclosing_expression_arrow(
     tokens: &[Token<'_>],
     matching_close: &[Option<usize>],
@@ -399,6 +1107,7 @@ pub(crate) fn identifier_is_catch_parameter(
     false
 }
 
+#[cfg(test)]
 pub(crate) fn name_is_bound_as_non_enclosing_function_local(
     tokens: &[Token<'_>],
     matching_close: &[Option<usize>],
@@ -683,6 +1392,7 @@ pub(crate) fn name_is_declared_in_any_enclosing_function_scope(
     false
 }
 
+#[cfg(test)]
 pub(crate) fn name_is_visible_generated_binding(
     tokens: &[Token<'_>],
     matching_close: &[Option<usize>],
@@ -725,6 +1435,7 @@ pub(crate) fn name_is_visible_generated_binding(
     false
 }
 
+#[cfg(test)]
 fn function_directly_binds_name(
     tokens: &[Token<'_>],
     matching_close: &[Option<usize>],
@@ -867,6 +1578,7 @@ fn name_is_declared_at_module_scope(
     false
 }
 
+#[cfg(test)]
 pub(crate) fn name_is_module_var_binding(
     tokens: &[Token<'_>],
     matching_close: &[Option<usize>],

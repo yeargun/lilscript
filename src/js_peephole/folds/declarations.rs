@@ -4,9 +4,7 @@ use crate::js_peephole::rewrite::{
     top_level_stop,
 };
 use crate::js_peephole::scope::{
-    enclosing_block_end, enclosing_function_span, function_scope_declares,
-    name_is_declared_in_any_enclosing_function_scope, name_is_declared_in_any_enclosing_scope,
-    name_is_module_var_binding, name_is_used_in_scope,
+    enclosing_block_end, function_scope_declares, name_is_used_in_scope, GeneratedBindingIndex,
 };
 use crate::js_peephole::token::{lex, lex_certainly, matching_closers, Token, TokenKind};
 use crate::js_peephole::JavaScriptParseError;
@@ -1254,6 +1252,7 @@ pub(crate) fn declare_implicit_assignment_bindings(
 ) -> Result<(String, usize), JavaScriptParseError> {
     let tokens = lex(source)?;
     let matching_close = matching_closers(&tokens);
+    let mut binding_index = None;
     let mut replacements = Vec::<(usize, usize, String)>::new();
     let mut declared = Vec::<(usize, &str)>::new();
     for at in 0..tokens.len() {
@@ -1280,13 +1279,15 @@ pub(crate) fn declare_implicit_assignment_bindings(
         if !statement_like && !expression_embedded {
             continue;
         }
+        let bindings = binding_index
+            .get_or_insert_with(|| GeneratedBindingIndex::new(&tokens, &matching_close));
         let name = tokens[at].text;
-        let Some((function_body, _)) = enclosing_function_span(&tokens, &matching_close, at) else {
+        let Some((function_body, _)) = bindings.enclosing_function_span(at) else {
             if !statement_like
                 || declared
                     .iter()
                     .any(|(body, declared_name)| *body == usize::MAX && *declared_name == name)
-                || name_is_declared_in_any_enclosing_scope(&tokens, &matching_close, at, name)
+                || bindings.name_is_declared_in_any_scope(at, name)
             {
                 continue;
             }
@@ -1300,12 +1301,10 @@ pub(crate) fn declare_implicit_assignment_bindings(
         {
             continue;
         }
-        if name_is_declared_in_any_enclosing_function_scope(&tokens, &matching_close, at, name) {
+        if bindings.name_is_declared_in_enclosing_function_scope(at, name) {
             continue;
         }
-        if name_is_module_var_binding(&tokens, &matching_close, name)
-            && !is_chained_assignment_target(&tokens, at)
-        {
+        if bindings.name_is_module_var_binding(name) && !is_chained_assignment_target(&tokens, at) {
             continue;
         }
         let insert_at = if is_bare_for_init_assignment(&tokens, at) {
