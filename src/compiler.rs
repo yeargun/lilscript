@@ -14039,6 +14039,58 @@ mod tests {
     }
 
     #[test]
+    fn level_eight_priority_reserve_cannot_withhold_unconsumable_work() {
+        // Level 8 admits 192 optional proposals with a four-plan beam. Five
+        // active priority families can consume at most one fair beam apiece,
+        // so protecting the old fixed twelve-family capacity stranded 28
+        // permits after ordinary enumeration had already stopped.
+        let proposal_limit = 192;
+        let beam_width = 4;
+        let priority_family_count = 5;
+        let priority_reserve =
+            priority_candidate_proposal_reserve(proposal_limit, beam_width, priority_family_count);
+        assert_eq!(priority_reserve, 20);
+        // The one-third cap still controls a small explicit proposal budget.
+        assert_eq!(
+            priority_candidate_proposal_reserve(32, beam_width, priority_family_count),
+            11
+        );
+
+        let options = crate::codegen_ir_js::IrJsOptions::default();
+        let option = |minimum| crate::codegen_ir_js::IrJsOptions {
+            string_pool_minimum_savings: minimum,
+            ..options
+        };
+        let mut registry = JavaScriptPlanRegistry::default();
+        registry.register_terminal(0, options).unwrap();
+        registry.set_optional_limit(
+            proposal_limit,
+            0,
+            false,
+            priority_reserve,
+            priority_family_count,
+        );
+
+        for minimum in 10_000..10_172 {
+            assert!(registry.register(0, option(minimum)).is_some());
+        }
+        assert_eq!(registry.structural_work_used, 172);
+        assert_eq!(registry.remaining_structural_work(), 0);
+
+        for family in 0..priority_family_count {
+            assert_eq!(registry.begin_priority_family(), beam_width);
+            for offset in 0..beam_width {
+                let minimum = 20_000 + family * beam_width + offset;
+                assert!(registry.register_priority(0, option(minimum)).is_some());
+            }
+            registry.end_priority_family();
+        }
+        assert_eq!(registry.structural_work_used, proposal_limit);
+        assert_eq!(registry.priority_work_reserve, 0);
+        assert_eq!(registry.plans.len(), proposal_limit + 1);
+    }
+
+    #[test]
     fn bounded_candidate_merge_scores_proposals_before_evicting_the_old_frontier() {
         fn candidate(code: &str, cost: usize) -> JavaScriptEmissionCandidate {
             let mut candidate = JavaScriptEmissionCandidate::new(
