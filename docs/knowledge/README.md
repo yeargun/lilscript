@@ -111,6 +111,7 @@ Read top-down. Each page is written so a later change can be judged against the 
    - [Closure ADVANCED](research/closure-advanced.md)
    - [Terser, Oxc, esbuild, and Vite](research/terser-oxc-vite.md)
    - [Gzip and Brotli](research/gzip-brotli.md)
+   - [Brotli machine](research/brotli-machine.html)
 10. [Old migration plans](old-migration/README.md) — catalog-era 00–09 and the 2026-08 compression queue
 
 ## Canonical contracts (not this tree)

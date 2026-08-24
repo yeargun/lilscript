@@ -13,6 +13,8 @@ back-references and prefix coding, with a configurable sliding window plus a sta
 dictionary. Therefore token choice, repetition, frequency, and distance matter—not
 only source length.
 
+The format itself, with steppable encode/decode and both JS sides
+editable, is [Brotli, the whole machine](brotli-machine.html).
 Measured dictionary / mangling quirks live in the
 [Brotli mangling lab](brotli-mangle-lab.html) (regenerate with
 `brotli-mangle-lab.mjs` + `render-brotli-mangle-lab.mjs`).

@@ -1,0 +1,725 @@
+<header class="masthead">
+  <div class="masthead-inner">
+    <div class="eyebrow">
+      <span>RFC 7932</span><span class="dot">/</span>
+      <span>Brotli <span id="fact-version">1.1.0</span> tables</span><span class="dot">/</span>
+      <span>encoder + decoder, running here</span><span class="dot">/</span>
+      <span id="fact-tests">verified against the real library</span>
+    </div>
+    <h1>Brotli, the whole machine
+      <span class="sub">every field, both directions, nothing hand-waved</span></h1>
+    <p class="lede">A complete working Brotli in this page: a decoder that reads real streams bit by bit,
+      an encoder that writes streams the real library accepts, and the
+      <strong>122,784-byte static dictionary</strong> with its 121 transforms. Type text, watch it become
+      commands, watch the commands become bits, then step back through the bits and watch the text
+      reappear. Every stage is a function you can read — and replace with your own.</p>
+  </div>
+</header>
+
+<nav class="toc" aria-label="Sections">
+  <ol>
+    <li><a href="#shape">Shape of a stream</a></li>
+    <li><a href="#machine">The machine</a></li>
+    <li><a href="#codes">Prefix codes</a></li>
+    <li><a href="#header">Meta-block header</a></li>
+    <li><a href="#commands">Commands</a></li>
+    <li><a href="#distances">Distances</a></li>
+    <li><a href="#contexts">Contexts</a></li>
+    <li><a href="#dictionary">Dictionary</a></li>
+    <li><a href="#encoder">Encoder choices</a></li>
+    <li><a href="#pseudocode">Pseudocode</a></li>
+    <li><a href="#plugins">Your own JS</a></li>
+    <li><a href="#provenance">Provenance</a></li>
+  </ol>
+</nav>
+
+<main>
+
+<!-- ============================================================ 1 --> 
+<section id="shape">
+  <div class="section-head">
+    <div class="num">01 — orientation</div>
+    <h2>The shape of a stream</h2>
+  </div>
+
+  <div class="grid wide-left">
+    <div>
+      <p>Brotli is LZ77 plus prefix codes plus a dictionary that both sides already have. A compressed
+        stream is a <strong>window size</strong>, then a run of <strong>meta-blocks</strong>. Each meta-block
+        carries its own complete set of prefix codes and then a run of <strong>commands</strong>. One command
+        says: <em>copy this many literal bytes out of the stream, then copy this many bytes from that far
+        back</em>. That is the entire machine. Everything else is a way to spend fewer bits saying it.</p>
+      <p>Three things make Brotli different from DEFLATE, and all three cost header bits to set up and pay
+        for themselves in the command stream:</p>
+      <ul>
+        <li><strong>A last-distance cache.</strong> The four most recent distances get four-bit names, and a
+          whole class of commands reuses the last distance without naming it at all.</li>
+        <li><strong>Context modelling.</strong> Literals are coded with a prefix code chosen by the two
+          preceding bytes, so <code>e</code> after <code>th</code> is cheap and <code>e</code> after
+          <code>(</code> is not.</li>
+        <li><strong>A shared static dictionary.</strong> 13,504 words, plus 121 transforms that wrap, cut and
+          capitalise them — reachable as a back-reference past the start of the stream, so the first
+          <code>&lt;div class="container"&gt;</code> in a file can already be a copy.</li>
+      </ul>
+    </div>
+    <div class="panel">
+      <h4>How to read this page</h4>
+      <p class="note">Every number below is computed live. The decoder was checked against streams from the
+        real Brotli library at five quality levels and four window sizes, and it decompresses Brotli's own
+        compressed copy of its dictionary. The encoder's output is fed back to the real library in the build,
+        which is the only test that counts.</p>
+      <div class="legend" style="margin-top:14px">
+        <span><i class="bg-stream"></i>stream header</span>
+        <span><i class="bg-header"></i>meta-block header</span>
+        <span><i class="bg-code"></i>prefix codes</span>
+        <span><i class="bg-command"></i>commands</span>
+        <span><i class="bg-literal"></i>literals</span>
+        <span><i class="bg-distance"></i>distances</span>
+        <span><i class="bg-dict"></i>dictionary</span>
+      </div>
+      <p class="note" style="margin-top:14px">Those seven colours mean the same thing everywhere: in the hex
+        dump, in the trace, in the legends.</p>
+    </div>
+  </div>
+
+  <figure class="scroll-x">
+    <svg viewBox="0 0 1000 330" width="1000" role="img" aria-label="Structure of a Brotli stream: header, meta-blocks, meta-block internals, and one command"
+         style="max-width:100%;height:auto;font-family:var(--mono);">
+      <defs>
+        <marker id="arw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+          <path d="M0 0 L10 5 L0 10 z" fill="#665f54"></path>
+        </marker>
+      </defs>
+      <!-- row 1: stream -->
+      <text x="0" y="14" fill="#8f877a" font-size="10.5" letter-spacing="1.4">STREAM</text>
+      <rect x="0" y="24" width="70" height="34" fill="#6f9bd1" opacity="0.85"></rect>
+      <text x="35" y="45" fill="#0d0c0a" font-size="11" text-anchor="middle">WBITS</text>
+      <rect x="74" y="24" width="230" height="34" fill="#191713" stroke="#38322a"></rect>
+      <text x="189" y="45" fill="#ece7dc" font-size="11" text-anchor="middle">meta-block 0</text>
+      <rect x="308" y="24" width="180" height="34" fill="#191713" stroke="#38322a"></rect>
+      <text x="398" y="45" fill="#ece7dc" font-size="11" text-anchor="middle">meta-block 1</text>
+      <rect x="492" y="24" width="300" height="34" fill="#191713" stroke="#38322a"></rect>
+      <text x="642" y="45" fill="#ece7dc" font-size="11" text-anchor="middle">meta-block 2 · ISLAST</text>
+      <text x="800" y="45" fill="#665f54" font-size="10.5">1–7 bits of padding</text>
+      <!-- connectors -->
+      <path d="M74 62 L74 82 M304 62 L304 82" stroke="#38322a"></path>
+      <path d="M74 82 L1000 82" stroke="#38322a" stroke-dasharray="3 3" opacity="0"></path>
+      <line x1="74" y1="80" x2="0" y2="104" stroke="#665f54" marker-end="url(#arw)"></line>
+      <line x1="304" y1="80" x2="1000" y2="104" stroke="#665f54" marker-end="url(#arw)"></line>
+      <!-- row 2: meta-block -->
+      <text x="0" y="124" fill="#8f877a" font-size="10.5" letter-spacing="1.4">META-BLOCK</text>
+      <g font-size="10" text-anchor="middle">
+        <rect x="0" y="134" width="96" height="32" fill="#9a8fd8" opacity="0.85"></rect>
+        <text x="48" y="154" fill="#0d0c0a">ISLAST · MLEN</text>
+        <rect x="100" y="134" width="150" height="32" fill="#9a8fd8" opacity="0.6"></rect>
+        <text x="175" y="150" fill="#0d0c0a">block types &amp; counts</text>
+        <text x="175" y="161" fill="#0d0c0a" opacity="0.75">literal / cmd / distance</text>
+        <rect x="254" y="134" width="118" height="32" fill="#9a8fd8" opacity="0.6"></rect>
+        <text x="313" y="150" fill="#0d0c0a">NPOSTFIX NDIRECT</text>
+        <text x="313" y="161" fill="#0d0c0a" opacity="0.75">context modes</text>
+        <rect x="376" y="134" width="126" height="32" fill="#c77dbb" opacity="0.7"></rect>
+        <text x="439" y="154" fill="#0d0c0a">context maps</text>
+        <rect x="506" y="134" width="180" height="32" fill="#c9a227" opacity="0.85"></rect>
+        <text x="596" y="150" fill="#0d0c0a">prefix codes</text>
+        <text x="596" y="161" fill="#0d0c0a" opacity="0.75">literal · insert&amp;copy · distance</text>
+        <rect x="690" y="134" width="310" height="32" fill="#191713" stroke="#38322a"></rect>
+        <text x="845" y="154" fill="#ece7dc">commands, until MLEN bytes exist</text>
+      </g>
+      <line x1="690" y1="170" x2="0" y2="200" stroke="#665f54" marker-end="url(#arw)"></line>
+      <line x1="1000" y1="170" x2="1000" y2="200" stroke="#665f54" marker-end="url(#arw)"></line>
+      <!-- row 3: command -->
+      <text x="0" y="222" fill="#8f877a" font-size="10.5" letter-spacing="1.4">ONE COMMAND</text>
+      <g font-size="10" text-anchor="middle">
+        <rect x="0" y="232" width="150" height="32" fill="#e08a5a" opacity="0.9"></rect>
+        <text x="75" y="246" fill="#0d0c0a">insert&amp;copy symbol</text>
+        <text x="75" y="257" fill="#0d0c0a" opacity="0.75">one of 704</text>
+        <rect x="154" y="232" width="96" height="32" fill="#e08a5a" opacity="0.55"></rect>
+        <text x="202" y="252" fill="#0d0c0a">extra bits</text>
+        <rect x="254" y="232" width="300" height="32" fill="#79b473" opacity="0.85"></rect>
+        <text x="404" y="246" fill="#0d0c0a">N literals</text>
+        <text x="404" y="257" fill="#0d0c0a" opacity="0.75">each coded by its context</text>
+        <rect x="558" y="232" width="170" height="32" fill="#c77dbb" opacity="0.85"></rect>
+        <text x="643" y="246" fill="#0d0c0a">distance symbol</text>
+        <text x="643" y="257" fill="#0d0c0a" opacity="0.75">omitted if code &lt; 128</text>
+        <rect x="732" y="232" width="268" height="32" fill="#191713" stroke="#38322a"></rect>
+        <text x="866" y="246" fill="#ece7dc">copy L bytes from D back</text>
+        <text x="866" y="257" fill="#5fb3b3">or D &gt; window ⇒ dictionary word</text>
+      </g>
+      <text x="0" y="292" fill="#8f877a" font-size="10.5" letter-spacing="1.4">RESULT</text>
+      <rect x="0" y="300" width="1000" height="26" fill="#0b0a09" stroke="#38322a"></rect>
+      <text x="12" y="317" fill="#b8b1a3" font-size="11">output grows by (N literals + L copied bytes); the copy source is the output itself, so a copy may overlap what it is writing</text>
+    </svg>
+    <figcaption>Three nested loops: meta-blocks in a stream, commands in a meta-block, bytes in a command.
+      The decoder never looks ahead — every field's meaning depends only on what came before it.</figcaption>
+  </figure>
+</section>
+
+<!-- ============================================================ 2 -->
+<section id="machine">
+  <div class="section-head">
+    <div class="num">02 — the instrument</div>
+    <h2>Encode, then walk back through it</h2>
+  </div>
+  <p>Put text in. The encoder runs its whole pipeline and hands the bytes to the decoder, which replays
+    itself one field at a time. The hex dump is coloured by which field claimed each byte; the trace is every
+    decision the decoder made; the pseudocode line that produced the current step is highlighted.</p>
+
+  <div class="grid wide-left" style="align-items:start">
+    <div class="stack">
+      <div class="panel">
+        <div class="spread" style="margin-bottom:10px">
+          <h4 style="margin:0">Input</h4>
+          <div class="row tight">
+            <select id="sample-pick" aria-label="Sample input"></select>
+            <button id="btn-encode" class="primary">Encode</button>
+          </div>
+        </div>
+        <textarea id="input-text" spellcheck="false" rows="7"></textarea>
+        <div class="row" style="margin-top:10px">
+          <label class="field">Literal trees
+            <select id="opt-trees">
+              <option value="auto" selected>auto (by size)</option>
+              <option value="1">1 (no context split)</option>
+              <option value="2">2</option>
+              <option value="4">4</option>
+              <option value="8">8</option>
+              <option value="16">16</option>
+            </select>
+          </label>
+          <label class="field">Context mode
+            <select id="opt-mode">
+              <option value="2" selected>UTF8</option>
+              <option value="0">LSB6</option>
+              <option value="1">MSB6</option>
+              <option value="3">SIGNED</option>
+            </select>
+          </label>
+          <label class="field">Dictionary
+            <select id="opt-dict"><option value="1" selected>on</option><option value="0">off</option></select>
+          </label>
+          <label class="field">Lazy matching
+            <select id="opt-lazy"><option value="1" selected>on</option><option value="0">off</option></select>
+          </label>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="spread"><h4 style="margin:0">Bytes on the wire</h4>
+          <span class="note mono" id="bitmap-hint">hover a byte</span></div>
+        <div id="bitmap" class="bitmap scroll" style="max-height:230px"></div>
+        <div class="legend" style="margin-top:10px" id="bitmap-legend"></div>
+        <div id="bitfield" class="panel sunken" style="margin-top:10px;padding:10px 12px">
+          <div class="note mono">Click a byte to see the fields packed into it.</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="spread" style="margin-bottom:10px">
+          <h4 style="margin:0">Decoder trace</h4>
+          <span class="note mono" id="trace-count"></span>
+        </div>
+        <div class="transport">
+          <button id="tr-first" class="icon" title="First step">⏮</button>
+          <button id="tr-back" class="icon" title="Step back">◀</button>
+          <button id="tr-play" class="icon primary" title="Play">▶ play</button>
+          <button id="tr-next" class="icon" title="Step forward">▶</button>
+          <button id="tr-last" class="icon" title="Last step">⏭</button>
+          <span class="spacer"></span>
+          <label class="field" style="grid-auto-flow:column;align-items:center;gap:8px">speed
+            <select id="tr-speed">
+              <option value="400">slow</option>
+              <option value="120" selected>medium</option>
+              <option value="16">fast</option>
+            </select>
+          </label>
+          <div class="row tight" id="tr-filter"></div>
+        </div>
+        <div class="scrub" style="margin-top:10px">
+          <input id="tr-scrub" type="range" min="0" max="0" value="0" aria-label="Trace position">
+        </div>
+        <div id="trace" class="trace-list" style="margin-top:8px"></div>
+      </div>
+    </div>
+
+    <div class="stack">
+      <div class="panel">
+        <h4>Round trip</h4>
+        <div class="grid three" id="stats" style="gap:12px"></div>
+        <div id="verdict" style="margin-top:12px"></div>
+      </div>
+      <div class="panel">
+        <h4>Output so far</h4>
+        <div id="outview" class="outview"></div>
+      </div>
+      <div class="panel">
+        <h4>Last-distance cache</h4>
+        <div id="cache" class="cache"></div>
+        <p class="note" style="margin-top:10px">Slots are a ring. Distance code 0 means “the last one” and does
+          not move the ring; codes 4–15 are that ring plus or minus one, two or three.</p>
+      </div>
+      <div class="panel">
+        <h4>Current step</h4>
+        <div id="stepdetail" class="kv"></div>
+      </div>
+      <div class="panel">
+        <div class="spread" style="margin-bottom:10px">
+          <h4 style="margin:0">Decoder, following along</h4>
+          <span class="note mono">line highlights with the trace</span>
+        </div>
+        <div id="pseudo-live" class="pseudo"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ 3 -->
+<section id="codes">
+  <div class="section-head">
+    <div class="num">03 — entropy coding</div>
+    <h2>Prefix codes, and the code that codes them</h2>
+  </div>
+  <div class="grid two">
+    <div>
+      <p>Brotli's prefix codes are canonical, exactly as DEFLATE's are: sort the symbols by
+        <em>(code length, symbol value)</em>, hand out codes in increasing order within each length, and the
+        table is fully described by one length per symbol. Lengths are capped at 15.</p>
+      <p>Bits go into the stream least-significant first, but a prefix code's bits are written
+        <strong>reversed</strong>, so a decoder reading LSB-first receives them most-significant-bit-first and
+        can walk the tree one bit at a time. That single convention is why the hex dump below never lines up
+        with anything.</p>
+      <h3>Two ways to write a code</h3>
+      <p>A meta-block header spells out every prefix code it uses, in one of two forms:</p>
+      <ul>
+        <li><strong>Simple</strong> — up to four symbols, listed literally, with lengths fixed by the count
+          (<code>1</code>; <code>1,1</code>; <code>1,2,2</code>; <code>2,2,2,2</code> or
+          <code>1,2,3,3</code>). A code with one symbol costs zero bits per use.</li>
+        <li><strong>Complex</strong> — the sequence of code lengths, itself prefix-coded by an
+          18-symbol <em>code-length code</em>, whose own lengths arrive in a fixed order
+          (<code id="cl-order"></code>) under a hard-wired 2-to-4-bit code. Symbol 17 repeats zeros,
+          symbol 16 repeats the previous length, and both chain: a second 17 multiplies the pending run
+          by eight.</li>
+      </ul>
+      <p>Both sides stop reading code lengths the instant the code is complete — the Kraft sum reaches
+        exactly 1 — which is a detail an encoder gets wrong once and only once.</p>
+    </div>
+    <div class="stack">
+      <div class="panel">
+        <h4>Build a code from counts</h4>
+        <p class="note">Package-merge, capped at 15 bits, the same function the encoder uses. Edit the
+          counts.</p>
+        <textarea id="huff-input" rows="3" spellcheck="false">a 40, b 25, c 15, d 10, e 6, f 3, g 1</textarea>
+        <div class="row" style="margin-top:8px">
+          <button id="huff-run">Build</button>
+          <span class="note mono" id="huff-summary"></span>
+        </div>
+        <div class="scroll" style="margin-top:10px"><table id="huff-table"></table></div>
+      </div>
+      <div class="panel">
+        <h4>How this stream spells its codes</h4>
+        <div class="scroll" style="max-height:300px"><table id="codes-table"></table></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ 4 -->
+<section id="header">
+  <div class="section-head">
+    <div class="num">04 — framing</div>
+    <h2>The meta-block header, field by field</h2>
+  </div>
+  <div class="grid wide-right">
+    <div>
+      <p>The stream opens with <code>WBITS</code>, a variable-length code for the window size: one zero bit
+        means 16, otherwise three more bits give 17–24, with a further escape for 10–17. The window is
+        <code>2^WBITS − 16</code> bytes; the sixteen missing bytes are what make room for the short distance
+        codes.</p>
+      <p>Then meta-blocks, each self-contained:</p>
+      <ul>
+        <li><code>ISLAST</code>, and if set, <code>ISLASTEMPTY</code> — an empty stream is two bits.</li>
+        <li><code>MNIBBLES</code> then <code>MLEN</code>: the uncompressed size, 4, 5 or 6 nibbles, minus one.
+          The escape value marks a <em>metadata</em> meta-block, skipped bytes that never reach the output.</li>
+        <li><code>ISUNCOMPRESSED</code> (non-final blocks only): pad to a byte and store raw.</li>
+        <li>Block-type machinery for all three alphabets, then <code>NPOSTFIX</code> and
+          <code>NDIRECT</code>, then one context mode per literal block type, then the two context maps,
+          then every prefix code.</li>
+      </ul>
+      <p>Nothing is optional-by-default: if a category has one block type, its switching codes are simply
+        absent; if a context map has one tree, the map is absent. The header pays only for the variety it
+        actually uses — which is why splitting a small file into meta-blocks costs more than it saves.</p>
+    </div>
+    <div class="panel">
+      <h4>Header of the stream above</h4>
+      <div class="scroll" style="max-height:460px"><table id="header-table"></table></div>
+    </div>
+  </div>
+  <div class="grid three" style="margin-top:18px">
+    <div class="panel"><h4>Block splitting</h4>
+      <p class="note">Each of the three alphabets can switch between up to 256 block types mid-meta-block. A
+        switch reads a type symbol (0 = the type before last, 1 = current + 1, else symbol − 2) and a new run
+        length from a 26-symbol count alphabet. The encoder in this page never splits — it declares one type
+        per category — so every switch you see in a trace came from a stream the real library produced.</p>
+    </div>
+    <div class="panel"><h4>Uncompressed blocks</h4>
+      <p class="note">Real encoders emit these when a region is incompressible. The decoder pads to a byte
+        boundary and copies <code>MLEN</code> bytes straight through — those bytes still enter the window and
+        can be copied from later.</p>
+    </div>
+    <div class="panel"><h4>Padding</h4>
+      <p class="note">After the last meta-block the stream is padded to a byte with zero bits. A stream is
+        therefore not uniquely determined by its content: the same commands can end in different final
+        bytes.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ 5 -->
+<section id="commands">
+  <div class="section-head">
+    <div class="num">05 — the command alphabet</div>
+    <h2>704 symbols that mean “insert this many, then copy that many”</h2>
+  </div>
+  <div class="grid wide-left">
+    <div>
+      <p>Insert lengths and copy lengths each have a 24-entry table of <em>base + extra bits</em>: insert
+        0–5 costs no extra bits, insert 22,594 or more costs 24. The command alphabet is the product of the
+        two, arranged as eleven blocks of an 8×8 grid so that the common combinations land in the low
+        symbols.</p>
+      <p>The first two blocks — symbols 0–127 — are special: they carry <strong>no distance at all</strong>
+        and mean “reuse the last distance”. That is why a run of same-distance copies, the signature of
+        columnar or templated data, collapses so hard.</p>
+      <p>A meta-block ends when <code>MLEN</code> bytes exist. If that happens during a command's literals,
+        the copy the command announced is simply never performed — which is how every stream that does not
+        end in a match ends.</p>
+    </div>
+    <div class="panel">
+      <h4>Look up a command</h4>
+      <div class="row">
+        <label class="field">insert<input id="cmd-ins" type="number" min="0" value="7" style="width:90px"></label>
+        <label class="field">copy<input id="cmd-copy" type="number" min="2" value="12" style="width:90px"></label>
+        <label class="field">distance<select id="cmd-last"><option value="0">new</option><option value="1">reuse last</option></select></label>
+      </div>
+      <div id="cmd-result" class="kv" style="margin-top:12px"></div>
+      <h4 style="margin-top:18px">Commands in the current stream</h4>
+      <div class="scroll" style="max-height:300px"><table id="cmd-table"></table></div>
+    </div>
+  </div>
+  <div class="grid two" style="margin-top:18px">
+    <div class="panel"><h4>Insert length codes</h4><div class="scroll" style="max-height:250px"><table id="ins-table"></table></div></div>
+    <div class="panel"><h4>Copy length codes</h4><div class="scroll" style="max-height:250px"><table id="copy-table"></table></div></div>
+  </div>
+</section>
+
+<!-- ============================================================ 6 -->
+<section id="distances">
+  <div class="section-head">
+    <div class="num">06 — addressing the past</div>
+    <h2>Distances, the cache, and the edge of the window</h2>
+  </div>
+  <div class="grid wide-left">
+    <div>
+      <p>A distance is coded in one of three regions. Codes <strong>0–15</strong> read the four-entry cache of
+        recent distances, either directly or offset by ±1, ±2, ±3. Codes <strong>16 … 16+NDIRECT</strong> are
+        literal distances 1…NDIRECT. Everything above that is a two-part code: a group index picking a number
+        of extra bits, and <code>NPOSTFIX</code> low bits carried in the symbol itself so that distances
+        sharing a residue share a code.</p>
+      <p>The cache updates on every copy <em>except</em> when the distance came from code 0 — reuse does not
+        reorder the ring. Dictionary references never touch it at all.</p>
+      <p>The window edge is where Brotli stops being DEFLATE. The largest legal distance at output position
+        <em>p</em> is <code>min(p, 2^WBITS − 16)</code>. A distance one past that is not an error: it is
+        dictionary entry zero. Everything above is the dictionary, indexed by
+        <code>distance − max − 1</code>.</p>
+    </div>
+    <div class="stack">
+      <div class="panel">
+        <h4>Encode a distance</h4>
+        <div class="row">
+          <label class="field">distance<input id="dist-value" type="number" min="1" value="1234" style="width:110px"></label>
+          <label class="field">NPOSTFIX<select id="dist-npostfix"><option>0</option><option>1</option><option>2</option><option>3</option></select></label>
+          <label class="field">NDIRECT<input id="dist-ndirect" type="number" min="0" max="120" step="1" value="0" style="width:80px"></label>
+          <label class="field">position<input id="dist-pos" type="number" min="0" value="100000" style="width:110px"></label>
+        </div>
+        <div id="dist-result" class="kv" style="margin-top:12px"></div>
+      </div>
+      <div class="panel">
+        <h4>The sixteen short codes</h4>
+        <div class="scroll" style="max-height:260px"><table id="dist-short-table"></table></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ 7 -->
+<section id="contexts">
+  <div class="section-head">
+    <div class="num">07 — literal contexts</div>
+    <h2>Which code a literal is written with</h2>
+  </div>
+  <div class="grid wide-left">
+    <div>
+      <p>Every literal is coded with a prefix code chosen by the two bytes before it. The two bytes go
+        through a 2,048-byte lookup table — <code>ctx = LUT[mode][p1] | LUT[mode][256 + p2]</code> — producing
+        a context id from 0 to 63. Four modes are available per literal block type:</p>
+      <ul>
+        <li><strong>LSB6 / MSB6</strong> — the low or high six bits of the previous byte. Cheap, good for
+          binary and for fixed-width records.</li>
+        <li><strong>UTF8</strong> — a hand-tuned second-order model: sixteen classes for the previous byte
+          (vowel, consonant, digit, space, opening bracket, closing bracket, …) crossed with four for the one
+          before it.</li>
+        <li><strong>SIGNED</strong> — tuned for small signed integers, where the sign byte dominates.</li>
+      </ul>
+      <p>Sixty-four contexts do not mean sixty-four prefix codes: a <strong>context map</strong> folds them
+        onto a smaller set of trees. Choosing that clustering is the encoder's job, and it is the single
+        biggest lever on text.</p>
+      <h3>How a context map is written</h3>
+      <p>The map is <code>NBLTYPESL × 64</code> tree numbers for literals, and <code>NBLTYPESD × 4</code> for
+        distances. Three mechanisms shrink it:</p>
+      <ul>
+        <li><strong>RLEMAX</strong> — one bit, then four more if set. It reserves that many low symbols of the
+          map's own prefix code for <em>runs of zero</em>: symbol <em>k</em> followed by <em>k</em> extra bits
+          means <code>2^k + extra</code> zeros. Tree numbers are shifted up past the reserved range.</li>
+        <li><strong>Move-to-front</strong> — a trailing bit. When set, the values just read are indices into a
+          list of 0…255 that moves each value to the front as it is used, so a map that keeps returning to the
+          same few trees becomes a run of small numbers, which the zero-run codes then eat.</li>
+        <li><strong>Absence</strong> — with one tree there is no map at all.</li>
+      </ul>
+      <p>Both maps are read before any prefix code, because the number of trees they mention is exactly how
+        many literal and distance codes follow.</p>
+    </div>
+    <div class="stack">
+      <div class="panel">
+        <h4>Probe the lookup table</h4>
+        <div class="row">
+          <label class="field">previous byte<input id="ctx-p1" type="text" value="h" maxlength="1" style="width:70px"></label>
+          <label class="field">the one before<input id="ctx-p2" type="text" value="t" maxlength="1" style="width:70px"></label>
+        </div>
+        <div id="ctx-result" class="kv" style="margin-top:12px"></div>
+      </div>
+      <div class="panel">
+        <h4>Context map of the current stream</h4>
+        <p class="note" id="ctx-map-note"></p>
+        <div id="ctx-grid" class="ctxgrid" style="margin-top:10px"></div>
+        <div id="ctx-trees" class="stack" style="margin-top:12px"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ 8 -->
+<section id="dictionary">
+  <div class="section-head">
+    <div class="num">08 — the shared dictionary</div>
+    <h2>122,784 bytes both sides already have</h2>
+  </div>
+  <div class="grid wide-left">
+    <div>
+      <p>The dictionary is one flat byte array holding 13,504 words, grouped by length: 1,024 four-letter
+        words, then 1,024 of five, 2,048 of six, and so on to 32 words of twenty-four. Word
+        <em>(length L, index i)</em> starts at <code>offset[L] + i·L</code>. A reference names a
+        <em>transformed</em> word: <code>id = transform·2^bits[L] + i</code>, and the copy length field of the
+        command carries L.</p>
+      <p>The 121 transforms are a prefix string, an operation, and a suffix string. The operations are
+        identity, omit 1–9 from either end, upper-case the first UTF-8 character, or upper-case all of them.
+        So <code>" the "</code>, <code>"The"</code>, <code>"time.\n"</code> and <code>"TIME"</code> are all one
+        reference away from the same four-letter word.</p>
+      <p class="note">The encoder here probes the identity, suffix and upper-case-first families. The decoder
+        implements all 121 — it has to, since it must read whatever a real encoder wrote.</p>
+    </div>
+    <div class="stack">
+      <div class="panel">
+        <h4>Find a word</h4>
+        <div class="row">
+          <input id="dict-query" type="text" value="function" placeholder="search the dictionary" style="flex:1 1 200px">
+          <button id="dict-search">Search</button>
+        </div>
+        <div class="scroll" style="max-height:220px;margin-top:10px"><table id="dict-results"></table></div>
+      </div>
+      <div class="panel">
+        <h4>Transform a word</h4>
+        <div class="row">
+          <label class="field">word<input id="tf-word" type="text" value="time" style="width:140px"></label>
+          <label class="field">transform<input id="tf-index" type="number" min="0" max="120" value="9" style="width:90px"></label>
+        </div>
+        <div id="tf-result" class="kv" style="margin-top:12px"></div>
+        <div class="scroll" style="max-height:200px;margin-top:12px"><table id="tf-table"></table></div>
+      </div>
+    </div>
+  </div>
+  <div class="grid wide-left" style="margin-top:18px">
+    <div class="panel">
+      <h4>Spell a string from the dictionary</h4>
+      <p class="note">Every transformed entry that produces a prefix of this string, longest first. This is the
+        full search — all 121 transforms — which is why it runs on one position and not on a whole file.</p>
+      <div class="row" style="margin-top:10px">
+        <input id="dict-spell" type="text" value="<div class=&quot;container&quot;>" style="flex:1 1 240px">
+        <button id="dict-spell-run">Match</button>
+      </div>
+      <div class="scroll" style="max-height:260px;margin-top:10px"><table id="dict-spell-out"></table></div>
+    </div>
+    <div class="panel">
+      <h4>Self-test: decode the dictionary with the decoder that needs it</h4>
+      <p class="note">Brotli ships its dictionary twice: raw, and Brotli-compressed. The compressed copy is
+        embedded here — 51,687 bytes of it. Decoding it exercises every part of the decoder except the
+        dictionary itself, and the result has to match the copy this page is already using.</p>
+      <div class="row" style="margin-top:12px">
+        <button id="dict-selftest">Run</button>
+        <span id="dict-selftest-out" class="note mono"></span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ 9 -->
+<section id="encoder">
+  <div class="section-head">
+    <div class="num">09 — the other direction</div>
+    <h2>Everything the format leaves to the encoder</h2>
+  </div>
+  <p>The specification constrains the decoder completely and the encoder not at all. These are the choices
+    this page makes, in order, with the interim result of each stage from the current input.</p>
+  <div class="grid two">
+    <div class="panel">
+      <h4>Stage 1 — matches</h4>
+      <p class="note">Hash chains over four-byte prefixes, plus a dictionary probe, plus one step of lazy
+        matching. Scored in estimated bits: a match must beat writing the bytes as literals.</p>
+      <div id="enc-stage1" class="kv" style="margin-top:10px"></div>
+    </div>
+    <div class="panel">
+      <h4>Stage 2 — histograms and clustering</h4>
+      <p class="note">Literal counts are collected per context, then the 64 contexts are grouped by Lloyd's
+        algorithm under a cross-entropy cost. More trees code literals better and cost more header.</p>
+      <div id="enc-stage2" class="kv" style="margin-top:10px"></div>
+    </div>
+    <div class="panel">
+      <h4>Stage 3 — codes</h4>
+      <p class="note">Package-merge gives optimal lengths under the 15-bit cap; the writer then picks the
+        simple or complex form per alphabet.</p>
+      <div id="enc-stage3" class="kv" style="margin-top:10px"></div>
+    </div>
+    <div class="panel">
+      <h4>Stage 4 — bits</h4>
+      <p class="note">Where the bytes actually went.</p>
+      <div id="enc-stage4" class="bar-chart" style="margin-top:10px"></div>
+    </div>
+  </div>
+  <div class="panel" style="margin-top:18px">
+    <div class="spread" style="margin-bottom:10px">
+      <h4 style="margin:0">Parameter sweep</h4>
+      <button id="sweep-run">Run sweep</button>
+    </div>
+    <p class="note">The same input encoded under every combination of literal-tree budget and context mode.
+      Nothing here changes what a decoder does; it only changes how many bits the same output costs.</p>
+    <div class="scroll" style="max-height:320px;margin-top:10px"><table id="sweep-table"></table></div>
+  </div>
+</section>
+
+<!-- ============================================================ 10 -->
+<section id="pseudocode">
+  <div class="section-head">
+    <div class="num">10 — the algorithm</div>
+    <h2>Both directions in pseudocode</h2>
+  </div>
+  <p>The decoder listing is the one that highlights while you step through
+    <a href="#machine">the machine</a>. The encoder listing is a description of choices, not of the format —
+    a different encoder can do all of it differently and still produce a legal stream.</p>
+  <div class="tabs" id="pseudo-tabs"></div>
+  <div class="grid two">
+    <div><h4 id="pseudo-static-title">Decoder</h4><div id="pseudo-static" class="pseudo" style="max-height:none"></div></div>
+    <div>
+      <h4>The same thing, as the code that actually runs</h4>
+      <p class="note">Read straight out of the page's own functions, so it cannot drift from what you just
+        watched execute.</p>
+      <div class="row" style="margin:10px 0"><select id="src-pick"></select></div>
+      <pre id="src-view" class="code" style="max-height:640px;overflow:auto"></pre>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ 11 -->
+<section id="plugins">
+  <div class="section-head">
+    <div class="num">11 — bring your own</div>
+    <h2>Replace any stage with your own JavaScript</h2>
+  </div>
+  <p>Each slot below holds the function the encoder actually calls. Edit it, press <em>Run</em>, and the whole
+    pipeline re-runs with your version: the stream is re-encoded, decoded again by the reference decoder, and
+    compared byte for byte with the input. If your version produces a stream that does not round-trip, you
+    will be told exactly where it broke — that is the interesting outcome, not the failure.</p>
+  <div class="grid two" style="align-items:start">
+    <div class="stack">
+      <div class="tabs" id="plugin-tabs"></div>
+      <div class="editor">
+        <div id="plugin-doc" class="note"></div>
+        <textarea id="plugin-src" spellcheck="false"></textarea>
+        <div class="bar">
+          <button id="plugin-run" class="primary">Run</button>
+          <button id="plugin-reset">Reset this slot</button>
+          <button id="plugin-reset-all" class="ghost">Reset all slots</button>
+          <span id="plugin-status" class="status"></span>
+        </div>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="panel">
+        <h4>Result</h4>
+        <div id="plugin-result" class="kv"></div>
+      </div>
+      <div class="panel">
+        <h4>Scratchpad</h4>
+        <p class="note">The whole engine is on <code>BM</code>. Anything you return, or log, is printed
+          below. <code>BM.encode</code>, <code>BM.decode</code>, <code>BM.dictionary()</code>,
+          <code>BM.tables</code>, <code>BM.huffman</code>, <code>BM.plugins</code>.</p>
+        <textarea id="scratch-src" rows="9" spellcheck="false"></textarea>
+        <div class="bar" style="margin-top:8px">
+          <button id="scratch-run">Run</button>
+          <span class="note mono">⌘/Ctrl + Enter</span>
+        </div>
+        <div id="scratch-out" class="console" style="margin-top:10px"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ 12 -->
+<section id="provenance">
+  <div class="section-head">
+    <div class="num">12 — provenance</div>
+    <h2>Where the numbers come from</h2>
+  </div>
+  <div class="grid two">
+    <div>
+      <p>The static tables are extracted from the Brotli C sources this repository already vendors, not
+        transcribed by hand: the dictionary and its length tables, the 121 transforms with their
+        prefix/suffix blob, and the 2,048-byte context lookup table. The build re-derives the 704-row command
+        table from the two 24-entry length tables and asserts it matches the C decoder's own
+        <code>kCmdLut</code> row for row.</p>
+      <p>The engine is tested by round-tripping against the real library at build time, not by inspection.
+        Both sides are checked: real streams in, and our streams out.</p>
+      <div class="callout"><p class="note">Rebuild with
+        <code>node docs/knowledge/research/brotli-machine/render.mjs</code>. Re-extract the tables after a
+        Brotli version bump with <code>gen-data.mjs</code>. Tests alone:
+        <code>node docs/knowledge/research/brotli-machine/test.mjs</code>.</p></div>
+    </div>
+    <div class="panel">
+      <h4>Build facts</h4>
+      <div id="provenance-facts" class="kv"></div>
+      <h4 style="margin-top:20px">Deliberate simplifications</h4>
+      <ul class="note">
+        <li>The encoder emits one meta-block and one block type per category; it never splits blocks.</li>
+        <li>Its dictionary probe covers the identity, suffix and upper-case-first transform families.</li>
+        <li><code>NPOSTFIX</code> and <code>NDIRECT</code> are left at zero unless you change them.</li>
+        <li>Large-window streams (<code>WBITS &gt; 24</code>) are rejected rather than decoded.</li>
+        <li>The decoder keeps the whole output in memory instead of a ring buffer, so the window never
+          wraps — correct, but not how a streaming decoder is built.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="footer">
+    <p>Part of the LilScript compression research notes, alongside
+      <a href="gzip-brotli.md">Gzip and Brotli as compiler objectives</a> and the
+      <a href="brotli-global-mangle/README.md">global-mangle playbook</a>. The format itself is
+      <a href="https://www.rfc-editor.org/rfc/rfc7932.html">RFC 7932</a>.</p>
+  </div>
+</section>
+
+</main>
