@@ -363,6 +363,41 @@ fn print_explanation(
                 "{:<34} {}",
                 "candidates evaluated", metrics.candidates_evaluated
             );
+            eprintln!("{:<34} {}", "plans registered", metrics.plans_registered);
+            eprintln!(
+                "{:<34} {}",
+                "optimizer emissions attempted", metrics.optimizer_emissions_attempted
+            );
+            eprintln!(
+                "{:<34} {}",
+                "structural emissions attempted", metrics.emissions_attempted
+            );
+            eprintln!(
+                "{:<34} {}/{}{}",
+                "structural proposal work",
+                metrics.candidate_proposal_work_units,
+                metrics.candidate_proposal_limit,
+                if metrics.candidate_proposal_limit_reached {
+                    " (exhausted)"
+                } else {
+                    ""
+                }
+            );
+            eprintln!(
+                "{:<34} {}/{}{}",
+                "terminal work",
+                metrics.terminal_work_units,
+                metrics.terminal_codec_probe_limit,
+                if metrics.terminal_codec_probe_limit_reached {
+                    " (exhausted)"
+                } else {
+                    ""
+                }
+            );
+            eprintln!(
+                "{:<34} {}",
+                "terminal exact-codec calls", metrics.terminal_codec_probes
+            );
             eprintln!("{:<34} {}", "peephole rewrites", metrics.peephole_rewrites);
             eprintln!(
                 "{:<34} {}",

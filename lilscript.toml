@@ -17,6 +17,10 @@ candidate_limit = 1536
 # Approximate aggregate bytes of whole-artifact candidates retained and scored.
 candidate_byte_budget = 1048576
 candidate_beam_width = 12
+# Optional structural plan/emission cap; omitted uses level and artifact size.
+# candidate_proposal_limit = 384
+# Shared terminal repair/validation/codec work cap; omitted uses level and artifact size.
+# terminal_codec_probe_limit = 384
 # For gzip/Brotli, a transfer non-regression may be admitted despite raw growth;
 # this controls the fallback raw-side allowance against the configured baseline.
 max_candidate_raw_growth_percent = 0

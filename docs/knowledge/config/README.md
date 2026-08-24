@@ -35,7 +35,9 @@ Parent: [tree](../README.md). Behavior: [compilation](../compilation/README.md).
 
 If `compression` is omitted, `javascript.priority` supplies the list. If present, **only listed names** are on; `compression = []` disables all contested tactics.
 
-If `optimizations` is omitted, `optimization_level` (0–15) supplies the feature set. If present, it is an exact allowlist and the level no longer lowers the candidate cap.
+If `optimizations` is omitted, `optimization_level` (0–15) supplies the feature
+set. If present, it is an exact feature allowlist; the level still bounds count,
+byte, beam, structural-proposal, and terminal-codec effort.
 
 Search may turn **off** an enabled compression tactic to compare. It never turns **on** a tactic missing from the compression allowlist.
 

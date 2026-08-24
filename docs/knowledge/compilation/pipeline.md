@@ -52,7 +52,11 @@ discarded single JavaScript artifact before invoking the bundle pipeline.
 
 ## Explain metrics
 
-`JavaScriptSelectionMetrics`: codec name, transfer bytes, startup score, syntax vs baseline, performance vs baseline, candidates evaluated, peephole rewrites, compiler microseconds. Optimizer `OptimizationReport` lists pass changed/unchanged.
+`JavaScriptSelectionMetrics`: codec name, transfer bytes, startup score, syntax
+and performance versus baseline, candidates/plans, pre-budget optimizer and
+bounded structural emissions, structural proposal work/limit, terminal work
+and exact-codec calls/limit, peephole rewrites, and compiler microseconds.
+Optimizer `OptimizationReport` lists pass changed/unchanged.
 
 ## Verification posture
 

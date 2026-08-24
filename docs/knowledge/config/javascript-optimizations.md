@@ -21,7 +21,9 @@ Parent: [Config](README.md). Search mechanics: [candidate search](../compilation
 | 13 | `identical-function-folding`, `function-layout-variants`, `joint-representation-search` |
 | 14 | `ir-function-subsumption-variants`, `ir-phase-ordering-variants`, `ir-compress-pass-variants`, `joint-chunk-symbol-search` |
 
-Level also caps candidate count unless an exact `optimizations` list is set. See the cap table in [candidate search](../compilation/candidate-search.md).
+Level also caps candidate count, retained bytes, beam width, and optional
+terminal codec calls, including when an exact `optimizations` list is set. See
+the effort table in [candidate search](../compilation/candidate-search.md).
 
 ## Exact allowlist
 
@@ -31,12 +33,14 @@ optimization_level = 0
 optimizations = ["parsed-peephole", "startup-cost-guard"]
 ```
 
-Only listed searches run. `optimization_level` no longer lowers the cap; `production` still caps at 384, `always` uses `candidate_limit`.
+Only listed searches run. The allowlist chooses behavior, while
+`optimization_level` continues to bound effort. `production` also caps
+candidates at 384; `always` removes that search-mode cap but keeps the level and
+explicit ceilings.
 
-Empty `optimizations = []` disables all of these features. With candidate search off,
-that means one configured emission and no peephole/guard/shape features. Conversely,
-listing `parsed-peephole` can still make untouched and peephole forms compete during
-finalization even when the multi-candidate search setting is `off`.
+Empty `optimizations = []` disables all of these features. With candidate search
+off, that means one configured emission and no optional terminal exact-codec
+probes. Listing `parsed-peephole` does not override this hard-off.
 
 `fresh-literal-factory-inlining-variants` is a late local representation search.
 It can substitute only a private, direct-call-only, zero-argument function whose
@@ -67,6 +71,8 @@ candidate_search = "off"
 candidate_limit = 1
 candidate_byte_budget = 1
 candidate_beam_width = 1
+candidate_proposal_limit = 0
+terminal_codec_probe_limit = 0
 ```
 
 Maximum release (compile-time expensive):
@@ -78,7 +84,12 @@ candidate_search = "always"
 candidate_limit = 1536
 candidate_byte_budget = 67108864
 candidate_beam_width = 48
+candidate_proposal_limit = 1536
+terminal_codec_probe_limit = 384
 cost_model = "brotli"
 ```
 
-Checked-in root config: level 15, `production` search, 1536 limit (effective 384), 1 MiB byte budget, beam 12.
+Checked-in root config: level 15, `production` search, 1536 limit (effective
+384), 1 MiB byte budget, beam 12, and default caps of 384 optional structural
+work units plus 384 optional terminal work units for artifacts through 16 KiB
+(both size-scaled above that).

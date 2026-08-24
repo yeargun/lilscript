@@ -48,6 +48,8 @@ candidate_search = "production" # off | production | always
 candidate_limit = 1536
 candidate_byte_budget = 1048576 # aggregate whole-artifact search-work budget
 candidate_beam_width = 12
+# candidate_proposal_limit = 384 # structural plans admitted before emission; 0 disables
+# terminal_codec_probe_limit = 384 # terminal whole-artifact work; 0 disables
 max_candidate_raw_growth_percent = 0 # raw-side admission allowance; maximum 1000
 function_layout_exact_limit = 13 # 0 = heuristic only; maximum 18
 local_name_reserve = 48 # consistent short identifiers reserved for lexical locals
@@ -175,14 +177,30 @@ workspaces. These controls change scheduling and peak concurrent working state,
 not the candidate frontier or the selected artifact. The CLI overrides TOML
 with `-j N` / `--jobs N` and `--codec-jobs N`.
 
-`javascript.candidate_limit`, `candidate_byte_budget`, and
-`candidate_beam_width` are different: they bound search effort and retained
+`javascript.candidate_limit`, `candidate_byte_budget`,
+`candidate_beam_width`, `candidate_proposal_limit`, and
+`terminal_codec_probe_limit` are different: they bound search effort and retained
 whole-artifact source bytes, so changing them can change the selected output.
 Terminal scope-naming and string-pooling challengers debit the remaining shared
 plan and source-byte ledger before codec scoring; the already-retained incumbent
 remains eligible when that tail is exhausted.
 `candidate_byte_budget` is not a promise about total process RSS; optimizer IR
 clones and codec workspaces are outside that accounting.
+`candidate_proposal_limit` is charged when a new structural plan identity is
+admitted, before IR-to-JavaScript emission. Failed emissions and candidates
+later rejected by syntax, size, or codec ranking therefore still consume a
+slot. Already-scored IR context seeds are outside this optional budget, and a
+separate terminal tail remains available for factored naming/declaration
+challengers. Omitted defaults scale to one quarter for 16–64 KiB artifacts and
+one twelfth above 64 KiB; an explicit value is a ceiling and cannot raise the
+level/artifact tier.
+`terminal_codec_probe_limit` is a compilation-wide hard work ceiling after
+structural plans have been emitted. Parsed-peephole, cleanup, and binding-remap
+families share the same counter. A proposal is charged before whole-artifact
+repair/validation, and each exact-codec call also requires an admitted unit.
+Exhaustion skips remaining leaves and retains the best already-scored artifact. A rare
+missing score for the mandatory configured incumbent is measured outside this
+optional budget so the fallback cannot disappear.
 
 Every optional optimization key overrides its preset independently. The
 `none` preset disables optional transforms but retains mandatory IR
@@ -432,9 +450,11 @@ conditional, update, mutation, SSA, comma, and entropy choices, levels 9-12 add
 parsed peepholes plus structural IR/loop/switch alternatives, level 13 adds
 late identical-body folding, declaration layout, and joint representation
 search, and levels 14-15 add proof-driven function-subsumption IR candidates,
-compress-pass variants, and joint chunk/symbol search. The effective cap is always
-the lower of the level cap and `candidate_limit` when the level-derived feature
-set is active. `candidate_beam_width` controls how many distinct leading
+compress-pass variants, and joint chunk/symbol search. The effective count,
+byte, beam, and terminal-codec caps are always the lower of their level tier
+and the configured ceiling. This remains true with an exact `optimizations`
+allowlist: the list chooses behavior, while `optimization_level` chooses effort.
+`candidate_beam_width` controls how many distinct leading
 emission layouts advance to each subsequent structural decision. Raising it
 can recover interactions whose first step is not locally best; lowering it
 reduces complete-artifact emissions and compressor work. It must be greater
@@ -443,14 +463,16 @@ than zero and is always bounded by the effective candidate limit.
 Typical effort settings are:
 
 ```toml
-# Fast edit/build loop: one configured emission before optional finalization;
-# an independently enabled parsed peephole can still compete.
+# Fast edit/build loop: one configured emission, with optional terminal
+# exact-codec work disabled.
 [javascript]
 optimization_level = 0
 candidate_search = "off"
 candidate_limit = 1
 candidate_byte_budget = 1
 candidate_beam_width = 1
+candidate_proposal_limit = 0
+terminal_codec_probe_limit = 0
 ```
 
 ```toml
@@ -462,20 +484,27 @@ candidate_search = "always"
 candidate_limit = 1536
 candidate_byte_budget = 67108864
 candidate_beam_width = 48
+candidate_proposal_limit = 1536
+terminal_codec_probe_limit = 384
 cost_model = "brotli"
 ```
 
 The checked-in default sits between these at level 15, `production` search,
 an effective 384-candidate cap shared across all IR optimizer variants, a 1 MiB
-aggregate candidate byte budget, and a beam width of 12. The byte budget is
+aggregate candidate byte budget, a beam width of 12, and at most 384 optional
+structural proposals plus 384 optional terminal work units for artifacts up to
+16 KiB. Both work defaults scale to one quarter through 64 KiB and one twelfth
+above that. The byte budget is
 divided across optimizer variants and converted to a candidate count from each
 variant's configured baseline size. Thus tiny outputs can exhaust the count
 cap, while broad outputs automatically run fewer whole-artifact emissions and
-quality-11 codec probes. At least the configured output from each retained IR
+structural scores. At least the configured output from each retained IR
 variant is always measured. Initial representation cross-products are bounded
-before full emission and codec probing, so neither cap can be multiplied
-silently by module breadth or optimizer variants. Raise
-`candidate_byte_budget` for slower maximum-compression releases. These controls change
+before full emission and codec probing. A small terminal plan/byte slice is
+reserved before structural retention so the selected incumbent can still expose
+its factored naming/declaration challenger. Raise `candidate_byte_budget`,
+`candidate_proposal_limit`, and `terminal_codec_probe_limit` for slower
+maximum-compression releases. These controls change
 compiler work and representation search only; they do not disable type checks
 or mandatory correctness normalization.
 
@@ -501,9 +530,10 @@ The remaining names are `performance-shape-model`,
 `profile-guided-optimization`, `call-site-specialization`, and
 `capture-signature-cloning`, plus `identical-function-folding`.
 An empty list disables all of these features. Duplicate names and levels above
-15 are configuration errors. With an exact allowlist, `optimization_level` no
-longer lowers the candidate cap; `production` search still bounds it at 384,
-while `always` uses `candidate_limit` directly.
+15 are configuration errors. An exact allowlist does not imply exhaustive work:
+the level-derived count, byte, beam, and terminal-codec effort tiers still
+apply. Set level 15 plus `candidate_search = "always"` and explicit larger
+ceilings for a laboratory exhaustive run.
 
 `fresh-literal-factory-inlining-variants` (minimum level 5) is a late,
 emitter-local candidate for an unexported ordinary zero-argument function whose
@@ -641,9 +671,9 @@ contested tactics for comparison; it never turns on a tactic omitted from the
 exact `compression` allowlist. `candidate_search = "production"` is the
 default. CLI `--mode development` forces multi-IR/emission candidate expansion off
 for every configured search value, including `always`. `off` still runs the configured
-optimizer/emission and finalization; an independently configured parsed peephole can
-compete with the untouched form, and configured profile/startup/performance features
-remain active. The current
+optimizer/emission and mandatory validation, but it grants zero optional terminal
+codec probes: parsed-peephole and binding-remap leaves cannot enter exact-codec
+search. Configured profile/startup/performance features remain active. The current
 search space compares profitable string pooling, literal-table packing,
 numeric-literal pooling, boolean literals,
 conservatively proven regular-expression literals,
@@ -652,7 +682,8 @@ quote styles, and equivalent top-level declaration,
 phi-affinity, SSA parallel-copy, conditional/comma, structured/state-machine,
 `while`/`for`/`do`, update-clause, switch/conditional-dispatch, and assignment/
 prefix/postfix/compound-mutation layouts, bounded by the effective candidate
-limit. `candidate_beam_width` sets the cross-dimension search window; the
+limit. `candidate_beam_width` sets the cross-dimension search window, and
+`terminal_codec_probe_limit` bounds the shared post-emission exact-codec tail; the
 configured baseline is always retained as a startup-safe fallback. Transfer
 scores already measured during search are reused when the parsed peephole
 leaves a finalist unchanged, avoiding a second quality-11 compression pass.

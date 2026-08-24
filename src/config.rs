@@ -1022,6 +1022,16 @@ pub struct JavaScriptConfig {
     pub candidate_limit: usize,
     pub candidate_byte_budget: usize,
     pub candidate_beam_width: usize,
+    /// Maximum optional structural emission plans admitted after the scored
+    /// context seeds are installed. Omitted values derive from the candidate
+    /// effort tier and artifact size; zero keeps only the scored seeds and
+    /// the separately reserved terminal challenger tail.
+    pub candidate_proposal_limit: Option<usize>,
+    /// Maximum whole-artifact work units in terminal syntax/name search. A
+    /// unit is charged before optional repair/validation and bounds one exact
+    /// codec call. Omitted values derive from level and artifact size; zero
+    /// disables optional terminal search while retaining the incumbent.
+    pub terminal_codec_probe_limit: Option<usize>,
     pub max_candidate_raw_growth_percent: u16,
     pub function_layout_exact_limit: usize,
     pub local_name_reserve: usize,
@@ -1082,6 +1092,8 @@ impl Default for JavaScriptConfig {
             candidate_limit: 1536,
             candidate_byte_budget: 1024 * 1024,
             candidate_beam_width: 12,
+            candidate_proposal_limit: None,
+            terminal_codec_probe_limit: None,
             max_candidate_raw_growth_percent: 0,
             function_layout_exact_limit: 13,
             local_name_reserve: 16,
@@ -1430,19 +1442,15 @@ impl JavaScriptConfig {
     }
 
     pub fn effective_candidate_limit(&self) -> usize {
-        let level_limit = if self.optimizations.is_some() {
-            usize::MAX
-        } else {
-            match self.optimization_level {
-                0..=2 => 1,
-                3..=4 => 16,
-                5..=6 => 64,
-                7..=8 => 192,
-                9..=10 => 384,
-                11..=12 => 768,
-                13..=14 => 1_024,
-                _ => usize::MAX,
-            }
+        let level_limit = match self.optimization_level {
+            0..=2 => 1,
+            3..=4 => 16,
+            5..=6 => 64,
+            7..=8 => 192,
+            9..=10 => 384,
+            11..=12 => 768,
+            13..=14 => 1_024,
+            _ => usize::MAX,
         };
         let search_limit = match self.candidate_search {
             CandidateSearch::Off => 1,
@@ -1450,6 +1458,138 @@ impl JavaScriptConfig {
             CandidateSearch::Always => usize::MAX,
         };
         self.candidate_limit.min(level_limit).min(search_limit)
+    }
+
+    /// The configured byte pool is a ceiling, while the optimization level
+    /// supplies a progressively larger default work tier. The configured root
+    /// can always exceed this value: the arena raises its effective byte floor
+    /// to retain that mandatory incumbent.
+    pub fn effective_candidate_byte_budget(&self) -> usize {
+        let level_limit = match self.optimization_level {
+            0..=2 => 64 * 1024,
+            3..=4 => 128 * 1024,
+            5..=6 => 192 * 1024,
+            7..=8 => 256 * 1024,
+            9..=10 => 384 * 1024,
+            11..=12 => 512 * 1024,
+            13 => 768 * 1024,
+            14 => 896 * 1024,
+            _ => usize::MAX,
+        };
+        let search_limit = match self.candidate_search {
+            CandidateSearch::Off => 1,
+            CandidateSearch::Production | CandidateSearch::Always => usize::MAX,
+        };
+        self.candidate_byte_budget
+            .min(level_limit)
+            .min(search_limit)
+    }
+
+    /// Beam width participates in the effort ladder too. Previously every
+    /// nonzero level inherited the level-15 width of twelve even when its
+    /// candidate cap was intentionally small.
+    pub fn effective_candidate_beam_width(&self) -> usize {
+        let level_limit = match self.optimization_level {
+            0..=2 => 1,
+            3..=4 => 2,
+            5..=6 => 3,
+            7..=8 => 4,
+            9..=10 => 6,
+            11..=12 => 8,
+            13 => 10,
+            14 => 11,
+            _ => usize::MAX,
+        };
+        self.candidate_beam_width
+            .min(level_limit)
+            .min(self.effective_candidate_limit())
+            .max(1)
+    }
+
+    /// Hard ceiling for optional structural whole-artifact proposals after
+    /// the already-scored IR context seeds have been installed. Survivor and
+    /// byte limits cannot provide this guarantee: hundreds of rejected plans
+    /// may be emitted before a small survivor frontier is chosen.
+    fn candidate_proposal_level_limit(&self) -> usize {
+        if matches!(self.candidate_search, CandidateSearch::Off) {
+            return 0;
+        }
+        let candidate_limit = self.effective_candidate_limit();
+        if candidate_limit > 1 {
+            candidate_limit
+        } else {
+            0
+        }
+    }
+
+    pub fn effective_candidate_proposal_limit(&self) -> usize {
+        let level_limit = self.candidate_proposal_level_limit();
+        self.candidate_proposal_limit
+            .unwrap_or(level_limit)
+            .min(level_limit)
+    }
+
+    /// Default proposal work scales down for broad artifacts because every
+    /// admitted identity can require a complete IR-to-JavaScript emission and
+    /// selected-model score. An explicit value is a ceiling; it cannot raise
+    /// the level/artifact tier.
+    pub fn effective_candidate_proposal_limit_for_artifact(&self, raw_size: usize) -> usize {
+        let level_limit = self.candidate_proposal_level_limit();
+        if level_limit == 0 {
+            return 0;
+        }
+        let artifact_limit = match raw_size {
+            0..=16_384 => level_limit,
+            16_385..=65_536 => level_limit.div_ceil(4),
+            _ => level_limit.div_ceil(12),
+        };
+        self.candidate_proposal_limit
+            .unwrap_or(artifact_limit)
+            .min(artifact_limit)
+    }
+
+    /// Hard ceiling for optional whole-artifact work after structural
+    /// candidates have been ranked. This is deliberately independent of
+    /// survivor count: one large survivor can expose thousands of proposals.
+    fn terminal_codec_probe_level_limit(&self) -> usize {
+        let level_limit = match self.optimization_level {
+            0..=7 => 0,
+            8 => 24,
+            9..=10 => 64,
+            11..=12 => 128,
+            13 => 192,
+            14 => 256,
+            _ => 384,
+        };
+        match self.candidate_search {
+            CandidateSearch::Off => 0,
+            CandidateSearch::Production | CandidateSearch::Always => level_limit,
+        }
+    }
+
+    pub fn effective_terminal_codec_probe_limit(&self) -> usize {
+        let level_limit = self.terminal_codec_probe_level_limit();
+        self.terminal_codec_probe_limit
+            .unwrap_or(level_limit)
+            .min(level_limit)
+    }
+
+    /// Default terminal work scales down for broad artifacts because every
+    /// syntax validation and Brotli-11 call is whole-artifact work. An
+    /// explicit value is a ceiling; it cannot raise the level/artifact tier.
+    pub fn effective_terminal_codec_probe_limit_for_artifact(&self, raw_size: usize) -> usize {
+        let level_limit = self.terminal_codec_probe_level_limit();
+        if level_limit == 0 {
+            return 0;
+        }
+        let artifact_limit = match raw_size {
+            0..=16_384 => level_limit,
+            16_385..=65_536 => level_limit.div_ceil(4),
+            _ => level_limit.div_ceil(12),
+        };
+        self.terminal_codec_probe_limit
+            .unwrap_or(artifact_limit)
+            .min(artifact_limit)
     }
 }
 
@@ -2204,11 +2344,23 @@ local_name_coalescing = false
         disabled.validate().unwrap();
         assert_eq!(disabled.javascript.candidate_beam_width, 12);
         assert_eq!(disabled.javascript.candidate_byte_budget, 1024 * 1024);
+        assert_eq!(disabled.javascript.candidate_proposal_limit, None);
+        assert_eq!(disabled.javascript.terminal_codec_probe_limit, None);
         assert_eq!(disabled.javascript.max_candidate_raw_growth_percent, 0);
         assert_eq!(disabled.javascript.function_layout_exact_limit, 13);
         assert_eq!(disabled.javascript.local_name_reserve, 16);
         assert!(disabled.javascript.stable_local_names);
         assert_eq!(disabled.javascript.effective_candidate_limit(), 1);
+        assert_eq!(disabled.javascript.effective_candidate_beam_width(), 1);
+        assert_eq!(
+            disabled.javascript.effective_candidate_byte_budget(),
+            64 * 1024
+        );
+        assert_eq!(
+            disabled.javascript.effective_terminal_codec_probe_limit(),
+            0
+        );
+        assert_eq!(disabled.javascript.effective_candidate_proposal_limit(), 0);
         assert!(!disabled.javascript_optimization_configured(
             JavaScriptOptimization::ConditionalExpressionVariants
         ));
@@ -2232,6 +2384,19 @@ local_name_coalescing = false
         let standard: ProjectConfig =
             toml::from_str("[javascript]\noptimization_level=9\n").unwrap();
         assert_eq!(standard.javascript.effective_candidate_limit(), 384);
+        assert_eq!(standard.javascript.effective_candidate_beam_width(), 6);
+        assert_eq!(
+            standard.javascript.effective_candidate_byte_budget(),
+            384 * 1024
+        );
+        assert_eq!(
+            standard.javascript.effective_terminal_codec_probe_limit(),
+            64
+        );
+        assert_eq!(
+            standard.javascript.effective_candidate_proposal_limit(),
+            384
+        );
         assert!(standard.javascript_optimization_configured(JavaScriptOptimization::ParsedPeephole));
         assert!(standard
             .javascript_optimization_configured(JavaScriptOptimization::EntropyPropertyAssignment));
@@ -2271,6 +2436,87 @@ local_name_coalescing = false
 
         let level_fourteen: ProjectConfig =
             toml::from_str("[javascript]\noptimization_level=14\n").unwrap();
+        assert_eq!(
+            level_fourteen.javascript.effective_candidate_beam_width(),
+            11
+        );
+        assert_eq!(
+            level_fourteen.javascript.effective_candidate_byte_budget(),
+            896 * 1024
+        );
+        assert_eq!(
+            level_fourteen
+                .javascript
+                .effective_terminal_codec_probe_limit(),
+            256
+        );
+        let level_fifteen: ProjectConfig =
+            toml::from_str("[javascript]\noptimization_level=15\n").unwrap();
+        assert_eq!(
+            level_fifteen
+                .javascript
+                .effective_terminal_codec_probe_limit_for_artifact(16 * 1024),
+            384
+        );
+        assert_eq!(
+            level_fifteen
+                .javascript
+                .effective_terminal_codec_probe_limit_for_artifact(32 * 1024),
+            96
+        );
+        assert_eq!(
+            level_fifteen
+                .javascript
+                .effective_terminal_codec_probe_limit_for_artifact(100 * 1024),
+            32
+        );
+        assert_eq!(
+            level_fifteen
+                .javascript
+                .effective_candidate_proposal_limit_for_artifact(16 * 1024),
+            384
+        );
+        assert_eq!(
+            level_fifteen
+                .javascript
+                .effective_candidate_proposal_limit_for_artifact(32 * 1024),
+            96
+        );
+        assert_eq!(
+            level_fifteen
+                .javascript
+                .effective_candidate_proposal_limit_for_artifact(100 * 1024),
+            32
+        );
+        let mut bounded_override = level_fifteen.clone();
+        bounded_override.javascript.terminal_codec_probe_limit = Some(17);
+        bounded_override.javascript.candidate_proposal_limit = Some(23);
+        assert_eq!(
+            bounded_override
+                .javascript
+                .effective_terminal_codec_probe_limit_for_artifact(100 * 1024),
+            17
+        );
+        assert_eq!(
+            bounded_override
+                .javascript
+                .effective_candidate_proposal_limit_for_artifact(100 * 1024),
+            23
+        );
+        bounded_override.javascript.terminal_codec_probe_limit = Some(999);
+        bounded_override.javascript.candidate_proposal_limit = Some(999);
+        assert_eq!(
+            bounded_override
+                .javascript
+                .effective_terminal_codec_probe_limit_for_artifact(100 * 1024),
+            32
+        );
+        assert_eq!(
+            bounded_override
+                .javascript
+                .effective_candidate_proposal_limit_for_artifact(100 * 1024),
+            32
+        );
         assert!(level_fourteen.javascript_optimization_configured(
             JavaScriptOptimization::IrFunctionSubsumptionVariants
         ));
@@ -2289,7 +2535,14 @@ optimization_level = 0
         )
         .unwrap();
         exact.validate().unwrap();
-        assert_eq!(exact.javascript.effective_candidate_limit(), 384);
+        assert_eq!(exact.javascript.effective_candidate_limit(), 1);
+        assert_eq!(exact.javascript.effective_candidate_beam_width(), 1);
+        assert_eq!(
+            exact.javascript.effective_candidate_byte_budget(),
+            64 * 1024
+        );
+        assert_eq!(exact.javascript.effective_terminal_codec_probe_limit(), 0);
+        assert_eq!(exact.javascript.effective_candidate_proposal_limit(), 0);
         assert!(exact.javascript_optimization_configured(JavaScriptOptimization::ParsedPeephole));
         assert!(exact.javascript_optimization_configured(JavaScriptOptimization::DoLoopVariants));
         assert!(exact
@@ -2318,7 +2571,54 @@ optimization_level = 0
 
         let mut exact_always = exact.clone();
         exact_always.javascript.candidate_search = CandidateSearch::Always;
-        assert_eq!(exact_always.javascript.effective_candidate_limit(), 1536);
+        assert_eq!(exact_always.javascript.effective_candidate_limit(), 1);
+        assert_eq!(exact_always.javascript.effective_candidate_beam_width(), 1);
+        assert_eq!(
+            exact_always.javascript.effective_candidate_byte_budget(),
+            64 * 1024
+        );
+        assert_eq!(
+            exact_always
+                .javascript
+                .effective_terminal_codec_probe_limit(),
+            0
+        );
+
+        exact_always.javascript.terminal_codec_probe_limit = Some(17);
+        exact_always.javascript.candidate_proposal_limit = Some(23);
+        assert_eq!(
+            exact_always
+                .javascript
+                .effective_candidate_proposal_limit_for_artifact(100 * 1024),
+            0,
+            "an explicit proposal value cannot bypass the level-zero tier"
+        );
+        assert_eq!(
+            exact_always
+                .javascript
+                .effective_terminal_codec_probe_limit(),
+            0,
+            "an explicit terminal value cannot bypass the level-zero tier"
+        );
+        assert_eq!(
+            exact_always
+                .javascript
+                .effective_terminal_codec_probe_limit_for_artifact(100 * 1024),
+            0
+        );
+        exact_always.javascript.candidate_search = CandidateSearch::Off;
+        assert_eq!(
+            exact_always.javascript.effective_candidate_proposal_limit(),
+            0,
+            "candidate_search=off is a hard stop even with an explicit proposal cap"
+        );
+        assert_eq!(
+            exact_always
+                .javascript
+                .effective_terminal_codec_probe_limit(),
+            0,
+            "candidate_search=off is a hard stop even with an explicit lab cap"
+        );
 
         let constructible: ProjectConfig =
             toml::from_str("[javascript]\nfunction_spelling='function'\n").unwrap();

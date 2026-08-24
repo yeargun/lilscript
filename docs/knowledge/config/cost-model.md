@@ -34,27 +34,32 @@ compilation, so both `production` and `always` are disabled there. Lilpack `dev`
 that mode. `always` means “do not apply the production 384-candidate cap,” not “ignore
 the CLI development override.”
 
-`off` is narrower than “disable every codec-aware action.” The configured optimizer
-and emission still run, and finalization still analyzes/scores that artifact. If
-`parsed-peephole` is enabled by level or an exact optimization list, the untouched and
-parsed-peephole forms can still compete under the cost model. Configured startup/
-performance analysis and profile-guided optimizer passes also remain active. The name
-is therefore shorthand for turning off the multi-IR/emission candidate expansion; a
-future config cleanup may give finalization variants a separate switch.
+`off` retains the configured optimizer, emission, mandatory codec score, and
+validation, but forces the optional terminal codec budget to zero. It therefore
+skips parsed-peephole leaves, cleanup neighborhoods, and live-letter remapping
+instead of spending minutes in Brotli-11 after a one-candidate build. Configured
+startup/performance analysis and profile-guided optimizer passes remain active.
 
 ## Budgets
 
 | Key | Default | Role |
 |---|---|---|
 | `candidate_limit` | 1536 | Hard count before other caps |
-| `candidate_byte_budget` | 1 MiB | Approximate aggregate retained-artifact bytes; converted to a per-variant count from baseline size; does not count every rejected/alternate-objective probe |
+| `candidate_byte_budget` | 1 MiB | Aggregate retained whole-artifact bytes, with the configured incumbent as a mandatory floor |
 | `candidate_beam_width` | 12 | How many leading layouts survive each structural decision |
+| `candidate_proposal_limit` | level/artifact-derived (384 at level 15 production through 16 KiB) | Shared structural work ledger charged before projection, entropy mapping, and optional plan emission |
+| `terminal_codec_probe_limit` | level/artifact-derived (384 at level 15 through 16 KiB) | Compilation-wide hard work ceiling charged before optional whole-artifact validation and codec scoring |
 | `max_candidate_raw_growth_percent` | 0 | Raw-side admission allowance vs configured baseline (max 1000) |
 
-Raise `candidate_byte_budget` for slower maximum-compression releases. Tiny outputs
-hit the count cap; huge outputs automatically retain fewer complete artifacts. It is
-not presently a strict compile-time or total-codec-probe ceiling, so CI must also
-record wall time and the actual evaluated/retained counts when available.
+Raise `candidate_byte_budget` and the explicit work ceilings up to their
+level/artifact tiers for slower
+maximum-compression releases. Tiny outputs hit the count cap; huge outputs retain
+fewer complete artifacts. Explain output reports registered plans, attempted
+optimizer/structural emissions, structural proposal work, terminal work units,
+actual terminal codec calls, both effective limits, and exhaustion. Defaults
+scale to one quarter for 16–64 KiB artifacts and one twelfth above 64 KiB;
+explicit values cannot raise those tiers.
+The work cap is hard, but it is not a wall-time or RSS ceiling.
 
 Intermediate emission retention is objective-stratified across selected, raw, gzip,
 and Brotli rankings, selected objective first. That bounded diversity protects

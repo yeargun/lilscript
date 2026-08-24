@@ -5,6 +5,7 @@ use serde::Serialize;
 use sha2::{Digest, Sha256};
 use std::io::Write as _;
 use std::path::Path;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Instant;
 
@@ -107,6 +108,28 @@ pub struct JavaScriptSelectionMetrics {
     pub performance: JavaScriptPerformanceMetrics,
     pub baseline_performance: JavaScriptPerformanceMetrics,
     pub candidates_evaluated: usize,
+    /// Distinct `(IR context, emission options)` plans registered during the
+    /// bounded search, including already-scored context seeds.
+    pub plans_registered: usize,
+    /// Whole-artifact IR-to-JavaScript emissions attempted after the scored
+    /// context seeds were installed.
+    pub emissions_attempted: usize,
+    /// Configured-root plus optional optimizer-context emissions attempted
+    /// before the artifact-size-derived structural ledger can be installed.
+    pub optimizer_emissions_attempted: usize,
+    /// Optional structural plan identities admitted after the scored context
+    /// seeds. Terminal naming/declaration plans use their separately reserved
+    /// tail and do not debit this limit.
+    pub candidate_proposal_limit: usize,
+    pub candidate_proposal_work_units: usize,
+    pub candidate_proposal_limit_reached: bool,
+    /// Exact-codec calls made by the bounded terminal syntax/name search.
+    pub terminal_codec_probes: usize,
+    /// Deterministically admitted terminal proposal/validation/codec work
+    /// units. Invalid proposals consume a unit before expensive validation.
+    pub terminal_work_units: usize,
+    pub terminal_codec_probe_limit: usize,
+    pub terminal_codec_probe_limit_reached: bool,
     pub peephole_rewrites: usize,
     pub decisions: JavaScriptSelectionDecisions,
     pub compiler_time_micros: u128,
@@ -1774,6 +1797,7 @@ fn optimize_and_select_javascript_inner<'src>(
             });
         }
     }
+    let optimizer_emissions_attempted = score_requests.len();
     let score_results = measure_selected_model_emission_batch(score_requests, &[]);
     let (root_emission, score_results) =
         take_required_first_selected_model_emission(score_results, |owner| {
@@ -1885,8 +1909,7 @@ fn optimize_and_select_javascript_inner<'src>(
     });
     let finalist_limit = config
         .javascript
-        .candidate_beam_width
-        .max(1)
+        .effective_candidate_beam_width()
         .min(ranked_probes.len())
         .max(1);
     ranked_probes.truncate(finalist_limit);
@@ -1901,6 +1924,11 @@ fn optimize_and_select_javascript_inner<'src>(
         .as_ref()
         .expect("ranked probes have a configured scored emission")
         .clone();
+    let candidate_proposal_limit = config
+        .javascript
+        .effective_candidate_proposal_limit_for_artifact(root_configured_seed.emission.code.len());
+    let mut pre_context_proposal_work_units = 0usize;
+    let mut pre_context_proposal_limit_reached = false;
     let root_configured_plan = JavaScriptEmissionPlan {
         identity: JavaScriptPlanIdentity {
             context_id: root_context_id,
@@ -1940,12 +1968,18 @@ fn optimize_and_select_javascript_inner<'src>(
             )
         })
         .collect::<Vec<_>>();
-    let mut candidate_arena = AggregateJavaScriptPlanArena::new(
+    let terminal_plan_reserve = if config.javascript.effective_terminal_codec_probe_limit() == 0 {
+        0
+    } else {
+        total_candidate_limit.div_euclid(8).min(4)
+    };
+    let mut candidate_arena = AggregateJavaScriptPlanArena::new_with_terminal_reserve(
         root_candidate,
         ranked_non_root_pins,
         total_candidate_limit,
-        config.javascript.candidate_byte_budget,
+        config.javascript.effective_candidate_byte_budget(),
         config.javascript.cost_model,
+        terminal_plan_reserve,
     )?;
     let admitted_context_ids = candidate_arena.pinned_context_ids();
     non_root_probes.retain(|probe| admitted_context_ids.contains(&probe.context_id));
@@ -1970,6 +2004,11 @@ fn optimize_and_select_javascript_inner<'src>(
         let optional_raw_size_cap = candidate_arena.optional_raw_size_cap();
         let mut projection_candidates = Vec::new();
         for context in &search_contexts {
+            if pre_context_proposal_work_units >= candidate_proposal_limit {
+                pre_context_proposal_limit_reached = true;
+                break;
+            }
+            pre_context_proposal_work_units += 1;
             let mut projected_ir = context.ir.clone();
             let projection = project_closed_record_observations_for_javascript(&mut projected_ir);
             if !projection.changed {
@@ -2075,6 +2114,11 @@ fn optimize_and_select_javascript_inner<'src>(
             .expect("each admitted context seed is its first registered plan");
         assert_eq!(registered.identity, candidate.identity());
     }
+    contexts.set_optional_plan_registration_limit(
+        candidate_proposal_limit,
+        pre_context_proposal_work_units,
+        pre_context_proposal_limit_reached,
+    );
     let interaction_candidates = remaining_interactions
         .into_iter()
         .filter_map(|(context_id, seed)| {
@@ -2123,6 +2167,16 @@ fn optimize_and_select_javascript_inner<'src>(
             performance: selected.performance,
             baseline_performance: selected.baseline_performance,
             candidates_evaluated: selected.candidates_evaluated,
+            plans_registered: contexts.plans_registered(),
+            emissions_attempted: contexts.emissions_attempted(),
+            optimizer_emissions_attempted,
+            candidate_proposal_limit,
+            candidate_proposal_work_units: contexts.candidate_proposal_work_units(),
+            candidate_proposal_limit_reached: contexts.candidate_proposal_limit_reached(),
+            terminal_codec_probes: selected.terminal_codec_probes,
+            terminal_work_units: selected.terminal_work_units,
+            terminal_codec_probe_limit: selected.terminal_codec_probe_limit,
+            terminal_codec_probe_limit_reached: selected.terminal_codec_probe_limit_reached,
             peephole_rewrites: selected.peephole_rewrites,
             decisions: JavaScriptSelectionDecisions {
                 string_pooling: selected_options.pool_strings,
@@ -2221,6 +2275,10 @@ struct SelectedJavaScriptCandidate {
     performance: JavaScriptPerformanceMetrics,
     baseline_performance: JavaScriptPerformanceMetrics,
     candidates_evaluated: usize,
+    terminal_codec_probes: usize,
+    terminal_work_units: usize,
+    terminal_codec_probe_limit: usize,
+    terminal_codec_probe_limit_reached: bool,
     peephole_rewrites: usize,
     terminal_scope_naming_challengers: usize,
     terminal_scope_naming_selected: bool,
@@ -2746,6 +2804,7 @@ struct JavaScriptEmissionContexts<'ir, 'src> {
     root_configured_context_id: usize,
     contexts: Vec<JavaScriptEmissionContext<'ir, 'src>>,
     plan_registry: Mutex<JavaScriptPlanRegistry>,
+    emissions_attempted: AtomicUsize,
 }
 
 impl<'ir, 'src> JavaScriptEmissionContexts<'ir, 'src> {
@@ -2762,6 +2821,7 @@ impl<'ir, 'src> JavaScriptEmissionContexts<'ir, 'src> {
             root_configured_context_id,
             contexts,
             plan_registry: Mutex::new(JavaScriptPlanRegistry::default()),
+            emissions_attempted: AtomicUsize::new(0),
         }
     }
 
@@ -2786,7 +2846,64 @@ impl<'ir, 'src> JavaScriptEmissionContexts<'ir, 'src> {
         module_output: bool,
         options: crate::codegen_ir_js::IrJsOptions,
     ) -> Result<String, crate::codegen_js::CodegenError> {
+        self.emissions_attempted.fetch_add(1, Ordering::Relaxed);
         self.get(context_id).emit(module_output, options)
+    }
+
+    fn plans_registered(&self) -> usize {
+        self.plan_registry
+            .lock()
+            .expect("JavaScript plan registry lock is not poisoned")
+            .plans
+            .len()
+    }
+
+    /// Freeze a total registry ceiling relative to the already-installed,
+    /// scored context seeds. Every newly registered structural identity
+    /// consumes one slot before emission, validation, or codec work, including
+    /// identities whose eventual emission fails or is rejected.
+    fn set_optional_plan_registration_limit(
+        &self,
+        optional_limit: usize,
+        already_used: usize,
+        limit_reached: bool,
+    ) {
+        self.plan_registry
+            .lock()
+            .expect("JavaScript plan registry lock is not poisoned")
+            .set_optional_limit(optional_limit, already_used, limit_reached);
+    }
+
+    fn candidate_proposal_limit_reached(&self) -> bool {
+        self.plan_registry
+            .lock()
+            .expect("JavaScript plan registry lock is not poisoned")
+            .limit_reached
+    }
+
+    fn candidate_proposal_work_units(&self) -> usize {
+        self.plan_registry
+            .lock()
+            .expect("JavaScript plan registry lock is not poisoned")
+            .structural_work_used
+    }
+
+    fn reserve_candidate_proposal_work(&self, requested: usize) -> usize {
+        self.plan_registry
+            .lock()
+            .expect("JavaScript plan registry lock is not poisoned")
+            .reserve_structural_work(requested)
+    }
+
+    fn remaining_candidate_proposal_work(&self) -> usize {
+        self.plan_registry
+            .lock()
+            .expect("JavaScript plan registry lock is not poisoned")
+            .remaining_structural_work()
+    }
+
+    fn emissions_attempted(&self) -> usize {
+        self.emissions_attempted.load(Ordering::Relaxed)
     }
 
     fn register_plan(
@@ -2798,6 +2915,21 @@ impl<'ir, 'src> JavaScriptEmissionContexts<'ir, 'src> {
             .lock()
             .expect("JavaScript plan registry lock is not poisoned")
             .register(context_id, options)
+    }
+
+    /// Terminal factored challengers have their own plan/byte and work
+    /// reserves. Let them register after the structural proposal ledger is
+    /// full so a broad early cross product cannot starve the valuable naming
+    /// or declaration tail.
+    fn register_terminal_plan(
+        &self,
+        context_id: usize,
+        options: crate::codegen_ir_js::IrJsOptions,
+    ) -> Option<JavaScriptEmissionPlan> {
+        self.plan_registry
+            .lock()
+            .expect("JavaScript plan registry lock is not poisoned")
+            .register_terminal(context_id, options)
     }
 
     fn registered_plan(
@@ -2837,12 +2969,49 @@ struct JavaScriptEmissionPlan {
     options: crate::codegen_ir_js::IrJsOptions,
 }
 
-#[derive(Default)]
 struct JavaScriptPlanRegistry {
     plans: Vec<JavaScriptEmissionPlan>,
+    structural_work_limit: usize,
+    structural_work_used: usize,
+    limit_reached: bool,
+}
+
+impl Default for JavaScriptPlanRegistry {
+    fn default() -> Self {
+        Self {
+            plans: Vec::new(),
+            structural_work_limit: usize::MAX,
+            structural_work_used: 0,
+            limit_reached: false,
+        }
+    }
 }
 
 impl JavaScriptPlanRegistry {
+    fn set_optional_limit(
+        &mut self,
+        optional_limit: usize,
+        already_used: usize,
+        limit_reached: bool,
+    ) {
+        self.structural_work_limit = optional_limit;
+        self.structural_work_used = already_used.min(optional_limit);
+        self.limit_reached = limit_reached || already_used > optional_limit;
+    }
+
+    fn reserve_structural_work(&mut self, requested: usize) -> usize {
+        let remaining = self.remaining_structural_work();
+        let admitted = requested.min(remaining);
+        self.structural_work_used = self.structural_work_used.saturating_add(admitted);
+        self.limit_reached |= admitted < requested;
+        admitted
+    }
+
+    fn remaining_structural_work(&self) -> usize {
+        self.structural_work_limit
+            .saturating_sub(self.structural_work_used)
+    }
+
     fn find(
         &self,
         context_id: usize,
@@ -2855,6 +3024,20 @@ impl JavaScriptPlanRegistry {
     }
 
     fn register(
+        &mut self,
+        context_id: usize,
+        options: crate::codegen_ir_js::IrJsOptions,
+    ) -> Option<JavaScriptEmissionPlan> {
+        if self.find(context_id, options).is_some() {
+            return None;
+        }
+        if self.reserve_structural_work(1) == 0 {
+            return None;
+        }
+        self.register_terminal(context_id, options)
+    }
+
+    fn register_terminal(
         &mut self,
         context_id: usize,
         options: crate::codegen_ir_js::IrJsOptions,
@@ -3026,11 +3209,7 @@ fn select_javascript_candidate_global(
             }
         }
     }
-    let candidate_beam_width = config
-        .javascript
-        .candidate_beam_width
-        .min(candidate_limit)
-        .max(1);
+    let candidate_beam_width = config.javascript.effective_candidate_beam_width();
     let narrow_candidate_beam_width = candidate_beam_width.saturating_mul(2).div_ceil(3);
     let family_candidate_beam_width = candidate_beam_width.div_ceil(3);
     let beam_policy = JavaScriptCandidateBeamPolicy {
@@ -4330,11 +4509,17 @@ fn select_javascript_candidate_global(
             entropy_source_limit(candidate_beam_width, entropy_width),
             config.javascript.cost_model,
         )?;
-        let entropy_sources = entropy_source_indices
+        let mut entropy_sources = entropy_source_indices
             .into_iter()
             .map(|index| candidates[index].clone())
             .collect::<Vec<_>>();
-        let entropy_requests = prepare_entropy_source_requests_by(
+        // Parsed preparation is whole-artifact work too. Admit a deterministic
+        // source prefix before running it; invalid/no-op preparations still
+        // consume their structural proposal unit.
+        let admitted_entropy_sources =
+            contexts.reserve_candidate_proposal_work(entropy_sources.len());
+        entropy_sources.truncate(admitted_entropy_sources);
+        let mut entropy_requests = prepare_entropy_source_requests_by(
             entropy_sources,
             entropy_width,
             move |code, _options| {
@@ -4346,6 +4531,16 @@ fn select_javascript_candidate_global(
                     .map(|optimized| optimized.code)
             },
         );
+        // Each mapping trial remaps and exact-scores a whole artifact. Spend
+        // no more than half the remaining ledger here so successful mappings
+        // still have structural slots available for authoritative IR emission.
+        let mut mapping_allowance = contexts.remaining_candidate_proposal_work().div_euclid(2);
+        for (_, _, trials) in &mut entropy_requests {
+            let requested = (*trials).min(mapping_allowance);
+            *trials = contexts.reserve_candidate_proposal_work(requested);
+            mapping_allowance = mapping_allowance.saturating_sub(*trials);
+        }
+        entropy_requests.retain(|(_, _, trials)| *trials != 0);
         // Parsed-peephole preparation is an indexed parallel transform, but
         // trial allocation and identifier-alphabet scoring stay strictly
         // coordinator-ordered. A Brotli-11 workspace is large enough that
@@ -4556,12 +4751,18 @@ fn select_javascript_candidate(
         configured_seed.emission.clone(),
         configured_plan,
     );
-    let mut arena = AggregateJavaScriptPlanArena::new(
+    let terminal_plan_reserve = if config.javascript.effective_terminal_codec_probe_limit() == 0 {
+        0
+    } else {
+        candidate_limit.div_euclid(8).min(4)
+    };
+    let mut arena = AggregateJavaScriptPlanArena::new_with_terminal_reserve(
         configured_candidate,
         Vec::new(),
         candidate_limit,
         candidate_byte_budget,
         config.javascript.cost_model,
+        terminal_plan_reserve,
     )?;
     for seed in seeded_candidates {
         if seed.emission.declaration_scores.model != config.javascript.cost_model {
@@ -5427,6 +5628,121 @@ impl TerminalJavaScriptCandidateBudget {
     }
 }
 
+/// Compilation-wide ledger for optional terminal work after structural
+/// emission plans have been ranked. Work is admitted before whole-artifact
+/// repair/validation and exact-codec scoring, so invalid proposals cannot
+/// bypass the ceiling. This is intentionally not a survivor budget: one
+/// surviving large artifact can expose thousands of binding permutations.
+/// Exhaustion is normal and leaves the already-scored incumbent eligible.
+#[derive(Debug)]
+struct TerminalCodecProbeBudget {
+    limit: usize,
+    used: usize,
+    codec_calls: AtomicUsize,
+    limit_reached: bool,
+    reserved_for_final: usize,
+    final_phase: bool,
+}
+
+impl TerminalCodecProbeBudget {
+    fn new(limit: usize) -> Self {
+        Self {
+            limit,
+            used: 0,
+            codec_calls: AtomicUsize::new(0),
+            limit_reached: false,
+            reserved_for_final: 0,
+            final_phase: false,
+        }
+    }
+
+    fn with_final_reserve(limit: usize, reserved_for_final: usize) -> Self {
+        Self {
+            reserved_for_final: reserved_for_final.min(limit),
+            ..Self::new(limit)
+        }
+    }
+
+    fn remaining(&self) -> usize {
+        let remaining = self.limit.saturating_sub(self.used);
+        if self.final_phase {
+            remaining
+        } else {
+            remaining.saturating_sub(self.reserved_for_final)
+        }
+    }
+
+    /// Reserve a deterministic prefix before parallel scoring. Workers never
+    /// race for the final permit, so budget exhaustion cannot change output
+    /// with Rayon scheduling.
+    fn reserve(&mut self, requested: usize) -> usize {
+        let admitted = requested.min(self.remaining());
+        self.used = self.used.saturating_add(admitted);
+        self.limit_reached |= admitted < requested;
+        admitted
+    }
+
+    fn reserve_complete(&mut self, requested: usize) -> bool {
+        if requested > self.remaining() {
+            self.limit_reached = true;
+            return false;
+        }
+        self.used = self.used.saturating_add(requested);
+        true
+    }
+
+    fn reserve_work_unit(&mut self) -> bool {
+        self.reserve(1) == 1
+    }
+
+    /// Make one reserved terminal family available while preserving the tail
+    /// promised to a still-later family. This lets scope naming run after the
+    /// base finalist without consuming the exact two-binding neighborhood
+    /// that must remain last for topology-sensitive joint wins.
+    fn release_reserved(&mut self, released: usize) {
+        self.reserved_for_final = self.reserved_for_final.saturating_sub(released);
+    }
+
+    fn begin_final_phase(&mut self) {
+        self.final_phase = true;
+    }
+
+    fn compressed_size(
+        &mut self,
+        bytes: &[u8],
+        model: CompressionCostModel,
+    ) -> Result<Option<usize>, CompileError> {
+        if self.reserve(1) == 0 {
+            return Ok(None);
+        }
+        self.measure_reserved(bytes, model)
+            .map(Some)
+            .map_err(|message| crate::codegen_js::CodegenError::new(Span::empty(0), message).into())
+    }
+
+    /// Measure a permit already reserved by the deterministic coordinator.
+    /// This method is shared by parallel workers; the atomic records actual
+    /// codec invocations, while `used` remains the conservative admission
+    /// ledger that enforces the hard ceiling.
+    fn measure_reserved(&self, bytes: &[u8], model: CompressionCostModel) -> Result<usize, String> {
+        self.codec_calls.fetch_add(1, Ordering::Relaxed);
+        compressed_size(bytes, model)
+    }
+
+    fn measure_reserved_compile(
+        &self,
+        bytes: &[u8],
+        model: CompressionCostModel,
+    ) -> Result<usize, CompileError> {
+        self.measure_reserved(bytes, model)
+            .map_err(|message| crate::codegen_js::CodegenError::new(Span::empty(0), message).into())
+    }
+
+    fn codec_calls(&self) -> usize {
+        self.codec_calls.load(Ordering::Relaxed)
+    }
+}
+
 fn emit_terminal_javascript_challengers(
     options: Vec<crate::codegen_ir_js::IrJsOptions>,
     context_id: usize,
@@ -5434,15 +5750,25 @@ fn emit_terminal_javascript_challengers(
     model: CompressionCostModel,
     contexts: &JavaScriptEmissionContexts<'_, '_>,
     budget: &mut TerminalJavaScriptCandidateBudget,
+    codec_budget: &mut TerminalCodecProbeBudget,
 ) -> Vec<JavaScriptEmissionCandidate> {
     let mut candidates = Vec::new();
+    if codec_budget.remaining() == 0 {
+        return candidates;
+    }
     for options in options {
         if !budget.has_plan_slot() {
             break;
         }
+        // Registration and IR emission are whole-artifact work too. Charge
+        // the deterministic option before either step; invalid or duplicate
+        // proposals cannot bypass the terminal ledger.
+        if !codec_budget.reserve_work_unit() {
+            break;
+        }
         let plan = contexts
             .registered_plan(context_id, options)
-            .or_else(|| contexts.register_plan(context_id, options));
+            .or_else(|| contexts.register_terminal_plan(context_id, options));
         let Some(plan) = plan else {
             continue;
         };
@@ -5463,8 +5789,25 @@ fn emit_terminal_javascript_challengers(
         if !budget.can_admit(code.len()) {
             continue;
         }
-        let Ok(emission) = ScoredJavaScriptEmission::measure(code, model) else {
+        let variants =
+            declaration_score_variants(&code, JavaScriptDeclarationScoreSemantics::DeclarationPlan);
+        if !codec_budget.reserve_complete(variants.len()) {
+            break;
+        }
+        let results = variants
+            .iter()
+            .map(|source| codec_budget.measure_reserved(source.as_bytes(), model));
+        let Ok(declaration_scores) = SelectedModelDeclarationScores::from_ordered_results(
+            model,
+            JavaScriptDeclarationScoreSemantics::DeclarationPlan,
+            variants.len(),
+            results,
+        ) else {
             continue;
+        };
+        let emission = ScoredJavaScriptEmission {
+            code,
+            declaration_scores,
         };
         let candidate =
             JavaScriptEmissionCandidate::new_declaration_plan_with_scores(emission, plan);
@@ -5512,7 +5855,37 @@ fn finalize_javascript_candidates_with_terminal_objective_challengers(
     candidate_limit: usize,
     module_output: bool,
 ) -> Result<SelectedJavaScriptCandidate, CompileError> {
-    install_terminal_javascript_codec_pool(config, || {
+    const TERMINAL_CHALLENGER_CODEC_RESERVE: usize = 4 * (MAX_DECLARATION_VARIANTS + 1);
+    let terminal_codec_probe_limit = config
+        .javascript
+        .effective_terminal_codec_probe_limit_for_artifact(configured_baseline.len());
+    let exact_pair_reserve = if exact_two_binding_terminal_search_enabled_for_artifact(
+        config,
+        configured_baseline.len(),
+    ) && candidates
+        .iter()
+        .any(|candidate| resolved_one_byte_binding_count(candidate.code()) == 2)
+    {
+        let requested = EXACT_TWO_BINDING_MAX_PAIR_TRIALS
+            .saturating_mul(MAX_DECLARATION_VARIANTS)
+            // One initial exact score and one pre-analysis work permit.
+            .saturating_add(2);
+        if terminal_codec_probe_limit >= 384 {
+            requested
+        } else {
+            requested.min(terminal_codec_probe_limit.div_euclid(2))
+        }
+    } else {
+        0
+    };
+    // Preserve enough selected-model calls for the factored terminal naming
+    // family even when ordinary cleanup exhausts its general allowance. Four
+    // reserved plan slots expose at most four declaration spellings each.
+    let mut codec_budget = TerminalCodecProbeBudget::with_final_reserve(
+        terminal_codec_probe_limit,
+        exact_pair_reserve.saturating_add(TERMINAL_CHALLENGER_CODEC_RESERVE),
+    );
+    let mut selected = install_terminal_javascript_codec_pool(config, || {
         finalize_javascript_candidates_with_terminal_objective_challengers_in_current_pool(
             candidates,
             configured_baseline,
@@ -5522,8 +5895,14 @@ fn finalize_javascript_candidates_with_terminal_objective_challengers(
             profile,
             candidate_limit,
             module_output,
+            &mut codec_budget,
         )
-    })
+    })?;
+    selected.terminal_codec_probes = codec_budget.codec_calls();
+    selected.terminal_work_units = codec_budget.used;
+    selected.terminal_codec_probe_limit = terminal_codec_probe_limit;
+    selected.terminal_codec_probe_limit_reached = codec_budget.limit_reached;
+    Ok(selected)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -5536,6 +5915,7 @@ fn finalize_javascript_candidates_with_terminal_objective_challengers_in_current
     profile: &OptimizationProfile,
     candidate_limit: usize,
     module_output: bool,
+    codec_budget: &mut TerminalCodecProbeBudget,
 ) -> Result<SelectedJavaScriptCandidate, CompileError> {
     // The parsed peephole can make a structurally weaker emission plan become
     // the final exact-codec winner. Applying naming leaves only to the
@@ -5558,7 +5938,7 @@ fn finalize_javascript_candidates_with_terminal_objective_challengers_in_current
         candidate_limit,
         config
             .javascript
-            .candidate_byte_budget
+            .effective_candidate_byte_budget()
             .max(configured_code_bytes),
         candidates.len(),
         retained_code_bytes,
@@ -5586,7 +5966,12 @@ fn finalize_javascript_candidates_with_terminal_objective_challengers_in_current
         profile,
         candidate_limit,
         true,
+        codec_budget,
     )?;
+    // Naming and declaration spelling jointly determine the binding topology.
+    // Release only their small allowance here; keep the exact pair reserve
+    // protected until every naming/string-pooling challenger has settled.
+    codec_budget.release_reserved(4usize.saturating_mul(MAX_DECLARATION_VARIANTS + 1));
     let Some(parent_options) = plan_options
         .iter()
         .find_map(|(identity, options)| (*identity == selected.plan_identity).then_some(*options))
@@ -5611,6 +5996,7 @@ fn finalize_javascript_candidates_with_terminal_objective_challengers_in_current
         config.javascript.cost_model,
         contexts,
         &mut terminal_budget,
+        codec_budget,
     );
     if !challenger_candidates.is_empty() {
         terminal_scope_naming_challengers = challenger_candidates.len();
@@ -5626,6 +6012,7 @@ fn finalize_javascript_candidates_with_terminal_objective_challengers_in_current
             profile,
             usize::MAX,
             true,
+            codec_budget,
         ) {
             candidates_evaluated =
                 candidates_evaluated.saturating_add(candidate.candidates_evaluated);
@@ -5661,6 +6048,7 @@ fn finalize_javascript_candidates_with_terminal_objective_challengers_in_current
             config.javascript.cost_model,
             contexts,
             &mut terminal_budget,
+            codec_budget,
         );
         if !pooling_candidates.is_empty() {
             terminal_string_pooling_challengers = pooling_candidates.len();
@@ -5673,6 +6061,7 @@ fn finalize_javascript_candidates_with_terminal_objective_challengers_in_current
                 profile,
                 usize::MAX,
                 true,
+                codec_budget,
             ) {
                 candidates_evaluated =
                     candidates_evaluated.saturating_add(candidate.candidates_evaluated);
@@ -5700,11 +6089,9 @@ fn finalize_javascript_candidates_with_terminal_objective_challengers_in_current
     selected.terminal_string_pooling_selected = terminal_string_pooling_selected;
     selected.terminal_string_pooling_incumbent_bytes = terminal_string_pooling_incumbent_bytes;
     selected.terminal_string_pooling_best_bytes = terminal_string_pooling_best_bytes;
-    // Run the bounded two-binding/declaration interaction exactly once, after
-    // structural naming and string pooling have chosen their final topology.
-    // A strict codec win is required; otherwise the selected artifact remains
-    // byte-for-byte unchanged.
-    apply_exact_two_binding_unused_letter_remap(selected, config)
+    codec_budget.begin_final_phase();
+    selected = apply_exact_two_binding_unused_letter_remap(selected, config, codec_budget)?;
+    Ok(selected)
 }
 
 fn finalize_javascript_candidates(
@@ -5716,7 +6103,11 @@ fn finalize_javascript_candidates(
     profile: &OptimizationProfile,
     candidate_limit: usize,
 ) -> Result<SelectedJavaScriptCandidate, CompileError> {
-    install_terminal_javascript_codec_pool(config, || {
+    let terminal_codec_probe_limit = config
+        .javascript
+        .effective_terminal_codec_probe_limit_for_artifact(configured_baseline.len());
+    let mut codec_budget = TerminalCodecProbeBudget::new(terminal_codec_probe_limit);
+    let mut selected = install_terminal_javascript_codec_pool(config, || {
         finalize_javascript_candidates_with_parallelism(
             candidates,
             configured_baseline,
@@ -5726,8 +6117,14 @@ fn finalize_javascript_candidates(
             profile,
             candidate_limit,
             true,
+            &mut codec_budget,
         )
-    })
+    })?;
+    selected.terminal_codec_probes = codec_budget.codec_calls();
+    selected.terminal_work_units = codec_budget.used;
+    selected.terminal_codec_probe_limit = terminal_codec_probe_limit;
+    selected.terminal_codec_probe_limit_reached = codec_budget.limit_reached;
+    Ok(selected)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -5740,6 +6137,7 @@ fn finalize_javascript_candidates_with_parallelism(
     profile: &OptimizationProfile,
     candidate_limit: usize,
     allow_parallel_brotli: bool,
+    codec_budget: &mut TerminalCodecProbeBudget,
 ) -> Result<SelectedJavaScriptCandidate, CompileError> {
     // Candidate limits count structural emission plans, not their equivalent
     // declaration spellings. Preserve the configured plan at this boundary;
@@ -5801,8 +6199,55 @@ fn finalize_javascript_candidates_with_parallelism(
     } else {
         JavaScriptPerformanceMetrics::default()
     };
-    let score_plan = |candidate: JavaScriptEmissionCandidate| {
+    #[derive(Debug)]
+    struct PreparedJavaScriptLeaf {
+        code: String,
+        metrics: JavaScriptSyntaxMetrics,
+        peephole_rewrites: usize,
+        transfer_cost: Option<usize>,
+    }
+
+    #[derive(Debug)]
+    struct PreparedJavaScriptPlan {
+        plan_identity: JavaScriptPlanIdentity,
+        performance: JavaScriptPerformanceMetrics,
+        leaves: Vec<PreparedJavaScriptLeaf>,
+    }
+
+    // Parsing and rewriting are separated from exact-codec scoring so the
+    // compilation-wide permit ledger can admit one deterministic prefix, then
+    // let that bounded prefix run in parallel. A shared atomic counter would
+    // make the final admitted leaf depend on Rayon scheduling.
+    // Parsed preparation itself performs whole-artifact syntax work, so admit
+    // those plans before entering the parallel parser too. Keep at least half
+    // of the current general allowance available for the exact scores that
+    // give prepared leaves selection authority.
+    let peephole_plan_limit = if peephole {
+        candidates.len().min(codec_budget.remaining().div_euclid(2))
+    } else {
+        0
+    };
+    let admitted_peephole_plans = codec_budget.reserve(peephole_plan_limit);
+    let mut peephole_plan_identities = Vec::with_capacity(admitted_peephole_plans);
+    if admitted_peephole_plans != 0 {
+        if let Some(configured) = candidates
+            .iter()
+            .find(|candidate| candidate.identity() == configured_plan_identity)
+        {
+            peephole_plan_identities.push(configured.identity());
+        }
+        for candidate in &candidates {
+            if peephole_plan_identities.len() == admitted_peephole_plans {
+                break;
+            }
+            if !peephole_plan_identities.contains(&candidate.identity()) {
+                peephole_plan_identities.push(candidate.identity());
+            }
+        }
+    }
+    let prepare_plan = |candidate: JavaScriptEmissionCandidate| {
         let plan_identity = candidate.identity();
+        let prepare_peephole = peephole_plan_identities.contains(&plan_identity);
         let options = candidate.options();
         let declaration_scores = candidate.emission.declaration_scores;
         let performance = if performance_model {
@@ -5815,8 +6260,8 @@ fn finalize_javascript_candidates_with_parallelism(
         } else {
             JavaScriptPerformanceMetrics::default()
         };
-        let mut plan_scored = Vec::<ScoredJavaScriptCandidate>::with_capacity(
-            MAX_DECLARATION_VARIANTS.saturating_mul(if peephole { 2 } else { 1 }),
+        let mut leaves = Vec::<PreparedJavaScriptLeaf>::with_capacity(
+            MAX_DECLARATION_VARIANTS.saturating_mul(if prepare_peephole { 2 } else { 1 }),
         );
         for (declaration_index, declaration) in
             top_level_declaration_variants(candidate.emission.code)
@@ -5825,7 +6270,7 @@ fn finalize_javascript_candidates_with_parallelism(
         {
             let configured_declaration =
                 plan_identity == configured_plan_identity && declaration_index == 0;
-            let variants = if peephole {
+            let variants = if prepare_peephole {
                 match optimize_generated_javascript(&declaration) {
                     Err(_) if configured_declaration => {
                         vec![(declaration, baseline_metrics, 0, true)]
@@ -5890,86 +6335,73 @@ fn finalize_javascript_candidates_with_parallelism(
                 {
                     continue;
                 }
-                if plan_scored.iter().any(|candidate| candidate.code == code) {
+                if leaves.iter().any(|candidate| candidate.code == code) {
                     continue;
                 }
                 let transfer_cost = if is_declaration_spelling {
-                    match declaration_scores
+                    declaration_scores
                         .exact_cost(config.javascript.cost_model, declaration_index)
-                    {
-                        Some(transfer) => transfer,
-                        None => {
-                            let Ok(transfer) =
-                                compressed_size(code.as_bytes(), config.javascript.cost_model)
-                            else {
-                                continue;
-                            };
-                            transfer
-                        }
-                    }
+                        // The configured incumbent is mandatory. Its rare
+                        // missing-ledger fallback was measured above, outside
+                        // the optional terminal-search budget, so an exhausted
+                        // optional budget can never discard the only root.
+                        .or_else(|| configured_declaration.then_some(baseline_transfer))
                 } else {
-                    let Ok(transfer) =
-                        compressed_size(code.as_bytes(), config.javascript.cost_model)
-                    else {
-                        continue;
-                    };
-                    transfer
+                    None
                 };
-                if !optimizer_variant_candidate_allowed(
-                    config.javascript.cost_model,
-                    transfer_cost,
-                    baseline_transfer,
-                    code.len(),
-                    configured_baseline.len(),
-                    config.javascript.max_candidate_raw_growth_percent,
-                ) {
-                    continue;
-                }
-                let startup_score = metrics.startup_score(
-                    config.javascript.startup.parse_weight,
-                    config.javascript.startup.compile_weight,
-                    config.javascript.startup.memory_weight,
-                );
-                let rank = javascript_candidate_rank(
-                    config,
-                    transfer_cost,
-                    baseline_transfer,
-                    performance.score,
-                    baseline_performance.score,
-                );
-                plan_scored.push(ScoredJavaScriptCandidate {
-                    plan_identity,
-                    transfer_cost,
-                    startup_score,
+                leaves.push(PreparedJavaScriptLeaf {
                     code,
                     metrics,
                     peephole_rewrites,
-                    performance,
-                    rank,
+                    transfer_cost,
                 });
             }
         }
-        sort_scored_javascript_candidates(&mut plan_scored);
-        plan_scored.into_iter().next()
+        PreparedJavaScriptPlan {
+            plan_identity,
+            performance,
+            leaves,
+        }
     };
     let parallel_brotli = allow_parallel_brotli
         && config.javascript.cost_model == CompressionCostModel::Brotli
         && candidates.len() >= 2;
-    let mut scored = if parallel_brotli {
-        // Each Rayon item owns a contiguous batch and finalizes its plans
-        // serially. This bounds live codec work without splitting declaration
-        // or peephole leaves across workers. Collecting an indexed parallel
-        // iterator preserves deterministic batch and plan order.
-        let codec_workers = config
-            .compiler
-            .resources
-            .effective_codec_workers(rayon::current_num_threads());
+    let codec_workers = config
+        .compiler
+        .resources
+        .effective_codec_workers(rayon::current_num_threads());
+    let mut prepared = if parallel_brotli {
         into_bounded_contiguous_batches(candidates, codec_workers)
+            .into_par_iter()
+            .map(|batch| batch.into_iter().map(&prepare_plan).collect::<Vec<_>>())
+            .collect::<Vec<_>>()
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>()
+    } else {
+        candidates.into_iter().map(prepare_plan).collect()
+    };
+
+    let mut terminal_score_sources = prepared
+        .iter()
+        .flat_map(|plan| {
+            plan.leaves
+                .iter()
+                .filter(|leaf| leaf.transfer_cost.is_none())
+                .map(|leaf| leaf.code.clone())
+        })
+        .collect::<Vec<_>>();
+    let admitted_terminal_scores = codec_budget.reserve(terminal_score_sources.len());
+    terminal_score_sources.truncate(admitted_terminal_scores);
+    let terminal_score_results = if parallel_brotli && terminal_score_sources.len() >= 2 {
+        into_bounded_contiguous_batches(terminal_score_sources, codec_workers)
             .into_par_iter()
             .map(|batch| {
                 batch
                     .into_iter()
-                    .filter_map(&score_plan)
+                    .map(|code| {
+                        codec_budget.measure_reserved(code.as_bytes(), config.javascript.cost_model)
+                    })
                     .collect::<Vec<_>>()
             })
             .collect::<Vec<_>>()
@@ -5977,8 +6409,69 @@ fn finalize_javascript_candidates_with_parallelism(
             .flatten()
             .collect::<Vec<_>>()
     } else {
-        candidates.into_iter().filter_map(score_plan).collect()
+        terminal_score_sources
+            .into_iter()
+            .map(|code| {
+                codec_budget.measure_reserved(code.as_bytes(), config.javascript.cost_model)
+            })
+            .collect::<Vec<_>>()
     };
+    let mut terminal_score_results = terminal_score_results.into_iter();
+    for leaf in prepared
+        .iter_mut()
+        .flat_map(|plan| plan.leaves.iter_mut())
+        .filter(|leaf| leaf.transfer_cost.is_none())
+        .take(admitted_terminal_scores)
+    {
+        leaf.transfer_cost = terminal_score_results.next().and_then(Result::ok);
+    }
+
+    let mut scored = prepared
+        .into_iter()
+        .filter_map(|plan| {
+            let mut plan_scored = plan
+                .leaves
+                .into_iter()
+                .filter_map(|leaf| {
+                    let transfer_cost = leaf.transfer_cost?;
+                    if !optimizer_variant_candidate_allowed(
+                        config.javascript.cost_model,
+                        transfer_cost,
+                        baseline_transfer,
+                        leaf.code.len(),
+                        configured_baseline.len(),
+                        config.javascript.max_candidate_raw_growth_percent,
+                    ) {
+                        return None;
+                    }
+                    let startup_score = leaf.metrics.startup_score(
+                        config.javascript.startup.parse_weight,
+                        config.javascript.startup.compile_weight,
+                        config.javascript.startup.memory_weight,
+                    );
+                    let rank = javascript_candidate_rank(
+                        config,
+                        transfer_cost,
+                        baseline_transfer,
+                        plan.performance.score,
+                        baseline_performance.score,
+                    );
+                    Some(ScoredJavaScriptCandidate {
+                        plan_identity: plan.plan_identity,
+                        transfer_cost,
+                        startup_score,
+                        code: leaf.code,
+                        metrics: leaf.metrics,
+                        peephole_rewrites: leaf.peephole_rewrites,
+                        performance: plan.performance,
+                        rank,
+                    })
+                })
+                .collect::<Vec<_>>();
+            sort_scored_javascript_candidates(&mut plan_scored);
+            plan_scored.into_iter().next()
+        })
+        .collect::<Vec<_>>();
     sort_scored_javascript_candidates(&mut scored);
     let mut seen_code = crate::stable_hash::StableHashSet::default();
     scored.retain(|candidate| seen_code.insert(candidate.code.clone()));
@@ -6027,7 +6520,8 @@ fn finalize_javascript_candidates_with_parallelism(
         .into_iter()
         .map(|index| scored[index].clone())
         .map(|candidate| {
-            let cleaned = apply_late_javascript_cleanup(candidate.clone(), config, 0)?;
+            let cleaned =
+                apply_late_javascript_cleanup(candidate.clone(), config, 0, codec_budget)?;
             let mut candidate = retain_resolved_javascript(candidate, cleaned);
             candidate.rank = javascript_candidate_rank(
                 config,
@@ -6089,18 +6583,21 @@ fn finalize_javascript_candidates_with_parallelism(
         .into_iter()
         .map(|index| late_finalists[index].clone())
         .map(|selected| {
-            let remapped = apply_unused_letter_binding_remaps(selected.clone(), config, true)?;
+            let remapped =
+                apply_unused_letter_binding_remaps(selected.clone(), config, true, codec_budget)?;
             let selected = retain_resolved_javascript(selected, remapped);
-            let cleaned = apply_late_javascript_cleanup(selected.clone(), config, 6)?;
+            let cleaned = apply_late_javascript_cleanup(selected.clone(), config, 6, codec_budget)?;
             let selected = retain_resolved_javascript(selected, cleaned);
             // Late control/sequence selection changes identifier adjacency and
             // use frequency. Re-run the exact codec-scored remapper on those
             // final bytes; the pre-cleanup optimum is not necessarily optimal
             // for the transformed artifact, and unchanged naming remains the
             // incumbent candidate.
-            let remapped = apply_unused_letter_binding_remaps(selected.clone(), config, true)?;
+            let remapped =
+                apply_unused_letter_binding_remaps(selected.clone(), config, true, codec_budget)?;
             let selected = retain_resolved_javascript(selected, remapped);
-            let mut selected = apply_terminal_boolean_binding_remap(selected, config)?;
+            let mut selected =
+                apply_terminal_boolean_binding_remap(selected, config, codec_budget)?;
             selected.rank = javascript_candidate_rank(
                 config,
                 selected.transfer_cost,
@@ -6113,7 +6610,7 @@ fn finalize_javascript_candidates_with_parallelism(
         .collect::<Result<Vec<_>, CompileError>>()?;
     sort_terminal_javascript_candidates(
         &mut terminal_finalists,
-        exact_two_binding_terminal_search_enabled(config),
+        exact_two_binding_terminal_search_enabled_for_artifact(config, configured_baseline.len()),
     );
     let selected = terminal_finalists.into_iter().next().ok_or_else(|| {
         crate::codegen_js::CodegenError::new(
@@ -6125,7 +6622,7 @@ fn finalize_javascript_candidates_with_parallelism(
     // plan. Coordinate descent is a terminal namespace fine-tune and cannot
     // expose more structure, so run it once on that exact winner instead of
     // duplicating its exhaustive swap neighborhood for every finalist.
-    let selected = apply_terminal_binding_coordinate_descent(selected, config)?;
+    let selected = apply_terminal_binding_coordinate_descent(selected, config, codec_budget)?;
     Ok(SelectedJavaScriptCandidate {
         plan_identity: selected.plan_identity,
         code: selected.code,
@@ -6136,6 +6633,10 @@ fn finalize_javascript_candidates_with_parallelism(
         performance: selected.performance,
         baseline_performance,
         candidates_evaluated,
+        terminal_codec_probes: 0,
+        terminal_work_units: 0,
+        terminal_codec_probe_limit: codec_budget.limit,
+        terminal_codec_probe_limit_reached: false,
         peephole_rewrites: selected.peephole_rewrites,
         terminal_scope_naming_challengers: 0,
         terminal_scope_naming_selected: false,
@@ -6687,6 +7188,7 @@ struct AggregateJavaScriptPlanArena {
 }
 
 impl AggregateJavaScriptPlanArena {
+    #[cfg(test)]
     fn new(
         configured: JavaScriptEmissionCandidate,
         ranked_non_root_pins: Vec<JavaScriptEmissionCandidate>,
@@ -6694,13 +7196,41 @@ impl AggregateJavaScriptPlanArena {
         requested_code_byte_cap: usize,
         selected_model: CompressionCostModel,
     ) -> Result<Self, CompileError> {
+        Self::new_with_terminal_reserve(
+            configured,
+            ranked_non_root_pins,
+            requested_plan_count_cap,
+            requested_code_byte_cap,
+            selected_model,
+            0,
+        )
+    }
+
+    fn new_with_terminal_reserve(
+        configured: JavaScriptEmissionCandidate,
+        ranked_non_root_pins: Vec<JavaScriptEmissionCandidate>,
+        requested_plan_count_cap: usize,
+        requested_code_byte_cap: usize,
+        selected_model: CompressionCostModel,
+        requested_terminal_plan_reserve: usize,
+    ) -> Result<Self, CompileError> {
         // Only the root configured artifact defines the non-negotiable floor.
         // Other context seeds are ranked pins: retain them when they fit the
         // caller's effective caps, but never expand those caps on their behalf.
         let effective_plan_count_cap = requested_plan_count_cap.max(1);
         let effective_code_byte_cap = requested_code_byte_cap.max(configured.raw_size);
-        let mut remaining_plan_count = effective_plan_count_cap.saturating_sub(1);
-        let mut remaining_code_bytes = effective_code_byte_cap.saturating_sub(configured.raw_size);
+        let terminal_plan_reserve =
+            requested_terminal_plan_reserve.min(effective_plan_count_cap.saturating_sub(1));
+        let terminal_code_byte_reserve = configured
+            .raw_size
+            .saturating_mul(terminal_plan_reserve)
+            .min(effective_code_byte_cap.saturating_sub(configured.raw_size));
+        let mut remaining_plan_count = effective_plan_count_cap
+            .saturating_sub(1)
+            .saturating_sub(terminal_plan_reserve);
+        let mut remaining_code_bytes = effective_code_byte_cap
+            .saturating_sub(configured.raw_size)
+            .saturating_sub(terminal_code_byte_reserve);
         let mut candidates = Vec::with_capacity(
             1usize.saturating_add(
                 ranked_non_root_pins
@@ -7208,8 +7738,12 @@ fn apply_unused_letter_binding_remaps(
     mut selected: ScoredJavaScriptCandidate,
     config: &ProjectConfig,
     include_live_swaps: bool,
+    codec_budget: &mut TerminalCodecProbeBudget,
 ) -> Result<ScoredJavaScriptCandidate, CompileError> {
-    if !config.js_options().mangle_identifiers || !config.entropy_aware_mangling_enabled() {
+    if codec_budget.remaining() == 0
+        || !config.js_options().mangle_identifiers
+        || !config.entropy_aware_mangling_enabled()
+    {
         return Ok(selected);
     }
     let mut code = selected.code.clone();
@@ -7220,7 +7754,7 @@ fn apply_unused_letter_binding_remaps(
     // an exact declaration score ledger without redundant measurements.
     if !matches!(config.javascript.cost_model, CompressionCostModel::Raw) {
         if let Some((next, cost)) =
-            best_unused_letter_binding_remaps(&code, config.javascript.cost_model)?
+            best_unused_letter_binding_remaps(&code, config.javascript.cost_model, codec_budget)?
         {
             code = next;
             transfer_cost = cost;
@@ -7237,19 +7771,21 @@ fn apply_unused_letter_binding_remaps(
             return Ok(selected);
         }
     }
-    if let Some((next, cost)) = best_short_binding_remaps(&code, config.javascript.cost_model)? {
+    if let Some((next, cost)) =
+        best_short_binding_remaps(&code, config.javascript.cost_model, codec_budget)?
+    {
         code = next;
         transfer_cost = cost;
     }
     if include_live_swaps && !matches!(config.javascript.cost_model, CompressionCostModel::Raw) {
         if let Some((next, cost)) =
-            best_live_letter_binding_remaps(&code, config.javascript.cost_model)?
+            best_live_letter_binding_remaps(&code, config.javascript.cost_model, codec_budget)?
         {
             code = next;
             transfer_cost = cost;
         }
         if let Some((next, cost)) =
-            best_function_local_binding_remaps(&code, config.javascript.cost_model)?
+            best_function_local_binding_remaps(&code, config.javascript.cost_model, codec_budget)?
         {
             code = next;
             transfer_cost = cost;
@@ -7273,11 +7809,16 @@ fn apply_unused_letter_binding_remaps(
 fn apply_terminal_boolean_binding_remap(
     mut selected: ScoredJavaScriptCandidate,
     config: &ProjectConfig,
+    codec_budget: &mut TerminalCodecProbeBudget,
 ) -> Result<ScoredJavaScriptCandidate, CompileError> {
-    if !config.js_options().mangle_identifiers
+    if codec_budget.remaining() == 0
+        || !config.js_options().mangle_identifiers
         || !config.entropy_aware_mangling_enabled()
         || matches!(config.javascript.cost_model, CompressionCostModel::Raw)
     {
+        return Ok(selected);
+    }
+    if !codec_budget.reserve_work_unit() {
         return Ok(selected);
     }
     let Ok(boolean_code) = late_generated_javascript_cleanup_pass(
@@ -7290,8 +7831,8 @@ fn apply_terminal_boolean_binding_remap(
     if boolean_code == selected.code || analyze_generated_javascript(&boolean_code).is_err() {
         return Ok(selected);
     }
-    let boolean_cost = compressed_size(boolean_code.as_bytes(), config.javascript.cost_model)
-        .map_err(|message| crate::codegen_js::CodegenError::new(Span::empty(0), message))?;
+    let boolean_cost = codec_budget
+        .measure_reserved_compile(boolean_code.as_bytes(), config.javascript.cost_model)?;
     let (candidate, candidate_cost) =
         if matches!(config.javascript.cost_model, CompressionCostModel::Raw) {
             (boolean_code, boolean_cost)
@@ -7300,6 +7841,7 @@ fn apply_terminal_boolean_binding_remap(
                 &boolean_code,
                 config.javascript.cost_model,
                 TERMINAL_BOOLEAN_BINDING_REMAP_PASSES,
+                codec_budget,
             )?
             .unwrap_or((boolean_code, boolean_cost))
         };
@@ -7330,15 +7872,28 @@ fn exact_two_binding_terminal_search_enabled(config: &ProjectConfig) -> bool {
         && config.javascript.effective_candidate_limit() >= 768
 }
 
+fn exact_two_binding_terminal_search_enabled_for_artifact(
+    config: &ProjectConfig,
+    raw_size: usize,
+) -> bool {
+    raw_size <= 16 * 1024 && exact_two_binding_terminal_search_enabled(config)
+}
+
 fn apply_exact_two_binding_unused_letter_remap(
     mut selected: SelectedJavaScriptCandidate,
     config: &ProjectConfig,
+    codec_budget: &mut TerminalCodecProbeBudget,
 ) -> Result<SelectedJavaScriptCandidate, CompileError> {
-    if !exact_two_binding_terminal_search_enabled(config) {
+    if codec_budget.remaining() == 0
+        || !exact_two_binding_terminal_search_enabled_for_artifact(config, selected.code.len())
+    {
         return Ok(selected);
     }
-    let Some((code, transfer_cost)) =
-        best_two_binding_unused_letter_remap(&selected.code, config.javascript.cost_model)?
+    let Some((code, transfer_cost)) = best_two_binding_unused_letter_remap(
+        &selected.code,
+        config.javascript.cost_model,
+        codec_budget,
+    )?
     else {
         return Ok(selected);
     };
@@ -7358,8 +7913,10 @@ fn apply_exact_two_binding_unused_letter_remap(
 fn apply_terminal_binding_coordinate_descent(
     mut selected: ScoredJavaScriptCandidate,
     config: &ProjectConfig,
+    codec_budget: &mut TerminalCodecProbeBudget,
 ) -> Result<ScoredJavaScriptCandidate, CompileError> {
-    if !config.js_options().mangle_identifiers
+    if codec_budget.remaining() == 0
+        || !config.js_options().mangle_identifiers
         || !config.entropy_aware_mangling_enabled()
         || matches!(config.javascript.cost_model, CompressionCostModel::Raw)
     {
@@ -7378,6 +7935,7 @@ fn apply_terminal_binding_coordinate_descent(
         config.javascript.cost_model,
         LOCAL_PASSES,
         LOCAL_BEAM_WIDTH,
+        codec_budget,
     )? {
         code = next;
         transfer_cost = cost;
@@ -7390,6 +7948,7 @@ fn apply_terminal_binding_coordinate_descent(
         config.javascript.cost_model,
         GLOBAL_PASSES,
         GLOBAL_BEAM_WIDTH,
+        codec_budget,
     )? {
         code = next;
         transfer_cost = cost;
@@ -7425,11 +7984,14 @@ fn apply_late_javascript_cleanup(
     mut selected: ScoredJavaScriptCandidate,
     config: &ProjectConfig,
     terminal_local_rounds: usize,
+    codec_budget: &mut TerminalCodecProbeBudget,
 ) -> Result<ScoredJavaScriptCandidate, CompileError> {
     // Late syntax search is the terminal half of ParsedPeephole. An explicit
     // optimization allowlist that omits that feature must preserve the exact
     // emitter spelling (and its already-measured declaration score ledger).
-    if !config.javascript_optimization_configured(JavaScriptOptimization::ParsedPeephole) {
+    if codec_budget.remaining() == 0
+        || !config.javascript_optimization_configured(JavaScriptOptimization::ParsedPeephole)
+    {
         return Ok(selected);
     }
 
@@ -7450,14 +8012,23 @@ fn apply_late_javascript_cleanup(
         cost: selected.transfer_cost,
     };
     let mut beam = vec![original.clone()];
-    for _ in 0..ROUNDS {
+    'cleanup_rounds: for _ in 0..ROUNDS {
         for pass in LateJavaScriptCleanupPass::ALL {
             // Skipping a rewrite is a first-class branch. In particular, a
             // raw-byte reduction is not assumed to help either dictionary
             // codec, and a codec win in one artifact is not generalized to
             // another artifact.
             let mut proposals = beam.clone();
+            let mut exhausted = false;
             for candidate in &beam {
+                // Charge the proposal before transformation, repair, or
+                // whole-artifact validation. Invalid/no-op variants still
+                // consume one deterministic work unit, preventing syntax
+                // analysis from multiplying beyond the codec-call cap.
+                if !codec_budget.reserve_work_unit() {
+                    exhausted = true;
+                    break;
+                }
                 let Ok(code) = late_generated_javascript_cleanup_pass(&candidate.code, pass) else {
                     continue;
                 };
@@ -7467,9 +8038,8 @@ fn apply_late_javascript_cleanup(
                 {
                     continue;
                 }
-                let cost = compressed_size(code.as_bytes(), config.javascript.cost_model).map_err(
-                    |message| crate::codegen_js::CodegenError::new(Span::empty(0), message),
-                )?;
+                let cost = codec_budget
+                    .measure_reserved_compile(code.as_bytes(), config.javascript.cost_model)?;
                 proposals.push(CleanupCandidate { code, cost });
             }
             proposals.sort_by(|left, right| {
@@ -7478,29 +8048,37 @@ fn apply_late_javascript_cleanup(
             proposals.dedup_by(|left, right| left.code == right.code);
             proposals.truncate(BEAM_WIDTH);
             beam = proposals;
+            if exhausted {
+                break 'cleanup_rounds;
+            }
         }
     }
 
     // Pin the historical all-pass pipeline as a synergy proposal. The beam
     // normally rediscovers it, but an individually losing precursor can be
     // necessary for a later fold and may have been pruned at an earlier step.
-    if let Ok(code) = late_generated_javascript_cleanup(&original.code) {
-        let code = repair_late_javascript_candidate(code);
-        if code != original.code
-            && analyze_generated_javascript(&code).is_ok()
-            && !beam.iter().any(|candidate| candidate.code == code)
-        {
-            let cost = compressed_size(code.as_bytes(), config.javascript.cost_model)
-                .map_err(|message| crate::codegen_js::CodegenError::new(Span::empty(0), message))?;
-            if let Some((remapped, remapped_cost)) =
-                best_one_function_local_binding_remap(&code, config.javascript.cost_model, cost)?
+    if codec_budget.reserve_work_unit() {
+        if let Ok(code) = late_generated_javascript_cleanup(&original.code) {
+            let code = repair_late_javascript_candidate(code);
+            if code != original.code
+                && analyze_generated_javascript(&code).is_ok()
+                && !beam.iter().any(|candidate| candidate.code == code)
             {
-                beam.push(CleanupCandidate {
-                    code: remapped,
-                    cost: remapped_cost,
-                });
+                let cost = codec_budget
+                    .measure_reserved_compile(code.as_bytes(), config.javascript.cost_model)?;
+                if let Some((remapped, remapped_cost)) = best_one_function_local_binding_remap(
+                    &code,
+                    config.javascript.cost_model,
+                    cost,
+                    codec_budget,
+                )? {
+                    beam.push(CleanupCandidate {
+                        code: remapped,
+                        cost: remapped_cost,
+                    });
+                }
+                beam.push(CleanupCandidate { code, cost });
             }
-            beam.push(CleanupCandidate { code, cost });
         }
     }
     // The plan scorer compares canonical parsed cleanup before terminal name
@@ -7513,6 +8091,7 @@ fn apply_late_javascript_cleanup(
     let naming_interaction_source = if config.js_options().mangle_identifiers
         && config.entropy_aware_mangling_enabled()
         && !matches!(config.javascript.cost_model, CompressionCostModel::Raw)
+        && codec_budget.reserve_work_unit()
     {
         optimize_generated_javascript(&original.code).ok()
     } else {
@@ -7527,7 +8106,7 @@ fn apply_late_javascript_cleanup(
             && code != original.code
             && analyze_generated_javascript(&code).is_ok()
         {
-            best_unused_letter_binding_remaps(&code, config.javascript.cost_model)?
+            best_unused_letter_binding_remaps(&code, config.javascript.cost_model, codec_budget)?
         } else {
             None
         };
@@ -7542,7 +8121,7 @@ fn apply_late_javascript_cleanup(
     // which in turn expose common conditional arms. Score that interaction as
     // one structural challenger while preserving every incumbent beam entry.
     let structural_sources = beam.clone();
-    for candidate in structural_sources {
+    'structural: for candidate in structural_sources {
         for include_statement_assignments in [false, true] {
             let single_use_function_variants: &[bool] =
                 if config.single_use_function_expression_candidates_enabled() {
@@ -7551,6 +8130,9 @@ fn apply_late_javascript_cleanup(
                     &[false]
                 };
             for include_single_use_functions in single_use_function_variants.iter().copied() {
+                if !codec_budget.reserve_work_unit() {
+                    break 'structural;
+                }
                 let mut code = candidate.code.clone();
                 let passes = [
                     include_single_use_functions
@@ -7582,13 +8164,13 @@ fn apply_late_javascript_cleanup(
                 {
                     continue;
                 }
-                let cost = compressed_size(code.as_bytes(), config.javascript.cost_model).map_err(
-                    |message| crate::codegen_js::CodegenError::new(Span::empty(0), message),
-                )?;
+                let cost = codec_budget
+                    .measure_reserved_compile(code.as_bytes(), config.javascript.cost_model)?;
                 if let Some((remapped, remapped_cost)) = best_one_function_local_binding_remap(
                     &code,
                     config.javascript.cost_model,
                     cost,
+                    codec_budget,
                 )? {
                     beam.push(CleanupCandidate {
                         code: remapped,
@@ -7621,8 +8203,14 @@ fn apply_late_javascript_cleanup(
         let terminal_sources = beam.clone();
         let mut proposals = beam.clone();
         let mut proposal_codes = Vec::new();
-        for candidate in terminal_sources {
+        'local_proposals: for candidate in terminal_sources {
             for pass in TERMINAL_LOCAL_PASSES {
+                // Local-variant discovery parses and walks the complete
+                // artifact. Charge it before constructing the vector; each
+                // admitted leaf below pays its own scoring unit separately.
+                if !codec_budget.reserve_work_unit() {
+                    break 'local_proposals;
+                }
                 let mut variants =
                     late_generated_javascript_cleanup_local_variants(&candidate.code, pass)
                         .unwrap_or_default();
@@ -7644,6 +8232,9 @@ fn apply_late_javascript_cleanup(
                     .step_by(stride)
                     .take(MAX_LOCAL_VARIANTS_PER_PASS_AND_SOURCE)
                 {
+                    if !codec_budget.reserve_work_unit() {
+                        break 'local_proposals;
+                    }
                     let code = repair_late_javascript_candidate(code);
                     if code == candidate.code
                         || analyze_generated_javascript(&code).is_err()
@@ -7659,7 +8250,8 @@ fn apply_late_javascript_cleanup(
         let measured = proposal_codes
             .into_par_iter()
             .map(|code| {
-                compressed_size(code.as_bytes(), config.javascript.cost_model)
+                codec_budget
+                    .measure_reserved(code.as_bytes(), config.javascript.cost_model)
                     .map(|cost| CleanupCandidate { code, cost })
             })
             .collect::<Result<Vec<_>, _>>()
@@ -7685,6 +8277,9 @@ fn apply_late_javascript_cleanup(
     // candidates tie before later sequence scoring.
     let terminal_sources = beam.clone();
     for candidate in terminal_sources {
+        if !codec_budget.reserve_work_unit() {
+            break;
+        }
         let Ok(code) = late_generated_javascript_cleanup_pass(
             &candidate.code,
             LateJavaScriptCleanupPass::CommonConditionalArms,
@@ -7698,8 +8293,8 @@ fn apply_late_javascript_cleanup(
         {
             continue;
         }
-        let cost = compressed_size(code.as_bytes(), config.javascript.cost_model)
-            .map_err(|message| crate::codegen_js::CodegenError::new(Span::empty(0), message))?;
+        let cost =
+            codec_budget.measure_reserved_compile(code.as_bytes(), config.javascript.cost_model)?;
         beam.push(CleanupCandidate { code, cost });
     }
     beam.push(original);
@@ -7724,13 +8319,17 @@ fn apply_late_javascript_cleanup(
             selected.transfer_cost = cleaned.cost;
         }
     }
-    parenthesize_logical_assignments(selected, config)
+    parenthesize_logical_assignments(selected, config, codec_budget)
 }
 
 fn parenthesize_logical_assignments(
     mut selected: ScoredJavaScriptCandidate,
     config: &ProjectConfig,
+    codec_budget: &mut TerminalCodecProbeBudget,
 ) -> Result<ScoredJavaScriptCandidate, CompileError> {
+    if !codec_budget.reserve_work_unit() {
+        return Ok(selected);
+    }
     let mut repaired = match late_generated_javascript_cleanup_pass(
         &selected.code,
         LateJavaScriptCleanupPass::OrAssignmentParens,
@@ -7747,8 +8346,8 @@ fn parenthesize_logical_assignments(
     let Ok(metrics) = analyze_generated_javascript(&repaired) else {
         return Ok(selected);
     };
-    let transfer_cost = compressed_size(repaired.as_bytes(), config.javascript.cost_model)
-        .map_err(|message| crate::codegen_js::CodegenError::new(Span::empty(0), message))?;
+    let transfer_cost =
+        codec_budget.measure_reserved_compile(repaired.as_bytes(), config.javascript.cost_model)?;
     selected.metrics = metrics;
     selected.startup_score = selected.metrics.startup_score(
         config.javascript.startup.parse_weight,
@@ -7776,13 +8375,16 @@ fn live_letter_remap_pair_budget(code_len: usize) -> usize {
 fn best_live_letter_binding_remaps(
     code: &str,
     model: CompressionCostModel,
+    codec_budget: &mut TerminalCodecProbeBudget,
 ) -> Result<Option<(String, usize)>, CompileError> {
     let mut current = code.to_string();
-    let mut current_cost = compressed_size(current.as_bytes(), model)
-        .map_err(|message| crate::codegen_js::CodegenError::new(Span::empty(0), message))?;
+    let Some(mut current_cost) = codec_budget.compressed_size(current.as_bytes(), model)? else {
+        return Ok(None);
+    };
     let mut improved = false;
     for _ in 0..LIVE_LETTER_REMAP_PASSES {
-        let Some((next, cost)) = best_one_live_letter_binding_remap(&current, model, current_cost)?
+        let Some((next, cost)) =
+            best_one_live_letter_binding_remap(&current, model, current_cost, codec_budget)?
         else {
             break;
         };
@@ -7797,7 +8399,11 @@ fn best_one_live_letter_binding_remap(
     code: &str,
     model: CompressionCostModel,
     current_cost: usize,
+    codec_budget: &mut TerminalCodecProbeBudget,
 ) -> Result<Option<(String, usize)>, CompileError> {
+    if !codec_budget.reserve_work_unit() {
+        return Ok(None);
+    }
     let counts =
         single_character_identifier_use_counts(code).map_err(generated_javascript_parse_error)?;
     let mut identifiers = single_character_resolved_binding_identifiers(code)
@@ -7817,6 +8423,8 @@ fn best_one_live_letter_binding_remap(
             }
         }
     }
+    let admitted = codec_budget.reserve(pairs.len());
+    pairs.truncate(admitted);
     let best = pairs
         .into_par_iter()
         .filter_map(|(left, right)| {
@@ -7824,7 +8432,9 @@ fn best_one_live_letter_binding_remap(
             mapping[left as usize] = right;
             mapping[right as usize] = left;
             let remapped = remap_single_character_identifiers(code, &mapping).ok()?;
-            let cost = compressed_size(remapped.as_bytes(), model).ok()?;
+            let cost = codec_budget
+                .measure_reserved(remapped.as_bytes(), model)
+                .ok()?;
             (cost < current_cost).then_some((remapped, cost))
         })
         .min_by(|left, right| (left.1, left.0.as_str()).cmp(&(right.1, right.0.as_str())));
@@ -7836,11 +8446,16 @@ fn best_live_letter_binding_remaps_with_beam(
     model: CompressionCostModel,
     passes: usize,
     beam_width: usize,
+    codec_budget: &mut TerminalCodecProbeBudget,
 ) -> Result<Option<(String, usize)>, CompileError> {
-    let initial_cost = compressed_size(code.as_bytes(), model)
-        .map_err(|message| crate::codegen_js::CodegenError::new(Span::empty(0), message))?;
+    let Some(initial_cost) = codec_budget.compressed_size(code.as_bytes(), model)? else {
+        return Ok(None);
+    };
     let mut beam = vec![(code.to_string(), initial_cost)];
     for _ in 0..passes {
+        if !codec_budget.reserve_work_unit() {
+            break;
+        }
         let proposal_groups = beam
             .par_iter()
             .map(|(candidate, _)| live_letter_binding_swap_variants(candidate))
@@ -7848,10 +8463,14 @@ fn best_live_letter_binding_remaps_with_beam(
         let mut proposals = proposal_groups.into_iter().flatten().collect::<Vec<_>>();
         proposals.sort();
         proposals.dedup();
+        let admitted = codec_budget.reserve(proposals.len());
+        proposals.truncate(admitted);
         let mut next = proposals
             .into_par_iter()
             .filter_map(|candidate| {
-                let cost = compressed_size(candidate.as_bytes(), model).ok()?;
+                let cost = codec_budget
+                    .measure_reserved(candidate.as_bytes(), model)
+                    .ok()?;
                 Some((candidate, cost))
             })
             .collect::<Vec<_>>();
@@ -7914,20 +8533,28 @@ const TERMINAL_BOOLEAN_BINDING_REMAP_PASSES: usize = 12;
 fn best_function_local_binding_remaps(
     code: &str,
     model: CompressionCostModel,
+    codec_budget: &mut TerminalCodecProbeBudget,
 ) -> Result<Option<(String, usize)>, CompileError> {
-    best_function_local_binding_remaps_with_passes(code, model, FUNCTION_LOCAL_BINDING_REMAP_PASSES)
+    best_function_local_binding_remaps_with_passes(
+        code,
+        model,
+        FUNCTION_LOCAL_BINDING_REMAP_PASSES,
+        codec_budget,
+    )
 }
 
 fn best_function_local_binding_remaps_with_passes(
     code: &str,
     model: CompressionCostModel,
     passes: usize,
+    codec_budget: &mut TerminalCodecProbeBudget,
 ) -> Result<Option<(String, usize)>, CompileError> {
     best_function_local_binding_remaps_with_beam(
         code,
         model,
         passes,
         FUNCTION_LOCAL_BINDING_REMAP_BEAM_WIDTH,
+        codec_budget,
     )
 }
 
@@ -7936,11 +8563,16 @@ fn best_function_local_binding_remaps_with_beam(
     model: CompressionCostModel,
     passes: usize,
     beam_width: usize,
+    codec_budget: &mut TerminalCodecProbeBudget,
 ) -> Result<Option<(String, usize)>, CompileError> {
-    let initial_cost = compressed_size(code.as_bytes(), model)
-        .map_err(|message| crate::codegen_js::CodegenError::new(Span::empty(0), message))?;
+    let Some(initial_cost) = codec_budget.compressed_size(code.as_bytes(), model)? else {
+        return Ok(None);
+    };
     let mut beam = vec![(code.to_string(), initial_cost)];
     for _ in 0..passes {
+        if !codec_budget.reserve_work_unit() {
+            break;
+        }
         let proposal_groups = beam
             .par_iter()
             .map(|(candidate, _)| {
@@ -7951,10 +8583,14 @@ fn best_function_local_binding_remaps_with_beam(
         let mut proposals = proposal_groups.into_iter().flatten().collect::<Vec<_>>();
         proposals.sort();
         proposals.dedup();
+        let admitted = codec_budget.reserve(proposals.len());
+        proposals.truncate(admitted);
         let mut next = proposals
             .into_par_iter()
             .filter_map(|candidate| {
-                let cost = compressed_size(candidate.as_bytes(), model).ok()?;
+                let cost = codec_budget
+                    .measure_reserved(candidate.as_bytes(), model)
+                    .ok()?;
                 Some((candidate, cost))
             })
             .collect::<Vec<_>>();
@@ -7983,13 +8619,21 @@ fn best_one_function_local_binding_remap(
     code: &str,
     model: CompressionCostModel,
     current_cost: usize,
+    codec_budget: &mut TerminalCodecProbeBudget,
 ) -> Result<Option<(String, usize)>, CompileError> {
-    let variants =
+    if !codec_budget.reserve_work_unit() {
+        return Ok(None);
+    }
+    let mut variants =
         function_local_binding_swap_variants(code).map_err(generated_javascript_parse_error)?;
+    let admitted = codec_budget.reserve(variants.len());
+    variants.truncate(admitted);
     Ok(variants
         .into_par_iter()
         .filter_map(|remapped| {
-            let cost = compressed_size(remapped.as_bytes(), model).ok()?;
+            let cost = codec_budget
+                .measure_reserved(remapped.as_bytes(), model)
+                .ok()?;
             (cost < current_cost).then_some((remapped, cost))
         })
         .min_by(|left, right| (left.1, left.0.as_str()).cmp(&(right.1, right.0.as_str()))))
@@ -7998,13 +8642,16 @@ fn best_one_function_local_binding_remap(
 fn best_short_binding_remaps(
     code: &str,
     model: CompressionCostModel,
+    codec_budget: &mut TerminalCodecProbeBudget,
 ) -> Result<Option<(String, usize)>, CompileError> {
     let mut current = code.to_string();
-    let mut current_cost = compressed_size(current.as_bytes(), model)
-        .map_err(|message| crate::codegen_js::CodegenError::new(Span::empty(0), message))?;
+    let Some(mut current_cost) = codec_budget.compressed_size(current.as_bytes(), model)? else {
+        return Ok(None);
+    };
     let mut improved = false;
     for _ in 0..UNUSED_LETTER_REMAP_PASSES {
-        let Some((next, cost)) = best_one_short_binding_remap(&current, model, current_cost)?
+        let Some((next, cost)) =
+            best_one_short_binding_remap(&current, model, current_cost, codec_budget)?
         else {
             break;
         };
@@ -8019,7 +8666,11 @@ fn best_one_short_binding_remap(
     code: &str,
     model: CompressionCostModel,
     current_cost: usize,
+    codec_budget: &mut TerminalCodecProbeBudget,
 ) -> Result<Option<(String, usize)>, CompileError> {
+    if !codec_budget.reserve_work_unit() {
+        return Ok(None);
+    }
     let identifiers =
         single_character_identifiers(code).map_err(generated_javascript_parse_error)?;
     let unused = ONE_BYTE_IDENTIFIER_STARTS
@@ -8047,12 +8698,16 @@ fn best_one_short_binding_remap(
             }
         }
     }
+    let admitted = codec_budget.reserve(pairs.len());
+    pairs.truncate(admitted);
     let best = pairs
         .into_par_iter()
         .filter_map(|(source, replacement)| {
             let remapped =
                 remap_identifier(code, &source, std::str::from_utf8(&[replacement]).ok()?).ok()?;
-            let cost = compressed_size(remapped.as_bytes(), model).ok()?;
+            let cost = codec_budget
+                .measure_reserved(remapped.as_bytes(), model)
+                .ok()?;
             (cost < current_cost).then_some((remapped, cost))
         })
         .min_by(|left, right| (left.1, left.0.as_str()).cmp(&(right.1, right.0.as_str())));
@@ -8062,14 +8717,16 @@ fn best_one_short_binding_remap(
 fn best_unused_letter_binding_remaps(
     code: &str,
     model: CompressionCostModel,
+    codec_budget: &mut TerminalCodecProbeBudget,
 ) -> Result<Option<(String, usize)>, CompileError> {
     let mut current = code.to_string();
-    let mut current_cost = compressed_size(current.as_bytes(), model)
-        .map_err(|message| crate::codegen_js::CodegenError::new(Span::empty(0), message))?;
+    let Some(mut current_cost) = codec_budget.compressed_size(current.as_bytes(), model)? else {
+        return Ok(None);
+    };
     let mut improved = false;
     for _ in 0..UNUSED_LETTER_REMAP_PASSES {
         let Some((next, cost)) =
-            best_one_unused_letter_binding_remap(&current, model, current_cost)?
+            best_one_unused_letter_binding_remap(&current, model, current_cost, codec_budget)?
         else {
             break;
         };
@@ -8097,7 +8754,11 @@ fn exact_two_binding_replacement_pairs(unused: &[u8]) -> Vec<(u8, u8)> {
 fn best_two_binding_unused_letter_remap(
     code: &str,
     model: CompressionCostModel,
+    codec_budget: &mut TerminalCodecProbeBudget,
 ) -> Result<Option<(String, usize)>, CompileError> {
+    if !codec_budget.reserve_work_unit() {
+        return Ok(None);
+    }
     let mut sources = single_character_resolved_binding_identifiers(code)
         .map_err(generated_javascript_parse_error)?;
     // Check the topology before any codec work. Most larger artifacts have a
@@ -8110,8 +8771,9 @@ fn best_two_binding_unused_letter_remap(
     if sources.len() != 2 {
         return Ok(None);
     }
-    let initial_cost = compressed_size(code.as_bytes(), model)
-        .map_err(|message| crate::codegen_js::CodegenError::new(Span::empty(0), message))?;
+    let Some(initial_cost) = codec_budget.compressed_size(code.as_bytes(), model)? else {
+        return Ok(None);
+    };
     let identifiers =
         single_character_identifiers(code).map_err(generated_javascript_parse_error)?;
     let counts =
@@ -8165,7 +8827,19 @@ fn best_two_binding_unused_letter_remap(
         unreachable!("the exact pair search requires two resolved bindings")
     };
     let (left, right) = (*left, *right);
-    Ok(exact_two_binding_replacement_pairs(&unused)
+    let mut replacements = exact_two_binding_replacement_pairs(&unused);
+    // Each mapping scores the complete declaration family. Reserve whole
+    // families so partial exhaustion cannot bias `var`/`let` selection.
+    let declaration_variants = top_level_declaration_variants(code.to_string()).len();
+    let admitted_mappings = codec_budget.remaining() / declaration_variants.max(1);
+    if admitted_mappings < replacements.len() {
+        codec_budget.limit_reached = true;
+        replacements.truncate(admitted_mappings);
+    }
+    codec_budget.used = codec_budget
+        .used
+        .saturating_add(replacements.len().saturating_mul(declaration_variants));
+    Ok(replacements
         .into_par_iter()
         .filter_map(|(left_replacement, right_replacement)| {
             let mut mapping = std::array::from_fn(|index| index as u8);
@@ -8179,7 +8853,7 @@ fn best_two_binding_unused_letter_remap(
             // remapped `g/l` namespace can prefer `var`. Score that complete
             // interaction instead of freezing the pre-remap declaration.
             let (remapped, cost) = best_declaration_variant_by(&remapped, |candidate| {
-                compressed_size(candidate.as_bytes(), model)
+                codec_budget.measure_reserved(candidate.as_bytes(), model)
             })
             .ok()?;
             (cost < initial_cost).then_some((remapped, cost))
@@ -8191,7 +8865,11 @@ fn best_one_unused_letter_binding_remap(
     code: &str,
     model: CompressionCostModel,
     current_cost: usize,
+    codec_budget: &mut TerminalCodecProbeBudget,
 ) -> Result<Option<(String, usize)>, CompileError> {
+    if !codec_budget.reserve_work_unit() {
+        return Ok(None);
+    }
     let identifiers =
         single_character_identifiers(code).map_err(generated_javascript_parse_error)?;
     if identifiers.is_empty() {
@@ -8225,6 +8903,8 @@ fn best_one_unused_letter_binding_remap(
             }
         }
     }
+    let admitted = codec_budget.reserve(pairs.len());
+    pairs.truncate(admitted);
     let best = pairs
         .into_par_iter()
         .filter_map(|(source, replacement)| {
@@ -8232,7 +8912,9 @@ fn best_one_unused_letter_binding_remap(
             mapping[source as usize] = replacement;
             mapping[replacement as usize] = source;
             let remapped = remap_single_character_identifiers(code, &mapping).ok()?;
-            let cost = compressed_size(remapped.as_bytes(), model).ok()?;
+            let cost = codec_budget
+                .measure_reserved(remapped.as_bytes(), model)
+                .ok()?;
             (cost < current_cost).then_some((remapped, cost))
         })
         .min_by(|left, right| (left.1, left.0.as_str()).cmp(&(right.1, right.0.as_str())));
@@ -10730,6 +11412,8 @@ mod tests {
         .collect::<Vec<_>>();
         let contexts = test_javascript_contexts(&ir);
         let profile = OptimizationProfile::default();
+        let mut serial_budget = TerminalCodecProbeBudget::new(usize::MAX);
+        let mut parallel_budget = TerminalCodecProbeBudget::new(usize::MAX);
 
         let serial = finalize_javascript_candidates_with_parallelism(
             candidates.clone(),
@@ -10740,6 +11424,7 @@ mod tests {
             &profile,
             candidates.len(),
             false,
+            &mut serial_budget,
         )
         .unwrap();
         let parallel = finalize_javascript_candidates_with_parallelism(
@@ -10751,6 +11436,7 @@ mod tests {
             &profile,
             plans.len(),
             true,
+            &mut parallel_budget,
         )
         .unwrap();
 
@@ -10783,6 +11469,8 @@ mod tests {
         let configured_identity = candidates[1].identity();
         let contexts = test_javascript_contexts(&ir);
         let profile = OptimizationProfile::default();
+        let mut serial_budget = TerminalCodecProbeBudget::new(usize::MAX);
+        let mut parallel_budget = TerminalCodecProbeBudget::new(usize::MAX);
 
         let serial = finalize_javascript_candidates_with_parallelism(
             candidates.clone(),
@@ -10793,6 +11481,7 @@ mod tests {
             &profile,
             candidates.len(),
             false,
+            &mut serial_budget,
         )
         .unwrap();
         let parallel = finalize_javascript_candidates_with_parallelism(
@@ -10804,6 +11493,7 @@ mod tests {
             &profile,
             3,
             true,
+            &mut parallel_budget,
         )
         .unwrap();
 
@@ -10839,6 +11529,8 @@ mod tests {
         let contexts = test_javascript_contexts(&ir);
         let profile = OptimizationProfile::default();
         let baseline = "console.log(1)";
+        let mut serial_budget = TerminalCodecProbeBudget::new(usize::MAX);
+        let mut parallel_budget = TerminalCodecProbeBudget::new(usize::MAX);
 
         let serial = finalize_javascript_candidates_with_parallelism(
             candidates.clone(),
@@ -10849,6 +11541,7 @@ mod tests {
             &profile,
             candidates.len(),
             false,
+            &mut serial_budget,
         )
         .unwrap_err();
         let parallel = finalize_javascript_candidates_with_parallelism(
@@ -10860,6 +11553,7 @@ mod tests {
             &profile,
             2,
             true,
+            &mut parallel_budget,
         )
         .unwrap_err();
 
@@ -12036,6 +12730,7 @@ mod tests {
                 JavaScriptEmissionContext::new(1, &ir, None, None, false),
             ],
             plan_registry: Mutex::new(JavaScriptPlanRegistry::default()),
+            emissions_attempted: AtomicUsize::new(0),
         };
         let mut config = ProjectConfig::default();
         config.javascript.priority = JavaScriptPriority::SizeFirst;
@@ -12708,6 +13403,62 @@ mod tests {
     }
 
     #[test]
+    fn structural_plan_budget_is_charged_before_emission_and_preserves_terminal_slots() {
+        let options = crate::codegen_ir_js::IrJsOptions::default();
+        let mut registry = JavaScriptPlanRegistry::default();
+        let root = registry.register(0, options).unwrap();
+        registry.set_optional_limit(2, 0, false);
+
+        let first = registry
+            .register(
+                0,
+                crate::codegen_ir_js::IrJsOptions {
+                    compact_boolean_literals: !options.compact_boolean_literals,
+                    ..options
+                },
+            )
+            .unwrap();
+        let second = registry
+            .register(
+                0,
+                crate::codegen_ir_js::IrJsOptions {
+                    pool_strings: !options.pool_strings,
+                    ..options
+                },
+            )
+            .unwrap();
+        assert_eq!(registry.plans.len(), 3);
+        assert!(registry
+            .register(
+                0,
+                crate::codegen_ir_js::IrJsOptions {
+                    local_name_coalescing: !options.local_name_coalescing,
+                    ..options
+                },
+            )
+            .is_none());
+        assert!(registry.limit_reached);
+        assert_eq!(registry.structural_work_used, 2);
+        assert_eq!(registry.plans.len(), 3);
+
+        // Terminal challengers debit their own four-plan tail rather than the
+        // exhausted structural ledger.
+        let terminal = registry
+            .register_terminal(
+                0,
+                crate::codegen_ir_js::IrJsOptions {
+                    precise_cross_scope_shadowing: !options.precise_cross_scope_shadowing,
+                    ..options
+                },
+            )
+            .unwrap();
+        assert_eq!(terminal.identity.ordinal, 3);
+        assert_eq!(root.identity.ordinal, 0);
+        assert_eq!(first.identity.ordinal, 1);
+        assert_eq!(second.identity.ordinal, 2);
+    }
+
+    #[test]
     fn bounded_candidate_merge_scores_proposals_before_evicting_the_old_frontier() {
         fn candidate(code: &str, cost: usize) -> JavaScriptEmissionCandidate {
             let mut candidate = JavaScriptEmissionCandidate::new(
@@ -13042,9 +13793,14 @@ mod tests {
     fn unused_letter_binding_remap_can_leave_the_initial_live_character_set() {
         let code = "var F=[1,2,3,4,5];console.log(F==F),F.reverse(),console.log(F.join('-'))";
         let baseline = compressed_size(code.as_bytes(), CompressionCostModel::Brotli).unwrap();
-        let remapped = best_unused_letter_binding_remaps(code, CompressionCostModel::Brotli)
-            .unwrap()
-            .expect("an unused letter should beat F");
+        let mut codec_budget = TerminalCodecProbeBudget::new(usize::MAX);
+        let remapped = best_unused_letter_binding_remaps(
+            code,
+            CompressionCostModel::Brotli,
+            &mut codec_budget,
+        )
+        .unwrap()
+        .expect("an unused letter should beat F");
         assert!(
             remapped.1 < baseline,
             "baseline={baseline}, remapped={}",
@@ -13064,9 +13820,14 @@ mod tests {
                     "let $=$=>10+$|0;console.log($(3));console.log($(8))",
                 ),
         );
-        let remapped = best_two_binding_unused_letter_remap(code, CompressionCostModel::Brotli)
-            .unwrap()
-            .unwrap_or_else(|| (code.to_string(), baseline));
+        let mut codec_budget = TerminalCodecProbeBudget::new(usize::MAX);
+        let remapped = best_two_binding_unused_letter_remap(
+            code,
+            CompressionCostModel::Brotli,
+            &mut codec_budget,
+        )
+        .unwrap()
+        .unwrap_or_else(|| (code.to_string(), baseline));
         assert!(
             remapped.1 <= 52,
             "baseline={baseline}, remapped={} code={}",
@@ -13099,10 +13860,15 @@ mod tests {
 
         let three_bindings = "let a=1,b=2,c=3;console.log(a+b+c)";
         assert_eq!(resolved_one_byte_binding_count(three_bindings), 3);
+        let mut codec_budget = TerminalCodecProbeBudget::new(usize::MAX);
         assert!(
-            best_two_binding_unused_letter_remap(three_bindings, CompressionCostModel::Brotli,)
-                .unwrap()
-                .is_none(),
+            best_two_binding_unused_letter_remap(
+                three_bindings,
+                CompressionCostModel::Brotli,
+                &mut codec_budget,
+            )
+            .unwrap()
+            .is_none(),
             "artifacts outside the exact-two-binding gate must skip pair trials",
         );
     }
@@ -13116,14 +13882,23 @@ mod tests {
         assert!(!resolved.contains(&b'X'));
 
         let baseline = compressed_size(code.as_bytes(), CompressionCostModel::Brotli).unwrap();
-        let (remapped, remapped_cost) =
-            best_two_binding_unused_letter_remap(code, CompressionCostModel::Brotli)
-                .unwrap()
-                .expect("the exact pair neighborhood should contain a strict Brotli win");
+        let mut exact_budget = TerminalCodecProbeBudget::new(usize::MAX);
+        let (remapped, remapped_cost) = best_two_binding_unused_letter_remap(
+            code,
+            CompressionCostModel::Brotli,
+            &mut exact_budget,
+        )
+        .unwrap()
+        .expect("the exact pair neighborhood should contain a strict Brotli win");
         assert!(remapped_cost < baseline, "{baseline} -> {remapped_cost}");
         assert!(remapped.contains("X("), "{remapped}");
-        if let Some((remapped, _)) =
-            best_unused_letter_binding_remaps(code, CompressionCostModel::Brotli).unwrap()
+        let mut greedy_budget = TerminalCodecProbeBudget::new(usize::MAX);
+        if let Some((remapped, _)) = best_unused_letter_binding_remaps(
+            code,
+            CompressionCostModel::Brotli,
+            &mut greedy_budget,
+        )
+        .unwrap()
         {
             assert!(remapped.contains("X("), "{remapped}");
         }
@@ -13178,8 +13953,9 @@ mod tests {
             );
         }
         assert_eq!(
-            outputs.iter().map(|row| row.1).collect::<Vec<_>>(),
-            vec![52; 4]
+            outputs.last().map(|row| row.1),
+            Some(52),
+            "the highest built-in effort tier retains the exact pair winner"
         );
     }
 
@@ -13188,9 +13964,11 @@ mod tests {
         let code =
             "var ge=[1,2,3,4,5,6,7,8,9];console.log(ge==ge),ge.reverse(),console.log(ge.join('-'))";
         let baseline = compressed_size(code.as_bytes(), CompressionCostModel::Brotli).unwrap();
-        let remapped = best_short_binding_remaps(code, CompressionCostModel::Brotli)
-            .unwrap()
-            .expect("an unused letter should beat ge");
+        let mut codec_budget = TerminalCodecProbeBudget::new(usize::MAX);
+        let remapped =
+            best_short_binding_remaps(code, CompressionCostModel::Brotli, &mut codec_budget)
+                .unwrap()
+                .expect("an unused letter should beat ge");
         assert!(
             remapped.1 < baseline,
             "baseline={baseline}, remapped={}",
@@ -13424,6 +14202,189 @@ mod tests {
     }
 
     #[test]
+    fn terminal_codec_probe_budget_is_a_hard_compilation_wide_call_ceiling() {
+        let measurements_before = javascript_codec_measurement_count();
+        let mut budget = TerminalCodecProbeBudget::new(7);
+        let mut completed = 0;
+        for index in 0..11 {
+            if budget
+                .compressed_size(
+                    format!("let value={index}").as_bytes(),
+                    CompressionCostModel::Raw,
+                )
+                .unwrap()
+                .is_some()
+            {
+                completed += 1;
+            }
+        }
+
+        assert_eq!(completed, 7);
+        assert_eq!(budget.used, 7);
+        assert_eq!(budget.codec_calls(), 7);
+        assert!(budget.limit_reached);
+        assert_eq!(
+            javascript_codec_measurement_count() - measurements_before,
+            7
+        );
+        // A later terminal family sees the same exhausted ledger.
+        assert!(budget
+            .compressed_size(b"let later=1", CompressionCostModel::Raw)
+            .unwrap()
+            .is_none());
+        assert_eq!(budget.used, 7);
+    }
+
+    #[test]
+    fn candidate_search_off_skips_terminal_live_letter_work() {
+        let mut config = javascript_oracle_config();
+        config.javascript.candidate_search = CandidateSearch::Off;
+        config.javascript.optimization_level = 15;
+        config.javascript.cost_model = CompressionCostModel::Brotli;
+        config.javascript.terminal_codec_probe_limit = Some(99);
+        assert_eq!(config.javascript.effective_terminal_codec_probe_limit(), 0);
+
+        // This deliberately is not valid JavaScript. Entering any remap
+        // neighborhood would parse it and fail; the zero-budget guard must
+        // retain it without even constructing live-letter swap proposals.
+        let selected = ScoredJavaScriptCandidate {
+            plan_identity: JavaScriptPlanIdentity {
+                context_id: 0,
+                ordinal: 0,
+            },
+            transfer_cost: 19,
+            startup_score: 0,
+            code: "not valid JavaScript @".to_string(),
+            metrics: JavaScriptSyntaxMetrics::default(),
+            peephole_rewrites: 0,
+            performance: JavaScriptPerformanceMetrics::default(),
+            rank: (0, 0),
+        };
+        let measurements_before = javascript_codec_measurement_count();
+        let mut budget =
+            TerminalCodecProbeBudget::new(config.javascript.effective_terminal_codec_probe_limit());
+        let retained =
+            apply_unused_letter_binding_remaps(selected.clone(), &config, true, &mut budget)
+                .expect("zero terminal budget retains the incumbent");
+        let retained = apply_terminal_binding_coordinate_descent(retained, &config, &mut budget)
+            .expect("zero terminal budget skips coordinate descent");
+
+        assert_eq!(retained.code, selected.code);
+        assert_eq!(budget.used, 0);
+        assert_eq!(
+            javascript_codec_measurement_count() - measurements_before,
+            0
+        );
+    }
+
+    #[test]
+    fn zero_structural_proposal_budget_skips_optional_emission_before_codegen() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "int choose(int value){if(value>0){return value+1;}return value-1;}print(choose(3));",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let ir = lower_to_control_flow(&program, &semantics).unwrap();
+        let mut config = javascript_oracle_config();
+        config.javascript.optimization_level = 15;
+        config.javascript.candidate_search = CandidateSearch::Always;
+        config.javascript.candidate_proposal_limit = Some(0);
+        config.javascript.terminal_codec_probe_limit = Some(0);
+
+        let selected = optimize_and_select_javascript(ir, &config, false).unwrap();
+        assert!(!selected.javascript.is_empty());
+        assert_eq!(selected.selection_metrics.candidate_proposal_limit, 0);
+        assert!(selected.selection_metrics.candidate_proposal_limit_reached);
+        assert_eq!(selected.selection_metrics.emissions_attempted, 0);
+        assert_eq!(selected.selection_metrics.terminal_work_units, 0);
+        assert_eq!(selected.selection_metrics.terminal_codec_probes, 0);
+    }
+
+    #[test]
+    fn parsed_peephole_leaves_share_the_terminal_codec_budget() {
+        let arena = Bump::new();
+        let program = parse_source(&arena, "print(1);").unwrap();
+        let semantics = analyze(&program).unwrap();
+        let ir = lower_to_control_flow(&program, &semantics).unwrap();
+        let mut config = ProjectConfig::default();
+        config.javascript.priority = JavaScriptPriority::SizeFirst;
+        config.javascript.cost_model = CompressionCostModel::Raw;
+        config.javascript.candidate_search = CandidateSearch::Always;
+        config.javascript.optimizations = Some(vec![JavaScriptOptimization::ParsedPeephole]);
+        let source = "let a=0,b=1;a=a+b;console.log(a)";
+
+        let make_candidate = || {
+            JavaScriptEmissionCandidate::new_declaration_plan(
+                source.to_string(),
+                JavaScriptEmissionPlan {
+                    identity: JavaScriptPlanIdentity {
+                        context_id: 0,
+                        ordinal: 0,
+                    },
+                    options: config.js_options(),
+                },
+                CompressionCostModel::Raw,
+            )
+            .unwrap()
+        };
+
+        let zero_candidate = make_candidate();
+        let zero_identity = zero_candidate.identity();
+        let zero_contexts = test_javascript_contexts(&ir);
+        let measurements_before = javascript_codec_measurement_count();
+        let mut zero_budget = TerminalCodecProbeBudget::new(0);
+        let zero = finalize_javascript_candidates_with_parallelism(
+            vec![zero_candidate],
+            source,
+            zero_identity,
+            &config,
+            &zero_contexts,
+            &OptimizationProfile::default(),
+            1,
+            false,
+            &mut zero_budget,
+        )
+        .unwrap();
+        assert_eq!(zero_budget.used, 0);
+        assert_eq!(zero_budget.codec_calls(), 0);
+        assert_eq!(zero.peephole_rewrites, 0);
+        assert_eq!(
+            javascript_codec_measurement_count() - measurements_before,
+            0
+        );
+
+        let one_candidate = make_candidate();
+        let one_identity = one_candidate.identity();
+        let one_contexts = test_javascript_contexts(&ir);
+        let measurements_before = javascript_codec_measurement_count();
+        // One work unit admits parsed preparation and one admits its exact
+        // codec score. The work ledger is deliberately stricter than the
+        // actual-codec counter.
+        let mut one_budget = TerminalCodecProbeBudget::new(2);
+        let one = finalize_javascript_candidates_with_parallelism(
+            vec![one_candidate],
+            source,
+            one_identity,
+            &config,
+            &one_contexts,
+            &OptimizationProfile::default(),
+            1,
+            false,
+            &mut one_budget,
+        )
+        .unwrap();
+        assert_eq!(one_budget.used, 2);
+        assert_eq!(one_budget.codec_calls(), 1);
+        assert!(one.peephole_rewrites > 0, "{}", one.code);
+        assert_eq!(
+            javascript_codec_measurement_count() - measurements_before,
+            1
+        );
+    }
+
+    #[test]
     fn terminal_challenger_emission_obeys_the_shared_slot_and_byte_tail() {
         let arena = Bump::new();
         let program =
@@ -13436,10 +14397,76 @@ mod tests {
         assert!(!options.is_empty());
         let contexts = test_javascript_contexts(&ir);
 
+        // Reserve terminal capacity before structural retention. Without this
+        // slice, a byte-full structural arena leaves zero room for the naming
+        // challenger even after those structural candidates have been ranked.
+        let root_plan = contexts
+            .register_plan(0, parent)
+            .expect("the configured root is registered first");
+        let root_code = contexts
+            .emit(root_plan.identity.context_id, false, root_plan.options)
+            .unwrap();
+        let root_size = root_code.len();
+        let root = JavaScriptEmissionCandidate::new_declaration_plan(
+            root_code,
+            root_plan,
+            CompressionCostModel::Raw,
+        )
+        .unwrap();
+        let mut reserved_arena = AggregateJavaScriptPlanArena::new_with_terminal_reserve(
+            root,
+            Vec::new(),
+            5,
+            root_size * 5,
+            CompressionCostModel::Raw,
+            2,
+        )
+        .unwrap();
+        let structural_width = reserved_arena.optional_proposal_width();
+        assert_eq!(structural_width, 2);
+        let structural = (0..structural_width)
+            .map(|index| {
+                let mut candidate = JavaScriptEmissionCandidate::new(
+                    root_size,
+                    char::from(b'x' + index as u8).to_string().repeat(root_size),
+                    parent,
+                    CompressionCostModel::Raw,
+                );
+                candidate.plan.identity = JavaScriptPlanIdentity {
+                    context_id: index + 1,
+                    ordinal: 0,
+                };
+                candidate
+            })
+            .collect();
+        reserved_arena.merge_optional(structural).unwrap();
+        let retained = reserved_arena.into_candidates();
+        let retained_bytes = retained.iter().map(|candidate| candidate.raw_size).sum();
+        let mut reserved_tail = TerminalJavaScriptCandidateBudget::after_retained(
+            5,
+            root_size * 5,
+            retained.len(),
+            retained_bytes,
+        );
+        assert_eq!(reserved_tail.remaining_plans, 2);
+        assert_eq!(reserved_tail.remaining_code_bytes, root_size * 2);
+        let mut reserved_codec_budget = TerminalCodecProbeBudget::new(16);
+        let reserved_challengers = emit_terminal_javascript_challengers(
+            options.clone(),
+            0,
+            false,
+            CompressionCostModel::Raw,
+            &contexts,
+            &mut reserved_tail,
+            &mut reserved_codec_budget,
+        );
+        assert!(!reserved_challengers.is_empty());
+
         let mut byte_tight = TerminalJavaScriptCandidateBudget {
             remaining_plans: 1,
             remaining_code_bytes: 0,
         };
+        let mut byte_codec_budget = TerminalCodecProbeBudget::new(usize::MAX);
         let rejected = emit_terminal_javascript_challengers(
             options.clone(),
             0,
@@ -13447,6 +14474,7 @@ mod tests {
             CompressionCostModel::Raw,
             &contexts,
             &mut byte_tight,
+            &mut byte_codec_budget,
         );
         assert!(rejected.is_empty());
         assert_eq!(byte_tight.remaining_plans, 1);
@@ -13455,6 +14483,7 @@ mod tests {
             remaining_plans: 1,
             remaining_code_bytes: usize::MAX,
         };
+        let mut slot_codec_budget = TerminalCodecProbeBudget::new(usize::MAX);
         let retained = emit_terminal_javascript_challengers(
             options,
             0,
@@ -13462,6 +14491,7 @@ mod tests {
             CompressionCostModel::Raw,
             &contexts,
             &mut slot_tight,
+            &mut slot_codec_budget,
         );
         assert_eq!(retained.len(), 1);
         assert_eq!(slot_tight.remaining_plans, 0);

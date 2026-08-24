@@ -79,18 +79,23 @@ with the full incumbent frontier and still returns one artifact from the same
 compiler invocation. Explicit chunk plans disable the proposal conservatively until
 chunk ownership/import planning carries the same proof.
 
-`effective_candidate_limit` = min(`candidate_limit`, level cap, search cap):
+The level is an effort tier as well as a feature gate. Configured count, byte,
+beam, proposal, and terminal values are ceilings; the effective value is their
+minimum with this table. Proposal and terminal columns show the omitted-value
+defaults for artifacts through 16 KiB:
 
-| `optimization_level` | Level cap (if no exact `optimizations` list) |
-|---|---|
-| 0–2 | 1 |
-| 3–4 | 16 |
-| 5–6 | 64 |
-| 7–8 | 192 |
-| 9–10 | 384 |
-| 11–12 | 768 |
-| 13–14 | 1024 |
-| 15 | unlimited (still min’d with search cap) |
+| `optimization_level` | candidates | retained bytes | beam | structural proposals | terminal work |
+|---|---:|---:|---:|---:|---:|
+| 0–2 | 1 | 64 KiB | 1 | 0 | 0 |
+| 3–4 | 16 | 128 KiB | 2 | 16 | 0 |
+| 5–6 | 64 | 192 KiB | 3 | 64 | 0 |
+| 7 | 192 | 256 KiB | 4 | 192 | 0 |
+| 8 | 192 | 256 KiB | 4 | 192 | 24 |
+| 9–10 | 384 | 384 KiB | 6 | 384 | 64 |
+| 11–12 | 768 | 512 KiB | 8 | 768 | 128 |
+| 13 | 1024 | 768 KiB | 10 | 1024 | 192 |
+| 14 | 1024 | 896 KiB | 11 | 1024 | 256 |
+| 15 | unlimited | unlimited | unlimited | candidate/search cap | 384 |
 
 | `candidate_search` | Search cap |
 |---|---|
@@ -98,13 +103,33 @@ chunk ownership/import planning carries the same proof.
 | `production` (default) | 384 |
 | `always` | unlimited (still min’d with `candidate_limit`) |
 
-Exact `javascript.optimizations = [...]` **replaces** level-derived features and does not apply the level cap (`level_limit = usize::MAX`). Production search still caps at 384 unless `always`.
+Exact `javascript.optimizations = [...]` **replaces** level-derived features,
+but it does not bypass the level effort tiers. The allowlist chooses which
+behaviors may run; `optimization_level` still bounds their work. Production
+search still caps candidates at 384 unless `always`.
 
-`candidate_byte_budget` (default 1 MiB) ÷ baseline raw size limits how many full
-emissions a variant may retain, at least 1. This is an approximate retained-artifact
-budget, not a strict cap on total work: rejected duplicates, alternate-objective
-scores used for frontier diversity, and entropy/name probes can consume additional
-codec calls before the bounded pool is retained.
+`candidate_byte_budget` (default 1 MiB) is an aggregate retained-artifact
+ledger, with the configured incumbent as a mandatory floor. A small terminal
+slice is reserved before structural retention so an incumbent naming/declaration
+challenger is not starved by a byte-full structural arena. Rejected structural
+proposals can still consume work before retention. `candidate_proposal_limit`
+closes that gap: projection, entropy preparation/mapping, and each new
+structural plan consume the shared ledger before whole-artifact work. Failed,
+invalid, and rejected proposals still count. Already-scored optimizer context
+seeds are reported separately. A terminal plan tail remains reserved after the
+structural ledger fills.
+
+`terminal_codec_probe_limit` is different: it is one compilation-wide hard work
+budget shared by optional parsed-peephole preparation, repair/validation,
+cleanup, terminal naming, and binding remaps. Families receive deterministic
+prefixes before expensive validation or parallel scoring, so invalid proposals
+and Rayon scheduling cannot multiply work beyond the ledger. Actual codec calls
+are counted separately and cannot exceed consumed work units. Default limits in
+the table scale to one quarter for 16–64 KiB artifacts and one twelfth above
+64 KiB. Explicit values are ceilings and cannot raise a level/artifact tier.
+When exhausted, search keeps the best
+already-scored incumbent. The configured incumbent's mandatory score is outside
+this optional budget; `candidate_search = "off"` always forces zero.
 
 Within the emission beam, bounded retention is objective-stratified: rankings for
 the selected model, raw, gzip, and Brotli are visited round-robin with the selected
@@ -117,7 +142,8 @@ separate selected-objective beam.
 
 ## Finalize
 
-1. Optionally add parsed-peephole clone (`parsed-peephole`, level ≥ 9).
+1. Optionally add a parsed-peephole clone (`parsed-peephole`, level ≥ 9) when
+   the shared terminal codec budget admits its exact score.
 2. Drop candidates that fail startup guard or raw-growth / transfer allowance.
 3. Sort by `javascript_candidate_rank`, startup, raw, lexical. For `size-first`,
    the primary rank is the exact transfer-byte count; performance only breaks an
