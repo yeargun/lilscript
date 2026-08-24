@@ -2114,10 +2114,21 @@ fn optimize_and_select_javascript_inner<'src>(
             .expect("each admitted context seed is its first registered plan");
         assert_eq!(registered.identity, candidate.identity());
     }
+    let priority_family_count =
+        priority_candidate_family_count(config, preserve_exports, total_candidate_limit);
     contexts.set_optional_plan_registration_limit(
         candidate_proposal_limit,
         pre_context_proposal_work_units,
         pre_context_proposal_limit_reached,
+        if priority_family_count == 0 {
+            0
+        } else {
+            priority_candidate_proposal_reserve(
+                candidate_proposal_limit,
+                config.javascript.effective_candidate_beam_width(),
+            )
+        },
+        priority_family_count,
     );
     let interaction_candidates = remaining_interactions
         .into_iter()
@@ -2867,11 +2878,19 @@ impl<'ir, 'src> JavaScriptEmissionContexts<'ir, 'src> {
         optional_limit: usize,
         already_used: usize,
         limit_reached: bool,
+        priority_reserve: usize,
+        priority_family_count: usize,
     ) {
         self.plan_registry
             .lock()
             .expect("JavaScript plan registry lock is not poisoned")
-            .set_optional_limit(optional_limit, already_used, limit_reached);
+            .set_optional_limit(
+                optional_limit,
+                already_used,
+                limit_reached,
+                priority_reserve,
+                priority_family_count,
+            );
     }
 
     fn candidate_proposal_limit_reached(&self) -> bool {
@@ -2915,6 +2934,42 @@ impl<'ir, 'src> JavaScriptEmissionContexts<'ir, 'src> {
             .lock()
             .expect("JavaScript plan registry lock is not poisoned")
             .register(context_id, options)
+    }
+
+    /// Admit one of the small, authoritative late structural coordinates from
+    /// the protected slice of the same compilation-wide proposal ledger.
+    /// These plans still count against the hard total cap; the reserve only
+    /// prevents broad early Cartesian families from consuming every permit.
+    fn begin_priority_plan_family(&self) -> usize {
+        self.plan_registry
+            .lock()
+            .expect("JavaScript plan registry lock is not poisoned")
+            .begin_priority_family()
+    }
+
+    fn end_priority_plan_family(&self) {
+        self.plan_registry
+            .lock()
+            .expect("JavaScript plan registry lock is not poisoned")
+            .end_priority_family();
+    }
+
+    fn finish_priority_plan_families(&self) {
+        self.plan_registry
+            .lock()
+            .expect("JavaScript plan registry lock is not poisoned")
+            .finish_priority_families();
+    }
+
+    fn register_priority_plan(
+        &self,
+        context_id: usize,
+        options: crate::codegen_ir_js::IrJsOptions,
+    ) -> Option<JavaScriptEmissionPlan> {
+        self.plan_registry
+            .lock()
+            .expect("JavaScript plan registry lock is not poisoned")
+            .register_priority(context_id, options)
     }
 
     /// Terminal factored challengers have their own plan/byte and work
@@ -2973,6 +3028,9 @@ struct JavaScriptPlanRegistry {
     plans: Vec<JavaScriptEmissionPlan>,
     structural_work_limit: usize,
     structural_work_used: usize,
+    priority_work_reserve: usize,
+    priority_families_remaining: usize,
+    active_priority_family_remaining: Option<usize>,
     limit_reached: bool,
 }
 
@@ -2982,6 +3040,9 @@ impl Default for JavaScriptPlanRegistry {
             plans: Vec::new(),
             structural_work_limit: usize::MAX,
             structural_work_used: 0,
+            priority_work_reserve: 0,
+            priority_families_remaining: 0,
+            active_priority_family_remaining: None,
             limit_reached: false,
         }
     }
@@ -2993,9 +3054,17 @@ impl JavaScriptPlanRegistry {
         optional_limit: usize,
         already_used: usize,
         limit_reached: bool,
+        priority_reserve: usize,
+        priority_family_count: usize,
     ) {
         self.structural_work_limit = optional_limit;
         self.structural_work_used = already_used.min(optional_limit);
+        self.priority_work_reserve = priority_reserve.min(
+            self.structural_work_limit
+                .saturating_sub(self.structural_work_used),
+        );
+        self.priority_families_remaining = priority_family_count;
+        self.active_priority_family_remaining = None;
         self.limit_reached = limit_reached || already_used > optional_limit;
     }
 
@@ -3010,6 +3079,45 @@ impl JavaScriptPlanRegistry {
     fn remaining_structural_work(&self) -> usize {
         self.structural_work_limit
             .saturating_sub(self.structural_work_used)
+            .saturating_sub(self.priority_work_reserve)
+    }
+
+    fn reserve_priority_work(&mut self, requested: usize) -> usize {
+        let remaining = self
+            .structural_work_limit
+            .saturating_sub(self.structural_work_used);
+        let admitted = requested.min(remaining);
+        self.structural_work_used = self.structural_work_used.saturating_add(admitted);
+        self.priority_work_reserve = self.priority_work_reserve.saturating_sub(admitted);
+        self.limit_reached |= admitted < requested;
+        admitted
+    }
+
+    fn begin_priority_family(&mut self) -> usize {
+        debug_assert!(self.active_priority_family_remaining.is_none());
+        if self.priority_families_remaining == 0 {
+            self.active_priority_family_remaining = Some(0);
+            return 0;
+        }
+        let allowance = self
+            .priority_work_reserve
+            .div_ceil(self.priority_families_remaining);
+        self.priority_families_remaining -= 1;
+        self.active_priority_family_remaining = Some(allowance);
+        allowance
+    }
+
+    fn end_priority_family(&mut self) {
+        self.active_priority_family_remaining = None;
+        if self.priority_families_remaining == 0 {
+            self.priority_work_reserve = 0;
+        }
+    }
+
+    fn finish_priority_families(&mut self) {
+        self.priority_families_remaining = 0;
+        self.active_priority_family_remaining = None;
+        self.priority_work_reserve = 0;
     }
 
     fn find(
@@ -3060,6 +3168,73 @@ impl JavaScriptPlanRegistry {
         self.plans.push(plan);
         Some(plan)
     }
+
+    fn register_priority(
+        &mut self,
+        context_id: usize,
+        options: crate::codegen_ir_js::IrJsOptions,
+    ) -> Option<JavaScriptEmissionPlan> {
+        if self.find(context_id, options).is_some() {
+            return None;
+        }
+        if self
+            .active_priority_family_remaining
+            .is_some_and(|remaining| remaining == 0)
+        {
+            return None;
+        }
+        if self.reserve_priority_work(1) == 0 {
+            return None;
+        }
+        if let Some(remaining) = &mut self.active_priority_family_remaining {
+            *remaining = remaining.saturating_sub(1);
+        }
+        self.register_terminal(context_id, options)
+    }
+}
+
+fn priority_candidate_proposal_reserve(limit: usize, beam_width: usize) -> usize {
+    limit
+        .div_ceil(3)
+        .min(beam_width.saturating_mul(12))
+        .min(limit)
+}
+
+fn priority_candidate_family_count(
+    config: &ProjectConfig,
+    module_output: bool,
+    candidate_limit: usize,
+) -> usize {
+    let configured = config.js_options();
+    let mut count = usize::from(config.javascript.function_spelling.is_none());
+    count = count.saturating_add(usize::from(
+        config.single_use_function_expression_candidates_enabled(),
+    ));
+
+    let pure_helper_family_enabled =
+        !module_output && config.pure_helper_inlining_candidates_enabled();
+    let dense_table_family_enabled = config.dense_string_return_table_candidates_enabled();
+    if pure_helper_family_enabled || dense_table_family_enabled {
+        let helper_policy_count: usize = if pure_helper_family_enabled { 3 } else { 1 };
+        let table_policy_count: usize = if dense_table_family_enabled { 2 } else { 1 };
+        let family_size = helper_policy_count.saturating_mul(table_policy_count);
+        let atomic_finalist_limit = candidate_limit
+            .saturating_sub(1)
+            .checked_div(family_size.saturating_mul(MAX_DECLARATION_VARIANTS))
+            .unwrap_or(0)
+            .min(config.javascript.effective_candidate_beam_width());
+        count = count.saturating_add(usize::from(atomic_finalist_limit != 0));
+    }
+    count = count.saturating_add(usize::from(config.javascript_optimization_enabled(
+        JavaScriptOptimization::FreshLiteralFactoryInliningVariants,
+    )));
+    count = count.saturating_add(usize::from(
+        configured.mangle_identifiers && config.js_local_name_coalescing_variants_enabled(),
+    ));
+    if configured.cross_scope_name_reuse {
+        count = count.saturating_add(2);
+    }
+    count
 }
 
 #[cfg(test)]
@@ -3850,7 +4025,7 @@ fn select_javascript_candidate_global(
             candidate_beam_width,
             config.javascript.cost_model,
         )?;
-        extend_javascript_candidate_beam(
+        extend_priority_javascript_candidate_beam(
             ir,
             module_output,
             beam_policy,
@@ -3878,7 +4053,7 @@ fn select_javascript_candidate_global(
             candidate_beam_width,
             config.javascript.cost_model,
         )?;
-        extend_javascript_candidate_beam(
+        extend_priority_javascript_candidate_beam(
             ir,
             module_output,
             beam_policy,
@@ -3886,10 +4061,31 @@ fn select_javascript_candidate_global(
             &mut candidates,
             finalists,
             |options| {
-                [crate::codegen_ir_js::IrJsOptions {
+                let mut variants = vec![crate::codegen_ir_js::IrJsOptions {
                     inline_single_use_functions: true,
                     ..options
-                }]
+                }];
+                // Function spelling and single-use binding elimination are a
+                // joint topology choice: an ordinary function parent can be
+                // locally codec-better while its inlined arrow leaf wins after
+                // terminal namespace search. Preserve that one bounded cross
+                // instead of requiring the arrow parent to win an earlier
+                // irreversible beam cut.
+                if config.javascript.function_spelling.is_none() {
+                    variants.push(crate::codegen_ir_js::IrJsOptions {
+                        inline_single_use_functions: true,
+                        function_spelling: match options.function_spelling {
+                            crate::codegen_ir_js::FunctionSpelling::Arrow => {
+                                crate::codegen_ir_js::FunctionSpelling::Function
+                            }
+                            crate::codegen_ir_js::FunctionSpelling::Function => {
+                                crate::codegen_ir_js::FunctionSpelling::Arrow
+                            }
+                        },
+                        ..options
+                    });
+                }
+                variants
             },
         )?;
     }
@@ -3921,7 +4117,7 @@ fn select_javascript_candidate_global(
                 atomic_finalist_limit,
                 config.javascript.cost_model,
             )?;
-            extend_javascript_candidate_beam(
+            extend_priority_javascript_candidate_beam(
                 ir,
                 module_output,
                 beam_policy,
@@ -4531,10 +4727,14 @@ fn select_javascript_candidate_global(
                     .map(|optimized| optimized.code)
             },
         );
-        // Each mapping trial remaps and exact-scores a whole artifact. Spend
-        // no more than half the remaining ledger here so successful mappings
-        // still have structural slots available for authoritative IR emission.
-        let mut mapping_allowance = contexts.remaining_candidate_proposal_work().div_euclid(2);
+        // Each mapping trial remaps and exact-scores a whole artifact. Keep
+        // this exploratory coordinate to a small fraction of the shared work
+        // ledger so later authoritative IR coordinates (including local
+        // coalescing and helper placement) retain deterministic admission.
+        let mut mapping_allowance = contexts
+            .remaining_candidate_proposal_work()
+            .div_euclid(4)
+            .min(64);
         for (_, _, trials) in &mut entropy_requests {
             let requested = (*trials).min(mapping_allowance);
             *trials = contexts.reserve_candidate_proposal_work(requested);
@@ -4590,22 +4790,23 @@ fn select_javascript_candidate_global(
                 contexts.get(plan.identity.context_id).baseline,
             )
         });
-        if !finalists.is_empty() {
-            extend_javascript_candidate_beam(
-                ir,
-                module_output,
-                beam_policy,
-                &integer_analysis,
-                &mut candidates,
-                finalists,
-                |options| {
-                    [crate::codegen_ir_js::IrJsOptions {
-                        inline_fresh_empty_array_factories: true,
-                        ..options
-                    }]
-                },
-            )?;
-        }
+        // Enter the configured family even when this artifact has no eligible
+        // factory, so its unused fair slice rolls forward to later priority
+        // families instead of making admission depend on IR shape.
+        extend_priority_javascript_candidate_beam(
+            ir,
+            module_output,
+            beam_policy,
+            &integer_analysis,
+            &mut candidates,
+            finalists,
+            |options| {
+                [crate::codegen_ir_js::IrJsOptions {
+                    inline_fresh_empty_array_factories: true,
+                    ..options
+                }]
+            },
+        )?;
     }
     if configured.mangle_identifiers && config.js_local_name_coalescing_variants_enabled() {
         // Revisit local coalescing over the complete structural/name layouts.
@@ -4617,7 +4818,7 @@ fn select_javascript_candidate_global(
             candidate_beam_width,
             config.javascript.cost_model,
         )?;
-        extend_javascript_candidate_beam(
+        extend_priority_javascript_candidate_beam(
             ir,
             module_output,
             beam_policy,
@@ -4643,7 +4844,7 @@ fn select_javascript_candidate_global(
             candidate_beam_width,
             config.javascript.cost_model,
         )?;
-        extend_javascript_candidate_beam(
+        extend_priority_javascript_candidate_beam(
             ir,
             module_output,
             beam_policy,
@@ -4673,7 +4874,7 @@ fn select_javascript_candidate_global(
             candidate_beam_width,
             config.javascript.cost_model,
         )?;
-        extend_javascript_candidate_beam(
+        extend_priority_javascript_candidate_beam(
             ir,
             module_output,
             beam_policy,
@@ -4688,6 +4889,11 @@ fn select_javascript_candidate_global(
             },
         )?;
     }
+    // Any protected permits left by duplicate or inapplicable priority
+    // families become ordinary structural capacity once the final configured
+    // family has run. This also keeps exact allowlists with no priority axes
+    // from silently losing a third of their explicit proposal ceiling.
+    contexts.finish_priority_plan_families();
     finalize_javascript_candidates_with_terminal_objective_challengers(
         candidates.into_candidates(),
         &configured_baseline,
@@ -5621,6 +5827,10 @@ impl TerminalJavaScriptCandidateBudget {
         self.has_plan_slot() && code_bytes <= self.remaining_code_bytes
     }
 
+    const fn cannot_admit_any_challenger(self) -> bool {
+        !self.has_plan_slot() || self.remaining_code_bytes == 0
+    }
+
     fn charge(&mut self, code_bytes: usize) {
         debug_assert!(self.can_admit(code_bytes));
         self.remaining_plans -= 1;
@@ -5642,6 +5852,9 @@ struct TerminalCodecProbeBudget {
     limit_reached: bool,
     reserved_for_final: usize,
     final_phase: bool,
+    slice_end: Option<usize>,
+    challenger_reserve_released: bool,
+    finalist_reserve_released: bool,
 }
 
 impl TerminalCodecProbeBudget {
@@ -5653,6 +5866,9 @@ impl TerminalCodecProbeBudget {
             limit_reached: false,
             reserved_for_final: 0,
             final_phase: false,
+            slice_end: None,
+            challenger_reserve_released: false,
+            finalist_reserve_released: false,
         }
     }
 
@@ -5664,12 +5880,23 @@ impl TerminalCodecProbeBudget {
     }
 
     fn remaining(&self) -> usize {
-        let remaining = self.limit.saturating_sub(self.used);
-        if self.final_phase {
-            remaining
-        } else {
-            remaining.saturating_sub(self.reserved_for_final)
+        let mut remaining = self.limit.saturating_sub(self.used);
+        if !self.final_phase {
+            remaining = remaining.saturating_sub(self.reserved_for_final);
         }
+        if let Some(slice_end) = self.slice_end {
+            remaining = remaining.min(slice_end.saturating_sub(self.used));
+        }
+        remaining
+    }
+
+    fn begin_fair_slice(&mut self, allowance: usize) {
+        debug_assert!(self.slice_end.is_none());
+        self.slice_end = Some(self.used.saturating_add(allowance));
+    }
+
+    fn end_fair_slice(&mut self) {
+        self.slice_end = None;
     }
 
     /// Reserve a deterministic prefix before parallel scoring. Workers never
@@ -5701,6 +5928,20 @@ impl TerminalCodecProbeBudget {
     /// that must remain last for topology-sensitive joint wins.
     fn release_reserved(&mut self, released: usize) {
         self.reserved_for_final = self.reserved_for_final.saturating_sub(released);
+    }
+
+    fn release_challenger_reserve_once(&mut self, released: usize) {
+        if !self.challenger_reserve_released {
+            self.release_reserved(released);
+            self.challenger_reserve_released = true;
+        }
+    }
+
+    fn release_finalist_reserve_once(&mut self, released: usize) {
+        if !self.finalist_reserve_released {
+            self.release_reserved(released);
+            self.finalist_reserve_released = true;
+        }
     }
 
     fn begin_final_phase(&mut self) {
@@ -5878,12 +6119,15 @@ fn finalize_javascript_candidates_with_terminal_objective_challengers(
     } else {
         0
     };
+    let terminal_finalist_reserve = terminal_codec_probe_limit.div_euclid(4).min(96);
     // Preserve enough selected-model calls for the factored terminal naming
     // family even when ordinary cleanup exhausts its general allowance. Four
     // reserved plan slots expose at most four declaration spellings each.
     let mut codec_budget = TerminalCodecProbeBudget::with_final_reserve(
         terminal_codec_probe_limit,
-        exact_pair_reserve.saturating_add(TERMINAL_CHALLENGER_CODEC_RESERVE),
+        exact_pair_reserve
+            .saturating_add(TERMINAL_CHALLENGER_CODEC_RESERVE)
+            .saturating_add(terminal_finalist_reserve),
     );
     let mut selected = install_terminal_javascript_codec_pool(config, || {
         finalize_javascript_candidates_with_terminal_objective_challengers_in_current_pool(
@@ -5943,6 +6187,11 @@ fn finalize_javascript_candidates_with_terminal_objective_challengers_in_current
         candidates.len(),
         retained_code_bytes,
     );
+    if terminal_budget.cannot_admit_any_challenger() {
+        codec_budget
+            .release_challenger_reserve_once(4usize.saturating_mul(MAX_DECLARATION_VARIANTS + 1));
+        codec_budget.release_finalist_reserve_once(codec_budget.limit.div_euclid(4).min(96));
+    }
     let baseline_transfer = if let Some(transfer) = candidates
         .iter()
         .find(|candidate| candidate.identity() == configured_plan_identity)
@@ -5971,7 +6220,8 @@ fn finalize_javascript_candidates_with_terminal_objective_challengers_in_current
     // Naming and declaration spelling jointly determine the binding topology.
     // Release only their small allowance here; keep the exact pair reserve
     // protected until every naming/string-pooling challenger has settled.
-    codec_budget.release_reserved(4usize.saturating_mul(MAX_DECLARATION_VARIANTS + 1));
+    codec_budget
+        .release_challenger_reserve_once(4usize.saturating_mul(MAX_DECLARATION_VARIANTS + 1));
     let Some(parent_options) = plan_options
         .iter()
         .find_map(|(identity, options)| (*identity == selected.plan_identity).then_some(*options))
@@ -6222,29 +6472,39 @@ fn finalize_javascript_candidates_with_parallelism(
     // those plans before entering the parallel parser too. Keep at least half
     // of the current general allowance available for the exact scores that
     // give prepared leaves selection authority.
-    let peephole_plan_limit = if peephole {
-        candidates.len().min(codec_budget.remaining().div_euclid(2))
-    } else {
-        0
-    };
-    let admitted_peephole_plans = codec_budget.reserve(peephole_plan_limit);
-    let mut peephole_plan_identities = Vec::with_capacity(admitted_peephole_plans);
-    if admitted_peephole_plans != 0 {
+    let mut peephole_plan_candidates = Vec::new();
+    if peephole {
         if let Some(configured) = candidates
             .iter()
             .find(|candidate| candidate.identity() == configured_plan_identity)
         {
-            peephole_plan_identities.push(configured.identity());
+            peephole_plan_candidates.push(configured);
         }
-        for candidate in &candidates {
-            if peephole_plan_identities.len() == admitted_peephole_plans {
-                break;
-            }
-            if !peephole_plan_identities.contains(&candidate.identity()) {
-                peephole_plan_identities.push(candidate.identity());
+        let mut ranked = candidates.iter().collect::<Vec<_>>();
+        ranked.sort_unstable_by(|left, right| compare_javascript_seed_admission(left, right));
+        let mut seen_code = crate::stable_hash::StableHashSet::default();
+        if let Some(configured) = peephole_plan_candidates.first() {
+            seen_code.insert(configured.code());
+        }
+        // Parsing duplicate emissions cannot expose a distinct rewrite. Rank
+        // one representative per exact byte string before reserving work so a
+        // broad family of equivalent early plans cannot starve a later
+        // topology (for example an inlined function expression).
+        for candidate in ranked {
+            if seen_code.insert(candidate.code()) {
+                peephole_plan_candidates.push(candidate);
             }
         }
     }
+    let peephole_plan_limit = peephole_plan_candidates
+        .len()
+        .min(codec_budget.remaining().div_euclid(2));
+    let admitted_peephole_plans = codec_budget.reserve(peephole_plan_limit);
+    let peephole_plan_identities = peephole_plan_candidates
+        .into_iter()
+        .take(admitted_peephole_plans)
+        .map(|candidate| candidate.identity())
+        .collect::<Vec<_>>();
     let prepare_plan = |candidate: JavaScriptEmissionCandidate| {
         let plan_identity = candidate.identity();
         let prepare_peephole = peephole_plan_identities.contains(&plan_identity);
@@ -6382,17 +6642,41 @@ fn finalize_javascript_candidates_with_parallelism(
         candidates.into_iter().map(prepare_plan).collect()
     };
 
-    let mut terminal_score_sources = prepared
+    // Keep the same objective-ranked plan order used to admit parsed work,
+    // then traverse leaf columns before later spellings from the first plan.
+    // A bounded score prefix therefore gives every admitted topology one
+    // chance instead of spending the ledger on duplicate declaration leaves.
+    prepared.sort_by_key(|plan| {
+        peephole_plan_identities
+            .iter()
+            .position(|identity| *identity == plan.plan_identity)
+            .unwrap_or(usize::MAX)
+    });
+    let missing_leaf_indices = prepared
         .iter()
-        .flat_map(|plan| {
+        .map(|plan| {
             plan.leaves
                 .iter()
-                .filter(|leaf| leaf.transfer_cost.is_none())
-                .map(|leaf| leaf.code.clone())
+                .enumerate()
+                .filter_map(|(index, leaf)| leaf.transfer_cost.is_none().then_some(index))
+                .collect::<Vec<_>>()
         })
         .collect::<Vec<_>>();
-    let admitted_terminal_scores = codec_budget.reserve(terminal_score_sources.len());
-    terminal_score_sources.truncate(admitted_terminal_scores);
+    let maximum_missing_leaves = missing_leaf_indices.iter().map(Vec::len).max().unwrap_or(0);
+    let mut terminal_score_locations = Vec::new();
+    for leaf_rank in 0..maximum_missing_leaves {
+        for (plan_index, leaves) in missing_leaf_indices.iter().enumerate() {
+            if let Some(leaf_index) = leaves.get(leaf_rank).copied() {
+                terminal_score_locations.push((plan_index, leaf_index));
+            }
+        }
+    }
+    let admitted_terminal_scores = codec_budget.reserve(terminal_score_locations.len());
+    terminal_score_locations.truncate(admitted_terminal_scores);
+    let terminal_score_sources = terminal_score_locations
+        .iter()
+        .map(|(plan_index, leaf_index)| prepared[*plan_index].leaves[*leaf_index].code.clone())
+        .collect::<Vec<_>>();
     let terminal_score_results = if parallel_brotli && terminal_score_sources.len() >= 2 {
         into_bounded_contiguous_batches(terminal_score_sources, codec_workers)
             .into_par_iter()
@@ -6416,14 +6700,11 @@ fn finalize_javascript_candidates_with_parallelism(
             })
             .collect::<Vec<_>>()
     };
-    let mut terminal_score_results = terminal_score_results.into_iter();
-    for leaf in prepared
-        .iter_mut()
-        .flat_map(|plan| plan.leaves.iter_mut())
-        .filter(|leaf| leaf.transfer_cost.is_none())
-        .take(admitted_terminal_scores)
+    for ((plan_index, leaf_index), score) in terminal_score_locations
+        .into_iter()
+        .zip(terminal_score_results)
     {
-        leaf.transfer_cost = terminal_score_results.next().and_then(Result::ok);
+        prepared[plan_index].leaves[leaf_index].transfer_cost = score.ok();
     }
 
     let mut scored = prepared
@@ -6579,35 +6860,70 @@ fn finalize_javascript_candidates_with_parallelism(
         }
     }
     terminal_source_indices.sort_unstable();
-    let mut terminal_finalists = terminal_source_indices
-        .into_iter()
-        .map(|index| late_finalists[index].clone())
-        .map(|selected| {
-            let remapped =
-                apply_unused_letter_binding_remaps(selected.clone(), config, true, codec_budget)?;
-            let selected = retain_resolved_javascript(selected, remapped);
-            let cleaned = apply_late_javascript_cleanup(selected.clone(), config, 6, codec_budget)?;
+    // Earlier syntax preparation cannot consume this protected quarter of the
+    // compilation-wide ledger. Split the released allowance fairly across
+    // finalists so a broad first namespace cannot starve every later
+    // structural topology. Unused work from one slice remains available to
+    // subsequent finalists; the total hard cap is unchanged.
+    let terminal_finalist_reserve = codec_budget.limit.div_euclid(4).min(96);
+    codec_budget.release_finalist_reserve_once(terminal_finalist_reserve);
+    let terminal_source_count = terminal_source_indices.len();
+    let mut terminal_finalists = Vec::with_capacity(terminal_source_count);
+    for (position, index) in terminal_source_indices.into_iter().enumerate() {
+        let remaining_finalists = terminal_source_count.saturating_sub(position).max(1);
+        let allowance = codec_budget.remaining().div_ceil(remaining_finalists);
+        let result = (|| {
+            let selected = late_finalists[index].clone();
+            // Run the cheap factored naming/syntax bridge before exhaustive
+            // namespace neighborhoods. Otherwise the first remapper can
+            // consume this finalist's fair slice before a locally neutral
+            // rename exposes single-use function movement.
+            let candidate_end = codec_budget.used.saturating_add(allowance);
+            codec_budget.begin_fair_slice(allowance.min(8));
+            let cleaned = apply_late_javascript_cleanup(selected.clone(), config, 0, codec_budget);
+            codec_budget.end_fair_slice();
+            let cleaned = cleaned?;
             let selected = retain_resolved_javascript(selected, cleaned);
-            // Late control/sequence selection changes identifier adjacency and
-            // use frequency. Re-run the exact codec-scored remapper on those
-            // final bytes; the pre-cleanup optimum is not necessarily optimal
-            // for the transformed artifact, and unchanged naming remains the
-            // incumbent candidate.
-            let remapped =
-                apply_unused_letter_binding_remaps(selected.clone(), config, true, codec_budget)?;
-            let selected = retain_resolved_javascript(selected, remapped);
-            let mut selected =
-                apply_terminal_boolean_binding_remap(selected, config, codec_budget)?;
-            selected.rank = javascript_candidate_rank(
-                config,
-                selected.transfer_cost,
-                baseline_transfer,
-                selected.performance.score,
-                baseline_performance.score,
-            );
-            Ok(selected)
-        })
-        .collect::<Result<Vec<_>, CompileError>>()?;
+            codec_budget.begin_fair_slice(candidate_end.saturating_sub(codec_budget.used));
+            let remainder = (|| {
+                let remapped = apply_unused_letter_binding_remaps(
+                    selected.clone(),
+                    config,
+                    true,
+                    codec_budget,
+                )?;
+                let selected = retain_resolved_javascript(selected, remapped);
+                let cleaned =
+                    apply_late_javascript_cleanup(selected.clone(), config, 6, codec_budget)?;
+                let selected = retain_resolved_javascript(selected, cleaned);
+                // Late control/sequence selection changes identifier adjacency and
+                // use frequency. Re-run the exact codec-scored remapper on those
+                // final bytes; the pre-cleanup optimum is not necessarily optimal
+                // for the transformed artifact, and unchanged naming remains the
+                // incumbent candidate.
+                let remapped = apply_unused_letter_binding_remaps(
+                    selected.clone(),
+                    config,
+                    true,
+                    codec_budget,
+                )?;
+                let selected = retain_resolved_javascript(selected, remapped);
+                let mut selected =
+                    apply_terminal_boolean_binding_remap(selected, config, codec_budget)?;
+                selected.rank = javascript_candidate_rank(
+                    config,
+                    selected.transfer_cost,
+                    baseline_transfer,
+                    selected.performance.score,
+                    baseline_performance.score,
+                );
+                Ok::<_, CompileError>(selected)
+            })();
+            codec_budget.end_fair_slice();
+            remainder
+        })();
+        terminal_finalists.push(result?);
+    }
     sort_terminal_javascript_candidates(
         &mut terminal_finalists,
         exact_two_binding_terminal_search_enabled_for_artifact(config, configured_baseline.len()),
@@ -8012,6 +8328,61 @@ fn apply_late_javascript_cleanup(
         cost: selected.transfer_cost,
     };
     let mut beam = vec![original.clone()];
+    // A namespace change can be locally neutral or worse yet unlock whole
+    // single-use function movement by separating a binding from a shadowing
+    // callback parameter. Carry a tiny, deterministic punctuation-name
+    // neighborhood through parsed cleanup before the general cleanup beam can
+    // spend this finalist's fair slice. Every attempted remap is charged
+    // before repair/analysis and every valid leaf pays its exact-codec unit.
+    if config.js_options().mangle_identifiers
+        && config.entropy_aware_mangling_enabled()
+        && !matches!(config.javascript.cost_model, CompressionCostModel::Raw)
+    {
+        let identifiers = single_character_identifiers(&original.code)
+            .map_err(generated_javascript_parse_error)?;
+        let mut sources = single_character_resolved_binding_identifiers(&original.code)
+            .map_err(generated_javascript_parse_error)?;
+        let counts = single_character_identifier_use_counts(&original.code)
+            .map_err(generated_javascript_parse_error)?;
+        sources.sort_unstable_by(|left, right| {
+            counts[*right as usize]
+                .cmp(&counts[*left as usize])
+                .then_with(|| left.cmp(right))
+        });
+        'factored_naming: for replacement in [b'_', b'$'] {
+            if identifiers.contains(&replacement) {
+                continue;
+            }
+            for source in sources.iter().copied().take(8) {
+                if !codec_budget.reserve_work_unit() {
+                    break 'factored_naming;
+                }
+                let mut mapping = std::array::from_fn(|index| index as u8);
+                mapping[source as usize] = replacement;
+                mapping[replacement as usize] = source;
+                let Ok(remapped) = remap_single_character_identifiers(&original.code, &mapping)
+                else {
+                    continue;
+                };
+                let Ok(optimized) = optimize_generated_javascript(&remapped) else {
+                    continue;
+                };
+                let code = repair_late_javascript_candidate(optimized.code);
+                if code == original.code
+                    || analyze_generated_javascript(&code).is_err()
+                    || beam.iter().any(|candidate| candidate.code == code)
+                {
+                    continue;
+                }
+                let Some(cost) =
+                    codec_budget.compressed_size(code.as_bytes(), config.javascript.cost_model)?
+                else {
+                    break 'factored_naming;
+                };
+                beam.push(CleanupCandidate { code, cost });
+            }
+        }
+    }
     'cleanup_rounds: for _ in 0..ROUNDS {
         for pass in LateJavaScriptCleanupPass::ALL {
             // Skipping a rewrite is a first-class branch. In particular, a
@@ -8877,7 +9248,7 @@ fn best_one_unused_letter_binding_remap(
     }
     let counts =
         single_character_identifier_use_counts(code).map_err(generated_javascript_parse_error)?;
-    let unused = ONE_BYTE_IDENTIFIER_STARTS
+    let mut unused = ONE_BYTE_IDENTIFIER_STARTS
         .iter()
         .copied()
         .filter(|byte| !identifiers.contains(byte))
@@ -8885,6 +9256,15 @@ fn best_one_unused_letter_binding_remap(
     if unused.is_empty() {
         return Ok(None);
     }
+    // Punctuation identifiers can interact unusually well with arrows and
+    // repeated property syntax, but the canonical frequency alphabet places
+    // them last. Score them first, then retain canonical order for letters so
+    // every smaller budget remains a useful prefix of every larger one.
+    unused.sort_by_key(|byte| match byte {
+        b'_' => 0,
+        b'$' => 1,
+        _ => 2,
+    });
     let mut sources = single_character_resolved_binding_identifiers(code)
         .map_err(generated_javascript_parse_error)?;
     sources.retain(|byte| single_character_name_is_clear_binding(code, *byte).unwrap_or(false));
@@ -8895,8 +9275,8 @@ fn best_one_unused_letter_binding_remap(
     });
     let budget = unused_letter_remap_pair_budget(code.len());
     let mut pairs = Vec::new();
-    'pairs: for source in sources {
-        for replacement in unused.iter().copied() {
+    'pairs: for replacement in unused.iter().copied() {
+        for source in sources.iter().copied() {
             pairs.push((source, replacement));
             if pairs.len() == budget {
                 break 'pairs;
@@ -9144,7 +9524,54 @@ fn extend_javascript_candidate_beam<Variants>(
 where
     Variants: IntoIterator<Item = crate::codegen_ir_js::IrJsOptions>,
 {
-    let variant_groups = finalists
+    extend_javascript_candidate_beam_with_admission(
+        module_output,
+        policy,
+        contexts,
+        candidates,
+        finalists,
+        variants,
+        false,
+    )
+}
+
+fn extend_priority_javascript_candidate_beam<Variants>(
+    _ir: &ControlFlowModule<'_>,
+    module_output: bool,
+    policy: JavaScriptCandidateBeamPolicy,
+    contexts: &JavaScriptEmissionContexts<'_, '_>,
+    candidates: &mut AggregateJavaScriptPlanArena,
+    finalists: Vec<JavaScriptEmissionPlan>,
+    variants: impl Fn(crate::codegen_ir_js::IrJsOptions) -> Variants,
+) -> Result<(), CompileError>
+where
+    Variants: IntoIterator<Item = crate::codegen_ir_js::IrJsOptions>,
+{
+    extend_javascript_candidate_beam_with_admission(
+        module_output,
+        policy,
+        contexts,
+        candidates,
+        finalists,
+        variants,
+        true,
+    )
+}
+
+fn extend_javascript_candidate_beam_with_admission<Variants>(
+    module_output: bool,
+    policy: JavaScriptCandidateBeamPolicy,
+    contexts: &JavaScriptEmissionContexts<'_, '_>,
+    candidates: &mut AggregateJavaScriptPlanArena,
+    finalists: Vec<JavaScriptEmissionPlan>,
+    variants: impl Fn(crate::codegen_ir_js::IrJsOptions) -> Variants,
+    priority: bool,
+) -> Result<(), CompileError>
+where
+    Variants: IntoIterator<Item = crate::codegen_ir_js::IrJsOptions>,
+{
+    let priority_allowance = priority.then(|| contexts.begin_priority_plan_family());
+    let mut variant_groups = finalists
         .into_iter()
         .map(|plan| {
             variants(plan.options)
@@ -9153,17 +9580,33 @@ where
                 .collect::<Vec<_>>()
         })
         .collect::<Vec<_>>();
-    let candidate_options =
-        bounded_javascript_variant_options(variant_groups, candidates.optional_proposal_width());
+    if priority {
+        for group in &mut variant_groups {
+            group.retain(|(context_id, options)| {
+                contexts.registered_plan(*context_id, *options).is_none()
+            });
+        }
+    }
+    let family_limit = priority_allowance
+        .unwrap_or(usize::MAX)
+        .min(candidates.optional_proposal_width());
+    let candidate_options = bounded_javascript_variant_options(variant_groups, family_limit);
     // Score a bounded proposal frontier independently. Reserving proposal
     // slots by deleting incumbents first gives enumeration order authority and
     // can discard the parent needed by a later candidate family.
     let plans = candidate_options
         .into_iter()
         .filter_map(|(context_id, candidate_options)| {
-            contexts.register_plan(context_id, candidate_options)
+            if priority {
+                contexts.register_priority_plan(context_id, candidate_options)
+            } else {
+                contexts.register_plan(context_id, candidate_options)
+            }
         })
         .collect::<Vec<_>>();
+    if priority {
+        contexts.end_priority_plan_family();
+    }
     // Registration is deliberately coordinator-only. Parallel workers emit
     // immutable, already-identified plans and cannot make ordinal assignment
     // depend on scheduling.
@@ -10591,6 +11034,8 @@ mod tests {
         enabled.javascript.cost_model = CompressionCostModel::Raw;
         enabled.javascript.candidate_search = CandidateSearch::Always;
         enabled.javascript.candidate_limit = 2;
+        // This fixture tests a two-survivor frontier, not a two-attempt search.
+        enabled.javascript.candidate_proposal_limit = Some(128);
         enabled.javascript.candidate_beam_width = 2;
         enabled.javascript.optimizations = Some(vec![
             JavaScriptOptimization::FreshLiteralFactoryInliningVariants,
@@ -13407,7 +13852,7 @@ mod tests {
         let options = crate::codegen_ir_js::IrJsOptions::default();
         let mut registry = JavaScriptPlanRegistry::default();
         let root = registry.register(0, options).unwrap();
-        registry.set_optional_limit(2, 0, false);
+        registry.set_optional_limit(2, 0, false, 0, 0);
 
         let first = registry
             .register(
@@ -13456,6 +13901,136 @@ mod tests {
         assert_eq!(root.identity.ordinal, 0);
         assert_eq!(first.identity.ordinal, 1);
         assert_eq!(second.identity.ordinal, 2);
+    }
+
+    #[test]
+    fn priority_plan_reserve_is_free_for_duplicates_and_never_exceeds_the_hard_cap() {
+        let options = crate::codegen_ir_js::IrJsOptions::default();
+        let mut registry = JavaScriptPlanRegistry::default();
+        registry.register_terminal(0, options).unwrap();
+        registry.set_optional_limit(4, 0, false, 2, 0);
+
+        let first_regular = crate::codegen_ir_js::IrJsOptions {
+            compact_boolean_literals: !options.compact_boolean_literals,
+            ..options
+        };
+        let second_regular = crate::codegen_ir_js::IrJsOptions {
+            pool_strings: !options.pool_strings,
+            ..options
+        };
+        assert!(registry.register(0, first_regular).is_some());
+        assert!(registry.register(0, second_regular).is_some());
+        assert_eq!(registry.structural_work_used, 2);
+        assert_eq!(registry.remaining_structural_work(), 0);
+        assert!(registry
+            .register(
+                0,
+                crate::codegen_ir_js::IrJsOptions {
+                    local_name_coalescing: !options.local_name_coalescing,
+                    ..options
+                },
+            )
+            .is_none());
+        assert_eq!(registry.structural_work_used, 2);
+
+        // A duplicate never consumes the protected slice.
+        assert!(registry.register_priority(0, first_regular).is_none());
+        assert_eq!(registry.structural_work_used, 2);
+
+        assert!(registry
+            .register_priority(
+                0,
+                crate::codegen_ir_js::IrJsOptions {
+                    precise_cross_scope_shadowing: !options.precise_cross_scope_shadowing,
+                    ..options
+                },
+            )
+            .is_some());
+        assert!(registry
+            .register_priority(
+                0,
+                crate::codegen_ir_js::IrJsOptions {
+                    struct_method_shorthand: !options.struct_method_shorthand,
+                    ..options
+                },
+            )
+            .is_some());
+        assert_eq!(registry.structural_work_used, 4);
+        assert!(registry
+            .register_priority(
+                0,
+                crate::codegen_ir_js::IrJsOptions {
+                    inline_single_use_functions: !options.inline_single_use_functions,
+                    ..options
+                },
+            )
+            .is_none());
+        assert_eq!(registry.structural_work_used, 4);
+        assert_eq!(registry.plans.len(), 5);
+        assert!(registry.limit_reached);
+    }
+
+    #[test]
+    fn priority_families_share_the_reserved_slice_and_release_unused_work() {
+        let options = crate::codegen_ir_js::IrJsOptions::default();
+        let option = |minimum| crate::codegen_ir_js::IrJsOptions {
+            string_pool_minimum_savings: minimum,
+            ..options
+        };
+        let mut registry = JavaScriptPlanRegistry::default();
+        registry.register_terminal(0, options).unwrap();
+        registry.set_optional_limit(32, 0, false, 11, 2);
+
+        for minimum in 1_000..1_021 {
+            assert!(registry.register(0, option(minimum)).is_some());
+        }
+        assert_eq!(registry.structural_work_used, 21);
+        assert!(registry.register(0, option(1_021)).is_none());
+
+        assert_eq!(registry.begin_priority_family(), 6);
+        let before_duplicate = registry.structural_work_used;
+        assert!(registry.register_priority(0, option(1_000)).is_none());
+        assert_eq!(registry.structural_work_used, before_duplicate);
+        for minimum in 2_000..2_006 {
+            assert!(registry.register_priority(0, option(minimum)).is_some());
+        }
+        assert!(registry.register_priority(0, option(2_006)).is_none());
+        registry.end_priority_family();
+
+        assert_eq!(registry.begin_priority_family(), 5);
+        let joint_arrow = crate::codegen_ir_js::IrJsOptions {
+            inline_single_use_functions: true,
+            function_spelling: crate::codegen_ir_js::FunctionSpelling::Arrow,
+            ..options
+        };
+        let joint_function = crate::codegen_ir_js::IrJsOptions {
+            inline_single_use_functions: true,
+            function_spelling: crate::codegen_ir_js::FunctionSpelling::Function,
+            ..options
+        };
+        assert!(registry.register_priority(0, joint_arrow).is_some());
+        assert!(registry.register_priority(0, joint_function).is_some());
+        for minimum in 3_000..3_003 {
+            assert!(registry.register_priority(0, option(minimum)).is_some());
+        }
+        registry.end_priority_family();
+        assert_eq!(registry.structural_work_used, 32);
+        assert_eq!(registry.priority_work_reserve, 0);
+        assert_eq!(registry.plans.len(), 33);
+        assert!(registry.find(0, joint_arrow).is_some());
+        assert!(registry.find(0, joint_function).is_some());
+
+        // If the last family contains only an already-registered identity,
+        // its unused slice returns to ordinary work instead of disappearing.
+        let mut duplicates_only = JavaScriptPlanRegistry::default();
+        duplicates_only.register_terminal(0, options).unwrap();
+        duplicates_only.set_optional_limit(8, 0, false, 3, 1);
+        assert_eq!(duplicates_only.begin_priority_family(), 3);
+        assert!(duplicates_only.register_priority(0, options).is_none());
+        duplicates_only.end_priority_family();
+        assert_eq!(duplicates_only.structural_work_used, 0);
+        assert_eq!(duplicates_only.priority_work_reserve, 0);
+        assert!(duplicates_only.register(0, option(4_000)).is_some());
     }
 
     #[test]
@@ -14199,6 +14774,35 @@ mod tests {
         assert!(!budget.can_admit(0));
         assert_eq!(budget.remaining_plans, 0);
         assert_eq!(budget.remaining_code_bytes, 0);
+
+        let smaller_can_fit = TerminalJavaScriptCandidateBudget::after_retained(3, 8, 2, 7);
+        assert!(!smaller_can_fit.cannot_admit_any_challenger());
+        assert!(smaller_can_fit.can_admit(1));
+        let byte_exhausted = TerminalJavaScriptCandidateBudget::after_retained(3, 7, 2, 7);
+        assert!(byte_exhausted.cannot_admit_any_challenger());
+        let slot_exhausted = TerminalJavaScriptCandidateBudget::after_retained(2, 8, 2, 7);
+        assert!(slot_exhausted.cannot_admit_any_challenger());
+    }
+
+    #[test]
+    fn terminal_family_reserves_are_released_at_most_once() {
+        let exact_pair_reserve = 226;
+        let challenger_reserve = 20;
+        let finalist_reserve = 96;
+        let mut budget = TerminalCodecProbeBudget::with_final_reserve(
+            384,
+            exact_pair_reserve + challenger_reserve + finalist_reserve,
+        );
+
+        budget.release_finalist_reserve_once(finalist_reserve);
+        budget.release_finalist_reserve_once(finalist_reserve);
+        assert_eq!(
+            budget.reserved_for_final,
+            exact_pair_reserve + challenger_reserve
+        );
+        budget.release_challenger_reserve_once(challenger_reserve);
+        budget.release_challenger_reserve_once(challenger_reserve);
+        assert_eq!(budget.reserved_for_final, exact_pair_reserve);
     }
 
     #[test]
@@ -14542,6 +15146,10 @@ mod tests {
         assert!(!plain.contains("state++"), "{plain}");
 
         let mut enabled = disabled;
+        // `candidate_search = "off"` is a hard zero-work policy even when an
+        // exact feature allowlist is present. Enable bounded search here so
+        // the test isolates the parsed-peephole feature gate itself.
+        enabled.javascript.candidate_search = CandidateSearch::Always;
         enabled.javascript.optimizations = Some(vec![JavaScriptOptimization::ParsedPeephole]);
         let optimized = compile_program_to_js_configured(&program, &enabled).unwrap();
         assert!(optimized.contains("state++"), "{optimized}");
@@ -14955,6 +15563,9 @@ mod tests {
         selected_config.javascript.cost_model = CompressionCostModel::Brotli;
         selected_config.javascript.candidate_search = CandidateSearch::Always;
         selected_config.javascript.candidate_limit = 2;
+        // Preserve a deliberately tiny retained frontier while allowing the
+        // late single-use structural coordinate to be proposed.
+        selected_config.javascript.candidate_proposal_limit = Some(128);
         selected_config.javascript.candidate_beam_width = 1;
         selected_config.javascript.nested_once_run_helpers = false;
         selected_config.javascript.compression = Some(vec![
@@ -15006,6 +15617,7 @@ mod tests {
         joint.javascript.cost_model = CompressionCostModel::Raw;
         joint.javascript.candidate_search = CandidateSearch::Always;
         joint.javascript.candidate_limit = 128;
+        joint.javascript.candidate_proposal_limit = Some(384);
         joint.javascript.candidate_beam_width = 8;
         joint.javascript.compression = Some(vec![
             CompressionDecision::PureHelperInlining,
@@ -15056,6 +15668,7 @@ mod tests {
         config.javascript.cost_model = CompressionCostModel::Raw;
         config.javascript.candidate_search = CandidateSearch::Always;
         config.javascript.candidate_limit = 128;
+        config.javascript.candidate_proposal_limit = Some(384);
         config.javascript.candidate_beam_width = 8;
         config.javascript.compression = Some(vec![
             CompressionDecision::PureHelperInlining,
@@ -15114,7 +15727,30 @@ mod tests {
             selected.selection_metrics.transfer_bytes,
             selected.javascript
         );
-        assert_eq!(selected.selection_metrics.transfer_bytes, forced_gzip);
+        assert!(
+            selected.selection_metrics.transfer_bytes <= forced_gzip,
+            "selected gzip={}\n{}\nforced gzip={forced_gzip}\n{forced}",
+            selected.selection_metrics.transfer_bytes,
+            selected.javascript,
+        );
+        let runtime = std::process::Command::new("node")
+            .arg("-e")
+            .arg(&selected.javascript)
+            .output()
+            .expect("Node.js is required for JavaScript runtime parity tests");
+        assert!(
+            runtime.status.success(),
+            "node failed with {}:\n{}\n{}",
+            runtime.status,
+            String::from_utf8_lossy(&runtime.stderr),
+            selected.javascript,
+        );
+        assert_eq!(
+            String::from_utf8(runtime.stdout).expect("node stdout is UTF-8"),
+            "none\n",
+            "{}",
+            selected.javascript,
+        );
     }
 
     #[test]
@@ -15132,6 +15768,7 @@ mod tests {
         enabled.javascript.compression = Some(Vec::new());
         enabled.javascript.candidate_search = CandidateSearch::Always;
         enabled.javascript.candidate_limit = 16;
+        enabled.javascript.candidate_proposal_limit = Some(128);
         enabled.mangle.identifiers = Some(false);
         enabled.mangle.properties = Some(false);
         enabled.mangle.exports = Some(false);

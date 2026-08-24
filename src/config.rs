@@ -1023,9 +1023,11 @@ pub struct JavaScriptConfig {
     pub candidate_byte_budget: usize,
     pub candidate_beam_width: usize,
     /// Maximum optional structural emission plans admitted after the scored
-    /// context seeds are installed. Omitted values derive from the candidate
-    /// effort tier and artifact size; zero keeps only the scored seeds and
-    /// the separately reserved terminal challenger tail.
+    /// context seeds are installed. Omitted values also honor
+    /// `candidate_limit`, so a deliberately tiny retained frontier stays a
+    /// tiny-work search. An explicit value decouples attempted work from that
+    /// survivor count while remaining bounded by the level/search tier.
+    /// Zero keeps only scored seeds and the reserved terminal challenger tail.
     pub candidate_proposal_limit: Option<usize>,
     /// Maximum whole-artifact work units in terminal syntax/name search. A
     /// unit is charged before optional repair/validation and bounds one exact
@@ -1511,28 +1513,37 @@ impl JavaScriptConfig {
     /// byte limits cannot provide this guarantee: hundreds of rejected plans
     /// may be emitted before a small survivor frontier is chosen.
     fn candidate_proposal_level_limit(&self) -> usize {
-        if matches!(self.candidate_search, CandidateSearch::Off) {
-            return 0;
-        }
-        let candidate_limit = self.effective_candidate_limit();
-        if candidate_limit > 1 {
-            candidate_limit
-        } else {
-            0
+        let level_limit = match self.optimization_level {
+            0..=2 => 0,
+            3..=4 => 16,
+            5..=6 => 64,
+            7..=8 => 192,
+            9..=10 => 384,
+            11..=12 => 768,
+            13..=14 => 1_024,
+            _ => 1_536,
+        };
+        match self.candidate_search {
+            CandidateSearch::Off => 0,
+            CandidateSearch::Production => level_limit.min(384),
+            CandidateSearch::Always => level_limit,
         }
     }
 
     pub fn effective_candidate_proposal_limit(&self) -> usize {
         let level_limit = self.candidate_proposal_level_limit();
-        self.candidate_proposal_limit
-            .unwrap_or(level_limit)
-            .min(level_limit)
+        self.candidate_proposal_limit.map_or_else(
+            || self.effective_candidate_limit().min(level_limit),
+            |configured| configured.min(level_limit),
+        )
     }
 
     /// Default proposal work scales down for broad artifacts because every
     /// admitted identity can require a complete IR-to-JavaScript emission and
-    /// selected-model score. An explicit value is a ceiling; it cannot raise
-    /// the level/artifact tier.
+    /// selected-model score. Without an explicit proposal limit, the retained
+    /// candidate limit is an additional ceiling. An explicit value can exceed
+    /// the survivor count and bypasses artifact scaling, but remains bounded
+    /// by the level and search tier.
     pub fn effective_candidate_proposal_limit_for_artifact(&self, raw_size: usize) -> usize {
         let level_limit = self.candidate_proposal_level_limit();
         if level_limit == 0 {
@@ -1543,9 +1554,10 @@ impl JavaScriptConfig {
             16_385..=65_536 => level_limit.div_ceil(4),
             _ => level_limit.div_ceil(12),
         };
-        self.candidate_proposal_limit
-            .unwrap_or(artifact_limit)
-            .min(artifact_limit)
+        self.candidate_proposal_limit.map_or_else(
+            || self.effective_candidate_limit().min(artifact_limit),
+            |configured| configured.min(level_limit),
+        )
     }
 
     /// Hard ceiling for optional whole-artifact work after structural
@@ -1576,7 +1588,8 @@ impl JavaScriptConfig {
 
     /// Default terminal work scales down for broad artifacts because every
     /// syntax validation and Brotli-11 call is whole-artifact work. An
-    /// explicit value is a ceiling; it cannot raise the level/artifact tier.
+    /// explicit value bypasses artifact scaling but cannot raise the level or
+    /// search tier.
     pub fn effective_terminal_codec_probe_limit_for_artifact(&self, raw_size: usize) -> usize {
         let level_limit = self.terminal_codec_probe_level_limit();
         if level_limit == 0 {
@@ -1588,8 +1601,7 @@ impl JavaScriptConfig {
             _ => level_limit.div_ceil(12),
         };
         self.terminal_codec_probe_limit
-            .unwrap_or(artifact_limit)
-            .min(artifact_limit)
+            .map_or(artifact_limit, |configured| configured.min(level_limit))
     }
 }
 
@@ -2509,13 +2521,15 @@ local_name_coalescing = false
             bounded_override
                 .javascript
                 .effective_terminal_codec_probe_limit_for_artifact(100 * 1024),
-            32
+            384,
+            "an explicit ceiling bypasses artifact scaling but not the level tier"
         );
         assert_eq!(
             bounded_override
                 .javascript
                 .effective_candidate_proposal_limit_for_artifact(100 * 1024),
-            32
+            384,
+            "production search remains a hard ceiling for an explicit proposal budget"
         );
         assert!(level_fourteen.javascript_optimization_configured(
             JavaScriptOptimization::IrFunctionSubsumptionVariants
@@ -2654,6 +2668,52 @@ optimization_level = 0
         )
         .unwrap();
         assert!(!hard_disabled.js_function_subsumption_variants_enabled());
+    }
+
+    #[test]
+    fn proposal_defaults_follow_survivor_limits_but_explicit_work_is_independent() {
+        let mut config: ProjectConfig = toml::from_str(
+            "[javascript]\noptimization_level=15\ncandidate_search='always'\ncandidate_limit=2\n",
+        )
+        .unwrap();
+        assert_eq!(config.javascript.effective_candidate_limit(), 2);
+        assert_eq!(config.javascript.effective_candidate_proposal_limit(), 2);
+        assert_eq!(
+            config
+                .javascript
+                .effective_candidate_proposal_limit_for_artifact(100 * 1024),
+            2,
+            "an omitted proposal limit preserves the expected tiny-work policy"
+        );
+
+        config.javascript.candidate_proposal_limit = Some(23);
+        assert_eq!(config.javascript.effective_candidate_proposal_limit(), 23);
+        assert_eq!(
+            config
+                .javascript
+                .effective_candidate_proposal_limit_for_artifact(100 * 1024),
+            23,
+            "an explicit lab budget can exceed survivor count and bypass artifact scaling"
+        );
+        config.javascript.candidate_proposal_limit = Some(1);
+        assert_eq!(config.javascript.effective_candidate_proposal_limit(), 1);
+        assert_eq!(
+            config
+                .javascript
+                .effective_candidate_proposal_limit_for_artifact(100 * 1024),
+            1
+        );
+
+        config.javascript.optimization_level = 0;
+        config.javascript.candidate_proposal_limit = Some(23);
+        assert_eq!(config.javascript.effective_candidate_proposal_limit(), 0);
+        assert_eq!(
+            config
+                .javascript
+                .effective_candidate_proposal_limit_for_artifact(100 * 1024),
+            0,
+            "an explicit proposal ceiling cannot bypass level zero"
+        );
     }
 
     #[test]

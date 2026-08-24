@@ -3623,6 +3623,34 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         members
     }
 
+    /// Prefer a cluster whose IIFE is installed once with a named root over
+    /// an overlapping inlined closure scope. Both placements can be lexically
+    /// valid, but the inner placement recreates the helper declarations on
+    /// every evaluation and can be stripped later as an apparent top-level
+    /// escape. The remaining tie-break stays the narrow deterministic scope.
+    fn cluster_owner_allocation_rank(&self, owner: HelperClusterOwner) -> u8 {
+        let root_is_hoisted = |root: FunctionId| {
+            self.module
+                .functions
+                .get(root.0 as usize)
+                .is_some_and(|function| {
+                    !self.function_is_inlined(function) && self.cluster_root_emits_wrapper(root)
+                })
+        };
+        let hoisted = match owner {
+            HelperClusterOwner::Private(root) => root_is_hoisted(root),
+            HelperClusterOwner::Named(index) => {
+                self.named_callee_clusters
+                    .get(index)
+                    .is_some_and(|(roots, _)| {
+                        !roots.is_empty() && roots.iter().all(|root| root_is_hoisted(*root))
+                    })
+            }
+            HelperClusterOwner::Nested(_) => false,
+        };
+        u8::from(!hoisted)
+    }
+
     fn remove_helper_from_cluster_owner(
         &mut self,
         helper: FunctionId,
@@ -3746,11 +3774,15 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                     .iter()
                                     .all(|caller| *caller == helper || members.contains(caller))
                             })
-                            .then_some((members.len(), owner))
+                            .then_some((
+                                self.cluster_owner_allocation_rank(owner),
+                                members.len(),
+                                owner,
+                            ))
                     })
                     .collect::<Vec<_>>();
                 valid.sort_unstable();
-                let selected = valid.first().map(|(_, owner)| *owner);
+                let selected = valid.first().map(|(_, _, owner)| *owner);
                 for owner in owners {
                     if Some(owner) != selected {
                         changed |= self.remove_helper_from_cluster_owner(helper, owner);

@@ -44,7 +44,7 @@ startup/performance analysis and profile-guided optimizer passes remain active.
 
 | Key | Default | Role |
 |---|---|---|
-| `candidate_limit` | 1536 | Hard count before other caps |
+| `candidate_limit` | 1536 | Retained whole-artifact frontier count; omitted proposal work also honors it |
 | `candidate_byte_budget` | 1 MiB | Aggregate retained whole-artifact bytes, with the configured incumbent as a mandatory floor |
 | `candidate_beam_width` | 12 | How many leading layouts survive each structural decision |
 | `candidate_proposal_limit` | level/artifact-derived (384 at level 15 production through 16 KiB) | Shared structural work ledger charged before projection, entropy mapping, and optional plan emission |
@@ -52,13 +52,14 @@ startup/performance analysis and profile-guided optimizer passes remain active.
 | `max_candidate_raw_growth_percent` | 0 | Raw-side admission allowance vs configured baseline (max 1000) |
 
 Raise `candidate_byte_budget` and the explicit work ceilings up to their
-level/artifact tiers for slower
+level/search tiers for slower
 maximum-compression releases. Tiny outputs hit the count cap; huge outputs retain
 fewer complete artifacts. Explain output reports registered plans, attempted
 optimizer/structural emissions, structural proposal work, terminal work units,
 actual terminal codec calls, both effective limits, and exhaustion. Defaults
-scale to one quarter for 16–64 KiB artifacts and one twelfth above 64 KiB;
-explicit values cannot raise those tiers.
+scale to one quarter for 16–64 KiB artifacts and one twelfth above 64 KiB.
+Explicit work ceilings bypass that artifact scaling but cannot raise the
+level/search tier.
 The work cap is hard, but it is not a wall-time or RSS ceiling.
 
 Intermediate emission retention is objective-stratified across selected, raw, gzip,

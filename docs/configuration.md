@@ -181,6 +181,7 @@ with `-j N` / `--jobs N` and `--codec-jobs N`.
 `candidate_beam_width`, `candidate_proposal_limit`, and
 `terminal_codec_probe_limit` are different: they bound search effort and retained
 whole-artifact source bytes, so changing them can change the selected output.
+`candidate_limit` is the retained-frontier count, not an attempted-work count.
 Terminal scope-naming and string-pooling challengers debit the remaining shared
 plan and source-byte ledger before codec scoring; the already-retained incumbent
 remains eligible when that tail is exhausted.
@@ -191,16 +192,19 @@ admitted, before IR-to-JavaScript emission. Failed emissions and candidates
 later rejected by syntax, size, or codec ranking therefore still consume a
 slot. Already-scored IR context seeds are outside this optional budget, and a
 separate terminal tail remains available for factored naming/declaration
-challengers. Omitted defaults scale to one quarter for 16–64 KiB artifacts and
-one twelfth above 64 KiB; an explicit value is a ceiling and cannot raise the
-level/artifact tier.
+challengers. Omitted defaults additionally honor `candidate_limit` and scale to
+one quarter for 16–64 KiB artifacts and one twelfth above 64 KiB. An explicit
+value can exceed the survivor count and bypass artifact scaling, but it cannot
+raise the optimization-level or `candidate_search` tier.
 `terminal_codec_probe_limit` is a compilation-wide hard work ceiling after
 structural plans have been emitted. Parsed-peephole, cleanup, and binding-remap
 families share the same counter. A proposal is charged before whole-artifact
 repair/validation, and each exact-codec call also requires an admitted unit.
 Exhaustion skips remaining leaves and retains the best already-scored artifact. A rare
 missing score for the mandatory configured incumbent is measured outside this
-optional budget so the fallback cannot disappear.
+optional budget so the fallback cannot disappear. Omitted defaults use artifact
+scaling; an explicit ceiling bypasses that scaling while remaining bounded by
+the optimization-level and search tier.
 
 Every optional optimization key overrides its preset independently. The
 `none` preset disables optional transforms but retains mandatory IR
@@ -450,10 +454,12 @@ conditional, update, mutation, SSA, comma, and entropy choices, levels 9-12 add
 parsed peepholes plus structural IR/loop/switch alternatives, level 13 adds
 late identical-body folding, declaration layout, and joint representation
 search, and levels 14-15 add proof-driven function-subsumption IR candidates,
-compress-pass variants, and joint chunk/symbol search. The effective count,
-byte, beam, and terminal-codec caps are always the lower of their level tier
-and the configured ceiling. This remains true with an exact `optimizations`
-allowlist: the list chooses behavior, while `optimization_level` chooses effort.
+compress-pass variants, and joint chunk/symbol search. Effective count, byte,
+and beam caps are always the lower of their level tier and configured ceiling.
+Omitted proposal and terminal-work caps additionally scale by artifact size;
+explicit ceilings bypass only that artifact scaling and stay within the
+level/search tier. This remains true with an exact `optimizations` allowlist:
+the list chooses behavior, while `optimization_level` chooses effort.
 `candidate_beam_width` controls how many distinct leading
 emission layouts advance to each subsequent structural decision. Raising it
 can recover interactions whose first step is not locally best; lowering it

@@ -112,12 +112,15 @@ search still caps candidates at 384 unless `always`.
 ledger, with the configured incumbent as a mandatory floor. A small terminal
 slice is reserved before structural retention so an incumbent naming/declaration
 challenger is not starved by a byte-full structural arena. Rejected structural
-proposals can still consume work before retention. `candidate_proposal_limit`
-closes that gap: projection, entropy preparation/mapping, and each new
+proposals can still consume work before retention. `candidate_limit` controls
+the retained frontier, not attempted work. `candidate_proposal_limit` closes
+that gap: projection, entropy preparation/mapping, and each new
 structural plan consume the shared ledger before whole-artifact work. Failed,
 invalid, and rejected proposals still count. Already-scored optimizer context
 seeds are reported separately. A terminal plan tail remains reserved after the
-structural ledger fills.
+structural ledger fills. When omitted, the proposal limit also honors
+`candidate_limit`; an explicit value can exceed the survivor count and bypass
+artifact scaling, but not the level/search tier.
 
 `terminal_codec_probe_limit` is different: it is one compilation-wide hard work
 budget shared by optional parsed-peephole preparation, repair/validation,
@@ -126,7 +129,8 @@ prefixes before expensive validation or parallel scoring, so invalid proposals
 and Rayon scheduling cannot multiply work beyond the ledger. Actual codec calls
 are counted separately and cannot exceed consumed work units. Default limits in
 the table scale to one quarter for 16–64 KiB artifacts and one twelfth above
-64 KiB. Explicit values are ceilings and cannot raise a level/artifact tier.
+64 KiB. Explicit values bypass artifact scaling but cannot raise the level or
+search tier.
 When exhausted, search keeps the best
 already-scored incumbent. The configured incumbent's mandatory score is outside
 this optional budget; `candidate_search = "off"` always forces zero.
