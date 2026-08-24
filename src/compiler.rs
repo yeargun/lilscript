@@ -2126,6 +2126,7 @@ fn optimize_and_select_javascript_inner<'src>(
             priority_candidate_proposal_reserve(
                 candidate_proposal_limit,
                 config.javascript.effective_candidate_beam_width(),
+                priority_family_count,
             )
         },
         priority_family_count,
@@ -3193,10 +3194,14 @@ impl JavaScriptPlanRegistry {
     }
 }
 
-fn priority_candidate_proposal_reserve(limit: usize, beam_width: usize) -> usize {
+fn priority_candidate_proposal_reserve(
+    limit: usize,
+    beam_width: usize,
+    priority_family_count: usize,
+) -> usize {
     limit
         .div_ceil(3)
-        .min(beam_width.saturating_mul(12))
+        .min(beam_width.saturating_mul(priority_family_count))
         .min(limit)
 }
 
