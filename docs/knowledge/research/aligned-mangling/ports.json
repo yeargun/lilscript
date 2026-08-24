@@ -1,0 +1,2173 @@
+[
+ {
+  "id": "jquerylil-raw",
+  "path": "/Users/yeargun/jquerylil/dist/jquery.raw.js",
+  "base": {
+   "raw": 92668,
+   "gzip9": 34444,
+   "br11": 30890
+  },
+  "renameModuleTopLevel": true,
+  "bindings": 2462,
+  "renamable": 2460,
+  "shipped": {
+   "distinct": 455,
+   "entropy": 5.098276800468789,
+   "nameBytes": 14372
+  },
+  "best": {
+   "label": "source/reversed",
+   "raw": 92144,
+   "gzip9": 34018,
+   "br11": 30120,
+   "distinct": 454,
+   "entropy": 4.781595048645014
+  },
+  "namings": [
+   {
+    "label": "source/reversed",
+    "raw": 92144,
+    "gzip9": 34018,
+    "br11": 30120,
+    "distinct": 454,
+    "entropy": 4.781595048645014
+   },
+   {
+    "label": "firstUse/reversed",
+    "raw": 92144,
+    "gzip9": 34032,
+    "br11": 30142,
+    "distinct": 454,
+    "entropy": 4.780241149275269
+   },
+   {
+    "label": "frequency/reversed",
+    "raw": 92144,
+    "gzip9": 34154,
+    "br11": 30207,
+    "distinct": 454,
+    "entropy": 4.5085182740172005
+   },
+   {
+    "label": "firstUse/adaptive",
+    "raw": 92144,
+    "gzip9": 33931,
+    "br11": 30301,
+    "distinct": 455,
+    "entropy": 4.753101347168051
+   },
+   {
+    "label": "source/dialect",
+    "raw": 92144,
+    "gzip9": 33923,
+    "br11": 30307,
+    "distinct": 455,
+    "entropy": 4.7529110558121666
+   },
+   {
+    "label": "firstUse/dialect",
+    "raw": 92144,
+    "gzip9": 33923,
+    "br11": 30325,
+    "distinct": 455,
+    "entropy": 4.7529110558121666
+   },
+   {
+    "label": "frequency/adaptive",
+    "raw": 92144,
+    "gzip9": 33973,
+    "br11": 30332,
+    "distinct": 455,
+    "entropy": 4.729086465879301
+   },
+   {
+    "label": "source/etn",
+    "raw": 92144,
+    "gzip9": 34003,
+    "br11": 30339,
+    "distinct": 455,
+    "entropy": 4.787747444005244
+   },
+   {
+    "label": "source/adaptive",
+    "raw": 92144,
+    "gzip9": 33930,
+    "br11": 30348,
+    "distinct": 455,
+    "entropy": 4.753101347168051
+   },
+   {
+    "label": "frequency/dialect",
+    "raw": 92144,
+    "gzip9": 33972,
+    "br11": 30350,
+    "distinct": 455,
+    "entropy": 4.72813210915561
+   },
+   {
+    "label": "firstUse/etn",
+    "raw": 92144,
+    "gzip9": 34017,
+    "br11": 30363,
+    "distinct": 455,
+    "entropy": 4.787700938836084
+   },
+   {
+    "label": "frequency/abc",
+    "raw": 92144,
+    "gzip9": 34178,
+    "br11": 30392,
+    "distinct": 455,
+    "entropy": 4.641525422591888
+   },
+   {
+    "label": "frequency/etn",
+    "raw": 92144,
+    "gzip9": 34001,
+    "br11": 30425,
+    "distinct": 455,
+    "entropy": 4.762206240408964
+   },
+   {
+    "label": "firstUse/abc",
+    "raw": 92144,
+    "gzip9": 34201,
+    "br11": 30438,
+    "distinct": 455,
+    "entropy": 4.817257140004519
+   },
+   {
+    "label": "source/abc",
+    "raw": 92144,
+    "gzip9": 34205,
+    "br11": 30442,
+    "distinct": 455,
+    "entropy": 4.818008737118633
+   }
+  ],
+  "pools": 0,
+  "poolEntries": 0,
+  "poolBest": null,
+  "poolRows": [],
+  "census": {
+   "literalBytes": 14495,
+   "copyBytes": 74604,
+   "dictBytes": 3569,
+   "dictRefs": 494,
+   "reusedDictEntries": 0,
+   "commands": 9243,
+   "implicitPct": 9.06632045872552,
+   "distBits": 111394,
+   "litBits": 69911,
+   "cmdBits": 61157
+  },
+  "twins": {
+   "groups": 1,
+   "misalignedBytes": 0
+  }
+ },
+ {
+  "id": "jquerylil-esm",
+  "path": "/Users/yeargun/jquerylil/dist/jquery.esm.js",
+  "base": {
+   "raw": 92765,
+   "gzip9": 34505,
+   "br11": 30973
+  },
+  "renameModuleTopLevel": true,
+  "bindings": 2462,
+  "renamable": 2460,
+  "shipped": {
+   "distinct": 455,
+   "entropy": 5.098276800468789,
+   "nameBytes": 14372
+  },
+  "best": {
+   "label": "firstUse/reversed",
+   "raw": 92241,
+   "gzip9": 34090,
+   "br11": 30197,
+   "distinct": 454,
+   "entropy": 4.780241149275269
+  },
+  "namings": [
+   {
+    "label": "firstUse/reversed",
+    "raw": 92241,
+    "gzip9": 34090,
+    "br11": 30197,
+    "distinct": 454,
+    "entropy": 4.780241149275269
+   },
+   {
+    "label": "source/reversed",
+    "raw": 92241,
+    "gzip9": 34077,
+    "br11": 30199,
+    "distinct": 454,
+    "entropy": 4.781595048645014
+   },
+   {
+    "label": "frequency/reversed",
+    "raw": 92241,
+    "gzip9": 34211,
+    "br11": 30243,
+    "distinct": 454,
+    "entropy": 4.5085182740172005
+   },
+   {
+    "label": "source/dialect",
+    "raw": 92241,
+    "gzip9": 33981,
+    "br11": 30305,
+    "distinct": 455,
+    "entropy": 4.7529110558121666
+   },
+   {
+    "label": "source/adaptive",
+    "raw": 92241,
+    "gzip9": 34002,
+    "br11": 30333,
+    "distinct": 455,
+    "entropy": 4.7556277226039345
+   },
+   {
+    "label": "firstUse/dialect",
+    "raw": 92241,
+    "gzip9": 33982,
+    "br11": 30371,
+    "distinct": 455,
+    "entropy": 4.7529110558121666
+   },
+   {
+    "label": "firstUse/adaptive",
+    "raw": 92241,
+    "gzip9": 34008,
+    "br11": 30392,
+    "distinct": 455,
+    "entropy": 4.755475307183752
+   },
+   {
+    "label": "source/etn",
+    "raw": 92241,
+    "gzip9": 34062,
+    "br11": 30397,
+    "distinct": 455,
+    "entropy": 4.787747444005244
+   },
+   {
+    "label": "frequency/dialect",
+    "raw": 92241,
+    "gzip9": 34032,
+    "br11": 30397,
+    "distinct": 455,
+    "entropy": 4.72813210915561
+   },
+   {
+    "label": "frequency/adaptive",
+    "raw": 92241,
+    "gzip9": 34040,
+    "br11": 30414,
+    "distinct": 455,
+    "entropy": 4.731475904423669
+   },
+   {
+    "label": "frequency/abc",
+    "raw": 92241,
+    "gzip9": 34236,
+    "br11": 30418,
+    "distinct": 455,
+    "entropy": 4.641525422591888
+   },
+   {
+    "label": "firstUse/etn",
+    "raw": 92241,
+    "gzip9": 34078,
+    "br11": 30433,
+    "distinct": 455,
+    "entropy": 4.787700938836084
+   },
+   {
+    "label": "firstUse/abc",
+    "raw": 92241,
+    "gzip9": 34260,
+    "br11": 30451,
+    "distinct": 455,
+    "entropy": 4.817257140004519
+   },
+   {
+    "label": "source/abc",
+    "raw": 92241,
+    "gzip9": 34265,
+    "br11": 30460,
+    "distinct": 455,
+    "entropy": 4.818008737118633
+   },
+   {
+    "label": "frequency/etn",
+    "raw": 92241,
+    "gzip9": 34062,
+    "br11": 30476,
+    "distinct": 455,
+    "entropy": 4.762206240408964
+   }
+  ],
+  "pools": 0,
+  "poolEntries": 0,
+  "poolBest": null,
+  "poolRows": [],
+  "census": {
+   "literalBytes": 14508,
+   "copyBytes": 74659,
+   "dictBytes": 3598,
+   "dictRefs": 497,
+   "reusedDictEntries": 0,
+   "commands": 9253,
+   "implicitPct": 9.067329514751972,
+   "distBits": 111479,
+   "litBits": 70331,
+   "cmdBits": 61517
+  },
+  "twins": {
+   "groups": 1,
+   "misalignedBytes": 0
+  }
+ },
+ {
+  "id": "markedlil-raw",
+  "path": "/Users/yeargun/markedlil/dist/marked.raw.js",
+  "base": {
+   "raw": 35901,
+   "gzip9": 10786,
+   "br11": 9543
+  },
+  "renameModuleTopLevel": true,
+  "bindings": 567,
+  "renamable": 559,
+  "shipped": {
+   "distinct": 198,
+   "entropy": 4.474494577268081,
+   "nameBytes": 3843
+  },
+  "best": {
+   "label": "source/dialect",
+   "raw": 35897,
+   "gzip9": 10776,
+   "br11": 9557,
+   "distinct": 197,
+   "entropy": 4.432339651246965
+  },
+  "namings": [
+   {
+    "label": "source/dialect",
+    "raw": 35897,
+    "gzip9": 10776,
+    "br11": 9557,
+    "distinct": 197,
+    "entropy": 4.432339651246965
+   },
+   {
+    "label": "firstUse/dialect",
+    "raw": 35897,
+    "gzip9": 10782,
+    "br11": 9564,
+    "distinct": 197,
+    "entropy": 4.432339651246965
+   },
+   {
+    "label": "frequency/dialect",
+    "raw": 35876,
+    "gzip9": 10781,
+    "br11": 9569,
+    "distinct": 197,
+    "entropy": 4.423881722558986
+   },
+   {
+    "label": "source/adaptive",
+    "raw": 35899,
+    "gzip9": 10796,
+    "br11": 9574,
+    "distinct": 198,
+    "entropy": 4.5296554246970375
+   },
+   {
+    "label": "frequency/adaptive",
+    "raw": 35876,
+    "gzip9": 10788,
+    "br11": 9592,
+    "distinct": 197,
+    "entropy": 4.500116287734908
+   },
+   {
+    "label": "firstUse/adaptive",
+    "raw": 35899,
+    "gzip9": 10806,
+    "br11": 9606,
+    "distinct": 198,
+    "entropy": 4.5296554246970375
+   },
+   {
+    "label": "source/etn",
+    "raw": 35899,
+    "gzip9": 10831,
+    "br11": 9625,
+    "distinct": 197,
+    "entropy": 4.587543506269048
+   },
+   {
+    "label": "frequency/etn",
+    "raw": 35876,
+    "gzip9": 10811,
+    "br11": 9636,
+    "distinct": 197,
+    "entropy": 4.536019220141368
+   },
+   {
+    "label": "firstUse/etn",
+    "raw": 35899,
+    "gzip9": 10836,
+    "br11": 9643,
+    "distinct": 197,
+    "entropy": 4.587543506269048
+   },
+   {
+    "label": "firstUse/abc",
+    "raw": 35899,
+    "gzip9": 10921,
+    "br11": 9655,
+    "distinct": 197,
+    "entropy": 4.713512482449345
+   },
+   {
+    "label": "source/abc",
+    "raw": 35899,
+    "gzip9": 10920,
+    "br11": 9658,
+    "distinct": 197,
+    "entropy": 4.713512482449345
+   },
+   {
+    "label": "source/reversed",
+    "raw": 35899,
+    "gzip9": 10979,
+    "br11": 9658,
+    "distinct": 198,
+    "entropy": 4.663350647747549
+   },
+   {
+    "label": "firstUse/reversed",
+    "raw": 35899,
+    "gzip9": 10980,
+    "br11": 9674,
+    "distinct": 198,
+    "entropy": 4.663350647747549
+   },
+   {
+    "label": "frequency/reversed",
+    "raw": 35899,
+    "gzip9": 10990,
+    "br11": 9685,
+    "distinct": 198,
+    "entropy": 4.371206330009473
+   },
+   {
+    "label": "frequency/abc",
+    "raw": 35876,
+    "gzip9": 10953,
+    "br11": 9687,
+    "distinct": 197,
+    "entropy": 4.476011642015548
+   }
+  ],
+  "pools": 0,
+  "poolEntries": 0,
+  "poolBest": null,
+  "poolRows": [],
+  "census": {
+   "literalBytes": 4870,
+   "copyBytes": 30175,
+   "dictBytes": 856,
+   "dictRefs": 137,
+   "reusedDictEntries": 0,
+   "commands": 3057,
+   "implicitPct": 17.664376840039253,
+   "distBits": 28589,
+   "litBits": 23595,
+   "cmdBits": 21052
+  },
+  "twins": {
+   "groups": 0,
+   "misalignedBytes": 0
+  }
+ },
+ {
+  "id": "markedlil-bytes",
+  "path": "/Users/yeargun/markedlil/dist/marked.bytes.js",
+  "base": {
+   "raw": 33548,
+   "gzip9": 10637,
+   "br11": 9456
+  },
+  "renameModuleTopLevel": true,
+  "bindings": 539,
+  "renamable": 531,
+  "shipped": {
+   "distinct": 188,
+   "entropy": 4.604577641205443,
+   "nameBytes": 3967
+  },
+  "best": {
+   "label": "source/dialect",
+   "raw": 33514,
+   "gzip9": 10588,
+   "br11": 9419,
+   "distinct": 175,
+   "entropy": 4.520577400435959
+  },
+  "namings": [
+   {
+    "label": "source/dialect",
+    "raw": 33514,
+    "gzip9": 10588,
+    "br11": 9419,
+    "distinct": 175,
+    "entropy": 4.520577400435959
+   },
+   {
+    "label": "firstUse/dialect",
+    "raw": 33514,
+    "gzip9": 10599,
+    "br11": 9433,
+    "distinct": 174,
+    "entropy": 4.522193367440341
+   },
+   {
+    "label": "frequency/dialect",
+    "raw": 33524,
+    "gzip9": 10611,
+    "br11": 9447,
+    "distinct": 178,
+    "entropy": 4.528943564283197
+   },
+   {
+    "label": "source/reversed",
+    "raw": 33518,
+    "gzip9": 10768,
+    "br11": 9582,
+    "distinct": 175,
+    "entropy": 4.8320554649888
+   },
+   {
+    "label": "firstUse/reversed",
+    "raw": 33520,
+    "gzip9": 10771,
+    "br11": 9605,
+    "distinct": 175,
+    "entropy": 4.8320554649888
+   },
+   {
+    "label": "firstUse/adaptive",
+    "raw": 33519,
+    "gzip9": 10723,
+    "br11": 9620,
+    "distinct": 175,
+    "entropy": 4.764919995298564
+   },
+   {
+    "label": "frequency/reversed",
+    "raw": 33526,
+    "gzip9": 10859,
+    "br11": 9623,
+    "distinct": 177,
+    "entropy": 4.528328635602201
+   },
+   {
+    "label": "source/abc",
+    "raw": 33518,
+    "gzip9": 10781,
+    "br11": 9634,
+    "distinct": 175,
+    "entropy": 4.783742784132544
+   },
+   {
+    "label": "source/etn",
+    "raw": 33516,
+    "gzip9": 10738,
+    "br11": 9634,
+    "distinct": 175,
+    "entropy": 4.8339124573451
+   },
+   {
+    "label": "frequency/etn",
+    "raw": 33529,
+    "gzip9": 10791,
+    "br11": 9647,
+    "distinct": 177,
+    "entropy": 4.645780100370918
+   },
+   {
+    "label": "frequency/adaptive",
+    "raw": 33523,
+    "gzip9": 10756,
+    "br11": 9649,
+    "distinct": 176,
+    "entropy": 4.560103599093362
+   },
+   {
+    "label": "source/adaptive",
+    "raw": 33517,
+    "gzip9": 10715,
+    "br11": 9650,
+    "distinct": 175,
+    "entropy": 4.763895104841697
+   },
+   {
+    "label": "firstUse/etn",
+    "raw": 33518,
+    "gzip9": 10746,
+    "br11": 9663,
+    "distinct": 175,
+    "entropy": 4.835510315339447
+   },
+   {
+    "label": "firstUse/abc",
+    "raw": 33519,
+    "gzip9": 10795,
+    "br11": 9689,
+    "distinct": 175,
+    "entropy": 4.787909080984215
+   },
+   {
+    "label": "frequency/abc",
+    "raw": 33526,
+    "gzip9": 10881,
+    "br11": 9691,
+    "distinct": 175,
+    "entropy": 4.646461330003141
+   }
+  ],
+  "pools": 0,
+  "poolEntries": 0,
+  "poolBest": null,
+  "poolRows": [],
+  "census": {
+   "literalBytes": 4952,
+   "copyBytes": 27680,
+   "dictBytes": 916,
+   "dictRefs": 149,
+   "reusedDictEntries": 0,
+   "commands": 2926,
+   "implicitPct": 15.823650034176351,
+   "distBits": 27903,
+   "litBits": 24443,
+   "cmdBits": 19941
+  },
+  "twins": {
+   "groups": 0,
+   "misalignedBytes": 0
+  }
+ },
+ {
+  "id": "markedlil-gzip",
+  "path": "/Users/yeargun/markedlil/dist/marked.gzip.js",
+  "base": {
+   "raw": 36220,
+   "gzip9": 10754,
+   "br11": 9543
+  },
+  "renameModuleTopLevel": true,
+  "bindings": 561,
+  "renamable": 553,
+  "shipped": {
+   "distinct": 198,
+   "entropy": 4.4422723507230435,
+   "nameBytes": 3827
+  },
+  "best": {
+   "label": "source/dialect",
+   "raw": 36218,
+   "gzip9": 10752,
+   "br11": 9538,
+   "distinct": 197,
+   "entropy": 4.40508541193786
+  },
+  "namings": [
+   {
+    "label": "source/dialect",
+    "raw": 36218,
+    "gzip9": 10752,
+    "br11": 9538,
+    "distinct": 197,
+    "entropy": 4.40508541193786
+   },
+   {
+    "label": "firstUse/dialect",
+    "raw": 36218,
+    "gzip9": 10764,
+    "br11": 9542,
+    "distinct": 197,
+    "entropy": 4.40508541193786
+   },
+   {
+    "label": "firstUse/reversed",
+    "raw": 36220,
+    "gzip9": 10885,
+    "br11": 9580,
+    "distinct": 198,
+    "entropy": 4.575112354746107
+   },
+   {
+    "label": "frequency/dialect",
+    "raw": 36197,
+    "gzip9": 10764,
+    "br11": 9586,
+    "distinct": 197,
+    "entropy": 4.400129899239959
+   },
+   {
+    "label": "source/reversed",
+    "raw": 36220,
+    "gzip9": 10883,
+    "br11": 9595,
+    "distinct": 198,
+    "entropy": 4.575112354746107
+   },
+   {
+    "label": "source/etn",
+    "raw": 36220,
+    "gzip9": 10811,
+    "br11": 9600,
+    "distinct": 198,
+    "entropy": 4.574725266249583
+   },
+   {
+    "label": "firstUse/etn",
+    "raw": 36220,
+    "gzip9": 10808,
+    "br11": 9604,
+    "distinct": 198,
+    "entropy": 4.574725266249583
+   },
+   {
+    "label": "frequency/etn",
+    "raw": 36197,
+    "gzip9": 10832,
+    "br11": 9613,
+    "distinct": 197,
+    "entropy": 4.483594311030589
+   },
+   {
+    "label": "source/adaptive",
+    "raw": 36220,
+    "gzip9": 10854,
+    "br11": 9630,
+    "distinct": 198,
+    "entropy": 4.561731756820547
+   },
+   {
+    "label": "firstUse/adaptive",
+    "raw": 36220,
+    "gzip9": 10851,
+    "br11": 9645,
+    "distinct": 198,
+    "entropy": 4.561731756820547
+   },
+   {
+    "label": "frequency/adaptive",
+    "raw": 36197,
+    "gzip9": 10836,
+    "br11": 9650,
+    "distinct": 197,
+    "entropy": 4.517518624620049
+   },
+   {
+    "label": "source/abc",
+    "raw": 36220,
+    "gzip9": 10881,
+    "br11": 9658,
+    "distinct": 198,
+    "entropy": 4.625937377363215
+   },
+   {
+    "label": "firstUse/abc",
+    "raw": 36220,
+    "gzip9": 10884,
+    "br11": 9660,
+    "distinct": 198,
+    "entropy": 4.625937377363215
+   },
+   {
+    "label": "frequency/reversed",
+    "raw": 36220,
+    "gzip9": 10961,
+    "br11": 9664,
+    "distinct": 198,
+    "entropy": 4.270850076921953
+   },
+   {
+    "label": "frequency/abc",
+    "raw": 36197,
+    "gzip9": 10910,
+    "br11": 9689,
+    "distinct": 197,
+    "entropy": 4.501590583052405
+   }
+  ],
+  "pools": 0,
+  "poolEntries": 0,
+  "poolBest": null,
+  "poolRows": [],
+  "census": {
+   "literalBytes": 4813,
+   "copyBytes": 30504,
+   "dictBytes": 903,
+   "dictRefs": 144,
+   "reusedDictEntries": 0,
+   "commands": 3053,
+   "implicitPct": 17.687520471667213,
+   "distBits": 28488,
+   "litBits": 23616,
+   "cmdBits": 21120
+  },
+  "twins": {
+   "groups": 0,
+   "misalignedBytes": 0
+  }
+ },
+ {
+  "id": "markedlil-esm",
+  "path": "/Users/yeargun/markedlil/dist/marked.esm.js",
+  "base": {
+   "raw": 35985,
+   "gzip9": 10838,
+   "br11": 9589
+  },
+  "renameModuleTopLevel": true,
+  "bindings": 567,
+  "renamable": 559,
+  "shipped": {
+   "distinct": 198,
+   "entropy": 4.474494577268081,
+   "nameBytes": 3843
+  },
+  "best": {
+   "label": "firstUse/dialect",
+   "raw": 35981,
+   "gzip9": 10834,
+   "br11": 9595,
+   "distinct": 197,
+   "entropy": 4.432339651246965
+  },
+  "namings": [
+   {
+    "label": "firstUse/dialect",
+    "raw": 35981,
+    "gzip9": 10834,
+    "br11": 9595,
+    "distinct": 197,
+    "entropy": 4.432339651246965
+   },
+   {
+    "label": "source/dialect",
+    "raw": 35981,
+    "gzip9": 10831,
+    "br11": 9615,
+    "distinct": 197,
+    "entropy": 4.432339651246965
+   },
+   {
+    "label": "frequency/dialect",
+    "raw": 35960,
+    "gzip9": 10833,
+    "br11": 9625,
+    "distinct": 197,
+    "entropy": 4.423881722558986
+   },
+   {
+    "label": "frequency/adaptive",
+    "raw": 35960,
+    "gzip9": 10843,
+    "br11": 9630,
+    "distinct": 197,
+    "entropy": 4.500116287734908
+   },
+   {
+    "label": "source/adaptive",
+    "raw": 35983,
+    "gzip9": 10851,
+    "br11": 9642,
+    "distinct": 198,
+    "entropy": 4.5296554246970375
+   },
+   {
+    "label": "firstUse/adaptive",
+    "raw": 35983,
+    "gzip9": 10859,
+    "br11": 9648,
+    "distinct": 198,
+    "entropy": 4.5296554246970375
+   },
+   {
+    "label": "firstUse/etn",
+    "raw": 35983,
+    "gzip9": 10889,
+    "br11": 9677,
+    "distinct": 197,
+    "entropy": 4.587543506269048
+   },
+   {
+    "label": "frequency/etn",
+    "raw": 35960,
+    "gzip9": 10864,
+    "br11": 9679,
+    "distinct": 197,
+    "entropy": 4.536019220141368
+   },
+   {
+    "label": "source/abc",
+    "raw": 35983,
+    "gzip9": 10974,
+    "br11": 9702,
+    "distinct": 197,
+    "entropy": 4.713512482449345
+   },
+   {
+    "label": "firstUse/abc",
+    "raw": 35983,
+    "gzip9": 10974,
+    "br11": 9704,
+    "distinct": 197,
+    "entropy": 4.713512482449345
+   },
+   {
+    "label": "firstUse/reversed",
+    "raw": 35983,
+    "gzip9": 11034,
+    "br11": 9708,
+    "distinct": 198,
+    "entropy": 4.663350647747549
+   },
+   {
+    "label": "source/etn",
+    "raw": 35983,
+    "gzip9": 10885,
+    "br11": 9730,
+    "distinct": 197,
+    "entropy": 4.587543506269048
+   },
+   {
+    "label": "frequency/reversed",
+    "raw": 35983,
+    "gzip9": 11044,
+    "br11": 9732,
+    "distinct": 198,
+    "entropy": 4.371206330009473
+   },
+   {
+    "label": "frequency/abc",
+    "raw": 35960,
+    "gzip9": 11005,
+    "br11": 9742,
+    "distinct": 197,
+    "entropy": 4.476011642015548
+   },
+   {
+    "label": "source/reversed",
+    "raw": 35983,
+    "gzip9": 11033,
+    "br11": 9750,
+    "distinct": 198,
+    "entropy": 4.663350647747549
+   }
+  ],
+  "pools": 0,
+  "poolEntries": 0,
+  "poolBest": null,
+  "poolRows": [],
+  "census": {
+   "literalBytes": 4897,
+   "copyBytes": 30203,
+   "dictBytes": 885,
+   "dictRefs": 139,
+   "reusedDictEntries": 0,
+   "commands": 3063,
+   "implicitPct": 17.69507019262161,
+   "distBits": 28478,
+   "litBits": 24015,
+   "cmdBits": 21094
+  },
+  "twins": {
+   "groups": 0,
+   "misalignedBytes": 0
+  }
+ },
+ {
+  "id": "solidlil-reactive",
+  "path": "/Users/yeargun/lilscript/labs/solid-client/packages/solidlil/reactive.generated.js",
+  "base": {
+   "raw": 13500,
+   "gzip9": 4905,
+   "br11": 4377
+  },
+  "renameModuleTopLevel": true,
+  "bindings": 525,
+  "renamable": 470,
+  "shipped": {
+   "distinct": 94,
+   "entropy": 4.340929946526031,
+   "nameBytes": 2196
+  },
+  "best": {
+   "label": "source/abc",
+   "raw": 13437,
+   "gzip9": 4801,
+   "br11": 4281,
+   "distinct": 83,
+   "entropy": 4.083530932099624
+  },
+  "namings": [
+   {
+    "label": "source/abc",
+    "raw": 13437,
+    "gzip9": 4801,
+    "br11": 4281,
+    "distinct": 83,
+    "entropy": 4.083530932099624
+   },
+   {
+    "label": "frequency/abc",
+    "raw": 13451,
+    "gzip9": 4794,
+    "br11": 4288,
+    "distinct": 87,
+    "entropy": 3.9895833955552256
+   },
+   {
+    "label": "source/dialect",
+    "raw": 13437,
+    "gzip9": 4796,
+    "br11": 4288,
+    "distinct": 83,
+    "entropy": 4.051731132908249
+   },
+   {
+    "label": "frequency/dialect",
+    "raw": 13451,
+    "gzip9": 4796,
+    "br11": 4289,
+    "distinct": 85,
+    "entropy": 3.974503823007346
+   },
+   {
+    "label": "firstUse/dialect",
+    "raw": 13444,
+    "gzip9": 4799,
+    "br11": 4297,
+    "distinct": 83,
+    "entropy": 4.037186731773116
+   },
+   {
+    "label": "firstUse/abc",
+    "raw": 13444,
+    "gzip9": 4804,
+    "br11": 4305,
+    "distinct": 84,
+    "entropy": 4.0716510477223045
+   },
+   {
+    "label": "firstUse/reversed",
+    "raw": 13436,
+    "gzip9": 4894,
+    "br11": 4330,
+    "distinct": 84,
+    "entropy": 4.162284537743152
+   },
+   {
+    "label": "source/reversed",
+    "raw": 13436,
+    "gzip9": 4888,
+    "br11": 4336,
+    "distinct": 84,
+    "entropy": 4.162284537743152
+   },
+   {
+    "label": "frequency/reversed",
+    "raw": 13432,
+    "gzip9": 4884,
+    "br11": 4358,
+    "distinct": 84,
+    "entropy": 3.951510680960999
+   },
+   {
+    "label": "frequency/etn",
+    "raw": 13451,
+    "gzip9": 4857,
+    "br11": 4386,
+    "distinct": 87,
+    "entropy": 3.919025725988602
+   },
+   {
+    "label": "source/etn",
+    "raw": 13437,
+    "gzip9": 4895,
+    "br11": 4400,
+    "distinct": 84,
+    "entropy": 4.069703058275949
+   },
+   {
+    "label": "frequency/adaptive",
+    "raw": 13451,
+    "gzip9": 4872,
+    "br11": 4404,
+    "distinct": 87,
+    "entropy": 3.9184062943280003
+   },
+   {
+    "label": "firstUse/etn",
+    "raw": 13442,
+    "gzip9": 4899,
+    "br11": 4410,
+    "distinct": 85,
+    "entropy": 4.066234913635184
+   },
+   {
+    "label": "source/adaptive",
+    "raw": 13437,
+    "gzip9": 4909,
+    "br11": 4417,
+    "distinct": 84,
+    "entropy": 4.081288229645091
+   },
+   {
+    "label": "firstUse/adaptive",
+    "raw": 13442,
+    "gzip9": 4914,
+    "br11": 4426,
+    "distinct": 85,
+    "entropy": 4.083858373231009
+   }
+  ],
+  "pools": 0,
+  "poolEntries": 0,
+  "poolBest": null,
+  "poolRows": [],
+  "census": {
+   "literalBytes": 2283,
+   "copyBytes": 10825,
+   "dictBytes": 392,
+   "dictRefs": 61,
+   "reusedDictEntries": 0,
+   "commands": 1461,
+   "implicitPct": 21.83436002737851,
+   "distBits": 12064,
+   "litBits": 11381,
+   "cmdBits": 9711
+  },
+  "twins": {
+   "groups": 2,
+   "misalignedBytes": 0
+  }
+ },
+ {
+  "id": "solidlil-core",
+  "path": "/Users/yeargun/lilscript/labs/solid-client/artifacts/generated/solidlil-core-open.js",
+  "base": {
+   "raw": 30074,
+   "gzip9": 9380,
+   "br11": 8433
+  },
+  "renameModuleTopLevel": true,
+  "bindings": 819,
+  "renamable": 765,
+  "shipped": {
+   "distinct": 132,
+   "entropy": 4.463056796539331,
+   "nameBytes": 3315
+  },
+  "best": {
+   "label": "source/dialect",
+   "raw": 30059,
+   "gzip9": 9368,
+   "br11": 8429,
+   "distinct": 133,
+   "entropy": 4.398336432687784
+  },
+  "namings": [
+   {
+    "label": "source/dialect",
+    "raw": 30059,
+    "gzip9": 9368,
+    "br11": 8429,
+    "distinct": 133,
+    "entropy": 4.398336432687784
+   },
+   {
+    "label": "firstUse/dialect",
+    "raw": 30059,
+    "gzip9": 9371,
+    "br11": 8437,
+    "distinct": 133,
+    "entropy": 4.398336432687784
+   },
+   {
+    "label": "firstUse/etn",
+    "raw": 30059,
+    "gzip9": 9375,
+    "br11": 8457,
+    "distinct": 132,
+    "entropy": 4.455226582614563
+   },
+   {
+    "label": "source/etn",
+    "raw": 30059,
+    "gzip9": 9379,
+    "br11": 8457,
+    "distinct": 132,
+    "entropy": 4.455226582614563
+   },
+   {
+    "label": "frequency/dialect",
+    "raw": 30059,
+    "gzip9": 9384,
+    "br11": 8459,
+    "distinct": 133,
+    "entropy": 4.386286993319819
+   },
+   {
+    "label": "source/adaptive",
+    "raw": 30059,
+    "gzip9": 9402,
+    "br11": 8463,
+    "distinct": 132,
+    "entropy": 4.4841252200494734
+   },
+   {
+    "label": "frequency/etn",
+    "raw": 30059,
+    "gzip9": 9390,
+    "br11": 8467,
+    "distinct": 132,
+    "entropy": 4.456003757087399
+   },
+   {
+    "label": "frequency/adaptive",
+    "raw": 30059,
+    "gzip9": 9384,
+    "br11": 8471,
+    "distinct": 132,
+    "entropy": 4.468247722731047
+   },
+   {
+    "label": "firstUse/reversed",
+    "raw": 30059,
+    "gzip9": 9536,
+    "br11": 8472,
+    "distinct": 140,
+    "entropy": 4.5027864452404245
+   },
+   {
+    "label": "firstUse/adaptive",
+    "raw": 30059,
+    "gzip9": 9398,
+    "br11": 8475,
+    "distinct": 132,
+    "entropy": 4.4841252200494734
+   },
+   {
+    "label": "source/reversed",
+    "raw": 30059,
+    "gzip9": 9539,
+    "br11": 8483,
+    "distinct": 140,
+    "entropy": 4.5027864452404245
+   },
+   {
+    "label": "frequency/reversed",
+    "raw": 30059,
+    "gzip9": 9575,
+    "br11": 8500,
+    "distinct": 140,
+    "entropy": 4.366957236069179
+   },
+   {
+    "label": "frequency/abc",
+    "raw": 30059,
+    "gzip9": 9507,
+    "br11": 8528,
+    "distinct": 132,
+    "entropy": 4.360832785341198
+   },
+   {
+    "label": "source/abc",
+    "raw": 30059,
+    "gzip9": 9533,
+    "br11": 8536,
+    "distinct": 132,
+    "entropy": 4.477028927391733
+   },
+   {
+    "label": "firstUse/abc",
+    "raw": 30059,
+    "gzip9": 9533,
+    "br11": 8539,
+    "distinct": 132,
+    "entropy": 4.477028927391733
+   }
+  ],
+  "pools": 0,
+  "poolEntries": 0,
+  "poolBest": null,
+  "poolRows": [],
+  "census": {
+   "literalBytes": 3062,
+   "copyBytes": 25898,
+   "dictBytes": 1114,
+   "dictRefs": 166,
+   "reusedDictEntries": 0,
+   "commands": 3046,
+   "implicitPct": 15.134602757715035,
+   "distBits": 31343,
+   "litBits": 14719,
+   "cmdBits": 19067
+  },
+  "twins": {
+   "groups": 1,
+   "misalignedBytes": 0
+  }
+ },
+ {
+  "id": "solidlil-lsx-vite",
+  "path": "/Users/yeargun/lilscript/labs/solid-client/artifacts/generated/solidlil-lsx-vite.js",
+  "base": {
+   "raw": 34209,
+   "gzip9": 12052,
+   "br11": 10741
+  },
+  "renameModuleTopLevel": true,
+  "bindings": 1134,
+  "renamable": 1134,
+  "shipped": {
+   "distinct": 296,
+   "entropy": 5.274546404501037,
+   "nameBytes": 6211
+  },
+  "best": {
+   "label": "firstUse/adaptive",
+   "raw": 34206,
+   "gzip9": 12093,
+   "br11": 10740,
+   "distinct": 296,
+   "entropy": 5.29670913601107
+  },
+  "namings": [
+   {
+    "label": "firstUse/adaptive",
+    "raw": 34206,
+    "gzip9": 12093,
+    "br11": 10740,
+    "distinct": 296,
+    "entropy": 5.29670913601107
+   },
+   {
+    "label": "source/adaptive",
+    "raw": 34206,
+    "gzip9": 12078,
+    "br11": 10748,
+    "distinct": 296,
+    "entropy": 5.29670913601107
+   },
+   {
+    "label": "source/dialect",
+    "raw": 34206,
+    "gzip9": 12082,
+    "br11": 10764,
+    "distinct": 296,
+    "entropy": 5.1736475282928955
+   },
+   {
+    "label": "source/etn",
+    "raw": 34206,
+    "gzip9": 12057,
+    "br11": 10767,
+    "distinct": 296,
+    "entropy": 5.259568781665227
+   },
+   {
+    "label": "frequency/etn",
+    "raw": 34206,
+    "gzip9": 12094,
+    "br11": 10769,
+    "distinct": 296,
+    "entropy": 5.2598126470807225
+   },
+   {
+    "label": "firstUse/etn",
+    "raw": 34206,
+    "gzip9": 12094,
+    "br11": 10769,
+    "distinct": 296,
+    "entropy": 5.259568781665227
+   },
+   {
+    "label": "firstUse/dialect",
+    "raw": 34206,
+    "gzip9": 12112,
+    "br11": 10770,
+    "distinct": 296,
+    "entropy": 5.1736475282928955
+   },
+   {
+    "label": "frequency/adaptive",
+    "raw": 34206,
+    "gzip9": 12132,
+    "br11": 10815,
+    "distinct": 296,
+    "entropy": 5.294417693974188
+   },
+   {
+    "label": "frequency/dialect",
+    "raw": 34206,
+    "gzip9": 12118,
+    "br11": 10819,
+    "distinct": 296,
+    "entropy": 5.167771261769347
+   },
+   {
+    "label": "source/reversed",
+    "raw": 34206,
+    "gzip9": 12359,
+    "br11": 10846,
+    "distinct": 296,
+    "entropy": 5.234671059906137
+   },
+   {
+    "label": "firstUse/reversed",
+    "raw": 34206,
+    "gzip9": 12382,
+    "br11": 10850,
+    "distinct": 296,
+    "entropy": 5.234671059906137
+   },
+   {
+    "label": "frequency/reversed",
+    "raw": 34206,
+    "gzip9": 12392,
+    "br11": 10903,
+    "distinct": 296,
+    "entropy": 5.10514299746757
+   },
+   {
+    "label": "source/abc",
+    "raw": 34206,
+    "gzip9": 12303,
+    "br11": 10921,
+    "distinct": 296,
+    "entropy": 5.338945674397322
+   },
+   {
+    "label": "firstUse/abc",
+    "raw": 34206,
+    "gzip9": 12337,
+    "br11": 10927,
+    "distinct": 296,
+    "entropy": 5.338945674397322
+   },
+   {
+    "label": "frequency/abc",
+    "raw": 34206,
+    "gzip9": 12328,
+    "br11": 10980,
+    "distinct": 296,
+    "entropy": 5.258650446066054
+   }
+  ],
+  "pools": 0,
+  "poolEntries": 0,
+  "poolBest": null,
+  "poolRows": [],
+  "census": {
+   "literalBytes": 5332,
+   "copyBytes": 27045,
+   "dictBytes": 1832,
+   "dictRefs": 283,
+   "reusedDictEntries": 0,
+   "commands": 3447,
+   "implicitPct": 17.580504786771105,
+   "distBits": 33451,
+   "litBits": 26401,
+   "cmdBits": 23339
+  },
+  "twins": {
+   "groups": 0,
+   "misalignedBytes": 0
+  }
+ },
+ {
+  "id": "solidlil-web",
+  "path": "/Users/yeargun/lilscript/labs/solid-client/artifacts/generated/solidlil-web.js",
+  "base": {
+   "raw": 40467,
+   "gzip9": 13090,
+   "br11": 11667
+  },
+  "renameModuleTopLevel": true,
+  "bindings": 925,
+  "renamable": 857,
+  "shipped": {
+   "distinct": 136,
+   "entropy": 4.261567933933036,
+   "nameBytes": 3878
+  },
+  "best": {
+   "label": "firstUse/dialect",
+   "raw": 40467,
+   "gzip9": 13088,
+   "br11": 11674,
+   "distinct": 136,
+   "entropy": 4.191677854810532
+  },
+  "namings": [
+   {
+    "label": "firstUse/dialect",
+    "raw": 40467,
+    "gzip9": 13088,
+    "br11": 11674,
+    "distinct": 136,
+    "entropy": 4.191677854810532
+   },
+   {
+    "label": "source/dialect",
+    "raw": 40467,
+    "gzip9": 13102,
+    "br11": 11679,
+    "distinct": 136,
+    "entropy": 4.191677854810532
+   },
+   {
+    "label": "firstUse/etn",
+    "raw": 40467,
+    "gzip9": 13085,
+    "br11": 11680,
+    "distinct": 136,
+    "entropy": 4.2515083222946055
+   },
+   {
+    "label": "frequency/dialect",
+    "raw": 40467,
+    "gzip9": 13104,
+    "br11": 11683,
+    "distinct": 136,
+    "entropy": 4.195634900132364
+   },
+   {
+    "label": "source/reversed",
+    "raw": 40467,
+    "gzip9": 13313,
+    "br11": 11685,
+    "distinct": 139,
+    "entropy": 4.2380411851555
+   },
+   {
+    "label": "source/etn",
+    "raw": 40467,
+    "gzip9": 13090,
+    "br11": 11687,
+    "distinct": 136,
+    "entropy": 4.2515083222946055
+   },
+   {
+    "label": "firstUse/reversed",
+    "raw": 40467,
+    "gzip9": 13314,
+    "br11": 11688,
+    "distinct": 139,
+    "entropy": 4.2380411851555
+   },
+   {
+    "label": "frequency/adaptive",
+    "raw": 40467,
+    "gzip9": 13110,
+    "br11": 11694,
+    "distinct": 136,
+    "entropy": 4.279034434945365
+   },
+   {
+    "label": "frequency/etn",
+    "raw": 40467,
+    "gzip9": 13098,
+    "br11": 11705,
+    "distinct": 136,
+    "entropy": 4.250153487741558
+   },
+   {
+    "label": "firstUse/adaptive",
+    "raw": 40467,
+    "gzip9": 13110,
+    "br11": 11709,
+    "distinct": 136,
+    "entropy": 4.279002709183179
+   },
+   {
+    "label": "source/adaptive",
+    "raw": 40467,
+    "gzip9": 13103,
+    "br11": 11738,
+    "distinct": 136,
+    "entropy": 4.279002709183179
+   },
+   {
+    "label": "frequency/reversed",
+    "raw": 40467,
+    "gzip9": 13377,
+    "br11": 11751,
+    "distinct": 139,
+    "entropy": 4.102957375217318
+   },
+   {
+    "label": "frequency/abc",
+    "raw": 40467,
+    "gzip9": 13302,
+    "br11": 11834,
+    "distinct": 136,
+    "entropy": 4.247452610978498
+   },
+   {
+    "label": "firstUse/abc",
+    "raw": 40467,
+    "gzip9": 13326,
+    "br11": 11850,
+    "distinct": 136,
+    "entropy": 4.346528876324115
+   },
+   {
+    "label": "source/abc",
+    "raw": 40467,
+    "gzip9": 13330,
+    "br11": 11860,
+    "distinct": 136,
+    "entropy": 4.346528876324115
+   }
+  ],
+  "pools": 0,
+  "poolEntries": 0,
+  "poolBest": null,
+  "poolRows": [],
+  "census": {
+   "literalBytes": 4080,
+   "copyBytes": 33762,
+   "dictBytes": 2625,
+   "dictRefs": 377,
+   "reusedDictEntries": 0,
+   "commands": 4112,
+   "implicitPct": 12.45136186770428,
+   "distBits": 45322,
+   "litBits": 19858,
+   "cmdBits": 25321
+  },
+  "twins": {
+   "groups": 1,
+   "misalignedBytes": 0
+  }
+ },
+ {
+  "id": "solid-core (js)",
+  "path": "/Users/yeargun/lilscript/labs/solid-client/artifacts/generated/solid-core-open.js",
+  "base": {
+   "raw": 29474,
+   "gzip9": 9460,
+   "br11": 8551
+  },
+  "renameModuleTopLevel": true,
+  "bindings": 649,
+  "renamable": 595,
+  "shipped": {
+   "distinct": 82,
+   "entropy": 4.344056890742184,
+   "nameBytes": 2761
+  },
+  "best": {
+   "label": "firstUse/adaptive",
+   "raw": 29466,
+   "gzip9": 9455,
+   "br11": 8535,
+   "distinct": 82,
+   "entropy": 4.357721028268345
+  },
+  "namings": [
+   {
+    "label": "firstUse/adaptive",
+    "raw": 29466,
+    "gzip9": 9455,
+    "br11": 8535,
+    "distinct": 82,
+    "entropy": 4.357721028268345
+   },
+   {
+    "label": "frequency/adaptive",
+    "raw": 29466,
+    "gzip9": 9456,
+    "br11": 8539,
+    "distinct": 82,
+    "entropy": 4.353002177556506
+   },
+   {
+    "label": "source/adaptive",
+    "raw": 29466,
+    "gzip9": 9459,
+    "br11": 8553,
+    "distinct": 82,
+    "entropy": 4.357721028268345
+   },
+   {
+    "label": "firstUse/dialect",
+    "raw": 29466,
+    "gzip9": 9475,
+    "br11": 8557,
+    "distinct": 83,
+    "entropy": 4.268285451599137
+   },
+   {
+    "label": "source/dialect",
+    "raw": 29466,
+    "gzip9": 9479,
+    "br11": 8560,
+    "distinct": 83,
+    "entropy": 4.268285451599137
+   },
+   {
+    "label": "source/etn",
+    "raw": 29466,
+    "gzip9": 9492,
+    "br11": 8566,
+    "distinct": 81,
+    "entropy": 4.328236206845093
+   },
+   {
+    "label": "frequency/etn",
+    "raw": 29466,
+    "gzip9": 9481,
+    "br11": 8567,
+    "distinct": 81,
+    "entropy": 4.326552118742768
+   },
+   {
+    "label": "frequency/dialect",
+    "raw": 29466,
+    "gzip9": 9482,
+    "br11": 8567,
+    "distinct": 82,
+    "entropy": 4.242116755040594
+   },
+   {
+    "label": "firstUse/etn",
+    "raw": 29466,
+    "gzip9": 9492,
+    "br11": 8575,
+    "distinct": 81,
+    "entropy": 4.328236206845093
+   },
+   {
+    "label": "frequency/reversed",
+    "raw": 29474,
+    "gzip9": 9654,
+    "br11": 8575,
+    "distinct": 80,
+    "entropy": 4.14409021337124
+   },
+   {
+    "label": "source/reversed",
+    "raw": 29472,
+    "gzip9": 9643,
+    "br11": 8579,
+    "distinct": 82,
+    "entropy": 4.294802170226338
+   },
+   {
+    "label": "firstUse/abc",
+    "raw": 29466,
+    "gzip9": 9556,
+    "br11": 8580,
+    "distinct": 79,
+    "entropy": 4.2906663259733255
+   },
+   {
+    "label": "firstUse/reversed",
+    "raw": 29472,
+    "gzip9": 9640,
+    "br11": 8580,
+    "distinct": 82,
+    "entropy": 4.29462570667755
+   },
+   {
+    "label": "source/abc",
+    "raw": 29466,
+    "gzip9": 9554,
+    "br11": 8581,
+    "distinct": 79,
+    "entropy": 4.2906663259733255
+   },
+   {
+    "label": "frequency/abc",
+    "raw": 29466,
+    "gzip9": 9579,
+    "br11": 8617,
+    "distinct": 79,
+    "entropy": 4.231002302784003
+   }
+  ],
+  "pools": 0,
+  "poolEntries": 0,
+  "poolBest": null,
+  "poolRows": [],
+  "census": {
+   "literalBytes": 3084,
+   "copyBytes": 25072,
+   "dictBytes": 1318,
+   "dictRefs": 198,
+   "reusedDictEntries": 0,
+   "commands": 2983,
+   "implicitPct": 10.42574589339591,
+   "distBits": 33414,
+   "litBits": 14401,
+   "cmdBits": 18409
+  },
+  "twins": {
+   "groups": 0,
+   "misalignedBytes": 0
+  }
+ },
+ {
+  "id": "solid-lsx-vite (js)",
+  "path": "/Users/yeargun/lilscript/labs/solid-client/artifacts/generated/solid-lsx-vite.js",
+  "base": {
+   "raw": 38629,
+   "gzip9": 13905,
+   "br11": 12560
+  },
+  "renameModuleTopLevel": true,
+  "bindings": 940,
+  "renamable": 940,
+  "shipped": {
+   "distinct": 239,
+   "entropy": 5.104052079218562,
+   "nameBytes": 4724
+  },
+  "best": {
+   "label": "source/etn",
+   "raw": 38618,
+   "gzip9": 13912,
+   "br11": 12498,
+   "distinct": 239,
+   "entropy": 5.090791229587695
+  },
+  "namings": [
+   {
+    "label": "source/etn",
+    "raw": 38618,
+    "gzip9": 13912,
+    "br11": 12498,
+    "distinct": 239,
+    "entropy": 5.090791229587695
+   },
+   {
+    "label": "firstUse/adaptive",
+    "raw": 38618,
+    "gzip9": 13901,
+    "br11": 12511,
+    "distinct": 239,
+    "entropy": 5.101454098900444
+   },
+   {
+    "label": "source/adaptive",
+    "raw": 38618,
+    "gzip9": 13900,
+    "br11": 12516,
+    "distinct": 239,
+    "entropy": 5.101454098900444
+   },
+   {
+    "label": "frequency/etn",
+    "raw": 38618,
+    "gzip9": 13906,
+    "br11": 12526,
+    "distinct": 239,
+    "entropy": 5.086300983378185
+   },
+   {
+    "label": "firstUse/etn",
+    "raw": 38618,
+    "gzip9": 13914,
+    "br11": 12528,
+    "distinct": 239,
+    "entropy": 5.090791229587695
+   },
+   {
+    "label": "source/dialect",
+    "raw": 38618,
+    "gzip9": 13923,
+    "br11": 12545,
+    "distinct": 239,
+    "entropy": 5.056769062562345
+   },
+   {
+    "label": "firstUse/dialect",
+    "raw": 38618,
+    "gzip9": 13924,
+    "br11": 12553,
+    "distinct": 239,
+    "entropy": 5.056769062562345
+   },
+   {
+    "label": "frequency/dialect",
+    "raw": 38618,
+    "gzip9": 13916,
+    "br11": 12554,
+    "distinct": 239,
+    "entropy": 5.054169452370772
+   },
+   {
+    "label": "frequency/adaptive",
+    "raw": 38618,
+    "gzip9": 13937,
+    "br11": 12574,
+    "distinct": 239,
+    "entropy": 5.107553756548566
+   },
+   {
+    "label": "source/reversed",
+    "raw": 38626,
+    "gzip9": 14210,
+    "br11": 12585,
+    "distinct": 239,
+    "entropy": 5.068852485098013
+   },
+   {
+    "label": "firstUse/abc",
+    "raw": 38618,
+    "gzip9": 14091,
+    "br11": 12595,
+    "distinct": 239,
+    "entropy": 5.15716958702694
+   },
+   {
+    "label": "frequency/abc",
+    "raw": 38618,
+    "gzip9": 14074,
+    "br11": 12598,
+    "distinct": 239,
+    "entropy": 5.087185567270874
+   },
+   {
+    "label": "firstUse/reversed",
+    "raw": 38626,
+    "gzip9": 14205,
+    "br11": 12617,
+    "distinct": 239,
+    "entropy": 5.068582951789534
+   },
+   {
+    "label": "source/abc",
+    "raw": 38618,
+    "gzip9": 14090,
+    "br11": 12619,
+    "distinct": 239,
+    "entropy": 5.15716958702694
+   },
+   {
+    "label": "frequency/reversed",
+    "raw": 38626,
+    "gzip9": 14236,
+    "br11": 12680,
+    "distinct": 239,
+    "entropy": 4.965580284880655
+   }
+  ],
+  "pools": 0,
+  "poolEntries": 0,
+  "poolBest": null,
+  "poolRows": [],
+  "census": {
+   "literalBytes": 6194,
+   "copyBytes": 30099,
+   "dictBytes": 2336,
+   "dictRefs": 361,
+   "reusedDictEntries": 0,
+   "commands": 3842,
+   "implicitPct": 13.66475793857366,
+   "distBits": 40712,
+   "litBits": 30748,
+   "cmdBits": 25677
+  },
+  "twins": {
+   "groups": 0,
+   "misalignedBytes": 0
+  }
+ },
+ {
+  "id": "solid-web (js)",
+  "path": "/Users/yeargun/lilscript/labs/solid-client/artifacts/generated/solid-web.js",
+  "base": {
+   "raw": 39583,
+   "gzip9": 13024,
+   "br11": 11655
+  },
+  "renameModuleTopLevel": true,
+  "bindings": 769,
+  "renamable": 701,
+  "shipped": {
+   "distinct": 86,
+   "entropy": 4.072860967420755,
+   "nameBytes": 3332
+  },
+  "best": {
+   "label": "source/dialect",
+   "raw": 39583,
+   "gzip9": 13021,
+   "br11": 11641,
+   "distinct": 87,
+   "entropy": 4.0284327199233525
+  },
+  "namings": [
+   {
+    "label": "source/dialect",
+    "raw": 39583,
+    "gzip9": 13021,
+    "br11": 11641,
+    "distinct": 87,
+    "entropy": 4.0284327199233525
+   },
+   {
+    "label": "frequency/dialect",
+    "raw": 39583,
+    "gzip9": 13017,
+    "br11": 11643,
+    "distinct": 87,
+    "entropy": 4.021671227070993
+   },
+   {
+    "label": "firstUse/adaptive",
+    "raw": 39583,
+    "gzip9": 13023,
+    "br11": 11648,
+    "distinct": 87,
+    "entropy": 4.070680567184039
+   },
+   {
+    "label": "source/adaptive",
+    "raw": 39583,
+    "gzip9": 13020,
+    "br11": 11652,
+    "distinct": 87,
+    "entropy": 4.070680567184039
+   },
+   {
+    "label": "firstUse/etn",
+    "raw": 39583,
+    "gzip9": 13015,
+    "br11": 11655,
+    "distinct": 87,
+    "entropy": 4.062079522782602
+   },
+   {
+    "label": "frequency/etn",
+    "raw": 39583,
+    "gzip9": 13003,
+    "br11": 11658,
+    "distinct": 87,
+    "entropy": 4.059531517500513
+   },
+   {
+    "label": "firstUse/dialect",
+    "raw": 39583,
+    "gzip9": 13022,
+    "br11": 11659,
+    "distinct": 87,
+    "entropy": 4.0284327199233525
+   },
+   {
+    "label": "frequency/adaptive",
+    "raw": 39583,
+    "gzip9": 13028,
+    "br11": 11667,
+    "distinct": 87,
+    "entropy": 4.077668554711928
+   },
+   {
+    "label": "source/etn",
+    "raw": 39583,
+    "gzip9": 13015,
+    "br11": 11669,
+    "distinct": 87,
+    "entropy": 4.062079522782602
+   },
+   {
+    "label": "firstUse/reversed",
+    "raw": 39583,
+    "gzip9": 13256,
+    "br11": 11675,
+    "distinct": 90,
+    "entropy": 4.1587282275607285
+   },
+   {
+    "label": "source/reversed",
+    "raw": 39583,
+    "gzip9": 13259,
+    "br11": 11701,
+    "distinct": 90,
+    "entropy": 4.1587282275607285
+   },
+   {
+    "label": "frequency/abc",
+    "raw": 39583,
+    "gzip9": 13165,
+    "br11": 11717,
+    "distinct": 88,
+    "entropy": 4.000830645302067
+   },
+   {
+    "label": "frequency/reversed",
+    "raw": 39583,
+    "gzip9": 13303,
+    "br11": 11736,
+    "distinct": 90,
+    "entropy": 4.017321421197297
+   },
+   {
+    "label": "source/abc",
+    "raw": 39583,
+    "gzip9": 13185,
+    "br11": 11741,
+    "distinct": 88,
+    "entropy": 4.082321503687434
+   },
+   {
+    "label": "firstUse/abc",
+    "raw": 39583,
+    "gzip9": 13189,
+    "br11": 11774,
+    "distinct": 88,
+    "entropy": 4.082321503687434
+   }
+  ],
+  "pools": 0,
+  "poolEntries": 0,
+  "poolBest": null,
+  "poolRows": [],
+  "census": {
+   "literalBytes": 4021,
+   "copyBytes": 32992,
+   "dictBytes": 2570,
+   "dictRefs": 376,
+   "reusedDictEntries": 0,
+   "commands": 4076,
+   "implicitPct": 9.4946025515211,
+   "distBits": 46679,
+   "litBits": 19067,
+   "cmdBits": 24636
+  },
+  "twins": {
+   "groups": 0,
+   "misalignedBytes": 0
+  }
+ }
+]

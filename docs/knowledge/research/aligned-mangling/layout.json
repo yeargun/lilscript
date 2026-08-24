@@ -1,0 +1,800 @@
+[
+ {
+  "id": "jquery-min",
+  "order": "asIs",
+  "moved": 0,
+  "base": {
+   "raw": 87533,
+   "gzip9": 30342,
+   "br11": 27445
+  },
+  "delta": {
+   "raw": 0,
+   "gzip9": 0,
+   "br11": 0
+  },
+  "implicitPct": 4.736262391384163,
+  "baseImplicitPct": 4.736262391384163,
+  "distBytes": 12973,
+  "baseDistBytes": 12973
+ },
+ {
+  "id": "jquery-min",
+  "order": "similarity",
+  "moved": 63,
+  "base": {
+   "raw": 87533,
+   "gzip9": 30342,
+   "br11": 27445
+  },
+  "delta": {
+   "raw": 0,
+   "gzip9": 34,
+   "br11": 13
+  },
+  "implicitPct": 4.624418889160753,
+  "baseImplicitPct": 4.736262391384163,
+  "distBytes": 13064,
+  "baseDistBytes": 12973
+ },
+ {
+  "id": "jquery-min",
+  "order": "sizeThenSimilarity",
+  "moved": 65,
+  "base": {
+   "raw": 87533,
+   "gzip9": 30342,
+   "br11": 27445
+  },
+  "delta": {
+   "raw": 0,
+   "gzip9": 92,
+   "br11": 67
+  },
+  "implicitPct": 4.625766871165644,
+  "baseImplicitPct": 4.736262391384163,
+  "distBytes": 13003,
+  "baseDistBytes": 12973
+ },
+ {
+  "id": "jquery-min",
+  "order": "byLength",
+  "moved": 68,
+  "base": {
+   "raw": 87533,
+   "gzip9": 30342,
+   "br11": 27445
+  },
+  "delta": {
+   "raw": 0,
+   "gzip9": 94,
+   "br11": 41
+  },
+  "implicitPct": 4.565591927147428,
+  "baseImplicitPct": 4.736262391384163,
+  "distBytes": 12992,
+  "baseDistBytes": 12973
+ },
+ {
+  "id": "jquery-min",
+  "order": "byName",
+  "moved": 68,
+  "base": {
+   "raw": 87533,
+   "gzip9": 30342,
+   "br11": 27445
+  },
+  "delta": {
+   "raw": 0,
+   "gzip9": 220,
+   "br11": 87
+  },
+  "implicitPct": 4.4600073719130116,
+  "baseImplicitPct": 4.736262391384163,
+  "distBytes": 13044,
+  "baseDistBytes": 12973
+ },
+ {
+  "id": "jquery-min",
+  "order": "reversed",
+  "moved": 68,
+  "base": {
+   "raw": 87533,
+   "gzip9": 30342,
+   "br11": 27445
+  },
+  "delta": {
+   "raw": 0,
+   "gzip9": 193,
+   "br11": 66
+  },
+  "implicitPct": 4.701694082985514,
+  "baseImplicitPct": 4.736262391384163,
+  "distBytes": 13004,
+  "baseDistBytes": 12973
+ },
+ {
+  "id": "jquery-src",
+  "order": "asIs",
+  "moved": 0,
+  "base": {
+   "raw": 285314,
+   "gzip9": 83697,
+   "br11": 69545
+  },
+  "delta": {
+   "raw": 0,
+   "gzip9": 0,
+   "br11": 0
+  },
+  "implicitPct": 1.2440876028459,
+  "baseImplicitPct": 1.2440876028459,
+  "distBytes": 44914,
+  "baseDistBytes": 44914
+ },
+ {
+  "id": "jquery-src",
+  "order": "similarity",
+  "moved": 78,
+  "base": {
+   "raw": 285314,
+   "gzip9": 83697,
+   "br11": 69545
+  },
+  "delta": {
+   "raw": 0,
+   "gzip9": 670,
+   "br11": 228
+  },
+  "implicitPct": 1.2724461886074445,
+  "baseImplicitPct": 1.2440876028459,
+  "distBytes": 45250,
+  "baseDistBytes": 44914
+ },
+ {
+  "id": "jquery-src",
+  "order": "sizeThenSimilarity",
+  "moved": 79,
+  "base": {
+   "raw": 285314,
+   "gzip9": 83697,
+   "br11": 69545
+  },
+  "delta": {
+   "raw": 0,
+   "gzip9": 1018,
+   "br11": 222
+  },
+  "implicitPct": 1.268389662027833,
+  "baseImplicitPct": 1.2440876028459,
+  "distBytes": 45147,
+  "baseDistBytes": 44914
+ },
+ {
+  "id": "jquery-src",
+  "order": "byLength",
+  "moved": 79,
+  "base": {
+   "raw": 285314,
+   "gzip9": 83697,
+   "br11": 69545
+  },
+  "delta": {
+   "raw": 0,
+   "gzip9": 1041,
+   "br11": 278
+  },
+  "implicitPct": 1.259836261028535,
+  "baseImplicitPct": 1.2440876028459,
+  "distBytes": 45169,
+  "baseDistBytes": 44914
+ },
+ {
+  "id": "jquery-src",
+  "order": "byName",
+  "moved": 80,
+  "base": {
+   "raw": 285314,
+   "gzip9": 83697,
+   "br11": 69545
+  },
+  "delta": {
+   "raw": 0,
+   "gzip9": 993,
+   "br11": 280
+  },
+  "implicitPct": 1.2228530591177988,
+  "baseImplicitPct": 1.2440876028459,
+  "distBytes": 45262,
+  "baseDistBytes": 44914
+ },
+ {
+  "id": "jquery-src",
+  "order": "reversed",
+  "moved": 80,
+  "base": {
+   "raw": 285314,
+   "gzip9": 83697,
+   "br11": 69545
+  },
+  "delta": {
+   "raw": 0,
+   "gzip9": 873,
+   "br11": 237
+  },
+  "implicitPct": 1.2599548318079163,
+  "baseImplicitPct": 1.2440876028459,
+  "distBytes": 45175,
+  "baseDistBytes": 44914
+ },
+ {
+  "id": "jquery-lil-raw",
+  "order": "asIs",
+  "moved": 0,
+  "base": {
+   "raw": 102681,
+   "gzip9": 38948,
+   "br11": 33283
+  },
+  "delta": {
+   "raw": 0,
+   "gzip9": 0,
+   "br11": 0
+  },
+  "implicitPct": 11.256623013096071,
+  "baseImplicitPct": 11.256623013096071,
+  "distBytes": 14814,
+  "baseDistBytes": 14814
+ },
+ {
+  "id": "jquery-lil-raw",
+  "order": "similarity",
+  "moved": 235,
+  "base": {
+   "raw": 102681,
+   "gzip9": 38948,
+   "br11": 33283
+  },
+  "delta": {
+   "raw": 0,
+   "gzip9": -18,
+   "br11": 44
+  },
+  "implicitPct": 11.36637239165329,
+  "baseImplicitPct": 11.256623013096071,
+  "distBytes": 14832,
+  "baseDistBytes": 14814
+ },
+ {
+  "id": "jquery-lil-raw",
+  "order": "sizeThenSimilarity",
+  "moved": 239,
+  "base": {
+   "raw": 102681,
+   "gzip9": 38948,
+   "br11": 33283
+  },
+  "delta": {
+   "raw": 0,
+   "gzip9": 16,
+   "br11": 107
+  },
+  "implicitPct": 11.328125,
+  "baseImplicitPct": 11.256623013096071,
+  "distBytes": 14865,
+  "baseDistBytes": 14814
+ },
+ {
+  "id": "jquery-lil-raw",
+  "order": "byLength",
+  "moved": 244,
+  "base": {
+   "raw": 102681,
+   "gzip9": 38948,
+   "br11": 33283
+  },
+  "delta": {
+   "raw": 0,
+   "gzip9": 54,
+   "br11": 129
+  },
+  "implicitPct": 11.22704926256647,
+  "baseImplicitPct": 11.256623013096071,
+  "distBytes": 14869,
+  "baseDistBytes": 14814
+ },
+ {
+  "id": "jquery-lil-raw",
+  "order": "byName",
+  "moved": 219,
+  "base": {
+   "raw": 102681,
+   "gzip9": 38948,
+   "br11": 33283
+  },
+  "delta": {
+   "raw": 0,
+   "gzip9": 238,
+   "br11": 234
+  },
+  "implicitPct": 11.24558749369642,
+  "baseImplicitPct": 11.256623013096071,
+  "distBytes": 14817,
+  "baseDistBytes": 14814
+ },
+ {
+  "id": "jquery-lil-raw",
+  "order": "reversed",
+  "moved": 246,
+  "base": {
+   "raw": 102681,
+   "gzip9": 38948,
+   "br11": 33283
+  },
+  "delta": {
+   "raw": 0,
+   "gzip9": -70,
+   "br11": 21
+  },
+  "implicitPct": 11.47279081377933,
+  "baseImplicitPct": 11.256623013096071,
+  "distBytes": 14798,
+  "baseDistBytes": 14814
+ },
+ {
+  "id": "jquery-lil-min",
+  "order": "asIs",
+  "moved": 0,
+  "base": {
+   "raw": 110749,
+   "gzip9": 42826,
+   "br11": 37901
+  },
+  "delta": {
+   "raw": 0,
+   "gzip9": 0,
+   "br11": 0
+  },
+  "implicitPct": 14.984437527790128,
+  "baseImplicitPct": 14.984437527790128,
+  "distBytes": 15610,
+  "baseDistBytes": 15610
+ },
+ {
+  "id": "jquery-lil-min",
+  "order": "similarity",
+  "moved": 189,
+  "base": {
+   "raw": 110749,
+   "gzip9": 42826,
+   "br11": 37901
+  },
+  "delta": {
+   "raw": 0,
+   "gzip9": 347,
+   "br11": 72
+  },
+  "implicitPct": 15.411963381032798,
+  "baseImplicitPct": 14.984437527790128,
+  "distBytes": 15651,
+  "baseDistBytes": 15610
+ },
+ {
+  "id": "jquery-lil-min",
+  "order": "sizeThenSimilarity",
+  "moved": 190,
+  "base": {
+   "raw": 110749,
+   "gzip9": 42826,
+   "br11": 37901
+  },
+  "delta": {
+   "raw": 0,
+   "gzip9": 327,
+   "br11": 113
+  },
+  "implicitPct": 15.23877026667848,
+  "baseImplicitPct": 14.984437527790128,
+  "distBytes": 15751,
+  "baseDistBytes": 15610
+ },
+ {
+  "id": "jquery-lil-min",
+  "order": "byLength",
+  "moved": 191,
+  "base": {
+   "raw": 110749,
+   "gzip9": 42826,
+   "br11": 37901
+  },
+  "delta": {
+   "raw": 0,
+   "gzip9": 347,
+   "br11": 177
+  },
+  "implicitPct": 14.795737122557725,
+  "baseImplicitPct": 14.984437527790128,
+  "distBytes": 15785,
+  "baseDistBytes": 15610
+ },
+ {
+  "id": "jquery-lil-min",
+  "order": "byName",
+  "moved": 191,
+  "base": {
+   "raw": 110749,
+   "gzip9": 42826,
+   "br11": 37901
+  },
+  "delta": {
+   "raw": 0,
+   "gzip9": 568,
+   "br11": 301
+  },
+  "implicitPct": 14.779510022271717,
+  "baseImplicitPct": 14.984437527790128,
+  "distBytes": 15867,
+  "baseDistBytes": 15610
+ },
+ {
+  "id": "jquery-lil-min",
+  "order": "reversed",
+  "moved": 192,
+  "base": {
+   "raw": 110749,
+   "gzip9": 42826,
+   "br11": 37901
+  },
+  "delta": {
+   "raw": 0,
+   "gzip9": 374,
+   "br11": 189
+  },
+  "implicitPct": 15.222419928825623,
+  "baseImplicitPct": 14.984437527790128,
+  "distBytes": 15668,
+  "baseDistBytes": 15610
+ },
+ {
+  "id": "glmatrix-js-vite",
+  "order": "asIs",
+  "moved": 0,
+  "base": {
+   "raw": 73505,
+   "gzip9": 17722,
+   "br11": 14330
+  },
+  "delta": {
+   "raw": 0,
+   "gzip9": 0,
+   "br11": 0
+  },
+  "implicitPct": 35.316733797143904,
+  "baseImplicitPct": 35.316733797143904,
+  "distBytes": 4974,
+  "baseDistBytes": 4974
+ },
+ {
+  "id": "glmatrix-js-vite",
+  "order": "similarity",
+  "moved": 295,
+  "base": {
+   "raw": 73505,
+   "gzip9": 17722,
+   "br11": 14330
+  },
+  "delta": {
+   "raw": 0,
+   "gzip9": 95,
+   "br11": 15
+  },
+  "implicitPct": 35.14814814814815,
+  "baseImplicitPct": 35.316733797143904,
+  "distBytes": 4973,
+  "baseDistBytes": 4974
+ },
+ {
+  "id": "glmatrix-js-vite",
+  "order": "sizeThenSimilarity",
+  "moved": 294,
+  "base": {
+   "raw": 73505,
+   "gzip9": 17722,
+   "br11": 14330
+  },
+  "delta": {
+   "raw": 0,
+   "gzip9": -150,
+   "br11": 53
+  },
+  "implicitPct": 33.86977432482427,
+  "baseImplicitPct": 35.316733797143904,
+  "distBytes": 5073,
+  "baseDistBytes": 4974
+ },
+ {
+  "id": "glmatrix-js-vite",
+  "order": "byLength",
+  "moved": 295,
+  "base": {
+   "raw": 73505,
+   "gzip9": 17722,
+   "br11": 14330
+  },
+  "delta": {
+   "raw": 0,
+   "gzip9": -99,
+   "br11": 173
+  },
+  "implicitPct": 32.69445478228508,
+  "baseImplicitPct": 35.316733797143904,
+  "distBytes": 5234,
+  "baseDistBytes": 4974
+ },
+ {
+  "id": "glmatrix-js-vite",
+  "order": "byName",
+  "moved": 298,
+  "base": {
+   "raw": 73505,
+   "gzip9": 17722,
+   "br11": 14330
+  },
+  "delta": {
+   "raw": 0,
+   "gzip9": 928,
+   "br11": 433
+  },
+  "implicitPct": 33.49972268441486,
+  "baseImplicitPct": 35.316733797143904,
+  "distBytes": 5376,
+  "baseDistBytes": 4974
+ },
+ {
+  "id": "glmatrix-js-vite",
+  "order": "reversed",
+  "moved": 298,
+  "base": {
+   "raw": 73505,
+   "gzip9": 17722,
+   "br11": 14330
+  },
+  "delta": {
+   "raw": 0,
+   "gzip9": 26,
+   "br11": 49
+  },
+  "implicitPct": 35.495067592254294,
+  "baseImplicitPct": 35.316733797143904,
+  "distBytes": 5040,
+  "baseDistBytes": 4974
+ },
+ {
+  "id": "glmatrix-lil-vite",
+  "order": "asIs",
+  "moved": 0,
+  "base": {
+   "raw": 68496,
+   "gzip9": 17192,
+   "br11": 14116
+  },
+  "delta": {
+   "raw": 0,
+   "gzip9": 0,
+   "br11": 0
+  },
+  "implicitPct": 32.974097182832296,
+  "baseImplicitPct": 32.974097182832296,
+  "distBytes": 5137,
+  "baseDistBytes": 5137
+ },
+ {
+  "id": "glmatrix-lil-vite",
+  "order": "similarity",
+  "moved": 323,
+  "base": {
+   "raw": 68496,
+   "gzip9": 17192,
+   "br11": 14116
+  },
+  "delta": {
+   "raw": 0,
+   "gzip9": 42,
+   "br11": -40
+  },
+  "implicitPct": 33.531327840582485,
+  "baseImplicitPct": 32.974097182832296,
+  "distBytes": 5017,
+  "baseDistBytes": 5137
+ },
+ {
+  "id": "glmatrix-lil-vite",
+  "order": "sizeThenSimilarity",
+  "moved": 324,
+  "base": {
+   "raw": 68496,
+   "gzip9": 17192,
+   "br11": 14116
+  },
+  "delta": {
+   "raw": 0,
+   "gzip9": -256,
+   "br11": -77
+  },
+  "implicitPct": 32.936660268714014,
+  "baseImplicitPct": 32.974097182832296,
+  "distBytes": 5003,
+  "baseDistBytes": 5137
+ },
+ {
+  "id": "glmatrix-lil-vite",
+  "order": "byLength",
+  "moved": 324,
+  "base": {
+   "raw": 68496,
+   "gzip9": 17192,
+   "br11": 14116
+  },
+  "delta": {
+   "raw": 0,
+   "gzip9": -228,
+   "br11": 10
+  },
+  "implicitPct": 31.254796623177285,
+  "baseImplicitPct": 32.974097182832296,
+  "distBytes": 5180,
+  "baseDistBytes": 5137
+ },
+ {
+  "id": "glmatrix-lil-vite",
+  "order": "byName",
+  "moved": 325,
+  "base": {
+   "raw": 68496,
+   "gzip9": 17192,
+   "br11": 14116
+  },
+  "delta": {
+   "raw": 0,
+   "gzip9": 842,
+   "br11": 430
+  },
+  "implicitPct": 32.261063592413535,
+  "baseImplicitPct": 32.974097182832296,
+  "distBytes": 5456,
+  "baseDistBytes": 5137
+ },
+ {
+  "id": "glmatrix-lil-vite",
+  "order": "reversed",
+  "moved": 328,
+  "base": {
+   "raw": 68496,
+   "gzip9": 17192,
+   "br11": 14116
+  },
+  "delta": {
+   "raw": 0,
+   "gzip9": 97,
+   "br11": -45
+  },
+  "implicitPct": 33.16990382802187,
+  "baseImplicitPct": 32.974097182832296,
+  "distBytes": 5140,
+  "baseDistBytes": 5137
+ },
+ {
+  "id": "glmatrix-lil-raw",
+  "order": "asIs",
+  "moved": 0,
+  "base": {
+   "raw": 116878,
+   "gzip9": 21413,
+   "br11": 17352
+  },
+  "delta": {
+   "raw": 0,
+   "gzip9": 0,
+   "br11": 0
+  },
+  "implicitPct": 36.05284663579406,
+  "baseImplicitPct": 36.05284663579406,
+  "distBytes": 6984,
+  "baseDistBytes": 6984
+ },
+ {
+  "id": "glmatrix-lil-raw",
+  "order": "similarity",
+  "moved": 327,
+  "base": {
+   "raw": 116878,
+   "gzip9": 21413,
+   "br11": 17352
+  },
+  "delta": {
+   "raw": 0,
+   "gzip9": 179,
+   "br11": 34
+  },
+  "implicitPct": 36.286224419722565,
+  "baseImplicitPct": 36.05284663579406,
+  "distBytes": 6950,
+  "baseDistBytes": 6984
+ },
+ {
+  "id": "glmatrix-lil-raw",
+  "order": "sizeThenSimilarity",
+  "moved": 325,
+  "base": {
+   "raw": 116878,
+   "gzip9": 21413,
+   "br11": 17352
+  },
+  "delta": {
+   "raw": 0,
+   "gzip9": -252,
+   "br11": -72
+  },
+  "implicitPct": 35.528667674962186,
+  "baseImplicitPct": 36.05284663579406,
+  "distBytes": 7016,
+  "baseDistBytes": 6984
+ },
+ {
+  "id": "glmatrix-lil-raw",
+  "order": "byLength",
+  "moved": 326,
+  "base": {
+   "raw": 116878,
+   "gzip9": 21413,
+   "br11": 17352
+  },
+  "delta": {
+   "raw": 0,
+   "gzip9": -167,
+   "br11": 83
+  },
+  "implicitPct": 34.71609702315325,
+  "baseImplicitPct": 36.05284663579406,
+  "distBytes": 7148,
+  "baseDistBytes": 6984
+ },
+ {
+  "id": "glmatrix-lil-raw",
+  "order": "byName",
+  "moved": 327,
+  "base": {
+   "raw": 116878,
+   "gzip9": 21413,
+   "br11": 17352
+  },
+  "delta": {
+   "raw": 0,
+   "gzip9": 1345,
+   "br11": 337
+  },
+  "implicitPct": 35.13220338983051,
+  "baseImplicitPct": 36.05284663579406,
+  "distBytes": 7290,
+  "baseDistBytes": 6984
+ },
+ {
+  "id": "glmatrix-lil-raw",
+  "order": "reversed",
+  "moved": 328,
+  "base": {
+   "raw": 116878,
+   "gzip9": 21413,
+   "br11": 17352
+  },
+  "delta": {
+   "raw": 0,
+   "gzip9": 158,
+   "br11": -40
+  },
+  "implicitPct": 35.755932203389825,
+  "baseImplicitPct": 36.05284663579406,
+  "distBytes": 7115,
+  "baseDistBytes": 6984
+ }
+]

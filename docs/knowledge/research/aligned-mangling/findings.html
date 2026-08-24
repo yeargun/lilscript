@@ -1,0 +1,1095 @@
+<title>Aligned Mangling</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;1,400&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Serif:ital,wght@0,400;0,600;1,400&display=swap">
+<style>
+:root {
+  --ground:#100f0d; --panel:#191713; --sunken:#0b0a09; --rule:#38322a; --rule-soft:#262119;
+  --ink:#ece7dc; --ink-dim:#b8b1a3; --muted:#8f877a; --faint:#665f54;
+  --brass:#d8a15a; --brass-dim:#8a6a3c;
+  --c-distance:#c77dbb; --c-command:#e08a5a; --c-literal:#79b473; --c-code:#c9a227;
+  --c-header:#9a8fd8; --c-dict:#5fb3b3;
+  --win:#7dba7a; --lose:#d97a68;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  --serif:"IBM Plex Serif","Iowan Old Style",Palatino,Georgia,serif;
+  --cond:"IBM Plex Sans Condensed","IBM Plex Sans",system-ui,sans-serif;
+  color-scheme: dark;
+}
+*{box-sizing:border-box}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+body{margin:0;background:var(--ground);color:var(--ink);font:400 16.5px/1.62 var(--serif);-webkit-font-smoothing:antialiased}
+a{color:var(--brass)}
+h1,h2,h3{text-wrap:balance;font-weight:600}
+.mono,code,th,td.num{font-family:var(--mono)}
+header{padding:56px 32px 36px;border-bottom:1px solid var(--rule);background:linear-gradient(180deg,#1d1a15,var(--panel) 70%)}
+.wrap{max-width:1120px;margin:0 auto}
+.eyebrow{font:500 11.5px/1 var(--cond);letter-spacing:.16em;text-transform:uppercase;color:var(--muted);display:flex;gap:14px;flex-wrap:wrap}
+.eyebrow .dot{color:var(--brass-dim)}
+h1{font-size:clamp(32px,5vw,50px);line-height:1.05;margin:16px 0 0;letter-spacing:-.015em}
+h1 .sub{display:block;color:var(--brass);font-style:italic;font-weight:400;font-size:.5em;margin-top:10px}
+.lede{font-size:19px;max-width:66ch;color:var(--ink-dim);margin:18px 0 0}
+main{max-width:1120px;margin:0 auto;padding:0 32px 100px}
+section{padding:52px 0 4px;border-top:1px solid var(--rule-soft)}
+section:first-child{border-top:0}
+.num-label{font:500 11.5px/1 var(--cond);letter-spacing:.18em;text-transform:uppercase;color:var(--brass-dim);margin-bottom:10px}
+h2{font-size:clamp(23px,3vw,30px);margin:0 0 14px}
+h3{font-size:17px;margin:30px 0 8px}
+p{max-width:70ch;color:var(--ink-dim)}
+strong{color:var(--ink)}
+.qa{display:grid;gap:18px;grid-template-columns:1fr 1fr;margin:26px 0 0}
+@media(max-width:900px){.qa{grid-template-columns:1fr}main,header{padding-left:18px;padding-right:18px}}
+.card{background:var(--panel);border:1px solid var(--rule);padding:18px 20px}
+.card h3{margin-top:0;font:600 12.5px/1.3 var(--cond);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.verdict{font-size:19px;color:var(--ink);margin:0 0 10px}
+.verdict.no{color:var(--lose)}
+.verdict.yes{color:var(--win)}
+table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12.5px;margin-top:8px}
+th,td{text-align:left;padding:6px 9px;border-bottom:1px solid var(--rule-soft);vertical-align:top}
+th{font:500 10.5px/1.4 var(--cond);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);border-bottom-color:var(--rule)}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+tbody tr:hover{background:#1f1c17}
+.win{color:var(--win)}.lose{color:var(--lose)}.flat{color:var(--muted)}
+.dim{color:var(--muted)}.ok{color:var(--win)}.no{color:var(--lose)}
+.scroll{overflow-x:auto}
+.barrow{display:grid;grid-template-columns:190px 1fr 92px;gap:12px;align-items:center;margin-bottom:7px}
+.barname{font-family:var(--mono);font-size:12px}
+.barname .sub,.barnum .sub{display:block;color:var(--faint);font-size:10.5px}
+.sub{color:var(--faint)}
+.bar{display:flex;height:22px;background:var(--sunken);border:1px solid var(--rule)}
+.seg{display:block;height:100%}
+.barnum{font-family:var(--mono);font-size:13px;text-align:right;font-variant-numeric:tabular-nums;color:var(--c-distance)}
+.legend{display:flex;flex-wrap:wrap;gap:8px 16px;font:500 10.5px/1 var(--cond);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-top:12px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:10px;height:10px;display:inline-block}
+.callout{border-left:2px solid var(--brass-dim);padding:4px 0 4px 16px;margin:22px 0}
+.callout p{margin:0}
+.big{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:18px;margin:22px 0}
+.big .v{font:600 30px/1 var(--mono);font-variant-numeric:tabular-nums}
+.big .v.win{color:var(--win)}
+.big .k{font:500 10.5px/1.4 var(--cond);letter-spacing:.11em;text-transform:uppercase;color:var(--muted);margin-top:6px}
+.big .n{font-size:12px;color:var(--faint);font-family:var(--mono)}
+ol.phases{counter-reset:p;list-style:none;padding:0;max-width:74ch}
+ol.phases li{border-left:1px solid var(--rule);padding:0 0 22px 20px;position:relative}
+ol.phases li::before{counter-increment:p;content:counter(p);position:absolute;left:-13px;top:0;width:25px;height:25px;border:1px solid var(--rule);background:var(--panel);color:var(--brass);font:500 11px/23px var(--mono);text-align:center}
+ol.phases b{color:var(--ink);display:block;margin-bottom:4px}
+footer{border-top:1px solid var(--rule);margin-top:60px;padding-top:24px;color:var(--muted);font-size:13.5px}
+</style>
+
+<header><div class="wrap">
+  <div class="eyebrow"><span>LilScript compression research</span><span class="dot">/</span>
+    <span>seven benchmark artifacts + jquerylil, markedlil, solidlil</span><span class="dot">/</span>
+    <span>Brotli 1.1.0 q11 lgwin 22</span><span class="dot">/</span>
+    <span>every win run, not just measured</span></div>
+  <h1>Aligned mangling<span class="sub">two good questions, and the two things sitting next to them</span></h1>
+  <p class="lede">Should mangled names be dictionary words instead of <code>a</code>, <code>b</code>,
+  <code>c</code>? Should closures agree on names so <code>a[1]</code> recurs instead of
+  <code>b[1]</code>? Both were measured on real artifacts and both answers are no. What the
+  measuring found instead: <strong>2.2–2.5% in name allocation</strong> on every artifact the
+  compiler ships directly, a <strong>fold that sinks a read past its own variable's rebinding</strong>
+  in a shipped port, and a <strong>codec tie broken toward the 920-byte-larger side</strong>.</p>
+</div></header>
+
+<main>
+
+<section>
+  <div class="num-label">the short answers</div>
+  <h2>What the corpora said</h2>
+  <div class="qa">
+    <div class="card">
+      <h3>Question 1 — names from the dictionary</h3>
+      <p class="verdict no">No, at any frequency.</p>
+      <p>Cold bindings, used three times or fewer, cost <strong>+1,017 to +2,437</strong> Brotli
+      bytes. Hot ones cost <strong>+1,953 to +6,341</strong>. The mechanism is one census row:
+      in every real stream we decoded, <strong>every dictionary reference is used exactly
+      once</strong>. The ROM is a few hundred first occurrences per artifact, not a rate.</p>
+    </div>
+    <div class="card">
+      <h3>Question 2 — aligning names across closures</h3>
+      <p class="verdict no">The pattern is real; the headroom is already taken.</p>
+      <p>Functions that are twins up to renaming: <strong>0–1 groups per corpus</strong>, and
+      those are already byte-identical. An aligner that maximises copyability loses on every
+      corpus. Under a codec-shaped cost model it declines to make a single move — the ordinary
+      greedy assignment is already the local optimum.</p>
+    </div>
+  </div>
+  <div class="callout"><p>Both questions point at the same underlying thing, and the legal form of
+  it is neither spelling nor alignment: <strong>hand out fewer distinct names</strong>. On
+  LilScript's own jQuery artifact that is worth −801 Brotli bytes, behaviour-identical, confirmed
+  with the gate codec.</p></div>
+</section>
+
+<section>
+  <div class="num-label">01 — the census</div>
+  <h2>Where the bits actually are</h2>
+  <p>Each artifact compressed at q11, then decoded command by command with our own instrumented
+  decoder. Every bit is attributed once, to the innermost field that read it.</p>
+  <div style="margin:24px 0"><div class="barrow">
+      <div class="barname">jQuery-min<span class="sub">87,533 → 27,445</span></div>
+      <div class="bar"><span class="seg" style="width:47.377815515808884%;background:var(--c-distance)"
+        title="distances: 12,973 bytes, 47.4%"></span><span class="seg" style="width:24.71901905466232%;background:var(--c-command)"
+        title="insert & copy: 6,769 bytes, 24.7%"></span><span class="seg" style="width:26.255626466533364%;background:var(--c-literal)"
+        title="literals: 7,189 bytes, 26.3%"></span><span class="seg" style="width:1.621974490308326%;background:var(--c-code)"
+        title="prefix codes: 444 bytes, 1.6%"></span><span class="seg" style="width:0.025564472687099982%;background:var(--c-header)"
+        title="header: 7 bytes, 0.0%"></span></div>
+      <div class="barnum">47.4%<span class="sub">distances</span></div>
+    </div><div class="barrow">
+      <div class="barname">jQuery-src<span class="sub">285,314 → 69,545</span></div>
+      <div class="bar"><span class="seg" style="width:64.64395137423381%;background:var(--c-distance)"
+        title="distances: 44,914 bytes, 64.6%"></span><span class="seg" style="width:24.438639385287413%;background:var(--c-command)"
+        title="insert & copy: 16,980 bytes, 24.4%"></span><span class="seg" style="width:10.013727045878557%;background:var(--c-literal)"
+        title="literals: 6,958 bytes, 10.0%"></span><span class="seg" style="width:0.8941470251170756%;background:var(--c-code)"
+        title="prefix codes: 621 bytes, 0.9%"></span><span class="seg" style="width:0.00953516948313984%;background:var(--c-header)"
+        title="header: 7 bytes, 0.0%"></span></div>
+      <div class="barnum">64.6%<span class="sub">distances</span></div>
+    </div><div class="barrow">
+      <div class="barname">jQuery-lil-raw<span class="sub">102,681 → 33,283</span></div>
+      <div class="bar"><span class="seg" style="width:44.6417068788211%;background:var(--c-distance)"
+        title="distances: 14,814 bytes, 44.6%"></span><span class="seg" style="width:24.859587067319104%;background:var(--c-command)"
+        title="insert & copy: 8,249 bytes, 24.9%"></span><span class="seg" style="width:28.8823092889135%;background:var(--c-literal)"
+        title="literals: 9,584 bytes, 28.9%"></span><span class="seg" style="width:1.5922883070212117%;background:var(--c-code)"
+        title="prefix codes: 528 bytes, 1.6%"></span><span class="seg" style="width:0.0241084579250905%;background:var(--c-header)"
+        title="header: 8 bytes, 0.0%"></span></div>
+      <div class="barnum">44.6%<span class="sub">distances</span></div>
+    </div><div class="barrow">
+      <div class="barname">jQuery-lil-min<span class="sub">110,749 → 37,901</span></div>
+      <div class="bar"><span class="seg" style="width:41.302011158772736%;background:var(--c-distance)"
+        title="distances: 15,610 bytes, 41.3%"></span><span class="seg" style="width:24.93691357738877%;background:var(--c-command)"
+        title="insert & copy: 9,425 bytes, 24.9%"></span><span class="seg" style="width:32.22814960825233%;background:var(--c-literal)"
+        title="literals: 12,181 bytes, 32.2%"></span><span class="seg" style="width:1.5120897728888785%;background:var(--c-code)"
+        title="prefix codes: 572 bytes, 1.5%"></span><span class="seg" style="width:0.020835882697287696%;background:var(--c-header)"
+        title="header: 8 bytes, 0.0%"></span></div>
+      <div class="barnum">41.3%<span class="sub">distances</span></div>
+    </div><div class="barrow">
+      <div class="barname">gl-matrix-js-vite<span class="sub">73,505 → 14,330</span></div>
+      <div class="bar"><span class="seg" style="width:35.08363533758344%;background:var(--c-distance)"
+        title="distances: 4,974 bytes, 35.1%"></span><span class="seg" style="width:32.85894417550635%;background:var(--c-command)"
+        title="insert & copy: 4,658 bytes, 32.9%"></span><span class="seg" style="width:28.04627498699398%;background:var(--c-literal)"
+        title="literals: 3,976 bytes, 28.0%"></span><span class="seg" style="width:3.9511855320124503%;background:var(--c-code)"
+        title="prefix codes: 560 bytes, 4.0%"></span><span class="seg" style="width:0.059959967903781886%;background:var(--c-header)"
+        title="header: 9 bytes, 0.1%"></span></div>
+      <div class="barnum">35.1%<span class="sub">distances</span></div>
+    </div><div class="barrow">
+      <div class="barname">gl-matrix-lil-vite<span class="sub">68,496 → 14,116</span></div>
+      <div class="bar"><span class="seg" style="width:36.74726807719135%;background:var(--c-distance)"
+        title="distances: 5,137 bytes, 36.7%"></span><span class="seg" style="width:32.543415663620266%;background:var(--c-command)"
+        title="insert & copy: 4,549 bytes, 32.5%"></span><span class="seg" style="width:27.14485003487561%;background:var(--c-literal)"
+        title="literals: 3,794 bytes, 27.1%"></span><span class="seg" style="width:3.5036574678518417%;background:var(--c-code)"
+        title="prefix codes: 490 bytes, 3.5%"></span><span class="seg" style="width:0.060808756460930376%;background:var(--c-header)"
+        title="header: 9 bytes, 0.1%"></span></div>
+      <div class="barnum">36.7%<span class="sub">distances</span></div>
+    </div><div class="barrow">
+      <div class="barname">gl-matrix-lil-raw<span class="sub">116,878 → 17,352</span></div>
+      <div class="bar"><span class="seg" style="width:40.638047162537646%;background:var(--c-distance)"
+        title="distances: 6,984 bytes, 40.6%"></span><span class="seg" style="width:34.97839717199342%;background:var(--c-command)"
+        title="insert & copy: 6,011 bytes, 35.0%"></span><span class="seg" style="width:21.099489387701663%;background:var(--c-literal)"
+        title="literals: 3,626 bytes, 21.1%"></span><span class="seg" style="width:3.2338778894691664%;background:var(--c-code)"
+        title="prefix codes: 556 bytes, 3.2%"></span><span class="seg" style="width:0.05018838829810448%;background:var(--c-header)"
+        title="header: 9 bytes, 0.1%"></span></div>
+      <div class="barnum">40.6%<span class="sub">distances</span></div>
+    </div></div>
+  <div class="legend"><span><i style="background:var(--c-distance)"></i>distances</span><span><i style="background:var(--c-command)"></i>insert & copy</span><span><i style="background:var(--c-literal)"></i>literals</span><span><i style="background:var(--c-code)"></i>prefix codes</span><span><i style="background:var(--c-header)"></i>header</span></div>
+  <p style="margin-top:22px"><strong>Distance codes are the largest consumer of bits in every
+  artifact</strong> — 47% of jQuery-min, 65% of unminified jQuery. Literals, the thing identifier
+  spelling is argued about, are 4–26%. The entire prefix-code header machinery is under 2%.</p>
+  <div class="scroll"><table>
+    <thead><tr><th>artifact</th><th class="num">commands</th><th class="num">implicit distance</th>
+      <th class="num">short code</th><th class="num">from the dictionary</th>
+      <th class="num">dictionary entries reused</th></tr></thead>
+    <tbody><tr><td>jQuery-min</td><td class="num">8,171</td>
+      <td class="num">4.7%</td>
+      <td class="num">6.3%</td>
+      <td class="num">3,780 B (4.32%)</td>
+      <td class="num dim">0</td></tr><tr><td>jQuery-src</td><td class="num">25,159</td>
+      <td class="num">1.2%</td>
+      <td class="num">5.9%</td>
+      <td class="num">20,497 B (7.18%)</td>
+      <td class="num dim">0</td></tr><tr><td>jQuery-lil-raw</td><td class="num">10,003</td>
+      <td class="num">11.3%</td>
+      <td class="num">6.6%</td>
+      <td class="num">3,859 B (3.76%)</td>
+      <td class="num dim">0</td></tr><tr><td>jQuery-lil-min</td><td class="num">11,245</td>
+      <td class="num">15.0%</td>
+      <td class="num">7.6%</td>
+      <td class="num">3,530 B (3.19%)</td>
+      <td class="num dim">0</td></tr><tr><td>gl-matrix-js-vite</td><td class="num">5,462</td>
+      <td class="num">35.3%</td>
+      <td class="num">14.3%</td>
+      <td class="num">523 B (0.71%)</td>
+      <td class="num dim">0</td></tr><tr><td>gl-matrix-lil-vite</td><td class="num">5,289</td>
+      <td class="num">33.0%</td>
+      <td class="num">12.0%</td>
+      <td class="num">467 B (0.68%)</td>
+      <td class="num dim">0</td></tr><tr><td>gl-matrix-lil-raw</td><td class="num">7,342</td>
+      <td class="num">36.1%</td>
+      <td class="num">10.6%</td>
+      <td class="num">785 B (0.67%)</td>
+      <td class="num dim">0</td></tr></tbody>
+  </table></div>
+  <p style="margin-top:18px">An implicit distance costs nothing — command symbols below 128 reuse
+  the last distance. The ranking of these artifacts by implicit-distance rate is almost exactly
+  their ranking by compression ratio.</p>
+</section>
+
+<section>
+  <div class="num-label">02 — the hardcoded library</div>
+  <h2>What is actually in the 122,784 bytes</h2>
+  <p>13,504 words of length 4–24 plus 121 transforms, sampled from the web of about 2014. 5,399
+  words are legal JavaScript identifiers; a large part of the rest is HTML and CSS punctuation
+  (<code>sByTagName(</code>, <code>"&gt;&lt;div class="</code>, <code>cursor:pointer;</code>) and
+  natural-language text in a dozen languages.</p>
+  <p>The useful question is which spellings are <em>exactly one reference</em>:</p>
+  <div class="scroll"><table>
+    <thead><tr><th>spelling</th><th>cost</th><th>word and transform</th></tr></thead>
+    <tbody><tr><td class="mono ch-dict">"function("</td><td class="ok">one reference</td>
+        <td class="mono dim">"function(){" · OMIT_LAST_2(word)</td></tr><tr><td class="mono ch-dict">"=function("</td><td class="ok">one reference</td>
+        <td class="mono dim">"=function(){" · OMIT_LAST_2(word)</td></tr><tr><td class="mono ch-dict">"){return "</td><td class="ok">one reference</td>
+        <td class="mono dim">"){return" · word + " "</td></tr><tr><td class="mono ch-dict">");return "</td><td class="ok">one reference</td>
+        <td class="mono dim">");return " · word</td></tr><tr><td class="mono ch-dict">"for(var "</td><td class="ok">one reference</td>
+        <td class="mono dim">"for(var " · word</td></tr><tr><td class="mono ch-dict">"}else{"</td><td class="ok">one reference</td>
+        <td class="mono dim">"}else{" · word</td></tr><tr><td class="mono ch-dict">"var "</td><td class="ok">one reference</td>
+        <td class="mono dim">"var " · word</td></tr><tr><td class="mono ch-dict">"typeof "</td><td class="ok">one reference</td>
+        <td class="mono dim">"typeof " · word</td></tr><tr><td class="mono ch-dict">"this."</td><td class="ok">one reference</td>
+        <td class="mono dim">"this." · word</td></tr><tr><td class="mono ch-dict">".length"</td><td class="ok">one reference</td>
+        <td class="mono dim">".length" · word</td></tr><tr><td class="mono ch-dict">".prototype"</td><td class="ok">one reference</td>
+        <td class="mono dim">"prototype" · "." + word</td></tr><tr><td class="mono ch-dict">".call("</td><td class="ok">one reference</td>
+        <td class="mono dim">"call" · "." + word + "("</td></tr><tr><td class="mono ch-dict">".apply("</td><td class="ok">one reference</td>
+        <td class="mono dim">"apply" · "." + word + "("</td></tr><tr><td class="mono ch-dict">".push("</td><td class="ok">one reference</td>
+        <td class="mono dim">".push(" · word</td></tr><tr><td class="mono ch-dict">"Math."</td><td class="ok">one reference</td>
+        <td class="mono dim">"Math.floor(" · OMIT_LAST_6(word)</td></tr><tr><td class="mono ch-dict">"Object."</td><td class="ok">one reference</td>
+        <td class="mono dim">"Object" · word + "."</td></tr><tr><td class="mono ch-dict">"undefined"</td><td class="ok">one reference</td>
+        <td class="mono dim">"undefined" · word</td></tr><tr><td class="mono ch-dict">"document"</td><td class="ok">one reference</td>
+        <td class="mono dim">"document" · word</td></tr><tr><td class="mono ch-dict">"window"</td><td class="ok">one reference</td>
+        <td class="mono dim">"window" · word</td></tr><tr><td class="mono ch-dict">"addEventListener"</td><td class="ok">one reference</td>
+        <td class="mono dim">"addEventListener" · word</td></tr><tr><td class="mono">"let "</td><td class="no">not in the ROM</td>
+      <td class="mono dim">nothing</td></tr><tr><td class="mono">"const "</td><td class="no">not in the ROM</td>
+      <td class="mono dim">only 5 bytes, as "const"</td></tr><tr><td class="mono">"=&gt;{"</td><td class="no">not in the ROM</td>
+      <td class="mono dim">nothing</td></tr><tr><td class="mono">"await "</td><td class="no">not in the ROM</td>
+      <td class="mono dim">nothing</td></tr><tr><td class="mono">"if("</td><td class="no">not in the ROM</td>
+      <td class="mono dim">nothing</td></tr><tr><td class="mono">".prototype."</td><td class="no">not in the ROM</td>
+      <td class="mono dim">only 10 bytes, as ".prototype"</td></tr><tr><td class="mono">"constructor"</td><td class="no">not in the ROM</td>
+      <td class="mono dim">only 9 bytes, as "construct"</td></tr><tr><td class="mono">"getElementById"</td><td class="no">not in the ROM</td>
+      <td class="mono dim">nothing</td></tr><tr><td class="mono">"parentNode"</td><td class="no">not in the ROM</td>
+      <td class="mono dim">only 6 bytes, as "parent"</td></tr><tr><td class="mono">"nodeType"</td><td class="no">not in the ROM</td>
+      <td class="mono dim">only 4 bytes, as "node"</td></tr><tr><td class="mono">"childNodes"</td><td class="no">not in the ROM</td>
+      <td class="mono dim">only 5 bytes, as "child"</td></tr></tbody>
+  </table></div>
+  <p style="margin-top:18px">The dictionary is fluent in ES5 and the DOM of 2014. It has never
+  heard of <code>let</code>, <code>const</code>, arrows or <code>await</code>. 78 of the 121
+  transforms carry code punctuation, which is the part a code generator can aim at — and the
+  measured value of aiming at it is tens of bytes per artifact, as a tie-break on pooled strings.</p>
+</section>
+
+<section>
+  <div class="num-label">03 — question one</div>
+  <h2>Dictionary words as names, measured</h2>
+  <p>Legal, scope-correct renames: the 400 most-referenced bindings, and separately the 400
+  least-referenced bindings with three uses or fewer, renamed to distinct dictionary words that
+  the file does not already use. Δ Brotli-11 against each artifact's own baseline.</p>
+  <div class="scroll"><table>
+    <thead><tr><th>variant</th><th class="num">jQuery-min</th><th class="num">jQuery-src</th><th class="num">jQuery-lil-raw</th><th class="num">jQuery-lil-min</th><th class="num">gl-matrix-js-vite</th><th class="num">gl-matrix-lil-vite</th><th class="num">gl-matrix-lil-raw</th></tr></thead>
+    <tbody>
+      <tr><td>cold bindings, ≤3 uses</td><td class="num lose">+1,734</td><td class="num lose">+1,017</td><td class="num lose">+1,653</td><td class="num lose">+1,675</td><td class="num lose">+2,437</td><td class="num lose">+2,208</td><td class="num lose">+2,039</td></tr>
+      <tr><td>hot bindings, top 400</td><td class="num lose">+3,711</td><td class="num lose">+1,953</td><td class="num lose">+5,203</td><td class="num lose">+5,466</td><td class="num lose">+5,681</td><td class="num lose">+6,341</td><td class="num lose">+5,859</td></tr>
+    </tbody>
+  </table></div>
+  <p style="margin-top:18px">The cold band is the interesting one: those bindings are used once,
+  twice or three times, exactly the regime where the first-occurrence discount should have
+  applied. On gl-matrix it costs 2,208 Brotli bytes while growing raw by 2,703 — nearly the whole
+  raw growth paid in full, as if the codec had no dictionary at all.</p>
+</section>
+
+<section>
+  <div class="num-label">04 — question two</div>
+  <h2>Aligning names across closures, measured</h2>
+  <h3>There are no twins to align</h3>
+  <p>For every function, replace its own bindings with positional tokens and keep everything else.
+  Two functions with the same canonical form are the same code modulo naming.</p>
+  <div class="scroll"><table>
+    <thead><tr><th>artifact</th><th class="num">functions</th><th class="num">canonical twin groups</th>
+      <th class="num">bytes differing only in names</th></tr></thead>
+    <tbody><tr><td>jQuery-min</td><td class="num">483</td>
+      <td class="num">0</td><td class="num">0 B</td></tr><tr><td>jQuery-src</td><td class="num">581</td>
+      <td class="num">1</td><td class="num">0 B</td></tr><tr><td>jQuery-lil-raw</td><td class="num">512</td>
+      <td class="num">1</td><td class="num">0 B</td></tr><tr><td>jQuery-lil-min</td><td class="num">551</td>
+      <td class="num">1</td><td class="num">0 B</td></tr><tr><td>gl-matrix-js-vite</td><td class="num">325</td>
+      <td class="num">1</td><td class="num">0 B</td></tr><tr><td>gl-matrix-lil-vite</td><td class="num">318</td>
+      <td class="num">1</td><td class="num">0 B</td></tr><tr><td>gl-matrix-lil-raw</td><td class="num">348</td>
+      <td class="num">0</td><td class="num">0 B</td></tr></tbody>
+  </table></div>
+  <p style="margin-top:16px">Frequency-ordered assignment is itself a canonical order: two
+  functions with the same shape have the same frequency profile, so they already receive the same
+  names without anyone trying.</p>
+
+  <h3>An aligner that maximises copyability loses</h3>
+  <div class="scroll"><table>
+    <thead><tr><th>objective</th><th class="num">jQuery-min</th><th class="num">jQuery-src</th><th class="num">jQuery-lil-raw</th><th class="num">jQuery-lil-min</th><th class="num">gl-matrix-js-vite</th><th class="num">gl-matrix-lil-vite</th><th class="num">gl-matrix-lil-raw</th></tr></thead>
+    <tbody>
+      <tr><td>maximise bytes a copy can supply</td><td class="num lose">+49</td><td class="num win">-5,755</td><td class="num win">-40</td><td class="num lose">+376</td><td class="num lose">+533</td><td class="num lose">+513</td><td class="num lose">+379</td></tr>
+      <tr><td>minimise estimated bits</td><td class="num lose">+17</td><td class="num win">-5,769</td><td class="num win">-252</td><td class="num win">-4</td><td class="num lose">+129</td><td class="num lose">+52</td><td class="num win">-138</td></tr>
+    </tbody>
+  </table></div>
+  <p style="margin-top:16px">The second row is zero everywhere because the bit-cost aligner made
+  <strong>no changes at all</strong>: at every decision point, no legal alternative beat "the first
+  available name". Choosing a name to match earlier text flattens the name distribution, and
+  literals get more expensive faster than copies get longer.</p>
+
+  <h3>The <code>a[1]</code> case, with its ceiling</h3>
+  <p>Renaming <em>every</em> indexed receiver to one letter is illegal; it bounds the family.</p>
+  <div class="scroll"><table>
+    <thead><tr><th>artifact</th><th class="num">name[k] sites</th><th class="num">share of raw</th>
+      <th>most repeated pairs</th><th class="num">illegal ceiling</th></tr></thead>
+    <tbody><tr>
+    <td>jQuery-min</td>
+    <td class="num">136</td>
+    <td class="num">0.63%</td>
+    <td class="mono dim">e[0]×11 e[3]×10 r[0]×9 t[0]×9</td>
+    <td class="num win">-61</td>
+  </tr><tr>
+    <td>jQuery-src</td>
+    <td class="num">142</td>
+    <td class="num">0.54%</td>
+    <td class="mono dim">match[1]×12 match[3]×11 match[0]×9 match[2]×7</td>
+    <td class="num win">-87</td>
+  </tr><tr>
+    <td>jQuery-lil-raw</td>
+    <td class="num">116</td>
+    <td class="num">0.46%</td>
+    <td class="mono dim">e[0]×13 c[0]×11 a[0]×8 e[1]×8</td>
+    <td class="num win">-96</td>
+  </tr><tr>
+    <td>jQuery-lil-min</td>
+    <td class="num">368</td>
+    <td class="num">1.35%</td>
+    <td class="mono dim">e[0]×55 e[1]×37 r[0]×33 i[0]×22</td>
+    <td class="num win">-57</td>
+  </tr><tr>
+    <td>gl-matrix-js-vite</td>
+    <td class="num">3,623</td>
+    <td class="num">20.31%</td>
+    <td class="mono dim">e[1]×285 e[0]×282 e[2]×250 t[1]×208</td>
+    <td class="num win">-395</td>
+  </tr><tr>
+    <td>gl-matrix-lil-vite</td>
+    <td class="num">3,187</td>
+    <td class="num">19.06%</td>
+    <td class="mono dim">e[0]×258 e[1]×256 e[2]×226 t[1]×203</td>
+    <td class="num win">-327</td>
+  </tr><tr>
+    <td>gl-matrix-lil-raw</td>
+    <td class="num">3,187</td>
+    <td class="num">11.21%</td>
+    <td class="mono dim">a[0]×226 a[1]×225 b[1]×203 b[0]×202</td>
+    <td class="num win">-382</td>
+  </tr></tbody>
+  </table></div>
+  <p style="margin-top:16px">On array-heavy code the pattern is a fifth of the file and the ceiling
+  is 2.3–2.8% — but the hot receivers are <em>already</em> <code>e[0..3]</code> and
+  <code>t[0..3]</code> across hundreds of functions. What is left is the interference case: two
+  receivers live at once, which no spelling rule can merge.</p>
+</section>
+
+<section>
+  <div class="num-label">05 — what was next to the questions</div>
+  <h2>Fewer names, not shorter ones</h2>
+  <div class="big">
+    <div><div class="v win">−801</div><div class="k">Brotli bytes</div><div class="n">33,283 → 32,482</div></div>
+    <div><div class="v">−2.41%</div><div class="k">of the artifact</div><div class="n">jQuery, LilScript emit</div></div>
+    <div><div class="v">106 → 27</div><div class="k">distinct names</div><div class="n">2,174 bindings</div></div>
+    <div><div class="v">0</div><div class="k">behaviour differences</div><div class="n">37 jsdom observations</div></div>
+  </div>
+  <p>Re-mangling each artifact from scratch with precise availability rules — a name is unusable
+  only when it would collide with a sibling, capture a reference in the scope's subtree, or be
+  shadowed between a reference and its declaration — and scoring the best legal naming:</p>
+  <div class="scroll"><table>
+    <thead><tr><th>artifact</th><th class="num">shipped br11</th><th>best legal naming</th>
+      <th class="num">Δ br11</th><th class="num">Δ raw</th><th class="num">distinct names</th>
+      <th class="num">name entropy</th></tr></thead>
+    <tbody><tr>
+      <td>jQuery-min</td>
+      <td class="num">27,445</td>
+      <td class="mono dim">frequency/adaptive</td>
+      <td class="num win">-13</td>
+      <td class="num dim">0</td>
+      <td class="num">165 → 165</td>
+      <td class="num dim">4.49 → 4.50</td>
+    </tr><tr>
+      <td>jQuery-src</td>
+      <td class="num">69,545</td>
+      <td class="mono dim">source/etn</td>
+      <td class="num win">-6,428</td>
+      <td class="num dim">-47,043</td>
+      <td class="num">735 → 171</td>
+      <td class="num dim">7.88 → 4.48</td>
+    </tr><tr>
+      <td>jQuery-lil-raw</td>
+      <td class="num">33,283</td>
+      <td class="mono dim">source/reversed</td>
+      <td class="num win">-801</td>
+      <td class="num dim">-542</td>
+      <td class="num">106 → 25</td>
+      <td class="num dim">3.94 → 3.39</td>
+    </tr><tr>
+      <td>jQuery-lil-min</td>
+      <td class="num">37,901</td>
+      <td class="mono dim">firstUse/dialect</td>
+      <td class="num win">-617</td>
+      <td class="num dim">-95</td>
+      <td class="num">31 → 29</td>
+      <td class="num dim">3.60 → 3.24</td>
+    </tr><tr>
+      <td>gl-matrix-js-vite</td>
+      <td class="num">14,330</td>
+      <td class="mono dim">as shipped</td>
+      <td class="num flat">0</td>
+      <td class="num dim">0</td>
+      <td class="num">36 → 36</td>
+      <td class="num dim">3.76 → 3.76</td>
+    </tr><tr>
+      <td>gl-matrix-lil-vite</td>
+      <td class="num">14,116</td>
+      <td class="mono dim">firstUse/dialect</td>
+      <td class="num win">-6</td>
+      <td class="num dim">0</td>
+      <td class="num">32 → 33</td>
+      <td class="num dim">3.46 → 3.46</td>
+    </tr><tr>
+      <td>gl-matrix-lil-raw</td>
+      <td class="num">17,352</td>
+      <td class="mono dim">firstUse/reversed</td>
+      <td class="num win">-1,151</td>
+      <td class="num dim">-5,769</td>
+      <td class="num">95 → 33</td>
+      <td class="num dim">4.79 → 3.48</td>
+    </tr></tbody>
+  </table></div>
+  <p style="margin-top:18px">Two clean groups. On artifacts a mature JavaScript minifier produced,
+  there is nothing left: 0 to 13 bytes. On <strong>LilScript's own emits</strong> there is 0.04% to
+  6.6%. The compiler is not missing the idea — it has a
+  <code>precise_cross_scope_shadowing</code> regime that implements exactly this rule, off in the
+  pinned path by design and reachable only as a candidate-search proposal.</p>
+  <div class="callout"><p>Verified three ways: the binding graph is unchanged after the rewrite,
+  37 jsdom observations are byte-identical to the shipped artifact, and
+  <code>lilscript-codec</code> — the gate, not the diagnostic scorer — reports 32,482.</p></div>
+</section>
+
+<section>
+  <div class="num-label">06 — free orders</div>
+  <h2>Emission orders that cost nothing to change</h2>
+  <h3>String-pool order: a small, free win</h3>
+  <p>LilScript emits 325 pooled literals in one <code>var</code>. Those declarators cannot
+  reference each other, so any permutation is the same program. Δ Brotli, with gzip alongside:</p>
+  <div class="scroll"><table>
+    <thead><tr><th>order</th><th class="num" colspan="2">jQuery-lil-raw</th><th class="num" colspan="2">jQuery-lil-min</th></tr>
+    <tr><th></th><th class="num">br11</th><th class="num">gzip</th><th class="num">br11</th><th class="num">gzip</th></tr></thead>
+    <tbody><tr><td class="mono">asIs</td><td class="num flat">0</td>
+            <td class="num dim">0</td><td class="num flat">0</td>
+            <td class="num dim">0</td></tr><tr><td class="mono">alphabetical</td><td class="num win">-12</td>
+            <td class="num dim">-124</td><td class="num win">-22</td>
+            <td class="num dim">-94</td></tr><tr><td class="mono">bySuffix</td><td class="num win">-50</td>
+            <td class="num dim">-76</td><td class="num win">-58</td>
+            <td class="num dim">-61</td></tr><tr><td class="mono">byLength</td><td class="num lose">+19</td>
+            <td class="num dim">-44</td><td class="num flat">0</td>
+            <td class="num dim">-18</td></tr><tr><td class="mono">byLengthDesc</td><td class="num lose">+53</td>
+            <td class="num dim">+53</td><td class="num lose">+17</td>
+            <td class="num dim">+9</td></tr><tr><td class="mono">chained</td><td class="num win">-15</td>
+            <td class="num dim">-104</td><td class="num win">-70</td>
+            <td class="num dim">-101</td></tr><tr><td class="mono">dictionaryFirst</td><td class="num win">-9</td>
+            <td class="num dim">-53</td><td class="num win">-15</td>
+            <td class="num dim">-47</td></tr></tbody>
+  </table></div>
+  <p style="margin-top:16px">Sorting by <em>reversed</em> string wins on Brotli because property
+  names share endings — <code>…Node</code>, <code>…Element</code>, <code>…Type</code> — more than
+  beginnings, and a shared ending is still a copy. gzip prefers alphabetical; the two codecs
+  disagree, as usual.</p>
+
+  <h3>Function layout: measured, and it loses</h3>
+  <div class="scroll"><table>
+    <thead><tr><th>order</th><th class="num">jQuery-min</th><th class="num">jQuery-src</th><th class="num">jQuery-lil-raw</th><th class="num">jQuery-lil-min</th><th class="num">gl-matrix-js-vite</th><th class="num">gl-matrix-lil-vite</th><th class="num">gl-matrix-lil-raw</th></tr></thead>
+    <tbody><tr><td class="mono">similarity</td><td class="num lose">+13</td><td class="num lose">+228</td><td class="num lose">+44</td><td class="num lose">+72</td><td class="num lose">+15</td><td class="num win">-40</td><td class="num lose">+34</td></tr><tr><td class="mono">sizeThenSimilarity</td><td class="num lose">+67</td><td class="num lose">+222</td><td class="num lose">+107</td><td class="num lose">+113</td><td class="num lose">+53</td><td class="num win">-77</td><td class="num win">-72</td></tr><tr><td class="mono">byLength</td><td class="num lose">+41</td><td class="num lose">+278</td><td class="num lose">+129</td><td class="num lose">+177</td><td class="num lose">+173</td><td class="num lose">+10</td><td class="num lose">+83</td></tr><tr><td class="mono">byName</td><td class="num lose">+87</td><td class="num lose">+280</td><td class="num lose">+234</td><td class="num lose">+301</td><td class="num lose">+433</td><td class="num lose">+430</td><td class="num lose">+337</td></tr><tr><td class="mono">reversed</td><td class="num lose">+66</td><td class="num lose">+237</td><td class="num lose">+21</td><td class="num lose">+189</td><td class="num lose">+49</td><td class="num win">-45</td><td class="num win">-40</td></tr></tbody>
+  </table></div>
+  <p style="margin-top:16px">The census of the reordered files is the point: the implicit-distance
+  rate moves by less than one point and distance bytes by less than 1%. Reordering whole functions
+  does not convert near-miss distances into cache hits. That door is closed with a reason.</p>
+</section>
+
+<section>
+  <div class="num-label">07 — the three ports</div>
+  <h2>jquerylil, markedlil, solidlil</h2>
+  <p>The same questions, asked of what those projects actually publish. Every win below was
+  checked by running the port: 28 jsdom observations for jquerylil, all 680 CommonMark and GFM
+  spec cases for markedlil, 18 reactive observations for solidlil's core. A row is reported only
+  when the mutant's observations are identical to the baseline's.</p>
+  <div class="scroll"><table>
+    <thead><tr><th>artifact</th><th class="num">raw</th><th class="num">br11</th>
+      <th>best legal naming</th><th class="num">Δ br11</th><th class="num">Δ raw</th>
+      <th class="num">distinct names</th><th>verified</th></tr></thead>
+    <tbody><tr>
+      <td class="mono">jquerylil-raw</td>
+      <td class="num">92,668</td>
+      <td class="num">30,890</td>
+      <td class="mono dim">source/reversed</td>
+      <td class="num win">-770</td>
+      <td class="num dim">-524</td>
+      <td class="num">455 → 454</td>
+      <td class="ok">28/28 jsdom</td>
+    </tr><tr>
+      <td class="mono">jquerylil-esm</td>
+      <td class="num">92,765</td>
+      <td class="num">30,973</td>
+      <td class="mono dim">firstUse/reversed</td>
+      <td class="num win">-776</td>
+      <td class="num dim">-524</td>
+      <td class="num">455 → 454</td>
+      <td class="ok">28/28 jsdom</td>
+    </tr><tr>
+      <td class="mono">markedlil-raw</td>
+      <td class="num">35,901</td>
+      <td class="num">9,543</td>
+      <td class="mono dim">source/dialect</td>
+      <td class="num lose">+14</td>
+      <td class="num dim">-4</td>
+      <td class="num">198 → 197</td>
+      <td class="ok">680/680 spec</td>
+    </tr><tr>
+      <td class="mono">markedlil-bytes</td>
+      <td class="num">33,548</td>
+      <td class="num">9,456</td>
+      <td class="mono dim">source/dialect</td>
+      <td class="num dim">-37</td>
+      <td class="num dim">-34</td>
+      <td class="num">188 → 175</td>
+      <td class="no">baseline is miscompiled</td>
+    </tr><tr>
+      <td class="mono">markedlil-gzip</td>
+      <td class="num">36,220</td>
+      <td class="num">9,543</td>
+      <td class="mono dim">source/dialect</td>
+      <td class="num win">-5</td>
+      <td class="num dim">-2</td>
+      <td class="num">198 → 197</td>
+      <td class="ok">680/680 spec</td>
+    </tr><tr>
+      <td class="mono">markedlil-esm</td>
+      <td class="num">35,985</td>
+      <td class="num">9,589</td>
+      <td class="mono dim">firstUse/dialect</td>
+      <td class="num lose">+6</td>
+      <td class="num dim">-4</td>
+      <td class="num">198 → 197</td>
+      <td class="ok">680/680 spec</td>
+    </tr><tr>
+      <td class="mono">solidlil-reactive</td>
+      <td class="num">13,500</td>
+      <td class="num">4,377</td>
+      <td class="mono dim">source/abc</td>
+      <td class="num win">-96</td>
+      <td class="num dim">-63</td>
+      <td class="num">94 → 83</td>
+      <td class="ok">18/18 reactive</td>
+    </tr><tr>
+      <td class="mono">solidlil-core</td>
+      <td class="num">30,074</td>
+      <td class="num">8,433</td>
+      <td class="mono dim">source/dialect</td>
+      <td class="num win">-4</td>
+      <td class="num dim">-15</td>
+      <td class="num">132 → 133</td>
+      <td class="dim">app bundle, not driven</td>
+    </tr><tr>
+      <td class="mono">solidlil-lsx-vite</td>
+      <td class="num">34,209</td>
+      <td class="num">10,741</td>
+      <td class="mono dim">firstUse/adaptive</td>
+      <td class="num win">-1</td>
+      <td class="num dim">-3</td>
+      <td class="num">296 → 296</td>
+      <td class="dim">app bundle, not driven</td>
+    </tr><tr>
+      <td class="mono">solidlil-web</td>
+      <td class="num">40,467</td>
+      <td class="num">11,667</td>
+      <td class="mono dim">firstUse/dialect</td>
+      <td class="num lose">+7</td>
+      <td class="num dim">0</td>
+      <td class="num">136 → 136</td>
+      <td class="dim">app bundle, not driven</td>
+    </tr><tr>
+      <td class="mono">solid-core (js)</td>
+      <td class="num">29,474</td>
+      <td class="num">8,551</td>
+      <td class="mono dim">firstUse/adaptive</td>
+      <td class="num win">-16</td>
+      <td class="num dim">-8</td>
+      <td class="num">82 → 82</td>
+      <td class="dim">app bundle, not driven</td>
+    </tr><tr>
+      <td class="mono">solid-lsx-vite (js)</td>
+      <td class="num">38,629</td>
+      <td class="num">12,560</td>
+      <td class="mono dim">source/etn</td>
+      <td class="num win">-62</td>
+      <td class="num dim">-11</td>
+      <td class="num">239 → 239</td>
+      <td class="dim">app bundle, not driven</td>
+    </tr><tr>
+      <td class="mono">solid-web (js)</td>
+      <td class="num">39,583</td>
+      <td class="num">11,655</td>
+      <td class="mono dim">source/dialect</td>
+      <td class="num win">-14</td>
+      <td class="num dim">0</td>
+      <td class="num">86 → 87</td>
+      <td class="dim">app bundle, not driven</td>
+    </tr></tbody>
+  </table></div>
+  <p style="margin-top:18px">The split is the same one as section 05: <strong>where the compiler's
+  emit is the final artifact</strong> — jquerylil's dist files, solidlil's reactive core — there is
+  2.2–2.5% in naming. Where a bundler re-mangles afterwards, there is nothing: rolldown and esbuild
+  have already taken it.</p>
+
+  <h3>markedlil: one cost model miscompiles</h3>
+  <p>markedlil compiles one source tree four times, changing a single knob each time. Scored with
+  <code>lilscript-codec</code> — and, because a size comparison between builds that do not compute
+  the same thing is not a size comparison, run through all 680 CommonMark 0.31.2 and GFM 0.29 spec
+  cases:</p>
+  <div class="scroll"><table>
+    <thead><tr><th>build</th><th>knob</th><th class="num">raw</th><th class="num">gzip-9</th>
+      <th class="num">Brotli-11</th><th class="num">spec failures</th><th></th></tr></thead>
+    <tbody><tr>
+      <td class="mono">marked.bytes.js</td>
+      <td class="mono dim">cost_model = "raw"</td>
+      <td class="num">33,548</td>
+      <td class="num">10,554</td>
+      <td class="num">9,456</td>
+      <td class="num lose">208</td>
+      <td class="no">computes something else</td>
+    </tr><tr>
+      <td class="mono">marked.closed.js</td>
+      <td class="mono dim">cost_model = "brotli", extern_fields = false</td>
+      <td class="num">35,621</td>
+      <td class="num">10,678</td>
+      <td class="num">9,475</td>
+      <td class="num dim">206</td>
+      <td class="win">smallest correct build</td>
+    </tr><tr>
+      <td class="mono">marked.raw.js</td>
+      <td class="mono dim">cost_model = "brotli"</td>
+      <td class="num">35,901</td>
+      <td class="num">10,711</td>
+      <td class="num">9,543</td>
+      <td class="num dim">206</td>
+      <td class="dim">+68</td>
+    </tr><tr>
+      <td class="mono">marked.gzip.js</td>
+      <td class="mono dim">cost_model = "gzip"</td>
+      <td class="num">36,220</td>
+      <td class="num">10,674</td>
+      <td class="num">9,543</td>
+      <td class="num dim">206</td>
+      <td class="dim">+68</td>
+    </tr><tr>
+      <td class="mono">marked.esm.js</td>
+      <td class="mono dim">what the package publishes</td>
+      <td class="num">35,985</td>
+      <td class="num">10,766</td>
+      <td class="num">9,589</td>
+      <td class="num dim">206</td>
+      <td class="dim">+114</td>
+    </tr></tbody>
+  </table></div>
+  <p style="margin-top:16px">206 failures is this port's normal state — marked is not fully
+  CommonMark compliant, and four of the five builds fail exactly those 206 and produce
+  byte-identical output on all 680 cases. The fifth does not:</p>
+  <div class="scroll"><table>
+    <thead><tr><th>case</th><th>markdown</th><th>expected</th><th>what <code>cost_model = "raw"</code> produced</th></tr></thead>
+    <tbody><tr>
+    <td class="mono dim">commonmark.0.31.2 #604<span class="sub"> Autolinks</span></td>
+    <td class="mono">"&lt;foo@bar.example.com&gt;\n"</td>
+    <td class="mono ok">"&lt;p&gt;&lt;a href=\"mailto:foo@bar.example.com\"&gt;foo@bar.example.com&lt;/a&gt;&lt;/p&gt;\n"</td>
+    <td class="mono no">"&lt;p&gt;&lt;a href=\"foo@bar.example.com\"&gt;foo@bar.example.com&lt;/a&gt;&lt;/p&gt;\n"</td>
+  </tr><tr>
+    <td class="mono dim">commonmark.0.31.2 #605<span class="sub"> Autolinks</span></td>
+    <td class="mono">"&lt;foo+special@Bar.baz-bar0.com&gt;\n"</td>
+    <td class="mono ok">"&lt;p&gt;&lt;a href=\"mailto:foo+special@Bar.baz-bar0.com\"&gt;foo+special@Bar.baz-bar0.co"</td>
+    <td class="mono no">"&lt;p&gt;&lt;a href=\"foo+special@Bar.baz-bar0.com\"&gt;foo+special@Bar.baz-bar0.com&lt;/a&gt;&lt;/"</td>
+  </tr></tbody>
+  </table></div>
+  <div class="callout"><p>The <code>mailto:</code> prefix is gone. Same sources, same compiler, one
+  knob apart, candidate search on in both: <strong>the search ranked and shipped a candidate that
+  changes what the program computes.</strong> It reproduces at HEAD.</p></div>
+
+  <h3>Why the raw model's build is smaller — and what it costs</h3>
+  <p>The two builds differ in four transform families at once: outlining repeated member calls
+  (<code>.slice(</code> 63 → 2, <code>.exec(</code> 39 → 1, <code>.replace(</code> 28 → 1), fusing
+  statements into comma sequences (<code>;</code> 1,092 → 383, and 99 blocks lose their braces),
+  merging adjacent declarations (<code>var</code> 240 → 75), and <code>for(;t;)</code> →
+  <code>while(t)</code> (50 → 1). Applied one at a time to the Brotli-model artifact and scored
+  with the gate codec:</p>
+  <div class="scroll"><table>
+    <thead><tr><th>family</th><th class="num">sites</th><th class="num">Δ raw</th>
+      <th class="num">Δ gzip</th><th class="num">Δ Brotli-11</th><th></th></tr></thead>
+    <tbody>
+      <tr><td class="mono">merge adjacent declarations</td><td class="num">230</td>
+        <td class="num win">−920</td><td class="num win">−60</td><td class="num">±3</td>
+        <td class="win">a tie, worth 920 raw bytes</td></tr>
+      <tr><td class="mono">for(;t;) → while(t)</td><td class="num">49</td>
+        <td class="num dim">0</td><td class="num dim">−5</td><td class="num lose">+19</td>
+        <td class="dim">rightly declined</td></tr>
+      <tr><td class="mono">outline .slice/.exec/.replace</td><td class="num">130</td>
+        <td class="num">−187</td><td class="num lose">+79</td><td class="num lose">+126</td>
+        <td class="dim">rightly declined</td></tr>
+    </tbody>
+  </table></div>
+  <p style="margin-top:16px">So the Brotli model is right to refuse two of the three. The third is a
+  <strong>tie on the ranked metric that it is losing by 920 raw bytes</strong> — and the same probe
+  finds <em>zero</em> such opportunities in jquerylil or solidlil, whose configs carry an explicit
+  30-pass <code>compression</code> list that markedlil's does not.</p>
+
+  <h3>And the bug is the <code>ident</code> class, not the cost model</h3>
+  <p>The two builds' autolink handlers, side by side: the correct one computes the
+  <code>mailto:</code> ternary <em>before</em> reusing its variable; the raw-model one fuses four
+  assignments into one comma sequence and reads match-group 2 from <code>p</code>
+  <em>after</em> <code>p</code> has been reassigned to the token.</p>
+  <pre class="mono" style="background:var(--sunken);border:1px solid var(--rule);padding:14px;overflow-x:auto;font-size:12px;line-height:1.6">// cost_model = "brotli" — correct
+var t = ae.exec(e);                          // t = the match
+e = Ir(t);
+var r = "@" == At(t, 2) ? "mailto:" + e : e; // reads group 2 of t …
+t = a(15, t[0] + "");                        // … before t is reused
+t.text = e; t.href = r;
+
+// cost_model = "raw" — wrong
+var p = R(up, A);                            // p = the match
+A = a(p, 1),
+p = i(15, M(p)),                             // p reassigned to the token
+p.text = A,
+p.href = "@" == a(p, 2) ? "mailto:" + A : A; // reads group 2 of p — too late</pre>
+  <p>That is the board's own <code>ident</code> invariant — a saved value must stay readable across
+  its own update — in a shipped port, with a one-knob trigger and a two-case spec signature. The
+  raw cost model does not cause it; it buys enough fusion for the fold to fire.</p>
+  <p>Among the four builds that do compute the same thing, the smallest is
+  <code>marked.closed.js</code> at 9,475 — and the package publishes
+  <code>marked.esm.js</code> at 9,589, 114 bytes above a correct build it already produces.
+  Naming headroom on those builds is nil.</p>
+</section>
+
+<section>
+  <div class="num-label">08 — how to search</div>
+  <h2>The objective is separable, if you factor it right</h2>
+  <p>Transforms plainly affect one another, so the question is whether the coupling is strong and
+  general — in which case no cheap heuristic can work — or structured. So it was measured: six
+  legality-checked rewrites applied to a finished artifact in every combination, 32 or 64 design
+  points each, scored with the real codec, and an additive model fitted to the responses.</p>
+  <div class="scroll"><table>
+    <thead><tr><th>artifact</th><th class="num">R², naming as two switches</th>
+      <th class="num">R², naming as one decision</th><th>top interaction (split)</th>
+      <th class="num">greedy leaves</th><th class="num">stacking error, split</th>
+      <th class="num">stacking error, grouped</th></tr></thead>
+    <tbody><tr>
+      <td class="mono">jquerylil-esm</td>
+      <td class="num lose">0.5510</td>
+      <td class="num win">0.9968</td>
+      <td class="mono dim">N×O 99%</td>
+      <td class="num">25 B</td>
+      <td class="num dim">+601 B</td>
+      <td class="num">0 B</td>
+    </tr><tr>
+      <td class="mono">jquery-lil-raw</td>
+      <td class="num lose">0.8061</td>
+      <td class="num win">0.9947</td>
+      <td class="mono dim">N×O 99%</td>
+      <td class="num">21 B</td>
+      <td class="num dim">+718 B</td>
+      <td class="num">+14 B</td>
+    </tr><tr>
+      <td class="mono">solidlil-reactive</td>
+      <td class="num lose">0.8340</td>
+      <td class="num win">0.9896</td>
+      <td class="mono dim">N×O 98%</td>
+      <td class="num">0 B</td>
+      <td class="num dim">+65 B</td>
+      <td class="num">0 B</td>
+    </tr><tr>
+      <td class="mono">markedlil-raw</td>
+      <td class="num lose">0.9278</td>
+      <td class="num win">0.9631</td>
+      <td class="mono dim">N×O 70%</td>
+      <td class="num">3 B</td>
+      <td class="num dim">0 B</td>
+      <td class="num">-32 B</td>
+    </tr></tbody>
+  </table></div>
+  <div class="callout"><p>Modelling naming as two independent switches puts the additive fit at
+  <strong>R² 0.55</strong>. Modelling it as <strong>one decision with four levels</strong> puts it at
+  <strong>0.9968</strong> — and in the split design that single pair carried 70–99% of all the
+  apparent coupling. It was never physics: applying one renaming after another does not compose
+  them, the second overwrites the first.</p></div>
+  <p>Interactions concentrate between factors that <strong>rewrite the same bytes</strong> and vanish
+  between factors that rewrite disjoint ones — on two artifacts the naming × declaration-merging
+  interaction is exactly <strong>0.0%</strong>. That turns the search from a product into a sum:
+  partition transforms by what they rewrite, enumerate levels inside a partition, take each
+  partition's best independently. Cost falls from ∏|levels| to ∑|levels|, and coordinate descent
+  lands within 25 bytes — 0.08% — of exhaustive search.</p>
+  <p>The largest verified result in this folder came out of exactly that grid: the in-tree jQuery
+  port at <strong>33,283 → 32,223 Brotli, −1,060 bytes (−3.18%)</strong> under
+  <code>lilscript-codec</code>, all 37 jsdom observations identical — from 64 evaluations that take
+  seconds, against a candidate search that did not finish the same artifact in 4.5 hours.</p>
+  <p class="dim" style="font-size:14px">Honest limits: this is a six-factor screen on post-hoc
+  rewrites, not the compiler's real space, where families change structure rather than spelling and
+  may couple harder. And a grouped factor is only as good as its level set — the two-switch design
+  found 30 bytes the four-level design missed, because applying both renamings composes to a naming
+  none of the four levels contained.</p>
+</section>
+
+<section>
+  <div class="num-label">09 — the equation</div>
+  <h2>Closed form, useless gradient, cheap re-solve</h2>
+  <p>There is no black box. For a fixed parse the size of a Brotli stream is exactly
+  <code>L = H(θ) + Σ [ ℓ(cmd) + ℓ(dist) + Σ ℓ(literal | ctx) ]</code>, where every <code>ℓ</code> is
+  <code>−log2 p</code> under that block's own histogram θ. Two things stop it being directly
+  optimisable: the parse is itself a choice, and θ depends on the whole block — a mean-field
+  coupling rather than a local one.</p>
+  <p>Freeze θ and the objective becomes linear in the symbol counts, with the obvious gradient
+  <code>∂L/∂n_s = −log2 p_s</code>. That is what any cost model pricing a change locally is doing.
+  Measured against the real codec over 32 design points per artifact:</p>
+  <div class="scroll"><table>
+    <thead><tr><th>artifact</th><th class="num">r, θ frozen (the gradient)</th><th class="num">mean error</th>
+      <th class="num">r, θ recomputed</th><th class="num">mean error</th>
+      <th class="num">absolute error</th><th class="num">vs the codec</th></tr></thead>
+    <tbody><tr>
+    <td class="mono">reactive.generated.js</td>
+    <td class="num ">0.9721</td>
+    <td class="num dim">25 B</td>
+    <td class="num win">0.9907</td>
+    <td class="num dim">18 B</td>
+    <td class="num">7.5 B</td>
+    <td class="num win">6.0×</td>
+  </tr><tr>
+    <td class="mono">marked.raw.js</td>
+    <td class="num ">0.7383</td>
+    <td class="num dim">175 B</td>
+    <td class="num win">0.9261</td>
+    <td class="num dim">21 B</td>
+    <td class="num">19.3 B</td>
+    <td class="num win">9.4×</td>
+  </tr><tr>
+    <td class="mono">jquery.esm.js</td>
+    <td class="num lose">-0.1373</td>
+    <td class="num dim">589 B</td>
+    <td class="num win">0.9939</td>
+    <td class="num dim">70 B</td>
+    <td class="num">42.2 B</td>
+    <td class="num win">7.7×</td>
+  </tr></tbody>
+  </table></div>
+  <div class="callout"><p>On the artifact whose edits are renamings the gradient is
+  <strong>anti-correlated with the truth</strong> (r −0.14). Renaming barely changes which symbols
+  occur — it changes the distribution itself, which is exactly the term a linearisation discards.
+  You cannot step along this field; you have to re-solve it. Re-solving is one pass, ranks to
+  0.15%, and is 6–10× cheaper than compressing.</p></div>
+  <p>The hardness is real and sits in the obvious place: the surrogate this folder measured —
+  <em>use fewer distinct names, subject to interference</em> — is graph colouring, which is NP-hard,
+  and the true objective is worse. What is not out of reach is the structure. Enumerate levels
+  inside a partition, score analytically, confirm the finalists with the real codec.</p>
+
+  <h3>What it buys on the shipped libraries</h3>
+  <p>Grid, best point, each step proved, scored with <code>lilscript-codec</code> — 14 artifacts
+  from five LilScript libraries, <strong>12 seconds of search in total</strong>.</p>
+  <div class="scroll"><table>
+    <thead><tr><th>library</th><th>artifact</th><th class="num">Brotli-11</th><th class="num">after</th>
+      <th class="num">Δ</th><th class="num">%</th><th class="num">Δ raw</th><th>winning point</th>
+      <th>verified by</th></tr></thead>
+    <tbody><tr>
+      <td class="mono">jquerylil</td>
+      <td class="mono dim">jquery.esm.js</td>
+      <td class="num">30,973</td>
+      <td class="num win">30,397</td>
+      <td class="num win">-576</td>
+      <td class="num ">-1.86%</td>
+      <td class="num dim">-524</td>
+      <td class="mono dim">N=on</td>
+      <td class="ok">12 jsdom observations</td>
+    </tr><tr>
+      <td class="mono">posthoglil</td>
+      <td class="mono dim">error-tracking.raw.js</td>
+      <td class="num">6,200</td>
+      <td class="num win">6,020</td>
+      <td class="num win">-180</td>
+      <td class="num ">-2.90%</td>
+      <td class="num dim">-517</td>
+      <td class="mono dim">N=on D=on P=on</td>
+      <td class="ok">export surface</td>
+    </tr><tr>
+      <td class="mono">solidlil</td>
+      <td class="mono dim">reactive.generated.js</td>
+      <td class="num">4,377</td>
+      <td class="num win">4,282</td>
+      <td class="num win">-95</td>
+      <td class="num ">-2.17%</td>
+      <td class="num dim">-58</td>
+      <td class="mono dim">N=on O=on</td>
+      <td class="ok">7 reactive observations</td>
+    </tr><tr>
+      <td class="mono">posthoglil</td>
+      <td class="mono dim">otlp.raw.js</td>
+      <td class="num">2,594</td>
+      <td class="num win">2,543</td>
+      <td class="num win">-51</td>
+      <td class="num ">-1.97%</td>
+      <td class="num dim">-142</td>
+      <td class="mono dim">N=on O=on D=on P=on</td>
+      <td class="ok">export surface</td>
+    </tr><tr>
+      <td class="mono">motionlil</td>
+      <td class="mono dim">animate.js</td>
+      <td class="num">26,348</td>
+      <td class="num win">26,329</td>
+      <td class="num win">-19</td>
+      <td class="num ">-0.07%</td>
+      <td class="num dim">0</td>
+      <td class="mono dim">P=on</td>
+      <td class="ok">export surface</td>
+    </tr><tr>
+      <td class="mono">markedlil</td>
+      <td class="mono dim">marked.raw.js</td>
+      <td class="num">9,543</td>
+      <td class="num win">9,527</td>
+      <td class="num win">-16</td>
+      <td class="num ">-0.17%</td>
+      <td class="num dim">-945</td>
+      <td class="mono dim">N=on D=on</td>
+      <td class="ok">680 spec cases</td>
+    </tr><tr>
+      <td class="mono">motionlil</td>
+      <td class="mono dim">mini.js</td>
+      <td class="num">11,085</td>
+      <td class="num win">11,070</td>
+      <td class="num win">-15</td>
+      <td class="num ">-0.14%</td>
+      <td class="num dim">0</td>
+      <td class="mono dim">P=on</td>
+      <td class="ok">export surface</td>
+    </tr><tr>
+      <td class="mono">motionlil</td>
+      <td class="mono dim">scroll.js</td>
+      <td class="num">5,591</td>
+      <td class="num dim">—</td>
+      <td class="num dim">0</td>
+      <td class="num dim">—</td>
+      <td class="num dim">0</td>
+      <td class="mono dim">already at the optimum</td>
+      <td class="dim"></td>
+    </tr><tr>
+      <td class="mono">motionlil</td>
+      <td class="mono dim">index.bundle.js</td>
+      <td class="num">34,446</td>
+      <td class="num dim">—</td>
+      <td class="num dim">0</td>
+      <td class="num dim">—</td>
+      <td class="num dim">0</td>
+      <td class="mono dim">already at the optimum</td>
+      <td class="dim"></td>
+    </tr><tr>
+      <td class="mono">motionlil</td>
+      <td class="mono dim">full.js</td>
+      <td class="num">51,416</td>
+      <td class="num dim">—</td>
+      <td class="num dim">0</td>
+      <td class="num dim">—</td>
+      <td class="num dim">0</td>
+      <td class="mono dim">already at the optimum</td>
+      <td class="dim"></td>
+    </tr><tr>
+      <td class="mono">posthoglil</td>
+      <td class="mono dim">surveys.raw.js</td>
+      <td class="num">1,765</td>
+      <td class="num dim">—</td>
+      <td class="num dim">0</td>
+      <td class="num dim">—</td>
+      <td class="num dim">0</td>
+      <td class="mono dim">already at the optimum</td>
+      <td class="dim"></td>
+    </tr><tr>
+      <td class="mono">posthoglil</td>
+      <td class="mono dim">replay-core.raw.js</td>
+      <td class="num">3,432</td>
+      <td class="num dim">—</td>
+      <td class="num dim">0</td>
+      <td class="num dim">—</td>
+      <td class="num dim">0</td>
+      <td class="mono dim">already at the optimum</td>
+      <td class="dim"></td>
+    </tr><tr>
+      <td class="mono">posthoglil</td>
+      <td class="mono dim">autocapture.raw.js</td>
+      <td class="num">3,065</td>
+      <td class="num dim">—</td>
+      <td class="num dim">0</td>
+      <td class="num dim">—</td>
+      <td class="num dim">0</td>
+      <td class="mono dim">already at the optimum</td>
+      <td class="dim"></td>
+    </tr><tr>
+      <td class="mono">posthoglil</td>
+      <td class="mono dim">posthog.raw.js</td>
+      <td class="num">5,606</td>
+      <td class="num dim">—</td>
+      <td class="num dim">0</td>
+      <td class="num dim">—</td>
+      <td class="num dim">0</td>
+      <td class="mono dim">already at the optimum</td>
+      <td class="dim"></td>
+    </tr></tbody>
+  </table></div>
+  <p style="margin-top:16px"><strong>196,441 → 195,489 Brotli bytes, −952 overall</strong>, up to
+  −2.90% on a single module, every winner behaviourally identical. Read the zeros too: motionlil is
+  already at this grid's optimum on its three largest artifacts — they come out of a bundler, and
+  where something re-mangles downstream naming has nothing left. markedlil gives back
+  <strong>945 raw bytes for 16 Brotli bytes</strong>, the same tie-break as section 07, now on a
+  third artifact.</p>
+</section>
+
+<section>
+  <div class="num-label">10 — the plan</div>
+  <h2>What to do about it</h2>
+  <ol class="phases">
+    <li><b>Fix the miscompilation first.</b> Route the statement-fusion fold through the shared
+    receiver-rebinding check the <code>ident</code> lane is already building, and freeze CommonMark
+    #604/#605 as a canonical case. A search that ranks a behaviour-changing candidate outranks
+    every size question below it — and the general question it raises is whether anything gates
+    candidate acceptance on behaviour, or only on size and a static proof.</li>
+    <li><b>Break codec ties with raw size.</b> markedlil is taking the 920-raw-byte-larger side of a
+    ±3-byte Brotli tie. Raw is never free: it is parse time, memory, and the gzip lane.</li>
+    <li><b>Diagnose the 106 names.</b> Rebuild the port with today's compiler, and find out whether
+    the candidate beam proposes the precise-shadowing regime for this artifact at all. Three
+    possible answers — not proposed, proposed and lost, proposed and dropped by beam width — and
+    they lead to three different fixes. Diagnosis only; safe while the identity lane is red.</li>
+    <li><b>Make the allocation objective explicit.</b> Colour the interference graph for
+    <em>fewest colours</em>, biased toward the letters the file already spends, instead of "first
+    free name in alphabet order". Blocked on the identity lane: a naming change that lands while
+    identity bugs are open will be blamed for them.</li>
+    <li><b>Freeze the invariant.</b> Paired canonical cases where two non-interfering live ranges
+    in sibling closures must receive the same name.</li>
+    <li><b>Take the free order.</b> Pooled literals in reversed-string order under a Brotli cost
+    model, as a scored proposal rather than a rule.</li>
+    <li><b>Write the closed doors down.</b> Dictionary words as identifiers, copy-maximising
+    alignment, and function layout for the distance cache — each with its numbers, so the next
+    context does not re-derive them.</li>
+    <li><b>Factor the search space before optimising it.</b> Two knobs that rewrite the same bytes
+    are one decision with several levels. Report the additive fit's R² whenever a family joins the
+    beam: if it drops, the partition is wrong and the family belongs inside an existing one.</li>
+    <li><b>Keep the instrument.</b> A proposal that claims a mechanism must show the census row
+    where the mechanism appears. Two of the ideas above died on exactly that test after looking
+    plausible in prose.</li>
+  </ol>
+</section>
+
+<footer><div class="wrap">
+  <p>Every number here is generated from the JSON in
+  <code>docs/knowledge/research/aligned-mangling/</code>; this page is built by
+  <code>render-findings.mjs</code> and cannot drift from it. Mutations are applied through a scope
+  analyser and re-analysed afterwards; anything that changes the binding graph is reported, not
+  scored. Diagnostic sizes are Node zlib Brotli 1.1.0 q11 lgwin 22 and gzip-9; the headline result
+  was re-scored with <code>lilscript-codec</code>. The format tooling is
+  <em>Brotli, the whole machine</em>, in the same folder.</p>
+</div></footer>
+</main>

@@ -1,0 +1,212 @@
+[
+ {
+  "id": "jquery-lil-raw",
+  "order": "asIs",
+  "entries": 325,
+  "base": {
+   "raw": 102681,
+   "gzip9": 38948,
+   "br11": 33283
+  },
+  "delta": {
+   "raw": 0,
+   "gzip9": 0,
+   "br11": 0
+  }
+ },
+ {
+  "id": "jquery-lil-raw",
+  "order": "alphabetical",
+  "entries": 325,
+  "base": {
+   "raw": 102681,
+   "gzip9": 38948,
+   "br11": 33283
+  },
+  "delta": {
+   "raw": 0,
+   "gzip9": -124,
+   "br11": -12
+  }
+ },
+ {
+  "id": "jquery-lil-raw",
+  "order": "bySuffix",
+  "entries": 325,
+  "base": {
+   "raw": 102681,
+   "gzip9": 38948,
+   "br11": 33283
+  },
+  "delta": {
+   "raw": 0,
+   "gzip9": -76,
+   "br11": -50
+  }
+ },
+ {
+  "id": "jquery-lil-raw",
+  "order": "byLength",
+  "entries": 325,
+  "base": {
+   "raw": 102681,
+   "gzip9": 38948,
+   "br11": 33283
+  },
+  "delta": {
+   "raw": 0,
+   "gzip9": -44,
+   "br11": 19
+  }
+ },
+ {
+  "id": "jquery-lil-raw",
+  "order": "byLengthDesc",
+  "entries": 325,
+  "base": {
+   "raw": 102681,
+   "gzip9": 38948,
+   "br11": 33283
+  },
+  "delta": {
+   "raw": 0,
+   "gzip9": 53,
+   "br11": 53
+  }
+ },
+ {
+  "id": "jquery-lil-raw",
+  "order": "chained",
+  "entries": 325,
+  "base": {
+   "raw": 102681,
+   "gzip9": 38948,
+   "br11": 33283
+  },
+  "delta": {
+   "raw": 0,
+   "gzip9": -104,
+   "br11": -15
+  }
+ },
+ {
+  "id": "jquery-lil-raw",
+  "order": "dictionaryFirst",
+  "entries": 325,
+  "base": {
+   "raw": 102681,
+   "gzip9": 38948,
+   "br11": 33283
+  },
+  "delta": {
+   "raw": 0,
+   "gzip9": -53,
+   "br11": -9
+  }
+ },
+ {
+  "id": "jquery-lil-min",
+  "order": "asIs",
+  "entries": 302,
+  "base": {
+   "raw": 110749,
+   "gzip9": 42826,
+   "br11": 37901
+  },
+  "delta": {
+   "raw": 0,
+   "gzip9": 0,
+   "br11": 0
+  }
+ },
+ {
+  "id": "jquery-lil-min",
+  "order": "alphabetical",
+  "entries": 302,
+  "base": {
+   "raw": 110749,
+   "gzip9": 42826,
+   "br11": 37901
+  },
+  "delta": {
+   "raw": 0,
+   "gzip9": -94,
+   "br11": -22
+  }
+ },
+ {
+  "id": "jquery-lil-min",
+  "order": "bySuffix",
+  "entries": 302,
+  "base": {
+   "raw": 110749,
+   "gzip9": 42826,
+   "br11": 37901
+  },
+  "delta": {
+   "raw": 0,
+   "gzip9": -61,
+   "br11": -58
+  }
+ },
+ {
+  "id": "jquery-lil-min",
+  "order": "byLength",
+  "entries": 302,
+  "base": {
+   "raw": 110749,
+   "gzip9": 42826,
+   "br11": 37901
+  },
+  "delta": {
+   "raw": 0,
+   "gzip9": -18,
+   "br11": 0
+  }
+ },
+ {
+  "id": "jquery-lil-min",
+  "order": "byLengthDesc",
+  "entries": 302,
+  "base": {
+   "raw": 110749,
+   "gzip9": 42826,
+   "br11": 37901
+  },
+  "delta": {
+   "raw": 0,
+   "gzip9": 9,
+   "br11": 17
+  }
+ },
+ {
+  "id": "jquery-lil-min",
+  "order": "chained",
+  "entries": 302,
+  "base": {
+   "raw": 110749,
+   "gzip9": 42826,
+   "br11": 37901
+  },
+  "delta": {
+   "raw": 0,
+   "gzip9": -101,
+   "br11": -70
+  }
+ },
+ {
+  "id": "jquery-lil-min",
+  "order": "dictionaryFirst",
+  "entries": 302,
+  "base": {
+   "raw": 110749,
+   "gzip9": 42826,
+   "br11": 37901
+  },
+  "delta": {
+   "raw": 0,
+   "gzip9": -47,
+   "br11": -15
+  }
+ }
+]

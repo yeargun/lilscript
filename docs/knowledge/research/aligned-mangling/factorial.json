@@ -1,0 +1,540 @@
+[
+ {
+  "id": "jquerylil-esm",
+  "file": "/Users/yeargun/jquerylil/dist/jquery.esm.js",
+  "base": {
+   "raw": 92765,
+   "gzip9": 34505,
+   "br11": 30973
+  },
+  "designs": {
+   "split": {
+    "factors": [
+     {
+      "key": "N",
+      "name": "rename: dialect alphabet",
+      "levels": 2
+     },
+     {
+      "key": "O",
+      "name": "rename: first-use order",
+      "levels": 2
+     },
+     {
+      "key": "D",
+      "name": "merge adjacent declarations",
+      "levels": 2
+     },
+     {
+      "key": "W",
+      "name": "for(;t;) -> while(t)",
+      "levels": 2
+     },
+     {
+      "key": "C",
+      "name": "outline .slice/.exec/.replace",
+      "levels": 2
+     }
+    ],
+    "points": 32,
+    "r2": 0.5509859480012269,
+    "rmse": 159.41053525410422,
+    "worstError": 190.75,
+    "topInteractions": [
+     {
+      "pair": "N×O",
+      "share": 0.9941916622029029
+     },
+     {
+      "pair": "O×C",
+      "share": 0.002524774659546835
+     },
+     {
+      "pair": "N×W",
+      "share": 0.0020026838058758954
+     },
+     {
+      "pair": "W×C",
+      "share": 0.0009375444963795743
+     }
+    ],
+    "best": {
+     "br11": 30371,
+     "delta": -602,
+     "point": "N=on O=off D=off W=on C=off"
+    },
+    "greedy": {
+     "br11": 30476,
+     "delta": -497,
+     "leaves": 105
+    },
+    "stackedPrediction": 29875,
+    "stackingError": 601
+   },
+   "grouped": {
+    "factors": [
+     {
+      "key": "M",
+      "name": "naming",
+      "levels": 4
+     },
+     {
+      "key": "D",
+      "name": "merge adjacent declarations",
+      "levels": 2
+     },
+     {
+      "key": "W",
+      "name": "for(;t;) -> while(t)",
+      "levels": 2
+     },
+     {
+      "key": "C",
+      "name": "outline .slice/.exec/.replace",
+      "levels": 2
+     }
+    ],
+    "points": 32,
+    "r2": 0.9967508289864965,
+    "rmse": 14.75238328203277,
+    "worstError": 26.875,
+    "topInteractions": [
+     {
+      "pair": "M×W",
+      "share": 0.5084662077778745
+     },
+     {
+      "pair": "M×C",
+      "share": 0.46362289796985273
+     },
+     {
+      "pair": "W×C",
+      "share": 0.02791089425227266
+     },
+     {
+      "pair": "M×D",
+      "share": 0
+     }
+    ],
+    "best": {
+     "br11": 30346,
+     "delta": -627,
+     "point": "M=first-use/dialect D=off W=on C=off"
+    },
+    "greedy": {
+     "br11": 30371,
+     "delta": -602,
+     "leaves": 25
+    },
+    "stackedPrediction": 30371,
+    "stackingError": 0
+   }
+  }
+ },
+ {
+  "id": "jquery-lil-raw",
+  "file": "/Users/yeargun/lilscript/benchmarks/popular/ports/jquery/jquery-lilscript.raw.js",
+  "base": {
+   "raw": 102681,
+   "gzip9": 38948,
+   "br11": 33283
+  },
+  "designs": {
+   "split": {
+    "factors": [
+     {
+      "key": "N",
+      "name": "rename: dialect alphabet",
+      "levels": 2
+     },
+     {
+      "key": "O",
+      "name": "rename: first-use order",
+      "levels": 2
+     },
+     {
+      "key": "D",
+      "name": "merge adjacent declarations",
+      "levels": 2
+     },
+     {
+      "key": "W",
+      "name": "for(;t;) -> while(t)",
+      "levels": 2
+     },
+     {
+      "key": "C",
+      "name": "outline .slice/.exec/.replace",
+      "levels": 2
+     },
+     {
+      "key": "P",
+      "name": "pool order: by reversed string",
+      "levels": 2
+     }
+    ],
+    "points": 64,
+    "r2": 0.8061029111331204,
+    "rmse": 177.2270458515009,
+    "worstError": -246.9375,
+    "topInteractions": [
+     {
+      "pair": "N×O",
+      "share": 0.986360858998734
+     },
+     {
+      "pair": "N×P",
+      "share": 0.007101073585445432
+     },
+     {
+      "pair": "W×C",
+      "share": 0.0021513580220293245
+     },
+     {
+      "pair": "N×W",
+      "share": 0.0017455573159335885
+     }
+    ],
+    "best": {
+     "br11": 32223,
+     "delta": -1060,
+     "point": "N=on O=on D=off W=off C=off P=on"
+    },
+    "greedy": {
+     "br11": 32224,
+     "delta": -1059,
+     "leaves": 1
+    },
+    "stackedPrediction": 31506,
+    "stackingError": 718
+   },
+   "grouped": {
+    "factors": [
+     {
+      "key": "M",
+      "name": "naming",
+      "levels": 4
+     },
+     {
+      "key": "D",
+      "name": "merge adjacent declarations",
+      "levels": 2
+     },
+     {
+      "key": "W",
+      "name": "for(;t;) -> while(t)",
+      "levels": 2
+     },
+     {
+      "key": "C",
+      "name": "outline .slice/.exec/.replace",
+      "levels": 2
+     },
+     {
+      "key": "P",
+      "name": "pool order: by reversed string",
+      "levels": 2
+     }
+    ],
+    "points": 64,
+    "r2": 0.994697687629013,
+    "rmse": 26.63739441555799,
+    "worstError": 64.6875,
+    "topInteractions": [
+     {
+      "pair": "M×P",
+      "share": 0.351639181098504
+     },
+     {
+      "pair": "M×W",
+      "share": 0.26911357128638586
+     },
+     {
+      "pair": "C×P",
+      "share": 0.19599736628539055
+     },
+     {
+      "pair": "W×C",
+      "share": 0.09096268393893457
+     }
+    ],
+    "best": {
+     "br11": 32253,
+     "delta": -1030,
+     "point": "M=frequency/dialect D=off W=on C=off P=on"
+    },
+    "greedy": {
+     "br11": 32274,
+     "delta": -1009,
+     "leaves": 21
+    },
+    "stackedPrediction": 32260,
+    "stackingError": 14
+   }
+  }
+ },
+ {
+  "id": "solidlil-reactive",
+  "file": "/Users/yeargun/lilscript/labs/solid-client/packages/solidlil/reactive.generated.js",
+  "base": {
+   "raw": 13500,
+   "gzip9": 4905,
+   "br11": 4377
+  },
+  "designs": {
+   "split": {
+    "factors": [
+     {
+      "key": "N",
+      "name": "rename: dialect alphabet",
+      "levels": 2
+     },
+     {
+      "key": "O",
+      "name": "rename: first-use order",
+      "levels": 2
+     },
+     {
+      "key": "D",
+      "name": "merge adjacent declarations",
+      "levels": 2
+     },
+     {
+      "key": "W",
+      "name": "for(;t;) -> while(t)",
+      "levels": 2
+     },
+     {
+      "key": "C",
+      "name": "outline .slice/.exec/.replace",
+      "levels": 2
+     }
+    ],
+    "points": 32,
+    "r2": 0.833955646748661,
+    "rmse": 16.488040173107294,
+    "worstError": 23.4375,
+    "topInteractions": [
+     {
+      "pair": "N×O",
+      "share": 0.9829294024558216
+     },
+     {
+      "pair": "N×C",
+      "share": 0.006461917181959383
+     },
+     {
+      "pair": "W×C",
+      "share": 0.006461917181959383
+     },
+     {
+      "pair": "O×W",
+      "share": 0.003296896521407848
+     }
+    ],
+    "best": {
+     "br11": 4280,
+     "delta": -97,
+     "point": "N=on O=on D=off W=on C=off"
+    },
+    "greedy": {
+     "br11": 4282,
+     "delta": -95,
+     "leaves": 2
+    },
+    "stackedPrediction": 4217,
+    "stackingError": 65
+   },
+   "grouped": {
+    "factors": [
+     {
+      "key": "M",
+      "name": "naming",
+      "levels": 4
+     },
+     {
+      "key": "D",
+      "name": "merge adjacent declarations",
+      "levels": 2
+     },
+     {
+      "key": "W",
+      "name": "for(;t;) -> while(t)",
+      "levels": 2
+     },
+     {
+      "key": "C",
+      "name": "outline .slice/.exec/.replace",
+      "levels": 2
+     }
+    ],
+    "points": 32,
+    "r2": 0.9896158404645145,
+    "rmse": 3.862884285090611,
+    "worstError": 8.625,
+    "topInteractions": [
+     {
+      "pair": "M×C",
+      "share": 0.5941278065630398
+     },
+     {
+      "pair": "M×W",
+      "share": 0.29533678756476683
+     },
+     {
+      "pair": "W×C",
+      "share": 0.11053540587219343
+     },
+     {
+      "pair": "M×D",
+      "share": 0
+     }
+    ],
+    "best": {
+     "br11": 4289,
+     "delta": -88,
+     "point": "M=frequency/dialect D=off W=off C=off"
+    },
+    "greedy": {
+     "br11": 4289,
+     "delta": -88,
+     "leaves": 0
+    },
+    "stackedPrediction": 4289,
+    "stackingError": 0
+   }
+  }
+ },
+ {
+  "id": "markedlil-raw",
+  "file": "/Users/yeargun/markedlil/dist/marked.raw.js",
+  "base": {
+   "raw": 35901,
+   "gzip9": 10786,
+   "br11": 9543
+  },
+  "designs": {
+   "split": {
+    "factors": [
+     {
+      "key": "N",
+      "name": "rename: dialect alphabet",
+      "levels": 2
+     },
+     {
+      "key": "O",
+      "name": "rename: first-use order",
+      "levels": 2
+     },
+     {
+      "key": "D",
+      "name": "merge adjacent declarations",
+      "levels": 2
+     },
+     {
+      "key": "W",
+      "name": "for(;t;) -> while(t)",
+      "levels": 2
+     },
+     {
+      "key": "C",
+      "name": "outline .slice/.exec/.replace",
+      "levels": 2
+     }
+    ],
+    "points": 32,
+    "r2": 0.9277997113262014,
+    "rmse": 17.097263121622714,
+    "worstError": 33.6875,
+    "topInteractions": [
+     {
+      "pair": "N×O",
+      "share": 0.7002071618822137
+     },
+     {
+      "pair": "N×C",
+      "share": 0.14562634760918278
+     },
+     {
+      "pair": "O×C",
+      "share": 0.04669597936836765
+     },
+     {
+      "pair": "W×C",
+      "share": 0.04669597936836765
+     }
+    ],
+    "best": {
+     "br11": 9507,
+     "delta": -36,
+     "point": "N=off O=off D=on W=on C=off"
+    },
+    "greedy": {
+     "br11": 9542,
+     "delta": -1,
+     "leaves": 35
+    },
+    "stackedPrediction": 9542,
+    "stackingError": 0
+   },
+   "grouped": {
+    "factors": [
+     {
+      "key": "M",
+      "name": "naming",
+      "levels": 4
+     },
+     {
+      "key": "D",
+      "name": "merge adjacent declarations",
+      "levels": 2
+     },
+     {
+      "key": "W",
+      "name": "for(;t;) -> while(t)",
+      "levels": 2
+     },
+     {
+      "key": "C",
+      "name": "outline .slice/.exec/.replace",
+      "levels": 2
+     }
+    ],
+    "points": 32,
+    "r2": 0.9631049255106797,
+    "rmse": 12.728689298195631,
+    "worstError": -24.8125,
+    "topInteractions": [
+     {
+      "pair": "M×W",
+      "share": 0.4319354647369358
+     },
+     {
+      "pair": "M×C",
+      "share": 0.2815113589180853
+     },
+     {
+      "pair": "D×C",
+      "share": 0.17942938489827392
+     },
+     {
+      "pair": "M×D",
+      "share": 0.07242422444984875
+     }
+    ],
+    "best": {
+     "br11": 9507,
+     "delta": -36,
+     "point": "M=as shipped D=on W=on C=off"
+    },
+    "greedy": {
+     "br11": 9510,
+     "delta": -33,
+     "leaves": 3
+    },
+    "stackedPrediction": 9542,
+    "stackingError": -32
+   }
+  }
+ }
+]

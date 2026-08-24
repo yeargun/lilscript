@@ -1,0 +1,62 @@
+[
+ {
+  "file": "reactive.generated.js",
+  "points": 32,
+  "pearson": 0.9906960017874431,
+  "spearman": 0.9472140762463344,
+  "picksSameWinner": false,
+  "winnerPenalty": 5,
+  "scale": 0.9504194072708998,
+  "maeAfterScale": 7.497756027282094,
+  "msPerEvalModel": 1.71757421874999,
+  "msPerEvalReal": 10.377178343749994,
+  "firstOrder": {
+   "pearson": 0.9721330528626099,
+   "mae": 24.896122217430833
+  },
+  "fullModel": {
+   "pearson": 0.9906960017874427,
+   "mae": 18.32389816820616
+  }
+ },
+ {
+  "file": "marked.raw.js",
+  "points": 32,
+  "pearson": 0.9261481884007603,
+  "spearman": 0.9021260997067448,
+  "picksSameWinner": false,
+  "winnerPenalty": 35,
+  "scale": 0.9399528276470438,
+  "maeAfterScale": 19.322984675683927,
+  "msPerEvalModel": 2.8035429062499944,
+  "msPerEvalReal": 26.485613312500004,
+  "firstOrder": {
+   "pearson": 0.7383208592591267,
+   "mae": 174.71715585658532
+  },
+  "fullModel": {
+   "pearson": 0.9261481884007606,
+   "mae": 20.56461342856253
+  }
+ },
+ {
+  "file": "jquery.esm.js",
+  "points": 32,
+  "pearson": 0.9939156726310602,
+  "spearman": 0.9736070381231672,
+  "picksSameWinner": true,
+  "winnerPenalty": 0,
+  "scale": 0.967854107334444,
+  "maeAfterScale": 42.21825115114143,
+  "msPerEvalModel": 10.92638153125003,
+  "msPerEvalReal": 84.601453125,
+  "firstOrder": {
+   "pearson": -0.13727213400129903,
+   "mae": 588.7921345419925
+  },
+  "fullModel": {
+   "pearson": 0.9939156726310601,
+   "mae": 70.11051734907029
+  }
+ }
+]

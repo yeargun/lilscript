@@ -1,0 +1,1556 @@
+[
+ {
+  "id": "jquery-min",
+  "rows": [
+   {
+    "label": "as shipped",
+    "distinct": 165,
+    "nameBytes": 10398,
+    "entropy": 4.494372164339503,
+    "top5share": 0.5615401254596583,
+    "nameBits": 41554.96503148304,
+    "raw": 87533,
+    "br11": 27445,
+    "gzip9": 30406
+   },
+   {
+    "label": "frequency/abc",
+    "distinct": 165,
+    "nameBytes": 10398,
+    "entropy": 4.44727001444614,
+    "top5share": 0.5976638546398443,
+    "nameBits": 41119.45855356901,
+    "raw": 87533,
+    "br11": 28042,
+    "gzip9": 31232
+   },
+   {
+    "label": "firstUse/abc",
+    "distinct": 165,
+    "nameBytes": 10398,
+    "entropy": 4.580489292595598,
+    "top5share": 0.555050832792559,
+    "nameBits": 42351.2039993389,
+    "raw": 87533,
+    "br11": 27745,
+    "gzip9": 30889
+   },
+   {
+    "label": "source/abc",
+    "distinct": 165,
+    "nameBytes": 10398,
+    "entropy": 4.582524088992953,
+    "top5share": 0.553969284014709,
+    "nameBits": 42370.01772682884,
+    "raw": 87533,
+    "br11": 27751,
+    "gzip9": 30892
+   },
+   {
+    "label": "frequency/etn",
+    "distinct": 165,
+    "nameBytes": 10398,
+    "entropy": 4.503399592986764,
+    "top5share": 0.563054293748648,
+    "nameBits": 41638.43263675561,
+    "raw": 87533,
+    "br11": 27462,
+    "gzip9": 30453
+   },
+   {
+    "label": "firstUse/etn",
+    "distinct": 165,
+    "nameBytes": 10398,
+    "entropy": 4.499998220764865,
+    "top5share": 0.563054293748648,
+    "nameBits": 41606.98354919194,
+    "raw": 87533,
+    "br11": 27507,
+    "gzip9": 30444
+   },
+   {
+    "label": "source/etn",
+    "distinct": 165,
+    "nameBytes": 10398,
+    "entropy": 4.499810349085251,
+    "top5share": 0.563054293748648,
+    "nameBits": 41605.246487642224,
+    "raw": 87533,
+    "br11": 27506,
+    "gzip9": 30440
+   },
+   {
+    "label": "frequency/adaptive",
+    "distinct": 165,
+    "nameBytes": 10398,
+    "entropy": 4.499469358290882,
+    "top5share": 0.5615401254596583,
+    "nameBits": 41602.09368675749,
+    "raw": 87533,
+    "br11": 27432,
+    "gzip9": 30388
+   },
+   {
+    "label": "firstUse/adaptive",
+    "distinct": 165,
+    "nameBytes": 10398,
+    "entropy": 4.502247044319121,
+    "top5share": 0.5615401254596583,
+    "nameBits": 41627.776171774596,
+    "raw": 87533,
+    "br11": 27434,
+    "gzip9": 30380
+   },
+   {
+    "label": "source/adaptive",
+    "distinct": 165,
+    "nameBytes": 10398,
+    "entropy": 4.502273171825091,
+    "top5share": 0.5615401254596583,
+    "nameBits": 41628.017746694786,
+    "raw": 87533,
+    "br11": 27497,
+    "gzip9": 30379
+   },
+   {
+    "label": "frequency/dialect",
+    "distinct": 165,
+    "nameBytes": 10398,
+    "entropy": 4.47018720146055,
+    "top5share": 0.5615401254596583,
+    "nameBits": 41331.35086470424,
+    "raw": 87533,
+    "br11": 27434,
+    "gzip9": 30400
+   },
+   {
+    "label": "firstUse/dialect",
+    "distinct": 165,
+    "nameBytes": 10398,
+    "entropy": 4.472292550968883,
+    "top5share": 0.5615401254596583,
+    "nameBits": 41350.816926258296,
+    "raw": 87533,
+    "br11": 27440,
+    "gzip9": 30394
+   },
+   {
+    "label": "source/dialect",
+    "distinct": 165,
+    "nameBytes": 10398,
+    "entropy": 4.472318678474853,
+    "top5share": 0.5615401254596583,
+    "nameBits": 41351.058501178486,
+    "raw": 87533,
+    "br11": 27439,
+    "gzip9": 30392
+   },
+   {
+    "label": "frequency/hostile",
+    "distinct": 165,
+    "nameBytes": 10398,
+    "entropy": 4.350328016152037,
+    "top5share": 0.626757516764006,
+    "nameBits": 40223.132837341735,
+    "raw": 87533,
+    "br11": 27985,
+    "gzip9": 31293
+   },
+   {
+    "label": "firstUse/hostile",
+    "distinct": 165,
+    "nameBytes": 10398,
+    "entropy": 4.578017762384883,
+    "top5share": 0.5486696950032447,
+    "nameBits": 42328.35223101063,
+    "raw": 87533,
+    "br11": 27709,
+    "gzip9": 30864
+   },
+   {
+    "label": "source/hostile",
+    "distinct": 165,
+    "nameBytes": 10398,
+    "entropy": 4.5806692411253325,
+    "top5share": 0.5476963011031798,
+    "nameBits": 42352.867803444824,
+    "raw": 87533,
+    "br11": 27697,
+    "gzip9": 30863
+   },
+   {
+    "label": "frequency/reversed",
+    "distinct": 165,
+    "nameBytes": 10398,
+    "entropy": 4.29980202488964,
+    "top5share": 0.6205926887302617,
+    "nameBits": 39755.96952212961,
+    "raw": 87533,
+    "br11": 28047,
+    "gzip9": 31513
+   },
+   {
+    "label": "firstUse/reversed",
+    "distinct": 165,
+    "nameBytes": 10398,
+    "entropy": 4.545549039803392,
+    "top5share": 0.5474799913476098,
+    "nameBits": 42028.14642202216,
+    "raw": 87533,
+    "br11": 27714,
+    "gzip9": 31067
+   },
+   {
+    "label": "source/reversed",
+    "distinct": 165,
+    "nameBytes": 10398,
+    "entropy": 4.547896360508168,
+    "top5share": 0.5463984425697599,
+    "nameBits": 42049.84974925852,
+    "raw": 87533,
+    "br11": 27736,
+    "gzip9": 31062
+   }
+  ],
+  "correlation": {
+   "nameBytes": 0,
+   "entropy": -0.35972787105664483,
+   "nameBits": -0.3597278710566435,
+   "distinct": 0,
+   "top5share": 0.6265655028634138,
+   "rawSize": 0
+  }
+ },
+ {
+  "id": "jquery-src",
+  "rows": [
+   {
+    "label": "as shipped",
+    "distinct": 735,
+    "nameBytes": 57128,
+    "entropy": 7.878797418648,
+    "top5share": 0.21848828580515212,
+    "nameBits": 74320.69605010659,
+    "raw": 285314,
+    "br11": 69545,
+    "gzip9": 83890
+   },
+   {
+    "label": "frequency/abc",
+    "distinct": 171,
+    "nameBytes": 9782,
+    "entropy": 4.159657040969471,
+    "top5share": 0.6329905650376338,
+    "nameBits": 39238.04486746502,
+    "raw": 237968,
+    "br11": 63862,
+    "gzip9": 76621
+   },
+   {
+    "label": "firstUse/abc",
+    "distinct": 171,
+    "nameBytes": 10082,
+    "entropy": 4.4909662866454685,
+    "top5share": 0.5623873635110781,
+    "nameBits": 42363.28498192671,
+    "raw": 238268,
+    "br11": 63232,
+    "gzip9": 75825
+   },
+   {
+    "label": "source/abc",
+    "distinct": 171,
+    "nameBytes": 10085,
+    "entropy": 4.495220557093199,
+    "top5share": 0.5614332661931517,
+    "nameBits": 42403.415515060144,
+    "raw": 238271,
+    "br11": 63242,
+    "gzip9": 75836
+   },
+   {
+    "label": "frequency/etn",
+    "distinct": 171,
+    "nameBytes": 9782,
+    "entropy": 4.168049690908168,
+    "top5share": 0.6390331813845013,
+    "nameBits": 39317.21273433675,
+    "raw": 237968,
+    "br11": 63776,
+    "gzip9": 76375
+   },
+   {
+    "label": "firstUse/etn",
+    "distinct": 171,
+    "nameBytes": 10082,
+    "entropy": 4.4777187344579215,
+    "top5share": 0.5613272553800488,
+    "nameBits": 42238.32082214157,
+    "raw": 238268,
+    "br11": 63124,
+    "gzip9": 75573
+   },
+   {
+    "label": "source/etn",
+    "distinct": 171,
+    "nameBytes": 10085,
+    "entropy": 4.482166330945123,
+    "top5share": 0.5603731580621223,
+    "nameBits": 42280.27499980535,
+    "raw": 238271,
+    "br11": 63117,
+    "gzip9": 75581
+   },
+   {
+    "label": "frequency/adaptive",
+    "distinct": 171,
+    "nameBytes": 9782,
+    "entropy": 4.171809972329056,
+    "top5share": 0.6334146082900456,
+    "nameBits": 39352.68346897999,
+    "raw": 237968,
+    "br11": 63807,
+    "gzip9": 76398
+   },
+   {
+    "label": "firstUse/adaptive",
+    "distinct": 171,
+    "nameBytes": 10082,
+    "entropy": 4.4777274745884705,
+    "top5share": 0.5592070391179901,
+    "nameBits": 42238.403267793045,
+    "raw": 238268,
+    "br11": 63147,
+    "gzip9": 75605
+   },
+   {
+    "label": "source/adaptive",
+    "distinct": 171,
+    "nameBytes": 10085,
+    "entropy": 4.482185136444214,
+    "top5share": 0.5582529418000636,
+    "nameBits": 42280.45239207827,
+    "raw": 238271,
+    "br11": 63128,
+    "gzip9": 75618
+   },
+   {
+    "label": "frequency/dialect",
+    "distinct": 171,
+    "nameBytes": 9782,
+    "entropy": 4.1546156371806005,
+    "top5share": 0.6321424785328104,
+    "nameBits": 39190.48930552461,
+    "raw": 237968,
+    "br11": 63686,
+    "gzip9": 76341
+   },
+   {
+    "label": "firstUse/dialect",
+    "distinct": 171,
+    "nameBytes": 10073,
+    "entropy": 4.449085510638097,
+    "top5share": 0.574472596204813,
+    "nameBits": 41968.223621849174,
+    "raw": 238259,
+    "br11": 63287,
+    "gzip9": 75825
+   },
+   {
+    "label": "source/dialect",
+    "distinct": 171,
+    "nameBytes": 10083,
+    "entropy": 4.455949008481413,
+    "top5share": 0.5735184988868864,
+    "nameBits": 42032.96699700517,
+    "raw": 238269,
+    "br11": 63267,
+    "gzip9": 75820
+   },
+   {
+    "label": "frequency/hostile",
+    "distinct": 171,
+    "nameBytes": 9782,
+    "entropy": 4.176348898953013,
+    "top5share": 0.6321424785328104,
+    "nameBits": 39395.49916382378,
+    "raw": 237968,
+    "br11": 64058,
+    "gzip9": 77041
+   },
+   {
+    "label": "firstUse/hostile",
+    "distinct": 171,
+    "nameBytes": 10082,
+    "entropy": 4.48628595280516,
+    "top5share": 0.5644015689600339,
+    "nameBits": 42319.13539281107,
+    "raw": 238268,
+    "br11": 63262,
+    "gzip9": 76018
+   },
+   {
+    "label": "source/hostile",
+    "distinct": 171,
+    "nameBytes": 10085,
+    "entropy": 4.49100321788998,
+    "top5share": 0.5634474716421075,
+    "nameBits": 42363.63335435618,
+    "raw": 238271,
+    "br11": 63259,
+    "gzip9": 76023
+   },
+   {
+    "label": "frequency/reversed",
+    "distinct": 171,
+    "nameBytes": 9785,
+    "entropy": 4.1515324490818495,
+    "top5share": 0.632672532598325,
+    "nameBits": 39161.40559218908,
+    "raw": 237971,
+    "br11": 63977,
+    "gzip9": 77209
+   },
+   {
+    "label": "firstUse/reversed",
+    "distinct": 171,
+    "nameBytes": 10082,
+    "entropy": 4.478877417803102,
+    "top5share": 0.5646135905862398,
+    "nameBits": 42249.25068213666,
+    "raw": 238268,
+    "br11": 63327,
+    "gzip9": 76368
+   },
+   {
+    "label": "source/reversed",
+    "distinct": 171,
+    "nameBytes": 10085,
+    "entropy": 4.484903550048402,
+    "top5share": 0.5636594932683133,
+    "nameBits": 42306.095187606574,
+    "raw": 238271,
+    "br11": 63322,
+    "gzip9": 76378
+   }
+  ],
+  "correlation": {
+   "nameBytes": 0.9730374595096662,
+   "entropy": 0.9215304191899389,
+   "nameBits": 0.9215304191899389,
+   "distinct": 0.9758480491303415,
+   "top5share": -0.8321120646291514,
+   "rawSize": 0.9730374595096662
+  }
+ },
+ {
+  "id": "jquery-lil-raw",
+  "rows": [
+   {
+    "label": "as shipped",
+    "distinct": 106,
+    "nameBytes": 11753,
+    "entropy": 3.9364669776865266,
+    "top5share": 0.6823655338506823,
+    "nameBits": 44131.73128684365,
+    "raw": 102681,
+    "br11": 33283,
+    "gzip9": 39025
+   },
+   {
+    "label": "frequency/abc",
+    "distinct": 27,
+    "nameBytes": 11211,
+    "entropy": 3.2991046607093804,
+    "top5share": 0.7513156721077513,
+    "nameBits": 36986.26235121286,
+    "raw": 102139,
+    "br11": 32565,
+    "gzip9": 38298
+   },
+   {
+    "label": "firstUse/abc",
+    "distinct": 28,
+    "nameBytes": 11211,
+    "entropy": 3.3443428941233457,
+    "top5share": 0.7404335028097404,
+    "nameBits": 37493.42818601683,
+    "raw": 102139,
+    "br11": 32548,
+    "gzip9": 38284
+   },
+   {
+    "label": "source/abc",
+    "distinct": 28,
+    "nameBytes": 11211,
+    "entropy": 3.3443428941233457,
+    "top5share": 0.7404335028097404,
+    "nameBits": 37493.42818601683,
+    "raw": 102139,
+    "br11": 32548,
+    "gzip9": 38284
+   },
+   {
+    "label": "frequency/etn",
+    "distinct": 30,
+    "nameBytes": 11211,
+    "entropy": 3.3773084301550007,
+    "top5share": 0.7356168049237356,
+    "nameBits": 37863.00481046771,
+    "raw": 102139,
+    "br11": 33031,
+    "gzip9": 38759
+   },
+   {
+    "label": "firstUse/etn",
+    "distinct": 30,
+    "nameBytes": 11211,
+    "entropy": 3.5761680742360746,
+    "top5share": 0.6853982695566854,
+    "nameBits": 40092.42028026063,
+    "raw": 102139,
+    "br11": 33220,
+    "gzip9": 38674
+   },
+   {
+    "label": "source/etn",
+    "distinct": 30,
+    "nameBytes": 11211,
+    "entropy": 3.5771431737037593,
+    "top5share": 0.6853982695566854,
+    "nameBits": 40103.35212039285,
+    "raw": 102139,
+    "br11": 33205,
+    "gzip9": 38671
+   },
+   {
+    "label": "frequency/adaptive",
+    "distinct": 30,
+    "nameBytes": 11211,
+    "entropy": 3.3708908691298993,
+    "top5share": 0.735973597359736,
+    "nameBits": 37791.0575338153,
+    "raw": 102139,
+    "br11": 33005,
+    "gzip9": 38771
+   },
+   {
+    "label": "firstUse/adaptive",
+    "distinct": 31,
+    "nameBytes": 11211,
+    "entropy": 3.5727527692527863,
+    "top5share": 0.6864686468646864,
+    "nameBits": 40054.131296092986,
+    "raw": 102139,
+    "br11": 33209,
+    "gzip9": 38669
+   },
+   {
+    "label": "source/adaptive",
+    "distinct": 31,
+    "nameBytes": 11211,
+    "entropy": 3.573348839038191,
+    "top5share": 0.6864686468646864,
+    "nameBits": 40060.81383445716,
+    "raw": 102139,
+    "br11": 33188,
+    "gzip9": 38663
+   },
+   {
+    "label": "frequency/dialect",
+    "distinct": 28,
+    "nameBytes": 11211,
+    "entropy": 3.299586582565526,
+    "top5share": 0.7513156721077513,
+    "nameBits": 36991.66517714212,
+    "raw": 102139,
+    "br11": 32544,
+    "gzip9": 38297
+   },
+   {
+    "label": "firstUse/dialect",
+    "distinct": 28,
+    "nameBytes": 11211,
+    "entropy": 3.3450482300049758,
+    "top5share": 0.7404335028097404,
+    "nameBits": 37501.335706585785,
+    "raw": 102139,
+    "br11": 32558,
+    "gzip9": 38282
+   },
+   {
+    "label": "source/dialect",
+    "distinct": 28,
+    "nameBytes": 11211,
+    "entropy": 3.3450482300049758,
+    "top5share": 0.7404335028097404,
+    "nameBits": 37501.335706585785,
+    "raw": 102139,
+    "br11": 32558,
+    "gzip9": 38282
+   },
+   {
+    "label": "frequency/hostile",
+    "distinct": 30,
+    "nameBytes": 11211,
+    "entropy": 3.2989053818107386,
+    "top5share": 0.7515832664347516,
+    "nameBits": 36984.02823548019,
+    "raw": 102139,
+    "br11": 33003,
+    "gzip9": 38910
+   },
+   {
+    "label": "firstUse/hostile",
+    "distinct": 28,
+    "nameBytes": 11211,
+    "entropy": 3.57595345792463,
+    "top5share": 0.6778164302916778,
+    "nameBits": 40090.014216793024,
+    "raw": 102139,
+    "br11": 33006,
+    "gzip9": 38777
+   },
+   {
+    "label": "source/hostile",
+    "distinct": 28,
+    "nameBytes": 11211,
+    "entropy": 3.5769226216474785,
+    "top5share": 0.6763892605476763,
+    "nameBits": 40100.87951128988,
+    "raw": 102139,
+    "br11": 32985,
+    "gzip9": 38776
+   },
+   {
+    "label": "frequency/reversed",
+    "distinct": 25,
+    "nameBytes": 11211,
+    "entropy": 3.070126415308534,
+    "top5share": 0.8006422263848006,
+    "nameBits": 34419.187242023974,
+    "raw": 102139,
+    "br11": 32822,
+    "gzip9": 38993
+   },
+   {
+    "label": "firstUse/reversed",
+    "distinct": 25,
+    "nameBytes": 11211,
+    "entropy": 3.3921714600808675,
+    "top5share": 0.725002229952725,
+    "nameBits": 38029.6342389666,
+    "raw": 102139,
+    "br11": 32549,
+    "gzip9": 38844
+   },
+   {
+    "label": "source/reversed",
+    "distinct": 25,
+    "nameBytes": 11211,
+    "entropy": 3.3937942339979696,
+    "top5share": 0.7235750602087235,
+    "nameBits": 38047.82715735124,
+    "raw": 102139,
+    "br11": 32482,
+    "gzip9": 38841
+   }
+  ],
+  "correlation": {
+   "nameBytes": 0.34822699379948174,
+   "entropy": 0.6602530728771119,
+   "nameBits": 0.6602530728771121,
+   "distinct": 0.4196510845228654,
+   "top5share": -0.6298105248931558,
+   "rawSize": 0.34822699379948185
+  }
+ },
+ {
+  "id": "jquery-lil-min",
+  "rows": [
+   {
+    "label": "as shipped",
+    "distinct": 31,
+    "nameBytes": 13442,
+    "entropy": 3.595812151898404,
+    "top5share": 0.677006068779501,
+    "nameBits": 47993.304791388,
+    "raw": 110749,
+    "br11": 37901,
+    "gzip9": 42890
+   },
+   {
+    "label": "frequency/abc",
+    "distinct": 32,
+    "nameBytes": 13347,
+    "entropy": 3.1382497478583935,
+    "top5share": 0.7757548512774406,
+    "nameBits": 41886.21938466598,
+    "raw": 110654,
+    "br11": 37914,
+    "gzip9": 43088
+   },
+   {
+    "label": "firstUse/abc",
+    "distinct": 30,
+    "nameBytes": 13347,
+    "entropy": 3.3906574699101144,
+    "top5share": 0.7241327639169851,
+    "nameBits": 45255.105250890294,
+    "raw": 110654,
+    "br11": 37781,
+    "gzip9": 43013
+   },
+   {
+    "label": "source/abc",
+    "distinct": 30,
+    "nameBytes": 13347,
+    "entropy": 3.3906574699101144,
+    "top5share": 0.7241327639169851,
+    "nameBits": 45255.105250890294,
+    "raw": 110654,
+    "br11": 37781,
+    "gzip9": 43013
+   },
+   {
+    "label": "frequency/etn",
+    "distinct": 30,
+    "nameBytes": 13347,
+    "entropy": 3.26388839644005,
+    "top5share": 0.75904697684873,
+    "nameBits": 43563.11842728534,
+    "raw": 110654,
+    "br11": 37897,
+    "gzip9": 42939
+   },
+   {
+    "label": "firstUse/etn",
+    "distinct": 29,
+    "nameBytes": 13347,
+    "entropy": 3.326850737955028,
+    "top5share": 0.7400164831048176,
+    "nameBits": 44403.47679948576,
+    "raw": 110654,
+    "br11": 37884,
+    "gzip9": 42929
+   },
+   {
+    "label": "source/etn",
+    "distinct": 29,
+    "nameBytes": 13347,
+    "entropy": 3.326850737955028,
+    "top5share": 0.7400164831048176,
+    "nameBits": 44403.47679948576,
+    "raw": 110654,
+    "br11": 37884,
+    "gzip9": 42929
+   },
+   {
+    "label": "frequency/adaptive",
+    "distinct": 30,
+    "nameBytes": 13347,
+    "entropy": 3.217771725380352,
+    "top5share": 0.7694613021652806,
+    "nameBits": 42947.59921865156,
+    "raw": 110654,
+    "br11": 37486,
+    "gzip9": 42379
+   },
+   {
+    "label": "firstUse/adaptive",
+    "distinct": 29,
+    "nameBytes": 13347,
+    "entropy": 3.253004592866319,
+    "top5share": 0.7649659099423092,
+    "nameBits": 43417.85230098676,
+    "raw": 110654,
+    "br11": 37408,
+    "gzip9": 42380
+   },
+   {
+    "label": "source/adaptive",
+    "distinct": 29,
+    "nameBytes": 13347,
+    "entropy": 3.253004592866319,
+    "top5share": 0.7649659099423092,
+    "nameBits": 43417.85230098676,
+    "raw": 110654,
+    "br11": 37408,
+    "gzip9": 42380
+   },
+   {
+    "label": "frequency/dialect",
+    "distinct": 31,
+    "nameBytes": 13347,
+    "entropy": 3.2021264309405035,
+    "top5share": 0.7695362253689968,
+    "nameBits": 42738.7814737629,
+    "raw": 110654,
+    "br11": 37357,
+    "gzip9": 42289
+   },
+   {
+    "label": "firstUse/dialect",
+    "distinct": 29,
+    "nameBytes": 13347,
+    "entropy": 3.2363479600540104,
+    "top5share": 0.7649659099423092,
+    "nameBits": 43195.53622284088,
+    "raw": 110654,
+    "br11": 37284,
+    "gzip9": 42213
+   },
+   {
+    "label": "source/dialect",
+    "distinct": 29,
+    "nameBytes": 13347,
+    "entropy": 3.2363479600540104,
+    "top5share": 0.7649659099423092,
+    "nameBits": 43195.53622284088,
+    "raw": 110654,
+    "br11": 37284,
+    "gzip9": 42213
+   },
+   {
+    "label": "frequency/hostile",
+    "distinct": 35,
+    "nameBytes": 13347,
+    "entropy": 3.2150361389253015,
+    "top5share": 0.7953098074473665,
+    "nameBits": 42911.087346235996,
+    "raw": 110654,
+    "br11": 37981,
+    "gzip9": 43267
+   },
+   {
+    "label": "firstUse/hostile",
+    "distinct": 32,
+    "nameBytes": 13347,
+    "entropy": 3.5307376484130506,
+    "top5share": 0.7063759646362479,
+    "nameBits": 47124.755393368985,
+    "raw": 110654,
+    "br11": 37761,
+    "gzip9": 43131
+   },
+   {
+    "label": "source/hostile",
+    "distinct": 32,
+    "nameBytes": 13347,
+    "entropy": 3.5307376484130506,
+    "top5share": 0.7063759646362479,
+    "nameBits": 47124.755393368985,
+    "raw": 110654,
+    "br11": 37761,
+    "gzip9": 43131
+   },
+   {
+    "label": "frequency/reversed",
+    "distinct": 30,
+    "nameBytes": 13347,
+    "entropy": 2.9719779477680826,
+    "top5share": 0.8306735596014085,
+    "nameBits": 39666.989668860595,
+    "raw": 110654,
+    "br11": 37765,
+    "gzip9": 43127
+   },
+   {
+    "label": "firstUse/reversed",
+    "distinct": 29,
+    "nameBytes": 13347,
+    "entropy": 3.325899926517745,
+    "top5share": 0.7466846482355586,
+    "nameBits": 44390.78631923234,
+    "raw": 110654,
+    "br11": 37669,
+    "gzip9": 43098
+   },
+   {
+    "label": "source/reversed",
+    "distinct": 29,
+    "nameBytes": 13347,
+    "entropy": 3.325899926517745,
+    "top5share": 0.7466846482355586,
+    "nameBits": 44390.78631923234,
+    "raw": 110654,
+    "br11": 37669,
+    "gzip9": 43098
+   }
+  ],
+  "correlation": {
+   "nameBytes": 0.23313501741513987,
+   "entropy": 0.25552803388373785,
+   "nameBits": 0.2555280338837376,
+   "distinct": 0.47447680499378475,
+   "top5share": -0.23462319771848938,
+   "rawSize": 0.23313501741513987
+  }
+ },
+ {
+  "id": "glmatrix-js-vite",
+  "rows": [
+   {
+    "label": "as shipped",
+    "distinct": 36,
+    "nameBytes": 11701,
+    "entropy": 3.760830464904023,
+    "top5share": 0.6400307666011452,
+    "nameBits": 44005.47726984198,
+    "raw": 73505,
+    "br11": 14330,
+    "gzip9": 17888
+   },
+   {
+    "label": "frequency/abc",
+    "distinct": 38,
+    "nameBytes": 11701,
+    "entropy": 3.8213585524120397,
+    "top5share": 0.6378941970771729,
+    "nameBits": 44713.71642177328,
+    "raw": 73505,
+    "br11": 15530,
+    "gzip9": 19727
+   },
+   {
+    "label": "firstUse/abc",
+    "distinct": 36,
+    "nameBytes": 11701,
+    "entropy": 3.8759569153917224,
+    "top5share": 0.6083240748653961,
+    "nameBits": 45352.57186699854,
+    "raw": 73505,
+    "br11": 15173,
+    "gzip9": 19276
+   },
+   {
+    "label": "source/abc",
+    "distinct": 36,
+    "nameBytes": 11701,
+    "entropy": 3.8759569153917224,
+    "top5share": 0.6083240748653961,
+    "nameBits": 45352.57186699854,
+    "raw": 73505,
+    "br11": 15173,
+    "gzip9": 19276
+   },
+   {
+    "label": "frequency/etn",
+    "distinct": 39,
+    "nameBytes": 11701,
+    "entropy": 3.76622694620439,
+    "top5share": 0.6345611486197761,
+    "nameBits": 44068.62149753757,
+    "raw": 73505,
+    "br11": 14459,
+    "gzip9": 18084
+   },
+   {
+    "label": "firstUse/etn",
+    "distinct": 36,
+    "nameBytes": 11701,
+    "entropy": 3.7625787031025264,
+    "top5share": 0.634646611400735,
+    "nameBits": 44025.93340500266,
+    "raw": 73505,
+    "br11": 14403,
+    "gzip9": 18061
+   },
+   {
+    "label": "source/etn",
+    "distinct": 36,
+    "nameBytes": 11701,
+    "entropy": 3.7625787031025264,
+    "top5share": 0.634646611400735,
+    "nameBits": 44025.93340500266,
+    "raw": 73505,
+    "br11": 14403,
+    "gzip9": 18061
+   },
+   {
+    "label": "frequency/adaptive",
+    "distinct": 39,
+    "nameBytes": 11701,
+    "entropy": 3.8477458358526793,
+    "top5share": 0.6405435432868986,
+    "nameBits": 45022.4740253122,
+    "raw": 73505,
+    "br11": 14735,
+    "gzip9": 18522
+   },
+   {
+    "label": "firstUse/adaptive",
+    "distinct": 36,
+    "nameBytes": 11701,
+    "entropy": 3.8551208117922022,
+    "top5share": 0.6400307666011452,
+    "nameBits": 45108.76861878056,
+    "raw": 73505,
+    "br11": 14630,
+    "gzip9": 18341
+   },
+   {
+    "label": "source/adaptive",
+    "distinct": 36,
+    "nameBytes": 11701,
+    "entropy": 3.8551208117922022,
+    "top5share": 0.6400307666011452,
+    "nameBits": 45108.76861878056,
+    "raw": 73505,
+    "br11": 14630,
+    "gzip9": 18341
+   },
+   {
+    "label": "frequency/dialect",
+    "distinct": 38,
+    "nameBytes": 11701,
+    "entropy": 3.7578343980212456,
+    "top5share": 0.6453294590205966,
+    "nameBits": 43970.42029124659,
+    "raw": 73505,
+    "br11": 14407,
+    "gzip9": 17940
+   },
+   {
+    "label": "firstUse/dialect",
+    "distinct": 36,
+    "nameBytes": 11701,
+    "entropy": 3.758351622672687,
+    "top5share": 0.6453294590205966,
+    "nameBits": 43976.47233689311,
+    "raw": 73505,
+    "br11": 14333,
+    "gzip9": 17900
+   },
+   {
+    "label": "source/dialect",
+    "distinct": 36,
+    "nameBytes": 11701,
+    "entropy": 3.758351622672687,
+    "top5share": 0.6453294590205966,
+    "nameBits": 43976.47233689311,
+    "raw": 73505,
+    "br11": 14333,
+    "gzip9": 17900
+   },
+   {
+    "label": "frequency/hostile",
+    "distinct": 37,
+    "nameBytes": 11701,
+    "entropy": 3.6402499472378045,
+    "top5share": 0.698145457653192,
+    "nameBits": 42594.564632629554,
+    "raw": 73505,
+    "br11": 14995,
+    "gzip9": 18920
+   },
+   {
+    "label": "firstUse/hostile",
+    "distinct": 36,
+    "nameBytes": 11701,
+    "entropy": 3.766041996827466,
+    "top5share": 0.6379796598581318,
+    "nameBits": 44066.45740487818,
+    "raw": 73505,
+    "br11": 14524,
+    "gzip9": 18311
+   },
+   {
+    "label": "source/hostile",
+    "distinct": 36,
+    "nameBytes": 11701,
+    "entropy": 3.766041996827466,
+    "top5share": 0.6379796598581318,
+    "nameBits": 44066.45740487818,
+    "raw": 73505,
+    "br11": 14524,
+    "gzip9": 18311
+   },
+   {
+    "label": "frequency/reversed",
+    "distinct": 42,
+    "nameBytes": 11701,
+    "entropy": 3.646119764930178,
+    "top5share": 0.6811383642423724,
+    "nameBits": 42663.247369448014,
+    "raw": 73505,
+    "br11": 15204,
+    "gzip9": 19278
+   },
+   {
+    "label": "firstUse/reversed",
+    "distinct": 36,
+    "nameBytes": 11701,
+    "entropy": 3.7969226501432494,
+    "top5share": 0.6241346893427913,
+    "nameBits": 44427.79192932616,
+    "raw": 73505,
+    "br11": 14818,
+    "gzip9": 18580
+   },
+   {
+    "label": "source/reversed",
+    "distinct": 36,
+    "nameBytes": 11701,
+    "entropy": 3.7969226501432494,
+    "top5share": 0.6241346893427913,
+    "nameBits": 44427.79192932616,
+    "raw": 73505,
+    "br11": 14818,
+    "gzip9": 18580
+   }
+  ],
+  "correlation": {
+   "nameBytes": 0,
+   "entropy": 0.1425232941412304,
+   "nameBits": 0.1425232941412316,
+   "distinct": 0.3493494904868627,
+   "top5share": 0.016223097119285063,
+   "rawSize": 0
+  }
+ },
+ {
+  "id": "glmatrix-lil-vite",
+  "rows": [
+   {
+    "label": "as shipped",
+    "distinct": 32,
+    "nameBytes": 11278,
+    "entropy": 3.4562851874486453,
+    "top5share": 0.718655790033694,
+    "nameBits": 38979.98434404582,
+    "raw": 68496,
+    "br11": 14116,
+    "gzip9": 17346
+   },
+   {
+    "label": "frequency/abc",
+    "distinct": 34,
+    "nameBytes": 11278,
+    "entropy": 3.5732945208775155,
+    "top5share": 0.6846071998581309,
+    "nameBits": 40299.61560645662,
+    "raw": 68496,
+    "br11": 15157,
+    "gzip9": 18848
+   },
+   {
+    "label": "firstUse/abc",
+    "distinct": 32,
+    "nameBytes": 11278,
+    "entropy": 3.6585261618020426,
+    "top5share": 0.65428267423302,
+    "nameBits": 41260.858052803436,
+    "raw": 68496,
+    "br11": 14875,
+    "gzip9": 18520
+   },
+   {
+    "label": "source/abc",
+    "distinct": 32,
+    "nameBytes": 11278,
+    "entropy": 3.6585261618020426,
+    "top5share": 0.65428267423302,
+    "nameBits": 41260.858052803436,
+    "raw": 68496,
+    "br11": 14875,
+    "gzip9": 18520
+   },
+   {
+    "label": "frequency/etn",
+    "distinct": 33,
+    "nameBytes": 11278,
+    "entropy": 3.4615582020277245,
+    "top5share": 0.7032275226103919,
+    "nameBits": 39039.45340246868,
+    "raw": 68496,
+    "br11": 14168,
+    "gzip9": 17490
+   },
+   {
+    "label": "firstUse/etn",
+    "distinct": 32,
+    "nameBytes": 11278,
+    "entropy": 3.4613469071688057,
+    "top5share": 0.701010817520837,
+    "nameBits": 39037.07041904979,
+    "raw": 68496,
+    "br11": 14193,
+    "gzip9": 17514
+   },
+   {
+    "label": "source/etn",
+    "distinct": 32,
+    "nameBytes": 11278,
+    "entropy": 3.4613469071688057,
+    "top5share": 0.701010817520837,
+    "nameBits": 39037.07041904979,
+    "raw": 68496,
+    "br11": 14193,
+    "gzip9": 17514
+   },
+   {
+    "label": "frequency/adaptive",
+    "distinct": 34,
+    "nameBytes": 11278,
+    "entropy": 3.5095942691086672,
+    "top5share": 0.7242418868593722,
+    "nameBits": 39581.20416700755,
+    "raw": 68496,
+    "br11": 14396,
+    "gzip9": 17675
+   },
+   {
+    "label": "firstUse/adaptive",
+    "distinct": 32,
+    "nameBytes": 11278,
+    "entropy": 3.51247089212212,
+    "top5share": 0.7242418868593722,
+    "nameBits": 39613.646721353274,
+    "raw": 68496,
+    "br11": 14383,
+    "gzip9": 17689
+   },
+   {
+    "label": "source/adaptive",
+    "distinct": 32,
+    "nameBytes": 11278,
+    "entropy": 3.51247089212212,
+    "top5share": 0.7242418868593722,
+    "nameBits": 39613.646721353274,
+    "raw": 68496,
+    "br11": 14383,
+    "gzip9": 17689
+   },
+   {
+    "label": "frequency/dialect",
+    "distinct": 34,
+    "nameBytes": 11278,
+    "entropy": 3.458812308427973,
+    "top5share": 0.7242418868593722,
+    "nameBits": 39008.48521445068,
+    "raw": 68496,
+    "br11": 14154,
+    "gzip9": 17394
+   },
+   {
+    "label": "firstUse/dialect",
+    "distinct": 33,
+    "nameBytes": 11278,
+    "entropy": 3.458503407243906,
+    "top5share": 0.7242418868593722,
+    "nameBits": 39005.00142689677,
+    "raw": 68496,
+    "br11": 14110,
+    "gzip9": 17405
+   },
+   {
+    "label": "source/dialect",
+    "distinct": 33,
+    "nameBytes": 11278,
+    "entropy": 3.458503407243906,
+    "top5share": 0.7242418868593722,
+    "nameBits": 39005.00142689677,
+    "raw": 68496,
+    "br11": 14110,
+    "gzip9": 17405
+   },
+   {
+    "label": "frequency/hostile",
+    "distinct": 33,
+    "nameBytes": 11278,
+    "entropy": 3.3467133730782663,
+    "top5share": 0.7593544954779217,
+    "nameBits": 37744.23342157669,
+    "raw": 68496,
+    "br11": 14645,
+    "gzip9": 18298
+   },
+   {
+    "label": "firstUse/hostile",
+    "distinct": 32,
+    "nameBytes": 11278,
+    "entropy": 3.4818419291453937,
+    "top5share": 0.7140450434474197,
+    "nameBits": 39268.21327690175,
+    "raw": 68496,
+    "br11": 14223,
+    "gzip9": 17642
+   },
+   {
+    "label": "source/hostile",
+    "distinct": 32,
+    "nameBytes": 11278,
+    "entropy": 3.4818419291453937,
+    "top5share": 0.7140450434474197,
+    "nameBits": 39268.21327690175,
+    "raw": 68496,
+    "br11": 14223,
+    "gzip9": 17642
+   },
+   {
+    "label": "frequency/reversed",
+    "distinct": 34,
+    "nameBytes": 11278,
+    "entropy": 3.3630151258567658,
+    "top5share": 0.7412661819471538,
+    "nameBits": 37928.0845894126,
+    "raw": 68496,
+    "br11": 14942,
+    "gzip9": 18566
+   },
+   {
+    "label": "firstUse/reversed",
+    "distinct": 31,
+    "nameBytes": 11278,
+    "entropy": 3.524526564869582,
+    "top5share": 0.6961340663238162,
+    "nameBits": 39749.610598599145,
+    "raw": 68496,
+    "br11": 14420,
+    "gzip9": 17917
+   },
+   {
+    "label": "source/reversed",
+    "distinct": 31,
+    "nameBytes": 11278,
+    "entropy": 3.524526564869582,
+    "top5share": 0.6961340663238162,
+    "nameBits": 39749.610598599145,
+    "raw": 68496,
+    "br11": 14420,
+    "gzip9": 17917
+   }
+  ],
+  "correlation": {
+   "nameBytes": 0,
+   "entropy": 0.3844512161737564,
+   "nameBits": 0.384451216173756,
+   "distinct": 0.22939214797994387,
+   "top5share": -0.3594408341554941,
+   "rawSize": 0
+  }
+ },
+ {
+  "id": "glmatrix-lil-raw",
+  "rows": [
+   {
+    "label": "as shipped",
+    "distinct": 95,
+    "nameBytes": 17134,
+    "entropy": 4.791188963769053,
+    "top5share": 0.5144742630884294,
+    "nameBits": 54451.86257323529,
+    "raw": 116878,
+    "br11": 17352,
+    "gzip9": 21693
+   },
+   {
+    "label": "frequency/abc",
+    "distinct": 32,
+    "nameBytes": 11365,
+    "entropy": 3.5257465072133294,
+    "top5share": 0.7131544214694236,
+    "nameBits": 40070.109054479486,
+    "raw": 111109,
+    "br11": 16798,
+    "gzip9": 21321
+   },
+   {
+    "label": "firstUse/abc",
+    "distinct": 32,
+    "nameBytes": 11365,
+    "entropy": 3.5571357133845165,
+    "top5share": 0.6903651561812583,
+    "nameBits": 40426.84738261503,
+    "raw": 111109,
+    "br11": 16821,
+    "gzip9": 21276
+   },
+   {
+    "label": "source/abc",
+    "distinct": 32,
+    "nameBytes": 11365,
+    "entropy": 3.5571357133845165,
+    "top5share": 0.6903651561812583,
+    "nameBits": 40426.84738261503,
+    "raw": 111109,
+    "br11": 16821,
+    "gzip9": 21276
+   },
+   {
+    "label": "frequency/etn",
+    "distinct": 32,
+    "nameBytes": 11365,
+    "entropy": 3.4842423323864695,
+    "top5share": 0.7313682358117026,
+    "nameBits": 39598.41410757223,
+    "raw": 111109,
+    "br11": 17214,
+    "gzip9": 21958
+   },
+   {
+    "label": "firstUse/etn",
+    "distinct": 31,
+    "nameBytes": 11365,
+    "entropy": 3.6217604747144185,
+    "top5share": 0.688077430708315,
+    "nameBits": 41161.30779512937,
+    "raw": 111109,
+    "br11": 17091,
+    "gzip9": 21638
+   },
+   {
+    "label": "source/etn",
+    "distinct": 31,
+    "nameBytes": 11365,
+    "entropy": 3.6217604747144185,
+    "top5share": 0.688077430708315,
+    "nameBits": 41161.30779512937,
+    "raw": 111109,
+    "br11": 17091,
+    "gzip9": 21638
+   },
+   {
+    "label": "frequency/adaptive",
+    "distinct": 34,
+    "nameBytes": 11365,
+    "entropy": 3.4534205460350265,
+    "top5share": 0.7220413550373955,
+    "nameBits": 39248.12450568807,
+    "raw": 111109,
+    "br11": 16970,
+    "gzip9": 21523
+   },
+   {
+    "label": "firstUse/adaptive",
+    "distinct": 33,
+    "nameBytes": 11365,
+    "entropy": 3.636171000897977,
+    "top5share": 0.6797184337879455,
+    "nameBits": 41325.08342520551,
+    "raw": 111109,
+    "br11": 17002,
+    "gzip9": 21504
+   },
+   {
+    "label": "source/adaptive",
+    "distinct": 33,
+    "nameBytes": 11365,
+    "entropy": 3.636171000897977,
+    "top5share": 0.6797184337879455,
+    "nameBits": 41325.08342520551,
+    "raw": 111109,
+    "br11": 17002,
+    "gzip9": 21504
+   },
+   {
+    "label": "frequency/dialect",
+    "distinct": 32,
+    "nameBytes": 11365,
+    "entropy": 3.512186041379654,
+    "top5share": 0.7131544214694236,
+    "nameBits": 39915.99436027977,
+    "raw": 111109,
+    "br11": 16857,
+    "gzip9": 21379
+   },
+   {
+    "label": "firstUse/dialect",
+    "distinct": 32,
+    "nameBytes": 11365,
+    "entropy": 3.545109862031634,
+    "top5share": 0.6903651561812583,
+    "nameBits": 40290.17358198952,
+    "raw": 111109,
+    "br11": 16818,
+    "gzip9": 21319
+   },
+   {
+    "label": "source/dialect",
+    "distinct": 32,
+    "nameBytes": 11365,
+    "entropy": 3.545109862031634,
+    "top5share": 0.6903651561812583,
+    "nameBits": 40290.17358198952,
+    "raw": 111109,
+    "br11": 16818,
+    "gzip9": 21319
+   },
+   {
+    "label": "frequency/hostile",
+    "distinct": 33,
+    "nameBytes": 11365,
+    "entropy": 3.424325873408542,
+    "top5share": 0.7392872855257369,
+    "nameBits": 38917.46355128808,
+    "raw": 111109,
+    "br11": 17014,
+    "gzip9": 21725
+   },
+   {
+    "label": "firstUse/hostile",
+    "distinct": 33,
+    "nameBytes": 11365,
+    "entropy": 3.564422310914106,
+    "top5share": 0.6982842058952926,
+    "nameBits": 40509.659563538815,
+    "raw": 111109,
+    "br11": 16743,
+    "gzip9": 21280
+   },
+   {
+    "label": "source/hostile",
+    "distinct": 33,
+    "nameBytes": 11365,
+    "entropy": 3.564422310914106,
+    "top5share": 0.6982842058952926,
+    "nameBits": 40509.659563538815,
+    "raw": 111109,
+    "br11": 16743,
+    "gzip9": 21280
+   },
+   {
+    "label": "frequency/reversed",
+    "distinct": 32,
+    "nameBytes": 11365,
+    "entropy": 3.300380644773332,
+    "top5share": 0.765156181258249,
+    "nameBits": 37508.82602784892,
+    "raw": 111109,
+    "br11": 16639,
+    "gzip9": 21176
+   },
+   {
+    "label": "firstUse/reversed",
+    "distinct": 33,
+    "nameBytes": 11365,
+    "entropy": 3.476380537075945,
+    "top5share": 0.7144742630884294,
+    "nameBits": 39509.06480386811,
+    "raw": 111109,
+    "br11": 16201,
+    "gzip9": 20582
+   },
+   {
+    "label": "source/reversed",
+    "distinct": 33,
+    "nameBytes": 11365,
+    "entropy": 3.476380537075945,
+    "top5share": 0.7144742630884294,
+    "nameBits": 39509.06480386811,
+    "raw": 111109,
+    "br11": 16201,
+    "gzip9": 20582
+   }
+  ],
+  "correlation": {
+   "nameBytes": 0.41847448676606724,
+   "entropy": 0.4923038027876436,
+   "nameBits": 0.49230380278764396,
+   "distinct": 0.40308461410028334,
+   "top5share": -0.45267656680837604,
+   "rawSize": 0.4184744867660675
+  }
+ }
+]

@@ -1,0 +1,338 @@
+[
+ {
+  "project": "markedlil",
+  "name": "marked.raw.js",
+  "evaluated": 8,
+  "seconds": 0.406,
+  "point": "N=on D=on",
+  "legal": "ok",
+  "base": {
+   "raw": 35901,
+   "gzip9": 10711,
+   "br11": 9543
+  },
+  "best": {
+   "raw": 34956,
+   "gzip9": 10655,
+   "br11": 9527
+  },
+  "delta": {
+   "raw": -945,
+   "gzip9": -56,
+   "br11": -16
+  },
+  "percent": -0.1676621607460966
+ },
+ {
+  "project": "motionlil",
+  "name": "mini.js",
+  "evaluated": 16,
+  "seconds": 0.749,
+  "point": "P=on",
+  "legal": "ok",
+  "base": {
+   "raw": 36618,
+   "gzip9": 12434,
+   "br11": 11085
+  },
+  "best": {
+   "raw": 36618,
+   "gzip9": 12414,
+   "br11": 11070
+  },
+  "delta": {
+   "raw": 0,
+   "gzip9": -20,
+   "br11": -15
+  },
+  "percent": -0.13531799729364005
+ },
+ {
+  "project": "motionlil",
+  "name": "scroll.js",
+  "evaluated": 8,
+  "seconds": 0.152,
+  "point": "baseline",
+  "legal": "ok",
+  "base": {
+   "raw": 17081,
+   "gzip9": 6253,
+   "br11": 5591
+  },
+  "best": {
+   "raw": 17081,
+   "gzip9": 6253,
+   "br11": 5591
+  },
+  "delta": {
+   "raw": 0,
+   "gzip9": 0,
+   "br11": 0
+  },
+  "percent": 0
+ },
+ {
+  "project": "motionlil",
+  "name": "animate.js",
+  "evaluated": 16,
+  "seconds": 2.003,
+  "point": "P=on",
+  "legal": "ok",
+  "base": {
+   "raw": 91516,
+   "gzip9": 29856,
+   "br11": 26348
+  },
+  "best": {
+   "raw": 91516,
+   "gzip9": 29841,
+   "br11": 26329
+  },
+  "delta": {
+   "raw": 0,
+   "gzip9": -15,
+   "br11": -19
+  },
+  "percent": -0.07211173523607105
+ },
+ {
+  "project": "motionlil",
+  "name": "index.bundle.js",
+  "evaluated": 16,
+  "seconds": 2.809,
+  "point": "baseline",
+  "legal": "ok",
+  "base": {
+   "raw": 123304,
+   "gzip9": 40186,
+   "br11": 34446
+  },
+  "best": {
+   "raw": 123304,
+   "gzip9": 40186,
+   "br11": 34446
+  },
+  "delta": {
+   "raw": 0,
+   "gzip9": 0,
+   "br11": 0
+  },
+  "percent": 0
+ },
+ {
+  "project": "motionlil",
+  "name": "full.js",
+  "evaluated": 16,
+  "seconds": 4.276,
+  "point": "baseline",
+  "legal": "ok",
+  "base": {
+   "raw": 182981,
+   "gzip9": 60044,
+   "br11": 51416
+  },
+  "best": {
+   "raw": 182981,
+   "gzip9": 60044,
+   "br11": 51416
+  },
+  "delta": {
+   "raw": 0,
+   "gzip9": 0,
+   "br11": 0
+  },
+  "percent": 0
+ },
+ {
+  "project": "posthoglil",
+  "name": "surveys.raw.js",
+  "evaluated": 8,
+  "seconds": 0.043,
+  "point": "baseline",
+  "legal": "ok",
+  "base": {
+   "raw": 5302,
+   "gzip9": 2068,
+   "br11": 1765
+  },
+  "best": {
+   "raw": 5302,
+   "gzip9": 2068,
+   "br11": 1765
+  },
+  "delta": {
+   "raw": 0,
+   "gzip9": 0,
+   "br11": 0
+  },
+  "percent": 0
+ },
+ {
+  "project": "posthoglil",
+  "name": "otlp.raw.js",
+  "evaluated": 16,
+  "seconds": 0.128,
+  "point": "N=on O=on D=on P=on",
+  "legal": "ok",
+  "base": {
+   "raw": 6826,
+   "gzip9": 2844,
+   "br11": 2594
+  },
+  "best": {
+   "raw": 6684,
+   "gzip9": 2805,
+   "br11": 2543
+  },
+  "delta": {
+   "raw": -142,
+   "gzip9": -39,
+   "br11": -51
+  },
+  "percent": -1.966075558982267
+ },
+ {
+  "project": "posthoglil",
+  "name": "replay-core.raw.js",
+  "evaluated": 16,
+  "seconds": 0.153,
+  "point": "baseline",
+  "legal": "ok",
+  "base": {
+   "raw": 8497,
+   "gzip9": 3804,
+   "br11": 3432
+  },
+  "best": {
+   "raw": 8497,
+   "gzip9": 3804,
+   "br11": 3432
+  },
+  "delta": {
+   "raw": 0,
+   "gzip9": 0,
+   "br11": 0
+  },
+  "percent": 0
+ },
+ {
+  "project": "posthoglil",
+  "name": "autocapture.raw.js",
+  "evaluated": 8,
+  "seconds": 0.07,
+  "point": "baseline",
+  "legal": "ok",
+  "base": {
+   "raw": 8644,
+   "gzip9": 3400,
+   "br11": 3065
+  },
+  "best": {
+   "raw": 8644,
+   "gzip9": 3400,
+   "br11": 3065
+  },
+  "delta": {
+   "raw": 0,
+   "gzip9": 0,
+   "br11": 0
+  },
+  "percent": 0
+ },
+ {
+  "project": "posthoglil",
+  "name": "posthog.raw.js",
+  "evaluated": 8,
+  "seconds": 0.144,
+  "point": "baseline",
+  "legal": "ok",
+  "base": {
+   "raw": 16683,
+   "gzip9": 6381,
+   "br11": 5606
+  },
+  "best": {
+   "raw": 16683,
+   "gzip9": 6381,
+   "br11": 5606
+  },
+  "delta": {
+   "raw": 0,
+   "gzip9": 0,
+   "br11": 0
+  },
+  "percent": 0
+ },
+ {
+  "project": "posthoglil",
+  "name": "error-tracking.raw.js",
+  "evaluated": 16,
+  "seconds": 0.355,
+  "point": "N=on D=on P=on",
+  "legal": "ok",
+  "base": {
+   "raw": 18835,
+   "gzip9": 6808,
+   "br11": 6200
+  },
+  "best": {
+   "raw": 18318,
+   "gzip9": 6707,
+   "br11": 6020
+  },
+  "delta": {
+   "raw": -517,
+   "gzip9": -101,
+   "br11": -180
+  },
+  "percent": -2.903225806451613
+ },
+ {
+  "project": "jquerylil",
+  "name": "jquery.esm.js",
+  "evaluated": 8,
+  "seconds": 1.018,
+  "point": "N=on",
+  "legal": "ok",
+  "base": {
+   "raw": 92765,
+   "gzip9": 34544,
+   "br11": 30973
+  },
+  "best": {
+   "raw": 92241,
+   "gzip9": 34098,
+   "br11": 30397
+  },
+  "delta": {
+   "raw": -524,
+   "gzip9": -446,
+   "br11": -576
+  },
+  "percent": -1.8596842411132277
+ },
+ {
+  "project": "solidlil",
+  "name": "reactive.generated.js",
+  "evaluated": 8,
+  "seconds": 0.137,
+  "point": "N=on O=on",
+  "legal": "ok",
+  "base": {
+   "raw": 13500,
+   "gzip9": 4882,
+   "br11": 4377
+  },
+  "best": {
+   "raw": 13442,
+   "gzip9": 4781,
+   "br11": 4282
+  },
+  "delta": {
+   "raw": -58,
+   "gzip9": -101,
+   "br11": -95
+  },
+  "percent": -2.170436371944254
+ }
+]

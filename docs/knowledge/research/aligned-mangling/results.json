@@ -1,0 +1,3593 @@
+[
+ {
+  "id": "jquery-min",
+  "base": {
+   "raw": 87533,
+   "gzip9": 30342,
+   "br11": 27445
+  },
+  "baseCensus": {
+   "br11": 27445,
+   "commands": 8171,
+   "literalBytes": 12099,
+   "copyBytes": 71654,
+   "dictBytes": 3780,
+   "dictRefs": 529,
+   "copies": 7642,
+   "meanCopy": 9.376341271918346,
+   "implicitPct": 4.736262391384163,
+   "shortPct": 6.302778117733447,
+   "distBits": 103783,
+   "litBits": 57514,
+   "cmdBits": 54148,
+   "codeBits": 3553
+  },
+  "variants": [
+   {
+    "label": "remangle frequency abc",
+    "score": {
+     "raw": 87533,
+     "gzip9": 31178,
+     "br11": 28042
+    },
+    "delta": {
+     "raw": 0,
+     "gzip9": 836,
+     "br11": 597
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 483,
+     "distinct": 483,
+     "duplicates": 0,
+     "duplicateBytes": 0
+    },
+    "census": {
+     "br11": 28042,
+     "commands": 8351,
+     "literalBytes": 12500,
+     "copyBytes": 71171,
+     "dictBytes": 3862,
+     "dictRefs": 547,
+     "copies": 7804,
+     "meanCopy": 9.119810353664787,
+     "implicitPct": 5.472398515147887,
+     "shortPct": 5.975332295533469,
+     "distBits": 106099,
+     "litBits": 59610,
+     "cmdBits": 55188,
+     "codeBits": 2895
+    }
+   },
+   {
+    "label": "remangle frequency etn",
+    "score": {
+     "raw": 87533,
+     "gzip9": 30401,
+     "br11": 27462
+    },
+    "delta": {
+     "raw": 0,
+     "gzip9": 59,
+     "br11": 17
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 483,
+     "distinct": 483,
+     "duplicates": 0,
+     "duplicateBytes": 0
+    },
+    "census": {
+     "br11": 27462,
+     "commands": 8182,
+     "literalBytes": 12202,
+     "copyBytes": 71510,
+     "dictBytes": 3821,
+     "dictRefs": 536,
+     "copies": 7646,
+     "meanCopy": 9.352602668061731,
+     "implicitPct": 5.047665607430947,
+     "shortPct": 6.12319726228306,
+     "distBits": 103742,
+     "litBits": 58055,
+     "cmdBits": 54302,
+     "codeBits": 3325
+    }
+   },
+   {
+    "label": "remangle first-use abc",
+    "score": {
+     "raw": 87533,
+     "gzip9": 30837,
+     "br11": 27745
+    },
+    "delta": {
+     "raw": 0,
+     "gzip9": 495,
+     "br11": 300
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 483,
+     "distinct": 483,
+     "duplicates": 0,
+     "duplicateBytes": 0
+    },
+    "census": {
+     "br11": 27745,
+     "commands": 8324,
+     "literalBytes": 12075,
+     "copyBytes": 71604,
+     "dictBytes": 3854,
+     "dictRefs": 546,
+     "copies": 7778,
+     "meanCopy": 9.205965543841604,
+     "implicitPct": 4.925516578567996,
+     "shortPct": 5.982700624699663,
+     "distBits": 105682,
+     "litBits": 57594,
+     "cmdBits": 54760,
+     "codeBits": 3564
+    }
+   },
+   {
+    "label": "remangle first-use etn",
+    "score": {
+     "raw": 87533,
+     "gzip9": 30389,
+     "br11": 27507
+    },
+    "delta": {
+     "raw": 0,
+     "gzip9": 47,
+     "br11": 62
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 483,
+     "distinct": 483,
+     "duplicates": 0,
+     "duplicateBytes": 0
+    },
+    "census": {
+     "br11": 27507,
+     "commands": 8193,
+     "literalBytes": 12153,
+     "copyBytes": 71576,
+     "dictBytes": 3804,
+     "dictRefs": 534,
+     "copies": 7659,
+     "meanCopy": 9.345345345345345,
+     "implicitPct": 5.040888563407788,
+     "shortPct": 6.102770657878677,
+     "distBits": 103924,
+     "litBits": 57985,
+     "cmdBits": 54281,
+     "codeBits": 3354
+    }
+   },
+   {
+    "label": "remangle source-order abc",
+    "score": {
+     "raw": 87533,
+     "gzip9": 30841,
+     "br11": 27751
+    },
+    "delta": {
+     "raw": 0,
+     "gzip9": 499,
+     "br11": 306
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 483,
+     "distinct": 483,
+     "duplicates": 0,
+     "duplicateBytes": 0
+    },
+    "census": {
+     "br11": 27751,
+     "commands": 8323,
+     "literalBytes": 12095,
+     "copyBytes": 71591,
+     "dictBytes": 3847,
+     "dictRefs": 544,
+     "copies": 7779,
+     "meanCopy": 9.203110939709473,
+     "implicitPct": 4.9140934759101285,
+     "shortPct": 6.0074492370539465,
+     "distBits": 105508,
+     "litBits": 57635,
+     "cmdBits": 54786,
+     "codeBits": 3691
+    }
+   },
+   {
+    "label": "remangle frequency adaptive-all",
+    "score": {
+     "raw": 87533,
+     "gzip9": 30337,
+     "br11": 27432
+    },
+    "delta": {
+     "raw": 0,
+     "gzip9": -5,
+     "br11": -13
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 483,
+     "distinct": 483,
+     "duplicates": 0,
+     "duplicateBytes": 0
+    },
+    "census": {
+     "br11": 27432,
+     "commands": 8168,
+     "literalBytes": 12135,
+     "copyBytes": 71628,
+     "dictBytes": 3770,
+     "dictRefs": 528,
+     "copies": 7640,
+     "meanCopy": 9.375392670157067,
+     "implicitPct": 4.872673849167483,
+     "shortPct": 6.280607247796278,
+     "distBits": 103506,
+     "litBits": 57835,
+     "cmdBits": 54186,
+     "codeBits": 3551
+    }
+   },
+   {
+    "label": "remangle frequency adaptive-token",
+    "score": {
+     "raw": 87533,
+     "gzip9": 30919,
+     "br11": 27885
+    },
+    "delta": {
+     "raw": 0,
+     "gzip9": 577,
+     "br11": 440
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 483,
+     "distinct": 483,
+     "duplicates": 0,
+     "duplicateBytes": 0
+    },
+    "census": {
+     "br11": 27885,
+     "commands": 8303,
+     "literalBytes": 12413,
+     "copyBytes": 71261,
+     "dictBytes": 3859,
+     "dictRefs": 547,
+     "copies": 7756,
+     "meanCopy": 9.187854564208354,
+     "implicitPct": 5.214982536432615,
+     "shortPct": 6.094182825484765,
+     "distBits": 105271,
+     "litBits": 58816,
+     "cmdBits": 55042,
+     "codeBits": 3446
+    }
+   },
+   {
+    "label": "remangle frequency dialect",
+    "score": {
+     "raw": 87533,
+     "gzip9": 30349,
+     "br11": 27434
+    },
+    "delta": {
+     "raw": 0,
+     "gzip9": 7,
+     "br11": -11
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 483,
+     "distinct": 483,
+     "duplicates": 0,
+     "duplicateBytes": 0
+    },
+    "census": {
+     "br11": 27434,
+     "commands": 8169,
+     "literalBytes": 12133,
+     "copyBytes": 71630,
+     "dictBytes": 3770,
+     "dictRefs": 528,
+     "copies": 7641,
+     "meanCopy": 9.374427430964534,
+     "implicitPct": 4.872077365650631,
+     "shortPct": 6.1941486106010535,
+     "distBits": 103802,
+     "litBits": 57754,
+     "cmdBits": 54211,
+     "codeBits": 3416
+    }
+   },
+   {
+    "label": "aligned, coverage objective etn",
+    "score": {
+     "raw": 87533,
+     "gzip9": 30420,
+     "br11": 27494
+    },
+    "delta": {
+     "raw": 0,
+     "gzip9": 78,
+     "br11": 49
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 483,
+     "distinct": 483,
+     "duplicates": 0,
+     "duplicateBytes": 0
+    },
+    "census": {
+     "br11": 27494,
+     "commands": 8195,
+     "literalBytes": 12208,
+     "copyBytes": 71516,
+     "dictBytes": 3809,
+     "dictRefs": 536,
+     "copies": 7659,
+     "meanCopy": 9.337511424467946,
+     "implicitPct": 5.088468578401464,
+     "shortPct": 6.162294081757169,
+     "distBits": 103851,
+     "litBits": 58058,
+     "cmdBits": 54374,
+     "codeBits": 3372
+    }
+   },
+   {
+    "label": "aligned, bits objective etn",
+    "score": {
+     "raw": 87533,
+     "gzip9": 30401,
+     "br11": 27462
+    },
+    "delta": {
+     "raw": 0,
+     "gzip9": 59,
+     "br11": 17
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 483,
+     "distinct": 483,
+     "duplicates": 0,
+     "duplicateBytes": 0
+    },
+    "census": {
+     "br11": 27462,
+     "commands": 8182,
+     "literalBytes": 12202,
+     "copyBytes": 71510,
+     "dictBytes": 3821,
+     "dictRefs": 536,
+     "copies": 7646,
+     "meanCopy": 9.352602668061731,
+     "implicitPct": 5.047665607430947,
+     "shortPct": 6.12319726228306,
+     "distBits": 103742,
+     "litBits": 58055,
+     "cmdBits": 54302,
+     "codeBits": 3325
+    }
+   },
+   {
+    "label": "aligned, bits objective dialect",
+    "score": {
+     "raw": 87533,
+     "gzip9": 30349,
+     "br11": 27434
+    },
+    "delta": {
+     "raw": 0,
+     "gzip9": 7,
+     "br11": -11
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 483,
+     "distinct": 483,
+     "duplicates": 0,
+     "duplicateBytes": 0
+    },
+    "census": {
+     "br11": 27434,
+     "commands": 8169,
+     "literalBytes": 12133,
+     "copyBytes": 71630,
+     "dictBytes": 3770,
+     "dictRefs": 528,
+     "copies": 7641,
+     "meanCopy": 9.374427430964534,
+     "implicitPct": 4.872077365650631,
+     "shortPct": 6.1941486106010535,
+     "distBits": 103802,
+     "litBits": 57754,
+     "cmdBits": 54211,
+     "codeBits": 3416
+    }
+   },
+   {
+    "label": "dictionary words, cold (<=3 uses)",
+    "score": {
+     "raw": 89753,
+     "gzip9": 32206,
+     "br11": 29179
+    },
+    "delta": {
+     "raw": 2220,
+     "gzip9": 1864,
+     "br11": 1734
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 510,
+     "distinct": 510,
+     "duplicates": 0,
+     "duplicateBytes": 0
+    },
+    "census": {
+     "br11": 29179,
+     "commands": 8855,
+     "literalBytes": 12623,
+     "copyBytes": 72676,
+     "dictBytes": 4454,
+     "dictRefs": 687,
+     "copies": 8168,
+     "meanCopy": 8.897649363369245,
+     "implicitPct": 4.302653867871259,
+     "shortPct": 6.437041219649915,
+     "distBits": 112379,
+     "litBits": 59996,
+     "cmdBits": 57184,
+     "codeBits": 3596
+    }
+   },
+   {
+    "label": "dictionary words, hot (top 400)",
+    "score": {
+     "raw": 100676,
+     "gzip9": 34527,
+     "br11": 31156
+    },
+    "delta": {
+     "raw": 13143,
+     "gzip9": 4185,
+     "br11": 3711
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 499,
+     "distinct": 499,
+     "duplicates": 0,
+     "duplicateBytes": 0
+    },
+    "census": {
+     "br11": 31156,
+     "commands": 10504,
+     "literalBytes": 11414,
+     "copyBytes": 84917,
+     "dictBytes": 4345,
+     "dictRefs": 672,
+     "copies": 9832,
+     "meanCopy": 8.63679820992677,
+     "implicitPct": 2.5228484386900227,
+     "shortPct": 7.758948971820259,
+     "distBits": 128823,
+     "litBits": 53589,
+     "cmdBits": 62554,
+     "codeBits": 3936
+    }
+   }
+  ],
+  "baseShapes": {
+   "functions": 483,
+   "distinct": 483,
+   "duplicates": 0,
+   "duplicateBytes": 0
+  }
+ },
+ {
+  "id": "jquery-src",
+  "base": {
+   "raw": 285314,
+   "gzip9": 83697,
+   "br11": 69545
+  },
+  "baseCensus": {
+   "br11": 69545,
+   "commands": 25159,
+   "literalBytes": 11523,
+   "copyBytes": 253294,
+   "dictBytes": 20497,
+   "dictRefs": 2291,
+   "copies": 22868,
+   "meanCopy": 11.076351233164248,
+   "implicitPct": 1.2440876028459,
+   "shortPct": 5.890536189832664,
+   "distBits": 359315,
+   "litBits": 55660,
+   "cmdBits": 135839,
+   "codeBits": 4970
+  },
+  "variants": [
+   {
+    "label": "remangle frequency abc",
+    "score": {
+     "raw": 237968,
+     "gzip9": 76383,
+     "br11": 63862
+    },
+    "delta": {
+     "raw": -47346,
+     "gzip9": -7314,
+     "br11": -5683
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 567,
+     "distinct": 567,
+     "duplicates": 0,
+     "duplicateBytes": 0
+    },
+    "census": {
+     "br11": 63862,
+     "commands": 22228,
+     "literalBytes": 13285,
+     "copyBytes": 204503,
+     "dictBytes": 20180,
+     "dictRefs": 2257,
+     "copies": 19971,
+     "meanCopy": 10.23999799709579,
+     "implicitPct": 4.899226201187691,
+     "shortPct": 5.583048407414072,
+     "distBits": 314536,
+     "litBits": 65786,
+     "cmdBits": 125210,
+     "codeBits": 4587
+    }
+   },
+   {
+    "label": "remangle frequency etn",
+    "score": {
+     "raw": 237968,
+     "gzip9": 76114,
+     "br11": 63776
+    },
+    "delta": {
+     "raw": -47346,
+     "gzip9": -7583,
+     "br11": -5769
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 567,
+     "distinct": 567,
+     "duplicates": 0,
+     "duplicateBytes": 0
+    },
+    "census": {
+     "br11": 63776,
+     "commands": 22029,
+     "literalBytes": 13723,
+     "copyBytes": 204172,
+     "dictBytes": 20073,
+     "dictRefs": 2241,
+     "copies": 19788,
+     "meanCopy": 10.317970487163938,
+     "implicitPct": 4.798220527486495,
+     "shortPct": 5.583548958191475,
+     "distBits": 311982,
+     "litBits": 67685,
+     "cmdBits": 125224,
+     "codeBits": 4538
+    }
+   },
+   {
+    "label": "remangle first-use abc",
+    "score": {
+     "raw": 238268,
+     "gzip9": 75601,
+     "br11": 63232
+    },
+    "delta": {
+     "raw": -47046,
+     "gzip9": -8096,
+     "br11": -6313
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 568,
+     "distinct": 567,
+     "duplicates": 1,
+     "duplicateBytes": 48
+    },
+    "census": {
+     "br11": 63232,
+     "commands": 21959,
+     "literalBytes": 12848,
+     "copyBytes": 205418,
+     "dictBytes": 20002,
+     "dictRefs": 2237,
+     "copies": 19722,
+     "meanCopy": 10.415677923131529,
+     "implicitPct": 4.048453936882371,
+     "shortPct": 5.610455849537775,
+     "distBits": 312870,
+     "litBits": 64481,
+     "cmdBits": 123299,
+     "codeBits": 4430
+    }
+   },
+   {
+    "label": "remangle first-use etn",
+    "score": {
+     "raw": 238268,
+     "gzip9": 75343,
+     "br11": 63124
+    },
+    "delta": {
+     "raw": -47046,
+     "gzip9": -8354,
+     "br11": -6421
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 568,
+     "distinct": 567,
+     "duplicates": 1,
+     "duplicateBytes": 48
+    },
+    "census": {
+     "br11": 63124,
+     "commands": 21840,
+     "literalBytes": 13109,
+     "copyBytes": 205159,
+     "dictBytes": 20000,
+     "dictRefs": 2238,
+     "copies": 19602,
+     "meanCopy": 10.466227935924906,
+     "implicitPct": 4.029304029304029,
+     "shortPct": 5.6822344322344325,
+     "distBits": 311340,
+     "litBits": 65137,
+     "cmdBits": 123276,
+     "codeBits": 4459
+    }
+   },
+   {
+    "label": "remangle source-order abc",
+    "score": {
+     "raw": 238271,
+     "gzip9": 75613,
+     "br11": 63242
+    },
+    "delta": {
+     "raw": -47043,
+     "gzip9": -8084,
+     "br11": -6303
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 568,
+     "distinct": 567,
+     "duplicates": 1,
+     "duplicateBytes": 48
+    },
+    "census": {
+     "br11": 63242,
+     "commands": 21970,
+     "literalBytes": 12833,
+     "copyBytes": 205424,
+     "dictBytes": 20014,
+     "dictRefs": 2238,
+     "copies": 19732,
+     "meanCopy": 10.410703425907156,
+     "implicitPct": 4.050978607191625,
+     "shortPct": 5.584888484296768,
+     "distBits": 313055,
+     "litBits": 64475,
+     "cmdBits": 123244,
+     "codeBits": 4422
+    }
+   },
+   {
+    "label": "remangle frequency adaptive-all",
+    "score": {
+     "raw": 237968,
+     "gzip9": 76138,
+     "br11": 63807
+    },
+    "delta": {
+     "raw": -47346,
+     "gzip9": -7559,
+     "br11": -5738
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 567,
+     "distinct": 567,
+     "duplicates": 0,
+     "duplicateBytes": 0
+    },
+    "census": {
+     "br11": 63807,
+     "commands": 22074,
+     "literalBytes": 13730,
+     "copyBytes": 204126,
+     "dictBytes": 20112,
+     "dictRefs": 2242,
+     "copies": 19832,
+     "meanCopy": 10.292759177087536,
+     "implicitPct": 4.910754734076289,
+     "shortPct": 5.572166349551509,
+     "distBits": 312056,
+     "litBits": 67548,
+     "cmdBits": 125338,
+     "codeBits": 4776
+    }
+   },
+   {
+    "label": "remangle frequency adaptive-token",
+    "score": {
+     "raw": 237968,
+     "gzip9": 76030,
+     "br11": 63741
+    },
+    "delta": {
+     "raw": -47346,
+     "gzip9": -7667,
+     "br11": -5804
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 567,
+     "distinct": 567,
+     "duplicates": 0,
+     "duplicateBytes": 0
+    },
+    "census": {
+     "br11": 63741,
+     "commands": 22047,
+     "literalBytes": 13590,
+     "copyBytes": 204256,
+     "dictBytes": 20122,
+     "dictRefs": 2249,
+     "copies": 19798,
+     "meanCopy": 10.317001717345187,
+     "implicitPct": 4.767088492765455,
+     "shortPct": 5.647026806368213,
+     "distBits": 312743,
+     "litBits": 66691,
+     "cmdBits": 125232,
+     "codeBits": 4559
+    }
+   },
+   {
+    "label": "remangle frequency dialect",
+    "score": {
+     "raw": 237968,
+     "gzip9": 76131,
+     "br11": 63686
+    },
+    "delta": {
+     "raw": -47346,
+     "gzip9": -7566,
+     "br11": -5859
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 567,
+     "distinct": 567,
+     "duplicates": 0,
+     "duplicateBytes": 0
+    },
+    "census": {
+     "br11": 63686,
+     "commands": 22100,
+     "literalBytes": 13150,
+     "copyBytes": 204708,
+     "dictBytes": 20110,
+     "dictRefs": 2254,
+     "copies": 19846,
+     "meanCopy": 10.314824145923613,
+     "implicitPct": 4.542986425339366,
+     "shortPct": 5.461538461538462,
+     "distBits": 314370,
+     "litBits": 65450,
+     "cmdBits": 124481,
+     "codeBits": 4525
+    }
+   },
+   {
+    "label": "aligned, coverage objective etn",
+    "score": {
+     "raw": 237968,
+     "gzip9": 76151,
+     "br11": 63790
+    },
+    "delta": {
+     "raw": -47346,
+     "gzip9": -7546,
+     "br11": -5755
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 567,
+     "distinct": 567,
+     "duplicates": 0,
+     "duplicateBytes": 0
+    },
+    "census": {
+     "br11": 63790,
+     "commands": 22056,
+     "literalBytes": 13705,
+     "copyBytes": 204159,
+     "dictBytes": 20104,
+     "dictRefs": 2245,
+     "copies": 19811,
+     "meanCopy": 10.30533541971632,
+     "implicitPct": 4.846753717809213,
+     "shortPct": 5.554044250997461,
+     "distBits": 312217,
+     "litBits": 67559,
+     "cmdBits": 125327,
+     "codeBits": 4581
+    }
+   },
+   {
+    "label": "aligned, bits objective etn",
+    "score": {
+     "raw": 237968,
+     "gzip9": 76114,
+     "br11": 63776
+    },
+    "delta": {
+     "raw": -47346,
+     "gzip9": -7583,
+     "br11": -5769
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 567,
+     "distinct": 567,
+     "duplicates": 0,
+     "duplicateBytes": 0
+    },
+    "census": {
+     "br11": 63776,
+     "commands": 22029,
+     "literalBytes": 13723,
+     "copyBytes": 204172,
+     "dictBytes": 20073,
+     "dictRefs": 2241,
+     "copies": 19788,
+     "meanCopy": 10.317970487163938,
+     "implicitPct": 4.798220527486495,
+     "shortPct": 5.583548958191475,
+     "distBits": 311982,
+     "litBits": 67685,
+     "cmdBits": 125224,
+     "codeBits": 4538
+    }
+   },
+   {
+    "label": "aligned, bits objective dialect",
+    "score": {
+     "raw": 237968,
+     "gzip9": 76131,
+     "br11": 63686
+    },
+    "delta": {
+     "raw": -47346,
+     "gzip9": -7566,
+     "br11": -5859
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 567,
+     "distinct": 567,
+     "duplicates": 0,
+     "duplicateBytes": 0
+    },
+    "census": {
+     "br11": 63686,
+     "commands": 22100,
+     "literalBytes": 13150,
+     "copyBytes": 204708,
+     "dictBytes": 20110,
+     "dictRefs": 2254,
+     "copies": 19846,
+     "meanCopy": 10.314824145923613,
+     "implicitPct": 4.542986425339366,
+     "shortPct": 5.461538461538462,
+     "distBits": 314370,
+     "litBits": 65450,
+     "cmdBits": 124481,
+     "codeBits": 4525
+    }
+   },
+   {
+    "label": "dictionary words, cold (<=3 uses)",
+    "score": {
+     "raw": 283683,
+     "gzip9": 84732,
+     "br11": 70562
+    },
+    "delta": {
+     "raw": -1631,
+     "gzip9": 1035,
+     "br11": 1017
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 583,
+     "distinct": 582,
+     "duplicates": 1,
+     "duplicateBytes": 62
+    },
+    "census": {
+     "br11": 70562,
+     "commands": 25455,
+     "literalBytes": 12071,
+     "copyBytes": 250259,
+     "dictBytes": 21353,
+     "dictRefs": 2438,
+     "copies": 23017,
+     "meanCopy": 10.872789677195117,
+     "implicitPct": 1.5399725004910627,
+     "shortPct": 5.778825378118248,
+     "distBits": 362908,
+     "litBits": 58601,
+     "cmdBits": 136588,
+     "codeBits": 5373
+    }
+   },
+   {
+    "label": "dictionary words, hot (top 400)",
+    "score": {
+     "raw": 276609,
+     "gzip9": 85437,
+     "br11": 71498
+    },
+    "delta": {
+     "raw": -8705,
+     "gzip9": 1740,
+     "br11": 1953
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 578,
+     "distinct": 578,
+     "duplicates": 0,
+     "duplicateBytes": 0
+    },
+    "census": {
+     "br11": 71498,
+     "commands": 26369,
+     "literalBytes": 12019,
+     "copyBytes": 243007,
+     "dictBytes": 21583,
+     "dictRefs": 2488,
+     "copies": 23881,
+     "meanCopy": 10.175746409279343,
+     "implicitPct": 1.357654821950017,
+     "shortPct": 6.272516970685274,
+     "distBits": 370357,
+     "litBits": 57929,
+     "cmdBits": 138079,
+     "codeBits": 5093
+    }
+   }
+  ],
+  "baseShapes": {
+   "functions": 581,
+   "distinct": 580,
+   "duplicates": 1,
+   "duplicateBytes": 62
+  }
+ },
+ {
+  "id": "jquery-lil-raw",
+  "base": {
+   "raw": 102681,
+   "gzip9": 38948,
+   "br11": 33283
+  },
+  "baseCensus": {
+   "br11": 33283,
+   "commands": 10003,
+   "literalBytes": 15544,
+   "copyBytes": 83278,
+   "dictBytes": 3859,
+   "dictRefs": 545,
+   "copies": 9458,
+   "meanCopy": 8.805032776485515,
+   "implicitPct": 11.256623013096071,
+   "shortPct": 6.618014595621313,
+   "distBits": 118509,
+   "litBits": 76673,
+   "cmdBits": 65994,
+   "codeBits": 4227
+  },
+  "variants": [
+   {
+    "label": "remangle frequency abc",
+    "score": {
+     "raw": 102139,
+     "gzip9": 38212,
+     "br11": 32565
+    },
+    "delta": {
+     "raw": -542,
+     "gzip9": -736,
+     "br11": -718
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 511,
+     "distinct": 510,
+     "duplicates": 1,
+     "duplicateBytes": 96
+    },
+    "census": {
+     "br11": 32565,
+     "commands": 9922,
+     "literalBytes": 14949,
+     "copyBytes": 83335,
+     "dictBytes": 3855,
+     "dictRefs": 542,
+     "copies": 9380,
+     "meanCopy": 8.884328358208956,
+     "implicitPct": 11.469461802056037,
+     "shortPct": 6.238661560169321,
+     "distBits": 118100,
+     "litBits": 72190,
+     "cmdBits": 64990,
+     "codeBits": 4235
+    }
+   },
+   {
+    "label": "remangle frequency etn",
+    "score": {
+     "raw": 102139,
+     "gzip9": 38672,
+     "br11": 33031
+    },
+    "delta": {
+     "raw": -542,
+     "gzip9": -276,
+     "br11": -252
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 511,
+     "distinct": 510,
+     "duplicates": 1,
+     "duplicateBytes": 96
+    },
+    "census": {
+     "br11": 33031,
+     "commands": 10023,
+     "literalBytes": 15328,
+     "copyBytes": 83017,
+     "dictBytes": 3794,
+     "dictRefs": 531,
+     "copies": 9492,
+     "meanCopy": 8.745996628739992,
+     "implicitPct": 11.633243539858325,
+     "shortPct": 5.946323456051082,
+     "distBits": 119084,
+     "litBits": 74052,
+     "cmdBits": 65831,
+     "codeBits": 4466
+    }
+   },
+   {
+    "label": "remangle first-use abc",
+    "score": {
+     "raw": 102139,
+     "gzip9": 38201,
+     "br11": 32548
+    },
+    "delta": {
+     "raw": -542,
+     "gzip9": -747,
+     "br11": -735
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 511,
+     "distinct": 510,
+     "duplicates": 1,
+     "duplicateBytes": 96
+    },
+    "census": {
+     "br11": 32548,
+     "commands": 9923,
+     "literalBytes": 14892,
+     "copyBytes": 83426,
+     "dictBytes": 3821,
+     "dictRefs": 540,
+     "copies": 9383,
+     "meanCopy": 8.891186187786422,
+     "implicitPct": 11.417917968356344,
+     "shortPct": 6.117101682958783,
+     "distBits": 117943,
+     "litBits": 72235,
+     "cmdBits": 65091,
+     "codeBits": 4268
+    }
+   },
+   {
+    "label": "remangle first-use etn",
+    "score": {
+     "raw": 102139,
+     "gzip9": 38616,
+     "br11": 33220
+    },
+    "delta": {
+     "raw": -542,
+     "gzip9": -332,
+     "br11": -63
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 511,
+     "distinct": 510,
+     "duplicates": 1,
+     "duplicateBytes": 96
+    },
+    "census": {
+     "br11": 33220,
+     "commands": 10124,
+     "literalBytes": 15452,
+     "copyBytes": 82934,
+     "dictBytes": 3753,
+     "dictRefs": 523,
+     "copies": 9601,
+     "meanCopy": 8.638058535569211,
+     "implicitPct": 12.751876728565783,
+     "shortPct": 6.272224417226393,
+     "distBits": 118084,
+     "litBits": 75202,
+     "cmdBits": 66671,
+     "codeBits": 4612
+    }
+   },
+   {
+    "label": "remangle source-order abc",
+    "score": {
+     "raw": 102139,
+     "gzip9": 38201,
+     "br11": 32548
+    },
+    "delta": {
+     "raw": -542,
+     "gzip9": -747,
+     "br11": -735
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 511,
+     "distinct": 510,
+     "duplicates": 1,
+     "duplicateBytes": 96
+    },
+    "census": {
+     "br11": 32548,
+     "commands": 9923,
+     "literalBytes": 14892,
+     "copyBytes": 83426,
+     "dictBytes": 3821,
+     "dictRefs": 540,
+     "copies": 9383,
+     "meanCopy": 8.891186187786422,
+     "implicitPct": 11.417917968356344,
+     "shortPct": 6.117101682958783,
+     "distBits": 117943,
+     "litBits": 72235,
+     "cmdBits": 65091,
+     "codeBits": 4268
+    }
+   },
+   {
+    "label": "remangle frequency adaptive-all",
+    "score": {
+     "raw": 102139,
+     "gzip9": 38695,
+     "br11": 33005
+    },
+    "delta": {
+     "raw": -542,
+     "gzip9": -253,
+     "br11": -278
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 511,
+     "distinct": 509,
+     "duplicates": 2,
+     "duplicateBytes": 190
+    },
+    "census": {
+     "br11": 33005,
+     "commands": 10043,
+     "literalBytes": 15362,
+     "copyBytes": 82949,
+     "dictBytes": 3828,
+     "dictRefs": 537,
+     "copies": 9506,
+     "meanCopy": 8.725962549968441,
+     "implicitPct": 11.819177536592651,
+     "shortPct": 5.964353280892164,
+     "distBits": 119077,
+     "litBits": 73975,
+     "cmdBits": 65823,
+     "codeBits": 4262
+    }
+   },
+   {
+    "label": "remangle frequency adaptive-token",
+    "score": {
+     "raw": 102139,
+     "gzip9": 38771,
+     "br11": 33119
+    },
+    "delta": {
+     "raw": -542,
+     "gzip9": -177,
+     "br11": -164
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 511,
+     "distinct": 510,
+     "duplicates": 1,
+     "duplicateBytes": 96
+    },
+    "census": {
+     "br11": 33119,
+     "commands": 10114,
+     "literalBytes": 15197,
+     "copyBytes": 83084,
+     "dictBytes": 3858,
+     "dictRefs": 543,
+     "copies": 9571,
+     "meanCopy": 8.680806603280743,
+     "implicitPct": 12.329444334585721,
+     "shortPct": 6.130116669962429,
+     "distBits": 119532,
+     "litBits": 73791,
+     "cmdBits": 66265,
+     "codeBits": 4345
+    }
+   },
+   {
+    "label": "remangle frequency dialect",
+    "score": {
+     "raw": 102139,
+     "gzip9": 38212,
+     "br11": 32544
+    },
+    "delta": {
+     "raw": -542,
+     "gzip9": -736,
+     "br11": -739
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 511,
+     "distinct": 510,
+     "duplicates": 1,
+     "duplicateBytes": 96
+    },
+    "census": {
+     "br11": 32544,
+     "commands": 9922,
+     "literalBytes": 14942,
+     "copyBytes": 83340,
+     "dictBytes": 3857,
+     "dictRefs": 543,
+     "copies": 9379,
+     "meanCopy": 8.885808721612111,
+     "implicitPct": 11.499697641604516,
+     "shortPct": 6.198347107438017,
+     "distBits": 118276,
+     "litBits": 71706,
+     "cmdBits": 65027,
+     "codeBits": 4505
+    }
+   },
+   {
+    "label": "aligned, coverage objective etn",
+    "score": {
+     "raw": 102139,
+     "gzip9": 38942,
+     "br11": 33243
+    },
+    "delta": {
+     "raw": -542,
+     "gzip9": -6,
+     "br11": -40
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 511,
+     "distinct": 509,
+     "duplicates": 2,
+     "duplicateBytes": 536
+    },
+    "census": {
+     "br11": 33243,
+     "commands": 10039,
+     "literalBytes": 15450,
+     "copyBytes": 82919,
+     "dictBytes": 3770,
+     "dictRefs": 525,
+     "copies": 9514,
+     "meanCopy": 8.715471936094177,
+     "implicitPct": 11.724275326227712,
+     "shortPct": 5.936846299432214,
+     "distBits": 119662,
+     "litBits": 75306,
+     "cmdBits": 65823,
+     "codeBits": 4312
+    }
+   },
+   {
+    "label": "aligned, bits objective etn",
+    "score": {
+     "raw": 102139,
+     "gzip9": 38672,
+     "br11": 33031
+    },
+    "delta": {
+     "raw": -542,
+     "gzip9": -276,
+     "br11": -252
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 511,
+     "distinct": 510,
+     "duplicates": 1,
+     "duplicateBytes": 96
+    },
+    "census": {
+     "br11": 33031,
+     "commands": 10023,
+     "literalBytes": 15328,
+     "copyBytes": 83017,
+     "dictBytes": 3794,
+     "dictRefs": 531,
+     "copies": 9492,
+     "meanCopy": 8.745996628739992,
+     "implicitPct": 11.633243539858325,
+     "shortPct": 5.946323456051082,
+     "distBits": 119084,
+     "litBits": 74052,
+     "cmdBits": 65831,
+     "codeBits": 4466
+    }
+   },
+   {
+    "label": "aligned, bits objective dialect",
+    "score": {
+     "raw": 102139,
+     "gzip9": 38212,
+     "br11": 32544
+    },
+    "delta": {
+     "raw": -542,
+     "gzip9": -736,
+     "br11": -739
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 511,
+     "distinct": 510,
+     "duplicates": 1,
+     "duplicateBytes": 96
+    },
+    "census": {
+     "br11": 32544,
+     "commands": 9922,
+     "literalBytes": 14942,
+     "copyBytes": 83340,
+     "dictBytes": 3857,
+     "dictRefs": 543,
+     "copies": 9379,
+     "meanCopy": 8.885808721612111,
+     "implicitPct": 11.499697641604516,
+     "shortPct": 6.198347107438017,
+     "distBits": 118276,
+     "litBits": 71706,
+     "cmdBits": 65027,
+     "codeBits": 4505
+    }
+   },
+   {
+    "label": "dictionary words, cold (<=3 uses)",
+    "score": {
+     "raw": 104797,
+     "gzip9": 40540,
+     "br11": 34936
+    },
+    "delta": {
+     "raw": 2116,
+     "gzip9": 1592,
+     "br11": 1653
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 530,
+     "distinct": 530,
+     "duplicates": 0,
+     "duplicateBytes": 0
+    },
+    "census": {
+     "br11": 34936,
+     "commands": 10587,
+     "literalBytes": 16098,
+     "copyBytes": 84170,
+     "dictBytes": 4529,
+     "dictRefs": 692,
+     "copies": 9895,
+     "meanCopy": 8.506316321374431,
+     "implicitPct": 10.248417870973835,
+     "shortPct": 7.38641730424105,
+     "distBits": 125874,
+     "litBits": 79285,
+     "cmdBits": 68702,
+     "codeBits": 4724
+    }
+   },
+   {
+    "label": "dictionary words, hot (top 400)",
+    "score": {
+     "raw": 117729,
+     "gzip9": 44105,
+     "br11": 38486
+    },
+    "delta": {
+     "raw": 15048,
+     "gzip9": 5157,
+     "br11": 5203
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 512,
+     "distinct": 511,
+     "duplicates": 1,
+     "duplicateBytes": 96
+    },
+    "census": {
+     "br11": 38486,
+     "commands": 13447,
+     "literalBytes": 15052,
+     "copyBytes": 98244,
+     "dictBytes": 4433,
+     "dictRefs": 674,
+     "copies": 12773,
+     "meanCopy": 7.691536835512409,
+     "implicitPct": 6.692942663791181,
+     "shortPct": 11.199524057410574,
+     "distBits": 149369,
+     "litBits": 74726,
+     "cmdBits": 78408,
+     "codeBits": 4764
+    }
+   }
+  ],
+  "baseShapes": {
+   "functions": 512,
+   "distinct": 511,
+   "duplicates": 1,
+   "duplicateBytes": 96
+  }
+ },
+ {
+  "id": "jquery-lil-min",
+  "base": {
+   "raw": 110749,
+   "gzip9": 42826,
+   "br11": 37901
+  },
+  "baseCensus": {
+   "br11": 37901,
+   "commands": 11245,
+   "literalBytes": 19831,
+   "copyBytes": 87388,
+   "dictBytes": 3530,
+   "dictRefs": 491,
+   "copies": 10754,
+   "meanCopy": 8.126092616700763,
+   "implicitPct": 14.984437527790128,
+   "shortPct": 7.630057803468208,
+   "distBits": 124882,
+   "litBits": 97446,
+   "cmdBits": 75400,
+   "codeBits": 4572
+  },
+  "variants": [
+   {
+    "label": "remangle frequency abc",
+    "score": {
+     "raw": 110654,
+     "gzip9": 43041,
+     "br11": 37914
+    },
+    "delta": {
+     "raw": -95,
+     "gzip9": 215,
+     "br11": 13
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 551,
+     "distinct": 550,
+     "duplicates": 1,
+     "duplicateBytes": 46
+    },
+    "census": {
+     "br11": 37914,
+     "commands": 11611,
+     "literalBytes": 18800,
+     "copyBytes": 88273,
+     "dictBytes": 3581,
+     "dictRefs": 504,
+     "copies": 11107,
+     "meanCopy": 7.947510578914199,
+     "implicitPct": 15.175264835070193,
+     "shortPct": 7.001980880199811,
+     "distBits": 129609,
+     "litBits": 91630,
+     "cmdBits": 76058,
+     "codeBits": 4794
+    }
+   },
+   {
+    "label": "remangle frequency etn",
+    "score": {
+     "raw": 110654,
+     "gzip9": 42894,
+     "br11": 37897
+    },
+    "delta": {
+     "raw": -95,
+     "gzip9": 68,
+     "br11": -4
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 551,
+     "distinct": 550,
+     "duplicates": 1,
+     "duplicateBytes": 46
+    },
+    "census": {
+     "br11": 37897,
+     "commands": 11418,
+     "literalBytes": 19604,
+     "copyBytes": 87555,
+     "dictBytes": 3495,
+     "dictRefs": 485,
+     "copies": 10933,
+     "meanCopy": 8.00832342449465,
+     "implicitPct": 15.528113504992117,
+     "shortPct": 7.566999474513926,
+     "distBits": 126585,
+     "litBits": 95096,
+     "cmdBits": 75968,
+     "codeBits": 4729
+    }
+   },
+   {
+    "label": "remangle first-use abc",
+    "score": {
+     "raw": 110654,
+     "gzip9": 42945,
+     "br11": 37781
+    },
+    "delta": {
+     "raw": -95,
+     "gzip9": 119,
+     "br11": -120
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 551,
+     "distinct": 550,
+     "duplicates": 1,
+     "duplicateBytes": 46
+    },
+    "census": {
+     "br11": 37781,
+     "commands": 11493,
+     "literalBytes": 18856,
+     "copyBytes": 88255,
+     "dictBytes": 3543,
+     "dictRefs": 498,
+     "copies": 10995,
+     "meanCopy": 8.026830377444293,
+     "implicitPct": 14.983033150613418,
+     "shortPct": 7.24789002001218,
+     "distBits": 128312,
+     "litBits": 92541,
+     "cmdBits": 75852,
+     "codeBits": 4488
+    }
+   },
+   {
+    "label": "remangle first-use etn",
+    "score": {
+     "raw": 110654,
+     "gzip9": 42889,
+     "br11": 37884
+    },
+    "delta": {
+     "raw": -95,
+     "gzip9": 63,
+     "br11": -17
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 551,
+     "distinct": 550,
+     "duplicates": 1,
+     "duplicateBytes": 46
+    },
+    "census": {
+     "br11": 37884,
+     "commands": 11403,
+     "literalBytes": 19549,
+     "copyBytes": 87628,
+     "dictBytes": 3477,
+     "dictRefs": 483,
+     "copies": 10920,
+     "meanCopy": 8.024542124542124,
+     "implicitPct": 15.469613259668508,
+     "shortPct": 7.629571165482768,
+     "distBits": 126564,
+     "litBits": 95005,
+     "cmdBits": 75922,
+     "codeBits": 4725
+    }
+   },
+   {
+    "label": "remangle source-order abc",
+    "score": {
+     "raw": 110654,
+     "gzip9": 42945,
+     "br11": 37781
+    },
+    "delta": {
+     "raw": -95,
+     "gzip9": 119,
+     "br11": -120
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 551,
+     "distinct": 550,
+     "duplicates": 1,
+     "duplicateBytes": 46
+    },
+    "census": {
+     "br11": 37781,
+     "commands": 11493,
+     "literalBytes": 18856,
+     "copyBytes": 88255,
+     "dictBytes": 3543,
+     "dictRefs": 498,
+     "copies": 10995,
+     "meanCopy": 8.026830377444293,
+     "implicitPct": 14.983033150613418,
+     "shortPct": 7.24789002001218,
+     "distBits": 128312,
+     "litBits": 92541,
+     "cmdBits": 75852,
+     "codeBits": 4488
+    }
+   },
+   {
+    "label": "remangle frequency adaptive-all",
+    "score": {
+     "raw": 110654,
+     "gzip9": 42316,
+     "br11": 37486
+    },
+    "delta": {
+     "raw": -95,
+     "gzip9": -510,
+     "br11": -415
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 551,
+     "distinct": 550,
+     "duplicates": 1,
+     "duplicateBytes": 46
+    },
+    "census": {
+     "br11": 37486,
+     "commands": 11235,
+     "literalBytes": 19316,
+     "copyBytes": 87880,
+     "dictBytes": 3458,
+     "dictRefs": 478,
+     "copies": 10757,
+     "meanCopy": 8.169564004834061,
+     "implicitPct": 15.175789942145082,
+     "shortPct": 7.672452158433467,
+     "distBits": 124718,
+     "litBits": 94319,
+     "cmdBits": 75092,
+     "codeBits": 4962
+    }
+   },
+   {
+    "label": "remangle frequency adaptive-token",
+    "score": {
+     "raw": 110654,
+     "gzip9": 42878,
+     "br11": 37884
+    },
+    "delta": {
+     "raw": -95,
+     "gzip9": 52,
+     "br11": -17
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 551,
+     "distinct": 550,
+     "duplicates": 1,
+     "duplicateBytes": 46
+    },
+    "census": {
+     "br11": 37884,
+     "commands": 11450,
+     "literalBytes": 19263,
+     "copyBytes": 87790,
+     "dictBytes": 3601,
+     "dictRefs": 504,
+     "copies": 10946,
+     "meanCopy": 8.020281381326512,
+     "implicitPct": 15.379912663755457,
+     "shortPct": 7.152838427947598,
+     "distBits": 127694,
+     "litBits": 93747,
+     "cmdBits": 75857,
+     "codeBits": 4679
+    }
+   },
+   {
+    "label": "remangle frequency dialect",
+    "score": {
+     "raw": 110654,
+     "gzip9": 42223,
+     "br11": 37357
+    },
+    "delta": {
+     "raw": -95,
+     "gzip9": -603,
+     "br11": -544
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 551,
+     "distinct": 550,
+     "duplicates": 1,
+     "duplicateBytes": 46
+    },
+    "census": {
+     "br11": 37357,
+     "commands": 11222,
+     "literalBytes": 19121,
+     "copyBytes": 88012,
+     "dictBytes": 3521,
+     "dictRefs": 490,
+     "copies": 10732,
+     "meanCopy": 8.200894521058517,
+     "implicitPct": 14.917127071823206,
+     "shortPct": 7.512029941186954,
+     "distBits": 125360,
+     "litBits": 93083,
+     "cmdBits": 74833,
+     "codeBits": 4674
+    }
+   },
+   {
+    "label": "aligned, coverage objective etn",
+    "score": {
+     "raw": 110654,
+     "gzip9": 43295,
+     "br11": 38277
+    },
+    "delta": {
+     "raw": -95,
+     "gzip9": 469,
+     "br11": 376
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 551,
+     "distinct": 550,
+     "duplicates": 1,
+     "duplicateBytes": 46
+    },
+    "census": {
+     "br11": 38277,
+     "commands": 11440,
+     "literalBytes": 19961,
+     "copyBytes": 87182,
+     "dictBytes": 3511,
+     "dictRefs": 487,
+     "copies": 10953,
+     "meanCopy": 7.959645759152743,
+     "implicitPct": 15.743006993006995,
+     "shortPct": 7.246503496503497,
+     "distBits": 126617,
+     "litBits": 97597,
+     "cmdBits": 76635,
+     "codeBits": 4447
+    }
+   },
+   {
+    "label": "aligned, bits objective etn",
+    "score": {
+     "raw": 110654,
+     "gzip9": 42894,
+     "br11": 37897
+    },
+    "delta": {
+     "raw": -95,
+     "gzip9": 68,
+     "br11": -4
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 551,
+     "distinct": 550,
+     "duplicates": 1,
+     "duplicateBytes": 46
+    },
+    "census": {
+     "br11": 37897,
+     "commands": 11418,
+     "literalBytes": 19604,
+     "copyBytes": 87555,
+     "dictBytes": 3495,
+     "dictRefs": 485,
+     "copies": 10933,
+     "meanCopy": 8.00832342449465,
+     "implicitPct": 15.528113504992117,
+     "shortPct": 7.566999474513926,
+     "distBits": 126585,
+     "litBits": 95096,
+     "cmdBits": 75968,
+     "codeBits": 4729
+    }
+   },
+   {
+    "label": "aligned, bits objective dialect",
+    "score": {
+     "raw": 110654,
+     "gzip9": 42223,
+     "br11": 37357
+    },
+    "delta": {
+     "raw": -95,
+     "gzip9": -603,
+     "br11": -544
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 551,
+     "distinct": 550,
+     "duplicates": 1,
+     "duplicateBytes": 46
+    },
+    "census": {
+     "br11": 37357,
+     "commands": 11222,
+     "literalBytes": 19121,
+     "copyBytes": 88012,
+     "dictBytes": 3521,
+     "dictRefs": 490,
+     "copies": 10732,
+     "meanCopy": 8.200894521058517,
+     "implicitPct": 14.917127071823206,
+     "shortPct": 7.512029941186954,
+     "distBits": 125360,
+     "litBits": 93083,
+     "cmdBits": 74833,
+     "codeBits": 4674
+    }
+   },
+   {
+    "label": "dictionary words, cold (<=3 uses)",
+    "score": {
+     "raw": 112888,
+     "gzip9": 44627,
+     "br11": 39576
+    },
+    "delta": {
+     "raw": 2139,
+     "gzip9": 1801,
+     "br11": 1675
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 592,
+     "distinct": 591,
+     "duplicates": 1,
+     "duplicateBytes": 46
+    },
+    "census": {
+     "br11": 39576,
+     "commands": 11841,
+     "literalBytes": 20666,
+     "copyBytes": 87904,
+     "dictBytes": 4318,
+     "dictRefs": 672,
+     "copies": 11169,
+     "meanCopy": 7.870355448115319,
+     "implicitPct": 14.576471581792077,
+     "shortPct": 7.5247023055485185,
+     "distBits": 131443,
+     "litBits": 101359,
+     "cmdBits": 78037,
+     "codeBits": 4907
+    }
+   },
+   {
+    "label": "dictionary words, hot (top 400)",
+    "score": {
+     "raw": 127014,
+     "gzip9": 48755,
+     "br11": 43367
+    },
+    "delta": {
+     "raw": 16265,
+     "gzip9": 5929,
+     "br11": 5466
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 554,
+     "distinct": 553,
+     "duplicates": 1,
+     "duplicateBytes": 46
+    },
+    "census": {
+     "br11": 43367,
+     "commands": 14718,
+     "literalBytes": 19533,
+     "copyBytes": 103594,
+     "dictBytes": 3887,
+     "dictRefs": 582,
+     "copies": 14136,
+     "meanCopy": 7.328381437464629,
+     "implicitPct": 9.858676450604701,
+     "shortPct": 12.134800924038593,
+     "distBits": 155121,
+     "litBits": 97209,
+     "cmdBits": 88247,
+     "codeBits": 5389
+    }
+   }
+  ],
+  "baseShapes": {
+   "functions": 551,
+   "distinct": 550,
+   "duplicates": 1,
+   "duplicateBytes": 46
+  }
+ },
+ {
+  "id": "glmatrix-js-vite",
+  "base": {
+   "raw": 73505,
+   "gzip9": 17722,
+   "br11": 14330
+  },
+  "baseCensus": {
+   "br11": 14330,
+   "commands": 5462,
+   "literalBytes": 6875,
+   "copyBytes": 66107,
+   "dictBytes": 523,
+   "dictRefs": 81,
+   "copies": 5381,
+   "meanCopy": 12.28526296227467,
+   "implicitPct": 35.316733797143904,
+   "shortPct": 14.280483339436104,
+   "distBits": 39788,
+   "litBits": 31807,
+   "cmdBits": 37265,
+   "codeBits": 4481
+  },
+  "variants": [
+   {
+    "label": "remangle frequency abc",
+    "score": {
+     "raw": 73505,
+     "gzip9": 19617,
+     "br11": 15530
+    },
+    "delta": {
+     "raw": 0,
+     "gzip9": 1895,
+     "br11": 1200
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 325,
+     "distinct": 324,
+     "duplicates": 1,
+     "duplicateBytes": 52
+    },
+    "census": {
+     "br11": 15530,
+     "commands": 6120,
+     "literalBytes": 7804,
+     "copyBytes": 65154,
+     "dictBytes": 547,
+     "dictRefs": 83,
+     "copies": 6037,
+     "meanCopy": 10.792446579426867,
+     "implicitPct": 39.36274509803921,
+     "shortPct": 13.741830065359478,
+     "distBits": 41760,
+     "litBits": 36452,
+     "cmdBits": 40690,
+     "codeBits": 4219
+    }
+   },
+   {
+    "label": "remangle frequency etn",
+    "score": {
+     "raw": 73505,
+     "gzip9": 17916,
+     "br11": 14459
+    },
+    "delta": {
+     "raw": 0,
+     "gzip9": 194,
+     "br11": 129
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 325,
+     "distinct": 324,
+     "duplicates": 1,
+     "duplicateBytes": 52
+    },
+    "census": {
+     "br11": 14459,
+     "commands": 5508,
+     "literalBytes": 6990,
+     "copyBytes": 65996,
+     "dictBytes": 519,
+     "dictRefs": 80,
+     "copies": 5428,
+     "meanCopy": 12.158437730287398,
+     "implicitPct": 35.929557007988386,
+     "shortPct": 13.907044299201162,
+     "distBits": 40213,
+     "litBits": 32144,
+     "cmdBits": 38021,
+     "codeBits": 4115
+    }
+   },
+   {
+    "label": "remangle first-use abc",
+    "score": {
+     "raw": 73505,
+     "gzip9": 19146,
+     "br11": 15173
+    },
+    "delta": {
+     "raw": 0,
+     "gzip9": 1424,
+     "br11": 843
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 325,
+     "distinct": 324,
+     "duplicates": 1,
+     "duplicateBytes": 52
+    },
+    "census": {
+     "br11": 15173,
+     "commands": 5895,
+     "literalBytes": 7583,
+     "copyBytes": 65366,
+     "dictBytes": 556,
+     "dictRefs": 85,
+     "copies": 5810,
+     "meanCopy": 11.250602409638555,
+     "implicitPct": 37.45547073791349,
+     "shortPct": 14.164546225614927,
+     "distBits": 41457,
+     "litBits": 34547,
+     "cmdBits": 39644,
+     "codeBits": 4310
+    }
+   },
+   {
+    "label": "remangle first-use etn",
+    "score": {
+     "raw": 73505,
+     "gzip9": 17882,
+     "br11": 14403
+    },
+    "delta": {
+     "raw": 0,
+     "gzip9": 160,
+     "br11": 73
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 325,
+     "distinct": 324,
+     "duplicates": 1,
+     "duplicateBytes": 52
+    },
+    "census": {
+     "br11": 14403,
+     "commands": 5502,
+     "literalBytes": 6976,
+     "copyBytes": 66010,
+     "dictBytes": 519,
+     "dictRefs": 80,
+     "copies": 5422,
+     "meanCopy": 12.17447436370343,
+     "implicitPct": 35.914213013449654,
+     "shortPct": 13.940385314431117,
+     "distBits": 39767,
+     "litBits": 32345,
+     "cmdBits": 37692,
+     "codeBits": 4336
+    }
+   },
+   {
+    "label": "remangle source-order abc",
+    "score": {
+     "raw": 73505,
+     "gzip9": 19146,
+     "br11": 15173
+    },
+    "delta": {
+     "raw": 0,
+     "gzip9": 1424,
+     "br11": 843
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 325,
+     "distinct": 324,
+     "duplicates": 1,
+     "duplicateBytes": 52
+    },
+    "census": {
+     "br11": 15173,
+     "commands": 5895,
+     "literalBytes": 7583,
+     "copyBytes": 65366,
+     "dictBytes": 556,
+     "dictRefs": 85,
+     "copies": 5810,
+     "meanCopy": 11.250602409638555,
+     "implicitPct": 37.45547073791349,
+     "shortPct": 14.164546225614927,
+     "distBits": 41457,
+     "litBits": 34547,
+     "cmdBits": 39644,
+     "codeBits": 4310
+    }
+   },
+   {
+    "label": "remangle frequency adaptive-all",
+    "score": {
+     "raw": 73505,
+     "gzip9": 18358,
+     "br11": 14735
+    },
+    "delta": {
+     "raw": 0,
+     "gzip9": 636,
+     "br11": 405
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 325,
+     "distinct": 324,
+     "duplicates": 1,
+     "duplicateBytes": 52
+    },
+    "census": {
+     "br11": 14735,
+     "commands": 5664,
+     "literalBytes": 7248,
+     "copyBytes": 65713,
+     "dictBytes": 544,
+     "dictRefs": 82,
+     "copies": 5582,
+     "meanCopy": 11.772303833751344,
+     "implicitPct": 37.55296610169492,
+     "shortPct": 13.541666666666666,
+     "distBits": 40151,
+     "litBits": 33590,
+     "cmdBits": 38521,
+     "codeBits": 4308
+    }
+   },
+   {
+    "label": "remangle frequency adaptive-token",
+    "score": {
+     "raw": 73505,
+     "gzip9": 19024,
+     "br11": 15181
+    },
+    "delta": {
+     "raw": 0,
+     "gzip9": 1302,
+     "br11": 851
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 325,
+     "distinct": 324,
+     "duplicates": 1,
+     "duplicateBytes": 52
+    },
+    "census": {
+     "br11": 15181,
+     "commands": 5844,
+     "literalBytes": 7563,
+     "copyBytes": 65410,
+     "dictBytes": 532,
+     "dictRefs": 83,
+     "copies": 5761,
+     "meanCopy": 11.353931609095643,
+     "implicitPct": 37.81656399726215,
+     "shortPct": 13.655030800821354,
+     "distBits": 41314,
+     "litBits": 34856,
+     "cmdBits": 39244,
+     "codeBits": 4812
+    }
+   },
+   {
+    "label": "remangle frequency dialect",
+    "score": {
+     "raw": 73505,
+     "gzip9": 17773,
+     "br11": 14407
+    },
+    "delta": {
+     "raw": 0,
+     "gzip9": 51,
+     "br11": 77
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 325,
+     "distinct": 324,
+     "duplicates": 1,
+     "duplicateBytes": 52
+    },
+    "census": {
+     "br11": 14407,
+     "commands": 5461,
+     "literalBytes": 6962,
+     "copyBytes": 66029,
+     "dictBytes": 514,
+     "dictRefs": 79,
+     "copies": 5382,
+     "meanCopy": 12.268487551096246,
+     "implicitPct": 35.41475920161143,
+     "shortPct": 14.31972166269914,
+     "distBits": 39946,
+     "litBits": 32550,
+     "cmdBits": 37849,
+     "codeBits": 3934
+    }
+   },
+   {
+    "label": "aligned, coverage objective etn",
+    "score": {
+     "raw": 73505,
+     "gzip9": 18247,
+     "br11": 14863
+    },
+    "delta": {
+     "raw": 0,
+     "gzip9": 525,
+     "br11": 533
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 325,
+     "distinct": 324,
+     "duplicates": 1,
+     "duplicateBytes": 52
+    },
+    "census": {
+     "br11": 14863,
+     "commands": 5627,
+     "literalBytes": 7015,
+     "copyBytes": 65976,
+     "dictBytes": 514,
+     "dictRefs": 80,
+     "copies": 5547,
+     "meanCopy": 11.893996755002703,
+     "implicitPct": 35.16971743380132,
+     "shortPct": 14.217167229429537,
+     "distBits": 41552,
+     "litBits": 33503,
+     "cmdBits": 38366,
+     "codeBits": 4367
+    }
+   },
+   {
+    "label": "aligned, bits objective etn",
+    "score": {
+     "raw": 73505,
+     "gzip9": 17916,
+     "br11": 14459
+    },
+    "delta": {
+     "raw": 0,
+     "gzip9": 194,
+     "br11": 129
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 325,
+     "distinct": 324,
+     "duplicates": 1,
+     "duplicateBytes": 52
+    },
+    "census": {
+     "br11": 14459,
+     "commands": 5508,
+     "literalBytes": 6990,
+     "copyBytes": 65996,
+     "dictBytes": 519,
+     "dictRefs": 80,
+     "copies": 5428,
+     "meanCopy": 12.158437730287398,
+     "implicitPct": 35.929557007988386,
+     "shortPct": 13.907044299201162,
+     "distBits": 40213,
+     "litBits": 32144,
+     "cmdBits": 38021,
+     "codeBits": 4115
+    }
+   },
+   {
+    "label": "aligned, bits objective dialect",
+    "score": {
+     "raw": 73505,
+     "gzip9": 17773,
+     "br11": 14407
+    },
+    "delta": {
+     "raw": 0,
+     "gzip9": 51,
+     "br11": 77
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 325,
+     "distinct": 324,
+     "duplicates": 1,
+     "duplicateBytes": 52
+    },
+    "census": {
+     "br11": 14407,
+     "commands": 5461,
+     "literalBytes": 6962,
+     "copyBytes": 66029,
+     "dictBytes": 514,
+     "dictRefs": 79,
+     "copies": 5382,
+     "meanCopy": 12.268487551096246,
+     "implicitPct": 35.41475920161143,
+     "shortPct": 14.31972166269914,
+     "distBits": 39946,
+     "litBits": 32550,
+     "cmdBits": 37849,
+     "codeBits": 3934
+    }
+   },
+   {
+    "label": "dictionary words, cold (<=3 uses)",
+    "score": {
+     "raw": 76346,
+     "gzip9": 20259,
+     "br11": 16767
+    },
+    "delta": {
+     "raw": 2841,
+     "gzip9": 2537,
+     "br11": 2437
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 329,
+     "distinct": 329,
+     "duplicates": 0,
+     "duplicateBytes": 0
+    },
+    "census": {
+     "br11": 16767,
+     "commands": 6367,
+     "literalBytes": 7888,
+     "copyBytes": 67483,
+     "dictBytes": 975,
+     "dictRefs": 193,
+     "copies": 6174,
+     "meanCopy": 10.930191124068674,
+     "implicitPct": 28.302183131773205,
+     "shortPct": 18.32888330453903,
+     "distBits": 48893,
+     "litBits": 37320,
+     "cmdBits": 41440,
+     "codeBits": 4965
+    }
+   },
+   {
+    "label": "dictionary words, hot (top 400)",
+    "score": {
+     "raw": 90452,
+     "gzip9": 26061,
+     "br11": 20011
+    },
+    "delta": {
+     "raw": 16947,
+     "gzip9": 8339,
+     "br11": 5681
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 325,
+     "distinct": 325,
+     "duplicates": 0,
+     "duplicateBytes": 0
+    },
+    "census": {
+     "br11": 20011,
+     "commands": 9448,
+     "literalBytes": 9439,
+     "copyBytes": 80219,
+     "dictBytes": 794,
+     "dictRefs": 145,
+     "copies": 9303,
+     "meanCopy": 8.62291733849296,
+     "implicitPct": 36.801439458086364,
+     "shortPct": 20.4805249788315,
+     "distBits": 56667,
+     "litBits": 43067,
+     "cmdBits": 52290,
+     "codeBits": 5925
+    }
+   }
+  ],
+  "baseShapes": {
+   "functions": 325,
+   "distinct": 324,
+   "duplicates": 1,
+   "duplicateBytes": 52
+  }
+ },
+ {
+  "id": "glmatrix-lil-vite",
+  "base": {
+   "raw": 68496,
+   "gzip9": 17192,
+   "br11": 14116
+  },
+  "baseCensus": {
+   "br11": 14116,
+   "commands": 5289,
+   "literalBytes": 6924,
+   "copyBytes": 61105,
+   "dictBytes": 467,
+   "dictRefs": 71,
+   "copies": 5218,
+   "meanCopy": 11.710425450364124,
+   "implicitPct": 32.974097182832296,
+   "shortPct": 12.00605029306107,
+   "distBits": 41093,
+   "litBits": 30355,
+   "cmdBits": 36392,
+   "codeBits": 3918
+  },
+  "variants": [
+   {
+    "label": "remangle frequency abc",
+    "score": {
+     "raw": 68496,
+     "gzip9": 18762,
+     "br11": 15157
+    },
+    "delta": {
+     "raw": 0,
+     "gzip9": 1570,
+     "br11": 1041
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 318,
+     "distinct": 317,
+     "duplicates": 1,
+     "duplicateBytes": 52
+    },
+    "census": {
+     "br11": 15157,
+     "commands": 5826,
+     "literalBytes": 7922,
+     "copyBytes": 60063,
+     "dictBytes": 511,
+     "dictRefs": 77,
+     "copies": 5749,
+     "meanCopy": 10.447556096712471,
+     "implicitPct": 36.73189152076897,
+     "shortPct": 11.500171644352902,
+     "distBits": 42417,
+     "litBits": 34530,
+     "cmdBits": 38999,
+     "codeBits": 4117
+    }
+   },
+   {
+    "label": "remangle frequency etn",
+    "score": {
+     "raw": 68496,
+     "gzip9": 17342,
+     "br11": 14168
+    },
+    "delta": {
+     "raw": 0,
+     "gzip9": 150,
+     "br11": 52
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 318,
+     "distinct": 317,
+     "duplicates": 1,
+     "duplicateBytes": 52
+    },
+    "census": {
+     "br11": 14168,
+     "commands": 5330,
+     "literalBytes": 7030,
+     "copyBytes": 60992,
+     "dictBytes": 474,
+     "dictRefs": 71,
+     "copies": 5259,
+     "meanCopy": 11.597642137288458,
+     "implicitPct": 33.82739212007505,
+     "shortPct": 11.913696060037523,
+     "distBits": 40828,
+     "litBits": 30662,
+     "cmdBits": 36329,
+     "codeBits": 4111
+    }
+   },
+   {
+    "label": "remangle first-use abc",
+    "score": {
+     "raw": 68496,
+     "gzip9": 18414,
+     "br11": 14875
+    },
+    "delta": {
+     "raw": 0,
+     "gzip9": 1222,
+     "br11": 759
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 318,
+     "distinct": 317,
+     "duplicates": 1,
+     "duplicateBytes": 52
+    },
+    "census": {
+     "br11": 14875,
+     "commands": 5731,
+     "literalBytes": 7593,
+     "copyBytes": 60396,
+     "dictBytes": 507,
+     "dictRefs": 77,
+     "copies": 5654,
+     "meanCopy": 10.681995047753803,
+     "implicitPct": 35.61333100680509,
+     "shortPct": 11.847845053219332,
+     "distBits": 42315,
+     "litBits": 33330,
+     "cmdBits": 38443,
+     "codeBits": 3694
+    }
+   },
+   {
+    "label": "remangle first-use etn",
+    "score": {
+     "raw": 68496,
+     "gzip9": 17365,
+     "br11": 14193
+    },
+    "delta": {
+     "raw": 0,
+     "gzip9": 173,
+     "br11": 77
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 318,
+     "distinct": 317,
+     "duplicates": 1,
+     "duplicateBytes": 52
+    },
+    "census": {
+     "br11": 14193,
+     "commands": 5344,
+     "literalBytes": 7036,
+     "copyBytes": 60970,
+     "dictBytes": 490,
+     "dictRefs": 73,
+     "copies": 5271,
+     "meanCopy": 11.567065073041169,
+     "implicitPct": 34.03817365269461,
+     "shortPct": 11.994760479041917,
+     "distBits": 40677,
+     "litBits": 30748,
+     "cmdBits": 36698,
+     "codeBits": 4159
+    }
+   },
+   {
+    "label": "remangle source-order abc",
+    "score": {
+     "raw": 68496,
+     "gzip9": 18414,
+     "br11": 14875
+    },
+    "delta": {
+     "raw": 0,
+     "gzip9": 1222,
+     "br11": 759
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 318,
+     "distinct": 317,
+     "duplicates": 1,
+     "duplicateBytes": 52
+    },
+    "census": {
+     "br11": 14875,
+     "commands": 5731,
+     "literalBytes": 7593,
+     "copyBytes": 60396,
+     "dictBytes": 507,
+     "dictRefs": 77,
+     "copies": 5654,
+     "meanCopy": 10.681995047753803,
+     "implicitPct": 35.61333100680509,
+     "shortPct": 11.847845053219332,
+     "distBits": 42315,
+     "litBits": 33330,
+     "cmdBits": 38443,
+     "codeBits": 3694
+    }
+   },
+   {
+    "label": "remangle frequency adaptive-all",
+    "score": {
+     "raw": 68496,
+     "gzip9": 17550,
+     "br11": 14396
+    },
+    "delta": {
+     "raw": 0,
+     "gzip9": 358,
+     "br11": 280
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 318,
+     "distinct": 317,
+     "duplicates": 1,
+     "duplicateBytes": 52
+    },
+    "census": {
+     "br11": 14396,
+     "commands": 5445,
+     "literalBytes": 7043,
+     "copyBytes": 60966,
+     "dictBytes": 487,
+     "dictRefs": 74,
+     "copies": 5371,
+     "meanCopy": 11.350958853099982,
+     "implicitPct": 33.62718089990817,
+     "shortPct": 12.396694214876034,
+     "distBits": 41665,
+     "litBits": 30819,
+     "cmdBits": 37092,
+     "codeBits": 4247
+    }
+   },
+   {
+    "label": "remangle frequency adaptive-token",
+    "score": {
+     "raw": 68496,
+     "gzip9": 18499,
+     "br11": 14963
+    },
+    "delta": {
+     "raw": 0,
+     "gzip9": 1307,
+     "br11": 847
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 318,
+     "distinct": 317,
+     "duplicates": 1,
+     "duplicateBytes": 52
+    },
+    "census": {
+     "br11": 14963,
+     "commands": 5719,
+     "literalBytes": 7777,
+     "copyBytes": 60206,
+     "dictBytes": 513,
+     "dictRefs": 79,
+     "copies": 5640,
+     "meanCopy": 10.674822695035461,
+     "implicitPct": 36.92953313516349,
+     "shortPct": 11.54047910473859,
+     "distBits": 41392,
+     "litBits": 34062,
+     "cmdBits": 38626,
+     "codeBits": 4550
+    }
+   },
+   {
+    "label": "remangle frequency dialect",
+    "score": {
+     "raw": 68496,
+     "gzip9": 17235,
+     "br11": 14154
+    },
+    "delta": {
+     "raw": 0,
+     "gzip9": 43,
+     "br11": 38
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 318,
+     "distinct": 317,
+     "duplicates": 1,
+     "duplicateBytes": 52
+    },
+    "census": {
+     "br11": 14154,
+     "commands": 5306,
+     "literalBytes": 6920,
+     "copyBytes": 61108,
+     "dictBytes": 468,
+     "dictRefs": 71,
+     "copies": 5235,
+     "meanCopy": 11.672970391595033,
+     "implicitPct": 33.13230305314738,
+     "shortPct": 12.11835657745948,
+     "distBits": 40767,
+     "litBits": 30474,
+     "cmdBits": 36569,
+     "codeBits": 4301
+    }
+   },
+   {
+    "label": "aligned, coverage objective etn",
+    "score": {
+     "raw": 68496,
+     "gzip9": 17782,
+     "br11": 14629
+    },
+    "delta": {
+     "raw": 0,
+     "gzip9": 590,
+     "br11": 513
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 318,
+     "distinct": 317,
+     "duplicates": 1,
+     "duplicateBytes": 52
+    },
+    "census": {
+     "br11": 14629,
+     "commands": 5525,
+     "literalBytes": 7171,
+     "copyBytes": 60843,
+     "dictBytes": 482,
+     "dictRefs": 72,
+     "copies": 5453,
+     "meanCopy": 11.157711351549606,
+     "implicitPct": 33.990950226244344,
+     "shortPct": 12.253393665158372,
+     "distBits": 41836,
+     "litBits": 32520,
+     "cmdBits": 37730,
+     "codeBits": 3951
+    }
+   },
+   {
+    "label": "aligned, bits objective etn",
+    "score": {
+     "raw": 68496,
+     "gzip9": 17342,
+     "br11": 14168
+    },
+    "delta": {
+     "raw": 0,
+     "gzip9": 150,
+     "br11": 52
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 318,
+     "distinct": 317,
+     "duplicates": 1,
+     "duplicateBytes": 52
+    },
+    "census": {
+     "br11": 14168,
+     "commands": 5330,
+     "literalBytes": 7030,
+     "copyBytes": 60992,
+     "dictBytes": 474,
+     "dictRefs": 71,
+     "copies": 5259,
+     "meanCopy": 11.597642137288458,
+     "implicitPct": 33.82739212007505,
+     "shortPct": 11.913696060037523,
+     "distBits": 40828,
+     "litBits": 30662,
+     "cmdBits": 36329,
+     "codeBits": 4111
+    }
+   },
+   {
+    "label": "aligned, bits objective dialect",
+    "score": {
+     "raw": 68496,
+     "gzip9": 17235,
+     "br11": 14154
+    },
+    "delta": {
+     "raw": 0,
+     "gzip9": 43,
+     "br11": 38
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 318,
+     "distinct": 317,
+     "duplicates": 1,
+     "duplicateBytes": 52
+    },
+    "census": {
+     "br11": 14154,
+     "commands": 5306,
+     "literalBytes": 6920,
+     "copyBytes": 61108,
+     "dictBytes": 468,
+     "dictRefs": 71,
+     "copies": 5235,
+     "meanCopy": 11.672970391595033,
+     "implicitPct": 33.13230305314738,
+     "shortPct": 12.11835657745948,
+     "distBits": 40767,
+     "litBits": 30474,
+     "cmdBits": 36569,
+     "codeBits": 4301
+    }
+   },
+   {
+    "label": "dictionary words, cold (<=3 uses)",
+    "score": {
+     "raw": 71199,
+     "gzip9": 19592,
+     "br11": 16324
+    },
+    "delta": {
+     "raw": 2703,
+     "gzip9": 2400,
+     "br11": 2208
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 340,
+     "distinct": 340,
+     "duplicates": 0,
+     "duplicateBytes": 0
+    },
+    "census": {
+     "br11": 16324,
+     "commands": 6221,
+     "literalBytes": 7607,
+     "copyBytes": 62457,
+     "dictBytes": 1135,
+     "dictRefs": 228,
+     "copies": 5993,
+     "meanCopy": 10.421658601701985,
+     "implicitPct": 26.635589133579813,
+     "shortPct": 16.717569522584792,
+     "distBits": 49827,
+     "litBits": 34085,
+     "cmdBits": 40970,
+     "codeBits": 4509
+    }
+   },
+   {
+    "label": "dictionary words, hot (top 400)",
+    "score": {
+     "raw": 85959,
+     "gzip9": 25463,
+     "br11": 20457
+    },
+    "delta": {
+     "raw": 17463,
+     "gzip9": 8271,
+     "br11": 6341
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 318,
+     "distinct": 318,
+     "duplicates": 0,
+     "duplicateBytes": 0
+    },
+    "census": {
+     "br11": 20457,
+     "commands": 9677,
+     "literalBytes": 8659,
+     "copyBytes": 76515,
+     "dictBytes": 785,
+     "dictRefs": 147,
+     "copies": 9530,
+     "meanCopy": 8.028856243441762,
+     "implicitPct": 27.30184974682236,
+     "shortPct": 22.889325204092177,
+     "distBits": 65238,
+     "litBits": 38689,
+     "cmdBits": 52676,
+     "codeBits": 5352
+    }
+   }
+  ],
+  "baseShapes": {
+   "functions": 318,
+   "distinct": 317,
+   "duplicates": 1,
+   "duplicateBytes": 52
+  }
+ },
+ {
+  "id": "glmatrix-lil-raw",
+  "base": {
+   "raw": 116878,
+   "gzip9": 21413,
+   "br11": 17352
+  },
+  "baseCensus": {
+   "br11": 17352,
+   "commands": 7342,
+   "literalBytes": 6067,
+   "copyBytes": 110026,
+   "dictBytes": 785,
+   "dictRefs": 118,
+   "copies": 7224,
+   "meanCopy": 15.23062015503876,
+   "implicitPct": 36.05284663579406,
+   "shortPct": 10.61018795968401,
+   "distBits": 55870,
+   "litBits": 29008,
+   "cmdBits": 48089,
+   "codeBits": 4446
+  },
+  "variants": [
+   {
+    "label": "remangle frequency abc",
+    "score": {
+     "raw": 111109,
+     "gzip9": 20962,
+     "br11": 16798
+    },
+    "delta": {
+     "raw": -5769,
+     "gzip9": -451,
+     "br11": -554
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 343,
+     "distinct": 342,
+     "duplicates": 1,
+     "duplicateBytes": 82
+    },
+    "census": {
+     "br11": 16798,
+     "commands": 7263,
+     "literalBytes": 6267,
+     "copyBytes": 104166,
+     "dictBytes": 676,
+     "dictRefs": 103,
+     "copies": 7160,
+     "meanCopy": 14.54832402234637,
+     "implicitPct": 39.70810959658543,
+     "shortPct": 9.472669695718022,
+     "distBits": 52860,
+     "litBits": 28721,
+     "cmdBits": 47119,
+     "codeBits": 4487
+    }
+   },
+   {
+    "label": "remangle frequency etn",
+    "score": {
+     "raw": 111109,
+     "gzip9": 21626,
+     "br11": 17214
+    },
+    "delta": {
+     "raw": -5769,
+     "gzip9": 213,
+     "br11": -138
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 343,
+     "distinct": 342,
+     "duplicates": 1,
+     "duplicateBytes": 82
+    },
+    "census": {
+     "br11": 17214,
+     "commands": 7583,
+     "literalBytes": 6775,
+     "copyBytes": 103730,
+     "dictBytes": 604,
+     "dictRefs": 90,
+     "copies": 7493,
+     "meanCopy": 13.843587348191646,
+     "implicitPct": 42.67440327047343,
+     "shortPct": 9.27073717526045,
+     "distBits": 52441,
+     "litBits": 30913,
+     "cmdBits": 48426,
+     "codeBits": 4425
+    }
+   },
+   {
+    "label": "remangle first-use abc",
+    "score": {
+     "raw": 111109,
+     "gzip9": 20938,
+     "br11": 16821
+    },
+    "delta": {
+     "raw": -5769,
+     "gzip9": -475,
+     "br11": -531
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 343,
+     "distinct": 342,
+     "duplicates": 1,
+     "duplicateBytes": 82
+    },
+    "census": {
+     "br11": 16821,
+     "commands": 7245,
+     "literalBytes": 6217,
+     "copyBytes": 104208,
+     "dictBytes": 684,
+     "dictRefs": 104,
+     "copies": 7141,
+     "meanCopy": 14.592914157680998,
+     "implicitPct": 39.434092477570736,
+     "shortPct": 9.496204278812973,
+     "distBits": 53066,
+     "litBits": 28429,
+     "cmdBits": 47218,
+     "codeBits": 4325
+    }
+   },
+   {
+    "label": "remangle first-use etn",
+    "score": {
+     "raw": 111109,
+     "gzip9": 21364,
+     "br11": 17091
+    },
+    "delta": {
+     "raw": -5769,
+     "gzip9": -49,
+     "br11": -261
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 343,
+     "distinct": 342,
+     "duplicates": 1,
+     "duplicateBytes": 82
+    },
+    "census": {
+     "br11": 17091,
+     "commands": 7497,
+     "literalBytes": 6605,
+     "copyBytes": 103889,
+     "dictBytes": 615,
+     "dictRefs": 90,
+     "copies": 7407,
+     "meanCopy": 14.025786418253004,
+     "implicitPct": 41.73669467787115,
+     "shortPct": 9.15032679738562,
+     "distBits": 52515,
+     "litBits": 30873,
+     "cmdBits": 47989,
+     "codeBits": 4099
+    }
+   },
+   {
+    "label": "remangle source-order abc",
+    "score": {
+     "raw": 111109,
+     "gzip9": 20938,
+     "br11": 16821
+    },
+    "delta": {
+     "raw": -5769,
+     "gzip9": -475,
+     "br11": -531
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 343,
+     "distinct": 342,
+     "duplicates": 1,
+     "duplicateBytes": 82
+    },
+    "census": {
+     "br11": 16821,
+     "commands": 7245,
+     "literalBytes": 6217,
+     "copyBytes": 104208,
+     "dictBytes": 684,
+     "dictRefs": 104,
+     "copies": 7141,
+     "meanCopy": 14.592914157680998,
+     "implicitPct": 39.434092477570736,
+     "shortPct": 9.496204278812973,
+     "distBits": 53066,
+     "litBits": 28429,
+     "cmdBits": 47218,
+     "codeBits": 4325
+    }
+   },
+   {
+    "label": "remangle frequency adaptive-all",
+    "score": {
+     "raw": 111109,
+     "gzip9": 21237,
+     "br11": 16970
+    },
+    "delta": {
+     "raw": -5769,
+     "gzip9": -176,
+     "br11": -382
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 343,
+     "distinct": 342,
+     "duplicates": 1,
+     "duplicateBytes": 82
+    },
+    "census": {
+     "br11": 16970,
+     "commands": 7480,
+     "literalBytes": 6602,
+     "copyBytes": 103893,
+     "dictBytes": 614,
+     "dictRefs": 90,
+     "copies": 7390,
+     "meanCopy": 14.058592692828146,
+     "implicitPct": 42.23262032085561,
+     "shortPct": 9.6524064171123,
+     "distBits": 51807,
+     "litBits": 30007,
+     "cmdBits": 47801,
+     "codeBits": 4679
+    }
+   },
+   {
+    "label": "remangle frequency adaptive-token",
+    "score": {
+     "raw": 111109,
+     "gzip9": 21662,
+     "br11": 17194
+    },
+    "delta": {
+     "raw": -5769,
+     "gzip9": 249,
+     "br11": -158
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 343,
+     "distinct": 342,
+     "duplicates": 1,
+     "duplicateBytes": 82
+    },
+    "census": {
+     "br11": 17194,
+     "commands": 7633,
+     "literalBytes": 6636,
+     "copyBytes": 103838,
+     "dictBytes": 635,
+     "dictRefs": 97,
+     "copies": 7536,
+     "meanCopy": 13.778927813163483,
+     "implicitPct": 42.65688458011267,
+     "shortPct": 9.38032228481593,
+     "distBits": 52503,
+     "litBits": 30362,
+     "cmdBits": 47990,
+     "codeBits": 5017
+    }
+   },
+   {
+    "label": "remangle frequency dialect",
+    "score": {
+     "raw": 111109,
+     "gzip9": 21003,
+     "br11": 16857
+    },
+    "delta": {
+     "raw": -5769,
+     "gzip9": -410,
+     "br11": -495
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 343,
+     "distinct": 342,
+     "duplicates": 1,
+     "duplicateBytes": 82
+    },
+    "census": {
+     "br11": 16857,
+     "commands": 7266,
+     "literalBytes": 6277,
+     "copyBytes": 104147,
+     "dictBytes": 685,
+     "dictRefs": 104,
+     "copies": 7162,
+     "meanCopy": 14.541608489248814,
+     "implicitPct": 39.609138453069086,
+     "shortPct": 9.53757225433526,
+     "distBits": 52964,
+     "litBits": 28539,
+     "cmdBits": 47403,
+     "codeBits": 4446
+    }
+   },
+   {
+    "label": "aligned, coverage objective etn",
+    "score": {
+     "raw": 111109,
+     "gzip9": 22137,
+     "br11": 17731
+    },
+    "delta": {
+     "raw": -5769,
+     "gzip9": 724,
+     "br11": 379
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 343,
+     "distinct": 342,
+     "duplicates": 1,
+     "duplicateBytes": 82
+    },
+    "census": {
+     "br11": 17731,
+     "commands": 7818,
+     "literalBytes": 6928,
+     "copyBytes": 103577,
+     "dictBytes": 604,
+     "dictRefs": 88,
+     "copies": 7730,
+     "meanCopy": 13.399353169469599,
+     "implicitPct": 42.6835507802507,
+     "shortPct": 9.068815553850088,
+     "distBits": 54095,
+     "litBits": 32070,
+     "cmdBits": 49503,
+     "codeBits": 4730
+    }
+   },
+   {
+    "label": "aligned, bits objective etn",
+    "score": {
+     "raw": 111109,
+     "gzip9": 21626,
+     "br11": 17214
+    },
+    "delta": {
+     "raw": -5769,
+     "gzip9": 213,
+     "br11": -138
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 343,
+     "distinct": 342,
+     "duplicates": 1,
+     "duplicateBytes": 82
+    },
+    "census": {
+     "br11": 17214,
+     "commands": 7583,
+     "literalBytes": 6775,
+     "copyBytes": 103730,
+     "dictBytes": 604,
+     "dictRefs": 90,
+     "copies": 7493,
+     "meanCopy": 13.843587348191646,
+     "implicitPct": 42.67440327047343,
+     "shortPct": 9.27073717526045,
+     "distBits": 52441,
+     "litBits": 30913,
+     "cmdBits": 48426,
+     "codeBits": 4425
+    }
+   },
+   {
+    "label": "aligned, bits objective dialect",
+    "score": {
+     "raw": 111109,
+     "gzip9": 21003,
+     "br11": 16857
+    },
+    "delta": {
+     "raw": -5769,
+     "gzip9": -410,
+     "br11": -495
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 343,
+     "distinct": 342,
+     "duplicates": 1,
+     "duplicateBytes": 82
+    },
+    "census": {
+     "br11": 16857,
+     "commands": 7266,
+     "literalBytes": 6277,
+     "copyBytes": 104147,
+     "dictBytes": 685,
+     "dictRefs": 104,
+     "copies": 7162,
+     "meanCopy": 14.541608489248814,
+     "implicitPct": 39.609138453069086,
+     "shortPct": 9.53757225433526,
+     "distBits": 52964,
+     "litBits": 28539,
+     "cmdBits": 47403,
+     "codeBits": 4446
+    }
+   },
+   {
+    "label": "dictionary words, cold (<=3 uses)",
+    "score": {
+     "raw": 119123,
+     "gzip9": 23871,
+     "br11": 19391
+    },
+    "delta": {
+     "raw": 2245,
+     "gzip9": 2458,
+     "br11": 2039
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 351,
+     "distinct": 351,
+     "duplicates": 0,
+     "duplicateBytes": 0
+    },
+    "census": {
+     "br11": 19391,
+     "commands": 8340,
+     "literalBytes": 6018,
+     "copyBytes": 110730,
+     "dictBytes": 2375,
+     "dictRefs": 413,
+     "copies": 7927,
+     "meanCopy": 13.968714519994954,
+     "implicitPct": 30.01199040767386,
+     "shortPct": 13.729016786570744,
+     "distBits": 67206,
+     "litBits": 28823,
+     "cmdBits": 52215,
+     "codeBits": 5112
+    }
+   },
+   {
+    "label": "dictionary words, hot (top 400)",
+    "score": {
+     "raw": 129933,
+     "gzip9": 29639,
+     "br11": 23211
+    },
+    "delta": {
+     "raw": 13055,
+     "gzip9": 8226,
+     "br11": 5859
+    },
+    "legal": true,
+    "why": null,
+    "shapes": {
+     "functions": 348,
+     "distinct": 348,
+     "duplicates": 0,
+     "duplicateBytes": 0
+    },
+    "census": {
+     "br11": 23211,
+     "commands": 11301,
+     "literalBytes": 7114,
+     "copyBytes": 121144,
+     "dictBytes": 1675,
+     "dictRefs": 280,
+     "copies": 11021,
+     "meanCopy": 10.992105979493694,
+     "implicitPct": 25.590655694186353,
+     "shortPct": 22.38739934519069,
+     "distBits": 81713,
+     "litBits": 33014,
+     "cmdBits": 63919,
+     "codeBits": 5028
+    }
+   }
+  ],
+  "baseShapes": {
+   "functions": 348,
+   "distinct": 348,
+   "duplicates": 0,
+   "duplicateBytes": 0
+  }
+ }
+]
