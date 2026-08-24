@@ -1354,6 +1354,19 @@ fn folds_length_int32_helpers_to_member_access() {
 }
 
 #[test]
+fn grouped_integer_length_fold_cannot_form_postfix_increment_tokens() {
+    let source = "let K=[1,2,3],I=[0,0],i=I.length,c=1;I.length=(i+(+K.length|0)|0)-c|0;I[(i+(+K.length|0)|0)+c|0]=7;console.log([I.length,I[6]].join(','))";
+    let folded = super::folds::fold_int32_coercions(source).unwrap();
+    assert!(!folded.0.contains("++K.length"), "{}", folded.0);
+    assert_eq!(
+        run_javascript(&folded.0).trim(),
+        run_javascript(source).trim(),
+        "{}",
+        folded.0
+    );
+}
+
+#[test]
 fn folds_int32_unit_updates_to_increment() {
     let source = "let n=1,o={N:3};n=n+1|0;o.N=o.N+1|0;console.log([n,o.N].join(\",\"))";
     let optimized = optimize_generated_javascript(source).unwrap();

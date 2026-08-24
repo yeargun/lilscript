@@ -316,6 +316,13 @@ fn fold_known_integer_length(
             let recv_to = close - 4;
             if recv_from < recv_to {
                 let recv = source[tokens[recv_from].start..tokens[recv_to].start].to_string();
+                // `(+array.length|0)` may be the right operand of another
+                // addition. Keeping its redundant unary plus while removing
+                // the grouping would turn `left+(+array.length|0)` into the
+                // invalid/token-changing `left++array.length`. Length and
+                // size are already numeric, so discard only that leading
+                // coercion together with the proven-redundant `|0`.
+                let recv = recv.strip_prefix('+').unwrap_or(&recv);
                 let property = tokens[close - 3].text;
                 replacements.push((
                     tokens[cursor].start,
