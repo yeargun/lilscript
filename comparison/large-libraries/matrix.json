@@ -1,0 +1,270 @@
+{
+  "schemaVersion": 1,
+  "format": "lilscript-large-library-matrix",
+  "regressionPolicy": {
+    "semanticStatusRequired": "passed",
+    "maxRegressionBytes": {
+      "raw": 0,
+      "gzip9": 0,
+      "brotli11": 0
+    }
+  },
+  "compilers": [
+    {
+      "id": "baseline",
+      "role": "before",
+      "revision": "5245f1790a9ee3d29e54fe72282da700dcc045d2",
+      "tree": "7ee0b9d7e32b147fb48d59a77f13aedd8ff10376",
+      "primarySourcePath": "src/compiler.rs",
+      "primarySourceSha256": "fa0f20176494dbd3807b218ae204108321170649f7b2b1ef8e2c6ec22086b565"
+    },
+    {
+      "id": "checkpoint",
+      "role": "after",
+      "revision": "979dc90d5c10fddb1328ea3f707cd17d3869a3fe",
+      "tree": "20a45a48a99955f705199d2fddf7dadf0edd20e2",
+      "primarySourcePath": "src/compiler.rs",
+      "primarySourceSha256": "607ac880caa60b57011ac2ee0639f4b01c50cde543fffa9d47e710e7284e5684"
+    }
+  ],
+  "codec": {
+    "buildFromCompiler": "checkpoint",
+    "sourcePath": "src/bin/lilscript-codec.rs",
+    "sourceSha256": "3b56e56e4118f24f801c196418c83df526ebf771407502c57550d60910805729",
+    "schemaVersion": 1,
+    "gzip9": {
+      "encoder": "upstream-stock-zlib-c",
+      "libraryVersion": "1.3.1",
+      "level": 9,
+      "mtime": 0
+    },
+    "brotli11": {
+      "encoder": "official-google-brotli-c",
+      "libraryVersion": "1.1.0",
+      "quality": 11,
+      "lgwin": 22,
+      "mode": "generic"
+    }
+  },
+  "libraries": [
+    {
+      "id": "solidlil",
+      "title": "SolidLil packaged core",
+      "repositoryEnv": "SOLIDLIL_REPO",
+      "defaultSibling": "../solidlil",
+      "revision": "81a1f08bb0eaa24c81700c105d4055127460cdb6",
+      "tree": "506d6e01b11caafa231b109c4466bd538bfa1898",
+      "packageLockSha256": "107ad056b4b0f4de7806f8b1628a773cf72ac5fe0824307963546ae9c8aef0eb",
+      "entry": {
+        "path": "src/entries/core.lil",
+        "sha256": "a836c4e2150fb699c51e16e98b6522f97037f3c28af5df66a67f9a0f169cc7b7"
+      },
+      "configs": [
+        {
+          "path": "src/lilscript.toml",
+          "sha256": "dd32efa99d7316e0471bfcd98dad69138f30c122522bbc3c4e3165d5ccd96ddf"
+        }
+      ],
+      "build": {
+        "program": "node",
+        "args": ["scripts/build.mjs"],
+        "compilerEnv": "SOLIDLIL_LILSCRIPT_BIN",
+        "environment": {
+          "SOLIDLIL_BUILD_MODE": "production"
+        },
+        "cleanPaths": [
+          "dist/core.js",
+          "src/.__compiled-core.mjs"
+        ],
+        "artifacts": [
+          {
+            "id": "package",
+            "objective": null,
+            "gateMetrics": ["raw", "gzip9", "brotli11"],
+            "path": "dist/core.js",
+            "configPath": "src/lilscript.toml",
+            "derivation": { "kind": "identity" }
+          }
+        ],
+        "timeoutMs": 1800000
+      },
+      "semantic": {
+        "scope": "observation",
+        "program": "node",
+        "args": ["--test", "test/node.test.mjs", "test/coverage.test.mjs"],
+        "timeoutMs": 600000
+      }
+    },
+    {
+      "id": "markedlil",
+      "title": "MarkedLil shipped ESM",
+      "repositoryEnv": "MARKEDLIL_REPO",
+      "defaultSibling": "../markedlil",
+      "revision": "3a540ac8d6961aaf8eb060b5eae5368939b8981c",
+      "tree": "ea0041325559c67e5ebcd0115ec729d302670304",
+      "packageLockSha256": "89432f687ae5dd6c4c29af04da368bc149fa4ddf2c16975fb9f80443c1b399f3",
+      "entry": {
+        "path": "src/entry.lil",
+        "sha256": "b1f71341712881346d2271eeb8e9ad915529b72699a8c9a798edffec6d073ca5"
+      },
+      "configs": [
+        {
+          "path": "lilscript.toml",
+          "sha256": "21f9665c6dc35c5a8c6bd663ceaf00b5a6ae2f5a15740f03df3b68cfd778537a"
+        },
+        {
+          "path": "lilscript.gzip.toml",
+          "sha256": "7edbbb56eb269296e0e907857141b4f59afe86f49634fc041383e4a23613bb74"
+        },
+        {
+          "path": "lilscript.bytes.toml",
+          "sha256": "2a3b9c59ab21829bb6aeac4974f171629e75336292abcaa2e7e09e37d67bb412"
+        }
+      ],
+      "build": {
+        "program": "node",
+        "args": ["scripts/build.mjs", "--compile"],
+        "compilerEnv": "LILSCRIPT_COMPILER",
+        "environment": {},
+        "cleanPaths": [
+          "dist/marked.raw.js",
+          "dist/marked.closed.js",
+          "dist/marked.gzip.js",
+          "dist/marked.bytes.js",
+          "dist/marked.esm.js",
+          "dist/marked.cjs",
+          "dist/marked.umd.js"
+        ],
+        "artifacts": [
+          {
+            "id": "raw-objective",
+            "objective": "raw",
+            "gateMetrics": ["raw"],
+            "path": "dist/marked.bytes.js",
+            "configPath": "lilscript.bytes.toml",
+            "derivation": {
+              "kind": "prepend-first-line",
+              "from": "dist/marked.esm.js"
+            }
+          },
+          {
+            "id": "gzip-objective",
+            "objective": "gzip9",
+            "gateMetrics": ["gzip9"],
+            "path": "dist/marked.gzip.js",
+            "configPath": "lilscript.gzip.toml",
+            "derivation": {
+              "kind": "prepend-first-line",
+              "from": "dist/marked.esm.js"
+            }
+          },
+          {
+            "id": "brotli-objective-shipped-esm",
+            "objective": "brotli11",
+            "gateMetrics": ["brotli11"],
+            "path": "dist/marked.esm.js",
+            "configPath": "lilscript.toml",
+            "derivation": { "kind": "identity" }
+          }
+        ],
+        "timeoutMs": 1800000
+      },
+      "semantic": {
+        "scope": "artifact",
+        "program": "node",
+        "args": ["{harness}/semantic/marked-lane.mjs", "--root", "{project}", "--artifact", "{artifact}"],
+        "timeoutMs": 600000
+      }
+    },
+    {
+      "id": "mobxlil",
+      "title": "MobXLil production ESM",
+      "repositoryEnv": "MOBXLIL_REPO",
+      "defaultSibling": "../mobxlil",
+      "revision": "ef1d18487d2b153e1fa9fab7a90dd1518a0cda0b",
+      "tree": "cb4217662c9b262092b8ffc0fbdf41ecfb5f348f",
+      "packageLockSha256": "d327ae7b0093237874f64263ee3fe922ad4695cf00e27a1761a951a55af85667",
+      "entry": {
+        "path": "src/mobx.lil",
+        "sha256": "daffae3ebb3585f3f6751c8d38b715b9f311062f76e63fbc7530a27789453e2a"
+      },
+      "configs": [
+        {
+          "path": "lilscript.toml",
+          "sha256": "15c1dec745765dc87eb9fca0cbd3423f917091dd21d2ef0caf305dc332b51cbe"
+        }
+      ],
+      "build": {
+        "program": "node",
+        "args": ["scripts/build.mjs", "--prod"],
+        "compilerEnv": "LILSCRIPT_COMPILER",
+        "environment": {},
+        "cleanPaths": [
+          "dist/mobx.esm.js"
+        ],
+        "artifacts": [
+          {
+            "id": "production-esm",
+            "objective": null,
+            "gateMetrics": ["raw", "gzip9", "brotli11"],
+            "path": "dist/mobx.esm.js",
+            "configPath": "lilscript.toml",
+            "derivation": { "kind": "identity" }
+          }
+        ],
+        "timeoutMs": 1260000
+      },
+      "semantic": {
+        "scope": "observation",
+        "program": "node",
+        "args": ["scripts/package-smoke.mjs"],
+        "timeoutMs": 600000
+      }
+    },
+    {
+      "id": "jquerylil",
+      "title": "jQueryLil shipped ESM",
+      "repositoryEnv": "JQUERYLIL_REPO",
+      "defaultSibling": "../jquerylil",
+      "revision": "b860fe8c9d9799e5e6fbfc2204d7bdd00948d5a1",
+      "tree": "791d4eb6da3899c65cd289c2d31f578df661b1e4",
+      "packageLockSha256": "694b0e61cee1560d7ebccb649e807bfd7965af8436fae8902b0d5d9c2fa13856",
+      "entry": {
+        "path": "src/entry.lil",
+        "sha256": "f986f027261729561669b6b0b49368f6d99ef1e8f1cf978efe97ef28c6e5e2bd"
+      },
+      "configs": [
+        {
+          "path": "lilscript.toml",
+          "sha256": "9f4a0a5a043b1ecf20f80b8e1a6656ace8efb9cbe5cc06aee15b1deba638395d"
+        }
+      ],
+      "build": {
+        "program": "node",
+        "args": ["scripts/build.mjs", "--compile"],
+        "compilerEnv": "LILSCRIPT_COMPILER",
+        "environment": {},
+        "cleanPaths": [
+          "dist/jquery.esm.js"
+        ],
+        "artifacts": [
+          {
+            "id": "shipped-esm",
+            "objective": null,
+            "gateMetrics": ["raw", "gzip9", "brotli11"],
+            "path": "dist/jquery.esm.js",
+            "configPath": "lilscript.toml",
+            "derivation": { "kind": "identity" }
+          }
+        ],
+        "timeoutMs": 1800000
+      },
+      "semantic": {
+        "scope": "observation",
+        "program": "node",
+        "args": ["--test", "test/compat.test.mjs"],
+        "timeoutMs": 600000
+      }
+    }
+  ]
+}
