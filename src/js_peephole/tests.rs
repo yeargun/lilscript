@@ -541,7 +541,7 @@ fn removes_only_unreferenced_standalone_var_declarations() {
         "let f=(a,b)=>{var e;if(a)return b;return e=>{if(e)return e;return b}};",
     )
     .unwrap();
-    assert_eq!(optimized.code, "let f=(a,b)=>a?b:e=>e?e:b;");
+    assert_eq!(optimized.code, "let f=(a,b)=>a?b:e=>e||b;");
 }
 
 #[test]

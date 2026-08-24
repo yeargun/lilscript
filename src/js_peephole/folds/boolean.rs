@@ -1807,7 +1807,7 @@ fn ternary_condition_start(tokens: &[Token<'_>], question: usize) -> usize {
             _ if depth == 0
                 && matches!(
                     tokens[index].text,
-                    "," | ";" | "=" | "?" | ":" | "&&" | "||" | "??" | "return" | "throw"
+                    "," | ";" | "=" | "=>" | "?" | ":" | "&&" | "||" | "??" | "return" | "throw"
                 ) =>
             {
                 return index + 1;

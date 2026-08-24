@@ -2286,6 +2286,21 @@ fn folds_boolean_arms_against_the_complete_logical_condition() {
 }
 
 #[test]
+fn boolean_conditional_fold_stays_inside_an_arrow_body() {
+    let source = r#"let v=Symbol(),Re=e=>e!=null&&"object"==typeof e,_=(e,a)=>Re(e)&&!0===e[a],M=e=>!Re(e)?!1:_(e[v],"array"),C=e=>!Re(e)?!1:_(e[v],"object");console.log(M(null),M({[v]:{array:true}}),C({[v]:{object:true}}))"#;
+    let optimized = optimize_generated_javascript(source).unwrap();
+
+    assert!(!optimized.code.contains("!(e=>"), "{}", optimized.code);
+    assert_eq!(run_node(source), "false true true\n");
+    assert_eq!(
+        run_node(&optimized.code),
+        run_node(source),
+        "{}",
+        optimized.code
+    );
+}
+
+#[test]
 fn swaps_negated_conditional_arms_without_reordering_values() {
     let source =
         "function hit(x){return x}function f(x){return!x?hit(1):hit(2)}console.log(f(0),f(1))";
