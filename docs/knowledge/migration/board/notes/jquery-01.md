@@ -82,6 +82,33 @@ the compat suite is 6/6. The gap is not extra surface on either side.
   emitter is competitive once the search finishes; the residue is the
   control-flow shape recorded above. — **LANDED**
 
+- 2026-08-25 — **Token census: we emit more operations, not longer ones.** Ours
+  44,437 tokens against their 40,991 (+8.4%) while being 3,138 raw bytes
+  *smaller* — 1.90 bytes per token against their 2.14. Broken down: assignments
+  **2,860 against 1,658 (+72%)**, while member reads run 2,444 against 3,054 and
+  calls 1,711 against 1,841. We store what they re-read. — **LANDED** as the
+  measurement that reframes the gap
+- 2026-08-25 — The compiler's own `LILSCRIPT_STORE_CENSUS` says why: stores are
+  dominated by `cross_block` (16,632) and `unstable` (17,402), with the
+  common-subexpression case only 6%. More branches make more blocks, more blocks
+  make more values that cross them, and every crossing value needs a name. The
+  assignment excess is a *consequence* of the branch excess, not an independent
+  defect. — **LANDED**
+- 2026-08-25 — `fold_returned_temporaries`: a value stored only to be returned
+  on the next statement is returned directly. Built on
+  [`BindingResolution`](../../../../src/js_peephole/binding.rs), so the store
+  must *resolve* to the returned binding rather than merely spell like it — the
+  first draft absorbed `f(y){let x=…;y=2;return x}` into `return 2,mutate()`,
+  which the corpus caught and which is now a regression test. Earlier reads are
+  allowed; a use after the store or a capture by any nested scope refuses the
+  fold. Brotli: posthog packs −58, marked −184, zod −36, jQuery **+24**. — **LANDED**
+- 2026-08-25 — Terser's compress on our converged jQuery output is worth −477
+  Brotli and removes 120 of 374 `if`s, but the individual passes only sum to
+  −245: `collapse_vars` −112, `conditionals` −84, `sequences` −31, `if_return`
+  −18, `join_vars` +1. **The combination is worth about twice the sum of its
+  parts**, which is the same combiner effect the beam cannot reach one flip at a
+  time. — **OPEN**
+
 ## Next step
 
 Two, in order.

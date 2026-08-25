@@ -6,6 +6,7 @@ mod copies;
 mod declarations;
 mod integers;
 mod loops;
+mod returns;
 mod members;
 mod syntax;
 
@@ -17,5 +18,6 @@ pub(crate) use copies::*;
 pub(crate) use declarations::*;
 pub(crate) use integers::*;
 pub(crate) use loops::*;
+pub(crate) use returns::*;
 pub(crate) use members::*;
 pub(crate) use syntax::*;

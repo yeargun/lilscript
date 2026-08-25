@@ -1344,6 +1344,7 @@ fn optimize_generated_javascript_pass(
     session.run(fold_console_log_conditionals)?;
     session.run(fold_arrow_guard_returns)?;
     session.run(fold_conditional_return_tails)?;
+    session.run(fold_returned_temporaries)?;
     session.run(fold_trailing_return_this)?;
     session.run(fold_single_return_arrow_bodies)?;
     session.run(fold_adjacent_expression_statements)?;
@@ -1383,6 +1384,8 @@ fn optimize_generated_javascript_pass(
     session.run(drop_redundant_class_constructor_guards)?;
     session.run(remove_unused_standalone_vars)?;
     session.run(drop_orphaned_class_identity_guards)?;
+    session.run(fold_returned_temporaries)?;
+    session.run(remove_unused_standalone_vars)?;
     session.run(hoist_async_arrow_method_bodies)?;
     session.run(drop_pure_regex_expression_statements)?;
 

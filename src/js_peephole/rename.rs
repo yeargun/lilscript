@@ -88,7 +88,7 @@ pub(crate) fn converge_local_names(source: &str) -> Result<(String, usize), Java
     // scope it refused -- only rules out spellings where it is actually spoken.
     // Claiming the whole file for every module binding would block the first
     // fifty spellings everywhere and push every local to two characters.
-    let mut claim_point = |name: &str, at: usize, claims: &mut HashMap<String, Vec<(usize, usize)>>| {
+    let claim_point = |name: &str, at: usize, claims: &mut HashMap<String, Vec<(usize, usize)>>| {
         claims.entry(name.to_string()).or_default().push((at, at + 1));
     };
     for index in 0..tokens.len() {

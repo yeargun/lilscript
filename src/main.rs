@@ -95,6 +95,7 @@ fn main() {
         eprintln!("{error}");
         std::process::exit(1);
     }
+    report_store_census();
 }
 
 fn run() -> Result<(), String> {
@@ -585,4 +586,15 @@ mod tests {
         assert!(Args::try_parse_from(["lilscript", "input.lil", "--jobs", "0"]).is_err());
         assert!(Args::try_parse_from(["lilscript", "input.lil", "--codec-jobs", "0"]).is_err());
     }
+}
+
+// STORE_CENSUS report (temporary)
+fn report_store_census() {
+    if std::env::var_os("LILSCRIPT_STORE_CENSUS").is_none() { return; }
+    let names = ["cross_block", "use_count>1", "unstable", "single_use", "other", "fallthrough_only"];
+    eprint!("CENSUS");
+    for (i, n) in names.iter().enumerate() {
+        eprint!(" {n}={}", lilscript::codegen_ir_js::STORE_REASONS[i].load(std::sync::atomic::Ordering::Relaxed));
+    }
+    eprintln!();
 }
