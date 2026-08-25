@@ -1,6 +1,6 @@
 # JavaScript emission
 
-Parent: [Compilation](README.md). Source: `src/codegen_ir_js.rs` (`IrJsOptions`, `IrJsEmitter`). Related: [peephole](peephole.md), [`[mangle]`](../config/mangle.md), [compression decisions](../config/compression-decisions.md).
+Parent: [Compilation](README.md). Source: `src/codegen_ir_js.rs` (`IrJsOptions`, `IrJsEmitter`). Related: [peephole](peephole.md), [class identity](class-identity.md), [`[mangle]`](../config/mangle.md), [compression decisions](../config/compression-decisions.md).
 
 ## Production path
 
@@ -76,7 +76,7 @@ probes stay practical.
 
 ## Spelling families the beam may try
 
-Pooling (string/number), packing, boolean literals, grammar elision (independently — comment: raw punctuation deletion can lose codec), structured closures, proof-gated single-use function expressions, pure-helper substitution, dense string-return tables, host-alias spelling, regex literals, unused catch binding, generator star spacing, callee default arguments, SSA destruction (scalar vs tuple phi, affinity modes), control flow (structured vs state machine), loops (`while` vs `for(;cond;)` vs `do`), mutation (`=`, prefix, postfix, compound), conditionals/commas, `var` vs `let` top-level, function arrow vs `function`, quote style, identifier alphabet, local-name reserve, declaration order.
+Pooling (string/number), packing, boolean literals, grammar elision (independently — comment: raw punctuation deletion can lose codec), structured closures, proof-gated single-use function expressions, pure-helper substitution, dense string-return tables, host-alias spelling, regex literals, unused catch binding, generator star spacing, callee default arguments, SSA destruction (scalar vs tuple phi, affinity modes), control flow (structured vs state machine), loops (`while` vs `for(;cond;)` vs `do`), mutation (`=`, prefix, postfix, compound), conditionals/commas, `var` vs `let` top-level, function arrow vs `function`, quote style, identifier alphabet, local-name reserve, declaration order. Identity-observed constructors may additionally score a named ES `class` against a function table; they never compete with dissolved object/array lowering ([class identity](class-identity.md)).
 
 Phi-affinity exploration retains Grouped, Direct, and Conservative modes. Liveness
 interference includes local-phi expression incoming dependencies for the result's

@@ -17,6 +17,8 @@ Parent: [Mission](../mission.md). Language invariants: [Language](../language/RE
   whole-program function transforms
 - [Aggregate lowering](aggregate-lowering.md) — scalar, positional, named, record/host
   boundaries
+- [Class identity](class-identity.md) — when a constructor must stay an ES `class`,
+  and why object-lowering remains the default
 - [Compress passes](compress-passes.md) — fusion, sinking, outlining, superopt
 - [JavaScript emission](javascript-emission.md) — spelling, mangling, layout
 - [Mangling, layout, and pooling](mangling-layout-pooling.md) — proof boundaries and

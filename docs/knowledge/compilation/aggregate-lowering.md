@@ -26,7 +26,9 @@ Lowering is chosen from proof and boundary:
 
 Class calls statically devirtualize because overriding is rejected. Base fields are
 flattened. Native currently rejects inheritance until its subtype pointer ABI is
-fixed.
+fixed. A constructor that is itself a JS-observable value is a different
+representation — named ES `class`, not an instance literal. See
+[class identity](class-identity.md).
 
 Partial escape sinking and joint representation search may propose alternatives, but
 alias, identity, exception, export, and host observations constrain legality first.

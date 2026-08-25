@@ -15,6 +15,7 @@ this codebase (historical byte/count claims require a canonical rerun):
 | Outline a repeated region into a helper | Often wins raw, loses gzip/Brotli — the canonical pass defaults **off**, while allowed candidate search may probe it |
 | Inline more (`inline-96` on jQuery) | Duplicated bodies hurt Terser/Brotli more than they help; audit: lean-balanced beat aggressive inline |
 | Convert `bindMethod`+arrow to `this`-methods | Looked locally native; **regressed** jQuery terser size |
+| Rebuild an exported ES class with `defineProperty` / `JS.method*` | Legal identity, 4 KiB+ raw on posthog error-tracking; named `class` is the compact spelling |
 | Apply comma-conditionals on a 23 KiB surface | Displaced a stronger beam candidate; pass capped ~16 KiB |
 | Run Oxc/Terser on already-scored LilScript JS | Shortened raw, **worsened Brotli** on several app rows |
 | Early CSE | Materializes temporaries that later inlining would have duplicated into a more repetitive spelling |
