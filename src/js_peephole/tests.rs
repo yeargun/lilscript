@@ -171,9 +171,11 @@ fn rewrites_only_complete_parsed_assignment_statements() {
 
     assert_eq!(
         optimized.code,
-        "function f(a,b){a+=b;let c=a+b;if(c)a*=2;for(;a<9;a++)b^=a;return a}"
+        "function f(a,b){a+=b;if(a+b)a*=2;for(;a<9;a++)b^=a;return a}"
     );
-    assert_eq!(optimized.rewrites, 5);
+    // Five compound-assignment rewrites, plus the two that fold `let c=a+b`
+    // into its only use.
+    assert_eq!(optimized.rewrites, 7);
 }
 
 #[test]
@@ -1823,9 +1825,30 @@ fn preserves_copied_method_snapshot_and_replaceable_call() {
     );
     let optimized = optimize_generated_javascript(source).unwrap();
     assert!(
-        optimized.code.contains("t=e.b.x") && optimized.code.contains("t.call(e.b,r)"),
+        // The snapshot may be folded into its only use when nothing runs in
+        // between, which cannot change what `e.b.x` yields. What must survive
+        // is the call shape and the receiver.
+        optimized.code.contains("e.b.x") && optimized.code.contains("call(e.b,r)"),
         "{}",
         optimized.code
+    );
+
+    // With a statement in between the snapshot has to stay: `side()` could
+    // replace `e.b.x` before the call.
+    let guarded = source.replace(
+        "let t=e.b.x;return t.call(e.b,r)",
+        "let t=e.b.x;side();return t.call(e.b,r)",
+    );
+    let guarded = guarded.replace("var reads=0,", "var reads=0,side=function(){child.x=function(){return'replaced'}},");
+    let guarded_out = optimize_generated_javascript(&guarded).unwrap();
+    assert!(
+        guarded_out.code.contains("t=e.b.x") && guarded_out.code.contains("t.call(e.b,r)"),
+        "an intervening statement must keep the snapshot: {}",
+        guarded_out.code
+    );
+    assert_eq!(
+        run_javascript(&guarded_out.code).trim(),
+        run_javascript(&guarded).trim()
     );
     assert_eq!(
         run_javascript(&optimized.code).trim(),

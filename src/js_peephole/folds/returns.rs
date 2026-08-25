@@ -268,3 +268,271 @@ mod tests {
         }
     }
 }
+
+/// Move a temporary into the statement that reads it.
+///
+/// `var a = e.x; return g(a)` keeps a name alive for one statement. Emitting
+/// `return g(e.x)` is shorter and, more to the point, replaces a novel
+/// `var a=` with a member read the compressor has probably seen before.
+///
+/// The hazard is evaluation order: the initializer runs *before* the next
+/// statement today, and inlining moves it to wherever the use sits. That is
+/// only invisible when nothing between the start of that statement and the use
+/// can run — no call, no assignment, no update, no `new`, no `await`. A use
+/// buried behind `g(h(), a)` would start observing `h()` first, so it is
+/// refused.
+///
+/// The initializer must also be a pure read. Anything that can throw or mutate
+/// keeps its statement, because moving it past even a property access would
+/// reorder observable effects.
+pub(crate) fn fold_single_use_temporaries(
+    source: &str,
+) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let matching_close = matching_closers(&tokens);
+    let resolution = BindingResolution::new(&tokens);
+
+    let mut uses = std::collections::HashMap::<usize, Vec<usize>>::new();
+    for index in 0..tokens.len() {
+        if let Resolution::Bound(declaration) = resolution.resolve(index) {
+            uses.entry(declaration).or_default().push(index);
+        }
+    }
+
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+    for index in 0..tokens.len() {
+        // `var NAME = …;` occupying a whole statement.
+        if tokens[index].text != "var" && tokens[index].text != "let" {
+            continue;
+        }
+        if index > 0 && !matches!(tokens[index - 1].text, ";" | "{" | "}") {
+            continue;
+        }
+        let name = index + 1;
+        if tokens.get(name).is_none_or(|token| token.kind != TokenKind::Identifier)
+            || tokens.get(name + 1).map(|token| token.text) != Some("=")
+        {
+            continue;
+        }
+        let Some(end) = statement_end(&tokens, &matching_close, name + 2) else {
+            continue;
+        };
+        if tokens.get(end).map(|token| token.text) != Some(";") {
+            continue;
+        }
+        if !is_pure_read(&tokens, name + 2, end) {
+            continue;
+        }
+        let Resolution::Bound(declaration) = resolution.resolve(name) else {
+            continue;
+        };
+        if declaration != name {
+            continue;
+        }
+        let Some(sites) = uses.get(&declaration) else {
+            continue;
+        };
+        let reads = sites.iter().filter(|site| **site != declaration).collect::<Vec<_>>();
+        if reads.len() != 1 {
+            continue;
+        }
+        let use_at = *reads[0];
+        // The read must live in the statement that immediately follows, and in
+        // the same scope: a closure would keep the binding alive. That
+        // statement may be closed by `}` rather than `;` when it is the last
+        // one in a body.
+        let next_end = statement_end(&tokens, &matching_close, end + 1)
+            .or_else(|| block_end(&tokens, &matching_close, end + 1));
+        let Some(next_end) = next_end else {
+            continue;
+        };
+        if use_at <= end || use_at >= next_end {
+            continue;
+        }
+        if resolution.scope_index_at(use_at) != resolution.scope_index_at(declaration) {
+            continue;
+        }
+        if !nothing_runs_before(&tokens, end + 1, use_at) {
+            continue;
+        }
+        let value = &source[tokens[name + 2].start..tokens[end - 1].end];
+        // A use already wrapped by its own delimiters needs no extra pair.
+        let delimited = use_at > 0
+            && tokens[use_at - 1].text == "("
+            && tokens.get(use_at + 1).map(|token| token.text) == Some(")");
+        let grouped = !delimited && needs_grouping(&tokens, name + 2, end);
+        let replacement = if grouped {
+            format!("({value})")
+        } else {
+            value.to_string()
+        };
+        replacements.push((tokens[index].start, tokens[end].end, String::new()));
+        replacements.push((tokens[use_at].start, tokens[use_at].end, replacement));
+    }
+    Ok(apply_token_rewrites(source, replacements))
+}
+
+/// Index of the `;` closing a statement that starts at `from`.
+fn statement_end(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    from: usize,
+) -> Option<usize> {
+    let mut index = from;
+    while index < tokens.len() {
+        match tokens[index].text {
+            "(" | "[" | "{" => index = matching_close.get(index).copied().flatten()? + 1,
+            ";" => return Some(index),
+            "}" => return None,
+            _ => index += 1,
+        }
+    }
+    None
+}
+
+/// Index of the `}` closing the body a statement starting at `from` sits in,
+/// for the last statement of a block, which carries no `;`.
+fn block_end(tokens: &[Token<'_>], matching_close: &[Option<usize>], from: usize) -> Option<usize> {
+    let mut index = from;
+    while index < tokens.len() {
+        match tokens[index].text {
+            "(" | "[" | "{" => index = matching_close.get(index).copied().flatten()? + 1,
+            ";" => return Some(index),
+            "}" => return Some(index),
+            _ => index += 1,
+        }
+    }
+    None
+}
+
+/// A read that cannot throw, call, or assign: identifiers, literals, member
+/// paths and operators only.
+fn is_pure_read(tokens: &[Token<'_>], from: usize, to: usize) -> bool {
+    if from >= to {
+        return false;
+    }
+    let mut index = from;
+    while index < to {
+        let token = &tokens[index];
+        match token.kind {
+            TokenKind::Identifier | TokenKind::Number | TokenKind::String => {}
+            TokenKind::Keyword if matches!(token.text, "null" | "true" | "false" | "void") => {}
+            TokenKind::Punct
+                if matches!(
+                    token.text,
+                    "." | "+" | "-" | "*" | "&&" | "||" | "??" | "!" | "==" | "!=" | "==="
+                        | "!==" | "<" | ">" | "<=" | ">=" | "?" | ":"
+                ) => {}
+            _ => return false,
+        }
+        // A call turns a member path into an invocation.
+        if token.text == "(" {
+            return false;
+        }
+        index += 1;
+    }
+    // A bare identifier is a copy; `fold_identifier_copies` owns that shape.
+    to > from + 1
+}
+
+/// True when nothing between `from` and `use_at` can execute.
+///
+/// An *open* `(` has run nothing yet -- a call evaluates its arguments before
+/// it invokes anything -- so `return g(a)` still reaches `a` first. A closed
+/// group is different: by the time `g(h(),a)` reaches `a`, `h()` has already
+/// run, so any `)` before the use disqualifies the move, as does an
+/// assignment, an update, `new`, `await` or `yield`.
+fn nothing_runs_before(tokens: &[Token<'_>], from: usize, use_at: usize) -> bool {
+    for index in from..use_at {
+        let text = tokens[index].text;
+        let assigns = text.ends_with('=')
+            && !matches!(text, "==" | "!=" | "===" | "!==" | "<=" | ">=");
+        // A member access is itself observable -- `receiver.invoke(v)` runs the
+        // `invoke` getter before the argument, so moving a read into `v`'s slot
+        // would swap two getters.
+        if matches!(text, ")" | "]" | "[" | "." | "?." | "++" | "--" | "new" | "await" | "yield")
+            || assigns
+        {
+            return false;
+        }
+    }
+    true
+}
+
+/// The moved value needs parentheses when it binds looser than its new context.
+fn needs_grouping(tokens: &[Token<'_>], from: usize, to: usize) -> bool {
+    tokens[from..to].iter().any(|token| {
+        matches!(
+            token.text,
+            "?" | ":" | "&&" | "||" | "??" | "+" | "-" | "*" | "==" | "!=" | "===" | "!=="
+                | "<" | ">" | "<=" | ">="
+        )
+    })
+}
+
+#[cfg(test)]
+mod collapse_tests {
+    use super::fold_single_use_temporaries;
+
+    fn run(source: &str) -> String {
+        let output = std::process::Command::new("node").arg("-e").arg(source).output().unwrap();
+        assert!(output.status.success(), "node failed:\n{}\n{source}", String::from_utf8_lossy(&output.stderr));
+        String::from_utf8(output.stdout).unwrap()
+    }
+
+    fn same_behavior(source: &str, harness: &str) {
+        let (folded, _) = fold_single_use_temporaries(source).unwrap();
+        assert_eq!(
+            run(&format!("{source}\n{harness}")),
+            run(&format!("{folded}\n{harness}")),
+            "diverged\n{folded}"
+        );
+    }
+
+    #[test]
+    fn moves_a_member_read_into_its_only_use() {
+        let (out, count) =
+            fold_single_use_temporaries("function f(e){var a=e.x;return g(a)}").unwrap();
+        assert_eq!(count, 2, "{out}");
+        assert_eq!(out, "function f(e){return g(e.x)}");
+    }
+
+    /// Evaluation order is the whole hazard: the initializer runs before the
+    /// next statement today, so it may only move to a spot nothing precedes.
+    #[test]
+    fn refuses_when_something_could_run_first() {
+        for source in [
+            // `h()` would start observing the world before `e.x` is read
+            "function f(e){var a=e.x;return g(h(),a)}",
+            // a statement in between could change what `e.x` yields
+            "function f(e){var a=e.x;h();return g(a)}",
+            // an assignment in between
+            "function f(e){var a=e.x;e.y=1;return g(a)}",
+            // read twice
+            "function f(e){var a=e.x;return g(a,a)}",
+            // read from a closure that outlives the statement
+            "function f(e){var a=e.x;return ()=>a}",
+            // the initializer calls, so moving it reorders effects
+            "function f(e){var a=e.x();return g(a)}",
+            // the callee is itself a member read, and it runs before the
+            // argument -- moving the read here would swap two getters
+            "function f(){var v=input.value;receiver.invoke(v)}",
+        ] {
+            let (out, count) = fold_single_use_temporaries(source).unwrap();
+            assert_eq!(count, 0, "unsafe collapse: {out}");
+            assert_eq!(out, source);
+        }
+    }
+
+    #[test]
+    fn preserves_behavior() {
+        same_behavior(
+            "function f(e){var a=e.x;return [a,1]}",
+            "console.log(JSON.stringify(f({x:9})))",
+        );
+        same_behavior(
+            "function f(e,t){var a=e.x||t;return a?a:0}",
+            "console.log(f({x:0},5),f({x:2},5))",
+        );
+    }
+}

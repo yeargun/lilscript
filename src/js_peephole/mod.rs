@@ -1384,6 +1384,7 @@ fn optimize_generated_javascript_pass(
     session.run(drop_redundant_class_constructor_guards)?;
     session.run(remove_unused_standalone_vars)?;
     session.run(drop_orphaned_class_identity_guards)?;
+    session.repeat(fold_single_use_temporaries, 4)?;
     session.run(fold_returned_temporaries)?;
     session.run(remove_unused_standalone_vars)?;
     session.run(hoist_async_arrow_method_bodies)?;
