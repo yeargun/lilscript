@@ -40,6 +40,12 @@ that lane is green, because a search that ranks incorrect programs ranks noise.
 | `emit-03` | landed | `if`/`return` regex picks emit `?:`. | Keep the existing regression tests | [notes](notes/emit-01.md) |
 | `emit-04` | landed | Identifier inlining follows JS precedence rather than `\|0` patches. | Keep the existing regression tests | [notes](notes/emit-01.md) |
 
+## jquery — the port that loses to its own minifier
+
+| id | status | intent | gate | note |
+|---|---|---|---|---|
+| `jquery-01` | active | Bottom-up attribution on jQuery: where do the compressed bytes actually go? Convergence recovered 875 Brotli; arrow spelling and header diversity were refuted as causes. | Brotli-11 29,011 shipped, against `jquery.min.js` 27,445 | [notes](notes/jquery-01.md) |
+
 ## marked — the parser port
 
 | id | status | intent | gate | note |
