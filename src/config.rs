@@ -1628,15 +1628,22 @@ impl JavaScriptConfig {
 
     pub fn effective_terminal_codec_probe_limit(&self) -> usize {
         let level_limit = self.terminal_codec_probe_level_limit();
-        self.terminal_codec_probe_limit
-            .unwrap_or(level_limit)
-            .min(level_limit)
+        if level_limit == 0 {
+            return 0;
+        }
+        // An explicit limit is a request for more verification, and it is
+        // honored. Measured on jQuery: raising the ceiling from 384 to the
+        // configured 1536 is 33 Brotli bytes for 24% more compile time, because
+        // terminal search on an 84KB artifact is budget-limited rather than
+        // idea-limited. Silently clamping to the level meant a config could ask
+        // for four times the search and receive none of it.
+        self.terminal_codec_probe_limit.unwrap_or(level_limit)
     }
 
     /// Default terminal work scales down for broad artifacts because every
-    /// syntax validation and Brotli-11 call is whole-artifact work. An
-    /// explicit value bypasses artifact scaling but cannot raise the level or
-    /// search tier.
+    /// syntax validation and Brotli-11 call is whole-artifact work. An explicit
+    /// value bypasses that scaling and sets the ceiling itself; the search tier
+    /// still gates it to zero when candidate search is off.
     pub fn effective_terminal_codec_probe_limit_for_artifact(&self, raw_size: usize) -> usize {
         let level_limit = self.terminal_codec_probe_level_limit();
         if level_limit == 0 {
@@ -1647,8 +1654,7 @@ impl JavaScriptConfig {
             16_385..=65_536 => level_limit.div_ceil(4),
             _ => level_limit.div_ceil(12),
         };
-        self.terminal_codec_probe_limit
-            .map_or(artifact_limit, |configured| configured.min(level_limit))
+        self.terminal_codec_probe_limit.unwrap_or(artifact_limit)
     }
 }
 
@@ -2639,8 +2645,8 @@ local_name_coalescing = false
             bounded_override
                 .javascript
                 .effective_terminal_codec_probe_limit_for_artifact(100 * 1024),
-            384,
-            "an explicit ceiling bypasses artifact scaling but not the level tier"
+            999,
+            "an explicit terminal ceiling is honored, not clamped to the level tier"
         );
         assert_eq!(
             bounded_override
