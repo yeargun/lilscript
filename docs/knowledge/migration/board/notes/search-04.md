@@ -46,6 +46,20 @@ configs.
 - 2026-08-25 — `IdentifierAlphabet::for_code` / `::javascript_keyword` are implemented and unused, but the lead is spent: the emitted single-character assignment is already frequency-ordered (`t e r n i a o s …` against a derived `e t r n a s i c …`), and a diagnostic remap made Brotli *worse*. `remap_single_character_identifiers` already probes this for non-raw cost models. Do not build an alphabet family on the −180 estimate; it is stale. — **REJECTED**
 - 2026-08-25 — Terser on our own output (diagnostic, never shippable) leaves 5,156 → 5,022 on error-tracking: 87 from compress-class folds, 61 from re-mangling. That is the remaining headroom on this artifact and it is small. — **OPEN**
 
+- 2026-08-25 — Similarity-ordered function layout, on the theory that shortening LZ
+  distances between alike bodies pays: a greedy nearest-neighbour chain over
+  6-byte shingles, applied to hoisted top-level `function` declarations only.
+  Brotli got *worse* on every artifact — jQuery +96, Monaco +248 (and gzip
+  +1,083), error-tracking +2, marked unchanged. The emitter's existing layout,
+  which groups by call structure, already beats naive textual clustering. A
+  layout family would have to score orderings with the real codec, not a
+  similarity proxy. — **REJECTED** as specified
+- 2026-08-25 — Near-duplicate function merging (bodies identical up to
+  identifiers, numbers and strings): 0 groups on error-tracking, jQuery and
+  marked; 2 groups worth 256 bytes on Monaco, 0.2% of the file.
+  `identical_private_function_folding` and `permuted_private_function_merging`
+  have already taken this. — **REJECTED**
+
 ## Next step
 
 Decide the budget question properly: should `effective_candidate_proposal_limit_for_artifact`
