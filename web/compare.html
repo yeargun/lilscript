@@ -426,12 +426,12 @@
             <h3>jQuery</h3>
             <p>
               Dual configs: stable <code>$</code> for a script tag, full mangle
-              for a LilScript-only app. Official min is still 1.13× smaller.
+              for a LilScript-only app. Official min is still 1.12× smaller.
             </p>
             <div class="lib-card-metrics">
               <div><small>npm min</small><b>27,445</b></div>
-              <div><small>LilScript</small><b>30,973</b></div>
-              <div class="loss"><small>Brotli</small><b>+13%</b></div>
+              <div><small>LilScript</small><b>30,741</b></div>
+              <div class="loss"><small>Brotli</small><b>+12%</b></div>
             </div>
           </a>
         </div>
@@ -470,8 +470,8 @@
             </p>
             <div class="lib-card-metrics">
               <div><small>Oxc identifiers</small><b>10,092</b></div>
-              <div><small>LilScript</small><b>9,589</b></div>
-              <div class="win"><small>Brotli</small><b>−5.0%</b></div>
+              <div><small>LilScript</small><b>9,515</b></div>
+              <div class="win"><small>Brotli</small><b>−5.7%</b></div>
             </div>
           </a>
         </div>
@@ -524,11 +524,11 @@
             bucketed rate limits, queue batching, bot detection, and portable
             helpers — not the published PostHog IIFE. Official JavaScript is
             that kernel, then Vite 8 Oxc, Terser, and esbuild. The current
-            Brotli-scored compiler artifact is 16 bytes smaller than Oxc and 20
-            bytes smaller than Terser. Autocapture utilities, replay core,
+            Brotli-scored compiler artifact is larger than Oxc on this compiler.
+            Autocapture utilities, replay core,
             surveys, error tracking, and OTLP now have separate public surfaces
-            and tabbed comparison lanes. The two new browser packs are 27.3%
-            and 19.4% smaller than Oxc on Brotli; the lab reports every pack's
+            and tabbed comparison lanes. The two browser packs are 24.4%
+            and 18.6% smaller than Oxc on Brotli; the lab reports every pack's
             wins and losses without folding them into the kernel result.
           </p>
         </div>
@@ -545,12 +545,12 @@
               Fair size lane is official Oxc with identifier mangling only, not
               the npm client bundle. Property mangling is off; the source
               kernel and port share the same behavior contract. 5,622 B →
-              5,606 B Brotli.
+              5,985 B Brotli.
             </p>
             <div class="lib-card-metrics">
               <div><small>Oxc identifiers</small><b>5,622</b></div>
-              <div><small>LilScript</small><b>5,606</b></div>
-              <div class="win"><small>Brotli</small><b>−0.3%</b></div>
+              <div><small>LilScript</small><b>5,985</b></div>
+              <div class="loss"><small>Brotli</small><b>+6.5%</b></div>
             </div>
           </a>
         </div>
@@ -607,7 +607,7 @@
           >
             <span>jQuery</span>
             <h3>yeargun.github.io/jquerylil</h3>
-            <p>jQuery 3.7.1 drop-in. Official min is still 1.13× smaller on Brotli.</p>
+            <p>jQuery 3.7.1 drop-in. Official min is still 1.12× smaller on Brotli.</p>
             <b>Open jQuerylil</b>
           </a>
           <a
@@ -618,7 +618,7 @@
           >
             <span>marked</span>
             <h3>yeargun.github.io/markedlil</h3>
-            <p>marked 18.0.13 package with the 18.0.10-compatible parse API. 9,589 B vs parse-only official Oxc 10,092 B, not the full <code>use()</code> package.</p>
+            <p>marked 18.0.13 package with the 18.0.10-compatible parse API. 9,515 B vs parse-only official Oxc 10,092 B, not the full <code>use()</code> package.</p>
             <b>Open Markedlil</b>
           </a>
           <a
@@ -640,7 +640,7 @@
           >
             <span>posthog-js</span>
             <h3>yeargun.github.io/posthoglil</h3>
-            <p>Capture kernel plus five tabbed lanes. Autocapture is 4,215 → 3,065 B and replay core is 4,258 → 3,432 B Brotli versus Oxc.</p>
+            <p>Capture kernel plus five tabbed lanes. Autocapture is 4,215 → 3,186 B and replay core is 4,258 → 3,465 B Brotli versus Oxc.</p>
             <b>Open Posthoglil</b>
           </a>
           <a

@@ -406,11 +406,11 @@ console.log(`sum=${c}`)</code></pre>
               separate lane.
             </p>
             <div class="lib-card-metrics compression-rates">
-              <div class="win compression-rate" data-compression-rate data-baseline="19282" data-candidate="18690">
-                <small>gzip-9</small><b>−3.1%</b><span>19,282 → 18,690 B</span>
+              <div class="win compression-rate" data-compression-rate data-baseline="19282" data-candidate="19104">
+                <small>gzip-9</small><b>−0.9%</b><span>19,282 → 19,104 B</span>
               </div>
-              <div class="win compression-rate" data-compression-rate data-baseline="17159" data-candidate="16736">
-                <small>Brotli-11</small><b>−2.5%</b><span>17,159 → 16,736 B</span>
+              <div class="loss compression-rate" data-compression-rate data-baseline="17159" data-candidate="17223">
+                <small>Brotli-11</small><b>+0.4%</b><span>17,159 → 17,223 B</span>
               </div>
             </div>
           </a>
@@ -442,11 +442,11 @@ console.log(`sum=${c}`)</code></pre>
               the Brotli lane to beat. Public names stay a config choice.
             </p>
             <div class="lib-card-metrics compression-rates">
-              <div class="loss compression-rate" data-compression-rate data-baseline="30336" data-candidate="34544">
-                <small>gzip-9</small><b>+13.9%</b><span>30,336 → 34,544 B</span>
+              <div class="loss compression-rate" data-compression-rate data-baseline="30336" data-candidate="34392">
+                <small>gzip-9</small><b>+13.4%</b><span>30,336 → 34,392 B</span>
               </div>
-              <div class="loss compression-rate" data-compression-rate data-baseline="27445" data-candidate="30973">
-                <small>Brotli-11</small><b>+12.9%</b><span>27,445 → 30,973 B</span>
+              <div class="loss compression-rate" data-compression-rate data-baseline="27445" data-candidate="30741">
+                <small>Brotli-11</small><b>+12.0%</b><span>27,445 → 30,741 B</span>
               </div>
             </div>
           </a>
@@ -464,11 +464,11 @@ console.log(`sum=${c}`)</code></pre>
               13% faster in Chromium. No extension system.
             </p>
             <div class="lib-card-metrics compression-rates">
-              <div class="win compression-rate" data-compression-rate data-baseline="10930" data-candidate="10727">
-                <small>gzip-9</small><b>−1.9%</b><span>10,930 → 10,727 B</span>
+              <div class="win compression-rate" data-compression-rate data-baseline="10930" data-candidate="10714">
+                <small>gzip-9</small><b>−2.0%</b><span>10,930 → 10,714 B</span>
               </div>
-              <div class="win compression-rate" data-compression-rate data-baseline="10092" data-candidate="9589">
-                <small>Brotli-11</small><b>−5.0%</b><span>10,092 → 9,589 B</span>
+              <div class="win compression-rate" data-compression-rate data-baseline="10092" data-candidate="9515">
+                <small>Brotli-11</small><b>−5.7%</b><span>10,092 → 9,515 B</span>
               </div>
             </div>
           </a>
@@ -509,16 +509,16 @@ console.log(`sum=${c}`)</code></pre>
               UUID, flags, cookies, routing, rate limits, queue, bot detection,
               and portable helpers from <code>posthog-js@1.418.10</code>, plus
               five tabbed pack lanes: autocapture utilities, replay core,
-              surveys, error tracking, and OTLP. Autocapture is 27.3% smaller
-              and replay core is 19.4% smaller on Brotli versus Oxc. The kernel
-              remains a narrow win; this is not the published IIFE.
+              surveys, error tracking, and OTLP. Autocapture is 24.4% smaller
+              and replay core is 18.6% smaller on Brotli versus Oxc. The kernel
+              is larger than Oxc on this compiler; this is not the published IIFE.
             </p>
             <div class="lib-card-metrics compression-rates">
-              <div class="loss compression-rate" data-compression-rate data-baseline="6194" data-candidate="6415">
-                <small>gzip-9</small><b>+3.6%</b><span>6,194 → 6,415 B</span>
+              <div class="loss compression-rate" data-compression-rate data-baseline="6194" data-candidate="6807">
+                <small>gzip-9</small><b>+9.9%</b><span>6,194 → 6,807 B</span>
               </div>
-              <div class="win compression-rate" data-compression-rate data-baseline="5622" data-candidate="5606">
-                <small>Brotli-11</small><b>−0.3%</b><span>5,622 → 5,606 B</span>
+              <div class="loss compression-rate" data-compression-rate data-baseline="5622" data-candidate="5985">
+                <small>Brotli-11</small><b>+6.5%</b><span>5,622 → 5,985 B</span>
               </div>
             </div>
           </a>
@@ -639,8 +639,8 @@ console.log(`sum=${c}`)</code></pre>
             <span>@itslil/mobx</span>
             <h3>MobX</h3>
             <p>
-              MobX 7 public API. 769 official tests; 3.1% smaller gzip and 2.5%
-              smaller Brotli than the Vite 8 Oxc lane.
+              MobX 7 public API. 769 official tests; 0.9% smaller gzip and 0.4%
+              larger Brotli than the Vite 8 Oxc lane.
             </p>
             <b>yeargun.github.io/mobxlil</b>
           </a>
@@ -654,7 +654,7 @@ console.log(`sum=${c}`)</code></pre>
             <h3>jQuery</h3>
             <p>
               jQuery 3.7.1 public API. Published drop-in; the LilScript ESM is
-              still 13.9% larger under gzip and 12.9% larger under Brotli than
+              still 13.4% larger under gzip and 12.0% larger under Brotli than
               the official minified file.
             </p>
             <b>yeargun.github.io/jquerylil</b>
@@ -668,8 +668,8 @@ console.log(`sum=${c}`)</code></pre>
             <span>@itslil/marked 18.0.13</span>
             <h3>marked</h3>
             <p>
-              18.0.10-compatible parse API. 660 cases; 1.9% smaller gzip and
-              5.0% smaller Brotli than parse-only Oxc.
+              18.0.10-compatible parse API. 660 cases; 2.0% smaller gzip and
+              5.7% smaller Brotli than parse-only Oxc.
             </p>
             <b>yeargun.github.io/markedlil</b>
           </a>
@@ -697,8 +697,8 @@ console.log(`sum=${c}`)</code></pre>
             <span>@itslil/posthog-js</span>
             <h3>posthog-js</h3>
             <p>
-              Capture kernel plus five tabbed packs. Autocapture is 27.3%
-              smaller and replay core is 19.4% smaller on Brotli than Oxc.
+              Capture kernel plus five tabbed packs. Autocapture is 24.4%
+              smaller and replay core is 18.6% smaller on Brotli than Oxc.
             </p>
             <b>yeargun.github.io/posthoglil</b>
           </a>
