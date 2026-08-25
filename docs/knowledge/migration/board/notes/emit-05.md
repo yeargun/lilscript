@@ -68,12 +68,45 @@ the compat suite is 6/6. The gap is not extra surface on either side.
   information, not policy — no ordering rule applied at our stage can recover
   it. — **OPEN**
 
+- 2026-08-25 — **Scope-accurate renamer attempted on `GeneratedBindingIndex`,
+  reverted.** The index is a real scope model and already answers
+  `identifier_is_binding`, `name_is_visible`, `enclosing_function_span`. Two
+  traps killed the attempt, and both are worth knowing before the next one:
+
+  1. **Parameter declarations report `scope=None`.** A parameter token sits
+     before the brace body, so `enclosing_function_span` attributes it to the
+     *enclosing* function -- module scope for a top-level function. Verified on
+     `function q(elem,key){…}function r(key,elem){…}`: every parameter came back
+     `scope=None`, so all four bucketed together. A renamer has to attribute a
+     parameter to the function whose body follows its `)`, not to the scope the
+     token sits in.
+  2. **"Rewrite every occurrence of this text inside the extent" is not a
+     rename.** It is only correct when the name is declared once in the whole
+     program. Two sibling functions that both call a parameter `elem` -- exactly
+     the case convergence exists to fix -- cannot be handled that way, and a
+     guard strict enough to be safe (`declared in one scope only`) refuses every
+     interesting case. Correct renaming needs a use-to-binding resolution, not a
+     text-extent rewrite.
+
+  Shipping an unsound renamer would have been strictly worse than shipping
+  nothing: three of this lane's miscompiles came from rewrites that matched text
+  without resolving it. — **REJECTED** as specified; the goal stands
+
 ## Next step
 
 A scope-accurate renaming pass over the emitted text, at the peephole layer,
 where the nesting is already resolved and the exact scope chain is available.
 That is the only stage with the information terser has, and the measured prize
 is 602 Brotli bytes on jQuery for 373 raw.
+
+Build the missing primitive first, on its own, with its own tests: a
+**use-to-binding resolver** that maps every identifier token to the token that
+declares it (or to "free"). `GeneratedBindingIndex` already has the scope tree
+and the binding flags; what is missing is the edge from a use back to its
+declaration, plus correct parameter attribution. With that primitive the
+renamer is short and checkable, and the same resolver is what the folds in
+[ident-06](ident-06.md) and [ident-08](ident-08.md) needed in order to ask
+"what does this name resolve to?" instead of "what token precedes it?".
 
 It needs the same thing the correctness lane needs: a real scope model in the
 peephole. All three miscompiles in [ident-06](ident-06.md) and
