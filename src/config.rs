@@ -365,7 +365,6 @@ impl ProjectConfig {
             local_name_reserve: self.javascript.local_name_reserve,
             stable_local_names: self.javascript.stable_local_names,
             frequency_order_local_names: false,
-            positional_parameter_names: false,
             entropy_property_names: self
                 .javascript
                 .optimization_enabled(JavaScriptOptimization::EntropyPropertyAssignment, None),

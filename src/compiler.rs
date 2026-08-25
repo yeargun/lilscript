@@ -3708,31 +3708,6 @@ fn select_javascript_candidate_global(
             },
         )?;
     }
-    // Converged naming trades raw bytes for shape repetition: one header
-    // spelling repeated many times costs less under an LZ codec than several
-    // shorter spellings, but it is strictly worse on raw. Neither direction is
-    // safe to assume, so the objective decides.
-    if configured.mangle_identifiers {
-        let finalists = top_candidate_options(
-            &mut candidates,
-            candidate_beam_width,
-            config.javascript.cost_model,
-        )?;
-        extend_javascript_candidate_beam(
-            ir,
-            module_output,
-            beam_policy,
-            &integer_analysis,
-            &mut candidates,
-            finalists,
-            |options| {
-                [crate::codegen_ir_js::IrJsOptions {
-                    positional_parameter_names: !options.positional_parameter_names,
-                    ..options
-                }]
-            },
-        )?;
-    }
     let finalists = top_candidate_options(
         &mut candidates,
         candidate_beam_width,

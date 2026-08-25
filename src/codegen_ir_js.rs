@@ -192,20 +192,6 @@ pub struct IrJsOptions {
     /// by their total emitted references instead of graph-color creation
     /// order. This changes spelling only and is scored by exact-codec search.
     pub frequency_order_local_names: bool,
-    /// Give the k-th parameter of every function the k-th name from one
-    /// module-wide sequence, so that same-arity headers spell identically.
-    ///
-    /// Source-name-stable naming maximizes cross-function *name* identity and
-    /// destroys cross-function *shape* identity: `(elem,key)` and `(key,elem)`
-    /// become `(a,b)` and `(b,a)`. Compressed objectives pay for shape -- an LZ
-    /// match costs about the same however long its text is, so one header
-    /// spelling repeated many times is cheaper than several shorter spellings.
-    /// Measured on jQuery: 217 multi-parameter arrow headers across 69 distinct
-    /// spellings, where converged naming reaches 20.
-    ///
-    /// Costs raw bytes and pays compressed ones, so candidate search scores it
-    /// under the configured cost model rather than assuming either direction.
-    pub positional_parameter_names: bool,
     pub entropy_property_names: bool,
     pub function_layout: FunctionLayout,
     pub function_layout_exact_limit: usize,
@@ -309,7 +295,6 @@ impl Default for IrJsOptions {
             local_name_reserve: 0,
             stable_local_names: false,
             frequency_order_local_names: false,
-            positional_parameter_names: false,
             entropy_property_names: true,
             function_layout: FunctionLayout::Source,
             function_layout_exact_limit: 13,
@@ -17996,45 +17981,7 @@ impl LocalNames {
             }
             let color_count = colors.values().copied().max().map_or(0, |color| color + 1);
             let mut color_names = vec![String::new(); color_count];
-            // Converged naming assigns every color from one canonical order --
-            // parameters by position, then the rest by descending use -- so the
-            // same shape spells the same way in every function. It replaces
-            // source-name stability rather than layering on top of it: leaving
-            // the stable pass in front would hand the short names to whichever
-            // colors happened to share a source name, and the bodies would
-            // diverge again even once the headers converged.
-            if options.positional_parameter_names {
-                let mut weights = vec![0usize; color_count];
-                let mut first_values = vec![u32::MAX; color_count];
-                for (value, color) in &colors {
-                    weights[*color] = weights[*color]
-                        .saturating_add(uses.get(value).copied().unwrap_or(0).saturating_add(1));
-                    first_values[*color] = first_values[*color].min(value.0);
-                }
-                let mut order = Vec::with_capacity(color_count);
-                let mut placed = vec![false; color_count];
-                for parameter in &function.params {
-                    if let Some(color) = colors.get(&parameter.value) {
-                        if !placed[*color] {
-                            placed[*color] = true;
-                            order.push(*color);
-                        }
-                    }
-                }
-                let mut rest = (0..color_count)
-                    .filter(|color| !placed[*color])
-                    .collect::<Vec<_>>();
-                rest.sort_unstable_by(|left, right| {
-                    weights[*right]
-                        .cmp(&weights[*left])
-                        .then_with(|| first_values[*left].cmp(&first_values[*right]))
-                });
-                order.extend(rest);
-                for color in order {
-                    color_names[color] = mangler.next_name();
-                }
-            }
-            if options.stable_local_names && !options.positional_parameter_names {
+            if options.stable_local_names {
                 let mut preferences = vec![AHashMap::<String, usize>::default(); color_count];
                 for (value, color) in &colors {
                     let Some(identifier) = function
@@ -18065,9 +18012,6 @@ impl LocalNames {
                         .then_with(|| first_value(*left).cmp(&first_value(*right)))
                 });
                 for color in color_order {
-                    if !color_names[color].is_empty() {
-                        continue;
-                    }
                     let mut candidates = preferences[color].iter().collect::<Vec<_>>();
                     candidates.sort_unstable_by(|left, right| {
                         right.1.cmp(left.1).then_with(|| left.0.cmp(right.0))
@@ -26372,7 +26316,7 @@ inspect(JS.call(valueCase,null));
         let options = IrJsOptions {
             mangle_identifiers: true,
             cross_scope_name_reuse: true,
-            precise_cross_scope_shadowing: false,
+            precise_cross_scope_shadowing: true,
             local_name_reserve: 48,
             function_spelling: FunctionSpelling::Function,
             ..IrJsOptions::default()
@@ -26405,7 +26349,7 @@ run();
         let options = IrJsOptions {
             mangle_identifiers: true,
             cross_scope_name_reuse: true,
-            precise_cross_scope_shadowing: false,
+            precise_cross_scope_shadowing: true,
             local_name_reserve: 48,
             function_spelling: FunctionSpelling::Function,
             ..IrJsOptions::default()
