@@ -151,70 +151,8 @@ pub(crate) fn converge_local_names(source: &str) -> Result<(String, usize), Java
     Ok(apply_token_rewrites(source, rewrites))
 }
 
-/// Names claimed by every scope that lexically encloses this one.
-fn enclosing_claims(
-    resolution: &BindingResolution<'_>,
-    claimed_by_scope: &HashMap<usize, HashSet<String>>,
-    scope: usize,
-    start: usize,
-    end: usize,
-) -> HashSet<String> {
-    let mut claims = HashSet::new();
-    for (other, other_start, other_end) in resolution.function_scopes() {
-        if other == scope {
-            continue;
-        }
-        if other_start <= start && end <= other_end {
-            if let Some(names) = claimed_by_scope.get(&other) {
-                claims.extend(names.iter().cloned());
-            }
-        }
-    }
-    claims
-}
 
 /// Parameters first in declaration order, then the remaining bindings by
-/// descending use, so the hottest local also lands on a short spelling.
-fn order_declarations<'src>(
-    tokens: &[Token<'src>],
-    resolution: &BindingResolution<'src>,
-    scope: usize,
-    uses: &HashMap<usize, Vec<usize>>,
-) -> Vec<(&'src str, usize, usize)> {
-    let Some((start, _, _)) = resolution
-        .function_scopes()
-        .into_iter()
-        .find(|(index, _, _)| *index == scope)
-        .map(|(_, start, end)| (start, end, ()))
-    else {
-        return Vec::new();
-    };
-    let parameter_end = tokens
-        .iter()
-        .enumerate()
-        .skip(start)
-        .find(|(_, token)| token.text == "{" || token.text == "=>")
-        .map_or(start, |(index, _)| index);
-    let mut declarations = resolution
-        .declarations(scope)
-        .into_iter()
-        .map(|(name, at)| {
-            let count = uses.get(&at).map_or(0, Vec::len);
-            let rank = if at <= parameter_end { at } else { usize::MAX };
-            (name, at, count, rank)
-        })
-        .collect::<Vec<_>>();
-    declarations.sort_by(|left, right| {
-        left.3
-            .cmp(&right.3)
-            .then_with(|| right.2.cmp(&left.2))
-            .then_with(|| left.1.cmp(&right.1))
-    });
-    declarations
-        .into_iter()
-        .map(|(name, at, count, _)| (name, at, count))
-        .collect()
-}
 
 /// The canonical spelling sequence: `a`..`z`, `A`..`Z`, `_`, `$`, then the
 /// two-character combinations. Kept here rather than borrowed from the IR
@@ -247,55 +185,7 @@ impl CanonicalNames {
     }
 }
 
-fn next_available(
-    canonical: &mut CanonicalNames,
-    escaping: &HashSet<&str>,
-    claimed: &HashSet<String>,
-    resolution: &BindingResolution<'_>,
-    scope: usize,
-    sites: &[usize],
-) -> Option<String> {
-    for _ in 0..64 {
-        let candidate = canonical.next_name();
-        if candidate.len() > 2 {
-            return None;
-        }
-        if escaping.contains(candidate.as_str()) || claimed.contains(&candidate) {
-            continue;
-        }
-        // A use sitting inside a nested scope that already declares the
-        // candidate would resolve to that inner binding once we rename.
-        if sites
-            .iter()
-            .any(|site| shadowed_between(resolution, *site, scope, &candidate))
-        {
-            continue;
-        }
-        return Some(candidate);
-    }
-    None
-}
 
-/// True when any scope from the use up to (but excluding) `scope` declares
-/// `name`, which would shadow a binding renamed to it.
-fn shadowed_between(
-    resolution: &BindingResolution<'_>,
-    site: usize,
-    scope: usize,
-    name: &str,
-) -> bool {
-    let mut current = Some(resolution.scope_index_at(site));
-    while let Some(index) = current {
-        if index == scope {
-            return false;
-        }
-        if resolution.scope_declares(index, name) {
-            return true;
-        }
-        current = resolution.parent_scope(index);
-    }
-    false
-}
 
 /// `.name` on a function or class is observable, so those bindings keep their
 /// spelling however hot they are.

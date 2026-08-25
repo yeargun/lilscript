@@ -3424,7 +3424,9 @@ fn inlines_single_use_if_assigns_into_the_call() {
     // P's initializer reads C, and C is reassigned before the call: the
     // binding must survive so the call still sees the pre-reassignment value.
     assert!(
-        optimized.code.contains("var P=i[3-C][2].disable") && optimized.code.contains("P,C,u"),
+        // The binding survives with its initializer; declaration merging may
+        // put another name ahead of it in the same `var`.
+        optimized.code.contains("P=i[3-C][2].disable") && optimized.code.contains("P,C,u"),
         "{}",
         optimized.code
     );

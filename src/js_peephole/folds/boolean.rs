@@ -1561,6 +1561,30 @@ pub(crate) fn fold_statement_or_assigns(
 /// `a=a||{},a.x=1` runs `a.x=1` even when `a` was already truthy. Every
 /// rewrite in `statement_or_assign_rewrite` therefore refuses a right-hand
 /// side that still contains a top-level comma.
+/// A right-hand side that binds looser than `||` has to keep its own
+/// parentheses. `a||(a=c?x:y)` folded to `a=a||c?x:y` reads as
+/// `a=((a||c)?x:y)`, which tests a different condition and always assigns.
+fn group_if_loose(rhs: &str, tokens: &[Token<'_>], start: usize, end: usize) -> String {
+    if binds_looser_than_or(tokens, start, end) {
+        format!("({rhs})")
+    } else {
+        rhs.to_string()
+    }
+}
+
+fn binds_looser_than_or(tokens: &[Token<'_>], start: usize, end: usize) -> bool {
+    let mut depth = 0i32;
+    for token in tokens.iter().take(end).skip(start) {
+        match token.text {
+            "(" | "[" | "{" => depth += 1,
+            ")" | "]" | "}" => depth -= 1,
+            "?" if depth == 0 => return true,
+            _ => {}
+        }
+    }
+    false
+}
+
 fn spans_top_level_comma(tokens: &[Token<'_>], start: usize, end: usize) -> bool {
     let mut depth = 0i32;
     for token in tokens.iter().take(end).skip(start) {
@@ -1595,6 +1619,7 @@ fn statement_or_assign_rewrite(
             && !spans_top_level_comma(tokens, cursor + 6, close)
         {
             let rhs = &source[tokens[cursor + 6].start..tokens[close].start];
+            let rhs = &group_if_loose(rhs, tokens, cursor + 6, close);
             let end_at = if tokens.get(close + 1).map(|token| token.text) == Some(";") {
                 close + 1
             } else {
@@ -1620,6 +1645,7 @@ fn statement_or_assign_rewrite(
             && !spans_top_level_comma(tokens, cursor + 5, close)
         {
             let rhs = &source[tokens[cursor + 5].start..tokens[close].start];
+            let rhs = &group_if_loose(rhs, tokens, cursor + 5, close);
             let end_at = if tokens.get(close + 1).map(|token| token.text) == Some(";") {
                 close + 1
             } else {
@@ -1657,6 +1683,7 @@ fn statement_or_assign_rewrite(
             return None;
         }
         let rhs = &source[tokens[after + 2].start..tokens[semi].start];
+        let rhs = &group_if_loose(rhs, tokens, after + 2, semi);
         return Some((
             tokens[cursor].start,
             tokens[semi].end,
@@ -1684,6 +1711,7 @@ fn statement_or_assign_rewrite(
             return None;
         }
         let rhs = &source[tokens[after + 3].start..tokens[semi].start];
+        let rhs = &group_if_loose(rhs, tokens, after + 3, semi);
         return Some((
             tokens[cursor].start,
             tokens[block_close].end,
@@ -1716,6 +1744,7 @@ fn statement_or_assign_rewrite(
         return None;
     }
     let rhs = &source[tokens[after + 4].start..tokens[first_semi].start];
+    let rhs = &group_if_loose(rhs, tokens, after + 4, first_semi);
     Some((
         tokens[cursor].start,
         tokens[block_close].end,
@@ -2991,6 +3020,19 @@ mod tests {
             assert_eq!(count, 0, "rewrote a comma sequence: {out}");
             assert_eq!(out, source);
         }
+    }
+
+    /// A ternary binds looser than `||`, so it keeps its parentheses. Without
+    /// them `a||(a=c?x:y)` folds to `a=a||c?x:y`, which reads as
+    /// `a=((a||c)?x:y)`: a different condition, and an assignment that always
+    /// happens.
+    #[test]
+    fn or_assign_parenthesizes_a_looser_right_hand_side() {
+        let (out, count) =
+            fold_statement_or_assigns("function f(m){var a=p(m);a||(a=q(m)?r(m):s(m));return a}")
+                .unwrap();
+        assert_eq!(count, 1, "{out}");
+        assert!(out.contains("a=a||(q(m)?r(m):s(m))"), "{out}");
     }
 
     /// The single-expression forms still fold; the comma guard must not turn
