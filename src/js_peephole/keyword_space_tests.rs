@@ -1178,7 +1178,10 @@ fn drops_void_undefined_before_an_immediate_reassign() {
         optimize_generated_javascript("function f(){var e=()=>1,a=void 0;a={n:e};return a}")
             .unwrap();
     assert!(
-        comma.code.contains("a={n:") && !comma.code.contains("void 0"),
+        // Same invariant as above: the dead `void 0` store is gone and the
+        // object still gets built. Whether the temporary survives to carry it
+        // is not the point -- `return{n:e}` is the stronger result.
+        comma.code.contains("{n:e}") && !comma.code.contains("void 0"),
         "{}",
         comma.code
     );

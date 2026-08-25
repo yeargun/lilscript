@@ -1,21 +1,25 @@
+mod bodies;
 mod boolean;
 mod calls;
 mod classes;
 mod control;
 mod copies;
 mod declarations;
+pub(crate) mod inline;
 mod integers;
 mod loops;
 mod returns;
 mod members;
 mod syntax;
 
+pub(crate) use bodies::*;
 pub(crate) use boolean::*;
 pub(crate) use calls::*;
 pub(crate) use classes::*;
 pub(crate) use control::*;
 pub(crate) use copies::*;
 pub(crate) use declarations::*;
+pub(crate) use inline::*;
 pub(crate) use integers::*;
 pub(crate) use loops::*;
 pub(crate) use returns::*;

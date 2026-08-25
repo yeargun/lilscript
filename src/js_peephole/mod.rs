@@ -17,6 +17,7 @@ use crate::js_peephole::scope::{
 use crate::js_peephole::token::{lex, matching_closers, validate_delimiters, Token, TokenKind};
 
 mod folds;
+pub(crate) use folds::{fold_expression_bodies, inline_single_use_functions};
 mod binding;
 mod parse;
 mod rename;

@@ -29,7 +29,7 @@ use crate::js_peephole::binding::{BindingResolution, Resolution};
 use crate::js_peephole::rewrite::{apply_token_rewrites, is_property_identifier};
 use crate::js_peephole::token::{lex, Token, TokenKind};
 use crate::js_peephole::JavaScriptParseError;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 pub(crate) fn converge_local_names(source: &str) -> Result<(String, usize), JavaScriptParseError> {
     let tokens = lex(source)?;

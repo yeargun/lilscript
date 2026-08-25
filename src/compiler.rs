@@ -29,7 +29,9 @@ use crate::js_peephole::{
     function_leading_declaration_variant, function_local_binding_swap_variants,
     identifier_name_is_clear_binding, late_generated_javascript_cleanup,
     late_generated_javascript_cleanup_local_variants, late_generated_javascript_cleanup_pass,
-    converge_local_names, optimize_generated_javascript, remap_identifier,
+    converge_local_names, fold_expression_bodies, inline_single_use_functions,
+    optimize_generated_javascript,
+    remap_identifier,
     remap_single_character_identifiers,
     repair_fused_keyword_identifiers, single_character_identifier_use_counts,
     single_character_identifiers, single_character_name_is_clear_binding,
@@ -8409,6 +8411,104 @@ fn apply_late_javascript_cleanup(
                     code: converged,
                     cost,
                 });
+            }
+        }
+    }
+    // A function bound once and read once costs a declarator for nothing: no
+    // second reference shares the name, and creating a function is pure, so the
+    // literal can move to the site that reads it. The move is not free in
+    // compressed bytes -- a `var X=` prefix repeats well and a lone arrow body
+    // may not -- so it is scored like every other spelling rather than assumed.
+    //
+    // Moving the literal drops the name JavaScript infers from the binding, so
+    // this runs only where identifier mangling is already in force. That is not
+    // a loophole but the same policy applied once: a build that mangles has
+    // already replaced every inferred name with a generated one, and no program
+    // can depend on `f.name` being `"B"` rather than `"Deferred"`. A build that
+    // asks for stable identifiers keeps its declarators.
+    if config.js_options().mangle_identifiers {
+        let sources = beam.clone();
+        for candidate in sources {
+            if !codec_budget.reserve_work_unit() {
+                break;
+            }
+            // One move can expose the next: a list that loses its last function
+            // declarator leaves a statement the ordinary passes can fold.
+            let mut inlined = candidate.code.clone();
+            let mut moved = 0usize;
+            for _ in 0..4 {
+                let Ok((next, count)) = inline_single_use_functions(&inlined) else {
+                    break;
+                };
+                if count == 0 || next == inlined {
+                    break;
+                }
+                inlined = next;
+                moved += count;
+            }
+            if moved == 0 || inlined == candidate.code {
+                continue;
+            }
+            // The result is offered as it stands. Running the ordinary passes
+            // here was measured as a loss: they buy raw bytes by specializing
+            // shapes, and on jQuery that turned a 33-byte Brotli win into 16.
+            // The cleanup rounds below still reach this candidate if those
+            // passes help it.
+            let code = repair_late_javascript_candidate(inlined);
+            if analyze_generated_javascript(&code).is_err()
+                || beam.iter().any(|existing| existing.code == code)
+            {
+                continue;
+            }
+            let Some(cost) =
+                codec_budget.compressed_size(code.as_bytes(), config.javascript.cost_model)?
+            else {
+                continue;
+            };
+            if cost < candidate.cost {
+                beam.push(CleanupCandidate { code, cost });
+            }
+        }
+    }
+    // Braces and `return` around a body that is only expressions are syntax
+    // spent on nothing: `()=>{q();return v}` says what `()=>(q(),v)` says in
+    // six fewer bytes, and the sequence form is one shape where the block form
+    // was several. Scored, because a shape that repeats can beat a shape that
+    // is short.
+    {
+        let sources = beam.clone();
+        for candidate in sources {
+            if !codec_budget.reserve_work_unit() {
+                break;
+            }
+            let mut folded = candidate.code.clone();
+            let mut moved = 0usize;
+            for _ in 0..4 {
+                let Ok((next, count)) = fold_expression_bodies(&folded) else {
+                    break;
+                };
+                if count == 0 || next == folded {
+                    break;
+                }
+                folded = next;
+                moved += count;
+            }
+            if moved == 0 || folded == candidate.code {
+                continue;
+            }
+            let code = repair_late_javascript_candidate(folded);
+            if analyze_generated_javascript(&code).is_err()
+                || beam.iter().any(|existing| existing.code == code)
+            {
+                continue;
+            }
+            let Some(cost) =
+                codec_budget.compressed_size(code.as_bytes(), config.javascript.cost_model)?
+            else {
+                continue;
+            };
+            if cost < candidate.cost {
+                beam.push(CleanupCandidate { code, cost });
             }
         }
     }

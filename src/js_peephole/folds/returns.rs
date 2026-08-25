@@ -14,6 +14,7 @@
 //! reassigned anywhere else fails that test and keeps its variable.
 
 use crate::js_peephole::binding::{BindingResolution, Resolution};
+use crate::js_peephole::folds::inline::declarator_list;
 use crate::js_peephole::rewrite::apply_token_rewrites;
 use crate::js_peephole::token::{lex, matching_closers, Token, TokenKind};
 use crate::js_peephole::JavaScriptParseError;
@@ -54,7 +55,7 @@ pub(crate) fn fold_returned_temporaries(
         let Some(statement) = preceding_statement(&tokens, &matching_close, index) else {
             continue;
         };
-        let Some(store) = store_shape(&tokens, statement, index) else {
+        let Some(store) = store_shape(&tokens, &matching_close, statement, index) else {
             continue;
         };
         // The store must target the very binding being returned. Checking the
@@ -83,42 +84,68 @@ pub(crate) fn fold_returned_temporaries(
         replacements.push((
             tokens[store.start].start,
             tokens[index + 1].end,
-            format!("return {value}"),
+            format!("{}return {value}", store.prefix),
         ));
     }
     Ok(apply_token_rewrites(source, replacements))
 }
 
 struct Store {
-    /// First token of the statement to absorb.
+    /// First token of the text to absorb.
     start: usize,
     /// The assigned name's token.
     name: usize,
     /// First token of the assigned expression.
     value: usize,
+    /// Text to put back before the `return`. A declarator taken out of the
+    /// middle of a list leaves the list needing its own terminator.
+    prefix: &'static str,
 }
 
-/// `NAME=…` or `var NAME=…` occupying the whole statement before the return.
-fn store_shape(tokens: &[Token<'_>], statement: usize, return_at: usize) -> Option<Store> {
-    let mut cursor = statement;
-    if matches!(tokens[cursor].text, "var" | "let") {
-        cursor += 1;
+/// The store the return can absorb: `NAME=…` or `var NAME=…` filling the whole
+/// statement, or the last declarator of a list -- `var a=…,b=…;return b`, which
+/// is what lowering emits whenever a function computes into one slot and hands
+/// it back.
+fn store_shape(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    statement: usize,
+    return_at: usize,
+) -> Option<Store> {
+    // The statement must end right where the return begins, so nothing else
+    // runs between the store and the return.
+    if return_at == 0 || tokens[return_at - 1].text != ";" {
+        return None;
     }
+    if matches!(tokens[statement].text, "var" | "let" | "const") {
+        let list = declarator_list(tokens, matching_close, statement)?;
+        let (position, last) = list.iter().enumerate().next_back()?;
+        let (value, _) = last.value?;
+        // Only the last declarator is adjacent to the return; an earlier one
+        // has declarators after it that would have to move too.
+        return Some(if position == 0 {
+            Store { start: statement, name: last.name, value, prefix: "" }
+        } else {
+            Store {
+                start: list[position - 1].close,
+                name: last.name,
+                value,
+                prefix: ";",
+            }
+        });
+    }
+    let cursor = statement;
     if tokens.get(cursor)?.kind != TokenKind::Identifier {
         return None;
     }
     if tokens.get(cursor + 1)?.text != "=" || tokens.get(cursor + 2)?.text == "=" {
         return None;
     }
-    // The statement must end right where the return begins, so nothing else
-    // runs between the store and the return.
-    if return_at == 0 || tokens[return_at - 1].text != ";" {
-        return None;
-    }
     Some(Store {
         start: statement,
         name: cursor,
         value: cursor + 2,
+        prefix: "",
     })
 }
 
@@ -534,5 +561,98 @@ mod collapse_tests {
             "function f(e,t){var a=e.x||t;return a?a:0}",
             "console.log(f({x:0},5),f({x:2},5))",
         );
+    }
+}
+
+#[cfg(test)]
+mod declarator_list_tests {
+    use super::fold_returned_temporaries;
+
+    fn run(source: &str) -> String {
+        let output = std::process::Command::new("node")
+            .arg("-e")
+            .arg(source)
+            .output()
+            .expect("node must execute generated JavaScript");
+        assert!(
+            output.status.success(),
+            "node failed:\n{}\nsource:\n{source}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        String::from_utf8(output.stdout).expect("node stdout must be UTF-8")
+    }
+
+    fn same_behavior(source: &str, harness: &str) {
+        let (folded, _) = fold_returned_temporaries(source).unwrap();
+        assert_eq!(
+            run(&format!("{source}\n{harness}")),
+            run(&format!("{folded}\n{harness}")),
+            "diverged\n{folded}"
+        );
+    }
+
+    /// The shape lowering emits whenever a function computes into one slot and
+    /// returns it, with earlier slots still live.
+    #[test]
+    fn the_last_declarator_of_a_list_moves_into_the_return() {
+        let (out, _) =
+            fold_returned_temporaries("function f(e){var t=e.length,n=t>0&&t-1 in e;return n}")
+                .unwrap();
+        assert_eq!(out, "function f(e){var t=e.length;return t>0&&t-1 in e}", "{out}");
+    }
+
+    #[test]
+    fn a_lone_declarator_still_takes_the_whole_statement() {
+        let (out, _) = fold_returned_temporaries("function f(e){var n=e.length;return n}").unwrap();
+        assert_eq!(out, "function f(e){return e.length}", "{out}");
+    }
+
+    /// Only the last declarator is adjacent to the return. Moving an earlier
+    /// one would jump the declarators that follow it.
+    #[test]
+    fn an_earlier_declarator_stays_put() {
+        let source = "function f(e){var n=e.length,t=1;return n}";
+        let (out, count) = fold_returned_temporaries(source).unwrap();
+        assert_eq!(count, 0, "{out}");
+        assert_eq!(out, source);
+    }
+
+    #[test]
+    fn a_binding_read_again_stays_put() {
+        let source = "function f(e){var t=1,n=e.x;g(n);return n}";
+        let (out, count) = fold_returned_temporaries(source).unwrap();
+        assert_eq!(count, 0, "{out}");
+        assert_eq!(out, source);
+    }
+
+    #[test]
+    fn a_binding_captured_by_a_closure_stays_put() {
+        let source = "function f(e){var t=1,n=e.x;t=()=>n;return n}";
+        let (out, count) = fold_returned_temporaries(source).unwrap();
+        assert_eq!(count, 0, "{out}");
+        assert_eq!(out, source);
+    }
+
+    #[test]
+    fn earlier_declarators_keep_running() {
+        same_behavior(
+            "var log=[];function f(){var a=(log.push('a'),1),b=(log.push('b'),a+1);return b}",
+            "console.log(f(),log.join(''))",
+        );
+    }
+
+    #[test]
+    fn three_declarators_keep_the_first_two() {
+        let (out, _) =
+            fold_returned_temporaries("function f(e){var a=1,b=2,c=a+b;return c}").unwrap();
+        assert_eq!(out, "function f(e){var a=1,b=2;return a+b}", "{out}");
+    }
+
+    #[test]
+    fn a_bare_last_declarator_has_nothing_to_move() {
+        let source = "function f(e){var a=1,c;return c}";
+        let (out, count) = fold_returned_temporaries(source).unwrap();
+        assert_eq!(count, 0, "{out}");
+        assert_eq!(out, source);
     }
 }
