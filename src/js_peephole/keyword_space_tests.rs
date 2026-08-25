@@ -1110,6 +1110,37 @@ fn preserves_prototype_tostring_lookup_and_evaluation_points() {
 }
 
 #[test]
+fn object_prototype_tostring_cache_does_not_capture_later_module_binding() {
+    let source = concat!(
+        r#"function Y(d){let a=Object.prototype;a=a.toString;return a.call(d)+""}"#,
+        r#"function W(d){return "[object String]"==Y(d)}"#,
+        r#"let cb=(()=>{var a;a=class Foo{constructor(){}};return a})();"#,
+        r#"let a=(0,function(){return 1});"#,
+        r#"console.log([Y({}),Y("x"),W("x"),W({})].join("|"))"#,
+    );
+    let optimized = optimize_generated_javascript(source).unwrap();
+    let late = late_generated_javascript_cleanup(source).unwrap();
+    assert_eq!(run_node(source).trim(), "[object Object]|[object String]|true|false");
+    assert_eq!(
+        run_node(&optimized.code).trim(),
+        "[object Object]|[object String]|true|false",
+        "{}",
+        optimized.code
+    );
+    assert_eq!(
+        run_node(&late).trim(),
+        "[object Object]|[object String]|true|false",
+        "{late}"
+    );
+    assert!(
+        optimized.code.contains("Object.prototype")
+            || late.contains("Object.prototype"),
+        "cache must keep Object.prototype:\n{}\n{late}",
+        optimized.code
+    );
+}
+
+#[test]
 fn preserves_repeated_member_assignment_order() {
     let optimized = optimize_generated_javascript("k={};j.fn=k;j.prototype=k;j.extend=c").unwrap();
     assert!(

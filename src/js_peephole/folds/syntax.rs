@@ -308,3 +308,36 @@ fn comma_is_directly_inside_enclosing_block(
     }
     parens == 0 && brackets == 0 && braces == 0
 }
+
+/// A regex literal alone in statement position evaluates to a fresh `RegExp`
+/// and discards it: no user code runs, so the statement has no effect. The
+/// shape is left behind when a single-use regex binding is rematerialized at
+/// its use site but its declaration is consumed by a different fold first, and
+/// it costs the whole pattern's bytes twice.
+pub(crate) fn drop_pure_regex_expression_statements(
+    source: &str,
+) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+    for (index, token) in tokens.iter().enumerate() {
+        if token.kind != TokenKind::Regex {
+            continue;
+        }
+        let starts_statement = match index.checked_sub(1) {
+            None => true,
+            Some(previous) => matches!(tokens[previous].text, ";" | "}"),
+        };
+        if !starts_statement {
+            continue;
+        }
+        // Only a bare literal, never the head of a member or call chain.
+        let Some(next) = tokens.get(index + 1) else {
+            continue;
+        };
+        if next.text != ";" {
+            continue;
+        }
+        replacements.push((token.start, next.end, String::new()));
+    }
+    Ok(apply_token_rewrites(source, replacements))
+}

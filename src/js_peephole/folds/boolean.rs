@@ -701,6 +701,14 @@ pub(crate) fn fold_assigned_truthy_ternaries(
         {
             continue;
         }
+        // `(name=EXPR)?name:FALLBACK` folds to `EXPR||FALLBACK` only when the
+        // parenthesized assignment is the *whole* ternary condition. In
+        // `"string"==typeof e&&""!=(e=e.trim())?e:null` the group is an operand
+        // of `!=`, the condition's value is a boolean, and folding returns
+        // `true` where the source returned the trimmed string.
+        if !condition_starts_at(&tokens, open) {
+            continue;
+        }
         let Some(close) = matching_close.get(open).copied().flatten() else {
             continue;
         };
@@ -730,6 +738,19 @@ pub(crate) fn fold_assigned_truthy_ternaries(
     }
     let (output, count) = apply_token_rewrites(source, replacements);
     Ok((output, count))
+}
+
+/// True when a parenthesized group at `open` begins a fresh expression rather
+/// than continuing one. Anything else -- an operator, `typeof`, `!` -- means
+/// the group is an operand and its value is not the enclosing expression's.
+fn condition_starts_at(tokens: &[Token<'_>], open: usize) -> bool {
+    match open.checked_sub(1) {
+        None => true,
+        Some(previous) => matches!(
+            tokens[previous].text,
+            "return" | "=" | "(" | "[" | "," | ";" | "{" | "}" | ":" | "?" | "=>"
+        ),
+    }
 }
 
 fn complete_primary_end(tokens: &[Token<'_>], start: usize) -> Option<usize> {
@@ -1535,6 +1556,24 @@ pub(crate) fn fold_statement_or_assigns(
     Ok(apply_token_rewrites(source, replacements))
 }
 
+/// `a=a||RHS` only guards `RHS` when `RHS` is a single expression. A comma
+/// sequence binds looser than `||`, so folding `!a&&(a={},a.x=1)` into
+/// `a=a||{},a.x=1` runs `a.x=1` even when `a` was already truthy. Every
+/// rewrite in `statement_or_assign_rewrite` therefore refuses a right-hand
+/// side that still contains a top-level comma.
+fn spans_top_level_comma(tokens: &[Token<'_>], start: usize, end: usize) -> bool {
+    let mut depth = 0i32;
+    for token in tokens.iter().take(end).skip(start) {
+        match token.text {
+            "(" | "[" | "{" => depth += 1,
+            ")" | "]" | "}" => depth -= 1,
+            "," if depth == 0 => return true,
+            _ => {}
+        }
+    }
+    false
+}
+
 fn statement_or_assign_rewrite(
     source: &str,
     tokens: &[Token<'_>],
@@ -1553,6 +1592,7 @@ fn statement_or_assign_rewrite(
         if tokens.get(cursor + 4).map(|token| token.text) == Some(name)
             && tokens.get(cursor + 5).map(|token| token.text) == Some("=")
             && statement_follows_paren(tokens, close)
+            && !spans_top_level_comma(tokens, cursor + 6, close)
         {
             let rhs = &source[tokens[cursor + 6].start..tokens[close].start];
             let end_at = if tokens.get(close + 1).map(|token| token.text) == Some(";") {
@@ -1577,6 +1617,7 @@ fn statement_or_assign_rewrite(
         if tokens.get(cursor + 3).map(|token| token.text) == Some(name)
             && tokens.get(cursor + 4).map(|token| token.text) == Some("=")
             && statement_follows_paren(tokens, close)
+            && !spans_top_level_comma(tokens, cursor + 5, close)
         {
             let rhs = &source[tokens[cursor + 5].start..tokens[close].start];
             let end_at = if tokens.get(close + 1).map(|token| token.text) == Some(";") {
@@ -1610,7 +1651,9 @@ fn statement_or_assign_rewrite(
         && tokens.get(after + 1).map(|token| token.text) == Some("=")
     {
         let semi = top_level_stop(tokens, after + 2, &[";"])?;
-        if tokens.get(semi + 1).map(|token| token.text) == Some("else") {
+        if tokens.get(semi + 1).map(|token| token.text) == Some("else")
+            || spans_top_level_comma(tokens, after + 2, semi)
+        {
             return None;
         }
         let rhs = &source[tokens[after + 2].start..tokens[semi].start];
@@ -1637,7 +1680,7 @@ fn statement_or_assign_rewrite(
         } else {
             semi
         };
-        if after_assign != block_close {
+        if after_assign != block_close || spans_top_level_comma(tokens, after + 3, semi) {
             return None;
         }
         let rhs = &source[tokens[after + 3].start..tokens[semi].start];
@@ -1669,7 +1712,7 @@ fn statement_or_assign_rewrite(
     } else {
         first_semi + 4
     };
-    if after_copy != block_close {
+    if after_copy != block_close || spans_top_level_comma(tokens, after + 4, first_semi) {
         return None;
     }
     let rhs = &source[tokens[after + 4].start..tokens[first_semi].start];
@@ -2890,4 +2933,95 @@ pub(crate) fn fold_not_gt_zero_length(
         cursor += 6;
     }
     Ok(apply_token_rewrites(source, replacements))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::fold_statement_or_assigns;
+
+    /// `||` binds tighter than `,`, so the guarded body of
+    /// `!m&&(m={},m.handled=!0,m.type="generic")` cannot become the right-hand
+    /// side of `m=m||…`: the property stores would run even when `m` was
+    /// already truthy, overwriting a caller-supplied object. Every shape this
+    /// fold recognizes has to refuse a comma sequence.
+    /// `(e=e.trim())?e:null` may become `e.trim()||null` because the condition's
+    /// value *is* `e`. Once the assignment is only an operand -- `""!=(e=e.trim())`
+    /// -- the condition evaluates to a boolean and the fold would return `true`
+    /// where the source returned the string.
+    #[test]
+    fn assigned_truthy_ternary_needs_the_assignment_to_be_the_whole_condition() {
+        use super::fold_assigned_truthy_ternaries;
+        for source in [
+            r#"function W(e){return "string"==typeof e&&""!=(e=e.trim())?e:null}"#,
+            r#"function W(e){return ""!=(e=e.trim())?e:null}"#,
+            r#"function W(e){return !(e=e.trim())?e:null}"#,
+            r#"function W(e,t){return t+(e=e.trim())?e:null}"#,
+        ] {
+            let (out, count) = fold_assigned_truthy_ternaries(source).unwrap();
+            assert_eq!(count, 0, "folded an operand as if it were the condition: {out}");
+            assert_eq!(out, source);
+        }
+
+        for (source, expected) in [
+            (
+                r#"function W(e){return (e=e.trim())?e:null}"#,
+                r#"function W(e){return e.trim()||null}"#,
+            ),
+            (
+                r#"function W(e){var x=(e=e.trim())?e:null;return x}"#,
+                r#"function W(e){var x=e.trim()||null;return x}"#,
+            ),
+        ] {
+            let (out, count) = fold_assigned_truthy_ternaries(source).unwrap();
+            assert_eq!(count, 1, "{out}");
+            assert_eq!(out, expected);
+        }
+    }
+
+    #[test]
+    fn or_assign_refuses_comma_sequenced_right_hand_sides() {
+        for source in [
+            r#"function f(m){!m&&(m={},m.handled=!0,m.type="generic");return m}"#,
+            r#"function f(m){m||(m={},m.handled=!0,m.type="generic");return m}"#,
+            r#"function f(m){if(!m)m={},m.handled=!0;return m}"#,
+            r#"function f(m){if(!m){m={},m.handled=!0;}return m}"#,
+            r#"function f(m){if(!m){var t={},u=1;m=t;}return m}"#,
+        ] {
+            let (out, count) = fold_statement_or_assigns(source).unwrap();
+            assert_eq!(count, 0, "rewrote a comma sequence: {out}");
+            assert_eq!(out, source);
+        }
+    }
+
+    /// The single-expression forms still fold; the comma guard must not turn
+    /// the whole fold off.
+    #[test]
+    fn or_assign_still_folds_single_expression_right_hand_sides() {
+        for (source, expected) in [
+            (
+                r#"function f(m){!m&&(m={handled:!0});return m}"#,
+                r#"function f(m){m=m||{handled:!0};return m}"#,
+            ),
+            (
+                r#"function f(m){m||(m={handled:!0});return m}"#,
+                r#"function f(m){m=m||{handled:!0};return m}"#,
+            ),
+            (
+                r#"function f(m){if(!m)m={handled:!0};return m}"#,
+                r#"function f(m){m=m||{handled:!0};return m}"#,
+            ),
+            (
+                r#"function f(m){if(!m){m=g(1,2);}return m}"#,
+                r#"function f(m){m=m||g(1,2);return m}"#,
+            ),
+            (
+                r#"function f(m){if(!m){var t=g(1,2);m=t;}return m}"#,
+                r#"function f(m){m=m||g(1,2);return m}"#,
+            ),
+        ] {
+            let (out, count) = fold_statement_or_assigns(source).unwrap();
+            assert_eq!(count, 1, "{out}");
+            assert_eq!(out, expected);
+        }
+    }
 }

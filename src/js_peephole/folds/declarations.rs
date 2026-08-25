@@ -1267,6 +1267,9 @@ pub(crate) fn declare_implicit_assignment_bindings(
         }) {
             continue;
         }
+        if assignment_is_parameter_default(&tokens, &matching_close, at) {
+            continue;
+        }
         let comma_sequence_assignment = is_comma_sequence_assignment_target(&tokens, at);
         let statement_like = is_statement_boundary(&tokens, at)
             || is_bare_for_init_assignment(&tokens, at)
@@ -1322,6 +1325,61 @@ pub(crate) fn declare_implicit_assignment_bindings(
         declared.push((function_body, name));
     }
     Ok(apply_token_rewrites(source, replacements))
+}
+
+fn assignment_is_parameter_default(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    at: usize,
+) -> bool {
+    let mut cursor = at;
+    while let Some((open, close)) = enclosing_paren_span(tokens, matching_close, cursor) {
+        if paren_list_is_function_parameters(tokens, open, close) {
+            return true;
+        }
+        if open == 0 {
+            break;
+        }
+        cursor = open;
+    }
+    false
+}
+
+fn enclosing_paren_span(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    at: usize,
+) -> Option<(usize, usize)> {
+    let mut depth = 0i32;
+    let mut index = at;
+    while index > 0 {
+        index -= 1;
+        match tokens[index].text {
+            ")" | "]" | "}" => depth += 1,
+            "(" if depth == 0 => {
+                let close = matching_close.get(index).copied().flatten()?;
+                if close > at {
+                    return Some((index, close));
+                }
+            }
+            "(" | "[" | "{" => depth = depth.saturating_sub(1),
+            _ => {}
+        }
+    }
+    None
+}
+
+fn paren_list_is_function_parameters(tokens: &[Token<'_>], open: usize, close: usize) -> bool {
+    match tokens.get(close + 1).map(|token| token.text) {
+        Some("=>") => true,
+        Some("{") => !open.checked_sub(1).is_some_and(|before| {
+            matches!(
+                tokens[before].text,
+                "while" | "for" | "if" | "switch" | "catch" | "with"
+            )
+        }),
+        _ => false,
+    }
 }
 
 fn is_bare_for_init_assignment(tokens: &[Token<'_>], at: usize) -> bool {
@@ -1569,6 +1627,9 @@ fn prototype_alias_at<'a>(tokens: &'a [Token<'a>], cursor: usize) -> Option<Prot
     {
         return None;
     }
+    if is_host_prototype_owner(tokens[cursor + 2].text) {
+        return None;
+    }
     let after = cursor + 5;
     if !matches!(tokens.get(after).map(|token| token.text), Some("," | ";")) {
         return None;
@@ -1577,6 +1638,36 @@ fn prototype_alias_at<'a>(tokens: &'a [Token<'a>], cursor: usize) -> Option<Prot
         name: tokens[cursor].text,
         after,
     })
+}
+
+fn is_host_prototype_owner(name: &str) -> bool {
+    matches!(
+        name,
+        "Object"
+            | "Function"
+            | "Array"
+            | "String"
+            | "Number"
+            | "Boolean"
+            | "Symbol"
+            | "BigInt"
+            | "Promise"
+            | "Date"
+            | "Error"
+            | "Map"
+            | "Set"
+            | "WeakMap"
+            | "WeakSet"
+            | "WeakRef"
+            | "RegExp"
+            | "JSON"
+            | "Math"
+            | "Reflect"
+            | "Proxy"
+            | "Intl"
+            | "Atomics"
+            | "WebAssembly"
+    )
 }
 
 fn prototype_alias_is_live_before_rewrite(tokens: &[Token<'_>], start: usize, name: &str) -> bool {

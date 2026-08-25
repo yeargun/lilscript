@@ -415,7 +415,9 @@ fn validate_class_body_members(tokens: &[Token<'_>]) -> Result<(), JavaScriptPar
             if paren == 0
                 && bracket == 0
                 && brace == 0
-                && (tokens[index].text == "!" || class_body_has_dotted_method(tokens, index))
+                && (tokens[index].text == "!"
+                    || matches!(tokens[index].text, "var" | "let" | "const")
+                    || class_body_has_dotted_method(tokens, index))
             {
                 return Err(JavaScriptParseError {
                     offset: tokens[index].start,
@@ -1258,6 +1260,7 @@ fn optimize_generated_javascript_pass(
 
     let mut session = RewriteSession::new(apply_rewrites(source, &compound));
     session.rewrites += compound.len();
+    session.run(fold_value_binding_iife)?;
     session.run(fold_constructor_prototype_tables_to_classes)?;
     session.run(fold_indexed_arguments_to_formals)?;
     session.run(fold_undefined_defaults_into_formals)?;
@@ -1369,6 +1372,16 @@ fn optimize_generated_javascript_pass(
     session.run(fold_dead_pure_identifier_assigns)?;
     session.run(fold_unread_prototype_aliases)?;
     session.run(remove_unused_standalone_vars)?;
+    session.run(fold_or_empty_object_assign)?;
+    session.run(fold_named_class_identity)?;
+    session.run(rewrite_class_ctor_identity_to_new_target)?;
+    session.run(fold_value_binding_iife)?;
+    session.run(fold_undefined_defaults_into_formals)?;
+    session.run(drop_redundant_class_constructor_guards)?;
+    session.run(remove_unused_standalone_vars)?;
+    session.run(drop_orphaned_class_identity_guards)?;
+    session.run(hoist_async_arrow_method_bodies)?;
+    session.run(drop_pure_regex_expression_statements)?;
 
     let final_tokens = if session.rewrites == 0 {
         tokens

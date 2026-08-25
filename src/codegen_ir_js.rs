@@ -15491,6 +15491,14 @@ fn parse_single_assignment(output: &str) -> Option<(bool, &str, &str, &str)> {
             (&statement[..index], &statement[index..])
         })
     } else {
+        // A comma sequence is not a single assignment. Every caller splices
+        // `value` into an expression position -- `a=a||value`,
+        // `a=condition?value:other` -- where the tail of a sequence would run
+        // unconditionally. `!m&&(m={},m.handled=!0)` folded that way becomes
+        // `m=m||{},m.handled=!0`, which overwrites a caller-supplied `m`.
+        if split_top_level_comma(statement).is_some() {
+            return None;
+        }
         (statement, "")
     };
     let assignment = assignment_statement.find('=')?;
@@ -17149,6 +17157,15 @@ fn bind_rest_index_formals(
         formals.push(name);
     }
 
+    // Promotion changes only a subset of a coalesced name class. Validate the
+    // resulting JavaScript namespace, not just the individual IR stores: if a
+    // promoted formal would still be emitted as a local declaration, that
+    // declaration overwrites the argument before its first read. Keep a
+    // complete snapshot so the optimization can fail closed to `arguments[i]`.
+    let original_value_names = context.value_names.clone();
+    let original_local_names = context.local_names.clone();
+    let original_parameter_values = context.parameter_values.clone();
+    let original_declared_names = context.declared_names.borrow().clone();
     for (dest, slot) in &index_dests {
         if let Some(name) = formals.get(*slot) {
             context.value_names.insert(*dest, name.clone());
@@ -17168,6 +17185,25 @@ fn bind_rest_index_formals(
     context.rest_argument_local = Some(identity.local);
     context.rest_argument_values = identity.values;
     context.rest_formal_names = formals;
+    let promoted_names = context
+        .rest_formal_names
+        .iter()
+        .map(String::as_str)
+        .collect::<AHashSet<_>>();
+    if context
+        .non_parameter_names(function)
+        .into_iter()
+        .any(|name| promoted_names.contains(name))
+    {
+        context.value_names = original_value_names;
+        context.local_names = original_local_names;
+        context.parameter_values = original_parameter_values;
+        *context.declared_names.borrow_mut() = original_declared_names;
+        context.rest_argument_value = None;
+        context.rest_argument_local = None;
+        context.rest_argument_values.clear();
+        context.rest_formal_names.clear();
+    }
 }
 
 fn render_arrow_parameters(
@@ -26225,6 +26261,57 @@ inspect(JS.call(valueCase,null));
     }
 
     #[test]
+    fn promoted_rest_formals_do_not_split_coalesced_default_locals() {
+        let output = compile_with_options(
+            r#"
+                extern void keep(JsValue value);
+                JsValue normalize(JsValue value) {
+                    if (JS.isNullish(value)) {
+                        return JS.object();
+                    }
+                    return value;
+                }
+                JsValue callback = JS.methodRest((JsValue _self, JsValue args) => {
+                    JsValue options = normalize(JS.undefined());
+                    if (JS.number(args["length"]).toInt() > 1) {
+                        options = normalize(args[1]);
+                    }
+                    JsValue value = JS.undefined();
+                    if (JS.number(args["length"]).toInt() > 0) {
+                        value = args[0];
+                    }
+                    options["seen"] = value;
+                    return value;
+                });
+                keep(callback);
+            "#,
+            IrJsOptions {
+                mangle_identifiers: true,
+                cross_scope_name_reuse: true,
+                transitive_nested_shadowing: true,
+                local_name_reserve: 12,
+                pool_strings: false,
+                pool_numeric_literals: true,
+                elide_safe_integer_coercions: false,
+                elide_length_tonumber: true,
+                elide_new_parentheses: false,
+                pack_string_arrays: false,
+                nested_once_run_helpers: true,
+                local_phi_expression_regions: false,
+                phi_edge_value_forwarding: false,
+                function_spelling: FunctionSpelling::Arrow,
+                public_function_arrows: true,
+                alias_array_prototype_methods: false,
+                ..IrJsOptions::default()
+            },
+        );
+        let trace = run_javascript(&format!(
+            "let callback;function keep(value){{callback=value}};{output};let options={{}};process.stdout.write([callback(7,options),options.seen].join(':'))"
+        ));
+        assert_eq!(trace, "7:7", "{output}");
+    }
+
+    #[test]
     fn precise_shadowing_does_not_let_host_locals_steal_nested_helper_names() {
         let options = IrJsOptions {
             mangle_identifiers: true,
@@ -27597,6 +27684,106 @@ install();
         assert!(
             transitive_public_class.contains(".value"),
             "{transitive_public_class}"
+        );
+    }
+
+    #[test]
+    fn dissolves_monaco_style_exported_position_classes() {
+        let readable = IrJsOptions {
+            mangle_identifiers: false,
+            mangle_properties: false,
+            ..IrJsOptions::default()
+        };
+        let source = r#"
+export class TextPos {
+  int lineNumber;
+  int column;
+  init(int lineNumber, int column) {
+    this.lineNumber = lineNumber;
+    this.column = column;
+  }
+}
+export class TextRange {
+  int startLineNumber;
+  int startColumn;
+  int endLineNumber;
+  int endColumn;
+}
+export TextPos createTextPos(int lineNumber, int column) {
+  return new TextPos(lineNumber, column);
+}
+export int columnOf(TextPos pos) {
+  return pos.column;
+}
+export bool posBefore(TextPos a, TextPos b) {
+  if (a.lineNumber < b.lineNumber) {
+    return true;
+  }
+  if (a.lineNumber > b.lineNumber) {
+    return false;
+  }
+  return a.column < b.column;
+}
+"#;
+        let output = compile_module_with_options(source, readable);
+        assert!(
+            !output.contains("class "),
+            "exported Monaco-style classes stay dissolved: {output}"
+        );
+        assert!(output.contains(".column"), "{output}");
+        assert!(output.contains(".lineNumber"), "{output}");
+        let peepholed = crate::js_peephole::optimize_generated_javascript(&output)
+            .expect("dissolved class javascript parses");
+        assert!(
+            !peepholed.code.contains("class "),
+            "peephole must not reintroduce ES class for identity-unobserved instances: {}",
+            peepholed.code
+        );
+    }
+
+    #[test]
+    fn dissolves_internal_scale_class_without_es_class() {
+        let readable = IrJsOptions {
+            mangle_identifiers: false,
+            mangle_properties: false,
+            ..IrJsOptions::default()
+        };
+        let source = r#"
+class Scale {
+  int factor;
+  init(int factor) {
+    this.factor = factor;
+  }
+  int apply(int value) {
+    return value * this.factor;
+  }
+}
+Scale scale = new Scale(3);
+int total = 0;
+for (int i = 1; i <= 8; i++) {
+  total += scale.apply(i);
+}
+print(total);
+print(scale.factor);
+"#;
+        let output = compile_with_options(source, readable);
+        assert_eq!(run_javascript(&output).trim(), "108\n3", "{output}");
+        assert!(
+            !output.contains("class "),
+            "internal class-scale must dissolve: {output}"
+        );
+        let peepholed = crate::js_peephole::optimize_generated_javascript(&output)
+            .expect("internal class javascript parses");
+        assert_eq!(
+            run_javascript(&peepholed.code).trim(),
+            "108\n3",
+            "{}",
+            peepholed.code
+        );
+        assert!(
+            !peepholed.code.contains("class "),
+            "peephole must not emit ES class for a closed Scale: {}",
+            peepholed.code
         );
     }
 

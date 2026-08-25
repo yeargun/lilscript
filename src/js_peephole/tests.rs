@@ -973,6 +973,20 @@ fn permits_a_computed_false_class_method() {
 }
 
 #[test]
+fn rejects_a_var_declaration_in_a_class_body() {
+    let error = analyze_generated_javascript(
+        "class C{var j;constructor(c,d,j=[]){this.x=j}buildFromUnknown(j,m={}){return m}}",
+    )
+    .unwrap_err();
+    assert!(
+        error
+            .to_string()
+            .contains("invalid generated class element"),
+        "{error}"
+    );
+}
+
+#[test]
 fn rejects_a_declaration_in_a_for_update_clause() {
     let error = analyze_generated_javascript(
         "function each(r,n){for(var t=r.values();!t.next().done;var e;)r.call(n,e.value)}",
@@ -1897,6 +1911,28 @@ fn implicit_binding_index_localizes_sibling_and_unbound_assignments() {
         "{unbound_out}"
     );
     analyze_generated_javascript(&unbound_out).unwrap();
+}
+
+#[test]
+fn does_not_declare_parameter_defaults_as_implicit_bindings() {
+    let class_source = "class ErrorPropertiesBuilder{constructor(c,d,j=[]){this.modifiers=j}buildFromUnknown(j,m={}){return m}}";
+    let (class_out, class_rewrites) =
+        super::folds::declare_implicit_assignment_bindings(class_source).unwrap();
+    assert_eq!(class_rewrites, 0, "{class_out}");
+    assert_eq!(class_out, class_source);
+    analyze_generated_javascript(&class_out).unwrap();
+
+    let first_param = "function create(j=[]){return j}";
+    let (first_out, first_rewrites) =
+        super::folds::declare_implicit_assignment_bindings(first_param).unwrap();
+    assert_eq!(first_rewrites, 0, "{first_out}");
+    assert_eq!(first_out, first_param);
+
+    let assignment_in_if = "function run(x){if(y=x)return y;return 0}";
+    let (if_out, if_rewrites) =
+        super::folds::declare_implicit_assignment_bindings(assignment_in_if).unwrap();
+    assert_eq!(if_rewrites, 1, "{if_out}");
+    assert!(if_out.contains("var y"), "{if_out}");
 }
 
 #[test]
