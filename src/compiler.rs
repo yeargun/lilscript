@@ -29,8 +29,7 @@ use crate::js_peephole::{
     function_leading_declaration_variant, function_local_binding_swap_variants,
     identifier_name_is_clear_binding, late_generated_javascript_cleanup,
     late_generated_javascript_cleanup_local_variants, late_generated_javascript_cleanup_pass,
-    converge_local_names, fold_expression_bodies, inline_single_use_functions,
-    optimize_generated_javascript,
+    converge_local_names, inline_single_use_functions, optimize_generated_javascript,
     remap_identifier,
     remap_single_character_identifiers,
     repair_fused_keyword_identifiers, single_character_identifier_use_counts,
@@ -8455,48 +8454,6 @@ fn apply_late_javascript_cleanup(
             // The cleanup rounds below still reach this candidate if those
             // passes help it.
             let code = repair_late_javascript_candidate(inlined);
-            if analyze_generated_javascript(&code).is_err()
-                || beam.iter().any(|existing| existing.code == code)
-            {
-                continue;
-            }
-            let Some(cost) =
-                codec_budget.compressed_size(code.as_bytes(), config.javascript.cost_model)?
-            else {
-                continue;
-            };
-            if cost < candidate.cost {
-                beam.push(CleanupCandidate { code, cost });
-            }
-        }
-    }
-    // Braces and `return` around a body that is only expressions are syntax
-    // spent on nothing: `()=>{q();return v}` says what `()=>(q(),v)` says in
-    // six fewer bytes, and the sequence form is one shape where the block form
-    // was several. Scored, because a shape that repeats can beat a shape that
-    // is short.
-    {
-        let sources = beam.clone();
-        for candidate in sources {
-            if !codec_budget.reserve_work_unit() {
-                break;
-            }
-            let mut folded = candidate.code.clone();
-            let mut moved = 0usize;
-            for _ in 0..4 {
-                let Ok((next, count)) = fold_expression_bodies(&folded) else {
-                    break;
-                };
-                if count == 0 || next == folded {
-                    break;
-                }
-                folded = next;
-                moved += count;
-            }
-            if moved == 0 || folded == candidate.code {
-                continue;
-            }
-            let code = repair_late_javascript_candidate(folded);
             if analyze_generated_javascript(&code).is_err()
                 || beam.iter().any(|existing| existing.code == code)
             {

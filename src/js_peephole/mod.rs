@@ -17,7 +17,7 @@ use crate::js_peephole::scope::{
 use crate::js_peephole::token::{lex, matching_closers, validate_delimiters, Token, TokenKind};
 
 mod folds;
-pub(crate) use folds::{fold_expression_bodies, inline_single_use_functions};
+pub(crate) use folds::inline_single_use_functions;
 mod binding;
 mod parse;
 mod rename;
@@ -1390,6 +1390,7 @@ fn optimize_generated_javascript_pass(
     session.run(remove_unused_standalone_vars)?;
     session.run(hoist_async_arrow_method_bodies)?;
     session.run(drop_pure_regex_expression_statements)?;
+    session.repeat(fold_expression_bodies, 3)?;
 
     let final_tokens = if session.rewrites == 0 {
         tokens
