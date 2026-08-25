@@ -55,6 +55,33 @@ the compat suite is 6/6. The gap is not extra surface on either side.
   **+126**; `function_spelling` forced to `function` **+494** or `arrow` **+89**.
   Post-hoc rewriting is the wrong lever for this port. — **REJECTED**, all of it
 
+- 2026-08-25 — **The beam is greedy over single flips and misses pairs.** On
+  `callbacks.lil`, `function_spelling = "arrow"` alone scores 2,021 and
+  `stable_local_names = false` alone scores 2,021 — both exactly the incumbent.
+  Together they score **2,015**. A beam that extends one option at a time from
+  the current finalist can never reach a pair whose members are individually
+  neutral, however much budget it is given. Across six jQuery modules against a
+  converged baseline the same pair is worth **−106 Brotli**, improving five and
+  regressing one (effects +17). On the **full** build the same pair is worth
+  only −11, because the whole-artifact search already recovers most of it from
+  a richer context; the defect is real but its size shrinks with scope. —
+  **OPEN**, and this is a search defect rather than an emission one
+- 2026-08-25 — Per-module work needs its own baseline: the npm `jquery/src/`
+  tree is **AMD**, so bundling a module with esbuild yields a 123-byte
+  `define([…])` stub, not the module. Every "official per-module" number from
+  that route is meaningless. What does work is ranking our own modules by the
+  slack terser can still find, which came out uniform at about 3% — the gap is
+  diffuse, not concentrated in a submodule. — **LANDED** as method
+- 2026-08-25 — Terminal codec probes are **not** the constraint. jQuery reports
+  `terminal work 384/384 (exhausted)` at level 15, but lifting the cap to 1,536
+  buys **11 bytes** for six extra minutes of compile (7:41 to 13:37). The level
+  tier that pins it is a deliberate invariant with a test, and it should stay.
+  — **REJECTED**
+- 2026-08-25 — Small modules do converge and win: `callbacks` at the deep
+  setting scores 2,021 against terser-on-our-own-production-output at 2,044. The
+  emitter is competitive once the search finishes; the residue is the
+  control-flow shape recorded above. — **LANDED**
+
 ## Next step
 
 Two, in order.
