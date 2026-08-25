@@ -1,6 +1,7 @@
 use serde::Serialize;
 
 pub(crate) use crate::js_peephole::folds::fold_constructor_prototype_tables_to_classes;
+pub(crate) use crate::js_peephole::rename::converge_local_names;
 use crate::js_peephole::folds::*;
 use crate::js_peephole::parse::{
     compound_assignment_rewrite, parse_expression_regions, syntax_metrics,
@@ -16,7 +17,9 @@ use crate::js_peephole::scope::{
 use crate::js_peephole::token::{lex, matching_closers, validate_delimiters, Token, TokenKind};
 
 mod folds;
+mod binding;
 mod parse;
+mod rename;
 mod rewrite;
 mod scope;
 mod token;

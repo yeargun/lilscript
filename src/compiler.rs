@@ -29,7 +29,8 @@ use crate::js_peephole::{
     function_leading_declaration_variant, function_local_binding_swap_variants,
     identifier_name_is_clear_binding, late_generated_javascript_cleanup,
     late_generated_javascript_cleanup_local_variants, late_generated_javascript_cleanup_pass,
-    optimize_generated_javascript, remap_identifier, remap_single_character_identifiers,
+    converge_local_names, optimize_generated_javascript, remap_identifier,
+    remap_single_character_identifiers,
     repair_fused_keyword_identifiers, single_character_identifier_use_counts,
     single_character_identifiers, single_character_name_is_clear_binding,
     single_character_resolved_binding_identifiers, two_character_identifier_use_counts,
@@ -8375,6 +8376,42 @@ fn apply_late_javascript_cleanup(
         cost: selected.transfer_cost,
     };
     let mut beam = vec![original.clone()];
+    // Converged local naming: reassign each function scope's own bindings from
+    // one canonical sequence so same-arity headers spell identically. An LZ
+    // match costs about the same however long its text is, so a repeated
+    // spelling can beat several shorter ones -- but it costs raw bytes and the
+    // trade only pays on some artifacts (measured: Monaco -343 Brotli, otlp
+    // -28, jQuery +43). Score it and keep it only where it wins.
+    if config.js_options().mangle_identifiers
+        && !matches!(config.javascript.cost_model, CompressionCostModel::Raw)
+    {
+        let sources = beam.clone();
+        for candidate in sources {
+            if !codec_budget.reserve_work_unit() {
+                break;
+            }
+            let Ok((converged, rewrites)) = converge_local_names(&candidate.code) else {
+                continue;
+            };
+            if rewrites == 0 || converged == candidate.code {
+                continue;
+            }
+            if analyze_generated_javascript(&converged).is_err() {
+                continue;
+            }
+            let Some(cost) =
+                codec_budget.compressed_size(converged.as_bytes(), config.javascript.cost_model)?
+            else {
+                continue;
+            };
+            if cost < candidate.cost {
+                beam.push(CleanupCandidate {
+                    code: converged,
+                    cost,
+                });
+            }
+        }
+    }
     // A namespace change can be locally neutral or worse yet unlock whole
     // single-use function movement by separating a binding from a shadowing
     // callback parameter. Carry a tiny, deterministic punctuation-name
