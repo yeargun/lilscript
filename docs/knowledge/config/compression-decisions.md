@@ -2,10 +2,13 @@
 
 Parent: [Config](README.md). Emission: [JavaScript emission](../compilation/javascript-emission.md). Passes: [compress passes](../compilation/compress-passes.md).
 
-Exact allowlist of **contested representations**. Omitted → `priority` defaults.
-Present → only listed names for the canonical JS/IR options. `[]` → none, except
-explicit `[mangle]` overrides for identifier/property/export mangling and string
-pooling. Proven `|0` elision is not an allowlist item: size-first and balanced
+Exact allowlist of **contested representations** for canonical emission. Omitted →
+`priority` defaults. Listing a name opts that decision in even if the profile
+would leave it off. `[]` → none, except explicit `[mangle]` overrides for
+identifier/property/export mangling and string pooling. A non-empty list does
+not freeze size-first **search-only** spellings such as `indexed-char-at`:
+those still compete when `priority` would have enabled them.
+Proven `|0` elision is not an allowlist item: size-first and balanced
 always drop it unless `javascript.integer_coercions = true`.
 
 Duplicates are config errors. Names are kebab-case (`CompressionDecision::name`).
@@ -41,6 +44,8 @@ Duplicates are config errors. Names are kebab-case (`CompressionDecision::name`)
 | `ir-phase-ordering-variants` | No-early-CSE / aggressive inline probes | size-first |
 | `loop-spelling-selection` | `while(c)` vs `for(;c;)` | size-first, balanced |
 | `mutation-spelling-selection` | `x=x+1` vs `++x` vs `x++` when proven | size-first |
+| `indexed-char-at` | proven in-range `s.charAt(i)` vs `s[i]`; canonical stays `.charAt`; search competes | size-first |
+| `effect-ternary` | discarded `if`/`else` vs `cond?a():b()`; canonical stays ternary recovery; search may keep statements | never by priority; explicit list |
 | `array-pipeline-fusion` | Fuse typed array pipelines | size-first |
 | `partial-escape-sinking` | Sink allocs that escape on some paths | size-first |
 | `region-outlining` | Repeated regions → helpers; canonical pass needs explicit `[optimization]` on, search probe needs no explicit hard-off | size-first |
@@ -50,12 +55,12 @@ Duplicates are config errors. Names are kebab-case (`CompressionDecision::name`)
 | `joint-chunk-symbol-search` | Chunk plan × symbol/layout | size-first |
 | `parameterized-function-merging` | Merge compatible private functions | size-first + `[optimization]` |
 
-Root `lilscript.toml` lists a **subset**. Because an explicit list replaces priority
-defaults, property and export mangling are both off there unless `[mangle]` overrides
-them; the root config currently has no such override. Adding a name that priority
-would have left off enables that decision, subject to any separate
-`javascript.optimizations` and `[optimization]` gates. Omitting a name that priority
-would have enabled disables its canonical option. The root includes the narrow
+Root `lilscript.toml` lists a **subset** of canonical tactics. Listing a name
+that priority would have left off enables that decision, subject to any separate
+`javascript.optimizations` and `[optimization]` gates. Omitting a name that
+priority would have enabled still disables its **canonical** option. Size-first
+search-only spellings such as `indexed-char-at` keep competing unless the list
+is `[]`. The root includes the narrow
 `host-alias-spelling` candidate because `Shared` remains mandatory competition, but
 continues to omit broader families such as region outlining and joint representation/
 chunk search.
@@ -77,6 +82,19 @@ Enabling a decision means the representation may be emitted. Candidate search st
 compares the opposite (disable) when that dimension is in the beam. Example: grammar
 elision is on, but punctuated variants remain candidates because fewer raw bytes can
 compress worse.
+
+Snippet-atlas measurements are a **candidate menu**, not a ship gate. A local
+`charAt` vs `s[i]` win can vanish (or invert) once mangling, pooling, and Brotli
+history are in play. `indexed-char-at` stays in the size-first omitted list, and
+still competes on size-first builds whose explicit `compression` list omitted the
+new name. `effect-ternary` stays legal but off by every
+priority preset because the statement form lost the configured codec on the
+measured artifact. Canonical emission keeps today's spelling (`.charAt`,
+existing ternary recovery). An explicit `compression` list is the on/off switch.
+
+`javascript.ecmascript` / `javascript.browsers` are a separate legality floor.
+Search may disable an enabled tactic or introduce a listed alternative; it does
+not emit syntax newer than that floor.
 
 `structured-closure-inlining` also authorizes an emission-only proposal whose
 configured baseline is off: a private, nonescaping function with one entry call may

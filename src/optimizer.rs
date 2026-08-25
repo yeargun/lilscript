@@ -602,9 +602,9 @@ pub(crate) fn js_host_alias_spec(name: &str) -> Option<(&'static str, JsHostAlia
             ("String.fromCharCode", JsHostAliasConvention::Callee)
         }
         "noop" => ("()=>{}", JsHostAliasConvention::Callee),
-        // The JavaScript backend targets ES2022. `Object.hasOwn` is both the
-        // native target primitive and a detached-call-safe static function, so
-        // it avoids the legacy prototype-method `.call`/`.bind` wrapper.
+        // Emit-time rewriting lowers this to `Object.prototype.hasOwnProperty.call`
+        // when `javascript.ecmascript` is below ES2022. The IR spelling stays
+        // `Object.hasOwn` so alias identity and Direct-call proofs are unchanged.
         "objectHasOwn" => ("Object.hasOwn", JsHostAliasConvention::Callee),
         "objectToStringTag" => (
             "Object.prototype.toString",

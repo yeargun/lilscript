@@ -11,6 +11,7 @@ use crate::codegen_ir_js::{
     StringQuote,
 };
 use crate::codegen_native::NativeOptions;
+use crate::js_syntax_target::{resolve_ecmascript_target, EcmaScriptEdition, JsSyntaxFeature};
 use crate::optimizer::OptimizationOptions;
 use crate::profile::{JavaScriptPerformanceWeights, OptimizationProfile};
 
@@ -275,7 +276,11 @@ impl ProjectConfig {
                     .compression_enabled(CompressionDecision::RegexLiterals),
             unused_catch_binding_elision: self
                 .javascript
-                .compression_enabled(CompressionDecision::UnusedCatchBindingElision),
+                .compression_enabled(CompressionDecision::UnusedCatchBindingElision)
+                && self
+                    .javascript
+                    .resolved_ecmascript()
+                    .allows(JsSyntaxFeature::OptionalCatchBinding),
             compact_generator_star: self
                 .javascript
                 .compression_enabled(CompressionDecision::CompactGeneratorStar),
@@ -386,6 +391,9 @@ impl ProjectConfig {
                 self.javascript.cost_model,
                 CompressionCostModel::Brotli
             ),
+            ecmascript: self.javascript.resolved_ecmascript(),
+            indexed_char_at: false,
+            effect_ternary: true,
         }
     }
 
@@ -498,6 +506,18 @@ impl ProjectConfig {
                 JavaScriptOptimization::CompoundMutationVariants,
                 Some(CompressionDecision::MutationSpellingSelection),
             )
+    }
+
+    pub fn indexed_char_at_candidates_enabled(&self) -> bool {
+        self.javascript
+            .search_compression_enabled(CompressionDecision::IndexedCharAt)
+    }
+
+    pub fn effect_ternary_candidates_enabled(&self) -> bool {
+        self.javascript.candidate_search_enabled()
+            && self
+                .javascript
+                .compression_enabled(CompressionDecision::EffectTernary)
     }
 
     pub fn compress_pass_options(&self) -> crate::compress_passes::CompressPassOptions {
@@ -651,6 +671,7 @@ impl ProjectConfig {
                 }
             }
         }
+        resolve_ecmascript_target(self.javascript.ecmascript, &self.javascript.browsers)?;
         if self.javascript.candidate_limit == 0 {
             return Err("`javascript.candidate_limit` must be greater than zero".to_string());
         }
@@ -880,7 +901,10 @@ impl JavaScriptPriority {
             CompressionDecision::LoopSpellingSelection => {
                 matches!(self, Self::SizeFirst | Self::Balanced)
             }
-            CompressionDecision::MutationSpellingSelection => matches!(self, Self::SizeFirst),
+            CompressionDecision::MutationSpellingSelection | CompressionDecision::IndexedCharAt => {
+                matches!(self, Self::SizeFirst)
+            }
+            CompressionDecision::EffectTernary => false,
             CompressionDecision::PropertyMangling => matches!(self, Self::SizeFirst),
             CompressionDecision::ExportMangling => false,
             CompressionDecision::ArrayPipelineFusion
@@ -950,6 +974,8 @@ pub enum CompressionDecision {
     IrPhaseOrderingVariants,
     LoopSpellingSelection,
     MutationSpellingSelection,
+    IndexedCharAt,
+    EffectTernary,
     ArrayPipelineFusion,
     PartialEscapeSinking,
     RegionOutlining,
@@ -990,6 +1016,8 @@ impl CompressionDecision {
             Self::IrPhaseOrderingVariants => "ir-phase-ordering-variants",
             Self::LoopSpellingSelection => "loop-spelling-selection",
             Self::MutationSpellingSelection => "mutation-spelling-selection",
+            Self::IndexedCharAt => "indexed-char-at",
+            Self::EffectTernary => "effect-ternary",
             Self::ArrayPipelineFusion => "array-pipeline-fusion",
             Self::PartialEscapeSinking => "partial-escape-sinking",
             Self::RegionOutlining => "region-outlining",
@@ -1006,6 +1034,8 @@ impl CompressionDecision {
 #[serde(default, deny_unknown_fields)]
 pub struct JavaScriptConfig {
     pub priority: JavaScriptPriority,
+    pub ecmascript: EcmaScriptEdition,
+    pub browsers: Vec<String>,
     pub optimization_level: u8,
     pub optimizations: Option<Vec<JavaScriptOptimization>>,
     pub compression: Option<Vec<CompressionDecision>>,
@@ -1081,6 +1111,8 @@ impl Default for JavaScriptConfig {
     fn default() -> Self {
         Self {
             priority: JavaScriptPriority::SizeFirst,
+            ecmascript: EcmaScriptEdition::Es2022,
+            browsers: Vec::new(),
             optimization_level: 15,
             optimizations: None,
             compression: None,
@@ -1421,11 +1453,26 @@ impl JavaScriptConfig {
             .unwrap_or_else(|| self.priority.keeps_integer_coercions())
     }
 
+    pub fn resolved_ecmascript(&self) -> EcmaScriptEdition {
+        resolve_ecmascript_target(self.ecmascript, &self.browsers).unwrap_or(self.ecmascript)
+    }
+
     fn compression_enabled(&self, decision: CompressionDecision) -> bool {
         self.compression.as_ref().map_or_else(
             || self.priority.enables_compression(decision),
             |enabled| enabled.contains(&decision),
         )
+    }
+
+    fn search_compression_enabled(&self, decision: CompressionDecision) -> bool {
+        self.candidate_search_enabled()
+            && match &self.compression {
+                None => self.priority.enables_compression(decision),
+                Some(enabled) if enabled.is_empty() => false,
+                Some(enabled) => {
+                    enabled.contains(&decision) || self.priority.enables_compression(decision)
+                }
+            }
     }
 
     pub const fn candidate_search_enabled(&self) -> bool {
@@ -2059,6 +2106,8 @@ shared_min_imports = 3
         assert!(size.ir_phase_ordering_variants_enabled());
         assert!(size.loop_spelling_selection_enabled());
         assert!(size.mutation_spelling_selection_enabled());
+        assert!(size.indexed_char_at_candidates_enabled());
+        assert!(!size.effect_ternary_candidates_enabled());
         assert!(size.js_joint_chunk_symbol_search_enabled());
         assert!(size.js_joint_representation_search_enabled());
         assert!(size.js_parameterized_function_merging_enabled());
@@ -2089,6 +2138,8 @@ shared_min_imports = 3
         assert!(!performance.ir_phase_ordering_variants_enabled());
         assert!(!performance.loop_spelling_selection_enabled());
         assert!(!performance.mutation_spelling_selection_enabled());
+        assert!(!performance.indexed_char_at_candidates_enabled());
+        assert!(!performance.effect_ternary_candidates_enabled());
         assert!(!performance.js_joint_chunk_symbol_search_enabled());
         assert!(!performance.js_joint_representation_search_enabled());
         assert!(!performance.js_parameterized_function_merging_enabled());
@@ -2102,6 +2153,8 @@ shared_min_imports = 3
         assert!(!balanced.js_options().mangle_properties);
         assert!(balanced.loop_spelling_selection_enabled());
         assert!(!balanced.mutation_spelling_selection_enabled());
+        assert!(!balanced.indexed_char_at_candidates_enabled());
+        assert!(!balanced.effect_ternary_candidates_enabled());
         let balanced_passes = balanced.compress_pass_options();
         assert!(!balanced_passes.pipeline_fusion);
         assert!(!balanced_passes.partial_escape_sinking);
@@ -2177,6 +2230,16 @@ local_name_coalescing = false
         assert!(!custom.ir_phase_ordering_variants_enabled());
         assert!(!custom.loop_spelling_selection_enabled());
         assert!(!custom.mutation_spelling_selection_enabled());
+        assert!(!custom.indexed_char_at_candidates_enabled());
+        assert!(!custom.effect_ternary_candidates_enabled());
+
+        let size_overlay: ProjectConfig = toml::from_str(
+            "[javascript]\npriority='size-first'\ncompression=['identifier-mangling']\n",
+        )
+        .unwrap();
+        assert!(size_overlay.indexed_char_at_candidates_enabled());
+        assert!(!size_overlay.js_options().indexed_char_at);
+        assert!(!size_overlay.effect_ternary_candidates_enabled());
 
         let none: ProjectConfig = toml::from_str("[javascript]\ncompression=[]\n").unwrap();
         let none_codegen = none.js_options();
@@ -2193,6 +2256,10 @@ local_name_coalescing = false
         assert!(!none_codegen.pack_string_arrays);
         assert!(!none_codegen.compact_generator_star);
         assert!(!none_codegen.scalar_phi_copies);
+        assert!(!none.indexed_char_at_candidates_enabled());
+        assert!(!none.effect_ternary_candidates_enabled());
+        assert!(!none.js_options().indexed_char_at);
+        assert!(none.js_options().effect_ternary);
         assert_eq!(
             none_codegen.phi_affinity_mode,
             PhiAffinityMode::Conservative
@@ -2218,6 +2285,57 @@ local_name_coalescing = false
         let closed: ProjectConfig = toml::from_str("[mangle]\nextern_fields=false\n").unwrap();
         assert!(!closed.js_options().mangle_extern_fields);
         assert!(ProjectConfig::default().js_options().mangle_extern_fields);
+    }
+
+    #[test]
+    fn resolves_javascript_ecmascript_and_browser_floors() {
+        let defaults = ProjectConfig::default();
+        assert_eq!(defaults.javascript.ecmascript, EcmaScriptEdition::Es2022);
+        assert_eq!(defaults.js_options().ecmascript, EcmaScriptEdition::Es2022);
+        assert!(!defaults.js_options().indexed_char_at);
+        assert!(defaults.js_options().effect_ternary);
+        assert!(defaults.indexed_char_at_candidates_enabled());
+        assert!(!defaults.effect_ternary_candidates_enabled());
+
+        assert!(toml::from_str::<ProjectConfig>("[javascript]\necmascript='es2014'\n").is_err());
+
+        let unknown_browser: ProjectConfig =
+            toml::from_str("[javascript]\nbrowsers=['opera80']\n").unwrap();
+        assert!(unknown_browser.validate().is_err());
+
+        let intersected: ProjectConfig = toml::from_str(
+            "[javascript]\necmascript='es2022'\nbrowsers=['chrome80','firefox78']\n",
+        )
+        .unwrap();
+        intersected.validate().unwrap();
+        assert_eq!(
+            intersected.javascript.resolved_ecmascript(),
+            EcmaScriptEdition::Es2020
+        );
+        assert_eq!(
+            intersected.js_options().ecmascript,
+            EcmaScriptEdition::Es2020
+        );
+
+        let balanced_listed: ProjectConfig = toml::from_str(
+            "[javascript]\npriority='balanced'\ncompression=['indexed-char-at','effect-ternary']\n",
+        )
+        .unwrap();
+        assert!(balanced_listed.indexed_char_at_candidates_enabled());
+        assert!(balanced_listed.effect_ternary_candidates_enabled());
+        assert!(!balanced_listed.js_options().indexed_char_at);
+        assert!(balanced_listed.js_options().effect_ternary);
+
+        let omitted_balanced: ProjectConfig =
+            toml::from_str("[javascript]\npriority='balanced'\n").unwrap();
+        assert_eq!(
+            omitted_balanced.js_options().effect_ternary,
+            balanced_listed.js_options().effect_ternary
+        );
+        assert_eq!(
+            omitted_balanced.js_options().indexed_char_at,
+            balanced_listed.js_options().indexed_char_at
+        );
     }
 
     #[test]

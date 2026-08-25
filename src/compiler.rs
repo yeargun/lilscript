@@ -3959,6 +3959,48 @@ fn select_javascript_candidate_global(
             },
         )?;
     }
+    if config.indexed_char_at_candidates_enabled() {
+        let finalists = top_candidate_options(
+            &mut candidates,
+            candidate_beam_width,
+            config.javascript.cost_model,
+        )?;
+        extend_javascript_candidate_beam(
+            ir,
+            module_output,
+            beam_policy,
+            &integer_analysis,
+            &mut candidates,
+            finalists,
+            |options| {
+                [crate::codegen_ir_js::IrJsOptions {
+                    indexed_char_at: true,
+                    ..options
+                }]
+            },
+        )?;
+    }
+    if config.effect_ternary_candidates_enabled() {
+        let finalists = top_candidate_options(
+            &mut candidates,
+            candidate_beam_width,
+            config.javascript.cost_model,
+        )?;
+        extend_javascript_candidate_beam(
+            ir,
+            module_output,
+            beam_policy,
+            &integer_analysis,
+            &mut candidates,
+            finalists,
+            |options| {
+                [crate::codegen_ir_js::IrJsOptions {
+                    effect_ternary: false,
+                    ..options
+                }]
+            },
+        )?;
+    }
     // Keep the grammar reductions independent: punctuation removal always
     // wins raw bytes, but repeated punctuation can still help an exact codec.
     if configured.elide_call_chain_parentheses {

@@ -11,6 +11,7 @@ pub mod interpreter;
 pub mod ir;
 pub mod js_peephole;
 mod js_regex;
+pub mod js_syntax_target;
 pub mod lexer;
 pub mod lint;
 pub mod lower;

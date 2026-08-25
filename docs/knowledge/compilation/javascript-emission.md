@@ -28,6 +28,9 @@ Set in `js_options()` from config. Notable defaults / cost-model interactions:
 | `pure_helper_inlining` | `None` in configured baseline | search-only `SingleStaticUse` / `AllEligible` policies under `pure-helper-inlining` |
 | `dense_string_return_tables` | off in configured baseline | proof-gated complete lookup under `dense-string-return-tables` |
 | `host_alias_spelling` | `Shared` in configured baseline | search-only `Direct` for proven direct-only static callees under `host-alias-spelling` |
+| `ecmascript` | `es2022` | syntax floor; never raised by search; host aliases and `?.`/`??`/`Object.hasOwn`/`catch{}` lower or error |
+| `indexed_char_at` | `false` in configured baseline | search-only `s[i]` under `indexed-char-at` when the index is proven in range |
+| `effect_ternary` | `true` in configured baseline | existing discarded-if recovery; search may disable it only when `effect-ternary` is listed |
 | `scalar_phi_copies` | size-first | vs tuple destructuring |
 | `phi_affinity_mode` | Grouped if coalescing on | Conservative otherwise |
 | `local_phi_expression_regions` | **off when `cost_model = brotli`** | search may enable |
@@ -81,7 +84,11 @@ live range, so a reused name cannot overwrite an incoming value still needed by 
 nested/parallel phi. The three modes are compression alternatives, not weaker
 correctness levels.
 
-Search **disables** enabled tactics to compare; it does not turn on a tactic missing from the compression allowlist.
+Search **disables** enabled canonical tactics to compare. Size-first search-only
+spellings such as `indexed-char-at` still compete from the priority matrix when
+an explicit `compression` list is a non-empty overlay; `compression = []` is the
+off switch. Listing a name that the profile would have left off still opts that
+decision in.
 
 The single-use function-expression proposal is the narrow exception to “canonical
 option then disable”: its canonical/configured value is deliberately `false`, while

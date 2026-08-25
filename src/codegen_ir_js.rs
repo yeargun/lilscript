@@ -17,6 +17,7 @@ use crate::ir::{
     FunctionOrigin, Intrinsic, IrBinaryOp, IrUnaryOp, JsHostAlias, JsHostAliasConvention, LocalId,
     RecordOperand, TemplateOperand, Terminator, ValueId,
 };
+use crate::js_syntax_target::{rewrite_host_alias_spelling, JsSyntaxFeature};
 use crate::semantic::{EscapeState, SymbolId, Type};
 use crate::typed_array::{classify_typed_array_intrinsic, TypedArrayIntrinsic, TypedArrayKind};
 use crate::value_analysis::{
@@ -222,6 +223,16 @@ pub struct IrJsOptions {
     /// the hoisted function group. Off by default; the move is legal but can
     /// perturb Brotli on artifacts that do not store that factory late.
     pub sink_entry_function_declarations: bool,
+    /// Syntax floor for optional JavaScript constructs. Default matches the
+    /// historical ES2022 backend. Candidate search never raises this floor.
+    pub ecmascript: crate::js_syntax_target::EcmaScriptEdition,
+    /// Emit proven in-range `StringCharAt` as `s[i]` instead of `.charAt(i)`.
+    /// Canonical stays `.charAt`; search may introduce this spelling.
+    pub indexed_char_at: bool,
+    /// Recover discarded `if`/`else` effect statements as a ternary. Canonical
+    /// stays on because `conditional_expressions` already does this recovery.
+    /// Search may disable it when `effect-ternary` is a legal decision.
+    pub effect_ternary: bool,
 }
 
 impl Default for IrJsOptions {
@@ -298,7 +309,16 @@ impl Default for IrJsOptions {
             alias_array_prototype_methods: true,
             aggregate_operand_order_fusion: false,
             sink_entry_function_declarations: false,
+            ecmascript: crate::js_syntax_target::EcmaScriptEdition::Es2022,
+            indexed_char_at: false,
+            effect_ternary: true,
         }
+    }
+}
+
+impl IrJsOptions {
+    pub fn allows(self, feature: crate::js_syntax_target::JsSyntaxFeature) -> bool {
+        self.ecmascript.allows(feature)
     }
 }
 
@@ -5090,6 +5110,50 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         Ok(())
     }
 
+    fn require_syntax(&self, feature: JsSyntaxFeature) -> Result<(), CodegenError> {
+        if self.options.allows(feature) {
+            Ok(())
+        } else {
+            Err(CodegenError::new(
+                self.function(self.module.entry)
+                    .map_or(crate::span::Span::empty(0), |function| function.span),
+                self.options.ecmascript.diagnostic_name(feature),
+            ))
+        }
+    }
+
+    fn host_alias_javascript(
+        &self,
+        spelling: &'static str,
+        shared_binding: bool,
+    ) -> Result<String, CodegenError> {
+        rewrite_host_alias_spelling(spelling, self.options.ecmascript, shared_binding).map_err(
+            |message| {
+                CodegenError::new(
+                    self.function(self.module.entry)
+                        .map_or(crate::span::Span::empty(0), |function| function.span),
+                    message,
+                )
+            },
+        )
+    }
+
+    fn coalesce_absent_to_null(&self, expr: JsExpression) -> JsExpression {
+        if self.options.allows(JsSyntaxFeature::NullishCoalescing) {
+            JsExpression::raw(format!("{expr}??null"), JsPrecedence::Conditional)
+        } else if is_js_property_identifier(&expr.code) {
+            JsExpression::raw(
+                format!("{expr}==null?null:{expr}"),
+                JsPrecedence::Conditional,
+            )
+        } else {
+            JsExpression::raw(
+                format!("(a=>a==null?null:a)({})", strip_outer_parens(expr)),
+                JsPrecedence::Call,
+            )
+        }
+    }
+
     fn emit_js_host_aliases(
         &mut self,
         out: &mut String,
@@ -5114,6 +5178,10 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
 
         let mut parent_counts = AHashMap::<&str, usize>::default();
         for alias in &aliases {
+            let emitted = self.host_alias_javascript(alias.spelling, true)?;
+            if emitted != alias.spelling {
+                continue;
+            }
             if let Some((parent, _)) = dotted_host_alias_parts(alias.spelling) {
                 *parent_counts.entry(parent).or_insert(0) += 1;
             }
@@ -5140,7 +5208,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             if !emitted.insert((alias.spelling, alias.convention)) {
                 continue;
             }
-            let base = host_alias_base_rhs(alias, &parent_names);
+            let rewritten = self.host_alias_javascript(alias.spelling, true)?;
+            let base = if rewritten == alias.spelling {
+                host_alias_base_rhs(alias, &parent_names)
+            } else {
+                rewritten
+            };
             match alias.convention {
                 JsHostAliasConvention::BoundMethodCall | JsHostAliasConvention::BoundApply => {
                     let root = self.top_level_mangler.next_name();
@@ -7312,6 +7385,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 }
             }
         }
+        if function.is_async {
+            self.require_syntax(JsSyntaxFeature::AsyncAwait)?;
+        }
         if arrow_binding {
             out.push_str("let ");
             out.push_str(&name);
@@ -7369,6 +7445,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 let self_default =
                     (!anonymous_expression && calling_convention.is_none() && parameter_count == 1)
                         .then(|| {
+                            if !self.options.allows(JsSyntaxFeature::LogicalAssignment) {
+                                return None;
+                            }
                             rewrite_self_default_conditional(
                                 &expression,
                                 &name,
@@ -8453,6 +8532,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         if let (Some(output), ControlFlowOp::RecordRest { object, excluded }) =
             (instruction.out, &instruction.op)
         {
+            self.require_syntax(JsSyntaxFeature::ObjectRestSpread)?;
             if uses.get(&output).copied().unwrap_or(0) != 0 {
                 let name = context.value_name(output)?;
                 emit_binding_prefix(context, output, predeclared, out)?;
@@ -9097,7 +9177,8 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                 context,
                             );
                             if let Some(source) = nullish_source.filter(|source| {
-                                context.value_name(*source).ok() == Some(then_value)
+                                self.options.allows(JsSyntaxFeature::NullishCoalescing)
+                                    && context.value_name(*source).ok() == Some(then_value)
                             }) {
                                 value.push_str(context.value_name(source)?);
                                 value.push_str("??");
@@ -9185,16 +9266,15 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             out.push('=');
                             out.push_str(else_value);
                             out.push(';');
-                        } else if let Some((then_expression, else_expression)) = self
-                            .options
-                            .conditional_expressions
-                            .then(|| {
-                                Some((
-                                    compact_ternary_arm(&then_output)?,
-                                    compact_ternary_arm(&else_output)?,
-                                ))
-                            })
-                            .flatten()
+                        } else if let Some((then_expression, else_expression)) =
+                            (self.options.conditional_expressions && self.options.effect_ternary)
+                                .then(|| {
+                                    Some((
+                                        compact_ternary_arm(&then_output)?,
+                                        compact_ternary_arm(&else_output)?,
+                                    ))
+                                })
+                                .flatten()
                         {
                             out.push_str(&parenthesize_ternary_test(&condition));
                             out.push('?');
@@ -9258,6 +9338,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             out.push(';');
                         } else if then_output.is_empty()
                             && self.options.conditional_expressions
+                            && self.options.allows(JsSyntaxFeature::NullishCoalescing)
                             && nullish_condition_source(function, header).is_some_and(|source| {
                                 matches!(
                                     value_definition(function, source),
@@ -9976,6 +10057,8 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                 out.push('(');
                                 out.push_str(context.value_name(value)?);
                                 out.push(')');
+                            } else if !self.options.allows(JsSyntaxFeature::OptionalCatchBinding) {
+                                out.push_str("(_e)");
                             }
                             out.push('{');
                             let mut catch_visited = visited.clone();
@@ -10587,6 +10670,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         cache: &mut ExpressionCache,
         state: &mut ExpressionRegionState,
     ) -> Result<Option<RenderedExpressionRegion>, CodegenError> {
+        if !self.options.allows(JsSyntaxFeature::NullishCoalescing) {
+            return Ok(None);
+        }
         let block = &function.blocks[header.0 as usize];
         let Some(Terminator::Branch { condition, .. }) = block.terminator else {
             return Ok(None);
@@ -10689,6 +10775,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         cache: &mut ExpressionCache,
         state: &mut ExpressionRegionState,
     ) -> Result<Option<RenderedExpressionRegion>, CodegenError> {
+        if !self.options.allows(JsSyntaxFeature::OptionalChain) {
+            return Ok(None);
+        }
         let block = &function.blocks[header.0 as usize];
         let Some(Terminator::Branch { condition, .. }) = block.terminator else {
             return Ok(None);
@@ -11476,10 +11565,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             }
             ControlFlowOp::IndexGet { object, index } if context.is_record(*object) => {
                 let indexed = self.render_index_access(*object, *index, context, cache)?;
-                Ok(JsExpression::raw(
-                    format!("{indexed}??null"),
-                    JsPrecedence::Conditional,
-                ))
+                Ok(self.coalesce_absent_to_null(indexed))
             }
             ControlFlowOp::HostFieldGet { object, property }
                 if matches!(instruction.ty, Some(Type::Nullable(_))) =>
@@ -11487,20 +11573,30 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 let property = self.property_name(property);
                 if context.is_js_value(*object) {
                     let object = take_value(*object, context, cache)?.at_least(JsPrecedence::Call);
-                    return Ok(JsExpression::raw(
-                        format!("{object}?.{property}??null"),
-                        JsPrecedence::Conditional,
-                    ));
+                    if self.options.allows(JsSyntaxFeature::OptionalChain) {
+                        return Ok(JsExpression::raw(
+                            format!("{object}?.{property}??null"),
+                            JsPrecedence::Conditional,
+                        ));
+                    }
+                    let lowered = if is_js_property_identifier(property) {
+                        format!(
+                            "(a=>{{let b;return a==null||(b=a.{property})==null?null:b}})({object})"
+                        )
+                    } else {
+                        let quoted = render_string_literal(property, self.options.string_quote);
+                        format!(
+                            "(a=>{{let b;return a==null||(b=a[{quoted}])==null?null:b}})({object})"
+                        )
+                    };
+                    return Ok(JsExpression::raw(lowered, JsPrecedence::Call));
                 }
                 let member = JsExpression::member(
                     take_value(*object, context, cache)?,
                     property,
                     self.options.elide_call_chain_parentheses,
                 );
-                Ok(JsExpression::raw(
-                    format!("{member}??null"),
-                    JsPrecedence::Conditional,
-                ))
+                Ok(self.coalesce_absent_to_null(member))
             }
             _ => self.render_op(&instruction.op, instruction.out, context, cache),
         }
@@ -11659,6 +11755,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 JsExpression::atom(rendered)
             }
             ControlFlowOp::RecordSpread(operands) => {
+                self.require_syntax(JsSyntaxFeature::ObjectRestSpread)?;
                 let mut rendered = String::from(if self.options.ordinary_record_literals {
                     "{"
                 } else {
@@ -11831,13 +11928,18 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         self.options.elide_call_chain_parentheses,
                     )
                 };
-                JsExpression::grouped(
-                    format!("{member}??null"),
-                    JsPrecedence::LogicalOr,
-                    JsExpressionRoot::NullNormalized,
-                )
+                if self.options.allows(JsSyntaxFeature::NullishCoalescing) {
+                    JsExpression::grouped(
+                        format!("{member}??null"),
+                        JsPrecedence::LogicalOr,
+                        JsExpressionRoot::NullNormalized,
+                    )
+                } else {
+                    self.coalesce_absent_to_null(member)
+                }
             }
             ControlFlowOp::RecordRest { object, excluded } => {
+                self.require_syntax(JsSyntaxFeature::ObjectRestSpread)?;
                 let mut rendered = String::from(if self.options.ordinary_record_literals {
                     "(a=>{let b={...a};"
                 } else {
@@ -11881,7 +11983,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     JsExpression::atom(index.to_string()),
                     self.options.elide_call_chain_parentheses,
                 );
-                JsExpression::raw(format!("{indexed}??null"), JsPrecedence::Conditional)
+                self.coalesce_absent_to_null(indexed)
             }
             ControlFlowOp::Intrinsic {
                 intrinsic,
@@ -11963,7 +12065,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     {
                         self.function_name(*function)?.to_string()
                     } else {
-                        alias.spelling.to_string()
+                        self.host_alias_javascript(alias.spelling, false)?
                     };
                     match alias.convention {
                         JsHostAliasConvention::Throw => {
@@ -12590,22 +12692,42 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     "requestAnimationFrameOrNull requires a callback",
                 ));
             };
-            return Ok(JsExpression::raw(
-                format!(
-                    "{}.requestAnimationFrame?.({})",
-                    self.js_window_root().at_least(JsPrecedence::Member),
-                    take_value(*callback, context, cache)?.at_least(JsPrecedence::Assignment),
-                ),
-                JsPrecedence::Call,
-            ));
+            return Ok(if self.options.allows(JsSyntaxFeature::OptionalChain) {
+                JsExpression::raw(
+                    format!(
+                        "{}.requestAnimationFrame?.({})",
+                        self.js_window_root().at_least(JsPrecedence::Member),
+                        take_value(*callback, context, cache)?.at_least(JsPrecedence::Assignment),
+                    ),
+                    JsPrecedence::Call,
+                )
+            } else {
+                JsExpression::raw(
+                    format!(
+                        "(a=>a.requestAnimationFrame==null?void 0:a.requestAnimationFrame({}))({})",
+                        take_value(*callback, context, cache)?.at_least(JsPrecedence::Assignment),
+                        self.js_window_root().at_least(JsPrecedence::Call),
+                    ),
+                    JsPrecedence::Call,
+                )
+            });
         }
         if intrinsic == Intrinsic::JsNullProtoObject {
             return Ok(JsExpression::atom("Object.create(null)"));
         }
         let static_callee = match intrinsic {
             Intrinsic::RecordKeys => Some("Object.keys"),
-            Intrinsic::RecordValues => Some("Object.values"),
-            Intrinsic::RecordHasOwn => Some("Object.hasOwn"),
+            Intrinsic::RecordValues => {
+                self.require_syntax(JsSyntaxFeature::ObjectValues)?;
+                Some("Object.values")
+            }
+            Intrinsic::RecordHasOwn => {
+                Some(if self.options.allows(JsSyntaxFeature::ObjectHasOwn) {
+                    "Object.hasOwn"
+                } else {
+                    "Object.prototype.hasOwnProperty.call"
+                })
+            }
             Intrinsic::RecordAssign => Some("Object.assign"),
             Intrinsic::JsonStringify => Some("JSON.stringify"),
             Intrinsic::JsonParse => Some("JSON.parse"),
@@ -13320,11 +13442,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     context,
                     cache,
                 )?;
-                return Ok(JsExpression::grouped(
-                    format!("{call}??null"),
-                    JsPrecedence::LogicalOr,
-                    JsExpressionRoot::Raw,
-                ));
+                return Ok(self.coalesce_absent_to_null(call));
             }
             Intrinsic::StringCharCodeAt => {
                 let call = self.render_call(
@@ -13378,6 +13496,22 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 });
             }
             Intrinsic::StringCharAt => {
+                if self.options.indexed_char_at {
+                    if let [index] = args {
+                        let in_bounds = context
+                            .string_index_in_bounds(receiver_id, *index)
+                            .or_else(|| {
+                                self.global_string_index_in_bounds(receiver_id, *index, context)
+                            });
+                        if in_bounds == Some(true) {
+                            return Ok(JsExpression::index(
+                                receiver,
+                                take_value(*index, context, cache)?,
+                                self.options.elide_call_chain_parentheses,
+                            ));
+                        }
+                    }
+                }
                 return self.render_call(
                     JsExpression::member(
                         receiver,
@@ -16294,6 +16428,7 @@ struct LocalNames {
     js_undefined_values: AHashSet<ValueId>,
     truthy_nullable_values: AHashSet<ValueId>,
     safe_int_array_reads: AHashSet<ValueId>,
+    in_range_string_indexes: AHashSet<(ValueId, ValueId)>,
     safe_in_place_updates: AHashSet<(ValueId, ValueId)>,
     parallel_copy_temp: Option<String>,
     live_in_values: Vec<AHashSet<ValueId>>,
@@ -17645,6 +17780,7 @@ impl LocalNames {
             })
             .collect();
         let safe_int_array_reads = safe_int_array_reads(function, integer_facts);
+        let in_range_string_indexes = proven_in_range_string_indexes(function, integer_facts);
         let cross_block = codegen_cross_block_values(function, &string_constants);
         let operand_order_fusable = if options.operand_order_fusion {
             operand_order_fusable_values(function, &uses, options.aggregate_operand_order_fusion)
@@ -17971,6 +18107,7 @@ impl LocalNames {
             js_undefined_values,
             truthy_nullable_values,
             safe_int_array_reads,
+            in_range_string_indexes,
             safe_in_place_updates,
             parallel_copy_temp,
             live_in_values,
@@ -18104,6 +18241,9 @@ impl LocalNames {
     }
 
     fn string_index_in_bounds(&self, object: ValueId, index: ValueId) -> Option<bool> {
+        if self.in_range_string_indexes.contains(&(object, index)) {
+            return Some(true);
+        }
         let range = self.integer_ranges.get(&index)?;
         if range.min < 0 {
             return Some(false);
@@ -21694,6 +21834,153 @@ fn safe_int_array_reads(
     safe
 }
 
+fn proven_in_range_string_indexes(
+    function: &ControlFlowFunction<'_>,
+    integer_facts: &FunctionIntegerFacts,
+) -> AHashSet<(ValueId, ValueId)> {
+    let definitions = function
+        .blocks
+        .iter()
+        .flat_map(|block| &block.instructions)
+        .filter_map(|instruction| instruction.out.map(|out| (out, &instruction.op)))
+        .collect::<AHashMap<_, _>>();
+    let int_constant = |value: ValueId| match definitions.get(&value) {
+        Some(ControlFlowOp::Const(ConstValue::Int(value))) => Some(*value),
+        _ => None,
+    };
+    let index_offset = |value: ValueId, index: ValueId| {
+        if value == index {
+            return Some(0_i64);
+        }
+        let Some(ControlFlowOp::Binary { op, lhs, rhs }) = definitions.get(&value) else {
+            return None;
+        };
+        match op {
+            IrBinaryOp::Add if *lhs == index => int_constant(*rhs),
+            IrBinaryOp::Add if *rhs == index => int_constant(*lhs),
+            IrBinaryOp::Sub if *lhs == index => int_constant(*rhs).map(|value| -value),
+            _ => None,
+        }
+    };
+    let string_length_bound = |value: ValueId| {
+        let mut length_value = value;
+        let mut margin = 0_i64;
+        if let Some(ControlFlowOp::Binary {
+            op: IrBinaryOp::Sub,
+            lhs,
+            rhs,
+        }) = definitions.get(&value)
+        {
+            margin = int_constant(*rhs)?;
+            length_value = *lhs;
+        }
+        let Some(ControlFlowOp::Intrinsic {
+            intrinsic: Intrinsic::StringLength,
+            receiver: Some(string),
+            ..
+        }) = definitions.get(&length_value)
+        else {
+            return None;
+        };
+        Some((*string, margin))
+    };
+
+    let mut proven = AHashSet::default();
+    for shape in &function.shapes {
+        let ControlShape::Loop {
+            header,
+            body,
+            update,
+            exit,
+        } = shape
+        else {
+            continue;
+        };
+        let Some(Terminator::Branch { condition, .. }) =
+            function.blocks[header.0 as usize].terminator
+        else {
+            continue;
+        };
+        let Some(ControlFlowOp::Binary {
+            op: IrBinaryOp::Less,
+            lhs: index,
+            rhs: bound,
+        }) = definitions.get(&condition)
+        else {
+            continue;
+        };
+        let nonnegative_induction = function.blocks[header.0 as usize]
+            .phis
+            .iter()
+            .find(|phi| phi.out == *index)
+            .is_some_and(|phi| {
+                phi.incoming.iter().all(|(_, incoming)| {
+                    int_constant(*incoming).is_some_and(|value| value >= 0)
+                        || matches!(definitions.get(incoming), Some(ControlFlowOp::Binary {
+                            op: IrBinaryOp::Add,
+                            lhs,
+                            rhs,
+                        }) if (*lhs == *index && int_constant(*rhs).is_some_and(|value| value >= 0))
+                            || (*rhs == *index && int_constant(*lhs).is_some_and(|value| value >= 0)))
+                })
+            });
+        if integer_facts
+            .range(*index)
+            .is_none_or(|range| range.min < 0)
+            && !nonnegative_induction
+        {
+            continue;
+        }
+        let Some((string, margin)) = string_length_bound(*bound) else {
+            continue;
+        };
+        if margin < 0 {
+            continue;
+        }
+
+        let mut work = vec![*body];
+        let mut visited = AHashSet::default();
+        while let Some(block_id) = work.pop() {
+            if block_id == *header || block_id == *exit || Some(block_id) == *update {
+                continue;
+            }
+            if !visited.insert(block_id) {
+                continue;
+            }
+            let block = &function.blocks[block_id.0 as usize];
+            for instruction in &block.instructions {
+                let ControlFlowOp::Intrinsic {
+                    intrinsic: Intrinsic::StringCharAt,
+                    receiver: Some(receiver),
+                    args,
+                } = &instruction.op
+                else {
+                    continue;
+                };
+                let [read_index] = args.as_slice() else {
+                    continue;
+                };
+                if *receiver == string
+                    && index_offset(*read_index, *index)
+                        .is_some_and(|offset| offset >= 0 && offset <= margin)
+                {
+                    proven.insert((*receiver, *read_index));
+                }
+            }
+            match block.terminator {
+                Some(Terminator::Jump(target)) => work.push(target),
+                Some(Terminator::Branch {
+                    then_block,
+                    else_block,
+                    ..
+                }) => work.extend([then_block, else_block]),
+                _ => {}
+            }
+        }
+    }
+    proven
+}
+
 fn typed_array_identity_is_locally_confined(
     function: &ControlFlowFunction<'_>,
     value: ValueId,
@@ -24409,16 +24696,248 @@ mod tests {
     }
 
     fn compile_with_options(source: &str, options: IrJsOptions) -> String {
+        compile_try_with_options(source, options).unwrap()
+    }
+
+    fn compile_try_with_options(
+        source: &str,
+        options: IrJsOptions,
+    ) -> Result<String, crate::codegen_js::CodegenError> {
         let arena = Bump::new();
         let program = parse_source(&arena, source).unwrap();
         let semantics = analyze(&program).unwrap();
         let mut ir = lower_to_control_flow(&program, &semantics).unwrap();
         optimize_control_flow(&mut ir).unwrap();
-        emit_optimized_ir_js_with_options(&ir, &options).unwrap()
+        emit_optimized_ir_js_with_options(&ir, &options)
     }
 
     fn compile_module(source: &str) -> String {
         compile_module_with_options(source, IrJsOptions::default())
+    }
+
+    #[test]
+    fn indexed_char_at_uses_proven_in_range_indexes_only() {
+        let in_range = "extern int read();print(\"hello\".charAt(read()&3));";
+        let canonical = compile_with_options(
+            in_range,
+            IrJsOptions {
+                mangle_identifiers: false,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(canonical.contains(".charAt("), "{canonical}");
+        assert!(!canonical.contains("[read()"), "{canonical}");
+
+        let indexed = compile_with_options(
+            in_range,
+            IrJsOptions {
+                indexed_char_at: true,
+                mangle_identifiers: false,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(indexed.contains("\"hello\"["), "{indexed}");
+        assert!(!indexed.contains(".charAt("), "{indexed}");
+
+        let out_of_range = compile_with_options(
+            "extern int read();print(\"ab\".charAt(read()));",
+            IrJsOptions {
+                indexed_char_at: true,
+                mangle_identifiers: false,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(out_of_range.contains(".charAt("), "{out_of_range}");
+    }
+
+    #[test]
+    fn indexed_char_at_rewrites_length_bounded_loops() {
+        let source = "extern string read();string walk(string s){string out=\"\";for(int i=0;i<s.length;i++){out=out+s.charAt(i);}return out;}print(walk(read()));";
+        let canonical = compile_with_options(
+            source,
+            IrJsOptions {
+                mangle_identifiers: false,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(canonical.contains(".charAt("), "{canonical}");
+
+        let indexed = compile_with_options(
+            source,
+            IrJsOptions {
+                indexed_char_at: true,
+                mangle_identifiers: false,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(indexed.contains("[") && !indexed.contains(".charAt("), "{indexed}");
+    }
+
+    #[test]
+    fn lower_syntax_target_avoids_es2020_plus_constructs() {
+        let source = "\
+            extern int[]? read();\
+            extern int index();\
+            Record<int> values=record{alpha:1};\
+            print(Object.hasOwn(values,\"alpha\"));\
+            print(read()?.[index()]);\
+            int run(){try{throw \"bad\";}catch{}return 1;}\
+            print(run());";
+        let output = compile_with_options(
+            source,
+            IrJsOptions {
+                mangle_identifiers: false,
+                ecmascript: crate::js_syntax_target::EcmaScriptEdition::Es2018,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(!output.contains("Object.hasOwn"), "{output}");
+        assert!(output.contains("hasOwnProperty.call"), "{output}");
+        assert!(!output.contains("?."), "{output}");
+        assert!(!output.contains("??"), "{output}");
+        assert!(!output.contains("catch{}"), "{output}");
+        assert!(output.contains("catch("), "{output}");
+    }
+
+    #[test]
+    fn object_has_own_falls_back_below_es2022() {
+        let output = compile_with_options(
+            "Record<int> values=record{alpha:1};print(Object.hasOwn(values,\"alpha\"));",
+            IrJsOptions {
+                mangle_identifiers: false,
+                ecmascript: crate::js_syntax_target::EcmaScriptEdition::Es2021,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(!output.contains("Object.hasOwn"), "{output}");
+        assert!(
+            output.contains("Object.prototype.hasOwnProperty.call"),
+            "{output}"
+        );
+    }
+
+    #[test]
+    fn object_spread_is_illegal_below_es2018() {
+        let error = compile_try_with_options(
+            "Record<int> source=record{left:1};Record<int> copy=record{...source,right:3};print(copy.left??0);",
+            IrJsOptions {
+                ecmascript: crate::js_syntax_target::EcmaScriptEdition::Es2017,
+                ..IrJsOptions::default()
+            },
+        )
+        .expect_err("object spread requires es2018");
+        assert!(
+            error.message.contains("object rest/spread"),
+            "{}",
+            error.message
+        );
+    }
+
+    #[test]
+    fn effect_ternary_can_keep_statement_if_else() {
+        let source = "extern bool flag();extern void hitA();extern void hitB();void choose(){if(flag()){hitA();}else{hitB();}}choose();";
+        let ternary = compile_with_options(
+            source,
+            IrJsOptions {
+                mangle_identifiers: false,
+                conditional_expressions: true,
+                effect_ternary: true,
+                ..IrJsOptions::default()
+            },
+        );
+        let statements = compile_with_options(
+            source,
+            IrJsOptions {
+                mangle_identifiers: false,
+                conditional_expressions: true,
+                effect_ternary: false,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(
+            ternary.contains("?") && ternary.contains("hitA") && ternary.contains("hitB"),
+            "{ternary}"
+        );
+        assert!(statements.contains("if("), "{statements}");
+        assert!(statements.contains("else"), "{statements}");
+        let ternary_sizes = crate::measure_javascript_transfer_sizes(ternary.as_bytes()).unwrap();
+        let statement_sizes =
+            crate::measure_javascript_transfer_sizes(statements.as_bytes()).unwrap();
+        assert!(
+            statement_sizes.brotli11 >= ternary_sizes.brotli11,
+            "ternary={ternary_sizes:?} statements={statement_sizes:?}"
+        );
+    }
+
+    #[test]
+    fn syntax_spelling_corpus_keeps_canonical_char_at_when_search_is_off() {
+        let source = "\
+            extern int read();\
+            string hex=\"0123456789abcdef\";\
+            print(hex.charAt(read()&15));print(hex.charAt(read()&15));\
+            print(hex.charAt(read()&15));print(hex.charAt(read()&15));\
+            print(hex.charAt(read()&15));print(hex.charAt(read()&15));\
+            print(hex.charAt(read()&15));print(hex.charAt(read()&15));";
+        let canonical = compile_with_options(
+            source,
+            IrJsOptions {
+                mangle_identifiers: false,
+                ..IrJsOptions::default()
+            },
+        );
+        let indexed = compile_with_options(
+            source,
+            IrJsOptions {
+                mangle_identifiers: false,
+                indexed_char_at: true,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(canonical.contains(".charAt("), "{canonical}");
+        assert!(indexed.contains("["), "{indexed}");
+        assert_ne!(canonical, indexed);
+        let canonical_sizes =
+            crate::measure_javascript_transfer_sizes(canonical.as_bytes()).unwrap();
+        let indexed_sizes = crate::measure_javascript_transfer_sizes(indexed.as_bytes()).unwrap();
+        assert!(
+            indexed_sizes.brotli11 <= canonical_sizes.brotli11,
+            "canonical={canonical_sizes:?} indexed={indexed_sizes:?}"
+        );
+
+        let balanced: crate::config::ProjectConfig =
+            toml::from_str("[javascript]\npriority='balanced'\n").unwrap();
+        let balanced_listed: crate::config::ProjectConfig = toml::from_str(
+            "[javascript]\npriority='balanced'\ncompression=['indexed-char-at','effect-ternary']\n",
+        )
+        .unwrap();
+        assert!(!balanced.indexed_char_at_candidates_enabled());
+        assert!(!balanced.effect_ternary_candidates_enabled());
+        assert!(balanced_listed.indexed_char_at_candidates_enabled());
+        assert_eq!(balanced.js_options().indexed_char_at, false);
+        assert_eq!(balanced_listed.js_options().indexed_char_at, false);
+        assert_eq!(
+            balanced.js_options().effect_ternary,
+            balanced_listed.js_options().effect_ternary
+        );
+        let omitted = compile_with_options(
+            source,
+            IrJsOptions {
+                indexed_char_at: balanced.js_options().indexed_char_at,
+                effect_ternary: balanced.js_options().effect_ternary,
+                mangle_identifiers: false,
+                ..IrJsOptions::default()
+            },
+        );
+        let listed = compile_with_options(
+            source,
+            IrJsOptions {
+                indexed_char_at: balanced_listed.js_options().indexed_char_at,
+                effect_ternary: balanced_listed.js_options().effect_ternary,
+                mangle_identifiers: false,
+                ..IrJsOptions::default()
+            },
+        );
+        assert_eq!(omitted, listed);
     }
 
     #[test]

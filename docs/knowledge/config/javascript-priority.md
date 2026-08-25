@@ -15,7 +15,7 @@ Aliases: `realisticperf-first`, `realistic-perf-first` → `realistic-performanc
 | `realistic-performance-first` | 18 / 45 / 16 | over-limit bucket + transfer ratio, then shape ratio | Like balanced on many tactics; still no packing / size-first-only searches |
 | `performance-first` | 24 / 60 / none | shape first | Identifier mangling + grammar elision + unused-catch + generator-star + phi affinity; **no** pooling, entropy alphabet, packing, IR search variants |
 
-`enables_compression` in `src/config.rs` is the exact matrix. Size-first-only decisions: `string-array-packing`, `scalar-phi-copies`, `ir-*-variants`, `mutation-spelling-selection`, `property-mangling`, pipeline fusion, partial-escape sinking, region outlining, joint representation/chunk search, parameterized merging. `loop-spelling-selection` is enabled for size-first and balanced.
+`enables_compression` in `src/config.rs` is the exact matrix. Size-first-only decisions: `string-array-packing`, `scalar-phi-copies`, `ir-*-variants`, `mutation-spelling-selection`, `indexed-char-at`, `property-mangling`, pipeline fusion, partial-escape sinking, region outlining, joint representation/chunk search, parameterized merging. `loop-spelling-selection` is enabled for size-first and balanced. `effect-ternary` is legal but off by every priority preset; list it explicitly to search statement-shaped `if`/`else`.
 
 `expression-superoptimization` and `path-sensitive-propagation` are on for size-first **and** balanced.
 
@@ -48,6 +48,8 @@ These are IR instruction budgets, not output-byte caps. jQuery’s inline TOMLs 
 | `aggregate_layout` | instance backing; default `positional` |
 | `pool_numeric_literals` | default true |
 | `integer_coercions` | omit = drop proven `|0` on size-first/balanced, keep on performance-first and realistic-performance-first; `true` keeps `|0` |
+| `ecmascript` | syntax floor; omit = `es2022`. Independent of CLI `--target js` and of the two allowlists |
+| `browsers` | optional `chromeNN` / `firefoxNN` / `safariNN` / `edgeNN`; intersected with `ecmascript` |
 | `local_name_reserve` | 0–256; production search also tries 0/8/16/32 |
 | `stable_local_names` | default true |
 | `local_name_coalescing` | default true; in identifier-mangled output, reuse bindings only for proven noninterfering SSA live ranges; maximum SSA-destruction search may score both regimes |

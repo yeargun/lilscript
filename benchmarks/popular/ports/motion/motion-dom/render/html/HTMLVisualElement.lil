@@ -35,9 +35,6 @@ export class HTMLVisualElement extends DOMVisualElement {
     this.renderInstanceHook = (JsValue instance, JsValue renderState, JsValue? styleProp, JsValue? projection) => {
       renderHTML(instance, renderState, styleProp, projection);
     };
-    this.measureViewportBoxHook = () => {
-      return self.measureViewportBoxDefault();
-    };
     this.readValueFromInstanceHook = (JsValue instance, string key) => {
       if (transformProps.has(key)) {
         JsValue? projection = self.projection;

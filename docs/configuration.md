@@ -40,6 +40,8 @@ profile_guided = true
 
 [javascript]
 priority = "size-first"
+# ecmascript = "es2022" # es2015 | es2016 | ... | es2022 | esnext; omitted = es2022
+# browsers = ["chrome80", "firefox78"] # optional; intersected with ecmascript (conservative floor wins)
 optimization_level = 15 # 0..15 compiler-effort budget
 cost_model = "brotli" # raw | gzip | brotli
 pool_numeric_literals = true # alias repeated profitable numeric literals
@@ -282,11 +284,24 @@ whose JavaScript consumers treat every exported aggregate as opaque and only
 pass handles back to compiled functions; JavaScript must not inspect fields or
 construct those handles as objects in that mode.
 
-`javascript.compression` is an optional exact allowlist of contested JavaScript
-size tactics. If omitted, the selected profile supplies the list. If present,
-only listed tactics are enabled; `compression = []` disables all of them.
-Proven `|0` is not in that bargain: size-first and balanced still drop it
-unless `integer_coercions = true`.
+`javascript.ecmascript` is the JavaScript *syntax* floor (`es2015`…`es2022`,
+or `esnext`). It is independent of CLI `--target js`. Omitted values match the
+historical backend (`es2022`), so existing goldens stay byte-stable. Optional
+`javascript.browsers` tokens (`chrome80`, `firefox78`, `safari14`, `edge80`)
+intersect with that edition; the most conservative floor wins. Unknown tokens
+are config errors. The floor is ES2015: there is no ES5 mode and no polyfill
+emission. If a required construct has no exact older spelling, compilation
+fails rather than emitting illegal JavaScript. Comparison and benchmark
+baselines stay `es2022` unless a case is explicitly about a lower target.
+
+`javascript.compression` overlays named size tactics on the selected
+`javascript.priority` defaults. If omitted, the profile supplies the list.
+Listing a name turns that tactic on even when the profile would leave it off.
+`compression = []` disables all of them. Canonical options still follow the
+listed names when the table is present. Size-first **search-only** spellings
+such as `indexed-char-at` still compete unless the list is empty. Proven `|0`
+is not in that bargain: size-first and balanced still drop it unless
+`integer_coercions = true`.
 
 - `identifier-mangling` assigns short names by whole-program use frequency.
 - `entropy-aware-mangling` compares the canonical identifier alphabet with an
@@ -421,6 +436,17 @@ unless `integer_coercions = true`.
   the add feeds one phi edge, its result is otherwise unused, and integer range
   analysis proves signed-i32 normalization unnecessary. Overflow-capable or
   observed increments retain explicit assignment and coercion.
+- `indexed-char-at` lets size-first search compete proven in-range
+  `string.charAt(i)` against `s[i]`. Canonical emission stays `.charAt`. Out of
+  range the two spellings differ (`""` vs `undefined`), so the alternative is
+  admitted only with constant-string length facts or a length-bounded loop
+  (`i < s.length`). A snippet
+  atlas win is not a ship gate; complete-artifact scoring decides.
+- `effect-ternary` lets search compare discarded `if(x)a();else b()`
+  against `x?a():b()`. Canonical emission already recovers that ternary when
+  `conditional_expressions` is on; listing the decision only admits the
+  statement-shaped alternative. No priority preset enables this search: the
+  statement form lost raw/gzip/Brotli on the measured artifact.
 - `array-pipeline-fusion` fuses eligible typed array `map`/`filter`/`reduce`
   pipelines when the exact selected codec prefers the fused form. Size-first
   enables it; other priorities keep the unfused IR unless listed.

@@ -33,20 +33,30 @@ Parent: [tree](../README.md). Behavior: [compilation](../compilation/README.md).
 | `javascript.compression` | May this representation exist at all? (mangling, packing, outlining, …) |
 | `javascript.optimizations` | Which alternative **searches** and post-emit analyses run? |
 
-If `compression` is omitted, `javascript.priority` supplies the list. If present, **only listed names** are on; `compression = []` disables all contested tactics.
+If `compression` is omitted, `javascript.priority` supplies the list. Listing a
+name opts that representation in even if the profile would leave it off.
+`compression = []` disables all contested tactics. Canonical options follow the
+listed names when the table is present. Size-first search-only spellings such as
+`indexed-char-at` still compete unless the list is empty.
 
 If `optimizations` is omitted, `optimization_level` (0–15) supplies the feature
 set. If present, it is an exact feature allowlist; the level still bounds count,
 byte, beam, structural-proposal, and terminal-codec effort.
 
-Search may turn **off** an enabled compression tactic to compare. It never turns **on** a tactic missing from the compression allowlist.
+`javascript.ecmascript` and `javascript.browsers` are a third axis: they choose
+which JavaScript syntax is legal. They do not enable compression tactics or
+searches. Default `es2022` matches the historical backend.
+
+Search may turn **off** an enabled compression tactic to compare. Size-first
+search-only spellings still compete from the priority matrix when a non-empty
+`compression` list omitted the new name.
 
 ## Mental model
 
 ```
 [optimization]          → what IR rewrites are allowed (false is a hard off)
 javascript.priority     → default compression set + inline budgets + rank key
-javascript.compression  → exact representation allowlist (optional)
+javascript.compression  → overlay / opt-in names (optional; `[]` disables)
 javascript.optimizations / optimization_level → search dimensions
 javascript.cost_model   → what “smaller” means (raw | gzip | brotli)
 candidate_*             → compile-time budget for measuring “smaller”
