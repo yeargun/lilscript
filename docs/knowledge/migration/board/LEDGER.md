@@ -34,6 +34,7 @@ that lane is green, because a search that ranks incorrect programs ranks noise.
 | id | status | intent | gate | note |
 |---|---|---|---|---|
 | `emit-01` | todo | `?:break` was emitted while a stronger receiver coloring was tried. The coloring was backed off; **the emission path that put a statement in expression position was not fixed**. Isolate it independently. | A minimized peephole test that reproduces statement-in-expression, then passes | [notes](notes/emit-01.md) |
+| `emit-05` | active | LilScript emits fewer raw bytes than `jquery.min.js` and more compressed ones. Cause found and measured — header spelling diversity — but converged naming only reaches a third of it because each function's name pool diverges. | jQuery Brotli 29,770 against the hero's 27,445; converged naming −30 so far | [notes](notes/emit-05.md) |
 | `emit-02` | landed | String / Regex / `JS.encodeURI` lower to JS members, not host trampolines. | Keep the existing regression tests; do not re-derive | [notes](notes/emit-01.md) |
 | `emit-03` | landed | `if`/`return` regex picks emit `?:`. | Keep the existing regression tests | [notes](notes/emit-01.md) |
 | `emit-04` | landed | Identifier inlining follows JS precedence rather than `\|0` patches. | Keep the existing regression tests | [notes](notes/emit-01.md) |
