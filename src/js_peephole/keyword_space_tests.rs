@@ -3241,10 +3241,7 @@ fn rematerializes_only_function_values_whose_names_stay_stable() {
     )
     .unwrap();
     assert!(
-        // The invariant is that the outer binding survives the inner shadow and
-        // the property still names it. Whether its body stays a block or folds
-        // to a sequence is a spelling, like the cases above.
-        shadowed_inner.code.contains("F=(e,t)=>") && shadowed_inner.code.contains("makeArray:F"),
+        shadowed_inner.code.contains("F=(e,t)=>{") && shadowed_inner.code.contains("makeArray:F"),
         "{}",
         shadowed_inner.code
     );
