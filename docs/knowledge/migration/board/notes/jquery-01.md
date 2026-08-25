@@ -38,9 +38,36 @@ the compat suite is 6/6. The gap is not extra surface on either side.
 - 2026-08-25 — 42 sites emit `Array.prototype.m.call(x,…)` where jQuery writes `x.m(…)`; official has zero. Worth −70 Brotli and −873 raw, and the compat suite passes the rewrite. But it is **not** free: `JS.shift(x)` on an arbitrary `JsValue` is not the same as `x.shift()` if `x` carries an own `shift`. The direct form already exists and is gated on provable array-ness (`codegen_ir_js` asserts it for `JS.array()` receivers). The fix is a wider array-ness proof, not a lowering switch. — **OPEN**
 - 2026-08-25 — The same convergence config was tried on zodlil and **reverted**: `src/entry.lil` improved 56 bytes but the shipped `dist/zod.core.js` regressed 1,086. Per-port verification has to measure the artifact that ships, not a convenient entry. — **REJECTED** for zod
 
+- 2026-08-25 — **The residual gap is IR-level control-flow shape, not spelling.**
+  Normalized per 1,000 raw bytes, against `jquery.min.js`: `if(` **1.85x**,
+  `else` **2.48x**, `;` **2.21x**, while ternaries run **0.89x** and `&&`/`||`
+  about 0.88x. They convert statements into expressions and we do not, so their
+  functions share long prefixes -- repeated 24-gram coverage is **81% of file
+  against our 68%**, and their most repeated run is
+  `function(e,t,n){var r,i,` fourteen times: header *plus* hoisted declarations
+  in canonical order. — **OPEN**, and this is where the remaining 1,450 bytes live
+- 2026-08-25 — Every attempt to emulate that shape **after** emission lost, which
+  is the strongest evidence that the search already sits at the best point
+  reachable from our IR. Measured on the converged jQuery artifact, Brotli:
+  declaration hoisting **+277**; converged renaming **+454**; both together
+  **+675**; Yoda canonicalization of `x==null` **+37** (our mixed form
+  compresses better than official's uniform one); `comma_expressions = true`
+  **+126**; `function_spelling` forced to `function` **+494** or `arrow` **+89**.
+  Post-hoc rewriting is the wrong lever for this port. — **REJECTED**, all of it
+
 ## Next step
 
-Widen the array-ness proof so `JS.shift`/`JS.push`/`JS.slice` on a value that
-provably holds an array lower to a direct call. 42 sites on jQuery alone, and
-the proof already exists for `JS.array()` receivers — it just does not survive a
-round trip through an object field.
+Two, in order.
+
+**Shape the control flow in the optimizer, not the emitter.** We emit 1.85x
+their `if` and 2.48x their `else` per byte. Every post-emission attempt to
+recover that lost, so the branchiness is decided in the IR and has to be fixed
+there: merging arms, sinking common tails, and choosing expression form before
+the emitter ever sees a statement list. That is also the only lever left that
+the candidate search cannot already reach, because the search chooses among
+spellings of a fixed control-flow graph.
+
+**Then widen the array-ness proof** so `JS.shift`/`JS.push`/`JS.slice` on a
+value that provably holds an array lower to a direct call: 42 sites on jQuery,
+worth −70 Brotli and −873 raw. The proof exists for `JS.array()` receivers and
+does not survive a round trip through an object field.
