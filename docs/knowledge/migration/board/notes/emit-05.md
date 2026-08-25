@@ -48,10 +48,36 @@ the compat suite is 6/6. The gap is not extra surface on either side.
 - 2026-08-25 — The residual spellings name the blocker: `(c,d)`x15, `(b,c)`x10, `(d,e)`x4, `(d,e,f)`x4, `(c,d,e,f)`x3. Those are the **same canonical order at a different starting offset**. `local_mangler` clones the top-level mangler and then *releases* a different set of top-level function names into each function's pool, so `next_name()` yields a different sequence per function. Canonical ordering cannot converge spellings while the pool itself diverges. — **OPEN**, and this is the next step
 - 2026-08-25 — Kept the option and the family even though both are neutral: the option is the scaffold for the pool fix, and the family is what makes the choice calculated rather than assumed. If proposal-work pressure matters later, the family is the first thing to drop — see [search-04](search-04.md) on breadth displacing depth. — **LANDED**
 
+- 2026-08-25 — **Uniform local pool: tried, measurably worse, reverted.** Stopped
+  releasing top-level function names into each function's pool so every
+  `next_name()` sequence would start at the same offset. jQuery went raw 85,439
+  to **91,940** (+6,501) and Brotli 29,740 to **30,751** (+1,011), and distinct
+  header spellings got *worse*, 41 to 49. Locals lose the recycled short names
+  and the offsets do not converge anyway. — **REJECTED**
+- 2026-08-25 — Second hypothesis, that `collect_top_level_references`
+  over-approximates and reserves names a function cannot see: checked the code
+  and it is false. The walk recurses only through `callee_body_nests_in_caller`
+  callees and closures, which really are textually nested. The reservation set
+  is correct, so the per-function divergence it produces is legitimate. —
+  **REJECTED**
+- 2026-08-25 — What the two negatives leave: terser reaches 20 distinct
+  spellings for **+373 raw**, so convergence is achievable without surrendering
+  short names. It manages that because it renames the **final laid-out text**
+  with an exact scope chain, while we assign names per function before the
+  nesting layout is known and must reserve conservatively. The gap is
+  information, not policy — no ordering rule applied at our stage can recover
+  it. — **OPEN**
+
 ## Next step
 
-Give locals a **uniform** name pool: stop releasing top-level function names
-into each function's local space, so every function's `next_name()` sequence
-starts at the same offset. That costs raw bytes (fewer short names recycled) and
-should convert the 63% top-3 coverage toward terser's 74%. Score it under the
-cost model like this one, and measure whether the raw cost is repaid.
+A scope-accurate renaming pass over the emitted text, at the peephole layer,
+where the nesting is already resolved and the exact scope chain is available.
+That is the only stage with the information terser has, and the measured prize
+is 602 Brotli bytes on jQuery for 373 raw.
+
+It needs the same thing the correctness lane needs: a real scope model in the
+peephole. All three miscompiles in [ident-06](ident-06.md) and
+[ident-08](ident-08.md) came from folds that could only ask "what token precedes
+this?" rather than "what does this name resolve to?". One scope model pays for
+both — it closes a live bug class and unlocks the largest measured naming win.
+Build it once, for correctness, and take the compression as the second return.
