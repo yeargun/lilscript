@@ -243,7 +243,11 @@ impl ProjectConfig {
                 self.javascript
                     .compression_enabled(CompressionDecision::StringPooling)
             }),
-            string_pool_minimum_savings: 1,
+            string_pool_minimum_savings: match self.javascript.cost_model {
+                CompressionCostModel::Raw => 1,
+                CompressionCostModel::Gzip => 4,
+                CompressionCostModel::Brotli => 8,
+            },
             pool_numeric_literals: self.javascript.pool_numeric_literals,
             ordinary_record_literals: false,
             elide_safe_integer_coercions: !self.javascript.keep_integer_coercions(),
@@ -1576,6 +1580,17 @@ impl JavaScriptConfig {
     /// the already-scored IR context seeds have been installed. Survivor and
     /// byte limits cannot provide this guarantee: hundreds of rejected plans
     /// may be emitted before a small survivor frontier is chosen.
+    /// The ceiling an explicitly configured proposal budget may not exceed.
+    /// The optimization level sets the *default* breadth, so an explicit budget
+    /// is allowed past it; the search tier is a different thing and stays hard.
+    fn candidate_proposal_tier_ceiling(&self) -> usize {
+        match self.candidate_search {
+            CandidateSearch::Off => 0,
+            CandidateSearch::Production => 384,
+            CandidateSearch::Always => usize::MAX,
+        }
+    }
+
     fn candidate_proposal_level_limit(&self) -> usize {
         let level_limit = match self.optimization_level {
             0..=2 => 0,
@@ -1596,9 +1611,14 @@ impl JavaScriptConfig {
 
     pub fn effective_candidate_proposal_limit(&self) -> usize {
         let level_limit = self.candidate_proposal_level_limit();
+        // A level that turns the search off turns it off for everyone; an
+        // explicit budget widens a search that is running, it does not start one.
+        if level_limit == 0 {
+            return 0;
+        }
         self.candidate_proposal_limit.map_or_else(
             || self.effective_candidate_limit().min(level_limit),
-            |configured| configured.min(level_limit),
+            |configured| configured.min(self.candidate_proposal_tier_ceiling()),
         )
     }
 
@@ -1618,10 +1638,16 @@ impl JavaScriptConfig {
             16_385..=65_536 => level_limit.div_ceil(4),
             _ => level_limit.div_ceil(12),
         };
-        self.candidate_proposal_limit.map_or_else(
-            || self.effective_candidate_limit().min(artifact_limit),
-            |configured| configured.min(level_limit),
-        )
+        // An explicit proposal budget is a request for a wider search and is
+        // honored past the level's default breadth, the same way
+        // `terminal_codec_probe_limit` is. Clamping it to the level tier meant a
+        // config could ask for four times the proposals and silently receive
+        // none of them. The search tier is a separate ceiling and stays hard.
+        self.candidate_proposal_limit
+            .map_or_else(
+                || self.effective_candidate_limit().min(artifact_limit),
+                |configured| configured.min(self.candidate_proposal_tier_ceiling()),
+            )
     }
 
     /// Hard ceiling for optional whole-artifact work after structural
@@ -2118,6 +2144,7 @@ shared_min_imports = 3
         assert!(!balanced.js_options().elide_length_tonumber);
         assert!(size.js_options().inline_structured_closures);
         assert!(size.js_options().pack_string_arrays);
+        assert_eq!(size.js_options().string_pool_minimum_savings, 8);
         assert!(size.js_options().scalar_phi_copies);
         assert!(size.js_options().mangle_properties);
         assert!(!size.js_options().mangle_exports);
