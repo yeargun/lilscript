@@ -29,7 +29,7 @@ use crate::js_peephole::binding::{BindingResolution, Resolution};
 use crate::js_peephole::rewrite::{apply_token_rewrites, is_property_identifier};
 use crate::js_peephole::token::{lex, Token, TokenKind};
 use crate::js_peephole::JavaScriptParseError;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 pub(crate) fn converge_local_names(source: &str) -> Result<(String, usize), JavaScriptParseError> {
     let tokens = lex(source)?;
@@ -49,30 +49,66 @@ pub(crate) fn converge_local_names(source: &str) -> Result<(String, usize), Java
         }
     }
 
-    // Two bindings may share a spelling exactly when neither scope encloses the
-    // other, which is what lets sibling functions converge on `(a,b)`. Model a
-    // claim as the token range over which the name is spoken for: a binding
-    // claims its whole scope, and a free reference claims the point it occurs
-    // at, so any binding whose scope covers that point must avoid the name.
-    let mut claims = HashMap::<String, Vec<(usize, usize)>>::new();
-    // `(parameter position, -uses, declaration, scope extent)`. Position leads
-    // because header shape is what repeats: every first parameter is assigned
-    // before any second parameter, so same-arity functions converge on one
-    // spelling. Ordering by use count alone shortens names and scrambles
-    // headers -- measured on jQuery as `(a,b)` beside `(b,a)`.
-    let mut renameable = Vec::<(usize, usize, usize, usize, usize)>::new();
-    // Module bindings are left alone: exports and host contracts read them, and
-    // ranking them last so locals could pick first was measured and lost -- it
-    // pushes them to two characters and costs more raw than the convergence
-    // returns.
-    for (scope, start, end) in resolution.function_scopes() {
+    // A scope may reuse a name an enclosing scope also uses, as long as nothing
+    // inside the scope refers to that enclosing binding: binding the name again
+    // shadows it, and shadowing is only a bug when something wanted the outer
+    // one. The earlier rule here -- refuse any name that appears anywhere in the
+    // scope's extent -- is a sufficient condition, not the real one, and it is
+    // what kept jQuery at 68 header spellings where terser reaches 26. A nested
+    // function that binds `e` for itself blocked `e` for its parent.
+    //
+    // So the question asked per scope is terser's: which names are spoken here
+    // that resolve somewhere else? Those, and only those, are unavailable.
+    let mut scopes = resolution.function_scopes();
+    // Parents first, so an inner scope sees its enclosing bindings' final names.
+    scopes.sort_unstable_by_key(|(_, start, end)| (*start, std::cmp::Reverse(*end)));
+
+    let mut assigned = HashMap::<usize, String>::new();
+    let mut rewrites = Vec::<(usize, usize, String)>::new();
+
+    for (scope, start, end) in scopes {
         let declarations = resolution.declarations(scope);
+        if declarations.is_empty() {
+            continue;
+        }
         let body = tokens
             .iter()
             .enumerate()
             .skip(start)
             .find(|(_, token)| token.text == "{" || token.text == "=>")
             .map_or(start, |(index, _)| index);
+
+        // Names this scope may not take.
+        let mut blocked = HashSet::<String>::new();
+        for index in start..end.min(tokens.len()) {
+            if tokens[index].kind != TokenKind::Identifier
+                || is_property_identifier(&tokens, index)
+            {
+                continue;
+            }
+            match resolution.resolve(index) {
+                // A global or an unresolved spelling read here would be captured
+                // by a local of the same name.
+                Resolution::Free | Resolution::Unresolved => {
+                    blocked.insert(tokens[index].text.to_string());
+                }
+                Resolution::Bound(declaration) => {
+                    if declaration < start || declaration >= end {
+                        blocked.insert(
+                            assigned
+                                .get(&declaration)
+                                .cloned()
+                                .unwrap_or_else(|| tokens[declaration].text.to_string()),
+                        );
+                    }
+                }
+            }
+        }
+
+        // `(parameter position, -uses, declaration)`. Position leads because
+        // header shape is what repeats: every first parameter is assigned before
+        // any second parameter, so same-arity functions converge on one spelling.
+        let mut renameable = Vec::<(usize, usize, usize)>::new();
         let mut position = 0usize;
         for (name, declaration) in declarations {
             let rank = if declaration < body {
@@ -82,75 +118,51 @@ pub(crate) fn converge_local_names(source: &str) -> Result<(String, usize), Java
             } else {
                 usize::MAX
             };
-            let count = uses.get(&declaration).map_or(0, Vec::len);
-            if resolution.name_is_unambiguous(scope, name)
-                && !names_a_function_or_class(&tokens, declaration)
-            {
-                renameable.push((rank, usize::MAX - count, declaration, start, end));
+            let keeps_its_name = resolution.scope_index_at(declaration) == 0
+                || !resolution.name_is_unambiguous(scope, name)
+                || names_a_function_or_class(&tokens, declaration);
+            if keeps_its_name {
+                blocked.insert(name.to_string());
+                assigned.insert(declaration, name.to_string());
+            } else {
+                let count = uses.get(&declaration).map_or(0, Vec::len);
+                renameable.push((rank, usize::MAX - count, declaration));
             }
-            // Refused bindings are claimed above, at each point they are spoken.
         }
-    }
-    // A name the pass does not assign -- a module binding, a free global, a
-    // scope it refused -- only rules out spellings where it is actually spoken.
-    // Claiming the whole file for every module binding would block the first
-    // fifty spellings everywhere and push every local to two characters.
-    let claim_point = |name: &str, at: usize, claims: &mut HashMap<String, Vec<(usize, usize)>>| {
-        claims.entry(name.to_string()).or_default().push((at, at + 1));
-    };
-    for index in 0..tokens.len() {
-        if tokens[index].kind != TokenKind::Identifier || is_property_identifier(&tokens, index) {
-            continue;
-        }
-        let fixed = match resolution.resolve(index) {
-            Resolution::Free | Resolution::Unresolved => true,
-            Resolution::Bound(declaration) => {
-                resolution.scope_index_at(declaration) == 0
-                    || names_a_function_or_class(&tokens, declaration)
-            }
-        };
-        if fixed {
-            claim_point(tokens[index].text, index, &mut claims);
-        }
-    }
+        renameable.sort_unstable();
 
-    renameable.sort_unstable();
-
-    let mut rewrites = Vec::<(usize, usize, String)>::new();
-    for (_, _, declaration, start, end) in renameable {
-        let name = tokens[declaration].text;
         let mut canonical = CanonicalNames::new(&alphabet);
-        let replacement = loop {
-            let candidate = canonical.next_name();
-            if candidate.len() > 2 {
-                break None;
-            }
-            let taken = claims
-                .get(&candidate)
-                .is_some_and(|spans| spans.iter().any(|(s, e)| *s < end && start < *e));
-            if !taken {
+        for (_, _, declaration) in renameable {
+            let name = tokens[declaration].text;
+            let replacement = loop {
+                let candidate = canonical.next_name();
+                if candidate.len() > 2 {
+                    break None;
+                }
+                if is_reserved_word(&candidate) || blocked.contains(&candidate) {
+                    continue;
+                }
                 break Some(candidate);
+            };
+            let Some(replacement) = replacement else {
+                blocked.insert(name.to_string());
+                assigned.insert(declaration, name.to_string());
+                continue;
+            };
+            blocked.insert(replacement.clone());
+            assigned.insert(declaration, replacement.clone());
+            if replacement == name {
+                continue;
             }
-        };
-        let Some(replacement) = replacement else {
-            claims.entry(name.to_string()).or_default().push((start, end));
-            continue;
-        };
-        claims
-            .entry(replacement.clone())
-            .or_default()
-            .push((start, end));
-        if replacement == name {
-            continue;
+            for site in uses.get(&declaration).into_iter().flatten() {
+                rewrites.push((tokens[*site].start, tokens[*site].end, replacement.clone()));
+            }
+            rewrites.push((
+                tokens[declaration].start,
+                tokens[declaration].end,
+                replacement,
+            ));
         }
-        for site in uses.get(&declaration).into_iter().flatten() {
-            rewrites.push((tokens[*site].start, tokens[*site].end, replacement.clone()));
-        }
-        rewrites.push((
-            tokens[declaration].start,
-            tokens[declaration].end,
-            replacement,
-        ));
     }
 
     rewrites.sort_unstable_by_key(|(start, _, _)| *start);
@@ -216,6 +228,13 @@ impl<'a> CanonicalNames<'a> {
 }
 
 
+
+/// A reordered alphabet can spell a keyword in two characters, which a fixed
+/// `ab`, `ac` sequence never reaches. `do`, `if` and `in` are the only reserved
+/// words that short; `of` and `as` are contextual and legal as identifiers.
+fn is_reserved_word(name: &str) -> bool {
+    matches!(name, "do" | "if" | "in")
+}
 
 /// `.name` on a function or class is observable, so those bindings keep their
 /// spelling however hot they are.
@@ -321,6 +340,66 @@ mod tests {
         );
     }
 
+    /// The rule this pass turns on: a scope may take a name an inner scope also
+    /// binds, because binding it again shadows it. The old test -- refuse any
+    /// name that appears in the extent -- forbade this and cost the convergence.
+    #[test]
+    fn a_parent_may_reuse_a_name_an_inner_scope_binds_for_itself() {
+        same_behavior(
+            "function outer(alpha){function inner(beta){return beta*2}return inner(3)+alpha}",
+            "console.log(outer(5))",
+        );
+        let (out, _) = converge_local_names(
+            "function outer(alpha){function inner(beta){return beta*2}return inner(3)+alpha}",
+        )
+        .unwrap();
+        // Whichever letter the input's own text makes first, both scopes take
+        // it: that is the point.
+        let outer = out.split("function outer(").nth(1).and_then(|rest| rest.split(')').next());
+        let inner = out.split("function inner(").nth(1).and_then(|rest| rest.split(')').next());
+        assert_eq!(outer, inner, "parent and child may share a name: {out}");
+        assert!(outer.is_some_and(|name| name.len() == 1), "{out}");
+    }
+
+    /// And may not when the inner scope actually reads the outer binding.
+    #[test]
+    fn a_parent_name_read_inside_is_still_refused() {
+        same_behavior(
+            "function outer(alpha){function inner(beta){return beta+alpha}return inner(3)}",
+            "console.log(outer(5))",
+        );
+        let (out, _) = converge_local_names(
+            "function outer(alpha){function inner(beta){return beta+alpha}return inner(3)}",
+        )
+        .unwrap();
+        assert!(!out.contains("function inner(e)") || !out.contains("function outer(e)"),
+            "a read of the outer binding must keep the names apart: {out}");
+    }
+
+    /// A reordered alphabet can spell `if`, `in` or `do`.
+    #[test]
+    fn a_two_character_keyword_is_never_assigned() {
+        let mut source = String::from("function f(");
+        for index in 0..70 {
+            if index > 0 { source.push(','); }
+            source.push_str(&format!("p{index}"));
+        }
+        source.push_str("){return ");
+        for index in 0..70 {
+            if index > 0 { source.push('+'); }
+            source.push_str(&format!("p{index}"));
+        }
+        source.push_str("}");
+        let (out, _) = converge_local_names(&source).unwrap();
+        for word in ["if", "in", "do"] {
+            assert!(
+                !out.contains(&format!("({word},")) && !out.contains(&format!(",{word},"))
+                    && !out.contains(&format!(",{word})")),
+                "assigned the reserved word `{word}`: {out}"
+            );
+        }
+    }
+
     #[test]
     fn destructured_parameters_are_left_alone() {
         let source = "function q({a,b}){return a+b}";
@@ -361,4 +440,5 @@ mod tests {
         );
     }
 }
+
 
