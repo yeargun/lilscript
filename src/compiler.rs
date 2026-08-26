@@ -25,14 +25,18 @@ use crate::ir::{ControlFlowModule, FunctionId};
 #[cfg(test)]
 use crate::ir::{ControlFlowOp, Intrinsic};
 use crate::js_peephole::{
-    analyze_generated_javascript, declared_identifier_character_use_counts,
-    function_leading_declaration_variant, function_local_binding_swap_variants,
-    identifier_name_is_clear_binding, late_generated_javascript_cleanup,
+    analyze_generated_javascript, converge_local_names, declared_identifier_character_use_counts,
+    fold_constant_json_parse,
+    fold_dead_identifier_copy_declarators, fold_dead_increment_snapshots,
+    fold_expression_bodies,
+    fold_fresh_empty_object_assign, fold_if_prefixed_returns, fold_nested_unguarded_ifs,
+    fold_pristine_static_method_calls,
+    fold_redundant_null_undefined_or, function_leading_declaration_variant,
+    function_local_binding_swap_variants, identifier_name_is_clear_binding,
+    inline_single_use_functions, late_generated_javascript_cleanup,
     late_generated_javascript_cleanup_local_variants, late_generated_javascript_cleanup_pass,
-    converge_local_names, fold_expression_bodies, inline_single_use_functions,
-    optimize_generated_javascript,
-    remap_identifier,
-    remap_single_character_identifiers,
+    optimize_generated_javascript, optimize_generated_javascript_preserving_functions,
+    remap_identifier, remap_single_character_identifiers,
     repair_fused_keyword_identifiers, single_character_identifier_use_counts,
     single_character_identifiers, single_character_name_is_clear_binding,
     single_character_resolved_binding_identifiers, two_character_identifier_use_counts,
@@ -6424,7 +6428,7 @@ fn finalize_javascript_candidates(
     selected.terminal_work_units = codec_budget.used;
     selected.terminal_codec_probe_limit = terminal_codec_probe_limit;
     selected.terminal_codec_probe_limit_reached = codec_budget.limit_reached;
-    Ok(selected)
+    apply_search_off_declaration_peephole(selected, config)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -6583,7 +6587,11 @@ fn finalize_javascript_candidates_with_parallelism(
             let variants = if prepare_peephole {
                 match optimize_generated_javascript(&declaration) {
                     Err(_) if configured_declaration => {
-                        vec![(declaration, baseline_metrics, 0, true)]
+                        vec![peephole_preserve_or_baseline(
+                            declaration,
+                            baseline_metrics,
+                            true,
+                        )]
                     }
                     Err(_) => continue,
                     Ok(optimized) if optimized.code == declaration => {
@@ -6608,17 +6616,31 @@ fn finalize_javascript_candidates_with_parallelism(
                         if !parsed_function_elision
                             && optimized.metrics.functions < original_metrics.functions
                         {
-                            vec![(declaration, original_metrics, 0, true)]
+                            vec![peephole_preserve_or_baseline(
+                                declaration,
+                                original_metrics,
+                                true,
+                            )]
                         } else if analyze_generated_javascript(&optimized.code).is_ok() {
                             vec![
                                 (declaration, original_metrics, 0, true),
                                 (optimized.code, optimized.metrics, optimized.rewrites, false),
                             ]
                         } else {
-                            vec![(declaration, original_metrics, 0, true)]
+                            vec![peephole_preserve_or_baseline(
+                                declaration,
+                                original_metrics,
+                                true,
+                            )]
                         }
                     }
                 }
+            } else if peephole && plan_identity == configured_plan_identity {
+                vec![configured_declaration_peephole(
+                    declaration,
+                    baseline_metrics,
+                    parsed_function_elision,
+                )]
             } else {
                 let metrics = if configured_declaration {
                     baseline_metrics
@@ -8334,11 +8356,128 @@ fn apply_terminal_binding_coordinate_descent(
     Ok(selected)
 }
 
+fn peephole_preserve_or_baseline(
+    declaration: String,
+    baseline_metrics: JavaScriptSyntaxMetrics,
+    is_declaration_spelling: bool,
+) -> (String, JavaScriptSyntaxMetrics, usize, bool) {
+    match optimize_generated_javascript_preserving_functions(&declaration) {
+        Ok(preserved) if preserved.code != declaration => {
+            if let Ok(metrics) = analyze_generated_javascript(&preserved.code) {
+                if metrics.functions >= baseline_metrics.functions {
+                    return (
+                        preserved.code,
+                        metrics,
+                        preserved.rewrites,
+                        is_declaration_spelling,
+                    );
+                }
+            }
+        }
+        _ => {}
+    }
+    (declaration, baseline_metrics, 0, is_declaration_spelling)
+}
+
+fn configured_declaration_peephole(
+    declaration: String,
+    baseline_metrics: JavaScriptSyntaxMetrics,
+    allow_function_elision: bool,
+) -> (String, JavaScriptSyntaxMetrics, usize, bool) {
+    if allow_function_elision {
+        if let Ok(optimized) = optimize_generated_javascript(&declaration) {
+            let code = repair_late_javascript_candidate(optimized.code);
+            if let Ok(metrics) = analyze_generated_javascript(&code) {
+                return (code, metrics, optimized.rewrites, true);
+            }
+        }
+    }
+    let (code, metrics, rewrites, _) =
+        peephole_preserve_or_baseline(declaration, baseline_metrics, true);
+    if rewrites == 0 {
+        return (code, metrics, 0, true);
+    }
+    let repaired = repair_late_javascript_candidate(code.clone());
+    if let Ok(repaired_metrics) = analyze_generated_javascript(&repaired) {
+        if repaired_metrics.functions >= baseline_metrics.functions {
+            return (repaired, repaired_metrics, rewrites, true);
+        }
+    }
+    (code, metrics, rewrites, true)
+}
+
+fn apply_search_off_declaration_peephole(
+    mut selected: SelectedJavaScriptCandidate,
+    config: &ProjectConfig,
+) -> Result<SelectedJavaScriptCandidate, CompileError> {
+    if config.javascript.candidate_search_enabled()
+        || selected.peephole_rewrites > 0
+        || !config.javascript_optimization_configured(JavaScriptOptimization::ParsedPeephole)
+    {
+        return Ok(selected);
+    }
+    let (code, metrics, rewrites, _) = configured_declaration_peephole(
+        selected.code,
+        selected.baseline_metrics,
+        config.single_use_function_expression_candidates_enabled(),
+    );
+    selected.code = code;
+    if rewrites == 0 {
+        return Ok(selected);
+    }
+    selected.metrics = metrics;
+    selected.peephole_rewrites = rewrites;
+    selected.startup_score = metrics.startup_score(
+        config.javascript.startup.parse_weight,
+        config.javascript.startup.compile_weight,
+        config.javascript.startup.memory_weight,
+    );
+    Ok(selected)
+}
+
 fn repair_late_javascript_candidate(mut code: String) -> String {
     if let Ok(repaired) =
         late_generated_javascript_cleanup_pass(&code, LateJavaScriptCleanupPass::OrAssignmentParens)
     {
         code = repaired;
+    }
+    if let Ok((repaired, _)) = fold_fresh_empty_object_assign(&code) {
+        code = repaired;
+    }
+    if let Ok((repaired, rewritten)) = fold_constant_json_parse(&code) {
+        if rewritten > 0 {
+            code = repaired;
+        }
+    }
+    if let Ok((repaired, rewritten)) = fold_redundant_null_undefined_or(&code) {
+        if rewritten > 0 {
+            code = repaired;
+        }
+    }
+    if let Ok((repaired, rewritten)) = fold_dead_identifier_copy_declarators(&code) {
+        if rewritten > 0 {
+            code = repaired;
+        }
+    }
+    if let Ok((repaired, rewritten)) = fold_dead_increment_snapshots(&code) {
+        if rewritten > 0 {
+            code = repaired;
+        }
+    }
+    if let Ok((repaired, rewritten)) = fold_pristine_static_method_calls(&code) {
+        if rewritten > 0 {
+            code = repaired;
+        }
+    }
+    if let Ok((repaired, rewritten)) = fold_if_prefixed_returns(&code) {
+        if rewritten > 0 {
+            code = repaired;
+        }
+    }
+    if let Ok((repaired, rewritten)) = fold_nested_unguarded_ifs(&code) {
+        if rewritten > 0 {
+            code = repaired;
+        }
     }
     if let Ok(repaired) = repair_fused_keyword_identifiers(&code) {
         code = repaired;
@@ -8378,6 +8517,48 @@ fn apply_late_javascript_cleanup(
         cost: selected.transfer_cost,
     };
     let mut beam = vec![original.clone()];
+    // A terminal finalist need not have been among the bounded plans admitted
+    // to parsed preparation. Re-open the canonical peephole on the finalist
+    // itself before narrower cleanup families spend its fair slice. This is
+    // especially important when an earlier, highly ranked parsed plan is
+    // rejected for syntax: the best unparsed fallback may expose the same
+    // large general rewrite only after plan selection.
+    let mut canonical_peephole = None;
+    if codec_budget.reserve_work_unit() {
+        if let Ok(optimized) = optimize_generated_javascript(&original.code) {
+            let code = repair_late_javascript_candidate(optimized.code);
+            let metrics = analyze_generated_javascript(&code).ok();
+            let crosses_disabled_function_boundary = !config
+                .single_use_function_expression_candidates_enabled()
+                && metrics.is_some_and(|metrics| metrics.functions < selected.metrics.functions);
+            let (code, metrics) = if crosses_disabled_function_boundary {
+                let (code, _, _, _) = peephole_preserve_or_baseline(
+                    original.code.clone(),
+                    selected.metrics,
+                    true,
+                );
+                let code = repair_late_javascript_candidate(code);
+                let metrics = analyze_generated_javascript(&code).ok();
+                (code, metrics)
+            } else {
+                (code, metrics)
+            };
+            if code != original.code
+                && metrics.is_some_and(|metrics| {
+                    config.single_use_function_expression_candidates_enabled()
+                        || metrics.functions >= selected.metrics.functions
+                })
+            {
+                if let Some(cost) =
+                    codec_budget.compressed_size(code.as_bytes(), config.javascript.cost_model)?
+                {
+                    let candidate = CleanupCandidate { code, cost };
+                    beam.push(candidate.clone());
+                    canonical_peephole = Some(candidate);
+                }
+            }
+        }
+    }
     // Converged local naming: reassign each function scope's own bindings from
     // one canonical sequence so same-arity headers spell identically. An LZ
     // match costs about the same however long its text is, so a repeated
@@ -8636,40 +8817,27 @@ fn apply_late_javascript_cleanup(
             }
         }
     }
-    // The plan scorer compares canonical parsed cleanup before terminal name
-    // search. A locally worse structural leaf can still expose a different
-    // binding graph whose unused one-byte name wins under gzip or Brotli. Re-
-    // open that already-proven cleanup on each retained finalist and score the
-    // interaction before collapsing the cleanup beam. This is especially
-    // important when moving a whole single-use function literal erases its
-    // module binding and leaves one independently remappable callback local.
-    let naming_interaction_source = if config.js_options().mangle_identifiers
+    // A locally worse canonical structural leaf can still expose a different
+    // binding graph whose unused one-byte name wins under gzip or Brotli.
+    // Score that interaction before collapsing the cleanup beam, reusing the
+    // canonical leaf's already-paid exact cost.
+    if config.js_options().mangle_identifiers
         && config.entropy_aware_mangling_enabled()
         && !matches!(config.javascript.cost_model, CompressionCostModel::Raw)
-        && codec_budget.reserve_work_unit()
     {
-        optimize_generated_javascript(&original.code).ok()
-    } else {
-        None
-    };
-    if let Some(optimized) = naming_interaction_source {
-        let crosses_disabled_function_boundary = !config
-            .single_use_function_expression_candidates_enabled()
-            && optimized.metrics.functions < selected.metrics.functions;
-        let code = repair_late_javascript_candidate(optimized.code);
-        let remapped = if !crosses_disabled_function_boundary
-            && code != original.code
-            && analyze_generated_javascript(&code).is_ok()
-        {
-            best_unused_letter_binding_remaps(&code, config.javascript.cost_model, codec_budget)?
-        } else {
-            None
-        };
-        if let Some((remapped, remapped_cost)) = remapped {
-            beam.push(CleanupCandidate {
-                code: remapped,
-                cost: remapped_cost,
-            });
+        if let Some(candidate) = canonical_peephole {
+            let remapped = best_unused_letter_binding_remaps_from_cost(
+                &candidate.code,
+                config.javascript.cost_model,
+                candidate.cost,
+                codec_budget,
+            )?;
+            if let Some((remapped, remapped_cost)) = remapped {
+                beam.push(CleanupCandidate {
+                    code: remapped,
+                    cost: remapped_cost,
+                });
+            }
         }
     }
     // Expression-prefixed branch returns expose adjacent lone-return ladders,
@@ -9274,10 +9442,19 @@ fn best_unused_letter_binding_remaps(
     model: CompressionCostModel,
     codec_budget: &mut TerminalCodecProbeBudget,
 ) -> Result<Option<(String, usize)>, CompileError> {
-    let mut current = code.to_string();
-    let Some(mut current_cost) = codec_budget.compressed_size(current.as_bytes(), model)? else {
+    let Some(current_cost) = codec_budget.compressed_size(code.as_bytes(), model)? else {
         return Ok(None);
     };
+    best_unused_letter_binding_remaps_from_cost(code, model, current_cost, codec_budget)
+}
+
+fn best_unused_letter_binding_remaps_from_cost(
+    code: &str,
+    model: CompressionCostModel,
+    mut current_cost: usize,
+    codec_budget: &mut TerminalCodecProbeBudget,
+) -> Result<Option<(String, usize)>, CompileError> {
+    let mut current = code.to_string();
     let mut improved = false;
     for _ in 0..UNUSED_LETTER_REMAP_PASSES {
         let Some((next, cost)) =
@@ -9964,11 +10141,35 @@ fn emit_javascript_candidate(
 ) -> Result<String, crate::codegen_js::CodegenError> {
     #[cfg(test)]
     JAVASCRIPT_CANDIDATE_EMISSIONS.with(|count| count.set(count.get() + 1));
-    if module_output {
-        emit_optimized_ir_js_module_with_options_and_analysis(ir, &options, integer_analysis)
+    let code = if module_output {
+        emit_optimized_ir_js_module_with_options_and_analysis(ir, &options, integer_analysis)?
     } else {
-        emit_optimized_ir_js_with_options_and_analysis(ir, &options, integer_analysis)
-    }
+        emit_optimized_ir_js_with_options_and_analysis(ir, &options, integer_analysis)?
+    };
+    let code = match fold_fresh_empty_object_assign(&code) {
+        Ok((folded, rewritten)) if rewritten > 0 => folded,
+        _ => code,
+    };
+    let code = match fold_constant_json_parse(&code) {
+        Ok((folded, rewritten)) if rewritten > 0 => folded,
+        _ => code,
+    };
+    let code = match fold_redundant_null_undefined_or(&code) {
+        Ok((folded, rewritten)) if rewritten > 0 => folded,
+        _ => code,
+    };
+    let code = match fold_dead_identifier_copy_declarators(&code) {
+        Ok((folded, rewritten)) if rewritten > 0 => folded,
+        _ => code,
+    };
+    let code = match fold_if_prefixed_returns(&code) {
+        Ok((folded, rewritten)) if rewritten > 0 => folded,
+        _ => code,
+    };
+    Ok(match fold_nested_unguarded_ifs(&code) {
+        Ok((folded, rewritten)) if rewritten > 0 => folded,
+        _ => code,
+    })
 }
 
 fn compressed_size(bytes: &[u8], model: CompressionCostModel) -> Result<usize, String> {
@@ -15118,6 +15319,42 @@ mod tests {
     }
 
     #[test]
+    fn terminal_cleanup_reopens_canonical_peephole_on_unprepared_finalist() {
+        let code = "function f(a){var x;x=a;return x}console.log(f(1))";
+        let optimized = optimize_generated_javascript(code).unwrap();
+        assert!(optimized.code.len() < code.len(), "{}", optimized.code);
+
+        let mut config = ProjectConfig::default();
+        config.javascript.cost_model = CompressionCostModel::Raw;
+        config.javascript.candidate_search = CandidateSearch::Always;
+        config.mangle.identifiers = Some(false);
+        assert!(config.javascript_optimization_configured(JavaScriptOptimization::ParsedPeephole));
+        let metrics = analyze_generated_javascript(code).unwrap();
+        let selected = ScoredJavaScriptCandidate {
+            plan_identity: JavaScriptPlanIdentity {
+                context_id: 0,
+                ordinal: 0,
+            },
+            transfer_cost: code.len(),
+            startup_score: 0,
+            code: code.to_string(),
+            metrics,
+            peephole_rewrites: 0,
+            performance: JavaScriptPerformanceMetrics::default(),
+            rank: (0, 0),
+        };
+        // One work unit discovers the canonical leaf and one exact score
+        // admits it. No later cleanup family has budget to rediscover it.
+        let mut codec_budget = TerminalCodecProbeBudget::new(2);
+        let cleaned = apply_late_javascript_cleanup(selected, &config, 0, &mut codec_budget)
+            .expect("terminal cleanup succeeds");
+
+        assert_eq!(cleaned.code, optimized.code);
+        assert_eq!(cleaned.transfer_cost, optimized.code.len());
+        assert_eq!(codec_budget.used, 2);
+    }
+
+    #[test]
     fn zero_structural_proposal_budget_skips_optional_emission_before_codegen() {
         let arena = Bump::new();
         let program = parse_source(
@@ -15409,6 +15646,77 @@ mod tests {
                 "{javascript}"
             );
         }
+    }
+
+    #[test]
+    fn search_off_module_merges_adjacent_generated_declarations() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            concat!(
+                "export int[] copyNames(int[] items){",
+                "int[] out=[];",
+                "int n=items.length;",
+                "int i=0;",
+                "while(i<n){out.push(items[i]);i=i+1;}",
+                "return out;",
+                "}",
+            ),
+        )
+        .unwrap();
+        let mut config = javascript_oracle_config();
+        config.javascript.candidate_search = CandidateSearch::Off;
+        config.javascript.optimization_level = 12;
+        config.mangle.identifiers = Some(false);
+        let output = compile_program_to_js_module_configured(&program, &config).unwrap();
+        assert!(
+            output.contains("++") || output.contains("+=1"),
+            "{output}"
+        );
+        assert!(
+            !output.contains("=[];var ") && !output.contains("=[];let "),
+            "search-off should still merge adjacent declarations:\n{output}"
+        );
+    }
+
+    #[test]
+    fn parsed_peephole_applies_without_candidate_search() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "extern int read();int state=read();void increment(){state=state+1;}increment();print(state);",
+        )
+        .unwrap();
+        let mut config = javascript_oracle_config();
+        config.javascript.candidate_search = CandidateSearch::Off;
+        config.javascript.optimization_level = 12;
+        config.mangle.identifiers = Some(false);
+        assert!(config.javascript_optimization_configured(JavaScriptOptimization::ParsedPeephole));
+        let optimized = compile_program_to_js_configured(&program, &config).unwrap();
+        assert!(
+            !optimized.contains("state=state+1|0"),
+            "configured peephole must still rewrite unit updates when search is off:\n{optimized}"
+        );
+        assert!(
+            optimized.contains("read()+1") || optimized.contains("++"),
+            "{optimized}"
+        );
+        let runtime = std::process::Command::new("node")
+            .arg("-e")
+            .arg(format!("function read(){{return 0}};{optimized}"))
+            .output()
+            .expect("Node.js is required for JavaScript runtime parity tests");
+        assert!(
+            runtime.status.success(),
+            "node failed with {}:\n{}\n{optimized}",
+            runtime.status,
+            String::from_utf8_lossy(&runtime.stderr)
+        );
+        assert_eq!(
+            String::from_utf8(runtime.stdout).expect("node stdout is UTF-8"),
+            "1\n",
+            "{optimized}"
+        );
     }
 
     #[test]
