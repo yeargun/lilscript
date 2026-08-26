@@ -48,6 +48,10 @@ pub struct IrJsOptions {
     /// shared binding. Exact-codec search raises this threshold to retain only
     /// the most profitable aliases when pooling every raw win hurts Brotli.
     pub string_pool_minimum_savings: usize,
+    /// Pool identifier-shaped strings (`type`, `value`, `function`). Under
+    /// Brotli those aliases break `.type` / `"type"` history, so the Brotli
+    /// baseline keeps them as literals.
+    pub pool_identifier_strings: bool,
     pub pool_numeric_literals: bool,
     /// Emit `Record<T>` values as ordinary object literals. This is an
     /// internal representation proposal, not a user-configurable semantic
@@ -93,11 +97,12 @@ pub struct IrJsOptions {
     /// named-root IIFE wrapping without also flattening method-table helpers
     /// back into unique top-level names.
     pub nested_once_run_helpers: bool,
-    /// Rewrite a contiguous run of proven property writes on one object into
-    /// `Object.assign(object,{k:v,...})`. That spelling repeats `:function(`
-    /// and other value tokens the way library method tables usually do; search
-    /// may keep sequential assigns when the assign identifier costs more than
-    /// it saves under the configured codec.
+    /// Rewrite a contiguous run of proven property writes on one *existing*
+    /// object into `Object.assign(object,{k:v,...})`. Fresh empty
+    /// `JS.object()` allocations fuse into `{k:v,...}` in the baseline;
+    /// this flag only covers writes onto an object that already lived.
+    /// Search may keep sequential assigns when the assign identifier costs
+    /// more than it saves under the configured codec.
     pub batch_property_assigns: bool,
     /// Minimum length of a consecutive property-write run eligible for the
     /// `Object.assign` spelling. Exact-codec search varies this threshold so
@@ -246,6 +251,7 @@ impl Default for IrJsOptions {
             named_aggregate_fields: false,
             pool_strings: true,
             string_pool_minimum_savings: 1,
+            pool_identifier_strings: true,
             pool_numeric_literals: false,
             ordinary_record_literals: false,
             elide_safe_integer_coercions: true,
@@ -2341,14 +2347,23 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             if !aliases.is_empty() {
                 self.js_calling_aliases.insert(function_id, aliases);
             }
-            let name_suppressed = sites
-                .iter()
-                .filter_map(|(caller, _, adapter, _)| {
-                    self.function(*caller)
-                        .is_ok_and(|caller| !self.adapter_result_is_name_safe(caller, *adapter))
-                        .then_some((*caller, *adapter))
-                })
-                .collect::<Vec<_>>();
+            // An unused receiver is a plain function. NamedEvaluation may
+            // assign `.name`, which is the correct host spelling — `(0,)`
+            // exists only to keep `name===""` when `this` is actually read.
+            let receiver_unused =
+                convention.has_receiver() && !calling_convention_parameter_is_observed(function, 0);
+            let name_suppressed = if receiver_unused {
+                Vec::new()
+            } else {
+                sites
+                    .iter()
+                    .filter_map(|(caller, _, adapter, _)| {
+                        self.function(*caller)
+                            .is_ok_and(|caller| !self.adapter_result_is_name_safe(caller, *adapter))
+                            .then_some((*caller, *adapter))
+                    })
+                    .collect::<Vec<_>>()
+            };
             self.js_calling_conventions.insert(function_id, convention);
             self.js_name_suppressed_adapter_values
                 .extend(name_suppressed);
@@ -4105,9 +4120,6 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
     }
 
     fn assign_inline_pure_helpers(&mut self) {
-        if self.options.pure_helper_inlining == PureHelperInliningPolicy::None {
-            return;
-        }
         let exported = self
             .module
             .exports
@@ -4182,28 +4194,19 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             })
             .collect::<AHashSet<_>>();
 
+        let policy = self.options.pure_helper_inlining;
         let mut eligible = self
             .module
             .functions
             .iter()
             .filter(|function| {
                 let calls = direct_calls.get(&function.id).map_or(0, Vec::len);
-                function.live
+                let selectable = function.live
                     && function.kind == FunctionKind::Function
-                    && function.declared_pure
                     && function.capture_count == 0
                     && !function.is_async
                     && !function.is_generator
                     && calls != 0
-                    && (calls == 1
-                        || (self.options.pure_helper_inlining
-                            == PureHelperInliningPolicy::AllEligible
-                            // A multi-use outlined helper is the reusable
-                            // composite this IR variant was created to score.
-                            // Inline its eligible leaves, not the boundary
-                            // itself. If DCE leaves one call, normal single-use
-                            // substitution may still remove the stale boundary.
-                            && function.origin != FunctionOrigin::RepeatedRegionOutline))
                     && !exported.contains(&function.id)
                     && !address_taken.contains(&function.id)
                     && !recursive.contains(&function.id)
@@ -4216,11 +4219,28 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                     | Terminator::Branch { .. }
                                     | Terminator::Return(Some(_))
                             )
-                        ) && block
+                        )
+                    });
+                if !selectable {
+                    return false;
+                }
+                let declared_pure_family = policy != PureHelperInliningPolicy::None
+                    && function.declared_pure
+                    && (calls == 1
+                        || (policy == PureHelperInliningPolicy::AllEligible
+                            // A multi-use outlined helper is the reusable
+                            // composite this IR variant was created to score.
+                            // Inline its eligible leaves, not the boundary
+                            // itself. If DCE leaves one call, normal single-use
+                            // substitution may still remove the stale boundary.
+                            && function.origin != FunctionOrigin::RepeatedRegionOutline))
+                    && function.blocks.iter().all(|block| {
+                        block
                             .instructions
                             .iter()
                             .all(|instruction| pure_helper_expression_op(function, instruction))
-                    })
+                    });
+                declared_pure_family || (is_eraseable_js_host_wrapper(function) && calls <= 4)
             })
             .map(|function| function.id)
             .collect::<AHashSet<_>>();
@@ -4318,14 +4338,28 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         loop {
             let mut rejected = Vec::new();
             for function in eligible.iter().copied().collect::<Vec<_>>() {
-                let parameter_count = self.module.functions[function.0 as usize].params.len();
+                let callee = &self.module.functions[function.0 as usize];
+                let parameter_count = callee.params.len();
+                let eraseable = is_eraseable_js_host_wrapper(callee);
                 let placeholders = (0..parameter_count)
-                    .map(|index| JsExpression::atom(format!("$p{index}")))
+                    .map(|index| {
+                        if eraseable && index == 1 {
+                            JsExpression::atom("\"type\"".to_string())
+                        } else if eraseable {
+                            JsExpression::atom("o".to_string())
+                        } else {
+                            JsExpression::atom(format!("$p{index}"))
+                        }
+                    })
                     .collect::<Vec<_>>();
-                if !matches!(
-                    self.render_inline_pure_helper_expression(function, placeholders),
-                    Ok(Some(_))
-                ) {
+                let rendered = self.render_inline_pure_helper_expression(function, placeholders);
+                let accepted = match rendered {
+                    Ok(Some(expression)) => {
+                        !eraseable || host_wrapper_inline_is_profitable(&expression.code)
+                    }
+                    _ => false,
+                };
+                if !accepted {
                     rejected.push(function);
                 }
             }
@@ -5862,8 +5896,10 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 let unaliased = count * literal_length;
                 let aliased = literal_length + 7 + count;
                 let savings = unaliased.saturating_sub(aliased);
-                (savings >= self.options.string_pool_minimum_savings.max(1))
-                    .then_some((savings, count, value))
+                (savings >= self.options.string_pool_minimum_savings.max(1)
+                    && (self.options.pool_identifier_strings
+                        || !is_js_property_identifier(&decoded_source_string(&value))))
+                .then_some((savings, count, value))
             })
             .collect::<Vec<_>>();
         candidates.sort_unstable_by(|left, right| {
@@ -7207,6 +7243,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         // repeated parameter references preserve one evaluation of the
         // already-materialized caller value and retain expression precedence.
         for (parameter, actual) in callee.params.iter().zip(rendered_actuals) {
+            if let Some(property) = js_string_literal_property(&actual.code) {
+                context.string_constants.insert(parameter.value, property);
+            }
             context.inlined_values.insert(parameter.value, actual);
         }
         let expression = if self.options.dense_string_return_tables {
@@ -7885,6 +7924,8 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         || inline_pure_call);
                 let deferred_effect =
                     matches!(instruction.op, ControlFlowOp::CallDirect { .. }) && !inline_pure_call;
+                let host_wrapper_op =
+                    allow_eager_bindings && eraseable_js_host_wrapper_op(&instruction.op);
                 let use_count = uses.get(&out).copied().unwrap_or(0);
                 let reuses_parameter_binding = use_count > 1
                     && inline_pure_call
@@ -7905,11 +7946,15 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 // CFG into a conditional would otherwise leave later uses
                 // referring to an undeclared name. Keep the statement form in
                 // that case so evaluation remains both single and sound.
-                if (!expression_only_op(&instruction.op) && !deferred_effect && !inline_pure_call)
+                if (!expression_only_op(&instruction.op)
+                    && !deferred_effect
+                    && !inline_pure_call
+                    && !host_wrapper_op)
                     || (use_count > 1
                         && !matches!(instruction.op, ControlFlowOp::Const(_))
                         && !reuses_parameter_binding
-                        && !(allow_eager_bindings && (inline_pure_call || eager_order_binding)))
+                        && !(allow_eager_bindings
+                            && (inline_pure_call || eager_order_binding || host_wrapper_op)))
                     || (deferred_effect && uses.get(&out).copied().unwrap_or(0) != 1)
                 {
                     return Ok(None);
@@ -7936,6 +7981,14 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         JsExpression::comma([assignment, JsExpression::atom(name)]),
                     );
                 } else if allow_eager_bindings && inline_pure_call && use_count > 1 {
+                    let name = context.value_name(out)?.to_string();
+                    cache.insert(out, JsExpression::atom(name.clone()));
+                    eager_bindings.push((name, expression));
+                } else if allow_eager_bindings
+                    && host_wrapper_op
+                    && use_count > 1
+                    && !js_expression_is_reusable(&expression)
+                {
                     let name = context.value_name(out)?.to_string();
                     cache.insert(out, JsExpression::atom(name.clone()));
                     eager_bindings.push((name, expression));
@@ -8229,6 +8282,117 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
     }
 
     #[allow(clippy::too_many_arguments)]
+    fn fresh_object_literal_statement(
+        &mut self,
+        block: &crate::ir::ControlFlowBlock<'src>,
+        start: usize,
+        uses: &AHashMap<ValueId, usize>,
+        predeclared: bool,
+        context: &LocalNames,
+        cache: &mut ExpressionCache,
+        fuse_with_next: &[bool],
+    ) -> Result<Option<(usize, String)>, CodegenError> {
+        let Some((object, mut pairs)) =
+            plain_object_seed(&block.instructions[start], &context.string_constants)
+        else {
+            return Ok(None);
+        };
+        let seeded = !pairs.is_empty();
+        let mut keys = AHashSet::from_iter(pairs.iter().map(|(key, _)| key.clone()));
+        let mut prefix = Vec::new();
+        let mut deferred = Vec::new();
+        let mut pending_deferred = Vec::new();
+        let mut last_assign = start;
+        let mut cursor = start + 1;
+        while cursor < block.instructions.len()
+            && prefix.len() < FRESH_OBJECT_PREFIX_LIMIT
+            && property_write_to_object(
+                &block.instructions[cursor],
+                object,
+                &context.string_constants,
+                uses,
+            )
+            .is_none()
+        {
+            if instruction_mentions_value(&block.instructions[cursor], object) {
+                return Ok(None);
+            }
+            prefix.push(cursor);
+            cursor += 1;
+        }
+        while cursor < block.instructions.len() {
+            if let Some((key, value)) = property_write_to_object(
+                &block.instructions[cursor],
+                object,
+                &context.string_constants,
+                uses,
+            ) {
+                if !keys.insert(key.clone()) {
+                    break;
+                }
+                deferred.append(&mut pending_deferred);
+                pairs.push((key, value));
+                last_assign = cursor;
+                cursor += 1;
+                continue;
+            }
+            if instruction_emits_into_cache(
+                &block.instructions[cursor],
+                uses,
+                fuse_with_next.get(cursor).copied().unwrap_or(false),
+                context,
+            ) && !instruction_mentions_value(&block.instructions[cursor], object)
+            {
+                pending_deferred.push(cursor);
+                cursor += 1;
+                continue;
+            }
+            break;
+        }
+        if pairs.is_empty() || (seeded && last_assign == start) {
+            return Ok(None);
+        }
+        let mut rendered = String::new();
+        for index in prefix.into_iter().chain(deferred) {
+            self.emit_sunk_entry_function(&block.instructions[index], &mut rendered)?;
+            self.emit_linear_instruction(
+                &block.instructions[index],
+                block.id,
+                index,
+                uses,
+                true,
+                predeclared,
+                context,
+                cache,
+                &mut rendered,
+            )?;
+        }
+        let mut literal = String::from("{");
+        for (index, (key, value)) in pairs.iter().enumerate() {
+            if index != 0 {
+                literal.push(',');
+            }
+            push_object_literal_key(
+                &mut literal,
+                self.property_name(key),
+                self.options.string_quote,
+            );
+            literal.push(':');
+            literal.push_str(&strip_outer_parens(take_value(*value, context, cache)?));
+        }
+        literal.push('}');
+        emit_bound_value(
+            context,
+            object,
+            JsExpression::atom(literal),
+            predeclared,
+            cache,
+            &mut rendered,
+        )?;
+        Ok(Some((last_assign + 1 - start, rendered)))
+    }
+
+    #[allow(clippy::too_many_arguments)]
     fn batched_property_assign_statement(
         &mut self,
         _function: &ControlFlowFunction<'src>,
@@ -8240,6 +8404,17 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         cache: &mut ExpressionCache,
         fuse_with_next: &[bool],
     ) -> Result<Option<(usize, String)>, CodegenError> {
+        if let Some(fused) = self.fresh_object_literal_statement(
+            block,
+            start,
+            uses,
+            predeclared,
+            context,
+            cache,
+            fuse_with_next,
+        )? {
+            return Ok(Some(fused));
+        }
         if !self.options.batch_property_assigns {
             return Ok(None);
         }
@@ -8377,6 +8552,13 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     if let Some(update) =
                         self.render_store_local_update(*local, *value, &name, context, cache)?
                     {
+                        materialize_cache_before_binding_write(
+                            context,
+                            &name,
+                            predeclared,
+                            cache,
+                            out,
+                        )?;
                         out.push_str(&update);
                         return Ok(());
                     }
@@ -8384,6 +8566,15 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 let value = strip_outer_parens(take_value(*value, context, cache)?);
                 if !declare && value == name {
                     return Ok(());
+                }
+                if value != name {
+                    materialize_cache_before_binding_write(
+                        context,
+                        &name,
+                        predeclared,
+                        cache,
+                        out,
+                    )?;
                 }
                 if declare {
                     out.push_str("var ");
@@ -8401,6 +8592,15 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 }
                 let value = strip_outer_parens(take_value(*value, context, cache)?);
                 let name = self.global_name(*global)?.to_string();
+                if value != name {
+                    materialize_cache_before_binding_write(
+                        context,
+                        &name,
+                        predeclared,
+                        cache,
+                        out,
+                    )?;
+                }
                 if self.declared_globals.insert(*global) && context.claim_name(&name) {
                     out.push_str(if self.deferred_global_declarations.contains(global) {
                         "var "
@@ -8492,6 +8692,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     CodegenError::new(instruction.span, "class construction has no result")
                 })?;
                 let name = context.value_name(result)?;
+                materialize_cache_before_binding_write(context, name, predeclared, cache, out)?;
                 emit_binding_prefix(context, result, predeclared, out)?;
                 out.push_str(name);
                 out.push('=');
@@ -8558,7 +8759,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             return Ok(());
         }
 
-        if self.emit_in_place_update(instruction, context, cache, out)? {
+        if self.emit_in_place_update(instruction, predeclared, context, cache, out)? {
             return Ok(());
         }
 
@@ -8592,14 +8793,14 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             }
         } else if !context.is_stored(out_value)
             && ((!nested_observable && use_count == 1 && op_can_defer(&instruction.op))
-                || allow_fuse)
+                || (allow_fuse && (use_count == 1 || !op_is_member_read(&instruction.op))))
         {
             cache.insert(out_value, expression);
             if nested_observable || op_has_side_effects(&instruction.op) {
                 context.cached_observable.borrow_mut().insert(out_value);
             }
         } else {
-            emit_bound_value(context, out_value, expression, predeclared, out)?;
+            emit_bound_value(context, out_value, expression, predeclared, cache, out)?;
         }
         Ok(())
     }
@@ -8666,6 +8867,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
     fn emit_in_place_update(
         &self,
         instruction: &ControlFlowInstruction<'src>,
+        predeclared: bool,
         context: &LocalNames,
         cache: &mut ExpressionCache,
         out: &mut String,
@@ -8726,6 +8928,13 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             )
         {
             let operator = if op == IrBinaryOp::Add { "++" } else { "--" };
+            materialize_cache_before_binding_write(
+                context,
+                output_name,
+                predeclared,
+                &mut trial_cache,
+                out,
+            )?;
             if self.options.mutation_spelling == MutationSpelling::Prefix {
                 out.push_str(operator);
             }
@@ -8753,6 +8962,13 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             IrBinaryOp::ShiftRight => ">>",
             _ => return Ok(false),
         };
+        materialize_cache_before_binding_write(
+            context,
+            output_name,
+            predeclared,
+            &mut trial_cache,
+            out,
+        )?;
         out.push_str(output_name);
         out.push_str(operator);
         out.push('=');
@@ -10214,6 +10430,17 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
     ) -> Result<Option<BlockId>, CodegenError> {
         let mut trial_cache = cache.clone();
         let mut state = ExpressionRegionState::new(visited.clone());
+        let short_circuit_cone = header_short_circuit_cone(function, header);
+        if let Some(cone) = &short_circuit_cone {
+            let block = &function.blocks[header.0 as usize];
+            if header_has_post_cone_prefix(block, cone) {
+                return Ok(None);
+            }
+            for value in header_skipped_stored_defs(block, cone, context) {
+                trial_cache.remove(&value);
+                state.available_as_name.insert(value);
+            }
+        }
         let Some(rendered) = self.render_short_circuit_region(
             function,
             header,
@@ -10227,8 +10454,14 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         if !state.validate(function, rendered.value, context) {
             return Ok(None);
         }
-        self.emit_header_prefix(function, header, context, uses, &mut trial_cache, out)?;
-        state.retain_only_result(&mut trial_cache, rendered.value);
+        if short_circuit_cone.is_some() {
+            trial_cache.remove(&rendered.value);
+            state.retain_only_result(&mut trial_cache, rendered.value);
+            self.emit_header_prefix(function, header, context, uses, &mut trial_cache, out)?;
+        } else {
+            self.emit_header_prefix(function, header, context, uses, &mut trial_cache, out)?;
+            state.retain_only_result(&mut trial_cache, rendered.value);
+        }
 
         let use_count = expression_semantic_use_count(function, rendered.value, uses);
         if use_count == 0 {
@@ -10240,7 +10473,14 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         } else if use_count == 1 {
             trial_cache.insert(rendered.value, rendered.expression);
         } else {
-            emit_bound_value(context, rendered.value, rendered.expression, true, out)?;
+            emit_bound_value(
+                context,
+                rendered.value,
+                rendered.expression,
+                true,
+                &mut trial_cache,
+                out,
+            )?;
             trial_cache.remove(&rendered.value);
         }
 
@@ -11194,7 +11434,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         let mut values = cache.drain().collect::<Vec<_>>();
         values.sort_by_key(|(value, _)| value.0);
         for (value, expression) in values {
-            emit_bound_value(context, value, expression, true, out)?;
+            emit_bound_value(context, value, expression, true, cache, out)?;
         }
         if let Some((value, expression)) = retained {
             cache.insert(value, expression);
@@ -11236,6 +11476,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 single_assignment_copy = assignments
                     .is_empty()
                     .then_some((target_value, *source_value));
+                materialize_cache_before_binding_write(context, &target, true, cache, out)?;
                 assignments.push((target, source));
             }
         }
@@ -13555,7 +13796,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             }
             Intrinsic::FloatToInt => {
                 let elide = self.options.elide_safe_integer_coercions
-                    && out.is_some_and(|out| context.can_elide_i32_coercion(out));
+                    && (out.is_some_and(|out| context.can_elide_i32_coercion(out))
+                        || (self.options.elide_length_tonumber
+                            && value_is_length_member(
+                                self.function(context.function_id)?,
+                                receiver_id,
+                            )));
                 return Ok(if elide {
                     receiver
                 } else {
@@ -16309,6 +16555,20 @@ fn is_js_property_identifier(value: &str) -> bool {
             .all(|byte| is_js_identifier_byte(*byte))
 }
 
+fn js_string_literal_property(code: &str) -> Option<String> {
+    let code = code.trim();
+    let bytes = code.as_bytes();
+    let quote = *bytes.first()?;
+    if !matches!(quote, b'"' | b'\'') || bytes.last() != Some(&quote) || bytes.len() < 2 {
+        return None;
+    }
+    let inner = &code[1..code.len() - 1];
+    if inner.as_bytes().contains(&b'\\') {
+        return None;
+    }
+    is_js_property_identifier(inner).then(|| inner.to_string())
+}
+
 fn render_js_host_predicate(
     receiver: JsExpression,
     predicate: impl Fn(&str) -> String,
@@ -16468,6 +16728,7 @@ struct ExpressionRegionState {
     consumed: AHashSet<ValueId>,
     dependencies: AHashMap<ValueId, Vec<ValueId>>,
     observable_values: AHashSet<ValueId>,
+    available_as_name: AHashSet<ValueId>,
 }
 
 impl ExpressionRegionState {
@@ -16479,6 +16740,7 @@ impl ExpressionRegionState {
             consumed: AHashSet::default(),
             dependencies: AHashMap::default(),
             observable_values: AHashSet::default(),
+            available_as_name: AHashSet::default(),
         }
     }
 
@@ -16685,6 +16947,50 @@ fn instruction_emits_into_cache(
     }
     !context.is_stored(out)
         && (fuse_with_next || (use_count == 1 && context.instruction_can_defer(instruction)))
+}
+
+const FRESH_OBJECT_PREFIX_LIMIT: usize = 8;
+
+fn plain_object_seed(
+    instruction: &ControlFlowInstruction<'_>,
+    string_constants: &AHashMap<ValueId, String>,
+) -> Option<(ValueId, Vec<(String, ValueId)>)> {
+    match &instruction.op {
+        ControlFlowOp::Intrinsic {
+            intrinsic: Intrinsic::JsPlainObject,
+            args,
+            ..
+        } if args.len().is_multiple_of(2) => {
+            let dest = instruction.out?;
+            let mut pairs = Vec::with_capacity(args.len() / 2);
+            for chunk in args.chunks_exact(2) {
+                let key = string_constants.get(&chunk[0])?.clone();
+                if decoded_source_string(&key) == "__proto__" {
+                    return None;
+                }
+                pairs.push((key, chunk[1]));
+            }
+            Some((dest, pairs))
+        }
+        _ => None,
+    }
+}
+
+fn property_write_to_object(
+    instruction: &ControlFlowInstruction<'_>,
+    object: ValueId,
+    string_constants: &AHashMap<ValueId, String>,
+    uses: &AHashMap<ValueId, usize>,
+) -> Option<(String, ValueId)> {
+    let (target, key, value) = property_assign_parts(instruction, string_constants, uses)?;
+    (target == object && value != object).then_some((key, value))
+}
+
+fn instruction_mentions_value(instruction: &ControlFlowInstruction<'_>, value: ValueId) -> bool {
+    instruction.out == Some(value)
+        || op_values(&instruction.op)
+            .iter()
+            .any(|operand| *operand == value)
 }
 
 fn property_assign_parts(
@@ -17747,7 +18053,9 @@ impl LocalNames {
                     } else {
                         (literalized_regex_arguments.contains(&out)
                             || !options.pool_strings
-                            || savings < options.string_pool_minimum_savings.max(1))
+                            || savings < options.string_pool_minimum_savings.max(1)
+                            || (!options.pool_identifier_strings
+                                && is_js_property_identifier(value)))
                         .then_some((out, JsExpression::atom(rendered)))
                     }
                 }
@@ -18691,6 +18999,19 @@ fn emit_bound_value(
     dest: ValueId,
     expression: JsExpression,
     predeclared: bool,
+    cache: &mut ExpressionCache,
+    out: &mut String,
+) -> Result<(), CodegenError> {
+    let name = context.value_name(dest)?.to_string();
+    materialize_cache_before_binding_write(context, &name, predeclared, cache, out)?;
+    emit_bound_value_without_cache_flush(context, dest, expression, predeclared, out)
+}
+
+fn emit_bound_value_without_cache_flush(
+    context: &LocalNames,
+    dest: ValueId,
+    expression: JsExpression,
+    predeclared: bool,
     out: &mut String,
 ) -> Result<(), CodegenError> {
     let name = context.value_name(dest)?;
@@ -18985,6 +19306,37 @@ fn coalesce_value_names(
     }
 
     for block in &function.blocks {
+        let mut member_objects = Vec::new();
+        for instruction in &block.instructions {
+            if let Some(object) = member_read_object(&instruction.op) {
+                let mut sources = AHashSet::default();
+                collect_deferred_named_values(
+                    function,
+                    object,
+                    &named,
+                    &value_definitions,
+                    &deferred_definitions,
+                    &mut AHashSet::default(),
+                    &mut sources,
+                );
+                member_objects.extend(sources);
+            }
+            let Some(out) = instruction.out else {
+                continue;
+            };
+            if !named.contains(&out) {
+                continue;
+            }
+            for object in &member_objects {
+                if out == *object {
+                    continue;
+                }
+                connect(&mut interference, out, *object, true);
+            }
+        }
+    }
+
+    for block in &function.blocks {
         for (index, instruction) in block.instructions.iter().enumerate() {
             let ControlFlowOp::Closure { captures, .. } = &instruction.op else {
                 continue;
@@ -19075,6 +19427,13 @@ fn coalesce_value_names(
 
     extend_capture_snapshot_interference(function, &named, &mut interference);
     extend_short_circuit_prefix_interference(function, &named, &mut interference);
+    extend_loop_member_interference(
+        function,
+        &named,
+        &value_definitions,
+        &deferred_definitions,
+        &mut interference,
+    );
 
     let mut values = named.into_iter().collect::<Vec<_>>();
     let parameter_order = function
@@ -19464,6 +19823,12 @@ fn value_is_length_member(function: &ControlFlowFunction<'_>, value: ValueId) ->
         .any(|instruction| {
             instruction.out == Some(value)
                 && match &instruction.op {
+                    ControlFlowOp::HostFieldGet {
+                        property: "length", ..
+                    }
+                    | ControlFlowOp::RecordFieldGet {
+                        property: "length", ..
+                    } => true,
                     ControlFlowOp::IndexGet { index, .. } => function
                         .blocks
                         .iter()
@@ -19477,9 +19842,32 @@ fn value_is_length_member(function: &ControlFlowFunction<'_>, value: ValueId) ->
                                 )
                         }),
                     ControlFlowOp::Intrinsic {
+                        intrinsic: Intrinsic::JsGetProperty,
+                        args,
+                        ..
+                    } => args.first().is_some_and(|key| {
+                        function
+                            .blocks
+                            .iter()
+                            .flat_map(|block| &block.instructions)
+                            .any(|key_instruction| {
+                                key_instruction.out == Some(*key)
+                                    && matches!(
+                                        &key_instruction.op,
+                                        ControlFlowOp::Const(ConstValue::String(value))
+                                            if value == "length"
+                                    )
+                            })
+                    }),
+                    ControlFlowOp::Intrinsic {
                         intrinsic: Intrinsic::ArrayLength | Intrinsic::StringLength,
                         ..
                     } => true,
+                    ControlFlowOp::Intrinsic {
+                        intrinsic: Intrinsic::JsNumber | Intrinsic::FloatToInt,
+                        receiver: Some(inner),
+                        ..
+                    } => value_is_length_member(function, *inner),
                     _ => false,
                 }
         })
@@ -20702,20 +21090,165 @@ fn terminator_values(terminator: &Terminator) -> Vec<ValueId> {
     }
 }
 
+fn calling_convention_parameter_is_observed(
+    function: &ControlFlowFunction<'_>,
+    parameter_index: usize,
+) -> bool {
+    let Some(parameter) = function
+        .params
+        .get(function.capture_count + parameter_index)
+    else {
+        return true;
+    };
+    let local = parameter.local;
+    let value = parameter.value;
+    for block in &function.blocks {
+        if block.phis.iter().any(|phi| {
+            phi.out == value || phi.incoming.iter().any(|(_, incoming)| *incoming == value)
+        }) {
+            return true;
+        }
+        for instruction in &block.instructions {
+            if op_values(&instruction.op).contains(&value) {
+                return true;
+            }
+            match &instruction.op {
+                ControlFlowOp::LoadLocal(loaded) | ControlFlowOp::CaptureLocal(loaded)
+                    if *loaded == local =>
+                {
+                    return true;
+                }
+                ControlFlowOp::StoreLocal {
+                    local: stored,
+                    value: stored_value,
+                } if *stored == local || *stored_value == value => {
+                    return true;
+                }
+                _ => {}
+            }
+        }
+        if block
+            .terminator
+            .as_ref()
+            .is_some_and(|terminator| terminator_values(terminator).contains(&value))
+        {
+            return true;
+        }
+    }
+    false
+}
+
 fn take_value(
     value: ValueId,
     context: &LocalNames,
     cache: &mut ExpressionCache,
 ) -> Result<JsExpression, CodegenError> {
-    if let Some(expression) = context
-        .inlined_values
-        .get(&value)
-        .cloned()
-        .or_else(|| cache.remove(&value))
-    {
+    if let Some(expression) = context.inlined_values.get(&value).cloned() {
+        return Ok(expression);
+    }
+    if let Some(expression) = cache.get(&value) {
+        if js_expression_is_reusable(expression) {
+            return Ok(expression.clone());
+        }
+    }
+    if let Some(expression) = cache.remove(&value) {
         return Ok(expression);
     }
     Ok(JsExpression::atom(context.value_name(value)?))
+}
+
+fn js_expression_is_reusable(expression: &JsExpression) -> bool {
+    is_js_property_identifier(expression.code.as_str())
+}
+
+fn member_read_object(op: &ControlFlowOp<'_>) -> Option<ValueId> {
+    match op {
+        ControlFlowOp::HostFieldGet { object, .. }
+        | ControlFlowOp::RecordFieldGet { object, .. }
+        | ControlFlowOp::FieldGet { object, .. }
+        | ControlFlowOp::IndexGet { object, .. } => Some(*object),
+        ControlFlowOp::Intrinsic {
+            intrinsic: Intrinsic::JsGetProperty,
+            receiver: Some(object),
+            ..
+        } => Some(*object),
+        _ => None,
+    }
+}
+
+fn op_is_member_read(op: &ControlFlowOp<'_>) -> bool {
+    member_read_object(op).is_some()
+}
+
+fn js_expression_reads_binding(code: &str, name: &str) -> bool {
+    if name.is_empty() || !is_js_property_identifier(name) {
+        return false;
+    }
+    let bytes = code.as_bytes();
+    let needle = name.as_bytes();
+    let mut index = 0;
+    while index + needle.len() <= bytes.len() {
+        if &bytes[index..index + needle.len()] == needle {
+            let before = index.checked_sub(1).map(|at| bytes[at]);
+            let after = bytes.get(index + needle.len()).copied();
+            let bordered = before.is_none_or(|byte| !is_js_identifier_byte(byte))
+                && after.is_none_or(|byte| !is_js_identifier_byte(byte));
+            if bordered && before != Some(b'.') {
+                return true;
+            }
+        }
+        index += 1;
+    }
+    false
+}
+
+fn materialize_cache_before_binding_write(
+    context: &LocalNames,
+    name: &str,
+    predeclared: bool,
+    cache: &mut ExpressionCache,
+    out: &mut String,
+) -> Result<(), CodegenError> {
+    if !cache
+        .values()
+        .any(|expression| js_expression_reads_binding(&expression.code, name))
+    {
+        return Ok(());
+    }
+
+    // A deferred expression is an SSA value, not a disposable rendering hint.
+    // If its receiver binding is about to be reused, bind the complete cache in
+    // definition order before the write. Merely deleting dependent entries
+    // makes their later uses fall back to names that were never declared; only
+    // materializing the matching subset can reorder cached observable values.
+    let mut values = cache.drain().collect::<Vec<_>>();
+    values.sort_by_key(|(value, _)| value.0);
+    let mut retained = Vec::new();
+    for (value, expression) in values {
+        if !context.value_names.contains_key(&value) {
+            if js_expression_reads_binding(&expression.code, name) {
+                return Err(CodegenError::new(
+                    context.function_span,
+                    format!(
+                        "deferred SSA value {} needs a snapshot before `{name}` is reused",
+                        value.0
+                    ),
+                ));
+            }
+            retained.push((value, expression));
+            continue;
+        }
+        emit_bound_value_without_cache_flush(context, value, expression, predeclared, out)?;
+    }
+    cache.extend(retained);
+    Ok(())
+}
+
+fn host_wrapper_inline_is_profitable(code: &str) -> bool {
+    if code.contains("=>") || code.contains(".length") {
+        return false;
+    }
+    code.contains("typeof") && code.contains('.')
 }
 
 fn wrap_eager_expression_bindings(
@@ -20760,6 +21293,11 @@ fn take_region_value(
     cache: &mut ExpressionCache,
     state: &mut ExpressionRegionState,
 ) -> Result<Option<JsExpression>, CodegenError> {
+    if state.available_as_name.contains(&value) {
+        cache.remove(&value);
+        state.consume(value);
+        return Ok(Some(JsExpression::atom(context.value_name(value)?)));
+    }
     let expression = context
         .inlined_values
         .get(&value)
@@ -20767,6 +21305,12 @@ fn take_region_value(
         .or_else(|| cache.remove(&value));
     let Some(expression) = expression else {
         if state.defined.contains(&value) && !context.parameter_values.contains(&value) {
+            return Ok(None);
+        }
+        if context.is_stored(value)
+            && !context.parameter_values.contains(&value)
+            && !context.is_name_declared(value)
+        {
             return Ok(None);
         }
         return Ok(Some(JsExpression::atom(context.value_name(value)?)));
@@ -21107,6 +21651,137 @@ fn header_has_any_prefix(function: &ControlFlowFunction<'_>, header: BlockId) ->
         .instructions
         .iter()
         .any(|instruction| !instruction_in_header_cone(instruction, &cone))
+}
+
+fn blocks_until(
+    function: &ControlFlowFunction<'_>,
+    start: BlockId,
+    stop: BlockId,
+) -> AHashSet<BlockId> {
+    if start == stop {
+        return AHashSet::default();
+    }
+    let mut seen = AHashSet::from_iter([start]);
+    let mut pending = vec![start];
+    while let Some(block) = pending.pop() {
+        for successor in block_successors(&function.blocks[block.0 as usize]) {
+            if successor == stop || !seen.insert(successor) {
+                continue;
+            }
+            pending.push(successor);
+        }
+    }
+    seen
+}
+
+fn loop_interior_blocks(
+    function: &ControlFlowFunction<'_>,
+    header: BlockId,
+    body: BlockId,
+    update: Option<BlockId>,
+    exit: BlockId,
+) -> AHashSet<BlockId> {
+    let mut blocks = blocks_until(function, header, exit);
+    blocks.extend(blocks_until(function, body, exit));
+    if let Some(update) = update {
+        blocks.extend(blocks_until(function, update, exit));
+    }
+    blocks
+}
+
+fn loop_shape_parts(shape: &ControlShape) -> Option<(BlockId, BlockId, Option<BlockId>, BlockId)> {
+    match shape {
+        ControlShape::Loop {
+            header,
+            body,
+            update,
+            exit,
+        } => Some((*header, *body, *update, *exit)),
+        ControlShape::ForIn {
+            header, body, exit, ..
+        }
+        | ControlShape::ForOf {
+            header, body, exit, ..
+        } => Some((*header, *body, None, *exit)),
+        _ => None,
+    }
+}
+
+fn extend_loop_member_interference(
+    function: &ControlFlowFunction<'_>,
+    named: &AHashSet<ValueId>,
+    definitions: &AHashMap<ValueId, &ControlFlowOp<'_>>,
+    deferred_definitions: &AHashSet<ValueId>,
+    interference: &mut AHashMap<ValueId, AHashSet<ValueId>>,
+) {
+    let loops = function
+        .shapes
+        .iter()
+        .filter_map(|shape| {
+            let (header, body, update, exit) = loop_shape_parts(shape)?;
+            Some((
+                header,
+                loop_interior_blocks(function, header, body, update, exit),
+            ))
+        })
+        .collect::<Vec<_>>();
+    for (header, blocks) in &loops {
+        let mut objects = AHashSet::default();
+        for block_id in blocks {
+            for instruction in &function.blocks[block_id.0 as usize].instructions {
+                if let Some(object) = member_read_object(&instruction.op) {
+                    collect_deferred_named_values(
+                        function,
+                        object,
+                        named,
+                        definitions,
+                        deferred_definitions,
+                        &mut AHashSet::default(),
+                        &mut objects,
+                    );
+                }
+            }
+        }
+        if objects.is_empty() {
+            continue;
+        }
+        let mut nested_outs = AHashSet::default();
+        for (child_header, child_blocks) in &loops {
+            if child_header == header || !blocks.contains(child_header) {
+                continue;
+            }
+            for block_id in child_blocks {
+                for instruction in &function.blocks[block_id.0 as usize].instructions {
+                    if let Some(out) = instruction.out.filter(|out| named.contains(out)) {
+                        nested_outs.insert(out);
+                    }
+                }
+            }
+        }
+        for object in &objects {
+            for out in &nested_outs {
+                if out == object {
+                    continue;
+                }
+                interference.entry(*object).or_default().insert(*out);
+                interference.entry(*out).or_default().insert(*object);
+            }
+        }
+    }
+}
+
+fn header_skipped_stored_defs(
+    block: &crate::ir::ControlFlowBlock<'_>,
+    cone: &AHashSet<ValueId>,
+    context: &LocalNames,
+) -> AHashSet<ValueId> {
+    block
+        .instructions
+        .iter()
+        .filter(|instruction| !instruction_in_header_cone(instruction, cone))
+        .filter_map(|instruction| instruction.out)
+        .filter(|out| context.is_stored(*out))
+        .collect()
 }
 
 fn header_has_post_cone_prefix(
@@ -21603,9 +22278,10 @@ fn consumer_elided_i32_coercions(function: &ControlFlowFunction<'_>) -> AHashSet
         }
         match block.terminator.as_ref() {
             Some(Terminator::Branch { condition, .. }) => record(*condition, false),
-            Some(Terminator::Return(Some(value)) | Terminator::Throw(value)) => {
-                record(*value, false)
+            Some(Terminator::Return(Some(value))) => {
+                record(*value, value_is_length_member(function, *value));
             }
+            Some(Terminator::Throw(value)) => record(*value, false),
             _ => {}
         }
     }
@@ -22581,6 +23257,152 @@ fn expression_only_op(op: &ControlFlowOp<'_>) -> bool {
 /// Declared purity is validated by the optimizer, while this target-side gate
 /// additionally refuses host reads, allocations, captures, mutable storage,
 /// and calls whose callee has not itself passed the template proof.
+fn eraseable_js_host_wrapper_op(op: &ControlFlowOp<'_>) -> bool {
+    match op {
+        ControlFlowOp::Const(_)
+        | ControlFlowOp::LoadLocal(_)
+        | ControlFlowOp::Unary { .. }
+        | ControlFlowOp::TypeCheck { .. }
+        | ControlFlowOp::IndexGet { .. }
+        | ControlFlowOp::HostFieldGet { .. }
+        | ControlFlowOp::RecordFieldGet { .. }
+        | ControlFlowOp::CallDirect { .. } => true,
+        ControlFlowOp::Binary {
+            op: IrBinaryOp::Eq | IrBinaryOp::NotEq,
+            ..
+        } => true,
+        ControlFlowOp::Intrinsic {
+            intrinsic:
+                Intrinsic::JsNumber
+                | Intrinsic::JsTypeOf
+                | Intrinsic::JsIsNullish
+                | Intrinsic::JsIsUndefined
+                | Intrinsic::JsIsFalse
+                | Intrinsic::JsIsArray
+                | Intrinsic::JsIsObject
+                | Intrinsic::JsTruthy
+                | Intrinsic::JsStrictEqual
+                | Intrinsic::JsStrictNotEqual
+                | Intrinsic::JsGetProperty
+                | Intrinsic::JsHasProperty
+                | Intrinsic::FloatToInt
+                | Intrinsic::UnwrapNullable
+                | Intrinsic::UnwrapUnion,
+            ..
+        } => true,
+        _ => false,
+    }
+}
+
+fn control_flow_terminator_graph_has_cycle(function: &ControlFlowFunction<'_>) -> bool {
+    let index_of = function
+        .blocks
+        .iter()
+        .enumerate()
+        .map(|(index, block)| (block.id, index))
+        .collect::<AHashMap<_, _>>();
+    let mut adj = vec![Vec::new(); function.blocks.len()];
+    for block in &function.blocks {
+        let Some(&from) = index_of.get(&block.id) else {
+            continue;
+        };
+        let targets = match &block.terminator {
+            Some(Terminator::Jump(target)) => vec![*target],
+            Some(Terminator::Branch {
+                then_block,
+                else_block,
+                ..
+            }) => vec![*then_block, *else_block],
+            _ => Vec::new(),
+        };
+        for target in targets {
+            if let Some(&to) = index_of.get(&target) {
+                adj[from].push(to);
+            }
+        }
+    }
+    let mut state = vec![0u8; adj.len()];
+    fn visit(node: usize, adj: &[Vec<usize>], state: &mut [u8]) -> bool {
+        state[node] = 1;
+        for &next in &adj[node] {
+            if state[next] == 1 || (state[next] == 0 && visit(next, adj, state)) {
+                return true;
+            }
+        }
+        state[node] = 2;
+        false
+    }
+    (0..adj.len()).any(|node| state[node] == 0 && visit(node, &adj, &mut state))
+}
+
+fn eraseable_js_host_payload_op(op: &ControlFlowOp<'_>) -> bool {
+    match op {
+        ControlFlowOp::TypeCheck { .. }
+        | ControlFlowOp::IndexGet { .. }
+        | ControlFlowOp::HostFieldGet { .. }
+        | ControlFlowOp::RecordFieldGet { .. } => true,
+        ControlFlowOp::Binary {
+            op: IrBinaryOp::Eq | IrBinaryOp::NotEq,
+            ..
+        } => true,
+        ControlFlowOp::Intrinsic {
+            intrinsic:
+                Intrinsic::JsNumber
+                | Intrinsic::JsTypeOf
+                | Intrinsic::JsIsNullish
+                | Intrinsic::JsIsUndefined
+                | Intrinsic::JsIsFalse
+                | Intrinsic::JsIsArray
+                | Intrinsic::JsIsObject
+                | Intrinsic::JsTruthy
+                | Intrinsic::JsStrictEqual
+                | Intrinsic::JsStrictNotEqual
+                | Intrinsic::JsGetProperty
+                | Intrinsic::JsHasProperty
+                | Intrinsic::FloatToInt
+                | Intrinsic::UnwrapNullable
+                | Intrinsic::UnwrapUnion,
+            ..
+        } => true,
+        _ => false,
+    }
+}
+
+fn is_eraseable_js_host_wrapper(function: &ControlFlowFunction<'_>) -> bool {
+    if function.blocks.is_empty()
+        || function.blocks.len() > 4
+        || function
+            .blocks
+            .iter()
+            .map(|block| block.instructions.len())
+            .sum::<usize>()
+            > 8
+        || function
+            .shapes
+            .iter()
+            .any(|shape| !matches!(shape, ControlShape::If { .. }))
+        || control_flow_terminator_graph_has_cycle(function)
+    {
+        return false;
+    }
+    let instructions = function
+        .blocks
+        .iter()
+        .flat_map(|block| &block.instructions)
+        .collect::<Vec<_>>();
+    function.blocks.iter().all(|block| {
+        matches!(
+            block.terminator,
+            Some(Terminator::Jump(_) | Terminator::Branch { .. } | Terminator::Return(Some(_)))
+        ) && block
+            .instructions
+            .iter()
+            .all(|instruction| eraseable_js_host_wrapper_op(&instruction.op))
+    }) && instructions
+        .iter()
+        .any(|instruction| eraseable_js_host_payload_op(&instruction.op))
+}
+
 fn pure_helper_expression_op(
     function: &ControlFlowFunction<'_>,
     instruction: &ControlFlowInstruction<'_>,
@@ -24806,7 +25628,10 @@ mod tests {
                 ..IrJsOptions::default()
             },
         );
-        assert!(indexed.contains("[") && !indexed.contains(".charAt("), "{indexed}");
+        assert!(
+            indexed.contains("[") && !indexed.contains(".charAt("),
+            "{indexed}"
+        );
     }
 
     #[test]
@@ -25158,6 +25983,212 @@ mod tests {
             output.contains(".href") && output.contains(".title"),
             "{output}"
         );
+    }
+
+    fn rematerializes_member_after_rebind(source: &str, field: &str) -> bool {
+        let assign = "=void 0";
+        let mut from = 0usize;
+        while let Some(rel) = source[from..].find(assign) {
+            let at = from + rel;
+            from = at + assign.len();
+            let Some((_, ident)) = js_ident_ending_at(source, at) else {
+                continue;
+            };
+            let rest = &source[from..];
+            let function_end = ["};function ", "};let ", ";export", "function "]
+                .iter()
+                .filter_map(|marker| rest.find(marker))
+                .min()
+                .unwrap_or(rest.len());
+            if rest[..function_end].contains(&format!("{ident}.{field}")) {
+                return true;
+            }
+        }
+        false
+    }
+
+    #[test]
+    fn does_not_rematerialize_a_member_after_its_receiver_name_is_reused() {
+        let output = compile_module(
+            r#"
+                export JsValue run(JsValue events) {
+                  int index = 0;
+                  while (true) {
+                    if (index >= JS.number(JS.get(events, "length")).toInt()) {
+                      break;
+                    }
+                    JsValue event = events[index];
+                    if (event[0] == "enter") {
+                    } else if (JS.get(event[1], "_container").truthy()) {
+                      int otherIndex = index;
+                      JsValue lineIndex = JS.undefined();
+                      while (true) {
+                        otherIndex = otherIndex - 1;
+                        if (otherIndex < 0) {
+                          break;
+                        }
+                        JsValue otherEvent = events[otherIndex];
+                        if (JS.get(otherEvent[1], "type") == "lineEnding") {
+                          if (otherEvent[0] == "enter") {
+                            if (lineIndex.truthy()) {
+                              JS.set(events[JS.number(lineIndex).toInt()][1], "type", "lineEndingBlank");
+                            }
+                            JS.set(otherEvent[1], "type", "lineEnding");
+                            lineIndex = otherIndex;
+                          }
+                        } else {
+                          break;
+                        }
+                      }
+                      if (lineIndex.truthy()) {
+                        JS.set(event[1], "end", lineIndex);
+                      }
+                    }
+                    index = index + 1;
+                  }
+                  return events;
+                }
+            "#,
+        );
+        assert!(
+            !rematerializes_member_after_rebind(&output, "_container"),
+            "reusing a receiver name must not rematerialize a prior member read:\n{output}"
+        );
+        assert!(output.contains("._container"), "{output}");
+    }
+
+    #[test]
+    fn binds_a_multiuse_member_before_reusing_its_receiver() {
+        let output = compile_module(
+            r#"
+                bool includesVal(JsValue list, JsValue value) {
+                  return JS.call(JS.get(list, "includes"), list, value).truthy();
+                }
+                export void addResult(JsValue tok, JsValue construct, int from) {
+                  JsValue context = JS.get(tok, "context");
+                  JsValue constructs = JS.get(tok, "resolveAllConstructs");
+                  if (JS.typeOf(JS.get(construct, "resolveAll")) == "function" && !includesVal(constructs, construct)) {
+                    JS.call(JS.get(constructs, "push"), constructs, construct);
+                  }
+                  if (JS.typeOf(JS.get(construct, "resolve")) == "function") {
+                    JsValue evs = JS.get(context, "events");
+                    JsValue resolved = JS.call(JS.get(construct, "resolve"), construct, JS.call(JS.get(evs, "slice"), evs, from), context);
+                    JS.call(JS.get(evs, "splice"), evs, from, JS.number(JS.get(evs, "length")).toInt() - from, resolved);
+                  }
+                  if (JS.typeOf(JS.get(construct, "resolveTo")) == "function") {
+                    JS.set(context, "events", JS.call(JS.get(construct, "resolveTo"), construct, JS.get(context, "events"), context));
+                  }
+                }
+            "#,
+        );
+        assert!(output.contains("resolveAllConstructs"), "{output}");
+        assert!(output.contains(".push"), "{output}");
+        assert!(
+            !output.contains("undefined.push") && !output.contains("true.resolveAllConstructs"),
+            "resolveAllConstructs must stay a bound array across the function check:\n{output}"
+        );
+        let member = output.find(".resolveAllConstructs").unwrap();
+        let prefix = &output[..member];
+        if let Some(assign) = prefix.rfind("=typeof") {
+            let receiver_assign = prefix[..assign]
+                .rfind("a=")
+                .or_else(|| prefix[..assign].rfind("w="));
+            assert!(
+                receiver_assign.is_none(),
+                "must load resolveAllConstructs before overwriting the tokenizer parameter:\n{output}"
+            );
+        }
+    }
+
+    #[test]
+    fn does_not_rematerialize_short_circuit_member_before_receiver_bind() {
+        let output = compile_module(
+            r#"
+                JsValue getAt(JsValue events, int index) {
+                  return events[index];
+                }
+                export bool scan(JsValue events) {
+                  int index = -1;
+                  while (true) {
+                    index = index + 1;
+                    if (index >= JS.number(JS.get(events, "length")).toInt()) {
+                      break;
+                    }
+                    JsValue event = getAt(events, index);
+                    if (index > 0 && JS.get(event[1], "type") == "chunkFlow") {
+                      return true;
+                    }
+                  }
+                  return false;
+                }
+            "#,
+        );
+        let first_chunk = output.find("chunkFlow").expect(&output);
+        assert!(
+            output.contains("&&"),
+            "header bind must reconstruct && rather than a ternary leftover:\n{output}"
+        );
+        assert!(
+            !output[first_chunk..].contains(");if("),
+            "short-circuit member read must not rematerialize before getAt binds the event:\n{output}"
+        );
+        assert_eq!(
+            output.matches("chunkFlow").count(),
+            1,
+            "inner && leftover rematerialized chunkFlow:\n{output}"
+        );
+        let exported = output
+            .split(" as scan")
+            .next()
+            .and_then(|prefix| prefix.rsplit(['{', ',', ' ']).next())
+            .unwrap_or("scan");
+        let body = output.split("export{").next().unwrap_or(&output);
+        let script = format!(
+            "{body};const events=[['enter',{{type:'x'}}],['enter',{{type:'chunkFlow'}}]];process.stdout.write(String({exported}(events)))"
+        );
+        assert_eq!(run_javascript(&script).trim(), "true", "{output}");
+    }
+
+    #[test]
+    fn does_not_reuse_a_loop_receiver_for_a_nested_counter() {
+        let output = compile_module(
+            r#"
+                export bool scan(JsValue events) {
+                  int index = -1;
+                  JsValue event = JS.undefined();
+                  bool saw = false;
+                  while (true) {
+                    index = index + 1;
+                    if (index >= JS.number(JS.get(events, "length")).toInt()) {
+                      break;
+                    }
+                    event = events[index];
+                    if (index > 0 && JS.get(event[1], "type") == "chunkFlow") {
+                      saw = true;
+                    }
+                    if (JS.get(event[1], "_container").truthy()) {
+                      int inner = 0;
+                      JsValue[] extra = [];
+                      while (inner < 3) {
+                        extra.push(event);
+                        inner = inner + 1;
+                      }
+                    }
+                  }
+                  return saw;
+                }
+            "#,
+        );
+        let exported = output
+            .split(" as scan")
+            .next()
+            .and_then(|prefix| prefix.rsplit(['{', ',', ' ']).next())
+            .unwrap_or("scan");
+        let body = output.split("export{").next().unwrap_or(&output);
+        let script = format!(
+            "{body};const events=[['enter',{{type:'listItemPrefix'}}],['enter',{{type:'chunkFlow',_container:true}}]];process.stdout.write(String({exported}(events)))"
+        );
+        assert_eq!(run_javascript(&script).trim(), "true", "{output}");
     }
 
     #[test]
@@ -29085,6 +30116,27 @@ run();
     }
 
     #[test]
+    fn scores_length_to_int_without_integer_normalization() {
+        let source = r#"
+            export int len(JsValue values) {
+              return JS.number(JS.get(values, "length")).toInt();
+            }
+        "#;
+        let output = compile_module_with_options(
+            source,
+            IrJsOptions {
+                mangle_identifiers: false,
+                elide_length_tonumber: true,
+                elide_safe_integer_coercions: true,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(output.contains(".length"), "{output}");
+        assert!(!output.contains("|0"), "{output}");
+        assert!(!output.contains("+"), "{output}");
+    }
+
+    #[test]
     fn captured_cells_take_short_names_before_factory_temps() {
         let output = compile_module(
             r#"
@@ -29437,7 +30489,8 @@ run();
             "extern void consume(JsValue value);void install(){JsValue bag=JS.object();bag[\"alpha\"]=true;bag[\"beta\"]=true;consume(bag);try{JSON.parse(\"x\");}catch{}}install();",
         );
         assert!(
-            output.contains(".alpha=!0") && output.contains(".beta=!0"),
+            (output.contains(".alpha=!0") && output.contains(".beta=!0"))
+                || (output.contains("alpha:!0") && output.contains("beta:!0")),
             "{output}"
         );
         assert!(output.contains("try{"), "{output}");
@@ -30160,6 +31213,48 @@ run();
     }
 
     #[test]
+    fn folds_fresh_empty_object_writes_into_a_literal() {
+        let output = compile_with_options(
+            "extern void consume(JsValue value);JsValue obj=JS.object();obj[\"alpha\"]=1;obj[\"beta\"]=2;consume(obj);",
+            IrJsOptions {
+                mangle_identifiers: false,
+                batch_property_assigns: false,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(!output.contains("Object.assign("), "{output}");
+        assert!(
+            !output.contains("={}") && output.contains("{alpha:1,beta:2}"),
+            "{output}"
+        );
+        let trace = run_javascript(&format!(
+            "let seen=null;function consume(value){{seen=value}};{output};process.stdout.write(JSON.stringify(seen))"
+        ));
+        assert_eq!(trace, "{\"alpha\":1,\"beta\":2}", "{output}");
+    }
+
+    #[test]
+    fn folds_fresh_object_writes_across_unrelated_prefix() {
+        let output = compile_with_options(
+            "extern void consume(JsValue value);extern int limit();JsValue obj=JS.object();int n=limit();obj[\"alpha\"]=n;obj[\"beta\"]=2;consume(obj);",
+            IrJsOptions {
+                mangle_identifiers: false,
+                batch_property_assigns: true,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(!output.contains("Object.assign("), "{output}");
+        assert!(
+            !output.contains("={}") && output.contains("alpha:") && output.contains("beta:2"),
+            "{output}"
+        );
+        let trace = run_javascript(&format!(
+            "let seen=null;function limit(){{return 7}}function consume(value){{seen=value}};{output};process.stdout.write(JSON.stringify(seen))"
+        ));
+        assert_eq!(trace, "{\"alpha\":7,\"beta\":2}", "{output}");
+    }
+
+    #[test]
     fn batches_consecutive_property_writes_into_object_assign() {
         let output = compile_with_options(
             "extern JsValue input();extern void consume(JsValue value);JsValue obj=input();obj[\"alpha\"]=1;obj[\"beta\"]=2;consume(obj);",
@@ -30330,6 +31425,23 @@ run();
         ));
         assert_eq!(aggregate_trace, "TRACE:handle", "{aggregate}");
 
+        let unused_receiver = compile_with_options(
+            "extern void consume(JsValue value);JsValue start=JS.method1((JsValue _s,JsValue code)=>code);consume(start);consume(start);",
+            IrJsOptions {
+                mangle_identifiers: false,
+                function_spelling: FunctionSpelling::Function,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(
+            unused_receiver.contains("function(") && !unused_receiver.contains("(0,function"),
+            "{unused_receiver}"
+        );
+        let unused_trace = run_javascript(&format!(
+            "let values=[];function consume(value){{values.push(value)}}{unused_receiver};let value=values[0];process.stdout.write('TRACE:'+[values[0]===values[1],value.name!=='',value.length,value(9)].join(':'))"
+        ));
+        assert_eq!(unused_trace, "TRACE:true:true:1:9", "{unused_receiver}");
+
         let assigned = compile_with_options(
             "extern void consume(JsValue value);void install(){JsValue setupFn=JS.method0((JsValue self)=>self);JsValue bag=JS.object();bag[\"setup\"]=setupFn;consume(bag);}install();",
             IrJsOptions {
@@ -30343,6 +31455,39 @@ run();
                 || assigned.contains(".setup=function(){return this}"),
             "{assigned}"
         );
+    }
+
+    #[test]
+    fn inlines_eraseable_host_getters_at_constant_identifier_keys() {
+        let output = compile_with_options(
+            r#"
+extern void consume(string value);
+string field(JsValue node, string key) {
+  JsValue value = JS.get(node, key);
+  if (value is string) {
+    return value;
+  }
+  return "";
+}
+consume(field(JS.object("type", "paragraph"), "type"));
+consume(field(JS.object("type", 1), "type"));
+"#,
+            IrJsOptions {
+                mangle_identifiers: false,
+                function_spelling: FunctionSpelling::Function,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(output.contains(".type"), "{output}");
+        assert!(output.contains("typeof"), "{output}");
+        assert!(
+            !output.contains("function field(") && !output.contains("field("),
+            "{output}"
+        );
+        let trace = run_javascript(&format!(
+            "let values=[];function consume(value){{values.push(value)}}{output};process.stdout.write(values.join(':'))"
+        ));
+        assert_eq!(trace, "paragraph:", "{output}");
     }
 
     #[test]
@@ -32638,6 +33783,21 @@ run();
             "{output}"
         );
         assert!(!output.starts_with("let "), "{output}");
+    }
+
+    #[test]
+    fn brotli_does_not_pool_identifier_shaped_strings() {
+        let output = compile_with_options(
+            "extern void sink(string value);sink(\"type\");sink(\"type\");sink(\"type\");sink(\"type\");sink(\"type\");sink(\"type\");sink(\"type\");sink(\"type\");",
+            IrJsOptions {
+                pool_strings: true,
+                pool_identifier_strings: false,
+                mangle_identifiers: false,
+                ..IrJsOptions::default()
+            },
+        );
+        assert_eq!(output.matches("\"type\"").count(), 8, "{output}");
+        assert!(!output.contains("=\"type\""), "{output}");
     }
 
     #[test]

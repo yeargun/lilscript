@@ -590,11 +590,23 @@ mod tests {
 
 // STORE_CENSUS report (temporary)
 fn report_store_census() {
-    if std::env::var_os("LILSCRIPT_STORE_CENSUS").is_none() { return; }
-    let names = ["cross_block", "use_count>1", "unstable", "single_use", "other", "fallthrough_only"];
+    if std::env::var_os("LILSCRIPT_STORE_CENSUS").is_none() {
+        return;
+    }
+    let names = [
+        "cross_block",
+        "use_count>1",
+        "unstable",
+        "single_use",
+        "other",
+        "fallthrough_only",
+    ];
     eprint!("CENSUS");
     for (i, n) in names.iter().enumerate() {
-        eprint!(" {n}={}", lilscript::codegen_ir_js::STORE_REASONS[i].load(std::sync::atomic::Ordering::Relaxed));
+        eprint!(
+            " {n}={}",
+            lilscript::codegen_ir_js::STORE_REASONS[i].load(std::sync::atomic::Ordering::Relaxed)
+        );
     }
     eprintln!();
 }
