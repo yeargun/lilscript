@@ -1,7 +1,7 @@
 use super::{
-    late_generated_javascript_cleanup, late_generated_javascript_cleanup_local_variants,
-    late_generated_javascript_cleanup_pass, optimize_generated_javascript,
-    repair_fused_keyword_identifiers, LateJavaScriptCleanupPass,
+    analyze_generated_javascript, late_generated_javascript_cleanup,
+    late_generated_javascript_cleanup_local_variants, late_generated_javascript_cleanup_pass,
+    optimize_generated_javascript, repair_fused_keyword_identifiers, LateJavaScriptCleanupPass,
 };
 
 #[test]
@@ -45,6 +45,86 @@ fn asserts_parses(code: &str) {
         "invalid JS: {}\n{}",
         code,
         String::from_utf8_lossy(&out.stderr)
+    );
+}
+
+#[test]
+fn keeps_expression_sequences_out_of_var_declarator_lists() {
+    let source = r#"function cur(a,b,c,f){var d;c&&(d=c.getPropertyValue(b),d=d||c[b],f&&d&&(d=trim(d)));return d}"#;
+    let optimized = optimize_generated_javascript(source).unwrap();
+    asserts_parses(&optimized.code);
+    assert!(
+        !optimized.code.contains("var d=c&&c.getPropertyValue(b),d="),
+        "{}",
+        optimized.code
+    );
+}
+
+#[test]
+fn accepts_contextual_keyword_binding_names() {
+    analyze_generated_javascript("function f(){var of=1;var as=2;return of+as}").unwrap();
+    analyze_generated_javascript("function f(){var of=W;return of}var W=1").unwrap();
+}
+
+#[test]
+fn rejects_reserved_keyword_binding_names() {
+    let error = analyze_generated_javascript("function f(){var if=1;return if}").unwrap_err();
+    assert!(error.to_string().contains("variable declarator"), "{error}");
+}
+
+#[test]
+fn rejects_logical_expressions_in_var_declarator_lists() {
+    let invalid =
+        "function cur(c,b,f){var d=c&&c.getPropertyValue(b),d=d||c[b],f&&d&&(d=trim(d));return d}";
+    let error = analyze_generated_javascript(invalid).unwrap_err();
+    assert!(
+        error.to_string().contains("variable declarator suffix"),
+        "{error}"
+    );
+}
+
+#[test]
+fn rejects_values_in_bare_arrow_parameter_positions() {
+    let error = analyze_generated_javascript("let normalize=null=>+null").unwrap_err();
+    assert!(error.to_string().contains("arrow parameter"), "{error}");
+}
+
+#[test]
+fn single_use_if_assign_does_not_replace_a_nested_arrow_parameter() {
+    let source = "function outer(a,status){if(a){a=null;var result=(a=>{if(0==a)return 200;if(1223==a)return 204;return +a})(status);return result}}console.log([outer(1,0),outer(1,1223),outer(1,7)].join(','))";
+    let optimized = optimize_generated_javascript(source).unwrap();
+    asserts_parses(&optimized.code);
+    assert!(!optimized.code.contains("null=>"), "{}", optimized.code);
+    assert_eq!(run_node(&optimized.code), run_node(source));
+    assert_eq!(run_node(&optimized.code).trim(), "200,204,7");
+}
+
+#[test]
+fn nullable_fallbacks_keep_null_distinct_from_omitted_arguments() {
+    let source = "function target(a,b){if(a){b=first(b);return b!=null?b:a}return a}function first(v){return v}console.log([target(7,null),target(7,void 0),target(0,3)].join(','))";
+    let optimized = optimize_generated_javascript(source).unwrap();
+    asserts_parses(&optimized.code);
+    assert_eq!(
+        run_node(&optimized.code),
+        run_node(source),
+        "{}",
+        optimized.code
+    );
+    assert_eq!(run_node(&optimized.code).trim(), "7,7,0");
+}
+
+#[test]
+fn traces_external_generated_javascript_when_requested() {
+    let Some(path) = std::env::var_os("LILSCRIPT_TRACE_JS") else {
+        return;
+    };
+    let source = std::fs::read_to_string(path).unwrap();
+    let optimized = optimize_generated_javascript(&source).unwrap();
+    std::fs::write("/tmp/codex-traced-result.js", &optimized.code).unwrap();
+    eprintln!(
+        "TRACE_RESULT:{}:{}",
+        optimized.code.len(),
+        optimized.rewrites
     );
 }
 
@@ -1120,7 +1200,10 @@ fn object_prototype_tostring_cache_does_not_capture_later_module_binding() {
     );
     let optimized = optimize_generated_javascript(source).unwrap();
     let late = late_generated_javascript_cleanup(source).unwrap();
-    assert_eq!(run_node(source).trim(), "[object Object]|[object String]|true|false");
+    assert_eq!(
+        run_node(source).trim(),
+        "[object Object]|[object String]|true|false"
+    );
     assert_eq!(
         run_node(&optimized.code).trim(),
         "[object Object]|[object String]|true|false",
@@ -1133,8 +1216,7 @@ fn object_prototype_tostring_cache_does_not_capture_later_module_binding() {
         "{late}"
     );
     assert!(
-        optimized.code.contains("Object.prototype")
-            || late.contains("Object.prototype"),
+        optimized.code.contains("Object.prototype") || late.contains("Object.prototype"),
         "cache must keep Object.prototype:\n{}\n{late}",
         optimized.code
     );
@@ -2174,6 +2256,20 @@ fn chained_assignments_reuse_captured_enclosing_function_bindings() {
 }
 
 #[test]
+fn implicit_comma_sequence_temp_is_declared_at_the_function_body() {
+    let source = "function c(){return 7}function transport(){var b=null;return{send(){prop({src:url}),b=c=()=>1;return b()}}}var url='x';function prop(){}console.log(transport().send());console.log(c())";
+    let optimized = optimize_generated_javascript(source).unwrap();
+    asserts_parses(&optimized.code);
+    let script = format!("\"use strict\";{}", optimized.code);
+    assert_eq!(run_node(&script).trim(), "1\n7", "{}", optimized.code);
+    assert!(
+        !optimized.code.contains("src:url}var c;"),
+        "{}",
+        optimized.code
+    );
+}
+
+#[test]
 fn keeps_a_narrowed_value_distinct_from_its_guard_condition() {
     let optimized = optimize_generated_javascript(
         "function fallback(current){if(null!=current)return current;return 0}",
@@ -2717,6 +2813,18 @@ fn folds_redundant_null_or_undefined_checks() {
         "{}",
         null_or_void.code
     );
+
+    let emit_order = super::fold_redundant_null_undefined_or(
+        "function oa(p){return p===void 0||p==null}function _(p){return p==null&&!(p===void 0)}",
+    )
+    .unwrap();
+    assert!(
+        emit_order.0.contains("p==null")
+            && emit_order.0.contains("p===null")
+            && !emit_order.0.contains("void 0"),
+        "{}",
+        emit_order.0
+    );
 }
 
 #[test]
@@ -2843,6 +2951,33 @@ fn chained_comma_assigns_do_not_steal_a_var_declarator() {
     let (expr, count) = super::fold_chained_comma_assigns("f((d=()=>{},p=d))").unwrap();
     assert!(count > 0, "{expr}");
     assert!(expr.contains("p=d=()=>{}"), "{expr}");
+}
+
+#[test]
+fn chained_comma_assigns_do_not_cross_conditional_arms() {
+    let source = concat!(
+        "function f(b,g,e){",
+        "if(b)e++,g=b;else e++,b=g,e++,g=b;",
+        "return [b,g,e]}",
+        "console.log(JSON.stringify(f(1,2,0)))",
+    );
+    let (code, count) = super::fold_chained_comma_assigns(source).unwrap();
+    assert_eq!(count, 0, "{code}");
+    assert_eq!(run_node(&code), run_node(source), "{code}");
+}
+
+#[test]
+fn stripping_an_unused_for_initializer_keeps_the_grammar_semicolon() {
+    let source = concat!(
+        "function drain(q,h){",
+        "for(var unused=h;q.length;h=-1)q.shift();",
+        "return q.length}",
+        "console.log(drain([1,2],0))",
+    );
+    let (code, count) = super::strip_unused_simple_declarators(source).unwrap();
+    assert!(count > 0, "{code}");
+    assert!(code.contains("for(;q.length;h=-1)"), "{code}");
+    assert_eq!(run_node(&code), run_node(source), "{code}");
 }
 
 #[test]

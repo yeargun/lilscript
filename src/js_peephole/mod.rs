@@ -1,11 +1,11 @@
 use serde::Serialize;
 
 pub(crate) use crate::js_peephole::folds::fold_constructor_prototype_tables_to_classes;
-pub(crate) use crate::js_peephole::rename::converge_local_names;
 use crate::js_peephole::folds::*;
 use crate::js_peephole::parse::{
     compound_assignment_rewrite, parse_expression_regions, syntax_metrics,
 };
+pub(crate) use crate::js_peephole::rename::converge_local_names;
 use crate::js_peephole::rewrite::{
     apply_rewrites, apply_token_rewrites, assign_is_in_declaration, is_property_identifier,
     non_overlapping_rewrites,
@@ -19,7 +19,13 @@ use crate::js_peephole::token::{
 };
 
 mod folds;
-pub(crate) use folds::{fold_expression_bodies, inline_single_use_functions};
+pub(crate) use folds::{
+    fold_constant_json_parse, fold_dead_identifier_copy_declarators, fold_dead_increment_snapshots,
+    fold_expression_bodies,
+    fold_fresh_empty_object_assign, fold_if_prefixed_returns, fold_nested_unguarded_ifs,
+    fold_pristine_static_method_calls,
+    fold_redundant_null_undefined_or, inline_single_use_functions,
+};
 mod binding;
 mod parse;
 mod rename;
@@ -259,6 +265,8 @@ pub fn analyze_generated_javascript(
 ) -> Result<JavaScriptSyntaxMetrics, JavaScriptParseError> {
     let tokens = lex(source)?;
     let delimiter_nesting = validate_delimiters(&tokens)?;
+    validate_generated_declaration_syntax(source, &tokens)?;
+    validate_generated_bare_arrow_parameters(&tokens)?;
     validate_conditional_operators(&tokens)?;
     validate_unique_top_level_bindings(&tokens)?;
     validate_class_body_members(&tokens)?;
@@ -266,6 +274,183 @@ pub fn analyze_generated_javascript(
     validate_resolved_generated_bindings(&tokens)?;
     let parsed = parse_expression_regions(&tokens);
     Ok(syntax_metrics(source, &tokens, &parsed, delimiter_nesting))
+}
+
+/// The tokenizer marks contextual words such as `of` and `as` as keywords even
+/// though they are legal generated binding names. Reject only words that can
+/// never occupy a binding position.
+fn is_generated_binding_name(token: &Token<'_>) -> bool {
+    match token.kind {
+        TokenKind::Identifier => true,
+        TokenKind::Keyword => !matches!(
+            token.text,
+            "break"
+                | "case"
+                | "catch"
+                | "class"
+                | "const"
+                | "continue"
+                | "debugger"
+                | "default"
+                | "delete"
+                | "do"
+                | "else"
+                | "export"
+                | "extends"
+                | "false"
+                | "finally"
+                | "for"
+                | "function"
+                | "if"
+                | "import"
+                | "in"
+                | "instanceof"
+                | "new"
+                | "null"
+                | "return"
+                | "super"
+                | "switch"
+                | "this"
+                | "throw"
+                | "true"
+                | "try"
+                | "typeof"
+                | "var"
+                | "void"
+                | "while"
+                | "with"
+        ),
+        _ => false,
+    }
+}
+
+/// Reject malformed declarator lists that the delimiter-only parser would
+/// otherwise accept. Generated bindings are identifiers or destructuring
+/// patterns; after one of those, only an initializer or a declaration
+/// separator may follow on the same line. In particular, a logical expression
+/// cannot become a declarator merely because a rewrite moved a root comma.
+fn validate_generated_declaration_syntax(
+    source: &str,
+    tokens: &[Token<'_>],
+) -> Result<(), JavaScriptParseError> {
+    let matching_close = matching_closers(tokens);
+    for declaration in 0..tokens.len() {
+        if !matches!(tokens[declaration].text, "var" | "let" | "const")
+            || declaration.checked_sub(1).is_some_and(|previous| {
+                matches!(tokens[previous].text, "." | "?.")
+            })
+            // Keyword-named object/class members are not declarations.
+            || matches!(tokens.get(declaration + 1).map(|token| token.text), Some(":" | "("))
+        {
+            continue;
+        }
+
+        let mut cursor = declaration + 1;
+        'declarators: loop {
+            let Some(binding) = tokens.get(cursor) else {
+                return Err(JavaScriptParseError {
+                    offset: tokens[declaration].end,
+                    message: "missing generated variable declarator",
+                });
+            };
+            let binding_end = if is_generated_binding_name(binding) {
+                cursor + 1
+            } else if matches!(binding.text, "{" | "[") {
+                matching_close
+                    .get(cursor)
+                    .copied()
+                    .flatten()
+                    .map(|close| close + 1)
+                    .ok_or(JavaScriptParseError {
+                        offset: binding.start,
+                        message: "unclosed generated binding pattern",
+                    })?
+            } else {
+                return Err(JavaScriptParseError {
+                    offset: binding.start,
+                    message: "invalid generated variable declarator",
+                });
+            };
+            cursor = binding_end;
+
+            match tokens.get(cursor).map(|token| token.text) {
+                Some("=") => {
+                    cursor += 1;
+                    if cursor >= tokens.len() {
+                        return Err(JavaScriptParseError {
+                            offset: tokens[cursor - 1].end,
+                            message: "missing generated variable initializer",
+                        });
+                    }
+                    while cursor < tokens.len() {
+                        match tokens[cursor].text {
+                            "(" | "[" | "{" => {
+                                cursor = matching_close
+                                    .get(cursor)
+                                    .copied()
+                                    .flatten()
+                                    .map(|close| close + 1)
+                                    .ok_or(JavaScriptParseError {
+                                        offset: tokens[cursor].start,
+                                        message: "unclosed generated variable initializer",
+                                    })?;
+                            }
+                            "," => {
+                                cursor += 1;
+                                continue 'declarators;
+                            }
+                            ";" | ")" | "}" => break 'declarators,
+                            _ => cursor += 1,
+                        }
+                    }
+                    break;
+                }
+                Some(",") => {
+                    cursor += 1;
+                    continue;
+                }
+                Some(";") | Some(")") | Some("}") | Some("in") | Some("of") | None => break,
+                Some(_) => {
+                    let next = &tokens[cursor];
+                    if source[tokens[binding_end - 1].end..next.start]
+                        .bytes()
+                        .any(|byte| matches!(byte, b'\n' | b'\r'))
+                    {
+                        break;
+                    }
+                    return Err(JavaScriptParseError {
+                        offset: next.start,
+                        message: "invalid generated variable declarator suffix",
+                    });
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+/// A bare arrow parameter must be a binding identifier. The tokenizer marks
+/// contextual words such as `async` as keywords too, so reject only words
+/// that can never name a generated binding rather than requiring the broader
+/// `Identifier` token class. This catches value propagation into the binding
+/// position (for example, `a=>` becoming `null=>`) independently of the fold
+/// that produced it.
+fn validate_generated_bare_arrow_parameters(
+    tokens: &[Token<'_>],
+) -> Result<(), JavaScriptParseError> {
+    for arrow in 1..tokens.len() {
+        if tokens[arrow].text != "=>" || tokens[arrow - 1].text == ")" {
+            continue;
+        }
+        let parameter = &tokens[arrow - 1];
+        if !is_generated_binding_name(parameter) {
+            return Err(JavaScriptParseError {
+                offset: parameter.start,
+                message: "invalid generated bare arrow parameter",
+            });
+        }
+    }
+    Ok(())
 }
 
 /// Reject duplicate bindings in the generated module scope.
@@ -309,12 +494,18 @@ fn validate_unique_top_level_bindings(tokens: &[Token<'_>]) -> Result<(), JavaSc
                         let current = tokens[scan];
                         let at_declarator_level =
                             paren_depth == 0 && bracket_depth == 0 && initializer_brace_depth == 0;
-                        if at_declarator_level && matches!(current.text, ";" | "of" | "in" | ")") {
+                        if at_declarator_level && matches!(current.text, ";" | ")") {
+                            break;
+                        }
+                        if at_declarator_level
+                            && !expects_name
+                            && matches!(current.text, "of" | "in")
+                        {
                             break;
                         }
                         if at_declarator_level
                             && expects_name
-                            && current.kind == TokenKind::Identifier
+                            && is_generated_binding_name(&current)
                         {
                             insert(&mut declared, current)?;
                             expects_name = false;
@@ -1232,11 +1423,27 @@ pub fn function_local_binding_swap_variants(
 /// The parser is deliberately conservative. Unsupported expressions still
 /// contribute to token metrics but are never rewritten.
 pub fn optimize_generated_javascript(source: &str) -> Result<PeepholeResult, JavaScriptParseError> {
-    let first = optimize_generated_javascript_pass(source)?;
+    optimize_generated_javascript_with(source, true)
+}
+
+/// Same local rewrites as [`optimize_generated_javascript`], except folds that
+/// move or erase function bindings. Search-off must still minify declarations
+/// and increments when the full pass would cross the function-count boundary.
+pub fn optimize_generated_javascript_preserving_functions(
+    source: &str,
+) -> Result<PeepholeResult, JavaScriptParseError> {
+    optimize_generated_javascript_with(source, false)
+}
+
+fn optimize_generated_javascript_with(
+    source: &str,
+    elide_functions: bool,
+) -> Result<PeepholeResult, JavaScriptParseError> {
+    let first = optimize_generated_javascript_pass(source, elide_functions)?;
     if first.rewrites == 0 || !constructor_table_remains(&first.code) {
         return Ok(first);
     }
-    match optimize_generated_javascript_pass(&first.code) {
+    match optimize_generated_javascript_pass(&first.code, elide_functions) {
         Ok(second) if second.rewrites > 0 => Ok(PeepholeResult {
             code: second.code,
             metrics: second.metrics,
@@ -1253,9 +1460,12 @@ fn constructor_table_remains(source: &str) -> bool {
 
 fn optimize_generated_javascript_pass(
     source: &str,
+    elide_functions: bool,
 ) -> Result<PeepholeResult, JavaScriptParseError> {
     let tokens = lex(source)?;
     validate_delimiters(&tokens)?;
+    validate_generated_declaration_syntax(source, &tokens)?;
+    validate_generated_bare_arrow_parameters(&tokens)?;
     let parsed = parse_expression_regions(&tokens);
     let mut compound = parsed
         .iter()
@@ -1267,8 +1477,8 @@ fn optimize_generated_javascript_pass(
 
     let mut session = RewriteSession::new(apply_rewrites(source, &compound));
     session.rewrites += compound.len();
-    session.run(fold_value_binding_iife)?;
-    session.run(fold_constructor_prototype_tables_to_classes)?;
+    session.run_if(elide_functions, fold_value_binding_iife)?;
+    session.run_if(elide_functions, fold_constructor_prototype_tables_to_classes)?;
     session.run(fold_indexed_arguments_to_formals)?;
     session.run(fold_undefined_defaults_into_formals)?;
     session.run(fold_arguments_length_formal_copies)?;
@@ -1282,12 +1492,13 @@ fn optimize_generated_javascript_pass(
     session.run(fold_index_postfix_updates)?;
     session.run(fold_guarded_and_addends)?;
     session.run(fold_unit_counter_updates)?;
+    session.run(fold_while_true_unit_increment_bounds)?;
     session.run(fold_int32_coercions)?;
     session.repeat(fold_identifier_copies, 8)?;
     session.run(strip_unused_simple_declarators)?;
     session.repeat(fold_single_use_literal_bindings, 8)?;
-    session.run(fold_single_use_function_values)?;
-    session.run(fold_single_use_function_values)?;
+    session.run_if(elide_functions, fold_single_use_function_values)?;
+    session.run_if(elide_functions, fold_single_use_function_values)?;
     session.run(fold_typeof_identifier_caches)?;
     session.run(fold_coalesced_or_returns)?;
     session.run(flatten_associative_string_concats)?;
@@ -1296,7 +1507,7 @@ fn optimize_generated_javascript_pass(
     session.run(fold_for_trailing_increments)?;
     session.run(strip_unused_for_init_vars)?;
     session.run(fold_chained_identifier_assigns)?;
-    session.run(fold_single_use_function_values)?;
+    session.run_if(elide_functions, fold_single_use_function_values)?;
     session.run(fold_prefix_increment_for_bounds)?;
     session.run(fold_increment_infinite_for_bounds)?;
     session.run(fold_dead_initializer_reassigns)?;
@@ -1320,6 +1531,8 @@ fn optimize_generated_javascript_pass(
     session.run(fold_identity_arrow_iife)?;
     session.run(fold_empty_ternary_then_comma)?;
     session.repeat(fold_single_use_if_assigns, 6)?;
+    session.run(fold_if_prefixed_returns)?;
+    session.run(fold_nested_unguarded_ifs)?;
     session.run(fold_if_expression_to_and)?;
     session.run(fold_try_if_return_alternatives)?;
     session.run(fold_if_prefix_guard_return)?;
@@ -1327,9 +1540,9 @@ fn optimize_generated_javascript_pass(
     session.run(fold_boolean_context_double_not)?;
     session.run(fold_redundant_and_parens)?;
     session.run(flip_false_equalities)?;
-    session.run(fold_single_use_function_values)?;
+    session.run_if(elide_functions, fold_single_use_function_values)?;
     session.run(fold_single_use_regex_bindings)?;
-    session.run(fold_constructor_prototype_tables_to_classes)?;
+    session.run_if(elide_functions, fold_constructor_prototype_tables_to_classes)?;
     session.run(fold_indexed_arguments_to_formals)?;
     session.run(fold_undefined_defaults_into_formals)?;
     session.run(fold_arguments_length_formal_copies)?;
@@ -1342,6 +1555,8 @@ fn optimize_generated_javascript_pass(
     session.run(fold_same_lvalue_ternary)?;
     session.run(fold_or_reassign_to_ternary)?;
     session.repeat(fold_single_use_if_assigns, 4)?;
+    session.run(fold_if_prefixed_returns)?;
+    session.run(fold_nested_unguarded_ifs)?;
     session.run(fold_if_expression_to_and)?;
     session.run(fold_integer_neq_zero_in_boolean)?;
     session.run(fold_assigned_truthy_ternaries)?;
@@ -1360,13 +1575,17 @@ fn optimize_generated_javascript_pass(
     session.run(fold_negated_equalities)?;
     session.run(fold_redundant_null_undefined_or)?;
     session.run(reorder_uninitialized_var_declarators)?;
-    session.run(fold_single_use_function_values)?;
+    session.run_if(elide_functions, fold_single_use_function_values)?;
     session.run(fold_int32_coercions)?;
     session.run(canonicalize_leaf_syntax)?;
     session.run(elide_separating_keyword_spaces)?;
 
     canonical_late_generated_javascript_cleanup_into(&mut session)?;
+    session.run(fold_if_prefixed_returns)?;
+    session.run(fold_nested_unguarded_ifs)?;
+    session.run(fold_conditional_return_tails)?;
     session.run(fold_unit_counter_updates)?;
+    session.run(fold_while_true_unit_increment_bounds)?;
     session.run(fold_int32_coercions)?;
     session.run(fold_top_level_adjacent_expression_statements)?;
     session.run(fold_or_assignment_parens)?;
@@ -1374,16 +1593,18 @@ fn optimize_generated_javascript_pass(
     session.run(split_fused_keyword_identifiers)?;
     session.run(strip_stale_set_prototype_of)?;
     session.run(terminate_bare_prototype_before_statement)?;
-    session.run(fold_constructor_prototype_tables_to_classes)?;
+    session.run_if(elide_functions, fold_constructor_prototype_tables_to_classes)?;
     session.run(strip_stale_set_prototype_of)?;
     session.run(terminate_bare_prototype_before_statement)?;
     session.run(fold_dead_pure_identifier_assigns)?;
     session.run(fold_unread_prototype_aliases)?;
+    session.run(fold_dead_identifier_copy_declarators)?;
     session.run(remove_unused_standalone_vars)?;
     session.run(fold_or_empty_object_assign)?;
+    session.run(fold_fresh_empty_object_assign)?;
     session.run(fold_named_class_identity)?;
     session.run(rewrite_class_ctor_identity_to_new_target)?;
-    session.run(fold_value_binding_iife)?;
+    session.run_if(elide_functions, fold_value_binding_iife)?;
     session.run(fold_undefined_defaults_into_formals)?;
     session.run(drop_redundant_class_constructor_guards)?;
     session.run(remove_unused_standalone_vars)?;
@@ -1400,6 +1621,8 @@ fn optimize_generated_javascript_pass(
         lex(&session.code)?
     };
     let final_nesting = validate_delimiters(&final_tokens)?;
+    validate_generated_declaration_syntax(&session.code, &final_tokens)?;
+    validate_generated_bare_arrow_parameters(&final_tokens)?;
     validate_unique_top_level_bindings(&final_tokens)?;
     validate_class_body_members(&final_tokens)?;
     let final_parsed = parse_expression_regions(&final_tokens);
@@ -1568,6 +1791,7 @@ fn late_generated_javascript_cleanup_pass_into(
         }
         LateJavaScriptCleanupPass::UnitCounterUpdates => {
             session.run(fold_unit_counter_updates)?;
+            session.run(fold_while_true_unit_increment_bounds)?;
             session.run(fold_expression_self_assignments)?
         }
         LateJavaScriptCleanupPass::CommonConditionalArms => {
@@ -1653,6 +1877,18 @@ impl RewriteSession {
         self.code = next;
         self.rewrites += count;
         Ok(())
+    }
+
+    fn run_if(
+        &mut self,
+        enabled: bool,
+        fold: impl Fn(&str) -> Result<(String, usize), JavaScriptParseError>,
+    ) -> Result<(), JavaScriptParseError> {
+        if enabled {
+            self.run(fold)
+        } else {
+            Ok(())
+        }
     }
 
     fn run_flag(

@@ -2,7 +2,8 @@ use super::parse::{non_overlapping_parsed_node_count, parse_expression_regions};
 use super::token::{lex, punctuation_width};
 use super::{
     analyze_generated_javascript, function_leading_declaration_variant,
-    optimize_generated_javascript, reorder_uninitialized_var_declarators, PeepholeResult,
+    optimize_generated_javascript, optimize_generated_javascript_preserving_functions,
+    reorder_uninitialized_var_declarators, PeepholeResult,
 };
 
 const LEGACY_PUNCTUATION: [&str; 31] = [
@@ -484,6 +485,7 @@ fn never_reuses_a_binding_from_a_sibling_arrow_scope() {
         "function f(){var a=first();var b=second();use((b)=>a+b)}",
         "function f(){var a=first();save(()=>{use(a)});var b=second();return b}",
         "function f(c,i){var l=function(){return 1};var $=function(){try{l()}catch(N){}};if(0!=c){$()}else{var m=i.Deferred;m.getErrorHook&&($.error=m.getErrorHook());setTimeout($)}}",
+        "function f(c){(()=>function(){try{}catch(e){var j=first();use(j)}})();if(c){if(c){var m=second();return m}}}",
     ] {
         let (optimized, reused) = super::reuse_dead_var_binding(source).unwrap();
         assert!(!reused, "{optimized}");
@@ -683,8 +685,7 @@ fn refuses_return_tails_that_are_not_the_next_statement_of_the_same_block() {
         "function f(a,b){l:if(a)return 1;return 2}",
         // Another statement runs between the two returns.
         "function f(a,b){if(a)return 1;b();return 2}",
-        // The guarded arm is not a lone return.
-        "function f(a,b){if(a){b();return 1}return 2}",
+        // An else arm with a prefix is not a lone-return pair.
         "function f(a,b){if(a)return 1;else{b();return 2}}",
     ] {
         assert_eq!(optimize_generated_javascript(source).unwrap().code, source);
@@ -781,6 +782,91 @@ fn folds_expression_only_if_else_arms_into_a_conditional_sequence() {
             .unwrap()
             .code,
         "function f(a){return a?1:2}"
+    );
+}
+
+#[test]
+fn folds_unread_increment_snapshots() {
+    let (optimized, rewritten) = crate::js_peephole::fold_dead_increment_snapshots(
+        "function f(c,d){if(c<b){var h=c;c++,d.consume(s);return a}return c}",
+    )
+    .unwrap();
+    assert!(rewritten > 0);
+    assert_eq!(
+        optimized,
+        "function f(c,d){if(c<b){c++,d.consume(s);return a}return c}"
+    );
+    let (kept, kept_rewrites) = crate::js_peephole::fold_dead_increment_snapshots(
+        "function f(c){var h=c;c++;return h}",
+    )
+    .unwrap();
+    assert_eq!(kept_rewrites, 0);
+    assert_eq!(kept, "function f(c){var h=c;c++;return h}");
+}
+
+#[test]
+fn folds_pristine_static_method_call_this_arg() {
+    let (optimized, rewritten) = crate::js_peephole::fold_pristine_static_method_calls(
+        "function f(a,b){return Object.assign.call(Object,a,b)+String.fromCharCode.call(String,c)+Array.from.call(Array,d)}",
+    )
+    .unwrap();
+    assert!(rewritten > 0);
+    assert_eq!(
+        optimized,
+        "function f(a,b){return Object.assign(a,b)+String.fromCharCode(c)+Array.from(d)}"
+    );
+    let (kept, kept_rewrites) = crate::js_peephole::fold_pristine_static_method_calls(
+        "function f(a,b){return Object.prototype.hasOwnProperty.call(a,b)}",
+    )
+    .unwrap();
+    assert_eq!(kept_rewrites, 0);
+    assert!(
+        kept.contains("hasOwnProperty.call"),
+        "{kept}"
+    );
+}
+
+#[test]
+fn folds_if_body_prefix_into_returned_comma_sequence() {
+    let optimized = optimize_generated_javascript(
+        "function f(c,e,b,ok,nok){if(c){e.consume(b);return ok}return nok}",
+    )
+    .unwrap();
+    assert_eq!(
+        optimized.code,
+        "function f(c,e,b,ok,nok){return c?(e.consume(b),ok):nok}"
+    );
+
+    let chained = optimize_generated_javascript(
+        "function f(c,d,e){if(c){e.consume();return a}if(d){e.exit();return b}return n}",
+    )
+    .unwrap();
+    assert_eq!(
+        chained.code,
+        "function f(c,d,e){return c?(e.consume(),a):d?(e.exit(),b):n}"
+    );
+
+    let nested = optimize_generated_javascript(
+        "function f(c,d,e){if(c){if(d){e.consume();return a}}return n}",
+    )
+    .unwrap();
+    assert_eq!(
+        nested.code,
+        "function f(c,d,e){return c&&d?(e.consume(),a):n}"
+    );
+
+    let or_cond =
+        optimize_generated_javascript("function f(c,d,e){if(c||d){if(e){g();return a}}return n}")
+            .unwrap();
+    assert_eq!(or_cond.code, "function f(c,d,e){return(c||d)&&e?(g(),a):n}");
+
+    let bare = optimize_generated_javascript("function f(c,e){if(c){e.consume();return}return 1}")
+        .unwrap();
+    assert!(bare.code.contains("e.consume()"), "{}", bare.code);
+    assert!(
+        !bare.code.contains("return e.consume()"),
+        "bare return must not become a valued comma: {}",
+        bare.code
     );
 }
 
@@ -1275,6 +1361,23 @@ fn inlines_ternary_into_add_with_grouping() {
     );
     assert!(!optimized.code.contains("x?2:3+1"), "{}", optimized.code);
     assert_eq!(run_javascript(&optimized.code).trim(), "3");
+}
+
+#[test]
+fn folds_while_true_unit_increment_into_for() {
+    let source = "function scan(n){var s=-1,c=0;while(!0){s=s+1|0;if(s>=n)break;c=c+1|0}return c}console.log(scan(3))";
+    let optimized = optimize_generated_javascript(source).unwrap();
+    assert!(optimized.code.contains("++s<n"), "{}", optimized.code);
+    assert!(!optimized.code.contains("while(!0)"), "{}", optimized.code);
+    assert!(!optimized.code.contains("s=s+1|0"), "{}", optimized.code);
+    assert_eq!(run_javascript(&optimized.code).trim(), "3");
+
+    let exclusive = optimize_generated_javascript(
+        "function scan(n){var s=-1,c=0;for(;!0;){s++;if(s>n)break;c++}return c}console.log(scan(2))",
+    )
+    .unwrap();
+    assert!(exclusive.code.contains("++s<=n"), "{}", exclusive.code);
+    assert_eq!(run_javascript(&exclusive.code).trim(), "3");
 }
 
 #[test]
@@ -1839,7 +1942,10 @@ fn preserves_copied_method_snapshot_and_replaceable_call() {
         "let t=e.b.x;return t.call(e.b,r)",
         "let t=e.b.x;side();return t.call(e.b,r)",
     );
-    let guarded = guarded.replace("var reads=0,", "var reads=0,side=function(){child.x=function(){return'replaced'}},");
+    let guarded = guarded.replace(
+        "var reads=0,",
+        "var reads=0,side=function(){child.x=function(){return'replaced'}},",
+    );
     let guarded_out = optimize_generated_javascript(&guarded).unwrap();
     assert!(
         guarded_out.code.contains("t=e.b.x") && guarded_out.code.contains("t.call(e.b,r)"),
@@ -2073,4 +2179,109 @@ fn swaps_bindings_across_a_nested_function_tree_without_touching_globals() {
             "{variant}"
         );
     }
+}
+
+#[test]
+fn strips_unread_identifier_copy_before_original_method_call() {
+    let source = concat!(
+        "var X=[],n=X;n.push(\"a\");var o=X;X.push(\"b\");var p=X;X.push(\"c\");",
+        "function use(){return X.join(\".\")}",
+        "console.log(use())"
+    );
+    let optimized = optimize_generated_javascript(source).unwrap();
+    assert!(
+        !optimized.code.contains("var o=") && !optimized.code.contains("var p="),
+        "{}",
+        optimized.code
+    );
+    assert_eq!(run_javascript(&optimized.code).trim(), "a.b.c");
+}
+
+#[test]
+fn keeps_identifier_copy_that_is_the_method_receiver() {
+    let source = "var X=[],n=X;n.push(\"a\");console.log(n[0])";
+    let optimized = optimize_generated_javascript(source).unwrap();
+    assert!(
+        optimized.code.contains("n.push") || optimized.code.contains("X.push"),
+        "{}",
+        optimized.code
+    );
+    assert_eq!(run_javascript(&optimized.code).trim(), "a");
+}
+
+#[test]
+fn strips_ident_copy_when_only_nested_function_reuses_the_name() {
+    let source = concat!(
+        "var X=[],o=X;X.push(\"a\");",
+        "function f(o){return o}",
+        "console.log(X[0]+f(\"z\"))"
+    );
+    let optimized = optimize_generated_javascript(source).unwrap();
+    assert!(
+        !optimized.code.contains("var o=X") && !optimized.code.contains("var o=X,"),
+        "{}",
+        optimized.code
+    );
+    assert_eq!(run_javascript(&optimized.code).trim(), "az");
+}
+
+#[test]
+fn keeps_ident_copy_captured_by_nested_function() {
+    let source = concat!(
+        "var X=[],o=X;X.push(\"a\");",
+        "function f(){return o[0]}",
+        "console.log(f())"
+    );
+    let optimized = optimize_generated_javascript(source).unwrap();
+    assert_eq!(run_javascript(&optimized.code).trim(), "a");
+}
+
+#[test]
+fn strips_ident_copy_when_nested_function_redeclares_the_name() {
+    let source = concat!(
+        "function wrap(){",
+        "var X=[],n=X;n.push(\"address\");",
+        "var F=X;X.push(\"dt\");",
+        "var A=ea(\"htmlFlow\",(0,function(p,q,r){",
+        "var o=this;let F=function(b){return 62===b?F:1};return F",
+        "}));return [X,A]}",
+        "function ea(n,f){return f}",
+        "console.log(wrap()[0].join(\".\"))",
+    );
+    let (folded, count) =
+        crate::js_peephole::fold_dead_identifier_copy_declarators(source).unwrap();
+    assert!(count >= 1, "{folded}");
+    assert!(!folded.contains("var F=X"), "{folded}");
+    let optimized = optimize_generated_javascript(source).unwrap();
+    assert!(
+        !optimized.code.contains("var F=X") && !optimized.code.contains("var F=X,"),
+        "{}",
+        optimized.code
+    );
+    assert_eq!(run_javascript(&optimized.code).trim(), "address.dt");
+}
+
+#[test]
+fn preserving_functions_still_merges_adjacent_declarations() {
+    let source = concat!(
+        "function helper(x){return x+1}",
+        "function use(n){var a=[];var o=n;var i=0;while(i<o){a.push(helper(i));i=i+1}return a}",
+    );
+    let before = analyze_generated_javascript(source).unwrap();
+    let preserved = optimize_generated_javascript_preserving_functions(source).unwrap();
+    assert!(
+        preserved.metrics.functions >= before.functions,
+        "{}",
+        preserved.code
+    );
+    assert!(
+        preserved.code.contains("var a=[],i=0") || preserved.code.contains("a=[],i=0"),
+        "{}",
+        preserved.code
+    );
+    assert!(
+        preserved.code.contains("function helper") || preserved.code.contains("helper="),
+        "{}",
+        preserved.code
+    );
 }
