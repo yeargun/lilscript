@@ -186,6 +186,48 @@ The patterns flagged from the marked work -- `(0,function` name suppression,
 here: 3, 2 and 0 occurrences against the official build's 0, 0 and 0. They are a
 markedlil concern, not a jQuery one.
 
+
+## The remaining budget, isolated
+
+Measured one transform at a time on the shipped artifact (83,163 raw / 28,206
+Brotli), terser with `defaults:false` and no mangling, so each number is that
+transform alone rather than its marginal contribution:
+
+| transform alone | Δ raw | Δ Brotli |
+|---|---:|---:|
+| `collapse_vars` | −512 | −75 |
+| `join_vars` | −190 | −65 |
+| `unused` | −201 | −44 |
+| `conditionals` | | −70 |
+| `if_return` | | −55 |
+| `sequences` | | −50 |
+| all four var-family together | −687 | −134 |
+| everything terser has | −1,424 | −345 |
+| `hoist_vars` | −17 | **+289** |
+
+Two of these decompose in a way that matters for whoever picks this up.
+
+**Sinking is not where the var family's value is.** `X = EXPR;` followed by a
+statement that begins by reading `X`, rewritten to `(X = EXPR)` at that read, is
+26 sites on this artifact, exactly raw-neutral, and worth **−3 Brotli**. The
+family's −134 is the *declaration elimination* that sinking enables, not the
+sinking. Building the sink alone would buy nothing; it has to remove the `var`
+too.
+
+**`join_vars` is mostly terser's printer, not variable joining.** Its −190 raw is
+`;}` → `}`, a dropped space in `"length" in`, and redundant parens around
+function expressions; the actual joining is four merges. Reprinting alone was
+measured at −107 raw and **+3 Brotli**, so the formatting half is free bytes that
+the codec does not care about.
+
+## Next step
+
+The var family, and only as one fold: sink the initializer *and* drop the
+declaration, which needs the binding to reach an existing declaration list. Worth
+−134 with `collapse_vars` alone at −75. Everything else left is 44 to 70 apiece
+and several interact, so they should be scored together rather than one at a
+time.
+
 ## What this does not close
 
 Capturing every remaining terser advantage on our own output is worth about
