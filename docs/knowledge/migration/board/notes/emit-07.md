@@ -86,6 +86,75 @@ which whole-artifact policy costs the ratio — property mangling is the first
 candidate, since we mangle and every hero does not, and it is a general question
 about every port rather than a fact about jQuery.
 
+
+## The naming lever, and what it was worth
+
+The question in "Next step" above -- which whole-artifact policy costs the ratio
+-- has an answer, and it was not property mangling. Terser remangling our own
+jQuery artifact was **+300 raw and −459 Brotli**: bigger, and better compressed.
+Isolating the two halves of its mangler, with a plain `a..z` alphabet instead of
+its frequency-sorted one, gives −444. So the clever alphabet is worth 15 and the
+whole effect is **which name goes where**.
+
+The mechanism is measurable as header convergence:
+
+| | headers | distinct spellings |
+|---|---:|---:|
+| ours | 312 | 68 |
+| `converge_local_names`, `abc` alphabet | 312 | 50 (and +350 Brotli) |
+| terser | 309 | 26 |
+
+Two things were wrong with the pass. It converged onto letters the artifact does
+not use -- `(a,b)` in a file whose identifiers are `e,t,n,r` -- so every name it
+introduced was a byte the codec had not seen. And it decided availability by
+"does this spelling appear anywhere inside the scope", which is a sufficient
+condition rather than the real one: a nested function binding `e` for itself
+blocked `e` for its parent, when binding it again is exactly what shadowing
+means. Terser asks instead which names spoken inside a scope resolve somewhere
+else, and `BindingResolution` answers that exactly.
+
+With both fixed, jQuery converges to 27 spellings with terser's own
+distribution, and the pass is worth more than terser's remangle.
+
+## Corpus result
+
+Matched entries and configs, session start against HEAD, Brotli:
+
+| port | before | after | Δ |
+|---|---:|---:|---:|
+| jquery | 28,889 | 28,250 | −639 |
+| zod | 31,894 | 31,001 | −893 |
+| mobx | 16,103 | 15,872 | −231 |
+| marked | 9,497 | 9,474 | −23 |
+| posthog | 5,781 | 5,779 | −2 |
+| monaco | 34,181 | 34,181 | 0 |
+| **total** | **126,345** | **124,557** | **−1,788** |
+
+jQuery is +2.93% against `jquery.min.js`, from +5.26%.
+
+## Where the remaining 805 bytes are
+
+By Brotli window, the local half of the gap is gone -- at a 1KB window the
+deficit fell from 870 to 143 -- and what is left is mid-range repetition:
+
+| window | gap |
+|---|---:|
+| 1KB | 143 |
+| 4KB | 669 |
+| 16KB | 1,023 |
+| 64KB+ | 805 |
+
+Two measured budgets account for it. Terser's compression on our current
+artifact is worth −345 (var family −135, expression family −126, together −253),
+and the per-module scoreboard puts `deferred` +155 and `queue` +236 as programs
+that are worse than jQuery's even after terser has done its best to both -- that
+is `.lil` source work, not compiler work.
+
+Re-measured and still rejected: hoisting every function's declarations to one
+leading `var` list, which produces the 28-gram `function(e,t,n){var r,i,o,a,`
+that jQuery repeats five times. It is +279 now, against +277 measured before the
+naming work, so convergence did not make it pay.
+
 ## What this does not close
 
 Capturing every remaining terser advantage on our own output is worth about
