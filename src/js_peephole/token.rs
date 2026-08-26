@@ -579,3 +579,205 @@ pub(crate) fn is_keyword(identifier: &str) -> bool {
             | "yield"
     )
 }
+
+/// Frames track the conditional operator per delimiter, because `?` and `:`
+/// pair inside the innermost group and nowhere else.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum ColonFrame {
+    /// A `{` holding `key: value` pairs.
+    ObjectLiteral,
+    /// A `{` holding statements, where a `:` can only be a label or a `case`.
+    Block,
+    /// `(` or `[`.
+    Group,
+}
+
+/// A `:` must answer a `?`, name a property, or label a statement. Anything
+/// else is a malformed conditional, which balanced delimiters cannot detect:
+/// `a||((b,c):d)?e:f` nests correctly and parses as nothing at all.
+///
+/// This is not a parser. It reports only the unambiguous failure -- a `:` with
+/// no `?` to pair with, in a position where no other `:` is legal -- so a
+/// candidate is never rejected for a spelling this does not model.
+pub(crate) fn validate_conditional_operators(
+    tokens: &[Token<'_>],
+) -> Result<(), JavaScriptParseError> {
+    let mut frames: Vec<(ColonFrame, usize)> = Vec::new();
+    // Statement context for the innermost frame: whether a `case` is open, and
+    // the index of the previous significant token.
+    let mut case_open = vec![false];
+    let mut previous: Option<usize> = None;
+
+    for index in 0..tokens.len() {
+        let text = tokens[index].text;
+        match text {
+            "(" | "[" => {
+                frames.push((ColonFrame::Group, 0));
+                case_open.push(false);
+            }
+            "{" => {
+                let kind = if previous.is_some_and(|at| opens_object_literal(tokens, at)) {
+                    ColonFrame::ObjectLiteral
+                } else {
+                    ColonFrame::Block
+                };
+                frames.push((kind, 0));
+                case_open.push(false);
+            }
+            ")" | "]" | "}" => {
+                if let Some((_, pending)) = frames.pop() {
+                    if pending > 0 {
+                        return Err(JavaScriptParseError {
+                            offset: tokens[index].start,
+                            message: "conditional `?` without `:`",
+                        });
+                    }
+                }
+                case_open.pop();
+                if case_open.is_empty() {
+                    case_open.push(false);
+                }
+            }
+            "?" => {
+                // `?.` reaches the lexer as `?` then `.`; optional chaining is
+                // not a conditional and has no `:` to pair with.
+                let optional_chain = tokens.get(index + 1).is_some_and(|next| {
+                    next.text == "." && next.start == tokens[index].end
+                });
+                if optional_chain {
+                    previous = Some(index);
+                    continue;
+                }
+                if let Some((_, pending)) = frames.last_mut() {
+                    *pending += 1;
+                } else {
+                    // Top level: track with a synthetic frame so the pairing
+                    // still balances.
+                    frames.push((ColonFrame::Group, 1));
+                    case_open.push(false);
+                }
+            }
+            "case" => {
+                if let Some(open) = case_open.last_mut() {
+                    *open = true;
+                }
+            }
+            ";" => {
+                if let Some(open) = case_open.last_mut() {
+                    *open = false;
+                }
+            }
+            ":" => {
+                let pending = frames.last().map_or(0, |(_, pending)| *pending);
+                if pending > 0 {
+                    if let Some((_, pending)) = frames.last_mut() {
+                        *pending -= 1;
+                    }
+                    if frames.last().is_some_and(|(kind, pending)| {
+                        *kind == ColonFrame::Group && *pending == 0
+                    }) && frames.len() > 1
+                    {
+                        // A synthetic top-level frame is finished with.
+                    }
+                    previous = Some(index);
+                    continue;
+                }
+                let frame = frames.last().map(|(kind, _)| *kind);
+                let labelled = case_open.last().copied().unwrap_or(false)
+                    || previous.is_some_and(|at| tokens[at].text == "default")
+                    || previous.is_some_and(|at| {
+                        tokens[at].kind == TokenKind::Identifier
+                            && at.checked_sub(1).is_none_or(|before| {
+                                matches!(tokens[before].text, ";" | "{" | "}" | ")")
+                            })
+                    });
+                let allowed = matches!(frame, Some(ColonFrame::ObjectLiteral)) || labelled;
+                if !allowed {
+                    return Err(JavaScriptParseError {
+                        offset: tokens[index].start,
+                        message: "`:` without a conditional `?`",
+                    });
+                }
+                if let Some(open) = case_open.last_mut() {
+                    *open = false;
+                }
+            }
+            _ => {}
+        }
+        previous = Some(index);
+    }
+    Ok(())
+}
+
+/// True when a `{` following this token opens an object literal rather than a
+/// block. Everything that ends an expression is followed by a block; everything
+/// that expects one is followed by a literal.
+fn opens_object_literal(tokens: &[Token<'_>], at: usize) -> bool {
+    matches!(
+        tokens[at].text,
+        "(" | "," | "[" | "=" | ":" | "?" | "return" | "&&" | "||" | "??" | "!" | "+" | "-" | "*"
+            | "/" | "%" | "==" | "!=" | "===" | "!==" | "<" | ">" | "<=" | ">=" | "typeof" | "in"
+            | "instanceof" | "new" | "case" | "..." | "of" | "void" | "delete" | "yield" | "await"
+            | "+=" | "-=" | "*=" | "/=" | "|=" | "&=" | "^=" | "||=" | "&&=" | "??="
+            // A `{` after a binding keyword is a destructuring pattern, which
+            // spells `key: target` exactly as a literal does. `export default`
+            // is followed by a value, so its `{` is a literal too.
+            | "const" | "let" | "var" | "default"
+    )
+}
+
+#[cfg(test)]
+mod conditional_operator_tests {
+    use super::{lex, validate_conditional_operators};
+
+    fn check(source: &str) -> Result<(), &'static str> {
+        let tokens = lex(source).expect("lexes");
+        validate_conditional_operators(&tokens).map_err(|error| error.message)
+    }
+
+    #[test]
+    fn accepts_ordinary_conditionals() {
+        for source in [
+            "var a=b?c:d;",
+            "var a=b?c?d:e:f;",
+            "f(a?b:c,d);",
+            "var o={k:a?b:c,j:2};",
+            "var o={a:1,b:{c:2}};",
+            "a?(b,c):d;",
+            "x=y||(z?1:2);",
+        ] {
+            assert_eq!(check(source), Ok(()), "{source}");
+        }
+    }
+
+    #[test]
+    fn accepts_colons_that_are_not_conditionals() {
+        for source in [
+            "switch(a){case 1:b();break;default:c()}",
+            "outer:for(;;){break outer}",
+            "const {\"~std\": x, ...rest}=y;",
+            "function f({a:b}){return b}",
+            "export default {a:1};",
+            "var a=b?.c;",
+            "var a=b?.c??d;",
+            "var a=b?.c??d?e:f;",
+        ] {
+            assert_eq!(check(source), Ok(()), "{source}");
+        }
+    }
+
+    /// The shape that shipped: parentheses balance, so the delimiter check sees
+    /// nothing, and the program is not JavaScript.
+    #[test]
+    fn rejects_a_colon_with_no_question() {
+        assert_eq!(
+            check("var a=b&&c||((d,e):f&&g)?h:i;"),
+            Err("`:` without a conditional `?`")
+        );
+    }
+
+    #[test]
+    fn rejects_a_question_with_no_colon() {
+        assert_eq!(check("f(a?b);"), Err("conditional `?` without `:`"));
+    }
+}

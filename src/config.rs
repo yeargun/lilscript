@@ -337,10 +337,10 @@ impl ProjectConfig {
             local_phi_expression_regions: self.javascript.optimization_enabled(
                 JavaScriptOptimization::LocalPhiExpressionRegionVariants,
                 None,
-            ) && !matches!(
+            ) && self.javascript.local_phi_expression_regions.unwrap_or(!matches!(
                 self.javascript.cost_model,
                 CompressionCostModel::Brotli
-            ),
+            )),
             phi_edge_value_forwarding: self
                 .javascript
                 .optimization_enabled(JavaScriptOptimization::PhiEdgeValueForwardingVariants, None)
@@ -1093,6 +1093,14 @@ pub struct JavaScriptConfig {
     /// the hoisted function group. Off by default.
     pub sink_entry_function_declarations: bool,
     pub function_spelling: Option<FunctionSpelling>,
+    /// Recover statement-authored local selections as conditional expressions.
+    /// The default follows the cost model, because the trade is real and goes
+    /// both ways: measured across the ports, forcing it on is jQuery -87 Brotli
+    /// and marked +172, zod +201, mobx +58, monaco +50, posthog +22. Candidate
+    /// search does carry both states, but the winning one is only cheaper after
+    /// terminal cleanup, so a beam that ranks mid-pipeline drops it. A port that
+    /// has measured its own artifact says so here.
+    pub local_phi_expression_regions: Option<bool>,
     pub public_aggregate_abi: PublicAggregateAbi,
     pub aggregate_layout: AggregateLayout,
     /// Allow representations that bypass ambient JavaScript constructor
@@ -1139,6 +1147,7 @@ impl Default for JavaScriptConfig {
             aggregate_operand_order_fusion: false,
             sink_entry_function_declarations: false,
             function_spelling: None,
+            local_phi_expression_regions: None,
             public_aggregate_abi: PublicAggregateAbi::Named,
             aggregate_layout: AggregateLayout::default(),
             assume_pristine_builtins: false,
@@ -2548,6 +2557,19 @@ local_name_coalescing = false
             .javascript_optimization_configured(JavaScriptOptimization::IrInliningVariants));
         assert!(!standard.js_options().local_phi_expression_regions);
         assert!(!standard.js_options().phi_edge_value_forwarding);
+
+        // The cost model picks the default, and a port that has measured its
+        // own artifact overrides it in either direction.
+        let forced_on: ProjectConfig = toml::from_str(
+            "[javascript]\noptimization_level=9\ncost_model='brotli'\nlocal_phi_expression_regions=true\n",
+        )
+        .unwrap();
+        assert!(forced_on.js_options().local_phi_expression_regions);
+        let forced_off: ProjectConfig = toml::from_str(
+            "[javascript]\noptimization_level=9\ncost_model='gzip'\nlocal_phi_expression_regions=false\n",
+        )
+        .unwrap();
+        assert!(!forced_off.js_options().local_phi_expression_regions);
 
         let gzip: ProjectConfig =
             toml::from_str("[javascript]\noptimization_level=9\ncost_model='gzip'\n").unwrap();

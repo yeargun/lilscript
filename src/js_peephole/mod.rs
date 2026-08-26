@@ -14,7 +14,9 @@ use crate::js_peephole::scope::{
     identifier_is_arrow_parameter, identifier_is_catch_parameter, identifier_is_function_parameter,
     name_is_declared_in_any_enclosing_function_scope, GeneratedBindingIndex,
 };
-use crate::js_peephole::token::{lex, matching_closers, validate_delimiters, Token, TokenKind};
+use crate::js_peephole::token::{
+    lex, matching_closers, validate_conditional_operators, validate_delimiters, Token, TokenKind,
+};
 
 mod folds;
 pub(crate) use folds::{fold_expression_bodies, inline_single_use_functions};
@@ -257,6 +259,7 @@ pub fn analyze_generated_javascript(
 ) -> Result<JavaScriptSyntaxMetrics, JavaScriptParseError> {
     let tokens = lex(source)?;
     let delimiter_nesting = validate_delimiters(&tokens)?;
+    validate_conditional_operators(&tokens)?;
     validate_unique_top_level_bindings(&tokens)?;
     validate_class_body_members(&tokens)?;
     validate_for_heads(&tokens)?;
