@@ -248,6 +248,10 @@ impl ProjectConfig {
                 CompressionCostModel::Gzip => 4,
                 CompressionCostModel::Brotli => 8,
             },
+            pool_identifier_strings: !matches!(
+                self.javascript.cost_model,
+                CompressionCostModel::Brotli
+            ),
             pool_numeric_literals: self.javascript.pool_numeric_literals,
             ordinary_record_literals: false,
             elide_safe_integer_coercions: !self.javascript.keep_integer_coercions(),
@@ -273,7 +277,8 @@ impl ProjectConfig {
             truthy_nullable_checks: true,
             pack_string_arrays: self
                 .javascript
-                .compression_enabled(CompressionDecision::StringArrayPacking),
+                .compression_enabled(CompressionDecision::StringArrayPacking)
+                && !matches!(self.javascript.cost_model, CompressionCostModel::Brotli),
             regex_literals: self.javascript.assume_pristine_builtins
                 && self
                     .javascript
@@ -296,7 +301,7 @@ impl ProjectConfig {
             inline_exclusive_closures: true,
             iife_private_callee_clusters: self.javascript.iife_private_callee_clusters,
             nested_once_run_helpers: self.javascript.nested_once_run_helpers,
-            batch_property_assigns: true,
+            batch_property_assigns: false,
             batch_property_assign_minimum: 2,
             // Fresh-literal factory substitution changes complete-artifact
             // repetition history, so candidate search scores it separately.
@@ -341,10 +346,13 @@ impl ProjectConfig {
             local_phi_expression_regions: self.javascript.optimization_enabled(
                 JavaScriptOptimization::LocalPhiExpressionRegionVariants,
                 None,
-            ) && self.javascript.local_phi_expression_regions.unwrap_or(!matches!(
-                self.javascript.cost_model,
-                CompressionCostModel::Brotli
-            )),
+            ) && self
+                .javascript
+                .local_phi_expression_regions
+                .unwrap_or(!matches!(
+                    self.javascript.cost_model,
+                    CompressionCostModel::Brotli
+                )),
             phi_edge_value_forwarding: self
                 .javascript
                 .optimization_enabled(JavaScriptOptimization::PhiEdgeValueForwardingVariants, None)
@@ -1643,11 +1651,10 @@ impl JavaScriptConfig {
         // `terminal_codec_probe_limit` is. Clamping it to the level tier meant a
         // config could ask for four times the proposals and silently receive
         // none of them. The search tier is a separate ceiling and stays hard.
-        self.candidate_proposal_limit
-            .map_or_else(
-                || self.effective_candidate_limit().min(artifact_limit),
-                |configured| configured.min(self.candidate_proposal_tier_ceiling()),
-            )
+        self.candidate_proposal_limit.map_or_else(
+            || self.effective_candidate_limit().min(artifact_limit),
+            |configured| configured.min(self.candidate_proposal_tier_ceiling()),
+        )
     }
 
     /// Hard ceiling for optional whole-artifact work after structural
@@ -2143,8 +2150,9 @@ shared_min_imports = 3
         assert!(size.js_options().elide_length_tonumber);
         assert!(!balanced.js_options().elide_length_tonumber);
         assert!(size.js_options().inline_structured_closures);
-        assert!(size.js_options().pack_string_arrays);
+        assert!(!size.js_options().pack_string_arrays);
         assert_eq!(size.js_options().string_pool_minimum_savings, 8);
+        assert!(!size.js_options().pool_identifier_strings);
         assert!(size.js_options().scalar_phi_copies);
         assert!(size.js_options().mangle_properties);
         assert!(!size.js_options().mangle_exports);
