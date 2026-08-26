@@ -146,9 +146,10 @@ deficit fell from 870 to 143 -- and what is left is mid-range repetition:
 
 Two measured budgets account for it. Terser's compression on our current
 artifact is worth −345 (var family −135, expression family −126, together −253),
-and the per-module scoreboard puts `deferred` +155 and `queue` +236 as programs
-that are worse than jQuery's even after terser has done its best to both -- that
-is `.lil` source work, not compiler work.
+and the per-module scoreboard puts `deferred` +155 and `queue` +236 as modules
+that stay behind even after terser has done its best to both. See the correction
+below: measured as programs rather than as compressed sizes, they are not worse
+than jQuery's.
 
 Re-measured and still rejected: hoisting every function's declarations to one
 leading `var` list, which produces the 28-gram `function(e,t,n){var r,i,o,a,`
@@ -238,6 +239,32 @@ declaration, which needs the binding to reach an existing declaration list. Wort
 −134 with `collapse_vars` alone at −75. Everything else left is 44 to 70 apiece
 and several interact, so they should be scored together rather than one at a
 time.
+
+
+## Correction: `deferred` and `queue` are not worse programs
+
+Earlier in this note the per-module scoreboard is read as "`deferred` +155 and
+`queue` +236 are programs worse than jQuery's, so that is `.lil` source work".
+Measuring the programs rather than their compressed size does not support that.
+Top-level function counts and sizes for `deferred`, ours terserised against
+jQuery's own minified module:
+
+| | top-level fns | bytes in functions | largest four |
+|---|---:|---:|---|
+| ours | 37 | 6,462 | 2080, 1023, 398, 384 |
+| jQuery | 39 | 6,657 | 1922, 1094, 426, 356 |
+
+The two are the same program to within a few per cent, and **ours is the smaller
+of the two** -- 7,312 raw against 7,520. What differs is how well it compresses:
+2.52 bytes per compressed byte against 2.75, and repeated 20-gram coverage of
+85.9% against 126.1%.
+
+So the residual on those modules is the same diffuse compressibility difference
+the whole artifact shows, not bloat that a rewrite would remove. Rewriting
+`deferred.lil` in a more expression-oriented style is **not** the next step, and
+the one targeted source change tried here -- replacing `JS.methodRest` plus
+hand-unpacked `thenArgs[0..2]` with `JS.method3` and named parameters -- was
+−14 raw and **+7 Brotli**.
 
 ## What this does not close
 
