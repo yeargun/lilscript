@@ -59,7 +59,10 @@ pub(crate) fn fold_expression_bodies(
             // `return` has no expression spelling here, so a body that ends in
             // one is left alone; the arrow case above is the only place a
             // return becomes a value.
-            if statements.iter().any(|(start, _)| tokens[*start].text == "return") {
+            if statements
+                .iter()
+                .any(|(start, _)| tokens[*start].text == "return")
+            {
                 continue;
             }
             let joined = statements
@@ -69,7 +72,11 @@ pub(crate) fn fold_expression_bodies(
                 .join(",");
             // `else` is a word: dropping the brace after it would weld the
             // keyword to whatever the body starts with.
-            let separator = if needs_separator(tokens[previous].text, &joined) { " " } else { "" };
+            let separator = if needs_separator(tokens[previous].text, &joined) {
+                " "
+            } else {
+                ""
+            };
             rewrites.push((
                 tokens[index].start,
                 tokens[close].end,
@@ -113,8 +120,23 @@ fn expression_statements(
         let start = cursor;
         let leads_a_statement = matches!(
             tokens[start].text,
-            "var" | "let" | "const" | "if" | "for" | "while" | "do" | "switch" | "try" | "throw"
-                | "break" | "continue" | "function" | "class" | "debugger" | "with" | "{"
+            "var"
+                | "let"
+                | "const"
+                | "if"
+                | "for"
+                | "while"
+                | "do"
+                | "switch"
+                | "try"
+                | "throw"
+                | "break"
+                | "continue"
+                | "function"
+                | "class"
+                | "debugger"
+                | "with"
+                | "{"
         );
         if leads_a_statement {
             return None;
@@ -145,17 +167,17 @@ fn expression_statements(
             }
         }
         statements.push((start, end));
-        cursor = if end < close && tokens[end].text == ";" { end + 1 } else { end };
+        cursor = if end < close && tokens[end].text == ";" {
+            end + 1
+        } else {
+            end
+        };
     }
     Some(statements)
 }
 
 /// `(E1,…,En,R)` for an arrow whose block ends in `return R`.
-fn arrow_body(
-    source: &str,
-    tokens: &[Token<'_>],
-    statements: &[(usize, usize)],
-) -> Option<String> {
+fn arrow_body(source: &str, tokens: &[Token<'_>], statements: &[(usize, usize)]) -> Option<String> {
     let (last_start, last_end) = *statements.last()?;
     if tokens[last_start].text != "return" {
         return None;
@@ -335,5 +357,3 @@ mod tests {
         );
     }
 }
-
-

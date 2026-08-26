@@ -1104,6 +1104,118 @@ pub(crate) fn fold_increment_infinite_for_bounds(
     Ok((output, count))
 }
 
+pub(crate) fn fold_while_true_unit_increment_bounds(
+    source: &str,
+) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let matching_close = matching_closers(&tokens);
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+    let mut cursor = 0usize;
+    while cursor + 12 < tokens.len() {
+        if !is_statement_boundary(&tokens, cursor) {
+            cursor += 1;
+            continue;
+        }
+        let body_at = if tokens[cursor].text == "while"
+            && tokens.get(cursor + 1).map(|token| token.text) == Some("(")
+            && tokens.get(cursor + 2).map(|token| token.text) == Some("!")
+            && tokens.get(cursor + 3).map(|token| token.text) == Some("0")
+            && tokens.get(cursor + 4).map(|token| token.text) == Some(")")
+            && tokens.get(cursor + 5).map(|token| token.text) == Some("{")
+        {
+            cursor + 5
+        } else if tokens[cursor].text == "for"
+            && tokens.get(cursor + 1).map(|token| token.text) == Some("(")
+            && tokens.get(cursor + 2).map(|token| token.text) == Some(";")
+            && tokens.get(cursor + 3).map(|token| token.text) == Some("!")
+            && tokens.get(cursor + 4).map(|token| token.text) == Some("0")
+            && tokens.get(cursor + 5).map(|token| token.text) == Some(";")
+            && tokens.get(cursor + 6).map(|token| token.text) == Some(")")
+            && tokens.get(cursor + 7).map(|token| token.text) == Some("{")
+        {
+            cursor + 7
+        } else {
+            cursor += 1;
+            continue;
+        };
+        let Some(body_close) = matching_close.get(body_at).copied().flatten() else {
+            cursor += 1;
+            continue;
+        };
+        let (name, inc_end, prefix) = if tokens
+            .get(body_at + 1)
+            .is_some_and(|token| token.kind == TokenKind::Identifier)
+            && tokens.get(body_at + 2).map(|token| token.text) == Some("++")
+            && tokens.get(body_at + 3).map(|token| token.text) == Some(";")
+        {
+            (tokens[body_at + 1].text, body_at + 4, "++")
+        } else if tokens.get(body_at + 1).map(|token| token.text) == Some("++")
+            && tokens
+                .get(body_at + 2)
+                .is_some_and(|token| token.kind == TokenKind::Identifier)
+            && tokens.get(body_at + 3).map(|token| token.text) == Some(";")
+        {
+            (tokens[body_at + 2].text, body_at + 4, "++")
+        } else if tokens
+            .get(body_at + 1)
+            .is_some_and(|token| token.kind == TokenKind::Identifier)
+            && tokens.get(body_at + 2).map(|token| token.text) == Some("--")
+            && tokens.get(body_at + 3).map(|token| token.text) == Some(";")
+        {
+            (tokens[body_at + 1].text, body_at + 4, "--")
+        } else {
+            cursor += 1;
+            continue;
+        };
+        if tokens.get(inc_end).map(|token| token.text) != Some("if")
+            || tokens.get(inc_end + 1).map(|token| token.text) != Some("(")
+        {
+            cursor += 1;
+            continue;
+        }
+        let Some(if_close) = matching_close.get(inc_end + 1).copied().flatten() else {
+            cursor += 1;
+            continue;
+        };
+        let after_if = if tokens.get(if_close + 1).map(|token| token.text) == Some("break") {
+            if tokens.get(if_close + 2).map(|token| token.text) == Some(";") {
+                if_close + 3
+            } else {
+                if_close + 2
+            }
+        } else {
+            cursor += 1;
+            continue;
+        };
+        let test = &tokens[inc_end + 2..if_close];
+        let header = if prefix == "++"
+            && matches!(test, [ident, op, ..] if ident.text == name && matches!(op.text, ">=" | ">"))
+        {
+            let bound = &source[tokens[inc_end + 4].start..tokens[if_close].start];
+            if test[1].text == ">=" {
+                format!("for(;{prefix}{name}<{bound};)")
+            } else {
+                format!("for(;{prefix}{name}<={bound};)")
+            }
+        } else if prefix == "--"
+            && matches!(test, [ident, op, zero] if ident.text == name && op.text == "<" && zero.text == "0")
+        {
+            format!("for(;{prefix}{name}>=0;)")
+        } else {
+            cursor += 1;
+            continue;
+        };
+        let rest = &source[tokens[after_if].start..tokens[body_close].start];
+        replacements.push((
+            tokens[cursor].start,
+            tokens[body_close].end,
+            format!("{header}{{{rest}}}"),
+        ));
+        cursor = body_close + 1;
+    }
+    Ok(apply_token_rewrites(source, replacements))
+}
+
 pub(crate) fn fold_assigned_index_for_conditions(
     source: &str,
 ) -> Result<(String, usize), JavaScriptParseError> {

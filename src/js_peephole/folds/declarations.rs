@@ -4,7 +4,8 @@ use crate::js_peephole::rewrite::{
     top_level_stop,
 };
 use crate::js_peephole::scope::{
-    enclosing_block_end, function_scope_declares, name_is_used_in_scope, GeneratedBindingIndex,
+    collect_same_scope_name_uses, enclosing_block_end, enclosing_function_span,
+    function_scope_declares, name_is_used_in_scope, GeneratedBindingIndex,
 };
 use crate::js_peephole::token::{lex, lex_certainly, matching_closers, Token, TokenKind};
 use crate::js_peephole::JavaScriptParseError;
@@ -367,7 +368,16 @@ pub(crate) fn strip_unused_simple_declarators(
                 continue;
             };
             let replacement = if kept.is_empty() {
-                String::new()
+                // The first semicolon in a classic `for` head is grammar, not
+                // merely the terminator of its declaration. Removing an empty
+                // initializer must leave `for(;test;update)`, not the invalid
+                // `for(test;update)` spelling.
+                if cursor >= 2 && tokens[cursor - 2].text == "for" && tokens[cursor - 1].text == "("
+                {
+                    ";".to_string()
+                } else {
+                    String::new()
+                }
             } else {
                 let decls = kept
                     .iter()
@@ -717,6 +727,15 @@ pub(crate) fn fold_guarded_uninitialized_assign(
             var_index = semi + 1;
             continue;
         };
+        // This fold only absorbs one guarded assignment. A root comma means
+        // the parentheses contain a sequence whose later expressions must
+        // remain guarded by the original condition. Splicing that sequence
+        // into `var name=condition&&...` would reinterpret each root comma as
+        // a declarator separator (and can emit invalid `var x=...,y&&...`).
+        if top_level_stop(&tokens, semi + 4, &[","]).is_some_and(|comma| comma < paren_close) {
+            var_index = paren_close + 1;
+            continue;
+        }
         if tokens.get(semi + 4).map(|token| token.kind) != Some(TokenKind::Identifier)
             || tokens.get(semi + 5).map(|token| token.text) != Some("=")
             || tokens.get(semi + 6).map(|token| token.text) != Some(cond)
@@ -1140,6 +1159,18 @@ pub(crate) fn reuse_dead_var_binding(source: &str) -> Result<(String, bool), Jav
                     .get(*index + 2)
                     .is_some_and(|token| token.text == "=")
                 && brace_depth[*index] == declaration_depth
+                // Equal brace depth is not equal function scope: a `var`
+                // inside a nested callback's `catch` can have the same depth
+                // as one inside two enclosing `if` blocks. Reusing that name
+                // would remove the outer declaration and write whichever
+                // same-spelled binding is visible there instead.
+                && function_bodies
+                    .iter()
+                    .filter(|(start, end, _, _)| *start < *index && *index < *end)
+                    .max_by_key(|(start, _, _, _)| *start)
+                    .is_some_and(|(start, end, _, _)| {
+                        *start == scope_start && *end == scope_end
+                    })
         }) else {
             continue;
         };
@@ -1313,7 +1344,17 @@ pub(crate) fn declare_implicit_assignment_bindings(
         let insert_at = if is_bare_for_init_assignment(&tokens, at) {
             tokens[at - 2].start
         } else if is_chained_assignment_target(&tokens, at) || comma_sequence_assignment {
-            statement_start(&tokens, at)
+            // A preceding comma can belong to a call argument or object
+            // literal nested inside the same expression. Walking backward to
+            // the nearest `{` would then insert `var` inside that expression
+            // (`call({key:value}var temp;)`). `var` is function-scoped, so the
+            // actual block opening is the stable and semantics-equivalent
+            // insertion point for chained/sequence temporaries.
+            if tokens[function_body].text == "{" {
+                tokens[function_body].end
+            } else {
+                continue;
+            }
         } else if statement_like {
             tokens[at].start
         } else if tokens[function_body].text == "{" {
@@ -1400,14 +1441,6 @@ fn is_comma_sequence_assignment_target(tokens: &[Token<'_>], at: usize) -> bool 
         && tokens[at - 1].text == ","
         && tokens.get(at + 1).map(|token| token.text) == Some("=")
         && tokens.get(at + 2).map(|token| token.text) != Some("=")
-}
-
-fn statement_start(tokens: &[Token<'_>], at: usize) -> usize {
-    let mut index = at;
-    while index > 0 && !is_statement_boundary(tokens, index) {
-        index -= 1;
-    }
-    tokens[index].start
 }
 
 fn simple_pure_rhs_end(tokens: &[Token<'_>], at: usize) -> Option<usize> {
@@ -1565,6 +1598,119 @@ pub(crate) fn fold_dead_pure_identifier_assigns(
         cursor = write_at;
     }
     Ok(apply_token_rewrites(source, replacements))
+}
+
+pub(crate) fn fold_dead_identifier_copy_declarators(
+    source: &str,
+) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+    let mut cursor = 0usize;
+    while cursor + 4 < tokens.len() {
+        if tokens[cursor].text != "var"
+            || tokens.get(cursor + 1).map(|token| token.kind) != Some(TokenKind::Identifier)
+            || tokens.get(cursor + 2).map(|token| token.text) != Some("=")
+            || tokens.get(cursor + 3).map(|token| token.kind) != Some(TokenKind::Identifier)
+            || tokens.get(cursor + 4).map(|token| token.text) != Some(";")
+        {
+            cursor += 1;
+            continue;
+        }
+        if cursor >= 2 && tokens[cursor - 2].text == "for" && tokens[cursor - 1].text == "(" {
+            cursor += 1;
+            continue;
+        }
+        let name = tokens[cursor + 1].text;
+        let source_ident = tokens[cursor + 3].text;
+        if name == source_ident {
+            cursor += 1;
+            continue;
+        }
+        if tokens.get(cursor + 5).map(|token| token.text) != Some(source_ident)
+            || tokens.get(cursor + 6).map(|token| token.text) != Some(".")
+        {
+            cursor += 1;
+            continue;
+        }
+        if ident_copy_is_read_in_current_function(&tokens, cursor + 5, name) {
+            cursor += 1;
+            continue;
+        }
+        if !replacement_overlaps(&replacements, tokens[cursor].start, tokens[cursor + 4].end) {
+            replacements.push((tokens[cursor].start, tokens[cursor + 4].end, String::new()));
+        }
+        cursor += 5;
+    }
+    Ok(apply_token_rewrites(source, replacements))
+}
+
+pub(crate) fn fold_dead_increment_snapshots(
+    source: &str,
+) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+    let mut cursor = 0usize;
+    while cursor + 6 < tokens.len() {
+        if !matches!(tokens[cursor].text, "var" | "let")
+            || tokens.get(cursor + 1).map(|token| token.kind) != Some(TokenKind::Identifier)
+            || tokens.get(cursor + 2).map(|token| token.text) != Some("=")
+            || tokens.get(cursor + 3).map(|token| token.kind) != Some(TokenKind::Identifier)
+            || tokens.get(cursor + 4).map(|token| token.text) != Some(";")
+            || tokens.get(cursor + 5).map(|token| token.text) != Some(tokens[cursor + 3].text)
+            || !matches!(tokens.get(cursor + 6).map(|token| token.text), Some("++") | Some("--"))
+        {
+            cursor += 1;
+            continue;
+        }
+        let name = tokens[cursor + 1].text;
+        if name == tokens[cursor + 3].text {
+            cursor += 1;
+            continue;
+        }
+        if ident_copy_is_read_in_current_function(&tokens, cursor + 5, name) {
+            cursor += 1;
+            continue;
+        }
+        if !replacement_overlaps(&replacements, tokens[cursor].start, tokens[cursor + 4].end) {
+            replacements.push((tokens[cursor].start, tokens[cursor + 4].end, String::new()));
+        }
+        cursor += 7;
+    }
+    Ok(apply_token_rewrites(source, replacements))
+}
+
+fn ident_copy_is_read_in_current_function(tokens: &[Token<'_>], start: usize, name: &str) -> bool {
+    let matching_close = matching_closers(tokens);
+    let scope_end = enclosing_function_span(tokens, &matching_close, start.saturating_sub(1))
+        .map(|(_, end)| end)
+        .unwrap_or(tokens.len());
+    let (uses, nested_use) =
+        collect_same_scope_name_uses(tokens, &matching_close, name, start, scope_end, start);
+    if nested_use {
+        return true;
+    }
+    for use_at in uses {
+        let previous = use_at
+            .checked_sub(1)
+            .map(|prev| tokens[prev].text)
+            .unwrap_or(";");
+        if matches!(previous, "var" | "let" | "const") {
+            continue;
+        }
+        if previous == "," && assign_is_in_declaration(tokens, use_at) {
+            continue;
+        }
+        let next = tokens.get(use_at + 1).map(|token| token.text);
+        if matches!(
+            next,
+            Some("=") | Some("+=") | Some("-=") | Some("*=") | Some("/=") | Some("%=")
+        ) && tokens.get(use_at + 2).map(|token| token.text) != Some("=")
+        {
+            return false;
+        }
+        return true;
+    }
+    false
 }
 
 pub(crate) fn fold_unread_prototype_aliases(

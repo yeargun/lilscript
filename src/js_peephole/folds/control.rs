@@ -1728,8 +1728,10 @@ pub(crate) fn fold_guard_return_expression_suffixes(
             if tail_semicolon {
                 rewritten.push(';');
             }
-            replacement = Some((start, end, rewritten));
-            break;
+            if rewritten.len() < end - start {
+                replacement = Some((start, end, rewritten));
+                break;
+            }
         }
 
         let Some((start, end, rewritten)) = replacement else {
@@ -2303,6 +2305,256 @@ pub(crate) fn fold_single_use_if_assigns(
         }
     }
     Ok(apply_token_rewrites(source, replacements))
+}
+
+/// Terser `if_return` + `sequences`: `if(C){E;return V}` → `if(C)return E,V`.
+///
+/// The suffix-to-return rewrite is raw-neutral as a block tail, so it stays
+/// search-only. The same comma under an `if` also drops the braces, which is
+/// always shorter and matches the official Terser micromark spelling.
+pub(crate) fn fold_if_prefixed_returns(
+    source: &str,
+) -> Result<(String, usize), JavaScriptParseError> {
+    let mut output = source.to_string();
+    let mut folded = 0usize;
+    loop {
+        let tokens = lex(&output)?;
+        let matching_close = matching_closers(&tokens);
+        let mut replacements = Vec::<(usize, usize, String)>::new();
+
+        for if_at in 0..tokens.len() {
+            if tokens[if_at].text != "if"
+                || tokens.get(if_at + 1).map(|token| token.text) != Some("(")
+            {
+                continue;
+            }
+            let cond_open = if_at + 1;
+            let Some(cond_close) = matching_close[cond_open] else {
+                continue;
+            };
+            if tokens.get(cond_close + 1).map(|token| token.text) != Some("{") {
+                continue;
+            }
+            let body_open = cond_close + 1;
+            let Some(body_close) = matching_close[body_open] else {
+                continue;
+            };
+            let Some((prefix, return_at, return_end, _)) =
+                expression_suffix_return(&output, &tokens, body_open + 1, body_close)
+            else {
+                continue;
+            };
+            if return_at + 1 >= return_end && !prefix.is_empty() {
+                continue;
+            }
+            let start = tokens[if_at].start;
+            let end = tokens[body_close].end;
+            if spans_line_terminator(&output[start..end]) {
+                continue;
+            }
+            let cond = &output[tokens[cond_open].end..tokens[cond_close].start];
+            let value = if return_at + 1 >= return_end {
+                String::new()
+            } else {
+                output[tokens[return_at + 1].start..tokens[return_end - 1].end].to_string()
+            };
+            let mut expressions = prefix;
+            if !value.is_empty() {
+                expressions.push(value);
+            }
+            let mut rewritten = if expressions.is_empty() {
+                format!("if({cond})return")
+            } else {
+                format!("if({cond})return {}", expressions.join(","))
+            };
+            let next = tokens.get(body_close + 1).map(|token| token.text);
+            if !matches!(next, Some("}") | Some(";") | None) {
+                rewritten.push(';');
+            }
+            if rewritten.len() < end - start {
+                replacements.push((start, end, rewritten));
+            }
+        }
+
+        if replacements.is_empty() {
+            return Ok((output, folded));
+        }
+        let retained = non_overlapping_ranges(replacements);
+        folded += retained.len();
+        for (start, end, replacement) in retained.into_iter().rev() {
+            output.replace_range(start..end, &replacement);
+        }
+    }
+}
+
+/// Terser `conditionals`: `if(C)if(D)S` and `if(C){if(D)S}` → `if(C&&D)S`
+/// when neither `if` has an `else`.
+pub(crate) fn fold_nested_unguarded_ifs(
+    source: &str,
+) -> Result<(String, usize), JavaScriptParseError> {
+    let mut output = source.to_string();
+    let mut folded = 0usize;
+    loop {
+        let tokens = lex(&output)?;
+        let matching_close = matching_closers(&tokens);
+        let mut replacements = Vec::<(usize, usize, String)>::new();
+
+        for if_at in 0..tokens.len() {
+            if tokens[if_at].text != "if"
+                || tokens.get(if_at + 1).map(|token| token.text) != Some("(")
+            {
+                continue;
+            }
+            let outer_cond_open = if_at + 1;
+            let Some(outer_cond_close) = matching_close[outer_cond_open] else {
+                continue;
+            };
+            let after_outer_cond = outer_cond_close + 1;
+            let braced = tokens.get(after_outer_cond).map(|token| token.text) == Some("{");
+            let (inner_if, replace_end, next) = if braced {
+                let Some(body_close) = matching_close[after_outer_cond] else {
+                    continue;
+                };
+                if tokens.get(body_close + 1).map(|token| token.text) == Some("else") {
+                    continue;
+                }
+                let mut cursor = after_outer_cond + 1;
+                while cursor < body_close && tokens[cursor].text == ";" {
+                    cursor += 1;
+                }
+                if tokens.get(cursor).map(|token| token.text) != Some("if") {
+                    continue;
+                }
+                let Some((inner_end, inner_else)) =
+                    skip_if_statement(&tokens, &matching_close, cursor)
+                else {
+                    continue;
+                };
+                if inner_else {
+                    continue;
+                }
+                let mut rest = inner_end;
+                while rest < body_close && tokens[rest].text == ";" {
+                    rest += 1;
+                }
+                if rest != body_close {
+                    continue;
+                }
+                (
+                    cursor,
+                    tokens[body_close].end,
+                    tokens.get(body_close + 1).map(|token| token.text),
+                )
+            } else if tokens.get(after_outer_cond).map(|token| token.text) == Some("if") {
+                let Some((inner_end, inner_else)) =
+                    skip_if_statement(&tokens, &matching_close, after_outer_cond)
+                else {
+                    continue;
+                };
+                if inner_else {
+                    continue;
+                }
+                (
+                    after_outer_cond,
+                    tokens[inner_end - 1].end,
+                    tokens.get(inner_end).map(|token| token.text),
+                )
+            } else {
+                continue;
+            };
+            if tokens.get(inner_if + 1).map(|token| token.text) != Some("(") {
+                continue;
+            }
+            let Some(inner_cond_close) = matching_close[inner_if + 1] else {
+                continue;
+            };
+            let Some((inner_end, _)) = skip_if_statement(&tokens, &matching_close, inner_if) else {
+                continue;
+            };
+            let start = tokens[if_at].start;
+            if spans_line_terminator(&output[start..replace_end]) {
+                continue;
+            }
+            let left = wrap_and_operand(
+                &output[tokens[outer_cond_open].end..tokens[outer_cond_close].start],
+                &tokens,
+                outer_cond_open + 1,
+                outer_cond_close,
+                AND_LHS_NEEDS_WRAP,
+            );
+            let right = wrap_and_operand(
+                &output[tokens[inner_if + 2].start..tokens[inner_cond_close].start],
+                &tokens,
+                inner_if + 2,
+                inner_cond_close,
+                AND_RHS_NEEDS_WRAP,
+            );
+            let body = &output[tokens[inner_cond_close + 1].start..tokens[inner_end - 1].end];
+            let mut rewritten = format!("if({left}&&{right}){body}");
+            if !matches!(next, Some("}") | Some("else") | Some(";") | None)
+                && !rewritten.ends_with(';')
+                && !rewritten.ends_with('}')
+            {
+                rewritten.push(';');
+            }
+            if rewritten.len() < replace_end - start {
+                replacements.push((start, replace_end, rewritten));
+            }
+        }
+
+        if replacements.is_empty() {
+            return Ok((output, folded));
+        }
+        let retained = non_overlapping_ranges(replacements);
+        folded += retained.len();
+        for (start, end, replacement) in retained.into_iter().rev() {
+            output.replace_range(start..end, &replacement);
+        }
+    }
+}
+
+fn skip_if_statement(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    if_at: usize,
+) -> Option<(usize, bool)> {
+    if tokens.get(if_at).map(|token| token.text) != Some("if")
+        || tokens.get(if_at + 1).map(|token| token.text) != Some("(")
+    {
+        return None;
+    }
+    let cond_close = matching_close.get(if_at + 1).copied().flatten()?;
+    let after_body = skip_control_body(tokens, matching_close, cond_close + 1)?;
+    if tokens.get(after_body).map(|token| token.text) == Some("else") {
+        let after_else = skip_control_body(tokens, matching_close, after_body + 1)?;
+        Some((after_else, true))
+    } else {
+        Some((after_body, false))
+    }
+}
+
+fn skip_control_body(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    start: usize,
+) -> Option<usize> {
+    match tokens.get(start).map(|token| token.text) {
+        Some("{") => matching_close
+            .get(start)
+            .copied()
+            .flatten()
+            .map(|close| close + 1),
+        Some("if") => skip_if_statement(tokens, matching_close, start).map(|(end, _)| end),
+        Some("return" | "throw" | "break" | "continue" | "debugger" | "var" | "let" | "const") => {
+            let (end, semicolon) = statement_terminator(tokens, start + 1)?;
+            Some(if semicolon { end + 1 } else { end })
+        }
+        Some(_) => {
+            let (end, semicolon) = statement_terminator(tokens, start)?;
+            Some(if semicolon { end + 1 } else { end })
+        }
+        None => None,
+    }
 }
 
 pub(crate) fn fold_if_expression_to_and(

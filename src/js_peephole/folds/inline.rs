@@ -103,7 +103,10 @@ pub(crate) fn inline_single_use_functions(
             let Some(removal) = declarator_removal(&tokens, &list, position, index) else {
                 continue;
             };
-            if claimed.iter().any(|(s, e)| removal.0 < *e && *s < removal.1) {
+            if claimed
+                .iter()
+                .any(|(s, e)| removal.0 < *e && *s < removal.1)
+            {
                 continue;
             }
             claimed.push(removal);
@@ -221,7 +224,7 @@ fn read_repeats(
         if !matches!(tokens[keyword].text, "for" | "while" | "do") {
             continue;
         }
-        if keyword > 0 && matches!(tokens[keyword - 1].text, "." | "?." ) {
+        if keyword > 0 && matches!(tokens[keyword - 1].text, "." | "?.") {
             continue;
         }
         let Some(end) = loop_extent(tokens, matching_close, keyword) else {
@@ -337,7 +340,9 @@ fn is_plain_read(tokens: &[Token<'_>], at: usize) -> bool {
         token.text == "="
             || token.text == "++"
             || token.text == "--"
-            || (token.text.len() >= 2 && token.text.ends_with('=') && !matches!(token.text, "==" | "===" | "!=" | "!==" | "<=" | ">="))
+            || (token.text.len() >= 2
+                && token.text.ends_with('=')
+                && !matches!(token.text, "==" | "===" | "!=" | "!==" | "<=" | ">="))
     });
     let before_is_write = at > 0 && matches!(tokens[at - 1].text, "++" | "--");
     !after_is_write && !before_is_write
@@ -399,7 +404,10 @@ mod tests {
         let (out, _) =
             inline_single_use_functions("function f(){var p=1,Y=(a)=>a,q=2;return g(Y,p,q)}")
                 .unwrap();
-        assert_eq!(out, "function f(){var p=1,q=2;return g((a)=>a,p,q)}", "{out}");
+        assert_eq!(
+            out, "function f(){var p=1,q=2;return g((a)=>a,p,q)}",
+            "{out}"
+        );
     }
 
     #[test]
@@ -509,4 +517,3 @@ mod tests {
         assert_eq!(out, source);
     }
 }
-

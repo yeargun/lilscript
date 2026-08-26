@@ -124,7 +124,12 @@ fn store_shape(
         // Only the last declarator is adjacent to the return; an earlier one
         // has declarators after it that would have to move too.
         return Some(if position == 0 {
-            Store { start: statement, name: last.name, value, prefix: "" }
+            Store {
+                start: statement,
+                name: last.name,
+                value,
+                prefix: "",
+            }
         } else {
             Store {
                 start: list[position - 1].close,
@@ -207,16 +212,14 @@ mod tests {
 
     #[test]
     fn returns_a_declared_temporary_directly() {
-        let (out, count) =
-            fold_returned_temporaries("var g=(e,t)=>{var r=e+t;return r}").unwrap();
+        let (out, count) = fold_returned_temporaries("var g=(e,t)=>{var r=e+t;return r}").unwrap();
         assert_eq!(count, 1, "{out}");
         assert_eq!(out, "var g=(e,t)=>{return e+t}");
     }
 
     #[test]
     fn returns_a_stored_temporary_directly() {
-        let (out, count) =
-            fold_returned_temporaries("var g=e=>{var r;r=e?1:2;return r}").unwrap();
+        let (out, count) = fold_returned_temporaries("var g=e=>{var r;r=e?1:2;return r}").unwrap();
         assert_eq!(count, 1, "{out}");
         assert_eq!(out, "var g=e=>{var r;return e?1:2}");
     }
@@ -288,7 +291,11 @@ mod tests {
 
     #[test]
     fn leaves_a_bare_return_alone() {
-        for source in ["var g=()=>{return}", "var g=e=>{return e}", "var g=()=>{var r=1;return 2}"] {
+        for source in [
+            "var g=()=>{return}",
+            "var g=e=>{return e}",
+            "var g=()=>{var r=1;return 2}",
+        ] {
             let (out, count) = fold_returned_temporaries(source).unwrap();
             assert_eq!(count, 0, "{out}");
             assert_eq!(out, source);
@@ -336,7 +343,9 @@ pub(crate) fn fold_single_use_temporaries(
             continue;
         }
         let name = index + 1;
-        if tokens.get(name).is_none_or(|token| token.kind != TokenKind::Identifier)
+        if tokens
+            .get(name)
+            .is_none_or(|token| token.kind != TokenKind::Identifier)
             || tokens.get(name + 1).map(|token| token.text) != Some("=")
         {
             continue;
@@ -359,7 +368,10 @@ pub(crate) fn fold_single_use_temporaries(
         let Some(sites) = uses.get(&declaration) else {
             continue;
         };
-        let reads = sites.iter().filter(|site| **site != declaration).collect::<Vec<_>>();
+        let reads = sites
+            .iter()
+            .filter(|site| **site != declaration)
+            .collect::<Vec<_>>();
         if reads.len() != 1 {
             continue;
         }
@@ -447,8 +459,23 @@ fn is_pure_read(tokens: &[Token<'_>], from: usize, to: usize) -> bool {
             TokenKind::Punct
                 if matches!(
                     token.text,
-                    "." | "+" | "-" | "*" | "&&" | "||" | "??" | "!" | "==" | "!=" | "==="
-                        | "!==" | "<" | ">" | "<=" | ">=" | "?" | ":"
+                    "." | "+"
+                        | "-"
+                        | "*"
+                        | "&&"
+                        | "||"
+                        | "??"
+                        | "!"
+                        | "=="
+                        | "!="
+                        | "==="
+                        | "!=="
+                        | "<"
+                        | ">"
+                        | "<="
+                        | ">="
+                        | "?"
+                        | ":"
                 ) => {}
             _ => return false,
         }
@@ -472,13 +499,15 @@ fn is_pure_read(tokens: &[Token<'_>], from: usize, to: usize) -> bool {
 fn nothing_runs_before(tokens: &[Token<'_>], from: usize, use_at: usize) -> bool {
     for index in from..use_at {
         let text = tokens[index].text;
-        let assigns = text.ends_with('=')
-            && !matches!(text, "==" | "!=" | "===" | "!==" | "<=" | ">=");
+        let assigns =
+            text.ends_with('=') && !matches!(text, "==" | "!=" | "===" | "!==" | "<=" | ">=");
         // A member access is itself observable -- `receiver.invoke(v)` runs the
         // `invoke` getter before the argument, so moving a read into `v`'s slot
         // would swap two getters.
-        if matches!(text, ")" | "]" | "[" | "." | "?." | "++" | "--" | "new" | "await" | "yield")
-            || assigns
+        if matches!(
+            text,
+            ")" | "]" | "[" | "." | "?." | "++" | "--" | "new" | "await" | "yield"
+        ) || assigns
         {
             return false;
         }
@@ -491,8 +520,21 @@ fn needs_grouping(tokens: &[Token<'_>], from: usize, to: usize) -> bool {
     tokens[from..to].iter().any(|token| {
         matches!(
             token.text,
-            "?" | ":" | "&&" | "||" | "??" | "+" | "-" | "*" | "==" | "!=" | "===" | "!=="
-                | "<" | ">" | "<=" | ">="
+            "?" | ":"
+                | "&&"
+                | "||"
+                | "??"
+                | "+"
+                | "-"
+                | "*"
+                | "=="
+                | "!="
+                | "==="
+                | "!=="
+                | "<"
+                | ">"
+                | "<="
+                | ">="
         )
     })
 }
@@ -502,8 +544,16 @@ mod collapse_tests {
     use super::fold_single_use_temporaries;
 
     fn run(source: &str) -> String {
-        let output = std::process::Command::new("node").arg("-e").arg(source).output().unwrap();
-        assert!(output.status.success(), "node failed:\n{}\n{source}", String::from_utf8_lossy(&output.stderr));
+        let output = std::process::Command::new("node")
+            .arg("-e")
+            .arg(source)
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "node failed:\n{}\n{source}",
+            String::from_utf8_lossy(&output.stderr)
+        );
         String::from_utf8(output.stdout).unwrap()
     }
 
@@ -598,7 +648,10 @@ mod declarator_list_tests {
         let (out, _) =
             fold_returned_temporaries("function f(e){var t=e.length,n=t>0&&t-1 in e;return n}")
                 .unwrap();
-        assert_eq!(out, "function f(e){var t=e.length;return t>0&&t-1 in e}", "{out}");
+        assert_eq!(
+            out, "function f(e){var t=e.length;return t>0&&t-1 in e}",
+            "{out}"
+        );
     }
 
     #[test]

@@ -1502,13 +1502,20 @@ pub(crate) fn fold_chained_comma_assigns(
             cursor += 1;
             continue;
         }
-        let Some(comma) = top_level_stop(&tokens, cursor + 2, &[","]) else {
+        // This rewrite is only valid within one comma expression. Looking for
+        // a comma alone can pair the trailing assignment of one statement or
+        // conditional arm with an assignment in a later arm, moving both the
+        // intervening control flow and its side effects. A root conditional is
+        // rejected as well because a comma in its consequent is not the end of
+        // the assignment RHS.
+        let Some(comma) = top_level_stop(&tokens, cursor + 2, &[",", ";", "?", ":"]) else {
             cursor += 1;
             continue;
         };
-        if tokens
-            .get(comma + 1)
-            .is_none_or(|token| token.kind != TokenKind::Identifier)
+        if tokens[comma].text != ","
+            || tokens
+                .get(comma + 1)
+                .is_none_or(|token| token.kind != TokenKind::Identifier)
             || tokens.get(comma + 2).map(|token| token.text) != Some("=")
             || tokens.get(comma + 3).map(|token| token.text) != Some(tokens[cursor].text)
             || !matches!(
@@ -2730,7 +2737,109 @@ pub(crate) fn fold_redundant_null_undefined_or(
         ));
         cursor = second_end;
     }
+    cursor = 0;
+    while cursor + 8 < tokens.len() {
+        let Some((name, first_end)) = match_ident_loose_null(&tokens, cursor) else {
+            cursor += 1;
+            continue;
+        };
+        if tokens.get(first_end).map(|token| token.text) != Some("&&") {
+            cursor += 1;
+            continue;
+        }
+        let Some((other, second_end)) = match_not_ident_undefined(&tokens, first_end + 1) else {
+            cursor += 1;
+            continue;
+        };
+        if name != other {
+            cursor += 1;
+            continue;
+        }
+        replacements.push((
+            tokens[cursor].start,
+            tokens[second_end - 1].end,
+            format!("{name}===null"),
+        ));
+        cursor = second_end;
+    }
     Ok(apply_token_rewrites(source, replacements))
+}
+
+fn match_ident_loose_null<'tok>(
+    tokens: &'tok [Token<'tok>],
+    at: usize,
+) -> Option<(&'tok str, usize)> {
+    if tokens.get(at).map(|token| token.text) == Some("null")
+        && matches!(
+            tokens.get(at + 1).map(|token| token.text),
+            Some("==") | Some("===")
+        )
+        && tokens
+            .get(at + 2)
+            .is_some_and(|token| token.kind == TokenKind::Identifier)
+    {
+        return Some((tokens[at + 2].text, at + 3));
+    }
+    if tokens
+        .get(at)
+        .is_some_and(|token| token.kind == TokenKind::Identifier)
+        && matches!(
+            tokens.get(at + 1).map(|token| token.text),
+            Some("==") | Some("===")
+        )
+        && tokens.get(at + 2).map(|token| token.text) == Some("null")
+    {
+        return Some((tokens[at].text, at + 3));
+    }
+    None
+}
+
+fn match_not_ident_undefined<'tok>(
+    tokens: &'tok [Token<'tok>],
+    at: usize,
+) -> Option<(&'tok str, usize)> {
+    if tokens.get(at).map(|token| token.text) != Some("!") {
+        return None;
+    }
+    if tokens.get(at + 1).map(|token| token.text) == Some("(") {
+        let (name, inner_end) = match_ident_is_undefined(tokens, at + 2)?;
+        if tokens.get(inner_end).map(|token| token.text) == Some(")") {
+            return Some((name, inner_end + 1));
+        }
+        return None;
+    }
+    match_ident_is_undefined(tokens, at + 1)
+}
+
+fn match_ident_is_undefined<'tok>(
+    tokens: &'tok [Token<'tok>],
+    at: usize,
+) -> Option<(&'tok str, usize)> {
+    if tokens.get(at).map(|token| token.text) == Some("void")
+        && tokens.get(at + 1).map(|token| token.text) == Some("0")
+        && matches!(
+            tokens.get(at + 2).map(|token| token.text),
+            Some("==") | Some("===")
+        )
+        && tokens
+            .get(at + 3)
+            .is_some_and(|token| token.kind == TokenKind::Identifier)
+    {
+        return Some((tokens[at + 3].text, at + 4));
+    }
+    if tokens
+        .get(at)
+        .is_some_and(|token| token.kind == TokenKind::Identifier)
+        && matches!(
+            tokens.get(at + 1).map(|token| token.text),
+            Some("==") | Some("===")
+        )
+        && tokens.get(at + 2).map(|token| token.text) == Some("void")
+        && tokens.get(at + 3).map(|token| token.text) == Some("0")
+    {
+        return Some((tokens[at].text, at + 4));
+    }
+    None
 }
 
 fn match_nullish_ident_check<'tok>(
@@ -2987,7 +3096,10 @@ mod tests {
             r#"function W(e,t){return t+(e=e.trim())?e:null}"#,
         ] {
             let (out, count) = fold_assigned_truthy_ternaries(source).unwrap();
-            assert_eq!(count, 0, "folded an operand as if it were the condition: {out}");
+            assert_eq!(
+                count, 0,
+                "folded an operand as if it were the condition: {out}"
+            );
             assert_eq!(out, source);
         }
 

@@ -890,3 +890,59 @@ fn is_expression_statement_span(tokens: &[Token<'_>], start: usize, end: usize) 
             | "default"
     )
 }
+
+const PRISTINE_STATIC_CTORS: &[&str] = &[
+    "Object", "String", "Number", "Array", "Math", "JSON", "Date", "Error", "Promise", "Reflect",
+    "Map", "Set", "WeakMap", "WeakSet", "Symbol",
+];
+
+fn is_pristine_static_ctor(name: &str) -> bool {
+    PRISTINE_STATIC_CTORS.contains(&name)
+}
+
+pub(crate) fn fold_pristine_static_method_calls(
+    source: &str,
+) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+    let mut index = 0usize;
+    while index + 7 < tokens.len() {
+        let ctor = tokens[index].text;
+        if tokens[index].kind != TokenKind::Identifier
+            || !is_pristine_static_ctor(ctor)
+            || tokens.get(index + 1).map(|token| token.text) != Some(".")
+            || !matches!(
+                tokens.get(index + 2).map(|token| token.kind),
+                Some(TokenKind::Identifier | TokenKind::Keyword)
+            )
+            || tokens.get(index + 3).map(|token| token.text) != Some(".")
+            || tokens.get(index + 4).map(|token| token.text) != Some("call")
+            || tokens.get(index + 5).map(|token| token.text) != Some("(")
+            || tokens.get(index + 6).map(|token| token.text) != Some(ctor)
+        {
+            index += 1;
+            continue;
+        }
+        if tokens.get(index.wrapping_sub(1)).map(|token| token.text) == Some(".") {
+            index += 1;
+            continue;
+        }
+        let after_this = tokens.get(index + 7).map(|token| token.text);
+        if after_this == Some(",") {
+            replacements.push((
+                tokens[index + 3].start,
+                tokens[index + 7].end,
+                "(".to_string(),
+            ));
+            index += 8;
+            continue;
+        }
+        if after_this == Some(")") {
+            replacements.push((tokens[index + 3].start, tokens[index + 6].end, String::new()));
+            index += 8;
+            continue;
+        }
+        index += 1;
+    }
+    Ok(apply_token_rewrites(source, replacements))
+}
