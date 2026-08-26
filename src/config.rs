@@ -265,7 +265,7 @@ impl ProjectConfig {
             inline_structured_closures: self
                 .javascript
                 .compression_enabled(CompressionDecision::StructuredClosureInlining),
-            struct_method_shorthand: true,
+            struct_method_shorthand: self.javascript.struct_method_shorthand.unwrap_or(true),
             truthy_nullable_checks: true,
             pack_string_arrays: self
                 .javascript
@@ -1093,6 +1093,13 @@ pub struct JavaScriptConfig {
     /// the hoisted function group. Off by default.
     pub sink_entry_function_declarations: bool,
     pub function_spelling: Option<FunctionSpelling>,
+    /// Spell an object method as `k(){…}` rather than `k:function(){…}`.
+    /// Shorthand is shorter, and shorter is not always smaller: measured on
+    /// jQuery, turning it off is -94 Brotli *and* -404 raw, because the shapes
+    /// the emitter reaches without it repeat better. It is neutral on marked,
+    /// mobx, posthog and zod, so the default stands and a port that has
+    /// measured its own artifact says otherwise here.
+    pub struct_method_shorthand: Option<bool>,
     /// Recover statement-authored local selections as conditional expressions.
     /// The default follows the cost model, because the trade is real and goes
     /// both ways: measured across the ports, forcing it on is jQuery -87 Brotli
@@ -1147,6 +1154,7 @@ impl Default for JavaScriptConfig {
             aggregate_operand_order_fusion: false,
             sink_entry_function_declarations: false,
             function_spelling: None,
+            struct_method_shorthand: None,
             local_phi_expression_regions: None,
             public_aggregate_abi: PublicAggregateAbi::Named,
             aggregate_layout: AggregateLayout::default(),
@@ -2557,6 +2565,12 @@ local_name_coalescing = false
             .javascript_optimization_configured(JavaScriptOptimization::IrInliningVariants));
         assert!(!standard.js_options().local_phi_expression_regions);
         assert!(!standard.js_options().phi_edge_value_forwarding);
+
+        let shorthand_off: ProjectConfig =
+            toml::from_str("[javascript]\nstruct_method_shorthand=false\n").unwrap();
+        assert!(!shorthand_off.js_options().struct_method_shorthand);
+        let shorthand_default: ProjectConfig = toml::from_str("[javascript]\n").unwrap();
+        assert!(shorthand_default.js_options().struct_method_shorthand);
 
         // The cost model picks the default, and a port that has measured its
         // own artifact overrides it in either direction.
