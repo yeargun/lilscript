@@ -33,6 +33,13 @@ use std::collections::HashMap;
 
 pub(crate) fn converge_local_names(source: &str) -> Result<(String, usize), JavaScriptParseError> {
     let tokens = lex(source)?;
+    // Converging on a spelling the artifact does not already use trades one
+    // kind of repetition for another and loses. Measured on jQuery: renaming to
+    // `a,b,c` while the file's own identifiers are `e,t,n,r` converges headers
+    // from 68 spellings to 50 and costs 350 Brotli bytes. The sequence has to
+    // start from the characters this artifact already spends most of its
+    // identifier bytes on.
+    let alphabet = dominant_identifier_alphabet(&tokens);
     let resolution = BindingResolution::new(&tokens);
 
     let mut uses = HashMap::<usize, Vec<usize>>::new();
@@ -112,7 +119,7 @@ pub(crate) fn converge_local_names(source: &str) -> Result<(String, usize), Java
     let mut rewrites = Vec::<(usize, usize, String)>::new();
     for (_, _, declaration, start, end) in renameable {
         let name = tokens[declaration].text;
-        let mut canonical = CanonicalNames::new();
+        let mut canonical = CanonicalNames::new(&alphabet);
         let replacement = loop {
             let candidate = canonical.next_name();
             if candidate.len() > 2 {
@@ -157,27 +164,50 @@ pub(crate) fn converge_local_names(source: &str) -> Result<(String, usize), Java
 /// The canonical spelling sequence: `a`..`z`, `A`..`Z`, `_`, `$`, then the
 /// two-character combinations. Kept here rather than borrowed from the IR
 /// backend's mangler so this pass depends only on the token stream.
-struct CanonicalNames {
+struct CanonicalNames<'a> {
     next: usize,
+    alphabet: &'a [u8],
 }
 
 const ALPHABET: &[u8] = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_$";
 
-impl CanonicalNames {
-    fn new() -> Self {
-        Self { next: 0 }
+/// The mangling alphabet ordered by how much of this artifact's identifier text
+/// each character already carries, so a converged name reuses a byte the codec
+/// has seen rather than introducing one it has not.
+fn dominant_identifier_alphabet(tokens: &[Token<'_>]) -> Vec<u8> {
+    let mut weight = [0usize; 256];
+    for (index, token) in tokens.iter().enumerate() {
+        if token.kind != TokenKind::Identifier || is_property_identifier(tokens, index) {
+            continue;
+        }
+        for byte in token.text.bytes() {
+            weight[byte as usize] += 1;
+        }
+    }
+    let mut alphabet = ALPHABET.to_vec();
+    alphabet.sort_by(|left, right| {
+        weight[*right as usize]
+            .cmp(&weight[*left as usize])
+            .then_with(|| left.cmp(right))
+    });
+    alphabet
+}
+
+impl<'a> CanonicalNames<'a> {
+    fn new(alphabet: &'a [u8]) -> Self {
+        Self { next: 0, alphabet }
     }
 
     fn next_name(&mut self) -> String {
         let index = self.next;
         self.next += 1;
-        let width = ALPHABET.len();
+        let width = self.alphabet.len();
         if index < width {
-            return String::from(ALPHABET[index] as char);
+            return String::from(self.alphabet[index] as char);
         }
         let index = index - width;
-        let first = ALPHABET[index / width] as char;
-        let second = ALPHABET[index % width] as char;
+        let first = self.alphabet[index / width] as char;
+        let second = self.alphabet[index % width] as char;
         let mut name = String::with_capacity(2);
         name.push(first);
         name.push(second);
@@ -240,9 +270,12 @@ mod tests {
             "function q(elem,key){return elem+key}function r(key,elem){return key-elem}";
         let (out, count) = converge_local_names(source).unwrap();
         assert!(count > 0, "{out}");
+        // The letters come from the artifact's own identifier text -- here
+        // `elem` and `key` -- so a converged name reuses a byte the codec has
+        // already seen. What matters is that both headers agree.
         assert_eq!(
             out,
-            "function q(a,b){return a+b}function r(a,b){return a-b}",
+            "function q(e,k){return e+k}function r(e,k){return e-k}",
             "sibling headers must converge"
         );
     }
@@ -251,7 +284,7 @@ mod tests {
     fn arrows_converge_too() {
         let source = "var h=(elem,key)=>elem[key];var g=(key,elem)=>key[elem];";
         let (out, _) = converge_local_names(source).unwrap();
-        assert_eq!(out, "var h=(a,b)=>a[b];var g=(a,b)=>a[b];", "{out}");
+        assert_eq!(out, "var h=(e,k)=>e[k];var g=(e,k)=>e[k];", "{out}");
     }
 
     #[test]
@@ -328,3 +361,4 @@ mod tests {
         );
     }
 }
+
