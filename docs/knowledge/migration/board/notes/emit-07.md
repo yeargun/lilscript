@@ -207,12 +207,23 @@ transform alone rather than its marginal contribution:
 
 Two of these decompose in a way that matters for whoever picks this up.
 
-**Sinking is not where the var family's value is.** `X = EXPR;` followed by a
-statement that begins by reading `X`, rewritten to `(X = EXPR)` at that read, is
-26 sites on this artifact, exactly raw-neutral, and worth **−3 Brotli**. The
-family's −134 is the *declaration elimination* that sinking enables, not the
-sinking. Building the sink alone would buy nothing; it has to remove the `var`
-too.
+**Sinking is not where the var family's value is, and it is not the declaration
+either.** Rewriting `X = EXPR` to `(X = EXPR)` at the first place that reads it,
+across all three populations terser reaches -- a preceding statement, a preceding
+`var X = EXPR;`, and a preceding element of a comma sequence -- is **192 sites,
++100 raw and +64 Brotli**. Worse, not better. A narrower version limited to
+statement-to-statement is 26 sites and −3.
+
+Nor is it elimination: only 12 declarators in the artifact name something already
+declared in the same function, so there is almost nothing to eliminate for free,
+and terser does not eliminate them anyway -- it prints `var t;if(!(t=e.nodeType))`
+and keeps the declaration.
+
+Reading the diff rather than inferring from the name, `collapse_vars`'s −512 raw
+is **block-brace removal** -- `{u=arguments[n];if(u!=null)…}` becoming
+`if((u=arguments[n])!=null)…` -- and redundant parentheses around function
+expressions. Both are printer-shaped, and reprinting alone measures −107 raw and
+**+3 Brotli**. So the raw is real and the codec does not pay for it.
 
 **`join_vars` is mostly terser's printer, not variable joining.** Its −190 raw is
 `;}` → `}`, a dropped space in `"length" in`, and redundant parens around
