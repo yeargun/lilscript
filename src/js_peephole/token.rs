@@ -641,9 +641,9 @@ pub(crate) fn validate_conditional_operators(
             "?" => {
                 // `?.` reaches the lexer as `?` then `.`; optional chaining is
                 // not a conditional and has no `:` to pair with.
-                let optional_chain = tokens.get(index + 1).is_some_and(|next| {
-                    next.text == "." && next.start == tokens[index].end
-                });
+                let optional_chain = tokens
+                    .get(index + 1)
+                    .is_some_and(|next| next.text == "." && next.start == tokens[index].end);
                 if optional_chain {
                     previous = Some(index);
                     continue;
@@ -673,9 +673,10 @@ pub(crate) fn validate_conditional_operators(
                     if let Some((_, pending)) = frames.last_mut() {
                         *pending -= 1;
                     }
-                    if frames.last().is_some_and(|(kind, pending)| {
-                        *kind == ColonFrame::Group && *pending == 0
-                    }) && frames.len() > 1
+                    if frames
+                        .last()
+                        .is_some_and(|(kind, pending)| *kind == ColonFrame::Group && *pending == 0)
+                        && frames.len() > 1
                     {
                         // A synthetic top-level frame is finished with.
                     }

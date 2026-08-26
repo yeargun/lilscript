@@ -81,8 +81,7 @@ pub(crate) fn converge_local_names(source: &str) -> Result<(String, usize), Java
         // Names this scope may not take.
         let mut blocked = HashSet::<String>::new();
         for index in start..end.min(tokens.len()) {
-            if tokens[index].kind != TokenKind::Identifier
-                || is_property_identifier(&tokens, index)
+            if tokens[index].kind != TokenKind::Identifier || is_property_identifier(&tokens, index)
             {
                 continue;
             }
@@ -170,7 +169,6 @@ pub(crate) fn converge_local_names(source: &str) -> Result<(String, usize), Java
     Ok(apply_token_rewrites(source, rewrites))
 }
 
-
 /// Parameters first in declaration order, then the remaining bindings by
 
 /// The canonical spelling sequence: `a`..`z`, `A`..`Z`, `_`, `$`, then the
@@ -226,8 +224,6 @@ impl<'a> CanonicalNames<'a> {
         name
     }
 }
-
-
 
 /// A reordered alphabet can spell a keyword in two characters, which a fixed
 /// `ab`, `ac` sequence never reaches. `do`, `if` and `in` are the only reserved
@@ -285,16 +281,14 @@ mod tests {
 
     #[test]
     fn sibling_functions_converge_on_one_header_spelling() {
-        let source =
-            "function q(elem,key){return elem+key}function r(key,elem){return key-elem}";
+        let source = "function q(elem,key){return elem+key}function r(key,elem){return key-elem}";
         let (out, count) = converge_local_names(source).unwrap();
         assert!(count > 0, "{out}");
         // The letters come from the artifact's own identifier text -- here
         // `elem` and `key` -- so a converged name reuses a byte the codec has
         // already seen. What matters is that both headers agree.
         assert_eq!(
-            out,
-            "function q(e,k){return e+k}function r(e,k){return e-k}",
+            out, "function q(e,k){return e+k}function r(e,k){return e-k}",
             "sibling headers must converge"
         );
     }
@@ -311,6 +305,19 @@ mod tests {
         same_behavior(
             "function q(a){var b=a;function inner(b){return b*2}return inner(b)+b}",
             "console.log(q(3))",
+        );
+    }
+
+    #[test]
+    fn a_named_iife_does_not_steal_later_reads_of_an_outer_binding() {
+        same_behavior(
+            concat!(
+                "function factory(){var fire=()=>7;",
+                "return function(){",
+                "(function fire(n){if(n)fire(n-1)})(1);",
+                "return fire()}}",
+            ),
+            "console.log(factory()())",
         );
     }
 
@@ -355,8 +362,14 @@ mod tests {
         .unwrap();
         // Whichever letter the input's own text makes first, both scopes take
         // it: that is the point.
-        let outer = out.split("function outer(").nth(1).and_then(|rest| rest.split(')').next());
-        let inner = out.split("function inner(").nth(1).and_then(|rest| rest.split(')').next());
+        let outer = out
+            .split("function outer(")
+            .nth(1)
+            .and_then(|rest| rest.split(')').next());
+        let inner = out
+            .split("function inner(")
+            .nth(1)
+            .and_then(|rest| rest.split(')').next());
         assert_eq!(outer, inner, "parent and child may share a name: {out}");
         assert!(outer.is_some_and(|name| name.len() == 1), "{out}");
     }
@@ -372,8 +385,10 @@ mod tests {
             "function outer(alpha){function inner(beta){return beta+alpha}return inner(3)}",
         )
         .unwrap();
-        assert!(!out.contains("function inner(e)") || !out.contains("function outer(e)"),
-            "a read of the outer binding must keep the names apart: {out}");
+        assert!(
+            !out.contains("function inner(e)") || !out.contains("function outer(e)"),
+            "a read of the outer binding must keep the names apart: {out}"
+        );
     }
 
     /// A reordered alphabet can spell `if`, `in` or `do`.
@@ -381,19 +396,24 @@ mod tests {
     fn a_two_character_keyword_is_never_assigned() {
         let mut source = String::from("function f(");
         for index in 0..70 {
-            if index > 0 { source.push(','); }
+            if index > 0 {
+                source.push(',');
+            }
             source.push_str(&format!("p{index}"));
         }
         source.push_str("){return ");
         for index in 0..70 {
-            if index > 0 { source.push('+'); }
+            if index > 0 {
+                source.push('+');
+            }
             source.push_str(&format!("p{index}"));
         }
         source.push_str("}");
         let (out, _) = converge_local_names(&source).unwrap();
         for word in ["if", "in", "do"] {
             assert!(
-                !out.contains(&format!("({word},")) && !out.contains(&format!(",{word},"))
+                !out.contains(&format!("({word},"))
+                    && !out.contains(&format!(",{word},"))
                     && !out.contains(&format!(",{word})")),
                 "assigned the reserved word `{word}`: {out}"
             );
@@ -440,5 +460,3 @@ mod tests {
         );
     }
 }
-
-

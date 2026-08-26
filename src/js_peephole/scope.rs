@@ -956,8 +956,14 @@ pub(crate) fn name_is_used_in_scope(
     let (scope_start, scope_end) = enclosing_function_span(tokens, matching_close, name_at)
         .map(|(body, end)| (body + 1, end))
         .unwrap_or((0, tokens.len()));
-    identifier_occurs(tokens, scope_start, name_at, name)
-        || identifier_occurs(tokens, after, scope_end, name)
+    let (before, nested_before) =
+        collect_same_scope_name_uses(tokens, matching_close, name, scope_start, name_at, name_at);
+    if !before.is_empty() || nested_before {
+        return true;
+    }
+    let (uses, nested_after) =
+        collect_same_scope_name_uses(tokens, matching_close, name, after, scope_end, name_at);
+    !uses.is_empty() || nested_after
 }
 
 pub(crate) fn name_use_is_mutated(tokens: &[Token<'_>], use_at: usize) -> bool {
@@ -1214,6 +1220,7 @@ pub(crate) fn collect_same_scope_name_uses(
             && tokens[scan].kind == TokenKind::Identifier
             && tokens[scan].text == name
             && !is_property_identifier(tokens, scan)
+            && !identifier_is_arrow_parameter(tokens, scan)
         {
             uses.push(scan);
         }

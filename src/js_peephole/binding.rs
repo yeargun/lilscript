@@ -25,7 +25,7 @@
 //! declares one name twice is marked unresolved rather than guessed at, because
 //! only block scoping could tell those bindings apart.
 
-use crate::js_peephole::rewrite::is_property_identifier;
+use crate::js_peephole::rewrite::{is_property_identifier, is_statement_boundary};
 use crate::js_peephole::token::{matching_closers, matching_openers, Token, TokenKind};
 use std::collections::HashMap;
 
@@ -98,6 +98,7 @@ impl<'src> BindingResolution<'src> {
                 scope_of_token[token] = index as u32;
             }
         }
+        assign_named_function_expression_scopes(tokens, &scopes, &mut scope_of_token);
 
         collect_declarations(tokens, &matching_close, &scope_of_token, &mut scopes);
         let resolution = resolve(tokens, &scopes, &scope_of_token);
@@ -109,7 +110,10 @@ impl<'src> BindingResolution<'src> {
     }
 
     pub(crate) fn resolve(&self, at: usize) -> Resolution {
-        self.resolution.get(at).copied().unwrap_or(Resolution::Unresolved)
+        self.resolution
+            .get(at)
+            .copied()
+            .unwrap_or(Resolution::Unresolved)
     }
 
     /// The innermost scope containing this token, as `(start, end, kind)`.
@@ -179,6 +183,54 @@ impl<'src> BindingResolution<'src> {
             .iter()
             .all(|scope| scope.sound && scope.ambiguous.is_empty())
     }
+}
+
+/// A named function expression owns its name inside the function rather than
+/// declaring it in the surrounding scope:
+///
+/// `var outer=()=>1;(function outer(){ outer() })();outer()`
+///
+/// The name token is written before the parameter list, so the ordinary scope
+/// range does not cover it. Attribute that declaration token to the function's
+/// own scope explicitly. Function declarations keep their name in the parent.
+fn assign_named_function_expression_scopes(
+    tokens: &[Token<'_>],
+    scopes: &[Scope<'_>],
+    scope_of_token: &mut [u32],
+) {
+    for function_at in 0..tokens.len() {
+        if tokens[function_at].text != "function" || function_is_declaration(tokens, function_at) {
+            continue;
+        }
+        let mut name_at = function_at + 1;
+        if tokens.get(name_at).map(|token| token.text) == Some("*") {
+            name_at += 1;
+        }
+        if tokens
+            .get(name_at)
+            .is_none_or(|token| token.kind != TokenKind::Identifier)
+            || tokens.get(name_at + 1).map(|token| token.text) != Some("(")
+        {
+            continue;
+        }
+        let params_open = name_at + 1;
+        let Some((scope, _)) = scopes
+            .iter()
+            .enumerate()
+            .find(|(_, scope)| scope.kind == ScopeKind::Function && scope.start == params_open)
+        else {
+            continue;
+        };
+        scope_of_token[name_at] = scope as u32;
+    }
+}
+
+fn function_is_declaration(tokens: &[Token<'_>], function_at: usize) -> bool {
+    let mut head = function_at;
+    while head > 0 && matches!(tokens[head - 1].text, "async" | "default" | "export") {
+        head -= 1;
+    }
+    is_statement_boundary(tokens, head)
 }
 
 /// Walk the token stream once, opening a scope at each function-like head.
@@ -608,6 +660,29 @@ mod tests {
     }
 
     #[test]
+    fn a_named_function_expression_owns_only_its_recursive_name() {
+        let source = concat!(
+            "function q(){var fire=()=>7;",
+            "(function fire(n){if(n)fire(n-1)})(1);",
+            "return fire()}",
+        );
+        let all = resolved(source);
+        let fire = all
+            .iter()
+            .filter(|(_, text, _)| text == "fire")
+            .collect::<Vec<_>>();
+        assert_eq!(fire.len(), 4, "{all:?}");
+        let outer_declaration = fire[0].0;
+        let expression_declaration = fire[1].0;
+        assert_eq!(
+            fire[2].2,
+            Resolution::Bound(expression_declaration),
+            "{all:?}"
+        );
+        assert_eq!(fire[3].2, Resolution::Bound(outer_declaration), "{all:?}");
+    }
+
+    #[test]
     fn globals_and_host_names_are_free() {
         let all = resolved("function q(a){return JSON.stringify(a)}");
         let json = all.iter().find(|(_, text, _)| text == "JSON").unwrap();
@@ -625,7 +700,11 @@ mod tests {
     fn catch_parameters_bind_inside_the_handler() {
         let all = resolved("function q(){try{f()}catch(e){return e}}");
         let decl = all.iter().find(|(_, text, _)| text == "e").unwrap().0;
-        let use_at = all.iter().filter(|(_, text, _)| text == "e").nth(1).unwrap();
+        let use_at = all
+            .iter()
+            .filter(|(_, text, _)| text == "e")
+            .nth(1)
+            .unwrap();
         assert_eq!(use_at.2, Resolution::Bound(decl), "{all:?}");
     }
 
@@ -674,17 +753,35 @@ mod tests {
     fn module_bindings_resolve_from_inside_functions() {
         let all = resolved("var top=1;function q(x){return top+x}");
         let top_decl = all[0].0;
-        let use_at = all.iter().filter(|(_, text, _)| text == "top").nth(1).unwrap();
+        let use_at = all
+            .iter()
+            .filter(|(_, text, _)| text == "top")
+            .nth(1)
+            .unwrap();
         assert_eq!(use_at.2, Resolution::Bound(top_decl), "{all:?}");
     }
 
     #[test]
     fn class_methods_open_their_own_scope() {
         let all = resolved("class C{m(a){return a}n(a){return a}}");
-        let first_decl = all.iter().filter(|(_, text, _)| text == "a").next().unwrap().0;
-        let second_decl = all.iter().filter(|(_, text, _)| text == "a").nth(2).unwrap().0;
+        let first_decl = all
+            .iter()
+            .filter(|(_, text, _)| text == "a")
+            .next()
+            .unwrap()
+            .0;
+        let second_decl = all
+            .iter()
+            .filter(|(_, text, _)| text == "a")
+            .nth(2)
+            .unwrap()
+            .0;
         assert_ne!(first_decl, second_decl, "{all:?}");
-        let second_use = all.iter().filter(|(_, text, _)| text == "a").nth(3).unwrap();
+        let second_use = all
+            .iter()
+            .filter(|(_, text, _)| text == "a")
+            .nth(3)
+            .unwrap();
         assert_eq!(second_use.2, Resolution::Bound(second_decl), "{all:?}");
     }
 
