@@ -212,6 +212,26 @@ Ordered by what the measurements actually support.
 4. **Do not rewrite `deferred.lil` / `queue.lil`.** See the correction above: the
    programs are already equivalent to jQuery's and smaller.
 
+### The last untested candidates, and their ceilings
+
+Screened by counting the constructs they govern in the artifact, so the ceiling is
+known before a ten-minute build is spent:
+
+- `unused_catch_binding_elision` — we emit `catch{` 7 times where the official
+  build always writes `catch(x){` (16 times). Turning elision off is +3 raw per
+  site, so the whole hypothesis is worth at most ~21 raw and plausibly ~10
+  Brotli. **Untested.**
+- `compact_generator_star`, `pack_string_arrays`, `pool_strings` — inert here.
+  The artifact contains no generators and no packed string arrays; its five
+  `"a b c".split(" ")` packs come from jQuery's own source, not from pooling.
+- The remaining never-scored policies in `src/config.rs` govern constructs that
+  either do not appear or appear at parity with the official build (`window` 4/4,
+  `|0` 17/14, `+x` 137/125, computed members 2/2).
+
+So the "find a hardcoded compact-is-better policy" method, which produced the
+−94 method-spelling win, is close to exhausted on this artifact. It should still
+be the first thing tried on a *different* port.
+
 ### Where the numbers live
 
 `docs/knowledge/migration/board/notes/emit-07.md` carries the full evidence
