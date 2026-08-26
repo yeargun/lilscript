@@ -4917,8 +4917,10 @@ fn is_trivial_js_host_passthrough(function: &ControlFlowFunction<'_>) -> bool {
     let mut saw_host = false;
     for instruction in &block.instructions {
         match &instruction.op {
-            ControlFlowOp::Const(_) | ControlFlowOp::LoadLocal(_) | ControlFlowOp::Unary { .. } => {
-            }
+            ControlFlowOp::Const(_)
+            | ControlFlowOp::LoadLocal(_)
+            | ControlFlowOp::Unary { .. }
+            | ControlFlowOp::TypeCheck { .. } => {}
             ControlFlowOp::IndexGet { .. }
             | ControlFlowOp::HostFieldGet { .. }
             | ControlFlowOp::RecordFieldGet { .. } => {
@@ -4938,8 +4940,13 @@ fn is_trivial_js_host_passthrough(function: &ControlFlowFunction<'_>) -> bool {
                     | Intrinsic::JsIsNullish
                     | Intrinsic::JsIsUndefined
                     | Intrinsic::JsIsFalse
+                    | Intrinsic::JsIsArray
+                    | Intrinsic::JsIsObject
+                    | Intrinsic::JsTruthy
                     | Intrinsic::JsStrictEqual
+                    | Intrinsic::JsStrictNotEqual
                     | Intrinsic::JsGetProperty
+                    | Intrinsic::JsHasProperty
                     | Intrinsic::FloatToInt,
                 ..
             } => {
