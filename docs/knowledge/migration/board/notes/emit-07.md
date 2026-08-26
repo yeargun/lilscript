@@ -155,6 +155,37 @@ leading `var` list, which produces the 28-gram `function(e,t,n){var r,i,o,a,`
 that jQuery repeats five times. It is +279 now, against +277 measured before the
 naming work, so convergence did not make it pay.
 
+
+## Spellings measured and rejected, so they are not retried
+
+Every one of these is the same shape of idea -- "a longer form that repeats
+should compress better" -- and the shorthand result proves the idea is real, so
+the negatives matter as much as the win. All on the full jQuery artifact,
+Brotli, because submodule magnitudes do not transfer (core says +5 where the
+whole artifact says -94 for the very same change).
+
+| change | Δ raw | Δ Brotli |
+|---|---:|---:|
+| object-method shorthand off | **−404** | **−94** (landed) |
+| `function_spelling = "function"` (global) | +7,089 | +547 |
+| arrows → `function` in property position | +96 | +5 |
+| top-level arrow declarators → `function` declarations | +651 | +55 |
+| hoist declarations to one leading `var` | −19 | +279 |
+| disable structured-closure inlining | −141 | +295 |
+| property mangling off | −335 | +24 |
+| `local_name_reserve` 0 / 48 | | +216 / +36 |
+| rematerialize single-use pure paths | −36 | +83 |
+| sink an assignment into its next use | 0 | +12 |
+
+The three arrow experiments settle the `function` question: jQuery's build spells
+`function` 604 times against our 168, and closing that gap costs bytes at every
+scale it was tried. Our arrows are the better spelling for the code we emit.
+
+The patterns flagged from the marked work -- `(0,function` name suppression,
+`W={};W.k=v` instead of an object literal, `Object.assign` -- are almost absent
+here: 3, 2 and 0 occurrences against the official build's 0, 0 and 0. They are a
+markedlil concern, not a jQuery one.
+
 ## What this does not close
 
 Capturing every remaining terser advantage on our own output is worth about
