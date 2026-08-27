@@ -1827,6 +1827,7 @@ fn optimize_generated_javascript_pass(
     session.run(hoist_async_arrow_method_bodies)?;
     session.run(drop_pure_regex_expression_statements)?;
     session.run(fold_empty_comma_operators)?;
+    session.run(elide_asi_safe_semicolons)?;
 
     let final_tokens = if session.rewrites == 0 {
         tokens

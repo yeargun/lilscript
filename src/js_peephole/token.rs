@@ -723,7 +723,7 @@ pub(crate) fn validate_conditional_operators(
 /// True when a `{` following this token opens an object literal rather than a
 /// block. Everything that ends an expression is followed by a block; everything
 /// that expects one is followed by a literal.
-fn opens_object_literal(tokens: &[Token<'_>], at: usize) -> bool {
+pub(crate) fn opens_object_literal(tokens: &[Token<'_>], at: usize) -> bool {
     matches!(
         tokens[at].text,
         "(" | "," | "[" | "=" | ":" | "?" | "return" | "&&" | "||" | "??" | "!" | "+" | "-" | "*"

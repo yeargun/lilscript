@@ -226,7 +226,7 @@ fn negated_equality_refuses_postfix_yield_and_ambiguous_expression_starts() {
     // No negation is folded; only the top-level comma join applies.
     assert_eq!(
         optimized.code,
-        "!(x==y).z,!(x==y)(z),!(x==y)[z],!(x==y)?.z,!(x==y)`tag`,!(x==y)++,!(x==y)--,!(x==y)**z,new!(x==y);function* g(){return!(yield x==y)};!({}==x),!(function(){}==x),!(class{}==x),!(async function(){}==x)"
+        "!(x==y).z,!(x==y)(z),!(x==y)[z],!(x==y)?.z,!(x==y)`tag`,!(x==y)++,!(x==y)--,!(x==y)**z,new!(x==y);function* g(){return!(yield x==y)}!({}==x),!(function(){}==x),!(class{}==x),!(async function(){}==x)"
     );
 }
 
@@ -413,7 +413,7 @@ fn folds_an_assignment_followed_by_its_truthiness_guard() {
     .unwrap();
     assert_eq!(
         optimized.code,
-        "function f(x){var a;var b;(a=read(x))&&use(a),(b=next())&&use(b);}"
+        "function f(x){var a;var b;(a=read(x))&&use(a),(b=next())&&use(b)}"
     );
     assert!(optimized.rewrites >= 2);
 }
@@ -477,7 +477,7 @@ fn assignment_guard_folding_stays_within_proven_statement_boundaries() {
             .unwrap();
     assert_eq!(
         nested.code,
-        "function f(){var a;(a=choose(call(1),{x:[2,3]}))&&use(a);}"
+        "function f(){var a;(a=choose(call(1),{x:[2,3]}))&&use(a)}"
     );
 }
 
@@ -500,7 +500,7 @@ fn reuses_a_dead_function_scoped_var_binding() {
     .unwrap();
     assert_eq!(
         optimized.code,
-        "let f=x=>{var a=first(x);if(a)use(a);if(a=second(x))use(a)};"
+        "let f=x=>{var a=first(x);if(a)use(a);if(a=second(x))use(a)}"
     );
 }
 
@@ -576,7 +576,7 @@ fn removes_only_unreferenced_standalone_var_declarations() {
         "let f=(a,b)=>{var e;if(a)return b;return e=>{if(e)return e;return b}};",
     )
     .unwrap();
-    assert_eq!(optimized.code, "let f=(a,b)=>a?b:e=>e||b;");
+    assert_eq!(optimized.code, "let f=(a,b)=>a?b:e=>e||b");
 }
 
 #[test]
@@ -629,13 +629,13 @@ fn rotates_only_proven_initial_true_flag_loops() {
         optimize_generated_javascript("function f(){var a=true;while(a){use(a);a=read()}}")
             .unwrap()
             .code,
-        "function f(){var a=true;while(a)use(a),a=read();}"
+        "function f(){var a=true;while(a)use(a),a=read()}"
     );
     assert_eq!(
         optimize_generated_javascript("function f(){var a=false;while(a){work();a=read()}}")
             .unwrap()
             .code,
-        "function f(){var a=false;while(a)work(),a=read();}"
+        "function f(){var a=false;while(a)work(),a=read()}"
     );
 }
 
@@ -775,13 +775,13 @@ fn folds_expression_only_if_else_arms_into_a_conditional_sequence() {
     .unwrap();
     assert_eq!(
         optimized.code,
-        "function f(x){x?(first(),second()):(third(),fourth());}"
+        "function f(x){x?(first(),second()):(third(),fourth())}"
     );
 
     let optimized =
         optimize_generated_javascript("function f(x){if(x){console.log(1)}else{console.log(0)}}")
             .unwrap();
-    assert_eq!(optimized.code, "function f(x){console.log(x?1:0);}");
+    assert_eq!(optimized.code, "function f(x){console.log(x?1:0)}");
 
     let optimized = optimize_generated_javascript(
         "q.call(r,\"a\")?console.log(1):console.log(0);q.call(r,\"b\")?console.log(1):console.log(0)",
@@ -789,7 +789,7 @@ fn folds_expression_only_if_else_arms_into_a_conditional_sequence() {
     .unwrap();
     assert_eq!(
         optimized.code,
-        "console.log(q.call(r,\"a\")?1:0),console.log(q.call(r,\"b\")?1:0);"
+        "console.log(q.call(r,\"a\")?1:0),console.log(q.call(r,\"b\")?1:0)"
     );
 
     // The declaration keeps the arm from becoming a conditional sequence;
@@ -1803,11 +1803,7 @@ fn preserves_single_use_call_result_evaluation_point() {
 fn preserves_while_push_array_construction() {
     let source = "function pi(x){return x+1}var r=[1,2,3],n=[],t=0;while(t<r.length)n.push(pi(r[t])),t++;console.log(n.join(\",\"))";
     let optimized = optimize_generated_javascript(source).unwrap();
-    assert!(
-        optimized.code.contains(".push("),
-        "{}",
-        optimized.code
-    );
+    assert!(optimized.code.contains(".push("), "{}", optimized.code);
     assert_eq!(
         run_javascript(&optimized.code).trim(),
         run_javascript(source).trim()

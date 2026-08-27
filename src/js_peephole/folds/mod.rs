@@ -1,4 +1,5 @@
 mod arrays;
+mod asi;
 mod bodies;
 mod boolean;
 mod calls;
@@ -15,6 +16,7 @@ mod returns;
 mod syntax;
 
 pub(crate) use arrays::*;
+pub(crate) use asi::*;
 pub(crate) use bodies::*;
 pub(crate) use boolean::*;
 pub(crate) use calls::*;
