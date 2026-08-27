@@ -759,6 +759,41 @@ fn folds_while_trailing_increments_into_for() {
 }
 
 #[test]
+fn lifts_ternary_else_increment_without_leaving_an_empty_alternative() {
+    let original = "function f(a){var i=0,n=a.length,hit=0;while(i<n){a[i]<0?(hit=1,i=n):i++}return hit}console.log(f([1,-2,3])+','+f([1,2,3]))";
+    let optimized = optimize_generated_javascript(original).unwrap();
+    assert!(
+        !optimized.code.contains("):}") && !optimized.code.contains("?:"),
+        "{}",
+        optimized.code
+    );
+    assert_eq!(run_node(&optimized.code).trim(), "1,0");
+
+    let for_empty = optimize_generated_javascript(
+        "function f(a){var i=0,n=a.length,hit=0;for(;i<n;){a[i]<0?(hit=1,i=n):i++}return hit}console.log(f([1,-2])+','+f([1,2]))",
+    )
+    .unwrap();
+    assert!(
+        !for_empty.code.contains("):}") && !for_empty.code.contains("?:"),
+        "{}",
+        for_empty.code
+    );
+    assert_eq!(run_node(&for_empty.code).trim(), "1,0");
+}
+
+#[test]
+fn does_not_split_property_postfix_increment_when_lifting() {
+    let original = "function f(a,b){a.i=0;while(a.i<b.length){a.s+=b[a.i];a.i++}return a.s}console.log(f({i:0,s:0},[1,2,3]))";
+    let optimized = optimize_generated_javascript(original).unwrap();
+    assert!(
+        !optimized.code.contains("a.}") && !optimized.code.contains("a.;"),
+        "{}",
+        optimized.code
+    );
+    assert_eq!(run_node(&optimized.code).trim(), "6");
+}
+
+#[test]
 fn does_not_lift_while_trailing_increment_when_continue_skips_it() {
     let original =
         "function f(a){var i=0,s=0;while(i<a.length){if(a[i]==null)continue;s+=a[i];i++}return s}console.log(f([1,2,3]))";

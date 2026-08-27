@@ -860,6 +860,69 @@ fn condition_updates_name(tokens: &[Token<'_>], from: usize, to: usize, name: &s
     false
 }
 
+fn increment_can_lift(tokens: &[Token<'_>], name_at: usize) -> bool {
+    if is_property_identifier(tokens, name_at) {
+        return false;
+    }
+    if name_at == 0 || tokens[name_at - 1].text != ":" {
+        return true;
+    }
+    colon_closes_ternary(tokens, name_at - 1)
+}
+
+fn colon_closes_ternary(tokens: &[Token<'_>], colon_at: usize) -> bool {
+    let mut depth = 0i32;
+    let mut index = colon_at;
+    while index > 0 {
+        index -= 1;
+        match tokens[index].text {
+            ")" | "]" | "}" => depth += 1,
+            "(" | "[" | "{" => {
+                if depth == 0 {
+                    return false;
+                }
+                depth -= 1;
+            }
+            "?" if depth == 0 => return true,
+            ";" if depth == 0 => return false,
+            _ => {}
+        }
+    }
+    false
+}
+
+fn matching_ternary_question(tokens: &[Token<'_>], colon_at: usize) -> Option<usize> {
+    let mut depth = 0i32;
+    let mut index = colon_at;
+    while index > 0 {
+        index -= 1;
+        match tokens[index].text {
+            ")" | "]" | "}" => depth += 1,
+            "(" | "[" | "{" => {
+                if depth == 0 {
+                    return None;
+                }
+                depth -= 1;
+            }
+            "?" if depth == 0 => return Some(index),
+            ";" if depth == 0 => return None,
+            _ => {}
+        }
+    }
+    None
+}
+
+fn wrap_lifted_loop_body(body: &str) -> String {
+    let body = body.trim_end_matches([',', ';']).trim();
+    if body.is_empty() {
+        ";".to_string()
+    } else if body.contains(';') || body.contains('{') {
+        format!("{{{body};}}")
+    } else {
+        format!("{body};")
+    }
+}
+
 fn loop_body_after_lifted_increment(
     source: &str,
     tokens: &[Token<'_>],
@@ -869,16 +932,23 @@ fn loop_body_after_lifted_increment(
     if incr_at <= body_from {
         return ";".to_string();
     }
-    let body = source[tokens[body_from].start..tokens[incr_at].start]
-        .trim_end_matches([',', ';'])
-        .trim();
-    if body.is_empty() {
-        ";".to_string()
-    } else if body.contains(';') || body.contains('{') {
-        format!("{{{body};}}")
-    } else {
-        format!("{body};")
+    if incr_at > 0 && tokens[incr_at - 1].text == ":" {
+        if let Some(question) = matching_ternary_question(tokens, incr_at - 1) {
+            if question >= body_from {
+                let left = source[tokens[body_from].start..tokens[question].start].trim_end();
+                let mid = source[tokens[question].end..tokens[incr_at - 1].start].trim();
+                let body = if left.is_empty() {
+                    mid.to_string()
+                } else if mid.is_empty() {
+                    left.to_string()
+                } else {
+                    format!("{left}&&{mid}")
+                };
+                return wrap_lifted_loop_body(&body);
+            }
+        }
     }
+    wrap_lifted_loop_body(&source[tokens[body_from].start..tokens[incr_at].start])
 }
 
 pub(crate) fn fold_while_trailing_increments(
@@ -924,6 +994,7 @@ pub(crate) fn fold_while_trailing_increments(
                     || tokens
                         .get(last)
                         .is_none_or(|token| token.kind != TokenKind::Identifier)
+                    || !increment_can_lift(&tokens, last)
                 {
                     continue;
                 }
@@ -939,6 +1010,9 @@ pub(crate) fn fold_while_trailing_increments(
                 else {
                     continue;
                 };
+                if !increment_can_lift(&tokens, incr_at) {
+                    continue;
+                }
                 let replace_end = if stop < tokens.len() && tokens[stop].text == ";" {
                     tokens[stop].end
                 } else {
@@ -1014,6 +1088,7 @@ pub(crate) fn fold_for_trailing_increments(
             || tokens
                 .get(last)
                 .is_none_or(|token| token.kind != TokenKind::Identifier)
+            || !increment_can_lift(&tokens, last)
         {
             continue;
         }
@@ -1036,16 +1111,7 @@ pub(crate) fn fold_for_trailing_increments(
         }
         let init = &source[tokens[for_at + 1].end..tokens[semis[0]].start];
         let cond = &source[tokens[semis[0]].end..tokens[semis[1]].start];
-        let body = source[tokens[body_at + 1].start..tokens[last].start]
-            .trim_end_matches(';')
-            .trim();
-        let body = if body.is_empty() {
-            ";".to_string()
-        } else if body.contains(';') || body.contains('{') {
-            format!("{{{body};}}")
-        } else {
-            format!("{body};")
-        };
+        let body = loop_body_after_lifted_increment(source, &tokens, body_at + 1, last);
         replacements.push((
             tokens[for_at].start,
             tokens[body_close].end,

@@ -61,6 +61,9 @@ pub(crate) fn elide_asi_safe_semicolons(
         }
         if next_significant_after_elision(&tokens, &elide, index + 1)
             .is_none_or(|next| tokens[next].text == "}")
+            && !index.checked_sub(1).is_some_and(|previous| {
+                matches!(tokens[previous].text, ":" | "." | "?.")
+            })
         {
             elide[index] = true;
             continue;
@@ -496,6 +499,15 @@ mod tests {
     fn elides_chained_terminal_empties_before_a_block_close() {
         assert_eq!(elide("{a();;}"), "{a()}");
         asserts_parses(&elide("function f(){a();;}"));
+    }
+
+    #[test]
+    fn keeps_semicolon_after_a_colon() {
+        assert_eq!(elide("function f(){foo:;}"), "function f(){foo:;}");
+        assert_eq!(elide("function f(){a?b:c;}"), "function f(){a?b:c}");
+        assert_eq!(elide("function f(){a.;}"), "function f(){a.;}");
+        asserts_parses(&elide("function f(){foo:;}"));
+        asserts_parses(&elide("function f(){a?b:c;}"));
     }
 
     #[test]
