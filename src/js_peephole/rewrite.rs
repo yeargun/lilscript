@@ -381,11 +381,11 @@ pub(crate) fn next_statement_end(tokens: &[Token<'_>], start: usize) -> usize {
 
 const PRIMARY_EXPRESSION_TIGHTNESS: u8 = 100;
 
-fn binary_operator_tightness(operator: &str) -> Option<u8> {
+pub(crate) fn binary_operator_tightness(operator: &str) -> Option<u8> {
     Some(match operator {
         "," => 0,
-        "=" | "+=" | "-=" | "*=" | "/=" | "%=" | "&=" | "|=" | "^=" | "<<=" | ">>=" | ">>>="
-        | "&&=" | "||=" | "??=" => 1,
+        "=" | "+=" | "-=" | "*=" | "/=" | "%=" | "**=" | "&=" | "|=" | "^=" | "<<=" | ">>="
+        | ">>>=" | "&&=" | "||=" | "??=" => 1,
         "?" => 2,
         "??" | "||" => 3,
         "&&" => 4,

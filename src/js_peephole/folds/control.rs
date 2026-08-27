@@ -360,8 +360,7 @@ pub(crate) fn fold_trailing_return_this(
                 continue;
             };
             let cond_raw = &source[tokens[open + 3].start..tokens[cond_close].start];
-            let cond =
-                wrap_and_operand(cond_raw, &tokens, open + 3, cond_close, AND_LHS_NEEDS_WRAP);
+            let cond = wrap_and_operand(cond_raw, &tokens, open + 3, cond_close);
             let (body_start, body_end) = if tokens.get(cond_close + 1).map(|token| token.text)
                 == Some("{")
             {
@@ -1437,7 +1436,14 @@ fn negate_early_exit_condition(
             );
         }
     }
-    if end == start + 1 || tokens.get(start).map(|token| token.text) == Some("(") {
+    // `!raw` is the negation only when `raw` is already a single operand of
+    // unary precedence. A condition that merely *starts* with a parenthesised
+    // group is not: in `(a==null)||typeof a!="object"` the group covers the
+    // first operand alone, so dropping the added parentheses negates that
+    // operand and leaves the disjunction — and the rest of it — standing.
+    let parenthesized_condition = tokens.get(start).map(|token| token.text) == Some("(")
+        && matching_close.get(start).copied().flatten() == end.checked_sub(1);
+    if end == start + 1 || parenthesized_condition {
         format!("!{raw}")
     } else {
         format!("!({raw})")
@@ -2085,17 +2091,19 @@ pub(crate) fn fold_single_return_arrow_bodies(
     Ok((output, count))
 }
 
-const AND_LHS_NEEDS_WRAP: &[&str] = &["?", "=", ",", "||", "??"];
-const AND_RHS_NEEDS_WRAP: &[&str] = &["=", "?", ",", "||", "??"];
+/// `&&`'s own tightness in [`binary_operator_tightness`].
+const AND_TIGHTNESS: u8 = 4;
 
-fn wrap_and_operand(
-    expr: &str,
-    tokens: &[Token<'_>],
-    start: usize,
-    end: usize,
-    needles: &[&str],
-) -> String {
-    if top_level_token_in(tokens, start, end, needles)
+/// Parenthesise an operand of `&&` that binds looser than `&&` does.
+///
+/// This is the precedence relation, not a list of operators to remember. The
+/// list it replaces named plain `=` but none of `+=`, `-=`, `*=`, … , so
+/// `if(h>0)a+=.25;` folded to `h>0&&a+=.25` — an assignment to an rvalue, which
+/// no JavaScript engine accepts. Asking the precedence table instead makes the
+/// whole family correct at once, including the assignment operators, `=>`, and
+/// anything added to the table later.
+fn wrap_and_operand(expr: &str, tokens: &[Token<'_>], start: usize, end: usize) -> String {
+    if operand_binds_looser_than_and(tokens, start, end)
         || leading_bare_assignment(tokens, start, end)
     {
         format!("({expr})")
@@ -2104,25 +2112,34 @@ fn wrap_and_operand(
     }
 }
 
+fn operand_binds_looser_than_and(tokens: &[Token<'_>], start: usize, end: usize) -> bool {
+    let mut depth = 0i32;
+    for token in &tokens[start..end] {
+        match token.text {
+            "(" | "[" | "{" => depth += 1,
+            ")" | "]" | "}" => depth -= 1,
+            // An arrow body would swallow everything to its right, so the
+            // function has to be grouped even though it is not an operator.
+            "=>" if depth == 0 => return true,
+            operator if depth == 0 => {
+                if crate::js_peephole::rewrite::binary_operator_tightness(operator)
+                    .is_some_and(|tightness| tightness < AND_TIGHTNESS)
+                {
+                    return true;
+                }
+            }
+            _ => {}
+        }
+    }
+    false
+}
+
 fn leading_bare_assignment(tokens: &[Token<'_>], start: usize, end: usize) -> bool {
     let mut index = start;
     while index < end && tokens[index].text == "(" {
         index += 1;
     }
     index + 1 < end && tokens[index].kind == TokenKind::Identifier && tokens[index + 1].text == "="
-}
-
-fn top_level_token_in(tokens: &[Token<'_>], start: usize, end: usize, needles: &[&str]) -> bool {
-    let mut depth = 0i32;
-    for token in &tokens[start..end] {
-        match token.text {
-            "(" | "[" | "{" => depth += 1,
-            ")" | "]" | "}" => depth -= 1,
-            text if depth == 0 && needles.contains(&text) => return true,
-            _ => {}
-        }
-    }
-    false
 }
 
 fn single_expression_statement(tokens: &[Token<'_>], start: usize, end: usize) -> bool {
@@ -2480,14 +2497,12 @@ pub(crate) fn fold_nested_unguarded_ifs(
                 &tokens,
                 outer_cond_open + 1,
                 outer_cond_close,
-                AND_LHS_NEEDS_WRAP,
             );
             let right = wrap_and_operand(
                 &output[tokens[inner_if + 2].start..tokens[inner_cond_close].start],
                 &tokens,
                 inner_if + 2,
                 inner_cond_close,
-                AND_RHS_NEEDS_WRAP,
             );
             let body = &output[tokens[inner_cond_close + 1].start..tokens[inner_end - 1].end];
             let mut rewritten = format!("if({left}&&{right}){body}");
@@ -2585,14 +2600,12 @@ pub(crate) fn fold_if_expression_to_and(
             &tokens,
             cond_open + 1,
             cond_close,
-            AND_LHS_NEEDS_WRAP,
         );
         let body = wrap_and_operand(
             &source[tokens[start].start..tokens[end - 1].end],
             &tokens,
             start,
             end,
-            AND_RHS_NEEDS_WRAP,
         );
         replacements.push((
             tokens[if_at].start,

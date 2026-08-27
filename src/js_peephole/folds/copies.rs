@@ -1120,6 +1120,46 @@ pub(crate) fn fold_sequence_assignments_into_first_use(
 /// `return typeof(x=R)=="number"`. Calls, property reads, short-circuit
 /// operators, and other observable prefixes stop the scan, so the assignment
 /// never crosses a value-producing or conditional evaluation.
+/// Can the token at `index` be evaluated ahead of a moved assignment?
+///
+/// Placing `x=EXPR` at the first read of `x` in the following statement is safe
+/// exactly when nothing evaluated before that read can observe `x`, change it,
+/// or run code of its own. Reading a binding, a literal, and the pure operators
+/// all qualify; a call, a property access, an assignment, or an update does not.
+///
+/// This replaces a hand-kept list of "inert" tokens that omitted identifiers,
+/// `&&`, `?`, and much else, so the fold stopped at the first ordinary
+/// expression and almost never fired.
+fn prefix_cannot_observe(tokens: &[Token<'_>], index: usize) -> bool {
+    let token = &tokens[index];
+    match token.kind {
+        // A template can run `toString` on an interpolation.
+        TokenKind::Template => false,
+        TokenKind::Number | TokenKind::String | TokenKind::Regex => true,
+        // Reading a binding is pure. A property name is reached through `.`,
+        // which is rejected below, so it never gets here.
+        TokenKind::Identifier => true,
+        TokenKind::Keyword => matches!(
+            token.text,
+            "return" | "typeof" | "void" | "if" | "while" | "true" | "false" | "null"
+        ),
+        TokenKind::Punct => match token.text {
+            // Member access can run a getter.
+            "." | "?." | "[" | "]" => false,
+            // A `(` that follows a value is a call; otherwise it groups.
+            "(" => index.checked_sub(1).is_none_or(|previous| {
+                !matches!(tokens[previous].kind, TokenKind::Identifier)
+                    && !matches!(tokens[previous].text, ")" | "]")
+            }),
+            ")" => true,
+            "!" | "~" | "+" | "-" | "*" | "/" | "%" | "**" | "<<" | ">>" | ">>>" | "<" | "<="
+            | ">" | ">=" | "==" | "!=" | "===" | "!==" | "&" | "^" | "|" | "&&" | "||" | "??"
+            | "?" | ":" => true,
+            _ => false,
+        },
+    }
+}
+
 pub(crate) fn fold_statement_assignments_into_first_use(
     source: &str,
 ) -> Result<(String, usize), JavaScriptParseError> {
@@ -1251,37 +1291,24 @@ pub(crate) fn fold_statement_assignments_into_first_use(
         let mut use_at = None;
         for index in next_start..next_end {
             let token = &tokens[index];
-            if token.kind == TokenKind::Identifier {
-                if token.text == name && !is_property_identifier(&tokens, index) {
-                    if name_use_is_mutated(&tokens, index) {
-                        // A simple assignment target itself has no observable
-                        // evaluation. Search its right side for the first read.
-                        if tokens.get(index + 1).map(|token| token.text) == Some("=") {
-                            continue;
-                        }
-                        break;
+            if token.kind == TokenKind::Identifier
+                && token.text == name
+                && !is_property_identifier(&tokens, index)
+            {
+                if name_use_is_mutated(&tokens, index) {
+                    // A simple assignment target itself has no observable
+                    // evaluation. Search its right side for the first read.
+                    if tokens.get(index + 1).map(|token| token.text) == Some("=") {
+                        continue;
                     }
-                    use_at = Some(index);
                     break;
                 }
-                if matches!(
-                    token.text,
-                    "return"
-                        | "typeof"
-                        | "void"
-                        | "if"
-                        | "while"
-                        | "true"
-                        | "false"
-                        | "null"
-                        | "undefined"
-                ) || tokens.get(index + 1).map(|token| token.text) == Some("=")
-                {
-                    continue;
-                }
+                use_at = Some(index);
                 break;
             }
-            if !statement_assignment_inert_prefix_token(token) {
+            // Everything before the read has to be evaluated where it already
+            // is, so it may not observe or disturb the value being moved.
+            if !prefix_cannot_observe(&tokens, index) {
                 break;
             }
         }
@@ -1318,36 +1345,6 @@ pub(crate) fn fold_statement_assignments_into_first_use(
         ));
     }
     Ok(apply_token_rewrites(source, replacements))
-}
-
-fn statement_assignment_inert_prefix_token(token: &Token<'_>) -> bool {
-    matches!(token.kind, TokenKind::Number | TokenKind::String)
-        || matches!(
-            token.text,
-            "(" | ")"
-                | "return"
-                | "if"
-                | "while"
-                | "typeof"
-                | "void"
-                | "true"
-                | "false"
-                | "null"
-                | "undefined"
-                | "!"
-                | "~"
-                | "+"
-                | "-"
-                | "="
-                | "=="
-                | "!="
-                | "==="
-                | "!=="
-                | "<"
-                | "<="
-                | ">"
-                | ">="
-        )
 }
 
 fn sequence_assignment_inert_prefix_token(token: &Token<'_>) -> bool {

@@ -3,7 +3,7 @@ use crate::js_peephole::rewrite::{
 };
 use crate::js_peephole::scope::{
     name_is_bound_in_nested_function_between, nested_function_end, parse_function_expression,
-    FunctionExpression,
+    same_scope_name_is_read_after, FunctionExpression,
 };
 use crate::js_peephole::token::{
     ascii_identifier_name_string, lex, matching_closers, matching_openers, Token, TokenKind,
@@ -32,6 +32,11 @@ struct Accessor {
     set_params: String,
     set_body: String,
     computed: bool,
+}
+
+struct Field {
+    name: String,
+    value: String,
 }
 
 fn statement_boundary(prev: Option<&str>) -> bool {
@@ -187,6 +192,30 @@ fn constructor_this_aliases<'a>(
         index += 1;
     }
     aliases
+}
+
+/// Does anything treat this binding as a constructor?
+///
+/// `return this` alone does not. A fluent method returns `this` for chaining —
+/// unified's `freeze()` and `use()` both do — and turning one into a `class`
+/// makes every call site throw `Class constructor cannot be invoked without
+/// 'new'`. A `new` site or any touch of its `prototype` is what separates a
+/// constructor from a method that happens to be chainable.
+fn binding_has_constructor_evidence(tokens: &[Token<'_>], name: &str) -> bool {
+    tokens.windows(2).any(|pair| {
+        pair[0].text == "new" && pair[1].kind == TokenKind::Identifier && pair[1].text == name
+    }) || tokens.windows(3).any(|triple| {
+        triple[0].kind == TokenKind::Identifier
+            && triple[0].text == name
+            && triple[1].text == "."
+            && triple[2].text == "prototype"
+    }) || tokens.windows(4).any(|quad| {
+        quad[0].kind == TokenKind::Identifier
+            && quad[0].text == name
+            && quad[1].text == "["
+            && is_quoted_name(&quad[2], "prototype")
+            && quad[3].text == "]"
+    })
 }
 
 fn last_return_this(tokens: &[Token<'_>], body_open: usize, body_close: usize) -> bool {
@@ -397,6 +426,148 @@ fn take_class_method_value<'a>(
     take_method_function(source, tokens, matching_close, at)
         .or_else(|| take_bind_this_method(source, tokens, matching_close, at))
         .or_else(|| take_bound_helper_call(source, tokens, matching_close, at))
+}
+
+fn take_literal_field_rhs(tokens: &[Token<'_>], at: usize) -> Option<usize> {
+    if tokens.get(at).map(|token| token.text) == Some("!")
+        && matches!(tokens.get(at + 1).map(|token| token.text), Some("0" | "1"))
+    {
+        return Some(at + 1);
+    }
+    if tokens.get(at).map(|token| token.text) == Some("void")
+        && tokens.get(at + 1).map(|token| token.text) == Some("0")
+    {
+        return Some(at + 1);
+    }
+    if matches!(
+        tokens.get(at).map(|token| token.kind),
+        Some(TokenKind::Number | TokenKind::String)
+    ) || matches!(
+        tokens.get(at).map(|token| token.text),
+        Some("true" | "false" | "null" | "undefined")
+    ) {
+        return Some(at);
+    }
+    None
+}
+
+fn quoted_identifier_key<'a>(token: &Token<'a>) -> Option<&'a str> {
+    let text = token.text;
+    let inner = text
+        .strip_prefix('"')
+        .and_then(|text| text.strip_suffix('"'))
+        .or_else(|| {
+            text.strip_prefix('\'')
+                .and_then(|text| text.strip_suffix('\''))
+        })?;
+    if inner.is_empty() {
+        return None;
+    }
+    let mut chars = inner.chars();
+    let first = chars.next()?;
+    if !(first.is_ascii_alphabetic() || first == '_' || first == '$') {
+        return None;
+    }
+    if chars.any(|c| !(c.is_ascii_alphanumeric() || c == '_' || c == '$')) {
+        return None;
+    }
+    if is_reserved_method_name(inner) {
+        return None;
+    }
+    Some(inner)
+}
+
+fn identifier_property_name<'a>(tokens: &'a [Token<'a>], at: usize) -> Option<(&'a str, usize)> {
+    if tokens.get(at).map(|token| token.text) == Some(".")
+        && tokens.get(at + 1).is_some_and(is_method_name)
+    {
+        return Some((tokens[at + 1].text, at + 1));
+    }
+    if tokens.get(at).map(|token| token.text) == Some("[")
+        && tokens.get(at + 2).map(|token| token.text) == Some("]")
+    {
+        let name = quoted_identifier_key(tokens.get(at + 1)?)?;
+        return Some((name, at + 2));
+    }
+    None
+}
+
+fn prototype_member_end(tokens: &[Token<'_>], at: usize) -> Option<usize> {
+    if tokens.get(at).map(|token| token.text) == Some(".")
+        && tokens.get(at + 1).map(|token| token.text) == Some("prototype")
+    {
+        return Some(at + 1);
+    }
+    if tokens.get(at).map(|token| token.text) == Some("[")
+        && tokens
+            .get(at + 1)
+            .is_some_and(|token| is_quoted_name(token, "prototype"))
+        && tokens.get(at + 2).map(|token| token.text) == Some("]")
+    {
+        return Some(at + 2);
+    }
+    None
+}
+
+fn take_proto_literal_field<'a>(
+    source: &'a str,
+    tokens: &'a [Token<'a>],
+    scan: usize,
+    alias: &str,
+    class_name: &str,
+) -> Option<(Field, usize)> {
+    let (name, value_at) =
+        if !alias.is_empty() && tokens.get(scan).map(|token| token.text) == Some(alias) {
+            let (name, last) = identifier_property_name(tokens, scan + 1)?;
+            if tokens.get(last + 1).map(|token| token.text) != Some("=") {
+                return None;
+            }
+            (name, last + 2)
+        } else if tokens.get(scan).map(|token| token.text) == Some(class_name) {
+            let proto_last = prototype_member_end(tokens, scan + 1)?;
+            let (name, last) = identifier_property_name(tokens, proto_last + 1)?;
+            if tokens.get(last + 1).map(|token| token.text) != Some("=") {
+                return None;
+            }
+            (name, last + 2)
+        } else {
+            return None;
+        };
+    let value_end = take_literal_field_rhs(tokens, value_at)?;
+    if !matches!(
+        tokens.get(value_end + 1).map(|token| token.text),
+        None | Some("," | ";")
+    ) {
+        return None;
+    }
+    Some((
+        Field {
+            name: name.to_string(),
+            value: source[tokens[value_at].start..tokens[value_end].end].to_string(),
+        },
+        value_end,
+    ))
+}
+
+fn emit_proto_data_fields(
+    class: &mut String,
+    class_name: &str,
+    alias: Option<&str>,
+    fields: &[Field],
+) {
+    for field in fields {
+        if let Some(alias) = alias {
+            class.push_str(alias);
+            class.push('.');
+        } else {
+            class.push_str(class_name);
+            class.push_str(".prototype.");
+        }
+        class.push_str(&field.name);
+        class.push('=');
+        class.push_str(&field.value);
+        class.push(';');
+    }
 }
 
 fn wrapper_returns_receiver_call(
@@ -1018,6 +1189,42 @@ fn is_javascript_identifier_byte(byte: u8) -> bool {
     byte.is_ascii_alphanumeric() || byte == b'_' || byte == b'$'
 }
 
+fn formal_is_whole_identifier_at(bytes: &[u8], at: usize, formal: &str) -> bool {
+    let end = at + formal.len();
+    if end > bytes.len() || &bytes[at..end] != formal.as_bytes() {
+        return false;
+    }
+    let before_ok = at == 0 || {
+        let prev = bytes[at - 1];
+        !is_javascript_identifier_byte(prev) && prev != b'.' && prev != b'?'
+    };
+    let after_ok = end == bytes.len() || !is_javascript_identifier_byte(bytes[end]);
+    before_ok && after_ok
+}
+
+fn find_formal_pattern(body: &str, pattern: &str, formal: &str) -> Option<usize> {
+    let bytes = body.as_bytes();
+    let mut from = 0usize;
+    while let Some(rel) = body[from..].find(pattern) {
+        let at = from + rel;
+        if formal_is_whole_identifier_at(bytes, at, formal) {
+            return Some(at);
+        }
+        from = at + 1;
+    }
+    None
+}
+
+fn starts_with_whole_formal(rest: &str, prefix: &str, formal: &str) -> bool {
+    let Some(stripped) = rest.strip_prefix(prefix) else {
+        return false;
+    };
+    if !stripped.starts_with(formal) {
+        return false;
+    }
+    formal_is_whole_identifier_at(stripped.as_bytes(), 0, formal)
+}
+
 /// Moving a conditional fallback into the parameter list changes the formal
 /// before any body statement runs. It is therefore valid only when the
 /// conditional is the binding's first observation. An immediate `name=` is
@@ -1058,7 +1265,7 @@ fn recover_default_params(params: &str, body: &str, formals: &[&str]) -> (String
     let mut rewritten = body.to_string();
     for (index, formal) in formals.iter().enumerate() {
         let copy_void = format!("{formal}={formal}===void 0?");
-        if let Some(at) = rewritten.find(&copy_void) {
+        if let Some(at) = find_formal_pattern(&rewritten, &copy_void, formal) {
             let after = at + copy_void.len();
             let rest = &rewritten[after..];
             let end = scan_default_literal_end(rest);
@@ -1068,7 +1275,7 @@ fn recover_default_params(params: &str, body: &str, formals: &[&str]) -> (String
                 && !default_reads_later_formal(default, formals, index)
             {
                 let after_default = after + end;
-                if rewritten[after_default..].starts_with(&format!(":{formal}")) {
+                if starts_with_whole_formal(&rewritten[after_default..], ":", formal) {
                     defaults[index] = Some(default.to_string());
                     let mut stop = after_default + 1 + formal.len();
                     if rewritten[stop..].starts_with(';') {
@@ -1079,20 +1286,8 @@ fn recover_default_params(params: &str, body: &str, formals: &[&str]) -> (String
                 }
             }
         }
-        let or_void = format!("{formal}===void 0||(");
-        if let Some(at) = rewritten.find(&or_void) {
-            let after = at + or_void.len();
-            if let Some(close) = rewritten[after..].find(')') {
-                let inner = rewritten[after..after + close].to_string();
-                if inner.contains(formal) && !inner.contains('(') {
-                    defaults[index] = Some("0".to_string());
-                    rewritten.replace_range(at..after + close + 1, &inner);
-                    continue;
-                }
-            }
-        }
         let and_void = format!("{formal}===void 0&&(");
-        if let Some(at) = rewritten.find(&and_void) {
+        if let Some(at) = find_formal_pattern(&rewritten, &and_void, formal) {
             let after = at + and_void.len();
             if let Some(close) = rewritten[after..].find(')') {
                 let inner = rewritten[after..after + close].to_string();
@@ -1116,7 +1311,7 @@ fn recover_default_params(params: &str, body: &str, formals: &[&str]) -> (String
             }
         }
         let field_void = format!("{formal}===void 0?this.");
-        if let Some(at) = rewritten.find(&field_void) {
+        if let Some(at) = find_formal_pattern(&rewritten, &field_void, formal) {
             let after = at + field_void.len();
             let rest = &rewritten[after..];
             if let Some(eq) = rest.find('=') {
@@ -1149,7 +1344,7 @@ fn recover_default_params(params: &str, body: &str, formals: &[&str]) -> (String
             format!("{formal}!==void 0?{formal}:"),
         ];
         for pattern in &patterns {
-            if let Some(at) = rewritten.find(pattern) {
+            if let Some(at) = find_formal_pattern(&rewritten, pattern, formal) {
                 if !default_pattern_is_first_formal_observation(&rewritten, at, formal) {
                     continue;
                 }
@@ -1224,16 +1419,18 @@ fn rewrite_optional_length_guards(body: &str, formals: &[&str]) -> String {
             while let Some(at) = rewritten.find(guard) {
                 let after = at + guard.len();
                 let rest = &rewritten[after..];
-                if rest.starts_with(&format!("{formal}!==void 0"))
-                    || rest.starts_with(&format!("{formal}!=null"))
-                    || rest.starts_with(&format!("{formal}&&"))
-                    || rest.starts_with(&format!("{formal}?"))
+                if starts_with_whole_formal(rest, "", formal)
+                    && (rest[formal.len()..].starts_with("!==void 0")
+                        || rest[formal.len()..].starts_with("!=null")
+                        || rest[formal.len()..].starts_with("&&")
+                        || rest[formal.len()..].starts_with("?"))
                 {
                     rewritten.replace_range(at..after, "");
                     continue;
                 }
-                if rest.starts_with(&format!("{formal},"))
-                    || rest.starts_with(&format!("{formal};"))
+                if starts_with_whole_formal(rest, "", formal)
+                    && (rest[formal.len()..].starts_with(',')
+                        || rest[formal.len()..].starts_with(';'))
                 {
                     rewritten.replace_range(at..after, "");
                     continue;
@@ -1257,6 +1454,7 @@ fn emit_class(
     ctor_body: &str,
     methods: &[Method],
     accessors: &[Accessor],
+    fields: &[Field],
     proto_alias: Option<&str>,
     proto_alias_keyword: Option<&str>,
     declaration_keyword: Option<&str>,
@@ -1282,8 +1480,11 @@ fn emit_class(
     } else {
         class.push_str(name);
         class.push('=');
-        class.push_str("class ");
-        class.push_str(identity);
+        class.push_str("class");
+        if identity != name {
+            class.push(' ');
+            class.push_str(identity);
+        }
     }
     if let Some(parent) = base {
         class.push_str(" extends ");
@@ -1333,6 +1534,12 @@ fn emit_class(
             class.push_str(".prototype;");
         }
     }
+    emit_proto_data_fields(
+        &mut class,
+        name,
+        emit_proto_alias.then_some(proto_alias).flatten(),
+        fields,
+    );
     class
 }
 
@@ -1575,33 +1782,13 @@ fn observed_constructor_name<'a>(
     None
 }
 
-fn identifier_is_read_after(tokens: &[Token<'_>], name: &str, from: usize) -> bool {
-    let mut index = from;
-    let mut depth = 0i32;
-    while index < tokens.len() {
-        match tokens[index].text {
-            "{" | "(" | "[" => depth += 1,
-            "}" | ")" | "]" => {
-                if depth == 0 {
-                    return false;
-                }
-                depth -= 1;
-            }
-            _ => {}
-        }
-        if tokens[index].kind == TokenKind::Identifier
-            && tokens[index].text == name
-            && !is_property_identifier(tokens, index)
-        {
-            if tokens.get(index + 1).map(|token| token.text) == Some("=") {
-                index += 1;
-                continue;
-            }
-            return true;
-        }
-        index += 1;
-    }
-    false
+fn identifier_is_read_after(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    name: &str,
+    from: usize,
+) -> bool {
+    same_scope_name_is_read_after(tokens, matching_close, name, from)
 }
 
 fn pooled_identifier_strings<'a>(
@@ -2196,10 +2383,21 @@ fn infer_base_from_ctor_call<'a>(
         if depth == 0
             && tokens[index].kind == TokenKind::Identifier
             && tokens[index].text != name
+            // The base must be a binding, not the tail of a member chain.
+            // `Array.prototype.push.call(...)` matched on `push`, which names
+            // nothing, and the class was emitted as `extends push`.
+            && !index
+                .checked_sub(1)
+                .is_some_and(|previous| matches!(tokens[previous].text, "." | "?."))
             && tokens.get(index + 1).map(|token| token.text) == Some(".")
             && tokens.get(index + 2).map(|token| token.text) == Some("call")
             && tokens.get(index + 3).map(|token| token.text) == Some("(")
             && tokens.get(index + 4).map(|token| token.text) == Some("this")
+            // …and `this` must be the receiver itself. `f.call(this.items, x)`
+            // borrows `f` for a field; it says nothing about a base class.
+            && tokens
+                .get(index + 5)
+                .is_some_and(|token| matches!(token.text, "," | ")"))
         {
             return Some(tokens[index].text);
         }
@@ -2315,7 +2513,7 @@ fn identifier_is_later_non_prototype(tokens: &[Token<'_>], name: &str, after: us
             index += 1;
             continue;
         }
-        if tokens.get(name_at + 3).map(|token| token.text) == Some("prototype") {
+        if match_name_prototype(tokens, name_at + 2, None).is_some() {
             return false;
         }
         return true;
@@ -2340,7 +2538,7 @@ fn identifier_has_prototype_assign_before(tokens: &[Token<'_>], name: &str, befo
             continue;
         };
         if tokens.get(name_at + 1).map(|token| token.text) == Some("=")
-            && tokens.get(name_at + 3).map(|token| token.text) == Some("prototype")
+            && match_name_prototype(tokens, name_at + 2, None).is_some()
         {
             return true;
         }
@@ -2380,22 +2578,36 @@ fn parent_alias_is_unusable_prototype(
     call_at: usize,
     after: usize,
 ) -> bool {
+    if identifier_has_prototype_assign_before(tokens, name, call_at) {
+        return false;
+    }
     if identifier_is_later_non_prototype(tokens, name, after) {
         return true;
     }
     identifier_is_locally_declared(tokens, name)
-        && !identifier_has_prototype_assign_before(tokens, name, call_at)
 }
 
 fn strip_dangling_set_prototype_of(source: &str) -> Result<(String, usize), JavaScriptParseError> {
     let tokens = lex(source)?;
     let matching_close = matching_closers(&tokens);
     let wrappers = set_prototype_of_wrappers(&tokens, &matching_close);
+    let proto_aliases = prototype_alias_assignments(&tokens);
+    let bare_classes = class_sites(&tokens, &matching_close)
+        .into_iter()
+        .filter(|site| !site.has_extends)
+        .map(|site| site.name)
+        .collect::<std::collections::HashSet<_>>();
     let mut replacements = Vec::new();
     let mut index = 0usize;
     while index + 2 < tokens.len() {
         if let Some(open) = set_prototype_of_open(&tokens, index, &wrappers) {
-            if let Some((_, _, parent_at, close)) = split_two_arg_call(&tokens, open) {
+            if let Some((_, comma, parent_at, close)) = split_two_arg_call(&tokens, open) {
+                if call_child_class(&tokens, open + 1, comma, &proto_aliases, index)
+                    .is_some_and(|name| bare_classes.contains(name))
+                {
+                    index = close + 1;
+                    continue;
+                }
                 if tokens
                     .get(parent_at)
                     .is_some_and(|token| token.kind == TokenKind::Identifier)
@@ -2508,6 +2720,7 @@ pub(crate) fn fold_constructor_prototype_tables_to_classes(
         if function.named
             || function.is_arrow
             || !last_return_this(&tokens, block_open, function.end)
+            || !binding_has_constructor_evidence(&tokens, tokens[name_at].text)
         {
             cursor += 1;
             continue;
@@ -2523,10 +2736,12 @@ pub(crate) fn fold_constructor_prototype_tables_to_classes(
         let name = tokens[name_at].text;
         let mut scan = skip_separators(&tokens, end + 1);
         let mut methods = Vec::<Method>::new();
+        let mut fields = Vec::<Field>::new();
         let mut proto_alias: Option<&str> = None;
         let mut proto_alias_keyword: Option<&str> = None;
         let mut base: Option<&str> = None;
         let mut base_alias: Option<(&str, &str)> = None;
+        let mut preserved_set_proto: Option<String> = None;
         let mut fused_end = tokens[end].end;
         let mut live_capture_alias: Option<&str> = None;
         let mut restored_lengths = Vec::<(&str, i32)>::new();
@@ -2578,6 +2793,7 @@ pub(crate) fn fold_constructor_prototype_tables_to_classes(
                 &set_proto_wrappers,
             ) {
                 base = Some(parent);
+                preserved_set_proto = None;
                 fused_end = tokens[last].end;
                 scan = skip_separators(&tokens, last + 1);
                 continue;
@@ -2585,6 +2801,27 @@ pub(crate) fn fold_constructor_prototype_tables_to_classes(
             if let Some(last) =
                 consume_set_prototype_of(&tokens, scan, name, proto_alias, &set_proto_wrappers)
             {
+                // Swallowing `setPrototypeOf` here lets later methods fold into
+                // the class, but it is not itself proof of `extends`. If the
+                // constructor never spelled `Parent.call(this)`, dropping the
+                // call leaves instances without the parent's methods.
+                if base.is_none() {
+                    let parent = base_alias.map(|(_, origin)| format!("{origin}.prototype"));
+                    let rewritten = if let Some(parent) = parent {
+                        format!("Object.setPrototypeOf({name}.prototype,{parent})")
+                    } else if let Some((_, _, parent_at, close)) =
+                        set_prototype_of_open(&tokens, scan, &set_proto_wrappers)
+                            .and_then(|open| split_two_arg_call(&tokens, open))
+                    {
+                        format!(
+                            "Object.setPrototypeOf({name}.prototype,{})",
+                            &source[tokens[parent_at].start..tokens[close].start]
+                        )
+                    } else {
+                        source[tokens[scan].start..tokens[last].end].to_string()
+                    };
+                    preserved_set_proto = Some(rewritten);
+                }
                 fused_end = tokens[last].end;
                 scan = skip_separators(&tokens, last + 1);
                 continue;
@@ -2595,6 +2832,14 @@ pub(crate) fn fold_constructor_prototype_tables_to_classes(
                 continue;
             }
             let alias = proto_alias.unwrap_or("");
+            if let Some((field, last)) =
+                take_proto_literal_field(source, &tokens, scan, alias, name)
+            {
+                fused_end = tokens[last].end;
+                scan = skip_separators(&tokens, last + 1);
+                fields.push(field);
+                continue;
+            }
             if !alias.is_empty()
                 && tokens.get(scan).map(|token| token.text) == Some(alias)
                 && tokens.get(scan + 1).map(|token| token.text) == Some(".")
@@ -2732,7 +2977,7 @@ pub(crate) fn fold_constructor_prototype_tables_to_classes(
                         restored_lengths.push((method_name, length));
                     }
                     let after_install = skip_separators(&tokens, installed + 1);
-                    if identifier_is_read_after(&tokens, alias, after_install) {
+                    if identifier_is_read_after(&tokens, &matching_close, alias, after_install) {
                         if declared {
                             live_capture_alias = Some(alias);
                         }
@@ -2743,7 +2988,7 @@ pub(crate) fn fold_constructor_prototype_tables_to_classes(
                     scan = after_install;
                     continue;
                 }
-                if identifier_is_read_after(&tokens, alias, after_capture) {
+                if identifier_is_read_after(&tokens, &matching_close, alias, after_capture) {
                     break;
                 }
                 live_capture_alias = None;
@@ -2753,14 +2998,23 @@ pub(crate) fn fold_constructor_prototype_tables_to_classes(
             }
             break;
         }
-        let live_alias_decl =
-            live_capture_alias.filter(|alias| identifier_is_read_after(&tokens, alias, scan));
+        if scan > 0 {
+            let previous = &tokens[scan - 1];
+            if matches!(previous.text, "," | ";") && previous.end > fused_end {
+                let between = &source[fused_end..previous.start];
+                if between.chars().all(char::is_whitespace) {
+                    fused_end = previous.end;
+                }
+            }
+        }
+        let live_alias_decl = live_capture_alias
+            .filter(|alias| identifier_is_read_after(&tokens, &matching_close, alias, scan));
         let this_aliases = constructor_this_aliases(&tokens, block_open, function.end);
         let ctor_source = strip_trailing_return_this(
             &source[tokens[block_open + 1].start..tokens[function.end].start],
             &this_aliases,
         );
-        if methods.is_empty() && ctor_source.trim().is_empty() {
+        if methods.is_empty() && fields.is_empty() && ctor_source.trim().is_empty() {
             cursor = name_at + 1;
             continue;
         }
@@ -2795,6 +3049,7 @@ pub(crate) fn fold_constructor_prototype_tables_to_classes(
                     scan = skip_separators(&tokens, last + 1);
                 }
                 base = Some(parent);
+                preserved_set_proto = None;
             }
         }
         if let Some(parent) = base {
@@ -2803,8 +3058,8 @@ pub(crate) fn fold_constructor_prototype_tables_to_classes(
         let pooled = pooled_identifier_strings(&tokens);
         let observed_name =
             observed_constructor_name(&tokens, &matching_close, scan, name, &pooled);
-        let emit_proto_alias =
-            proto_alias.is_some_and(|alias| identifier_is_read_after(&tokens, alias, scan));
+        let emit_proto_alias = proto_alias
+            .is_some_and(|alias| identifier_is_read_after(&tokens, &matching_close, alias, scan));
         let mut emitted = emit_class(
             name,
             base,
@@ -2812,12 +3067,21 @@ pub(crate) fn fold_constructor_prototype_tables_to_classes(
             &ctor_body,
             &methods,
             &[],
+            &fields,
             proto_alias,
             proto_alias_keyword,
             matches!(tokens[decl_at].text, "var" | "let" | "const").then_some(tokens[decl_at].text),
             observed_name,
             emit_proto_alias,
         );
+        if base.is_none() {
+            if let Some(call) = preserved_set_proto.as_deref() {
+                emitted.push_str(call);
+                if !call.ends_with(';') {
+                    emitted.push(';');
+                }
+            }
+        }
         if let Some(alias) = live_alias_decl {
             emitted.push_str("let ");
             emitted.push_str(alias);
@@ -2858,6 +3122,7 @@ pub(crate) fn fold_constructor_prototype_tables_to_classes(
     let (source, assign_count) = fold_or_empty_object_assign(&source)?;
     let (source, async_count) = repair_async_functions(&source)?;
     let (source, target_count) = rewrite_class_ctor_identity_to_new_target(&source)?;
+    let (source, comma_count) = super::fold_empty_comma_operators(&source)?;
     Ok((
         source,
         class_count
@@ -2873,7 +3138,8 @@ pub(crate) fn fold_constructor_prototype_tables_to_classes(
             + identity_count
             + assign_count
             + async_count
-            + target_count,
+            + target_count
+            + comma_count,
     ))
 }
 
@@ -4007,6 +4273,13 @@ fn constructor_leading_base_call<'a>(
         && tokens.get(start + 2).map(|token| token.text) == Some("call")
         && tokens.get(start + 3).map(|token| token.text) == Some("(")
         && tokens.get(start + 4).map(|token| token.text) == Some("this")
+        // The receiver has to be `this` itself. `push.call(this.fns, item)` is
+        // a method call on a field and says nothing about a base class; reading
+        // it as one produced `class X extends push`, where `push` names no
+        // binding at all.
+        && tokens
+            .get(start + 5)
+            .is_some_and(|token| matches!(token.text, "," | ")"))
     {
         return Some(tokens[start].text);
     }
@@ -4525,6 +4798,23 @@ fn absorb_prototype_members_into_classes(
                     tokens[start].start
                 }
             };
+            let alias_for_class = proto_aliases
+                .iter()
+                .rev()
+                .find(|(_, _, owner)| *owner == *class_name)
+                .map(|(_, alias, _)| *alias)
+                .unwrap_or("");
+            if let Some((field, last)) =
+                take_proto_literal_field(source, &tokens, scan, alias_for_class, class_name)
+            {
+                replacements.push((
+                    tokens[scan].start,
+                    tokens[last].end,
+                    format!("{class_name}.prototype.{}={}", field.name, field.value),
+                ));
+                scan = last + 1;
+                continue;
+            }
             if tokens
                 .get(scan)
                 .is_some_and(|token| token.kind == TokenKind::Identifier)
@@ -5258,7 +5548,7 @@ mod tests {
     use super::{
         fold_constructor_prototype_tables_to_classes, fold_fresh_empty_object_assign,
         fold_indexed_arguments_to_formals, fold_named_class_identity, fold_or_empty_object_assign,
-        fold_undefined_defaults_into_formals, repair_async_functions,
+        fold_undefined_defaults_into_formals, repair_async_functions, strip_stale_set_prototype_of,
     };
 
     /// A parameter list is its own TDZ scope, so a body assignment that reads a
@@ -5321,6 +5611,41 @@ mod tests {
         let (out, count) = fold_undefined_defaults_into_formals(source).unwrap();
         assert_eq!(count, 0, "{out}");
         assert_eq!(out, source);
+    }
+
+    #[test]
+    fn void_or_guard_on_a_member_is_not_a_numeric_parameter_default() {
+        let source = "function end(a){Ea!=(a.da|0)&&p(30);a.ja===void 0||(i.suppressReactionErrors=!0);i.suppressReactionErrors=!1}";
+        let (out, count) = fold_undefined_defaults_into_formals(source).unwrap();
+        assert_eq!(count, 0, "{out}");
+        assert_eq!(out, source);
+        assert!(!out.contains("a=0"), "{out}");
+        assert!(!out.contains("a.ji.suppressReactionErrors"), "{out}");
+        assert!(out.contains("i.suppressReactionErrors=!0"), "{out}");
+    }
+
+    #[test]
+    fn defined_or_body_does_not_become_a_zero_default() {
+        let source = "function end(a){a===void 0||(Ea!=(a.da|0)&&p(30));return a}";
+        let (out, count) = fold_undefined_defaults_into_formals(source).unwrap();
+        assert_eq!(count, 0, "{out}");
+        assert_eq!(out, source);
+        assert!(!out.contains("a=0"), "{out}");
+    }
+
+    #[test]
+    fn member_undefined_guard_keeps_assignment_on_the_other_object() {
+        use crate::js_peephole::optimize_generated_javascript;
+        let source = "function Zb(a){Ea!=(a.da|0)&&p(30),Ea=a.na|0,a.ja===void 0||(i.suppressReactionErrors=!0),B(),!a.pa||T(a.oa),i.suppressReactionErrors=!1}";
+        let out = optimize_generated_javascript(source).unwrap().code;
+        assert!(!out.contains("a=0"), "{out}");
+        assert!(!out.contains("a.ji.suppressReactionErrors"), "{out}");
+        assert!(
+            out.contains("i.suppressReactionErrors=!0")
+                || out.contains("i.suppressReactionErrors=true"),
+            "{out}"
+        );
+        assert!(out.contains("a.ja"), "{out}");
     }
 
     #[test]
@@ -5561,6 +5886,59 @@ mod tests {
         assert!(out.contains("class w extends j{"), "{out}");
         assert!(out.contains("super(n)"), "{out}");
         assert!(out.contains("get(){return this.a}"), "{out}");
+    }
+
+    #[test]
+    fn keeps_set_prototype_of_when_parent_constructor_was_inlined() {
+        let source = "var P=(0,function(n){this.name_=n;return this});a=P.prototype,a.onBO=function(){return this.name_};var C=(0,function(v,n){this.name_=n;this.value_=v;return this});k=C.prototype;var u=P.prototype;Object.setPrototypeOf(k,u);k.get=function(){return this.value_};var x=new C(7,\"n\");x.onBO()+x.get()";
+        let (out, count) = fold_constructor_prototype_tables_to_classes(source).unwrap();
+        assert!(count >= 1, "{out}");
+        assert!(
+            out.contains("extends P") || out.contains("setPrototypeOf"),
+            "{out}"
+        );
+        let optimized = crate::js_peephole::optimize_generated_javascript(&out)
+            .expect("fused subclass must remain valid");
+        assert!(
+            optimized.code.contains("extends P") || optimized.code.contains("setPrototypeOf"),
+            "{}",
+            optimized.code
+        );
+        let output = std::process::Command::new("node")
+            .arg("-e")
+            .arg(format!(
+                "let r;{};r=x.onBO()+x.get();process.stdout.write(''+r)",
+                optimized.code
+            ))
+            .output()
+            .expect("node must execute fused subclass");
+        assert!(
+            output.status.success(),
+            "node failed:\n{}\n{}",
+            String::from_utf8_lossy(&output.stderr),
+            optimized.code
+        );
+        assert_eq!(
+            String::from_utf8(output.stdout).expect("node stdout is UTF-8"),
+            "n7",
+            "{}",
+            optimized.code
+        );
+    }
+
+    #[test]
+    fn does_not_strip_set_prototype_of_from_a_bare_fused_class() {
+        let source = "class C{constructor(v,n){this.name_=n;this.value_=v}get(){return this.value_}}class P{constructor(n){this.name_=n}onBO(){return this.name_}}Object.setPrototypeOf(C.prototype,P.prototype);var x=new C(7,\"n\");x.onBO()+x.get()";
+        let (out, count) = strip_stale_set_prototype_of(source).unwrap();
+        assert_eq!(count, 0, "{out}");
+        assert!(out.contains("setPrototypeOf"), "{out}");
+        let optimized = crate::js_peephole::optimize_generated_javascript(source)
+            .expect("bare class plus setPrototypeOf must remain valid");
+        assert!(
+            optimized.code.contains("setPrototypeOf") || optimized.code.contains("extends"),
+            "{}",
+            optimized.code
+        );
     }
 
     #[test]
@@ -6302,6 +6680,307 @@ mod tests {
         assert_eq!(
             String::from_utf8_lossy(&runtime.stdout).trim(),
             "'TypeError' captured as exception|true",
+            "{}",
+            optimized.code
+        );
+    }
+
+    #[test]
+    fn fuses_comma_reassigned_prototype_alias_with_default_param() {
+        let source = concat!(
+            r#"function Wt(e){}function Kt(e){}function x(e){return 1}function C(e){}"#,
+            r#"var S=(0,function(e="Atom"){return e=e+"",this.n=e,this.h=new Set,this.G=0,this.d=-1,this.k=0,this.onBOL=void 0,this.onBUOL=void 0,this});"#,
+            r#"e=S.prototype,e.onBO=function(){Wt(this)},e=S.prototype,e.onBUO=function(){Kt(this)},"#,
+            r#"e=S.prototype,e.reportObserved=function(){return x(this)},e=S.prototype,e.reportChanged=function(){C(this)},"#,
+            r#"e=S.prototype,e.toString=function(){return this.n};"#,
+            r#"var Qe=function(e){return new S(e)}"#,
+        );
+        let (out, count) = fold_constructor_prototype_tables_to_classes(source).unwrap();
+        assert!(count >= 1, "{out}");
+        assert!(
+            out.contains("class S{") || out.contains("class S ") || out.contains("S=class"),
+            "{out}"
+        );
+        assert!(out.contains("onBO("), "{out}");
+        assert!(out.contains("reportChanged("), "{out}");
+        assert!(!out.contains("e=S.prototype,e.onBO="), "{out}");
+        let optimized = crate::js_peephole::optimize_generated_javascript(source).unwrap();
+        assert!(optimized.code.contains("class"), "{}", optimized.code);
+        let runtime = std::process::Command::new("node")
+            .args([
+                "-e",
+                &format!(
+                    "{}; var a=new S('n'); console.log([a.n,a.toString(),typeof a.onBO].join('|'))",
+                    optimized.code
+                ),
+            ])
+            .output()
+            .expect("node");
+        assert!(
+            runtime.status.success(),
+            "{} {}",
+            String::from_utf8_lossy(&runtime.stderr),
+            optimized.code
+        );
+        assert_eq!(
+            String::from_utf8_lossy(&runtime.stdout).trim(),
+            "n|n|function",
+            "{}",
+            optimized.code
+        );
+    }
+
+    #[test]
+    fn fuses_constructor_tables_when_a_proto_alias_reuses_a_module_var() {
+        let source = concat!(
+            "var e=[];Object.freeze(e);var pt=e;",
+            "var C=(0,function(){this.x=1;return this});",
+            "e=C.prototype;e.m=function(){return this.x};",
+            "var k=Symbol.iterator,e=C.prototype;",
+            "e[k]=function(){return this};",
+            "export{C,pt}"
+        );
+        let (fused, count) = fold_constructor_prototype_tables_to_classes(source).unwrap();
+        assert!(count >= 1, "{fused}");
+        crate::js_peephole::analyze_generated_javascript(&fused)
+            .unwrap_or_else(|error| panic!("fused tables must be admitted: {error}\n{fused}"));
+        let optimized = crate::js_peephole::optimize_generated_javascript(source)
+            .unwrap_or_else(|error| panic!("{error}\n{source}"));
+        assert!(
+            optimized.code.contains("class"),
+            "constructor identity must spell as class when that form is admitted: {}",
+            optimized.code
+        );
+        assert!(
+            optimized.code.contains("[Symbol.iterator]"),
+            "{}",
+            optimized.code
+        );
+        crate::js_peephole::analyze_generated_javascript(&optimized.code).unwrap();
+    }
+
+    #[test]
+    fn fuses_prototype_data_properties_onto_the_prototype() {
+        let source = concat!(
+            "var C=(0,function(a){this.cause=a;return this});",
+            "a=C.prototype,a.isFlag=!0,a.tag=\"x\";"
+        );
+        let (fused, count) = fold_constructor_prototype_tables_to_classes(source).unwrap();
+        assert!(count >= 1, "{fused}");
+        assert!(fused.contains("class"), "{fused}");
+        assert!(
+            fused.contains("isFlag=!0") || fused.contains("prototype.isFlag=!0"),
+            "{fused}"
+        );
+        assert!(!fused.contains(",,"), "{fused}");
+        crate::js_peephole::analyze_generated_javascript(&fused)
+            .unwrap_or_else(|error| panic!("{error}\n{fused}"));
+        let runtime = std::process::Command::new("node")
+            .args([
+                "-e",
+                &format!(
+                    "{fused}; var x=new C(1); console.log([x.isFlag,Object.hasOwn(x,'isFlag'),Object.hasOwn(C.prototype,'isFlag'),x.tag].join('|'))"
+                ),
+            ])
+            .output()
+            .expect("node");
+        assert!(
+            runtime.status.success(),
+            "{} {}",
+            String::from_utf8_lossy(&runtime.stderr),
+            fused
+        );
+        assert_eq!(
+            String::from_utf8_lossy(&runtime.stdout).trim(),
+            "true|false|true|x",
+            "{fused}"
+        );
+    }
+
+    #[test]
+    fn fuses_quoted_prototype_data_properties() {
+        let source = concat!(
+            "var C=(0,function(a){this.cause=a;return this});",
+            "C[\"prototype\"][\"isFlag\"]=!0;"
+        );
+        let (fused, count) = fold_constructor_prototype_tables_to_classes(source).unwrap();
+        assert!(count >= 1, "{fused}");
+        assert!(
+            fused.contains("isFlag=!0") || fused.contains("prototype.isFlag=!0"),
+            "{fused}"
+        );
+        assert!(!fused.contains(",,"), "{fused}");
+        crate::js_peephole::analyze_generated_javascript(&fused)
+            .unwrap_or_else(|error| panic!("{error}\n{fused}"));
+    }
+
+    #[test]
+    fn keeps_set_prototype_of_when_parent_is_a_call_result_prototype() {
+        let source = concat!(
+            "function gError(){return Error}",
+            "var C=(0,function(){this.message=\"X\";return this});",
+            "Object.setPrototypeOf(C.prototype,gError().prototype);",
+            "C.prototype.toString=function(){return this.message};"
+        );
+        let (fused, count) = fold_constructor_prototype_tables_to_classes(source).unwrap();
+        assert!(count >= 1, "{fused}");
+        assert!(
+            fused.contains("setPrototypeOf") || fused.contains("extends"),
+            "{fused}"
+        );
+        crate::js_peephole::analyze_generated_javascript(&fused)
+            .unwrap_or_else(|error| panic!("{error}\n{fused}"));
+        let optimized = crate::js_peephole::optimize_generated_javascript(source)
+            .unwrap_or_else(|error| panic!("{error}\n{source}"));
+        assert!(
+            optimized.code.contains("setPrototypeOf") || optimized.code.contains("extends"),
+            "{}",
+            optimized.code
+        );
+        let runtime = std::process::Command::new("node")
+            .args([
+                "-e",
+                &format!(
+                    "{}; var x=new C(); console.log([x instanceof Error, x.toString()].join('|'))",
+                    optimized.code
+                ),
+            ])
+            .output()
+            .expect("node");
+        assert!(
+            runtime.status.success(),
+            "{} {}",
+            String::from_utf8_lossy(&runtime.stderr),
+            optimized.code
+        );
+        assert_eq!(
+            String::from_utf8_lossy(&runtime.stdout).trim(),
+            "true|X",
+            "{}",
+            optimized.code
+        );
+    }
+
+    #[test]
+    fn keeps_set_prototype_of_through_a_local_wrapper_and_call_parent() {
+        let source = concat!(
+            "var l=Object;",
+            "function N(a,b){return l.setPrototypeOf(a,b)}",
+            "function gError(){return Error}",
+            "var C=(0,function(){this.message=\"X\";return this});",
+            "N(C.prototype,gError().prototype);",
+            "C.prototype.toString=function(){return this.message};"
+        );
+        let optimized = crate::js_peephole::optimize_generated_javascript(source)
+            .unwrap_or_else(|error| panic!("{error}\n{source}"));
+        assert!(
+            optimized.code.contains("setPrototypeOf") || optimized.code.contains("extends"),
+            "{}",
+            optimized.code
+        );
+        let runtime = std::process::Command::new("node")
+            .args([
+                "-e",
+                &format!(
+                    "{}; var x=new C(); console.log([x instanceof Error, x.toString()].join('|'))",
+                    optimized.code
+                ),
+            ])
+            .output()
+            .expect("node");
+        assert!(
+            runtime.status.success(),
+            "{} {}",
+            String::from_utf8_lossy(&runtime.stderr),
+            optimized.code
+        );
+        assert_eq!(
+            String::from_utf8_lossy(&runtime.stdout).trim(),
+            "true|X",
+            "{}",
+            optimized.code
+        );
+    }
+
+    #[test]
+    fn keeps_prototype_link_when_parent_alias_is_reused_after_the_call() {
+        let source = concat!(
+            "var j=Object;",
+            "function y(a,b,c){j.defineProperty(a,b,c)}",
+            "var ba=(0,function(){return this.message=\"FLOW_CANCELLED\",this.name=\"FlowCancellationError\",this});",
+            "xe=Error.prototype,h=ba.prototype,j.setPrototypeOf(h,xe),h=ba.prototype,h.constructor=ba,",
+            "y(ba,\"name\",{value:\"FlowCancellationError\",configurable:!0}),h=ba.prototype,",
+            "h.toString=function(){return\"Error: \"+this.message},xe=function(a){return 1}",
+        );
+        let optimized = crate::js_peephole::optimize_generated_javascript(source)
+            .unwrap_or_else(|error| panic!("{error}\n{source}"));
+        assert!(
+            optimized.code.contains("setPrototypeOf") || optimized.code.contains("extends"),
+            "{}",
+            optimized.code
+        );
+        let runtime = std::process::Command::new("node")
+            .args([
+                "-e",
+                &format!(
+                    "{}; var x=new ba(); console.log([x instanceof Error, x.toString(), x.message].join('|'))",
+                    optimized.code
+                ),
+            ])
+            .output()
+            .expect("node");
+        assert!(
+            runtime.status.success(),
+            "{} {}",
+            String::from_utf8_lossy(&runtime.stderr),
+            optimized.code
+        );
+        assert_eq!(
+            String::from_utf8_lossy(&runtime.stdout).trim(),
+            "true|Error: FLOW_CANCELLED|FLOW_CANCELLED",
+            "{}",
+            optimized.code
+        );
+    }
+
+    #[test]
+    fn keeps_prototype_link_when_define_property_sits_between_methods() {
+        let source = concat!(
+            "var l=Object;",
+            "function y(a,b,c){l.defineProperty(a,b,c)}",
+            "function N(a,b){return l.setPrototypeOf(a,b)}",
+            "var C=(0,function(){this.message=\"X\";this.name=\"E\";return this});",
+            "N(C.prototype,Error.prototype);",
+            "C.prototype.constructor=C;",
+            "y(C,\"name\",{value:\"FlowCancellationError\",configurable:!0});",
+            "C.prototype.toString=function(){return this.message};"
+        );
+        let optimized = crate::js_peephole::optimize_generated_javascript(source)
+            .unwrap_or_else(|error| panic!("{error}\n{source}"));
+        assert!(
+            optimized.code.contains("setPrototypeOf") || optimized.code.contains("extends"),
+            "{}",
+            optimized.code
+        );
+        let runtime = std::process::Command::new("node")
+            .args([
+                "-e",
+                &format!(
+                    "{}; var x=new C(); console.log([x instanceof Error, x.toString()].join('|'))",
+                    optimized.code
+                ),
+            ])
+            .output()
+            .expect("node");
+        assert!(
+            runtime.status.success(),
+            "{} {}",
+            String::from_utf8_lossy(&runtime.stderr),
+            optimized.code
+        );
+        assert_eq!(
+            String::from_utf8_lossy(&runtime.stdout).trim(),
+            "true|X",
             "{}",
             optimized.code
         );

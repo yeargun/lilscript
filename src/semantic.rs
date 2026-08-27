@@ -4089,6 +4089,10 @@ impl<'src> Analyzer<'src> {
                 let end = *expected.end();
                 let count = if start == end {
                     start.to_string()
+                } else if end == usize::MAX {
+                    // The builtin forwards its arguments to the callee, so the
+                    // only real bound is the lower one.
+                    format!("at least {start}")
                 } else {
                     format!("{start} to {end}")
                 };
@@ -4125,8 +4129,11 @@ impl<'src> Analyzer<'src> {
                     (BuiltinCall::JsObject, js.clone(), expected_args)
                 }
                 "array" => {
-                    require_arity(0..=0)?;
-                    (BuiltinCall::JsArray, js.clone(), Vec::new())
+                    // Variadic, like `JS.object`. Without it there is no way to
+                    // write a `JsValue` array literal, so ports build every
+                    // array by allocating an empty one and pushing into it.
+                    let expected_args = vec![js.clone(); args.len()];
+                    (BuiltinCall::JsArray, js.clone(), expected_args)
                 }
                 "undefined" => {
                     require_arity(0..=0)?;
@@ -4237,7 +4244,9 @@ impl<'src> Analyzer<'src> {
                     (BuiltinCall::JsAnd, js.clone(), vec![js.clone(), js.clone()])
                 }
                 "call" => {
-                    require_arity(2..=7)?;
+                    // The lowering forwards `values[1..]` verbatim, so the argument
+                    // count is bounded by the callee, not by this builtin.
+                    require_arity(2..=usize::MAX)?;
                     (
                         BuiltinCall::JsCall,
                         js.clone(),
@@ -4245,7 +4254,7 @@ impl<'src> Analyzer<'src> {
                     )
                 }
                 "construct" => {
-                    require_arity(1..=7)?;
+                    require_arity(1..=usize::MAX)?;
                     (
                         BuiltinCall::JsConstruct,
                         js.clone(),
@@ -4253,7 +4262,7 @@ impl<'src> Analyzer<'src> {
                     )
                 }
                 "invoke" => {
-                    require_arity(2..=7)?;
+                    require_arity(2..=usize::MAX)?;
                     let mut types = vec![js.clone(), Type::String];
                     types.resize(args.len(), js.clone());
                     (BuiltinCall::JsInvoke, js.clone(), types)
@@ -7030,7 +7039,7 @@ mod tests {
             "{unknown}"
         );
         let arity = check("JsValue value=JS.call();").unwrap_err();
-        assert!(arity.message.contains("expects 2 to 7"), "{arity}");
+        assert!(arity.message.contains("expects at least 2"), "{arity}");
 
         check("extern JsValue read();JsValue cb=read();JsValue result=cb(1,\"x\");").unwrap();
     }

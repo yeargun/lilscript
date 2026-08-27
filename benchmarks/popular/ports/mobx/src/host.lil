@@ -420,10 +420,10 @@ export bool isGenerator(JsValue obj) {
   if (!constructor.truthy()) {
     return false;
   }
-  if (toStr(constructor["name"]) == "GeneratorFunction") {
+  if (JS.strictEqual(constructor["name"], "GeneratorFunction")) {
     return true;
   }
-  if (toStr(constructor["displayName"]) == "GeneratorFunction") {
+  if (JS.strictEqual(constructor["displayName"], "GeneratorFunction")) {
     return true;
   }
   return false;
@@ -450,14 +450,14 @@ export bool isES6Map(JsValue thing) {
   if (JS.isNullish(thing)) {
     return false;
   }
-  return toStr(JS.call(gObject()["prototype"]["toString"], thing)) == "[object Map]";
+  return JS.strictEqual(JS.call(gObject()["prototype"]["toString"], thing), "[object Map]");
 }
 
 export bool isES6Set(JsValue thing) {
   if (JS.isNullish(thing)) {
     return false;
   }
-  return toStr(JS.call(gObject()["prototype"]["toString"], thing)) == "[object Set]";
+  return JS.strictEqual(JS.call(gObject()["prototype"]["toString"], thing), "[object Set]");
 }
 
 export bool isPlainES6Map(JsValue thing) {
@@ -468,14 +468,10 @@ export bool isPlainES6Map(JsValue thing) {
 }
 
 export string stringifyKey(JsValue key) {
-  string t = JS.typeOf(key);
-  if (t == "string") {
-    return toStr(key);
-  }
-  if (t == "symbol") {
+  if (JS.typeOf(key) == "symbol") {
     return toStr(JS.invoke(key, "toString"));
   }
-  return toStr(JS.construct(String, key));
+  return toStr(key);
 }
 
 export JsValue toPrimitive(JsValue value) {

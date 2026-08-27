@@ -23,7 +23,7 @@
 //! never mistaken for this one.
 
 use crate::js_peephole::binding::{BindingResolution, Resolution};
-use crate::js_peephole::rewrite::apply_token_rewrites;
+use crate::js_peephole::rewrite::{apply_token_rewrites, is_statement_boundary};
 use crate::js_peephole::token::{lex, matching_closers, Token, TokenKind};
 use crate::js_peephole::JavaScriptParseError;
 use std::collections::HashMap;
@@ -364,6 +364,152 @@ fn slots_without_parentheses(tokens: &[Token<'_>], at: usize) -> bool {
         && matches!(after, ")" | "," | "]" | ";" | "}" | ":")
 }
 
+/// Replace `function f(a,b){g(a,b)}` with calls to `g` when every use of `f` is
+/// a call. A one-line arity wrapper is larger than writing the callee at each
+/// site, and the wrapper's function object is unobservable if nothing reads `f`
+/// except by calling it.
+pub(crate) fn fold_forwarding_call_wrappers(
+    source: &str,
+) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let matching_close = matching_closers(&tokens);
+    let resolution = BindingResolution::new(&tokens);
+    let mut replacements = Vec::new();
+    for function_at in 0..tokens.len() {
+        let Some((name_at, callee, body_close)) =
+            forwarding_declaration(&tokens, &matching_close, function_at)
+        else {
+            continue;
+        };
+        if resolution.resolve(name_at) != Resolution::Bound(name_at) {
+            continue;
+        }
+        let mut uses = Vec::new();
+        let mut ok = true;
+        for index in 0..tokens.len() {
+            if index == name_at {
+                continue;
+            }
+            match resolution.resolve(index) {
+                Resolution::Bound(declaration) if declaration == name_at => {
+                    if tokens.get(index + 1).map(|token| token.text) != Some("(")
+                        || tokens.get(index.wrapping_sub(1)).map(|token| token.text)
+                            == Some("new")
+                    {
+                        ok = false;
+                        break;
+                    }
+                    uses.push(index);
+                }
+                Resolution::Unresolved
+                    if tokens[index].kind == TokenKind::Identifier
+                        && tokens[index].text == tokens[name_at].text =>
+                {
+                    ok = false;
+                    break;
+                }
+                _ => {}
+            }
+        }
+        if !ok || uses.is_empty() {
+            continue;
+        }
+        for use_at in uses {
+            replacements.push((tokens[use_at].start, tokens[use_at].end, callee.to_string()));
+        }
+        replacements.push((
+            tokens[function_at].start,
+            tokens[body_close].end,
+            String::new(),
+        ));
+    }
+    Ok(apply_token_rewrites(source, replacements))
+}
+
+    fn forwarding_declaration<'a>(
+    tokens: &'a [Token<'a>],
+    matching_close: &[Option<usize>],
+    function_at: usize,
+) -> Option<(usize, &'a str, usize)> {
+    if tokens.get(function_at).map(|token| token.text) != Some("function")
+        || !is_statement_boundary(tokens, function_at)
+        || tokens
+            .get(function_at + 1)
+            .is_none_or(|token| token.kind != TokenKind::Identifier)
+        || tokens.get(function_at + 2).map(|token| token.text) != Some("(")
+    {
+        return None;
+    }
+    let name_at = function_at + 1;
+    let params_open = function_at + 2;
+    let params_close = matching_close.get(params_open).copied().flatten()?;
+    let mut params = Vec::new();
+    let mut cursor = params_open + 1;
+    if cursor < params_close {
+        loop {
+            if tokens
+                .get(cursor)
+                .is_none_or(|token| token.kind != TokenKind::Identifier)
+            {
+                return None;
+            }
+            params.push(tokens[cursor].text);
+            cursor += 1;
+            if cursor == params_close {
+                break;
+            }
+            if tokens.get(cursor).map(|token| token.text) != Some(",") {
+                return None;
+            }
+            cursor += 1;
+        }
+    }
+    if tokens.get(params_close + 1).map(|token| token.text) != Some("{") {
+        return None;
+    }
+    let body_open = params_close + 1;
+    let body_close = matching_close.get(body_open).copied().flatten()?;
+    let mut body = body_open + 1;
+    if tokens.get(body).map(|token| token.text) == Some("return") {
+        body += 1;
+    }
+    if tokens
+        .get(body)
+        .is_none_or(|token| token.kind != TokenKind::Identifier)
+        || tokens.get(body).map(|token| token.text) == Some(tokens[name_at].text)
+        || tokens.get(body + 1).map(|token| token.text) != Some("(")
+    {
+        return None;
+    }
+    let callee = tokens[body].text;
+    let args_open = body + 1;
+    let args_close = matching_close.get(args_open).copied().flatten()?;
+    let mut arg_at = args_open + 1;
+    for (index, param) in params.iter().enumerate() {
+        if tokens.get(arg_at).map(|token| token.text) != Some(*param) {
+            return None;
+        }
+        arg_at += 1;
+        if index + 1 < params.len() {
+            if tokens.get(arg_at).map(|token| token.text) != Some(",") {
+                return None;
+            }
+            arg_at += 1;
+        }
+    }
+    if arg_at != args_close {
+        return None;
+    }
+    let mut after = args_close + 1;
+    if tokens.get(after).map(|token| token.text) == Some(";") {
+        after += 1;
+    }
+    if after != body_close {
+        return None;
+    }
+    Some((name_at, callee, body_close))
+}
+
 #[cfg(test)]
 mod tests {
     use super::inline_single_use_functions;
@@ -513,6 +659,37 @@ mod tests {
     fn a_destructuring_declaration_is_left_alone() {
         let source = "function f(o){var {a,b}=o,Y=(x)=>x;return g(Y,a,b)}";
         let (out, count) = inline_single_use_functions(source).unwrap();
+        assert_eq!(count, 0, "{out}");
+        assert_eq!(out, source);
+    }
+
+    #[test]
+    fn forwarding_call_wrappers_become_direct_calls() {
+        use super::fold_forwarding_call_wrappers;
+        let source = "function ie(e){throw e}function l(e){ie(e)}function N(e,a){ie(e,a)}function f(){l(30);N(31,1)}";
+        let (out, count) = fold_forwarding_call_wrappers(source).unwrap();
+        assert_eq!(count, 2, "{out}");
+        assert!(out.contains("ie(30)"), "{out}");
+        assert!(out.contains("ie(31,1)"), "{out}");
+        assert!(!out.contains("function l("), "{out}");
+        assert!(!out.contains("function N("), "{out}");
+        assert!(out.contains("function ie("), "{out}");
+    }
+
+    #[test]
+    fn forwarding_call_wrappers_keep_non_call_uses() {
+        use super::fold_forwarding_call_wrappers;
+        let source = "function ie(e){throw e}function l(e){ie(e)}export{l as die}";
+        let (out, count) = fold_forwarding_call_wrappers(source).unwrap();
+        assert_eq!(count, 0, "{out}");
+        assert_eq!(out, source);
+    }
+
+    #[test]
+    fn forwarding_call_wrappers_skip_member_callees() {
+        use super::fold_forwarding_call_wrappers;
+        let source = "function S(e,a,t){f.defineProperty(e,a,t)}S(x,y,z)";
+        let (out, count) = fold_forwarding_call_wrappers(source).unwrap();
         assert_eq!(count, 0, "{out}");
         assert_eq!(out, source);
     }

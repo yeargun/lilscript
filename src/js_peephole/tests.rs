@@ -1,3 +1,7 @@
+use super::folds::{
+    fold_early_exit_guards, fold_fresh_empty_array_pushes, fold_identity_arrow_iife,
+    fold_if_expression_to_and, fold_statement_assignments_into_first_use,
+};
 use super::parse::{non_overlapping_parsed_node_count, parse_expression_regions};
 use super::token::{lex, punctuation_width};
 use super::{
@@ -415,6 +419,33 @@ fn folds_an_assignment_followed_by_its_truthiness_guard() {
 }
 
 #[test]
+fn a_comma_sequence_assignment_is_not_an_if_condition() {
+    let source = concat!(
+        "function go(g,t){var i=[],h=[],d=0,f,c;",
+        "while(d<g){f=d<t,c=d+1;if(f)h.push(c);else if(c!=null)i.push(c);d++}",
+        "return JSON.stringify([i,h])}",
+        "process.stdout.write(go(1,0)+go(2,1))",
+    );
+    let optimized = optimize_generated_javascript(source).unwrap();
+    assert!(!optimized.code.contains("if(f="), "{}", optimized.code);
+    let output = std::process::Command::new("node")
+        .arg("-e")
+        .arg(&optimized.code)
+        .output()
+        .expect("node must execute generated JavaScript");
+    assert!(
+        output.status.success(),
+        "node failed:\n{}\nsource:\n{}",
+        String::from_utf8_lossy(&output.stderr),
+        optimized.code
+    );
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("node stdout must be UTF-8"),
+        "[[1],[]][[2],[1]]"
+    );
+}
+
+#[test]
 fn assignment_guard_folding_stays_within_proven_statement_boundaries() {
     let sources = [
         "function f(x){if(x)a=read();if(a)use(a)}",
@@ -796,10 +827,9 @@ fn folds_unread_increment_snapshots() {
         optimized,
         "function f(c,d){if(c<b){c++,d.consume(s);return a}return c}"
     );
-    let (kept, kept_rewrites) = crate::js_peephole::fold_dead_increment_snapshots(
-        "function f(c){var h=c;c++;return h}",
-    )
-    .unwrap();
+    let (kept, kept_rewrites) =
+        crate::js_peephole::fold_dead_increment_snapshots("function f(c){var h=c;c++;return h}")
+            .unwrap();
     assert_eq!(kept_rewrites, 0);
     assert_eq!(kept, "function f(c){var h=c;c++;return h}");
 }
@@ -820,10 +850,7 @@ fn folds_pristine_static_method_call_this_arg() {
     )
     .unwrap();
     assert_eq!(kept_rewrites, 0);
-    assert!(
-        kept.contains("hasOwnProperty.call"),
-        "{kept}"
-    );
+    assert!(kept.contains("hasOwnProperty.call"), "{kept}");
 }
 
 #[test]
@@ -1037,6 +1064,31 @@ fn rejects_duplicate_generated_top_level_bindings() {
 #[test]
 fn permits_the_same_generated_binding_in_nested_scopes() {
     analyze_generated_javascript("let O=1;let f=()=>{let O=2;return O};export{O,f}").unwrap();
+}
+
+#[test]
+fn permits_a_named_class_expression_assigned_to_an_existing_binding() {
+    analyze_generated_javascript("var Ne=0;Ne=class Ne{constructor(){this.x=1}}").unwrap();
+}
+
+#[test]
+fn permits_var_redeclaration_of_a_module_binding() {
+    analyze_generated_javascript(
+        "var e=[];Object.freeze(e);var e=C.prototype;C.m=function(){return 1};export{C}",
+    )
+    .unwrap();
+}
+
+#[test]
+fn rejects_var_colliding_with_a_class_declaration() {
+    let error = analyze_generated_javascript("class e{constructor(){this.x=1}}var e=[];export{e}")
+        .unwrap_err();
+    assert!(
+        error
+            .to_string()
+            .contains("duplicate generated top-level binding"),
+        "{error}"
+    );
 }
 
 #[test]
@@ -1915,6 +1967,59 @@ fn folds_dead_pure_prototype_aliases() {
         unused_var_out.code
     );
     assert_eq!(run_javascript(&unused_var_out.code).trim(), "1");
+
+    let nested_param_shadow =
+        "class U{constructor(){this.e=1}la(){return this.e}}a=U.prototype,sb=function(n,c){return c};sb(\"Adm\",U);var oa=function(a,b){return a};aa={has:function(a,b){return a[b]}};console.log(oa(3,4),aa.has({x:9},\"x\"),new U().la())";
+    let nested_out = optimize_generated_javascript(nested_param_shadow).unwrap();
+    assert!(
+        !nested_out.code.contains("a=U.prototype"),
+        "{}",
+        nested_out.code
+    );
+    assert_eq!(run_javascript(&nested_out.code).trim(), "3 9 1");
+
+    let closure_keeps_alias =
+        "class I{constructor(){this.e=1}}a=I.prototype;var be=function(){return a};console.log(be()===I.prototype,new I().e)";
+    let closure_out = optimize_generated_javascript(closure_keeps_alias).unwrap();
+    assert!(
+        closure_out.code.contains("a=I.prototype") || closure_out.code.contains("I.prototype"),
+        "{}",
+        closure_out.code
+    );
+    assert_eq!(run_javascript(&closure_out.code).trim(), "true 1");
+
+    let unread_symbol_temp =
+        "class M{constructor(){this.n=1}[Symbol.iterator](){return this}get [Symbol.toStringTag](){return\"Map\"}}ve=Symbol.iterator,ve=Symbol.toStringTag,pb=function(n,c){return n};pb(\"ObservableMap\",M);ve=function(c,w){return c+w};console.log(ve(1,2),new M().n)";
+    let symbol_out = optimize_generated_javascript(unread_symbol_temp).unwrap();
+    assert!(
+        !symbol_out.code.contains("ve=Symbol."),
+        "{}",
+        symbol_out.code
+    );
+    assert_eq!(run_javascript(&symbol_out.code).trim(), "3 1");
+
+    let parent_alias_used_in_set_proto = concat!(
+        "let Z=()=>globalThis.Object;",
+        "var a=globalThis.Symbol.toPrimitive,h;",
+        "class oa{constructor(g){this.g=g}}",
+        "class ea extends oa{constructor(e){super(e),this.e=e}}",
+        "h=ea.prototype;a=oa.prototype;Z().setPrototypeOf(h,a);",
+        "console.log(typeof a)"
+    );
+    let (unread, _) =
+        crate::js_peephole::fold_unread_prototype_aliases(parent_alias_used_in_set_proto).unwrap();
+    assert!(
+        unread.contains("a=oa.prototype"),
+        "setPrototypeOf(h,a) reads the parent alias: {unread}"
+    );
+    let factory_out = optimize_generated_javascript(parent_alias_used_in_set_proto).unwrap();
+    assert!(
+        factory_out.code.contains("a=oa.prototype")
+            || factory_out.code.contains("setPrototypeOf(h,oa.prototype)")
+            || !factory_out.code.contains("setPrototypeOf"),
+        "{}",
+        factory_out.code
+    );
 }
 
 #[test]
@@ -2284,4 +2389,157 @@ fn preserving_functions_still_merges_adjacent_declarations() {
         "{}",
         preserved.code
     );
+}
+
+/// `fold_early_exit_guards` inverts a guard so the suffix becomes the guarded
+/// arm. The inversion has to negate the *condition*, not its first operand.
+#[test]
+fn an_inverted_guard_negates_the_whole_disjunction() {
+    // The condition starts with a parenthesised group that covers only the
+    // first operand of `||`. Dropping the parentheses that `!` needs would
+    // leave `!(a==null)||typeof a!="object"`, which is true for `a===undefined`
+    // and steps into the body the guard exists to skip.
+    let (folded, count) = fold_early_exit_guards(
+        "var f=a=>{if((a==null)||\"object\"!=typeof a)return;var b=a.start;return b};",
+    )
+    .expect("fold");
+    assert_eq!(count, 1, "{folded}");
+    assert!(
+        folded.contains("if(!((a==null)||\"object\"!=typeof a))"),
+        "{folded}"
+    );
+
+    // A condition that is one parenthesised group still negates in place.
+    let (grouped, grouped_count) =
+        fold_early_exit_guards("var f=a=>{if((a==null))return;var b=a.start;return b};")
+            .expect("fold");
+    assert_eq!(grouped_count, 1, "{grouped}");
+    assert!(grouped.contains("if(!(a==null))"), "{grouped}");
+}
+
+/// Folding a guard into `&&` must parenthesise an operand that binds looser.
+///
+/// The operator list this replaced named plain `=` but none of the compound
+/// assignments, so `if(h>0)a+=.25;` folded to `h>0&&a+=.25` — an assignment to
+/// an rvalue. It reached katex's declaration variants and cost every parsed
+/// peephole rewrite on them, because the whole leaf was then discarded.
+#[test]
+fn an_and_operand_that_binds_looser_is_grouped() {
+    for (source, expected) in [
+        ("function f(h,a){if(h>0){a+=.25}}", "h>0&&(a+=.25)"),
+        ("function f(h,a){if(h>0){a-=1}}", "h>0&&(a-=1)"),
+        ("function f(h,a){if(h>0){a**=2}}", "h>0&&(a**=2)"),
+        ("function f(h,a){if(h>0){a>>>=1}}", "h>0&&(a>>>=1)"),
+        ("function f(h,a){if(h>0){a??=1}}", "h>0&&(a??=1)"),
+    ] {
+        let (folded, count) = fold_if_expression_to_and(source).expect("fold");
+        assert_eq!(count, 1, "{folded}");
+        assert!(
+            folded.contains(expected),
+            "{expected} missing from {folded}"
+        );
+    }
+
+    // Operands that bind tighter than `&&` still need no parentheses.
+    let (tight, tight_count) =
+        fold_if_expression_to_and("function f(h,a){if(h>0){a.push(1)}}").expect("fold");
+    assert_eq!(tight_count, 1, "{tight}");
+    assert!(tight.contains("h>0&&a.push(1)"), "{tight}");
+}
+
+/// Beta-reducing an IIFE drops the parentheses the call expression provided.
+///
+/// `?:` is right-associative, so a body that is itself a conditional takes the
+/// arms that follow instead of standing as the test. Without the group,
+/// `(c=>a?b:d)(x)?e:f` became `a?b:d?e:f` — unified's `process` then discarded
+/// every string its compiler produced, and the promise never settled.
+#[test]
+fn a_beta_reduced_conditional_stays_grouped_in_a_ternary_test() {
+    let (folded, count) = fold_identity_arrow_iife(
+        "var r=(c=>\"string\"===typeof c?!0:g(c))(b)?f.value=b:f.result=b;",
+    )
+    .expect("fold");
+    assert_eq!(count, 1, "{folded}");
+    assert!(
+        folded.contains("(\"string\"===typeof b?!0:g(b))?f.value=b"),
+        "{folded}"
+    );
+
+    // A body that already binds tighter than the test needs no parentheses.
+    let (tight, tight_count) =
+        fold_identity_arrow_iife("var r=(c=>g(c))(b)?f.value=b:f.result=b;").expect("fold");
+    assert_eq!(tight_count, 1, "{tight}");
+    assert!(tight.contains("g(b)?f.value=b"), "{tight}");
+}
+
+/// A saved value moves to its first read when nothing before that read can
+/// observe it.
+///
+/// The prefix test used to be a hand-kept list of "inert" tokens that omitted
+/// identifiers, `&&` and `?`, so the fold stopped at the first ordinary
+/// expression. It now asks whether the prefix can observe anything: bindings,
+/// literals and pure operators cannot; a call, a property read, or an
+/// assignment can.
+#[test]
+fn a_saved_value_moves_to_its_first_read_when_the_prefix_is_pure() {
+    // Guarded by a comparison against another binding — the old list stopped at
+    // the identifier `i`.
+    let (guard, guard_count) =
+        fold_statement_assignments_into_first_use("f(){s=n+1;if(s>=i)return;g()}").expect("fold");
+    assert!(guard_count > 0, "{guard}");
+    assert!(guard.contains("if((s=n+1)>=i)"), "{guard}");
+
+    // A property read before the use can run a getter, so the value stays put.
+    let (getter, getter_count) =
+        fold_statement_assignments_into_first_use("f(){s=n+1;if(o.k>s)return;g()}").expect("fold");
+    assert_eq!(getter_count, 0, "{getter}");
+
+    // So can a call.
+    let (call, call_count) =
+        fold_statement_assignments_into_first_use("f(){s=n+1;if(h()>s)return;g()}").expect("fold");
+    assert_eq!(call_count, 0, "{call}");
+}
+
+/// An array built by consecutive pushes is the array literal it spells out.
+#[test]
+fn consecutive_pushes_onto_a_fresh_array_become_a_literal() {
+    let (folded, count) =
+        fold_fresh_empty_array_pushes("var a;a=[];a.push(1);a.push(f(2));g(a);").expect("fold");
+    assert_eq!(count, 1, "{folded}");
+    assert!(folded.contains("a=[1,f(2)];g(a)"), "{folded}");
+
+    // Pushes that continue as a comma sequence keep the binding's terminator,
+    // so the assignment after them stays an assignment. Splicing the last
+    // push's comma in after a declarator would redeclare `f`.
+    let (sequence, sequence_count) =
+        fold_fresh_empty_array_pushes("let k=[];k.push(x),k.push(y),f={c:k};").expect("fold");
+    assert_eq!(sequence_count, 1, "{sequence}");
+    assert!(sequence.contains("let k=[x,y];f={c:k}"), "{sequence}");
+
+    // The shape the emitter produces inside an arrow body.
+    let (real, real_count) = fold_fresh_empty_array_pushes(
+        "let ue=(a,h,b)=>{var c=[];c.push(h);c.push(2);var d=b.length;};",
+    )
+    .expect("fold");
+    assert_eq!(real_count, 1, "{real}");
+    assert!(real.contains("var c=[h,2];var d="), "{real}");
+
+    // A `for` header is not a statement list: the pushes run per iteration.
+    let (header, header_count) =
+        fold_fresh_empty_array_pushes("for(k=[];k.push(1),x;)g();").expect("fold");
+    assert_eq!(header_count, 0, "{header}");
+
+    // A pushed value that reads the array itself must not move ahead of it.
+    let (self_read, self_count) =
+        fold_fresh_empty_array_pushes("c=[];c.push(c.length);").expect("fold");
+    assert_eq!(self_count, 0, "{self_read}");
+
+    // The push must be the whole statement: a used result is a different program.
+    let (used, used_count) = fold_fresh_empty_array_pushes("d=[];e=d.push(1);").expect("fold");
+    assert_eq!(used_count, 0, "{used}");
+
+    // Only a plain binding is known to still hold the fresh array.
+    let (member, member_count) =
+        fold_fresh_empty_array_pushes("o.a=[];o.a.push(1);").expect("fold");
+    assert_eq!(member_count, 0, "{member}");
 }

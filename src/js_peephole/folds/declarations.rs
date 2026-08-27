@@ -1657,7 +1657,10 @@ pub(crate) fn fold_dead_increment_snapshots(
             || tokens.get(cursor + 3).map(|token| token.kind) != Some(TokenKind::Identifier)
             || tokens.get(cursor + 4).map(|token| token.text) != Some(";")
             || tokens.get(cursor + 5).map(|token| token.text) != Some(tokens[cursor + 3].text)
-            || !matches!(tokens.get(cursor + 6).map(|token| token.text), Some("++") | Some("--"))
+            || !matches!(
+                tokens.get(cursor + 6).map(|token| token.text),
+                Some("++") | Some("--")
+            )
         {
             cursor += 1;
             continue;
@@ -1720,31 +1723,31 @@ pub(crate) fn fold_unread_prototype_aliases(
     let mut replacements = Vec::<(usize, usize, String)>::new();
     let mut cursor = 0usize;
     while cursor + 4 < tokens.len() {
-        let Some(alias) = prototype_alias_at(&tokens, cursor) else {
+        let Some(alias) = unread_pure_alias_at(&tokens, cursor) else {
             cursor += 1;
             continue;
         };
-        if prototype_alias_is_live_before_rewrite(&tokens, alias.after + 1, alias.name) {
+        if unread_pure_alias_is_live(&tokens, alias.after + 1, alias.name) {
             cursor += 1;
             continue;
         }
         let preceded_by_comma = cursor > 0 && tokens[cursor - 1].text == ",";
         let preceded_by_decl =
             cursor > 0 && matches!(tokens[cursor - 1].text, "var" | "let" | "const");
-        let start = if preceded_by_comma || (preceded_by_decl && tokens[alias.after].text == ";") {
-            tokens[cursor - 1].start
-        } else {
-            tokens[cursor].start
-        };
         let mut end_token = alias.after;
         let mut scan = alias.after + 1;
-        while let Some(next) = prototype_alias_at(&tokens, scan) {
-            if prototype_alias_is_live_before_rewrite(&tokens, next.after + 1, next.name) {
+        while let Some(next) = unread_pure_alias_at(&tokens, scan) {
+            if unread_pure_alias_is_live(&tokens, next.after + 1, next.name) {
                 break;
             }
             end_token = next.after;
             scan = next.after + 1;
         }
+        let start = if preceded_by_comma || (preceded_by_decl && tokens[end_token].text == ";") {
+            tokens[cursor - 1].start
+        } else {
+            tokens[cursor].start
+        };
         let replacement = if preceded_by_comma {
             tokens[end_token].text.to_string()
         } else {
@@ -1763,6 +1766,10 @@ struct PrototypeAlias<'a> {
     after: usize,
 }
 
+fn unread_pure_alias_at<'a>(tokens: &'a [Token<'a>], cursor: usize) -> Option<PrototypeAlias<'a>> {
+    prototype_alias_at(tokens, cursor).or_else(|| symbol_member_alias_at(tokens, cursor))
+}
+
 fn prototype_alias_at<'a>(tokens: &'a [Token<'a>], cursor: usize) -> Option<PrototypeAlias<'a>> {
     if tokens.get(cursor)?.kind != TokenKind::Identifier
         || is_property_identifier(tokens, cursor)
@@ -1774,6 +1781,31 @@ fn prototype_alias_at<'a>(tokens: &'a [Token<'a>], cursor: usize) -> Option<Prot
         return None;
     }
     if is_host_prototype_owner(tokens[cursor + 2].text) {
+        return None;
+    }
+    let after = cursor + 5;
+    if !matches!(tokens.get(after).map(|token| token.text), Some("," | ";")) {
+        return None;
+    }
+    Some(PrototypeAlias {
+        name: tokens[cursor].text,
+        after,
+    })
+}
+
+fn symbol_member_alias_at<'a>(
+    tokens: &'a [Token<'a>],
+    cursor: usize,
+) -> Option<PrototypeAlias<'a>> {
+    if tokens.get(cursor)?.kind != TokenKind::Identifier
+        || is_property_identifier(tokens, cursor)
+        || tokens.get(cursor + 1).map(|token| token.text) != Some("=")
+        || tokens.get(cursor + 2).map(|token| token.text) != Some("Symbol")
+        || tokens.get(cursor + 3).map(|token| token.text) != Some(".")
+        || !tokens
+            .get(cursor + 4)
+            .is_some_and(|token| token.kind == TokenKind::Identifier)
+    {
         return None;
     }
     let after = cursor + 5;
@@ -1816,7 +1848,7 @@ fn is_host_prototype_owner(name: &str) -> bool {
     )
 }
 
-fn prototype_alias_is_live_before_rewrite(tokens: &[Token<'_>], start: usize, name: &str) -> bool {
+fn unread_pure_alias_is_live(tokens: &[Token<'_>], start: usize, name: &str) -> bool {
     let matching_close = matching_closers(tokens);
     let mut index = start;
     while index < tokens.len() {
@@ -1834,7 +1866,7 @@ fn prototype_alias_is_live_before_rewrite(tokens: &[Token<'_>], start: usize, na
                 | "throw"
         ) {
             let end = next_statement_end(tokens, index + 1);
-            if identifier_is_read(tokens, index + 1, end, name) {
+            if scoped_name_is_mentioned(tokens, &matching_close, name, index, end + 1) {
                 return true;
             }
             index = end + 1;
@@ -1842,6 +1874,9 @@ fn prototype_alias_is_live_before_rewrite(tokens: &[Token<'_>], start: usize, na
         }
         if tokens[index].text == "function" || tokens[index].text == "class" {
             if let Some(next) = skip_function_or_class(tokens, &matching_close, index) {
+                if scoped_name_is_mentioned(tokens, &matching_close, name, index, next) {
+                    return true;
+                }
                 index = next;
                 continue;
             }
@@ -1852,7 +1887,7 @@ fn prototype_alias_is_live_before_rewrite(tokens: &[Token<'_>], start: usize, na
                 let Some(close) = matching_close.get(index).copied().flatten() else {
                     return true;
                 };
-                if identifier_is_read(tokens, index + 1, close, name) {
+                if scoped_name_closes_over(tokens, &matching_close, name, index + 1, close) {
                     return true;
                 }
                 index = close + 1;
@@ -1870,6 +1905,45 @@ fn prototype_alias_is_live_before_rewrite(tokens: &[Token<'_>], start: usize, na
         index += 1;
     }
     false
+}
+
+fn scoped_name_is_mentioned(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    name: &str,
+    start: usize,
+    end: usize,
+) -> bool {
+    let (uses, nested_use) =
+        collect_same_scope_name_uses(tokens, matching_close, name, start, end, usize::MAX);
+    nested_use || !uses.is_empty()
+}
+
+fn scoped_name_closes_over(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    name: &str,
+    start: usize,
+    end: usize,
+) -> bool {
+    let (uses, nested_use) =
+        collect_same_scope_name_uses(tokens, matching_close, name, start, end, usize::MAX);
+    if nested_use {
+        return true;
+    }
+    uses.iter().any(|&use_at| {
+        let previous = use_at
+            .checked_sub(1)
+            .map(|prev| tokens[prev].text)
+            .unwrap_or(";");
+        if matches!(previous, "var" | "let" | "const") {
+            return false;
+        }
+        if previous == "," && assign_is_in_declaration(tokens, use_at) {
+            return false;
+        }
+        tokens.get(use_at + 1).map(|token| token.text) != Some("=")
+    })
 }
 
 fn skip_function_or_class(

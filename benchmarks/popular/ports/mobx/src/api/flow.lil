@@ -7,7 +7,6 @@ import {
   construct0,
   defineProperty,
   fnName,
-  gError,
   gPromise,
   isFn,
   isStr,
@@ -36,7 +35,7 @@ export JsValue FlowCancellationError = JS.method0((JsValue self) => {
   self["name"] = "FlowCancellationError";
   return self;
 });
-setPrototypeOf(FlowCancellationError["prototype"], gError()["prototype"]);
+setPrototypeOf(FlowCancellationError["prototype"], Error["prototype"]);
 FlowCancellationError["prototype"]["constructor"] = FlowCancellationError;
 defineProperty(FlowCancellationError, "name", JS.object("value", "FlowCancellationError", "configurable", true));
 FlowCancellationError["prototype"]["toString"] = JS.method0((JsValue self) => {

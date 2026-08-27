@@ -359,6 +359,7 @@ impl ProjectConfig {
                 && !matches!(self.javascript.cost_model, CompressionCostModel::Brotli),
             operand_order_fusion: self.javascript.operand_order_fusion,
             aggregate_operand_order_fusion: self.javascript.aggregate_operand_order_fusion,
+            assume_pure_property_reads: self.javascript.assume_pure_property_reads,
             sink_entry_function_declarations: self.javascript.sink_entry_function_declarations,
             comma_expressions: false,
             update_loop_layout: true,
@@ -1126,6 +1127,14 @@ pub struct JavaScriptConfig {
     /// bindings. This is false for open-world library output. At present it
     /// gates only `new RegExp(...)` to regular-expression literal candidates.
     pub assume_pristine_builtins: bool,
+    /// Treat a dynamic member read as free of coercion hooks, the way Terser's
+    /// `pure_getters` does. A read like `o[k]` is otherwise a hook: a getter
+    /// could run user code while the value is being evaluated, so the value is
+    /// unstable and has to take its own statement instead of nesting into its
+    /// consumer. Ports whose objects are plain data say so here and measure it;
+    /// it is false by default because a library cannot assume its callers'
+    /// objects have no accessors.
+    pub assume_pure_property_reads: bool,
     /// Drop `print()` / `debugLog` from JavaScript. On by default so production
     /// builds do not ship `console.log`. Test oracles set false. Does not strip
     /// `console.warn` (observable library behavior).
@@ -1171,6 +1180,7 @@ impl Default for JavaScriptConfig {
             public_aggregate_abi: PublicAggregateAbi::Named,
             aggregate_layout: AggregateLayout::default(),
             assume_pristine_builtins: false,
+            assume_pure_property_reads: false,
             strip_console: true,
             startup: StartupCostConfig::default(),
             performance: JavaScriptPerformanceConfig::default(),

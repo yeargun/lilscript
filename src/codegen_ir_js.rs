@@ -224,6 +224,7 @@ pub struct IrJsOptions {
     /// because the extra nesting can perturb Brotli on artifacts that do not
     /// repeat that shape.
     pub aggregate_operand_order_fusion: bool,
+    pub assume_pure_property_reads: bool,
     /// Declare a defaulted function at its only entry Closure instead of in
     /// the hoisted function group. Off by default; the move is legal but can
     /// perturb Brotli on artifacts that do not store that factory late.
@@ -314,6 +315,7 @@ impl Default for IrJsOptions {
             bare_window_root: false,
             alias_array_prototype_methods: true,
             aggregate_operand_order_fusion: false,
+            assume_pure_property_reads: false,
             sink_entry_function_declarations: false,
             ecmascript: crate::js_syntax_target::EcmaScriptEdition::Es2022,
             indexed_char_at: false,
@@ -1647,7 +1649,7 @@ pub fn ir_function_can_move_to_chunk(module: &ControlFlowModule<'_>, function: F
 }
 
 pub(crate) fn has_inlineable_fresh_empty_array_factory(module: &ControlFlowModule<'_>) -> bool {
-    !inlineable_fresh_empty_array_factories(module).is_empty()
+    !inlineable_fresh_empty_array_factories(module, false).is_empty()
 }
 
 /// Prove the complete allocation-preserving substitution before codegen. A
@@ -1655,7 +1657,10 @@ pub(crate) fn has_inlineable_fresh_empty_array_factory(module: &ControlFlowModul
 /// evaluation, or receiver coercion here, and the literal at every retained
 /// call site still creates a distinct ordinary array. Any export or value use
 /// would make the function object observable and therefore rejects it.
-fn inlineable_fresh_empty_array_factories(module: &ControlFlowModule<'_>) -> AHashSet<FunctionId> {
+fn inlineable_fresh_empty_array_factories(
+    module: &ControlFlowModule<'_>,
+    pure_property_reads: bool,
+) -> AHashSet<FunctionId> {
     let exported = module
         .exports
         .iter()
@@ -4114,8 +4119,10 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
 
     fn assign_inline_fresh_empty_array_factories(&mut self) {
         if self.options.inline_fresh_empty_array_factories {
-            self.inline_fresh_empty_array_factories =
-                inlineable_fresh_empty_array_factories(self.module);
+            self.inline_fresh_empty_array_factories = inlineable_fresh_empty_array_factories(
+                self.module,
+                self.options.assume_pure_property_reads,
+            );
         }
     }
 
@@ -5969,7 +5976,158 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         }
     }
 
+    /// Diagnostic for the property-mangling lane: for every JavaScript member key the
+    /// module touches, report the worst escape state of the values it is read from and
+    /// whether any receiver is key-opaque (reached with a computed key, or reflected by
+    /// a rest/spread). A key is only safe to rename when no receiver escapes the module
+    /// and none of them is key-opaque.
+    fn dump_property_escape_diagnostic(&self) {
+        use std::fmt::Write as _;
+        let mut worst = AHashMap::<String, (EscapeState, bool, usize)>::default();
+        let mut opaque_receivers = 0usize;
+        for function in self.module.functions.iter().filter(|f| f.live) {
+            let string_constants = function_string_constants(function);
+            let escape_of = |value: ValueId| {
+                function
+                    .value_escapes
+                    .get(value.0 as usize)
+                    .copied()
+                    .unwrap_or(EscapeState::EscapesToUntypedBoundary)
+            };
+            for block in &function.blocks {
+                for instruction in &block.instructions {
+                    let mut note = |key: String, state: EscapeState, opaque: bool| {
+                        let slot = worst
+                            .entry(key)
+                            .or_insert((EscapeState::LocalOnly, false, 0));
+                        if matches!(state, EscapeState::EscapesToUntypedBoundary)
+                            || (matches!(state, EscapeState::EscapesToTypedCode)
+                                && matches!(slot.0, EscapeState::LocalOnly))
+                        {
+                            slot.0 = state;
+                        }
+                        slot.1 |= opaque;
+                        slot.2 += 1;
+                    };
+                    match &instruction.op {
+                        ControlFlowOp::RecordFieldGet { object, property }
+                        | ControlFlowOp::RecordFieldSet {
+                            object, property, ..
+                        } => {
+                            note((*property).to_string(), escape_of(*object), false);
+                        }
+                        ControlFlowOp::Record(entries) => {
+                            let state = instruction
+                                .out
+                                .map(&escape_of)
+                                .unwrap_or(EscapeState::EscapesToUntypedBoundary);
+                            for (key, _) in entries {
+                                note((*key).to_string(), state, false);
+                            }
+                        }
+                        ControlFlowOp::RecordSpread(operands) => {
+                            let state = instruction
+                                .out
+                                .map(&escape_of)
+                                .unwrap_or(EscapeState::EscapesToUntypedBoundary);
+                            for operand in operands {
+                                match operand {
+                                    RecordOperand::Entry(key, _) => {
+                                        note((*key).to_string(), state, false)
+                                    }
+                                    RecordOperand::Spread(_) => opaque_receivers += 1,
+                                }
+                            }
+                        }
+                        ControlFlowOp::RecordRest { excluded, .. } => {
+                            opaque_receivers += 1;
+                            for key in excluded {
+                                note(
+                                    (*key).to_string(),
+                                    EscapeState::EscapesToUntypedBoundary,
+                                    true,
+                                );
+                            }
+                        }
+                        ControlFlowOp::IndexGet { object, index }
+                        | ControlFlowOp::IndexSet { object, index, .. } => {
+                            match static_identifier_property(*index, &string_constants) {
+                                Some(key) => note(key.to_string(), escape_of(*object), false),
+                                None => opaque_receivers += 1,
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+        let mut local = Vec::new();
+        let mut typed = Vec::new();
+        let mut untyped = Vec::new();
+        for (key, (state, opaque, uses)) in &worst {
+            let row = (key.clone(), *uses, *opaque);
+            match state {
+                EscapeState::LocalOnly => local.push(row),
+                EscapeState::EscapesToTypedCode => typed.push(row),
+                EscapeState::EscapesToUntypedBoundary => untyped.push(row),
+            }
+        }
+        for bucket in [&mut local, &mut typed, &mut untyped] {
+            bucket.sort_by(|left, right| right.1.cmp(&left.1).then_with(|| left.0.cmp(&right.0)));
+        }
+        let bytes = |rows: &Vec<(String, usize, bool)>| {
+            rows.iter()
+                .map(|(key, uses, _)| key.len() * uses)
+                .sum::<usize>()
+        };
+        let mut report = String::new();
+        let _ = writeln!(
+            report,
+            "property-escape: local-only {} keys / {} bytes | typed {} keys / {} bytes | untyped {} keys / {} bytes | key-opaque receivers {}",
+            local.len(),
+            bytes(&local),
+            typed.len(),
+            bytes(&typed),
+            untyped.len(),
+            bytes(&untyped),
+            opaque_receivers
+        );
+        let _ = writeln!(
+            report,
+            "  local-only: {}",
+            local
+                .iter()
+                .take(25)
+                .map(|(key, uses, opaque)| format!(
+                    "{key}x{uses}{}",
+                    if *opaque { "!" } else { "" }
+                ))
+                .collect::<Vec<_>>()
+                .join(" ")
+        );
+        let _ = writeln!(
+            report,
+            "  untyped:    {}",
+            untyped
+                .iter()
+                .take(25)
+                .map(|(key, uses, _)| format!("{key}x{uses}"))
+                .collect::<Vec<_>>()
+                .join(" ")
+        );
+        eprint!("{report}");
+    }
+
     fn assign_property_names(&mut self) {
+        if std::env::var_os("LILSCRIPT_TRACE_PROPERTY_ESCAPE").is_some() {
+            eprintln!(
+                "property-escape: mangle_properties={} mangle_extern_fields={} mangle_exports={}",
+                self.options.mangle_properties,
+                self.options.mangle_extern_fields,
+                self.options.mangle_exports
+            );
+            self.dump_property_escape_diagnostic();
+        }
         if !self.options.mangle_properties {
             return;
         }
@@ -7903,8 +8061,11 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     ControlFlowOp::CallDirect { function, .. }
                         if self.order_sensitive_inline_pure_helpers.contains(&function)
                 );
-                if (op_evaluation_is_observable(function, instruction)
-                    || inline_pure_call_order_sensitive)
+                if (op_evaluation_is_observable_assuming(
+                    function,
+                    instruction,
+                    self.options.assume_pure_property_reads,
+                ) || inline_pure_call_order_sensitive)
                     && !allow_eager_bindings
                 {
                     // Named conditional-return recovery has no prefix-binding
@@ -8129,6 +8290,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             phi_edge,
                             &self.loop_captured_closures,
                             &context.operand_order_fusable,
+                            self.options.assume_pure_property_reads,
                         )
                 })
             })
@@ -9020,6 +9182,26 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             }
             out.push(';');
         }
+        // The up-front list is a declaration like any other, so record it.
+        //
+        // `declared_names` is the set of names already bound, and
+        // `claim_declaration` binds anything outside it. Emitting this list
+        // without telling `declared_names` about it left the two disagreeing:
+        // a deferred value that `materialize_cache_before_binding_write` is
+        // forced to name is not in `stored_values`, so the list never covered
+        // it, and the declaration was suppressed as well. That store then
+        // wrote to an identifier bound in no scope.
+        let declared_names = declared
+            .iter()
+            .map(|name| (*name).to_string())
+            .collect::<Vec<_>>();
+        {
+            let mut names = context.declared_names.borrow_mut();
+            names.extend(declared_names);
+        }
+        let mut context = context;
+        context.inline_declarations = true;
+        let context = context;
         let state = context.state_name();
         out.push_str("let ");
         out.push_str(state);
@@ -9062,6 +9244,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                 phi_edge,
                                 &self.loop_captured_closures,
                                 &context.operand_order_fusable,
+                                self.options.assume_pure_property_reads,
                             )
                     })
                 })
@@ -9416,7 +9599,13 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                 value.push_str("&&");
                                 push_logical_operand(&mut value, then_value, IrBinaryOp::And);
                             } else {
-                                value.push_str(&condition);
+                                // `?:` is right-associative, so a conditional
+                                // in the test slot swallows the arms that
+                                // follow it. The sibling branches below already
+                                // group it; this one did not, and an inlined
+                                // helper whose body is a conditional turned
+                                // `f(x)?a:b` into `t?u:v?a:b`.
+                                value.push_str(&parenthesize_ternary_test(&condition));
                                 value.push('?');
                                 value.push_str(then_value);
                                 value.push(':');
@@ -9440,6 +9629,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                                 function,
                                                 merge_block,
                                                 phi.out,
+                                                self.options.assume_pure_property_reads,
                                             )
                                     })
                                     .map(|phi| phi.out)
@@ -11374,18 +11564,30 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             .enumerate()
             .map(|(index, instruction)| {
                 instruction.out.is_some_and(|value| {
-                    structured_iteration_input_can_defer(function, block, index, value)
-                        || uses.get(&value).copied().unwrap_or(0) == 1
-                            && (can_fuse_value(
+                    structured_iteration_input_can_defer(
+                        function,
+                        block,
+                        index,
+                        value,
+                        self.options.assume_pure_property_reads,
+                    ) || uses.get(&value).copied().unwrap_or(0) == 1
+                        && (can_fuse_value(
+                            function,
+                            block,
+                            index,
+                            value,
+                            phi_edge,
+                            &self.loop_captured_closures,
+                            &context.operand_order_fusable,
+                            self.options.assume_pure_property_reads,
+                        ) || (edge_value == Some(value)
+                            && can_defer_value_to_block_end(
                                 function,
                                 block,
                                 index,
                                 value,
-                                phi_edge,
-                                &self.loop_captured_closures,
-                                &context.operand_order_fusable,
-                            ) || (edge_value == Some(value)
-                                && can_defer_value_to_block_end(function, block, index, value)))
+                                self.options.assume_pure_property_reads,
+                            )))
                 })
             })
             .collect::<Vec<_>>();
@@ -13161,6 +13363,16 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 ));
             }
             Intrinsic::JsStringify => {
+                // `+""` is ToString. A value the type system already knows is
+                // a string is ToString of itself, so the coercion is a no-op
+                // that still costs three tokens every time a port writes
+                // `JS.string(already_a_string)`.
+                if value_type(self.function(context.function_id)?, receiver_id).as_ref()
+                    == Some(&Type::String)
+                    || context.string_constants.contains_key(&receiver_id)
+                {
+                    return Ok(receiver);
+                }
                 return Ok(JsExpression::raw(
                     format!("{}+\"\"", receiver.at_least(JsPrecedence::Additive)),
                     JsPrecedence::Additive,
@@ -16886,12 +17098,53 @@ fn can_structure(function: &ControlFlowFunction<'_>) -> bool {
             shaped_headers.insert(condition);
         }
     }
-    function.blocks.iter().all(|block| {
+    let ok = function.blocks.iter().all(|block| {
         !matches!(
             block.terminator,
             Some(Terminator::Branch { .. } | Terminator::Try { .. })
         ) || shaped_headers.contains(&block.id)
-    })
+    });
+    if !ok && std::env::var_os("LILSCRIPT_TRACE_UNSHAPED").is_some() {
+        let unshaped = function
+            .blocks
+            .iter()
+            .filter(|block| {
+                matches!(
+                    block.terminator,
+                    Some(Terminator::Branch { .. } | Terminator::Try { .. })
+                ) && !shaped_headers.contains(&block.id)
+            })
+            .map(|block| {
+                let kind = match block.terminator {
+                    Some(Terminator::Try { .. }) => "try",
+                    _ => "branch",
+                };
+                format!("{}:{kind}@{}", block.id.0, block.span.start)
+            })
+            .collect::<Vec<_>>();
+        let shape_list = function
+            .shapes
+            .iter()
+            .map(|shape| {
+                let kind = match shape {
+                    ControlShape::If { .. } => "If",
+                    ControlShape::Loop { .. } => "Loop",
+                    ControlShape::Try { .. } => "Try",
+                    ControlShape::ForIn { .. } => "ForIn",
+                    ControlShape::ForOf { .. } => "ForOf",
+                };
+                format!("{kind}(h={})", shape.header().0)
+            })
+            .collect::<Vec<_>>();
+        eprintln!(
+            "[unshaped] fn={:?} blocks={} shapes=[{}] unshaped={}",
+            function.name,
+            function.blocks.len(),
+            shape_list.join(","),
+            unshaped.join(",")
+        );
+    }
+    ok
 }
 
 fn loop_condition_branch(
@@ -17886,6 +18139,7 @@ fn immediately_branches_on_phi(
     function: &ControlFlowFunction<'_>,
     block: BlockId,
     value: ValueId,
+    pure_property_reads: bool,
 ) -> bool {
     let block = &function.blocks[block.0 as usize];
     block.instructions.is_empty()
@@ -17975,12 +18229,15 @@ impl LocalNames {
             .iter()
             .flat_map(|block| &block.instructions)
             .filter(|instruction| {
-                op_evaluation_is_observable(function, instruction)
-                    || matches!(
-                        instruction.op,
-                        ControlFlowOp::CallDirect { function, .. }
-                            if order_sensitive_inline_pure_helpers.contains(&function)
-                    )
+                op_evaluation_is_observable_assuming(
+                    function,
+                    instruction,
+                    options.assume_pure_property_reads,
+                ) || matches!(
+                    instruction.op,
+                    ControlFlowOp::CallDirect { function, .. }
+                        if order_sensitive_inline_pure_helpers.contains(&function)
+                )
             })
             .filter_map(|instruction| instruction.out)
             .collect::<AHashSet<_>>();
@@ -18001,7 +18258,7 @@ impl LocalNames {
         // values. Computed keys and `__proto__` remain ordinary operands.
         let uses = codegen_use_counts(function, &string_constants);
         let literalized_regex_arguments = literalized_regex_argument_values(function, options);
-        let unstable_values = unstable_values(function);
+        let unstable_values = unstable_values(function, options.assume_pure_property_reads);
         let loop_capture_values = function
             .blocks
             .iter()
@@ -18127,7 +18384,12 @@ impl LocalNames {
         let in_range_string_indexes = proven_in_range_string_indexes(function, integer_facts);
         let cross_block = codegen_cross_block_values(function, &string_constants);
         let operand_order_fusable = if options.operand_order_fusion {
-            operand_order_fusable_values(function, &uses, options.aggregate_operand_order_fusion)
+            operand_order_fusable_values(
+                function,
+                &uses,
+                options.aggregate_operand_order_fusion,
+                options.assume_pure_property_reads,
+            )
         } else {
             AHashSet::default()
         };
@@ -18149,8 +18411,13 @@ impl LocalNames {
                 if let Some(value) = instruction.out {
                     values.push(value);
                     let use_count = uses.get(&value).copied().unwrap_or(0);
-                    let structured_iteration_input =
-                        structured_iteration_input_can_defer(function, block, index, value);
+                    let structured_iteration_input = structured_iteration_input_can_defer(
+                        function,
+                        block,
+                        index,
+                        value,
+                        options.assume_pure_property_reads,
+                    );
                     let fused = structured_iteration_input
                         || operand_order_fusable.contains(&value)
                         || use_count == 1
@@ -18162,8 +18429,15 @@ impl LocalNames {
                                 options.phi_edge_value_forwarding,
                                 loop_captured_closures,
                                 &operand_order_fusable,
+                                options.assume_pure_property_reads,
                             ) || (edge_value == Some(value)
-                                && can_defer_value_to_block_end(function, block, index, value)));
+                                && can_defer_value_to_block_end(
+                                    function,
+                                    block,
+                                    index,
+                                    value,
+                                    options.assume_pure_property_reads,
+                                )));
                     if ((cross_block.contains(&value) && !structured_iteration_input)
                         || (use_count > 1 && !structured_iteration_input)
                         || (loop_capture_values.contains(&value)
@@ -18273,6 +18547,7 @@ impl LocalNames {
                 options.phi_edge_value_forwarding,
                 loop_captured_closures,
                 &operand_order_fusable,
+                options.assume_pure_property_reads,
             );
             if !options.local_name_coalescing {
                 let mut values = colors.keys().copied().collect::<Vec<_>>();
@@ -18629,6 +18904,16 @@ impl LocalNames {
             .collect()
     }
 
+    /// Every name the function body may assign, other than its formals.
+    ///
+    /// A state machine declares its locals once, ahead of the dispatch loop,
+    /// instead of at first store the way the structured emitter does. The list
+    /// is therefore the *assignable* set, not a re-derivation of it: values
+    /// that SSA destruction named, and locals that a `StoreLocal` writes. Those
+    /// two are not the same set — a local reached only through `StoreLocal`
+    /// carries a name from `local_names` and no value in `stored_values` — and
+    /// declaring only the first left the second assigning an undeclared
+    /// identifier, which is a `ReferenceError` in a module's strict code.
     fn non_parameter_names(&self, function: &ControlFlowFunction<'_>) -> Vec<&str> {
         let parameter_names = function
             .params
@@ -18652,10 +18937,28 @@ impl LocalNames {
             .collect::<Vec<_>>();
         values.sort_by_key(|value| value.0);
         values.dedup();
+        let mut locals = function
+            .blocks
+            .iter()
+            .flat_map(|block| &block.instructions)
+            .filter_map(|instruction| match instruction.op {
+                ControlFlowOp::StoreLocal { local, .. } | ControlFlowOp::LoadLocal(local) => {
+                    Some(local)
+                }
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        locals.sort_by_key(|local| local.0);
+        locals.dedup();
         let mut seen = AHashSet::default();
         values
             .into_iter()
             .filter_map(|value| self.value_names.get(&value).map(String::as_str))
+            .chain(
+                locals
+                    .into_iter()
+                    .filter_map(|local| self.local_names.get(&local).map(String::as_str)),
+            )
             .filter(|name| !parameter_names.contains(*name))
             .filter(|name| seen.insert((*name).to_string()))
             .collect()
@@ -18681,6 +18984,7 @@ fn operand_order_fusable_values(
     function: &ControlFlowFunction<'_>,
     uses: &AHashMap<ValueId, usize>,
     aggregate_fusion: bool,
+    pure_property_reads: bool,
 ) -> AHashSet<ValueId> {
     let mut fusable = AHashSet::default();
     for block in &function.blocks {
@@ -18730,7 +19034,13 @@ fn operand_order_fusable_values(
                     run.push(out);
                     continue;
                 }
-                if skip_inert && !op_evaluation_is_observable(function, produced) {
+                if skip_inert
+                    && !op_evaluation_is_observable_assuming(
+                        function,
+                        produced,
+                        pure_property_reads,
+                    )
+                {
                     if op_has_side_effects(&produced.op) {
                         break;
                     }
@@ -18752,7 +19062,12 @@ fn operand_order_fusable_values(
                 )
             {
                 fusable.extend(aggregate_operand_order_fusable(
-                    function, uses, block, consumer, &operands,
+                    function,
+                    uses,
+                    block,
+                    consumer,
+                    &operands,
+                    pure_property_reads,
                 ));
             }
         }
@@ -18766,6 +19081,7 @@ fn aggregate_operand_order_fusable(
     block: &crate::ir::ControlFlowBlock<'_>,
     consumer: usize,
     operands: &[ValueId],
+    pure_property_reads: bool,
 ) -> Vec<ValueId> {
     let mut run = Vec::new();
     let mut visited = AHashSet::default();
@@ -18775,7 +19091,7 @@ fn aggregate_operand_order_fusable(
         if instruction_loads_mutable_capture(function, produced) {
             break;
         }
-        let order_sensitive = operand_order_sensitive(function, produced);
+        let order_sensitive = operand_order_sensitive(function, produced, pure_property_reads);
         let Some(out) = produced.out else {
             if order_sensitive {
                 break;
@@ -18879,8 +19195,10 @@ fn instruction_loads_mutable_capture(
 fn operand_order_sensitive(
     function: &ControlFlowFunction<'_>,
     instruction: &crate::ir::ControlFlowInstruction<'_>,
+    pure_property_reads: bool,
 ) -> bool {
-    !expression_only_op(&instruction.op) || op_evaluation_is_observable(function, instruction)
+    !expression_only_op(&instruction.op)
+        || op_evaluation_is_observable_assuming(function, instruction, pure_property_reads)
 }
 
 fn evaluates_every_operand(op: &ControlFlowOp<'_>) -> bool {
@@ -18948,7 +19266,10 @@ fn single_operand_slot(operands: &[ValueId], value: ValueId) -> Option<usize> {
     slot
 }
 
-fn unstable_values(function: &ControlFlowFunction<'_>) -> AHashSet<ValueId> {
+fn unstable_values(
+    function: &ControlFlowFunction<'_>,
+    pure_property_reads: bool,
+) -> AHashSet<ValueId> {
     let mut unstable = AHashSet::default();
     loop {
         let mut changed = false;
@@ -18966,7 +19287,7 @@ fn unstable_values(function: &ControlFlowFunction<'_>) -> AHashSet<ValueId> {
                 let Some(out) = instruction.out else {
                     continue;
                 };
-                if op_evaluation_is_observable(function, instruction)
+                if op_evaluation_is_observable_assuming(function, instruction, pure_property_reads)
                     || !op_can_defer(&instruction.op)
                     || op_values(&instruction.op)
                         .iter()
@@ -19043,6 +19364,7 @@ fn coalesce_value_names(
     phi_edge_value_forwarding: bool,
     loop_captured_closures: &AHashSet<FunctionId>,
     operand_order_fusable: &AHashSet<ValueId>,
+    pure_property_reads: bool,
 ) -> AHashMap<ValueId, usize> {
     let named = stored_values
         .union(parameter_values)
@@ -19070,8 +19392,11 @@ fn coalesce_value_names(
                     let out = instruction.out?;
                     (uses.get(&out).copied() == Some(1)
                         && !named_values.contains(&out)
-                        && ((!op_evaluation_is_observable(function, instruction)
-                            && op_can_defer(&instruction.op))
+                        && ((!op_evaluation_is_observable_assuming(
+                            function,
+                            instruction,
+                            pure_property_reads,
+                        ) && op_can_defer(&instruction.op))
                             || can_fuse_value(
                                 function,
                                 block,
@@ -19080,6 +19405,7 @@ fn coalesce_value_names(
                                 phi_edge_value_forwarding,
                                 loop_captured_closures,
                                 operand_order_fusable,
+                                pure_property_reads,
                             )))
                     .then_some(out)
                 })
@@ -21949,7 +22275,10 @@ fn host_field_is_extern_member(
 }
 
 fn mangleable_internal_js_key(name: &str) -> bool {
-    name != "__proto__" && name.ends_with('_') && is_js_property_identifier(name)
+    // The suffix convention is `foo_`, a private field name that ends in `_`.
+    // The name `"_"` itself is a public key (TeX subscript, among others) and
+    // must stay spelled as `_` so computed lookups like `table["_"]` hit it.
+    name != "__proto__" && name.len() > 1 && name.ends_with('_') && is_js_property_identifier(name)
 }
 
 fn js_member_keys_in_op(
@@ -22751,12 +23080,17 @@ fn can_fuse_value(
     allow_observable_inert_gap: bool,
     loop_captured_closures: &AHashSet<FunctionId>,
     operand_order_fusable: &AHashSet<ValueId>,
+    pure_property_reads: bool,
 ) -> bool {
     if operand_order_fusable.contains(&value) {
         return true;
     }
     let trailing = &block.instructions[definition_index + 1..];
-    if op_evaluation_is_observable(function, &block.instructions[definition_index]) {
+    if op_evaluation_is_observable_assuming(
+        function,
+        &block.instructions[definition_index],
+        pure_property_reads,
+    ) {
         // An observable producer normally may be nested only into its literal
         // next consumer. With the measured forwarding policy enabled it may
         // additionally cross syntax-only constants and ordinary closure
@@ -22810,14 +23144,20 @@ fn can_fuse_value(
             return true;
         }
     }
-    if can_fuse_global_host_receiver(function, block, definition_index, value) {
+    if can_fuse_global_host_receiver(
+        function,
+        block,
+        definition_index,
+        value,
+        pure_property_reads,
+    ) {
         return true;
     }
     for instruction in trailing {
         if op_values(&instruction.op).contains(&value) {
             return true;
         }
-        if op_evaluation_is_observable(function, instruction) {
+        if op_evaluation_is_observable_assuming(function, instruction, pure_property_reads) {
             return false;
         }
         // A mutable read may move across other typed reads and pure expression
@@ -22865,8 +23205,13 @@ fn can_defer_value_to_block_end(
     block: &crate::ir::ControlFlowBlock<'_>,
     definition_index: usize,
     value: ValueId,
+    pure_property_reads: bool,
 ) -> bool {
-    if op_evaluation_is_observable(function, &block.instructions[definition_index]) {
+    if op_evaluation_is_observable_assuming(
+        function,
+        &block.instructions[definition_index],
+        pure_property_reads,
+    ) {
         // Both callers place the cached value on an unconditional jump edge.
         // A terminal producer therefore remains at exactly the same runtime
         // point; any intervening instruction still forces materialization.
@@ -22876,7 +23221,7 @@ fn can_defer_value_to_block_end(
         .iter()
         .all(|instruction| {
             !op_values(&instruction.op).contains(&value)
-                && !op_evaluation_is_observable(function, instruction)
+                && !op_evaluation_is_observable_assuming(function, instruction, pure_property_reads)
                 && expression_only_op(&instruction.op)
                 && !matches!(instruction.op, ControlFlowOp::HostFieldGet { .. })
         })
@@ -22891,6 +23236,7 @@ fn structured_iteration_input_can_defer(
     block: &crate::ir::ControlFlowBlock<'_>,
     definition_index: usize,
     value: ValueId,
+    pure_property_reads: bool,
 ) -> bool {
     let Some(Terminator::Jump(header)) = block.terminator else {
         return false;
@@ -22908,7 +23254,15 @@ fn structured_iteration_input_can_defer(
         } => *candidate == header && *iterable == value,
         _ => false,
     });
-    if !selected || !can_defer_value_to_block_end(function, block, definition_index, value) {
+    if !selected
+        || !can_defer_value_to_block_end(
+            function,
+            block,
+            definition_index,
+            value,
+            pure_property_reads,
+        )
+    {
         return false;
     }
     function
@@ -22935,6 +23289,7 @@ fn can_fuse_global_host_receiver(
     block: &crate::ir::ControlFlowBlock<'_>,
     definition_index: usize,
     value: ValueId,
+    pure_property_reads: bool,
 ) -> bool {
     if !matches!(
         block.instructions[definition_index].op,
@@ -22960,7 +23315,7 @@ fn can_fuse_global_host_receiver(
         let Some(output) = instruction.out else {
             return false;
         };
-        !op_evaluation_is_observable(function, instruction)
+        !op_evaluation_is_observable_assuming(function, instruction, pure_property_reads)
             && expression_only_op(&instruction.op)
             && args.contains(&output)
             && block
@@ -23567,6 +23922,17 @@ fn op_evaluation_is_observable(
     function: &ControlFlowFunction<'_>,
     instruction: &ControlFlowInstruction<'_>,
 ) -> bool {
+    op_evaluation_is_observable_assuming(function, instruction, false)
+}
+
+/// `pure_property_reads` is the port's statement that its objects carry no
+/// accessors, so a dynamic member read is not a coercion hook. Only the
+/// stability analysis consults it; every reordering rule stays conservative.
+fn op_evaluation_is_observable_assuming(
+    function: &ControlFlowFunction<'_>,
+    instruction: &ControlFlowInstruction<'_>,
+    pure_property_reads: bool,
+) -> bool {
     match &instruction.op {
         ControlFlowOp::Unary {
             op: IrUnaryOp::Neg,
@@ -23589,7 +23955,9 @@ fn op_evaluation_is_observable(
             })
         }),
         ControlFlowOp::IndexGet { object, .. } => {
-            value_coercion_categories(function, *object).is_none_or(|categories| categories.dynamic)
+            !pure_property_reads
+                && value_coercion_categories(function, *object)
+                    .is_none_or(|categories| categories.dynamic)
         }
         ControlFlowOp::RecordSpread(operands) => operands.iter().any(|operand| match operand {
             RecordOperand::Spread(value) => value_coercion_categories(function, *value)
@@ -24094,6 +24462,17 @@ fn render_const(value: &ConstValue, compact_boolean_literals: bool, quote: Strin
     }
 }
 
+/// Spell a power of two as an exponentiation, parenthesized.
+///
+/// `render_const` is consumed as a primary expression — callers wrap it in
+/// `JsExpression::atom` and place it after a unary operator, before a member
+/// access, or as an operand of any binary operator. `2**16` is none of those:
+/// JavaScript rejects a unary operator on the left of `**` outright, so
+/// `+2**16` is a syntax error, and `-2**16` never parsed at all. Carrying the
+/// parentheses makes the spelling a primary expression, which is the property
+/// every caller already assumes. It also prices itself honestly: the bare form
+/// looked shorter than a five-digit decimal only because it was leaving its
+/// parentheses for someone else to pay.
 fn power_of_two_spelling(value: i64) -> Option<String> {
     if value <= 1 {
         return None;
@@ -24102,7 +24481,7 @@ fn power_of_two_spelling(value: i64) -> Option<String> {
     if !magnitude.is_power_of_two() {
         return None;
     }
-    Some(format!("2**{}", magnitude.trailing_zeros()))
+    Some(format!("(2**{})", magnitude.trailing_zeros()))
 }
 
 fn shortest_integer(value: i64) -> String {
@@ -24133,7 +24512,7 @@ fn shortest_integer(value: i64) -> String {
         .min_by(|left, right| {
             left.len()
                 .cmp(&right.len())
-                .then_with(|| right.starts_with("2**").cmp(&left.starts_with("2**")))
+                .then_with(|| right.starts_with("(2**").cmp(&left.starts_with("(2**")))
         })
         .unwrap_or(decimal)
 }
@@ -24167,13 +24546,12 @@ fn shortest_float(value: f64) -> String {
 }
 
 fn javascript_numeric_literal_value(candidate: &str) -> Option<f64> {
-    if let Some(exponent) = candidate.strip_prefix("2**") {
+    if let Some(exponent) = candidate
+        .strip_prefix("(2**")
+        .and_then(|rest| rest.strip_suffix(')'))
+    {
         let exponent = exponent.parse::<i32>().ok()?;
         return Some(2.0f64.powi(exponent));
-    }
-    if let Some(exponent) = candidate.strip_prefix("-2**") {
-        let exponent = exponent.parse::<i32>().ok()?;
-        return Some(-2.0f64.powi(exponent));
     }
     candidate.parse::<f64>().ok()
 }
@@ -24874,6 +25252,85 @@ mod tests {
 
     fn compile(source: &str) -> String {
         compile_with_options(source, IrJsOptions::default())
+    }
+
+    /// An `if`/`else` whose arms both terminate is still an `if`/`else`.
+    ///
+    /// Plain reachability deletes the merge block nothing can reach, the shape
+    /// fails to remap because it needs all four of its blocks, and
+    /// `can_structure` then refuses the whole function over that one unshaped
+    /// branch — emitting a state machine for two-armed `if`. katex compiled 61
+    /// functions this way, 953 dispatch edges.
+    #[test]
+    fn a_two_armed_if_whose_arms_both_return_stays_structured() {
+        let output =
+            compile("extern int read();int f(){if(read()>0){return 1;}else{return 3;}}print(f());");
+        assert!(!output.contains("for(;;)"), "{output}");
+        assert!(!output.contains("switch"), "{output}");
+
+        // The same must hold when the arms end in `throw` rather than `return`.
+        let thrown = compile(
+            "extern int read();extern void fail();int f(){if(read()>0){return 1;}else{fail();return 2;}}print(f());",
+        );
+        assert!(!thrown.contains("for(;;)switch"), "{thrown}");
+    }
+
+    /// `JS.array` takes its elements, like `JS.object` takes its pairs.
+    ///
+    /// Without this there is no way to write a `JsValue` array literal, so a
+    /// port has to allocate an empty array and push into it — which is a
+    /// different program (`Array.prototype.push` honours an inherited index
+    /// setter) as well as a longer one.
+    #[test]
+    fn js_string_of_a_string_is_the_string() {
+        let typed = compile(
+            "extern void consume(string s);string id(string s){return JS.string(s);}consume(id(\"x\"));",
+        );
+        assert!(!typed.contains("+\"\""), "{typed}");
+        assert!(!typed.contains("+''"), "{typed}");
+
+        let literal = compile("extern void consume(string s);consume(JS.string(\"hello\"));");
+        assert!(
+            !literal.contains("+\"\"") && !literal.contains("+''"),
+            "{literal}"
+        );
+        assert!(
+            literal.contains("\"hello\"")
+                || literal.contains("'hello'")
+                || literal.contains("`hello`"),
+            "{literal}"
+        );
+
+        let dynamic =
+            compile("extern void consume(string s);extern JsValue v;consume(JS.string(v));");
+        assert!(
+            dynamic.contains("+\"\"") || dynamic.contains("+''") || dynamic.contains("String("),
+            "{dynamic}"
+        );
+    }
+
+    #[test]
+    fn js_array_takes_its_elements() {
+        let empty = compile("extern void consume(JsValue v);consume(JS.array());");
+        assert!(empty.contains("[]"), "{empty}");
+
+        let filled = compile("extern void consume(JsValue v);consume(JS.array(\"a\",\"b\"));");
+        assert!(
+            filled.contains("[\"a\",\"b\"]")
+                || filled.contains("['a','b']")
+                || filled.contains("[`a`,`b`]"),
+            "{filled}"
+        );
+    }
+
+    #[test]
+    fn a_lone_underscore_object_key_is_not_mangled() {
+        let output =
+            compile_module("export JsValue table(){return JS.object(\"_\", true, \"^\", true);}");
+        assert!(
+            output.contains("_:") || output.contains("\"_\"") || output.contains("'_'"),
+            "{output}"
+        );
     }
 
     fn js_ident_ending_at(source: &str, end: usize) -> Option<(usize, &str)> {
@@ -28327,6 +28784,7 @@ install();
             true,
             &loop_captured_closures(function),
             &AHashSet::default(),
+            false,
         );
 
         assert_ne!(colors[&callback], colors[&object]);
@@ -28375,6 +28833,7 @@ install();
             true,
             &loop_captured_closures(function),
             &AHashSet::default(),
+            false,
         );
         let extracts = function
             .blocks
@@ -28431,6 +28890,7 @@ install();
             true,
             &loop_captured_closures(function),
             &AHashSet::default(),
+            false,
         );
         for instruction in function.blocks.iter().flat_map(|block| &block.instructions) {
             if let (
@@ -28609,6 +29069,7 @@ install();
             true,
             &loop_captured_closures(function),
             &AHashSet::default(),
+            false,
         );
 
         for (value, color) in &colors {
@@ -31785,10 +32246,12 @@ consume(field(JS.object("type", 1), "type"));
     #[test]
     fn renders_shortest_exact_numeric_literals() {
         assert_eq!(shortest_integer(120_000), "12e4");
-        assert_eq!(shortest_integer(1_099_511_627_776), "2**40");
-        assert_eq!(shortest_integer(65_536), "2**16");
+        assert_eq!(shortest_integer(1_099_511_627_776), "(2**40)");
+        // `(2**16)` is longer than `65536`, so the decimal wins once the
+        // spelling pays for the parentheses that make it a primary expression.
+        assert_eq!(shortest_integer(65_536), "65536");
         assert_eq!(shortest_integer(256), "256");
-        assert_eq!(shortest_float(1_099_511_627_776.0), "2**40");
+        assert_eq!(shortest_float(1_099_511_627_776.0), "(2**40)");
         assert_eq!(shortest_float(0.5), ".5");
         assert_eq!(shortest_float(0.0000001), "1e-7");
         assert_eq!(shortest_float(-0.25), "-.25");
@@ -32669,7 +33132,7 @@ consume(field(JS.object("type", 1), "type"));
 
         let large = compile("extern int read();print(read()*8388608);");
         assert!(
-            large.contains("*8388608|0") || large.contains("*2**23|0"),
+            large.contains("*8388608|0") || large.contains("*(2**23)|0"),
             "{large}"
         );
         assert!(!large.contains("Math.imul"), "{large}");
@@ -32730,7 +33193,7 @@ consume(field(JS.object("type", 1), "type"));
         let output = compile("extern int read();print(Math.imul(read(),8388608));");
         assert!(
             output.contains("Math.imul(read(),8388608)")
-                || output.contains("Math.imul(read(),2**23)"),
+                || output.contains("Math.imul(read(),(2**23))"),
             "{output}"
         );
     }

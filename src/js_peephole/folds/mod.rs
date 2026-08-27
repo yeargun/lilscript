@@ -1,3 +1,4 @@
+mod arrays;
 mod bodies;
 mod boolean;
 mod calls;
@@ -13,6 +14,7 @@ mod members;
 mod returns;
 mod syntax;
 
+pub(crate) use arrays::*;
 pub(crate) use bodies::*;
 pub(crate) use boolean::*;
 pub(crate) use calls::*;

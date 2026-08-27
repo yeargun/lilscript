@@ -89,6 +89,40 @@ pub(crate) fn canonicalize_leaf_syntax(
     Ok((output, count))
 }
 
+/// Sequence commas cannot elide an operand (`a,,b` is a SyntaxError). Array
+/// holes (`[a,,b]`) are the only place that empty slot is legal, so those
+/// stay. A comma that opens a statement is the same hole after a terminator.
+pub(crate) fn fold_empty_comma_operators(
+    source: &str,
+) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+    let mut bracket_depth = 0i32;
+    let mut paren_depth = 0i32;
+    let mut brace_depth = 0i32;
+    for (index, token) in tokens.iter().enumerate() {
+        match token.text {
+            "(" => paren_depth += 1,
+            ")" => paren_depth -= 1,
+            "[" => bracket_depth += 1,
+            "]" => bracket_depth -= 1,
+            "{" => brace_depth += 1,
+            "}" => brace_depth -= 1,
+            "," if bracket_depth <= 0 => {
+                let previous = index.checked_sub(1).map(|at| tokens[at].text);
+                let empty_operand = matches!(previous, Some(","));
+                let statement_leading =
+                    paren_depth == 0 && brace_depth == 0 && matches!(previous, None | Some(";"));
+                if empty_operand || statement_leading {
+                    replacements.push((token.start, token.end, String::new()));
+                }
+            }
+            _ => {}
+        }
+    }
+    Ok(apply_token_rewrites(source, replacements))
+}
+
 /// `cond?,x:y` is never valid JavaScript (`?.` is optional chaining, `??` is
 /// nullish). A comma immediately after a ternary `?` is an empty then-arm
 /// operand left behind when a sequenced value was deleted. Dropping that comma
@@ -340,4 +374,22 @@ pub(crate) fn drop_pure_regex_expression_statements(
         replacements.push((token.start, next.end, String::new()));
     }
     Ok(apply_token_rewrites(source, replacements))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::fold_empty_comma_operators;
+
+    #[test]
+    fn collapses_empty_comma_operators_outside_arrays() {
+        let (out, count) = fold_empty_comma_operators("a=b,,c=d;").unwrap();
+        assert!(count >= 1, "{out}");
+        assert_eq!(out, "a=b,c=d;");
+        let (holes, hole_count) = fold_empty_comma_operators("[a,,b]").unwrap();
+        assert_eq!(hole_count, 0, "{holes}");
+        assert_eq!(holes, "[a,,b]");
+        let (stmt, stmt_count) = fold_empty_comma_operators("a=b;,c=d").unwrap();
+        assert!(stmt_count >= 1, "{stmt}");
+        assert_eq!(stmt, "a=b;c=d");
+    }
 }

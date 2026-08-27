@@ -640,6 +640,17 @@ fn beta_reduction_needs_grouping(
     }) {
         return true;
     }
+    // The call standing as a ternary's test. `?:` is right-associative, so a
+    // body that is itself a conditional — or anything binding looser — takes
+    // the arms that follow instead of being the test. Reducing
+    // `(c=>a?b:d)(x)?e:f` without the group silently rewired the branches.
+    if tokens
+        .get(call_close + 1)
+        .is_some_and(|token| token.text == "?")
+        && body_binds_looser_than_ternary_test(tokens, body_from, body_to)
+    {
+        return true;
+    }
     let mut depth = 0i32;
     for token in &tokens[body_from..body_to] {
         match token.text {
@@ -647,6 +658,33 @@ fn beta_reduction_needs_grouping(
             ")" | "]" | "}" => depth -= 1,
             "," if depth == 0 && previous.is_none_or(|token| token.text != "return") => {
                 return true;
+            }
+            _ => {}
+        }
+    }
+    false
+}
+
+/// `?:`'s own tightness in `binary_operator_tightness`.
+const TERNARY_TIGHTNESS: u8 = 2;
+
+fn body_binds_looser_than_ternary_test(
+    tokens: &[Token<'_>],
+    body_from: usize,
+    body_to: usize,
+) -> bool {
+    let mut depth = 0i32;
+    for token in &tokens[body_from..body_to] {
+        match token.text {
+            "(" | "[" | "{" => depth += 1,
+            ")" | "]" | "}" => depth -= 1,
+            "?" | "=>" if depth == 0 => return true,
+            operator if depth == 0 => {
+                if crate::js_peephole::rewrite::binary_operator_tightness(operator)
+                    .is_some_and(|tightness| tightness <= TERNARY_TIGHTNESS)
+                {
+                    return true;
+                }
             }
             _ => {}
         }
@@ -869,7 +907,8 @@ fn is_expression_statement_span(tokens: &[Token<'_>], start: usize, end: usize) 
     }
     !matches!(
         tokens[start].text,
-        "if" | "else"
+        "," | "if"
+            | "else"
             | "for"
             | "while"
             | "var"
@@ -938,7 +977,11 @@ pub(crate) fn fold_pristine_static_method_calls(
             continue;
         }
         if after_this == Some(")") {
-            replacements.push((tokens[index + 3].start, tokens[index + 6].end, String::new()));
+            replacements.push((
+                tokens[index + 3].start,
+                tokens[index + 6].end,
+                String::new(),
+            ));
             index += 8;
             continue;
         }

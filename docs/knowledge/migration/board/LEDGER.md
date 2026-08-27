@@ -47,6 +47,12 @@ that lane is green, because a search that ranks incorrect programs ranks noise.
 |---|---|---|---|---|
 | `jquery-01` | active | Bottom-up attribution on jQuery: where do the compressed bytes actually go? Convergence recovered 875 Brotli; arrow spelling and header diversity were refuted as causes. | Brotli-11 29,011 shipped, against `jquery.min.js` 27,445 | [notes](notes/jquery-01.md) |
 
+## md — the react-markdown stack
+
+| id | status | intent | gate | note |
+|---|---|---|---|---|
+| `md-01` | active | The `@itslil` react-markdown stack must beat `terser(official)` on Brotli-11 in both worlds. Bottom-up diagnostic against acorn-tokenized `katex.min.js`: we emit **23.3% more tokens** (127,602 vs 103,449), and the whole raw gap is ~5,850 extra `NAME = …;` statements. `LILSCRIPT_STORE_CENSUS` named the cause — the `unstable` taint, whose largest source is treating every dynamic member read as a coercion hook. New scored assumption **`assume_pure_property_reads`** (Terser's `pure_getters`, default off) plus a precedence fix in `fold_negated_conditional_arms` (`!1 !== x` is `(!1) !== x`) is worth **−6,359 Brotli** across nine packages with every suite green. Refuted along the way: name coalescing (off is **+2,493 worse** and fails 274 tests), typed state bags (+60), operand-fusion run length (byte-identical). **16/16 ports green. Nine win, seven lose (+31,709, from ~86,000).** | Every package at or under its official Terser row, official suites green | [notes](notes/md-01.md) |
+
 ## marked — the parser port
 
 | id | status | intent | gate | note |
@@ -60,7 +66,7 @@ that lane is green, because a search that ranks incorrect programs ranks noise.
 
 | id | status | intent | gate | note |
 |---|---|---|---|---|
-| `search-01` | blocked(ident-05) | Search is on for marked and is what wins the codec fight (10,135 → 9,318 Brotli), but it can still rank an unbound artifact at other settings. | `ident-05` green before search is trusted at every setting | [notes](notes/search-01.md) |
+| `search-01` | landed(md stack) | Search is `always` on **15 of 16** markdown ports, each gated by its own suite; `remark-gfm` flips to a win and the stack gains ~5,600 Brotli. Three compiler bugs fixed to get there: `extends push`, a fluent method fused into a class, and a beta-reduced conditional losing its parentheses in a ternary test. `react-markdown` stays `off`: its failure is the real `ident-05` shape — a local shadowing an outer binding a nested body still reads, which the resolver cannot see because the read resolves to the *wrong* binding rather than to none. | 15/16 ports green with `candidate_search = "always"` | [notes](notes/md-01.md) |
 | `search-03` | landed | The proposal budget is artifact-scaled (`div_ceil(4)` above 16 KiB), so an 18 KiB module at level 15 gets 96 work units against ~38 beam families and never reaches the naming or class-shape ones. Finding recorded; pack config shipped, compiler default unchanged. | `--explain human` shows the budget exhausted; `lilscript.identity.toml` reaches Brotli-11 5,156 | [notes](notes/search-03.md) |
 | `search-04` | landed | Is more search always better, and does the configured `cost_model` win its own metric? No and mostly: wider beams, raw-growth admission and an extra naming family all lose under a fixed work budget; the objective is honored wherever the search converges. | Recorded sweeps; per-pack configs shipped | [notes](notes/search-04.md) |
 | `search-02` | todo | After the flip, re-run the corpora and record the deltas — including where search costs raw bytes and wins compressed ones. | Recorded per-corpus deltas under `gate` numbers | [notes](notes/search-01.md) |

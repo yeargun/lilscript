@@ -1,13 +1,14 @@
 use crate::js_peephole::parse::{infix_precedence, Expression, ExpressionParser};
 use crate::js_peephole::rewrite::{
-    apply_token_rewrites, assign_is_in_declaration, conditional_test_needs_grouping,
-    identifier_occurs, is_statement_boundary, next_statement_end,
+    apply_token_rewrites, assign_is_in_declaration, binary_operator_tightness,
+    conditional_test_needs_grouping, identifier_occurs, is_statement_boundary, next_statement_end,
     parenthesized_expression_has_postfix_continuation, single_console_log_argument, top_level_stop,
 };
 use crate::js_peephole::scope::{
-    enclosing_block_end, enclosing_block_start, enclosing_function_range,
-    name_is_arguments_length_copy, name_is_nonnegative_length_copy, nested_function_end,
-    outermost_function_body_start, parse_function_expression,
+    collect_same_scope_name_uses, enclosing_block_end, enclosing_block_start,
+    enclosing_function_range, enclosing_function_span, name_is_arguments_length_copy,
+    name_is_nonnegative_length_copy, nested_function_end, outermost_function_body_start,
+    parse_function_expression,
 };
 use crate::js_peephole::token::{lex, matching_closers, Token, TokenKind};
 use crate::js_peephole::JavaScriptParseError;
@@ -303,6 +304,10 @@ fn equality_replacement_requires_grouping(tokens: &[Token<'_>], bang: usize, clo
 /// `if(value=expression){...}`. The assignment result already undergoes the
 /// same JavaScript truthiness conversion in both forms, and the binding keeps
 /// the same value on both the taken and untaken paths.
+///
+/// A top-level comma makes the statement a sequence whose value is the last
+/// operand, not `value`. `f=d<t,c=parse();if(f)` must stay in that order:
+/// folding it to `if(f=d<t,c=parse())` tests the parse result instead of `f`.
 pub(crate) fn fold_assignment_guards(
     source: &str,
 ) -> Result<(String, usize), JavaScriptParseError> {
@@ -340,7 +345,8 @@ pub(crate) fn fold_assignment_guards(
             start += 1;
             continue;
         };
-        if tokens.get(semi + 1).map(|token| token.text) != Some("if")
+        if spans_top_level_comma(&tokens, start + 2, semi)
+            || tokens.get(semi + 1).map(|token| token.text) != Some("if")
             || tokens.get(semi + 2).map(|token| token.text) != Some("(")
             || tokens.get(semi + 3).map(|token| (token.kind, token.text))
                 != Some((TokenKind::Identifier, name))
@@ -2041,6 +2047,25 @@ pub(crate) fn boolean_conditional_value_variants(
 /// `!test?yes:no` and `test?no:yes` have identical truthiness and evaluation
 /// order. Keeping this as an objective-scored late spelling lets dictionary
 /// codecs decide whether the arm topology is preferable for the artifact.
+
+/// Whether a leading `!` negates the whole condition or only its first operand.
+/// Unary `!` binds tighter than every binary operator, so a top-level binary
+/// operator inside the condition means the negation reaches only the left
+/// operand: `!1 !== x` is `(!1) !== x`, never `!(1 !== x)`. Dropping the `!` and
+/// swapping the arms is sound only in the first case.
+fn leading_negation_covers_condition(tokens: &[Token<'_>], start: usize, end: usize) -> bool {
+    let mut depth = 0i32;
+    for token in &tokens[start + 1..end] {
+        match token.text {
+            "(" | "[" | "{" => depth += 1,
+            ")" | "]" | "}" => depth -= 1,
+            text if depth == 0 && binary_operator_tightness(text).is_some() => return false,
+            _ => {}
+        }
+    }
+    true
+}
+
 pub(crate) fn fold_negated_conditional_arms(
     source: &str,
 ) -> Result<(String, usize), JavaScriptParseError> {
@@ -2065,7 +2090,8 @@ pub(crate) fn fold_negated_conditional_arms(
                 && condition_start + 1 < question
                 && condition_start
                     .checked_sub(1)
-                    .is_none_or(|previous| !matches!(tokens[previous].text, "&&" | "||" | "??"));
+                    .is_none_or(|previous| !matches!(tokens[previous].text, "&&" | "||" | "??"))
+                && leading_negation_covers_condition(&tokens, condition_start, question);
             let (condition_start, condition) = if condition_is_complete_negation {
                 (
                     condition_start,
@@ -3073,6 +3099,319 @@ pub(crate) fn fold_not_gt_zero_length(
     Ok(apply_token_rewrites(source, replacements))
 }
 
+/// Fold a copied optional object plus a boolean member into one assignment.
+///
+/// `if(X)var T=X,R=!!T.P;else R=!1` (and the matching ternary) evaluates `X`
+/// twice on the truthy path. `R=!!((T=X)&&T.P)` keeps a single read, which is
+/// required when `X` is a getter, and is the compact spelling Terser emits for
+/// `X?.P` presence tests. `T` must be unread after the statement so assigning
+/// it on the falsy path cannot change a later observer.
+pub(crate) fn fold_copied_member_presence(
+    source: &str,
+) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let matching_close = matching_closers(&tokens);
+    let mut replacements = Vec::new();
+    for if_at in 0..tokens.len() {
+        fold_if_copied_member_presence(source, &tokens, &matching_close, if_at, &mut replacements);
+    }
+    for qmark in 0..tokens.len() {
+        fold_ternary_copied_member_presence(
+            source,
+            &tokens,
+            &matching_close,
+            qmark,
+            &mut replacements,
+        );
+    }
+    Ok(apply_token_rewrites(source, replacements))
+}
+
+fn presence_expr_end(tokens: &[Token<'_>], at: usize) -> Option<usize> {
+    let head = tokens.get(at)?;
+    if head.text != "this" && head.kind != TokenKind::Identifier {
+        return None;
+    }
+    let mut end = at + 1;
+    while tokens.get(end).map(|token| token.text) == Some(".")
+        && tokens
+            .get(end + 1)
+            .is_some_and(|token| matches!(token.kind, TokenKind::Identifier | TokenKind::Keyword))
+    {
+        end += 2;
+    }
+    Some(end)
+}
+
+fn longest_presence_expr_ending_at(tokens: &[Token<'_>], end: usize) -> Option<usize> {
+    let mut found = None;
+    for at in (0..end).rev() {
+        if presence_expr_end(tokens, at) == Some(end) {
+            found = Some(at);
+            continue;
+        }
+        if found.is_some() && tokens[at].text != "." {
+            break;
+        }
+        if matches!(
+            tokens[at].text,
+            ";" | "{" | "}" | "," | "?" | ":" | "=" | "(" | ")" | "[" | "]"
+        ) {
+            break;
+        }
+    }
+    found
+}
+
+fn token_ranges_equal(
+    tokens: &[Token<'_>],
+    a: usize,
+    a_end: usize,
+    b: usize,
+    b_end: usize,
+) -> bool {
+    if a_end.saturating_sub(a) != b_end.saturating_sub(b) {
+        return false;
+    }
+    tokens[a..a_end]
+        .iter()
+        .zip(tokens[b..b_end].iter())
+        .all(|(left, right)| left.text == right.text)
+}
+
+fn skip_semicolon(tokens: &[Token<'_>], at: usize) -> usize {
+    if tokens.get(at).map(|token| token.text) == Some(";") {
+        at + 1
+    } else {
+        at
+    }
+}
+
+fn presence_temp_is_observed_after(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    temp: &str,
+    from: usize,
+    origin: usize,
+) -> bool {
+    let scope_end = enclosing_function_span(tokens, matching_close, origin)
+        .map(|(_, close)| close)
+        .unwrap_or(tokens.len());
+    let (uses, nested_use) =
+        collect_same_scope_name_uses(tokens, matching_close, temp, from, scope_end, usize::MAX);
+    if nested_use {
+        return true;
+    }
+    uses.iter()
+        .any(|&use_at| tokens.get(use_at + 1).map(|token| token.text) != Some("="))
+}
+
+fn copied_presence_replacement(
+    temp: &str,
+    flag: &str,
+    object: &str,
+    prop: &str,
+    declare: bool,
+) -> String {
+    if declare {
+        format!("var {temp},{flag}=!!(({temp}={object})&&{temp}.{prop});")
+    } else {
+        format!("{flag}=!!(({temp}={object})&&{temp}.{prop})")
+    }
+}
+
+fn fold_if_copied_member_presence(
+    source: &str,
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    if_at: usize,
+    replacements: &mut Vec<(usize, usize, String)>,
+) -> Option<usize> {
+    let prev = if_at
+        .checked_sub(1)
+        .map(|index| tokens[index].text)
+        .unwrap_or(";");
+    if !is_statement_boundary(tokens, if_at) && prev != "else" {
+        return None;
+    }
+    if tokens[if_at].text != "if" || tokens.get(if_at + 1).map(|token| token.text) != Some("(") {
+        return None;
+    }
+    let cond_open = if_at + 1;
+    let cond_close = matching_close.get(cond_open).copied().flatten()?;
+    let cond_from = cond_open + 1;
+    if presence_expr_end(tokens, cond_from) != Some(cond_close) {
+        return None;
+    }
+    let then_at = cond_close + 1;
+    let then_braced = tokens.get(then_at).map(|token| token.text) == Some("{");
+    let mut body_at = then_at;
+    if then_braced {
+        body_at += 1;
+    }
+    if tokens.get(body_at).map(|token| token.text) != Some("var") {
+        return None;
+    }
+    if tokens
+        .get(body_at + 1)
+        .is_none_or(|token| token.kind != TokenKind::Identifier)
+        || tokens.get(body_at + 2).map(|token| token.text) != Some("=")
+    {
+        return None;
+    }
+    let temp = tokens[body_at + 1].text;
+    let copy_from = body_at + 3;
+    let copy_end = presence_expr_end(tokens, copy_from)?;
+    if !token_ranges_equal(tokens, cond_from, cond_close, copy_from, copy_end)
+        || tokens.get(copy_end).map(|token| token.text) != Some(",")
+        || tokens
+            .get(copy_end + 1)
+            .is_none_or(|token| token.kind != TokenKind::Identifier)
+        || tokens.get(copy_end + 2).map(|token| token.text) != Some("=")
+        || tokens.get(copy_end + 3).map(|token| token.text) != Some("!")
+        || tokens.get(copy_end + 4).map(|token| token.text) != Some("!")
+        || tokens.get(copy_end + 5).map(|token| token.text) != Some(temp)
+        || tokens.get(copy_end + 6).map(|token| token.text) != Some(".")
+        || tokens
+            .get(copy_end + 7)
+            .is_none_or(|token| token.kind != TokenKind::Identifier)
+    {
+        return None;
+    }
+    let flag = tokens[copy_end + 1].text;
+    let prop = tokens[copy_end + 7].text;
+    if flag == temp {
+        return None;
+    }
+    let mut after_init = copy_end + 8;
+    after_init = skip_semicolon(tokens, after_init);
+    let mut after_then = after_init;
+    if then_braced {
+        if tokens.get(after_init).map(|token| token.text) != Some("}") {
+            return None;
+        }
+        after_then = after_init + 1;
+    } else if tokens.get(copy_end + 8).map(|token| token.text) != Some(";") {
+        return None;
+    }
+    if tokens.get(after_then).map(|token| token.text) != Some("else") {
+        return None;
+    }
+    let mut else_at = after_then + 1;
+    let else_braced = tokens.get(else_at).map(|token| token.text) == Some("{");
+    if else_braced {
+        else_at += 1;
+    }
+    if tokens.get(else_at).map(|token| token.text) != Some(flag)
+        || tokens.get(else_at + 1).map(|token| token.text) != Some("=")
+        || tokens.get(else_at + 2).map(|token| token.text) != Some("!")
+        || tokens.get(else_at + 3).map(|token| token.text) != Some("1")
+    {
+        return None;
+    }
+    let mut end = skip_semicolon(tokens, else_at + 4);
+    if else_braced {
+        if tokens.get(end).map(|token| token.text) != Some("}") {
+            return None;
+        }
+        end += 1;
+        end = skip_semicolon(tokens, end);
+    }
+    if presence_temp_is_observed_after(tokens, matching_close, temp, end, if_at) {
+        return None;
+    }
+    let object = &source[tokens[cond_from].start..tokens[cond_close - 1].end];
+    let replace_end = if end > 0 {
+        tokens[end - 1].end
+    } else {
+        return None;
+    };
+    replacements.push((
+        tokens[if_at].start,
+        replace_end,
+        copied_presence_replacement(temp, flag, object, prop, true),
+    ));
+    Some(end)
+}
+
+fn fold_ternary_copied_member_presence(
+    source: &str,
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    qmark: usize,
+    replacements: &mut Vec<(usize, usize, String)>,
+) {
+    if tokens.get(qmark).map(|token| token.text) != Some("?") {
+        return;
+    }
+    let cond_end = qmark;
+    let Some(cond_from) = longest_presence_expr_ending_at(tokens, cond_end) else {
+        return;
+    };
+    let mut then_at = qmark + 1;
+    if tokens.get(then_at).map(|token| token.text) == Some("(") {
+        then_at += 1;
+    }
+    if tokens
+        .get(then_at)
+        .is_none_or(|token| token.kind != TokenKind::Identifier)
+        || tokens.get(then_at + 1).map(|token| token.text) != Some("=")
+    {
+        return;
+    }
+    let temp = tokens[then_at].text;
+    let copy_from = then_at + 2;
+    let copy_end = match presence_expr_end(tokens, copy_from) {
+        Some(end) => end,
+        None => return,
+    };
+    if !token_ranges_equal(tokens, cond_from, cond_end, copy_from, copy_end)
+        || tokens.get(copy_end).map(|token| token.text) != Some(",")
+        || tokens
+            .get(copy_end + 1)
+            .is_none_or(|token| token.kind != TokenKind::Identifier)
+        || tokens.get(copy_end + 2).map(|token| token.text) != Some("=")
+        || tokens.get(copy_end + 3).map(|token| token.text) != Some("!")
+        || tokens.get(copy_end + 4).map(|token| token.text) != Some("!")
+        || tokens.get(copy_end + 5).map(|token| token.text) != Some(temp)
+        || tokens.get(copy_end + 6).map(|token| token.text) != Some(".")
+        || tokens
+            .get(copy_end + 7)
+            .is_none_or(|token| token.kind != TokenKind::Identifier)
+    {
+        return;
+    }
+    let flag = tokens[copy_end + 1].text;
+    let prop = tokens[copy_end + 7].text;
+    if flag == temp {
+        return;
+    }
+    let mut colon_at = copy_end + 8;
+    if tokens.get(colon_at).map(|token| token.text) == Some(")") {
+        colon_at += 1;
+    }
+    if tokens.get(colon_at).map(|token| token.text) != Some(":") {
+        return;
+    }
+    if tokens.get(colon_at + 1).map(|token| token.text) != Some(flag)
+        || tokens.get(colon_at + 2).map(|token| token.text) != Some("=")
+        || tokens.get(colon_at + 3).map(|token| token.text) != Some("!")
+        || tokens.get(colon_at + 4).map(|token| token.text) != Some("1")
+    {
+        return;
+    }
+    let end = colon_at + 5;
+    if presence_temp_is_observed_after(tokens, matching_close, temp, end, qmark) {
+        return;
+    }
+    let object = &source[tokens[cond_from].start..tokens[cond_end - 1].end];
+    replacements.push((
+        tokens[cond_from].start,
+        tokens[end - 1].end,
+        copied_presence_replacement(temp, flag, object, prop, false),
+    ));
+}
+
 #[cfg(test)]
 mod tests {
     use super::fold_statement_or_assigns;
@@ -3177,5 +3516,75 @@ mod tests {
             assert_eq!(count, 1, "{out}");
             assert_eq!(out, expected);
         }
+    }
+    #[test]
+    fn a_negated_literal_does_not_negate_the_comparison_it_leads() {
+        // `!1 !== x` is `(!1) !== x`. Dropping the `!` and swapping the arms
+        // rewrites it to `1 !== x`, which selects the opposite branch for every
+        // value of `x` other than `1`.
+        let source = "function f(a){return !1!==a.fences?!1:g(a)}";
+        use super::fold_negated_conditional_arms;
+        let (folded, count) = fold_negated_conditional_arms(source).unwrap();
+        assert_eq!(count, 0);
+        assert_eq!(folded, source);
+    }
+
+    #[test]
+    fn a_negation_over_the_whole_condition_still_swaps_its_arms() {
+        let source = "function f(a){return !a.fences?g(a):!1}";
+        use super::fold_negated_conditional_arms;
+        let (folded, count) = fold_negated_conditional_arms(source).unwrap();
+        assert_eq!(count, 1);
+        assert_eq!(folded, "function f(a){return a.fences?!1:g(a)}");
+    }
+
+    #[test]
+    fn assignment_guard_does_not_test_a_comma_sequence() {
+        let source = "function f(){f=d<t,c=parse();if(f)h.push(c);else if(c!=null)i.push(c)}";
+        use super::fold_assignment_guards;
+        let (folded, count) = fold_assignment_guards(source).unwrap();
+        assert_eq!(count, 0);
+        assert_eq!(folded, source);
+    }
+
+    #[test]
+    fn assignment_guard_still_folds_a_grouped_comma_rhs() {
+        let source = "function f(){a=(x,y);if(a)use(a)}";
+        use super::fold_assignment_guards;
+        let (folded, count) = fold_assignment_guards(source).unwrap();
+        assert_eq!(count, 1);
+        assert_eq!(folded, "function f(){if(a=(x,y))use(a)}");
+    }
+
+    #[test]
+    fn copied_member_presence_folds_if_else_and_ternary() {
+        use super::fold_copied_member_presence;
+        for (source, expected) in [
+            (
+                "function Ic(a){if(a.m)var c=a.m,b=!!c.size;else b=!1;return b}",
+                "function Ic(a){var c,b=!!((c=a.m)&&c.size);return b}",
+            ),
+            (
+                "function f(){if(this.a)var f=this.a,d=!!f.bound;else d=!1;d&&g(d)}",
+                "function f(){var f,d=!!((f=this.a)&&f.bound);d&&g(d)}",
+            ),
+            (
+                "function f(){this.a?(r=this.a,d=!!r.autoBind):d=!1,d&&(f=ab)}",
+                "function f(){d=!!((r=this.a)&&r.autoBind),d&&(f=ab)}",
+            ),
+        ] {
+            let (out, count) = fold_copied_member_presence(source).unwrap();
+            assert_eq!(count, 1, "{out}");
+            assert_eq!(out, expected);
+        }
+    }
+
+    #[test]
+    fn copied_member_presence_keeps_a_temp_that_is_read_later() {
+        use super::fold_copied_member_presence;
+        let source = "function f(){if(this.a)var t=this.a,d=!!t.bound;else d=!1;use(t)}";
+        let (out, count) = fold_copied_member_presence(source).unwrap();
+        assert_eq!(count, 0, "{out}");
+        assert_eq!(out, source);
     }
 }

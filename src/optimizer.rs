@@ -4734,7 +4734,7 @@ fn remove_unreachable_control_flow(module: &mut ControlFlowModule<'_>) -> Optimi
         {
             continue;
         }
-        let reachable = reachable_blocks(function);
+        let reachable = reachable_blocks_keeping_joins(function);
         if reachable.len() == function.blocks.len() {
             continue;
         }
@@ -8821,6 +8821,25 @@ fn unobserved_local_mutables(
                     let call_is_locally_discardable = summary
                         .is_some_and(|summary| !summary.inherent && mutation_roots.is_some());
                     if let Some(group) = mutation_roots.filter(|group| !group.is_empty()) {
+                        // A call that mutates one argument may have stored
+                        // another inside it — `pin(map, key, value)` is the whole
+                        // point of such a helper. Grouping only the mutated
+                        // parameter left the stored value unobserved once the
+                        // container was observed, and the store, with everything
+                        // reachable from it, was deleted as dead.
+                        //
+                        // The callee's summary says which parameters it actually
+                        // keeps, so only those join the group. Assuming every
+                        // argument does would pin the keys and scalars a helper
+                        // merely reads.
+                        let mut group = group;
+                        if let Some(summary) = summary.filter(|summary| !summary.inherent) {
+                            group.extend(summary.retained_parameters.iter().filter_map(
+                                |parameter| {
+                                    args.get(*parameter).and_then(|value| roots.get(value)).copied()
+                                },
+                            ));
+                        }
                         mutation_groups.push(group);
                     } else if !call_is_locally_discardable {
                         for value in args {
@@ -10598,6 +10617,11 @@ enum EffectRoot {
 pub(crate) struct FunctionEffectSummary {
     inherent: bool,
     mutated_parameters: AHashSet<usize>,
+    /// Parameters whose value the call may keep — stored into an object, or
+    /// handed to something else that keeps it. A caller that discards the
+    /// call's result still has to treat these as reachable from whatever the
+    /// call mutated, because that is where they went.
+    retained_parameters: AHashSet<usize>,
 }
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -10845,6 +10869,9 @@ fn analyze_function_effects(module: &ControlFlowModule<'_>) -> Vec<FunctionEffec
             for parameter in candidate.mutated_parameters {
                 changed |= summary.mutated_parameters.insert(parameter);
             }
+            for parameter in candidate.retained_parameters {
+                changed |= summary.retained_parameters.insert(parameter);
+            }
         }
         if !changed {
             return summaries;
@@ -10927,10 +10954,11 @@ fn summarize_function_effects(
             | ControlFlowOp::HostFieldSet { .. }
             | ControlFlowOp::DynamicImport { .. }
             | ControlFlowOp::Await { .. } => result.inherent = true,
-            ControlFlowOp::FieldSet { object, .. }
-            | ControlFlowOp::RecordFieldSet { object, .. }
-            | ControlFlowOp::IndexSet { object, .. } => {
+            ControlFlowOp::FieldSet { object, value, .. }
+            | ControlFlowOp::RecordFieldSet { object, value, .. }
+            | ControlFlowOp::IndexSet { object, value, .. } => {
                 record_mutation(*object, &roots, &mut result);
+                record_retention(*value, &roots, &mut result);
             }
             ControlFlowOp::CallDirect { function, args, .. } => {
                 apply_callee_summary(
@@ -11127,6 +11155,16 @@ fn record_mutation(
     }
 }
 
+fn record_retention(
+    value: ValueId,
+    roots: &AHashMap<ValueId, EffectRoot>,
+    result: &mut FunctionEffectSummary,
+) {
+    if let Some(EffectRoot::Parameter(parameter)) = roots.get(&value) {
+        result.retained_parameters.insert(*parameter);
+    }
+}
+
 fn apply_callee_summary(
     callee: Option<&FunctionEffectSummary>,
     args: &[ValueId],
@@ -11141,6 +11179,13 @@ fn apply_callee_summary(
     for parameter in &callee.mutated_parameters {
         if let Some(argument) = args.get(*parameter) {
             record_mutation(*argument, roots, result);
+        } else {
+            result.inherent = true;
+        }
+    }
+    for parameter in &callee.retained_parameters {
+        if let Some(argument) = args.get(*parameter) {
+            record_retention(*argument, roots, result);
         } else {
             result.inherent = true;
         }
@@ -12302,6 +12347,52 @@ fn cfg_predecessors(function: &ControlFlowFunction<'_>) -> Vec<Vec<usize>> {
         incoming.dedup();
     }
     predecessors
+}
+
+/// Reachable blocks, plus the join of every surviving `if`/`else`.
+///
+/// An `if`/`else` whose arms both terminate has no path to its merge block, so
+/// plain reachability deletes it. The shape then fails to remap — it requires
+/// all four of its blocks — and is dropped, and `can_structure` refuses the
+/// whole function over that one unshaped branch, emitting a state machine for a
+/// function whose control flow is an ordinary two-armed `if`. Keeping the join
+/// alive costs an unreachable block that nothing jumps to and preserves the
+/// shape that makes structured emission possible.
+fn reachable_blocks_keeping_joins(function: &ControlFlowFunction<'_>) -> AHashSet<usize> {
+    let mut reachable = reachable_blocks(function);
+    loop {
+        let joins = function
+            .shapes
+            .iter()
+            .filter_map(|shape| match shape {
+                crate::ir::ControlShape::If {
+                    header,
+                    then_block,
+                    else_block,
+                    merge_block,
+                } if reachable.contains(&(header.0 as usize))
+                    && reachable.contains(&(then_block.0 as usize))
+                    && reachable.contains(&(else_block.0 as usize))
+                    && !reachable.contains(&(merge_block.0 as usize)) =>
+                {
+                    Some(merge_block.0 as usize)
+                }
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        if joins.is_empty() {
+            return reachable;
+        }
+        let mut work = joins;
+        while let Some(block) = work.pop() {
+            if !reachable.insert(block) {
+                continue;
+            }
+            work.extend(terminator_successors(
+                function.blocks[block].terminator.as_ref(),
+            ));
+        }
+    }
 }
 
 fn reachable_blocks(function: &ControlFlowFunction<'_>) -> AHashSet<usize> {
@@ -15607,6 +15698,37 @@ mod tests {
         ));
 
         assert_eq!(trace, "TRACE:1:false:-1:9", "{output}");
+    }
+
+    /// A helper that mutates one argument may have stored another inside it.
+    ///
+    /// `pin(map, key, value)` is the whole point of such a helper. Grouping only
+    /// the mutated parameter left `value` unobserved once `map` was observed,
+    /// so the store — and everything reachable from it — was deleted as dead.
+    /// This silently emptied every extension table built through such a helper.
+    #[test]
+    fn a_stored_argument_is_observed_with_the_container_it_is_stored_in() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "extern void consume(JsValue value);\
+             void pin(JsValue target,string key,JsValue item){target[key]=item;}\
+             JsValue inner=JS.object();inner[\"tag\"]=\"kept\";\
+             JsValue outer=JS.object();pin(outer,\"slot\",inner);consume(outer);",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut module = lower_to_control_flow(&program, &semantics).unwrap();
+        let options = OptimizationOptions {
+            inlining: false,
+            ..OptimizationOptions::default()
+        };
+        optimize_control_flow_with_options(&mut module, &options, false).unwrap();
+        let output = crate::codegen_ir_js::emit_optimized_ir_js(&module).unwrap();
+        let trace = run_javascript(&format!(
+            "let seen='none';function consume(object){{seen=JSON.stringify(object)}};{output};process.stdout.write(seen)"
+        ));
+        assert_eq!(trace, "{\"slot\":{\"tag\":\"kept\"}}", "{output}");
     }
 
     #[test]

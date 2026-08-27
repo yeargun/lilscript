@@ -1,9 +1,11 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::js_peephole::rewrite::{
-    apply_token_rewrites, identifier_occurs, is_property_identifier,
+    apply_token_rewrites, identifier_occurs, is_property_identifier, is_statement_boundary,
 };
-use crate::js_peephole::scope::enclosing_function_span;
+use crate::js_peephole::scope::{
+    collect_same_scope_name_uses, enclosing_function_span, parse_function_expression,
+};
 use crate::js_peephole::token::{lex, matching_closers, Token, TokenKind};
 use crate::js_peephole::JavaScriptParseError;
 
@@ -15,6 +17,7 @@ pub(crate) fn fold_int32_coercions(source: &str) -> Result<(String, usize), Java
     let helpers = int32_coerce_helpers(&tokens);
     let property_helpers = int32_property_helpers(&tokens);
     let has_helpers = has_predicate_helpers(&tokens, &matching_close);
+    let bitwise_callees = bitwise_first_param_callees(&tokens, &matching_close);
     let mut replacements = Vec::<(usize, usize, String)>::new();
     let mut cursor = 0usize;
     while cursor < tokens.len() {
@@ -113,6 +116,26 @@ pub(crate) fn fold_int32_coercions(source: &str) -> Result<(String, usize), Java
         if let Some(next) =
             fold_grouped_plus_int32(source, &tokens, &matching_close, cursor, &mut replacements)
         {
+            cursor = next;
+            continue;
+        }
+        if let Some(next) = fold_int32_arg_to_bitwise_callee(
+            &tokens,
+            &matching_close,
+            &bitwise_callees,
+            cursor,
+            &mut replacements,
+        ) {
+            cursor = next;
+            continue;
+        }
+        if let Some(next) = fold_int32_temp_to_bitwise_callee(
+            &tokens,
+            &matching_close,
+            &bitwise_callees,
+            cursor,
+            &mut replacements,
+        ) {
             cursor = next;
             continue;
         }
@@ -1130,6 +1153,283 @@ fn fold_bitflag_field_update(
     Some(and_close + 1)
 }
 
+fn bitwise_first_param_callees<'a>(
+    tokens: &'a [Token<'a>],
+    matching_close: &[Option<usize>],
+) -> HashSet<&'a str> {
+    let mut names = HashSet::new();
+    let mut assigned = HashSet::new();
+    let mut rejected = HashSet::new();
+    for index in 0..tokens.len() {
+        if tokens[index].text == "function"
+            && is_statement_boundary(tokens, index)
+            && tokens
+                .get(index + 1)
+                .is_some_and(|token| token.kind == TokenKind::Identifier)
+            && tokens.get(index + 2).map(|token| token.text) == Some("(")
+        {
+            let name = tokens[index + 1].text;
+            if !assigned.insert(name) {
+                rejected.insert(name);
+                continue;
+            }
+            if function_first_param_is_bitwise_only(tokens, matching_close, index) {
+                names.insert(name);
+            }
+            continue;
+        }
+        if tokens[index].kind != TokenKind::Identifier || is_property_identifier(tokens, index) {
+            continue;
+        }
+        if tokens.get(index + 1).map(|token| token.text) != Some("=") {
+            continue;
+        }
+        let name = tokens[index].text;
+        let Some(expr) = parse_function_expression(tokens, matching_close, index + 2) else {
+            continue;
+        };
+        if expr.is_arrow {
+            continue;
+        }
+        if !assigned.insert(name) {
+            rejected.insert(name);
+            continue;
+        }
+        if function_first_param_is_bitwise_only(tokens, matching_close, index + 2) {
+            names.insert(name);
+        }
+    }
+    names.retain(|name| !rejected.contains(name));
+    names
+}
+
+fn function_first_param_is_bitwise_only(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    function_at: usize,
+) -> bool {
+    let mut index = function_at;
+    if tokens.get(index).map(|token| token.text) != Some("function") {
+        return false;
+    }
+    index += 1;
+    if tokens
+        .get(index)
+        .is_some_and(|token| token.kind == TokenKind::Identifier)
+    {
+        index += 1;
+    }
+    if tokens.get(index).map(|token| token.text) != Some("(") {
+        return false;
+    }
+    let params_open = index;
+    let Some(params_close) = matching_close.get(params_open).copied().flatten() else {
+        return false;
+    };
+    if tokens
+        .get(params_open + 1)
+        .is_none_or(|token| token.kind != TokenKind::Identifier)
+        || tokens.get(params_open + 1).map(|token| token.text) == Some("...")
+    {
+        return false;
+    }
+    if !matches!(
+        tokens.get(params_open + 2).map(|token| token.text),
+        Some(",") | Some(")")
+    ) {
+        return false;
+    }
+    let param = tokens[params_open + 1].text;
+    if tokens.get(params_close + 1).map(|token| token.text) != Some("{") {
+        return false;
+    }
+    let Some(body_close) = matching_close.get(params_close + 1).copied().flatten() else {
+        return false;
+    };
+    let body_from = params_close + 2;
+    let (uses, nested_use) = collect_same_scope_name_uses(
+        tokens,
+        matching_close,
+        param,
+        body_from,
+        body_close,
+        usize::MAX,
+    );
+    if nested_use || uses.is_empty() {
+        return false;
+    }
+    uses.iter()
+        .all(|&use_at| ident_use_is_bitwise(tokens, use_at))
+}
+
+fn ident_use_is_bitwise(tokens: &[Token<'_>], use_at: usize) -> bool {
+    let next = tokens.get(use_at + 1).map(|token| token.text);
+    if next.is_some_and(|op| BITWISE_OPS.contains(&op)) {
+        return true;
+    }
+    let previous = use_at
+        .checked_sub(1)
+        .map(|index| tokens[index].text)
+        .unwrap_or(";");
+    BITWISE_OPS.contains(&previous)
+}
+
+fn fold_int32_arg_to_bitwise_callee(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    callees: &HashSet<&str>,
+    cursor: usize,
+    replacements: &mut Vec<(usize, usize, String)>,
+) -> Option<usize> {
+    if is_property_identifier(tokens, cursor)
+        || !tokens.get(cursor).is_some_and(|token| {
+            token.kind == TokenKind::Identifier && callees.contains(token.text)
+        })
+        || tokens.get(cursor + 1).map(|token| token.text) != Some("(")
+    {
+        return None;
+    }
+    let open = cursor + 1;
+    let close = matching_close.get(open).copied().flatten()?;
+    if close <= open + 1 {
+        return None;
+    }
+    let (coerce_start, coerce_end) =
+        trailing_int32_coerce_span(tokens, matching_close, open + 1, close)?;
+    replacements.push((
+        tokens[coerce_start].start,
+        tokens[coerce_end].end,
+        String::new(),
+    ));
+    Some(close + 1)
+}
+
+fn trailing_int32_coerce_span(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    arg_start: usize,
+    call_close: usize,
+) -> Option<(usize, usize)> {
+    let mut depth = 0i32;
+    let mut arg_end = call_close;
+    let mut index = arg_start;
+    while index < call_close {
+        match tokens[index].text {
+            "(" | "[" | "{" => depth += 1,
+            ")" | "]" | "}" => depth -= 1,
+            "," if depth == 0 => {
+                arg_end = index;
+                break;
+            }
+            _ => {}
+        }
+        index += 1;
+    }
+    if arg_end <= arg_start + 1 {
+        return None;
+    }
+    if tokens.get(arg_end - 2).map(|token| token.text) == Some("|")
+        && tokens.get(arg_end - 1).map(|token| token.text) == Some("0")
+    {
+        return Some((arg_end - 2, arg_end - 1));
+    }
+    if tokens.get(arg_start).map(|token| token.text) == Some("(") {
+        let inner_close = matching_close.get(arg_start).copied().flatten()?;
+        if inner_close + 1 == arg_end
+            && tokens.get(inner_close - 2).map(|token| token.text) == Some("|")
+            && tokens.get(inner_close - 1).map(|token| token.text) == Some("0")
+        {
+            return Some((inner_close - 2, inner_close - 1));
+        }
+    }
+    None
+}
+
+fn fold_int32_temp_to_bitwise_callee(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    callees: &HashSet<&str>,
+    cursor: usize,
+    replacements: &mut Vec<(usize, usize, String)>,
+) -> Option<usize> {
+    let name_at = if matches!(
+        tokens.get(cursor).map(|token| token.text),
+        Some("var") | Some("let")
+    ) && tokens
+        .get(cursor + 1)
+        .is_some_and(|token| token.kind == TokenKind::Identifier)
+    {
+        cursor + 1
+    } else if tokens
+        .get(cursor)
+        .is_some_and(|token| token.kind == TokenKind::Identifier)
+        && !is_property_identifier(tokens, cursor)
+    {
+        cursor
+    } else {
+        return None;
+    };
+    if tokens.get(name_at + 1).map(|token| token.text) != Some("=") {
+        return None;
+    }
+    let temp = tokens[name_at].text;
+    let rhs_from = name_at + 2;
+    let rhs_stop = crate::js_peephole::rewrite::top_level_stop(tokens, rhs_from, &[",", ";", "}"])?;
+    if rhs_stop < rhs_from + 2
+        || tokens.get(rhs_stop - 2).map(|token| token.text) != Some("|")
+        || tokens.get(rhs_stop - 1).map(|token| token.text) != Some("0")
+    {
+        return None;
+    }
+    let scope_end = enclosing_function_span(tokens, matching_close, cursor)
+        .map(|(_, close)| close)
+        .unwrap_or(tokens.len());
+    let (uses, nested_use) =
+        collect_same_scope_name_uses(tokens, matching_close, temp, rhs_stop, scope_end, name_at);
+    if nested_use || uses.is_empty() {
+        return None;
+    }
+    if !uses
+        .iter()
+        .all(|&use_at| ident_is_first_arg_to_callee(tokens, matching_close, callees, use_at))
+    {
+        return None;
+    }
+    replacements.push((
+        tokens[rhs_stop - 2].start,
+        tokens[rhs_stop - 1].end,
+        String::new(),
+    ));
+    Some(rhs_stop)
+}
+
+fn ident_is_first_arg_to_callee(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    callees: &HashSet<&str>,
+    use_at: usize,
+) -> bool {
+    if use_at == 0 || tokens.get(use_at - 1).map(|token| token.text) != Some("(") {
+        return false;
+    }
+    let open = use_at - 1;
+    if open == 0
+        || !tokens.get(open - 1).is_some_and(|token| {
+            token.kind == TokenKind::Identifier && callees.contains(token.text)
+        })
+        || is_property_identifier(tokens, open - 1)
+    {
+        return false;
+    }
+    let Some(close) = matching_close.get(open).copied().flatten() else {
+        return false;
+    };
+    matches!(
+        tokens.get(use_at + 1).map(|token| token.text),
+        Some(",") | Some(")")
+    ) && (tokens.get(use_at + 1).map(|token| token.text) != Some(")") || use_at + 1 == close)
+}
+
 #[cfg(test)]
 mod tests {
     use super::fold_int32_coercions;
@@ -1181,5 +1481,21 @@ mod tests {
         assert!(!out.contains("lengthr"), "{out}");
         assert!(!out.contains("on|0"), "{out}");
         assert!(!out.contains("+this.y|0"), "{out}");
+    }
+
+    #[test]
+    fn drops_int32_coerce_on_bitwise_callee_args() {
+        let source = "function Tb(a,b,c){return c?a|b:a&(b^-1)}function s(a){this.v=Tb(this.v|0,1,!!a);let c=this.v|0;this.v=Tb(c,16,!0)}";
+        let (out, count) = fold_int32_coercions(source).unwrap();
+        assert!(count >= 1, "{out}");
+        assert!(out.contains("Tb(this.v,1,!!a)"), "{out}");
+        assert!(
+            out.contains("let c=this.v;")
+                || out.contains("let c=this.v,")
+                || out.contains("c=this.v;"),
+            "{out}"
+        );
+        assert!(!out.contains("Tb(this.v|0"), "{out}");
+        assert!(!out.contains("c=this.v|0"), "{out}");
     }
 }

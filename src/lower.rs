@@ -2808,7 +2808,12 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
             );
         }
         if builtin == JsArray {
-            return self.emit_value(ControlFlowOp::Array(Vec::new()), ty, span);
+            let values = if args.is_empty() {
+                Vec::new()
+            } else {
+                self.lower_args(args)?
+            };
+            return self.emit_value(ControlFlowOp::Array(values), ty, span);
         }
         if builtin == JsUndefined {
             return self.emit_value(

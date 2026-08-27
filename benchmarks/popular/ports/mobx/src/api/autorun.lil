@@ -130,7 +130,6 @@ export JsValue reaction = JS.method3((JsValue _s, JsValue expression, JsValue ef
   JsValue effectAction = createAction(name, wrapErrorHandler(opts["onError"], effect), false, undef());
   JsValue currentValue = undef();
   JsValue firstTimeFlag = true;
-  JsValue changedFlag = false;
   JsValue r = undef();
   JsValue exprTrack = () => {
     bool prevAllow = allowStateChangesStart(false);
@@ -140,13 +139,12 @@ export JsValue reaction = JS.method3((JsValue _s, JsValue expression, JsValue ef
     } finally {
       allowStateChangesEnd(prevAllow);
     }
-    if (firstTimeFlag.truthy()) {
-      changedFlag = true;
-    } else {
-      changedFlag = !yes(call2(equalsFn, undef(), currentValue, nextValue));
+    JsValue changed = true;
+    if (!firstTimeFlag.truthy()) {
+      changed = !yes(call2(equalsFn, undef(), currentValue, nextValue));
     }
     currentValue = nextValue;
-    return undef();
+    return changed;
   };
   bool runSync = !opts["scheduler"].truthy() && !opts["delay"].truthy();
   bool isScheduled = false;
@@ -157,11 +155,10 @@ export JsValue reaction = JS.method3((JsValue _s, JsValue expression, JsValue ef
       return undef();
     }
     JsValue oldValue = currentValue;
-    changedFlag = false;
-    call1(r["track"], r, exprTrack);
+    JsValue changed = call1(r["track"], r, exprTrack);
     if (firstTimeFlag.truthy() && opts["fireImmediately"].truthy()) {
       JS.call(effectAction, undef(), currentValue, oldValue, r);
-    } else if (!firstTimeFlag.truthy() && changedFlag.truthy()) {
+    } else if (!firstTimeFlag.truthy() && changed.truthy()) {
       JS.call(effectAction, undef(), currentValue, oldValue, r);
     }
     firstTimeFlag = false;

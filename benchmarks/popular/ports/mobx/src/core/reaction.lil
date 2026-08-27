@@ -129,7 +129,10 @@ Reaction["prototype"]["track"] = JS.method1((JsValue self, JsValue fn) => {
     spyReportEnd(JS.object("time", toInt(now()) - toInt(startTime)));
   }
   endBatch();
-  return undef();
+  if (isCaughtException(result)) {
+    return undef();
+  }
+  return result;
 });
 Reaction["prototype"]["reportExceptionInDerivation_"] = JS.method1((JsValue self, JsValue error) => {
   if (self["errorHandler_"].truthy()) {

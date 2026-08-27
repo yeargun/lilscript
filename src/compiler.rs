@@ -35,7 +35,8 @@ use crate::js_peephole::{
     function_local_binding_swap_variants, identifier_name_is_clear_binding,
     inline_single_use_functions, late_generated_javascript_cleanup,
     late_generated_javascript_cleanup_local_variants, late_generated_javascript_cleanup_pass,
-    optimize_generated_javascript, optimize_generated_javascript_preserving_functions,
+    optimize_generated_javascript_assuming,
+    optimize_generated_javascript_preserving_functions_assuming,
     remap_identifier, remap_single_character_identifiers,
     repair_fused_keyword_identifiers, single_character_identifier_use_counts,
     single_character_identifiers, single_character_name_is_clear_binding,
@@ -4776,7 +4777,7 @@ fn select_javascript_candidate_global(
                 if !probe_with_peephole {
                     return Some(code);
                 }
-                optimize_generated_javascript(&code)
+                optimize_generated_javascript_assuming(&code, config.javascript.assume_pristine_builtins)
                     .ok()
                     .map(|optimized| optimized.code)
             },
@@ -6447,6 +6448,7 @@ fn finalize_javascript_candidates_with_parallelism(
     // declaration spellings. Preserve the configured plan at this boundary;
     // its exact source spelling remains one fallback leaf and must not evict a
     // codec-better `var`/`let` leaf after expansion.
+    let pristine_builtins = config.javascript.assume_pristine_builtins;
     let mut candidates = candidates;
     if candidates.len() > candidate_limit {
         let configured_plan = candidates
@@ -6585,12 +6587,13 @@ fn finalize_javascript_candidates_with_parallelism(
             let configured_declaration =
                 plan_identity == configured_plan_identity && declaration_index == 0;
             let variants = if prepare_peephole {
-                match optimize_generated_javascript(&declaration) {
+                match optimize_generated_javascript_assuming(&declaration, pristine_builtins) {
                     Err(_) if configured_declaration => {
                         vec![peephole_preserve_or_baseline(
                             declaration,
                             baseline_metrics,
                             true,
+                            pristine_builtins,
                         )]
                     }
                     Err(_) => continue,
@@ -6620,6 +6623,7 @@ fn finalize_javascript_candidates_with_parallelism(
                                 declaration,
                                 original_metrics,
                                 true,
+                                pristine_builtins,
                             )]
                         } else if analyze_generated_javascript(&optimized.code).is_ok() {
                             vec![
@@ -6631,6 +6635,7 @@ fn finalize_javascript_candidates_with_parallelism(
                                 declaration,
                                 original_metrics,
                                 true,
+                                pristine_builtins,
                             )]
                         }
                     }
@@ -6640,6 +6645,7 @@ fn finalize_javascript_candidates_with_parallelism(
                     declaration,
                     baseline_metrics,
                     parsed_function_elision,
+                    pristine_builtins,
                 )]
             } else {
                 let metrics = if configured_declaration {
@@ -8360,8 +8366,10 @@ fn peephole_preserve_or_baseline(
     declaration: String,
     baseline_metrics: JavaScriptSyntaxMetrics,
     is_declaration_spelling: bool,
+    pristine_builtins: bool,
 ) -> (String, JavaScriptSyntaxMetrics, usize, bool) {
-    match optimize_generated_javascript_preserving_functions(&declaration) {
+    match optimize_generated_javascript_preserving_functions_assuming(&declaration, pristine_builtins)
+    {
         Ok(preserved) if preserved.code != declaration => {
             if let Ok(metrics) = analyze_generated_javascript(&preserved.code) {
                 if metrics.functions >= baseline_metrics.functions {
@@ -8383,9 +8391,11 @@ fn configured_declaration_peephole(
     declaration: String,
     baseline_metrics: JavaScriptSyntaxMetrics,
     allow_function_elision: bool,
+    pristine_builtins: bool,
 ) -> (String, JavaScriptSyntaxMetrics, usize, bool) {
     if allow_function_elision {
-        if let Ok(optimized) = optimize_generated_javascript(&declaration) {
+        if let Ok(optimized) = optimize_generated_javascript_assuming(&declaration, pristine_builtins)
+        {
             let code = repair_late_javascript_candidate(optimized.code);
             if let Ok(metrics) = analyze_generated_javascript(&code) {
                 return (code, metrics, optimized.rewrites, true);
@@ -8393,7 +8403,7 @@ fn configured_declaration_peephole(
         }
     }
     let (code, metrics, rewrites, _) =
-        peephole_preserve_or_baseline(declaration, baseline_metrics, true);
+        peephole_preserve_or_baseline(declaration, baseline_metrics, true, pristine_builtins);
     if rewrites == 0 {
         return (code, metrics, 0, true);
     }
@@ -8420,6 +8430,7 @@ fn apply_search_off_declaration_peephole(
         selected.code,
         selected.baseline_metrics,
         config.single_use_function_expression_candidates_enabled(),
+        config.javascript.assume_pristine_builtins,
     );
     selected.code = code;
     if rewrites == 0 {
@@ -8525,7 +8536,9 @@ fn apply_late_javascript_cleanup(
     // large general rewrite only after plan selection.
     let mut canonical_peephole = None;
     if codec_budget.reserve_work_unit() {
-        if let Ok(optimized) = optimize_generated_javascript(&original.code) {
+        if let Ok(optimized) =
+            optimize_generated_javascript_assuming(&original.code, config.javascript.assume_pristine_builtins)
+        {
             let code = repair_late_javascript_candidate(optimized.code);
             let metrics = analyze_generated_javascript(&code).ok();
             let crosses_disabled_function_boundary = !config
@@ -8536,6 +8549,7 @@ fn apply_late_javascript_cleanup(
                     original.code.clone(),
                     selected.metrics,
                     true,
+                    config.javascript.assume_pristine_builtins,
                 );
                 let code = repair_late_javascript_candidate(code);
                 let metrics = analyze_generated_javascript(&code).ok();
@@ -8729,7 +8743,10 @@ fn apply_late_javascript_cleanup(
                 else {
                     continue;
                 };
-                let Ok(optimized) = optimize_generated_javascript(&remapped) else {
+                let Ok(optimized) = optimize_generated_javascript_assuming(
+                    &remapped,
+                    config.javascript.assume_pristine_builtins,
+                ) else {
                     continue;
                 };
                 let code = repair_late_javascript_candidate(optimized.code);
@@ -15024,7 +15041,7 @@ mod tests {
         config.javascript.optimizations = Some(vec![JavaScriptOptimization::ParsedPeephole]);
 
         let original = "let a=0,b=1,s=\"a = a + b \";a=a+b;console.log(a,s)";
-        let optimized = optimize_generated_javascript(original).unwrap();
+        let optimized = crate::js_peephole::optimize_generated_javascript(original).unwrap();
         assert_eq!(
             optimized.code,
             "let a=0,b=1,s=\"a = a + b \";a+=b,console.log(a,s)"
@@ -15321,7 +15338,7 @@ mod tests {
     #[test]
     fn terminal_cleanup_reopens_canonical_peephole_on_unprepared_finalist() {
         let code = "function f(a){var x;x=a;return x}console.log(f(1))";
-        let optimized = optimize_generated_javascript(code).unwrap();
+        let optimized = crate::js_peephole::optimize_generated_javascript(code).unwrap();
         assert!(optimized.code.len() < code.len(), "{}", optimized.code);
 
         let mut config = ProjectConfig::default();
@@ -17522,6 +17539,163 @@ mod tests {
         assert_eq!(
             String::from_utf8(output.stdout).expect("node stdout is UTF-8"),
             "1\ndf\n",
+            "{javascript}"
+        );
+    }
+
+    #[test]
+    fn keeps_a_captured_changed_flag_across_a_js_track_call() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "JsValue call1(JsValue fn,JsValue self,JsValue a0){return JS.call(fn,self,a0);}\
+             JsValue Reaction=JS.method0((JsValue self)=>self);\
+             JsValue reaction(JsValue expression,JsValue effect){\
+               JsValue currentValue=JS.undefined();\
+               JsValue firstTimeFlag=true;\
+               JsValue changedFlag=false;\
+               JsValue r=JS.undefined();\
+               JsValue exprTrack=()=>{\
+                 JsValue nextValue=JS.call(expression,JS.undefined(),r);\
+                 if(firstTimeFlag.truthy()){\
+                   changedFlag=true;\
+                 }else{\
+                   changedFlag=!JS.strictEqual(currentValue,nextValue);\
+                 }\
+                 currentValue=nextValue;\
+                 return JS.undefined();\
+               };\
+               JsValue reactionRunner=()=>{\
+                 changedFlag=false;\
+                 call1(r[\"track\"],r,exprTrack);\
+                 if(firstTimeFlag.truthy()){\
+                   print(\"first\");\
+                 }else if(changedFlag.truthy()){\
+                   JS.call(effect,JS.undefined(),currentValue);\
+                 }else{\
+                   print(\"skip\");\
+                 }\
+                 firstTimeFlag=false;\
+                 return JS.undefined();\
+               };\
+               r=JS.construct(Reaction);\
+               r[\"track\"]=JS.method1((JsValue self,JsValue fn)=>{\
+                 JS.call(fn,self);\
+                 return JS.undefined();\
+               });\
+               return reactionRunner;\
+             }\
+             JsValue box=JS.object();\
+             box[\"n\"]=1;\
+             JsValue run=reaction(()=>box[\"n\"],(JsValue value)=>{\
+               print(value);\
+               return JS.undefined();\
+             });\
+             JS.call(run,JS.undefined());\
+             box[\"n\"]=2;\
+             JS.call(run,JS.undefined());\
+             JS.call(run,JS.undefined());",
+        )
+        .unwrap();
+        let mut config = javascript_oracle_config();
+        config.javascript.candidate_search = CandidateSearch::Off;
+        config.javascript.optimization_level = 15;
+        config.javascript.priority = JavaScriptPriority::SizeFirst;
+        let javascript = compile_program_to_js_module_configured(&program, &config).unwrap();
+        let output = std::process::Command::new("node")
+            .arg("-e")
+            .arg(&javascript)
+            .output()
+            .expect("Node.js is required for JavaScript runtime parity tests");
+        assert!(
+            output.status.success(),
+            "node failed with {}:\n{}\n{javascript}",
+            output.status,
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(
+            String::from_utf8(output.stdout).expect("node stdout is UTF-8"),
+            "first\n2\nskip\n",
+            "{javascript}"
+        );
+    }
+
+    #[test]
+    fn keeps_a_captured_changed_flag_across_a_known_track_method_in_production() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "JsValue trackDerived(JsValue _self, JsValue fn){\
+               return JS.call(fn, JS.undefined());\
+             }\
+             JsValue Reaction=JS.method0((JsValue self)=>self);\
+             Reaction[\"prototype\"][\"track\"]=JS.method1((JsValue self, JsValue fn)=>{\
+               trackDerived(self, fn);\
+               return JS.undefined();\
+             });\
+             JsValue reaction(JsValue expression, JsValue effect){\
+               JsValue currentValue=JS.undefined();\
+               JsValue firstTimeFlag=true;\
+               JsValue changedFlag=false;\
+               JsValue r=JS.undefined();\
+               JsValue exprTrack=()=>{\
+                 JsValue nextValue=JS.call(expression,JS.undefined(),r);\
+                 if(firstTimeFlag.truthy()){\
+                   changedFlag=true;\
+                 }else{\
+                   changedFlag=!JS.strictEqual(currentValue,nextValue);\
+                 }\
+                 currentValue=nextValue;\
+                 return JS.undefined();\
+               };\
+               JsValue reactionRunner=()=>{\
+                 changedFlag=false;\
+                 JS.call(r[\"track\"],r,exprTrack);\
+                 if(firstTimeFlag.truthy()){\
+                   print(\"first\");\
+                 }else if(changedFlag.truthy()){\
+                   JS.call(effect,JS.undefined(),currentValue);\
+                 }else{\
+                   print(\"skip\");\
+                 }\
+                 firstTimeFlag=false;\
+                 return JS.undefined();\
+               };\
+               r=JS.construct(Reaction);\
+               return reactionRunner;\
+             }\
+             JsValue box=JS.object();\
+             box[\"n\"]=1;\
+             JsValue run=reaction(()=>box[\"n\"],(JsValue value)=>{\
+               print(value);\
+               return JS.undefined();\
+             });\
+             JS.call(run,JS.undefined());\
+             box[\"n\"]=2;\
+             JS.call(run,JS.undefined());\
+             JS.call(run,JS.undefined());",
+        )
+        .unwrap();
+        let mut config = javascript_oracle_config();
+        config.javascript.candidate_search = CandidateSearch::Production;
+        config.javascript.optimization_level = 15;
+        config.javascript.priority = JavaScriptPriority::SizeFirst;
+        config.javascript.strip_console = false;
+        let javascript = compile_program_to_js_module_configured(&program, &config).unwrap();
+        let output = std::process::Command::new("node")
+            .arg("-e")
+            .arg(&javascript)
+            .output()
+            .expect("Node.js is required for JavaScript runtime parity tests");
+        assert!(
+            output.status.success(),
+            "node failed with {}:\n{}\n{javascript}",
+            output.status,
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(
+            String::from_utf8(output.stdout).expect("node stdout is UTF-8"),
+            "first\n2\nskip\n",
             "{javascript}"
         );
     }

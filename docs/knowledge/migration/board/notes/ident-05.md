@@ -89,3 +89,15 @@ at the failing call site is emitted at its only call site, so compare the names 
 body uses against the plan that produced it. If the region is rendered before the
 final name table is fixed, that ordering is the bug. Only then re-attempt the guard,
 with the compiler's extern set rather than a "bound somewhere" heuristic.
+
+- 2026-08-27 — Concrete reproduction found on `react-markdownlil` with
+  `candidate_search = "always"`: the artifact parses, has no unbound store, and
+  throws `r is not a function`. Inside an inlined IIFE `r` is the `Info` factory;
+  in the enclosing scope `r` holds a property value. The hole is that
+  `validate_resolved_generated_bindings` only rejects a read that resolves to
+  *nothing* — a read that resolves to the wrong, nearer binding passes. The fix
+  belongs in the renamer: a local may not take a name that shadows an outer
+  binding referenced by the function or any closure nested inside it. Three other
+  search miscompiles on the markdown stack were fixed and are recorded in
+  [md-01](md-01.md); this is the one that remains. — **OPEN**
+

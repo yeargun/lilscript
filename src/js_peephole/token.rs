@@ -78,6 +78,7 @@ pub(crate) fn validate_delimiters(tokens: &[Token<'_>]) -> Result<usize, JavaScr
                     return Err(JavaScriptParseError {
                         offset: token.start,
                         message: "unmatched closing delimiter",
+                        context: None,
                     });
                 };
                 let matches = matches!(
@@ -88,6 +89,7 @@ pub(crate) fn validate_delimiters(tokens: &[Token<'_>]) -> Result<usize, JavaScr
                     return Err(JavaScriptParseError {
                         offset: token.start,
                         message: "mismatched closing delimiter",
+                        context: None,
                     });
                 }
             }
@@ -98,6 +100,7 @@ pub(crate) fn validate_delimiters(tokens: &[Token<'_>]) -> Result<usize, JavaScr
         return Err(JavaScriptParseError {
             offset: open.start,
             message: "unclosed delimiter",
+            context: None,
         });
     }
     Ok(maximum)
@@ -180,6 +183,7 @@ pub(crate) fn lex_classified(source: &str) -> Result<LexedSource<'_>, JavaScript
                 return Err(JavaScriptParseError {
                     offset: start,
                     message: "unterminated block comment",
+                    context: None,
                 });
             }
             cursor += 2;
@@ -382,6 +386,7 @@ pub(crate) fn scan_quoted(
                 return Err(JavaScriptParseError {
                     offset: start,
                     message: "unterminated string literal",
+                    context: None,
                 });
             }
             _ => cursor += 1,
@@ -390,6 +395,7 @@ pub(crate) fn scan_quoted(
     Err(JavaScriptParseError {
         offset: start,
         message: "unterminated string literal",
+        context: None,
     })
 }
 
@@ -408,6 +414,7 @@ pub(crate) fn scan_template(bytes: &[u8], start: usize) -> Result<usize, JavaScr
     Err(JavaScriptParseError {
         offset: start,
         message: "unterminated template literal",
+        context: None,
     })
 }
 
@@ -438,6 +445,7 @@ pub(crate) fn scan_template_expression(
     Err(JavaScriptParseError {
         offset: template_start,
         message: "unterminated template interpolation",
+        context: None,
     })
 }
 
@@ -630,6 +638,7 @@ pub(crate) fn validate_conditional_operators(
                         return Err(JavaScriptParseError {
                             offset: tokens[index].start,
                             message: "conditional `?` without `:`",
+                            context: None,
                         });
                     }
                 }
@@ -697,6 +706,7 @@ pub(crate) fn validate_conditional_operators(
                     return Err(JavaScriptParseError {
                         offset: tokens[index].start,
                         message: "`:` without a conditional `?`",
+                        context: None,
                     });
                 }
                 if let Some(open) = case_open.last_mut() {

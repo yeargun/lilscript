@@ -1,4 +1,6 @@
-use crate::js_peephole::rewrite::{identifier_occurs, is_property_identifier, top_level_stop};
+use crate::js_peephole::rewrite::{
+    assign_is_in_declaration, identifier_occurs, is_property_identifier, top_level_stop,
+};
 use crate::js_peephole::token::{matching_openers, Token, TokenKind};
 use std::collections::{HashMap, HashSet};
 
@@ -1227,6 +1229,35 @@ pub(crate) fn collect_same_scope_name_uses(
         scan += 1;
     }
     (uses, nested_use)
+}
+
+pub(crate) fn same_scope_name_is_read_after(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    name: &str,
+    from: usize,
+) -> bool {
+    let (uses, nested_use) =
+        collect_same_scope_name_uses(tokens, matching_close, name, from, tokens.len(), usize::MAX);
+    if nested_use {
+        return true;
+    }
+    uses.iter()
+        .any(|&use_at| identifier_use_observes_value(tokens, use_at))
+}
+
+fn identifier_use_observes_value(tokens: &[Token<'_>], use_at: usize) -> bool {
+    let previous = use_at
+        .checked_sub(1)
+        .map(|prev| tokens[prev].text)
+        .unwrap_or(";");
+    if matches!(previous, "var" | "let" | "const") {
+        return false;
+    }
+    if previous == "," && assign_is_in_declaration(tokens, use_at) {
+        return false;
+    }
+    tokens.get(use_at + 1).map(|token| token.text) != Some("=")
 }
 
 pub(crate) fn collect_unbound_name_uses(
