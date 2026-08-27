@@ -11,13 +11,16 @@ use crate::js_peephole::JavaScriptParseError;
 /// exists at that point. `push` returns the new length; in statement position
 /// that value is discarded, which is the only position this fold accepts.
 ///
-/// The rewrite keeps the **binding's** terminator, not the last push's. They
-/// differ whenever the pushes continue as a comma sequence
-/// (`let k=[];k.push(a),k.push(b),f=k;`): splicing that trailing comma in after
-/// a declarator turns the next assignment into a declarator of its own, which
-/// redeclares whatever name it assigns. A comma binding whose run ends at `;`
-/// is refused for the mirror reason — the statement that follows may be a
-/// declaration, which no comma can join.
+/// A comma-sequence push that is the last operand of a grouping
+/// (`(x=[],x.push(a))`) ends at `)` rather than `;` or `,`; the grouping stays.
+///
+/// The rewrite keeps the **binding's** terminator, not the last push's, except
+/// when that last push is grouping-final. They differ whenever the pushes
+/// continue as a comma sequence (`let k=[];k.push(a),k.push(b),f=k;`): splicing
+/// that trailing comma in after a declarator turns the next assignment into a
+/// declarator of its own, which redeclares whatever name it assigns. A comma
+/// binding whose run ends at `;` is refused for the mirror reason — the
+/// statement that follows may be a declaration, which no comma can join.
 ///
 /// `Array.prototype.push` honours an inherited index setter and an array
 /// literal does not, so this runs only under `assume_pristine_builtins`.
@@ -37,23 +40,36 @@ pub(crate) fn fold_fresh_empty_array_pushes(
         };
         let mut items = Vec::<&str>::new();
         let mut last_separator = terminator;
-        while let Some((after, item, separator)) =
-            pushed_element(&tokens, &matching_close, &statements, source, cursor, name)
-        {
+        while let Some((after, item, separator)) = pushed_element(
+            &tokens,
+            &matching_close,
+            &statements,
+            source,
+            cursor,
+            name,
+            terminator,
+        ) {
             items.push(item);
             last_separator = separator;
             cursor = after;
+            if separator == ")" {
+                break;
+            }
         }
-        if items.is_empty() || (terminator == "," && last_separator != ",") {
+        if items.is_empty() {
             index += 1;
             continue;
         }
-        // Replace from just inside `[` through the final push's separator with
-        // the elements, the closing bracket, and the binding's own terminator.
+        let grouping_final = last_separator == ")";
+        if terminator == "," && last_separator != "," && !grouping_final {
+            index += 1;
+            continue;
+        }
+        let emit_terminator = if grouping_final { "" } else { terminator };
         replacements.push((
             tokens[index + 2].end,
             tokens[cursor - 1].end,
-            format!("{}]{terminator}", items.join(",")),
+            format!("{}]{emit_terminator}", items.join(",")),
         ));
         index = cursor;
     }
@@ -122,6 +138,9 @@ fn empty_array_binding<'src>(
 }
 
 /// `NAME.push(ARG)` followed by `;` or `,`, where `ARG` never reads `NAME`.
+///
+/// A comma-sequence push that closes a grouping (`(NAME=[],NAME.push(ARG))`)
+/// ends at the group's `)`. The `)` is left in place.
 fn pushed_element<'src>(
     tokens: &[Token<'src>],
     matching_close: &[Option<usize>],
@@ -129,6 +148,7 @@ fn pushed_element<'src>(
     source: &'src str,
     cursor: usize,
     name: &str,
+    binding_terminator: &str,
 ) -> Option<(usize, &'src str, &'src str)> {
     if tokens.get(cursor)?.kind != TokenKind::Identifier
         || tokens[cursor].text != name
@@ -144,9 +164,13 @@ fn pushed_element<'src>(
     }
     let close = matching_close.get(cursor + 3).copied().flatten()?;
     let separator = tokens.get(close + 1)?.text;
-    if !matches!(separator, ";" | ",") {
+    let (after, separator) = if matches!(separator, ";" | ",") {
+        (close + 2, separator)
+    } else if binding_terminator == "," && separator == ")" {
+        (close + 1, ")")
+    } else {
         return None;
-    }
+    };
     // One element per call: a spread or a second argument is a different
     // operation, and `push()` with no argument is not an element at all.
     if close == cursor + 4 || tokens[cursor + 4].text == "..." {
@@ -158,7 +182,7 @@ fn pushed_element<'src>(
         return None;
     }
     Some((
-        close + 2,
+        after,
         &source[tokens[cursor + 4].start..tokens[close].start],
         separator,
     ))

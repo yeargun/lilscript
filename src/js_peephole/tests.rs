@@ -2542,4 +2542,10 @@ fn consecutive_pushes_onto_a_fresh_array_become_a_literal() {
     let (member, member_count) =
         fold_fresh_empty_array_pushes("o.a=[];o.a.push(1);").expect("fold");
     assert_eq!(member_count, 0, "{member}");
+
+    // `(T=[],T.push(x))` is one expression: the push ends at the grouping.
+    let (grouped, grouped_count) =
+        fold_fresh_empty_array_pushes("f=(T=[],T.push(qa(1))),g(f)").expect("fold");
+    assert_eq!(grouped_count, 1, "{grouped}");
+    assert!(grouped.contains("f=(T=[qa(1)]),g(f)"), "{grouped}");
 }

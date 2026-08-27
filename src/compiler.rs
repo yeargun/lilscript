@@ -26,22 +26,18 @@ use crate::ir::{ControlFlowModule, FunctionId};
 use crate::ir::{ControlFlowOp, Intrinsic};
 use crate::js_peephole::{
     analyze_generated_javascript, converge_local_names, declared_identifier_character_use_counts,
-    fold_constant_json_parse,
-    fold_dead_identifier_copy_declarators, fold_dead_increment_snapshots,
-    fold_expression_bodies,
-    fold_fresh_empty_object_assign, fold_if_prefixed_returns, fold_nested_unguarded_ifs,
-    fold_pristine_static_method_calls,
-    fold_redundant_null_undefined_or, function_leading_declaration_variant,
-    function_local_binding_swap_variants, identifier_name_is_clear_binding,
-    inline_single_use_functions, late_generated_javascript_cleanup,
-    late_generated_javascript_cleanup_local_variants, late_generated_javascript_cleanup_pass,
-    optimize_generated_javascript_assuming,
-    optimize_generated_javascript_preserving_functions_assuming,
-    remap_identifier, remap_single_character_identifiers,
-    repair_fused_keyword_identifiers, single_character_identifier_use_counts,
-    single_character_identifiers, single_character_name_is_clear_binding,
-    single_character_resolved_binding_identifiers, two_character_identifier_use_counts,
-    JavaScriptSyntaxMetrics, LateJavaScriptCleanupPass,
+    fold_constant_json_parse, fold_dead_identifier_copy_declarators, fold_dead_increment_snapshots,
+    fold_expression_bodies, fold_fresh_empty_object_assign, fold_if_prefixed_returns,
+    fold_nested_unguarded_ifs, fold_pristine_static_method_calls, fold_redundant_null_undefined_or,
+    function_leading_declaration_variant, function_local_binding_swap_variants,
+    identifier_name_is_clear_binding, inline_single_use_functions,
+    late_generated_javascript_cleanup, late_generated_javascript_cleanup_local_variants,
+    late_generated_javascript_cleanup_pass, optimize_generated_javascript_assuming,
+    optimize_generated_javascript_preserving_functions_assuming, remap_identifier,
+    remap_single_character_identifiers, repair_fused_keyword_identifiers,
+    single_character_identifier_use_counts, single_character_identifiers,
+    single_character_name_is_clear_binding, single_character_resolved_binding_identifiers,
+    two_character_identifier_use_counts, JavaScriptSyntaxMetrics, LateJavaScriptCleanupPass,
 };
 use crate::lower::lower_to_control_flow;
 use crate::module::{
@@ -4401,6 +4397,32 @@ fn select_javascript_candidate_global(
             },
         )?;
     }
+    // Nesting through inert literals is off by default: the extra nesting can
+    // perturb Brotli on artifacts that do not repeat that shape. Search still
+    // has to score it; jquery-layer configs already opt in.
+    if configured.operand_order_fusion {
+        let finalists = top_candidate_options(
+            &mut candidates,
+            candidate_beam_width,
+            config.javascript.cost_model,
+        )?;
+        extend_javascript_candidate_beam(
+            ir,
+            module_output,
+            beam_policy,
+            &integer_analysis,
+            &mut candidates,
+            finalists,
+            |options| {
+                options
+                    .operand_order_fusion
+                    .then_some(crate::codegen_ir_js::IrJsOptions {
+                        aggregate_operand_order_fusion: !options.aggregate_operand_order_fusion,
+                        ..options
+                    })
+            },
+        )?;
+    }
     if config.javascript_optimization_enabled(JavaScriptOptimization::CommaExpressionVariants) {
         let finalists = top_candidate_options(
             &mut candidates,
@@ -4777,9 +4799,12 @@ fn select_javascript_candidate_global(
                 if !probe_with_peephole {
                     return Some(code);
                 }
-                optimize_generated_javascript_assuming(&code, config.javascript.assume_pristine_builtins)
-                    .ok()
-                    .map(|optimized| optimized.code)
+                optimize_generated_javascript_assuming(
+                    &code,
+                    config.javascript.assume_pristine_builtins,
+                )
+                .ok()
+                .map(|optimized| optimized.code)
             },
         );
         // Each mapping trial remaps and exact-scores a whole artifact. Keep
@@ -5996,6 +6021,24 @@ impl TerminalCodecProbeBudget {
         if !self.finalist_reserve_released {
             self.release_reserved(released);
             self.finalist_reserve_released = true;
+        }
+    }
+
+    /// Borrow from a later family's reserve so a finalist can still admit one
+    /// canonical peephole rewrite and its exact score. Pair-search and similar
+    /// holds must not zero out the last-mile syntax pass on a large artifact.
+    fn ensure_remaining(&mut self, needed: usize) {
+        let have = self.remaining();
+        if have >= needed {
+            return;
+        }
+        let borrow = needed.saturating_sub(have).min(self.reserved_for_final);
+        if borrow == 0 {
+            return;
+        }
+        self.release_reserved(borrow);
+        if let Some(end) = self.slice_end.as_mut() {
+            *end = end.saturating_add(borrow);
         }
     }
 
@@ -8368,8 +8411,10 @@ fn peephole_preserve_or_baseline(
     is_declaration_spelling: bool,
     pristine_builtins: bool,
 ) -> (String, JavaScriptSyntaxMetrics, usize, bool) {
-    match optimize_generated_javascript_preserving_functions_assuming(&declaration, pristine_builtins)
-    {
+    match optimize_generated_javascript_preserving_functions_assuming(
+        &declaration,
+        pristine_builtins,
+    ) {
         Ok(preserved) if preserved.code != declaration => {
             if let Ok(metrics) = analyze_generated_javascript(&preserved.code) {
                 if metrics.functions >= baseline_metrics.functions {
@@ -8394,7 +8439,8 @@ fn configured_declaration_peephole(
     pristine_builtins: bool,
 ) -> (String, JavaScriptSyntaxMetrics, usize, bool) {
     if allow_function_elision {
-        if let Ok(optimized) = optimize_generated_javascript_assuming(&declaration, pristine_builtins)
+        if let Ok(optimized) =
+            optimize_generated_javascript_assuming(&declaration, pristine_builtins)
         {
             let code = repair_late_javascript_candidate(optimized.code);
             if let Ok(metrics) = analyze_generated_javascript(&code) {
@@ -8502,6 +8548,7 @@ fn apply_late_javascript_cleanup(
     terminal_local_rounds: usize,
     codec_budget: &mut TerminalCodecProbeBudget,
 ) -> Result<ScoredJavaScriptCandidate, CompileError> {
+    codec_budget.ensure_remaining(2);
     // Late syntax search is the terminal half of ParsedPeephole. An explicit
     // optimization allowlist that omits that feature must preserve the exact
     // emitter spelling (and its already-measured declaration score ledger).
@@ -8536,9 +8583,10 @@ fn apply_late_javascript_cleanup(
     // large general rewrite only after plan selection.
     let mut canonical_peephole = None;
     if codec_budget.reserve_work_unit() {
-        if let Ok(optimized) =
-            optimize_generated_javascript_assuming(&original.code, config.javascript.assume_pristine_builtins)
-        {
+        if let Ok(optimized) = optimize_generated_javascript_assuming(
+            &original.code,
+            config.javascript.assume_pristine_builtins,
+        ) {
             let code = repair_late_javascript_candidate(optimized.code);
             let metrics = analyze_generated_javascript(&code).ok();
             let crosses_disabled_function_boundary = !config
@@ -15260,6 +15308,20 @@ mod tests {
     }
 
     #[test]
+    fn ensure_remaining_borrows_pair_reserve_and_widens_a_zero_slice() {
+        let mut budget = TerminalCodecProbeBudget::with_final_reserve(96, 92);
+        assert_eq!(budget.remaining(), 4);
+        budget.reserve(4);
+        assert_eq!(budget.remaining(), 0);
+        budget.begin_fair_slice(0);
+        assert_eq!(budget.remaining(), 0);
+        budget.ensure_remaining(2);
+        assert_eq!(budget.remaining(), 2);
+        assert!(budget.reserve_work_unit());
+        assert_eq!(budget.remaining(), 1);
+    }
+
+    #[test]
     fn terminal_codec_probe_budget_is_a_hard_compilation_wide_call_ceiling() {
         let measurements_before = javascript_codec_measurement_count();
         let mut budget = TerminalCodecProbeBudget::new(7);
@@ -15686,10 +15748,7 @@ mod tests {
         config.javascript.optimization_level = 12;
         config.mangle.identifiers = Some(false);
         let output = compile_program_to_js_module_configured(&program, &config).unwrap();
-        assert!(
-            output.contains("++") || output.contains("+=1"),
-            "{output}"
-        );
+        assert!(output.contains("++") || output.contains("+=1"), "{output}");
         assert!(
             !output.contains("=[];var ") && !output.contains("=[];let "),
             "search-off should still merge adjacent declarations:\n{output}"
