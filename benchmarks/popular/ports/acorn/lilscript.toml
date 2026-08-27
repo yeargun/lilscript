@@ -1,0 +1,12 @@
+[javascript]
+priority = "size-first"
+optimization_level = 15
+cost_model = "brotli"
+local_name_reserve = 48
+candidate_search = "off"
+
+[mangle]
+identifiers = true
+properties = false
+pool_strings = true
+exports = false

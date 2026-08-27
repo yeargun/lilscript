@@ -1,0 +1,270 @@
+import { ARCH_ARRAY, ARCH_OBJECT, DRAFT_STATE } from "../utils/env";
+import { die, isDev } from "../utils/errors";
+import { createProxy } from "../utils/plugins";
+import {
+  get,
+  has,
+  is,
+  isDraftable,
+  latest,
+  shallowCopy
+} from "../utils/common";
+import {
+  apply,
+  getDescriptor,
+  getPrototypeOf,
+  hostIsNaN,
+  hostParseInt,
+  inOp,
+  isUndef,
+  numberIsNaN,
+  ownKeys,
+  revocableProxy,
+  toInt,
+  undef
+} from "../utils/host";
+
+extern JsValue Reflect;
+
+JsValue peek(JsValue draft, JsValue prop) {
+  JsValue state = draft[DRAFT_STATE];
+  JsValue source = draft;
+  if (state.truthy()) {
+    source = latest(state);
+  }
+  return source[prop];
+}
+
+JsValue getDescriptorFromProto(JsValue source, JsValue prop) {
+  if (!inOp(prop, source)) {
+    return undef();
+  }
+  JsValue proto = getPrototypeOf(source);
+  while (proto.truthy()) {
+    JsValue desc = getDescriptor(proto, prop);
+    if (desc.truthy()) {
+      return desc;
+    }
+    proto = getPrototypeOf(proto);
+  }
+  return undef();
+}
+
+JsValue readPropFromProto(JsValue state, JsValue source, JsValue prop) {
+  JsValue desc = getDescriptorFromProto(source, prop);
+  if (!desc.truthy()) {
+    return undef();
+  }
+  if (inOp("value", desc)) {
+    return desc["value"];
+  }
+  JsValue getter = desc["get"];
+  if (getter.truthy()) {
+    return JS.call(getter, state["draft_"]);
+  }
+  return undef();
+}
+
+export void markChanged(JsValue state) {
+  if (!state["modified_"].truthy()) {
+    state["modified_"] = true;
+    if (state["parent_"].truthy()) {
+      markChanged(state["parent_"]);
+    }
+  }
+}
+
+export void prepareCopy(JsValue state) {
+  if (!state["copy_"].truthy()) {
+    state["copy_"] = shallowCopy(state["base_"], state["scope_"]["immer_"]["useStrictShallowCopy_"]);
+  }
+}
+
+export JsValue objectTraps = JS.object();
+
+objectTraps["get"] = JS.method2((JsValue _s, JsValue state, JsValue prop) => {
+  if (JS.strictEqual(prop, DRAFT_STATE)) {
+    return state;
+  }
+  JsValue source = latest(state);
+  if (!has(source, prop)) {
+    return readPropFromProto(state, source, prop);
+  }
+  JsValue value = source[prop];
+  if (state["finalized_"].truthy() || !isDraftable(value)) {
+    return value;
+  }
+  if (JS.strictEqual(value, peek(state["base_"], prop))) {
+    prepareCopy(state);
+    JsValue drafted = createProxy(value, state);
+    state["copy_"][prop] = drafted;
+    return drafted;
+  }
+  return value;
+});
+
+objectTraps["has"] = JS.method2((JsValue _s, JsValue state, JsValue prop) => {
+  return inOp(prop, latest(state));
+});
+
+objectTraps["ownKeys"] = JS.method1((JsValue _s, JsValue state) => {
+  return ownKeys(latest(state));
+});
+
+objectTraps["set"] = JS.method3((JsValue _s, JsValue state, JsValue prop, JsValue value) => {
+  JsValue desc = getDescriptorFromProto(latest(state), prop);
+  if (desc.truthy() && desc["set"].truthy()) {
+    JS.call(desc["set"], state["draft_"], value);
+    return true;
+  }
+  if (!state["modified_"].truthy()) {
+    JsValue current2 = peek(latest(state), prop);
+    JsValue currentState = undef();
+    if (current2.truthy()) {
+      currentState = current2[DRAFT_STATE];
+    }
+    if (currentState.truthy() && JS.strictEqual(currentState["base_"], value)) {
+      state["copy_"][prop] = value;
+      state["assigned_"][prop] = false;
+      return true;
+    }
+    if (is(value, current2) && (!isUndef(value) || has(state["base_"], prop))) {
+      return true;
+    }
+    prepareCopy(state);
+    markChanged(state);
+  }
+  if (
+    JS.strictEqual(state["copy_"][prop], value) && (!isUndef(value) || inOp(prop, state["copy_"])) ||
+    numberIsNaN(value) && numberIsNaN(state["copy_"][prop])
+  ) {
+    return true;
+  }
+  state["copy_"][prop] = value;
+  state["assigned_"][prop] = true;
+  return true;
+});
+
+objectTraps["deleteProperty"] = JS.method2((JsValue _s, JsValue state, JsValue prop) => {
+  if (!isUndef(peek(state["base_"], prop)) || inOp(prop, state["base_"])) {
+    state["assigned_"][prop] = false;
+    prepareCopy(state);
+    markChanged(state);
+  } else {
+    JS.delete(state["assigned_"], prop);
+  }
+  if (state["copy_"].truthy()) {
+    JS.delete(state["copy_"], prop);
+  }
+  return true;
+});
+
+objectTraps["getOwnPropertyDescriptor"] = JS.method2((JsValue _s, JsValue state, JsValue prop) => {
+  JsValue owner = latest(state);
+  JsValue desc = JS.invoke(Reflect, "getOwnPropertyDescriptor", owner, prop);
+  if (!desc.truthy()) {
+    return desc;
+  }
+  bool configurable = toInt(state["type_"]) != ARCH_ARRAY || !JS.strictEqual(prop, "length");
+  return JS.object(
+    "writable", true,
+    "configurable", configurable,
+    "enumerable", desc["enumerable"],
+    "value", owner[prop]
+  );
+});
+
+objectTraps["defineProperty"] = JS.method0((JsValue _s) => {
+  die(11);
+  return false;
+});
+
+objectTraps["getPrototypeOf"] = JS.method1((JsValue _s, JsValue state) => {
+  return getPrototypeOf(state["base_"]);
+});
+
+objectTraps["setPrototypeOf"] = JS.method0((JsValue _s) => {
+  die(12);
+  return false;
+});
+
+export JsValue arrayTraps = JS.object();
+
+eachTraps(objectTraps, arrayTraps);
+
+arrayTraps["deleteProperty"] = JS.method2((JsValue self, JsValue state, JsValue prop) => {
+  if (isDev && hostIsNaN(hostParseInt(prop))) {
+    die(13);
+  }
+  return JS.call(arrayTraps["set"], self, state, prop, undef());
+});
+
+arrayTraps["set"] = JS.method3((JsValue self, JsValue state, JsValue prop, JsValue value) => {
+  if (isDev && !JS.strictEqual(prop, "length") && hostIsNaN(hostParseInt(prop))) {
+    die(14);
+  }
+  return JS.call(objectTraps["set"], self, state[0], prop, value);
+});
+
+void eachTraps(JsValue traps, JsValue target) {
+  JsValue keys = ownKeys(traps);
+  int n = toInt(keys["length"]);
+  int i = 0;
+  while (i < n) {
+    JsValue key = keys[i];
+    JsValue fn = traps[key];
+    target[key] = JS.methodRest((JsValue self, JsValue args) => {
+      args[0] = args[0][0];
+      return apply(fn, self, args);
+    });
+    i = i + 1;
+  }
+}
+
+export JsValue createProxyProxy(JsValue base, JsValue parent) {
+  bool isArray = isArrValue(base);
+  JsValue scope = getCurrentScopeValue();
+  if (parent.truthy()) {
+    scope = parent["scope_"];
+  }
+  int typ = ARCH_OBJECT;
+  if (isArray) {
+    typ = ARCH_ARRAY;
+  }
+  JsValue state = JS.object(
+    "type_", typ,
+    "scope_", scope,
+    "modified_", false,
+    "finalized_", false,
+    "assigned_", JS.object(),
+    "parent_", parent,
+    "base_", base,
+    "draft_", null,
+    "copy_", null,
+    "revoke_", null,
+    "isManual_", false
+  );
+  JsValue target = state;
+  JsValue traps = objectTraps;
+  if (isArray) {
+    target = JS.array();
+    JS.invoke(target, "push", state);
+    traps = arrayTraps;
+  }
+  JsValue revocable = revocableProxy(target, traps);
+  state["draft_"] = revocable["proxy"];
+  state["revoke_"] = revocable["revoke"];
+  return revocable["proxy"];
+}
+
+bool isArrValue(JsValue value) {
+  return JS.isArray(value);
+}
+
+JsValue getCurrentScopeValue() {
+  return importScope();
+}
+
+JsValue importScope() {
+  return scopeGet();
+}

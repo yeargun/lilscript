@@ -1,5 +1,4 @@
 import {
-  toStr,
   throwErr,
   makeError,
   len,
@@ -11,9 +10,9 @@ import {
 JsValue dieImpl = JS.staticRest((JsValue args) => {
   string extra = "";
   if (len(args) > 1) {
-    extra = " " + toStr(JS.invoke(JS.invoke(slice2(args, 1, len(args)), "map", gString()), "join", ","));
+    extra = " " + JS.invoke(JS.invoke(slice2(args, 1, len(args)), "map", gString()), "join", ",");
   }
-  throwErr(makeError("[MobX] minified error nr: " + toStr(args[0]) + extra + ". See mobx.js.org/errors"));
+  throwErr(makeError("[MobX] minified error nr: " + args[0] + extra + ". See mobx.js.org/errors"));
   return undef();
 });
 

@@ -1,0 +1,27 @@
+import { die1, die } from "./errors";
+import { call2, undef } from "./host";
+
+JsValue plugins = JS.object();
+JsValue createProxyImpl = undef();
+
+export void setCreateProxyImpl(JsValue fn) {
+  createProxyImpl = fn;
+}
+
+export JsValue createProxy(JsValue value, JsValue parent) {
+  return call2(createProxyImpl, undef(), value, parent);
+}
+
+export JsValue getPlugin(string pluginKey) {
+  JsValue plugin = plugins[pluginKey];
+  if (!plugin.truthy()) {
+    die1(0, pluginKey);
+  }
+  return plugin;
+}
+
+export void loadPlugin(string pluginKey, JsValue implementation) {
+  if (!plugins[pluginKey].truthy()) {
+    plugins[pluginKey] = implementation;
+  }
+}

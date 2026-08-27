@@ -142,14 +142,14 @@ Reaction["prototype"]["reportExceptionInDerivation_"] = JS.method1((JsValue self
   if (globalState["disableErrorBoundaries"].truthy()) {
     throwErr(error);
   }
-  string message = "[mobx] uncaught error in '" + toStr(self) + "'";
+  string message = "[mobx] uncaught error in '" + self + "'";
   if (DEV) {
-    message = "[mobx] Encountered an uncaught exception that was thrown by a reaction or observer component, in: '" + toStr(self) + "'";
+    message = "[mobx] Encountered an uncaught exception that was thrown by a reaction or observer component, in: '" + self + "'";
   }
   if (!globalState["suppressReactionErrors"].truthy()) {
     error2(message, error);
   } else if (DEV) {
-    warn("[mobx] (error in reaction '" + toStr(self["name_"]) + "' suppressed, fix error of causing action below)");
+    warn("[mobx] (error in reaction '" + self["name_"] + "' suppressed, fix error of causing action below)");
   }
   if (DEV && isSpyEnabled()) {
     spyReport(JS.object("type", "error", "name", self["name_"], "message", message, "error", "" + error));
@@ -192,7 +192,7 @@ Reaction["prototype"]["getDisposer_"] = JS.method1((JsValue self, JsValue abortS
   return dispose;
 });
 Reaction["prototype"]["toString"] = JS.method0((JsValue self) => {
-  return "Reaction[" + toStr(self["name_"]) + "]";
+  return "Reaction[" + self["name_"] + "]";
 });
 isReactionPred = createInstanceofPredicate("Reaction", Reaction);
 installReactionFlags(Reaction["prototype"]);

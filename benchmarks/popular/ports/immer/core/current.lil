@@ -1,0 +1,43 @@
+import { DRAFT_STATE } from "../utils/env";
+import { die1 } from "../utils/errors";
+import {
+  each,
+  isDraft,
+  isDraftable,
+  isFrozen,
+  set,
+  shallowCopy
+} from "../utils/common";
+import { undef } from "../utils/host";
+
+JsValue currentImpl(JsValue value) {
+  if (!isDraftable(value) || isFrozen(value)) {
+    return value;
+  }
+  JsValue state = value[DRAFT_STATE];
+  JsValue copy = undef();
+  if (state.truthy()) {
+    if (!state["modified_"].truthy()) {
+      return state["base_"];
+    }
+    state["finalized_"] = true;
+    copy = shallowCopy(value, state["scope_"]["immer_"]["useStrictShallowCopy_"]);
+  } else {
+    copy = shallowCopy(value, true);
+  }
+  each(copy, JS.method2((JsValue _s, JsValue key, JsValue childValue) => {
+    set(copy, key, currentImpl(childValue));
+    return undef();
+  }));
+  if (state.truthy()) {
+    state["finalized_"] = false;
+  }
+  return copy;
+}
+
+export JsValue current(JsValue value) {
+  if (!isDraft(value)) {
+    die1(10, value);
+  }
+  return currentImpl(value);
+}

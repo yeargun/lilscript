@@ -3,8 +3,7 @@ import {
   apply,
   inOp,
   isNullish,
-  stringifyKey,
-  toStr
+  stringifyKey
 } from "../host.lil";
 import {
   MAKE_BREAK,
@@ -27,7 +26,7 @@ JsValue observableAnnotationExtend = JS.methodRest((JsValue self, JsValue args) 
   JsValue descriptor = args[2];
   JsValue proxyTrap = args[3];
   if (DEV && !inOp("value", descriptor)) {
-    die("Cannot apply '" + toStr(self["annotationType_"]) + "' to '" + toStr(adm["name_"]) + "." + stringifyKey(key) + "':\n'" + toStr(self["annotationType_"]) + "' cannot be used on getter/setter properties");
+    die("Cannot apply '" + self["annotationType_"] + "' to '" + adm["name_"] + "." + stringifyKey(key) + "':\n'" + self["annotationType_"] + "' cannot be used on getter/setter properties");
   }
   JsValue enhancer = deepEnhancerFn;
   if (self["options_"].truthy() && self["options_"]["enhancer_"].truthy()) {

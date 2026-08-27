@@ -6347,6 +6347,33 @@ mod tests {
     }
 
     #[test]
+    fn folds_default_param_comma_return_atom_table() {
+        let source = concat!(
+            r#"var F=(0,function(a="Atom"){return this.c=a,this.m=new Set,this.Q=0,this.l=-1,this.v=0,this.onBOL=void 0,this.onBUOL=void 0,this});"#,
+            r#"g=F.prototype,g.onBO=function(){Ub(this)},g=F.prototype,g.onBUO=function(){Vb(this)},"#,
+            r#"g=F.prototype,g.reportObserved=function(){return w(this)},g=F.prototype,g.reportChanged=function(){J(this)},"#,
+            r#"g=F.prototype,g.toString=function(){return this.c};var Za=function(a){return new F(a)};"#,
+        );
+        let (out, count) = fold_constructor_prototype_tables_to_classes(source).unwrap();
+        assert!(count >= 1 && out.contains("class F"), "{count} {out}");
+        let optimized = crate::js_peephole::optimize_generated_javascript(source).unwrap();
+        assert!(optimized.code.contains("class F"), "{}", optimized.code);
+    }
+
+    #[test]
+    fn folds_atom_table_with_flag_installers() {
+        let source = concat!(
+            r#"var F=(0,function(a="Atom"){return this.c=a,this.m=new Set,this.Q=0,this.l=-1,this.v=0,this.onBOL=void 0,this.onBUOL=void 0,this});"#,
+            r#"g=F.prototype,g.onBO=function(){Ub(this)},g=F.prototype,g.onBUO=function(){Vb(this)},"#,
+            r#"g=F.prototype,g.reportObserved=function(){return w(this)},g=F.prototype,g.reportChanged=function(){J(this)},"#,
+            r#"g=F.prototype,g.toString=function(){return this.c},g=F.prototype,S(g,"isBeingObserved",1),S(g,"isPendingUnobservation",2),hb(g,4),ea("Atom",F);"#,
+            r#"var Za=function(a){return new F(a)};"#,
+        );
+        let (out, count) = fold_constructor_prototype_tables_to_classes(source).unwrap();
+        assert!(count >= 1 && out.contains("class F"), "{count} {out}");
+    }
+
+    #[test]
     fn fuses_async_methods_and_names_assigned_classes() {
         let source = r#"var C=(0,function(){return this});P=C.prototype,P.modify=async function(list){return await list};return l(C,"ErrorPropertiesBuilder")"#;
         let (out, count) = fold_constructor_prototype_tables_to_classes(source).unwrap();

@@ -1,0 +1,289 @@
+extern JsValue Object;
+extern JsValue Array;
+extern JsValue Map;
+extern JsValue Set;
+extern JsValue Proxy;
+extern JsValue Reflect;
+extern JsValue Symbol;
+extern JsValue Error;
+extern JsValue Number;
+extern JsValue Function;
+extern JsValue JSON;
+extern JsValue parseInt;
+extern JsValue isNaN;
+extern JsValue globalThis;
+
+export JsValue undef() {
+  return JS.undefined();
+}
+
+export bool isUndef(JsValue value) {
+  return JS.isUndefined(value);
+}
+
+export bool isNullish(JsValue value) {
+  return JS.isNullish(value);
+}
+
+export bool isFn(JsValue value) {
+  return JS.typeOf(value) == "function";
+}
+
+export bool isStr(JsValue value) {
+  return JS.typeOf(value) == "string";
+}
+
+export bool isSym(JsValue value) {
+  return JS.typeOf(value) == "symbol";
+}
+
+export bool isNum(JsValue value) {
+  return JS.typeOf(value) == "number";
+}
+
+export bool isBool(JsValue value) {
+  return JS.typeOf(value) == "boolean";
+}
+
+export bool isObj(JsValue value) {
+  return !JS.isNullish(value) && JS.typeOf(value) == "object";
+}
+
+export bool isArr(JsValue value) {
+  return JS.isArray(value);
+}
+
+export string toStr(JsValue value) {
+  return JS.string(value);
+}
+
+export int toInt(JsValue value) {
+  return JS.number(value).toInt();
+}
+
+export int len(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+
+export bool yes(JsValue value) {
+  return JS.strictEqual(value, true);
+}
+
+export bool objectIs(JsValue a, JsValue b) {
+  return yes(JS.invoke(Object, "is", a, b));
+}
+
+export bool instanceOf(JsValue value, JsValue ctor) {
+  if (JS.isNullish(value)) {
+    return false;
+  }
+  string t = JS.typeOf(value);
+  if (t != "object" && t != "function") {
+    return false;
+  }
+  return JS.invoke(ctor["prototype"], "isPrototypeOf", value).truthy();
+}
+
+export JsValue call0(JsValue fn, JsValue self) {
+  return JS.call(fn, self);
+}
+
+export JsValue call1(JsValue fn, JsValue self, JsValue a) {
+  return JS.call(fn, self, a);
+}
+
+export JsValue call2(JsValue fn, JsValue self, JsValue a, JsValue b) {
+  return JS.call(fn, self, a, b);
+}
+
+export JsValue apply(JsValue fn, JsValue self, JsValue args) {
+  return JS.apply(fn, self, args);
+}
+
+export JsValue invoke0(JsValue obj, string method) {
+  return JS.invoke(obj, method);
+}
+
+export JsValue invoke1(JsValue obj, string method, JsValue a) {
+  return JS.invoke(obj, method, a);
+}
+
+export JsValue invoke2(JsValue obj, string method, JsValue a, JsValue b) {
+  return JS.invoke(obj, method, a, b);
+}
+
+export JsValue invoke3(JsValue obj, string method, JsValue a, JsValue b, JsValue c) {
+  return JS.invoke(obj, method, a, b, c);
+}
+
+export JsValue construct0(JsValue ctor) {
+  return JS.construct(ctor);
+}
+
+export JsValue construct1(JsValue ctor, JsValue a) {
+  return JS.construct(ctor, a);
+}
+
+export JsValue construct2(JsValue ctor, JsValue a, JsValue b) {
+  return JS.construct(ctor, a, b);
+}
+
+export JsValue newMap() {
+  return JS.construct(Map);
+}
+
+export JsValue newSet() {
+  return JS.construct(Set);
+}
+
+export JsValue newArray() {
+  return JS.array();
+}
+
+export JsValue push(JsValue arr, JsValue item) {
+  return JS.invoke(arr, "push", item);
+}
+
+export JsValue ownKeys(JsValue target) {
+  return JS.invoke(Reflect, "ownKeys", target);
+}
+
+export JsValue getDescriptor(JsValue target, JsValue key) {
+  return JS.invoke(Object, "getOwnPropertyDescriptor", target, key);
+}
+
+export JsValue getDescriptors(JsValue target) {
+  return JS.invoke(Object, "getOwnPropertyDescriptors", target);
+}
+
+export JsValue defineProperty(JsValue target, JsValue key, JsValue descriptor) {
+  return JS.invoke(Object, "defineProperty", target, key, descriptor);
+}
+
+export JsValue getPrototypeOf(JsValue value) {
+  return JS.invoke(Object, "getPrototypeOf", value);
+}
+
+export JsValue setPrototypeOf(JsValue value, JsValue proto) {
+  return JS.invoke(Object, "setPrototypeOf", value, proto);
+}
+
+export JsValue objectCreate(JsValue proto) {
+  return JS.invoke(Object, "create", proto);
+}
+
+export JsValue objectCreate2(JsValue proto, JsValue descriptors) {
+  return JS.invoke(Object, "create", proto, descriptors);
+}
+
+export JsValue objectAssign(JsValue target, JsValue source) {
+  return JS.invoke(Object, "assign", target, source);
+}
+
+export JsValue objectFreeze(JsValue value) {
+  return JS.invoke(Object, "freeze", value);
+}
+
+export bool objectIsFrozen(JsValue value) {
+  return yes(JS.invoke(Object, "isFrozen", value));
+}
+
+export bool hasOwn(JsValue target, JsValue key) {
+  return JS.call(Object["prototype"]["hasOwnProperty"], target, key).truthy();
+}
+
+export bool inOp(JsValue key, JsValue target) {
+  return JS.in(key, target);
+}
+
+export void deleteKey(JsValue target, JsValue key) {
+  JS.delete(target, key);
+}
+
+export JsValue symbolFor(string description) {
+  return JS.invoke(Symbol, "for", description);
+}
+
+export JsValue wellKnown(string name) {
+  return Symbol[name];
+}
+
+export JsValue makeError(string message) {
+  return JS.construct(Error, message);
+}
+
+export void throwErr(JsValue err) {
+  throw err;
+}
+
+export JsValue bind(JsValue fn, JsValue self) {
+  return JS.invoke(fn, "bind", self);
+}
+
+export JsValue sliceCall(JsValue arr) {
+  return JS.call(Array["prototype"]["slice"], arr);
+}
+
+export JsValue sliceArgs(JsValue args, int start) {
+  return JS.call(Array["prototype"]["slice"], args, start);
+}
+
+export JsValue newProxy(JsValue target, JsValue handler) {
+  return JS.construct(Proxy, target, handler);
+}
+
+export JsValue revocableProxy(JsValue target, JsValue handler) {
+  return JS.invoke(Proxy, "revocable", target, handler);
+}
+
+export bool hostIsNaN(JsValue value) {
+  return yes(JS.call(isNaN, undef(), value));
+}
+
+export JsValue hostParseInt(JsValue value) {
+  return JS.call(parseInt, undef(), value);
+}
+
+export bool numberIsNaN(JsValue value) {
+  return yes(JS.invoke(Number, "isNaN", value));
+}
+
+export JsValue jsonStringify(JsValue value) {
+  return JS.invoke(JSON, "stringify", value);
+}
+
+export bool isDevEnv() {
+  JsValue proc = globalThis["process"];
+  if (JS.isNullish(proc)) {
+    return true;
+  }
+  JsValue env = proc["env"];
+  if (JS.isNullish(env)) {
+    return true;
+  }
+  return !JS.strictEqual(env["NODE_ENV"], "production");
+}
+
+export JsValue objectEntries(JsValue value) {
+  return JS.invoke(Object, "entries", value);
+}
+
+export bool propertyIsEnumerable(JsValue target, JsValue prop) {
+  return JS.call(Object["prototype"]["propertyIsEnumerable"], target, prop).truthy();
+}
+
+export JsValue functionToString(JsValue fn) {
+  return JS.call(Function["prototype"]["toString"], fn);
+}
+
+export JsValue arrayFrom(JsValue iterable) {
+  return JS.invoke(Array, "from", iterable);
+}
+
+export JsValue concat1(JsValue arr, JsValue item) {
+  return JS.invoke(arr, "concat", item);
+}
+
+export JsValue concatArr(JsValue arr, JsValue items) {
+  return JS.invoke(arr, "concat", items);
+}

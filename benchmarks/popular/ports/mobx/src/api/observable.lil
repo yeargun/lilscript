@@ -14,7 +14,6 @@ import {
   newMap,
   push,
   stringifyKey,
-  toStr,
   undef
 } from "../host.lil";
 import {
@@ -65,7 +64,7 @@ JsValue registerLazyObservable(JsValue target, JsValue annotation, JsValue keyNa
     }
     string n = "ObservableObject." + stringifyKey(keyName);
     if (DEV) {
-      n = toStr(adm["name_"]) + "." + stringifyKey(keyName);
+      n = adm["name_"] + "." + stringifyKey(keyName);
     }
     return JS.construct(ObservableValue, value, enhancer, n, false, undef());
   }));
@@ -74,14 +73,14 @@ JsValue registerLazyObservable(JsValue target, JsValue annotation, JsValue keyNa
 
 JsValue decorateObservable20223_ = JS.method3((JsValue _s, JsValue annotation, JsValue desc, JsValue context) => {
   if (DEV) {
-    if (toStr(context["kind"]) == "field") {
+    if (JS.strictEqual(context["kind"], "field")) {
       die("Please use `@observable accessor " + stringifyKey(context["name"]) + "` instead of `@observable " + stringifyKey(context["name"]) + "`");
     }
     JsValue kinds = JS.array();
     push(kinds, "accessor");
     assert20223DecoratorType(context, kinds);
   }
-  if (toStr(context["kind"]) != "accessor") {
+  if (JS.strictNotEqual(context["kind"], "accessor")) {
     return undef();
   }
   JsValue keyName = context["name"];

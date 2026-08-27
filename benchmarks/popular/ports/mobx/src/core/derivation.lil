@@ -4,7 +4,6 @@ import {
   isNullish,
   toInt,
   toNum,
-  toStr,
   len,
   sizeOf,
   call0,
@@ -89,7 +88,7 @@ export void checkIfStateModificationsAreAllowed(JsValue atom) {
     if (globalState["enforceActions"].truthy()) {
       msg = "Since strict-mode is enabled, changing (observed) observable values without using an action is not allowed. Tried to modify: ";
     }
-    warn("[MobX] " + msg + toStr(atom["name_"]));
+    warn("[MobX] " + msg + atom["name_"]);
   }
 }
 
@@ -185,7 +184,7 @@ void warnAboutDerivationWithoutDependencies(JsValue derivation) {
     required = globalState["reactionRequiresObservable"].truthy();
   }
   if (required) {
-    warn("[mobx] Derivation '" + toStr(derivation["name_"]) + "' is created/updated without reading any observable value.");
+    warn("[mobx] Derivation '" + derivation["name_"] + "' is created/updated without reading any observable value.");
   }
 }
 

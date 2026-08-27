@@ -11,7 +11,6 @@ import {
   call1,
   undef,
   warn,
-  toStr,
   error1,
   splice1
 } from "../host.lil";
@@ -83,13 +82,13 @@ export void endBatch() {
 
 export void checkIfStateReadsAreAllowed(JsValue observable) {
   if (DEV && !globalState["allowStateReads"].truthy() && globalState["observableRequiresReaction"].truthy()) {
-    warn("[mobx] Observable '" + toStr(observable["name_"]) + "' being read outside a reactive context.");
+    warn("[mobx] Observable '" + observable["name_"] + "' being read outside a reactive context.");
   }
 }
 
 export bool reportObserved(JsValue observable) {
   if (DEV && !globalState["allowStateReads"].truthy() && globalState["observableRequiresReaction"].truthy()) {
-    warn("[mobx] Observable '" + toStr(observable["name_"]) + "' being read outside a reactive context.");
+    warn("[mobx] Observable '" + observable["name_"] + "' being read outside a reactive context.");
   }
   JsValue derivation = globalState["trackingDerivation"];
   if (!JS.isNullish(derivation)) {
@@ -182,9 +181,9 @@ JsValue runReactionsHelperFn = () => {
     iterations = iterations + 1;
     if (iterations == MAX_REACTION_ITERATIONS) {
       if (DEV) {
-        error1("Reaction doesn't converge to a stable state after 100 iterations. Probably there is a cycle in the reactive function: " + toStr(allReactions[0]));
+        error1("Reaction doesn't converge to a stable state after 100 iterations. Probably there is a cycle in the reactive function: " + allReactions[0]);
       } else {
-        error1("[mobx] cycle in reaction: " + toStr(allReactions[0]));
+        error1("[mobx] cycle in reaction: " + allReactions[0]);
       }
       splice1(allReactions, 0, len(allReactions));
     }

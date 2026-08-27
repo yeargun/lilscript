@@ -6024,24 +6024,6 @@ impl TerminalCodecProbeBudget {
         }
     }
 
-    /// Borrow from a later family's reserve so a finalist can still admit one
-    /// canonical peephole rewrite and its exact score. Pair-search and similar
-    /// holds must not zero out the last-mile syntax pass on a large artifact.
-    fn ensure_remaining(&mut self, needed: usize) {
-        let have = self.remaining();
-        if have >= needed {
-            return;
-        }
-        let borrow = needed.saturating_sub(have).min(self.reserved_for_final);
-        if borrow == 0 {
-            return;
-        }
-        self.release_reserved(borrow);
-        if let Some(end) = self.slice_end.as_mut() {
-            *end = end.saturating_add(borrow);
-        }
-    }
-
     fn begin_final_phase(&mut self) {
         self.final_phase = true;
     }
@@ -6244,7 +6226,7 @@ fn finalize_javascript_candidates_with_terminal_objective_challengers(
     selected.terminal_work_units = codec_budget.used;
     selected.terminal_codec_probe_limit = terminal_codec_probe_limit;
     selected.terminal_codec_probe_limit_reached = codec_budget.limit_reached;
-    Ok(selected)
+    apply_selected_canonical_peephole(selected, config)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -6472,6 +6454,7 @@ fn finalize_javascript_candidates(
     selected.terminal_work_units = codec_budget.used;
     selected.terminal_codec_probe_limit = terminal_codec_probe_limit;
     selected.terminal_codec_probe_limit_reached = codec_budget.limit_reached;
+    let selected = apply_selected_canonical_peephole(selected, config)?;
     apply_search_off_declaration_peephole(selected, config)
 }
 
@@ -8462,6 +8445,59 @@ fn configured_declaration_peephole(
     (code, metrics, rewrites, true)
 }
 
+fn apply_selected_canonical_peephole(
+    mut selected: SelectedJavaScriptCandidate,
+    config: &ProjectConfig,
+) -> Result<SelectedJavaScriptCandidate, CompileError> {
+    // Search probes bound permutation scoring. The selected artifact still
+    // gets one canonical rewrite: otherwise a full ledger leaves ParsedPeephole
+    // as a no-op on the winner, even when that rewrite is cheaper.
+    if selected.terminal_codec_probe_limit == 0
+        || !config.javascript_optimization_configured(JavaScriptOptimization::ParsedPeephole)
+    {
+        return Ok(selected);
+    }
+    let Ok(optimized) = optimize_generated_javascript_assuming(
+        &selected.code,
+        config.javascript.assume_pristine_builtins,
+    ) else {
+        return Ok(selected);
+    };
+    let code = repair_late_javascript_candidate(optimized.code);
+    if code == selected.code {
+        return Ok(selected);
+    }
+    let Ok(metrics) = analyze_generated_javascript(&code) else {
+        return Ok(selected);
+    };
+    if !config.single_use_function_expression_candidates_enabled()
+        && metrics.functions < selected.metrics.functions
+    {
+        return Ok(selected);
+    }
+    let cost = compressed_size(code.as_bytes(), config.javascript.cost_model)
+        .map_err(|message| crate::codegen_js::CodegenError::new(Span::empty(0), message))?;
+    selected.terminal_codec_probes = selected.terminal_codec_probes.saturating_add(1);
+    selected.terminal_work_units = selected.terminal_work_units.saturating_add(2);
+    if cost > selected.transfer_cost
+        || (cost == selected.transfer_cost && code.len() >= selected.code.len())
+    {
+        return Ok(selected);
+    }
+    selected.startup_score = metrics.startup_score(
+        config.javascript.startup.parse_weight,
+        config.javascript.startup.compile_weight,
+        config.javascript.startup.memory_weight,
+    );
+    selected.metrics = metrics;
+    selected.code = code;
+    selected.transfer_cost = cost;
+    selected.peephole_rewrites = selected
+        .peephole_rewrites
+        .saturating_add(optimized.rewrites);
+    Ok(selected)
+}
+
 fn apply_search_off_declaration_peephole(
     mut selected: SelectedJavaScriptCandidate,
     config: &ProjectConfig,
@@ -8548,7 +8584,6 @@ fn apply_late_javascript_cleanup(
     terminal_local_rounds: usize,
     codec_budget: &mut TerminalCodecProbeBudget,
 ) -> Result<ScoredJavaScriptCandidate, CompileError> {
-    codec_budget.ensure_remaining(2);
     // Late syntax search is the terminal half of ParsedPeephole. An explicit
     // optimization allowlist that omits that feature must preserve the exact
     // emitter spelling (and its already-measured declaration score ledger).
@@ -15308,20 +15343,6 @@ mod tests {
     }
 
     #[test]
-    fn ensure_remaining_borrows_pair_reserve_and_widens_a_zero_slice() {
-        let mut budget = TerminalCodecProbeBudget::with_final_reserve(96, 92);
-        assert_eq!(budget.remaining(), 4);
-        budget.reserve(4);
-        assert_eq!(budget.remaining(), 0);
-        budget.begin_fair_slice(0);
-        assert_eq!(budget.remaining(), 0);
-        budget.ensure_remaining(2);
-        assert_eq!(budget.remaining(), 2);
-        assert!(budget.reserve_work_unit());
-        assert_eq!(budget.remaining(), 1);
-    }
-
-    #[test]
     fn terminal_codec_probe_budget_is_a_hard_compilation_wide_call_ceiling() {
         let measurements_before = javascript_codec_measurement_count();
         let mut budget = TerminalCodecProbeBudget::new(7);
@@ -15395,6 +15416,81 @@ mod tests {
             javascript_codec_measurement_count() - measurements_before,
             0
         );
+    }
+
+    #[test]
+    fn selected_canonical_peephole_runs_after_search_ledger_is_closed() {
+        let code = "function f(a){var x;x=a;return x}console.log(f(1))";
+        let optimized = crate::js_peephole::optimize_generated_javascript(code).unwrap();
+        assert!(optimized.code.len() < code.len(), "{}", optimized.code);
+
+        let mut config = ProjectConfig::default();
+        config.javascript.cost_model = CompressionCostModel::Raw;
+        config.javascript.candidate_search = CandidateSearch::Always;
+        config.mangle.identifiers = Some(false);
+        let metrics = analyze_generated_javascript(code).unwrap();
+        let selected = SelectedJavaScriptCandidate {
+            plan_identity: JavaScriptPlanIdentity {
+                context_id: 0,
+                ordinal: 0,
+            },
+            code: code.to_string(),
+            transfer_cost: code.len(),
+            startup_score: 0,
+            metrics,
+            baseline_metrics: metrics,
+            performance: JavaScriptPerformanceMetrics::default(),
+            baseline_performance: JavaScriptPerformanceMetrics::default(),
+            candidates_evaluated: 1,
+            terminal_codec_probes: 96,
+            terminal_work_units: 96,
+            terminal_codec_probe_limit: 96,
+            terminal_codec_probe_limit_reached: true,
+            peephole_rewrites: 0,
+            terminal_scope_naming_challengers: 0,
+            terminal_scope_naming_selected: false,
+            terminal_scope_naming_incumbent_bytes: None,
+            terminal_scope_naming_best_bytes: None,
+            terminal_string_pooling_challengers: 0,
+            terminal_string_pooling_selected: false,
+            terminal_string_pooling_incumbent_bytes: None,
+            terminal_string_pooling_best_bytes: None,
+        };
+        let cleaned = apply_selected_canonical_peephole(selected, &config).unwrap();
+        assert_eq!(cleaned.code, optimized.code);
+        assert_eq!(cleaned.transfer_cost, optimized.code.len());
+        assert!(cleaned.peephole_rewrites > 0);
+
+        let skipped = SelectedJavaScriptCandidate {
+            plan_identity: JavaScriptPlanIdentity {
+                context_id: 0,
+                ordinal: 0,
+            },
+            code: code.to_string(),
+            transfer_cost: code.len(),
+            startup_score: 0,
+            metrics,
+            baseline_metrics: metrics,
+            performance: JavaScriptPerformanceMetrics::default(),
+            baseline_performance: JavaScriptPerformanceMetrics::default(),
+            candidates_evaluated: 1,
+            terminal_codec_probes: 0,
+            terminal_work_units: 0,
+            terminal_codec_probe_limit: 0,
+            terminal_codec_probe_limit_reached: true,
+            peephole_rewrites: 0,
+            terminal_scope_naming_challengers: 0,
+            terminal_scope_naming_selected: false,
+            terminal_scope_naming_incumbent_bytes: None,
+            terminal_scope_naming_best_bytes: None,
+            terminal_string_pooling_challengers: 0,
+            terminal_string_pooling_selected: false,
+            terminal_string_pooling_incumbent_bytes: None,
+            terminal_string_pooling_best_bytes: None,
+        };
+        let skipped = apply_selected_canonical_peephole(skipped, &config).unwrap();
+        assert_eq!(skipped.code, code);
+        assert_eq!(skipped.peephole_rewrites, 0);
     }
 
     #[test]

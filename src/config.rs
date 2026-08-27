@@ -255,6 +255,7 @@ impl ProjectConfig {
             pool_numeric_literals: self.javascript.pool_numeric_literals,
             ordinary_record_literals: false,
             elide_safe_integer_coercions: !self.javascript.keep_integer_coercions(),
+            elide_safe_string_coercions: !self.javascript.keep_integer_coercions(),
             elide_length_tonumber: self
                 .javascript
                 .compression_enabled(CompressionDecision::LengthToNumberElision),
@@ -2107,11 +2108,17 @@ shared_min_imports = 3
         assert_eq!(performance_optimizer.inline_growth_limit, None);
         assert!(!performance.js_options().pool_strings);
         assert!(!performance.js_options().elide_safe_integer_coercions);
+        assert!(!performance.js_options().elide_safe_string_coercions);
         assert!(!performance.js_options().elide_length_tonumber);
         assert!(
             ProjectConfig::default()
                 .js_options()
                 .elide_safe_integer_coercions
+        );
+        assert!(
+            ProjectConfig::default()
+                .js_options()
+                .elide_safe_string_coercions
         );
 
         let realistic: ProjectConfig =
@@ -2128,6 +2135,7 @@ shared_min_imports = 3
         assert!(realistic.entropy_aware_mangling_enabled());
         assert!(realistic.js_options().pool_strings);
         assert!(!realistic.js_options().elide_safe_integer_coercions);
+        assert!(!realistic.js_options().elide_safe_string_coercions);
         assert!(realistic.js_options().compact_boolean_literals);
         assert!(!realistic.js_options().pack_string_arrays);
         assert_eq!(realistic.javascript.candidate_limit, 1536);
@@ -2151,12 +2159,14 @@ shared_min_imports = 3
         assert_eq!(balanced_optimizer.inline_growth_limit, Some(4));
         assert!(balanced.js_options().pool_strings);
         assert!(balanced.js_options().elide_safe_integer_coercions);
+        assert!(balanced.js_options().elide_safe_string_coercions);
         assert!(!balanced.js_options().pack_string_arrays);
 
         let size: ProjectConfig = toml::from_str("[javascript]\npriority='size-first'\n").unwrap();
         assert_eq!(size.js_optimizer_options().inline_growth_limit, Some(16));
         assert!(size.js_options().pool_strings);
         assert!(size.js_options().elide_safe_integer_coercions);
+        assert!(size.js_options().elide_safe_string_coercions);
         assert!(size.js_options().elide_length_tonumber);
         assert!(!balanced.js_options().elide_length_tonumber);
         assert!(size.js_options().inline_structured_closures);
@@ -2243,10 +2253,12 @@ shared_min_imports = 3
             toml::from_str("[javascript]\npriority='size-first'\ninteger_coercions=true\n")
                 .unwrap();
         assert!(!keep_coercions.js_options().elide_safe_integer_coercions);
+        assert!(!keep_coercions.js_options().elide_safe_string_coercions);
 
         let keep_balanced: ProjectConfig =
             toml::from_str("[javascript]\npriority='balanced'\ninteger_coercions=true\n").unwrap();
         assert!(!keep_balanced.js_options().elide_safe_integer_coercions);
+        assert!(!keep_balanced.js_options().elide_safe_string_coercions);
 
         let drop_on_performance: ProjectConfig =
             toml::from_str("[javascript]\npriority='performance-first'\ninteger_coercions=false\n")
@@ -2256,6 +2268,7 @@ shared_min_imports = 3
                 .js_options()
                 .elide_safe_integer_coercions
         );
+        assert!(drop_on_performance.js_options().elide_safe_string_coercions);
     }
 
     #[test]
@@ -2288,6 +2301,7 @@ local_name_coalescing = false
         assert!(!codegen.mangle_exports);
         assert!(codegen.pool_strings);
         assert!(!codegen.elide_safe_integer_coercions);
+        assert!(!codegen.elide_safe_string_coercions);
         assert!(!codegen.elide_block_terminal_semicolons);
         assert!(!codegen.elide_new_parentheses);
         assert!(!codegen.elide_call_chain_parentheses);
@@ -2317,6 +2331,7 @@ local_name_coalescing = false
         assert!(!none_codegen.mangle_exports);
         assert!(!none_codegen.pool_strings);
         assert!(none_codegen.elide_safe_integer_coercions);
+        assert!(none_codegen.elide_safe_string_coercions);
         assert!(!none_codegen.compact_boolean_literals);
         assert!(!none_codegen.elide_block_terminal_semicolons);
         assert!(!none_codegen.elide_new_parentheses);

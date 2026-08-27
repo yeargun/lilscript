@@ -220,7 +220,7 @@ JsValue whenEffect(JsValue predicate, JsValue effect, JsValue opts) {
   }
   JsValue effectAction = createAction("When-effect", effect, false, undef());
   if (DEV) {
-    effectAction = createAction(toStr(opts["name"]) + "-effect", effect, false, undef());
+    effectAction = createAction(opts["name"] + "-effect", effect, false, undef());
   }
   disposer = JS.call(autorun, undef(), JS.method1((JsValue _s, JsValue r) => {
     JsValue cond = JS.call(allowStateChanges, undef(), false, predicate);

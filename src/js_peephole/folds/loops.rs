@@ -1,14 +1,14 @@
 use crate::js_peephole::rewrite::{
     apply_token_rewrites, assign_is_in_declaration, expression_has_top_level_token,
-    identifier_occurs, is_statement_boundary, paren_depth_at, parse_bare_assign,
-    rewrite_identifier_span, top_level_stop,
+    identifier_occurs, is_property_identifier, is_statement_boundary, paren_depth_at,
+    parse_bare_assign, rewrite_identifier_span, top_level_stop,
 };
 use crate::js_peephole::scope::{
     enclosing_block_start, name_is_arguments_length_copy, name_is_declared_in_any_enclosing_scope,
     name_is_declared_in_visible_scope, name_is_nonnegative_length_copy,
     skip_nested_loop_or_function,
 };
-use crate::js_peephole::token::{lex, matching_closers, Token, TokenKind};
+use crate::js_peephole::token::{lex, matching_closers, matching_openers, Token, TokenKind};
 use crate::js_peephole::JavaScriptParseError;
 
 pub(crate) fn fold_index_postfix_updates(
@@ -743,6 +743,224 @@ fn fold_temp_index_walk(
     }
 }
 
+fn while_is_do_while(
+    tokens: &[Token<'_>],
+    matching_open: &[Option<usize>],
+    while_at: usize,
+) -> bool {
+    if while_at == 0 || tokens[while_at - 1].text != "}" {
+        return false;
+    }
+    matching_open
+        .get(while_at - 1)
+        .copied()
+        .flatten()
+        .and_then(|open| open.checked_sub(1))
+        .is_some_and(|before| tokens[before].text == "do")
+}
+
+fn match_postfix_increment<'a>(
+    tokens: &'a [Token<'a>],
+    start: usize,
+    end: usize,
+) -> Option<(usize, &'a str)> {
+    let span = tokens.get(start..end)?;
+    match span {
+        [name, plusplus]
+            if name.kind == TokenKind::Identifier && plusplus.text == "++" =>
+        {
+            Some((start, name.text))
+        }
+        [name, plusplus, semi]
+            if name.kind == TokenKind::Identifier
+                && plusplus.text == "++"
+                && semi.text == ";" =>
+        {
+            Some((start, name.text))
+        }
+        _ => None,
+    }
+}
+
+fn last_top_level_comma(tokens: &[Token<'_>], from: usize, to: usize) -> Option<usize> {
+    let mut last = None;
+    let mut depth = 0i32;
+    for index in from..to {
+        match tokens[index].text {
+            "(" | "[" | "{" => depth += 1,
+            ")" | "]" | "}" => depth -= 1,
+            "," if depth == 0 => last = Some(index),
+            _ => {}
+        }
+    }
+    last
+}
+
+fn body_has_same_level_continue(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    from: usize,
+    to: usize,
+) -> bool {
+    let mut scan = from;
+    while scan < to {
+        if let Some(close) = skip_nested_loop_or_function(tokens, matching_close, scan) {
+            scan = close + 1;
+            continue;
+        }
+        if tokens[scan].text == "continue" {
+            return true;
+        }
+        scan += 1;
+    }
+    false
+}
+
+fn condition_updates_name(tokens: &[Token<'_>], from: usize, to: usize, name: &str) -> bool {
+    for index in from..to {
+        if tokens[index].kind != TokenKind::Identifier || tokens[index].text != name {
+            continue;
+        }
+        if is_property_identifier(tokens, index) {
+            continue;
+        }
+        if matches!(
+            tokens.get(index + 1).map(|token| token.text),
+            Some(
+                "++" | "--"
+                    | "="
+                    | "+="
+                    | "-="
+                    | "*="
+                    | "/="
+                    | "%="
+                    | "<<="
+                    | ">>="
+                    | ">>>="
+                    | "&="
+                    | "|="
+                    | "^="
+                    | "&&="
+                    | "||="
+                    | "??="
+            )
+        ) {
+            return true;
+        }
+        if matches!(
+            index
+                .checked_sub(1)
+                .map(|previous| tokens[previous].text)
+                .as_deref(),
+            Some("++" | "--")
+        ) {
+            return true;
+        }
+    }
+    false
+}
+
+fn loop_body_after_lifted_increment(
+    source: &str,
+    tokens: &[Token<'_>],
+    body_from: usize,
+    incr_at: usize,
+) -> String {
+    if incr_at <= body_from {
+        return ";".to_string();
+    }
+    let body = source[tokens[body_from].start..tokens[incr_at].start]
+        .trim_end_matches([',', ';'])
+        .trim();
+    if body.is_empty() {
+        ";".to_string()
+    } else if body.contains(';') || body.contains('{') {
+        format!("{{{body};}}")
+    } else {
+        format!("{body};")
+    }
+}
+
+pub(crate) fn fold_while_trailing_increments(
+    source: &str,
+) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let matching_close = matching_closers(&tokens);
+    let matching_open = matching_openers(&matching_close);
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+    for while_at in 0..tokens.len() {
+        if tokens[while_at].text != "while"
+            || tokens.get(while_at + 1).map(|token| token.text) != Some("(")
+            || while_at
+                .checked_sub(1)
+                .is_some_and(|prev| matches!(tokens[prev].text, "." | "?."))
+            || while_is_do_while(&tokens, &matching_open, while_at)
+        {
+            continue;
+        }
+        let Some(header_close) = matching_close.get(while_at + 1).copied().flatten() else {
+            continue;
+        };
+        let cond = source[tokens[while_at + 1].end..tokens[header_close].start].trim();
+        if cond.is_empty() {
+            continue;
+        }
+        let body_at = header_close + 1;
+        let (body_from, incr_at, name, replace_end) =
+            if tokens.get(body_at).map(|token| token.text) == Some("{") {
+                let Some(body_close) = matching_close.get(body_at).copied().flatten() else {
+                    continue;
+                };
+                let last = if tokens.get(body_close - 1).map(|token| token.text) == Some(";")
+                    && tokens.get(body_close - 2).map(|token| token.text) == Some("++")
+                {
+                    body_close - 3
+                } else if tokens.get(body_close - 1).map(|token| token.text) == Some("++") {
+                    body_close - 2
+                } else {
+                    continue;
+                };
+                if last <= body_at + 1
+                    || tokens
+                        .get(last)
+                        .is_none_or(|token| token.kind != TokenKind::Identifier)
+                {
+                    continue;
+                }
+                (body_at + 1, last, tokens[last].text, tokens[body_close].end)
+            } else {
+                let stop = top_level_stop(&tokens, body_at, &[";", "}"]).unwrap_or(tokens.len());
+                if stop <= body_at {
+                    continue;
+                }
+                let last_comma = last_top_level_comma(&tokens, body_at, stop);
+                let incr_from = last_comma.map(|comma| comma + 1).unwrap_or(body_at);
+                let Some((incr_at, name)) = match_postfix_increment(&tokens, incr_from, stop)
+                else {
+                    continue;
+                };
+                let replace_end = if stop < tokens.len() && tokens[stop].text == ";" {
+                    tokens[stop].end
+                } else {
+                    tokens[incr_at + 1].end
+                };
+                (body_at, incr_at, name, replace_end)
+            };
+        if condition_updates_name(&tokens, while_at + 2, header_close, name)
+            || body_has_same_level_continue(&tokens, &matching_close, body_from, incr_at)
+        {
+            continue;
+        }
+        let body = loop_body_after_lifted_increment(source, &tokens, body_from, incr_at);
+        replacements.push((
+            tokens[while_at].start,
+            replace_end,
+            format!("for(;{cond};{name}++){body}"),
+        ));
+    }
+    Ok(apply_token_rewrites(source, replacements))
+}
+
 pub(crate) fn fold_for_trailing_increments(
     source: &str,
 ) -> Result<(String, usize), JavaScriptParseError> {
@@ -1408,10 +1626,42 @@ pub(crate) fn fold_arguments_length_countdown_for(
 ) -> Result<(String, usize), JavaScriptParseError> {
     let tokens = lex(source)?;
     let matching_close = matching_closers(&tokens);
+    let matching_open = matching_openers(&matching_close);
     let mut replacements = Vec::<(usize, usize, String)>::new();
-    for for_at in 0..tokens.len() {
+    for at in 0..tokens.len() {
+        if tokens[at].text == "while"
+            && tokens.get(at + 1).map(|token| token.text) == Some("(")
+            && at
+                .checked_sub(1)
+                .is_none_or(|prev| !matches!(tokens[prev].text, "." | "?."))
+            && !while_is_do_while(&tokens, &matching_open, at)
+        {
+            if let Some(header_close) = matching_close.get(at + 1).copied().flatten() {
+                if tokens
+                    .get(at + 2)
+                    .is_some_and(|token| token.kind == TokenKind::Identifier)
+                    && tokens.get(at + 3).map(|token| token.text) == Some(">")
+                    && tokens.get(at + 4).map(|token| token.text) == Some("0")
+                    && at + 5 == header_close
+                {
+                    let name = tokens[at + 2].text;
+                    if name_is_nonnegative_length_copy(&tokens, &matching_close, header_close, name)
+                    {
+                        push_countdown_header(
+                            &tokens,
+                            at,
+                            header_close,
+                            name,
+                            "",
+                            &mut replacements,
+                        );
+                    }
+                }
+            }
+            continue;
+        }
         let Some((header_close, first_semi, second_semi)) =
-            for_header_semicolons(&tokens, &matching_close, for_at)
+            for_header_semicolons(&tokens, &matching_close, at)
         else {
             continue;
         };
@@ -1431,46 +1681,61 @@ pub(crate) fn fold_arguments_length_countdown_for(
         if !name_is_nonnegative_length_copy(&tokens, &matching_close, header_close, name) {
             continue;
         }
-        let braced = tokens.get(header_close + 1).map(|token| token.text) == Some("{");
-        let dec_at = if braced {
-            header_close + 2
-        } else {
-            header_close + 1
-        };
-        let Some(after_dec) = match_ident_decrement(&tokens, dec_at, name) else {
-            continue;
-        };
-        if !matches!(
-            tokens.get(after_dec).map(|token| token.text),
-            Some(",") | Some(";") | Some("}") | None
-        ) {
-            continue;
-        }
-        let init = &source[tokens[for_at + 2].start..tokens[first_semi].start];
-        if braced {
-            if tokens.get(after_dec).map(|token| token.text) == Some(";") {
-                replacements.push((
-                    tokens[for_at].start,
-                    tokens[after_dec].end,
-                    format!("for({init};{name}--;){{"),
-                ));
-            } else if tokens.get(after_dec).map(|token| token.text) == Some("}") {
-                replacements.push((
-                    tokens[for_at].start,
-                    tokens[after_dec].end,
-                    format!("for({init};{name}--);"),
-                ));
-            }
-            continue;
-        }
-        let end = if tokens.get(after_dec).map(|token| token.text) == Some(",") {
-            tokens[after_dec].end
-        } else {
-            tokens[after_dec - 1].end
-        };
-        replacements.push((tokens[for_at].start, end, format!("for({init};{name}--;)")));
+        let init = &source[tokens[at + 2].start..tokens[first_semi].start];
+        push_countdown_header(&tokens, at, header_close, name, init, &mut replacements);
     }
     Ok(apply_token_rewrites(source, replacements))
+}
+
+fn push_countdown_header(
+    tokens: &[Token<'_>],
+    header_at: usize,
+    header_close: usize,
+    name: &str,
+    init: &str,
+    replacements: &mut Vec<(usize, usize, String)>,
+) {
+    let braced = tokens.get(header_close + 1).map(|token| token.text) == Some("{");
+    let dec_at = if braced {
+        header_close + 2
+    } else {
+        header_close + 1
+    };
+    let Some(after_dec) = match_ident_decrement(tokens, dec_at, name) else {
+        return;
+    };
+    if !matches!(
+        tokens.get(after_dec).map(|token| token.text),
+        Some(",") | Some(";") | Some("}") | None
+    ) {
+        return;
+    }
+    if braced {
+        if tokens.get(after_dec).map(|token| token.text) == Some(";") {
+            replacements.push((
+                tokens[header_at].start,
+                tokens[after_dec].end,
+                format!("for({init};{name}--;){{"),
+            ));
+        } else if tokens.get(after_dec).map(|token| token.text) == Some("}") {
+            replacements.push((
+                tokens[header_at].start,
+                tokens[after_dec].end,
+                format!("for({init};{name}--);"),
+            ));
+        }
+        return;
+    }
+    let end = if tokens.get(after_dec).map(|token| token.text) == Some(",") {
+        tokens[after_dec].end
+    } else {
+        tokens[after_dec - 1].end
+    };
+    replacements.push((
+        tokens[header_at].start,
+        end,
+        format!("for({init};{name}--;)"),
+    ));
 }
 
 fn match_ident_decrement(tokens: &[Token<'_>], at: usize, name: &str) -> Option<usize> {

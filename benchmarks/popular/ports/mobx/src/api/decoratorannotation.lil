@@ -1,5 +1,5 @@
 import { DEV } from "../dev-flag.lil";
-import { assign, isStr, undef, toStr } from "../host.lil";
+import { assign, isStr, undef } from "../host.lil";
 import { die } from "../errors.lil";
 
 export JsValue createDecoratorAnnotation(JsValue annotation, JsValue decorate) {
@@ -8,7 +8,7 @@ export JsValue createDecoratorAnnotation(JsValue annotation, JsValue decorate) {
       return JS.call(decorate, undef(), annotation, value, context);
     }
     if (DEV) {
-      die("Invalid arguments for `" + toStr(annotation["annotationType_"]) + "`");
+      die("Invalid arguments for `" + annotation["annotationType_"] + "`");
     }
     return undef();
   }), annotation);

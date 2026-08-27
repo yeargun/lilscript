@@ -12,7 +12,6 @@ import {
   setAdd,
   setDelete,
   stringifyKey,
-  toStr,
   undef,
   ownKeys as reflectOwnKeys
 } from "../host.lil";
@@ -106,7 +105,7 @@ void makeAnnotate(JsValue adm, JsValue key, JsValue annotation) {
   }
   assertAnnotable(adm, annotation, key);
   if (!inOp(key, adm["target_"])) {
-    die2(1, annotation["annotationType_"], toStr(adm["name_"]) + "." + stringifyKey(key));
+    die2(1, annotation["annotationType_"], adm["name_"] + "." + stringifyKey(key));
   }
   JsValue source = adm["target_"];
   while (source.truthy() && !JS.strictEqual(source, gObject()["prototype"])) {

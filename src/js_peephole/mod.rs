@@ -902,12 +902,59 @@ fn generated_identifier_is_ambient(name: &str) -> bool {
 /// A candidate may not win by emitting a name that is bound in one function
 /// and read from another. Host and language globals stay legal; a local that
 /// leaked across a function boundary is the ident-05 failure mode.
+fn class_element_name_occurrences(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+) -> Vec<bool> {
+    let mut names = vec![false; tokens.len()];
+    for (open, close) in class_body_spans(tokens, matching_close) {
+        let mut paren = 0i32;
+        let mut bracket = 0i32;
+        let mut brace = 0i32;
+        let mut at_element_start = true;
+        for index in open + 1..close {
+            if paren == 0 && bracket == 0 && brace == 0 {
+                if tokens[index].text == ";" {
+                    at_element_start = true;
+                    continue;
+                }
+                if at_element_start {
+                    if matches!(tokens[index].text, "static" | "async" | "get" | "set" | "*") {
+                        continue;
+                    }
+                    if tokens[index].kind == TokenKind::Identifier {
+                        names[index] = true;
+                    }
+                    at_element_start = false;
+                }
+            }
+            match tokens[index].text {
+                "(" => paren += 1,
+                ")" => paren -= 1,
+                "[" => bracket += 1,
+                "]" => bracket -= 1,
+                "{" => brace += 1,
+                "}" => {
+                    brace -= 1;
+                    if paren == 0 && bracket == 0 && brace == 0 {
+                        at_element_start = true;
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+    names
+}
+
 fn validate_resolved_generated_bindings(tokens: &[Token<'_>]) -> Result<(), JavaScriptParseError> {
     let matching_close = matching_closers(tokens);
     let bindings = GeneratedBindingIndex::new(tokens, &matching_close);
+    let class_element_names = class_element_name_occurrences(tokens, &matching_close);
     for (index, token) in tokens.iter().enumerate() {
         if token.kind != TokenKind::Identifier
             || is_property_identifier(tokens, index)
+            || class_element_names.get(index).copied().unwrap_or(false)
             || bindings.identifier_is_binding(index)
             || generated_identifier_is_ambient(token.text)
             || bindings.name_is_visible(index, token.text)
@@ -1652,6 +1699,7 @@ fn optimize_generated_javascript_pass(
     session.run(fold_known_string_coercions)?;
     session.run(fold_for_false_breaks)?;
     session.run(fold_nullish_index_walks)?;
+    session.repeat(fold_while_trailing_increments, 4)?;
     session.run(fold_for_trailing_increments)?;
     session.run(strip_unused_for_init_vars)?;
     session.run(fold_chained_identifier_assigns)?;
@@ -1746,6 +1794,8 @@ fn optimize_generated_javascript_pass(
     session.run(fold_top_level_adjacent_expression_statements)?;
     session.run(fold_or_assignment_parens)?;
     session.run(declare_implicit_assignment_bindings)?;
+    session.repeat(fold_forwarding_call_wrappers, 4)?;
+    session.run(fold_int32_coercions)?;
     session.run(split_fused_keyword_identifiers)?;
     session.run(strip_stale_set_prototype_of)?;
     session.run(terminate_bare_prototype_before_statement)?;

@@ -139,7 +139,7 @@ ObservableValue["prototype"]["toJSON"] = JS.method0((JsValue self) => {
   return call0(self["get"], self);
 });
 ObservableValue["prototype"]["toString"] = JS.method0((JsValue self) => {
-  return toStr(self["name_"]) + "[" + toStr(self["value_"]) + "]";
+  return self["name_"] + "[" + self["value_"] + "]";
 });
 ObservableValue["prototype"]["valueOf"] = JS.method0((JsValue self) => {
   return toPrimitive(call0(self["get"], self));

@@ -1,0 +1,58 @@
+import { ARCH_ARRAY, ARCH_OBJECT, DRAFT_STATE } from "../utils/env";
+import { getPlugin } from "../utils/plugins";
+import { newArray, toInt, undef } from "../utils/host";
+
+JsValue currentScope = undef();
+
+export JsValue getCurrentScope() {
+  return currentScope;
+}
+
+JsValue createScope(JsValue parent_, JsValue immer_) {
+  return JS.object(
+    "drafts_", newArray(),
+    "parent_", parent_,
+    "immer_", immer_,
+    "canAutoFreeze_", true,
+    "unfinalizedDrafts_", 0
+  );
+}
+
+export void usePatchesInScope(JsValue scope, JsValue patchListener) {
+  if (patchListener.truthy()) {
+    getPlugin("Patches");
+    scope["patches_"] = newArray();
+    scope["inversePatches_"] = newArray();
+    scope["patchListener_"] = patchListener;
+  }
+}
+
+void revokeDraft(JsValue draft) {
+  JsValue state = draft[DRAFT_STATE];
+  int typ = toInt(state["type_"]);
+  if (typ == ARCH_OBJECT || typ == ARCH_ARRAY) {
+    JS.call(state["revoke_"], undef());
+    return;
+  }
+  state["revoked_"] = true;
+}
+
+export void leaveScope(JsValue scope) {
+  if (JS.strictEqual(scope, currentScope)) {
+    currentScope = scope["parent_"];
+  }
+}
+
+export void revokeScope(JsValue scope) {
+  leaveScope(scope);
+  JS.invoke(scope["drafts_"], "forEach", JS.method1((JsValue _s, JsValue draft) => {
+    revokeDraft(draft);
+    return undef();
+  }));
+  scope["drafts_"] = null;
+}
+
+export JsValue enterScope(JsValue immer) {
+  currentScope = createScope(currentScope, immer);
+  return currentScope;
+}

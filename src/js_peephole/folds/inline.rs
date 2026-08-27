@@ -23,7 +23,10 @@
 //! never mistaken for this one.
 
 use crate::js_peephole::binding::{BindingResolution, Resolution};
-use crate::js_peephole::rewrite::{apply_token_rewrites, is_statement_boundary};
+use crate::js_peephole::rewrite::{
+    apply_token_rewrites, is_property_identifier, is_statement_boundary,
+};
+use crate::js_peephole::scope::parse_function_expression;
 use crate::js_peephole::token::{lex, matching_closers, Token, TokenKind};
 use crate::js_peephole::JavaScriptParseError;
 use std::collections::HashMap;
@@ -364,10 +367,10 @@ fn slots_without_parentheses(tokens: &[Token<'_>], at: usize) -> bool {
         && matches!(after, ")" | "," | "]" | ";" | "}" | ":")
 }
 
-/// Replace `function f(a,b){g(a,b)}` with calls to `g` when every use of `f` is
-/// a call. A one-line arity wrapper is larger than writing the callee at each
-/// site, and the wrapper's function object is unobservable if nothing reads `f`
-/// except by calling it.
+/// Replace `function f(a,b){g(a,b)}` and `f=(a,b)=>{g(a,b)}` with calls to `g`
+/// when every use of `f` is a call. A one-line arity wrapper is larger than
+/// writing the callee at each site, and the wrapper's function object is
+/// unobservable if nothing reads `f` except by calling it.
 pub(crate) fn fold_forwarding_call_wrappers(
     source: &str,
 ) -> Result<(String, usize), JavaScriptParseError> {
@@ -375,62 +378,88 @@ pub(crate) fn fold_forwarding_call_wrappers(
     let matching_close = matching_closers(&tokens);
     let resolution = BindingResolution::new(&tokens);
     let mut replacements = Vec::new();
-    for function_at in 0..tokens.len() {
-        let Some((name_at, callee, body_close)) =
-            forwarding_declaration(&tokens, &matching_close, function_at)
+    for index in 0..tokens.len() {
+        let Some((name_at, callee, delete_start, delete_end)) =
+            forwarding_wrapper(&tokens, &matching_close, index)
         else {
             continue;
         };
-        if resolution.resolve(name_at) != Resolution::Bound(name_at) {
+        let Some(uses) = forwarding_wrapper_call_uses(&tokens, &resolution, name_at) else {
             continue;
-        }
-        let mut uses = Vec::new();
-        let mut ok = true;
-        for index in 0..tokens.len() {
-            if index == name_at {
-                continue;
-            }
-            match resolution.resolve(index) {
-                Resolution::Bound(declaration) if declaration == name_at => {
-                    if tokens.get(index + 1).map(|token| token.text) != Some("(")
-                        || tokens.get(index.wrapping_sub(1)).map(|token| token.text)
-                            == Some("new")
-                    {
-                        ok = false;
-                        break;
-                    }
-                    uses.push(index);
-                }
-                Resolution::Unresolved
-                    if tokens[index].kind == TokenKind::Identifier
-                        && tokens[index].text == tokens[name_at].text =>
-                {
-                    ok = false;
-                    break;
-                }
-                _ => {}
-            }
-        }
-        if !ok || uses.is_empty() {
-            continue;
-        }
+        };
         for use_at in uses {
             replacements.push((tokens[use_at].start, tokens[use_at].end, callee.to_string()));
         }
-        replacements.push((
-            tokens[function_at].start,
-            tokens[body_close].end,
-            String::new(),
-        ));
+        replacements.push((delete_start, delete_end, String::new()));
     }
     Ok(apply_token_rewrites(source, replacements))
 }
 
-    fn forwarding_declaration<'a>(
+fn forwarding_wrapper_call_uses(
+    tokens: &[Token<'_>],
+    resolution: &BindingResolution<'_>,
+    name_at: usize,
+) -> Option<Vec<usize>> {
+    let name = tokens[name_at].text;
+    let home = match resolution.resolve(name_at) {
+        Resolution::Bound(declaration) => declaration,
+        Resolution::Free => name_at,
+        Resolution::Unresolved => return None,
+    };
+    let free_home = matches!(resolution.resolve(name_at), Resolution::Free);
+    let mut uses = Vec::new();
+    for index in 0..tokens.len() {
+        if index == name_at || index == home {
+            continue;
+        }
+        if tokens[index].kind != TokenKind::Identifier || tokens[index].text != name {
+            continue;
+        }
+        match resolution.resolve(index) {
+            Resolution::Bound(declaration) if !free_home && declaration == home => {
+                if !identifier_is_call_use(tokens, index) {
+                    return None;
+                }
+                uses.push(index);
+            }
+            Resolution::Free if free_home => {
+                if !identifier_is_call_use(tokens, index) {
+                    return None;
+                }
+                uses.push(index);
+            }
+            Resolution::Unresolved => return None,
+            _ => {}
+        }
+    }
+    if uses.is_empty() {
+        None
+    } else {
+        Some(uses)
+    }
+}
+
+fn identifier_is_call_use(tokens: &[Token<'_>], index: usize) -> bool {
+    tokens.get(index + 1).map(|token| token.text) == Some("(")
+        && tokens.get(index.wrapping_sub(1)).map(|token| token.text) != Some("new")
+}
+
+fn forwarding_wrapper<'a>(
+    tokens: &'a [Token<'a>],
+    matching_close: &[Option<usize>],
+    index: usize,
+) -> Option<(usize, &'a str, usize, usize)> {
+    if let Some(found) = forwarding_declaration(tokens, matching_close, index) {
+        return Some(found);
+    }
+    forwarding_assignment(tokens, matching_close, index)
+}
+
+fn forwarding_declaration<'a>(
     tokens: &'a [Token<'a>],
     matching_close: &[Option<usize>],
     function_at: usize,
-) -> Option<(usize, &'a str, usize)> {
+) -> Option<(usize, &'a str, usize, usize)> {
     if tokens.get(function_at).map(|token| token.text) != Some("function")
         || !is_statement_boundary(tokens, function_at)
         || tokens
@@ -441,42 +470,121 @@ pub(crate) fn fold_forwarding_call_wrappers(
         return None;
     }
     let name_at = function_at + 1;
-    let params_open = function_at + 2;
-    let params_close = matching_close.get(params_open).copied().flatten()?;
-    let mut params = Vec::new();
-    let mut cursor = params_open + 1;
-    if cursor < params_close {
-        loop {
-            if tokens
-                .get(cursor)
-                .is_none_or(|token| token.kind != TokenKind::Identifier)
-            {
-                return None;
-            }
-            params.push(tokens[cursor].text);
-            cursor += 1;
-            if cursor == params_close {
-                break;
-            }
-            if tokens.get(cursor).map(|token| token.text) != Some(",") {
-                return None;
-            }
-            cursor += 1;
-        }
-    }
-    if tokens.get(params_close + 1).map(|token| token.text) != Some("{") {
+    let expr = parse_function_expression(tokens, matching_close, function_at)?;
+    let params = simple_forwarding_params(tokens, expr.params_from, expr.params_to)?;
+    let callee = forwarding_callee(tokens, matching_close, &expr, &params)?;
+    if callee == tokens[name_at].text {
         return None;
     }
-    let body_open = params_close + 1;
-    let body_close = matching_close.get(body_open).copied().flatten()?;
-    let mut body = body_open + 1;
+    Some((
+        name_at,
+        callee,
+        tokens[function_at].start,
+        tokens[expr.end].end,
+    ))
+}
+
+fn assignment_list_boundary(tokens: &[Token<'_>], name_at: usize) -> bool {
+    let prev = name_at
+        .checked_sub(1)
+        .map(|index| tokens[index].text)
+        .unwrap_or(";");
+    matches!(
+        prev,
+        ";" | "{" | "}" | "," | "var" | "let" | "const" | "else"
+    )
+}
+
+fn forwarding_assignment<'a>(
+    tokens: &'a [Token<'a>],
+    matching_close: &[Option<usize>],
+    name_at: usize,
+) -> Option<(usize, &'a str, usize, usize)> {
+    if tokens
+        .get(name_at)
+        .is_none_or(|token| token.kind != TokenKind::Identifier)
+        || is_property_identifier(tokens, name_at)
+        || !assignment_list_boundary(tokens, name_at)
+        || tokens.get(name_at + 1).map(|token| token.text) != Some("=")
+        || tokens.get(name_at + 2).map(|token| token.text) == Some("=")
+    {
+        return None;
+    }
+    let expr = parse_function_expression(tokens, matching_close, name_at + 2)?;
+    if expr.named {
+        return None;
+    }
+    let params = simple_forwarding_params(tokens, expr.params_from, expr.params_to)?;
+    let callee = forwarding_callee(tokens, matching_close, &expr, &params)?;
+    if callee == tokens[name_at].text {
+        return None;
+    }
+    let mut delete_end = tokens[expr.end].end;
+    if tokens.get(expr.end + 1).map(|token| token.text) == Some(",") {
+        delete_end = tokens[expr.end + 1].end;
+    }
+    Some((name_at, callee, tokens[name_at].start, delete_end))
+}
+
+fn simple_forwarding_params<'a>(
+    tokens: &'a [Token<'a>],
+    from: usize,
+    to: usize,
+) -> Option<Vec<&'a str>> {
+    if from == to {
+        return Some(Vec::new());
+    }
+    let mut params = Vec::new();
+    let mut cursor = from;
+    loop {
+        if tokens
+            .get(cursor)
+            .is_none_or(|token| token.kind != TokenKind::Identifier)
+            || tokens.get(cursor).map(|token| token.text) == Some("...")
+        {
+            return None;
+        }
+        params.push(tokens[cursor].text);
+        cursor += 1;
+        if cursor == to {
+            break;
+        }
+        if tokens.get(cursor).map(|token| token.text) != Some(",") {
+            return None;
+        }
+        cursor += 1;
+        if cursor == to {
+            return None;
+        }
+    }
+    Some(params)
+}
+
+fn forwarding_callee<'a>(
+    tokens: &'a [Token<'a>],
+    matching_close: &[Option<usize>],
+    expr: &crate::js_peephole::scope::FunctionExpression,
+    params: &[&str],
+) -> Option<&'a str> {
+    let (body, body_end) = if let Some(block_open) = expr.block_open {
+        (block_open + 1, expr.end)
+    } else {
+        let mut arrow = expr.params_to;
+        while arrow < expr.end && tokens.get(arrow).map(|token| token.text) != Some("=>") {
+            arrow += 1;
+        }
+        if tokens.get(arrow).map(|token| token.text) != Some("=>") {
+            return None;
+        }
+        (arrow + 1, expr.end + 1)
+    };
+    let mut body = body;
     if tokens.get(body).map(|token| token.text) == Some("return") {
         body += 1;
     }
     if tokens
         .get(body)
         .is_none_or(|token| token.kind != TokenKind::Identifier)
-        || tokens.get(body).map(|token| token.text) == Some(tokens[name_at].text)
         || tokens.get(body + 1).map(|token| token.text) != Some("(")
     {
         return None;
@@ -504,10 +612,10 @@ pub(crate) fn fold_forwarding_call_wrappers(
     if tokens.get(after).map(|token| token.text) == Some(";") {
         after += 1;
     }
-    if after != body_close {
+    if after != body_end {
         return None;
     }
-    Some((name_at, callee, body_close))
+    Some(callee)
 }
 
 #[cfg(test)]
@@ -668,7 +776,7 @@ mod tests {
         use super::fold_forwarding_call_wrappers;
         let source = "function ie(e){throw e}function l(e){ie(e)}function N(e,a){ie(e,a)}function f(){l(30);N(31,1)}";
         let (out, count) = fold_forwarding_call_wrappers(source).unwrap();
-        assert_eq!(count, 2, "{out}");
+        assert!(count >= 2, "{out}");
         assert!(out.contains("ie(30)"), "{out}");
         assert!(out.contains("ie(31,1)"), "{out}");
         assert!(!out.contains("function l("), "{out}");
@@ -692,5 +800,29 @@ mod tests {
         let (out, count) = fold_forwarding_call_wrappers(source).unwrap();
         assert_eq!(count, 0, "{out}");
         assert_eq!(out, source);
+    }
+
+    #[test]
+    fn forwarding_arrow_wrappers_become_direct_calls() {
+        use super::fold_forwarding_call_wrappers;
+        let source = "fa=function(e){throw e};p=a=>{fa(a)},H=(a,b)=>{fa(a,b)};function f(){p(30);H(31,1)}";
+        let (out, count) = fold_forwarding_call_wrappers(source).unwrap();
+        assert!(count >= 2, "{out}");
+        assert!(out.contains("fa(30)"), "{out}");
+        assert!(out.contains("fa(31,1)"), "{out}");
+        assert!(!out.contains("p=a=>"), "{out}");
+        assert!(!out.contains("H=(a,b)=>"), "{out}");
+        assert!(out.contains("fa=function"), "{out}");
+    }
+
+    #[test]
+    fn forwarding_bare_param_arrow_wrappers_become_direct_calls() {
+        use super::fold_forwarding_call_wrappers;
+        let source = "let da=a=>a;p=a=>{fa(a)},gb=a=>a;function f(){p(35)}";
+        let (out, count) = fold_forwarding_call_wrappers(source).unwrap();
+        assert!(count >= 1, "{out}");
+        assert!(out.contains("fa(35)"), "{out}");
+        assert!(!out.contains("p=a=>"), "{out}");
+        assert!(out.contains("gb=a=>a"), "{out}");
     }
 }

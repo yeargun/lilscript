@@ -145,6 +145,12 @@ pub(crate) fn fold_int32_coercions(source: &str) -> Result<(String, usize), Java
             cursor = next;
             continue;
         }
+        if let Some(next) =
+            fold_xor_minus_one(source, &tokens, &matching_close, cursor, &mut replacements)
+        {
+            cursor = next;
+            continue;
+        }
         cursor += 1;
     }
     Ok(apply_token_rewrites(source, replacements))
@@ -1148,9 +1154,97 @@ fn fold_bitflag_field_update(
     replacements.push((
         start,
         tokens[and_close].end,
-        format!("{cond}?{field}|={mask}:{field}&={mask}^-1"),
+        format!(
+            "{cond}?{field}|={mask}:{field}&={}",
+            bitwise_not_operand(&mask)
+        ),
     ));
     Some(and_close + 1)
+}
+
+fn bitwise_not_operand(mask: &str) -> String {
+    if is_simple_bitwise_not_operand(mask) {
+        format!("~{mask}")
+    } else {
+        format!("~({mask})")
+    }
+}
+
+fn is_simple_bitwise_not_operand(mask: &str) -> bool {
+    let mut chars = mask.chars();
+    let Some(first) = chars.next() else {
+        return false;
+    };
+    if !(first.is_ascii_alphabetic() || first == '_' || first == '$' || first.is_ascii_digit()) {
+        return false;
+    }
+    chars.all(|character| {
+        character.is_ascii_alphanumeric()
+            || character == '_'
+            || character == '$'
+            || character == '.'
+    }) && !mask.starts_with('.')
+        && !mask.ends_with('.')
+        && !mask.contains("..")
+}
+
+fn simple_primary_end(tokens: &[Token<'_>], start: usize) -> Option<usize> {
+    let head = tokens.get(start)?;
+    if head.kind != TokenKind::Identifier && head.kind != TokenKind::Number && head.text != "this" {
+        return None;
+    }
+    let mut index = start + 1;
+    while tokens.get(index).map(|token| token.text) == Some(".")
+        && tokens
+            .get(index + 1)
+            .is_some_and(|token| token.kind == TokenKind::Identifier)
+    {
+        index += 2;
+    }
+    Some(index)
+}
+
+fn fold_xor_minus_one(
+    source: &str,
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    cursor: usize,
+    replacements: &mut Vec<(usize, usize, String)>,
+) -> Option<usize> {
+    if tokens[cursor].text == "(" {
+        let close = matching_close.get(cursor).copied().flatten()?;
+        if close >= cursor + 5
+            && tokens[close - 3].text == "^"
+            && tokens[close - 2].text == "-"
+            && tokens[close - 1].text == "1"
+            && simple_primary_end(tokens, cursor + 1) == Some(close - 3)
+        {
+            let operand = &source[tokens[cursor + 1].start..tokens[close - 3].start];
+            replacements.push((
+                tokens[cursor].start,
+                tokens[close].end,
+                format!("~{operand}"),
+            ));
+            return Some(close + 1);
+        }
+    }
+    if tokens[cursor].text == "&=" {
+        let operand_from = cursor + 1;
+        let operand_to = simple_primary_end(tokens, operand_from)?;
+        if tokens.get(operand_to).map(|token| token.text) == Some("^")
+            && tokens.get(operand_to + 1).map(|token| token.text) == Some("-")
+            && tokens.get(operand_to + 2).map(|token| token.text) == Some("1")
+        {
+            let operand = &source[tokens[operand_from].start..tokens[operand_to].start];
+            replacements.push((
+                tokens[operand_from].start,
+                tokens[operand_to + 2].end,
+                format!("~{operand}"),
+            ));
+            return Some(operand_to + 3);
+        }
+    }
+    None
 }
 
 fn bitwise_first_param_callees<'a>(
@@ -1185,17 +1279,14 @@ fn bitwise_first_param_callees<'a>(
             continue;
         }
         let name = tokens[index].text;
-        let Some(expr) = parse_function_expression(tokens, matching_close, index + 2) else {
-            continue;
-        };
-        if expr.is_arrow {
+        if parse_function_expression(tokens, matching_close, index + 2).is_none() {
             continue;
         }
         if !assigned.insert(name) {
             rejected.insert(name);
             continue;
         }
-        if function_first_param_is_bitwise_only(tokens, matching_close, index + 2) {
+        if function_expr_first_param_is_bitwise_only(tokens, matching_close, index + 2) {
             names.insert(name);
         }
     }
@@ -1208,51 +1299,45 @@ fn function_first_param_is_bitwise_only(
     matching_close: &[Option<usize>],
     function_at: usize,
 ) -> bool {
-    let mut index = function_at;
-    if tokens.get(index).map(|token| token.text) != Some("function") {
-        return false;
-    }
-    index += 1;
-    if tokens
-        .get(index)
-        .is_some_and(|token| token.kind == TokenKind::Identifier)
-    {
-        index += 1;
-    }
-    if tokens.get(index).map(|token| token.text) != Some("(") {
-        return false;
-    }
-    let params_open = index;
-    let Some(params_close) = matching_close.get(params_open).copied().flatten() else {
+    function_expr_first_param_is_bitwise_only(tokens, matching_close, function_at)
+}
+
+fn function_expr_first_param_is_bitwise_only(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    expr_at: usize,
+) -> bool {
+    let Some(expr) = parse_function_expression(tokens, matching_close, expr_at) else {
         return false;
     };
-    if tokens
-        .get(params_open + 1)
-        .is_none_or(|token| token.kind != TokenKind::Identifier)
-        || tokens.get(params_open + 1).map(|token| token.text) == Some("...")
+    if expr.params_from >= expr.params_to
+        || tokens[expr.params_from].kind != TokenKind::Identifier
+        || tokens[expr.params_from].text == "..."
     {
         return false;
     }
-    if !matches!(
-        tokens.get(params_open + 2).map(|token| token.text),
-        Some(",") | Some(")")
-    ) {
+    if expr.params_from + 1 < expr.params_to && tokens[expr.params_from + 1].text != "," {
         return false;
     }
-    let param = tokens[params_open + 1].text;
-    if tokens.get(params_close + 1).map(|token| token.text) != Some("{") {
-        return false;
-    }
-    let Some(body_close) = matching_close.get(params_close + 1).copied().flatten() else {
-        return false;
+    let param = tokens[expr.params_from].text;
+    let (body_from, body_end) = if let Some(block_open) = expr.block_open {
+        (block_open + 1, expr.end)
+    } else {
+        let mut arrow = expr.params_to;
+        while arrow < expr.end && tokens.get(arrow).map(|token| token.text) != Some("=>") {
+            arrow += 1;
+        }
+        if tokens.get(arrow).map(|token| token.text) != Some("=>") {
+            return false;
+        }
+        (arrow + 1, expr.end + 1)
     };
-    let body_from = params_close + 2;
     let (uses, nested_use) = collect_same_scope_name_uses(
         tokens,
         matching_close,
         param,
         body_from,
-        body_close,
+        body_end,
         usize::MAX,
     );
     if nested_use || uses.is_empty() {
@@ -1333,6 +1418,12 @@ fn trailing_int32_coerce_span(
     {
         return Some((arg_end - 2, arg_end - 1));
     }
+    if tokens.get(arg_start).map(|token| token.text) == Some("+")
+        && plus_is_unary(tokens, arg_start)
+        && tokens.get(arg_start + 1).map(|token| token.text) != Some("+")
+    {
+        return Some((arg_start, arg_start));
+    }
     if tokens.get(arg_start).map(|token| token.text) == Some("(") {
         let inner_close = matching_close.get(arg_start).copied().flatten()?;
         if inner_close + 1 == arg_end
@@ -1340,6 +1431,13 @@ fn trailing_int32_coerce_span(
             && tokens.get(inner_close - 1).map(|token| token.text) == Some("0")
         {
             return Some((inner_close - 2, inner_close - 1));
+        }
+        if inner_close + 1 == arg_end
+            && tokens.get(arg_start + 1).map(|token| token.text) == Some("+")
+            && plus_is_unary(tokens, arg_start + 1)
+            && tokens.get(arg_start + 2).map(|token| token.text) != Some("+")
+        {
+            return Some((arg_start + 1, arg_start + 1));
         }
     }
     None
@@ -1462,7 +1560,7 @@ mod tests {
         );
         assert!(!out.contains("+this.y&"), "{out}");
         assert!(
-            out.contains("this.y|=4") && out.contains("this.y&=4^-1"),
+            out.contains("this.y|=4") && out.contains("this.y&=~4"),
             "{out}"
         );
     }
@@ -1497,5 +1595,52 @@ mod tests {
         );
         assert!(!out.contains("Tb(this.v|0"), "{out}");
         assert!(!out.contains("c=this.v|0"), "{out}");
+    }
+
+    #[test]
+    fn drops_unary_plus_on_bitwise_callee_args() {
+        let source =
+            "function Ja(a,b,c){return c?a|b:a&(b^-1)}function s(e){this.j=Ja(+this.j,2,!!e)}";
+        let (out, count) = fold_int32_coercions(source).unwrap();
+        assert!(count >= 1, "{out}");
+        assert!(out.contains("Ja(this.j,2,!!e)"), "{out}");
+        assert!(!out.contains("Ja(+this.j"), "{out}");
+    }
+
+    #[test]
+    fn drops_int32_coerce_on_bitwise_arrow_callee_args() {
+        let source = "Tb=(a,b,c)=>c?a|b:a&(b^-1);S=function(a){this.v=Tb(this.v|0,c,!!a);let d=this.v|0;this.v=Tb(d,b,1==(a|0))}";
+        let (out, count) = fold_int32_coercions(source).unwrap();
+        assert!(count >= 1, "{out}");
+        assert!(out.contains("Tb(this.v,c,!!a)"), "{out}");
+        assert!(
+            out.contains("let d=this.v;")
+                || out.contains("d=this.v;")
+                || out.contains("let d=this.v,"),
+            "{out}"
+        );
+        assert!(!out.contains("Tb(this.v|0"), "{out}");
+        assert!(!out.contains("d=this.v|0"), "{out}");
+        assert!(out.contains("1==(a|0)"), "{out}");
+    }
+
+    #[test]
+    fn rewrites_xor_minus_one_to_bitwise_not() {
+        let grouped = fold_int32_coercions("function Tb(a,b,c){return c?a|b:a&(b^-1)}").unwrap();
+        assert!(grouped.0.contains("a&~b"), "{}", grouped.0);
+        assert!(!grouped.0.contains("^-1"), "{}", grouped.0);
+
+        let assign = fold_int32_coercions("function s(e){e?this.y|=4:this.y&=4^-1}").unwrap();
+        assert!(assign.0.contains("this.y&=~4"), "{}", assign.0);
+        assert!(!assign.0.contains("4^-1"), "{}", assign.0);
+
+        let additive =
+            fold_int32_coercions("function s(a,b){return a+b^-1}").unwrap();
+        assert!(
+            additive.0.contains("a+b^-1") || additive.0.contains("a+(b^-1)"),
+            "{}",
+            additive.0
+        );
+        assert!(!additive.0.contains("a+~b"), "{}", additive.0);
     }
 }

@@ -735,6 +735,45 @@ fn does_not_lift_trailing_increment_when_continue_skips_it() {
 }
 
 #[test]
+fn folds_while_trailing_increments_into_for() {
+    let original =
+        "function f(a){var i=0,s=0;while(i<a.length){s+=a[i];i++}return s}console.log(f([1,2,3]))";
+    let optimized = optimize_generated_javascript(original).unwrap();
+    assert!(
+        !optimized.code.contains("while("),
+        "{}",
+        optimized.code
+    );
+    assert!(
+        optimized.code.contains("for(") && optimized.code.contains("i++"),
+        "{}",
+        optimized.code
+    );
+    assert_eq!(run_node(&optimized.code).trim(), "6");
+
+    let comma = optimize_generated_javascript(
+        "function f(a){var i=0,s=0;while(i<a.length)s+=a[i],i++;return s}console.log(f([1,2,4]))",
+    )
+    .unwrap();
+    assert!(!comma.code.contains("while("), "{}", comma.code);
+    assert!(comma.code.contains("for("), "{}", comma.code);
+    assert_eq!(run_node(&comma.code).trim(), "7");
+}
+
+#[test]
+fn does_not_lift_while_trailing_increment_when_continue_skips_it() {
+    let original =
+        "function f(a){var i=0,s=0;while(i<a.length){if(a[i]==null)continue;s+=a[i];i++}return s}console.log(f([1,null,2]))";
+    let optimized = optimize_generated_javascript(original).unwrap();
+    assert!(
+        !optimized.code.contains("for(;i<a.length;i++)"),
+        "{}",
+        optimized.code
+    );
+    assert_eq!(run_node(&optimized.code).trim(), "3");
+}
+
+#[test]
 fn preserves_length_reads_in_for_conditions() {
     let each = optimize_generated_javascript(
         "function each(j,t){for(var n=j.length,r=0;r<j.length&&t(j[r]);r++);return j}",
@@ -1711,6 +1750,18 @@ fn folds_arguments_length_countdown_for() {
         "{}",
         array_len.code
     );
+
+    let while_len = optimize_generated_javascript(
+        "function when(){var t=arguments.length;while(t>0)t--,use(t);return t}",
+    )
+    .unwrap();
+    assert!(
+        while_len.code.contains("for(;t--;)")
+            || while_len.code.contains("for(var t=arguments.length;t--;)"),
+        "{}",
+        while_len.code
+    );
+    assert!(!while_len.code.contains("while("), "{}", while_len.code);
 
     let float_like =
         optimize_generated_javascript("function when(t){t=1.5;for(;t>0;)--t,use(t);return t}")

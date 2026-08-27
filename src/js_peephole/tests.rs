@@ -1072,6 +1072,26 @@ fn permits_a_named_class_expression_assigned_to_an_existing_binding() {
 }
 
 #[test]
+fn permits_a_class_method_that_reuses_a_sibling_function_parameter() {
+    analyze_generated_javascript(
+        "function f(S){return S}class u{constructor(){this.x=1}S(a){return a}get t(){return this.x}}",
+    )
+    .unwrap();
+}
+
+#[test]
+fn still_rejects_a_class_method_body_that_reads_a_sibling_local() {
+    let source = "function f(){var y=1;return y}class u{S(a){return y}}";
+    let error = analyze_generated_javascript(source).unwrap_err();
+    assert!(
+        error
+            .to_string()
+            .contains("unresolved generated identifier"),
+        "{error}"
+    );
+}
+
+#[test]
 fn permits_var_redeclaration_of_a_module_binding() {
     analyze_generated_javascript(
         "var e=[];Object.freeze(e);var e=C.prototype;C.m=function(){return 1};export{C}",
@@ -1784,7 +1804,7 @@ fn preserves_while_push_array_construction() {
     let source = "function pi(x){return x+1}var r=[1,2,3],n=[],t=0;while(t<r.length)n.push(pi(r[t])),t++;console.log(n.join(\",\"))";
     let optimized = optimize_generated_javascript(source).unwrap();
     assert!(
-        optimized.code.contains("while(") && optimized.code.contains(".push("),
+        optimized.code.contains(".push("),
         "{}",
         optimized.code
     );

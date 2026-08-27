@@ -39,7 +39,7 @@ setPrototypeOf(FlowCancellationError["prototype"], Error["prototype"]);
 FlowCancellationError["prototype"]["constructor"] = FlowCancellationError;
 defineProperty(FlowCancellationError, "name", JS.object("value", "FlowCancellationError", "configurable", true));
 FlowCancellationError["prototype"]["toString"] = JS.method0((JsValue self) => {
-  return "Error: " + toStr(self["message"]);
+  return "Error: " + self["message"];
 });
 
 export JsValue isFlowCancellationError = JS.method1((JsValue _s, JsValue error) => {
@@ -68,7 +68,7 @@ flow = assign(JS.method2((JsValue _s, JsValue genFn, JsValue context) => {
     }
     string initName = name;
     if (DEV) {
-      initName = name + " - runid: " + toStr(runId) + " - init";
+      initName = name + " - runid: " + runId + " - init";
     }
     JsValue gen = apply(JS.call(action, undef(), initName, genFn), ctx, genArgs);
     JsValue slot = JS.object();
@@ -85,7 +85,7 @@ flow = assign(JS.method2((JsValue _s, JsValue genFn, JsValue context) => {
         if (DEV) {
           int stepId = toInt(slot["stepId"]);
           slot["stepId"] = stepId + 1;
-          stepName = name + " - runid: " + toStr(runId) + " - yield " + toStr(stepId);
+          stepName = name + " - runid: " + runId + " - yield " + stepId;
         }
         JsValue ret = call1(JS.call(action, undef(), stepName, gen["next"]), gen, v);
         call1(nextStep, undef(), ret);
@@ -101,7 +101,7 @@ flow = assign(JS.method2((JsValue _s, JsValue genFn, JsValue context) => {
         if (DEV) {
           int stepId = toInt(slot["stepId"]);
           slot["stepId"] = stepId + 1;
-          stepName = name + " - runid: " + toStr(runId) + " - yield " + toStr(stepId);
+          stepName = name + " - runid: " + runId + " - yield " + stepId;
         }
         JsValue ret = call1(JS.call(action, undef(), stepName, gen["throw"]), gen, err);
         call1(nextStep, undef(), ret);
@@ -131,7 +131,7 @@ flow = assign(JS.method2((JsValue _s, JsValue genFn, JsValue context) => {
     }));
     string cancelName = name;
     if (DEV) {
-      cancelName = name + " - runid: " + toStr(runId) + " - cancel";
+      cancelName = name + " - runid: " + runId + " - cancel";
     }
     promise["cancel"] = JS.call(action, undef(), cancelName, JS.method0((JsValue _c) => {
       try {

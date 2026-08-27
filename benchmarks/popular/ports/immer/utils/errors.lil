@@ -1,0 +1,67 @@
+import {
+  apply,
+  isDevEnv,
+  makeError,
+  newArray,
+  push,
+  throwErr,
+  toStr,
+  undef
+} from "./host";
+
+export bool isDev = isDevEnv();
+
+export JsValue errors = newArray();
+
+if (isDev) {
+  push(errors, JS.method1((JsValue _s, JsValue plugin) => {
+    string name = toStr(plugin);
+    return "The plugin for '" + name + "' has not been loaded into Immer. To enable the plugin, import and call `enable" + name + "()` when initializing your application.";
+  }));
+  push(errors, JS.method1((JsValue _s, JsValue thing) => {
+    return "produce can only be called on things that are draftable: plain objects, arrays, Map, Set or classes that are marked with '[immerable]: true'. Got '" + toStr(thing) + "'";
+  }));
+  push(errors, "This object has been frozen and should not be mutated");
+  push(errors, JS.method1((JsValue _s, JsValue data) => {
+    return "Cannot use a proxy that has been revoked. Did you pass an object from inside an immer function to an async process? " + toStr(data);
+  }));
+  push(errors, "An immer producer returned a new value *and* modified its draft. Either return a new value *or* modify the draft.");
+  push(errors, "Immer forbids circular references");
+  push(errors, "The first or second argument to `produce` must be a function");
+  push(errors, "The third argument to `produce` must be a function or undefined");
+  push(errors, "First argument to `createDraft` must be a plain object, an array, or an immerable object");
+  push(errors, "First argument to `finishDraft` must be a draft returned by `createDraft`");
+  push(errors, JS.method1((JsValue _s, JsValue thing) => {
+    return "'current' expects a draft, got: " + toStr(thing);
+  }));
+  push(errors, "Object.defineProperty() cannot be used on an Immer draft");
+  push(errors, "Object.setPrototypeOf() cannot be used on an Immer draft");
+  push(errors, "Immer only supports deleting array indices");
+  push(errors, "Immer only supports setting array indices and the 'length' property");
+  push(errors, JS.method1((JsValue _s, JsValue thing) => {
+    return "'original' expects a draft, got: " + toStr(thing);
+  }));
+}
+
+void dieWith(int error, JsValue args) {
+  if (isDev) {
+    JsValue e = errors[error];
+    JsValue msg = e;
+    if (JS.typeOf(e) == "function") {
+      msg = apply(e, undef(), args);
+    }
+    throwErr(makeError("[Immer] " + toStr(msg)));
+    return;
+  }
+  throwErr(makeError("[Immer] minified error nr: " + toStr(error) + ". Full error at: https://bit.ly/3cXEKWf"));
+}
+
+export void die(int error) {
+  dieWith(error, newArray());
+}
+
+export void die1(int error, JsValue a) {
+  JsValue args = newArray();
+  push(args, a);
+  dieWith(error, args);
+}

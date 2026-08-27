@@ -15,7 +15,6 @@ import {
   newMap,
   push,
   stringifyKey,
-  toStr,
   undef
 } from "../host.lil";
 import {
@@ -50,7 +49,7 @@ JsValue decorateComputed20223_ = JS.method3((JsValue _s, JsValue annotation, JsV
     options["context"] = target;
     if (!options["name"].truthy()) {
       if (DEV) {
-        options["name"] = toStr(adm["name_"]) + "." + stringifyKey(keyName);
+        options["name"] = adm["name_"] + "." + stringifyKey(keyName);
       } else {
         options["name"] = "ObservableObject." + stringifyKey(keyName);
       }

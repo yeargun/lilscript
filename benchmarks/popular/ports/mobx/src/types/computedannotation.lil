@@ -2,8 +2,7 @@ import { DEV } from "../dev-flag.lil";
 import {
   apply,
   assign,
-  stringifyKey,
-  toStr
+  stringifyKey
 } from "../host.lil";
 import { die } from "../errors.lil";
 import { annotationOwnMake } from "./observableannotation.lil";
@@ -14,7 +13,7 @@ JsValue computedAnnotationExtend = JS.methodRest((JsValue self, JsValue args) =>
   JsValue descriptor = args[2];
   JsValue proxyTrap = args[3];
   if (DEV && !descriptor["get"].truthy()) {
-    die("Cannot apply '" + toStr(self["annotationType_"]) + "' to '" + toStr(adm["name_"]) + "." + stringifyKey(key) + "':\n'" + toStr(self["annotationType_"]) + "' can only be used on getter(+setter) properties.");
+    die("Cannot apply '" + self["annotationType_"] + "' to '" + adm["name_"] + "." + stringifyKey(key) + "':\n'" + self["annotationType_"] + "' can only be used on getter(+setter) properties.");
   }
   JsValue opts = assign(JS.object(), self["options_"]);
   opts["get"] = descriptor["get"];

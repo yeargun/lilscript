@@ -22,7 +22,7 @@ import { admProxyOrTarget } from "./adm-proxy.lil";
 
 JsValue createActionDescriptor(JsValue adm, JsValue annotation, JsValue key, JsValue descriptor, bool safeDescriptors) {
   if (DEV && !isFn(descriptor["value"])) {
-    die("Cannot apply '" + toStr(annotation["annotationType_"]) + "' to '" + toStr(adm["name_"]) + "." + stringifyKey(key) + "':\n'" + toStr(annotation["annotationType_"]) + "' can only be used on properties with a function value.");
+    die("Cannot apply '" + annotation["annotationType_"] + "' to '" + adm["name_"] + "." + stringifyKey(key) + "':\n'" + annotation["annotationType_"] + "' can only be used on properties with a function value.");
   }
   JsValue value = descriptor["value"];
   if (annotation["options_"].truthy() && annotation["options_"]["bound"].truthy()) {

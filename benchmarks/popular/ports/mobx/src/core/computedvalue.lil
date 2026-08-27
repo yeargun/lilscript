@@ -202,12 +202,12 @@ ComputedValue["prototype"]["warnAboutUntrackedRead_"] = JS.method0((JsValue self
     required = globalState["computedRequiresReaction"].truthy();
   }
   if (required) {
-    warn("[mobx] Computed value '" + toStr(self["name_"]) + "' is being read outside a reactive context. Doing a full recompute.");
+    warn("[mobx] Computed value '" + self["name_"] + "' is being read outside a reactive context. Doing a full recompute.");
   }
   return undef();
 });
 ComputedValue["prototype"]["toString"] = JS.method0((JsValue self) => {
-  return toStr(self["name_"]) + "[" + toStr(JS.invoke(self["derivation"], "toString")) + "]";
+  return self["name_"] + "[" + JS.invoke(self["derivation"], "toString") + "]";
 });
 ComputedValue["prototype"]["valueOf"] = JS.method0((JsValue self) => {
   return toPrimitive(call0(self["get"], self));

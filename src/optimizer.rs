@@ -1999,10 +1999,62 @@ fn rewrite_stringify_slot(
     true
 }
 
+fn concat_operand_is_string(op: &ControlFlowOp<'_>, known_strings: &AHashSet<ValueId>) -> bool {
+    match op {
+        ControlFlowOp::Binary {
+            op: IrBinaryOp::Add,
+            lhs,
+            rhs,
+        } => known_strings.contains(lhs) || known_strings.contains(rhs),
+        ControlFlowOp::Intrinsic {
+            intrinsic: Intrinsic::JsAdd,
+            receiver,
+            args,
+            ..
+        } => {
+            receiver
+                .as_ref()
+                .is_some_and(|lhs| known_strings.contains(lhs))
+                || args.first().is_some_and(|rhs| known_strings.contains(rhs))
+        }
+        _ => false,
+    }
+}
+
+fn collect_known_string_values(function: &ControlFlowFunction<'_>) -> AHashSet<ValueId> {
+    let mut known_strings = AHashSet::default();
+    for instruction in function.blocks.iter().flat_map(|block| &block.instructions) {
+        if let (Some(out), ControlFlowOp::Const(ConstValue::String(_))) =
+            (instruction.out, &instruction.op)
+        {
+            known_strings.insert(out);
+        }
+    }
+    loop {
+        let mut changed = false;
+        for instruction in function.blocks.iter().flat_map(|block| &block.instructions) {
+            let Some(out) = instruction.out else {
+                continue;
+            };
+            if known_strings.contains(&out) {
+                continue;
+            }
+            if concat_operand_is_string(&instruction.op, &known_strings) {
+                known_strings.insert(out);
+                changed = true;
+            }
+        }
+        if !changed {
+            break;
+        }
+    }
+    known_strings
+}
+
 fn elide_stringify_in_op(
     op: &mut ControlFlowOp<'_>,
     stringify: &AHashMap<ValueId, ValueId>,
-    const_strings: &AHashSet<ValueId>,
+    known_strings: &AHashSet<ValueId>,
     consumed: &mut AHashSet<ValueId>,
 ) -> bool {
     match op {
@@ -2031,14 +2083,14 @@ fn elide_stringify_in_op(
             ..
         } => {
             let mut changed = false;
-            if args.first().is_some_and(|rhs| const_strings.contains(rhs)) {
+            if args.first().is_some_and(|rhs| known_strings.contains(rhs)) {
                 if let Some(lhs) = receiver.as_mut() {
                     changed |= rewrite_stringify_slot(lhs, stringify, consumed);
                 }
             }
             if receiver
                 .as_ref()
-                .is_some_and(|lhs| const_strings.contains(lhs))
+                .is_some_and(|lhs| known_strings.contains(lhs))
             {
                 if let Some(rhs) = args.first_mut() {
                     changed |= rewrite_stringify_slot(rhs, stringify, consumed);
@@ -2059,10 +2111,10 @@ fn elide_stringify_in_op(
             rhs,
         } => {
             let mut changed = false;
-            if const_strings.contains(rhs) {
+            if known_strings.contains(rhs) {
                 changed |= rewrite_stringify_slot(lhs, stringify, consumed);
             }
-            if const_strings.contains(lhs) {
+            if known_strings.contains(lhs) {
                 changed |= rewrite_stringify_slot(rhs, stringify, consumed);
             }
             changed
@@ -2082,13 +2134,11 @@ fn elide_single_use_stringify(module: &mut ControlFlowModule<'_>) -> Optimizatio
         }
         let uses = control_flow_use_counts(function);
         let mut stringify = AHashMap::default();
-        let mut const_strings = AHashSet::default();
         let mut invoke_keys = AHashMap::<ValueId, String>::default();
         for block in &function.blocks {
             for instruction in &block.instructions {
                 match (instruction.out, &instruction.op) {
                     (Some(out), ControlFlowOp::Const(ConstValue::String(text))) => {
-                        const_strings.insert(out);
                         invoke_keys.insert(out, text.clone());
                     }
                     (
@@ -2108,13 +2158,14 @@ fn elide_single_use_stringify(module: &mut ControlFlowModule<'_>) -> Optimizatio
         if stringify.is_empty() {
             continue;
         }
+        let known_strings = collect_known_string_values(function);
         let mut consumed = AHashSet::default();
         for block in &mut function.blocks {
             for instruction in &mut block.instructions {
                 if elide_stringify_in_op(
                     &mut instruction.op,
                     &stringify,
-                    &const_strings,
+                    &known_strings,
                     &mut consumed,
                 ) {
                     changed = true;
@@ -8836,7 +8887,9 @@ fn unobserved_local_mutables(
                         if let Some(summary) = summary.filter(|summary| !summary.inherent) {
                             group.extend(summary.retained_parameters.iter().filter_map(
                                 |parameter| {
-                                    args.get(*parameter).and_then(|value| roots.get(value)).copied()
+                                    args.get(*parameter)
+                                        .and_then(|value| roots.get(value))
+                                        .copied()
                                 },
                             ));
                         }

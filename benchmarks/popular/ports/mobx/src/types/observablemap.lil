@@ -99,7 +99,7 @@ export JsValue ObservableMap = JS.method3((JsValue self, JsValue initialData, Js
   initObservable(JS.method0((JsValue _s) => {
     string keysName = "ObservableMap.keys()";
     if (DEV) {
-      keysName = toStr(self["name_"]) + ".keys()";
+      keysName = self["name_"] + ".keys()";
     }
     self["keysAtom_"] = JS.call(createAtom, undef(), keysName);
     self["data_"] = newMap();
@@ -123,7 +123,7 @@ ObservableMap["prototype"]["has"] = JS.method1((JsValue self, JsValue key) => {
   if (!entry.truthy()) {
     string n = "ObservableMap.key?";
     if (DEV) {
-      n = toStr(self["name_"]) + "." + stringifyKey(key) + "?";
+      n = self["name_"] + "." + stringifyKey(key) + "?";
     }
     entry = JS.construct(ObservableValue, call1(self["has_"], self, key), referenceEnhancerFn, n, false, undef());
     mapSet(self["hasMap_"], key, entry);
@@ -185,7 +185,7 @@ ObservableMap["prototype"]["addValue_"] = JS.method2((JsValue self, JsValue key,
   JS.call(transaction, undef(), JS.method0((JsValue _b) => {
     string n = "ObservableMap.key";
     if (DEV) {
-      n = toStr(self["name_"]) + "." + stringifyKey(key);
+      n = self["name_"] + "." + stringifyKey(key);
     }
     JsValue observableNode = JS.construct(ObservableValue, newValue, self["enhancer_"], n, false, undef());
     mapSet(self["data_"], key, observableNode);

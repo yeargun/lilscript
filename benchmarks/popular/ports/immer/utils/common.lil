@@ -1,0 +1,252 @@
+import {
+  ARCH_ARRAY,
+  ARCH_MAP,
+  ARCH_OBJECT,
+  ARCH_SET,
+  DRAFT_STATE,
+  DRAFTABLE
+} from "./env";
+import { die1, die } from "./errors";
+import {
+  call1,
+  call2,
+  deleteKey,
+  functionToString,
+  getDescriptors,
+  getPrototypeOf,
+  hasOwn,
+  inOp,
+  instanceOf,
+  invoke0,
+  invoke1,
+  isArr,
+  isFn,
+  isNullish,
+  isObj,
+  isSym,
+  objectAssign,
+  objectCreate,
+  objectCreate2,
+  objectEntries,
+  objectFreeze,
+  objectIs,
+  objectIsFrozen,
+  ownKeys,
+  sliceCall,
+  toInt,
+  undef
+} from "./host";
+
+extern JsValue Object;
+extern JsValue Array;
+extern JsValue Map;
+extern JsValue Set;
+extern JsValue Function;
+extern JsValue Reflect;
+
+JsValue objectCtorString = functionToString(Object["prototype"]["constructor"]);
+JsValue dontMutateFrozenCollections = JS.method0((JsValue _s) => {
+  die(2);
+  return undef();
+});
+
+export bool isDraft(JsValue value) {
+  if (!value.truthy()) {
+    return false;
+  }
+  return value[DRAFT_STATE].truthy();
+}
+
+export bool isPlainObject(JsValue value) {
+  if (!value.truthy() || JS.typeOf(value) != "object") {
+    return false;
+  }
+  JsValue proto = getPrototypeOf(value);
+  if (JS.strictEqual(proto, null)) {
+    return true;
+  }
+  JsValue ctor = undef();
+  if (hasOwn(proto, "constructor")) {
+    ctor = proto["constructor"];
+  }
+  if (JS.strictEqual(ctor, Object)) {
+    return true;
+  }
+  return isFn(ctor) && JS.strictEqual(functionToString(ctor), objectCtorString);
+}
+
+export bool isMap(JsValue target) {
+  return instanceOf(target, Map);
+}
+
+export bool isSet(JsValue target) {
+  return instanceOf(target, Set);
+}
+
+export bool isDraftable(JsValue value) {
+  if (!value.truthy()) {
+    return false;
+  }
+  if (isPlainObject(value) || isArr(value)) {
+    return true;
+  }
+  if (value[DRAFTABLE].truthy()) {
+    return true;
+  }
+  JsValue ctor = value["constructor"];
+  if (ctor.truthy() && ctor[DRAFTABLE].truthy()) {
+    return true;
+  }
+  return isMap(value) || isSet(value);
+}
+
+export JsValue original(JsValue value) {
+  if (!isDraft(value)) {
+    die1(15, value);
+  }
+  return value[DRAFT_STATE]["base_"];
+}
+
+export int getArchtype(JsValue thing) {
+  JsValue state = thing[DRAFT_STATE];
+  if (state.truthy()) {
+    return toInt(state["type_"]);
+  }
+  if (isArr(thing)) {
+    return ARCH_ARRAY;
+  }
+  if (isMap(thing)) {
+    return ARCH_MAP;
+  }
+  if (isSet(thing)) {
+    return ARCH_SET;
+  }
+  return ARCH_OBJECT;
+}
+
+export void each(JsValue obj, JsValue iter) {
+  if (getArchtype(obj) == ARCH_OBJECT) {
+    JsValue keys = ownKeys(obj);
+    JS.invoke(keys, "forEach", JS.method1((JsValue _s, JsValue key) => {
+      JS.call(iter, undef(), key, obj[key], obj);
+      return undef();
+    }));
+    return;
+  }
+  JS.invoke(obj, "forEach", JS.method2((JsValue _s, JsValue entry, JsValue index) => {
+    JS.call(iter, undef(), index, entry, obj);
+    return undef();
+  }));
+}
+
+export bool has(JsValue thing, JsValue prop) {
+  if (getArchtype(thing) == ARCH_MAP) {
+    return invoke1(thing, "has", prop).truthy();
+  }
+  return hasOwn(thing, prop);
+}
+
+export JsValue get(JsValue thing, JsValue prop) {
+  if (getArchtype(thing) == ARCH_MAP) {
+    return invoke1(thing, "get", prop);
+  }
+  return thing[prop];
+}
+
+export void set(JsValue thing, JsValue propOrOldValue, JsValue value) {
+  int t = getArchtype(thing);
+  if (t == ARCH_MAP) {
+    invoke2(thing, "set", propOrOldValue, value);
+    return;
+  }
+  if (t == ARCH_SET) {
+    invoke1(thing, "add", value);
+    return;
+  }
+  thing[propOrOldValue] = value;
+}
+
+export bool is(JsValue x, JsValue y) {
+  return objectIs(x, y);
+}
+
+export JsValue latest(JsValue state) {
+  if (state["copy_"].truthy()) {
+    return state["copy_"];
+  }
+  return state["base_"];
+}
+
+export JsValue shallowCopy(JsValue base, JsValue strict) {
+  if (isMap(base)) {
+    return JS.construct(Map, base);
+  }
+  if (isSet(base)) {
+    return JS.construct(Set, base);
+  }
+  if (isArr(base)) {
+    return sliceCall(base);
+  }
+  bool plain = isPlainObject(base);
+  bool useStrict = JS.strictEqual(strict, true) || (JS.strictEqual(strict, "class_only") && !plain);
+  if (useStrict) {
+    JsValue descriptors = getDescriptors(base);
+    deleteKey(descriptors, DRAFT_STATE);
+    JsValue keys = ownKeys(descriptors);
+    int n = toInt(keys["length"]);
+    int i = 0;
+    while (i < n) {
+      JsValue key = keys[i];
+      JsValue desc = descriptors[key];
+      if (JS.strictEqual(desc["writable"], false)) {
+        desc["writable"] = true;
+        desc["configurable"] = true;
+      }
+      if (desc["get"].truthy() || desc["set"].truthy()) {
+        descriptors[key] = JS.object(
+          "configurable", true,
+          "writable", true,
+          "enumerable", desc["enumerable"],
+          "value", base[key]
+        );
+      }
+      i = i + 1;
+    }
+    return objectCreate2(getPrototypeOf(base), descriptors);
+  }
+  JsValue proto = getPrototypeOf(base);
+  if (!JS.strictEqual(proto, null) && plain) {
+    return objectAssign(JS.object(), base);
+  }
+  JsValue obj = objectCreate(proto);
+  return objectAssign(obj, base);
+}
+
+export bool isFrozen(JsValue obj) {
+  return objectIsFrozen(obj);
+}
+
+export JsValue freeze(JsValue obj, bool deep = false) {
+  if (isFrozen(obj) || isDraft(obj) || !isDraftable(obj)) {
+    return obj;
+  }
+  if (getArchtype(obj) > ARCH_ARRAY) {
+    obj["set"] = dontMutateFrozenCollections;
+    obj["add"] = dontMutateFrozenCollections;
+    obj["clear"] = dontMutateFrozenCollections;
+    obj["delete"] = dontMutateFrozenCollections;
+  }
+  objectFreeze(obj);
+  if (deep) {
+    JsValue entries = objectEntries(obj);
+    JS.invoke(entries, "forEach", JS.method1((JsValue _s, JsValue pair) => {
+      freeze(pair[1], true);
+      return undef();
+    }));
+  }
+  return obj;
+}
+
+export bool isSymbolProp(JsValue prop) {
+  return isSym(prop);
+}

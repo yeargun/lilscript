@@ -60,6 +60,7 @@ pub struct IrJsOptions {
     /// cannot observe the prototype distinction.
     pub ordinary_record_literals: bool,
     pub elide_safe_integer_coercions: bool,
+    pub elide_safe_string_coercions: bool,
     /// Emit `JS.number(x["length"])` as `x.length` instead of `+x.length`.
     /// `.length` is not always a number, so candidate search scores both.
     pub elide_length_tonumber: bool,
@@ -256,6 +257,7 @@ impl Default for IrJsOptions {
             pool_numeric_literals: false,
             ordinary_record_literals: false,
             elide_safe_integer_coercions: true,
+            elide_safe_string_coercions: false,
             elide_length_tonumber: false,
             compact_boolean_literals: true,
             elide_block_terminal_semicolons: true,
@@ -13363,12 +13365,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 ));
             }
             Intrinsic::JsStringify => {
-                // `+""` is ToString. A value the type system already knows is
-                // a string is ToString of itself, so the coercion is a no-op
-                // that still costs three tokens every time a port writes
-                // `JS.string(already_a_string)`.
-                if value_type(self.function(context.function_id)?, receiver_id).as_ref()
-                    == Some(&Type::String)
+                if self.options.elide_safe_string_coercions
+                    || value_type(self.function(context.function_id)?, receiver_id).as_ref()
+                        == Some(&Type::String)
                     || context.string_constants.contains_key(&receiver_id)
                 {
                     return Ok(receiver);
@@ -25310,6 +25309,19 @@ mod tests {
     }
 
     #[test]
+    fn compression_treats_stringify_as_a_type_assertion() {
+        let output = compile_with_options(
+            "extern void consume(string s);extern JsValue v;consume(JS.string(v));string name=JS.string(v);consume(name);",
+            IrJsOptions {
+                elide_safe_string_coercions: true,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(!output.contains("+\"\""), "{output}");
+        assert!(!output.contains("+''"), "{output}");
+    }
+
+    #[test]
     fn js_array_takes_its_elements() {
         let empty = compile("extern void consume(JsValue v);consume(JS.array());");
         assert!(empty.contains("[]"), "{empty}");
@@ -30795,6 +30807,23 @@ run();
             output.contains("+\"//\"") || output.contains("+'//'"),
             "{output}"
         );
+    }
+
+    #[test]
+    fn elides_chained_stringify_after_a_string_concat() {
+        let chained = compile(
+            "extern JsValue left();extern JsValue right();print(\"x\"+JS.string(left())+JS.string(right()));",
+        );
+        assert!(!chained.contains("+\"\""), "{chained}");
+        assert!(
+            chained.contains("+left()") && chained.contains("+right()"),
+            "{chained}"
+        );
+
+        let both_dynamic = compile(
+            "extern JsValue left();extern JsValue right();print(JS.string(left())+JS.string(right()));",
+        );
+        assert!(both_dynamic.contains("+\"\""), "{both_dynamic}");
     }
 
     #[test]

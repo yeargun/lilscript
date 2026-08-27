@@ -109,10 +109,10 @@ export void recordAnnotationApplied(JsValue adm, JsValue annotation, JsValue key
 
 export void assertAnnotable(JsValue adm, JsValue annotation, JsValue key) {
   if (DEV && !isAnnotation(annotation)) {
-    die("Cannot annotate '" + toStr(adm["name_"]) + "." + stringifyKey(key) + "': Invalid annotation.");
+    die("Cannot annotate '" + adm["name_"] + "." + stringifyKey(key) + "': Invalid annotation.");
   }
   if (DEV && !isOverride(annotation) && hasOwn(adm["appliedAnnotations_"], key)) {
-    die("Cannot apply '" + toStr(annotation["annotationType_"]) + "' to '" + toStr(adm["name_"]) + "." + stringifyKey(key) + "':\nThe field is already annotated with '" + toStr(adm["appliedAnnotations_"][key]["annotationType_"]) + "'.\nRe-annotating fields is not allowed.\nUse 'override' annotation for methods overridden by subclass.");
+    die("Cannot apply '" + annotation["annotationType_"] + "' to '" + adm["name_"] + "." + stringifyKey(key) + "':\nThe field is already annotated with '" + adm["appliedAnnotations_"][key]["annotationType_"] + "'.\nRe-annotating fields is not allowed.\nUse 'override' annotation for methods overridden by subclass.");
   }
 }
 
@@ -130,7 +130,7 @@ export JsValue ObservableObjectAdministration = JS.methodRest((JsValue self, JsV
   }
   string keysName = "ObservableObject.keys";
   if (DEV) {
-    keysName = toStr(self["name_"]) + ".keys";
+    keysName = self["name_"] + ".keys";
   }
   self["keysAtom_"] = construct1(Atom, keysName);
   self["isPlainObject_"] = isPlainObject(self["target_"]);
@@ -261,7 +261,7 @@ ObservableObjectAdministration["prototype"]["has_"] = JS.method1((JsValue self, 
   if (!entry.truthy()) {
     string pendingName = "ObservableObject.key?";
     if (DEV) {
-      pendingName = toStr(self["name_"]) + "." + stringifyKey(key) + "?";
+      pendingName = self["name_"] + "." + stringifyKey(key) + "?";
     }
     entry = JS.construct(ObservableValue, inOp(key, self["target_"]), referenceEnhancerFn, pendingName, false, undef());
     mapSet(self["pendingKeys_"], key, entry);
@@ -390,7 +390,7 @@ ObservableObjectAdministration["prototype"]["defineObservableProperty_"] = JS.me
     }
     string obsName = "ObservableObject.key";
     if (DEV) {
-      obsName = toStr(self["name_"]) + "." + stringifyKey(key);
+      obsName = self["name_"] + "." + stringifyKey(key);
     }
     JsValue observableNode = JS.construct(ObservableValue, value, enhancer, obsName, false, undef());
     mapSet(self["values_"], key, observableNode);
@@ -420,7 +420,7 @@ ObservableObjectAdministration["prototype"]["defineComputedProperty_"] = JS.meth
     }
     if (!options["name"].truthy()) {
       if (DEV) {
-        options["name"] = toStr(self["name_"]) + "." + stringifyKey(key);
+        options["name"] = self["name_"] + "." + stringifyKey(key);
       } else {
         options["name"] = "ObservableObject.key";
       }
@@ -545,7 +545,7 @@ export JsValue asObservableObject = JS.method2((JsValue _s, JsValue target, JsVa
   }
   if (hasOwn(target, $mobx)) {
     if (DEV && !isObservableObject(target)) {
-      die("Cannot convert '" + toStr(target["name_"]) + "' into observable object:\nThe target is already observable of different type.\nExtending builtins is not supported.");
+      die("Cannot convert '" + target["name_"] + "' into observable object:\nThe target is already observable of different type.\nExtending builtins is not supported.");
     }
     return target;
   }

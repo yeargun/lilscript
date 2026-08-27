@@ -54,7 +54,7 @@ JsValue decorateAction20223_ = JS.method3((JsValue _s, JsValue annotation, JsVal
     }
     return createAction(n, m, autoFlag, undef());
   });
-  if (toStr(context["kind"]) == "field") {
+  if (JS.strictEqual(context["kind"], "field")) {
     return JS.method1((JsValue self, JsValue initMthd) => {
       JsValue out = initMthd;
       if (!isAction(out)) {
@@ -67,7 +67,7 @@ JsValue decorateAction20223_ = JS.method3((JsValue _s, JsValue annotation, JsVal
       return out;
     });
   }
-  if (toStr(context["kind"]) == "method") {
+  if (JS.strictEqual(context["kind"], "method")) {
     if (!isAction(mthd)) {
       mthd = call1(wrap, undef(), mthd);
     }
