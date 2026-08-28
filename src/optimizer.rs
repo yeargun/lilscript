@@ -1575,6 +1575,9 @@ fn rewrite_document_host_call(
                 receiver: None,
                 args: Vec::new(),
             },
+            lowering_obligation: crate::ir::LoweringObligation::Free,
+            origin: crate::ir::OperationOrigin::Generated,
+            node_id: None,
             span,
         },
     );
@@ -1604,6 +1607,9 @@ fn rewrite_document_create_comment(
                 receiver: None,
                 args: Vec::new(),
             },
+            lowering_obligation: crate::ir::LoweringObligation::Free,
+            origin: crate::ir::OperationOrigin::Generated,
+            node_id: None,
             span,
         },
     );
@@ -1613,6 +1619,9 @@ fn rewrite_document_create_comment(
             out: Some(empty),
             ty: Some(Type::String),
             op: ControlFlowOp::Const(ConstValue::String(String::new())),
+            lowering_obligation: crate::ir::LoweringObligation::Free,
+            origin: crate::ir::OperationOrigin::Generated,
+            node_id: None,
             span,
         },
     );
@@ -1638,6 +1647,9 @@ fn rewrite_clone_node_deep(
             out: Some(deep),
             ty: Some(Type::Bool),
             op: ControlFlowOp::Const(ConstValue::Bool(true)),
+            lowering_obligation: crate::ir::LoweringObligation::Free,
+            origin: crate::ir::OperationOrigin::Generated,
+            node_id: None,
             span,
         },
     );
@@ -1841,6 +1853,7 @@ fn optimize_scalar_fixed_point(
         let value_numbering = options
             .common_subexpression_elimination
             .then(|| eliminate_common_subexpressions(module));
+        let owned_object_reads = fold_owned_plain_object_reads(module);
         let unreachable = remove_unreachable_control_flow(module);
         // Keep allocation and mutation distinct in the neutral IR. Unlike
         // literal initialization, `Array#push` and ordinary-object assignment
@@ -1852,17 +1865,177 @@ fn optimize_scalar_fixed_point(
             || value_numbering
                 .as_ref()
                 .is_some_and(|report| report.changed)
+            || owned_object_reads.changed
             || unreachable.changed
             || stringify.changed;
         reports.extend(propagation);
         reports.push(phis);
         reports.extend(algebraic);
         reports.extend(value_numbering);
+        reports.push(owned_object_reads);
         reports.push(unreachable);
         reports.push(stringify);
         if !changed {
             break;
         }
+    }
+}
+
+fn fold_owned_plain_object_reads(module: &mut ControlFlowModule<'_>) -> OptimizationReport {
+    let mut changed = false;
+    for function in &mut module.functions {
+        if !function.live {
+            continue;
+        }
+        let string_constants = function
+            .blocks
+            .iter()
+            .flat_map(|block| &block.instructions)
+            .filter_map(|instruction| match (instruction.out, &instruction.op) {
+                (Some(out), ControlFlowOp::Const(ConstValue::String(value))) => {
+                    Some((out, value.clone()))
+                }
+                _ => None,
+            })
+            .collect::<AHashMap<_, _>>();
+        let mut objects = function
+            .blocks
+            .iter()
+            .flat_map(|block| &block.instructions)
+            .filter_map(|instruction| {
+                let (
+                    Some(out),
+                    ControlFlowOp::Intrinsic {
+                        intrinsic: Intrinsic::JsPlainObject,
+                        receiver: None,
+                        args,
+                    },
+                ) = (instruction.out, &instruction.op)
+                else {
+                    return None;
+                };
+                let mut fields = AHashMap::default();
+                let mut pairs = args.chunks_exact(2);
+                for pair in &mut pairs {
+                    fields.insert(string_constants.get(&pair[0])?.clone(), pair[1]);
+                }
+                pairs.remainder().is_empty().then_some((out, fields))
+            })
+            .collect::<AHashMap<_, AHashMap<String, ValueId>>>();
+        let object_blocks = function
+            .blocks
+            .iter()
+            .flat_map(|block| {
+                block.instructions.iter().filter_map(move |instruction| {
+                    matches!(
+                        instruction.op,
+                        ControlFlowOp::Intrinsic {
+                            intrinsic: Intrinsic::JsPlainObject,
+                            receiver: None,
+                            ..
+                        }
+                    )
+                    .then_some((instruction.out?, block.id))
+                })
+            })
+            .collect::<AHashMap<_, _>>();
+        if objects.is_empty() {
+            continue;
+        }
+
+        let mut unsafe_objects = AHashSet::default();
+        for block in &function.blocks {
+            for phi in &block.phis {
+                for (_, value) in &phi.incoming {
+                    if objects.contains_key(value) {
+                        unsafe_objects.insert(*value);
+                    }
+                }
+            }
+            for instruction in &block.instructions {
+                for object in objects.keys().copied().collect::<Vec<_>>() {
+                    let used = control_flow_used_values(&instruction.op).contains(&object);
+                    let safe = if object_blocks.get(&object).copied() != Some(block.id) {
+                        !used
+                    } else {
+                        match &instruction.op {
+                            ControlFlowOp::IndexGet {
+                                object: receiver,
+                                index,
+                            } if *receiver == object => string_constants
+                                .get(index)
+                                .is_some_and(|key| objects[&object].contains_key(key)),
+                            ControlFlowOp::HostFieldGet {
+                                object: receiver,
+                                property,
+                            } if *receiver == object => objects[&object].contains_key(*property),
+                            ControlFlowOp::Intrinsic {
+                                intrinsic: Intrinsic::JsPlainObject,
+                                ..
+                            } if instruction.out == Some(object) => true,
+                            _ => !used,
+                        }
+                    };
+                    if !safe {
+                        unsafe_objects.insert(object);
+                    }
+                }
+            }
+            if let Some(terminator) = &block.terminator {
+                for value in terminator_used_values(terminator) {
+                    if objects.contains_key(&value) {
+                        unsafe_objects.insert(value);
+                    }
+                }
+            }
+        }
+        objects.retain(|object, _| !unsafe_objects.contains(object));
+        if objects.is_empty() {
+            continue;
+        }
+
+        for block in &mut function.blocks {
+            let mut aliases = AHashMap::default();
+            let instructions = std::mem::take(&mut block.instructions);
+            let mut retained = Vec::with_capacity(instructions.len());
+            for mut instruction in instructions {
+                rewrite_control_flow_op(&mut instruction.op, &aliases);
+                let forwarded = match (&instruction.op, instruction.out) {
+                    (ControlFlowOp::IndexGet { object, index }, Some(out)) => string_constants
+                        .get(index)
+                        .and_then(|key| objects.get(object)?.get(key))
+                        .copied()
+                        .map(|value| (out, value)),
+                    (ControlFlowOp::HostFieldGet { object, property }, Some(out)) => objects
+                        .get(object)
+                        .and_then(|fields| fields.get(*property))
+                        .copied()
+                        .map(|value| (out, value)),
+                    _ => None,
+                };
+                if let Some((out, value)) = forwarded {
+                    aliases.insert(out, value);
+                    changed = true;
+                } else {
+                    retained.push(instruction);
+                }
+            }
+            for phi in &mut block.phis {
+                for (_, value) in &mut phi.incoming {
+                    while let Some(alias) = aliases.get(value) {
+                        *value = *alias;
+                    }
+                }
+            }
+            if let Some(terminator) = &mut block.terminator {
+                rewrite_terminator(terminator, &aliases);
+            }
+            block.instructions = retained;
+        }
+    }
+    OptimizationReport {
+        pass_name: "owned-plain-object-read-forwarding",
+        changed,
     }
 }
 
@@ -2135,8 +2308,8 @@ fn elide_single_use_stringify(module: &mut ControlFlowModule<'_>) -> Optimizatio
         let uses = control_flow_use_counts(function);
         let mut stringify = AHashMap::default();
         let mut invoke_keys = AHashMap::<ValueId, String>::default();
-        for block in &function.blocks {
-            for instruction in &block.instructions {
+        for (block_index, block) in function.blocks.iter().enumerate() {
+            for (instruction_index, instruction) in block.instructions.iter().enumerate() {
                 match (instruction.out, &instruction.op) {
                     (Some(out), ControlFlowOp::Const(ConstValue::String(text))) => {
                         invoke_keys.insert(out, text.clone());
@@ -2149,7 +2322,7 @@ fn elide_single_use_stringify(module: &mut ControlFlowModule<'_>) -> Optimizatio
                             ..
                         },
                     ) if uses.get(&out).copied() == Some(1) => {
-                        stringify.insert(out, *inner);
+                        stringify.insert(out, (*inner, block_index, instruction_index));
                     }
                     _ => {}
                 }
@@ -2160,11 +2333,22 @@ fn elide_single_use_stringify(module: &mut ControlFlowModule<'_>) -> Optimizatio
         }
         let known_strings = collect_known_string_values(function);
         let mut consumed = AHashSet::default();
-        for block in &mut function.blocks {
-            for instruction in &mut block.instructions {
+        for (block_index, block) in function.blocks.iter_mut().enumerate() {
+            for (instruction_index, instruction) in block.instructions.iter_mut().enumerate() {
+                let adjacent = stringify
+                    .iter()
+                    .filter_map(|(out, (inner, definition_block, definition_index))| {
+                        (*definition_block == block_index
+                            && definition_index.saturating_add(1) == instruction_index)
+                            .then_some((*out, *inner))
+                    })
+                    .collect::<AHashMap<_, _>>();
+                if adjacent.is_empty() {
+                    continue;
+                }
                 if elide_stringify_in_op(
                     &mut instruction.op,
-                    &stringify,
+                    &adjacent,
                     &known_strings,
                     &mut consumed,
                 ) {
@@ -2181,14 +2365,14 @@ fn elide_single_use_stringify(module: &mut ControlFlowModule<'_>) -> Optimizatio
                     match invoke_name.as_deref() {
                         Some(name) if is_string_prototype_method(name) => {
                             if let Some(receiver) = receiver.as_mut() {
-                                if rewrite_stringify_slot(receiver, &stringify, &mut consumed) {
+                                if rewrite_stringify_slot(receiver, &adjacent, &mut consumed) {
                                     changed = true;
                                 }
                             }
                         }
                         Some("test" | "exec") => {
                             if let Some(subject) = args.get_mut(1) {
-                                if rewrite_stringify_slot(subject, &stringify, &mut consumed) {
+                                if rewrite_stringify_slot(subject, &adjacent, &mut consumed) {
                                     changed = true;
                                 }
                             }
@@ -2424,6 +2608,10 @@ fn simplify_algebraic_expressions(module: &mut ControlFlowModule<'_>) -> Optimiz
             let mut retained = Vec::with_capacity(instructions.len());
             for mut instruction in instructions {
                 rewrite_control_flow_op(&mut instruction.op, &aliases);
+                if instruction.lowering_obligation != crate::ir::LoweringObligation::Free {
+                    retained.push(instruction);
+                    continue;
+                }
                 let Some(out) = instruction.out else {
                     retained.push(instruction);
                     continue;
@@ -2780,28 +2968,29 @@ fn eliminate_common_subexpressions(module: &mut ControlFlowModule<'_>) -> Optimi
             let mut numbers = AHashMap::<ValueNumberKey, ValueId>::default();
             for mut instruction in instructions {
                 rewrite_control_flow_op(&mut instruction.op, &aliases);
-                let key =
-                    if instruction_has_dynamic_observable_evaluation(&instruction, &value_types) {
-                        None
-                    } else {
-                        match &instruction.op {
-                            ControlFlowOp::Const(value) => {
-                                Some(ValueNumberKey::Constant(ConstantNumber::from(value)))
-                            }
-                            ControlFlowOp::Unary { op, value } => {
-                                Some(ValueNumberKey::Unary(*op, *value))
-                            }
-                            ControlFlowOp::Binary { op, lhs, rhs } => {
-                                let (lhs, rhs) = if is_commutative(*op) && rhs.0 < lhs.0 {
-                                    (*rhs, *lhs)
-                                } else {
-                                    (*lhs, *rhs)
-                                };
-                                Some(ValueNumberKey::Binary(*op, lhs, rhs))
-                            }
-                            _ => None,
+                let key = if instruction.lowering_obligation != crate::ir::LoweringObligation::Free
+                    || instruction_has_dynamic_observable_evaluation(&instruction, &value_types)
+                {
+                    None
+                } else {
+                    match &instruction.op {
+                        ControlFlowOp::Const(value) => {
+                            Some(ValueNumberKey::Constant(ConstantNumber::from(value)))
                         }
-                    };
+                        ControlFlowOp::Unary { op, value } => {
+                            Some(ValueNumberKey::Unary(*op, *value))
+                        }
+                        ControlFlowOp::Binary { op, lhs, rhs } => {
+                            let (lhs, rhs) = if is_commutative(*op) && rhs.0 < lhs.0 {
+                                (*rhs, *lhs)
+                            } else {
+                                (*lhs, *rhs)
+                            };
+                            Some(ValueNumberKey::Binary(*op, lhs, rhs))
+                        }
+                        _ => None,
+                    }
+                };
                 if let (Some(out), Some(key)) = (instruction.out, key) {
                     if let Some(previous) = numbers.get(&key) {
                         aliases.insert(out, *previous);
@@ -3445,6 +3634,9 @@ fn clone_function_with_specialization<'src>(
             out: Some(out),
             ty: Some(parameter_ty),
             op: operation,
+            lowering_obligation: crate::ir::LoweringObligation::Free,
+            origin: crate::ir::OperationOrigin::Generated,
+            node_id: None,
             span: parameter_span,
         });
     }
@@ -3652,6 +3844,9 @@ fn specialize_constant_parameters(
                     out: Some(out),
                     ty: Some(parameter.ty.clone()),
                     op: ControlFlowOp::Const(value.clone()),
+                    lowering_obligation: crate::ir::LoweringObligation::Free,
+                    origin: crate::ir::OperationOrigin::Generated,
+                    node_id: None,
                     span: parameter.span,
                 });
             }
@@ -3890,6 +4085,9 @@ fn fold_and_propagate_control_flow(
                 }
 
                 for instruction in &mut block.instructions {
+                    if instruction.lowering_obligation != crate::ir::LoweringObligation::Free {
+                        continue;
+                    }
                     let Some(out) = instruction.out else {
                         continue;
                     };
@@ -5104,6 +5302,7 @@ fn inline_small_functions(
                 && !(js_adapter_targets.contains(&function.id)
                     && call_counts.get(&function.id).copied().unwrap_or(0) != 0)
                 && !function_has_type_parameters(function)
+                && !module.function_belongs_to_identity_class(function)
                 && function.blocks.len() == 1
                 && function.blocks[0].phis.is_empty()
                 && (options.inline_closure_factories
@@ -5503,6 +5702,9 @@ pub(crate) fn project_direct_constructor_initializers_for_javascript(
                                 out: Some(out),
                                 ty: Some(ty.clone()),
                                 op: ControlFlowOp::Const(value.clone()),
+                                lowering_obligation: crate::ir::LoweringObligation::Free,
+                                origin: crate::ir::OperationOrigin::Generated,
+                                node_id: None,
                                 span: *span,
                             });
                             out
@@ -5529,6 +5731,9 @@ pub(crate) fn project_direct_constructor_initializers_for_javascript(
                                 index: field.index,
                                 value,
                             },
+                            lowering_obligation: crate::ir::LoweringObligation::Free,
+                            origin: crate::ir::OperationOrigin::Generated,
+                            node_id: None,
                             span: field.span,
                         }),
                 );
@@ -6103,6 +6308,7 @@ fn scalar_replace_linear_classes(module: &mut ControlFlowModule<'_>) -> Optimiza
                 .collect::<Option<Vec<_>>>()?;
             Some((layout.name, fields))
         })
+        .filter(|(name, _)| !module.class_identity_observed(name))
         .collect::<AHashMap<_, _>>();
     let mut changed = false;
 
@@ -6190,6 +6396,9 @@ fn scalar_replace_linear_classes(module: &mut ControlFlowModule<'_>) -> Optimiza
                                 out: Some(out),
                                 ty: Some(ty.clone()),
                                 op: ControlFlowOp::Const(value.clone()),
+                                lowering_obligation: crate::ir::LoweringObligation::Free,
+                                origin: crate::ir::OperationOrigin::Generated,
+                                node_id: None,
                                 span: instruction.span,
                             });
                             fields.push(out);
@@ -8230,6 +8439,9 @@ fn project_closed_record_observations(module: &mut ControlFlowModule<'_>) -> Opt
                                     out: Some(value),
                                     ty: Some(Type::String),
                                     op: ControlFlowOp::Const(constant),
+                                    lowering_obligation: crate::ir::LoweringObligation::Free,
+                                    origin: crate::ir::OperationOrigin::Generated,
+                                    node_id: None,
                                     span: instruction.span,
                                 });
                                 values.push(value);
@@ -9502,6 +9714,9 @@ fn apply_private_function_subsumption<'src>(
                                     captures: Vec::new(),
                                 },
                             },
+                            lowering_obligation: crate::ir::LoweringObligation::Free,
+                            origin: crate::ir::OperationOrigin::Generated,
+                            node_id: None,
                             span: instruction.span,
                         });
                         bound_values.push((*index, out));
@@ -9935,6 +10150,9 @@ fn rewrite_calls_with_bound_constant(
                             }),
                             span: instruction.span,
                             op: ControlFlowOp::Const(constant.clone()),
+                            lowering_obligation: crate::ir::LoweringObligation::Free,
+                            origin: crate::ir::OperationOrigin::Generated,
+                            node_id: None,
                         });
                         *callee = target;
                         args.push(const_value);
@@ -10273,6 +10491,11 @@ fn normalize_private_function<'src>(
                 } if *reference == original_id => *reference = SELF_REFERENCE,
                 _ => {}
             }
+            // Source identity is diagnostic provenance, not function-body
+            // semantics. Lowering obligations remain untouched so an explicit
+            // target operation cannot be merged with an unconstrained one.
+            instruction.origin = crate::ir::OperationOrigin::Generated;
+            instruction.node_id = None;
             instruction.span = empty;
         }
         if let Some(terminator) = &mut block.terminator {
@@ -10515,20 +10738,7 @@ fn eliminate_dead_functions(module: &mut ControlFlowModule<'_>) -> OptimizationR
 }
 
 fn exported_functions(module: &ControlFlowModule<'_>) -> AHashSet<FunctionId> {
-    module
-        .exports
-        .iter()
-        .chain(
-            module
-                .lazy_modules
-                .iter()
-                .flat_map(|module| module.exports.iter()),
-        )
-        .filter_map(|export| match export.binding {
-            ExportBinding::Function(function) => Some(function),
-            _ => None,
-        })
-        .collect()
+    module.runtime_exported_functions().into_iter().collect()
 }
 
 fn exported_globals(module: &ControlFlowModule<'_>) -> AHashSet<SymbolId> {
@@ -13959,6 +14169,49 @@ mod tests {
         assert!(!module.functions[2].live);
     }
 
+    fn module_has_struct_allocation(module: &ControlFlowModule<'_>) -> bool {
+        module
+            .functions
+            .iter()
+            .flat_map(|function| &function.blocks)
+            .flat_map(|block| &block.instructions)
+            .any(|instruction| matches!(instruction.op, ControlFlowOp::Struct { .. }))
+    }
+
+    #[test]
+    fn scalar_replacement_on_and_keep_object_are_both_legal() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "extern int read();struct Pair{int a;int b;}Pair p=Pair{read(),1};print(p.a+p.b);",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut exploded = lower_to_control_flow(&program, &semantics).unwrap();
+        let mut kept = lower_to_control_flow(&program, &semantics).unwrap();
+        let explode = OptimizationOptions::default();
+        let keep_object = OptimizationOptions {
+            scalar_replacement: false,
+            ..explode
+        };
+
+        let explode_reports =
+            optimize_control_flow_with_options(&mut exploded, &explode, false).unwrap();
+        let keep_reports =
+            optimize_control_flow_with_options(&mut kept, &keep_object, false).unwrap();
+
+        assert!(explode_reports
+            .iter()
+            .any(|report| { report.pass_name == "scalar-replacement-cfg" && report.changed }));
+        assert!(!keep_reports
+            .iter()
+            .any(|report| report.pass_name == "scalar-replacement-cfg"));
+        assert!(!module_has_struct_allocation(&exploded));
+        assert!(module_has_struct_allocation(&kept));
+        crate::codegen_ir_js::emit_optimized_ir_js(&exploded).unwrap();
+        crate::codegen_ir_js::emit_optimized_ir_js(&kept).unwrap();
+    }
+
     #[test]
     fn scalar_replacement_explodes_structs_used_by_loop_phis_atomically() {
         let arena = Bump::new();
@@ -15751,6 +16004,26 @@ mod tests {
         ));
 
         assert_eq!(trace, "TRACE:1:false:-1:9", "{output}");
+    }
+
+    #[test]
+    fn stringify_elision_does_not_move_dynamic_coercion_across_a_call() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "extern JsValue dynamic;extern void side();extern void consume(string value);string text=JS.string(dynamic);side();consume(text+\"!\");",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut module = lower_to_control_flow(&program, &semantics).unwrap();
+        optimize_control_flow_with_options(&mut module, &OptimizationOptions::default(), false)
+            .unwrap();
+        let output = crate::codegen_ir_js::emit_optimized_ir_js(&module).unwrap();
+        let trace = run_javascript(&format!(
+            "let events=[];var dynamic={{[Symbol.toPrimitive](){{events.push('coerce');return 'value'}}}};function side(){{events.push('side')}}function consume(value){{events.push(value)}};{output};process.stdout.write(events.join(','))"
+        ));
+
+        assert_eq!(trace, "coerce,side,value!", "{output}");
     }
 
     /// A helper that mutates one argument may have stored another inside it.

@@ -26,7 +26,8 @@ via typed web syntax and direct JS. If this cannot be written, the task is not r
 ## Must not
 
 - The [standing refusals](../README.md#standing-refusals) — no glue, no post-minify,
-  no weakened gate, no `diag` number in a claim, semantics before size.
+  no widened search while ident-05 is red, no library matcher, no `diag` number
+  in a claim, semantics before size. Classify a port loss before coding.
 - <task-specific refusals: approaches already REJECTED in the note, files to leave alone.>
 
 ## Prove it

@@ -1,6 +1,8 @@
 use super::folds::{
-    fold_early_exit_guards, fold_fresh_empty_array_pushes, fold_identity_arrow_iife,
-    fold_if_expression_to_and, fold_statement_assignments_into_first_use,
+    fold_early_exit_guards, fold_fresh_empty_array_pushes, fold_identifier_copies,
+    fold_identity_arrow_iife, fold_if_expression_to_and, fold_sequence_assignments_into_first_use,
+    fold_single_use_if_assigns, fold_single_use_temporaries,
+    fold_statement_assignments_into_first_use, fold_typeof_identifier_caches,
 };
 use super::parse::{non_overlapping_parsed_node_count, parse_expression_regions};
 use super::token::{lex, punctuation_width};
@@ -1133,6 +1135,27 @@ fn permits_a_computed_false_class_method() {
 }
 
 #[test]
+fn permits_public_class_field_initializers() {
+    let source = "class C{x=0;ready=!1;label='';items=[];constructor(){this.x=1}}";
+    analyze_generated_javascript(source).unwrap();
+    let (declared, rewrites) = super::folds::declare_implicit_assignment_bindings(source).unwrap();
+    assert_eq!(rewrites, 0, "{declared}");
+    assert_eq!(declared, source);
+}
+
+#[test]
+fn rejects_a_comma_between_a_class_field_and_method() {
+    let error = analyze_generated_javascript("class C{x=0,constructor(){this.x=1}}")
+        .expect_err("a comma cannot terminate a public class field");
+    assert!(
+        error
+            .to_string()
+            .contains("invalid generated class element"),
+        "{error}"
+    );
+}
+
+#[test]
 fn rejects_a_var_declaration_in_a_class_body() {
     let error = analyze_generated_javascript(
         "class C{var j;constructor(c,d,j=[]){this.x=j}buildFromUnknown(j,m={}){return m}}",
@@ -2260,6 +2283,26 @@ fn keeps_single_use_function_when_moving_would_capture_a_caller_local() {
 }
 
 #[test]
+fn keeps_single_use_arrow_when_moving_would_shadow_a_module_callee() {
+    let source = concat!(
+        "let t=e=>({id:e});",
+        "let find=n=>t(n);",
+        "function me(n){var t;t=find(n);return t.id}",
+        "console.log(me(7), t(1).id)",
+    );
+    let (folded, count) = super::folds::fold_single_use_function_values(source).unwrap();
+    assert_eq!(count, 0, "{folded}");
+    assert_eq!(run_javascript(&folded).trim(), "7 1");
+    let optimized = optimize_generated_javascript(source).unwrap();
+    assert_eq!(
+        run_javascript(&optimized.code).trim(),
+        "7 1",
+        "{}",
+        optimized.code
+    );
+}
+
+#[test]
 fn moves_statement_assignment_into_its_first_inertly_prefixed_read() {
     let source = "function trim(e){e=e.trim();return e.endsWith('/')?e.slice(0,e.length-1):e}console.log(trim('x/'))";
     let (folded, count) = super::folds::fold_statement_assignments_into_first_use(source).unwrap();
@@ -2486,6 +2529,213 @@ fn a_beta_reduced_conditional_stays_grouped_in_a_ternary_test() {
         fold_identity_arrow_iife("var r=(c=>g(c))(b)?f.value=b:f.result=b;").expect("fold");
     assert_eq!(tight_count, 1, "{tight}");
     assert!(tight.contains("g(b)?f.value=b"), "{tight}");
+}
+
+#[test]
+fn beta_reduce_inlines_an_unused_assignment_iife() {
+    let (folded, count) = fold_identity_arrow_iife(
+        "var l={href:42},n=l.href??0;(()=>{l={href:47}})(),console.log(n+(l.href??0)|0)",
+    )
+    .expect("fold");
+    assert_eq!(count, 1, "{folded}");
+    assert!(folded.contains("l={href:47},console.log"), "{folded}");
+    assert!(!folded.contains("(()=>{"), "{folded}");
+    assert!(folded.contains("var l={href:42},n=l.href??0"), "{folded}");
+}
+
+/// `[...r]` is rest/spread, not `r` as a property of `.`.
+///
+/// Beta-reduction skipped the operand because the token before it is `.`, the
+/// same test used for `obj.r`. `(r=>[...r].length)(a)` then kept `r`, which is
+/// whatever binding that name has in the caller — in marked, the still-live
+/// `exec` match rather than the delimiter string `points` was given.
+#[test]
+fn beta_reduce_substitutes_a_spread_operand() {
+    let (folded, count) = fold_identity_arrow_iife("a=(r=>[...r].length)(a);").expect("fold");
+    assert_eq!(count, 1, "{folded}");
+    assert!(folded.contains("[...a].length"), "{folded}");
+    assert!(!folded.contains("[...r]"), "{folded}");
+
+    let tokens = lex("[...r];o.r;({...r});f(...r)").expect("lex");
+    let positions = tokens
+        .iter()
+        .enumerate()
+        .filter(|(_, token)| token.kind == super::token::TokenKind::Identifier && token.text == "r")
+        .map(|(index, _)| index)
+        .collect::<Vec<_>>();
+    assert_eq!(positions.len(), 4, "{tokens:?}");
+    assert!(!super::rewrite::is_property_identifier(
+        &tokens,
+        positions[0]
+    ));
+    assert!(super::rewrite::is_property_identifier(
+        &tokens,
+        positions[1]
+    ));
+    assert!(!super::rewrite::is_property_identifier(
+        &tokens,
+        positions[2]
+    ));
+    assert!(!super::rewrite::is_property_identifier(
+        &tokens,
+        positions[3]
+    ));
+}
+
+/// ident-05: after `a=pickDelim(r)`, `points(a)` must spread `a`. If the
+/// inlined helper still spells its parameter `r`, failing to substitute
+/// `[...r]` reads the live match instead of the delimiter.
+#[test]
+fn beta_reduce_does_not_leave_code_point_length_bound_to_the_match() {
+    let source = "function tok(r){var a=ln(r);if(0!=a.length){a=(r=>[...r].length)(a)}return a}";
+    let (folded, count) = fold_identity_arrow_iife(source).expect("fold");
+    assert_eq!(count, 1, "{folded}");
+    assert!(folded.contains("[...a].length"), "{folded}");
+    assert!(!folded.contains("[...r]"), "{folded}");
+    let harness = concat!(
+        "function ln(m){return (m[3]==null?\"\":m[3])+\"\"}",
+        "function tok(r){var a=ln(r);if(0!=a.length){a=(r=>[...r].length)(a)}return a}",
+        "console.log(tok(['full',null,null,'**',null,null,null,null]))",
+    );
+    let optimized = optimize_generated_javascript(harness).unwrap();
+    assert_eq!(
+        run_javascript(&optimized.code).trim(),
+        "2",
+        "{}",
+        optimized.code
+    );
+}
+
+#[test]
+fn rematerialization_folds_refuse_a_rebound_receiver() {
+    let (temps, _) =
+        fold_single_use_temporaries("function f(b,i){var d=b.href;return i(b=b.title,d)}")
+            .expect("fold");
+    assert!(
+        temps.contains("var d=b.href") && !temps.contains("i(b=b.title,b.href)"),
+        "{temps}"
+    );
+
+    let (ifs, _) =
+        fold_single_use_if_assigns("function f(b){if(1){var d=b.href;b=b.title;return d}}")
+            .expect("fold");
+    assert!(
+        !ifs.contains("return b.href") && !ifs.contains("return(b.href)"),
+        "{ifs}"
+    );
+
+    let (copies, _) = fold_identifier_copies("function f(b){d=b;b=1;return d}").expect("fold");
+    assert!(
+        copies.contains("return d") && !copies.contains("return b"),
+        "{copies}"
+    );
+
+    let (typeofs, _) =
+        fold_typeof_identifier_caches("function f(x){t=typeof x;x=1;return t}").expect("fold");
+    assert!(
+        typeofs.contains("typeof x") && typeofs.contains("return t"),
+        "{typeofs}"
+    );
+    assert!(!typeofs.contains("return typeof"), "{typeofs}");
+
+    let (moved, _) =
+        fold_statement_assignments_into_first_use("function f(b){d=b.href;b=b.title;return d}")
+            .expect("fold");
+    assert!(
+        !moved.contains("return(d=b.href)") && moved.contains("d=b.href"),
+        "{moved}"
+    );
+
+    let (sequence, _) = fold_sequence_assignments_into_first_use(
+        "function f(b,i){return(d=b.href,i(b=b.title,d))}",
+    )
+    .expect("fold");
+    assert!(
+        !sequence.contains("i(b=b.title,d=b.href)") && sequence.contains("d=b.href"),
+        "{sequence}"
+    );
+}
+
+#[test]
+fn rematerialization_folds_refuse_a_written_property() {
+    let (ifs, _) =
+        fold_single_use_if_assigns("function f(b,x){if(1){var d=b.href;b.href=x;return d}}")
+            .expect("fold");
+    assert!(
+        ifs.contains("var d=b.href")
+            && !ifs.contains("return b.href")
+            && !ifs.contains("return(b.href)"),
+        "{ifs}"
+    );
+
+    let (temps, _) = fold_single_use_temporaries("function f(b,x){var d=b.href;b.href=x;return d}")
+        .expect("fold");
+    assert!(
+        temps.contains("var d=b.href") && !temps.contains("return b.href"),
+        "{temps}"
+    );
+
+    let (moved, _) =
+        fold_statement_assignments_into_first_use("function f(b,x){d=b.href;b.href=x;return d}")
+            .expect("fold");
+    assert!(
+        moved.contains("d=b.href") && !moved.contains("return(d=b.href)"),
+        "{moved}"
+    );
+
+    let (sequence, _) =
+        fold_sequence_assignments_into_first_use("function f(b,x){return(d=b.href,(b.href=x,d))}")
+            .expect("fold");
+    assert!(
+        sequence.contains("d=b.href") && !sequence.contains("d=b.href,d)"),
+        "{sequence}"
+    );
+
+    let (sibling, _) =
+        fold_single_use_if_assigns("function f(b,x){if(1){var d=b.href;b.src=x;return d}}")
+            .expect("fold");
+    assert!(
+        sibling.contains("return b.href") || sibling.contains("return(b.href)"),
+        "{sibling}"
+    );
+
+    let (copies, _) =
+        fold_identifier_copies("function f(b,x){var d=b;b.href=x;return d}").expect("fold");
+    assert!(
+        copies.contains("return b") && !copies.contains("return d"),
+        "{copies}"
+    );
+
+    let (iife, _) =
+        fold_single_use_temporaries("function f(b,x){var d=b.href;(()=>{b=x})();return d}")
+            .expect("fold");
+    assert!(
+        iife.contains("var d=b.href")
+            && !iife.contains("return b.href")
+            && !iife.contains("return(b.href)"),
+        "{iife}"
+    );
+
+    let (named, _) =
+        fold_single_use_temporaries("function f(b,x){var d=b.href;var r=()=>{b=x};r();return d}")
+            .expect("fold");
+    assert!(
+        named.contains("var d=b.href")
+            && !named.contains("return b.href")
+            && !named.contains("return(b.href)"),
+        "{named}"
+    );
+
+    let (script, _) = fold_single_use_temporaries(
+        "var l={href:42};var n=l.href??0;(function(){l={href:47}})(),console.log(n+(l.href??0)|0)",
+    )
+    .expect("fold");
+    assert!(
+        script.contains("var n=l.href??0")
+            && !script.contains("console.log((l.href??0)+(l.href??0)")
+            && !script.contains("console.log(l.href??0+(l.href??0)"),
+        "{script}"
+    );
 }
 
 /// A saved value moves to its first read when nothing before that read can

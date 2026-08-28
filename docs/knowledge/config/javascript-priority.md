@@ -1,6 +1,7 @@
 # `javascript.priority`
 
-Parent: [Config](README.md). Ranking: [global optima](../compilation/global-optima.md). Inline budgets feed [IR optimizer](../compilation/ir-optimizer.md).
+Parent: [Config](README.md). Ranking: [objectives](../compilation/objectives.md),
+[global optima](../compilation/global-optima.md). Inline budgets feed [IR optimizer](../compilation/ir-optimizer.md).
 
 Never weakens types, mandatory IR, DCE correctness, or host-boundary rules. Does not affect C/native.
 
@@ -36,7 +37,12 @@ max_inline_growth = 3
 
 These override the profile. Setting `max_inline_growth` also **enables** the growth guard even if `size-aware-inlining` is missing from the compression allowlist.
 
-These are IR instruction budgets, not output-byte caps. jQuery’s inline TOMLs exist because raising them is **not** monotonically smaller — see [jQuery](../evidence/jquery.md).
+These are IR instruction budgets, not output-byte caps. They do not change with
+`cost_model`. jQuery’s inline TOMLs exist because raising them is **not**
+monotonically smaller — see [jQuery](../evidence/jquery.md). When search is
+allowed to compare inlining, it is via `ir-inlining-variants` (off clone) and
+phase-order aggressive probes, not a per-codec inline policy.
+[Registry](../compilation/decision-registry.md#functions-inline-share-or-spell).
 
 ## ABI-ish JS keys (not priority, but sit beside it)
 
@@ -47,7 +53,7 @@ These are IR instruction budgets, not output-byte caps. jQuery’s inline TOMLs 
 | `public_aggregate_abi` | `named` (default) vs `positional` opaque handles |
 | `aggregate_layout` | instance backing; default `positional` |
 | `pool_numeric_literals` | default true |
-| `integer_coercions` | omit = drop proven `|0` on size-first/balanced, keep on performance-first and realistic-performance-first; `true` keeps `|0` |
+| `integer_coercions` | controls generated normalization: omit = drop proven generated `\|0` on size-first/balanced, keep on performance-first and realistic-performance-first; source `value \| 0` stays explicit |
 | `ecmascript` | syntax floor; omit = `es2022`. Independent of CLI `--target js` and of the two allowlists |
 | `browsers` | optional `chromeNN` / `firefoxNN` / `safariNN` / `edgeNN`; intersected with `ecmascript` |
 | `local_name_reserve` | 0–256; production search also tries 0/8/16/32 |

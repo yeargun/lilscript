@@ -19,10 +19,11 @@ Set in `js_options()` from config. Notable defaults / cost-model interactions:
 | `mangle_exports` | off | reusable ABI |
 | `pool_strings` | on except performance-first | `[mangle].pool_strings` overrides |
 | `pool_numeric_literals` | `javascript.pool_numeric_literals` (default true) | |
-| `elide_safe_integer_coercions` | on (size-first/balanced) | not searched; `|0` never helps transfer. Off for performance-first. `integer_coercions = true` keeps `|0` |
+| `elide_safe_integer_coercions` | on (size-first/balanced) | controls compiler-generated normalization only; live source `value \| 0` is obligated. Off for performance-first. `integer_coercions = true` keeps generated `\|0` |
 | `compact_boolean_literals` | on except performance-first | `!0`/`!1` vs `true`/`false` |
 | `standard-grammar-elision` trio | on | ASI `;`, `new` parens, call-chain parens — still searched |
-| `pack_string_arrays` | size-first only | `.split` tables vs arrays |
+| `pack_string_arrays` | size-first only; **incumbent off for `cost_model = brotli`** | Cartesian axis `string-array-packing` uses `reversible_boolean_alternatives`. When the compression decision is legal, Brotli can re-enable packing. |
+| `pool_identifier_strings` | on except Brotli incumbent | Cartesian axis `identifier-string-pooling` when string pooling is configured and search-legal. |
 | `regex_literals` | off for open-world output | narrow valid subset; requires the explicit pristine-builtins contract |
 | `inline_single_use_functions` | off in configured baseline | proof-gated script-only candidate when search + structured-closure compression are on |
 | `pure_helper_inlining` | `None` in configured baseline | search-only `SingleStaticUse` / `AllEligible` policies under `pure-helper-inlining` |
@@ -76,7 +77,7 @@ probes stay practical.
 
 ## Spelling families the beam may try
 
-Pooling (string/number), packing, boolean literals, grammar elision (independently — comment: raw punctuation deletion can lose codec), structured closures, proof-gated single-use function expressions, pure-helper substitution, dense string-return tables, host-alias spelling, regex literals, unused catch binding, generator star spacing, callee default arguments, SSA destruction (scalar vs tuple phi, affinity modes), control flow (structured vs state machine), loops (`while` vs `for(;cond;)` vs `do`), mutation (`=`, prefix, postfix, compound), conditionals/commas, `var` vs `let` top-level, function arrow vs `function`, quote style, identifier alphabet, local-name reserve, declaration order. Identity-observed constructors may additionally score a named ES `class` against a function table; they never compete with dissolved object/array lowering ([class identity](class-identity.md)).
+Pooling (string/number), packing, boolean literals, grammar elision (independently — comment: raw punctuation deletion can lose codec), structured closures, proof-gated single-use function expressions, pure-helper substitution, dense string-return tables, host-alias spelling, regex literals, unused catch binding, generator star spacing, callee default arguments, SSA destruction (scalar vs tuple phi, affinity modes), control flow (structured vs state machine), loops (`while` vs `for(;cond;)` vs `do`), mutation (`=`, prefix, postfix, compound), conditionals/commas, `var` vs `let` top-level, function arrow vs `function`, quote style, identifier alphabet, local-name reserve, declaration order. Identity-observed constructors may additionally score a named ES `class` against a function table **once IR emits that family**; today the compact class spelling is primarily peephole fusion of tables. Identity-free instances never compete with dissolved object/array lowering ([class identity](class-identity.md)).
 
 Phi-affinity exploration retains Grouped, Direct, and Conservative modes. Liveness
 interference includes local-phi expression incoming dependencies for the result's
@@ -89,6 +90,13 @@ spellings such as `indexed-char-at` still compete from the priority matrix when
 an explicit `compression` list is a non-empty overlay; `compression = []` is the
 off switch. Listing a name that the profile would have left off still opts that
 decision in.
+
+A tactic omitted from an exact compression list is **usually** not introduced
+unless it is a size-first search-only spelling (`indexed-char-at`). Exceptions:
+`elide_length_tonumber` is flipped unconditionally, so omitted
+`length-to-number-elision` can still turn on; a Brotli-forced-off flag whose
+beam only probes `false` cannot be introduced. Field-by-field:
+[decision registry](decision-registry.md).
 
 The single-use function-expression proposal is the narrow exception to “canonical
 option then disable”: its canonical/configured value is deliberately `false`, while

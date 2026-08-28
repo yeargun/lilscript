@@ -26,6 +26,7 @@ pub(crate) use folds::{
     inline_single_use_functions,
 };
 mod binding;
+mod liveness;
 mod parse;
 mod rename;
 mod rewrite;
@@ -718,6 +719,14 @@ fn class_body_has_dotted_method(tokens: &[Token<'_>], index: usize) -> bool {
         && tokens.get(index + 3).map(|token| token.text) == Some("(")
 }
 
+fn class_body_token_is_field_initializer(tokens: &[Token<'_>], open: usize, index: usize) -> bool {
+    tokens[open + 1..index]
+        .iter()
+        .rev()
+        .take_while(|token| !matches!(token.text, ";" | "{" | "}"))
+        .any(|token| token.text == "=")
+}
+
 fn validate_class_body_members(tokens: &[Token<'_>]) -> Result<(), JavaScriptParseError> {
     let matching_close = matching_closers(tokens);
     for (open, close) in class_body_spans(tokens, &matching_close) {
@@ -728,7 +737,10 @@ fn validate_class_body_members(tokens: &[Token<'_>]) -> Result<(), JavaScriptPar
             if paren == 0
                 && bracket == 0
                 && brace == 0
-                && (tokens[index].text == "!"
+                && ((tokens[index].text == "!"
+                    && !class_body_token_is_field_initializer(tokens, open, index))
+                    || (tokens[index].text == ","
+                        && class_body_token_is_field_initializer(tokens, open, index))
                     || matches!(tokens[index].text, "var" | "let" | "const")
                     || class_body_has_dotted_method(tokens, index))
             {

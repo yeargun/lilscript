@@ -1,8 +1,7 @@
 # Coverage matrix
 
-Parent: [verification](README.md). Migration phases:
-[02](../migration/02-scalar-language-core.md) through
-[06](../migration/06-browser-host-boundaries.md).
+Parent: [verification](README.md). Migration:
+[00–06 standing / 07 current](../migration/README.md).
 
 This is the ownership ledger. The executable report should eventually replace the
 status column; until then `required` means a family must own at least one semantic

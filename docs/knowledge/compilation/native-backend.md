@@ -6,8 +6,10 @@ Source anchors: `compile_program_to_c_configured` in `src/compiler.rs` and
 `emit_native_c_with_options` in `src/codegen_native.rs`.
 
 JavaScript and native share parsing, semantics, linking, typed control-flow IR, and
-the core optimizer. `--target all` clones that IR and applies backend-specific
-optimizer/options separately; JavaScript priority/search never changes C policy.
+the core optimizer. `--target all` clones the **lowered** IR before JavaScript search
+(`compile_program_all_configured`). Native then runs
+`optimizer_options()` plus `[native]` storage; it does not inherit the JS
+candidate-search winner. JavaScript priority/search never changes C policy.
 
 The native backend emits C and, for `native`, invokes the configured system C
 toolchain. Scalar primitives use C representations; arrays, strings, records,

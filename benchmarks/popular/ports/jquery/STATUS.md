@@ -2,8 +2,7 @@
 
 Compiler/language perspective for this port:
 [docs/knowledge/evidence/jquery.md](../../../../docs/knowledge/evidence/jquery.md).
-Active convergence plan:
-[phase 09](../../../../docs/knowledge/migration/09-jquery-library-convergence.md).
+Live work: [jquery-01](../../../../docs/knowledge/migration/board/notes/jquery-01.md).
 
 ## Port philosophy (LilScript-native)
 

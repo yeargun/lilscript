@@ -9,12 +9,8 @@ import {
 import { dirname, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import {
-  brotliCompressSync,
-  constants as zlibConstants,
-  gzipSync,
-} from "node:zlib";
 import { minify } from "terser";
+import { canonicalCodecSizes } from "../../../codec-contract.mjs";
 
 function findRepositoryRoot(start) {
   let current = resolve(start);
@@ -42,12 +38,11 @@ function javascriptFiles(directory) {
 }
 
 function sizes(content) {
+  const measured = canonicalCodecSizes(content, "framework compression variants");
   return {
-    raw: content.length,
-    gzip9: gzipSync(content, { level: 9 }).length,
-    brotli11: brotliCompressSync(content, {
-      params: { [zlibConstants.BROTLI_PARAM_QUALITY]: 11 },
-    }).length,
+    raw: measured.raw,
+    gzip9: measured.gzip,
+    brotli11: measured.brotli,
     sha256: createHash("sha256").update(content).digest("hex"),
   };
 }

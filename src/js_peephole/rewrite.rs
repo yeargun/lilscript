@@ -65,10 +65,32 @@ pub(crate) fn is_property_identifier(tokens: &[Token<'_>], index: usize) -> bool
         .checked_sub(1)
         .map(|prev| tokens[prev].text)
         .unwrap_or(";");
-    if matches!(previous, "." | "?.") {
+    if previous == "?." {
+        return true;
+    }
+    if previous == "." {
+        // Rest/spread is `...ident`. The lexer emits one `.` per character, so
+        // the identifier is a value. A member is a single `.` (or `?.`).
+        return index
+            .checked_sub(2)
+            .is_none_or(|before| tokens[before].text != ".");
+    }
+    if tokens.get(index + 1).map(|token| token.text) == Some("=")
+        && matches!(previous, "{" | "}" | ";")
+        && enclosing_list_open(tokens, index).is_some_and(|open| class_body_open(tokens, open))
+    {
         return true;
     }
     tokens.get(index + 1).map(|token| token.text) == Some(":") && matches!(previous, "{" | ",")
+}
+
+fn class_body_open(tokens: &[Token<'_>], open: usize) -> bool {
+    tokens[..open]
+        .iter()
+        .rev()
+        .take_while(|token| !matches!(token.text, ";" | "{" | "}"))
+        .take(5)
+        .any(|token| token.text == "class")
 }
 
 pub(crate) fn identifier_is_expression_slot(tokens: &[Token<'_>], index: usize) -> bool {

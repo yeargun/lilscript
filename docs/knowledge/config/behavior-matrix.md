@@ -27,3 +27,5 @@ configured finalization feature); delegate bundling forces single LilScript outp
 The matrix describes scope, not monotonicity. More optimization level, a wider beam,
 more inlining, property mangling, string pooling, or an extra chunk can all lose a
 different codec/runtime boundary. Preserve configured baselines and measure.
+Which of those knobs is a scored family vs a one-way prior:
+[decision registry](../compilation/decision-registry.md).

@@ -6,20 +6,29 @@ Parent: [knowledge tree](../README.md). Execution order:
 This folder defines what a LilScript compression result must mean. It is deliberately
 stricter than “both snippets print the same line and one file is shorter.” Web code
 has public APIs, host effects, modules, lazy artifacts, codec-specific sizes, runtime
-contracts, and tool-specific eligibility constraints.
+contracts, and tool-specific eligibility constraints. Ranking math:
+[objectives](../compilation/objectives.md). Glue-TS vs missing proof:
+[compressor surface](../language/compressor-surface.md).
 
 ## Documents
+
+### Contract
 
 - [Paired-case contract](paired-case-contract.md) — equivalence, fairness, and gate
   semantics
 - [Case layout](case-layout.md) — folder contents and metadata
 - [Baseline toolchains](baseline-toolchains.md) — Terser, Oxc, esbuild, Vite, Closure
 - [Codec measurement](codec-measurement.md) — exact raw/gzip/Brotli rules
+
+### Coverage
+
 - [Coverage matrix](coverage-matrix.md) — language/compiler feature ownership
-- [Algorithm challenges](algorithm-challenges.md) — escalating whole-program pairs,
-  exact host traces, and the required Closure-inclusive frontier
+- [Algorithm challenges](algorithm-challenges.md) — escalating whole-program pairs
 - [Config matrix](config-matrix.md) — TOML and CLI behavior ownership
 - [Browser/host cases](browser-host-cases.md) — DOM/API/delivery oracles
+
+### Process
+
 - [Failure triage](failure-triage.md) — minimize, classify, fix, retain
 - [Release gates](release-gates.md) — promotion and evidence policy
 
@@ -41,7 +50,7 @@ ablation/deployment experiment and must be labelled as such.
   release-wired. Durable reviewed cases live in
   [`comparison/cases/canonical/`](../../../comparison/cases/canonical/). The
   generated catalog remains a parameterized regression net with a checked-in oracle
-  digest. See [migration phase 00](../migration/00-canonical-runner.md).
+  digest. See [migration phase 00](../migration/README.md#phase-00).
 - The micro catalog is not structural whole-program evidence. The separate
   [algorithm lane](algorithm-challenges.md) owns multi-function/module interaction,
   runtime vectors, and codec-window scaling.

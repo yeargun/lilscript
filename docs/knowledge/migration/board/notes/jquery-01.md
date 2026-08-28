@@ -119,7 +119,8 @@ recover that lost, so the branchiness is decided in the IR and has to be fixed
 there: merging arms, sinking common tails, and choosing expression form before
 the emitter ever sees a statement list. That is also the only lever left that
 the candidate search cannot already reach, because the search chooses among
-spellings of a fixed control-flow graph.
+spellings of a fixed control-flow graph. Inventing source ternaries is
+[arch-07](arch-07.md) (expression-if), not a peephole.
 
 **Then widen the array-ness proof** so `JS.shift`/`JS.push`/`JS.slice` on a
 value that provably holds an array lower to a direct call: 42 sites on jQuery,

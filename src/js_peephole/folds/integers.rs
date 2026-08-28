@@ -1634,8 +1634,7 @@ mod tests {
         assert!(assign.0.contains("this.y&=~4"), "{}", assign.0);
         assert!(!assign.0.contains("4^-1"), "{}", assign.0);
 
-        let additive =
-            fold_int32_coercions("function s(a,b){return a+b^-1}").unwrap();
+        let additive = fold_int32_coercions("function s(a,b){return a+b^-1}").unwrap();
         assert!(
             additive.0.contains("a+b^-1") || additive.0.contains("a+(b^-1)"),
             "{}",

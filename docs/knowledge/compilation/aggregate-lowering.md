@@ -9,6 +9,11 @@ Nominal fields enter IR as owner plus numeric field index. Open records and host
 objects use separate string-keyed operations. That distinction prevents a dynamic
 key from silently disabling optimization of every typed aggregate.
 
+Which of those representations is **searched** versus configured is
+[decision registry — aggregates](decision-registry.md#aggregates-class-struct-object-record).
+Scalar replacement has no IR off-clone. Joint array/object search is gated and
+is omitted from root `lilscript.toml`.
+
 Lowering is chosen from proof and boundary:
 
 1. A `LocalOnly` struct/class can scalar-replace into SSA values. Construction and
@@ -21,8 +26,9 @@ Lowering is chosen from proof and boundary:
 5. `Record<T>` has an open null-prototype string-map contract; every surviving JS
    record representation preserves that prototype. A JS-only projection candidate
    may instead eliminate closed record construction and observations when the
-   complete operation is proven equivalent. `extern class` always uses exact host
-   names.
+   complete operation is proven equivalent. `extern class` uses exact host names
+   by default; explicit `mangle.extern_fields = false` permits closed-world
+   mangling under the current inverted configuration naming.
 
 Class calls statically devirtualize because overriding is rejected. Base fields are
 flattened. Native currently rejects inheritance until its subtype pointer ABI is

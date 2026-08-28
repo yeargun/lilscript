@@ -2,9 +2,11 @@ pub mod ast;
 pub mod codegen_ir_js;
 pub mod codegen_js;
 pub mod codegen_native;
+pub mod compilation_contract;
 pub mod compiler;
 pub mod compress_passes;
 pub mod config;
+pub mod decision_registry;
 pub mod for_of_family;
 pub mod formatter;
 pub mod interpreter;
@@ -28,6 +30,11 @@ pub mod value_analysis;
 
 pub use codegen_js::{compile_to_js, CodegenError, CodegenOptions, CompileError, JsEmitter};
 pub use codegen_native::{compile_to_c, emit_native_c, emit_native_c_with_options, NativeOptions};
+pub use compilation_contract::{
+    JavaScriptAbiContract, JavaScriptAbiManifest, JavaScriptCompilationContract,
+    JavaScriptEffectPolicy, JavaScriptExportAbi, JavaScriptExportKind, JavaScriptMethodAbi,
+    JavaScriptOptimizationObjective, JavaScriptUnsafeAssumptions, JavaScriptWorld,
+};
 pub use compiler::{
     canonical_brotli_version, canonical_zlib_version, compile_path, compile_path_all,
     compile_path_all_configured, compile_path_all_to_js_bundle_configured, compile_path_configured,
@@ -39,8 +46,8 @@ pub use compiler::{
     compile_source_to_js_module, measure_javascript_transfer_sizes,
     profile_template_path_configured, render_diagnostic, render_module_diagnostic,
     BundledCompilationArtifacts, CompilationArtifacts, JavaScriptBundle, JavaScriptBundleFile,
-    JavaScriptBundleManifest, JavaScriptBundleManifestChunk, JavaScriptCompilation,
-    JavaScriptSelectionMetrics, JavaScriptTransferSizes, SourceCompileError,
+    JavaScriptBundleManifest, JavaScriptBundleManifestChunk, JavaScriptBundleObjectiveManifest,
+    JavaScriptCompilation, JavaScriptSelectionMetrics, JavaScriptTransferSizes, SourceCompileError,
     CANONICAL_BROTLI_LIBRARY_VERSION, CANONICAL_BROTLI_PACKAGE_VERSION,
     CANONICAL_ZLIB_LIBRARY_VERSION, CANONICAL_ZLIB_PACKAGE_VERSION,
 };

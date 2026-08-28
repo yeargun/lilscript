@@ -3,11 +3,11 @@ use bumpalo::Bump;
 
 use crate::ast::{
     ArrayBinding, ArrayElement, ArrowBody, AssignmentOp, BinaryOp, CatchBinding, CatchClause,
-    ClassDecl, ClassMember, ConstructorDecl, EnumDecl, ExportDecl, Expr, ExternClassDecl,
-    ExternClassMember, ExternDecl, ExternGlobalDecl, FieldDecl, ForInitializer, ForeignImportDecl,
-    FunctionDecl, Ident, ImportDecl, ImportSpecifier, Item, MatchArm, MatchPattern, Param, Program,
-    RecordBinding, RecordElement, RecordEntry, Stmt, StructDecl, TemplatePart, TypeKind, TypeRef,
-    UnaryOp, UpdateOp, VarDecl,
+    ClassDecl, ClassMember, ConstructorDecl, EnumDecl, ExportDecl, ExportKind, Expr,
+    ExternClassDecl, ExternClassMember, ExternDecl, ExternGlobalDecl, FieldDecl, ForInitializer,
+    ForeignImportDecl, FunctionDecl, Ident, ImportDecl, ImportSpecifier, Item, MatchArm,
+    MatchPattern, Param, Program, RecordBinding, RecordElement, RecordEntry, Stmt, StructDecl,
+    TemplatePart, TypeKind, TypeRef, UnaryOp, UpdateOp, VarDecl,
 };
 use crate::lexer::{lex, LexError, Token, TokenKind};
 use crate::span::Span;
@@ -119,6 +119,24 @@ impl<'arena, 'src> Parser<'arena, 'src> {
                     self.parse_export_list_after_open(export_start, &mut exports)?;
                     continue;
                 }
+                if matches!(self.peek_kind(), Some(TokenKind::Ident("constructor"))) {
+                    self.advance();
+                    let local =
+                        self.expect_ident("expected class name after `export constructor`")?;
+                    let exported = if self.match_kind(|kind| matches!(kind, TokenKind::As)) {
+                        self.expect_ident("expected export alias after `as`")?
+                    } else {
+                        local
+                    };
+                    let semi = self.expect_semicolon()?;
+                    exports.push(ExportDecl {
+                        local,
+                        exported,
+                        kind: ExportKind::ConstructorValue,
+                        span: export_start.merge(semi.span),
+                    });
+                    continue;
+                }
                 let item = self.parse_item()?;
                 let local = exported_item_name(&item).ok_or_else(|| {
                     ParseError::new(item.span(), "only declarations can be exported")
@@ -126,6 +144,7 @@ impl<'arena, 'src> Parser<'arena, 'src> {
                 exports.push(ExportDecl {
                     local,
                     exported: local,
+                    kind: ExportKind::Binding,
                     span: export_start.merge(item.span()),
                 });
                 items.push(item);
@@ -260,6 +279,7 @@ impl<'arena, 'src> Parser<'arena, 'src> {
                 exports.push(ExportDecl {
                     local,
                     exported,
+                    kind: ExportKind::Binding,
                     span: start.merge(exported.span),
                 });
                 if !self.match_kind(|kind| matches!(kind, TokenKind::Comma)) {
@@ -1627,6 +1647,7 @@ impl<'arena, 'src> Parser<'arena, 'src> {
             TokenKind::True => Ok(Expr::Bool(true, token.span)),
             TokenKind::False => Ok(Expr::Bool(false, token.span)),
             TokenKind::Null => Ok(Expr::Null(token.span)),
+            TokenKind::If => self.parse_if_expression(token.span),
             TokenKind::Match => self.parse_match_expression(token.span),
             TokenKind::Record => self.parse_record_literal(token.span),
             TokenKind::Import => {
@@ -1673,6 +1694,13 @@ impl<'arena, 'src> Parser<'arena, 'src> {
                     span: token.span,
                 };
                 if self.match_kind(|kind| matches!(kind, TokenKind::LBrace)) {
+                    if name == "object" {
+                        let literal = self.parse_record_literal_after_open(token.span)?;
+                        let Expr::RecordLiteral { entries, span } = literal else {
+                            unreachable!();
+                        };
+                        return Ok(Expr::ObjectLiteral { entries, span });
+                    }
                     return self.parse_struct_literal_after_open(ident);
                 }
                 Ok(Expr::Ident(ident))
@@ -1697,6 +1725,49 @@ impl<'arena, 'src> Parser<'arena, 'src> {
         }
     }
 
+    fn parse_if_expression(
+        &mut self,
+        keyword_span: Span,
+    ) -> Result<Expr<'arena, 'src>, ParseError> {
+        self.expect(
+            |kind| matches!(kind, TokenKind::LParen),
+            "expected `(` after expression `if`",
+        )?;
+        let condition = self.parse_expression()?;
+        self.expect(
+            |kind| matches!(kind, TokenKind::RParen),
+            "expected `)` after expression-if condition",
+        )?;
+        self.expect(
+            |kind| matches!(kind, TokenKind::LBrace),
+            "expected `{` before expression-if value",
+        )?;
+        let then_value = self.parse_expression()?;
+        self.expect(
+            |kind| matches!(kind, TokenKind::RBrace),
+            "expected `}` after expression-if value",
+        )?;
+        self.expect(
+            |kind| matches!(kind, TokenKind::Else),
+            "expression `if` requires `else`",
+        )?;
+        self.expect(
+            |kind| matches!(kind, TokenKind::LBrace),
+            "expected `{` before expression-if else value",
+        )?;
+        let else_value = self.parse_expression()?;
+        let close = self.expect(
+            |kind| matches!(kind, TokenKind::RBrace),
+            "expected `}` after expression-if else value",
+        )?;
+        Ok(Expr::If {
+            condition: self.arena.alloc(condition),
+            then_value: self.arena.alloc(then_value),
+            else_value: self.arena.alloc(else_value),
+            span: keyword_span.merge(close.span),
+        })
+    }
+
     fn parse_match_expression(
         &mut self,
         keyword_span: Span,
@@ -1716,19 +1787,55 @@ impl<'arena, 'src> Parser<'arena, 'src> {
         )?;
         let mut arms = BumpVec::new_in(self.arena);
         while !self.check(|kind| matches!(kind, TokenKind::RBrace)) {
-            let enum_name = self.expect_ident("expected enum pattern or `_`")?;
-            let pattern = if enum_name.name == "_" {
-                MatchPattern::Wildcard(enum_name.span)
-            } else {
-                self.expect(
-                    |kind| matches!(kind, TokenKind::Dot),
-                    "expected `.` in enum pattern",
-                )?;
-                let variant = self.expect_property_ident("expected enum variant")?;
-                MatchPattern::EnumVariant {
-                    enum_name,
-                    variant,
-                    span: enum_name.span.merge(variant.span),
+            let pattern_token = self
+                .advance()
+                .ok_or_else(|| self.error_here("expected match pattern"))?;
+            let pattern = match pattern_token.kind {
+                TokenKind::Ident("_") => MatchPattern::Wildcard(pattern_token.span),
+                TokenKind::Ident(name) => {
+                    let enum_name = Ident {
+                        name,
+                        span: pattern_token.span,
+                    };
+                    self.expect(
+                        |kind| matches!(kind, TokenKind::Dot),
+                        "expected `.` in enum pattern",
+                    )?;
+                    let variant = self.expect_property_ident("expected enum variant")?;
+                    MatchPattern::EnumVariant {
+                        enum_name,
+                        variant,
+                        span: enum_name.span.merge(variant.span),
+                    }
+                }
+                TokenKind::IntLiteral(value) => MatchPattern::Int(value, pattern_token.span),
+                TokenKind::StringLiteral(raw) => {
+                    MatchPattern::String(strip_quotes(raw), pattern_token.span)
+                }
+                TokenKind::True => MatchPattern::Bool(true, pattern_token.span),
+                TokenKind::False => MatchPattern::Bool(false, pattern_token.span),
+                TokenKind::Minus => {
+                    let literal = self.advance().ok_or_else(|| {
+                        ParseError::new(pattern_token.span, "expected integer after `-`")
+                    })?;
+                    let TokenKind::IntLiteral(value) = literal.kind else {
+                        return Err(ParseError::new(
+                            literal.span,
+                            "only integer literals may be negative match patterns",
+                        ));
+                    };
+                    MatchPattern::Int(
+                        value.checked_neg().ok_or_else(|| {
+                            ParseError::new(literal.span, "negative match pattern is out of range")
+                        })?,
+                        pattern_token.span.merge(literal.span),
+                    )
+                }
+                _ => {
+                    return Err(ParseError::new(
+                        pattern_token.span,
+                        "expected enum, int, string, bool, or `_` match pattern",
+                    ));
                 }
             };
             self.expect(
@@ -1771,6 +1878,13 @@ impl<'arena, 'src> Parser<'arena, 'src> {
             |kind| matches!(kind, TokenKind::LBrace),
             "expected `{` after `record`",
         )?;
+        self.parse_record_literal_after_open(keyword_span)
+    }
+
+    fn parse_record_literal_after_open(
+        &mut self,
+        keyword_span: Span,
+    ) -> Result<Expr<'arena, 'src>, ParseError> {
         let mut entries = BumpVec::new_in(self.arena);
         while !self.check(|kind| matches!(kind, TokenKind::RBrace)) {
             if self.match_kind(|kind| matches!(kind, TokenKind::Ellipsis)) {
@@ -2437,6 +2551,52 @@ mod tests {
             panic!("expected match return value");
         };
         assert_eq!(arms.len(), 3);
+    }
+
+    #[test]
+    fn parses_expression_if_with_a_required_else() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "int choose(bool flag){return if(flag){1}else{if(false){2}else{3}};}",
+        )
+        .unwrap();
+        let Item::Function(function) = &program.items[0] else {
+            panic!("expected function");
+        };
+        assert!(matches!(
+            &function.body[0],
+            Stmt::Return {
+                value: Some(Expr::If { else_value, .. }),
+                ..
+            } if matches!(else_value, Expr::If { .. })
+        ));
+
+        let error = parse_source(&arena, "int choose(bool flag){return if(flag){1};}").unwrap_err();
+        assert!(error.message.contains("requires `else`"), "{error}");
+    }
+
+    #[test]
+    fn parses_scalar_literal_match_patterns() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "string label(int value){return match(value){-1=>\"negative\",0=>\"zero\",_=>\"positive\"};}",
+        )
+        .unwrap();
+        let Item::Function(function) = &program.items[0] else {
+            panic!("expected function");
+        };
+        let Stmt::Return {
+            value: Some(Expr::Match { arms, .. }),
+            ..
+        } = &function.body[0]
+        else {
+            panic!("expected match");
+        };
+        assert!(matches!(arms[0].pattern, MatchPattern::Int(-1, _)));
+        assert!(matches!(arms[1].pattern, MatchPattern::Int(0, _)));
+        assert!(matches!(arms[2].pattern, MatchPattern::Wildcard(_)));
     }
 
     #[test]

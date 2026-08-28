@@ -15,6 +15,14 @@ boundaries, and workload knowledge can make a smaller equivalent artifact
 unavailable. The durable target is stronger: find more whole-program
 opportunities, measure every contested representation with the selected codec,
 and never retain a heuristic alternative that loses its configured objective.
+Where a heuristic is still retained unscored, that is named in
+[current architecture](knowledge/compilation/current-architecture.md), designed
+in [goal architecture](knowledge/compilation/goal-architecture.md), and scheduled in
+[migration 07](knowledge/migration/07-global-compressor.md).
+Size vs performance vs raw/gzip/Brotli is
+[objectives](knowledge/compilation/objectives.md). Forks that lose because
+the language cannot state a proof:
+[compressor surface](knowledge/language/compressor-surface.md).
 
 ## Completion rule
 
@@ -109,10 +117,14 @@ A capability is complete only when:
   evidence snapshot; no nested repository or sibling absolute path is required
   to build the site.
 
-Detailed measurements live in [benchmark-results.md](benchmark-results.md), and
+Detailed measurements live in [benchmark results](knowledge/evidence/benchmark-results.md), and
 pass boundaries live in [optimization-coverage.md](optimization-coverage.md).
 
-## Decision protocol
+## Target decision protocol
+
+This is the required end state. The current architecture still has irreversible
+IR choices and parsed-text finalization paths; see
+[current architecture](knowledge/compilation/current-architecture.md).
 
 Every speculative size optimization follows the same pipeline:
 
@@ -142,6 +154,13 @@ property, variable, and late peephole phases rather than relying on one pass
 
 ### P0: semantic and evidence coverage
 
+- [ ] Add an immutable compilation contract and stable IR provenance: separate
+  application/library ABI, explicit source lowering obligations, unsafe host
+  assumptions, and optimization objective. A live source `x | 0` must survive
+  raw/gzip/Brotli while generated redundant normalization remains optimizable.
+- [ ] Generate and test a reusable-library ABI manifest across every objective:
+  export names, function name/length/constructibility, constructor/prototype
+  identity, descriptors, aggregate fields/opaque handles, and host names.
 - [ ] Extend the independent evaluator and differential generator to nominal
   aggregates, classes, maps/sets, async modules, exceptions, and typed host
   boundaries. No aggressive pass is trustworthy outside the modeled corpus.
@@ -305,3 +324,5 @@ results are neutral, unstable, or paid back only by unrealistic source shapes.
 5. Claims distinguish application specialization, partial API coverage, and
    complete compatibility.
 6. Checked-in benchmark results, docs, and the website agree.
+7. Raw/gzip/Brotli and priority changes preserve the same normalized ABI and
+   every live explicit lowering obligation.

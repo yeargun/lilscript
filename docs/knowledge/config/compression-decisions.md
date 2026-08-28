@@ -24,7 +24,7 @@ Duplicates are config errors. Names are kebab-case (`CompressionDecision::name`)
 | `export-mangling` | Public ESM names (+ public fields) | never by priority |
 | `string-pooling` | Alias repeated strings if raw model agrees | not performance-first |
 | `size-aware-inlining` | Apply positive inline-growth cap | not performance-first |
-| `safe-integer-coercion-elision` | Drop proven `|0` | size-first, balanced (not searched; `|0` never helps transfer). Off for performance-first. Override with `integer_coercions` |
+| `safe-integer-coercion-elision` | Drop proven compiler-generated `\|0` | size-first, balanced (not searched). Source `value \| 0` stays explicit. Off for performance-first; override generated normalization with `integer_coercions` |
 | `length-to-number-elision` | Emit `JS.number(x.length)` as `x.length` instead of `+x.length` | size-first (still searched; `.length` is not always a number) |
 | `compact-boolean-literals` | `!0`/`!1` vs keywords | not performance-first |
 | `standard-grammar-elision` | ASI `;`, `new` parens, call-chain parens | all (still searched) |
@@ -63,7 +63,8 @@ search-only spellings such as `indexed-char-at` keep competing unless the list
 is `[]`. The root includes the narrow
 `host-alias-spelling` candidate because `Shared` remains mandatory competition, but
 continues to omit broader families such as region outlining and joint representation/
-chunk search.
+chunk search — so default repo compiles do **not** search array vs named object.
+[Decision registry](../compilation/decision-registry.md).
 
 Region outlining follows the same contract. A search probe requires candidate search,
 the `region-outlining` compression decision, and no explicit
@@ -75,6 +76,11 @@ omits outlining cannot have it reintroduced by `ir-compress-pass-variants`.
 Several IR searches have **both** a compression decision and an optimization feature (`ir-inlining-variants`, closure-factory, phase-ordering, loop spelling, mutation spelling, default arguments, joint searches). `optimization_enabled` requires **level/allowlist AND compression** when the `legacy` decision is passed.
 
 If you put `ir-inlining-variants` in `optimizations` but leave it out of an explicit `compression` list, the search stays off.
+
+The inverse hole also exists: `elide_length_tonumber` is flipped in
+`select_javascript_candidate_global` with no compression gate, so omitting
+`length-to-number-elision` from an exact list does not keep that spelling off.
+[Decision registry](../compilation/decision-registry.md).
 
 ## Legality vs score
 

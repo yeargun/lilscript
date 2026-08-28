@@ -1,42 +1,46 @@
-# search-01 — when candidate search comes back on
+# search-01 / search-02 — when candidate search is trusted
 
-Parent: [ledger](../LEDGER.md). Status: blocked(ident-02). Covers search-01..02.
+Parent: [ledger](../LEDGER.md). `search-01` landed (markdown 15/16).
+`search-02` todo (ident-05 landed).
 
 ## Question
 
-What has to be true before search is trusted again, and what does it cost when it is?
+What has to be true before search is trusted on every lane, and what does it
+cost when it is?
 
 ## Current state
 
-- `benchmarks/popular/monaco-layers/lilscript.toml:8` — `candidate_search = "off"`.
-- Root `lilscript.toml:15` — `candidate_search = "production"`.
-- `comparison/cases/configs/*.toml` — `candidate_search = "always"` with a 1536 limit,
-  per [the case runner](../../../../../comparison/cases/README.md).
+- Markdown stack: `candidate_search = "always"` on 15 of 16 committed ports
+  (search-01). `react-markdown` committed toml stays `off`; compiling with
+  `always` is 93/93 after ident-05.
+- `benchmarks/popular/monaco-layers/lilscript.toml` — `candidate_search = "off"`.
+- Root `lilscript.toml` — `candidate_search = "production"`.
+- `comparison/cases/configs/*.toml` — `candidate_search = "always"`, limit 1536.
 
-## Why it is off
+## Constraints specific to this task
 
-Search ranks whole artifacts under the configured codec. If the emitted program can be
-semantically wrong, search is choosing among wrong programs and its ranking is noise —
-worse, it is *convincing* noise, because the winner is genuinely smaller.
-
-## The condition to flip
-
-Both `ident-02` (the invariant is a class, every rematerialization site routes through
-one check) and `marked-02` (660/660 recorded) are `landed`. Not one of them.
+- ident-05 is landed; flipping committed `always` is this task, not ident-02.
+- Do not treat a smaller throwing artifact as a win.
 
 ## Evidence
 
 | date | what | command | result | tag |
 |---|---|---|---|---|
 | 2026-08-19 | Config state | `grep -n candidate_search lilscript.toml benchmarks/popular/monaco-layers/lilscript.toml` | `production` / `off` | diag |
+| 2026-08-27 | Markdown stack search-01 | per-port compile + suite | 15/16 green with `always`; react-markdown off | gate |
+| 2026-08-28 | ident-05 marked + RM always | marked reserve 0/8/12/48 vs official; RM `npm test` | 660/660 each; RM 93/93 | gate |
 
 ## Log
 
-- 2026-08-19 — Recorded the off-switch and its exit condition so a later context does
-  not flip it back on for a quick win. — **OPEN**
+- 2026-08-19 — Recorded the monaco off-switch. — **OPEN**
+- 2026-08-27 — search-01 landed on the markdown stack (md-01). — **LANDED**
+- 2026-08-28 — search-02 waits on ident-05, not ident-02. — **OPEN**
+- 2026-08-28 — ident-05 landed. search-02 may flip react-markdown and re-run
+  corpora. Keep committed port tomls until ident-02 rematerialization sites are
+  on the shared check. — **OPEN**
 
 ## Next step
 
-Nothing until the blockers land. When they do: flip the monaco lane, re-run the
-corpora, and record per-corpus deltas — including cases where search costs raw bytes
-and wins compressed ones, since those are the results that justify the search at all.
+Do not flip committed `candidate_search` while ident-02 still has unrouted
+rematerialization sites. When ident-02 lands: set react-markdown to `always`,
+re-run markdown and monaco corpora, record Brotli deltas as `gate` rows.

@@ -13,7 +13,7 @@ Every surface construct is judged by whether it gives the compiler a **proof** i
 | Nominal `struct` / `class` | Field indexes; scalar replacement; no property names internally |
 | Closed `object` | ABI keys on one identity; private method bodies nest/mangle |
 | `Record<T>` | Open string keys are **data**, never mangled |
-| Closed `enum` | Integer discriminant, no metadata object |
+| Closed `enum` + `match` | Integer discriminant, no metadata object; exhaustive DCE of arms |
 | `extern` / `extern class` | Exact host ABI; everything else may dissolve |
 | `T?` and `A \| B` | Narrowing without wrappers; native tags only at boundaries |
 | `pure` / inferred effects | Unused calls are removable |
@@ -24,29 +24,37 @@ Every surface construct is judged by whether it gives the compiler a **proof** i
 
 ## Pages
 
-- [Types are not glue](types-not-glue.md) — vs TypeScript; ABI per type
-- [Numerics and value semantics](numerics-values.md) — i32 vs binary64, unions,
-  nullability, enums, strings, identity
-- [Functions, closures, and generics](functions-closures-generics.md) — callable ABI,
-  captures, defaults, generic erasure/boxing
-- [Control flow and exceptions](control-flow-errors.md) — evaluation order, phis,
-  nullish flow, structured completion
-- [Collections and typed intrinsics](collections-intrinsics.md) — arrays, records,
-  maps/sets, buffers/views, strings
-- [Async, generators, and regex](async-generators-regex.md) — direct JS platform
-  lowering and native rejection
-- [Closed world](closed-world.md) — compilation unit, exports as accessibility vs retention
-- [Packages, exports, and ABI](packages-exports-abi.md) — lock/resolution and public
-  boundaries
-- [Boundaries and escape](boundaries-escape.md) — `extern`, escape states, invalidation
-- [Aggregates](aggregates.md) — struct / class / record; named vs positional ABI
-- [Effects and purity](effects-purity.md) — inference, `pure`, host contracts
-- [Modules, lazy loading, progressive enhancement](modules-lazy.md) — graph, chunks, PE
-- [JavaScript vs native](js-vs-native.md) — shared IR, rejected features
+### Types and values
+
+- [Types are not glue](types-not-glue.md)
+- [Compressor surface](compressor-surface.md) — write proofs so Terser/Oxc/Closure can lose
+- [Numerics and value semantics](numerics-values.md)
+
+### Programs
+
+- [Functions, closures, and generics](functions-closures-generics.md)
+- [Control flow and exceptions](control-flow-errors.md)
+- [Effects and purity](effects-purity.md)
+
+### Data
+
+- [Aggregates](aggregates.md) — struct / class / record
+- [Collections and typed intrinsics](collections-intrinsics.md)
+- [Async, generators, and regex](async-generators-regex.md)
+
+### World
+
+- [Closed world](closed-world.md)
+- [Packages, exports, and ABI](packages-exports-abi.md)
+- [Boundaries and escape](boundaries-escape.md)
+- [Modules, lazy loading, progressive enhancement](modules-lazy.md)
+- [JavaScript vs native](js-vs-native.md)
 
 ## Compilation consequence
 
-Language design is upstream of [compilation](../compilation/README.md). If a feature cannot be checked, escaped, and represented, the compressor cannot legally rewrite it. Prefer a smaller, explicit surface over a JS convenience that would force conservative lowering.
+Language design is upstream of [compilation](../compilation/README.md). If a feature cannot be checked, escaped, and represented, the compressor cannot legally rewrite it. Prefer a smaller, explicit surface over a JS convenience that would force conservative lowering. Whether a legal representation is then **searched** or hard-wired is
+[decision registry](../compilation/decision-registry.md). How to write a port so
+Terser/Oxc/Closure can lose: [compressor surface](compressor-surface.md).
 
 Config that changes **language-visible ABI** (not just spelling):
 

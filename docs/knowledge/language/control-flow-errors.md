@@ -15,7 +15,11 @@ member/index access skips the index on a null receiver. Optional method calls ar
 accepted yet because receiver binding and portable call semantics are not defined.
 
 Closed enum `match` is exhaustive unless the final arm is `_`. The scrutinee runs
-once, duplicate/unknown variants are errors, and only one arm executes.
+once, duplicate/unknown variants are errors, and only one arm executes. `match` is
+**enum-only**. `if` / `else` is statement-only. `?` is nullable, not a ternary.
+Value-producing `if` lowers to a phi; the emitter may recover `?:` via
+`local_phi_expression_regions` (default off under Brotli). That recovery is not a
+source form. Language RFC: [compressor surface](compressor-surface.md).
 
 `throw` accepts any non-`void` value. `try` requires `catch`, `finally`, or both, and
 native JavaScript completion order is preserved: `finally` runs for normal and abrupt

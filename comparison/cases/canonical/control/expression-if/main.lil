@@ -1,0 +1,6 @@
+int magnitude(int value) {
+  return if (value < 0) { -value } else { value };
+}
+
+print(magnitude(-7));
+print(magnitude(4));

@@ -1,33 +1,46 @@
 # Ledger
 
 Parent: [board](README.md). Protocol: [read order](README.md#read-order--the-context-budget).
-Updated 2026-08-19. Orchestrator writes this file; subagents write notes.
+Updated 2026-08-28. Orchestrator writes this file; subagents write notes.
 
-The current fight: **typed web syntax → direct JS → global codec win**. The blocking
-class is JavaScript identity, not any one library. Candidate search stays off until
-that lane is green, because a search that ranks incorrect programs ranks noise.
+The current fight: **07.4** — IR named `class` and joint layout after 07.3's
+reversible packing / keep-object priors — then the rest of
+[07](../07-global-compressor.md) so **size-first library** compiles get smaller
+by proof + scored families, not glue
+([contract](../07-global-compressor.md#size-first-library-contract)).
+Phases 00–06 are the standing evidence loop, not a restart
+([migration](../README.md)).
+Documentation: [current architecture](../../compilation/current-architecture.md),
+[goal architecture](../../compilation/goal-architecture.md),
+[objectives](../../compilation/objectives.md),
+[decision registry](../../compilation/decision-registry.md),
+[compressor surface](../../language/compressor-surface.md).
 
 | Lane | Question it answers |
 |---|---|
-| `ident` | Does the emitted JS still name the same object the source named? |
+| `ident` | Does the emitted JS still name the same object the source named? **07.1** |
 | `emit` | Is the emitted JS valid and direct — the spelling a careful human would write? |
+| `jquery` | Why does the jQuery port lose compressed bytes to `jquery.min.js`? |
+| `md` | Does the react-markdown stack beat official Terser on Brotli-11? |
 | `marked` | Does a real parser port run green and beat the JS heroes? |
-| `search` | Can candidate search be trusted back on? |
-| `cases` | Does the paired-case corpus still prove compressability? |
+| `search` | Can candidate search be trusted on, and what does it cost? |
+| `cases` | Does the paired-case corpus still prove compressability? (00–06) |
 | `gate` | Does the release gate actually run green? |
+| `board` | Does this board stay loadable? |
+| `arch` | 07.2–07.7 and the docs that describe the decision system |
 
 ## ident — JavaScript identity (blocks everything)
 
 | id | status | intent | gate | note |
 |---|---|---|---|---|
 | `ident-01` | landed | A saved value must stay readable across its own update. Two-address coalescing merged a loop phi with its own incoming value, so `prev = cur` before `cur` advanced collapsed into one name. | `cargo test --release --lib keeps_a_saved_previous_value_readable_across_its_own_update` | [notes](notes/ident-01.md) |
-| `ident-02` | todo | Make the invariant a **class**, not a call site. `source_receiver_overwritten_between` (`src/js_peephole/folds/copies.rs:781`) has exactly one caller (`:2044`); other folds carry ad-hoc `name_rebound` scans (`copies.rs:117–238`). One shared check, used at every rematerialization site. | Every rematerialization fold routes through the shared check, one test per site | [notes](notes/ident-02.md) |
-| `ident-03` | todo | Catch the class without a library: receiver-rebinding shapes in the differential oracle. | `target/debug/lilscript-differential` finds the seeded shapes before a port does | [notes](notes/ident-03.md) |
-| `ident-04` | todo | Freeze the bug as paired canonical folders so it can never silently return. | `node comparison/cases/run.mjs --only identity/` green | [notes](notes/ident-04.md) |
+| `ident-02` | landed | Make the invariant a **class**, not a call site. Shared peephole `source_receiver_overwritten_between` covers rebound **and** `obj.prop=` (not siblings). Expression cache snapshots before member writes. | `cargo test --lib snapshot_of_a_record_field_survives_a_later_write` | [notes](notes/ident-02.md) |
+| `ident-03` | landed | Catch the class without a library: receiver-rebinding shapes in the differential oracle, including invoked captured rebind. | `target/debug/lilscript-differential --cases 8 --compiler target/debug/lilscript` matches evaluator on every JS lane; `cargo test --lib snapshot_of_a_record_field_survives_a_captured_rebind` | [notes](notes/ident-03.md) |
+| `ident-04` | landed | Freeze the bug as paired canonical folders so it can never silently return. | `node comparison/cases/run.mjs --only identity/` 5/5 | [notes](notes/ident-04.md) |
 | `ident-06` | landed | A comma sequence was accepted as a single assignment, so a guarded branch body became the right-hand side of `\|\|` and ran unconditionally. `parse_single_assignment` (`src/codegen_ir_js.rs`) plus all five shapes of `fold_statement_or_assigns`. | `cargo test --release --lib js_peephole::folds::boolean` and error-tracking compat 5/5 | [notes](notes/ident-06.md) |
 | `ident-07` | landed | Retire the identity emulation a fused ES class makes unreachable: the `new.target` guard, its declarator, and the `name`/`length`/`prototype` finisher. | error-tracking Brotli-11 5,156 with compat 5/5; `comparison/cases` unchanged at 617/617 | [notes](notes/ident-07.md) |
 | `ident-08` | landed | Two more folds that read a sub-expression's value as the enclosing expression's: a parameter default that read a *later* formal (TDZ `ReferenceError`), and `(name=EXPR)?name:F` folded when the assignment was only an operand. | `cargo test --release --lib parameter_defaults_never_read_a_later_formal assigned_truthy_ternary_needs_the_assignment_to_be_the_whole_condition`; five packs green at both configs | [notes](notes/ident-08.md) |
-| `ident-05` | active | Candidate search can rank an artifact whose names do not resolve (`Se is not defined`). Pre-existing, search-only, and the broken artifacts are the smaller ones. | Every `local_name_reserve` value passes marked's 660-case gate | [notes](notes/ident-05.md) |
+| `ident-05` | landed | **07.1.** Search must not rank unresolved or wrong-nearer names. Last hole: beta-reduce skipped `[...r]` as a property, so `points(delim)` read the live match. | marked `local_name_reserve` 0/8/12/48 with `candidate_search = always` is 660/660 vs official; react-markdown `always` 93/93 | [notes](notes/ident-05.md) |
 
 ## emit — emission validity and directness
 
@@ -36,7 +49,7 @@ that lane is green, because a search that ranks incorrect programs ranks noise.
 | `emit-01` | todo | `?:break` was emitted while a stronger receiver coloring was tried. The coloring was backed off; **the emission path that put a statement in expression position was not fixed**. Isolate it independently. | A minimized peephole test that reproduces statement-in-expression, then passes | [notes](notes/emit-01.md) |
 | `emit-07` | landed | Measure our own artifact against a minifier instead of against another program: naming and formatting are already better than terser's, and the entire remaining advantage is value placement. Three folds landed from it. | Brotli 25,605 → 25,459 across nine jQuery submodules, every module improved; 36 new tests | [notes](notes/emit-07.md) |
 | `emit-06` | landed | A total use-to-binding resolver for generated JavaScript, plus converged naming scored on it. The primitive answers `Bound`/`Free`/`Unresolved` for every identifier and fails closed per name. | 23 unit tests; Brotli −76 across nine artifacts with no regression; corpus unchanged | [notes](notes/emit-06.md) |
-| `emit-05` | active | LilScript emits fewer raw bytes than `jquery.min.js` and more compressed ones. Cause found and measured — header spelling diversity — but converged naming only reaches a third of it because each function's name pool diverges. | jQuery Brotli 29,770 against the hero's 27,445; converged naming −30 so far | [notes](notes/emit-05.md) |
+| `emit-05` | parked | Header-spelling diversity as the remaining jQuery gap. Resolver landed as emit-06; jquery-01 refuted naming as the residue (IR control-flow). The −602 Brotli “prize” is Terser-on-our-artifact (post-minify, refused). | — | [notes](notes/emit-05.md) |
 | `emit-02` | landed | String / Regex / `JS.encodeURI` lower to JS members, not host trampolines. | Keep the existing regression tests; do not re-derive | [notes](notes/emit-01.md) |
 | `emit-03` | landed | `if`/`return` regex picks emit `?:`. | Keep the existing regression tests | [notes](notes/emit-01.md) |
 | `emit-04` | landed | Identifier inlining follows JS precedence rather than `\|0` patches. | Keep the existing regression tests | [notes](notes/emit-01.md) |
@@ -45,7 +58,7 @@ that lane is green, because a search that ranks incorrect programs ranks noise.
 
 | id | status | intent | gate | note |
 |---|---|---|---|---|
-| `jquery-01` | active | Bottom-up attribution on jQuery: where do the compressed bytes actually go? Convergence recovered 875 Brotli; arrow spelling and header diversity were refuted as causes. | Brotli-11 29,011 shipped, against `jquery.min.js` 27,445 | [notes](notes/jquery-01.md) |
+| `jquery-01` | active | Residual jQuery Brotli gap is IR control-flow shape (1.85× `if(`), not spelling. Post-hoc contraction lost. Language hole: expression-if / ordinary `{}` (07.7). Then widen array-ness proof for `JS.shift`/`push`/`slice`. | Brotli-11 29,011 shipped, against `jquery.min.js` 27,445 | [notes](notes/jquery-01.md) |
 
 ## md — the react-markdown stack
 
@@ -66,16 +79,16 @@ that lane is green, because a search that ranks incorrect programs ranks noise.
 
 | id | status | intent | gate | note |
 |---|---|---|---|---|
-| `search-01` | landed(md stack) | Search is `always` on **15 of 16** markdown ports, each gated by its own suite; `remark-gfm` flips to a win and the stack gains ~5,600 Brotli. Three compiler bugs fixed to get there: `extends push`, a fluent method fused into a class, and a beta-reduced conditional losing its parentheses in a ternary test. `react-markdown` stays `off`: its failure is the real `ident-05` shape — a local shadowing an outer binding a nested body still reads, which the resolver cannot see because the read resolves to the *wrong* binding rather than to none. | 15/16 ports green with `candidate_search = "always"` | [notes](notes/md-01.md) |
-| `search-03` | landed | The proposal budget is artifact-scaled (`div_ceil(4)` above 16 KiB), so an 18 KiB module at level 15 gets 96 work units against ~38 beam families and never reaches the naming or class-shape ones. Finding recorded; pack config shipped, compiler default unchanged. | `--explain human` shows the budget exhausted; `lilscript.identity.toml` reaches Brotli-11 5,156 | [notes](notes/search-03.md) |
-| `search-04` | landed | Is more search always better, and does the configured `cost_model` win its own metric? No and mostly: wider beams, raw-growth admission and an extra naming family all lose under a fixed work budget; the objective is honored wherever the search converges. | Recorded sweeps; per-pack configs shipped | [notes](notes/search-04.md) |
-| `search-02` | todo | After the flip, re-run the corpora and record the deltas — including where search costs raw bytes and wins compressed ones. | Recorded per-corpus deltas under `gate` numbers | [notes](notes/search-01.md) |
+| `search-01` | landed | Search is `always` on **15 of 16** markdown ports; `remark-gfm` flips to a win. `react-markdown` stays `off` — that failure is ident-05 (wrong nearer binding, not unbound). | 15/16 ports green with `candidate_search = "always"` | [notes](notes/md-01.md) |
+| `search-03` | landed | Proposal budget is artifact-scaled; late families starve. Finding recorded; pack config shipped; compiler default unchanged. Becomes 07.6 reserved slices. | `--explain human` shows the budget exhausted; `lilscript.identity.toml` reaches Brotli-11 5,156 | [notes](notes/search-03.md) |
+| `search-04` | landed | More search is not always better. Configured `cost_model` is honored where search converges. Wider beams / raw-growth / extra naming family lost under a fixed budget. | Recorded sweeps; per-pack configs shipped | [notes](notes/search-04.md) |
+| `search-02` | todo | After ident-05, re-run the corpora and record deltas — including where search costs raw and wins compressed. react-markdown `always` is already 93/93. | Recorded per-corpus deltas under `gate` numbers | [notes](notes/search-01.md) |
 
 ## cases — paired-case corpus
 
 | id | status | intent | gate | note |
 |---|---|---|---|---|
-| `cases-00..06` | ongoing | The existing phase plan, unchanged. This board does not restate it. | Per [migration phases](../README.md#phases) | [notes](notes/cases-00.md) |
+| `cases-00..06` | ongoing | Standing evidence loop: 47 `canonical/` folders; catalog + algorithms in release-check. Keep running `--canonical-only` when a fold lands. Not a restart. | `node comparison/cases/run.mjs --canonical-only` green | [notes](notes/cases-00.md) |
 
 ## gate — release gates
 
@@ -88,3 +101,15 @@ that lane is green, because a search that ranks incorrect programs ranks noise.
 | id | status | intent | gate | note |
 |---|---|---|---|---|
 | `board-01` | landed | This board, its templates, and `scripts/board.mjs`. | `node scripts/board.mjs check` exits 0 | [journal](JOURNAL.md) |
+
+## arch — architecture and documentation
+
+| id | status | intent | gate | note |
+|---|---|---|---|---|
+| `arch-01` | landed | Separate current and goal compressor architectures; define exactness labels, solver pseudocode, objectives, and migration. | Current claims cite implementation; goal claims are explicitly unshipped; board check passes | [notes](notes/arch-01.md) |
+| `arch-02` | landed | **07.2** One contract/decision registry plus stable source/generated provenance. Beam iterates only the scored set. | Explain answers whether layout is searched, why ABI is fixed, and whether each operation is source-authored or generated | [notes](notes/arch-02.md) |
+| `arch-03` | landed | **07.3** Reversible priors: packing, pooling, scalar replacement, and call/closure choices have scored opposites. | Size-first Brotli cartesian seeds include packing and identifier pooling on; `keep-object` admitted; `scalar_replacement_on_and_keep_object_are_both_legal` | [notes](notes/arch-03.md) |
+| `arch-04` | landed | **07.4** Proof-marked classes, owner/slot property naming, and lexical/lifted closure environments. | Named-class and identity-free fixtures green; inherited slots collision-free; mutable captures stay lexical | [notes](notes/arch-04.md) |
+| `arch-05` | active | **07.5** All final challengers are scored; migrate parsed-text folds to hygienic target JS AST. | Canonical/search-off ranking landed; production no longer reparses output to recover binding identity | [notes](notes/arch-05.md) |
+| `arch-06` | landed | **07.6** Deterministic priority slices, starvation reporting, measured joint family, deep release tier, and fingerprinted bundle objective. | Explain names starved families; canonical objectives green; bundle manifest separates selected codec from deployment cost | [notes](notes/arch-06.md) |
+| `arch-07` | landed | **07.7** Explicit lowering, ABI validation, constructor export, expression-if/scalar match, ordinary objects, and conservative own-read proof. | Objective/runtime tests green; canonical expression cases green | [notes](notes/arch-07.md) |

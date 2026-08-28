@@ -11,6 +11,15 @@ A compression-first language that only wins on 200-line kernels has not met the 
 - inlining vs duplication;
 - whether global codec search beats “inline more”.
 
+Working note for the current Brotli chase (methods, rejected hypotheses,
+remaining compressibility gap): [emit-07](../migration/board/notes/emit-07.md),
+[jquery-01](../migration/board/notes/jquery-01.md).
+The remaining gap is IR control-flow shape and missing language proofs
+(ordinary `{}`, expression-if, constructor value), not a missing peephole:
+[compressor surface](../language/compressor-surface.md).
+Do not grow jQuery-specific compiler folds:
+[current architecture](../compilation/current-architecture.md).
+
 It is **not** currently an eligibility win. The latest checked-in, pre-canonical
 generated
 `benchmarks/popular/build/jquery-results.json` marks the row
@@ -120,6 +129,5 @@ search pick spellings.
 - Treat Terser/Oxc applied to LilScript output as attribution only. The eligible
   LilScript row is the compiler's single selected output for that configured
   objective, without downstream candidate selection.
-- Use the active [verification contract](../verification/paired-case-contract.md) and
-  [jQuery convergence plan](../migration/09-jquery-library-convergence.md); the
-  archived queue is historical.
+- Use the active [verification contract](../verification/paired-case-contract.md)
+  and the live [jquery-01](../migration/board/notes/jquery-01.md) note.

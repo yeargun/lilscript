@@ -6,6 +6,108 @@ recorded verdict. This is cold storage: read it when you are about to redo somet
 Format: `## YYYY-MM-DD — <task id> — <one line>` then two or three lines of what
 changed, what the gate said, and the commit if there is one.
 
+## 2026-08-28 — arch-03 — reversible packing, pooling, and keep-object priors
+
+Size-first Brotli cartesian seeds include `pack_string_arrays` and
+`pool_identifier_strings` on. `SCORED_IR_VARIANTS` owns keep-object plus the
+named call-graph off-clones; `--explain` lists them. Dedicated scalar-replace
+on/off ablation emits both ways. Root TOML exact `identifier-mangling` does not
+admit keep-object. Uncommitted.
+
+## 2026-08-28 — arch-02 — one IrJsOptions registry in code
+
+Every emission field is classified; cartesian axes and 45 scored families live in
+`src/decision_registry.rs`; the beam iterates that set. `--explain` names layout,
+removed size-first families, cartesian axes, scored families, and source/generated
+counts. Source `|0` carries `NodeId` + `PreserveJavaScriptBitOrZero`. Uncommitted.
+
+## 2026-08-28 — ident-04 — identity shapes are canonical paired folders
+
+`comparison/cases/canonical/identity/` has write, rebind, computed, captured-rebind,
+and saved-loop-phi. `LILSCRIPT=target/debug/lilscript LILSCRIPT_CODEC=target/debug/lilscript-codec
+node comparison/cases/run.mjs --only identity/` is 5/5 (strict wins raw=5, gzip=5,
+brotli=4). Uncommitted compiler change.
+
+## 2026-08-28 — ident-03 — differential oracle owns receiver-rebinding
+
+`differentialIdentity` now includes invoked captured rebind. Callee-code flush
+binds non-reusable cached expressions so a global `Record` snapshot cannot replay
+after an IIFE. No-opt configs keep `print`. `--cases 8` matches the evaluator on
+optimized, optimizer-disabled, and peephole on/off JS, plus C and native.
+`cargo test --lib snapshot_of_a_record_field_survives_a_captured_rebind` and
+`snapshot_of_a_top_level_record_field_survives_a_captured_rebind` print `89`.
+Uncommitted compiler change.
+
+## 2026-08-28 — ident-02 — property write is the same rematerialization class
+
+Peephole `source_receiver_overwritten_between` refuses `obj.prop=` / `++` /
+`delete` without `obj=`; sibling writes still fold. Production still replayed
+`a.href??0` after `a.href=` from the expression cache; snapshots now bind first.
+`cargo test --lib rematerialization_folds_refuse` (2) and
+`snapshot_of_a_record_field_survives_a_later_write` passed. Invoked captured
+rebind remains ident-03. Uncommitted compiler change.
+
+## 2026-08-28 — ident-05 — spread operand is not a property
+
+`is_property_identifier` treated `[...r]` as `obj.r` (lexer emits three `.`
+tokens). Beta-reduce left the helper parameter, and marked `points(delim)`
+read the live `exec` match. After the fix, marked `local_name_reserve`
+0/8/12/48 with `candidate_search = always` is 660/660 vs official (0 throws);
+react-markdown `always` is 93/93. Uncommitted compiler change.
+
+## 2026-08-28 — arch-01 — current and goal architecture split
+
+`current-architecture.md` now records only implemented pipeline behavior and
+known gaps. `goal-architecture.md` defines the proof-constrained `ChoiceGraph`,
+per-entity representation families, exact sub-solvers, deterministic anytime
+portfolio, Pareto archive, bundle objective, caches, search certificates, and
+full pseudocode. Exact codec score is no longer conflated with a global optimum.
+No compiler code changed.
+
+## 2026-08-28 — arch-01 extension — semantic firewall and target pipeline
+
+Phase 07 now separates immutable language/ABI/source-lowering contracts from
+raw/gzip/Brotli profitability. The first exact-intent gate is live source
+`x | 0` versus generated i32 normalization. The plan adds application/library
+ABI manifests, aggregate/closure/property representation families, stable
+node/binding/property IDs, a hygienic target JS AST, deterministic family-budget
+search, and source-attributed explain output. No compiler code changed; ident-05
+still blocks search expansion.
+
+## 2026-08-28 — 07 size-first library contract — designed wins, not glue
+
+07 is no longer a refactor checklist. It now states the product: a library
+compiled `priority = size-first` must beat Terser/Oxc/Closure ADVANCED on
+equivalent supported LilScript, via proof → legal shapes → scored *T*, not
+library matchers. Root `lilscript.toml` is named as a test subset (omits
+joint-representation, property-mangling, …). Phase-complete is typed-library
+non-regression, IR `class` for identity-observed APIs, plain-data without
+`assume_*`, and >16 KiB search that finishes. Refuse-list includes post-minify,
+pack-local budget lifts, and flipping `export class`. Board notes arch-02/03/04/06/07
+point at the contract. No compiler code.
+
+## 2026-08-28 — migration folder refresh — 00–06 standing, 07 on the board
+
+Phases 00–06 no longer read as a start-from-scratch catalog-era plan. Migration
+README states current status (47 canonical folders; 07 is the architecture
+track). Board gained `arch-02`–`arch-07` mapped to 07.2–07.7, all blocked on
+ident-05 except 07.7 (RFCs in parallel) and 07.5/07.6 (blocked on 07.4/07.2).
+`search-01` status is `landed` (was illegal `landed(md stack)`). `emit-05`
+parked: resolver is emit-06; residual jQuery is jquery-01 / 07.7. ident-05 next
+step is the react-markdown wrong-binding shape. `node scripts/board.mjs check`
+must pass. No compiler code.
+
+## 2026-08-28 — arch-01 — documentation of implemented vs intended compressor architecture
+
+Knowledge tree now has [architecture](../../compilation/architecture.md),
+[decision registry](../../compilation/decision-registry.md), and
+[migration 07](../07-global-compressor.md). Clean-context audit confirmed the
+glue inventory (irreversible Brotli packing/pooling, no scalar-replace off-clone,
+unscored search-off peephole, TypeOnly `export class`, ident-05) and corrected
+two doc errors: joint chunk search is layout/name-reserve only; omitted
+`length-to-number-elision` can still turn on. No compiler code changed. Next
+compiler work remains ident-05, then 07.2.
+
 ## 2026-08-25 — ident-08 / search-04 — all five packs, every objective, no performance loss
 
 Second pass on the same lane. Published compiler output against the best-of-breed

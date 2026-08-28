@@ -580,7 +580,7 @@ fn contains_dynamic_import(expression: &Expr<'_, '_>) -> bool {
         Expr::ArrayLiteral { elements, .. } => elements
             .iter()
             .any(|element| contains_dynamic_import(element.value())),
-        Expr::RecordLiteral { entries, .. } => entries
+        Expr::RecordLiteral { entries, .. } | Expr::ObjectLiteral { entries, .. } => entries
             .iter()
             .any(|entry| contains_dynamic_import(entry.value())),
         Expr::StructLiteral { values, .. } | Expr::New { args: values, .. } => {
@@ -622,6 +622,16 @@ fn contains_dynamic_import(expression: &Expr<'_, '_>) -> bool {
         Expr::Match { value, arms, .. } => {
             contains_dynamic_import(value)
                 || arms.iter().any(|arm| contains_dynamic_import(&arm.value))
+        }
+        Expr::If {
+            condition,
+            then_value,
+            else_value,
+            ..
+        } => {
+            contains_dynamic_import(condition)
+                || contains_dynamic_import(then_value)
+                || contains_dynamic_import(else_value)
         }
         Expr::Int(..)
         | Expr::Float(..)
@@ -1271,7 +1281,7 @@ fn walk_expr_idents(expression: &Expr<'_, '_>, visitor: &mut impl FnMut(Span)) {
                 walk_expr_idents(element.value(), visitor);
             }
         }
-        Expr::RecordLiteral { entries, .. } => {
+        Expr::RecordLiteral { entries, .. } | Expr::ObjectLiteral { entries, .. } => {
             for entry in *entries {
                 if let crate::ast::RecordElement::Entry(entry) = entry {
                     visitor(entry.key.span);
@@ -1344,6 +1354,16 @@ fn walk_expr_idents(expression: &Expr<'_, '_>, visitor: &mut impl FnMut(Span)) {
                 }
                 walk_expr_idents(&arm.value, visitor);
             }
+        }
+        Expr::If {
+            condition,
+            then_value,
+            else_value,
+            ..
+        } => {
+            walk_expr_idents(condition, visitor);
+            walk_expr_idents(then_value, visitor);
+            walk_expr_idents(else_value, visitor);
         }
         Expr::Int(..)
         | Expr::Float(..)

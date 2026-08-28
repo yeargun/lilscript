@@ -11,9 +11,10 @@ lilscript.toml
   → link_modules                    # private names, lazy init-free check
   → semantic::analyze
   → lower_to_control_flow
-  → optimize_and_select_javascript  # IR variants + emission search (single)
-     or one optimize + plan_javascript_chunks (split / preserve-modules)
-  → optional js_peephole
+  → single: optimize_and_select_javascript
+       → IR variants + emission search + optional parsed-JS finalization
+    or split: one optimize + plan_javascript_chunks + direct chunk emit
+    or preserve-modules: one optimize + fixed source partitions + direct emit
   → native: clone IR, optimize with native options, emit C / exec
 ```
 
@@ -31,8 +32,9 @@ discarded single JavaScript artifact before invoking the bundle pipeline.
 | Path | Function | Search |
 |---|---|---|
 | `js` / `js-module` + `bundle.mode = single` | `optimize_and_select_javascript` | Full two-level candidate search |
-| `split` / `preserve-modules` | `compile_path_to_js_bundle_configured` | One `optimize_control_flow_with_guidance(..., preserve_exports: true)`; chunks scored by deploy cost; **no** per-chunk emission beam (unless joint chunk/symbol search is on) |
-| `all` + `split` / `preserve-modules` | `compile_path_all_to_js_bundle_configured` | The same one bundle search plus native optimization from one shared lowered IR |
+| `split` | `compile_path_to_js_bundle_configured` | One `optimize_control_flow_with_guidance(..., preserve_exports: true)`; chunk plans scored by deploy cost; **no** per-chunk identifier-alphabet beam. `joint-chunk-symbol-search` adds `function_layout` + `local_name_reserve` only |
+| `preserve-modules` | `compile_path_to_js_bundle_configured` | One whole-program optimization, then fixed source-module partitions with configured `js_options()`; no chunk-plan scorer |
+| `all` + `split` / `preserve-modules` | `compile_path_all_to_js_bundle_configured` | The corresponding bundle path plus native optimization from one shared lowered IR |
 | `--delegate-bundling` (Lilpack) | forces `bundle.mode = single` | Vite chunks the mixed graph after LilScript ESM |
 
 ## CLI overrides (`src/main.rs`)

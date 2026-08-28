@@ -26,7 +26,7 @@ Semantic IR policy for **both** backends. Optional keys override `preset` indepe
 | `inline_closure_factories` | If false, factories that return closures stay outlined |
 | `constant_parameter_specialization` | Clone callees for constant args |
 | `specialize_tagged_constants` | Include boxed/union constants; JS `js_optimizer_options` defaults this **true** if unset |
-| `scalar_replacement` | Dissolve `LocalOnly` structs/classes |
+| `scalar_replacement` | Dissolve `LocalOnly` structs/classes. **Not** an IR search variant: every optimizer clone that has the pass on will dissolve. |
 | `dead_store_elimination` | Overwritten field stores |
 | `dead_code_elimination` | Dead ops, mutation graphs, dead functions (tree shake) |
 | `call_site_specialization` | PGO/byte-budget clones; also needs JS feature for JS |

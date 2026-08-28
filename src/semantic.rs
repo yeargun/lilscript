@@ -2246,6 +2246,29 @@ impl<'src> Analyzer<'src> {
                 })?;
                 Type::Array(Box::new(element_type))
             }
+            Expr::ObjectLiteral { entries, .. } => {
+                let mut seen = AHashSet::default();
+                for entry in *entries {
+                    match entry {
+                        RecordElement::Entry(entry) => {
+                            if !seen.insert(decode_source_string(entry.key.name)) {
+                                return Err(SemanticError::new(
+                                    entry.key.span,
+                                    format!("duplicate object key `{}`", entry.key.name),
+                                ));
+                            }
+                            self.analyze_expr(&entry.value, Some(&Type::TypeParameter("$js")))?;
+                        }
+                        RecordElement::Spread { span, .. } => {
+                            return Err(SemanticError::new(
+                                *span,
+                                "ordinary object spread is not supported yet",
+                            ));
+                        }
+                    }
+                }
+                Type::TypeParameter("$js")
+            }
             Expr::RecordLiteral { entries, span } => {
                 if expected.is_some_and(is_js_value_or_nullable_js_value) {
                     let mut seen = AHashSet::default();
@@ -2804,6 +2827,32 @@ impl<'src> Analyzer<'src> {
                     .insert(*span, element.clone());
                 optional_result_type(element, *span)?
             }
+            Expr::If {
+                condition,
+                then_value,
+                else_value,
+                span,
+            } => {
+                let condition_type = self.analyze_expr(condition, Some(&Type::Bool))?;
+                self.require_assignable(&Type::Bool, &condition_type, condition.span())?;
+                let (then_narrowing, else_narrowing) = self.condition_narrowing(condition)?;
+                self.push_scope();
+                self.apply_narrowing(then_narrowing);
+                let then_type = self.analyze_expr(then_value, expected)?;
+                self.pop_scope();
+                self.push_scope();
+                self.apply_narrowing(else_narrowing);
+                let else_type = self.analyze_expr(else_value, expected)?;
+                self.pop_scope();
+                common_type(&then_type, &else_type).ok_or_else(|| {
+                    SemanticError::new(
+                        *span,
+                        format!(
+                            "expression-if arms have incompatible types `{then_type}` and `{else_type}`"
+                        ),
+                    )
+                })?
+            }
             Expr::Match { value, arms, span } => {
                 self.analyze_match(value, arms, expected, *span)?
             }
@@ -3004,36 +3053,50 @@ impl<'src> Analyzer<'src> {
         span: Span,
     ) -> Result<Type<'src>, SemanticError> {
         let value_type = self.analyze_expr(value, None)?;
-        let Type::Enum(enum_name) = value_type else {
+        if !matches!(
+            value_type,
+            Type::Enum(_) | Type::Int | Type::String | Type::Bool
+        ) {
             return Err(SemanticError::new(
                 value.span(),
-                format!("match requires an enum value, found `{value_type}`"),
+                format!("match requires an enum, int, string, or bool value, found `{value_type}`"),
             ));
+        }
+        let variants = match value_type {
+            Type::Enum(enum_name) => Some((
+                enum_name,
+                self.model
+                    .enums
+                    .get(enum_name)
+                    .expect("checked enum type has metadata")
+                    .variants
+                    .clone(),
+            )),
+            _ => None,
         };
-        let variants = self
-            .model
-            .enums
-            .get(enum_name)
-            .expect("checked enum type has metadata")
-            .variants
-            .clone();
         let mut covered = AHashSet::default();
         let mut wildcard = false;
         let mut result = None;
         for (index, arm) in arms.iter().enumerate() {
+            if wildcard {
+                return Err(SemanticError::new(
+                    arm.pattern.span(),
+                    "match arms after `_` are unreachable",
+                ));
+            }
             match arm.pattern {
                 MatchPattern::EnumVariant {
                     enum_name: pattern_enum,
                     variant,
                     span: pattern_span,
                 } => {
-                    if wildcard {
+                    let Some((enum_name, variants)) = &variants else {
                         return Err(SemanticError::new(
                             pattern_span,
-                            "match arms after `_` are unreachable",
+                            format!("enum pattern cannot match `{value_type}`"),
                         ));
-                    }
-                    if pattern_enum.name != enum_name {
+                    };
+                    if pattern_enum.name != *enum_name {
                         return Err(SemanticError::new(
                             pattern_enum.span,
                             format!(
@@ -3048,7 +3111,8 @@ impl<'src> Analyzer<'src> {
                             format!("enum `{enum_name}` has no variant `{}`", variant.name),
                         )
                     })?;
-                    if !covered.insert(variant.name) {
+                    let key = format!("enum:{enum_name}:{}", variant.name);
+                    if !covered.insert(key) {
                         return Err(SemanticError::new(
                             pattern_span,
                             format!("duplicate match arm for `{enum_name}.{}`", variant.name),
@@ -3057,6 +3121,48 @@ impl<'src> Analyzer<'src> {
                     self.model
                         .enum_variant_values
                         .insert(pattern_span, discriminant);
+                }
+                MatchPattern::Int(value, pattern_span) => {
+                    if value_type != Type::Int {
+                        return Err(SemanticError::new(
+                            pattern_span,
+                            format!("integer pattern cannot match `{value_type}`"),
+                        ));
+                    }
+                    if !covered.insert(format!("int:{value}")) {
+                        return Err(SemanticError::new(
+                            pattern_span,
+                            format!("duplicate match arm for `{value}`"),
+                        ));
+                    }
+                }
+                MatchPattern::String(value, pattern_span) => {
+                    if value_type != Type::String {
+                        return Err(SemanticError::new(
+                            pattern_span,
+                            format!("string pattern cannot match `{value_type}`"),
+                        ));
+                    }
+                    if !covered.insert(format!("string:{value}")) {
+                        return Err(SemanticError::new(
+                            pattern_span,
+                            format!("duplicate match arm for `{value}`"),
+                        ));
+                    }
+                }
+                MatchPattern::Bool(value, pattern_span) => {
+                    if value_type != Type::Bool {
+                        return Err(SemanticError::new(
+                            pattern_span,
+                            format!("boolean pattern cannot match `{value_type}`"),
+                        ));
+                    }
+                    if !covered.insert(format!("bool:{value}")) {
+                        return Err(SemanticError::new(
+                            pattern_span,
+                            format!("duplicate match arm for `{value}`"),
+                        ));
+                    }
                 }
                 MatchPattern::Wildcard(pattern_span) => {
                     if wildcard || index + 1 != arms.len() {
@@ -3079,17 +3185,44 @@ impl<'src> Analyzer<'src> {
                 None => arm_type,
             });
         }
-        if !wildcard && covered.len() != variants.len() {
-            let missing = variants
-                .keys()
-                .filter(|variant| !covered.contains(*variant))
-                .copied()
-                .collect::<Vec<_>>()
-                .join(", ");
-            return Err(SemanticError::new(
-                span,
-                format!("non-exhaustive match on `{enum_name}`; missing {missing}"),
-            ));
+        if !wildcard {
+            match (&value_type, variants) {
+                (Type::Enum(_), Some((enum_name, variants))) if covered.len() != variants.len() => {
+                    let missing = variants
+                        .keys()
+                        .filter(|variant| !covered.contains(&format!("enum:{enum_name}:{variant}")))
+                        .copied()
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    return Err(SemanticError::new(
+                        span,
+                        format!("non-exhaustive match on `{enum_name}`; missing {missing}"),
+                    ));
+                }
+                (Type::Bool, _) => {
+                    let missing = [false, true]
+                        .into_iter()
+                        .filter(|value| !covered.contains(&format!("bool:{value}")))
+                        .map(|value| value.to_string())
+                        .collect::<Vec<_>>();
+                    if !missing.is_empty() {
+                        return Err(SemanticError::new(
+                            span,
+                            format!(
+                                "non-exhaustive match on `bool`; missing {}",
+                                missing.join(", ")
+                            ),
+                        ));
+                    }
+                }
+                (Type::Int | Type::String, _) => {
+                    return Err(SemanticError::new(
+                        span,
+                        format!("match on `{value_type}` requires a final `_` arm"),
+                    ));
+                }
+                _ => {}
+            }
         }
         result.ok_or_else(|| SemanticError::new(span, "match expression has no arms"))
     }
@@ -6953,6 +7086,41 @@ mod tests {
             wildcard.message.contains("must appear once and last"),
             "{wildcard}"
         );
+    }
+
+    #[test]
+    fn checks_expression_if_types_and_narrowing() {
+        check("int choose(bool flag){return if(flag){1}else{2};}").unwrap();
+        check("int choose(int? value){return if(value!=null){value}else{0};}").unwrap();
+
+        let condition = check("int choose(int flag){return if(flag){1}else{2};}").unwrap_err();
+        assert!(condition.message.contains("expected `bool`"), "{condition}");
+
+        let arms =
+            check("void choose(bool flag){auto value=if(flag){1}else{print(2)};}").unwrap_err();
+        assert!(arms.message.contains("incompatible types"), "{arms}");
+    }
+
+    #[test]
+    fn checks_scalar_literal_matches() {
+        check("string label(int value){return match(value){-1=>\"negative\",0=>\"zero\",_=>\"positive\"};}").unwrap();
+        check("int flag(bool value){return match(value){true=>1,false=>0};}").unwrap();
+        check("int label(string value){return match(value){\"open\"=>1,_=>0};}").unwrap();
+
+        let missing = check("int label(int value){return match(value){0=>1};}").unwrap_err();
+        assert!(
+            missing.message.contains("requires a final `_`"),
+            "{missing}"
+        );
+        let duplicate =
+            check("int label(string value){return match(value){\"x\"=>1,\"x\"=>2,_=>0};}")
+                .unwrap_err();
+        assert!(
+            duplicate.message.contains("duplicate match arm"),
+            "{duplicate}"
+        );
+        let wrong = check("int label(bool value){return match(value){0=>1,_=>0};}").unwrap_err();
+        assert!(wrong.message.contains("cannot match `bool`"), "{wrong}");
     }
 
     #[test]

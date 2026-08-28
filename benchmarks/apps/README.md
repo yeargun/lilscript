@@ -25,7 +25,7 @@ particular, the LilScript animation-value kernel now matches the selected
 numeric algorithms and spring sample digest, but it is not a Motion package
 port or a substitute for Motion's dynamic overloads and generator API. Full
 Motion compatibility is tracked in
-[`../../docs/motion-compatibility.md`](../../docs/motion-compatibility.md), with
+[`../../docs/knowledge/evidence/motion-compatibility.md`](../../docs/knowledge/evidence/motion-compatibility.md), with
 machine-enforced status in [`compatibility/motion-v13.json`](compatibility/motion-v13.json).
 
 ## Artifact matrix

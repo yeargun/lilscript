@@ -18,11 +18,23 @@ Target determines what an export means:
 | split/preserve output | optimized graph is partitioned into ESM artifacts after linking |
 | foreign ESM | `import extern` supplies runtime identity and a matching `extern` supplies the type contract |
 
-Type-only struct/class exports create no JS binding. `mangle.exports = true` is safe
+Type-only struct/class exports create no JS binding. That is a language contract
+([`docs/language-v0.1.md`](../../language-v0.1.md) § Modules), implemented as
+`ExportBinding::TypeOnly`. `export constructor C [as PublicC];` explicitly
+publishes the constructor value and marks only that class identity-observed; see
+[compressor surface](compressor-surface.md) and
+[class identity](../compilation/class-identity.md). `mangle.exports = true` is safe
 only for a closed LilScript application whose importers are linked before codegen.
 Reusable ESM/script-tag surfaces keep it false. Public aggregate ABI, instance layout,
 property mangling, and function spelling are separate dimensions; “exports stable”
 does not mean all internal owned property names remain long.
+
+The normalized `JavaScriptAbiManifest` begins to make that distinction executable.
+It records export spelling/kind, callable arity/constructibility, constructor
+method signatures, aggregate ABI mode, and stable aggregate/extern field sets.
+It is included in `--explain=json`. Descriptor details and post-emission manifest
+validation remain migration work. Raw/gzip/Brotli and optimization priority may
+choose different internals only after the manifest is fixed.
 
 Bare imports require `[dependencies]` plus a verified `lilscript.lock`. Packages are
 currently local paths with name/version/compiler-ABI/entry metadata. The lock pins

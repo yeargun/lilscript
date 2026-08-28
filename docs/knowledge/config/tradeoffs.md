@@ -1,6 +1,7 @@
 # Tradeoff matrix
 
 Parent: [Config](README.md). Mission: [tradeoff triangle](../mission.md).
+Objectives: [size/performance × codec](../compilation/objectives.md).
 
 Use this when picking knobs. “Win” means typical direction, not a guarantee — **measure** under the intended codec.
 
@@ -24,7 +25,7 @@ Use this when picking knobs. “Win” means typical direction, not a guarantee 
 | `realistic-performance-first` | bucketed transfer objective | over-limit candidates are penalized in ranking, not rejected |
 | `performance-first` | secondary | keeps `|0`, no pooling/packing, no IR search variants |
 | `string-array-packing` | often smaller | extra split work at startup |
-| `integer_coercions = true` | worse transfer | keep `|0` for engines; size-first/balanced drop proven `|0` by default |
+| `integer_coercions = true` | worse transfer | keep generated `\|0` for engines; live source `value \| 0` is already preserved |
 | `aggregate_layout = named` | often larger JS | sometimes cheaper V8 instances |
 | `public_aggregate_abi = positional` | smaller if opaque | breaks named-field JS consumers |
 | Startup overhead percents | reject “tiny but unparsable” | hard ceiling |
@@ -36,16 +37,28 @@ Use this when picking knobs. “Win” means typical direction, not a guarantee 
 | `mangle.exports = true` | yes for apps | public names change |
 | `property-mangling` | yes internally | public named fields stay unless exports too |
 | `function_spelling = arrow` on exports | maybe | not constructible |
-| `JsValue` / `setProp` bags | **no** — blocks field deletion | needed at messy host APIs |
-| `struct` instead of `Record` / bags | yes | must not be JS-observable keys |
+| `JsValue` / `setProp` bags | **no** — blocks field deletion | needed at messy host APIs; internals as bags means the port is still JS ([compressor surface](../language/compressor-surface.md)) |
+| `struct` instead of `Record` / bags | **maybe** — authorizes layout search; Brotli can still prefer `s.field` (md-01) | must not be JS-observable keys |
 | More inlining | **maybe not** (jQuery) | code duplication vs call overhead |
 
 ## Codec disagreement
 
-Always set `cost_model` to what you **serve**. A gzip-optimal spelling can lose
+Always set `cost_model` to what you **serve**. A gzip-selected spelling can lose
 Brotli and vice versa. Historical closure-factory and mutation-spelling ablations
 retain that disagreement lesson, but their byte rows require canonical refresh before
-being quoted as current. Root config chooses `brotli`.
+being quoted as current. Root config chooses `brotli`. Producing independently
+searched raw, gzip, and Brotli artifacts is **three compiles**; none is claimed
+globally minimal unless its declared finite domain was exhausted
+([objectives](../compilation/objectives.md)).
+
+`cost_model` also changes **canonical emission**, not only ranking:
+`js_options()` turns off string-array packing and identifier-string pooling
+under Brotli, prefers `function` spelling, and disables local-phi / phi-edge
+recovery. Search can reverse some of those priors and cannot reverse others
+([registry](../compilation/decision-registry.md#codec-conditioned-incumbents)).
+There is no implemented “do not inline on raw, inline on Brotli” switch;
+inline **budgets** follow `priority`, and no-inline IR clones follow
+`ir-inlining-variants`.
 
 `[bundle.cost]` can weight brotli higher than gzip for multi-file deploys independently of `javascript.cost_model`.
 

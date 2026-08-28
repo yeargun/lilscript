@@ -94,11 +94,13 @@ fn new_symbol(description: Option<String>) -> Rc<SymbolValue> {
     Rc::new(SymbolValue { description })
 }
 
+type BindingCell = Rc<RefCell<Value>>;
+
 #[derive(Debug, Clone)]
 struct RuntimeClosure<'ast, 'src> {
     params: &'ast [Param<'ast, 'src>],
     body: ArrowBody<'ast, 'src>,
-    captures: AHashMap<SymbolId, Value>,
+    captures: AHashMap<SymbolId, BindingCell>,
     return_type: Type<'src>,
 }
 
@@ -199,7 +201,7 @@ struct ReferenceInterpreter<'program, 'ast, 'src> {
     semantics: &'program SemanticModel<'src>,
     functions: AHashMap<SymbolId, &'program FunctionDecl<'ast, 'src>>,
     globals: AHashMap<SymbolId, Value>,
-    frames: Vec<AHashMap<SymbolId, Value>>,
+    frames: Vec<AHashMap<SymbolId, BindingCell>>,
     closures: Vec<RuntimeClosure<'ast, 'src>>,
     output: String,
     remaining_steps: u64,
@@ -591,6 +593,22 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                 }
                 Ok(Value::Record(Rc::new(RefCell::new(values))))
             }
+            Expr::ObjectLiteral { entries, .. } => {
+                let mut values = IndexMap::new();
+                for element in *entries {
+                    let RecordElement::Entry(entry) = element else {
+                        return Err(InterpretError::new(
+                            element.span(),
+                            "ordinary object spread is not supported yet",
+                        ));
+                    };
+                    values.insert(
+                        decode_source_string(entry.key.name),
+                        self.evaluate(&entry.value)?,
+                    );
+                }
+                Ok(Value::Record(Rc::new(RefCell::new(values))))
+            }
             Expr::New {
                 class, args, span, ..
             } => self.evaluate_new(class.name, args, *span),
@@ -759,17 +777,37 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                     )),
                 }
             }
+            Expr::If {
+                condition,
+                then_value,
+                else_value,
+                ..
+            } => {
+                if self.evaluate_bool(condition)? {
+                    self.evaluate(then_value)
+                } else {
+                    self.evaluate(else_value)
+                }
+            }
             Expr::Match { value, arms, span } => {
-                let Value::Int(discriminant) = self.evaluate(value)? else {
-                    return Err(InterpretError::new(*span, "match value is not an enum"));
-                };
+                let scrutinee = self.evaluate(value)?;
                 for arm in *arms {
                     let selected = match arm.pattern {
                         MatchPattern::Wildcard(_) => true,
-                        MatchPattern::EnumVariant { span, .. } => self
-                            .semantics
-                            .enum_variant_value(span)
-                            .is_some_and(|value| value == i64::from(discriminant)),
+                        MatchPattern::EnumVariant { span, .. } => {
+                            matches!(&scrutinee, Value::Int(discriminant)
+                                if self.semantics.enum_variant_value(span)
+                                    .is_some_and(|value| value == i64::from(*discriminant)))
+                        }
+                        MatchPattern::Int(value, _) => {
+                            matches!(&scrutinee, Value::Int(actual) if i64::from(*actual) == value)
+                        }
+                        MatchPattern::String(value, _) => {
+                            matches!(&scrutinee, Value::String(actual) if actual == value)
+                        }
+                        MatchPattern::Bool(value, _) => {
+                            matches!(&scrutinee, Value::Bool(actual) if *actual == value)
+                        }
                     };
                     if selected {
                         return self.evaluate(&arm.value);
@@ -1143,7 +1181,10 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                 .semantics
                 .binding_type(parameter.name.span)
                 .ok_or_else(|| InterpretError::new(parameter.span, "parameter has no type"))?;
-            frame.insert(symbol, coerce_value_to_type(value, ty));
+            frame.insert(
+                symbol,
+                Rc::new(RefCell::new(coerce_value_to_type(value, ty))),
+            );
         }
         let return_type = match self.semantics.binding_type(function.name.span) {
             Some(Type::Function(signature)) => signature.return_type.as_ref().clone(),
@@ -1191,7 +1232,10 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                 .semantics
                 .binding_type(parameter.name.span)
                 .ok_or_else(|| InterpretError::new(parameter.span, "parameter has no type"))?;
-            frame.insert(symbol, coerce_value_to_type(value, ty));
+            frame.insert(
+                symbol,
+                Rc::new(RefCell::new(coerce_value_to_type(value, ty))),
+            );
         }
         let result = match body {
             ArrowBody::Expr(expression) => {
@@ -1204,7 +1248,7 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
 
     fn execute_callable_frame(
         &mut self,
-        frame: AHashMap<SymbolId, Value>,
+        frame: AHashMap<SymbolId, BindingCell>,
         body: &'ast [Stmt<'ast, 'src>],
         expression: Option<&'ast Expr<'ast, 'src>>,
         span: Span,
@@ -1932,17 +1976,23 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
 
     fn declare(&mut self, symbol: SymbolId, value: Value) {
         if let Some(frame) = self.frames.last_mut() {
-            frame.insert(symbol, value);
+            frame.insert(symbol, Rc::new(RefCell::new(value)));
         } else {
             self.globals.insert(symbol, value);
         }
     }
 
     fn read(&self, symbol: SymbolId, span: Span) -> Result<Value, InterpretError> {
-        self.frames
+        if let Some(value) = self
+            .frames
             .last()
             .and_then(|frame| frame.get(&symbol))
-            .or_else(|| self.globals.get(&symbol))
+            .map(|cell| cell.borrow().clone())
+        {
+            return Ok(value);
+        }
+        self.globals
+            .get(&symbol)
             .cloned()
             .ok_or_else(|| InterpretError::new(span, "read from an uninitialized binding"))
     }
@@ -1956,9 +2006,9 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
         let value = ty
             .as_ref()
             .map_or(value.clone(), |ty| coerce_value_to_type(value, ty));
-        if let Some(frame) = self.frames.last_mut() {
-            if let Some(target) = frame.get_mut(&symbol) {
-                *target = value;
+        if let Some(frame) = self.frames.last() {
+            if let Some(target) = frame.get(&symbol) {
+                *target.borrow_mut() = value;
                 return Ok(());
             }
         }
@@ -2708,6 +2758,22 @@ mod tests {
     }
 
     #[test]
+    fn evaluates_captured_parameter_rebind() {
+        assert_eq!(
+            run(concat!(
+                "int snapshotHrefThenCapturedRebind(Record<int> node, int next) {",
+                "  int saved = node.href ?? 0;",
+                "  func()->void rebind = () => { node = record{href: next, title: 0}; };",
+                "  rebind();",
+                "  return saved + (node.href ?? 0);",
+                "}",
+                "print(snapshotHrefThenCapturedRebind(record{href: 42, title: 43}, 47));",
+            )),
+            "89\n"
+        );
+    }
+
+    #[test]
     fn evaluates_object_and_json_with_javascript_key_order() {
         assert_eq!(
             run(
@@ -2926,6 +2992,22 @@ mod tests {
                 print(calls);
             "#),
             "null\nnull\n0\n1\n7\n1\n"
+        );
+    }
+
+    #[test]
+    fn evaluates_expression_if_lazily() {
+        assert_eq!(
+            run("int calls=0;int choose(bool flag){return if(flag){++calls}else{calls+=10};}print(choose(true));print(choose(false));print(calls);"),
+            "1\n11\n11\n"
+        );
+    }
+
+    #[test]
+    fn evaluates_scalar_literal_matches_lazily() {
+        assert_eq!(
+            run("int calls=0;string label(int value){return match(value){-1=>\"negative\",0=>\"zero\",_=>if(++calls==1){\"positive\"}else{\"again\"}};}print(label(-1));print(label(0));print(label(2));print(calls);"),
+            "negative\nzero\npositive\n1\n"
         );
     }
 

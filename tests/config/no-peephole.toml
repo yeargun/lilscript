@@ -3,6 +3,7 @@ preset = "maximum"
 
 [javascript]
 priority = "size-first"
+strip_console = false
 optimization_level = 15
 optimizations = [
   "ir-inlining-variants",

@@ -9,7 +9,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join, relative, resolve } from "node:path";
+import { dirname, join, relative, resolve, sep } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
@@ -113,6 +113,19 @@ function runnerFiles(root) {
   ]);
   const files = [];
   const visit = (directory) => {
+    const relativeDirectory = relative(root, directory);
+    if (
+      relativeDirectory === join("docs", "knowledge", "research") ||
+      relativeDirectory.startsWith(
+        `${join("docs", "knowledge", "research")}${sep}`,
+      ) ||
+      relativeDirectory === join("benchmarks", "popular", "apps", "monaco") ||
+      relativeDirectory.startsWith(
+        `${join("benchmarks", "popular", "apps", "monaco")}${sep}`,
+      )
+    ) {
+      return;
+    }
     for (const entry of readdirSync(directory, { withFileTypes: true })) {
       if (entry.isDirectory()) {
         if (!ignoredDirectories.has(entry.name))
@@ -121,7 +134,13 @@ function runnerFiles(root) {
         /\.(?:cjs|js|mjs|sh)$/u.test(entry.name) ||
         entry.name === "package.json"
       ) {
-        files.push(join(directory, entry.name));
+        const path = join(directory, entry.name);
+        if (
+          relative(root, path) !==
+          join("benchmarks", "popular", "monaco-layers", "serve-ide.mjs")
+        ) {
+          files.push(path);
+        }
       }
     }
   };

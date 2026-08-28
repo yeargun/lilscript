@@ -587,7 +587,7 @@ fn collect_expr_dynamic_imports<'ast, 'src>(
                 collect_expr_dynamic_imports(element.value(), imports);
             }
         }
-        Expr::RecordLiteral { entries, .. } => {
+        Expr::RecordLiteral { entries, .. } | Expr::ObjectLiteral { entries, .. } => {
             for entry in *entries {
                 collect_expr_dynamic_imports(entry.value(), imports);
             }
@@ -647,6 +647,16 @@ fn collect_expr_dynamic_imports<'ast, 'src>(
             for arm in *arms {
                 collect_expr_dynamic_imports(&arm.value, imports);
             }
+        }
+        Expr::If {
+            condition,
+            then_value,
+            else_value,
+            ..
+        } => {
+            collect_expr_dynamic_imports(condition, imports);
+            collect_expr_dynamic_imports(then_value, imports);
+            collect_expr_dynamic_imports(else_value, imports);
         }
         Expr::Int(..)
         | Expr::Float(..)
@@ -1032,6 +1042,7 @@ pub fn link_modules<'arena>(
                     export.exported.span.end + offset,
                 ),
             },
+            kind: export.kind,
             span: Span::new(export.span.start + offset, export.span.end + offset),
         });
     }
@@ -1760,6 +1771,26 @@ impl<'arena, 'map> ModuleCloner<'arena, 'map> {
                     span: self.span(*span),
                 }
             }
+            Expr::ObjectLiteral { entries, span } => {
+                let mut cloned = BumpVec::new_in(self.arena);
+                for entry in *entries {
+                    cloned.push(match entry {
+                        RecordElement::Entry(entry) => RecordElement::Entry(RecordEntry {
+                            key: self.plain_ident(entry.key),
+                            value: self.clone_expr(&entry.value),
+                            span: self.span(entry.span),
+                        }),
+                        RecordElement::Spread { value, span } => RecordElement::Spread {
+                            value: self.clone_expr(value),
+                            span: self.span(*span),
+                        },
+                    });
+                }
+                Expr::ObjectLiteral {
+                    entries: cloned.into_bump_slice(),
+                    span: self.span(*span),
+                }
+            }
             Expr::StructLiteral { name, values, span } => Expr::StructLiteral {
                 name: self.global_ident(*name),
                 values: self.clone_exprs(values),
@@ -1861,6 +1892,17 @@ impl<'arena, 'map> ModuleCloner<'arena, 'map> {
                 index: self.arena.alloc(self.clone_expr(index)),
                 span: self.span(*span),
             },
+            Expr::If {
+                condition,
+                then_value,
+                else_value,
+                span,
+            } => Expr::If {
+                condition: self.arena.alloc(self.clone_expr(condition)),
+                then_value: self.arena.alloc(self.clone_expr(then_value)),
+                else_value: self.arena.alloc(self.clone_expr(else_value)),
+                span: self.span(*span),
+            },
             Expr::Match { value, arms, span } => {
                 let mut cloned = BumpVec::new_in(self.arena);
                 for arm in *arms {
@@ -1874,6 +1916,13 @@ impl<'arena, 'map> ModuleCloner<'arena, 'map> {
                             variant: self.plain_ident(variant),
                             span: self.span(span),
                         },
+                        MatchPattern::Int(value, span) => MatchPattern::Int(value, self.span(span)),
+                        MatchPattern::String(value, span) => {
+                            MatchPattern::String(value, self.span(span))
+                        }
+                        MatchPattern::Bool(value, span) => {
+                            MatchPattern::Bool(value, self.span(span))
+                        }
                         MatchPattern::Wildcard(span) => MatchPattern::Wildcard(self.span(span)),
                     };
                     cloned.push(MatchArm {

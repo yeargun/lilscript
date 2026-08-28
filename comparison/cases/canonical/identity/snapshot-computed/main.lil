@@ -1,0 +1,4 @@
+Record<int> node = record{href: 42, title: 43};
+int saved = node["href"] ?? 0;
+node.href = 33;
+print(saved + (node.href ?? 0));

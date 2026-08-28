@@ -895,6 +895,30 @@ impl<'src> JsEmitter<'src> {
                 }
                 out.push('}');
             }
+            Expr::ObjectLiteral { entries, .. } => {
+                out.push('{');
+                for (index, element) in entries.iter().enumerate() {
+                    if index != 0 {
+                        out.push(',');
+                    }
+                    let RecordElement::Entry(entry) = element else {
+                        return Err(CodegenError::new(
+                            element.span(),
+                            "ordinary object spread is not supported yet",
+                        ));
+                    };
+                    if decoded_source_string(entry.key.name) == "__proto__" {
+                        out.push('[');
+                        write_string_literal(entry.key.name, out);
+                        out.push(']');
+                    } else {
+                        write_string_literal(entry.key.name, out);
+                    }
+                    out.push(':');
+                    self.emit_expr(&entry.value, out)?;
+                }
+                out.push('}');
+            }
             Expr::StructLiteral { name, values, span } => {
                 if self.options.dissolve_structs {
                     self.emit_struct_literal(name, values, *span, out)?;
@@ -1037,30 +1061,58 @@ impl<'src> JsEmitter<'src> {
                 self.emit_expr(index, out)?;
                 out.push_str("]??null)");
             }
+            Expr::If {
+                condition,
+                then_value,
+                else_value,
+                ..
+            } => {
+                out.push('(');
+                self.emit_expr(condition, out)?;
+                out.push('?');
+                self.emit_expr(then_value, out)?;
+                out.push(':');
+                self.emit_expr(else_value, out)?;
+                out.push(')');
+            }
             Expr::Match { value, arms, span } => {
                 if arms.is_empty() {
                     return Err(CodegenError::new(*span, "match expression has no arms"));
                 }
                 out.push_str("(($lilmatch)=>");
                 for arm in &arms[..arms.len() - 1] {
-                    let MatchPattern::EnumVariant {
-                        enum_name,
-                        variant,
-                        span,
-                    } = arm.pattern
-                    else {
-                        return Err(CodegenError::new(
-                            arm.pattern.span(),
-                            "wildcard match arm must be last",
-                        ));
-                    };
-                    let value = self
-                        .enums
-                        .get(enum_name.name)
-                        .and_then(|variants| variants.get(variant.name))
-                        .copied()
-                        .ok_or_else(|| CodegenError::new(span, "unknown enum match pattern"))?;
-                    write!(out, "$lilmatch==={value}?").expect("writing to String cannot fail");
+                    out.push_str("$lilmatch===");
+                    match arm.pattern {
+                        MatchPattern::EnumVariant {
+                            enum_name,
+                            variant,
+                            span,
+                        } => {
+                            let value = self
+                                .enums
+                                .get(enum_name.name)
+                                .and_then(|variants| variants.get(variant.name))
+                                .copied()
+                                .ok_or_else(|| {
+                                    CodegenError::new(span, "unknown enum match pattern")
+                                })?;
+                            write!(out, "{value}").expect("writing to String cannot fail");
+                        }
+                        MatchPattern::Int(value, _) => {
+                            write!(out, "{value}").expect("writing to String cannot fail");
+                        }
+                        MatchPattern::String(value, _) => write_string_literal(value, out),
+                        MatchPattern::Bool(value, _) => {
+                            out.push_str(if value { "true" } else { "false" });
+                        }
+                        MatchPattern::Wildcard(_) => {
+                            return Err(CodegenError::new(
+                                arm.pattern.span(),
+                                "wildcard match arm must be last",
+                            ));
+                        }
+                    }
+                    out.push('?');
                     self.emit_expr(&arm.value, out)?;
                     out.push(':');
                 }

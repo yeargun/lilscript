@@ -529,7 +529,12 @@ fn fold_return_only_iife(
             continue;
         }
         let Some((body, body_from, body_to)) =
-            arrow_iife_body_span(source, &tokens, &matching_close, &function)
+            arrow_iife_body_span(source, &tokens, &matching_close, &function).or_else(|| {
+                if !iife_result_is_unused(&tokens, cursor, call_close) {
+                    return None;
+                }
+                effect_only_iife_body_span(source, &tokens, &matching_close, &function)
+            })
         else {
             cursor += 1;
             continue;
@@ -759,6 +764,78 @@ fn simple_primary<'src>(
     None
 }
 
+fn iife_result_is_unused(tokens: &[Token<'_>], start: usize, call_close: usize) -> bool {
+    let previous = start
+        .checked_sub(1)
+        .and_then(|index| tokens.get(index))
+        .map(|token| token.text);
+    if !matches!(previous, None | Some(";") | Some("{") | Some("}")) {
+        return false;
+    }
+    matches!(
+        tokens.get(call_close + 1).map(|token| token.text),
+        None | Some(";") | Some("}") | Some(",")
+    )
+}
+
+fn effect_only_iife_body_span<'src>(
+    source: &'src str,
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    function: &crate::js_peephole::scope::FunctionExpression,
+) -> Option<(&'src str, usize, usize)> {
+    let block_open = function.block_open?;
+    let close = matching_close.get(block_open).copied().flatten()?;
+    let stmt_from = block_open + 1;
+    if stmt_from >= close {
+        return None;
+    }
+    if matches!(
+        tokens[stmt_from].text,
+        "var"
+            | "let"
+            | "const"
+            | "function"
+            | "class"
+            | "return"
+            | "if"
+            | "for"
+            | "while"
+            | "do"
+            | "switch"
+            | "try"
+            | "with"
+            | "throw"
+            | "break"
+            | "continue"
+            | "debugger"
+    ) {
+        return None;
+    }
+    let stmt_end = next_statement_end(tokens, stmt_from);
+    let consumed = if tokens.get(stmt_end).map(|token| token.text) == Some(";") {
+        stmt_end + 1
+    } else {
+        stmt_end
+    };
+    if consumed != close {
+        return None;
+    }
+    let expr_to = if tokens.get(stmt_end).map(|token| token.text) == Some(";") {
+        stmt_end
+    } else {
+        close
+    };
+    if stmt_from >= expr_to {
+        return None;
+    }
+    Some((
+        &source[tokens[stmt_from].start..tokens[expr_to - 1].end],
+        stmt_from,
+        expr_to,
+    ))
+}
+
 fn arrow_iife_body_span<'src>(
     source: &'src str,
     tokens: &[Token<'_>],
@@ -886,7 +963,7 @@ fn substitute_idents(
         else {
             continue;
         };
-        if tokens.get(index.wrapping_sub(1)).map(|token| token.text) == Some(".") {
+        if is_property_identifier(tokens, index) {
             continue;
         }
         let local = tokens[index].start - body_start;

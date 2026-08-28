@@ -43,7 +43,9 @@ or expectations where a shared source mistake could bless both baseline and orac
   bags added merely to make JavaScript lose.
 - Both sources may use their language’s natural representation. LilScript is allowed
   to win because a fixed shape is a `struct`; JS is allowed to use the clearest
-  ordinary fixed-shape representation.
+  ordinary fixed-shape representation. A `.lil` that is a `JsValue` transliteration
+  of the JS side is not that pair — it is glue-TS and is classified before size
+  ([compressor surface](../language/compressor-surface.md)).
 - Baseline options are fixed by lane, never tuned per losing case unless the tuning is
   available symmetrically to all cases and recorded.
 

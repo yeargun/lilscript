@@ -10,7 +10,15 @@ under the selected `raw`, `gzip`, or `brotli` cost model;
 performance model. Native/`exec` output is a real second backend of the same typed IR.
 It is not the current size race.
 
-Return to the [tree](README.md). Children: [language](language/README.md), [compilation](compilation/README.md), [config](config/README.md).
+Return to the [tree](README.md). Children: [language](language/README.md),
+[compilation](compilation/README.md), [config](config/README.md).
+Implemented vs intended decision system:
+[current architecture](compilation/current-architecture.md),
+[goal architecture](compilation/goal-architecture.md),
+[objectives](compilation/objectives.md) (size/performance × raw/gzip/Brotli),
+[decision registry](compilation/decision-registry.md).
+How to write so those objectives can win:
+[compressor surface](language/compressor-surface.md).
 
 ## What “better than a JS bundler” means
 
@@ -21,7 +29,10 @@ A JS bundler (Vite, esbuild, Terser, Closure `ADVANCED`) starts from JavaScript 
 - treat a host call as a typed ABI rather than an untyped property access;
 - score two **semantically equal** whole programs under Brotli-11 and keep the one that transfers fewer bytes.
 
-LilScript is designed so those proofs exist **before** JavaScript is spelled. The compiler then treats spelling, layout, inlining, and chunking as a search over complete artifacts. See [global optima](compilation/global-optima.md).
+LilScript is designed so those proofs exist **before** JavaScript is spelled.
+The current compiler searches a bounded subset of spelling, layout, inlining,
+and chunking choices; the goal architecture makes that domain explicit and
+auditable. See [global optima](compilation/global-optima.md).
 
 The checked-in evidence does not establish that every program beats hand-specialized
 JS or Closure. That is not permission to accept a maintained paired loss: for every
@@ -52,6 +63,16 @@ LilScript types **are** the compilation model:
   `JsValue` boundary;
 - escape, effects, and purity are first-class analyses;
 - internal aggregates can disappear; boundary aggregates keep a named or positional ABI by **config**, not by accident.
+
+The target optimization architecture has a semantic firewall. The compiler
+first freezes language semantics, application/library ABI, explicit source
+lowering obligations, and unsafe host assumptions. Only then may
+raw/gzip/Brotli and the selected priority choose among legal internal
+representations. Under the planned v0.2 contract, a live source-written
+`x | 0` remains a JavaScript `|0`; a compiler-generated redundant i32
+normalization may disappear. Reusable-library output preserves a public ABI
+manifest while private code remains fully closed-world and mangleable. This
+firewall is migration work, not a claim about the current v0.1 pipeline.
 
 The belief is that this can yield better compile-time safety, sometimes better runtime shape, and in some cases smaller bundles — because the optimizer is not reverse-engineering glue. Details: [types are not glue](language/types-not-glue.md).
 

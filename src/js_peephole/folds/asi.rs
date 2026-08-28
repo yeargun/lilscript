@@ -61,9 +61,9 @@ pub(crate) fn elide_asi_safe_semicolons(
         }
         if next_significant_after_elision(&tokens, &elide, index + 1)
             .is_none_or(|next| tokens[next].text == "}")
-            && !index.checked_sub(1).is_some_and(|previous| {
-                matches!(tokens[previous].text, ":" | "." | "?.")
-            })
+            && !index
+                .checked_sub(1)
+                .is_some_and(|previous| matches!(tokens[previous].text, ":" | "." | "?."))
         {
             elide[index] = true;
             continue;

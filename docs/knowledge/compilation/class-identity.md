@@ -4,7 +4,8 @@ Parent: [Compilation](README.md). Instance layouts:
 [aggregate lowering](aggregate-lowering.md). Search:
 [candidate search](candidate-search.md). ABI:
 [JavaScript shape](../config/javascript-shape-abi.md). Language:
-[packages / exports](../language/packages-exports-abi.md).
+[packages / exports](../language/packages-exports-abi.md),
+[compressor surface](../language/compressor-surface.md).
 
 LilScript `class` is a nominal typed aggregate. The production IR backend
 (`src/codegen_ir_js.rs`) therefore dissolves it: LocalOnly scalars, positional
@@ -13,11 +14,30 @@ is the compression win on jQuery internals, Motion cells, Monaco handles, and
 the canonical `aggregates/class-*` cases. It is also why a published ES
 constructor cannot be that lowering.
 
+**Shipped vs planned (2026-08-28).** Dissolved instances are the configured
+incumbent and are **not** competed against ES `class` for identity-free types.
+When `AggregateLayout.identity_observed` is set, IR emit
+(`src/codegen_ir_js.rs`) produces a named `class` plus `new Name(…)`, and skips
+`$init` / `$method` free functions. `export constructor C [as PublicC];` sets
+that mark and retains the constructor and public methods. Peephole fusion of prototype
+tables remains for port `defineProperty` tables. Joint array-vs-object search
+is a separate flag, omitted from root `lilscript.toml`, admitted by size-first
+library configs. See
+[decision registry](decision-registry.md#aggregates-class-struct-object-record).
+
 `export class` stays **type-only**. It creates no JS constructor binding
 (`ExportBinding::TypeOnly` in `src/lower.rs`). Do not change that default.
 Monaco, Motion, Zod, and Redux export classes as instance types. Emitting
 `class TextPos { … }` for those would reintroduce `constructor` / `prototype`
 tokens the ports deleted on purpose.
+
+The explicit constructor-value form requires a non-`object`, non-extern class.
+A zero-arity constructor is synthesized only for a published base class that
+omits `init`. Internal base chains are preserved and emitted base-first with
+`extends` and `super`; a published derived class must state `init` and
+`super(...)` explicitly. LilScript default field values emit as ES2022 public
+class fields so initialization occurs before base constructor code and after
+`super` for derived instances; lower syntax targets fail closed.
 
 ## Three representations
 
@@ -29,7 +49,7 @@ instance backing. ES class is constructor identity plus a method table on
 |---|---|---|---|
 | Dissolved / positional / named object | Constructor identity is unobserved | **Configured incumbent** | Almost always the Brotli/gzip/raw win |
 | Function + `defineProperty` table | Constructor identity is observed | Port workaround only | Legal, large, fusion-fragile |
-| Named ES `class` | Constructor identity is observed | Off until proof + score | The compact legal spelling |
+| Named ES `class` | Constructor identity is observed | IR emit when `identity_observed`; otherwise peephole fusion of tables | The compact legal spelling |
 
 Identity observations (any one forces the constructor to stay a JS constructor):
 

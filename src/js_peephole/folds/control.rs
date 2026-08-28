@@ -1,7 +1,7 @@
 use crate::js_peephole::rewrite::{
     apply_token_rewrites, conditional_test_needs_grouping, expression_has_top_level_token,
-    identifier_occurs, is_property_identifier, non_overlapping_ranges, single_console_log_argument,
-    top_level_stop, wrap_substituted_expression,
+    identifier_occurs, non_overlapping_ranges, single_console_log_argument, top_level_stop,
+    wrap_substituted_expression,
 };
 use crate::js_peephole::scope::{
     collect_same_scope_name_uses, enclosing_block_start, enclosing_function_span,
@@ -2167,7 +2167,13 @@ fn single_expression_statement(tokens: &[Token<'_>], start: usize, end: usize) -
 /// with member reads or calls can be invalidated through aliases (e.g.
 /// `m=t.length` before a `t.splice(...)`), so any reappearance of its
 /// identifiers or any call in the gap forfeits the fold.
-fn rhs_holds_between(tokens: &[Token<'_>], rhs_from: usize, stop: usize, use_at: usize) -> bool {
+fn rhs_holds_between(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    rhs_from: usize,
+    stop: usize,
+    use_at: usize,
+) -> bool {
     let impure = tokens[rhs_from..stop]
         .iter()
         .any(|token| matches!(token.text, "." | "[" | "("));
@@ -2175,30 +2181,15 @@ fn rhs_holds_between(tokens: &[Token<'_>], rhs_from: usize, stop: usize, use_at:
         if impure && tokens[gap].text == "(" {
             return false;
         }
-        if tokens[gap].kind != TokenKind::Identifier || is_property_identifier(tokens, gap) {
-            continue;
-        }
-        let named_in_rhs = tokens[rhs_from..stop]
-            .iter()
-            .any(|token| token.kind == TokenKind::Identifier && token.text == tokens[gap].text);
-        if !named_in_rhs {
-            continue;
-        }
-        if impure {
-            return false;
-        }
-        let next = tokens.get(gap + 1).map(|token| token.text);
-        let prev = gap.checked_sub(1).map(|index| tokens[index].text);
-        if next.is_some_and(|text| {
-            matches!(text, "++" | "--")
-                || text.ends_with('=')
-                    && !matches!(text, "==" | "===" | "!=" | "!==" | "<=" | ">=" | "=>")
-        }) || matches!(prev, Some("++") | Some("--"))
-        {
-            return false;
-        }
     }
-    true
+    !crate::js_peephole::liveness::source_receiver_overwritten_between(
+        tokens,
+        matching_close,
+        rhs_from,
+        stop,
+        stop + 1,
+        use_at,
+    )
 }
 
 fn assign_is_statement_level(tokens: &[Token<'_>], body_open: usize, name_at: usize) -> bool {
@@ -2299,7 +2290,7 @@ pub(crate) fn fold_single_use_if_assigns(
             }
             let rhs = &source[tokens[rhs_from].start..tokens[stop].start];
             let use_at = uses[0];
-            if !rhs_holds_between(&tokens, rhs_from, stop, use_at) {
+            if !rhs_holds_between(&tokens, &matching_close, rhs_from, stop, use_at) {
                 continue;
             }
             let assign_from = if matches!(tokens[after_rhs].text, "var" | "let") {

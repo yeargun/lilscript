@@ -1,6 +1,9 @@
 [optimization]
 preset = "none"
 
+[javascript]
+strip_console = false
+
 [mangle]
 identifiers = false
 properties = false

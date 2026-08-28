@@ -1,15 +1,17 @@
+use crate::js_peephole::binding::{BindingResolution, Resolution};
 use crate::js_peephole::rewrite::{
     apply_token_rewrites, assign_is_in_declaration, expression_has_top_level_token,
     identifier_occurs, is_property_identifier, is_statement_boundary, paren_depth_at,
     parse_bare_assign, rewrite_identifier_span, top_level_stop,
 };
 use crate::js_peephole::scope::{
-    enclosing_block_start, name_is_arguments_length_copy, name_is_declared_in_any_enclosing_scope,
-    name_is_declared_in_visible_scope, name_is_nonnegative_length_copy,
-    skip_nested_loop_or_function,
+    enclosing_block_start, enclosing_function_span, name_is_arguments_length_copy,
+    name_is_declared_in_any_enclosing_scope, name_is_declared_in_visible_scope,
+    name_is_nonnegative_length_copy, skip_nested_loop_or_function,
 };
 use crate::js_peephole::token::{lex, matching_closers, matching_openers, Token, TokenKind};
 use crate::js_peephole::JavaScriptParseError;
+use std::collections::HashSet;
 
 pub(crate) fn fold_index_postfix_updates(
     source: &str,
@@ -766,15 +768,11 @@ fn match_postfix_increment<'a>(
 ) -> Option<(usize, &'a str)> {
     let span = tokens.get(start..end)?;
     match span {
-        [name, plusplus]
-            if name.kind == TokenKind::Identifier && plusplus.text == "++" =>
-        {
+        [name, plusplus] if name.kind == TokenKind::Identifier && plusplus.text == "++" => {
             Some((start, name.text))
         }
         [name, plusplus, semi]
-            if name.kind == TokenKind::Identifier
-                && plusplus.text == "++"
-                && semi.text == ";" =>
+            if name.kind == TokenKind::Identifier && plusplus.text == "++" && semi.text == ";" =>
         {
             Some((start, name.text))
         }
@@ -976,50 +974,50 @@ pub(crate) fn fold_while_trailing_increments(
             continue;
         }
         let body_at = header_close + 1;
-        let (body_from, incr_at, name, replace_end) =
-            if tokens.get(body_at).map(|token| token.text) == Some("{") {
-                let Some(body_close) = matching_close.get(body_at).copied().flatten() else {
-                    continue;
-                };
-                let last = if tokens.get(body_close - 1).map(|token| token.text) == Some(";")
-                    && tokens.get(body_close - 2).map(|token| token.text) == Some("++")
-                {
-                    body_close - 3
-                } else if tokens.get(body_close - 1).map(|token| token.text) == Some("++") {
-                    body_close - 2
-                } else {
-                    continue;
-                };
-                if last <= body_at + 1
-                    || tokens
-                        .get(last)
-                        .is_none_or(|token| token.kind != TokenKind::Identifier)
-                    || !increment_can_lift(&tokens, last)
-                {
-                    continue;
-                }
-                (body_at + 1, last, tokens[last].text, tokens[body_close].end)
-            } else {
-                let stop = top_level_stop(&tokens, body_at, &[";", "}"]).unwrap_or(tokens.len());
-                if stop <= body_at {
-                    continue;
-                }
-                let last_comma = last_top_level_comma(&tokens, body_at, stop);
-                let incr_from = last_comma.map(|comma| comma + 1).unwrap_or(body_at);
-                let Some((incr_at, name)) = match_postfix_increment(&tokens, incr_from, stop)
-                else {
-                    continue;
-                };
-                if !increment_can_lift(&tokens, incr_at) {
-                    continue;
-                }
-                let replace_end = if stop < tokens.len() && tokens[stop].text == ";" {
-                    tokens[stop].end
-                } else {
-                    tokens[incr_at + 1].end
-                };
-                (body_at, incr_at, name, replace_end)
+        let (body_from, incr_at, name, replace_end) = if tokens.get(body_at).map(|token| token.text)
+            == Some("{")
+        {
+            let Some(body_close) = matching_close.get(body_at).copied().flatten() else {
+                continue;
             };
+            let last = if tokens.get(body_close - 1).map(|token| token.text) == Some(";")
+                && tokens.get(body_close - 2).map(|token| token.text) == Some("++")
+            {
+                body_close - 3
+            } else if tokens.get(body_close - 1).map(|token| token.text) == Some("++") {
+                body_close - 2
+            } else {
+                continue;
+            };
+            if last <= body_at + 1
+                || tokens
+                    .get(last)
+                    .is_none_or(|token| token.kind != TokenKind::Identifier)
+                || !increment_can_lift(&tokens, last)
+            {
+                continue;
+            }
+            (body_at + 1, last, tokens[last].text, tokens[body_close].end)
+        } else {
+            let stop = top_level_stop(&tokens, body_at, &[";", "}"]).unwrap_or(tokens.len());
+            if stop <= body_at {
+                continue;
+            }
+            let last_comma = last_top_level_comma(&tokens, body_at, stop);
+            let incr_from = last_comma.map(|comma| comma + 1).unwrap_or(body_at);
+            let Some((incr_at, name)) = match_postfix_increment(&tokens, incr_from, stop) else {
+                continue;
+            };
+            if !increment_can_lift(&tokens, incr_at) {
+                continue;
+            }
+            let replace_end = if stop < tokens.len() && tokens[stop].text == ";" {
+                tokens[stop].end
+            } else {
+                tokens[incr_at + 1].end
+            };
+            (body_at, incr_at, name, replace_end)
+        };
         if condition_updates_name(&tokens, while_at + 2, header_close, name)
             || body_has_same_level_continue(&tokens, &matching_close, body_from, incr_at)
         {
@@ -2251,7 +2249,169 @@ pub(crate) fn fold_prior_assign_into_for_init(
         cursor = header_close + 1;
     }
     let (output, count) = apply_token_rewrites(source, replacements);
-    Ok((output, count))
+    let (output, declared) = declare_undeclared_for_init_assigns(&output)?;
+    Ok((output, count + declared))
+}
+
+/// ident-05: a mixed `for` initializer (`f=[],f.push(...)`) is not a `var`
+/// declarator list. If those writes resolve to a module binding rather than a
+/// local or an enclosing-function capture, declare a fresh local before the
+/// loop so the write cannot clobber the outer function.
+fn declare_undeclared_for_init_assigns(
+    source: &str,
+) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let matching_close = matching_closers(&tokens);
+    let resolution = BindingResolution::new(&tokens);
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+    let mut declared = HashSet::<(usize, &str)>::new();
+    for for_at in 0..tokens.len() {
+        let Some((_, first_semi, _)) = for_header_semicolons(&tokens, &matching_close, for_at)
+        else {
+            continue;
+        };
+        let init_from = for_at + 2;
+        if first_semi <= init_from {
+            continue;
+        }
+        let targets = for_init_assign_targets(&tokens, init_from, first_semi);
+        if targets.is_empty() {
+            continue;
+        }
+        let Some(needed) = names_needing_function_local_var(&tokens, &resolution, &targets) else {
+            continue;
+        };
+        let scope = resolution.scope_index_at(for_at);
+        let mut names = Vec::new();
+        for name in needed {
+            if declared.insert((scope, name)) {
+                names.push(name);
+            }
+        }
+        if names.is_empty() {
+            continue;
+        }
+        let keyword = if var_declaration_would_land_at_module(&tokens, &matching_close, for_at) {
+            "let"
+        } else {
+            "var"
+        };
+        replacements.push((
+            tokens[for_at].start,
+            tokens[for_at].start,
+            format!("{keyword} {};", names.join(",")),
+        ));
+    }
+    Ok(apply_token_rewrites(source, replacements))
+}
+
+fn for_init_assign_targets(
+    tokens: &[Token<'_>],
+    init_from: usize,
+    first_semi: usize,
+) -> Vec<usize> {
+    if matches!(
+        tokens.get(init_from).map(|token| token.text),
+        Some("var") | Some("let") | Some("const")
+    ) {
+        return Vec::new();
+    }
+    let mut targets = Vec::new();
+    let mut depth = 0i32;
+    let mut at_part_start = true;
+    for index in init_from..first_semi {
+        match tokens[index].text {
+            "(" | "[" | "{" => {
+                depth += 1;
+                at_part_start = false;
+            }
+            ")" | "]" | "}" => {
+                depth -= 1;
+                at_part_start = false;
+            }
+            "," if depth == 0 => at_part_start = true,
+            _ => {
+                if at_part_start
+                    && depth == 0
+                    && tokens[index].kind == TokenKind::Identifier
+                    && tokens.get(index + 1).map(|token| token.text) == Some("=")
+                    && tokens.get(index + 2).map(|token| token.text) != Some("=")
+                {
+                    targets.push(index);
+                }
+                at_part_start = false;
+            }
+        }
+    }
+    targets
+}
+
+fn names_needing_function_local_var<'src>(
+    tokens: &[Token<'src>],
+    resolution: &BindingResolution<'src>,
+    targets: &[usize],
+) -> Option<Vec<&'src str>> {
+    let mut needed = Vec::new();
+    for &at in targets {
+        match resolution.resolve(at) {
+            Resolution::Unresolved => return None,
+            Resolution::Free => {
+                if !needed.contains(&tokens[at].text) {
+                    needed.push(tokens[at].text);
+                }
+            }
+            Resolution::Bound(declaration) => {
+                let assign_scope = resolution.scope_index_at(at);
+                let decl_scope = resolution.scope_index_at(declaration);
+                if assign_scope == decl_scope {
+                    continue;
+                }
+                if declaration_is_enclosing_function_capture(resolution, assign_scope, decl_scope) {
+                    continue;
+                }
+                if !needed.contains(&tokens[at].text) {
+                    needed.push(tokens[at].text);
+                }
+            }
+        }
+    }
+    Some(needed)
+}
+
+fn declaration_is_enclosing_function_capture(
+    resolution: &BindingResolution<'_>,
+    assign_scope: usize,
+    decl_scope: usize,
+) -> bool {
+    if decl_scope == 0 {
+        return false;
+    }
+    let mut parent = resolution.parent_scope(assign_scope);
+    while let Some(scope) = parent {
+        if scope == decl_scope {
+            return true;
+        }
+        parent = resolution.parent_scope(scope);
+    }
+    false
+}
+
+fn var_declaration_would_land_at_module(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    at: usize,
+) -> bool {
+    let mut cursor = enclosing_function_span(tokens, matching_close, at);
+    while let Some((body, _)) = cursor {
+        let is_arrow = body
+            .checked_sub(1)
+            .is_some_and(|before| tokens[before].text == "=>");
+        if !is_arrow {
+            return false;
+        }
+        cursor = enclosing_function_span(tokens, matching_close, body);
+    }
+    true
 }
 
 fn for_init_var_prefix<'a>(

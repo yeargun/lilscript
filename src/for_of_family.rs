@@ -613,6 +613,26 @@ fn shift_expr<'arena, 'src>(
                 span: shift_span(*span, delta),
             }
         }
+        Expr::ObjectLiteral { entries, span } => {
+            let mut out = BumpVec::new_in(arena);
+            for entry in *entries {
+                out.push(match entry {
+                    RecordElement::Entry(entry) => RecordElement::Entry(RecordEntry {
+                        key: shift_ident(entry.key, delta),
+                        value: shift_expr(arena, &entry.value, delta),
+                        span: shift_span(entry.span, delta),
+                    }),
+                    RecordElement::Spread { value, span } => RecordElement::Spread {
+                        value: shift_expr(arena, value, delta),
+                        span: shift_span(*span, delta),
+                    },
+                });
+            }
+            Expr::ObjectLiteral {
+                entries: out.into_bump_slice(),
+                span: shift_span(*span, delta),
+            }
+        }
         Expr::StructLiteral { name, values, span } => Expr::StructLiteral {
             name: shift_ident(*name, delta),
             values: shift_exprs(arena, values, delta),
@@ -722,13 +742,47 @@ fn shift_expr<'arena, 'src>(
             index: arena.alloc(shift_expr(arena, index, delta)),
             span: shift_span(*span, delta),
         },
+        Expr::If {
+            condition,
+            then_value,
+            else_value,
+            span,
+        } => Expr::If {
+            condition: arena.alloc(shift_expr(arena, condition, delta)),
+            then_value: arena.alloc(shift_expr(arena, then_value, delta)),
+            else_value: arena.alloc(shift_expr(arena, else_value, delta)),
+            span: shift_span(*span, delta),
+        },
         Expr::Match { value, arms, span } => {
             let mut out = BumpVec::new_in(arena);
             for arm in *arms {
+                let pattern = match arm.pattern {
+                    crate::ast::MatchPattern::EnumVariant {
+                        enum_name,
+                        variant,
+                        span,
+                    } => crate::ast::MatchPattern::EnumVariant {
+                        enum_name: shift_ident(enum_name, delta),
+                        variant: shift_ident(variant, delta),
+                        span: shift_span(span, delta),
+                    },
+                    crate::ast::MatchPattern::Int(value, span) => {
+                        crate::ast::MatchPattern::Int(value, shift_span(span, delta))
+                    }
+                    crate::ast::MatchPattern::String(value, span) => {
+                        crate::ast::MatchPattern::String(value, shift_span(span, delta))
+                    }
+                    crate::ast::MatchPattern::Bool(value, span) => {
+                        crate::ast::MatchPattern::Bool(value, shift_span(span, delta))
+                    }
+                    crate::ast::MatchPattern::Wildcard(span) => {
+                        crate::ast::MatchPattern::Wildcard(shift_span(span, delta))
+                    }
+                };
                 out.push(MatchArm {
+                    pattern,
                     value: shift_expr(arena, &arm.value, delta),
                     span: shift_span(arm.span, delta),
-                    ..arm.clone()
                 });
             }
             Expr::Match {

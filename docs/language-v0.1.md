@@ -110,11 +110,25 @@ they do not implicitly convert to `int` or to another enum. The numeric ABI is
 intended for closed LilScript code; string-valued external protocols require an
 explicit conversion such as the exhaustive `match` above.
 
+`match` also accepts `int`, `string`, and `bool` literal patterns. Integer and
+string matches require a final `_` arm; booleans are exhaustive when both
+`true` and `false` are present. Duplicate or mixed-type patterns are rejected.
+Negative integer patterns are written directly (`-1 => value`). Scrutinee and
+arm evaluation retain the same exact-once and lazy semantics as enum matches.
+
 `Record<T>` is an open structural record whose values all have the same static
 type. A record literal uses `record { key: value, "quoted-key": value }` and
 lowers directly to a null-prototype plain JavaScript object; it is distinct from a nominal,
 fixed-layout `struct`. Duplicate literal keys and mixed value types are
 rejected. An empty literal needs an expected `Record<T>` type.
+
+`object { key: value }` is the explicit ordinary-object counterpart. Its static
+type is `JsValue`; it has `%Object.prototype%`, preserves own `__proto__` as a
+data key, and subsequent reads/writes retain normal getter/setter/proxy
+observability. It is JavaScript-only. The optimizer may forward a statically
+own data-key read only while the compiler-owned allocation never escapes and is
+not written; missing/dynamic keys and escaped objects remain observable. Object
+spread is not yet supported.
 
 Member and string-index reads return `T?` because an open key may be absent.
 Direct member and index writes require `T`. Compound assignment and update on a
@@ -501,9 +515,12 @@ when the binary64 product is exact but can differ for large operands.
 
 Integer division truncates toward zero; division or remainder by zero produces
 `0` on every backend. These are language guarantees shared by JavaScript and
-native output. JavaScript drops proven-redundant signed-i32 `|0` for
-`size-first` and `balanced` because `|0` never helps gzip/Brotli. `performance-first`,
-`realistic-performance-first`, and `javascript.integer_coercions = true` keep `|0`.
+native output. A source-written live `value | 0` is an explicit JavaScript
+lowering obligation and remains `|0` under every objective; dead enclosing code
+may still disappear. JavaScript may drop compiler-generated, proven-redundant
+signed-i32 normalization for `size-first` and `balanced`.
+`performance-first`, `realistic-performance-first`, and
+`javascript.integer_coercions = true` keep generated normalization too.
 Overflow-capable operations still wrap. Float arithmetic follows IEEE-754 binary64 behavior.
 
 ## Declarations
@@ -539,12 +556,25 @@ export pure int area(int width, int height) {
 
 export { Coordinate };
 export { internalHelper as publicHelper };
+
+// `export class Coordinate` remains type-only. Publish a runtime constructor
+// explicitly when JavaScript consumers must call `new` or observe `.name`.
+export constructor Coordinate;
+export constructor InternalWidget as Widget;
 ```
 
 Only explicitly exported top-level functions, variables, structs, classes, objects, and
 externs can be imported. Imported names may be aliased with `as`. Module-private
 bindings are namespaced by the linker, so equal private names in different files
 cannot collide.
+
+`export constructor Name [as PublicName];` is the runtime constructor-value
+form. It preserves a named ES class, constructor arity/name/constructibility,
+prototype methods, and the public export alias. It requires a non-`object`,
+non-extern class. A zero-arity constructor is synthesized when a published base
+class omits `init`; inherited exports require explicit `init` with `super(...)`.
+Internal inheritance is preserved as named base classes plus `extends`/`super`. Ordinary `export class`
+continues to export only the instance type and may dissolve completely.
 
 Relative imports must begin with `./` or `../` and resolve to `.lil` files.
 Bare imports resolve only through a verified `lilscript.lock`. Static imports
@@ -802,6 +832,17 @@ The v0.1 statement set is:
 - JavaScript-only `for (string key in JsValue)` enumeration;
 - `break` and `continue`;
 - `return`.
+
+`if` also has a value form with mandatory braces and `else`:
+
+```lilscript
+int magnitude = if (value < 0) { -value } else { value };
+```
+
+The condition is evaluated once, only the selected arm runs, branch narrowing
+applies inside each arm, and the arm types must have a common type. Lowering
+creates a source conditional phi; JavaScript may emit either `?:` or structured
+control according to the scored representation choice.
 
 Assignments support `=`, `+=`, `-=`, `*=`, `/=`, `%=`, `&=`, `|=`, `^=`,
 `<<=`, `>>=`, and `>>>=`. Numeric assignable locations support prefix and

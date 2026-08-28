@@ -1,6 +1,8 @@
 # ident-05 — candidate search can rank an artifact whose names do not resolve
 
-Parent: [ledger](../LEDGER.md). Status: active. Blocks [search-01](search-01.md).
+Parent: [ledger](../LEDGER.md). Status: landed. This was **07.1**. Unblocks
+[search-02](search-01.md). [arch-02](arch-02.md)–[arch-04](arch-04.md) wait on
+the rest of 07.1 (`ident-02`–`ident-04`).
 
 ## Question
 
@@ -17,25 +19,14 @@ correct at every setting tried.
 
 It is also **selection-sensitive rather than shape-sensitive**: the same program and
 the same passes, with only `local_name_reserve` changed, moves between correct and
-broken, and the broken artifacts are the *smaller* ones. So the search is currently
-winning by ranking a program that throws.
+broken, and the broken artifacts are the *smaller* ones.
 
-Full marked spec corpus, `candidate_search = "production"`, everything else fixed:
-
-| `local_name_reserve` | spec | Brotli-11 |
-|---|---|---|
-| 2 | 660/660 | 9,253 |
-| 4 | 660/660 | 9,253 |
-| 6 | 108/660, 552 threw | 9,175 |
-| 8 | 108/660, 552 threw | 9,175 |
-| 12 | 0/660, 660 threw | 9,115 |
-
-In the reserve-8 artifact the failing read is `C(e.t,Ue,e.r,_e,Se)` inside an arrow
-emitted at its call site. `Ue` and `_e` resolve to top-level regex globals. `Se` and
-`C` do not: `Se` exists only as a local of a *different* function (the table
-tokenizer), and the regex it should name is declared at top level as `Ke`. So two of
-the five operands in one call carry names from a different table than the one that
-was emitted — the drift is per-region, not per-name.
+The last remaining hole (2026-08-28) was not an unbound name. Beta-reduction of
+`(r=>[...r].length)(a)` treated `[...r]` as a property access because the lexer
+emits three `.` tokens, skipped substituting `r`, and left the helper parameter
+spelling. In marked that spelling was the still-live `exec` match, so
+`points(rDelim)` became `[...endMatch].length`. Emphasis at reserve 0 and
+strikethrough at 8/12/48 were the same hole.
 
 ## Constraints specific to this task
 
@@ -50,6 +41,9 @@ was emitted — the drift is per-region, not per-name.
 | 2026-08-19 | Reserve matrix above | `node verify-config.tmp.mjs /tmp/r-<n>.toml /tmp/r-<n>.mjs` in `markedlil` | 2/4 green, 6/8/12 throw | gate |
 | 2026-08-19 | Pre-existing, not from ident-01 | build original `codegen_ir_js.rs`, compile with `/tmp/plain-always.toml` | throws `y is not defined` | diag |
 | 2026-08-19 | Needs search | same source, `candidate_search = "off"` | correct at every reserve tried | diag |
+| 2026-08-28 | Spread operand is not a property | `cargo test --lib beta_reduce_substitutes_a_spread_operand beta_reduce_does_not_leave_code_point_length_bound_to_the_match size_first_search_spreads_a_delimiter_not_the_live_match` | 3 passed | gate |
+| 2026-08-28 | marked reserve 0/8/12/48 always vs official | `node /tmp/verify-marked-official.mjs /tmp/marked-reserve-{0,8,12,48}.mjs` | 660/660, 0 throws at every reserve | gate |
+| 2026-08-28 | react-markdown `candidate_search = always` | compile with `/tmp/react-markdown-always.toml`; `npm test` in `react-markdownlil` | 93/93 | gate |
 
 ## Log
 
@@ -73,24 +67,15 @@ was emitted — the drift is per-region, not per-name.
   skipped). `function_scope_declares` must not be used here — it attributes a nested
   `var y` to the ancestor IIFE and misses the leak. Expression-arrow params need
   `name_is_declared_in_enclosing_expression_arrow` or `e=>e+1` next to `function f(e)`
-  false-positives. — **PARTIAL**
+  false-positives. — **LANDED** as the unbound guard, not as the whole task
 - 2026-08-20 — Hole: `score_plan` analyzed the declaration spelling and then ranked
   the peephole sibling even when the sibling leaked (`var y` in the list tokenizer,
   `y.exec` in the table path). Fixed by only adding the optimized variant when
   `analyze_generated_javascript(&optimized.code).is_ok()`, plus
   `retain_resolved_javascript` after remaps/cleanup. marked now builds with
   `candidate_search = "production"` and passes 21/21 including setOptions. The
-  reserve matrix has not been re-run. — **PARTIAL**
-
-## Next step
-
-Find the stage that loses the binding, working from the reserve-8 artifact: the arrow
-at the failing call site is emitted at its only call site, so compare the names its
-body uses against the plan that produced it. If the region is rendered before the
-final name table is fixed, that ordering is the bug. Only then re-attempt the guard,
-with the compiler's extern set rather than a "bound somewhere" heuristic.
-
-- 2026-08-27 — Concrete reproduction found on `react-markdownlil` with
+  reserve matrix has not been re-run. — **LANDED** as the sibling-score hole
+- 2026-08-27 — Concrete reproduction on `react-markdownlil` with
   `candidate_search = "always"`: the artifact parses, has no unbound store, and
   throws `r is not a function`. Inside an inlined IIFE `r` is the `Info` factory;
   in the enclosing scope `r` holds a property value. The hole is that
@@ -100,4 +85,19 @@ with the compiler's extern set rather than a "bound somewhere" heuristic.
   binding referenced by the function or any closure nested inside it. Three other
   search miscompiles on the markdown stack were fixed and are recorded in
   [md-01](md-01.md); this is the one that remains. — **OPEN**
+- 2026-08-28 — Enclosing-binding reservation, mixed-`for` module writes, `JS.string`
+  of `JsValue`, and callee-name reservation landed in the working tree. react-markdown
+  `always` went 93/93. marked reserve 0 `always` still had 18 emphasis mismatches. —
+  **OPEN**
+- 2026-08-28 — `is_property_identifier` treated `[...r]` as `obj.r` because the
+  lexer emits three `.` tokens. `substitute_idents` therefore skipped the spread
+  operand, and `(r=>[...r].length)(delim)` kept `r` as the live match. Fix:
+  rest/spread is not a member; beta-reduce substitutes the operand. marked
+  `local_name_reserve` 0/8/12/48 with `candidate_search = always` is 660/660 vs
+  official (0 throws), including the strikethrough that used to fail at 8/12/48.
+  react-markdown `always` remains 93/93. — **LANDED**
 
+## Next step
+
+Done. 07.1 continues as [ident-02](ident-02.md). Do not flip committed port
+`lilscript.toml` files here; that is [search-02](search-01.md).

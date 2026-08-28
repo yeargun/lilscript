@@ -45,7 +45,7 @@ priority = "size-first"
 optimization_level = 15 # 0..15 compiler-effort budget
 cost_model = "brotli" # raw | gzip | brotli
 pool_numeric_literals = true # alias repeated profitable numeric literals
-# integer_coercions = true # keep `|0` on size-first/balanced; performance-first keeps it by default
+# integer_coercions = true # keep generated `|0`; source-written `value | 0` is always retained while live
 candidate_search = "production" # off | production | always
 candidate_limit = 1536
 candidate_byte_budget = 1048576 # aggregate whole-artifact search-work budget
@@ -198,9 +198,10 @@ challengers. Omitted defaults additionally honor `candidate_limit` and scale to
 one quarter for 16–64 KiB artifacts and one twelfth above 64 KiB. An explicit
 value can exceed the survivor count and bypass artifact scaling, but it cannot
 raise the optimization-level or `candidate_search` tier.
-`terminal_codec_probe_limit` is a compilation-wide hard work ceiling after
+`terminal_codec_probe_limit` is the shared terminal-search work ceiling after
 structural plans have been emitted. Parsed-peephole, cleanup, and binding-remap
-families share the same counter. A proposal is charged before whole-artifact
+families share the same counter. The current post-selection canonical peephole
+may perform one additional codec comparison outside it. A proposal is charged before whole-artifact
 repair/validation, and each exact-codec call also requires an admitted unit.
 Exhaustion skips remaining leaves and retains the best already-scored artifact. A rare
 missing score for the mandatory configured incumbent is measured outside this
@@ -263,8 +264,7 @@ checks, mandatory IR normalization, DCE correctness, or host-boundary rules:
 `javascript.strip_console` defaults to `true` so production JavaScript does not
 ship `print()` as `console.log`. Language tests and the root `lilscript.toml`
 oracle set `false`. `debugLog` is also dropped; argument side effects stay.
-`console.warn` is not stripped. Historical implementation context is preserved in
-`docs/knowledge/old-migration/compression-queue-2026-08.md`.
+`console.warn` is not stripped. Policy: [javascript.priority](knowledge/config/javascript-priority.md).
 
 `javascript.function_spelling` is an explicit JavaScript ABI and spelling
 override. When omitted, exported functions retain ordinary-function
@@ -517,9 +517,12 @@ candidate_limit = 1536
 candidate_byte_budget = 67108864
 candidate_beam_width = 48
 candidate_proposal_limit = 1536
-terminal_codec_probe_limit = 384
+terminal_codec_probe_limit = 1536
 cost_model = "brotli"
 ```
+
+At level 15, `candidate_search = "always"` defaults the terminal tier to 1536
+even when the explicit key is omitted. Production remains capped at 384.
 
 The checked-in default sits between these at level 15, `production` search,
 an effective 384-candidate cap shared across all IR optimizer variants, a 1 MiB
@@ -565,7 +568,8 @@ An empty list disables all of these features. Duplicate names and levels above
 15 are configuration errors. An exact allowlist does not imply exhaustive work:
 the level-derived count, byte, beam, and terminal-codec effort tiers still
 apply. Set level 15 plus `candidate_search = "always"` and explicit larger
-ceilings for a laboratory exhaustive run.
+ceilings for a deeper laboratory run. It is exhaustive only if the report names
+a finite candidate domain and records that the domain was fully enumerated.
 
 `fresh-literal-factory-inlining-variants` (minimum level 5) is a late,
 emitter-local candidate for an unexported ordinary zero-argument function whose

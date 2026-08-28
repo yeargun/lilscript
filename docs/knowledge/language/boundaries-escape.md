@@ -39,7 +39,16 @@ document.createElement("button")
 element.textContent="Run"
 ```
 
+JS lowering of host ops is direct:
+
+```js
+document.createElement("button")
+element.textContent="Run"
+```
+
 No registries, proxies, or runtime type checks. Known host factories used by ports may still lower in the optimizer (`createEmptyObject()` → `{}`, `callN(f, null, …)` → direct call). That is whole-program knowledge, not a wrapper. See [jQuery](../evidence/jquery.md).
+
+`assume_pure_property_reads` is an explicit unsafe ABI opt-in (Terser `pure_getters`, default off). It is not a type proof. Language replacement is [07.7](../migration/07-global-compressor.md#077--language-proofs-and-explicit-lowering-contracts) / [compressor surface](compressor-surface.md).
 
 ## `pure extern`
 

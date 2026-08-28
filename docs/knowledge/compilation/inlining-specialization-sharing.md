@@ -1,7 +1,8 @@
 # Inlining, specialization, and function sharing
 
 Parent: [compilation](README.md). Search behavior:
-[candidate search](candidate-search.md). Source anchors: the inlining fixed point,
+[candidate search](candidate-search.md). Ranking:
+[objectives](objectives.md). Source anchors: the inlining fixed point,
 specialization, subsumption, parameterized merging, and identical folding families in
 [`src/optimizer.rs`](../../../src/optimizer.rs), plus emission-only function
 representations in [`src/codegen_ir_js.rs`](../../../src/codegen_ir_js.rs).
@@ -24,6 +25,13 @@ Inlining is not monotonically smaller: duplication can lose codec repetition and
 inflate jQuery. Size-first search can compare no-inline, no-factory-inline,
 phase-order, and aggressive variants as complete artifacts. The configured pipeline
 is always retained.
+
+There is no `cost_model` switch that disables IR inlining on `raw` and enables
+it on `brotli`. Inline **budgets** come from `javascript.priority`. Emission-only
+tactics (`inline_single_use_functions`, `pure_helper_inlining`) are off in the
+incumbent and may be introduced by search — those are the “sometimes inlining
+wins Brotli” families, and only if the beam reaches them. Map:
+[decision registry — functions](decision-registry.md#functions-inline-share-or-spell).
 
 Specialized clones are not accepted one by one. A pipeline may contain multiple
 clones; the emitted complete program competes against a pipeline with specialization

@@ -6,15 +6,17 @@ Parent: [tree](../README.md). Language: [modules](../language/modules-lazy.md). 
 
 ## Pages
 
+### Compiler vs app graph
+
 - [Lilpack](lilpack.md) — Vite-backed app graph; LilScript still owns `.lil`
-- [Progressive enhancement](progressive-enhancement.md) — first bytes, lazy boundaries, lint
-- [Reusable library vs closed app](library-vs-app.md) — retention, API, and fair
-  comparison boundaries
-- [Manual bundling](manual-bundling.md) — single/preserve/split source and policy
-  control
-- [Typed lazy loading](lazy-loading.md) — module task contract and mode behavior
-- [Chunk cost, cache, and preload](chunk-cache-preload.md) — deploy score, manifests,
-  stable identity
+- [Reusable library vs closed app](library-vs-app.md)
+- [Manual bundling](manual-bundling.md) — single / preserve-modules / split
+
+### Lazy and first bytes
+
+- [Typed lazy loading](lazy-loading.md)
+- [Progressive enhancement](progressive-enhancement.md)
+- [Chunk cost, cache, and preload](chunk-cache-preload.md)
 
 ## Two bundlers, one language
 

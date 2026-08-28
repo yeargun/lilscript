@@ -16,7 +16,7 @@ only source length.
 The format itself, with steppable encode/decode and both JS sides
 editable, is [Brotli, the whole machine](brotli-machine.html).
 Measured dictionary / mangling quirks live in the
-[Brotli mangling lab](brotli-mangle-lab.html) (regenerate with
+[Brotli mangling lab](brotli-global-mangle/lab.html) (tiny-file generator:
 `brotli-mangle-lab.mjs` + `render-brotli-mangle-lab.mjs`).
 Hundred-kilobyte global-optimum playbook (jQuery, gl-matrix, Monaco,
 in-tree audits, no compiler changes):

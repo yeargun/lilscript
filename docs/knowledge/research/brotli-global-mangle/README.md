@@ -1,7 +1,7 @@
 # Brotli global-mangle playbook
 
 Parent: [research](../README.md). Tiny-file dictionary lab:
-[../brotli-mangle-lab.html](../brotli-mangle-lab.html).
+[lab.html](lab.html).
 
 This folder is **reasoning plus measured mutations** on hundred-kilobyte
 LilScript / JS artifacts. It does not change the compiler. Several mutations

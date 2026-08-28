@@ -1290,6 +1290,7 @@ pub(crate) fn declare_implicit_assignment_bindings(
         if tokens[at].kind != TokenKind::Identifier
             || tokens.get(at + 1).map(|token| token.text) != Some("=")
             || tokens.get(at + 2).map(|token| token.text) == Some("=")
+            || is_property_identifier(&tokens, at)
         {
             continue;
         }

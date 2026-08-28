@@ -8,31 +8,43 @@ in the [active migration](../migration/README.md); external ideas live under
 
 Claims about compression need a corpus, tool versions, codec, and scope. This folder records **what the current codebase believes it has shown**, and where it has not.
 
+How the compiler decides representations (including heuristics that evidence
+cannot yet justify as global): [current architecture](../compilation/current-architecture.md),
+[objectives](../compilation/objectives.md). When a port loses, classify
+compiler bug vs missing proof vs JS-shaped rewrite:
+[compressor surface](../language/compressor-surface.md).
+
 ## Pages
+
+### Suites
 
 - [Paired web micro suite](micro-suite.md) — generated catalog plus
   [`canonical/`](../../../comparison/cases/canonical/) folders
 - [Structural algorithm suite](algorithm-suite.md) — audited 11-pair/42-vector
-  whole-program corpus; the post-fix canonical full report is 11/11 with strict
-  wins in every raw, gzip, and Brotli lane, while the first red run remains a
-  migration checkpoint
+  whole-program corpus
 - [Corpora and lanes](corpora-and-lanes.md) — what each evidence boundary can claim
-- [Configuration ablations](config-ablations.md) — one-variable proof and reports
-- [Negative results](negative-results.md) — retained losses and non-monotonic lessons
-- [Toolchain provenance](toolchain-provenance.md) — versions, hashes, configs, codecs
-- [jQuery port](jquery.md) — large-library pressure test; not a win yet
-- [Closure and corpus](closure-comparison.md) — synthetic apps vs Closure `ADVANCED`
 
-## Other measurement docs (contracts, not this tree)
+### Method
 
-| Doc | Contents |
-|---|---|
-| [`docs/benchmark-results.md`](../../benchmark-results.md) | Core synthetic corpus sizes (no jQuery row) |
-| [`docs/optimization-coverage.md`](../../optimization-coverage.md) | Closure responsibility map + pass schedule |
-| [`docs/vite-closure-minification-audit.md`](../../vite-closure-minification-audit.md) | Post-minify is not a global win |
-| [`docs/differential-testing.md`](../../differential-testing.md) | Independent AST oracle |
-| [`benchmarks/popular/RESULTS.md`](../../../benchmarks/popular/RESULTS.md) | Popular-lab npm vs ports |
-| [`comparison/summary.md`](../../../comparison/summary.md) | Size-gated LilScript vs Closure apps |
+- [Configuration ablations](config-ablations.md)
+- [Negative results](negative-results.md)
+- [Toolchain provenance](toolchain-provenance.md)
+
+### Ports
+
+- [jQuery](jquery.md)
+- [Closure and corpus](closure-comparison.md)
+- [Motion compatibility](motion-compatibility.md)
+
+### Numbers
+
+- [Benchmark results](benchmark-results.md) — core synthetic corpus sizes (no jQuery row)
+- [Post-minify audit](vite-closure-minification-audit.md) — post-minify is not a global win
+
+Related contracts: [`docs/optimization-coverage.md`](../../optimization-coverage.md),
+[`docs/differential-testing.md`](../../differential-testing.md).
+Related labs: [`benchmarks/popular/RESULTS.md`](../../../benchmarks/popular/RESULTS.md),
+[`comparison/summary.md`](../../../comparison/summary.md).
 
 ## How to read a size number
 

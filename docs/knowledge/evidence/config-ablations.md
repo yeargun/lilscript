@@ -12,7 +12,7 @@ Useful maintained families in this repository include finite-value propagation,
 function folding/subsumption/layout, profile-guided specialization, inlining/phase
 order, SSA/phi destruction, pooling/packing, regex/catch/generator spelling,
 compress passes, and chunk planning. Their current commands and measured rows live in
-the benchmark folders. [`docs/benchmark-results.md`](../../benchmark-results.md)
+the benchmark folders. [Benchmark results](benchmark-results.md)
 contains explicitly historical rows; only a regenerated report with current scorer
 provenance can support a current byte claim.
 

@@ -2,29 +2,47 @@
 
 Compiler policy lives in `lilscript.toml`. Unknown keys and invalid numeric limits are errors (`deny_unknown_fields`). The schema dump with examples is [`docs/configuration.md`](../../configuration.md). This folder explains **layers, precedence, and how each knob changes compilation**.
 
+Which behaviors are actually searched vs hardcoded is the
+[decision registry](../compilation/decision-registry.md), not only this folder.
+How `priority` and `cost_model` combine: [objectives](../compilation/objectives.md).
+Root `lilscript.toml` is a **subset** of size-first tactics; omitting a name
+disables that canonical representation even when `priority = "size-first"`.
+
 Parent: [tree](../README.md). Behavior: [compilation](../compilation/README.md).
 
 ## Pages
 
+### Layers
+
 - [Discovery and precedence](discovery-precedence.md)
-- [`[package]`, dependencies, and lockfiles](package-dependencies.md)
-- [`[optimization]`](optimization.md) — semantic IR passes (all backends)
-- [`javascript.priority`](javascript-priority.md) — size vs runtime ranking + inline policy
-- [`javascript.compression`](compression-decisions.md) — which representations are **legal**
-- [`javascript.optimizations` and levels](javascript-optimizations.md) — which **searches** run
+- [package / dependencies / lockfiles](package-dependencies.md)
+- [optimization](optimization.md) — semantic IR passes (all backends)
+
+### JavaScript policy
+
+- [`javascript.priority`](javascript-priority.md)
+- [`javascript.compression`](compression-decisions.md) — which representations are legal
+- [`javascript.optimizations`](javascript-optimizations.md) — which searches run
 - [Cost model and search budgets](cost-model.md)
-- [`[mangle]`](mangle.md)
+
+### ABI and shape
+
+- [mangle](mangle.md)
 - [JavaScript shape and ABI](javascript-shape-abi.md)
 - [Startup and performance](startup-performance.md)
-- [`[bundle]`](bundle.md)
-- [`[profile]`](profile.md)
-- [`[native]`](native.md)
-- [`[lint]` / `[format]`](lint-format.md)
+
+### After optimize
+
+- [bundle](bundle.md)
+- [profile](profile.md)
+- [native](native.md)
+- [lint / format](lint-format.md)
+
+### Matrices
+
 - [Tradeoff matrix](tradeoffs.md)
-- [Behavior matrix](behavior-matrix.md) — which layer affects ABI, JS, native, or
-  compile work
-- [Build profiles](build-profiles.md) — development, oracle, release, maximum,
-  reusable/app, PGO recipes
+- [Behavior matrix](behavior-matrix.md)
+- [Build profiles](build-profiles.md)
 
 ## Two allowlists people confuse
 
@@ -49,7 +67,9 @@ searches. Default `es2022` matches the historical backend.
 
 Search may turn **off** an enabled compression tactic to compare. Size-first
 search-only spellings still compete from the priority matrix when a non-empty
-`compression` list omitted the new name.
+`compression` list omitted the new name. Most other omitted names stay off;
+`elide_length_tonumber` is an implemented exception
+([registry](../compilation/decision-registry.md)).
 
 ## Mental model
 

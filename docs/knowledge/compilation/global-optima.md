@@ -1,6 +1,6 @@
 # Global optima
 
-Parent: [Compilation](README.md). Implementation: `src/compiler.rs` (`optimize_and_select_javascript`, `select_javascript_candidate`, `javascript_candidate_rank`). Config: [cost model](../config/cost-model.md), [priority](../config/javascript-priority.md).
+Parent: [Compilation](README.md). Implementation: `src/compiler.rs` (`optimize_and_select_javascript`, `select_javascript_candidate`, `javascript_candidate_rank`). Config: [cost model](../config/cost-model.md), [priority](../config/javascript-priority.md). What is exact vs bounded search: [objectives](objectives.md).
 
 ## The problem
 
@@ -23,7 +23,10 @@ this codebase (historical byte/count claims require a canonical rerun):
 
 DEFLATE’s backward window is 32 KiB. Brotli combines LZ, context modeling, Huffman, and a static dictionary (quality 11, `lgwin` 22 here). Declaration order, identifier alphabet, and token distance matter even when raw length is equal. An entropy **proxy** is never accepted in place of final codec measurement.
 
-## The rule
+## Target rule
+
+The current pipeline approximates this rule and still has the exceptions listed
+in [current architecture](current-architecture.md):
 
 1. Prove semantic eligibility (types, effects, alias, identity, escape).
 2. Emit explicit IR or JS-IR alternatives — do not rewrite generated strings.
@@ -66,8 +69,10 @@ against the performance rank. The configured baseline remains present.
 `realistic-performance-first` is not a hard filter: its first key is
 `over_limit * 1_000_000 + transfer_ratio`. For the mixed priorities, the rank tuple
 also contains the secondary performance or transfer ratio shown by
-`javascript_candidate_rank`. After the priority rank, selection sorts by startup
-score, raw bytes, then lexical output. Startup limits can reject candidates before ranking when
+`javascript_candidate_rank`. After the priority rank, normal finalist selection
+sorts by raw bytes, top-level declaration preference, startup score, lexical
+output, then stable plan identity. Terminal topology-preserving search may first
+prefer more resolved one-byte bindings. Startup limits can reject candidates before ranking when
 `startup-cost-guard` is configured; `max_nesting` is always checked when set. See
 [priority](../config/javascript-priority.md).
 
@@ -82,3 +87,11 @@ Unbounded Brotli-11 on every cross-product would be correct and unusable. Budget
 - Broad modules (>24 functions or >2048 IR ops) collapse phase-order probes to **one** combined variant
 
 The configured pipeline always runs. Extra variants are opportunistic.
+
+Search is sequential family expansion under a work ledger, not a global solver.
+That incompleteness is honest: comparison among survivors is exact *T*; the
+survivor set is heuristic. See [objectives](objectives.md).
+Budgets, broad-module phase-order collapse, and one-way codec priors are
+documented in [decision registry](decision-registry.md) and
+[current architecture](current-architecture.md). The intended solver and
+guarantee levels are in [goal architecture](goal-architecture.md).

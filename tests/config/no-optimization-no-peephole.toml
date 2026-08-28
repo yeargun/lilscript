@@ -3,6 +3,7 @@ preset = "none"
 
 [javascript]
 priority = "size-first"
+strip_console = false
 optimization_level = 0
 optimizations = []
 candidate_search = "off"

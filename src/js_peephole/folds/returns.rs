@@ -394,6 +394,16 @@ pub(crate) fn fold_single_use_temporaries(
         if !nothing_runs_before(&tokens, end + 1, use_at) {
             continue;
         }
+        if crate::js_peephole::liveness::source_receiver_overwritten_between(
+            &tokens,
+            &matching_close,
+            name + 2,
+            end,
+            end + 1,
+            use_at,
+        ) {
+            continue;
+        }
         let value = &source[tokens[name + 2].start..tokens[end - 1].end];
         // A use already wrapped by its own delimiters needs no extra pair.
         let delimited = use_at > 0

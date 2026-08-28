@@ -1,17 +1,20 @@
 # Candidate search
 
-Parent: [Compilation](README.md). Philosophy: [global optima](global-optima.md). Knobs: [cost model](../config/cost-model.md), [JS optimizations](../config/javascript-optimizations.md). Code: `optimize_and_select_javascript`, `select_javascript_candidate`, `finalize_javascript_candidates`, `extend_javascript_candidate_beam` in `src/compiler.rs`.
+Parent: [Compilation](README.md). Philosophy: [objectives](objectives.md),
+[global optima](global-optima.md). Knobs: [cost model](../config/cost-model.md), [JS optimizations](../config/javascript-optimizations.md). Code: `optimize_and_select_javascript`, `select_javascript_candidate`, `finalize_javascript_candidates`, `extend_javascript_candidate_beam` in `src/compiler.rs`.
 
 ## Two levels
 
 ### Level 1 — IR optimizer variants
 
-Always first: `config.js_optimizer_options()`. Then opportunistic clones (each must still compile):
+Always first: `config.js_optimizer_options()`. Then opportunistic clones from
+`SCORED_IR_VARIANTS` (each must still compile):
 
 | Variant | Gate |
 |---|---|
 | `inline_closure_factories = false` | `ir-closure-factory-variants` + compression decision |
 | inlining fully off | `ir-inlining-variants` |
+| scalar-replacement off (`keep-object`) | `js_keep_object_variants_enabled` (`joint-representation-search`) |
 | no constant-parameter specialization | `ir-specialization-variants` |
 | no call-site specialization | `call-site-specialization` |
 | no capture-signature cloning | `capture-signature-cloning` |
@@ -22,8 +25,10 @@ Always first: `config.js_optimizer_options()`. Then opportunistic clones (each m
 | strongest bounded aggressive-inline phase probe + outlining | phase-order variants + outlining are both legal |
 
 Each variant: clone IR → optimize → emit with **configured** `js_options()` → score
-transfer → deduplicate equivalent probe pairs → keep top `candidate_beam_width`
-finalists. The configured optimizer is fixed first. With at least two optimizer slots,
+transfer → retain byte-equal seeds from distinct IR contexts because performance
+provenance and later emissions may differ → keep top `candidate_beam_width`
+finalists. Identical option plans within one context are deduplicated. The
+configured optimizer is fixed first. With at least two optimizer slots,
 the outlining contrast is reserved second; with at least three, the strongest bounded
 aggressive-inline + outlining interaction is reserved third. This lets aggressive
 inlining expose a repeated composite without crossing outlining with every optimizer
@@ -34,10 +39,10 @@ additional emission before structural pruning. An IR whose
 `repeated-region-outlining` report changed is pre-scored with `AllEligible`; an IR
 with ordinary inlining disabled is pre-scored with `SingleStaticUse`. The probe rank
 uses the better configured/interaction emission, while raw-growth admission still
-uses the configured optimizer emission as its baseline. Deduplication keys the pair,
-not just configured code, so two equal configured emissions with different useful
-interactions cannot erase each other. Emission failure simply omits this optional
-probe.
+uses the configured optimizer emission as its baseline. Distinct IR contexts
+remain live even when configured bytes match because their performance
+provenance and later emissions may differ; identical option plans within a
+context are deduplicated. Emission failure simply omits this optional probe.
 
 If that interaction makes the IR a finalist, its already rendered code and exact
 options seed the terminal selector and consume a slot in that finalist's ordinary
@@ -46,9 +51,11 @@ family independently. For outlined IR, provenance keeps a multi-use outlined hel
 as the shared composite while `AllEligible` substitutes its eligible leaf helpers;
 an outline reduced to one call may still be substituted normally.
 
-Byte/count budget is split across finalists. At least the configured output of each retained IR variant is measured.
+Retained IR contexts seed one aggregate cross-context emission arena with global
+count and byte caps; the budget is not partitioned independently per finalist.
+At least the configured output of each retained IR variant is measured.
 
-### Level 2 — emission beam per IR finalist
+### Level 2 — global emission arena seeded by IR finalists
 
 From each finalist’s `IrJsOptions`, extend by families (pooling, elision, SSA,
 loops, layout, alphabets, …) using `extend_javascript_candidate_beam`.
@@ -101,7 +108,7 @@ defaults for artifacts through 16 KiB:
 |---|---|
 | `off` | 1 configured emission before finalization |
 | `production` (default) | 384 |
-| `always` | unlimited (still min’d with `candidate_limit`) |
+| `always` | unlimited candidate cap (still min’d with `candidate_limit`); terminal level limits are 4× production, reaching 1536 at level 15 |
 
 Exact `javascript.optimizations = [...]` **replaces** level-derived features,
 but it does not bypass the level effort tiers. The allowlist chooses which
@@ -122,9 +129,10 @@ structural ledger fills. When omitted, the proposal limit also honors
 `candidate_limit`; an explicit value can exceed the survivor count and bypass
 artifact scaling, but not the level/search tier.
 
-`terminal_codec_probe_limit` is different: it is one compilation-wide hard work
-budget shared by optional parsed-peephole preparation, repair/validation,
-cleanup, terminal naming, and binding remaps. Families receive deterministic
+`terminal_codec_probe_limit` is a shared terminal-search work budget for optional
+parsed-peephole preparation, repair/validation, cleanup, terminal naming, and
+binding remaps. The current post-selection canonical peephole can perform one
+additional comparison outside this ledger. Families receive deterministic
 prefixes before expensive validation or parallel scoring, so invalid proposals
 and Rayon scheduling cannot multiply work beyond the ledger. Actual codec calls
 are counted separately and cannot exceed consumed work units. Default limits in
@@ -134,6 +142,16 @@ search tier.
 When exhausted, search keeps the best
 already-scored incumbent. The configured incumbent's mandatory score is outside
 this optional budget; `candidate_search = "off"` always forces zero.
+
+`--explain` reports `search_guarantee = best-observed`, a stop reason
+(`search-disabled`, `work-budget-exhausted`, or `portfolio-exhausted`), and the
+decision-registry version. These labels deliberately do not claim global
+optimality.
+
+Split/preserve bundle manifests separately record the configured JavaScript
+codec total and the mixed deployment-cost weights, request/depth penalties, and
+cache/preload discounts under a deterministic objective fingerprint. A mixed
+deployment score is never labeled as raw, gzip, or Brotli bytes.
 
 Within the emission beam, bounded retention is objective-stratified: rankings for
 the selected model, raw, gzip, and Brotli are visited round-robin with the selected
@@ -149,10 +167,12 @@ separate selected-objective beam.
 1. Optionally add a parsed-peephole clone (`parsed-peephole`, level ≥ 9) when
    the shared terminal codec budget admits its exact score.
 2. Drop candidates that fail startup guard or raw-growth / transfer allowance.
-3. Sort by `javascript_candidate_rank`, startup, raw, lexical. For `size-first`,
-   the primary rank is the exact transfer-byte count; performance only breaks an
-   exact transfer tie. The other priorities use normalized ratios for their mixed
-   objectives.
+3. Sort by `javascript_candidate_rank`, raw length, top-level declaration
+   preference, startup, lexical output, then stable plan identity. Terminal
+   topology-preserving search may first prefer more resolved one-byte bindings.
+   For `size-first`, the primary rank is exact transfer bytes and performance
+   breaks an exact transfer tie. Other priorities use normalized ratios for
+   their mixed objectives.
 
 Transfer scores are reused if peephole leaves the artifact unchanged (no second Brotli-11).
 
@@ -172,16 +192,33 @@ Gzip/Brotli allowance: transfer ≤ baseline **or** raw within growth percent. R
 - Not a substitute for types.
 - Not enabled in CLI `--mode development`; the CLI overrides every configured search
   value, including `always`, to `off`.
-- Not run per chunk in `split` / `preserve-modules` (those score **plans**, not emission alphabets), except joint chunk/symbol search when that feature is on.
-- Not allowed to enable compression tactics absent from the allowlist.
+- Not run per chunk in `split` / `preserve-modules`. Split scores bundle plans,
+  not the single-file identifier-alphabet beam; `joint-chunk-symbol-search`
+  adds only `function_layout` and `local_name_reserve` variants. Preserve-modules
+  uses fixed source partitions and configured emission.
+- Not a closed allowlist in practice: omitted non-search-only names usually stay
+  off, but `elide_length_tonumber` is flipped unconditionally.
 
 The proposal space, IR finalist beam, objective-stratified emission frontier,
 identifier trials, and byte/count budgets are all bounded. Except for deliberately
 small exhaustive test oracles, the result is the best artifact found under those
-budgets, not a mathematical global optimum.
+budgets, not a mathematical global optimum. Sequential flips are coordinate
+descent on a non-monotone *T*: a pair of 0-delta flips can jointly win
+([objectives](objectives.md)). Declared joint families (pure-helper × dense
+tables is the model) are the designed fix, not a 2⁷⁴ Cartesian.
 
 Here “not enabled” means the multi-IR optimizer variants and emission-beam families
-do not expand. The configured pipeline/emission still reaches finalization. An
-independently configured parsed-peephole can still compete with the untouched form,
-and configured profile/startup/performance features still run. `candidate_search`
-does not currently act as a master switch for every finalization feature.
+do not expand. The configured pipeline/emission still reaches finalization.
+`candidate_search = off` zeros the optional terminal codec budget, so scored
+peephole **leaves** do not run. If `parsed-peephole` is still configured
+(level ≥ 9), `apply_search_off_declaration_peephole` exactly measures one parsed,
+function-preserving challenger against the untouched emit. Configured
+profile/startup/performance features still run. `candidate_search` is not a
+master switch for every finalization feature.
+
+Emission search now iterates cartesian axes and scored families from
+`src/decision_registry.rs`. Entropy mapping and several terminal neighborhoods
+remain specialized coordinator stages; late families can still lose when the
+work ledger exhausts. See [current architecture](current-architecture.md),
+[goal architecture](goal-architecture.md), and
+[decision registry](decision-registry.md).

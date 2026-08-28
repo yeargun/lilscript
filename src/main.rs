@@ -136,6 +136,7 @@ fn run() -> Result<(), String> {
                         format,
                         &compilation.optimization_reports,
                         &compilation.selection_metrics,
+                        &compilation.abi_manifest,
                     )?;
                     write_or_print(args.output.as_deref(), &compilation.javascript)?;
                 } else {
@@ -160,6 +161,7 @@ fn run() -> Result<(), String> {
                         format,
                         &compilation.optimization_reports,
                         &compilation.selection_metrics,
+                        &compilation.abi_manifest,
                     )?;
                     write_or_print(args.output.as_deref(), &compilation.javascript)?;
                 } else {
@@ -291,6 +293,7 @@ fn print_explanation(
     format: ExplainFormat,
     reports: &[lilscript::optimizer::OptimizationReport],
     metrics: &lilscript::JavaScriptSelectionMetrics,
+    abi: &lilscript::JavaScriptAbiManifest,
 ) -> Result<(), String> {
     match format {
         ExplainFormat::Human => {
@@ -322,6 +325,24 @@ fn print_explanation(
                 }
             }
             eprintln!("{:<34} {}", "javascript codec", metrics.codec);
+            eprintln!("{:<34} {}", "ABI world", abi.world);
+            eprintln!(
+                "{:<34} {}",
+                "public aggregate ABI", abi.public_aggregate_abi
+            );
+            if abi.exports.is_empty() {
+                eprintln!("{:<34} {}", "runtime exports", "(none)");
+            } else {
+                eprintln!(
+                    "{:<34} {}",
+                    "runtime exports",
+                    abi.exports
+                        .iter()
+                        .map(|export| format!("{}:{:?}", export.name, export.kind))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                );
+            }
             eprintln!(
                 "{:<34} {}",
                 "selected transfer bytes", metrics.transfer_bytes
@@ -364,6 +385,12 @@ fn print_explanation(
                 "{:<34} {}",
                 "candidates evaluated", metrics.candidates_evaluated
             );
+            eprintln!("{:<34} {}", "search guarantee", metrics.search_guarantee);
+            eprintln!("{:<34} {}", "search stop", metrics.search_stop_reason);
+            eprintln!(
+                "{:<34} {}",
+                "decision registry version", metrics.decision_registry_version
+            );
             eprintln!("{:<34} {}", "plans registered", metrics.plans_registered);
             eprintln!(
                 "{:<34} {}",
@@ -402,6 +429,60 @@ fn print_explanation(
             eprintln!("{:<34} {}", "peephole rewrites", metrics.peephole_rewrites);
             eprintln!(
                 "{:<34} {}",
+                "layout searched",
+                if metrics.layout_searched { "yes" } else { "no" }
+            );
+            if metrics.cartesian_emission_axes.is_empty() {
+                eprintln!("{:<34} {}", "cartesian emission axes", "(none)");
+            } else {
+                eprintln!(
+                    "{:<34} {}",
+                    "cartesian emission axes",
+                    metrics.cartesian_emission_axes.join(", ")
+                );
+            }
+            if metrics.scored_emission_families.is_empty() {
+                eprintln!("{:<34} {}", "scored emission families", "(none)");
+            } else {
+                eprintln!(
+                    "{:<34} {}",
+                    "scored emission families",
+                    metrics.scored_emission_families.join(", ")
+                );
+            }
+            if metrics.starved_emission_families.is_empty() {
+                eprintln!("{:<34} {}", "starved emission families", "(none)");
+            } else {
+                eprintln!(
+                    "{:<34} {}",
+                    "starved emission families",
+                    metrics.starved_emission_families.join(", ")
+                );
+            }
+            if metrics.ir_variants_searched.is_empty() {
+                eprintln!("{:<34} {}", "scored ir variants", "(none)");
+            } else {
+                eprintln!(
+                    "{:<34} {}",
+                    "scored ir variants",
+                    metrics.ir_variants_searched.join(", ")
+                );
+            }
+            if metrics.removed_compression_families.is_empty() {
+                eprintln!("{:<34} {}", "compression families removed", "(none)");
+            } else {
+                eprintln!(
+                    "{:<34} {}",
+                    "compression families removed",
+                    metrics.removed_compression_families.join(", ")
+                );
+            }
+            eprintln!(
+                "{:<34} {} source, {} generated",
+                "operation origin", metrics.source_operations, metrics.generated_operations
+            );
+            eprintln!(
+                "{:<34} {}",
                 "compiler time (microseconds)", metrics.compiler_time_micros
             );
         }
@@ -410,6 +491,7 @@ fn print_explanation(
             serde_json::to_string_pretty(&serde_json::json!({
                 "optimization_reports": reports,
                 "javascript_selection": metrics,
+                "abi_manifest": abi,
             }))
             .map_err(|error| format!("failed to serialize optimization report: {error}"))?
         ),

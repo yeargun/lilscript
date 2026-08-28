@@ -3,10 +3,12 @@
 Parent: [migration](../README.md). Mission: [mission](../../mission.md).
 Measurement meaning: [verification](../../verification/README.md).
 
-The phases in [migration](../README.md) say *what order*. This board says *where the
+The phases in [migration](../README.md) say *what order* and *which track is current*
+(00–06 standing evidence, 07 current architecture). This board says *where the
 work currently is*, *what has already been tried*, and *what a new agent must read*.
 It exists so a session that loses its context resumes from three files instead of
-re-deriving the compiler.
+re-deriving the compiler. Architecture sequence:
+[07](../07-global-compressor.md).
 
 The board is authoritative for status. If a status here disagrees with a claim in
 prose, chat, or a summary, the board is what gets fixed — or the board is what was
@@ -17,6 +19,8 @@ wrong, and it gets corrected in the same edit that discovers it.
 1. This file.
 2. [LEDGER.md](LEDGER.md) — every task, one line each.
 3. `notes/<id>.md` for **the one task you are doing**.
+4. If that task is 07.x, also [07-global-compressor.md](../07-global-compressor.md)
+   — do not invent a fold the phase forbids.
 
 Stop there. [JOURNAL.md](JOURNAL.md) and the other notes are cold storage. Open a
 second note only when you are about to redo something that may already have a
@@ -91,11 +95,21 @@ These hold for every task on this board and every agent spawned from it.
 
 1. No glue. No host trampolines (`pickRegex3`, `stringTrim`), no grouping helper
    invented to dodge a fold, no per-library special case in the compiler.
-2. No post-minifying LilScript output to pass a gate, ever.
-3. No weakening or reinterpreting a gate because the current build loses it. A loss
-   is a compiler or `.lil` bug.
+2. No post-minifying LilScript output to pass a gate, ever. Terser/Oxc/Closure on
+   an already-scored LilScript artifact is diagnostic, not a tactic.
+3. No weakening or reinterpreting a gate because the current build loses it.
 4. No `diag` number in a claim, a doc, or a ledger row.
 5. Semantic mismatch is red before size is even read.
+6. Classify a port loss before coding: compiler bug, missing language proof,
+   glue-TS `.lil`, or legitimate hatch
+   ([compressor surface](../../language/compressor-surface.md)). A missing proof
+   is a 07.7 RFC, not a peephole.
+7. Do not widen candidate search or add size tactics while [ident-05](notes/ident-05.md)
+   is red. A beam that ranks invalid JS is a worse compressor.
+8. Size-first library compiles are the product
+   ([contract](../07-global-compressor.md#size-first-library-contract)). A
+   cleaner coordinator that still starves 18 KiB modules or hides families
+   behind the root TOML subset has not landed.
 
 ## Bootstrap
 

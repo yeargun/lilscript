@@ -105,4 +105,14 @@ in [`src/optimizer.rs`](../../../src/optimizer.rs).
 
 ## JS variants of this pipeline
 
-When candidate search is on, `optimize_and_select_javascript` clones IR and re-runs with toggles (no inline, no factory inline, no specialization, subsumption on/off, phase-order, compress on/off). Each surviving emission is codec-scored. See [candidate search](candidate-search.md).
+When candidate search is on, `optimize_and_select_javascript` clones IR from
+`SCORED_IR_VARIANTS` (plus phase-order / compress-pass probes) and re-runs with
+those toggles. Each surviving emission is codec-scored. See
+[candidate search](candidate-search.md) and
+[decision registry](decision-registry.md#ir-optimizer-variants-level-1-search).
+
+`keep-object` (`scalar_replacement = false`) is one of those clones when
+`joint-representation-search` is on. A `LocalOnly` struct the pass can explode
+still explodes on the incumbent clone; search can keep the object if that
+artifact wins. Root `lilscript.toml` omits joint search, so language tests stay
+on the incumbent pass.

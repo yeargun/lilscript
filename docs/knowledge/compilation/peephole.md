@@ -1,22 +1,63 @@
 # Parsed peephole
 
-Parent: [Compilation](README.md). Source: `src/js_peephole.rs`. Feature: `parsed-peephole` (minimum `optimization_level` 9).
+Parent: [Compilation](README.md). Architecture:
+[current architecture](current-architecture.md). Goal:
+[goal architecture](goal-architecture.md). Source: `src/js_peephole/`
+(`optimize_generated_javascript` in `mod.rs`). Feature: `parsed-peephole`
+(minimum `optimization_level` 9).
 
 ## Why it exists
 
-IR emission can still leave legal JS that a **parsed** rewrite can contract. The peephole Pratt-parses eligible expressions and validates the complete artifact. It does **not** do unparsed text substitution (that would fight the codec and risk syntax).
+IR emission can still leave legal JS that a **parsed** rewrite can contract. The
+peephole Pratt-parses eligible expressions and validates the complete artifact.
+It does **not** do unparsed text substitution.
 
-Rewrites compete as extra candidates against the untouched emission under the selected codec. A local raw win that loses Brotli is discarded.
+It is also, today, a **second optimizer**: class identity fusion, copy
+coalescing, ASI, integer coercions, declaration merging, and more. That second
+job is architectural debt ([07.5](../migration/07-global-compressor.md#075--peephole-is-contraction)).
+The intended end state is contraction of already-legal JS, always codec-scored
+or skipped. Reconstructing `class` identity, inventing ternaries, or cloning
+Terser `collapse_vars` as an always-on pass is glue
+([objectives](objectives.md)).
 
-## Allowed rewrites
+## Three application modes
 
-- `x = x op y` → compound assignment when the local is simple
-- remove unreferenced function-scoped bindings
-- fuse adjacent same-kind declarations
-- fold two-return arrow guards to conditionals
-- fold expression-only `if`/`else` sequences to conditionals (never forced)
-- rotate `flag = true; while (flag) { ...; flag = cond }` only when the flag is synthetic and there is no `continue`
-- reuse a dead `var` binding; **refuses** to reuse a binding captured by an escaped closure (SolidLil disposer regression)
+| Mode | Function | Codec-scored? |
+|---|---|---|
+| Search-on terminal leaves | `finalize_javascript_candidates` may clone a plan through `optimize_generated_javascript_assuming` | Yes, against the untouched declaration, inside `terminal_codec_probe_limit` |
+| Late cleanup beam | `late_generated_javascript_cleanup_pass` per `LateJavaScriptCleanupPass` | Yes. Skipping a rewrite is a first-class branch. An all-pass synergy proposal is pinned because an individually losing precursor can enable a later win. |
+| Canonical rewrite of the winner | `apply_selected_canonical_peephole` | Yes: requires remaining terminal work and uses the full priority rank/startup guards. |
+| Search-off | `apply_search_off_declaration_peephole` | Yes: one function-preserving challenger is exactly measured against the untouched emit and retained only by the configured rank. |
+
+`repair_late_javascript_candidate` additionally forces a short repair list
+(or-assignment parens, fresh `Object.assign` fold, …) on strings being
+validated. That is not a scored family.
+
+## Implemented fold families
+
+The session in `optimize_generated_javascript` is the authority, not this
+bullet list. Modules under `src/js_peephole/folds/`:
+
+| Module | Role (approximate) |
+|---|---|
+| `classes.rs` (~7.7k) | Prototype tables → `class`; `fold_named_class_identity`; drop orphaned `new.target` / identity helpers; async method spelling |
+| `copies.rs` | Rematerialization, coalescing; identity bugs live here (`source_receiver_overwritten_between`) |
+| `control.rs` / `boolean.rs` / `returns.rs` | `if`/`?:`/`||`, assigned truthy ternaries, return tails |
+| `loops.rs` | `while`/`for` contraction, arguments-length countdown |
+| `asi.rs` | ASI-safe semicolon elision |
+| `declarations.rs` | `var` merging, unused bindings |
+| `inline.rs` | Single-use function values, forwarding wrappers |
+| `integers.rs` | `|0` / `+` coercions after emit |
+| `calls.rs` / `members.rs` / `bodies.rs` / `syntax.rs` / `json.rs` / `arrays.rs` | Call/member/body/syntax/JSON/array local shapes |
+
+Historical docs listed only compound assignment, unused bindings, declaration
+fusion, arrow guards, `if`→conditional, flag-while rotation, and dead-`var`
+reuse. Those still exist; they are not the majority of the pipeline.
+
+Class fusion is **not** a substitute for IR named-class emit. It currently
+parses a subset of function shapes, can fail on `async`, and is why
+identity-observed ports froze search until the fold was made legal. See
+[class identity](class-identity.md).
 
 ## Startup guard (`startup-cost-guard`, min level 1)
 

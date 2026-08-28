@@ -74,6 +74,7 @@ pub enum JsSyntaxFeature {
     NullishCoalescing,
     LogicalAssignment,
     ObjectHasOwn,
+    ClassFields,
 }
 
 impl JsSyntaxFeature {
@@ -84,7 +85,7 @@ impl JsSyntaxFeature {
             Self::OptionalCatchBinding => 2019,
             Self::OptionalChain | Self::NullishCoalescing => 2020,
             Self::LogicalAssignment => 2021,
-            Self::ObjectHasOwn => 2022,
+            Self::ObjectHasOwn | Self::ClassFields => 2022,
         }
     }
 
@@ -109,6 +110,7 @@ impl JsSyntaxFeature {
             Self::NullishCoalescing => "nullish coalescing",
             Self::LogicalAssignment => "logical assignment",
             Self::ObjectHasOwn => "Object.hasOwn",
+            Self::ClassFields => "public class fields",
         }
     }
 }

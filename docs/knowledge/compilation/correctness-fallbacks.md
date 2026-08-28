@@ -18,11 +18,15 @@ independent evaluator in `src/interpreter.rs`.
 5. A parsed peephole clone must parse and validate as a complete generated artifact.
 6. If all optional alternatives lose, emit the configured baseline.
 
-Search never repairs type errors, weakens host boundaries, or enables an omitted
-compression decision. `[optimization].foo = false` remains a hard off.
+Search never repairs type errors or weakens host boundaries.
+`[optimization].foo = false` remains a hard off. An exact compression allowlist
+usually prevents omitted tactics, but current search-only overlays and the
+unconditional `elide_length_tonumber` flip are documented exceptions.
 
 Selection is deterministic for fixed compiler/source/config/profile/toolchain:
-priority rank, startup score, raw length, and lexical JS provide total tie-breaking.
+priority rank, raw length, top-level declaration preference, startup score,
+lexical JS, and stable plan identity provide total tie-breaking. Terminal
+topology-preserving search may first prefer more resolved one-byte bindings.
 Bundle names use source identity and content hashes; manifests record exact output
 sizes and dependencies.
 
@@ -38,7 +42,10 @@ sizes and dependencies.
 
 A size win never overrides a semantic failure. A compiler crash, invalid emitted JS,
 nondeterministic artifact, or baseline-only mismatch is a red result with preserved
-artifacts for triage.
+artifacts for triage. Search ranking an unresolved binding is the same class of
+failure ([ident-05](../migration/board/notes/ident-05.md)); it is not a smaller
+program. [Current architecture](current-architecture.md) treats identity as blocking further search
+widening.
 
 SSA validation includes edge uses. In particular, aggregate scalar replacement may
 not delete a struct definition merely because all instruction uses are field reads;

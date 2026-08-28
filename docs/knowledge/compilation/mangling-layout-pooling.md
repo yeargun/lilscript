@@ -33,7 +33,10 @@ gzip, or Brotli. Pooling is not assumed to beat the codec's own dictionary.
 Exact `javascript.compression` controls whether a representation is legal;
 `javascript.optimizations`/level controls whether alternatives are searched; explicit
 `[mangle]` flags have highest precedence. Search may retain the unpooled/unmangled
-alternative but may not introduce a tactic omitted from the exact compression list.
+alternative. Most omitted non-search-only tactics stay off, but size-first
+search-only overlays may still compete and `elide_length_tonumber` is currently
+flipped without the expected compression gate. See the
+[decision registry](decision-registry.md#javascriptpriority-vs-cost_model).
 
 ## Dense string-return tables
 

@@ -805,7 +805,8 @@ mod tests {
     #[test]
     fn forwarding_arrow_wrappers_become_direct_calls() {
         use super::fold_forwarding_call_wrappers;
-        let source = "fa=function(e){throw e};p=a=>{fa(a)},H=(a,b)=>{fa(a,b)};function f(){p(30);H(31,1)}";
+        let source =
+            "fa=function(e){throw e};p=a=>{fa(a)},H=(a,b)=>{fa(a,b)};function f(){p(30);H(31,1)}";
         let (out, count) = fold_forwarding_call_wrappers(source).unwrap();
         assert!(count >= 2, "{out}");
         assert!(out.contains("fa(30)"), "{out}");

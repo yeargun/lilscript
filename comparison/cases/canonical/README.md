@@ -1,7 +1,7 @@
 # Canonical paired cases
 
 Parent: [verification](../../../docs/knowledge/verification/README.md).
-Migration: [phase 00](../../../docs/knowledge/migration/00-canonical-runner.md).
+Migration: [phase 00](../../../docs/knowledge/migration/README.md#phase-00).
 
 Each folder is one LilScript program and one independently authored JavaScript
 program with the same stdout contract. The runner minifies the JS (Terser, Oxc,
@@ -13,7 +13,7 @@ node comparison/cases/run.mjs --canonical-only
 ```
 
 Families: `scalars`, `strings`, `control`, `functions`, `aggregates`,
-`collections`, `effects`, `host`, `wins`.
+`collections`, `effects`, `host`, `wins`, `identity`.
 
 A `--canonical-only` run on this tree must keep every case `le` or `lt` under
 raw, gzip-9, and Brotli-11 versus the best valid Terser/Oxc/esbuild artifact.

@@ -558,11 +558,7 @@ fn keeps_multi_statement_index_walk_bodies_inside_the_loop() {
         "{}",
         folded.code
     );
-    assert!(
-        !folded.code.contains("for(;!0;e=s[t++]"),
-        "{}",
-        folded.code
-    );
+    assert!(!folded.code.contains("for(;!0;e=s[t++]"), "{}", folded.code);
     let runtime = "let frag={nodes:[],appendChild(child){this.nodes.push(child);return child}};walk([{id:1},{id:2}],frag,null);console.log(frag.nodes.map(n=>n.id).join(','))";
     let original_run = format!("{original};{runtime}");
     let folded_run = format!("{};{runtime}", folded.code);
@@ -1572,7 +1568,7 @@ fn rematerializes_nested_single_use_literals_and_expression_calls() {
     )
     .unwrap();
     assert!(
-        procedure.code.contains("((e,t,n)=>{") && !procedure.code.contains("P="),
+        procedure.code.contains(".head.appendChild(") && !procedure.code.contains("P="),
         "{}",
         procedure.code
     );
@@ -2192,6 +2188,32 @@ fn does_not_var_shadow_outer_bindings_folded_into_for_init() {
     );
     assert_eq!(run_node(source).trim(), "true");
     assert_eq!(run_node(&optimized.code).trim(), "true");
+}
+
+#[test]
+fn mixed_for_init_must_not_assign_an_outer_module_function() {
+    let source = "let f=function(){return 7};(function(){f=[];f.push(1);m=1;u=0;for(;u<m;)f.push(2),++u;console.log(f.join(':'));})();console.log(typeof f);console.log(f());";
+    let optimized = optimize_generated_javascript(source).unwrap();
+    let script = format!("\"use strict\";{}", optimized.code);
+    assert_eq!(
+        run_node(&script).trim(),
+        "1:2\nfunction\n7",
+        "{}",
+        optimized.code
+    );
+}
+
+#[test]
+fn mixed_for_init_in_a_module_arrow_must_not_assign_an_outer_function() {
+    let source = "let f=function(){return 7};let run=()=>{f=[];f.push(1);for(;f.length<2;)f.push(2);console.log(f.join(':'));};run();console.log(typeof f);console.log(f());";
+    let optimized = optimize_generated_javascript(source).unwrap();
+    let script = format!("\"use strict\";{}", optimized.code);
+    assert_eq!(
+        run_node(&script).trim(),
+        "1:2\nfunction\n7",
+        "{}",
+        optimized.code
+    );
 }
 
 #[test]

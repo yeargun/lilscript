@@ -274,6 +274,7 @@ impl ProjectConfig {
             inline_structured_closures: self
                 .javascript
                 .compression_enabled(CompressionDecision::StructuredClosureInlining),
+            snapshot_immutable_closure_captures: false,
             struct_method_shorthand: self.javascript.struct_method_shorthand.unwrap_or(true),
             truthy_nullable_checks: true,
             pack_string_arrays: self
@@ -360,6 +361,7 @@ impl ProjectConfig {
                 && !matches!(self.javascript.cost_model, CompressionCostModel::Brotli),
             operand_order_fusion: self.javascript.operand_order_fusion,
             aggregate_operand_order_fusion: self.javascript.aggregate_operand_order_fusion,
+            assume_pristine_builtins: self.javascript.assume_pristine_builtins,
             assume_pure_property_reads: self.javascript.assume_pure_property_reads,
             sink_entry_function_declarations: self.javascript.sink_entry_function_declarations,
             comma_expressions: false,
@@ -382,6 +384,7 @@ impl ProjectConfig {
             entropy_property_names: self
                 .javascript
                 .optimization_enabled(JavaScriptOptimization::EntropyPropertyAssignment, None),
+            owner_scoped_property_names: false,
             function_layout: FunctionLayout::Source,
             function_layout_exact_limit: self.javascript.function_layout_exact_limit,
             function_spelling: self.javascript.function_spelling.unwrap_or(
@@ -447,6 +450,20 @@ impl ProjectConfig {
             && self
                 .javascript
                 .compression_enabled(CompressionDecision::HostAliasSpelling)
+    }
+
+    pub fn string_array_packing_candidates_enabled(&self) -> bool {
+        self.javascript.candidate_search_enabled()
+            && self
+                .javascript
+                .compression_enabled(CompressionDecision::StringArrayPacking)
+    }
+
+    pub fn identifier_string_pooling_candidates_enabled(&self) -> bool {
+        self.javascript.candidate_search_enabled()
+            && self
+                .javascript
+                .compression_enabled(CompressionDecision::StringPooling)
     }
 
     pub fn ir_inlining_variants_enabled(&self) -> bool {
@@ -597,6 +614,22 @@ impl ProjectConfig {
                 JavaScriptOptimization::JointRepresentationSearch,
                 Some(CompressionDecision::JointRepresentationSearch),
             )
+    }
+
+    pub fn js_length_to_number_elision_variants_enabled(&self) -> bool {
+        self.javascript.candidate_search_enabled()
+            && self
+                .javascript
+                .compression_enabled(CompressionDecision::LengthToNumberElision)
+    }
+
+    pub fn js_scalar_replacement_variants_enabled(&self) -> bool {
+        self.js_keep_object_variants_enabled()
+    }
+
+    pub fn js_keep_object_variants_enabled(&self) -> bool {
+        self.js_joint_representation_search_enabled()
+            && self.optimization.scalar_replacement != Some(false)
     }
 
     pub fn js_default_argument_variants_enabled(&self) -> bool {
@@ -1001,7 +1034,47 @@ pub enum CompressionDecision {
 }
 
 impl CompressionDecision {
-    const fn name(self) -> &'static str {
+    pub const ALL: [Self; 37] = [
+        Self::IdentifierMangling,
+        Self::EntropyAwareMangling,
+        Self::QuoteStyleSelection,
+        Self::PropertyMangling,
+        Self::ExportMangling,
+        Self::StringPooling,
+        Self::SizeAwareInlining,
+        Self::SafeIntegerCoercionElision,
+        Self::LengthToNumberElision,
+        Self::CompactBooleanLiterals,
+        Self::StandardGrammarElision,
+        Self::StructuredClosureInlining,
+        Self::PureHelperInlining,
+        Self::DenseStringReturnTables,
+        Self::HostAliasSpelling,
+        Self::StringArrayPacking,
+        Self::RegexLiterals,
+        Self::UnusedCatchBindingElision,
+        Self::CompactGeneratorStar,
+        Self::CalleeDefaultArguments,
+        Self::ScalarPhiCopies,
+        Self::PhiAffinityCoalescing,
+        Self::IrInliningVariants,
+        Self::IrClosureFactoryVariants,
+        Self::IrPhaseOrderingVariants,
+        Self::LoopSpellingSelection,
+        Self::MutationSpellingSelection,
+        Self::IndexedCharAt,
+        Self::EffectTernary,
+        Self::ArrayPipelineFusion,
+        Self::PartialEscapeSinking,
+        Self::RegionOutlining,
+        Self::ExpressionSuperoptimization,
+        Self::PathSensitivePropagation,
+        Self::JointRepresentationSearch,
+        Self::JointChunkSymbolSearch,
+        Self::ParameterizedFunctionMerging,
+    ];
+
+    pub const fn name(self) -> &'static str {
         match self {
             Self::IdentifierMangling => "identifier-mangling",
             Self::EntropyAwareMangling => "entropy-aware-mangling",
@@ -1054,9 +1127,10 @@ pub struct JavaScriptConfig {
     pub optimizations: Option<Vec<JavaScriptOptimization>>,
     pub compression: Option<Vec<CompressionDecision>>,
     pub pool_numeric_literals: bool,
-    /// Keep signed-i32 `|0` even when range analysis proves it redundant.
-    /// Omitted: size-first and balanced drop proven `|0` (`|0` does not help
-    /// gzip/Brotli); performance-first and realistic-performance-first keep it.
+    /// Keep compiler-generated signed-i32 `|0` even when range analysis proves
+    /// it redundant. Source-written `value | 0` is always preserved while live.
+    /// Omitted: size-first and balanced drop proven generated normalization;
+    /// performance-first and realistic-performance-first keep it.
     pub integer_coercions: Option<bool>,
     pub inline_instruction_limit: Option<usize>,
     pub inline_control_flow_limit: Option<usize>,
@@ -1504,6 +1578,20 @@ impl JavaScriptConfig {
         )
     }
 
+    pub fn removed_size_first_compression_families(&self) -> Vec<&'static str> {
+        let Some(enabled) = &self.compression else {
+            return Vec::new();
+        };
+        CompressionDecision::ALL
+            .into_iter()
+            .filter(|decision| {
+                JavaScriptPriority::SizeFirst.enables_compression(*decision)
+                    && !enabled.contains(decision)
+            })
+            .map(CompressionDecision::name)
+            .collect()
+    }
+
     fn search_compression_enabled(&self, decision: CompressionDecision) -> bool {
         self.candidate_search_enabled()
             && match &self.compression {
@@ -1683,7 +1771,8 @@ impl JavaScriptConfig {
         };
         match self.candidate_search {
             CandidateSearch::Off => 0,
-            CandidateSearch::Production | CandidateSearch::Always => level_limit,
+            CandidateSearch::Production => level_limit,
+            CandidateSearch::Always => level_limit.saturating_mul(4),
         }
     }
 
@@ -2168,6 +2257,11 @@ shared_min_imports = 3
         assert!(size.js_options().elide_safe_integer_coercions);
         assert!(size.js_options().elide_safe_string_coercions);
         assert!(size.js_options().elide_length_tonumber);
+        assert!(size.js_length_to_number_elision_variants_enabled());
+        assert!(size
+            .javascript
+            .removed_size_first_compression_families()
+            .is_empty());
         assert!(!balanced.js_options().elide_length_tonumber);
         assert!(size.js_options().inline_structured_closures);
         assert!(!size.js_options().pack_string_arrays);
@@ -2180,6 +2274,8 @@ shared_min_imports = 3
         assert!(size.pure_helper_inlining_candidates_enabled());
         assert!(size.dense_string_return_table_candidates_enabled());
         assert!(size.host_alias_spelling_candidates_enabled());
+        assert!(size.string_array_packing_candidates_enabled());
+        assert!(size.identifier_string_pooling_candidates_enabled());
         assert!(size.ir_closure_factory_variants_enabled());
         assert!(size.ir_phase_ordering_variants_enabled());
         assert!(size.loop_spelling_selection_enabled());
@@ -2188,6 +2284,8 @@ shared_min_imports = 3
         assert!(!size.effect_ternary_candidates_enabled());
         assert!(size.js_joint_chunk_symbol_search_enabled());
         assert!(size.js_joint_representation_search_enabled());
+        assert!(size.js_keep_object_variants_enabled());
+        assert!(size.js_scalar_replacement_variants_enabled());
         assert!(size.js_parameterized_function_merging_enabled());
         let size_passes = size.compress_pass_options();
         assert!(size_passes.pipeline_fusion);
@@ -2212,6 +2310,8 @@ shared_min_imports = 3
         assert!(!performance.pure_helper_inlining_candidates_enabled());
         assert!(!performance.dense_string_return_table_candidates_enabled());
         assert!(!performance.host_alias_spelling_candidates_enabled());
+        assert!(!performance.string_array_packing_candidates_enabled());
+        assert!(!performance.identifier_string_pooling_candidates_enabled());
         assert!(!performance.ir_closure_factory_variants_enabled());
         assert!(!performance.ir_phase_ordering_variants_enabled());
         assert!(!performance.loop_spelling_selection_enabled());
@@ -2220,6 +2320,8 @@ shared_min_imports = 3
         assert!(!performance.effect_ternary_candidates_enabled());
         assert!(!performance.js_joint_chunk_symbol_search_enabled());
         assert!(!performance.js_joint_representation_search_enabled());
+        assert!(!performance.js_keep_object_variants_enabled());
+        assert!(!performance.js_scalar_replacement_variants_enabled());
         assert!(!performance.js_parameterized_function_merging_enabled());
         let performance_passes = performance.compress_pass_options();
         assert!(!performance_passes.pipeline_fusion);
@@ -2322,6 +2424,19 @@ local_name_coalescing = false
         assert!(size_overlay.indexed_char_at_candidates_enabled());
         assert!(!size_overlay.js_options().indexed_char_at);
         assert!(!size_overlay.effect_ternary_candidates_enabled());
+        assert!(!size_overlay.js_options().elide_length_tonumber);
+        assert!(!size_overlay.js_length_to_number_elision_variants_enabled());
+        let removed = size_overlay
+            .javascript
+            .removed_size_first_compression_families();
+        assert!(removed.contains(&"length-to-number-elision"), "{removed:?}");
+        assert!(
+            removed.contains(&"joint-representation-search"),
+            "{removed:?}"
+        );
+        assert!(!removed.contains(&"identifier-mangling"), "{removed:?}");
+        assert!(!removed.contains(&"export-mangling"), "{removed:?}");
+        assert!(!removed.contains(&"effect-ternary"), "{removed:?}");
 
         let none: ProjectConfig = toml::from_str("[javascript]\ncompression=[]\n").unwrap();
         let none_codegen = none.js_options();
@@ -2701,6 +2816,15 @@ local_name_coalescing = false
                 .javascript
                 .effective_terminal_codec_probe_limit_for_artifact(100 * 1024),
             32
+        );
+        let level_fifteen_always: ProjectConfig =
+            toml::from_str("[javascript]\noptimization_level=15\ncandidate_search='always'\n")
+                .unwrap();
+        assert_eq!(
+            level_fifteen_always
+                .javascript
+                .effective_terminal_codec_probe_limit_for_artifact(16 * 1024),
+            1_536
         );
         assert_eq!(
             level_fifteen

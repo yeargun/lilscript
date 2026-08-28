@@ -1,7 +1,7 @@
 # Browser and host cases
 
 Parent: [verification](README.md). Migration:
-[browser phase](../migration/06-browser-host-boundaries.md). Web ABI:
+[phase 04](../migration/README.md#phase-04). Web ABI:
 [`docs/web-platform.md`](../../web-platform.md).
 
 ## Harness shape

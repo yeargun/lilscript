@@ -9,19 +9,29 @@ into LilScript. It is not an implementation checklist and it does not turn anoth
 compiler’s marketing or source code into LilScript evidence. Every imported idea must
 be expressed as a semantic proof, an eligible candidate, and a reproducible ablation.
 
+How those ideas must enter the compiler (registry row, not a peephole special
+case): [goal architecture](../compilation/goal-architecture.md),
+[objectives](../compilation/objectives.md),
+[migration 07](../migration/07-global-compressor.md).
+What the language must state so Closure/Terser cannot uniquely guess it:
+[compressor surface](../language/compressor-surface.md).
+
 ## Pages
 
-- [Closure ADVANCED](closure-advanced.md) — closed-world boundaries, externs/exports,
-  whole-program responsibilities, and gzip-aware lessons
-- [Terser, Oxc, esbuild, and Vite](terser-oxc-vite.md) — baseline roles, assumptions, and
-  options that should become cases rather than copied unsafe rewrites
-- [Gzip and Brotli](gzip-brotli.md) — why raw-local choices are not transfer optima
-- [Brotli, the whole machine](brotli-machine.html) — interactive RFC 7932 encode/decode: commands, dictionary, distances, Huffman, interim buffers (rebuild with `node docs/knowledge/research/brotli-machine/render.mjs`)
-- [Aligned mangling](aligned-mangling/README.md) — where the bits actually are, why
-  dictionary words never win as names, and the -801 Brotli bytes sitting in name
-  allocation on our own jQuery port
-- [Brotli mangling lab](brotli-mangle-lab.html) — static dictionary, transforms, and measured JS spelling quirks
-- [Brotli global-mangle playbook](brotli-global-mangle/README.md) — hundred-KB artifacts, reuse / alphabet / color-merge, gzip vs q11 fights
+### Toolchains and codecs
+
+- [Closure ADVANCED](closure-advanced.md)
+- [Terser, Oxc, esbuild, and Vite](terser-oxc-vite.md)
+- [Gzip and Brotli](gzip-brotli.md)
+
+### Labs
+
+- [Brotli, the whole machine](brotli-machine.html) — RFC 7932 encode/decode
+  (rebuild with `node docs/knowledge/research/brotli-machine/render.mjs`)
+- [Aligned mangling](aligned-mangling/README.md)
+- [Brotli mangling lab](brotli-global-mangle/lab.html) — dictionary, transforms, spelling quirks
+  (tiny-file generator: `brotli-mangle-lab.mjs` + `render-brotli-mangle-lab.mjs`)
+- [Brotli global-mangle playbook](brotli-global-mangle/README.md)
 
 ## Research-to-compiler rule
 

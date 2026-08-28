@@ -1,6 +1,7 @@
 # emit-05 — shape repetition, and why converged naming does not yet reach it
 
-Parent: [ledger](../LEDGER.md). Status: active.
+Parent: [ledger](../LEDGER.md). Status: parked. Successor primitive:
+[emit-06](emit-06.md). Residual jQuery gap: [jquery-01](jquery-01.md).
 
 ## Question
 
@@ -92,25 +93,14 @@ the compat suite is 6/6. The gap is not extra surface on either side.
   nothing: three of this lane's miscompiles came from rewrites that matched text
   without resolving it. — **REJECTED** as specified; the goal stands
 
+- 2026-08-28 — Use-to-binding resolver landed as [emit-06](emit-06.md).
+  jquery-01 refuted header diversity / forced spelling as the remaining gap
+  (IR control-flow; post-hoc contraction lost). The −602 Brotli figure is
+  Terser-on-our-artifact — post-minify, refused. Parked. — **LANDED** as a
+  park, not as a closed compressor win
+
 ## Next step
 
-A scope-accurate renaming pass over the emitted text, at the peephole layer,
-where the nesting is already resolved and the exact scope chain is available.
-That is the only stage with the information terser has, and the measured prize
-is 602 Brotli bytes on jQuery for 373 raw.
-
-Build the missing primitive first, on its own, with its own tests: a
-**use-to-binding resolver** that maps every identifier token to the token that
-declares it (or to "free"). `GeneratedBindingIndex` already has the scope tree
-and the binding flags; what is missing is the edge from a use back to its
-declaration, plus correct parameter attribution. With that primitive the
-renamer is short and checkable, and the same resolver is what the folds in
-[ident-06](ident-06.md) and [ident-08](ident-08.md) needed in order to ask
-"what does this name resolve to?" instead of "what token precedes it?".
-
-It needs the same thing the correctness lane needs: a real scope model in the
-peephole. All three miscompiles in [ident-06](ident-06.md) and
-[ident-08](ident-08.md) came from folds that could only ask "what token precedes
-this?" rather than "what does this name resolve to?". One scope model pays for
-both — it closes a live bug class and unlocks the largest measured naming win.
-Build it once, for correctness, and take the compression as the second return.
+Parked. Residual jQuery work is [jquery-01](jquery-01.md) (IR control-flow,
+then array-ness proof) and [arch-07](arch-07.md) (expression-if). Do not
+chase Terser-on-our-artifact as a naming pass.

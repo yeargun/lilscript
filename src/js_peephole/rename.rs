@@ -391,6 +391,24 @@ mod tests {
         );
     }
 
+    /// ident-05 remaining shape: an inlined IIFE local must not steal a name
+    /// a nested body still uses to reach the enclosing binding.
+    #[test]
+    fn an_iife_local_does_not_steal_an_outer_binding_a_nested_body_still_reads() {
+        let source = concat!(
+            "function go(callback){",
+            "return (function(){",
+            "var notFn={};",
+            "(function(){callback()})();",
+            "return notFn",
+            "})()}",
+        );
+        same_behavior(
+            source,
+            "go(function(){console.log('called')});console.log(typeof go(function(){}))",
+        );
+    }
+
     /// A reordered alphabet can spell `if`, `in` or `do`.
     #[test]
     fn a_two_character_keyword_is_never_assigned() {

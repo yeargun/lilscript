@@ -9,7 +9,7 @@ distinction supplies optimization proofs.
 
 | Surface type | Required semantics | Compression consequence |
 |---|---|---|
-| `int` | signed i32; wrapping add/sub/negation/bitwise, shifts mask by 31 | size-first/balanced drop proven `|0` (`|0` never helps gzip/Brotli); performance-first and `integer_coercions = true` keep it |
+| `int` | signed i32; wrapping add/sub/negation/bitwise, shifts mask by 31 | size-first/balanced may drop proven generated `\|0`; a live source `value \| 0` stays explicit; performance-first and `integer_coercions = true` keep generated normalization |
 | `number` / `float` | IEEE-754 binary64 | avoids artificial i32 normalization on ordinary web numerics |
 | `bool` | exactly `true`/`false` | branch and finite-value propagation can erase tags |
 | `string` | JS-compatible string operations; UTF-16-oriented indexing contract | literals, templates, pooling, quote style, and repeated contexts are searchable |

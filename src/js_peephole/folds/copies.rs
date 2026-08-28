@@ -226,6 +226,18 @@ pub(crate) fn fold_identifier_copies(
             cursor += 1;
             continue;
         }
+        if let Some(&last) = reads.last() {
+            if crate::js_peephole::liveness::identifier_is_assigned_between(
+                &tokens,
+                &matching_close,
+                rhs_end + 1,
+                last,
+                tokens[cursor + 2].text,
+            ) {
+                cursor += 1;
+                continue;
+            }
+        }
         if reads.is_empty() {
             let scope_start = enclosing_block_start(&matching_close, cursor)
                 .map(|open| open + 1)
@@ -1078,6 +1090,16 @@ pub(crate) fn fold_sequence_assignments_into_first_use(
         let Some(use_at) = use_at else {
             continue;
         };
+        if crate::js_peephole::liveness::source_receiver_overwritten_between(
+            &tokens,
+            &matching_close,
+            open + 3,
+            comma,
+            comma + 1,
+            use_at,
+        ) {
+            continue;
+        }
 
         let previous = open
             .checked_sub(1)
@@ -1315,6 +1337,16 @@ pub(crate) fn fold_statement_assignments_into_first_use(
         let Some(use_at) = use_at else {
             continue;
         };
+        if crate::js_peephole::liveness::source_receiver_overwritten_between(
+            &tokens,
+            &matching_close,
+            cursor + 2,
+            delimiter,
+            delimiter + 1,
+            use_at,
+        ) {
+            continue;
+        }
         candidates.push(Candidate {
             start: tokens[cursor].start,
             finish: tokens[use_at].end,
@@ -1469,6 +1501,13 @@ fn function_literal_move_changes_capture(
             use_at,
             name,
         ) {
+            return true;
+        }
+        // ident-05: the destination function already binds this free name, so
+        // the move would steal the outer binding the body still reads.
+        if name_is_declared_in_visible_scope(tokens, matching_close, use_at, name)
+            && !name_is_declared_in_visible_scope(tokens, matching_close, literal_start, name)
+        {
             return true;
         }
     }
@@ -1660,38 +1699,6 @@ pub(crate) fn fold_single_use_function_values(
     Ok(apply_token_rewrites(source, replacements))
 }
 
-fn operand_assigned_in_range(
-    tokens: &[Token<'_>],
-    matching_close: &[Option<usize>],
-    start: usize,
-    end: usize,
-    name: &str,
-) -> bool {
-    let mut index = start;
-    while index < end {
-        if let Some(close) = nested_function_end(tokens, matching_close, index) {
-            index = close + 1;
-            continue;
-        }
-        if tokens[index].kind == TokenKind::Identifier
-            && tokens[index].text == name
-            && matches!(
-                tokens.get(index + 1).map(|token| token.text),
-                Some("=") | Some("++") | Some("--") | Some("+=") | Some("-=")
-            )
-        {
-            return true;
-        }
-        if matches!(tokens[index].text, "++" | "--")
-            && tokens.get(index + 1).map(|token| token.text) == Some(name)
-        {
-            return true;
-        }
-        index += 1;
-    }
-    false
-}
-
 pub(crate) fn fold_typeof_identifier_caches(
     source: &str,
 ) -> Result<(String, usize), JavaScriptParseError> {
@@ -1747,7 +1754,13 @@ pub(crate) fn fold_typeof_identifier_caches(
             continue;
         }
         let last_use = *uses.last().unwrap();
-        if operand_assigned_in_range(&tokens, &matching_close, name_at, last_use, operand) {
+        if crate::js_peephole::liveness::identifier_is_assigned_between(
+            &tokens,
+            &matching_close,
+            name_at,
+            last_use,
+            operand,
+        ) {
             cursor += 1;
             continue;
         }

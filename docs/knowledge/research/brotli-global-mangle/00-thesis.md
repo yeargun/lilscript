@@ -1,7 +1,7 @@
 # Global Brotli mangling: the thesis
 
 Parent: [playbook index](README.md).
-Tiny-file lab: [../brotli-mangle-lab.html](../brotli-mangle-lab.html).
+Tiny-file lab: [lab.html](lab.html).
 This folder scores **real artifacts**: jQuery 87–285 KB, LilScript jQuery 103–163 KB,
 gl-matrix 68–142 KB, Monaco LilScript IDE 2.4 MB (plus a ~400 KB prefix).
 

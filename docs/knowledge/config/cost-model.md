@@ -1,6 +1,7 @@
 # Cost model and search budgets
 
-Parent: [Config](README.md). Why: [global optima](../compilation/global-optima.md). Mechanics: [candidate search](../compilation/candidate-search.md).
+Parent: [Config](README.md). Why: [objectives](../compilation/objectives.md),
+[global optima](../compilation/global-optima.md). Mechanics: [candidate search](../compilation/candidate-search.md).
 
 ## `javascript.cost_model`
 
@@ -12,7 +13,17 @@ Parent: [Config](README.md). Why: [global optima](../compilation/global-optima.m
 
 This is what “smaller” means for IR-variant and emission selection. Chunk **deploy** cost uses its own `[bundle.cost]` weights and always measures gzip-9 and Brotli-11 of chunk text.
 
-Brotli canonical emission **disables** `local_phi_expression_regions` and `phi_edge_value_forwarding` because they tend to break large-context matches; search can still score the opposite when those optimization features are on. Gzip/raw keep them on at sufficient level.
+Brotli canonical emission **disables** `local_phi_expression_regions` and
+`phi_edge_value_forwarding` because they tend to break large-context matches;
+search can still score the opposite when those optimization features are on.
+Gzip/raw keep them on at sufficient level.
+
+The same `js_options()` function also forces `pack_string_arrays = false` and
+`pool_identifier_strings = false` under Brotli, and selects `Function` spelling
+when `function_spelling` is unset. Packing’s search Cartesian cannot turn
+packing back on if the incumbent is already false. Identifier-string pooling
+is never flipped. Full table:
+[codec-conditioned incumbents](../compilation/decision-registry.md#codec-conditioned-incumbents).
 
 Function-layout window clustering uses 32 KiB (raw/gzip) vs 2²² (brotli) history.
 Encoder identity is normative: another implementation may rank equal-input
@@ -48,7 +59,7 @@ startup/performance analysis and profile-guided optimizer passes remain active.
 | `candidate_byte_budget` | 1 MiB | Aggregate retained whole-artifact bytes, with the configured incumbent as a mandatory floor |
 | `candidate_beam_width` | 12 | How many leading layouts survive each structural decision |
 | `candidate_proposal_limit` | level/artifact-derived (384 at level 15 production through 16 KiB) | Shared structural work ledger charged before projection, entropy mapping, and optional plan emission |
-| `terminal_codec_probe_limit` | level/artifact-derived (384 at level 15 through 16 KiB) | Compilation-wide hard work ceiling charged before optional whole-artifact validation and codec scoring |
+| `terminal_codec_probe_limit` | level/artifact-derived (384 at level 15 through 16 KiB) | Shared terminal-search work ceiling; the current post-selection canonical peephole can perform an additional codec comparison outside it |
 | `max_candidate_raw_growth_percent` | 0 | Raw-side admission allowance vs configured baseline (max 1000) |
 
 Raise `candidate_byte_budget` and the explicit work ceilings up to their
@@ -60,7 +71,12 @@ actual terminal codec calls, both effective limits, and exhaustion. Defaults
 scale to one quarter for 16–64 KiB artifacts and one twelfth above 64 KiB.
 Explicit work ceilings bypass that artifact scaling but cannot raise the
 level/search tier.
-The work cap is hard, but it is not a wall-time or RSS ceiling.
+At level 15, `candidate_search = always` uses a 1536-unit terminal tier;
+production remains 384.
+The shared-ledger cap is hard for work charged to it, but the current
+post-selection canonical peephole sits outside that ledger. It is not a complete
+compilation-wide codec-call, wall-time, or RSS ceiling. The goal architecture
+routes every challenger through one evaluator and budget.
 
 Intermediate emission retention is objective-stratified across selected, raw, gzip,
 and Brotli rankings, selected objective first. That bounded diversity protects

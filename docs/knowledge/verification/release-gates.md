@@ -1,7 +1,7 @@
 # Release gates
 
 Parent: [verification](README.md). Active rollout:
-[migration phase 08](../migration/08-scale-corpus-release.md).
+[migration phase 06](../migration/README.md#phase-06).
 
 ## Gate layers
 

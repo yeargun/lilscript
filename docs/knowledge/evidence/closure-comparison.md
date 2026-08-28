@@ -1,6 +1,6 @@
 # Closure and corpus
 
-Parent: [Evidence](README.md). Mapping: [`docs/optimization-coverage.md`](../../optimization-coverage.md). Audit: [`docs/vite-closure-minification-audit.md`](../../vite-closure-minification-audit.md).
+Parent: [Evidence](README.md). Mapping: [`docs/optimization-coverage.md`](../../optimization-coverage.md). Audit: [post-minify](vite-closure-minification-audit.md).
 
 ## What LilScript claims relative to Closure `ADVANCED`
 
@@ -19,7 +19,7 @@ build is behavior evidence, not a substitute for those three JS artifacts. Gener
 `comparison/summary.json` owns pass counts and bytes after a full rebuild; this page
 does not preserve approximate live totals.
 
-`docs/benchmark-results.md` — core `benchmarks/` corpus, similar story, **no jQuery**.
+[Benchmark results](benchmark-results.md) — core `benchmarks/` corpus, similar story, **no jQuery**.
 
 These programs are typed, closed-world, and written in LilScript. They show the **language+compiler** stack working. They do not show that an arbitrary existing JS library, ported with `JsValue`, will win.
 

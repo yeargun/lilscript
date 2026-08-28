@@ -13,6 +13,21 @@ pub struct FunctionId(pub u32);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct LocalId(pub u32);
 
+/// Stable identity for a lowered source operation. `Span` remains diagnostic
+/// location only; search and explicit-lowering proofs must not key on it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct NodeId(pub u32);
+
+/// Whether an IR operation was authored in source or introduced by a later
+/// transform. Shadow-mode provenance: v0.1 `|0` spelling is still owned by
+/// `LoweringObligation`, not by this tag.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum OperationOrigin {
+    Source,
+    #[default]
+    Generated,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum ConstValue {
     Int(i64),
@@ -184,6 +199,9 @@ pub struct AggregateLayout<'src> {
     pub fields: Vec<AggregateField<'src>>,
     pub object: bool,
     pub external: bool,
+    /// Constructor identity is a published JS fact (`new`, `.name`, `.prototype`).
+    /// Identity-free classes stay dissolved; this mark forces a named `class`.
+    pub identity_observed: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -407,7 +425,149 @@ pub struct ControlFlowInstruction<'src> {
     pub out: Option<ValueId>,
     pub ty: Option<Type<'src>>,
     pub op: ControlFlowOp<'src>,
+    pub lowering_obligation: LoweringObligation,
+    pub origin: OperationOrigin,
+    pub node_id: Option<NodeId>,
     pub span: Span,
+}
+
+impl<'src> ControlFlowInstruction<'src> {
+    pub fn generated(
+        out: Option<ValueId>,
+        ty: Option<Type<'src>>,
+        op: ControlFlowOp<'src>,
+        span: Span,
+    ) -> Self {
+        Self {
+            out,
+            ty,
+            op,
+            lowering_obligation: LoweringObligation::Free,
+            origin: OperationOrigin::Generated,
+            node_id: None,
+            span,
+        }
+    }
+
+    pub fn source(
+        out: Option<ValueId>,
+        ty: Option<Type<'src>>,
+        op: ControlFlowOp<'src>,
+        lowering_obligation: LoweringObligation,
+        span: Span,
+        node_id: NodeId,
+    ) -> Self {
+        Self {
+            out,
+            ty,
+            op,
+            lowering_obligation,
+            origin: OperationOrigin::Source,
+            node_id: Some(node_id),
+            span,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum LoweringObligation {
+    #[default]
+    Free,
+    PreserveJavaScriptBitOrZero,
+}
+
+impl ControlFlowModule<'_> {
+    pub fn runtime_exported_functions(&self) -> Vec<FunctionId> {
+        let mut exported = self
+            .exports
+            .iter()
+            .chain(
+                self.lazy_modules
+                    .iter()
+                    .flat_map(|module| module.exports.iter()),
+            )
+            .filter_map(|export| match export.binding {
+                ExportBinding::Function(function) => Some(function),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        let mut public_classes = exported
+            .iter()
+            .filter_map(|id| self.functions.get(id.0 as usize))
+            .filter_map(|function| match function.kind {
+                FunctionKind::Constructor { class } if self.class_identity_observed(class) => {
+                    Some(class)
+                }
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        loop {
+            let inherited = public_classes
+                .iter()
+                .filter_map(|name| {
+                    self.classes
+                        .iter()
+                        .find(|layout| layout.name == *name)
+                        .and_then(|layout| layout.base)
+                })
+                .filter(|base| !public_classes.contains(base))
+                .collect::<Vec<_>>();
+            if inherited.is_empty() {
+                break;
+            }
+            public_classes.extend(inherited);
+        }
+        for function in &self.functions {
+            if matches!(function.kind,
+                FunctionKind::Constructor { class } | FunctionKind::Method { class }
+                    if public_classes.contains(&class))
+                && !exported.contains(&function.id)
+            {
+                exported.push(function.id);
+            }
+        }
+        exported
+    }
+
+    pub fn has_explicit_lowering_obligations(&self) -> bool {
+        self.live_instructions()
+            .any(|instruction| instruction.lowering_obligation != LoweringObligation::Free)
+    }
+
+    pub fn operation_provenance_counts(&self) -> (usize, usize) {
+        let mut source = 0usize;
+        let mut generated = 0usize;
+        for instruction in self.live_instructions() {
+            match instruction.origin {
+                OperationOrigin::Source => source += 1,
+                OperationOrigin::Generated => generated += 1,
+            }
+        }
+        (source, generated)
+    }
+
+    pub fn class_identity_observed(&self, name: &str) -> bool {
+        self.classes
+            .iter()
+            .any(|layout| layout.name == name && layout.identity_observed)
+    }
+
+    pub fn function_belongs_to_identity_class(&self, function: &ControlFlowFunction<'_>) -> bool {
+        match function.kind {
+            FunctionKind::Constructor { class } | FunctionKind::Method { class } => {
+                self.class_identity_observed(class)
+            }
+            _ => false,
+        }
+    }
+
+    fn live_instructions(&self) -> impl Iterator<Item = &ControlFlowInstruction<'_>> {
+        self.functions
+            .iter()
+            .filter(|function| function.live)
+            .flat_map(|function| &function.blocks)
+            .flat_map(|block| &block.instructions)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]

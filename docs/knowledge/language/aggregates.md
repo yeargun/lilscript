@@ -14,6 +14,14 @@ Parent: [Language](README.md). Related: [types](types-not-glue.md), [escape](bou
 
 IR uses `FieldGet`/`FieldSet` with `index` for structs/classes, `RecordFieldGet`/`Set` with a string for records, and `HostFieldGet`/`Set` for host names (`src/ir.rs`).
 
+Positional arrays and SSA locals are the **usual** size win, not a theorem.
+`LocalOnly` dissolution is an always-on IR pass (no “keep the object” clone).
+Array vs named object is `aggregate_layout` unless `joint-representation-search`
+is actually enabled — root `lilscript.toml` omits that decision, so repo-default
+compiles do not compete layouts. ES `class` is constructor identity, not instance
+backing. Full map: [decision registry](../compilation/decision-registry.md#aggregates-class-struct-object-record),
+[class identity](../compilation/class-identity.md).
+
 ## Inheritance is non-virtual on purpose
 
 Single inheritance flattens base fields first. `super(...)` must be first in derived `init`. Upcasting works. **Overriding is rejected**: silent static dispatch would be unsound; vtables would add size and memory. Native C currently rejects inheritance until the subtype pointer ABI is fixed.
@@ -36,7 +44,11 @@ This is a compression-oriented OO subset, not a TS `extends` clone.
 
 ## Construction spelling
 
-`Point{10, 20}` is positional struct construction. `new Vector(3, 4)` is class construction. `record { key: value }` is an open record with a null-prototype semantic contract. A JS-only whole-artifact candidate may project proven closed record observations and eliminate the materialized record, but a surviving record never changes to ordinary-object backing. See [aggregate lowering](../compilation/aggregate-lowering.md#closed-record-observation-projection). jQuery cannot generally use `record{}` for plain objects because its object model does observe ordinary-object behavior; the port uses `createEmptyObject()` which the optimizer lowers to `{}`. Language choice here is ABI, not style.
+`Point{10, 20}` is positional struct construction. `new Vector(3, 4)` is class construction. `record { key: value }` is an open record with a null-prototype semantic contract. `object { key: value }` is an ordinary-prototype, JavaScript-only `JsValue` dictionary and keeps inherited hook behavior. A JS-only whole-artifact candidate may project proven closed record observations and eliminate the materialized record, but a surviving record never changes backing. See [aggregate lowering](../compilation/aggregate-lowering.md#closed-record-observation-projection).
+
+`export class` does not produce a JS constructor. `export constructor C;`
+publishes a named, constructible ES class; `as` supplies a public export alias.
+Identity-free classes stay dissolved.
 
 ## Config that changes aggregate emission
 
@@ -46,7 +58,7 @@ This is a compression-oriented OO subset, not a TS `extends` clone.
 | `aggregate_layout` | Instance backing (array vs named object) |
 | `property-mangling` / `mangle.properties` | Owned field names |
 | `export-mangling` / `mangle.exports` | Public names + public fields |
-| `joint-representation-search` | Compete layouts under the codec |
-| `struct_method_shorthand` | Always on in `js_options()` today |
+| `joint-representation-search` | Compete named vs positional instance backing (off unless listed; omitted from root toml) |
+| `struct_method_shorthand` | Default on in `js_options()`; candidate search flips it (`k(){…}` vs `k:function(){…}`) |
 
 Size-first enables property mangling by default; other priorities do not, unless the compression allowlist or `[mangle]` opts in.

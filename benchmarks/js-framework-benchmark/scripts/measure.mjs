@@ -12,11 +12,7 @@ import { createRequire } from "node:module";
 import os from "node:os";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import {
-  brotliCompressSync,
-  constants as zlibConstants,
-  gzipSync,
-} from "node:zlib";
+import { canonicalCodecMeasurementsForFiles } from "../../codec-contract.mjs";
 import {
   benchmarkRoot,
   metadataPath,
@@ -212,16 +208,21 @@ function directBundleSize(framework) {
     "dist",
   );
   const files = collectJavaScriptFiles(directory);
-  const quality = metadata.measurement.brotliQuality;
-  const measurements = files.map((path) => {
+  if (metadata.measurement.brotliQuality !== 11) {
+    throw new Error("canonical size measurement requires Brotli quality 11");
+  }
+  const codecRows = canonicalCodecMeasurementsForFiles(
+    files,
+    `js-framework-benchmark ${framework.name}`,
+  );
+  const measurements = files.map((path, index) => {
     const content = readFileSync(path);
+    const measured = codecRows[index];
     return {
       file: path.slice(directory.length + 1),
-      rawBytes: content.length,
-      brotliBytes: brotliCompressSync(content, {
-        params: { [zlibConstants.BROTLI_PARAM_QUALITY]: quality },
-      }).length,
-      gzipBytes: gzipSync(content, { level: 9 }).length,
+      rawBytes: measured.raw,
+      brotliBytes: measured.brotli,
+      gzipBytes: measured.gzip,
       sha256: createHash("sha256").update(content).digest("hex"),
     };
   });

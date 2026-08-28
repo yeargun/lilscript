@@ -5,8 +5,8 @@ use crate::stable_hash::{StableHashMap as AHashMap, StableHashSet as AHashSet};
 
 use crate::ir::{
     BlockId, ConstValue, ControlFlowBlock, ControlFlowFunction, ControlFlowInstruction,
-    ControlFlowModule, ControlFlowOp, ExportBinding, FunctionId, FunctionKind, FunctionOrigin,
-    Intrinsic, IrBinaryOp, IrParameter, IrUnaryOp, LocalId, Terminator, ValueId,
+    ControlFlowModule, ControlFlowOp, FunctionId, FunctionKind, FunctionOrigin, Intrinsic,
+    IrBinaryOp, IrParameter, IrUnaryOp, LocalId, Terminator, ValueId,
 };
 use crate::optimizer::{
     analyze_escapes, instruction_has_dynamic_observable_evaluation, OptimizationReport,
@@ -356,6 +356,9 @@ fn build_fused_map_callback<'src>(
                 provided_args: first_args.len(),
                 args: first_args,
             },
+            lowering_obligation: crate::ir::LoweringObligation::Free,
+            origin: crate::ir::OperationOrigin::Generated,
+            node_id: None,
             span: empty,
         },
         ControlFlowInstruction {
@@ -366,6 +369,9 @@ fn build_fused_map_callback<'src>(
                 provided_args: second_args.len(),
                 args: second_args,
             },
+            lowering_obligation: crate::ir::LoweringObligation::Free,
+            origin: crate::ir::OperationOrigin::Generated,
+            node_id: None,
             span: empty,
         },
     ];
@@ -795,6 +801,9 @@ pub(crate) fn outline_repeated_regions(module: &mut ControlFlowModule<'_>) -> Op
                     provided_args: args.len(),
                     args,
                 },
+                lowering_obligation: crate::ir::LoweringObligation::Free,
+                origin: crate::ir::OperationOrigin::Generated,
+                node_id: None,
                 span,
             };
             block.instructions.splice(
@@ -812,6 +821,9 @@ pub(crate) fn outline_repeated_regions(module: &mut ControlFlowModule<'_>) -> Op
                     provided_args: args.len(),
                     args,
                 },
+                lowering_obligation: crate::ir::LoweringObligation::Free,
+                origin: crate::ir::OperationOrigin::Generated,
+                node_id: None,
                 span,
             };
             block.instructions.splice(
@@ -1213,6 +1225,10 @@ pub fn superoptimize_pure_expressions(module: &mut ControlFlowModule<'_>) -> Opt
             let mut retained = Vec::with_capacity(instructions.len());
             for mut instruction in instructions {
                 rewrite_control_flow_op(&mut instruction.op, &aliases);
+                if instruction.lowering_obligation != crate::ir::LoweringObligation::Free {
+                    retained.push(instruction);
+                    continue;
+                }
                 let Some(out) = instruction.out else {
                     retained.push(instruction);
                     continue;
@@ -1287,6 +1303,10 @@ pub fn superoptimize_pure_expressions(module: &mut ControlFlowModule<'_>) -> Opt
                                                         lhs: b,
                                                         rhs,
                                                     },
+                                                    lowering_obligation:
+                                                        crate::ir::LoweringObligation::Free,
+                                                    origin: crate::ir::OperationOrigin::Generated,
+                                                    node_id: None,
                                                     span: instruction.span,
                                                 });
                                                 instruction.op = ControlFlowOp::Binary {
@@ -1424,30 +1444,38 @@ pub fn propagate_path_sensitive_constants(
                     let Some(out) = instruction.out else {
                         continue;
                     };
-                    let lattice = match &instruction.op {
-                        ControlFlowOp::Const(value) => Lattice::Constant(value.clone()),
-                        ControlFlowOp::Unary { op, value } => match values.get(value.0 as usize) {
-                            Some(Lattice::Constant(constant)) => fold_unary(*op, constant)
-                                .map(Lattice::Constant)
-                                .unwrap_or(Lattice::Top),
-                            Some(Lattice::Bottom) => Lattice::Bottom,
-                            _ => Lattice::Top,
-                        },
-                        ControlFlowOp::Binary { op, lhs, rhs } => {
-                            match (values.get(lhs.0 as usize), values.get(rhs.0 as usize)) {
-                                (Some(Lattice::Constant(left)), Some(Lattice::Constant(right))) => {
-                                    fold_binary(*op, left, right)
+                    let lattice =
+                        if instruction.lowering_obligation != crate::ir::LoweringObligation::Free {
+                            Lattice::Top
+                        } else {
+                            match &instruction.op {
+                                ControlFlowOp::Const(value) => Lattice::Constant(value.clone()),
+                                ControlFlowOp::Unary { op, value } => match values
+                                    .get(value.0 as usize)
+                                {
+                                    Some(Lattice::Constant(constant)) => fold_unary(*op, constant)
                                         .map(Lattice::Constant)
-                                        .unwrap_or(Lattice::Top)
-                                }
-                                (Some(Lattice::Bottom), _) | (_, Some(Lattice::Bottom)) => {
-                                    Lattice::Bottom
+                                        .unwrap_or(Lattice::Top),
+                                    Some(Lattice::Bottom) => Lattice::Bottom,
+                                    _ => Lattice::Top,
+                                },
+                                ControlFlowOp::Binary { op, lhs, rhs } => {
+                                    match (values.get(lhs.0 as usize), values.get(rhs.0 as usize)) {
+                                        (
+                                            Some(Lattice::Constant(left)),
+                                            Some(Lattice::Constant(right)),
+                                        ) => fold_binary(*op, left, right)
+                                            .map(Lattice::Constant)
+                                            .unwrap_or(Lattice::Top),
+                                        (Some(Lattice::Bottom), _) | (_, Some(Lattice::Bottom)) => {
+                                            Lattice::Bottom
+                                        }
+                                        _ => Lattice::Top,
+                                    }
                                 }
                                 _ => Lattice::Top,
                             }
-                        }
-                        _ => Lattice::Top,
-                    };
+                        };
                     progressed |= set_lattice(&mut values, out, lattice);
                 }
 
@@ -1488,6 +1516,9 @@ pub fn propagate_path_sensitive_constants(
                 let Some(out) = instruction.out else {
                     continue;
                 };
+                if instruction.lowering_obligation != crate::ir::LoweringObligation::Free {
+                    continue;
+                }
                 let Some(Lattice::Constant(value)) = values.get(out.0 as usize).cloned() else {
                     continue;
                 };
@@ -1538,20 +1569,7 @@ fn has_exception_region(function: &ControlFlowFunction<'_>) -> bool {
 }
 
 fn exported_functions(module: &ControlFlowModule<'_>) -> AHashSet<FunctionId> {
-    module
-        .exports
-        .iter()
-        .chain(
-            module
-                .lazy_modules
-                .iter()
-                .flat_map(|module| module.exports.iter()),
-        )
-        .filter_map(|export| match export.binding {
-            ExportBinding::Function(function) => Some(function),
-            _ => None,
-        })
-        .collect()
+    module.runtime_exported_functions().into_iter().collect()
 }
 
 fn instruction_definitions<'a, 'src>(
@@ -1955,6 +1973,7 @@ mod tests {
     use bumpalo::Bump;
 
     use super::*;
+    use crate::ir::ExportBinding;
     use crate::optimizer::promote_locals_to_ssa;
     use crate::{analyze, lower_to_control_flow, parse_source};
 

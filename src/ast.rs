@@ -94,7 +94,15 @@ pub struct ImportSpecifier<'src> {
 pub struct ExportDecl<'src> {
     pub local: Ident<'src>,
     pub exported: Ident<'src>,
+    pub kind: ExportKind,
     pub span: Span,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ExportKind {
+    #[default]
+    Binding,
+    ConstructorValue,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -417,6 +425,10 @@ pub enum Expr<'ast, 'src> {
         entries: &'ast [RecordElement<'ast, 'src>],
         span: Span,
     },
+    ObjectLiteral {
+        entries: &'ast [RecordElement<'ast, 'src>],
+        span: Span,
+    },
     StructLiteral {
         name: Ident<'src>,
         values: &'ast [Expr<'ast, 'src>],
@@ -480,6 +492,12 @@ pub enum Expr<'ast, 'src> {
     OptionalIndex {
         object: &'ast Expr<'ast, 'src>,
         index: &'ast Expr<'ast, 'src>,
+        span: Span,
+    },
+    If {
+        condition: &'ast Expr<'ast, 'src>,
+        then_value: &'ast Expr<'ast, 'src>,
+        else_value: &'ast Expr<'ast, 'src>,
         span: Span,
     },
     Match {
@@ -564,6 +582,7 @@ impl<'ast, 'src> Expr<'ast, 'src> {
             | Self::Null(span)
             | Self::ArrayLiteral { span, .. }
             | Self::RecordLiteral { span, .. }
+            | Self::ObjectLiteral { span, .. }
             | Self::StructLiteral { span, .. }
             | Self::New { span, .. }
             | Self::DynamicImport { span, .. }
@@ -577,6 +596,7 @@ impl<'ast, 'src> Expr<'ast, 'src> {
             | Self::TypeCheck { span, .. }
             | Self::Index { span, .. }
             | Self::OptionalIndex { span, .. }
+            | Self::If { span, .. }
             | Self::Match { span, .. }
             | Self::Assignment { span, .. }
             | Self::Update { span, .. }
@@ -600,13 +620,20 @@ pub enum MatchPattern<'src> {
         variant: Ident<'src>,
         span: Span,
     },
+    Int(i64, Span),
+    String(&'src str, Span),
+    Bool(bool, Span),
     Wildcard(Span),
 }
 
 impl MatchPattern<'_> {
     pub const fn span(self) -> Span {
         match self {
-            Self::EnumVariant { span, .. } | Self::Wildcard(span) => span,
+            Self::EnumVariant { span, .. }
+            | Self::Int(_, span)
+            | Self::String(_, span)
+            | Self::Bool(_, span)
+            | Self::Wildcard(span) => span,
         }
     }
 }

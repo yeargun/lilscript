@@ -258,18 +258,8 @@ impl IntegerValueAnalysis {
 
 pub fn analyze_integer_values(module: &ControlFlowModule<'_>) -> IntegerValueAnalysis {
     let exported = module
-        .exports
-        .iter()
-        .chain(
-            module
-                .lazy_modules
-                .iter()
-                .flat_map(|module| module.exports.iter()),
-        )
-        .filter_map(|export| match export.binding {
-            ExportBinding::Function(function) => Some(function),
-            _ => None,
-        })
+        .runtime_exported_functions()
+        .into_iter()
         .collect::<AHashSet<_>>();
     let indirect = indirectly_called_functions(module);
     let unsafe_fields = aggregate_owners_exposed_to_untyped_code(module);
@@ -380,18 +370,8 @@ pub fn analyze_integer_values(module: &ControlFlowModule<'_>) -> IntegerValueAna
 
 pub fn analyze_finite_values(module: &ControlFlowModule<'_>) -> FiniteValueAnalysis {
     let exported = module
-        .exports
-        .iter()
-        .chain(
-            module
-                .lazy_modules
-                .iter()
-                .flat_map(|module| module.exports.iter()),
-        )
-        .filter_map(|export| match export.binding {
-            ExportBinding::Function(function) => Some(function),
-            _ => None,
-        })
+        .runtime_exported_functions()
+        .into_iter()
         .collect::<AHashSet<_>>();
     let indirect = indirectly_called_functions(module);
     let unsafe_fields = aggregate_owners_exposed_to_untyped_code(module);
@@ -1262,18 +1242,8 @@ fn aggregate_owners_exposed_to_untyped_code(module: &ControlFlowModule<'_>) -> A
         })
         .collect::<AHashSet<_>>();
     let exported_functions = module
-        .exports
-        .iter()
-        .chain(
-            module
-                .lazy_modules
-                .iter()
-                .flat_map(|module| module.exports.iter()),
-        )
-        .filter_map(|export| match export.binding {
-            ExportBinding::Function(function) => Some(function),
-            _ => None,
-        })
+        .runtime_exported_functions()
+        .into_iter()
         .collect::<AHashSet<_>>();
     let mut unsafe_owners = AHashSet::default();
     for global in module

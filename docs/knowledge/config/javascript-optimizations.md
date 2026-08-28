@@ -4,6 +4,12 @@ Parent: [Config](README.md). Search mechanics: [candidate search](../compilation
 
 `optimization_level` is **search effort** 0–15. It does not weaken type checking or `[optimization]` IR passes (those have their own keys). Duplicate feature names and levels > 15 are errors.
 
+A listed feature still needs its compression decision when it is dual-gated, and
+`candidate_search = off` still zeros optional terminal work. Effort is not the
+same as “this representation is searched”; see
+[decision registry](../compilation/decision-registry.md) and
+[objectives](../compilation/objectives.md).
+
 ## Level → features (`minimum_level`)
 
 | Min level | Features |

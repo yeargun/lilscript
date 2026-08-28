@@ -1,0 +1,11 @@
+string label(int value) {
+  return match(value) {
+    -1 => "negative",
+    0 => "zero",
+    _ => "positive"
+  };
+}
+
+print(label(-1));
+print(label(0));
+print(label(2));
