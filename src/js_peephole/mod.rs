@@ -88,6 +88,7 @@ pub struct GeneratedJavaScriptExportWitness {
     pub kind: GeneratedJavaScriptExportKind,
     pub arity: Option<usize>,
     pub constructible: Option<bool>,
+    pub fields: Vec<String>,
     pub methods: Vec<GeneratedJavaScriptMethodWitness>,
 }
 
@@ -443,7 +444,7 @@ pub fn generated_javascript_export_witnesses(
                 source,
             ));
         };
-        let (kind, arity, constructible, methods) = classify_generated_export_binding(
+        let (kind, arity, constructible, fields, methods) = classify_generated_export_binding(
             &tokens,
             &matching_close,
             &resolution,
@@ -455,6 +456,7 @@ pub fn generated_javascript_export_witnesses(
             kind,
             arity,
             constructible,
+            fields,
             methods,
         });
     }
@@ -528,10 +530,17 @@ fn classify_generated_export_binding(
     GeneratedJavaScriptExportKind,
     Option<usize>,
     Option<bool>,
+    Vec<String>,
     Vec<GeneratedJavaScriptMethodWitness>,
 ) {
     if !visited.insert(declaration) {
-        return (GeneratedJavaScriptExportKind::Value, None, None, Vec::new());
+        return (
+            GeneratedJavaScriptExportKind::Value,
+            None,
+            None,
+            Vec::new(),
+            Vec::new(),
+        );
     }
     let previous = declaration
         .checked_sub(1)
@@ -551,10 +560,11 @@ fn classify_generated_export_binding(
             generated_parameter_arity(tokens, matching_close, open),
             Some(!generated_function_is_async_or_generator(tokens, function)),
             Vec::new(),
+            Vec::new(),
         );
     }
     if previous == Some("class") {
-        let (arity, methods) = generated_class_shape(
+        let (arity, fields, methods) = generated_class_shape(
             tokens,
             matching_close,
             resolution,
@@ -565,11 +575,18 @@ fn classify_generated_export_binding(
             GeneratedJavaScriptExportKind::Constructor,
             arity,
             Some(true),
+            fields,
             methods,
         );
     }
     if tokens.get(declaration + 1).map(|token| token.text) != Some("=") {
-        return (GeneratedJavaScriptExportKind::Value, None, None, Vec::new());
+        return (
+            GeneratedJavaScriptExportKind::Value,
+            None,
+            None,
+            Vec::new(),
+            Vec::new(),
+        );
     }
     let rhs = declaration + 2;
     if tokens.get(rhs + 1).map(|token| token.text) == Some("=>") {
@@ -577,6 +594,7 @@ fn classify_generated_export_binding(
             GeneratedJavaScriptExportKind::Function,
             Some(1),
             Some(false),
+            Vec::new(),
             Vec::new(),
         );
     }
@@ -587,6 +605,7 @@ fn classify_generated_export_binding(
                     GeneratedJavaScriptExportKind::Function,
                     generated_parameter_arity(tokens, matching_close, rhs),
                     Some(false),
+                    Vec::new(),
                     Vec::new(),
                 );
             }
@@ -608,11 +627,12 @@ fn classify_generated_export_binding(
                 generated_parameter_arity(tokens, matching_close, open),
                 Some(!generated_function_is_async_or_generator(tokens, index)),
                 Vec::new(),
+                Vec::new(),
             );
         }
         if tokens[index].text == "class" {
             let class_name = index + 1;
-            let (arity, methods) = generated_class_shape(
+            let (arity, fields, methods) = generated_class_shape(
                 tokens,
                 matching_close,
                 resolution,
@@ -623,6 +643,7 @@ fn classify_generated_export_binding(
                 GeneratedJavaScriptExportKind::Constructor,
                 arity,
                 Some(true),
+                fields,
                 methods,
             );
         }
@@ -644,7 +665,13 @@ fn classify_generated_export_binding(
             );
         }
     }
-    (GeneratedJavaScriptExportKind::Value, None, None, Vec::new())
+    (
+        GeneratedJavaScriptExportKind::Value,
+        None,
+        None,
+        Vec::new(),
+        Vec::new(),
+    )
 }
 
 fn generated_function_is_async_or_generator(tokens: &[Token<'_>], function: usize) -> bool {
@@ -696,17 +723,22 @@ fn generated_class_shape(
     resolution: &BindingResolution<'_>,
     class_name: usize,
     visited: &mut std::collections::BTreeSet<usize>,
-) -> (Option<usize>, Vec<GeneratedJavaScriptMethodWitness>) {
+) -> (
+    Option<usize>,
+    Vec<String>,
+    Vec<GeneratedJavaScriptMethodWitness>,
+) {
     if !visited.insert(class_name) {
-        return (None, Vec::new());
+        return (None, Vec::new(), Vec::new());
     }
     let Some(open) = (class_name + 1..tokens.len()).find(|index| tokens[*index].text == "{") else {
-        return (None, Vec::new());
+        return (None, Vec::new(), Vec::new());
     };
     let Some(close) = matching_close[open] else {
-        return (None, Vec::new());
+        return (None, Vec::new(), Vec::new());
     };
     let mut arity = Some(0);
+    let mut fields = Vec::new();
     let mut methods = Vec::new();
     let mut cursor = open + 1;
     while cursor < close {
@@ -732,6 +764,14 @@ fn generated_class_shape(
         };
         let params = cursor + 1;
         if tokens.get(params).map(|token| token.text) != Some("(") {
+            if tokens
+                .get(params)
+                .is_some_and(|token| matches!(token.text, "=" | ";"))
+            {
+                if let Some(name) = generated_export_name(name) {
+                    fields.push(name.to_string());
+                }
+            }
             cursor += 1;
             continue;
         }
@@ -759,13 +799,18 @@ fn generated_class_shape(
     if tokens.get(class_name + 1).map(|token| token.text) == Some("extends") {
         let base = class_name + 2;
         if let Resolution::Bound(base_declaration) = resolution.resolve(base) {
-            let (_, base_methods) = generated_class_shape(
+            let (_, base_fields, base_methods) = generated_class_shape(
                 tokens,
                 matching_close,
                 resolution,
                 base_declaration,
                 visited,
             );
+            for field in base_fields.into_iter().rev() {
+                if !fields.contains(&field) {
+                    fields.insert(0, field);
+                }
+            }
             for method in base_methods {
                 if !methods.iter().any(|existing| {
                     let existing: &GeneratedJavaScriptMethodWitness = existing;
@@ -776,8 +821,9 @@ fn generated_class_shape(
             }
         }
     }
+    fields.dedup();
     methods.sort();
-    (arity, methods)
+    (arity, fields, methods)
 }
 
 pub fn generated_javascript_static_imports(

@@ -47,7 +47,7 @@ Documentation: [current architecture](../../compilation/current-architecture.md)
 
 | id | status | intent | gate | note |
 |---|---|---|---|---|
-| `emit-01` | todo | `?:break` was emitted while a stronger receiver coloring was tried. The coloring was backed off; **the emission path that put a statement in expression position was not fixed**. Isolate it independently. | A minimized peephole test that reproduces statement-in-expression, then passes | [notes](notes/emit-01.md) |
+| `emit-01` | landed | Prove the branch-to-conditional path accepts only complete expression statements and rejects `break`, `continue`, `return`, and `throw` in either arm. | Direct fold regressions for all control-transfer forms | [notes](notes/emit-01.md) |
 | `emit-07` | landed | Measure our own artifact against a minifier instead of against another program: naming and formatting are already better than terser's, and the entire remaining advantage is value placement. Three folds landed from it. | Brotli 25,605 → 25,459 across nine jQuery submodules, every module improved; 36 new tests | [notes](notes/emit-07.md) |
 | `emit-08` | landed | V-03: preserve ordinary-object assignment semantics unless the explicit pristine-prototype contract authorizes literal collection. | Inherited-setter regression, full release suite, canonical cases, and five-fork G2 | [notes](notes/emit-08.md) |
 | `emit-06` | landed | A total use-to-binding resolver for generated JavaScript, plus converged naming scored on it. The primitive answers `Bound`/`Free`/`Unresolved` for every identifier and fails closed per name. | 23 unit tests; Brotli −76 across nine artifacts with no regression; corpus unchanged | [notes](notes/emit-06.md) |

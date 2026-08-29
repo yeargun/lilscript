@@ -15,8 +15,9 @@ those authorities win.
 - `JavaScriptCompilationContract`, `JavaScriptOptimizationObjective`, and
   `JavaScriptAbiManifest` separate much of legality/ABI from profitability. The
   compiler now emits an observed final-artifact witness for syntax, exports,
-  imports, free names, templates, obligations, and property ranges. Live-binding,
-  descriptor/order, and unique receiver-property identity checks remain.
+  imports, free names, templates, obligations, binding ranges, and property ranges.
+  Cross-objective live-binding and exported-class descriptor/order fixtures pass;
+  exact receiver identity for shared property spellings remains target-JS work.
 - Source/generated operation provenance exists. A live source `value | 0` has a
   lowering obligation that objective search may not erase.
 - All 77 `IrJsOptions` fields are classified. The current registry exposes 48
@@ -36,7 +37,7 @@ Live task rows: [ledger](knowledge/migration/board/LEDGER.md).
 
 | Gate | Result |
 |---|---:|
-| Rust release library tests | 1,543 passed |
+| Rust release library tests | 1,603 passed |
 | Rust release all-targets | passed |
 | Canonical paired cases | 54/54 passed |
 | Codec contract | 10/10 passed |

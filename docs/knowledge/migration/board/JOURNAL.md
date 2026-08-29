@@ -6,6 +6,12 @@ recorded verdict. This is cold storage: read it when you are about to redo somet
 Format: `## YYYY-MM-DD — <task id> — <one line>` then two or three lines of what
 changed, what the gate said, and the commit if there is one.
 
+## 2026-08-29 — emit-01 — control transfer cannot enter a conditional expression
+
+The branch fold already requires `ExpressionParser::parse_complete` for both
+arms. A direct regression now covers `break`, `continue`, `return`, and `throw`
+in either arm; all are refused, so no production rewrite was required.
+
 ## 2026-08-29 — gate-04 — dynamic member ranges
 
 Final property reporting now covers computed members as explicit dynamic ranges

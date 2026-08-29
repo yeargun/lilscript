@@ -59,7 +59,7 @@ the full G2 rerun was explicitly deferred in favor of targeted development gates
 
 ## Known red or incomplete gates
 
-- V-01 final-artifact admission is not implemented. Current semantic harnesses
+- V-01 final-artifact admission has not graduated. Current semantic harnesses
   now require syntax and binding admission before compiler-internal codec calls;
   final bytes also witness export names/counts, static foreign module edges, and
   live source-`|0` counts. Exported callable kind, arity, constructibility, and
@@ -74,6 +74,9 @@ the full G2 rerun was explicitly deferred in favor of targeted development gates
   syntax/binding-admitted before measurement. Explained compilation serializes
   export/import/free/template/obligation/property witnesses plus bound-use and
   declaration byte ranges; computed member ranges are explicitly dynamic.
+- V-01 implementation is complete at targeted scope, including cross-objective
+  live-binding and descriptor/order fixtures. Its required full G2 promotion run
+  is deferred by explicit request and the ledger remains non-optimistic.
 - Historical Marked raw/gzip outputs from `06b89aa` fail 229 corpus checks and
   are ineligible incumbents; candidate `7128462` fixes them. The Brotli incumbent
   and all other selected rows remain byte-identical.

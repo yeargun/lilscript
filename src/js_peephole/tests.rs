@@ -1130,7 +1130,7 @@ fn rejects_duplicate_generated_export_names() {
 #[test]
 fn observes_generated_export_callable_shapes() {
     let witnesses = generated_javascript_export_witnesses(
-        "class B{base(a){}}function f(a,b=1){}class C extends B{constructor(a,b){}read(a=1){}}let g=(a,b)=>a+b,v=1;export{f,C,g,v}",
+        "class B{baseField=0;base(a){}}function f(a,b=1){}class C extends B{ownField=0;constructor(a,b){}read(a=1){}}let g=(a,b)=>a+b,v=1;export{f,C,g,v}",
     )
     .unwrap();
     assert_eq!(witnesses.len(), 4);
@@ -1150,6 +1150,7 @@ fn observes_generated_export_callable_shapes() {
         super::GeneratedJavaScriptExportKind::Constructor
     );
     assert_eq!(class.arity, Some(2));
+    assert_eq!(class.fields, ["baseField", "ownField"]);
     assert_eq!(
         class
             .methods

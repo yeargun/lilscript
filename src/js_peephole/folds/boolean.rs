@@ -3414,7 +3414,24 @@ fn fold_ternary_copied_member_presence(
 
 #[cfg(test)]
 mod tests {
-    use super::fold_statement_or_assigns;
+    use super::{fold_expression_branches, fold_statement_or_assigns};
+
+    #[test]
+    fn expression_branches_reject_control_transfer_statements() {
+        for statement in ["break", "continue", "return", "throw error"] {
+            for source in [
+                format!("function f(a){{for(;;){{if(a){{{statement}}}else{{work()}}}}}}"),
+                format!("function f(a){{for(;;){{if(a){{work()}}else{{{statement}}}}}}}"),
+            ] {
+                let (output, rewrites) = fold_expression_branches(&source).unwrap();
+                assert_eq!(
+                    rewrites, 0,
+                    "folded control transfer into expression: {output}"
+                );
+                assert_eq!(output, source);
+            }
+        }
+    }
 
     /// `||` binds tighter than `,`, so the guarded body of
     /// `!m&&(m={},m.handled=!0,m.type="generic")` cannot become the right-hand

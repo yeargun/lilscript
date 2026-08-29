@@ -44,6 +44,7 @@ semantic identity. Do not weaken a rejection to preserve bytes.
 | 2026-08-29 | Serialized artifact witness | `cargo test --release --lib explained_compilation_reports_property_ranges`; `cargo check --all-targets` | explained compilation exposes syntax floor, exports, static imports, free names, template hashes, obligation counts, and property ranges with owner/slot identity candidates | gate |
 | 2026-08-29 | Binding byte ranges | `cargo test --release --lib records_binding_and_declaration_byte_ranges`; `cargo test --release --lib final_javascript_cannot_introduce_an_unresolved` | bound uses report declaration ranges; free and opaque unresolved occurrences are explicit; new unresolved names fail closed | gate |
 | 2026-08-29 | Dynamic property ranges | `cargo test --release --lib records_dynamic_property_ranges`; `cargo test --release --lib explained_compilation_reports_property_ranges` | computed member ranges are reported separately as dynamic; static ranges retain typed provenance candidates | gate |
+| 2026-08-29 | Live binding and descriptor fixtures | `cargo test --release --lib exported_global_remains_a_live_binding`; `cargo test --release --lib exported_class_preserves_field_order_and_method_descriptors` | raw/gzip/Brotli variants preserved live global updates, own-field order/descriptors, and class-method descriptors | gate |
 
 ## Log
 
@@ -62,8 +63,9 @@ semantic identity. Do not weaken a rejection to preserve bytes.
 - 2026-08-29 — Added deterministic `artifact_witness` output to explained compilation. Property occurrences carry byte ranges and every matching owner/slot provenance record. — **OPEN**
 - 2026-08-29 — Added final identifier ranges with `bound`/`free`/`unresolved` classification and declaration byte ranges for bound occurrences. Opaque unresolved names may only survive if present in direct typed emission. — **OPEN**
 - 2026-08-29 — Every final member access now has a static or dynamic range classification. Static occurrences map to typed owner/slot candidates; dynamic accesses remain explicitly non-renamable. — **OPEN**
+- 2026-08-29 — Added objective-independent ESM live-binding and exported-class field order/descriptor fixtures. The implementation checklist is complete; release promotion remains blocked only on the explicitly deferred G2 run. — **OPEN**
 
 ## Next step
 
-Add final live-binding and descriptor/order fixtures, then review V-01 against
-the canonical checklist before its deferred full G2 run.
+Run the deferred full `migration,candidate` G2 checkpoint when release-level
+verification is permitted, then mark V-01 landed if every selected cell passes.

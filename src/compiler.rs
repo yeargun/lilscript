@@ -9656,6 +9656,7 @@ fn validate_observed_javascript_artifact(
                 kind,
                 export.arity,
                 export.constructible,
+                export.fields.clone(),
                 methods,
             ))
         })
@@ -9680,6 +9681,7 @@ fn validate_observed_javascript_artifact(
                 export.kind,
                 export.arity,
                 export.constructible,
+                export.fields,
                 methods,
             )
         })
@@ -9693,6 +9695,7 @@ fn validate_observed_javascript_artifact(
                 && observed.2 == expected_callable.2
                 && observed.3 == expected_callable.3
                 && observed.4 == expected_callable.4
+                && observed.5 == expected_callable.5
         });
         let Some(match_at) = match_at else {
             return Err(crate::codegen_js::CodegenError::new(
@@ -15330,6 +15333,7 @@ mod tests {
                 arity: None,
                 constructible: None,
                 methods: Vec::new(),
+                fields: Vec::new(),
             }],
             export_names_may_mangle: false,
             foreign_imports: Vec::new(),
@@ -17157,6 +17161,84 @@ mod tests {
             "Empty:0:0:false::0:1",
             "{javascript}"
         );
+    }
+
+    #[test]
+    fn exported_class_preserves_field_order_and_method_descriptors() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "export constructor Box;class Box{int first;int second;init(int first,int second){this.first=first;this.second=second;}int read(){return this.first+this.second;}}",
+        )
+        .unwrap();
+        for cost_model in [
+            CompressionCostModel::Raw,
+            CompressionCostModel::Gzip,
+            CompressionCostModel::Brotli,
+        ] {
+            let mut config = javascript_oracle_config();
+            config.javascript.candidate_search = CandidateSearch::Off;
+            config.javascript.cost_model = cost_model;
+            config.mangle.exports = Some(false);
+            let javascript = compile_program_to_js_module_configured(&program, &config).unwrap();
+            let output = std::process::Command::new("node")
+                .arg("--input-type=module")
+                .arg("-e")
+                .arg(format!(
+                    "{javascript};let value=new Box(1,2),field=Object.getOwnPropertyDescriptor(value,'first'),method=Object.getOwnPropertyDescriptor(Box.prototype,'read');process.stdout.write([Object.keys(value).join(','),field.enumerable,field.writable,field.configurable,method.enumerable,method.writable,method.configurable].join(':'))"
+                ))
+                .output()
+                .expect("Node.js is required for JavaScript runtime parity tests");
+            assert!(output.status.success(), "{cost_model:?}: {javascript}");
+            assert_eq!(
+                String::from_utf8(output.stdout).expect("node stdout is UTF-8"),
+                "first,second:true:true:true:false:true:true",
+                "{cost_model:?}: {javascript}"
+            );
+        }
+    }
+
+    #[test]
+    fn exported_global_remains_a_live_binding() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "export int value=1;export void set(int next){value=next;}",
+        )
+        .unwrap();
+        for cost_model in [
+            CompressionCostModel::Raw,
+            CompressionCostModel::Gzip,
+            CompressionCostModel::Brotli,
+        ] {
+            let mut config = javascript_oracle_config();
+            config.javascript.candidate_search = CandidateSearch::Off;
+            config.javascript.cost_model = cost_model;
+            config.mangle.exports = Some(false);
+            let javascript = compile_program_to_js_module_configured(&program, &config).unwrap();
+            let path = std::env::temp_dir().join(format!(
+                "lilscript-live-export-{}-{}.mjs",
+                std::process::id(),
+                compression_cost_model_name(cost_model)
+            ));
+            std::fs::write(&path, &javascript).unwrap();
+            let url = serde_json::to_string(&format!("file://{}", path.display())).unwrap();
+            let output = std::process::Command::new("node")
+                .arg("--input-type=module")
+                .arg("-e")
+                .arg(format!(
+                    "let m=await import({url});m.set(7);process.stdout.write(String(m.value))"
+                ))
+                .output()
+                .expect("Node.js is required for JavaScript runtime parity tests");
+            std::fs::remove_file(path).unwrap();
+            assert!(output.status.success(), "{cost_model:?}: {javascript}");
+            assert_eq!(
+                String::from_utf8(output.stdout).expect("node stdout is UTF-8"),
+                "7",
+                "{cost_model:?}: {javascript}"
+            );
+        }
     }
 
     #[test]
