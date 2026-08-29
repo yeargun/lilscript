@@ -19,6 +19,7 @@ use crate::js_peephole::token::{
     ascii_identifier_name_string, lex, matching_closers, validate_conditional_operators,
     validate_delimiters, Token, TokenKind,
 };
+use crate::js_syntax_target::{EcmaScriptEdition, JsSyntaxFeature};
 
 mod folds;
 pub(crate) use folds::{
@@ -905,6 +906,114 @@ pub fn generated_javascript_static_property_names(
         }
     }
     Ok(names.into_iter().collect())
+}
+
+pub fn validate_generated_javascript_syntax_floor(
+    source: &str,
+    edition: EcmaScriptEdition,
+) -> Result<(), JavaScriptParseError> {
+    analyze_generated_javascript(source)?;
+    let tokens = lex(source)?;
+    let matching_close = matching_closers(&tokens);
+    let class_names = class_element_name_occurrences(&tokens, &matching_close);
+    for (index, token) in tokens.iter().enumerate() {
+        let optional_chain = token.text == "?"
+            && tokens
+                .get(index + 1)
+                .is_some_and(|next| next.text == "." && next.start == token.end);
+        let feature = if optional_chain {
+            Some(JsSyntaxFeature::OptionalChain)
+        } else if generated_object_rest_or_spread(&tokens, index) {
+            Some(JsSyntaxFeature::ObjectRestSpread)
+        } else {
+            match token.text {
+                "??" => Some(JsSyntaxFeature::NullishCoalescing),
+                "&&=" | "||=" | "??=" => Some(JsSyntaxFeature::LogicalAssignment),
+                "await" if !is_property_identifier(&tokens, index) => {
+                    Some(JsSyntaxFeature::AsyncAwait)
+                }
+                "async" if generated_async_function_or_arrow(&tokens, &matching_close, index) => {
+                    Some(JsSyntaxFeature::AsyncAwait)
+                }
+                "catch" if tokens.get(index + 1).is_some_and(|next| next.text == "{") => {
+                    Some(JsSyntaxFeature::OptionalCatchBinding)
+                }
+                "values"
+                    if index > 1
+                        && tokens[index - 1].text == "."
+                        && tokens[index - 2].text == "Object" =>
+                {
+                    Some(JsSyntaxFeature::ObjectValues)
+                }
+                "hasOwn"
+                    if index > 1
+                        && tokens[index - 1].text == "."
+                        && tokens[index - 2].text == "Object" =>
+                {
+                    Some(JsSyntaxFeature::ObjectHasOwn)
+                }
+                _ if class_names.get(index).copied().unwrap_or(false)
+                    && tokens
+                        .get(index + 1)
+                        .is_some_and(|next| matches!(next.text, "=" | ";")) =>
+                {
+                    Some(JsSyntaxFeature::ClassFields)
+                }
+                _ => None,
+            }
+        };
+        if feature.is_some_and(|feature| !edition.allows(feature)) {
+            return Err(JavaScriptParseError {
+                offset: token.start,
+                message: "generated JavaScript exceeds configured syntax floor",
+                context: None,
+            }
+            .with_source(source));
+        }
+    }
+    Ok(())
+}
+
+fn generated_async_function_or_arrow(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    index: usize,
+) -> bool {
+    let next = index + 1;
+    if tokens
+        .get(next)
+        .is_some_and(|token| token.text == "function")
+        || (tokens
+            .get(next)
+            .is_some_and(|token| token.kind == TokenKind::Identifier)
+            && tokens.get(next + 1).is_some_and(|token| token.text == "=>"))
+    {
+        return true;
+    }
+    tokens.get(next).is_some_and(|token| token.text == "(")
+        && matching_close[next]
+            .and_then(|close| tokens.get(close + 1))
+            .is_some_and(|token| token.text == "=>")
+}
+
+fn generated_object_rest_or_spread(tokens: &[Token<'_>], index: usize) -> bool {
+    if tokens.get(index).is_none_or(|token| token.text != ".")
+        || tokens.get(index + 1).is_none_or(|token| token.text != ".")
+        || tokens.get(index + 2).is_none_or(|token| token.text != ".")
+    {
+        return false;
+    }
+    let mut depth = 0i32;
+    for token in tokens[..index].iter().rev() {
+        match token.text {
+            ")" | "]" | "}" => depth += 1,
+            "(" | "[" | "{" if depth > 0 => depth -= 1,
+            "{" if depth == 0 => return true,
+            "(" | "[" if depth == 0 => return false,
+            _ => {}
+        }
+    }
+    false
 }
 
 fn generated_import_error(

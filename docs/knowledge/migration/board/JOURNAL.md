@@ -6,6 +6,12 @@ recorded verdict. This is cold storage: read it when you are about to redo somet
 Format: `## YYYY-MM-DD — <task id> — <one line>` then two or three lines of what
 changed, what the gate said, and the commit if there is one.
 
+## 2026-08-29 — gate-04 — syntax-floor admission
+
+Candidate and final admission reject optional chaining, nullish/logical
+assignment, optional catch binding, selected built-ins, and class fields above
+the configured ECMAScript floor. Focused floor and ABI tests pass.
+
 ## 2026-08-29 — gate-04 — late candidates retain admission
 
 The typed artifact admission contract now travels with terminal candidates.

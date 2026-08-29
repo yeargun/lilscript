@@ -35,6 +35,7 @@ semantic identity. Do not weaken a rejection to preserve bytes.
 | 2026-08-29 | Static property admission | `cargo test --release --lib observes_static_properties`; `cargo test --release --lib final_javascript_cannot_introduce`; Marked gzip compile plus semantic lane | final contraction may remove but cannot invent a static property outside the selected direct typed emission; focused tests passed and Marked passed 660/660 in 65.59 s | gate |
 | 2026-08-29 | Pre-score typed admission | targeted export, constructor, foreign-import, and source-`|0` tests | configured root, optional IR contexts, projection variants, spelling variants, and entropy variants are checked against their typed IR before entering initial or terminal exact scoring | gate |
 | 2026-08-29 | Late-probe witness propagation | `cargo test --release --lib terminal_cleanup_reopens`; `cargo test --release --lib selected_canonical_peephole`; `cargo test --release --lib search_off_finalization`; targeted export/constructor/import/obligation tests | admission contract is retained with selected candidates; canonical, search-off, cleanup, Boolean, and final remap winners fail closed against it | gate |
+| 2026-08-29 | Syntax-floor admission | `cargo test --release --lib rejects_generated_syntax_above`; targeted export-mangling and constructor tests | async, object rest/spread, optional chaining, nullish/logical assignment, optional catch binding, selected built-ins, and class fields are checked against the configured floor | gate |
 
 ## Log
 
@@ -45,8 +46,9 @@ semantic identity. Do not weaken a rejection to preserve bytes.
 - 2026-08-29 — Added a conservative property gate: every final dot/object/class/static-bracket property must already occur in the selected plan's direct typed emission. This blocks text-stage property mutation; owner/slot identities still wait for target-JS provenance. — **OPEN**
 - 2026-08-29 — Moved current ABI/obligation/property admission ahead of initial and terminal scoring for every typed emission and prepared leaf. Late text challengers retain final fail-closed validation; carrying the full witness into each late probe remains open. — **OPEN**
 - 2026-08-29 — Candidate admission now survives into terminal selection and gates text cleanup before exact scoring; binding-only remaps retain their V-02 proof and are revalidated before selection. Owner/slot property identity still waits for hygienic target emission. — **OPEN**
+- 2026-08-29 — Added final and candidate-level ECMAScript floor checks and removed the redundant final direct re-emission by retaining its admission witness. Owner/slot property provenance remains. — **OPEN**
 
 ## Next step
 
 Replace the spelling-set property check with owner/slot provenance from target
-emission, then run focused cross-objective API fixtures.
+emission.

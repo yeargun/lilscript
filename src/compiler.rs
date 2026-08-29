@@ -40,7 +40,8 @@ use crate::js_peephole::{
     remap_single_character_identifiers, repair_fused_keyword_identifiers,
     single_character_identifier_use_counts, single_character_identifiers,
     single_character_name_is_clear_binding, single_character_resolved_binding_identifiers,
-    two_character_identifier_use_counts, JavaScriptSyntaxMetrics, LateJavaScriptCleanupPass,
+    two_character_identifier_use_counts, validate_generated_javascript_syntax_floor,
+    JavaScriptSyntaxMetrics, LateJavaScriptCleanupPass,
 };
 use crate::lower::lower_to_control_flow;
 use crate::module::{
@@ -2238,23 +2239,12 @@ fn optimize_and_select_javascript_inner<'src>(
         .registered_plan_by_identity(selected.plan_identity)
         .expect("selected JavaScript plan remains registered")
         .options;
-    let direct_selected = contexts
-        .get(selected.plan_identity.context_id)
-        .emit(preserve_exports, selected_options)?;
     let (source_operations, generated_operations) =
         selected_context.ir.operation_provenance_counts();
     let abi_manifest = config
         .javascript_compilation_contract(preserve_exports)
         .abi_manifest(&selected_context.ir);
-    let lowering_obligations = selected_context
-        .ir
-        .lowering_obligation_count(crate::ir::LoweringObligation::PreserveJavaScriptBitOrZero);
-    validate_observed_javascript_artifact(
-        &selected.code,
-        &direct_selected,
-        &abi_manifest,
-        lowering_obligations,
-    )?;
+    selected.admission.validate(&selected.code)?;
     let search_ctx =
         javascript_emission_search_context(config, preserve_exports, total_candidate_limit);
     let scored_emission_families =
@@ -4596,10 +4586,13 @@ struct JavaScriptArtifactAdmission {
     direct_source: Arc<str>,
     abi_manifest: Arc<crate::compilation_contract::JavaScriptAbiManifest>,
     lowering_obligations: usize,
+    ecmascript: crate::js_syntax_target::EcmaScriptEdition,
 }
 
 impl JavaScriptArtifactAdmission {
     fn validate(&self, source: &str) -> Result<(), CompileError> {
+        validate_generated_javascript_syntax_floor(source, self.ecmascript)
+            .map_err(generated_javascript_parse_error)?;
         validate_observed_javascript_artifact(
             source,
             &self.direct_source,
@@ -4623,6 +4616,7 @@ fn test_artifact_admission(source: &str) -> Arc<JavaScriptArtifactAdmission> {
             stable_extern_fields: Vec::new(),
         }),
         lowering_obligations: 0,
+        ecmascript: crate::js_syntax_target::EcmaScriptEdition::Es2022,
     })
 }
 
@@ -5558,6 +5552,7 @@ fn finalize_javascript_candidates_with_parallelism(
             direct_source: Arc::from(direct_source.as_str()),
             abi_manifest: Arc::new(abi_manifest),
             lowering_obligations,
+            ecmascript: config.javascript.resolved_ecmascript(),
         });
         let prepare_peephole =
             peephole_plan_identities.contains(&plan_identity) && !has_explicit_lowering_obligations;
@@ -9639,6 +9634,8 @@ fn validate_direct_javascript_artifact(
     config: &ProjectConfig,
     module_output: bool,
 ) -> Result<(), CompileError> {
+    validate_generated_javascript_syntax_floor(source, config.javascript.resolved_ecmascript())
+        .map_err(generated_javascript_parse_error)?;
     let manifest = config
         .javascript_compilation_contract(module_output)
         .abi_manifest(ir);
