@@ -49,7 +49,7 @@ Modes:
 
 Options:
   --only IDS          Comma-separated library ids
-  --compiler ID       baseline, checkpoint, or both (only with --run)
+  --compiler ID       a matrix compiler id, or both for baseline+checkpoint (only with --run)
   --codec PATH        Existing lilscript-codec for --record-existing
   --max-regression M  raw=N,gzip9=N,brotli11=N
   --output PATH       Write canonical JSON instead of stdout
@@ -106,8 +106,9 @@ function parseArguments(argv) {
   if (options.only.length === 0 || options.only.some((id) => !known.has(id))) {
     throw new Error("--only must name one or more matrix library ids");
   }
-  if (!["baseline", "checkpoint", "both"].includes(options.compiler)) {
-    throw new Error("--compiler must be baseline, checkpoint, or both");
+  const compilerIds = new Set(matrix.compilers.map((compiler) => compiler.id));
+  if (options.compiler !== "both" && !compilerIds.has(options.compiler)) {
+    throw new Error("--compiler must be a matrix compiler id or both");
   }
   return options;
 }

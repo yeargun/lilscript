@@ -35,6 +35,8 @@ compiler output, or weaken a missing artifact into a passing row.
 | 2026-08-29 | New artifact semantic harnesses | `node comparison/large-libraries/semantic/motion-lane.mjs ...`; `node comparison/large-libraries/semantic/mobx-lane.mjs ...` | Motion direct artifact passed with 47 exports; MobX production-min passed with 78 exports and state smoke | gate |
 | 2026-08-29 | Historical checkpoint on current MotionLil | `node comparison/large-libraries/run.mjs --run --compiler checkpoint --only motionlil ...` | build exceeded the declared 30-minute timeout; no artifact inherited | gate |
 | 2026-08-29 | Historical checkpoint on current MobXLil production-min | `node comparison/large-libraries/run.mjs --run --compiler checkpoint --only mobxlil-production-min ...` | build exceeded the declared 30-minute timeout; no artifact inherited | gate |
+| 2026-08-29 | Migration compiler pin | matrix compiler `migration` at LilScript `06b89aa7dbc3feafb46794516444bdfff5fc33d9` | archive, tree, and `src/compiler.rs` digest are pinned without replacing historical comparison roles | gate |
+| 2026-08-29 | Migration compiler new-lane run | `node comparison/large-libraries/run.mjs --run --compiler migration --only motionlil,mobxlil-production-min ...` | both build commands started; user aborted the combined run before durable output, so this is incomplete and not evidence | diag |
 
 ## Log
 

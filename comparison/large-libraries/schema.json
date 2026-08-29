@@ -206,7 +206,7 @@
       ],
       "properties": {
         "role": {
-          "enum": ["published-unknown", "baseline", "checkpoint"]
+          "enum": ["published-unknown", "baseline", "checkpoint", "migration"]
         },
         "revision": { "$ref": "#/$defs/nullableGitObject" },
         "tree": { "$ref": "#/$defs/nullableGitObject" },

@@ -6,6 +6,15 @@ recorded verdict. This is cold storage: read it when you are about to redo somet
 Format: `## YYYY-MM-DD — <task id> — <one line>` then two or three lines of what
 changed, what the gate said, and the commit if there is one.
 
+## 2026-08-29 — gate-02 / ident-09 / emit-08 — compression migration checkpoint
+
+Closure research, the three-review migration plan, V-02 terminal rename closure,
+V-03 ordinary-object setter safety, and six pinned large-library boundaries are
+recorded. MotionLil is pinned at `fde1aed`; MobXLil at `820c9a8`; LilScript full
+snapshot at `06b89aa`. Generated-JS 524/524, canonical 54/54, codec 10/10, and
+five-fork behavior preflights passed; full Rust still has four named red tests.
+The migration compiler evidence run remains open. See `board/HANDOFF.md`.
+
 ## 2026-08-28 — arch-03 — reversible packing, pooling, and keep-object priors
 
 Size-first Brotli cartesian seeds include `pack_string_arrays` and

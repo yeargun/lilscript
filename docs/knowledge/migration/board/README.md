@@ -17,8 +17,9 @@ wrong, and it gets corrected in the same edit that discovers it.
 
 1. This file.
 2. [LEDGER.md](LEDGER.md) — every task, one line each.
-3. `notes/<id>.md` for **the one task you are doing**.
-4. For architecture work, read
+3. [HANDOFF.md](HANDOFF.md) when resuming on another machine or after a long pause.
+4. `notes/<id>.md` for **the one task you are doing**.
+5. For architecture work, read
    [planned-architecture.md](../../compilation/planned-architecture.md) and the
    relevant phase in [planned-migration.md](../planned-migration.md).
 

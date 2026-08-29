@@ -169,8 +169,8 @@ export function assertMatrix(matrixValue) {
   }
   validatePolicy(matrix.regressionPolicy, "matrix.regressionPolicy");
 
-  if (!Array.isArray(matrix.compilers) || matrix.compilers.length !== 2) {
-    throw new Error("matrix must contain exactly baseline and checkpoint compilers");
+  if (!Array.isArray(matrix.compilers) || matrix.compilers.length < 2) {
+    throw new Error("matrix must contain baseline and checkpoint compilers");
   }
   const compilerIds = new Set();
   for (const compilerValue of matrix.compilers) {
@@ -186,11 +186,11 @@ export function assertMatrix(matrixValue) {
     compilerIds.add(compiler.id);
   }
   if (
-    compilerIds.size !== 2 ||
+    compilerIds.size !== matrix.compilers.length ||
     !compilerIds.has("baseline") ||
     !compilerIds.has("checkpoint")
   ) {
-    throw new Error("matrix compiler ids must be baseline and checkpoint");
+    throw new Error("matrix compiler ids must be unique and include baseline and checkpoint");
   }
 
   const codec = record(matrix.codec, "matrix.codec");
@@ -389,7 +389,7 @@ function validateObservation(observationValue, matrix, label) {
   if (
     observation.purpose !== "published" &&
     (observation.evidenceClass !== "fresh" ||
-      !["baseline", "checkpoint"].includes(compiler.role))
+      !matrix.compilers.some((candidate) => candidate.id === compiler.role))
   ) {
     throw new Error(`${label} exact observations must be fresh and pinned`);
   }

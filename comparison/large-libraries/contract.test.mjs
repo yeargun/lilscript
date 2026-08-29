@@ -106,6 +106,12 @@ test("the five-fork matrix includes direct Motion and true MobX production-min l
   assert.equal(mobxMin.build.artifacts[0].path, "dist/mobx.esm.production.min.js");
 });
 
+test("the migration compiler is pinned without replacing historical comparisons", () => {
+  assert.ok(matrix.compilers.some((compiler) => compiler.id === "migration"));
+  assert.ok(matrix.compilers.some((compiler) => compiler.id === "baseline"));
+  assert.ok(matrix.compilers.some((compiler) => compiler.id === "checkpoint"));
+});
+
 test("canonical evidence is stable under input and key ordering", () => {
   const reordered = {
     observations: [...seed.observations].reverse(),
