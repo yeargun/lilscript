@@ -20,13 +20,13 @@ resume packet.
 
 | Repository | Branch/commit | Purpose |
 |---|---|---|
-| LilScript | local `main` through compiler candidate `7128462`; harness/docs pending final commit | Green release suite, phi safety fix, expanded matrix, and this handoff |
-| MotionLil | local `main` at `1102ba7` | Source-level evidence entries for exact direct compiler boundaries |
-| MarkedLil | local `main` at `9911cfd` | Cross-platform synchronized lockfile |
+| LilScript | pushed `main` through `ee3be58`; compiler candidate `7128462` | Green release suite, phi safety fix, expanded matrix, and this handoff |
+| MotionLil | pushed `main` at `1102ba7` | Source-level evidence entries for exact direct compiler boundaries |
+| MarkedLil | pushed `main` at `9911cfd` | Cross-platform synchronized lockfile |
 | MobXLil | `main` at `960f2fb` | Split source, true production-min config, and synchronized lockfile |
 | Closure Compiler audit | commit `73eee2481cf1dd5dea0d8c9c0561b5a61498fec4` | Source comparison only; clone outside the repository |
 
-Push the pending local commits without force after the final common gates pass.
+These commits were pushed to `origin/main` without force on 2026-08-29.
 
 ## Completed
 
