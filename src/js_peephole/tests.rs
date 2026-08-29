@@ -11,9 +11,8 @@ use super::{
     generated_javascript_bit_or_zero_count, generated_javascript_export_names,
     generated_javascript_export_witnesses, generated_javascript_static_imports,
     generated_javascript_static_property_names, optimize_generated_javascript,
-    optimize_generated_javascript_assuming,
-    optimize_generated_javascript_preserving_functions, reorder_uninitialized_var_declarators,
-    PeepholeResult,
+    optimize_generated_javascript_assuming, optimize_generated_javascript_preserving_functions,
+    reorder_uninitialized_var_declarators, PeepholeResult,
 };
 
 const LEGACY_PUNCTUATION: [&str; 31] = [
@@ -1380,6 +1379,22 @@ fn permits_sibling_function_declarations_inside_an_iife() {
 #[test]
 fn permits_sibling_functions_that_reuse_the_same_parameter_name() {
     analyze_generated_javascript("function a(e){return e}function b(e){return e}").unwrap();
+}
+
+#[test]
+fn permits_static_module_names_that_match_nested_bindings() {
+    analyze_generated_javascript(
+        "import{track as importedTrack}from\"pkg\";function a(){function track(){}return importedTrack}let value=1;export{value as track}",
+    )
+    .unwrap();
+}
+
+#[test]
+fn imported_alias_is_visible_at_module_scope() {
+    analyze_generated_javascript(
+        "import{value as importedValue}from\"pkg\";function a(){function importedValue(){}}console.log(importedValue)",
+    )
+    .unwrap();
 }
 
 #[test]

@@ -6,6 +6,13 @@ recorded verdict. This is cold storage: read it when you are about to redo somet
 Format: `## YYYY-MM-DD — <task id> — <one line>` then two or three lines of what
 changed, what the gate said, and the commit if there is one.
 
+## 2026-08-29 — gate-04 — late candidates retain admission
+
+The typed artifact admission contract now travels with terminal candidates.
+Canonical/search-off peephole and late cleanup refuse ABI, module, obligation,
+or static-property drift before scoring; binding remap winners are revalidated.
+Focused terminal and ABI gates pass.
+
 ## 2026-08-29 — gate-04 — typed candidates admitted before scoring
 
 Configured roots and optional IR/projection/spelling/entropy variants now match

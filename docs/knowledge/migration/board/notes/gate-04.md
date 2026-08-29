@@ -34,6 +34,7 @@ semantic identity. Do not weaken a rejection to preserve bytes.
 | 2026-08-29 | Callable ABI witness | `cargo test --release --lib observes_generated_export_callable_shapes`; `cargo test --release --lib can_mangle_public_esm_export_names`; `cargo test --release --lib explicit_constructor_export`; `cargo test --release --lib constructor_export_synthesizes` | function/arrow/constructor kind, default-sensitive arity, constructibility, inherited method shape, export mangling, and default constructors passed | gate |
 | 2026-08-29 | Static property admission | `cargo test --release --lib observes_static_properties`; `cargo test --release --lib final_javascript_cannot_introduce`; Marked gzip compile plus semantic lane | final contraction may remove but cannot invent a static property outside the selected direct typed emission; focused tests passed and Marked passed 660/660 in 65.59 s | gate |
 | 2026-08-29 | Pre-score typed admission | targeted export, constructor, foreign-import, and source-`|0` tests | configured root, optional IR contexts, projection variants, spelling variants, and entropy variants are checked against their typed IR before entering initial or terminal exact scoring | gate |
+| 2026-08-29 | Late-probe witness propagation | `cargo test --release --lib terminal_cleanup_reopens`; `cargo test --release --lib selected_canonical_peephole`; `cargo test --release --lib search_off_finalization`; targeted export/constructor/import/obligation tests | admission contract is retained with selected candidates; canonical, search-off, cleanup, Boolean, and final remap winners fail closed against it | gate |
 
 ## Log
 
@@ -43,8 +44,9 @@ semantic identity. Do not weaken a rejection to preserve bytes.
 - 2026-08-29 — Final selected exports now resolve to declarations and match typed callable kind, arity, constructibility, and inherited method signatures. Owner-qualified property categories remain open. — **OPEN**
 - 2026-08-29 — Added a conservative property gate: every final dot/object/class/static-bracket property must already occur in the selected plan's direct typed emission. This blocks text-stage property mutation; owner/slot identities still wait for target-JS provenance. — **OPEN**
 - 2026-08-29 — Moved current ABI/obligation/property admission ahead of initial and terminal scoring for every typed emission and prepared leaf. Late text challengers retain final fail-closed validation; carrying the full witness into each late probe remains open. — **OPEN**
+- 2026-08-29 — Candidate admission now survives into terminal selection and gates text cleanup before exact scoring; binding-only remaps retain their V-02 proof and are revalidated before selection. Owner/slot property identity still waits for hygienic target emission. — **OPEN**
 
 ## Next step
 
-Carry the typed admission witness into every late text probe, then replace the
-spelling-set property check with owner/slot provenance from target emission.
+Replace the spelling-set property check with owner/slot provenance from target
+emission, then run focused cross-objective API fixtures.

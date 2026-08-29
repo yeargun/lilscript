@@ -1594,6 +1594,7 @@ fn validate_resolved_generated_bindings(tokens: &[Token<'_>]) -> Result<(), Java
     for (index, token) in tokens.iter().enumerate() {
         if token.kind != TokenKind::Identifier
             || is_property_identifier(tokens, index)
+            || generated_identifier_is_module_syntax(tokens, index)
             || class_element_names.get(index).copied().unwrap_or(false)
             || bindings.identifier_is_binding(index)
             || generated_identifier_is_ambient(token.text)
@@ -1610,6 +1611,27 @@ fn validate_resolved_generated_bindings(tokens: &[Token<'_>]) -> Result<(), Java
         }
     }
     Ok(())
+}
+
+fn generated_identifier_is_module_syntax(tokens: &[Token<'_>], index: usize) -> bool {
+    let mut cursor = index;
+    while cursor > 0 {
+        cursor -= 1;
+        match tokens[cursor].text {
+            ";" | "}" => return false,
+            "{" => {
+                return match tokens.get(cursor.wrapping_sub(1)).map(|token| token.text) {
+                    Some("import") => true,
+                    Some("export") => tokens
+                        .get(index.wrapping_sub(1))
+                        .is_some_and(|token| token.text == "as"),
+                    _ => false,
+                };
+            }
+            _ => {}
+        }
+    }
+    false
 }
 
 fn visit_single_character_identifiers(tokens: &[Token<'_>], mut visit: impl FnMut(u8)) {

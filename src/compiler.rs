@@ -2411,6 +2411,7 @@ struct SelectedJavaScriptCandidate {
     terminal_string_pooling_selected: bool,
     terminal_string_pooling_incumbent_bytes: Option<usize>,
     terminal_string_pooling_best_bytes: Option<usize>,
+    admission: Arc<JavaScriptArtifactAdmission>,
 }
 
 #[derive(Debug, Clone)]
@@ -4587,6 +4588,42 @@ struct ScoredJavaScriptCandidate {
     performance: JavaScriptPerformanceMetrics,
     rank: (u64, u64),
     has_explicit_lowering_obligations: bool,
+    admission: Arc<JavaScriptArtifactAdmission>,
+}
+
+#[derive(Debug, Clone)]
+struct JavaScriptArtifactAdmission {
+    direct_source: Arc<str>,
+    abi_manifest: Arc<crate::compilation_contract::JavaScriptAbiManifest>,
+    lowering_obligations: usize,
+}
+
+impl JavaScriptArtifactAdmission {
+    fn validate(&self, source: &str) -> Result<(), CompileError> {
+        validate_observed_javascript_artifact(
+            source,
+            &self.direct_source,
+            &self.abi_manifest,
+            self.lowering_obligations,
+        )
+    }
+}
+
+#[cfg(test)]
+fn test_artifact_admission(source: &str) -> Arc<JavaScriptArtifactAdmission> {
+    Arc::new(JavaScriptArtifactAdmission {
+        direct_source: Arc::from(source),
+        abi_manifest: Arc::new(crate::compilation_contract::JavaScriptAbiManifest {
+            world: "closed-application",
+            exports: Vec::new(),
+            export_names_may_mangle: false,
+            foreign_imports: Vec::new(),
+            public_aggregate_abi: "named",
+            stable_aggregate_fields: Vec::new(),
+            stable_extern_fields: Vec::new(),
+        }),
+        lowering_obligations: 0,
+    })
 }
 
 fn sort_scored_javascript_candidates(candidates: &mut [ScoredJavaScriptCandidate]) {
@@ -5458,6 +5495,7 @@ fn finalize_javascript_candidates_with_parallelism(
         plan_identity: JavaScriptPlanIdentity,
         performance: JavaScriptPerformanceMetrics,
         has_explicit_lowering_obligations: bool,
+        admission: Arc<JavaScriptArtifactAdmission>,
         leaves: Vec<PreparedJavaScriptLeaf>,
     }
 
@@ -5516,6 +5554,11 @@ fn finalize_javascript_candidates_with_parallelism(
         let abi_manifest = config
             .javascript_compilation_contract(module_output)
             .abi_manifest(context.baseline);
+        let admission = Arc::new(JavaScriptArtifactAdmission {
+            direct_source: Arc::from(direct_source.as_str()),
+            abi_manifest: Arc::new(abi_manifest),
+            lowering_obligations,
+        });
         let prepare_peephole =
             peephole_plan_identities.contains(&plan_identity) && !has_explicit_lowering_obligations;
         let options = candidate.options();
@@ -5606,14 +5649,7 @@ fn finalize_javascript_candidates_with_parallelism(
                 vec![(declaration, metrics, 0, true)]
             };
             for (code, metrics, peephole_rewrites, is_declaration_spelling) in variants {
-                if validate_observed_javascript_artifact(
-                    &code,
-                    &direct_source,
-                    &abi_manifest,
-                    lowering_obligations,
-                )
-                .is_err()
-                {
+                if admission.validate(&code).is_err() {
                     continue;
                 }
                 if config
@@ -5656,6 +5692,7 @@ fn finalize_javascript_candidates_with_parallelism(
             plan_identity,
             performance,
             has_explicit_lowering_obligations,
+            admission,
             leaves,
         }
     };
@@ -5783,6 +5820,7 @@ fn finalize_javascript_candidates_with_parallelism(
                         performance: plan.performance,
                         rank,
                         has_explicit_lowering_obligations: plan.has_explicit_lowering_obligations,
+                        admission: Arc::clone(&plan.admission),
                     })
                 })
                 .collect::<Vec<_>>();
@@ -6004,6 +6042,7 @@ fn finalize_javascript_candidates_with_parallelism(
         terminal_string_pooling_selected: false,
         terminal_string_pooling_incumbent_bytes: None,
         terminal_string_pooling_best_bytes: None,
+        admission: selected.admission,
     })
 }
 
@@ -7085,7 +7124,7 @@ fn retain_resolved_javascript(
     previous: ScoredJavaScriptCandidate,
     next: ScoredJavaScriptCandidate,
 ) -> ScoredJavaScriptCandidate {
-    if next.code == previous.code || analyze_generated_javascript(&next.code).is_ok() {
+    if next.code == previous.code || next.admission.validate(&next.code).is_ok() {
         next
     } else {
         previous
@@ -7152,6 +7191,9 @@ fn apply_unused_letter_binding_remaps(
     if code == selected.code {
         return Ok(selected);
     }
+    if selected.admission.validate(&code).is_err() {
+        return Ok(selected);
+    }
     selected.metrics =
         analyze_generated_javascript(&code).map_err(generated_javascript_parse_error)?;
     selected.startup_score = selected.metrics.startup_score(
@@ -7186,7 +7228,7 @@ fn apply_terminal_boolean_binding_remap(
         return Ok(selected);
     };
     let boolean_code = repair_late_javascript_candidate(boolean_code);
-    if boolean_code == selected.code || analyze_generated_javascript(&boolean_code).is_err() {
+    if boolean_code == selected.code || selected.admission.validate(&boolean_code).is_err() {
         return Ok(selected);
     }
     let boolean_cost = codec_budget
@@ -7204,6 +7246,9 @@ fn apply_terminal_boolean_binding_remap(
             .unwrap_or((boolean_code, boolean_cost))
         };
     if candidate_cost >= selected.transfer_cost {
+        return Ok(selected);
+    }
+    if selected.admission.validate(&candidate).is_err() {
         return Ok(selected);
     }
     let metrics =
@@ -7255,6 +7300,9 @@ fn apply_exact_two_binding_unused_letter_remap(
     else {
         return Ok(selected);
     };
+    if selected.admission.validate(&code).is_err() {
+        return Ok(selected);
+    }
     let metrics = analyze_generated_javascript(&code).map_err(generated_javascript_parse_error)?;
     selected.startup_score = metrics.startup_score(
         config.javascript.startup.parse_weight,
@@ -7440,6 +7488,9 @@ fn apply_selected_canonical_peephole(
     {
         return Ok(selected);
     }
+    if selected.admission.validate(&code).is_err() {
+        return Ok(selected);
+    }
     let cost = admitted_generated_javascript_size(&code, config.javascript.cost_model)
         .map_err(|message| crate::codegen_js::CodegenError::new(Span::empty(0), message))?;
     selected.terminal_codec_probes = selected.terminal_codec_probes.saturating_add(1);
@@ -7499,6 +7550,9 @@ fn apply_search_off_declaration_peephole(
                 &config.javascript.startup,
             ))
     {
+        return Ok(selected);
+    }
+    if selected.admission.validate(&code).is_err() {
         return Ok(selected);
     }
     let transfer_cost = admitted_generated_javascript_size(&code, config.javascript.cost_model)
@@ -7600,6 +7654,7 @@ fn apply_late_javascript_cleanup(
     // discard the topology that wins after terminal namespace remapping.
     const BEAM_WIDTH: usize = 8;
     const ROUNDS: usize = 2;
+    let admission = Arc::clone(&selected.admission);
 
     let original = CleanupCandidate {
         code: selected.code.clone(),
@@ -7641,6 +7696,7 @@ fn apply_late_javascript_cleanup(
                     config.single_use_function_expression_candidates_enabled()
                         || metrics.functions >= selected.metrics.functions
                 })
+                && admission.validate(&code).is_ok()
             {
                 if let Some(cost) =
                     codec_budget.compressed_size(code.as_bytes(), config.javascript.cost_model)?
@@ -7673,6 +7729,9 @@ fn apply_late_javascript_cleanup(
                 continue;
             }
             if analyze_generated_javascript(&converged).is_err() {
+                continue;
+            }
+            if admission.validate(&converged).is_err() {
                 continue;
             }
             let Some(cost) =
@@ -7730,6 +7789,7 @@ fn apply_late_javascript_cleanup(
             // passes help it.
             let code = repair_late_javascript_candidate(inlined);
             if analyze_generated_javascript(&code).is_err()
+                || admission.validate(&code).is_err()
                 || beam.iter().any(|existing| existing.code == code)
             {
                 continue;
@@ -7772,6 +7832,7 @@ fn apply_late_javascript_cleanup(
             }
             let code = repair_late_javascript_candidate(folded);
             if analyze_generated_javascript(&code).is_err()
+                || admission.validate(&code).is_err()
                 || beam.iter().any(|existing| existing.code == code)
             {
                 continue;
@@ -7831,6 +7892,7 @@ fn apply_late_javascript_cleanup(
                 let code = repair_late_javascript_candidate(optimized.code);
                 if code == original.code
                     || analyze_generated_javascript(&code).is_err()
+                    || admission.validate(&code).is_err()
                     || beam.iter().any(|candidate| candidate.code == code)
                 {
                     continue;
@@ -7866,6 +7928,7 @@ fn apply_late_javascript_cleanup(
                 };
                 if code == candidate.code
                     || analyze_generated_javascript(&code).is_err()
+                    || admission.validate(&code).is_err()
                     || proposals.iter().any(|proposal| proposal.code == code)
                 {
                     continue;
@@ -7894,6 +7957,7 @@ fn apply_late_javascript_cleanup(
             let code = repair_late_javascript_candidate(code);
             if code != original.code
                 && analyze_generated_javascript(&code).is_ok()
+                && admission.validate(&code).is_ok()
                 && !beam.iter().any(|candidate| candidate.code == code)
             {
                 let cost = codec_budget
@@ -7979,6 +8043,7 @@ fn apply_late_javascript_cleanup(
                 code = repair_late_javascript_candidate(code);
                 if code == candidate.code
                     || analyze_generated_javascript(&code).is_err()
+                    || admission.validate(&code).is_err()
                     || beam.iter().any(|proposal| proposal.code == code)
                 {
                     continue;
@@ -8057,6 +8122,7 @@ fn apply_late_javascript_cleanup(
                     let code = repair_late_javascript_candidate(code);
                     if code == candidate.code
                         || analyze_generated_javascript(&code).is_err()
+                        || admission.validate(&code).is_err()
                         || proposals.iter().any(|proposal| proposal.code == code)
                         || proposal_codes.contains(&code)
                     {
@@ -8108,6 +8174,7 @@ fn apply_late_javascript_cleanup(
         let code = repair_late_javascript_candidate(code);
         if code == candidate.code
             || analyze_generated_javascript(&code).is_err()
+            || admission.validate(&code).is_err()
             || beam.iter().any(|proposal| proposal.code == code)
         {
             continue;
@@ -8165,6 +8232,9 @@ fn parenthesize_logical_assignments(
     let Ok(metrics) = analyze_generated_javascript(&repaired) else {
         return Ok(selected);
     };
+    if selected.admission.validate(&repaired).is_err() {
+        return Ok(selected);
+    }
     let transfer_cost =
         codec_budget.measure_reserved_compile(repaired.as_bytes(), config.javascript.cost_model)?;
     selected.metrics = metrics;
@@ -15072,6 +15142,7 @@ mod tests {
             performance: JavaScriptPerformanceMetrics::default(),
             rank: (0, 0),
             has_explicit_lowering_obligations: false,
+            admission: test_artifact_admission("not valid JavaScript @"),
         };
         let measurements_before = javascript_codec_measurement_count();
         let mut budget =
@@ -15129,6 +15200,7 @@ mod tests {
             terminal_string_pooling_selected: false,
             terminal_string_pooling_incumbent_bytes: None,
             terminal_string_pooling_best_bytes: None,
+            admission: test_artifact_admission(code),
         };
         let cleaned = apply_selected_canonical_peephole(selected, &config).unwrap();
         assert_eq!(cleaned.code, optimized.code);
@@ -15165,6 +15237,7 @@ mod tests {
             terminal_string_pooling_selected: false,
             terminal_string_pooling_incumbent_bytes: None,
             terminal_string_pooling_best_bytes: None,
+            admission: test_artifact_admission(code),
         };
         let skipped = apply_selected_canonical_peephole(skipped, &config).unwrap();
         assert_eq!(skipped.code, code);
@@ -15207,6 +15280,7 @@ mod tests {
             terminal_string_pooling_selected: false,
             terminal_string_pooling_incumbent_bytes: None,
             terminal_string_pooling_best_bytes: None,
+            admission: test_artifact_admission(code),
         };
 
         let selected = apply_search_off_declaration_peephole(selected, &config).unwrap();
@@ -15310,6 +15384,7 @@ mod tests {
             performance: JavaScriptPerformanceMetrics::default(),
             rank: (0, 0),
             has_explicit_lowering_obligations: false,
+            admission: test_artifact_admission(code),
         };
         // One work unit discovers the canonical leaf and one exact score
         // admits it. No later cleanup family has budget to rediscover it.
