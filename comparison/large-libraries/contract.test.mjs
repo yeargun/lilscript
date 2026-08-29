@@ -84,7 +84,7 @@ test("every configured objective has exactly one honest artifact lane", () => {
   );
   assert.equal(marked.semantic.scope, "artifact");
   for (const library of matrix.libraries.filter(
-    (item) => item.id !== "markedlil",
+    (item) => !item.id.startsWith("markedlil"),
   )) {
     assert.equal(library.build.artifacts.length, 1);
     assert.equal(library.build.artifacts[0].objective, "brotli11");
@@ -98,6 +98,25 @@ test("the five-fork matrix includes direct Motion and true MobX production-min l
   assert.equal(motion.build.artifacts[0].id, "animate-direct");
   assert.equal(motion.build.artifacts[0].derivation.kind, "identity");
 
+  const directMotion = matrix.libraries
+    .filter((library) => library.id.startsWith("motionlil-") && library.id !== "motionlil")
+    .map((library) => library.build.artifacts[0].id)
+    .sort();
+  assert.deepEqual(directMotion, [
+    "animate",
+    "animate-mini",
+    "animate-stagger",
+    "export",
+    "full",
+    "lab",
+    "mini",
+  ]);
+  assert.ok(
+    matrix.libraries
+      .filter((library) => directMotion.includes(library.build.artifacts[0].id))
+      .every((library) => library.build.kind === "direct-compiler"),
+  );
+
   const mobxMin = matrix.libraries.find(
     (library) => library.id === "mobxlil-production-min",
   );
@@ -108,6 +127,7 @@ test("the five-fork matrix includes direct Motion and true MobX production-min l
 
 test("the migration compiler is pinned without replacing historical comparisons", () => {
   assert.ok(matrix.compilers.some((compiler) => compiler.id === "migration"));
+  assert.ok(matrix.compilers.some((compiler) => compiler.id === "candidate"));
   assert.ok(matrix.compilers.some((compiler) => compiler.id === "baseline"));
   assert.ok(matrix.compilers.some((compiler) => compiler.id === "checkpoint"));
 });

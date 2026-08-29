@@ -52,7 +52,7 @@ compiler bug vs missing proof vs JS-shaped rewrite:
 Related contracts: [`docs/optimization-coverage.md`](../../optimization-coverage.md),
 [`docs/differential-testing.md`](../../differential-testing.md).
 Related labs: [`benchmarks/popular/RESULTS.md`](../../../benchmarks/popular/RESULTS.md),
-[`comparison/summary.md`](../../../comparison/summary.md).
+[`comparison/README.md`](../../../comparison/README.md).
 
 ## How to read a size number
 

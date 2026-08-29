@@ -1,6 +1,6 @@
 # gate-02 — five-fork corpus readiness
 
-Parent: [ledger](../LEDGER.md). Status: active.
+Parent: [ledger](../LEDGER.md). Status: landed.
 
 ## Question
 
@@ -10,9 +10,9 @@ artifacts?
 
 ## Current hypothesis
 
-The source/config pinning and first two new lanes are implemented. The historical
-checkpoint compiler times out on both current source trees, so fresh before/after
-evidence still needs an appropriate newer pinned compiler pair.
+The matrix now covers every named direct Motion boundary and both current MobX
+production forms from immutable Git archives. The migration incumbent and current
+candidate were run sequentially under the zero-byte policy.
 
 ## Constraints specific to this task
 
@@ -37,14 +37,17 @@ compiler output, or weaken a missing artifact into a passing row.
 | 2026-08-29 | Historical checkpoint on current MobXLil production-min | `node comparison/large-libraries/run.mjs --run --compiler checkpoint --only mobxlil-production-min ...` | build exceeded the declared 30-minute timeout; no artifact inherited | gate |
 | 2026-08-29 | Migration compiler pin | matrix compiler `migration` at LilScript `06b89aa7dbc3feafb46794516444bdfff5fc33d9` | archive, tree, and `src/compiler.rs` digest are pinned without replacing historical comparison roles | gate |
 | 2026-08-29 | Migration compiler new-lane run | `node comparison/large-libraries/run.mjs --run --compiler migration --only motionlil,mobxlil-production-min ...` | both build commands started; user aborted the combined run before durable output, so this is incomplete and not evidence | diag |
+| 2026-08-29 | Completed interrupted lanes | `node comparison/large-libraries/run.mjs --run --compiler migration --only motionlil,mobxlil-production-min --output /tmp/opencode/migration-new-lanes.json --keep-temp` | Motion direct animate passed with 47 exports at Brotli-11 26,822; MobX production-min passed with 78 exports at 15,491 | gate |
+| 2026-08-29 | Expanded immutable inputs | `node comparison/large-libraries/run.mjs --check-inputs` | 15 boundaries valid across five forks, including seven direct Motion slices and current lockfile-safe Marked/MobX lanes | gate |
+| 2026-08-29 | G2 migration/candidate checkpoint | `node comparison/large-libraries/run.mjs --run --compiler migration,candidate --only solidlil,motionlil,markedlil-current,motionlil-animate-mini,motionlil-animate,motionlil-animate-stagger,motionlil-lab,motionlil-export,motionlil-mini,motionlil-full,mobxlil-current,jquerylil,mobxlil-production-min --output /tmp/opencode/g2-final.json --keep-temp` | all 13 candidate boundaries passed fresh semantics; 13 eligible Brotli rows tied; candidate Marked raw 33,625 and gzip-9 10,630 passed 660 cases, while the incumbent versions were correctly ineligible after 229 mismatches | gate |
+| 2026-08-29 | Full release suite | `cargo test --release --all-targets` | 1,603 library tests and all binary-target tests passed | gate |
 
 ## Log
 
 - 2026-08-29 — The five current sibling worktrees compile and their maintained behavior checks pass in isolated diagnostics. Matrix promotion is blocked: MotionLil's expanded entries/build are modified or untracked at `dcbc09d`, and MobXLil's `config/production.min.toml` plus supporting build changes are untracked/modified at `e14a5a0`. Dirty files cannot become canonical evidence. — **OPEN**
 - 2026-08-29 — Pinned MotionLil `fde1aed` and MobXLil `820c9a8`; added direct Motion animate and true MobX production-min matrix lanes plus artifact semantic checks. Matrix/schema/hash gates pass. Both historical checkpoint builds time out cleanly, so successor compiler pins and remaining Motion boundaries are still open. — **OPEN**
+- 2026-08-29 — Added source-level `animateMini`, `animate`, `animate+stagger`, lab, export, mini, and full cells; no esbuild/Terser output is labelled direct. Repaired cross-platform lockfiles and a generic local-phi recovery bug exposed by Marked raw/gzip. The candidate passes every selected semantic cell and all 13 comparable Brotli rows tie the migration incumbent. — **LANDED**
 
 ## Next step
 
-Pin a newer legal before/current LilScript compiler pair, add the remaining
-Motion direct-output boundaries, and run the first complete five-fork G2
-checkpoint without timeout or stale artifacts.
+Start `gate-04`: final-artifact admission before any exact codec call.

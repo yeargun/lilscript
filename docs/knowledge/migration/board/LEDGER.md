@@ -41,7 +41,7 @@ Documentation: [current architecture](../../compilation/current-architecture.md)
 | `ident-07` | landed | Retire the identity emulation a fused ES class makes unreachable: the `new.target` guard, its declarator, and the `name`/`length`/`prototype` finisher. | error-tracking Brotli-11 5,156 with compat 5/5; `comparison/cases` unchanged at 617/617 | [notes](notes/ident-07.md) |
 | `ident-08` | landed | Two more folds that read a sub-expression's value as the enclosing expression's: a parameter default that read a *later* formal (TDZ `ReferenceError`), and `(name=EXPR)?name:F` folded when the assignment was only an operand. | `cargo test --release --lib parameter_defaults_never_read_a_later_formal assigned_truthy_ternary_needs_the_assignment_to_be_the_whole_condition`; five packs green at both configs | [notes](notes/ident-08.md) |
 | `ident-05` | landed | **07.1.** Search must not rank unresolved or wrong-nearer names. Last hole: beta-reduce skipped `[...r]` as a property, so `points(delim)` read the live match. | marked `local_name_reserve` 0/8/12/48 with `candidate_search = always` is 660/660 vs official; react-markdown `always` 93/93 | [notes](notes/ident-05.md) |
-| `ident-09` | blocked(gate-02) | V-02: make whole-artifact convergence/remapping require total declaration resolution, protect fixed descendant names, and make bounded name generation total. | Targeted rename/remap tests, then `cargo test --release --lib` and canonical cases | [notes](notes/ident-09.md) |
+| `ident-09` | landed | V-02: make whole-artifact convergence/remapping require total declaration resolution, protect fixed descendant names, and make bounded name generation total. | Targeted rename/remap tests, full release suite, canonical cases, and five-fork G2 | [notes](notes/ident-09.md) |
 
 ## emit — emission validity and directness
 
@@ -49,7 +49,7 @@ Documentation: [current architecture](../../compilation/current-architecture.md)
 |---|---|---|---|---|
 | `emit-01` | todo | `?:break` was emitted while a stronger receiver coloring was tried. The coloring was backed off; **the emission path that put a statement in expression position was not fixed**. Isolate it independently. | A minimized peephole test that reproduces statement-in-expression, then passes | [notes](notes/emit-01.md) |
 | `emit-07` | landed | Measure our own artifact against a minifier instead of against another program: naming and formatting are already better than terser's, and the entire remaining advantage is value placement. Three folds landed from it. | Brotli 25,605 → 25,459 across nine jQuery submodules, every module improved; 36 new tests | [notes](notes/emit-07.md) |
-| `emit-08` | blocked(gate-02) | V-03: preserve ordinary-object assignment semantics unless the explicit pristine-prototype contract authorizes literal collection. | Inherited-setter regression, `cargo test --release --lib`, and canonical cases | [notes](notes/emit-08.md) |
+| `emit-08` | landed | V-03: preserve ordinary-object assignment semantics unless the explicit pristine-prototype contract authorizes literal collection. | Inherited-setter regression, full release suite, canonical cases, and five-fork G2 | [notes](notes/emit-08.md) |
 | `emit-06` | landed | A total use-to-binding resolver for generated JavaScript, plus converged naming scored on it. The primitive answers `Bound`/`Free`/`Unresolved` for every identifier and fails closed per name. | 23 unit tests; Brotli −76 across nine artifacts with no regression; corpus unchanged | [notes](notes/emit-06.md) |
 | `emit-05` | parked | Header-spelling diversity as the remaining jQuery gap. Resolver landed as emit-06; jquery-01 refuted naming as the residue (IR control-flow). The −602 Brotli “prize” is Terser-on-our-artifact (post-minify, refused). | — | [notes](notes/emit-05.md) |
 | `emit-02` | landed | String / Regex / `JS.encodeURI` lower to JS members, not host trampolines. | Keep the existing regression tests; do not re-derive | [notes](notes/emit-01.md) |
@@ -97,8 +97,9 @@ Documentation: [current architecture](../../compilation/current-architecture.md)
 | id | status | intent | gate | note |
 |---|---|---|---|---|
 | `gate-01` | landed | Benchmark/publication runners use the canonical codec wrapper; explicit historical/generated exclusions are reviewed by the contract test. | `node --test benchmarks/codec-contract.test.mjs` 10/10 | [notes](notes/gate-01.md) |
-| `gate-02` | active | Add MotionLil direct-output boundaries and MobXLil's true `production-min` lane to the pinned large-library matrix. | Five pinned repositories, fresh semantics, direct artifacts, and zero-regression matrix check | [notes](notes/gate-02.md) |
+| `gate-02` | landed | Add MotionLil direct-output boundaries and MobXLil's true `production-min` lane to the pinned large-library matrix. | Five pinned repositories, fresh semantics, direct artifacts, and zero-regression matrix check | [notes](notes/gate-02.md) |
 | `gate-03` | landed | Pin the intended MotionLil multi-entry and MobXLil production-min source/config states in their sibling repositories. | Clean sibling Git objects contain every matrix input | [notes](notes/gate-03.md) |
+| `gate-04` | active | V-01: admit a final artifact to scoring only after syntax, binding, property-category, module-link, ABI, and lowering-obligation validation. | Validator rejection fixtures, incumbent replay, and five-fork G2 | [notes](notes/gate-04.md) |
 
 ## board — the system itself
 

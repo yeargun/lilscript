@@ -206,7 +206,7 @@
       ],
       "properties": {
         "role": {
-          "enum": ["published-unknown", "baseline", "checkpoint", "migration"]
+          "enum": ["published-unknown", "baseline", "checkpoint", "migration", "candidate"]
         },
         "revision": { "$ref": "#/$defs/nullableGitObject" },
         "tree": { "$ref": "#/$defs/nullableGitObject" },
@@ -296,9 +296,7 @@
       ],
       "properties": {
         "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]+$" },
-        "library": {
-          "enum": ["solidlil", "motionlil", "markedlil", "mobxlil", "mobxlil-production-min", "jquerylil"]
-        },
+        "library": { "type": "string", "minLength": 1 },
         "purpose": { "enum": ["comparison", "published", "diagnostic"] },
         "evidenceClass": { "enum": ["published", "fresh"] },
         "recordedAt": { "type": "string", "format": "date-time" },
@@ -333,9 +331,7 @@
         "reason"
       ],
       "properties": {
-        "library": {
-          "enum": ["solidlil", "motionlil", "markedlil", "mobxlil", "mobxlil-production-min", "jquerylil"]
-        },
+        "library": { "type": "string", "minLength": 1 },
         "metric": { "enum": ["raw", "gzip9", "brotli11"] },
         "beforeObservation": { "type": ["string", "null"] },
         "afterObservation": { "type": ["string", "null"] },

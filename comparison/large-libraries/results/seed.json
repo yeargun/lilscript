@@ -84,6 +84,36 @@
       "reason": "both exact revisions must emit every configured artifact"
     },
     {
+      "afterObservation": null,
+      "beforeObservation": null,
+      "gatePassed": false,
+      "library": "markedlil-current",
+      "maxRegressionBytes": 0,
+      "metric": "raw",
+      "outcome": "ineligible",
+      "reason": "missing exact baseline or checkpoint observation"
+    },
+    {
+      "afterObservation": null,
+      "beforeObservation": null,
+      "gatePassed": false,
+      "library": "markedlil-current",
+      "maxRegressionBytes": 0,
+      "metric": "gzip9",
+      "outcome": "ineligible",
+      "reason": "missing exact baseline or checkpoint observation"
+    },
+    {
+      "afterObservation": null,
+      "beforeObservation": null,
+      "gatePassed": false,
+      "library": "markedlil-current",
+      "maxRegressionBytes": 0,
+      "metric": "brotli11",
+      "outcome": "ineligible",
+      "reason": "missing exact baseline or checkpoint observation"
+    },
+    {
       "afterObservation": "fresh.mobxlil.checkpoint",
       "beforeObservation": "fresh.mobxlil.baseline",
       "gatePassed": false,
@@ -117,6 +147,36 @@
       "afterObservation": null,
       "beforeObservation": null,
       "gatePassed": false,
+      "library": "mobxlil-current",
+      "maxRegressionBytes": 0,
+      "metric": "raw",
+      "outcome": "ineligible",
+      "reason": "missing exact baseline or checkpoint observation"
+    },
+    {
+      "afterObservation": null,
+      "beforeObservation": null,
+      "gatePassed": false,
+      "library": "mobxlil-current",
+      "maxRegressionBytes": 0,
+      "metric": "gzip9",
+      "outcome": "ineligible",
+      "reason": "missing exact baseline or checkpoint observation"
+    },
+    {
+      "afterObservation": null,
+      "beforeObservation": null,
+      "gatePassed": false,
+      "library": "mobxlil-current",
+      "maxRegressionBytes": 0,
+      "metric": "brotli11",
+      "outcome": "ineligible",
+      "reason": "missing exact baseline or checkpoint observation"
+    },
+    {
+      "afterObservation": null,
+      "beforeObservation": null,
+      "gatePassed": false,
       "library": "mobxlil-production-min",
       "maxRegressionBytes": 0,
       "metric": "raw",
@@ -168,6 +228,216 @@
       "beforeObservation": null,
       "gatePassed": false,
       "library": "motionlil",
+      "maxRegressionBytes": 0,
+      "metric": "brotli11",
+      "outcome": "ineligible",
+      "reason": "missing exact baseline or checkpoint observation"
+    },
+    {
+      "afterObservation": null,
+      "beforeObservation": null,
+      "gatePassed": false,
+      "library": "motionlil-animate",
+      "maxRegressionBytes": 0,
+      "metric": "raw",
+      "outcome": "ineligible",
+      "reason": "missing exact baseline or checkpoint observation"
+    },
+    {
+      "afterObservation": null,
+      "beforeObservation": null,
+      "gatePassed": false,
+      "library": "motionlil-animate",
+      "maxRegressionBytes": 0,
+      "metric": "gzip9",
+      "outcome": "ineligible",
+      "reason": "missing exact baseline or checkpoint observation"
+    },
+    {
+      "afterObservation": null,
+      "beforeObservation": null,
+      "gatePassed": false,
+      "library": "motionlil-animate",
+      "maxRegressionBytes": 0,
+      "metric": "brotli11",
+      "outcome": "ineligible",
+      "reason": "missing exact baseline or checkpoint observation"
+    },
+    {
+      "afterObservation": null,
+      "beforeObservation": null,
+      "gatePassed": false,
+      "library": "motionlil-animate-mini",
+      "maxRegressionBytes": 0,
+      "metric": "raw",
+      "outcome": "ineligible",
+      "reason": "missing exact baseline or checkpoint observation"
+    },
+    {
+      "afterObservation": null,
+      "beforeObservation": null,
+      "gatePassed": false,
+      "library": "motionlil-animate-mini",
+      "maxRegressionBytes": 0,
+      "metric": "gzip9",
+      "outcome": "ineligible",
+      "reason": "missing exact baseline or checkpoint observation"
+    },
+    {
+      "afterObservation": null,
+      "beforeObservation": null,
+      "gatePassed": false,
+      "library": "motionlil-animate-mini",
+      "maxRegressionBytes": 0,
+      "metric": "brotli11",
+      "outcome": "ineligible",
+      "reason": "missing exact baseline or checkpoint observation"
+    },
+    {
+      "afterObservation": null,
+      "beforeObservation": null,
+      "gatePassed": false,
+      "library": "motionlil-animate-stagger",
+      "maxRegressionBytes": 0,
+      "metric": "raw",
+      "outcome": "ineligible",
+      "reason": "missing exact baseline or checkpoint observation"
+    },
+    {
+      "afterObservation": null,
+      "beforeObservation": null,
+      "gatePassed": false,
+      "library": "motionlil-animate-stagger",
+      "maxRegressionBytes": 0,
+      "metric": "gzip9",
+      "outcome": "ineligible",
+      "reason": "missing exact baseline or checkpoint observation"
+    },
+    {
+      "afterObservation": null,
+      "beforeObservation": null,
+      "gatePassed": false,
+      "library": "motionlil-animate-stagger",
+      "maxRegressionBytes": 0,
+      "metric": "brotli11",
+      "outcome": "ineligible",
+      "reason": "missing exact baseline or checkpoint observation"
+    },
+    {
+      "afterObservation": null,
+      "beforeObservation": null,
+      "gatePassed": false,
+      "library": "motionlil-export",
+      "maxRegressionBytes": 0,
+      "metric": "raw",
+      "outcome": "ineligible",
+      "reason": "missing exact baseline or checkpoint observation"
+    },
+    {
+      "afterObservation": null,
+      "beforeObservation": null,
+      "gatePassed": false,
+      "library": "motionlil-export",
+      "maxRegressionBytes": 0,
+      "metric": "gzip9",
+      "outcome": "ineligible",
+      "reason": "missing exact baseline or checkpoint observation"
+    },
+    {
+      "afterObservation": null,
+      "beforeObservation": null,
+      "gatePassed": false,
+      "library": "motionlil-export",
+      "maxRegressionBytes": 0,
+      "metric": "brotli11",
+      "outcome": "ineligible",
+      "reason": "missing exact baseline or checkpoint observation"
+    },
+    {
+      "afterObservation": null,
+      "beforeObservation": null,
+      "gatePassed": false,
+      "library": "motionlil-full",
+      "maxRegressionBytes": 0,
+      "metric": "raw",
+      "outcome": "ineligible",
+      "reason": "missing exact baseline or checkpoint observation"
+    },
+    {
+      "afterObservation": null,
+      "beforeObservation": null,
+      "gatePassed": false,
+      "library": "motionlil-full",
+      "maxRegressionBytes": 0,
+      "metric": "gzip9",
+      "outcome": "ineligible",
+      "reason": "missing exact baseline or checkpoint observation"
+    },
+    {
+      "afterObservation": null,
+      "beforeObservation": null,
+      "gatePassed": false,
+      "library": "motionlil-full",
+      "maxRegressionBytes": 0,
+      "metric": "brotli11",
+      "outcome": "ineligible",
+      "reason": "missing exact baseline or checkpoint observation"
+    },
+    {
+      "afterObservation": null,
+      "beforeObservation": null,
+      "gatePassed": false,
+      "library": "motionlil-lab",
+      "maxRegressionBytes": 0,
+      "metric": "raw",
+      "outcome": "ineligible",
+      "reason": "missing exact baseline or checkpoint observation"
+    },
+    {
+      "afterObservation": null,
+      "beforeObservation": null,
+      "gatePassed": false,
+      "library": "motionlil-lab",
+      "maxRegressionBytes": 0,
+      "metric": "gzip9",
+      "outcome": "ineligible",
+      "reason": "missing exact baseline or checkpoint observation"
+    },
+    {
+      "afterObservation": null,
+      "beforeObservation": null,
+      "gatePassed": false,
+      "library": "motionlil-lab",
+      "maxRegressionBytes": 0,
+      "metric": "brotli11",
+      "outcome": "ineligible",
+      "reason": "missing exact baseline or checkpoint observation"
+    },
+    {
+      "afterObservation": null,
+      "beforeObservation": null,
+      "gatePassed": false,
+      "library": "motionlil-mini",
+      "maxRegressionBytes": 0,
+      "metric": "raw",
+      "outcome": "ineligible",
+      "reason": "missing exact baseline or checkpoint observation"
+    },
+    {
+      "afterObservation": null,
+      "beforeObservation": null,
+      "gatePassed": false,
+      "library": "motionlil-mini",
+      "maxRegressionBytes": 0,
+      "metric": "gzip9",
+      "outcome": "ineligible",
+      "reason": "missing exact baseline or checkpoint observation"
+    },
+    {
+      "afterObservation": null,
+      "beforeObservation": null,
+      "gatePassed": false,
+      "library": "motionlil-mini",
       "maxRegressionBytes": 0,
       "metric": "brotli11",
       "outcome": "ineligible",
@@ -204,9 +474,9 @@
       "reason": "checkpoint 2931 bytes vs baseline 2922 bytes; allowed regression 0 bytes"
     }
   ],
-  "evidenceFingerprint": "4bb135ebce2f5e40364ed245efd31e764d74fc0ae4b5299f5e7c647589ed6846",
+  "evidenceFingerprint": "aa5d66614090c79901b70d08c1832b4bf93b704b7a2891e75e9b7be74394a963",
   "format": "lilscript-large-library-observations",
-  "matrixSha256": "fc62abda5b83ba2db040ef7cb295e64195e637fbf8a128b084060ec97347d6f0",
+  "matrixSha256": "ffdfda1c96428410d48b7642a681ceff1131aa8cf5a16baea8cfdbc525f28f89",
   "observations": [
     {
       "artifacts": [],

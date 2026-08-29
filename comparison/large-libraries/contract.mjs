@@ -199,8 +199,8 @@ export function assertMatrix(matrixValue) {
   }
   exactSha256(codec.sourceSha256, "matrix codec source digest");
 
-  if (!Array.isArray(matrix.libraries) || matrix.libraries.length !== 6) {
-    throw new Error("matrix must contain exactly six large-library boundaries");
+  if (!Array.isArray(matrix.libraries) || matrix.libraries.length < 6) {
+    throw new Error("matrix must contain every required large-library boundary");
   }
   const ids = [];
   for (const libraryValue of matrix.libraries) {
@@ -220,6 +220,9 @@ export function assertMatrix(matrixValue) {
       configByPath.set(config.path, config.sha256);
     }
     const build = record(library.build, `${library.id}.build`);
+    if (build.kind !== undefined && build.kind !== "direct-compiler") {
+      throw new Error(`${library.id}.build.kind is unsupported`);
+    }
     text(build.program, `${library.id} build program`);
     integer(build.timeoutMs, `${library.id} build timeout`);
     if (!Array.isArray(build.cleanPaths)) {
@@ -257,7 +260,7 @@ export function assertMatrix(matrixValue) {
     }
     integer(semantic.timeoutMs, `${library.id} semantic timeout`);
   }
-  const expected = [
+  const required = [
     "jquerylil",
     "markedlil",
     "mobxlil",
@@ -265,8 +268,8 @@ export function assertMatrix(matrixValue) {
     "motionlil",
     "solidlil",
   ];
-  if (JSON.stringify([...ids].sort()) !== JSON.stringify(expected)) {
-    throw new Error(`matrix library ids must be ${expected.join(", ")}`);
+  if (new Set(ids).size !== ids.length || required.some((id) => !ids.includes(id))) {
+    throw new Error(`matrix library ids must be unique and include ${required.join(", ")}`);
   }
   return matrix;
 }
@@ -505,16 +508,22 @@ export function buildComparisons(
     integer(maxRegressionBytes[metric], `comparison override ${metric}`);
   }
   const comparisons = [];
+  const hasMigrationPair = observations.some(
+    (item) => item.compiler.role === "candidate",
+  );
+  const [beforeRole, afterRole] = hasMigrationPair
+    ? ["migration", "candidate"]
+    : ["baseline", "checkpoint"];
   for (const library of matrix.libraries) {
     const before = exactComparisonObservation(
       observations,
       library.id,
-      "baseline",
+      beforeRole,
     );
     const after = exactComparisonObservation(
       observations,
       library.id,
-      "checkpoint",
+      afterRole,
     );
     for (const metric of metrics) {
       const comparison = {
@@ -528,7 +537,7 @@ export function buildComparisons(
         reason: "",
       };
       if (!before || !after) {
-        comparison.reason = "missing exact baseline or checkpoint observation";
+        comparison.reason = `missing exact ${beforeRole} or ${afterRole} observation`;
       } else if (
         !library.build.artifacts.some(
           (artifact) =>
@@ -560,7 +569,7 @@ export function buildComparisons(
           comparison.gatePassed =
             afterBytes <= beforeBytes + maxRegressionBytes[metric];
           comparison.reason =
-            `checkpoint ${afterBytes} bytes vs baseline ${beforeBytes} bytes; ` +
+            `${afterRole} ${afterBytes} bytes vs ${beforeRole} ${beforeBytes} bytes; ` +
             `allowed regression ${maxRegressionBytes[metric]} bytes`;
         }
       }

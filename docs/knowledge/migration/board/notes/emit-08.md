@@ -1,6 +1,6 @@
 # emit-08 — ordinary-object assignment semantics
 
-Parent: [ledger](../LEDGER.md). Status: blocked(gate-02).
+Parent: [ledger](../LEDGER.md). Status: landed.
 
 ## Question
 
@@ -30,12 +30,14 @@ unsafe contract.
 | 2026-08-29 | Canonical and codec gates | `node comparison/cases/run.mjs --canonical-only`; `node --test benchmarks/codec-contract.test.mjs` | 54/54 canonical and 10/10 codec passed | gate |
 | 2026-08-29 | Full Rust library suite | `cargo test --release --lib` | 1,595 passed, 4 failed outside the changed object/rename paths; not a green gate | gate |
 | 2026-08-29 | Current-tree fork behavior preflight | isolated MotionLil, MarkedLil, MobXLil, jQueryLil, and SolidLil builds/tests using the current release compiler | All maintained checks passed after correcting temp-copy isolation; diagnostic because sibling trees are not pinned | diag |
+| 2026-08-29 | Full release and five-fork checkpoint | `cargo test --release --all-targets`; `node comparison/large-libraries/run.mjs --run --compiler migration,candidate ...` | 1,603 library tests plus binary targets passed; all 13 current candidate boundaries passed fresh semantics with no eligible selected-metric regression | gate |
 
 ## Log
 
 - 2026-08-29 — Gated both parsed cleanup and direct candidate emission on the existing pristine-builtins contract and added inherited-setter coverage. Targeted/canonical gates pass; closure waits for the five-fork G2 evidence gate. — **OPEN**
+- 2026-08-29 — The expanded five-fork G2 checkpoint passed every current candidate semantic boundary without an eligible selected-metric regression. — **LANDED**
 
 ## Next step
 
-Complete gate-02 with pinned MotionLil and MobXLil inputs, then run the five-fork
-G2 checkpoint and mark V-03 landed if no selected-metric cell regresses.
+Keep the inherited-setter regressions in the standing release suite while
+`gate-04` adds mandatory property-category admission for final artifacts.

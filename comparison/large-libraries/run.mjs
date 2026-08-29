@@ -49,7 +49,7 @@ Modes:
 
 Options:
   --only IDS          Comma-separated library ids
-  --compiler ID       a matrix compiler id, or both for baseline+checkpoint (only with --run)
+  --compiler IDS      a matrix compiler id, a comma-separated pair, or both (only with --run)
   --codec PATH        Existing lilscript-codec for --record-existing
   --max-regression M  raw=N,gzip9=N,brotli11=N
   --output PATH       Write canonical JSON instead of stdout
@@ -107,8 +107,15 @@ function parseArguments(argv) {
     throw new Error("--only must name one or more matrix library ids");
   }
   const compilerIds = new Set(matrix.compilers.map((compiler) => compiler.id));
-  if (options.compiler !== "both" && !compilerIds.has(options.compiler)) {
-    throw new Error("--compiler must be a matrix compiler id or both");
+  const selectedCompilers = options.compiler === "both"
+    ? ["baseline", "checkpoint"]
+    : options.compiler.split(",").filter(Boolean);
+  if (
+    selectedCompilers.length === 0 ||
+    selectedCompilers.length > 2 ||
+    selectedCompilers.some((id) => !compilerIds.has(id))
+  ) {
+    throw new Error("--compiler must be one or two matrix compiler ids, or both");
   }
   return options;
 }
@@ -590,21 +597,43 @@ async function installDependencies(root, library) {
 async function runLibrary(root, library, compiler, codec) {
   verifyLibraryArchive(root, library);
   removeStaleOutputs(root, library);
-  const install = await installDependencies(root, library);
-  if (install.code !== 0 || install.timedOut) {
-    return failureObservation({
-      library,
-      compiler,
-      status: install.timedOut ? "timeout" : "compile-error",
-      result: install,
-      phase: "prepare",
-      kind: install.timedOut ? "timeout" : "compile-error",
-      notes: ["dependency installation failed; compilation was not attempted"],
-    });
+  if (library.build.kind !== "direct-compiler") {
+    const install = await installDependencies(root, library);
+    if (install.code !== 0 || install.timedOut) {
+      return failureObservation({
+        library,
+        compiler,
+        status: install.timedOut ? "timeout" : "compile-error",
+        result: install,
+        phase: "prepare",
+        kind: install.timedOut ? "timeout" : "compile-error",
+        notes: ["dependency installation failed; compilation was not attempted"],
+      });
+    }
   }
 
-  console.error(`[${library.id}/${compiler.role}] ${library.build.program} ${library.build.args.join(" ")}`);
-  const build = await runTimed(library.build.program, library.build.args, {
+  const artifact = library.build.artifacts[0];
+  const buildProgram =
+    library.build.kind === "direct-compiler" ? compiler.binaryPath : library.build.program;
+  const buildArgs =
+    library.build.kind === "direct-compiler"
+      ? [
+          safePath(root, library.entry.path),
+          "--target",
+          "js-module",
+          "--config",
+          safePath(root, artifact.configPath),
+          "--mode",
+          "production",
+          "--output",
+          safePath(root, artifact.path),
+        ]
+      : library.build.args;
+  if (library.build.kind === "direct-compiler") {
+    mkdirSync(dirname(safePath(root, artifact.path)), { recursive: true });
+  }
+  console.error(`[${library.id}/${compiler.role}] ${buildProgram} ${buildArgs.join(" ")}`);
+  const build = await runTimed(buildProgram, buildArgs, {
     cwd: root,
     env: {
       ...library.build.environment,
@@ -830,7 +859,7 @@ async function runMatrix(tempRoot, selected, options) {
   const codec = await buildCompiler(tempRoot, checkpoint, { codec: true });
   const probe = measure(codec, [matrixPath]);
   const compilerIds =
-    options.compiler === "both" ? ["baseline", "checkpoint"] : [options.compiler];
+    options.compiler === "both" ? ["baseline", "checkpoint"] : options.compiler.split(",");
   const observations = [];
   for (const compilerId of compilerIds) {
     const specification = matrix.compilers.find((item) => item.id === compilerId);

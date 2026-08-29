@@ -12,10 +12,11 @@ work is finished. When a final candidate lands, update the `checkpoint` Git
 object and source hash in `matrix.json`; the runner itself has no revision
 hard-coded outside that matrix.
 
-The matrix currently has six pinned boundaries across five projects: packaged
-SolidLil core, direct MotionLil animate output, MarkedLil's shipped ESM, MobXLil
-regular production ESM, MobXLil's true production-min ESM, and jQueryLil's
-shipped ESM. No library source or artifact is copied into this repository. At
+The matrix currently has 15 pinned boundaries across five projects: packaged
+SolidLil core, seven source-level MotionLil entry slices plus the retained broad
+animate lane, historical and current MarkedLil/MobXLil inputs, MobXLil's true
+production-min ESM, and jQueryLil's shipped ESM. No library source or artifact is
+copied into this repository. At
 run time the harness requires a Git repository containing each pinned commit,
 verifies the commit and tree, and exports that exact tree into a temporary
 directory with `git archive`.
@@ -104,7 +105,8 @@ JQUERYLIL_REPO=/path/to/jquerylil \
 node comparison/large-libraries/run.mjs --run --compiler checkpoint
 ```
 
-Useful selectors are `--only solidlil,mobxlil`, `--compiler baseline`, and
+Useful selectors are `--only solidlil,mobxlil-current`, `--compiler baseline`,
+`--compiler migration,candidate`, and
 `--output /absolute/result.json`. Per-metric policy can be overridden explicitly,
 for example `--max-regression raw=0,gzip9=4,brotli11=0`; a tolerated regression
 still remains labelled a regression rather than being presented as a win.

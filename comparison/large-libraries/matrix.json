@@ -31,8 +31,16 @@
       "role": "migration-incumbent",
       "revision": "06b89aa7dbc3feafb46794516444bdfff5fc33d9",
       "tree": "838d3c8e3c336dcf9b56bb5654201f7a3c712861",
-      "primarySourcePath": "src/compiler.rs",
-      "primarySourceSha256": "37c039c6cc68fe3afbeced175edbbe86ba3353b9db4a12130d45b4e13c5e92c3"
+      "primarySourcePath": "src/codegen_ir_js.rs",
+      "primarySourceSha256": "0cc219adec398292adc534820fc5c89ba3f74d2941b7fcf5081be320032cfc09"
+    },
+    {
+      "id": "candidate",
+      "role": "migration-candidate",
+      "revision": "71284624901f77db3c150df649114b083f3aa5d4",
+      "tree": "5fd366b9cf85da696eefad80f204263965eac2e2",
+      "primarySourcePath": "src/codegen_ir_js.rs",
+      "primarySourceSha256": "cb3d693f1a615f16bea187a6f67ebc5c477524f8d4391644f847cad3d4dca881"
     }
   ],
   "codec": {
@@ -233,6 +241,338 @@
       }
     },
     {
+      "id": "markedlil-current",
+      "title": "MarkedLil current shipped ESM",
+      "repositoryEnv": "MARKEDLIL_REPO",
+      "defaultSibling": "../markedlil",
+      "revision": "9911cfd12a4519c6a5ab7724702478a8ad35b85c",
+      "tree": "a93429e4aea5be36dd56977b3e0bd73d630e078f",
+      "packageLockSha256": "198537bb9375b1e5f75b2c5c2f10f24fda97f54249722736d155841e1beeee11",
+      "entry": {
+        "path": "src/entry.lil",
+        "sha256": "b1f71341712881346d2271eeb8e9ad915529b72699a8c9a798edffec6d073ca5"
+      },
+      "configs": [
+        { "path": "lilscript.toml", "sha256": "21f9665c6dc35c5a8c6bd663ceaf00b5a6ae2f5a15740f03df3b68cfd778537a" },
+        { "path": "lilscript.gzip.toml", "sha256": "7edbbb56eb269296e0e907857141b4f59afe86f49634fc041383e4a23613bb74" },
+        { "path": "lilscript.bytes.toml", "sha256": "2a3b9c59ab21829bb6aeac4974f171629e75336292abcaa2e7e09e37d67bb412" }
+      ],
+      "build": {
+        "program": "node",
+        "args": ["scripts/build.mjs", "--compile"],
+        "compilerEnv": "LILSCRIPT_COMPILER",
+        "environment": {},
+        "cleanPaths": [
+          "dist/marked.raw.js", "dist/marked.closed.js", "dist/marked.gzip.js",
+          "dist/marked.bytes.js", "dist/marked.esm.js", "dist/marked.cjs", "dist/marked.umd.js"
+        ],
+        "artifacts": [
+          {
+            "id": "raw-objective", "objective": "raw", "gateMetrics": ["raw"],
+            "path": "dist/marked.bytes.js", "configPath": "lilscript.bytes.toml",
+            "derivation": { "kind": "prepend-first-line", "from": "dist/marked.esm.js" }
+          },
+          {
+            "id": "gzip-objective", "objective": "gzip9", "gateMetrics": ["gzip9"],
+            "path": "dist/marked.gzip.js", "configPath": "lilscript.gzip.toml",
+            "derivation": { "kind": "prepend-first-line", "from": "dist/marked.esm.js" }
+          },
+          {
+            "id": "brotli-objective-shipped-esm", "objective": "brotli11", "gateMetrics": ["brotli11"],
+            "path": "dist/marked.esm.js", "configPath": "lilscript.toml",
+            "derivation": { "kind": "identity" }
+          }
+        ],
+        "timeoutMs": 1800000
+      },
+      "semantic": {
+        "scope": "artifact",
+        "program": "node",
+        "args": ["{harness}/semantic/marked-lane.mjs", "--root", "{project}", "--artifact", "{artifact}"],
+        "timeoutMs": 600000
+      }
+    },
+    {
+      "id": "motionlil-animate-mini",
+      "title": "MotionLil direct animateMini boundary",
+      "repositoryEnv": "MOTIONLIL_REPO",
+      "defaultSibling": "../motionlil",
+      "revision": "4e73b91f4de861fb884d8d5369a18b87b3ad43d8",
+      "tree": "ebc4e7f1ebc9a9adae9f25fe335c910fdba5880c",
+      "packageLockSha256": "714ccb519333265c07a4a900c0e80abadfbac52a1b2768878dbd9d0bb2b56454",
+      "entry": {
+        "path": "src/entries/animate-mini.lil",
+        "sha256": "6c8999cdea2cc9aeb5e641909931c788f95265bcf6b2167b7ccda7011ddcfcf4"
+      },
+      "configs": [{
+        "path": "src/lilscript.toml",
+        "sha256": "0b619d062eb21c5b6f587cb7cdc7a9f55752a8503ee930bf8e1279e48bedacf5"
+      }],
+      "build": {
+        "kind": "direct-compiler",
+        "program": "lilscript",
+        "args": [],
+        "compilerEnv": "MOTIONLIL_LILSCRIPT_BIN",
+        "environment": {},
+        "cleanPaths": ["src/entries/.__compiled-animate-mini.mjs"],
+        "artifacts": [{
+          "id": "animate-mini",
+          "objective": "brotli11",
+          "gateMetrics": ["brotli11"],
+          "path": "src/entries/.__compiled-animate-mini.mjs",
+          "configPath": "src/lilscript.toml",
+          "derivation": { "kind": "identity" }
+        }],
+        "timeoutMs": 1800000
+      },
+      "semantic": {
+        "scope": "artifact",
+        "program": "node",
+        "args": ["{harness}/semantic/motion-lane.mjs", "--root", "{project}", "--artifact", "{artifact}"],
+        "timeoutMs": 600000
+      }
+    },
+    {
+      "id": "motionlil-animate",
+      "title": "MotionLil direct animate boundary",
+      "repositoryEnv": "MOTIONLIL_REPO",
+      "defaultSibling": "../motionlil",
+      "revision": "4e73b91f4de861fb884d8d5369a18b87b3ad43d8",
+      "tree": "ebc4e7f1ebc9a9adae9f25fe335c910fdba5880c",
+      "packageLockSha256": "714ccb519333265c07a4a900c0e80abadfbac52a1b2768878dbd9d0bb2b56454",
+      "entry": {
+        "path": "src/evidence/animate.lil",
+        "sha256": "a8b778e8991b46e77d3f2bcdfeb1691104db6350af42a45e42d74f4cb21dd57d"
+      },
+      "configs": [{
+        "path": "src/lilscript.toml",
+        "sha256": "0b619d062eb21c5b6f587cb7cdc7a9f55752a8503ee930bf8e1279e48bedacf5"
+      }],
+      "build": {
+        "kind": "direct-compiler",
+        "program": "lilscript",
+        "args": [],
+        "compilerEnv": "MOTIONLIL_LILSCRIPT_BIN",
+        "environment": {},
+        "cleanPaths": ["src/evidence/.__compiled-animate.mjs"],
+        "artifacts": [{
+          "id": "animate",
+          "objective": "brotli11",
+          "gateMetrics": ["brotli11"],
+          "path": "src/evidence/.__compiled-animate.mjs",
+          "configPath": "src/lilscript.toml",
+          "derivation": { "kind": "identity" }
+        }],
+        "timeoutMs": 1800000
+      },
+      "semantic": {
+        "scope": "artifact",
+        "program": "node",
+        "args": ["{harness}/semantic/motion-lane.mjs", "--root", "{project}", "--artifact", "{artifact}"],
+        "timeoutMs": 600000
+      }
+    },
+    {
+      "id": "motionlil-animate-stagger",
+      "title": "MotionLil direct animate plus stagger boundary",
+      "repositoryEnv": "MOTIONLIL_REPO",
+      "defaultSibling": "../motionlil",
+      "revision": "4e73b91f4de861fb884d8d5369a18b87b3ad43d8",
+      "tree": "ebc4e7f1ebc9a9adae9f25fe335c910fdba5880c",
+      "packageLockSha256": "714ccb519333265c07a4a900c0e80abadfbac52a1b2768878dbd9d0bb2b56454",
+      "entry": {
+        "path": "src/evidence/animate-stagger.lil",
+        "sha256": "2e38d0d76d7de98532e8a5912bac6e732323347283987e16f29f77c9e89745cd"
+      },
+      "configs": [{
+        "path": "src/lilscript.toml",
+        "sha256": "0b619d062eb21c5b6f587cb7cdc7a9f55752a8503ee930bf8e1279e48bedacf5"
+      }],
+      "build": {
+        "kind": "direct-compiler",
+        "program": "lilscript",
+        "args": [],
+        "compilerEnv": "MOTIONLIL_LILSCRIPT_BIN",
+        "environment": {},
+        "cleanPaths": ["src/evidence/.__compiled-animate-stagger.mjs"],
+        "artifacts": [{
+          "id": "animate-stagger",
+          "objective": "brotli11",
+          "gateMetrics": ["brotli11"],
+          "path": "src/evidence/.__compiled-animate-stagger.mjs",
+          "configPath": "src/lilscript.toml",
+          "derivation": { "kind": "identity" }
+        }],
+        "timeoutMs": 1800000
+      },
+      "semantic": {
+        "scope": "artifact",
+        "program": "node",
+        "args": ["{harness}/semantic/motion-lane.mjs", "--root", "{project}", "--artifact", "{artifact}"],
+        "timeoutMs": 600000
+      }
+    },
+    {
+      "id": "motionlil-lab",
+      "title": "MotionLil direct demo lab boundary",
+      "repositoryEnv": "MOTIONLIL_REPO",
+      "defaultSibling": "../motionlil",
+      "revision": "4e73b91f4de861fb884d8d5369a18b87b3ad43d8",
+      "tree": "ebc4e7f1ebc9a9adae9f25fe335c910fdba5880c",
+      "packageLockSha256": "714ccb519333265c07a4a900c0e80abadfbac52a1b2768878dbd9d0bb2b56454",
+      "entry": {
+        "path": "src/evidence/lab.lil",
+        "sha256": "cf59c5d284de6cb8f444e04f72b8741cde718b764b7b1f2ddf2d0592190e99c2"
+      },
+      "configs": [{
+        "path": "src/lilscript.toml",
+        "sha256": "0b619d062eb21c5b6f587cb7cdc7a9f55752a8503ee930bf8e1279e48bedacf5"
+      }],
+      "build": {
+        "kind": "direct-compiler",
+        "program": "lilscript",
+        "args": [],
+        "compilerEnv": "MOTIONLIL_LILSCRIPT_BIN",
+        "environment": {},
+        "cleanPaths": ["src/evidence/.__compiled-lab.mjs"],
+        "artifacts": [{
+          "id": "lab",
+          "objective": "brotli11",
+          "gateMetrics": ["brotli11"],
+          "path": "src/evidence/.__compiled-lab.mjs",
+          "configPath": "src/lilscript.toml",
+          "derivation": { "kind": "identity" }
+        }],
+        "timeoutMs": 1800000
+      },
+      "semantic": {
+        "scope": "artifact",
+        "program": "node",
+        "args": ["{harness}/semantic/motion-lane.mjs", "--root", "{project}", "--artifact", "{artifact}"],
+        "timeoutMs": 600000
+      }
+    },
+    {
+      "id": "motionlil-export",
+      "title": "MotionLil direct package export boundary",
+      "repositoryEnv": "MOTIONLIL_REPO",
+      "defaultSibling": "../motionlil",
+      "revision": "1102ba70a9b78e922bc923375e94447c03a54702",
+      "tree": "4ec4e328836dc531d808dd0bcf4800e427c9cae7",
+      "packageLockSha256": "714ccb519333265c07a4a900c0e80abadfbac52a1b2768878dbd9d0bb2b56454",
+      "entry": {
+        "path": "src/evidence/export.lil",
+        "sha256": "8f324b82852c48189678f3d5543fe427c0a3207f4cf0cf790aea52119191afde"
+      },
+      "configs": [{
+        "path": "src/lilscript.toml",
+        "sha256": "0b619d062eb21c5b6f587cb7cdc7a9f55752a8503ee930bf8e1279e48bedacf5"
+      }],
+      "build": {
+        "kind": "direct-compiler",
+        "program": "lilscript",
+        "args": [],
+        "compilerEnv": "MOTIONLIL_LILSCRIPT_BIN",
+        "environment": {},
+        "cleanPaths": ["src/evidence/.__compiled-export.mjs"],
+        "artifacts": [{
+          "id": "export",
+          "objective": "brotli11",
+          "gateMetrics": ["brotli11"],
+          "path": "src/evidence/.__compiled-export.mjs",
+          "configPath": "src/lilscript.toml",
+          "derivation": { "kind": "identity" }
+        }],
+        "timeoutMs": 1800000
+      },
+      "semantic": {
+        "scope": "artifact",
+        "program": "node",
+        "args": ["{harness}/semantic/motion-lane.mjs", "--root", "{project}", "--artifact", "{artifact}"],
+        "timeoutMs": 600000
+      }
+    },
+    {
+      "id": "motionlil-mini",
+      "title": "MotionLil direct mini boundary",
+      "repositoryEnv": "MOTIONLIL_REPO",
+      "defaultSibling": "../motionlil",
+      "revision": "4e73b91f4de861fb884d8d5369a18b87b3ad43d8",
+      "tree": "ebc4e7f1ebc9a9adae9f25fe335c910fdba5880c",
+      "packageLockSha256": "714ccb519333265c07a4a900c0e80abadfbac52a1b2768878dbd9d0bb2b56454",
+      "entry": {
+        "path": "src/mini.lil",
+        "sha256": "2656c9c7b9a414665a52a0a942a2258aea6da8969477cd70d9fac8441ee4d5de"
+      },
+      "configs": [{
+        "path": "src/lilscript.toml",
+        "sha256": "0b619d062eb21c5b6f587cb7cdc7a9f55752a8503ee930bf8e1279e48bedacf5"
+      }],
+      "build": {
+        "kind": "direct-compiler",
+        "program": "lilscript",
+        "args": [],
+        "compilerEnv": "MOTIONLIL_LILSCRIPT_BIN",
+        "environment": {},
+        "cleanPaths": ["src/.__compiled-mini.mjs"],
+        "artifacts": [{
+          "id": "mini",
+          "objective": "brotli11",
+          "gateMetrics": ["brotli11"],
+          "path": "src/.__compiled-mini.mjs",
+          "configPath": "src/lilscript.toml",
+          "derivation": { "kind": "identity" }
+        }],
+        "timeoutMs": 1800000
+      },
+      "semantic": {
+        "scope": "artifact",
+        "program": "node",
+        "args": ["{harness}/semantic/motion-lane.mjs", "--root", "{project}", "--artifact", "{artifact}"],
+        "timeoutMs": 600000
+      }
+    },
+    {
+      "id": "motionlil-full",
+      "title": "MotionLil direct full boundary",
+      "repositoryEnv": "MOTIONLIL_REPO",
+      "defaultSibling": "../motionlil",
+      "revision": "4e73b91f4de861fb884d8d5369a18b87b3ad43d8",
+      "tree": "ebc4e7f1ebc9a9adae9f25fe335c910fdba5880c",
+      "packageLockSha256": "714ccb519333265c07a4a900c0e80abadfbac52a1b2768878dbd9d0bb2b56454",
+      "entry": {
+        "path": "src/full.lil",
+        "sha256": "2f7511293a2c2874cca18c1a3911493e2e2fee1ae64266ddc21ddfb2422f9483"
+      },
+      "configs": [{
+        "path": "src/lilscript.toml",
+        "sha256": "0b619d062eb21c5b6f587cb7cdc7a9f55752a8503ee930bf8e1279e48bedacf5"
+      }],
+      "build": {
+        "kind": "direct-compiler",
+        "program": "lilscript",
+        "args": [],
+        "compilerEnv": "MOTIONLIL_LILSCRIPT_BIN",
+        "environment": {},
+        "cleanPaths": ["src/.__compiled-full.mjs"],
+        "artifacts": [{
+          "id": "full",
+          "objective": "brotli11",
+          "gateMetrics": ["brotli11"],
+          "path": "src/.__compiled-full.mjs",
+          "configPath": "src/lilscript.toml",
+          "derivation": { "kind": "identity" }
+        }],
+        "timeoutMs": 1800000
+      },
+      "semantic": {
+        "scope": "artifact",
+        "program": "node",
+        "args": ["{harness}/semantic/motion-lane.mjs", "--root", "{project}", "--artifact", "{artifact}"],
+        "timeoutMs": 600000
+      }
+    },
+    {
       "id": "mobxlil",
       "title": "MobXLil production ESM",
       "repositoryEnv": "MOBXLIL_REPO",
@@ -268,6 +608,45 @@
             "derivation": { "kind": "identity" }
           }
         ],
+        "timeoutMs": 1260000
+      },
+      "semantic": {
+        "scope": "observation",
+        "program": "node",
+        "args": ["scripts/package-smoke.mjs"],
+        "timeoutMs": 600000
+      }
+    },
+    {
+      "id": "mobxlil-current",
+      "title": "MobXLil current production ESM",
+      "repositoryEnv": "MOBXLIL_REPO",
+      "defaultSibling": "../mobxlil",
+      "revision": "960f2fb2d893e87d94a7075483c008ed12db4c55",
+      "tree": "26634de93ea5fa300d70a0117466502a7998171a",
+      "packageLockSha256": "4c3655c29714fbb1089cc86b2ec3325138d969b616829d3769942feb0f4fbcba",
+      "entry": {
+        "path": "src/mobx.lil",
+        "sha256": "daffae3ebb3585f3f6751c8d38b715b9f311062f76e63fbc7530a27789453e2a"
+      },
+      "configs": [{
+        "path": "lilscript.toml",
+        "sha256": "15c1dec745765dc87eb9fca0cbd3423f917091dd21d2ef0caf305dc332b51cbe"
+      }],
+      "build": {
+        "program": "node",
+        "args": ["scripts/build.mjs", "--prod"],
+        "compilerEnv": "LILSCRIPT_COMPILER",
+        "environment": {},
+        "cleanPaths": ["dist/mobx.esm.js"],
+        "artifacts": [{
+          "id": "production-esm",
+          "objective": "brotli11",
+          "gateMetrics": ["brotli11"],
+          "path": "dist/mobx.esm.js",
+          "configPath": "lilscript.toml",
+          "derivation": { "kind": "identity" }
+        }],
         "timeoutMs": 1260000
       },
       "semantic": {

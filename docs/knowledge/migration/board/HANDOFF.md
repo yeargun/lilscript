@@ -1,7 +1,7 @@
 # Cloud handoff
 
 Updated: 2026-08-29. Parent: [board](README.md). Active task:
-[gate-02](notes/gate-02.md). Canonical plan:
+[gate-04](notes/gate-04.md). Canonical plan:
 [compression migration](../compression-migration.md).
 
 This file persists the live execution queue for a fresh VM. The ledger owns
@@ -13,20 +13,20 @@ resume packet.
 1. [`docs/knowledge/mission.md`](../../mission.md)
 2. [`board/README.md`](README.md)
 3. [`board/LEDGER.md`](LEDGER.md)
-4. [`notes/gate-02.md`](notes/gate-02.md)
+4. [`notes/gate-04.md`](notes/gate-04.md)
 5. [`compression-migration.md`](../compression-migration.md)
 
 ## Pinned repositories
 
 | Repository | Branch/commit | Purpose |
 |---|---|---|
-| LilScript | pushed `main`; handoff parent `182efd0` | Full architecture/evidence snapshot, V-02/V-03 safety, matrix compiler lane, and this handoff |
-| MotionLil | pushed `main` at `8b4fcad`; matrix source pin `fde1aed` | Tree-shakeable entries plus retained direct-compiler artifact hook, merged with remote rebuild history |
-| MobXLil | pushed `main` at `960f2fb`; matrix source pin `820c9a8` | Split source, true production-min config, synchronized lockfile, and merged remote rebuild history |
+| LilScript | local `main` through compiler candidate `7128462`; harness/docs pending final commit | Green release suite, phi safety fix, expanded matrix, and this handoff |
+| MotionLil | local `main` at `1102ba7` | Source-level evidence entries for exact direct compiler boundaries |
+| MarkedLil | local `main` at `9911cfd` | Cross-platform synchronized lockfile |
+| MobXLil | `main` at `960f2fb` | Split source, true production-min config, and synchronized lockfile |
 | Closure Compiler audit | commit `73eee2481cf1dd5dea0d8c9c0561b5a61498fec4` | Source comparison only; clone outside the repository |
 
-All three repositories were pushed to `origin/main` without force on 2026-08-29.
-Verify remote heads after pulling; never force-push.
+Push the pending local commits without force after the final common gates pass.
 
 ## Completed
 
@@ -43,47 +43,40 @@ Verify remote heads after pulling; never force-push.
   contract tests passed.
 - Isolated behavior preflights passed: Motion 9/9, Marked 29/29, MobX 769 with 11
   intentional skips plus package smoke, jQuery 6/6, and Solid JFB on rerun.
-- Large-library matrix expanded to six pinned boundaries, including direct
-  Motion animate and true MobX production-min artifact lanes.
-- `--check-inputs` validates all six source/config archives.
+- Large-library matrix includes direct Motion output and true MobX
+  production-min artifact lanes.
+- `--check-inputs` validates all 15 source/config boundaries.
+- Full release Rust is green: 1,603 library tests and all binary targets.
+- The matrix has 15 immutable boundaries. Seven source-level Motion cells cover
+  `animateMini`, `animate`, `animate+stagger`, lab, export, mini, and full without
+  esbuild or Terser.
+- The current candidate passes fresh semantics in every selected cell. Thirteen
+  eligible Brotli comparisons tie the migration incumbent exactly.
+- Marked raw/gzip now pass all 660 corpus cases after rejecting local-phi
+  recovery that read a coalesced slot before its incoming definition.
+- Gate-02, V-02 (`ident-09`), and V-03 (`emit-08`) are landed.
 
 ## Known red or incomplete gates
 
-- Full `cargo test --release --lib`: 1,595 passed and four existing tests failed:
-  `keeps_js_push_and_empty_array_factories_prototype_observable`, two config-policy
-  tests, and `stringify_elision_crosses_intervening_constants`.
-- Historical checkpoint compiler `979dc90` times out on the newly pinned Motion
-  and MobX production-min sources; those rows correctly emit no artifact.
-- A migration compiler lane pinned to LilScript `06b89aa` is being added. The
-  first combined run was user-aborted after both build commands started; rerun it.
-- Only Motion `animate` direct output is in the matrix. Add `animateMini`,
-  `animate`, `animate+stagger`, lab, export, mini, and full boundaries without
-  relabeling esbuild/Terser package output as direct compiler output.
-- V-02 and V-03 remain `blocked(gate-02)` until a complete five-fork G2
-  selected-metric checkpoint passes.
+- V-01 final-artifact admission is not implemented. Current semantic harnesses
+  catch invalid outputs after emission, but codec calls are not universally
+  preceded by syntax/binding/property/module/ABI/obligation validation.
+- Historical Marked raw/gzip outputs from `06b89aa` fail 229 corpus checks and
+  are ineligible incumbents; candidate `7128462` fixes them. The Brotli incumbent
+  and all other selected rows remain byte-identical.
+- Historical `baseline`/`checkpoint` rows remain frozen; current work uses the
+  explicit `migration,candidate` pair.
 
 ## Live queue
 
-1. Clone or pull `main` for LilScript, MotionLil, and MobXLil beside one another.
-2. On the cloud VM, run `node scripts/board.mjs check` and
-   `node comparison/large-libraries/run.mjs --check-inputs`.
-3. Rerun the migration compiler on `motionlil,mobxlil-production-min`:
-
-   ```sh
-   export PATH="$HOME/.cargo/bin:$PATH"
-   source "$HOME/.nvm/nvm.sh"
-   nvm use 24.11.1
-   node comparison/large-libraries/run.mjs --run \
-     --compiler migration \
-     --only motionlil,mobxlil-production-min \
-     --output /absolute/temp/migration-new-lanes.json \
-     --keep-temp
-   ```
-
-4. Pin the next migration compiler commit as the `after` side for V-02/V-03 and
-   compare it with the `06b89aa` incumbent under zero-byte selected-metric policy.
-5. Complete gate-02, then mark or reject `ident-09` and `emit-08` from evidence.
-6. Resume canonical phase 0/0.5/1 work before starting target-JS or new syntax.
+1. Clone or pull LilScript, MotionLil, MarkedLil, MobXLil, jQueryLil, and SolidLil
+   beside one another; verify the pinned objects with `--check-inputs`.
+2. Read `notes/gate-04.md` and inventory codec call sites plus existing final-JS
+   parsing, binding resolution, contract, ABI, and obligation witnesses.
+3. Implement V-01 as one fail-closed admission path before exact scoring.
+4. Run targeted rejection fixtures, full Rust/canonical/codec gates, then the
+   selected 13-boundary `migration,candidate` G2 command recorded in gate-02.
+5. Continue canonical phase 1 incumbent recovery only after V-01 lands.
 
 ## Refusals
 
@@ -91,5 +84,5 @@ Verify remote heads after pulling; never force-push.
   matcher, objective-dependent ABI, timeout increase used as a pass, or aggregate
   win used to hide one red boundary.
 - Do not mark the migration complete from diagnostic preflights.
-- Do not start new compression candidates while V-01 evidence/ABI admission and
-  gate-02 remain open.
+- Do not start new compression candidates while V-01 evidence/ABI admission is
+  open.

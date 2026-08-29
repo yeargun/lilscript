@@ -6,6 +6,14 @@ recorded verdict. This is cold storage: read it when you are about to redo somet
 Format: `## YYYY-MM-DD — <task id> — <one line>` then two or three lines of what
 changed, what the gate said, and the commit if there is one.
 
+## 2026-08-29 — gate-02 / ident-09 / emit-08 — five-fork G2 landed
+
+The matrix now has 15 immutable boundaries, including seven direct Motion
+compiler outputs and current lockfile-safe Marked/MobX lanes. Candidate `7128462`
+passes every selected semantic cell; 13 eligible Brotli rows tie incumbent
+`06b89aa`. Marked raw/gzip expose an invalid incumbent and pass 660/660 after the
+generic local-phi recovery fix. Full release Rust is green. V-01 is next.
+
 ## 2026-08-29 — cloud handoff — pushed migration state
 
 LilScript `main` pushed through `182efd0`, MotionLil through merge `8b4fcad`, and
