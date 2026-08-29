@@ -1,0 +1,47 @@
+import { getGlobalThis } from "../shared/general";
+import { console } from "../shared/makeMap";
+
+extern JsValue __FEATURE_OPTIONS_API__;
+extern JsValue __FEATURE_PROD_DEVTOOLS__;
+extern JsValue __FEATURE_PROD_HYDRATION_MISMATCH_DETAILS__;
+
+bool DEV = true;
+
+export void initFeatureFlags() {
+  string[] needWarn = [];
+
+  if (JS.typeOf(__FEATURE_OPTIONS_API__) != "boolean") {
+    if (DEV) needWarn.push("__VUE_OPTIONS_API__");
+    getGlobalThis()["__VUE_OPTIONS_API__"] = true;
+  }
+
+  if (JS.typeOf(__FEATURE_PROD_DEVTOOLS__) != "boolean") {
+    if (DEV) needWarn.push("__VUE_PROD_DEVTOOLS__");
+    getGlobalThis()["__VUE_PROD_DEVTOOLS__"] = false;
+  }
+
+  if (JS.typeOf(__FEATURE_PROD_HYDRATION_MISMATCH_DETAILS__) != "boolean") {
+    if (DEV) needWarn.push("__VUE_PROD_HYDRATION_MISMATCH_DETAILS__");
+    getGlobalThis()["__VUE_PROD_HYDRATION_MISMATCH_DETAILS__"] = false;
+  }
+
+  if (DEV && needWarn.length > 0) {
+    bool multi = needWarn.length > 1;
+    string flags = JS.string(JS.invoke(JS.assume(needWarn), "join", ", "));
+    string plural = "";
+    string verb = "is";
+    if (multi) {
+      plural = "s";
+      verb = "are";
+    }
+    JS.invoke(
+      console,
+      "warn",
+      "Feature flag" + plural + " " + flags + " " + verb +
+        " not explicitly defined. You are running the esm-bundler build of Vue, " +
+        "which expects these compile-time feature flags to be globally injected " +
+        "via the bundler config in order to get better tree-shaking in the " +
+        "production bundle.\n\nFor more details, see https://link.vuejs.org/feature-flags."
+    );
+  }
+}

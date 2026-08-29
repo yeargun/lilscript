@@ -1,0 +1,61 @@
+import {
+  Object as globalConfigObject,
+  globalThis as globalConfigGlobal
+} from "../../shared/makeMap";
+import { internalOptionMergeStrats as globalConfigMergeStrats } from "../componentOptions";
+import {
+  DeprecationTypes,
+  softAssertCompatEnabled,
+  warnDeprecation
+} from "./compatConfig";
+import { isCopyingConfig } from "./global";
+
+export void installLegacyConfigWarnings(JsValue config) {
+  JsValue legacyConfigOptions = JS.object(
+    "silent", DeprecationTypes["CONFIG_SILENT"],
+    "devtools", DeprecationTypes["CONFIG_DEVTOOLS"],
+    "ignoredElements", DeprecationTypes["CONFIG_IGNORED_ELEMENTS"],
+    "keyCodes", DeprecationTypes["CONFIG_KEY_CODES"],
+    "productionTip", DeprecationTypes["CONFIG_PRODUCTION_TIP"]
+  );
+  JsValue keys = JS.invoke(globalConfigObject, "keys", legacyConfigOptions);
+  int length = JS.number(keys["length"]).toInt();
+  for (int index = 0; index < length; index++) {
+    JsValue key = keys[index];
+    JsValue value = config[key];
+    JS.invoke(
+      globalConfigObject,
+      "defineProperty",
+      config,
+      key,
+      JS.object(
+        "enumerable", true,
+        "get", JS.method0((JsValue _self) => value),
+        "set", JS.method1((JsValue _self, JsValue nextValue) => {
+          if (!isCopyingConfig) {
+            warnDeprecation(JS.string(legacyConfigOptions[key]), null);
+          }
+          value = nextValue;
+          return JS.undefined();
+        })
+      )
+    );
+  }
+}
+
+export void installLegacyOptionMergeStrats(JsValue config) {
+  JsValue target = JS.object();
+  JsValue handler = JS.object(
+    "get", JS.method2((JsValue _self, JsValue _target, JsValue key) => {
+      if (JS.in(key, target)) return target[key];
+      if (
+        JS.in(key, globalConfigMergeStrats) &&
+        softAssertCompatEnabled(
+          JS.string(DeprecationTypes["CONFIG_OPTION_MERGE_STRATS"]), null
+        )
+      ) return globalConfigMergeStrats[key];
+      return JS.undefined();
+    })
+  );
+  config["optionMergeStrategies"] = JS.construct(globalConfigGlobal["Proxy"], target, handler);
+}

@@ -121,11 +121,10 @@ impl<'model, 'ast, 'src> ModuleLowerer<'model, 'ast, 'src> {
         let mut function_names = AHashMap::default();
         let mut global_names = AHashMap::default();
         let mut type_names = AHashSet::default();
-        let constructor_exports = program
-            .exports
+        let constructor_values = program
+            .constructor_values
             .iter()
-            .filter(|export| export.kind == ExportKind::ConstructorValue)
-            .map(|export| export.local.name)
+            .map(|constructor| constructor.name)
             .collect::<AHashSet<_>>();
 
         for item in program.items {
@@ -186,7 +185,7 @@ impl<'model, 'ast, 'src> ModuleLowerer<'model, 'ast, 'src> {
                             ClassMember::Field(_) => continue,
                         }
                     }
-                    if !has_constructor && constructor_exports.contains(class.name.name) {
+                    if !has_constructor && constructor_values.contains(class.name.name) {
                         let id = FunctionId(lowerer.plans.len() as u32);
                         lowerer.constructors.insert(class.name.name, id);
                         lowerer.default_constructors.insert(class.name.name);
@@ -194,6 +193,38 @@ impl<'model, 'ast, 'src> ModuleLowerer<'model, 'ast, 'src> {
                             class: class.name.name,
                             span: class.span,
                         });
+                    }
+                    if constructor_values.contains(class.name.name) {
+                        let constructor = lowerer
+                            .constructors
+                            .get(class.name.name)
+                            .copied()
+                            .ok_or_else(|| {
+                                LowerError::new(
+                                    class.name.span,
+                                    format!(
+                                        "constructor value `{}` has no lowerable constructor",
+                                        class.name.name
+                                    ),
+                                )
+                            })?;
+                        let symbol = lowerer.binding_symbol(class.name)?;
+                        lowerer.function_symbols.insert(symbol, constructor);
+
+                        let mut current = Some(class.name.name);
+                        while let Some(name) = current {
+                            if !lowerer.identity_observed_classes.insert(name) {
+                                break;
+                            }
+                            current = semantics.class_info(name).and_then(|class| {
+                                class.base.as_ref().and_then(|base| match base {
+                                    Type::Class(base) | Type::ClassInstance { name: base, .. } => {
+                                        Some(*base)
+                                    }
+                                    _ => None,
+                                })
+                            });
+                        }
                     }
                 }
                 Item::Enum(decl) => {
@@ -355,9 +386,6 @@ impl<'model, 'ast, 'src> ModuleLowerer<'model, 'ast, 'src> {
                                 "constructor export inheritance cannot cross object or extern classes",
                             ));
                         }
-                        if !lowerer.identity_observed_classes.insert(name) {
-                            break;
-                        }
                         current = semantics.class_info(name).and_then(|class| {
                             class.base.as_ref().and_then(|base| match base {
                                 Type::Class(base) | Type::ClassInstance { name: base, .. } => {
@@ -372,6 +400,22 @@ impl<'model, 'ast, 'src> ModuleLowerer<'model, 'ast, 'src> {
                 ExportKind::Binding => {
                     if let Some(function) = function_names.get(export.local.name) {
                         ExportBinding::Function(*function)
+                    } else if constructor_values.contains(export.local.name) {
+                        ExportBinding::Function(
+                            lowerer
+                                .constructors
+                                .get(export.local.name)
+                                .copied()
+                                .ok_or_else(|| {
+                                    LowerError::new(
+                                        export.local.span,
+                                        format!(
+                                            "constructor value `{}` has no lowerable constructor",
+                                            export.local.name
+                                        ),
+                                    )
+                                })?,
+                        )
                     } else if let Some(global) = global_names.get(export.local.name) {
                         ExportBinding::Global(*global)
                     } else if type_names.contains(export.local.name) {
@@ -406,6 +450,22 @@ impl<'model, 'ast, 'src> ModuleLowerer<'model, 'ast, 'src> {
                 }
                 let binding = if let Some(function) = function_names.get(export.binding) {
                     ExportBinding::Function(*function)
+                } else if constructor_values.contains(export.binding) {
+                    ExportBinding::Function(
+                        lowerer
+                            .constructors
+                            .get(export.binding)
+                            .copied()
+                            .ok_or_else(|| {
+                                LowerError::new(
+                                    import.span,
+                                    format!(
+                                        "constructor value `{}` has no lowerable constructor",
+                                        export.binding
+                                    ),
+                                )
+                            })?,
+                    )
                 } else if let Some(global) = global_names.get(export.binding) {
                     ExportBinding::Global(*global)
                 } else {

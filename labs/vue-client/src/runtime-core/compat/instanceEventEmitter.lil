@@ -1,0 +1,98 @@
+import extern { isArray as emitterIsArray } from "../../../packages/vuelil/shared.js";
+import {
+  Object as emitterObject,
+  globalThis as emitterGlobal
+} from "../../shared/makeMap";
+import {
+  ErrorCodes as CoreErrorCodes,
+  callWithAsyncErrorHandling as coreCallWithAsyncErrorHandling
+} from "../errorHandling";
+import { DeprecationTypes, assertCompatEnabled } from "./compatConfig";
+
+extern bool emitterIsArray(JsValue value);
+
+JsValue eventRegistryMap = JS.construct(emitterGlobal["WeakMap"]);
+
+export JsValue getRegistry(JsValue instance) {
+  JsValue events = JS.invoke(eventRegistryMap, "get", instance);
+  if (!events.truthy()) {
+    events = JS.invoke(emitterObject, "create", null);
+    JS.invoke(eventRegistryMap, "set", instance, events);
+  }
+  return events;
+}
+
+export JsValue on(JsValue instance, JsValue event, JsValue fn) {
+  if (emitterIsArray(event)) {
+    JS.invoke(event, "forEach", JS.method1((JsValue _self, JsValue name) => {
+      on(instance, name, fn);
+      return JS.undefined();
+    }));
+  } else {
+    string eventName = JS.string(event);
+    if (eventName.startsWith("hook:")) {
+      assertCompatEnabled(JS.string(DeprecationTypes["INSTANCE_EVENT_HOOKS"]), instance, event);
+    } else {
+      assertCompatEnabled(JS.string(DeprecationTypes["INSTANCE_EVENT_EMITTER"]), instance);
+    }
+    JsValue events = getRegistry(instance);
+    JsValue callbacks = events[event];
+    if (!callbacks.truthy()) {
+      callbacks = JS.array();
+      events[event] = callbacks;
+    }
+    JS.invoke(callbacks, "push", fn);
+  }
+  return instance["proxy"];
+}
+
+export JsValue once(JsValue instance, string event, JsValue fn) {
+  JsValue wrapped = JS.undefined();
+  wrapped = JS.methodRest((JsValue _self, JsValue args) => {
+    off(instance, event, wrapped);
+    return JS.apply(fn, instance["proxy"], args);
+  });
+  wrapped["fn"] = fn;
+  on(instance, event, wrapped);
+  return instance["proxy"];
+}
+
+export JsValue off(JsValue instance, JsValue event = JS.undefined(), JsValue fn = JS.undefined()) {
+  assertCompatEnabled(JS.string(DeprecationTypes["INSTANCE_EVENT_EMITTER"]), instance);
+  JsValue proxy = instance["proxy"];
+  if (!event.truthy()) {
+    JS.invoke(eventRegistryMap, "set", instance, JS.invoke(emitterObject, "create", null));
+    return proxy;
+  }
+  if (emitterIsArray(event)) {
+    JS.invoke(event, "forEach", JS.method1((JsValue _self, JsValue name) => {
+      off(instance, name, fn);
+      return JS.undefined();
+    }));
+    return proxy;
+  }
+  JsValue events = getRegistry(instance);
+  JsValue callbacks = events[event];
+  if (!callbacks.truthy()) return proxy;
+  if (!fn.truthy()) {
+    events[event] = JS.undefined();
+    return proxy;
+  }
+  events[event] = JS.invoke(callbacks, "filter", JS.method1((JsValue _self, JsValue callback) =>
+    !JS.strictEqual(callback, fn) && !JS.strictEqual(callback["fn"], fn)
+  ));
+  return proxy;
+}
+
+export JsValue emit(JsValue instance, string event, JsValue args) {
+  JsValue callbacks = getRegistry(instance)[event];
+  if (callbacks.truthy()) {
+    JsValue bound = JS.invoke(callbacks, "map", JS.method1((JsValue _self, JsValue callback) =>
+      JS.invoke(callback, "bind", instance["proxy"])
+    ));
+    coreCallWithAsyncErrorHandling(
+      bound, instance, CoreErrorCodes["COMPONENT_EVENT_HANDLER"], args
+    );
+  }
+  return instance["proxy"];
+}

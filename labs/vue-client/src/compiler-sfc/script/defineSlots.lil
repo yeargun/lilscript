@@ -1,0 +1,33 @@
+import { isCallOf } from "./utils";
+
+export string DEFINE_SLOTS = "defineSlots";
+
+export bool processDefineSlots(
+  JsValue ctx,
+  JsValue node,
+  JsValue declId = JS.undefined()
+) {
+  if (!isCallOf(node, DEFINE_SLOTS)) return false;
+  if (ctx["hasDefineSlotsCall"].truthy()) {
+    JS.invoke(ctx, "error", "duplicate " + DEFINE_SLOTS + "() call", node);
+  }
+  ctx["hasDefineSlotsCall"] = true;
+
+  if (JS.number(node["arguments"]["length"]).toInt() > 0) {
+    JS.invoke(ctx, "error", DEFINE_SLOTS + "() cannot accept arguments", node);
+  }
+
+  if (declId.truthy()) {
+    int startOffset = JS.number(ctx["startOffset"]).toInt();
+    string helper = JS.string(JS.invoke(ctx, "helper", "useSlots"));
+    JS.invoke(
+      ctx["s"],
+      "overwrite",
+      startOffset + JS.number(node["start"]).toInt(),
+      startOffset + JS.number(node["end"]).toInt(),
+      helper + "()"
+    );
+  }
+
+  return true;
+}

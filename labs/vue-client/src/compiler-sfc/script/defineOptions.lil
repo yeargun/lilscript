@@ -1,0 +1,96 @@
+import extern { unwrapTSNode as optionsUnwrapTSNode } from "../../../packages/vuelil/compiler-dom.js";
+import { DEFINE_EMITS } from "./defineEmits";
+import { DEFINE_EXPOSE } from "./defineExpose";
+import { DEFINE_PROPS } from "./defineProps";
+import { DEFINE_SLOTS } from "./defineSlots";
+import { isCallOf } from "./utils";
+
+extern JsValue optionsUnwrapTSNode;
+
+int optionsLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+
+export string DEFINE_OPTIONS = "defineOptions";
+
+export bool processDefineOptions(JsValue ctx, JsValue node) {
+  if (!isCallOf(node, DEFINE_OPTIONS)) return false;
+  if (ctx["hasDefineOptionsCall"].truthy()) {
+    JS.invoke(ctx, "error", "duplicate " + DEFINE_OPTIONS + "() call", node);
+  }
+  if (node["typeParameters"].truthy()) {
+    JS.invoke(
+      ctx,
+      "error",
+      DEFINE_OPTIONS + "() cannot accept type arguments",
+      node
+    );
+  }
+  if (!node["arguments"][0].truthy()) return true;
+
+  ctx["hasDefineOptionsCall"] = true;
+  ctx["optionsRuntimeDecl"] = JS.call(
+    optionsUnwrapTSNode,
+    JS.undefined(),
+    node["arguments"][0]
+  );
+
+  JsValue propsOption = JS.undefined();
+  JsValue emitsOption = JS.undefined();
+  JsValue exposeOption = JS.undefined();
+  JsValue slotsOption = JS.undefined();
+  if (JS.string(ctx["optionsRuntimeDecl"]["type"]) == "ObjectExpression") {
+    JsValue properties = ctx["optionsRuntimeDecl"]["properties"];
+    for (int index = 0; index < optionsLength(properties); index++) {
+      JsValue property = properties[index];
+      string type = JS.string(property["type"]);
+      if ((type == "ObjectProperty" || type == "ObjectMethod") &&
+        JS.string(property["key"]["type"]) == "Identifier") {
+        string name = JS.string(property["key"]["name"]);
+        if (name == "props") propsOption = property;
+        else if (name == "emits") emitsOption = property;
+        else if (name == "expose") exposeOption = property;
+        else if (name == "slots") slotsOption = property;
+      }
+    }
+  }
+
+  if (propsOption.truthy()) {
+    JS.invoke(
+      ctx,
+      "error",
+      DEFINE_OPTIONS + "() cannot be used to declare props. Use " +
+        DEFINE_PROPS + "() instead.",
+      propsOption
+    );
+  }
+  if (emitsOption.truthy()) {
+    JS.invoke(
+      ctx,
+      "error",
+      DEFINE_OPTIONS + "() cannot be used to declare emits. Use " +
+        DEFINE_EMITS + "() instead.",
+      emitsOption
+    );
+  }
+  if (exposeOption.truthy()) {
+    JS.invoke(
+      ctx,
+      "error",
+      DEFINE_OPTIONS + "() cannot be used to declare expose. Use " +
+        DEFINE_EXPOSE + "() instead.",
+      exposeOption
+    );
+  }
+  if (slotsOption.truthy()) {
+    JS.invoke(
+      ctx,
+      "error",
+      DEFINE_OPTIONS + "() cannot be used to declare slots. Use " +
+        DEFINE_SLOTS + "() instead.",
+      slotsOption
+    );
+  }
+
+  return true;
+}

@@ -1,0 +1,15 @@
+import { extend, isFunction } from "../shared/general";
+
+export JsValue defineComponent(
+  JsValue options,
+  JsValue extraOptions
+) {
+  if (!isFunction(options)) return options;
+  return JS.call(
+    extend,
+    JS.undefined(),
+    JS.object("name", options["name"]),
+    extraOptions,
+    JS.object("setup", options)
+  );
+}

@@ -860,6 +860,8 @@ pub fn link_modules<'arena>(
 
     let mut items = BumpVec::new_in(arena);
     let mut module_bindings = BumpVec::new_in(arena);
+    let mut constructor_values = BumpVec::new_in(arena);
+    let mut seen_constructor_values = AHashSet::default();
     let mut seen_externs = AHashMap::<&str, ExternDecl<'arena, 'arena>>::default();
     for &module_id in &modules.dependency_order {
         let mut cloner = ModuleCloner::new(
@@ -867,6 +869,12 @@ pub fn link_modules<'arena>(
             &bindings[module_id],
             modules.modules[module_id].offset,
         );
+        for constructor in programs[module_id].constructor_values {
+            let constructor = cloner.global_ident(*constructor);
+            if seen_constructor_values.insert(constructor.name) {
+                constructor_values.push(constructor);
+            }
+        }
         for item in programs[module_id].items {
             let cloned = cloner.clone_item(item);
             if let Item::Stmt(Stmt::VarDecl(decl)) = &cloned {
@@ -1062,6 +1070,7 @@ pub fn link_modules<'arena>(
         foreign_imports: linked_foreign_imports.into_bump_slice(),
         dynamic_imports: linked_dynamic_imports.into_bump_slice(),
         module_bindings: module_bindings.into_bump_slice(),
+        constructor_values: constructor_values.into_bump_slice(),
         exports: linked_exports.into_bump_slice(),
         items,
         span,

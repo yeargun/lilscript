@@ -1,0 +1,415 @@
+import extern {
+  BindingTypes as PropsBindingTypes,
+  isFunctionType as propsIsFunctionType,
+  unwrapTSNode as propsUnwrapTSNode
+} from "../../../packages/vuelil/compiler-dom.js";
+import { getObjectOrArrayExpressionKeys } from "./analyzeScriptBindings";
+import { genModelProps } from "./defineModel";
+import { processPropsDestructure } from "./definePropsDestructure";
+import { inferRuntimeType, resolveTypeElements } from "./resolveType";
+import {
+  UNKNOWN_TYPE,
+  concatStrings,
+  getEscapedPropName,
+  isCallOf,
+  isLiteralNode,
+  resolveObjectKey,
+  toRuntimeTypeString
+} from "./utils";
+
+extern JsValue PropsBindingTypes;
+extern JsValue propsIsFunctionType;
+extern JsValue propsUnwrapTSNode;
+
+int propsLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+
+void propsPush(JsValue values, JsValue value) {
+  values[propsLength(values)] = value;
+}
+
+export string DEFINE_PROPS = "defineProps";
+export string WITH_DEFAULTS = "withDefaults";
+
+export bool processDefineProps(
+  JsValue ctx,
+  JsValue node,
+  JsValue declId = JS.undefined(),
+  bool isWithDefaults = false
+) {
+  if (!isCallOf(node, DEFINE_PROPS)) {
+    return processWithDefaults(ctx, node, declId);
+  }
+
+  if (ctx["hasDefinePropsCall"].truthy()) {
+    JS.invoke(ctx, "error", "duplicate " + DEFINE_PROPS + "() call", node);
+  }
+  ctx["hasDefinePropsCall"] = true;
+  ctx["propsRuntimeDecl"] = node["arguments"][0];
+
+  if (ctx["propsRuntimeDecl"].truthy()) {
+    JsValue keys = getObjectOrArrayExpressionKeys(ctx["propsRuntimeDecl"]);
+    for (int index = 0; index < propsLength(keys); index++) {
+      string key = JS.string(keys[index]);
+      if (!JS.in(key, ctx["bindingMetadata"])) {
+        ctx["bindingMetadata"][key] = PropsBindingTypes["PROPS"];
+      }
+    }
+  }
+
+  if (node["typeParameters"].truthy()) {
+    if (ctx["propsRuntimeDecl"].truthy()) {
+      JS.invoke(
+        ctx,
+        "error",
+        DEFINE_PROPS + "() cannot accept both type and non-type arguments " +
+          "at the same time. Use one or the other.",
+        node
+      );
+    }
+    ctx["propsTypeDecl"] = node["typeParameters"]["params"][0];
+  }
+
+  if (!isWithDefaults && declId.truthy() &&
+    JS.string(declId["type"]) == "ObjectPattern") {
+    processPropsDestructure(ctx, declId);
+  }
+
+  ctx["propsCall"] = node;
+  ctx["propsDecl"] = declId;
+
+  return true;
+}
+
+bool processWithDefaults(JsValue ctx, JsValue node, JsValue declId) {
+  if (!isCallOf(node, WITH_DEFAULTS)) return false;
+  if (!processDefineProps(ctx, node["arguments"][0], declId, true)) {
+    JsValue errorNode = node["arguments"][0];
+    if (!errorNode.truthy()) errorNode = node;
+    JS.invoke(
+      ctx,
+      "error",
+      WITH_DEFAULTS + "' first argument must be a " + DEFINE_PROPS + " call.",
+      errorNode
+    );
+  }
+
+  if (ctx["propsRuntimeDecl"].truthy()) {
+    JS.invoke(
+      ctx,
+      "error",
+      WITH_DEFAULTS + " can only be used with type-based " +
+        DEFINE_PROPS + " declaration.",
+      node
+    );
+  }
+  if (declId.truthy() && JS.string(declId["type"]) == "ObjectPattern") {
+    JS.invoke(
+      ctx,
+      "warn",
+      WITH_DEFAULTS + "() is unnecessary when using destructure with " +
+        DEFINE_PROPS + "().\n" +
+        "Reactive destructure will be disabled when using withDefaults().\n" +
+        "Prefer using destructure default values, e.g. const { foo = 1 } = defineProps(...). ",
+      node["callee"]
+    );
+  }
+  ctx["propsRuntimeDefaults"] = node["arguments"][1];
+  if (!ctx["propsRuntimeDefaults"].truthy()) {
+    JS.invoke(
+      ctx,
+      "error",
+      "The 2nd argument of " + WITH_DEFAULTS + " is required.",
+      node
+    );
+  }
+  ctx["propsCall"] = node;
+
+  return true;
+}
+
+export JsValue genRuntimeProps(JsValue ctx) {
+  JsValue propsDecls = JS.undefined();
+
+  if (ctx["propsRuntimeDecl"].truthy()) {
+    propsDecls = JS.string(JS.invoke(
+      ctx,
+      "getString",
+      ctx["propsRuntimeDecl"]
+    )).trim();
+    if (ctx["propsDestructureDecl"].truthy()) {
+      JsValue defaults = JS.array();
+      for (string key in ctx["propsDestructuredBindings"]) {
+        JsValue defaultValue = genDestructuredDefaultValue(ctx, key);
+        string finalKey = getEscapedPropName(key);
+        if (defaultValue.truthy()) {
+          string generated = finalKey + ": " +
+            JS.string(defaultValue["valueString"]);
+          if (defaultValue["needSkipFactory"].truthy()) {
+            generated += ", __skip_" + finalKey + ": true";
+          }
+          propsPush(defaults, generated);
+        }
+      }
+      if (propsLength(defaults) > 0) {
+        propsDecls = "/*@__PURE__*/" +
+          JS.string(JS.invoke(ctx, "helper", "mergeDefaults")) + "(" +
+          JS.string(propsDecls) + ", {\n  " +
+          JS.string(JS.invoke(defaults, "join", ",\n  ")) + "\n})";
+      }
+    }
+  } else if (ctx["propsTypeDecl"].truthy()) {
+    propsDecls = extractRuntimeProps(ctx);
+  }
+
+  JsValue modelsDecls = genModelProps(ctx);
+  if (propsDecls.truthy() && modelsDecls.truthy()) {
+    return "/*@__PURE__*/" +
+      JS.string(JS.invoke(ctx, "helper", "mergeModels")) + "(" +
+      JS.string(propsDecls) + ", " + JS.string(modelsDecls) + ")";
+  }
+  if (modelsDecls.truthy()) return modelsDecls;
+  return propsDecls;
+}
+
+export JsValue extractRuntimeProps(JsValue ctx) {
+  JsValue props = resolveRuntimePropsFromType(ctx, ctx["propsTypeDecl"]);
+  if (propsLength(props) == 0) return JS.undefined();
+
+  JsValue propStrings = JS.array();
+  bool hasStaticDefaults = hasStaticWithDefaults(ctx);
+
+  for (int index = 0; index < propsLength(props); index++) {
+    JsValue prop = props[index];
+    propsPush(
+      propStrings,
+      genRuntimePropFromType(ctx, prop, hasStaticDefaults)
+    );
+    string key = JS.string(prop["key"]);
+    if (JS.in("bindingMetadata", ctx) &&
+      !JS.in(key, ctx["bindingMetadata"])) {
+      ctx["bindingMetadata"][key] = PropsBindingTypes["PROPS"];
+    }
+  }
+
+  string propsDecls = "{\n    " +
+    JS.string(JS.invoke(propStrings, "join", ",\n    ")) + "\n  }";
+
+  if (ctx["propsRuntimeDefaults"].truthy() && !hasStaticDefaults) {
+    propsDecls = "/*@__PURE__*/" +
+      JS.string(JS.invoke(ctx, "helper", "mergeDefaults")) + "(" +
+      propsDecls + ", " +
+      JS.string(JS.invoke(ctx, "getString", ctx["propsRuntimeDefaults"])) +
+      ")";
+  }
+
+  return propsDecls;
+}
+
+JsValue resolveRuntimePropsFromType(JsValue ctx, JsValue node) {
+  JsValue props = JS.array();
+  JsValue elements = resolveTypeElements(ctx, node);
+  for (string key in elements["props"]) {
+    JsValue element = elements["props"][key];
+    JsValue type = inferRuntimeType(ctx, element);
+    bool skipCheck = false;
+    if (JS.invoke(type, "includes", UNKNOWN_TYPE).truthy()) {
+      if (JS.invoke(type, "includes", "Boolean").truthy() ||
+        JS.invoke(type, "includes", "Function").truthy()) {
+        JsValue filtered = JS.array();
+        for (int index = 0; index < propsLength(type); index++) {
+          if (!JS.strictEqual(type[index], UNKNOWN_TYPE)) {
+            propsPush(filtered, type[index]);
+          }
+        }
+        type = filtered;
+        skipCheck = true;
+      } else {
+        type = JS.array("null");
+      }
+    }
+    if (!type.truthy()) type = JS.array("null");
+    propsPush(
+      props,
+      JS.object(
+        "key", key,
+        "required", !element["optional"].truthy(),
+        "type", type,
+        "skipCheck", skipCheck
+      )
+    );
+  }
+  return props;
+}
+
+string genRuntimePropFromType(
+  JsValue ctx,
+  JsValue propData,
+  bool hasStaticDefaults
+) {
+  string key = JS.string(propData["key"]);
+  bool required = propData["required"].truthy();
+  JsValue type = propData["type"];
+  bool skipCheck = propData["skipCheck"].truthy();
+  JsValue defaultString = JS.undefined();
+  JsValue destructured = genDestructuredDefaultValue(ctx, key, type);
+  if (destructured.truthy()) {
+    defaultString = "default: " + JS.string(destructured["valueString"]);
+    if (destructured["needSkipFactory"].truthy()) {
+      defaultString = JS.string(defaultString) + ", skipFactory: true";
+    }
+  } else if (hasStaticDefaults) {
+    JsValue properties = ctx["propsRuntimeDefaults"]["properties"];
+    JsValue matchingProp = JS.undefined();
+    for (int index = 0; index < propsLength(properties); index++) {
+      JsValue candidate = properties[index];
+      if (JS.string(candidate["type"]) != "SpreadElement" &&
+        JS.strictEqual(
+          resolveObjectKey(candidate["key"], candidate["computed"].truthy()),
+          key
+        )) {
+        matchingProp = candidate;
+        break;
+      }
+    }
+    if (matchingProp.truthy()) {
+      if (JS.string(matchingProp["type"]) == "ObjectProperty") {
+        defaultString = "default: " +
+          JS.string(JS.invoke(ctx, "getString", matchingProp["value"]));
+      } else {
+        string paramsString = "";
+        JsValue params = matchingProp["params"];
+        if (propsLength(params) > 0) {
+          JsValue range = JS.object(
+            "start", params[0]["start"],
+            "end", params[propsLength(params) - 1]["end"]
+          );
+          paramsString = JS.string(JS.invoke(ctx, "getString", range));
+        }
+        string asyncPrefix = "";
+        if (matchingProp["async"].truthy()) asyncPrefix = "async ";
+        string kindPrefix = "";
+        if (JS.string(matchingProp["kind"]) != "method") {
+          kindPrefix = JS.string(matchingProp["kind"]) + " ";
+        }
+        defaultString = asyncPrefix + kindPrefix + "default(" +
+          paramsString + ") " +
+          JS.string(JS.invoke(ctx, "getString", matchingProp["body"]));
+      }
+    }
+  }
+
+  string finalKey = getEscapedPropName(key);
+  if (!ctx["options"]["isProd"].truthy()) {
+    JsValue parts = JS.array(
+      "type: " + toRuntimeTypeString(type),
+      "required: " + required,
+      false,
+      defaultString
+    );
+    if (skipCheck) parts[2] = "skipCheck: true";
+    return finalKey + ": { " + concatStrings(parts) + " }";
+  }
+
+  bool preserveType = false;
+  for (int index = 0; index < propsLength(type); index++) {
+    string runtimeType = JS.string(type[index]);
+    if (runtimeType == "Boolean" ||
+      ((!hasStaticDefaults || defaultString.truthy()) &&
+        runtimeType == "Function")) {
+      preserveType = true;
+    }
+  }
+  if (preserveType) {
+    return finalKey + ": { " + concatStrings(JS.array(
+      "type: " + toRuntimeTypeString(type),
+      defaultString
+    )) + " }";
+  }
+
+  if (ctx["isCE"].truthy()) {
+    if (defaultString.truthy()) {
+      return finalKey + ": { " + JS.string(defaultString) + ", type: " +
+        toRuntimeTypeString(type) + " }";
+    }
+    return finalKey + ": {type: " + toRuntimeTypeString(type) + "}";
+  }
+
+  if (defaultString.truthy()) {
+    return finalKey + ": { " + JS.string(defaultString) + " }";
+  }
+  return finalKey + ": {}";
+}
+
+bool hasStaticWithDefaults(JsValue ctx) {
+  JsValue defaults = ctx["propsRuntimeDefaults"];
+  if (!defaults.truthy() || JS.string(defaults["type"]) != "ObjectExpression") {
+    return false;
+  }
+  JsValue properties = defaults["properties"];
+  for (int index = 0; index < propsLength(properties); index++) {
+    JsValue node = properties[index];
+    if (JS.string(node["type"]) == "SpreadElement" ||
+      (node["computed"].truthy() &&
+        !JS.string(node["key"]["type"]).endsWith("Literal"))) {
+      return false;
+    }
+  }
+  return true;
+}
+
+JsValue genDestructuredDefaultValue(
+  JsValue ctx,
+  string key,
+  JsValue inferredType = JS.undefined()
+) {
+  JsValue destructured = ctx["propsDestructuredBindings"][key];
+  JsValue defaultValue = JS.undefined();
+  if (destructured.truthy()) defaultValue = destructured["default"];
+  if (!defaultValue.truthy()) return JS.undefined();
+
+  string value = JS.string(JS.invoke(ctx, "getString", defaultValue));
+  JsValue unwrapped = JS.call(propsUnwrapTSNode, JS.undefined(), defaultValue);
+
+  if (inferredType.truthy() && propsLength(inferredType) > 0 &&
+    !JS.invoke(inferredType, "includes", "null").truthy()) {
+    JsValue valueType = inferValueType(unwrapped);
+    if (valueType.truthy() &&
+      !JS.invoke(inferredType, "includes", valueType).truthy()) {
+      JS.invoke(
+        ctx,
+        "error",
+        "Default value of prop \"" + key + "\" does not match declared type.",
+        unwrapped
+      );
+    }
+  }
+
+  bool needSkipFactory = !inferredType.truthy() &&
+    (JS.call(propsIsFunctionType, JS.undefined(), unwrapped).truthy() ||
+      JS.string(unwrapped["type"]) == "Identifier");
+  bool needFactoryWrap = !needSkipFactory &&
+    !isLiteralNode(unwrapped) &&
+    (!inferredType.truthy() ||
+      !JS.invoke(inferredType, "includes", "Function").truthy());
+  string valueString = value;
+  if (needFactoryWrap) valueString = "() => (" + value + ")";
+  return JS.object(
+    "valueString", valueString,
+    "needSkipFactory", needSkipFactory
+  );
+}
+
+JsValue inferValueType(JsValue node) {
+  string type = JS.string(node["type"]);
+  if (type == "StringLiteral") return "String";
+  if (type == "NumericLiteral") return "Number";
+  if (type == "BooleanLiteral") return "Boolean";
+  if (type == "ObjectExpression") return "Object";
+  if (type == "ArrayExpression") return "Array";
+  if (type == "FunctionExpression" || type == "ArrowFunctionExpression") {
+    return "Function";
+  }
+  return JS.undefined();
+}

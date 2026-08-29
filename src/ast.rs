@@ -52,6 +52,8 @@ pub struct Program<'ast, 'src> {
     pub foreign_imports: &'ast [ForeignImportDecl<'ast, 'src>],
     pub dynamic_imports: &'ast [DynamicImportDecl<'ast, 'src>],
     pub module_bindings: &'ast [ModuleBinding<'ast, 'src>],
+    /// Class bindings explicitly published as runtime constructor values.
+    pub constructor_values: &'ast [Ident<'src>],
     pub exports: &'ast [ExportDecl<'src>],
     pub items: &'ast [Item<'ast, 'src>],
     pub span: Span,

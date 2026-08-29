@@ -1,0 +1,35 @@
+import extern { isFunction as componentIsFunction, isObject as componentIsObject } from "../../../packages/vuelil/shared.js";
+import {
+  DeprecationTypes,
+  checkCompatEnabled,
+  softAssertCompatEnabled
+} from "./compatConfig";
+import { convertLegacyAsyncComponent } from "./componentAsync";
+import { convertLegacyFunctionalComponent } from "./componentFunctional";
+
+extern bool componentIsFunction(JsValue value);
+extern bool componentIsObject(JsValue value);
+
+export JsValue convertLegacyComponent(JsValue comp, JsValue instance) {
+  if (comp["__isBuiltIn"].truthy()) return comp;
+
+  if (componentIsFunction(comp) && comp["cid"].truthy()) {
+    if (comp["render"].truthy()) comp["options"]["render"] = comp["render"];
+    comp["options"]["__file"] = comp["__file"];
+    comp["options"]["__hmrId"] = comp["__hmrId"];
+    comp["options"]["__scopeId"] = comp["__scopeId"];
+    comp = comp["options"];
+  }
+
+  if (
+    componentIsFunction(comp) &&
+    checkCompatEnabled(JS.string(DeprecationTypes["COMPONENT_ASYNC"]), instance, comp)
+  ) return convertLegacyAsyncComponent(comp);
+
+  if (
+    componentIsObject(comp) && comp["functional"].truthy() &&
+    softAssertCompatEnabled(JS.string(DeprecationTypes["COMPONENT_FUNCTIONAL"]), instance, comp)
+  ) return convertLegacyFunctionalComponent(comp);
+
+  return comp;
+}

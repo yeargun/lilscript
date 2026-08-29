@@ -1,0 +1,38 @@
+import extern { isArray as directiveIsArray } from "../../../packages/vuelil/shared.js";
+import { DeprecationTypes, softAssertCompatEnabled } from "./compatConfig";
+
+extern bool directiveIsArray(JsValue value);
+
+JsValue legacyDirectiveHookMap = JS.object(
+  "beforeMount", "bind",
+  "mounted", "inserted",
+  "updated", JS.array("update", "componentUpdated"),
+  "unmounted", "unbind"
+);
+
+export JsValue mapCompatDirectiveHook(string name, JsValue directive, JsValue instance) {
+  JsValue mappedName = legacyDirectiveHookMap[name];
+  if (!mappedName.truthy()) return JS.undefined();
+  if (directiveIsArray(mappedName)) {
+    JsValue hooks = JS.array();
+    JS.invoke(mappedName, "forEach", JS.method1((JsValue _self, JsValue mapped) => {
+      JsValue hook = directive[mapped];
+      if (hook.truthy()) {
+        softAssertCompatEnabled(
+          JS.string(DeprecationTypes["CUSTOM_DIR"]), instance, mapped, name
+        );
+        JS.invoke(hooks, "push", hook);
+      }
+      return JS.undefined();
+    }));
+    if (JS.number(hooks["length"]).toInt() > 0) return hooks;
+    return JS.undefined();
+  }
+  JsValue hook = directive[mappedName];
+  if (hook.truthy()) {
+    softAssertCompatEnabled(
+      JS.string(DeprecationTypes["CUSTOM_DIR"]), instance, mappedName, name
+    );
+  }
+  return hook;
+}

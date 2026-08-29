@@ -233,6 +233,10 @@ export function hostNumberIsInteger(value) {
   return Number.isInteger(value);
 }
 
+export function hostIsDev() {
+  return typeof globalThis.__DEV__ !== "boolean" || globalThis.__DEV__;
+}
+
 export function hostObjectIs(left, right) {
   return Object.is(left, right);
 }

@@ -1,0 +1,30 @@
+import { isArray, isObject } from "../shared/general";
+import { createVNode, isVNode, setBlockTracking } from "./vnode";
+import extern { hostArraySlice } from "./host.js";
+
+extern JsValue arguments;
+extern JsValue hostArraySlice(JsValue value, int start);
+
+export JsValue h(JsValue type, JsValue propsOrChildren, JsValue children) {
+  try {
+    setBlockTracking(-1, false);
+    int length = JS.number(arguments["length"]).toInt();
+    if (length == 2) {
+      if (isObject(propsOrChildren) && !JS.call(isArray, JS.undefined(), propsOrChildren).truthy()) {
+        if (isVNode(propsOrChildren)) {
+          return createVNode(type, null, JS.array(propsOrChildren));
+        }
+        return createVNode(type, propsOrChildren);
+      }
+      return createVNode(type, null, propsOrChildren);
+    }
+    if (length > 3) {
+      children = hostArraySlice(arguments, 2);
+    } else if (length == 3 && isVNode(children)) {
+      children = JS.array(children);
+    }
+    return createVNode(type, propsOrChildren, children);
+  } finally {
+    setBlockTracking(1, false);
+  }
+}

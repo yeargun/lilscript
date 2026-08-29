@@ -24,7 +24,8 @@ export JsValue processNormalScript(JsValue ctx, string scopeId) {
       rewriteDefaultAST(scriptAst["body"], magic, defaultVariable);
       content = JS.string(JS.invoke(magic, "toString"));
       if (JS.number(cssVars["length"]).toInt() > 0 &&
-        !ctx["options"]["templateOptions"]["ssr"].truthy()) {
+        (!ctx["options"]["templateOptions"].truthy() ||
+          !ctx["options"]["templateOptions"]["ssr"].truthy())) {
         content += genNormalScriptCssVarsCode(
           cssVars,
           bindings,

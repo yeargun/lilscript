@@ -1,0 +1,700 @@
+import {
+  EMPTY_OBJ,
+  NOOP,
+  extend,
+  getGlobalThis,
+  isArray,
+  isFunction,
+  isObject,
+  isPromise
+} from "../shared/general";
+import { makeMap } from "../shared/makeMap";
+import { ShapeFlags } from "../shared/shapeFlags";
+import { EffectScope } from "../reactivity/effectScope";
+import { TrackOpTypes } from "../reactivity/constants";
+import { track } from "../reactivity/dep";
+import { pauseTracking, resetTracking } from "../reactivity/effect";
+import { isRef, proxyRefs } from "../reactivity/ref";
+import { markRaw, shallowReadonly } from "../reactivity/reactive";
+import { isVNode } from "./vnode";
+import {
+  PublicInstanceProxyHandlers,
+  RuntimeCompiledPublicInstanceProxyHandlers,
+  createDevRenderContext,
+  exposePropsOnRenderContext,
+  exposeSetupStateOnRenderContext,
+  publicPropertiesMap
+} from "./componentPublicInstance";
+import { initProps, normalizePropsOptions } from "./componentProps";
+import { initSlots } from "./componentSlots";
+import { warn } from "./warning";
+import { ErrorCodes, callWithErrorHandling, handleError } from "./errorHandling";
+import { createAppContext } from "./apiCreateApp";
+import { validateDirectiveName } from "./directives";
+import { applyOptions, resolveMergedOptions } from "./componentOptions";
+import { emit, normalizeEmitsOptions } from "./componentEmits";
+import { markAttrsAccessed } from "./componentRenderUtils";
+import { currentRenderingInstance } from "./componentRenderContext";
+import { endMeasure, startMeasure } from "./profiling";
+import { convertLegacyRenderFn } from "./compat/renderFn";
+import {
+  globalCompatConfig,
+  validateCompatConfig
+} from "./compat/compatConfig";
+import { markAsyncBoundary } from "./helpers/useId";
+import { isAsyncWrapper } from "./apiAsyncComponent";
+import extern { hostFunction1Rest } from "./host.js";
+
+extern JsValue Object;
+extern JsValue Proxy;
+extern JsValue hostFunction1Rest(JsValue callback);
+
+bool COMPONENT_DEV = true;
+bool COMPONENT_SSR = false;
+bool COMPONENT_COMPAT = false;
+bool COMPONENT_FEATURE_SUSPENSE = true;
+bool COMPONENT_FEATURE_OPTIONS_API = true;
+bool COMPONENT_FEATURE_PROD_DEVTOOLS = false;
+bool COMPONENT_ESM_BUNDLER = true;
+bool COMPONENT_ESM_BROWSER = false;
+bool COMPONENT_GLOBAL = false;
+int COMPONENT_STATEFUL = JS.number(ShapeFlags["STATEFUL_COMPONENT"]).toInt();
+
+JsValue componentUndefined() {
+  return JS.undefined();
+}
+
+int componentLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+
+bool componentIsArray(JsValue value) {
+  return JS.call(isArray, componentUndefined(), value).truthy();
+}
+
+JsValue emptyAppContext = createAppContext();
+int uid = 0;
+
+export JsValue createComponentInstance(
+  JsValue vnode,
+  JsValue parent,
+  JsValue suspense
+) {
+  JsValue type = vnode["type"];
+  JsValue appContext = vnode["appContext"];
+  if (parent.truthy()) appContext = parent["appContext"];
+  if (JS.isNullish(appContext)) appContext = emptyAppContext;
+  JsValue provides = JS.invoke(Object, "create", appContext["provides"]);
+  JsValue ids = JS.array("", 0, 0);
+  if (parent.truthy()) {
+    provides = parent["provides"];
+    ids = parent["ids"];
+  }
+  int suspenseId = 0;
+  if (suspense.truthy()) suspenseId = JS.number(suspense["pendingId"]).toInt();
+
+  JsValue instance = JS.object(
+    "uid", uid,
+    "vnode", vnode,
+    "type", type,
+    "parent", parent,
+    "appContext", appContext,
+    "root", null,
+    "next", null,
+    "subTree", null,
+    "effect", null,
+    "update", null,
+    "job", null,
+    "scope", JS.construct(EffectScope, true),
+    "render", null,
+    "proxy", null,
+    "exposed", null,
+    "exposeProxy", null,
+    "withProxy", null,
+    "provides", provides,
+    "ids", ids,
+    "accessCache", null,
+    "renderCache", JS.array(),
+    "components", null,
+    "directives", null,
+    "propsOptions", normalizePropsOptions(type, appContext, false),
+    "emitsOptions", normalizeEmitsOptions(type, appContext, false),
+    "emit", null,
+    "emitted", null,
+    "propsDefaults", EMPTY_OBJ,
+    "inheritAttrs", type["inheritAttrs"],
+    "ctx", EMPTY_OBJ,
+    "data", EMPTY_OBJ,
+    "props", EMPTY_OBJ,
+    "attrs", EMPTY_OBJ,
+    "slots", EMPTY_OBJ,
+    "refs", EMPTY_OBJ,
+    "setupState", EMPTY_OBJ,
+    "setupContext", null,
+    "suspense", suspense,
+    "suspenseId", suspenseId,
+    "asyncDep", null,
+    "asyncResolved", false,
+    "isMounted", false,
+    "isUnmounted", false,
+    "isDeactivated", false,
+    "bc", null,
+    "c", null,
+    "bm", null,
+    "m", null,
+    "bu", null,
+    "u", null,
+    "um", null,
+    "bum", null,
+    "da", null,
+    "a", null,
+    "rtg", null,
+    "rtc", null,
+    "ec", null,
+    "sp", null
+  );
+  uid += 1;
+  if (COMPONENT_DEV) instance["ctx"] = createDevRenderContext(instance);
+  else instance["ctx"] = JS.object("_", instance);
+  instance["root"] = instance;
+  if (parent.truthy()) instance["root"] = parent["root"];
+  instance["emit"] = JS.invoke(emit, "bind", null, instance);
+  if (vnode["ce"].truthy()) JS.call(vnode["ce"], componentUndefined(), instance);
+  return instance;
+}
+
+export JsValue currentInstance = null;
+
+export JsValue getCurrentInstance() {
+  if (currentInstance.truthy()) return currentInstance;
+  return currentRenderingInstance;
+}
+
+JsValue internalSetCurrentInstance = componentUndefined();
+export JsValue setInSSRSetupState = componentUndefined();
+export bool isInSSRComponentSetup = false;
+
+JsValue registerGlobalSetter(string key, JsValue setter) {
+  JsValue global = getGlobalThis();
+  JsValue setters = global[key];
+  if (!setters.truthy()) {
+    setters = JS.array();
+    global[key] = setters;
+  }
+  JS.invoke(setters, "push", setter);
+  return JS.method1((JsValue _self, JsValue value) => {
+    if (componentLength(setters) > 1) {
+      JS.invoke(setters, "forEach", JS.method1((JsValue _eachSelf, JsValue currentSetter) => {
+        JS.call(currentSetter, componentUndefined(), value);
+        return componentUndefined();
+      }));
+    } else {
+      JS.call(setters[0], componentUndefined(), value);
+    }
+    return componentUndefined();
+  });
+}
+
+if (COMPONENT_SSR) {
+  internalSetCurrentInstance = registerGlobalSetter(
+    "__VUE_INSTANCE_SETTERS__",
+    JS.method1((JsValue _self, JsValue value) => {
+      currentInstance = value;
+      return componentUndefined();
+    })
+  );
+  setInSSRSetupState = registerGlobalSetter(
+    "__VUE_SSR_SETTERS__",
+    JS.method1((JsValue _self, JsValue value) => {
+      isInSSRComponentSetup = value.truthy();
+      return componentUndefined();
+    })
+  );
+} else {
+  internalSetCurrentInstance = JS.method1((JsValue _self, JsValue value) => {
+    currentInstance = value;
+    return componentUndefined();
+  });
+  setInSSRSetupState = JS.method1((JsValue _self, JsValue value) => {
+    isInSSRComponentSetup = value.truthy();
+    return componentUndefined();
+  });
+}
+
+export JsValue setCurrentInstance(JsValue instance) {
+  JsValue previous = currentInstance;
+  JS.call(internalSetCurrentInstance, componentUndefined(), instance);
+  JS.invoke(instance["scope"], "on");
+  return JS.method0((JsValue _self) => {
+    JS.invoke(instance["scope"], "off");
+    JS.call(internalSetCurrentInstance, componentUndefined(), previous);
+    return componentUndefined();
+  });
+}
+
+export void unsetCurrentInstance() {
+  if (currentInstance.truthy()) JS.invoke(currentInstance["scope"], "off");
+  JS.call(internalSetCurrentInstance, componentUndefined(), null);
+}
+
+JsValue isBuiltInTag = JS.call(makeMap, componentUndefined(), "slot,component");
+
+export void validateComponentName(string name, JsValue config) {
+  if (
+    JS.call(isBuiltInTag, componentUndefined(), name).truthy() ||
+    JS.call(config["isNativeTag"], componentUndefined(), name).truthy()
+  ) {
+    JS.call(
+      warn,
+      componentUndefined(),
+      "Do not use built-in or reserved HTML elements as component id: " + name
+    );
+  }
+}
+
+export int isStatefulComponent(JsValue instance) {
+  return JS.number(instance["vnode"]["shapeFlag"]).toInt() & COMPONENT_STATEFUL;
+}
+
+export JsValue setupComponent(
+  JsValue instance,
+  bool isSSR = false,
+  bool optimized = false
+) {
+  if (isSSR) JS.call(setInSSRSetupState, componentUndefined(), isSSR);
+  JsValue vnode = instance["vnode"];
+  int stateful = isStatefulComponent(instance);
+  initProps(instance, vnode["props"], stateful, isSSR);
+  initSlots(instance, vnode["children"], optimized || isSSR);
+  JsValue result = componentUndefined();
+  if (stateful != 0) result = setupStatefulComponent(instance, isSSR);
+  if (isSSR) JS.call(setInSSRSetupState, componentUndefined(), false);
+  return result;
+}
+
+JsValue setupStatefulComponent(JsValue instance, bool isSSR) {
+  JsValue Component = instance["type"];
+  if (COMPONENT_DEV) {
+    if (Component["name"].truthy()) {
+      validateComponentName(JS.string(Component["name"]), instance["appContext"]["config"]);
+    }
+    if (Component["components"].truthy()) {
+      JsValue names = JS.invoke(Object, "keys", Component["components"]);
+      for (int index = 0; index < componentLength(names); index++) {
+        validateComponentName(JS.string(names[index]), instance["appContext"]["config"]);
+      }
+    }
+    if (Component["directives"].truthy()) {
+      JsValue names = JS.invoke(Object, "keys", Component["directives"]);
+      for (int index = 0; index < componentLength(names); index++) {
+        validateDirectiveName(JS.string(names[index]));
+      }
+    }
+    if (Component["compilerOptions"].truthy() && isRuntimeOnly()) {
+      JS.call(
+        warn,
+        componentUndefined(),
+        "\"compilerOptions\" is only supported when using a build of Vue that " +
+          "includes the runtime compiler. Since you are using a runtime-only " +
+          "build, the options should be passed via your build tool config instead."
+      );
+    }
+  }
+
+  instance["accessCache"] = JS.invoke(Object, "create", null);
+  instance["proxy"] = JS.construct(Proxy, instance["ctx"], PublicInstanceProxyHandlers);
+  if (COMPONENT_DEV) exposePropsOnRenderContext(instance);
+
+  JsValue setup = Component["setup"];
+  if (setup.truthy()) {
+    pauseTracking();
+    JsValue setupContext = null;
+    if (componentLength(setup) > 1) setupContext = createSetupContext(instance);
+    instance["setupContext"] = setupContext;
+    JsValue reset = setCurrentInstance(instance);
+    JsValue setupProps = instance["props"];
+    if (COMPONENT_DEV) setupProps = shallowReadonly(instance["props"]);
+    JsValue setupResult = callWithErrorHandling(
+      setup,
+      instance,
+      ErrorCodes["SETUP_FUNCTION"],
+      JS.array(setupProps, setupContext)
+    );
+    bool isAsyncSetup = isPromise(setupResult);
+    resetTracking();
+    JS.call(reset, componentUndefined());
+
+    if ((isAsyncSetup || instance["sp"].truthy()) && !isAsyncWrapper(instance)) {
+      markAsyncBoundary(instance);
+    }
+    if (isAsyncSetup) {
+      JS.invoke(setupResult, "then", unsetCurrentInstance, unsetCurrentInstance);
+      if (isSSR) {
+        JsValue resolved = JS.invoke(setupResult, "then", JS.method1((JsValue _self, JsValue value) => {
+          JS.call(setInSSRSetupState, componentUndefined(), true);
+          try {
+            handleSetupResult(instance, value, isSSR);
+          } finally {
+            JS.call(setInSSRSetupState, componentUndefined(), false);
+          }
+          return componentUndefined();
+        }));
+        return JS.invoke(resolved, "catch", JS.method1((JsValue _self, JsValue error) => {
+          handleError(error, instance, ErrorCodes["SETUP_FUNCTION"]);
+          return componentUndefined();
+        }));
+      }
+      if (COMPONENT_FEATURE_SUSPENSE) {
+        instance["asyncDep"] = setupResult;
+        if (COMPONENT_DEV && !instance["suspense"].truthy()) {
+          string name = formatComponentName(instance, Component, false);
+          JS.call(
+            warn,
+            componentUndefined(),
+            "Component <" + name + ">: setup function returned a promise, but no " +
+              "<Suspense> boundary was found in the parent component tree. " +
+              "A component with async setup() must be nested in a <Suspense> " +
+              "in order to be rendered."
+          );
+        }
+      } else if (COMPONENT_DEV) {
+        JS.call(
+          warn,
+          componentUndefined(),
+          "setup() returned a Promise, but the version of Vue you are using " +
+            "does not support it yet."
+        );
+      }
+    } else {
+      handleSetupResult(instance, setupResult, isSSR);
+    }
+  } else {
+    finishComponentSetup(instance, isSSR, false);
+  }
+  return componentUndefined();
+}
+
+export void handleSetupResult(JsValue instance, JsValue setupResult, bool isSSR) {
+  if (isFunction(setupResult)) {
+    if (COMPONENT_SSR && instance["type"]["__ssrInlineRender"].truthy()) {
+      instance["ssrRender"] = setupResult;
+    } else {
+      instance["render"] = setupResult;
+    }
+  } else if (isObject(setupResult)) {
+    if (COMPONENT_DEV && isVNode(setupResult)) {
+      JS.call(
+        warn,
+        componentUndefined(),
+        "setup() should not return VNodes directly - return a render function instead."
+      );
+    }
+    if (COMPONENT_DEV || COMPONENT_FEATURE_PROD_DEVTOOLS) {
+      instance["devtoolsRawSetupState"] = setupResult;
+    }
+    instance["setupState"] = proxyRefs(setupResult);
+    if (COMPONENT_DEV) exposeSetupStateOnRenderContext(instance);
+  } else if (COMPONENT_DEV && !JS.isUndefined(setupResult)) {
+    string received = JS.typeOf(setupResult);
+    if (JS.strictEqual(setupResult, null)) received = "null";
+    JS.call(
+      warn,
+      componentUndefined(),
+      "setup() should return an object. Received: " + received
+    );
+  }
+  finishComponentSetup(instance, isSSR, false);
+}
+
+JsValue compile = componentUndefined();
+JsValue installWithProxy = componentUndefined();
+
+export void registerRuntimeCompiler(JsValue compiler) {
+  compile = compiler;
+  installWithProxy = JS.method1((JsValue _self, JsValue instance) => {
+    if (instance["render"]["_rc"].truthy()) {
+      instance["withProxy"] = JS.construct(
+        Proxy,
+        instance["ctx"],
+        RuntimeCompiledPublicInstanceProxyHandlers
+      );
+    }
+    return componentUndefined();
+  });
+}
+
+export bool isRuntimeOnly() {
+  return !compile.truthy();
+}
+
+export void finishComponentSetup(
+  JsValue instance,
+  bool isSSR,
+  bool skipOptions = false
+) {
+  JsValue Component = instance["type"];
+  if (COMPONENT_COMPAT) {
+    convertLegacyRenderFn(instance);
+    if (COMPONENT_DEV && Component["compatConfig"].truthy()) {
+      validateCompatConfig(Component["compatConfig"]);
+    }
+  }
+
+  if (!instance["render"].truthy()) {
+    if (!isSSR && compile.truthy() && !Component["render"].truthy()) {
+      JsValue template = componentUndefined();
+      if (
+        COMPONENT_COMPAT &&
+        instance["vnode"]["props"].truthy() &&
+        instance["vnode"]["props"]["inline-template"].truthy()
+      ) template = instance["vnode"]["props"]["inline-template"];
+      if (!template.truthy()) template = Component["template"];
+      if (!template.truthy() && COMPONENT_FEATURE_OPTIONS_API) {
+        template = resolveMergedOptions(instance)["template"];
+      }
+      if (template.truthy()) {
+        if (COMPONENT_DEV) startMeasure(instance, "compile");
+        JsValue config = instance["appContext"]["config"];
+        JsValue finalCompilerOptions = JS.call(
+          extend,
+          componentUndefined(),
+          JS.call(
+            extend,
+            componentUndefined(),
+            JS.object(
+              "isCustomElement", config["isCustomElement"],
+              "delimiters", Component["delimiters"]
+            ),
+            config["compilerOptions"]
+          ),
+          Component["compilerOptions"]
+        );
+        if (COMPONENT_COMPAT) {
+          finalCompilerOptions["compatConfig"] = JS.invoke(Object, "create", globalCompatConfig);
+          if (Component["compatConfig"].truthy()) {
+            JS.call(
+              extend,
+              componentUndefined(),
+              finalCompilerOptions["compatConfig"],
+              Component["compatConfig"]
+            );
+          }
+        }
+        Component["render"] = JS.call(compile, componentUndefined(), template, finalCompilerOptions);
+        if (COMPONENT_DEV) endMeasure(instance, "compile");
+      }
+    }
+    instance["render"] = NOOP;
+    if (Component["render"].truthy()) instance["render"] = Component["render"];
+    if (installWithProxy.truthy()) JS.call(installWithProxy, componentUndefined(), instance);
+  }
+
+  if (COMPONENT_FEATURE_OPTIONS_API && !(COMPONENT_COMPAT && skipOptions)) {
+    JsValue reset = setCurrentInstance(instance);
+    pauseTracking();
+    try {
+      applyOptions(instance);
+    } finally {
+      resetTracking();
+      JS.call(reset, componentUndefined());
+    }
+  }
+
+  if (
+    COMPONENT_DEV &&
+    !Component["render"].truthy() &&
+    JS.strictEqual(instance["render"], NOOP) &&
+    !isSSR
+  ) {
+    if (!compile.truthy() && Component["template"].truthy()) {
+      string suffix = "";
+      if (COMPONENT_ESM_BUNDLER) {
+        suffix = " Configure your bundler to alias \"vue\" to \"vue/dist/vue.esm-bundler.js\".";
+      } else if (COMPONENT_ESM_BROWSER) {
+        suffix = " Use \"vue.esm-browser.js\" instead.";
+      } else if (COMPONENT_GLOBAL) {
+        suffix = " Use \"vue.global.js\" instead.";
+      }
+      JS.call(
+        warn,
+        componentUndefined(),
+        "Component provided template option but runtime compilation is not supported in this build of Vue." + suffix
+      );
+    } else {
+      JS.call(warn, componentUndefined(), "Component is missing template or render function: ", Component);
+    }
+  }
+}
+
+JsValue attrsProxyHandlers = JS.object();
+attrsProxyHandlers["get"] = JS.method2((JsValue _self, JsValue target, JsValue key) => {
+  if (COMPONENT_DEV) markAttrsAccessed();
+  track(target, TrackOpTypes["GET"], "");
+  return target[key];
+});
+if (COMPONENT_DEV) {
+  attrsProxyHandlers["set"] = JS.method0((JsValue _self) => {
+    JS.call(warn, componentUndefined(), "setupContext.attrs is readonly.");
+    return false;
+  });
+  attrsProxyHandlers["deleteProperty"] = JS.method0((JsValue _self) => {
+    JS.call(warn, componentUndefined(), "setupContext.attrs is readonly.");
+    return false;
+  });
+}
+
+JsValue getSlotsProxy(JsValue instance) {
+  return JS.construct(Proxy, instance["slots"], JS.object(
+    "get", JS.method2((JsValue _self, JsValue target, JsValue key) => {
+      track(instance, TrackOpTypes["GET"], "$slots");
+      return target[key];
+    })
+  ));
+}
+
+export JsValue createSetupContext(JsValue instance) {
+  JsValue expose = JS.method1((JsValue _self, JsValue exposed) => {
+    if (COMPONENT_DEV) {
+      if (instance["exposed"].truthy()) {
+        JS.call(warn, componentUndefined(), "expose() should be called only once per setup().");
+      }
+      if (!JS.isNullish(exposed)) {
+        string exposedType = JS.typeOf(exposed);
+        if (exposedType == "object") {
+          if (componentIsArray(exposed)) exposedType = "array";
+          else if (isRef(exposed)) exposedType = "ref";
+        }
+        if (exposedType != "object") {
+          JS.call(
+            warn,
+            componentUndefined(),
+            "expose() should be passed a plain object, received " + exposedType + "."
+          );
+        }
+      }
+    }
+    instance["exposed"] = exposed;
+    if (!exposed.truthy()) instance["exposed"] = JS.object();
+    return componentUndefined();
+  });
+
+  if (COMPONENT_DEV) {
+    JsValue attrsProxy = componentUndefined();
+    JsValue slotsProxy = componentUndefined();
+    JsValue context = JS.object();
+    JS.invoke(Object, "defineProperty", context, "attrs", JS.object(
+      "enumerable", true,
+      "configurable", true,
+      "get", JS.method0((JsValue _self) => {
+        if (!attrsProxy.truthy()) attrsProxy = JS.construct(Proxy, instance["attrs"], attrsProxyHandlers);
+        return attrsProxy;
+      })
+    ));
+    JS.invoke(Object, "defineProperty", context, "slots", JS.object(
+      "enumerable", true,
+      "configurable", true,
+      "get", JS.method0((JsValue _self) => {
+        if (!slotsProxy.truthy()) slotsProxy = getSlotsProxy(instance);
+        return slotsProxy;
+      })
+    ));
+    JS.invoke(Object, "defineProperty", context, "emit", JS.object(
+      "enumerable", true,
+      "configurable", true,
+      "get", JS.method0((JsValue _self) => hostFunction1Rest(JS.method2((
+        JsValue _wrapperSelf,
+        JsValue _receiver,
+        JsValue args
+      ) => JS.apply(instance["emit"], componentUndefined(), args))))
+    ));
+    context["expose"] = expose;
+    return JS.invoke(Object, "freeze", context);
+  }
+  return JS.object(
+    "attrs", JS.construct(Proxy, instance["attrs"], attrsProxyHandlers),
+    "slots", instance["slots"],
+    "emit", instance["emit"],
+    "expose", expose
+  );
+}
+
+export JsValue getComponentPublicInstance(JsValue instance) {
+  if (instance["exposed"].truthy()) {
+    if (!instance["exposeProxy"].truthy()) {
+      JsValue target = proxyRefs(markRaw(instance["exposed"]));
+      instance["exposeProxy"] = JS.construct(Proxy, target, JS.object(
+        "get", JS.method2((JsValue _self, JsValue exposed, JsValue key) => {
+          if (JS.in(key, exposed)) return exposed[key];
+          if (JS.in(key, publicPropertiesMap)) {
+            return JS.call(publicPropertiesMap[key], componentUndefined(), instance);
+          }
+          return componentUndefined();
+        }),
+        "has", JS.method2((JsValue _self, JsValue exposed, JsValue key) => {
+          if (JS.in(key, exposed)) return true;
+          return JS.in(key, publicPropertiesMap);
+        })
+      ));
+    }
+    return instance["exposeProxy"];
+  }
+  return instance["proxy"];
+}
+
+Regex classifyRE = new Regex("(?:^|[-_])\\w", "g");
+
+string classify(string value) {
+  string classified = JS.string(JS.invoke(value, "replace", classifyRE, JS.method1((JsValue _self, JsValue character) =>
+    JS.string(character).toUpperCase()
+  )));
+  Regex separatorRE = new Regex("[-_]", "g");
+  return JS.string(JS.invoke(classified, "replace", separatorRE, ""));
+}
+
+export JsValue getComponentName(JsValue Component, bool includeInferred = true) {
+  if (isFunction(Component)) {
+    if (Component["displayName"].truthy()) return Component["displayName"];
+    return Component["name"];
+  }
+  if (Component["name"].truthy()) return Component["name"];
+  if (includeInferred) return Component["__name"];
+  return false;
+}
+
+JsValue inferComponentNameFromRegistry(JsValue registry, JsValue Component) {
+  if (!JS.isNullish(registry)) {
+    for (string key in registry) {
+      if (JS.strictEqual(registry[key], Component)) return key;
+    }
+  }
+  return componentUndefined();
+}
+
+export string formatComponentName(
+  JsValue instance,
+  JsValue Component,
+  bool isRoot = false
+) {
+  JsValue name = getComponentName(Component, true);
+  if (!name.truthy() && Component["__file"].truthy()) {
+    Regex fileRE = new Regex("([^/\\\\]+)\\.\\w+$");
+    JsValue fileMatch = JS.invoke(Component["__file"], "match", fileRE);
+    if (fileMatch.truthy()) name = fileMatch[1];
+  }
+  if (!name.truthy() && instance.truthy()) {
+    name = inferComponentNameFromRegistry(instance["components"], Component);
+    if (!name.truthy() && instance["parent"].truthy()) {
+      name = inferComponentNameFromRegistry(instance["parent"]["type"]["components"], Component);
+    }
+    if (!name.truthy()) {
+      name = inferComponentNameFromRegistry(instance["appContext"]["components"], Component);
+    }
+  }
+  if (name.truthy()) return classify(JS.string(name));
+  if (isRoot) return "App";
+  return "Anonymous";
+}
+
+export bool isClassComponent(JsValue value) {
+  return isFunction(value) && JS.in("__vccOpts", value);
+}

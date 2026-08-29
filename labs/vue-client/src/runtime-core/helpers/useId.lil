@@ -1,0 +1,35 @@
+import { getCurrentInstance } from "../component";
+import { warn } from "../warning";
+
+bool DEV = true;
+
+export string useId() {
+  JsValue instance = getCurrentInstance();
+  if (instance.truthy()) {
+    JsValue ids = instance["ids"];
+    int localId = JS.number(ids[1]).toInt();
+    ids[1] = localId + 1;
+    string prefix = "v";
+    if (instance["appContext"]["config"]["idPrefix"].truthy()) {
+      prefix = JS.string(instance["appContext"]["config"]["idPrefix"]);
+    }
+    return prefix + "-" + JS.string(ids[0]) + localId;
+  }
+  if (DEV) {
+    warn(
+      "useId() is called when there is no active component instance to be associated with."
+    );
+  }
+  return "";
+}
+
+export void markAsyncBoundary(JsValue instance) {
+  JsValue ids = instance["ids"];
+  int boundaryId = JS.number(ids[2]).toInt();
+  ids[2] = boundaryId + 1;
+  instance["ids"] = JS.array(
+    JS.string(ids[0]) + boundaryId + "-",
+    0,
+    0
+  );
+}

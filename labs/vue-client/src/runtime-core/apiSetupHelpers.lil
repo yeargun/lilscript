@@ -1,0 +1,203 @@
+import { extend, isArray, isFunction, isPromise } from "../shared/general";
+import {
+  createSetupContext,
+  getCurrentInstance,
+  isInSSRComponentSetup,
+  setCurrentInstance,
+  setInSSRSetupState,
+  unsetCurrentInstance
+} from "./component";
+import extern {
+  hostCreateObject as setupCreateObject,
+  hostPromiseResolve as setupPromiseResolve
+} from "./host.js";
+import { warn } from "./warning";
+
+extern JsValue Object;
+extern JsValue setupCreateObject();
+extern JsValue setupPromiseResolve();
+
+void warnRuntimeUsage(string method) {
+  warn(
+    method + "() is a compiler-hint helper that is only usable inside " +
+    "<script setup> of a single file component. Its arguments should be " +
+    "compiled away and passing it at runtime has no effect."
+  );
+}
+
+export JsValue defineProps() {
+  warnRuntimeUsage("defineProps");
+  return null;
+}
+
+export JsValue defineEmits() {
+  warnRuntimeUsage("defineEmits");
+  return null;
+}
+
+export void defineExpose(JsValue exposed) {
+  warnRuntimeUsage("defineExpose");
+}
+
+export void defineOptions(JsValue options) {
+  warnRuntimeUsage("defineOptions");
+}
+
+export JsValue defineSlots() {
+  warnRuntimeUsage("defineSlots");
+  return null;
+}
+
+export JsValue defineModel() {
+  warnRuntimeUsage("defineModel");
+  return JS.undefined();
+}
+
+export JsValue withDefaults(JsValue props, JsValue defaults) {
+  warnRuntimeUsage("withDefaults");
+  return null;
+}
+
+JsValue getContext(string calledFunctionName) {
+  JsValue instance = getCurrentInstance();
+  if (!instance.truthy()) {
+    warn(calledFunctionName + "() called without active instance.");
+  }
+  JsValue context = instance["setupContext"];
+  if (!context.truthy()) {
+    context = createSetupContext(instance);
+    instance["setupContext"] = context;
+  }
+  return context;
+}
+
+export JsValue useSlots() {
+  return getContext("useSlots")["slots"];
+}
+
+export JsValue useAttrs() {
+  return getContext("useAttrs")["attrs"];
+}
+
+export JsValue normalizePropsOrEmits(JsValue props) {
+  if (!JS.call(isArray, JS.undefined(), props).truthy()) return props;
+  return JS.invoke(
+    props,
+    "reduce",
+    JS.method2((JsValue _self, JsValue normalized, JsValue property) => {
+      normalized[property] = null;
+      return normalized;
+    }),
+    setupCreateObject()
+  );
+}
+
+export JsValue mergeDefaults(JsValue raw, JsValue defaults) {
+  JsValue props = normalizePropsOrEmits(raw);
+  for (string key in defaults) {
+    if (key.startsWith("__skip")) continue;
+    JsValue option = props[key];
+    if (option.truthy()) {
+      if (JS.call(isArray, JS.undefined(), option).truthy() || isFunction(option)) {
+        option = JS.object("type", option, "default", defaults[key]);
+        props[key] = option;
+      } else {
+        option["default"] = defaults[key];
+      }
+    } else if (JS.strictEqual(option, null)) {
+      option = JS.object("default", defaults[key]);
+      props[key] = option;
+    } else {
+      warn("props default key \"" + key + "\" has no corresponding declaration.");
+    }
+    if (option.truthy() && defaults["__skip_" + key].truthy()) {
+      option["skipFactory"] = true;
+    }
+  }
+  return props;
+}
+
+export JsValue mergeModels(JsValue first, JsValue second) {
+  if (!first.truthy() || !second.truthy()) {
+    if (first.truthy()) return first;
+    return second;
+  }
+  if (
+    JS.call(isArray, JS.undefined(), first).truthy() &&
+    JS.call(isArray, JS.undefined(), second).truthy()
+  ) return JS.invoke(first, "concat", second);
+  return JS.call(
+    extend,
+    JS.undefined(),
+    setupCreateObject(),
+    normalizePropsOrEmits(first),
+    normalizePropsOrEmits(second)
+  );
+}
+
+export JsValue createPropsRestProxy(JsValue props, JsValue excludedKeys) {
+  JsValue result = setupCreateObject();
+  for (string key in props) {
+    if (!JS.invoke(excludedKeys, "includes", key).truthy()) {
+      string capturedKey = key;
+      JS.invoke(
+        Object,
+        "defineProperty",
+        result,
+        capturedKey,
+        JS.object(
+          "enumerable", true,
+          "get", JS.method0((JsValue _self) => props[capturedKey])
+        )
+      );
+    }
+  }
+  return result;
+}
+
+export JsValue withAsyncContext(JsValue getAwaitable) {
+  JsValue context = getCurrentInstance();
+  bool inSSRSetup = isInSSRComponentSetup;
+  if (!context.truthy()) {
+    warn("withAsyncContext called without active current instance. This is likely a bug.");
+  }
+  JsValue awaitable = JS.call(getAwaitable, JS.undefined());
+  unsetCurrentInstance();
+  if (inSSRSetup) setInSSRSetupState(false);
+
+  JsValue restore = JS.method0((JsValue _self) => {
+    setCurrentInstance(context);
+    if (inSSRSetup) setInSSRSetupState(true);
+    return JS.undefined();
+  });
+  JsValue cleanup = JS.method0((JsValue _self) => {
+    if (!JS.strictEqual(getCurrentInstance(), context)) {
+      JS.invoke(context["scope"], "off");
+    }
+    unsetCurrentInstance();
+    if (inSSRSetup) setInSSRSetupState(false);
+    return JS.undefined();
+  });
+
+  if (isPromise(awaitable)) {
+    awaitable = JS.invoke(awaitable, "catch", JS.method1((JsValue _self, JsValue error) => {
+      JS.call(restore, JS.undefined());
+      JsValue first = setupPromiseResolve();
+      JS.invoke(first, "then", JS.method0((JsValue _firstSelf) => {
+        JsValue second = setupPromiseResolve();
+        return JS.invoke(second, "then", cleanup);
+      }));
+      throw error;
+      return JS.undefined();
+    }));
+  }
+  return JS.array(
+    awaitable,
+    JS.method0((JsValue _self) => {
+      JS.call(restore, JS.undefined());
+      JsValue promise = setupPromiseResolve();
+      JS.invoke(promise, "then", cleanup);
+      return JS.undefined();
+    })
+  );
+}

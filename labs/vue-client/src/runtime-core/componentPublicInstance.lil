@@ -1,0 +1,485 @@
+import {
+  EMPTY_OBJ,
+  NOOP,
+  extend,
+  hasOwn,
+  isFunction,
+  isString
+} from "../shared/general";
+import { isGloballyAllowed } from "../shared/globalsAllowList";
+import { PatchFlags } from "../shared/patchFlags";
+import { ReactiveFlags, TrackOpTypes } from "../reactivity/constants";
+import { shallowReadonly, toRaw } from "../reactivity/reactive";
+import { track } from "../reactivity/dep";
+import {
+  getComponentPublicInstance,
+  isStatefulComponent
+} from "./component";
+import { nextTick, queueJob } from "./scheduler";
+import { instanceWatch } from "./apiWatch";
+import { resolveMergedOptions, shouldCacheAccess } from "./componentOptions";
+import { filterSingleRoot, markAttrsAccessed } from "./componentRenderUtils";
+import { currentRenderingInstance } from "./componentRenderContext";
+import { warn } from "./warning";
+import { installCompatInstanceProperties } from "./compat/instance";
+
+extern JsValue Object;
+extern JsValue JSON;
+extern JsValue Reflect;
+extern JsValue Proxy;
+extern JsValue Symbol;
+
+bool PUBLIC_DEV = true;
+bool PUBLIC_TEST = true;
+bool PUBLIC_COMPAT = false;
+bool PUBLIC_FEATURE_OPTIONS_API = true;
+int PUBLIC_DEV_ROOT_FRAGMENT = JS.number(PatchFlags["DEV_ROOT_FRAGMENT"]).toInt();
+
+JsValue publicUndefined() {
+  return JS.undefined();
+}
+
+int publicLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+
+JsValue getPublicInstance(JsValue instance) {
+  if (JS.isNullish(instance)) return null;
+  if (isStatefulComponent(instance) != 0) return getComponentPublicInstance(instance);
+  return getPublicInstance(instance["parent"]);
+}
+
+JsValue resolveDevRootEl(JsValue vnode) {
+  bool found = false;
+  while (true) {
+    int patchFlag = JS.number(vnode["patchFlag"]).toInt();
+    if (patchFlag > 0 && (patchFlag & PUBLIC_DEV_ROOT_FRAGMENT) != 0) {
+      JsValue root = filterSingleRoot(vnode["children"], true);
+      if (!root.truthy()) return publicUndefined();
+      vnode = root;
+      found = true;
+      continue;
+    }
+    JsValue component = vnode["component"];
+    if (component.truthy() && component["subTree"].truthy()) {
+      vnode = component["subTree"];
+      continue;
+    }
+    JsValue suspense = vnode["suspense"];
+    if (suspense.truthy() && suspense["activeBranch"].truthy()) {
+      vnode = suspense["activeBranch"];
+      continue;
+    }
+    if (found) return vnode["el"];
+    return publicUndefined();
+  }
+}
+
+JsValue getDevRootFragmentEl(JsValue instance) {
+  JsValue element = instance["subTree"];
+  if (element.truthy()) element = resolveDevRootEl(element);
+  if (JS.isUndefined(element)) return instance["vnode"]["el"];
+  return element;
+}
+
+JsValue forceUpdateFor(JsValue instance) {
+  JsValue force = instance["f"];
+  if (!force.truthy()) {
+    force = JS.method0((JsValue _self) => {
+      queueJob(instance["update"]);
+      return publicUndefined();
+    });
+    instance["f"] = force;
+  }
+  return force;
+}
+
+JsValue nextTickFor(JsValue instance) {
+  JsValue bound = instance["n"];
+  if (!bound.truthy()) {
+    bound = JS.invoke(nextTick, "bind", instance["proxy"]);
+    instance["n"] = bound;
+  }
+  return bound;
+}
+
+JsValue publicElementFor(JsValue instance) {
+  if (PUBLIC_DEV) return getDevRootFragmentEl(instance);
+  return instance["vnode"]["el"];
+}
+
+JsValue readonlyInDev(JsValue value) {
+  if (PUBLIC_DEV) return shallowReadonly(value);
+  return value;
+}
+
+JsValue optionsFor(JsValue instance) {
+  if (PUBLIC_FEATURE_OPTIONS_API) return resolveMergedOptions(instance);
+  return instance["type"];
+}
+
+JsValue watchFor(JsValue instance) {
+  if (PUBLIC_FEATURE_OPTIONS_API) return JS.invoke(instanceWatch, "bind", instance);
+  return NOOP;
+}
+
+export JsValue publicPropertiesMap = JS.call(
+  extend,
+  publicUndefined(),
+  JS.invoke(Object, "create", null),
+  JS.object(
+    "$", JS.method1((JsValue _self, JsValue instance) => instance),
+    "$el", JS.method1((JsValue _self, JsValue instance) => publicElementFor(instance)),
+    "$data", JS.method1((JsValue _self, JsValue instance) => instance["data"]),
+    "$props", JS.method1((JsValue _self, JsValue instance) => readonlyInDev(instance["props"])),
+    "$attrs", JS.method1((JsValue _self, JsValue instance) => readonlyInDev(instance["attrs"])),
+    "$slots", JS.method1((JsValue _self, JsValue instance) => readonlyInDev(instance["slots"])),
+    "$refs", JS.method1((JsValue _self, JsValue instance) => readonlyInDev(instance["refs"])),
+    "$parent", JS.method1((JsValue _self, JsValue instance) => getPublicInstance(instance["parent"])),
+    "$root", JS.method1((JsValue _self, JsValue instance) => getPublicInstance(instance["root"])),
+    "$host", JS.method1((JsValue _self, JsValue instance) => instance["ce"]),
+    "$emit", JS.method1((JsValue _self, JsValue instance) => instance["emit"]),
+    "$options", JS.method1((JsValue _self, JsValue instance) => optionsFor(instance)),
+    "$forceUpdate", JS.method1((JsValue _self, JsValue instance) => forceUpdateFor(instance)),
+    "$nextTick", JS.method1((JsValue _self, JsValue instance) => nextTickFor(instance)),
+    "$watch", JS.method1((JsValue _self, JsValue instance) => watchFor(instance))
+  )
+);
+
+if (PUBLIC_COMPAT) installCompatInstanceProperties(publicPropertiesMap);
+
+int ACCESS_OTHER = 0;
+int ACCESS_SETUP = 1;
+int ACCESS_DATA = 2;
+int ACCESS_PROPS = 3;
+int ACCESS_CONTEXT = 4;
+
+export bool isReservedPrefix(string key) {
+  return key == "_" || key == "$";
+}
+
+bool hasSetupBinding(JsValue state, JsValue key) {
+  return !JS.strictEqual(state, EMPTY_OBJ) &&
+    !state["__isScriptSetup"].truthy() &&
+    hasOwn(state, key);
+}
+
+JsValue publicProxyGet(JsValue target, JsValue rawKey) {
+  JsValue instance = target["_"];
+  if (JS.strictEqual(rawKey, ReactiveFlags["SKIP"])) return true;
+
+  JsValue context = instance["ctx"];
+  JsValue setupState = instance["setupState"];
+  JsValue data = instance["data"];
+  JsValue props = instance["props"];
+  JsValue accessCache = instance["accessCache"];
+  JsValue type = instance["type"];
+  JsValue appContext = instance["appContext"];
+  if (PUBLIC_DEV && JS.strictEqual(rawKey, "__isVue")) return true;
+
+  bool startsWithDollar = isString(rawKey) && JS.string(rawKey).startsWith("$");
+  if (!startsWithDollar) {
+      JsValue cached = accessCache[rawKey];
+      if (!JS.isUndefined(cached)) {
+        int accessType = JS.number(cached).toInt();
+        if (accessType == ACCESS_SETUP) return setupState[rawKey];
+        if (accessType == ACCESS_DATA) return data[rawKey];
+        if (accessType == ACCESS_CONTEXT) return context[rawKey];
+        if (accessType == ACCESS_PROPS) return props[rawKey];
+      } else if (hasSetupBinding(setupState, rawKey)) {
+        accessCache[rawKey] = ACCESS_SETUP;
+        return setupState[rawKey];
+      } else if (
+        PUBLIC_FEATURE_OPTIONS_API &&
+        !JS.strictEqual(data, EMPTY_OBJ) &&
+        hasOwn(data, rawKey)
+      ) {
+        accessCache[rawKey] = ACCESS_DATA;
+        return data[rawKey];
+      } else if (hasOwn(props, rawKey)) {
+        accessCache[rawKey] = ACCESS_PROPS;
+        return props[rawKey];
+      } else if (!JS.strictEqual(context, EMPTY_OBJ) && hasOwn(context, rawKey)) {
+        accessCache[rawKey] = ACCESS_CONTEXT;
+        return context[rawKey];
+      } else if (!PUBLIC_FEATURE_OPTIONS_API || shouldCacheAccess) {
+        accessCache[rawKey] = ACCESS_OTHER;
+      }
+  }
+
+  JsValue publicGetter = publicPropertiesMap[rawKey];
+  if (publicGetter.truthy()) {
+    if (JS.strictEqual(rawKey, "$attrs")) {
+      track(instance["attrs"], TrackOpTypes["GET"], "");
+      if (PUBLIC_DEV) markAttrsAccessed();
+    } else if (PUBLIC_DEV && JS.strictEqual(rawKey, "$slots")) {
+      track(instance, TrackOpTypes["GET"], rawKey);
+    }
+    return JS.call(publicGetter, publicUndefined(), instance);
+  }
+
+  JsValue cssModules = type["__cssModules"];
+  if (cssModules.truthy() && cssModules[rawKey].truthy()) return cssModules[rawKey];
+  if (!JS.strictEqual(context, EMPTY_OBJ) && hasOwn(context, rawKey)) {
+    accessCache[rawKey] = ACCESS_CONTEXT;
+    return context[rawKey];
+  }
+
+  JsValue globalProperties = appContext["config"]["globalProperties"];
+  if (hasOwn(globalProperties, rawKey)) {
+    if (PUBLIC_COMPAT) {
+      JsValue descriptor = JS.invoke(Object, "getOwnPropertyDescriptor", globalProperties, rawKey);
+      if (descriptor["get"].truthy()) return JS.call(descriptor["get"], instance["proxy"]);
+      JsValue value = globalProperties[rawKey];
+      if (isFunction(value)) {
+        return JS.call(extend, publicUndefined(), JS.invoke(value, "bind", instance["proxy"]), value);
+      }
+      return value;
+    }
+    return globalProperties[rawKey];
+  }
+
+  if (
+    PUBLIC_DEV &&
+    !JS.isNullish(currentRenderingInstance) &&
+    (!isString(rawKey) || !JS.string(rawKey).startsWith("__v"))
+  ) {
+    bool reservedData = false;
+    if (isString(rawKey)) reservedData = isReservedPrefix(JS.string(rawKey).slice(0, 1));
+    if (!JS.strictEqual(data, EMPTY_OBJ) && reservedData && hasOwn(data, rawKey)) {
+      JS.call(
+        warn,
+        publicUndefined(),
+        "Property " + JS.string(JS.invoke(JSON, "stringify", rawKey)) +
+          " must be accessed via $data because it starts with a reserved " +
+          "character (\"$\" or \"_\") and is not proxied on the render context."
+      );
+    } else if (JS.strictEqual(instance, currentRenderingInstance)) {
+      JS.call(
+        warn,
+        publicUndefined(),
+        "Property " + JS.string(JS.invoke(JSON, "stringify", rawKey)) +
+          " was accessed during render but is not defined on instance."
+      );
+    }
+  }
+  return publicUndefined();
+}
+
+bool publicProxySet(JsValue target, JsValue rawKey, JsValue value) {
+  JsValue instance = target["_"];
+  JsValue data = instance["data"];
+  JsValue setupState = instance["setupState"];
+  JsValue context = instance["ctx"];
+  if (hasSetupBinding(setupState, rawKey)) {
+    setupState[rawKey] = value;
+    return true;
+  }
+  if (PUBLIC_DEV && setupState["__isScriptSetup"].truthy() && hasOwn(setupState, rawKey)) {
+    JS.call(warn, publicUndefined(), "Cannot mutate <script setup> binding \"" + JS.string(rawKey) + "\" from Options API.");
+    return false;
+  }
+  if (PUBLIC_FEATURE_OPTIONS_API && !JS.strictEqual(data, EMPTY_OBJ) && hasOwn(data, rawKey)) {
+    data[rawKey] = value;
+    return true;
+  }
+  if (hasOwn(instance["props"], rawKey)) {
+    if (PUBLIC_DEV) JS.call(warn, publicUndefined(), "Attempting to mutate prop \"" + JS.string(rawKey) + "\". Props are readonly.");
+    return false;
+  }
+  if (
+    isString(rawKey) &&
+    JS.string(rawKey).startsWith("$") &&
+    JS.in(JS.string(rawKey).slice(1, JS.string(rawKey).length), instance)
+  ) {
+    if (PUBLIC_DEV) {
+      JS.call(
+        warn,
+        publicUndefined(),
+        "Attempting to mutate public property \"" + JS.string(rawKey) + "\". " +
+          "Properties starting with $ are reserved and readonly."
+      );
+    }
+    return false;
+  }
+  if (
+    PUBLIC_DEV &&
+    JS.in(rawKey, instance["appContext"]["config"]["globalProperties"])
+  ) {
+    JS.invoke(Object, "defineProperty", context, rawKey, JS.object(
+      "enumerable", true,
+      "configurable", true,
+      "value", value
+    ));
+  } else {
+    context[rawKey] = value;
+  }
+  return true;
+}
+
+bool publicProxyHas(JsValue target, JsValue rawKey) {
+  JsValue instance = target["_"];
+  JsValue data = instance["data"];
+  JsValue setupState = instance["setupState"];
+  JsValue accessCache = instance["accessCache"];
+  JsValue context = instance["ctx"];
+  JsValue appContext = instance["appContext"];
+  JsValue props = instance["props"];
+  JsValue type = instance["type"];
+  bool startsWithDollar = isString(rawKey) && JS.string(rawKey).startsWith("$");
+  JsValue cssModules = type["__cssModules"];
+  return accessCache[rawKey].truthy() ||
+    (PUBLIC_FEATURE_OPTIONS_API && !JS.strictEqual(data, EMPTY_OBJ) &&
+      !startsWithDollar && hasOwn(data, rawKey)) ||
+    hasSetupBinding(setupState, rawKey) ||
+    hasOwn(props, rawKey) ||
+    hasOwn(context, rawKey) ||
+    hasOwn(publicPropertiesMap, rawKey) ||
+    hasOwn(appContext["config"]["globalProperties"], rawKey) ||
+    (cssModules.truthy() && cssModules[rawKey].truthy());
+}
+
+JsValue publicProxyDefineProperty(
+  JsValue handler,
+  JsValue target,
+  JsValue rawKey,
+  JsValue descriptor
+) {
+  if (!JS.isNullish(descriptor["get"])) {
+    target["_"]["accessCache"][rawKey] = 0;
+  } else if (hasOwn(descriptor, "value")) {
+    JS.call(handler["set"], handler, target, rawKey, descriptor["value"], null);
+  }
+  return JS.invoke(Reflect, "defineProperty", target, rawKey, descriptor);
+}
+
+export JsValue PublicInstanceProxyHandlers = JS.object(
+  "get", JS.method3((JsValue _self, JsValue target, JsValue key, JsValue _receiver) =>
+    publicProxyGet(target, key)
+  ),
+  "set", JS.methodRest((JsValue _self, JsValue args) =>
+    publicProxySet(args[0], args[1], args[2])
+  ),
+  "has", JS.method2((JsValue _self, JsValue target, JsValue key) =>
+    publicProxyHas(target, key)
+  ),
+  "defineProperty", JS.method3((JsValue _self, JsValue target, JsValue key, JsValue descriptor) =>
+    publicProxyDefineProperty(_self, target, key, descriptor)
+  )
+);
+
+if (PUBLIC_DEV && !PUBLIC_TEST) {
+  PublicInstanceProxyHandlers["ownKeys"] = JS.method1((JsValue _self, JsValue target) => {
+    JS.call(
+      warn,
+      publicUndefined(),
+      "Avoid app logic that relies on enumerating keys on a component instance. " +
+        "The keys will be empty in production mode to avoid performance overhead."
+    );
+    return JS.invoke(Reflect, "ownKeys", target);
+  });
+}
+
+JsValue runtimeCompiledGet(JsValue target, JsValue key) {
+  if (JS.strictEqual(key, Symbol["unscopables"])) return publicUndefined();
+  return JS.call(PublicInstanceProxyHandlers["get"], PublicInstanceProxyHandlers, target, key, target);
+}
+
+bool runtimeCompiledHas(JsValue target, JsValue rawKey) {
+  string key = JS.string(rawKey);
+  bool result = !key.startsWith("_") &&
+    !JS.call(isGloballyAllowed, publicUndefined(), key).truthy();
+  if (
+    PUBLIC_DEV &&
+    !result &&
+    JS.call(PublicInstanceProxyHandlers["has"], PublicInstanceProxyHandlers, target, key).truthy()
+  ) {
+    JS.call(
+      warn,
+      publicUndefined(),
+      "Property " + JS.string(JS.invoke(JSON, "stringify", rawKey)) +
+        " should not start with _ which is a reserved prefix for Vue internals."
+    );
+  }
+  return result;
+}
+
+export JsValue RuntimeCompiledPublicInstanceProxyHandlers = JS.call(
+  extend,
+  publicUndefined(),
+  JS.object(),
+  PublicInstanceProxyHandlers,
+  JS.object(
+    "get", JS.method2((JsValue _self, JsValue target, JsValue key) =>
+      runtimeCompiledGet(target, key)
+    ),
+    "has", JS.method2((JsValue _self, JsValue target, JsValue key) =>
+      runtimeCompiledHas(target, key)
+    )
+  )
+);
+
+export JsValue createDevRenderContext(JsValue instance) {
+  JsValue target = JS.object();
+  JS.invoke(Object, "defineProperty", target, "_", JS.object(
+    "configurable", true,
+    "enumerable", false,
+    "get", JS.method0((JsValue _self) => instance)
+  ));
+  JsValue keys = JS.invoke(Object, "keys", publicPropertiesMap);
+  for (int index = 0; index < publicLength(keys); index++) {
+    JsValue key = keys[index];
+    JS.invoke(Object, "defineProperty", target, key, JS.object(
+      "configurable", true,
+      "enumerable", false,
+      "get", JS.method0((JsValue _self) => JS.call(publicPropertiesMap[key], publicUndefined(), instance)),
+      "set", NOOP
+    ));
+  }
+  return target;
+}
+
+export void exposePropsOnRenderContext(JsValue instance) {
+  JsValue context = instance["ctx"];
+  JsValue propsOptions = instance["propsOptions"][0];
+  if (propsOptions.truthy()) {
+    JsValue keys = JS.invoke(Object, "keys", propsOptions);
+    for (int index = 0; index < publicLength(keys); index++) {
+      JsValue key = keys[index];
+      JS.invoke(Object, "defineProperty", context, key, JS.object(
+        "enumerable", true,
+        "configurable", true,
+        "get", JS.method0((JsValue _self) => instance["props"][key]),
+        "set", NOOP
+      ));
+    }
+  }
+}
+
+export void exposeSetupStateOnRenderContext(JsValue instance) {
+  JsValue context = instance["ctx"];
+  JsValue setupState = instance["setupState"];
+  JsValue keys = JS.invoke(Object, "keys", toRaw(setupState));
+  for (int index = 0; index < publicLength(keys); index++) {
+    JsValue rawKey = keys[index];
+    string key = JS.string(rawKey);
+    if (!setupState["__isScriptSetup"].truthy()) {
+      if (isReservedPrefix(key.slice(0, 1))) {
+        JS.call(
+          warn,
+          publicUndefined(),
+          "setup() return property " + JS.string(JS.invoke(JSON, "stringify", key)) +
+            " should not start with \"$\" or \"_\" " +
+            "which are reserved prefixes for Vue internals."
+        );
+        continue;
+      }
+      JS.invoke(Object, "defineProperty", context, key, JS.object(
+        "enumerable", true,
+        "configurable", true,
+        "get", JS.method0((JsValue _self) => setupState[key]),
+        "set", NOOP
+      ));
+    }
+  }
+}

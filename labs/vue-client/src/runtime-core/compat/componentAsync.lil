@@ -1,0 +1,50 @@
+import extern {
+  isArray as asyncIsArray,
+  isObject as asyncIsObject,
+  isPromise as asyncIsPromise
+} from "../../../packages/vuelil/shared.js";
+import { globalThis as asyncGlobal } from "../../shared/makeMap";
+import { defineAsyncComponent as asyncDefineComponent } from "../apiAsyncComponent";
+import { isVNode as asyncIsVNode } from "../vnode";
+
+extern bool asyncIsArray(JsValue value);
+extern bool asyncIsObject(JsValue value);
+extern bool asyncIsPromise(JsValue value);
+
+JsValue normalizedAsyncComponentMap = JS.construct(asyncGlobal["WeakMap"]);
+
+export JsValue convertLegacyAsyncComponent(JsValue comp) {
+  if (JS.invoke(normalizedAsyncComponentMap, "has", comp).truthy()) {
+    return JS.invoke(normalizedAsyncComponentMap, "get", comp);
+  }
+
+  JsValue resolve = JS.undefined();
+  JsValue reject = JS.undefined();
+  JsValue executor = JS.method2((JsValue _self, JsValue resolved, JsValue rejected) => {
+    resolve = resolved;
+    reject = rejected;
+    return JS.undefined();
+  });
+  JsValue fallbackPromise = JS.construct(asyncGlobal["Promise"], executor);
+  JsValue result = JS.call(comp, JS.undefined(), resolve, reject);
+
+  JsValue converted = JS.undefined();
+  if (asyncIsPromise(result)) {
+    converted = asyncDefineComponent(JS.method0((JsValue _self) => result));
+  } else if (asyncIsObject(result) && !asyncIsVNode(result) && !asyncIsArray(result)) {
+    JsValue options = JS.object(
+      "loader", JS.method0((JsValue _self) => result["component"]),
+      "loadingComponent", result["loading"],
+      "errorComponent", result["error"],
+      "delay", result["delay"],
+      "timeout", result["timeout"]
+    );
+    converted = asyncDefineComponent(options);
+  } else if (JS.isNullish(result)) {
+    converted = asyncDefineComponent(JS.method0((JsValue _self) => fallbackPromise));
+  } else {
+    converted = comp;
+  }
+  JS.invoke(normalizedAsyncComponentMap, "set", comp, converted);
+  return converted;
+}

@@ -1,0 +1,29 @@
+import extern { isArray as propsIsArray } from "../../../packages/vuelil/shared.js";
+import { globalThis as propsGlobal } from "../../shared/makeMap";
+import { inject as coreInject } from "../apiInject";
+import { resolveMergedOptions as coreResolveMergedOptions } from "../componentOptions";
+import { DeprecationTypes, warnDeprecation } from "./compatConfig";
+
+extern bool propsIsArray(JsValue value);
+
+export JsValue createPropsDefaultThis(JsValue instance, JsValue rawProps, string propKey) {
+  JsValue handler = JS.object(
+    "get", JS.method2((JsValue _self, JsValue _target, JsValue key) => {
+      warnDeprecation(JS.string(DeprecationTypes["PROPS_DEFAULT_THIS"]), null, propKey);
+      if (JS.strictEqual(key, "$options")) return coreResolveMergedOptions(instance);
+      if (JS.in(key, rawProps)) return rawProps[key];
+      JsValue injections = instance["type"]["inject"];
+      if (injections.truthy()) {
+          if (propsIsArray(injections)) {
+            if (JS.invoke(injections, "includes", key).truthy()) {
+              return JS.call(coreInject, JS.undefined(), key);
+            }
+        } else if (JS.in(key, injections)) {
+          return JS.call(coreInject, JS.undefined(), key);
+        }
+      }
+      return JS.undefined();
+    })
+  );
+  return JS.construct(propsGlobal["Proxy"], JS.object(), handler);
+}

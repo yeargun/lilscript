@@ -1,0 +1,187 @@
+import extern {
+  camelize as helpersCamelize,
+  extend as helpersExtend,
+  hyphenate as helpersHyphenate,
+  isArray as helpersIsArray,
+  isObject as helpersIsObject,
+  isReservedProp as helpersIsReservedProp,
+  normalizeClass as helpersNormalizeClass
+} from "../../../packages/vuelil/shared.js";
+import { globalThis as renderHelpersGlobal } from "../../shared/makeMap";
+import { createSlots as coreCreateSlots } from "../helpers/createSlots";
+import { renderSlot as coreRenderSlot } from "../helpers/renderSlot";
+import { toHandlers as coreToHandlers } from "../helpers/toHandlers";
+import { mergeProps as coreMergeProps } from "../vnode";
+
+extern JsValue helpersCamelize;
+extern JsValue helpersExtend;
+extern JsValue helpersHyphenate;
+extern JsValue helpersIsReservedProp;
+extern JsValue helpersNormalizeClass;
+extern bool helpersIsArray(JsValue value);
+extern bool helpersIsObject(JsValue value);
+
+JsValue toObject(JsValue values) {
+  JsValue result = JS.object();
+  int length = JS.number(values["length"]).toInt();
+  for (int index = 0; index < length; index++) {
+    if (values[index].truthy()) JS.call(helpersExtend, JS.undefined(), result, values[index]);
+  }
+  return result;
+}
+
+export JsValue legacyBindObjectProps(
+  JsValue data,
+  string _tag,
+  JsValue value,
+  bool _asProp,
+  bool isSync = false
+) {
+  if (value.truthy() && helpersIsObject(value)) {
+    if (helpersIsArray(value)) value = toObject(value);
+    for (string key in value) {
+      if (JS.call(helpersIsReservedProp, JS.undefined(), key).truthy()) {
+        data[key] = value[key];
+      } else if (key == "class") {
+        data["class"] = JS.call(
+          helpersNormalizeClass, JS.undefined(), JS.array(data["class"], value["class"])
+        );
+      } else if (key == "style") {
+        data["style"] = JS.call(
+          helpersNormalizeClass, JS.undefined(), JS.array(data["style"], value["style"])
+        );
+      } else {
+        JsValue attrs = data["attrs"];
+        if (!attrs.truthy()) {
+          attrs = JS.object();
+          data["attrs"] = attrs;
+        }
+        string camelizedKey = JS.string(JS.call(helpersCamelize, JS.undefined(), key));
+        string hyphenatedKey = JS.string(JS.call(helpersHyphenate, JS.undefined(), key));
+        if (!JS.in(camelizedKey, attrs) && !JS.in(hyphenatedKey, attrs)) {
+          attrs[key] = value[key];
+          if (isSync) {
+            JsValue listeners = data["on"];
+            if (!listeners.truthy()) {
+              listeners = JS.object();
+              data["on"] = listeners;
+            }
+            listeners["update:" + key] = JS.method1((JsValue _self, JsValue event) => {
+              value[key] = event;
+              return JS.undefined();
+            });
+          }
+        }
+      }
+    }
+  }
+  return data;
+}
+
+export JsValue legacyBindObjectListeners(JsValue props, JsValue listeners) {
+  return JS.call(
+    coreMergeProps,
+    JS.undefined(),
+    props,
+    coreToHandlers(listeners)
+  );
+}
+
+export JsValue legacyRenderSlot(
+  JsValue instance,
+  string name,
+  JsValue fallback = JS.undefined(),
+  JsValue props = JS.undefined(),
+  JsValue bindObject = JS.undefined()
+) {
+  if (bindObject.truthy()) {
+    props = JS.call(coreMergeProps, JS.undefined(), props, bindObject);
+  }
+  JsValue fallbackFunction = JS.undefined();
+  if (fallback.truthy()) fallbackFunction = JS.method0((JsValue _self) => fallback);
+  return coreRenderSlot(instance["slots"], name, props, fallbackFunction);
+}
+
+void mapKeyToName(JsValue slots) {
+  int length = JS.number(slots["length"]).toInt();
+  for (int index = 0; index < length; index++) {
+    JsValue slot = slots[index];
+    if (slot.truthy()) {
+      if (helpersIsArray(slot)) mapKeyToName(slot);
+      else {
+        JsValue name = slot["key"];
+        if (!name.truthy()) name = "default";
+        slot["name"] = name;
+      }
+    }
+  }
+}
+
+export JsValue legacyResolveScopedSlots(
+  JsValue functions,
+  JsValue raw = JS.undefined(),
+  bool hasDynamicKeys = false
+) {
+  JsValue slots = raw;
+  if (!slots.truthy()) slots = JS.object("$stable", !hasDynamicKeys);
+  mapKeyToName(functions);
+  return coreCreateSlots(slots, functions);
+}
+
+JsValue staticCacheMap = JS.construct(renderHelpersGlobal["WeakMap"]);
+
+export JsValue legacyRenderStatic(JsValue instance, int index) {
+  JsValue cache = JS.invoke(staticCacheMap, "get", instance);
+  if (!cache.truthy()) {
+    cache = JS.array();
+    JS.invoke(staticCacheMap, "set", instance, cache);
+  }
+  if (cache[index].truthy()) return cache[index];
+  JsValue fn = instance["type"]["staticRenderFns"][index];
+  JsValue context = instance["proxy"];
+  cache[index] = JS.call(fn, context, null, context);
+  return cache[index];
+}
+
+bool isKeyNotMatch(JsValue expected, JsValue actual) {
+  if (helpersIsArray(expected)) return !JS.invoke(expected, "includes", actual).truthy();
+  return !JS.strictEqual(expected, actual);
+}
+
+export JsValue legacyCheckKeyCodes(
+  JsValue instance,
+  JsValue eventKeyCode,
+  string key,
+  JsValue builtInKeyCode = JS.undefined(),
+  JsValue eventKeyName = JS.undefined(),
+  JsValue builtInKeyName = JS.undefined()
+) {
+  JsValue configKeyCodes = instance["appContext"]["config"]["keyCodes"];
+  if (!configKeyCodes.truthy()) configKeyCodes = JS.object();
+  JsValue mappedKeyCode = configKeyCodes[key];
+  if (!mappedKeyCode.truthy()) mappedKeyCode = builtInKeyCode;
+  if (builtInKeyName.truthy() && eventKeyName.truthy() && !configKeyCodes[key].truthy()) {
+    return isKeyNotMatch(builtInKeyName, eventKeyName);
+  }
+  if (mappedKeyCode.truthy()) return isKeyNotMatch(mappedKeyCode, eventKeyCode);
+  if (eventKeyName.truthy()) {
+    return JS.string(JS.call(helpersHyphenate, JS.undefined(), eventKeyName)) != key;
+  }
+  return JS.undefined();
+}
+
+export JsValue legacyMarkOnce(JsValue tree) { return tree; }
+
+export JsValue legacyBindDynamicKeys(JsValue props, JsValue values) {
+  int length = JS.number(values["length"]).toInt();
+  for (int index = 0; index < length; index += 2) {
+    JsValue key = values[index];
+    if (JS.typeOf(key) == "string" && key.truthy()) props[key] = values[index + 1];
+  }
+  return props;
+}
+
+export JsValue legacyPrependModifier(JsValue value, string symbol) {
+  if (JS.typeOf(value) == "string") return symbol + JS.string(value);
+  return value;
+}

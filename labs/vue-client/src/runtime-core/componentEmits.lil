@@ -1,0 +1,243 @@
+import {
+  EMPTY_OBJ,
+  camelize,
+  extend,
+  hasOwn,
+  hyphenate,
+  isArray,
+  isFunction,
+  isObject,
+  isOn,
+  isString,
+  looseToNumber,
+  toHandlerKey
+} from "../shared/general";
+import { formatComponentName } from "./component";
+import { ErrorCodes, callWithAsyncErrorHandling } from "./errorHandling";
+import extern { hostArraySlice as emitsArraySlice } from "./host.js";
+import { warn } from "./warning";
+import { devtoolsComponentEmit } from "./devtools";
+import { emit as compatInstanceEmit } from "./compat/instanceEventEmitter";
+import { compatModelEmit, compatModelEventPrefix } from "./compat/componentVModel";
+import { getModelModifiers } from "./helpers/useModel";
+
+extern JsValue WeakMap;
+extern JsValue arguments;
+extern JsValue emitsArraySlice(JsValue value, int start);
+
+bool EMITS_DEV = true;
+bool EMITS_COMPAT = false;
+bool EMITS_FEATURE_OPTIONS_API = true;
+bool EMITS_FEATURE_PROD_DEVTOOLS = false;
+
+int emitsLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+
+JsValue emitsUndefined() {
+  return JS.undefined();
+}
+
+bool emitsIsArray(JsValue value) {
+  return JS.call(isArray, emitsUndefined(), value).truthy();
+}
+
+export JsValue emit(JsValue instance, string event) {
+  if (instance["isUnmounted"].truthy()) return emitsUndefined();
+  JsValue props = instance["vnode"]["props"];
+  if (!props.truthy()) props = EMPTY_OBJ;
+  JsValue rawArgs = emitsArraySlice(arguments, 2);
+
+  if (EMITS_DEV) {
+    JsValue emitsOptions = instance["emitsOptions"];
+    JsValue propsOptions = instance["propsOptions"][0];
+    if (!JS.isNullish(emitsOptions)) {
+      bool declared = JS.in(event, emitsOptions);
+      bool compatEvent = EMITS_COMPAT && (
+        event.startsWith("hook:") ||
+        event.startsWith(JS.string(compatModelEventPrefix))
+      );
+      if (!declared && !compatEvent) {
+        string handlerKey = JS.string(JS.call(
+          toHandlerKey,
+          emitsUndefined(),
+          JS.call(camelize, emitsUndefined(), event)
+        ));
+        if (JS.isNullish(propsOptions) || !hasOwn(propsOptions, handlerKey)) {
+          JS.call(
+            warn,
+            emitsUndefined(),
+            "Component emitted event \"" + event + "\" but it is neither declared in " +
+              "the emits option nor as an \"" + handlerKey + "\" prop."
+          );
+        }
+      } else {
+        JsValue validator = emitsOptions[event];
+        if (isFunction(validator)) {
+          if (!JS.apply(validator, emitsUndefined(), rawArgs).truthy()) {
+            JS.call(
+              warn,
+              emitsUndefined(),
+              "Invalid event arguments: event validation failed for event \"" + event + "\"."
+            );
+          }
+        }
+      }
+    }
+  }
+
+  JsValue args = rawArgs;
+  bool isCompatModelListener = EMITS_COMPAT &&
+    JS.in(JS.string(compatModelEventPrefix) + event, props);
+  bool isModelListener = isCompatModelListener || event.startsWith("update:");
+  JsValue modifiers = emitsUndefined();
+  if (isCompatModelListener) modifiers = props["modelModifiers"];
+  else if (isModelListener) {
+    modifiers = getModelModifiers(props, event.slice(7, event.length));
+  }
+
+  if (modifiers.truthy()) {
+    if (modifiers["trim"].truthy()) {
+      args = JS.invoke(rawArgs, "map", JS.method1((JsValue _self, JsValue value) => {
+        if (isString(value)) return JS.string(value).trim();
+        return value;
+      }));
+    }
+    if (modifiers["number"].truthy()) {
+      args = JS.invoke(args, "map", looseToNumber);
+    }
+  }
+
+  if (EMITS_DEV || EMITS_FEATURE_PROD_DEVTOOLS) {
+    devtoolsComponentEmit(instance, event, args);
+  }
+
+  if (EMITS_DEV) {
+    string lowerCaseEvent = event.toLowerCase();
+    string lowerHandler = JS.string(JS.call(toHandlerKey, emitsUndefined(), lowerCaseEvent));
+    if (lowerCaseEvent != event && props[lowerHandler].truthy()) {
+      JS.call(
+        warn,
+        emitsUndefined(),
+        "Event \"" + lowerCaseEvent + "\" is emitted in component " +
+          JS.string(formatComponentName(instance, instance["type"], false)) +
+          " but the handler is registered for \"" + event + "\". " +
+          "Note that HTML attributes are case-insensitive and you cannot use " +
+          "v-on to listen to camelCase events when using in-DOM templates. " +
+          "You should probably use \"" +
+          JS.string(JS.call(hyphenate, emitsUndefined(), event)) +
+          "\" instead of \"" + event + "\"."
+      );
+    }
+  }
+
+  string handlerName = JS.string(JS.call(toHandlerKey, emitsUndefined(), event));
+  JsValue handler = props[handlerName];
+  if (!handler.truthy()) {
+    handlerName = JS.string(JS.call(
+      toHandlerKey,
+      emitsUndefined(),
+      JS.call(camelize, emitsUndefined(), event)
+    ));
+    handler = props[handlerName];
+  }
+  if (!handler.truthy() && isModelListener) {
+    handlerName = JS.string(JS.call(
+      toHandlerKey,
+      emitsUndefined(),
+      JS.call(hyphenate, emitsUndefined(), event)
+    ));
+    handler = props[handlerName];
+  }
+
+  if (handler.truthy()) {
+    callWithAsyncErrorHandling(
+      handler,
+      instance,
+      ErrorCodes["COMPONENT_EVENT_HANDLER"],
+      args
+    );
+  }
+
+  JsValue onceHandler = props[handlerName + "Once"];
+  if (onceHandler.truthy()) {
+    if (JS.isNullish(instance["emitted"])) {
+      instance["emitted"] = JS.object();
+    } else if (instance["emitted"][handlerName].truthy()) {
+      return emitsUndefined();
+    }
+    instance["emitted"][handlerName] = true;
+    callWithAsyncErrorHandling(
+      onceHandler,
+      instance,
+      ErrorCodes["COMPONENT_EVENT_HANDLER"],
+      args
+    );
+  }
+
+  if (EMITS_COMPAT) {
+    compatModelEmit(instance, event, args);
+    return compatInstanceEmit(instance, event, args);
+  }
+  return emitsUndefined();
+}
+
+JsValue mixinEmitsCache = JS.construct(WeakMap);
+
+export JsValue normalizeEmitsOptions(
+  JsValue component,
+  JsValue appContext,
+  bool asMixin = false
+) {
+  JsValue cache = appContext["emitsCache"];
+  if (EMITS_FEATURE_OPTIONS_API && asMixin) cache = mixinEmitsCache;
+  JsValue cached = JS.invoke(cache, "get", component);
+  if (!JS.isUndefined(cached)) return cached;
+
+  JsValue raw = component["emits"];
+  JsValue normalized = JS.object();
+  bool hasExtends = false;
+
+  if (EMITS_FEATURE_OPTIONS_API && !isFunction(component)) {
+    JsValue extendEmits = JS.method1((JsValue _self, JsValue source) => {
+      JsValue normalizedFromExtend = normalizeEmitsOptions(source, appContext, true);
+      if (!JS.isNullish(normalizedFromExtend)) {
+        hasExtends = true;
+        JS.call(extend, emitsUndefined(), normalized, normalizedFromExtend);
+      }
+      return emitsUndefined();
+    });
+    JsValue mixins = appContext["mixins"];
+    if (!asMixin && emitsLength(mixins) > 0) JS.invoke(mixins, "forEach", extendEmits);
+    if (component["extends"].truthy()) JS.call(extendEmits, emitsUndefined(), component["extends"]);
+    if (component["mixins"].truthy()) JS.invoke(component["mixins"], "forEach", extendEmits);
+  }
+
+  if (!raw.truthy() && !hasExtends) {
+    if (isObject(component)) JS.invoke(cache, "set", component, null);
+    return null;
+  }
+
+  if (emitsIsArray(raw)) {
+    JS.invoke(raw, "forEach", JS.method1((JsValue _self, JsValue key) => {
+      normalized[key] = null;
+      return emitsUndefined();
+    }));
+  } else {
+    JS.call(extend, emitsUndefined(), normalized, raw);
+  }
+
+  if (isObject(component)) JS.invoke(cache, "set", component, normalized);
+  return normalized;
+}
+
+export bool isEmitListener(JsValue options, string key) {
+  if (JS.isNullish(options) || !isOn(key)) return false;
+  if (EMITS_COMPAT && key.startsWith(JS.string(compatModelEventPrefix))) return true;
+  key = key.slice(2, key.length);
+  Regex onceRE = new Regex("Once$");
+  if (key != "Once") key = JS.string(JS.invoke(key, "replace", onceRE, ""));
+  return hasOwn(options, key.slice(0, 1).toLowerCase() + key.slice(1, key.length)) ||
+    hasOwn(options, JS.call(hyphenate, emitsUndefined(), key)) ||
+    hasOwn(options, key);
+}

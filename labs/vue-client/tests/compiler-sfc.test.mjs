@@ -5,29 +5,47 @@ import * as candidate from "../packages/vuelil/compiler-sfc.js";
 import * as internals from "./compiler-sfc-upstream.candidate.mjs";
 
 const reflectedFunctions = new Map([
+  ["compileScript", 2],
   ["compileStyle", 1],
   ["compileStyleAsync", 1],
   ["compileTemplate", 1],
+  ["extractRuntimeEmits", 1],
+  ["extractRuntimeProps", 1],
+  ["inferRuntimeType", 2],
+  ["invalidateTypeCache", 1],
   ["parse", 1],
+  ["registerTS", 1],
+  ["resolveTypeElements", 4],
   ["rewriteDefault", 2],
   ["rewriteDefaultAST", 3],
+  ["shouldTransformRef", 0],
 ]);
 
 test("compiler-sfc facade preserves implemented public reflection", () => {
   assert.deepEqual(Object.keys(candidate).sort(), [
     "MagicString",
     "babelParse",
+    "compileScript",
     "compileStyle",
     "compileStyleAsync",
     "compileTemplate",
+    "errorMessages",
     "extractIdentifiers",
+    "extractRuntimeEmits",
+    "extractRuntimeProps",
     "generateCodeFrame",
+    "inferRuntimeType",
+    "invalidateTypeCache",
     "isInDestructureAssignment",
     "isStaticProperty",
     "parse",
     "parseCache",
+    "registerTS",
+    "resolveTypeElements",
     "rewriteDefault",
     "rewriteDefaultAST",
+    "shouldTransformRef",
+    "version",
     "walk",
     "walkIdentifiers",
   ]);
@@ -41,6 +59,9 @@ test("compiler-sfc facade preserves implemented public reflection", () => {
   assert.equal(candidate.babelParse.length, reference.babelParse.length);
   assert.equal(candidate.walk.name, reference.walk.name);
   assert.equal(candidate.walk.length, reference.walk.length);
+  assert.equal(candidate.version, reference.version);
+  assert.deepEqual(candidate.errorMessages, reference.errorMessages);
+  assert.equal(candidate.shouldTransformRef(), false);
 });
 
 test("rewriteDefault is byte-identical to Vue 3.5.42", () => {
@@ -156,6 +177,93 @@ test("cache policy uses bounded LRU semantics in the Node facade", () => {
   assert.equal(cache.has("a"), true);
   assert.equal(cache.has("b"), false);
   assert.equal(cache.has("c"), true);
+});
+
+test("defineExpose processor preserves macro recognition and duplicate errors", () => {
+  const expression = candidate.babelParse("defineExpose({ foo: 1 })").program.body[0]
+    .expression;
+  const ordinaryCall = candidate.babelParse("expose({ foo: 1 })").program.body[0]
+    .expression;
+  const ctx = {
+    hasDefineExposeCall: false,
+    error(message) {
+      throw new Error(message);
+    },
+  };
+
+  assert.equal(internals.DEFINE_EXPOSE, "defineExpose");
+  assert.equal(internals.processDefineExpose(ctx, ordinaryCall), false);
+  assert.equal(ctx.hasDefineExposeCall, false);
+  assert.equal(internals.processDefineExpose(ctx, expression), true);
+  assert.equal(ctx.hasDefineExposeCall, true);
+  assert.throws(
+    () => internals.processDefineExpose(ctx, expression),
+    { message: "duplicate defineExpose() call" },
+  );
+});
+
+test("defineSlots processor preserves validation and assigned-call rewriting", () => {
+  const declaration = candidate.babelParse(
+    "const slots = defineSlots<{ default: { msg: string } }>()",
+    { sourceType: "module", plugins: ["typescript"] },
+  ).program.body[0].declarations[0];
+  const overwrites = [];
+  const helpers = [];
+  const ctx = {
+    hasDefineSlotsCall: false,
+    startOffset: 17,
+    s: {
+      overwrite(...args) {
+        overwrites.push(args);
+      },
+    },
+    helper(name) {
+      helpers.push(name);
+      return `_${name}`;
+    },
+    error(message) {
+      throw new Error(message);
+    },
+  };
+
+  assert.equal(internals.DEFINE_SLOTS, "defineSlots");
+  const ordinaryCall = candidate.babelParse("slots()").program.body[0]
+    .expression;
+  assert.equal(internals.processDefineSlots(ctx, ordinaryCall), false);
+  assert.equal(ctx.hasDefineSlotsCall, false);
+  assert.equal(
+    internals.processDefineSlots(ctx, declaration.init, declaration.id),
+    true,
+  );
+  assert.equal(ctx.hasDefineSlotsCall, true);
+  assert.deepEqual(helpers, ["useSlots"]);
+  assert.deepEqual(overwrites, [[
+    17 + declaration.init.start,
+    17 + declaration.init.end,
+    "_useSlots()",
+  ]]);
+
+  const unassigned = candidate.babelParse("defineSlots()").program.body[0]
+    .expression;
+  const unassignedCtx = {
+    hasDefineSlotsCall: false,
+    error(message) {
+      throw new Error(message);
+    },
+  };
+  assert.equal(internals.processDefineSlots(unassignedCtx, unassigned), true);
+  assert.equal(unassignedCtx.hasDefineSlotsCall, true);
+
+  const withArgument = candidate.babelParse("defineSlots({})").program.body[0]
+    .expression;
+  assert.throws(
+    () => internals.processDefineSlots({ ...unassignedCtx, hasDefineSlotsCall: false }, withArgument),
+    { message: "defineSlots() cannot accept arguments" },
+  );
+  assert.throws(
+    () => internals.processDefineSlots(ctx, declaration.init, declaration.id),
+    { message: "duplicate defineSlots() call" },
+  );
 });
 
 test("compileTemplate output and source maps match Vue 3.5.42", () => {

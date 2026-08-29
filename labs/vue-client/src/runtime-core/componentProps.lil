@@ -1,0 +1,596 @@
+import {
+  EMPTY_ARR,
+  EMPTY_OBJ,
+  camelize,
+  capitalize,
+  extend,
+  hasOwn,
+  hyphenate,
+  isArray,
+  isFunction,
+  isObject,
+  isOn,
+  isReservedProp,
+  isString,
+  isSymbol,
+  toRawType
+} from "../shared/general";
+import { makeMap } from "../shared/makeMap";
+import { PatchFlags } from "../shared/patchFlags";
+import { TriggerOpTypes } from "../reactivity/constants";
+import { shallowReactive, shallowReadonly, toRaw } from "../reactivity/reactive";
+import { trigger } from "../reactivity/dep";
+import { warn } from "./warning";
+import { setCurrentInstance } from "./component";
+import { isEmitListener } from "./componentEmits";
+import { createPropsDefaultThis } from "./compat/props";
+import {
+  DeprecationTypes,
+  isCompatEnabled,
+  softAssertCompatEnabled
+} from "./compat/compatConfig";
+import { shouldSkipAttr } from "./compat/attrsFallthrough";
+import { createInternalObject } from "./internalObject";
+
+extern JsValue Function;
+extern JsValue Number;
+extern JsValue Object;
+extern JsValue Symbol;
+extern JsValue WeakMap;
+
+bool PROPS_DEV = true;
+bool PROPS_COMPAT = false;
+bool PROPS_FEATURE_OPTIONS_API = true;
+int PROPS_FULL_PROPS = JS.number(PatchFlags["FULL_PROPS"]).toInt();
+int PROPS_DYNAMIC_PROPS = JS.number(PatchFlags["PROPS"]).toInt();
+
+JsValue propsUndefined() {
+  return JS.undefined();
+}
+
+int propsLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+
+void propsPush(JsValue values, JsValue value) {
+  values[propsLength(values)] = value;
+}
+
+bool propsIsArray(JsValue value) {
+  return JS.call(isArray, propsUndefined(), value).truthy();
+}
+
+export void initProps(
+  JsValue instance,
+  JsValue rawProps,
+  int isStateful,
+  bool isSSR = false
+) {
+  JsValue props = JS.object();
+  JsValue attrs = createInternalObject();
+  instance["propsDefaults"] = JS.invoke(Object, "create", null);
+
+  setFullProps(instance, rawProps, props, attrs);
+
+  JsValue options = instance["propsOptions"][0];
+  if (!JS.isNullish(options)) {
+    for (string key in options) {
+      if (!JS.in(key, props)) props[key] = propsUndefined();
+    }
+  }
+
+  if (PROPS_DEV) {
+    JsValue propsToValidate = rawProps;
+    if (JS.isNullish(propsToValidate)) propsToValidate = JS.object();
+    validateProps(propsToValidate, props, instance);
+  }
+
+  if (isStateful != 0) {
+    if (isSSR) instance["props"] = props;
+    else instance["props"] = shallowReactive(props);
+  } else if (!instance["type"]["props"].truthy()) {
+    instance["props"] = attrs;
+  } else {
+    instance["props"] = props;
+  }
+  instance["attrs"] = attrs;
+}
+
+bool isInHmrContext(JsValue instance) {
+  while (!JS.isNullish(instance)) {
+    if (instance["type"]["__hmrId"].truthy()) return true;
+    instance = instance["parent"];
+  }
+  return false;
+}
+
+export void updateProps(
+  JsValue instance,
+  JsValue rawProps,
+  JsValue rawPrevProps,
+  bool optimized
+) {
+  JsValue props = instance["props"];
+  JsValue attrs = instance["attrs"];
+  JsValue vnode = instance["vnode"];
+  int patchFlag = JS.number(vnode["patchFlag"]).toInt();
+  JsValue rawCurrentProps = toRaw(props);
+  JsValue options = instance["propsOptions"][0];
+  bool hasAttrsChanged = false;
+
+  if (
+    !(PROPS_DEV && isInHmrContext(instance)) &&
+    (optimized || patchFlag > 0) &&
+    (patchFlag & PROPS_FULL_PROPS) == 0
+  ) {
+    if ((patchFlag & PROPS_DYNAMIC_PROPS) != 0) {
+      JsValue propsToUpdate = vnode["dynamicProps"];
+      for (int index = 0; index < propsLength(propsToUpdate); index++) {
+        string key = JS.string(propsToUpdate[index]);
+        if (isEmitListener(instance["emitsOptions"], key)) continue;
+        JsValue value = rawProps[key];
+        if (!JS.isNullish(options)) {
+          if (hasOwn(attrs, key)) {
+            if (!JS.strictEqual(value, attrs[key])) {
+              attrs[key] = value;
+              hasAttrsChanged = true;
+            }
+          } else {
+            string camelizedKey = JS.string(JS.call(camelize, propsUndefined(), key));
+            props[camelizedKey] = resolvePropValue(
+              options,
+              rawCurrentProps,
+              camelizedKey,
+              value,
+              instance,
+              false
+            );
+          }
+        } else {
+          if (PROPS_COMPAT) {
+            if (isOn(key) && key.endsWith("Native")) {
+              key = key.slice(0, key.length - 6);
+            } else if (shouldSkipAttr(key, instance)) {
+              continue;
+            }
+          }
+          if (!JS.strictEqual(value, attrs[key])) {
+            attrs[key] = value;
+            hasAttrsChanged = true;
+          }
+        }
+      }
+    }
+  } else {
+    if (setFullProps(instance, rawProps, props, attrs)) hasAttrsChanged = true;
+    string kebabKey = "";
+    for (string key in rawCurrentProps) {
+      bool missing = JS.isNullish(rawProps) || !hasOwn(rawProps, key);
+      if (missing && !JS.isNullish(rawProps)) {
+        kebabKey = JS.string(JS.call(hyphenate, propsUndefined(), key));
+        missing = kebabKey == key || !hasOwn(rawProps, kebabKey);
+      }
+      if (missing) {
+        if (!JS.isNullish(options)) {
+          if (!JS.isNullish(rawPrevProps)) {
+            bool previouslyPresent = !JS.isUndefined(rawPrevProps[key]);
+            if (!previouslyPresent) previouslyPresent = !JS.isUndefined(rawPrevProps[kebabKey]);
+            if (previouslyPresent) {
+              props[key] = resolvePropValue(
+                options,
+                rawCurrentProps,
+                key,
+                propsUndefined(),
+                instance,
+                true
+              );
+            }
+          }
+        } else {
+          JS.delete(props, key);
+        }
+      }
+    }
+    if (!JS.strictEqual(attrs, rawCurrentProps)) {
+      for (string key in attrs) {
+        bool missing = JS.isNullish(rawProps) || !hasOwn(rawProps, key);
+        if (missing && PROPS_COMPAT && !JS.isNullish(rawProps)) {
+          missing = !hasOwn(rawProps, key + "Native");
+        }
+        if (missing) {
+          JS.delete(attrs, key);
+          hasAttrsChanged = true;
+        }
+      }
+    }
+  }
+
+  if (hasAttrsChanged) {
+    trigger(instance["attrs"], TriggerOpTypes["SET"], "", propsUndefined(), propsUndefined(), propsUndefined());
+  }
+  if (PROPS_DEV) {
+    JsValue propsToValidate = rawProps;
+    if (JS.isNullish(propsToValidate)) propsToValidate = JS.object();
+    validateProps(propsToValidate, props, instance);
+  }
+}
+
+bool setFullProps(
+  JsValue instance,
+  JsValue rawProps,
+  JsValue props,
+  JsValue attrs
+) {
+  JsValue options = instance["propsOptions"][0];
+  JsValue needCastKeys = instance["propsOptions"][1];
+  bool hasAttrsChanged = false;
+  JsValue rawCastValues = propsUndefined();
+
+  if (!JS.isNullish(rawProps)) {
+    for (string originalKey in rawProps) {
+      string key = originalKey;
+      if (JS.call(isReservedProp, propsUndefined(), key).truthy()) continue;
+
+      if (PROPS_COMPAT) {
+        if (key.startsWith("onHook:")) {
+          softAssertCompatEnabled(
+            JS.string(DeprecationTypes["INSTANCE_EVENT_HOOKS"]),
+            instance,
+            key.slice(2, key.length).toLowerCase()
+          );
+        }
+        if (key == "inline-template") continue;
+      }
+
+      JsValue value = rawProps[key];
+      string camelKey = JS.string(JS.call(camelize, propsUndefined(), key));
+      if (!JS.isNullish(options) && hasOwn(options, camelKey)) {
+        if (JS.isNullish(needCastKeys) || !JS.invoke(needCastKeys, "includes", camelKey).truthy()) {
+          props[camelKey] = value;
+        } else {
+          if (JS.isUndefined(rawCastValues)) rawCastValues = JS.object();
+          rawCastValues[camelKey] = value;
+        }
+      } else if (!isEmitListener(instance["emitsOptions"], key)) {
+        if (PROPS_COMPAT) {
+          if (isOn(key) && key.endsWith("Native")) {
+            key = key.slice(0, key.length - 6);
+          } else if (shouldSkipAttr(key, instance)) {
+            continue;
+          }
+        }
+        if (!JS.in(key, attrs) || !JS.strictEqual(value, attrs[key])) {
+          attrs[key] = value;
+          hasAttrsChanged = true;
+        }
+      }
+    }
+  }
+
+  if (!JS.isNullish(needCastKeys)) {
+    JsValue rawCurrentProps = toRaw(props);
+    JsValue castValues = rawCastValues;
+    if (JS.isUndefined(castValues)) castValues = EMPTY_OBJ;
+    for (int index = 0; index < propsLength(needCastKeys); index++) {
+      string key = JS.string(needCastKeys[index]);
+      props[key] = resolvePropValue(
+        options,
+        rawCurrentProps,
+        key,
+        castValues[key],
+        instance,
+        !hasOwn(castValues, key)
+      );
+    }
+  }
+  return hasAttrsChanged;
+}
+
+JsValue resolvePropValue(
+  JsValue options,
+  JsValue props,
+  string key,
+  JsValue value,
+  JsValue instance,
+  bool isAbsent
+) {
+  JsValue option = options[key];
+  if (!JS.isNullish(option)) {
+    bool hasDefault = hasOwn(option, "default");
+    if (hasDefault && JS.isUndefined(value)) {
+      JsValue defaultValue = option["default"];
+      if (
+        !JS.strictEqual(option["type"], Function) &&
+        !option["skipFactory"].truthy() &&
+        isFunction(defaultValue)
+      ) {
+        JsValue propsDefaults = instance["propsDefaults"];
+        if (JS.in(key, propsDefaults)) {
+          value = propsDefaults[key];
+        } else {
+          JsValue reset = setCurrentInstance(instance);
+          JsValue receiver = null;
+          if (
+            PROPS_COMPAT &&
+            isCompatEnabled(JS.string(DeprecationTypes["PROPS_DEFAULT_THIS"]), instance)
+          ) receiver = createPropsDefaultThis(instance, props, key);
+          value = JS.call(defaultValue, receiver, props);
+          propsDefaults[key] = value;
+          JS.call(reset, propsUndefined());
+        }
+      } else {
+        value = defaultValue;
+      }
+      if (instance["ce"].truthy()) JS.invoke(instance["ce"], "_setProp", key, value);
+    }
+    if (option["0"].truthy()) {
+      if (isAbsent && !hasDefault) {
+        value = false;
+      } else if (
+        option["1"].truthy() &&
+        (JS.strictEqual(value, "") ||
+          JS.strictEqual(value, JS.call(hyphenate, propsUndefined(), key)))
+      ) {
+        value = true;
+      }
+    }
+  }
+  return value;
+}
+
+JsValue mixinPropsCache = JS.construct(WeakMap);
+
+export JsValue normalizePropsOptions(
+  JsValue component,
+  JsValue appContext,
+  bool asMixin = false
+) {
+  JsValue cache = appContext["propsCache"];
+  if (PROPS_FEATURE_OPTIONS_API && asMixin) cache = mixinPropsCache;
+  JsValue cached = JS.invoke(cache, "get", component);
+  if (cached.truthy()) return cached;
+
+  JsValue raw = component["props"];
+  JsValue normalized = JS.object();
+  JsValue needCastKeys = JS.array();
+  bool hasExtends = false;
+
+  if (PROPS_FEATURE_OPTIONS_API && !isFunction(component)) {
+    JsValue extendProps = JS.method1((JsValue _self, JsValue source) => {
+      if (PROPS_COMPAT && isFunction(source)) source = source["options"];
+      hasExtends = true;
+      JsValue inherited = normalizePropsOptions(source, appContext, true);
+      JS.call(extend, propsUndefined(), normalized, inherited[0]);
+      JsValue inheritedKeys = inherited[1];
+      if (inheritedKeys.truthy()) {
+        for (int index = 0; index < propsLength(inheritedKeys); index++) {
+          propsPush(needCastKeys, inheritedKeys[index]);
+        }
+      }
+      return propsUndefined();
+    });
+    JsValue mixins = appContext["mixins"];
+    if (!asMixin && propsLength(mixins) > 0) JS.invoke(mixins, "forEach", extendProps);
+    if (component["extends"].truthy()) JS.call(extendProps, propsUndefined(), component["extends"]);
+    if (component["mixins"].truthy()) JS.invoke(component["mixins"], "forEach", extendProps);
+  }
+
+  if (!raw.truthy() && !hasExtends) {
+    if (isObject(component)) JS.invoke(cache, "set", component, EMPTY_ARR);
+    return EMPTY_ARR;
+  }
+
+  if (propsIsArray(raw)) {
+    for (int index = 0; index < propsLength(raw); index++) {
+      if (PROPS_DEV && !isString(raw[index])) {
+        JS.call(warn, propsUndefined(), "props must be strings when using array syntax.", raw[index]);
+      }
+      string normalizedKey = JS.string(JS.call(camelize, propsUndefined(), raw[index]));
+      if (validatePropName(normalizedKey)) normalized[normalizedKey] = EMPTY_OBJ;
+    }
+  } else if (raw.truthy()) {
+    if (PROPS_DEV && !isObject(raw)) JS.call(warn, propsUndefined(), "invalid props options", raw);
+    for (string key in raw) {
+      string normalizedKey = JS.string(JS.call(camelize, propsUndefined(), key));
+      if (validatePropName(normalizedKey)) {
+        JsValue option = raw[key];
+        JsValue prop = JS.object();
+        if (propsIsArray(option) || isFunction(option)) prop["type"] = option;
+        else JS.call(extend, propsUndefined(), prop, option);
+        normalized[normalizedKey] = prop;
+
+        JsValue propType = prop["type"];
+        bool shouldCast = false;
+        bool shouldCastTrue = true;
+        if (propsIsArray(propType)) {
+          for (int typeIndex = 0; typeIndex < propsLength(propType); typeIndex++) {
+            JsValue type = propType[typeIndex];
+            JsValue rawTypeName = false;
+            if (isFunction(type)) rawTypeName = type["name"];
+            string typeName = "";
+            if (rawTypeName.truthy()) typeName = JS.string(rawTypeName);
+            if (typeName == "Boolean") {
+              shouldCast = true;
+              break;
+            } else if (typeName == "String") {
+              shouldCastTrue = false;
+            }
+          }
+        } else {
+          shouldCast = isFunction(propType) && JS.strictEqual(propType["name"], "Boolean");
+        }
+        prop["0"] = shouldCast;
+        prop["1"] = shouldCastTrue;
+        if (shouldCast || hasOwn(prop, "default")) propsPush(needCastKeys, normalizedKey);
+      }
+    }
+  }
+
+  JsValue result = JS.array(normalized, needCastKeys);
+  if (isObject(component)) JS.invoke(cache, "set", component, result);
+  return result;
+}
+
+bool validatePropName(string key) {
+  if (!key.startsWith("$") && !JS.call(isReservedProp, propsUndefined(), key).truthy()) return true;
+  if (PROPS_DEV) {
+    JS.call(warn, propsUndefined(), "Invalid prop name: \"" + key + "\" is a reserved property.");
+  }
+  return false;
+}
+
+string getType(JsValue constructor) {
+  if (JS.strictEqual(constructor, null)) return "null";
+  if (JS.typeOf(constructor) == "function") {
+    JsValue name = constructor["name"];
+    if (name.truthy()) return JS.string(name);
+    return "";
+  }
+  if (JS.typeOf(constructor) == "object") {
+    JsValue valueConstructor = constructor["constructor"];
+    JsValue name = propsUndefined();
+    if (valueConstructor.truthy()) name = valueConstructor["name"];
+    if (name.truthy()) return JS.string(name);
+    return "";
+  }
+  return "";
+}
+
+JsValue validatedProps(JsValue props) {
+  if (PROPS_DEV) return shallowReadonly(props);
+  return props;
+}
+
+void validateProps(JsValue rawProps, JsValue props, JsValue instance) {
+  JsValue resolvedValues = toRaw(props);
+  JsValue options = instance["propsOptions"][0];
+  JsValue rawKeys = JS.invoke(Object, "keys", rawProps);
+  JsValue camelizedKeys = JS.invoke(rawKeys, "map", JS.method1((JsValue _self, JsValue key) =>
+    JS.call(camelize, propsUndefined(), key)
+  ));
+  if (JS.isNullish(options)) return;
+  for (string key in options) {
+    JsValue option = options[key];
+    if (JS.isNullish(option)) continue;
+    validateProp(
+      key,
+      resolvedValues[key],
+      option,
+      validatedProps(resolvedValues),
+      !JS.invoke(camelizedKeys, "includes", key).truthy()
+    );
+  }
+}
+
+void validateProp(
+  string name,
+  JsValue value,
+  JsValue prop,
+  JsValue props,
+  bool isAbsent
+) {
+  JsValue type = prop["type"];
+  bool required = prop["required"].truthy();
+  JsValue validator = prop["validator"];
+  bool skipCheck = prop["skipCheck"].truthy();
+  if (required && isAbsent) {
+    JS.call(warn, propsUndefined(), "Missing required prop: \"" + name + "\"");
+    return;
+  }
+  if (JS.isNullish(value) && !required) return;
+  if (!JS.isNullish(type) && !JS.strictEqual(type, true) && !skipCheck) {
+    bool valid = false;
+    JsValue types = type;
+    if (!propsIsArray(type)) types = JS.array(type);
+    JsValue expectedTypes = JS.array();
+    for (int index = 0; index < propsLength(types) && !valid; index++) {
+      JsValue assertion = assertType(value, types[index]);
+      JsValue expectedType = assertion["expectedType"];
+      if (expectedType.truthy()) propsPush(expectedTypes, expectedType);
+      else propsPush(expectedTypes, "");
+      valid = assertion["valid"].truthy();
+    }
+    if (!valid) {
+      JS.call(warn, propsUndefined(), getInvalidTypeMessage(name, value, expectedTypes));
+      return;
+    }
+  }
+  if (validator.truthy() && !JS.call(validator, propsUndefined(), value, props).truthy()) {
+    JS.call(
+      warn,
+      propsUndefined(),
+      "Invalid prop: custom validator check failed for prop \"" + name + "\"."
+    );
+  }
+}
+
+JsValue isSimpleType = JS.call(
+  makeMap,
+  propsUndefined(),
+  "String,Number,Boolean,Function,Symbol,BigInt"
+);
+
+bool propsInstanceOf(JsValue value, JsValue type) {
+  JsValue hasInstance = type[Symbol["hasInstance"]];
+  return JS.call(hasInstance, type, value).truthy();
+}
+
+JsValue assertType(JsValue value, JsValue type) {
+  bool valid = false;
+  string expectedType = getType(type);
+  if (expectedType == "null") {
+    valid = JS.strictEqual(value, null);
+  } else if (JS.call(isSimpleType, propsUndefined(), expectedType).truthy()) {
+    string actualType = JS.typeOf(value);
+    valid = actualType == expectedType.toLowerCase();
+    if (!valid && actualType == "object") valid = propsInstanceOf(value, type);
+  } else if (expectedType == "Object") {
+    valid = isObject(value);
+  } else if (expectedType == "Array") {
+    valid = propsIsArray(value);
+  } else {
+    valid = propsInstanceOf(value, type);
+  }
+  return JS.object("valid", valid, "expectedType", expectedType);
+}
+
+string getInvalidTypeMessage(string name, JsValue value, JsValue expectedTypes) {
+  if (propsLength(expectedTypes) == 0) {
+    return "Prop type [] for prop \"" + name + "\" won't match anything." +
+      " Did you mean to use type Array instead?";
+  }
+  JsValue capitalizedTypes = JS.invoke(expectedTypes, "map", capitalize);
+  string message = "Invalid prop: type check failed for prop \"" + name + "\"." +
+    " Expected " + JS.string(JS.invoke(capitalizedTypes, "join", " | "));
+  string expectedType = JS.string(expectedTypes[0]);
+  string receivedType = JS.string(JS.call(toRawType, propsUndefined(), value));
+  string expectedValue = styleValue(value, expectedType);
+  string receivedValue = styleValue(value, receivedType);
+  if (
+    propsLength(expectedTypes) == 1 &&
+    isExplicable(expectedType) &&
+    isCoercible(expectedType, receivedType)
+  ) message += " with value " + expectedValue;
+  message += ", got " + receivedType + " ";
+  if (isExplicable(receivedType)) message += "with value " + receivedValue + ".";
+  return message;
+}
+
+string styleValue(JsValue value, string type) {
+  if (isSymbol(value)) return JS.string(JS.invoke(value, "toString"));
+  if (type == "String") return "\"" + JS.string(value) + "\"";
+  if (type == "Number") return JS.string(JS.call(Number, propsUndefined(), value));
+  return JS.string(value);
+}
+
+bool isExplicable(string type) {
+  string normalized = type.toLowerCase();
+  return normalized == "string" || normalized == "number" || normalized == "boolean";
+}
+
+bool isCoercible(string first, string second) {
+  string left = first.toLowerCase();
+  string right = second.toLowerCase();
+  return left != "boolean" && left != "symbol" &&
+    right != "boolean" && right != "symbol";
+}

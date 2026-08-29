@@ -1,0 +1,248 @@
+import extern {
+  BindingTypes as ModelBindingTypes,
+  unwrapTSNode as modelUnwrapTSNode
+} from "../../../packages/vuelil/compiler-dom.js";
+import extern {
+  hostJsonStringify as modelJsonStringify,
+  hostKeys as modelKeys
+} from "../host.js";
+import { inferRuntimeType } from "./resolveType";
+import { UNKNOWN_TYPE, isCallOf, toRuntimeTypeString } from "./utils";
+
+extern JsValue ModelBindingTypes;
+extern JsValue modelJsonStringify;
+extern JsValue modelKeys;
+extern JsValue modelUnwrapTSNode;
+
+int modelLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+
+void modelPush(JsValue values, JsValue value) {
+  values[modelLength(values)] = value;
+}
+
+string modelStringify(JsValue value) {
+  return JS.string(JS.call(modelJsonStringify, JS.undefined(), value));
+}
+
+export string DEFINE_MODEL = "defineModel";
+
+export bool processDefineModel(
+  JsValue ctx,
+  JsValue node,
+  JsValue declId = JS.undefined()
+) {
+  if (!isCallOf(node, DEFINE_MODEL)) return false;
+
+  ctx["hasDefineModelCall"] = true;
+
+  JsValue type = JS.undefined();
+  if (node["typeParameters"].truthy()) {
+    type = node["typeParameters"]["params"][0];
+    if (!type.truthy()) type = JS.undefined();
+  }
+  string modelName = "";
+  JsValue options = JS.undefined();
+  JsValue arg0 = node["arguments"][0];
+  if (arg0.truthy()) {
+    arg0 = JS.call(modelUnwrapTSNode, JS.undefined(), arg0);
+  }
+  bool hasName = arg0.truthy() &&
+    (JS.string(arg0["type"]) == "StringLiteral" ||
+      (JS.string(arg0["type"]) == "TemplateLiteral" &&
+        modelLength(arg0["expressions"]) == 0));
+  if (hasName) {
+    if (JS.string(arg0["type"]) == "StringLiteral") {
+      modelName = JS.string(arg0["value"]);
+    } else {
+      modelName = JS.string(arg0["quasis"][0]["value"]["cooked"]);
+    }
+    options = node["arguments"][1];
+  } else {
+    modelName = "modelValue";
+    options = arg0;
+  }
+
+  if (ctx["modelDecls"][modelName].truthy()) {
+    JS.invoke(
+      ctx,
+      "error",
+      "duplicate model name " + modelStringify(modelName),
+      node
+    );
+  }
+
+  JsValue optionsString = JS.undefined();
+  if (options.truthy()) optionsString = JS.invoke(ctx, "getString", options);
+  bool optionsRemoved = !options.truthy();
+  JsValue runtimeOptionNodes = JS.array();
+
+  bool hasDynamicProperty = false;
+  if (options.truthy() && JS.string(options["type"]) == "ObjectExpression") {
+    JsValue properties = options["properties"];
+    for (int index = 0; index < modelLength(properties); index++) {
+      JsValue property = properties[index];
+      if (JS.string(property["type"]) == "SpreadElement" ||
+        property["computed"].truthy()) {
+        hasDynamicProperty = true;
+      }
+    }
+  }
+  if (options.truthy() &&
+    JS.string(options["type"]) == "ObjectExpression" &&
+    !hasDynamicProperty) {
+    JsValue properties = options["properties"];
+    int removed = 0;
+    for (int index = modelLength(properties) - 1; index >= 0; index--) {
+      JsValue property = properties[index];
+      JsValue next = properties[index + 1];
+      int start = JS.number(property["start"]).toInt();
+      int end = JS.number(options["end"]).toInt() - 1;
+      if (next.truthy()) end = JS.number(next["start"]).toInt();
+      string propertyType = JS.string(property["type"]);
+      string keyType = JS.string(property["key"]["type"]);
+      bool runtimeOption =
+        (propertyType == "ObjectProperty" || propertyType == "ObjectMethod") &&
+        ((keyType == "Identifier" &&
+          (JS.string(property["key"]["name"]) == "get" ||
+            JS.string(property["key"]["name"]) == "set")) ||
+          (keyType == "StringLiteral" &&
+            (JS.string(property["key"]["value"]) == "get" ||
+              JS.string(property["key"]["value"]) == "set")));
+      if (runtimeOption) {
+        string source = JS.string(optionsString);
+        int optionsStart = JS.number(options["start"]).toInt();
+        optionsString = source.slice(0, start - optionsStart) +
+          source.slice(end - optionsStart);
+      } else {
+        removed++;
+        int startOffset = JS.number(ctx["startOffset"]).toInt();
+        JS.invoke(ctx["s"], "remove", startOffset + start, startOffset + end);
+        modelPush(runtimeOptionNodes, property);
+      }
+    }
+    if (removed == modelLength(properties)) {
+      optionsRemoved = true;
+      int removeStart = JS.number(options["start"]).toInt();
+      if (hasName) removeStart = JS.number(arg0["end"]).toInt();
+      int startOffset = JS.number(ctx["startOffset"]).toInt();
+      JS.invoke(
+        ctx["s"],
+        "remove",
+        startOffset + removeStart,
+        startOffset + JS.number(options["end"]).toInt()
+      );
+    }
+  }
+
+  JsValue identifier = JS.undefined();
+  if (declId.truthy() && JS.string(declId["type"]) == "Identifier") {
+    identifier = declId["name"];
+  }
+  ctx["modelDecls"][modelName] = JS.object(
+    "type", type,
+    "options", optionsString,
+    "runtimeOptionNodes", runtimeOptionNodes,
+    "identifier", identifier
+  );
+  ctx["bindingMetadata"][modelName] = ModelBindingTypes["PROPS"];
+
+  int startOffset = JS.number(ctx["startOffset"]).toInt();
+  JS.invoke(
+    ctx["s"],
+    "overwrite",
+    startOffset + JS.number(node["callee"]["start"]).toInt(),
+    startOffset + JS.number(node["callee"]["end"]).toInt(),
+    JS.invoke(ctx, "helper", "useModel")
+  );
+  int insertionPoint = JS.number(node["end"]).toInt() - 1;
+  if (modelLength(node["arguments"]) > 0) {
+    insertionPoint = JS.number(node["arguments"][0]["start"]).toInt();
+  }
+  string injectedName = "";
+  if (!hasName) {
+    injectedName = modelStringify(modelName);
+    if (!optionsRemoved) injectedName += ", ";
+  }
+  JS.invoke(
+    ctx["s"],
+    "appendLeft",
+    startOffset + insertionPoint,
+    "__props, " + injectedName
+  );
+
+  return true;
+}
+
+export JsValue genModelProps(JsValue ctx) {
+  if (!ctx["hasDefineModelCall"].truthy()) return JS.undefined();
+
+  bool isProd = ctx["options"]["isProd"].truthy();
+  string modelPropsDecl = "";
+  JsValue names = JS.call(modelKeys, JS.undefined(), ctx["modelDecls"]);
+  for (int index = 0; index < modelLength(names); index++) {
+    string name = JS.string(names[index]);
+    JsValue model = ctx["modelDecls"][name];
+    JsValue type = model["type"];
+    JsValue runtimeOptions = model["options"];
+    bool skipCheck = false;
+    string codegenOptions = "";
+    JsValue runtimeTypes = JS.undefined();
+    if (type.truthy()) runtimeTypes = inferRuntimeType(ctx, type);
+    if (runtimeTypes.truthy()) {
+      bool hasBoolean = JS.invoke(runtimeTypes, "includes", "Boolean").truthy();
+      bool hasFunction = JS.invoke(runtimeTypes, "includes", "Function").truthy();
+      bool hasUnknownType = JS.invoke(
+        runtimeTypes,
+        "includes",
+        UNKNOWN_TYPE
+      ).truthy();
+
+      if (hasUnknownType) {
+        if (hasBoolean || hasFunction) {
+          JsValue filtered = JS.array();
+          for (int typeIndex = 0;
+            typeIndex < modelLength(runtimeTypes);
+            typeIndex++) {
+            if (!JS.strictEqual(runtimeTypes[typeIndex], UNKNOWN_TYPE)) {
+              modelPush(filtered, runtimeTypes[typeIndex]);
+            }
+          }
+          runtimeTypes = filtered;
+          skipCheck = true;
+        } else {
+          runtimeTypes = JS.array("null");
+        }
+      }
+
+      if (!isProd) {
+        codegenOptions = "type: " + toRuntimeTypeString(runtimeTypes);
+        if (skipCheck) codegenOptions += ", skipCheck: true";
+      } else if (hasBoolean || (runtimeOptions.truthy() && hasFunction)) {
+        codegenOptions = "type: " + toRuntimeTypeString(runtimeTypes);
+      }
+    }
+
+    string decl = "{}";
+    if (codegenOptions != "" && runtimeOptions.truthy()) {
+      if (ctx["isTS"].truthy()) {
+        decl = "{ " + codegenOptions + ", ..." +
+          JS.string(runtimeOptions) + " }";
+      } else {
+        decl = "Object.assign({ " + codegenOptions + " }, " +
+          JS.string(runtimeOptions) + ")";
+      }
+    } else if (codegenOptions != "") {
+      decl = "{ " + codegenOptions + " }";
+    } else if (runtimeOptions.truthy()) {
+      decl = JS.string(runtimeOptions);
+    }
+    modelPropsDecl += "\n    " + modelStringify(name) + ": " + decl + ",";
+
+    string modifierName = name + "Modifiers";
+    if (name == "modelValue") modifierName = "modelModifiers";
+    modelPropsDecl += "\n    " + modelStringify(modifierName) + ": {},";
+  }
+  return "{" + modelPropsDecl + "\n  }";
+}

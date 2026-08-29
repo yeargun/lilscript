@@ -1,0 +1,1021 @@
+import { isReactive } from "../reactivity/reactive";
+import { DEV, TEST } from "../reactivity/constants";
+import { isKnownHtmlAttr, isKnownSvgAttr, includeBooleanAttr, isBooleanAttr, isRenderableAttrValue } from "../shared/domAttrConfig";
+import { getEscapedCssVarName } from "../shared/escapeHtml";
+import { def, isOn, isReservedProp, isString } from "../shared/general";
+import { normalizeCssVarValue } from "../shared/cssVars";
+import { normalizeClass, normalizeStyle, stringifyStyle } from "../shared/normalizeProp";
+import { PatchFlags } from "../shared/patchFlags";
+import { ShapeFlags } from "../shared/shapeFlags";
+import { isAsyncWrapper } from "./apiAsyncComponent";
+import { updateHOCHostEl } from "./componentRenderUtils";
+import { queueEffectWithSuspense } from "./components/Suspense";
+import { invokeDirectiveHook } from "./directives";
+import { needTransition } from "./renderer";
+import { setRef } from "./rendererTemplateRef";
+import { flushPostFlushCbs } from "./scheduler";
+import {
+  Comment,
+  Fragment,
+  Static,
+  Text,
+  createTextVNode,
+  createVNode,
+  invokeVNodeHook,
+  normalizeVNode
+} from "./vnode";
+import { warn } from "./warning";
+
+extern JsValue HTMLElement;
+extern JsValue Array;
+extern JsValue JSON;
+extern JsValue Map;
+extern JsValue Set;
+extern JsValue String;
+extern JsValue SVGElement;
+extern JsValue Symbol;
+extern JsValue console;
+
+bool PROD_DEVTOOLS = false;
+bool PROD_HYDRATION_MISMATCH_DETAILS = false;
+bool HYDRATION_FEATURE_SUSPENSE = true;
+
+export JsValue DOMNodeTypes = JS.object(
+  "ELEMENT", 1,
+  "TEXT", 3,
+  "COMMENT", 8,
+  "1", "ELEMENT",
+  "3", "TEXT",
+  "8", "COMMENT"
+);
+
+JsValue MismatchTypes = JS.object(
+  "TEXT", 0,
+  "CHILDREN", 1,
+  "CLASS", 2,
+  "STYLE", 3,
+  "ATTRIBUTE", 4,
+  "0", "TEXT",
+  "1", "CHILDREN",
+  "2", "CLASS",
+  "3", "STYLE",
+  "4", "ATTRIBUTE"
+);
+
+JsValue MismatchTypeString = JS.object(
+  "0", "text",
+  "1", "children",
+  "2", "class",
+  "3", "style",
+  "4", "attribute"
+);
+
+string allowMismatchAttr = "data-allow-mismatch";
+bool hasLoggedMismatchError = false;
+JsValue resourceProps = JS.construct(Set, JS.array("src", "srcset", "href", "poster"));
+
+int hydrationLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+
+int hydrationNumber(JsValue value) {
+  return JS.number(value).toInt();
+}
+
+bool hydrationInstanceOf(JsValue value, JsValue constructor) {
+  return JS.call(constructor[Symbol["hasInstance"]], constructor, value).truthy();
+}
+
+void logMismatchError() {
+  if (TEST || hasLoggedMismatchError) return;
+  JS.invoke(console, "error", "Hydration completed but contains mismatches.");
+  hasLoggedMismatchError = true;
+}
+
+bool isSVGContainer(JsValue container) {
+  return JS.string(container["namespaceURI"]).includes("svg") &&
+    !JS.strictEqual(container["tagName"], "foreignObject");
+}
+
+bool isMathMLContainer(JsValue container) {
+  return JS.string(container["namespaceURI"]).includes("MathML");
+}
+
+JsValue getContainerType(JsValue container) {
+  if (hydrationNumber(container["nodeType"]) != hydrationNumber(DOMNodeTypes["ELEMENT"])) {
+    return JS.undefined();
+  }
+  if (isSVGContainer(container)) return "svg";
+  if (isMathMLContainer(container)) return "mathml";
+  return JS.undefined();
+}
+
+export bool isComment(JsValue node) {
+  return hydrationNumber(node["nodeType"]) == hydrationNumber(DOMNodeTypes["COMMENT"]);
+}
+
+bool isTemplateNode(JsValue node) {
+  return hydrationNumber(node["nodeType"]) == hydrationNumber(DOMNodeTypes["ELEMENT"]) &&
+    JS.strictEqual(node["tagName"], "TEMPLATE");
+}
+
+bool isUnchangedResourceProp(JsValue element, JsValue key, JsValue clientValue) {
+  if (!JS.invoke(resourceProps, "has", key).truthy()) return false;
+  JsValue expected = null;
+  if (!JS.isNullish(clientValue)) expected = JS.string(clientValue);
+  return JS.strictEqual(JS.invoke(element, "getAttribute", key), expected);
+}
+
+JsValue normalizeHiddenValue(JsValue value) {
+  if (!isRenderableAttrValue(value)) return false;
+  if (isString(value)) {
+    if (JS.string(value).toLowerCase() == "until-found") return "until-found";
+    return "";
+  }
+  if (includeBooleanAttr(value)) return "";
+  return false;
+}
+
+JsValue toClassSet(string value) {
+  return JS.construct(Set, JS.invoke(value.trim(), "split", new Regex("\\s+")));
+}
+
+bool isSetEqual(JsValue left, JsValue right) {
+  if (hydrationNumber(left["size"]) != hydrationNumber(right["size"])) return false;
+  JsValue values = JS.call(Array["from"], Array, left);
+  for (int index = 0; index < hydrationLength(values); index++) {
+    if (!JS.invoke(right, "has", values[index]).truthy()) return false;
+  }
+  return true;
+}
+
+JsValue toStyleMap(string value) {
+  JsValue styleMap = JS.construct(Map);
+  JsValue items = value.split(";");
+  for (int index = 0; index < hydrationLength(items); index++) {
+    JsValue pair = JS.string(items[index]).split(":");
+    string key = JS.string(pair[0]).trim();
+    string itemValue = "";
+    if (pair[1].truthy()) itemValue = JS.string(pair[1]).trim();
+    if (key != "" && itemValue != "") JS.invoke(styleMap, "set", key, itemValue);
+  }
+  return styleMap;
+}
+
+bool isMapEqual(JsValue left, JsValue right) {
+  if (hydrationNumber(left["size"]) != hydrationNumber(right["size"])) return false;
+  JsValue entries = JS.call(Array["from"], Array, left);
+  for (int index = 0; index < hydrationLength(entries); index++) {
+    JsValue entry = entries[index];
+    if (!JS.strictEqual(entry[1], JS.invoke(right, "get", entry[0]))) return false;
+  }
+  return true;
+}
+
+void resolveCssVars(JsValue instance, JsValue vnode, JsValue expectedMap) {
+  JsValue root = instance["subTree"];
+  bool rootFragmentChild = false;
+  if (
+    root.truthy() &&
+    JS.strictEqual(root["type"], Fragment) &&
+    root["children"].truthy()
+  ) {
+    rootFragmentChild = JS.invoke(root["children"], "includes", vnode).truthy();
+  }
+  if (
+    instance["getCssVars"].truthy() &&
+    (JS.strictEqual(vnode, root) || rootFragmentChild)
+  ) {
+    JsValue cssVars = JS.call(instance["getCssVars"], instance);
+    for (string key in cssVars) {
+      JsValue value = normalizeCssVarValue(cssVars[key]);
+      JS.invoke(expectedMap, "set", "--" + getEscapedCssVarName(key, false), value);
+    }
+  }
+  if (JS.strictEqual(vnode, root) && instance["parent"].truthy()) {
+    resolveCssVars(instance["parent"], instance["vnode"], expectedMap);
+  }
+}
+
+bool isMismatchAllowedByAttr(JsValue allowedAttr, int allowedType) {
+  if (JS.isNullish(allowedAttr)) return false;
+  if (JS.strictEqual(allowedAttr, "")) return true;
+  JsValue list = JS.string(allowedAttr).split(",");
+  if (
+    allowedType == hydrationNumber(MismatchTypes["TEXT"]) &&
+    JS.invoke(list, "includes", "children").truthy()
+  ) return true;
+  return JS.invoke(list, "includes", MismatchTypeString[allowedType]).truthy();
+}
+
+bool isMismatchAllowed(JsValue element, int allowedType) {
+  if (
+    allowedType == hydrationNumber(MismatchTypes["TEXT"]) ||
+    allowedType == hydrationNumber(MismatchTypes["CHILDREN"])
+  ) {
+    while (element.truthy() && !JS.invoke(element, "hasAttribute", allowMismatchAttr).truthy()) {
+      element = element["parentElement"];
+    }
+  }
+  JsValue allowed = null;
+  if (element.truthy()) allowed = JS.invoke(element, "getAttribute", allowMismatchAttr);
+  return isMismatchAllowedByAttr(allowed, allowedType);
+}
+
+bool isMismatchAllowedByNode(JsValue node) {
+  return hydrationNumber(node["nodeType"]) == hydrationNumber(DOMNodeTypes["ELEMENT"]) &&
+    isMismatchAllowedByAttr(
+      JS.invoke(node, "getAttribute", allowMismatchAttr),
+      hydrationNumber(MismatchTypes["CHILDREN"])
+    );
+}
+
+bool isMismatchAllowedByVNode(JsValue vnode) {
+  JsValue props = vnode["props"];
+  JsValue allowed = null;
+  if (props.truthy()) allowed = props[allowMismatchAttr];
+  return JS.typeOf(allowed) == "string" &&
+    isMismatchAllowedByAttr(allowed, hydrationNumber(MismatchTypes["CHILDREN"]));
+}
+
+bool isNodeMismatchAllowed(JsValue node, JsValue vnode) {
+  return isMismatchAllowed(node["parentElement"], hydrationNumber(MismatchTypes["CHILDREN"])) ||
+    isMismatchAllowedByNode(node) ||
+    isMismatchAllowedByVNode(vnode);
+}
+
+bool propHasMismatch(
+  JsValue element,
+  string key,
+  JsValue clientValue,
+  JsValue vnode,
+  JsValue instance
+) {
+  int mismatchType = -1;
+  string mismatchKey = "";
+  JsValue actual = JS.undefined();
+  JsValue expected = JS.undefined();
+
+  if (key == "class") {
+    if (element["$cls"].truthy()) {
+      actual = element["$cls"];
+      JS.delete(element, "$cls");
+    } else {
+      actual = JS.invoke(element, "getAttribute", "class");
+    }
+    expected = normalizeClass(clientValue);
+    string actualClass = "";
+    if (actual.truthy()) actualClass = JS.string(actual);
+    if (!isSetEqual(toClassSet(actualClass), toClassSet(JS.string(expected)))) {
+      mismatchType = hydrationNumber(MismatchTypes["CLASS"]);
+      mismatchKey = "class";
+    }
+  } else if (key == "style") {
+    actual = JS.invoke(element, "getAttribute", "style");
+    if (!actual.truthy()) actual = "";
+    if (isString(clientValue)) expected = clientValue;
+    else expected = stringifyStyle(normalizeStyle(clientValue));
+    JsValue actualMap = toStyleMap(JS.string(actual));
+    JsValue expectedMap = toStyleMap(JS.string(expected));
+    JsValue dirs = vnode["dirs"];
+    if (dirs.truthy()) {
+      for (int index = 0; index < hydrationLength(dirs); index++) {
+        JsValue binding = dirs[index];
+        if (JS.strictEqual(binding["dir"]["name"], "show") && !binding["value"].truthy()) {
+          JS.invoke(expectedMap, "set", "display", "none");
+        }
+      }
+    }
+    if (instance.truthy()) resolveCssVars(instance, vnode, expectedMap);
+    if (!isMapEqual(actualMap, expectedMap)) {
+      mismatchType = hydrationNumber(MismatchTypes["STYLE"]);
+      mismatchKey = "style";
+    }
+  } else {
+    bool knownSvg = hydrationInstanceOf(element, SVGElement) &&
+      JS.call(isKnownSvgAttr, JS.undefined(), key).truthy();
+    bool knownHtml = hydrationInstanceOf(element, HTMLElement) &&
+      (JS.call(isBooleanAttr, JS.undefined(), key).truthy() ||
+        JS.call(isKnownHtmlAttr, JS.undefined(), key).truthy());
+    if (knownSvg || knownHtml) {
+      if (key == "hidden") {
+        actual = normalizeHiddenValue(JS.invoke(element, "getAttribute", key));
+        expected = normalizeHiddenValue(clientValue);
+      } else if (JS.call(isBooleanAttr, JS.undefined(), key).truthy()) {
+        actual = JS.invoke(element, "hasAttribute", key).truthy();
+        expected = includeBooleanAttr(clientValue);
+      } else if (JS.isNullish(clientValue)) {
+        actual = JS.invoke(element, "hasAttribute", key).truthy();
+        expected = false;
+      } else {
+        if (JS.invoke(element, "hasAttribute", key).truthy()) {
+          actual = JS.invoke(element, "getAttribute", key);
+        } else if (key == "value" && JS.strictEqual(element["tagName"], "TEXTAREA")) {
+          actual = element["value"];
+        } else {
+          actual = false;
+        }
+        if (isRenderableAttrValue(clientValue)) expected = JS.call(String, JS.undefined(), clientValue);
+        else expected = false;
+      }
+      if (!JS.strictEqual(actual, expected)) {
+        mismatchType = hydrationNumber(MismatchTypes["ATTRIBUTE"]);
+        mismatchKey = key;
+      }
+    }
+  }
+
+  if (mismatchType >= 0 && !isMismatchAllowed(element, mismatchType)) {
+    JsValue format = JS.method1((JsValue _self, JsValue value) => {
+      if (JS.strictEqual(value, false)) return "(not rendered)";
+      return mismatchKey + "=\"" + JS.string(value) + "\"";
+    });
+    string preSegment = "Hydration " + JS.string(MismatchTypeString[mismatchType]) + " mismatch on";
+    string postSegment =
+      "\n  - rendered on server: " + JS.string(JS.call(format, JS.undefined(), actual)) +
+      "\n  - expected on client: " + JS.string(JS.call(format, JS.undefined(), expected)) +
+      "\n  Note: this mismatch is check-only. The DOM will not be rectified " +
+      "in production due to performance overhead." +
+      "\n  You should fix the source of the mismatch.";
+    if (TEST) JS.call(warn, JS.undefined(), preSegment + " " + JS.string(element["tagName"]) + postSegment);
+    else JS.call(warn, JS.undefined(), preSegment, element, postSegment);
+    return true;
+  }
+  return false;
+}
+
+class HydrationKernel {
+  JsValue internals;
+  JsValue mountComponent;
+  JsValue patch;
+  JsValue patchProp;
+  JsValue createText;
+  JsValue nextSibling;
+  JsValue parentNode;
+  JsValue remove;
+  JsValue insert;
+  JsValue createComment;
+  JsValue hydrateNodeFn;
+  JsValue hydrateChildrenFn;
+
+  init(JsValue rendererInternals) {
+    this.internals = rendererInternals;
+    this.mountComponent = rendererInternals["mt"];
+    this.patch = rendererInternals["p"];
+    JsValue options = rendererInternals["o"];
+    this.patchProp = options["patchProp"];
+    this.createText = options["createText"];
+    this.nextSibling = options["nextSibling"];
+    this.parentNode = options["parentNode"];
+    this.remove = options["remove"];
+    this.insert = options["insert"];
+    this.createComment = options["createComment"];
+
+    HydrationKernel state = this;
+    this.hydrateNodeFn = JS.methodRest((JsValue _self, JsValue args) => {
+      bool optimized = false;
+      if (hydrationLength(args) > 5) optimized = args[5].truthy();
+      return state.hydrateNode(args[0], args[1], args[2], args[3], args[4], optimized);
+    });
+    this.hydrateChildrenFn = JS.methodRest((JsValue _self, JsValue args) => {
+      return state.hydrateChildren(
+        args[0], args[1], args[2], args[3], args[4], args[5], args[6].truthy()
+      );
+    });
+  }
+
+  void hydrateRoot(JsValue vnode, JsValue container) {
+    if (!JS.invoke(container, "hasChildNodes").truthy()) {
+      if (DEV || PROD_HYDRATION_MISMATCH_DETAILS) {
+        JS.call(
+          warn,
+          JS.undefined(),
+          "Attempting to hydrate existing markup but container is empty. " +
+            "Performing full mount instead."
+        );
+      }
+      JS.call(this.patch, JS.undefined(), null, vnode, container);
+      flushPostFlushCbs();
+      container["_vnode"] = vnode;
+      return;
+    }
+    this.hydrateNode(container["firstChild"], vnode, null, null, null, false);
+    flushPostFlushCbs();
+    container["_vnode"] = vnode;
+  }
+
+  JsValue hydrateNode(
+    JsValue node,
+    JsValue vnode,
+    JsValue parentComponent,
+    JsValue parentSuspense,
+    JsValue slotScopeIds,
+    bool optimized = false
+  ) {
+    optimized = optimized || vnode["dynamicChildren"].truthy();
+    bool isFragmentStart = isComment(node) && JS.strictEqual(node["data"], "[");
+    JsValue type = vnode["type"];
+    JsValue reference = vnode["ref"];
+    int shapeFlag = hydrationNumber(vnode["shapeFlag"]);
+    int patchFlag = hydrationNumber(vnode["patchFlag"]);
+    int domType = hydrationNumber(node["nodeType"]);
+    vnode["el"] = node;
+
+    if (DEV || PROD_DEVTOOLS) {
+      def(node, "__vnode", vnode, true);
+      def(node, "__vueParentComponent", parentComponent, true);
+    }
+    if (patchFlag == hydrationNumber(PatchFlags["BAIL"])) {
+      optimized = false;
+      vnode["dynamicChildren"] = null;
+    }
+
+    JsValue nextNode = null;
+    if (JS.strictEqual(type, Text)) {
+      if (domType != hydrationNumber(DOMNodeTypes["TEXT"])) {
+        if (JS.strictEqual(vnode["children"], "")) {
+          JsValue text = JS.call(this.createText, JS.undefined(), "");
+          vnode["el"] = text;
+          JS.call(this.insert, JS.undefined(), text, JS.call(this.parentNode, JS.undefined(), node), node);
+          nextNode = node;
+        } else {
+          nextNode = this.handleMismatch(
+            node, vnode, parentComponent, parentSuspense, slotScopeIds, isFragmentStart
+          );
+        }
+      } else {
+        if (!JS.strictEqual(node["data"], vnode["children"])) {
+          if (DEV || PROD_HYDRATION_MISMATCH_DETAILS) {
+            JS.call(
+              warn,
+              JS.undefined(),
+              "Hydration text mismatch in",
+              node["parentNode"],
+              "\n  - rendered on server: " +
+                JS.string(JS.invoke(JSON, "stringify", node["data"])) +
+                "\n  - expected on client: " +
+                JS.string(JS.invoke(JSON, "stringify", vnode["children"]))
+            );
+          }
+          logMismatchError();
+          node["data"] = vnode["children"];
+        }
+        nextNode = JS.call(this.nextSibling, JS.undefined(), node);
+      }
+    } else if (JS.strictEqual(type, Comment)) {
+      if (isTemplateNode(node)) {
+        nextNode = JS.call(this.nextSibling, JS.undefined(), node);
+        vnode["el"] = node["content"]["firstChild"];
+        this.replaceNode(vnode["el"], node, parentComponent);
+      } else if (domType != hydrationNumber(DOMNodeTypes["COMMENT"]) || isFragmentStart) {
+        nextNode = this.handleMismatch(
+          node, vnode, parentComponent, parentSuspense, slotScopeIds, isFragmentStart
+        );
+      } else {
+        nextNode = JS.call(this.nextSibling, JS.undefined(), node);
+      }
+    } else if (JS.strictEqual(type, Static)) {
+      if (isFragmentStart) {
+        node = JS.call(this.nextSibling, JS.undefined(), node);
+        domType = hydrationNumber(node["nodeType"]);
+      }
+      if (
+        domType == hydrationNumber(DOMNodeTypes["ELEMENT"]) ||
+        domType == hydrationNumber(DOMNodeTypes["TEXT"])
+      ) {
+        nextNode = node;
+        bool adoptContent = hydrationLength(vnode["children"]) == 0;
+        int staticCount = hydrationNumber(vnode["staticCount"]);
+        for (int index = 0; index < staticCount; index++) {
+          if (adoptContent) {
+            if (hydrationNumber(nextNode["nodeType"]) == hydrationNumber(DOMNodeTypes["ELEMENT"])) {
+              vnode["children"] = JS.string(vnode["children"]) + JS.string(nextNode["outerHTML"]);
+            } else {
+              vnode["children"] = JS.string(vnode["children"]) + JS.string(nextNode["data"]);
+            }
+          }
+          if (index == staticCount - 1) vnode["anchor"] = nextNode;
+          nextNode = JS.call(this.nextSibling, JS.undefined(), nextNode);
+        }
+        if (isFragmentStart) return JS.call(this.nextSibling, JS.undefined(), nextNode);
+        return nextNode;
+      }
+      this.handleMismatch(node, vnode, parentComponent, parentSuspense, slotScopeIds, isFragmentStart);
+    } else if (JS.strictEqual(type, Fragment)) {
+      if (!isFragmentStart) {
+        nextNode = this.handleMismatch(
+          node, vnode, parentComponent, parentSuspense, slotScopeIds, isFragmentStart
+        );
+      } else {
+        nextNode = this.hydrateFragment(
+          node, vnode, parentComponent, parentSuspense, slotScopeIds, optimized
+        );
+      }
+    } else if ((shapeFlag & hydrationNumber(ShapeFlags["ELEMENT"])) != 0) {
+      bool wrongElement = domType != hydrationNumber(DOMNodeTypes["ELEMENT"]);
+      if (!wrongElement) {
+        wrongElement = JS.string(vnode["type"]).toLowerCase() !=
+          JS.string(node["tagName"]).toLowerCase();
+      }
+      if (wrongElement && !isTemplateNode(node)) {
+        nextNode = this.handleMismatch(
+          node, vnode, parentComponent, parentSuspense, slotScopeIds, isFragmentStart
+        );
+      } else {
+        nextNode = this.hydrateElement(
+          node, vnode, parentComponent, parentSuspense, slotScopeIds, optimized
+        );
+      }
+    } else if ((shapeFlag & hydrationNumber(ShapeFlags["COMPONENT"])) != 0) {
+      vnode["slotScopeIds"] = slotScopeIds;
+      JsValue container = JS.call(this.parentNode, JS.undefined(), node);
+      if (isFragmentStart) {
+        nextNode = this.locateClosingAnchor(node, "[", "]");
+      } else if (isComment(node) && JS.strictEqual(node["data"], "teleport start")) {
+        nextNode = this.locateClosingAnchor(node, node["data"], "teleport end");
+      } else {
+        nextNode = JS.call(this.nextSibling, JS.undefined(), node);
+      }
+      JS.call(
+        this.mountComponent,
+        JS.undefined(),
+        vnode,
+        container,
+        null,
+        parentComponent,
+        parentSuspense,
+        getContainerType(container),
+        optimized
+      );
+      if (isAsyncWrapper(vnode) && !vnode["component"]["subTree"].truthy()) {
+        JsValue subTree = JS.undefined();
+        if (isFragmentStart) {
+          subTree = createVNode(Static);
+          if (nextNode.truthy()) subTree["anchor"] = nextNode["previousSibling"];
+          else subTree["anchor"] = container["lastChild"];
+        } else if (hydrationNumber(node["nodeType"]) == 3) {
+          subTree = createTextVNode("");
+        } else {
+          subTree = createVNode("div");
+        }
+        subTree["el"] = node;
+        vnode["component"]["subTree"] = subTree;
+      }
+    } else if ((shapeFlag & hydrationNumber(ShapeFlags["TELEPORT"])) != 0) {
+      if (domType != hydrationNumber(DOMNodeTypes["COMMENT"])) {
+        nextNode = this.handleMismatch(
+          node, vnode, parentComponent, parentSuspense, slotScopeIds, isFragmentStart
+        );
+      } else {
+        nextNode = JS.call(
+          type["hydrate"],
+          type,
+          node,
+          vnode,
+          parentComponent,
+          parentSuspense,
+          slotScopeIds,
+          optimized,
+          this.internals,
+          this.hydrateChildrenFn
+        );
+      }
+    } else if (
+      HYDRATION_FEATURE_SUSPENSE &&
+      (shapeFlag & hydrationNumber(ShapeFlags["SUSPENSE"])) != 0
+    ) {
+      nextNode = JS.call(
+        type["hydrate"],
+        type,
+        node,
+        vnode,
+        parentComponent,
+        parentSuspense,
+        getContainerType(JS.call(this.parentNode, JS.undefined(), node)),
+        slotScopeIds,
+        optimized,
+        this.internals,
+        this.hydrateNodeFn
+      );
+    } else if (DEV || PROD_HYDRATION_MISMATCH_DETAILS) {
+      JS.call(warn, JS.undefined(), "Invalid HostVNode type:", type, "(" + JS.typeOf(type) + ")");
+    }
+
+    if (!JS.isNullish(reference)) setRef(reference, null, parentSuspense, vnode);
+    return nextNode;
+  }
+
+  JsValue hydrateElement(
+    JsValue element,
+    JsValue vnode,
+    JsValue parentComponent,
+    JsValue parentSuspense,
+    JsValue slotScopeIds,
+    bool optimized
+  ) {
+    optimized = optimized || vnode["dynamicChildren"].truthy();
+    JsValue type = vnode["type"];
+    JsValue dynamicProps = vnode["dynamicProps"];
+    JsValue props = vnode["props"];
+    int patchFlag = hydrationNumber(vnode["patchFlag"]);
+    int shapeFlag = hydrationNumber(vnode["shapeFlag"]);
+    JsValue dirs = vnode["dirs"];
+    JsValue transition = vnode["transition"];
+    bool forcePatch = JS.strictEqual(type, "input") || JS.strictEqual(type, "option");
+    bool hasDynamicProps = dynamicProps.truthy();
+
+    if (
+      DEV || forcePatch || hasDynamicProps ||
+      patchFlag != hydrationNumber(PatchFlags["CACHED"])
+    ) {
+      if (dirs.truthy()) invokeDirectiveHook(vnode, null, parentComponent, "created");
+      bool needCallTransitionHooks = false;
+      if (isTemplateNode(element)) {
+        needCallTransitionHooks = needTransition(null, transition).truthy() &&
+          parentComponent.truthy() &&
+          parentComponent["vnode"]["props"].truthy() &&
+          parentComponent["vnode"]["props"]["appear"].truthy();
+        JsValue content = element["content"]["firstChild"];
+        if (needCallTransitionHooks) {
+          JsValue klass = JS.invoke(content, "getAttribute", "class");
+          if (klass.truthy()) content["$cls"] = klass;
+          JS.call(transition["beforeEnter"], transition, content);
+        }
+        this.replaceNode(content, element, parentComponent);
+        vnode["el"] = content;
+        element = content;
+      }
+
+      if (
+        (shapeFlag & hydrationNumber(ShapeFlags["ARRAY_CHILDREN"])) != 0 &&
+        !(props.truthy() && (props["innerHTML"].truthy() || props["textContent"].truthy()))
+      ) {
+        JsValue next = this.hydrateChildren(
+          element["firstChild"],
+          vnode,
+          element,
+          parentComponent,
+          parentSuspense,
+          slotScopeIds,
+          optimized
+        );
+        if (next.truthy() && !isMismatchAllowed(element, hydrationNumber(MismatchTypes["CHILDREN"]))) {
+          if (DEV || PROD_HYDRATION_MISMATCH_DETAILS) {
+            JS.call(
+              warn,
+              JS.undefined(),
+              "Hydration children mismatch on",
+              element,
+              "\nServer rendered element contains more child nodes than client vdom."
+            );
+          }
+          logMismatchError();
+        }
+        while (next.truthy()) {
+          JsValue current = next;
+          next = next["nextSibling"];
+          JS.call(this.remove, JS.undefined(), current);
+        }
+      } else if ((shapeFlag & hydrationNumber(ShapeFlags["TEXT_CHILDREN"])) != 0) {
+        string clientText = JS.string(vnode["children"]);
+        if (
+          clientText.length > 0 && clientText.charAt(0) == "\n" &&
+          (JS.strictEqual(element["tagName"], "PRE") ||
+            JS.strictEqual(element["tagName"], "TEXTAREA"))
+        ) clientText = clientText.slice(1);
+        string textContent = JS.string(element["textContent"]);
+        string normalizedClientText = JS.string(JS.invoke(
+          clientText,
+          "replace",
+          new Regex("\\r\\n|\\r", "g"),
+          "\n"
+        ));
+        if (textContent != clientText && textContent != normalizedClientText) {
+          if (!isMismatchAllowed(element, hydrationNumber(MismatchTypes["TEXT"]))) {
+            if (DEV || PROD_HYDRATION_MISMATCH_DETAILS) {
+              JS.call(
+                warn,
+                JS.undefined(),
+                "Hydration text content mismatch on",
+                element,
+                "\n  - rendered on server: " + textContent +
+                  "\n  - expected on client: " + clientText
+              );
+            }
+            logMismatchError();
+          }
+          element["textContent"] = vnode["children"];
+        }
+      }
+
+      if (props.truthy()) {
+        if (
+          DEV || PROD_HYDRATION_MISMATCH_DETAILS || forcePatch || hasDynamicProps ||
+          !optimized ||
+          (patchFlag & (
+            hydrationNumber(PatchFlags["FULL_PROPS"]) |
+            hydrationNumber(PatchFlags["NEED_HYDRATION"])
+          )) != 0
+        ) {
+          bool customElement = JS.string(element["tagName"]).includes("-");
+          JsValue namespace = JS.undefined();
+          if (JS.string(element["namespaceURI"]).includes("svg")) namespace = "svg";
+          else if (JS.string(element["namespaceURI"]).includes("MathML")) namespace = "mathml";
+          for (string key in props) {
+            bool createdDirective = false;
+            if (dirs.truthy()) {
+              for (int index = 0; index < hydrationLength(dirs); index++) {
+                if (dirs[index]["dir"]["created"].truthy()) {
+                  createdDirective = true;
+                  break;
+                }
+              }
+            }
+            if (
+              (DEV || PROD_HYDRATION_MISMATCH_DETAILS) &&
+              !createdDirective &&
+              propHasMismatch(element, key, props[key], vnode, parentComponent)
+            ) logMismatchError();
+
+            bool valueLike = forcePatch &&
+              (key.endsWith("value") || key == "indeterminate");
+            bool eventProp = isOn(key) && !JS.call(isReservedProp, JS.undefined(), key).truthy();
+            bool forcedProp = key.length > 0 && key.charAt(0) == ".";
+            bool dynamicProp = dynamicProps.truthy() && JS.invoke(dynamicProps, "includes", key).truthy();
+            if (valueLike || eventProp || forcedProp ||
+              (customElement && !JS.call(isReservedProp, JS.undefined(), key).truthy()) ||
+              dynamicProp
+            ) {
+              if (isUnchangedResourceProp(element, key, props[key])) continue;
+              JS.call(
+                this.patchProp,
+                JS.undefined(),
+                element,
+                key,
+                null,
+                props[key],
+                namespace,
+                parentComponent
+              );
+            }
+          }
+        } else if (props["onClick"].truthy()) {
+          JS.call(
+            this.patchProp,
+            JS.undefined(),
+            element,
+            "onClick",
+            null,
+            props["onClick"],
+            JS.undefined(),
+            parentComponent
+          );
+        } else if (
+          (patchFlag & hydrationNumber(PatchFlags["STYLE"])) != 0 &&
+          isReactive(props["style"])
+        ) {
+          for (string key in props["style"]) props["style"][key];
+        }
+      }
+
+      JsValue vnodeHooks = null;
+      if (props.truthy()) vnodeHooks = props["onVnodeBeforeMount"];
+      if (vnodeHooks.truthy()) invokeVNodeHook(vnodeHooks, parentComponent, vnode);
+      if (dirs.truthy()) invokeDirectiveHook(vnode, null, parentComponent, "beforeMount");
+      vnodeHooks = null;
+      if (props.truthy()) vnodeHooks = props["onVnodeMounted"];
+      if (vnodeHooks.truthy() || dirs.truthy() || needCallTransitionHooks) {
+        JsValue mountedHooks = vnodeHooks;
+        queueEffectWithSuspense(JS.method0((JsValue _self) => {
+          if (mountedHooks.truthy()) invokeVNodeHook(mountedHooks, parentComponent, vnode);
+          if (needCallTransitionHooks) JS.call(transition["enter"], transition, element);
+          if (dirs.truthy()) invokeDirectiveHook(vnode, null, parentComponent, "mounted");
+          return JS.undefined();
+        }), parentSuspense);
+      }
+    }
+    return element["nextSibling"];
+  }
+
+  JsValue hydrateChildren(
+    JsValue node,
+    JsValue parentVNode,
+    JsValue container,
+    JsValue parentComponent,
+    JsValue parentSuspense,
+    JsValue slotScopeIds,
+    bool optimized
+  ) {
+    optimized = optimized || parentVNode["dynamicChildren"].truthy();
+    JsValue children = parentVNode["children"];
+    int length = hydrationLength(children);
+    bool hasCheckedMismatch = false;
+    for (int index = 0; index < length; index++) {
+      JsValue vnode = children[index];
+      if (!optimized) {
+        vnode = normalizeVNode(vnode);
+        children[index] = vnode;
+      }
+      bool isText = JS.strictEqual(vnode["type"], Text);
+      if (node.truthy()) {
+        if (isText && !optimized) {
+          if (
+            index + 1 < length &&
+            JS.strictEqual(normalizeVNode(children[index + 1])["type"], Text)
+          ) {
+            string data = JS.string(node["data"]);
+            int childLength = hydrationLength(vnode["children"]);
+            JS.call(
+              this.insert,
+              JS.undefined(),
+              JS.call(this.createText, JS.undefined(), data.slice(childLength)),
+              container,
+              JS.call(this.nextSibling, JS.undefined(), node)
+            );
+            node["data"] = vnode["children"];
+          }
+        }
+        node = this.hydrateNode(
+          node, vnode, parentComponent, parentSuspense, slotScopeIds, optimized
+        );
+      } else if (isText && !vnode["children"].truthy()) {
+        JsValue text = JS.call(this.createText, JS.undefined(), "");
+        vnode["el"] = text;
+        JS.call(this.insert, JS.undefined(), text, container);
+      } else {
+        if (!hasCheckedMismatch) {
+          hasCheckedMismatch = true;
+          if (!isMismatchAllowed(container, hydrationNumber(MismatchTypes["CHILDREN"]))) {
+            if (DEV || PROD_HYDRATION_MISMATCH_DETAILS) {
+              JS.call(
+                warn,
+                JS.undefined(),
+                "Hydration children mismatch on",
+                container,
+                "\nServer rendered element contains fewer child nodes than client vdom."
+              );
+            }
+            logMismatchError();
+          }
+        }
+        JS.call(
+          this.patch,
+          JS.undefined(),
+          null,
+          vnode,
+          container,
+          null,
+          parentComponent,
+          parentSuspense,
+          getContainerType(container),
+          slotScopeIds
+        );
+      }
+    }
+    return node;
+  }
+
+  JsValue hydrateFragment(
+    JsValue node,
+    JsValue vnode,
+    JsValue parentComponent,
+    JsValue parentSuspense,
+    JsValue slotScopeIds,
+    bool optimized
+  ) {
+    JsValue fragmentSlotScopeIds = vnode["slotScopeIds"];
+    if (fragmentSlotScopeIds.truthy()) {
+      if (slotScopeIds.truthy()) slotScopeIds = JS.invoke(slotScopeIds, "concat", fragmentSlotScopeIds);
+      else slotScopeIds = fragmentSlotScopeIds;
+    }
+    JsValue container = JS.call(this.parentNode, JS.undefined(), node);
+    JsValue next = this.hydrateChildren(
+      JS.call(this.nextSibling, JS.undefined(), node),
+      vnode,
+      container,
+      parentComponent,
+      parentSuspense,
+      slotScopeIds,
+      optimized
+    );
+    if (next.truthy() && isComment(next) && JS.strictEqual(next["data"], "]")) {
+      vnode["anchor"] = next;
+      return JS.call(this.nextSibling, JS.undefined(), next);
+    }
+    logMismatchError();
+    JsValue end = JS.call(this.createComment, JS.undefined(), "]");
+    vnode["anchor"] = end;
+    JS.call(this.insert, JS.undefined(), end, container, next);
+    return next;
+  }
+
+  JsValue handleMismatch(
+    JsValue node,
+    JsValue vnode,
+    JsValue parentComponent,
+    JsValue parentSuspense,
+    JsValue slotScopeIds,
+    bool isFragment
+  ) {
+    if (!isNodeMismatchAllowed(node, vnode)) {
+      if (DEV || PROD_HYDRATION_MISMATCH_DETAILS) {
+        string description = "";
+        if (hydrationNumber(node["nodeType"]) == hydrationNumber(DOMNodeTypes["TEXT"])) {
+          description = "(text)";
+        } else if (isComment(node) && JS.strictEqual(node["data"], "[")) {
+          description = "(start of fragment)";
+        }
+        JS.call(
+          warn,
+          JS.undefined(),
+          "Hydration node mismatch:\n- rendered on server:",
+          node,
+          description,
+          "\n- expected on client:",
+          vnode["type"]
+        );
+      }
+      logMismatchError();
+    }
+    vnode["el"] = null;
+    if (isFragment) {
+      JsValue end = this.locateClosingAnchor(node, "[", "]");
+      while (true) {
+        JsValue following = JS.call(this.nextSibling, JS.undefined(), node);
+        if (following.truthy() && !JS.strictEqual(following, end)) {
+          JS.call(this.remove, JS.undefined(), following);
+        } else {
+          break;
+        }
+      }
+    }
+    JsValue next = JS.call(this.nextSibling, JS.undefined(), node);
+    JsValue container = JS.call(this.parentNode, JS.undefined(), node);
+    JS.call(this.remove, JS.undefined(), node);
+    JS.call(
+      this.patch,
+      JS.undefined(),
+      null,
+      vnode,
+      container,
+      next,
+      parentComponent,
+      parentSuspense,
+      getContainerType(container),
+      slotScopeIds
+    );
+    if (parentComponent.truthy()) {
+      parentComponent["vnode"]["el"] = vnode["el"];
+      updateHOCHostEl(parentComponent, vnode["el"]);
+    }
+    return next;
+  }
+
+  JsValue locateClosingAnchor(
+    JsValue node,
+    JsValue open = JS.undefined(),
+    JsValue close = JS.undefined()
+  ) {
+    if (JS.isUndefined(open)) open = "[";
+    if (JS.isUndefined(close)) close = "]";
+    int depth = 0;
+    while (node.truthy()) {
+      node = JS.call(this.nextSibling, JS.undefined(), node);
+      if (node.truthy() && isComment(node)) {
+        if (JS.strictEqual(node["data"], open)) depth += 1;
+        if (JS.strictEqual(node["data"], close)) {
+          if (depth == 0) return JS.call(this.nextSibling, JS.undefined(), node);
+          depth -= 1;
+        }
+      }
+    }
+    return node;
+  }
+
+  void replaceNode(JsValue newNode, JsValue oldNode, JsValue parentComponent) {
+    JsValue parentNode = oldNode["parentNode"];
+    if (parentNode.truthy()) JS.invoke(parentNode, "replaceChild", newNode, oldNode);
+    JsValue parent = parentComponent;
+    while (parent.truthy()) {
+      if (JS.strictEqual(parent["vnode"]["el"], oldNode)) {
+        parent["vnode"]["el"] = newNode;
+        parent["subTree"]["el"] = newNode;
+      }
+      parent = parent["parent"];
+    }
+  }
+
+  JsValue functions() {
+    HydrationKernel state = this;
+    JsValue hydrate = JS.method2((JsValue _self, JsValue vnode, JsValue container) => {
+      state.hydrateRoot(vnode, container);
+      return JS.undefined();
+    });
+    return JS.array(hydrate, this.hydrateNodeFn);
+  }
+}
+
+export JsValue createHydrationFunctions(JsValue rendererInternals) {
+  HydrationKernel hydration = new HydrationKernel(rendererInternals);
+  return hydration.functions();
+}

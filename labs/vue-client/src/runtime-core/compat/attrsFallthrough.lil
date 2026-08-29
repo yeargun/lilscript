@@ -1,0 +1,18 @@
+import extern { isOn as attrsIsOn } from "../../../packages/vuelil/shared.js";
+import { DeprecationTypes, isCompatEnabled } from "./compatConfig";
+
+extern bool attrsIsOn(string key);
+
+export bool shouldSkipAttr(string key, JsValue instance) {
+  if (key == "is") return true;
+  if (
+    (key == "class" || key == "style") &&
+    isCompatEnabled(JS.string(DeprecationTypes["INSTANCE_ATTRS_CLASS_STYLE"]), instance)
+  ) return true;
+  if (
+    attrsIsOn(key) &&
+    isCompatEnabled(JS.string(DeprecationTypes["INSTANCE_LISTENERS"]), instance)
+  ) return true;
+  if (key.startsWith("routerView") || key == "registerRouteInstance") return true;
+  return false;
+}

@@ -1,0 +1,260 @@
+import { NO, extend, hasOwn, isFunction, isObject } from "../shared/general";
+import { getComponentPublicInstance, validateComponentName } from "./component";
+import { installAppCompatProperties } from "./compat/global";
+import { devtoolsInitApp, devtoolsUnmountApp } from "./devtools";
+import { validateDirectiveName } from "./directives";
+import { ErrorCodes, callWithAsyncErrorHandling } from "./errorHandling";
+import extern {
+  hostCreateNullObject as appCreateNullObject,
+  hostCreateObject as appCreateObject,
+  hostCreateWeakMap as appCreateWeakMap,
+  hostCreateWeakSet as appCreateWeakSet,
+  hostArraySlice as appArraySlice,
+  hostDefineAccessor as appDefineAccessor,
+  hostDelete as appHostDelete,
+  hostFunction1Rest as appFunction1Rest,
+  hostSetFunctionName as appSetFunctionName
+} from "./host.js";
+import { cloneVNode, createVNode } from "./vnode";
+import { warn } from "./warning";
+import { version as appVersion } from "./index";
+
+extern JsValue appCreateNullObject();
+extern JsValue appCreateObject();
+extern JsValue appCreateWeakMap();
+extern JsValue appCreateWeakSet();
+extern JsValue appArraySlice(JsValue value, int start);
+extern void appDefineAccessor(JsValue value, JsValue key, JsValue get, JsValue set);
+extern bool appHostDelete(JsValue value, JsValue key);
+extern JsValue appFunction1Rest(JsValue callback);
+extern JsValue appSetFunctionName(JsValue fn, string name);
+bool APP_DEV = true;
+bool APP_FEATURE_OPTIONS_API = true;
+bool APP_FEATURE_PROD_DEVTOOLS = false;
+bool APP_COMPAT = false;
+
+export JsValue createAppContext() {
+  return JS.object(
+    "app", null,
+    "config", JS.object(
+      "isNativeTag", NO,
+      "performance", false,
+      "globalProperties", appCreateObject(),
+      "optionMergeStrategies", appCreateObject(),
+      "errorHandler", JS.undefined(),
+      "warnHandler", JS.undefined(),
+      "compilerOptions", appCreateObject()
+    ),
+    "mixins", JS.array(),
+    "components", appCreateObject(),
+    "directives", appCreateObject(),
+    "provides", appCreateNullObject(),
+    "optionsCache", appCreateWeakMap(),
+    "propsCache", appCreateWeakMap(),
+    "emitsCache", appCreateWeakMap()
+  );
+}
+
+int uid = 0;
+export JsValue currentApp = null;
+
+export JsValue createAppAPI(
+  JsValue render,
+  JsValue hydrate
+) {
+  JsValue createApp = appFunction1Rest(JS.method2((JsValue _callbackSelf, JsValue _createAppSelf, JsValue createArgs) => {
+    JsValue rootComponent = createArgs[0];
+    JsValue rootProps = createArgs[1];
+    if (JS.isUndefined(rootProps)) rootProps = null;
+    if (!isFunction(rootComponent)) {
+      rootComponent = JS.call(extend, JS.undefined(), appCreateObject(), rootComponent);
+    }
+    if (!JS.isNullish(rootProps) && !isObject(rootProps)) {
+      if (APP_DEV) warn("root props passed to app.mount() must be an object.");
+      rootProps = null;
+    }
+
+    JsValue context = createAppContext();
+    JsValue installedPlugins = appCreateWeakSet();
+    JsValue pluginCleanupFns = JS.array();
+    bool isMounted = false;
+    JsValue app = appCreateObject();
+    context["app"] = app;
+    app["_uid"] = uid;
+    uid += 1;
+    app["_component"] = rootComponent;
+    app["_props"] = rootProps;
+    app["_container"] = null;
+    app["_context"] = context;
+    app["_instance"] = null;
+    app["version"] = appVersion;
+
+    appDefineAccessor(
+      app,
+      "config",
+      JS.method0((JsValue _self) => context["config"]),
+      JS.method1((JsValue _self, JsValue _value) => {
+        if (APP_DEV) warn("app.config cannot be replaced. Modify individual options instead.");
+        return JS.undefined();
+      })
+    );
+
+    app["use"] = appSetFunctionName(appFunction1Rest(JS.method2((JsValue _callbackSelf, JsValue _self, JsValue args) => {
+      JsValue plugin = args[0];
+      if (JS.invoke(installedPlugins, "has", plugin).truthy()) {
+        warn("Plugin has already been applied to target app.");
+      } else if (plugin.truthy() && isFunction(plugin["install"])) {
+        JS.invoke(installedPlugins, "add", plugin);
+        JsValue options = appArraySlice(args, 1);
+        JS.invoke(options, "unshift", app);
+        JS.apply(plugin["install"], plugin, options);
+      } else if (isFunction(plugin)) {
+        JS.invoke(installedPlugins, "add", plugin);
+        JsValue options = appArraySlice(args, 1);
+        JS.invoke(options, "unshift", app);
+        JS.apply(plugin, JS.undefined(), options);
+      } else {
+        warn("A plugin must either be a function or an object with an \"install\" function.");
+      }
+      return app;
+    })), "use");
+
+    app["mixin"] = appSetFunctionName(JS.method1((JsValue _self, JsValue mixin) => {
+      if (APP_FEATURE_OPTIONS_API) {
+        if (!JS.invoke(context["mixins"], "includes", mixin).truthy()) {
+          JS.invoke(context["mixins"], "push", mixin);
+        } else if (APP_DEV) {
+          string suffix = "";
+          if (mixin["name"].truthy()) suffix = ": " + JS.string(mixin["name"]);
+          warn("Mixin has already been applied to target app" + suffix);
+        }
+      } else if (APP_DEV) {
+        warn("Mixins are only available in builds supporting Options API");
+      }
+      return app;
+    }), "mixin");
+
+    app["component"] = appSetFunctionName(JS.method2((JsValue _self, JsValue nameValue, JsValue component) => {
+      string name = JS.string(nameValue);
+      if (APP_DEV) validateComponentName(name, context["config"]);
+      if (!component.truthy()) return context["components"][name];
+      if (APP_DEV && context["components"][name].truthy()) {
+        warn("Component \"" + name + "\" has already been registered in target app.");
+      }
+      context["components"][name] = component;
+      return app;
+    }), "component");
+
+    app["directive"] = appSetFunctionName(JS.method2((JsValue _self, JsValue nameValue, JsValue directive) => {
+      string name = JS.string(nameValue);
+      if (APP_DEV) validateDirectiveName(name);
+      if (!directive.truthy()) return context["directives"][name];
+      if (APP_DEV && context["directives"][name].truthy()) {
+        warn("Directive \"" + name + "\" has already been registered in target app.");
+      }
+      context["directives"][name] = directive;
+      return app;
+    }), "directive");
+
+    app["mount"] = appSetFunctionName(JS.method3((JsValue _self, JsValue rootContainer, JsValue isHydrate, JsValue namespace) => {
+      if (!isMounted) {
+        if (APP_DEV && rootContainer["__vue_app__"].truthy()) {
+          warn(
+            "There is already an app instance mounted on the host container.\n" +
+            " If you want to mount another app on the same host container," +
+            " you need to unmount the previous app by calling `app.unmount()` first."
+          );
+        }
+        JsValue vnode = app["_ceVNode"];
+        if (!vnode.truthy()) vnode = createVNode(rootComponent, rootProps);
+        vnode["appContext"] = context;
+        if (JS.strictEqual(namespace, true)) namespace = "svg";
+        else if (JS.strictEqual(namespace, false)) namespace = JS.undefined();
+
+        context["reload"] = JS.method0((JsValue _reloadSelf) => {
+          JsValue cloned = cloneVNode(vnode, JS.undefined(), false, false);
+          cloned["el"] = null;
+          JS.call(render, JS.undefined(), cloned, rootContainer, namespace);
+          return JS.undefined();
+        });
+
+        if (isHydrate.truthy() && hydrate.truthy()) {
+          JS.call(hydrate, JS.undefined(), vnode, rootContainer);
+        } else {
+          JS.call(render, JS.undefined(), vnode, rootContainer, namespace);
+        }
+        isMounted = true;
+        app["_container"] = rootContainer;
+        rootContainer["__vue_app__"] = app;
+        if (APP_DEV || APP_FEATURE_PROD_DEVTOOLS) {
+          app["_instance"] = vnode["component"];
+          devtoolsInitApp(app, appVersion);
+        }
+        return getComponentPublicInstance(vnode["component"]);
+      }
+      if (APP_DEV) {
+        warn(
+          "App has already been mounted.\n" +
+          "If you want to remount the same app, move your app creation logic " +
+          "into a factory function and create fresh app instances for each " +
+          "mount - e.g. `const createMyApp = () => createApp(App)`"
+        );
+      }
+      return JS.undefined();
+    }), "mount");
+
+    app["onUnmount"] = appSetFunctionName(JS.method1((JsValue _self, JsValue cleanupFn) => {
+      if (APP_DEV && !isFunction(cleanupFn)) {
+        warn("Expected function as first argument to app.onUnmount(), but got " + JS.typeOf(cleanupFn));
+      }
+      JS.invoke(pluginCleanupFns, "push", cleanupFn);
+      return JS.undefined();
+    }), "onUnmount");
+
+    app["unmount"] = appSetFunctionName(JS.method0((JsValue _self) => {
+      if (isMounted) {
+        callWithAsyncErrorHandling(
+          pluginCleanupFns,
+          app["_instance"],
+          ErrorCodes["APP_UNMOUNT_CLEANUP"]
+        );
+        JS.call(render, JS.undefined(), null, app["_container"]);
+        if (APP_DEV || APP_FEATURE_PROD_DEVTOOLS) {
+          app["_instance"] = null;
+          devtoolsUnmountApp(app);
+        }
+        appHostDelete(app["_container"], "__vue_app__");
+      } else if (APP_DEV) {
+        warn("Cannot unmount an app that is not mounted.");
+      }
+      return JS.undefined();
+    }), "unmount");
+
+    app["provide"] = appSetFunctionName(JS.method2((JsValue _self, JsValue key, JsValue value) => {
+      JsValue provides = context["provides"];
+      if (APP_DEV && JS.in(key, provides)) {
+        if (hasOwn(provides, key)) {
+          warn("App already provides property with key \"" + JS.string(key) + "\". It will be overwritten with the new value.");
+        } else {
+          warn("App already provides property with key \"" + JS.string(key) + "\" inherited from its parent element. It will be overwritten with the new value.");
+        }
+      }
+      provides[key] = value;
+      return app;
+    }), "provide");
+
+    app["runWithContext"] = appSetFunctionName(JS.method1((JsValue _self, JsValue fn) => {
+      JsValue lastApp = currentApp;
+      currentApp = app;
+      try {
+        return JS.call(fn, JS.undefined());
+      } finally {
+        currentApp = lastApp;
+      }
+    }), "runWithContext");
+
+    if (APP_COMPAT) installAppCompatProperties(app, context, render);
+    return app;
+  }));
+  return appSetFunctionName(createApp, "createApp");
+}

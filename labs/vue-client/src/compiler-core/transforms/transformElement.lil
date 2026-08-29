@@ -143,9 +143,14 @@ export JsValue buildDirectiveArgs(JsValue directive, JsValue context) {
   if (runtime.truthy()) {
     elementPush(args, JS.call(context["helperString"], elementUndefined(), runtime));
   } else {
-    JS.call(context["helper"], elementUndefined(), RESOLVE_DIRECTIVE);
-    JS.invoke(context["directives"], "add", directive["name"]);
-    elementPush(args, toValidAssetId(JS.string(directive["name"]), "directive"));
+    string fromSetup = setupReference("v-" + JS.string(directive["name"]), context);
+    if (fromSetup != "") {
+      elementPush(args, fromSetup);
+    } else {
+      JS.call(context["helper"], elementUndefined(), RESOLVE_DIRECTIVE);
+      JS.invoke(context["directives"], "add", directive["name"]);
+      elementPush(args, toValidAssetId(JS.string(directive["name"]), "directive"));
+    }
   }
   if (directive["exp"].truthy()) elementPush(args, directive["exp"]);
   if (directive["arg"].truthy()) {

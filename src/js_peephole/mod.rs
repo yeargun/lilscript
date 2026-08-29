@@ -1,5 +1,6 @@
 use serde::Serialize;
 
+use crate::js_syntax_target::{EcmaScriptEdition, JsSyntaxFeature};
 use crate::js_peephole::binding::{BindingResolution, Resolution};
 pub(crate) use crate::js_peephole::folds::fold_constructor_prototype_tables_to_classes;
 use crate::js_peephole::folds::*;
@@ -905,6 +906,58 @@ pub fn generated_javascript_static_property_names(
         }
     }
     Ok(names.into_iter().collect())
+}
+
+pub fn validate_generated_javascript_syntax_floor(
+    source: &str,
+    edition: EcmaScriptEdition,
+) -> Result<(), JavaScriptParseError> {
+    analyze_generated_javascript(source)?;
+    let tokens = lex(source)?;
+    let matching_close = matching_closers(&tokens);
+    let class_names = class_element_name_occurrences(&tokens, &matching_close);
+    for (index, token) in tokens.iter().enumerate() {
+        let feature = match token.text {
+            "?." => Some(JsSyntaxFeature::OptionalChain),
+            "??" => Some(JsSyntaxFeature::NullishCoalescing),
+            "&&=" | "||=" | "??=" => Some(JsSyntaxFeature::LogicalAssignment),
+            "await" => Some(JsSyntaxFeature::AsyncAwait),
+            "catch" if tokens.get(index + 1).is_some_and(|token| token.text == "{") => {
+                Some(JsSyntaxFeature::OptionalCatchBinding)
+            }
+            "values"
+                if index > 1
+                    && tokens[index - 1].text == "."
+                    && tokens[index - 2].text == "Object" =>
+            {
+                Some(JsSyntaxFeature::ObjectValues)
+            }
+            "hasOwn"
+                if index > 1
+                    && tokens[index - 1].text == "."
+                    && tokens[index - 2].text == "Object" =>
+            {
+                Some(JsSyntaxFeature::ObjectHasOwn)
+            }
+            _ if class_names.get(index).copied().unwrap_or(false)
+                && tokens
+                    .get(index + 1)
+                    .is_some_and(|next| matches!(next.text, "=" | ";")) =>
+            {
+                Some(JsSyntaxFeature::ClassFields)
+            }
+            _ => None,
+        };
+        if feature.is_some_and(|feature| !edition.allows(feature)) {
+            return Err(JavaScriptParseError {
+                offset: token.start,
+                message: "generated JavaScript exceeds configured syntax floor",
+                context: None,
+            }
+            .with_source(source));
+        }
+    }
+    Ok(())
 }
 
 fn generated_import_error(

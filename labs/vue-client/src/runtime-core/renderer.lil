@@ -1,0 +1,2000 @@
+import { EffectFlags, ReactiveEffect, pauseTracking, resetTracking } from "../reactivity/effect";
+import { DEV, TEST } from "../reactivity/constants";
+import {
+  EMPTY_ARR,
+  EMPTY_OBJ,
+  NOOP,
+  def,
+  getGlobalThis,
+  invokeArrayFns,
+  isArray,
+  isReservedProp
+} from "../shared/general";
+import { PatchFlags } from "../shared/patchFlags";
+import { ShapeFlags } from "../shared/shapeFlags";
+import { createAppAPI } from "./apiCreateApp";
+import { isAsyncWrapper } from "./apiAsyncComponent";
+import {
+  createComponentInstance,
+  setupComponent
+} from "./component";
+import {
+  filterSingleRoot,
+  renderComponentRoot,
+  shouldUpdateComponent,
+  updateHOCHostEl
+} from "./componentRenderUtils";
+import { updateProps } from "./componentProps";
+import { updateSlots } from "./componentSlots";
+import { leaveCbKey } from "./components/BaseTransition";
+import { isKeepAlive } from "./components/KeepAlive";
+import { TeleportEndKey } from "./components/Teleport";
+import { isSuspense, queueEffectWithSuspense } from "./components/Suspense";
+import { DeprecationTypes, isCompatEnabled } from "./compat/compatConfig";
+import {
+  devtoolsComponentAdded,
+  devtoolsComponentRemoved,
+  devtoolsComponentUpdated,
+  setDevtoolsHook
+} from "./devtools";
+import { invokeDirectiveHook } from "./directives";
+import { initFeatureFlags } from "./featureFlags";
+import {
+  isHmrUpdating,
+  registerHMR,
+  setHmrUpdating,
+  unregisterHMR
+} from "./hmr";
+import { createHydrationFunctions } from "./hydration";
+import { endMeasure, startMeasure } from "./profiling";
+import { setRef } from "./rendererTemplateRef";
+import {
+  SchedulerJobFlags,
+  flushPostFlushCbs,
+  flushPreFlushCbs,
+  queueJob,
+  queuePostFlushCb
+} from "./scheduler";
+import {
+  Comment,
+  Fragment,
+  Static,
+  Text,
+  cloneIfMounted,
+  createVNode,
+  invokeVNodeHook,
+  isSameVNodeType,
+  normalizeVNode
+} from "./vnode";
+import { popWarningContext, pushWarningContext, warn } from "./warning";
+
+extern JsValue Array;
+extern JsValue JSON;
+extern JsValue Map;
+
+bool RENDERER_FEATURE_SUSPENSE = true;
+bool RENDERER_COMPAT = false;
+bool RENDERER_ESM_BUNDLER = false;
+bool RENDERER_FEATURE_PROD_DEVTOOLS = false;
+string rendererAsyncAnchorKey = "place" + "holder";
+
+export JsValue MoveType = JS.object(
+  "ENTER", 0,
+  "LEAVE", 1,
+  "REORDER", 2,
+  "0", "ENTER",
+  "1", "LEAVE",
+  "2", "REORDER"
+);
+
+export JsValue queuePostRenderEffect = JS.method2((JsValue _self, JsValue fn, JsValue suspense) => {
+  if (RENDERER_FEATURE_SUSPENSE) {
+    if (TEST) queueEffectWithSuspense(fn, suspense);
+    else queueEffectWithSuspense(fn, suspense);
+  } else {
+    queuePostFlushCb(fn);
+  }
+  return JS.undefined();
+});
+
+int rendererLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+
+int rendererNumber(JsValue value) {
+  return JS.number(value).toInt();
+}
+
+bool rendererArray(JsValue value) {
+  return JS.call(isArray, JS.undefined(), value).truthy();
+}
+
+bool rendererReservedProp(string key) {
+  return JS.call(isReservedProp, JS.undefined(), key).truthy();
+}
+
+JsValue resolveChildrenNamespace(JsValue vnode, JsValue currentNamespace) {
+  JsValue type = vnode["type"];
+  JsValue props = vnode["props"];
+  bool leaveNamespace =
+    (JS.strictEqual(currentNamespace, "svg") && JS.strictEqual(type, "foreignObject")) ||
+    (JS.strictEqual(currentNamespace, "mathml") &&
+      JS.strictEqual(type, "annotation-xml") &&
+      props.truthy() && props["encoding"].truthy() &&
+      JS.string(props["encoding"]).includes("html"));
+  if (leaveNamespace) return JS.undefined();
+  return currentNamespace;
+}
+
+void toggleRecurse(JsValue instance, bool allowed) {
+  JsValue effect = instance["effect"];
+  JsValue job = instance["job"];
+  int effectFlags = rendererNumber(effect["flags"]);
+  int jobFlags = rendererNumber(job["flags"]);
+  if (allowed) {
+    effect["flags"] = effectFlags | rendererNumber(EffectFlags["ALLOW_RECURSE"]);
+    job["flags"] = jobFlags | rendererNumber(SchedulerJobFlags["ALLOW_RECURSE"]);
+  } else {
+    effect["flags"] = effectFlags & -33;
+    job["flags"] = jobFlags & -5;
+  }
+}
+
+export JsValue needTransition(JsValue parentSuspense, JsValue transition) {
+  bool suspenseReady = !parentSuspense.truthy() || !parentSuspense["pendingBranch"].truthy();
+  if (!suspenseReady) return false;
+  if (!transition.truthy()) return transition;
+  return !transition["persisted"].truthy();
+}
+
+export void traverseStaticChildren(JsValue oldVNode, JsValue vnode, bool shallow = false) {
+  JsValue oldChildren = oldVNode["children"];
+  JsValue children = vnode["children"];
+  if (!rendererArray(oldChildren) || !rendererArray(children)) return;
+  for (int index = 0; index < rendererLength(oldChildren); index++) {
+    JsValue oldChild = oldChildren[index];
+    JsValue child = children[index];
+    int shapeFlag = rendererNumber(child["shapeFlag"]);
+    int patchFlag = rendererNumber(child["patchFlag"]);
+    if (
+      (shapeFlag & rendererNumber(ShapeFlags["ELEMENT"])) != 0 &&
+      !child["dynamicChildren"].truthy()
+    ) {
+      if (patchFlag <= 0 || patchFlag == rendererNumber(PatchFlags["NEED_HYDRATION"])) {
+        child = cloneIfMounted(child);
+        children[index] = child;
+        child["el"] = oldChild["el"];
+      }
+      if (!shallow && patchFlag != rendererNumber(PatchFlags["BAIL"])) {
+        traverseStaticChildren(oldChild, child);
+      }
+    }
+    if (JS.strictEqual(child["type"], Text)) {
+      if (patchFlag == rendererNumber(PatchFlags["CACHED"])) {
+        child = cloneIfMounted(child);
+        children[index] = child;
+      }
+      child["el"] = oldChild["el"];
+    }
+    if (JS.strictEqual(child["type"], Comment) && !child["el"].truthy()) {
+      child["el"] = oldChild["el"];
+    }
+    if (DEV && child["el"].truthy()) child["el"]["__vnode"] = child;
+  }
+}
+
+JsValue getSequence(JsValue values) {
+  JsValue predecessors = JS.invoke(values, "slice");
+  JsValue result = JS.array(0);
+  int length = rendererLength(values);
+  int index = 0;
+  int resultIndex = 0;
+  int low = 0;
+  int high = 0;
+  int middle = 0;
+  for (index = 0; index < length; index++) {
+    int value = rendererNumber(values[index]);
+    if (value != 0) {
+      resultIndex = rendererNumber(result[rendererLength(result) - 1]);
+      if (rendererNumber(values[resultIndex]) < value) {
+        predecessors[index] = resultIndex;
+        JS.invoke(result, "push", index);
+        continue;
+      }
+      low = 0;
+      high = rendererLength(result) - 1;
+      while (low < high) {
+        middle = (low + high) >> 1;
+        if (rendererNumber(values[result[middle]]) < value) low = middle + 1;
+        else high = middle;
+      }
+      if (value < rendererNumber(values[result[low]])) {
+        if (low > 0) predecessors[index] = result[low - 1];
+        result[low] = index;
+      }
+    }
+  }
+  low = rendererLength(result);
+  high = rendererNumber(result[low - 1]);
+  while (low > 0) {
+    low -= 1;
+    result[low] = high;
+    high = rendererNumber(predecessors[high]);
+  }
+  return result;
+}
+
+JsValue locateNonHydratedAsyncRoot(JsValue instance) {
+  JsValue subComponent = instance["subTree"]["component"];
+  if (subComponent.truthy()) {
+    if (subComponent["asyncDep"].truthy() && !subComponent["asyncResolved"].truthy()) {
+      return subComponent;
+    }
+    return locateNonHydratedAsyncRoot(subComponent);
+  }
+  return JS.undefined();
+}
+
+export void invalidateMount(JsValue hooks) {
+  if (!hooks.truthy()) return;
+  for (int index = 0; index < rendererLength(hooks); index++) {
+    int flags = rendererNumber(hooks[index]["flags"]);
+    hooks[index]["flags"] = flags | rendererNumber(SchedulerJobFlags["DISPOSED"]);
+  }
+}
+
+JsValue resolveAsyncComponentAnchor(JsValue anchorVNode) {
+  if (anchorVNode[rendererAsyncAnchorKey].truthy()) return anchorVNode[rendererAsyncAnchorKey];
+  JsValue instance = anchorVNode["component"];
+  if (instance.truthy()) return resolveAsyncComponentAnchor(instance["subTree"]);
+  return null;
+}
+
+class RendererKernel {
+  JsValue options;
+  JsValue hostInsert;
+  JsValue hostRemove;
+  JsValue hostPatchProp;
+  JsValue hostCreateElement;
+  JsValue hostCreateText;
+  JsValue hostCreateComment;
+  JsValue hostSetText;
+  JsValue hostSetElementText;
+  JsValue hostParentNode;
+  JsValue hostNextSibling;
+  JsValue hostSetScopeId;
+  JsValue hostInsertStaticContent;
+  JsValue patchFn;
+  JsValue unmountFn;
+  JsValue removeFn;
+  JsValue moveFn;
+  JsValue mountComponentFn;
+  JsValue mountChildrenFn;
+  JsValue patchChildrenFn;
+  JsValue patchBlockChildrenFn;
+  JsValue nextFn;
+  JsValue setupRenderEffectFn;
+  JsValue internals;
+  JsValue hydrate;
+  JsValue hydrateNode;
+  bool isFlushing;
+
+  init(JsValue rendererOptions, JsValue createHydrationFns = JS.undefined()) {
+    if (RENDERER_ESM_BUNDLER && !TEST) initFeatureFlags();
+    JsValue target = getGlobalThis();
+    target["__VUE__"] = true;
+    if (DEV || RENDERER_FEATURE_PROD_DEVTOOLS) {
+      setDevtoolsHook(target["__VUE_DEVTOOLS_GLOBAL_HOOK__"], target);
+    }
+
+    this.options = rendererOptions;
+    this.hostInsert = rendererOptions["insert"];
+    this.hostRemove = rendererOptions["remove"];
+    this.hostPatchProp = rendererOptions["patchProp"];
+    this.hostCreateElement = rendererOptions["createElement"];
+    this.hostCreateText = rendererOptions["createText"];
+    this.hostCreateComment = rendererOptions["createComment"];
+    this.hostSetText = rendererOptions["setText"];
+    this.hostSetElementText = rendererOptions["setElementText"];
+    this.hostParentNode = rendererOptions["parentNode"];
+    this.hostNextSibling = rendererOptions["nextSibling"];
+    this.hostSetScopeId = rendererOptions["setScopeId"];
+    if (!this.hostSetScopeId.truthy()) this.hostSetScopeId = NOOP;
+    this.hostInsertStaticContent = rendererOptions["insertStaticContent"];
+    this.hydrate = JS.undefined();
+    this.hydrateNode = JS.undefined();
+    this.isFlushing = false;
+
+    RendererKernel state = this;
+    this.patchFn = JS.methodRest((JsValue _self, JsValue args) => {
+      state.patchFromArgs(args);
+      return JS.undefined();
+    });
+    this.unmountFn = JS.methodRest((JsValue _self, JsValue args) => {
+      state.unmountFromArgs(args);
+      return JS.undefined();
+    });
+    this.removeFn = JS.method1((JsValue _self, JsValue vnode) => {
+      state.removeVNode(vnode);
+      return JS.undefined();
+    });
+    this.moveFn = JS.methodRest((JsValue _self, JsValue args) => {
+      state.moveFromArgs(args);
+      return JS.undefined();
+    });
+    this.mountComponentFn = JS.methodRest((JsValue _self, JsValue args) => {
+      state.mountComponentFromArgs(args);
+      return JS.undefined();
+    });
+    this.mountChildrenFn = JS.methodRest((JsValue _self, JsValue args) => {
+      state.mountChildrenFromArgs(args);
+      return JS.undefined();
+    });
+    this.patchChildrenFn = JS.methodRest((JsValue _self, JsValue args) => {
+      state.patchChildrenFromArgs(args);
+      return JS.undefined();
+    });
+    this.patchBlockChildrenFn = JS.methodRest((JsValue _self, JsValue args) => {
+      state.patchBlockChildren(
+        args[0], args[1], args[2], args[3], args[4], args[5], args[6]
+      );
+      return JS.undefined();
+    });
+    this.nextFn = JS.method1((JsValue _self, JsValue vnode) => state.getNextHostNode(vnode));
+    this.setupRenderEffectFn = JS.methodRest((JsValue _self, JsValue args) => {
+      state.setupRenderEffect(
+        args[0], args[1], args[2], args[3], args[4], args[5], args[6].truthy()
+      );
+      return JS.undefined();
+    });
+    this.internals = JS.object(
+      "p", this.patchFn,
+      "um", this.unmountFn,
+      "r", this.removeFn,
+      "m", this.moveFn,
+      "mt", this.mountComponentFn,
+      "mc", this.mountChildrenFn,
+      "pc", this.patchChildrenFn,
+      "pbc", this.patchBlockChildrenFn,
+      "n", this.nextFn,
+      "o", rendererOptions
+    );
+    if (createHydrationFns.truthy()) {
+      JsValue hydrationFunctions = JS.call(createHydrationFns, JS.undefined(), this.internals);
+      this.hydrate = hydrationFunctions[0];
+      this.hydrateNode = hydrationFunctions[1];
+    }
+  }
+
+  void patchFromArgs(JsValue args) {
+    JsValue anchor = null;
+    JsValue parentComponent = null;
+    JsValue parentSuspense = null;
+    JsValue namespace = JS.undefined();
+    JsValue slotScopeIds = null;
+    if (rendererLength(args) > 3 && !JS.isUndefined(args[3])) anchor = args[3];
+    if (rendererLength(args) > 4 && !JS.isUndefined(args[4])) parentComponent = args[4];
+    if (rendererLength(args) > 5 && !JS.isUndefined(args[5])) parentSuspense = args[5];
+    if (rendererLength(args) > 6) namespace = args[6];
+    if (rendererLength(args) > 7 && !JS.isUndefined(args[7])) slotScopeIds = args[7];
+    bool optimized = false;
+    if (rendererLength(args) > 8 && !JS.isUndefined(args[8])) optimized = args[8].truthy();
+    else if (DEV && isHmrUpdating) optimized = false;
+    else optimized = args[1]["dynamicChildren"].truthy();
+    this.patch(
+      args[0], args[1], args[2], anchor, parentComponent, parentSuspense,
+      namespace, slotScopeIds, optimized
+    );
+  }
+
+  void unmountFromArgs(JsValue args) {
+    bool doRemove = false;
+    bool optimized = false;
+    if (rendererLength(args) > 3) doRemove = args[3].truthy();
+    if (rendererLength(args) > 4) optimized = args[4].truthy();
+    this.unmount(args[0], args[1], args[2], doRemove, optimized);
+  }
+
+  void moveFromArgs(JsValue args) {
+    JsValue parentSuspense = null;
+    if (rendererLength(args) > 4 && !JS.isUndefined(args[4])) parentSuspense = args[4];
+    this.move(args[0], args[1], args[2], rendererNumber(args[3]), parentSuspense);
+  }
+
+  void mountComponentFromArgs(JsValue args) {
+    this.mountComponent(
+      args[0], args[1], args[2], args[3], args[4], args[5], args[6].truthy()
+    );
+  }
+
+  void mountChildrenFromArgs(JsValue args) {
+    int start = 0;
+    if (rendererLength(args) > 8 && !JS.isUndefined(args[8])) start = rendererNumber(args[8]);
+    this.mountChildren(
+      args[0], args[1], args[2], args[3], args[4], args[5], args[6],
+      args[7].truthy(), start
+    );
+  }
+
+  void patchChildrenFromArgs(JsValue args) {
+    bool optimized = false;
+    if (rendererLength(args) > 8) optimized = args[8].truthy();
+    this.patchChildren(
+      args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7], optimized
+    );
+  }
+
+  void patch(
+    JsValue oldVNode,
+    JsValue vnode,
+    JsValue container,
+    JsValue anchor,
+    JsValue parentComponent,
+    JsValue parentSuspense,
+    JsValue namespace,
+    JsValue slotScopeIds,
+    bool optimized
+  ) {
+    if (JS.strictEqual(oldVNode, vnode)) return;
+    if (oldVNode.truthy() && !isSameVNodeType(oldVNode, vnode)) {
+      anchor = this.getNextHostNode(oldVNode);
+      this.unmount(oldVNode, parentComponent, parentSuspense, true, false);
+      oldVNode = null;
+    }
+    if (rendererNumber(vnode["patchFlag"]) == rendererNumber(PatchFlags["BAIL"])) {
+      optimized = false;
+      vnode["dynamicChildren"] = null;
+    }
+
+    JsValue type = vnode["type"];
+    JsValue reference = vnode["ref"];
+    int shapeFlag = rendererNumber(vnode["shapeFlag"]);
+    if (JS.strictEqual(type, Text)) {
+      this.processText(oldVNode, vnode, container, anchor);
+    } else if (JS.strictEqual(type, Comment)) {
+      this.processCommentNode(oldVNode, vnode, container, anchor);
+    } else if (JS.strictEqual(type, Static)) {
+      if (!oldVNode.truthy()) this.mountStaticNode(vnode, container, anchor, namespace);
+      else if (DEV) this.patchStaticNode(oldVNode, vnode, container, namespace);
+    } else if (JS.strictEqual(type, Fragment)) {
+      this.processFragment(
+        oldVNode, vnode, container, anchor, parentComponent, parentSuspense,
+        namespace, slotScopeIds, optimized
+      );
+    } else if ((shapeFlag & rendererNumber(ShapeFlags["ELEMENT"])) != 0) {
+      this.processElement(
+        oldVNode, vnode, container, anchor, parentComponent, parentSuspense,
+        namespace, slotScopeIds, optimized
+      );
+    } else if ((shapeFlag & rendererNumber(ShapeFlags["COMPONENT"])) != 0) {
+      this.processComponent(
+        oldVNode, vnode, container, anchor, parentComponent, parentSuspense,
+        namespace, slotScopeIds, optimized
+      );
+    } else if ((shapeFlag & rendererNumber(ShapeFlags["TELEPORT"])) != 0) {
+      JS.call(
+        type["process"], type, oldVNode, vnode, container, anchor, parentComponent,
+        parentSuspense, namespace, slotScopeIds, optimized, this.internals
+      );
+    } else if (
+      RENDERER_FEATURE_SUSPENSE &&
+      (shapeFlag & rendererNumber(ShapeFlags["SUSPENSE"])) != 0
+    ) {
+      JS.call(
+        type["process"], type, oldVNode, vnode, container, anchor, parentComponent,
+        parentSuspense, namespace, slotScopeIds, optimized, this.internals
+      );
+    } else if (DEV) {
+      JS.call(warn, JS.undefined(), "Invalid VNode type:", type, "(" + JS.typeOf(type) + ")");
+    }
+
+    if (!JS.isNullish(reference) && parentComponent.truthy()) {
+      JsValue oldRef = null;
+      if (oldVNode.truthy()) oldRef = oldVNode["ref"];
+      setRef(reference, oldRef, parentSuspense, vnode, false);
+    } else if (JS.isNullish(reference) && oldVNode.truthy() && !JS.isNullish(oldVNode["ref"])) {
+      setRef(oldVNode["ref"], null, parentSuspense, oldVNode, true);
+    }
+  }
+
+  void processText(JsValue oldVNode, JsValue vnode, JsValue container, JsValue anchor) {
+    if (!oldVNode.truthy()) {
+      JsValue element = JS.call(this.hostCreateText, JS.undefined(), vnode["children"]);
+      vnode["el"] = element;
+      JS.call(this.hostInsert, JS.undefined(), element, container, anchor);
+    } else {
+      JsValue element = oldVNode["el"];
+      vnode["el"] = element;
+      if (!JS.strictEqual(vnode["children"], oldVNode["children"])) {
+        JS.call(this.hostSetText, JS.undefined(), element, vnode["children"]);
+      }
+    }
+  }
+
+  void processCommentNode(JsValue oldVNode, JsValue vnode, JsValue container, JsValue anchor) {
+    if (!oldVNode.truthy()) {
+      JsValue text = vnode["children"];
+      if (!text.truthy()) text = "";
+      JsValue element = JS.call(this.hostCreateComment, JS.undefined(), text);
+      vnode["el"] = element;
+      JS.call(this.hostInsert, JS.undefined(), element, container, anchor);
+    } else {
+      vnode["el"] = oldVNode["el"];
+    }
+  }
+
+  void mountStaticNode(JsValue vnode, JsValue container, JsValue anchor, JsValue namespace) {
+    JsValue inserted = JS.call(
+      this.hostInsertStaticContent,
+      JS.undefined(),
+      vnode["children"], container, anchor, namespace, vnode["el"], vnode["anchor"]
+    );
+    vnode["el"] = inserted[0];
+    vnode["anchor"] = inserted[1];
+  }
+
+  void patchStaticNode(JsValue oldVNode, JsValue vnode, JsValue container, JsValue namespace) {
+    if (!JS.strictEqual(vnode["children"], oldVNode["children"])) {
+      JsValue anchor = JS.call(this.hostNextSibling, JS.undefined(), oldVNode["anchor"]);
+      this.removeStaticNode(oldVNode);
+      JsValue inserted = JS.call(
+        this.hostInsertStaticContent,
+        JS.undefined(),
+        vnode["children"], container, anchor, namespace
+      );
+      vnode["el"] = inserted[0];
+      vnode["anchor"] = inserted[1];
+    } else {
+      vnode["el"] = oldVNode["el"];
+      vnode["anchor"] = oldVNode["anchor"];
+    }
+  }
+
+  void moveStaticNode(JsValue vnode, JsValue container, JsValue nextSibling) {
+    JsValue element = vnode["el"];
+    JsValue anchor = vnode["anchor"];
+    JsValue next = JS.undefined();
+    while (element.truthy() && !JS.strictEqual(element, anchor)) {
+      next = JS.call(this.hostNextSibling, JS.undefined(), element);
+      JS.call(this.hostInsert, JS.undefined(), element, container, nextSibling);
+      element = next;
+    }
+    JS.call(this.hostInsert, JS.undefined(), anchor, container, nextSibling);
+  }
+
+  void removeStaticNode(JsValue vnode) {
+    JsValue element = vnode["el"];
+    JsValue anchor = vnode["anchor"];
+    JsValue next = JS.undefined();
+    while (element.truthy() && !JS.strictEqual(element, anchor)) {
+      next = JS.call(this.hostNextSibling, JS.undefined(), element);
+      JS.call(this.hostRemove, JS.undefined(), element);
+      element = next;
+    }
+    JS.call(this.hostRemove, JS.undefined(), anchor);
+  }
+
+  void processElement(
+    JsValue oldVNode,
+    JsValue vnode,
+    JsValue container,
+    JsValue anchor,
+    JsValue parentComponent,
+    JsValue parentSuspense,
+    JsValue namespace,
+    JsValue slotScopeIds,
+    bool optimized
+  ) {
+    if (JS.strictEqual(vnode["type"], "svg")) namespace = "svg";
+    else if (JS.strictEqual(vnode["type"], "math")) namespace = "mathml";
+    if (!oldVNode.truthy()) {
+      this.mountElement(
+        vnode, container, anchor, parentComponent, parentSuspense,
+        namespace, slotScopeIds, optimized
+      );
+    } else {
+      JsValue customElement = null;
+      if (oldVNode["el"].truthy() && oldVNode["el"]["_isVueCE"].truthy()) {
+        customElement = oldVNode["el"];
+      }
+      try {
+        if (customElement.truthy()) JS.call(customElement["_beginPatch"], customElement);
+        this.patchElement(
+          oldVNode, vnode, parentComponent, parentSuspense,
+          namespace, slotScopeIds, optimized
+        );
+      } finally {
+        if (customElement.truthy()) JS.call(customElement["_endPatch"], customElement);
+      }
+    }
+  }
+
+  void mountElement(
+    JsValue vnode,
+    JsValue container,
+    JsValue anchor,
+    JsValue parentComponent,
+    JsValue parentSuspense,
+    JsValue namespace,
+    JsValue slotScopeIds,
+    bool optimized
+  ) {
+    JsValue props = vnode["props"];
+    int shapeFlag = rendererNumber(vnode["shapeFlag"]);
+    JsValue transition = vnode["transition"];
+    JsValue dirs = vnode["dirs"];
+    JsValue customizedBuiltIn = JS.undefined();
+    if (props.truthy()) customizedBuiltIn = props["is"];
+    JsValue element = JS.call(
+      this.hostCreateElement,
+      JS.undefined(),
+      vnode["type"], namespace, customizedBuiltIn, props
+    );
+    vnode["el"] = element;
+    if ((shapeFlag & rendererNumber(ShapeFlags["TEXT_CHILDREN"])) != 0) {
+      JS.call(this.hostSetElementText, JS.undefined(), element, vnode["children"]);
+    } else if ((shapeFlag & rendererNumber(ShapeFlags["ARRAY_CHILDREN"])) != 0) {
+      this.mountChildren(
+        vnode["children"], element, null, parentComponent, parentSuspense,
+        resolveChildrenNamespace(vnode, namespace), slotScopeIds, optimized, 0
+      );
+    }
+    if (dirs.truthy()) invokeDirectiveHook(vnode, null, parentComponent, "created");
+    this.setScopeId(element, vnode, vnode["scopeId"], slotScopeIds, parentComponent);
+    JsValue vnodeHook = null;
+    if (props.truthy()) {
+      for (string key in props) {
+        if (key != "value" && !rendererReservedProp(key)) {
+          JS.call(
+            this.hostPatchProp,
+            JS.undefined(),
+            element, key, null, props[key], namespace, parentComponent
+          );
+        }
+      }
+      if (JS.in("value", props)) {
+        JS.call(this.hostPatchProp, JS.undefined(), element, "value", null, props["value"], namespace);
+      }
+      vnodeHook = props["onVnodeBeforeMount"];
+      if (vnodeHook.truthy()) invokeVNodeHook(vnodeHook, parentComponent, vnode);
+    }
+    if (DEV || RENDERER_FEATURE_PROD_DEVTOOLS) {
+      def(element, "__vnode", vnode, true);
+      def(element, "__vueParentComponent", parentComponent, true);
+    }
+    if (dirs.truthy()) invokeDirectiveHook(vnode, null, parentComponent, "beforeMount");
+    bool callTransition = needTransition(parentSuspense, transition).truthy();
+    if (callTransition) JS.call(transition["beforeEnter"], transition, element);
+    JS.call(this.hostInsert, JS.undefined(), element, container, anchor);
+    vnodeHook = null;
+    if (props.truthy()) vnodeHook = props["onVnodeMounted"];
+    if (vnodeHook.truthy() || callTransition || dirs.truthy()) {
+      JsValue mountedHook = vnodeHook;
+      bool hmr = DEV && isHmrUpdating;
+      JS.call(queuePostRenderEffect, JS.undefined(), JS.method0((JsValue _self) => {
+        JsValue previous = JS.undefined();
+        if (DEV) previous = setHmrUpdating(hmr);
+        try {
+          if (mountedHook.truthy()) invokeVNodeHook(mountedHook, parentComponent, vnode);
+          if (callTransition) JS.call(transition["enter"], transition, element);
+          if (dirs.truthy()) invokeDirectiveHook(vnode, null, parentComponent, "mounted");
+        } finally {
+          if (DEV) setHmrUpdating(previous.truthy());
+        }
+        return JS.undefined();
+      }), parentSuspense);
+    }
+  }
+
+  void setScopeId(
+    JsValue element,
+    JsValue vnode,
+    JsValue scopeId,
+    JsValue slotScopeIds,
+    JsValue parentComponent
+  ) {
+    if (scopeId.truthy()) JS.call(this.hostSetScopeId, JS.undefined(), element, scopeId);
+    if (slotScopeIds.truthy()) {
+      for (int index = 0; index < rendererLength(slotScopeIds); index++) {
+        JS.call(this.hostSetScopeId, JS.undefined(), element, slotScopeIds[index]);
+      }
+    }
+    if (parentComponent.truthy()) {
+      JsValue subTree = parentComponent["subTree"];
+      int patchFlag = rendererNumber(subTree["patchFlag"]);
+      if (
+        DEV && patchFlag > 0 &&
+        (patchFlag & rendererNumber(PatchFlags["DEV_ROOT_FRAGMENT"])) != 0
+      ) {
+        JsValue singleRoot = filterSingleRoot(subTree["children"]);
+        if (singleRoot.truthy()) subTree = singleRoot;
+      }
+      bool suspenseChild = isSuspense(subTree["type"]) &&
+        (JS.strictEqual(subTree["ssContent"], vnode) || JS.strictEqual(subTree["ssFallback"], vnode));
+      if (JS.strictEqual(vnode, subTree) || suspenseChild) {
+        JsValue parentVNode = parentComponent["vnode"];
+        this.setScopeId(
+          element,
+          parentVNode,
+          parentVNode["scopeId"],
+          parentVNode["slotScopeIds"],
+          parentComponent["parent"]
+        );
+      }
+    }
+  }
+
+  void mountChildren(
+    JsValue children,
+    JsValue container,
+    JsValue anchor,
+    JsValue parentComponent,
+    JsValue parentSuspense,
+    JsValue namespace,
+    JsValue slotScopeIds,
+    bool optimized,
+    int start
+  ) {
+    for (int index = start; index < rendererLength(children); index++) {
+      JsValue child = children[index];
+      if (optimized) child = cloneIfMounted(child);
+      else child = normalizeVNode(child);
+      children[index] = child;
+      this.patch(
+        null, child, container, anchor, parentComponent, parentSuspense,
+        namespace, slotScopeIds, optimized
+      );
+    }
+  }
+
+  void patchElement(
+    JsValue oldVNode,
+    JsValue vnode,
+    JsValue parentComponent,
+    JsValue parentSuspense,
+    JsValue namespace,
+    JsValue slotScopeIds,
+    bool optimized
+  ) {
+    JsValue element = oldVNode["el"];
+    vnode["el"] = element;
+    if (DEV || RENDERER_FEATURE_PROD_DEVTOOLS) element["__vnode"] = vnode;
+    int patchFlag = rendererNumber(vnode["patchFlag"]);
+    JsValue dynamicChildren = vnode["dynamicChildren"];
+    JsValue dirs = vnode["dirs"];
+    patchFlag = patchFlag |
+      (rendererNumber(oldVNode["patchFlag"]) & rendererNumber(PatchFlags["FULL_PROPS"]));
+    JsValue oldProps = oldVNode["props"];
+    if (!oldProps.truthy()) oldProps = EMPTY_OBJ;
+    JsValue newProps = vnode["props"];
+    if (!newProps.truthy()) newProps = EMPTY_OBJ;
+    JsValue vnodeHook = null;
+
+    if (parentComponent.truthy()) toggleRecurse(parentComponent, false);
+    vnodeHook = newProps["onVnodeBeforeUpdate"];
+    if (vnodeHook.truthy()) invokeVNodeHook(vnodeHook, parentComponent, vnode, oldVNode);
+    if (dirs.truthy()) invokeDirectiveHook(vnode, oldVNode, parentComponent, "beforeUpdate");
+    if (parentComponent.truthy()) toggleRecurse(parentComponent, true);
+
+    bool unstableBlock = dynamicChildren.truthy() &&
+      (!oldVNode["dynamicChildren"].truthy() ||
+        rendererLength(oldVNode["dynamicChildren"]) != rendererLength(dynamicChildren));
+    if ((DEV && isHmrUpdating) || unstableBlock) {
+      patchFlag = 0;
+      optimized = false;
+      dynamicChildren = null;
+    }
+    if (
+      (oldProps["innerHTML"].truthy() && JS.isNullish(newProps["innerHTML"])) ||
+      (oldProps["textContent"].truthy() && JS.isNullish(newProps["textContent"]))
+    ) JS.call(this.hostSetElementText, JS.undefined(), element, "");
+
+    if (dynamicChildren.truthy()) {
+      this.patchBlockChildren(
+        oldVNode["dynamicChildren"], dynamicChildren, element, parentComponent,
+        parentSuspense, resolveChildrenNamespace(vnode, namespace), slotScopeIds
+      );
+      if (DEV) traverseStaticChildren(oldVNode, vnode);
+    } else if (!optimized) {
+      this.patchChildren(
+        oldVNode, vnode, element, null, parentComponent, parentSuspense,
+        resolveChildrenNamespace(vnode, namespace), slotScopeIds, false
+      );
+    }
+
+    if (patchFlag > 0) {
+      if ((patchFlag & rendererNumber(PatchFlags["FULL_PROPS"])) != 0) {
+        this.patchProps(element, oldProps, newProps, parentComponent, namespace);
+      } else {
+        if (
+          (patchFlag & rendererNumber(PatchFlags["CLASS"])) != 0 &&
+          !JS.strictEqual(oldProps["class"], newProps["class"])
+        ) {
+          JS.call(this.hostPatchProp, JS.undefined(), element, "class", null, newProps["class"], namespace);
+        }
+        if ((patchFlag & rendererNumber(PatchFlags["STYLE"])) != 0) {
+          JS.call(
+            this.hostPatchProp,
+            JS.undefined(),
+            element, "style", oldProps["style"], newProps["style"], namespace
+          );
+        }
+        if ((patchFlag & rendererNumber(PatchFlags["PROPS"])) != 0) {
+          JsValue propsToUpdate = vnode["dynamicProps"];
+          for (int index = 0; index < rendererLength(propsToUpdate); index++) {
+            string key = JS.string(propsToUpdate[index]);
+            JsValue previous = oldProps[key];
+            JsValue next = newProps[key];
+            if (!JS.strictEqual(next, previous) || key == "value") {
+              JS.call(
+                this.hostPatchProp,
+                JS.undefined(),
+                element, key, previous, next, namespace, parentComponent
+              );
+            }
+          }
+        }
+      }
+      if (
+        (patchFlag & rendererNumber(PatchFlags["TEXT"])) != 0 &&
+        !JS.strictEqual(oldVNode["children"], vnode["children"])
+      ) JS.call(this.hostSetElementText, JS.undefined(), element, vnode["children"]);
+    } else if (!optimized && JS.isNullish(dynamicChildren)) {
+      this.patchProps(element, oldProps, newProps, parentComponent, namespace);
+    }
+
+    vnodeHook = newProps["onVnodeUpdated"];
+    if (vnodeHook.truthy() || dirs.truthy()) {
+      JsValue updatedHook = vnodeHook;
+      JS.call(queuePostRenderEffect, JS.undefined(), JS.method0((JsValue _self) => {
+        if (updatedHook.truthy()) invokeVNodeHook(updatedHook, parentComponent, vnode, oldVNode);
+        if (dirs.truthy()) invokeDirectiveHook(vnode, oldVNode, parentComponent, "updated");
+        return JS.undefined();
+      }), parentSuspense);
+    }
+  }
+
+  void patchBlockChildren(
+    JsValue oldChildren,
+    JsValue newChildren,
+    JsValue fallbackContainer,
+    JsValue parentComponent,
+    JsValue parentSuspense,
+    JsValue namespace,
+    JsValue slotScopeIds
+  ) {
+    for (int index = 0; index < rendererLength(newChildren); index++) {
+      JsValue oldVNode = oldChildren[index];
+      JsValue newVNode = newChildren[index];
+      int shapeFlag = rendererNumber(oldVNode["shapeFlag"]);
+      bool needsParent = oldVNode["el"].truthy() &&
+        (JS.strictEqual(oldVNode["type"], Fragment) ||
+          !isSameVNodeType(oldVNode, newVNode) ||
+          (shapeFlag & (
+            rendererNumber(ShapeFlags["COMPONENT"]) |
+            rendererNumber(ShapeFlags["TELEPORT"]) |
+            rendererNumber(ShapeFlags["SUSPENSE"])
+          )) != 0);
+      JsValue container = fallbackContainer;
+      if (needsParent) container = JS.call(this.hostParentNode, JS.undefined(), oldVNode["el"]);
+      this.patch(
+        oldVNode, newVNode, container, null, parentComponent, parentSuspense,
+        namespace, slotScopeIds, true
+      );
+    }
+  }
+
+  void patchProps(
+    JsValue element,
+    JsValue oldProps,
+    JsValue newProps,
+    JsValue parentComponent,
+    JsValue namespace
+  ) {
+    if (JS.strictEqual(oldProps, newProps)) return;
+    if (!JS.strictEqual(oldProps, EMPTY_OBJ)) {
+      for (string key in oldProps) {
+        if (!rendererReservedProp(key) && !JS.in(key, newProps)) {
+          JS.call(
+            this.hostPatchProp,
+            JS.undefined(),
+            element, key, oldProps[key], null, namespace, parentComponent
+          );
+        }
+      }
+    }
+    for (string key in newProps) {
+      if (rendererReservedProp(key)) continue;
+      JsValue next = newProps[key];
+      JsValue previous = oldProps[key];
+      if (!JS.strictEqual(next, previous) && key != "value") {
+        JS.call(
+          this.hostPatchProp,
+          JS.undefined(),
+          element, key, previous, next, namespace, parentComponent
+        );
+      }
+    }
+    if (JS.in("value", newProps)) {
+      JS.call(
+        this.hostPatchProp,
+        JS.undefined(),
+        element, "value", oldProps["value"], newProps["value"], namespace
+      );
+    }
+  }
+
+  void processFragment(
+    JsValue oldVNode,
+    JsValue vnode,
+    JsValue container,
+    JsValue anchor,
+    JsValue parentComponent,
+    JsValue parentSuspense,
+    JsValue namespace,
+    JsValue slotScopeIds,
+    bool optimized
+  ) {
+    JsValue start = JS.undefined();
+    JsValue end = JS.undefined();
+    if (oldVNode.truthy()) {
+      start = oldVNode["el"];
+      end = oldVNode["anchor"];
+    } else {
+      start = JS.call(this.hostCreateText, JS.undefined(), "");
+      end = JS.call(this.hostCreateText, JS.undefined(), "");
+    }
+    vnode["el"] = start;
+    vnode["anchor"] = end;
+    int patchFlag = rendererNumber(vnode["patchFlag"]);
+    JsValue dynamicChildren = vnode["dynamicChildren"];
+    JsValue fragmentSlotScopeIds = vnode["slotScopeIds"];
+    if (
+      DEV &&
+      (isHmrUpdating ||
+        (patchFlag & rendererNumber(PatchFlags["DEV_ROOT_FRAGMENT"])) != 0)
+    ) {
+      patchFlag = 0;
+      optimized = false;
+      dynamicChildren = null;
+    }
+    if (fragmentSlotScopeIds.truthy()) {
+      if (slotScopeIds.truthy()) slotScopeIds = JS.invoke(slotScopeIds, "concat", fragmentSlotScopeIds);
+      else slotScopeIds = fragmentSlotScopeIds;
+    }
+    if (!oldVNode.truthy()) {
+      JS.call(this.hostInsert, JS.undefined(), start, container, anchor);
+      JS.call(this.hostInsert, JS.undefined(), end, container, anchor);
+      JsValue children = vnode["children"];
+      if (!children.truthy()) children = JS.array();
+      this.mountChildren(
+        children, container, end, parentComponent, parentSuspense,
+        namespace, slotScopeIds, optimized, 0
+      );
+    } else {
+      bool stable = patchFlag > 0 &&
+        (patchFlag & rendererNumber(PatchFlags["STABLE_FRAGMENT"])) != 0 &&
+        dynamicChildren.truthy() && oldVNode["dynamicChildren"].truthy() &&
+        rendererLength(oldVNode["dynamicChildren"]) == rendererLength(dynamicChildren);
+      if (stable) {
+        this.patchBlockChildren(
+          oldVNode["dynamicChildren"], dynamicChildren, container, parentComponent,
+          parentSuspense, namespace, slotScopeIds
+        );
+        if (DEV) traverseStaticChildren(oldVNode, vnode);
+        else if (!JS.isNullish(vnode["key"]) ||
+          (parentComponent.truthy() && JS.strictEqual(vnode, parentComponent["subTree"]))) {
+          traverseStaticChildren(oldVNode, vnode, true);
+        }
+      } else {
+        this.patchChildren(
+          oldVNode, vnode, container, end, parentComponent, parentSuspense,
+          namespace, slotScopeIds, optimized
+        );
+      }
+    }
+  }
+
+  void processComponent(
+    JsValue oldVNode,
+    JsValue vnode,
+    JsValue container,
+    JsValue anchor,
+    JsValue parentComponent,
+    JsValue parentSuspense,
+    JsValue namespace,
+    JsValue slotScopeIds,
+    bool optimized
+  ) {
+    vnode["slotScopeIds"] = slotScopeIds;
+    if (!oldVNode.truthy()) {
+      int shapeFlag = rendererNumber(vnode["shapeFlag"]);
+      if ((shapeFlag & rendererNumber(ShapeFlags["COMPONENT_KEPT_ALIVE"])) != 0) {
+        JsValue context = parentComponent["ctx"];
+        JS.call(context["activate"], context, vnode, container, anchor, namespace, optimized);
+      } else {
+        this.mountComponent(
+          vnode, container, anchor, parentComponent, parentSuspense, namespace, optimized
+        );
+      }
+    } else {
+      this.updateComponent(oldVNode, vnode, optimized);
+    }
+  }
+
+  void mountComponent(
+    JsValue initialVNode,
+    JsValue container,
+    JsValue anchor,
+    JsValue parentComponent,
+    JsValue parentSuspense,
+    JsValue namespace,
+    bool optimized
+  ) {
+    JsValue compatMountInstance = null;
+    if (RENDERER_COMPAT && initialVNode["isCompatRoot"].truthy()) {
+      compatMountInstance = initialVNode["component"];
+    }
+    JsValue instance = compatMountInstance;
+    if (!instance.truthy()) {
+      instance = createComponentInstance(initialVNode, parentComponent, parentSuspense);
+      initialVNode["component"] = instance;
+    }
+    if (DEV && instance["type"]["__hmrId"].truthy()) registerHMR(instance);
+    if (DEV) {
+      pushWarningContext(initialVNode);
+      startMeasure(instance, "mount");
+    }
+    if (isKeepAlive(initialVNode)) instance["ctx"]["renderer"] = this.internals;
+    if (!(RENDERER_COMPAT && compatMountInstance.truthy())) {
+      if (DEV) startMeasure(instance, "init");
+      setupComponent(instance, false, optimized);
+      if (DEV) endMeasure(instance, "init");
+    }
+    if (DEV && isHmrUpdating) initialVNode["el"] = null;
+
+    if (RENDERER_FEATURE_SUSPENSE && instance["asyncDep"].truthy()) {
+      if (parentSuspense.truthy()) {
+        JS.call(
+          parentSuspense["registerDep"],
+          parentSuspense,
+          instance,
+          this.setupRenderEffectFn,
+          optimized
+        );
+      }
+      if (!initialVNode["el"].truthy()) {
+        JsValue componentAnchor = createVNode(Comment);
+        instance["subTree"] = componentAnchor;
+        this.processCommentNode(null, componentAnchor, container, anchor);
+        initialVNode[rendererAsyncAnchorKey] = componentAnchor["el"];
+      }
+    } else {
+      this.setupRenderEffect(
+        instance, initialVNode, container, anchor, parentSuspense, namespace, optimized
+      );
+    }
+    if (DEV) {
+      popWarningContext();
+      endMeasure(instance, "mount");
+    }
+  }
+
+  void updateComponent(JsValue oldVNode, JsValue vnode, bool optimized) {
+    JsValue instance = oldVNode["component"];
+    vnode["component"] = instance;
+    if (shouldUpdateComponent(oldVNode, vnode, optimized)) {
+      if (
+        RENDERER_FEATURE_SUSPENSE && instance["asyncDep"].truthy() &&
+        !instance["asyncResolved"].truthy()
+      ) {
+        if (DEV) pushWarningContext(vnode);
+        this.updateComponentPreRender(instance, vnode, optimized);
+        if (DEV) popWarningContext();
+        return;
+      }
+      instance["next"] = vnode;
+      JS.call(instance["update"], JS.undefined());
+    } else {
+      vnode["el"] = oldVNode["el"];
+      instance["vnode"] = vnode;
+    }
+  }
+
+  void setupRenderEffect(
+    JsValue instance,
+    JsValue initialVNode,
+    JsValue container,
+    JsValue anchor,
+    JsValue parentSuspense,
+    JsValue namespace,
+    bool optimized
+  ) {
+    RendererKernel state = this;
+    JsValue update = JS.undefined();
+    JsValue componentUpdateFn = JS.method0((JsValue _self) => {
+      if (!instance["isMounted"].truthy()) {
+        JsValue vnodeHook = null;
+        JsValue element = initialVNode["el"];
+        JsValue props = initialVNode["props"];
+        JsValue beforeMount = instance["bm"];
+        JsValue mounted = instance["m"];
+        JsValue parent = instance["parent"];
+        JsValue root = instance["root"];
+        JsValue type = instance["type"];
+        bool asyncWrapper = isAsyncWrapper(initialVNode);
+        toggleRecurse(instance, false);
+        if (beforeMount.truthy()) invokeArrayFns(beforeMount);
+        vnodeHook = null;
+        if (!asyncWrapper && props.truthy()) vnodeHook = props["onVnodeBeforeMount"];
+        if (vnodeHook.truthy()) invokeVNodeHook(vnodeHook, parent, initialVNode);
+        if (
+          RENDERER_COMPAT &&
+          isCompatEnabled(JS.string(DeprecationTypes["INSTANCE_EVENT_HOOKS"]), instance)
+        ) JS.call(instance["emit"], instance, "hook:beforeMount");
+        toggleRecurse(instance, true);
+
+        if (element.truthy() && state.hydrateNode.truthy()) {
+          JsValue hydrateSubTree = JS.method0((JsValue _hydrateSelf) => {
+            if (DEV) startMeasure(instance, "render");
+            instance["subTree"] = renderComponentRoot(instance);
+            if (DEV) endMeasure(instance, "render");
+            if (DEV) startMeasure(instance, "hydrate");
+            JS.call(
+              state.hydrateNode,
+              JS.undefined(),
+              element,
+              instance["subTree"],
+              instance,
+              parentSuspense,
+              null
+            );
+            if (DEV) endMeasure(instance, "hydrate");
+            return JS.undefined();
+          });
+          if (asyncWrapper && type["__asyncHydrate"].truthy()) {
+            JS.call(type["__asyncHydrate"], type, element, instance, hydrateSubTree);
+          } else {
+            JS.call(hydrateSubTree, JS.undefined());
+          }
+        } else {
+          if (
+            root["ce"].truthy() &&
+            JS.call(root["ce"]["_hasShadowRoot"], root["ce"]).truthy()
+          ) {
+            JsValue parentType = JS.undefined();
+            if (instance["parent"].truthy()) parentType = instance["parent"]["type"];
+            JS.call(root["ce"]["_injectChildStyle"], root["ce"], type, parentType);
+          }
+          if (DEV) startMeasure(instance, "render");
+          JsValue subTree = renderComponentRoot(instance);
+          instance["subTree"] = subTree;
+          if (DEV) endMeasure(instance, "render");
+          if (DEV) startMeasure(instance, "patch");
+          bool mountOptimized = subTree["dynamicChildren"].truthy();
+          if (DEV && isHmrUpdating) mountOptimized = false;
+          state.patch(
+            null, subTree, container, anchor, instance, parentSuspense,
+            namespace, null, mountOptimized
+          );
+          if (DEV) endMeasure(instance, "patch");
+          initialVNode["el"] = subTree["el"];
+        }
+        if (mounted.truthy()) {
+          JS.call(queuePostRenderEffect, JS.undefined(), mounted, parentSuspense);
+        }
+        vnodeHook = null;
+        if (!asyncWrapper && props.truthy()) vnodeHook = props["onVnodeMounted"];
+        if (vnodeHook.truthy()) {
+          JsValue mountedVNodeHook = vnodeHook;
+          JsValue scopedInitialVNode = initialVNode;
+          JS.call(queuePostRenderEffect, JS.undefined(), JS.method0((JsValue _hookSelf) => {
+            invokeVNodeHook(mountedVNodeHook, parent, scopedInitialVNode);
+            return JS.undefined();
+          }), parentSuspense);
+        }
+        if (
+          RENDERER_COMPAT &&
+          isCompatEnabled(JS.string(DeprecationTypes["INSTANCE_EVENT_HOOKS"]), instance)
+        ) {
+          JS.call(queuePostRenderEffect, JS.undefined(), JS.method0((JsValue _hookSelf) => {
+            JS.call(instance["emit"], instance, "hook:mounted");
+            return JS.undefined();
+          }), parentSuspense);
+        }
+        int initialShape = rendererNumber(initialVNode["shapeFlag"]);
+        bool shouldActivate =
+          (initialShape & rendererNumber(ShapeFlags["COMPONENT_SHOULD_KEEP_ALIVE"])) != 0;
+        if (!shouldActivate && parent.truthy() && isAsyncWrapper(parent["vnode"])) {
+          shouldActivate =
+            (rendererNumber(parent["vnode"]["shapeFlag"]) &
+              rendererNumber(ShapeFlags["COMPONENT_SHOULD_KEEP_ALIVE"])) != 0;
+        }
+        if (shouldActivate) {
+          if (instance["a"].truthy()) {
+            JS.call(queuePostRenderEffect, JS.undefined(), instance["a"], parentSuspense);
+          }
+          if (
+            RENDERER_COMPAT &&
+            isCompatEnabled(JS.string(DeprecationTypes["INSTANCE_EVENT_HOOKS"]), instance)
+          ) {
+            JS.call(queuePostRenderEffect, JS.undefined(), JS.method0((JsValue _hookSelf) => {
+              JS.call(instance["emit"], instance, "hook:activated");
+              return JS.undefined();
+            }), parentSuspense);
+          }
+        }
+        instance["isMounted"] = true;
+        if (DEV || RENDERER_FEATURE_PROD_DEVTOOLS) devtoolsComponentAdded(instance);
+        initialVNode = null;
+        container = null;
+        anchor = null;
+      } else {
+        JsValue next = instance["next"];
+        JsValue beforeUpdate = instance["bu"];
+        JsValue updated = instance["u"];
+        JsValue parent = instance["parent"];
+        JsValue vnode = instance["vnode"];
+        if (RENDERER_FEATURE_SUSPENSE) {
+          JsValue nonHydratedAsyncRoot = locateNonHydratedAsyncRoot(instance);
+          if (nonHydratedAsyncRoot.truthy()) {
+            if (next.truthy()) {
+              next["el"] = vnode["el"];
+              state.updateComponentPreRender(instance, next, optimized);
+            }
+            JS.invoke(nonHydratedAsyncRoot["asyncDep"], "then", JS.method0((JsValue _thenSelf) => {
+              JS.call(queuePostRenderEffect, JS.undefined(), JS.method0((JsValue _effectSelf) => {
+                if (!instance["isUnmounted"].truthy()) JS.call(update, JS.undefined());
+                return JS.undefined();
+              }), parentSuspense);
+              return JS.undefined();
+            }));
+            return JS.undefined();
+          }
+        }
+        JsValue originNext = next;
+        JsValue vnodeHook = null;
+        if (DEV) {
+          JsValue contextVNode = next;
+          if (!contextVNode.truthy()) contextVNode = instance["vnode"];
+          pushWarningContext(contextVNode);
+        }
+        toggleRecurse(instance, false);
+        if (next.truthy()) {
+          next["el"] = vnode["el"];
+          state.updateComponentPreRender(instance, next, optimized);
+        } else {
+          next = vnode;
+        }
+        if (beforeUpdate.truthy()) invokeArrayFns(beforeUpdate);
+        if (next["props"].truthy()) vnodeHook = next["props"]["onVnodeBeforeUpdate"];
+        if (vnodeHook.truthy()) invokeVNodeHook(vnodeHook, parent, next, vnode);
+        if (
+          RENDERER_COMPAT &&
+          isCompatEnabled(JS.string(DeprecationTypes["INSTANCE_EVENT_HOOKS"]), instance)
+        ) JS.call(instance["emit"], instance, "hook:beforeUpdate");
+        toggleRecurse(instance, true);
+        if (DEV) startMeasure(instance, "render");
+        JsValue nextTree = renderComponentRoot(instance);
+        if (DEV) endMeasure(instance, "render");
+        JsValue previousTree = instance["subTree"];
+        instance["subTree"] = nextTree;
+        if (DEV) startMeasure(instance, "patch");
+        bool updateOptimized = nextTree["dynamicChildren"].truthy();
+        if (DEV && isHmrUpdating) updateOptimized = false;
+        state.patch(
+          previousTree,
+          nextTree,
+          JS.call(state.hostParentNode, JS.undefined(), previousTree["el"]),
+          state.getNextHostNode(previousTree),
+          instance,
+          parentSuspense,
+          namespace,
+          null,
+          updateOptimized
+        );
+        if (DEV) endMeasure(instance, "patch");
+        next["el"] = nextTree["el"];
+        if (JS.strictEqual(originNext, null)) updateHOCHostEl(instance, nextTree["el"]);
+        if (updated.truthy()) JS.call(queuePostRenderEffect, JS.undefined(), updated, parentSuspense);
+        vnodeHook = null;
+        if (next["props"].truthy()) vnodeHook = next["props"]["onVnodeUpdated"];
+        if (vnodeHook.truthy()) {
+          JsValue updatedVNodeHook = vnodeHook;
+          JsValue scopedNext = next;
+          JS.call(queuePostRenderEffect, JS.undefined(), JS.method0((JsValue _hookSelf) => {
+            invokeVNodeHook(updatedVNodeHook, parent, scopedNext, vnode);
+            return JS.undefined();
+          }), parentSuspense);
+        }
+        if (
+          RENDERER_COMPAT &&
+          isCompatEnabled(JS.string(DeprecationTypes["INSTANCE_EVENT_HOOKS"]), instance)
+        ) {
+          JS.call(queuePostRenderEffect, JS.undefined(), JS.method0((JsValue _hookSelf) => {
+            JS.call(instance["emit"], instance, "hook:updated");
+            return JS.undefined();
+          }), parentSuspense);
+        }
+        if (DEV || RENDERER_FEATURE_PROD_DEVTOOLS) devtoolsComponentUpdated(instance);
+        if (DEV) popWarningContext();
+      }
+      return JS.undefined();
+    });
+
+    JS.call(instance["scope"]["on"], instance["scope"]);
+    JsValue effect = JS.construct(ReactiveEffect, componentUpdateFn);
+    instance["effect"] = effect;
+    JS.call(instance["scope"]["off"], instance["scope"]);
+    update = JS.call(effect["run"]["bind"], effect["run"], effect);
+    instance["update"] = update;
+    JsValue job = JS.call(effect["runIfDirty"]["bind"], effect["runIfDirty"], effect);
+    instance["job"] = job;
+    job["i"] = instance;
+    job["id"] = instance["uid"];
+    effect["scheduler"] = JS.method0((JsValue _self) => {
+      queueJob(job);
+      return JS.undefined();
+    });
+    toggleRecurse(instance, true);
+    if (DEV) {
+      if (instance["rtc"].truthy()) {
+        effect["onTrack"] = JS.method1((JsValue _self, JsValue event) => {
+          JS.call(invokeArrayFns, JS.undefined(), instance["rtc"], event);
+          return JS.undefined();
+        });
+      } else effect["onTrack"] = JS.undefined();
+      if (instance["rtg"].truthy()) {
+        effect["onTrigger"] = JS.method1((JsValue _self, JsValue event) => {
+          JS.call(invokeArrayFns, JS.undefined(), instance["rtg"], event);
+          return JS.undefined();
+        });
+      } else effect["onTrigger"] = JS.undefined();
+    }
+    JS.call(update, JS.undefined());
+  }
+
+  void updateComponentPreRender(JsValue instance, JsValue nextVNode, bool optimized) {
+    nextVNode["component"] = instance;
+    JsValue previousProps = instance["vnode"]["props"];
+    instance["vnode"] = nextVNode;
+    instance["next"] = null;
+    updateProps(instance, nextVNode["props"], previousProps, optimized);
+    updateSlots(instance, nextVNode["children"], optimized);
+    pauseTracking();
+    flushPreFlushCbs(instance);
+    resetTracking();
+  }
+
+  void patchChildren(
+    JsValue oldVNode,
+    JsValue vnode,
+    JsValue container,
+    JsValue anchor,
+    JsValue parentComponent,
+    JsValue parentSuspense,
+    JsValue namespace,
+    JsValue slotScopeIds,
+    bool optimized
+  ) {
+    JsValue oldChildren = null;
+    int previousShapeFlag = 0;
+    if (oldVNode.truthy()) {
+      oldChildren = oldVNode["children"];
+      previousShapeFlag = rendererNumber(oldVNode["shapeFlag"]);
+    }
+    JsValue children = vnode["children"];
+    int patchFlag = rendererNumber(vnode["patchFlag"]);
+    int shapeFlag = rendererNumber(vnode["shapeFlag"]);
+    if (patchFlag > 0) {
+      if ((patchFlag & rendererNumber(PatchFlags["KEYED_FRAGMENT"])) != 0) {
+        this.patchKeyedChildren(
+          oldChildren, children, container, anchor, parentComponent, parentSuspense,
+          namespace, slotScopeIds, optimized
+        );
+        return;
+      }
+      if ((patchFlag & rendererNumber(PatchFlags["UNKEYED_FRAGMENT"])) != 0) {
+        this.patchUnkeyedChildren(
+          oldChildren, children, container, anchor, parentComponent, parentSuspense,
+          namespace, slotScopeIds, optimized
+        );
+        return;
+      }
+    }
+    if ((shapeFlag & rendererNumber(ShapeFlags["TEXT_CHILDREN"])) != 0) {
+      if ((previousShapeFlag & rendererNumber(ShapeFlags["ARRAY_CHILDREN"])) != 0) {
+        this.unmountChildren(oldChildren, parentComponent, parentSuspense, false, false, 0);
+      }
+      if (!JS.strictEqual(children, oldChildren)) {
+        JS.call(this.hostSetElementText, JS.undefined(), container, children);
+      }
+    } else if ((previousShapeFlag & rendererNumber(ShapeFlags["ARRAY_CHILDREN"])) != 0) {
+      if ((shapeFlag & rendererNumber(ShapeFlags["ARRAY_CHILDREN"])) != 0) {
+        this.patchKeyedChildren(
+          oldChildren, children, container, anchor, parentComponent, parentSuspense,
+          namespace, slotScopeIds, optimized
+        );
+      } else {
+        this.unmountChildren(oldChildren, parentComponent, parentSuspense, true, false, 0);
+      }
+    } else {
+      if ((previousShapeFlag & rendererNumber(ShapeFlags["TEXT_CHILDREN"])) != 0) {
+        JS.call(this.hostSetElementText, JS.undefined(), container, "");
+      }
+      if ((shapeFlag & rendererNumber(ShapeFlags["ARRAY_CHILDREN"])) != 0) {
+        this.mountChildren(
+          children, container, anchor, parentComponent, parentSuspense,
+          namespace, slotScopeIds, optimized, 0
+        );
+      }
+    }
+  }
+
+  void patchUnkeyedChildren(
+    JsValue oldChildren,
+    JsValue newChildren,
+    JsValue container,
+    JsValue anchor,
+    JsValue parentComponent,
+    JsValue parentSuspense,
+    JsValue namespace,
+    JsValue slotScopeIds,
+    bool optimized
+  ) {
+    if (!oldChildren.truthy()) oldChildren = EMPTY_ARR;
+    if (!newChildren.truthy()) newChildren = EMPTY_ARR;
+    int oldLength = rendererLength(oldChildren);
+    int newLength = rendererLength(newChildren);
+    int commonLength = oldLength;
+    if (newLength < commonLength) commonLength = newLength;
+    for (int index = 0; index < commonLength; index++) {
+      JsValue nextChild = newChildren[index];
+      if (optimized) nextChild = cloneIfMounted(nextChild);
+      else nextChild = normalizeVNode(nextChild);
+      newChildren[index] = nextChild;
+      this.patch(
+        oldChildren[index], nextChild, container, null, parentComponent,
+        parentSuspense, namespace, slotScopeIds, optimized
+      );
+    }
+    if (oldLength > newLength) {
+      this.unmountChildren(
+        oldChildren, parentComponent, parentSuspense, true, false, commonLength
+      );
+    } else {
+      this.mountChildren(
+        newChildren, container, anchor, parentComponent, parentSuspense,
+        namespace, slotScopeIds, optimized, commonLength
+      );
+    }
+  }
+
+  void patchKeyedChildren(
+    JsValue oldChildren,
+    JsValue newChildren,
+    JsValue container,
+    JsValue parentAnchor,
+    JsValue parentComponent,
+    JsValue parentSuspense,
+    JsValue namespace,
+    JsValue slotScopeIds,
+    bool optimized
+  ) {
+    int index = 0;
+    int newLength = rendererLength(newChildren);
+    int oldEnd = rendererLength(oldChildren) - 1;
+    int newEnd = newLength - 1;
+    while (index <= oldEnd && index <= newEnd) {
+      JsValue oldVNode = oldChildren[index];
+      JsValue newVNode = newChildren[index];
+      if (optimized) newVNode = cloneIfMounted(newVNode);
+      else newVNode = normalizeVNode(newVNode);
+      newChildren[index] = newVNode;
+      if (!isSameVNodeType(oldVNode, newVNode)) break;
+      this.patch(
+        oldVNode, newVNode, container, null, parentComponent, parentSuspense,
+        namespace, slotScopeIds, optimized
+      );
+      index += 1;
+    }
+    while (index <= oldEnd && index <= newEnd) {
+      JsValue oldVNode = oldChildren[oldEnd];
+      JsValue newVNode = newChildren[newEnd];
+      if (optimized) newVNode = cloneIfMounted(newVNode);
+      else newVNode = normalizeVNode(newVNode);
+      newChildren[newEnd] = newVNode;
+      if (!isSameVNodeType(oldVNode, newVNode)) break;
+      this.patch(
+        oldVNode, newVNode, container, null, parentComponent, parentSuspense,
+        namespace, slotScopeIds, optimized
+      );
+      oldEnd -= 1;
+      newEnd -= 1;
+    }
+    if (index > oldEnd) {
+      if (index <= newEnd) {
+        int nextPosition = newEnd + 1;
+        JsValue anchor = parentAnchor;
+        if (nextPosition < newLength) anchor = newChildren[nextPosition]["el"];
+        while (index <= newEnd) {
+          JsValue child = newChildren[index];
+          if (optimized) child = cloneIfMounted(child);
+          else child = normalizeVNode(child);
+          newChildren[index] = child;
+          this.patch(
+            null, child, container, anchor, parentComponent, parentSuspense,
+            namespace, slotScopeIds, optimized
+          );
+          index += 1;
+        }
+      }
+      return;
+    }
+    if (index > newEnd) {
+      while (index <= oldEnd) {
+        this.unmount(oldChildren[index], parentComponent, parentSuspense, true, false);
+        index += 1;
+      }
+      return;
+    }
+
+    int oldStart = index;
+    int newStart = index;
+    JsValue keyToNewIndexMap = JS.construct(Map);
+    for (index = newStart; index <= newEnd; index++) {
+      JsValue nextChild = newChildren[index];
+      if (optimized) nextChild = cloneIfMounted(nextChild);
+      else nextChild = normalizeVNode(nextChild);
+      newChildren[index] = nextChild;
+      if (!JS.isNullish(nextChild["key"])) {
+        if (DEV && JS.invoke(keyToNewIndexMap, "has", nextChild["key"]).truthy()) {
+          JS.call(
+            warn,
+            JS.undefined(),
+            "Duplicate keys found during update:",
+            JS.invoke(JSON, "stringify", nextChild["key"]),
+            "Make sure keys are unique."
+          );
+        }
+        JS.invoke(keyToNewIndexMap, "set", nextChild["key"], index);
+      }
+    }
+    int patched = 0;
+    int toBePatched = newEnd - newStart + 1;
+    bool moved = false;
+    int maximumNewIndex = 0;
+    JsValue newIndexToOldIndexMap = JS.construct(Array, toBePatched);
+    for (index = 0; index < toBePatched; index++) newIndexToOldIndexMap[index] = 0;
+
+    for (index = oldStart; index <= oldEnd; index++) {
+      JsValue previousChild = oldChildren[index];
+      if (patched >= toBePatched) {
+        this.unmount(previousChild, parentComponent, parentSuspense, true, false);
+        continue;
+      }
+      int newIndex = -1;
+      if (!JS.isNullish(previousChild["key"])) {
+        JsValue mapped = JS.invoke(keyToNewIndexMap, "get", previousChild["key"]);
+        if (!JS.isUndefined(mapped)) newIndex = rendererNumber(mapped);
+      } else {
+        for (int search = newStart; search <= newEnd; search++) {
+          if (
+            rendererNumber(newIndexToOldIndexMap[search - newStart]) == 0 &&
+            isSameVNodeType(previousChild, newChildren[search])
+          ) {
+            newIndex = search;
+            break;
+          }
+        }
+      }
+      if (newIndex < 0) {
+        this.unmount(previousChild, parentComponent, parentSuspense, true, false);
+      } else {
+        newIndexToOldIndexMap[newIndex - newStart] = index + 1;
+        if (newIndex >= maximumNewIndex) maximumNewIndex = newIndex;
+        else moved = true;
+        this.patch(
+          previousChild, newChildren[newIndex], container, null, parentComponent,
+          parentSuspense, namespace, slotScopeIds, optimized
+        );
+        patched += 1;
+      }
+    }
+    JsValue increasingNewIndexSequence = EMPTY_ARR;
+    if (moved) increasingNewIndexSequence = getSequence(newIndexToOldIndexMap);
+    int sequenceIndex = rendererLength(increasingNewIndexSequence) - 1;
+    for (index = toBePatched - 1; index >= 0; index--) {
+      int nextIndex = newStart + index;
+      JsValue nextChild = newChildren[nextIndex];
+      JsValue anchor = parentAnchor;
+      if (nextIndex + 1 < newLength) {
+        JsValue anchorVNode = newChildren[nextIndex + 1];
+        anchor = anchorVNode["el"];
+        if (!anchor.truthy()) anchor = resolveAsyncComponentAnchor(anchorVNode);
+      }
+      if (rendererNumber(newIndexToOldIndexMap[index]) == 0) {
+        this.patch(
+          null, nextChild, container, anchor, parentComponent, parentSuspense,
+          namespace, slotScopeIds, optimized
+        );
+      } else if (moved) {
+        if (
+          sequenceIndex < 0 ||
+          index != rendererNumber(increasingNewIndexSequence[sequenceIndex])
+        ) {
+          this.move(nextChild, container, anchor, rendererNumber(MoveType["REORDER"]), null);
+        } else {
+          sequenceIndex -= 1;
+        }
+      }
+    }
+  }
+
+  void move(
+    JsValue vnode,
+    JsValue container,
+    JsValue anchor,
+    int moveType,
+    JsValue parentSuspense
+  ) {
+    JsValue element = vnode["el"];
+    JsValue type = vnode["type"];
+    JsValue transition = vnode["transition"];
+    JsValue children = vnode["children"];
+    int shapeFlag = rendererNumber(vnode["shapeFlag"]);
+    if ((shapeFlag & rendererNumber(ShapeFlags["COMPONENT"])) != 0) {
+      this.move(vnode["component"]["subTree"], container, anchor, moveType, null);
+      return;
+    }
+    if (
+      RENDERER_FEATURE_SUSPENSE &&
+      (shapeFlag & rendererNumber(ShapeFlags["SUSPENSE"])) != 0
+    ) {
+      JS.call(vnode["suspense"]["move"], vnode["suspense"], container, anchor, moveType);
+      return;
+    }
+    if ((shapeFlag & rendererNumber(ShapeFlags["TELEPORT"])) != 0) {
+      JS.call(type["move"], type, vnode, container, anchor, this.internals);
+      return;
+    }
+    if (JS.strictEqual(type, Fragment)) {
+      JS.call(this.hostInsert, JS.undefined(), element, container, anchor);
+      for (int index = 0; index < rendererLength(children); index++) {
+        this.move(children[index], container, anchor, moveType, null);
+      }
+      JS.call(this.hostInsert, JS.undefined(), vnode["anchor"], container, anchor);
+      return;
+    }
+    if (JS.strictEqual(type, Static)) {
+      this.moveStaticNode(vnode, container, anchor);
+      return;
+    }
+    bool callTransition = moveType != rendererNumber(MoveType["REORDER"]) &&
+      (shapeFlag & rendererNumber(ShapeFlags["ELEMENT"])) != 0 && transition.truthy();
+    if (callTransition) {
+      if (moveType == rendererNumber(MoveType["ENTER"])) {
+        if (transition["persisted"].truthy() && !element[leaveCbKey].truthy()) {
+          JS.call(this.hostInsert, JS.undefined(), element, container, anchor);
+        } else {
+          JS.call(transition["beforeEnter"], transition, element);
+          JS.call(this.hostInsert, JS.undefined(), element, container, anchor);
+          JS.call(queuePostRenderEffect, JS.undefined(), JS.method0((JsValue _self) => {
+            JS.call(transition["enter"], transition, element);
+            return JS.undefined();
+          }), parentSuspense);
+        }
+      } else {
+        JsValue leave = transition["leave"];
+        JsValue delayLeave = transition["delayLeave"];
+        JsValue afterLeave = transition["afterLeave"];
+        RendererKernel state = this;
+        JsValue remove = JS.method0((JsValue _self) => {
+          if (vnode["ctx"]["isUnmounted"].truthy()) {
+            JS.call(state.hostRemove, JS.undefined(), element);
+          } else {
+            JS.call(state.hostInsert, JS.undefined(), element, container, anchor);
+          }
+          return JS.undefined();
+        });
+        JsValue performLeave = JS.method0((JsValue _self) => {
+          bool wasLeaving = element["_isLeaving"].truthy() || element[leaveCbKey].truthy();
+          if (element["_isLeaving"].truthy()) {
+            JS.call(element[leaveCbKey], element, true);
+          }
+          if (transition["persisted"].truthy() && !wasLeaving) {
+            JS.call(remove, JS.undefined());
+          } else {
+            JS.call(leave, transition, element, JS.method0((JsValue _leaveSelf) => {
+              JS.call(remove, JS.undefined());
+              if (afterLeave.truthy()) JS.call(afterLeave, transition);
+              return JS.undefined();
+            }));
+          }
+          return JS.undefined();
+        });
+        if (delayLeave.truthy()) JS.call(delayLeave, transition, element, remove, performLeave);
+        else JS.call(performLeave, JS.undefined());
+      }
+    } else {
+      JS.call(this.hostInsert, JS.undefined(), element, container, anchor);
+    }
+  }
+
+  void unmount(
+    JsValue vnode,
+    JsValue parentComponent,
+    JsValue parentSuspense,
+    bool doRemove,
+    bool optimized
+  ) {
+    JsValue type = vnode["type"];
+    JsValue props = vnode["props"];
+    JsValue reference = vnode["ref"];
+    JsValue children = vnode["children"];
+    JsValue dynamicChildren = vnode["dynamicChildren"];
+    int shapeFlag = rendererNumber(vnode["shapeFlag"]);
+    int patchFlag = rendererNumber(vnode["patchFlag"]);
+    JsValue dirs = vnode["dirs"];
+    JsValue cacheIndex = vnode["cacheIndex"];
+    JsValue memo = vnode["memo"];
+    if (patchFlag == rendererNumber(PatchFlags["BAIL"])) optimized = false;
+    if (!JS.isNullish(reference)) {
+      pauseTracking();
+      setRef(reference, null, parentSuspense, vnode, true);
+      resetTracking();
+    }
+    if (!JS.isNullish(cacheIndex)) {
+      parentComponent["renderCache"][cacheIndex] = JS.undefined();
+    }
+    if ((shapeFlag & rendererNumber(ShapeFlags["COMPONENT_SHOULD_KEEP_ALIVE"])) != 0) {
+      JsValue context = parentComponent["ctx"];
+      JS.call(context["deactivate"], context, vnode);
+      return;
+    }
+    bool shouldInvokeDirs =
+      (shapeFlag & rendererNumber(ShapeFlags["ELEMENT"])) != 0 && dirs.truthy();
+    bool shouldInvokeVNodeHook = !isAsyncWrapper(vnode);
+    JsValue vnodeHook = null;
+    if (shouldInvokeVNodeHook && props.truthy()) vnodeHook = props["onVnodeBeforeUnmount"];
+    if (vnodeHook.truthy()) invokeVNodeHook(vnodeHook, parentComponent, vnode);
+    if ((shapeFlag & rendererNumber(ShapeFlags["COMPONENT"])) != 0) {
+      this.unmountComponent(vnode["component"], parentSuspense, doRemove);
+    } else {
+      if (
+        RENDERER_FEATURE_SUSPENSE &&
+        (shapeFlag & rendererNumber(ShapeFlags["SUSPENSE"])) != 0
+      ) {
+        JS.call(vnode["suspense"]["unmount"], vnode["suspense"], parentSuspense, doRemove);
+        return;
+      }
+      if (shouldInvokeDirs) invokeDirectiveHook(vnode, null, parentComponent, "beforeUnmount");
+      if ((shapeFlag & rendererNumber(ShapeFlags["TELEPORT"])) != 0) {
+        JS.call(
+          type["remove"], type, vnode, parentComponent, parentSuspense, this.internals, doRemove
+        );
+      } else {
+        bool stableFragment = JS.strictEqual(type, Fragment) && patchFlag > 0 &&
+          (patchFlag & rendererNumber(PatchFlags["STABLE_FRAGMENT"])) != 0;
+        if (dynamicChildren.truthy() && !dynamicChildren["hasOnce"].truthy() &&
+          (!JS.strictEqual(type, Fragment) || stableFragment)) {
+          this.unmountChildren(
+            dynamicChildren, parentComponent, parentSuspense, false, true, 0
+          );
+        } else if (
+          (JS.strictEqual(type, Fragment) &&
+            (patchFlag & (
+              rendererNumber(PatchFlags["KEYED_FRAGMENT"]) |
+              rendererNumber(PatchFlags["UNKEYED_FRAGMENT"])
+            )) != 0) ||
+          (!optimized &&
+            (shapeFlag & rendererNumber(ShapeFlags["ARRAY_CHILDREN"])) != 0)
+        ) {
+          this.unmountChildren(children, parentComponent, parentSuspense, false, false, 0);
+        }
+      }
+      if (doRemove) this.removeVNode(vnode);
+    }
+    bool shouldInvalidateMemo = !JS.isNullish(memo) && JS.isNullish(cacheIndex);
+    vnodeHook = null;
+    if (shouldInvokeVNodeHook && props.truthy()) vnodeHook = props["onVnodeUnmounted"];
+    if (vnodeHook.truthy() || shouldInvokeDirs || shouldInvalidateMemo) {
+      JsValue unmountedHook = vnodeHook;
+      JS.call(queuePostRenderEffect, JS.undefined(), JS.method0((JsValue _self) => {
+        if (unmountedHook.truthy()) invokeVNodeHook(unmountedHook, parentComponent, vnode);
+        if (shouldInvokeDirs) invokeDirectiveHook(vnode, null, parentComponent, "unmounted");
+        if (shouldInvalidateMemo) vnode["el"] = null;
+        return JS.undefined();
+      }), parentSuspense);
+    }
+  }
+
+  void removeVNode(JsValue vnode) {
+    JsValue type = vnode["type"];
+    JsValue element = vnode["el"];
+    JsValue anchor = vnode["anchor"];
+    JsValue transition = vnode["transition"];
+    if (JS.strictEqual(type, Fragment)) {
+      int patchFlag = rendererNumber(vnode["patchFlag"]);
+      if (
+        DEV && patchFlag > 0 &&
+        (patchFlag & rendererNumber(PatchFlags["DEV_ROOT_FRAGMENT"])) != 0 &&
+        transition.truthy() && !transition["persisted"].truthy()
+      ) {
+        JsValue children = vnode["children"];
+        for (int index = 0; index < rendererLength(children); index++) {
+          JsValue child = children[index];
+          if (JS.strictEqual(child["type"], Comment)) {
+            JS.call(this.hostRemove, JS.undefined(), child["el"]);
+          } else {
+            this.removeVNode(child);
+          }
+        }
+      } else {
+        this.removeFragment(element, anchor);
+      }
+      return;
+    }
+    if (JS.strictEqual(type, Static)) {
+      this.removeStaticNode(vnode);
+      return;
+    }
+    RendererKernel state = this;
+    JsValue performRemove = JS.method0((JsValue _self) => {
+      JS.call(state.hostRemove, JS.undefined(), element);
+      if (transition.truthy() && !transition["persisted"].truthy() &&
+        transition["afterLeave"].truthy()) {
+        JS.call(transition["afterLeave"], transition);
+      }
+      return JS.undefined();
+    });
+    int shapeFlag = rendererNumber(vnode["shapeFlag"]);
+    if (
+      (shapeFlag & rendererNumber(ShapeFlags["ELEMENT"])) != 0 &&
+      transition.truthy() && !transition["persisted"].truthy()
+    ) {
+      JsValue leave = transition["leave"];
+      JsValue delayLeave = transition["delayLeave"];
+      JsValue performLeave = JS.method0((JsValue _self) => {
+        JS.call(leave, transition, element, performRemove);
+        return JS.undefined();
+      });
+      if (delayLeave.truthy()) {
+        JS.call(delayLeave, transition, vnode["el"], performRemove, performLeave);
+      } else {
+        JS.call(performLeave, JS.undefined());
+      }
+    } else {
+      JS.call(performRemove, JS.undefined());
+    }
+  }
+
+  void removeFragment(JsValue current, JsValue end) {
+    JsValue next = JS.undefined();
+    while (!JS.strictEqual(current, end)) {
+      next = JS.call(this.hostNextSibling, JS.undefined(), current);
+      JS.call(this.hostRemove, JS.undefined(), current);
+      current = next;
+    }
+    JS.call(this.hostRemove, JS.undefined(), end);
+  }
+
+  void unmountComponent(JsValue instance, JsValue parentSuspense, bool doRemove) {
+    if (DEV && instance["type"]["__hmrId"].truthy()) unregisterHMR(instance);
+    JsValue beforeUnmount = instance["bum"];
+    JsValue scope = instance["scope"];
+    JsValue job = instance["job"];
+    JsValue subTree = instance["subTree"];
+    JsValue unmounted = instance["um"];
+    invalidateMount(instance["m"]);
+    invalidateMount(instance["a"]);
+    if (beforeUnmount.truthy()) invokeArrayFns(beforeUnmount);
+    if (
+      RENDERER_COMPAT &&
+      isCompatEnabled(JS.string(DeprecationTypes["INSTANCE_EVENT_HOOKS"]), instance)
+    ) JS.call(instance["emit"], instance, "hook:beforeDestroy");
+    JS.call(scope["stop"], scope);
+    if (job.truthy()) {
+      int flags = rendererNumber(job["flags"]);
+      job["flags"] = flags | rendererNumber(SchedulerJobFlags["DISPOSED"]);
+      this.unmount(subTree, instance, parentSuspense, doRemove, false);
+    }
+    if (unmounted.truthy()) {
+      JS.call(queuePostRenderEffect, JS.undefined(), unmounted, parentSuspense);
+    }
+    if (
+      RENDERER_COMPAT &&
+      isCompatEnabled(JS.string(DeprecationTypes["INSTANCE_EVENT_HOOKS"]), instance)
+    ) {
+      JS.call(queuePostRenderEffect, JS.undefined(), JS.method0((JsValue _self) => {
+        JS.call(instance["emit"], instance, "hook:destroyed");
+        return JS.undefined();
+      }), parentSuspense);
+    }
+    JS.call(queuePostRenderEffect, JS.undefined(), JS.method0((JsValue _self) => {
+      instance["isUnmounted"] = true;
+      return JS.undefined();
+    }), parentSuspense);
+    if (DEV || RENDERER_FEATURE_PROD_DEVTOOLS) devtoolsComponentRemoved(instance);
+  }
+
+  void unmountChildren(
+    JsValue children,
+    JsValue parentComponent,
+    JsValue parentSuspense,
+    bool doRemove,
+    bool optimized,
+    int start
+  ) {
+    for (int index = start; index < rendererLength(children); index++) {
+      this.unmount(children[index], parentComponent, parentSuspense, doRemove, optimized);
+    }
+  }
+
+  JsValue getNextHostNode(JsValue vnode) {
+    int shapeFlag = rendererNumber(vnode["shapeFlag"]);
+    if ((shapeFlag & rendererNumber(ShapeFlags["COMPONENT"])) != 0) {
+      return this.getNextHostNode(vnode["component"]["subTree"]);
+    }
+    if (
+      RENDERER_FEATURE_SUSPENSE &&
+      (shapeFlag & rendererNumber(ShapeFlags["SUSPENSE"])) != 0
+    ) return JS.call(vnode["suspense"]["next"], vnode["suspense"]);
+    JsValue hostNode = vnode["anchor"];
+    if (!hostNode.truthy()) hostNode = vnode["el"];
+    JsValue element = JS.call(this.hostNextSibling, JS.undefined(), hostNode);
+    JsValue teleportEnd = null;
+    if (element.truthy()) teleportEnd = element[TeleportEndKey];
+    if (teleportEnd.truthy()) return JS.call(this.hostNextSibling, JS.undefined(), teleportEnd);
+    return element;
+  }
+
+  void renderRoot(JsValue vnode, JsValue container, JsValue namespace) {
+    JsValue instance = JS.undefined();
+    if (JS.isNullish(vnode)) {
+      if (container["_vnode"].truthy()) {
+        this.unmount(container["_vnode"], null, null, true, false);
+        instance = container["_vnode"]["component"];
+      }
+    } else {
+      JsValue oldVNode = container["_vnode"];
+      if (!oldVNode.truthy()) oldVNode = null;
+      bool optimized = vnode["dynamicChildren"].truthy();
+      if (DEV && isHmrUpdating) optimized = false;
+      this.patch(oldVNode, vnode, container, null, null, null, namespace, null, optimized);
+    }
+    container["_vnode"] = vnode;
+    if (!this.isFlushing) {
+      this.isFlushing = true;
+      flushPreFlushCbs(instance);
+      flushPostFlushCbs();
+      this.isFlushing = false;
+    }
+  }
+
+  JsValue facade() {
+    RendererKernel state = this;
+    JsValue render = JS.method3((JsValue _self, JsValue vnode, JsValue container, JsValue namespace) => {
+      state.renderRoot(vnode, container, namespace);
+      return JS.undefined();
+    });
+    return JS.object(
+      "render", render,
+      "hydrate", this.hydrate,
+      "createApp", createAppAPI(render, this.hydrate)
+    );
+  }
+}
+
+JsValue baseCreateRenderer(JsValue options, JsValue createHydrationFns = JS.undefined()) {
+  RendererKernel renderer = new RendererKernel(options, createHydrationFns);
+  return renderer.facade();
+}
+
+export JsValue createRenderer(JsValue options) {
+  return baseCreateRenderer(options);
+}
+
+export JsValue createHydrationRenderer(JsValue options) {
+  return baseCreateRenderer(options, createHydrationFunctions);
+}

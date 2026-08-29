@@ -1,0 +1,70 @@
+import { EMPTY_OBJ as dependencyEmptyObject, isBuiltInDirective as dependencyIsBuiltInDirective, isFunction as dependencyIsFunction } from "../shared/general";
+import { ErrorCodes, callWithAsyncErrorHandling } from "./errorHandling";
+import { currentRenderingInstance } from "./componentRenderContext";
+import { getComponentPublicInstance } from "./component";
+import { mapCompatDirectiveHook } from "./compat/customDirective";
+import { pauseTracking as dependencyPauseTracking, resetTracking as dependencyResetTracking } from "../reactivity/effect";
+import { traverse as dependencyTraverse } from "../reactivity/watch";
+import { warn } from "./warning";
+bool DIRECTIVES_DEV = true;
+bool DIRECTIVES_COMPAT = false;
+int directiveLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+export void validateDirectiveName(string name) {
+  if (JS.call(dependencyIsBuiltInDirective, JS.undefined(), name).truthy()) {
+    JS.call(warn, JS.undefined(), "Do not use built-in directive ids as custom directive id: " + name);
+  }
+}
+export JsValue withDirectives(JsValue vnode, JsValue directives) {
+  if (JS.strictEqual(currentRenderingInstance, null)) {
+    if (DIRECTIVES_DEV) {
+      JS.call(warn, JS.undefined(), "withDirectives can only be used inside render functions.");
+    }
+    return vnode;
+  }
+  JsValue instance = getComponentPublicInstance(currentRenderingInstance);
+  JsValue bindings = vnode["dirs"];
+  if (! bindings.truthy()) {
+    bindings = JS.array();
+    vnode["dirs"] = bindings;
+  }
+  for (int index = 0;index < directiveLength(directives);index++) {
+    JsValue directiveArguments = directives[index];
+    JsValue directive = directiveArguments[0];
+    JsValue value = directiveArguments[1];
+    JsValue argument = directiveArguments[2];
+    JsValue modifiers = directiveArguments[3];
+    if (JS.isUndefined(modifiers))modifiers = dependencyEmptyObject;
+    if (directive.truthy()) {
+      if (dependencyIsFunction(directive)) {
+        directive = JS.object("mounted", directive, "updated", directive);
+      }
+      if (directive["deep"].truthy())dependencyTraverse(value);
+      JS.invoke(bindings, "push", JS.object("dir", directive, "instance", instance, "value", value, "oldValue",
+      JS.undefined(), "arg", argument, "modifiers", modifiers));
+    }
+  }
+  return vnode;
+}
+export void invokeDirectiveHook(JsValue vnode, JsValue previousVNode, JsValue instance, string name) {
+  JsValue bindings = vnode["dirs"];
+  JsValue oldBindings = null;
+  if (! JS.isNullish(previousVNode))oldBindings = previousVNode["dirs"];
+  for (int index = 0;index < directiveLength(bindings);index++) {
+    JsValue binding = bindings[index];
+    if (oldBindings.truthy()) {
+      binding["oldValue"] = oldBindings[index]["value"];
+    }
+    JsValue hook = binding["dir"][name];
+    if (DIRECTIVES_COMPAT && ! hook.truthy()) {
+      hook = mapCompatDirectiveHook(name, binding["dir"], instance);
+    }
+    if (hook.truthy()) {
+      dependencyPauseTracking();
+      callWithAsyncErrorHandling(hook, instance, JS.number(ErrorCodes["DIRECTIVE_HOOK"]).toInt(), JS.array(vnode["el"],
+      binding, vnode, previousVNode));
+      dependencyResetTracking();
+    }
+  }
+}

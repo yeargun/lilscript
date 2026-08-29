@@ -12,7 +12,8 @@ use super::{
     generated_javascript_export_witnesses, generated_javascript_static_imports,
     generated_javascript_static_property_names, optimize_generated_javascript,
     optimize_generated_javascript_assuming, optimize_generated_javascript_preserving_functions,
-    reorder_uninitialized_var_declarators, PeepholeResult,
+    reorder_uninitialized_var_declarators, validate_generated_javascript_syntax_floor,
+    PeepholeResult,
 };
 
 const LEGACY_PUNCTUATION: [&str; 31] = [
@@ -1209,6 +1210,24 @@ fn observes_static_properties_without_confusing_dynamic_keys() {
 }
 
 #[test]
+fn rejects_generated_syntax_above_the_configured_floor() {
+    use crate::js_syntax_target::EcmaScriptEdition;
+
+    validate_generated_javascript_syntax_floor("let a=o?.x??0", EcmaScriptEdition::Es2020)
+        .unwrap();
+    let error =
+        validate_generated_javascript_syntax_floor("let a=o?.x", EcmaScriptEdition::Es2019)
+            .unwrap_err();
+    assert!(error.to_string().contains("syntax floor"));
+    let error = validate_generated_javascript_syntax_floor(
+        "class A{x=0}",
+        EcmaScriptEdition::Es2021,
+    )
+    .unwrap_err();
+    assert!(error.to_string().contains("syntax floor"));
+}
+
+#[test]
 fn rejects_duplicate_generated_top_level_bindings() {
     let source = "let O=a=>a;let O=/\\D/g;export{O}";
     let error = analyze_generated_javascript(source).unwrap_err();
@@ -1395,6 +1414,15 @@ fn imported_alias_is_visible_at_module_scope() {
         "import{value as importedValue}from\"pkg\";function a(){function importedValue(){}}console.log(importedValue)",
     )
     .unwrap();
+}
+
+#[test]
+fn resolves_reexported_import_aliases() {
+    let witnesses = generated_javascript_export_witnesses(
+        "import{value as importedValue}from\"pkg\";export{importedValue as value}",
+    )
+    .unwrap();
+    assert_eq!(witnesses[0].name, "value");
 }
 
 #[test]

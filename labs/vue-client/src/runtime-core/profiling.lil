@@ -1,0 +1,61 @@
+import { formatComponentName } from "./component";
+import { devtoolsPerfEnd, devtoolsPerfStart } from "./devtools";
+import { window } from "../shared/makeMap";
+
+extern JsValue Date;
+
+bool DEV = true;
+bool FEATURE_PROD_DEVTOOLS = false;
+JsValue supported = JS.undefined();
+JsValue performanceApi = JS.undefined();
+
+bool isSupported() {
+  if (!JS.isUndefined(supported)) return supported.truthy();
+  if (JS.typeOf(window) != "undefined" && window["performance"].truthy()) {
+    supported = true;
+    performanceApi = window["performance"];
+  } else {
+    supported = false;
+  }
+  return supported.truthy();
+}
+
+float currentTime() {
+  if (isSupported()) {
+    return JS.number(JS.invoke(performanceApi, "now"));
+  }
+  return JS.number(JS.invoke(Date, "now"));
+}
+
+export void startMeasure(JsValue instance, string kind) {
+  if (instance["appContext"]["config"]["performance"].truthy() && isSupported()) {
+    JS.invoke(
+      performanceApi,
+      "mark",
+      "vue-" + kind + "-" + JS.string(instance["uid"])
+    );
+  }
+  if (DEV || FEATURE_PROD_DEVTOOLS) {
+    JS.call(devtoolsPerfStart, JS.undefined(), instance, kind, currentTime());
+  }
+}
+
+export void endMeasure(JsValue instance, string kind) {
+  if (instance["appContext"]["config"]["performance"].truthy() && isSupported()) {
+    string startTag = "vue-" + kind + "-" + JS.string(instance["uid"]);
+    string endTag = startTag + ":end";
+    string measureName = "<" + formatComponentName(
+      instance,
+      instance["type"],
+      false
+    ) + "> " + kind;
+    JS.invoke(performanceApi, "mark", endTag);
+    JS.invoke(performanceApi, "measure", measureName, startTag, endTag);
+    JS.invoke(performanceApi, "clearMeasures", measureName);
+    JS.invoke(performanceApi, "clearMarks", startTag);
+    JS.invoke(performanceApi, "clearMarks", endTag);
+  }
+  if (DEV || FEATURE_PROD_DEVTOOLS) {
+    JS.call(devtoolsPerfEnd, JS.undefined(), instance, kind, currentTime());
+  }
+}

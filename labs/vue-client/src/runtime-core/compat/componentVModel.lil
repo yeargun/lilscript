@@ -1,0 +1,84 @@
+import extern {
+  ShapeFlags as modelShapeFlags,
+  extend as modelExtend
+} from "../../../packages/vuelil/shared.js";
+import { globalThis as modelGlobal } from "../../shared/makeMap";
+import { createAppContext as modelCreateAppContext } from "../apiCreateApp";
+import {
+  ErrorCodes as modelErrorCodes,
+  callWithErrorHandling as modelCallWithErrorHandling
+} from "../errorHandling";
+import {
+  popWarningContext as modelPopWarningContext,
+  pushWarningContext as modelPushWarningContext
+} from "../warning";
+import { DeprecationTypes, isCompatEnabled, warnDeprecation } from "./compatConfig";
+
+extern JsValue modelExtend;
+extern JsValue modelShapeFlags;
+
+export string compatModelEventPrefix = "onModelCompat:";
+JsValue warnedTypes = JS.construct(modelGlobal["WeakSet"]);
+
+void applyModelFromMixins(JsValue model, JsValue mixins) {
+  if (!mixins.truthy()) return;
+  JS.invoke(mixins, "forEach", JS.method1((JsValue _self, JsValue mixin) => {
+    if (mixin["model"].truthy()) JS.call(modelExtend, JS.undefined(), model, mixin["model"]);
+    if (mixin["mixins"].truthy()) applyModelFromMixins(model, mixin["mixins"]);
+    return JS.undefined();
+  }));
+}
+
+export void convertLegacyVModelProps(JsValue vnode) {
+  JsValue type = vnode["type"];
+  int shapeFlag = JS.number(vnode["shapeFlag"]).toInt();
+  JsValue props = vnode["props"];
+  JsValue dynamicProps = vnode["dynamicProps"];
+  int componentFlag = JS.number(modelShapeFlags["COMPONENT"]).toInt();
+  if ((shapeFlag & componentFlag) == 0 || !props.truthy() || !JS.in("modelValue", props)) return;
+  JsValue virtualInstance = JS.object("type", type);
+  if (!isCompatEnabled(JS.string(DeprecationTypes["COMPONENT_V_MODEL"]), virtualInstance)) return;
+
+  if (!JS.invoke(warnedTypes, "has", type).truthy()) {
+    modelPushWarningContext(vnode);
+    JsValue appContext = modelCreateAppContext();
+    if (vnode["ctx"].truthy() && vnode["ctx"]["appContext"].truthy()) {
+      appContext = vnode["ctx"]["appContext"];
+    }
+    warnDeprecation(
+      JS.string(DeprecationTypes["COMPONENT_V_MODEL"]),
+      JS.object("type", type, "appContext", appContext),
+      type
+    );
+    modelPopWarningContext();
+    JS.invoke(warnedTypes, "add", type);
+  }
+
+  JsValue model = type["model"];
+  if (!model.truthy()) model = JS.object();
+  applyModelFromMixins(model, type["mixins"]);
+  string prop = "value";
+  string event = "input";
+  if (model["prop"].truthy()) prop = JS.string(model["prop"]);
+  if (model["event"].truthy()) event = JS.string(model["event"]);
+  if (prop != "modelValue") {
+    props[prop] = props["modelValue"];
+    JS.delete(props, "modelValue");
+  }
+  if (dynamicProps.truthy()) {
+    int modelIndex = JS.number(JS.invoke(dynamicProps, "indexOf", "modelValue")).toInt();
+    dynamicProps[modelIndex] = prop;
+  }
+  props[compatModelEventPrefix + event] = props["onUpdate:modelValue"];
+  JS.delete(props, "onUpdate:modelValue");
+}
+
+export void compatModelEmit(JsValue instance, string event, JsValue args) {
+  if (!isCompatEnabled(JS.string(DeprecationTypes["COMPONENT_V_MODEL"]), instance)) return;
+  JsValue props = instance["vnode"]["props"];
+  JsValue handler = JS.undefined();
+  if (props.truthy()) handler = props[compatModelEventPrefix + event];
+  if (handler.truthy()) {
+    modelCallWithErrorHandling(handler, instance, modelErrorCodes["COMPONENT_EVENT_HANDLER"], args);
+  }
+}

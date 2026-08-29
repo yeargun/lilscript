@@ -1,0 +1,295 @@
+import { Comment, Fragment, cloneVNode, createCommentVNode, isSameVNodeType } from "../vnode";
+import { ErrorCodes, callWithAsyncErrorHandling } from "../errorHandling";
+import { PatchFlags } from "../../shared/patchFlags";
+import { SchedulerJobFlags } from "../scheduler";
+import { ShapeFlags } from "../../shared/shapeFlags";
+import { getCurrentInstance } from "../component";
+import { isArray as dependencyIsArray, isFunction as dependencyIsFunction } from "../../shared/general";
+import { isHmrUpdating } from "../hmr";
+import { isKeepAlive } from "./KeepAlive";
+import { isTeleport } from "./Teleport";
+import { onBeforeUnmount, onMounted } from "../apiLifecycle";
+import { toRaw as dependencyToRaw } from "../../reactivity/reactive";
+import { warn } from "../warning";
+extern JsValue Symbol;
+extern JsValue Object;
+extern JsValue Function;
+extern JsValue Array;
+extern JsValue String;
+extern JsValue Boolean;
+bool TRANSITION_DEV = true;
+bool TRANSITION_COMPAT = false;
+bool TRANSITION_FEATURE_SUSPENSE = true;
+int transitionLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+bool transitionArray(JsValue value) {
+  return JS.call(dependencyIsArray, JS.undefined(), value).truthy();
+}
+string transitionString(JsValue value) {
+  return JS.string(JS.call(String, JS.undefined(), value));
+}
+export JsValue leaveCbKey = JS.call(Symbol, JS.undefined(), "_leaveCb");
+JsValue enterCbKey = JS.call(Symbol, JS.undefined(), "_enterCb");
+export JsValue useTransitionState() {
+  JsValue state = JS.object("isMounted", false, "isLeaving", false, "isUnmounting", false, "leavingVNodes",
+  JS.construct(Map));
+  JS.call(onMounted, JS.undefined(), JS.method0((JsValue _self) =>{ state["isMounted"] = true;return JS.undefined(); }));
+  JS.call(onBeforeUnmount, JS.undefined(), JS.method0((JsValue _self) =>{ state["isUnmounting"] = true;return JS.undefined(); }));
+  return state;
+}
+extern JsValue Map;
+JsValue TransitionHookValidator = JS.array(Function, Array);
+export JsValue BaseTransitionPropsValidators = JS.object("mode", String, "appear", Boolean, "persisted",
+Boolean, "onBeforeEnter", TransitionHookValidator, "onEnter", TransitionHookValidator, "onAfterEnter",
+TransitionHookValidator, "onEnterCancelled", TransitionHookValidator, "onBeforeLeave", TransitionHookValidator,
+"onLeave", TransitionHookValidator, "onAfterLeave", TransitionHookValidator, "onLeaveCancelled", TransitionHookValidator,
+"onBeforeAppear", TransitionHookValidator, "onAppear", TransitionHookValidator, "onAfterAppear", TransitionHookValidator,
+"onAppearCancelled", TransitionHookValidator);
+JsValue recursiveGetSubtree(JsValue instance) {
+  JsValue subTree = instance["subTree"];
+  if (subTree["component"].truthy())return recursiveGetSubtree(subTree["component"]);
+  return subTree;
+}
+JsValue findNonCommentChild(JsValue children) {
+  JsValue child = children[0];
+  if (transitionLength(children) > 1) {
+    bool found = false;
+    for (int index = 0;index < transitionLength(children);index++) {
+      JsValue candidate = children[index];
+      if (! JS.strictEqual(candidate["type"], Comment)) {
+        if (TRANSITION_DEV && found) {
+          JS.call(warn, JS.undefined(), "<transition> can only be used on a single element or component. " + "Use <transition-group> for lists.");
+          break;
+        }
+        child = candidate;
+        found = true;
+        if (! TRANSITION_DEV)break;
+      }
+    }
+  }
+  return child;
+}
+JsValue transitionEmptyChild(JsValue vnode) {
+  if (isKeepAlive(vnode)) {
+    JsValue clone = cloneVNode(vnode);
+    clone["children"] = null;
+    return clone;
+  }
+  return JS.undefined();
+}
+JsValue baseTransitionSetup(JsValue props, JsValue setupContext) {
+  JsValue instance = getCurrentInstance();
+  JsValue state = useTransitionState();
+  JsValue slots = setupContext["slots"];
+  return JS.method0((JsValue _self) =>{ JsValue children = JS.undefined();JsValue defaultSlot = slots["default"];if (defaultSlot.truthy()) {
+    children = getTransitionRawChildren(JS.call(defaultSlot, JS.undefined()), true);
+  }
+  JsValue child = JS.undefined();if (children.truthy() && transitionLength(children) > 0) {
+    child = findNonCommentChild(children);
+  } else if (instance["subTree"].truthy()) {
+    child = createCommentVNode();
+  }
+  if (! child.truthy())return JS.undefined();JsValue rawProps = dependencyToRaw(props);JsValue mode = rawProps["mode"];if (TRANSITION_DEV && mode.truthy() && ! JS.strictEqual(mode,
+  "in-out") && ! JS.strictEqual(mode, "out-in") && ! JS.strictEqual(mode, "default")) {
+    JS.call(warn, JS.undefined(), "invalid <transition> mode: " + mode);
+  }
+  if (state["isLeaving"].truthy())return transitionEmptyChild(child);JsValue innerChild = getInnerChild(child);if (! innerChild.truthy())return transitionEmptyChild(child);JsValue enterHooks = JS.undefined();JsValue postClone = JS.method1((JsValue _cloneSelf,
+  JsValue hooks) =>{ enterHooks = hooks;return hooks; });enterHooks = resolveTransitionHooks(innerChild,
+  rawProps, state, instance, postClone);if (! JS.strictEqual(innerChild["type"], Comment)) {
+    setTransitionHooks(innerChild, enterHooks);
+  }
+  JsValue oldInnerChild = JS.undefined();if (instance["subTree"].truthy())oldInnerChild = getInnerChild(instance["subTree"]);if (oldInnerChild.truthy() && ! JS.strictEqual(oldInnerChild["type"],
+  Comment) && ! isSameVNodeType(oldInnerChild, innerChild) && ! JS.strictEqual(recursiveGetSubtree(instance)["type"],
+  Comment)) {
+    JsValue leavingHooks = resolveTransitionHooks(oldInnerChild, rawProps, state, instance, JS.undefined());setTransitionHooks(oldInnerChild,
+    leavingHooks);if (JS.strictEqual(mode, "out-in") && ! JS.strictEqual(innerChild["type"], Comment)) {
+      state["isLeaving"] = true;leavingHooks["afterLeave"] = JS.method0((JsValue _leaveSelf) =>{ state["isLeaving"] = false;int flags = JS.number(instance["job"]["flags"]).toInt();int disposed = JS.number(SchedulerJobFlags["DISPOSED"]).toInt();if ((flags & disposed) == 0)JS.call(instance["update"],
+      JS.undefined());JS.delete(leavingHooks, "afterLeave");oldInnerChild = JS.undefined();return JS.undefined(); });return transitionEmptyChild(child);
+    } else if (JS.strictEqual(mode, "in-out") && ! JS.strictEqual(innerChild["type"], Comment)) {
+      leavingHooks["delayLeave"] = JS.method3((JsValue _delaySelf, JsValue element, JsValue earlyRemove,
+      JsValue delayedLeave) =>{ JsValue cache = getLeavingNodesForType(state, oldInnerChild);cache[transitionString(oldInnerChild["key"])] = oldInnerChild;element[leaveCbKey] = JS.method0((JsValue _earlySelf) =>{ JS.call(earlyRemove,
+      JS.undefined());element[leaveCbKey] = JS.undefined();JS.delete(enterHooks, "delayedLeave");oldInnerChild = JS.undefined();return JS.undefined(); });enterHooks["delayedLeave"] = JS.method0((JsValue _delayedSelf) =>{ JS.call(delayedLeave,
+      JS.undefined());JS.delete(enterHooks, "delayedLeave");oldInnerChild = JS.undefined();return JS.undefined(); });return JS.undefined(); });
+    } else {
+      oldInnerChild = JS.undefined();
+    }
+  } else if (oldInnerChild.truthy()) {
+    oldInnerChild = JS.undefined();
+  }
+  return child; });
+}
+JsValue BaseTransitionImpl = JS.object("name", "BaseTransition", "props", BaseTransitionPropsValidators,
+"setup", JS.method2((JsValue _self, JsValue props, JsValue context) => baseTransitionSetup(props, context)));
+if (TRANSITION_COMPAT)BaseTransitionImpl["__isBuiltIn"] = true;
+export JsValue BaseTransition = BaseTransitionImpl;
+JsValue getLeavingNodesForType(JsValue state, JsValue vnode) {
+  JsValue leavingVNodes = state["leavingVNodes"];
+  JsValue cache = JS.invoke(leavingVNodes, "get", vnode["type"]);
+  if (! cache.truthy()) {
+    cache = JS.invoke(Object, "create", null);
+    JS.invoke(leavingVNodes, "set", vnode["type"], cache);
+  }
+  return cache;
+}
+void callTransitionHook(JsValue hook, JsValue instance, JsValue args) {
+  if (hook.truthy()) {
+    callWithAsyncErrorHandling(hook, instance, JS.number(ErrorCodes["TRANSITION_HOOK"]).toInt(), args);
+  }
+}
+void callAsyncTransitionHook(JsValue hook, JsValue args, JsValue instance) {
+  JsValue done = args[1];
+  callTransitionHook(hook, instance, args);
+  if (transitionArray(hook)) {
+    bool completeSynchronously = true;
+    for (int index = 0;index < transitionLength(hook);index++) {
+      if (JS.number(hook[index]["length"]).toInt() > 1) {
+        completeSynchronously = false;
+        break;
+      }
+    }
+    if (completeSynchronously)JS.call(done, JS.undefined());
+  } else if (JS.number(hook["length"]).toInt() <= 1) {
+    JS.call(done, JS.undefined());
+  }
+}
+export JsValue resolveTransitionHooks(JsValue vnode, JsValue props, JsValue state, JsValue instance,
+JsValue postClone) {
+  JsValue appear = props["appear"];
+  JsValue mode = props["mode"];
+  JsValue persisted = props["persisted"];
+  if (JS.isUndefined(persisted))persisted = false;
+  JsValue onBeforeEnter = props["onBeforeEnter"];
+  JsValue onEnter = props["onEnter"];
+  JsValue onAfterEnter = props["onAfterEnter"];
+  JsValue onEnterCancelled = props["onEnterCancelled"];
+  JsValue onBeforeLeave = props["onBeforeLeave"];
+  JsValue onLeave = props["onLeave"];
+  JsValue onAfterLeave = props["onAfterLeave"];
+  JsValue onLeaveCancelled = props["onLeaveCancelled"];
+  JsValue onBeforeAppear = props["onBeforeAppear"];
+  JsValue onAppear = props["onAppear"];
+  JsValue onAfterAppear = props["onAfterAppear"];
+  JsValue onAppearCancelled = props["onAppearCancelled"];
+  string key = transitionString(vnode["key"]);
+  JsValue leavingVNodesCache = getLeavingNodesForType(state, vnode);
+  JsValue hooks = JS.object("mode", mode, "persisted", persisted);
+  hooks["beforeEnter"] = JS.method1((JsValue _self, JsValue element) =>{ JsValue hook = onBeforeEnter;if (! state["isMounted"].truthy()) {
+    if (appear.truthy()) {
+      hook = onBeforeAppear;if (! hook.truthy())hook = onBeforeEnter;
+    } else {
+      return JS.undefined();
+    }
+  }
+  JsValue leaveCallback = element[leaveCbKey];if (leaveCallback.truthy())JS.call(leaveCallback, JS.undefined(),
+  true);JsValue leavingVNode = leavingVNodesCache[key];if (leavingVNode.truthy() && isSameVNodeType(vnode,
+  leavingVNode) && leavingVNode["el"][leaveCbKey].truthy()) {
+    JS.call(leavingVNode["el"][leaveCbKey], JS.undefined());
+  }
+  callTransitionHook(hook, instance, JS.array(element));return JS.undefined(); });
+  hooks["enter"] = JS.method1((JsValue _self, JsValue element) =>{ if (! isHmrUpdating && JS.strictEqual(leavingVNodesCache[key],
+  vnode)) {
+    return JS.undefined();
+  }
+  JsValue hook = onEnter;JsValue afterHook = onAfterEnter;JsValue cancelHook = onEnterCancelled;if (! state["isMounted"].truthy()) {
+    if (appear.truthy()) {
+      hook = onAppear;if (! hook.truthy())hook = onEnter;afterHook = onAfterAppear;if (! afterHook.truthy())afterHook = onAfterEnter;cancelHook = onAppearCancelled;if (! cancelHook.truthy())cancelHook = onEnterCancelled;
+    } else {
+      return JS.undefined();
+    }
+  }
+  bool called = false;element[enterCbKey] = JS.method1((JsValue _callbackSelf, JsValue cancelled) =>{ if (called)return JS.undefined();called = true;if (cancelled.truthy())callTransitionHook(cancelHook,
+  instance, JS.array(element));else callTransitionHook(afterHook, instance, JS.array(element));if (hooks["delayedLeave"].truthy()) {
+    JS.call(hooks["delayedLeave"], JS.undefined());
+  }
+  element[enterCbKey] = JS.undefined();return JS.undefined(); });JsValue done = JS.invoke(element[enterCbKey],
+  "bind", null, false);if (hook.truthy())callAsyncTransitionHook(hook, JS.array(element, done), instance);else JS.call(done,
+  JS.undefined());return JS.undefined(); });
+  hooks["leave"] = JS.method2((JsValue _self, JsValue element, JsValue remove) =>{ string leaveKey = transitionString(vnode["key"]);JsValue enterCallback = element[enterCbKey];if (enterCallback.truthy())JS.call(enterCallback,
+  JS.undefined(), true);if (state["isUnmounting"].truthy()) {
+    JS.call(remove, JS.undefined());return JS.undefined();
+  }
+  callTransitionHook(onBeforeLeave, instance, JS.array(element));bool called = false;element[leaveCbKey] = JS.method1((JsValue _callbackSelf,
+  JsValue cancelled) =>{ if (called)return JS.undefined();called = true;JS.call(remove, JS.undefined());if (cancelled.truthy()) {
+    callTransitionHook(onLeaveCancelled, instance, JS.array(element));
+  } else {
+    callTransitionHook(onAfterLeave, instance, JS.array(element));
+  }
+  element[leaveCbKey] = JS.undefined();if (JS.strictEqual(leavingVNodesCache[leaveKey], vnode)) {
+    JS.delete(leavingVNodesCache, leaveKey);
+  }
+  return JS.undefined(); });JsValue done = JS.invoke(element[leaveCbKey], "bind", null, false);leavingVNodesCache[leaveKey] = vnode;if (onLeave.truthy()) {
+    callAsyncTransitionHook(onLeave, JS.array(element, done), instance);
+  } else {
+    JS.call(done, JS.undefined());
+  }
+  return JS.undefined(); });
+  hooks["clone"] = JS.method1((JsValue _self, JsValue nextVNode) =>{ JsValue clonedHooks = resolveTransitionHooks(nextVNode,
+  props, state, instance, postClone);if (postClone.truthy())JS.call(postClone, JS.undefined(), clonedHooks);return clonedHooks; });
+  return hooks;
+}
+export JsValue getInnerChild(JsValue vnode) {
+  if (! isKeepAlive(vnode)) {
+    if (isTeleport(vnode["type"]) && vnode["children"].truthy()) {
+      return findNonCommentChild(vnode["children"]);
+    }
+    return vnode;
+  }
+  if (vnode["component"].truthy())return vnode["component"]["subTree"];
+  int shapeFlag = JS.number(vnode["shapeFlag"]).toInt();
+  JsValue children = vnode["children"];
+  if (children.truthy()) {
+    if ((shapeFlag & JS.number(ShapeFlags["ARRAY_CHILDREN"]).toInt()) != 0)return children[0];
+    if ((shapeFlag & JS.number(ShapeFlags["SLOTS_CHILDREN"]).toInt()) != 0 && dependencyIsFunction(children["default"])) {
+      return JS.call(children["default"], JS.undefined());
+    }
+  }
+  return JS.undefined();
+}
+export void setTransitionHooks(JsValue vnode, JsValue hooks) {
+  int shapeFlag = JS.number(vnode["shapeFlag"]).toInt();
+  if ((shapeFlag & JS.number(ShapeFlags["COMPONENT"]).toInt()) != 0 && vnode["component"].truthy()) {
+    vnode["transition"] = hooks;
+    JsValue subTree = vnode["component"]["subTree"];
+    JsValue target = subTree;
+    if (isTeleport(subTree["type"])) {
+      JsValue inner = getInnerChild(subTree);
+      if (inner.truthy())target = inner;
+    }
+    setTransitionHooks(target, hooks);
+  } else if (TRANSITION_FEATURE_SUSPENSE &&(shapeFlag & JS.number(ShapeFlags["SUSPENSE"]).toInt()) != 0) {
+    vnode["ssContent"]["transition"] = JS.call(hooks["clone"], hooks, vnode["ssContent"]);
+    vnode["ssFallback"]["transition"] = JS.call(hooks["clone"], hooks, vnode["ssFallback"]);
+  } else {
+    vnode["transition"] = hooks;
+  }
+}
+export JsValue getTransitionRawChildren(JsValue children, bool keepComment = false, JsValue parentKey = JS.undefined()) {
+  JsValue result = JS.array();
+  int keyedFragmentCount = 0;
+  for (int index = 0;index < transitionLength(children);index++) {
+    JsValue child = children[index];
+    JsValue key = child["key"];
+    if (! JS.isNullish(parentKey)) {
+      JsValue childKey = child["key"];
+      if (JS.isNullish(childKey))childKey = index;
+      key = transitionString(parentKey) + transitionString(childKey);
+    }
+    if (JS.strictEqual(child["type"], Fragment)) {
+      if ((JS.number(child["patchFlag"]).toInt() & JS.number(PatchFlags["KEYED_FRAGMENT"]).toInt()) != 0)keyedFragmentCount += 1;
+      result = JS.invoke(result, "concat", getTransitionRawChildren(child["children"], keepComment, key));
+    } else if (keepComment || ! JS.strictEqual(child["type"], Comment)) {
+      if (! JS.isNullish(key)) {
+        JS.invoke(result, "push", cloneVNode(child, JS.object("key", key)));
+      } else {
+        JS.invoke(result, "push", child);
+      }
+    }
+  }
+  if (keyedFragmentCount > 1) {
+    for (int index = 0;index < transitionLength(result);index++) {
+      result[index]["patchFlag"] = PatchFlags["BAIL"];
+    }
+  }
+  return result;
+}

@@ -1,0 +1,78 @@
+import extern { parse as indexBabelParse } from "@babel/parser";
+import extern { default as IndexMagicString } from "magic-string";
+import extern { walk as indexWalk } from "estree-walker";
+import extern {
+  DOMErrorMessages as sfcDOMErrorMessages,
+  errorMessages as sfcCoreErrorMessages
+} from "../../packages/vuelil/compiler-dom.js";
+import extern {
+  extractIdentifiers as indexExtractIdentifiers,
+  generateCodeFrame as indexGenerateCodeFrame,
+  isInDestructureAssignment as indexIsInDestructureAssignment,
+  isStaticProperty as indexIsStaticProperty,
+  walkIdentifiers as indexWalkIdentifiers
+} from "../../packages/vuelil/compiler-core.js";
+import extern { hostAssign as indexAssign } from "./host.js";
+import { compileScript } from "./compileScript";
+import { compileStyle, compileStyleAsync } from "./compileStyle";
+import { compileTemplate } from "./compileTemplate";
+import { parse, parseCache as internalParseCache } from "./parse";
+import { rewriteDefault, rewriteDefaultAST } from "./rewriteDefault";
+import { extractRuntimeEmits } from "./script/defineEmits";
+import { extractRuntimeProps } from "./script/defineProps";
+import {
+  inferRuntimeType,
+  invalidateTypeCache,
+  registerTS,
+  resolveTypeElements
+} from "./script/resolveType";
+
+extern JsValue IndexMagicString;
+extern JsValue indexBabelParse;
+extern JsValue indexExtractIdentifiers;
+extern JsValue indexGenerateCodeFrame;
+extern JsValue indexAssign;
+extern JsValue indexIsInDestructureAssignment;
+extern JsValue indexIsStaticProperty;
+extern JsValue indexWalk;
+extern JsValue indexWalkIdentifiers;
+extern JsValue sfcCoreErrorMessages;
+extern JsValue sfcDOMErrorMessages;
+
+export string version = "3.5.42";
+export JsValue parseCache = internalParseCache;
+export JsValue MagicString = IndexMagicString;
+export JsValue babelParse = indexBabelParse;
+export JsValue extractIdentifiers = indexExtractIdentifiers;
+export JsValue generateCodeFrame = indexGenerateCodeFrame;
+export JsValue isInDestructureAssignment = indexIsInDestructureAssignment;
+export JsValue isStaticProperty = indexIsStaticProperty;
+export JsValue walk = indexWalk;
+export JsValue walkIdentifiers = indexWalkIdentifiers;
+export JsValue errorMessages = JS.call(
+  indexAssign,
+  JS.undefined(),
+  JS.object(),
+  sfcCoreErrorMessages,
+  sfcDOMErrorMessages
+);
+
+export bool shouldTransformRef() {
+  return false;
+}
+
+export {
+  compileScript,
+  compileStyle,
+  compileStyleAsync,
+  compileTemplate,
+  extractRuntimeEmits,
+  extractRuntimeProps,
+  inferRuntimeType,
+  invalidateTypeCache,
+  parse,
+  registerTS,
+  resolveTypeElements,
+  rewriteDefault,
+  rewriteDefaultAST
+};

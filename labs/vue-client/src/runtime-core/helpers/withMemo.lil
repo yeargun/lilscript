@@ -1,0 +1,33 @@
+import { hasChanged } from "../../shared/general";
+import { currentBlock, isBlockTreeEnabled } from "../vnode";
+
+export JsValue withMemo(
+  JsValue memo,
+  JsValue render,
+  JsValue cache,
+  int index
+) {
+  JsValue cached = cache[index];
+  if (cached.truthy() && isMemoSame(cached, memo)) return cached;
+
+  JsValue result = JS.call(render, JS.undefined());
+  result["memo"] = JS.invoke(memo, "slice");
+  result["cacheIndex"] = index;
+  cache[index] = result;
+  return result;
+}
+
+export bool isMemoSame(JsValue cached, JsValue memo) {
+  JsValue previous = cached["memo"];
+  int length = JS.number(previous["length"]).toInt();
+  if (length != JS.number(memo["length"]).toInt()) return false;
+
+  for (int index = 0; index < length; index++) {
+    if (hasChanged(previous[index], memo[index])) return false;
+  }
+
+  if (isBlockTreeEnabled > 0 && currentBlock.truthy()) {
+    JS.invoke(currentBlock, "push", cached);
+  }
+  return true;
+}

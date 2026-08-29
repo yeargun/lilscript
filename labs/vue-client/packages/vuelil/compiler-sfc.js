@@ -1,5 +1,1 @@
-export { compileStyle, compileStyleAsync, compileTemplate, parse, parseCache, rewriteDefault, rewriteDefaultAST } from "../../artifacts/compiler-sfc.generated.js";
-export { parse as babelParse } from "@babel/parser";
-export { default as MagicString } from "magic-string";
-export { walk } from "estree-walker";
-export { generateCodeFrame, walkIdentifiers, extractIdentifiers, isInDestructureAssignment, isStaticProperty } from "./compiler-core.js";
+export { MagicString, babelParse, compileScript, compileStyle, compileStyleAsync, compileTemplate, errorMessages, extractIdentifiers, extractRuntimeEmits, extractRuntimeProps, generateCodeFrame, inferRuntimeType, invalidateTypeCache, isInDestructureAssignment, isStaticProperty, parse, parseCache, registerTS, resolveTypeElements, rewriteDefault, rewriteDefaultAST, shouldTransformRef, version, walk, walkIdentifiers } from "../../artifacts/compiler-sfc.generated.js";

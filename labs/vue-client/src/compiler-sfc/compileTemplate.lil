@@ -1,4 +1,3 @@
-import extern { default as templateConsolidate } from "@vue/consolidate";
 import extern {
   SourceMapConsumer as TemplateSourceMapConsumer,
   SourceMapGenerator as TemplateSourceMapGenerator
@@ -11,7 +10,8 @@ import extern { compile as templateSsrCompile } from "../../packages/vuelil/comp
 import extern { generateCodeFrame as templateCodeFrame } from "../../packages/vuelil/shared.js";
 import extern {
   hostAssign as templateAssign,
-  hostCreateError as templateCreateError
+  hostCreateError as templateCreateError,
+  hostRequire as templateRequire
 } from "./host.js";
 import { warnOnce } from "./warn";
 import { genCssVarsFromList } from "./style/cssVars";
@@ -30,11 +30,17 @@ extern JsValue TemplateSourceMapConsumer;
 extern JsValue TemplateSourceMapGenerator;
 extern JsValue templateAssign;
 extern JsValue templateCodeFrame;
-extern JsValue templateConsolidate;
 extern JsValue templateCreateError;
 extern JsValue templateDomCompile;
 extern JsValue templateDomParse;
+extern JsValue templateRequire;
 extern JsValue templateSsrCompile;
+
+JsValue templateConsolidate = JS.call(
+  templateRequire,
+  JS.undefined(),
+  "@vue/consolidate"
+);
 
 // The browser facade changes this build constant before compilation.
 bool templateBrowserBuild = false;

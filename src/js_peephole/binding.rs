@@ -412,6 +412,7 @@ fn collect_declarations<'src>(
     for index in 0..tokens.len() {
         let declared = match tokens[index].text {
             "var" | "let" | "const" => declarator_names(tokens, matching_close, index),
+            "import" => import_names(tokens, matching_close, index),
             "function" | "class" => {
                 let mut cursor = index + 1;
                 if tokens.get(cursor).map(|token| token.text) == Some("*") {
@@ -440,6 +441,45 @@ fn collect_declarations<'src>(
             }
         }
     }
+}
+
+fn import_names(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    index: usize,
+) -> Vec<usize> {
+    let open = index + 1;
+    if tokens.get(open).is_none_or(|token| token.text != "{") {
+        return Vec::new();
+    }
+    let Some(close) = matching_close.get(open).copied().flatten() else {
+        return Vec::new();
+    };
+    let mut names = Vec::new();
+    let mut cursor = open + 1;
+    while cursor < close {
+        if tokens[cursor].kind != TokenKind::Identifier {
+            cursor += 1;
+            continue;
+        }
+        if tokens
+            .get(cursor + 1)
+            .is_some_and(|token| token.text == "as")
+        {
+            if tokens
+                .get(cursor + 2)
+                .is_some_and(|token| token.kind == TokenKind::Identifier)
+            {
+                names.push(cursor + 2);
+            }
+        } else {
+            names.push(cursor);
+        }
+        while cursor < close && tokens[cursor].text != "," {
+            cursor += 1;
+        }
+    }
+    names
 }
 
 fn enclosing_function_scope(scopes: &[Scope<'_>], scope_of_token: &[u32], at: usize) -> usize {

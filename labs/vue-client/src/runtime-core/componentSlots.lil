@@ -1,0 +1,171 @@
+import { EMPTY_OBJ, def, isArray, isFunction } from "../shared/general";
+import { ShapeFlags } from "../shared/shapeFlags";
+import { SlotFlags } from "../shared/slotFlags";
+import { TriggerOpTypes } from "../reactivity/constants";
+import { trigger } from "../reactivity/dep";
+import { currentInstance } from "./component";
+import { normalizeVNode } from "./vnode";
+import { warn } from "./warning";
+import { isKeepAlive } from "./components/KeepAlive";
+import { currentRenderingInstance, withCtx } from "./componentRenderContext";
+import { isHmrUpdating } from "./hmr";
+import { DeprecationTypes, isCompatEnabled } from "./compat/compatConfig";
+import { createInternalObject } from "./internalObject";
+
+bool SLOTS_DEV = true;
+bool SLOTS_COMPAT = false;
+int SLOTS_CHILDREN = JS.number(ShapeFlags["SLOTS_CHILDREN"]).toInt();
+int SLOTS_STABLE = JS.number(SlotFlags["STABLE"]).toInt();
+
+JsValue slotsUndefined() {
+  return JS.undefined();
+}
+
+int slotsLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+
+bool slotsIsArray(JsValue value) {
+  return JS.call(isArray, slotsUndefined(), value).truthy();
+}
+
+bool isInternalKey(string key) {
+  return key == "_" || key == "_ctx" || key == "$stable";
+}
+
+JsValue normalizeSlotValue(JsValue value) {
+  if (slotsIsArray(value)) {
+    JsValue result = JS.array();
+    for (int index = 0; index < slotsLength(value); index++) {
+      result[index] = normalizeVNode(value[index]);
+    }
+    return result;
+  }
+  return JS.array(normalizeVNode(value));
+}
+
+JsValue normalizeSlot(string key, JsValue rawSlot, JsValue context) {
+  if (rawSlot["_n"].truthy()) return rawSlot;
+  JsValue normalized = withCtx(JS.methodRest((JsValue _self, JsValue args) => {
+    if (
+      SLOTS_DEV &&
+      !JS.isNullish(currentInstance) &&
+      !(JS.strictEqual(context, null) && !JS.isNullish(currentRenderingInstance)) &&
+      !(context.truthy() && !JS.strictEqual(context["root"], currentInstance["root"]))
+    ) {
+      JS.call(
+        warn,
+        slotsUndefined(),
+        "Slot \"" + key + "\" invoked outside of the render function: " +
+          "this will not track dependencies used in the slot. " +
+          "Invoke the slot function inside the render function instead."
+      );
+    }
+    return normalizeSlotValue(JS.apply(rawSlot, slotsUndefined(), args));
+  }), context, false);
+  normalized["_c"] = false;
+  return normalized;
+}
+
+void normalizeObjectSlots(JsValue rawSlots, JsValue slots, JsValue instance) {
+  JsValue context = rawSlots["_ctx"];
+  for (string key in rawSlots) {
+    if (isInternalKey(key)) continue;
+    JsValue value = rawSlots[key];
+    if (isFunction(value)) {
+      slots[key] = normalizeSlot(key, value, context);
+    } else if (!JS.isNullish(value)) {
+      if (
+        SLOTS_DEV &&
+        !(SLOTS_COMPAT &&
+          isCompatEnabled(JS.string(DeprecationTypes["RENDER_FUNCTION"]), instance))
+      ) {
+        JS.call(
+          warn,
+          slotsUndefined(),
+          "Non-function value encountered for slot \"" + key + "\". " +
+            "Prefer function slots for better performance."
+        );
+      }
+      JsValue normalized = normalizeSlotValue(value);
+      slots[key] = JS.method0((JsValue _self) => normalized);
+    }
+  }
+}
+
+void normalizeVNodeSlots(JsValue instance, JsValue children) {
+  if (
+    SLOTS_DEV &&
+    !isKeepAlive(instance["vnode"]) &&
+    !(SLOTS_COMPAT &&
+      isCompatEnabled(JS.string(DeprecationTypes["RENDER_FUNCTION"]), instance))
+  ) {
+    JS.call(
+      warn,
+      slotsUndefined(),
+      "Non-function value encountered for default slot. " +
+        "Prefer function slots for better performance."
+    );
+  }
+  JsValue normalized = normalizeSlotValue(children);
+  instance["slots"]["default"] = JS.method0((JsValue _self) => normalized);
+}
+
+void assignSlots(JsValue slots, JsValue children, bool optimized) {
+  for (string key in children) {
+    if (optimized || !isInternalKey(key)) slots[key] = children[key];
+  }
+}
+
+export void initSlots(JsValue instance, JsValue children, bool optimized) {
+  JsValue slots = createInternalObject();
+  instance["slots"] = slots;
+  int shapeFlag = JS.number(instance["vnode"]["shapeFlag"]).toInt();
+  if ((shapeFlag & SLOTS_CHILDREN) != 0) {
+    JsValue type = children["_"];
+    if (type.truthy()) {
+      assignSlots(slots, children, optimized);
+      if (optimized) def(slots, "_", type, true);
+    } else {
+      normalizeObjectSlots(children, slots, instance);
+    }
+  } else if (children.truthy()) {
+    normalizeVNodeSlots(instance, children);
+  }
+}
+
+export void updateSlots(JsValue instance, JsValue children, bool optimized) {
+  JsValue vnode = instance["vnode"];
+  JsValue slots = instance["slots"];
+  bool needDeletionCheck = true;
+  JsValue deletionComparisonTarget = EMPTY_OBJ;
+  int shapeFlag = JS.number(vnode["shapeFlag"]).toInt();
+  if ((shapeFlag & SLOTS_CHILDREN) != 0) {
+    JsValue type = children["_"];
+    if (type.truthy()) {
+      if (SLOTS_DEV && isHmrUpdating) {
+        assignSlots(slots, children, optimized);
+        trigger(instance, TriggerOpTypes["SET"], "$slots", slotsUndefined(), slotsUndefined(), slotsUndefined());
+      } else if (optimized && JS.number(type).toInt() == SLOTS_STABLE) {
+        needDeletionCheck = false;
+      } else {
+        assignSlots(slots, children, optimized);
+      }
+    } else {
+      needDeletionCheck = !children["$stable"].truthy();
+      normalizeObjectSlots(children, slots, instance);
+    }
+    deletionComparisonTarget = children;
+  } else if (children.truthy()) {
+    normalizeVNodeSlots(instance, children);
+    deletionComparisonTarget = JS.object("default", 1);
+  }
+
+  if (needDeletionCheck) {
+    for (string key in slots) {
+      if (!isInternalKey(key) && JS.isNullish(deletionComparisonTarget[key])) {
+        JS.delete(slots, key);
+      }
+    }
+  }
+}

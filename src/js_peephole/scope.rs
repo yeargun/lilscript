@@ -434,6 +434,38 @@ fn collect_generated_module_bindings<'src>(
     let mut scan = 0usize;
     while scan < tokens.len() {
         *work += 1;
+        if tokens[scan].text == "import"
+            && tokens.get(scan + 1).is_some_and(|token| token.text == "{")
+        {
+            let open = scan + 1;
+            if let Some(close) = matching_close.get(open).copied().flatten() {
+                let mut cursor = open + 1;
+                while cursor < close {
+                    if tokens[cursor].kind != TokenKind::Identifier {
+                        cursor += 1;
+                        continue;
+                    }
+                    let local = if tokens
+                        .get(cursor + 1)
+                        .is_some_and(|token| token.text == "as")
+                    {
+                        tokens
+                            .get(cursor + 2)
+                            .filter(|token| token.kind == TokenKind::Identifier)
+                    } else {
+                        Some(&tokens[cursor])
+                    };
+                    if let Some(local) = local {
+                        bindings.insert(local.text);
+                    }
+                    while cursor < close && tokens[cursor].text != "," {
+                        cursor += 1;
+                    }
+                }
+                scan = close + 1;
+                continue;
+            }
+        }
         if let Some(close) = nested_function_end(tokens, matching_close, scan) {
             if tokens[scan].text == "function" {
                 let mut name = scan + 1;

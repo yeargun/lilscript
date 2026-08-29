@@ -1,0 +1,442 @@
+import extern {
+  extend as sharedExtend,
+  hasOwn as sharedHasOwn,
+  isArray as sharedIsArray,
+  isFunction as sharedIsFunction
+} from "../../../packages/vuelil/shared.js";
+import {
+  Array as compatArray,
+  Object as compatObject,
+  console as compatConsole,
+  globalThis as compatGlobal
+} from "../../shared/makeMap";
+import { arguments as compatArguments } from "../../shared/general";
+import {
+  formatComponentName as compatFormatComponentName,
+  getComponentName as compatGetComponentName,
+  getCurrentInstance as compatGetCurrentInstance,
+  isRuntimeOnly as compatIsRuntimeOnly
+} from "../component";
+import { warn as compatWarn } from "../warning";
+
+extern JsValue sharedExtend;
+extern bool sharedHasOwn(JsValue value, JsValue key);
+extern bool sharedIsArray(JsValue value);
+extern bool sharedIsFunction(JsValue value);
+
+bool COMPAT_DEV = true;
+bool COMPAT_TEST = false;
+
+export JsValue DeprecationTypes = JS.object(
+  "GLOBAL_MOUNT", "GLOBAL_MOUNT",
+  "GLOBAL_MOUNT_CONTAINER", "GLOBAL_MOUNT_CONTAINER",
+  "GLOBAL_EXTEND", "GLOBAL_EXTEND",
+  "GLOBAL_PROTOTYPE", "GLOBAL_PROTOTYPE",
+  "GLOBAL_SET", "GLOBAL_SET",
+  "GLOBAL_DELETE", "GLOBAL_DELETE",
+  "GLOBAL_OBSERVABLE", "GLOBAL_OBSERVABLE",
+  "GLOBAL_PRIVATE_UTIL", "GLOBAL_PRIVATE_UTIL",
+  "CONFIG_SILENT", "CONFIG_SILENT",
+  "CONFIG_DEVTOOLS", "CONFIG_DEVTOOLS",
+  "CONFIG_KEY_CODES", "CONFIG_KEY_CODES",
+  "CONFIG_PRODUCTION_TIP", "CONFIG_PRODUCTION_TIP",
+  "CONFIG_IGNORED_ELEMENTS", "CONFIG_IGNORED_ELEMENTS",
+  "CONFIG_WHITESPACE", "CONFIG_WHITESPACE",
+  "CONFIG_OPTION_MERGE_STRATS", "CONFIG_OPTION_MERGE_STRATS",
+  "INSTANCE_SET", "INSTANCE_SET",
+  "INSTANCE_DELETE", "INSTANCE_DELETE",
+  "INSTANCE_DESTROY", "INSTANCE_DESTROY",
+  "INSTANCE_EVENT_EMITTER", "INSTANCE_EVENT_EMITTER",
+  "INSTANCE_EVENT_HOOKS", "INSTANCE_EVENT_HOOKS",
+  "INSTANCE_CHILDREN", "INSTANCE_CHILDREN",
+  "INSTANCE_LISTENERS", "INSTANCE_LISTENERS",
+  "INSTANCE_SCOPED_SLOTS", "INSTANCE_SCOPED_SLOTS",
+  "INSTANCE_ATTRS_CLASS_STYLE", "INSTANCE_ATTRS_CLASS_STYLE",
+  "OPTIONS_DATA_FN", "OPTIONS_DATA_FN",
+  "OPTIONS_DATA_MERGE", "OPTIONS_DATA_MERGE",
+  "OPTIONS_BEFORE_DESTROY", "OPTIONS_BEFORE_DESTROY",
+  "OPTIONS_DESTROYED", "OPTIONS_DESTROYED",
+  "WATCH_ARRAY", "WATCH_ARRAY",
+  "PROPS_DEFAULT_THIS", "PROPS_DEFAULT_THIS",
+  "V_ON_KEYCODE_MODIFIER", "V_ON_KEYCODE_MODIFIER",
+  "CUSTOM_DIR", "CUSTOM_DIR",
+  "ATTR_FALSE_VALUE", "ATTR_FALSE_VALUE",
+  "ATTR_ENUMERATED_COERCION", "ATTR_ENUMERATED_COERCION",
+  "TRANSITION_CLASSES", "TRANSITION_CLASSES",
+  "TRANSITION_GROUP_ROOT", "TRANSITION_GROUP_ROOT",
+  "COMPONENT_ASYNC", "COMPONENT_ASYNC",
+  "COMPONENT_FUNCTIONAL", "COMPONENT_FUNCTIONAL",
+  "COMPONENT_V_MODEL", "COMPONENT_V_MODEL",
+  "RENDER_FUNCTION", "RENDER_FUNCTION",
+  "FILTERS", "FILTERS",
+  "PRIVATE_APIS", "PRIVATE_APIS"
+);
+
+export JsValue deprecationData = JS.object();
+
+void addDeprecation(string key, JsValue message, JsValue link = JS.undefined()) {
+  JsValue data = JS.object("message", message);
+  if (!JS.isUndefined(link)) data["link"] = link;
+  deprecationData[key] = data;
+}
+
+void initializeDeprecationData() {
+  addDeprecation("GLOBAL_MOUNT",
+    "The global app bootstrapping API has changed: vm.$mount() and the \"el\" " +
+    "option have been removed. Use createApp(RootComponent).mount() instead.",
+    "https://v3-migration.vuejs.org/breaking-changes/global-api.html#mounting-app-instance");
+  addDeprecation("GLOBAL_MOUNT_CONTAINER",
+    "Vue detected directives on the mount container. " +
+    "In Vue 3, the container is no longer considered part of the template " +
+    "and will not be processed/replaced.",
+    "https://v3-migration.vuejs.org/breaking-changes/mount-changes.html");
+  addDeprecation("GLOBAL_EXTEND",
+    "Vue.extend() has been removed in Vue 3. Use defineComponent() instead.",
+    "https://vuejs.org/api/general.html#definecomponent");
+  addDeprecation("GLOBAL_PROTOTYPE",
+    "Vue.prototype is no longer available in Vue 3. " +
+    "Use app.config.globalProperties instead.",
+    "https://v3-migration.vuejs.org/breaking-changes/global-api.html#vue-prototype-replaced-by-config-globalproperties");
+  addDeprecation("GLOBAL_SET",
+    "Vue.set() has been removed as it is no longer needed in Vue 3. " +
+    "Simply use native JavaScript mutations.");
+  addDeprecation("GLOBAL_DELETE",
+    "Vue.delete() has been removed as it is no longer needed in Vue 3. " +
+    "Simply use native JavaScript mutations.");
+  addDeprecation("GLOBAL_OBSERVABLE",
+    "Vue.observable() has been removed. " +
+    "Use `import { reactive } from \"vue\"` from Composition API instead.",
+    "https://vuejs.org/api/reactivity-core.html#reactive");
+  addDeprecation("GLOBAL_PRIVATE_UTIL",
+    "Vue.util has been removed. Please refactor to avoid its usage " +
+    "since it was an internal API even in Vue 2.");
+  addDeprecation("CONFIG_SILENT",
+    "config.silent has been removed because it is not good practice to " +
+    "intentionally suppress warnings. You can use your browser console's " +
+    "filter features to focus on relevant messages.");
+  addDeprecation("CONFIG_DEVTOOLS",
+    "config.devtools has been removed. To enable devtools for " +
+    "production, configure the __VUE_PROD_DEVTOOLS__ compile-time flag.",
+    "https://github.com/vuejs/core/tree/main/packages/vue#bundler-build-feature-flags");
+  addDeprecation("CONFIG_KEY_CODES",
+    "config.keyCodes has been removed. " +
+    "In Vue 3, you can directly use the kebab-case key names as v-on modifiers.",
+    "https://v3-migration.vuejs.org/breaking-changes/keycode-modifiers.html");
+  addDeprecation("CONFIG_PRODUCTION_TIP", "config.productionTip has been removed.",
+    "https://v3-migration.vuejs.org/breaking-changes/global-api.html#config-productiontip-removed");
+  addDeprecation("CONFIG_IGNORED_ELEMENTS", JS.method0((JsValue _self) => {
+    string message = "config.ignoredElements has been removed.";
+    if (compatIsRuntimeOnly()) {
+      message += " Pass the \"isCustomElement\" option to @vue/compiler-dom instead.";
+    } else {
+      message += " Use config.isCustomElement instead.";
+    }
+    return message;
+  }), "https://v3-migration.vuejs.org/breaking-changes/global-api.html#config-ignoredelements-is-now-config-iscustomelement");
+  addDeprecation("CONFIG_WHITESPACE",
+    "Vue 3 compiler's whitespace option will default to \"condense\" instead of " +
+    "\"preserve\". To suppress this warning, provide an explicit value for " +
+    "`config.compilerOptions.whitespace`.");
+  addDeprecation("CONFIG_OPTION_MERGE_STRATS",
+    "config.optionMergeStrategies no longer exposes internal strategies. " +
+    "Use custom merge functions instead.");
+  addDeprecation("INSTANCE_SET",
+    "vm.$set() has been removed as it is no longer needed in Vue 3. " +
+    "Simply use native JavaScript mutations.");
+  addDeprecation("INSTANCE_DELETE",
+    "vm.$delete() has been removed as it is no longer needed in Vue 3. " +
+    "Simply use native JavaScript mutations.");
+  addDeprecation("INSTANCE_DESTROY", "vm.$destroy() has been removed. Use app.unmount() instead.",
+    "https://vuejs.org/api/application.html#app-unmount");
+  addDeprecation("INSTANCE_EVENT_EMITTER",
+    "vm.$on/$once/$off() have been removed. Use an external event emitter library instead.",
+    "https://v3-migration.vuejs.org/breaking-changes/events-api.html");
+  addDeprecation("INSTANCE_EVENT_HOOKS", JS.method1((JsValue _self, JsValue event) =>
+    "\"" + JS.string(event) + "\" lifecycle events are no longer supported. From templates, " +
+    "use the \"vue:\" prefix instead of \"hook:\". For example, @" + JS.string(event) +
+    " should be changed to @vue:" + JS.string(event).slice(5) + ". " +
+    "From JavaScript, use Composition API to dynamically register lifecycle hooks."
+  ), "https://v3-migration.vuejs.org/breaking-changes/vnode-lifecycle-events.html");
+  addDeprecation("INSTANCE_CHILDREN",
+    "vm.$children has been removed. Consider refactoring your logic " +
+    "to avoid relying on direct access to child components.",
+    "https://v3-migration.vuejs.org/breaking-changes/children.html");
+  addDeprecation("INSTANCE_LISTENERS",
+    "vm.$listeners has been removed. In Vue 3, parent v-on listeners are " +
+    "included in vm.$attrs and it is no longer necessary to separately use " +
+    "v-on=\"$listeners\" if you are already using v-bind=\"$attrs\". " +
+    "(Note: the Vue 3 behavior only applies if this compat config is disabled)",
+    "https://v3-migration.vuejs.org/breaking-changes/listeners-removed.html");
+  addDeprecation("INSTANCE_SCOPED_SLOTS", "vm.$scopedSlots has been removed. Use vm.$slots instead.",
+    "https://v3-migration.vuejs.org/breaking-changes/slots-unification.html");
+  addDeprecation("INSTANCE_ATTRS_CLASS_STYLE", JS.method1((JsValue _self, JsValue componentName) => {
+    string name = "Anonymous";
+    if (componentName.truthy()) name = JS.string(componentName);
+    return "Component <" + name + "> has `inheritAttrs: false` but is " +
+      "relying on class/style fallthrough from parent. In Vue 3, class/style " +
+      "are now included in $attrs and will no longer fallthrough when " +
+      "inheritAttrs is false. If you are already using v-bind=\"$attrs\" on " +
+      "component root it should render the same end result. " +
+      "If you are binding $attrs to a non-root element and expecting " +
+      "class/style to fallthrough on root, you will need to now manually bind " +
+      "them on root via :class=\"$attrs.class\".";
+  }), "https://v3-migration.vuejs.org/breaking-changes/attrs-includes-class-style.html");
+  addDeprecation("OPTIONS_DATA_FN",
+    "The \"data\" option can no longer be a plain object. Always use a function.",
+    "https://v3-migration.vuejs.org/breaking-changes/data-option.html");
+  addDeprecation("OPTIONS_DATA_MERGE", JS.method1((JsValue _self, JsValue key) =>
+    "Detected conflicting key \"" + JS.string(key) + "\" when merging data option values. " +
+    "In Vue 3, data keys are merged shallowly and will override one another."
+  ), "https://v3-migration.vuejs.org/breaking-changes/data-option.html#mixin-merge-behavior-change");
+  addDeprecation("OPTIONS_BEFORE_DESTROY", "`beforeDestroy` has been renamed to `beforeUnmount`.");
+  addDeprecation("OPTIONS_DESTROYED", "`destroyed` has been renamed to `unmounted`.");
+  addDeprecation("WATCH_ARRAY",
+    "\"watch\" option or vm.$watch on an array value will no longer " +
+    "trigger on array mutation unless the \"deep\" option is specified. " +
+    "If current usage is intended, you can disable the compat behavior and " +
+    "suppress this warning with:\n\n  configureCompat({ WATCH_ARRAY: false })\n",
+    "https://v3-migration.vuejs.org/breaking-changes/watch.html");
+  addDeprecation("PROPS_DEFAULT_THIS", JS.method1((JsValue _self, JsValue key) =>
+    "props default value function no longer has access to \"this\". The compat " +
+    "build only offers access to this.$options.(found in prop \"" + JS.string(key) + "\")"
+  ), "https://v3-migration.vuejs.org/breaking-changes/props-default-this.html");
+  addDeprecation("CUSTOM_DIR", JS.method2((JsValue _self, JsValue legacyHook, JsValue newHook) =>
+    "Custom directive hook \"" + JS.string(legacyHook) + "\" has been removed. " +
+    "Use \"" + JS.string(newHook) + "\" instead."
+  ), "https://v3-migration.vuejs.org/breaking-changes/custom-directives.html");
+  addDeprecation("V_ON_KEYCODE_MODIFIER",
+    "Using keyCode as v-on modifier is no longer supported. " +
+    "Use kebab-case key name modifiers instead.",
+    "https://v3-migration.vuejs.org/breaking-changes/keycode-modifiers.html");
+  addDeprecation("ATTR_FALSE_VALUE", JS.method1((JsValue _self, JsValue name) =>
+    "Attribute \"" + JS.string(name) + "\" with v-bind value `false` will render " +
+    JS.string(name) + "=\"false\" instead of removing it in Vue 3. To remove the attribute, " +
+    "use `null` or `undefined` instead. If the usage is intended, " +
+    "you can disable the compat behavior and suppress this warning with:" +
+    "\n\n  configureCompat({ ATTR_FALSE_VALUE: false })\n"
+  ), "https://v3-migration.vuejs.org/breaking-changes/attribute-coercion.html");
+  addDeprecation("ATTR_ENUMERATED_COERCION", JS.method3((
+    JsValue _self, JsValue name, JsValue value, JsValue coerced
+  ) => {
+    string behavior = "render the value as-is";
+    if (JS.strictEqual(value, null)) behavior = "be removed";
+    return "Enumerated attribute \"" + JS.string(name) + "\" with v-bind value `" +
+      JS.string(value) + "` will " + behavior + " instead of coercing the value to \"" +
+      JS.string(coerced) + "\" in Vue 3. " +
+      "Always use explicit \"true\" or \"false\" values for enumerated attributes. " +
+      "If the usage is intended, you can disable the compat behavior and suppress this warning with:" +
+      "\n\n  configureCompat({ ATTR_ENUMERATED_COERCION: false })\n";
+  }), "https://v3-migration.vuejs.org/breaking-changes/attribute-coercion.html");
+  addDeprecation("TRANSITION_CLASSES", "");
+  addDeprecation("TRANSITION_GROUP_ROOT",
+    "<TransitionGroup> no longer renders a root <span> element by " +
+    "default if no \"tag\" prop is specified. If you do not rely on the span " +
+    "for styling, you can disable the compat behavior and suppress this warning with:" +
+    "\n\n  configureCompat({ TRANSITION_GROUP_ROOT: false })\n",
+    "https://v3-migration.vuejs.org/breaking-changes/transition-group.html");
+  addDeprecation("COMPONENT_ASYNC", JS.method1((JsValue _self, JsValue component) => {
+    JsValue componentName = compatGetComponentName(component);
+    string subject = "s";
+    if (componentName.truthy()) subject = " <" + JS.string(componentName) + ">";
+    return "Async component" + subject +
+      " should be explicitly created via `defineAsyncComponent()` in Vue 3. " +
+      "Plain functions will be treated as functional components in non-compat build. " +
+      "If you have already migrated all async component usage and intend to use plain " +
+      "functions for functional components, you can disable the compat behavior and " +
+      "suppress this warning with:\n\n  configureCompat({ COMPONENT_ASYNC: false })\n";
+  }), "https://v3-migration.vuejs.org/breaking-changes/async-components.html");
+  addDeprecation("COMPONENT_FUNCTIONAL", JS.method1((JsValue _self, JsValue component) => {
+    JsValue componentName = compatGetComponentName(component);
+    string subject = "s";
+    if (componentName.truthy()) subject = " <" + JS.string(componentName) + ">";
+    return "Functional component" + subject +
+      " should be defined as a plain function in Vue 3. The \"functional\" " +
+      "option has been removed. NOTE: Before migrating to use plain functions for " +
+      "functional components, first make sure that all async components usage have " +
+      "been migrated and its compat behavior has been disabled.";
+  }), "https://v3-migration.vuejs.org/breaking-changes/functional-components.html");
+  addDeprecation("COMPONENT_V_MODEL", JS.method1((JsValue _self, JsValue component) => {
+    string configMessage = "opt-in to Vue 3 behavior on a per-component basis with " +
+      "`compatConfig: { COMPONENT_V_MODEL: false }`.";
+    JsValue props = component["props"];
+    bool hasModelValue = false;
+    if (props.truthy()) {
+      if (sharedIsArray(props)) hasModelValue = JS.invoke(props, "includes", "modelValue").truthy();
+      else hasModelValue = sharedHasOwn(props, "modelValue");
+    }
+    if (hasModelValue) {
+      return "Component declares \"modelValue\" prop, which is Vue 3 usage, but " +
+        "is running under Vue 2 compat v-model behavior. You can " + configMessage;
+    }
+    return "v-model usage on component has changed in Vue 3. Component that expects " +
+      "to work with v-model should now use the \"modelValue\" prop and emit the " +
+      "\"update:modelValue\" event. You can update the usage and then " + configMessage;
+  }), "https://v3-migration.vuejs.org/breaking-changes/v-model.html");
+  addDeprecation("RENDER_FUNCTION",
+    "Vue 3's render function API has changed. You can opt-in to the new API with:" +
+    "\n\n  configureCompat({ RENDER_FUNCTION: false })\n" +
+    "\n  (This can also be done per-component via the \"compatConfig\" option.)",
+    "https://v3-migration.vuejs.org/breaking-changes/render-function-api.html");
+  addDeprecation("FILTERS",
+    "filters have been removed in Vue 3. " +
+    "The \"|\" symbol will be treated as native JavaScript bitwise OR operator. " +
+    "Use method calls or computed properties instead.",
+    "https://v3-migration.vuejs.org/breaking-changes/filters.html");
+  addDeprecation("PRIVATE_APIS", JS.method1((JsValue _self, JsValue name) =>
+    "\"" + JS.string(name) + "\" is a Vue 2 private API that no longer exists in Vue 3. " +
+    "If you are seeing this warning only due to a dependency, you can " +
+    "suppress this warning via { PRIVATE_APIS: 'suppress-warning' }."
+  ));
+}
+
+initializeDeprecationData();
+
+JsValue instanceWarned = JS.invoke(compatObject, "create", null);
+JsValue warnCount = JS.invoke(compatObject, "create", null);
+bool warningEnabled = true;
+
+export void toggleDeprecationWarning(bool flag) { warningEnabled = flag; }
+
+export void warnDeprecation(
+  string key,
+  JsValue instance,
+  JsValue _arg0 = JS.undefined(),
+  JsValue _arg1 = JS.undefined(),
+  JsValue _arg2 = JS.undefined()
+) {
+  if (!COMPAT_DEV || (COMPAT_TEST && !warningEnabled)) return;
+  if (!instance.truthy()) instance = compatGetCurrentInstance();
+  JsValue config = getCompatConfigForKey(key, instance);
+  if (JS.strictEqual(config, "suppress-warning")) return;
+
+  JsValue args = JS.call(compatArray["prototype"]["slice"], compatArguments, 2);
+  string duplicateKey = key + JS.string(JS.invoke(args, "join", ""));
+  JsValue componentId = null;
+  if (instance.truthy()) componentId = compatFormatComponentName(instance, instance["type"]);
+  if (JS.strictEqual(componentId, "Anonymous") && instance.truthy()) componentId = instance["uid"];
+  string componentDuplicateKey = duplicateKey + JS.string(componentId);
+  if (!COMPAT_TEST && JS.in(componentDuplicateKey, instanceWarned)) return;
+  instanceWarned[componentDuplicateKey] = true;
+
+  if (!COMPAT_TEST && JS.in(duplicateKey, warnCount)) {
+    int count = JS.number(warnCount[duplicateKey]).toInt() + 1;
+    warnCount[duplicateKey] = count;
+    compatWarn("(deprecation " + key + ") (" + JS.string(count + 1) + ")");
+    return;
+  }
+  warnCount[duplicateKey] = 0;
+
+  JsValue data = deprecationData[key];
+  JsValue message = data["message"];
+  if (sharedIsFunction(message)) message = JS.apply(message, JS.undefined(), args);
+  string details = "";
+  if (data["link"].truthy()) details = "\n  Details: " + JS.string(data["link"]);
+  compatWarn("(deprecation " + key + ") " + JS.string(message) + details);
+  if (!isCompatEnabled(key, instance, true)) {
+    JS.invoke(
+      compatConsole,
+      "error",
+      "^ The above deprecation's compat behavior is disabled and will likely lead to runtime errors."
+    );
+  }
+}
+
+export JsValue globalCompatConfig = JS.object("MODE", 2);
+
+export void configureCompat(JsValue config) {
+  if (COMPAT_DEV) validateCompatConfig(config);
+  JS.call(sharedExtend, JS.undefined(), globalCompatConfig, config);
+}
+
+JsValue seenConfigObjects = JS.construct(compatGlobal["WeakSet"]);
+JsValue warnedInvalidKeys = JS.object();
+
+export void validateCompatConfig(JsValue config, JsValue instance = JS.undefined()) {
+  if (JS.invoke(seenConfigObjects, "has", config).truthy()) return;
+  JS.invoke(seenConfigObjects, "add", config);
+  JsValue keys = JS.invoke(compatObject, "keys", config);
+  int length = JS.number(keys["length"]).toInt();
+  for (int index = 0; index < length; index++) {
+    string key = JS.string(keys[index]);
+    if (key != "MODE" && !JS.in(key, deprecationData) && !JS.in(key, warnedInvalidKeys)) {
+      if (key.startsWith("COMPILER_")) {
+        if (compatIsRuntimeOnly()) {
+          compatWarn(
+            "Deprecation config \"" + key + "\" is compiler-specific and you are " +
+            "running a runtime-only build of Vue. This deprecation should be " +
+            "configured via compiler options in your build setup instead.\n" +
+            "Details: https://v3-migration.vuejs.org/breaking-changes/migration-build.html"
+          );
+        }
+      } else {
+        compatWarn("Invalid deprecation config \"" + key + "\".");
+      }
+      warnedInvalidKeys[key] = true;
+    }
+  }
+  if (instance.truthy() && !JS.isNullish(config["OPTIONS_DATA_MERGE"])) {
+    compatWarn("Deprecation config \"OPTIONS_DATA_MERGE\" can only be configured globally.");
+  }
+}
+
+export JsValue getCompatConfigForKey(string key, JsValue instance) {
+  JsValue instanceConfig = JS.undefined();
+  if (instance.truthy()) instanceConfig = instance["type"]["compatConfig"];
+  if (instanceConfig.truthy() && JS.in(key, instanceConfig)) return instanceConfig[key];
+  return globalCompatConfig[key];
+}
+
+export bool isCompatEnabled(string key, JsValue instance, bool enableForBuiltIn = false) {
+  if (!enableForBuiltIn && instance.truthy() && instance["type"]["__isBuiltIn"].truthy()) {
+    return false;
+  }
+  JsValue rawMode = getCompatConfigForKey("MODE", instance);
+  if (!rawMode.truthy()) rawMode = 2;
+  JsValue value = getCompatConfigForKey(key, instance);
+  JsValue mode = rawMode;
+  if (sharedIsFunction(rawMode)) {
+    JsValue component = null;
+    if (instance.truthy()) component = instance["type"];
+    mode = JS.call(rawMode, JS.undefined(), component);
+  }
+  if (JS.strictEqual(mode, 2)) return !JS.strictEqual(value, false);
+  return JS.strictEqual(value, true) || JS.strictEqual(value, "suppress-warning");
+}
+
+export void assertCompatEnabled(
+  string key,
+  JsValue instance,
+  JsValue _arg0 = JS.undefined(),
+  JsValue _arg1 = JS.undefined(),
+  JsValue _arg2 = JS.undefined()
+) {
+  if (!isCompatEnabled(key, instance)) {
+    throw JS.construct(compatGlobal["Error"], key + " compat has been disabled.");
+  }
+  if (COMPAT_DEV) JS.apply(warnDeprecation, JS.undefined(), compatArguments);
+}
+
+export bool softAssertCompatEnabled(
+  string key,
+  JsValue instance,
+  JsValue _arg0 = JS.undefined(),
+  JsValue _arg1 = JS.undefined(),
+  JsValue _arg2 = JS.undefined()
+) {
+  if (COMPAT_DEV) JS.apply(warnDeprecation, JS.undefined(), compatArguments);
+  return isCompatEnabled(key, instance);
+}
+
+export bool checkCompatEnabled(
+  string key,
+  JsValue instance,
+  JsValue _arg0 = JS.undefined(),
+  JsValue _arg1 = JS.undefined(),
+  JsValue _arg2 = JS.undefined()
+) {
+  bool enabled = isCompatEnabled(key, instance);
+  if (COMPAT_DEV && enabled) JS.apply(warnDeprecation, JS.undefined(), compatArguments);
+  return enabled;
+}
+
+if (COMPAT_TEST) configureCompat(JS.object("MODE", 3));

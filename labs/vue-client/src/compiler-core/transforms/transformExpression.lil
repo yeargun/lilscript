@@ -3,11 +3,14 @@ import {
   createSimpleExpression
 } from "../ast";
 import {
+  isInDestructureAssignment,
+  isInNewExpression,
   isReferencedIdentifier,
   isStaticProperty,
   isStaticPropertyKey,
   walkIdentifiers
 } from "../babelUtils";
+import { JSON } from "../codegen";
 import { createCompilerError } from "../errors";
 import { IS_REF, Object, UNREF } from "../runtimeHelpers";
 import {
@@ -39,6 +42,15 @@ bool expressionSame(JsValue left, JsValue right) {
   return JS.strictEqual(left, right);
 }
 
+bool expressionHasOwn(JsValue value, string key) {
+  return JS.call(Object["prototype"]["hasOwnProperty"], value, key).truthy();
+}
+
+string propsAccessExpression(string name) {
+  if (isSimpleIdentifier(name)) return "__props." + name;
+  return "__props[" + JS.string(JS.invoke(JSON, "stringify", name)) + "]";
+}
+
 bool globallyAllowed(string name) {
   string values = ",Infinity,undefined,NaN,isFinite,isNaN,parseFloat,parseInt,decodeURI," +
     "decodeURIComponent,encodeURI,encodeURIComponent,Math,Number,Date,Array," +
@@ -54,23 +66,104 @@ bool bindingIsConst(JsValue type) {
   return expressionSame(type, "setup-const") || expressionSame(type, "literal-const");
 }
 
-string rewriteIdentifierBasic(string raw, JsValue context) {
+string wrapIdentifierWithUnref(string raw, JsValue context, bool newExpression) {
+  string wrapped = JS.string(JS.call(context["helperString"], expressionUndefined(), UNREF)) + "(" + raw + ")";
+  if (newExpression) return "(" + wrapped + ")";
+  return wrapped;
+}
+
+string rewriteIdentifier(
+  string raw,
+  JsValue context,
+  JsValue localVars,
+  JsValue parent,
+  JsValue identifier,
+  JsValue parentStack,
+  string rawExpression
+) {
   JsValue bindings = context["bindingMetadata"];
-  JsValue binding = bindings[raw];
+  JsValue binding = expressionUndefined();
+  if (expressionHasOwn(bindings, raw)) binding = bindings[raw];
   if (context["inline"].truthy()) {
-    if (bindingIsConst(binding) || expressionSame(binding, "setup-reactive-const") || context["identifiers"][raw].truthy()) return raw;
+    bool assignment = !JS.isNullish(parent) && JS.string(parent["type"]) == "AssignmentExpression" &&
+      expressionSame(parent["left"], identifier);
+    bool update = !JS.isNullish(parent) && JS.string(parent["type"]) == "UpdateExpression" &&
+      expressionSame(parent["argument"], identifier);
+    bool destructure = !JS.isNullish(parent) && isInDestructureAssignment(parent, parentStack);
+    bool newExpression = !JS.isNullish(parent) && isInNewExpression(parentStack);
+    if (bindingIsConst(binding) || expressionSame(binding, "setup-reactive-const") || localVars[raw].truthy()) return raw;
     if (expressionSame(binding, "setup-ref")) return raw + ".value";
-    if (expressionSame(binding, "setup-maybe-ref") || expressionSame(binding, "setup-let")) {
-      return JS.string(JS.call(context["helperString"], expressionUndefined(), UNREF)) + "(" + raw + ")";
+    if (expressionSame(binding, "setup-maybe-ref")) {
+      if (assignment || update || destructure) return raw + ".value";
+      return wrapIdentifierWithUnref(raw, context, newExpression);
     }
-    if (expressionSame(binding, "props")) return "__props." + raw;
-    if (expressionSame(binding, "props-aliased")) return "__props." + JS.string(bindings["__propsAliases"][raw]);
+    if (expressionSame(binding, "setup-let")) {
+      if (assignment) {
+        JsValue right = parent["right"];
+        string rightExpression = rawExpression.slice(
+          JS.number(right["start"]).toInt() - 1,
+          JS.number(right["end"]).toInt() - 1
+        );
+        JsValue rightAst = expressionUndefined();
+        try {
+          rightAst = hostParseExpression(rightExpression, context["expressionPlugins"], 0);
+        } catch (JsValue _error) {}
+        string processedRight = "";
+        if (!JS.isUndefined(rightAst)) {
+          JsValue rightNode = createSimpleExpression(rightExpression, false);
+          rightNode["ast"] = rightAst;
+          processedRight = stringifyExpression(processExpression(
+            rightNode,
+            context,
+            false,
+            false,
+            localVars
+          ));
+        } else {
+          string wrapperStart = "async () => (";
+          string wrapperEnd = ")";
+          string wrappedRight = stringifyExpression(processExpression(
+            createSimpleExpression(wrapperStart + rightExpression + wrapperEnd, false),
+            context,
+            false,
+            false,
+            localVars
+          ));
+          processedRight = wrappedRight.slice(wrapperStart.length, wrappedRight.length - wrapperEnd.length);
+        }
+        string tsIgnore = "";
+        if (context["isTS"].truthy()) tsIgnore = " //@ts-ignore\n";
+        return JS.string(JS.call(context["helperString"], expressionUndefined(), IS_REF)) +
+          "(" + raw + ")" + tsIgnore + " ? " + raw + ".value " +
+          JS.string(parent["operator"]) + " " + processedRight + " : " + raw;
+      }
+      if (update) {
+        identifier["start"] = parent["start"];
+        identifier["end"] = parent["end"];
+        string operator = JS.string(parent["operator"]);
+        string prefix = "";
+        string postfix = operator;
+        if (parent["prefix"].truthy()) {
+          prefix = operator;
+          postfix = "";
+        }
+        string tsIgnore = "";
+        if (context["isTS"].truthy()) tsIgnore = " //@ts-ignore\n";
+        return JS.string(JS.call(context["helperString"], expressionUndefined(), IS_REF)) +
+          "(" + raw + ")" + tsIgnore + " ? " + prefix + raw + ".value" + postfix +
+          " : " + prefix + raw + postfix;
+      }
+      if (destructure) return raw;
+      return wrapIdentifierWithUnref(raw, context, newExpression);
+    }
+    if (expressionSame(binding, "props")) return propsAccessExpression(raw);
+    if (expressionSame(binding, "props-aliased")) return propsAccessExpression(JS.string(bindings["__propsAliases"][raw]));
   } else {
-    if (!JS.isUndefined(binding) && (JS.string(binding).startsWith("setup") || expressionSame(binding, "literal-const"))) {
+    if (binding.truthy() && (JS.string(binding).startsWith("setup") || expressionSame(binding, "literal-const"))) {
       return "$setup." + raw;
     }
     if (expressionSame(binding, "props-aliased")) return "$props['" + JS.string(bindings["__propsAliases"][raw]) + "']";
-    if (!JS.isUndefined(binding)) return "$" + JS.string(binding) + "." + raw;
+    if (binding.truthy()) return "$" + JS.string(binding) + "." + raw;
   }
   return "_ctx." + raw;
 }
@@ -108,7 +201,15 @@ export JsValue processExpression(
     JsValue binding = context["bindingMetadata"][raw];
     if (!asParams && !scope && !literalAllowed(raw) && (!globallyAllowed(raw) || !JS.isUndefined(binding))) {
       if (bindingIsConst(binding)) node["constType"] = 1;
-      node["content"] = rewriteIdentifierBasic(raw, context);
+      node["content"] = rewriteIdentifier(
+        raw,
+        context,
+        known,
+        expressionUndefined(),
+        expressionUndefined(),
+        expressionUndefined(),
+        raw
+      );
     } else if (!scope) {
       if (literalAllowed(raw)) node["constType"] = 3;
       else node["constType"] = 2;
@@ -148,20 +249,15 @@ export JsValue processExpression(
       if (isStaticProperty(parent) && parent["shorthand"].truthy()) {
         identifier["prefix"] = name + ": ";
       }
-      JsValue binding = context["bindingMetadata"][name];
-      if (context["inline"].truthy() && expressionSame(binding, "setup-let") &&
-        !JS.isNullish(parent) && JS.string(parent["type"]) == "AssignmentExpression" &&
-        expressionSame(parent["left"], identifier)) {
-        JsValue right = parent["right"];
-        int rightStart = JS.number(right["start"]).toInt() - 1;
-        int rightEnd = JS.number(right["end"]).toInt() - 1;
-        string rightExpression = raw.slice(rightStart, rightEnd);
-        identifier["name"] = JS.string(JS.call(context["helperString"], expressionUndefined(), IS_REF)) +
-          "(" + name + ") ? " + name + ".value " + JS.string(parent["operator"]) +
-          " " + rightExpression + " : " + name;
-      } else {
-        identifier["name"] = rewriteIdentifierBasic(name, context);
-      }
+      identifier["name"] = rewriteIdentifier(
+        name,
+        context,
+        known,
+        parent,
+        identifier,
+        parentStack,
+        raw
+      );
     } else if (!(prefix && local)) {
       if (JS.isNullish(parent)) identifier["isConstant"] = true;
       else {

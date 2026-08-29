@@ -165,7 +165,9 @@ class ScriptCompileContext {
 
   string getString(JsValue node, bool scriptSetup = true) {
     JsValue block = this.descriptor["script"];
-    if (scriptSetup) block = this.descriptor["scriptSetup"];
+    if (!JS.strictEqual(scriptSetup, false)) {
+      block = this.descriptor["scriptSetup"];
+    }
     return JS.string(block["content"]).slice(
       JS.number(node["start"]).toInt(),
       JS.number(node["end"]).toInt()

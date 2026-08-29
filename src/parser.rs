@@ -162,12 +162,20 @@ impl<'arena, 'src> Parser<'arena, 'src> {
         } else {
             start.merge(end)
         };
+        let mut constructor_values = BumpVec::new_in(self.arena);
+        constructor_values.extend(
+            exports
+                .iter()
+                .filter(|export| export.kind == ExportKind::ConstructorValue)
+                .map(|export| export.local),
+        );
 
         Ok(Program {
             imports: imports.into_bump_slice(),
             foreign_imports: foreign_imports.into_bump_slice(),
             dynamic_imports: &[],
             module_bindings: &[],
+            constructor_values: constructor_values.into_bump_slice(),
             exports: exports.into_bump_slice(),
             items: items.into_bump_slice(),
             span,

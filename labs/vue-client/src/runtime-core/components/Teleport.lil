@@ -1,0 +1,348 @@
+import { MoveType, queuePostRenderEffect, traverseStaticChildren } from "../renderer";
+import { SchedulerJobFlags } from "../scheduler";
+import { ShapeFlags as dependencyShapeFlags } from "../../shared/shapeFlags";
+import { isHmrUpdating } from "../hmr";
+import { isString as dependencyIsString } from "../../shared/general";
+import { warn } from "../warning";
+extern JsValue WeakMap;
+extern JsValue Symbol;
+extern JsValue Set;
+extern JsValue SVGElement;
+extern JsValue MathMLElement;
+bool TELEPORT_DEV = true;
+bool TELEPORT_FEATURE_SUSPENSE = true;
+int teleportLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+int teleportShape(string name) {
+  return JS.number(dependencyShapeFlags[name]).toInt();
+}
+JsValue pendingMounts = JS.construct(WeakMap);
+export JsValue TeleportEndKey = JS.call(Symbol, JS.undefined(), "_vte");
+export bool isTeleport(JsValue type) {
+  return type["__isTeleport"].truthy();
+}
+bool isTeleportDisabled(JsValue props) {
+  return props.truthy() &&(props["disabled"].truthy() || JS.strictEqual(props["disabled"], ""));
+}
+bool isTeleportDeferred(JsValue props) {
+  return props.truthy() &&(props["defer"].truthy() || JS.strictEqual(props["defer"], ""));
+}
+JsValue teleportTo(JsValue vnode) {
+  if (vnode["props"].truthy())return vnode["props"]["to"];
+  return null;
+}
+bool isTargetSVG(JsValue target) {
+  if (JS.typeOf(SVGElement) == "undefined")return false;
+  return JS.call(SVGElement["prototype"]["isPrototypeOf"], SVGElement["prototype"], target).truthy();
+}
+bool isTargetMathML(JsValue target) {
+  if (JS.typeOf(MathMLElement) != "function")return false;
+  return JS.call(MathMLElement["prototype"]["isPrototypeOf"], MathMLElement["prototype"], target).truthy();
+}
+JsValue resolveTarget(JsValue props, JsValue select) {
+  JsValue targetSelector = null;
+  if (props.truthy())targetSelector = props["to"];
+  if (dependencyIsString(targetSelector)) {
+    if (! select.truthy()) {
+      if (TELEPORT_DEV) {
+        JS.call(warn, JS.undefined(), "Current renderer does not support string target for Teleports. " + "(missing querySelector renderer option)");
+      }
+      return null;
+    }
+    JsValue target = JS.call(select, JS.undefined(), targetSelector);
+    if (TELEPORT_DEV && ! target.truthy() && ! isTeleportDisabled(props)) {
+      JS.call(warn, JS.undefined(), "Failed to locate Teleport target with selector \"" + targetSelector + "\". Note the target element must exist before the component is mounted - " + "i.e. the target cannot be rendered by the component itself, and " + "ideally should be outside of the entire Vue component tree.");
+    }
+    return target;
+  }
+  if (TELEPORT_DEV && ! targetSelector.truthy() && ! isTeleportDisabled(props)) {
+    JS.call(warn, JS.undefined(), "Invalid Teleport target: " + targetSelector);
+  }
+  return targetSelector;
+}
+void updateCssVars(JsValue vnode, bool disabled) {
+  JsValue context = vnode["ctx"];
+  if (context.truthy() && context["ut"].truthy()) {
+    JsValue node = vnode["targetStart"];
+    JsValue anchor = vnode["targetAnchor"];
+    if (disabled) {
+      node = vnode["el"];
+      anchor = vnode["anchor"];
+    }
+    while (node.truthy() && ! JS.strictEqual(node, anchor)) {
+      if (JS.number(node["nodeType"]).toInt() == 1) {
+        JS.invoke(node, "setAttribute", "data-v-owner", context["uid"]);
+      }
+      node = node["nextSibling"];
+    }
+    JS.call(context["ut"], context);
+  }
+}
+JsValue prepareAnchor(JsValue target, JsValue vnode, JsValue createText, JsValue insert, JsValue anchor = JS.undefined()) {
+  if (JS.isUndefined(anchor))anchor = null;
+  JsValue targetStart = JS.call(createText, JS.undefined(), "");
+  JsValue targetAnchor = JS.call(createText, JS.undefined(), "");
+  vnode["targetStart"] = targetStart;
+  vnode["targetAnchor"] = targetAnchor;
+  targetStart[TeleportEndKey] = targetAnchor;
+  if (target.truthy()) {
+    JS.call(insert, JS.undefined(), targetStart, target, anchor);
+    JS.call(insert, JS.undefined(), targetAnchor, target, anchor);
+  }
+  return targetAnchor;
+}
+void teleportProcess(JsValue oldVNode, JsValue vnode, JsValue container, JsValue anchor, JsValue parentComponent,
+JsValue parentSuspense, JsValue namespace, JsValue slotScopeIds, bool optimized, JsValue internals) {
+  JsValue mountChildren = internals["mc"];
+  JsValue patchChildren = internals["pc"];
+  JsValue patchBlockChildren = internals["pbc"];
+  JsValue operations = internals["o"];
+  JsValue insert = operations["insert"];
+  JsValue querySelector = operations["querySelector"];
+  JsValue createText = operations["createText"];
+  JsValue createComment = operations["createComment"];
+  JsValue parentNode = operations["parentNode"];
+  bool disabled = isTeleportDisabled(vnode["props"]);
+  JsValue dynamicChildren = vnode["dynamicChildren"];
+  if (TELEPORT_DEV && isHmrUpdating) {
+    optimized = false;
+    dynamicChildren = null;
+  }
+  JsValue mount = JS.method3((JsValue _self, JsValue mountedVNode, JsValue mountedContainer, JsValue mountedAnchor) =>{ if ((JS.number(mountedVNode["shapeFlag"]).toInt() & teleportShape("ARRAY_CHILDREN")) != 0) {
+    JS.call(mountChildren, JS.undefined(), mountedVNode["children"], mountedContainer, mountedAnchor,
+    parentComponent, parentSuspense, namespace, slotScopeIds, optimized);
+  }
+  return JS.undefined(); });
+  JsValue mountToTarget = JS.method1((JsValue _self, JsValue mountedVNode) =>{ if (JS.isUndefined(mountedVNode))mountedVNode = vnode;bool mountedDisabled = isTeleportDisabled(mountedVNode["props"]);JsValue target = resolveTarget(mountedVNode["props"],
+  querySelector);mountedVNode["target"] = target;JsValue targetAnchor = prepareAnchor(target, mountedVNode,
+  createText, insert);if (target.truthy()) {
+    if (! JS.strictEqual(namespace, "svg") && isTargetSVG(target)) {
+      namespace = "svg";
+    } else if (! JS.strictEqual(namespace, "mathml") && isTargetMathML(target)) {
+      namespace = "mathml";
+    }
+    if (parentComponent.truthy() && parentComponent["isCE"].truthy()) {
+      JsValue targets = parentComponent["ce"]["_teleportTargets"];if (! targets.truthy()) {
+        targets = JS.construct(Set);parentComponent["ce"]["_teleportTargets"] = targets;
+      }
+      JS.invoke(targets, "add", target);
+    }
+    if (! mountedDisabled) {
+      JS.call(mount, JS.undefined(), mountedVNode, target, targetAnchor);updateCssVars(mountedVNode,
+      false);
+    }
+  } else if (TELEPORT_DEV && ! mountedDisabled) {
+    JS.call(warn, JS.undefined(), "Invalid Teleport target on mount:", target, "(" + JS.typeOf(target) + ")");
+  }
+  return JS.undefined(); });
+  JsValue queuePendingMount = JS.method1((JsValue _self, JsValue mountedVNode) =>{ JsValue mountJob = JS.undefined();mountJob = JS.method0((JsValue _jobSelf) =>{ if (! JS.strictEqual(JS.invoke(pendingMounts,
+  "get", mountedVNode), mountJob)) {
+    return JS.undefined();
+  }
+  JS.invoke(pendingMounts, "delete", mountedVNode);if (isTeleportDisabled(mountedVNode["props"])) {
+    JsValue mountContainer = JS.call(parentNode, JS.undefined(), mountedVNode["el"]);if (! mountContainer.truthy())mountContainer = container;JS.call(mount,
+    JS.undefined(), mountedVNode, mountContainer, mountedVNode["anchor"]);updateCssVars(mountedVNode,
+    true);
+  }
+  JS.call(mountToTarget, JS.undefined(), mountedVNode);return JS.undefined(); });JS.invoke(pendingMounts,
+  "set", mountedVNode, mountJob);queuePostRenderEffect(mountJob, parentSuspense);return JS.undefined(); });
+  if (JS.isNullish(oldVNode)) {
+    JsValue startMarker = JS.undefined();
+    JsValue mainAnchor = JS.undefined();
+    if (TELEPORT_DEV) {
+      startMarker = JS.call(createComment, JS.undefined(), "teleport start");
+      mainAnchor = JS.call(createComment, JS.undefined(), "teleport end");
+    } else {
+      startMarker = JS.call(createText, JS.undefined(), "");
+      mainAnchor = JS.call(createText, JS.undefined(), "");
+    }
+    vnode["el"] = startMarker;
+    vnode["anchor"] = mainAnchor;
+    JS.call(insert, JS.undefined(), startMarker, container, anchor);
+    JS.call(insert, JS.undefined(), mainAnchor, container, anchor);
+    if (isTeleportDeferred(vnode["props"]) ||(TELEPORT_FEATURE_SUSPENSE && parentSuspense.truthy() && parentSuspense["pendingBranch"].truthy())) {
+      JS.call(queuePendingMount, JS.undefined(), vnode);
+      return;
+    }
+    if (disabled) {
+      JS.call(mount, JS.undefined(), vnode, container, mainAnchor);
+      updateCssVars(vnode, true);
+    }
+    JS.call(mountToTarget, JS.undefined(), vnode);
+    return;
+  }
+  vnode["el"] = oldVNode["el"];
+  JsValue mainAnchor = oldVNode["anchor"];
+  vnode["anchor"] = mainAnchor;
+  JsValue pendingMount = JS.invoke(pendingMounts, "get", oldVNode);
+  if (pendingMount.truthy()) {
+    int flags = JS.number(pendingMount["flags"]).toInt();
+    pendingMount["flags"] = flags | JS.number(SchedulerJobFlags["DISPOSED"]).toInt();
+    JS.invoke(pendingMounts, "delete", oldVNode);
+    JS.call(queuePendingMount, JS.undefined(), vnode);
+    return;
+  }
+  vnode["targetStart"] = oldVNode["targetStart"];
+  JsValue target = oldVNode["target"];
+  vnode["target"] = target;
+  JsValue targetAnchor = oldVNode["targetAnchor"];
+  vnode["targetAnchor"] = targetAnchor;
+  bool wasDisabled = isTeleportDisabled(oldVNode["props"]);
+  JsValue currentContainer = target;
+  JsValue currentAnchor = targetAnchor;
+  if (wasDisabled) {
+    currentContainer = container;
+    currentAnchor = mainAnchor;
+  }
+  if (JS.strictEqual(namespace, "svg") || isTargetSVG(target)) {
+    namespace = "svg";
+  } else if (JS.strictEqual(namespace, "mathml") || isTargetMathML(target)) {
+    namespace = "mathml";
+  }
+  if (dynamicChildren.truthy()) {
+    JS.call(patchBlockChildren, JS.undefined(), oldVNode["dynamicChildren"], dynamicChildren, currentContainer,
+    parentComponent, parentSuspense, namespace, slotScopeIds);
+    traverseStaticChildren(oldVNode, vnode, ! TELEPORT_DEV);
+  } else if (! optimized) {
+    JS.call(patchChildren, JS.undefined(), oldVNode, vnode, currentContainer, currentAnchor, parentComponent,
+    parentSuspense, namespace, slotScopeIds, false);
+  }
+  if (disabled) {
+    if (! wasDisabled) {
+      moveTeleport(vnode, container, mainAnchor, internals, 1);
+    } else if (vnode["props"].truthy() && oldVNode["props"].truthy() && ! JS.strictEqual(vnode["props"]["to"],
+    oldVNode["props"]["to"])) {
+      vnode["props"]["to"] = oldVNode["props"]["to"];
+    }
+  } else if (! JS.strictEqual(teleportTo(vnode), teleportTo(oldVNode))) {
+    JsValue nextTarget = resolveTarget(vnode["props"], querySelector);
+    if (nextTarget.truthy()) {
+      vnode["target"] = nextTarget;
+      moveTeleport(vnode, nextTarget, null, internals, 0);
+    } else if (TELEPORT_DEV) {
+      JS.call(warn, JS.undefined(), "Invalid Teleport target on update:", target, "(" + JS.typeOf(target) + ")");
+    }
+  } else if (wasDisabled) {
+    moveTeleport(vnode, target, targetAnchor, internals, 1);
+  }
+  updateCssVars(vnode, disabled);
+}
+void teleportRemove(JsValue vnode, JsValue parentComponent, JsValue parentSuspense, JsValue internals,
+bool doRemove) {
+  int shapeFlag = JS.number(vnode["shapeFlag"]).toInt();
+  JsValue children = vnode["children"];
+  JsValue anchor = vnode["anchor"];
+  JsValue targetStart = vnode["targetStart"];
+  JsValue targetAnchor = vnode["targetAnchor"];
+  JsValue target = vnode["target"];
+  bool disabled = isTeleportDisabled(vnode["props"]);
+  bool shouldRemove = doRemove || ! disabled;
+  JsValue unmount = internals["um"];
+  JsValue hostRemove = internals["o"]["remove"];
+  JsValue pendingMount = JS.invoke(pendingMounts, "get", vnode);
+  if (pendingMount.truthy()) {
+    int flags = JS.number(pendingMount["flags"]).toInt();
+    pendingMount["flags"] = flags | JS.number(SchedulerJobFlags["DISPOSED"]).toInt();
+    JS.invoke(pendingMounts, "delete", vnode);
+  }
+  if (target.truthy()) {
+    JS.call(hostRemove, JS.undefined(), targetStart);
+    JS.call(hostRemove, JS.undefined(), targetAnchor);
+  }
+  if (doRemove)JS.call(hostRemove, JS.undefined(), anchor);
+  if (! pendingMount.truthy() &&(disabled || target.truthy()) &&(shapeFlag & teleportShape("ARRAY_CHILDREN")) != 0) {
+    for (int index = 0;index < teleportLength(children);index++) {
+      JsValue child = children[index];
+      JS.call(unmount, JS.undefined(), child, parentComponent, parentSuspense, shouldRemove, child["dynamicChildren"].truthy());
+    }
+  }
+}
+export JsValue TeleportMoveTypes = JS.object("0", "TARGET_CHANGE", "1", "TOGGLE", "2", "REORDER", "TARGET_CHANGE",
+0, "TOGGLE", 1, "REORDER", 2);
+void moveTeleport(JsValue vnode, JsValue container, JsValue parentAnchor, JsValue internals, int moveType = 2) {
+  JsValue insert = internals["o"]["insert"];
+  JsValue move = internals["m"];
+  if (moveType == 0) {
+    JS.call(insert, JS.undefined(), vnode["targetAnchor"], container, parentAnchor);
+  }
+  JsValue element = vnode["el"];
+  JsValue anchor = vnode["anchor"];
+  int shapeFlag = JS.number(vnode["shapeFlag"]).toInt();
+  JsValue children = vnode["children"];
+  bool reorder = moveType == 2;
+  if (reorder)JS.call(insert, JS.undefined(), element, container, parentAnchor);
+  if (! JS.invoke(pendingMounts, "has", vnode).truthy() &&(! reorder || isTeleportDisabled(vnode["props"])) &&(shapeFlag & teleportShape("ARRAY_CHILDREN")) != 0) {
+    for (int index = 0;index < teleportLength(children);index++) {
+      JS.call(move, JS.undefined(), children[index], container, parentAnchor, MoveType["REORDER"]);
+    }
+  }
+  if (reorder)JS.call(insert, JS.undefined(), anchor, container, parentAnchor);
+}
+JsValue hydrateTeleport(JsValue node, JsValue vnode, JsValue parentComponent, JsValue parentSuspense,
+JsValue slotScopeIds, bool optimized, JsValue internals, JsValue hydrateChildren) {
+  JsValue operations = internals["o"];
+  JsValue nextSibling = operations["nextSibling"];
+  JsValue parentNode = operations["parentNode"];
+  JsValue querySelector = operations["querySelector"];
+  JsValue insert = operations["insert"];
+  JsValue createText = operations["createText"];
+  JsValue hydrateAnchor = JS.method2((JsValue _self, JsValue target, JsValue targetNode) =>{ JsValue targetAnchor = targetNode;while (targetAnchor.truthy()) {
+    if (JS.number(targetAnchor["nodeType"]).toInt() == 8) {
+      if (JS.strictEqual(targetAnchor["data"], "teleport start anchor")) {
+        vnode["targetStart"] = targetAnchor;
+      } else if (JS.strictEqual(targetAnchor["data"], "teleport anchor")) {
+        vnode["targetAnchor"] = targetAnchor;target["_lpa"] = JS.call(nextSibling, JS.undefined(), targetAnchor);break;
+      }
+    }
+    targetAnchor = JS.call(nextSibling, JS.undefined(), targetAnchor);
+  }
+  return JS.undefined(); });
+  JsValue hydrateDisabledTeleport = JS.method2((JsValue _self, JsValue currentNode, JsValue currentVNode) =>{ currentVNode["anchor"] = JS.call(hydrateChildren,
+  JS.undefined(), JS.call(nextSibling, JS.undefined(), currentNode), currentVNode, JS.call(parentNode,
+  JS.undefined(), currentNode), parentComponent, parentSuspense, slotScopeIds, optimized);return JS.undefined(); });
+  JsValue target = resolveTarget(vnode["props"], querySelector);
+  vnode["target"] = target;
+  bool disabled = isTeleportDisabled(vnode["props"]);
+  if (target.truthy()) {
+    JsValue targetNode = target["_lpa"];
+    if (! targetNode.truthy())targetNode = target["firstChild"];
+    if ((JS.number(vnode["shapeFlag"]).toInt() & teleportShape("ARRAY_CHILDREN")) != 0) {
+      if (disabled) {
+        JS.call(hydrateDisabledTeleport, JS.undefined(), node, vnode);
+        JS.call(hydrateAnchor, JS.undefined(), target, targetNode);
+        if (! vnode["targetAnchor"].truthy()) {
+          JsValue anchor = null;
+          if (JS.strictEqual(JS.call(parentNode, JS.undefined(), node), target)) {
+            anchor = node;
+          }
+          prepareAnchor(target, vnode, createText, insert, anchor);
+        }
+      } else {
+        vnode["anchor"] = JS.call(nextSibling, JS.undefined(), node);
+        JS.call(hydrateAnchor, JS.undefined(), target, targetNode);
+        if (! vnode["targetAnchor"].truthy()) {
+          prepareAnchor(target, vnode, createText, insert);
+        }
+        JsValue firstTargetChild = null;
+        if (targetNode.truthy()) {
+          firstTargetChild = JS.call(nextSibling, JS.undefined(), targetNode);
+        }
+        JS.call(hydrateChildren, JS.undefined(), firstTargetChild, vnode, target, parentComponent, parentSuspense,
+        slotScopeIds, optimized);
+      }
+    }
+    updateCssVars(vnode, disabled);
+  } else if (disabled &&(JS.number(vnode["shapeFlag"]).toInt() & teleportShape("ARRAY_CHILDREN")) != 0) {
+    JS.call(hydrateDisabledTeleport, JS.undefined(), node, vnode);
+    vnode["targetStart"] = node;
+    vnode["targetAnchor"] = JS.call(nextSibling, JS.undefined(), node);
+  }
+  if (vnode["anchor"].truthy()) {
+    return JS.call(nextSibling, JS.undefined(), vnode["anchor"]);
+  }
+  return vnode["anchor"];
+}
+export JsValue TeleportImpl = JS.object("name", "Teleport", "__isTeleport", true, "process", teleportProcess,
+"remove", teleportRemove, "move", moveTeleport, "hydrate", hydrateTeleport);
+export JsValue Teleport = TeleportImpl;

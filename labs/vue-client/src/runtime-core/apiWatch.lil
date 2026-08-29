@@ -1,0 +1,197 @@
+import { watch as baseWatch } from "../reactivity/watch";
+import { EMPTY_OBJ, NOOP, extend, isFunction, isString } from "../shared/general";
+import {
+  currentInstance,
+  isInSSRComponentSetup,
+  setCurrentInstance
+} from "./component";
+import { callWithAsyncErrorHandling } from "./errorHandling";
+import { useSSRContext } from "./helpers/useSsrContext";
+import { queuePostRenderEffect } from "./renderer";
+import { SchedulerJobFlags, queueJob } from "./scheduler";
+import extern { hostCreateObject as watchCreateObject } from "./host.js";
+import { warn } from "./warning";
+
+extern JsValue this;
+extern JsValue watchCreateObject();
+
+int watchFlags(JsValue job) {
+  JsValue flags = job["flags"];
+  if (JS.isNullish(flags)) return 0;
+  return JS.number(flags).toInt();
+}
+
+
+export JsValue watchEffect(
+  JsValue effectValue,
+  JsValue options = JS.undefined()
+) {
+  return doWatch(effectValue, null, options);
+}
+
+export JsValue watchPostEffect(
+  JsValue effectValue,
+  JsValue options = JS.undefined()
+) {
+  JsValue finalOptions = JS.call(
+    extend,
+    JS.undefined(),
+    watchCreateObject(),
+    options,
+    JS.object("flush", "post")
+  );
+  return doWatch(effectValue, null, finalOptions);
+}
+
+export JsValue watchSyncEffect(
+  JsValue effectValue,
+  JsValue options = JS.undefined()
+) {
+  JsValue finalOptions = JS.call(
+    extend,
+    JS.undefined(),
+    watchCreateObject(),
+    options,
+    JS.object("flush", "sync")
+  );
+  return doWatch(effectValue, null, finalOptions);
+}
+
+export JsValue watch(
+  JsValue source,
+  JsValue callback,
+  JsValue options = JS.undefined()
+) {
+  if (!isFunction(callback)) {
+    warn(
+      "`watch(fn, options?)` signature has been moved to a separate API. " +
+      "Use `watchEffect(fn, options?)` instead. `watch` now only " +
+      "supports `watch(source, cb, options?) signature."
+    );
+  }
+  return doWatch(source, callback, options);
+}
+
+JsValue doWatch(JsValue source, JsValue callback, JsValue options) {
+  if (JS.isUndefined(options)) options = EMPTY_OBJ;
+  JsValue immediate = options["immediate"];
+  JsValue deep = options["deep"];
+  JsValue flush = options["flush"];
+  JsValue once = options["once"];
+
+  if (!callback.truthy()) {
+    if (!JS.isUndefined(immediate)) {
+      warn("watch() \"immediate\" option is only respected when using the watch(source, callback, options?) signature.");
+    }
+    if (!JS.isUndefined(deep)) {
+      warn("watch() \"deep\" option is only respected when using the watch(source, callback, options?) signature.");
+    }
+    if (!JS.isUndefined(once)) {
+      warn("watch() \"once\" option is only respected when using the watch(source, callback, options?) signature.");
+    }
+  }
+
+  JsValue baseWatchOptions = JS.call(extend, JS.undefined(), watchCreateObject(), options);
+  baseWatchOptions["onWarn"] = warn;
+  bool runsImmediately = (callback.truthy() && immediate.truthy()) ||
+    (!callback.truthy() && !JS.strictEqual(flush, "post"));
+  JsValue ssrCleanup = JS.undefined();
+
+  if (isInSSRComponentSetup) {
+    if (JS.strictEqual(flush, "sync")) {
+      JsValue context = useSSRContext();
+      ssrCleanup = context["__watcherHandles"];
+      if (!ssrCleanup.truthy()) {
+        ssrCleanup = JS.array();
+        context["__watcherHandles"] = ssrCleanup;
+      }
+    } else if (!runsImmediately) {
+      JsValue watchStopHandle = JS.method0((JsValue _self) => JS.undefined());
+      watchStopHandle["stop"] = NOOP;
+      watchStopHandle["resume"] = NOOP;
+      watchStopHandle["pause"] = NOOP;
+      return watchStopHandle;
+    }
+  }
+
+  JsValue instance = currentInstance;
+  baseWatchOptions["call"] = JS.method3((JsValue _self, JsValue fn, JsValue type, JsValue args) =>
+    callWithAsyncErrorHandling(fn, instance, type, args)
+  );
+
+  bool isPre = false;
+  if (JS.strictEqual(flush, "post")) {
+    baseWatchOptions["scheduler"] = JS.method1((JsValue _self, JsValue job) => {
+      JsValue suspense = null;
+      if (instance.truthy()) suspense = instance["suspense"];
+      queuePostRenderEffect(job, suspense);
+      return JS.undefined();
+    });
+  } else if (!JS.strictEqual(flush, "sync")) {
+    isPre = true;
+    baseWatchOptions["scheduler"] = JS.method2((JsValue _self, JsValue job, JsValue isFirstRun) => {
+      if (isFirstRun.truthy()) JS.call(job, JS.undefined());
+      else queueJob(job);
+      return JS.undefined();
+    });
+  }
+
+  baseWatchOptions["augmentJob"] = JS.method1((JsValue _self, JsValue job) => {
+    int flags = watchFlags(job);
+    if (callback.truthy()) flags = flags | JS.number(SchedulerJobFlags["ALLOW_RECURSE"]).toInt();
+    if (isPre) {
+      flags = flags | JS.number(SchedulerJobFlags["PRE"]).toInt();
+      if (instance.truthy()) {
+        job["id"] = instance["uid"];
+        job["i"] = instance;
+      }
+    }
+    job["flags"] = flags;
+    return JS.undefined();
+  });
+
+  JsValue watchHandle = JS.call(baseWatch, JS.undefined(), source, callback, baseWatchOptions);
+  if (isInSSRComponentSetup) {
+    if (!JS.isUndefined(ssrCleanup)) JS.invoke(ssrCleanup, "push", watchHandle);
+    else if (runsImmediately) JS.call(watchHandle, JS.undefined());
+  }
+  return watchHandle;
+}
+
+export JsValue instanceWatch(
+  JsValue source,
+  JsValue value,
+  JsValue options
+) {
+  JsValue instance = this;
+  JsValue publicThis = instance["proxy"];
+  JsValue getter = JS.undefined();
+  if (isString(source)) {
+    string sourceString = JS.string(source);
+    if (sourceString.includes(".")) getter = createPathGetter(publicThis, sourceString);
+    else getter = JS.method0((JsValue _self) => publicThis[source]);
+  } else {
+    getter = JS.invoke(source, "bind", publicThis, publicThis);
+  }
+  JsValue callback = JS.undefined();
+  if (isFunction(value)) callback = value;
+  else {
+    callback = value["handler"];
+    options = value;
+  }
+  JsValue reset = setCurrentInstance(instance);
+  JsValue result = doWatch(getter, JS.invoke(callback, "bind", publicThis), options);
+  JS.call(reset, JS.undefined());
+  return result;
+}
+
+export JsValue createPathGetter(JsValue context, string path) {
+  JsValue segments = JS.invoke(path, "split", ".");
+  return JS.method0((JsValue _self) => {
+    JsValue current = context;
+    for (int index = 0; index < JS.number(segments["length"]).toInt() && current.truthy(); index++) {
+      current = current[segments[index]];
+    }
+    return current;
+  });
+}

@@ -1,0 +1,455 @@
+import { isModelListener, isObject, isOn } from "../shared/general";
+import { looseEqual } from "../shared/looseEqual";
+import { PatchFlags } from "../shared/patchFlags";
+import { ShapeFlags } from "../shared/shapeFlags";
+import { shallowReadonly } from "../reactivity/reactive";
+import { getComponentName } from "./component";
+import {
+  Comment,
+  blockStack,
+  cloneVNode,
+  createVNode,
+  isVNode,
+  normalizeVNode
+} from "./vnode";
+import { ErrorCodes, handleError } from "./errorHandling";
+import { warn } from "./warning";
+import { isHmrUpdating } from "./hmr";
+import { isEmitListener } from "./componentEmits";
+import { setCurrentRenderingInstance } from "./componentRenderContext";
+import {
+  DeprecationTypes,
+  isCompatEnabled,
+  warnDeprecation
+} from "./compat/compatConfig";
+import { getInnerChild, setTransitionHooks } from "./components/BaseTransition";
+import { isTeleport } from "./components/Teleport";
+
+extern JsValue Object;
+extern JsValue Proxy;
+extern JsValue Reflect;
+extern JsValue String;
+
+bool RENDER_UTILS_DEV = true;
+bool RENDER_UTILS_COMPAT = false;
+int RENDER_STATEFUL_COMPONENT = JS.number(ShapeFlags["STATEFUL_COMPONENT"]).toInt();
+int RENDER_ELEMENT = JS.number(ShapeFlags["ELEMENT"]).toInt();
+int RENDER_COMPONENT = JS.number(ShapeFlags["COMPONENT"]).toInt();
+int RENDER_DEV_ROOT_FRAGMENT = JS.number(PatchFlags["DEV_ROOT_FRAGMENT"]).toInt();
+int RENDER_DYNAMIC_SLOTS = JS.number(PatchFlags["DYNAMIC_SLOTS"]).toInt();
+int RENDER_FULL_PROPS = JS.number(PatchFlags["FULL_PROPS"]).toInt();
+int RENDER_PROPS = JS.number(PatchFlags["PROPS"]).toInt();
+
+bool accessedAttrs = false;
+
+JsValue renderUtilsUndefined() {
+  return JS.undefined();
+}
+
+int renderUtilsLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+
+export void markAttrsAccessed() {
+  accessedAttrs = true;
+}
+
+export JsValue renderComponentRoot(JsValue instance) {
+  JsValue Component = instance["type"];
+  JsValue vnode = instance["vnode"];
+  JsValue proxy = instance["proxy"];
+  JsValue withProxy = instance["withProxy"];
+  JsValue propsOptions = instance["propsOptions"][0];
+  JsValue slots = instance["slots"];
+  JsValue attrs = instance["attrs"];
+  JsValue emit = instance["emit"];
+  JsValue render = instance["render"];
+  JsValue renderCache = instance["renderCache"];
+  JsValue props = instance["props"];
+  JsValue data = instance["data"];
+  JsValue setupState = instance["setupState"];
+  JsValue context = instance["ctx"];
+  JsValue inheritAttrs = instance["inheritAttrs"];
+  JsValue previous = setCurrentRenderingInstance(instance);
+
+  JsValue result = renderUtilsUndefined();
+  JsValue fallthroughAttrs = renderUtilsUndefined();
+  if (RENDER_UTILS_DEV) accessedAttrs = false;
+
+  try {
+    int shapeFlag = JS.number(vnode["shapeFlag"]).toInt();
+    if ((shapeFlag & RENDER_STATEFUL_COMPONENT) != 0) {
+      JsValue proxyToUse = proxy;
+      if (withProxy.truthy()) proxyToUse = withProxy;
+      JsValue thisProxy = proxyToUse;
+      if (RENDER_UTILS_DEV && setupState["__isScriptSetup"].truthy()) {
+        JsValue handler = JS.object();
+        handler["get"] = JS.method3((
+          JsValue _self,
+          JsValue target,
+          JsValue key,
+          JsValue receiver
+        ) => {
+          JS.call(
+            warn,
+            renderUtilsUndefined(),
+            "Property '" + JS.string(JS.call(String, renderUtilsUndefined(), key)) +
+              "' was accessed via 'this'. Avoid using 'this' in templates."
+          );
+          return JS.invoke(Reflect, "get", target, key, receiver);
+        });
+        thisProxy = JS.construct(Proxy, proxyToUse, handler);
+      }
+      JsValue renderProps = props;
+      if (RENDER_UTILS_DEV) renderProps = shallowReadonly(props);
+      result = normalizeVNode(JS.call(
+        render,
+        thisProxy,
+        proxyToUse,
+        renderCache,
+        renderProps,
+        setupState,
+        data,
+        context
+      ));
+      fallthroughAttrs = attrs;
+    } else {
+      JsValue functionalRender = Component;
+      if (RENDER_UTILS_DEV && JS.strictEqual(attrs, props)) markAttrsAccessed();
+      JsValue renderProps = props;
+      if (RENDER_UTILS_DEV) renderProps = shallowReadonly(props);
+      JsValue rendered = renderUtilsUndefined();
+      if (renderUtilsLength(functionalRender) > 1) {
+        JsValue setupContext = JS.object();
+        if (RENDER_UTILS_DEV) {
+          JsValue getAttrs = JS.method0((JsValue _self) => {
+            markAttrsAccessed();
+            return shallowReadonly(attrs);
+          });
+          JS.invoke(Object, "defineProperty", setupContext, "attrs", JS.object(
+            "enumerable", true,
+            "configurable", true,
+            "get", getAttrs
+          ));
+        } else {
+          setupContext["attrs"] = attrs;
+        }
+        setupContext["slots"] = slots;
+        setupContext["emit"] = emit;
+        rendered = JS.call(functionalRender, renderUtilsUndefined(), renderProps, setupContext);
+      } else {
+        rendered = JS.call(functionalRender, renderUtilsUndefined(), renderProps, null);
+      }
+      result = normalizeVNode(rendered);
+      if (Component["props"].truthy()) fallthroughAttrs = attrs;
+      else fallthroughAttrs = getFunctionalFallthrough(attrs);
+    }
+  } catch (JsValue error) {
+    JS.set(blockStack, "length", 0);
+    handleError(error, instance, ErrorCodes["RENDER_FUNCTION"]);
+    result = createVNode(Comment);
+  }
+
+  JsValue root = result;
+  JsValue setRoot = renderUtilsUndefined();
+  int resultPatchFlag = JS.number(result["patchFlag"]).toInt();
+  if (
+    RENDER_UTILS_DEV &&
+    resultPatchFlag > 0 &&
+    (resultPatchFlag & RENDER_DEV_ROOT_FRAGMENT) != 0
+  ) {
+    JsValue childRoot = getChildRoot(result);
+    root = childRoot[0];
+    setRoot = childRoot[1];
+  }
+
+  if (fallthroughAttrs.truthy() && !JS.strictEqual(inheritAttrs, false)) {
+    JsValue keys = JS.invoke(Object, "keys", fallthroughAttrs);
+    int rootShapeFlag = JS.number(root["shapeFlag"]).toInt();
+    if (renderUtilsLength(keys) > 0) {
+      if ((rootShapeFlag & (RENDER_ELEMENT | RENDER_COMPONENT)) != 0) {
+        if (
+          propsOptions.truthy() &&
+          JS.invoke(keys, "some", isModelListener).truthy()
+        ) fallthroughAttrs = filterModelListeners(fallthroughAttrs, propsOptions);
+        root = cloneVNode(root, fallthroughAttrs, false, true);
+      } else if (RENDER_UTILS_DEV && !accessedAttrs && !JS.strictEqual(root["type"], Comment)) {
+        JsValue allAttrs = JS.invoke(Object, "keys", attrs);
+        JsValue eventAttrs = JS.array();
+        JsValue extraAttrs = JS.array();
+        for (int index = 0; index < renderUtilsLength(allAttrs); index++) {
+          string key = JS.string(allAttrs[index]);
+          if (isOn(key)) {
+            if (!isModelListener(key)) {
+              JS.invoke(eventAttrs, "push", key.slice(2, 3).toLowerCase() + key.slice(3, key.length));
+            }
+          } else {
+            JS.invoke(extraAttrs, "push", key);
+          }
+        }
+        if (renderUtilsLength(extraAttrs) > 0) {
+          JS.call(
+            warn,
+            renderUtilsUndefined(),
+            "Extraneous non-props attributes (" + JS.string(JS.invoke(extraAttrs, "join", ", ")) + ") " +
+              "were passed to component but could not be automatically inherited " +
+              "because component renders fragment or text or teleport root nodes."
+          );
+        }
+        if (renderUtilsLength(eventAttrs) > 0) {
+          JS.call(
+            warn,
+            renderUtilsUndefined(),
+            "Extraneous non-emits event listeners (" + JS.string(JS.invoke(eventAttrs, "join", ", ")) + ") " +
+              "were passed to component but could not be automatically inherited " +
+              "because component renders fragment or text root nodes. " +
+              "If the listener is intended to be a component custom event listener only, " +
+              "declare it using the \"emits\" option."
+          );
+        }
+      }
+    }
+  }
+
+  int vnodeShapeFlag = JS.number(vnode["shapeFlag"]).toInt();
+  int rootShapeFlag = JS.number(root["shapeFlag"]).toInt();
+  if (
+    RENDER_UTILS_COMPAT &&
+    isCompatEnabled(JS.string(DeprecationTypes["INSTANCE_ATTRS_CLASS_STYLE"]), instance) &&
+    (vnodeShapeFlag & RENDER_STATEFUL_COMPONENT) != 0 &&
+    (rootShapeFlag & (RENDER_ELEMENT | RENDER_COMPONENT)) != 0
+  ) {
+    JsValue vnodeProps = vnode["props"];
+    if (JS.isNullish(vnodeProps)) vnodeProps = JS.object();
+    JsValue klass = vnodeProps["class"];
+    JsValue style = vnodeProps["style"];
+    if (klass.truthy() || style.truthy()) {
+      if (RENDER_UTILS_DEV && JS.strictEqual(inheritAttrs, false)) {
+        warnDeprecation(
+          JS.string(DeprecationTypes["INSTANCE_ATTRS_CLASS_STYLE"]),
+          instance,
+          getComponentName(instance["type"], true)
+        );
+      }
+      root = cloneVNode(root, JS.object("class", klass, "style", style), false, true);
+    }
+  }
+
+  if (vnode["dirs"].truthy()) {
+    if (RENDER_UTILS_DEV && !isElementRoot(root)) {
+      JS.call(
+        warn,
+        renderUtilsUndefined(),
+        "Runtime directive used on component with non-element root node. " +
+          "The directives will not function as intended."
+      );
+    }
+    root = cloneVNode(root, null, false, true);
+    if (root["dirs"].truthy()) {
+      root["dirs"] = JS.invoke(root["dirs"], "concat", vnode["dirs"]);
+    } else {
+      root["dirs"] = vnode["dirs"];
+    }
+  }
+  if (vnode["transition"].truthy()) {
+    JsValue child = root;
+    if (isTeleport(root["type"])) {
+      JsValue inner = getInnerChild(root);
+      if (inner.truthy()) child = inner;
+    }
+    if (RENDER_UTILS_DEV && !isElementRoot(child)) {
+      JS.call(
+        warn,
+        renderUtilsUndefined(),
+        "Component inside <Transition> renders non-element root node " +
+          "that cannot be animated."
+      );
+    }
+    setTransitionHooks(child, vnode["transition"]);
+  }
+
+  if (RENDER_UTILS_DEV && setRoot.truthy()) JS.call(setRoot, renderUtilsUndefined(), root);
+  else result = root;
+  setCurrentRenderingInstance(previous);
+  return result;
+}
+
+JsValue getChildRoot(JsValue vnode) {
+  JsValue rawChildren = vnode["children"];
+  JsValue dynamicChildren = vnode["dynamicChildren"];
+  JsValue childRoot = filterSingleRoot(rawChildren, false);
+  if (!childRoot.truthy()) return JS.array(vnode, renderUtilsUndefined());
+  int childPatchFlag = JS.number(childRoot["patchFlag"]).toInt();
+  if (
+    RENDER_UTILS_DEV &&
+    childPatchFlag > 0 &&
+    (childPatchFlag & RENDER_DEV_ROOT_FRAGMENT) != 0
+  ) return getChildRoot(childRoot);
+
+  int index = JS.number(JS.invoke(rawChildren, "indexOf", childRoot)).toInt();
+  int dynamicIndex = -1;
+  if (dynamicChildren.truthy()) {
+    dynamicIndex = JS.number(JS.invoke(dynamicChildren, "indexOf", childRoot)).toInt();
+  }
+  JsValue setRoot = JS.method1((JsValue _self, JsValue updatedRoot) => {
+    rawChildren[index] = updatedRoot;
+    if (dynamicChildren.truthy()) {
+      if (dynamicIndex > -1) dynamicChildren[dynamicIndex] = updatedRoot;
+      else if (JS.number(updatedRoot["patchFlag"]).toInt() > 0) {
+        vnode["dynamicChildren"] = JS.invoke(dynamicChildren, "concat", JS.array(updatedRoot));
+      }
+    }
+    return renderUtilsUndefined();
+  });
+  return JS.array(normalizeVNode(childRoot), setRoot);
+}
+
+export JsValue filterSingleRoot(JsValue children, bool recurse = true) {
+  JsValue singleRoot = renderUtilsUndefined();
+  for (int index = 0; index < renderUtilsLength(children); index++) {
+    JsValue child = children[index];
+    if (isVNode(child)) {
+      if (!JS.strictEqual(child["type"], Comment) || JS.strictEqual(child["children"], "v-if")) {
+        if (singleRoot.truthy()) return renderUtilsUndefined();
+        singleRoot = child;
+        int patchFlag = JS.number(singleRoot["patchFlag"]).toInt();
+        if (
+          RENDER_UTILS_DEV &&
+          recurse &&
+          patchFlag > 0 &&
+          (patchFlag & RENDER_DEV_ROOT_FRAGMENT) != 0
+        ) return filterSingleRoot(singleRoot["children"], true);
+      }
+    } else {
+      return renderUtilsUndefined();
+    }
+  }
+  return singleRoot;
+}
+
+JsValue getFunctionalFallthrough(JsValue attrs) {
+  JsValue result = renderUtilsUndefined();
+  for (string key in attrs) {
+    if (key == "class" || key == "style" || isOn(key)) {
+      if (JS.isUndefined(result)) result = JS.object();
+      result[key] = attrs[key];
+    }
+  }
+  return result;
+}
+
+JsValue filterModelListeners(JsValue attrs, JsValue props) {
+  JsValue result = JS.object();
+  for (string key in attrs) {
+    if (
+      !isModelListener(key) ||
+      !JS.in(key.slice(9, key.length), props)
+    ) result[key] = attrs[key];
+  }
+  return result;
+}
+
+bool isElementRoot(JsValue vnode) {
+  int shapeFlag = JS.number(vnode["shapeFlag"]).toInt();
+  return (shapeFlag & (RENDER_COMPONENT | RENDER_ELEMENT)) != 0 ||
+    JS.strictEqual(vnode["type"], Comment);
+}
+
+export bool shouldUpdateComponent(
+  JsValue previousVNode,
+  JsValue nextVNode,
+  bool optimized = false
+) {
+  JsValue previousProps = previousVNode["props"];
+  JsValue previousChildren = previousVNode["children"];
+  JsValue component = previousVNode["component"];
+  JsValue nextProps = nextVNode["props"];
+  JsValue nextChildren = nextVNode["children"];
+  int patchFlag = JS.number(nextVNode["patchFlag"]).toInt();
+  JsValue emits = component["emitsOptions"];
+
+  if (
+    RENDER_UTILS_DEV &&
+    (previousChildren.truthy() || nextChildren.truthy()) &&
+    isHmrUpdating
+  ) return true;
+  if (nextVNode["dirs"].truthy() || nextVNode["transition"].truthy()) return true;
+
+  if (optimized && patchFlag >= 0) {
+    if ((patchFlag & RENDER_DYNAMIC_SLOTS) != 0) return true;
+    if ((patchFlag & RENDER_FULL_PROPS) != 0) {
+      if (JS.isNullish(previousProps)) return !JS.isNullish(nextProps);
+      return hasPropsChanged(previousProps, nextProps, emits);
+    }
+    if ((patchFlag & RENDER_PROPS) != 0) {
+      JsValue dynamicProps = nextVNode["dynamicProps"];
+      for (int index = 0; index < renderUtilsLength(dynamicProps); index++) {
+        string key = JS.string(dynamicProps[index]);
+        if (
+          hasPropValueChanged(nextProps, previousProps, key) &&
+          !isEmitListener(emits, key)
+        ) return true;
+      }
+    }
+  } else {
+    if (previousChildren.truthy() || nextChildren.truthy()) {
+      if (JS.isNullish(nextChildren) || !nextChildren["$stable"].truthy()) return true;
+    }
+    if (JS.strictEqual(previousProps, nextProps)) return false;
+    if (JS.isNullish(previousProps)) return !JS.isNullish(nextProps);
+    if (JS.isNullish(nextProps)) return true;
+    return hasPropsChanged(previousProps, nextProps, emits);
+  }
+  return false;
+}
+
+bool hasPropsChanged(JsValue previousProps, JsValue nextProps, JsValue emitsOptions) {
+  JsValue nextKeys = JS.invoke(Object, "keys", nextProps);
+  if (renderUtilsLength(nextKeys) != renderUtilsLength(JS.invoke(Object, "keys", previousProps))) {
+    return true;
+  }
+  for (int index = 0; index < renderUtilsLength(nextKeys); index++) {
+    string key = JS.string(nextKeys[index]);
+    if (
+      hasPropValueChanged(nextProps, previousProps, key) &&
+      !isEmitListener(emitsOptions, key)
+    ) return true;
+  }
+  return false;
+}
+
+bool hasPropValueChanged(JsValue nextProps, JsValue previousProps, string key) {
+  JsValue nextProp = nextProps[key];
+  JsValue previousProp = previousProps[key];
+  if (key == "style" && isObject(nextProp) && isObject(previousProp)) {
+    return !looseEqual(nextProp, previousProp);
+  }
+  return !JS.strictEqual(nextProp, previousProp);
+}
+
+export void updateHOCHostEl(JsValue instance, JsValue element) {
+  JsValue vnode = instance["vnode"];
+  JsValue parent = instance["parent"];
+  JsValue suspense = instance["suspense"];
+  while (parent.truthy()) {
+    JsValue root = parent["subTree"];
+    if (
+      root["suspense"].truthy() &&
+      JS.strictEqual(root["suspense"]["activeBranch"], vnode)
+    ) {
+      root["suspense"]["vnode"]["el"] = element;
+      root["el"] = element;
+      vnode = root;
+    }
+    if (JS.strictEqual(root, vnode)) {
+      vnode = parent["vnode"];
+      vnode["el"] = element;
+      parent = parent["parent"];
+    } else {
+      break;
+    }
+  }
+  if (suspense.truthy() && JS.strictEqual(suspense["activeBranch"], vnode)) {
+    suspense["vnode"]["el"] = element;
+  }
+}

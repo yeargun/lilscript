@@ -1,0 +1,27 @@
+import { computed as dependencyComputed } from "../reactivity/computed";
+import { getCurrentInstance, isInSSRComponentSetup } from "./component";
+
+bool DEV = true;
+
+export JsValue computed(
+  JsValue getterOrOptions,
+  JsValue debugOptions = JS.undefined()
+) {
+  JsValue value = JS.call(
+    dependencyComputed,
+    JS.undefined(),
+    getterOrOptions,
+    debugOptions,
+    isInSSRComponentSetup
+  );
+  if (DEV) {
+    JsValue instance = getCurrentInstance();
+    if (
+      instance.truthy() &&
+      instance["appContext"]["config"]["warnRecursiveComputed"].truthy()
+    ) {
+      value["_warnRecursive"] = true;
+    }
+  }
+  return value;
+}

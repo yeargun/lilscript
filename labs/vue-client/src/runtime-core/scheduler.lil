@@ -1,0 +1,289 @@
+import { isArray } from "../shared/general";
+import { getComponentName } from "./component";
+import { ErrorCodes, callWithErrorHandling, handleError } from "./errorHandling";
+import extern {
+  hostArrayFrom,
+  hostArrayInsert,
+  hostArrayRemove,
+  hostArraySort,
+  hostCreateMap,
+  hostCreateSet,
+  hostFunction1Rest,
+  hostInfinity,
+  hostMapGet,
+  hostMapSet,
+  hostPromiseResolve,
+  hostPromiseThen,
+  hostSetFunctionName
+} from "./host.js";
+
+extern JsValue hostArrayFrom(JsValue value);
+extern void hostArrayInsert(JsValue array, int index, JsValue value);
+extern void hostArrayRemove(JsValue array, int index);
+extern JsValue hostArraySort(JsValue array, JsValue compare);
+extern JsValue hostCreateMap();
+extern JsValue hostCreateSet(JsValue values);
+extern JsValue hostFunction1Rest(JsValue callback);
+extern float hostInfinity();
+extern JsValue hostMapGet(JsValue map, JsValue key);
+extern void hostMapSet(JsValue map, JsValue key, JsValue value);
+extern JsValue hostPromiseResolve();
+extern JsValue hostPromiseThen(JsValue promise, JsValue callback);
+extern JsValue hostSetFunctionName(JsValue fn, string name);
+
+bool DEV = true;
+
+export JsValue SchedulerJobFlags = JS.object(
+  "QUEUED", 1,
+  "1", "QUEUED",
+  "PRE", 2,
+  "2", "PRE",
+  "ALLOW_RECURSE", 4,
+  "4", "ALLOW_RECURSE",
+  "DISPOSED", 8,
+  "8", "DISPOSED"
+);
+
+JsValue[] queue = [];
+int flushIndex = -1;
+JsValue[] pendingPostFlushCbs = [];
+JsValue activePostFlushCbs = null;
+int postFlushIndex = 0;
+JsValue resolvedPromise = hostPromiseResolve();
+JsValue currentFlushPromise = null;
+
+int jobFlags(JsValue job) {
+  JsValue flags = job["flags"];
+  if (JS.isUndefined(flags)) return 0;
+  return JS.number(flags).toInt();
+}
+
+void setJobFlags(JsValue job, int flags) {
+  job["flags"] = flags;
+}
+
+float getId(JsValue job) {
+  JsValue id = job["id"];
+  if (!JS.isNullish(id)) return JS.number(id);
+  if ((jobFlags(job) & 2) != 0) return -1.0;
+  return hostInfinity();
+}
+
+JsValue nextTickImplementation(JsValue receiver, JsValue args) {
+  JsValue promise = currentFlushPromise;
+  if (!promise.truthy()) promise = resolvedPromise;
+  JsValue fn = args[0];
+  if (fn.truthy()) {
+    if (receiver.truthy()) fn = JS.invoke(fn, "bind", receiver);
+    return hostPromiseThen(promise, fn);
+  }
+  return promise;
+}
+
+export JsValue nextTick = hostSetFunctionName(
+  hostFunction1Rest(JS.method2((JsValue _self, JsValue receiver, JsValue args) =>
+    nextTickImplementation(receiver, args)
+  )),
+  "nextTick"
+);
+
+int findInsertionIndex(float id) {
+  int start = flushIndex + 1;
+  int end = queue.length;
+  while (start < end) {
+    int middle = (start + end) >>> 1;
+    JsValue middleJob = queue[middle];
+    float middleJobId = getId(middleJob);
+    if (
+      middleJobId < id ||
+      (middleJobId == id && (jobFlags(middleJob) & 2) != 0)
+    ) {
+      start = middle + 1;
+    } else {
+      end = middle;
+    }
+  }
+  return start;
+}
+
+void queueFlush() {
+  if (!currentFlushPromise.truthy()) {
+    currentFlushPromise = hostPromiseThen(
+      resolvedPromise,
+      JS.method0((JsValue _self) => {
+        flushJobs(JS.undefined());
+        return JS.undefined();
+      })
+    );
+  }
+}
+
+export void queueJob(JsValue job) {
+  if ((jobFlags(job) & 1) != 0) return;
+  float id = getId(job);
+  if (
+    queue.length == 0 ||
+    ((jobFlags(job) & 2) == 0 && id >= getId(queue[queue.length - 1]))
+  ) {
+    queue.push(job);
+  } else {
+    hostArrayInsert(JS.assume(queue), findInsertionIndex(id), job);
+  }
+  setJobFlags(job, jobFlags(job) | 1);
+  queueFlush();
+}
+
+export void queuePostFlushCb(JsValue callback) {
+  if (!JS.call(isArray, JS.undefined(), callback).truthy()) {
+    if (
+      !JS.isNullish(activePostFlushCbs) &&
+      JS.strictEqual(callback["id"], -1)
+    ) {
+      hostArrayInsert(activePostFlushCbs, postFlushIndex + 1, callback);
+    } else if ((jobFlags(callback) & 1) == 0) {
+      pendingPostFlushCbs.push(callback);
+      setJobFlags(callback, jobFlags(callback) | 1);
+    }
+  } else {
+    int length = JS.number(callback["length"]).toInt();
+    for (int index = 0; index < length; index++) {
+      pendingPostFlushCbs.push(callback[index]);
+    }
+  }
+  queueFlush();
+}
+
+export void flushPreFlushCbs(
+  JsValue instance = JS.undefined(),
+  JsValue seen = JS.undefined(),
+  JsValue startIndex = JS.undefined()
+) {
+  if (DEV && !seen.truthy()) seen = hostCreateMap();
+  int index = flushIndex + 1;
+  if (!JS.isUndefined(startIndex)) {
+    index = JS.number(startIndex).toInt();
+  }
+  while (index < queue.length) {
+    JsValue callback = queue[index];
+    if (callback.truthy() && (jobFlags(callback) & 2) != 0) {
+      if (
+        instance.truthy() &&
+        !JS.strictEqual(callback["id"], instance["uid"])
+      ) {
+        index += 1;
+        continue;
+      }
+      if (DEV && checkRecursiveUpdates(seen, callback)) {
+        index += 1;
+        continue;
+      }
+      hostArrayRemove(JS.assume(queue), index);
+      if ((jobFlags(callback) & 4) != 0) {
+        setJobFlags(callback, jobFlags(callback) & -2);
+      }
+      JS.call(callback, JS.undefined());
+      if ((jobFlags(callback) & 4) == 0) {
+        setJobFlags(callback, jobFlags(callback) & -2);
+      }
+      continue;
+    }
+    index += 1;
+  }
+}
+
+export void flushPostFlushCbs(JsValue seen = JS.undefined()) {
+  if (pendingPostFlushCbs.length == 0) return;
+  JsValue deduped = hostArrayFrom(hostCreateSet(JS.assume(pendingPostFlushCbs)));
+  hostArraySort(
+    deduped,
+    JS.method2((JsValue _self, JsValue left, JsValue right) =>
+      getId(left) - getId(right)
+    )
+  );
+  pendingPostFlushCbs = [];
+
+  if (!JS.isNullish(activePostFlushCbs)) {
+    int length = JS.number(deduped["length"]).toInt();
+    for (int index = 0; index < length; index++) {
+      JS.invoke(activePostFlushCbs, "push", deduped[index]);
+    }
+    return;
+  }
+
+  activePostFlushCbs = deduped;
+  if (DEV && !seen.truthy()) seen = hostCreateMap();
+  postFlushIndex = 0;
+  while (postFlushIndex < JS.number(activePostFlushCbs["length"]).toInt()) {
+    JsValue callback = activePostFlushCbs[postFlushIndex];
+    if (!(DEV && checkRecursiveUpdates(seen, callback))) {
+      if ((jobFlags(callback) & 4) != 0) {
+        setJobFlags(callback, jobFlags(callback) & -2);
+      }
+      if ((jobFlags(callback) & 8) == 0) JS.call(callback, JS.undefined());
+      setJobFlags(callback, jobFlags(callback) & -2);
+    }
+    postFlushIndex += 1;
+  }
+  activePostFlushCbs = null;
+  postFlushIndex = 0;
+}
+
+void flushJobs(JsValue seen) {
+  if (DEV && !seen.truthy()) seen = hostCreateMap();
+  try {
+    flushIndex = 0;
+    while (flushIndex < queue.length) {
+      JsValue job = queue[flushIndex];
+      if (job.truthy() && (jobFlags(job) & 8) == 0) {
+        if (DEV && checkRecursiveUpdates(seen, job)) {
+          flushIndex += 1;
+          continue;
+        }
+        if ((jobFlags(job) & 4) != 0) {
+          setJobFlags(job, jobFlags(job) & -2);
+        }
+        JsValue instance = job["i"];
+        JsValue errorCode = ErrorCodes["SCHEDULER"];
+        if (instance.truthy()) errorCode = ErrorCodes["COMPONENT_UPDATE"];
+        callWithErrorHandling(job, instance, errorCode, JS.undefined());
+        if ((jobFlags(job) & 4) == 0) {
+          setJobFlags(job, jobFlags(job) & -2);
+        }
+      }
+      flushIndex += 1;
+    }
+  } finally {
+    while (flushIndex < queue.length) {
+      JsValue job = queue[flushIndex];
+      if (job.truthy()) setJobFlags(job, jobFlags(job) & -2);
+      flushIndex += 1;
+    }
+    flushIndex = -1;
+    queue = [];
+    flushPostFlushCbs(seen);
+    currentFlushPromise = null;
+    if (queue.length > 0 || pendingPostFlushCbs.length > 0) flushJobs(seen);
+  }
+}
+
+bool checkRecursiveUpdates(JsValue seen, JsValue fn) {
+  JsValue oldCount = hostMapGet(seen, fn);
+  int count = 0;
+  if (!JS.isUndefined(oldCount)) count = JS.number(oldCount).toInt();
+  if (count > 100) {
+    JsValue instance = fn["i"];
+    JsValue componentName = JS.undefined();
+    if (instance.truthy()) componentName = getComponentName(instance["type"], true);
+    string message = "Maximum recursive updates exceeded";
+    if (componentName.truthy()) {
+      message += " in component <" + JS.string(componentName) + ">";
+    }
+    message += ". This means you have a reactive effect that is mutating its own " +
+      "dependencies and thus recursively triggering itself. Possible sources " +
+      "include component template, render function, updated hook or watcher source function.";
+    handleError(message, null, ErrorCodes["APP_ERROR_HANDLER"], true);
+    return true;
+  }
+  hostMapSet(seen, fn, count + 1);
+  return false;
+}

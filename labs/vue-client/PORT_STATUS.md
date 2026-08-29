@@ -7,8 +7,8 @@ implemented, and no final size or performance win is claimed.
 
 | Gate | Current result | Status |
 | --- | ---: | --- |
-| Source files satisfied | 92 / 234 | Failed closed |
-| Upstream test files | 70 / 196 | Incomplete |
+| Source files satisfied | 123 / 234 | Failed closed |
+| Upstream test files | 89 / 196 | Incomplete |
 | Declaration test files | 0 / 20 | Incomplete |
 | Package entrypoints | 0 / 12 | Incomplete |
 | Published formats | 0 / 7 | Incomplete |
@@ -36,7 +36,7 @@ conforming hash-pinned one-to-one mappings. `typeUtils.ts` has explicit
 declaration-only handling because it emits no runtime code. All 30 compiler-core
 sources now have conforming hash-pinned mappings: `index.ts` maps to a pure
 import/re-export barrel and the other 29 files retain their upstream module
-responsibilities. Across the full scope there are 140 absent deterministic
+responsibilities. Across the full scope there are 109 absent deterministic
 paths, no present but unverified paths, and 2 paths occupied by legacy
 package-wide monoliths.
 
@@ -50,12 +50,14 @@ helper identities, option handling, fallthrough attributes, CSS variables,
 elements, components, slots, control flow, model/show directives, Teleport,
 Suspense, Transition, and TransitionGroup. All 15 unchanged upstream files pass
 all 130 tests and snapshots. Package formats and declaration parity remain
-incomplete; 140 paths across the full scope remain absent.
+incomplete; 109 paths across the full scope remain absent.
 
-Five JavaScript `host.js` files are classified separately as allowed primitive
+Six JavaScript `host.js` files are classified separately as allowed primitive
 adapters, with hashes and import checks. They do not satisfy any of the 234
-algorithm/declaration mappings. Two type-only sources remain without mapped
-`.lil` files or strict declaration-only handling. See
+algorithm/declaration mappings. One type-only source remains without mapped
+`.lil` files or strict declaration-only handling. Compiler-SFC has all 30
+runtime owners plus strict declaration-only handling for `shims.d.ts`; all 19
+unchanged upstream files pass 470 tests with 1 upstream skip. See
 `compatibility/source-parity.json` for per-file paths, classifications, hashes,
 and failure state.
 

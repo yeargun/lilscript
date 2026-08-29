@@ -1,0 +1,1 @@
+function q(b){if("undefined"!=typeof process){var a=process.env;b="production"==a.NODE_ENV+""}else{b=!1}if(!b){}}function r(a){console.warn("\u001b[1m\u001b[33m[@vue/compiler-sfc]\u001b[0m\u001b[33m "+a+"\u001b[0m\n")}export{q as warnOnce,r as warn}

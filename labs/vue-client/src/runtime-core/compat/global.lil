@@ -1,0 +1,527 @@
+import extern {
+  TrackOpTypes as globalTrackOpTypes,
+  TriggerOpTypes as globalTriggerOpTypes,
+  isReactive as reactivityIsReactive,
+  reactive as reactivityReactive
+} from "../../../packages/vuelil/reactivity.js";
+import {
+  track as reactivityTrack,
+  trigger as reactivityTrigger
+} from "../../reactivity/dep";
+import extern {
+  NOOP as globalNoop,
+  extend as globalExtend,
+  invokeArrayFns as globalInvokeArrayFns,
+  isArray as globalIsArray,
+  isFunction as globalIsFunction,
+  isObject as globalIsObject,
+  isString as globalIsString
+} from "../../../packages/vuelil/shared.js";
+import {
+  Array as globalArray,
+  Object as globalObject,
+  globalThis as globalHost
+} from "../../shared/makeMap";
+import { cloneVNode as coreCloneVNode, createVNode as coreCreateVNode } from "../vnode";
+import {
+  createComponentInstance as coreCreateComponentInstance,
+  finishComponentSetup as coreFinishComponentSetup,
+  isRuntimeOnly as coreIsRuntimeOnly,
+  setupComponent as coreSetupComponent
+} from "../component";
+import {
+  internalOptionMergeStrats as coreInternalOptionMergeStrats,
+  mergeOptions as coreMergeOptions
+} from "../componentOptions";
+import {
+  devtoolsInitApp as coreDevtoolsInitApp,
+  devtoolsUnmountApp as coreDevtoolsUnmountApp
+} from "../devtools";
+import { nextTick as coreNextTick } from "../scheduler";
+import { warn as coreWarn } from "../warning";
+import { version as coreVersion } from "../index";
+import {
+  installLegacyConfigWarnings,
+  installLegacyOptionMergeStrats
+} from "./globalConfig";
+import {
+  DeprecationTypes,
+  assertCompatEnabled,
+  configureCompat,
+  isCompatEnabled,
+  softAssertCompatEnabled,
+  warnDeprecation
+} from "./compatConfig";
+
+extern JsValue globalTrackOpTypes;
+extern JsValue globalTriggerOpTypes;
+extern bool reactivityIsReactive(JsValue value);
+extern JsValue reactivityReactive(JsValue value);
+extern JsValue globalNoop;
+extern JsValue globalExtend;
+extern void globalInvokeArrayFns(JsValue functions);
+extern bool globalIsArray(JsValue value);
+extern bool globalIsFunction(JsValue value);
+extern bool globalIsObject(JsValue value);
+extern bool globalIsString(JsValue value);
+
+bool GLOBAL_DEV = true;
+bool GLOBAL_PROD_DEVTOOLS = false;
+
+export bool isCopyingConfig = false;
+export JsValue singletonApp = JS.undefined();
+JsValue singletonCtor = JS.undefined();
+
+bool globalInstanceOf(JsValue value, JsValue constructor) {
+  return constructor.truthy() && JS.call(
+    constructor["prototype"]["isPrototypeOf"],
+    constructor["prototype"],
+    value
+  ).truthy();
+}
+
+void installFilterMethod(JsValue app, JsValue context) {
+  context["filters"] = JS.object();
+  app["filter"] = JS.method2((JsValue _self, JsValue nameValue, JsValue filter) => {
+    assertCompatEnabled(JS.string(DeprecationTypes["FILTERS"]), null);
+    string name = JS.string(nameValue);
+    if (!filter.truthy()) return context["filters"][name];
+    if (GLOBAL_DEV && context["filters"][name].truthy()) {
+      coreWarn("Filter \"" + name + "\" has already been registered.");
+    }
+    context["filters"][name] = filter;
+    return app;
+  });
+}
+
+void installLegacyAPIs(JsValue app) {
+  JS.invoke(globalObject, "defineProperties", app, JS.object(
+    "prototype", JS.object("get", JS.method0((JsValue _self) => {
+      if (GLOBAL_DEV) warnDeprecation(JS.string(DeprecationTypes["GLOBAL_PROTOTYPE"]), null);
+      return app["config"]["globalProperties"];
+    })),
+    "nextTick", JS.object("value", coreNextTick),
+    "extend", JS.object("value", singletonCtor["extend"]),
+    "set", JS.object("value", singletonCtor["set"]),
+    "delete", JS.object("value", singletonCtor["delete"]),
+    "observable", JS.object("value", singletonCtor["observable"]),
+    "util", JS.object("get", JS.method0((JsValue _self) => singletonCtor["util"]))
+  ));
+}
+
+void applySingletonPrototype(JsValue app, JsValue constructor) {
+  bool enabled = isCompatEnabled(JS.string(DeprecationTypes["GLOBAL_PROTOTYPE"]), null);
+  if (enabled) {
+    app["config"]["globalProperties"] = JS.invoke(
+      globalObject, "create", constructor["prototype"]
+    );
+  }
+  bool hasPrototypeAugmentations = false;
+  JsValue names = JS.invoke(globalObject, "getOwnPropertyNames", constructor["prototype"]);
+  int length = JS.number(names["length"]).toInt();
+  for (int index = 0; index < length; index++) {
+    JsValue key = names[index];
+    if (!JS.strictEqual(key, "constructor")) {
+      hasPrototypeAugmentations = true;
+      if (enabled) {
+        JS.invoke(
+          globalObject,
+          "defineProperty",
+          app["config"]["globalProperties"],
+          key,
+          JS.invoke(globalObject, "getOwnPropertyDescriptor", constructor["prototype"], key)
+        );
+      }
+    }
+  }
+  if (GLOBAL_DEV && hasPrototypeAugmentations) {
+    warnDeprecation(JS.string(DeprecationTypes["GLOBAL_PROTOTYPE"]), null);
+  }
+}
+
+void applySingletonAppMutations(JsValue app) {
+  app["_context"]["mixins"] = JS.invoke(singletonApp["_context"]["mixins"], "slice");
+  JsValue registryNames = JS.array("components", "directives", "filters");
+  for (int index = 0; index < 3; index++) {
+    JsValue key = registryNames[index];
+    app["_context"][key] = JS.invoke(
+      globalObject, "create", singletonApp["_context"][key]
+    );
+  }
+
+  isCopyingConfig = true;
+  JsValue config = singletonApp["config"];
+  for (string key in config) {
+    if (key == "isNativeTag") continue;
+    if (
+      coreIsRuntimeOnly() && (key == "isCustomElement" || key == "compilerOptions")
+    ) continue;
+    JsValue value = config[key];
+    if (globalIsObject(value)) app["config"][key] = JS.invoke(globalObject, "create", value);
+    else app["config"][key] = value;
+
+    if (
+      key == "ignoredElements" &&
+      isCompatEnabled(JS.string(DeprecationTypes["CONFIG_IGNORED_ELEMENTS"]), null) &&
+      !coreIsRuntimeOnly() && globalIsArray(value)
+    ) {
+      app["config"]["compilerOptions"]["isCustomElement"] = JS.method1((
+        JsValue _self, JsValue tag
+      ) => JS.invoke(value, "some", JS.method1((JsValue _someSelf, JsValue matcher) => {
+        if (globalIsString(matcher)) return JS.strictEqual(matcher, tag);
+        return JS.invoke(matcher, "test", tag).truthy();
+      })));
+    }
+  }
+  isCopyingConfig = false;
+  applySingletonPrototype(app, singletonCtor);
+}
+
+void installCompatMount(JsValue app, JsValue context, JsValue render) {
+  bool isMounted = false;
+  app["_createRoot"] = JS.method1((JsValue _self, JsValue options) => {
+    JsValue component = app["_component"];
+    JsValue propsData = options["propsData"];
+    if (!propsData.truthy()) propsData = null;
+    JsValue vnode = coreCreateVNode(component, propsData);
+    vnode["appContext"] = context;
+    bool hasNoRender = !globalIsFunction(component) &&
+      !component["render"].truthy() && !component["template"].truthy();
+    JsValue emptyRender = JS.method0((JsValue _emptySelf) => JS.undefined());
+    JsValue instance = coreCreateComponentInstance(vnode, null, null);
+    if (hasNoRender) instance["render"] = emptyRender;
+    coreSetupComponent(instance);
+    vnode["component"] = instance;
+    vnode["isCompatRoot"] = true;
+
+    instance["ctx"]["_compat_mount"] = JS.method1((
+      JsValue _mountSelf, JsValue selectorOrElement
+    ) => {
+      if (isMounted) {
+        if (GLOBAL_DEV) coreWarn("Root instance is already mounted.");
+        return JS.undefined();
+      }
+      JsValue container = selectorOrElement;
+      if (globalIsString(selectorOrElement)) {
+        container = JS.invoke(globalHost["document"], "querySelector", selectorOrElement);
+        if (!container.truthy()) {
+          if (GLOBAL_DEV) {
+            coreWarn(
+              "Failed to mount root instance: selector \"" + JS.string(selectorOrElement) +
+              "\" returned null."
+            );
+          }
+          return JS.undefined();
+        }
+      } else if (!container.truthy()) {
+        container = JS.invoke(globalHost["document"], "createElement", "div");
+      }
+
+      JsValue namespace = JS.undefined();
+      if (globalInstanceOf(container, globalHost["SVGElement"])) namespace = "svg";
+      else if (
+        JS.typeOf(globalHost["MathMLElement"]) == "function" &&
+        globalInstanceOf(container, globalHost["MathMLElement"])
+      ) namespace = "mathml";
+
+      if (GLOBAL_DEV) {
+        context["reload"] = JS.method0((JsValue _reloadSelf) => {
+          JsValue cloned = coreCloneVNode(vnode);
+          cloned["component"] = null;
+          JS.call(render, JS.undefined(), cloned, container, namespace);
+          return JS.undefined();
+        });
+      }
+
+      if (hasNoRender && JS.strictEqual(instance["render"], emptyRender)) {
+        if (GLOBAL_DEV) {
+          JsValue attributes = container["attributes"];
+          int attributesLength = JS.number(attributes["length"]).toInt();
+          Regex directivePattern = new Regex("^(?:v-|:|@)");
+          for (int index = 0; index < attributesLength; index++) {
+            string name = JS.string(attributes[index]["name"]);
+            if (name != "v-cloak" && directivePattern.test(name)) {
+              warnDeprecation(JS.string(DeprecationTypes["GLOBAL_MOUNT_CONTAINER"]), null);
+              break;
+            }
+          }
+        }
+        instance["render"] = null;
+        component["template"] = container["innerHTML"];
+        coreFinishComponentSetup(instance, false, true);
+      }
+
+      container["textContent"] = "";
+      JS.call(render, JS.undefined(), vnode, container, namespace);
+      if (globalInstanceOf(container, globalHost["Element"])) {
+        JS.invoke(container, "removeAttribute", "v-cloak");
+        JS.invoke(container, "setAttribute", "data-v-app", "");
+      }
+      isMounted = true;
+      app["_container"] = container;
+      container["__vue_app__"] = app;
+      if (GLOBAL_DEV || GLOBAL_PROD_DEVTOOLS) coreDevtoolsInitApp(app, coreVersion);
+      return instance["proxy"];
+    });
+
+    instance["ctx"]["_compat_destroy"] = JS.method0((JsValue _destroySelf) => {
+      if (isMounted) {
+        JS.call(render, JS.undefined(), null, app["_container"]);
+        if (GLOBAL_DEV || GLOBAL_PROD_DEVTOOLS) coreDevtoolsUnmountApp(app);
+        JS.delete(app["_container"], "__vue_app__");
+      } else {
+        if (instance["bum"].truthy()) globalInvokeArrayFns(instance["bum"]);
+        if (isCompatEnabled(JS.string(DeprecationTypes["INSTANCE_EVENT_HOOKS"]), instance)) {
+          JS.call(instance["emit"], JS.undefined(), "hook:beforeDestroy");
+        }
+        if (instance["scope"].truthy()) JS.invoke(instance["scope"], "stop");
+        if (instance["um"].truthy()) globalInvokeArrayFns(instance["um"]);
+        if (isCompatEnabled(JS.string(DeprecationTypes["INSTANCE_EVENT_HOOKS"]), instance)) {
+          JS.call(instance["emit"], JS.undefined(), "hook:destroyed");
+        }
+      }
+      return JS.undefined();
+    });
+    return instance["proxy"];
+  });
+}
+
+JsValue methodsToPatch = JS.array(
+  "push", "pop", "shift", "unshift", "splice", "sort", "reverse"
+);
+JsValue patched = JS.construct(globalHost["WeakSet"]);
+
+void defineReactiveSimple(JsValue object, string key, JsValue value) {
+  if (globalIsObject(value)) value = reactivityReactive(value);
+  JS.invoke(globalObject, "defineProperty", object, key, JS.object(
+    "enumerable", true,
+    "configurable", true,
+    "get", JS.method0((JsValue _self) => {
+      reactivityTrack(object, globalTrackOpTypes["GET"], key);
+      return value;
+    }),
+    "set", JS.method1((JsValue _self, JsValue nextValue) => {
+      value = nextValue;
+      if (globalIsObject(value)) value = reactivityReactive(value);
+      reactivityTrigger(
+        object,
+        globalTriggerOpTypes["SET"],
+        key,
+        nextValue,
+        JS.undefined(),
+        JS.undefined()
+      );
+      return JS.undefined();
+    })
+  ));
+}
+
+void defineReactive(JsValue object, string key, JsValue value) {
+  if (
+    globalIsObject(value) && !reactivityIsReactive(value) &&
+    !JS.invoke(patched, "has", value).truthy()
+  ) {
+    JsValue reactiveValue = reactivityReactive(value);
+    if (globalIsArray(value)) {
+      JS.invoke(methodsToPatch, "forEach", JS.method1((JsValue _eachSelf, JsValue method) => {
+        value[method] = JS.methodRest((JsValue _self, JsValue args) =>
+          JS.apply(globalArray["prototype"][method], reactiveValue, args)
+        );
+        return JS.undefined();
+      }));
+    } else {
+      JsValue keys = JS.invoke(globalObject, "keys", value);
+      int length = JS.number(keys["length"]).toInt();
+      for (int index = 0; index < length; index++) {
+        string nestedKey = JS.string(keys[index]);
+        try {
+          defineReactiveSimple(value, nestedKey, value[nestedKey]);
+        } catch (JsValue error) {
+          if (GLOBAL_DEV) {
+            JS.call(
+              coreWarn,
+              JS.undefined(),
+              "Failed making property \"" + nestedKey + "\" reactive:",
+              error
+            );
+          }
+        }
+      }
+    }
+  }
+  JsValue instance = object["$"];
+  if (instance.truthy() && JS.strictEqual(object, instance["proxy"])) {
+    defineReactiveSimple(instance["ctx"], key, value);
+    instance["accessCache"] = JS.invoke(globalObject, "create", null);
+  } else if (reactivityIsReactive(object)) {
+    object[key] = value;
+  } else {
+    defineReactiveSimple(object, key, value);
+  }
+}
+
+export JsValue createCompatVue(JsValue createApp, JsValue createSingletonApp) {
+  singletonApp = JS.call(createSingletonApp, JS.undefined(), JS.object());
+  JsValue Vue = JS.undefined();
+  JsValue createCompatApp = JS.undefined();
+
+  createCompatApp = JS.method2((
+    JsValue _self, JsValue rawOptions, JsValue constructor
+  ) => {
+    JsValue options = rawOptions;
+    if (!options.truthy()) options = JS.object();
+    assertCompatEnabled(JS.string(DeprecationTypes["GLOBAL_MOUNT"]), null);
+    JsValue data = options["data"];
+    if (
+      data.truthy() && !globalIsFunction(data) &&
+      softAssertCompatEnabled(JS.string(DeprecationTypes["OPTIONS_DATA_FN"]), null)
+    ) options["data"] = JS.method0((JsValue _dataSelf) => data);
+    JsValue app = JS.call(createApp, JS.undefined(), options);
+    if (!JS.strictEqual(constructor, Vue)) applySingletonPrototype(app, constructor);
+    JsValue instance = JS.call(app["_createRoot"], app, options);
+    if (options["el"].truthy()) {
+      return JS.call(instance["$mount"], instance, options["el"]);
+    }
+    return instance;
+  });
+
+  Vue = JS.method1((JsValue _self, JsValue options) => {
+    if (JS.isUndefined(options)) options = JS.object();
+    return JS.call(createCompatApp, JS.undefined(), options, Vue);
+  });
+  singletonCtor = Vue;
+  Vue["version"] = "2.6.14-compat:" + coreVersion;
+  Vue["config"] = singletonApp["config"];
+  Vue["use"] = JS.methodRest((JsValue _self, JsValue args) => {
+    JsValue plugin = args[0];
+    JsValue options = JS.call(globalArray["prototype"]["slice"], args, 1);
+    JS.invoke(options, "unshift", Vue);
+    if (plugin.truthy() && globalIsFunction(plugin["install"])) {
+      JS.apply(plugin["install"], plugin, options);
+    } else if (globalIsFunction(plugin)) {
+      JS.apply(plugin, JS.undefined(), options);
+    }
+    return Vue;
+  });
+  Vue["mixin"] = JS.method1((JsValue _self, JsValue mixin) => {
+    JS.call(singletonApp["mixin"], singletonApp, mixin);
+    return Vue;
+  });
+  Vue["component"] = JS.method2((JsValue _self, JsValue name, JsValue component) => {
+    if (component.truthy()) {
+      JS.call(singletonApp["component"], singletonApp, name, component);
+      return Vue;
+    }
+    return JS.call(singletonApp["component"], singletonApp, name);
+  });
+  Vue["directive"] = JS.method2((JsValue _self, JsValue name, JsValue directive) => {
+    if (directive.truthy()) {
+      JS.call(singletonApp["directive"], singletonApp, name, directive);
+      return Vue;
+    }
+    return JS.call(singletonApp["directive"], singletonApp, name);
+  });
+  Vue["options"] = JS.object("_base", Vue);
+  int cid = 1;
+  Vue["cid"] = cid;
+  Vue["nextTick"] = coreNextTick;
+  JsValue extendCache = JS.construct(globalHost["WeakMap"]);
+  JsValue extendCtor = JS.undefined();
+  extendCtor = JS.method1((JsValue superConstructor, JsValue extendOptions) => {
+    if (JS.isUndefined(extendOptions)) extendOptions = JS.object();
+    assertCompatEnabled(JS.string(DeprecationTypes["GLOBAL_EXTEND"]), null);
+    if (globalIsFunction(extendOptions)) extendOptions = extendOptions["options"];
+    if (JS.invoke(extendCache, "has", extendOptions).truthy()) {
+      return JS.invoke(extendCache, "get", extendOptions);
+    }
+    JsValue SubVue = JS.undefined();
+    SubVue = JS.method1((JsValue _subSelf, JsValue inlineOptions) => {
+      if (!inlineOptions.truthy()) {
+        return JS.call(createCompatApp, JS.undefined(), SubVue["options"], SubVue);
+      }
+      JsValue base = JS.call(globalExtend, JS.undefined(), JS.object(), SubVue["options"]);
+      return JS.call(
+        createCompatApp,
+        JS.undefined(),
+        coreMergeOptions(base, inlineOptions, coreInternalOptionMergeStrats),
+        SubVue
+      );
+    });
+    SubVue["super"] = superConstructor;
+    SubVue["prototype"] = JS.invoke(globalObject, "create", Vue["prototype"]);
+    SubVue["prototype"]["constructor"] = SubVue;
+    JsValue mergeBase = JS.object();
+    for (string key in superConstructor["options"]) {
+      JsValue superValue = superConstructor["options"][key];
+      if (globalIsArray(superValue)) mergeBase[key] = JS.invoke(superValue, "slice");
+      else if (globalIsObject(superValue)) {
+        mergeBase[key] = JS.call(
+          globalExtend, JS.undefined(), JS.invoke(globalObject, "create", null), superValue
+        );
+      } else mergeBase[key] = superValue;
+    }
+    SubVue["options"] = coreMergeOptions(
+      mergeBase, extendOptions, coreInternalOptionMergeStrats
+    );
+    SubVue["options"]["_base"] = SubVue;
+    SubVue["extend"] = JS.invoke(extendCtor, "bind", SubVue);
+    SubVue["mixin"] = superConstructor["mixin"];
+    SubVue["use"] = superConstructor["use"];
+    cid += 1;
+    SubVue["cid"] = cid;
+    JS.invoke(extendCache, "set", extendOptions, SubVue);
+    return SubVue;
+  });
+  Vue["extend"] = JS.invoke(extendCtor, "bind", Vue);
+  Vue["set"] = JS.method3((JsValue _self, JsValue target, JsValue key, JsValue value) => {
+    assertCompatEnabled(JS.string(DeprecationTypes["GLOBAL_SET"]), null);
+    target[key] = value;
+    return JS.undefined();
+  });
+  Vue["delete"] = JS.method2((JsValue _self, JsValue target, JsValue key) => {
+    assertCompatEnabled(JS.string(DeprecationTypes["GLOBAL_DELETE"]), null);
+    JS.delete(target, key);
+    return JS.undefined();
+  });
+  Vue["observable"] = JS.method1((JsValue _self, JsValue target) => {
+    assertCompatEnabled(JS.string(DeprecationTypes["GLOBAL_OBSERVABLE"]), null);
+    return reactivityReactive(target);
+  });
+  Vue["filter"] = JS.method2((JsValue _self, JsValue name, JsValue filter) => {
+    if (filter.truthy()) {
+      JS.call(singletonApp["filter"], singletonApp, name, filter);
+      return Vue;
+    }
+    return JS.call(singletonApp["filter"], singletonApp, name);
+  });
+  JsValue utilWarn = globalNoop;
+  if (GLOBAL_DEV) utilWarn = coreWarn;
+  JsValue util = JS.object(
+    "warn", utilWarn,
+    "extend", globalExtend,
+    "mergeOptions", JS.method3((JsValue _self, JsValue parent, JsValue child, JsValue vm) => {
+      JsValue strategies = coreInternalOptionMergeStrats;
+      if (vm.truthy()) strategies = JS.undefined();
+      return coreMergeOptions(parent, child, strategies);
+    }),
+    "defineReactive", defineReactive
+  );
+  JS.invoke(globalObject, "defineProperty", Vue, "util", JS.object(
+    "get", JS.method0((JsValue _self) => {
+      assertCompatEnabled(JS.string(DeprecationTypes["GLOBAL_PRIVATE_UTIL"]), null);
+      return util;
+    })
+  ));
+  Vue["configureCompat"] = configureCompat;
+  return Vue;
+}
+
+export void installAppCompatProperties(JsValue app, JsValue context, JsValue render) {
+  installFilterMethod(app, context);
+  installLegacyOptionMergeStrats(app["config"]);
+  if (!singletonApp.truthy()) return;
+  installCompatMount(app, context, render);
+  installLegacyAPIs(app);
+  applySingletonAppMutations(app);
+  if (GLOBAL_DEV) installLegacyConfigWarnings(app["config"]);
+}

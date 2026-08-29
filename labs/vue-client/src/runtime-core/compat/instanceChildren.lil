@@ -1,0 +1,23 @@
+import extern { ShapeFlags as childrenShapeFlags } from "../../../packages/vuelil/shared.js";
+import { DeprecationTypes, assertCompatEnabled } from "./compatConfig";
+
+extern JsValue childrenShapeFlags;
+
+void walkCompatChildren(JsValue vnode, JsValue children) {
+  if (vnode["component"].truthy()) {
+    JS.invoke(children, "push", vnode["component"]["proxy"]);
+  } else if (
+    (JS.number(vnode["shapeFlag"]).toInt() & JS.number(childrenShapeFlags["ARRAY_CHILDREN"]).toInt()) != 0
+  ) {
+    JsValue vnodes = vnode["children"];
+    int length = JS.number(vnodes["length"]).toInt();
+    for (int index = 0; index < length; index++) walkCompatChildren(vnodes[index], children);
+  }
+}
+
+export JsValue getCompatChildren(JsValue instance) {
+  assertCompatEnabled(JS.string(DeprecationTypes["INSTANCE_CHILDREN"]), instance);
+  JsValue children = JS.array();
+  if (instance["subTree"].truthy()) walkCompatChildren(instance["subTree"], children);
+  return children;
+}

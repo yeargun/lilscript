@@ -261,6 +261,17 @@ void markScopedIdentifier(JsValue owner, JsValue identifier, JsValue known) {
   JS.invoke(scope, "add", name);
 }
 
+bool replayScopeIdentifiers(JsValue owner, JsValue known) {
+  JsValue scope = owner["scopeIds"];
+  if (JS.isNullish(scope)) return false;
+  JsValue marker = JS.method1((JsValue _self, JsValue identifier) => {
+    markKnownIdentifier(JS.string(identifier), known);
+    return babelUndefined();
+  });
+  JS.invoke(scope, "forEach", marker);
+  return true;
+}
+
 bool isSkippedTypeScriptParent(JsValue parent) {
   string type = JS.string(parent["type"]);
   if (!type.startsWith("TS")) return false;
@@ -294,32 +305,42 @@ void walkIdentifierNode(
     } else if (type == "ObjectProperty" && !JS.isNullish(parent) && JS.string(parent["type"]) == "ObjectPattern") {
       node["inPattern"] = true;
     } else if (isFunctionType(node)) {
-      JsValue marker = JS.method1((JsValue _self, JsValue identifier) => {
-        markScopedIdentifier(node, identifier, known);
-        return babelUndefined();
-      });
-      walkFunctionParams(node, marker);
+      if (!replayScopeIdentifiers(node, known)) {
+        JsValue marker = JS.method1((JsValue _self, JsValue identifier) => {
+          markScopedIdentifier(node, identifier, known);
+          return babelUndefined();
+        });
+        walkFunctionParams(node, marker);
+      }
     } else if (type == "BlockStatement") {
-      JsValue marker = JS.method1((JsValue _self, JsValue identifier) => {
-        markScopedIdentifier(node, identifier, known);
-        return babelUndefined();
-      });
-      walkBlockDeclarations(node, marker);
+      if (!replayScopeIdentifiers(node, known)) {
+        JsValue marker = JS.method1((JsValue _self, JsValue identifier) => {
+          markScopedIdentifier(node, identifier, known);
+          return babelUndefined();
+        });
+        walkBlockDeclarations(node, marker);
+      }
     } else if (type == "SwitchStatement") {
-      JsValue marker = JS.method1((JsValue _self, JsValue identifier) => {
-        markScopedIdentifier(node, identifier, known);
-        return babelUndefined();
-      });
-      walkSwitchDeclarations(node, false, marker);
+      if (!replayScopeIdentifiers(node, known)) {
+        JsValue marker = JS.method1((JsValue _self, JsValue identifier) => {
+          markScopedIdentifier(node, identifier, known);
+          return babelUndefined();
+        });
+        walkSwitchDeclarations(node, false, marker);
+      }
     } else if (type == "CatchClause" && !JS.isNullish(node["param"])) {
-      JsValue identifiers = extractIdentifiers(node["param"]);
-      for (int index = 0; index < babelLength(identifiers); index++) markScopedIdentifier(node, identifiers[index], known);
+      if (!replayScopeIdentifiers(node, known)) {
+        JsValue identifiers = extractIdentifiers(node["param"]);
+        for (int index = 0; index < babelLength(identifiers); index++) markScopedIdentifier(node, identifiers[index], known);
+      }
     } else if (isForStatementNode(node)) {
-      JsValue marker = JS.method1((JsValue _self, JsValue identifier) => {
-        markScopedIdentifier(node, identifier, known);
-        return babelUndefined();
-      });
-      walkForDeclarations(node, false, marker);
+      if (!replayScopeIdentifiers(node, known)) {
+        JsValue marker = JS.method1((JsValue _self, JsValue identifier) => {
+          markScopedIdentifier(node, identifier, known);
+          return babelUndefined();
+        });
+        walkForDeclarations(node, false, marker);
+      }
     }
 
     JsValue keys = JS.invoke(Object, "keys", node);

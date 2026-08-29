@@ -1,0 +1,176 @@
+import { getGlobalThis, isString } from "../shared/general";
+import { DOMNodeTypes, isComment } from "./hydration";
+
+extern JsValue Element;
+extern JsValue Symbol;
+extern JsValue IntersectionObserver;
+extern JsValue clearTimeout;
+extern JsValue matchMedia;
+extern JsValue setTimeout;
+extern JsValue window;
+
+JsValue hydrationGlobal = getGlobalThis();
+JsValue requestIdleCallbackValue = hydrationGlobal["requestIdleCallback"];
+if (!requestIdleCallbackValue.truthy()) {
+  requestIdleCallbackValue = JS.method1((JsValue _self, JsValue callback) => {
+    return JS.call(setTimeout, JS.undefined(), callback, 1);
+  });
+}
+JsValue cancelIdleCallbackValue = hydrationGlobal["cancelIdleCallback"];
+if (!cancelIdleCallbackValue.truthy()) {
+  cancelIdleCallbackValue = JS.method1((JsValue _self, JsValue id) => {
+    JS.call(clearTimeout, JS.undefined(), id);
+    return JS.undefined();
+  });
+}
+
+bool hydrationInstanceOf(JsValue value, JsValue constructor) {
+  return JS.call(constructor[Symbol["hasInstance"]], constructor, value).truthy();
+}
+
+export JsValue hydrateOnIdle(JsValue timeout = JS.undefined()) {
+  if (JS.isUndefined(timeout)) timeout = 10000;
+  return JS.method1((JsValue _self, JsValue hydrate) => {
+    JsValue id = JS.call(
+      requestIdleCallbackValue,
+      JS.undefined(),
+      hydrate,
+      JS.object("timeout", timeout)
+    );
+    return JS.method0((JsValue _teardownSelf) => {
+      JS.call(cancelIdleCallbackValue, JS.undefined(), id);
+      return JS.undefined();
+    });
+  });
+}
+
+bool elementIsVisibleInViewport(JsValue element) {
+  JsValue rect = JS.invoke(element, "getBoundingClientRect");
+  float top = JS.number(rect["top"]);
+  float left = JS.number(rect["left"]);
+  float bottom = JS.number(rect["bottom"]);
+  float right = JS.number(rect["right"]);
+  float innerHeight = JS.number(window["innerHeight"]);
+  float innerWidth = JS.number(window["innerWidth"]);
+  return (
+    ((top > 0.0 && top < innerHeight) || (bottom > 0.0 && bottom < innerHeight)) &&
+    ((left > 0.0 && left < innerWidth) || (right > 0.0 && right < innerWidth))
+  );
+}
+
+export JsValue hydrateOnVisible(JsValue options = JS.undefined()) {
+  return JS.method2((JsValue _self, JsValue hydrate, JsValue forEach) => {
+    JsValue observer = JS.undefined();
+    JsValue callback = JS.method1((JsValue _callbackSelf, JsValue entries) => {
+      int length = JS.number(entries["length"]).toInt();
+      for (int index = 0; index < length; index++) {
+        JsValue entry = entries[index];
+        if (!entry["isIntersecting"].truthy()) continue;
+        JS.invoke(observer, "disconnect");
+        JS.call(hydrate, JS.undefined());
+        break;
+      }
+      return JS.undefined();
+    });
+    observer = JS.construct(IntersectionObserver, callback, options);
+    JS.call(forEach, JS.undefined(), JS.method1((JsValue _eachSelf, JsValue element) => {
+      if (!hydrationInstanceOf(element, Element)) return JS.undefined();
+      if (elementIsVisibleInViewport(element)) {
+        JS.call(hydrate, JS.undefined());
+        JS.invoke(observer, "disconnect");
+        return false;
+      }
+      JS.invoke(observer, "observe", element);
+      return JS.undefined();
+    }));
+    return JS.method0((JsValue _teardownSelf) => {
+      JS.invoke(observer, "disconnect");
+      return JS.undefined();
+    });
+  });
+}
+
+export JsValue hydrateOnMediaQuery(JsValue query = JS.undefined()) {
+  return JS.method1((JsValue _self, JsValue hydrate) => {
+    if (query.truthy()) {
+      JsValue media = JS.call(matchMedia, JS.undefined(), query);
+      if (media["matches"].truthy()) {
+        JS.call(hydrate, JS.undefined());
+      } else {
+        JS.invoke(media, "addEventListener", "change", hydrate, JS.object("once", true));
+        return JS.method0((JsValue _teardownSelf) => {
+          JS.invoke(media, "removeEventListener", "change", hydrate);
+          return JS.undefined();
+        });
+      }
+    }
+    return JS.undefined();
+  });
+}
+
+export JsValue hydrateOnInteraction(JsValue interactions = JS.undefined()) {
+  if (JS.isUndefined(interactions)) interactions = JS.array();
+  return JS.method2((JsValue _self, JsValue hydrate, JsValue forEach) => {
+    if (isString(interactions)) interactions = JS.array(interactions);
+    bool hasHydrated = false;
+    JsValue doHydrate = JS.undefined();
+    JsValue teardown = JS.undefined();
+    teardown = JS.method0((JsValue _teardownSelf) => {
+      JS.call(forEach, JS.undefined(), JS.method1((JsValue _eachSelf, JsValue element) => {
+        int length = JS.number(interactions["length"]).toInt();
+        for (int index = 0; index < length; index++) {
+          JS.invoke(element, "removeEventListener", interactions[index], doHydrate);
+        }
+        return JS.undefined();
+      }));
+      return JS.undefined();
+    });
+    doHydrate = JS.method1((JsValue _eventSelf, JsValue event) => {
+      if (!hasHydrated) {
+        hasHydrated = true;
+        JS.call(teardown, JS.undefined());
+        JS.call(hydrate, JS.undefined());
+        JsValue replay = JS.construct(event["constructor"], event["type"], event);
+        JS.invoke(event["target"], "dispatchEvent", replay);
+      }
+      return JS.undefined();
+    });
+    JS.call(forEach, JS.undefined(), JS.method1((JsValue _eachSelf, JsValue element) => {
+      int length = JS.number(interactions["length"]).toInt();
+      for (int index = 0; index < length; index++) {
+        JS.invoke(
+          element,
+          "addEventListener",
+          interactions[index],
+          doHydrate,
+          JS.object("once", true)
+        );
+      }
+      return JS.undefined();
+    }));
+    return teardown;
+  });
+}
+
+export void forEachElement(JsValue node, JsValue callback) {
+  if (isComment(node) && JS.strictEqual(node["data"], "[")) {
+    int depth = 1;
+    JsValue next = node["nextSibling"];
+    while (next.truthy()) {
+      if (JS.number(next["nodeType"]).toInt() == JS.number(DOMNodeTypes["ELEMENT"]).toInt()) {
+        JsValue result = JS.call(callback, JS.undefined(), next);
+        if (JS.strictEqual(result, false)) break;
+      } else if (isComment(next)) {
+        if (JS.strictEqual(next["data"], "]")) {
+          depth -= 1;
+          if (depth == 0) break;
+        } else if (JS.strictEqual(next["data"], "[")) {
+          depth += 1;
+        }
+      }
+      next = next["nextSibling"];
+    }
+  } else {
+    JS.call(callback, JS.undefined(), node);
+  }
+}

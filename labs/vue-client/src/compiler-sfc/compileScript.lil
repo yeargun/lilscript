@@ -1,0 +1,1555 @@
+import extern {
+  BindingTypes as CompileBindingTypes,
+  UNREF as CompileUNREF,
+  isFunctionType as compileIsFunctionType,
+  unwrapTSNode as compileUnwrapTSNode,
+  walkIdentifiers as compileWalkIdentifiers
+} from "../../packages/vuelil/compiler-dom.js";
+import extern { generateCodeFrame as compileGenerateCodeFrame } from "../../packages/vuelil/shared.js";
+import extern { walk as compileWalk } from "estree-walker";
+import extern {
+  SourceMapConsumer as CompileSourceMapConsumer,
+  SourceMapGenerator as CompileSourceMapGenerator
+} from "source-map-js";
+import extern {
+  hostArrayFrom as compileScriptArrayFrom,
+  hostAssign as compileScriptHostAssign,
+  hostCreateError as compileScriptCreateError,
+  hostCreateObject as compileScriptCreateObject,
+  hostCreateSet as compileScriptCreateSet,
+  hostJsonStringify as compileScriptJsonStringify,
+  hostKeys as compileScriptKeys
+} from "./host.js";
+import { DEFAULT_FILENAME } from "./parse";
+import { compileTemplate } from "./compileTemplate";
+import { warnOnce } from "./warn";
+import {
+  normalScriptDefaultVar,
+  processNormalScript
+} from "./script/normalScript";
+import {
+  CSS_VARS_HELPER,
+  genCssVarsCode
+} from "./style/cssVars";
+import { transformDestructuredProps } from "./script/definePropsDestructure";
+import { ScriptCompileContext } from "./script/context";
+import {
+  DEFINE_PROPS,
+  WITH_DEFAULTS,
+  genRuntimeProps,
+  processDefineProps
+} from "./script/defineProps";
+import {
+  DEFINE_EMITS,
+  genRuntimeEmits,
+  processDefineEmits
+} from "./script/defineEmits";
+import { DEFINE_EXPOSE, processDefineExpose } from "./script/defineExpose";
+import { DEFINE_OPTIONS, processDefineOptions } from "./script/defineOptions";
+import { DEFINE_SLOTS, processDefineSlots } from "./script/defineSlots";
+import { DEFINE_MODEL, processDefineModel } from "./script/defineModel";
+import {
+  getImportedName,
+  isCallOf,
+  isJS,
+  isLiteralNode,
+  isTS
+} from "./script/utils";
+import { analyzeScriptBindings } from "./script/analyzeScriptBindings";
+import {
+  isImportUsed,
+  resolveTemplateVModelIdentifiers
+} from "./script/importUsageCheck";
+import { processAwait } from "./script/topLevelAwait";
+
+extern JsValue CompileBindingTypes;
+extern JsValue CompileSourceMapConsumer;
+extern JsValue CompileSourceMapGenerator;
+extern JsValue CompileUNREF;
+extern JsValue compileScriptArrayFrom;
+extern JsValue compileScriptCreateError;
+extern JsValue compileScriptCreateObject;
+extern JsValue compileScriptCreateSet;
+extern JsValue compileGenerateCodeFrame;
+extern JsValue compileScriptHostAssign;
+extern JsValue compileIsFunctionType;
+extern JsValue compileScriptJsonStringify;
+extern JsValue compileScriptKeys;
+extern JsValue compileUnwrapTSNode;
+extern JsValue compileWalk;
+extern JsValue compileWalkIdentifiers;
+
+// The distributed compiler-sfc build has __TEST__ replaced with false.
+bool compileScriptTestBuild = false;
+
+JsValue compileScriptMacros = JS.array(
+  DEFINE_PROPS,
+  DEFINE_EMITS,
+  DEFINE_EXPOSE,
+  DEFINE_OPTIONS,
+  DEFINE_SLOTS,
+  DEFINE_MODEL,
+  WITH_DEFAULTS
+);
+
+int compileScriptLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+
+void compileScriptPush(JsValue values, JsValue value) {
+  values[compileScriptLength(values)] = value;
+}
+
+JsValue compileScriptAssign(JsValue target, JsValue source) {
+  if (JS.isNullish(source)) return target;
+  return JS.call(compileScriptHostAssign, JS.undefined(), target, source);
+}
+
+JsValue compileScriptNullObject() {
+  return JS.call(compileScriptCreateObject, JS.undefined(), null);
+}
+
+JsValue compileScriptUnwrap(JsValue node) {
+  return JS.call(compileUnwrapTSNode, JS.undefined(), node);
+}
+
+bool compileScriptIsFunction(JsValue node) {
+  return JS.call(compileIsFunctionType, JS.undefined(), node).truthy();
+}
+
+void compileScriptHoistNode(
+  JsValue ctx,
+  JsValue node,
+  int startOffset,
+  string source
+) {
+  int start = JS.number(node["start"]).toInt() + startOffset;
+  int end = JS.number(node["end"]).toInt() + startOffset;
+  JsValue trailingComments = node["trailingComments"];
+  if (trailingComments.truthy() && compileScriptLength(trailingComments) > 0) {
+    JsValue lastCommentNode = trailingComments[compileScriptLength(trailingComments) - 1];
+    end = JS.number(lastCommentNode["end"]).toInt() + startOffset;
+  }
+  Regex whitespace = new Regex("\\s");
+  while (end <= source.length) {
+    if (!whitespace.test(source.charAt(end))) break;
+    end++;
+  }
+  JS.invoke(ctx["s"], "move", start, end, 0);
+}
+
+void compileScriptRegisterUserImport(
+  JsValue ctx,
+  JsValue sfc,
+  JsValue options,
+  string source,
+  string local,
+  string imported,
+  bool isType,
+  bool isFromSetup,
+  bool needTemplateUsageCheck
+) {
+  bool isUsedInTemplate = needTemplateUsageCheck;
+  JsValue template = sfc["template"];
+  if (needTemplateUsageCheck && ctx["isTS"].truthy() && template.truthy() &&
+    !template["src"].truthy() && !template["lang"].truthy()) {
+    isUsedInTemplate = isImportUsed(local, sfc, options["templateOptions"]);
+  }
+  ctx["userImports"][local] = JS.object(
+    "isType", isType,
+    "imported", imported,
+    "local", local,
+    "source", source,
+    "isFromSetup", isFromSetup,
+    "isUsedInTemplate", isUsedInTemplate
+  );
+}
+
+void compileScriptCheckInvalidScopeReference(
+  JsValue ctx,
+  JsValue node,
+  string method,
+  JsValue setupBindings
+) {
+  if (JS.isNullish(node)) return;
+  JsValue visitor = JS.method1((JsValue _self, JsValue id) => {
+    JsValue binding = setupBindings[JS.string(id["name"])];
+    if (binding.truthy() &&
+      !JS.strictEqual(binding, CompileBindingTypes["LITERAL_CONST"])) {
+      JS.invoke(
+        ctx,
+        "error",
+        "`" + method + "()` in <script setup> cannot reference locally " +
+          "declared variables because it will be hoisted outside of the " +
+          "setup() function. If your component options require initialization " +
+          "in the module scope, use a separate normal <script> to export " +
+          "the options instead.",
+        id
+      );
+    }
+    return JS.undefined();
+  });
+  JS.call(compileWalkIdentifiers, JS.undefined(), node, visitor);
+}
+
+bool compileScriptImportIsType(JsValue declaration, JsValue specifier) {
+  return JS.string(declaration["importKind"]) == "type" ||
+    (JS.string(specifier["type"]) == "ImportSpecifier" &&
+      JS.string(specifier["importKind"]) == "type");
+}
+
+JsValue compileScriptDefaultSpecifier(JsValue node) {
+  JsValue specifiers = node["specifiers"];
+  for (int index = 0; index < compileScriptLength(specifiers); index++) {
+    JsValue specifier = specifiers[index];
+    if (JS.string(specifier["exported"]["type"]) == "Identifier" &&
+      JS.string(specifier["exported"]["name"]) == "default") return specifier;
+  }
+  return JS.undefined();
+}
+
+bool compileScriptHasScopedStyle(JsValue styles) {
+  for (int index = 0; index < compileScriptLength(styles); index++) {
+    if (styles[index]["scoped"].truthy()) return true;
+  }
+  return false;
+}
+
+export JsValue compileScript(JsValue sfc, JsValue options) {
+  if (!options["id"].truthy()) {
+    warnOnce(
+      "compileScript now requires passing the `id` option.\n" +
+        "Upgrade your vite or vue-loader version for compatibility with " +
+        "the latest experimental proposals."
+    );
+  }
+
+  JsValue script = sfc["script"];
+  JsValue scriptSetup = sfc["scriptSetup"];
+  string source = JS.string(sfc["source"]);
+  string filename = JS.string(sfc["filename"]);
+  bool hoistStatic = !JS.strictEqual(options["hoistStatic"], false) &&
+    JS.isNullish(script);
+  string scopeId = "";
+  if (options["id"].truthy()) {
+    scopeId = JS.string(JS.invoke(
+      options["id"],
+      "replace",
+      new Regex("^data-v-"),
+      ""
+    ));
+  }
+  JsValue scriptLang = JS.undefined();
+  JsValue scriptSetupLang = JS.undefined();
+  if (!JS.isNullish(script)) scriptLang = script["lang"];
+  if (!JS.isNullish(scriptSetup)) scriptSetupLang = scriptSetup["lang"];
+  bool isJSOrTS = JS.call(
+    isJS,
+    JS.undefined(),
+    scriptLang,
+    scriptSetupLang
+  ).truthy() || JS.call(
+    isTS,
+    JS.undefined(),
+    scriptLang,
+    scriptSetupLang
+  ).truthy();
+
+  if (!JS.isNullish(script) && !JS.isNullish(scriptSetup) &&
+    !JS.strictEqual(scriptLang, scriptSetupLang)) {
+    throw JS.call(
+      compileScriptCreateError,
+      JS.undefined(),
+      "[@vue/compiler-sfc] <script> and <script setup> must have the same " +
+        "language type."
+    );
+  }
+
+  if (JS.isNullish(scriptSetup)) {
+    if (JS.isNullish(script)) {
+      throw JS.call(
+        compileScriptCreateError,
+        JS.undefined(),
+        "[@vue/compiler-sfc] SFC contains no <script> tags."
+      );
+    }
+    if (script["lang"].truthy() && !isJSOrTS) return script;
+    JsValue normalContext = JS.construct(ScriptCompileContext, sfc, options);
+    return processNormalScript(normalContext, scopeId);
+  }
+
+  if (scriptSetupLang.truthy() && !isJSOrTS) return scriptSetup;
+
+  JsValue ctx = JS.construct(ScriptCompileContext, sfc, options);
+  JsValue scriptBindings = compileScriptNullObject();
+  JsValue setupBindings = compileScriptNullObject();
+  JsValue defaultExport = JS.undefined();
+  bool hasAwait = false;
+  bool hasInlinedSsrRenderFn = false;
+
+  int startOffset = JS.number(ctx["startOffset"]).toInt();
+  int endOffset = JS.number(ctx["endOffset"]).toInt();
+  int scriptStartOffset = 0;
+  int scriptEndOffset = 0;
+  if (!JS.isNullish(script)) {
+    scriptStartOffset = JS.number(script["loc"]["start"]["offset"]).toInt();
+    scriptEndOffset = JS.number(script["loc"]["end"]["offset"]).toInt();
+  }
+
+  JsValue scriptAst = ctx["scriptAst"];
+  JsValue scriptSetupAst = ctx["scriptSetupAst"];
+
+  // 1.1 walk import declarations of <script>.
+  if (!JS.isNullish(scriptAst)) {
+    JsValue body = scriptAst["body"];
+    for (int nodeIndex = 0; nodeIndex < compileScriptLength(body); nodeIndex++) {
+      JsValue node = body[nodeIndex];
+      if (JS.string(node["type"]) != "ImportDeclaration") continue;
+      JsValue specifiers = node["specifiers"];
+      for (int index = 0; index < compileScriptLength(specifiers); index++) {
+        JsValue specifier = specifiers[index];
+        compileScriptRegisterUserImport(
+          ctx,
+          sfc,
+          options,
+          JS.string(node["source"]["value"]),
+          JS.string(specifier["local"]["name"]),
+          getImportedName(specifier),
+          compileScriptImportIsType(node, specifier),
+          false,
+          !options["inlineTemplate"].truthy()
+        );
+      }
+    }
+  }
+
+  // 1.2 walk import declarations of <script setup>.
+  JsValue setupBody = scriptSetupAst["body"];
+  for (int nodeIndex = 0;
+    nodeIndex < compileScriptLength(setupBody);
+    nodeIndex++) {
+    JsValue node = setupBody[nodeIndex];
+    if (JS.string(node["type"]) != "ImportDeclaration") continue;
+    compileScriptHoistNode(ctx, node, startOffset, source);
+
+    int removed = 0;
+    JsValue specifiers = node["specifiers"];
+    for (int index = 0; index < compileScriptLength(specifiers); index++) {
+      JsValue specifier = specifiers[index];
+      string local = JS.string(specifier["local"]["name"]);
+      string imported = getImportedName(specifier);
+      string importSource = JS.string(node["source"]["value"]);
+      JsValue existing = ctx["userImports"][local];
+      bool remove = false;
+      if (importSource == "vue" &&
+        JS.invoke(compileScriptMacros, "includes", imported).truthy()) {
+        if (local == imported) {
+          warnOnce("`" + imported + "` is a compiler macro and no longer needs to be imported.");
+        } else {
+          JS.invoke(
+            ctx,
+            "error",
+            "`" + imported + "` is a compiler macro and cannot be aliased to " +
+              "a different name.",
+            specifier
+          );
+        }
+        remove = true;
+      } else if (existing.truthy()) {
+        if (JS.string(existing["source"]) == importSource &&
+          JS.string(existing["imported"]) == imported) {
+          remove = true;
+        } else {
+          JS.invoke(ctx, "error", "different imports aliased to same local name.", specifier);
+        }
+      } else {
+        compileScriptRegisterUserImport(
+          ctx,
+          sfc,
+          options,
+          importSource,
+          local,
+          imported,
+          compileScriptImportIsType(node, specifier),
+          true,
+          !options["inlineTemplate"].truthy()
+        );
+      }
+
+      if (remove) {
+        bool removeLeft = index > removed;
+        removed++;
+        JsValue current = specifiers[index];
+        JsValue next = JS.undefined();
+        if (index + 1 < compileScriptLength(specifiers)) next = specifiers[index + 1];
+        int removeStart = JS.number(current["start"]).toInt() + startOffset;
+        if (removeLeft) {
+          removeStart = JS.number(specifiers[index - 1]["end"]).toInt() + startOffset;
+        }
+        int removeEnd = JS.number(current["end"]).toInt() + startOffset;
+        if (!JS.isNullish(next) && !removeLeft) {
+          removeEnd = JS.number(next["start"]).toInt() + startOffset;
+        }
+        JS.invoke(ctx["s"], "remove", removeStart, removeEnd);
+      }
+    }
+    if (compileScriptLength(specifiers) > 0 &&
+      removed == compileScriptLength(specifiers)) {
+      JS.invoke(
+        ctx["s"],
+        "remove",
+        JS.number(node["start"]).toInt() + startOffset,
+        JS.number(node["end"]).toInt() + startOffset
+      );
+    }
+  }
+
+  // 1.3 resolve possible user import aliases of ref and reactive.
+  JsValue vueImportAliases = JS.object();
+  for (string key in ctx["userImports"]) {
+    JsValue binding = ctx["userImports"][key];
+    if (JS.string(binding["source"]) == "vue") {
+      vueImportAliases[JS.string(binding["imported"])] = binding["local"];
+    }
+  }
+
+  // 2.1 process normal <script> body.
+  if (!JS.isNullish(script) && !JS.isNullish(scriptAst)) {
+    JsValue body = scriptAst["body"];
+    for (int nodeIndex = 0; nodeIndex < compileScriptLength(body); nodeIndex++) {
+      JsValue node = body[nodeIndex];
+      string nodeType = JS.string(node["type"]);
+      if (nodeType == "ExportDefaultDeclaration") {
+        defaultExport = node;
+        JsValue optionProperties = JS.undefined();
+        JsValue declaration = defaultExport["declaration"];
+        if (JS.string(declaration["type"]) == "ObjectExpression") {
+          optionProperties = declaration["properties"];
+        } else if (JS.string(declaration["type"]) == "CallExpression" &&
+          compileScriptLength(declaration["arguments"]) > 0 &&
+          JS.string(declaration["arguments"][0]["type"]) == "ObjectExpression") {
+          optionProperties = declaration["arguments"][0]["properties"];
+        }
+        if (!JS.isNullish(optionProperties)) {
+          for (int index = 0;
+            index < compileScriptLength(optionProperties);
+            index++) {
+            JsValue property = optionProperties[index];
+            string propertyType = JS.string(property["type"]);
+            if (propertyType == "ObjectProperty" &&
+              JS.string(property["key"]["type"]) == "Identifier" &&
+              JS.string(property["key"]["name"]) == "name") {
+              ctx["hasDefaultExportName"] = true;
+            }
+            if ((propertyType == "ObjectMethod" || propertyType == "ObjectProperty") &&
+              JS.string(property["key"]["type"]) == "Identifier" &&
+              JS.string(property["key"]["name"]) == "render") {
+              ctx["hasDefaultExportRender"] = true;
+            }
+          }
+        }
+        int overwriteStart = JS.number(node["start"]).toInt() + scriptStartOffset;
+        int overwriteEnd = JS.number(declaration["start"]).toInt() + scriptStartOffset;
+        JS.invoke(
+          ctx["s"],
+          "overwrite",
+          overwriteStart,
+          overwriteEnd,
+          "const " + normalScriptDefaultVar + " = "
+        );
+      } else if (nodeType == "ExportNamedDeclaration") {
+        JsValue defaultSpecifier = compileScriptDefaultSpecifier(node);
+        if (!JS.isNullish(defaultSpecifier)) {
+          defaultExport = node;
+          if (compileScriptLength(node["specifiers"]) > 1) {
+            JS.invoke(
+              ctx["s"],
+              "remove",
+              JS.number(defaultSpecifier["start"]).toInt() + scriptStartOffset,
+              JS.number(defaultSpecifier["end"]).toInt() + scriptStartOffset
+            );
+          } else {
+            JS.invoke(
+              ctx["s"],
+              "remove",
+              JS.number(node["start"]).toInt() + scriptStartOffset,
+              JS.number(node["end"]).toInt() + scriptStartOffset
+            );
+          }
+          if (node["source"].truthy()) {
+            JS.invoke(
+              ctx["s"],
+              "prepend",
+              "import { " + JS.string(defaultSpecifier["local"]["name"]) +
+                " as " + normalScriptDefaultVar + " } from '" +
+                JS.string(node["source"]["value"]) + "'\n"
+            );
+          } else {
+            JS.invoke(
+              ctx["s"],
+              "appendLeft",
+              scriptEndOffset,
+              "\nconst " + normalScriptDefaultVar + " = " +
+                JS.string(defaultSpecifier["local"]["name"]) + "\n"
+            );
+          }
+        }
+        if (node["declaration"].truthy()) {
+          walkDeclaration(
+            "script",
+            node["declaration"],
+            scriptBindings,
+            vueImportAliases,
+            hoistStatic
+          );
+        }
+      } else if ((nodeType == "VariableDeclaration" ||
+          nodeType == "FunctionDeclaration" ||
+          nodeType == "ClassDeclaration" ||
+          nodeType == "TSEnumDeclaration") && !node["declare"].truthy()) {
+        walkDeclaration(
+          "script",
+          node,
+          scriptBindings,
+          vueImportAliases,
+          hoistStatic
+        );
+      }
+    }
+
+    if (scriptStartOffset > startOffset) {
+      Regex endsInNewline = new Regex("\\n$");
+      if (!endsInNewline.test(JS.string(script["content"]).trim())) {
+        JS.invoke(ctx["s"], "appendLeft", scriptEndOffset, "\n");
+      }
+      JS.invoke(ctx["s"], "move", scriptStartOffset, scriptEndOffset, 0);
+    }
+  }
+
+  // 2.2 process <script setup> body.
+  for (int nodeIndex = 0;
+    nodeIndex < compileScriptLength(setupBody);
+    nodeIndex++) {
+    JsValue node = setupBody[nodeIndex];
+    string nodeType = JS.string(node["type"]);
+    if (nodeType == "ExpressionStatement") {
+      JsValue expression = compileScriptUnwrap(node["expression"]);
+      if (processDefineProps(ctx, expression) ||
+        processDefineEmits(ctx, expression) ||
+        processDefineOptions(ctx, expression) ||
+        processDefineSlots(ctx, expression)) {
+        JS.invoke(
+          ctx["s"],
+          "remove",
+          JS.number(node["start"]).toInt() + startOffset,
+          JS.number(node["end"]).toInt() + startOffset
+        );
+      } else if (processDefineExpose(ctx, expression)) {
+        JsValue callee = expression["callee"];
+        JS.invoke(
+          ctx["s"],
+          "overwrite",
+          JS.number(callee["start"]).toInt() + startOffset,
+          JS.number(callee["end"]).toInt() + startOffset,
+          "__expose"
+        );
+      } else {
+        processDefineModel(ctx, expression);
+      }
+    }
+
+    if (nodeType == "VariableDeclaration" && !node["declare"].truthy()) {
+      JsValue declarations = node["declarations"];
+      int total = compileScriptLength(declarations);
+      int left = total;
+      int lastNonRemoved = -1;
+      for (int index = 0; index < total; index++) {
+        JsValue declaration = declarations[index];
+        JsValue initializer = JS.undefined();
+        if (declaration["init"].truthy()) {
+          initializer = compileScriptUnwrap(declaration["init"]);
+        }
+        if (JS.isNullish(initializer)) continue;
+        if (processDefineOptions(ctx, initializer)) {
+          JS.invoke(
+            ctx,
+            "error",
+            DEFINE_OPTIONS + "() has no returning value, it cannot be assigned.",
+            node
+          );
+        }
+
+        bool isDefineProps = processDefineProps(ctx, initializer, declaration["id"]);
+        if (ctx["propsDestructureRestId"].truthy()) {
+          setupBindings[JS.string(ctx["propsDestructureRestId"])] =
+            CompileBindingTypes["SETUP_REACTIVE_CONST"];
+        }
+
+        bool isDefineEmits = false;
+        if (!isDefineProps) {
+          isDefineEmits = processDefineEmits(ctx, initializer, declaration["id"]);
+        }
+        if (!isDefineEmits) {
+          if (!processDefineSlots(ctx, initializer, declaration["id"])) {
+            processDefineModel(ctx, initializer, declaration["id"]);
+          }
+        }
+
+        if (isDefineProps && !ctx["propsDestructureRestId"].truthy() &&
+          ctx["propsDestructureDecl"].truthy()) {
+          if (left == 1) {
+            JS.invoke(
+              ctx["s"],
+              "remove",
+              JS.number(node["start"]).toInt() + startOffset,
+              JS.number(node["end"]).toInt() + startOffset
+            );
+          } else {
+            int removeStart = JS.number(declaration["start"]).toInt() + startOffset;
+            int removeEnd = JS.number(declaration["end"]).toInt() + startOffset;
+            if (index == total - 1) {
+              removeStart = JS.number(declarations[lastNonRemoved]["end"]).toInt() +
+                startOffset;
+            } else {
+              removeEnd = JS.number(declarations[index + 1]["start"]).toInt() +
+                startOffset;
+            }
+            JS.invoke(ctx["s"], "remove", removeStart, removeEnd);
+            left--;
+          }
+        } else if (isDefineEmits) {
+          JS.invoke(
+            ctx["s"],
+            "overwrite",
+            startOffset + JS.number(initializer["start"]).toInt(),
+            startOffset + JS.number(initializer["end"]).toInt(),
+            "__emit"
+          );
+        } else {
+          lastNonRemoved = index;
+        }
+      }
+    }
+
+    bool isAllLiteral = false;
+    if ((nodeType == "VariableDeclaration" ||
+        nodeType == "FunctionDeclaration" ||
+        nodeType == "ClassDeclaration" ||
+        nodeType == "TSEnumDeclaration") && !node["declare"].truthy()) {
+      isAllLiteral = walkDeclaration(
+        "scriptSetup",
+        node,
+        setupBindings,
+        vueImportAliases,
+        hoistStatic,
+        ctx["propsDestructureDecl"].truthy()
+      );
+    }
+
+    if (hoistStatic && isAllLiteral) {
+      compileScriptHoistNode(ctx, node, startOffset, source);
+    }
+
+    if ((nodeType == "VariableDeclaration" && !node["declare"].truthy()) ||
+      nodeType.endsWith("Statement")) {
+      JsValue scope = JS.array(setupBody);
+      JsValue awaitState = JS.object("hasAwait", false);
+      JsValue enter = JS.method2((JsValue walker, JsValue child, JsValue parent) => {
+        if (compileScriptIsFunction(child)) JS.invoke(walker, "skip");
+        string childType = JS.string(child["type"]);
+        if (childType == "BlockStatement") {
+          compileScriptPush(scope, child["body"]);
+        }
+        if (childType == "AwaitExpression") {
+          awaitState["hasAwait"] = true;
+          JsValue currentScope = scope[compileScriptLength(scope) - 1];
+          bool needsSemi = false;
+          for (int statementIndex = 0;
+            statementIndex < compileScriptLength(currentScope);
+            statementIndex++) {
+            JsValue statement = currentScope[statementIndex];
+            if ((compileScriptLength(scope) == 1 || statementIndex > 0) &&
+              JS.string(statement["type"]) == "ExpressionStatement" &&
+              JS.strictEqual(statement["start"], child["start"])) {
+              needsSemi = true;
+            }
+          }
+          processAwait(
+            ctx,
+            child,
+            needsSemi,
+            !JS.isNullish(parent) &&
+              JS.string(parent["type"]) == "ExpressionStatement"
+          );
+        }
+        return JS.undefined();
+      });
+      JsValue exit = JS.method1((JsValue _walker, JsValue child) => {
+        if (JS.string(child["type"]) == "BlockStatement") JS.invoke(scope, "pop");
+        return JS.undefined();
+      });
+      JS.call(
+        compileWalk,
+        JS.undefined(),
+        node,
+        JS.object("enter", enter, "exit", exit)
+      );
+      if (awaitState["hasAwait"].truthy()) hasAwait = true;
+    }
+
+    if ((nodeType == "ExportNamedDeclaration" &&
+        JS.string(node["exportKind"]) != "type") ||
+      nodeType == "ExportAllDeclaration" ||
+      nodeType == "ExportDefaultDeclaration") {
+      JS.invoke(
+        ctx,
+        "error",
+        "<script setup> cannot contain ES module exports. " +
+          "If you are using a previous version of <script setup>, please " +
+          "consult the updated RFC at https://github.com/vuejs/rfcs/pull/227.",
+        node
+      );
+    }
+
+    if (ctx["isTS"].truthy()) {
+      if (nodeType.startsWith("TS") ||
+        (nodeType == "ExportNamedDeclaration" &&
+          JS.string(node["exportKind"]) == "type") ||
+        (nodeType == "VariableDeclaration" && node["declare"].truthy())) {
+        if (nodeType != "TSEnumDeclaration") {
+          compileScriptHoistNode(ctx, node, startOffset, source);
+        }
+      }
+    }
+  }
+
+  // 3. props destructure transform.
+  if (ctx["propsDestructureDecl"].truthy()) {
+    transformDestructuredProps(ctx, vueImportAliases);
+  }
+
+  // 4. validate macro arguments against setup-local references.
+  compileScriptCheckInvalidScopeReference(
+    ctx,
+    ctx["propsRuntimeDecl"],
+    DEFINE_PROPS,
+    setupBindings
+  );
+  compileScriptCheckInvalidScopeReference(
+    ctx,
+    ctx["propsRuntimeDefaults"],
+    DEFINE_PROPS,
+    setupBindings
+  );
+  compileScriptCheckInvalidScopeReference(
+    ctx,
+    ctx["propsDestructureDecl"],
+    DEFINE_PROPS,
+    setupBindings
+  );
+  compileScriptCheckInvalidScopeReference(
+    ctx,
+    ctx["emitsRuntimeDecl"],
+    DEFINE_EMITS,
+    setupBindings
+  );
+  compileScriptCheckInvalidScopeReference(
+    ctx,
+    ctx["optionsRuntimeDecl"],
+    DEFINE_OPTIONS,
+    setupBindings
+  );
+  for (string modelName in ctx["modelDecls"]) {
+    JsValue runtimeOptionNodes = ctx["modelDecls"][modelName]["runtimeOptionNodes"];
+    for (int index = 0;
+      index < compileScriptLength(runtimeOptionNodes);
+      index++) {
+      compileScriptCheckInvalidScopeReference(
+        ctx,
+        runtimeOptionNodes[index],
+        DEFINE_MODEL,
+        setupBindings
+      );
+    }
+  }
+
+  // 5. remove non-script content.
+  if (!JS.isNullish(script)) {
+    if (startOffset < scriptStartOffset) {
+      JS.invoke(ctx["s"], "remove", 0, startOffset);
+      JS.invoke(ctx["s"], "remove", endOffset, scriptStartOffset);
+      JS.invoke(ctx["s"], "remove", scriptEndOffset, source.length);
+    } else {
+      JS.invoke(ctx["s"], "remove", 0, scriptStartOffset);
+      JS.invoke(ctx["s"], "remove", scriptEndOffset, startOffset);
+      JS.invoke(ctx["s"], "remove", endOffset, source.length);
+    }
+  } else {
+    JS.invoke(ctx["s"], "remove", 0, startOffset);
+    JS.invoke(ctx["s"], "remove", endOffset, source.length);
+  }
+
+  // 6. analyze binding metadata.
+  if (!JS.isNullish(scriptAst)) {
+    compileScriptAssign(
+      ctx["bindingMetadata"],
+      analyzeScriptBindings(scriptAst["body"])
+    );
+  }
+  for (string key in ctx["userImports"]) {
+    JsValue binding = ctx["userImports"][key];
+    if (binding["isType"].truthy()) continue;
+    string imported = JS.string(binding["imported"]);
+    string importSource = JS.string(binding["source"]);
+    if (imported == "*" ||
+      (imported == "default" && importSource.endsWith(".vue")) ||
+      importSource == "vue") {
+      ctx["bindingMetadata"][key] = CompileBindingTypes["SETUP_CONST"];
+    } else {
+      ctx["bindingMetadata"][key] = CompileBindingTypes["SETUP_MAYBE_REF"];
+    }
+  }
+  for (string key in scriptBindings) {
+    ctx["bindingMetadata"][key] = scriptBindings[key];
+  }
+  for (string key in setupBindings) {
+    ctx["bindingMetadata"][key] = setupBindings[key];
+  }
+
+  // 6.1 demote const reactive bindings used as v-model targets.
+  JsValue template = sfc["template"];
+  if (template.truthy() && !template["src"].truthy() && template["ast"].truthy()) {
+    JsValue vModelIds = resolveTemplateVModelIdentifiers(
+      sfc,
+      options["templateOptions"]
+    );
+    if (JS.number(vModelIds["size"]).toInt() > 0) {
+      JsValue toDemote = JS.call(
+        compileScriptCreateSet,
+        JS.undefined(),
+        JS.undefined()
+      );
+      JsValue collectDemotion = JS.method1((JsValue _self, JsValue id) => {
+        string name = JS.string(id);
+        if (JS.strictEqual(
+          setupBindings[name],
+          CompileBindingTypes["SETUP_REACTIVE_CONST"]
+        )) JS.invoke(toDemote, "add", name);
+        return JS.undefined();
+      });
+      JS.invoke(vModelIds, "forEach", collectDemotion);
+
+      if (JS.number(toDemote["size"]).toInt() > 0) {
+        for (int nodeIndex = 0;
+          nodeIndex < compileScriptLength(setupBody);
+          nodeIndex++) {
+          JsValue node = setupBody[nodeIndex];
+          if (JS.string(node["type"]) != "VariableDeclaration" ||
+            JS.string(node["kind"]) != "const" || node["declare"].truthy()) continue;
+          JsValue demotedInDeclaration = JS.array();
+          JsValue declarations = node["declarations"];
+          for (int index = 0;
+            index < compileScriptLength(declarations);
+            index++) {
+            JsValue declaration = declarations[index];
+            if (JS.string(declaration["id"]["type"]) == "Identifier" &&
+              JS.invoke(
+                toDemote,
+                "has",
+                declaration["id"]["name"]
+              ).truthy()) {
+              compileScriptPush(
+                demotedInDeclaration,
+                declaration["id"]["name"]
+              );
+            }
+          }
+          if (compileScriptLength(demotedInDeclaration) > 0) {
+            int declarationStart = JS.number(node["start"]).toInt() + startOffset;
+            JS.invoke(
+              ctx["s"],
+              "overwrite",
+              declarationStart,
+              declarationStart + 5,
+              "let"
+            );
+            for (int index = 0;
+              index < compileScriptLength(demotedInDeclaration);
+              index++) {
+              string id = JS.string(demotedInDeclaration[index]);
+              setupBindings[id] = CompileBindingTypes["SETUP_LET"];
+              ctx["bindingMetadata"][id] = CompileBindingTypes["SETUP_LET"];
+              warnOnce(
+                "`v-model` cannot update a `const` reactive binding `" + id + "`. " +
+                  "The compiler has transformed it to `let` to make the update work."
+              );
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // 7. inject useCssVars calls.
+  bool templateIsSsr = false;
+  if (options["templateOptions"].truthy()) {
+    templateIsSsr = options["templateOptions"]["ssr"].truthy();
+  }
+  if (compileScriptLength(sfc["cssVars"]) > 0 && !templateIsSsr) {
+    JS.invoke(ctx["helperImports"], "add", CSS_VARS_HELPER);
+    JS.invoke(ctx["helperImports"], "add", "unref");
+    JS.invoke(
+      ctx["s"],
+      "prependLeft",
+      startOffset,
+      "\n" + genCssVarsCode(
+        sfc["cssVars"],
+        ctx["bindingMetadata"],
+        scopeId,
+        options["isProd"].truthy()
+      ) + "\n"
+    );
+  }
+
+  // 8. finalize setup() argument signature.
+  string args = "__props";
+  if (ctx["propsTypeDecl"].truthy()) args += ": any";
+  if (ctx["propsDecl"].truthy()) {
+    if (ctx["propsDestructureRestId"].truthy()) {
+      JsValue destructuredKeys = JS.call(
+        compileScriptKeys,
+        JS.undefined(),
+        ctx["propsDestructuredBindings"]
+      );
+      string serializedKeys = JS.string(JS.call(
+        compileScriptJsonStringify,
+        JS.undefined(),
+        destructuredKeys
+      ));
+      string restHelper = JS.string(JS.call(
+        ctx["helper"],
+        ctx,
+        "createPropsRestProxy"
+      ));
+      JS.invoke(
+        ctx["s"],
+        "overwrite",
+        startOffset + JS.number(ctx["propsCall"]["start"]).toInt(),
+        startOffset + JS.number(ctx["propsCall"]["end"]).toInt(),
+        restHelper + "(__props, " + serializedKeys + ")"
+      );
+      JS.invoke(
+        ctx["s"],
+        "overwrite",
+        startOffset + JS.number(ctx["propsDestructureDecl"]["start"]).toInt(),
+        startOffset + JS.number(ctx["propsDestructureDecl"]["end"]).toInt(),
+        ctx["propsDestructureRestId"]
+      );
+    } else if (!ctx["propsDestructureDecl"].truthy()) {
+      JS.invoke(
+        ctx["s"],
+        "overwrite",
+        startOffset + JS.number(ctx["propsCall"]["start"]).toInt(),
+        startOffset + JS.number(ctx["propsCall"]["end"]).toInt(),
+        "__props"
+      );
+    }
+  }
+
+  if (hasAwait) {
+    string any = "";
+    if (ctx["isTS"].truthy()) any = ": any";
+    JS.invoke(
+      ctx["s"],
+      "prependLeft",
+      startOffset,
+      "\nlet __temp" + any + ", __restore" + any + "\n"
+    );
+  }
+
+  JsValue destructureElements = JS.array();
+  if (ctx["hasDefineExposeCall"].truthy() ||
+    !options["inlineTemplate"].truthy()) {
+    compileScriptPush(destructureElements, "expose: __expose");
+  }
+  if (ctx["emitDecl"].truthy()) {
+    compileScriptPush(destructureElements, "emit: __emit");
+  }
+  if (compileScriptLength(destructureElements) > 0) {
+    args += ", { " + JS.string(JS.invoke(destructureElements, "join", ", ")) + " }";
+  }
+
+  JsValue templateMap = JS.undefined();
+  string returned = "";
+  JsValue propsDeclValue = genRuntimeProps(ctx);
+  string propsDecl = "";
+  if (!JS.isNullish(propsDeclValue)) propsDecl = JS.string(propsDeclValue);
+
+  // 9. generate the setup return statement or inline render function.
+  if (!options["inlineTemplate"].truthy() ||
+    (JS.isNullish(sfc["template"]) && ctx["hasDefaultExportRender"].truthy())) {
+    JsValue allBindings = JS.object();
+    compileScriptAssign(allBindings, scriptBindings);
+    compileScriptAssign(allBindings, setupBindings);
+    for (string key in ctx["userImports"]) {
+      JsValue binding = ctx["userImports"][key];
+      if (!binding["isType"].truthy() && binding["isUsedInTemplate"].truthy()) {
+        allBindings[key] = true;
+      }
+    }
+    returned = "{ ";
+    for (string key in allBindings) {
+      JsValue binding = ctx["userImports"][key];
+      if (JS.strictEqual(allBindings[key], true) &&
+        JS.string(binding["source"]) != "vue" &&
+        !JS.string(binding["source"]).endsWith(".vue")) {
+        returned += "get " + key + "() { return " + key + " }, ";
+      } else if (JS.strictEqual(
+        ctx["bindingMetadata"][key],
+        CompileBindingTypes["SETUP_LET"]
+      )) {
+        string setArg = "v";
+        if (key == "v") setArg = "_v";
+        returned += "get " + key + "() { return " + key + " }, " +
+          "set " + key + "(" + setArg + ") { " + key + " = " + setArg + " }, ";
+      } else {
+        returned += key + ", ";
+      }
+    }
+    returned = JS.string(JS.invoke(
+      returned,
+      "replace",
+      new Regex(", $"),
+      ""
+    )) + " }";
+  } else {
+    if (!JS.isNullish(sfc["template"]) && !sfc["template"]["src"].truthy()) {
+      if (options["templateOptions"].truthy() &&
+        options["templateOptions"]["ssr"].truthy()) {
+        hasInlinedSsrRenderFn = true;
+      }
+      JsValue compilerOptions = JS.object();
+      if (options["templateOptions"].truthy() &&
+        options["templateOptions"]["compilerOptions"].truthy()) {
+        compileScriptAssign(
+          compilerOptions,
+          options["templateOptions"]["compilerOptions"]
+        );
+      }
+      compilerOptions["inline"] = true;
+      compilerOptions["isTS"] = ctx["isTS"];
+      compilerOptions["bindingMetadata"] = ctx["bindingMetadata"];
+
+      JsValue templateCompileOptions = JS.object(
+        "filename", filename,
+        "ast", sfc["template"]["ast"],
+        "source", sfc["template"]["content"],
+        "inMap", sfc["template"]["map"]
+      );
+      if (options["templateOptions"].truthy()) {
+        compileScriptAssign(templateCompileOptions, options["templateOptions"]);
+      }
+      templateCompileOptions["id"] = scopeId;
+      templateCompileOptions["scoped"] = compileScriptHasScopedStyle(sfc["styles"]);
+      templateCompileOptions["isProd"] = options["isProd"];
+      templateCompileOptions["ssrCssVars"] = sfc["cssVars"];
+      templateCompileOptions["compilerOptions"] = compilerOptions;
+      JsValue compiledTemplate = compileTemplate(templateCompileOptions);
+      JsValue code = compiledTemplate["code"];
+      JsValue templateAst = compiledTemplate["ast"];
+      JsValue preamble = compiledTemplate["preamble"];
+      JsValue tips = compiledTemplate["tips"];
+      JsValue errors = compiledTemplate["errors"];
+      templateMap = compiledTemplate["map"];
+      if (compileScriptLength(tips) > 0) {
+        for (int index = 0; index < compileScriptLength(tips); index++) {
+          warnOnce(JS.string(tips[index]));
+        }
+      }
+      JsValue error = JS.undefined();
+      if (compileScriptLength(errors) > 0) error = errors[0];
+      if (JS.typeOf(error) == "string") {
+        throw JS.call(compileScriptCreateError, JS.undefined(), error);
+      } else if (error.truthy()) {
+        if (error["loc"].truthy()) {
+          error["message"] = JS.string(error["message"]) + "\n\n" +
+            JS.string(sfc["filename"]) + "\n" +
+            JS.string(JS.call(
+              compileGenerateCodeFrame,
+              JS.undefined(),
+              source,
+              error["loc"]["start"]["offset"],
+              error["loc"]["end"]["offset"]
+            )) + "\n";
+        }
+        throw error;
+      }
+      if (preamble.truthy()) JS.invoke(ctx["s"], "prepend", preamble);
+      if (templateAst.truthy() &&
+        JS.invoke(templateAst["helpers"], "has", CompileUNREF).truthy()) {
+        JS.invoke(ctx["helperImports"], "delete", "unref");
+      }
+      returned = JS.string(code);
+    } else {
+      returned = "() => {}";
+    }
+  }
+
+  if (!options["inlineTemplate"].truthy() && !compileScriptTestBuild) {
+    JS.invoke(
+      ctx["s"],
+      "appendRight",
+      endOffset,
+      "\nconst __returned__ = " + returned + "\n" +
+        "Object.defineProperty(__returned__, '__isScriptSetup', { enumerable: false, value: true })\n" +
+        "return __returned__\n}\n\n"
+    );
+  } else {
+    JS.invoke(
+      ctx["s"],
+      "appendRight",
+      endOffset,
+      "\nreturn " + returned + "\n}\n\n"
+    );
+  }
+
+  // 10. finalize default export.
+  string genDefaultAs = "export default";
+  if (options["genDefaultAs"].truthy()) {
+    genDefaultAs = "const " + JS.string(options["genDefaultAs"]) + " =";
+  }
+  string runtimeOptions = "";
+  if (!ctx["hasDefaultExportName"].truthy() && filename.length > 0 &&
+    filename != DEFAULT_FILENAME) {
+    JsValue filenameMatch = JS.invoke(
+      filename,
+      "match",
+      new Regex("([^/\\\\]+)\\.\\w+$")
+    );
+    if (!JS.isNullish(filenameMatch)) {
+      runtimeOptions += "\n  __name: '" + JS.string(filenameMatch[1]) + "',";
+    }
+  }
+  if (hasInlinedSsrRenderFn) runtimeOptions += "\n  __ssrInlineRender: true,";
+  if (propsDecl.length > 0) runtimeOptions += "\n  props: " + propsDecl + ",";
+  JsValue emitsDeclValue = genRuntimeEmits(ctx);
+  string emitsDecl = "";
+  if (!JS.isNullish(emitsDeclValue)) emitsDecl = JS.string(emitsDeclValue);
+  if (emitsDecl.length > 0) runtimeOptions += "\n  emits: " + emitsDecl + ",";
+
+  string definedOptions = "";
+  if (ctx["optionsRuntimeDecl"].truthy()) {
+    definedOptions = JS.string(scriptSetup["content"]).slice(
+      JS.number(ctx["optionsRuntimeDecl"]["start"]).toInt(),
+      JS.number(ctx["optionsRuntimeDecl"]["end"]).toInt()
+    ).trim();
+  }
+  string exposeCall = "  __expose();\n";
+  if (ctx["hasDefineExposeCall"].truthy() ||
+    options["inlineTemplate"].truthy()) exposeCall = "";
+  string asyncKeyword = "";
+  if (hasAwait) asyncKeyword = "async ";
+
+  if (ctx["isTS"].truthy()) {
+    string definition = "";
+    if (!JS.isNullish(defaultExport)) {
+      definition += "\n  ..." + normalScriptDefaultVar + ",";
+    }
+    if (definedOptions.length > 0) {
+      definition += "\n  ..." + definedOptions + ",";
+    }
+    string defineComponentHelper = JS.string(JS.call(
+      ctx["helper"],
+      ctx,
+      "defineComponent"
+    ));
+    JS.invoke(
+      ctx["s"],
+      "prependLeft",
+      startOffset,
+      "\n" + genDefaultAs + " /*@__PURE__*/" + defineComponentHelper +
+        "({" + definition + runtimeOptions + "\n  " + asyncKeyword +
+        "setup(" + args + ") {\n" + exposeCall
+    );
+    JS.invoke(ctx["s"], "appendRight", endOffset, "})");
+  } else {
+    if (!JS.isNullish(defaultExport) || definedOptions.length > 0) {
+      string defaults = "";
+      if (!JS.isNullish(defaultExport)) defaults += normalScriptDefaultVar + ", ";
+      if (definedOptions.length > 0) defaults += definedOptions + ", ";
+      JS.invoke(
+        ctx["s"],
+        "prependLeft",
+        startOffset,
+        "\n" + genDefaultAs + " /*@__PURE__*/Object.assign(" + defaults +
+          "{" + runtimeOptions + "\n  " + asyncKeyword + "setup(" + args +
+          ") {\n" + exposeCall
+      );
+      JS.invoke(ctx["s"], "appendRight", endOffset, "})");
+    } else {
+      JS.invoke(
+        ctx["s"],
+        "prependLeft",
+        startOffset,
+        "\n" + genDefaultAs + " {" + runtimeOptions + "\n  " +
+          asyncKeyword + "setup(" + args + ") {\n" + exposeCall
+      );
+      JS.invoke(ctx["s"], "appendRight", endOffset, "}");
+    }
+  }
+
+  // 11. finalize Vue helper imports.
+  if (JS.number(ctx["helperImports"]["size"]).toInt() > 0) {
+    JsValue runtimeModuleName = JS.undefined();
+    if (options["templateOptions"].truthy() &&
+      options["templateOptions"]["compilerOptions"].truthy()) {
+      runtimeModuleName = options["templateOptions"]["compilerOptions"]
+        ["runtimeModuleName"];
+    }
+    string importSource = "'vue'";
+    if (runtimeModuleName.truthy()) {
+      importSource = JS.string(JS.call(
+        compileScriptJsonStringify,
+        JS.undefined(),
+        runtimeModuleName
+      ));
+    }
+    JsValue helpers = JS.call(
+      compileScriptArrayFrom,
+      JS.undefined(),
+      ctx["helperImports"]
+    );
+    JsValue helperAliases = JS.array();
+    for (int index = 0; index < compileScriptLength(helpers); index++) {
+      string helper = JS.string(helpers[index]);
+      compileScriptPush(helperAliases, helper + " as _" + helper);
+    }
+    JS.invoke(
+      ctx["s"],
+      "prepend",
+      "import { " + JS.string(JS.invoke(helperAliases, "join", ", ")) +
+        " } from " + importSource + "\n"
+    );
+  }
+
+  string content = JS.string(JS.invoke(ctx["s"], "toString"));
+  JsValue map = JS.undefined();
+  if (!JS.strictEqual(options["sourceMap"], false)) {
+    map = JS.invoke(
+      ctx["s"],
+      "generateMap",
+      JS.object(
+        "source", filename,
+        "hires", true,
+        "includeContent", true
+      )
+    );
+  }
+  if (templateMap.truthy() && map.truthy()) {
+    int offset = content.indexOf(returned);
+    int templateLineOffset = compileScriptLength(JS.invoke(
+      content.slice(0, offset),
+      "split",
+      new Regex("\\r?\\n")
+    )) - 1;
+    map = mergeSourceMaps(map, templateMap, templateLineOffset);
+  }
+
+  JsValue result = JS.object();
+  compileScriptAssign(result, scriptSetup);
+  result["bindings"] = ctx["bindingMetadata"];
+  result["imports"] = ctx["userImports"];
+  result["content"] = content;
+  result["map"] = map;
+  result["scriptAst"] = JS.undefined();
+  if (!JS.isNullish(scriptAst)) result["scriptAst"] = scriptAst["body"];
+  result["scriptSetupAst"] = JS.undefined();
+  if (!JS.isNullish(scriptSetupAst)) {
+    result["scriptSetupAst"] = scriptSetupAst["body"];
+  }
+  result["deps"] = JS.undefined();
+  if (ctx["deps"].truthy()) {
+    result["deps"] = JS.call(
+      compileScriptArrayFrom,
+      JS.undefined(),
+      ctx["deps"]
+    );
+  }
+  return result;
+}
+
+void registerBinding(JsValue bindings, JsValue node, JsValue type) {
+  bindings[JS.string(node["name"])] = type;
+}
+
+bool walkDeclaration(
+  string from,
+  JsValue node,
+  JsValue bindings,
+  JsValue userImportAliases,
+  bool hoistStatic,
+  bool isPropsDestructureEnabled = false
+) {
+  bool isAllLiteral = false;
+  string nodeType = JS.string(node["type"]);
+  if (nodeType == "VariableDeclaration") {
+    bool isConst = JS.string(node["kind"]) == "const";
+    isAllLiteral = isConst;
+    JsValue declarations = node["declarations"];
+    if (isAllLiteral) {
+      for (int index = 0;
+        index < compileScriptLength(declarations);
+        index++) {
+        JsValue declaration = declarations[index];
+        if (JS.string(declaration["id"]["type"]) != "Identifier" ||
+          !isStaticNode(declaration["init"])) isAllLiteral = false;
+      }
+    }
+
+    for (int index = 0;
+      index < compileScriptLength(declarations);
+      index++) {
+      JsValue declaration = declarations[index];
+      JsValue id = declaration["id"];
+      JsValue initializer = JS.undefined();
+      if (declaration["init"].truthy()) {
+        initializer = compileScriptUnwrap(declaration["init"]);
+      }
+      JsValue macroTest = JS.method1((JsValue _self, JsValue callee) => {
+        string name = JS.string(callee);
+        return name == DEFINE_PROPS || name == DEFINE_EMITS ||
+          name == WITH_DEFAULTS || name == DEFINE_SLOTS;
+      });
+      bool isConstMacroCall = isConst && isCallOf(initializer, macroTest);
+      string idType = JS.string(id["type"]);
+      if (idType == "Identifier") {
+        JsValue bindingType = JS.undefined();
+        JsValue userReactiveBinding = userImportAliases["reactive"];
+        if ((hoistStatic || from == "script") &&
+          (isAllLiteral || (isConst && isStaticNode(initializer)))) {
+          bindingType = CompileBindingTypes["LITERAL_CONST"];
+        } else if (isCallOf(initializer, userReactiveBinding)) {
+          if (isConst) bindingType = CompileBindingTypes["SETUP_REACTIVE_CONST"];
+          else bindingType = CompileBindingTypes["SETUP_LET"];
+        } else if (isConstMacroCall ||
+          (isConst && canNeverBeRef(initializer, userReactiveBinding))) {
+          if (isCallOf(initializer, DEFINE_PROPS)) {
+            bindingType = CompileBindingTypes["SETUP_REACTIVE_CONST"];
+          } else bindingType = CompileBindingTypes["SETUP_CONST"];
+        } else if (isConst) {
+          JsValue refTest = JS.method1((JsValue _self, JsValue callee) => {
+            return JS.strictEqual(callee, userImportAliases["ref"]) ||
+              JS.strictEqual(callee, userImportAliases["computed"]) ||
+              JS.strictEqual(callee, userImportAliases["shallowRef"]) ||
+              JS.strictEqual(callee, userImportAliases["customRef"]) ||
+              JS.strictEqual(callee, userImportAliases["toRef"]) ||
+              JS.strictEqual(callee, userImportAliases["useTemplateRef"]) ||
+              JS.strictEqual(callee, DEFINE_MODEL);
+          });
+          if (isCallOf(initializer, refTest)) {
+            bindingType = CompileBindingTypes["SETUP_REF"];
+          } else bindingType = CompileBindingTypes["SETUP_MAYBE_REF"];
+        } else bindingType = CompileBindingTypes["SETUP_LET"];
+        registerBinding(bindings, id, bindingType);
+      } else {
+        if (isCallOf(initializer, DEFINE_PROPS) && isPropsDestructureEnabled) continue;
+        if (idType == "ObjectPattern") {
+          walkObjectPattern(id, bindings, isConst, isConstMacroCall);
+        } else if (idType == "ArrayPattern") {
+          walkArrayPattern(id, bindings, isConst, isConstMacroCall);
+        }
+      }
+    }
+  } else if (nodeType == "TSEnumDeclaration") {
+    isAllLiteral = true;
+    JsValue members = node["members"];
+    for (int index = 0; index < compileScriptLength(members); index++) {
+      if (members[index]["initializer"].truthy() &&
+        !isStaticNode(members[index]["initializer"])) isAllLiteral = false;
+    }
+    if (isAllLiteral) {
+      bindings[JS.string(node["id"]["name"])] =
+        CompileBindingTypes["LITERAL_CONST"];
+    } else {
+      bindings[JS.string(node["id"]["name"])] =
+        CompileBindingTypes["SETUP_CONST"];
+    }
+  } else if (nodeType == "FunctionDeclaration" ||
+    nodeType == "ClassDeclaration") {
+    bindings[JS.string(node["id"]["name"])] = CompileBindingTypes["SETUP_CONST"];
+  }
+  return isAllLiteral;
+}
+
+void walkObjectPattern(
+  JsValue node,
+  JsValue bindings,
+  bool isConst,
+  bool isDefineCall = false
+) {
+  JsValue properties = node["properties"];
+  for (int index = 0; index < compileScriptLength(properties); index++) {
+    JsValue property = properties[index];
+    if (JS.string(property["type"]) == "ObjectProperty") {
+      if (JS.string(property["key"]["type"]) == "Identifier" &&
+        JS.strictEqual(property["key"], property["value"])) {
+        JsValue type = CompileBindingTypes["SETUP_LET"];
+        if (isDefineCall) type = CompileBindingTypes["SETUP_CONST"];
+        else if (isConst) type = CompileBindingTypes["SETUP_MAYBE_REF"];
+        registerBinding(bindings, property["key"], type);
+      } else {
+        walkPattern(property["value"], bindings, isConst, isDefineCall);
+      }
+    } else {
+      JsValue type = CompileBindingTypes["SETUP_LET"];
+      if (isConst) type = CompileBindingTypes["SETUP_CONST"];
+      registerBinding(bindings, property["argument"], type);
+    }
+  }
+}
+
+void walkArrayPattern(
+  JsValue node,
+  JsValue bindings,
+  bool isConst,
+  bool isDefineCall = false
+) {
+  JsValue elements = node["elements"];
+  for (int index = 0; index < compileScriptLength(elements); index++) {
+    if (!JS.isNullish(elements[index])) {
+      walkPattern(elements[index], bindings, isConst, isDefineCall);
+    }
+  }
+}
+
+void walkPattern(
+  JsValue node,
+  JsValue bindings,
+  bool isConst,
+  bool isDefineCall = false
+) {
+  string nodeType = JS.string(node["type"]);
+  if (nodeType == "Identifier") {
+    JsValue type = CompileBindingTypes["SETUP_LET"];
+    if (isDefineCall) type = CompileBindingTypes["SETUP_CONST"];
+    else if (isConst) type = CompileBindingTypes["SETUP_MAYBE_REF"];
+    registerBinding(bindings, node, type);
+  } else if (nodeType == "RestElement") {
+    JsValue type = CompileBindingTypes["SETUP_LET"];
+    if (isConst) type = CompileBindingTypes["SETUP_CONST"];
+    registerBinding(bindings, node["argument"], type);
+  } else if (nodeType == "ObjectPattern") {
+    walkObjectPattern(node, bindings, isConst);
+  } else if (nodeType == "ArrayPattern") {
+    walkArrayPattern(node, bindings, isConst);
+  } else if (nodeType == "AssignmentPattern") {
+    if (JS.string(node["left"]["type"]) == "Identifier") {
+      JsValue type = CompileBindingTypes["SETUP_LET"];
+      if (isDefineCall) type = CompileBindingTypes["SETUP_CONST"];
+      else if (isConst) type = CompileBindingTypes["SETUP_MAYBE_REF"];
+      registerBinding(bindings, node["left"], type);
+    } else {
+      walkPattern(node["left"], bindings, isConst);
+    }
+  }
+}
+
+bool canNeverBeRef(JsValue node, JsValue userReactiveImport = JS.undefined()) {
+  if (isCallOf(node, userReactiveImport)) return true;
+  if (JS.isNullish(node)) return false;
+  string nodeType = JS.string(node["type"]);
+  if (nodeType == "UnaryExpression" ||
+    nodeType == "BinaryExpression" ||
+    nodeType == "ArrayExpression" ||
+    nodeType == "ObjectExpression" ||
+    nodeType == "FunctionExpression" ||
+    nodeType == "ArrowFunctionExpression" ||
+    nodeType == "UpdateExpression" ||
+    nodeType == "ClassExpression" ||
+    nodeType == "TaggedTemplateExpression") return true;
+  if (nodeType == "SequenceExpression") {
+    JsValue expressions = node["expressions"];
+    return canNeverBeRef(
+      expressions[compileScriptLength(expressions) - 1],
+      userReactiveImport
+    );
+  }
+  return isLiteralNode(node);
+}
+
+bool isStaticNode(JsValue input) {
+  if (JS.isNullish(input)) return false;
+  JsValue node = compileScriptUnwrap(input);
+  string nodeType = JS.string(node["type"]);
+  if (nodeType == "UnaryExpression") return isStaticNode(node["argument"]);
+  if (nodeType == "LogicalExpression" || nodeType == "BinaryExpression") {
+    return isStaticNode(node["left"]) && isStaticNode(node["right"]);
+  }
+  if (nodeType == "ConditionalExpression") {
+    return isStaticNode(node["test"]) &&
+      isStaticNode(node["consequent"]) &&
+      isStaticNode(node["alternate"]);
+  }
+  if (nodeType == "SequenceExpression" || nodeType == "TemplateLiteral") {
+    JsValue expressions = node["expressions"];
+    for (int index = 0; index < compileScriptLength(expressions); index++) {
+      if (!isStaticNode(expressions[index])) return false;
+    }
+    return true;
+  }
+  if (nodeType == "ParenthesizedExpression") {
+    return isStaticNode(node["expression"]);
+  }
+  return nodeType == "StringLiteral" ||
+    nodeType == "NumericLiteral" ||
+    nodeType == "BooleanLiteral" ||
+    nodeType == "NullLiteral" ||
+    nodeType == "BigIntLiteral";
+}
+
+export JsValue mergeSourceMaps(
+  JsValue scriptMap,
+  JsValue templateMap,
+  int templateLineOffset
+) {
+  JsValue mapGenerator = JS.construct(CompileSourceMapGenerator);
+  addSourceMapMappings(mapGenerator, scriptMap, 0);
+  addSourceMapMappings(mapGenerator, templateMap, templateLineOffset);
+  mapGenerator["_sourceRoot"] = scriptMap["sourceRoot"];
+  mapGenerator["_file"] = scriptMap["file"];
+  return JS.invoke(mapGenerator, "toJSON");
+}
+
+void addSourceMapMappings(JsValue mapGenerator, JsValue map, int lineOffset) {
+  JsValue consumer = JS.construct(CompileSourceMapConsumer, map);
+  JsValue sources = consumer["sources"];
+  for (int index = 0; index < compileScriptLength(sources); index++) {
+    JsValue sourceFile = sources[index];
+    JS.invoke(mapGenerator["_sources"], "add", sourceFile);
+    JsValue sourceContent = JS.invoke(consumer, "sourceContentFor", sourceFile);
+    if (!JS.isNullish(sourceContent)) {
+      JS.invoke(mapGenerator, "setSourceContent", sourceFile, sourceContent);
+    }
+  }
+  JsValue addMapping = JS.method1((JsValue _self, JsValue mapping) => {
+    if (JS.isNullish(mapping["originalLine"])) return JS.undefined();
+    JS.invoke(
+      mapGenerator,
+      "addMapping",
+      JS.object(
+        "generated", JS.object(
+          "line", JS.number(mapping["generatedLine"]).toInt() + lineOffset,
+          "column", mapping["generatedColumn"]
+        ),
+        "original", JS.object(
+          "line", mapping["originalLine"],
+          "column", mapping["originalColumn"]
+        ),
+        "source", mapping["source"],
+        "name", mapping["name"]
+      )
+    );
+    return JS.undefined();
+  });
+  JS.invoke(consumer, "eachMapping", addMapping);
+}

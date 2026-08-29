@@ -1,0 +1,75 @@
+import { devtoolsComponentUpdated } from "./devtools";
+import { blockStack, closeBlock, setBlockTracking } from "./vnode";
+
+bool DEV = true;
+bool FEATURE_PROD_DEVTOOLS = false;
+extern JsValue __COMPAT__;
+
+bool compatEnabled() {
+  return JS.typeOf(__COMPAT__) == "boolean" && __COMPAT__.truthy();
+}
+
+export JsValue currentRenderingInstance = null;
+export JsValue currentScopeId = null;
+
+export JsValue setCurrentRenderingInstance(JsValue instance) {
+  JsValue previous = currentRenderingInstance;
+  currentRenderingInstance = instance;
+  currentScopeId = null;
+  if (instance.truthy() && instance["type"]["__scopeId"].truthy()) {
+    currentScopeId = instance["type"]["__scopeId"];
+  }
+  if (compatEnabled() && !currentScopeId.truthy()) {
+    if (instance.truthy()) currentScopeId = instance["type"]["_scopeId"];
+    if (!currentScopeId.truthy()) currentScopeId = null;
+  }
+  return previous;
+}
+
+export void pushScopeId(JsValue id) {
+  currentScopeId = id;
+}
+
+export void popScopeId() {
+  currentScopeId = null;
+}
+
+export JsValue withScopeId(string _id) {
+  return withCtx;
+}
+
+export JsValue withCtx(
+  JsValue fn,
+  JsValue context = JS.undefined(),
+  bool isNonScopedSlot = false
+) {
+  if (JS.isUndefined(context)) context = currentRenderingInstance;
+  if (!context.truthy()) return fn;
+  if (fn["_n"].truthy()) return fn;
+
+  JsValue renderFnWithContext = JS.undefined();
+  renderFnWithContext = JS.methodRest((JsValue _self, JsValue args) => {
+    if (renderFnWithContext["_d"].truthy()) setBlockTracking(-1, false);
+    JsValue previousInstance = setCurrentRenderingInstance(context);
+    int previousStackSize = blockStack.length;
+    JsValue result = JS.undefined();
+    try {
+      result = JS.apply(fn, JS.undefined(), args);
+    } finally {
+      while (blockStack.length > previousStackSize) closeBlock();
+      setCurrentRenderingInstance(previousInstance);
+      if (renderFnWithContext["_d"].truthy()) setBlockTracking(1, false);
+    }
+
+    if (DEV || FEATURE_PROD_DEVTOOLS) {
+      JS.call(devtoolsComponentUpdated, JS.undefined(), context);
+    }
+    return result;
+  });
+
+  renderFnWithContext["_n"] = true;
+  renderFnWithContext["_c"] = true;
+  renderFnWithContext["_d"] = true;
+  if (compatEnabled() && isNonScopedSlot) renderFnWithContext["_ns"] = true;
+  return renderFnWithContext;
+}

@@ -1,0 +1,32 @@
+import { inject } from "../apiInject";
+import { warn } from "../warning";
+
+extern JsValue Symbol;
+
+bool DEV = true;
+extern JsValue __GLOBAL__;
+
+bool globalBuild() {
+  return JS.typeOf(__GLOBAL__) == "boolean" && __GLOBAL__.truthy();
+}
+
+export JsValue ssrContextKey = JS.invoke(Symbol, "for", "v-scx");
+
+export JsValue useSSRContext() {
+  if (!globalBuild()) {
+    JsValue context = JS.call(
+      inject,
+      JS.undefined(),
+      ssrContextKey
+    );
+    if (!context.truthy() && DEV) {
+      warn(
+        "Server rendering context not provided. Make sure to only call " +
+          "useSSRContext() conditionally in the server build."
+      );
+    }
+    return context;
+  }
+  if (DEV) warn("useSSRContext() is not supported in the global build.");
+  return JS.undefined();
+}

@@ -1,0 +1,276 @@
+import extern {
+  ShapeFlags as renderShapeFlags,
+  extend as renderExtend,
+  hyphenate as renderHyphenate,
+  isArray as renderIsArray,
+  isObject as renderIsObject,
+  isString as renderIsString,
+  makeMap as renderMakeMap,
+  normalizeClass as renderNormalizeClass,
+  normalizeStyle as renderNormalizeStyle,
+  toHandlerKey as renderToHandlerKey
+} from "../../../packages/vuelil/shared.js";
+import { Object as renderObject } from "../../shared/makeMap";
+import { arguments as renderArguments } from "../../shared/general";
+import { currentRenderingInstance as coreCurrentRenderingInstance } from "../componentRenderContext";
+import { withDirectives as coreWithDirectives } from "../directives";
+import {
+  resolveDirective as coreResolveDirective,
+  resolveDynamicComponent as coreResolveDynamicComponent
+} from "../helpers/resolveAssets";
+import {
+  Comment as CoreComment,
+  createVNode as coreCreateVNode,
+  isVNode as coreIsVNode,
+  normalizeChildren as coreNormalizeChildren
+} from "../vnode";
+import { DeprecationTypes, checkCompatEnabled, isCompatEnabled } from "./compatConfig";
+import { compatModelEventPrefix } from "./componentVModel";
+
+extern JsValue renderShapeFlags;
+extern JsValue renderExtend;
+extern JsValue renderHyphenate;
+extern bool renderIsArray(JsValue value);
+extern bool renderIsObject(JsValue value);
+extern bool renderIsString(JsValue value);
+extern JsValue renderMakeMap;
+extern JsValue renderNormalizeClass;
+extern JsValue renderNormalizeStyle;
+extern JsValue renderToHandlerKey;
+
+export void convertLegacyRenderFn(JsValue instance) {
+  JsValue component = instance["type"];
+  JsValue render = component["render"];
+  if (
+    !render.truthy() || render["_rc"].truthy() || render["_compatChecked"].truthy() ||
+    render["_compatWrapped"].truthy()
+  ) return;
+  if (JS.number(render["length"]).toInt() >= 2) {
+    render["_compatChecked"] = true;
+    return;
+  }
+  if (checkCompatEnabled(JS.string(DeprecationTypes["RENDER_FUNCTION"]), instance)) {
+    JsValue wrapped = JS.method0((JsValue self) => JS.call(render, self, compatH));
+    component["render"] = wrapped;
+    wrapped["_compatWrapped"] = true;
+  }
+}
+
+JsValue skipLegacyRootLevelProps = JS.call(
+  renderMakeMap,
+  JS.undefined(),
+  "staticStyle,staticClass,directives,model,hook"
+);
+
+string convertLegacyEventKey(string event) {
+  if (event.charAt(0) == "&") event = event.slice(1) + "Passive";
+  if (event.charAt(0) == "~") event = event.slice(1) + "Once";
+  if (event.charAt(0) == "!") event = event.slice(1) + "Capture";
+  return JS.string(JS.call(renderToHandlerKey, JS.undefined(), event));
+}
+
+JsValue convertLegacyProps(JsValue legacyProps, JsValue type) {
+  if (!legacyProps.truthy()) return null;
+  JsValue converted = JS.object();
+  for (string key in legacyProps) {
+    if (key == "attrs" || key == "domProps" || key == "props") {
+      JS.call(renderExtend, JS.undefined(), converted, legacyProps[key]);
+    } else if (key == "on" || key == "nativeOn") {
+      JsValue listeners = legacyProps[key];
+      for (string event in listeners) {
+        string handlerKey = convertLegacyEventKey(event);
+        if (key == "nativeOn") handlerKey += "Native";
+        JsValue existing = converted[handlerKey];
+        JsValue incoming = listeners[event];
+        if (!JS.strictEqual(existing, incoming)) {
+          if (existing.truthy()) {
+            converted[handlerKey] = JS.invoke(JS.array(), "concat", existing, incoming);
+          } else {
+            converted[handlerKey] = incoming;
+          }
+        }
+      }
+    } else if (!JS.call(skipLegacyRootLevelProps, JS.undefined(), key).truthy()) {
+      converted[key] = legacyProps[key];
+    }
+  }
+
+  if (legacyProps["staticClass"].truthy()) {
+    converted["class"] = JS.call(
+      renderNormalizeClass,
+      JS.undefined(),
+      JS.array(legacyProps["staticClass"], converted["class"])
+    );
+  }
+  if (legacyProps["staticStyle"].truthy()) {
+    converted["style"] = JS.call(
+      renderNormalizeStyle,
+      JS.undefined(),
+      JS.array(legacyProps["staticStyle"], converted["style"])
+    );
+  }
+  if (legacyProps["model"].truthy() && renderIsObject(type)) {
+    JsValue modelOptions = type["model"];
+    if (!modelOptions.truthy()) modelOptions = JS.object();
+    string prop = "value";
+    string event = "input";
+    if (modelOptions["prop"].truthy()) prop = JS.string(modelOptions["prop"]);
+    if (modelOptions["event"].truthy()) event = JS.string(modelOptions["event"]);
+    converted[prop] = legacyProps["model"]["value"];
+    converted[compatModelEventPrefix + event] = legacyProps["model"]["callback"];
+  }
+  return converted;
+}
+
+JsValue convertLegacyDirectives(JsValue vnode, JsValue props) {
+  if (!props.truthy() || !props["directives"].truthy()) return vnode;
+  JsValue directives = props["directives"];
+  JsValue converted = JS.array();
+  int length = JS.number(directives["length"]).toInt();
+  for (int index = 0; index < length; index++) {
+    JsValue directive = directives[index];
+    JS.invoke(converted, "push", JS.array(
+      coreResolveDirective(JS.string(directive["name"])),
+      directive["value"],
+      directive["arg"],
+      directive["modifiers"]
+    ));
+  }
+  return coreWithDirectives(vnode, converted);
+}
+
+JsValue convertLegacySlots(JsValue vnode) {
+  JsValue props = vnode["props"];
+  JsValue children = vnode["children"];
+  JsValue slots = JS.undefined();
+  int componentFlag = JS.number(renderShapeFlags["COMPONENT"]).toInt();
+  if ((JS.number(vnode["shapeFlag"]).toInt() & componentFlag) != 0 && renderIsArray(children)) {
+    slots = JS.object();
+    int length = JS.number(children["length"]).toInt();
+    for (int index = 0; index < length; index++) {
+      JsValue child = children[index];
+      string slotName = "default";
+      if (coreIsVNode(child) && child["props"].truthy() && child["props"]["slot"].truthy()) {
+        slotName = JS.string(child["props"]["slot"]);
+      }
+      JsValue slot = slots[slotName];
+      if (!slot.truthy()) {
+        slot = JS.array();
+        slots[slotName] = slot;
+      }
+      if (coreIsVNode(child) && JS.strictEqual(child["type"], "template")) {
+        JS.invoke(slot, "push", child["children"]);
+      } else {
+        JS.invoke(slot, "push", child);
+      }
+    }
+    for (string key in slots) {
+      JsValue slotChildren = slots[key];
+      JsValue slotFunction = JS.method0((JsValue _self) => slotChildren);
+      slotFunction["_ns"] = true;
+      slots[key] = slotFunction;
+    }
+  }
+
+  JsValue scopedSlots = JS.undefined();
+  if (props.truthy()) scopedSlots = props["scopedSlots"];
+  if (scopedSlots.truthy()) {
+    JS.delete(props, "scopedSlots");
+    if (slots.truthy()) JS.call(renderExtend, JS.undefined(), slots, scopedSlots);
+    else slots = scopedSlots;
+  }
+  if (slots.truthy()) coreNormalizeChildren(vnode, slots);
+  return vnode;
+}
+
+export JsValue compatH(
+  JsValue type,
+  JsValue propsOrChildren = JS.undefined(),
+  JsValue children = JS.undefined()
+) {
+  if (!type.truthy()) type = CoreComment;
+  if (JS.typeOf(type) == "string") {
+    string normalizedType = JS.string(JS.call(renderHyphenate, JS.undefined(), type));
+    if (
+      normalizedType == "transition" || normalizedType == "transition-group" ||
+      normalizedType == "keep-alive"
+    ) type = "__compat__" + normalizedType;
+    type = coreResolveDynamicComponent(type);
+  }
+
+  int length = JS.number(renderArguments["length"]).toInt();
+  bool secondIsArray = renderIsArray(propsOrChildren);
+  if (length == 2 || secondIsArray) {
+    if (renderIsObject(propsOrChildren) && !secondIsArray) {
+      if (coreIsVNode(propsOrChildren)) {
+        return convertLegacySlots(coreCreateVNode(type, null, JS.array(propsOrChildren)));
+      }
+      return convertLegacySlots(convertLegacyDirectives(
+        coreCreateVNode(type, convertLegacyProps(propsOrChildren, type)),
+        propsOrChildren
+      ));
+    }
+    return convertLegacySlots(coreCreateVNode(type, null, propsOrChildren));
+  }
+  if (coreIsVNode(children)) children = JS.array(children);
+  return convertLegacySlots(convertLegacyDirectives(
+    coreCreateVNode(type, convertLegacyProps(propsOrChildren, type), children),
+    propsOrChildren
+  ));
+}
+
+export void defineLegacyVNodeProperties(JsValue vnode) {
+  if (
+    !isCompatEnabled(
+      JS.string(DeprecationTypes["RENDER_FUNCTION"]), coreCurrentRenderingInstance, true
+    ) ||
+    !isCompatEnabled(
+      JS.string(DeprecationTypes["PRIVATE_APIS"]), coreCurrentRenderingInstance, true
+    )
+  ) return;
+
+  JsValue context = coreCurrentRenderingInstance;
+  JsValue getInstance = JS.method0((JsValue _self) => {
+    if (vnode["component"].truthy()) return vnode["component"]["proxy"];
+    return JS.undefined();
+  });
+  JsValue componentOptions = JS.undefined();
+  JsValue descriptors = JS.object(
+    "tag", JS.object("get", JS.method0((JsValue _self) => vnode["type"])),
+    "data", JS.object(
+      "get", JS.method0((JsValue _self) => {
+        if (vnode["props"].truthy()) return vnode["props"];
+        return JS.object();
+      }),
+      "set", JS.method1((JsValue _self, JsValue props) => {
+        vnode["props"] = props;
+        return JS.undefined();
+      })
+    ),
+    "elm", JS.object("get", JS.method0((JsValue _self) => vnode["el"])),
+    "componentInstance", JS.object("get", getInstance),
+    "child", JS.object("get", getInstance),
+    "text", JS.object("get", JS.method0((JsValue _self) => {
+      if (renderIsString(vnode["children"])) return vnode["children"];
+      return null;
+    })),
+    "context", JS.object("get", JS.method0((JsValue _self) => {
+      if (context.truthy()) return context["proxy"];
+      return null;
+    })),
+    "componentOptions", JS.object("get", JS.method0((JsValue _self) => {
+      int statefulFlag = JS.number(renderShapeFlags["STATEFUL_COMPONENT"]).toInt();
+      if ((JS.number(vnode["shapeFlag"]).toInt() & statefulFlag) != 0) {
+        if (componentOptions.truthy()) return componentOptions;
+        componentOptions = JS.object(
+          "Ctor", vnode["type"],
+          "propsData", vnode["props"],
+          "children", vnode["children"]
+        );
+        return componentOptions;
+      }
+      return JS.undefined();
+    }))
+  );
+  JS.invoke(renderObject, "defineProperties", vnode, descriptors);
+}

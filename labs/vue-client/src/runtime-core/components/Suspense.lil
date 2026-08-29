@@ -1,0 +1,400 @@
+import { Comment, closeBlock, createVNode, currentBlock, isBlockTreeEnabled, isSameVNodeType, normalizeVNode, openBlock } from "../vnode";
+import { ErrorCodes, handleError } from "../errorHandling";
+import { MoveType, queuePostRenderEffect } from "../renderer";
+import { NULL_DYNAMIC_COMPONENT } from "../helpers/resolveAssets";
+import { ShapeFlags as dependencyShapeFlags } from "../../shared/shapeFlags";
+import { assertNumber, popWarningContext, pushWarningContext, warn } from "../warning";
+import { filterSingleRoot, updateHOCHostEl } from "../componentRenderUtils";
+import { handleSetupResult, unsetCurrentInstance } from "../component";
+import { isArray as dependencyIsArray, isFunction as dependencyIsFunction, toNumber as dependencyToNumber } from "../../shared/general";
+import { queuePostFlushCb } from "../scheduler";
+extern JsValue Error;
+extern JsValue console;
+extern JsValue document;
+extern JsValue setTimeout;
+bool SUSPENSE_DEV = true;
+bool SUSPENSE_TEST = true;
+bool SUSPENSE_FEATURE = true;
+int suspenseLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+bool suspenseArray(JsValue value) {
+  return JS.call(dependencyIsArray, JS.undefined(), value).truthy();
+}
+int suspenseShape(string name) {
+  return JS.number(dependencyShapeFlags[name]).toInt();
+}
+export bool isSuspense(JsValue type) {
+  return type["__isSuspense"].truthy();
+}
+int suspenseId = 0;
+export int resetSuspenseId() {
+  suspenseId = 0;
+  return suspenseId;
+}
+void triggerEvent(JsValue vnode, string name) {
+  JsValue eventListener = JS.undefined();
+  if (vnode["props"].truthy())eventListener = vnode["props"][name];
+  if (dependencyIsFunction(eventListener))JS.call(eventListener, JS.undefined());
+}
+void suspenseProcess(JsValue oldVNode, JsValue vnode, JsValue container, JsValue anchor, JsValue parentComponent,
+JsValue parentSuspense, JsValue namespace, JsValue slotScopeIds, bool optimized, JsValue rendererInternals) {
+  if (JS.isNullish(oldVNode)) {
+    mountSuspense(vnode, container, anchor, parentComponent, parentSuspense, namespace, slotScopeIds,
+    optimized, rendererInternals);
+    return;
+  }
+  if (parentSuspense.truthy() && JS.number(parentSuspense["deps"]).toInt() > 0 && ! oldVNode["suspense"]["isInFallback"].truthy()) {
+    vnode["suspense"] = oldVNode["suspense"];
+    vnode["suspense"]["vnode"] = vnode;
+    vnode["el"] = oldVNode["el"];
+    return;
+  }
+  patchSuspense(oldVNode, vnode, container, anchor, parentComponent, namespace, slotScopeIds, optimized,
+  rendererInternals);
+}
+export JsValue SuspenseImpl = JS.object("name", "Suspense", "__isSuspense", true, "process", suspenseProcess,
+"hydrate", hydrateSuspense, "normalize", normalizeSuspenseChildren);
+export JsValue Suspense = null;
+if (SUSPENSE_FEATURE)Suspense = SuspenseImpl;
+void mountSuspense(JsValue vnode, JsValue container, JsValue anchor, JsValue parentComponent, JsValue parentSuspense,
+JsValue namespace, JsValue slotScopeIds, bool optimized, JsValue rendererInternals) {
+  JsValue patch = rendererInternals["p"];
+  JsValue createElement = rendererInternals["o"]["createElement"];
+  JsValue hiddenContainer = JS.call(createElement, JS.undefined(), "div");
+  JsValue suspense = createSuspenseBoundary(vnode, parentSuspense, parentComponent, container, hiddenContainer,
+  anchor, namespace, slotScopeIds, optimized, rendererInternals);
+  vnode["suspense"] = suspense;
+  suspense["pendingBranch"] = vnode["ssContent"];
+  JS.call(patch, JS.undefined(), null, suspense["pendingBranch"], hiddenContainer, null, parentComponent,
+  suspense, namespace, slotScopeIds);
+  if (JS.number(suspense["deps"]).toInt() > 0) {
+    triggerEvent(vnode, "onPending");
+    triggerEvent(vnode, "onFallback");
+    JS.call(patch, JS.undefined(), null, vnode["ssFallback"], container, anchor, parentComponent, null,
+    namespace, slotScopeIds);
+    setActiveBranch(suspense, vnode["ssFallback"]);
+  } else {
+    JS.call(suspense["resolve"], suspense, false, true);
+  }
+}
+void patchSuspense(JsValue oldVNode, JsValue vnode, JsValue container, JsValue anchor, JsValue parentComponent,
+JsValue namespace, JsValue slotScopeIds, bool optimized, JsValue rendererInternals) {
+  JsValue patch = rendererInternals["p"];
+  JsValue unmount = rendererInternals["um"];
+  JsValue createElement = rendererInternals["o"]["createElement"];
+  JsValue suspense = oldVNode["suspense"];
+  vnode["suspense"] = suspense;
+  suspense["vnode"] = vnode;
+  vnode["el"] = oldVNode["el"];
+  JsValue newBranch = vnode["ssContent"];
+  JsValue newFallback = vnode["ssFallback"];
+  JsValue activeBranch = suspense["activeBranch"];
+  JsValue pendingBranch = suspense["pendingBranch"];
+  bool isInFallback = suspense["isInFallback"].truthy();
+  bool isHydrating = suspense["isHydrating"].truthy();
+  if (pendingBranch.truthy()) {
+    suspense["pendingBranch"] = newBranch;
+    if (isSameVNodeType(pendingBranch, newBranch)) {
+      JS.call(patch, JS.undefined(), pendingBranch, newBranch, suspense["hiddenContainer"], null, parentComponent,
+      suspense, namespace, slotScopeIds, optimized);
+      if (JS.number(suspense["deps"]).toInt() <= 0) {
+        JS.call(suspense["resolve"], suspense);
+      } else if (isInFallback && ! isHydrating && ! suspense["isFallbackMountPending"].truthy()) {
+        JS.call(patch, JS.undefined(), activeBranch, newFallback, container, anchor, parentComponent,
+        null, namespace, slotScopeIds, optimized);
+        setActiveBranch(suspense, newFallback);
+      }
+    } else {
+      suspense["pendingId"] = suspenseId++;
+      if (isHydrating) {
+        suspense["isHydrating"] = false;
+        suspense["activeBranch"] = pendingBranch;
+      } else {
+        JS.call(unmount, JS.undefined(), pendingBranch, parentComponent, suspense);
+      }
+      suspense["deps"] = 0;
+      suspense["effects"]["length"] = 0;
+      suspense["hiddenContainer"] = JS.call(createElement, JS.undefined(), "div");
+      if (isInFallback) {
+        JS.call(patch, JS.undefined(), null, newBranch, suspense["hiddenContainer"], null, parentComponent,
+        suspense, namespace, slotScopeIds, optimized);
+        if (JS.number(suspense["deps"]).toInt() <= 0) {
+          JS.call(suspense["resolve"], suspense);
+        } else if (! suspense["isFallbackMountPending"].truthy()) {
+          JS.call(patch, JS.undefined(), activeBranch, newFallback, container, anchor, parentComponent,
+          null, namespace, slotScopeIds, optimized);
+          setActiveBranch(suspense, newFallback);
+        }
+      } else if (activeBranch.truthy() && isSameVNodeType(activeBranch, newBranch)) {
+        JS.call(patch, JS.undefined(), activeBranch, newBranch, container, anchor, parentComponent, suspense,
+        namespace, slotScopeIds, optimized);
+        JS.call(suspense["resolve"], suspense, true);
+      } else {
+        JS.call(patch, JS.undefined(), null, newBranch, suspense["hiddenContainer"], null, parentComponent,
+        suspense, namespace, slotScopeIds, optimized);
+        if (JS.number(suspense["deps"]).toInt() <= 0) {
+          JS.call(suspense["resolve"], suspense);
+        }
+      }
+    }
+    return;
+  }
+  if (activeBranch.truthy() && isSameVNodeType(activeBranch, newBranch)) {
+    JS.call(patch, JS.undefined(), activeBranch, newBranch, container, anchor, parentComponent, suspense,
+    namespace, slotScopeIds, optimized);
+    setActiveBranch(suspense, newBranch);
+    return;
+  }
+  triggerEvent(vnode, "onPending");
+  suspense["pendingBranch"] = newBranch;
+  if ((JS.number(newBranch["shapeFlag"]).toInt() & suspenseShape("COMPONENT_KEPT_ALIVE")) != 0) {
+    suspense["pendingId"] = newBranch["component"]["suspenseId"];
+  } else {
+    suspense["pendingId"] = suspenseId++;
+  }
+  JS.call(patch, JS.undefined(), null, newBranch, suspense["hiddenContainer"], null, parentComponent,
+  suspense, namespace, slotScopeIds, optimized);
+  if (JS.number(suspense["deps"]).toInt() <= 0) {
+    JS.call(suspense["resolve"], suspense);
+  } else {
+    float timeout = JS.number(suspense["timeout"]);
+    int pendingId = JS.number(suspense["pendingId"]).toInt();
+    if (timeout > 0.0) {
+      JS.call(setTimeout, JS.undefined(), JS.method0((JsValue _self) =>{ if (JS.number(suspense["pendingId"]).toInt() == pendingId) {
+        JS.call(suspense["fallback"], suspense, newFallback);
+      }
+      return JS.undefined(); }), timeout);
+    } else if (timeout == 0.0) {
+      JS.call(suspense["fallback"], suspense, newFallback);
+    }
+  }
+}
+bool hasWarned = false;
+bool isVNodeSuspensible(JsValue vnode) {
+  JsValue suspensible = JS.undefined();
+  if (vnode["props"].truthy())suspensible = vnode["props"]["suspensible"];
+  return ! JS.isNullish(suspensible) && ! JS.strictEqual(suspensible, false);
+}
+JsValue createSuspenseBoundary(JsValue vnode, JsValue parentSuspense, JsValue parentComponent, JsValue container,
+JsValue hiddenContainer, JsValue anchor, JsValue namespace, JsValue slotScopeIds, bool optimized, JsValue rendererInternals,
+bool isHydrating = false) {
+  if (SUSPENSE_DEV && ! SUSPENSE_TEST && ! hasWarned) {
+    hasWarned = true;
+    string method = "log";
+    if (console["info"].truthy())method = "info";
+    JS.call(console[method], console, "<Suspense> is an experimental feature and its API will likely change.");
+  }
+  JsValue patch = rendererInternals["p"];
+  JsValue move = rendererInternals["m"];
+  JsValue unmount = rendererInternals["um"];
+  JsValue next = rendererInternals["n"];
+  JsValue parentNode = rendererInternals["o"]["parentNode"];
+  JsValue remove = rendererInternals["o"]["remove"];
+  JsValue parentSuspenseId = JS.undefined();
+  bool isSuspensible = isVNodeSuspensible(vnode);
+  if (isSuspensible && parentSuspense.truthy() && parentSuspense["pendingBranch"].truthy()) {
+    parentSuspenseId = parentSuspense["pendingId"];
+    parentSuspense["deps"] = JS.number(parentSuspense["deps"]).toInt() + 1;
+  }
+  JsValue timeoutValue = JS.undefined();
+  if (vnode["props"].truthy()) {
+    timeoutValue = dependencyToNumber(vnode["props"]["timeout"]);
+  }
+  if (SUSPENSE_DEV)assertNumber(timeoutValue, "Suspense timeout");
+  float timeout = - 1.0;
+  if (JS.typeOf(timeoutValue) == "number")timeout = JS.number(timeoutValue);
+  JsValue initialAnchor = anchor;
+  JsValue suspense = JS.object("vnode", vnode, "parent", parentSuspense, "parentComponent", parentComponent,
+  "namespace", namespace, "container", container, "hiddenContainer", hiddenContainer, "deps", 0, "pendingId",
+  suspenseId++, "timeout", timeout, "activeBranch", null, "isFallbackMountPending", false, "pendingBranch",
+  null, "isInFallback", ! isHydrating, "isHydrating", isHydrating, "isUnmounted", false, "effects", JS.array());
+  suspense["resolve"] = JS.method2((JsValue _self, JsValue resumeValue, JsValue syncValue) =>{ bool resume = resumeValue.truthy();bool sync = syncValue.truthy();if (SUSPENSE_DEV) {
+    if (! resume && ! suspense["pendingBranch"].truthy()) {
+      throw JS.construct(Error, "suspense.resolve() is called without a pending branch.");
+    }
+    if (suspense["isUnmounted"].truthy()) {
+      throw JS.construct(Error, "suspense.resolve() is called on an already unmounted suspense boundary.");
+    }
+  }
+  JsValue currentVNode = suspense["vnode"];JsValue activeBranch = suspense["activeBranch"];JsValue pendingBranch = suspense["pendingBranch"];int pendingId = JS.number(suspense["pendingId"]).toInt();JsValue effects = suspense["effects"];JsValue owner = suspense["parentComponent"];JsValue currentContainer = suspense["container"];bool isInFallback = suspense["isInFallback"].truthy();bool delayEnter = false;if (suspense["isHydrating"].truthy()) {
+    suspense["isHydrating"] = false;
+  } else if (! resume) {
+    delayEnter = activeBranch.truthy() && pendingBranch["transition"].truthy() && JS.strictEqual(pendingBranch["transition"]["mode"],
+    "out-in");bool hasUpdatedAnchor = false;if (delayEnter) {
+      activeBranch["transition"]["afterLeave"] = JS.method0((JsValue _leaveSelf) =>{ if (pendingId == JS.number(suspense["pendingId"]).toInt()) {
+        JsValue moveAnchor = anchor;if (JS.strictEqual(anchor, initialAnchor) && ! hasUpdatedAnchor) {
+          moveAnchor = JS.call(next, JS.undefined(), activeBranch);
+        }
+        JS.call(move, JS.undefined(), pendingBranch, currentContainer, moveAnchor, MoveType["ENTER"]);queuePostFlushCb(effects);if (isInFallback && currentVNode["ssFallback"].truthy()) {
+          currentVNode["ssFallback"]["el"] = null;
+        }
+      }
+      return JS.undefined(); });
+    }
+    if (activeBranch.truthy() && ! suspense["isFallbackMountPending"].truthy()) {
+      if (JS.strictEqual(JS.call(parentNode, JS.undefined(), activeBranch["el"]), currentContainer)) {
+        anchor = JS.call(next, JS.undefined(), activeBranch);hasUpdatedAnchor = true;
+      }
+      JS.call(unmount, JS.undefined(), activeBranch, owner, suspense, true);if (! delayEnter && isInFallback && currentVNode["ssFallback"].truthy()) {
+        queuePostRenderEffect(JS.method0((JsValue _effectSelf) =>{ currentVNode["ssFallback"]["el"] = null;return JS.undefined(); }),
+        suspense);
+      }
+    }
+    if (! delayEnter) {
+      JS.call(move, JS.undefined(), pendingBranch, currentContainer, anchor, MoveType["ENTER"]);
+    }
+  }
+  suspense["isFallbackMountPending"] = false;setActiveBranch(suspense, pendingBranch);suspense["pendingBranch"] = null;suspense["isInFallback"] = false;JsValue parent = suspense["parent"];bool hasUnresolvedAncestor = false;while (parent.truthy()) {
+    if (parent["pendingBranch"].truthy()) {
+      for (int index = 0;index < suspenseLength(effects);index++) {
+        JS.invoke(parent["effects"], "push", effects[index]);
+      }
+      hasUnresolvedAncestor = true;break;
+    }
+    parent = parent["parent"];
+  }
+  if (! hasUnresolvedAncestor && ! delayEnter)queuePostFlushCb(effects);suspense["effects"] = JS.array();if (isSuspensible && parentSuspense.truthy() && parentSuspense["pendingBranch"].truthy() && JS.strictEqual(parentSuspenseId,
+  parentSuspense["pendingId"])) {
+    parentSuspense["deps"] = JS.number(parentSuspense["deps"]).toInt() - 1;if (JS.number(parentSuspense["deps"]).toInt() == 0 && ! sync) {
+      JS.call(parentSuspense["resolve"], parentSuspense);
+    }
+  }
+  triggerEvent(currentVNode, "onResolve");return JS.undefined(); });
+  suspense["fallback"] = JS.method1((JsValue _self, JsValue fallbackVNode) =>{ if (! suspense["pendingBranch"].truthy())return JS.undefined();JsValue currentVNode = suspense["vnode"];JsValue activeBranch = suspense["activeBranch"];JsValue owner = suspense["parentComponent"];JsValue currentContainer = suspense["container"];JsValue currentNamespace = suspense["namespace"];triggerEvent(currentVNode,
+  "onFallback");JsValue fallbackAnchor = JS.call(next, JS.undefined(), activeBranch);JsValue mountFallback = JS.method0((JsValue _mountSelf) =>{ suspense["isFallbackMountPending"] = false;if (! suspense["isInFallback"].truthy())return JS.undefined();JsValue latestFallback = suspense["vnode"]["ssFallback"];JS.call(patch,
+  JS.undefined(), null, latestFallback, currentContainer, fallbackAnchor, owner, null, currentNamespace,
+  slotScopeIds, optimized);setActiveBranch(suspense, latestFallback);return JS.undefined(); });bool delayEnter = fallbackVNode["transition"].truthy() && JS.strictEqual(fallbackVNode["transition"]["mode"],
+  "out-in");if (delayEnter) {
+    suspense["isFallbackMountPending"] = true;activeBranch["transition"]["afterLeave"] = mountFallback;
+  }
+  suspense["isInFallback"] = true;JS.call(unmount, JS.undefined(), activeBranch, owner, null, true);if (! delayEnter)JS.call(mountFallback,
+  JS.undefined());return JS.undefined(); });
+  suspense["move"] = JS.method3((JsValue _self, JsValue nextContainer, JsValue nextAnchor, JsValue type) =>{ if (suspense["activeBranch"].truthy()) {
+    JS.call(move, JS.undefined(), suspense["activeBranch"], nextContainer, nextAnchor, type);
+  }
+  suspense["container"] = nextContainer;return JS.undefined(); });
+  suspense["next"] = JS.method0((JsValue _self) =>{ if (suspense["activeBranch"].truthy()) {
+    return JS.call(next, JS.undefined(), suspense["activeBranch"]);
+  }
+  return null; });
+  suspense["registerDep"] = JS.method3((JsValue _self, JsValue instance, JsValue setupRenderEffect, JsValue optimizedValue) =>{ bool setupOptimized = optimizedValue.truthy();bool isInPendingSuspense = suspense["pendingBranch"].truthy();if (isInPendingSuspense) {
+    suspense["deps"] = JS.number(suspense["deps"]).toInt() + 1;
+  }
+  JsValue hydratedElement = instance["vnode"]["el"];JsValue recovered = JS.invoke(instance["asyncDep"],
+  "catch", JS.method1((JsValue _catchSelf, JsValue error) =>{ handleError(error, instance, JS.number(ErrorCodes["SETUP_FUNCTION"]).toInt());return JS.undefined(); }));JS.invoke(recovered,
+  "then", JS.method1((JsValue _thenSelf, JsValue asyncSetupResult) =>{ if (instance["isUnmounted"].truthy() || suspense["isUnmounted"].truthy() || ! JS.strictEqual(suspense["pendingId"],
+  instance["suspenseId"])) {
+    return JS.undefined();
+  }
+  unsetCurrentInstance();instance["asyncResolved"] = true;JsValue instanceVNode = instance["vnode"];if (SUSPENSE_DEV)pushWarningContext(instanceVNode);handleSetupResult(instance,
+  asyncSetupResult, false);if (hydratedElement.truthy())instanceVNode["el"] = hydratedElement;JsValue marker = null;if (! hydratedElement.truthy())marker = instance["subTree"]["el"];JsValue hostElement = instance["subTree"]["el"];if (hydratedElement.truthy())hostElement = hydratedElement;JsValue setupContainer = JS.call(parentNode,
+  JS.undefined(), hostElement);JsValue setupAnchor = null;if (! hydratedElement.truthy()) {
+    setupAnchor = JS.call(next, JS.undefined(), instance["subTree"]);
+  }
+  JS.call(setupRenderEffect, JS.undefined(), instance, instanceVNode, setupContainer, setupAnchor, suspense,
+  namespace, setupOptimized);if (marker.truthy()) {
+    instanceVNode["place" + "holder"] = null;JS.call(remove, JS.undefined(), marker);
+  }
+  updateHOCHostEl(instance, instanceVNode["el"]);if (SUSPENSE_DEV)popWarningContext();if (isInPendingSuspense) {
+    suspense["deps"] = JS.number(suspense["deps"]).toInt() - 1;if (JS.number(suspense["deps"]).toInt() == 0) {
+      JS.call(suspense["resolve"], suspense);
+    }
+  }
+  return JS.undefined(); }));return JS.undefined(); });
+  suspense["unmount"] = JS.method2((JsValue _self, JsValue nextParentSuspense, JsValue doRemove) =>{ suspense["isUnmounted"] = true;if (suspense["activeBranch"].truthy()) {
+    JS.call(unmount, JS.undefined(), suspense["activeBranch"], parentComponent, nextParentSuspense, doRemove);
+  }
+  if (suspense["pendingBranch"].truthy()) {
+    JS.call(unmount, JS.undefined(), suspense["pendingBranch"], parentComponent, nextParentSuspense,
+    doRemove);
+  }
+  return JS.undefined(); });
+  return suspense;
+}
+JsValue hydrateSuspense(JsValue node, JsValue vnode, JsValue parentComponent, JsValue parentSuspense,
+JsValue namespace, JsValue slotScopeIds, bool optimized, JsValue rendererInternals, JsValue hydrateNode) {
+  JsValue suspense = createSuspenseBoundary(vnode, parentSuspense, parentComponent, node["parentNode"],
+  JS.invoke(document, "createElement", "div"), null, namespace, slotScopeIds, optimized, rendererInternals,
+  true);
+  vnode["suspense"] = suspense;
+  suspense["pendingBranch"] = vnode["ssContent"];
+  JsValue result = JS.call(hydrateNode, JS.undefined(), node, suspense["pendingBranch"], parentComponent,
+  suspense, slotScopeIds, optimized);
+  if (JS.number(suspense["deps"]).toInt() == 0) {
+    JS.call(suspense["resolve"], suspense, false, true);
+  }
+  return result;
+}
+void normalizeSuspenseChildren(JsValue vnode) {
+  int shapeFlag = JS.number(vnode["shapeFlag"]).toInt();
+  JsValue children = vnode["children"];
+  bool slotChildren =(shapeFlag & suspenseShape("SLOTS_CHILDREN")) != 0;
+  JsValue content = children;
+  if (slotChildren)content = children["default"];
+  vnode["ssContent"] = normalizeSuspenseSlot(content);
+  if (slotChildren)vnode["ssFallback"] = normalizeSuspenseSlot(children["fallback"]);
+  else vnode["ssFallback"] = createVNode(Comment);
+}
+JsValue normalizeSuspenseSlot(JsValue slot) {
+  JsValue block = JS.undefined();
+  if (dependencyIsFunction(slot)) {
+    bool trackBlock = isBlockTreeEnabled != 0 && slot["_c"].truthy();
+    if (trackBlock) {
+      slot["_d"] = false;
+      openBlock();
+    }
+    slot = JS.call(slot, JS.undefined());
+    if (trackBlock) {
+      slot["_d"] = true;
+      block = currentBlock;
+      closeBlock();
+    }
+  }
+  if (suspenseArray(slot)) {
+    JsValue singleChild = filterSingleRoot(slot);
+    if (SUSPENSE_DEV && ! singleChild.truthy()) {
+      JsValue actualChildren = JS.invoke(slot, "filter", JS.method1((JsValue _self, JsValue child) => ! JS.strictEqual(child,
+      NULL_DYNAMIC_COMPONENT)));
+      if (suspenseLength(actualChildren) > 0) {
+        JS.call(warn, JS.undefined(), "<Suspense> slots expect a single root node.");
+      }
+    }
+    slot = singleChild;
+  }
+  JsValue normalized = normalizeVNode(slot);
+  if (block.truthy() && ! normalized["dynamicChildren"].truthy()) {
+    normalized["dynamicChildren"] = JS.invoke(block, "filter", JS.method1((JsValue _self, JsValue child) => ! JS.strictEqual(child,
+    normalized)));
+  }
+  return normalized;
+}
+export void queueEffectWithSuspense(JsValue effect, JsValue suspense) {
+  if (suspense.truthy() && suspense["pendingBranch"].truthy()) {
+    if (suspenseArray(effect)) {
+      for (int index = 0;index < suspenseLength(effect);index++) {
+        JS.invoke(suspense["effects"], "push", effect[index]);
+      }
+    } else {
+      JS.invoke(suspense["effects"], "push", effect);
+    }
+  } else {
+    queuePostFlushCb(effect);
+  }
+}
+void setActiveBranch(JsValue suspense, JsValue branch) {
+  suspense["activeBranch"] = branch;
+  JsValue vnode = suspense["vnode"];
+  JsValue parentComponent = suspense["parentComponent"];
+  JsValue element = branch["el"];
+  JsValue cursor = branch;
+  while (! element.truthy() && cursor["component"].truthy()) {
+    cursor = cursor["component"]["subTree"];
+    element = cursor["el"];
+  }
+  vnode["el"] = element;
+  if (parentComponent.truthy() && JS.strictEqual(parentComponent["subTree"], vnode)) {
+    parentComponent["vnode"]["el"] = element;
+    updateHOCHostEl(parentComponent, element);
+  }
+}

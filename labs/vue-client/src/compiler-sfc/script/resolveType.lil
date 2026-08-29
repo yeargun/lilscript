@@ -1,0 +1,2481 @@
+import extern { parse as resolveBabelParse } from "@babel/parser";
+import extern {
+  capitalize as resolveCapitalize,
+  hasOwn as resolveHasOwn
+} from "../../../packages/vuelil/shared.js";
+import extern { minimatch as resolveIsMatch } from "minimatch";
+import extern { default as resolvePath } from "node:path";
+import extern { default as resolveProcess } from "node:process";
+import extern {
+  hostArrayFrom,
+  hostAssign,
+  hostCreateError,
+  hostCreateMap,
+  hostCreateObject,
+  hostCreateSet,
+  hostHasProperty,
+  hostJsonStringify,
+  hostKeys
+} from "../host.js";
+import { createCache } from "../cache";
+import { parse as parseSFC } from "../parse";
+import { resolveParserPlugins } from "./context";
+import {
+  UNKNOWN_TYPE,
+  createGetCanonicalFileName,
+  getId,
+  getImportedName,
+  getStringLiteralKey,
+  joinPaths,
+  normalizePath
+} from "./utils";
+
+extern JsValue hostArrayFrom;
+extern JsValue hostAssign;
+extern JsValue hostCreateError;
+extern JsValue hostCreateMap;
+extern JsValue hostCreateObject;
+extern JsValue hostCreateSet;
+extern JsValue hostHasProperty;
+extern JsValue hostJsonStringify;
+extern JsValue hostKeys;
+extern JsValue resolveBabelParse;
+extern JsValue resolveCapitalize;
+extern JsValue resolveHasOwn;
+extern JsValue resolveIsMatch;
+extern JsValue resolvePath;
+extern JsValue resolveProcess;
+
+int resolveLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+
+void resolvePush(JsValue values, JsValue value) {
+  values[resolveLength(values)] = value;
+}
+
+JsValue nullObject() {
+  return JS.call(hostCreateObject, JS.undefined(), null);
+}
+
+JsValue createSet(JsValue values = JS.undefined()) {
+  return JS.call(hostCreateSet, JS.undefined(), values);
+}
+
+JsValue assignObjects(JsValue target, JsValue first, JsValue second = JS.undefined()) {
+  if (JS.isUndefined(second)) {
+    return JS.call(hostAssign, JS.undefined(), target, first);
+  }
+  return JS.call(hostAssign, JS.undefined(), target, first, second);
+}
+
+bool owns(JsValue value, JsValue key) {
+  return JS.call(resolveHasOwn, JS.undefined(), value, key).truthy();
+}
+
+JsValue arrayFrom(JsValue value) {
+  return JS.call(hostArrayFrom, JS.undefined(), value);
+}
+
+bool arrayIncludes(JsValue values, JsValue value) {
+  return JS.invoke(values, "includes", value).truthy();
+}
+
+bool hasVueIgnore(JsValue node) {
+  JsValue comments = node["leadingComments"];
+  if (JS.isNullish(comments)) return false;
+  for (int index = 0; index < resolveLength(comments); index++) {
+    if (JS.string(comments[index]["value"]).includes("@vue-ignore")) return true;
+  }
+  return false;
+}
+
+JsValue SupportedBuiltinsSet = createSet(
+  JS.array("Partial", "Required", "Readonly", "Pick", "Omit")
+);
+
+export constructor TypeScope;
+class TypeScope {
+  JsValue filename;
+  JsValue source;
+  JsValue offset;
+  JsValue imports;
+  JsValue types;
+  JsValue declares;
+  JsValue isGenericScope;
+  JsValue resolvedImportSources;
+  JsValue exportedTypes;
+  JsValue exportedDeclares;
+
+  init(
+    string filename,
+    string source,
+    int offset = 0,
+    JsValue imports = JS.undefined(),
+    JsValue types = JS.undefined(),
+    JsValue declares = JS.undefined()
+  ) {
+    this.filename = filename;
+    this.source = source;
+    this.offset = offset;
+    this.imports = imports;
+    this.types = types;
+    this.declares = declares;
+    if (JS.isUndefined(this.imports)) this.imports = nullObject();
+    if (JS.isUndefined(this.types)) this.types = nullObject();
+    if (JS.isUndefined(this.declares)) this.declares = nullObject();
+    this.isGenericScope = false;
+    this.resolvedImportSources = nullObject();
+    this.exportedTypes = nullObject();
+    this.exportedDeclares = nullObject();
+  }
+}
+
+void recordScopeDep(JsValue ctx, JsValue scope) {
+  if (!JS.isNullish(scope) &&
+    !JS.strictEqual(scope["filename"], ctx["filename"])) {
+    if (JS.isNullish(ctx["deps"])) ctx["deps"] = createSet();
+    JS.invoke(ctx["deps"], "add", scope["filename"]);
+  }
+}
+
+void recordResolvedElementDeps(JsValue ctx, JsValue resolved) {
+  JsValue props = resolved["props"];
+  for (string key in props) {
+    recordScopeDep(ctx, props[key]["_ownerScope"]);
+  }
+}
+
+export JsValue resolveTypeElements(
+  JsValue ctx,
+  JsValue node,
+  JsValue scope = JS.undefined(),
+  JsValue typeParameters = JS.undefined()
+) {
+  bool canCache = JS.isUndefined(typeParameters);
+  if (canCache && node["_resolvedElements"].truthy()) {
+    recordResolvedElementDeps(ctx, node["_resolvedElements"]);
+    return node["_resolvedElements"];
+  }
+  JsValue selectedScope = node["_ownerScope"];
+  if (!selectedScope.truthy()) selectedScope = scope;
+  if (!selectedScope.truthy()) selectedScope = ctxToScope(ctx);
+  JsValue resolved = innerResolveTypeElements(
+    ctx,
+    node,
+    selectedScope,
+    typeParameters
+  );
+  if (canCache) node["_resolvedElements"] = resolved;
+  return resolved;
+}
+
+JsValue innerResolveTypeElements(
+  JsValue ctx,
+  JsValue node,
+  JsValue scope,
+  JsValue typeParameters
+) {
+  if (hasVueIgnore(node)) {
+    string ignoredType = JS.string(node["type"]);
+    if ((ignoredType == "TSIntersectionType" || ignoredType == "TSUnionType") &&
+      resolveLength(node["types"]) > 1) {
+      JsValue maps = JS.array(JS.object("props", JS.object()));
+      JsValue types = node["types"];
+      for (int index = 1; index < resolveLength(types); index++) {
+        resolvePush(maps, resolveTypeElements(ctx, types[index], scope, typeParameters));
+      }
+      return mergeElements(maps, ignoredType);
+    }
+    return JS.object("props", JS.object());
+  }
+
+  string type = JS.string(node["type"]);
+  if (type == "TSTypeLiteral") {
+    return typeElementsToMap(ctx, node["members"], scope, typeParameters);
+  }
+  if (type == "TSInterfaceDeclaration") {
+    return resolveInterfaceMembers(ctx, node, scope, typeParameters);
+  }
+  if (type == "TSTypeAliasDeclaration" || type == "TSTypeAnnotation" ||
+    type == "TSParenthesizedType") {
+    return resolveTypeElements(ctx, node["typeAnnotation"], scope, typeParameters);
+  }
+  if (type == "TSFunctionType") {
+    return JS.object("props", JS.object(), "calls", JS.array(node));
+  }
+  if (type == "TSUnionType" || type == "TSIntersectionType") {
+    JsValue maps = JS.array();
+    JsValue types = node["types"];
+    for (int index = 0; index < resolveLength(types); index++) {
+      resolvePush(maps, resolveTypeElements(ctx, types[index], scope, typeParameters));
+    }
+    return mergeElements(maps, type);
+  }
+  if (type == "TSMappedType") {
+    return resolveMappedType(ctx, node, scope, typeParameters);
+  }
+  if (type == "TSIndexedAccessType") {
+    JsValue types = resolveIndexType(ctx, node, scope);
+    JsValue maps = JS.array();
+    for (int index = 0; index < resolveLength(types); index++) {
+      JsValue item = types[index];
+      resolvePush(maps, resolveTypeElements(ctx, item, item["_ownerScope"]));
+    }
+    return mergeElements(maps, "TSUnionType");
+  }
+  if (type == "TSExpressionWithTypeArguments" || type == "TSTypeReference") {
+    JsValue typeNameValue = getReferenceName(node);
+    if (JS.typeOf(typeNameValue) == "string") {
+      string typeName = JS.string(typeNameValue);
+      JsValue importedType = scope["imports"][typeName];
+      if ((typeName == "ExtractPropTypes" || typeName == "ExtractPublicPropTypes") &&
+        node["typeParameters"].truthy() &&
+        importedType.truthy() && JS.string(importedType["source"]) == "vue") {
+        return resolveExtractPropTypes(
+          resolveTypeElements(
+            ctx,
+            node["typeParameters"]["params"][0],
+            scope,
+            typeParameters
+          ),
+          scope
+        );
+      }
+    }
+    JsValue resolved = resolveTypeReference(ctx, node, scope);
+    if (resolved.truthy()) {
+      JsValue typeParams = JS.undefined();
+      string resolvedType = JS.string(resolved["type"]);
+      if ((resolvedType == "TSTypeAliasDeclaration" ||
+        resolvedType == "TSInterfaceDeclaration") &&
+        resolved["typeParameters"].truthy() && node["typeParameters"].truthy()) {
+        typeParams = nullObject();
+        JsValue params = resolved["typeParameters"]["params"];
+        JsValue supplied = node["typeParameters"]["params"];
+        for (int index = 0; index < resolveLength(params); index++) {
+          string name = JS.string(params[index]["name"]);
+          JsValue param = JS.undefined();
+          if (!JS.isUndefined(typeParameters)) param = typeParameters[name];
+          if (!param.truthy()) param = supplied[index];
+          typeParams[name] = param;
+        }
+      }
+      return resolveTypeElements(
+        ctx,
+        resolved,
+        resolved["_ownerScope"],
+        typeParams
+      );
+    }
+    if (JS.typeOf(typeNameValue) == "string") {
+      string typeName = JS.string(typeNameValue);
+      if (!JS.isUndefined(typeParameters) && typeParameters[typeName].truthy()) {
+        return resolveTypeElements(
+          ctx,
+          typeParameters[typeName],
+          scope,
+          typeParameters
+        );
+      }
+      if (JS.invoke(SupportedBuiltinsSet, "has", typeName).truthy()) {
+        return resolveBuiltin(ctx, node, typeName, scope, typeParameters);
+      }
+      if (typeName == "ReturnType" && node["typeParameters"].truthy()) {
+        JsValue returned = resolveReturnType(
+          ctx,
+          node["typeParameters"]["params"][0],
+          scope
+        );
+        if (returned.truthy()) return resolveTypeElements(ctx, returned, scope);
+      }
+    }
+    return JS.invoke(
+      ctx,
+      "error",
+      "Unresolvable type reference or unsupported built-in utility type",
+      node,
+      scope
+    );
+  }
+  if (type == "TSImportType") {
+    JsValue qualifier = node["qualifier"];
+    if (JS.strictEqual(getId(node["argument"]), "vue") && qualifier.truthy() &&
+      JS.string(qualifier["type"]) == "Identifier" &&
+      JS.string(qualifier["name"]) == "ExtractPropTypes" &&
+      node["typeParameters"].truthy()) {
+      return resolveExtractPropTypes(
+        resolveTypeElements(ctx, node["typeParameters"]["params"][0], scope),
+        scope
+      );
+    }
+    JsValue sourceScope = importSourceToScope(
+      ctx,
+      node["argument"],
+      scope,
+      JS.string(node["argument"]["value"])
+    );
+    JsValue resolved = resolveTypeReference(ctx, node, sourceScope);
+    if (resolved.truthy()) {
+      return resolveTypeElements(ctx, resolved, resolved["_ownerScope"]);
+    }
+  } else if (type == "TSTypeQuery") {
+    JsValue resolved = resolveTypeReference(ctx, node, scope);
+    if (resolved.truthy()) {
+      return resolveTypeElements(ctx, resolved, resolved["_ownerScope"]);
+    }
+  }
+  return JS.invoke(ctx, "error", "Unresolvable type: " + type, node, scope);
+}
+
+JsValue typeElementsToMap(
+  JsValue ctx,
+  JsValue elements,
+  JsValue scope = JS.undefined(),
+  JsValue typeParameters = JS.undefined()
+) {
+  if (JS.isUndefined(scope)) scope = ctxToScope(ctx);
+  JsValue result = JS.object("props", JS.object());
+  for (int index = 0; index < resolveLength(elements); index++) {
+    JsValue element = elements[index];
+    string type = JS.string(element["type"]);
+    if (type == "TSPropertySignature" || type == "TSMethodSignature") {
+      if (!JS.isUndefined(typeParameters)) {
+        scope = createChildScope(scope);
+        scope["isGenericScope"] = true;
+        assignObjects(scope["types"], typeParameters);
+      }
+      element["_ownerScope"] = scope;
+      JsValue name = getStringLiteralKey(element);
+      if (!JS.strictEqual(name, null)) {
+        result["props"][JS.string(name)] = element;
+      } else {
+        JS.invoke(
+          ctx,
+          "error",
+          "Unsupported computed key in type referenced by a macro",
+          element["key"],
+          scope
+        );
+      }
+    } else if (type == "TSCallSignatureDeclaration") {
+      if (JS.isNullish(result["calls"])) result["calls"] = JS.array();
+      resolvePush(result["calls"], element);
+    }
+  }
+  return result;
+}
+
+JsValue mergeElements(JsValue maps, string type) {
+  if (resolveLength(maps) == 1) return maps[0];
+  JsValue result = JS.object("props", JS.object());
+  JsValue baseProps = result["props"];
+  for (int index = 0; index < resolveLength(maps); index++) {
+    JsValue props = maps[index]["props"];
+    for (string key in props) {
+      if (!owns(baseProps, key)) {
+        baseProps[key] = props[key];
+      } else {
+        baseProps[key] = createProperty(
+          baseProps[key]["key"],
+          JS.object(
+            "type", type,
+            "types", JS.array(baseProps[key], props[key])
+          ),
+          baseProps[key]["_ownerScope"],
+          baseProps[key]["optional"].truthy() || props[key]["optional"].truthy()
+        );
+      }
+    }
+    JsValue calls = maps[index]["calls"];
+    if (!JS.isNullish(calls)) {
+      if (JS.isNullish(result["calls"])) result["calls"] = JS.array();
+      for (int callIndex = 0; callIndex < resolveLength(calls); callIndex++) {
+        resolvePush(result["calls"], calls[callIndex]);
+      }
+    }
+  }
+  return result;
+}
+
+JsValue createProperty(
+  JsValue key,
+  JsValue typeAnnotation,
+  JsValue scope,
+  bool optional
+) {
+  return JS.object(
+    "type", "TSPropertySignature",
+    "key", key,
+    "kind", "get",
+    "optional", optional,
+    "typeAnnotation", JS.object(
+      "type", "TSTypeAnnotation",
+      "typeAnnotation", typeAnnotation
+    ),
+    "_ownerScope", scope
+  );
+}
+
+JsValue resolveInterfaceMembers(
+  JsValue ctx,
+  JsValue node,
+  JsValue scope,
+  JsValue typeParameters
+) {
+  JsValue base = typeElementsToMap(
+    ctx,
+    node["body"]["body"],
+    node["_ownerScope"],
+    typeParameters
+  );
+  JsValue extensions = node["extends"];
+  if (!JS.isNullish(extensions)) {
+    for (int index = 0; index < resolveLength(extensions); index++) {
+      JsValue extension = extensions[index];
+      try {
+        JsValue resolved = resolveTypeElements(ctx, extension, scope);
+        JsValue props = resolved["props"];
+        for (string key in props) {
+          if (!owns(base["props"], key)) base["props"][key] = props[key];
+        }
+        JsValue calls = resolved["calls"];
+        if (!JS.isNullish(calls)) {
+          if (JS.isNullish(base["calls"])) base["calls"] = JS.array();
+          for (int callIndex = 0; callIndex < resolveLength(calls); callIndex++) {
+            resolvePush(base["calls"], calls[callIndex]);
+          }
+        }
+      } catch (JsValue _error) {
+        if (!ctx["silentOnExtendsFailure"].truthy()) {
+          JS.invoke(
+            ctx,
+            "error",
+            "Failed to resolve extends base type.\nIf this previously worked in 3.2, " +
+              "you can instruct the compiler to ignore this extend by adding " +
+              "/* @vue-ignore */ before it, for example:\n\n" +
+              "interface Props extends /* @vue-ignore */ Base {}\n\n" +
+              "Note: both in 3.2 or with the ignore, the properties in the base " +
+              "type are treated as fallthrough attrs at runtime.",
+            extension,
+            scope
+          );
+        }
+      }
+    }
+  }
+  return base;
+}
+
+JsValue resolveMappedType(
+  JsValue ctx,
+  JsValue node,
+  JsValue scope,
+  JsValue typeParameters
+) {
+  JsValue result = JS.object("props", JS.object());
+  JsValue keys = JS.undefined();
+  if (node["nameType"].truthy()) {
+    string name = JS.string(node["typeParameter"]["name"]);
+    JsValue constraint = node["typeParameter"]["constraint"];
+    scope = createChildScope(scope);
+    JsValue additions = JS.object();
+    if (!JS.isUndefined(typeParameters)) assignObjects(additions, typeParameters);
+    additions[name] = constraint;
+    assignObjects(scope["types"], additions);
+    keys = resolveStringType(ctx, node["nameType"], scope);
+  } else {
+    keys = resolveStringType(ctx, node["typeParameter"]["constraint"], scope);
+  }
+  for (int index = 0; index < resolveLength(keys); index++) {
+    string key = JS.string(keys[index]);
+    result["props"][key] = createProperty(
+      JS.object("type", "Identifier", "name", key),
+      node["typeAnnotation"],
+      scope,
+      node["optional"].truthy()
+    );
+  }
+  return result;
+}
+
+JsValue resolveIndexType(JsValue ctx, JsValue node, JsValue scope) {
+  if (JS.string(node["indexType"]["type"]) == "TSNumberKeyword") {
+    return resolveArrayElementType(ctx, node["objectType"], scope);
+  }
+  JsValue indexType = node["indexType"];
+  JsValue objectType = node["objectType"];
+  JsValue types = JS.array();
+  JsValue keys = JS.undefined();
+  JsValue resolved = JS.undefined();
+  if (JS.string(indexType["type"]) == "TSStringKeyword") {
+    resolved = resolveTypeElements(ctx, objectType, scope);
+    keys = JS.call(hostKeys, JS.undefined(), resolved["props"]);
+  } else {
+    keys = resolveStringType(ctx, indexType, scope);
+    resolved = resolveTypeElements(ctx, objectType, scope);
+  }
+  for (int index = 0; index < resolveLength(keys); index++) {
+    string key = JS.string(keys[index]);
+    JsValue property = resolved["props"][key];
+    JsValue targetType = JS.undefined();
+    if (!JS.isNullish(property) && !JS.isNullish(property["typeAnnotation"])) {
+      targetType = property["typeAnnotation"]["typeAnnotation"];
+    }
+    if (targetType.truthy()) {
+      targetType["_ownerScope"] = property["_ownerScope"];
+      resolvePush(types, targetType);
+    }
+  }
+  return types;
+}
+
+JsValue resolveArrayElementType(JsValue ctx, JsValue node, JsValue scope) {
+  string type = JS.string(node["type"]);
+  if (type == "TSArrayType") return JS.array(node["elementType"]);
+  if (type == "TSTupleType") {
+    JsValue result = JS.array();
+    JsValue elements = node["elementTypes"];
+    for (int index = 0; index < resolveLength(elements); index++) {
+      JsValue element = elements[index];
+      if (JS.string(element["type"]) == "TSNamedTupleMember") {
+        element = element["elementType"];
+      }
+      resolvePush(result, element);
+    }
+    return result;
+  }
+  if (type == "TSTypeReference") {
+    if (JS.strictEqual(getReferenceName(node), "Array") &&
+      node["typeParameters"].truthy()) {
+      return node["typeParameters"]["params"];
+    }
+    JsValue resolved = resolveTypeReference(ctx, node, scope);
+    if (resolved.truthy()) return resolveArrayElementType(ctx, resolved, scope);
+  }
+  return JS.invoke(
+    ctx,
+    "error",
+    "Failed to resolve element type from target type",
+    node,
+    scope
+  );
+}
+
+JsValue resolveStringType(
+  JsValue ctx,
+  JsValue node,
+  JsValue scope,
+  JsValue typeParameters = JS.undefined()
+) {
+  string type = JS.string(node["type"]);
+  if (type == "StringLiteral") return JS.array(node["value"]);
+  if (type == "TSLiteralType") {
+    return resolveStringType(ctx, node["literal"], scope, typeParameters);
+  }
+  if (type == "TSUnionType") {
+    JsValue result = JS.array();
+    JsValue types = node["types"];
+    for (int index = 0; index < resolveLength(types); index++) {
+      JsValue values = resolveStringType(ctx, types[index], scope, typeParameters);
+      for (int valueIndex = 0; valueIndex < resolveLength(values); valueIndex++) {
+        resolvePush(result, values[valueIndex]);
+      }
+    }
+    return result;
+  }
+  if (type == "TemplateLiteral") return resolveTemplateKeys(ctx, node, scope);
+  if (type == "TSTypeReference") {
+    JsValue resolved = resolveTypeReference(ctx, node, scope);
+    if (resolved.truthy()) {
+      return resolveStringType(ctx, resolved, scope, typeParameters);
+    }
+    if (JS.string(node["typeName"]["type"]) == "Identifier") {
+      string name = JS.string(node["typeName"]["name"]);
+      if (!JS.isUndefined(typeParameters) && typeParameters[name].truthy()) {
+        return resolveStringType(
+          ctx,
+          typeParameters[name],
+          scope,
+          typeParameters
+        );
+      }
+      if (name == "Extract") {
+        return resolveStringType(
+          ctx,
+          node["typeParameters"]["params"][1],
+          scope,
+          typeParameters
+        );
+      }
+      if (name == "Exclude") {
+        JsValue excluded = resolveStringType(
+          ctx,
+          node["typeParameters"]["params"][1],
+          scope,
+          typeParameters
+        );
+        JsValue first = resolveStringType(
+          ctx,
+          node["typeParameters"]["params"][0],
+          scope,
+          typeParameters
+        );
+        JsValue result = JS.array();
+        for (int index = 0; index < resolveLength(first); index++) {
+          if (!arrayIncludes(excluded, first[index])) resolvePush(result, first[index]);
+        }
+        return result;
+      }
+      if (name == "Uppercase" || name == "Lowercase" || name == "Capitalize" ||
+        name == "Uncapitalize") {
+        JsValue first = resolveStringType(
+          ctx,
+          node["typeParameters"]["params"][0],
+          scope,
+          typeParameters
+        );
+        JsValue result = JS.array();
+        for (int index = 0; index < resolveLength(first); index++) {
+          string value = JS.string(first[index]);
+          if (name == "Uppercase") value = value.toUpperCase();
+          else if (name == "Lowercase") value = value.toLowerCase();
+          else if (name == "Capitalize") {
+            value = JS.string(JS.call(resolveCapitalize, JS.undefined(), value));
+          } else value = value.charAt(0).toLowerCase() + value.slice(1);
+          resolvePush(result, value);
+        }
+        return result;
+      }
+      JS.invoke(
+        ctx,
+        "error",
+        "Unsupported type when resolving index type",
+        node["typeName"],
+        scope
+      );
+    }
+  }
+  return JS.invoke(
+    ctx,
+    "error",
+    "Failed to resolve index type into finite keys",
+    node,
+    scope
+  );
+}
+
+JsValue resolveTemplateKeys(JsValue ctx, JsValue node, JsValue scope) {
+  if (resolveLength(node["expressions"]) == 0) {
+    return JS.array(node["quasis"][0]["value"]["raw"]);
+  }
+  JsValue result = JS.array();
+  JsValue expression = node["expressions"][0];
+  JsValue quasi = node["quasis"][0];
+  string leading = "";
+  if (quasi.truthy()) leading = JS.string(quasi["value"]["raw"]);
+  JsValue resolved = resolveStringType(ctx, expression, scope);
+  JsValue remainingQuasis = node["quasis"];
+  if (quasi.truthy()) remainingQuasis = JS.invoke(node["quasis"], "slice", 1);
+  JsValue nextNode = assignObjects(
+    JS.object(),
+    node,
+    JS.object(
+      "expressions", JS.invoke(node["expressions"], "slice", 1),
+      "quasis", remainingQuasis
+    )
+  );
+  JsValue restResolved = resolveTemplateKeys(ctx, nextNode, scope);
+  for (int index = 0; index < resolveLength(resolved); index++) {
+    for (int restIndex = 0; restIndex < resolveLength(restResolved); restIndex++) {
+      resolvePush(
+        result,
+        leading + JS.string(resolved[index]) + JS.string(restResolved[restIndex])
+      );
+    }
+  }
+  return result;
+}
+
+JsValue resolveBuiltin(
+  JsValue ctx,
+  JsValue node,
+  string name,
+  JsValue scope,
+  JsValue typeParameters
+) {
+  JsValue value = resolveTypeElements(
+    ctx,
+    node["typeParameters"]["params"][0],
+    scope,
+    typeParameters
+  );
+  if (name == "Partial" || name == "Required") {
+    JsValue result = JS.object("props", JS.object(), "calls", value["calls"]);
+    JsValue keys = JS.call(hostKeys, JS.undefined(), value["props"]);
+    for (int index = 0; index < resolveLength(keys); index++) {
+      string key = JS.string(keys[index]);
+      result["props"][key] = assignObjects(
+        JS.object(),
+        value["props"][key],
+        JS.object("optional", name == "Partial")
+      );
+    }
+    return result;
+  }
+  if (name == "Readonly") return value;
+  if (name == "Pick") {
+    JsValue picked = resolveStringType(
+      ctx,
+      node["typeParameters"]["params"][1],
+      scope,
+      typeParameters
+    );
+    JsValue result = JS.object("props", JS.object(), "calls", value["calls"]);
+    for (int index = 0; index < resolveLength(picked); index++) {
+      string key = JS.string(picked[index]);
+      result["props"][key] = value["props"][key];
+    }
+    return result;
+  }
+  JsValue omitted = resolveStringType(
+    ctx,
+    node["typeParameters"]["params"][1],
+    scope,
+    typeParameters
+  );
+  JsValue result = JS.object("props", JS.object(), "calls", value["calls"]);
+  for (string key in value["props"]) {
+    if (!arrayIncludes(omitted, key)) result["props"][key] = value["props"][key];
+  }
+  return result;
+}
+
+JsValue resolveTypeReference(
+  JsValue ctx,
+  JsValue node,
+  JsValue scope = JS.undefined(),
+  JsValue name = JS.undefined(),
+  bool onlyExported = false
+) {
+  bool canCache = JS.isNullish(scope) || !scope["isGenericScope"].truthy();
+  if (canCache && node["_resolvedReference"].truthy()) {
+    recordScopeDep(ctx, node["_resolvedReference"]["_ownerScope"]);
+    return node["_resolvedReference"];
+  }
+  if (!scope.truthy()) scope = ctxToScope(ctx);
+  if (!name.truthy()) name = getReferenceName(node);
+  JsValue resolved = innerResolveTypeReference(
+    ctx,
+    scope,
+    name,
+    node,
+    onlyExported
+  );
+  if (canCache) node["_resolvedReference"] = resolved;
+  return resolved;
+}
+
+JsValue innerResolveTypeReference(
+  JsValue ctx,
+  JsValue scope,
+  JsValue name,
+  JsValue node,
+  bool onlyExported
+) {
+  if (JS.typeOf(name) == "string") {
+    string stringName = JS.string(name);
+    if (scope["imports"][stringName].truthy()) {
+      return resolveTypeFromImport(ctx, node, stringName, scope);
+    }
+    JsValue lookupSource = JS.undefined();
+    if (JS.string(node["type"]) == "TSTypeQuery") {
+      if (onlyExported) lookupSource = scope["exportedDeclares"];
+      else lookupSource = scope["declares"];
+    } else {
+      if (onlyExported) lookupSource = scope["exportedTypes"];
+      else lookupSource = scope["types"];
+    }
+    if (lookupSource[stringName].truthy()) return lookupSource[stringName];
+    JsValue globalScopes = resolveGlobalScope(ctx);
+    if (!JS.isNullish(globalScopes)) {
+      for (int index = 0; index < resolveLength(globalScopes); index++) {
+        JsValue globalScope = globalScopes[index];
+        JsValue source = globalScope["types"];
+        if (JS.string(node["type"]) == "TSTypeQuery") {
+          source = globalScope["declares"];
+        }
+        if (source[stringName].truthy()) {
+          if (JS.isNullish(ctx["deps"])) ctx["deps"] = createSet();
+          JS.invoke(ctx["deps"], "add", globalScope["filename"]);
+          JsValue resolved = source[stringName];
+          if (resolved["_ownerScope"].truthy() &&
+            !JS.strictEqual(resolved["_ownerScope"], globalScope)) {
+            JS.invoke(
+              ctx["deps"],
+              "add",
+              resolved["_ownerScope"]["filename"]
+            );
+          }
+          return resolved;
+        }
+      }
+    }
+    return JS.undefined();
+  }
+
+  JsValue namespace = innerResolveTypeReference(
+    ctx,
+    scope,
+    name[0],
+    node,
+    onlyExported
+  );
+  if (namespace.truthy()) {
+    if (JS.string(namespace["type"]) != "TSModuleDeclaration") {
+      namespace = namespace["_ns"];
+    }
+    if (namespace.truthy()) {
+      JsValue parentScope = namespace["_ownerScope"];
+      if (!parentScope.truthy()) parentScope = scope;
+      JsValue childScope = moduleDeclToScope(ctx, namespace, parentScope);
+      JsValue nextName = JS.undefined();
+      if (resolveLength(name) > 2) nextName = JS.invoke(name, "slice", 1);
+      else nextName = name[resolveLength(name) - 1];
+      return innerResolveTypeReference(
+        ctx,
+        childScope,
+        nextName,
+        node,
+        !namespace["declare"].truthy()
+      );
+    }
+  }
+  return JS.undefined();
+}
+
+JsValue getReferenceName(JsValue node) {
+  JsValue reference = JS.undefined();
+  string type = JS.string(node["type"]);
+  if (type == "TSTypeReference") reference = node["typeName"];
+  else if (type == "TSExpressionWithTypeArguments") reference = node["expression"];
+  else if (type == "TSImportType") reference = node["qualifier"];
+  else reference = node["exprName"];
+  if (reference.truthy()) {
+    if (JS.string(reference["type"]) == "Identifier") return reference["name"];
+    if (JS.string(reference["type"]) == "TSQualifiedName") {
+      return qualifiedNameToPath(reference);
+    }
+  }
+  return "default";
+}
+
+JsValue qualifiedNameToPath(JsValue node) {
+  if (JS.string(node["type"]) == "Identifier") return JS.array(node["name"]);
+  JsValue result = qualifiedNameToPath(node["left"]);
+  resolvePush(result, node["right"]["name"]);
+  return result;
+}
+
+JsValue resolveGlobalScope(JsValue ctx) {
+  JsValue files = ctx["options"]["globalTypeFiles"];
+  if (!files.truthy()) return JS.undefined();
+  JsValue fs = resolveFS(ctx);
+  if (!fs.truthy()) {
+    throw JS.call(
+      hostCreateError,
+      JS.undefined(),
+      "[vue/compiler-sfc] globalTypeFiles requires fs access."
+    );
+  }
+  JsValue scopes = JS.array();
+  for (int index = 0; index < resolveLength(files); index++) {
+    resolvePush(scopes, fileToScope(ctx, normalizePath(JS.string(files[index])), true));
+  }
+  return scopes;
+}
+
+JsValue ts = JS.undefined();
+JsValue loadTS = JS.undefined();
+
+export void registerTS(JsValue load) {
+  loadTS = JS.method0((JsValue _self) => {
+    try {
+      return JS.call(load, JS.undefined());
+    } catch (JsValue error) {
+      if (JS.typeOf(error["message"]) == "string" &&
+        JS.string(error["message"]).includes("Cannot find module")) {
+        throw JS.call(
+          hostCreateError,
+          JS.undefined(),
+          "Failed to load TypeScript, which is required for resolving imported types. " +
+            "Please make sure \"TypeScript\" is installed as a project dependency."
+        );
+      }
+      throw JS.call(
+        hostCreateError,
+        JS.undefined(),
+        "Failed to load TypeScript for resolving imported types."
+      );
+    }
+  });
+}
+
+JsValue resolveFS(JsValue ctx) {
+  if (ctx["fs"].truthy()) return ctx["fs"];
+  if (!ts.truthy() && loadTS.truthy()) ts = JS.call(loadTS, JS.undefined());
+  JsValue fs = ctx["options"]["fs"];
+  if (!fs.truthy() && ts.truthy()) fs = ts["sys"];
+  if (!fs.truthy()) return JS.undefined();
+
+  JsValue wrapped = JS.object();
+  wrapped["fileExists"] = JS.method1((JsValue _self, JsValue rawFile) => {
+    string file = JS.string(rawFile);
+    if (file.endsWith(".vue.ts") && !file.endsWith(".d.vue.ts")) {
+      file = JS.string(JS.invoke(file, "replace", new Regex("\\.ts$"), ""));
+    }
+    return JS.call(fs["fileExists"], fs, file);
+  });
+  wrapped["readFile"] = JS.method1((JsValue _self, JsValue rawFile) => {
+    string file = JS.string(rawFile);
+    if (file.endsWith(".vue.ts") && !file.endsWith(".d.vue.ts")) {
+      file = JS.string(JS.invoke(file, "replace", new Regex("\\.ts$"), ""));
+    }
+    return JS.call(fs["readFile"], fs, file);
+  });
+  wrapped["realpath"] = fs["realpath"];
+  ctx["fs"] = wrapped;
+  return wrapped;
+}
+
+JsValue resolveTypeFromImport(
+  JsValue ctx,
+  JsValue node,
+  string name,
+  JsValue scope
+) {
+  JsValue binding = scope["imports"][name];
+  JsValue sourceScope = importSourceToScope(
+    ctx,
+    node,
+    scope,
+    JS.string(binding["source"])
+  );
+  return resolveTypeReference(
+    ctx,
+    node,
+    sourceScope,
+    binding["imported"],
+    true
+  );
+}
+
+bool cjsBuild = true;
+bool typeResolveTestBuild = false;
+
+JsValue importSourceToScope(
+  JsValue ctx,
+  JsValue node,
+  JsValue scope,
+  string source,
+  bool trackDep = true
+) {
+  JsValue fs = JS.undefined();
+  try {
+    fs = resolveFS(ctx);
+  } catch (JsValue error) {
+    return JS.invoke(ctx, "error", error["message"], node, scope);
+  }
+  if (!fs.truthy()) {
+    return JS.invoke(
+      ctx,
+      "error",
+      "No fs option provided to `compileScript` in non-Node environment. " +
+        "File system access is required for resolving imported types.",
+      node,
+      scope
+    );
+  }
+
+  JsValue resolved = scope["resolvedImportSources"][source];
+  if (!resolved.truthy()) {
+    if (source.startsWith("..")) {
+      JsValue joinFunction = joinPaths;
+      if (JS.string(resolveProcess["platform"]) == "win32") {
+        joinFunction = resolvePath["join"];
+      }
+      string filename = JS.string(JS.call(
+        joinFunction,
+        resolvePath,
+        JS.invoke(resolvePath, "dirname", scope["filename"]),
+        source
+      ));
+      resolved = resolveExt(filename, fs);
+    } else if (source.charAt(0) == ".") {
+      string filename = JS.string(JS.call(
+        joinPaths,
+        JS.undefined(),
+        JS.invoke(resolvePath, "dirname", scope["filename"]),
+        source
+      ));
+      resolved = resolveExt(filename, fs);
+    } else {
+      if (!cjsBuild) {
+        return JS.invoke(
+          ctx,
+          "error",
+          "Type import from non-relative sources is not supported in the browser build.",
+          node,
+          scope
+        );
+      }
+      if (!ts.truthy()) {
+        if (loadTS.truthy()) ts = JS.call(loadTS, JS.undefined());
+        if (!ts.truthy()) {
+          return JS.invoke(
+            ctx,
+            "error",
+            "Failed to resolve import source " +
+              JS.string(JS.call(hostJsonStringify, JS.undefined(), source)) + ". " +
+              "TypeScript is required as a peer dep for vue in order " +
+              "to support resolving types from module imports.",
+            node,
+            scope
+          );
+        }
+      }
+      resolved = resolveWithTS(
+        JS.string(scope["filename"]),
+        source,
+        ts,
+        fs
+      );
+    }
+    if (!resolved.truthy() && source.charAt(0) == "." && cjsBuild) {
+      if (!ts.truthy() && loadTS.truthy()) ts = JS.call(loadTS, JS.undefined());
+      if (ts.truthy()) {
+        resolved = resolveWithTS(
+          JS.string(scope["filename"]),
+          source,
+          ts,
+          fs
+        );
+      }
+    }
+    if (resolved.truthy()) {
+      resolved = normalizePath(JS.string(resolved));
+      scope["resolvedImportSources"][source] = resolved;
+    }
+  }
+  if (resolved.truthy()) {
+    if (trackDep) {
+      if (JS.isNullish(ctx["deps"])) ctx["deps"] = createSet();
+      JS.invoke(ctx["deps"], "add", resolved);
+    }
+    return fileToScope(ctx, JS.string(resolved));
+  }
+  return JS.invoke(
+    ctx,
+    "error",
+    "Failed to resolve import source " +
+      JS.string(JS.call(hostJsonStringify, JS.undefined(), source)) + ".",
+    node,
+    scope
+  );
+}
+
+JsValue resolveExt(string filename, JsValue fs) {
+  string moduleType = "u";
+  if (filename.endsWith(".mjs")) moduleType = "m";
+  else if (filename.endsWith(".cjs")) moduleType = "c";
+  filename = JS.string(JS.invoke(
+    filename,
+    "replace",
+    new Regex("\\.[cm]?jsx?$"),
+    ""
+  ));
+
+  JsValue exact = tryResolveFile(filename, fs);
+  if (exact.truthy()) return exact;
+  JsValue resolved = JS.undefined();
+  if (moduleType == "m") {
+    resolved = resolveMts(filename, fs);
+    if (!resolved.truthy()) resolved = resolveTs(filename, fs);
+  } else if (moduleType == "c") {
+    resolved = resolveCts(filename, fs);
+    if (!resolved.truthy()) resolved = resolveTs(filename, fs);
+  } else {
+    resolved = resolveTs(filename, fs);
+    if (!resolved.truthy()) resolved = resolveMts(filename, fs);
+    if (!resolved.truthy()) resolved = resolveCts(filename, fs);
+  }
+  if (resolved.truthy()) return resolved;
+  resolved = tryResolveFile(
+    JS.string(JS.call(joinPaths, JS.undefined(), filename, "index.ts")),
+    fs
+  );
+  if (resolved.truthy()) return resolved;
+  resolved = tryResolveFile(
+    JS.string(JS.call(joinPaths, JS.undefined(), filename, "index.tsx")),
+    fs
+  );
+  if (resolved.truthy()) return resolved;
+  return tryResolveFile(
+    JS.string(JS.call(joinPaths, JS.undefined(), filename, "index.d.ts")),
+    fs
+  );
+}
+
+JsValue tryResolveFile(string filename, JsValue fs) {
+  if (JS.call(fs["fileExists"], fs, filename).truthy()) return filename;
+  return JS.undefined();
+}
+
+JsValue resolveTs(string filename, JsValue fs) {
+  JsValue resolved = tryResolveFile(filename + ".ts", fs);
+  if (resolved.truthy()) return resolved;
+  resolved = tryResolveFile(filename + ".tsx", fs);
+  if (resolved.truthy()) return resolved;
+  return tryResolveFile(filename + ".d.ts", fs);
+}
+
+JsValue resolveMts(string filename, JsValue fs) {
+  JsValue resolved = tryResolveFile(filename + ".mts", fs);
+  if (resolved.truthy()) return resolved;
+  return tryResolveFile(filename + ".d.mts", fs);
+}
+
+JsValue resolveCts(string filename, JsValue fs) {
+  JsValue resolved = tryResolveFile(filename + ".cts", fs);
+  if (resolved.truthy()) return resolved;
+  return tryResolveFile(filename + ".d.cts", fs);
+}
+
+JsValue tsConfigCache = createCache();
+JsValue tsConfigRefMap = JS.call(hostCreateMap, JS.undefined());
+
+JsValue resolveWithTS(
+  string containingFile,
+  string source,
+  JsValue typescript,
+  JsValue fs
+) {
+  if (!cjsBuild) return JS.undefined();
+
+  JsValue configPath = JS.invoke(
+    typescript,
+    "findConfigFile",
+    containingFile,
+    fs["fileExists"]
+  );
+  JsValue compilerOptions = JS.undefined();
+  JsValue resolutionCache = JS.undefined();
+  if (configPath.truthy()) {
+    string normalizedConfigPath = normalizePath(JS.string(configPath));
+    JsValue configs = JS.invoke(tsConfigCache, "get", normalizedConfigPath);
+    if (!configs.truthy()) {
+      JsValue loaded = loadTSConfig(
+        JS.string(configPath),
+        typescript,
+        fs,
+        JS.undefined()
+      );
+      configs = JS.array();
+      for (int index = 0; index < resolveLength(loaded); index++) {
+        resolvePush(configs, JS.object("config", loaded[index]));
+      }
+      JS.invoke(tsConfigCache, "set", normalizedConfigPath, configs);
+    }
+
+    JsValue matchedConfig = JS.undefined();
+    if (resolveLength(configs) == 1) {
+      matchedConfig = configs[0];
+    } else {
+      JsValue versionParts = JS.invoke(
+        typescript["versionMajorMinor"],
+        "split",
+        "."
+      );
+      int major = JS.number(versionParts[0]).toInt();
+      int minor = JS.number(versionParts[1]).toInt();
+      for (int index = 0; index < resolveLength(configs); index++) {
+        JsValue candidate = configs[index];
+        JsValue options = candidate["config"]["options"];
+        JsValue baseValue = options["pathsBasePath"];
+        if (!baseValue.truthy()) {
+          baseValue = JS.invoke(
+            resolvePath,
+            "dirname",
+            options["configFilePath"]
+          );
+        }
+        string base = normalizePath(JS.string(baseValue));
+        JsValue raw = candidate["config"]["raw"];
+        JsValue included = JS.undefined();
+        JsValue excluded = JS.undefined();
+        if (!JS.isNullish(raw)) {
+          included = raw["include"];
+          excluded = raw["exclude"];
+        }
+        bool includedMatch = false;
+        if (JS.isNullish(included)) {
+          includedMatch = base == "" || containingFile.startsWith(base);
+        } else {
+          for (int includeIndex = 0;
+            includeIndex < resolveLength(included);
+            includeIndex++) {
+            string pattern = configPattern(
+              base,
+              JS.string(included[includeIndex]),
+              major,
+              minor,
+              JS.string(configPath)
+            );
+            if (JS.call(
+              resolveIsMatch,
+              JS.undefined(),
+              containingFile,
+              pattern
+            ).truthy()) {
+              includedMatch = true;
+              break;
+            }
+          }
+        }
+        if (!includedMatch) continue;
+
+        bool excludedMatch = false;
+        if (!JS.isNullish(excluded)) {
+          for (int excludeIndex = 0;
+            excludeIndex < resolveLength(excluded);
+            excludeIndex++) {
+            string pattern = configPattern(
+              base,
+              JS.string(excluded[excludeIndex]),
+              major,
+              minor,
+              JS.string(configPath)
+            );
+            if (JS.call(
+              resolveIsMatch,
+              JS.undefined(),
+              containingFile,
+              pattern
+            ).truthy()) {
+              excludedMatch = true;
+              break;
+            }
+          }
+        }
+        if (excludedMatch) continue;
+        matchedConfig = candidate;
+        break;
+      }
+      if (!matchedConfig.truthy()) matchedConfig = configs[resolveLength(configs) - 1];
+    }
+    compilerOptions = matchedConfig["config"]["options"];
+    resolutionCache = matchedConfig["cache"];
+    if (!resolutionCache.truthy()) {
+      resolutionCache = JS.invoke(
+        typescript,
+        "createModuleResolutionCache",
+        JS.invoke(resolveProcess, "cwd"),
+        createGetCanonicalFileName(
+          typescript["sys"]["useCaseSensitiveFileNames"].truthy()
+        ),
+        compilerOptions
+      );
+      matchedConfig["cache"] = resolutionCache;
+    }
+  } else {
+    compilerOptions = JS.object();
+  }
+
+  JsValue result = JS.invoke(
+    typescript,
+    "resolveModuleName",
+    source,
+    containingFile,
+    compilerOptions,
+    fs,
+    resolutionCache
+  );
+  if (result["resolvedModule"].truthy()) {
+    string filename = JS.string(result["resolvedModule"]["resolvedFileName"]);
+    if (filename.endsWith(".vue.ts") && !filename.endsWith(".d.vue.ts")) {
+      filename = JS.string(JS.invoke(filename, "replace", new Regex("\\.ts$"), ""));
+    }
+    if (fs["realpath"].truthy()) {
+      return JS.call(fs["realpath"], fs, filename);
+    }
+    return filename;
+  }
+  return JS.undefined();
+}
+
+string configPattern(
+  string base,
+  string pattern,
+  int major,
+  int minor,
+  string configPath
+) {
+  bool supportsConfigDir = major > 5 || (major == 5 && minor >= 5);
+  if (pattern.startsWith("${configDir}") && supportsConfigDir) {
+    string replaced = JS.string(JS.invoke(
+      pattern,
+      "replace",
+      "${configDir}",
+      JS.invoke(resolvePath, "dirname", configPath)
+    ));
+    return normalizePath(replaced);
+  }
+  return JS.string(JS.call(joinPaths, JS.undefined(), base, pattern));
+}
+
+JsValue loadTSConfig(
+  string configPath,
+  JsValue typescript,
+  JsValue fs,
+  JsValue visited = JS.undefined()
+) {
+  if (JS.isUndefined(visited)) visited = createSet();
+  JsValue parseConfigHost = typescript["sys"];
+  if (typeResolveTestBuild) {
+    parseConfigHost = assignObjects(
+      JS.object(),
+      fs,
+      JS.object(
+        "useCaseSensitiveFileNames", true,
+        "readDirectory", JS.method0((JsValue _self) => JS.array())
+      )
+    );
+  }
+  JsValue readResult = JS.invoke(
+    typescript,
+    "readConfigFile",
+    configPath,
+    fs["readFile"]
+  );
+  JsValue config = JS.invoke(
+    typescript,
+    "parseJsonConfigFileContent",
+    readResult["config"],
+    parseConfigHost,
+    JS.invoke(resolvePath, "dirname", configPath),
+    JS.undefined(),
+    configPath
+  );
+  JsValue result = JS.array(config);
+  JS.invoke(visited, "add", configPath);
+  JsValue references = config["projectReferences"];
+  if (!JS.isNullish(references)) {
+    for (int index = 0; index < resolveLength(references); index++) {
+      string refPath = JS.string(JS.invoke(
+        typescript,
+        "resolveProjectReferencePath",
+        references[index]
+      ));
+      if (JS.invoke(visited, "has", refPath).truthy() ||
+        !JS.call(fs["fileExists"], fs, refPath).truthy()) continue;
+      JS.invoke(tsConfigRefMap, "set", refPath, configPath);
+      JsValue nested = loadTSConfig(refPath, typescript, fs, visited);
+      for (int nestedIndex = resolveLength(nested) - 1;
+        nestedIndex >= 0;
+        nestedIndex--) {
+        JS.invoke(result, "unshift", nested[nestedIndex]);
+      }
+    }
+  }
+  return result;
+}
+
+JsValue fileToScopeCache = createCache();
+JsValue fileToGlobalScopeCache = createCache();
+
+export void invalidateTypeCache(string filename) {
+  filename = normalizePath(filename);
+  JS.invoke(fileToScopeCache, "delete", filename);
+  JS.invoke(fileToGlobalScopeCache, "delete", filename);
+  JS.invoke(tsConfigCache, "delete", filename);
+  JsValue affectedConfig = JS.invoke(tsConfigRefMap, "get", filename);
+  if (affectedConfig.truthy()) JS.invoke(tsConfigCache, "delete", affectedConfig);
+}
+
+export JsValue fileToScope(
+  JsValue ctx,
+  string filename,
+  bool asGlobal = false
+) {
+  JsValue cache = fileToScopeCache;
+  if (asGlobal) cache = fileToGlobalScopeCache;
+  JsValue cached = JS.invoke(cache, "get", filename);
+  if (cached.truthy()) return cached;
+  JsValue fs = resolveFS(ctx);
+  JsValue sourceValue = JS.call(fs["readFile"], fs, filename);
+  string source = "";
+  if (sourceValue.truthy()) source = JS.string(sourceValue);
+  JsValue body = parseFile(
+    filename,
+    source,
+    fs,
+    ctx["options"]["babelParserPlugins"]
+  );
+  TypeScope scopeValue = new TypeScope(filename, source, 0, recordImports(body));
+  JsValue scope = scopeValue;
+  recordTypes(ctx, body, scope, asGlobal);
+  JS.invoke(cache, "set", filename, scope);
+  return scope;
+}
+
+JsValue parseFile(
+  string filename,
+  string content,
+  JsValue fs,
+  JsValue parserPlugins = JS.undefined()
+) {
+  string extension = JS.string(JS.invoke(resolvePath, "extname", filename));
+  if (extension == ".ts" || extension == ".mts" || extension == ".tsx" ||
+    extension == ".cts" || extension == ".mtsx") {
+    bool declaration = new Regex("\\.d\\.[cm]?ts$").test(filename);
+    JsValue parsed = JS.call(
+      resolveBabelParse,
+      JS.undefined(),
+      content,
+      JS.object(
+        "plugins", resolveParserPlugins(
+          extension.slice(1),
+          parserPlugins,
+          declaration
+        ),
+        "sourceType", "module"
+      )
+    );
+    return parsed["program"]["body"];
+  }
+
+  bool unknownTypeSource = !new Regex("\\.[cm]?[tj]sx?$").test(filename);
+  string arbitraryTypeSource = filename.slice(0, -extension.length) +
+    ".d" + extension + ".ts";
+  bool hasArbitraryTypeDeclaration = unknownTypeSource &&
+    JS.call(fs["fileExists"], fs, arbitraryTypeSource).truthy();
+  if (hasArbitraryTypeDeclaration) {
+    JsValue parsed = JS.call(
+      resolveBabelParse,
+      JS.undefined(),
+      JS.call(fs["readFile"], fs, arbitraryTypeSource),
+      JS.object(
+        "plugins", resolveParserPlugins("ts", parserPlugins, true),
+        "sourceType", "module"
+      )
+    );
+    return parsed["program"]["body"];
+  }
+
+  if (extension == ".vue") {
+    JsValue descriptor = parseSFC(content)["descriptor"];
+    JsValue script = descriptor["script"];
+    JsValue scriptSetup = descriptor["scriptSetup"];
+    if (!script.truthy() && !scriptSetup.truthy()) return JS.array();
+
+    JsValue firstBlock = JS.undefined();
+    JsValue secondBlock = JS.undefined();
+    bool scriptFirst = script.truthy() && !scriptSetup.truthy();
+    if (script.truthy() && scriptSetup.truthy()) {
+      scriptFirst = JS.number(script["loc"]["start"]["offset"]) <
+        JS.number(scriptSetup["loc"]["start"]["offset"]);
+    }
+    if (scriptFirst) {
+      firstBlock = script;
+      secondBlock = scriptSetup;
+    } else {
+      firstBlock = scriptSetup;
+      secondBlock = script;
+    }
+    int firstOffset = JS.number(firstBlock["loc"]["start"]["offset"]).toInt();
+    string scriptContent = " ".repeat(firstOffset) +
+      JS.string(firstBlock["content"]);
+    if (secondBlock.truthy()) {
+      int gap = JS.number(secondBlock["loc"]["start"]["offset"]).toInt() -
+        JS.number(script["loc"]["end"]["offset"]).toInt();
+      scriptContent += " ".repeat(gap) + JS.string(secondBlock["content"]);
+    }
+    JsValue language = JS.undefined();
+    if (script.truthy()) language = script["lang"];
+    if (!language.truthy() && scriptSetup.truthy()) language = scriptSetup["lang"];
+    JsValue parsed = JS.call(
+      resolveBabelParse,
+      JS.undefined(),
+      scriptContent,
+      JS.object(
+        "plugins", resolveParserPlugins(
+          JS.string(language),
+          parserPlugins
+        ),
+        "sourceType", "module"
+      )
+    );
+    return parsed["program"]["body"];
+  }
+  return JS.array();
+}
+
+JsValue ctxToScope(JsValue ctx) {
+  if (ctx["scope"].truthy()) return ctx["scope"];
+  JsValue body = JS.undefined();
+  if (JS.call(hostHasProperty, JS.undefined(), ctx, "ast").truthy()) {
+    body = ctx["ast"];
+  } else if (ctx["scriptAst"].truthy()) {
+    body = JS.array();
+    JsValue scriptBody = ctx["scriptAst"]["body"];
+    JsValue setupBody = ctx["scriptSetupAst"]["body"];
+    for (int index = 0; index < resolveLength(scriptBody); index++) {
+      resolvePush(body, scriptBody[index]);
+    }
+    for (int index = 0; index < resolveLength(setupBody); index++) {
+      resolvePush(body, setupBody[index]);
+    }
+  } else {
+    body = ctx["scriptSetupAst"]["body"];
+  }
+  int offset = 0;
+  if (JS.call(hostHasProperty, JS.undefined(), ctx, "startOffset").truthy() &&
+    !JS.isNullish(ctx["startOffset"])) {
+    offset = JS.number(ctx["startOffset"]).toInt();
+  }
+  JsValue imports = JS.undefined();
+  if (JS.call(hostHasProperty, JS.undefined(), ctx, "userImports").truthy()) {
+    imports = JS.call(hostCreateObject, JS.undefined(), ctx["userImports"]);
+  } else {
+    imports = recordImports(body);
+  }
+  TypeScope scopeValue = new TypeScope(
+    JS.string(ctx["filename"]),
+    JS.string(ctx["source"]),
+    offset,
+    imports
+  );
+  JsValue scope = scopeValue;
+  recordTypes(ctx, body, scope);
+  ctx["scope"] = scope;
+  return scope;
+}
+
+JsValue moduleDeclToScope(
+  JsValue ctx,
+  JsValue node,
+  JsValue parentScope
+) {
+  if (node["_resolvedChildScope"].truthy()) return node["_resolvedChildScope"];
+  JsValue scope = createChildScope(parentScope);
+  if (JS.string(node["body"]["type"]) == "TSModuleDeclaration") {
+    JsValue declaration = node["body"];
+    declaration["_ownerScope"] = scope;
+    string id = JS.string(getId(declaration["id"]));
+    scope["types"][id] = declaration;
+    scope["exportedTypes"][id] = declaration;
+  } else {
+    recordTypes(ctx, node["body"]["body"], scope);
+  }
+  node["_resolvedChildScope"] = scope;
+  return scope;
+}
+
+JsValue createChildScope(JsValue parentScope) {
+  TypeScope scope = new TypeScope(
+    JS.string(parentScope["filename"]),
+    JS.string(parentScope["source"]),
+    JS.number(parentScope["offset"]).toInt(),
+    JS.call(hostCreateObject, JS.undefined(), parentScope["imports"]),
+    JS.call(hostCreateObject, JS.undefined(), parentScope["types"]),
+    JS.call(hostCreateObject, JS.undefined(), parentScope["declares"])
+  );
+  return scope;
+}
+
+Regex importExportRE = new Regex("^Import|^Export");
+
+void recordTypes(
+  JsValue ctx,
+  JsValue body,
+  JsValue scope,
+  bool asGlobal = false
+) {
+  JsValue types = scope["types"];
+  JsValue declares = scope["declares"];
+  JsValue exportedTypes = scope["exportedTypes"];
+  JsValue exportedDeclares = scope["exportedDeclares"];
+  JsValue imports = scope["imports"];
+  bool isAmbient = false;
+  if (asGlobal) {
+    isAmbient = true;
+    for (int index = 0; index < resolveLength(body); index++) {
+      if (importExportRE.test(JS.string(body[index]["type"]))) {
+        isAmbient = false;
+        break;
+      }
+    }
+  }
+
+  for (int index = 0; index < resolveLength(body); index++) {
+    JsValue statement = body[index];
+    if (asGlobal) {
+      if (isAmbient) {
+        if (statement["declare"].truthy()) recordType(statement, types, declares);
+      } else if (JS.string(statement["type"]) == "TSModuleDeclaration" &&
+        statement["global"].truthy()) {
+        JsValue statements = statement["body"]["body"];
+        for (int childIndex = 0;
+          childIndex < resolveLength(statements);
+          childIndex++) {
+          JsValue child = statements[childIndex];
+          string childType = JS.string(child["type"]);
+          if (childType == "ExportNamedDeclaration") {
+            if (child["declaration"].truthy()) {
+              recordType(child["declaration"], types, declares);
+            } else if (child["source"].truthy()) {
+              JsValue sourceScope = importSourceToScope(
+                ctx,
+                child["source"],
+                scope,
+                JS.string(child["source"]["value"]),
+                false
+              );
+              JsValue specifiers = child["specifiers"];
+              for (int specIndex = 0;
+                specIndex < resolveLength(specifiers);
+                specIndex++) {
+                JsValue specifier = specifiers[specIndex];
+                if (JS.string(specifier["type"]) == "ExportSpecifier") {
+                  string exported = JS.string(getId(specifier["exported"]));
+                  string local = JS.string(specifier["local"]["name"]);
+                  if (sourceScope["exportedTypes"][local].truthy()) {
+                    types[exported] = sourceScope["exportedTypes"][local];
+                  }
+                  if (sourceScope["exportedDeclares"][local].truthy()) {
+                    declares[exported] = sourceScope["exportedDeclares"][local];
+                  }
+                }
+              }
+            }
+          } else if (childType == "ExportAllDeclaration" &&
+            child["source"].truthy()) {
+            JsValue sourceScope = importSourceToScope(
+              ctx,
+              child["source"],
+              scope,
+              JS.string(child["source"]["value"]),
+              false
+            );
+            assignObjects(types, sourceScope["exportedTypes"]);
+            assignObjects(declares, sourceScope["exportedDeclares"]);
+          } else {
+            recordType(child, types, declares);
+          }
+        }
+      }
+    } else {
+      recordType(statement, types, declares);
+    }
+  }
+
+  if (!asGlobal) {
+    for (int index = 0; index < resolveLength(body); index++) {
+      JsValue statement = body[index];
+      string type = JS.string(statement["type"]);
+      if (type == "ExportNamedDeclaration") {
+        if (statement["declaration"].truthy()) {
+          recordType(statement["declaration"], types, declares);
+          recordType(
+            statement["declaration"],
+            exportedTypes,
+            exportedDeclares
+          );
+        } else {
+          JsValue specifiers = statement["specifiers"];
+          for (int specIndex = 0;
+            specIndex < resolveLength(specifiers);
+            specIndex++) {
+            JsValue specifier = specifiers[specIndex];
+            if (JS.string(specifier["type"]) != "ExportSpecifier") continue;
+            string local = JS.string(specifier["local"]["name"]);
+            string exported = JS.string(getId(specifier["exported"]));
+            if (statement["source"].truthy()) {
+              imports[exported] = JS.object(
+                "source", statement["source"]["value"],
+                "imported", local
+              );
+              exportedTypes[exported] = JS.object(
+                "type", "TSTypeReference",
+                "typeName", JS.object("type", "Identifier", "name", local),
+                "_ownerScope", scope
+              );
+            } else if (types[local].truthy()) {
+              exportedTypes[exported] = types[local];
+            }
+          }
+        }
+      } else if (type == "ExportAllDeclaration") {
+        JsValue sourceScope = importSourceToScope(
+          ctx,
+          statement["source"],
+          scope,
+          JS.string(statement["source"]["value"])
+        );
+        assignObjects(exportedTypes, sourceScope["exportedTypes"]);
+      } else if (type == "ExportDefaultDeclaration" &&
+        statement["declaration"].truthy()) {
+        JsValue declaration = statement["declaration"];
+        if (JS.string(declaration["type"]) != "Identifier") {
+          recordType(declaration, types, declares, "default");
+          recordType(
+            declaration,
+            exportedTypes,
+            exportedDeclares,
+            "default"
+          );
+        } else if (types[JS.string(declaration["name"])].truthy()) {
+          exportedTypes["default"] = types[JS.string(declaration["name"])];
+        }
+      }
+    }
+  }
+
+  JsValue typeKeys = JS.call(hostKeys, JS.undefined(), types);
+  for (int index = 0; index < resolveLength(typeKeys); index++) {
+    string key = JS.string(typeKeys[index]);
+    JsValue node = types[key];
+    if (!node["_ownerScope"].truthy()) node["_ownerScope"] = scope;
+    if (node["_ns"].truthy() && !node["_ns"]["_ownerScope"].truthy()) {
+      node["_ns"]["_ownerScope"] = scope;
+    }
+  }
+  JsValue declareKeys = JS.call(hostKeys, JS.undefined(), declares);
+  for (int index = 0; index < resolveLength(declareKeys); index++) {
+    string key = JS.string(declareKeys[index]);
+    if (!declares[key]["_ownerScope"].truthy()) {
+      declares[key]["_ownerScope"] = scope;
+    }
+  }
+}
+
+void recordType(
+  JsValue node,
+  JsValue types,
+  JsValue declares,
+  JsValue overwriteId = JS.undefined()
+) {
+  string type = JS.string(node["type"]);
+  if (type == "TSInterfaceDeclaration" || type == "TSEnumDeclaration" ||
+    type == "TSModuleDeclaration") {
+    if (type == "TSModuleDeclaration" && node["global"].truthy()) {
+      JsValue statements = node["body"]["body"];
+      for (int index = 0; index < resolveLength(statements); index++) {
+        JsValue statement = statements[index];
+        if (JS.string(statement["type"]) == "ExportNamedDeclaration" &&
+          statement["declaration"].truthy()) {
+          recordType(statement["declaration"], types, declares);
+        } else {
+          recordType(statement, types, declares);
+        }
+      }
+      return;
+    }
+    string id = JS.string(getId(node["id"]));
+    if (overwriteId.truthy()) id = JS.string(overwriteId);
+    JsValue existing = types[id];
+    if (existing.truthy()) {
+      if (type == "TSModuleDeclaration") {
+        if (JS.string(existing["type"]) == "TSModuleDeclaration") {
+          mergeNamespaces(existing, node);
+        } else {
+          attachNamespace(existing, node);
+        }
+        return;
+      }
+      if (JS.string(existing["type"]) == "TSModuleDeclaration") {
+        types[id] = node;
+        attachNamespace(node, existing);
+        return;
+      }
+      if (JS.string(existing["type"]) != type) return;
+      if (type == "TSInterfaceDeclaration") {
+        appendArray(existing["body"]["body"], node["body"]["body"]);
+      } else {
+        appendArray(existing["members"], node["members"]);
+      }
+    } else {
+      types[id] = node;
+    }
+    return;
+  }
+  if (type == "ClassDeclaration") {
+    if (overwriteId.truthy() || node["id"].truthy()) {
+      string id = JS.string(getId(node["id"]));
+      if (overwriteId.truthy()) id = JS.string(overwriteId);
+      types[id] = node;
+    }
+    return;
+  }
+  if (type == "TSTypeAliasDeclaration") {
+    string name = JS.string(node["id"]["name"]);
+    types[name] = node["typeAnnotation"];
+    if (node["typeParameters"].truthy()) types[name] = node;
+    return;
+  }
+  if (type == "TSDeclareFunction") {
+    if (node["id"].truthy()) {
+      declares[JS.string(node["id"]["name"])] = node;
+    }
+    return;
+  }
+  if (type == "VariableDeclaration" && node["declare"].truthy()) {
+    JsValue declarations = node["declarations"];
+    for (int index = 0; index < resolveLength(declarations); index++) {
+      JsValue declaration = declarations[index];
+      if (JS.string(declaration["id"]["type"]) == "Identifier" &&
+        declaration["id"]["typeAnnotation"].truthy()) {
+        declares[JS.string(declaration["id"]["name"])] =
+          declaration["id"]["typeAnnotation"]["typeAnnotation"];
+      }
+    }
+  }
+}
+
+void appendArray(JsValue target, JsValue source) {
+  for (int index = 0; index < resolveLength(source); index++) {
+    resolvePush(target, source[index]);
+  }
+}
+
+void mergeNamespaces(JsValue target, JsValue source) {
+  JsValue targetBody = target["body"];
+  JsValue sourceBody = source["body"];
+  bool targetDeclaration = JS.string(targetBody["type"]) == "TSModuleDeclaration";
+  bool sourceDeclaration = JS.string(sourceBody["type"]) == "TSModuleDeclaration";
+  if (targetDeclaration) {
+    if (sourceDeclaration) {
+      mergeNamespaces(targetBody, sourceBody);
+    } else {
+      resolvePush(
+        sourceBody["body"],
+        JS.object(
+          "type", "ExportNamedDeclaration",
+          "declaration", targetBody,
+          "exportKind", "type",
+          "specifiers", JS.array()
+        )
+      );
+    }
+  } else if (sourceDeclaration) {
+    resolvePush(
+      targetBody["body"],
+      JS.object(
+        "type", "ExportNamedDeclaration",
+        "declaration", sourceBody,
+        "exportKind", "type",
+        "specifiers", JS.array()
+      )
+    );
+  } else {
+    appendArray(targetBody["body"], sourceBody["body"]);
+  }
+}
+
+void attachNamespace(JsValue target, JsValue namespace) {
+  if (!target["_ns"].truthy()) target["_ns"] = namespace;
+  else mergeNamespaces(target["_ns"], namespace);
+}
+
+export JsValue recordImports(JsValue body) {
+  JsValue imports = nullObject();
+  for (int index = 0; index < resolveLength(body); index++) {
+    recordImport(body[index], imports);
+  }
+  return imports;
+}
+
+void recordImport(JsValue node, JsValue imports) {
+  if (JS.string(node["type"]) != "ImportDeclaration") return;
+  JsValue specifiers = node["specifiers"];
+  for (int index = 0; index < resolveLength(specifiers); index++) {
+    JsValue specifier = specifiers[index];
+    imports[JS.string(specifier["local"]["name"])] = JS.object(
+      "imported", getImportedName(specifier),
+      "source", node["source"]["value"]
+    );
+  }
+}
+
+export JsValue inferRuntimeType(
+  JsValue ctx,
+  JsValue node,
+  JsValue scope = null,
+  bool isKeyOf = false,
+  JsValue typeParameters = JS.undefined()
+) {
+  if (hasVueIgnore(node)) return JS.array(UNKNOWN_TYPE);
+  if (!scope.truthy()) {
+    scope = node["_ownerScope"];
+    if (!scope.truthy()) scope = ctxToScope(ctx);
+  }
+
+  JsValue previousSilent = ctx["silentOnExtendsFailure"];
+  ctx["silentOnExtendsFailure"] = true;
+  try {
+    string type = JS.string(node["type"]);
+    if (type == "TSStringKeyword") return JS.array("String");
+    if (type == "TSNumberKeyword") return JS.array("Number");
+    if (type == "TSBooleanKeyword") return JS.array("Boolean");
+    if (type == "TSObjectKeyword") return JS.array("Object");
+    if (type == "TSNullKeyword") return JS.array("null");
+
+    if (type == "TSTypeLiteral" || type == "TSInterfaceDeclaration") {
+      JsValue types = createSet();
+      JsValue members = node["members"];
+      if (type == "TSInterfaceDeclaration") members = node["body"]["body"];
+      for (int index = 0; index < resolveLength(members); index++) {
+        JsValue member = members[index];
+        string memberType = JS.string(member["type"]);
+        if (isKeyOf) {
+          if (memberType == "TSPropertySignature" &&
+            JS.string(member["key"]["type"]) == "NumericLiteral") {
+            JS.invoke(types, "add", "Number");
+          } else if (memberType == "TSIndexSignature") {
+            JsValue annotation = member["parameters"][0]["typeAnnotation"];
+            if (annotation.truthy() && JS.string(annotation["type"]) != "Noop") {
+              JsValue inferred = inferRuntimeType(
+                ctx,
+                annotation["typeAnnotation"],
+                scope
+              );
+              string inferredType = JS.string(inferred[0]);
+              if (inferredType == UNKNOWN_TYPE) return JS.array(UNKNOWN_TYPE);
+              JS.invoke(types, "add", inferredType);
+            }
+          } else {
+            JS.invoke(types, "add", "String");
+          }
+        } else if (memberType == "TSCallSignatureDeclaration" ||
+          memberType == "TSConstructSignatureDeclaration") {
+          JS.invoke(types, "add", "Function");
+        } else {
+          JS.invoke(types, "add", "Object");
+        }
+      }
+      if (JS.number(types["size"]).toInt() > 0) return arrayFrom(types);
+      if (isKeyOf) return JS.array(UNKNOWN_TYPE);
+      return JS.array("Object");
+    }
+
+    if (type == "TSPropertySignature") {
+      if (node["typeAnnotation"].truthy()) {
+        return inferRuntimeType(
+          ctx,
+          node["typeAnnotation"]["typeAnnotation"],
+          scope
+        );
+      }
+    } else if (type == "TSMethodSignature" || type == "TSFunctionType") {
+      return JS.array("Function");
+    } else if (type == "TSArrayType" || type == "TSTupleType") {
+      return JS.array("Array");
+    } else if (type == "TSLiteralType") {
+      string literalType = JS.string(node["literal"]["type"]);
+      if (literalType == "StringLiteral") return JS.array("String");
+      if (literalType == "BooleanLiteral") return JS.array("Boolean");
+      if (literalType == "NumericLiteral" || literalType == "BigIntLiteral") {
+        return JS.array("Number");
+      }
+      return JS.array(UNKNOWN_TYPE);
+    } else if (type == "TSTypeReference") {
+      JsValue resolved = JS.undefined();
+      try {
+        resolved = resolveTypeReference(ctx, node, scope);
+      } catch (JsValue _error) {}
+      if (resolved.truthy()) {
+        if (JS.string(resolved["type"]) == "TSTypeAliasDeclaration") {
+          if (JS.string(resolved["typeAnnotation"]["type"]) == "TSFunctionType") {
+            return JS.array("Function");
+          }
+          if (node["typeParameters"].truthy()) {
+            JsValue typeParams = nullObject();
+            if (resolved["typeParameters"].truthy()) {
+              JsValue params = resolved["typeParameters"]["params"];
+              for (int index = 0; index < resolveLength(params); index++) {
+                typeParams[JS.string(params[index]["name"])] =
+                  node["typeParameters"]["params"][index];
+              }
+            }
+            return inferRuntimeType(
+              ctx,
+              resolved["typeAnnotation"],
+              resolved["_ownerScope"],
+              isKeyOf,
+              typeParams
+            );
+          }
+        }
+        return inferRuntimeType(
+          ctx,
+          resolved,
+          resolved["_ownerScope"],
+          isKeyOf
+        );
+      }
+
+      if (JS.string(node["typeName"]["type"]) == "Identifier") {
+        string name = JS.string(node["typeName"]["name"]);
+        if (!JS.isUndefined(typeParameters) && typeParameters[name].truthy()) {
+          return inferRuntimeType(
+            ctx,
+            typeParameters[name],
+            scope,
+            isKeyOf,
+            typeParameters
+          );
+        }
+        if (isKeyOf) {
+          JsValue keyResult = inferKeyOfReference(
+            ctx,
+            node,
+            scope,
+            name
+          );
+          if (!JS.isUndefined(keyResult)) return keyResult;
+        } else {
+          JsValue referenceResult = inferReferenceBuiltin(
+            ctx,
+            node,
+            scope,
+            name,
+            typeParameters
+          );
+          if (!JS.isUndefined(referenceResult)) return referenceResult;
+        }
+      }
+    } else if (type == "TSParenthesizedType") {
+      return inferRuntimeType(ctx, node["typeAnnotation"], scope);
+    } else if (type == "TSUnionType") {
+      return flattenTypes(ctx, node["types"], scope, isKeyOf, typeParameters);
+    } else if (type == "TSIntersectionType") {
+      return JS.invoke(
+        flattenTypes(ctx, node["types"], scope, isKeyOf, typeParameters),
+        "filter",
+        JS.method1((JsValue _self, JsValue inferred) =>
+          !JS.strictEqual(inferred, UNKNOWN_TYPE))
+      );
+    } else if (type == "TSMappedType") {
+      JsValue typeAnnotation = node["typeAnnotation"];
+      JsValue typeParameter = node["typeParameter"];
+      if (typeAnnotation.truthy() &&
+        JS.string(typeAnnotation["type"]) == "TSIndexedAccessType" &&
+        typeParameter.truthy() && typeParameter["constraint"].truthy() &&
+        !JS.isUndefined(typeParameters)) {
+        JsValue constraint = typeParameter["constraint"];
+        if (JS.string(constraint["type"]) == "TSTypeOperator" &&
+          JS.string(constraint["operator"]) == "keyof" &&
+          constraint["typeAnnotation"].truthy() &&
+          JS.string(constraint["typeAnnotation"]["type"]) == "TSTypeReference" &&
+          JS.string(constraint["typeAnnotation"]["typeName"]["type"]) ==
+            "Identifier") {
+          string typeName = JS.string(
+            constraint["typeAnnotation"]["typeName"]["name"]
+          );
+          JsValue indexType = typeAnnotation["indexType"];
+          JsValue objectType = typeAnnotation["objectType"];
+          if (objectType.truthy() &&
+            JS.string(objectType["type"]) == "TSTypeReference" &&
+            JS.string(objectType["typeName"]["type"]) == "Identifier" &&
+            JS.string(objectType["typeName"]["name"]) == typeName &&
+            indexType.truthy() &&
+            JS.string(indexType["type"]) == "TSTypeReference" &&
+            JS.string(indexType["typeName"]["type"]) == "Identifier" &&
+            JS.string(indexType["typeName"]["name"]) ==
+              JS.string(typeParameter["name"])) {
+            JsValue targetType = typeParameters[typeName];
+            if (targetType.truthy()) return inferRuntimeType(ctx, targetType, scope);
+          }
+        }
+      }
+      return JS.array(UNKNOWN_TYPE);
+    } else if (type == "TSEnumDeclaration") {
+      return inferEnumType(node);
+    } else if (type == "TSSymbolKeyword") {
+      return JS.array("Symbol");
+    } else if (type == "TSIndexedAccessType") {
+      return flattenTypes(
+        ctx,
+        resolveIndexType(ctx, node, scope),
+        scope,
+        isKeyOf
+      );
+    } else if (type == "ClassDeclaration") {
+      return JS.array("Object");
+    } else if (type == "TSImportType") {
+      JsValue sourceScope = importSourceToScope(
+        ctx,
+        node["argument"],
+        scope,
+        JS.string(node["argument"]["value"])
+      );
+      JsValue resolved = resolveTypeReference(ctx, node, sourceScope);
+      if (resolved.truthy()) {
+        return inferRuntimeType(ctx, resolved, resolved["_ownerScope"]);
+      }
+    } else if (type == "TSTypeQuery") {
+      JsValue id = node["exprName"];
+      if (JS.string(id["type"]) == "Identifier") {
+        JsValue matched = scope["declares"][JS.string(id["name"])];
+        if (matched.truthy()) {
+          return inferRuntimeType(
+            ctx,
+            matched,
+            matched["_ownerScope"],
+            isKeyOf
+          );
+        }
+      }
+    } else if (type == "TSTypeOperator") {
+      return inferRuntimeType(
+        ctx,
+        node["typeAnnotation"],
+        scope,
+        JS.string(node["operator"]) == "keyof"
+      );
+    } else if (type == "TSAnyKeyword" && isKeyOf) {
+      return JS.array("String", "Number", "Symbol");
+    }
+  } catch (JsValue _error) {
+  } finally {
+    ctx["silentOnExtendsFailure"] = previousSilent;
+  }
+  return JS.array(UNKNOWN_TYPE);
+}
+
+JsValue inferKeyOfReference(
+  JsValue ctx,
+  JsValue node,
+  JsValue scope,
+  string name
+) {
+  if (name == "String" || name == "Array" || name == "ArrayLike" ||
+    name == "Parameters" || name == "ConstructorParameters" ||
+    name == "ReadonlyArray") {
+    return JS.array("String", "Number");
+  }
+  if (name == "Record" || name == "Partial" || name == "Required" ||
+    name == "Readonly") {
+    if (node["typeParameters"].truthy() &&
+      node["typeParameters"]["params"][0].truthy()) {
+      return inferRuntimeType(
+        ctx,
+        node["typeParameters"]["params"][0],
+        scope,
+        true
+      );
+    }
+    return JS.undefined();
+  }
+  if (name == "Pick" || name == "Extract") {
+    if (node["typeParameters"].truthy() &&
+      node["typeParameters"]["params"][1].truthy()) {
+      return inferRuntimeType(
+        ctx,
+        node["typeParameters"]["params"][1],
+        scope
+      );
+    }
+    return JS.undefined();
+  }
+  if (name == "Function" || name == "Object" || name == "Set" ||
+    name == "Map" || name == "WeakSet" || name == "WeakMap" ||
+    name == "Date" || name == "Promise" || name == "Error" ||
+    name == "Uppercase" || name == "Lowercase" || name == "Capitalize" ||
+    name == "Uncapitalize" || name == "ReadonlyMap" ||
+    name == "ReadonlySet") {
+    return JS.array("String");
+  }
+  return JS.undefined();
+}
+
+JsValue inferReferenceBuiltin(
+  JsValue ctx,
+  JsValue node,
+  JsValue scope,
+  string name,
+  JsValue typeParameters
+) {
+  if (name == "Array" || name == "Function" || name == "Object" ||
+    name == "Set" || name == "Map" || name == "WeakSet" ||
+    name == "WeakMap" || name == "Date" || name == "Promise" ||
+    name == "Error") {
+    return JS.array(name);
+  }
+  if (name == "Partial" || name == "Required" || name == "Readonly" ||
+    name == "Record" || name == "Pick" || name == "Omit" ||
+    name == "InstanceType") {
+    return JS.array("Object");
+  }
+  if (name == "Uppercase" || name == "Lowercase" || name == "Capitalize" ||
+    name == "Uncapitalize") {
+    return JS.array("String");
+  }
+  if (name == "Parameters" || name == "ConstructorParameters" ||
+    name == "ReadonlyArray") {
+    return JS.array("Array");
+  }
+  if (name == "ReadonlyMap") return JS.array("Map");
+  if (name == "ReadonlySet") return JS.array("Set");
+  if (name == "Ref" || name == "ShallowRef" || name == "ComputedRef" ||
+    name == "WritableComputedRef") {
+    return JS.array("Object");
+  }
+  if (name == "MaybeRef" || name == "MaybeRefOrGetter") {
+    JsValue types = createSet(JS.array("Object"));
+    if (name == "MaybeRefOrGetter") JS.invoke(types, "add", "Function");
+    if (node["typeParameters"].truthy() &&
+      node["typeParameters"]["params"][0].truthy()) {
+      JsValue inferred = inferRuntimeType(
+        ctx,
+        node["typeParameters"]["params"][0],
+        scope,
+        false,
+        typeParameters
+      );
+      for (int index = 0; index < resolveLength(inferred); index++) {
+        JS.invoke(types, "add", inferred[index]);
+      }
+    }
+    return arrayFrom(types);
+  }
+  if (name == "NonNullable") {
+    if (node["typeParameters"].truthy() &&
+      node["typeParameters"]["params"][0].truthy()) {
+      JsValue inferred = inferRuntimeType(
+        ctx,
+        node["typeParameters"]["params"][0],
+        scope
+      );
+      JsValue result = JS.array();
+      for (int index = 0; index < resolveLength(inferred); index++) {
+        if (JS.string(inferred[index]) != "null") resolvePush(result, inferred[index]);
+      }
+      return result;
+    }
+    return JS.undefined();
+  }
+  if (name == "Extract") {
+    if (node["typeParameters"].truthy() &&
+      node["typeParameters"]["params"][1].truthy()) {
+      return inferRuntimeType(
+        ctx,
+        node["typeParameters"]["params"][1],
+        scope
+      );
+    }
+    return JS.undefined();
+  }
+  if (name == "Exclude" || name == "OmitThisParameter") {
+    if (node["typeParameters"].truthy() &&
+      node["typeParameters"]["params"][0].truthy()) {
+      return inferRuntimeType(
+        ctx,
+        node["typeParameters"]["params"][0],
+        scope
+      );
+    }
+  }
+  return JS.undefined();
+}
+
+JsValue flattenTypes(
+  JsValue ctx,
+  JsValue types,
+  JsValue scope,
+  bool isKeyOf = false,
+  JsValue typeParameters = JS.undefined()
+) {
+  if (resolveLength(types) == 1) {
+    JsValue selectedScope = types[0]["_ownerScope"];
+    if (!selectedScope.truthy()) selectedScope = scope;
+    return inferRuntimeType(
+      ctx,
+      types[0],
+      selectedScope,
+      isKeyOf,
+      typeParameters
+    );
+  }
+  JsValue unique = createSet();
+  for (int index = 0; index < resolveLength(types); index++) {
+    JsValue selectedScope = types[index]["_ownerScope"];
+    if (!selectedScope.truthy()) selectedScope = scope;
+    JsValue inferred = inferRuntimeType(
+      ctx,
+      types[index],
+      selectedScope,
+      isKeyOf,
+      typeParameters
+    );
+    for (int inferredIndex = 0;
+      inferredIndex < resolveLength(inferred);
+      inferredIndex++) {
+      JS.invoke(unique, "add", inferred[inferredIndex]);
+    }
+  }
+  return arrayFrom(unique);
+}
+
+JsValue inferEnumType(JsValue node) {
+  JsValue types = createSet();
+  JsValue members = node["members"];
+  for (int index = 0; index < resolveLength(members); index++) {
+    JsValue initializer = members[index]["initializer"];
+    if (!initializer.truthy()) continue;
+    string type = JS.string(initializer["type"]);
+    if (type == "StringLiteral") JS.invoke(types, "add", "String");
+    else if (type == "NumericLiteral") JS.invoke(types, "add", "Number");
+  }
+  if (JS.number(types["size"]).toInt() > 0) return arrayFrom(types);
+  return JS.array("Number");
+}
+
+JsValue resolveExtractPropTypes(JsValue elements, JsValue scope) {
+  JsValue result = JS.object("props", JS.object());
+  JsValue props = elements["props"];
+  for (string key in props) {
+    JsValue raw = props[key];
+    result["props"][key] = reverseInferType(
+      raw["key"],
+      raw["typeAnnotation"]["typeAnnotation"],
+      scope
+    );
+  }
+  return result;
+}
+
+JsValue reverseInferType(
+  JsValue key,
+  JsValue node,
+  JsValue scope,
+  bool optional = true,
+  bool checkObjectSyntax = true
+) {
+  string type = JS.string(node["type"]);
+  if (checkObjectSyntax && type == "TSTypeLiteral") {
+    JsValue typeType = findStaticPropertyType(node, "type");
+    if (typeType.truthy()) {
+      JsValue requiredType = findStaticPropertyType(node, "required");
+      bool inferredOptional = true;
+      if (requiredType.truthy() &&
+        JS.string(requiredType["type"]) == "TSLiteralType" &&
+        JS.string(requiredType["literal"]["type"]) == "BooleanLiteral") {
+        inferredOptional = !requiredType["literal"]["value"].truthy();
+      }
+      return reverseInferType(
+        key,
+        typeType,
+        scope,
+        inferredOptional,
+        false
+      );
+    }
+  } else if (type == "TSTypeReference" &&
+    JS.string(node["typeName"]["type"]) == "Identifier") {
+    string name = JS.string(node["typeName"]["name"]);
+    if (name.endsWith("Constructor")) {
+      return createProperty(key, ctorToType(name), scope, optional);
+    }
+    if (name == "PropType" && node["typeParameters"].truthy()) {
+      return createProperty(
+        key,
+        node["typeParameters"]["params"][0],
+        scope,
+        optional
+      );
+    }
+  }
+  if ((type == "TSTypeReference" || type == "TSImportType") &&
+    node["typeParameters"].truthy()) {
+    JsValue params = node["typeParameters"]["params"];
+    for (int index = 0; index < resolveLength(params); index++) {
+      JsValue inferred = reverseInferType(key, params[index], scope, optional);
+      if (inferred.truthy()) return inferred;
+    }
+  }
+  return createProperty(
+    key,
+    JS.object("type", "TSNullKeyword"),
+    scope,
+    optional
+  );
+}
+
+JsValue ctorToType(string ctorType) {
+  string ctor = ctorType.slice(0, -11);
+  if (ctor == "String" || ctor == "Number" || ctor == "Boolean") {
+    return JS.object("type", "TS" + ctor + "Keyword");
+  }
+  if (ctor == "Array" || ctor == "Function" || ctor == "Object" ||
+    ctor == "Set" || ctor == "Map" || ctor == "WeakSet" ||
+    ctor == "WeakMap" || ctor == "Date" || ctor == "Promise") {
+    return JS.object(
+      "type", "TSTypeReference",
+      "typeName", JS.object("type", "Identifier", "name", ctor)
+    );
+  }
+  return JS.object("type", "TSNullKeyword");
+}
+
+JsValue findStaticPropertyType(JsValue node, string key) {
+  JsValue members = node["members"];
+  for (int index = 0; index < resolveLength(members); index++) {
+    JsValue member = members[index];
+    if (JS.string(member["type"]) == "TSPropertySignature" &&
+      JS.strictEqual(getStringLiteralKey(member), key) &&
+      member["typeAnnotation"].truthy()) {
+      return member["typeAnnotation"]["typeAnnotation"];
+    }
+  }
+  return JS.undefined();
+}
+
+JsValue resolveReturnType(JsValue ctx, JsValue argument, JsValue scope) {
+  JsValue resolved = argument;
+  string type = JS.string(argument["type"]);
+  if (type == "TSTypeReference" || type == "TSTypeQuery" ||
+    type == "TSImportType") {
+    resolved = resolveTypeReference(ctx, argument, scope);
+  }
+  if (!resolved.truthy()) return JS.undefined();
+  if (JS.string(resolved["type"]) == "TSFunctionType") {
+    if (resolved["typeAnnotation"].truthy()) {
+      return resolved["typeAnnotation"]["typeAnnotation"];
+    }
+    return JS.undefined();
+  }
+  if (JS.string(resolved["type"]) == "TSDeclareFunction") {
+    return resolved["returnType"];
+  }
+  return JS.undefined();
+}
+
+export JsValue resolveUnionType(
+  JsValue ctx,
+  JsValue node,
+  JsValue scope = JS.undefined()
+) {
+  if (JS.string(node["type"]) == "TSTypeReference") {
+    JsValue resolved = resolveTypeReference(ctx, node, scope);
+    if (resolved.truthy()) node = resolved;
+  }
+  if (JS.string(node["type"]) != "TSUnionType") return JS.array(node);
+  JsValue result = JS.array();
+  JsValue types = node["types"];
+  for (int index = 0; index < resolveLength(types); index++) {
+    JsValue nested = resolveUnionType(ctx, types[index], scope);
+    appendArray(result, nested);
+  }
+  return result;
+}

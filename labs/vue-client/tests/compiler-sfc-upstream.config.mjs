@@ -8,6 +8,7 @@ const compilerSFCSource = resolve(upstreamRoot, "packages/compiler-sfc/src");
 const compilerDOMSource = resolve(upstreamRoot, "packages/compiler-dom/src");
 const compilerCoreSource = resolve(upstreamRoot, "packages/compiler-core/src");
 const candidate = resolve(labRoot, "tests/compiler-sfc-upstream.candidate.mjs");
+const warnCandidate = resolve(labRoot, "tests/compiler-sfc-warn.candidate.mjs");
 const compilerDOMCandidate = resolve(
   labRoot,
   "tests/compiler-dom-upstream.candidate.mjs",
@@ -47,6 +48,12 @@ export default defineConfig({
     name: "vuelil-compiler-sfc-candidate",
     enforce: "pre",
     resolveId(source, importer) {
+      const requested = source.startsWith(".") && importer
+        ? resolve(dirname(clean(importer)), source)
+        : clean(source);
+      if (requested === resolve(compilerSFCSource, "warn")) {
+        return warnCandidate;
+      }
       if (targets(source, importer, "@vue/compiler-sfc", compilerSFCSource)) {
         return candidate;
       }

@@ -1,0 +1,125 @@
+import {
+  isReactive,
+  isReadonly,
+  isShallow,
+  toReactive,
+  toReadonly
+} from "../../reactivity/reactive";
+import { shallowReadArray } from "../../reactivity/arrayInstrumentations";
+import { isArray, isObject, isString } from "../../shared/general";
+import { Array, Number, Object } from "../../shared/makeMap";
+import { warn } from "../warning";
+
+extern JsValue Symbol;
+
+bool DEV = true;
+
+JsValue invokeRenderItem(
+  JsValue renderItem,
+  JsValue value,
+  JsValue key,
+  JsValue index,
+  JsValue cached
+) {
+  return JS.call(renderItem, JS.undefined(), value, key, index, cached);
+}
+
+export JsValue renderList(
+  JsValue source,
+  JsValue renderItem,
+  JsValue cache = JS.undefined(),
+  JsValue cacheIndex = JS.undefined()
+) {
+  JsValue result = JS.undefined();
+  JsValue cached = JS.undefined();
+  if (cache.truthy()) cached = cache[cacheIndex];
+  bool sourceIsArray = JS.call(isArray, JS.undefined(), source).truthy();
+
+  if (sourceIsArray || isString(source)) {
+    bool sourceIsReactiveArray = sourceIsArray && isReactive(source);
+    bool needsWrap = false;
+    bool readonlySource = false;
+    if (sourceIsReactiveArray) {
+      needsWrap = !isShallow(source);
+      readonlySource = isReadonly(source);
+      source = shallowReadArray(source);
+    }
+    int length = JS.number(source["length"]).toInt();
+    result = JS.construct(Array, length);
+    for (int index = 0; index < length; index++) {
+      JsValue value = source[index];
+      if (needsWrap) {
+        value = toReactive(value);
+        if (readonlySource) value = toReadonly(value);
+      }
+      JsValue oldValue = JS.undefined();
+      if (cached.truthy()) oldValue = cached[index];
+      result[index] = invokeRenderItem(
+        renderItem,
+        value,
+        index,
+        JS.undefined(),
+        oldValue
+      );
+    }
+  } else if (JS.typeOf(source) == "number") {
+    if (
+      DEV &&
+      (!JS.invoke(Number, "isInteger", source).truthy() || JS.number(source) < 0)
+    ) {
+      warn("The v-for range expects a positive integer value but got " + JS.string(source) + ".");
+      result = JS.array();
+    } else {
+      int length = JS.number(source).toInt();
+      result = JS.construct(Array, length);
+      for (int index = 0; index < length; index++) {
+        JsValue oldValue = JS.undefined();
+        if (cached.truthy()) oldValue = cached[index];
+        result[index] = invokeRenderItem(
+          renderItem,
+          index + 1,
+          index,
+          JS.undefined(),
+          oldValue
+        );
+      }
+    }
+  } else if (isObject(source)) {
+    JsValue iterator = Symbol["iterator"];
+    if (source[iterator].truthy()) {
+      JsValue callback = JS.method2((JsValue _self, JsValue item, JsValue index) => {
+        JsValue oldValue = JS.undefined();
+        if (cached.truthy()) oldValue = cached[index];
+        return invokeRenderItem(
+          renderItem,
+          item,
+          index,
+          JS.undefined(),
+          oldValue
+        );
+      });
+      result = JS.invoke(Array, "from", source, callback);
+    } else {
+      JsValue keys = JS.invoke(Object, "keys", source);
+      int length = JS.number(keys["length"]).toInt();
+      result = JS.construct(Array, length);
+      for (int index = 0; index < length; index++) {
+        JsValue key = keys[index];
+        JsValue oldValue = JS.undefined();
+        if (cached.truthy()) oldValue = cached[index];
+        result[index] = invokeRenderItem(
+          renderItem,
+          source[key],
+          key,
+          index,
+          oldValue
+        );
+      }
+    }
+  } else {
+    result = JS.array();
+  }
+
+  if (cache.truthy()) cache[cacheIndex] = result;
+  return result;
+}

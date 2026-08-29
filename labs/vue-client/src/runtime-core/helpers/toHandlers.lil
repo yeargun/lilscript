@@ -1,0 +1,26 @@
+import { isObject, toHandlerKey } from "../../shared/general";
+import { warn } from "../warning";
+
+bool DEV = true;
+Regex uppercaseRE = new Regex("[A-Z]");
+
+export JsValue toHandlers(
+  JsValue object,
+  bool preserveCaseIfNecessary = false
+) {
+  JsValue result = JS.object();
+  if (DEV && !isObject(object)) {
+    warn("v-on with no argument expects an object value.");
+    return result;
+  }
+  for (string key in object) {
+    string handlerKey = "";
+    if (preserveCaseIfNecessary && uppercaseRE.test(key)) {
+      handlerKey = "on:" + key;
+    } else {
+      handlerKey = JS.string(JS.call(toHandlerKey, JS.undefined(), key));
+    }
+    result[handlerKey] = object[key];
+  }
+  return result;
+}

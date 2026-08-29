@@ -1,0 +1,228 @@
+import { isRef } from "../reactivity/ref";
+import { toRaw } from "../reactivity/reactive";
+import {
+  EMPTY_OBJ,
+  hasOwn,
+  isArray,
+  isFunction,
+  isString,
+  remove
+} from "../shared/general";
+import { ShapeFlags } from "../shared/shapeFlags";
+import { DEV } from "../reactivity/constants";
+import { isAsyncWrapper } from "./apiAsyncComponent";
+import { getComponentPublicInstance } from "./component";
+import { ErrorCodes, callWithErrorHandling } from "./errorHandling";
+import { isTemplateRefKey, knownTemplateRefs } from "./helpers/useTemplateRef";
+import { queuePostRenderEffect } from "./renderer";
+import { SchedulerJobFlags } from "./scheduler";
+import { warn } from "./warning";
+
+extern JsValue WeakMap;
+
+JsValue pendingSetRefMap = JS.construct(WeakMap);
+
+int templateRefLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+
+bool templateRefArray(JsValue value) {
+  return JS.call(isArray, JS.undefined(), value).truthy();
+}
+
+bool templateRefKnown(JsValue value) {
+  return JS.invoke(knownTemplateRefs, "has", value).truthy();
+}
+
+bool canSetSetupTemplateRef(JsValue setupState, JsValue rawSetupState, JsValue refs, JsValue key) {
+  if (JS.strictEqual(setupState, EMPTY_OBJ)) return false;
+  if (DEV && hasOwn(rawSetupState, key) && !isRef(rawSetupState[key])) {
+    warn(
+      "Template ref \"" + JS.string(key) + "\" used on a non-ref value. " +
+      "It will not work in the production build."
+    );
+  }
+  if (DEV && templateRefKnown(rawSetupState[key])) return false;
+  if (isTemplateRefKey(refs, JS.string(key))) return false;
+  return hasOwn(rawSetupState, key);
+}
+
+bool canSetTemplateRef(JsValue refs, JsValue reference, JsValue key = JS.undefined()) {
+  if (DEV && templateRefKnown(reference)) return false;
+  if (key.truthy() && isTemplateRefKey(refs, JS.string(key))) return false;
+  return true;
+}
+
+void invalidatePendingSetRef(JsValue rawRef) {
+  JsValue pending = JS.invoke(pendingSetRefMap, "get", rawRef);
+  if (pending.truthy()) {
+    int flags = 0;
+    if (!JS.isNullish(pending["flags"])) flags = JS.number(pending["flags"]).toInt();
+    pending["flags"] = flags | JS.number(SchedulerJobFlags["DISPOSED"]).toInt();
+    JS.invoke(pendingSetRefMap, "delete", rawRef);
+  }
+}
+
+export void setRef(
+  JsValue rawRef,
+  JsValue oldRawRef,
+  JsValue parentSuspense,
+  JsValue vnode,
+  bool isUnmount = false
+) {
+  if (templateRefArray(rawRef)) {
+    int length = templateRefLength(rawRef);
+    for (int index = 0; index < length; index++) {
+      JsValue oldRef = oldRawRef;
+      if (oldRawRef.truthy() && templateRefArray(oldRawRef)) oldRef = oldRawRef[index];
+      setRef(rawRef[index], oldRef, parentSuspense, vnode, isUnmount);
+    }
+    return;
+  }
+
+  if (isAsyncWrapper(vnode) && !isUnmount) {
+    int shapeFlag = JS.number(vnode["shapeFlag"]).toInt();
+    JsValue component = vnode["component"];
+    if (
+      (shapeFlag & JS.number(ShapeFlags["COMPONENT_KEPT_ALIVE"]).toInt()) != 0 &&
+      vnode["type"]["__asyncResolved"].truthy() &&
+      component["subTree"]["component"].truthy()
+    ) {
+      setRef(rawRef, oldRawRef, parentSuspense, component["subTree"]);
+    }
+    return;
+  }
+
+  int shapeFlag = JS.number(vnode["shapeFlag"]).toInt();
+  JsValue refValue = vnode["el"];
+  if ((shapeFlag & JS.number(ShapeFlags["STATEFUL_COMPONENT"]).toInt()) != 0) {
+    refValue = getComponentPublicInstance(vnode["component"]);
+  }
+  JsValue value = refValue;
+  if (isUnmount) value = null;
+
+  JsValue owner = rawRef["i"];
+  JsValue reference = rawRef["r"];
+  if (DEV && !owner.truthy()) {
+    warn(
+      "Missing ref owner context. ref cannot be used on hoisted vnodes. " +
+      "A vnode with ref must be created inside the render function."
+    );
+    return;
+  }
+
+  JsValue oldRef = null;
+  if (oldRawRef.truthy()) oldRef = oldRawRef["r"];
+  JsValue refs = owner["refs"];
+  if (JS.strictEqual(refs, EMPTY_OBJ)) {
+    refs = JS.object();
+    owner["refs"] = refs;
+  }
+  JsValue setupState = owner["setupState"];
+  JsValue rawSetupState = toRaw(setupState);
+
+  if (!JS.isNullish(oldRef) && !JS.strictEqual(oldRef, reference)) {
+    invalidatePendingSetRef(oldRawRef);
+    if (isString(oldRef)) {
+      refs[oldRef] = null;
+      if (canSetSetupTemplateRef(setupState, rawSetupState, refs, oldRef)) {
+        setupState[oldRef] = null;
+      }
+    } else if (isRef(oldRef)) {
+      JsValue oldKey = oldRawRef["k"];
+      if (canSetTemplateRef(refs, oldRef, oldKey)) oldRef["value"] = null;
+      if (oldKey.truthy()) refs[oldKey] = null;
+    }
+  }
+
+  if (isFunction(reference)) {
+    callWithErrorHandling(
+      reference,
+      owner,
+      ErrorCodes["FUNCTION_REF"],
+      JS.array(value, refs)
+    );
+    return;
+  }
+
+  bool stringRef = isString(reference);
+  bool objectRef = isRef(reference);
+  if (!stringRef && !objectRef) {
+    if (DEV) {
+      JS.call(
+        warn,
+        JS.undefined(),
+        "Invalid template ref type:",
+        reference,
+        "(" + JS.typeOf(reference) + ")"
+      );
+    }
+    return;
+  }
+
+  JsValue doSet = JS.method0((JsValue _self) => {
+    if (rawRef["f"].truthy()) {
+      JsValue existing = JS.undefined();
+      if (stringRef) {
+        if (canSetSetupTemplateRef(setupState, rawSetupState, refs, reference)) {
+          existing = setupState[reference];
+        } else {
+          existing = refs[reference];
+        }
+      } else if (canSetTemplateRef(refs, reference) || !rawRef["k"].truthy()) {
+        existing = reference["value"];
+      } else {
+        existing = refs[rawRef["k"]];
+      }
+
+      if (isUnmount) {
+        if (templateRefArray(existing)) remove(existing, refValue);
+      } else if (!templateRefArray(existing)) {
+        JsValue next = JS.array(refValue);
+        if (stringRef) {
+          refs[reference] = next;
+          if (canSetSetupTemplateRef(setupState, rawSetupState, refs, reference)) {
+            setupState[reference] = next;
+          }
+        } else {
+          if (canSetTemplateRef(refs, reference, rawRef["k"])) reference["value"] = next;
+          if (rawRef["k"].truthy()) refs[rawRef["k"]] = next;
+        }
+      } else if (!JS.invoke(existing, "includes", refValue).truthy()) {
+        JS.invoke(existing, "push", refValue);
+      }
+    } else if (stringRef) {
+      refs[reference] = value;
+      if (canSetSetupTemplateRef(setupState, rawSetupState, refs, reference)) {
+        setupState[reference] = value;
+      }
+    } else if (objectRef) {
+      if (canSetTemplateRef(refs, reference, rawRef["k"])) reference["value"] = value;
+      if (rawRef["k"].truthy()) refs[rawRef["k"]] = value;
+    } else if (DEV) {
+      JS.call(
+        warn,
+        JS.undefined(),
+        "Invalid template ref type:",
+        reference,
+        "(" + JS.typeOf(reference) + ")"
+      );
+    }
+    return JS.undefined();
+  });
+
+  if (value.truthy()) {
+    JsValue job = JS.undefined();
+    job = JS.method0((JsValue _self) => {
+      JS.call(doSet, JS.undefined());
+      JS.invoke(pendingSetRefMap, "delete", rawRef);
+      return JS.undefined();
+    });
+    job["id"] = -1;
+    JS.invoke(pendingSetRefMap, "set", rawRef, job);
+    queuePostRenderEffect(job, parentSuspense);
+  } else {
+    invalidatePendingSetRef(rawRef);
+    JS.call(doSet, JS.undefined());
+  }
+}

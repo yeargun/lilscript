@@ -1,0 +1,226 @@
+import { isRef } from "../reactivity/ref";
+import { pauseTracking, resetTracking } from "../reactivity/effect";
+import { toRaw } from "../reactivity/reactive";
+import { isFunction, isString } from "../shared/general";
+import { JSON, Object, console } from "../shared/makeMap";
+import { formatComponentName } from "./component";
+import { ErrorCodes, callWithErrorHandling } from "./errorHandling";
+
+extern JsValue arguments;
+extern JsValue isNaN;
+
+bool DEV = true;
+bool TEST = true;
+JsValue[] stack = [];
+bool isWarning = false;
+
+export void pushWarningContext(JsValue vnode) {
+  stack.push(vnode);
+}
+
+export void popWarningContext() {
+  stack.pop();
+}
+
+JsValue warningArgumentValue(JsValue value) {
+  JsValue result = JS.undefined();
+  if (!JS.isNullish(value) && JS.typeOf(value["toString"]) == "function") {
+    result = JS.call(value["toString"], value);
+  }
+  if (JS.isNullish(result)) result = JS.invoke(JSON, "stringify", value);
+  return result;
+}
+
+export void warn(string message) {
+  if (isWarning) return;
+  isWarning = true;
+  pauseTracking();
+
+  JsValue instance = null;
+  if (stack.length > 0) instance = stack[stack.length - 1]["component"];
+  JsValue appWarnHandler = JS.undefined();
+  if (instance.truthy()) {
+    appWarnHandler = instance["appContext"]["config"]["warnHandler"];
+  }
+  JsValue trace = getComponentTrace();
+  int argumentCount = JS.number(arguments["length"]).toInt();
+
+  if (appWarnHandler.truthy()) {
+    JsValue renderedArguments = JS.array();
+    for (int index = 1; index < argumentCount; index++) {
+      JS.invoke(
+        renderedArguments,
+        "push",
+        warningArgumentValue(arguments[index])
+      );
+    }
+    string fullMessage = message + JS.string(JS.invoke(renderedArguments, "join", ""));
+    JsValue traceLines = JS.array();
+    int traceLength = JS.number(trace["length"]).toInt();
+    for (int index = 0; index < traceLength; index++) {
+      JsValue vnode = trace[index]["vnode"];
+      JS.invoke(
+        traceLines,
+        "push",
+        "at <" + formatComponentName(instance, vnode["type"], false) + ">"
+      );
+    }
+    JsValue proxy = null;
+    if (instance.truthy()) proxy = instance["proxy"];
+    callWithErrorHandling(
+      appWarnHandler,
+      instance,
+      ErrorCodes["APP_WARN_HANDLER"],
+      JS.array(
+        fullMessage,
+        proxy,
+        JS.invoke(traceLines, "join", "\n"),
+        trace
+      )
+    );
+  } else {
+    JsValue warnArgs = JS.array("[Vue warn]: " + message);
+    for (int index = 1; index < argumentCount; index++) {
+      JS.invoke(warnArgs, "push", arguments[index]);
+    }
+    if (JS.number(trace["length"]).toInt() > 0 && !TEST) {
+      JS.invoke(warnArgs, "push", "\n");
+      JsValue formatted = formatTrace(trace);
+      int formattedLength = JS.number(formatted["length"]).toInt();
+      for (int index = 0; index < formattedLength; index++) {
+        JS.invoke(warnArgs, "push", formatted[index]);
+      }
+    }
+    JS.apply(console["warn"], console, warnArgs);
+  }
+
+  resetTracking();
+  isWarning = false;
+}
+
+export JsValue getComponentTrace() {
+  JsValue currentVNode = JS.undefined();
+  if (stack.length > 0) currentVNode = stack[stack.length - 1];
+  if (!currentVNode.truthy()) return JS.array();
+
+  JsValue normalizedStack = JS.array();
+  while (currentVNode.truthy()) {
+    JsValue last = normalizedStack[0];
+    if (last.truthy() && JS.strictEqual(last["vnode"], currentVNode)) {
+      last["recurseCount"] = JS.number(last["recurseCount"]).toInt() + 1;
+    } else {
+      JS.invoke(
+        normalizedStack,
+        "push",
+        JS.object("vnode", currentVNode, "recurseCount", 0)
+      );
+    }
+    JsValue parentInstance = null;
+    if (currentVNode["component"].truthy()) {
+      parentInstance = currentVNode["component"]["parent"];
+    }
+    currentVNode = null;
+    if (parentInstance.truthy()) currentVNode = parentInstance["vnode"];
+  }
+  return normalizedStack;
+}
+
+JsValue formatTrace(JsValue trace) {
+  JsValue logs = JS.array();
+  int length = JS.number(trace["length"]).toInt();
+  for (int index = 0; index < length; index++) {
+    if (index > 0) JS.invoke(logs, "push", "\n");
+    JsValue entry = formatTraceEntry(trace[index]);
+    int entryLength = JS.number(entry["length"]).toInt();
+    for (int item = 0; item < entryLength; item++) {
+      JS.invoke(logs, "push", entry[item]);
+    }
+  }
+  return logs;
+}
+
+JsValue formatTraceEntry(JsValue entry) {
+  JsValue vnode = entry["vnode"];
+  int recurseCount = JS.number(entry["recurseCount"]).toInt();
+  string postfix = "";
+  if (recurseCount > 0) {
+    postfix = "... (" + recurseCount + " recursive calls)";
+  }
+  bool isRoot = false;
+  if (vnode["component"].truthy()) {
+    isRoot = JS.isNullish(vnode["component"]["parent"]);
+  }
+  string open = " at <" + formatComponentName(
+    vnode["component"],
+    vnode["type"],
+    isRoot
+  );
+  string close = ">" + postfix;
+  if (vnode["props"].truthy()) {
+    JsValue output = JS.array(open);
+    JsValue properties = formatProps(vnode["props"]);
+    int length = JS.number(properties["length"]).toInt();
+    for (int index = 0; index < length; index++) {
+      JS.invoke(output, "push", properties[index]);
+    }
+    JS.invoke(output, "push", close);
+    return output;
+  }
+  return JS.array(open + close);
+}
+
+JsValue formatProps(JsValue props) {
+  JsValue result = JS.array();
+  JsValue keys = JS.invoke(Object, "keys", props);
+  int length = JS.number(keys["length"]).toInt();
+  int displayed = length;
+  if (displayed > 3) displayed = 3;
+  for (int index = 0; index < displayed; index++) {
+    string key = JS.string(keys[index]);
+    JsValue formatted = formatProp(key, props[key], false);
+    int formattedLength = JS.number(formatted["length"]).toInt();
+    for (int item = 0; item < formattedLength; item++) {
+      JS.invoke(result, "push", formatted[item]);
+    }
+  }
+  if (length > 3) JS.invoke(result, "push", " ...");
+  return result;
+}
+
+JsValue formatProp(string key, JsValue value, bool raw) {
+  if (isString(value)) {
+    value = JS.invoke(JSON, "stringify", value);
+    if (raw) return value;
+    return JS.array(key + "=" + JS.string(value));
+  }
+  string kind = JS.typeOf(value);
+  if (kind == "number" || kind == "boolean" || JS.isNullish(value)) {
+    if (raw) return value;
+    return JS.array(key + "=" + JS.string(value));
+  }
+  if (isRef(value)) {
+    value = formatProp(key, toRaw(value["value"]), true);
+    if (raw) return value;
+    return JS.array(key + "=Ref<", value, ">");
+  }
+  if (isFunction(value)) {
+    string suffix = "";
+    if (value["name"].truthy()) suffix = "<" + JS.string(value["name"]) + ">";
+    return JS.array(key + "=fn" + suffix);
+  }
+  value = toRaw(value);
+  if (raw) return value;
+  return JS.array(key + "=", value);
+}
+
+export void assertNumber(JsValue value, string kind) {
+  if (!DEV || JS.isUndefined(value)) return;
+  if (JS.typeOf(value) != "number") {
+    warn(
+      kind + " is not a valid number - got " +
+        JS.string(JS.invoke(JSON, "stringify", value)) + "."
+    );
+  } else if (JS.call(isNaN, JS.undefined(), value).truthy()) {
+    warn(kind + " is NaN - the duration expression might be incorrect.");
+  }
+}

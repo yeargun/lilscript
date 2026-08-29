@@ -1,0 +1,230 @@
+import { pauseTracking, resetTracking } from "../reactivity/effect";
+import { WatchErrorCodes } from "../reactivity/watch";
+import { EMPTY_OBJ, isArray, isFunction, isPromise } from "../shared/general";
+import { console } from "../shared/makeMap";
+import { LifecycleHooks } from "./enums";
+import { popWarningContext, pushWarningContext, warn } from "./warning";
+import extern { hostIsDev } from "./host.js";
+
+extern bool hostIsDev();
+
+bool TEST = true;
+
+bool errorHandlingDev() {
+  return hostIsDev();
+}
+
+export JsValue ErrorCodes = JS.object(
+  "SETUP_FUNCTION", 0,
+  "0", "SETUP_FUNCTION",
+  "RENDER_FUNCTION", 1,
+  "1", "RENDER_FUNCTION",
+  "NATIVE_EVENT_HANDLER", 5,
+  "5", "NATIVE_EVENT_HANDLER",
+  "COMPONENT_EVENT_HANDLER", 6,
+  "6", "COMPONENT_EVENT_HANDLER",
+  "VNODE_HOOK", 7,
+  "7", "VNODE_HOOK",
+  "DIRECTIVE_HOOK", 8,
+  "8", "DIRECTIVE_HOOK",
+  "TRANSITION_HOOK", 9,
+  "9", "TRANSITION_HOOK",
+  "APP_ERROR_HANDLER", 10,
+  "10", "APP_ERROR_HANDLER",
+  "APP_WARN_HANDLER", 11,
+  "11", "APP_WARN_HANDLER",
+  "FUNCTION_REF", 12,
+  "12", "FUNCTION_REF",
+  "ASYNC_COMPONENT_LOADER", 13,
+  "13", "ASYNC_COMPONENT_LOADER",
+  "SCHEDULER", 14,
+  "14", "SCHEDULER",
+  "COMPONENT_UPDATE", 15,
+  "15", "COMPONENT_UPDATE",
+  "APP_UNMOUNT_CLEANUP", 16,
+  "16", "APP_UNMOUNT_CLEANUP"
+);
+
+export JsValue ErrorTypeStrings = JS.object();
+
+void initializeErrorTypeStrings() {
+  ErrorTypeStrings[LifecycleHooks["SERVER_PREFETCH"]] = "serverPrefetch hook";
+  ErrorTypeStrings[LifecycleHooks["BEFORE_CREATE"]] = "beforeCreate hook";
+  ErrorTypeStrings[LifecycleHooks["CREATED"]] = "created hook";
+  ErrorTypeStrings[LifecycleHooks["BEFORE_MOUNT"]] = "beforeMount hook";
+  ErrorTypeStrings[LifecycleHooks["MOUNTED"]] = "mounted hook";
+  ErrorTypeStrings[LifecycleHooks["BEFORE_UPDATE"]] = "beforeUpdate hook";
+  ErrorTypeStrings[LifecycleHooks["UPDATED"]] = "updated";
+  ErrorTypeStrings[LifecycleHooks["BEFORE_UNMOUNT"]] = "beforeUnmount hook";
+  ErrorTypeStrings[LifecycleHooks["UNMOUNTED"]] = "unmounted hook";
+  ErrorTypeStrings[LifecycleHooks["ACTIVATED"]] = "activated hook";
+  ErrorTypeStrings[LifecycleHooks["DEACTIVATED"]] = "deactivated hook";
+  ErrorTypeStrings[LifecycleHooks["ERROR_CAPTURED"]] = "errorCaptured hook";
+  ErrorTypeStrings[LifecycleHooks["RENDER_TRACKED"]] = "renderTracked hook";
+  ErrorTypeStrings[LifecycleHooks["RENDER_TRIGGERED"]] = "renderTriggered hook";
+  ErrorTypeStrings[ErrorCodes["SETUP_FUNCTION"]] = "setup function";
+  ErrorTypeStrings[ErrorCodes["RENDER_FUNCTION"]] = "render function";
+  ErrorTypeStrings[WatchErrorCodes["WATCH_GETTER"]] = "watcher getter";
+  ErrorTypeStrings[WatchErrorCodes["WATCH_CALLBACK"]] = "watcher callback";
+  ErrorTypeStrings[WatchErrorCodes["WATCH_CLEANUP"]] = "watcher cleanup function";
+  ErrorTypeStrings[ErrorCodes["NATIVE_EVENT_HANDLER"]] = "native event handler";
+  ErrorTypeStrings[ErrorCodes["COMPONENT_EVENT_HANDLER"]] = "component event handler";
+  ErrorTypeStrings[ErrorCodes["VNODE_HOOK"]] = "vnode hook";
+  ErrorTypeStrings[ErrorCodes["DIRECTIVE_HOOK"]] = "directive hook";
+  ErrorTypeStrings[ErrorCodes["TRANSITION_HOOK"]] = "transition hook";
+  ErrorTypeStrings[ErrorCodes["APP_ERROR_HANDLER"]] = "app errorHandler";
+  ErrorTypeStrings[ErrorCodes["APP_WARN_HANDLER"]] = "app warnHandler";
+  ErrorTypeStrings[ErrorCodes["FUNCTION_REF"]] = "ref function";
+  ErrorTypeStrings[ErrorCodes["ASYNC_COMPONENT_LOADER"]] = "async component loader";
+  ErrorTypeStrings[ErrorCodes["SCHEDULER"]] = "scheduler flush";
+  ErrorTypeStrings[ErrorCodes["COMPONENT_UPDATE"]] = "component update";
+  ErrorTypeStrings[ErrorCodes["APP_UNMOUNT_CLEANUP"]] = "app unmount cleanup function";
+}
+
+initializeErrorTypeStrings();
+
+export JsValue callWithErrorHandling(
+  JsValue fn,
+  JsValue instance,
+  JsValue kind,
+  JsValue args = JS.undefined()
+) {
+  try {
+    if (args.truthy()) return JS.apply(fn, JS.undefined(), args);
+    return JS.call(fn, JS.undefined());
+  } catch (JsValue error) {
+    handleError(error, instance, kind, true);
+  }
+  return JS.undefined();
+}
+
+export JsValue callWithAsyncErrorHandling(
+  JsValue fn,
+  JsValue instance,
+  JsValue kind,
+  JsValue args = JS.undefined()
+) {
+  if (isFunction(fn)) {
+    JsValue result = callWithErrorHandling(fn, instance, kind, args);
+    if (result.truthy() && isPromise(result)) {
+      JS.invoke(
+        result,
+        "catch",
+        JS.method1((JsValue _self, JsValue error) => {
+          handleError(error, instance, kind, true);
+          return JS.undefined();
+        })
+      );
+    }
+    return result;
+  }
+
+  if (JS.call(isArray, JS.undefined(), fn).truthy()) {
+    JsValue values = JS.array();
+    int length = JS.number(fn["length"]).toInt();
+    for (int index = 0; index < length; index++) {
+      JS.invoke(
+        values,
+        "push",
+        callWithAsyncErrorHandling(fn[index], instance, kind, args)
+      );
+    }
+    return values;
+  }
+  if (errorHandlingDev()) {
+    warn(
+      "Invalid value type passed to callWithAsyncErrorHandling(): " +
+        JS.typeOf(fn)
+    );
+  }
+  return JS.undefined();
+}
+
+export void handleError(
+  JsValue error,
+  JsValue instance,
+  JsValue kind,
+  bool throwInDev = true
+) {
+  JsValue contextVNode = null;
+  JsValue config = EMPTY_OBJ;
+  if (instance.truthy()) {
+    contextVNode = instance["vnode"];
+    config = instance["appContext"]["config"];
+  }
+  JsValue errorHandler = config["errorHandler"];
+  bool throwUnhandledErrorInProduction = config["throwUnhandledErrorInProduction"].truthy();
+
+  if (instance.truthy()) {
+    JsValue current = instance["parent"];
+    JsValue exposedInstance = instance["proxy"];
+    JsValue errorInfo = JS.undefined();
+    if (errorHandlingDev()) {
+      errorInfo = ErrorTypeStrings[kind];
+    } else {
+      errorInfo = "https://vuejs.org/error-reference/#runtime-" + JS.string(kind);
+    }
+    while (current.truthy()) {
+      JsValue hooks = current["ec"];
+      if (hooks.truthy()) {
+        int length = JS.number(hooks["length"]).toInt();
+        for (int index = 0; index < length; index++) {
+          JsValue captured = JS.call(
+            hooks[index],
+            hooks,
+            error,
+            exposedInstance,
+            errorInfo
+          );
+          if (JS.strictEqual(captured, false)) return;
+        }
+      }
+      current = current["parent"];
+    }
+
+    if (errorHandler.truthy()) {
+      pauseTracking();
+      callWithErrorHandling(
+        errorHandler,
+        null,
+        ErrorCodes["APP_ERROR_HANDLER"],
+        JS.array(error, exposedInstance, errorInfo)
+      );
+      resetTracking();
+      return;
+    }
+  }
+  logError(
+    error,
+    kind,
+    contextVNode,
+    throwInDev,
+    throwUnhandledErrorInProduction
+  );
+}
+
+void logError(
+  JsValue error,
+  JsValue kind,
+  JsValue contextVNode,
+  bool throwInDev,
+  bool throwInProduction
+) {
+  if (errorHandlingDev()) {
+    JsValue info = ErrorTypeStrings[kind];
+    if (contextVNode.truthy()) pushWarningContext(contextVNode);
+    string message = "Unhandled error";
+    if (info.truthy()) message += " during execution of " + JS.string(info);
+    warn(message);
+    if (contextVNode.truthy()) popWarningContext();
+    if (throwInDev) {
+      throw error;
+    } else if (!TEST) {
+      JS.invoke(console, "error", error);
+    }
+  } else if (throwInProduction) {
+    throw error;
+  } else {
+    JS.invoke(console, "error", error);
+  }
+}

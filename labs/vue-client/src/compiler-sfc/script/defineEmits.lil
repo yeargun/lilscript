@@ -1,0 +1,157 @@
+import extern {
+  hostArrayFrom as emitsArrayFrom,
+  hostCreateSet as emitsCreateSet,
+  hostJsonStringify as emitsJsonStringify,
+  hostKeys as emitsKeys
+} from "../host.js";
+import { resolveTypeElements, resolveUnionType } from "./resolveType";
+import { isCallOf } from "./utils";
+
+extern JsValue emitsArrayFrom;
+extern JsValue emitsCreateSet;
+extern JsValue emitsJsonStringify;
+extern JsValue emitsKeys;
+
+int emitsLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+
+export string DEFINE_EMITS = "defineEmits";
+
+export bool processDefineEmits(
+  JsValue ctx,
+  JsValue node,
+  JsValue declId = JS.undefined()
+) {
+  if (!isCallOf(node, DEFINE_EMITS)) return false;
+  if (ctx["hasDefineEmitCall"].truthy()) {
+    JS.invoke(ctx, "error", "duplicate " + DEFINE_EMITS + "() call", node);
+  }
+  ctx["hasDefineEmitCall"] = true;
+  ctx["emitsRuntimeDecl"] = node["arguments"][0];
+  if (node["typeParameters"].truthy()) {
+    if (ctx["emitsRuntimeDecl"].truthy()) {
+      JS.invoke(
+        ctx,
+        "error",
+        DEFINE_EMITS + "() cannot accept both type and non-type arguments " +
+          "at the same time. Use one or the other.",
+        node
+      );
+    }
+    ctx["emitsTypeDecl"] = node["typeParameters"]["params"][0];
+  }
+
+  ctx["emitDecl"] = declId;
+
+  return true;
+}
+
+export string genRuntimeEmits(JsValue ctx) {
+  string emitsDecl = "";
+  if (ctx["emitsRuntimeDecl"].truthy()) {
+    emitsDecl = JS.string(JS.invoke(
+      ctx,
+      "getString",
+      ctx["emitsRuntimeDecl"]
+    )).trim();
+  } else if (ctx["emitsTypeDecl"].truthy()) {
+    JsValue typeDeclaredEmits = extractRuntimeEmits(ctx);
+    if (JS.number(typeDeclaredEmits["size"]).toInt() > 0) {
+      JsValue emitNames = JS.call(emitsArrayFrom, JS.undefined(), typeDeclaredEmits);
+      string generated = "";
+      for (int index = 0; index < emitsLength(emitNames); index++) {
+        if (index > 0) generated += ", ";
+        generated += JS.string(JS.call(
+          emitsJsonStringify,
+          JS.undefined(),
+          emitNames[index]
+        ));
+      }
+      emitsDecl = "[" + generated + "]";
+    }
+  }
+  if (ctx["hasDefineModelCall"].truthy()) {
+    JsValue modelNames = JS.call(emitsKeys, JS.undefined(), ctx["modelDecls"]);
+    string generated = "";
+    for (int index = 0; index < emitsLength(modelNames); index++) {
+      if (index > 0) generated += ", ";
+      generated += JS.string(JS.call(
+        emitsJsonStringify,
+        JS.undefined(),
+        "update:" + JS.string(modelNames[index])
+      ));
+    }
+    string modelEmitsDecl = "[" + generated + "]";
+    if (emitsDecl != "") {
+      emitsDecl = "/*@__PURE__*/" +
+        JS.string(JS.invoke(ctx, "helper", "mergeModels")) +
+        "(" + emitsDecl + ", " + modelEmitsDecl + ")";
+    } else {
+      emitsDecl = modelEmitsDecl;
+    }
+  }
+  return emitsDecl;
+}
+
+export JsValue extractRuntimeEmits(JsValue ctx) {
+  JsValue emits = JS.call(emitsCreateSet, JS.undefined());
+  JsValue node = ctx["emitsTypeDecl"];
+
+  if (JS.string(node["type"]) == "TSFunctionType") {
+    extractEventNames(ctx, node["parameters"][0], emits);
+    return emits;
+  }
+
+  JsValue elements = resolveTypeElements(ctx, node);
+  JsValue props = elements["props"];
+  JsValue calls = elements["calls"];
+
+  bool hasProperty = false;
+  for (string key in props) {
+    JS.invoke(emits, "add", key);
+    hasProperty = true;
+  }
+
+  if (calls.truthy()) {
+    if (hasProperty) {
+      JS.invoke(
+        ctx,
+        "error",
+        "defineEmits() type cannot mixed call signature and property syntax.",
+        node
+      );
+    }
+    for (int index = 0; index < emitsLength(calls); index++) {
+      extractEventNames(ctx, calls[index]["parameters"][0], emits);
+    }
+  }
+
+  return emits;
+}
+
+void extractEventNames(JsValue ctx, JsValue eventName, JsValue emits) {
+  if (JS.string(eventName["type"]) == "Identifier" &&
+    eventName["typeAnnotation"].truthy() &&
+    JS.string(eventName["typeAnnotation"]["type"]) == "TSTypeAnnotation") {
+    JsValue types = resolveUnionType(
+      ctx,
+      eventName["typeAnnotation"]["typeAnnotation"]
+    );
+
+    for (int index = 0; index < emitsLength(types); index++) {
+      JsValue type = types[index];
+      if (JS.string(type["type"]) == "TSLiteralType") {
+        JsValue literal = type["literal"];
+        if (JS.string(literal["type"]) != "UnaryExpression" &&
+          JS.string(literal["type"]) != "TemplateLiteral") {
+          JS.invoke(
+            emits,
+            "add",
+            JS.string(literal["value"])
+          );
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,152 @@
+import { extend, isSymbol } from "../../shared/general";
+import { PatchFlags } from "../../shared/patchFlags";
+import { SlotFlags } from "../../shared/slotFlags";
+import { Object } from "../../shared/makeMap";
+import { isAsyncWrapper } from "../apiAsyncComponent";
+import { currentRenderingInstance } from "../componentRenderContext";
+import {
+  Comment,
+  Fragment,
+  blockStack,
+  closeBlock,
+  createBlock,
+  createVNode,
+  isVNode,
+  openBlock
+} from "../vnode";
+import { warn } from "../warning";
+
+bool DEV = true;
+
+export JsValue renderSlot(
+  JsValue slots,
+  string name,
+  JsValue props = JS.undefined(),
+  JsValue fallback = JS.undefined(),
+  bool noSlotted = false,
+  JsValue branchKey = JS.undefined()
+) {
+  if (JS.isNullish(props)) props = JS.object();
+  JsValue instance = currentRenderingInstance;
+  bool customElement = instance["ce"].truthy();
+  if (
+    !customElement &&
+    instance["parent"].truthy() &&
+    isAsyncWrapper(instance["parent"]) &&
+    instance["parent"]["ce"].truthy()
+  ) {
+    customElement = true;
+  }
+  if (customElement) {
+    JsValue slotProps = props;
+    if (!JS.isNullish(branchKey) && JS.isNullish(props["key"])) {
+      slotProps = JS.call(
+        extend,
+        JS.undefined(),
+        JS.object(),
+        props,
+        JS.object("key", branchKey)
+      );
+    }
+    bool hasProps = JS.number(JS.invoke(Object, "keys", slotProps)["length"]).toInt() > 0;
+    if (name != "default") slotProps["name"] = name;
+    JsValue fallbackChildren = JS.undefined();
+    if (fallback.truthy()) fallbackChildren = JS.call(fallback, JS.undefined());
+    openBlock(false);
+    int patchFlag = JS.number(PatchFlags["STABLE_FRAGMENT"]).toInt();
+    if (hasProps) patchFlag = JS.number(PatchFlags["BAIL"]).toInt();
+    return createBlock(
+      Fragment,
+      null,
+      JS.array(createVNode("slot", slotProps, fallbackChildren)),
+      patchFlag,
+      JS.undefined()
+    );
+  }
+
+  JsValue slot = slots[name];
+  if (DEV && slot.truthy() && JS.number(slot["length"]).toInt() > 1) {
+    warn(
+      "SSR-optimized slot function detected in a non-SSR-optimized render " +
+        "function. You need to mark this component with $dynamic-slots in the " +
+        "parent template."
+    );
+    slot = JS.method0((JsValue _self) => JS.array());
+  }
+
+  if (slot.truthy() && slot["_c"].truthy()) slot["_d"] = false;
+  int previousStackSize = blockStack.length;
+  openBlock(false);
+  JsValue rendered = JS.undefined();
+  try {
+    JsValue validSlotContent = null;
+    if (slot.truthy()) {
+      validSlotContent = ensureValidVNode(JS.call(slot, JS.undefined(), props));
+    }
+    JsValue slotKey = props["key"];
+    if (!slotKey.truthy()) slotKey = branchKey;
+    if (!slotKey.truthy() && validSlotContent.truthy()) {
+      slotKey = validSlotContent["key"];
+    }
+    JsValue keyBase = "_" + name;
+    if (slotKey.truthy() && !isSymbol(slotKey)) keyBase = slotKey;
+    string suffix = "";
+    if (!validSlotContent.truthy() && fallback.truthy()) suffix = "_fb";
+    string key = JS.string(keyBase) + suffix;
+
+    JsValue children = validSlotContent;
+    if (!children.truthy()) {
+      if (fallback.truthy()) {
+        children = JS.call(fallback, JS.undefined());
+      } else {
+        children = JS.array();
+      }
+    }
+    int patchFlag = JS.number(PatchFlags["BAIL"]).toInt();
+    if (
+      validSlotContent.truthy() &&
+      JS.strictEqual(slots["_"], SlotFlags["STABLE"])
+    ) {
+      patchFlag = JS.number(PatchFlags["STABLE_FRAGMENT"]).toInt();
+    }
+    rendered = createBlock(
+      Fragment,
+      JS.object("key", key),
+      children,
+      patchFlag,
+      JS.undefined()
+    );
+  } catch (JsValue error) {
+    while (blockStack.length > previousStackSize) closeBlock();
+    throw error;
+  } finally {
+    if (slot.truthy() && slot["_c"].truthy()) slot["_d"] = true;
+  }
+
+  if (!noSlotted && rendered["scopeId"].truthy()) {
+    rendered["slotScopeIds"] = JS.array(
+      JS.string(rendered["scopeId"]) + "-s"
+    );
+  }
+  return rendered;
+}
+
+export JsValue ensureValidVNode(JsValue vnodes) {
+  JsValue valid = JS.invoke(
+    vnodes,
+    "some",
+    JS.method1((JsValue _self, JsValue child) => {
+      if (!isVNode(child)) return true;
+      if (JS.strictEqual(child["type"], Comment)) return false;
+      if (
+        JS.strictEqual(child["type"], Fragment) &&
+        !ensureValidVNode(child["children"]).truthy()
+      ) {
+        return false;
+      }
+      return true;
+    })
+  );
+  if (valid.truthy()) return vnodes;
+  return null;
+}

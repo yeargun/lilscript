@@ -1,0 +1,174 @@
+import extern {
+  NOOP as instanceNoop,
+  extend as instanceExtend,
+  looseEqual as instanceLooseEqual,
+  looseIndexOf as instanceLooseIndexOf,
+  looseToNumber as instanceLooseToNumber,
+  toDisplayString as instanceToDisplayString
+} from "../../../packages/vuelil/shared.js";
+import extern { shallowReadonly as reactivityShallowReadonly } from "../../../packages/vuelil/reactivity.js";
+import {
+  Object as instanceObject,
+  globalThis as instanceGlobal
+} from "../../shared/makeMap";
+import { createCommentVNode as coreCreateCommentVNode, createTextVNode as coreCreateTextVNode } from "../vnode";
+import { renderList as coreRenderList } from "../helpers/renderList";
+import { resolveFilter as coreResolveFilter } from "../helpers/resolveAssets";
+import { resolveMergedOptions as coreResolveMergedOptions } from "../componentOptions";
+import { getCompatChildren } from "./instanceChildren";
+import {
+  DeprecationTypes,
+  assertCompatEnabled,
+  isCompatEnabled,
+  warnDeprecation
+} from "./compatConfig";
+import { off, on, once } from "./instanceEventEmitter";
+import { getCompatListeners } from "./instanceListeners";
+import { legacySlotProxyHandlers } from "./componentFunctional";
+import { compatH } from "./renderFn";
+import {
+  legacyBindDynamicKeys,
+  legacyBindObjectListeners,
+  legacyBindObjectProps,
+  legacyCheckKeyCodes,
+  legacyMarkOnce,
+  legacyPrependModifier,
+  legacyRenderSlot,
+  legacyRenderStatic,
+  legacyResolveScopedSlots
+} from "./renderHelpers";
+
+extern JsValue instanceNoop;
+extern JsValue instanceExtend;
+extern JsValue instanceLooseEqual;
+extern JsValue instanceLooseIndexOf;
+extern JsValue instanceLooseToNumber;
+extern JsValue instanceToDisplayString;
+extern JsValue reactivityShallowReadonly(JsValue value);
+
+bool INSTANCE_DEV = true;
+
+export void installCompatInstanceProperties(JsValue map) {
+  JsValue set = JS.method3((JsValue _self, JsValue target, JsValue key, JsValue value) => {
+    target[key] = value;
+    return target[key];
+  });
+  JsValue del = JS.method2((JsValue _self, JsValue target, JsValue key) => {
+    JS.delete(target, key);
+    return JS.undefined();
+  });
+
+  JsValue properties = JS.object(
+    "$set", JS.method1((JsValue _self, JsValue instance) => {
+      assertCompatEnabled(JS.string(DeprecationTypes["INSTANCE_SET"]), instance);
+      return set;
+    }),
+    "$delete", JS.method1((JsValue _self, JsValue instance) => {
+      assertCompatEnabled(JS.string(DeprecationTypes["INSTANCE_DELETE"]), instance);
+      return del;
+    }),
+    "$mount", JS.method1((JsValue _self, JsValue instance) => {
+      assertCompatEnabled(JS.string(DeprecationTypes["GLOBAL_MOUNT"]), null);
+      JsValue mount = instance["ctx"]["_compat_mount"];
+      if (mount.truthy()) return mount;
+      return instanceNoop;
+    }),
+    "$destroy", JS.method1((JsValue _self, JsValue instance) => {
+      assertCompatEnabled(JS.string(DeprecationTypes["INSTANCE_DESTROY"]), instance);
+      JsValue destroy = instance["ctx"]["_compat_destroy"];
+      if (destroy.truthy()) return destroy;
+      return instanceNoop;
+    }),
+    "$slots", JS.method1((JsValue _self, JsValue instance) => {
+      if (
+        isCompatEnabled(JS.string(DeprecationTypes["RENDER_FUNCTION"]), instance) &&
+        instance["render"].truthy() && instance["render"]["_compatWrapped"].truthy()
+      ) {
+        return JS.construct(instanceGlobal["Proxy"], instance["slots"], legacySlotProxyHandlers);
+      }
+      if (INSTANCE_DEV) return reactivityShallowReadonly(instance["slots"]);
+      return instance["slots"];
+    }),
+    "$scopedSlots", JS.method1((JsValue _self, JsValue instance) => {
+      assertCompatEnabled(JS.string(DeprecationTypes["INSTANCE_SCOPED_SLOTS"]), instance);
+      if (INSTANCE_DEV) return reactivityShallowReadonly(instance["slots"]);
+      return instance["slots"];
+    }),
+    "$on", JS.method1((JsValue _self, JsValue instance) => JS.invoke(on, "bind", null, instance)),
+    "$once", JS.method1((JsValue _self, JsValue instance) => JS.invoke(once, "bind", null, instance)),
+    "$off", JS.method1((JsValue _self, JsValue instance) => JS.invoke(off, "bind", null, instance)),
+    "$children", getCompatChildren,
+    "$listeners", getCompatListeners,
+    "$options", JS.method1((JsValue _self, JsValue instance) => {
+      if (!isCompatEnabled(JS.string(DeprecationTypes["PRIVATE_APIS"]), instance)) {
+        return coreResolveMergedOptions(instance);
+      }
+      if (instance["resolvedOptions"].truthy()) return instance["resolvedOptions"];
+      JsValue result = JS.call(
+        instanceExtend, JS.undefined(), JS.object(), coreResolveMergedOptions(instance)
+      );
+      instance["resolvedOptions"] = result;
+      JS.invoke(instanceObject, "defineProperties", result, JS.object(
+        "parent", JS.object("get", JS.method0((JsValue _getSelf) => {
+          warnDeprecation(
+            JS.string(DeprecationTypes["PRIVATE_APIS"]), instance, "$options.parent"
+          );
+          return instance["proxy"]["$parent"];
+        })),
+        "propsData", JS.object("get", JS.method0((JsValue _getSelf) => {
+          warnDeprecation(
+            JS.string(DeprecationTypes["PRIVATE_APIS"]), instance, "$options.propsData"
+          );
+          return instance["vnode"]["props"];
+        }))
+      ));
+      return result;
+    })
+  );
+  JS.call(instanceExtend, JS.undefined(), map, properties);
+
+  JsValue privateApis = JS.object(
+    "$vnode", JS.method1((JsValue _self, JsValue instance) => instance["vnode"]),
+    "_self", JS.method1((JsValue _self, JsValue instance) => instance["proxy"]),
+    "_uid", JS.method1((JsValue _self, JsValue instance) => instance["uid"]),
+    "_data", JS.method1((JsValue _self, JsValue instance) => instance["data"]),
+    "_isMounted", JS.method1((JsValue _self, JsValue instance) => instance["isMounted"]),
+    "_isDestroyed", JS.method1((JsValue _self, JsValue instance) => instance["isUnmounted"]),
+    "$createElement", JS.method1((JsValue _self, JsValue _instance) => compatH),
+    "_c", JS.method1((JsValue _self, JsValue _instance) => compatH),
+    "_o", JS.method1((JsValue _self, JsValue _instance) => legacyMarkOnce),
+    "_n", JS.method1((JsValue _self, JsValue _instance) => instanceLooseToNumber),
+    "_s", JS.method1((JsValue _self, JsValue _instance) => instanceToDisplayString),
+    "_l", JS.method1((JsValue _self, JsValue _instance) => coreRenderList),
+    "_t", JS.method1((JsValue _self, JsValue instance) =>
+      JS.invoke(legacyRenderSlot, "bind", null, instance)
+    ),
+    "_q", JS.method1((JsValue _self, JsValue _instance) => instanceLooseEqual),
+    "_i", JS.method1((JsValue _self, JsValue _instance) => instanceLooseIndexOf),
+    "_m", JS.method1((JsValue _self, JsValue instance) =>
+      JS.invoke(legacyRenderStatic, "bind", null, instance)
+    ),
+    "_f", JS.method1((JsValue _self, JsValue _instance) => coreResolveFilter),
+    "_k", JS.method1((JsValue _self, JsValue instance) =>
+      JS.invoke(legacyCheckKeyCodes, "bind", null, instance)
+    ),
+    "_b", JS.method1((JsValue _self, JsValue _instance) => legacyBindObjectProps),
+    "_v", JS.method1((JsValue _self, JsValue _instance) => coreCreateTextVNode),
+    "_e", JS.method1((JsValue _self, JsValue _instance) => coreCreateCommentVNode),
+    "_u", JS.method1((JsValue _self, JsValue _instance) => legacyResolveScopedSlots),
+    "_g", JS.method1((JsValue _self, JsValue _instance) => legacyBindObjectListeners),
+    "_d", JS.method1((JsValue _self, JsValue _instance) => legacyBindDynamicKeys),
+    "_p", JS.method1((JsValue _self, JsValue _instance) => legacyPrependModifier)
+  );
+  JsValue keys = JS.invoke(instanceObject, "keys", privateApis);
+  int length = JS.number(keys["length"]).toInt();
+  for (int index = 0; index < length; index++) {
+    JsValue key = keys[index];
+    map[key] = JS.method1((JsValue _self, JsValue instance) => {
+      if (isCompatEnabled(JS.string(DeprecationTypes["PRIVATE_APIS"]), instance)) {
+        return JS.call(privateApis[key], JS.undefined(), instance);
+      }
+      return JS.undefined();
+    });
+  }
+}

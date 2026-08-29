@@ -1,0 +1,150 @@
+import { customRef, ref } from "../../reactivity/ref";
+import { EMPTY_OBJ, camelize, hasChanged, hyphenate } from "../../shared/general";
+import { getCurrentInstance } from "../component";
+import { watchSyncEffect } from "../apiWatch";
+import { warn } from "../warning";
+
+extern JsValue Symbol;
+
+bool DEV = true;
+
+string camelizeName(string name) {
+  return JS.string(JS.call(camelize, JS.undefined(), name));
+}
+
+string hyphenateName(string name) {
+  return JS.string(JS.call(hyphenate, JS.undefined(), name));
+}
+
+export JsValue useModel(
+  JsValue props,
+  string name,
+  JsValue options = JS.undefined()
+) {
+  if (JS.isUndefined(options)) options = EMPTY_OBJ;
+  JsValue instance = getCurrentInstance();
+  if (DEV && !instance.truthy()) {
+    warn("useModel() called without active instance.");
+    return ref(JS.undefined());
+  }
+
+  string camelizedName = camelizeName(name);
+  if (DEV && !instance["propsOptions"][0][camelizedName].truthy()) {
+    warn("useModel() called with prop \"" + name + "\" which is not declared.");
+    return ref(JS.undefined());
+  }
+
+  string hyphenatedName = hyphenateName(name);
+  JsValue modifiers = getModelModifiers(props, camelizedName);
+
+  JsValue result = customRef(JS.method2((JsValue _self, JsValue track, JsValue trigger) => {
+    JsValue localValue = JS.undefined();
+    JsValue previousSetValue = EMPTY_OBJ;
+    JsValue previousEmittedValue = JS.undefined();
+
+    watchSyncEffect(JS.method0((JsValue _watchSelf) => {
+      JsValue propertyValue = props[camelizedName];
+      if (hasChanged(localValue, propertyValue)) {
+        localValue = propertyValue;
+        JS.call(trigger, JS.undefined());
+      }
+      return JS.undefined();
+    }));
+
+    JsValue getter = JS.method0((JsValue _getterSelf) => {
+      JS.call(track, JS.undefined());
+      JsValue transform = options["get"];
+      if (transform.truthy()) {
+        return JS.call(transform, options, localValue);
+      }
+      return localValue;
+    });
+
+    JsValue setter = JS.method1((JsValue _setterSelf, JsValue value) => {
+      JsValue emittedValue = value;
+      JsValue transform = options["set"];
+      if (transform.truthy()) {
+        emittedValue = JS.call(transform, options, value);
+      }
+      if (
+        !hasChanged(emittedValue, localValue) &&
+        !(
+          !JS.strictEqual(previousSetValue, EMPTY_OBJ) &&
+          hasChanged(value, previousSetValue)
+        )
+      ) {
+        return JS.undefined();
+      }
+
+      JsValue rawProps = instance["vnode"]["props"];
+      bool hasModelValue = false;
+      if (rawProps.truthy()) {
+        bool hasProp = JS.in(name, rawProps) ||
+          JS.in(camelizedName, rawProps) ||
+          JS.in(hyphenatedName, rawProps);
+        bool hasListener = JS.in("onUpdate:" + name, rawProps) ||
+          JS.in("onUpdate:" + camelizedName, rawProps) ||
+          JS.in("onUpdate:" + hyphenatedName, rawProps);
+        hasModelValue = hasProp && hasListener;
+      }
+      if (!hasModelValue) {
+        localValue = value;
+        JS.call(trigger, JS.undefined());
+      }
+
+      JS.call(
+        instance["emit"],
+        instance,
+        "update:" + name,
+        emittedValue
+      );
+      if (
+        hasChanged(value, previousSetValue) &&
+        (
+          (hasChanged(value, emittedValue) &&
+            !hasChanged(emittedValue, previousEmittedValue)) ||
+          (hasModelValue &&
+            !JS.strictEqual(previousSetValue, EMPTY_OBJ) &&
+            !hasChanged(emittedValue, localValue))
+        )
+      ) {
+        JS.call(trigger, JS.undefined());
+      }
+      previousSetValue = value;
+      previousEmittedValue = emittedValue;
+      return JS.undefined();
+    });
+
+    return JS.object("get", getter, "set", setter);
+  }));
+
+  result[Symbol["iterator"]] = JS.method0((JsValue _self) => {
+    int index = 0;
+    return JS.object(
+      "next", JS.method0((JsValue _nextSelf) => {
+        if (index < 2) {
+          JsValue value = result;
+          if (index > 0) {
+            value = modifiers;
+            if (!value.truthy()) value = EMPTY_OBJ;
+          }
+          index += 1;
+          return JS.object("value", value, "done", false);
+        }
+        return JS.object("done", true);
+      })
+    );
+  });
+
+  return result;
+}
+
+export JsValue getModelModifiers(JsValue props, string modelName) {
+  if (modelName == "modelValue" || modelName == "model-value") {
+    return props["modelModifiers"];
+  }
+  JsValue modifiers = props[modelName + "Modifiers"];
+  if (!modifiers.truthy()) modifiers = props[camelizeName(modelName) + "Modifiers"];
+  if (!modifiers.truthy()) modifiers = props[hyphenateName(modelName) + "Modifiers"];
+  return modifiers;
+}

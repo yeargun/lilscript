@@ -1,0 +1,27 @@
+import { isArray } from "../../shared/general";
+
+export JsValue createSlots(JsValue slots, JsValue dynamicSlots) {
+  int length = JS.number(dynamicSlots["length"]).toInt();
+  for (int index = 0; index < length; index++) {
+    JsValue slot = dynamicSlots[index];
+    if (JS.call(isArray, JS.undefined(), slot).truthy()) {
+      int slotLength = JS.number(slot["length"]).toInt();
+      for (int slotIndex = 0; slotIndex < slotLength; slotIndex++) {
+        JsValue descriptor = slot[slotIndex];
+        slots[descriptor["name"]] = descriptor["fn"];
+      }
+    } else if (slot.truthy()) {
+      if (slot["key"].truthy()) {
+        JsValue wrapped = JS.methodRest((JsValue _self, JsValue args) => {
+          JsValue result = JS.apply(slot["fn"], slot, args);
+          if (result.truthy()) result["key"] = slot["key"];
+          return result;
+        });
+        slots[slot["name"]] = wrapped;
+      } else {
+        slots[slot["name"]] = slot["fn"];
+      }
+    }
+  }
+  return slots;
+}

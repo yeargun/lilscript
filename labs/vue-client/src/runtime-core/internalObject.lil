@@ -1,0 +1,11 @@
+import { Object } from "../shared/makeMap";
+
+JsValue internalObjectProto = JS.object();
+
+export JsValue createInternalObject() {
+  return JS.invoke(Object, "create", internalObjectProto);
+}
+
+export bool isInternalObject(JsValue object) {
+  return JS.strictEqual(JS.invoke(Object, "getPrototypeOf", object), internalObjectProto);
+}

@@ -1,0 +1,14 @@
+import { isCallOf } from "./utils";
+
+export string DEFINE_EXPOSE = "defineExpose";
+
+export bool processDefineExpose(JsValue ctx, JsValue node) {
+  if (isCallOf(node, DEFINE_EXPOSE)) {
+    if (ctx["hasDefineExposeCall"].truthy()) {
+      JS.invoke(ctx, "error", "duplicate " + DEFINE_EXPOSE + "() call", node);
+    }
+    ctx["hasDefineExposeCall"] = true;
+    return true;
+  }
+  return false;
+}

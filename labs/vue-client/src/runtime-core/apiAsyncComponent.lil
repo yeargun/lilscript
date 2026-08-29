@@ -1,0 +1,285 @@
+import { ref } from "../reactivity/ref";
+import { isFunction, isObject } from "../shared/general";
+import { defineComponent } from "./apiDefineComponent";
+import { onUnmounted } from "./apiLifecycle";
+import {
+  currentInstance,
+  getComponentName,
+  isInSSRComponentSetup
+} from "./component";
+import { isKeepAlive } from "./components/KeepAlive";
+import { ErrorCodes, handleError } from "./errorHandling";
+import { forEachElement } from "./hydrationStrategies";
+import { markAsyncBoundary } from "./helpers/useId";
+import extern { hostDelete as asyncDelete } from "./host.js";
+import { createVNode } from "./vnode";
+import { warn } from "./warning";
+
+extern JsValue Error;
+extern JsValue Promise;
+extern JsValue Symbol;
+extern JsValue setTimeout;
+extern JsValue clearTimeout;
+extern bool asyncDelete(JsValue value, JsValue key);
+
+bool isErrorValue(JsValue value) {
+  return JS.call(Error[Symbol["hasInstance"]], Error, value).truthy();
+}
+
+
+export bool isAsyncWrapper(JsValue value) {
+  return value["type"]["__asyncLoader"].truthy();
+}
+
+export JsValue defineAsyncComponent(JsValue source) {
+  if (isFunction(source)) source = JS.object("loader", source);
+
+  JsValue loader = source["loader"];
+  JsValue loadingComponent = source["loadingComponent"];
+  JsValue errorComponent = source["errorComponent"];
+  JsValue delay = source["delay"];
+  if (JS.isUndefined(delay)) delay = 200;
+  JsValue hydrateStrategy = source["hydrate"];
+  JsValue timeout = source["timeout"];
+  JsValue suspensibleValue = source["suspensible"];
+  bool suspensible = JS.isUndefined(suspensibleValue) || suspensibleValue.truthy();
+  JsValue userOnError = source["onError"];
+
+  JsValue pendingRequest = null;
+  JsValue resolvedComp = JS.undefined();
+  int retries = 0;
+  JsValue load = JS.undefined();
+
+  JsValue retry = JS.method0((JsValue _self) => {
+    retries += 1;
+    pendingRequest = null;
+    return JS.call(load, JS.undefined());
+  });
+
+  load = JS.method0((JsValue _self) => {
+    if (pendingRequest.truthy()) return pendingRequest;
+    JsValue thisRequest = JS.call(loader, JS.undefined());
+    thisRequest = JS.invoke(thisRequest, "catch", JS.method1((JsValue _catchSelf, JsValue error) => {
+      if (!isErrorValue(error)) error = JS.construct(Error, JS.string(error));
+      if (userOnError.truthy()) {
+        return JS.construct(Promise, JS.method2((JsValue _executorSelf, JsValue resolve, JsValue reject) => {
+          JsValue userRetry = JS.method0((JsValue _retrySelf) =>
+            JS.call(resolve, JS.undefined(), JS.call(retry, JS.undefined()))
+          );
+          JsValue userFail = JS.method0((JsValue _failSelf) =>
+            JS.call(reject, JS.undefined(), error)
+          );
+          JS.call(userOnError, JS.undefined(), error, userRetry, userFail, retries + 1);
+          return JS.undefined();
+        }));
+      }
+      throw error;
+      return JS.undefined();
+    }));
+    thisRequest = JS.invoke(thisRequest, "then", JS.method1((JsValue _thenSelf, JsValue component) => {
+      if (!JS.strictEqual(thisRequest, pendingRequest) && pendingRequest.truthy()) {
+        return pendingRequest;
+      }
+      if (!component.truthy()) {
+        warn(
+          "Async component loader resolved to undefined. " +
+          "If you are using retry(), make sure to return its return value."
+        );
+      }
+      if (
+        component.truthy() &&
+        (component["__esModule"].truthy() || JS.strictEqual(component[Symbol["toStringTag"]], "Module"))
+      ) {
+        component = component["default"];
+      }
+      if (component.truthy() && !isObject(component) && !isFunction(component)) {
+        throw JS.construct(Error, "Invalid async component load result: " + JS.string(component));
+      }
+      resolvedComp = component;
+      return component;
+    }));
+    pendingRequest = thisRequest;
+    return thisRequest;
+  });
+
+  JsValue options = JS.object(
+    "name", "AsyncComponentWrapper",
+    "__asyncLoader", load
+  );
+
+  options["__asyncHydrate"] = JS.method3((JsValue _self, JsValue element, JsValue instance, JsValue hydrate) => {
+    bool wasConnected = element["isConnected"].truthy();
+    bool patched = false;
+    JsValue beforeUpdate = instance["bu"];
+    if (!beforeUpdate.truthy()) {
+      beforeUpdate = JS.array();
+      instance["bu"] = beforeUpdate;
+    }
+    JS.invoke(beforeUpdate, "push", JS.method0((JsValue _patchSelf) => {
+      patched = true;
+      return JS.undefined();
+    }));
+
+    JsValue performHydrate = JS.method0((JsValue _hydrateSelf) => {
+      if (patched) {
+        JsValue name = getComponentName(resolvedComp);
+        if (!name.truthy()) name = resolvedComp["__file"];
+        warn(
+          "Skipping lazy hydration for component '" + JS.string(name) +
+          "': it was updated before lazy hydration performed."
+        );
+        return JS.undefined();
+      }
+      if (!element["parentNode"].truthy() || (wasConnected && !element["isConnected"].truthy())) {
+        return JS.undefined();
+      }
+      return JS.call(hydrate, JS.undefined());
+    });
+
+    JsValue doHydrate = performHydrate;
+    if (hydrateStrategy.truthy()) {
+      doHydrate = JS.method0((JsValue _strategySelf) => {
+        JsValue each = JS.method1((JsValue _eachSelf, JsValue callback) => {
+          forEachElement(element, callback);
+          return JS.undefined();
+        });
+        JsValue teardown = JS.call(hydrateStrategy, JS.undefined(), performHydrate, each);
+        if (teardown.truthy()) {
+          JsValue beforeUnmount = instance["bum"];
+          if (!beforeUnmount.truthy()) {
+            beforeUnmount = JS.array();
+            instance["bum"] = beforeUnmount;
+          }
+          JS.invoke(beforeUnmount, "push", teardown);
+        }
+        return JS.undefined();
+      });
+    }
+    if (resolvedComp.truthy()) {
+      JS.call(doHydrate, JS.undefined());
+    } else {
+      JS.invoke(JS.call(load, JS.undefined()), "then", JS.method0((JsValue _loadSelf) => {
+        if (instance["isUnmounted"].truthy()) return false;
+        return JS.call(doHydrate, JS.undefined());
+      }));
+    }
+    return JS.undefined();
+  });
+
+  JS.invoke(options["constructor"], "defineProperty", options, "__asyncResolved", JS.object(
+    "enumerable", true,
+    "configurable", true,
+    "get", JS.method0((JsValue _self) => resolvedComp)
+  ));
+
+  options["setup"] = JS.method0((JsValue _self) => {
+    JsValue instance = currentInstance;
+    markAsyncBoundary(instance);
+    if (resolvedComp.truthy()) {
+      return JS.method0((JsValue _renderSelf) => createInnerComp(resolvedComp, instance));
+    }
+
+    JsValue onError = JS.method1((JsValue _errorSelf, JsValue error) => {
+      pendingRequest = null;
+      handleError(
+        error,
+        instance,
+        ErrorCodes["ASYNC_COMPONENT_LOADER"],
+        !errorComponent.truthy()
+      );
+      return JS.undefined();
+    });
+
+    if ((suspensible && instance["suspense"].truthy()) || isInSSRComponentSetup) {
+      JsValue promise = JS.invoke(JS.call(load, JS.undefined()), "then", JS.method1((JsValue _thenSelf, JsValue component) => {
+        return JS.method0((JsValue _renderSelf) => createInnerComp(component, instance));
+      }));
+      return JS.invoke(promise, "catch", JS.method1((JsValue _catchSelf, JsValue error) => {
+        JS.call(onError, JS.undefined(), error);
+        return JS.method0((JsValue _renderSelf) => {
+          if (errorComponent.truthy()) {
+            return createVNode(errorComponent, JS.object("error", error));
+          }
+          return null;
+        });
+      }));
+    }
+
+    JsValue loaded = ref(false);
+    JsValue error = ref(JS.undefined());
+    JsValue delayed = ref(delay.truthy());
+    JsValue timeoutTimer = JS.undefined();
+    JsValue delayTimer = JS.undefined();
+
+    JS.call(onUnmounted, JS.undefined(), JS.method0((JsValue _unmountSelf) => {
+      if (!JS.isNullish(timeoutTimer)) JS.call(clearTimeout, JS.undefined(), timeoutTimer);
+      if (!JS.isNullish(delayTimer)) JS.call(clearTimeout, JS.undefined(), delayTimer);
+      return JS.undefined();
+    }));
+
+    if (delay.truthy()) {
+      delayTimer = JS.call(setTimeout, JS.undefined(), JS.method0((JsValue _delaySelf) => {
+        if (!instance["isUnmounted"].truthy()) delayed["value"] = false;
+        return JS.undefined();
+      }), delay);
+    }
+
+    if (!JS.isNullish(timeout)) {
+      timeoutTimer = JS.call(setTimeout, JS.undefined(), JS.method0((JsValue _timeoutSelf) => {
+        if (instance["isUnmounted"].truthy()) return JS.undefined();
+        if (!loaded["value"].truthy() && !error["value"].truthy()) {
+          JsValue timeoutError = JS.construct(
+            Error,
+            "Async component timed out after " + JS.string(timeout) + "ms."
+          );
+          JS.call(onError, JS.undefined(), timeoutError);
+          error["value"] = timeoutError;
+        }
+        return JS.undefined();
+      }), timeout);
+    }
+
+    JsValue request = JS.invoke(JS.call(load, JS.undefined()), "then", JS.method0((JsValue _thenSelf) => {
+      if (instance["isUnmounted"].truthy()) return JS.undefined();
+      loaded["value"] = true;
+      JsValue parent = instance["parent"];
+      if (parent.truthy() && isKeepAlive(parent["vnode"])) {
+        JS.call(parent["update"], JS.undefined());
+      }
+      return JS.undefined();
+    }));
+    JS.invoke(request, "catch", JS.method1((JsValue _catchSelf, JsValue caught) => {
+      if (instance["isUnmounted"].truthy()) {
+        pendingRequest = null;
+        return JS.undefined();
+      }
+      JS.call(onError, JS.undefined(), caught);
+      error["value"] = caught;
+      return JS.undefined();
+    }));
+
+    return JS.method0((JsValue _renderSelf) => {
+      if (loaded["value"].truthy() && resolvedComp.truthy()) {
+        return createInnerComp(resolvedComp, instance);
+      }
+      if (error["value"].truthy() && errorComponent.truthy()) {
+        return createVNode(errorComponent, JS.object("error", error["value"]));
+      }
+      if (loadingComponent.truthy() && !delayed["value"].truthy()) {
+        return createInnerComp(loadingComponent, instance);
+      }
+      return JS.undefined();
+    });
+  });
+
+  return JS.call(defineComponent, JS.undefined(), options);
+}
+
+JsValue createInnerComp(JsValue component, JsValue parent) {
+  JsValue parentVNode = parent["vnode"];
+  JsValue vnode = createVNode(component, parentVNode["props"], parentVNode["children"]);
+  vnode["ref"] = parentVNode["ref"];
+  vnode["ce"] = parentVNode["ce"];
+  asyncDelete(parentVNode, "ce");
+  return vnode;
+}

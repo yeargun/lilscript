@@ -1,0 +1,55 @@
+import { readonly } from "../../reactivity/reactive";
+import { shallowRef } from "../../reactivity/ref";
+import { EMPTY_OBJ } from "../../shared/general";
+import { Object } from "../../shared/makeMap";
+import { getCurrentInstance } from "../component";
+import { warn } from "../warning";
+
+extern JsValue WeakSet;
+
+bool DEV = true;
+
+export JsValue knownTemplateRefs = JS.construct(WeakSet);
+
+export JsValue useTemplateRef(string key) {
+  JsValue instance = getCurrentInstance();
+  JsValue reference = shallowRef(null);
+  if (instance.truthy()) {
+    JsValue refs = instance["refs"];
+    if (JS.strictEqual(refs, EMPTY_OBJ)) {
+      refs = JS.object();
+      instance["refs"] = refs;
+    }
+    if (DEV && isTemplateRefKey(refs, key)) {
+      warn("useTemplateRef('" + key + "') already exists.");
+    } else {
+      JS.invoke(
+        Object,
+        "defineProperty",
+        refs,
+        key,
+        JS.object(
+          "enumerable", true,
+          "get", JS.method0((JsValue _self) => reference["value"]),
+          "set", JS.method1((JsValue _self, JsValue value) => {
+            reference["value"] = value;
+            return value;
+          })
+        )
+      );
+    }
+  } else if (DEV) {
+    warn(
+      "useTemplateRef() is called when there is no active component instance to be associated with."
+    );
+  }
+  JsValue result = reference;
+  if (DEV) result = readonly(reference);
+  if (DEV) JS.invoke(knownTemplateRefs, "add", result);
+  return result;
+}
+
+export bool isTemplateRefKey(JsValue refs, string key) {
+  JsValue descriptor = JS.invoke(Object, "getOwnPropertyDescriptor", refs, key);
+  return descriptor.truthy() && !descriptor["configurable"].truthy();
+}

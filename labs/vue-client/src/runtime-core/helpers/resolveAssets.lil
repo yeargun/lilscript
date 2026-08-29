@@ -1,0 +1,109 @@
+import { camelize, capitalize, isString } from "../../shared/general";
+import { currentInstance, getComponentName } from "../component";
+import { currentRenderingInstance } from "../componentRenderContext";
+import { warn } from "../warning";
+
+extern JsValue Symbol;
+
+bool DEV = true;
+
+export string COMPONENTS = "components";
+export string DIRECTIVES = "directives";
+export string FILTERS = "filters";
+export JsValue NULL_DYNAMIC_COMPONENT = JS.invoke(Symbol, "for", "v-ndc");
+
+string camelizeAsset(string name) {
+  return JS.string(JS.call(camelize, JS.undefined(), name));
+}
+
+string capitalizeAsset(string name) {
+  return JS.string(JS.call(capitalize, JS.undefined(), name));
+}
+
+JsValue resolve(JsValue registry, string name) {
+  if (!registry.truthy()) return JS.undefined();
+  JsValue result = registry[name];
+  string camelized = camelizeAsset(name);
+  if (!result.truthy()) result = registry[camelized];
+  if (!result.truthy()) result = registry[capitalizeAsset(camelized)];
+  return result;
+}
+
+JsValue resolveAsset(
+  string kind,
+  string name,
+  bool warnMissing = true,
+  bool maybeSelfReference = false
+) {
+  JsValue instance = currentRenderingInstance;
+  if (!instance.truthy()) instance = currentInstance;
+  if (instance.truthy()) {
+    JsValue component = instance["type"];
+    if (kind == COMPONENTS) {
+      JsValue selfName = getComponentName(component, false);
+      if (selfName.truthy()) {
+        string camelized = camelizeAsset(name);
+        if (
+          JS.string(selfName) == name ||
+          JS.string(selfName) == camelized ||
+          JS.string(selfName) == capitalizeAsset(camelized)
+        ) {
+          return component;
+        }
+      }
+    }
+
+    JsValue local = instance[kind];
+    if (!local.truthy()) local = component[kind];
+    JsValue result = resolve(local, name);
+    if (!result.truthy()) result = resolve(instance["appContext"][kind], name);
+
+    if (!result.truthy() && maybeSelfReference) return component;
+    if (DEV && warnMissing && !result.truthy()) {
+      string extra = "";
+      if (kind == COMPONENTS) {
+        extra = "\nIf this is a native custom element, make sure to exclude it from " +
+          "component resolution via compilerOptions.isCustomElement.";
+      }
+      warn(
+        "Failed to resolve " + kind.slice(0, -1) + ": " + name + extra
+      );
+    }
+    return result;
+  }
+
+  if (DEV) {
+    warn(
+      "resolve" + capitalizeAsset(kind.slice(0, -1)) +
+        " can only be used in render() or setup()."
+    );
+  }
+  return JS.undefined();
+}
+
+export JsValue resolveComponent(
+  string name,
+  bool maybeSelfReference = false
+) {
+  JsValue result = resolveAsset(COMPONENTS, name, true, maybeSelfReference);
+  if (!result.truthy()) return name;
+  return result;
+}
+
+export JsValue resolveDynamicComponent(JsValue component) {
+  if (isString(component)) {
+    JsValue result = resolveAsset(COMPONENTS, JS.string(component), false, false);
+    if (result.truthy()) return result;
+    return component;
+  }
+  if (component.truthy()) return component;
+  return NULL_DYNAMIC_COMPONENT;
+}
+
+export JsValue resolveDirective(string name) {
+  return resolveAsset(DIRECTIVES, name, true, false);
+}
+
+export JsValue resolveFilter(string name) {
+  return resolveAsset(FILTERS, name, true, false);
+}

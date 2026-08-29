@@ -53,39 +53,11 @@ function summarizeVNode(vnode) {
 }
 
 describe("Vue 3.5.42 runtime-core tranche", () => {
-  test("exports only implemented public bindings with matching reflection", () => {
-    const compatibility = JSON.parse(
-      readFileSync(resolve(root, "compatibility/runtime-core.json"), "utf8"),
-    );
-    const expected = [
-      "Comment", "EffectScope", "Fragment", "ReactiveEffect", "Static", "Text",
-      "TrackOpTypes", "TriggerOpTypes", "camelize", "capitalize", "cloneVNode",
-      "computed", "createBlock", "createCommentVNode", "createElementBlock",
-      "createElementVNode", "createRenderer", "createStaticVNode", "createTextVNode", "createVNode",
-      "customRef", "defineComponent", "effect", "effectScope", "getCurrentInstance",
-      "getCurrentScope", "getCurrentWatcher", "guardReactiveProps", "h",
-      "hasInjectionContext", "inject", "isMemoSame", "isProxy", "isReactive",
-      "isReadonly", "isRef", "isShallow", "isVNode", "markRaw", "mergeProps",
-      "nextTick", "normalizeClass", "normalizeProps", "normalizeStyle", "onBeforeMount",
-      "onBeforeUnmount", "onBeforeUpdate", "onErrorCaptured", "onMounted",
-      "onRenderTracked", "onRenderTriggered", "onScopeDispose", "onServerPrefetch",
-      "onUnmounted", "onUpdated", "onWatcherCleanup", "openBlock", "popScopeId",
-      "provide", "proxyRefs", "pushScopeId", "queuePostFlushCb", "reactive", "readonly",
-      "ref", "renderList", "resolveComponent", "resolveDirective", "resolveDynamicComponent",
-      "setBlockTracking", "shallowReactive", "shallowReadonly",
-      "shallowRef", "stop", "toDisplayString", "toHandlerKey", "toHandlers", "toRaw",
-      "toRef", "toRefs", "toValue", "transformVNodeArgs", "triggerRef", "unref",
-      "version", "watch", "watchEffect", "watchPostEffect", "watchSyncEffect", "withCtx",
-      "withDirectives", "withMemo", "withScopeId",
-    ];
-    assert.deepEqual(Object.keys(candidate).sort(), expected.sort());
-    assert.deepEqual(compatibility.runtimeExports, Object.keys(candidate).sort());
-    assert.deepEqual(
-      compatibility.unsupportedRuntimeExports,
-      Object.keys(oracle).filter(name =>
-        name !== "default" && name !== "__esModule" && name !== "module.exports" && !(name in candidate),
-      ).sort(),
-    );
+  test("exports the complete upstream runtime surface with matching reflection", () => {
+    const expected = Object.keys(oracle).filter(name =>
+      name !== "default" && name !== "__esModule" && name !== "module.exports"
+    ).sort();
+    assert.deepEqual(Object.keys(candidate).sort(), expected);
     for (const name of expected) {
       assert.ok(name in oracle, `${name} exists in the oracle`);
       const actualDescriptor = Object.getOwnPropertyDescriptor(candidate, name);

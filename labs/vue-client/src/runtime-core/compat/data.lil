@@ -1,0 +1,18 @@
+import extern { isPlainObject as dataIsPlainObject } from "../../../packages/vuelil/shared.js";
+import { DeprecationTypes, warnDeprecation } from "./compatConfig";
+
+extern bool dataIsPlainObject(JsValue value);
+
+export JsValue deepMergeData(JsValue to, JsValue from) {
+  for (string key in from) {
+    JsValue toValue = to[key];
+    JsValue fromValue = from[key];
+    if (JS.in(key, to) && dataIsPlainObject(toValue) && dataIsPlainObject(fromValue)) {
+      warnDeprecation(JS.string(DeprecationTypes["OPTIONS_DATA_MERGE"]), null, key);
+      deepMergeData(toValue, fromValue);
+    } else {
+      to[key] = fromValue;
+    }
+  }
+  return to;
+}

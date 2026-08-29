@@ -1,0 +1,17 @@
+import extern { isOn as listenersIsOn } from "../../../packages/vuelil/shared.js";
+import { DeprecationTypes, assertCompatEnabled } from "./compatConfig";
+
+extern bool listenersIsOn(string key);
+
+export JsValue getCompatListeners(JsValue instance) {
+  assertCompatEnabled(JS.string(DeprecationTypes["INSTANCE_LISTENERS"]), instance);
+  JsValue listeners = JS.object();
+  JsValue rawProps = instance["vnode"]["props"];
+  if (!rawProps.truthy()) return listeners;
+  for (string key in rawProps) {
+    if (listenersIsOn(key)) {
+      listeners[key.charAt(2).toLowerCase() + key.slice(3)] = rawProps[key];
+    }
+  }
+  return listeners;
+}

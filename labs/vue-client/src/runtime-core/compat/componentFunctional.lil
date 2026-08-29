@@ -1,0 +1,81 @@
+import { getCurrentInstance as coreGetCurrentInstance } from "../component";
+import { resolveInjections as coreResolveInjections } from "../componentOptions";
+import {
+  Object as functionalObject,
+  globalThis as functionalGlobal
+} from "../../shared/makeMap";
+import { getCompatListeners } from "./instanceListeners";
+import { compatH } from "./renderFn";
+
+
+JsValue normalizedFunctionalComponentMap = JS.construct(functionalGlobal["WeakMap"]);
+
+export JsValue legacySlotProxyHandlers = JS.object(
+  "get", JS.method2((JsValue _self, JsValue target, JsValue key) => {
+    JsValue slot = target[key];
+    if (slot.truthy()) return JS.call(slot, JS.undefined());
+    return JS.undefined();
+  })
+);
+
+export JsValue convertLegacyFunctionalComponent(JsValue comp) {
+  if (JS.invoke(normalizedFunctionalComponentMap, "has", comp).truthy()) {
+    return JS.invoke(normalizedFunctionalComponentMap, "get", comp);
+  }
+
+  JsValue legacyFn = comp["render"];
+  JsValue Func = JS.method2((JsValue _self, JsValue props, JsValue context) => {
+    JsValue instance = coreGetCurrentInstance();
+    JsValue vnode = instance["vnode"];
+    JsValue vnodeChildren = vnode["children"];
+    if (!vnodeChildren.truthy()) vnodeChildren = JS.array();
+    JsValue vnodeProps = vnode["props"];
+    if (!vnodeProps.truthy()) vnodeProps = JS.object();
+    JsValue parent = null;
+    if (instance["parent"].truthy()) parent = instance["parent"]["proxy"];
+
+    JsValue legacyContext = JS.object(
+      "props", props,
+      "children", vnodeChildren,
+      "data", vnodeProps,
+      "scopedSlots", context["slots"],
+      "parent", parent,
+      "slots", JS.method0((JsValue _slotsSelf) =>
+        JS.construct(functionalGlobal["Proxy"], context["slots"], legacySlotProxyHandlers)
+      )
+    );
+    JS.invoke(
+      functionalObject,
+      "defineProperty",
+      legacyContext,
+      "listeners",
+      JS.object(
+        "enumerable", true,
+        "configurable", true,
+        "get", JS.method0((JsValue _getSelf) => getCompatListeners(instance))
+      )
+    );
+    JS.invoke(
+      functionalObject,
+      "defineProperty",
+      legacyContext,
+      "injections",
+      JS.object(
+        "enumerable", true,
+        "configurable", true,
+        "get", JS.method0((JsValue _getSelf) => {
+          JsValue injections = JS.object();
+          if (comp["inject"].truthy()) coreResolveInjections(comp["inject"], injections);
+          return injections;
+        })
+      )
+    );
+    return JS.call(legacyFn, JS.undefined(), compatH, legacyContext);
+  });
+  Func["props"] = comp["props"];
+  Func["displayName"] = comp["name"];
+  Func["compatConfig"] = comp["compatConfig"];
+  Func["inheritAttrs"] = false;
+  JS.invoke(normalizedFunctionalComponentMap, "set", comp, Func);
+  return Func;
+}

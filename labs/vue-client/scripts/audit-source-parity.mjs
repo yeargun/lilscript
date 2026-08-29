@@ -161,6 +161,51 @@ function stripComments(source) {
     .trim();
 }
 
+function codeMask(source) {
+  const mask = new Uint8Array(source.length);
+  let state = "code";
+  for (let index = 0; index < source.length; index++) {
+    const character = source[index];
+    const next = source[index + 1];
+    if (state === "code") {
+      if (character === "/" && next === "/") {
+        state = "line-comment";
+        index++;
+      } else if (character === "/" && next === "*") {
+        state = "block-comment";
+        index++;
+      } else if (character === "'" || character === '"') {
+        state = character;
+      } else {
+        mask[index] = 1;
+      }
+    } else if (state === "line-comment") {
+      if (character === "\n" || character === "\r") {
+        state = "code";
+        mask[index] = 1;
+      }
+    } else if (state === "block-comment") {
+      if (character === "*" && next === "/") {
+        state = "code";
+        index++;
+      }
+    } else if (character === "\\") {
+      index++;
+    } else if (character === state) {
+      state = "code";
+    }
+  }
+  return mask;
+}
+
+function moduleSpecifiers(source) {
+  const mask = codeMask(source);
+  const pattern = /\b(?:from\s*|import\s*\(|require\s*\()\s*["']([^"']+)["']/gu;
+  return [...source.matchAll(pattern)]
+    .filter((match) => mask[match.index] === 1)
+    .map((match) => match[1]);
+}
+
 export function inspectCandidateSource(source) {
   const issues = [];
   const substantive = stripComments(source);
@@ -178,9 +223,7 @@ export function inspectCandidateSource(source) {
     issues.push("candidate contains only empty function stubs");
   }
 
-  const modulePattern = /\b(?:from\s*|import\s*\(|require\s*\()\s*["']([^"']+)["']/gu;
-  for (const match of source.matchAll(modulePattern)) {
-    const specifier = match[1];
+  for (const specifier of moduleSpecifiers(source)) {
     if (
       specifier === "vue" ||
       specifier.startsWith("@vue/") ||
@@ -312,10 +355,7 @@ function validateVerifiedMappings(entries, upstreamFiles) {
 
 function inspectHostAdapter(path, source) {
   const issues = [];
-  for (const match of source.matchAll(
-    /\b(?:from\s*|import\s*\(|require\s*\()\s*["']([^"']+)["']/gu,
-  )) {
-    const specifier = match[1];
+  for (const specifier of moduleSpecifiers(source)) {
     if (
       specifier === "vue" ||
       specifier.startsWith("@vue/") ||

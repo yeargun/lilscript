@@ -1,0 +1,333 @@
+import {
+  isReactive,
+  isReadonly,
+  isShallow,
+  toRaw
+} from "../reactivity/reactive";
+import { pauseTracking, resetTracking } from "../reactivity/effect";
+import { isRef } from "../reactivity/ref";
+import {
+  EMPTY_OBJ,
+  extend,
+  isArray,
+  isFunction,
+  isObject
+} from "../shared/general";
+import { JSON, Object, String, window } from "../shared/makeMap";
+
+bool DEV = true;
+
+JsValue formatValue(
+  JsValue value,
+  bool asRaw,
+  JsValue numberStyle,
+  JsValue stringStyle,
+  JsValue keywordStyle
+) {
+  string kind = JS.typeOf(value);
+  if (kind == "number") return JS.array("span", numberStyle, value);
+  if (kind == "string") {
+    return JS.array(
+      "span",
+      stringStyle,
+      JS.invoke(JSON, "stringify", value)
+    );
+  }
+  if (kind == "boolean") return JS.array("span", keywordStyle, value);
+  if (isObject(value)) {
+    JsValue object = value;
+    if (asRaw) object = toRaw(value);
+    return JS.array("object", JS.object("object", object));
+  }
+  return JS.array(
+    "span",
+    stringStyle,
+    JS.call(String, JS.undefined(), value)
+  );
+}
+
+JsValue isKeyOfType(JsValue component, string key, string kind) {
+  JsValue options = component[kind];
+  if (
+    (JS.call(isArray, JS.undefined(), options).truthy() &&
+      JS.invoke(options, "includes", key).truthy()) ||
+    (isObject(options) && JS.in(key, options))
+  ) {
+    return true;
+  }
+  if (
+    component["extends"].truthy() &&
+    isKeyOfType(component["extends"], key, kind).truthy()
+  ) {
+    return true;
+  }
+  JsValue mixins = component["mixins"];
+  if (mixins.truthy()) {
+    int length = JS.number(mixins["length"]).toInt();
+    for (int index = 0; index < length; index++) {
+      if (isKeyOfType(mixins[index], key, kind).truthy()) return true;
+    }
+  }
+  return JS.undefined();
+}
+
+JsValue extractKeys(JsValue instance, string kind) {
+  JsValue component = instance["type"];
+  if (isFunction(component)) return JS.undefined();
+  JsValue extracted = JS.object();
+  JsValue context = instance["ctx"];
+  for (string key in context) {
+    if (isKeyOfType(component, key, kind).truthy()) extracted[key] = context[key];
+  }
+  return extracted;
+}
+
+string genRefFlag(JsValue value) {
+  if (isShallow(value)) return "ShallowRef";
+  if (value["effect"].truthy()) return "ComputedRef";
+  return "Ref";
+}
+
+JsValue createInstanceBlock(
+  string kind,
+  JsValue source,
+  JsValue numberStyle,
+  JsValue stringStyle,
+  JsValue keywordStyle
+) {
+  JsValue target = JS.call(extend, JS.undefined(), JS.object(), source);
+  JsValue keys = JS.invoke(Object, "keys", target);
+  int length = JS.number(keys["length"]).toInt();
+  if (length == 0) return JS.array("span", JS.object());
+
+  JsValue rows = JS.array(
+    "div",
+    JS.object("style", "padding-left:1.25em")
+  );
+  for (int index = 0; index < length; index++) {
+    string key = JS.string(keys[index]);
+    JS.invoke(
+      rows,
+      "push",
+      JS.array(
+        "div",
+        JS.object(),
+        JS.array("span", keywordStyle, key + ": "),
+        formatValue(
+          target[key],
+          false,
+          numberStyle,
+          stringStyle,
+          keywordStyle
+        )
+      )
+    );
+  }
+
+  return JS.array(
+    "div",
+    JS.object("style", "line-height:1.25em;margin-bottom:0.6em"),
+    JS.array(
+      "div",
+      JS.object("style", "color:#476582"),
+      kind
+    ),
+    rows
+  );
+}
+
+JsValue formatInstance(
+  JsValue instance,
+  JsValue numberStyle,
+  JsValue stringStyle,
+  JsValue keywordStyle
+) {
+  JsValue blocks = JS.array();
+  if (instance["type"]["props"].truthy() && instance["props"].truthy()) {
+    JS.invoke(
+      blocks,
+      "push",
+      createInstanceBlock(
+        "props",
+        toRaw(instance["props"]),
+        numberStyle,
+        stringStyle,
+        keywordStyle
+      )
+    );
+  }
+  if (!JS.strictEqual(instance["setupState"], EMPTY_OBJ)) {
+    JS.invoke(
+      blocks,
+      "push",
+      createInstanceBlock(
+        "setup",
+        instance["setupState"],
+        numberStyle,
+        stringStyle,
+        keywordStyle
+      )
+    );
+  }
+  if (!JS.strictEqual(instance["data"], EMPTY_OBJ)) {
+    JS.invoke(
+      blocks,
+      "push",
+      createInstanceBlock(
+        "data",
+        toRaw(instance["data"]),
+        numberStyle,
+        stringStyle,
+        keywordStyle
+      )
+    );
+  }
+  JsValue computed = extractKeys(instance, "computed");
+  if (computed.truthy()) {
+    JS.invoke(
+      blocks,
+      "push",
+      createInstanceBlock(
+        "computed",
+        computed,
+        numberStyle,
+        stringStyle,
+        keywordStyle
+      )
+    );
+  }
+  JsValue injected = extractKeys(instance, "inject");
+  if (injected.truthy()) {
+    JS.invoke(
+      blocks,
+      "push",
+      createInstanceBlock(
+        "injected",
+        injected,
+        numberStyle,
+        stringStyle,
+        keywordStyle
+      )
+    );
+  }
+  JS.invoke(
+    blocks,
+    "push",
+    JS.array(
+      "div",
+      JS.object(),
+      JS.array(
+        "span",
+        JS.object("style", keywordStyle["style"] + ";opacity:0.66"),
+        "$ (internal): "
+      ),
+      JS.array("object", JS.object("object", instance))
+    )
+  );
+  return blocks;
+}
+
+export void initCustomFormatter() {
+  if (!DEV || JS.typeOf(window) == "undefined") return;
+
+  JsValue vueStyle = JS.object("style", "color:#3ba776");
+  JsValue numberStyle = JS.object("style", "color:#1677ff");
+  JsValue stringStyle = JS.object("style", "color:#f5222d");
+  JsValue keywordStyle = JS.object("style", "color:#eb2f96");
+
+  JsValue formatter = JS.object(
+    "__vue_custom_formatter", true,
+    "header", JS.method1((JsValue _self, JsValue object) => {
+      if (!isObject(object)) return null;
+      if (object["__isVue"].truthy()) {
+        return JS.array("div", vueStyle, "VueInstance");
+      }
+      if (isRef(object)) {
+        pauseTracking();
+        JsValue value = object["value"];
+        resetTracking();
+        return JS.array(
+          "div",
+          JS.object(),
+          JS.array("span", vueStyle, genRefFlag(object)),
+          "<",
+          formatValue(
+            value,
+            true,
+            numberStyle,
+            stringStyle,
+            keywordStyle
+          ),
+          ">"
+        );
+      }
+      if (isReactive(object)) {
+        string label = "Reactive";
+        if (isShallow(object)) label = "ShallowReactive";
+        string suffix = "";
+        if (isReadonly(object)) suffix = " (readonly)";
+        return JS.array(
+          "div",
+          JS.object(),
+          JS.array("span", vueStyle, label),
+          "<",
+          formatValue(
+            object,
+            true,
+            numberStyle,
+            stringStyle,
+            keywordStyle
+          ),
+          ">" + suffix
+        );
+      }
+      if (isReadonly(object)) {
+        string label = "Readonly";
+        if (isShallow(object)) label = "ShallowReadonly";
+        return JS.array(
+          "div",
+          JS.object(),
+          JS.array("span", vueStyle, label),
+          "<",
+          formatValue(
+            object,
+            true,
+            numberStyle,
+            stringStyle,
+            keywordStyle
+          ),
+          ">"
+        );
+      }
+      return null;
+    }),
+    "hasBody", JS.method1((JsValue _self, JsValue object) => {
+      if (object.truthy()) return object["__isVue"];
+      return object;
+    }),
+    "body", JS.method1((JsValue _self, JsValue object) => {
+      if (object.truthy() && object["__isVue"].truthy()) {
+        JsValue body = JS.array("div", JS.object());
+        JsValue blocks = formatInstance(
+          object["$"],
+          numberStyle,
+          stringStyle,
+          keywordStyle
+        );
+        int length = JS.number(blocks["length"]).toInt();
+        for (int index = 0; index < length; index++) {
+          JS.invoke(body, "push", blocks[index]);
+        }
+        return body;
+      }
+      return JS.undefined();
+    })
+  );
+
+  JsValue formatters = window["devtoolsFormatters"];
+  if (formatters.truthy()) {
+    JS.invoke(formatters, "push", formatter);
+  } else {
+    window["devtoolsFormatters"] = JS.array(formatter);
+  }
+}

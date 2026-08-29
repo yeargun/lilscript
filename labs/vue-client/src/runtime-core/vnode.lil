@@ -1,0 +1,746 @@
+import { isProxy, toRaw } from "../reactivity/reactive";
+import { isRef } from "../reactivity/ref";
+import {
+  EMPTY_ARR,
+  extend,
+  isArray,
+  isFunction,
+  isModelListener,
+  isObject,
+  isOn,
+  isString
+} from "../shared/general";
+import { normalizeClass, normalizeStyle } from "../shared/normalizeProp";
+import { PatchFlags } from "../shared/patchFlags";
+import { ShapeFlags } from "../shared/shapeFlags";
+import { SlotFlags } from "../shared/slotFlags";
+import { Array, Object, String } from "../shared/makeMap";
+import { isClassComponent } from "./component";
+import { isSuspense } from "./components/Suspense";
+import { setTransitionHooks } from "./components/BaseTransition";
+import { warn } from "./warning";
+import { isTeleport } from "./components/Teleport";
+import {
+  currentRenderingInstance,
+  currentScopeId
+} from "./componentRenderContext";
+import { NULL_DYNAMIC_COMPONENT } from "./helpers/resolveAssets";
+import { hmrDirtyComponents } from "./hmr";
+import { convertLegacyComponent } from "./compat/component";
+import { convertLegacyVModelProps } from "./compat/componentVModel";
+import { defineLegacyVNodeProperties } from "./compat/renderFn";
+import { ErrorCodes, callWithAsyncErrorHandling } from "./errorHandling";
+import { isInternalObject } from "./internalObject";
+
+extern JsValue Symbol;
+extern JsValue arguments;
+extern JsValue __COMPAT__;
+
+bool DEV = true;
+bool FEATURE_SUSPENSE = true;
+
+bool compatEnabled() {
+  return JS.typeOf(__COMPAT__) == "boolean" && __COMPAT__.truthy();
+}
+
+bool arrayValue(JsValue value) {
+  return JS.call(isArray, JS.undefined(), value).truthy();
+}
+
+int enumValue(JsValue values, string name) {
+  return JS.number(values[name]).toInt();
+}
+
+int valueLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+
+export JsValue Fragment = JS.invoke(Symbol, "for", "v-fgt");
+export JsValue Text = JS.invoke(Symbol, "for", "v-txt");
+export JsValue Comment = JS.invoke(Symbol, "for", "v-cmt");
+export JsValue Static = JS.invoke(Symbol, "for", "v-stc");
+
+export JsValue[] blockStack = [];
+export JsValue currentBlock = null;
+export int isBlockTreeEnabled = 1;
+
+export void openBlock(bool disableTracking = false) {
+  currentBlock = null;
+  if (!disableTracking) currentBlock = JS.array();
+  blockStack.push(currentBlock);
+}
+
+export void closeBlock() {
+  blockStack.pop();
+  currentBlock = null;
+  if (blockStack.length > 0) currentBlock = blockStack[blockStack.length - 1];
+}
+
+export void setBlockTracking(int value, bool inVOnce = false) {
+  isBlockTreeEnabled += value;
+  if (value < 0 && currentBlock.truthy() && inVOnce) {
+    currentBlock["hasOnce"] = true;
+  }
+}
+
+JsValue setupBlock(JsValue vnode) {
+  JsValue dynamicChildren = null;
+  if (isBlockTreeEnabled > 0) {
+    dynamicChildren = currentBlock;
+    if (!dynamicChildren.truthy()) dynamicChildren = EMPTY_ARR;
+  }
+  vnode["dynamicChildren"] = dynamicChildren;
+  closeBlock();
+  if (isBlockTreeEnabled > 0 && currentBlock.truthy()) {
+    JS.invoke(currentBlock, "push", vnode);
+  }
+  return vnode;
+}
+
+export JsValue createElementBlock(
+  JsValue type,
+  JsValue props = JS.undefined(),
+  JsValue children = JS.undefined(),
+  JsValue patchFlag = JS.undefined(),
+  JsValue dynamicProps = JS.undefined(),
+  JsValue shapeFlag = JS.undefined()
+) {
+  return setupBlock(
+    createBaseVNode(
+      type,
+      props,
+      children,
+      patchFlag,
+      dynamicProps,
+      shapeFlag,
+      true,
+      false
+    )
+  );
+}
+
+export JsValue createBlock(
+  JsValue type,
+  JsValue props = JS.undefined(),
+  JsValue children = JS.undefined(),
+  JsValue patchFlag = JS.undefined(),
+  JsValue dynamicProps = JS.undefined()
+) {
+  return setupBlock(
+    createVNode(type, props, children, patchFlag, dynamicProps, true)
+  );
+}
+
+export bool isVNode(JsValue value) {
+  return value.truthy() && JS.strictEqual(value["__v_isVNode"], true);
+}
+
+export bool isSameVNodeType(JsValue first, JsValue second) {
+  int secondShape = JS.number(second["shapeFlag"]).toInt();
+  if (
+    DEV &&
+    (secondShape & enumValue(ShapeFlags, "COMPONENT")) != 0 &&
+    first["component"].truthy()
+  ) {
+    JsValue dirtyInstances = JS.invoke(
+      hmrDirtyComponents,
+      "get",
+      second["type"]
+    );
+    if (
+      dirtyInstances.truthy() &&
+      JS.invoke(dirtyInstances, "has", first["component"]).truthy()
+    ) {
+      first["shapeFlag"] = JS.number(first["shapeFlag"]).toInt() & -257;
+      second["shapeFlag"] = secondShape & -513;
+      return false;
+    }
+  }
+  return JS.strictEqual(first["type"], second["type"]) &&
+    JS.strictEqual(first["key"], second["key"]);
+}
+
+JsValue vnodeArgsTransformer = JS.undefined();
+
+export void transformVNodeArgs(JsValue transformer = JS.undefined()) {
+  vnodeArgsTransformer = transformer;
+}
+
+JsValue normalizeKey(JsValue props) {
+  JsValue key = props["key"];
+  if (JS.isNullish(key)) return null;
+  return key;
+}
+
+JsValue normalizeRef(JsValue props) {
+  JsValue reference = props["ref"];
+  if (JS.typeOf(reference) == "number") {
+    reference = JS.call(String, JS.undefined(), reference);
+  }
+  if (JS.isNullish(reference)) return null;
+  if (isString(reference) || isRef(reference) || isFunction(reference)) {
+    return JS.object(
+      "i", currentRenderingInstance,
+      "r", reference,
+      "k", props["ref_key"],
+      "f", props["ref_for"].truthy()
+    );
+  }
+  return reference;
+}
+
+JsValue createBaseVNode(
+  JsValue type,
+  JsValue props = JS.undefined(),
+  JsValue children = JS.undefined(),
+  JsValue patchFlagValue = JS.undefined(),
+  JsValue dynamicProps = JS.undefined(),
+  JsValue shapeFlagValue = JS.undefined(),
+  bool isBlockNode = false,
+  bool needFullChildrenNormalization = false
+) {
+  if (JS.isUndefined(props)) props = null;
+  if (JS.isUndefined(children)) children = null;
+  if (JS.isUndefined(dynamicProps)) dynamicProps = null;
+  int patchFlag = 0;
+  if (!JS.isUndefined(patchFlagValue)) patchFlag = JS.number(patchFlagValue).toInt();
+  int shapeFlag = enumValue(ShapeFlags, "ELEMENT");
+  if (JS.strictEqual(type, Fragment)) shapeFlag = 0;
+  if (!JS.isUndefined(shapeFlagValue)) shapeFlag = JS.number(shapeFlagValue).toInt();
+  JsValue key = props;
+  JsValue reference = props;
+  if (props.truthy()) {
+    key = normalizeKey(props);
+    reference = normalizeRef(props);
+  }
+
+  JsValue vnode = JS.object(
+    "__v_isVNode", true,
+    "__v_skip", true,
+    "type", type,
+    "props", props,
+    "key", key,
+    "ref", reference,
+    "scopeId", currentScopeId,
+    "slotScopeIds", null,
+    "children", children,
+    "component", null,
+    "suspense", null,
+    "ssContent", null,
+    "ssFallback", null,
+    "dirs", null,
+    "transition", null,
+    "el", null,
+    "anchor", null,
+    "target", null,
+    "targetStart", null,
+    "targetAnchor", null,
+    "staticCount", 0,
+    "shapeFlag", shapeFlag,
+    "patchFlag", patchFlag,
+    "dynamicProps", dynamicProps,
+    "dynamicChildren", null,
+    "appContext", null,
+    "ctx", currentRenderingInstance
+  );
+
+  if (needFullChildrenNormalization) {
+    normalizeChildren(vnode, children);
+    if (
+      FEATURE_SUSPENSE &&
+      (shapeFlag & enumValue(ShapeFlags, "SUSPENSE")) != 0
+    ) {
+      JS.call(type["normalize"], type, vnode);
+    }
+  } else if (children.truthy()) {
+    int childFlag = enumValue(ShapeFlags, "ARRAY_CHILDREN");
+    if (isString(children)) childFlag = enumValue(ShapeFlags, "TEXT_CHILDREN");
+    vnode["shapeFlag"] = shapeFlag | childFlag;
+  }
+
+  if (DEV && !JS.strictEqual(vnode["key"], vnode["key"])) {
+    JS.call(
+      warn,
+      JS.undefined(),
+      "VNode created with invalid key (NaN). VNode type:",
+      vnode["type"]
+    );
+  }
+
+  if (DEV && props.truthy() && (shapeFlag & 1) != 0) {
+    JsValue overwritingProp = null;
+    if (!JS.isNullish(props["innerHTML"])) {
+      overwritingProp = "innerHTML";
+    } else if (!JS.isNullish(props["textContent"])) {
+      overwritingProp = "textContent";
+    }
+    if (overwritingProp.truthy() && hasContentChildren(vnode["children"])) {
+      string property = JS.string(overwritingProp);
+      warn(
+        "The `" + property + "` prop on <" + JS.string(vnode["type"]) +
+          "> will override its children. Remove either the `" + property +
+          "` prop or the children."
+      );
+    }
+  }
+
+  int vnodePatchFlag = JS.number(vnode["patchFlag"]).toInt();
+  if (
+    isBlockTreeEnabled > 0 &&
+    !isBlockNode &&
+    currentBlock.truthy() &&
+    (
+      vnodePatchFlag > 0 ||
+      (shapeFlag & enumValue(ShapeFlags, "COMPONENT")) != 0
+    ) &&
+    vnodePatchFlag != enumValue(PatchFlags, "NEED_HYDRATION")
+  ) {
+    JS.invoke(currentBlock, "push", vnode);
+  }
+
+  if (compatEnabled()) {
+    convertLegacyVModelProps(vnode);
+    defineLegacyVNodeProperties(vnode);
+  }
+  return vnode;
+}
+
+export { createBaseVNode as createElementVNode };
+
+bool hasContentChildren(JsValue children) {
+  if (isString(children)) return JS.string(children) != "";
+  if (arrayValue(children)) return valueLength(children) > 0;
+  return false;
+}
+
+int inferShapeFlag(JsValue type) {
+  if (isString(type)) return enumValue(ShapeFlags, "ELEMENT");
+  if (FEATURE_SUSPENSE && isSuspense(type)) {
+    return enumValue(ShapeFlags, "SUSPENSE");
+  }
+  if (isTeleport(type)) return enumValue(ShapeFlags, "TELEPORT");
+  if (isObject(type)) return enumValue(ShapeFlags, "STATEFUL_COMPONENT");
+  if (isFunction(type)) return enumValue(ShapeFlags, "FUNCTIONAL_COMPONENT");
+  return 0;
+}
+
+JsValue createVNodeCore(
+  JsValue type,
+  JsValue props,
+  JsValue children,
+  JsValue patchFlag,
+  JsValue dynamicProps,
+  bool isBlockNode
+) {
+  if (!type.truthy() || JS.strictEqual(type, NULL_DYNAMIC_COMPONENT)) {
+    if (DEV && !type.truthy()) {
+      warn("Invalid vnode type when creating vnode: " + JS.string(type) + ".");
+    }
+    type = Comment;
+  }
+
+  if (isVNode(type)) {
+    JsValue cloned = cloneVNode(type, props, true, false);
+    if (children.truthy()) normalizeChildren(cloned, children);
+    if (isBlockTreeEnabled > 0 && !isBlockNode && currentBlock.truthy()) {
+      int shapeFlag = JS.number(cloned["shapeFlag"]).toInt();
+      if ((shapeFlag & enumValue(ShapeFlags, "COMPONENT")) != 0) {
+        int index = JS.number(JS.invoke(currentBlock, "indexOf", type)).toInt();
+        currentBlock[index] = cloned;
+      } else {
+        JS.invoke(currentBlock, "push", cloned);
+      }
+    }
+    cloned["patchFlag"] = enumValue(PatchFlags, "BAIL");
+    return cloned;
+  }
+
+  if (isClassComponent(type)) type = type["__vccOpts"];
+  if (compatEnabled()) type = convertLegacyComponent(type, currentRenderingInstance);
+
+  if (props.truthy()) {
+    props = guardReactiveProps(props);
+    JsValue klass = props["class"];
+    if (klass.truthy() && !isString(klass)) {
+      props["class"] = normalizeClass(klass);
+    }
+    JsValue style = props["style"];
+    if (isObject(style)) {
+      if (isProxy(style) && !arrayValue(style)) {
+        style = JS.call(extend, JS.undefined(), JS.object(), style);
+      }
+      props["style"] = normalizeStyle(style);
+    }
+  }
+
+  int shapeFlag = inferShapeFlag(type);
+  if (
+    DEV &&
+    (shapeFlag & enumValue(ShapeFlags, "STATEFUL_COMPONENT")) != 0 &&
+    isProxy(type)
+  ) {
+    type = toRaw(type);
+    JS.call(
+      warn,
+      JS.undefined(),
+      "Vue received a Component that was made a reactive object. This can " +
+        "lead to unnecessary performance overhead and should be avoided by " +
+        "marking the component with `markRaw` or using `shallowRef` instead of `ref`.",
+      "\nComponent that was made reactive: ",
+      type
+    );
+  }
+
+  return createBaseVNode(
+    type,
+    props,
+    children,
+    patchFlag,
+    dynamicProps,
+    shapeFlag,
+    isBlockNode,
+    true
+  );
+}
+
+export JsValue createVNode(
+  JsValue type = JS.undefined(),
+  JsValue props = JS.undefined(),
+  JsValue children = JS.undefined(),
+  JsValue patchFlag = JS.undefined(),
+  JsValue dynamicProps = JS.undefined(),
+  bool isBlockNode = false
+) {
+  if (DEV && !JS.isUndefined(vnodeArgsTransformer)) {
+    JsValue transformed = JS.call(
+      vnodeArgsTransformer,
+      JS.undefined(),
+      JS.invoke(Array["prototype"]["slice"], "call", arguments),
+      currentRenderingInstance
+    );
+    return createVNodeCore(
+      transformed[0],
+      transformed[1],
+      transformed[2],
+      transformed[3],
+      transformed[4],
+      transformed[5].truthy()
+    );
+  }
+  return createVNodeCore(
+    type,
+    props,
+    children,
+    patchFlag,
+    dynamicProps,
+    isBlockNode
+  );
+}
+
+export JsValue guardReactiveProps(JsValue props) {
+  if (!props.truthy()) return null;
+  if (isProxy(props) || isInternalObject(props)) {
+    return JS.call(extend, JS.undefined(), JS.object(), props);
+  }
+  return props;
+}
+
+export JsValue cloneVNode(
+  JsValue vnode,
+  JsValue extraProps = JS.undefined(),
+  bool mergeRef = false,
+  bool cloneTransition = false
+) {
+  JsValue props = vnode["props"];
+  JsValue reference = vnode["ref"];
+  int patchFlag = JS.number(vnode["patchFlag"]).toInt();
+  JsValue children = vnode["children"];
+  JsValue transition = vnode["transition"];
+  JsValue mergedProps = props;
+  if (extraProps.truthy()) {
+    JsValue originalProps = props;
+    if (!originalProps.truthy()) originalProps = JS.object();
+    mergedProps = mergeTwoProps(originalProps, extraProps);
+  }
+
+  JsValue nextRef = reference;
+  if (extraProps.truthy() && extraProps["ref"].truthy()) {
+    JsValue normalized = normalizeRef(extraProps);
+    if (mergeRef && reference.truthy()) {
+      if (arrayValue(reference)) {
+        nextRef = JS.invoke(reference, "concat", normalized);
+      } else {
+        nextRef = JS.array(reference, normalized);
+      }
+    } else {
+      nextRef = normalized;
+    }
+  }
+
+  if (
+    DEV &&
+    patchFlag == enumValue(PatchFlags, "CACHED") &&
+    arrayValue(children)
+  ) {
+    children = cloneChildrenDeep(children);
+  }
+
+  int nextPatchFlag = patchFlag;
+  if (extraProps.truthy() && !JS.strictEqual(vnode["type"], Fragment)) {
+    if (patchFlag == enumValue(PatchFlags, "CACHED")) {
+      nextPatchFlag = enumValue(PatchFlags, "FULL_PROPS");
+    } else {
+      nextPatchFlag = patchFlag | enumValue(PatchFlags, "FULL_PROPS");
+    }
+  }
+
+  JsValue key = mergedProps;
+  if (mergedProps.truthy()) key = normalizeKey(mergedProps);
+  JsValue ssContent = vnode["ssContent"];
+  if (ssContent.truthy()) ssContent = cloneVNode(ssContent);
+  JsValue ssFallback = vnode["ssFallback"];
+  if (ssFallback.truthy()) ssFallback = cloneVNode(ssFallback);
+
+  JsValue cloned = JS.object(
+    "__v_isVNode", true,
+    "__v_skip", true,
+    "type", vnode["type"],
+    "props", mergedProps,
+    "key", key,
+    "ref", nextRef,
+    "scopeId", vnode["scopeId"],
+    "slotScopeIds", vnode["slotScopeIds"],
+    "children", children,
+    "target", vnode["target"],
+    "targetStart", vnode["targetStart"],
+    "targetAnchor", vnode["targetAnchor"],
+    "staticCount", vnode["staticCount"],
+    "shapeFlag", vnode["shapeFlag"],
+    "patchFlag", nextPatchFlag,
+    "dynamicProps", vnode["dynamicProps"],
+    "dynamicChildren", vnode["dynamicChildren"],
+    "appContext", vnode["appContext"],
+    "dirs", vnode["dirs"],
+    "transition", transition,
+    "component", vnode["component"],
+    "suspense", vnode["suspense"],
+    "ssContent", ssContent,
+    "ssFallback", ssFallback,
+    "placeholder", vnode["placeholder"],
+    "el", vnode["el"],
+    "anchor", vnode["anchor"],
+    "ctx", vnode["ctx"],
+    "ce", vnode["ce"]
+  );
+
+  if (transition.truthy() && cloneTransition) {
+    JsValue clonedTransition = JS.call(
+      transition["clone"],
+      transition,
+      cloned
+    );
+    setTransitionHooks(cloned, clonedTransition);
+  }
+  if (compatEnabled()) defineLegacyVNodeProperties(cloned);
+  return cloned;
+}
+
+JsValue cloneChildrenDeep(JsValue children) {
+  return JS.invoke(
+    children,
+    "map",
+    JS.method1((JsValue _self, JsValue child) => deepCloneVNode(child))
+  );
+}
+
+JsValue deepCloneVNode(JsValue vnode) {
+  JsValue cloned = cloneVNode(vnode);
+  if (arrayValue(vnode["children"])) {
+    cloned["children"] = cloneChildrenDeep(vnode["children"]);
+  }
+  return cloned;
+}
+
+export JsValue createTextVNode(
+  JsValue text = JS.undefined(),
+  JsValue flag = JS.undefined()
+) {
+  if (JS.isUndefined(text)) text = " ";
+  if (JS.isUndefined(flag)) flag = 0;
+  return createVNode(Text, null, text, flag);
+}
+
+export JsValue createStaticVNode(JsValue content, JsValue numberOfNodes) {
+  JsValue vnode = createVNode(Static, null, content);
+  vnode["staticCount"] = numberOfNodes;
+  return vnode;
+}
+
+export JsValue createCommentVNode(
+  JsValue text = JS.undefined(),
+  bool asBlock = false
+) {
+  if (JS.isUndefined(text)) text = "";
+  if (asBlock) {
+    openBlock(false);
+    return createBlock(Comment, null, text);
+  }
+  return createVNode(Comment, null, text);
+}
+
+export JsValue normalizeVNode(JsValue child) {
+  if (JS.isNullish(child) || JS.typeOf(child) == "boolean") {
+    return createVNode(Comment);
+  }
+  if (arrayValue(child)) {
+    return createVNode(Fragment, null, JS.invoke(child, "slice"));
+  }
+  if (isVNode(child)) return cloneIfMounted(child);
+  return createVNode(Text, null, JS.call(String, JS.undefined(), child));
+}
+
+export JsValue cloneIfMounted(JsValue child) {
+  if (
+    (JS.strictEqual(child["el"], null) &&
+      JS.number(child["patchFlag"]).toInt() != enumValue(PatchFlags, "CACHED")) ||
+    child["memo"].truthy()
+  ) {
+    return child;
+  }
+  return cloneVNode(child);
+}
+
+export void normalizeChildren(JsValue vnode, JsValue children) {
+  int childType = 0;
+  int shapeFlag = JS.number(vnode["shapeFlag"]).toInt();
+  if (JS.isNullish(children)) {
+    children = null;
+  } else if (arrayValue(children)) {
+    childType = enumValue(ShapeFlags, "ARRAY_CHILDREN");
+  } else if (JS.typeOf(children) == "object") {
+    if (
+      (shapeFlag &
+        (enumValue(ShapeFlags, "ELEMENT") |
+          enumValue(ShapeFlags, "TELEPORT"))) != 0
+    ) {
+      JsValue slot = children["default"];
+      if (slot.truthy()) {
+        if (slot["_c"].truthy()) slot["_d"] = false;
+        normalizeChildren(vnode, JS.call(slot, JS.undefined()));
+        if (slot["_c"].truthy()) slot["_d"] = true;
+      }
+      return;
+    }
+    childType = enumValue(ShapeFlags, "SLOTS_CHILDREN");
+    JsValue slotFlag = children["_"];
+    if (!slotFlag.truthy() && !isInternalObject(children)) {
+      children["_ctx"] = currentRenderingInstance;
+    } else if (
+      JS.strictEqual(slotFlag, SlotFlags["FORWARDED"]) &&
+      currentRenderingInstance.truthy()
+    ) {
+      JsValue parentSlots = currentRenderingInstance["slots"];
+      if (JS.strictEqual(parentSlots["_"], SlotFlags["STABLE"])) {
+        children["_"] = SlotFlags["STABLE"];
+      } else {
+        children["_"] = SlotFlags["DYNAMIC"];
+        vnode["patchFlag"] = JS.number(vnode["patchFlag"]).toInt() |
+          enumValue(PatchFlags, "DYNAMIC_SLOTS");
+      }
+    }
+  } else if (isFunction(children)) {
+    if (
+      (shapeFlag &
+        (enumValue(ShapeFlags, "ELEMENT") |
+          enumValue(ShapeFlags, "TELEPORT"))) != 0
+    ) {
+      normalizeChildren(vnode, JS.object("default", children));
+      return;
+    }
+    children = JS.object(
+      "default", children,
+      "_ctx", currentRenderingInstance
+    );
+    childType = enumValue(ShapeFlags, "SLOTS_CHILDREN");
+  } else {
+    children = JS.call(String, JS.undefined(), children);
+    if ((shapeFlag & enumValue(ShapeFlags, "TELEPORT")) != 0) {
+      childType = enumValue(ShapeFlags, "ARRAY_CHILDREN");
+      children = JS.array(createTextVNode(children));
+    } else {
+      childType = enumValue(ShapeFlags, "TEXT_CHILDREN");
+    }
+  }
+  vnode["children"] = children;
+  vnode["shapeFlag"] = shapeFlag | childType;
+}
+
+JsValue mergeTwoProps(JsValue first, JsValue second) {
+  JsValue result = JS.object();
+  mergePropsSource(result, first);
+  mergePropsSource(result, second);
+  return result;
+}
+
+void mergePropsSource(JsValue result, JsValue source) {
+  for (string key in source) {
+    JsValue incoming = source[key];
+    if (key == "class") {
+      if (!JS.strictEqual(result["class"], incoming)) {
+        result["class"] = normalizeClass(JS.array(result["class"], incoming));
+      }
+    } else if (key == "style") {
+      result["style"] = normalizeStyle(JS.array(result["style"], incoming));
+    } else if (isOn(key)) {
+      JsValue existing = result[key];
+      if (
+        incoming.truthy() &&
+        !JS.strictEqual(existing, incoming) &&
+        !(arrayValue(existing) && JS.invoke(existing, "includes", incoming).truthy())
+      ) {
+        if (existing.truthy()) {
+          result[key] = JS.call(
+            Array["prototype"]["concat"],
+            JS.array(),
+            existing,
+            incoming
+          );
+        } else {
+          result[key] = incoming;
+        }
+      } else if (
+        JS.isNullish(incoming) &&
+        JS.isNullish(existing) &&
+        !isModelListener(key)
+      ) {
+        result[key] = incoming;
+      }
+    } else if (key != "") {
+      result[key] = incoming;
+    }
+  }
+}
+
+export JsValue mergeProps() {
+  JsValue result = JS.object();
+  int length = valueLength(arguments);
+  for (int index = 0; index < length; index++) {
+    mergePropsSource(result, arguments[index]);
+  }
+  return result;
+}
+
+export void invokeVNodeHook(
+  JsValue hook,
+  JsValue instance,
+  JsValue vnode,
+  JsValue previousVNode = JS.undefined()
+) {
+  if (JS.isUndefined(previousVNode)) previousVNode = null;
+  callWithAsyncErrorHandling(
+    hook,
+    instance,
+    ErrorCodes["VNODE_HOOK"],
+    JS.array(vnode, previousVNode)
+  );
+}

@@ -1,0 +1,242 @@
+import { Comment, cloneVNode, invokeVNodeHook, isSameVNodeType, isVNode } from "../vnode";
+import { LifecycleHooks } from "../enums";
+import { MoveType, invalidateMount, queuePostRenderEffect } from "../renderer";
+import { ShapeFlags as dependencyShapeFlags } from "../../shared/shapeFlags";
+import { currentInstance, getComponentName, getCurrentInstance } from "../component";
+import { devtoolsComponentAdded } from "../devtools";
+import { injectHook, onBeforeUnmount, onMounted, onUnmounted, onUpdated } from "../apiLifecycle";
+import { invokeArrayFns as dependencyInvokeArrayFns } from "../../shared/general";
+import { isArray as dependencyIsArray, isRegExp as dependencyIsRegExp, isString as dependencyIsString, remove as dependencyRemove } from "../../shared/general";
+import { isAsyncWrapper } from "../apiAsyncComponent";
+import { isSuspense } from "./Suspense";
+import { setTransitionHooks } from "./BaseTransition";
+import { warn } from "../warning";
+import { watch } from "../apiWatch";
+extern JsValue Map;
+extern JsValue Set;
+extern JsValue String;
+extern JsValue RegExp;
+extern JsValue Array;
+extern JsValue Number;
+extern JsValue parseInt;
+bool KEEP_ALIVE_DEV = true;
+bool KEEP_ALIVE_SSR = false;
+bool KEEP_ALIVE_BROWSER = false;
+bool KEEP_ALIVE_PROD_DEVTOOLS = false;
+bool KEEP_ALIVE_COMPAT = false;
+int keepAliveLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+bool keepAliveArray(JsValue value) {
+  return JS.call(dependencyIsArray, JS.undefined(), value).truthy();
+}
+int keepAliveShape(string name) {
+  return JS.number(dependencyShapeFlags[name]).toInt();
+}
+export bool isKeepAlive(JsValue vnode) {
+  return vnode["type"]["__isKeepAlive"].truthy();
+}
+void resetShapeFlag(JsValue vnode) {
+  int shapeFlag = JS.number(vnode["shapeFlag"]).toInt();
+  shapeFlag = shapeFlag & - 257;
+  shapeFlag = shapeFlag & - 513;
+  vnode["shapeFlag"] = shapeFlag;
+}
+JsValue keepAliveInnerChild(JsValue vnode) {
+  if ((JS.number(vnode["shapeFlag"]).toInt() & keepAliveShape("SUSPENSE")) != 0) {
+    return vnode["ssContent"];
+  }
+  return vnode;
+}
+bool matches(JsValue pattern, string name) {
+  if (keepAliveArray(pattern)) {
+    return JS.invoke(pattern, "some", JS.method1((JsValue _self, JsValue candidate) => matches(candidate,
+    name))).truthy();
+  }
+  if (dependencyIsString(pattern)) {
+    return JS.invoke(JS.invoke(pattern, "split", ","), "includes", name).truthy();
+  }
+  if (dependencyIsRegExp(pattern)) {
+    pattern["lastIndex"] = 0;
+    return JS.invoke(pattern, "test", name).truthy();
+  }
+  return false;
+}
+JsValue keepAliveSetup(JsValue props, JsValue setupContext) {
+  JsValue instance = getCurrentInstance();
+  JsValue slots = setupContext["slots"];
+  JsValue sharedContext = instance["ctx"];
+  if (KEEP_ALIVE_SSR && ! sharedContext["renderer"].truthy()) {
+    return JS.method0((JsValue _self) =>{ JsValue children = JS.undefined();if (slots["default"].truthy()) {
+      children = JS.call(slots["default"], JS.undefined());
+    }
+    if (children.truthy() && keepAliveLength(children) == 1)return children[0];return children; });
+  }
+  JsValue cache = JS.construct(Map);
+  JsValue keys = JS.construct(Set);
+  JsValue current = null;
+  if (KEEP_ALIVE_DEV || KEEP_ALIVE_PROD_DEVTOOLS)instance["__v_cache"] = cache;
+  JsValue parentSuspense = instance["suspense"];
+  JsValue renderer = sharedContext["renderer"];
+  JsValue patch = renderer["p"];
+  JsValue move = renderer["m"];
+  JsValue unmountRendererNode = renderer["um"];
+  JsValue createElement = renderer["o"]["createElement"];
+  JsValue storageContainer = JS.call(createElement, JS.undefined(), "div");
+  sharedContext["activate"] = JS.methodRest((JsValue _self, JsValue args) =>{ JsValue vnode = args[0];JsValue container = args[1];JsValue anchor = args[2];JsValue namespace = args[3];bool optimized = args[4].truthy();JsValue childInstance = vnode["component"];JS.call(move,
+  JS.undefined(), vnode, container, anchor, MoveType["ENTER"], parentSuspense);JS.call(patch, JS.undefined(),
+  childInstance["vnode"], vnode, container, anchor, childInstance, parentSuspense, namespace, vnode["slotScopeIds"],
+  optimized);queuePostRenderEffect(JS.method0((JsValue _effectSelf) =>{ childInstance["isDeactivated"] = false;if (childInstance["a"].truthy())dependencyInvokeArrayFns(childInstance["a"]);JsValue vnodeHook = JS.undefined();if (vnode["props"].truthy())vnodeHook = vnode["props"]["onVnodeMounted"];if (vnodeHook.truthy()) {
+    invokeVNodeHook(vnodeHook, childInstance["parent"], vnode);
+  }
+  return JS.undefined(); }), parentSuspense);if (KEEP_ALIVE_DEV || KEEP_ALIVE_PROD_DEVTOOLS) {
+    devtoolsComponentAdded(childInstance);
+  }
+  return JS.undefined(); });
+  sharedContext["deactivate"] = JS.method1((JsValue _self, JsValue vnode) =>{ JsValue childInstance = vnode["component"];invalidateMount(childInstance["m"]);invalidateMount(childInstance["a"]);JS.call(move,
+  JS.undefined(), vnode, storageContainer, null, MoveType["LEAVE"], parentSuspense);queuePostRenderEffect(JS.method0((JsValue _effectSelf) =>{ if (childInstance["da"].truthy())dependencyInvokeArrayFns(childInstance["da"]);JsValue vnodeHook = JS.undefined();if (vnode["props"].truthy())vnodeHook = vnode["props"]["onVnodeUnmounted"];if (vnodeHook.truthy()) {
+    invokeVNodeHook(vnodeHook, childInstance["parent"], vnode);
+  }
+  childInstance["isDeactivated"] = true;return JS.undefined(); }), parentSuspense);if (KEEP_ALIVE_DEV || KEEP_ALIVE_PROD_DEVTOOLS) {
+    devtoolsComponentAdded(childInstance);
+  }
+  if (KEEP_ALIVE_DEV && KEEP_ALIVE_BROWSER) {
+    childInstance["__keepAliveStorageContainer"] = storageContainer;
+  }
+  return JS.undefined(); });
+  JsValue unmountCached = JS.method1((JsValue _self, JsValue vnode) =>{ resetShapeFlag(vnode);JS.call(unmountRendererNode,
+  JS.undefined(), vnode, instance, parentSuspense, true);return JS.undefined(); });
+  JsValue pruneCacheEntry = JS.undefined();
+  pruneCacheEntry = JS.method1((JsValue _self, JsValue key) =>{ JsValue cached = JS.invoke(cache, "get",
+  key);if (cached.truthy() &&(! current.truthy() || ! isSameVNodeType(cached, current))) {
+    JS.call(unmountCached, JS.undefined(), cached);
+  } else if (current.truthy()) {
+    resetShapeFlag(current);
+  }
+  JS.invoke(cache, "delete", key);JS.invoke(keys, "delete", key);return JS.undefined(); });
+  JsValue pruneCache = JS.method1((JsValue _self, JsValue filter) =>{ JS.invoke(cache, "forEach", JS.method2((JsValue _forEachSelf,
+  JsValue vnode, JsValue key) =>{ JsValue component = vnode["type"];if (isAsyncWrapper(vnode)) {
+    JsValue resolved = vnode["type"]["__asyncResolved"];if (resolved.truthy())component = resolved;else component = JS.object();
+  }
+  JsValue name = getComponentName(component);if (name.truthy() && ! JS.call(filter, JS.undefined(), name).truthy()) {
+    JS.call(pruneCacheEntry, JS.undefined(), key);
+  }
+  return JS.undefined(); }));return JS.undefined(); });
+  watch(JS.method0((JsValue _sourceSelf) => JS.array(props["include"], props["exclude"])), JS.method1((JsValue _callbackSelf,
+  JsValue values) =>{ JsValue include = values[0];JsValue exclude = values[1];if (include.truthy()) {
+    JS.call(pruneCache, JS.undefined(), JS.method1((JsValue _filterSelf, JsValue name) => matches(include,
+    JS.string(name))));
+  }
+  if (exclude.truthy()) {
+    JS.call(pruneCache, JS.undefined(), JS.method1((JsValue _filterSelf, JsValue name) => ! matches(exclude,
+    JS.string(name))));
+  }
+  return JS.undefined(); }), JS.object("flush", "post", "deep", true));
+  JsValue pendingCacheKey = null;
+  JsValue cacheSubtree = JS.method0((JsValue _self) =>{ if (! JS.isNullish(pendingCacheKey)) {
+    if (isSuspense(instance["subTree"]["type"])) {
+      queuePostRenderEffect(JS.method0((JsValue _effectSelf) =>{ JsValue vnode = keepAliveInnerChild(instance["subTree"]);if (vnode["component"].truthy()) {
+        JS.invoke(cache, "set", pendingCacheKey, vnode);
+      }
+      return JS.undefined(); }), instance["subTree"]["suspense"]);
+    } else {
+      JS.invoke(cache, "set", pendingCacheKey, keepAliveInnerChild(instance["subTree"]));
+    }
+  }
+  return JS.undefined(); });
+  JS.call(onMounted, JS.undefined(), cacheSubtree);
+  JS.call(onUpdated, JS.undefined(), cacheSubtree);
+  JS.call(onBeforeUnmount, JS.undefined(), JS.method0((JsValue _self) =>{ JS.invoke(cache, "forEach",
+  JS.method1((JsValue _cacheSelf, JsValue cached) =>{ JsValue subTree = instance["subTree"];JsValue suspense = instance["suspense"];JsValue vnode = keepAliveInnerChild(subTree);if (JS.strictEqual(cached["type"],
+  vnode["type"]) && JS.strictEqual(cached["key"], vnode["key"])) {
+    resetShapeFlag(vnode);JsValue deactivated = vnode["component"]["da"];if (deactivated.truthy())queuePostRenderEffect(deactivated,
+    suspense);return JS.undefined();
+  }
+  JS.call(unmountCached, JS.undefined(), cached);return JS.undefined(); }));return JS.undefined(); }));
+  return JS.method0((JsValue _self) =>{ pendingCacheKey = null;if (! slots["default"].truthy()) {
+    current = null;return current;
+  }
+  JsValue children = JS.call(slots["default"], JS.undefined());JsValue rawVNode = children[0];if (keepAliveLength(children) > 1) {
+    if (KEEP_ALIVE_DEV) {
+      JS.call(warn, JS.undefined(), "KeepAlive should contain exactly one component child.");
+    }
+    current = null;return children;
+  }
+  if (! isVNode(rawVNode)) {
+    current = null;return rawVNode;
+  }
+  int rawShapeFlag = JS.number(rawVNode["shapeFlag"]).toInt();if ((rawShapeFlag & keepAliveShape("STATEFUL_COMPONENT")) == 0 &&(rawShapeFlag & keepAliveShape("SUSPENSE")) == 0) {
+    current = null;return rawVNode;
+  }
+  JsValue vnode = keepAliveInnerChild(rawVNode);if (JS.strictEqual(vnode["type"], Comment)) {
+    current = null;return vnode;
+  }
+  JsValue component = vnode["type"];JsValue componentForName = component;if (isAsyncWrapper(vnode)) {
+    componentForName = vnode["type"]["__asyncResolved"];if (! componentForName.truthy())componentForName = JS.object();
+  }
+  JsValue name = getComponentName(componentForName);JsValue include = props["include"];JsValue exclude = props["exclude"];JsValue max = props["max"];if ((include.truthy() &&(! name.truthy() || ! matches(include,
+  JS.string(name)))) ||(exclude.truthy() && name.truthy() && matches(exclude, JS.string(name)))) {
+    vnode["shapeFlag"] = JS.number(vnode["shapeFlag"]).toInt() & - 257;current = vnode;return rawVNode;
+  }
+  JsValue key = vnode["key"];if (JS.isNullish(key))key = component;JsValue cachedVNode = JS.invoke(cache,
+  "get", key);if (vnode["el"].truthy()) {
+    vnode = cloneVNode(vnode);if ((rawShapeFlag & keepAliveShape("SUSPENSE")) != 0)rawVNode["ssContent"] = vnode;
+  }
+  pendingCacheKey = key;if (cachedVNode.truthy()) {
+    vnode["el"] = cachedVNode["el"];vnode["component"] = cachedVNode["component"];if (vnode["transition"].truthy()) {
+      setTransitionHooks(vnode, vnode["transition"]);
+    }
+    vnode["shapeFlag"] = JS.number(vnode["shapeFlag"]).toInt() | keepAliveShape("COMPONENT_KEPT_ALIVE");JS.invoke(keys,
+    "delete", key);JS.invoke(keys, "add", key);
+  } else {
+    JS.invoke(keys, "add", key);if (max.truthy()) {
+      float maximum = JS.number(JS.call(parseInt, JS.undefined(), max, 10));if (JS.number(keys["size"]) > maximum) {
+        JsValue oldest = JS.invoke(JS.invoke(keys, "values"), "next")["value"];JS.call(pruneCacheEntry,
+        JS.undefined(), oldest);
+      }
+    }
+  }
+  vnode["shapeFlag"] = JS.number(vnode["shapeFlag"]).toInt() | keepAliveShape("COMPONENT_SHOULD_KEEP_ALIVE");current = vnode;if (isSuspense(rawVNode["type"]))return rawVNode;return vnode; });
+}
+JsValue KeepAliveImpl = JS.object("name", "KeepAlive", "__isKeepAlive", true, "props", JS.object("include",
+JS.array(String, RegExp, Array), "exclude", JS.array(String, RegExp, Array), "max", JS.array(String,
+Number)), "setup", JS.method2((JsValue _self, JsValue props, JsValue context) => keepAliveSetup(props,
+context)));
+JsValue decorateKeepAlive(JsValue type) {
+  type["__isBuiltIn"] = true;
+  return type;
+}
+export JsValue KeepAlive = KeepAliveImpl;
+if (KEEP_ALIVE_COMPAT)KeepAlive = decorateKeepAlive(KeepAliveImpl);
+void injectToKeepAliveRoot(JsValue hook, JsValue type, JsValue target, JsValue keepAliveRoot) {
+  JsValue injected = injectHook(type, hook, keepAliveRoot, true);
+  JS.call(onUnmounted, JS.undefined(), JS.method0((JsValue _self) =>{ dependencyRemove(keepAliveRoot[type],
+  injected);return JS.undefined(); }), target);
+}
+void registerKeepAliveHook(JsValue hook, JsValue type, JsValue target = JS.undefined()) {
+  if (JS.isUndefined(target))target = currentInstance;
+  JsValue wrappedHook = hook["__wdc"];
+  if (! wrappedHook.truthy()) {
+    wrappedHook = JS.method0((JsValue _self) =>{ JsValue cursor = target;while (cursor.truthy()) {
+      if (cursor["isDeactivated"].truthy())return JS.undefined();cursor = cursor["parent"];
+    }
+    return JS.call(hook, JS.undefined()); });
+    hook["__wdc"] = wrappedHook;
+  }
+  injectHook(type, wrappedHook, target);
+  if (target.truthy()) {
+    JsValue cursor = target["parent"];
+    while (cursor.truthy() && cursor["parent"].truthy()) {
+      if (isKeepAlive(cursor["parent"]["vnode"])) {
+        injectToKeepAliveRoot(wrappedHook, type, target, cursor);
+      }
+      cursor = cursor["parent"];
+    }
+  }
+}
+export void onActivated(JsValue hook, JsValue target) {
+  registerKeepAliveHook(hook, LifecycleHooks["ACTIVATED"], target);
+}
+export void onDeactivated(JsValue hook, JsValue target) {
+  registerKeepAliveHook(hook, LifecycleHooks["DEACTIVATED"], target);
+}

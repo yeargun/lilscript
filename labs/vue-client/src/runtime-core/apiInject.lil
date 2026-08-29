@@ -1,0 +1,63 @@
+import { arguments as injectArguments, isFunction } from "../shared/general";
+import { currentInstance, getCurrentInstance } from "./component";
+import { currentApp } from "./apiCreateApp";
+import extern { hostObjectCreate as injectObjectCreate } from "./host.js";
+import { warn } from "./warning";
+
+extern JsValue injectObjectCreate(JsValue prototype);
+
+export void provide(JsValue key, JsValue value) {
+  if (!currentInstance.truthy() || currentInstance["isMounted"].truthy()) {
+    warn("provide() can only be used inside setup().");
+  }
+  if (currentInstance.truthy()) {
+    JsValue provides = currentInstance["provides"];
+    JsValue parent = currentInstance["parent"];
+    JsValue parentProvides = JS.undefined();
+    if (parent.truthy()) parentProvides = parent["provides"];
+    if (JS.strictEqual(parentProvides, provides)) {
+      provides = injectObjectCreate(parentProvides);
+      currentInstance["provides"] = provides;
+    }
+    provides[key] = value;
+  }
+}
+
+export JsValue inject(
+  JsValue key,
+  JsValue defaultValue,
+  bool treatDefaultAsFactory = false
+) {
+  JsValue instance = getCurrentInstance();
+  if (instance.truthy() || currentApp.truthy()) {
+    JsValue provides = JS.undefined();
+    if (currentApp.truthy()) {
+      provides = currentApp["_context"]["provides"];
+    } else if (
+      JS.isNullish(instance["parent"]) || instance["ce"].truthy()
+    ) {
+      JsValue appContext = instance["vnode"]["appContext"];
+      if (appContext.truthy()) provides = appContext["provides"];
+    } else {
+      provides = instance["parent"]["provides"];
+    }
+
+    if (provides.truthy() && JS.in(key, provides)) return provides[key];
+    if (JS.number(injectArguments["length"]).toInt() > 1) {
+      if (treatDefaultAsFactory && isFunction(defaultValue)) {
+        JsValue receiver = null;
+        if (instance.truthy()) receiver = instance["proxy"];
+        return JS.call(defaultValue, receiver);
+      }
+      return defaultValue;
+    }
+    warn("injection \"" + JS.string(key) + "\" not found.");
+  } else {
+    warn("inject() can only be used inside setup() or functional components.");
+  }
+  return JS.undefined();
+}
+
+export bool hasInjectionContext() {
+  return getCurrentInstance().truthy() || currentApp.truthy();
+}

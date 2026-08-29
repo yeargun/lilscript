@@ -1,0 +1,186 @@
+import { Comment, Fragment, Static, Text } from "./vnode";
+import { window } from "../shared/makeMap";
+
+extern JsValue setTimeout;
+
+JsValue DevtoolsHooks = JS.object(
+  "APP_INIT", "app:init",
+  "APP_UNMOUNT", "app:unmount",
+  "COMPONENT_UPDATED", "component:updated",
+  "COMPONENT_ADDED", "component:added",
+  "COMPONENT_REMOVED", "component:removed",
+  "COMPONENT_EMIT", "component:emit",
+  "PERFORMANCE_START", "perf:start",
+  "PERFORMANCE_END", "perf:end"
+);
+
+export JsValue devtools = JS.undefined();
+JsValue buffer = JS.array();
+bool devtoolsNotInstalled = false;
+
+void emitEvent(string event, JsValue args) {
+  if (devtools.truthy()) {
+    JsValue payload = JS.array(event);
+    int length = JS.number(args["length"]).toInt();
+    for (int index = 0; index < length; index++) {
+      JS.invoke(payload, "push", args[index]);
+    }
+    JS.apply(devtools["emit"], devtools, payload);
+  } else if (!devtoolsNotInstalled) {
+    JS.invoke(buffer, "push", JS.object("event", event, "args", args));
+  }
+}
+
+export void setDevtoolsHook(JsValue hook, JsValue target) {
+  devtools = hook;
+  if (devtools.truthy()) {
+    devtools["enabled"] = true;
+    int length = JS.number(buffer["length"]).toInt();
+    for (int index = 0; index < length; index++) {
+      JsValue entry = buffer[index];
+      emitEvent(JS.string(entry["event"]), entry["args"]);
+    }
+    buffer = JS.array();
+  } else if (
+    JS.typeOf(window) != "undefined" &&
+    window["HTMLElement"].truthy() &&
+    !(
+      window["navigator"].truthy() &&
+      window["navigator"]["userAgent"].truthy() &&
+      JS.invoke(window["navigator"]["userAgent"], "includes", "jsdom").truthy()
+    )
+  ) {
+    JsValue replay = target["__VUE_DEVTOOLS_HOOK_REPLAY__"];
+    if (!replay.truthy()) {
+      replay = JS.array();
+      target["__VUE_DEVTOOLS_HOOK_REPLAY__"] = replay;
+    }
+    JS.invoke(
+      replay,
+      "push",
+      JS.method1((JsValue _self, JsValue newHook) => {
+        setDevtoolsHook(newHook, target);
+        return JS.undefined();
+      })
+    );
+    JS.call(
+      setTimeout,
+      JS.undefined(),
+      JS.method0((JsValue _self) => {
+        if (!devtools.truthy()) {
+          target["__VUE_DEVTOOLS_HOOK_REPLAY__"] = null;
+          devtoolsNotInstalled = true;
+          buffer = JS.array();
+        }
+        return JS.undefined();
+      }),
+      3000
+    );
+  } else {
+    devtoolsNotInstalled = true;
+    buffer = JS.array();
+  }
+}
+
+export void devtoolsInitApp(JsValue app, string version) {
+  emitEvent(
+    JS.string(DevtoolsHooks["APP_INIT"]),
+    JS.array(
+      app,
+      version,
+      JS.object(
+        "Fragment", Fragment,
+        "Text", Text,
+        "Comment", Comment,
+        "Static", Static
+      )
+    )
+  );
+}
+
+export void devtoolsUnmountApp(JsValue app) {
+  emitEvent(JS.string(DevtoolsHooks["APP_UNMOUNT"]), JS.array(app));
+}
+
+JsValue createDevtoolsComponentHook(string hook) {
+  return JS.method1((JsValue _self, JsValue component) => {
+    JsValue parentId = JS.undefined();
+    if (component["parent"].truthy()) parentId = component["parent"]["uid"];
+    emitEvent(
+      hook,
+      JS.array(
+        component["appContext"]["app"],
+        component["uid"],
+        parentId,
+        component
+      )
+    );
+    return JS.undefined();
+  });
+}
+
+export JsValue devtoolsComponentAdded = createDevtoolsComponentHook(
+  JS.string(DevtoolsHooks["COMPONENT_ADDED"])
+);
+export JsValue devtoolsComponentUpdated = createDevtoolsComponentHook(
+  JS.string(DevtoolsHooks["COMPONENT_UPDATED"])
+);
+JsValue removedHook = createDevtoolsComponentHook(
+  JS.string(DevtoolsHooks["COMPONENT_REMOVED"])
+);
+
+export void devtoolsComponentRemoved(JsValue component) {
+  JsValue cleanup = JS.undefined();
+  if (devtools.truthy()) cleanup = devtools["cleanupBuffer"];
+  if (
+    devtools.truthy() &&
+    JS.typeOf(cleanup) == "function" &&
+    !JS.call(cleanup, devtools, component).truthy()
+  ) {
+    JS.call(removedHook, JS.undefined(), component);
+  }
+}
+
+JsValue createDevtoolsPerformanceHook(string hook) {
+  return JS.method3((
+    JsValue _self,
+    JsValue component,
+    JsValue kind,
+    JsValue time
+  ) => {
+    emitEvent(
+      hook,
+      JS.array(
+        component["appContext"]["app"],
+        component["uid"],
+        component,
+        kind,
+        time
+      )
+    );
+    return JS.undefined();
+  });
+}
+
+export JsValue devtoolsPerfStart = createDevtoolsPerformanceHook(
+  JS.string(DevtoolsHooks["PERFORMANCE_START"])
+);
+export JsValue devtoolsPerfEnd = createDevtoolsPerformanceHook(
+  JS.string(DevtoolsHooks["PERFORMANCE_END"])
+);
+
+export void devtoolsComponentEmit(
+  JsValue component,
+  string event,
+  JsValue params
+) {
+  emitEvent(
+    JS.string(DevtoolsHooks["COMPONENT_EMIT"]),
+    JS.array(
+      component["appContext"]["app"],
+      component,
+      event,
+      params
+    )
+  );
+}

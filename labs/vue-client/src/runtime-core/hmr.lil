@@ -1,0 +1,197 @@
+import { isClassComponent } from "./component";
+import { SchedulerJobFlags, queueJob, queuePostFlushCb } from "./scheduler";
+import { extend, getGlobalThis } from "../shared/general";
+import { Array } from "../shared/makeMap";
+import extern { hostDelete } from "./host.js";
+
+extern JsValue Map;
+extern JsValue Set;
+extern bool hostDelete(JsValue value, JsValue key);
+
+bool DEV = true;
+
+export bool isHmrUpdating = false;
+
+export bool setHmrUpdating(bool value) {
+  try {
+    return isHmrUpdating;
+  } finally {
+    isHmrUpdating = value;
+  }
+}
+
+export JsValue hmrDirtyComponents = JS.construct(Map);
+JsValue records = JS.construct(Map);
+
+JsValue normalizeClassComponent(JsValue component) {
+  if (isClassComponent(component)) return component["__vccOpts"];
+  return component;
+}
+
+bool createRecord(string id, JsValue initialDefinition) {
+  if (JS.invoke(records, "has", id).truthy()) return false;
+  JS.invoke(
+    records,
+    "set",
+    id,
+    JS.object(
+      "initialDef", normalizeClassComponent(initialDefinition),
+      "instances", JS.construct(Set)
+    )
+  );
+  return true;
+}
+
+export void registerHMR(JsValue instance) {
+  string id = JS.assume(instance["type"]["__hmrId"]);
+  JsValue hmrRecord = JS.invoke(records, "get", id);
+  if (!hmrRecord.truthy()) {
+    createRecord(id, instance["type"]);
+    hmrRecord = JS.invoke(records, "get", id);
+  }
+  JS.invoke(hmrRecord["instances"], "add", instance);
+}
+
+export void unregisterHMR(JsValue instance) {
+  JsValue hmrRecord = JS.invoke(records, "get", instance["type"]["__hmrId"]);
+  JS.invoke(hmrRecord["instances"], "delete", instance);
+}
+
+void rerender(string id, JsValue newRender) {
+  JsValue hmrRecord = JS.invoke(records, "get", id);
+  if (!hmrRecord.truthy()) return;
+  hmrRecord["initialDef"]["render"] = newRender;
+
+  JsValue instances = JS.invoke(Array, "from", hmrRecord["instances"]);
+  int length = JS.number(instances["length"]).toInt();
+  for (int index = 0; index < length; index++) {
+    JsValue instance = instances[index];
+    if (newRender.truthy()) {
+      instance["render"] = newRender;
+      normalizeClassComponent(instance["type"])["render"] = newRender;
+    }
+    instance["renderCache"] = JS.array();
+    isHmrUpdating = true;
+    int flags = 0;
+    if (!JS.isUndefined(instance["job"]["flags"])) {
+      flags = JS.number(instance["job"]["flags"]).toInt();
+    }
+    int disposedFlag = JS.number(SchedulerJobFlags["DISPOSED"]).toInt();
+    if ((flags & disposedFlag) == 0) {
+      JS.call(instance["update"], instance);
+    }
+    isHmrUpdating = false;
+  }
+}
+
+void updateComponentDef(JsValue oldComponent, JsValue newComponent) {
+  JS.call(extend, JS.undefined(), oldComponent, newComponent);
+  for (string key in oldComponent) {
+    if (key != "__file" && !JS.in(key, newComponent)) {
+      hostDelete(oldComponent, key);
+    }
+  }
+}
+
+void reload(string id, JsValue newComponent) {
+  JsValue hmrRecord = JS.invoke(records, "get", id);
+  if (!hmrRecord.truthy()) return;
+
+  newComponent = normalizeClassComponent(newComponent);
+  updateComponentDef(hmrRecord["initialDef"], newComponent);
+  JsValue instances = JS.invoke(Array, "from", hmrRecord["instances"]);
+  int length = JS.number(instances["length"]).toInt();
+
+  for (int index = 0; index < length; index++) {
+    JsValue instance = instances[index];
+    JsValue oldComponent = normalizeClassComponent(instance["type"]);
+    JsValue dirtyInstances = JS.invoke(hmrDirtyComponents, "get", oldComponent);
+    if (!dirtyInstances.truthy()) {
+      if (!JS.strictEqual(oldComponent, hmrRecord["initialDef"])) {
+        updateComponentDef(oldComponent, newComponent);
+      }
+      dirtyInstances = JS.construct(Set);
+      JS.invoke(hmrDirtyComponents, "set", oldComponent, dirtyInstances);
+    }
+    JS.invoke(dirtyInstances, "add", instance);
+
+    JS.invoke(instance["appContext"]["propsCache"], "delete", instance["type"]);
+    JS.invoke(instance["appContext"]["emitsCache"], "delete", instance["type"]);
+    JS.invoke(instance["appContext"]["optionsCache"], "delete", instance["type"]);
+
+    if (instance["ceReload"].truthy()) {
+      JS.invoke(dirtyInstances, "add", instance);
+      JS.call(
+        instance["ceReload"],
+        instance,
+        newComponent["styles"]
+      );
+      JS.invoke(dirtyInstances, "delete", instance);
+    } else if (instance["parent"].truthy()) {
+      queueJob(JS.method0((JsValue _self) => {
+        int flags = 0;
+        if (!JS.isUndefined(instance["job"]["flags"])) {
+          flags = JS.number(instance["job"]["flags"]).toInt();
+        }
+        int disposedFlag = JS.number(SchedulerJobFlags["DISPOSED"]).toInt();
+        if ((flags & disposedFlag) == 0) {
+          isHmrUpdating = true;
+          JS.call(instance["parent"]["update"], instance["parent"]);
+          isHmrUpdating = false;
+          JS.invoke(dirtyInstances, "delete", instance);
+        }
+        return JS.undefined();
+      }));
+    } else if (instance["appContext"]["reload"].truthy()) {
+      JS.call(instance["appContext"]["reload"], instance["appContext"]);
+    } else {
+      JsValue globalObject = getGlobalThis();
+      if (JS.typeOf(globalObject["window"]) != "undefined") {
+        JS.invoke(globalObject["window"]["location"], "reload");
+      } else {
+        JS.invoke(
+          globalObject["console"],
+          "warn",
+          "[HMR] Root or manually mounted instance modified. Full reload required."
+        );
+      }
+    }
+
+    if (
+      instance["root"]["ce"].truthy() &&
+      !JS.strictEqual(instance, instance["root"])
+    ) {
+      JS.invoke(instance["root"]["ce"], "_removeChildStyle", oldComponent);
+    }
+  }
+
+  queuePostFlushCb(JS.method0((JsValue _self) => {
+    JS.invoke(hmrDirtyComponents, "clear");
+    return JS.undefined();
+  }));
+}
+
+JsValue tryWrap(JsValue fn) {
+  return JS.method2((JsValue _self, JsValue id, JsValue argument) => {
+    try {
+      return JS.call(fn, JS.undefined(), id, argument);
+    } catch (JsValue error) {
+      JsValue globalObject = getGlobalThis();
+      JS.invoke(globalObject["console"], "error", error);
+      JS.invoke(
+        globalObject["console"],
+        "warn",
+        "[HMR] Something went wrong during Vue component hot-reload. Full reload required."
+      );
+    }
+    return JS.undefined();
+  });
+}
+
+if (DEV) {
+  getGlobalThis()["__VUE_HMR_RUNTIME__"] = JS.object(
+    "createRecord", tryWrap(createRecord),
+    "rerender", tryWrap(rerender),
+    "reload", tryWrap(reload)
+  );
+}

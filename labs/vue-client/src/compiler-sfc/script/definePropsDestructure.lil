@@ -1,0 +1,548 @@
+import extern { walk as destructureWalk } from "estree-walker";
+import extern {
+  BindingTypes as DestructureBindingTypes,
+  TS_NODE_TYPES as DestructureTsNodeTypes,
+  extractIdentifiers as destructureExtractIdentifiers,
+  isFunctionType as destructureIsFunctionType,
+  isInDestructureAssignment as destructureIsInDestructureAssignment,
+  isReferencedIdentifier as destructureIsReferencedIdentifier,
+  isStaticProperty as destructureIsStaticProperty,
+  unwrapTSNode as destructureUnwrapTSNode,
+  walkFunctionParams as destructureWalkFunctionParams
+} from "../../../packages/vuelil/compiler-dom.js";
+import extern { genPropsAccessExp as destructureGenPropsAccessExp } from "../../../packages/vuelil/shared.js";
+import extern {
+  hostCreateNullObject as destructureCreateNullObject,
+  hostCreateObject as destructureCreateObject
+} from "../host.js";
+import { DEFINE_PROPS } from "./defineProps";
+import { isCallOf, resolveObjectKey } from "./utils";
+
+extern JsValue DestructureBindingTypes;
+extern JsValue DestructureTsNodeTypes;
+extern JsValue destructureCreateNullObject;
+extern JsValue destructureCreateObject;
+extern JsValue destructureExtractIdentifiers;
+extern JsValue destructureGenPropsAccessExp;
+extern JsValue destructureIsFunctionType;
+extern JsValue destructureIsInDestructureAssignment;
+extern JsValue destructureIsReferencedIdentifier;
+extern JsValue destructureIsStaticProperty;
+extern JsValue destructureUnwrapTSNode;
+extern JsValue destructureWalk;
+extern JsValue destructureWalkFunctionParams;
+extern JsValue globalThis;
+
+int destructureLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+
+void destructurePush(JsValue values, JsValue value) {
+  values[destructureLength(values)] = value;
+}
+
+export void processPropsDestructure(JsValue ctx, JsValue declId) {
+  if (JS.strictEqual(ctx["options"]["propsDestructure"], "error")) {
+    JS.invoke(
+      ctx,
+      "error",
+      "Props destructure is explicitly prohibited via config.",
+      declId
+    );
+  } else if (JS.strictEqual(ctx["options"]["propsDestructure"], false)) {
+    return;
+  }
+
+  ctx["propsDestructureDecl"] = declId;
+  JsValue properties = declId["properties"];
+  for (int index = 0; index < destructureLength(properties); index++) {
+    JsValue prop = properties[index];
+    if (JS.string(prop["type"]) == "ObjectProperty") {
+      JsValue propKey = resolveObjectKey(prop["key"], prop["computed"].truthy());
+
+      if (!propKey.truthy()) {
+        JS.invoke(
+          ctx,
+          "error",
+          DEFINE_PROPS + "() destructure cannot use computed key.",
+          prop["key"]
+        );
+      }
+
+      if (JS.string(prop["value"]["type"]) == "AssignmentPattern") {
+        JsValue left = prop["value"]["left"];
+        JsValue right = prop["value"]["right"];
+        if (JS.string(left["type"]) != "Identifier") {
+          JS.invoke(
+            ctx,
+            "error",
+            DEFINE_PROPS + "() destructure does not support nested patterns.",
+            left
+          );
+        }
+        registerDestructuredBinding(
+          ctx,
+          JS.string(propKey),
+          JS.string(left["name"]),
+          right
+        );
+      } else if (JS.string(prop["value"]["type"]) == "Identifier") {
+        registerDestructuredBinding(
+          ctx,
+          JS.string(propKey),
+          JS.string(prop["value"]["name"])
+        );
+      } else {
+        JS.invoke(
+          ctx,
+          "error",
+          DEFINE_PROPS + "() destructure does not support nested patterns.",
+          prop["value"]
+        );
+      }
+    } else {
+      ctx["propsDestructureRestId"] = prop["argument"]["name"];
+      ctx["bindingMetadata"][JS.string(ctx["propsDestructureRestId"])] =
+        DestructureBindingTypes["SETUP_REACTIVE_CONST"];
+    }
+  }
+}
+
+void registerDestructuredBinding(
+  JsValue ctx,
+  string key,
+  string local,
+  JsValue defaultValue = JS.undefined()
+) {
+  ctx["propsDestructuredBindings"][key] = JS.object(
+    "local", local,
+    "default", defaultValue
+  );
+  if (local != key) {
+    ctx["bindingMetadata"][local] = DestructureBindingTypes["PROPS_ALIASED"];
+    if (!ctx["bindingMetadata"]["__propsAliases"].truthy()) {
+      ctx["bindingMetadata"]["__propsAliases"] = JS.object();
+    }
+    ctx["bindingMetadata"]["__propsAliases"][local] = key;
+  }
+}
+
+void pushDestructureScope(JsValue state, bool isFunctionScope = false) {
+  JsValue scope = JS.call(
+    destructureCreateObject,
+    JS.undefined(),
+    state["currentScope"]
+  );
+  state["currentScope"] = scope;
+  destructurePush(state["scopeStack"], scope);
+  if (isFunctionScope) destructurePush(state["functionScopeStack"], scope);
+}
+
+void popDestructureScope(JsValue state, bool isFunctionScope = false) {
+  JS.invoke(state["scopeStack"], "pop");
+  if (isFunctionScope) JS.invoke(state["functionScopeStack"], "pop");
+  int length = destructureLength(state["scopeStack"]);
+  if (length > 0) state["currentScope"] = state["scopeStack"][length - 1];
+  else state["currentScope"] = null;
+}
+
+void registerLocalBinding(
+  JsValue state,
+  JsValue id,
+  JsValue scope = JS.undefined()
+) {
+  if (JS.isUndefined(scope)) scope = state["currentScope"];
+  JS.invoke(state["excludedIds"], "add", id);
+  if (scope.truthy()) {
+    scope[JS.string(id["name"])] = false;
+  } else {
+    JS.invoke(
+      state["ctx"],
+      "error",
+      "registerBinding called without active scope, something is wrong.",
+      id
+    );
+  }
+}
+
+void walkDestructureScope(
+  JsValue state,
+  JsValue node,
+  bool isRoot = false
+) {
+  JsValue body = node["body"];
+  for (int index = 0; index < destructureLength(body); index++) {
+    JsValue statement = body[index];
+    string type = JS.string(statement["type"]);
+    if (type == "VariableDeclaration") {
+      walkDestructureVariableDeclaration(state, statement, isRoot);
+    } else if (type == "FunctionDeclaration" || type == "ClassDeclaration") {
+      if (statement["declare"].truthy() || !statement["id"].truthy()) continue;
+      registerLocalBinding(state, statement["id"]);
+    } else if (type == "ExportNamedDeclaration" &&
+      statement["declaration"].truthy() &&
+      JS.string(statement["declaration"]["type"]) == "VariableDeclaration") {
+      walkDestructureVariableDeclaration(
+        state,
+        statement["declaration"],
+        isRoot
+      );
+    } else if (type == "LabeledStatement" &&
+      JS.string(statement["body"]["type"]) == "VariableDeclaration") {
+      walkDestructureVariableDeclaration(state, statement["body"], isRoot);
+    }
+  }
+}
+
+void walkDestructureVariableDeclaration(
+  JsValue state,
+  JsValue statement,
+  bool isRoot = false,
+  JsValue scope = JS.undefined()
+) {
+  if (statement["declare"].truthy()) return;
+  if (JS.isUndefined(scope)) {
+    if (JS.string(statement["kind"]) == "var") {
+      JsValue functionScopes = state["functionScopeStack"];
+      scope = functionScopes[destructureLength(functionScopes) - 1];
+    } else {
+      scope = state["currentScope"];
+    }
+  }
+  JsValue declarations = statement["declarations"];
+  for (int index = 0; index < destructureLength(declarations); index++) {
+    JsValue declaration = declarations[index];
+    bool isDefineProps = false;
+    if (isRoot && declaration["init"].truthy()) {
+      JsValue initNode = JS.call(
+        destructureUnwrapTSNode,
+        JS.undefined(),
+        declaration["init"]
+      );
+      isDefineProps = isCallOf(initNode, "defineProps");
+    }
+    JsValue identifiers = JS.call(
+      destructureExtractIdentifiers,
+      JS.undefined(),
+      declaration["id"]
+    );
+    for (int idIndex = 0;
+      idIndex < destructureLength(identifiers);
+      idIndex++) {
+      JsValue id = identifiers[idIndex];
+      if (isDefineProps) JS.invoke(state["excludedIds"], "add", id);
+      else registerLocalBinding(state, id, scope);
+    }
+  }
+}
+
+void walkFunctionScopeVarDeclarations(
+  JsValue state,
+  JsValue scopeNode,
+  bool isRoot = false
+) {
+  JsValue functionScopes = state["functionScopeStack"];
+  JsValue scope = functionScopes[destructureLength(functionScopes) - 1];
+  JsValue enter = JS.method2((
+    JsValue walker,
+    JsValue node,
+    JsValue parent
+  ) => {
+    if (parent.truthy() && JS.string(parent["type"]).startsWith("TS") &&
+      !JS.invoke(
+        DestructureTsNodeTypes,
+        "includes",
+        parent["type"]
+      ).truthy()) {
+      JS.invoke(walker, "skip");
+      return JS.undefined();
+    }
+
+    if (JS.call(
+      destructureIsFunctionType,
+      JS.undefined(),
+      node
+    ).truthy() ||
+      JS.string(node["type"]) == "ClassDeclaration" ||
+      JS.string(node["type"]) == "ClassExpression") {
+      JS.invoke(walker, "skip");
+      return JS.undefined();
+    }
+
+    if (JS.string(node["type"]) == "VariableDeclaration" &&
+      JS.string(node["kind"]) == "var") {
+      walkDestructureVariableDeclaration(
+        state,
+        node,
+        isRoot && JS.strictEqual(parent, scopeNode),
+        scope
+      );
+    }
+    return JS.undefined();
+  });
+  JS.call(
+    destructureWalk,
+    JS.undefined(),
+    scopeNode,
+    JS.object("enter", enter)
+  );
+}
+
+string propsAccessExpression(JsValue state, JsValue id) {
+  return JS.string(JS.call(
+    destructureGenPropsAccessExp,
+    JS.undefined(),
+    state["propsLocalToPublicMap"][JS.string(id["name"])]
+  ));
+}
+
+void rewriteDestructuredId(
+  JsValue state,
+  JsValue id,
+  JsValue parent
+) {
+  string parentType = JS.string(parent["type"]);
+  if ((parentType == "AssignmentExpression" &&
+    JS.strictEqual(id, parent["left"])) || parentType == "UpdateExpression") {
+    JS.invoke(
+      state["ctx"],
+      "error",
+      "Cannot assign to destructured props as they are readonly.",
+      id
+    );
+  }
+
+  bool staticProperty = JS.call(
+    destructureIsStaticProperty,
+    JS.undefined(),
+    parent
+  ).truthy();
+  if (staticProperty && parent["shorthand"].truthy()) {
+    if (!parent["inPattern"].truthy() ||
+      JS.call(
+        destructureIsInDestructureAssignment,
+        JS.undefined(),
+        parent,
+        state["parentStack"]
+      ).truthy()) {
+      int offset = JS.number(state["ctx"]["startOffset"]).toInt();
+      JS.invoke(
+        state["ctx"]["s"],
+        "appendLeft",
+        JS.number(id["end"]).toInt() + offset,
+        ": " + propsAccessExpression(state, id)
+      );
+    }
+  } else {
+    int offset = JS.number(state["ctx"]["startOffset"]).toInt();
+    JS.invoke(
+      state["ctx"]["s"],
+      "overwrite",
+      JS.number(id["start"]).toInt() + offset,
+      JS.number(id["end"]).toInt() + offset,
+      propsAccessExpression(state, id)
+    );
+  }
+}
+
+void checkDestructuredUsage(
+  JsValue state,
+  JsValue node,
+  string method,
+  JsValue alias = JS.undefined()
+) {
+  if (JS.isUndefined(alias)) alias = method;
+  if (isCallOf(node, alias)) {
+    JsValue argument = JS.call(
+      destructureUnwrapTSNode,
+      JS.undefined(),
+      node["arguments"][0]
+    );
+    if (JS.string(argument["type"]) == "Identifier" &&
+      state["currentScope"][JS.string(argument["name"])].truthy()) {
+      string name = JS.string(argument["name"]);
+      JS.invoke(
+        state["ctx"],
+        "error",
+        "\"" + name + "\" is a destructured prop and should not be passed " +
+          "directly to " + method + "(). Pass a getter () => " + name +
+          " instead.",
+        argument
+      );
+    }
+  }
+}
+
+bool isDestructureFunction(JsValue node) {
+  return JS.call(
+    destructureIsFunctionType,
+    JS.undefined(),
+    node
+  ).truthy();
+}
+
+bool isDestructureLoop(JsValue node) {
+  string type = JS.string(node["type"]);
+  return type == "ForOfStatement" || type == "ForInStatement" ||
+    type == "ForStatement";
+}
+
+JsValue enterDestructuredPropsNode(
+  JsValue state,
+  JsValue vueImportAliases,
+  JsValue walker,
+  JsValue node,
+  JsValue parent
+) {
+  if (parent.truthy()) destructurePush(state["parentStack"], parent);
+
+  if (parent.truthy() && JS.string(parent["type"]).startsWith("TS") &&
+    !JS.invoke(
+      DestructureTsNodeTypes,
+      "includes",
+      parent["type"]
+    ).truthy()) {
+    JS.invoke(walker, "skip");
+    return JS.undefined();
+  }
+
+  checkDestructuredUsage(state, node, "watch", vueImportAliases["watch"]);
+  checkDestructuredUsage(state, node, "toRef", vueImportAliases["toRef"]);
+
+  if (isDestructureFunction(node)) {
+    pushDestructureScope(state, true);
+    JsValue registerParam = JS.method1((JsValue _self, JsValue id) => {
+      registerLocalBinding(state, id);
+      return JS.undefined();
+    });
+    JS.call(
+      destructureWalkFunctionParams,
+      JS.undefined(),
+      node,
+      registerParam
+    );
+    if (JS.string(node["body"]["type"]) == "BlockStatement") {
+      walkFunctionScopeVarDeclarations(state, node["body"]);
+      walkDestructureScope(state, node["body"]);
+    }
+    return JS.undefined();
+  }
+
+  if (JS.string(node["type"]) == "CatchClause") {
+    pushDestructureScope(state);
+    if (node["param"].truthy() &&
+      JS.string(node["param"]["type"]) == "Identifier") {
+      registerLocalBinding(state, node["param"]);
+    }
+    walkDestructureScope(state, node["body"]);
+    return JS.undefined();
+  }
+
+  if (isDestructureLoop(node)) {
+    pushDestructureScope(state);
+    JsValue variable = node["left"];
+    if (JS.string(node["type"]) == "ForStatement") variable = node["init"];
+    if (variable.truthy() &&
+      JS.string(variable["type"]) == "VariableDeclaration") {
+      walkDestructureVariableDeclaration(state, variable);
+    }
+    if (JS.string(node["body"]["type"]) == "BlockStatement") {
+      walkDestructureScope(state, node["body"]);
+    }
+    return JS.undefined();
+  }
+
+  if (JS.string(node["type"]) == "BlockStatement" &&
+    !isDestructureFunction(parent)) {
+    pushDestructureScope(state);
+    walkDestructureScope(state, node);
+    return JS.undefined();
+  }
+
+  if (JS.string(node["type"]) == "Identifier" &&
+    JS.call(
+      destructureIsReferencedIdentifier,
+      JS.undefined(),
+      node,
+      parent,
+      state["parentStack"]
+    ).truthy() &&
+    !JS.invoke(state["excludedIds"], "has", node).truthy()) {
+    string name = JS.string(node["name"]);
+    if (state["currentScope"][name].truthy()) {
+      rewriteDestructuredId(state, node, parent);
+    }
+  }
+  return JS.undefined();
+}
+
+JsValue leaveDestructuredPropsNode(
+  JsValue state,
+  JsValue node,
+  JsValue parent
+) {
+  if (parent.truthy()) JS.invoke(state["parentStack"], "pop");
+  if (isDestructureFunction(node)) {
+    popDestructureScope(state, true);
+  } else if (JS.string(node["type"]) == "BlockStatement" &&
+    !isDestructureFunction(parent)) {
+    popDestructureScope(state);
+  } else if (JS.string(node["type"]) == "CatchClause" ||
+    isDestructureLoop(node)) {
+    popDestructureScope(state);
+  }
+  return JS.undefined();
+}
+
+export void transformDestructuredProps(
+  JsValue ctx,
+  JsValue vueImportAliases
+) {
+  if (JS.strictEqual(ctx["options"]["propsDestructure"], false)) return;
+
+  JsValue rootScope = JS.call(destructureCreateNullObject, JS.undefined());
+  JsValue state = JS.object(
+    "ctx", ctx,
+    "scopeStack", JS.array(rootScope),
+    "functionScopeStack", JS.array(rootScope),
+    "currentScope", rootScope,
+    "excludedIds", JS.construct(globalThis["WeakSet"]),
+    "parentStack", JS.array(),
+    "propsLocalToPublicMap", JS.call(
+      destructureCreateNullObject,
+      JS.undefined()
+    )
+  );
+
+  for (string key in ctx["propsDestructuredBindings"]) {
+    string local = JS.string(ctx["propsDestructuredBindings"][key]["local"]);
+    rootScope[local] = true;
+    state["propsLocalToPublicMap"][local] = key;
+  }
+
+  JsValue ast = ctx["scriptSetupAst"];
+  walkFunctionScopeVarDeclarations(state, ast, true);
+  walkDestructureScope(state, ast, true);
+  JsValue enter = JS.method2((
+    JsValue walker,
+    JsValue node,
+    JsValue parent
+  ) => enterDestructuredPropsNode(
+    state,
+    vueImportAliases,
+    walker,
+    node,
+    parent
+  ));
+  JsValue leave = JS.method2((
+    JsValue _walker,
+    JsValue node,
+    JsValue parent
+  ) => leaveDestructuredPropsNode(state, node, parent));
+  JS.call(
+    destructureWalk,
+    JS.undefined(),
+    ast,
+    JS.object("enter", enter, "leave", leave)
+  );
+}

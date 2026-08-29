@@ -1,0 +1,102 @@
+import {
+  currentInstance,
+  isInSSRComponentSetup,
+  setCurrentInstance
+} from "./component";
+import {
+  onActivated as keepAliveOnActivated,
+  onDeactivated as keepAliveOnDeactivated
+} from "./components/KeepAlive";
+import { LifecycleHooks } from "./enums";
+import { ErrorTypeStrings, callWithAsyncErrorHandling } from "./errorHandling";
+import { pauseTracking, resetTracking } from "../reactivity/effect";
+import { arguments as lifecycleArguments, toHandlerKey } from "../shared/general";
+import extern { hostFunction1Rest as lifecycleFunction1Rest } from "./host.js";
+import { warn } from "./warning";
+
+extern JsValue lifecycleFunction1Rest(JsValue callback);
+
+export JsValue injectHook(
+  JsValue type,
+  JsValue hook,
+  JsValue target = false,
+  bool prepend = false
+) {
+  if (
+    JS.number(lifecycleArguments["length"]).toInt() < 3 ||
+    JS.isUndefined(lifecycleArguments[2])
+  ) {
+    target = currentInstance;
+  }
+  if (target.truthy()) {
+    JsValue hooks = target[type];
+    if (!hooks.truthy()) {
+      hooks = JS.array();
+      target[type] = hooks;
+    }
+    JsValue wrappedHook = hook["__weh"];
+    if (!wrappedHook.truthy()) {
+      wrappedHook = JS.methodRest((JsValue _self, JsValue args) => {
+        pauseTracking();
+        JsValue reset = setCurrentInstance(target);
+        JsValue result = callWithAsyncErrorHandling(hook, target, type, args);
+        JS.call(reset, JS.undefined());
+        resetTracking();
+        return result;
+      });
+      hook["__weh"] = wrappedHook;
+    }
+    if (prepend) JS.invoke(hooks, "unshift", wrappedHook);
+    else JS.invoke(hooks, "push", wrappedHook);
+    return wrappedHook;
+  }
+  string apiName = JS.string(
+    toHandlerKey(JS.string(JS.invoke(ErrorTypeStrings[type], "replace", " hook", "")))
+  );
+  warn(
+    apiName + " is called when there is no active component instance to be " +
+    "associated with. Lifecycle injection APIs can only be used during execution of setup()." +
+    " If you are using async setup(), make sure to register lifecycle hooks before the first await statement."
+  );
+  return JS.undefined();
+}
+
+JsValue createHook(JsValue lifecycle) {
+  return lifecycleFunction1Rest(JS.method2((JsValue _callbackSelf, JsValue _hookSelf, JsValue args) => {
+    JsValue hook = args[0];
+    JsValue target = args[1];
+    if (JS.isUndefined(target)) target = currentInstance;
+    if (!isInSSRComponentSetup || JS.strictEqual(lifecycle, LifecycleHooks["SERVER_PREFETCH"])) {
+      JsValue forwarded = JS.methodRest((JsValue _hookSelf, JsValue args) =>
+        JS.apply(hook, JS.undefined(), args)
+      );
+      injectHook(lifecycle, forwarded, target);
+    }
+    return JS.undefined();
+  }));
+}
+
+export JsValue onBeforeMount = createHook(LifecycleHooks["BEFORE_MOUNT"]);
+export JsValue onMounted = createHook(LifecycleHooks["MOUNTED"]);
+export JsValue onBeforeUpdate = createHook(LifecycleHooks["BEFORE_UPDATE"]);
+export JsValue onUpdated = createHook(LifecycleHooks["UPDATED"]);
+export JsValue onBeforeUnmount = createHook(LifecycleHooks["BEFORE_UNMOUNT"]);
+export JsValue onUnmounted = createHook(LifecycleHooks["UNMOUNTED"]);
+export JsValue onServerPrefetch = createHook(LifecycleHooks["SERVER_PREFETCH"]);
+export JsValue onRenderTriggered = createHook(LifecycleHooks["RENDER_TRIGGERED"]);
+export JsValue onRenderTracked = createHook(LifecycleHooks["RENDER_TRACKED"]);
+
+export void onErrorCaptured(
+  JsValue hook,
+  JsValue target = false
+) {
+  if (
+    JS.number(lifecycleArguments["length"]).toInt() < 2 ||
+    JS.isUndefined(lifecycleArguments[1])
+  ) {
+    target = currentInstance;
+  }
+  injectHook(LifecycleHooks["ERROR_CAPTURED"], hook, target);
+}
+
+export { keepAliveOnActivated as onActivated, keepAliveOnDeactivated as onDeactivated };

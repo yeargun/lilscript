@@ -1,0 +1,667 @@
+import { getCurrentScope } from "../reactivity/effectScope";
+import { reactive } from "../reactivity/reactive";
+import { isRef } from "../reactivity/ref";
+import { traverse } from "../reactivity/watch";
+import {
+  NOOP,
+  arguments as optionsArguments,
+  extend,
+  isArray,
+  isFunction,
+  isObject,
+  isPromise,
+  isString
+} from "../shared/general";
+import { computed } from "./apiComputed";
+import { inject, provide } from "./apiInject";
+import {
+  onActivated,
+  onBeforeMount,
+  onBeforeUnmount,
+  onBeforeUpdate,
+  onDeactivated,
+  onErrorCaptured,
+  onMounted,
+  onRenderTracked,
+  onRenderTriggered,
+  onServerPrefetch,
+  onUnmounted,
+  onUpdated
+} from "./apiLifecycle";
+import { normalizePropsOrEmits } from "./apiSetupHelpers";
+import { createPathGetter, watch } from "./apiWatch";
+import { currentInstance, isInSSRComponentSetup } from "./component";
+import { isReservedPrefix } from "./componentPublicInstance";
+import { deepMergeData } from "./compat/data";
+import {
+  DeprecationTypes,
+  checkCompatEnabled,
+  isCompatEnabled,
+  softAssertCompatEnabled
+} from "./compat/compatConfig";
+import { LifecycleHooks } from "./enums";
+import { callWithAsyncErrorHandling } from "./errorHandling";
+import { markAsyncBoundary } from "./helpers/useId";
+import extern {
+  hostArrayConcat as optionsArrayConcat,
+  hostArrayFrom as optionsArrayFrom,
+  hostBind as optionsBind,
+  hostCreateNullObject as optionsCreateNullObject,
+  hostCreateObject as optionsCreateObject,
+  hostCreateSet as optionsCreateSet,
+  hostDefineData as optionsDefineData,
+  hostReflectOwnKeys as optionsReflectOwnKeys
+} from "./host.js";
+import { warn } from "./warning";
+
+extern JsValue Object;
+extern JsValue optionsArrayConcat(JsValue left, JsValue right);
+extern JsValue optionsArrayFrom(JsValue value);
+extern JsValue optionsBind(JsValue fn, JsValue receiver);
+extern JsValue optionsCreateNullObject();
+extern JsValue optionsCreateObject();
+extern JsValue optionsCreateSet(JsValue values);
+extern void optionsDefineData(JsValue value, JsValue key, JsValue next);
+extern JsValue optionsReflectOwnKeys(JsValue value);
+
+int optionsLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+
+bool optionsIsArray(JsValue value) {
+  return JS.call(isArray, JS.undefined(), value).truthy();
+}
+
+bool OPTIONS_DEV = true;
+bool OPTIONS_COMPAT = false;
+
+JsValue createDuplicateChecker() {
+  JsValue cache = optionsCreateNullObject();
+  return JS.method2((JsValue _self, JsValue type, JsValue keyValue) => {
+    string key = JS.string(keyValue);
+    if (cache[key].truthy()) {
+      warn(JS.string(type) + " property \"" + key + "\" is already defined in " + JS.string(cache[key]) + ".");
+    } else {
+      cache[key] = type;
+    }
+    return JS.undefined();
+  });
+}
+
+export bool shouldCacheAccess = true;
+export JsValue internalOptionMergeStrats = JS.undefined();
+
+export void applyOptions(JsValue instance) {
+  JsValue options = resolveMergedOptions(instance);
+  JsValue publicThis = instance["proxy"];
+  JsValue context = instance["ctx"];
+  shouldCacheAccess = false;
+
+  if (options["beforeCreate"].truthy()) {
+    callHook(options["beforeCreate"], instance, LifecycleHooks["BEFORE_CREATE"]);
+  }
+
+  JsValue dataOptions = options["data"];
+  JsValue computedOptions = options["computed"];
+  JsValue methods = options["methods"];
+  JsValue watchOptions = options["watch"];
+  JsValue provideOptions = options["provide"];
+  JsValue injectOptions = options["inject"];
+  JsValue created = options["created"];
+  JsValue beforeMount = options["beforeMount"];
+  JsValue mounted = options["mounted"];
+  JsValue beforeUpdate = options["beforeUpdate"];
+  JsValue updated = options["updated"];
+  JsValue activated = options["activated"];
+  JsValue deactivated = options["deactivated"];
+  JsValue beforeDestroy = options["beforeDestroy"];
+  JsValue beforeUnmount = options["beforeUnmount"];
+  JsValue destroyed = options["destroyed"];
+  JsValue unmounted = options["unmounted"];
+  JsValue render = options["render"];
+  JsValue renderTracked = options["renderTracked"];
+  JsValue renderTriggered = options["renderTriggered"];
+  JsValue errorCaptured = options["errorCaptured"];
+  JsValue serverPrefetch = options["serverPrefetch"];
+  JsValue expose = options["expose"];
+  JsValue inheritAttrs = options["inheritAttrs"];
+  JsValue components = options["components"];
+  JsValue directives = options["directives"];
+  JsValue filters = options["filters"];
+
+  JsValue checkDuplicateProperties = createDuplicateChecker();
+  JsValue propsOptions = instance["propsOptions"][0];
+  if (propsOptions.truthy()) {
+    for (string key in propsOptions) {
+      JS.call(checkDuplicateProperties, JS.undefined(), "Props", key);
+    }
+  }
+
+  if (injectOptions.truthy()) {
+    resolveInjections(injectOptions, context, checkDuplicateProperties);
+  }
+
+  if (methods.truthy()) {
+    for (string key in methods) {
+      JsValue methodHandler = methods[key];
+      if (isFunction(methodHandler)) {
+        optionsDefineData(context, key, optionsBind(methodHandler, publicThis));
+        JS.call(checkDuplicateProperties, JS.undefined(), "Methods", key);
+      } else {
+        warn(
+          "Method \"" + key + "\" has type \"" + JS.typeOf(methodHandler) +
+          "\" in the component definition. Did you reference the function correctly?"
+        );
+      }
+    }
+  }
+
+  if (dataOptions.truthy()) {
+    if (OPTIONS_DEV && !isFunction(dataOptions)) {
+      warn("The data option must be a function. Plain object usage is no longer supported.");
+    }
+    JsValue data = JS.call(dataOptions, publicThis, publicThis);
+    if (OPTIONS_DEV && isPromise(data)) {
+      warn(
+        "data() returned a Promise - note data() cannot be async; If you " +
+        "intend to perform data fetching before component renders, use async setup() + <Suspense>."
+      );
+    }
+    if (!isObject(data)) {
+      if (OPTIONS_DEV) warn("data() should return an object.");
+    } else {
+      instance["data"] = reactive(data);
+      if (OPTIONS_DEV) {
+        for (string key in data) {
+          JS.call(checkDuplicateProperties, JS.undefined(), "Data", key);
+          if (!isReservedPrefix(key.slice(0, 1))) {
+            string capturedKey = key;
+            JS.invoke(
+              Object,
+              "defineProperty",
+              context,
+              capturedKey,
+              JS.object(
+                "configurable", true,
+                "enumerable", true,
+                "get", JS.method0((JsValue _self) => data[capturedKey]),
+                "set", NOOP
+              )
+            );
+          }
+        }
+      }
+    }
+  }
+
+  shouldCacheAccess = true;
+
+  if (computedOptions.truthy()) {
+    for (string key in computedOptions) {
+      JsValue option = computedOptions[key];
+      JsValue getter = NOOP;
+      if (isFunction(option)) getter = JS.invoke(option, "bind", publicThis, publicThis);
+      else if (isFunction(option["get"])) {
+        getter = JS.invoke(option["get"], "bind", publicThis, publicThis);
+      }
+      if (OPTIONS_DEV && JS.strictEqual(getter, NOOP)) {
+        warn("Computed property \"" + key + "\" has no getter.");
+      }
+      JsValue setter = NOOP;
+      if (!isFunction(option) && isFunction(option["set"])) {
+        setter = optionsBind(option["set"], publicThis);
+      } else if (OPTIONS_DEV) {
+        string capturedWarningKey = key;
+        setter = JS.method1((JsValue _self, JsValue _value) => {
+          warn("Write operation failed: computed property \"" + capturedWarningKey + "\" is readonly.");
+          return JS.undefined();
+        });
+      }
+      JsValue computedValue = computed(JS.object("get", getter, "set", setter));
+      string capturedKey = key;
+      JS.invoke(
+        Object,
+        "defineProperty",
+        context,
+        capturedKey,
+        JS.object(
+          "configurable", true,
+          "enumerable", true,
+          "get", JS.method0((JsValue _self) => computedValue["value"]),
+          "set", JS.method1((JsValue _self, JsValue value) => {
+            computedValue["value"] = value;
+            return JS.undefined();
+          })
+        )
+      );
+      JS.call(checkDuplicateProperties, JS.undefined(), "Computed", key);
+    }
+  }
+
+  if (watchOptions.truthy()) {
+    for (string key in watchOptions) {
+      createWatcher(watchOptions[key], context, publicThis, key);
+    }
+  }
+
+  if (provideOptions.truthy()) {
+    JsValue provides = provideOptions;
+    if (isFunction(provideOptions)) provides = JS.call(provideOptions, publicThis);
+    JsValue keys = optionsReflectOwnKeys(provides);
+    for (int index = 0; index < optionsLength(keys); index++) {
+      JsValue key = keys[index];
+      provide(key, provides[key]);
+    }
+  }
+
+  if (created.truthy()) callHook(created, instance, LifecycleHooks["CREATED"]);
+
+  JsValue registerLifecycleHook = JS.method2((JsValue _self, JsValue register, JsValue hook) => {
+    if (optionsIsArray(hook)) {
+      JS.invoke(hook, "forEach", JS.method1((JsValue _eachSelf, JsValue currentHook) => {
+        JS.call(register, JS.undefined(), optionsBind(currentHook, publicThis));
+        return JS.undefined();
+      }));
+    } else if (hook.truthy()) {
+      JS.call(register, JS.undefined(), optionsBind(hook, publicThis));
+    }
+    return JS.undefined();
+  });
+
+  JS.call(registerLifecycleHook, JS.undefined(), onBeforeMount, beforeMount);
+  JS.call(registerLifecycleHook, JS.undefined(), onMounted, mounted);
+  JS.call(registerLifecycleHook, JS.undefined(), onBeforeUpdate, beforeUpdate);
+  JS.call(registerLifecycleHook, JS.undefined(), onUpdated, updated);
+  JS.call(registerLifecycleHook, JS.undefined(), onActivated, activated);
+  JS.call(registerLifecycleHook, JS.undefined(), onDeactivated, deactivated);
+  JS.call(registerLifecycleHook, JS.undefined(), onErrorCaptured, errorCaptured);
+  JS.call(registerLifecycleHook, JS.undefined(), onRenderTracked, renderTracked);
+  JS.call(registerLifecycleHook, JS.undefined(), onRenderTriggered, renderTriggered);
+  JS.call(registerLifecycleHook, JS.undefined(), onBeforeUnmount, beforeUnmount);
+  JS.call(registerLifecycleHook, JS.undefined(), onUnmounted, unmounted);
+  JS.call(registerLifecycleHook, JS.undefined(), onServerPrefetch, serverPrefetch);
+
+  if (OPTIONS_COMPAT) {
+    if (
+      beforeDestroy.truthy() &&
+      softAssertCompatEnabled(
+        JS.string(DeprecationTypes["OPTIONS_BEFORE_DESTROY"]),
+        instance
+      )
+    ) {
+      JS.call(registerLifecycleHook, JS.undefined(), onBeforeUnmount, beforeDestroy);
+    }
+    if (
+      destroyed.truthy() &&
+      softAssertCompatEnabled(
+        JS.string(DeprecationTypes["OPTIONS_DESTROYED"]),
+        instance
+      )
+    ) {
+      JS.call(registerLifecycleHook, JS.undefined(), onUnmounted, destroyed);
+    }
+  }
+
+  if (optionsIsArray(expose)) {
+    if (optionsLength(expose) > 0) {
+      JsValue exposed = instance["exposed"];
+      if (!exposed.truthy()) {
+        exposed = optionsCreateObject();
+        instance["exposed"] = exposed;
+      }
+      JS.invoke(expose, "forEach", JS.method1((JsValue _eachSelf, JsValue key) => {
+        JsValue capturedKey = key;
+        JS.invoke(
+          Object,
+          "defineProperty",
+          exposed,
+          capturedKey,
+          JS.object(
+            "enumerable", true,
+            "get", JS.method0((JsValue _self) => publicThis[capturedKey]),
+            "set", JS.method1((JsValue _self, JsValue value) => {
+              publicThis[capturedKey] = value;
+              return JS.undefined();
+            })
+          )
+        );
+        return JS.undefined();
+      }));
+    } else if (!instance["exposed"].truthy()) {
+      instance["exposed"] = optionsCreateObject();
+    }
+  }
+
+  if (render.truthy() && JS.strictEqual(instance["render"], NOOP)) {
+    instance["render"] = render;
+  }
+  if (!JS.isNullish(inheritAttrs)) instance["inheritAttrs"] = inheritAttrs;
+  if (components.truthy()) instance["components"] = components;
+  if (directives.truthy()) instance["directives"] = directives;
+  if (
+    OPTIONS_COMPAT && filters.truthy() &&
+    isCompatEnabled(JS.string(DeprecationTypes["FILTERS"]), instance)
+  ) {
+    instance["filters"] = filters;
+  }
+  if (isInSSRComponentSetup && serverPrefetch.truthy()) markAsyncBoundary(instance);
+}
+
+export void resolveInjections(
+  JsValue injectOptions,
+  JsValue context,
+  JsValue checkDuplicateProperties = false
+) {
+  if (
+    JS.number(optionsArguments["length"]).toInt() < 3 ||
+    JS.isUndefined(optionsArguments[2])
+  ) {
+    checkDuplicateProperties = NOOP;
+  }
+  if (optionsIsArray(injectOptions)) injectOptions = normalizeInject(injectOptions);
+  for (string key in injectOptions) {
+    JsValue option = injectOptions[key];
+    JsValue injected = JS.undefined();
+    if (isObject(option)) {
+      JsValue from = option["from"];
+      if (!from.truthy()) from = key;
+      if (JS.in("default", option)) {
+        injected = JS.call(inject, JS.undefined(), from, option["default"], true);
+      } else {
+        injected = JS.call(inject, JS.undefined(), from);
+      }
+    } else {
+      injected = JS.call(inject, JS.undefined(), option);
+    }
+    if (isRef(injected)) {
+      JsValue captured = injected;
+      JS.invoke(
+        Object,
+        "defineProperty",
+        context,
+        key,
+        JS.object(
+          "configurable", true,
+          "enumerable", true,
+          "get", JS.method0((JsValue _self) => captured["value"]),
+          "set", JS.method1((JsValue _self, JsValue value) => {
+            captured["value"] = value;
+            return JS.undefined();
+          })
+        )
+      );
+    } else {
+      context[key] = injected;
+    }
+    JS.call(checkDuplicateProperties, JS.undefined(), "Inject", key);
+  }
+}
+
+void callHook(JsValue hook, JsValue instance, JsValue type) {
+  JsValue bound = JS.undefined();
+  if (optionsIsArray(hook)) {
+    bound = JS.invoke(hook, "map", JS.method1((JsValue _self, JsValue currentHook) =>
+      optionsBind(currentHook, instance["proxy"])
+    ));
+  } else {
+    bound = optionsBind(hook, instance["proxy"]);
+  }
+  callWithAsyncErrorHandling(bound, instance, type);
+}
+
+export void createWatcher(
+  JsValue raw,
+  JsValue context,
+  JsValue publicThis,
+  string key
+) {
+  JsValue getter = JS.undefined();
+  if (key.includes(".")) getter = createPathGetter(publicThis, key);
+  else getter = JS.method0((JsValue _self) => publicThis[key]);
+
+  JsValue watchOptions = optionsCreateObject();
+  if (OPTIONS_COMPAT) {
+    JsValue compatInstance = null;
+    if (
+      currentInstance.truthy() &&
+      JS.strictEqual(getCurrentScope(), currentInstance["scope"])
+    ) {
+      compatInstance = currentInstance;
+    }
+    JsValue newValue = JS.call(getter, JS.undefined());
+    if (
+      optionsIsArray(newValue) &&
+      isCompatEnabled(JS.string(DeprecationTypes["WATCH_ARRAY"]), compatInstance)
+    ) {
+      watchOptions["deep"] = true;
+    }
+    JsValue baseGetter = getter;
+    getter = JS.method0((JsValue _self) => {
+      JsValue value = JS.call(baseGetter, JS.undefined());
+      if (
+        optionsIsArray(value) &&
+        checkCompatEnabled(JS.string(DeprecationTypes["WATCH_ARRAY"]), compatInstance)
+      ) {
+        traverse(value);
+      }
+      return value;
+    });
+  }
+
+  if (isString(raw)) {
+    JsValue handler = context[raw];
+    if (isFunction(handler)) {
+      if (OPTIONS_COMPAT) watch(getter, handler, watchOptions);
+      else watch(getter, handler, JS.undefined());
+    } else {
+      JS.call(
+        warn,
+        JS.undefined(),
+        "Invalid watch handler specified by key \"" + JS.string(raw) + "\"",
+        handler
+      );
+    }
+  } else if (isFunction(raw)) {
+    if (OPTIONS_COMPAT) watch(getter, optionsBind(raw, publicThis), watchOptions);
+    else watch(getter, optionsBind(raw, publicThis), JS.undefined());
+  } else if (isObject(raw)) {
+    if (optionsIsArray(raw)) {
+      JS.invoke(raw, "forEach", JS.method1((JsValue _self, JsValue watcher) => {
+        createWatcher(watcher, context, publicThis, key);
+        return JS.undefined();
+      }));
+    } else {
+      JsValue rawHandler = raw["handler"];
+      JsValue handler = JS.undefined();
+      if (isFunction(rawHandler)) handler = optionsBind(rawHandler, publicThis);
+      else handler = context[rawHandler];
+      if (isFunction(handler)) {
+        if (OPTIONS_COMPAT) {
+          watch(getter, handler, JS.call(extend, JS.undefined(), raw, watchOptions));
+        } else {
+          watch(getter, handler, raw);
+        }
+      } else {
+        JS.call(
+          warn,
+          JS.undefined(),
+          "Invalid watch handler specified by key \"" + JS.string(rawHandler) + "\"",
+          handler
+        );
+      }
+    }
+  } else {
+    JS.call(warn, JS.undefined(), "Invalid watch option: \"" + key + "\"", raw);
+  }
+}
+
+export JsValue resolveMergedOptions(JsValue instance) {
+  JsValue base = instance["type"];
+  JsValue mixins = base["mixins"];
+  JsValue extendsOptions = base["extends"];
+  JsValue globalMixins = instance["appContext"]["mixins"];
+  JsValue cache = instance["appContext"]["optionsCache"];
+  JsValue optionMergeStrategies = instance["appContext"]["config"]["optionMergeStrategies"];
+  JsValue cached = JS.invoke(cache, "get", base);
+  JsValue resolved = JS.undefined();
+
+  if (cached.truthy()) {
+    resolved = cached;
+  } else if (optionsLength(globalMixins) == 0 && !mixins.truthy() && !extendsOptions.truthy()) {
+    if (
+      OPTIONS_COMPAT &&
+      isCompatEnabled(JS.string(DeprecationTypes["PRIVATE_APIS"]), instance)
+    ) {
+      resolved = JS.call(extend, JS.undefined(), optionsCreateObject(), base);
+      JsValue parent = instance["parent"];
+      if (parent.truthy()) resolved["parent"] = parent["proxy"];
+      else resolved["parent"] = null;
+      resolved["propsData"] = instance["vnode"]["props"];
+    } else {
+      resolved = base;
+    }
+  } else {
+    resolved = optionsCreateObject();
+    JS.invoke(globalMixins, "forEach", JS.method1((JsValue _self, JsValue mixin) => {
+      mergeOptions(resolved, mixin, optionMergeStrategies, true);
+      return JS.undefined();
+    }));
+    mergeOptions(resolved, base, optionMergeStrategies);
+  }
+  if (isObject(base)) JS.invoke(cache, "set", base, resolved);
+  return resolved;
+}
+
+export JsValue mergeOptions(
+  JsValue target,
+  JsValue source,
+  JsValue strategies,
+  bool asMixin = false
+) {
+  if (OPTIONS_COMPAT && isFunction(source)) source = source["options"];
+  JsValue extendsOptions = source["extends"];
+  JsValue mixins = source["mixins"];
+  if (extendsOptions.truthy()) mergeOptions(target, extendsOptions, strategies, true);
+  if (mixins.truthy()) {
+    JS.invoke(mixins, "forEach", JS.method1((JsValue _self, JsValue mixin) => {
+      mergeOptions(target, mixin, strategies, true);
+      return JS.undefined();
+    }));
+  }
+  for (string key in source) {
+    if (asMixin && key == "expose") {
+      if (OPTIONS_DEV) {
+        warn(
+          "\"expose\" option is ignored when declared in mixins or extends. " +
+          "It should only be declared in the base component itself."
+        );
+      }
+    } else {
+      JsValue strategy = internalOptionMergeStrats[key];
+      if (!strategy.truthy() && strategies.truthy()) strategy = strategies[key];
+      if (strategy.truthy()) target[key] = JS.call(strategy, JS.undefined(), target[key], source[key]);
+      else target[key] = source[key];
+    }
+  }
+  return target;
+}
+
+JsValue mergeDataFn(JsValue target, JsValue source) {
+  if (!source.truthy()) return target;
+  if (!target.truthy()) return source;
+  return JS.method0((JsValue self) => {
+    JsValue toData = target;
+    if (isFunction(target)) toData = JS.call(target, self, self);
+    JsValue fromData = source;
+    if (isFunction(source)) fromData = JS.call(source, self, self);
+    if (
+      OPTIONS_COMPAT &&
+      isCompatEnabled(JS.string(DeprecationTypes["OPTIONS_DATA_MERGE"]), null)
+    ) {
+      return deepMergeData(toData, fromData);
+    }
+    return JS.call(extend, JS.undefined(), toData, fromData);
+  });
+}
+
+JsValue normalizeInject(JsValue raw) {
+  if (optionsIsArray(raw)) {
+    JsValue result = optionsCreateObject();
+    for (int index = 0; index < optionsLength(raw); index++) result[raw[index]] = raw[index];
+    return result;
+  }
+  return raw;
+}
+
+JsValue mergeInject(JsValue target, JsValue source) {
+  return mergeObjectOptions(normalizeInject(target), normalizeInject(source));
+}
+
+JsValue mergeAsArray(JsValue target, JsValue source) {
+  if (!target.truthy()) return source;
+  return optionsArrayFrom(optionsCreateSet(optionsArrayConcat(target, source)));
+}
+
+JsValue mergeObjectOptions(JsValue target, JsValue source) {
+  if (!target.truthy()) return source;
+  return JS.call(
+    extend,
+    JS.undefined(),
+    optionsCreateNullObject(),
+    target,
+    source
+  );
+}
+
+JsValue mergeEmitsOrPropsOptions(JsValue target, JsValue source) {
+  if (!target.truthy()) return source;
+  if (optionsIsArray(target) && optionsIsArray(source)) {
+    return optionsArrayFrom(optionsCreateSet(optionsArrayConcat(target, source)));
+  }
+  JsValue normalizedSource = optionsCreateObject();
+  if (!JS.isNullish(source)) normalizedSource = normalizePropsOrEmits(source);
+  return JS.call(
+    extend,
+    JS.undefined(),
+    optionsCreateNullObject(),
+    normalizePropsOrEmits(target),
+    normalizedSource
+  );
+}
+
+JsValue mergeWatchOptions(JsValue target, JsValue source) {
+  if (!target.truthy()) return source;
+  if (!source.truthy()) return target;
+  JsValue merged = JS.call(extend, JS.undefined(), optionsCreateNullObject(), target);
+  for (string key in source) merged[key] = mergeAsArray(target[key], source[key]);
+  return merged;
+}
+
+internalOptionMergeStrats = JS.object(
+  "data", mergeDataFn,
+  "props", mergeEmitsOrPropsOptions,
+  "emits", mergeEmitsOrPropsOptions,
+  "methods", mergeObjectOptions,
+  "computed", mergeObjectOptions,
+  "beforeCreate", mergeAsArray,
+  "created", mergeAsArray,
+  "beforeMount", mergeAsArray,
+  "mounted", mergeAsArray,
+  "beforeUpdate", mergeAsArray,
+  "updated", mergeAsArray,
+  "beforeDestroy", mergeAsArray,
+  "beforeUnmount", mergeAsArray,
+  "destroyed", mergeAsArray,
+  "unmounted", mergeAsArray,
+  "activated", mergeAsArray,
+  "deactivated", mergeAsArray,
+  "errorCaptured", mergeAsArray,
+  "serverPrefetch", mergeAsArray,
+  "components", mergeObjectOptions,
+  "directives", mergeObjectOptions,
+  "watch", mergeWatchOptions,
+  "provide", mergeDataFn,
+  "inject", mergeInject
+);
+
+if (OPTIONS_COMPAT) internalOptionMergeStrats["filters"] = mergeObjectOptions;

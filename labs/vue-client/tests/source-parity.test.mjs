@@ -30,15 +30,15 @@ test("source-parity evidence exactly matches the pinned Git tree and candidate t
     upstreamFiles: 234,
     algorithmFiles: 231,
     typeOnlyFiles: 3,
-    satisfiedFiles: 92,
-    mappedFiles: 91,
-    declarationOnlyFiles: 1,
-    missingFiles: 140,
+    satisfiedFiles: 123,
+    mappedFiles: 121,
+    declarationOnlyFiles: 2,
+    missingFiles: 109,
     unverifiedFiles: 0,
     invalidFiles: 0,
     legacyMappedFiles: 2,
     legacyNonconformingFiles: 2,
-    hostAdapters: 5,
+    hostAdapters: 6,
     mappingConflicts: 0,
     physicalManyToOneMappings: 0,
     unmappedCandidateFiles: 0,
@@ -75,7 +75,7 @@ test("source-parity evidence exactly matches the pinned Git tree and candidate t
     ),
   );
   const existingDeterministicCandidates = live.files.filter((entry) => entry.candidate);
-  assert.equal(existingDeterministicCandidates.length, 93);
+  assert.equal(existingDeterministicCandidates.length, 123);
   assert.ok(
     existingDeterministicCandidates.every((entry) =>
       /^[a-f0-9]{64}$/u.test(entry.candidate.sha256),
@@ -99,7 +99,7 @@ test("type-only files require explicit strict handling", () => {
         .map((entry) => [entry.upstreamPath, entry.handling]),
     ),
     {
-      "packages/compiler-sfc/src/shims.d.ts": "missing",
+      "packages/compiler-sfc/src/shims.d.ts": "declaration-only",
       "packages/runtime-dom/src/jsx.ts": "missing",
       "packages/shared/src/typeUtils.ts": "declaration-only",
     },
@@ -197,6 +197,17 @@ test("placeholder and upstream JavaScript delegation checks fail closed", () => 
   );
   assert.ok(delegated.some((issue) => issue.includes("delegates to upstream")));
   assert.ok(delegated.includes("candidate is only a JavaScript re-export"));
+  assert.deepEqual(
+    inspectCandidateSource(
+      'export string generated = " } from \'vue\'\\n";\n',
+    ),
+    [],
+  );
+  assert.ok(
+    inspectCandidateSource(
+      'import extern { ref } from "vue";\nexport JsValue value = ref;\n',
+    ).some((issue) => issue.includes("delegates to upstream")),
+  );
 });
 
 test("legacy monoliths and primitive adapters are separate and never count", () => {
@@ -217,8 +228,8 @@ test("legacy monoliths and primitive adapters are separate and never count", () 
     ),
   );
   assert.equal(legacy.has("src/compiler-core/index.lil"), false);
-  assert.equal(evidence.verifiedMappings.length, 91);
-  assert.equal(evidence.declarationOnlyHandling.length, 1);
+  assert.equal(evidence.verifiedMappings.length, 121);
+  assert.equal(evidence.declarationOnlyHandling.length, 2);
 });
 
 test("compiler-core index is a verified declaration-free barrel", () => {
