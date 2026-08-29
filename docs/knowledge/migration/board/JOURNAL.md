@@ -6,6 +6,13 @@ recorded verdict. This is cold storage: read it when you are about to redo somet
 Format: `## YYYY-MM-DD — <task id> — <one line>` then two or three lines of what
 changed, what the gate said, and the commit if there is one.
 
+## 2026-08-29 — gate-04 — property and template provenance
+
+The typed property allocator now records owner, slot, source/emitted spelling,
+external/owned/unowned category, and stability. Final static properties and
+opaque templates must be represented by direct emission. Focused tests and the
+Marked gzip 660-case canary pass; final byte-range identity mapping remains.
+
 ## 2026-08-29 — gate-04 — undeclared external rejection
 
 Final free identifiers must occur in the selected direct typed emission; text

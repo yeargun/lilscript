@@ -13,7 +13,8 @@ use crate::codegen_ir_js::{
     emit_optimized_ir_js, emit_optimized_ir_js_chunks_with_options, emit_optimized_ir_js_module,
     emit_optimized_ir_js_module_with_options_and_analysis,
     emit_optimized_ir_js_with_options_and_analysis, has_inlineable_fresh_empty_array_factory,
-    ir_function_can_move_to_chunk, IrJsChunk, IrJsChunkPlan, IrJsChunkSpec,
+    ir_function_can_move_to_chunk, ir_js_property_provenance_with_options_and_analysis, IrJsChunk,
+    IrJsChunkPlan, IrJsChunkSpec, IrJsPropertyCategory, IrJsPropertyProvenance,
 };
 use crate::codegen_js::{compile_to_js, CompileError};
 use crate::codegen_native::{compile_to_c, emit_native_c, emit_native_c_with_options};
@@ -33,9 +34,10 @@ use crate::js_peephole::{
     generated_javascript_bit_or_zero_count, generated_javascript_export_names,
     generated_javascript_export_witnesses, generated_javascript_free_identifiers,
     generated_javascript_static_imports, generated_javascript_static_property_names,
-    identifier_name_is_clear_binding, inline_single_use_functions,
-    late_generated_javascript_cleanup, late_generated_javascript_cleanup_local_variants,
-    late_generated_javascript_cleanup_pass, optimize_generated_javascript_assuming,
+    generated_javascript_template_literals, identifier_name_is_clear_binding,
+    inline_single_use_functions, late_generated_javascript_cleanup,
+    late_generated_javascript_cleanup_local_variants, late_generated_javascript_cleanup_pass,
+    optimize_generated_javascript_assuming,
     optimize_generated_javascript_preserving_functions_assuming, remap_identifier,
     remap_single_character_identifiers, repair_fused_keyword_identifiers,
     single_character_identifier_use_counts, single_character_identifiers,
@@ -2902,6 +2904,26 @@ impl<'ir, 'src> JavaScriptEmissionContext<'ir, 'src> {
         };
         emit_javascript_candidate(ir, module_output, options, integer_analysis)
     }
+
+    fn property_provenance(
+        &self,
+        module_output: bool,
+        options: crate::codegen_ir_js::IrJsOptions,
+    ) -> Vec<IrJsPropertyProvenance> {
+        let (ir, integer_analysis) = if options.constructor_initializer_fusion {
+            self.constructor_fused()
+                .map(|(ir, analysis)| (ir, Arc::clone(analysis)))
+                .unwrap_or_else(|| (self.baseline, self.baseline_integer_analysis()))
+        } else {
+            (self.baseline, self.baseline_integer_analysis())
+        };
+        ir_js_property_provenance_with_options_and_analysis(
+            ir,
+            module_output,
+            &options,
+            integer_analysis,
+        )
+    }
 }
 
 struct JavaScriptEmissionContexts<'ir, 'src> {
@@ -4587,6 +4609,7 @@ struct JavaScriptArtifactAdmission {
     abi_manifest: Arc<crate::compilation_contract::JavaScriptAbiManifest>,
     lowering_obligations: usize,
     ecmascript: crate::js_syntax_target::EcmaScriptEdition,
+    property_provenance: Arc<[IrJsPropertyProvenance]>,
 }
 
 impl JavaScriptArtifactAdmission {
@@ -4598,6 +4621,7 @@ impl JavaScriptArtifactAdmission {
             &self.direct_source,
             &self.abi_manifest,
             self.lowering_obligations,
+            &self.property_provenance,
         )
     }
 }
@@ -4617,7 +4641,24 @@ fn test_artifact_admission(source: &str) -> Arc<JavaScriptArtifactAdmission> {
         }),
         lowering_obligations: 0,
         ecmascript: crate::js_syntax_target::EcmaScriptEdition::Es2022,
+        property_provenance: Arc::from(test_property_provenance(source)),
     })
+}
+
+#[cfg(test)]
+fn test_property_provenance(source: &str) -> Vec<IrJsPropertyProvenance> {
+    generated_javascript_static_property_names(source)
+        .unwrap_or_default()
+        .into_iter()
+        .map(|emitted| IrJsPropertyProvenance {
+            owner: None,
+            slot: None,
+            source: emitted.clone(),
+            emitted,
+            category: IrJsPropertyCategory::Unowned,
+            stable: true,
+        })
+        .collect()
 }
 
 fn sort_scored_javascript_candidates(candidates: &mut [ScoredJavaScriptCandidate]) {
@@ -5545,18 +5586,39 @@ fn finalize_javascript_candidates_with_parallelism(
         let direct_source = candidate.emission.code.clone();
         let module_output = generated_javascript_export_names(&direct_source)
             .is_ok_and(|exports| !exports.is_empty());
+        let options = candidate.options();
         let abi_manifest = config
             .javascript_compilation_contract(module_output)
             .abi_manifest(context.baseline);
+        let mut property_provenance = context.property_provenance(module_output, options);
+        for emitted in
+            generated_javascript_static_property_names(&direct_source).unwrap_or_default()
+        {
+            if !property_provenance
+                .iter()
+                .any(|property| property.emitted == emitted)
+            {
+                property_provenance.push(IrJsPropertyProvenance {
+                    owner: None,
+                    slot: None,
+                    source: emitted.clone(),
+                    emitted,
+                    category: IrJsPropertyCategory::Unowned,
+                    stable: true,
+                });
+            }
+        }
+        property_provenance.sort();
+        property_provenance.dedup();
         let admission = Arc::new(JavaScriptArtifactAdmission {
             direct_source: Arc::from(direct_source.as_str()),
             abi_manifest: Arc::new(abi_manifest),
             lowering_obligations,
             ecmascript: config.javascript.resolved_ecmascript(),
+            property_provenance: Arc::from(property_provenance),
         });
         let prepare_peephole =
             peephole_plan_identities.contains(&plan_identity) && !has_explicit_lowering_obligations;
-        let options = candidate.options();
         let declaration_scores = candidate.emission.declaration_scores;
         let performance = if performance_model {
             analyze_javascript_performance(
@@ -9473,6 +9535,7 @@ fn validate_observed_javascript_artifact(
     direct_source: &str,
     expected: &crate::compilation_contract::JavaScriptAbiManifest,
     expected_bit_or_zero: usize,
+    property_provenance: &[IrJsPropertyProvenance],
 ) -> Result<(), CompileError> {
     let observed =
         generated_javascript_export_names(source).map_err(generated_javascript_parse_error)?;
@@ -9607,13 +9670,15 @@ fn validate_observed_javascript_artifact(
         )
         .into());
     }
-    let direct_properties = generated_javascript_static_property_names(direct_source)
-        .map_err(generated_javascript_parse_error)?;
     let observed_properties = generated_javascript_static_property_names(source)
         .map_err(generated_javascript_parse_error)?;
     let introduced = observed_properties
         .iter()
-        .filter(|property| !direct_properties.contains(property))
+        .filter(|property| {
+            !property_provenance
+                .iter()
+                .any(|provenance| provenance.emitted == ***property)
+        })
         .cloned()
         .collect::<Vec<_>>();
     if !introduced.is_empty() {
@@ -9643,6 +9708,24 @@ fn validate_observed_javascript_artifact(
         )
         .into());
     }
+    let direct_templates = generated_javascript_template_literals(direct_source)
+        .map_err(generated_javascript_parse_error)?;
+    let observed_templates =
+        generated_javascript_template_literals(source).map_err(generated_javascript_parse_error)?;
+    let mut available = direct_templates;
+    for template in observed_templates {
+        let Some(index) = available
+            .iter()
+            .position(|candidate| *candidate == template)
+        else {
+            return Err(crate::codegen_js::CodegenError::new(
+                Span::empty(0),
+                "generated JavaScript changed an opaque template expression",
+            )
+            .into());
+        };
+        available.remove(index);
+    }
     Ok(())
 }
 
@@ -9659,7 +9742,25 @@ fn validate_direct_javascript_artifact(
         .abi_manifest(ir);
     let lowering_obligations =
         ir.lowering_obligation_count(crate::ir::LoweringObligation::PreserveJavaScriptBitOrZero);
-    validate_observed_javascript_artifact(source, source, &manifest, lowering_obligations)
+    let direct_properties = generated_javascript_static_property_names(source)
+        .map_err(generated_javascript_parse_error)?
+        .into_iter()
+        .map(|emitted| IrJsPropertyProvenance {
+            owner: None,
+            slot: None,
+            source: emitted.clone(),
+            emitted,
+            category: IrJsPropertyCategory::Unowned,
+            stable: true,
+        })
+        .collect::<Vec<_>>();
+    validate_observed_javascript_artifact(
+        source,
+        source,
+        &manifest,
+        lowering_obligations,
+        &direct_properties,
+    )
 }
 
 fn compressed_size(bytes: &[u8], model: CompressionCostModel) -> Result<usize, String> {
@@ -15086,6 +15187,7 @@ mod tests {
             "let a=1;export{a as actual}",
             &manifest,
             0,
+            &test_property_provenance("let a=1;export{a as actual}"),
         )
         .unwrap_err();
         assert!(error.to_string().contains("export ABI mismatch"));
@@ -15103,10 +15205,10 @@ mod tests {
             stable_extern_fields: Vec::new(),
         };
 
-        let error =
-            validate_observed_javascript_artifact("let a=1", "let a=1", &manifest, 1).unwrap_err();
+        let error = validate_observed_javascript_artifact("let a=1", "let a=1", &manifest, 1, &[])
+            .unwrap_err();
         assert!(error.to_string().contains("lowering-obligation mismatch"));
-        validate_observed_javascript_artifact("let a=value|0", "let a=value|0", &manifest, 1)
+        validate_observed_javascript_artifact("let a=value|0", "let a=value|0", &manifest, 1, &[])
             .unwrap();
     }
 
@@ -15127,6 +15229,7 @@ mod tests {
             "let a=o.safe",
             &manifest,
             0,
+            &test_property_provenance("let a=o.safe"),
         )
         .unwrap_err();
         assert!(error.to_string().contains("unclassified static properties"));
@@ -15149,9 +15252,18 @@ mod tests {
             "console.log(allowed())",
             &manifest,
             0,
+            &test_property_provenance("console.log(allowed())"),
         )
         .unwrap_err();
         assert!(error.to_string().contains("undeclared external names"));
+    }
+
+    #[test]
+    fn final_javascript_cannot_change_an_opaque_template_expression() {
+        let admission = test_artifact_admission("let a=`value ${external}`");
+        let error = admission.validate("let a=`value ${other}`").unwrap_err();
+        assert!(error.to_string().contains("opaque template expression"));
+        admission.validate("").unwrap();
     }
 
     #[test]

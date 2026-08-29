@@ -37,6 +37,8 @@ semantic identity. Do not weaken a rejection to preserve bytes.
 | 2026-08-29 | Late-probe witness propagation | `cargo test --release --lib terminal_cleanup_reopens`; `cargo test --release --lib selected_canonical_peephole`; `cargo test --release --lib search_off_finalization`; targeted export/constructor/import/obligation tests | admission contract is retained with selected candidates; canonical, search-off, cleanup, Boolean, and final remap winners fail closed against it | gate |
 | 2026-08-29 | Syntax-floor admission | `cargo test --release --lib rejects_generated_syntax_above`; targeted export-mangling and constructor tests | async, object rest/spread, optional chaining, nullish/logical assignment, optional catch binding, selected built-ins, and class fields are checked against the configured floor | gate |
 | 2026-08-29 | External-name admission | `cargo test --release --lib observes_free_identifiers`; `cargo test --release --lib final_javascript_cannot_introduce_an_undeclared` | final free identifiers must be a subset of the direct typed emission's declared host/global set; both focused tests passed | gate |
+| 2026-08-29 | Owner/slot property provenance | `cargo test --release --lib property_mangling_reserves_extern_fields_and_host_methods`; `cargo test --release --lib final_javascript_cannot_introduce_an_unclassified_static_property`; Marked gzip compile plus semantic lane | typed allocator records owner, slot, source/emitted spelling, category, and stability; final names must be represented; Marked passed 660/660 in 86.84 s | gate |
+| 2026-08-29 | Opaque template witness | `cargo test --release --lib opaque_template` | two focused tests passed; final templates must be exact retained occurrences from direct emission | gate |
 
 ## Log
 
@@ -49,8 +51,9 @@ semantic identity. Do not weaken a rejection to preserve bytes.
 - 2026-08-29 — Candidate admission now survives into terminal selection and gates text cleanup before exact scoring; binding-only remaps retain their V-02 proof and are revalidated before selection. Owner/slot property identity still waits for hygienic target emission. — **OPEN**
 - 2026-08-29 — Added final and candidate-level ECMAScript floor checks and removed the redundant final direct re-emission by retaining its admission witness. Owner/slot property provenance remains. — **OPEN**
 - 2026-08-29 — Froze free identifiers from direct typed emission and reject any final candidate that introduces another external name. Template-expression identities and owner/slot property provenance remain. — **OPEN**
+- 2026-08-29 — Added owner/slot provenance from the typed property allocator, unowned fallback categories for direct static properties, and exact opaque-template retention. Mapping each final byte range back to one owner remains target-JS work. — **OPEN**
 
 ## Next step
 
-Replace the spelling-set property check with owner/slot provenance from target
-emission.
+Attach owner/slot and binding identities to final byte ranges rather than only
+validating each final spelling against the typed provenance set.

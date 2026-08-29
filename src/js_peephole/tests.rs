@@ -11,9 +11,10 @@ use super::{
     generated_javascript_bit_or_zero_count, generated_javascript_export_names,
     generated_javascript_export_witnesses, generated_javascript_free_identifiers,
     generated_javascript_static_imports, generated_javascript_static_property_names,
-    optimize_generated_javascript, optimize_generated_javascript_assuming,
-    optimize_generated_javascript_preserving_functions, reorder_uninitialized_var_declarators,
-    validate_generated_javascript_syntax_floor, PeepholeResult,
+    generated_javascript_template_literals, optimize_generated_javascript,
+    optimize_generated_javascript_assuming, optimize_generated_javascript_preserving_functions,
+    reorder_uninitialized_var_declarators, validate_generated_javascript_syntax_floor,
+    PeepholeResult,
 };
 
 const LEGACY_PUNCTUATION: [&str; 31] = [
@@ -1217,6 +1218,14 @@ fn observes_free_identifiers_without_properties_or_bound_names() {
         )
         .unwrap(),
         ["external", "other"]
+    );
+}
+
+#[test]
+fn records_opaque_template_literals_exactly() {
+    assert_eq!(
+        generated_javascript_template_literals("let a=`x${value}`;let b=`plain`").unwrap(),
+        ["`plain`", "`x${value}`"]
     );
 }
 

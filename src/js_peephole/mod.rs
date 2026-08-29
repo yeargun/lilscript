@@ -926,6 +926,19 @@ pub fn generated_javascript_free_identifiers(
     Ok(names.into_iter().collect())
 }
 
+pub fn generated_javascript_template_literals(
+    source: &str,
+) -> Result<Vec<String>, JavaScriptParseError> {
+    analyze_generated_javascript(source)?;
+    let mut templates = lex(source)?
+        .into_iter()
+        .filter(|token| token.kind == TokenKind::Template)
+        .map(|token| token.text.to_string())
+        .collect::<Vec<_>>();
+    templates.sort();
+    Ok(templates)
+}
+
 pub fn validate_generated_javascript_syntax_floor(
     source: &str,
     edition: EcmaScriptEdition,

@@ -69,7 +69,8 @@ the full G2 rerun was explicitly deferred in favor of targeted development gates
   terminal cleanup and final selection. Configured optional-chain, nullish,
   logical-assignment, optional-catch, selected built-in, and class-field syntax
   floors are checked, including async and object rest/spread. Owner/slot
-  provenance remains; newly introduced free globals are rejected.
+  provenance is recorded and newly introduced free globals/templates/properties
+  are rejected. Per-byte identity mapping remains.
 - Historical Marked raw/gzip outputs from `06b89aa` fail 229 corpus checks and
   are ineligible incumbents; candidate `7128462` fixes them. The Brotli incumbent
   and all other selected rows remain byte-identical.
