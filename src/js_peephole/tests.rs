@@ -9,9 +9,10 @@ use super::token::{lex, punctuation_width};
 use super::{
     analyze_generated_javascript, function_leading_declaration_variant,
     generated_javascript_bit_or_zero_count, generated_javascript_export_names,
-    generated_javascript_static_imports, optimize_generated_javascript,
-    optimize_generated_javascript_assuming, optimize_generated_javascript_preserving_functions,
-    reorder_uninitialized_var_declarators, PeepholeResult,
+    generated_javascript_export_witnesses, generated_javascript_static_imports,
+    optimize_generated_javascript, optimize_generated_javascript_assuming,
+    optimize_generated_javascript_preserving_functions, reorder_uninitialized_var_declarators,
+    PeepholeResult,
 };
 
 const LEGACY_PUNCTUATION: [&str; 31] = [
@@ -1121,6 +1122,51 @@ fn rejects_duplicate_generated_export_names() {
     assert!(error
         .to_string()
         .contains("duplicate generated export name"));
+}
+
+#[test]
+fn observes_generated_export_callable_shapes() {
+    let witnesses = generated_javascript_export_witnesses(
+        "class B{base(a){}}function f(a,b=1){}class C extends B{constructor(a,b){}read(a=1){}}let g=(a,b)=>a+b,v=1;export{f,C,g,v}",
+    )
+    .unwrap();
+    assert_eq!(witnesses.len(), 4);
+    let f = witnesses
+        .iter()
+        .find(|witness| witness.name == "f")
+        .unwrap();
+    assert_eq!(f.kind, super::GeneratedJavaScriptExportKind::Function);
+    assert_eq!(f.arity, Some(1));
+    assert_eq!(f.constructible, Some(true));
+    let class = witnesses
+        .iter()
+        .find(|witness| witness.name == "C")
+        .unwrap();
+    assert_eq!(
+        class.kind,
+        super::GeneratedJavaScriptExportKind::Constructor
+    );
+    assert_eq!(class.arity, Some(2));
+    assert_eq!(
+        class
+            .methods
+            .iter()
+            .map(|method| (method.name.as_str(), method.arity))
+            .collect::<Vec<_>>(),
+        [("base", 1), ("read", 0)]
+    );
+    let arrow = witnesses
+        .iter()
+        .find(|witness| witness.name == "g")
+        .unwrap();
+    assert_eq!(arrow.kind, super::GeneratedJavaScriptExportKind::Function);
+    assert_eq!(arrow.arity, Some(2));
+    assert_eq!(arrow.constructible, Some(false));
+    let value = witnesses
+        .iter()
+        .find(|witness| witness.name == "v")
+        .unwrap();
+    assert_eq!(value.kind, super::GeneratedJavaScriptExportKind::Value);
 }
 
 #[test]

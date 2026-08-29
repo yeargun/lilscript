@@ -31,15 +31,16 @@ semantic identity. Do not weaken a rejection to preserve bytes.
 | 2026-08-29 | Marked gzip canary | `lilscript src/entry.lil --target js-module --config lilscript.gzip.toml --mode production ...`; `node comparison/large-libraries/semantic/marked-lane.mjs ...` | candidate compiled in 75.78 s and passed 660 corpus cases / 2,640 parse checks / 660 inline checks | gate |
 | 2026-08-29 | Export ABI witness | `cargo test --release --lib observed_export_names`; `cargo test --release --lib generated_export_names`; `cargo test --release --lib can_mangle_public_esm_export_names` | exact aliases, missing/extra/duplicate names, and explicitly mangleable export counts passed | gate |
 | 2026-08-29 | Module and obligation witnesses | `cargo test --release --lib observes_generated_static_import_edges`; `cargo test --release --lib foreign_import`; `cargo test --release --lib observed_javascript_must_retain`; `cargo test --release --lib source_written_i32_normalization` | static source/imported names ignore local aliases; six foreign-import tests and three `|0` witness tests passed | gate |
+| 2026-08-29 | Callable ABI witness | `cargo test --release --lib observes_generated_export_callable_shapes`; `cargo test --release --lib can_mangle_public_esm_export_names`; `cargo test --release --lib explicit_constructor_export`; `cargo test --release --lib constructor_export_synthesizes` | function/arrow/constructor kind, default-sensitive arity, constructibility, inherited method shape, export mangling, and default constructors passed | gate |
 
 ## Log
 
 - 2026-08-29 — Gate-02, V-02, and V-03 landed. V-01 is now the first open canonical phase-0.5 unit. — **OPEN**
 - 2026-08-29 — Routed declaration variants, initial/optional emissions, objective rescoring, baseline fallbacks, terminal probes, cleanup, and identifier remaps through generated-JS syntax/binding admission before codec invocation. Property/module/ABI/obligation witnesses remain open. — **OPEN**
 - 2026-08-29 — Final selected bytes now match typed runtime export names (or exact export count under explicit export mangling), static foreign module edges, and a conservative live source-`|0` obligation count. Callable topology and owner-qualified property categories remain open. The requested full G2 rerun was aborted and is not evidence. — **OPEN**
+- 2026-08-29 — Final selected exports now resolve to declarations and match typed callable kind, arity, constructibility, and inherited method signatures. Owner-qualified property categories remain open. — **OPEN**
 
 ## Next step
 
-Extend final admission with callable topology and owner-qualified property
-categories, then run targeted cross-objective API fixtures rather than the full
-matrix during development.
+Extend final admission with owner-qualified property categories, then run targeted
+cross-objective API fixtures rather than the full matrix during development.

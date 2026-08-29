@@ -31,10 +31,10 @@ use crate::js_peephole::{
     fold_nested_unguarded_ifs, fold_pristine_static_method_calls, fold_redundant_null_undefined_or,
     function_leading_declaration_variant, function_local_binding_swap_variants,
     generated_javascript_bit_or_zero_count, generated_javascript_export_names,
-    generated_javascript_static_imports, identifier_name_is_clear_binding,
-    inline_single_use_functions, late_generated_javascript_cleanup,
-    late_generated_javascript_cleanup_local_variants, late_generated_javascript_cleanup_pass,
-    optimize_generated_javascript_assuming,
+    generated_javascript_export_witnesses, generated_javascript_static_imports,
+    identifier_name_is_clear_binding, inline_single_use_functions,
+    late_generated_javascript_cleanup, late_generated_javascript_cleanup_local_variants,
+    late_generated_javascript_cleanup_pass, optimize_generated_javascript_assuming,
     optimize_generated_javascript_preserving_functions_assuming, remap_identifier,
     remap_single_character_identifiers, repair_fused_keyword_identifiers,
     single_character_identifier_use_counts, single_character_identifiers,
@@ -9336,6 +9336,8 @@ fn validate_observed_javascript_artifact(
 ) -> Result<(), CompileError> {
     let observed =
         generated_javascript_export_names(source).map_err(generated_javascript_parse_error)?;
+    let export_witnesses =
+        generated_javascript_export_witnesses(source).map_err(generated_javascript_parse_error)?;
     let observed_imports =
         generated_javascript_static_imports(source).map_err(generated_javascript_parse_error)?;
     let mut expected_names = expected
@@ -9356,6 +9358,87 @@ fn validate_observed_javascript_artifact(
             Span::empty(0),
             format!(
                 "generated JavaScript export ABI mismatch: expected {expected_names:?}, observed {observed:?}"
+            ),
+        )
+        .into());
+    }
+    let mut expected_callables = expected
+        .exports
+        .iter()
+        .filter(|export| export.kind != crate::compilation_contract::JavaScriptExportKind::TypeOnly)
+        .map(|export| {
+            let kind = match export.kind {
+                crate::compilation_contract::JavaScriptExportKind::Function => {
+                    crate::js_peephole::GeneratedJavaScriptExportKind::Function
+                }
+                crate::compilation_contract::JavaScriptExportKind::Constructor => {
+                    crate::js_peephole::GeneratedJavaScriptExportKind::Constructor
+                }
+                crate::compilation_contract::JavaScriptExportKind::Global => {
+                    crate::js_peephole::GeneratedJavaScriptExportKind::Value
+                }
+                crate::compilation_contract::JavaScriptExportKind::TypeOnly => unreachable!(),
+            };
+            let methods = export
+                .methods
+                .iter()
+                .map(|method| {
+                    (
+                        method.name.clone(),
+                        method.arity,
+                        method.is_async,
+                        method.is_generator,
+                    )
+                })
+                .collect::<Vec<_>>();
+            (
+                export.name.clone(),
+                kind,
+                export.arity,
+                export.constructible,
+                methods,
+            )
+        })
+        .collect::<Vec<_>>();
+    let mut observed_callables = export_witnesses
+        .into_iter()
+        .map(|export| {
+            let methods = export
+                .methods
+                .into_iter()
+                .map(|method| {
+                    (
+                        method.name,
+                        method.arity,
+                        method.is_async,
+                        method.is_generator,
+                    )
+                })
+                .collect::<Vec<_>>();
+            (
+                export.name,
+                export.kind,
+                export.arity,
+                export.constructible,
+                methods,
+            )
+        })
+        .collect::<Vec<_>>();
+    if expected.export_names_may_mangle {
+        for expected in &mut expected_callables {
+            expected.0.clear();
+        }
+        for observed in &mut observed_callables {
+            observed.0.clear();
+        }
+    }
+    expected_callables.sort();
+    observed_callables.sort();
+    if observed_callables != expected_callables {
+        return Err(crate::codegen_js::CodegenError::new(
+            Span::empty(0),
+            format!(
+                "generated JavaScript callable ABI mismatch: expected {expected_callables:?}, observed {observed_callables:?}"
             ),
         )
         .into());

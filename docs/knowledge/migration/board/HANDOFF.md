@@ -62,8 +62,8 @@ the full G2 rerun was explicitly deferred in favor of targeted development gates
 - V-01 final-artifact admission is not implemented. Current semantic harnesses
   now require syntax and binding admission before compiler-internal codec calls;
   final bytes also witness export names/counts, static foreign module edges, and
-  live source-`|0` counts. Callable topology and owner-qualified properties are
-  still open.
+  live source-`|0` counts. Exported callable kind, arity, constructibility, and
+  inherited method signatures are witnessed. Owner-qualified properties remain.
 - Historical Marked raw/gzip outputs from `06b89aa` fail 229 corpus checks and
   are ineligible incumbents; candidate `7128462` fixes them. The Brotli incumbent
   and all other selected rows remain byte-identical.
@@ -76,7 +76,7 @@ the full G2 rerun was explicitly deferred in favor of targeted development gates
    beside one another; verify the pinned objects with `--check-inputs`.
 2. Read `notes/gate-04.md`; syntax/binding admission is centralized at codec
    call sites and has zero-call rejection tests.
-3. Complete V-01 with callable-topology and owner-qualified property witnesses.
+3. Complete V-01 with owner-qualified property witnesses.
 4. Run targeted rejection fixtures, full Rust/canonical/codec gates, then the
    selected 13-boundary `migration,candidate` G2 command recorded in gate-02.
 5. Continue canonical phase 1 incumbent recovery only after V-01 lands.

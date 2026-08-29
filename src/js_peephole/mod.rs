@@ -74,6 +74,30 @@ pub struct PeepholeResult {
     pub rewrites: usize,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum GeneratedJavaScriptExportKind {
+    Value,
+    Function,
+    Constructor,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct GeneratedJavaScriptExportWitness {
+    pub name: String,
+    pub kind: GeneratedJavaScriptExportKind,
+    pub arity: Option<usize>,
+    pub constructible: Option<bool>,
+    pub methods: Vec<GeneratedJavaScriptMethodWitness>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct GeneratedJavaScriptMethodWitness {
+    pub name: String,
+    pub arity: usize,
+    pub is_async: bool,
+    pub is_generator: bool,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct JavaScriptParseError {
     offset: usize,
@@ -376,6 +400,366 @@ pub fn generated_javascript_export_names(
         index = close + 1;
     }
     Ok(names.into_iter().collect())
+}
+
+pub fn generated_javascript_export_witnesses(
+    source: &str,
+) -> Result<Vec<GeneratedJavaScriptExportWitness>, JavaScriptParseError> {
+    analyze_generated_javascript(source)?;
+    let tokens = lex(source)?;
+    let matching_close = matching_closers(&tokens);
+    let resolution = BindingResolution::new(&tokens);
+    if !resolution.is_total() {
+        return Err(generated_import_error(
+            0,
+            "incomplete generated binding witness",
+            source,
+        ));
+    }
+    let mut witnesses = Vec::new();
+    for (local_index, name) in generated_export_pairs(&tokens, &matching_close, source)? {
+        let Resolution::Bound(declaration) = resolution.resolve(local_index) else {
+            return Err(generated_import_error(
+                tokens[local_index].start,
+                "unresolved generated export binding",
+                source,
+            ));
+        };
+        let (kind, arity, constructible, methods) = classify_generated_export_binding(
+            &tokens,
+            &matching_close,
+            &resolution,
+            declaration,
+            &mut std::collections::BTreeSet::new(),
+        );
+        witnesses.push(GeneratedJavaScriptExportWitness {
+            name,
+            kind,
+            arity,
+            constructible,
+            methods,
+        });
+    }
+    witnesses.sort();
+    Ok(witnesses)
+}
+
+fn generated_export_pairs(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    source: &str,
+) -> Result<Vec<(usize, String)>, JavaScriptParseError> {
+    let mut pairs = Vec::new();
+    for (index, token) in tokens.iter().enumerate() {
+        if token.text != "export" {
+            continue;
+        }
+        let open = index + 1;
+        if tokens.get(open).is_none_or(|token| token.text != "{") {
+            return Err(generated_import_error(
+                token.start,
+                "unsupported generated export form",
+                source,
+            ));
+        }
+        let close = matching_close[open].ok_or_else(|| {
+            generated_import_error(token.start, "unclosed generated export clause", source)
+        })?;
+        let mut cursor = open + 1;
+        while cursor < close {
+            if tokens[cursor].text == "," {
+                cursor += 1;
+                continue;
+            }
+            let local_index = cursor;
+            let mut exported = generated_export_name(&tokens[cursor]).ok_or_else(|| {
+                generated_import_error(
+                    tokens[cursor].start,
+                    "invalid generated export name",
+                    source,
+                )
+            })?;
+            cursor += 1;
+            if cursor < close && tokens[cursor].text == "as" {
+                cursor += 1;
+                let alias = tokens.get(cursor).ok_or_else(|| {
+                    generated_import_error(
+                        tokens[close].start,
+                        "missing generated export alias",
+                        source,
+                    )
+                })?;
+                exported = generated_export_name(alias).ok_or_else(|| {
+                    generated_import_error(alias.start, "invalid generated export alias", source)
+                })?;
+                cursor += 1;
+            }
+            pairs.push((local_index, exported.to_string()));
+        }
+    }
+    Ok(pairs)
+}
+
+fn classify_generated_export_binding(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    resolution: &BindingResolution<'_>,
+    declaration: usize,
+    visited: &mut std::collections::BTreeSet<usize>,
+) -> (
+    GeneratedJavaScriptExportKind,
+    Option<usize>,
+    Option<bool>,
+    Vec<GeneratedJavaScriptMethodWitness>,
+) {
+    if !visited.insert(declaration) {
+        return (GeneratedJavaScriptExportKind::Value, None, None, Vec::new());
+    }
+    let previous = declaration
+        .checked_sub(1)
+        .and_then(|index| tokens.get(index))
+        .map(|token| token.text);
+    if previous == Some("function")
+        || (previous == Some("*")
+            && declaration
+                .checked_sub(2)
+                .and_then(|index| tokens.get(index))
+                .is_some_and(|token| token.text == "function"))
+    {
+        let function = declaration - usize::from(previous == Some("*"));
+        let open = declaration + 1;
+        return (
+            GeneratedJavaScriptExportKind::Function,
+            generated_parameter_arity(tokens, matching_close, open),
+            Some(!generated_function_is_async_or_generator(tokens, function)),
+            Vec::new(),
+        );
+    }
+    if previous == Some("class") {
+        let (arity, methods) = generated_class_shape(
+            tokens,
+            matching_close,
+            resolution,
+            declaration,
+            &mut std::collections::BTreeSet::new(),
+        );
+        return (
+            GeneratedJavaScriptExportKind::Constructor,
+            arity,
+            Some(true),
+            methods,
+        );
+    }
+    if tokens.get(declaration + 1).map(|token| token.text) != Some("=") {
+        return (GeneratedJavaScriptExportKind::Value, None, None, Vec::new());
+    }
+    let rhs = declaration + 2;
+    if tokens.get(rhs + 1).map(|token| token.text) == Some("=>") {
+        return (
+            GeneratedJavaScriptExportKind::Function,
+            Some(1),
+            Some(false),
+            Vec::new(),
+        );
+    }
+    if tokens.get(rhs).map(|token| token.text) == Some("(") {
+        if let Some(close) = matching_close[rhs] {
+            if tokens.get(close + 1).map(|token| token.text) == Some("=>") {
+                return (
+                    GeneratedJavaScriptExportKind::Function,
+                    generated_parameter_arity(tokens, matching_close, rhs),
+                    Some(false),
+                    Vec::new(),
+                );
+            }
+        }
+    }
+    let search_end = tokens.len().min(rhs + 12);
+    for index in rhs..search_end {
+        if tokens[index].text == "function" {
+            let mut next = index + 1;
+            if tokens.get(next).is_some_and(|token| token.text == "*") {
+                next += 1;
+            }
+            let named = tokens
+                .get(next)
+                .is_some_and(|token| token.kind == TokenKind::Identifier);
+            let open = next + usize::from(named);
+            return (
+                GeneratedJavaScriptExportKind::Function,
+                generated_parameter_arity(tokens, matching_close, open),
+                Some(!generated_function_is_async_or_generator(tokens, index)),
+                Vec::new(),
+            );
+        }
+        if tokens[index].text == "class" {
+            let class_name = index + 1;
+            let (arity, methods) = generated_class_shape(
+                tokens,
+                matching_close,
+                resolution,
+                class_name,
+                &mut std::collections::BTreeSet::new(),
+            );
+            return (
+                GeneratedJavaScriptExportKind::Constructor,
+                arity,
+                Some(true),
+                methods,
+            );
+        }
+        if matches!(tokens[index].text, ";" | "export") {
+            break;
+        }
+    }
+    if tokens
+        .get(rhs)
+        .is_some_and(|token| token.kind == TokenKind::Identifier)
+    {
+        if let Resolution::Bound(target) = resolution.resolve(rhs) {
+            return classify_generated_export_binding(
+                tokens,
+                matching_close,
+                resolution,
+                target,
+                visited,
+            );
+        }
+    }
+    (GeneratedJavaScriptExportKind::Value, None, None, Vec::new())
+}
+
+fn generated_function_is_async_or_generator(tokens: &[Token<'_>], function: usize) -> bool {
+    tokens
+        .get(function + 1)
+        .is_some_and(|token| token.text == "*")
+        || function
+            .checked_sub(1)
+            .and_then(|index| tokens.get(index))
+            .is_some_and(|token| token.text == "async")
+}
+
+fn generated_parameter_arity(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    open: usize,
+) -> Option<usize> {
+    if tokens.get(open).map(|token| token.text) != Some("(") {
+        return None;
+    }
+    let close = matching_close[open]?;
+    let mut arity = 0usize;
+    let mut segment = false;
+    let mut depth = 0i32;
+    for token in &tokens[open + 1..close] {
+        if depth == 0 {
+            if matches!(token.text, "=" | "...") {
+                return Some(arity);
+            }
+            if token.text == "," {
+                arity += usize::from(segment);
+                segment = false;
+                continue;
+            }
+            segment = true;
+        }
+        match token.text {
+            "(" | "[" | "{" => depth += 1,
+            ")" | "]" | "}" => depth -= 1,
+            _ => {}
+        }
+    }
+    Some(arity + usize::from(segment))
+}
+
+fn generated_class_shape(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    resolution: &BindingResolution<'_>,
+    class_name: usize,
+    visited: &mut std::collections::BTreeSet<usize>,
+) -> (Option<usize>, Vec<GeneratedJavaScriptMethodWitness>) {
+    if !visited.insert(class_name) {
+        return (None, Vec::new());
+    }
+    let Some(open) = (class_name + 1..tokens.len()).find(|index| tokens[*index].text == "{") else {
+        return (None, Vec::new());
+    };
+    let Some(close) = matching_close[open] else {
+        return (None, Vec::new());
+    };
+    let mut arity = Some(0);
+    let mut methods = Vec::new();
+    let mut cursor = open + 1;
+    while cursor < close {
+        if matches!(tokens[cursor].text, ";" | ",") {
+            cursor += 1;
+            continue;
+        }
+        let mut is_async = false;
+        let mut is_generator = false;
+        if tokens[cursor].text == "static" {
+            cursor += 1;
+        }
+        if cursor < close && tokens[cursor].text == "async" {
+            is_async = true;
+            cursor += 1;
+        }
+        if cursor < close && tokens[cursor].text == "*" {
+            is_generator = true;
+            cursor += 1;
+        }
+        let Some(name) = tokens.get(cursor) else {
+            break;
+        };
+        let params = cursor + 1;
+        if tokens.get(params).map(|token| token.text) != Some("(") {
+            cursor += 1;
+            continue;
+        }
+        let method_arity = generated_parameter_arity(tokens, matching_close, params).unwrap_or(0);
+        if name.text == "constructor" {
+            arity = Some(method_arity);
+        } else if let Some(name) = generated_export_name(name) {
+            methods.push(GeneratedJavaScriptMethodWitness {
+                name: name.to_string(),
+                arity: method_arity,
+                is_async,
+                is_generator,
+            });
+        }
+        let Some(params_close) = matching_close[params] else {
+            break;
+        };
+        let body = params_close + 1;
+        cursor = if tokens.get(body).map(|token| token.text) == Some("{") {
+            matching_close[body].map_or(body + 1, |body_close| body_close + 1)
+        } else {
+            body
+        };
+    }
+    if tokens.get(class_name + 1).map(|token| token.text) == Some("extends") {
+        let base = class_name + 2;
+        if let Resolution::Bound(base_declaration) = resolution.resolve(base) {
+            let (_, base_methods) = generated_class_shape(
+                tokens,
+                matching_close,
+                resolution,
+                base_declaration,
+                visited,
+            );
+            for method in base_methods {
+                if !methods.iter().any(|existing| {
+                    let existing: &GeneratedJavaScriptMethodWitness = existing;
+                    existing.name == method.name
+                }) {
+                    methods.push(method);
+                }
+            }
+        }
+    }
+    methods.sort();
+    (arity, methods)
 }
 
 pub fn generated_javascript_static_imports(

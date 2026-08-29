@@ -6,6 +6,13 @@ recorded verdict. This is cold storage: read it when you are about to redo somet
 Format: `## YYYY-MM-DD — <task id> — <one line>` then two or three lines of what
 changed, what the gate said, and the commit if there is one.
 
+## 2026-08-29 — gate-04 — callable ABI witness
+
+Export clauses resolve back to final declarations and are checked for callable
+kind, default-sensitive arity, constructibility, and inherited method signatures.
+Focused function, arrow, export-mangling, explicit/default constructor, and method
+tests pass. Owner-qualified property witnesses remain open.
+
 ## 2026-08-29 — gate-04 — selected artifact ABI witnesses
 
 Final selected JavaScript now witnesses typed export names/counts, static foreign
