@@ -30,9 +30,11 @@ use crate::js_peephole::{
     fold_expression_bodies, fold_fresh_empty_object_assign, fold_if_prefixed_returns,
     fold_nested_unguarded_ifs, fold_pristine_static_method_calls, fold_redundant_null_undefined_or,
     function_leading_declaration_variant, function_local_binding_swap_variants,
-    identifier_name_is_clear_binding, inline_single_use_functions,
-    late_generated_javascript_cleanup, late_generated_javascript_cleanup_local_variants,
-    late_generated_javascript_cleanup_pass, optimize_generated_javascript_assuming,
+    generated_javascript_bit_or_zero_count, generated_javascript_export_names,
+    generated_javascript_static_imports, identifier_name_is_clear_binding,
+    inline_single_use_functions, late_generated_javascript_cleanup,
+    late_generated_javascript_cleanup_local_variants, late_generated_javascript_cleanup_pass,
+    optimize_generated_javascript_assuming,
     optimize_generated_javascript_preserving_functions_assuming, remap_identifier,
     remap_single_character_identifiers, repair_fused_keyword_identifiers,
     single_character_identifier_use_counts, single_character_identifiers,
@@ -2214,6 +2216,10 @@ fn optimize_and_select_javascript_inner<'src>(
     let abi_manifest = config
         .javascript_compilation_contract(preserve_exports)
         .abi_manifest(&selected_context.ir);
+    let lowering_obligations = selected_context
+        .ir
+        .lowering_obligation_count(crate::ir::LoweringObligation::PreserveJavaScriptBitOrZero);
+    validate_observed_javascript_artifact(&selected.code, &abi_manifest, lowering_obligations)?;
     let search_ctx =
         javascript_emission_search_context(config, preserve_exports, total_candidate_limit);
     let scored_emission_families =
@@ -9323,6 +9329,65 @@ fn admitted_generated_javascript_size(
     compressed_size(source.as_bytes(), model)
 }
 
+fn validate_observed_javascript_artifact(
+    source: &str,
+    expected: &crate::compilation_contract::JavaScriptAbiManifest,
+    expected_bit_or_zero: usize,
+) -> Result<(), CompileError> {
+    let observed =
+        generated_javascript_export_names(source).map_err(generated_javascript_parse_error)?;
+    let observed_imports =
+        generated_javascript_static_imports(source).map_err(generated_javascript_parse_error)?;
+    let mut expected_names = expected
+        .exports
+        .iter()
+        .filter(|export| export.kind != crate::compilation_contract::JavaScriptExportKind::TypeOnly)
+        .map(|export| export.name.clone())
+        .collect::<Vec<_>>();
+    expected_names.sort();
+    expected_names.dedup();
+    let matches = if expected.export_names_may_mangle {
+        observed.len() == expected_names.len()
+    } else {
+        observed == expected_names
+    };
+    if !matches {
+        return Err(crate::codegen_js::CodegenError::new(
+            Span::empty(0),
+            format!(
+                "generated JavaScript export ABI mismatch: expected {expected_names:?}, observed {observed:?}"
+            ),
+        )
+        .into());
+    }
+    let expected_imports = expected
+        .foreign_imports
+        .iter()
+        .map(|import| (import.source.clone(), import.imported.clone()))
+        .collect::<Vec<_>>();
+    if observed_imports != expected_imports {
+        return Err(crate::codegen_js::CodegenError::new(
+            Span::empty(0),
+            format!(
+                "generated JavaScript module ABI mismatch: expected {expected_imports:?}, observed {observed_imports:?}"
+            ),
+        )
+        .into());
+    }
+    let observed_bit_or_zero =
+        generated_javascript_bit_or_zero_count(source).map_err(generated_javascript_parse_error)?;
+    if observed_bit_or_zero < expected_bit_or_zero {
+        return Err(crate::codegen_js::CodegenError::new(
+            Span::empty(0),
+            format!(
+                "generated JavaScript lowering-obligation mismatch: expected at least {expected_bit_or_zero} source `|0` operations, observed {observed_bit_or_zero}"
+            ),
+        )
+        .into());
+    }
+    Ok(())
+}
+
 fn compressed_size(bytes: &[u8], model: CompressionCostModel) -> Result<usize, String> {
     #[cfg(test)]
     JAVASCRIPT_CODEC_MEASUREMENTS.with(|count| count.set(count.get() + 1));
@@ -14703,7 +14768,9 @@ mod tests {
                 CompressionCostModel::Raw,
             )
             .unwrap_err();
-        assert!(unresolved.to_string().contains("unresolved generated identifier"));
+        assert!(unresolved
+            .to_string()
+            .contains("unresolved generated identifier"));
 
         assert_eq!(budget.codec_calls(), 0);
         assert_eq!(javascript_codec_measurement_count(), measurements_before);
@@ -14720,6 +14787,47 @@ mod tests {
 
         assert!(error.to_string().contains("admission failed"));
         assert_eq!(javascript_codec_measurement_count(), measurements_before);
+    }
+
+    #[test]
+    fn observed_export_names_must_match_the_typed_abi() {
+        let manifest = crate::compilation_contract::JavaScriptAbiManifest {
+            world: "reusable-library",
+            exports: vec![crate::compilation_contract::JavaScriptExportAbi {
+                name: "expected".to_string(),
+                kind: crate::compilation_contract::JavaScriptExportKind::Global,
+                arity: None,
+                constructible: None,
+                methods: Vec::new(),
+            }],
+            export_names_may_mangle: false,
+            foreign_imports: Vec::new(),
+            public_aggregate_abi: "named",
+            stable_aggregate_fields: Vec::new(),
+            stable_extern_fields: Vec::new(),
+        };
+
+        let error =
+            validate_observed_javascript_artifact("let a=1;export{a as actual}", &manifest, 0)
+                .unwrap_err();
+        assert!(error.to_string().contains("export ABI mismatch"));
+    }
+
+    #[test]
+    fn observed_javascript_must_retain_lowering_obligations() {
+        let manifest = crate::compilation_contract::JavaScriptAbiManifest {
+            world: "closed-application",
+            exports: Vec::new(),
+            export_names_may_mangle: false,
+            foreign_imports: Vec::new(),
+            public_aggregate_abi: "named",
+            stable_aggregate_fields: Vec::new(),
+            stable_extern_fields: Vec::new(),
+        };
+
+        let error = validate_observed_javascript_artifact("let a=1", &manifest, 1).unwrap_err();
+        assert!(error.to_string().contains("lowering-obligation mismatch"));
+        validate_observed_javascript_artifact("let a=value|0", &manifest, 1).unwrap();
     }
 
     #[test]

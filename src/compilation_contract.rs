@@ -87,9 +87,17 @@ pub struct JavaScriptMethodAbi {
 pub struct JavaScriptAbiManifest {
     pub world: &'static str,
     pub exports: Vec<JavaScriptExportAbi>,
+    pub export_names_may_mangle: bool,
+    pub foreign_imports: Vec<JavaScriptForeignImportAbi>,
     pub public_aggregate_abi: &'static str,
     pub stable_aggregate_fields: Vec<String>,
     pub stable_extern_fields: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct JavaScriptForeignImportAbi {
+    pub source: String,
+    pub imported: Vec<String>,
 }
 
 impl JavaScriptCompilationContract {
@@ -172,6 +180,26 @@ impl JavaScriptCompilationContract {
             Vec::new()
         };
         exports.sort_by(|left, right| left.name.cmp(&right.name));
+        let mut foreign_imports = module
+            .foreign_imports
+            .iter()
+            .map(|import| {
+                let mut imported = import
+                    .specifiers
+                    .iter()
+                    .map(|specifier| specifier.imported.to_string())
+                    .collect::<Vec<_>>();
+                imported.sort();
+                imported.dedup();
+                JavaScriptForeignImportAbi {
+                    source: import.source.to_string(),
+                    imported,
+                }
+            })
+            .collect::<Vec<_>>();
+        foreign_imports.sort_by(|left, right| {
+            (&left.source, &left.imported).cmp(&(&right.source, &right.imported))
+        });
 
         let mut stable_aggregate_fields = if self.abi.preserve_root_exports
             && self.abi.public_aggregate_abi == PublicAggregateAbi::Named
@@ -209,6 +237,8 @@ impl JavaScriptCompilationContract {
                 JavaScriptWorld::ReusableLibrary => "reusable-library",
             },
             exports,
+            export_names_may_mangle: self.abi.internal_export_bindings_may_mangle,
+            foreign_imports,
             public_aggregate_abi: match self.abi.public_aggregate_abi {
                 PublicAggregateAbi::Named => "named",
                 PublicAggregateAbi::Positional => "positional",

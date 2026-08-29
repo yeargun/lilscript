@@ -110,7 +110,7 @@ fn quote_js_string(text: &str) -> String {
     out
 }
 
-fn unescape_js_string(literal: &str) -> Option<String> {
+pub(crate) fn unescape_js_string(literal: &str) -> Option<String> {
     let bytes = literal.as_bytes();
     if bytes.len() < 2 {
         return None;

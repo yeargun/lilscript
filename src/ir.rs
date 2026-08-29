@@ -534,6 +534,12 @@ impl ControlFlowModule<'_> {
             .any(|instruction| instruction.lowering_obligation != LoweringObligation::Free)
     }
 
+    pub fn lowering_obligation_count(&self, obligation: LoweringObligation) -> usize {
+        self.live_instructions()
+            .filter(|instruction| instruction.lowering_obligation == obligation)
+            .count()
+    }
+
     pub fn operation_provenance_counts(&self) -> (usize, usize) {
         let mut source = 0usize;
         let mut generated = 0usize;

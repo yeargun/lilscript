@@ -6,6 +6,13 @@ recorded verdict. This is cold storage: read it when you are about to redo somet
 Format: `## YYYY-MM-DD — <task id> — <one line>` then two or three lines of what
 changed, what the gate said, and the commit if there is one.
 
+## 2026-08-29 — gate-04 — selected artifact ABI witnesses
+
+Final selected JavaScript now witnesses typed export names/counts, static foreign
+module edges, and a conservative count for live source-authored `|0` obligations.
+Targeted export, import, and obligation tests pass. The requested full G2 rerun
+was aborted and is not evidence; callable and property witnesses remain open.
+
 ## 2026-08-29 — gate-04 — syntax and binding admission before codec
 
 All production compiler scoring paths now run the generated-JavaScript syntax

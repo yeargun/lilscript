@@ -8,9 +8,10 @@ use super::parse::{non_overlapping_parsed_node_count, parse_expression_regions};
 use super::token::{lex, punctuation_width};
 use super::{
     analyze_generated_javascript, function_leading_declaration_variant,
-    optimize_generated_javascript, optimize_generated_javascript_assuming,
-    optimize_generated_javascript_preserving_functions, reorder_uninitialized_var_declarators,
-    PeepholeResult,
+    generated_javascript_bit_or_zero_count, generated_javascript_export_names,
+    generated_javascript_static_imports, optimize_generated_javascript,
+    optimize_generated_javascript_assuming, optimize_generated_javascript_preserving_functions,
+    reorder_uninitialized_var_declarators, PeepholeResult,
 };
 
 const LEGACY_PUNCTUATION: [&str; 31] = [
@@ -1103,6 +1104,51 @@ fn scans_unicode_in_nested_template_interpolations_without_splitting_utf8() {
 fn rejects_malformed_generated_javascript() {
     let error = analyze_generated_javascript("function f(){return [1,2}").unwrap_err();
     assert_eq!(error.offset(), 24);
+}
+
+#[test]
+fn observes_generated_export_names_and_aliases() {
+    assert_eq!(
+        generated_javascript_export_names("let a=1,b=2;export{a as left,b, a as default}").unwrap(),
+        ["b", "default", "left"]
+    );
+}
+
+#[test]
+fn rejects_duplicate_generated_export_names() {
+    let error =
+        generated_javascript_export_names("let a=1,b=2;export{a as value,b as value}").unwrap_err();
+    assert!(error
+        .to_string()
+        .contains("duplicate generated export name"));
+}
+
+#[test]
+fn observes_generated_static_import_edges_without_local_aliases() {
+    assert_eq!(
+        generated_javascript_static_imports(
+            "import'./setup.ts';import{value as a,other}from\"pkg\";let p=import('./lazy.js')"
+        )
+        .unwrap(),
+        [
+            ("./setup.ts".to_string(), Vec::new()),
+            (
+                "pkg".to_string(),
+                vec!["other".to_string(), "value".to_string()]
+            )
+        ]
+    );
+}
+
+#[test]
+fn counts_generated_bit_or_zero_obligations_from_tokens() {
+    assert_eq!(
+        generated_javascript_bit_or_zero_count(
+            "let text='not |0';let a=value|0,b=(other|0)+1,c=value|1"
+        )
+        .unwrap(),
+        2
+    );
 }
 
 #[test]

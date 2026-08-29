@@ -16,7 +16,8 @@ use crate::js_peephole::scope::{
     GeneratedBindingIndex,
 };
 use crate::js_peephole::token::{
-    lex, matching_closers, validate_conditional_operators, validate_delimiters, Token, TokenKind,
+    ascii_identifier_name_string, lex, matching_closers, validate_conditional_operators,
+    validate_delimiters, Token, TokenKind,
 };
 
 mod folds;
@@ -299,6 +300,221 @@ pub fn analyze_generated_javascript(
         dump_rejected_generated_javascript(source, &error);
         error.with_source(source)
     })
+}
+
+pub fn generated_javascript_export_names(
+    source: &str,
+) -> Result<Vec<String>, JavaScriptParseError> {
+    analyze_generated_javascript(source)?;
+    let tokens = lex(source)?;
+    let matching_close = matching_closers(&tokens);
+    let mut names = std::collections::BTreeSet::new();
+    let mut index = 0usize;
+    while index < tokens.len() {
+        if tokens[index].text != "export" {
+            index += 1;
+            continue;
+        }
+        let open = index + 1;
+        if tokens.get(open).is_none_or(|token| token.text != "{") {
+            return Err(JavaScriptParseError {
+                offset: tokens[index].start,
+                message: "unsupported generated export form",
+                context: None,
+            }
+            .with_source(source));
+        }
+        let close = matching_close[open].ok_or_else(|| JavaScriptParseError {
+            offset: tokens[open].start,
+            message: "unclosed generated export clause",
+            context: None,
+        })?;
+        let mut cursor = open + 1;
+        while cursor < close {
+            if tokens[cursor].text == "," {
+                cursor += 1;
+                continue;
+            }
+            let mut exported =
+                generated_export_name(&tokens[cursor]).ok_or_else(|| JavaScriptParseError {
+                    offset: tokens[cursor].start,
+                    message: "invalid generated export name",
+                    context: None,
+                })?;
+            cursor += 1;
+            if cursor < close && tokens[cursor].text == "as" {
+                cursor += 1;
+                let token = tokens.get(cursor).ok_or_else(|| JavaScriptParseError {
+                    offset: tokens[close].start,
+                    message: "missing generated export alias",
+                    context: None,
+                })?;
+                exported = generated_export_name(token).ok_or_else(|| JavaScriptParseError {
+                    offset: token.start,
+                    message: "invalid generated export alias",
+                    context: None,
+                })?;
+                cursor += 1;
+            }
+            if !names.insert(exported.to_string()) {
+                return Err(JavaScriptParseError {
+                    offset: tokens[cursor.saturating_sub(1)].start,
+                    message: "duplicate generated export name",
+                    context: None,
+                }
+                .with_source(source));
+            }
+            if cursor < close && tokens[cursor].text != "," {
+                return Err(JavaScriptParseError {
+                    offset: tokens[cursor].start,
+                    message: "invalid generated export clause",
+                    context: None,
+                }
+                .with_source(source));
+            }
+        }
+        index = close + 1;
+    }
+    Ok(names.into_iter().collect())
+}
+
+pub fn generated_javascript_static_imports(
+    source: &str,
+) -> Result<Vec<(String, Vec<String>)>, JavaScriptParseError> {
+    analyze_generated_javascript(source)?;
+    let tokens = lex(source)?;
+    let matching_close = matching_closers(&tokens);
+    let mut imports = Vec::new();
+    for (index, token) in tokens.iter().enumerate() {
+        if token.text != "import" {
+            continue;
+        }
+        let Some(next) = tokens.get(index + 1) else {
+            return Err(generated_import_error(
+                token.start,
+                "incomplete generated import",
+                source,
+            ));
+        };
+        if next.text == "(" {
+            continue;
+        }
+        if next.kind == TokenKind::String {
+            let source_name = unescape_js_string(next.text).ok_or_else(|| {
+                generated_import_error(next.start, "invalid generated import source", source)
+            })?;
+            imports.push((source_name, Vec::new()));
+            continue;
+        }
+        if next.text != "{" {
+            return Err(generated_import_error(
+                next.start,
+                "unsupported generated import form",
+                source,
+            ));
+        }
+        let close = matching_close[index + 1].ok_or_else(|| {
+            generated_import_error(next.start, "unclosed generated import clause", source)
+        })?;
+        let mut names = Vec::new();
+        let mut cursor = index + 2;
+        while cursor < close {
+            if tokens[cursor].text == "," {
+                cursor += 1;
+                continue;
+            }
+            let imported = generated_export_name(&tokens[cursor]).ok_or_else(|| {
+                generated_import_error(
+                    tokens[cursor].start,
+                    "invalid generated import name",
+                    source,
+                )
+            })?;
+            names.push(imported.to_string());
+            cursor += 1;
+            if cursor < close && tokens[cursor].text == "as" {
+                cursor += 1;
+                let alias = tokens.get(cursor).ok_or_else(|| {
+                    generated_import_error(
+                        tokens[close].start,
+                        "missing generated import alias",
+                        source,
+                    )
+                })?;
+                if generated_export_name(alias).is_none() {
+                    return Err(generated_import_error(
+                        alias.start,
+                        "invalid generated import alias",
+                        source,
+                    ));
+                }
+                cursor += 1;
+            }
+            if cursor < close && tokens[cursor].text != "," {
+                return Err(generated_import_error(
+                    tokens[cursor].start,
+                    "invalid generated import clause",
+                    source,
+                ));
+            }
+        }
+        let from = tokens.get(close + 1);
+        let source_token = tokens.get(close + 2);
+        if from.is_none_or(|token| token.text != "from")
+            || source_token.is_none_or(|token| token.kind != TokenKind::String)
+        {
+            return Err(generated_import_error(
+                tokens[close].end,
+                "missing generated import source",
+                source,
+            ));
+        }
+        let source_token = source_token.unwrap();
+        let source_name = unescape_js_string(source_token.text).ok_or_else(|| {
+            generated_import_error(
+                source_token.start,
+                "invalid generated import source",
+                source,
+            )
+        })?;
+        names.sort();
+        names.dedup();
+        imports.push((source_name, names));
+    }
+    imports.sort();
+    Ok(imports)
+}
+
+pub fn generated_javascript_bit_or_zero_count(source: &str) -> Result<usize, JavaScriptParseError> {
+    analyze_generated_javascript(source)?;
+    let tokens = lex(source)?;
+    Ok(tokens
+        .windows(2)
+        .filter(|pair| {
+            pair[0].text == "|" && pair[1].kind == TokenKind::Number && pair[1].text == "0"
+        })
+        .count())
+}
+
+fn generated_import_error(
+    offset: usize,
+    message: &'static str,
+    source: &str,
+) -> JavaScriptParseError {
+    JavaScriptParseError {
+        offset,
+        message,
+        context: None,
+    }
+    .with_source(source)
+}
+
+fn generated_export_name<'src>(token: &Token<'src>) -> Option<&'src str> {
+    match token.kind {
+        TokenKind::Identifier | TokenKind::Keyword => Some(token.text),
+        TokenKind::String => ascii_identifier_name_string(token.text),
+        _ => None,
+    }
 }
 
 /// Write a rejected candidate out for inspection.
