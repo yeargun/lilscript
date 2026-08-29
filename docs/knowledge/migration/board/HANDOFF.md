@@ -20,14 +20,13 @@ resume packet.
 
 | Repository | Branch/commit | Purpose |
 |---|---|---|
-| LilScript | `compression-objective-lane` at `06b89aa` plus the pending matrix/handoff commit | Full architecture/evidence snapshot and V-02/V-03 safety implementation |
-| MotionLil | `main` at `fde1aed` | Tree-shakeable entries plus retained direct-compiler artifact hook |
-| MobXLil | `main` at `820c9a8` | Split source, true production-min config, and synchronized lockfile |
+| LilScript | pushed `main`; handoff parent `182efd0` | Full architecture/evidence snapshot, V-02/V-03 safety, matrix compiler lane, and this handoff |
+| MotionLil | pushed `main` at `8b4fcad`; matrix source pin `fde1aed` | Tree-shakeable entries plus retained direct-compiler artifact hook, merged with remote rebuild history |
+| MobXLil | pushed `main` at `960f2fb`; matrix source pin `820c9a8` | Split source, true production-min config, synchronized lockfile, and merged remote rebuild history |
 | Closure Compiler audit | commit `73eee2481cf1dd5dea0d8c9c0561b5a61498fec4` | Source comparison only; clone outside the repository |
 
-Verify remote heads after pulling; never force-push. MotionLil and MobXLil had
-diverged from `origin/main` before integration, so preserve both histories with
-ordinary merges.
+All three repositories were pushed to `origin/main` without force on 2026-08-29.
+Verify remote heads after pulling; never force-push.
 
 ## Completed
 
@@ -65,13 +64,10 @@ ordinary merges.
 
 ## Live queue
 
-1. Commit this handoff and matrix/compiler-lane changes.
-2. Integrate all three repositories onto their local `main` branches using
-   ordinary merges with `origin/main`; resolve without dropping either history.
-3. Push LilScript, MotionLil, and MobXLil `main`; verify remote heads.
-4. On the cloud VM, run `node scripts/board.mjs check` and
+1. Clone or pull `main` for LilScript, MotionLil, and MobXLil beside one another.
+2. On the cloud VM, run `node scripts/board.mjs check` and
    `node comparison/large-libraries/run.mjs --check-inputs`.
-5. Rerun the migration compiler on `motionlil,mobxlil-production-min`:
+3. Rerun the migration compiler on `motionlil,mobxlil-production-min`:
 
    ```sh
    export PATH="$HOME/.cargo/bin:$PATH"
@@ -84,10 +80,10 @@ ordinary merges.
      --keep-temp
    ```
 
-6. Pin the next migration compiler commit as the `after` side for V-02/V-03 and
+4. Pin the next migration compiler commit as the `after` side for V-02/V-03 and
    compare it with the `06b89aa` incumbent under zero-byte selected-metric policy.
-7. Complete gate-02, then mark or reject `ident-09` and `emit-08` from evidence.
-8. Resume canonical phase 0/0.5/1 work before starting target-JS or new syntax.
+5. Complete gate-02, then mark or reject `ident-09` and `emit-08` from evidence.
+6. Resume canonical phase 0/0.5/1 work before starting target-JS or new syntax.
 
 ## Refusals
 

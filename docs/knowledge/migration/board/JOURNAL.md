@@ -6,6 +6,12 @@ recorded verdict. This is cold storage: read it when you are about to redo somet
 Format: `## YYYY-MM-DD — <task id> — <one line>` then two or three lines of what
 changed, what the gate said, and the commit if there is one.
 
+## 2026-08-29 — cloud handoff — pushed migration state
+
+LilScript `main` pushed through `182efd0`, MotionLil through merge `8b4fcad`, and
+MobXLil through merge `960f2fb`, all without force. The cloud resume queue and
+known red gates are in `board/HANDOFF.md`; `gate-02` remains the active task.
+
 ## 2026-08-29 — gate-02 / ident-09 / emit-08 — compression migration checkpoint
 
 Closure research, the three-review migration plan, V-02 terminal rename closure,
