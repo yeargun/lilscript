@@ -11490,6 +11490,20 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 if value_is_incoming_to_other_phi(function, phi.out) {
                     return Ok(None);
                 }
+                // Recovery can run before a deferred incoming definition. Do not
+                // let that expression read the phi result's still-stale JS slot.
+                let result_name = context.value_name(phi.out)?;
+                for (_, incoming) in &phi.incoming {
+                    if value_depends_on_javascript_name(
+                        function,
+                        *incoming,
+                        result_name,
+                        context,
+                        &mut AHashSet::default(),
+                    ) {
+                        return Ok(None);
+                    }
+                }
                 // A mem2reg phi at a single structured `if` is the same
                 // target-neutral value selection as a source conditional once
                 // the region proof below establishes that every observable
@@ -20808,6 +20822,31 @@ fn value_is_incoming_to_other_phi(function: &ControlFlowFunction<'_>, value: Val
     })
 }
 
+fn value_depends_on_javascript_name(
+    function: &ControlFlowFunction<'_>,
+    value: ValueId,
+    name: &str,
+    context: &LocalNames,
+    visited: &mut AHashSet<ValueId>,
+) -> bool {
+    if context.is_stored(value) {
+        return context.value_name(value).ok() == Some(name);
+    }
+    if !visited.insert(value) {
+        return false;
+    }
+    function
+        .blocks
+        .iter()
+        .flat_map(|block| &block.instructions)
+        .find(|instruction| instruction.out == Some(value))
+        .is_some_and(|instruction| {
+            op_values(&instruction.op).into_iter().any(|operand| {
+                value_depends_on_javascript_name(function, operand, name, context, visited)
+            })
+        })
+}
+
 fn exclusive_recursive_iife_store_local(
     function: &ControlFlowFunction<'_>,
     dest: ValueId,
@@ -29972,6 +30011,36 @@ install();
                 "{mode:?} coloring must not overwrite an incoming value referenced by the recovered conditional"
             );
         }
+    }
+
+    #[test]
+    fn local_phi_expression_does_not_read_a_coalesced_input_before_its_definition() {
+        let source = r#"
+            struct Result { string raw; string text; }
+            string trimValue(string value) {
+                while (value.endsWith(" ")) value = value.slice(0, value.length - 1);
+                return value;
+            }
+            Result? tokenize(bool preserve, string source) {
+                JsValue matchValue = new Regex("^a", "u").exec(source);
+                if (JS.isNullish(matchValue)) return null;
+                string value = JS.string(matchValue[0]);
+                if (!preserve) value = trimValue(value);
+                Result result = Result{value, ""};
+                result.text = value.replace(new Regex(".", "u"), "x");
+                return result;
+            }
+            extern bool readBool();
+            extern string readString();
+            Result? result = tokenize(readBool(), readString());
+            if (result != null) print(result.raw + result.text);
+        "#;
+        let output = compile_with_options(source, IrJsOptions::default());
+        let instrumented = format!(
+            "globalThis.readBool=()=>false;globalThis.readString=()=>\"a\";let calls=0;let endsWith=String.prototype.endsWith;String.prototype.endsWith=function(...args){{calls++;return endsWith.call(this,...args)}};{output};console.log(calls)"
+        );
+
+        assert_eq!(run_javascript(&instrumented), "ax\n1\n", "{output}");
     }
 
     #[test]
