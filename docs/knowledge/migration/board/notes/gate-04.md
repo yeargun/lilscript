@@ -45,6 +45,7 @@ semantic identity. Do not weaken a rejection to preserve bytes.
 | 2026-08-29 | Binding byte ranges | `cargo test --release --lib records_binding_and_declaration_byte_ranges`; `cargo test --release --lib final_javascript_cannot_introduce_an_unresolved` | bound uses report declaration ranges; free and opaque unresolved occurrences are explicit; new unresolved names fail closed | gate |
 | 2026-08-29 | Dynamic property ranges | `cargo test --release --lib records_dynamic_property_ranges`; `cargo test --release --lib explained_compilation_reports_property_ranges` | computed member ranges are reported separately as dynamic; static ranges retain typed provenance candidates | gate |
 | 2026-08-29 | Live binding and descriptor fixtures | `cargo test --release --lib exported_global_remains_a_live_binding`; `cargo test --release --lib exported_class_preserves_field_order_and_method_descriptors` | raw/gzip/Brotli variants preserved live global updates, own-field order/descriptors, and class-method descriptors | gate |
+| 2026-08-29 | Current Rust library suite | `cargo test --release --lib` | 1,627 passed, 0 failed before the final witness-only additions; subsequent focused gates passed | gate |
 
 ## Log
 

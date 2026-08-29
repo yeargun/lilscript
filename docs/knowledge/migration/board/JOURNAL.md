@@ -6,6 +6,13 @@ recorded verdict. This is cold storage: read it when you are about to redo somet
 Format: `## YYYY-MM-DD — <task id> — <one line>` then two or three lines of what
 changed, what the gate said, and the commit if there is one.
 
+## 2026-08-29 — gate-04 — implementation complete, G2 deferred
+
+V-01 now covers syntax floors, bindings and external names, static/dynamic
+properties with provenance, module edges, export/callable ABI, live bindings,
+field order/descriptors, templates, and lowering obligations. Rust release was
+green at 1,627 tests; the external G2 remains explicitly deferred.
+
 ## 2026-08-29 — emit-01 — control transfer cannot enter a conditional expression
 
 The branch fold already requires `ExpressionParser::parse_complete` for both

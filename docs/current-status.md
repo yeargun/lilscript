@@ -37,7 +37,7 @@ Live task rows: [ledger](knowledge/migration/board/LEDGER.md).
 
 | Gate | Result |
 |---|---:|
-| Rust release library tests | 1,603 passed |
+| Rust release library tests | 1,627 passed |
 | Rust release all-targets | passed |
 | Canonical paired cases | 54/54 passed |
 | Codec contract | 10/10 passed |
