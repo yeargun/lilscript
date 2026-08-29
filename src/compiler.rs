@@ -4029,7 +4029,7 @@ impl SelectedModelDeclarationScores {
         let variant_count = variants.len();
         let results = variants
             .iter()
-            .map(|source| compressed_size(source.as_bytes(), model));
+            .map(|source| admitted_generated_javascript_size(source, model));
         Self::from_ordered_results(model, semantics, variant_count, results)
     }
 
@@ -4194,7 +4194,7 @@ fn measure_selected_model_emission_batch<Owner: Send + Sync>(
         requests,
         retained,
         rayon::current_num_threads(),
-        |source, model| compressed_size(source.as_bytes(), model),
+        |source, model| admitted_generated_javascript_size(source, model),
     )
 }
 
@@ -4425,13 +4425,13 @@ impl JavaScriptEmissionCandidate {
         }
         let cost = if self.declaration_plan {
             best_declaration_variant_by(self.code(), |source| {
-                compressed_size(source.as_bytes(), model).map_err(|message| {
+                admitted_generated_javascript_size(source, model).map_err(|message| {
                     crate::codegen_js::CodegenError::new(Span::empty(0), message)
                 })
             })?
             .1
         } else {
-            compressed_size(self.code().as_bytes(), model)
+            admitted_generated_javascript_size(self.code(), model)
                 .map_err(|message| crate::codegen_js::CodegenError::new(Span::empty(0), message))?
         };
         self.objective_costs[index] = Some(cost);
@@ -4894,6 +4894,10 @@ impl TerminalCodecProbeBudget {
     /// codec invocations, while `used` remains the conservative admission
     /// ledger that enforces the hard ceiling.
     fn measure_reserved(&self, bytes: &[u8], model: CompressionCostModel) -> Result<usize, String> {
+        let source = std::str::from_utf8(bytes)
+            .map_err(|error| format!("generated JavaScript is not UTF-8: {error}"))?;
+        analyze_generated_javascript(source)
+            .map_err(|error| format!("generated JavaScript admission failed: {error}"))?;
         self.codec_calls.fetch_add(1, Ordering::Relaxed);
         compressed_size(bytes, model)
     }
@@ -5131,7 +5135,7 @@ fn finalize_javascript_candidates_with_terminal_objective_challengers_in_current
         }) {
         transfer
     } else {
-        compressed_size(configured_baseline.as_bytes(), config.javascript.cost_model)
+        admitted_generated_javascript_size(configured_baseline, config.javascript.cost_model)
             .map_err(|message| crate::codegen_js::CodegenError::new(Span::empty(0), message))?
     };
     let mut selected = finalize_javascript_candidates_with_parallelism(
@@ -5363,7 +5367,7 @@ fn finalize_javascript_candidates_with_parallelism(
         }) {
         transfer
     } else {
-        compressed_size(configured_baseline.as_bytes(), config.javascript.cost_model)
+        admitted_generated_javascript_size(configured_baseline, config.javascript.cost_model)
             .map_err(|message| crate::codegen_js::CodegenError::new(Span::empty(0), message))?
     };
     let configured_options = config.js_options();
@@ -6139,7 +6143,7 @@ fn populate_missing_gzip_objectives_for_brotli_candidates(
     populate_missing_gzip_objectives_for_brotli_candidates_by(
         candidates,
         rayon::current_num_threads(),
-        |source| compressed_size(source.as_bytes(), CompressionCostModel::Gzip),
+        |source| admitted_generated_javascript_size(source, CompressionCostModel::Gzip),
     );
 }
 
@@ -7356,7 +7360,7 @@ fn apply_selected_canonical_peephole(
     {
         return Ok(selected);
     }
-    let cost = compressed_size(code.as_bytes(), config.javascript.cost_model)
+    let cost = admitted_generated_javascript_size(&code, config.javascript.cost_model)
         .map_err(|message| crate::codegen_js::CodegenError::new(Span::empty(0), message))?;
     selected.terminal_codec_probes = selected.terminal_codec_probes.saturating_add(1);
     let startup_score = metrics.startup_score(
@@ -7417,7 +7421,7 @@ fn apply_search_off_declaration_peephole(
     {
         return Ok(selected);
     }
-    let transfer_cost = compressed_size(code.as_bytes(), config.javascript.cost_model)
+    let transfer_cost = admitted_generated_javascript_size(&code, config.javascript.cost_model)
         .map_err(|message| crate::codegen_js::CodegenError::new(Span::empty(0), message))?;
     let mut challenger = selected.clone();
     challenger.code = code;
@@ -8754,6 +8758,7 @@ fn rank_identifier_mapping(
 ) -> Result<(), CompileError> {
     let remapped = remap_single_character_identifiers(code, &mapping)
         .map_err(generated_javascript_parse_error)?;
+    analyze_generated_javascript(&remapped).map_err(generated_javascript_parse_error)?;
     if ranked
         .iter()
         .any(|candidate| candidate.remapped == remapped)
@@ -9307,6 +9312,15 @@ fn emit_javascript_candidate(
         Ok((folded, rewritten)) if rewritten > 0 => folded,
         _ => code,
     })
+}
+
+fn admitted_generated_javascript_size(
+    source: &str,
+    model: CompressionCostModel,
+) -> Result<usize, String> {
+    analyze_generated_javascript(source)
+        .map_err(|error| format!("generated JavaScript admission failed: {error}"))?;
+    compressed_size(source.as_bytes(), model)
 }
 
 fn compressed_size(bytes: &[u8], model: CompressionCostModel) -> Result<usize, String> {
@@ -14672,6 +14686,40 @@ mod tests {
             .unwrap()
             .is_none());
         assert_eq!(budget.used, 7);
+    }
+
+    #[test]
+    fn generated_javascript_admission_rejects_invalid_code_before_codec() {
+        let measurements_before = javascript_codec_measurement_count();
+        let mut budget = TerminalCodecProbeBudget::new(2);
+
+        let malformed = budget
+            .compressed_size(b"function f(){return [1,2}", CompressionCostModel::Raw)
+            .unwrap_err();
+        assert!(malformed.to_string().contains("admission failed"));
+        let unresolved = budget
+            .compressed_size(
+                b"function a(){return x}function b(){let x=1}",
+                CompressionCostModel::Raw,
+            )
+            .unwrap_err();
+        assert!(unresolved.to_string().contains("unresolved generated identifier"));
+
+        assert_eq!(budget.codec_calls(), 0);
+        assert_eq!(javascript_codec_measurement_count(), measurements_before);
+    }
+
+    #[test]
+    fn declaration_variants_are_admitted_before_scoring() {
+        let measurements_before = javascript_codec_measurement_count();
+        let error = ScoredJavaScriptEmission::measure(
+            "function f(){return [1,2}".to_string(),
+            CompressionCostModel::Raw,
+        )
+        .unwrap_err();
+
+        assert!(error.to_string().contains("admission failed"));
+        assert_eq!(javascript_codec_measurement_count(), measurements_before);
     }
 
     #[test]

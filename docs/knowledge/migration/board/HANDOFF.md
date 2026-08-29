@@ -59,8 +59,8 @@ These commits were pushed to `origin/main` without force on 2026-08-29.
 ## Known red or incomplete gates
 
 - V-01 final-artifact admission is not implemented. Current semantic harnesses
-  catch invalid outputs after emission, but codec calls are not universally
-  preceded by syntax/binding/property/module/ABI/obligation validation.
+  now require syntax and binding admission before compiler-internal codec calls,
+  but property/module/ABI/obligation witnesses are not yet implemented.
 - Historical Marked raw/gzip outputs from `06b89aa` fail 229 corpus checks and
   are ineligible incumbents; candidate `7128462` fixes them. The Brotli incumbent
   and all other selected rows remain byte-identical.
@@ -71,9 +71,9 @@ These commits were pushed to `origin/main` without force on 2026-08-29.
 
 1. Clone or pull LilScript, MotionLil, MarkedLil, MobXLil, jQueryLil, and SolidLil
    beside one another; verify the pinned objects with `--check-inputs`.
-2. Read `notes/gate-04.md` and inventory codec call sites plus existing final-JS
-   parsing, binding resolution, contract, ABI, and obligation witnesses.
-3. Implement V-01 as one fail-closed admission path before exact scoring.
+2. Read `notes/gate-04.md`; syntax/binding admission is centralized at codec
+   call sites and has zero-call rejection tests.
+3. Complete V-01 with property/module/ABI/obligation witnesses before scoring.
 4. Run targeted rejection fixtures, full Rust/canonical/codec gates, then the
    selected 13-boundary `migration,candidate` G2 command recorded in gate-02.
 5. Continue canonical phase 1 incumbent recovery only after V-01 lands.

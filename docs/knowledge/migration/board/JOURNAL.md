@@ -6,6 +6,13 @@ recorded verdict. This is cold storage: read it when you are about to redo somet
 Format: `## YYYY-MM-DD — <task id> — <one line>` then two or three lines of what
 changed, what the gate said, and the commit if there is one.
 
+## 2026-08-29 — gate-04 — syntax and binding admission before codec
+
+All production compiler scoring paths now run the generated-JavaScript syntax
+and binding analyzer before invoking an exact codec. Malformed and unresolved
+candidates leave the codec-call counter at zero; full Rust is 1,605/1,605 and a
+fresh Marked gzip canary passes 660/660. ABI/property/obligation witnesses remain.
+
 ## 2026-08-29 — gate-02 / ident-09 / emit-08 — five-fork G2 landed
 
 The matrix now has 15 immutable boundaries, including seven direct Motion
