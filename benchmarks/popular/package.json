@@ -21,7 +21,6 @@
   },
   "dependencies": {
     "@reduxjs/toolkit": "2.8.2",
-    "@rolldown/binding-darwin-arm64": "^1.2.4",
     "acorn": "8.15.0",
     "clsx": "2.1.1",
     "gl-matrix": "3.4.3",

@@ -2330,7 +2330,7 @@ shared_min_imports = 3
         assert!(size.js_options().mangle_properties);
         assert!(!size.js_options().mangle_exports);
         assert!(size.ir_inlining_variants_enabled());
-        assert!(size.global_alias_forwarding_variants_enabled());
+        assert!(!size.global_alias_forwarding_variants_enabled());
         assert!(size.pure_helper_inlining_candidates_enabled());
         assert!(size.dense_string_return_table_candidates_enabled());
         assert!(size.host_alias_spelling_candidates_enabled());
@@ -2493,7 +2493,7 @@ local_name_coalescing = false
             .javascript
             .removed_size_first_compression_families();
         assert!(removed.contains(&"length-to-number-elision"), "{removed:?}");
-        assert!(removed.contains(&"global-alias-forwarding"), "{removed:?}");
+        assert!(!removed.contains(&"global-alias-forwarding"), "{removed:?}");
         assert!(
             removed.contains(&"joint-representation-search"),
             "{removed:?}"

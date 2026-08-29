@@ -18007,7 +18007,7 @@ mod tests {
     #[test]
     fn stringify_elision_crosses_intervening_constants() {
         let (module, changed) = optimize_stringify_elision_source(
-            "extern JsValue dynamic;extern void consume(string value);string text=JS.string(dynamic);consume(text+\"!\");",
+            "extern JsValue dynamic;extern void consume(string value);void run(JsValue value){string text=JS.string(value);consume(text+\"!\");}run(dynamic);",
         );
 
         assert!(changed);

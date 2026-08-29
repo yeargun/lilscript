@@ -32699,13 +32699,15 @@ run();
             "extern void consume(JsValue value);void run(){JsValue bag=JS.array();JS.push(bag,1.0);JS.push(bag,2.0);consume(bag);}run();",
         );
         assert!(typed_js.contains("=[]"), "{typed_js}");
-        assert_eq!(typed_js.matches(".push(").count(), 2, "{typed_js}");
+        assert!(typed_js.contains("Array.prototype.push"), "{typed_js}");
+        assert_eq!(typed_js.matches(".call(").count(), 2, "{typed_js}");
 
         let factory = compile(
             "extern void consume(JsValue value);JsValue empty(){JsValue[] a=[];return a;}void run(){JsValue bag=empty();JS.push(bag,1.0);JS.push(bag,2.0);consume(bag);}run();",
         );
         assert!(factory.contains("=[]"), "{factory}");
-        assert_eq!(factory.matches(".push(").count(), 2, "{factory}");
+        assert!(factory.contains("Array.prototype.push"), "{factory}");
+        assert_eq!(factory.matches(".call(").count(), 2, "{factory}");
     }
 
     #[test]
