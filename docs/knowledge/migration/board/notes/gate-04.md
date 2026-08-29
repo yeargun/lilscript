@@ -39,6 +39,7 @@ semantic identity. Do not weaken a rejection to preserve bytes.
 | 2026-08-29 | External-name admission | `cargo test --release --lib observes_free_identifiers`; `cargo test --release --lib final_javascript_cannot_introduce_an_undeclared` | final free identifiers must be a subset of the direct typed emission's declared host/global set; both focused tests passed | gate |
 | 2026-08-29 | Owner/slot property provenance | `cargo test --release --lib property_mangling_reserves_extern_fields_and_host_methods`; `cargo test --release --lib final_javascript_cannot_introduce_an_unclassified_static_property`; Marked gzip compile plus semantic lane | typed allocator records owner, slot, source/emitted spelling, category, and stability; final names must be represented; Marked passed 660/660 in 86.84 s | gate |
 | 2026-08-29 | Opaque template witness | `cargo test --release --lib opaque_template` | two focused tests passed; final templates must be exact retained occurrences from direct emission | gate |
+| 2026-08-29 | Property byte ranges | `cargo test --release --lib observes_static_properties`; `cargo test --release --lib property_mangling_reserves_extern_fields_and_host_methods` | every final static property occurrence records an exact byte range and resolves to typed owner/slot, external, or unowned direct-emission provenance | gate |
 
 ## Log
 
@@ -52,8 +53,10 @@ semantic identity. Do not weaken a rejection to preserve bytes.
 - 2026-08-29 — Added final and candidate-level ECMAScript floor checks and removed the redundant final direct re-emission by retaining its admission witness. Owner/slot property provenance remains. — **OPEN**
 - 2026-08-29 — Froze free identifiers from direct typed emission and reject any final candidate that introduces another external name. Template-expression identities and owner/slot property provenance remain. — **OPEN**
 - 2026-08-29 — Added owner/slot provenance from the typed property allocator, unowned fallback categories for direct static properties, and exact opaque-template retention. Mapping each final byte range back to one owner remains target-JS work. — **OPEN**
+- 2026-08-29 — Final static-property occurrences now carry exact byte ranges and must match an emitted provenance spelling; owned entries retain owner and slot. Shared spellings can still map to multiple legal owners until target-JS identity replaces text recovery. — **OPEN**
 
 ## Next step
 
-Attach owner/slot and binding identities to final byte ranges rather than only
-validating each final spelling against the typed provenance set.
+Add deterministic serialization of the many-to-many property occurrence map and
+the corresponding binding ranges, then review whether V-01 can graduate without
+waiting for the phase-3 target tree.

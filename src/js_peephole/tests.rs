@@ -11,10 +11,10 @@ use super::{
     generated_javascript_bit_or_zero_count, generated_javascript_export_names,
     generated_javascript_export_witnesses, generated_javascript_free_identifiers,
     generated_javascript_static_imports, generated_javascript_static_property_names,
-    generated_javascript_template_literals, optimize_generated_javascript,
-    optimize_generated_javascript_assuming, optimize_generated_javascript_preserving_functions,
-    reorder_uninitialized_var_declarators, validate_generated_javascript_syntax_floor,
-    PeepholeResult,
+    generated_javascript_static_property_occurrences, generated_javascript_template_literals,
+    optimize_generated_javascript, optimize_generated_javascript_assuming,
+    optimize_generated_javascript_preserving_functions, reorder_uninitialized_var_declarators,
+    validate_generated_javascript_syntax_floor, PeepholeResult,
 };
 
 const LEGACY_PUNCTUATION: [&str; 31] = [
@@ -1207,6 +1207,12 @@ fn observes_static_properties_without_confusing_dynamic_keys() {
         )
         .unwrap(),
         ["bracket", "field", "method", "named", "quoted", "static"]
+    );
+    let occurrences = generated_javascript_static_property_occurrences("value.field").unwrap();
+    assert_eq!(occurrences[0].name, "field");
+    assert_eq!(
+        &"value.field"[occurrences[0].start..occurrences[0].end],
+        "field"
     );
 }
 

@@ -6,6 +6,13 @@ recorded verdict. This is cold storage: read it when you are about to redo somet
 Format: `## YYYY-MM-DD — <task id> — <one line>` then two or three lines of what
 changed, what the gate said, and the commit if there is one.
 
+## 2026-08-29 — gate-04 — property ranges resolve to typed provenance
+
+Typed emission records owner/slot/source/emitted/category/stability for properties.
+Every final static-property byte range must resolve to that set; unowned direct
+properties remain explicitly classified. Focused provenance and rejection tests
+plus the Marked gzip 660-case canary pass.
+
 ## 2026-08-29 — gate-04 — property and template provenance
 
 The typed property allocator now records owner, slot, source/emitted spelling,

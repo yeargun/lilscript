@@ -34,10 +34,10 @@ use crate::js_peephole::{
     generated_javascript_bit_or_zero_count, generated_javascript_export_names,
     generated_javascript_export_witnesses, generated_javascript_free_identifiers,
     generated_javascript_static_imports, generated_javascript_static_property_names,
-    generated_javascript_template_literals, identifier_name_is_clear_binding,
-    inline_single_use_functions, late_generated_javascript_cleanup,
-    late_generated_javascript_cleanup_local_variants, late_generated_javascript_cleanup_pass,
-    optimize_generated_javascript_assuming,
+    generated_javascript_static_property_occurrences, generated_javascript_template_literals,
+    identifier_name_is_clear_binding, inline_single_use_functions,
+    late_generated_javascript_cleanup, late_generated_javascript_cleanup_local_variants,
+    late_generated_javascript_cleanup_pass, optimize_generated_javascript_assuming,
     optimize_generated_javascript_preserving_functions_assuming, remap_identifier,
     remap_single_character_identifiers, repair_fused_keyword_identifiers,
     single_character_identifier_use_counts, single_character_identifiers,
@@ -9670,16 +9670,16 @@ fn validate_observed_javascript_artifact(
         )
         .into());
     }
-    let observed_properties = generated_javascript_static_property_names(source)
+    let observed_properties = generated_javascript_static_property_occurrences(source)
         .map_err(generated_javascript_parse_error)?;
     let introduced = observed_properties
         .iter()
         .filter(|property| {
             !property_provenance
                 .iter()
-                .any(|provenance| provenance.emitted == ***property)
+                .any(|provenance| provenance.emitted == property.name)
         })
-        .cloned()
+        .map(|property| (property.name.clone(), property.start, property.end))
         .collect::<Vec<_>>();
     if !introduced.is_empty() {
         return Err(crate::codegen_js::CodegenError::new(

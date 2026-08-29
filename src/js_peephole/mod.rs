@@ -100,6 +100,13 @@ pub struct GeneratedJavaScriptMethodWitness {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GeneratedJavaScriptPropertyOccurrence {
+    pub name: String,
+    pub start: usize,
+    pub end: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct JavaScriptParseError {
     offset: usize,
     message: &'static str,
@@ -877,17 +884,33 @@ pub fn generated_javascript_bit_or_zero_count(source: &str) -> Result<usize, Jav
 pub fn generated_javascript_static_property_names(
     source: &str,
 ) -> Result<Vec<String>, JavaScriptParseError> {
+    let mut names = generated_javascript_static_property_occurrences(source)?
+        .into_iter()
+        .map(|property| property.name)
+        .collect::<Vec<_>>();
+    names.sort();
+    names.dedup();
+    Ok(names)
+}
+
+pub fn generated_javascript_static_property_occurrences(
+    source: &str,
+) -> Result<Vec<GeneratedJavaScriptPropertyOccurrence>, JavaScriptParseError> {
     analyze_generated_javascript(source)?;
     let tokens = lex(source)?;
     let matching_close = matching_closers(&tokens);
     let class_names = class_element_name_occurrences(&tokens, &matching_close);
-    let mut names = std::collections::BTreeSet::new();
+    let mut properties = Vec::new();
     for (index, token) in tokens.iter().enumerate() {
         if matches!(token.kind, TokenKind::Identifier | TokenKind::Keyword)
             && (is_property_identifier(&tokens, index)
                 || class_names.get(index).copied().unwrap_or(false))
         {
-            names.insert(token.text.to_string());
+            properties.push(GeneratedJavaScriptPropertyOccurrence {
+                name: token.text.to_string(),
+                start: token.start,
+                end: token.end,
+            });
             continue;
         }
         if token.kind != TokenKind::String {
@@ -901,11 +924,15 @@ pub fn generated_javascript_static_property_names(
                 && previous.is_some_and(|token| matches!(token.text, "{" | ","));
         if static_property {
             if let Some(name) = unescape_js_string(token.text) {
-                names.insert(name);
+                properties.push(GeneratedJavaScriptPropertyOccurrence {
+                    name,
+                    start: token.start,
+                    end: token.end,
+                });
             }
         }
     }
-    Ok(names.into_iter().collect())
+    Ok(properties)
 }
 
 pub fn generated_javascript_free_identifiers(
