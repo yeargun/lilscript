@@ -409,13 +409,6 @@ pub fn generated_javascript_export_witnesses(
     let tokens = lex(source)?;
     let matching_close = matching_closers(&tokens);
     let resolution = BindingResolution::new(&tokens);
-    if !resolution.is_total() {
-        return Err(generated_import_error(
-            0,
-            "incomplete generated binding witness",
-            source,
-        ));
-    }
     let mut witnesses = Vec::new();
     for (local_index, name) in generated_export_pairs(&tokens, &matching_close, source)? {
         let Resolution::Bound(declaration) = resolution.resolve(local_index) else {
@@ -878,6 +871,40 @@ pub fn generated_javascript_bit_or_zero_count(source: &str) -> Result<usize, Jav
             pair[0].text == "|" && pair[1].kind == TokenKind::Number && pair[1].text == "0"
         })
         .count())
+}
+
+pub fn generated_javascript_static_property_names(
+    source: &str,
+) -> Result<Vec<String>, JavaScriptParseError> {
+    analyze_generated_javascript(source)?;
+    let tokens = lex(source)?;
+    let matching_close = matching_closers(&tokens);
+    let class_names = class_element_name_occurrences(&tokens, &matching_close);
+    let mut names = std::collections::BTreeSet::new();
+    for (index, token) in tokens.iter().enumerate() {
+        if matches!(token.kind, TokenKind::Identifier | TokenKind::Keyword)
+            && (is_property_identifier(&tokens, index)
+                || class_names.get(index).copied().unwrap_or(false))
+        {
+            names.insert(token.text.to_string());
+            continue;
+        }
+        if token.kind != TokenKind::String {
+            continue;
+        }
+        let previous = index.checked_sub(1).and_then(|index| tokens.get(index));
+        let next = tokens.get(index + 1);
+        let static_property = previous.is_some_and(|token| token.text == "[")
+            && next.is_some_and(|token| token.text == "]")
+            || next.is_some_and(|token| token.text == ":")
+                && previous.is_some_and(|token| matches!(token.text, "{" | ","));
+        if static_property {
+            if let Some(name) = unescape_js_string(token.text) {
+                names.insert(name);
+            }
+        }
+    }
+    Ok(names.into_iter().collect())
 }
 
 fn generated_import_error(

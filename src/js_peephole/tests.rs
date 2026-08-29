@@ -10,7 +10,8 @@ use super::{
     analyze_generated_javascript, function_leading_declaration_variant,
     generated_javascript_bit_or_zero_count, generated_javascript_export_names,
     generated_javascript_export_witnesses, generated_javascript_static_imports,
-    optimize_generated_javascript, optimize_generated_javascript_assuming,
+    generated_javascript_static_property_names, optimize_generated_javascript,
+    optimize_generated_javascript_assuming,
     optimize_generated_javascript_preserving_functions, reorder_uninitialized_var_declarators,
     PeepholeResult,
 };
@@ -1194,6 +1195,17 @@ fn counts_generated_bit_or_zero_obligations_from_tokens() {
         )
         .unwrap(),
         2
+    );
+}
+
+#[test]
+fn observes_static_properties_without_confusing_dynamic_keys() {
+    assert_eq!(
+        generated_javascript_static_property_names(
+            "class C{field=0;method(){return this.field}}let o={named:1,'quoted':2};o.static;o['bracket'];o[key]"
+        )
+        .unwrap(),
+        ["bracket", "field", "method", "named", "quoted", "static"]
     );
 }
 

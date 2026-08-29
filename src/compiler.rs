@@ -32,7 +32,8 @@ use crate::js_peephole::{
     function_leading_declaration_variant, function_local_binding_swap_variants,
     generated_javascript_bit_or_zero_count, generated_javascript_export_names,
     generated_javascript_export_witnesses, generated_javascript_static_imports,
-    identifier_name_is_clear_binding, inline_single_use_functions,
+    generated_javascript_static_property_names, identifier_name_is_clear_binding,
+    inline_single_use_functions,
     late_generated_javascript_cleanup, late_generated_javascript_cleanup_local_variants,
     late_generated_javascript_cleanup_pass, optimize_generated_javascript_assuming,
     optimize_generated_javascript_preserving_functions_assuming, remap_identifier,
@@ -2211,6 +2212,9 @@ fn optimize_and_select_javascript_inner<'src>(
         .registered_plan_by_identity(selected.plan_identity)
         .expect("selected JavaScript plan remains registered")
         .options;
+    let direct_selected = contexts
+        .get(selected.plan_identity.context_id)
+        .emit(preserve_exports, selected_options)?;
     let (source_operations, generated_operations) =
         selected_context.ir.operation_provenance_counts();
     let abi_manifest = config
@@ -2219,7 +2223,12 @@ fn optimize_and_select_javascript_inner<'src>(
     let lowering_obligations = selected_context
         .ir
         .lowering_obligation_count(crate::ir::LoweringObligation::PreserveJavaScriptBitOrZero);
-    validate_observed_javascript_artifact(&selected.code, &abi_manifest, lowering_obligations)?;
+    validate_observed_javascript_artifact(
+        &selected.code,
+        &direct_selected,
+        &abi_manifest,
+        lowering_obligations,
+    )?;
     let search_ctx =
         javascript_emission_search_context(config, preserve_exports, total_candidate_limit);
     let scored_emission_families =
@@ -9331,6 +9340,7 @@ fn admitted_generated_javascript_size(
 
 fn validate_observed_javascript_artifact(
     source: &str,
+    direct_source: &str,
     expected: &crate::compilation_contract::JavaScriptAbiManifest,
     expected_bit_or_zero: usize,
 ) -> Result<(), CompileError> {
@@ -9365,8 +9375,7 @@ fn validate_observed_javascript_artifact(
     let mut expected_callables = expected
         .exports
         .iter()
-        .filter(|export| export.kind != crate::compilation_contract::JavaScriptExportKind::TypeOnly)
-        .map(|export| {
+        .filter_map(|export| {
             let kind = match export.kind {
                 crate::compilation_contract::JavaScriptExportKind::Function => {
                     crate::js_peephole::GeneratedJavaScriptExportKind::Function
@@ -9374,10 +9383,8 @@ fn validate_observed_javascript_artifact(
                 crate::compilation_contract::JavaScriptExportKind::Constructor => {
                     crate::js_peephole::GeneratedJavaScriptExportKind::Constructor
                 }
-                crate::compilation_contract::JavaScriptExportKind::Global => {
-                    crate::js_peephole::GeneratedJavaScriptExportKind::Value
-                }
-                crate::compilation_contract::JavaScriptExportKind::TypeOnly => unreachable!(),
+                crate::compilation_contract::JavaScriptExportKind::Global
+                | crate::compilation_contract::JavaScriptExportKind::TypeOnly => return None,
             };
             let methods = export
                 .methods
@@ -9391,13 +9398,13 @@ fn validate_observed_javascript_artifact(
                     )
                 })
                 .collect::<Vec<_>>();
-            (
+            Some((
                 export.name.clone(),
                 kind,
                 export.arity,
                 export.constructible,
                 methods,
-            )
+            ))
         })
         .collect::<Vec<_>>();
     let mut observed_callables = export_witnesses
@@ -9424,24 +9431,26 @@ fn validate_observed_javascript_artifact(
             )
         })
         .collect::<Vec<_>>();
-    if expected.export_names_may_mangle {
-        for expected in &mut expected_callables {
-            expected.0.clear();
-        }
-        for observed in &mut observed_callables {
-            observed.0.clear();
-        }
-    }
     expected_callables.sort();
     observed_callables.sort();
-    if observed_callables != expected_callables {
-        return Err(crate::codegen_js::CodegenError::new(
-            Span::empty(0),
-            format!(
-                "generated JavaScript callable ABI mismatch: expected {expected_callables:?}, observed {observed_callables:?}"
-            ),
-        )
-        .into());
+    for expected_callable in &expected_callables {
+        let match_at = observed_callables.iter().position(|observed| {
+            (expected.export_names_may_mangle || observed.0 == expected_callable.0)
+                && observed.1 == expected_callable.1
+                && observed.2 == expected_callable.2
+                && observed.3 == expected_callable.3
+                && observed.4 == expected_callable.4
+        });
+        let Some(match_at) = match_at else {
+            return Err(crate::codegen_js::CodegenError::new(
+                Span::empty(0),
+                format!(
+                    "generated JavaScript callable ABI mismatch: expected {expected_callables:?}, observed {observed_callables:?}"
+                ),
+            )
+            .into());
+        };
+        observed_callables.remove(match_at);
     }
     let expected_imports = expected
         .foreign_imports
@@ -9464,6 +9473,24 @@ fn validate_observed_javascript_artifact(
             Span::empty(0),
             format!(
                 "generated JavaScript lowering-obligation mismatch: expected at least {expected_bit_or_zero} source `|0` operations, observed {observed_bit_or_zero}"
+            ),
+        )
+        .into());
+    }
+    let direct_properties = generated_javascript_static_property_names(direct_source)
+        .map_err(generated_javascript_parse_error)?;
+    let observed_properties = generated_javascript_static_property_names(source)
+        .map_err(generated_javascript_parse_error)?;
+    let introduced = observed_properties
+        .iter()
+        .filter(|property| !direct_properties.contains(property))
+        .cloned()
+        .collect::<Vec<_>>();
+    if !introduced.is_empty() {
+        return Err(crate::codegen_js::CodegenError::new(
+            Span::empty(0),
+            format!(
+                "generated JavaScript introduced unclassified static properties: {introduced:?}"
             ),
         )
         .into());
@@ -14891,7 +14918,12 @@ mod tests {
         };
 
         let error =
-            validate_observed_javascript_artifact("let a=1;export{a as actual}", &manifest, 0)
+            validate_observed_javascript_artifact(
+                "let a=1;export{a as actual}",
+                "let a=1;export{a as actual}",
+                &manifest,
+                0,
+            )
                 .unwrap_err();
         assert!(error.to_string().contains("export ABI mismatch"));
     }
@@ -14908,9 +14940,38 @@ mod tests {
             stable_extern_fields: Vec::new(),
         };
 
-        let error = validate_observed_javascript_artifact("let a=1", &manifest, 1).unwrap_err();
+        let error =
+            validate_observed_javascript_artifact("let a=1", "let a=1", &manifest, 1).unwrap_err();
         assert!(error.to_string().contains("lowering-obligation mismatch"));
-        validate_observed_javascript_artifact("let a=value|0", &manifest, 1).unwrap();
+        validate_observed_javascript_artifact(
+            "let a=value|0",
+            "let a=value|0",
+            &manifest,
+            1,
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn final_javascript_cannot_introduce_an_unclassified_static_property() {
+        let manifest = crate::compilation_contract::JavaScriptAbiManifest {
+            world: "closed-application",
+            exports: Vec::new(),
+            export_names_may_mangle: false,
+            foreign_imports: Vec::new(),
+            public_aggregate_abi: "named",
+            stable_aggregate_fields: Vec::new(),
+            stable_extern_fields: Vec::new(),
+        };
+
+        let error = validate_observed_javascript_artifact(
+            "let a=o.safe+o.changed",
+            "let a=o.safe",
+            &manifest,
+            0,
+        )
+        .unwrap_err();
+        assert!(error.to_string().contains("unclassified static properties"));
     }
 
     #[test]

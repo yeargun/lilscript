@@ -6,6 +6,12 @@ recorded verdict. This is cold storage: read it when you are about to redo somet
 Format: `## YYYY-MM-DD — <task id> — <one line>` then two or three lines of what
 changed, what the gate said, and the commit if there is one.
 
+## 2026-08-29 — gate-04 — static property admission
+
+Final contraction may remove static properties but may not invent a spelling
+absent from the selected direct typed emission. Focused property tests and the
+Marked gzip 660-case canary pass. Owner/slot provenance remains target-JS work.
+
 ## 2026-08-29 — gate-04 — callable ABI witness
 
 Export clauses resolve back to final declarations and are checked for callable
