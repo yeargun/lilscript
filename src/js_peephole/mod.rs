@@ -106,6 +106,23 @@ pub struct GeneratedJavaScriptPropertyOccurrence {
     pub end: usize,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GeneratedJavaScriptBindingKind {
+    Bound,
+    Free,
+    Unresolved,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GeneratedJavaScriptBindingOccurrence {
+    pub name: String,
+    pub start: usize,
+    pub end: usize,
+    pub kind: GeneratedJavaScriptBindingKind,
+    pub declaration_start: Option<usize>,
+    pub declaration_end: Option<usize>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct JavaScriptParseError {
     offset: usize,
@@ -935,6 +952,45 @@ pub fn generated_javascript_static_property_occurrences(
     Ok(properties)
 }
 
+pub fn generated_javascript_dynamic_property_occurrences(
+    source: &str,
+) -> Result<Vec<(usize, usize)>, JavaScriptParseError> {
+    analyze_generated_javascript(source)?;
+    let tokens = lex(source)?;
+    let matching_close = matching_closers(&tokens);
+    let mut occurrences = Vec::new();
+    for (index, token) in tokens.iter().enumerate() {
+        if token.text != "[" || index == 0 {
+            continue;
+        }
+        let previous = &tokens[index - 1];
+        let optional = previous.text == "."
+            && index > 1
+            && tokens[index - 2].text == "?"
+            && tokens[index - 2].end == previous.start;
+        let receiver = matches!(
+            previous.kind,
+            TokenKind::Identifier
+                | TokenKind::Number
+                | TokenKind::String
+                | TokenKind::Template
+                | TokenKind::Regex
+        ) || matches!(previous.text, ")" | "]")
+            || optional;
+        if !receiver {
+            continue;
+        }
+        let Some(close) = matching_close[index] else {
+            continue;
+        };
+        if close == index + 2 && tokens[index + 1].kind == TokenKind::String {
+            continue;
+        }
+        occurrences.push((token.start, tokens[close].end));
+    }
+    Ok(occurrences)
+}
+
 pub fn generated_javascript_free_identifiers(
     source: &str,
 ) -> Result<Vec<String>, JavaScriptParseError> {
@@ -951,6 +1007,44 @@ pub fn generated_javascript_free_identifiers(
         }
     }
     Ok(names.into_iter().collect())
+}
+
+pub fn generated_javascript_binding_occurrences(
+    source: &str,
+) -> Result<Vec<GeneratedJavaScriptBindingOccurrence>, JavaScriptParseError> {
+    analyze_generated_javascript(source)?;
+    let tokens = lex(source)?;
+    let matching_close = matching_closers(&tokens);
+    let class_names = class_element_name_occurrences(&tokens, &matching_close);
+    let resolution = BindingResolution::new(&tokens);
+    Ok(tokens
+        .iter()
+        .enumerate()
+        .filter(|(index, token)| {
+            token.kind == TokenKind::Identifier
+                && !is_property_identifier(&tokens, *index)
+                && !class_names.get(*index).copied().unwrap_or(false)
+        })
+        .map(|(index, token)| {
+            let (kind, declaration_start, declaration_end) = match resolution.resolve(index) {
+                Resolution::Bound(declaration) => (
+                    GeneratedJavaScriptBindingKind::Bound,
+                    Some(tokens[declaration].start),
+                    Some(tokens[declaration].end),
+                ),
+                Resolution::Free => (GeneratedJavaScriptBindingKind::Free, None, None),
+                Resolution::Unresolved => (GeneratedJavaScriptBindingKind::Unresolved, None, None),
+            };
+            GeneratedJavaScriptBindingOccurrence {
+                name: token.text.to_string(),
+                start: token.start,
+                end: token.end,
+                kind,
+                declaration_start,
+                declaration_end,
+            }
+        })
+        .collect())
 }
 
 pub fn generated_javascript_template_literals(

@@ -31,7 +31,8 @@ use crate::js_peephole::{
     fold_expression_bodies, fold_fresh_empty_object_assign, fold_if_prefixed_returns,
     fold_nested_unguarded_ifs, fold_pristine_static_method_calls, fold_redundant_null_undefined_or,
     function_leading_declaration_variant, function_local_binding_swap_variants,
-    generated_javascript_bit_or_zero_count, generated_javascript_export_names,
+    generated_javascript_binding_occurrences, generated_javascript_bit_or_zero_count,
+    generated_javascript_dynamic_property_occurrences, generated_javascript_export_names,
     generated_javascript_export_witnesses, generated_javascript_free_identifiers,
     generated_javascript_static_imports, generated_javascript_static_property_names,
     generated_javascript_static_property_occurrences, generated_javascript_template_literals,
@@ -120,6 +121,7 @@ pub struct JavaScriptArtifactWitness {
     pub expected_bit_or_zero: usize,
     pub observed_bit_or_zero: usize,
     pub properties: Vec<JavaScriptPropertyOccurrenceWitness>,
+    pub bindings: Vec<JavaScriptBindingOccurrenceWitness>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -133,6 +135,7 @@ pub struct JavaScriptPropertyOccurrenceWitness {
     pub start: usize,
     pub end: usize,
     pub emitted: String,
+    pub category: String,
     pub identities: Vec<JavaScriptPropertyIdentityWitness>,
 }
 
@@ -143,6 +146,16 @@ pub struct JavaScriptPropertyIdentityWitness {
     pub source: String,
     pub category: String,
     pub stable: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct JavaScriptBindingOccurrenceWitness {
+    pub start: usize,
+    pub end: usize,
+    pub name: String,
+    pub resolution: String,
+    pub declaration_start: Option<usize>,
+    pub declaration_end: Option<usize>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -9755,6 +9768,32 @@ fn validate_observed_javascript_artifact(
         )
         .into());
     }
+    let direct_bindings = generated_javascript_binding_occurrences(direct_source)
+        .map_err(generated_javascript_parse_error)?;
+    let observed_bindings = generated_javascript_binding_occurrences(source)
+        .map_err(generated_javascript_parse_error)?;
+    let mut unresolved = direct_bindings
+        .iter()
+        .filter(|binding| {
+            binding.kind == crate::js_peephole::GeneratedJavaScriptBindingKind::Unresolved
+        })
+        .map(|binding| binding.name.clone())
+        .collect::<Vec<_>>();
+    for binding in observed_bindings.iter().filter(|binding| {
+        binding.kind == crate::js_peephole::GeneratedJavaScriptBindingKind::Unresolved
+    }) {
+        let Some(index) = unresolved.iter().position(|name| *name == binding.name) else {
+            return Err(crate::codegen_js::CodegenError::new(
+                Span::empty(binding.start),
+                format!(
+                    "generated JavaScript introduced unresolved binding `{}`",
+                    binding.name
+                ),
+            )
+            .into());
+        };
+        unresolved.remove(index);
+    }
     let direct_templates = generated_javascript_template_literals(direct_source)
         .map_err(generated_javascript_parse_error)?;
     let observed_templates =
@@ -9779,6 +9818,7 @@ fn validate_observed_javascript_artifact(
             start: property.start,
             end: property.end,
             emitted: property.name.clone(),
+            category: "static".to_string(),
             identities: property_provenance
                 .iter()
                 .filter(|provenance| provenance.emitted == property.name)
@@ -9796,6 +9836,18 @@ fn validate_observed_javascript_artifact(
                 })
                 .collect(),
         })
+        .chain(
+            generated_javascript_dynamic_property_occurrences(source)
+                .map_err(generated_javascript_parse_error)?
+                .into_iter()
+                .map(|(start, end)| JavaScriptPropertyOccurrenceWitness {
+                    start,
+                    end,
+                    emitted: source[start..end].to_string(),
+                    category: "dynamic".to_string(),
+                    identities: Vec::new(),
+                }),
+        )
         .collect();
     Ok(JavaScriptArtifactWitness {
         syntax_floor: "validated".to_string(),
@@ -9813,6 +9865,22 @@ fn validate_observed_javascript_artifact(
         expected_bit_or_zero,
         observed_bit_or_zero,
         properties,
+        bindings: observed_bindings
+            .into_iter()
+            .map(|binding| JavaScriptBindingOccurrenceWitness {
+                start: binding.start,
+                end: binding.end,
+                name: binding.name,
+                resolution: match binding.kind {
+                    crate::js_peephole::GeneratedJavaScriptBindingKind::Bound => "bound",
+                    crate::js_peephole::GeneratedJavaScriptBindingKind::Free => "free",
+                    crate::js_peephole::GeneratedJavaScriptBindingKind::Unresolved => "unresolved",
+                }
+                .to_string(),
+                declaration_start: binding.declaration_start,
+                declaration_end: binding.declaration_end,
+            })
+            .collect(),
     })
 }
 
@@ -15353,6 +15421,11 @@ mod tests {
                 && identity.category == "owned"
                 && identity.stable
         }));
+        assert!(selected.artifact_witness.bindings.iter().any(|binding| {
+            binding.name == "Box"
+                && binding.resolution == "bound"
+                && binding.declaration_start.is_some()
+        }));
     }
 
     #[test]
@@ -15384,6 +15457,15 @@ mod tests {
         let error = admission.validate("let a=`value ${other}`").unwrap_err();
         assert!(error.to_string().contains("opaque template expression"));
         admission.validate("").unwrap();
+    }
+
+    #[test]
+    fn final_javascript_cannot_introduce_an_unresolved_binding() {
+        let admission = test_artifact_admission("function f({value}){return value}");
+        let error = admission
+            .validate("function f({value}){return value+missing}")
+            .unwrap_err();
+        assert!(error.to_string().contains("unresolved binding `missing`"));
     }
 
     #[test]

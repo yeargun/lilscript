@@ -45,12 +45,12 @@ pub use compiler::{
     compile_path_with_source_configured, compile_source, compile_source_all, compile_source_to_c,
     compile_source_to_js_module, measure_javascript_transfer_sizes,
     profile_template_path_configured, render_diagnostic, render_module_diagnostic,
-    BundledCompilationArtifacts, CompilationArtifacts, JavaScriptArtifactWitness, JavaScriptBundle,
-    JavaScriptBundleFile, JavaScriptBundleManifest, JavaScriptBundleManifestChunk,
-    JavaScriptBundleObjectiveManifest, JavaScriptCompilation, JavaScriptModuleEdgeWitness,
-    JavaScriptPropertyIdentityWitness, JavaScriptPropertyOccurrenceWitness,
-    JavaScriptSelectionMetrics, JavaScriptTransferSizes, SourceCompileError,
-    CANONICAL_BROTLI_LIBRARY_VERSION, CANONICAL_BROTLI_PACKAGE_VERSION,
+    BundledCompilationArtifacts, CompilationArtifacts, JavaScriptArtifactWitness,
+    JavaScriptBindingOccurrenceWitness, JavaScriptBundle, JavaScriptBundleFile,
+    JavaScriptBundleManifest, JavaScriptBundleManifestChunk, JavaScriptBundleObjectiveManifest,
+    JavaScriptCompilation, JavaScriptModuleEdgeWitness, JavaScriptPropertyIdentityWitness,
+    JavaScriptPropertyOccurrenceWitness, JavaScriptSelectionMetrics, JavaScriptTransferSizes,
+    SourceCompileError, CANONICAL_BROTLI_LIBRARY_VERSION, CANONICAL_BROTLI_PACKAGE_VERSION,
     CANONICAL_ZLIB_LIBRARY_VERSION, CANONICAL_ZLIB_PACKAGE_VERSION,
 };
 pub use interpreter::{

@@ -8,7 +8,8 @@ use super::parse::{non_overlapping_parsed_node_count, parse_expression_regions};
 use super::token::{lex, punctuation_width};
 use super::{
     analyze_generated_javascript, function_leading_declaration_variant,
-    generated_javascript_bit_or_zero_count, generated_javascript_export_names,
+    generated_javascript_binding_occurrences, generated_javascript_bit_or_zero_count,
+    generated_javascript_dynamic_property_occurrences, generated_javascript_export_names,
     generated_javascript_export_witnesses, generated_javascript_free_identifiers,
     generated_javascript_static_imports, generated_javascript_static_property_names,
     generated_javascript_static_property_occurrences, generated_javascript_template_literals,
@@ -1217,6 +1218,19 @@ fn observes_static_properties_without_confusing_dynamic_keys() {
 }
 
 #[test]
+fn records_dynamic_property_ranges_separately_from_static_keys() {
+    let source = "value[key]+value['fixed']+call()[next()]";
+    let occurrences = generated_javascript_dynamic_property_occurrences(source).unwrap();
+    assert_eq!(
+        occurrences
+            .iter()
+            .map(|(start, end)| &source[*start..*end])
+            .collect::<Vec<_>>(),
+        ["[key]", "[next()]"]
+    );
+}
+
+#[test]
 fn observes_free_identifiers_without_properties_or_bound_names() {
     assert_eq!(
         generated_javascript_free_identifiers(
@@ -1225,6 +1239,24 @@ fn observes_free_identifiers_without_properties_or_bound_names() {
         .unwrap(),
         ["external", "other"]
     );
+}
+
+#[test]
+fn records_binding_and_declaration_byte_ranges() {
+    let source = "let value=1;function read(){return value+external}";
+    let bindings = generated_javascript_binding_occurrences(source).unwrap();
+    let captured = bindings
+        .iter()
+        .find(|binding| binding.name == "value" && binding.start > 20)
+        .unwrap();
+    assert_eq!(captured.kind, super::GeneratedJavaScriptBindingKind::Bound);
+    assert_eq!(captured.declaration_start, Some(4));
+    assert_eq!(captured.declaration_end, Some(9));
+    let external = bindings
+        .iter()
+        .find(|binding| binding.name == "external")
+        .unwrap();
+    assert_eq!(external.kind, super::GeneratedJavaScriptBindingKind::Free);
 }
 
 #[test]

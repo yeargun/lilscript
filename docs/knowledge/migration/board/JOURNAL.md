@@ -6,6 +6,18 @@ recorded verdict. This is cold storage: read it when you are about to redo somet
 Format: `## YYYY-MM-DD — <task id> — <one line>` then two or three lines of what
 changed, what the gate said, and the commit if there is one.
 
+## 2026-08-29 — gate-04 — dynamic member ranges
+
+Final property reporting now covers computed members as explicit dynamic ranges
+in addition to static owner/slot mappings. Focused dynamic-range and serialized
+witness tests pass.
+
+## 2026-08-29 — gate-04 — binding byte ranges
+
+The final-artifact witness now records every visible identifier byte range as
+bound, free, or unresolved, and bound uses point to their declaration ranges.
+New unresolved names fail closed; focused range and rejection tests pass.
+
 ## 2026-08-29 — gate-04 — serialized final-artifact witness
 
 Explained compilation now exposes syntax floor, exports, static imports, free

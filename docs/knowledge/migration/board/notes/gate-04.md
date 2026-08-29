@@ -42,6 +42,8 @@ semantic identity. Do not weaken a rejection to preserve bytes.
 | 2026-08-29 | Property byte ranges | `cargo test --release --lib observes_static_properties`; `cargo test --release --lib property_mangling_reserves_extern_fields_and_host_methods` | every final static property occurrence records an exact byte range and resolves to typed owner/slot, external, or unowned direct-emission provenance | gate |
 | 2026-08-29 | Artifact-set syntax admission | `cargo test --release --lib bundle` | three focused bundle/scorer tests passed; emitted chunks now pass generated-JS admission before gzip/Brotli measurement | gate |
 | 2026-08-29 | Serialized artifact witness | `cargo test --release --lib explained_compilation_reports_property_ranges`; `cargo check --all-targets` | explained compilation exposes syntax floor, exports, static imports, free names, template hashes, obligation counts, and property ranges with owner/slot identity candidates | gate |
+| 2026-08-29 | Binding byte ranges | `cargo test --release --lib records_binding_and_declaration_byte_ranges`; `cargo test --release --lib final_javascript_cannot_introduce_an_unresolved` | bound uses report declaration ranges; free and opaque unresolved occurrences are explicit; new unresolved names fail closed | gate |
+| 2026-08-29 | Dynamic property ranges | `cargo test --release --lib records_dynamic_property_ranges`; `cargo test --release --lib explained_compilation_reports_property_ranges` | computed member ranges are reported separately as dynamic; static ranges retain typed provenance candidates | gate |
 
 ## Log
 
@@ -58,8 +60,10 @@ semantic identity. Do not weaken a rejection to preserve bytes.
 - 2026-08-29 — Final static-property occurrences now carry exact byte ranges and must match an emitted provenance spelling; owned entries retain owner and slot. Shared spellings can still map to multiple legal owners until target-JS identity replaces text recovery. — **OPEN**
 - 2026-08-29 — Bundle artifact measurement now uses generated-JS admission instead of calling codecs directly. — **OPEN**
 - 2026-08-29 — Added deterministic `artifact_witness` output to explained compilation. Property occurrences carry byte ranges and every matching owner/slot provenance record. — **OPEN**
+- 2026-08-29 — Added final identifier ranges with `bound`/`free`/`unresolved` classification and declaration byte ranges for bound occurrences. Opaque unresolved names may only survive if present in direct typed emission. — **OPEN**
+- 2026-08-29 — Every final member access now has a static or dynamic range classification. Static occurrences map to typed owner/slot candidates; dynamic accesses remain explicitly non-renamable. — **OPEN**
 
 ## Next step
 
-Add declaration/use byte ranges for bound identifiers, then review whether V-01
-can graduate without waiting for the phase-3 target tree.
+Add final live-binding and descriptor/order fixtures, then review V-01 against
+the canonical checklist before its deferred full G2 run.
