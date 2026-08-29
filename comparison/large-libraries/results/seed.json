@@ -474,9 +474,9 @@
       "reason": "checkpoint 2931 bytes vs baseline 2922 bytes; allowed regression 0 bytes"
     }
   ],
-  "evidenceFingerprint": "23ab655ecdf242a3d9a20522f962346ba9294c7823ff8a9c6adbf22b1edfdfa9",
+  "evidenceFingerprint": "93d8e15eb9400b9a0dea890c214c9273a8733c6f305129da9c0796f6020d6990",
   "format": "lilscript-large-library-observations",
-  "matrixSha256": "df84175e9022940b7f32e85dfea9b1f198a5da80c611b5ab92d858327645dbfc",
+  "matrixSha256": "c668605ce96916d3cb768013368a025c9e6563370189459667c2994fec922962",
   "observations": [
     {
       "artifacts": [],
