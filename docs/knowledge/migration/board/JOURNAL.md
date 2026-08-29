@@ -6,6 +6,12 @@ recorded verdict. This is cold storage: read it when you are about to redo somet
 Format: `## YYYY-MM-DD — <task id> — <one line>` then two or three lines of what
 changed, what the gate said, and the commit if there is one.
 
+## 2026-08-29 — gate-04 — artifact-set scoring admission
+
+Generated bundle chunks now pass syntax/binding admission before gzip/Brotli
+measurement instead of reaching the raw codec helper directly. Three focused
+bundle and scorer tests pass.
+
 ## 2026-08-29 — gate-04 — property ranges resolve to typed provenance
 
 Typed emission records owner/slot/source/emitted/category/stability for properties.

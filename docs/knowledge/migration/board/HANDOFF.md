@@ -70,8 +70,8 @@ the full G2 rerun was explicitly deferred in favor of targeted development gates
   logical-assignment, optional-catch, selected built-in, and class-field syntax
   floors are checked, including async and object rest/spread. Owner/slot
   provenance is recorded, final property byte ranges resolve against it, and newly
-  introduced free globals/templates/properties are rejected. Serialized binding
-  and property range reporting remains.
+  introduced free globals/templates/properties are rejected. Bundle chunks are
+  syntax/binding-admitted before measurement. Serialized witness reporting remains.
 - Historical Marked raw/gzip outputs from `06b89aa` fail 229 corpus checks and
   are ineligible incumbents; candidate `7128462` fixes them. The Brotli incumbent
   and all other selected rows remain byte-identical.

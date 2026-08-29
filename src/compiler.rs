@@ -1223,8 +1223,10 @@ pub fn measure_javascript_transfer_sizes(bytes: &[u8]) -> Result<JavaScriptTrans
 }
 
 fn compressed_artifact_sizes(code: &str) -> Result<(usize, usize), String> {
-    let sizes = measure_javascript_transfer_sizes(code.as_bytes())?;
-    Ok((sizes.gzip9, sizes.brotli11))
+    Ok((
+        admitted_generated_javascript_size(code, CompressionCostModel::Gzip)?,
+        admitted_generated_javascript_size(code, CompressionCostModel::Brotli)?,
+    ))
 }
 
 fn apply_module_preloads(chunks: &mut [IrJsChunk], entry: &str, preload: &[String]) {
