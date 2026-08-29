@@ -1,0 +1,159 @@
+import {
+  CompilerDeprecationTypes,
+  isCompatEnabled,
+  warnDeprecation
+} from "./compatConfig";
+import { Object, RESOLVE_FILTER } from "../runtimeHelpers";
+import { toValidAssetId } from "../utils";
+import { COMPILER_DEV } from "../validateExpression";
+
+Regex validDivisionCharRE = new Regex("[\\w).+\\-_$\\]]");
+
+JsValue filterUndefined() {
+  return JS.undefined();
+}
+
+int filterLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+
+void filterPush(JsValue values, JsValue value) {
+  values[filterLength(values)] = value;
+}
+
+string wrapFilter(string expression, string filter, JsValue context) {
+  JS.call(context["helper"], filterUndefined(), RESOLVE_FILTER);
+  int open = JS.number(JS.invoke(filter, "indexOf", "(")).toInt();
+  if (open < 0) {
+    JS.invoke(context["filters"], "add", filter);
+    return toValidAssetId(filter, "filter") + "(" + expression + ")";
+  }
+  string name = filter.slice(0, open);
+  string args = filter.slice(open + 1);
+  JS.invoke(context["filters"], "add", name);
+  string separator = ",";
+  if (args == ")") separator = "";
+  return toValidAssetId(name, "filter") + "(" + expression + separator + args;
+}
+
+void parseFilter(JsValue node, JsValue context) {
+  string source = JS.string(node["content"]);
+  bool inSingle = false;
+  bool inDouble = false;
+  bool inTemplateString = false;
+  bool inRegex = false;
+  int curly = 0;
+  int square = 0;
+  int paren = 0;
+  int lastFilterIndex = 0;
+  int current = 0;
+  int previous = 0;
+  string expression = "";
+  bool foundExpression = false;
+  JsValue filters = JS.array();
+  int index = 0;
+
+  while (index < source.length) {
+    previous = current;
+    current = source.charCodeAt(index);
+    if (inSingle) {
+      if (current == 39 && previous != 92) inSingle = false;
+    } else if (inDouble) {
+      if (current == 34 && previous != 92) inDouble = false;
+    } else if (inTemplateString) {
+      if (current == 96 && previous != 92) inTemplateString = false;
+    } else if (inRegex) {
+      if (current == 47 && previous != 92) inRegex = false;
+    } else if (
+      current == 124 && source.charCodeAt(index + 1) != 124 &&
+      source.charCodeAt(index - 1) != 124 && curly == 0 && square == 0 && paren == 0
+    ) {
+      if (!foundExpression) {
+        lastFilterIndex = index + 1;
+        expression = source.slice(0, index).trim();
+        foundExpression = true;
+      } else {
+        filterPush(filters, source.slice(lastFilterIndex, index).trim());
+        lastFilterIndex = index + 1;
+      }
+    } else {
+      if (current == 34) inDouble = true;
+      else if (current == 39) inSingle = true;
+      else if (current == 96) inTemplateString = true;
+      else if (current == 40) paren++;
+      else if (current == 41) paren--;
+      else if (current == 91) square++;
+      else if (current == 93) square--;
+      else if (current == 123) curly++;
+      else if (current == 125) curly--;
+
+      if (current == 47) {
+        int previousIndex = index - 1;
+        string previousCharacter = "";
+        while (previousIndex >= 0) {
+          previousCharacter = source.charAt(previousIndex);
+          if (previousCharacter != " ") break;
+          previousIndex--;
+        }
+        if (previousCharacter == "" || !validDivisionCharRE.test(previousCharacter)) inRegex = true;
+      }
+    }
+    index++;
+  }
+
+  if (!foundExpression) expression = source.slice(0, index).trim();
+  else if (lastFilterIndex != 0) filterPush(filters, source.slice(lastFilterIndex, index).trim());
+
+  if (filterLength(filters) > 0) {
+    string filterKey = JS.string(CompilerDeprecationTypes["COMPILER_FILTERS"]);
+    if (COMPILER_DEV) warnDeprecation(filterKey, context, node["loc"]);
+    for (int filterIndex = 0; filterIndex < filterLength(filters); filterIndex++) {
+      expression = wrapFilter(expression, JS.string(filters[filterIndex]), context);
+    }
+    node["content"] = expression;
+    node["ast"] = filterUndefined();
+  }
+}
+
+void rewriteFilter(JsValue node, JsValue context) {
+  int type = JS.number(node["type"]).toInt();
+  if (type == 4) {
+    parseFilter(node, context);
+    return;
+  }
+  JsValue children = node["children"];
+  for (int index = 0; index < filterLength(children); index++) {
+    JsValue child = children[index];
+    if (JS.typeOf(child) != "object") continue;
+    int childType = JS.number(child["type"]).toInt();
+    if (childType == 4) parseFilter(child, context);
+    else if (childType == 8) rewriteFilter(child, context);
+    else if (childType == 5) rewriteFilter(child["content"], context);
+  }
+}
+
+export JsValue transformFilter(JsValue node, JsValue context) {
+  string filterKey = JS.string(CompilerDeprecationTypes["COMPILER_FILTERS"]);
+  if (!isCompatEnabled(filterKey, context)) return filterUndefined();
+  int type = JS.number(node["type"]).toInt();
+  if (type == 5) {
+    rewriteFilter(node["content"], context);
+  } else if (type == 1) {
+    JsValue props = node["props"];
+    for (int index = 0; index < filterLength(props); index++) {
+      JsValue prop = props[index];
+      if (JS.number(prop["type"]).toInt() == 7 && JS.string(prop["name"]) != "for" && prop["exp"].truthy()) {
+        rewriteFilter(prop["exp"], context);
+      }
+    }
+  }
+  return filterUndefined();
+}
+
+JS.invoke(
+  Object,
+  "defineProperty",
+  transformFilter,
+  "name",
+  JS.object("configurable", true, "value", "transformFilter")
+);

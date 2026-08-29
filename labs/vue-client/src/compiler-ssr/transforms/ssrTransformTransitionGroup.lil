@@ -1,0 +1,97 @@
+import extern {
+  NodeTypes,
+  buildProps,
+  createCallExpression,
+  findProp
+} from "../../../packages/vuelil/compiler-dom.js";
+import { SSR_RENDER_ATTRS } from "../runtimeHelpers";
+import { processChildren } from "../ssrCodegenTransform";
+import { buildSSRProps } from "./ssrTransformElement";
+
+extern JsValue NodeTypes;
+extern JsValue WeakMap;
+extern JsValue buildProps;
+extern JsValue createCallExpression;
+extern JsValue findProp;
+
+JsValue transitionGroupUndefined() {
+  return JS.undefined();
+}
+
+JsValue transitionGroupWipMap = JS.construct(WeakMap);
+
+export JsValue ssrTransformTransitionGroup(JsValue node, JsValue context) {
+  return JS.method0((JsValue _self) => {
+    JsValue tag = JS.call(findProp, transitionGroupUndefined(), node, "tag");
+    if (tag.truthy()) {
+      JsValue otherProps = JS.array();
+      JsValue props = node["props"];
+      for (int index = 0; index < JS.number(props["length"]).toInt(); index++) {
+        if (!JS.strictEqual(props[index], tag)) JS.invoke(otherProps, "push", props[index]);
+      }
+      JsValue built = JS.call(
+        buildProps,
+        transitionGroupUndefined(),
+        node,
+        context,
+        otherProps,
+        true,
+        false,
+        true
+      );
+      JsValue propsExp = null;
+      if (built["props"].truthy() ||
+        JS.number(built["directives"]["length"]).toInt() > 0) {
+        propsExp = JS.call(
+          createCallExpression,
+          transitionGroupUndefined(),
+          JS.invoke(context, "helper", SSR_RENDER_ATTRS),
+          JS.array(buildSSRProps(built["props"], built["directives"], context))
+        );
+      }
+      JsValue scopeId = null;
+      if (context["scopeId"].truthy()) scopeId = context["scopeId"];
+      JS.invoke(
+        transitionGroupWipMap,
+        "set",
+        node,
+        JS.object("tag", tag, "propsExp", propsExp, "scopeId", scopeId)
+      );
+    }
+    return transitionGroupUndefined();
+  });
+}
+
+export void ssrProcessTransitionGroup(JsValue node, JsValue context) {
+  JsValue entry = JS.invoke(transitionGroupWipMap, "get", node);
+  if (!entry.truthy()) {
+    processChildren(node, context, true, true, true);
+    return;
+  }
+  JsValue tag = entry["tag"];
+  JsValue propsExp = entry["propsExp"];
+  JsValue scopeId = entry["scopeId"];
+  if (JS.strictEqual(tag["type"], NodeTypes["DIRECTIVE"])) {
+    JS.invoke(context, "pushStringPart", "<");
+    JS.invoke(context, "pushStringPart", tag["exp"]);
+    if (propsExp.truthy()) JS.invoke(context, "pushStringPart", propsExp);
+    if (scopeId.truthy()) {
+      JS.invoke(context, "pushStringPart", " " + JS.string(scopeId));
+    }
+    JS.invoke(context, "pushStringPart", ">");
+    processChildren(node, context, false, true, true);
+    JS.invoke(context, "pushStringPart", "</");
+    JS.invoke(context, "pushStringPart", tag["exp"]);
+    JS.invoke(context, "pushStringPart", ">");
+  } else {
+    string tagName = JS.string(tag["value"]["content"]);
+    JS.invoke(context, "pushStringPart", "<" + tagName);
+    if (propsExp.truthy()) JS.invoke(context, "pushStringPart", propsExp);
+    if (scopeId.truthy()) {
+      JS.invoke(context, "pushStringPart", " " + JS.string(scopeId));
+    }
+    JS.invoke(context, "pushStringPart", ">");
+    processChildren(node, context, false, true, true);
+    JS.invoke(context, "pushStringPart", "</" + tagName + ">");
+  }
+}

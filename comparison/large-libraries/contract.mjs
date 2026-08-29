@@ -199,8 +199,8 @@ export function assertMatrix(matrixValue) {
   }
   exactSha256(codec.sourceSha256, "matrix codec source digest");
 
-  if (!Array.isArray(matrix.libraries) || matrix.libraries.length !== 4) {
-    throw new Error("matrix must contain exactly four large libraries");
+  if (!Array.isArray(matrix.libraries) || matrix.libraries.length !== 6) {
+    throw new Error("matrix must contain exactly six large-library boundaries");
   }
   const ids = [];
   for (const libraryValue of matrix.libraries) {
@@ -257,7 +257,14 @@ export function assertMatrix(matrixValue) {
     }
     integer(semantic.timeoutMs, `${library.id} semantic timeout`);
   }
-  const expected = ["jquerylil", "markedlil", "mobxlil", "solidlil"];
+  const expected = [
+    "jquerylil",
+    "markedlil",
+    "mobxlil",
+    "mobxlil-production-min",
+    "motionlil",
+    "solidlil",
+  ];
   if (JSON.stringify([...ids].sort()) !== JSON.stringify(expected)) {
     throw new Error(`matrix library ids must be ${expected.join(", ")}`);
   }

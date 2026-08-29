@@ -31,7 +31,7 @@ JavaScript artifact in its matching gated size metric.
   override is rejected. The scorer must still pass schema, static-codec provenance,
   binary-digest, and exact-fixture checks; reports retain both executable hashes so a
   standalone diagnostic run cannot be mistaken for the repository's joint build.
-  Schema 5 records exact options, canonical scorer and
+   Schema 6 records exact options, canonical scorer and
   runtime/platform/Oxc-binding identity,
   source and emitted-artifact hashes, candidate durations, and
   compiler/tool/config/runner/corpus/oracle provenance. It is reached by release
@@ -40,7 +40,7 @@ JavaScript artifact in its matching gated size metric.
 ## Expansion status
 
 Hand-authored [`canonical/`](../../../comparison/cases/canonical/) folders are a
-separate reviewed corpus. The latest `--canonical-only` run was 47 cases, all
+separate reviewed corpus. The current snapshot is 54 cases, all
 strict wins in raw, gzip-9, and Brotli-11 against the metric-specific Terser/Oxc/
 esbuild minimum. That does not replace the generated catalog; it is the
 readable "why" layer.
@@ -58,7 +58,7 @@ The pairing audit repaired reference evidence rather than changing compiler resu
 - Five enum-dispatch pairs now give JavaScript the same numeric-discriminant model
   instead of charging it for a metadata object. Six host-has-own pairs use the
   target's direct `Object.hasOwn`, including its first-class-function form.
-- The reviewed generated-catalog oracle is 549 cases; see
+- The current generated catalog contains 570 cases; the reviewed source oracle is
 [`oracle-manifest.json`](../../../comparison/cases/oracle-manifest.json).
 Do not quote an older digest from this page. The generated `summary.json` is
 authoritative only when `selectedBy` is `all` or `canonical` as appropriate.

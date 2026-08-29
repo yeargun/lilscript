@@ -1,0 +1,327 @@
+import {
+  ConstantTypes,
+  NodeTypes,
+  createBlockStatement,
+  createCallExpression,
+  createCompoundExpression,
+  createFunctionExpression,
+  createObjectExpression,
+  createObjectProperty,
+  createSimpleExpression,
+  createVNodeCall,
+  getVNodeBlockHelper,
+  getVNodeHelper
+} from "../ast";
+import { ErrorCodes, createCompilerError } from "../errors";
+import { processExpression } from "./transformExpression";
+import {
+  FRAGMENT,
+  IS_MEMO_SAME,
+  OPEN_BLOCK,
+  RENDER_LIST
+} from "../runtimeHelpers";
+import { createStructuralDirectiveTransform } from "../transform";
+import {
+  findDir,
+  findProp,
+  injectProp,
+  isSlotOutlet,
+  isTemplateNode
+} from "../utils";
+import {
+  COMPILER_BROWSER,
+  COMPILER_DEV,
+  validateBrowserExpression
+} from "../validateExpression";
+
+JsValue forUndefined() {
+  return JS.undefined();
+}
+
+int forLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+
+void forPush(JsValue values, JsValue value) {
+  values[forLength(values)] = value;
+}
+
+string repeatForPlaceholder(int count) {
+  return JS.string(JS.invoke("_", "repeat", count));
+}
+
+export void finalizeForParseResult(JsValue result, JsValue context) {
+  if (result["finalized"].truthy()) return;
+  if (!COMPILER_BROWSER && context["prefixIdentifiers"].truthy()) {
+    result["source"] = processExpression(result["source"], context);
+    if (result["key"].truthy()) result["key"] = processExpression(result["key"], context, true);
+    if (result["index"].truthy()) result["index"] = processExpression(result["index"], context, true);
+    if (result["value"].truthy()) result["value"] = processExpression(result["value"], context, true);
+  }
+  if (COMPILER_DEV && COMPILER_BROWSER) {
+    validateBrowserExpression(result["source"], context);
+    if (result["key"].truthy()) validateBrowserExpression(result["key"], context, true);
+    if (result["index"].truthy()) validateBrowserExpression(result["index"], context, true);
+    if (result["value"].truthy()) validateBrowserExpression(result["value"], context, true);
+  }
+  result["finalized"] = true;
+}
+
+export JsValue createForLoopParams(JsValue result, JsValue memoArgs = JS.undefined()) {
+  JsValue args = JS.array(result["value"], result["key"], result["index"]);
+  if (!JS.isUndefined(memoArgs)) {
+    for (int index = 0; index < forLength(memoArgs); index++) forPush(args, memoArgs[index]);
+  }
+  int last = forLength(args) - 1;
+  while (last >= 0 && !args[last].truthy()) last--;
+  JsValue params = JS.array();
+  for (int index = 0; index <= last; index++) {
+    if (args[index].truthy()) forPush(params, args[index]);
+    else forPush(params, createSimpleExpression(repeatForPlaceholder(index + 1), false));
+  }
+  return params;
+}
+
+export JsValue processFor(
+  JsValue node,
+  JsValue directive,
+  JsValue context,
+  JsValue processCodegen = JS.undefined()
+) {
+  if (!directive["exp"].truthy()) {
+    JS.call(
+      context["onError"],
+      forUndefined(),
+      createCompilerError(JS.number(ErrorCodes["X_V_FOR_NO_EXPRESSION"]).toInt(), directive["loc"])
+    );
+    return forUndefined();
+  }
+  JsValue parsed = directive["forParseResult"];
+  if (!parsed.truthy()) {
+    JS.call(
+      context["onError"],
+      forUndefined(),
+      createCompilerError(JS.number(ErrorCodes["X_V_FOR_MALFORMED_EXPRESSION"]).toInt(), directive["loc"])
+    );
+    return forUndefined();
+  }
+
+  finalizeForParseResult(parsed, context);
+  JsValue children = JS.array(node);
+  if (isTemplateNode(node)) children = node["children"];
+  JsValue forNode = JS.object(
+    "type", NodeTypes["FOR"],
+    "loc", directive["loc"],
+    "source", parsed["source"],
+    "valueAlias", parsed["value"],
+    "keyAlias", parsed["key"],
+    "objectIndexAlias", parsed["index"],
+    "parseResult", parsed,
+    "children", children
+  );
+  JS.call(context["replaceNode"], forUndefined(), forNode);
+
+  context["scopes"]["vFor"] = JS.number(context["scopes"]["vFor"]).toInt() + 1;
+  if (!COMPILER_BROWSER && context["prefixIdentifiers"].truthy()) {
+    if (parsed["value"].truthy()) JS.call(context["addIdentifiers"], forUndefined(), parsed["value"]);
+    if (parsed["key"].truthy()) JS.call(context["addIdentifiers"], forUndefined(), parsed["key"]);
+    if (parsed["index"].truthy()) JS.call(context["addIdentifiers"], forUndefined(), parsed["index"]);
+  }
+
+  JsValue exit = forUndefined();
+  if (JS.typeOf(processCodegen) == "function") {
+    exit = JS.call(processCodegen, forUndefined(), forNode);
+  }
+  return JS.method0((JsValue _self) => {
+    context["scopes"]["vFor"] = JS.number(context["scopes"]["vFor"]).toInt() - 1;
+    if (!COMPILER_BROWSER && context["prefixIdentifiers"].truthy()) {
+      if (parsed["value"].truthy()) JS.call(context["removeIdentifiers"], forUndefined(), parsed["value"]);
+      if (parsed["key"].truthy()) JS.call(context["removeIdentifiers"], forUndefined(), parsed["key"]);
+      if (parsed["index"].truthy()) JS.call(context["removeIdentifiers"], forUndefined(), parsed["index"]);
+    }
+    if (exit.truthy()) JS.call(exit, forUndefined());
+    return forUndefined();
+  });
+}
+
+JsValue transformForDirective(JsValue node, JsValue directive, JsValue context) {
+  JsValue processCodegen = JS.method1((JsValue _self, JsValue forNode) => {
+    JsValue render = createCallExpression(
+      JS.call(context["helper"], forUndefined(), RENDER_LIST),
+      JS.array(forNode["source"])
+    );
+    bool template = isTemplateNode(node);
+    JsValue memo = findDir(node, "memo");
+    JsValue keyProp = findProp(node, "key", false, true);
+    bool directiveKey = keyProp.truthy() && JS.strictEqual(keyProp["type"], NodeTypes["DIRECTIVE"]);
+    JsValue keyExpression = forUndefined();
+    if (keyProp.truthy()) {
+      if (JS.strictEqual(keyProp["type"], NodeTypes["ATTRIBUTE"])) {
+        if (keyProp["value"].truthy()) {
+          keyExpression = createSimpleExpression(JS.string(keyProp["value"]["content"]), true);
+        }
+      } else {
+        keyExpression = keyProp["exp"];
+      }
+    }
+    JsValue keyProperty = null;
+    if (keyExpression.truthy()) keyProperty = createObjectProperty("key", keyExpression);
+
+    if (!COMPILER_BROWSER) {
+      if (template && memo.truthy()) memo["exp"] = processExpression(memo["exp"], context);
+      if ((template || memo.truthy()) && keyProperty.truthy() && directiveKey) {
+        keyExpression = processExpression(keyExpression, context);
+        keyProp["exp"] = keyExpression;
+        keyProperty["value"] = keyExpression;
+        if (memo.truthy()) JS.invoke(context["vForMemoKeyedNodes"], "add", node);
+      }
+    }
+
+    bool stable = JS.strictEqual(forNode["source"]["type"], NodeTypes["SIMPLE_EXPRESSION"]) &&
+      JS.number(forNode["source"]["constType"]).toInt() > JS.number(ConstantTypes["NOT_CONSTANT"]).toInt();
+    int flag = 256;
+    if (stable) flag = 64;
+    else if (keyProp.truthy()) flag = 128;
+    forNode["codegenNode"] = createVNodeCall(
+      context,
+      JS.call(context["helper"], forUndefined(), FRAGMENT),
+      forUndefined(),
+      render,
+      flag,
+      forUndefined(),
+      forUndefined(),
+      true,
+      !stable,
+      false,
+      node["loc"]
+    );
+
+    return JS.method0((JsValue _exitSelf) => {
+      JsValue children = forNode["children"];
+      JsValue childBlock = forUndefined();
+      if ((COMPILER_DEV || !COMPILER_BROWSER) && template) {
+        JsValue templateChildren = node["children"];
+        for (int childIndex = 0; childIndex < forLength(templateChildren); childIndex++) {
+          JsValue child = templateChildren[childIndex];
+          if (JS.strictEqual(child["type"], NodeTypes["ELEMENT"])) {
+            JsValue misplaced = findProp(child, "key");
+            if (misplaced.truthy()) {
+              JS.call(
+                context["onError"],
+                forUndefined(),
+                createCompilerError(
+                  JS.number(ErrorCodes["X_V_FOR_TEMPLATE_KEY_PLACEMENT"]).toInt(),
+                  misplaced["loc"]
+                )
+              );
+              break;
+            }
+          }
+        }
+      }
+
+      bool fragmentWrapper = forLength(children) != 1 ||
+        !JS.strictEqual(children[0]["type"], NodeTypes["ELEMENT"]);
+      JsValue slotOutlet = null;
+      if (isSlotOutlet(node)) slotOutlet = node;
+      else if (template && forLength(node["children"]) == 1 && isSlotOutlet(node["children"][0])) {
+        slotOutlet = node["children"][0];
+      }
+
+      if (slotOutlet.truthy()) {
+        childBlock = slotOutlet["codegenNode"];
+        if (template && keyProperty.truthy()) injectProp(childBlock, keyProperty, context);
+      } else if (fragmentWrapper) {
+        JsValue fragmentProps = forUndefined();
+        if (keyProperty.truthy()) fragmentProps = createObjectExpression(JS.array(keyProperty));
+        childBlock = createVNodeCall(
+          context,
+          JS.call(context["helper"], forUndefined(), FRAGMENT),
+          fragmentProps,
+          node["children"],
+          64,
+          forUndefined(),
+          forUndefined(),
+          true,
+          false,
+          false
+        );
+      } else {
+        childBlock = children[0]["codegenNode"];
+        if (template && keyProperty.truthy()) injectProp(childBlock, keyProperty, context);
+        bool shouldBlock = !stable || JS.strictEqual(childBlock["isBlockRequired"], true);
+        bool wasBlock = childBlock["isBlock"].truthy();
+        if (wasBlock != shouldBlock) {
+          if (wasBlock) {
+            JS.call(context["removeHelper"], forUndefined(), OPEN_BLOCK);
+            JS.call(context["removeHelper"], forUndefined(), getVNodeBlockHelper(
+              context["inSSR"].truthy(), childBlock["isComponent"].truthy()
+            ));
+          } else {
+            JS.call(context["removeHelper"], forUndefined(), getVNodeHelper(
+              context["inSSR"].truthy(), childBlock["isComponent"].truthy()
+            ));
+          }
+        }
+        childBlock["isBlock"] = shouldBlock;
+        if (shouldBlock) {
+          JS.call(context["helper"], forUndefined(), OPEN_BLOCK);
+          JS.call(context["helper"], forUndefined(), getVNodeBlockHelper(
+            context["inSSR"].truthy(), childBlock["isComponent"].truthy()
+          ));
+        } else {
+          JS.call(context["helper"], forUndefined(), getVNodeHelper(
+            context["inSSR"].truthy(), childBlock["isComponent"].truthy()
+          ));
+          if (childBlock["needsPatch"].truthy()) {
+            int childPatchFlag = 0;
+            if (!JS.isUndefined(childBlock["patchFlag"])) {
+              childPatchFlag = JS.number(childBlock["patchFlag"]).toInt();
+            }
+            childBlock["patchFlag"] = childPatchFlag | 512;
+          }
+        }
+      }
+
+      if (memo.truthy()) {
+        JsValue memoArgs = JS.array(createSimpleExpression("_cached"));
+        JsValue loop = createFunctionExpression(createForLoopParams(forNode["parseResult"], memoArgs));
+        JsValue body = JS.array(
+          createCompoundExpression(JS.array("const _memo = (", memo["exp"], ")"))
+        );
+        JsValue check = JS.array("if (_cached && _cached.el");
+        if (keyExpression.truthy()) {
+          forPush(check, " && _cached.key === ");
+          forPush(check, keyExpression);
+        }
+        forPush(
+          check,
+          " && " + JS.string(JS.call(context["helperString"], forUndefined(), IS_MEMO_SAME)) +
+            "(_cached, _memo)) return _cached"
+        );
+        forPush(body, createCompoundExpression(check));
+        forPush(body, createCompoundExpression(JS.array("const _item = ", childBlock)));
+        forPush(body, createSimpleExpression("_item.memo = _memo"));
+        forPush(body, createSimpleExpression("return _item"));
+        loop["body"] = createBlockStatement(body);
+        forPush(render["arguments"], loop);
+        forPush(render["arguments"], createSimpleExpression("_cache"));
+        forPush(render["arguments"], createSimpleExpression("" + forLength(context["cached"])));
+        forPush(context["cached"], null);
+      } else {
+        forPush(render["arguments"], createFunctionExpression(
+          createForLoopParams(forNode["parseResult"]), childBlock, true
+        ));
+      }
+      return forUndefined();
+    });
+  });
+  return processFor(node, directive, context, processCodegen);
+}
+
+export JsValue transformFor = createStructuralDirectiveTransform(
+  "for",
+  JS.method3((JsValue _self, JsValue node, JsValue directive, JsValue context) => {
+    return transformForDirective(node, directive, context);
+  })
+);

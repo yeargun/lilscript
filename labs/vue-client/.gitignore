@@ -1,0 +1,8 @@
+node_modules/
+dist/
+coverage/
+temp/
+upstream/
+artifacts/generated/
+packages/vuelil/*.generated.js
+.DS_Store

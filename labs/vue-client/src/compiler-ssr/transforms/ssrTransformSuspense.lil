@@ -1,0 +1,78 @@
+import extern {
+  buildSlots,
+  createCallExpression,
+  createFunctionExpression
+} from "../../../packages/vuelil/compiler-dom.js";
+import { SSR_RENDER_SUSPENSE } from "../runtimeHelpers";
+import { processChildrenAsStatement } from "../ssrCodegenTransform";
+
+extern JsValue WeakMap;
+extern JsValue buildSlots;
+extern JsValue createCallExpression;
+extern JsValue createFunctionExpression;
+
+JsValue suspenseUndefined() {
+  return JS.undefined();
+}
+
+JsValue suspenseWipMap = JS.construct(WeakMap);
+
+export JsValue ssrTransformSuspense(JsValue node, JsValue context) {
+  return JS.method0((JsValue _self) => {
+    if (JS.number(node["children"]["length"]).toInt() > 0) {
+      JsValue entry = JS.object(
+        "slotsExp", null,
+        "wipSlots", JS.array()
+      );
+      JS.invoke(suspenseWipMap, "set", node, entry);
+      JsValue builder = JS.methodRest((JsValue _builderSelf, JsValue args) => {
+        JsValue children = args[2];
+        JsValue loc = args[3];
+        JsValue fn = JS.call(
+          createFunctionExpression,
+          suspenseUndefined(),
+          JS.array(),
+          suspenseUndefined(),
+          true,
+          false,
+          loc
+        );
+        JS.invoke(
+          entry["wipSlots"],
+          "push",
+          JS.object("fn", fn, "children", children)
+        );
+        return fn;
+      });
+      JsValue built = JS.call(
+        buildSlots,
+        suspenseUndefined(),
+        node,
+        context,
+        builder
+      );
+      entry["slotsExp"] = built["slots"];
+    }
+    return suspenseUndefined();
+  });
+}
+
+export void ssrProcessSuspense(JsValue node, JsValue context) {
+  JsValue entry = JS.invoke(suspenseWipMap, "get", node);
+  if (!entry.truthy()) return;
+  JsValue slots = entry["wipSlots"];
+  for (int index = 0; index < JS.number(slots["length"]).toInt(); index++) {
+    JsValue slot = slots[index];
+    slot["fn"]["body"] = processChildrenAsStatement(slot, context);
+  }
+  JS.invoke(
+    context,
+    "pushStatement",
+    JS.call(
+      createCallExpression,
+      suspenseUndefined(),
+      JS.invoke(context, "helper", SSR_RENDER_SUSPENSE),
+      JS.array("_push", entry["slotsExp"])
+    )
+  );
+}

@@ -297,7 +297,7 @@
       "properties": {
         "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]+$" },
         "library": {
-          "enum": ["solidlil", "markedlil", "mobxlil", "jquerylil"]
+          "enum": ["solidlil", "motionlil", "markedlil", "mobxlil", "mobxlil-production-min", "jquerylil"]
         },
         "purpose": { "enum": ["comparison", "published", "diagnostic"] },
         "evidenceClass": { "enum": ["published", "fresh"] },
@@ -334,7 +334,7 @@
       ],
       "properties": {
         "library": {
-          "enum": ["solidlil", "markedlil", "mobxlil", "jquerylil"]
+          "enum": ["solidlil", "motionlil", "markedlil", "mobxlil", "mobxlil-production-min", "jquerylil"]
         },
         "metric": { "enum": ["raw", "gzip9", "brotli11"] },
         "beforeObservation": { "type": ["string", "null"] },

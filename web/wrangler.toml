@@ -1,0 +1,13 @@
+name = "lilscript"
+compatibility_date = "2026-08-28"
+account_id = "a37cc5e9f9a8cdc4675c6878095e2a53"
+workers_dev = true
+
+[assets]
+directory = "./dist"
+html_handling = "auto-trailing-slash"
+not_found_handling = "none"
+
+[[routes]]
+pattern = "lilscript.eddocu.com"
+custom_domain = true

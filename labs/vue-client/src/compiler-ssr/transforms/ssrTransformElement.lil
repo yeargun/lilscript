@@ -1,0 +1,605 @@
+import extern {
+  ElementTypes,
+  ErrorCodes,
+  MERGE_PROPS,
+  NodeTypes,
+  buildDirectiveArgs,
+  buildProps,
+  createArrayExpression,
+  createAssignmentExpression,
+  createCallExpression,
+  createCompilerError,
+  createCompoundExpression,
+  createConditionalExpression,
+  createInterpolation,
+  createSequenceExpression,
+  createSimpleExpression,
+  createTemplateLiteral,
+  findDir,
+  hasDynamicKeyVBind,
+  isStaticArgOf,
+  isStaticExp
+} from "../../../packages/vuelil/compiler-dom.js";
+import extern {
+  escapeHtml as sharedEscapeHtml,
+  isBooleanAttr as sharedIsBooleanAttr,
+  isBuiltInDirective as sharedIsBuiltInDirective,
+  isSSRSafeAttrName as sharedIsSSRSafeAttrName,
+  propsToAttrMap as sharedPropsToAttrMap
+} from "../../../packages/vuelil/shared.js";
+import { SSRErrorCodes, createSSRCompilerError } from "../errors";
+import {
+  SSR_GET_DIRECTIVE_PROPS,
+  SSR_GET_DYNAMIC_MODEL_PROPS,
+  SSR_INCLUDE_BOOLEAN_ATTR,
+  SSR_INTERPOLATE,
+  SSR_RENDER_ATTR,
+  SSR_RENDER_ATTRS,
+  SSR_RENDER_CLASS,
+  SSR_RENDER_DYNAMIC_ATTR,
+  SSR_RENDER_STYLE
+} from "../runtimeHelpers";
+import { processChildren } from "../ssrCodegenTransform";
+
+extern JsValue ElementTypes;
+extern JsValue ErrorCodes;
+extern JsValue JSON;
+extern JsValue MERGE_PROPS;
+extern JsValue NodeTypes;
+extern JsValue WeakMap;
+extern JsValue buildDirectiveArgs;
+extern JsValue buildProps;
+extern JsValue createArrayExpression;
+extern JsValue createAssignmentExpression;
+extern JsValue createCallExpression;
+extern JsValue createCompilerError;
+extern JsValue createCompoundExpression;
+extern JsValue createConditionalExpression;
+extern JsValue createInterpolation;
+extern JsValue createSequenceExpression;
+extern JsValue createSimpleExpression;
+extern JsValue createTemplateLiteral;
+extern JsValue findDir;
+extern JsValue hasDynamicKeyVBind;
+extern JsValue isStaticArgOf;
+extern JsValue isStaticExp;
+extern JsValue sharedEscapeHtml;
+extern JsValue sharedIsBooleanAttr;
+extern JsValue sharedIsBuiltInDirective;
+extern JsValue sharedIsSSRSafeAttrName;
+extern JsValue sharedPropsToAttrMap;
+
+JsValue ssrElementUndefined() {
+  return JS.undefined();
+}
+
+int ssrElementLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+
+void ssrElementPush(JsValue values, JsValue value) {
+  values[ssrElementLength(values)] = value;
+}
+
+bool ssrElementPredicate(JsValue predicate, JsValue value) {
+  return JS.call(predicate, ssrElementUndefined(), value).truthy();
+}
+
+JsValue rawChildrenMap = JS.construct(WeakMap);
+
+bool isTrueFalseValue(JsValue prop) {
+  if (JS.strictEqual(prop["type"], NodeTypes["DIRECTIVE"])) {
+    return JS.string(prop["name"]) == "bind" && prop["arg"].truthy() &&
+      JS.call(isStaticExp, ssrElementUndefined(), prop["arg"]).truthy() &&
+      (JS.string(prop["arg"]["content"]) == "true-value" ||
+        JS.string(prop["arg"]["content"]) == "false-value");
+  }
+  return JS.string(prop["name"]) == "true-value" ||
+    JS.string(prop["name"]) == "false-value";
+}
+
+bool isTextareaWithValue(JsValue node, JsValue prop) {
+  return JS.string(node["tag"]) == "textarea" &&
+    JS.string(prop["name"]) == "bind" &&
+    JS.call(
+      isStaticArgOf,
+      ssrElementUndefined(),
+      prop["arg"],
+      "value"
+    ).truthy();
+}
+
+void mergeCall(JsValue call, JsValue argument) {
+  JsValue existing = call["arguments"][0];
+  if (JS.strictEqual(existing["type"], NodeTypes["JS_ARRAY_EXPRESSION"])) {
+    ssrElementPush(existing["elements"], argument);
+  } else {
+    call["arguments"][0] = JS.call(
+      createArrayExpression,
+      ssrElementUndefined(),
+      JS.array(existing, argument)
+    );
+  }
+}
+
+void removeStaticBinding(JsValue tag, string binding) {
+  Regex expression = new Regex("^ " + binding + "=\".+\"$");
+  for (int index = 0; index < ssrElementLength(tag); index++) {
+    JsValue part = tag[index];
+    if (JS.typeOf(part) == "string" && expression.test(JS.string(part))) {
+      JS.invoke(tag, "splice", index, 1);
+      return;
+    }
+  }
+}
+
+JsValue findVModel(JsValue node) {
+  JsValue props = node["props"];
+  for (int index = 0; index < ssrElementLength(props); index++) {
+    JsValue prop = props[index];
+    if (JS.strictEqual(prop["type"], NodeTypes["DIRECTIVE"]) &&
+      JS.string(prop["name"]) == "model" && prop["exp"].truthy()) return prop;
+  }
+  return ssrElementUndefined();
+}
+
+bool hasContentOverrideDirective(JsValue node) {
+  return JS.call(findDir, ssrElementUndefined(), node, "text").truthy() ||
+    JS.call(findDir, ssrElementUndefined(), node, "html").truthy();
+}
+
+export JsValue buildSSRProps(
+  JsValue props,
+  JsValue directives,
+  JsValue context
+) {
+  JsValue mergePropsArgs = JS.array();
+  if (props.truthy()) {
+    if (JS.strictEqual(props["type"], NodeTypes["JS_CALL_EXPRESSION"])) {
+      mergePropsArgs = props["arguments"];
+    } else {
+      ssrElementPush(mergePropsArgs, props);
+    }
+  }
+  for (int index = 0; index < ssrElementLength(directives); index++) {
+    JsValue directiveArgs = JS.call(
+      buildDirectiveArgs,
+      ssrElementUndefined(),
+      directives[index],
+      context
+    );
+    JsValue arguments = JS.array("_ctx");
+    JsValue elements = directiveArgs["elements"];
+    for (int argIndex = 0; argIndex < ssrElementLength(elements); argIndex++) {
+      ssrElementPush(arguments, elements[argIndex]);
+    }
+    ssrElementPush(
+      mergePropsArgs,
+      JS.call(
+        createCallExpression,
+        ssrElementUndefined(),
+        JS.invoke(context, "helper", SSR_GET_DIRECTIVE_PROPS),
+        arguments
+      )
+    );
+  }
+  if (ssrElementLength(mergePropsArgs) > 1) {
+    return JS.call(
+      createCallExpression,
+      ssrElementUndefined(),
+      JS.invoke(context, "helper", MERGE_PROPS),
+      mergePropsArgs
+    );
+  }
+  return mergePropsArgs[0];
+}
+
+export JsValue ssrTransformElement(JsValue node, JsValue context) {
+  if (!JS.strictEqual(node["type"], NodeTypes["ELEMENT"]) ||
+    !JS.strictEqual(node["tagType"], ElementTypes["ELEMENT"])) {
+    return ssrElementUndefined();
+  }
+  return JS.method0((JsValue _self) => {
+    string tag = JS.string(node["tag"]);
+    JsValue openTag = JS.array("<" + tag);
+    bool needTagForRuntime = tag == "textarea" || tag.indexOf("-") > 0;
+    bool hasDynamicVBind = JS.call(
+      hasDynamicKeyVBind,
+      ssrElementUndefined(),
+      node
+    ).truthy();
+    bool hasCustomDir = false;
+    JsValue nodeProps = node["props"];
+    for (int index = 0; index < ssrElementLength(nodeProps); index++) {
+      JsValue prop = nodeProps[index];
+      if (JS.strictEqual(prop["type"], NodeTypes["DIRECTIVE"]) &&
+        !ssrElementPredicate(sharedIsBuiltInDirective, prop["name"])) {
+        hasCustomDir = true;
+      }
+    }
+
+    int vShowIndex = -1;
+    for (int index = 0; index < ssrElementLength(nodeProps); index++) {
+      JsValue prop = nodeProps[index];
+      if (JS.strictEqual(prop["type"], NodeTypes["DIRECTIVE"]) &&
+        JS.string(prop["name"]) == "show") vShowIndex = index;
+    }
+    if (vShowIndex != -1) {
+      JsValue vShow = nodeProps[vShowIndex];
+      JS.invoke(nodeProps, "splice", vShowIndex, 1);
+      ssrElementPush(nodeProps, vShow);
+    }
+
+    bool needMergeProps = hasDynamicVBind || hasCustomDir;
+    if (needMergeProps) {
+      JsValue built = JS.call(
+        buildProps,
+        ssrElementUndefined(),
+        node,
+        context,
+        nodeProps,
+        false,
+        false,
+        true
+      );
+      JsValue directives = built["directives"];
+      if (built["props"].truthy() || ssrElementLength(directives) > 0) {
+        JsValue mergedProps = buildSSRProps(built["props"], directives, context);
+        JsValue propsExp = JS.call(
+          createCallExpression,
+          ssrElementUndefined(),
+          JS.invoke(context, "helper", SSR_RENDER_ATTRS),
+          JS.array(mergedProps)
+        );
+
+        if (tag == "textarea") {
+          JsValue existingText = node["children"][0];
+          bool dynamicText = existingText.truthy() &&
+            JS.strictEqual(existingText["type"], NodeTypes["INTERPOLATION"]);
+          if (!hasContentOverrideDirective(node) && !dynamicText) {
+            string tempId = "_temp" + JS.string(context["temps"]);
+            context["temps"] = JS.number(context["temps"]).toInt() + 1;
+            propsExp["arguments"] = JS.array(JS.call(
+              createAssignmentExpression,
+              ssrElementUndefined(),
+              JS.call(createSimpleExpression, ssrElementUndefined(), tempId, false),
+              mergedProps
+            ));
+            string fallbackText = "";
+            if (existingText.truthy()) fallbackText = JS.string(existingText["content"]);
+            JsValue fallback = JS.call(
+              createSimpleExpression,
+              ssrElementUndefined(),
+              fallbackText,
+              true
+            );
+            JsValue conditional = JS.call(
+              createConditionalExpression,
+              ssrElementUndefined(),
+              JS.call(
+                createSimpleExpression,
+                ssrElementUndefined(),
+                "\"value\" in " + tempId,
+                false
+              ),
+              JS.call(
+                createSimpleExpression,
+                ssrElementUndefined(),
+                tempId + ".value",
+                false
+              ),
+              fallback,
+              false
+            );
+            JS.invoke(
+              rawChildrenMap,
+              "set",
+              node,
+              JS.call(
+                createCallExpression,
+                ssrElementUndefined(),
+                JS.invoke(context, "helper", SSR_INTERPOLATE),
+                JS.array(conditional)
+              )
+            );
+          }
+        } else if (tag == "input") {
+          JsValue vModel = findVModel(node);
+          if (vModel.truthy()) {
+            string tempId = "_temp" + JS.string(context["temps"]);
+            context["temps"] = JS.number(context["temps"]).toInt() + 1;
+            JsValue tempExpression = JS.call(
+              createSimpleExpression,
+              ssrElementUndefined(),
+              tempId,
+              false
+            );
+            JsValue assignment = JS.call(
+              createAssignmentExpression,
+              ssrElementUndefined(),
+              tempExpression,
+              mergedProps
+            );
+            JsValue dynamicModel = JS.call(
+              createCallExpression,
+              ssrElementUndefined(),
+              JS.invoke(context, "helper", SSR_GET_DYNAMIC_MODEL_PROPS),
+              JS.array(tempExpression, vModel["exp"])
+            );
+            JsValue merge = JS.call(
+              createCallExpression,
+              ssrElementUndefined(),
+              JS.invoke(context, "helper", MERGE_PROPS),
+              JS.array(tempExpression, dynamicModel)
+            );
+            propsExp["arguments"] = JS.array(JS.call(
+              createSequenceExpression,
+              ssrElementUndefined(),
+              JS.array(assignment, merge)
+            ));
+          }
+        } else if (ssrElementLength(directives) > 0 &&
+          ssrElementLength(node["children"]) == 0 &&
+          !hasContentOverrideDirective(node)) {
+          string tempId = "_temp" + JS.string(context["temps"]);
+          context["temps"] = JS.number(context["temps"]).toInt() + 1;
+          propsExp["arguments"] = JS.array(JS.call(
+            createAssignmentExpression,
+            ssrElementUndefined(),
+            JS.call(createSimpleExpression, ssrElementUndefined(), tempId, false),
+            mergedProps
+          ));
+          JsValue textContent = JS.call(
+            createCallExpression,
+            ssrElementUndefined(),
+            JS.invoke(context, "helper", SSR_INTERPOLATE),
+            JS.array(JS.call(
+              createSimpleExpression,
+              ssrElementUndefined(),
+              tempId + ".textContent",
+              false
+            ))
+          );
+          JsValue innerHTML = JS.call(
+            createSimpleExpression,
+            ssrElementUndefined(),
+            tempId + ".innerHTML ?? ''",
+            false
+          );
+          JS.invoke(rawChildrenMap, "set", node, JS.call(
+            createConditionalExpression,
+            ssrElementUndefined(),
+            JS.call(
+              createSimpleExpression,
+              ssrElementUndefined(),
+              "\"textContent\" in " + tempId,
+              false
+            ),
+            textContent,
+            innerHTML,
+            false
+          ));
+        }
+        if (needTagForRuntime) {
+          ssrElementPush(propsExp["arguments"], "\"" + tag + "\"");
+        }
+        ssrElementPush(openTag, propsExp);
+      }
+    }
+
+    JsValue dynamicClassBinding = ssrElementUndefined();
+    JsValue staticClassBinding = ssrElementUndefined();
+    JsValue dynamicStyleBinding = ssrElementUndefined();
+    for (int index = 0; index < ssrElementLength(nodeProps); index++) {
+      JsValue prop = nodeProps[index];
+      if (tag == "input" && isTrueFalseValue(prop)) continue;
+      if (JS.strictEqual(prop["type"], NodeTypes["DIRECTIVE"])) {
+        string directiveName = JS.string(prop["name"]);
+        if (directiveName == "html" && prop["exp"].truthy()) {
+          JS.invoke(rawChildrenMap, "set", node, JS.call(
+            createCompoundExpression,
+            ssrElementUndefined(),
+            JS.array("(", prop["exp"], ") ?? ''")
+          ));
+        } else if (directiveName == "text" && prop["exp"].truthy()) {
+          node["children"] = JS.array(JS.call(
+            createInterpolation,
+            ssrElementUndefined(),
+            prop["exp"],
+            prop["loc"]
+          ));
+        } else if (directiveName == "slot") {
+          JS.invoke(context, "onError", JS.call(
+            createCompilerError,
+            ssrElementUndefined(),
+            ErrorCodes["X_V_SLOT_MISPLACED"],
+            prop["loc"]
+          ));
+        } else if (isTextareaWithValue(node, prop) && prop["exp"].truthy()) {
+          if (!needMergeProps) {
+            node["children"] = JS.array(JS.call(
+              createInterpolation,
+              ssrElementUndefined(),
+              prop["exp"],
+              prop["loc"]
+            ));
+          }
+        } else if (!needMergeProps && directiveName != "on") {
+          JsValue directiveTransform = context["directiveTransforms"][directiveName];
+          if (JS.typeOf(directiveTransform) == "function") {
+            JsValue transformed = JS.call(
+              directiveTransform,
+              ssrElementUndefined(),
+              prop,
+              node,
+              context
+            );
+            JsValue tagParts = transformed["ssrTagParts"];
+            if (tagParts.truthy()) {
+              for (int partIndex = 0;
+                partIndex < ssrElementLength(tagParts);
+                partIndex++) ssrElementPush(openTag, tagParts[partIndex]);
+            }
+            JsValue transformedProps = transformed["props"];
+            for (int propertyIndex = 0;
+              propertyIndex < ssrElementLength(transformedProps);
+              propertyIndex++) {
+              JsValue property = transformedProps[propertyIndex];
+              JsValue key = property["key"];
+              JsValue value = property["value"];
+              if (JS.call(isStaticExp, ssrElementUndefined(), key).truthy()) {
+                string attrName = JS.string(key["content"]);
+                if (attrName == "key" || attrName == "ref") continue;
+                if (attrName == "class") {
+                  dynamicClassBinding = JS.call(
+                    createCallExpression,
+                    ssrElementUndefined(),
+                    JS.invoke(context, "helper", SSR_RENDER_CLASS),
+                    JS.array(value)
+                  );
+                  ssrElementPush(openTag, " class=\"");
+                  ssrElementPush(openTag, dynamicClassBinding);
+                  ssrElementPush(openTag, "\"");
+                } else if (attrName == "style") {
+                  if (dynamicStyleBinding.truthy()) {
+                    mergeCall(dynamicStyleBinding, value);
+                  } else {
+                    dynamicStyleBinding = JS.call(
+                      createCallExpression,
+                      ssrElementUndefined(),
+                      JS.invoke(context, "helper", SSR_RENDER_STYLE),
+                      JS.array(value)
+                    );
+                    ssrElementPush(openTag, " style=\"");
+                    ssrElementPush(openTag, dynamicStyleBinding);
+                    ssrElementPush(openTag, "\"");
+                  }
+                } else {
+                  if (tag.indexOf("-") <= 0) {
+                    JsValue mapped = sharedPropsToAttrMap[attrName];
+                    if (mapped.truthy()) attrName = JS.string(mapped);
+                    else attrName = attrName.toLowerCase();
+                  }
+                  if (ssrElementPredicate(sharedIsBooleanAttr, attrName)) {
+                    ssrElementPush(openTag, JS.call(
+                      createConditionalExpression,
+                      ssrElementUndefined(),
+                      JS.call(
+                        createCallExpression,
+                        ssrElementUndefined(),
+                        JS.invoke(context, "helper", SSR_INCLUDE_BOOLEAN_ATTR),
+                        JS.array(value)
+                      ),
+                      JS.call(
+                        createSimpleExpression,
+                        ssrElementUndefined(),
+                        " " + attrName,
+                        true
+                      ),
+                      JS.call(createSimpleExpression, ssrElementUndefined(), "", true),
+                      false
+                    ));
+                  } else if (attrName == "hidden") {
+                    ssrElementPush(openTag, JS.call(
+                      createCallExpression,
+                      ssrElementUndefined(),
+                      JS.invoke(context, "helper", SSR_RENDER_DYNAMIC_ATTR),
+                      JS.array(key, value)
+                    ));
+                  } else if (ssrElementPredicate(sharedIsSSRSafeAttrName, attrName)) {
+                    ssrElementPush(openTag, JS.call(
+                      createCallExpression,
+                      ssrElementUndefined(),
+                      JS.invoke(context, "helper", SSR_RENDER_ATTR),
+                      JS.array(key, value)
+                    ));
+                  } else {
+                    JS.invoke(context, "onError", createSSRCompilerError(
+                      JS.number(SSRErrorCodes["X_SSR_UNSAFE_ATTR_NAME"]).toInt(),
+                      key["loc"]
+                    ));
+                  }
+                }
+              } else {
+                JsValue args = JS.array(key, value);
+                if (needTagForRuntime) ssrElementPush(args, "\"" + tag + "\"");
+                ssrElementPush(openTag, JS.call(
+                  createCallExpression,
+                  ssrElementUndefined(),
+                  JS.invoke(context, "helper", SSR_RENDER_DYNAMIC_ATTR),
+                  args
+                ));
+              }
+            }
+          }
+        }
+      } else {
+        string name = JS.string(prop["name"]);
+        if (tag == "textarea" && name == "value" && prop["value"].truthy()) {
+          JS.invoke(
+            rawChildrenMap,
+            "set",
+            node,
+            JS.call(sharedEscapeHtml, ssrElementUndefined(), prop["value"]["content"])
+          );
+        } else if (!needMergeProps) {
+          if (name == "key" || name == "ref") continue;
+          if (name == "class" && prop["value"].truthy()) {
+            staticClassBinding = JS.invoke(JSON, "stringify", prop["value"]["content"]);
+          }
+          string attribute = " " + name;
+          if (prop["value"].truthy()) {
+            attribute += "=\"" + JS.string(JS.call(
+              sharedEscapeHtml,
+              ssrElementUndefined(),
+              prop["value"]["content"]
+            )) + "\"";
+          }
+          ssrElementPush(openTag, attribute);
+        }
+      }
+    }
+    if (dynamicClassBinding.truthy() && staticClassBinding.truthy()) {
+      mergeCall(dynamicClassBinding, staticClassBinding);
+      removeStaticBinding(openTag, "class");
+    }
+    if (context["scopeId"].truthy()) {
+      ssrElementPush(openTag, " " + JS.string(context["scopeId"]));
+    }
+    node["ssrCodegenNode"] = JS.call(
+      createTemplateLiteral,
+      ssrElementUndefined(),
+      openTag
+    );
+    return ssrElementUndefined();
+  });
+}
+
+export void ssrProcessElement(JsValue node, JsValue context) {
+  JsValue elements = node["ssrCodegenNode"]["elements"];
+  for (int index = 0; index < ssrElementLength(elements); index++) {
+    JS.invoke(context, "pushStringPart", elements[index]);
+  }
+  if (context["withSlotScopeId"].truthy()) {
+    JS.invoke(
+      context,
+      "pushStringPart",
+      JS.call(createSimpleExpression, ssrElementUndefined(), "_scopeId", false)
+    );
+  }
+  JS.invoke(context, "pushStringPart", ">");
+  JsValue rawChildren = JS.invoke(rawChildrenMap, "get", node);
+  if (rawChildren.truthy()) {
+    JS.invoke(context, "pushStringPart", rawChildren);
+  } else if (ssrElementLength(node["children"]) > 0) {
+    processChildren(node, context);
+  }
+  JsValue isVoidTag = context["options"]["isVoidTag"];
+  bool isVoid = false;
+  if (JS.typeOf(isVoidTag) == "function") {
+    isVoid = JS.call(isVoidTag, ssrElementUndefined(), node["tag"]).truthy();
+  }
+  if (!isVoid) {
+    JS.invoke(context, "pushStringPart", "</" + JS.string(node["tag"]) + ">");
+  }
+}

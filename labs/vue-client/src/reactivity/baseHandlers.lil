@@ -1,0 +1,199 @@
+import { hasChanged, hasOwn, isIntegerKey, isObject, isSymbol } from "../shared/general";
+import { arrayInstrumentations } from "./arrayInstrumentations";
+import { DEV } from "./constants";
+import { ITERATE_KEY, track, trigger } from "./dep";
+import {
+  isReadonly,
+  isShallow,
+  proxyForTarget,
+  reactive,
+  readonly,
+  toRaw
+} from "./reactive";
+import { isRef } from "./ref";
+import { warn } from "./warning";
+
+extern JsValue hostCreateObject();
+extern JsValue hostRead(JsValue value, JsValue key);
+extern JsValue hostReflectGet(JsValue target, JsValue key, JsValue receiver);
+extern bool hostReflectSet(JsValue target, JsValue key, JsValue value, JsValue receiver);
+extern bool hostReflectDelete(JsValue target, JsValue key);
+extern bool hostReflectHas(JsValue target, JsValue key);
+extern JsValue hostReflectOwnKeys(JsValue target);
+extern bool hostSamePrototype(JsValue left, JsValue right);
+extern JsValue hostBuiltInSymbols();
+extern string hostString(JsValue value);
+
+void write(JsValue value, JsValue key, JsValue next) {
+  value[key] = next;
+}
+
+JsValue builtInSymbols = hostBuiltInSymbols();
+
+bool isBuiltInSymbol(JsValue key) {
+  if (!isSymbol(key)) return false;
+  for (int index = 0; index < JS.number(hostRead(builtInSymbols, "length")).toInt(); index++) {
+    if (JS.strictEqual(hostRead(builtInSymbols, index), key)) return true;
+  }
+  return false;
+}
+
+bool isNonTrackable(JsValue key) {
+  return JS.strictEqual(key, "__proto__") ||
+    JS.strictEqual(key, "__v_isRef") ||
+    JS.strictEqual(key, "__isVue") ||
+    isBuiltInSymbol(key);
+}
+
+JsValue reactiveHasOwnProperty = JS.method1((JsValue self, JsValue key) => {
+  if (!isSymbol(key)) key = hostString(key);
+  JsValue object = toRaw(self);
+  track(object, "has", key);
+  return hasOwn(object, key);
+});
+
+JsValue baseGet(
+  JsValue target,
+  JsValue key,
+  JsValue receiver,
+  bool readonlyValue,
+  bool shallow
+) {
+  if (JS.strictEqual(key, "__v_skip")) return hostRead(target, key);
+  if (JS.strictEqual(key, "__v_isReactive")) return !readonlyValue;
+  if (JS.strictEqual(key, "__v_isReadonly")) return readonlyValue;
+  if (JS.strictEqual(key, "__v_isShallow")) return shallow;
+  if (JS.strictEqual(key, "__v_raw")) {
+    if (
+      JS.strictEqual(receiver, proxyForTarget(target, readonlyValue, shallow)) ||
+      hostSamePrototype(target, receiver)
+    ) return target;
+    return JS.undefined();
+  }
+
+  bool targetIsArray = JS.isArray(target);
+  if (!readonlyValue) {
+    if (targetIsArray) {
+      JsValue instrumentation = hostRead(arrayInstrumentations, key);
+      if (!JS.isUndefined(instrumentation)) return instrumentation;
+    }
+    if (JS.strictEqual(key, "hasOwnProperty")) return reactiveHasOwnProperty;
+  }
+
+  JsValue actualReceiver = receiver;
+  if (isRef(target)) actualReceiver = target;
+  JsValue result = hostReflectGet(target, key, actualReceiver);
+  if (isNonTrackable(key)) return result;
+  if (!readonlyValue) track(target, "get", key);
+  if (shallow) return result;
+  if (isRef(result)) {
+    JsValue value = hostRead(result, "value");
+    if (targetIsArray && isIntegerKey(key)) value = result;
+    if (readonlyValue && isObject(value)) return readonly(value);
+    return value;
+  }
+  if (isObject(result)) {
+    if (readonlyValue) return readonly(result);
+    return reactive(result);
+  }
+  return result;
+}
+
+bool mutableSet(
+  JsValue target,
+  JsValue key,
+  JsValue value,
+  JsValue receiver,
+  bool shallow
+) {
+  JsValue oldValue = hostRead(target, key);
+  bool arrayIndex = JS.isArray(target) && isIntegerKey(key);
+  if (!shallow) {
+    bool oldReadonly = isReadonly(oldValue);
+    if (!isShallow(value) && !isReadonly(value)) {
+      oldValue = toRaw(oldValue);
+      value = toRaw(value);
+    }
+    if (!arrayIndex && isRef(oldValue) && !isRef(value)) {
+      if (oldReadonly) {
+        if (DEV) warn(
+          "Set operation on key \"" + hostString(key) + "\" failed: target is readonly.",
+          hostRead(target, key)
+        );
+      } else {
+        write(oldValue, "value", value);
+      }
+      return true;
+    }
+  }
+  bool hadKey = hasOwn(target, key);
+  if (arrayIndex) hadKey = JS.number(key) < JS.number(hostRead(target, "length"));
+  JsValue actualReceiver = receiver;
+  if (isRef(target)) actualReceiver = target;
+  bool result = hostReflectSet(target, key, value, actualReceiver);
+  if (result && JS.strictEqual(target, toRaw(receiver))) {
+    if (!hadKey) trigger(target, "add", key, value, JS.undefined(), JS.undefined());
+    else if (hasChanged(value, oldValue)) {
+      trigger(target, "set", key, value, oldValue, JS.undefined());
+    }
+  }
+  return result;
+}
+
+JsValue mutableHandler(bool shallow) {
+  JsValue handler = hostCreateObject();
+  write(handler, "get", JS.method3((JsValue _self, JsValue target, JsValue key, JsValue receiver) =>
+    baseGet(target, key, receiver, false, shallow)));
+  write(handler, "set", JS.methodRest((JsValue _self, JsValue args) => mutableSet(
+    hostRead(args, 0),
+    hostRead(args, 1),
+    hostRead(args, 2),
+    hostRead(args, 3),
+    shallow
+  )));
+  write(handler, "deleteProperty", JS.method2((JsValue _self, JsValue target, JsValue key) => {
+    bool hadKey = hasOwn(target, key);
+    JsValue oldValue = hostRead(target, key);
+    bool result = hostReflectDelete(target, key);
+    if (result && hadKey) trigger(target, "delete", key, JS.undefined(), oldValue, JS.undefined());
+    return result;
+  }));
+  write(handler, "has", JS.method2((JsValue _self, JsValue target, JsValue key) => {
+    bool result = hostReflectHas(target, key);
+    if (!isSymbol(key) || !isBuiltInSymbol(key)) track(target, "has", key);
+    return result;
+  }));
+  write(handler, "ownKeys", JS.method1((JsValue _self, JsValue target) => {
+    JsValue iterationKey = ITERATE_KEY;
+    if (JS.isArray(target)) iterationKey = "length";
+    track(target, "iterate", iterationKey);
+    return hostReflectOwnKeys(target);
+  }));
+  return handler;
+}
+
+JsValue readonlyHandler(bool shallow) {
+  JsValue handler = hostCreateObject();
+  write(handler, "get", JS.method3((JsValue _self, JsValue target, JsValue key, JsValue receiver) =>
+    baseGet(target, key, receiver, true, shallow)));
+  write(handler, "set", JS.methodRest((JsValue _self, JsValue args) => {
+    if (DEV) warn(
+      "Set operation on key \"" + hostString(hostRead(args, 1)) + "\" failed: target is readonly.",
+      hostRead(args, 0)
+    );
+    return true;
+  }));
+  write(handler, "deleteProperty", JS.method2((JsValue _self, JsValue target, JsValue key) => {
+    if (DEV) warn(
+      "Delete operation on key \"" + hostString(key) + "\" failed: target is readonly.",
+      target
+    );
+    return true;
+  }));
+  return handler;
+}
+
+export JsValue mutableHandlers = mutableHandler(false);
+export JsValue readonlyHandlers = readonlyHandler(false);
+export JsValue shallowReactiveHandlers = mutableHandler(true);
+export JsValue shallowReadonlyHandlers = readonlyHandler(true);

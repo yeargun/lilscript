@@ -1,0 +1,92 @@
+import extern {
+  NodeTypes,
+  createCallExpression,
+  createFunctionExpression,
+  createSimpleExpression,
+  findProp
+} from "../../../packages/vuelil/compiler-dom.js";
+import { SSRErrorCodes, createSSRCompilerError } from "../errors";
+import { SSR_RENDER_TELEPORT } from "../runtimeHelpers";
+import { processChildrenAsStatement } from "../ssrCodegenTransform";
+
+extern JsValue NodeTypes;
+extern JsValue createCallExpression;
+extern JsValue createFunctionExpression;
+extern JsValue createSimpleExpression;
+extern JsValue findProp;
+
+JsValue teleportUndefined() {
+  return JS.undefined();
+}
+
+export void ssrProcessTeleport(JsValue node, JsValue context) {
+  JsValue targetProp = JS.call(findProp, teleportUndefined(), node, "to");
+  if (!targetProp.truthy()) {
+    JS.invoke(
+      context,
+      "onError",
+      createSSRCompilerError(
+        JS.number(SSRErrorCodes["X_SSR_NO_TELEPORT_TARGET"]).toInt(),
+        node["loc"]
+      )
+    );
+    return;
+  }
+  JsValue target = teleportUndefined();
+  if (JS.strictEqual(targetProp["type"], NodeTypes["ATTRIBUTE"])) {
+    if (targetProp["value"].truthy()) {
+      target = JS.call(
+        createSimpleExpression,
+        teleportUndefined(),
+        targetProp["value"]["content"],
+        true
+      );
+    }
+  } else {
+    target = targetProp["exp"];
+  }
+  if (!target.truthy()) {
+    JS.invoke(
+      context,
+      "onError",
+      createSSRCompilerError(
+        JS.number(SSRErrorCodes["X_SSR_NO_TELEPORT_TARGET"]).toInt(),
+        targetProp["loc"]
+      )
+    );
+    return;
+  }
+  JsValue disabledProp = JS.call(
+    findProp,
+    teleportUndefined(),
+    node,
+    "disabled",
+    false,
+    true
+  );
+  JsValue disabled = "false";
+  if (disabledProp.truthy()) {
+    if (JS.strictEqual(disabledProp["type"], NodeTypes["ATTRIBUTE"])) disabled = "true";
+    else if (disabledProp["exp"].truthy()) disabled = disabledProp["exp"];
+  }
+  JsValue content = JS.call(
+    createFunctionExpression,
+    teleportUndefined(),
+    JS.array("_push"),
+    teleportUndefined(),
+    true,
+    false,
+    node["loc"]
+  );
+  content["body"] = processChildrenAsStatement(node, context);
+  JS.invoke(
+    context,
+    "pushStatement",
+    JS.call(
+      createCallExpression,
+      teleportUndefined(),
+      JS.invoke(context, "helper", SSR_RENDER_TELEPORT),
+      JS.array("_push", content, target, disabled, "_parent")
+    )
+  );
+}

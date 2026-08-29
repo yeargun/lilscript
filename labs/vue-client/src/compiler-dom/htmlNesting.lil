@@ -1,0 +1,110 @@
+extern JsValue Set;
+
+JsValue nestingSet(JsValue values) {
+  return JS.construct(Set, values);
+}
+
+JsValue headings = nestingSet(JS.array("h1", "h2", "h3", "h4", "h5", "h6"));
+JsValue emptySet = nestingSet(JS.array());
+
+// Elements mapped here accept only the listed element children.
+JsValue onlyValidChildren = JS.object(
+  "head", nestingSet(JS.array(
+    "base", "basefront", "bgsound", "link", "meta", "title", "noscript",
+    "noframes", "style", "script", "template"
+  )),
+  "optgroup", nestingSet(JS.array("option")),
+  "select", nestingSet(JS.array("optgroup", "option", "hr")),
+  "table", nestingSet(JS.array("caption", "colgroup", "tbody", "tfoot", "thead")),
+  "tr", nestingSet(JS.array("td", "th")),
+  "colgroup", nestingSet(JS.array("col")),
+  "tbody", nestingSet(JS.array("tr")),
+  "thead", nestingSet(JS.array("tr")),
+  "tfoot", nestingSet(JS.array("tr")),
+  "script", emptySet,
+  "iframe", emptySet,
+  "option", emptySet,
+  "textarea", emptySet,
+  "style", emptySet,
+  "title", emptySet
+);
+
+// Elements mapped here accept only the listed element parents.
+JsValue onlyValidParents = JS.object(
+  "html", emptySet,
+  "body", nestingSet(JS.array("html")),
+  "head", nestingSet(JS.array("html")),
+  "td", nestingSet(JS.array("tr")),
+  "colgroup", nestingSet(JS.array("table")),
+  "caption", nestingSet(JS.array("table")),
+  "tbody", nestingSet(JS.array("table")),
+  "tfoot", nestingSet(JS.array("table")),
+  "col", nestingSet(JS.array("colgroup")),
+  "th", nestingSet(JS.array("tr")),
+  "thead", nestingSet(JS.array("table")),
+  "tr", nestingSet(JS.array("tbody", "thead", "tfoot")),
+  "dd", nestingSet(JS.array("dl", "div")),
+  "dt", nestingSet(JS.array("dl", "div")),
+  "figcaption", nestingSet(JS.array("figure")),
+  "summary", nestingSet(JS.array("details")),
+  "area", nestingSet(JS.array("map"))
+);
+
+// Elements mapped here reject the listed children and accept other elements.
+JsValue knownInvalidChildren = JS.object(
+  "p", nestingSet(JS.array(
+    "address", "article", "aside", "blockquote", "center", "details",
+    "dialog", "dir", "div", "dl", "fieldset", "figure", "footer", "form",
+    "h1", "h2", "h3", "h4", "h5", "h6", "header", "hgroup", "hr",
+    "li", "main", "nav", "menu", "ol", "p", "pre", "section", "table", "ul"
+  )),
+  "svg", nestingSet(JS.array(
+    "b", "blockquote", "br", "code", "dd", "div", "dl", "dt", "em",
+    "embed", "h1", "h2", "h3", "h4", "h5", "h6", "hr", "i", "img",
+    "li", "menu", "meta", "ol", "p", "pre", "ruby", "s", "small",
+    "span", "strong", "sub", "sup", "table", "u", "ul", "var"
+  ))
+);
+
+// Elements mapped here reject the listed parents and accept other elements.
+JsValue knownInvalidParents = JS.object(
+  "a", nestingSet(JS.array("a")),
+  "button", nestingSet(JS.array("button")),
+  "dd", nestingSet(JS.array("dd", "dt")),
+  "dt", nestingSet(JS.array("dd", "dt")),
+  "form", nestingSet(JS.array("form")),
+  "li", nestingSet(JS.array("li")),
+  "h1", headings,
+  "h2", headings,
+  "h3", headings,
+  "h4", headings,
+  "h5", headings,
+  "h6", headings
+);
+
+bool nestingMapHas(JsValue map, string key) {
+  return JS.has(map, key);
+}
+
+bool nestingSetHas(JsValue values, string value) {
+  return JS.invoke(values, "has", value).truthy();
+}
+
+export bool isValidHTMLNesting(string parent, string child) {
+  if (parent == "template") return true;
+  if (nestingMapHas(onlyValidChildren, parent)) {
+    return nestingSetHas(onlyValidChildren[parent], child);
+  }
+  if (nestingMapHas(onlyValidParents, child)) {
+    return nestingSetHas(onlyValidParents[child], parent);
+  }
+  if (
+    nestingMapHas(knownInvalidChildren, parent) &&
+    nestingSetHas(knownInvalidChildren[parent], child)
+  ) return false;
+  if (
+    nestingMapHas(knownInvalidParents, child) &&
+    nestingSetHas(knownInvalidParents[child], parent)
+  ) return false;
+  return true;
+}

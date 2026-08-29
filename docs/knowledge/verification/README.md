@@ -1,7 +1,9 @@
 # Compression verification
 
 Parent: [knowledge tree](../README.md). Execution order:
-[migration](../migration/README.md). Evidence: [evidence](../evidence/README.md).
+[planned migration](../migration/planned-migration.md). Evidence:
+[evidence](../evidence/README.md). Current gates:
+[`docs/current-status.md`](../../current-status.md).
 
 This folder defines what a LilScript compression result must mean. It is deliberately
 stricter than “both snippets print the same line and one file is shorter.” Web code
@@ -43,6 +45,10 @@ Three artifacts can all be useful but cannot be substituted for one another:
 Only 1 vs 2 proves the language+compiler compression claim. Artifact 3 is an
 ablation/deployment experiment and must be labelled as such.
 
+A fourth useful lane is the downstream deployment artifact (for example a
+banner, facade, Vite bundle, or Oxc pass). It proves that joint pipeline only;
+it must not be relabelled as direct compiler output.
+
 ## Current known limits
 
 - The micro runner gates separately compiled raw/gzip/Brotli objective
@@ -50,7 +56,7 @@ ablation/deployment experiment and must be labelled as such.
   release-wired. Durable reviewed cases live in
   [`comparison/cases/canonical/`](../../../comparison/cases/canonical/). The
   generated catalog remains a parameterized regression net with a checked-in oracle
-  digest. See [migration phase 00](../migration/README.md#phase-00).
+  digest. See the [planned migration](../migration/planned-migration.md).
 - The micro catalog is not structural whole-program evidence. The separate
   [algorithm lane](algorithm-challenges.md) owns multi-function/module interaction,
   runtime vectors, and codec-window scaling.
@@ -63,3 +69,14 @@ ablation/deployment experiment and must be labelled as such.
   under the planner budget,” not a proof of the globally minimal partition.
 - “Global optimum” is provable only for a small exhaustively enumerated candidate
   space. Production beam results are best-found under a budget.
+
+## Validation Layers
+
+1. Typed legality proves that a transform preserves language constraints,
+   effects, identity, ownership, and explicit obligations.
+2. Final-byte validation checks syntax floor, binding resolution, property
+   category, module links, observed ABI, and obligation witnesses before scoring.
+3. Independent behavior/API suites test semantic equivalence for the declared
+   boundary. Parsing bytes cannot prove general program equivalence.
+4. Exact selected-codec measurement ranks only candidates that passed the
+   applicable earlier layers.

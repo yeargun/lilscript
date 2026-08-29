@@ -1,0 +1,45 @@
+import extern { NodeTypes, findProp } from "../../../packages/vuelil/compiler-dom.js";
+import { processChildren } from "../ssrCodegenTransform";
+
+extern JsValue NodeTypes;
+extern JsValue findProp;
+extern JsValue WeakMap;
+
+JsValue transitionUndefined() {
+  return JS.undefined();
+}
+
+JsValue transitionWipMap = JS.construct(WeakMap);
+
+export JsValue ssrTransformTransition(JsValue node, JsValue _context) {
+  return JS.method0((JsValue _self) => {
+    JsValue appear = JS.call(
+      findProp,
+      transitionUndefined(),
+      node,
+      "appear",
+      false,
+      true
+    );
+    JS.invoke(transitionWipMap, "set", node, appear.truthy());
+    return transitionUndefined();
+  });
+}
+
+export void ssrProcessTransition(JsValue node, JsValue context) {
+  JsValue filtered = JS.array();
+  JsValue children = node["children"];
+  for (int index = 0; index < JS.number(children["length"]).toInt(); index++) {
+    if (!JS.strictEqual(children[index]["type"], NodeTypes["COMMENT"])) {
+      JS.invoke(filtered, "push", children[index]);
+    }
+  }
+  node["children"] = filtered;
+  if (JS.invoke(transitionWipMap, "get", node).truthy()) {
+    JS.invoke(context, "pushStringPart", "<template>");
+    processChildren(node, context, false, true);
+    JS.invoke(context, "pushStringPart", "</template>");
+  } else {
+    processChildren(node, context, false, true);
+  }
+}

@@ -196,8 +196,9 @@ Gzip/Brotli allowance: transfer ≤ baseline **or** raw within growth percent. R
   not the single-file identifier-alphabet beam; `joint-chunk-symbol-search`
   adds only `function_layout` and `local_name_reserve` variants. Preserve-modules
   uses fixed source partitions and configured emission.
-- Not a closed allowlist in practice: omitted non-search-only names usually stay
-  off, but `elide_length_tonumber` is flipped unconditionally.
+- Not a closed allowlist in practice: omitted non-search-only names stay off,
+  while explicitly defined size-first search-only spellings may still compete
+  unless compression is an empty list.
 
 The proposal space, IR finalist beam, objective-stratified emission frontier,
 identifier trials, and byte/count budgets are all bounded. Except for deliberately
@@ -220,5 +221,5 @@ Emission search now iterates cartesian axes and scored families from
 `src/decision_registry.rs`. Entropy mapping and several terminal neighborhoods
 remain specialized coordinator stages; late families can still lose when the
 work ledger exhausts. See [current architecture](current-architecture.md),
-[goal architecture](goal-architecture.md), and
+[planned architecture](planned-architecture.md), and
 [decision registry](decision-registry.md).

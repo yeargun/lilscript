@@ -11,6 +11,8 @@
     "dev": "vite --port 5173",
     "build": "npm run catalog && vite build",
     "build:pages": "LILSCRIPT_PAGES_BASE=/lilscript/ vite build && node scripts/prepare-pages.mjs",
+    "build:site": "vite build",
+    "deploy": "npm run build:site && wrangler deploy",
     "preview": "vite preview --port 4174",
     "test": "node --test test/*.test.mjs",
     "test:pages": "node --test test/product-pages.test.mjs test/delivery.test.mjs test/demos.test.mjs",

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="LilScript is a typed language that compiles to mangled, codec-scored JavaScript. Across the 15 currently comparable project rows, the median result is 7.7% smaller with gzip and 7.5% smaller with Brotli."
+      content="LilScript is a typed language that compiles to mangled, codec-scored JavaScript. Across the 14 currently comparable project rows, the median result is 5.3% smaller with gzip and 6.6% smaller with Brotli."
     />
     <title>LilScript — compiles to smaller JavaScript</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -81,11 +81,11 @@
             <div>
               <dt>Measured median</dt>
               <dd>
-                Across the 15 currently comparable project rows, with one vote
-                per project: <strong>7.7%</strong> smaller under gzip-9 and
-                <strong>7.5%</strong> smaller under Brotli-11. The Zod card is
-                visible but excluded while its package-surface size lane is
-                rebuilt.
+                Across the 14 currently comparable project rows, with one vote
+                per project: <strong>5.3%</strong> smaller under gzip-9 and
+                <strong>6.6%</strong> smaller under Brotli-11. Zod and SolidLil
+                remain visible but are excluded while their exact boundaries
+                are rebuilt.
               </dd>
             </div>
           </dl>
@@ -289,15 +289,15 @@ console.log(`sum=${c}`)</code></pre>
             <span class="lib-card-kicker">Framework · Solid 2.0</span>
             <h3>SolidLil</h3>
             <p>
-              Official js-framework-benchmark keyed table. Solid 2.0 versus the
-              LilScript compile. Live pairs are on the SolidLil lab.
+              Exact file-for-file typed port in progress. The earlier compact
+              compatibility runtime is no longer ranked against Solid.
             </p>
             <div class="lib-card-metrics compression-rates">
-              <div class="win compression-rate" data-compression-rate data-baseline="12318" data-candidate="4343">
-                <small>gzip-9</small><b>−64.7%</b><span>12,318 → 4,343 B</span>
+              <div>
+                <small>Upstream modules</small><b>47</b><span>pinned locally</span>
               </div>
-              <div class="win compression-rate" data-compression-rate data-baseline="11180" data-candidate="3862">
-                <small>Brotli-11</small><b>−65.5%</b><span>11,180 → 3,862 B</span>
+              <div>
+                <small>Verified ports</small><b>0</b><span>comparison withheld</span>
               </div>
             </div>
           </a>
@@ -527,10 +527,10 @@ console.log(`sum=${c}`)</code></pre>
           <strong>How to read this.</strong> Each percentage is recalculated as
           <code>(candidate / baseline − 1) × 100</code> from the byte pair
           beside it. gzip-9 and Brotli-11 are independent codec measurements;
-          they can disagree, as Nano ID and posthog-js do. The 7.7% / 7.5%
-          headline is the median of the 15 currently comparable project rows,
-          not a byte-weighted blend. Zod stays visible but has no vote while
-          its package-surface mismatch is open. Subset ports (Preact, the
+          they can disagree, as Nano ID and posthog-js do. The 5.3% / 6.6%
+          headline is the median of the 14 currently comparable project rows,
+          not a byte-weighted blend. Zod and SolidLil stay visible but have no
+          vote while their parity work is open. Subset ports (Preact, the
           in-repo Zod 3 surface, Acorn, Redux
           Toolkit) live on the <a href="/compare.html">compare page</a> and are
           labeled as such. The published Zod 4 port is
@@ -611,8 +611,8 @@ console.log(`sum=${c}`)</code></pre>
             <span>@itslil/solidjs</span>
             <h3>SolidLil</h3>
             <p>
-              Solid 2.0 client and LSX. Official keyed table: 64.7% smaller
-              gzip and 65.5% smaller Brotli.
+              Exact Solid 2.0 browser-runtime port in progress. Previous size
+              results are retained only as non-qualifying diagnostics.
             </p>
             <b>yeargun.github.io/solidlil</b>
           </a>
@@ -784,12 +784,13 @@ console.log(`sum=${c}`)</code></pre>
           <p>
             That was not the plan; it is just what we keep seeing. A library
             rewrite is often close to one-shot, and the compiled file is usually
-            smaller once gzip or Brotli is applied. Across the 15 currently
-            comparable rows, the median project result is 7.7% smaller under
-            gzip-9 and 7.5% smaller under Brotli-11. Zod remains visible but is
-            excluded until its package surface matches. This is a snapshot with
-            one vote per project, including losses and near-ties — not a
-            promise that every file will move that far.
+            smaller once gzip or Brotli is applied. Across the 14 currently
+            comparable rows, the median project result is 5.3% smaller under
+            gzip-9 and 6.6% smaller under Brotli-11. Zod and SolidLil remain
+            visible but are excluded until their declared parity boundaries
+            match. This is a snapshot with one vote per project, including
+            losses and near-ties — not a promise that every file will move that
+            far.
           </p>
         </div>
       </section>

@@ -1,0 +1,134 @@
+import extern {
+  baseCompile as coreBaseCompile,
+  baseParse as coreBaseParse,
+  noopDirectiveTransform
+} from "../../packages/vuelil/compiler-core.js";
+import extern { extend as sharedExtend } from "../../packages/vuelil/shared.js";
+import { parserOptions } from "./parserOptions";
+import {
+  TRANSITION,
+  TRANSITION_GROUP,
+  V_MODEL_CHECKBOX,
+  V_MODEL_DYNAMIC,
+  V_MODEL_RADIO,
+  V_MODEL_SELECT,
+  V_MODEL_TEXT,
+  V_ON_WITH_KEYS,
+  V_ON_WITH_MODIFIERS,
+  V_SHOW
+} from "./runtimeHelpers";
+import {
+  DOMErrorCodes,
+  DOMErrorMessages,
+  createDOMCompilerError
+} from "./errors";
+import { transformStyle } from "./transforms/transformStyle";
+import { transformVHtml } from "./transforms/vHtml";
+import { transformVText } from "./transforms/vText";
+import { transformModel } from "./transforms/vModel";
+import { transformOn } from "./transforms/vOn";
+import { transformShow } from "./transforms/vShow";
+import { transformTransition } from "./transforms/Transition";
+import { stringifyStatic } from "./transforms/stringifyStatic";
+import { ignoreSideEffectTags } from "./transforms/ignoreSideEffectTags";
+import { validateHtmlNesting } from "./transforms/validateHtmlNesting";
+
+extern JsValue coreBaseCompile;
+extern JsValue coreBaseParse;
+extern JsValue noopDirectiveTransform;
+extern JsValue sharedExtend;
+
+JsValue domCompilerUndefined() {
+  return JS.undefined();
+}
+
+int domCompilerLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+
+void domCompilerPush(JsValue values, JsValue value) {
+  values[domCompilerLength(values)] = value;
+}
+
+export JsValue DOMNodeTransforms = JS.array(
+  transformStyle,
+  transformTransition,
+  validateHtmlNesting
+);
+
+export JsValue DOMDirectiveTransforms = JS.object(
+  "cloak", noopDirectiveTransform,
+  "html", transformVHtml,
+  "text", transformVText,
+  "model", transformModel,
+  "on", transformOn,
+  "show", transformShow
+);
+
+export JsValue compile(JsValue source, JsValue options = JS.undefined()) {
+  if (JS.isUndefined(options)) options = JS.object();
+
+  JsValue nodeTransforms = JS.array(ignoreSideEffectTags);
+  for (int index = 0; index < domCompilerLength(DOMNodeTransforms); index++) {
+    domCompilerPush(nodeTransforms, DOMNodeTransforms[index]);
+  }
+  JsValue customNodeTransforms = options["nodeTransforms"];
+  if (customNodeTransforms.truthy()) {
+    for (int index = 0; index < domCompilerLength(customNodeTransforms); index++) {
+      domCompilerPush(nodeTransforms, customNodeTransforms[index]);
+    }
+  }
+
+  JsValue customDirectiveTransforms = options["directiveTransforms"];
+  if (!customDirectiveTransforms.truthy()) customDirectiveTransforms = JS.object();
+  JsValue directiveTransforms = JS.call(
+    sharedExtend,
+    domCompilerUndefined(),
+    JS.object(),
+    DOMDirectiveTransforms,
+    customDirectiveTransforms
+  );
+  JsValue resolved = JS.call(
+    sharedExtend,
+    domCompilerUndefined(),
+    JS.object(),
+    parserOptions,
+    options,
+    JS.object(
+      "nodeTransforms", nodeTransforms,
+      "directiveTransforms", directiveTransforms,
+      "transformHoist", stringifyStatic
+    )
+  );
+  return JS.call(coreBaseCompile, domCompilerUndefined(), source, resolved);
+}
+
+export JsValue parse(string template, JsValue options = JS.undefined()) {
+  if (JS.isUndefined(options)) options = JS.object();
+  JsValue resolved = JS.call(
+    sharedExtend,
+    domCompilerUndefined(),
+    JS.object(),
+    parserOptions,
+    options
+  );
+  return JS.call(coreBaseParse, domCompilerUndefined(), template, resolved);
+}
+
+export {
+  DOMErrorCodes,
+  DOMErrorMessages,
+  TRANSITION,
+  TRANSITION_GROUP,
+  V_MODEL_CHECKBOX,
+  V_MODEL_DYNAMIC,
+  V_MODEL_RADIO,
+  V_MODEL_SELECT,
+  V_MODEL_TEXT,
+  V_ON_WITH_KEYS,
+  V_ON_WITH_MODIFIERS,
+  V_SHOW,
+  createDOMCompilerError,
+  parserOptions,
+  transformStyle
+};

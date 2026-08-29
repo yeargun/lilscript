@@ -130,6 +130,9 @@ impl ProjectConfig {
         options.expression_superopt = compress.expression_superopt;
         options.path_sensitive_propagation = compress.path_sensitive_propagation;
         options.parameterized_function_merging = self.js_parameterized_function_merging_enabled();
+        // Exported-body duplication is proposed only by its scored IR recipe;
+        // the configured incumbent remains source-shaped.
+        options.inline_exported_internal_calls = false;
         if !options.inlining {
             return options;
         }
@@ -471,6 +474,22 @@ impl ProjectConfig {
             && self.javascript.optimization_enabled(
                 JavaScriptOptimization::IrInliningVariants,
                 Some(CompressionDecision::IrInliningVariants),
+            )
+    }
+
+    pub fn exported_internal_inlining_variants_enabled(&self) -> bool {
+        self.javascript.candidate_search_enabled()
+            && self.javascript.optimization_enabled(
+                JavaScriptOptimization::IrInliningVariants,
+                Some(CompressionDecision::ExportedInternalInlining),
+            )
+    }
+
+    pub fn global_alias_forwarding_variants_enabled(&self) -> bool {
+        self.javascript.candidate_search_enabled()
+            && self.javascript.optimization_enabled(
+                JavaScriptOptimization::JointRepresentationSearch,
+                Some(CompressionDecision::GlobalAliasForwarding),
             )
     }
 
@@ -943,6 +962,10 @@ impl JavaScriptPriority {
             CompressionDecision::ScalarPhiCopies => matches!(self, Self::SizeFirst),
             CompressionDecision::PhiAffinityCoalescing => true,
             CompressionDecision::IrInliningVariants => matches!(self, Self::SizeFirst),
+            CompressionDecision::ExportedInternalInlining => matches!(self, Self::SizeFirst),
+            // Forwarding can remove syntax while weakening repeated byte shapes.
+            // Keep it explicitly opt-in until corpus evidence supports a default.
+            CompressionDecision::GlobalAliasForwarding => false,
             CompressionDecision::IrClosureFactoryVariants => matches!(self, Self::SizeFirst),
             CompressionDecision::IrPhaseOrderingVariants => matches!(self, Self::SizeFirst),
             CompressionDecision::LoopSpellingSelection => {
@@ -1017,6 +1040,8 @@ pub enum CompressionDecision {
     ScalarPhiCopies,
     PhiAffinityCoalescing,
     IrInliningVariants,
+    ExportedInternalInlining,
+    GlobalAliasForwarding,
     IrClosureFactoryVariants,
     IrPhaseOrderingVariants,
     LoopSpellingSelection,
@@ -1034,7 +1059,7 @@ pub enum CompressionDecision {
 }
 
 impl CompressionDecision {
-    pub const ALL: [Self; 37] = [
+    pub const ALL: [Self; 39] = [
         Self::IdentifierMangling,
         Self::EntropyAwareMangling,
         Self::QuoteStyleSelection,
@@ -1058,6 +1083,8 @@ impl CompressionDecision {
         Self::ScalarPhiCopies,
         Self::PhiAffinityCoalescing,
         Self::IrInliningVariants,
+        Self::ExportedInternalInlining,
+        Self::GlobalAliasForwarding,
         Self::IrClosureFactoryVariants,
         Self::IrPhaseOrderingVariants,
         Self::LoopSpellingSelection,
@@ -1099,6 +1126,8 @@ impl CompressionDecision {
             Self::ScalarPhiCopies => "scalar-phi-copies",
             Self::PhiAffinityCoalescing => "phi-affinity-coalescing",
             Self::IrInliningVariants => "ir-inlining-variants",
+            Self::ExportedInternalInlining => "exported-internal-inlining",
+            Self::GlobalAliasForwarding => "global-alias-forwarding",
             Self::IrClosureFactoryVariants => "ir-closure-factory-variants",
             Self::IrPhaseOrderingVariants => "ir-phase-ordering-variants",
             Self::LoopSpellingSelection => "loop-spelling-selection",
@@ -1562,6 +1591,43 @@ impl Default for FormatConfig {
 }
 
 impl JavaScriptConfig {
+    fn gradual_artifact_work_limit(level_limit: usize, raw_size: usize) -> usize {
+        const FULL_WORK_SIZE: usize = 16 * 1024;
+        const QUARTER_WORK_SIZE: usize = 64 * 1024;
+        const TWELFTH_WORK_SIZE: usize = 256 * 1024;
+
+        if raw_size <= FULL_WORK_SIZE {
+            return level_limit;
+        }
+
+        let quarter_limit = level_limit.div_ceil(4);
+        let twelfth_limit = level_limit.div_ceil(12);
+        let (start_size, end_size, start_limit, end_limit) = if raw_size <= QUARTER_WORK_SIZE {
+            (
+                FULL_WORK_SIZE,
+                QUARTER_WORK_SIZE,
+                level_limit,
+                quarter_limit,
+            )
+        } else if raw_size <= TWELFTH_WORK_SIZE {
+            (
+                QUARTER_WORK_SIZE,
+                TWELFTH_WORK_SIZE,
+                quarter_limit,
+                twelfth_limit,
+            )
+        } else {
+            return twelfth_limit;
+        };
+
+        let elapsed = raw_size - start_size;
+        let span = end_size - start_size;
+        // The bounded byte span keeps this exact product well below u128::MAX.
+        let reduction =
+            ((start_limit - end_limit) as u128 * elapsed as u128 / span as u128) as usize;
+        start_limit - reduction
+    }
+
     fn keep_integer_coercions(&self) -> bool {
         self.integer_coercions
             .unwrap_or_else(|| self.priority.keeps_integer_coercions())
@@ -1729,22 +1795,17 @@ impl JavaScriptConfig {
         )
     }
 
-    /// Default proposal work scales down for broad artifacts because every
-    /// admitted identity can require a complete IR-to-JavaScript emission and
-    /// selected-model score. Without an explicit proposal limit, the retained
-    /// candidate limit is an additional ceiling. An explicit value can exceed
-    /// the survivor count and bypasses artifact scaling, but remains bounded
-    /// by the level and search tier.
+    /// Default proposal work scales gradually from full work through 16 KiB to
+    /// one quarter at 64 KiB and one twelfth at 256 KiB. Without an explicit
+    /// proposal limit, the retained candidate limit is an additional ceiling.
+    /// An explicit value can exceed the survivor count and bypasses artifact
+    /// scaling, but remains bounded by the level and search tier.
     pub fn effective_candidate_proposal_limit_for_artifact(&self, raw_size: usize) -> usize {
         let level_limit = self.candidate_proposal_level_limit();
         if level_limit == 0 {
             return 0;
         }
-        let artifact_limit = match raw_size {
-            0..=16_384 => level_limit,
-            16_385..=65_536 => level_limit.div_ceil(4),
-            _ => level_limit.div_ceil(12),
-        };
+        let artifact_limit = Self::gradual_artifact_work_limit(level_limit, raw_size);
         // An explicit proposal budget is a request for a wider search and is
         // honored past the level's default breadth, the same way
         // `terminal_codec_probe_limit` is. Clamping it to the level tier meant a
@@ -1790,20 +1851,16 @@ impl JavaScriptConfig {
         self.terminal_codec_probe_limit.unwrap_or(level_limit)
     }
 
-    /// Default terminal work scales down for broad artifacts because every
-    /// syntax validation and Brotli-11 call is whole-artifact work. An explicit
-    /// value bypasses that scaling and sets the ceiling itself; the search tier
-    /// still gates it to zero when candidate search is off.
+    /// Default terminal work scales gradually from full work through 16 KiB to
+    /// one quarter at 64 KiB and one twelfth at 256 KiB. An explicit value
+    /// bypasses that scaling and sets the ceiling itself; the search tier still
+    /// gates it to zero when candidate search is off.
     pub fn effective_terminal_codec_probe_limit_for_artifact(&self, raw_size: usize) -> usize {
         let level_limit = self.terminal_codec_probe_level_limit();
         if level_limit == 0 {
             return 0;
         }
-        let artifact_limit = match raw_size {
-            0..=16_384 => level_limit,
-            16_385..=65_536 => level_limit.div_ceil(4),
-            _ => level_limit.div_ceil(12),
-        };
+        let artifact_limit = Self::gradual_artifact_work_limit(level_limit, raw_size);
         self.terminal_codec_probe_limit.unwrap_or(artifact_limit)
     }
 }
@@ -1900,7 +1957,9 @@ impl OptimizationConfig {
                 .finite_value_propagation
                 .unwrap_or(base.finite_value_propagation),
             global_optimization: self.global_optimization.unwrap_or(base.global_optimization),
+            forward_global_aliases: false,
             inlining: self.inlining.unwrap_or(base.inlining),
+            inline_exported_internal_calls: false,
             inline_closure_factories: self
                 .inline_closure_factories
                 .unwrap_or(base.inline_closure_factories),
@@ -2271,6 +2330,7 @@ shared_min_imports = 3
         assert!(size.js_options().mangle_properties);
         assert!(!size.js_options().mangle_exports);
         assert!(size.ir_inlining_variants_enabled());
+        assert!(size.global_alias_forwarding_variants_enabled());
         assert!(size.pure_helper_inlining_candidates_enabled());
         assert!(size.dense_string_return_table_candidates_enabled());
         assert!(size.host_alias_spelling_candidates_enabled());
@@ -2307,6 +2367,7 @@ shared_min_imports = 3
         assert!(performance.js_options().elide_block_terminal_semicolons);
         assert!(!performance.js_options().mangle_properties);
         assert!(!performance.ir_inlining_variants_enabled());
+        assert!(!performance.global_alias_forwarding_variants_enabled());
         assert!(!performance.pure_helper_inlining_candidates_enabled());
         assert!(!performance.dense_string_return_table_candidates_enabled());
         assert!(!performance.host_alias_spelling_candidates_enabled());
@@ -2343,6 +2404,7 @@ shared_min_imports = 3
         assert!(balanced_passes.path_sensitive_propagation);
         assert!(!balanced.js_joint_chunk_symbol_search_enabled());
         assert!(!balanced.js_joint_representation_search_enabled());
+        assert!(!balanced.global_alias_forwarding_variants_enabled());
         assert!(!balanced.js_parameterized_function_merging_enabled());
 
         let explicit_pooling: ProjectConfig = toml::from_str(
@@ -2410,6 +2472,7 @@ local_name_coalescing = false
         assert!(!codegen.compact_generator_star);
         assert!(!codegen.local_name_coalescing);
         assert!(!custom.ir_inlining_variants_enabled());
+        assert!(!custom.global_alias_forwarding_variants_enabled());
         assert!(!custom.ir_closure_factory_variants_enabled());
         assert!(!custom.ir_phase_ordering_variants_enabled());
         assert!(!custom.loop_spelling_selection_enabled());
@@ -2430,6 +2493,7 @@ local_name_coalescing = false
             .javascript
             .removed_size_first_compression_families();
         assert!(removed.contains(&"length-to-number-elision"), "{removed:?}");
+        assert!(removed.contains(&"global-alias-forwarding"), "{removed:?}");
         assert!(
             removed.contains(&"joint-representation-search"),
             "{removed:?}"
@@ -2464,6 +2528,7 @@ local_name_coalescing = false
         );
         assert!(!none.entropy_aware_mangling_enabled());
         assert!(!none.js_region_outlining_candidate_enabled());
+        assert!(!none.global_alias_forwarding_variants_enabled());
         assert!(ProjectConfig::default().js_region_outlining_candidate_enabled());
 
         let hard_disabled_outlining: ProjectConfig = toml::from_str(
@@ -2809,13 +2874,13 @@ local_name_coalescing = false
             level_fifteen
                 .javascript
                 .effective_terminal_codec_probe_limit_for_artifact(32 * 1024),
-            96
+            288
         );
         assert_eq!(
             level_fifteen
                 .javascript
                 .effective_terminal_codec_probe_limit_for_artifact(100 * 1024),
-            32
+            84
         );
         let level_fifteen_always: ProjectConfig =
             toml::from_str("[javascript]\noptimization_level=15\ncandidate_search='always'\n")
@@ -2836,13 +2901,13 @@ local_name_coalescing = false
             level_fifteen
                 .javascript
                 .effective_candidate_proposal_limit_for_artifact(32 * 1024),
-            96
+            288
         );
         assert_eq!(
             level_fifteen
                 .javascript
                 .effective_candidate_proposal_limit_for_artifact(100 * 1024),
-            32
+            84
         );
         let mut bounded_override = level_fifteen.clone();
         bounded_override.javascript.terminal_codec_probe_limit = Some(17);
@@ -3012,6 +3077,77 @@ optimization_level = 0
         )
         .unwrap();
         assert!(!hard_disabled.js_function_subsumption_variants_enabled());
+    }
+
+    #[test]
+    fn artifact_work_limits_scale_gradually_at_size_boundaries() {
+        let config: ProjectConfig =
+            toml::from_str("[javascript]\noptimization_level=15\n").unwrap();
+        let expected_limits = [
+            (16 * 1024 - 1, 384),
+            (16 * 1024, 384),
+            (16 * 1024 + 1, 384),
+            (64 * 1024 - 1, 97),
+            (64 * 1024, 96),
+            (64 * 1024 + 1, 96),
+            (66_672, 96),
+            (256 * 1024 - 1, 33),
+            (256 * 1024, 32),
+            (256 * 1024 + 1, 32),
+            (usize::MAX, 32),
+        ];
+        for (raw_size, expected) in expected_limits {
+            assert_eq!(
+                config
+                    .javascript
+                    .effective_candidate_proposal_limit_for_artifact(raw_size),
+                expected,
+                "candidate proposal limit at {raw_size} bytes"
+            );
+            assert_eq!(
+                config
+                    .javascript
+                    .effective_terminal_codec_probe_limit_for_artifact(raw_size),
+                expected,
+                "terminal codec probe limit at {raw_size} bytes"
+            );
+        }
+
+        assert_eq!(
+            JavaScriptConfig::gradual_artifact_work_limit(13, 64 * 1024),
+            4
+        );
+        assert_eq!(
+            JavaScriptConfig::gradual_artifact_work_limit(13, 256 * 1024),
+            2
+        );
+
+        let mut previous_candidate = config
+            .javascript
+            .effective_candidate_proposal_limit_for_artifact(0);
+        let mut previous_terminal = config
+            .javascript
+            .effective_terminal_codec_probe_limit_for_artifact(0);
+        for raw_size in 1..=256 * 1024 + 1 {
+            let candidate = config
+                .javascript
+                .effective_candidate_proposal_limit_for_artifact(raw_size);
+            let terminal = config
+                .javascript
+                .effective_terminal_codec_probe_limit_for_artifact(raw_size);
+            assert!(candidate <= previous_candidate, "candidate limit increased");
+            assert!(terminal <= previous_terminal, "terminal limit increased");
+            assert!(
+                previous_candidate - candidate <= 1,
+                "candidate limit dropped abruptly at {raw_size} bytes"
+            );
+            assert!(
+                previous_terminal - terminal <= 1,
+                "terminal limit dropped abruptly at {raw_size} bytes"
+            );
+            previous_candidate = candidate;
+            previous_terminal = terminal;
+        }
     }
 
     #[test]

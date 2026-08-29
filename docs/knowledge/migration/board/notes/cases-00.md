@@ -10,13 +10,14 @@ best valid Terser / Oxc / esbuild artifact, per metric, on every eligible case?
 
 ## Current hypothesis
 
-The corpus is a standing net, not a task with an end. 47 hand-authored
-`canonical/` folders exist. Catalog + algorithms already run from
+The corpus is a standing net, not a task with an end. The current snapshot has
+54 hand-authored canonical cases. Catalog + algorithms already run from
 `comparison/run-all.sh`. Risk: a port-shaped fight lands a fold and nobody
 re-runs `--canonical-only`.
 
-This is not a restart of phases 00–06. Exported constructor identity and
-expression-if are 07 work, not “add more `if` cases.”
+This is not a restart of phases 00–06. Exported constructor identity,
+expression-if, and scalar match now have implementation/case coverage; future
+cases should isolate new proof or correctness boundaries.
 
 ## Constraints specific to this task
 
@@ -31,6 +32,7 @@ expression-if are 07 work, not “add more `if` cases.”
 | 2026-08-19 | Canonical configs really do search | `grep -n candidate_search comparison/cases/configs/*.toml` | `always`, `candidate_limit = 1536` in all three | diag |
 | 2026-08-25 | Full cases after ident-08 | journal / `comparison/cases` | 617/617, strict wins 617/612/613 | diag |
 | 2026-08-28 | Hand-authored corpus | `find comparison/cases/canonical -name case.toml` | 47 folders: scalars, strings, control, functions, aggregates, wins, collections, effects, host | diag |
+| 2026-08-29 | Current canonical snapshot | `node comparison/cases/run.mjs --canonical-only` | 54/54 pass; generated summary schema 6 | gate |
 
 ## Log
 

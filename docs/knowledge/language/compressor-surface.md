@@ -3,7 +3,7 @@
 Parent: [Language](README.md). Contract: [`docs/language-v0.1.md`](../../language-v0.1.md).
 Objectives: [compilation objectives](../compilation/objectives.md).
 Ports: [corpora](../evidence/corpora-and-lanes.md), [jQuery](../evidence/jquery.md).
-Plan: [07.7](../migration/07-global-compressor.md#077--language-proofs-and-explicit-lowering-contracts).
+Plan: [reusable-proof phase](../migration/planned-migration.md#phase-4-close-library-losses-with-reusable-proofs).
 
 LilScript beats Terser, Oxc, and Closure ADVANCED when the program is **written
 in LilScript**. It does not beat them by transliterating JavaScript into
@@ -29,12 +29,12 @@ Every construct is a proof, or it is a boundary.
 | `object O { … }` for a closed singleton API | ABI keys; private bodies nest/mangle |
 
 Proof-driven optimization is not permission to ignore explicit target intent.
-The migration separates source-authored operations from compiler-generated
+The IR separates source-authored operations from compiler-generated
 normalization. A live source `x | 0` must remain a JavaScript `|0`; a generated
 `|0` needed only to implement `int` may disappear after range proof. Future
 exact-JS requests are narrow typed intrinsics with specified cross-target
 behavior, not raw JavaScript strings or a file-wide optimizer-off pragma. See
-[phase 07's semantic firewall](../migration/07-global-compressor.md#semantic-firewall).
+[contracts before objectives](../decisions/contracts-before-objectives.md).
 
 | Avoid this on hot internals | Why it taxes *T* |
 |---|---|
@@ -43,7 +43,7 @@ behavior, not raw JavaScript strings or a file-wide optimizer-off pragma. See
 | `record{}` when the JS contract is ordinary `{}` | `Record<T>` materializes null-prototype; jQuery observes `Object.prototype` |
 | `createEmptyObject()` as the default object | host trampoline; optimizer can lower some calls to `{}`, not a type |
 | `int kind` ladders instead of `enum` | closed `match` is already in the language (Zod/Acorn ports still use ints) |
-| Statement `if` for a value | no source `?:`; `?` is nullable. `match` exists for enums; jquery-01 measured 1.85× `if(` vs `jquery.min.js` |
+| `JsValue` when an owned typed optional bag is sufficient | dynamic keys block field/layout proofs and preserve observable coercion/property behavior |
 
 Changing an **internal** API to the LilScript form is the port. Cargo-culting
 Sizzle/jQuery/MobX object shapes is how you donate the advantage back to Terser.
@@ -51,7 +51,7 @@ Sizzle/jQuery/MobX object shapes is how you donate the advantage back to Terser.
 Public names are config (`[mangle].exports`, `public_aggregate_abi`), not an
 excuse to keep internals as string maps.
 
-The goal reusable-library architecture is still closed-world optimization behind
+The planned reusable-library architecture is still closed-world optimization behind
 an open boundary. It preserves a generated manifest of exported names,
 callable identity/arity/constructibility, public field names or opaque-handle
 ABI, descriptors, and host names. Internal names, owned fields, closure capture
@@ -67,10 +67,10 @@ md-01 showed that source rewrites are not a theorem: a micromark state-bag to
 captured-local rewrite measured −114 raw / −2 Brotli but broke a streaming test,
 and other typed-bag rewrites lost Brotli versus the prior `JsValue` source.
 Those experiments changed representation and semantics; they are **not** a
-valid scalar-replacement on/off ablation. Scalar replacement of `LocalOnly` is
-still always-on today
-([registry](../compilation/decision-registry.md#aggregates-class-struct-object-record)),
-so the compiler lacks the candidate needed to measure that question directly.
+valid scalar-replacement on/off ablation. The compiler now has a scored
+`keep-object` IR clone when `joint-representation-search` is admitted, so future
+measurements can isolate the representation question directly
+([registry](../compilation/decision-registry.md#aggregates-class-struct-object-record)).
 
 The design: prove the value is plain data / local / identity-free, **then**
 score dissolve vs array vs named object vs (when identity is observed) named
@@ -99,13 +99,13 @@ before quoting bytes.
 
 | Port | Forced glue | Missing / unused language |
 |---|---|---|
-| jQuery | `js-host` `createEmptyObject` / `callN` / `setProp`; `jQuery["fn"]`; `JS.method*`; Deferred/jqXHR as `JsValue` facades | ordinary-`{}` dictionary type; constructible exported constructor; host-callable typed `this`/rest; expression-if; cannot use `record{}` |
+| jQuery | `js-host` `callN` / `setProp`; `jQuery["fn"]`; `JS.method*`; Deferred/jqXHR as `JsValue` facades | typed homogeneous ordinary dictionaries/spread; host-callable typed `this`/rest; wider sound array-ness; cannot replace observable ordinary objects with `Record` |
 | monaco public API | `JS.object()` + `JS.method*` facade; `js-host.ts` for coalescing / `createElement` / string `+=` bugs | constructible class export; sound coalescing (**compiler**, not syntax) |
 | Motion full DOM | option/keyframe `JsValue` bags; `asVisualElement` casts | structural/optional object types, overloads, getters, first-class tasks |
 | MobX | `Proxy` / `Reflect` / `defineProperty`; `Atom["prototype"][…] = JS.method*` | Proxy stays host; constructible class; getters |
 | Immer `produce` facade | trap tables | same; typed `ImmValue` COW is the LilScript path |
 | markdown stack (`md-01`) | mechanical `JsValue` transliteration; every `o[k]` unstable | plain-data objects (`assume_pure_property_reads` is a flag, −6 359 Brotli, not a type); CommonMark constructs 2.8× source vs official JS |
-| PostHog error-tracking | 11 constructable classes via `JS.method*` + `defineProperty` | constructor **value** export; IR named `class` |
+| PostHog error-tracking | legacy constructable classes via `JS.method*` + `defineProperty` | migrate to landed constructor-value export and IR named `class` where API-equivalent |
 | clsx | `JsValue` + `for-in` + `arguments` | legitimate hatch: the API **is** a dynamic walk. Rest `JsValue[]` would still be `JsValue` |
 | solid web | `domSpread` / reconcile trampolines | host bags, not missing `struct` |
 
@@ -131,7 +131,7 @@ Do not RFC these. They already exist.
 |---|---|---|
 | `enum` + `match` | integer discriminant, exhaustive arms | Zod `int kind`, Acorn `TK_*` ladders |
 | `object` singleton | ABI keys, private nestable bodies | rebuilt as `JS.object()` + `JS.method*` |
-| `class` methods / `this` | typed receiver, static dispatch | used internally; **not** a JS constructor value |
+| `class` methods / `this` | typed receiver, static dispatch | use `export constructor` only when the constructor value is public |
 | `pure` / inferred effects | unused calls removable | `JsValue` ops are effectful; purity cannot override that |
 | positional `struct` | field indexes | `createEmptyObject()` for closed internal shapes |
 | `Record<T>` | open **null-prototype** string keys | wrong for ordinary-`{}` dictionaries; right for maps that must not see `Object.prototype` |
@@ -145,23 +145,23 @@ JavaScript bindings. Monaco, Motion, Zod, and Redux depend on that.
 class` to emit a constructor would reintroduce `constructor` / `prototype` on
 identity-free types the ports deleted on purpose.
 
-## Missing proofs (language RFCs, not folds)
+## Remaining proof gaps and landed slices
 
-These are the holes 07.7 schedules. Each must land as syntax + semantics +
-cases, or stay an explicit unsafe ABI flag. None of them is a library-specific
-optimizer matcher.
+Some former holes have a first implementation; others remain proposals. Every
+new slice must land as syntax/semantics/analysis plus cases, or remain an
+explicit unsafe ABI flag. None becomes a library-specific optimizer matcher.
 
 | Proof the compiler needs | Why ports invent glue today | What must not happen |
 |---|---|---|
-| **Constructor value** distinct from type-only `export class` | `export constructor C [as PublicC];` now publishes `new C`, `C.name`, arity, and prototype methods. | Emitting `class` for identity-free `class-scale` cases; changing the type-only default |
+| **Constructor value** distinct from type-only `export class` (landed) | `export constructor C [as PublicC];` publishes the constructor-value contract and drives named class emission. | Emitting `class` for identity-free cases; changing the type-only default |
 | **Broader plain-data / no-hook proof** | Non-escaping compiler-owned `object{...}` allocations now forward statically own reads; dynamic/missing keys, writes, phis, returns, closures, globals, and host escapes cancel the proof. The markdown stack still needs broader ownership facts. | Silent `pure_getters`; treating an external object declaration as hook-free |
 | **Typed ordinary-object dictionary** vs null-proto `Record<T>` | `object{...}` now provides explicit ordinary `%Object.prototype%` semantics as `JsValue`; a homogeneous typed dictionary and spread remain. | Inferring `{}` after record observation projection; treating ordinary objects as hook-free |
-| **Destructuring/guarded `match`** | Expression `if(condition){left}else{right}` and enum/int/string/bool literal `match` now lower directly to source conditional phis. | Reconstructing ternaries as an always-on Brotli prior; post-minify contraction of `if(` |
+| **Destructuring/guarded `match`** | Expression `if(condition){left}else{right}` and enum/int/string/bool literal `match` are landed; destructuring and guards remain. | Reconstructing ternaries as an always-on Brotli prior; post-minify contraction of `if(` |
 | **Host-callable typed method** (`this` + rest on a typed receiver, not `JsValue`) | `JS.method0..3` / `JS.methodRest` / `extern JsValue arguments` for public JS methods. Class `this` already exists for LilScript methods. | Treating JS `this` as a free optimization; fusing wrappers whose identity escapes |
 | **Getters / setters as ABI** | `defineProperty` / Proxy traps when the published contract is an accessor | Peephole inventing accessors on dissolved fields |
 | **Sound optional / structural bags** | Motion/Preact option objects become `JsValue` | Structural TS `any` |
-| **Explicit target lowering contract** | Source `x \| 0` begins as IR `BitOr`, generated normalization begins in emission, but terminal text has no source obligation and may be elided | Treating every source spelling as frozen; raw JS text injection |
-| **Application/library ABI contract** | ABI and objective controls currently meet in `IrJsOptions`; ports must coordinate export mangling, aggregate ABI, and function spelling | Disabling internal optimization in library mode; letting raw/gzip/Brotli alter the public API |
+| **Explicit target lowering contract** (first slice landed) | Live source `x \| 0` carries an IR obligation; globally unambiguous clone lineage and final-byte witnesses remain. | Treating every source spelling as frozen; raw JS text injection |
+| **Application/library ABI contract** (partial) | Contract/objective and a source-derived manifest exist; world/format/roots and expected-vs-observed final ABI remain incomplete. | Disabling internal optimization in library mode; letting raw/gzip/Brotli alter the public API |
 
 Proxy, Reflect, and `instanceof` constructor identity stay **host**. Faking them
 in the type system would be Closure-style wishful renaming.
@@ -196,7 +196,7 @@ either:
    not invent types; or
 2. the port is still JavaScript — rewrite representation (`struct`/`class`/`enum`)
    until the compiler has proofs, then **search** dissolve vs keep; or
-3. the language is missing a proof — RFC in 07.7, cases first, no peephole
+3. the language is missing a proof — use the reusable-proof migration, cases first, no peephole
    special case.
 
 A fold that only pays on one port is glue. A syntax that makes every port able

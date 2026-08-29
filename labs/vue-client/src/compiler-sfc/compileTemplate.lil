@@ -1,0 +1,347 @@
+import extern { default as templateConsolidate } from "@vue/consolidate";
+import extern {
+  SourceMapConsumer as TemplateSourceMapConsumer,
+  SourceMapGenerator as TemplateSourceMapGenerator
+} from "source-map-js";
+import extern {
+  compile as templateDomCompile,
+  parse as templateDomParse
+} from "../../packages/vuelil/compiler-dom.js";
+import extern { compile as templateSsrCompile } from "../../packages/vuelil/compiler-ssr.js";
+import extern { generateCodeFrame as templateCodeFrame } from "../../packages/vuelil/shared.js";
+import extern {
+  hostAssign as templateAssign,
+  hostCreateError as templateCreateError
+} from "./host.js";
+import { warnOnce } from "./warn";
+import { genCssVarsFromList } from "./style/cssVars";
+import { resolveTemplateAST } from "./template/resolveTemplateAST";
+import {
+  createAssetUrlTransformWithOptions,
+  normalizeOptions,
+  transformAssetUrl
+} from "./template/transformAssetUrl";
+import {
+  createSrcsetTransformWithOptions,
+  transformSrcset
+} from "./template/transformSrcset";
+
+extern JsValue TemplateSourceMapConsumer;
+extern JsValue TemplateSourceMapGenerator;
+extern JsValue templateAssign;
+extern JsValue templateCodeFrame;
+extern JsValue templateConsolidate;
+extern JsValue templateCreateError;
+extern JsValue templateDomCompile;
+extern JsValue templateDomParse;
+extern JsValue templateSsrCompile;
+
+// The browser facade changes this build constant before compilation.
+bool templateBrowserBuild = false;
+
+int templateLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+
+void templatePush(JsValue values, JsValue value) {
+  values[templateLength(values)] = value;
+}
+
+string preprocessTemplate(JsValue options, JsValue preprocessor) {
+  string result = "";
+  JsValue error = null;
+  JsValue preprocessOptions = JS.object();
+  if (options["preprocessOptions"].truthy()) {
+    preprocessOptions = options["preprocessOptions"];
+  }
+  JsValue renderedOptions = JS.call(
+    templateAssign,
+    JS.undefined(),
+    JS.object("filename", options["filename"]),
+    preprocessOptions
+  );
+  JsValue callback = JS.method2((JsValue _self, JsValue caught, JsValue output) => {
+    if (caught.truthy()) error = caught;
+    result = JS.string(output);
+    return JS.undefined();
+  });
+  JS.call(
+    preprocessor["render"],
+    preprocessor,
+    options["source"],
+    renderedOptions,
+    callback
+  );
+  if (error.truthy()) throw error;
+  return result;
+}
+
+export JsValue compileTemplate(JsValue options) {
+  JsValue preprocessLang = options["preprocessLang"];
+  JsValue customRequire = options["preprocessCustomRequire"];
+  if (templateBrowserBuild && preprocessLang.truthy() && !customRequire.truthy()) {
+    throw JS.call(
+      templateCreateError,
+      JS.undefined(),
+      "[@vue/compiler-sfc] Template preprocessing in the browser build must " +
+        "provide the `preprocessCustomRequire` option to return the in-browser " +
+        "version of the preprocessor in the shape of { render(): string }."
+    );
+  }
+  JsValue preprocessor = false;
+  if (preprocessLang.truthy()) {
+    if (customRequire.truthy()) {
+      preprocessor = JS.call(customRequire, JS.undefined(), preprocessLang);
+    } else if (!templateBrowserBuild) {
+      preprocessor = templateConsolidate[JS.string(preprocessLang)];
+    } else preprocessor = JS.undefined();
+  }
+  if (preprocessor.truthy()) {
+    try {
+      JsValue resolved = JS.call(
+        templateAssign,
+        JS.undefined(),
+        JS.object(),
+        options,
+        JS.object(
+          "source", preprocessTemplate(options, preprocessor),
+          "ast", JS.undefined()
+        )
+      );
+      return doCompileTemplate(resolved);
+    } catch (JsValue error) {
+      return JS.object(
+        "code", "export default function render() {}",
+        "source", options["source"],
+        "tips", JS.array(),
+        "errors", JS.array(error)
+      );
+    }
+  }
+  if (preprocessLang.truthy()) {
+    string detail = "Component " + JS.string(options["filename"]) +
+      " uses lang " + JS.string(preprocessLang) + " for template";
+    return JS.object(
+      "code", "export default function render() {}",
+      "source", options["source"],
+      "tips", JS.array(detail + ". Please install the language preprocessor."),
+      "errors", JS.array(detail + ", however it is not installed.")
+    );
+  }
+  return doCompileTemplate(options);
+}
+
+export JsValue doCompileTemplate(JsValue options) {
+  string filename = JS.string(options["filename"]);
+  string id = "";
+  if (options["id"].truthy()) id = JS.string(options["id"]);
+  bool scoped = options["scoped"].truthy();
+  bool slotted = options["slotted"].truthy();
+  JsValue inMap = options["inMap"];
+  string source = JS.string(options["source"]);
+  JsValue inAST = options["ast"];
+  bool ssr = options["ssr"].truthy();
+  JsValue ssrCssVars = options["ssrCssVars"];
+  bool isProd = options["isProd"].truthy();
+  JsValue compiler = options["compiler"];
+  JsValue compilerOptions = JS.object();
+  if (options["compilerOptions"].truthy()) {
+    compilerOptions = options["compilerOptions"];
+  }
+  JsValue transformAssetUrls = options["transformAssetUrls"];
+  JsValue errors = JS.array();
+  JsValue warnings = JS.array();
+  JsValue nodeTransforms = JS.array();
+  if (!JS.isNullish(transformAssetUrls) &&
+    JS.typeOf(transformAssetUrls) == "object") {
+    JsValue assetOptions = normalizeOptions(transformAssetUrls);
+    templatePush(nodeTransforms, createAssetUrlTransformWithOptions(assetOptions));
+    templatePush(nodeTransforms, createSrcsetTransformWithOptions(assetOptions));
+  } else if (!JS.strictEqual(transformAssetUrls, false)) {
+    templatePush(nodeTransforms, transformAssetUrl);
+    templatePush(nodeTransforms, transformSrcset);
+  }
+  if (ssr && !ssrCssVars.truthy()) {
+    warnOnce(
+      "compileTemplate is called with `ssr: true` but no corresponding `cssVars` option."
+    );
+  }
+  if (id.length == 0) warnOnce("compileTemplate now requires the `id` option.");
+  string shortId = JS.string(JS.invoke(id, "replace", new Regex("^data-v-"), ""));
+  string longId = "data-v-" + shortId;
+  JsValue defaultCompiler = JS.object(
+    "compile", templateDomCompile,
+    "parse", templateDomParse
+  );
+  if (ssr) {
+    defaultCompiler = JS.object("compile", templateSsrCompile, "parse", templateDomParse);
+  }
+  if (!compiler.truthy()) compiler = defaultCompiler;
+  if (!JS.strictEqual(compiler, defaultCompiler) && options["compiler"].truthy()) {
+    inAST = JS.undefined();
+  }
+  JsValue onError = JS.method1((JsValue _self, JsValue error) => {
+    templatePush(errors, error);
+    return JS.undefined();
+  });
+  inAST = resolveTemplateAST(
+    inAST,
+    JS.object(
+      "compiler", compiler,
+      "compilerOptions", compilerOptions,
+      "ssr", ssr,
+      "onError", onError
+    )
+  );
+  string renderedSsrCssVars = "";
+  if (ssr && ssrCssVars.truthy() && templateLength(ssrCssVars) > 0) {
+    renderedSsrCssVars = genCssVarsFromList(ssrCssVars, shortId, isProd, true);
+  }
+  JsValue scopeId = JS.undefined();
+  if (scoped) scopeId = longId;
+  JsValue compilerNodeTransforms = compilerOptions["nodeTransforms"];
+  if (compilerNodeTransforms.truthy()) {
+    for (int index = 0; index < templateLength(compilerNodeTransforms); index++) {
+      templatePush(nodeTransforms, compilerNodeTransforms[index]);
+    }
+  }
+  JsValue onWarn = JS.method1((JsValue _self, JsValue warning) => {
+    templatePush(warnings, warning);
+    return JS.undefined();
+  });
+  JsValue compileOptions = JS.call(
+    templateAssign,
+    JS.undefined(),
+    JS.object(
+      "mode", "module",
+      "prefixIdentifiers", true,
+      "hoistStatic", true,
+      "cacheHandlers", true,
+      "ssrCssVars", renderedSsrCssVars,
+      "scopeId", scopeId,
+      "slotted", slotted,
+      "sourceMap", true
+    ),
+    compilerOptions,
+    JS.object(
+      "hmr", !isProd,
+      "nodeTransforms", nodeTransforms,
+      "filename", filename,
+      "onError", onError,
+      "onWarn", onWarn
+    )
+  );
+  JsValue compileSource = source;
+  if (inAST.truthy()) compileSource = inAST;
+  JsValue compiled = JS.call(
+    compiler["compile"],
+    compiler,
+    compileSource,
+    compileOptions
+  );
+  JsValue map = compiled["map"];
+  if (inMap.truthy() && !inAST.truthy()) {
+    if (map.truthy()) map = mapLines(inMap, map);
+    if (templateLength(errors) > 0) patchErrors(errors, source, inMap);
+  }
+  JsValue tips = JS.array();
+  for (int index = 0; index < templateLength(warnings); index++) {
+    JsValue warning = warnings[index];
+    string message = JS.string(warning["message"]);
+    if (warning["loc"].truthy()) {
+      string frameSource = source;
+      if (inAST.truthy() && inAST["source"].truthy()) {
+        frameSource = JS.string(inAST["source"]);
+      }
+      message += "\n" + JS.string(JS.call(
+        templateCodeFrame,
+        JS.undefined(),
+        frameSource,
+        warning["loc"]["start"]["offset"],
+        warning["loc"]["end"]["offset"]
+      ));
+    }
+    templatePush(tips, message);
+  }
+  return JS.object(
+    "code", compiled["code"],
+    "ast", compiled["ast"],
+    "preamble", compiled["preamble"],
+    "source", source,
+    "errors", errors,
+    "tips", tips,
+    "map", map
+  );
+}
+
+JsValue mapLines(JsValue oldMap, JsValue newMap) {
+  if (!oldMap.truthy()) return newMap;
+  if (!newMap.truthy()) return oldMap;
+  JsValue oldMapConsumer = JS.construct(TemplateSourceMapConsumer, oldMap);
+  JsValue newMapConsumer = JS.construct(TemplateSourceMapConsumer, newMap);
+  JsValue mergedMapGenerator = JS.construct(TemplateSourceMapGenerator);
+  JsValue eachMapping = JS.method1((JsValue _self, JsValue mapping) => {
+    if (JS.isNullish(mapping["originalLine"])) return JS.undefined();
+    JsValue original = JS.invoke(
+      oldMapConsumer,
+      "originalPositionFor",
+      JS.object("line", mapping["originalLine"], "column", mapping["originalColumn"])
+    );
+    if (JS.isNullish(original["source"])) return JS.undefined();
+    JS.invoke(
+      mergedMapGenerator,
+      "addMapping",
+      JS.object(
+        "generated", JS.object(
+          "line", mapping["generatedLine"],
+          "column", mapping["generatedColumn"]
+        ),
+        "original", JS.object(
+          "line", original["line"],
+          "column", mapping["originalColumn"]
+        ),
+        "source", original["source"],
+        "name", original["name"]
+      )
+    );
+    return JS.undefined();
+  });
+  JS.invoke(newMapConsumer, "eachMapping", eachMapping);
+  JsValue sources = oldMapConsumer["sources"];
+  for (int index = 0; index < templateLength(sources); index++) {
+    JsValue sourceFile = sources[index];
+    JS.invoke(mergedMapGenerator["_sources"], "add", sourceFile);
+    JsValue sourceContent = JS.invoke(oldMapConsumer, "sourceContentFor", sourceFile);
+    if (!JS.isNullish(sourceContent)) {
+      JS.invoke(mergedMapGenerator, "setSourceContent", sourceFile, sourceContent);
+    }
+  }
+  mergedMapGenerator["_sourceRoot"] = oldMap["sourceRoot"];
+  mergedMapGenerator["_file"] = oldMap["file"];
+  return JS.invoke(mergedMapGenerator, "toJSON");
+}
+
+void patchErrors(JsValue errors, string source, JsValue inMap) {
+  string originalSource = JS.string(inMap["sourcesContent"][0]);
+  int offset = originalSource.indexOf(source);
+  int lineOffset = templateLength(JS.invoke(
+    originalSource.slice(0, offset),
+    "split",
+    new Regex("\\r?\\n")
+  )) - 1;
+  for (int index = 0; index < templateLength(errors); index++) {
+    JsValue error = errors[index];
+    if (error["loc"].truthy()) {
+      error["loc"]["start"]["line"] =
+        JS.number(error["loc"]["start"]["line"]).toInt() + lineOffset;
+      error["loc"]["start"]["offset"] =
+        JS.number(error["loc"]["start"]["offset"]).toInt() + offset;
+      if (!JS.strictEqual(error["loc"]["end"], error["loc"]["start"])) {
+        error["loc"]["end"]["line"] =
+          JS.number(error["loc"]["end"]["line"]).toInt() + lineOffset;
+        error["loc"]["end"]["offset"] =
+          JS.number(error["loc"]["end"]["offset"]).toInt() + offset;
+      }
+    }
+  }
+}

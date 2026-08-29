@@ -51,9 +51,19 @@ pub struct Program<'ast, 'src> {
     pub imports: &'ast [ImportDecl<'ast, 'src>],
     pub foreign_imports: &'ast [ForeignImportDecl<'ast, 'src>],
     pub dynamic_imports: &'ast [DynamicImportDecl<'ast, 'src>],
+    pub module_bindings: &'ast [ModuleBinding<'ast, 'src>],
     pub exports: &'ast [ExportDecl<'src>],
     pub items: &'ast [Item<'ast, 'src>],
     pub span: Span,
+}
+
+/// A module-scoped value cell created while linking, before any module body is
+/// evaluated. Parsed single-file programs do not need this metadata.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ModuleBinding<'ast, 'src> {
+    pub name: Ident<'src>,
+    pub ty: TypeRef<'ast, 'src>,
+    pub module_span: Span,
 }
 
 #[derive(Debug, Clone, PartialEq)]

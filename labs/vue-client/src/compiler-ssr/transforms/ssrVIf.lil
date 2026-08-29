@@ -1,0 +1,98 @@
+import extern {
+  NodeTypes,
+  createBlockStatement,
+  createCallExpression,
+  createIfStatement,
+  createStructuralDirectiveTransform,
+  processIf
+} from "../../../packages/vuelil/compiler-dom.js";
+import { processChildrenAsStatement } from "../ssrCodegenTransform";
+
+extern JsValue NodeTypes;
+extern JsValue createBlockStatement;
+extern JsValue createCallExpression;
+extern JsValue createIfStatement;
+extern JsValue createStructuralDirectiveTransform;
+extern JsValue processIf;
+
+JsValue ssrIfUndefined() {
+  return JS.undefined();
+}
+
+int ssrIfLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+
+JsValue processSSRIfBranch(
+  JsValue branch,
+  JsValue context,
+  bool disableNestedFragments
+) {
+  JsValue children = branch["children"];
+  bool needFragmentWrapper = !disableNestedFragments &&
+    (ssrIfLength(children) != 1 ||
+      !JS.strictEqual(children[0]["type"], NodeTypes["ELEMENT"])) &&
+    !(ssrIfLength(children) == 1 &&
+      JS.strictEqual(children[0]["type"], NodeTypes["FOR"]));
+  return processChildrenAsStatement(branch, context, needFragmentWrapper);
+}
+
+JsValue ssrIfProcessDirective(JsValue node, JsValue directive, JsValue context) {
+  return JS.call(processIf, ssrIfUndefined(), node, directive, context);
+}
+
+export JsValue ssrTransformIf = JS.call(
+  createStructuralDirectiveTransform,
+  ssrIfUndefined(),
+  new Regex("^(?:if|else|else-if)$"),
+  JS.method3((JsValue _self, JsValue node, JsValue directive, JsValue context) =>
+    ssrIfProcessDirective(node, directive, context)
+  )
+);
+
+export void ssrProcessIf(
+  JsValue node,
+  JsValue context,
+  bool disableNestedFragments = false,
+  bool disableComment = false
+) {
+  JsValue branches = node["branches"];
+  JsValue rootBranch = branches[0];
+  JsValue ifStatement = JS.call(
+    createIfStatement,
+    ssrIfUndefined(),
+    rootBranch["condition"],
+    processSSRIfBranch(rootBranch, context, disableNestedFragments)
+  );
+  JS.invoke(context, "pushStatement", ifStatement);
+
+  JsValue currentIf = ifStatement;
+  for (int index = 1; index < ssrIfLength(branches); index++) {
+    JsValue branch = branches[index];
+    JsValue block = processSSRIfBranch(branch, context, disableNestedFragments);
+    if (branch["condition"].truthy()) {
+      JsValue nested = JS.call(
+        createIfStatement,
+        ssrIfUndefined(),
+        branch["condition"],
+        block
+      );
+      currentIf["alternate"] = nested;
+      currentIf = nested;
+    } else {
+      currentIf["alternate"] = block;
+    }
+  }
+  if (!currentIf["alternate"].truthy() && !disableComment) {
+    currentIf["alternate"] = JS.call(
+      createBlockStatement,
+      ssrIfUndefined(),
+      JS.array(JS.call(
+        createCallExpression,
+        ssrIfUndefined(),
+        "_push",
+        JS.array("`<!---->`")
+      ))
+    );
+  }
+}

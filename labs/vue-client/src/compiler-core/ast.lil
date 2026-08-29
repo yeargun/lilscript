@@ -1,0 +1,308 @@
+import {
+  CREATE_BLOCK,
+  CREATE_ELEMENT_BLOCK,
+  CREATE_ELEMENT_VNODE,
+  CREATE_VNODE,
+  OPEN_BLOCK,
+  WITH_DIRECTIVES
+} from "./runtimeHelpers";
+
+export extern JsValue Set;
+
+JsValue astUndefined() {
+  return JS.undefined();
+}
+
+int astLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+
+JsValue astNumericEnum(JsValue names) {
+  JsValue result = JS.object();
+  for (int index = 0; index < astLength(names); index++) {
+    string name = JS.string(names[index]);
+    result[name] = index;
+    result["" + index] = name;
+  }
+  return result;
+}
+
+export JsValue Namespaces = astNumericEnum(JS.array("HTML", "SVG", "MATH_ML"));
+export JsValue NodeTypes = astNumericEnum(JS.array(
+  "ROOT", "ELEMENT", "TEXT", "COMMENT", "SIMPLE_EXPRESSION",
+  "INTERPOLATION", "ATTRIBUTE", "DIRECTIVE", "COMPOUND_EXPRESSION",
+  "IF", "IF_BRANCH", "FOR", "TEXT_CALL", "VNODE_CALL",
+  "JS_CALL_EXPRESSION", "JS_OBJECT_EXPRESSION", "JS_PROPERTY",
+  "JS_ARRAY_EXPRESSION", "JS_FUNCTION_EXPRESSION",
+  "JS_CONDITIONAL_EXPRESSION", "JS_CACHE_EXPRESSION",
+  "JS_BLOCK_STATEMENT", "JS_TEMPLATE_LITERAL", "JS_IF_STATEMENT",
+  "JS_ASSIGNMENT_EXPRESSION", "JS_SEQUENCE_EXPRESSION",
+  "JS_RETURN_STATEMENT"
+));
+export JsValue ElementTypes = astNumericEnum(JS.array(
+  "ELEMENT", "COMPONENT", "SLOT", "TEMPLATE"
+));
+export JsValue ConstantTypes = astNumericEnum(JS.array(
+  "NOT_CONSTANT", "CAN_SKIP_PATCH", "CAN_CACHE", "CAN_STRINGIFY"
+));
+
+export JsValue locStub = JS.object(
+  "start", JS.object("line", 1, "column", 1, "offset", 0),
+  "end", JS.object("line", 1, "column", 1, "offset", 0),
+  "source", ""
+);
+
+JsValue normalizedLoc(JsValue loc) {
+  if (JS.isUndefined(loc)) return locStub;
+  return loc;
+}
+
+export JsValue createRoot(JsValue children, string source = "") {
+  return JS.object(
+    "type", 0,
+    "source", source,
+    "children", children,
+    "helpers", JS.construct(Set),
+    "components", JS.array(),
+    "directives", JS.array(),
+    "hoists", JS.array(),
+    "imports", JS.array(),
+    "cached", JS.array(),
+    "temps", 0,
+    "codegenNode", astUndefined(),
+    "loc", locStub
+  );
+}
+
+void callContextHelper(JsValue context, JsValue helper) {
+  JS.call(context["helper"], astUndefined(), helper);
+}
+
+export JsValue getVNodeHelper(bool ssr, bool isComponent) {
+  if (ssr || isComponent) return CREATE_VNODE;
+  return CREATE_ELEMENT_VNODE;
+}
+
+export JsValue getVNodeBlockHelper(bool ssr, bool isComponent) {
+  if (ssr || isComponent) return CREATE_BLOCK;
+  return CREATE_ELEMENT_BLOCK;
+}
+
+export JsValue createVNodeCall(
+  JsValue context,
+  JsValue tag,
+  JsValue props = JS.undefined(),
+  JsValue children = JS.undefined(),
+  JsValue patchFlag = JS.undefined(),
+  JsValue dynamicProps = JS.undefined(),
+  JsValue directives = JS.undefined(),
+  bool isBlock = false,
+  bool disableTracking = false,
+  bool isComponent = false,
+  JsValue loc = JS.undefined()
+) {
+  if (!JS.isNullish(context)) {
+    bool inSSR = context["inSSR"].truthy();
+    if (isBlock) {
+      callContextHelper(context, OPEN_BLOCK);
+      callContextHelper(context, getVNodeBlockHelper(inSSR, isComponent));
+    } else {
+      callContextHelper(context, getVNodeHelper(inSSR, isComponent));
+    }
+    if (!JS.isUndefined(directives)) callContextHelper(context, WITH_DIRECTIVES);
+  }
+  return JS.object(
+    "type", 13,
+    "tag", tag,
+    "props", props,
+    "children", children,
+    "patchFlag", patchFlag,
+    "dynamicProps", dynamicProps,
+    "directives", directives,
+    "isBlock", isBlock,
+    "disableTracking", disableTracking,
+    "isComponent", isComponent,
+    "loc", normalizedLoc(loc)
+  );
+}
+
+export JsValue createArrayExpression(
+  JsValue elements,
+  JsValue loc = JS.undefined()
+) {
+  return JS.object(
+    "type", 17,
+    "loc", normalizedLoc(loc),
+    "elements", elements
+  );
+}
+
+export JsValue createObjectExpression(
+  JsValue properties,
+  JsValue loc = JS.undefined()
+) {
+  return JS.object(
+    "type", 15,
+    "loc", normalizedLoc(loc),
+    "properties", properties
+  );
+}
+
+export JsValue createObjectProperty(JsValue key, JsValue value) {
+  JsValue normalized = key;
+  if (JS.typeOf(key) == "string") normalized = createSimpleExpression(JS.string(key), true);
+  return JS.object(
+    "type", 16,
+    "loc", locStub,
+    "key", normalized,
+    "value", value
+  );
+}
+
+export JsValue createSimpleExpression(
+  string content,
+  bool isStatic = false,
+  JsValue loc = JS.undefined(),
+  int constType = 0
+) {
+  int normalizedConstType = constType;
+  if (isStatic) normalizedConstType = 3;
+  return JS.object(
+    "type", 4,
+    "loc", normalizedLoc(loc),
+    "content", content,
+    "isStatic", isStatic,
+    "constType", normalizedConstType
+  );
+}
+
+export JsValue createInterpolation(JsValue content, JsValue loc) {
+  JsValue expression = content;
+  if (JS.typeOf(content) == "string") {
+    expression = createSimpleExpression(JS.string(content), false, loc);
+  }
+  return JS.object("type", 5, "loc", loc, "content", expression);
+}
+
+export JsValue createCompoundExpression(
+  JsValue children,
+  JsValue loc = JS.undefined()
+) {
+  return JS.object(
+    "type", 8,
+    "loc", normalizedLoc(loc),
+    "children", children
+  );
+}
+
+export JsValue createCallExpression(
+  JsValue callee,
+  JsValue args = JS.undefined(),
+  JsValue loc = JS.undefined()
+) {
+  JsValue normalizedArgs = args;
+  if (JS.isUndefined(normalizedArgs)) normalizedArgs = JS.array();
+  return JS.object(
+    "type", 14,
+    "loc", normalizedLoc(loc),
+    "callee", callee,
+    "arguments", normalizedArgs
+  );
+}
+
+export JsValue createFunctionExpression(
+  JsValue params,
+  JsValue returns = JS.undefined(),
+  bool newline = false,
+  bool isSlot = false,
+  JsValue loc = JS.undefined()
+) {
+  return JS.object(
+    "type", 18,
+    "params", params,
+    "returns", returns,
+    "newline", newline,
+    "isSlot", isSlot,
+    "loc", normalizedLoc(loc)
+  );
+}
+
+export JsValue createConditionalExpression(
+  JsValue test,
+  JsValue consequent,
+  JsValue alternate,
+  bool newline = true
+) {
+  return JS.object(
+    "type", 19,
+    "test", test,
+    "consequent", consequent,
+    "alternate", alternate,
+    "newline", newline,
+    "loc", locStub
+  );
+}
+
+export JsValue createCacheExpression(
+  int index,
+  JsValue value,
+  bool needPauseTracking = false,
+  bool inVOnce = false
+) {
+  return JS.object(
+    "type", 20,
+    "index", index,
+    "value", value,
+    "needPauseTracking", needPauseTracking,
+    "inVOnce", inVOnce,
+    "needArraySpread", false,
+    "loc", locStub
+  );
+}
+
+export JsValue createBlockStatement(JsValue body) {
+  return JS.object("type", 21, "body", body, "loc", locStub);
+}
+
+export JsValue createTemplateLiteral(JsValue elements) {
+  return JS.object("type", 22, "elements", elements, "loc", locStub);
+}
+
+export JsValue createIfStatement(
+  JsValue test,
+  JsValue consequent,
+  JsValue alternate = JS.undefined()
+) {
+  return JS.object(
+    "type", 23,
+    "test", test,
+    "consequent", consequent,
+    "alternate", alternate,
+    "loc", locStub
+  );
+}
+
+export JsValue createAssignmentExpression(JsValue left, JsValue right) {
+  return JS.object("type", 24, "left", left, "right", right, "loc", locStub);
+}
+
+export JsValue createSequenceExpression(JsValue expressions) {
+  return JS.object("type", 25, "expressions", expressions, "loc", locStub);
+}
+
+export JsValue createReturnStatement(JsValue returns) {
+  return JS.object("type", 26, "returns", returns, "loc", locStub);
+}
+
+export void convertToBlock(JsValue node, JsValue context) {
+  if (!node["isBlock"].truthy()) {
+    node["isBlock"] = true;
+    JsValue oldHelper = getVNodeHelper(context["inSSR"].truthy(), node["isComponent"].truthy());
+    JS.call(context["removeHelper"], astUndefined(), oldHelper);
+    callContextHelper(context, OPEN_BLOCK);
+    callContextHelper(
+      context,
+      getVNodeBlockHelper(context["inSSR"].truthy(), node["isComponent"].truthy())
+    );
+  }
+}

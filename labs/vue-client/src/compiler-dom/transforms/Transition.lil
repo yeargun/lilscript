@@ -1,0 +1,108 @@
+import extern {
+  ElementTypes,
+  NodeTypes,
+  isCommentOrWhitespace as coreIsCommentOrWhitespace
+} from "../../../packages/vuelil/compiler-core.js";
+import { TRANSITION } from "../runtimeHelpers";
+import { DOMErrorCodes, createDOMCompilerError } from "../errors";
+
+extern JsValue ElementTypes;
+extern JsValue NodeTypes;
+extern JsValue Object;
+extern JsValue coreIsCommentOrWhitespace;
+
+JsValue transitionUndefined() {
+  return JS.undefined();
+}
+
+bool transitionHasMultipleChildren(JsValue node) {
+  JsValue children = node["children"];
+  JsValue filtered = JS.array();
+  for (int index = 0; index < JS.number(children["length"]).toInt(); index++) {
+    JsValue child = children[index];
+    if (!JS.call(coreIsCommentOrWhitespace, transitionUndefined(), child).truthy()) {
+      filtered[JS.number(filtered["length"]).toInt()] = child;
+    }
+  }
+  node["children"] = filtered;
+  if (JS.number(filtered["length"]).toInt() != 1) return true;
+  JsValue child = filtered[0];
+  if (JS.strictEqual(child["type"], NodeTypes["FOR"])) return true;
+  if (JS.strictEqual(child["type"], NodeTypes["IF"])) {
+    JsValue branches = child["branches"];
+    for (int index = 0; index < JS.number(branches["length"]).toInt(); index++) {
+      if (transitionHasMultipleChildren(branches[index])) return true;
+    }
+  }
+  return false;
+}
+
+export JsValue transformTransition(JsValue node, JsValue context) {
+  if (
+    JS.strictEqual(node["type"], NodeTypes["ELEMENT"]) &&
+    JS.strictEqual(node["tagType"], ElementTypes["COMPONENT"])
+  ) {
+    JsValue component = JS.invoke(context, "isBuiltInComponent", node["tag"]);
+    if (JS.strictEqual(component, TRANSITION)) {
+      return JS.method0((JsValue _self) => {
+        JsValue children = node["children"];
+        int length = JS.number(children["length"]).toInt();
+        if (length == 0) return transitionUndefined();
+        if (transitionHasMultipleChildren(node)) {
+          children = node["children"];
+          length = JS.number(children["length"]).toInt();
+          JsValue loc = JS.object(
+            "start", children[0]["loc"]["start"],
+            "end", children[length - 1]["loc"]["end"],
+            "source", ""
+          );
+          JS.invoke(
+            context,
+            "onError",
+            createDOMCompilerError(
+              JS.number(DOMErrorCodes["X_TRANSITION_INVALID_CHILDREN"]).toInt(),
+              loc
+            )
+          );
+        }
+        children = node["children"];
+        JsValue child = children[0];
+        if (JS.strictEqual(child["type"], NodeTypes["ELEMENT"])) {
+          JsValue props = child["props"];
+          for (int index = 0; index < JS.number(props["length"]).toInt(); index++) {
+            JsValue prop = props[index];
+            if (
+              JS.strictEqual(prop["type"], NodeTypes["DIRECTIVE"]) &&
+              JS.string(prop["name"]) == "show"
+            ) {
+              JsValue transitionProps = node["props"];
+              JS.invoke(
+                transitionProps,
+                "push",
+                JS.object(
+                  "type", NodeTypes["ATTRIBUTE"],
+                  "name", "persisted",
+                  "nameLoc", node["loc"],
+                  "value", transitionUndefined(),
+                  "loc", node["loc"]
+                )
+              );
+            }
+          }
+        }
+        return transitionUndefined();
+      });
+    }
+  }
+  return transitionUndefined();
+}
+
+JS.invoke(
+  Object,
+  "defineProperties",
+  transformTransition,
+  JS.object(
+    "name", JS.object("configurable", true, "value", "transformTransition"),
+    "length", JS.object("configurable", true, "value", 2)
+  )
+);

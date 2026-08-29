@@ -1,0 +1,211 @@
+import { isFunction } from "../shared/general";
+import { ARRAY_ITERATE_KEY, track } from "./dep";
+import { endBatch, pauseTracking, resetTracking, startBatch } from "./effect";
+import {
+  isProxy,
+  isReactive,
+  isReadonly,
+  isShallow,
+  toRaw,
+  toReactive,
+  toReadonly
+} from "./reactive";
+
+extern JsValue hostCreateNullObject();
+extern JsValue hostRead(JsValue value, JsValue key);
+extern int hostLength(JsValue value);
+extern JsValue hostIteratorSymbol();
+extern JsValue hostIteratorFacade(JsValue inner, JsValue next);
+extern JsValue hostArrayPrototypeMethod(string method);
+extern JsValue hostArrayApply(string method, JsValue receiver, JsValue args);
+
+void write(JsValue value, JsValue key, JsValue next) {
+  value[key] = next;
+}
+
+JsValue args0() {
+  return JS.array();
+}
+
+JsValue copyArgs(JsValue args) {
+  JsValue result = JS.array();
+  for (int index = 0; index < hostLength(args); index++) JS.invoke(result, "push", hostRead(args, index));
+  return result;
+}
+
+JsValue applyMethod(JsValue receiver, JsValue method, JsValue args) {
+  return JS.apply(hostRead(receiver, method), receiver, args);
+}
+
+export JsValue reactiveReadArray(JsValue array) {
+  JsValue raw = toRaw(array);
+  if (JS.strictEqual(raw, array)) return raw;
+  track(raw, "iterate", ARRAY_ITERATE_KEY);
+  if (isShallow(array)) return raw;
+  JsValue mapper = JS.method1((JsValue _self, JsValue item) => toWrapped(array, item));
+  return hostArrayApply("map", raw, JS.array(mapper));
+}
+
+export JsValue shallowReadArray(JsValue array) {
+  JsValue raw = toRaw(array);
+  track(raw, "iterate", ARRAY_ITERATE_KEY);
+  return raw;
+}
+
+JsValue toWrapped(JsValue target, JsValue item) {
+  if (isReadonly(target)) {
+    if (isReactive(target)) return toReadonly(toReactive(item));
+    return toReadonly(item);
+  }
+  return toReactive(item);
+}
+
+JsValue iterator(JsValue self, JsValue method) {
+  JsValue array = shallowReadArray(self);
+  JsValue inner = applyMethod(array, method, args0());
+  bool wrap = !JS.strictEqual(array, self) && !isShallow(self);
+  bool pair = JS.strictEqual(method, "entries");
+  JsValue next = JS.method0((JsValue _self) => {
+    JsValue result = applyMethod(inner, "next", args0());
+    if (!hostRead(result, "done").truthy() && wrap) {
+      JsValue value = hostRead(result, "value");
+      if (pair) write(value, 1, toWrapped(self, hostRead(value, 1)));
+      else write(result, "value", toWrapped(self, value));
+    }
+    return result;
+  });
+  if (wrap) return hostIteratorFacade(inner, next);
+  return inner;
+}
+
+JsValue applyArray(JsValue self, string method, JsValue callArgs, int returnMode) {
+  JsValue array = shallowReadArray(self);
+  bool needsWrap = !JS.strictEqual(array, self) && !isShallow(self);
+  JsValue methodFn = hostRead(array, method);
+  if (!JS.strictEqual(methodFn, hostArrayPrototypeMethod(method))) {
+    JsValue custom = JS.apply(methodFn, self, callArgs);
+    if (needsWrap) return toReactive(custom);
+    return custom;
+  }
+  JsValue fn = hostRead(callArgs, 0);
+  JsValue thisArg = hostRead(callArgs, 1);
+  JsValue wrapped = fn;
+  if (!JS.strictEqual(array, self)) {
+    if (needsWrap) {
+      wrapped = JS.method3((JsValue callbackSelf, JsValue item, JsValue index, JsValue _array) =>
+        JS.call(fn, callbackSelf, toWrapped(self, item), index, self));
+    } else if (hostLength(fn) > 2) {
+      wrapped = JS.method3((JsValue callbackSelf, JsValue item, JsValue index, JsValue _array) =>
+        JS.call(fn, callbackSelf, item, index, self));
+    }
+  }
+  JsValue result = JS.call(methodFn, array, wrapped, thisArg);
+  if (needsWrap && returnMode == 1) return toWrapped(self, result);
+  if (needsWrap && returnMode == 2) {
+    return hostArrayApply(
+      "map",
+      result,
+      JS.array(JS.method1((JsValue _self, JsValue item) => toWrapped(self, item)))
+    );
+  }
+  return result;
+}
+
+JsValue reduceArray(JsValue self, string method, JsValue callArgs) {
+  JsValue array = shallowReadArray(self);
+  bool needsWrap = !JS.strictEqual(array, self) && !isShallow(self);
+  JsValue fn = hostRead(callArgs, 0);
+  bool wrapInitial = needsWrap && hostLength(callArgs) == 1;
+  JsValue wrapped = fn;
+  if (!JS.strictEqual(array, self)) {
+    if (needsWrap) {
+      wrapped = JS.methodRest((JsValue callbackSelf, JsValue args) => {
+        JsValue accumulator = hostRead(args, 0);
+        if (wrapInitial) {
+          wrapInitial = false;
+          accumulator = toWrapped(self, accumulator);
+        }
+        return JS.call(
+          fn,
+          callbackSelf,
+          accumulator,
+          toWrapped(self, hostRead(args, 1)),
+          hostRead(args, 2),
+          self
+        );
+      });
+    } else if (hostLength(fn) > 3) {
+      wrapped = JS.methodRest((JsValue callbackSelf, JsValue args) => JS.call(
+        fn,
+        callbackSelf,
+        hostRead(args, 0),
+        hostRead(args, 1),
+        hostRead(args, 2),
+        self
+      ));
+    }
+  }
+  JsValue args = copyArgs(callArgs);
+  write(args, 0, wrapped);
+  JsValue result = hostArrayApply(method, array, args);
+  if (wrapInitial) return toWrapped(self, result);
+  return result;
+}
+
+JsValue searchProxy(JsValue self, string method, JsValue args) {
+  JsValue array = toRaw(self);
+  track(array, "iterate", ARRAY_ITERATE_KEY);
+  JsValue result = applyMethod(array, method, args);
+  if ((JS.strictEqual(result, -1) || JS.strictEqual(result, false)) && isProxy(hostRead(args, 0))) {
+    write(args, 0, toRaw(hostRead(args, 0)));
+    return applyMethod(array, method, args);
+  }
+  return result;
+}
+
+JsValue noTracking(JsValue self, string method, JsValue args) {
+  pauseTracking();
+  startBatch();
+  JsValue result = JS.apply(hostRead(toRaw(self), method), self, args);
+  endBatch();
+  resetTracking();
+  return result;
+}
+
+export JsValue arrayInstrumentations = hostCreateNullObject();
+JsValue iteratorSymbol = hostIteratorSymbol();
+
+write(arrayInstrumentations, iteratorSymbol, JS.method0((JsValue self) => iterator(self, iteratorSymbol)));
+write(arrayInstrumentations, "concat", JS.methodRest((JsValue self, JsValue args) => {
+  JsValue values = copyArgs(args);
+  for (int index = 0; index < hostLength(values); index++) {
+    JsValue value = hostRead(values, index);
+    if (JS.isArray(value)) write(values, index, reactiveReadArray(value));
+  }
+  return hostArrayApply("concat", reactiveReadArray(self), values);
+}));
+write(arrayInstrumentations, "entries", JS.method0((JsValue self) => iterator(self, "entries")));
+write(arrayInstrumentations, "every", JS.methodRest((JsValue self, JsValue args) => applyArray(self, "every", args, 0)));
+write(arrayInstrumentations, "filter", JS.methodRest((JsValue self, JsValue args) => applyArray(self, "filter", args, 2)));
+write(arrayInstrumentations, "find", JS.methodRest((JsValue self, JsValue args) => applyArray(self, "find", args, 1)));
+write(arrayInstrumentations, "findIndex", JS.methodRest((JsValue self, JsValue args) => applyArray(self, "findIndex", args, 0)));
+write(arrayInstrumentations, "findLast", JS.methodRest((JsValue self, JsValue args) => applyArray(self, "findLast", args, 1)));
+write(arrayInstrumentations, "findLastIndex", JS.methodRest((JsValue self, JsValue args) => applyArray(self, "findLastIndex", args, 0)));
+write(arrayInstrumentations, "forEach", JS.methodRest((JsValue self, JsValue args) => applyArray(self, "forEach", args, 0)));
+write(arrayInstrumentations, "includes", JS.methodRest((JsValue self, JsValue args) => searchProxy(self, "includes", args)));
+write(arrayInstrumentations, "indexOf", JS.methodRest((JsValue self, JsValue args) => searchProxy(self, "indexOf", args)));
+write(arrayInstrumentations, "join", JS.methodRest((JsValue self, JsValue args) => hostArrayApply("join", reactiveReadArray(self), args)));
+write(arrayInstrumentations, "lastIndexOf", JS.methodRest((JsValue self, JsValue args) => searchProxy(self, "lastIndexOf", args)));
+write(arrayInstrumentations, "map", JS.methodRest((JsValue self, JsValue args) => applyArray(self, "map", args, 0)));
+write(arrayInstrumentations, "pop", JS.methodRest((JsValue self, JsValue args) => noTracking(self, "pop", args)));
+write(arrayInstrumentations, "push", JS.methodRest((JsValue self, JsValue args) => noTracking(self, "push", args)));
+write(arrayInstrumentations, "reduce", JS.methodRest((JsValue self, JsValue args) => reduceArray(self, "reduce", args)));
+write(arrayInstrumentations, "reduceRight", JS.methodRest((JsValue self, JsValue args) => reduceArray(self, "reduceRight", args)));
+write(arrayInstrumentations, "shift", JS.methodRest((JsValue self, JsValue args) => noTracking(self, "shift", args)));
+write(arrayInstrumentations, "some", JS.methodRest((JsValue self, JsValue args) => applyArray(self, "some", args, 0)));
+write(arrayInstrumentations, "splice", JS.methodRest((JsValue self, JsValue args) => noTracking(self, "splice", args)));
+write(arrayInstrumentations, "toReversed", JS.methodRest((JsValue self, JsValue args) => hostArrayApply("toReversed", reactiveReadArray(self), args)));
+write(arrayInstrumentations, "toSorted", JS.methodRest((JsValue self, JsValue args) => hostArrayApply("toSorted", reactiveReadArray(self), args)));
+write(arrayInstrumentations, "toSpliced", JS.methodRest((JsValue self, JsValue args) => hostArrayApply("toSpliced", reactiveReadArray(self), args)));
+write(arrayInstrumentations, "unshift", JS.methodRest((JsValue self, JsValue args) => noTracking(self, "unshift", args)));
+write(arrayInstrumentations, "values", JS.method0((JsValue self) => iterator(self, "values")));

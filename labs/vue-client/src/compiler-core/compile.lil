@@ -1,0 +1,155 @@
+import { transform } from "./transform";
+import { baseParse } from "./parser";
+import { ErrorCodes, createCompilerError, defaultOnError } from "./errors";
+import { generate } from "./codegen";
+import { transformFilter } from "./compat/transformFilter";
+import { Object } from "./runtimeHelpers";
+import { transformElement } from "./transforms/transformElement";
+import { transformExpression } from "./transforms/transformExpression";
+import { transformSlotOutlet } from "./transforms/transformSlotOutlet";
+import { transformBind } from "./transforms/vBind";
+import { transformMemo } from "./transforms/vMemo";
+import { transformFor } from "./transforms/vFor";
+import { transformIf } from "./transforms/vIf";
+import { transformModel } from "./transforms/vModel";
+import { transformOn } from "./transforms/vOn";
+import { transformOnce } from "./transforms/vOnce";
+import { transformText } from "./transforms/transformText";
+import { transformVBindShorthand } from "./transforms/transformVBindShorthand";
+import { trackSlotScopes, trackVForSlotScopes } from "./transforms/vSlot";
+import { COMPILER_BROWSER, COMPILER_DEV } from "./validateExpression";
+
+JsValue compileUndefined() {
+  return JS.undefined();
+}
+
+int compileLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+
+void compilePush(JsValue values, JsValue value) {
+  values[compileLength(values)] = value;
+}
+
+JsValue compileExtend(JsValue target, JsValue source, JsValue extra = JS.undefined()) {
+  if (!JS.isNullish(source)) {
+    JsValue keys = JS.invoke(Object, "keys", source);
+    for (int index = 0; index < compileLength(keys); index++) {
+      JsValue key = keys[index];
+      target[key] = source[key];
+    }
+  }
+  if (!JS.isNullish(extra)) {
+    JsValue keys = JS.invoke(Object, "keys", extra);
+    for (int index = 0; index < compileLength(keys); index++) {
+      JsValue key = keys[index];
+      target[key] = extra[key];
+    }
+  }
+  return target;
+}
+
+export JsValue getBaseTransformPreset(bool prefixIdentifiers = false) {
+  JsValue transforms = JS.array(
+    transformVBindShorthand,
+    transformOnce,
+    transformIf,
+    transformMemo,
+    transformFor
+  );
+  compilePush(transforms, transformFilter);
+  if (!COMPILER_BROWSER && prefixIdentifiers) {
+    compilePush(transforms, trackVForSlotScopes);
+    compilePush(transforms, transformExpression);
+  } else if (COMPILER_BROWSER && COMPILER_DEV) {
+    compilePush(transforms, transformExpression);
+  }
+  compilePush(transforms, transformSlotOutlet);
+  compilePush(transforms, transformElement);
+  compilePush(transforms, trackSlotScopes);
+  compilePush(transforms, transformText);
+  return JS.array(
+    transforms,
+    JS.object("on", transformOn, "bind", transformBind, "model", transformModel)
+  );
+}
+
+export JsValue baseCompile(JsValue source, JsValue options = JS.undefined()) {
+  if (JS.isUndefined(options)) options = JS.object();
+  JsValue onError = options["onError"];
+  if (!onError.truthy()) onError = defaultOnError;
+  bool moduleMode = JS.strictEqual(options["mode"], "module");
+  if (COMPILER_BROWSER) {
+    if (JS.strictEqual(options["prefixIdentifiers"], true)) {
+      JS.call(onError, compileUndefined(), createCompilerError(
+        JS.number(ErrorCodes["X_PREFIX_ID_NOT_SUPPORTED"]).toInt()
+      ));
+    } else if (moduleMode) {
+      JS.call(onError, compileUndefined(), createCompilerError(
+        JS.number(ErrorCodes["X_MODULE_MODE_NOT_SUPPORTED"]).toInt()
+      ));
+    }
+  }
+  bool prefixIdentifiers = !COMPILER_BROWSER &&
+    (JS.strictEqual(options["prefixIdentifiers"], true) || moduleMode);
+  if (!prefixIdentifiers && options["cacheHandlers"].truthy()) {
+    JS.call(onError, compileUndefined(), createCompilerError(
+      JS.number(ErrorCodes["X_CACHE_HANDLER_NOT_SUPPORTED"]).toInt()
+    ));
+  }
+  if (options["scopeId"].truthy() && !moduleMode) {
+    JS.call(onError, compileUndefined(), createCompilerError(
+      JS.number(ErrorCodes["X_SCOPE_ID_NOT_SUPPORTED"]).toInt()
+    ));
+  }
+
+  JsValue resolvedOptions = compileExtend(
+    JS.object(),
+    options,
+    JS.object("prefixIdentifiers", prefixIdentifiers)
+  );
+  JsValue ast = source;
+  if (JS.typeOf(source) == "string") ast = baseParse(JS.string(source), resolvedOptions);
+  JsValue preset = getBaseTransformPreset(prefixIdentifiers);
+  JsValue nodeTransforms = preset[0];
+
+  if (!COMPILER_BROWSER && options["isTS"].truthy()) {
+    JsValue expressionPlugins = options["expressionPlugins"];
+    bool hasTypeScript = false;
+    if (expressionPlugins.truthy()) {
+      hasTypeScript = JS.invoke(expressionPlugins, "includes", "typescript").truthy();
+    }
+    if (!hasTypeScript) {
+      JsValue plugins = JS.array();
+      if (expressionPlugins.truthy()) {
+        for (int index = 0; index < compileLength(expressionPlugins); index++) {
+          compilePush(plugins, expressionPlugins[index]);
+        }
+      }
+      compilePush(plugins, "typescript");
+      options["expressionPlugins"] = plugins;
+    }
+  }
+
+  JsValue custom = options["nodeTransforms"];
+  if (!JS.isNullish(custom)) {
+    for (int index = 0; index < compileLength(custom); index++) {
+      compilePush(nodeTransforms, custom[index]);
+    }
+  }
+  JsValue directiveTransforms = preset[1];
+  JsValue customDirectives = options["directiveTransforms"];
+  if (!JS.isNullish(customDirectives)) {
+    compileExtend(directiveTransforms, customDirectives);
+  }
+  JsValue transformOptions = compileExtend(
+    JS.object(),
+    resolvedOptions,
+    JS.object(
+      "nodeTransforms", nodeTransforms,
+      "directiveTransforms", directiveTransforms
+    )
+  );
+  transform(ast, transformOptions);
+  return generate(ast, resolvedOptions);
+}

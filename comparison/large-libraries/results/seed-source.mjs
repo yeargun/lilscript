@@ -8,6 +8,13 @@ const pins = {
     entrySha256: "a836c4e2150fb699c51e16e98b6522f97037f3c28af5df66a67f9a0f169cc7b7",
     configSha256: "dd32efa99d7316e0471bfcd98dad69138f30c122522bbc3c4e3165d5ccd96ddf",
   },
+  motionlil: {
+    revision: "fde1aedfa2e8c84c33375df10ebc4b8be8d1b156",
+    tree: "59d0cc60efb3dc2dd0d0acf314a686ab8d2a4c26",
+    packageLockSha256: "714ccb519333265c07a4a900c0e80abadfbac52a1b2768878dbd9d0bb2b56454",
+    entrySha256: "c109ec66ba10c3c3cb67b9fc0895f2930312562ceefcdc64e0b284803e07ddba",
+    configSha256: "0b619d062eb21c5b6f587cb7cdc7a9f55752a8503ee930bf8e1279e48bedacf5",
+  },
   markedlil: {
     revision: "3a540ac8d6961aaf8eb060b5eae5368939b8981c",
     tree: "ea0041325559c67e5ebcd0115ec729d302670304",
@@ -21,6 +28,13 @@ const pins = {
     packageLockSha256: "d327ae7b0093237874f64263ee3fe922ad4695cf00e27a1761a951a55af85667",
     entrySha256: "daffae3ebb3585f3f6751c8d38b715b9f311062f76e63fbc7530a27789453e2a",
     configSha256: "15c1dec745765dc87eb9fca0cbd3423f917091dd21d2ef0caf305dc332b51cbe",
+  },
+  "mobxlil-production-min": {
+    revision: "820c9a8210c8d5489fc0a86a2ca46ecb9259cd5e",
+    tree: "7477c96b401a857d9805443a1e5b45d0fcc47623",
+    packageLockSha256: "4c3655c29714fbb1089cc86b2ec3325138d969b616829d3769942feb0f4fbcba",
+    entrySha256: "daffae3ebb3585f3f6751c8d38b715b9f311062f76e63fbc7530a27789453e2a",
+    configSha256: "25e3f6f7b59d8aac62434d64b0b1f48d39fe3ef85ae41ef23c9a0ba272e86991",
   },
   jquerylil: {
     revision: "b860fe8c9d9799e5e6fbfc2204d7bdd00948d5a1",

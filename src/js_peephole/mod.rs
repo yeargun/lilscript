@@ -1,5 +1,6 @@
 use serde::Serialize;
 
+use crate::js_peephole::binding::{BindingResolution, Resolution};
 pub(crate) use crate::js_peephole::folds::fold_constructor_prototype_tables_to_classes;
 use crate::js_peephole::folds::*;
 use crate::js_peephole::parse::{
@@ -12,7 +13,7 @@ use crate::js_peephole::rewrite::{
 };
 use crate::js_peephole::scope::{
     identifier_is_arrow_parameter, identifier_is_catch_parameter, identifier_is_function_parameter,
-    name_is_declared_in_any_enclosing_function_scope, GeneratedBindingIndex,
+    GeneratedBindingIndex,
 };
 use crate::js_peephole::token::{
     lex, matching_closers, validate_conditional_operators, validate_delimiters, Token, TokenKind,
@@ -1020,8 +1021,13 @@ pub fn single_character_resolved_binding_identifiers(
     source: &str,
 ) -> Result<Vec<u8>, JavaScriptParseError> {
     let tokens = lex(source)?;
-    let matching_close = matching_closers(&tokens);
-    let bindings = GeneratedBindingIndex::new(&tokens, &matching_close);
+    if tokens.iter().any(|token| token.kind == TokenKind::Template) {
+        return Ok(Vec::new());
+    }
+    let resolution = BindingResolution::new(&tokens);
+    if !resolution.is_total() {
+        return Ok(Vec::new());
+    }
     let mut candidates = std::collections::BTreeSet::new();
     let mut rejected = std::collections::BTreeSet::new();
 
@@ -1030,24 +1036,9 @@ pub fn single_character_resolved_binding_identifiers(
             let byte = token.text.as_bytes()[0];
             candidates.insert(byte);
             if !identifier_occurrence_is_clear_binding(&tokens, index)
-                || (!bindings.identifier_is_binding(index)
-                    && !bindings.name_is_visible(index, token.text))
+                || !matches!(resolution.resolve(index), Resolution::Bound(_))
             {
                 rejected.insert(byte);
-            }
-        } else if token.kind == TokenKind::Template {
-            // Template expressions are stored inside one lexer token. The
-            // remapper can update simple `${x}` spellings, but this function
-            // cannot prove their lexical owner without parsing the embedded
-            // expression, so keep those names fixed.
-            for window in token.text.as_bytes().windows(4) {
-                if window[0] == b'$'
-                    && window[1] == b'{'
-                    && window[2].is_ascii_alphabetic()
-                    && window[3] == b'}'
-                {
-                    rejected.insert(window[2]);
-                }
             }
         }
     }
@@ -1220,13 +1211,24 @@ pub fn identifier_name_is_clear_binding(
         return Ok(false);
     }
     let tokens = lex(source)?;
+    // The remapper cannot inspect identifiers embedded in template tokens, so
+    // a whole-artifact rename must leave any artifact containing one alone.
+    if tokens.iter().any(|token| token.kind == TokenKind::Template) {
+        return Ok(false);
+    }
+    let resolution = BindingResolution::new(&tokens);
+    if !resolution.is_total() {
+        return Ok(false);
+    }
     let mut seen = false;
     for (index, token) in tokens.iter().enumerate() {
         if token.kind != TokenKind::Identifier || token.text != name {
             continue;
         }
         seen = true;
-        if !identifier_occurrence_is_clear_binding(&tokens, index) {
+        if !identifier_occurrence_is_clear_binding(&tokens, index)
+            || !matches!(resolution.resolve(index), Resolution::Bound(_))
+        {
             return Ok(false);
         }
     }
@@ -1254,6 +1256,9 @@ pub fn remap_identifier(
     if from == to || from.is_empty() || to.is_empty() {
         return Ok(source.to_string());
     }
+    if !identifier_name_is_clear_binding(source, from)? {
+        return Ok(source.to_string());
+    }
     let tokens = lex(source)?;
     let mut replacements = Vec::new();
     for token in &tokens {
@@ -1279,29 +1284,9 @@ pub fn single_character_name_is_clear_binding(
     source: &str,
     name: u8,
 ) -> Result<bool, JavaScriptParseError> {
-    let tokens = lex(source)?;
     let name_text = [name];
     let name = std::str::from_utf8(&name_text).unwrap_or("");
-    let mut seen = false;
-    for (index, token) in tokens.iter().enumerate() {
-        if token.kind != TokenKind::Identifier || token.text != name {
-            continue;
-        }
-        seen = true;
-        if !identifier_occurrence_is_clear_binding(&tokens, index) {
-            return Ok(false);
-        }
-    }
-    if seen {
-        return Ok(true);
-    }
-    let mut in_template = false;
-    visit_single_character_identifiers(&tokens, |byte| {
-        if byte == name_text[0] {
-            in_template = true;
-        }
-    });
-    Ok(in_template)
+    identifier_name_is_clear_binding(source, name)
 }
 
 pub fn remap_single_character_identifiers(
@@ -1360,6 +1345,10 @@ pub fn function_local_binding_swap_variants(
     source: &str,
 ) -> Result<Vec<String>, JavaScriptParseError> {
     let tokens = lex(source)?;
+    let resolution = BindingResolution::new(&tokens);
+    if !resolution.is_total() || tokens.iter().any(|token| token.kind == TokenKind::Template) {
+        return Ok(Vec::new());
+    }
     let matching_close = matching_closers(&tokens);
     let mut functions = Vec::<std::collections::BTreeMap<u8, Vec<usize>>>::new();
 
@@ -1466,7 +1455,9 @@ pub fn function_local_binding_swap_variants(
             if !bindings.contains(&byte) {
                 continue;
             }
-            if !identifier_occurrence_is_clear_binding(&tokens, index) {
+            if !identifier_occurrence_is_clear_binding(&tokens, index)
+                || !matches!(resolution.resolve(index), Resolution::Bound(declaration) if declaration > params_open && declaration < body_close)
+            {
                 rejected.insert(byte);
             } else {
                 occurrences.entry(byte).or_default().push(index);
@@ -1547,13 +1538,7 @@ pub fn function_local_binding_swap_variants(
             }
             let byte = token.text.as_bytes()[0];
             if !identifier_occurrence_is_clear_binding(&tokens, index)
-                || (!generated_identifier_is_binding(&tokens, &matching_close, index)
-                    && !name_is_declared_in_any_enclosing_function_scope(
-                        &tokens,
-                        &matching_close,
-                        index,
-                        token.text,
-                    ))
+                || !matches!(resolution.resolve(index), Resolution::Bound(declaration) if declaration > params_open && declaration < body_close)
             {
                 rejected.insert(byte);
             } else {
@@ -1822,7 +1807,7 @@ fn optimize_generated_javascript_pass(
     session.run(fold_dead_identifier_copy_declarators)?;
     session.run(remove_unused_standalone_vars)?;
     session.run(fold_or_empty_object_assign)?;
-    session.run(fold_fresh_empty_object_assign)?;
+    session.run_if(pristine_builtins, fold_fresh_empty_object_assign)?;
     if pristine_builtins {
         session.repeat(fold_fresh_empty_array_pushes, 4)?;
     }

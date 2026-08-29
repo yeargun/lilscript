@@ -1,0 +1,54 @@
+import extern { registerRuntimeHelpers as coreRegisterRuntimeHelpers } from "../../packages/vuelil/compiler-dom.js";
+
+extern JsValue Symbol;
+extern void coreRegisterRuntimeHelpers(JsValue helpers);
+
+JsValue ssrHelperUndefined() {
+  return JS.undefined();
+}
+
+JsValue ssrRuntimeSymbol(string name) {
+  return JS.call(Symbol, ssrHelperUndefined(), name);
+}
+
+export JsValue SSR_INTERPOLATE = ssrRuntimeSymbol("ssrInterpolate");
+export JsValue SSR_RENDER_VNODE = ssrRuntimeSymbol("ssrRenderVNode");
+export JsValue SSR_RENDER_COMPONENT = ssrRuntimeSymbol("ssrRenderComponent");
+export JsValue SSR_RENDER_SLOT = ssrRuntimeSymbol("ssrRenderSlot");
+export JsValue SSR_RENDER_SLOT_INNER = ssrRuntimeSymbol("ssrRenderSlotInner");
+export JsValue SSR_RENDER_CLASS = ssrRuntimeSymbol("ssrRenderClass");
+export JsValue SSR_RENDER_STYLE = ssrRuntimeSymbol("ssrRenderStyle");
+export JsValue SSR_RENDER_ATTRS = ssrRuntimeSymbol("ssrRenderAttrs");
+export JsValue SSR_RENDER_ATTR = ssrRuntimeSymbol("ssrRenderAttr");
+export JsValue SSR_RENDER_DYNAMIC_ATTR = ssrRuntimeSymbol("ssrRenderDynamicAttr");
+export JsValue SSR_RENDER_LIST = ssrRuntimeSymbol("ssrRenderList");
+export JsValue SSR_INCLUDE_BOOLEAN_ATTR = ssrRuntimeSymbol("ssrIncludeBooleanAttr");
+export JsValue SSR_LOOSE_EQUAL = ssrRuntimeSymbol("ssrLooseEqual");
+export JsValue SSR_LOOSE_CONTAIN = ssrRuntimeSymbol("ssrLooseContain");
+export JsValue SSR_RENDER_DYNAMIC_MODEL = ssrRuntimeSymbol("ssrRenderDynamicModel");
+export JsValue SSR_GET_DYNAMIC_MODEL_PROPS = ssrRuntimeSymbol("ssrGetDynamicModelProps");
+export JsValue SSR_RENDER_TELEPORT = ssrRuntimeSymbol("ssrRenderTeleport");
+export JsValue SSR_RENDER_SUSPENSE = ssrRuntimeSymbol("ssrRenderSuspense");
+export JsValue SSR_GET_DIRECTIVE_PROPS = ssrRuntimeSymbol("ssrGetDirectiveProps");
+
+export JsValue ssrHelpers = JS.object();
+ssrHelpers[SSR_INTERPOLATE] = "ssrInterpolate";
+ssrHelpers[SSR_RENDER_VNODE] = "ssrRenderVNode";
+ssrHelpers[SSR_RENDER_COMPONENT] = "ssrRenderComponent";
+ssrHelpers[SSR_RENDER_SLOT] = "ssrRenderSlot";
+ssrHelpers[SSR_RENDER_SLOT_INNER] = "ssrRenderSlotInner";
+ssrHelpers[SSR_RENDER_CLASS] = "ssrRenderClass";
+ssrHelpers[SSR_RENDER_STYLE] = "ssrRenderStyle";
+ssrHelpers[SSR_RENDER_ATTRS] = "ssrRenderAttrs";
+ssrHelpers[SSR_RENDER_ATTR] = "ssrRenderAttr";
+ssrHelpers[SSR_RENDER_DYNAMIC_ATTR] = "ssrRenderDynamicAttr";
+ssrHelpers[SSR_RENDER_LIST] = "ssrRenderList";
+ssrHelpers[SSR_INCLUDE_BOOLEAN_ATTR] = "ssrIncludeBooleanAttr";
+ssrHelpers[SSR_LOOSE_EQUAL] = "ssrLooseEqual";
+ssrHelpers[SSR_LOOSE_CONTAIN] = "ssrLooseContain";
+ssrHelpers[SSR_RENDER_DYNAMIC_MODEL] = "ssrRenderDynamicModel";
+ssrHelpers[SSR_GET_DYNAMIC_MODEL_PROPS] = "ssrGetDynamicModelProps";
+ssrHelpers[SSR_RENDER_TELEPORT] = "ssrRenderTeleport";
+ssrHelpers[SSR_RENDER_SUSPENSE] = "ssrRenderSuspense";
+ssrHelpers[SSR_GET_DIRECTIVE_PROPS] = "ssrGetDirectiveProps";
+coreRegisterRuntimeHelpers(ssrHelpers);

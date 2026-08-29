@@ -1,0 +1,313 @@
+import {
+  ConstantTypes,
+  ElementTypes,
+  NodeTypes,
+  convertToBlock,
+  createCallExpression,
+  createConditionalExpression,
+  createObjectExpression,
+  createObjectProperty,
+  createSimpleExpression,
+  createVNodeCall,
+  locStub
+} from "../ast";
+import { ErrorCodes, String, createCompilerError } from "../errors";
+import { processExpression } from "./transformExpression";
+import { cloneLoc } from "../parser";
+import { CREATE_COMMENT, FRAGMENT } from "../runtimeHelpers";
+import { createStructuralDirectiveTransform, traverseNode } from "../transform";
+import {
+  findDir,
+  findProp,
+  getMemoedVNodeCall,
+  injectProp,
+  isCommentOrWhitespace
+} from "../utils";
+import {
+  COMPILER_BROWSER,
+  COMPILER_DEV,
+  validateBrowserExpression
+} from "../validateExpression";
+
+JsValue ifUndefined() {
+  return JS.undefined();
+}
+
+int ifLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+
+string ifString(JsValue value) {
+  return JS.string(JS.call(String, ifUndefined(), value));
+}
+
+void ifPush(JsValue values, JsValue value) {
+  values[ifLength(values)] = value;
+}
+
+JsValue createIfBranch(JsValue node, JsValue directive) {
+  bool isTemplateIf = JS.strictEqual(node["tagType"], ElementTypes["TEMPLATE"]);
+  JsValue children = JS.array(node);
+  if (isTemplateIf && !findDir(node, "for").truthy()) children = node["children"];
+  JsValue condition = directive["exp"];
+  if (JS.string(directive["name"]) == "else") condition = ifUndefined();
+  return JS.object(
+    "type", NodeTypes["IF_BRANCH"],
+    "loc", node["loc"],
+    "condition", condition,
+    "children", children,
+    "userKey", findProp(node, "key"),
+    "isTemplateIf", isTemplateIf
+  );
+}
+
+JsValue createChildrenCodegenNode(JsValue branch, int keyIndex, JsValue context) {
+  JsValue keyProperty = createObjectProperty(
+    "key",
+    createSimpleExpression(
+      ifString(keyIndex),
+      false,
+      locStub,
+      JS.number(ConstantTypes["CAN_CACHE"]).toInt()
+    )
+  );
+  JsValue children = branch["children"];
+  JsValue firstChild = children[0];
+  bool needFragmentWrapper = ifLength(children) != 1 ||
+    !JS.strictEqual(firstChild["type"], NodeTypes["ELEMENT"]);
+  if (needFragmentWrapper) {
+    if (ifLength(children) == 1 && JS.strictEqual(firstChild["type"], NodeTypes["FOR"])) {
+      JsValue vnodeCall = firstChild["codegenNode"];
+      injectProp(vnodeCall, keyProperty, context);
+      return vnodeCall;
+    }
+
+    int patchFlag = 64;
+    if (COMPILER_DEV && !branch["isTemplateIf"].truthy()) {
+      int nonComments = 0;
+      for (int index = 0; index < ifLength(children); index++) {
+        if (!JS.strictEqual(children[index]["type"], NodeTypes["COMMENT"])) nonComments++;
+      }
+      if (nonComments == 1) patchFlag = patchFlag | 2048;
+    }
+    return createVNodeCall(
+      context,
+      JS.call(context["helper"], ifUndefined(), FRAGMENT),
+      createObjectExpression(JS.array(keyProperty)),
+      children,
+      patchFlag,
+      ifUndefined(),
+      ifUndefined(),
+      true,
+      false,
+      false,
+      branch["loc"]
+    );
+  }
+
+  JsValue result = firstChild["codegenNode"];
+  JsValue vnodeCall = getMemoedVNodeCall(result);
+  if (JS.strictEqual(vnodeCall["type"], NodeTypes["VNODE_CALL"])) {
+    convertToBlock(vnodeCall, context);
+  }
+  injectProp(vnodeCall, keyProperty, context);
+  return result;
+}
+
+JsValue createCodegenNodeForBranch(JsValue branch, int keyIndex, JsValue context) {
+  if (branch["condition"].truthy()) {
+    string comment = "\"\"";
+    if (COMPILER_DEV) comment = "\"v-if\"";
+    return createConditionalExpression(
+      branch["condition"],
+      createChildrenCodegenNode(branch, keyIndex, context),
+      createCallExpression(
+        JS.call(context["helper"], ifUndefined(), CREATE_COMMENT),
+        JS.array(comment, "true")
+      )
+    );
+  }
+  return createChildrenCodegenNode(branch, keyIndex, context);
+}
+
+bool isSameKey(JsValue left, JsValue right) {
+  if (!left.truthy() || !JS.strictEqual(left["type"], right["type"])) return false;
+  if (JS.strictEqual(left["type"], NodeTypes["ATTRIBUTE"])) {
+    return JS.string(left["value"]["content"]) == JS.string(right["value"]["content"]);
+  }
+
+  JsValue expression = left["exp"];
+  JsValue branchExpression = right["exp"];
+  if (!JS.strictEqual(expression["type"], branchExpression["type"])) return false;
+  return JS.strictEqual(expression["type"], NodeTypes["SIMPLE_EXPRESSION"]) &&
+    expression["isStatic"].truthy() == branchExpression["isStatic"].truthy() &&
+    JS.string(expression["content"]) == JS.string(branchExpression["content"]);
+}
+
+JsValue getParentCondition(JsValue node) {
+  JsValue current = node;
+  while (true) {
+    if (JS.strictEqual(current["type"], NodeTypes["JS_CONDITIONAL_EXPRESSION"])) {
+      if (JS.strictEqual(
+        current["alternate"]["type"],
+        NodeTypes["JS_CONDITIONAL_EXPRESSION"]
+      )) current = current["alternate"];
+      else return current;
+    } else if (JS.strictEqual(current["type"], NodeTypes["JS_CACHE_EXPRESSION"])) {
+      current = current["value"];
+    }
+  }
+  return current;
+}
+
+export JsValue processIf(
+  JsValue node,
+  JsValue directive,
+  JsValue context,
+  JsValue processCodegen = JS.undefined()
+) {
+  string name = JS.string(directive["name"]);
+  if (name != "else" &&
+    (!directive["exp"].truthy() || JS.string(directive["exp"]["content"]).trim() == "")) {
+    JsValue expressionLoc = node["loc"];
+    if (directive["exp"].truthy()) expressionLoc = directive["exp"]["loc"];
+    JS.call(
+      context["onError"],
+      ifUndefined(),
+      createCompilerError(JS.number(ErrorCodes["X_V_IF_NO_EXPRESSION"]).toInt(), directive["loc"])
+    );
+    directive["exp"] = createSimpleExpression("true", false, expressionLoc);
+  }
+
+  if (!COMPILER_BROWSER && context["prefixIdentifiers"].truthy() && directive["exp"].truthy()) {
+    directive["exp"] = processExpression(directive["exp"], context);
+  }
+  if (COMPILER_DEV && COMPILER_BROWSER && directive["exp"].truthy()) {
+    validateBrowserExpression(directive["exp"], context);
+  }
+
+  if (name == "if") {
+    JsValue branch = createIfBranch(node, directive);
+    JsValue ifNode = JS.object(
+      "type", NodeTypes["IF"],
+      "loc", cloneLoc(node["loc"]),
+      "branches", JS.array(branch)
+    );
+    JS.call(context["replaceNode"], ifUndefined(), ifNode);
+    if (JS.typeOf(processCodegen) == "function") {
+      return JS.call(processCodegen, ifUndefined(), ifNode, branch, true);
+    }
+    return ifUndefined();
+  }
+
+  JsValue siblings = context["parent"]["children"];
+  JsValue comments = JS.array();
+  int index = JS.number(JS.invoke(siblings, "indexOf", node)).toInt();
+  while (index-- >= 0) {
+    JsValue sibling = siblings[index];
+    if (sibling.truthy() && isCommentOrWhitespace(sibling)) {
+      JS.call(context["removeNode"], ifUndefined(), sibling);
+      if (COMPILER_DEV && JS.strictEqual(sibling["type"], NodeTypes["COMMENT"])) {
+        JS.invoke(comments, "unshift", sibling);
+      }
+      continue;
+    }
+
+    if (sibling.truthy() && JS.strictEqual(sibling["type"], NodeTypes["IF"])) {
+      JsValue branches = sibling["branches"];
+      JsValue lastBranch = branches[ifLength(branches) - 1];
+      if ((name == "else-if" || name == "else") && !lastBranch["condition"].truthy()) {
+        JS.call(
+          context["onError"],
+          ifUndefined(),
+          createCompilerError(JS.number(ErrorCodes["X_V_ELSE_NO_ADJACENT_IF"]).toInt(), node["loc"])
+        );
+      }
+
+      JS.call(context["removeNode"], ifUndefined());
+      JsValue branch = createIfBranch(node, directive);
+      bool transitionParent = context["parent"].truthy() &&
+        JS.strictEqual(context["parent"]["type"], NodeTypes["ELEMENT"]) &&
+        (JS.string(context["parent"]["tag"]) == "transition" ||
+          JS.string(context["parent"]["tag"]) == "Transition");
+      if (COMPILER_DEV && ifLength(comments) > 0 && !transitionParent) {
+        for (int commentIndex = ifLength(comments) - 1; commentIndex >= 0; commentIndex--) {
+          JS.invoke(branch["children"], "unshift", comments[commentIndex]);
+        }
+      }
+
+      if (COMPILER_DEV || !COMPILER_BROWSER) {
+        JsValue key = branch["userKey"];
+        if (key.truthy()) {
+          for (int branchIndex = 0; branchIndex < ifLength(branches); branchIndex++) {
+            if (isSameKey(branches[branchIndex]["userKey"], key)) {
+              JS.call(
+                context["onError"],
+                ifUndefined(),
+                createCompilerError(JS.number(ErrorCodes["X_V_IF_SAME_KEY"]).toInt(), key["loc"])
+              );
+            }
+          }
+        }
+      }
+
+      ifPush(branches, branch);
+      JsValue onExit = ifUndefined();
+      if (JS.typeOf(processCodegen) == "function") {
+        onExit = JS.call(processCodegen, ifUndefined(), sibling, branch, false);
+      }
+      traverseNode(branch, context);
+      if (onExit.truthy()) JS.call(onExit, ifUndefined());
+      context["currentNode"] = null;
+    } else {
+      JS.call(
+        context["onError"],
+        ifUndefined(),
+        createCompilerError(JS.number(ErrorCodes["X_V_ELSE_NO_ADJACENT_IF"]).toInt(), node["loc"])
+      );
+    }
+    break;
+  }
+  return ifUndefined();
+}
+
+JsValue transformIfDirective(JsValue node, JsValue directive, JsValue context) {
+  JsValue processCodegen = JS.method3((
+    JsValue _self,
+    JsValue ifNode,
+    JsValue branch,
+    JsValue isRoot
+  ) => {
+    JsValue siblings = context["parent"]["children"];
+    int index = JS.number(JS.invoke(siblings, "indexOf", ifNode)).toInt();
+    int key = 0;
+    while (index-- >= 0) {
+      JsValue sibling = siblings[index];
+      if (sibling.truthy() && JS.strictEqual(sibling["type"], NodeTypes["IF"])) {
+        key += ifLength(sibling["branches"]);
+      }
+    }
+
+    return JS.method0((JsValue _exitSelf) => {
+      if (isRoot.truthy()) {
+        ifNode["codegenNode"] = createCodegenNodeForBranch(branch, key, context);
+      } else {
+        JsValue parentCondition = getParentCondition(ifNode["codegenNode"]);
+        parentCondition["alternate"] = createCodegenNodeForBranch(
+          branch,
+          key + ifLength(ifNode["branches"]) - 1,
+          context
+        );
+      }
+      return ifUndefined();
+    });
+  });
+  return processIf(node, directive, context, processCodegen);
+}
+
+export JsValue transformIf = createStructuralDirectiveTransform(
+  new Regex("^(?:if|else|else-if)$"),
+  JS.method3((JsValue _self, JsValue node, JsValue directive, JsValue context) => {
+    return transformIfDirective(node, directive, context);
+  })
+);

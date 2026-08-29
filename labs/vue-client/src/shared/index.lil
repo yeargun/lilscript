@@ -1,0 +1,158 @@
+import { makeMap } from "./makeMap";
+import {
+  EMPTY_ARR,
+  EMPTY_OBJ,
+  NO,
+  NOOP,
+  camelize,
+  capitalize,
+  def,
+  extend,
+  genCacheKey,
+  genPropsAccessExp,
+  getGlobalThis,
+  hasChanged,
+  hasOwn,
+  hyphenate,
+  invokeArrayFns,
+  isArray,
+  isBuiltInDirective,
+  isDate,
+  isFunction,
+  isIntegerKey,
+  isMap,
+  isModelListener,
+  isObject,
+  isOn,
+  isPlainObject,
+  isPromise,
+  isRegExp,
+  isReservedProp,
+  isSet,
+  isString,
+  isSymbol,
+  looseToNumber,
+  objectToString,
+  remove,
+  toHandlerKey,
+  toNumber,
+  toRawType,
+  toTypeString
+} from "./general";
+import { PatchFlagNames, PatchFlags } from "./patchFlags";
+import { ShapeFlags } from "./shapeFlags";
+import { SlotFlags, slotFlagsText } from "./slotFlags";
+import {
+  isGloballyAllowed,
+  isGloballyWhitelisted
+} from "./globalsAllowList";
+import { generateCodeFrame } from "./codeframe";
+import {
+  normalizeClass,
+  normalizeProps,
+  normalizeStyle,
+  parseStringStyle,
+  stringifyStyle
+} from "./normalizeProp";
+import {
+  isHTMLTag,
+  isMathMLTag,
+  isSVGTag,
+  isVoidTag
+} from "./domTagConfig";
+import {
+  includeBooleanAttr,
+  isBooleanAttr,
+  isKnownHtmlAttr,
+  isKnownMathMLAttr,
+  isKnownSvgAttr,
+  isRenderableAttrValue,
+  isSSRSafeAttrName,
+  isSpecialBooleanAttr,
+  propsToAttrMap
+} from "./domAttrConfig";
+import {
+  cssVarNameEscapeSymbolsRE,
+  escapeHtml,
+  escapeHtmlComment,
+  getEscapedCssVarName
+} from "./escapeHtml";
+import { looseEqual, looseIndexOf } from "./looseEqual";
+import { toDisplayString } from "./toDisplayString";
+import { normalizeCssVarValue } from "./cssVars";
+
+export {
+  EMPTY_ARR,
+  EMPTY_OBJ,
+  NO,
+  NOOP,
+  PatchFlagNames,
+  PatchFlags,
+  ShapeFlags,
+  SlotFlags,
+  camelize,
+  capitalize,
+  cssVarNameEscapeSymbolsRE,
+  def,
+  escapeHtml,
+  escapeHtmlComment,
+  extend,
+  genCacheKey,
+  genPropsAccessExp,
+  generateCodeFrame,
+  getEscapedCssVarName,
+  getGlobalThis,
+  hasChanged,
+  hasOwn,
+  hyphenate,
+  includeBooleanAttr,
+  invokeArrayFns,
+  isArray,
+  isBooleanAttr,
+  isBuiltInDirective,
+  isDate,
+  isFunction,
+  isGloballyAllowed,
+  isGloballyWhitelisted,
+  isHTMLTag,
+  isIntegerKey,
+  isKnownHtmlAttr,
+  isKnownMathMLAttr,
+  isKnownSvgAttr,
+  isMap,
+  isMathMLTag,
+  isModelListener,
+  isObject,
+  isOn,
+  isPlainObject,
+  isPromise,
+  isRegExp,
+  isRenderableAttrValue,
+  isReservedProp,
+  isSSRSafeAttrName,
+  isSVGTag,
+  isSet,
+  isSpecialBooleanAttr,
+  isString,
+  isSymbol,
+  isVoidTag,
+  looseEqual,
+  looseIndexOf,
+  looseToNumber,
+  makeMap,
+  normalizeClass,
+  normalizeCssVarValue,
+  normalizeProps,
+  normalizeStyle,
+  objectToString,
+  parseStringStyle,
+  propsToAttrMap,
+  remove,
+  slotFlagsText,
+  stringifyStyle,
+  toDisplayString,
+  toHandlerKey,
+  toNumber,
+  toRawType,
+  toTypeString
+};

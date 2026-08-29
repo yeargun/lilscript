@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 1,
+  "generatedBy": "scripts/build-reactivity.mjs",
+  "baseline": {
+    "path": "packages/vuelil/reactivity.js",
+    "raw": 52380,
+    "brotli11": 11889
+  },
+  "codecs": {
+    "gzip9": {
+      "encoder": "upstream-stock-zlib-c",
+      "libraryVersion": "1.3.1",
+      "cargoPackage": "libz-sys",
+      "cargoPackageVersion": "1.1.24",
+      "level": 9,
+      "mtime": 0
+    },
+    "brotli11": {
+      "encoder": "official-google-brotli-c",
+      "libraryVersion": "1.1.0",
+      "cargoPackage": "compu-brotli-sys",
+      "cargoPackageVersion": "1.1.0",
+      "quality": 11,
+      "lgwin": 22,
+      "mode": "generic"
+    }
+  },
+  "artifacts": {
+    "development": {
+      "path": "packages/vuelil/reactivity.js",
+      "raw": 40447,
+      "gzip9": 11732,
+      "brotli11": 10636
+    },
+    "production": {
+      "path": "artifacts/reactivity.esm-browser.prod.js",
+      "raw": 27224,
+      "gzip9": 8947,
+      "brotli11": 8202
+    },
+    "upstream": {
+      "path": "upstream/vue/packages/reactivity/dist/reactivity.esm-browser.prod.js",
+      "raw": 19778,
+      "gzip9": 7159,
+      "brotli11": 6635
+    },
+    "compiledKernelBeforeBundling": {
+      "raw": 28420,
+      "gzip9": 8714,
+      "brotli11": 7919
+    },
+    "hostAdapterSource": {
+      "raw": 6123,
+      "gzip9": 1497,
+      "brotli11": 1287
+    }
+  },
+  "comparison": {
+    "brotli11Delta": 1567,
+    "beatsUpstreamBrotli11": false,
+    "requiredAdditionalBrotli11Reduction": 1568,
+    "reductionFromDevelopment": {
+      "raw": 13223,
+      "gzip9": 2785,
+      "brotli11": 2434
+    },
+    "reductionFromRequestedBaseline": {
+      "raw": 25156,
+      "brotli11": 3687
+    }
+  },
+  "blocker": "The source-parity port still pays for generic JsValue property access and the primitive host ABI; maximum Brotli search plus whole-module OXC minification does not yet match Vue's hand-authored production build."
+}

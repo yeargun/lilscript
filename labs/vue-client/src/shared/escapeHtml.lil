@@ -1,0 +1,71 @@
+Regex escapePattern = new Regex("[\"'&<>]");
+
+export string escapeHtml(JsValue input) {
+  string value = "" + input;
+  JsValue firstMatch = escapePattern.exec(value);
+  if (JS.isNullish(firstMatch)) {
+    return value;
+  }
+
+  string html = "";
+  int index = JS.number(firstMatch["index"]).toInt();
+  int lastIndex = 0;
+  while (index < value.length) {
+    int code = value.charCodeAt(index);
+    string escaped = "";
+    if (code == 34) {
+      escaped = "&quot;";
+    } else if (code == 38) {
+      escaped = "&amp;";
+    } else if (code == 39) {
+      escaped = "&#39;";
+    } else if (code == 60) {
+      escaped = "&lt;";
+    } else if (code == 62) {
+      escaped = "&gt;";
+    }
+    if (escaped != "") {
+      if (lastIndex != index) {
+        html += value.slice(lastIndex, index);
+      }
+      lastIndex = index + 1;
+      html += escaped;
+    }
+    index += 1;
+  }
+  if (lastIndex != index) {
+    return html + value.slice(lastIndex, index);
+  }
+  return html;
+}
+
+Regex commentStripPattern = new Regex("^(?:-?>)+|<!--|-->|--!>|<!-$", "g");
+export string escapeHtmlComment(string source) {
+  string previous = "";
+  while (source != previous) {
+    previous = source;
+    source = JS.string(JS.invoke(source, "replace", commentStripPattern, ""));
+  }
+  return source;
+}
+
+export Regex cssVarNameEscapeSymbolsRE = new Regex(
+  "[ !\"#$%&'()*+,./:;<=>?@[\\\\\\]^`{|}~]",
+  "g"
+);
+
+export string getEscapedCssVarName(string key, bool doubleEscape) {
+  JsValue replacement = JS.method1((JsValue _self, JsValue matched) => {
+    string symbol = JS.string(matched);
+    if (doubleEscape) {
+      if (symbol == "\"") {
+        return "\\\\\\\"";
+      }
+      return "\\\\" + symbol;
+    }
+    return "\\" + symbol;
+  });
+  return JS.string(
+    JS.invoke(key, "replace", cssVarNameEscapeSymbolsRE, replacement)
+  );
+}

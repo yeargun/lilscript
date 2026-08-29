@@ -167,6 +167,7 @@ impl<'arena, 'src> Parser<'arena, 'src> {
             imports: imports.into_bump_slice(),
             foreign_imports: foreign_imports.into_bump_slice(),
             dynamic_imports: &[],
+            module_bindings: &[],
             exports: exports.into_bump_slice(),
             items: items.into_bump_slice(),
             span,

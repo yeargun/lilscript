@@ -1,0 +1,417 @@
+import { DEV } from "./constants";
+import { currentGlobalVersion } from "./dep";
+import { activeEffectScope } from "./effectScope";
+import { warn } from "./warning";
+
+extern JsValue hostCreateClass1(string name, JsValue initialize);
+extern JsValue hostCreateWeakSet();
+extern void hostDefineAccessor(JsValue object, JsValue key, JsValue get, JsValue set);
+extern void hostDefineMethod(JsValue object, JsValue key, JsValue value);
+extern JsValue hostRead(JsValue value, JsValue key);
+extern bool hostHasOwn(JsValue target, JsValue key);
+extern bool hostObjectIs(JsValue left, JsValue right);
+extern bool hostInstanceOf(JsValue value, JsValue constructor);
+
+void write(JsValue value, JsValue key, JsValue next) {
+  value[key] = next;
+}
+
+JsValue call0(JsValue fn) {
+  return JS.call(fn, JS.undefined());
+}
+
+JsValue callMethod0(JsValue receiver, string method) {
+  return JS.call(receiver[method], receiver);
+}
+
+bool weakSetHas(JsValue set, JsValue value) {
+  return JS.invoke(set, "has", value).truthy();
+}
+
+export JsValue activeSub = JS.undefined();
+
+export JsValue EffectFlags = JS.object(
+  "1", "ACTIVE", "2", "RUNNING", "4", "TRACKING", "8", "NOTIFIED",
+  "16", "DIRTY", "32", "ALLOW_RECURSE", "64", "PAUSED", "128", "EVALUATED",
+  "ACTIVE", 1, "RUNNING", 2, "TRACKING", 4, "NOTIFIED", 8,
+  "DIRTY", 16, "ALLOW_RECURSE", 32, "PAUSED", 64, "EVALUATED", 128
+);
+
+JsValue pausedQueueEffects = hostCreateWeakSet();
+int batchDepth = 0;
+JsValue batchedSub = JS.undefined();
+JsValue batchedComputed = JS.undefined();
+
+export bool shouldTrack = true;
+bool[] trackStack = [];
+
+void removeSub(JsValue link, bool soft = false) {
+  JsValue dep = hostRead(link, "dep");
+  JsValue prevSub = hostRead(link, "prevSub");
+  JsValue nextSub = hostRead(link, "nextSub");
+  if (!JS.isUndefined(prevSub)) {
+    write(prevSub, "nextSub", nextSub);
+    write(link, "prevSub", JS.undefined());
+  }
+  if (!JS.isUndefined(nextSub)) {
+    write(nextSub, "prevSub", prevSub);
+    write(link, "nextSub", JS.undefined());
+  }
+  if (DEV && JS.strictEqual(hostRead(dep, "subsHead"), link)) {
+    write(dep, "subsHead", nextSub);
+  }
+  if (JS.strictEqual(hostRead(dep, "subs"), link)) {
+    write(dep, "subs", prevSub);
+    JsValue computed = hostRead(dep, "computed");
+    if (JS.isUndefined(prevSub) && !JS.isUndefined(computed)) {
+      int flags = JS.number(hostRead(computed, "flags")).toInt();
+      write(computed, "flags", flags & -5);
+      JsValue current = hostRead(computed, "deps");
+      while (!JS.isUndefined(current)) {
+        removeSub(current, true);
+        current = hostRead(current, "nextDep");
+      }
+    }
+  }
+  if (!soft) {
+    int count = JS.number(hostRead(dep, "sc")).toInt() - 1;
+    write(dep, "sc", count);
+    JsValue map = hostRead(dep, "map");
+    if (count == 0 && !JS.isUndefined(map)) {
+      JS.invoke(map, "delete", hostRead(dep, "key"));
+    }
+  }
+}
+
+void removeDep(JsValue link) {
+  JsValue prevDep = hostRead(link, "prevDep");
+  JsValue nextDep = hostRead(link, "nextDep");
+  if (!JS.isUndefined(prevDep)) {
+    write(prevDep, "nextDep", nextDep);
+    write(link, "prevDep", JS.undefined());
+  }
+  if (!JS.isUndefined(nextDep)) {
+    write(nextDep, "prevDep", prevDep);
+    write(link, "nextDep", JS.undefined());
+  }
+}
+
+void prepareDeps(JsValue sub) {
+  JsValue link = hostRead(sub, "deps");
+  while (!JS.isUndefined(link)) {
+    write(link, "version", -1);
+    JsValue dep = hostRead(link, "dep");
+    write(link, "prevActiveLink", hostRead(dep, "activeLink"));
+    write(dep, "activeLink", link);
+    link = hostRead(link, "nextDep");
+  }
+}
+
+void cleanupDeps(JsValue sub) {
+  JsValue head = JS.undefined();
+  JsValue tail = hostRead(sub, "depsTail");
+  JsValue link = tail;
+  while (!JS.isUndefined(link)) {
+    JsValue previous = hostRead(link, "prevDep");
+    if (JS.number(hostRead(link, "version")).toInt() == -1) {
+      if (JS.strictEqual(link, tail)) tail = previous;
+      removeSub(link);
+      removeDep(link);
+    } else {
+      head = link;
+    }
+    JsValue dep = hostRead(link, "dep");
+    write(dep, "activeLink", hostRead(link, "prevActiveLink"));
+    write(link, "prevActiveLink", JS.undefined());
+    link = previous;
+  }
+  write(sub, "deps", head);
+  write(sub, "depsTail", tail);
+}
+
+export bool isDirty(JsValue sub) {
+  JsValue link = hostRead(sub, "deps");
+  while (!JS.isUndefined(link)) {
+    JsValue dep = hostRead(link, "dep");
+    if (JS.number(hostRead(dep, "version")).toInt() != JS.number(hostRead(link, "version")).toInt()) {
+      return true;
+    }
+    JsValue computed = hostRead(dep, "computed");
+    if (!JS.isUndefined(computed)) {
+      refreshComputed(computed);
+      if (JS.number(hostRead(dep, "version")).toInt() != JS.number(hostRead(link, "version")).toInt()) {
+        return true;
+      }
+    }
+    link = hostRead(link, "nextDep");
+  }
+  return hostRead(sub, "_dirty").truthy();
+}
+
+void cleanupEffect(JsValue effectValue) {
+  JsValue cleanup = hostRead(effectValue, "cleanup");
+  write(effectValue, "cleanup", JS.undefined());
+  if (!JS.isUndefined(cleanup)) {
+    JsValue previous = activeSub;
+    activeSub = JS.undefined();
+    try {
+      call0(cleanup);
+    } finally {
+      activeSub = previous;
+    }
+  }
+}
+
+JsValue runEffect(JsValue self) {
+  int flags = JS.number(hostRead(self, "flags")).toInt();
+  if ((flags & 1) == 0) return call0(hostRead(self, "fn"));
+  write(self, "flags", flags | 2);
+  cleanupEffect(self);
+  prepareDeps(self);
+  JsValue previous = activeSub;
+  bool previousTrack = shouldTrack;
+  activeSub = self;
+  shouldTrack = true;
+  try {
+    return call0(hostRead(self, "fn"));
+  } finally {
+    if (DEV && !JS.strictEqual(activeSub, self)) {
+      warn("Active effect was not restored correctly - this is likely a Vue internal bug.");
+    }
+    cleanupDeps(self);
+    activeSub = previous;
+    shouldTrack = previousTrack;
+    write(self, "flags", JS.number(hostRead(self, "flags")).toInt() & -3);
+  }
+}
+
+void initializeReactiveEffect(JsValue self, JsValue fn) {
+  write(self, "fn", fn);
+  write(self, "deps", JS.undefined());
+  write(self, "depsTail", JS.undefined());
+  write(self, "flags", 5);
+  write(self, "next", JS.undefined());
+  write(self, "cleanup", JS.undefined());
+  write(self, "scheduler", JS.undefined());
+  write(self, "onStop", JS.undefined());
+  if (!JS.isUndefined(activeEffectScope)) {
+    if (hostRead(activeEffectScope, "active").truthy()) {
+      JS.invoke(hostRead(activeEffectScope, "effects"), "push", self);
+    } else {
+      write(self, "flags", 4);
+    }
+  }
+}
+
+export JsValue ReactiveEffect = hostCreateClass1(
+  "ReactiveEffect",
+  JS.method1((JsValue self, JsValue fn) => {
+    initializeReactiveEffect(self, fn);
+    return JS.undefined();
+  })
+);
+
+hostDefineMethod(ReactiveEffect["prototype"], "pause", JS.method0((JsValue self) => {
+  write(self, "flags", JS.number(hostRead(self, "flags")).toInt() | 64);
+  return JS.undefined();
+}));
+
+hostDefineMethod(ReactiveEffect["prototype"], "resume", JS.method0((JsValue self) => {
+  int flags = JS.number(hostRead(self, "flags")).toInt();
+  if ((flags & 64) != 0) {
+    write(self, "flags", flags & -65);
+    if (weakSetHas(pausedQueueEffects, self)) {
+      JS.invoke(pausedQueueEffects, "delete", self);
+      callMethod0(self, "trigger");
+    }
+  }
+  return JS.undefined();
+}));
+
+hostDefineMethod(ReactiveEffect["prototype"], "notify", JS.method0((JsValue self) => {
+  int flags = JS.number(hostRead(self, "flags")).toInt();
+  if ((flags & 2) != 0 && (flags & 32) == 0) return JS.undefined();
+  if ((flags & 8) == 0) batch(self);
+  return JS.undefined();
+}));
+
+hostDefineMethod(ReactiveEffect["prototype"], "run", JS.method0((JsValue self) => runEffect(self)));
+
+hostDefineMethod(ReactiveEffect["prototype"], "stop", JS.method0((JsValue self) => {
+  int flags = JS.number(hostRead(self, "flags")).toInt();
+  if ((flags & 1) != 0) {
+    JsValue link = hostRead(self, "deps");
+    while (!JS.isUndefined(link)) {
+      removeSub(link);
+      link = hostRead(link, "nextDep");
+    }
+    write(self, "deps", JS.undefined());
+    write(self, "depsTail", JS.undefined());
+    cleanupEffect(self);
+    JsValue onStop = hostRead(self, "onStop");
+    if (!JS.isUndefined(onStop)) call0(onStop);
+    write(self, "flags", JS.number(hostRead(self, "flags")).toInt() & -2);
+  }
+  return JS.undefined();
+}));
+
+hostDefineMethod(ReactiveEffect["prototype"], "trigger", JS.method0((JsValue self) => {
+  int flags = JS.number(hostRead(self, "flags")).toInt();
+  if ((flags & 64) != 0) {
+    JS.invoke(pausedQueueEffects, "add", self);
+  } else {
+    JsValue scheduler = hostRead(self, "scheduler");
+    if (!JS.isUndefined(scheduler)) call0(scheduler);
+    else if (isDirty(self)) runEffect(self);
+  }
+  return JS.undefined();
+}));
+
+hostDefineMethod(ReactiveEffect["prototype"], "runIfDirty", JS.method0((JsValue self) => {
+  if (isDirty(self)) runEffect(self);
+  return JS.undefined();
+}));
+
+hostDefineAccessor(
+  ReactiveEffect["prototype"],
+  "dirty",
+  JS.method0((JsValue self) => isDirty(self)),
+  JS.undefined()
+);
+
+export void batch(JsValue sub, bool isComputed = false) {
+  write(sub, "flags", JS.number(hostRead(sub, "flags")).toInt() | 8);
+  if (isComputed) {
+    write(sub, "next", batchedComputed);
+    batchedComputed = sub;
+  } else {
+    write(sub, "next", batchedSub);
+    batchedSub = sub;
+  }
+}
+
+export void startBatch() {
+  batchDepth += 1;
+}
+
+export void endBatch() {
+  batchDepth -= 1;
+  if (batchDepth > 0) return;
+  if (!JS.isUndefined(batchedComputed)) {
+    JsValue current = batchedComputed;
+    batchedComputed = JS.undefined();
+    while (!JS.isUndefined(current)) {
+      JsValue next = hostRead(current, "next");
+      write(current, "next", JS.undefined());
+      write(current, "flags", JS.number(hostRead(current, "flags")).toInt() & -9);
+      current = next;
+    }
+  }
+  JsValue error = JS.undefined();
+  while (!JS.isUndefined(batchedSub)) {
+    JsValue current = batchedSub;
+    batchedSub = JS.undefined();
+    while (!JS.isUndefined(current)) {
+      JsValue next = hostRead(current, "next");
+      write(current, "next", JS.undefined());
+      int flags = JS.number(hostRead(current, "flags")).toInt();
+      write(current, "flags", flags & -9);
+      if ((flags & 1) != 0) {
+        try {
+          callMethod0(current, "trigger");
+        } catch (JsValue caught) {
+          if (JS.isUndefined(error)) error = caught;
+        }
+      }
+      current = next;
+    }
+  }
+  if (!JS.isUndefined(error)) throw error;
+}
+
+export void refreshComputed(JsValue computed) {
+  int flags = JS.number(hostRead(computed, "flags")).toInt();
+  if ((flags & 4) != 0 && (flags & 16) == 0) return;
+  write(computed, "flags", flags & -17);
+  int version = currentGlobalVersion();
+  if (JS.number(hostRead(computed, "globalVersion")).toInt() == version) return;
+  write(computed, "globalVersion", version);
+  flags = JS.number(hostRead(computed, "flags")).toInt();
+  if (
+    !hostRead(computed, "isSSR").truthy() &&
+    (flags & 128) != 0 &&
+    ((JS.isUndefined(hostRead(computed, "deps")) && !hostRead(computed, "_dirty").truthy()) || !isDirty(computed))
+  ) return;
+  write(computed, "flags", flags | 2);
+  JsValue dep = hostRead(computed, "dep");
+  JsValue previous = activeSub;
+  bool previousTrack = shouldTrack;
+  activeSub = computed;
+  shouldTrack = true;
+  try {
+    prepareDeps(computed);
+    JsValue value = JS.call(hostRead(computed, "fn"), JS.undefined(), hostRead(computed, "_value"));
+    if (JS.number(hostRead(dep, "version")).toInt() == 0 || !hostObjectIs(value, hostRead(computed, "_value"))) {
+      write(computed, "flags", JS.number(hostRead(computed, "flags")).toInt() | 128);
+      write(computed, "_value", value);
+      write(dep, "version", JS.number(hostRead(dep, "version")).toInt() + 1);
+    }
+  } catch (JsValue caught) {
+    write(dep, "version", JS.number(hostRead(dep, "version")).toInt() + 1);
+    throw caught;
+  } finally {
+    activeSub = previous;
+    shouldTrack = previousTrack;
+    cleanupDeps(computed);
+    write(computed, "flags", JS.number(hostRead(computed, "flags")).toInt() & -3);
+  }
+}
+
+export JsValue effect(JsValue fn, JsValue options = JS.undefined()) {
+  if (hostInstanceOf(hostRead(fn, "effect"), ReactiveEffect)) {
+    fn = hostRead(hostRead(fn, "effect"), "fn");
+  }
+  JsValue effectValue = JS.construct(ReactiveEffect, fn);
+  if (!JS.isNullish(options)) {
+    for (string key in options) write(effectValue, key, hostRead(options, key));
+  }
+  try {
+    runEffect(effectValue);
+  } catch (JsValue caught) {
+    callMethod0(effectValue, "stop");
+    throw caught;
+  }
+  JsValue runner = JS.method0((JsValue _self) => runEffect(effectValue));
+  write(runner, "effect", effectValue);
+  return runner;
+}
+
+export void stop(JsValue runner) {
+  callMethod0(hostRead(runner, "effect"), "stop");
+}
+
+export void pauseTracking() {
+  trackStack.push(shouldTrack);
+  shouldTrack = false;
+}
+
+export void enableTracking() {
+  trackStack.push(shouldTrack);
+  shouldTrack = true;
+}
+
+export void resetTracking() {
+  if (trackStack.length == 0) shouldTrack = true;
+  else {
+    shouldTrack = trackStack[trackStack.length - 1];
+    trackStack.pop();
+  }
+}
+
+export void onEffectCleanup(JsValue fn, bool failSilently = false) {
+  if (hostInstanceOf(activeSub, ReactiveEffect)) {
+    write(activeSub, "cleanup", fn);
+  } else if (DEV && !failSilently) {
+    warn("onEffectCleanup() was called when there was no active effect to associate with.");
+  }
+}

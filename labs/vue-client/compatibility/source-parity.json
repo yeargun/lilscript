@@ -1,0 +1,3488 @@
+{
+  "schemaVersion": 1,
+  "upstream": {
+    "package": "vue",
+    "version": "3.5.42",
+    "tag": "v3.5.42",
+    "revision": "d63616ca17de965ed32dcb449a4c5cd9982f15d2",
+    "tree": "e3a0d0c0805529972dd8aaa86a1139257810c185",
+    "clean": true
+  },
+  "policy": {
+    "sourcePattern": "^packages/[^/]+/src/.+\\.tsx?$",
+    "candidatePathRule": "packages/<package>/src/<relative>.ts(x) -> src/<package>/<relative>.lil",
+    "algorithmRule": "Each algorithm file requires a non-placeholder LilScript file at its sole deterministic path plus hash-pinned exact-algorithm and preserved-responsibility verification.",
+    "typeOnlyRule": "Type-only files require the same mapped LilScript file or one explicit hash-pinned declaration-only handling record with a specific reason.",
+    "hostAdapterRule": "Only enumerated host.js files may contain JavaScript primitives; adapters cannot satisfy an upstream algorithm mapping or import upstream Vue implementation code."
+  },
+  "totals": {
+    "upstreamFiles": 234,
+    "algorithmFiles": 231,
+    "typeOnlyFiles": 3,
+    "satisfiedFiles": 92,
+    "mappedFiles": 91,
+    "declarationOnlyFiles": 1,
+    "missingFiles": 140,
+    "unverifiedFiles": 0,
+    "invalidFiles": 0,
+    "legacyMappedFiles": 2,
+    "legacyNonconformingFiles": 2,
+    "hostAdapters": 5,
+    "mappingConflicts": 0,
+    "physicalManyToOneMappings": 0,
+    "unmappedCandidateFiles": 0
+  },
+  "verifiedMappings": [
+    {
+      "upstreamPath": "packages/compiler-core/src/ast.ts",
+      "candidatePath": "src/compiler-core/ast.lil",
+      "upstreamSha256": "9b90571a354234d02753cd6484e4ab5c9fa1f281db08a204cdcb89802b49371a",
+      "candidateSha256": "9c3cadc81250912ec75ed30f8f3a397812be3d13a2dde07d40b0a7078f6c0686",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/compiler-core/src/babelUtils.ts",
+      "candidatePath": "src/compiler-core/babelUtils.lil",
+      "upstreamSha256": "2caca549e738805d9a90f597efdd52c975e506a3dafb3e656ca48d2f7715b600",
+      "candidateSha256": "6bd7ac32b85666af36925cb2e959be7c499170e290ab6ce29cea85a587c47cd1",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/compiler-core/src/codegen.ts",
+      "candidatePath": "src/compiler-core/codegen.lil",
+      "upstreamSha256": "ca2958b252428bd39946cfbf58776b6d1e25862c34cdacc17942aa872a158e3a",
+      "candidateSha256": "f05e0d6dd4dba9ad82dde75f2f1c1c411aa65c576167770edeb4cde0e93a64b8",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/compiler-core/src/compat/compatConfig.ts",
+      "candidatePath": "src/compiler-core/compat/compatConfig.lil",
+      "upstreamSha256": "62dab2d0fcecd15d15e87a26b50f9c105401708cbd9a023deb9ba885d6624ce7",
+      "candidateSha256": "55d0be853a5f901f2705be133a2de39455053c210247b543c06844efce82f27a",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/compiler-core/src/compat/transformFilter.ts",
+      "candidatePath": "src/compiler-core/compat/transformFilter.lil",
+      "upstreamSha256": "b04603ad75d4cfb3b74e3d17350ab0f3cf416de8d70c4bd63933495c45af1cd6",
+      "candidateSha256": "a6deef8412d6622082672ab78bf9dbc736aaac4ee9e1af16f4e42d1a42748ebd",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/compiler-core/src/compile.ts",
+      "candidatePath": "src/compiler-core/compile.lil",
+      "upstreamSha256": "3d2659ca9ba18dd6c47d893e79b0d2ccbe0251194c79f67acb80f12f7141d153",
+      "candidateSha256": "eb56a816faff5e0a7a7c735b3f7c3a01e9c386516c04ded96ef6740e5b69fe91",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/compiler-core/src/errors.ts",
+      "candidatePath": "src/compiler-core/errors.lil",
+      "upstreamSha256": "f54e2c0a3703e1ae7f881ebf5e9ecd4a5fb430ee095dffcb3e1008fbc2e0a84c",
+      "candidateSha256": "34a55b49dca663cfb350172ea17f7f7be1c8814fe96226578c4d49016eb5c41a",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/compiler-core/src/index.ts",
+      "candidatePath": "src/compiler-core/index.lil",
+      "upstreamSha256": "30e0f98fbe2e4f31049d86d5818bd7d2c0dd2cceab84463af6620a03a81fb12c",
+      "candidateSha256": "1e7e1a806ad1189197f18068653f0a0dc4433134b4b5d7f3bd56d1b0e9b87fe4",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/compiler-core/src/options.ts",
+      "candidatePath": "src/compiler-core/options.lil",
+      "upstreamSha256": "ef5a59f4b35baaf124396a2077e561c07b57c05a540fdd6c5aa978ea78e3d250",
+      "candidateSha256": "d54d7fce246ba0f52e40f894eb96e5cd6f0892043c0c7ef54f6c34564e7d8198",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/compiler-core/src/parser.ts",
+      "candidatePath": "src/compiler-core/parser.lil",
+      "upstreamSha256": "d1e4340a2b0f7f222e798c473826786bc09b5dc33de8d3f29b0c0bb589a51fd8",
+      "candidateSha256": "bcb168636452b97bcf5da2af1867ef10563766f0ddd7ed50ed0d12b2d330b795",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/compiler-core/src/runtimeHelpers.ts",
+      "candidatePath": "src/compiler-core/runtimeHelpers.lil",
+      "upstreamSha256": "0655002b76c97277db2fd236ebdcda772c61375d7cad4405142682b8de4759b2",
+      "candidateSha256": "0e0ada5faaf27639a8f63da5f28e07f4f9384c17803013c91617a78368955dcb",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/compiler-core/src/tokenizer.ts",
+      "candidatePath": "src/compiler-core/tokenizer.lil",
+      "upstreamSha256": "c7cf4a85af2c9259562823595f547fbc62e12a2a3d085953481392bbc9bb5c07",
+      "candidateSha256": "15501a7230701fe0bb664c1da33e8ebfd4b27ba5b70980ae6a86558680b8d641",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/compiler-core/src/transform.ts",
+      "candidatePath": "src/compiler-core/transform.lil",
+      "upstreamSha256": "9807f8d05f28e48cb9306ddc682f887e8b6f700e5cbd2cd8eeab5c150718d8d2",
+      "candidateSha256": "4389965a91e92d71e94c7a5d27f2c82820e63bc684c5f481ec5429b4a8cefd6a",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/compiler-core/src/transforms/cacheStatic.ts",
+      "candidatePath": "src/compiler-core/transforms/cacheStatic.lil",
+      "upstreamSha256": "1e8a66b081a7c9c586133d4ad2cd5c5309fb4c3ee46ddf7d6b2641d34bff460f",
+      "candidateSha256": "9e7533725852aaebddc45bde391d0aeac0cc4c1880ea46206a8cd6fbf0239fc7",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/compiler-core/src/transforms/noopDirectiveTransform.ts",
+      "candidatePath": "src/compiler-core/transforms/noopDirectiveTransform.lil",
+      "upstreamSha256": "fa76ce4c6a2e9dc9e94575381f196ef82f21361ce902ce98c989385f497148f1",
+      "candidateSha256": "945c3dff93fe6ca7bd7182f42705a243d75567c562e4a49bf8a15c27208ebe39",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/compiler-core/src/transforms/transformElement.ts",
+      "candidatePath": "src/compiler-core/transforms/transformElement.lil",
+      "upstreamSha256": "36d99bba28cc7bca7af9cf0509543d37baee0cfc931cd1ddb38037a67c7009e8",
+      "candidateSha256": "2737206a904f81fa10c634191c5e2ddba1c66ddb9579cd30b75710e5cdcd6840",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/compiler-core/src/transforms/transformExpression.ts",
+      "candidatePath": "src/compiler-core/transforms/transformExpression.lil",
+      "upstreamSha256": "1fea48581b88b5d10e271579f04fecf9a74086f7358544d87a5fec3ff115d935",
+      "candidateSha256": "84a2d0b73b8eb513a6d2f6ebc8a549d8074cc5946aacb195e5f9dec1d8a9129a",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/compiler-core/src/transforms/transformSlotOutlet.ts",
+      "candidatePath": "src/compiler-core/transforms/transformSlotOutlet.lil",
+      "upstreamSha256": "cf02af4c41ddfc393c0796874ad0b1394bd2916843d1a1361da72f6b99a1853a",
+      "candidateSha256": "52da976a982e756f2f53a6a55a7a188cf9b84785a05ba8dccf92b75b5e33b1d2",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/compiler-core/src/transforms/transformText.ts",
+      "candidatePath": "src/compiler-core/transforms/transformText.lil",
+      "upstreamSha256": "47558e63b7d07fad908b6a83fd7c3b27fcec28e284af1409165827f6175c20ff",
+      "candidateSha256": "c288aaa6ae4a1d4662afb9a02d749ac1e30db45db741713d7d3c9238110095bb",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/compiler-core/src/transforms/transformVBindShorthand.ts",
+      "candidatePath": "src/compiler-core/transforms/transformVBindShorthand.lil",
+      "upstreamSha256": "a947f35dc0fa20cd59d9a68bad1897cf9111264fdd3430d1eb87eb48f25d209d",
+      "candidateSha256": "23429129f3cc2c15bbc79812738661e21d250b62500ab80f1dbe16e8007eb865",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/compiler-core/src/transforms/vBind.ts",
+      "candidatePath": "src/compiler-core/transforms/vBind.lil",
+      "upstreamSha256": "a0eaa74d341a54da5b601b7a4560d3378835e3d73845bad41958a72d841ac364",
+      "candidateSha256": "b4ecba4ccce435d285416f8887f21194292424947c935130861255707634b2aa",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/compiler-core/src/transforms/vFor.ts",
+      "candidatePath": "src/compiler-core/transforms/vFor.lil",
+      "upstreamSha256": "5dbd51c4355f13775cd624630399fc644fb367db0411d977ac06df2480283492",
+      "candidateSha256": "8e3506fc637322b13cdfb6f65d2c3a4e6c32112ba3c199e0efbd6d4918e02d88",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/compiler-core/src/transforms/vIf.ts",
+      "candidatePath": "src/compiler-core/transforms/vIf.lil",
+      "upstreamSha256": "d58351924047274c48d6ed87bb9a470eb36b304df2882364c1cadf58c66c5f8f",
+      "candidateSha256": "043d60c2ca8d2722036b7a7c4795b864fbfcd931d000218d3d8edb93788a0cae",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/compiler-core/src/transforms/vMemo.ts",
+      "candidatePath": "src/compiler-core/transforms/vMemo.lil",
+      "upstreamSha256": "3481d52bbdf7689fd265dbb574f33b8832cf1c80af91878a277187e848cc8e28",
+      "candidateSha256": "a2f9da5499fe0539549ceac21492db158792c8211acd25bff343e727db9c1e18",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/compiler-core/src/transforms/vModel.ts",
+      "candidatePath": "src/compiler-core/transforms/vModel.lil",
+      "upstreamSha256": "9d65e0dcb2c3b8a9e7e4f8bfbe88809e02df83c71f47ab4b75711a350b8e7770",
+      "candidateSha256": "0cdc35f3177a7e2a8b186d2bf5347840f2b7e1ae23b765b0b8339cca99649de4",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/compiler-core/src/transforms/vOn.ts",
+      "candidatePath": "src/compiler-core/transforms/vOn.lil",
+      "upstreamSha256": "dbe51b191a3a420002534413122581542202a34cf4122ec06305a1d38a4a7e3e",
+      "candidateSha256": "6a0db8f384bf1f3d9512063562fa382dce790fbd7633f665a0e223513437922e",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/compiler-core/src/transforms/vOnce.ts",
+      "candidatePath": "src/compiler-core/transforms/vOnce.lil",
+      "upstreamSha256": "2937921347ee277edac95c2d79cba357e8a532b52155da11112e77659f281ce3",
+      "candidateSha256": "0ee03322be0fed4c07ec5f5dce59ba6e4657886a71dee43c774a2e40aed22c9b",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/compiler-core/src/transforms/vSlot.ts",
+      "candidatePath": "src/compiler-core/transforms/vSlot.lil",
+      "upstreamSha256": "a56626a9e409506048508a2c50f369f33b4378b98fe9de99e7c836d6a49bee1c",
+      "candidateSha256": "d49c0875795ee600b19291f8ecec5d52e84ac1a375100f10f2cfcc1d44e70f39",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/compiler-core/src/utils.ts",
+      "candidatePath": "src/compiler-core/utils.lil",
+      "upstreamSha256": "e457685b7f950b22f7c62291f5524cd9a86e734c106c9a332edf20b43c22bc9f",
+      "candidateSha256": "f75100b2ee0439a2e8d0a6ab267e4aec4a82c59c8b031458024402f6e52b5391",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/compiler-core/src/validateExpression.ts",
+      "candidatePath": "src/compiler-core/validateExpression.lil",
+      "upstreamSha256": "57fc1d9b873473e71d54dd696a9c4bde9f1216dbefa39958c48a501c845351e5",
+      "candidateSha256": "fcc3be96a44b6e7c3a7da2662440e506f31927d15fc6ac637c5ddceed9f8ec78",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/compiler-dom/src/decodeHtmlBrowser.ts",
+      "candidatePath": "src/compiler-dom/decodeHtmlBrowser.lil",
+      "upstreamSha256": "6d026bdda45ca9abbf5cf8333a51b4f896a28012f76fc5e6e829e50e5fb231e5",
+      "candidateSha256": "3797a2264347df8801621717153db1863ddbefe6557fa361cd9a30a61b307195",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/compiler-dom/src/errors.ts",
+      "candidatePath": "src/compiler-dom/errors.lil",
+      "upstreamSha256": "8bdf8f38495801dfb3d3e5d5c6c74036655ff1275ec10b6237465245a9e3930d",
+      "candidateSha256": "c5b659b4fcc8e74c478db61c141b9ed080bf37d9495f59c46e5941a2472dd213",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/compiler-dom/src/htmlNesting.ts",
+      "candidatePath": "src/compiler-dom/htmlNesting.lil",
+      "upstreamSha256": "bb543a600b5a04f20f5b7f94795484fad17bfd6c99aa1fbcf56b8fc00f2d3343",
+      "candidateSha256": "02f3dd5b961412502c5a98a1ac5344ee23f8174e3f43690b9eede2b5cc7392b0",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/compiler-dom/src/index.ts",
+      "candidatePath": "src/compiler-dom/index.lil",
+      "upstreamSha256": "49d603b86943891ccde9bee3eec0c344ede52663a49fdd36d5692a161b0ec144",
+      "candidateSha256": "a3a7fb62f4b058ff49997426b5f083f111fb3fa366a4d34fa3e4aa34b52444ed",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/compiler-dom/src/parserOptions.ts",
+      "candidatePath": "src/compiler-dom/parserOptions.lil",
+      "upstreamSha256": "76541e662171de055faae2352f2f81328353d6a9aea6d518be0ffacfee04fced",
+      "candidateSha256": "36fa96d0c38a44604e0d169712e0f88c72e67e5ef12816aef74ec6737ef22e0a",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/compiler-dom/src/runtimeHelpers.ts",
+      "candidatePath": "src/compiler-dom/runtimeHelpers.lil",
+      "upstreamSha256": "430e2fd87cc8e49601794d2d89782dc1524d2fa60a463d8f6277b795d2eb06e9",
+      "candidateSha256": "a2f76761e03e4819dacadf0b0dd529733d6ec42e26c0c71d98b7c8fda9417b8e",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/compiler-dom/src/transforms/Transition.ts",
+      "candidatePath": "src/compiler-dom/transforms/Transition.lil",
+      "upstreamSha256": "c1a1e2c03343b5c9398fd93d74fbe37c711800b03cdb63a3b48cdd1bf6554139",
+      "candidateSha256": "04444f75adaf2c4eefd038b01abe5354fb261a2cb0c269b7d6311f4676b9dde8",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/compiler-dom/src/transforms/ignoreSideEffectTags.ts",
+      "candidatePath": "src/compiler-dom/transforms/ignoreSideEffectTags.lil",
+      "upstreamSha256": "7df5d45f4af98fcebf5618f0058ceb2befeded6eeb724749dded980cb9b1f2ef",
+      "candidateSha256": "5e37fb8d6131d19f961ed3d2139dda42d9181f0f6bb25b5ff71804e311dbfbb3",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/compiler-dom/src/transforms/stringifyStatic.ts",
+      "candidatePath": "src/compiler-dom/transforms/stringifyStatic.lil",
+      "upstreamSha256": "98321db359387e30349946a196088b2140a4fd5e6c67b5239b872754f44c5da6",
+      "candidateSha256": "123e19df1b0b6f863471ae32420e5f6fd7c1b2b3b98b856578e770043c780523",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/compiler-dom/src/transforms/transformStyle.ts",
+      "candidatePath": "src/compiler-dom/transforms/transformStyle.lil",
+      "upstreamSha256": "8bc01f6fdee0bc1e00aa9e868b19c35a1035f9bede9c7ccca80456fa51fedbbb",
+      "candidateSha256": "4f3211c14e5c3f4502e2b4581f2871fd9bce1975f5c0e0d304c539b9133c0300",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/compiler-dom/src/transforms/vHtml.ts",
+      "candidatePath": "src/compiler-dom/transforms/vHtml.lil",
+      "upstreamSha256": "6f1de64d47ed4188b74c73b1864c536f574a05dd7514bfa2b758264ba9b6d835",
+      "candidateSha256": "657b7250364ffdf5a623a72a3f069284edcef0d007521b555e8e1d70fb6d034d",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/compiler-dom/src/transforms/vModel.ts",
+      "candidatePath": "src/compiler-dom/transforms/vModel.lil",
+      "upstreamSha256": "f26b8355cd50e179a5184819b0e5336a728974dff212f963abe1e117bc641c44",
+      "candidateSha256": "8b329728e1d777368a653e10c2d189709c4c96fd70295a3567975f7f82e90fc5",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/compiler-dom/src/transforms/vOn.ts",
+      "candidatePath": "src/compiler-dom/transforms/vOn.lil",
+      "upstreamSha256": "1a5d5214a0e126fdbddc7797279e6246b6b1cb4a0d37cc263f133fda230febad",
+      "candidateSha256": "aa3a752200065e985554207bef44a9d933a66d4662c7a4a222cd71b70e13c9f9",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/compiler-dom/src/transforms/vShow.ts",
+      "candidatePath": "src/compiler-dom/transforms/vShow.lil",
+      "upstreamSha256": "cf9d3e1d4fafc277cd49bcf200e1f9a474448a33b1b5cc81272f75aa4e191b62",
+      "candidateSha256": "95bc5cab24e681d357a67a814363b1e7a403232f47f081cc096bf3f7b43393bc",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/compiler-dom/src/transforms/vText.ts",
+      "candidatePath": "src/compiler-dom/transforms/vText.lil",
+      "upstreamSha256": "f81df86e57e0c90eb5d2b39ae2ffde6b148c14f5551c598247a7e838d119a720",
+      "candidateSha256": "9e51df4ac762f893ec2de9e404cd6210ccc01e0c9e152db0869534313706f973",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/compiler-dom/src/transforms/validateHtmlNesting.ts",
+      "candidatePath": "src/compiler-dom/transforms/validateHtmlNesting.lil",
+      "upstreamSha256": "f89f03163b965bd4726d5b4468b92f343b313c04afb5cc992885d94fb1738926",
+      "candidateSha256": "31b68059e9d4e316e6a498c4fa085f4cc1d1506028f6a938dd5416738b4f8718",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/compiler-ssr/src/errors.ts",
+      "candidatePath": "src/compiler-ssr/errors.lil",
+      "upstreamSha256": "1f0ca84b325a633a7e945ec3e5634472337a746ca516a0a9adcca8dd5d977bed",
+      "candidateSha256": "554f6b4273a123d505d9b097de0ec13436e5b015e42c0983eea295fac93b1d5c",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/compiler-ssr/src/index.ts",
+      "candidatePath": "src/compiler-ssr/index.lil",
+      "upstreamSha256": "fe8f9850ebc4ba08864808c5f35c60ed14274b0322771802d657abc77f53befe",
+      "candidateSha256": "18c524d8a13a5391bd045f579486cc7c620b9b6d0eaefa352cee1cdb8872074a",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/compiler-ssr/src/runtimeHelpers.ts",
+      "candidatePath": "src/compiler-ssr/runtimeHelpers.lil",
+      "upstreamSha256": "fafcd6f4fd71df2935e41562b4ebe6537b91793a06556e6b310cc007f2879556",
+      "candidateSha256": "bbacf1c7f6b3325e0ae995956636f78e02759913a4285ccde8148cc97e5c8572",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/compiler-ssr/src/ssrCodegenTransform.ts",
+      "candidatePath": "src/compiler-ssr/ssrCodegenTransform.lil",
+      "upstreamSha256": "4b78a6e9ff25e628167d48f1b0d477a6136c6947da6ea9f259c34d66e18ae184",
+      "candidateSha256": "3887a7d061afdfc4a58f8546d5619a2113dc900a02c027a720f70cc1f526b345",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/compiler-ssr/src/transforms/ssrInjectCssVars.ts",
+      "candidatePath": "src/compiler-ssr/transforms/ssrInjectCssVars.lil",
+      "upstreamSha256": "5163f9e319e0ccc0de045457488de69df72ed1302f111b9966b63dadc3197166",
+      "candidateSha256": "a3859bed60e57b2bf83624ced0907426a8a5fb5e54e4b934937dcc2dc63ade68",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/compiler-ssr/src/transforms/ssrInjectFallthroughAttrs.ts",
+      "candidatePath": "src/compiler-ssr/transforms/ssrInjectFallthroughAttrs.lil",
+      "upstreamSha256": "8990228078291767d6fc8f18b5dbdded79de2454b010c9cf603085f6e2d9e9bf",
+      "candidateSha256": "f9a9bbe1a0cb3b79b2f62ffd6e24b25aac4558df472ae56577ed790dad61a48f",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/compiler-ssr/src/transforms/ssrTransformComponent.ts",
+      "candidatePath": "src/compiler-ssr/transforms/ssrTransformComponent.lil",
+      "upstreamSha256": "9a4b5fd56e60755708a4ae40ba181032b821ac43059bf572e740d382e9b2c2b4",
+      "candidateSha256": "f9a561fb3036364d5ea14210cf3de600789c9b706061ca0e1eef8f063241d035",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/compiler-ssr/src/transforms/ssrTransformElement.ts",
+      "candidatePath": "src/compiler-ssr/transforms/ssrTransformElement.lil",
+      "upstreamSha256": "8a5ad4edec79421c0864584b31e6db982e63036f16e02e9eebdcfe897b8f000f",
+      "candidateSha256": "e03e697226775040b9e5758f9b34e1fe176e060285cd9e2c7c9cd30bddd8f98b",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/compiler-ssr/src/transforms/ssrTransformSlotOutlet.ts",
+      "candidatePath": "src/compiler-ssr/transforms/ssrTransformSlotOutlet.lil",
+      "upstreamSha256": "0f83ffa083232862f769d7195446d2ab11c2060698dc4149708dec029785cae0",
+      "candidateSha256": "e32de78bfb992e7203c2465c7f3f9fc19beba1b16fe2de9c92b31afb2d7f58a2",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/compiler-ssr/src/transforms/ssrTransformSuspense.ts",
+      "candidatePath": "src/compiler-ssr/transforms/ssrTransformSuspense.lil",
+      "upstreamSha256": "a457127fb930f894b3cd6370a62a551695dbc04b1adde17a0da79bc09d390441",
+      "candidateSha256": "95881445c47482a269938f18fb2ac5d55ef72cf4e64be741f10ddd7848ba67de",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/compiler-ssr/src/transforms/ssrTransformTeleport.ts",
+      "candidatePath": "src/compiler-ssr/transforms/ssrTransformTeleport.lil",
+      "upstreamSha256": "b88d7846498b64e067ac76942cc86c271c5286194032519baf134a22c3568555",
+      "candidateSha256": "45c663002487b5fb7476db8f7071d874261c5bd85730c56a75b513ddfb9c53c1",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/compiler-ssr/src/transforms/ssrTransformTransition.ts",
+      "candidatePath": "src/compiler-ssr/transforms/ssrTransformTransition.lil",
+      "upstreamSha256": "c93db716a1b2ee8cf577935f57226364e9618e3b2c8f1552e282c1650b7abe3a",
+      "candidateSha256": "c459cfd9547b6dddf62dc5eb242166fd8fa4a4e353c7d317a3f9aad26af8a77b",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/compiler-ssr/src/transforms/ssrTransformTransitionGroup.ts",
+      "candidatePath": "src/compiler-ssr/transforms/ssrTransformTransitionGroup.lil",
+      "upstreamSha256": "748af1509a9bed8905004808c2ca909da32ddb95e1455776b8354edc1a1a1fe1",
+      "candidateSha256": "7655e9964dd67b3ac0240d541a015d9fb3829daf0db395ac3d9211f9f12698df",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/compiler-ssr/src/transforms/ssrVFor.ts",
+      "candidatePath": "src/compiler-ssr/transforms/ssrVFor.lil",
+      "upstreamSha256": "4297b6f8d3612a8bf3a26ebba165db2b6cdb79cdae46f469edee667da3dc6a22",
+      "candidateSha256": "36fc171cba7985e2c6dcc7b883d3175aa398a9bbe5ba61c4fba001a81581c705",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/compiler-ssr/src/transforms/ssrVIf.ts",
+      "candidatePath": "src/compiler-ssr/transforms/ssrVIf.lil",
+      "upstreamSha256": "d268f109eaf306431efb0e84e0ad27eb50990ed6f0d92ce7d3a65cc694bfcea9",
+      "candidateSha256": "640aa800bd4f9cdd367f85a252302ad0724b6559d8be380021f2621acd88ad1a",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/compiler-ssr/src/transforms/ssrVModel.ts",
+      "candidatePath": "src/compiler-ssr/transforms/ssrVModel.lil",
+      "upstreamSha256": "74f6d75f9228ec9eaff87006ea1fda879024e4e355266ec3713b10d02652a015",
+      "candidateSha256": "dc7e6adde5c2a9717a2bf1e21656d14e3dc77f7d4e280cad0a4a1bb0b67e6699",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/compiler-ssr/src/transforms/ssrVShow.ts",
+      "candidatePath": "src/compiler-ssr/transforms/ssrVShow.lil",
+      "upstreamSha256": "3a8764938330fe6ca4e080f8971e2be6fcefbd710b7a51287d832027b6a5e6fd",
+      "candidateSha256": "91ad7fde923a66db8a12c7ce52f34f9a2e8552f76890b7e5d0d5f6f6ea3cd965",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/reactivity/src/arrayInstrumentations.ts",
+      "candidatePath": "src/reactivity/arrayInstrumentations.lil",
+      "upstreamSha256": "58eaa7014785ae7e1e78825ca530168148d5395d23b1b352ac9cf719f47a3e81",
+      "candidateSha256": "5196fc8d0bb7e2b846efe6bf162f04115dc8f85c008b595b062c0721e6b281b9",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/reactivity/src/baseHandlers.ts",
+      "candidatePath": "src/reactivity/baseHandlers.lil",
+      "upstreamSha256": "644f60af44b6ee521fc617f685ee9fa287296aa2de157911fa344acad9f06ed3",
+      "candidateSha256": "e60be1e0ceb4ef8a1c9b782ddc3936ef95716cfdce2b6a54b6485fe9f8b0c44e",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/reactivity/src/collectionHandlers.ts",
+      "candidatePath": "src/reactivity/collectionHandlers.lil",
+      "upstreamSha256": "d1ae3b00e8476e06f16edd0b704f6903ccbbbd65327ceb4e5bb0f7cde7230c07",
+      "candidateSha256": "5c8c48814faff0e34e70eedfbe848a6ff09bea244eb1adb757ddca9e91d6d11d",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/reactivity/src/computed.ts",
+      "candidatePath": "src/reactivity/computed.lil",
+      "upstreamSha256": "8ffa806b12007d991a51baf19cdb02a050fb6319e52a93d4ca89ffa77a033b1b",
+      "candidateSha256": "49fac743f5381d9443552399aff5de5e45051cb2bc4093e90c2101f6253e4804",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/reactivity/src/constants.ts",
+      "candidatePath": "src/reactivity/constants.lil",
+      "upstreamSha256": "07fe5b83223ef3525bfb2806b186f9b6f4f59cc58af08d4749caf93c49ef527f",
+      "candidateSha256": "954627ac531bdbfc85d77a248c605a9b20fcc20f12801975c93a4e9fc77253a6",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/reactivity/src/dep.ts",
+      "candidatePath": "src/reactivity/dep.lil",
+      "upstreamSha256": "398dca9aca80d24f73033cf11ee944681b9ade8d10bc466f3ebf4ccfcf0eb47a",
+      "candidateSha256": "b7774cdef96bb7d830ee92206f0df4953d48b0b1990b2b1c6afbe0b6458c3c2e",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/reactivity/src/effect.ts",
+      "candidatePath": "src/reactivity/effect.lil",
+      "upstreamSha256": "acfc5c813be8323a8dd52d5348e91186ca5a88426c6c4e5dc04448fa3c12983a",
+      "candidateSha256": "6811d8c7d77aacc9e986f001c5221270678b012c086d27f7fb5bbbf6078e2720",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/reactivity/src/effectScope.ts",
+      "candidatePath": "src/reactivity/effectScope.lil",
+      "upstreamSha256": "ec3c7e4dbb5ed7784d701a092b71f14dbf7fb915e007be9bcaeb25815f176879",
+      "candidateSha256": "050818e8c79fcf758e47ceae11ea77ea201244b215261e17330be620cf6912cc",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/reactivity/src/index.ts",
+      "candidatePath": "src/reactivity/index.lil",
+      "upstreamSha256": "544c9c181c973e0341e08c326dd9aef97e4b26f69ca2872ca7a7bba015897019",
+      "candidateSha256": "72990bd202e309eba0e1426db934031bb294daf9a6b1d404106d46735c297542",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/reactivity/src/reactive.ts",
+      "candidatePath": "src/reactivity/reactive.lil",
+      "upstreamSha256": "47280cc495afb2392a8cb59ffd0b940cf9afd54977d961d08917fb57c624eec6",
+      "candidateSha256": "68775fcfd439fbea9d2e1f13de7ece3c58ac75b29f6f99abe7a47f156fe75caa",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/reactivity/src/ref.ts",
+      "candidatePath": "src/reactivity/ref.lil",
+      "upstreamSha256": "ad09f393c2fa11906d59f4daee1ee634c2ced643d8551ef1318a56b9f76d82ef",
+      "candidateSha256": "0a9e8f1576eb15dde26164e41346e488396d1032aad43ad261de6bb8066fa963",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/reactivity/src/warning.ts",
+      "candidatePath": "src/reactivity/warning.lil",
+      "upstreamSha256": "cbde58f39e9fced570ec0ad1dc7853f43c8a2a16db0ffb05e936478428f3f122",
+      "candidateSha256": "dc0f1667e4c6796d8e2ff7c7f3644ba917bcce24596ea823a3731713e591d523",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/reactivity/src/watch.ts",
+      "candidatePath": "src/reactivity/watch.lil",
+      "upstreamSha256": "d0dcce0566ceff5db841870036027c53cd881291c9b335653696c3fa91a31548",
+      "candidateSha256": "27f02a032fc889a46c024be053fbc752ec02b9b1387cbb82f2598944a9390720",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/shared/src/codeframe.ts",
+      "candidatePath": "src/shared/codeframe.lil",
+      "upstreamSha256": "bd00f1cee2dec77d186e4f678635141c03ae924b24d9ed0da03b762887e8be9b",
+      "candidateSha256": "0267556fe95e6a0f18a2198ff670fb4a414d2b102b0a324ebef647d426fbfba0",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/shared/src/cssVars.ts",
+      "candidatePath": "src/shared/cssVars.lil",
+      "upstreamSha256": "74279ab19843e51a5d7adb2dce0f00e1c7de0be438b69a4252eeb293e7d78288",
+      "candidateSha256": "78f6ed86ba067daa002dc70b408882586d4e4a3361b1c39fe841ac84134b87ae",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/shared/src/domAttrConfig.ts",
+      "candidatePath": "src/shared/domAttrConfig.lil",
+      "upstreamSha256": "40638faef48f0be9dd51c5bd29fb6194b85b70a707026010e8ae5a6d2ba25c70",
+      "candidateSha256": "adc127e51661375a5a51f9b3d3dd938f6038d641ef1b01e9ae0c56126741a8de",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/shared/src/domTagConfig.ts",
+      "candidatePath": "src/shared/domTagConfig.lil",
+      "upstreamSha256": "571a383b541c6122764c6f6451fc44e999f836edff787a3b6f8a1366b658784d",
+      "candidateSha256": "da940432653193ab62712de28baead42ac95389b9036009eaead37c3b300cdc1",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/shared/src/escapeHtml.ts",
+      "candidatePath": "src/shared/escapeHtml.lil",
+      "upstreamSha256": "77968fa96dda60e9068079f5035f7199df112de99d43c4ab53c0bc0354402368",
+      "candidateSha256": "3c56121ab2383a265a8c8f95c5fc57eb09927e3127534065d5ad2ef16f362dd8",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/shared/src/general.ts",
+      "candidatePath": "src/shared/general.lil",
+      "upstreamSha256": "00f2ecb8608db0398c0fdeeb4ffcd120bf6f827769ec6f00f1d0b5baffcbf3bc",
+      "candidateSha256": "3534af5a795d1ccea79df28aaee6e932e8611ac9fc7682fe02205618932ba4fa",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/shared/src/globalsAllowList.ts",
+      "candidatePath": "src/shared/globalsAllowList.lil",
+      "upstreamSha256": "a41fc4a16eb3671e9ffdf38185b0786002f06fe47f7fcbab025ed1e2839a47cd",
+      "candidateSha256": "8d03e4c13e145a78a7d3ea0dbdc1817089e61bc12db8e4e13bbf92d05996fd0c",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/shared/src/index.ts",
+      "candidatePath": "src/shared/index.lil",
+      "upstreamSha256": "423ca1bc4838302de0a978e1194cd984244bd38f1a39339365da415ef4151286",
+      "candidateSha256": "3f83eea13fd3e95ae1b16fafd5d701745502954c22eb0330c80ced1447ca7699",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/shared/src/looseEqual.ts",
+      "candidatePath": "src/shared/looseEqual.lil",
+      "upstreamSha256": "d33e0e0123972657df92ad660a682e1895f36e26487ddf5ad04301b346145b47",
+      "candidateSha256": "35dfc78ad1d347e09d24e1a193bf8f7c40d226b1aa50881e3bc56f6e352da6e4",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/shared/src/makeMap.ts",
+      "candidatePath": "src/shared/makeMap.lil",
+      "upstreamSha256": "1edafc6bdb5b18819fec2201fb4583be291ea91b09878f7b33d3ee2a02ed0dc4",
+      "candidateSha256": "2fa69a7fc277b07c0452caa8b4b43cbf1dbfda7709485e081130ffce3cff6f13",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/shared/src/normalizeProp.ts",
+      "candidatePath": "src/shared/normalizeProp.lil",
+      "upstreamSha256": "6b7d5d6a26d9e1d3775e8b5c5c41d990db16264d42c17f86fe578500fc2f03e8",
+      "candidateSha256": "8f37cda859238ed355f05c6b17cbcb7a393875fae989cc3046992671489ed442",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/shared/src/patchFlags.ts",
+      "candidatePath": "src/shared/patchFlags.lil",
+      "upstreamSha256": "26bad23d884f3cf825b959adc4456d6b857adee9ef46eb8a6a8fd2e61e52e28d",
+      "candidateSha256": "48f69c89e516720ca5efd5d532250f62a311d27db7d81d65117a7a76fc58437f",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/shared/src/shapeFlags.ts",
+      "candidatePath": "src/shared/shapeFlags.lil",
+      "upstreamSha256": "48307dab673ac5abbcb2b0167bca81ce81086702cb35c009455bbc6f192d3816",
+      "candidateSha256": "5b25cab1a043b590e892a06ab8a4d8728e9de78d98bf71894d973e80d0c5ae57",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/shared/src/slotFlags.ts",
+      "candidatePath": "src/shared/slotFlags.lil",
+      "upstreamSha256": "32adcf4113b794bb52a7f421967cc50687f81958e23de119fc63a4b41c1f4aa1",
+      "candidateSha256": "250388bdeab476087111b4799842ac6a451e8a9af00669dab3021d9ebf5a75f0",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    },
+    {
+      "upstreamPath": "packages/shared/src/toDisplayString.ts",
+      "candidatePath": "src/shared/toDisplayString.lil",
+      "upstreamSha256": "87ce938d3928d079257651eb4c9634f812a8bdf70082ff54cf2bf7023db0dd33",
+      "candidateSha256": "0434c1b59f513159a22a5e4ee1ebdd1317607ace5711be5e26cdcc7370b54943",
+      "algorithmParity": "exact",
+      "moduleResponsibility": "preserved"
+    }
+  ],
+  "declarationOnlyHandling": [
+    {
+      "upstreamPath": "packages/shared/src/typeUtils.ts",
+      "upstreamSha256": "3b13dae506e96fcd6e11b9466fd7bd067036d01555fa58566ca958d3ef961d7f",
+      "handling": "declaration-only",
+      "reason": "This module contains only TypeScript utility aliases and emits no runtime code."
+    }
+  ],
+  "hostAdapters": [
+    {
+      "path": "src/compiler-core/host.js",
+      "sha256": "fbac89815f551372958251896047374f2a5bf919fd463ef01dcbe080d7b1a3df",
+      "bytes": 1665,
+      "classification": "primitive-host-adapter",
+      "primitives": [
+        "parser-primitives",
+        "entity-decoding",
+        "dynamic-function-primitive"
+      ],
+      "issues": []
+    },
+    {
+      "path": "src/compiler-dom/host.js",
+      "sha256": "b7248c143bc5337dd49720eff478bf589065f577cbd7efe653fd2b226e76add7",
+      "bytes": 161,
+      "classification": "primitive-host-adapter",
+      "primitives": [
+        "browser-entity-decoding-primitive"
+      ],
+      "issues": []
+    },
+    {
+      "path": "src/reactivity/host.js",
+      "sha256": "7e238e4b1d8020f63583b39c72c6c8170de3710186b9b78bd00b7995c41d953f",
+      "bytes": 6123,
+      "classification": "primitive-host-adapter",
+      "primitives": [
+        "ecmascript-primitives"
+      ],
+      "issues": []
+    },
+    {
+      "path": "src/runtime-core/host.js",
+      "sha256": "76545d517ba1998518e585ab98a6e0c5ca6a7fa70837c52119cf8a5daae0fa31",
+      "bytes": 5325,
+      "classification": "primitive-host-adapter",
+      "primitives": [
+        "ecmascript-primitives"
+      ],
+      "issues": []
+    },
+    {
+      "path": "src/runtime-dom/host.js",
+      "sha256": "b2f539e30e122a955853964c5859a6246fb562d81f403986e9ffefb3435f35b9",
+      "bytes": 6280,
+      "classification": "primitive-host-adapter",
+      "primitives": [
+        "dom-primitives",
+        "ecmascript-primitives"
+      ],
+      "issues": []
+    }
+  ],
+  "supportFiles": [
+    {
+      "path": "src/reactivity/build-entry.mjs",
+      "sha256": "86a64f1bffe212d573a0bcdef2d34448c03870d2154fbd6e7348d1f333630b6f",
+      "bytes": 5498,
+      "classification": "build-tooling"
+    }
+  ],
+  "legacyNonconforming": [
+    {
+      "path": "src/runtime-core/index.lil",
+      "sha256": "8a5edc4c8de962b570e58a3292f78e3cf1fc11e8a710afff147c33dd849ecb1b",
+      "bytes": 138870,
+      "classification": "legacy-nonconforming",
+      "reason": "Package-wide runtime-core implementation combines responsibilities from multiple upstream modules.",
+      "counted": false
+    },
+    {
+      "path": "src/runtime-dom/index.lil",
+      "sha256": "6f4c9a9fb5830bc6b194da3625d453c01a3e9f3b681b9c0051920976294c623d",
+      "bytes": 51709,
+      "classification": "legacy-nonconforming",
+      "reason": "Package-wide runtime-dom implementation combines responsibilities from multiple upstream modules.",
+      "counted": false
+    }
+  ],
+  "mappingConflicts": {
+    "deterministic": [],
+    "verified": [],
+    "physical": []
+  },
+  "unmappedCandidates": [],
+  "files": [
+    {
+      "upstreamPath": "packages/compiler-core/src/ast.ts",
+      "upstreamSha256": "9b90571a354234d02753cd6484e4ab5c9fa1f281db08a204cdcb89802b49371a",
+      "package": "@vue/compiler-core",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-core/ast.lil",
+      "candidate": {
+        "sha256": "9c3cadc81250912ec75ed30f8f3a397812be3d13a2dde07d40b0a7078f6c0686",
+        "bytes": 7834
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-core/src/babelUtils.ts",
+      "upstreamSha256": "2caca549e738805d9a90f597efdd52c975e506a3dafb3e656ca48d2f7715b600",
+      "package": "@vue/compiler-core",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-core/babelUtils.lil",
+      "candidate": {
+        "sha256": "6bd7ac32b85666af36925cb2e959be7c499170e290ab6ce29cea85a587c47cd1",
+        "bytes": 15246
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-core/src/codegen.ts",
+      "upstreamSha256": "ca2958b252428bd39946cfbf58776b6d1e25862c34cdacc17942aa872a158e3a",
+      "package": "@vue/compiler-core",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-core/codegen.lil",
+      "candidate": {
+        "sha256": "f05e0d6dd4dba9ad82dde75f2f1c1c411aa65c576167770edeb4cde0e93a64b8",
+        "bytes": 27375
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-core/src/compat/compatConfig.ts",
+      "upstreamSha256": "62dab2d0fcecd15d15e87a26b50f9c105401708cbd9a023deb9ba885d6624ce7",
+      "package": "@vue/compiler-core",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-core/compat/compatConfig.lil",
+      "candidate": {
+        "sha256": "55d0be853a5f901f2705be133a2de39455053c210247b543c06844efce82f27a",
+        "bytes": 5514
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-core/src/compat/transformFilter.ts",
+      "upstreamSha256": "b04603ad75d4cfb3b74e3d17350ab0f3cf416de8d70c4bd63933495c45af1cd6",
+      "package": "@vue/compiler-core",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-core/compat/transformFilter.lil",
+      "candidate": {
+        "sha256": "a6deef8412d6622082672ab78bf9dbc736aaac4ee9e1af16f4e42d1a42748ebd",
+        "bytes": 5346
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-core/src/compile.ts",
+      "upstreamSha256": "3d2659ca9ba18dd6c47d893e79b0d2ccbe0251194c79f67acb80f12f7141d153",
+      "package": "@vue/compiler-core",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-core/compile.lil",
+      "candidate": {
+        "sha256": "eb56a816faff5e0a7a7c735b3f7c3a01e9c386516c04ded96ef6740e5b69fe91",
+        "bytes": 5635
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-core/src/errors.ts",
+      "upstreamSha256": "f54e2c0a3703e1ae7f881ebf5e9ecd4a5fb430ee095dffcb3e1008fbc2e0a84c",
+      "package": "@vue/compiler-core",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-core/errors.lil",
+      "candidate": {
+        "sha256": "34a55b49dca663cfb350172ea17f7f7be1c8814fe96226578c4d49016eb5c41a",
+        "bytes": 6440
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-core/src/index.ts",
+      "upstreamSha256": "30e0f98fbe2e4f31049d86d5818bd7d2c0dd2cceab84463af6620a03a81fb12c",
+      "package": "@vue/compiler-core",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-core/index.lil",
+      "candidate": {
+        "sha256": "1e7e1a806ad1189197f18068653f0a0dc4433134b4b5d7f3bd56d1b0e9b87fe4",
+        "bytes": 7127
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-core/src/options.ts",
+      "upstreamSha256": "ef5a59f4b35baaf124396a2077e561c07b57c05a540fdd6c5aa978ea78e3d250",
+      "package": "@vue/compiler-core",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-core/options.lil",
+      "candidate": {
+        "sha256": "d54d7fce246ba0f52e40f894eb96e5cd6f0892043c0c7ef54f6c34564e7d8198",
+        "bytes": 508
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-core/src/parser.ts",
+      "upstreamSha256": "d1e4340a2b0f7f222e798c473826786bc09b5dc33de8d3f29b0c0bb589a51fd8",
+      "package": "@vue/compiler-core",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-core/parser.lil",
+      "candidate": {
+        "sha256": "bcb168636452b97bcf5da2af1867ef10563766f0ddd7ed50ed0d12b2d330b795",
+        "bytes": 28724
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-core/src/runtimeHelpers.ts",
+      "upstreamSha256": "0655002b76c97277db2fd236ebdcda772c61375d7cad4405142682b8de4759b2",
+      "package": "@vue/compiler-core",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-core/runtimeHelpers.lil",
+      "candidate": {
+        "sha256": "0e0ada5faaf27639a8f63da5f28e07f4f9384c17803013c91617a78368955dcb",
+        "bytes": 5435
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-core/src/tokenizer.ts",
+      "upstreamSha256": "c7cf4a85af2c9259562823595f547fbc62e12a2a3d085953481392bbc9bb5c07",
+      "package": "@vue/compiler-core",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-core/tokenizer.lil",
+      "candidate": {
+        "sha256": "15501a7230701fe0bb664c1da33e8ebfd4b27ba5b70980ae6a86558680b8d641",
+        "bytes": 26413
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-core/src/transform.ts",
+      "upstreamSha256": "9807f8d05f28e48cb9306ddc682f887e8b6f700e5cbd2cd8eeab5c150718d8d2",
+      "package": "@vue/compiler-core",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-core/transform.lil",
+      "candidate": {
+        "sha256": "4389965a91e92d71e94c7a5d27f2c82820e63bc684c5f481ec5429b4a8cefd6a",
+        "bytes": 15286
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-core/src/transforms/cacheStatic.ts",
+      "upstreamSha256": "1e8a66b081a7c9c586133d4ad2cd5c5309fb4c3ee46ddf7d6b2641d34bff460f",
+      "package": "@vue/compiler-core",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-core/transforms/cacheStatic.lil",
+      "candidate": {
+        "sha256": "9e7533725852aaebddc45bde391d0aeac0cc4c1880ea46206a8cd6fbf0239fc7",
+        "bytes": 11756
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-core/src/transforms/noopDirectiveTransform.ts",
+      "upstreamSha256": "fa76ce4c6a2e9dc9e94575381f196ef82f21361ce902ce98c989385f497148f1",
+      "package": "@vue/compiler-core",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-core/transforms/noopDirectiveTransform.lil",
+      "candidate": {
+        "sha256": "945c3dff93fe6ca7bd7182f42705a243d75567c562e4a49bf8a15c27208ebe39",
+        "bytes": 85
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-core/src/transforms/transformElement.ts",
+      "upstreamSha256": "36d99bba28cc7bca7af9cf0509543d37baee0cfc931cd1ddb38037a67c7009e8",
+      "package": "@vue/compiler-core",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-core/transforms/transformElement.lil",
+      "candidate": {
+        "sha256": "2737206a904f81fa10c634191c5e2ddba1c66ddb9579cd30b75710e5cdcd6840",
+        "bytes": 23405
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-core/src/transforms/transformExpression.ts",
+      "upstreamSha256": "1fea48581b88b5d10e271579f04fecf9a74086f7358544d87a5fec3ff115d935",
+      "package": "@vue/compiler-core",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-core/transforms/transformExpression.lil",
+      "candidate": {
+        "sha256": "84a2d0b73b8eb513a6d2f6ebc8a549d8074cc5946aacb195e5f9dec1d8a9129a",
+        "bytes": 9847
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-core/src/transforms/transformSlotOutlet.ts",
+      "upstreamSha256": "cf02af4c41ddfc393c0796874ad0b1394bd2916843d1a1361da72f6b99a1853a",
+      "package": "@vue/compiler-core",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-core/transforms/transformSlotOutlet.lil",
+      "candidate": {
+        "sha256": "52da976a982e756f2f53a6a55a7a188cf9b84785a05ba8dccf92b75b5e33b1d2",
+        "bytes": 4083
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-core/src/transforms/transformText.ts",
+      "upstreamSha256": "47558e63b7d07fad908b6a83fd7c3b27fcec28e284af1409165827f6175c20ff",
+      "package": "@vue/compiler-core",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-core/transforms/transformText.lil",
+      "candidate": {
+        "sha256": "c288aaa6ae4a1d4662afb9a02d749ac1e30db45db741713d7d3c9238110095bb",
+        "bytes": 4038
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-core/src/transforms/transformVBindShorthand.ts",
+      "upstreamSha256": "a947f35dc0fa20cd59d9a68bad1897cf9111264fdd3430d1eb87eb48f25d209d",
+      "package": "@vue/compiler-core",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-core/transforms/transformVBindShorthand.lil",
+      "candidate": {
+        "sha256": "23429129f3cc2c15bbc79812738661e21d250b62500ab80f1dbe16e8007eb865",
+        "bytes": 2271
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-core/src/transforms/vBind.ts",
+      "upstreamSha256": "a0eaa74d341a54da5b601b7a4560d3378835e3d73845bad41958a72d841ac364",
+      "package": "@vue/compiler-core",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-core/transforms/vBind.lil",
+      "candidate": {
+        "sha256": "b4ecba4ccce435d285416f8887f21194292424947c935130861255707634b2aa",
+        "bytes": 3673
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-core/src/transforms/vFor.ts",
+      "upstreamSha256": "5dbd51c4355f13775cd624630399fc644fb367db0411d977ac06df2480283492",
+      "package": "@vue/compiler-core",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-core/transforms/vFor.lil",
+      "candidate": {
+        "sha256": "8e3506fc637322b13cdfb6f65d2c3a4e6c32112ba3c199e0efbd6d4918e02d88",
+        "bytes": 12448
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-core/src/transforms/vIf.ts",
+      "upstreamSha256": "d58351924047274c48d6ed87bb9a470eb36b304df2882364c1cadf58c66c5f8f",
+      "package": "@vue/compiler-core",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-core/transforms/vIf.lil",
+      "candidate": {
+        "sha256": "043d60c2ca8d2722036b7a7c4795b864fbfcd931d000218d3d8edb93788a0cae",
+        "bytes": 10497
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-core/src/transforms/vMemo.ts",
+      "upstreamSha256": "3481d52bbdf7689fd265dbb574f33b8832cf1c80af91878a277187e848cc8e28",
+      "package": "@vue/compiler-core",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-core/transforms/vMemo.lil",
+      "candidate": {
+        "sha256": "a2f9da5499fe0539549ceac21492db158792c8211acd25bff343e727db9c1e18",
+        "bytes": 1535
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-core/src/transforms/vModel.ts",
+      "upstreamSha256": "9d65e0dcb2c3b8a9e7e4f8bfbe88809e02df83c71f47ab4b75711a350b8e7770",
+      "package": "@vue/compiler-core",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-core/transforms/vModel.lil",
+      "candidate": {
+        "sha256": "0cdc35f3177a7e2a8b186d2bf5347840f2b7e1ae23b765b0b8339cca99649de4",
+        "bytes": 6988
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-core/src/transforms/vOn.ts",
+      "upstreamSha256": "dbe51b191a3a420002534413122581542202a34cf4122ec06305a1d38a4a7e3e",
+      "package": "@vue/compiler-core",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-core/transforms/vOn.lil",
+      "candidate": {
+        "sha256": "6a0db8f384bf1f3d9512063562fa382dce790fbd7633f665a0e223513437922e",
+        "bytes": 6788
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-core/src/transforms/vOnce.ts",
+      "upstreamSha256": "2937921347ee277edac95c2d79cba357e8a532b52155da11112e77659f281ce3",
+      "package": "@vue/compiler-core",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-core/transforms/vOnce.lil",
+      "candidate": {
+        "sha256": "0ee03322be0fed4c07ec5f5dce59ba6e4657886a71dee43c774a2e40aed22c9b",
+        "bytes": 1046
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-core/src/transforms/vSlot.ts",
+      "upstreamSha256": "a56626a9e409506048508a2c50f369f33b4378b98fe9de99e7c836d6a49bee1c",
+      "package": "@vue/compiler-core",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-core/transforms/vSlot.lil",
+      "candidate": {
+        "sha256": "d49c0875795ee600b19291f8ecec5d52e84ac1a375100f10f2cfcc1d44e70f39",
+        "bytes": 11507
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-core/src/utils.ts",
+      "upstreamSha256": "e457685b7f950b22f7c62291f5524cd9a86e734c106c9a332edf20b43c22bc9f",
+      "package": "@vue/compiler-core",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-core/utils.lil",
+      "candidate": {
+        "sha256": "f75100b2ee0439a2e8d0a6ab267e4aec4a82c59c8b031458024402f6e52b5391",
+        "bytes": 16401
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-core/src/validateExpression.ts",
+      "upstreamSha256": "57fc1d9b873473e71d54dd696a9c4bde9f1216dbefa39958c48a501c845351e5",
+      "package": "@vue/compiler-core",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-core/validateExpression.lil",
+      "candidate": {
+        "sha256": "fcc3be96a44b6e7c3a7da2662440e506f31927d15fc6ac637c5ddceed9f8ec78",
+        "bytes": 1856
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-dom/src/decodeHtmlBrowser.ts",
+      "upstreamSha256": "6d026bdda45ca9abbf5cf8333a51b4f896a28012f76fc5e6e829e50e5fb231e5",
+      "package": "@vue/compiler-dom",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-dom/decodeHtmlBrowser.lil",
+      "candidate": {
+        "sha256": "3797a2264347df8801621717153db1863ddbefe6557fa361cd9a30a61b307195",
+        "bytes": 611
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-dom/src/errors.ts",
+      "upstreamSha256": "8bdf8f38495801dfb3d3e5d5c6c74036655ff1275ec10b6237465245a9e3930d",
+      "package": "@vue/compiler-dom",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-dom/errors.lil",
+      "candidate": {
+        "sha256": "c5b659b4fcc8e74c478db61c141b9ed080bf37d9495f59c46e5941a2472dd213",
+        "bytes": 2342
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-dom/src/htmlNesting.ts",
+      "upstreamSha256": "bb543a600b5a04f20f5b7f94795484fad17bfd6c99aa1fbcf56b8fc00f2d3343",
+      "package": "@vue/compiler-dom",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-dom/htmlNesting.lil",
+      "candidate": {
+        "sha256": "02f3dd5b961412502c5a98a1ac5344ee23f8174e3f43690b9eede2b5cc7392b0",
+        "bytes": 3811
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-dom/src/index.ts",
+      "upstreamSha256": "49d603b86943891ccde9bee3eec0c344ede52663a49fdd36d5692a161b0ec144",
+      "package": "@vue/compiler-dom",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-dom/index.lil",
+      "candidate": {
+        "sha256": "a3a7fb62f4b058ff49997426b5f083f111fb3fa366a4d34fa3e4aa34b52444ed",
+        "bytes": 3787
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-dom/src/parserOptions.ts",
+      "upstreamSha256": "76541e662171de055faae2352f2f81328353d6a9aea6d518be0ffacfee04fced",
+      "package": "@vue/compiler-dom",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-dom/parserOptions.lil",
+      "candidate": {
+        "sha256": "36fa96d0c38a44604e0d169712e0f88c72e67e5ef12816aef74ec6737ef22e0a",
+        "bytes": 3707
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-dom/src/runtimeHelpers.ts",
+      "upstreamSha256": "430e2fd87cc8e49601794d2d89782dc1524d2fa60a463d8f6277b795d2eb06e9",
+      "package": "@vue/compiler-dom",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-dom/runtimeHelpers.lil",
+      "candidate": {
+        "sha256": "a2f76761e03e4819dacadf0b0dd529733d6ec42e26c0c71d98b7c8fda9417b8e",
+        "bytes": 1605
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-dom/src/transforms/Transition.ts",
+      "upstreamSha256": "c1a1e2c03343b5c9398fd93d74fbe37c711800b03cdb63a3b48cdd1bf6554139",
+      "package": "@vue/compiler-dom",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-dom/transforms/Transition.lil",
+      "candidate": {
+        "sha256": "04444f75adaf2c4eefd038b01abe5354fb261a2cb0c269b7d6311f4676b9dde8",
+        "bytes": 3644
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-dom/src/transforms/ignoreSideEffectTags.ts",
+      "upstreamSha256": "7df5d45f4af98fcebf5618f0058ceb2befeded6eeb724749dded980cb9b1f2ef",
+      "package": "@vue/compiler-dom",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-dom/transforms/ignoreSideEffectTags.lil",
+      "candidate": {
+        "sha256": "5e37fb8d6131d19f961ed3d2139dda42d9181f0f6bb25b5ff71804e311dbfbb3",
+        "bytes": 1075
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-dom/src/transforms/stringifyStatic.ts",
+      "upstreamSha256": "98321db359387e30349946a196088b2140a4fd5e6c67b5239b872754f44c5da6",
+      "package": "@vue/compiler-dom",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-dom/transforms/stringifyStatic.lil",
+      "candidate": {
+        "sha256": "123e19df1b0b6f863471ae32420e5f6fd7c1b2b3b98b856578e770043c780523",
+        "bytes": 16022
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-dom/src/transforms/transformStyle.ts",
+      "upstreamSha256": "8bc01f6fdee0bc1e00aa9e868b19c35a1035f9bede9c7ccca80456fa51fedbbb",
+      "package": "@vue/compiler-dom",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-dom/transforms/transformStyle.lil",
+      "candidate": {
+        "sha256": "4f3211c14e5c3f4502e2b4581f2871fd9bce1975f5c0e0d304c539b9133c0300",
+        "bytes": 1549
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-dom/src/transforms/vHtml.ts",
+      "upstreamSha256": "6f1de64d47ed4188b74c73b1864c536f574a05dd7514bfa2b758264ba9b6d835",
+      "package": "@vue/compiler-dom",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-dom/transforms/vHtml.lil",
+      "candidate": {
+        "sha256": "657b7250364ffdf5a623a72a3f069284edcef0d007521b555e8e1d70fb6d034d",
+        "bytes": 1359
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-dom/src/transforms/vModel.ts",
+      "upstreamSha256": "f26b8355cd50e179a5184819b0e5336a728974dff212f963abe1e117bc641c44",
+      "package": "@vue/compiler-dom",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-dom/transforms/vModel.lil",
+      "candidate": {
+        "sha256": "8b329728e1d777368a653e10c2d189709c4c96fd70295a3567975f7f82e90fc5",
+        "bytes": 3798
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-dom/src/transforms/vOn.ts",
+      "upstreamSha256": "1a5d5214a0e126fdbddc7797279e6246b6b1cb4a0d37cc263f133fda230febad",
+      "package": "@vue/compiler-dom",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-dom/transforms/vOn.lil",
+      "candidate": {
+        "sha256": "aa3a752200065e985554207bef44a9d933a66d4662c7a4a222cd71b70e13c9f9",
+        "bytes": 6351
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-dom/src/transforms/vShow.ts",
+      "upstreamSha256": "cf9d3e1d4fafc277cd49bcf200e1f9a474448a33b1b5cc81272f75aa4e191b62",
+      "package": "@vue/compiler-dom",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-dom/transforms/vShow.lil",
+      "candidate": {
+        "sha256": "95bc5cab24e681d357a67a814363b1e7a403232f47f081cc096bf3f7b43393bc",
+        "bytes": 613
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-dom/src/transforms/vText.ts",
+      "upstreamSha256": "f81df86e57e0c90eb5d2b39ae2ffde6b148c14f5551c598247a7e838d119a720",
+      "package": "@vue/compiler-dom",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-dom/transforms/vText.lil",
+      "candidate": {
+        "sha256": "9e51df4ac762f893ec2de9e404cd6210ccc01e0c9e152db0869534313706f973",
+        "bytes": 1876
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-dom/src/transforms/validateHtmlNesting.ts",
+      "upstreamSha256": "f89f03163b965bd4726d5b4468b92f343b313c04afb5cc992885d94fb1738926",
+      "package": "@vue/compiler-dom",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-dom/transforms/validateHtmlNesting.lil",
+      "candidate": {
+        "sha256": "31b68059e9d4e316e6a498c4fa085f4cc1d1506028f6a938dd5416738b4f8718",
+        "bytes": 1303
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-sfc/src/cache.ts",
+      "upstreamSha256": "c2f7299b82ee1ff981cf8fb0792937b8ca9c1f59bf57ea6f2b77b908701e227e",
+      "package": "@vue/compiler-sfc",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-sfc/cache.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-sfc/src/compileScript.ts",
+      "upstreamSha256": "f9778807367d24bbf4bddea8148307e67d6f2a8c7b7fa7e88536fbbe32ffc5e8",
+      "package": "@vue/compiler-sfc",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-sfc/compileScript.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-sfc/src/compileStyle.ts",
+      "upstreamSha256": "d80cf6186548527d1ae4f819c3035097036e553c69d8f3255f81ed9d623ca05f",
+      "package": "@vue/compiler-sfc",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-sfc/compileStyle.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-sfc/src/compileTemplate.ts",
+      "upstreamSha256": "17cc9ebffb7bd142378e0c36614fed450ea610f17e30e763a8e830bdf45e9ef7",
+      "package": "@vue/compiler-sfc",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-sfc/compileTemplate.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-sfc/src/index.ts",
+      "upstreamSha256": "2afdfe08f15cb5dac2938467f733274eb9343a17649e47cea1db1b19eb1bcb7f",
+      "package": "@vue/compiler-sfc",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-sfc/index.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-sfc/src/parse.ts",
+      "upstreamSha256": "e6a3191f0a89ecb75fd2d5d5e2635b04d096aa814f86e3298184bd886418f87f",
+      "package": "@vue/compiler-sfc",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-sfc/parse.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-sfc/src/rewriteDefault.ts",
+      "upstreamSha256": "5d583f56da38eb788b140002263c4f522ac1597716f9e254ef5b921391c25c0d",
+      "package": "@vue/compiler-sfc",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-sfc/rewriteDefault.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-sfc/src/script/analyzeScriptBindings.ts",
+      "upstreamSha256": "e81e51fdadd5f3b48bb2af4e8b97bdf2aa3b00fe3180f72342550cf978355d78",
+      "package": "@vue/compiler-sfc",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-sfc/script/analyzeScriptBindings.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-sfc/src/script/context.ts",
+      "upstreamSha256": "1262898b599fa581c52e5a77e1721d51e89b112d0f13d0eeb048fbf9b615d884",
+      "package": "@vue/compiler-sfc",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-sfc/script/context.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-sfc/src/script/defineEmits.ts",
+      "upstreamSha256": "7acb46369c8ceb0dbe71f4420994261549e7f92052fc660b04e5398bd0694044",
+      "package": "@vue/compiler-sfc",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-sfc/script/defineEmits.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-sfc/src/script/defineExpose.ts",
+      "upstreamSha256": "717c6b69f0ae7d66e4d1ac624bce71a2e2a00a13afea34dbe19e8eb54b5d2f10",
+      "package": "@vue/compiler-sfc",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-sfc/script/defineExpose.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-sfc/src/script/defineModel.ts",
+      "upstreamSha256": "c556c79c93e8cb9dbf360536def515de8e72df878731cc9e79bfce1cfbf860fb",
+      "package": "@vue/compiler-sfc",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-sfc/script/defineModel.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-sfc/src/script/defineOptions.ts",
+      "upstreamSha256": "bd10b31a284202bdce54f6b1a11edabbce3076144d2ca934e5ee0c412a814c44",
+      "package": "@vue/compiler-sfc",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-sfc/script/defineOptions.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-sfc/src/script/defineProps.ts",
+      "upstreamSha256": "cca021d383bdb2a6fd22f93d642f3f517f307e5d9788eafaca146e2f86df99ed",
+      "package": "@vue/compiler-sfc",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-sfc/script/defineProps.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-sfc/src/script/definePropsDestructure.ts",
+      "upstreamSha256": "20ca445da54a2b151e1543ca3996d2aff028fd80b2b8fce7e5a4d663377204b3",
+      "package": "@vue/compiler-sfc",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-sfc/script/definePropsDestructure.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-sfc/src/script/defineSlots.ts",
+      "upstreamSha256": "36ff568060077d65c1b155e173bb4a914cc22400ec73cb998cc6bf49f7cf1332",
+      "package": "@vue/compiler-sfc",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-sfc/script/defineSlots.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-sfc/src/script/importUsageCheck.ts",
+      "upstreamSha256": "884e695ac97fd459c4ca227a3ac34c1078a7579f8c3a4c627cc839cbcb46bd15",
+      "package": "@vue/compiler-sfc",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-sfc/script/importUsageCheck.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-sfc/src/script/normalScript.ts",
+      "upstreamSha256": "b0bf709953db925696d7337ee5a44d6aae914e61e74eb3ccb4ed434630acb7bc",
+      "package": "@vue/compiler-sfc",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-sfc/script/normalScript.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-sfc/src/script/resolveType.ts",
+      "upstreamSha256": "fa49fb099ee3753a2738892ab74714b7371ebf49b939e087b15fa99a3979c97f",
+      "package": "@vue/compiler-sfc",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-sfc/script/resolveType.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-sfc/src/script/topLevelAwait.ts",
+      "upstreamSha256": "f576a87ad2509a7acfe34bfb3f8105ce064b301f781d37714cd6033d8fef8e8c",
+      "package": "@vue/compiler-sfc",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-sfc/script/topLevelAwait.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-sfc/src/script/utils.ts",
+      "upstreamSha256": "e1d6954b539b9f8309ed6e91103ce122f52facc6eed120b18934065d81a5a8f7",
+      "package": "@vue/compiler-sfc",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-sfc/script/utils.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-sfc/src/shims.d.ts",
+      "upstreamSha256": "c7e41e6332d306bd5b6b1c74166f0059482ef2d3d11fd81e5bcda55b05b8dc3d",
+      "package": "@vue/compiler-sfc",
+      "classification": "type-only",
+      "candidatePath": "src/compiler-sfc/shims.d.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-sfc/src/style/cssVars.ts",
+      "upstreamSha256": "830936f5d99c01d2de95a0de5ca9a1d0e10da2065bc85967fac65e2a095f9bd0",
+      "package": "@vue/compiler-sfc",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-sfc/style/cssVars.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-sfc/src/style/pluginScoped.ts",
+      "upstreamSha256": "9fa0a4d29063e7d938c0f4b472defd4b0602cf346ae93dfdadc83bb6a884df8f",
+      "package": "@vue/compiler-sfc",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-sfc/style/pluginScoped.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-sfc/src/style/pluginTrim.ts",
+      "upstreamSha256": "9cd50fbcff6421491f5ec335d5f1526fb7bf77917d1892c435547b1c71c6ed93",
+      "package": "@vue/compiler-sfc",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-sfc/style/pluginTrim.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-sfc/src/style/preprocessors.ts",
+      "upstreamSha256": "44dba2fb459a1be702e9ff3cadf0757492efb61189f38df93ef84bcf9e824307",
+      "package": "@vue/compiler-sfc",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-sfc/style/preprocessors.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-sfc/src/template/resolveTemplateAST.ts",
+      "upstreamSha256": "84677121af44764c6f176049ef91a80282b0ea4a14c12c01e761da840a006341",
+      "package": "@vue/compiler-sfc",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-sfc/template/resolveTemplateAST.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-sfc/src/template/templateUtils.ts",
+      "upstreamSha256": "45b63db94cd3966d21caef6f1e063bf89a325b70630e435434b3938b7cedc4ed",
+      "package": "@vue/compiler-sfc",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-sfc/template/templateUtils.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-sfc/src/template/transformAssetUrl.ts",
+      "upstreamSha256": "f36108198ecb982bfa6dde6de3f1d9a61508ca82ac1a25c2cb2b8e26f2cfb47b",
+      "package": "@vue/compiler-sfc",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-sfc/template/transformAssetUrl.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-sfc/src/template/transformSrcset.ts",
+      "upstreamSha256": "91d121b944eb7c92f61de2b4d7537c92bd9176b9ad43bed21190b73f7b96cad5",
+      "package": "@vue/compiler-sfc",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-sfc/template/transformSrcset.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-sfc/src/warn.ts",
+      "upstreamSha256": "4efb801dfbe416e0a0dab77ba10b74daf0f25c8d85f24a7b7ff285b84a41a1a3",
+      "package": "@vue/compiler-sfc",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-sfc/warn.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-ssr/src/errors.ts",
+      "upstreamSha256": "1f0ca84b325a633a7e945ec3e5634472337a746ca516a0a9adcca8dd5d977bed",
+      "package": "@vue/compiler-ssr",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-ssr/errors.lil",
+      "candidate": {
+        "sha256": "554f6b4273a123d505d9b097de0ec13436e5b015e42c0983eea295fac93b1d5c",
+        "bytes": 1473
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-ssr/src/index.ts",
+      "upstreamSha256": "fe8f9850ebc4ba08864808c5f35c60ed14274b0322771802d657abc77f53befe",
+      "package": "@vue/compiler-ssr",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-ssr/index.lil",
+      "candidate": {
+        "sha256": "18c524d8a13a5391bd045f579486cc7c620b9b6d0eaefa352cee1cdb8872074a",
+        "bytes": 3767
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-ssr/src/runtimeHelpers.ts",
+      "upstreamSha256": "fafcd6f4fd71df2935e41562b4ebe6537b91793a06556e6b310cc007f2879556",
+      "package": "@vue/compiler-ssr",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-ssr/runtimeHelpers.lil",
+      "candidate": {
+        "sha256": "bbacf1c7f6b3325e0ae995956636f78e02759913a4285ccde8148cc97e5c8572",
+        "bytes": 2894
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-ssr/src/ssrCodegenTransform.ts",
+      "upstreamSha256": "4b78a6e9ff25e628167d48f1b0d477a6136c6947da6ea9f259c34d66e18ae184",
+      "package": "@vue/compiler-ssr",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-ssr/ssrCodegenTransform.lil",
+      "candidate": {
+        "sha256": "3887a7d061afdfc4a58f8546d5619a2113dc900a02c027a720f70cc1f526b345",
+        "bytes": 9574
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-ssr/src/transforms/ssrInjectCssVars.ts",
+      "upstreamSha256": "5163f9e319e0ccc0de045457488de69df72ed1302f111b9966b63dadc3197166",
+      "package": "@vue/compiler-ssr",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-ssr/transforms/ssrInjectCssVars.lil",
+      "candidate": {
+        "sha256": "a3859bed60e57b2bf83624ced0907426a8a5fb5e54e4b934937dcc2dc63ade68",
+        "bytes": 2421
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-ssr/src/transforms/ssrInjectFallthroughAttrs.ts",
+      "upstreamSha256": "8990228078291767d6fc8f18b5dbdded79de2454b010c9cf603085f6e2d9e9bf",
+      "package": "@vue/compiler-ssr",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-ssr/transforms/ssrInjectFallthroughAttrs.lil",
+      "candidate": {
+        "sha256": "f9a9bbe1a0cb3b79b2f62ffd6e24b25aac4558df472ae56577ed790dad61a48f",
+        "bytes": 3795
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-ssr/src/transforms/ssrTransformComponent.ts",
+      "upstreamSha256": "9a4b5fd56e60755708a4ae40ba181032b821ac43059bf572e740d382e9b2c2b4",
+      "package": "@vue/compiler-ssr",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-ssr/transforms/ssrTransformComponent.lil",
+      "candidate": {
+        "sha256": "f9a561fb3036364d5ea14210cf3de600789c9b706061ca0e1eef8f063241d035",
+        "bytes": 13784
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-ssr/src/transforms/ssrTransformElement.ts",
+      "upstreamSha256": "8a5ad4edec79421c0864584b31e6db982e63036f16e02e9eebdcfe897b8f000f",
+      "package": "@vue/compiler-ssr",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-ssr/transforms/ssrTransformElement.lil",
+      "candidate": {
+        "sha256": "e03e697226775040b9e5758f9b34e1fe176e060285cd9e2c7c9cd30bddd8f98b",
+        "bytes": 21492
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-ssr/src/transforms/ssrTransformSlotOutlet.ts",
+      "upstreamSha256": "0f83ffa083232862f769d7195446d2ab11c2060698dc4149708dec029785cae0",
+      "package": "@vue/compiler-ssr",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-ssr/transforms/ssrTransformSlotOutlet.lil",
+      "candidate": {
+        "sha256": "e32de78bfb992e7203c2465c7f3f9fc19beba1b16fe2de9c92b31afb2d7f58a2",
+        "bytes": 3557
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-ssr/src/transforms/ssrTransformSuspense.ts",
+      "upstreamSha256": "a457127fb930f894b3cd6370a62a551695dbc04b1adde17a0da79bc09d390441",
+      "package": "@vue/compiler-ssr",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-ssr/transforms/ssrTransformSuspense.lil",
+      "candidate": {
+        "sha256": "95881445c47482a269938f18fb2ac5d55ef72cf4e64be741f10ddd7848ba67de",
+        "bytes": 2157
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-ssr/src/transforms/ssrTransformTeleport.ts",
+      "upstreamSha256": "b88d7846498b64e067ac76942cc86c271c5286194032519baf134a22c3568555",
+      "package": "@vue/compiler-ssr",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-ssr/transforms/ssrTransformTeleport.lil",
+      "candidate": {
+        "sha256": "45c663002487b5fb7476db8f7071d874261c5bd85730c56a75b513ddfb9c53c1",
+        "bytes": 2372
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-ssr/src/transforms/ssrTransformTransition.ts",
+      "upstreamSha256": "c93db716a1b2ee8cf577935f57226364e9618e3b2c8f1552e282c1650b7abe3a",
+      "package": "@vue/compiler-ssr",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-ssr/transforms/ssrTransformTransition.lil",
+      "candidate": {
+        "sha256": "c459cfd9547b6dddf62dc5eb242166fd8fa4a4e353c7d317a3f9aad26af8a77b",
+        "bytes": 1358
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-ssr/src/transforms/ssrTransformTransitionGroup.ts",
+      "upstreamSha256": "748af1509a9bed8905004808c2ca909da32ddb95e1455776b8354edc1a1a1fe1",
+      "package": "@vue/compiler-ssr",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-ssr/transforms/ssrTransformTransitionGroup.lil",
+      "candidate": {
+        "sha256": "7655e9964dd67b3ac0240d541a015d9fb3829daf0db395ac3d9211f9f12698df",
+        "bytes": 3329
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-ssr/src/transforms/ssrVFor.ts",
+      "upstreamSha256": "4297b6f8d3612a8bf3a26ebba165db2b6cdb79cdae46f469edee667da3dc6a22",
+      "package": "@vue/compiler-ssr",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-ssr/transforms/ssrVFor.lil",
+      "candidate": {
+        "sha256": "36fc171cba7985e2c6dcc7b883d3175aa398a9bbe5ba61c4fba001a81581c705",
+        "bytes": 2055
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-ssr/src/transforms/ssrVIf.ts",
+      "upstreamSha256": "d268f109eaf306431efb0e84e0ad27eb50990ed6f0d92ce7d3a65cc694bfcea9",
+      "package": "@vue/compiler-ssr",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-ssr/transforms/ssrVIf.lil",
+      "candidate": {
+        "sha256": "640aa800bd4f9cdd367f85a252302ad0724b6559d8be380021f2621acd88ad1a",
+        "bytes": 2793
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-ssr/src/transforms/ssrVModel.ts",
+      "upstreamSha256": "74f6d75f9228ec9eaff87006ea1fda879024e4e355266ec3713b10d02652a015",
+      "package": "@vue/compiler-ssr",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-ssr/transforms/ssrVModel.lil",
+      "candidate": {
+        "sha256": "dc7e6adde5c2a9717a2bf1e21656d14e3dc77f7d4e280cad0a4a1bb0b67e6699",
+        "bytes": 8671
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/compiler-ssr/src/transforms/ssrVShow.ts",
+      "upstreamSha256": "3a8764938330fe6ca4e080f8971e2be6fcefbd710b7a51287d832027b6a5e6fd",
+      "package": "@vue/compiler-ssr",
+      "classification": "algorithm",
+      "candidatePath": "src/compiler-ssr/transforms/ssrVShow.lil",
+      "candidate": {
+        "sha256": "91ad7fde923a66db8a12c7ce52f34f9a2e8552f76890b7e5d0d5f6f6ea3cd965",
+        "bytes": 1447
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/reactivity/src/arrayInstrumentations.ts",
+      "upstreamSha256": "58eaa7014785ae7e1e78825ca530168148d5395d23b1b352ac9cf719f47a3e81",
+      "package": "@vue/reactivity",
+      "classification": "algorithm",
+      "candidatePath": "src/reactivity/arrayInstrumentations.lil",
+      "candidate": {
+        "sha256": "5196fc8d0bb7e2b846efe6bf162f04115dc8f85c008b595b062c0721e6b281b9",
+        "bytes": 9446
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/reactivity/src/baseHandlers.ts",
+      "upstreamSha256": "644f60af44b6ee521fc617f685ee9fa287296aa2de157911fa344acad9f06ed3",
+      "package": "@vue/reactivity",
+      "classification": "algorithm",
+      "candidatePath": "src/reactivity/baseHandlers.lil",
+      "candidate": {
+        "sha256": "e60be1e0ceb4ef8a1c9b782ddc3936ef95716cfdce2b6a54b6485fe9f8b0c44e",
+        "bytes": 6883
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/reactivity/src/collectionHandlers.ts",
+      "upstreamSha256": "d1ae3b00e8476e06f16edd0b704f6903ccbbbd65327ceb4e5bb0f7cde7230c07",
+      "package": "@vue/reactivity",
+      "classification": "algorithm",
+      "candidatePath": "src/reactivity/collectionHandlers.lil",
+      "candidate": {
+        "sha256": "5c8c48814faff0e34e70eedfbe848a6ff09bea244eb1adb757ddca9e91d6d11d",
+        "bytes": 10798
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/reactivity/src/computed.ts",
+      "upstreamSha256": "8ffa806b12007d991a51baf19cdb02a050fb6319e52a93d4ca89ffa77a033b1b",
+      "package": "@vue/reactivity",
+      "classification": "algorithm",
+      "candidatePath": "src/reactivity/computed.lil",
+      "candidate": {
+        "sha256": "49fac743f5381d9443552399aff5de5e45051cb2bc4093e90c2101f6253e4804",
+        "bytes": 2700
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/reactivity/src/constants.ts",
+      "upstreamSha256": "07fe5b83223ef3525bfb2806b186f9b6f4f59cc58af08d4749caf93c49ef527f",
+      "package": "@vue/reactivity",
+      "classification": "algorithm",
+      "candidatePath": "src/reactivity/constants.lil",
+      "candidate": {
+        "sha256": "954627ac531bdbfc85d77a248c605a9b20fcc20f12801975c93a4e9fc77253a6",
+        "bytes": 604
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/reactivity/src/dep.ts",
+      "upstreamSha256": "398dca9aca80d24f73033cf11ee944681b9ade8d10bc466f3ebf4ccfcf0eb47a",
+      "package": "@vue/reactivity",
+      "classification": "algorithm",
+      "candidatePath": "src/reactivity/dep.lil",
+      "candidate": {
+        "sha256": "b7774cdef96bb7d830ee92206f0df4953d48b0b1990b2b1c6afbe0b6458c3c2e",
+        "bytes": 10019
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/reactivity/src/effect.ts",
+      "upstreamSha256": "acfc5c813be8323a8dd52d5348e91186ca5a88426c6c4e5dc04448fa3c12983a",
+      "package": "@vue/reactivity",
+      "classification": "algorithm",
+      "candidatePath": "src/reactivity/effect.lil",
+      "candidate": {
+        "sha256": "6811d8c7d77aacc9e986f001c5221270678b012c086d27f7fb5bbbf6078e2720",
+        "bytes": 13365
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/reactivity/src/effectScope.ts",
+      "upstreamSha256": "ec3c7e4dbb5ed7784d701a092b71f14dbf7fb915e007be9bcaeb25815f176879",
+      "package": "@vue/reactivity",
+      "classification": "algorithm",
+      "candidatePath": "src/reactivity/effectScope.lil",
+      "candidate": {
+        "sha256": "050818e8c79fcf758e47ceae11ea77ea201244b215261e17330be620cf6912cc",
+        "bytes": 6746
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/reactivity/src/index.ts",
+      "upstreamSha256": "544c9c181c973e0341e08c326dd9aef97e4b26f69ca2872ca7a7bba015897019",
+      "package": "@vue/reactivity",
+      "classification": "algorithm",
+      "candidatePath": "src/reactivity/index.lil",
+      "candidate": {
+        "sha256": "72990bd202e309eba0e1426db934031bb294daf9a6b1d404106d46735c297542",
+        "bytes": 1711
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/reactivity/src/reactive.ts",
+      "upstreamSha256": "47280cc495afb2392a8cb59ffd0b940cf9afd54977d961d08917fb57c624eec6",
+      "package": "@vue/reactivity",
+      "classification": "algorithm",
+      "candidatePath": "src/reactivity/reactive.lil",
+      "candidate": {
+        "sha256": "68775fcfd439fbea9d2e1f13de7ece3c58ac75b29f6f99abe7a47f156fe75caa",
+        "bytes": 4144
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/reactivity/src/ref.ts",
+      "upstreamSha256": "ad09f393c2fa11906d59f4daee1ee634c2ced643d8551ef1318a56b9f76d82ef",
+      "package": "@vue/reactivity",
+      "classification": "algorithm",
+      "candidatePath": "src/reactivity/ref.lil",
+      "candidate": {
+        "sha256": "0a9e8f1576eb15dde26164e41346e488396d1032aad43ad261de6bb8066fa963",
+        "bytes": 7927
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/reactivity/src/warning.ts",
+      "upstreamSha256": "cbde58f39e9fced570ec0ad1dc7853f43c8a2a16db0ffb05e936478428f3f122",
+      "package": "@vue/reactivity",
+      "classification": "algorithm",
+      "candidatePath": "src/reactivity/warning.lil",
+      "candidate": {
+        "sha256": "dc0f1667e4c6796d8e2ff7c7f3644ba917bcce24596ea823a3731713e591d523",
+        "bytes": 287
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/reactivity/src/watch.ts",
+      "upstreamSha256": "d0dcce0566ceff5db841870036027c53cd881291c9b335653696c3fa91a31548",
+      "package": "@vue/reactivity",
+      "classification": "algorithm",
+      "candidatePath": "src/reactivity/watch.lil",
+      "candidate": {
+        "sha256": "27f02a032fc889a46c024be053fbc752ec02b9b1387cbb82f2598944a9390720",
+        "bytes": 11428
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-core/src/apiAsyncComponent.ts",
+      "upstreamSha256": "651c54025f132238b01c8685c8173777b6a6d97a1d6b038e5d248ba633c5be4e",
+      "package": "@vue/runtime-core",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-core/apiAsyncComponent.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-core/src/apiComputed.ts",
+      "upstreamSha256": "2b44d360fe1cbfa3a29fb901a43a13ad3f11de0b5a749abb7832810b6a65d8e7",
+      "package": "@vue/runtime-core",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-core/apiComputed.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-core/src/apiCreateApp.ts",
+      "upstreamSha256": "633116bffff02f59edb00c1f58fbb6826cec3abf49114678ce839ca00e62b8b4",
+      "package": "@vue/runtime-core",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-core/apiCreateApp.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-core/src/apiDefineComponent.ts",
+      "upstreamSha256": "5bec57100c703178dabfebf35e3d5ad58bb493ded03b56e81dc12aac96bbf03c",
+      "package": "@vue/runtime-core",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-core/apiDefineComponent.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-core/src/apiInject.ts",
+      "upstreamSha256": "33ff7827925312658eaef9965a4ca254da7333dfa8a9b0576cf55e53c5848c43",
+      "package": "@vue/runtime-core",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-core/apiInject.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-core/src/apiLifecycle.ts",
+      "upstreamSha256": "73513351e7e32694d76d357a12afa05283702af04d19abddaff9b519fafd1cba",
+      "package": "@vue/runtime-core",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-core/apiLifecycle.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-core/src/apiSetupHelpers.ts",
+      "upstreamSha256": "5fcdf24a2518dc1fd92777dcf36c331b37144613b008ef1619294aa5539b185b",
+      "package": "@vue/runtime-core",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-core/apiSetupHelpers.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-core/src/apiWatch.ts",
+      "upstreamSha256": "85fbbc9d9976e70110684dce4c7bf2002b20c43f35fee5b274276adc9c2a6c1e",
+      "package": "@vue/runtime-core",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-core/apiWatch.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-core/src/compat/attrsFallthrough.ts",
+      "upstreamSha256": "d31e1c7849b98503c066897ba0e04d351df5900a5506ad249e1df0de9597fb73",
+      "package": "@vue/runtime-core",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-core/compat/attrsFallthrough.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-core/src/compat/compatConfig.ts",
+      "upstreamSha256": "2a2fc81c6d44e0049c5a1d07a29ab6471a757439a2345b6e31b3b3266b98f325",
+      "package": "@vue/runtime-core",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-core/compat/compatConfig.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-core/src/compat/component.ts",
+      "upstreamSha256": "3f4dec90ee3bd24c08181bfe8a82ed04849876a32d66db1e52d3c11082f82ad7",
+      "package": "@vue/runtime-core",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-core/compat/component.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-core/src/compat/componentAsync.ts",
+      "upstreamSha256": "6d0410c31013d885043c56bbcd153583a9fe1e4a93dd652d0eedbe3a95c650a6",
+      "package": "@vue/runtime-core",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-core/compat/componentAsync.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-core/src/compat/componentFunctional.ts",
+      "upstreamSha256": "ffc821f3d90876e2c3da19552eab36a553ad894c1453bd5559f3b70dc7504429",
+      "package": "@vue/runtime-core",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-core/compat/componentFunctional.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-core/src/compat/componentVModel.ts",
+      "upstreamSha256": "c2ba6ba8627ad34eb0f8f3ecd182c2affa584675c2052706845729311ac19fed",
+      "package": "@vue/runtime-core",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-core/compat/componentVModel.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-core/src/compat/customDirective.ts",
+      "upstreamSha256": "bbf4081d93b88b165e434fd007ece1c330cc9243333caed06dd987dd4b824a66",
+      "package": "@vue/runtime-core",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-core/compat/customDirective.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-core/src/compat/data.ts",
+      "upstreamSha256": "f080f476dee2d3c5826be5caa23aafcf5ed97198205dfbf27977ca3d85b01809",
+      "package": "@vue/runtime-core",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-core/compat/data.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-core/src/compat/global.ts",
+      "upstreamSha256": "0c31eec7c662cfbd2518800a505af732c33b576d8b9dbe146a6fc6d7649e8557",
+      "package": "@vue/runtime-core",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-core/compat/global.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-core/src/compat/globalConfig.ts",
+      "upstreamSha256": "b234a0b57984d2488d07bd62772225692412b1458d039727d1e945ec3eebe4cf",
+      "package": "@vue/runtime-core",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-core/compat/globalConfig.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-core/src/compat/instance.ts",
+      "upstreamSha256": "a357707d042b35c1928a65c1968745c3d62b06a11510f3b22fa24b0b9e1839d0",
+      "package": "@vue/runtime-core",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-core/compat/instance.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-core/src/compat/instanceChildren.ts",
+      "upstreamSha256": "2d35547f57643fbd43de3d13b1a82aaf4340646d2fde27e5eb64889ace87411b",
+      "package": "@vue/runtime-core",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-core/compat/instanceChildren.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-core/src/compat/instanceEventEmitter.ts",
+      "upstreamSha256": "f9e9af34cec181e2d4ff52056fcb82247be189d28cd8fa12a68c77a580ca302f",
+      "package": "@vue/runtime-core",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-core/compat/instanceEventEmitter.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-core/src/compat/instanceListeners.ts",
+      "upstreamSha256": "6cd9713e226da430bab84e293b97615877d37e0c29805384af3fa4090d016ce8",
+      "package": "@vue/runtime-core",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-core/compat/instanceListeners.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-core/src/compat/props.ts",
+      "upstreamSha256": "c9e58c7ddde694593de582118d6dd5180b92504d26bd5338ce31f24e092c59ee",
+      "package": "@vue/runtime-core",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-core/compat/props.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-core/src/compat/renderFn.ts",
+      "upstreamSha256": "c080b8b7ab25bfafe75152cee0b630caf62ea1a72d06dd27fa3a5338232f12b3",
+      "package": "@vue/runtime-core",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-core/compat/renderFn.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-core/src/compat/renderHelpers.ts",
+      "upstreamSha256": "3906b2da0e7f1b2244378bcf7a9ad408337dc8ca099247cbfeb79cb5614f1524",
+      "package": "@vue/runtime-core",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-core/compat/renderHelpers.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-core/src/component.ts",
+      "upstreamSha256": "d057f27e77d745768b9592288a1700edb6966a2b2f5e5e8b54202c6e55db0a31",
+      "package": "@vue/runtime-core",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-core/component.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-core/src/componentEmits.ts",
+      "upstreamSha256": "3e576bad015a9cc8ddf5c34212c31770d930f3dc0fca979d5b22260c79c3ce50",
+      "package": "@vue/runtime-core",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-core/componentEmits.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-core/src/componentOptions.ts",
+      "upstreamSha256": "83837043d83cffd2f0904760f97e6a31ae74e6559d95e14e844dd8a529cbd889",
+      "package": "@vue/runtime-core",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-core/componentOptions.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-core/src/componentProps.ts",
+      "upstreamSha256": "cdfef12c967e183ec99a9c29d1813e84e1560a221e3368080334b0b4f9997414",
+      "package": "@vue/runtime-core",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-core/componentProps.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-core/src/componentPublicInstance.ts",
+      "upstreamSha256": "92106dd47df4ca655e3a821faa5854ddd6e4814fde1324884c14f0aa63d99f06",
+      "package": "@vue/runtime-core",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-core/componentPublicInstance.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-core/src/componentRenderContext.ts",
+      "upstreamSha256": "954a49827c08dc8cfe72aed4bc04c816cf43c82d49e79180c34f10f10285fd17",
+      "package": "@vue/runtime-core",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-core/componentRenderContext.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-core/src/componentRenderUtils.ts",
+      "upstreamSha256": "5d95c56351de7a6e4c94091697557ce41fe635e4814365cb890dac7d81dcf6e4",
+      "package": "@vue/runtime-core",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-core/componentRenderUtils.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-core/src/componentSlots.ts",
+      "upstreamSha256": "077bd2d08418117353063becffc7cccc1715c85ae7fc5e2ac0da5e52b49702a2",
+      "package": "@vue/runtime-core",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-core/componentSlots.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-core/src/components/BaseTransition.ts",
+      "upstreamSha256": "225faedb6040feed1a7afdac79f7b3a3dd1491a99d552fe1ec45e0aa76afc99d",
+      "package": "@vue/runtime-core",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-core/components/BaseTransition.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-core/src/components/KeepAlive.ts",
+      "upstreamSha256": "8f872033831e83567c1535ab8594323fc6fd0d3d9b51441df7aa731b5932503e",
+      "package": "@vue/runtime-core",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-core/components/KeepAlive.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-core/src/components/Suspense.ts",
+      "upstreamSha256": "cedd960b8a2e51ca84fa3cc236c8e51bec126b29e8b6de26c7dc46203cf74181",
+      "package": "@vue/runtime-core",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-core/components/Suspense.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-core/src/components/Teleport.ts",
+      "upstreamSha256": "3fa044708cb5926e75935266bbb0440ce4fdc08202f5bcb2ee8b5cc215e3bf51",
+      "package": "@vue/runtime-core",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-core/components/Teleport.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-core/src/customFormatter.ts",
+      "upstreamSha256": "d7490aa73cd8ff7ed789305b7b5dd2c0d8598769b07d0fff49b9c38e7071e5de",
+      "package": "@vue/runtime-core",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-core/customFormatter.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-core/src/devtools.ts",
+      "upstreamSha256": "04c8cc36a82b60ebf49a1c2d63eb0757963c2f124ad97d31449278cf75ef3546",
+      "package": "@vue/runtime-core",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-core/devtools.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-core/src/directives.ts",
+      "upstreamSha256": "fa8f7b3a17f2129e07dfc2f5b1e22b1afaf4768f2544144d94d3b8e85d79d0f6",
+      "package": "@vue/runtime-core",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-core/directives.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-core/src/enums.ts",
+      "upstreamSha256": "3f017832bd4c635d7765fe808399eb4699b2570f4f294a73eab5f4f17b8c3448",
+      "package": "@vue/runtime-core",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-core/enums.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-core/src/errorHandling.ts",
+      "upstreamSha256": "ad8638a17d9ba873557646764633914a9a59b6da5a093a269d40a18090716260",
+      "package": "@vue/runtime-core",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-core/errorHandling.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-core/src/featureFlags.ts",
+      "upstreamSha256": "10911a6af026d7ab57cff84f291e330453b4eb33c8c80fc7be782edb139334d7",
+      "package": "@vue/runtime-core",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-core/featureFlags.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-core/src/h.ts",
+      "upstreamSha256": "69d2ec5729a223d5fb0dec7c4295b00eaee9c46dcb5df1e58a1740961aa8db9a",
+      "package": "@vue/runtime-core",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-core/h.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-core/src/helpers/createSlots.ts",
+      "upstreamSha256": "826eafcf16d5df5f7cda0cf21ebb7908b7f8036c36d2577ab133b597648c87b1",
+      "package": "@vue/runtime-core",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-core/helpers/createSlots.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-core/src/helpers/renderList.ts",
+      "upstreamSha256": "9527ae3b79747bd64c9aba9caf8b1b8eff8ae9fa1960f1aa444e58b68267aaf2",
+      "package": "@vue/runtime-core",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-core/helpers/renderList.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-core/src/helpers/renderSlot.ts",
+      "upstreamSha256": "3254da752ac791e428b8d8eb8f3b3b1a5b8d9d4f76946f6f8ed6c31380cdaca2",
+      "package": "@vue/runtime-core",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-core/helpers/renderSlot.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-core/src/helpers/resolveAssets.ts",
+      "upstreamSha256": "40d4f1aace3ead18869380cc1b5f83e43511938c05351d18a464fd10290a0498",
+      "package": "@vue/runtime-core",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-core/helpers/resolveAssets.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-core/src/helpers/toHandlers.ts",
+      "upstreamSha256": "09d644f37a8c271f9db616535ffc7b7e9598aff64e9b06556e3e602abc58970c",
+      "package": "@vue/runtime-core",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-core/helpers/toHandlers.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-core/src/helpers/useId.ts",
+      "upstreamSha256": "e60090d2717d654f18ae4525d0ce1ddfd035748fbcec9b6d8ba9bf3606393f88",
+      "package": "@vue/runtime-core",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-core/helpers/useId.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-core/src/helpers/useModel.ts",
+      "upstreamSha256": "505033ccd605e99c5be03a0d326e5dcd203dfc170884260e6ce7551ef994d23c",
+      "package": "@vue/runtime-core",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-core/helpers/useModel.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-core/src/helpers/useSsrContext.ts",
+      "upstreamSha256": "a5e9331bf5cbe20b851866322714ce23e3072fc72909199ae1497ac607f02c69",
+      "package": "@vue/runtime-core",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-core/helpers/useSsrContext.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-core/src/helpers/useTemplateRef.ts",
+      "upstreamSha256": "378f44eeac140144e961251c29932ed4ea5f4b08ff01ef379b099ff750c9553f",
+      "package": "@vue/runtime-core",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-core/helpers/useTemplateRef.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-core/src/helpers/withMemo.ts",
+      "upstreamSha256": "97d47bf351196a69a75d825511b70717458d15336b96f7040f504224eb146886",
+      "package": "@vue/runtime-core",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-core/helpers/withMemo.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-core/src/hmr.ts",
+      "upstreamSha256": "058f8b3f490c67c832d83f074a12a5629c7c7d34731216c0dc417277a2fa24f4",
+      "package": "@vue/runtime-core",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-core/hmr.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-core/src/hydration.ts",
+      "upstreamSha256": "68ecf4d929383e017eef53e42c93f0e557b9284d6cc5c14172bae79b83a15605",
+      "package": "@vue/runtime-core",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-core/hydration.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-core/src/hydrationStrategies.ts",
+      "upstreamSha256": "a6f108593e6d08117c591fc76a0a693374accd4f09a848f8387e31c0cf831b59",
+      "package": "@vue/runtime-core",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-core/hydrationStrategies.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-core/src/index.ts",
+      "upstreamSha256": "067f105768c3094437cead9f39958c7843b848f6c6e93d324f85361f944adbf7",
+      "package": "@vue/runtime-core",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-core/index.lil",
+      "candidate": {
+        "sha256": "8a5edc4c8de962b570e58a3292f78e3cf1fc11e8a710afff147c33dd849ecb1b",
+        "bytes": 138870
+      },
+      "handling": "legacy-nonconforming",
+      "issues": [
+        "candidate contains a placeholder marker"
+      ]
+    },
+    {
+      "upstreamPath": "packages/runtime-core/src/internalObject.ts",
+      "upstreamSha256": "981f69657322c58571096a3803b7adec03b901c8ad716dc1f19fd3d33552bb13",
+      "package": "@vue/runtime-core",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-core/internalObject.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-core/src/profiling.ts",
+      "upstreamSha256": "d480ea562ac9a4975cdcd330a0725bab88c88ed46a5e88d560c5b6ca1412f261",
+      "package": "@vue/runtime-core",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-core/profiling.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-core/src/renderer.ts",
+      "upstreamSha256": "9748ae2dd6b6da6b00e5482feb2664366699ae213443034ab2be659229993471",
+      "package": "@vue/runtime-core",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-core/renderer.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-core/src/rendererTemplateRef.ts",
+      "upstreamSha256": "4727818daf08dd0d61f5499cf57397f401757475f94f0ecd50e49566ae5da57d",
+      "package": "@vue/runtime-core",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-core/rendererTemplateRef.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-core/src/scheduler.ts",
+      "upstreamSha256": "bf3f34d69d14277ad3b1249dad9413c973a078d8e202c40e4370ff4deaf63b53",
+      "package": "@vue/runtime-core",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-core/scheduler.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-core/src/vnode.ts",
+      "upstreamSha256": "3a53fb613dd50ca69160f34b3264a2cd263ff57b075bb1068969f0ee35995b10",
+      "package": "@vue/runtime-core",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-core/vnode.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-core/src/warning.ts",
+      "upstreamSha256": "a7408ca137164fb59184b84f33882daeed2395030bbb928fc28ee21c9ef4962d",
+      "package": "@vue/runtime-core",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-core/warning.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-dom/src/apiCustomElement.ts",
+      "upstreamSha256": "6a8e98f9ee74141c4a291366adf2890283a1850bbf9e3bfdfab4feff73d493ef",
+      "package": "@vue/runtime-dom",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-dom/apiCustomElement.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-dom/src/components/Transition.ts",
+      "upstreamSha256": "a7cbf5319864a5ab3111cf8784d72d991d830880159a6cfc9cde34285bc2be7d",
+      "package": "@vue/runtime-dom",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-dom/components/Transition.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-dom/src/components/TransitionGroup.ts",
+      "upstreamSha256": "6f2447ce3e2df9e4dca871079081bd63c7a3347382ef92a1a5488c0ed0d1a92a",
+      "package": "@vue/runtime-dom",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-dom/components/TransitionGroup.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-dom/src/directives/vModel.ts",
+      "upstreamSha256": "97e5fd6eb1899b3a31319c7e3ebe7aecad460c7a1669e85ac4efb6a098ef30c1",
+      "package": "@vue/runtime-dom",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-dom/directives/vModel.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-dom/src/directives/vOn.ts",
+      "upstreamSha256": "a84267e27454fbada77964cd962efc4ebe965515d37dfe2a37727e0d33e9ad8b",
+      "package": "@vue/runtime-dom",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-dom/directives/vOn.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-dom/src/directives/vShow.ts",
+      "upstreamSha256": "4fbd5a708a7c7765343456c821eb9ad7231514c36ab34154c8d329f8df33daf7",
+      "package": "@vue/runtime-dom",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-dom/directives/vShow.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-dom/src/helpers/useCssModule.ts",
+      "upstreamSha256": "396b18dd39bf068fed28488c532ec4bce5e68b6cbcb7bfdcd639988999f18b89",
+      "package": "@vue/runtime-dom",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-dom/helpers/useCssModule.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-dom/src/helpers/useCssVars.ts",
+      "upstreamSha256": "7b95fb800b3bf61693529619934c9122d4272c26dfa7d41df7c28c2e8543421d",
+      "package": "@vue/runtime-dom",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-dom/helpers/useCssVars.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-dom/src/index.ts",
+      "upstreamSha256": "8f00c12e2ee314a50b496ceae581cf3f070b9181c827ee7086f3e9482dca5bea",
+      "package": "@vue/runtime-dom",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-dom/index.lil",
+      "candidate": {
+        "sha256": "6f4c9a9fb5830bc6b194da3625d453c01a3e9f3b681b9c0051920976294c623d",
+        "bytes": 51709
+      },
+      "handling": "legacy-nonconforming",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-dom/src/jsx.ts",
+      "upstreamSha256": "70355e79583f822871ae0eb192ec57d7ade5652f700142c2128abdde313ad887",
+      "package": "@vue/runtime-dom",
+      "classification": "type-only",
+      "candidatePath": "src/runtime-dom/jsx.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-dom/src/modules/attrs.ts",
+      "upstreamSha256": "8216b89daea235b32a35f6f8a6556182a40dd11712fc38ad9022c52f22a3d3d9",
+      "package": "@vue/runtime-dom",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-dom/modules/attrs.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-dom/src/modules/class.ts",
+      "upstreamSha256": "d24c104e04a92d4103aa632d45ecc4132120d20617ee15edd80dc282d49a7dd4",
+      "package": "@vue/runtime-dom",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-dom/modules/class.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-dom/src/modules/events.ts",
+      "upstreamSha256": "ff9b9b5a9b4d19adbf4b2259d3ff825fba81dc938969b8a4b6234c9f10287c85",
+      "package": "@vue/runtime-dom",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-dom/modules/events.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-dom/src/modules/props.ts",
+      "upstreamSha256": "60e62417294970f9d970da66c066d44c4157d407ab55f67fd668c2f369bb8689",
+      "package": "@vue/runtime-dom",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-dom/modules/props.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-dom/src/modules/style.ts",
+      "upstreamSha256": "577acc5825261c8b83d2bc77da1e655b551cbab6dd8bb73ad674dd600903d45d",
+      "package": "@vue/runtime-dom",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-dom/modules/style.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-dom/src/nodeOps.ts",
+      "upstreamSha256": "373131af6ce85cc869b04d49d60d2c8475840331a5022a27c28524d2aa9b5415",
+      "package": "@vue/runtime-dom",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-dom/nodeOps.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-dom/src/patchProp.ts",
+      "upstreamSha256": "d4a53880dc6df6f90f9d3355400da1ddd2f4f20ef0619abf346b36e274e81da5",
+      "package": "@vue/runtime-dom",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-dom/patchProp.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-test/src/index.ts",
+      "upstreamSha256": "2fe123d56f1cc1ed48dd258b1ec778b3475980fe4d2ef7358ac604aeac1d4200",
+      "package": "@vue/runtime-test",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-test/index.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-test/src/nodeOps.ts",
+      "upstreamSha256": "1882284dec205a92eed47845173fc4b0e3bf7967d0197cc178459c8a5f46235c",
+      "package": "@vue/runtime-test",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-test/nodeOps.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-test/src/patchProp.ts",
+      "upstreamSha256": "5ac01019021f905fdb38d8a7147d5aeb594329ae2436607c28677430ff967008",
+      "package": "@vue/runtime-test",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-test/patchProp.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-test/src/serialize.ts",
+      "upstreamSha256": "ce370e5cd133d12713c5aa740ad49714ae1ce7830bb9eddc3b7d48a0e617f4f8",
+      "package": "@vue/runtime-test",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-test/serialize.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/runtime-test/src/triggerEvent.ts",
+      "upstreamSha256": "e46db30c39224a8f6d9220b6c01fa1be08bce95d3aa3c98001734e0f7ea92a6c",
+      "package": "@vue/runtime-test",
+      "classification": "algorithm",
+      "candidatePath": "src/runtime-test/triggerEvent.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/server-renderer/src/helpers/ssrCompile.ts",
+      "upstreamSha256": "0d247ecc2fd24c54247242ef13aee59ab21ecb4e7723e92497f05da12b1d87ad",
+      "package": "@vue/server-renderer",
+      "classification": "algorithm",
+      "candidatePath": "src/server-renderer/helpers/ssrCompile.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/server-renderer/src/helpers/ssrGetDirectiveProps.ts",
+      "upstreamSha256": "9b9fba9ec07a944d7cc7c5b6181f4dedadae4410059791a33e9aa52badf1c67e",
+      "package": "@vue/server-renderer",
+      "classification": "algorithm",
+      "candidatePath": "src/server-renderer/helpers/ssrGetDirectiveProps.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/server-renderer/src/helpers/ssrInterpolate.ts",
+      "upstreamSha256": "ecd1d230ca093fe7b629d01239b887e119e71c5a764015fb19aaa372b0352cda",
+      "package": "@vue/server-renderer",
+      "classification": "algorithm",
+      "candidatePath": "src/server-renderer/helpers/ssrInterpolate.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/server-renderer/src/helpers/ssrRenderAttrs.ts",
+      "upstreamSha256": "d6de400db488745c82423260282543b81c39c14259b2f3c409af9915e63d235b",
+      "package": "@vue/server-renderer",
+      "classification": "algorithm",
+      "candidatePath": "src/server-renderer/helpers/ssrRenderAttrs.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/server-renderer/src/helpers/ssrRenderComponent.ts",
+      "upstreamSha256": "e5919fecb0b131b5e9e1ba1258784f414afa9d95390863903d6497354775e3bb",
+      "package": "@vue/server-renderer",
+      "classification": "algorithm",
+      "candidatePath": "src/server-renderer/helpers/ssrRenderComponent.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/server-renderer/src/helpers/ssrRenderList.ts",
+      "upstreamSha256": "5995638571adbaa95dcba65da583b462eedc6c4fe910aa4690fe6663a3584e13",
+      "package": "@vue/server-renderer",
+      "classification": "algorithm",
+      "candidatePath": "src/server-renderer/helpers/ssrRenderList.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/server-renderer/src/helpers/ssrRenderSlot.ts",
+      "upstreamSha256": "8074f12676145376839d424ef7dad5387c6839fd4dc19dafa1a30594f6c2e99d",
+      "package": "@vue/server-renderer",
+      "classification": "algorithm",
+      "candidatePath": "src/server-renderer/helpers/ssrRenderSlot.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/server-renderer/src/helpers/ssrRenderSuspense.ts",
+      "upstreamSha256": "854070c3ec248aa8adc9dff43e1c050fe3623a6528d7dbf1f3a282d78e85a5a6",
+      "package": "@vue/server-renderer",
+      "classification": "algorithm",
+      "candidatePath": "src/server-renderer/helpers/ssrRenderSuspense.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/server-renderer/src/helpers/ssrRenderTeleport.ts",
+      "upstreamSha256": "bc56bd586ed208672a669779d174f920237c362472dfda6116d510c13957f244",
+      "package": "@vue/server-renderer",
+      "classification": "algorithm",
+      "candidatePath": "src/server-renderer/helpers/ssrRenderTeleport.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/server-renderer/src/helpers/ssrVModelHelpers.ts",
+      "upstreamSha256": "c6f2b6605c46c814013943c9f07bc9353a7a8583c3bf094c327e42028ba0c876",
+      "package": "@vue/server-renderer",
+      "classification": "algorithm",
+      "candidatePath": "src/server-renderer/helpers/ssrVModelHelpers.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/server-renderer/src/index.ts",
+      "upstreamSha256": "8bb192b7bb500a8939c498105169d2ff013dd64fd13292493bd712a02996ac44",
+      "package": "@vue/server-renderer",
+      "classification": "algorithm",
+      "candidatePath": "src/server-renderer/index.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/server-renderer/src/internal.ts",
+      "upstreamSha256": "6b2d9e62e605f5936eef73b45a0c488603a647f256041dc58ad342de3d66dbd2",
+      "package": "@vue/server-renderer",
+      "classification": "algorithm",
+      "candidatePath": "src/server-renderer/internal.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/server-renderer/src/render.ts",
+      "upstreamSha256": "c95aae03551b97c1e06ccc064c1a44770185e5a757aa66f7ce4c2ada8f5a2145",
+      "package": "@vue/server-renderer",
+      "classification": "algorithm",
+      "candidatePath": "src/server-renderer/render.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/server-renderer/src/renderToStream.ts",
+      "upstreamSha256": "e59344135fa4a7969740848c351ec8c22944f65b476bd2b6e78c06c24d5e8d16",
+      "package": "@vue/server-renderer",
+      "classification": "algorithm",
+      "candidatePath": "src/server-renderer/renderToStream.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/server-renderer/src/renderToString.ts",
+      "upstreamSha256": "4fa2af35ddd922bf22485ee36cba13856b2e61977a0b3cc9e67ccc4675389c02",
+      "package": "@vue/server-renderer",
+      "classification": "algorithm",
+      "candidatePath": "src/server-renderer/renderToString.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/shared/src/codeframe.ts",
+      "upstreamSha256": "bd00f1cee2dec77d186e4f678635141c03ae924b24d9ed0da03b762887e8be9b",
+      "package": "@vue/shared",
+      "classification": "algorithm",
+      "candidatePath": "src/shared/codeframe.lil",
+      "candidate": {
+        "sha256": "0267556fe95e6a0f18a2198ff670fb4a414d2b102b0a324ebef647d426fbfba0",
+        "bytes": 3458
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/shared/src/cssVars.ts",
+      "upstreamSha256": "74279ab19843e51a5d7adb2dce0f00e1c7de0be438b69a4252eeb293e7d78288",
+      "package": "@vue/shared",
+      "classification": "algorithm",
+      "candidatePath": "src/shared/cssVars.lil",
+      "candidate": {
+        "sha256": "78f6ed86ba067daa002dc70b408882586d4e4a3361b1c39fe841ac84134b87ae",
+        "bytes": 936
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/shared/src/domAttrConfig.ts",
+      "upstreamSha256": "40638faef48f0be9dd51c5bd29fb6194b85b70a707026010e8ae5a6d2ba25c70",
+      "package": "@vue/shared",
+      "classification": "algorithm",
+      "candidatePath": "src/shared/domAttrConfig.lil",
+      "candidate": {
+        "sha256": "adc127e51661375a5a51f9b3d3dd938f6038d641ef1b01e9ae0c56126741a8de",
+        "bytes": 6536
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/shared/src/domTagConfig.ts",
+      "upstreamSha256": "571a383b541c6122764c6f6451fc44e999f836edff787a3b6f8a1366b658784d",
+      "package": "@vue/shared",
+      "classification": "algorithm",
+      "candidatePath": "src/shared/domTagConfig.lil",
+      "candidate": {
+        "sha256": "da940432653193ab62712de28baead42ac95389b9036009eaead37c3b300cdc1",
+        "bytes": 2094
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/shared/src/escapeHtml.ts",
+      "upstreamSha256": "77968fa96dda60e9068079f5035f7199df112de99d43c4ab53c0bc0354402368",
+      "package": "@vue/shared",
+      "classification": "algorithm",
+      "candidatePath": "src/shared/escapeHtml.lil",
+      "candidate": {
+        "sha256": "3c56121ab2383a265a8c8f95c5fc57eb09927e3127534065d5ad2ef16f362dd8",
+        "bytes": 1820
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/shared/src/general.ts",
+      "upstreamSha256": "00f2ecb8608db0398c0fdeeb4ffcd120bf6f827769ec6f00f1d0b5baffcbf3bc",
+      "package": "@vue/shared",
+      "classification": "algorithm",
+      "candidatePath": "src/shared/general.lil",
+      "candidate": {
+        "sha256": "3534af5a795d1ccea79df28aaee6e932e8611ac9fc7682fe02205618932ba4fa",
+        "bytes": 7381
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/shared/src/globalsAllowList.ts",
+      "upstreamSha256": "a41fc4a16eb3671e9ffdf38185b0786002f06fe47f7fcbab025ed1e2839a47cd",
+      "package": "@vue/shared",
+      "classification": "algorithm",
+      "candidatePath": "src/shared/globalsAllowList.lil",
+      "candidate": {
+        "sha256": "8d03e4c13e145a78a7d3ea0dbdc1817089e61bc12db8e4e13bbf92d05996fd0c",
+        "bytes": 414
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/shared/src/index.ts",
+      "upstreamSha256": "423ca1bc4838302de0a978e1194cd984244bd38f1a39339365da415ef4151286",
+      "package": "@vue/shared",
+      "classification": "algorithm",
+      "candidatePath": "src/shared/index.lil",
+      "candidate": {
+        "sha256": "3f83eea13fd3e95ae1b16fafd5d701745502954c22eb0330c80ced1447ca7699",
+        "bytes": 2736
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/shared/src/looseEqual.ts",
+      "upstreamSha256": "d33e0e0123972657df92ad660a682e1895f36e26487ddf5ad04301b346145b47",
+      "package": "@vue/shared",
+      "classification": "algorithm",
+      "candidatePath": "src/shared/looseEqual.lil",
+      "candidate": {
+        "sha256": "35dfc78ad1d347e09d24e1a193bf8f7c40d226b1aa50881e3bc56f6e352da6e4",
+        "bytes": 3615
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/shared/src/makeMap.ts",
+      "upstreamSha256": "1edafc6bdb5b18819fec2201fb4583be291ea91b09878f7b33d3ee2a02ed0dc4",
+      "package": "@vue/shared",
+      "classification": "algorithm",
+      "candidatePath": "src/shared/makeMap.lil",
+      "candidate": {
+        "sha256": "2fa69a7fc277b07c0452caa8b4b43cbf1dbfda7709485e081130ffce3cff6f13",
+        "bytes": 821
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/shared/src/normalizeProp.ts",
+      "upstreamSha256": "6b7d5d6a26d9e1d3775e8b5c5c41d990db16264d42c17f86fe578500fc2f03e8",
+      "package": "@vue/shared",
+      "classification": "algorithm",
+      "candidatePath": "src/shared/normalizeProp.lil",
+      "candidate": {
+        "sha256": "8f37cda859238ed355f05c6b17cbcb7a393875fae989cc3046992671489ed442",
+        "bytes": 3399
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/shared/src/patchFlags.ts",
+      "upstreamSha256": "26bad23d884f3cf825b959adc4456d6b857adee9ef46eb8a6a8fd2e61e52e28d",
+      "package": "@vue/shared",
+      "classification": "algorithm",
+      "candidatePath": "src/shared/patchFlags.lil",
+      "candidate": {
+        "sha256": "48f69c89e516720ca5efd5d532250f62a311d27db7d81d65117a7a76fc58437f",
+        "bytes": 986
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/shared/src/shapeFlags.ts",
+      "upstreamSha256": "48307dab673ac5abbcb2b0167bca81ce81086702cb35c009455bbc6f192d3816",
+      "package": "@vue/shared",
+      "classification": "algorithm",
+      "candidatePath": "src/shared/shapeFlags.lil",
+      "candidate": {
+        "sha256": "5b25cab1a043b590e892a06ab8a4d8728e9de78d98bf71894d973e80d0c5ae57",
+        "bytes": 595
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/shared/src/slotFlags.ts",
+      "upstreamSha256": "32adcf4113b794bb52a7f421967cc50687f81958e23de119fc63a4b41c1f4aa1",
+      "package": "@vue/shared",
+      "classification": "algorithm",
+      "candidatePath": "src/shared/slotFlags.lil",
+      "candidate": {
+        "sha256": "250388bdeab476087111b4799842ac6a451e8a9af00669dab3021d9ebf5a75f0",
+        "bytes": 244
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/shared/src/toDisplayString.ts",
+      "upstreamSha256": "87ce938d3928d079257651eb4c9634f812a8bdf70082ff54cf2bf7023db0dd33",
+      "package": "@vue/shared",
+      "classification": "algorithm",
+      "candidatePath": "src/shared/toDisplayString.lil",
+      "candidate": {
+        "sha256": "0434c1b59f513159a22a5e4ee1ebdd1317607ace5711be5e26cdcc7370b54943",
+        "bytes": 2873
+      },
+      "handling": "mapped",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/shared/src/typeUtils.ts",
+      "upstreamSha256": "3b13dae506e96fcd6e11b9466fd7bd067036d01555fa58566ca958d3ef961d7f",
+      "package": "@vue/shared",
+      "classification": "type-only",
+      "candidatePath": "src/shared/typeUtils.lil",
+      "candidate": null,
+      "handling": "declaration-only",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/vue-compat/src/createCompatVue.ts",
+      "upstreamSha256": "46978a80bee13348e994c67a18e50bf752c67b4dbf0f2991f12c6c2599dbb01d",
+      "package": "@vue/compat",
+      "classification": "algorithm",
+      "candidatePath": "src/vue-compat/createCompatVue.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/vue-compat/src/dev.ts",
+      "upstreamSha256": "e3a328636aacebaf8d5d2279466806a1262056934a497b9a818a63408904617d",
+      "package": "@vue/compat",
+      "classification": "algorithm",
+      "candidatePath": "src/vue-compat/dev.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/vue-compat/src/esm-index.ts",
+      "upstreamSha256": "2632409fc512ccfca83cb32e0954135e74a5f256f5ceadcd634db0577b24118d",
+      "package": "@vue/compat",
+      "classification": "algorithm",
+      "candidatePath": "src/vue-compat/esm-index.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/vue-compat/src/esm-runtime.ts",
+      "upstreamSha256": "15382e60b4405ce7a8529ad7504fd786206604361dec03510b912c0fcde839b9",
+      "package": "@vue/compat",
+      "classification": "algorithm",
+      "candidatePath": "src/vue-compat/esm-runtime.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/vue-compat/src/index.ts",
+      "upstreamSha256": "1206d405f20391bdd140196ec09cd7be0986eded15aa1e5fb922fe0ec4766c11",
+      "package": "@vue/compat",
+      "classification": "algorithm",
+      "candidatePath": "src/vue-compat/index.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/vue-compat/src/runtime.ts",
+      "upstreamSha256": "7b789085a0bbbc93c39b5188bbc59731f6c77854c83d7bb17e247821a676630d",
+      "package": "@vue/compat",
+      "classification": "algorithm",
+      "candidatePath": "src/vue-compat/runtime.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/vue/src/dev.ts",
+      "upstreamSha256": "e3a328636aacebaf8d5d2279466806a1262056934a497b9a818a63408904617d",
+      "package": "vue",
+      "classification": "algorithm",
+      "candidatePath": "src/vue/dev.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/vue/src/index.ts",
+      "upstreamSha256": "4679fb066abd99e24c9ef0b7fd1ef3d045c84598b1f561e5e91aabf7b5c1e28c",
+      "package": "vue",
+      "classification": "algorithm",
+      "candidatePath": "src/vue/index.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    },
+    {
+      "upstreamPath": "packages/vue/src/runtime.ts",
+      "upstreamSha256": "06ab259ad064e1c411d53b53eecae01a4467ea7fdcb124e5fe0cb13c117bb9fd",
+      "package": "vue",
+      "classification": "algorithm",
+      "candidatePath": "src/vue/runtime.lil",
+      "candidate": null,
+      "handling": "missing",
+      "issues": []
+    }
+  ],
+  "complete": false,
+  "failures": [
+    "142 upstream source files lack conforming one-to-one handling",
+    "2 legacy monoliths are nonconforming and are not counted"
+  ]
+}

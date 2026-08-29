@@ -1,21 +1,26 @@
 # LilScript
 
-**LilScript makes JavaScript libraries smaller.**
+**LilScript is built to make correct web programs smaller than equivalent JavaScript.**
 
-Site: [yeargun.github.io/lilscript](https://yeargun.github.io/lilscript/)
+Site: [lilscript.eddocu.com](https://lilscript.eddocu.com/)
 
-LilScript is a typed, compression-first language that compiles into JavaScript, and sometimes into an executable (that path will be more stable later). The compiler mangles and reshapes the program into optimized JS that is typically **5–15% smaller** — after gzip, Brotli, or raw — than the best-performing JS toolchains (Oxc, esbuild, Terser, and similar).
+LilScript is a typed, compression-first language that compiles primarily to JavaScript and secondarily to C/native for its portable subset. Types and explicit boundaries let the compiler change representations before JavaScript is fixed, then score complete legal artifacts for raw, gzip, or Brotli.
 
-## What has been proven
+The engineering target is corpus-scoped and testable: every declared supported,
+semantically equivalent application or library boundary should eventually be no
+larger than its best eligible pinned JavaScript baseline for the selected metric.
+That is the direction of the project, not a theorem or a claim that every current
+port already wins.
 
-- **Monaco / VS Code’s editor core** — independently compiled monaco-editor-core modules are about **20% smaller** on average (Brotli). The paired IDE `ide.js` is **887,420 → 413,607** Brotli (−53%). Live: [yeargun.github.io/monacolil](https://yeargun.github.io/monacolil/)
-- **marked** — parse API of `marked@18.0.10`, 660/660 HTML match. **10,092 → 9,515** Brotli vs parse-only official Oxc (−5.7%), and about **13% faster** on documents in Chromium. Live: [yeargun.github.io/markedlil](https://yeargun.github.io/markedlil/)
-- **Zod** — `zod@4.4.3` classic API, 1353/1353 official tests. Closer-world `zod.core.js` is **54,791 → 31,772** Brotli vs Vite 8 Oxc (−42.0%). The landing size claim stays withdrawn until the package export surface matches. Live: [yeargun.github.io/zodlil](https://yeargun.github.io/zodlil/)
-- **Solid 2.0** — official js-framework-benchmark keyed table: **11,180 → 3,862** Brotli (−65%). Live: [yeargun.github.io/solidlil](https://yeargun.github.io/solidlil/)
-- **Motion, MobX, jQuery, and smaller complete packages** — same idea, scoped contracts. Motion’s selected surface is **4,044 → 2,333** Brotli. MobX is 0.4% larger Brotli than Vite 8 Oxc on this compiler. jQuery is ported and published; official min is still smaller. Labs: [motionlil](https://yeargun.github.io/motionlil/), [mobxlil](https://yeargun.github.io/mobxlil/), [jquerylil](https://yeargun.github.io/jquerylil/)
-- **posthog-js modules** — the capture kernel plus five independent, tabbed packs from `posthog-js@1.418.10`, not the published IIFE. Autocapture utilities are **4,215 → 3,186** Brotli vs Vite 8 Oxc (**−24.4%**); replay core is **4,258 → 3,465** (**−18.6%**). The kernel is larger than Oxc on Brotli in this rebuild. Live: [yeargun.github.io/posthoglil](https://yeargun.github.io/posthoglil/)
+## Evidence Status
 
-It works with pretty much any JS/TS library you rewrite. Comparisons vs npm + Vite 8 / Oxc / Terser / Closure are on the [compare page](https://yeargun.github.io/lilscript/compare.html).
+The canonical paired corpus is green, while current real-library measurements are
+mixed: some artifacts improve, some are unchanged, and some regress. Read
+[current status](docs/current-status.md) before quoting a result. Measurement
+meaning and eligible comparisons are defined by the
+[verification contract](docs/knowledge/verification/README.md); tracked reports
+and scoped interpretations are indexed under
+[evidence](docs/knowledge/evidence/README.md).
 
 ## How it compresses JS finer than Vite / Oxc / Terser / esbuild
 
@@ -75,7 +80,9 @@ LilScript does two things:
 - **(a) Eliminate the objects.** Convenience classes and bags become scalars, arrays, and tight loops — the `Vector` example, at library scale.
 - **(b) Rename for the codec.** Names are not just “make everything one letter.” gzip and Brotli win when the same short tokens repeat. The compiler picks high-frequency short names and **scores the finished file** against the compression algorithm you asked for (`raw`, `gzip`, or `brotli`). Different `cost_model` → different names → a different file that is smaller after *that* codec.
 
-That is why the same program can be 5–15% smaller after gzip / Brotli / raw: the JS is shaped and named for the compressor, not for a human reading the AST.
+That is how the same source can select different raw, gzip, and Brotli artifacts:
+the JavaScript is shaped and named for the configured objective, not for a local
+character-count heuristic. Whether it wins is measured, never assumed.
 
 ## Try it
 
@@ -93,7 +100,9 @@ Lilpack is the Vite-based delivery path (`lilpack dev` / `lilpack build`). VS Co
 
 ## Models, PRs, discussion
 
-Current models can often oneshot a library rewrite in LilScript. On glue-heavy JS, that can land past 20% smaller, sometimes with a bit of runtime improvement (size is the point; perf usually matters less).
+Models can help port a library, but generated source is not evidence. A port is
+complete only when its declared API/behavior gates pass and its compiler output
+is measured against eligible baselines under a fingerprinted boundary.
 
 PRs and experiments are welcome. LilScript is [MIT](LICENSE.md).
 

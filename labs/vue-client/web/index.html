@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Machine-backed evidence for the VueLil 3.5.42 compatibility laboratory.">
+  <title>VueLil evidence</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <header class="hero">
+    <p class="eyebrow">VueLil laboratory / pinned audit</p>
+    <h1>Compatibility and project evidence are incomplete</h1>
+    <p class="lede">No full Vue compatibility, required-project size win, or performance win is claimed while these gates remain open. A diagnostic result does not satisfy the final project-size gate.</p>
+    <div class="pin"><span>Vue 3.5.42</span><code>d63616ca17de965ed32dcb449a4c5cd9982f15d2</code></div>
+  </header>
+  <main>
+    <section class="summary-grid" aria-label="Audit summary">
+      <article><strong>12</strong><span>scoped packages</span></article>
+      <article><strong>234</strong><span>source files</span></article>
+      <article><strong>216</strong><span>required test files</span></article>
+      <article><strong>2023</strong><span>export names audited</span></article>
+    </section>
+    <section>
+      <div class="section-heading"><p>Current truth</p><h2>Open gates</h2></div>
+      <ol class="blockers"><li>source-parity evidence is missing (compatibility/source-parity.json)</li>
+<li>@vue/shared status is &quot;runtime-complete&quot;</li>
+<li>@vue/reactivity status is &quot;runtime-complete&quot;</li>
+<li>@vue/runtime-core status is &quot;partial&quot;</li>
+<li>@vue/runtime-dom status is &quot;not-started&quot;</li>
+<li>@vue/compiler-core status is &quot;runtime-complete&quot;</li>
+<li>@vue/compiler-dom status is &quot;runtime-complete&quot;</li>
+<li>@vue/compiler-ssr status is &quot;runtime-complete&quot;</li>
+<li>@vue/compiler-sfc status is &quot;not-started&quot;</li>
+<li>@vue/server-renderer status is &quot;not-started&quot;</li>
+<li>@vue/compat status is &quot;not-started&quot;</li>
+<li>vue status is &quot;not-started&quot;</li>
+<li>runtime-only-client project-size status is &quot;pending&quot;</li>
+<li>runtime-compiler-client project-size status is &quot;pending&quot;</li>
+<li>ssr-app project-size status is &quot;pending&quot;</li>
+<li>sfc-production-app project-size status is &quot;pending&quot;</li>
+<li>sourceParityRequired is 234; audited value is undefined</li>
+<li>sourceParitySatisfied is 92; audited value is undefined</li>
+<li>sourceParityMissing is 140; audited value is undefined</li>
+<li>sourceParityLegacyMapped is 2; audited value is undefined</li>
+<li>sourceParityLegacyNonconforming is 2; audited value is undefined</li>
+<li>sourceParity gate is &quot;failed&quot;</li>
+<li>candidatePassed is 70; expected 216</li>
+<li>candidatePending is 126; expected 0</li>
+<li>projectSizeRequiredPassed is 0; expected 4</li>
+<li>projectSize gate is &quot;pending&quot;</li>
+<li>performance gate is &quot;pending&quot;</li>
+<li>pages gate is &quot;pending&quot;</li>
+<li>compatibility evidence is missing (artifacts/compatibility-report.json)</li>
+<li>project-size evidence does not identify the current scope</li>
+<li>project-size evidence is missing runtime-only-client</li>
+<li>project-size evidence is missing runtime-compiler-client</li>
+<li>project-size evidence is missing ssr-app</li>
+<li>project-size evidence is missing sfc-production-app</li>
+<li>reactivity-app has not proved paired execution and module-graph independence</li>
+<li>the aggregate required project-size gate is not passed</li>
+<li>performance evidence is missing (artifacts/performance-report.json)</li></ol>
+    </section>
+    <section>
+      <div class="section-heading"><p>Coverage</p><h2>Packages from the pinned tree</h2></div>
+      <div class="table-wrap"><table><thead><tr><th>Package</th><th>Source</th><th>Tests</th><th>Exports</th><th>Scope status</th></tr></thead><tbody><tr><td><code>@vue/shared</code></td><td>16</td><td>6</td><td>80</td><td><span class="status open">runtime-complete</span></td></tr>
+<tr><td><code>@vue/reactivity</code></td><td>13</td><td>16</td><td>86</td><td><span class="status open">runtime-complete</span></td></tr>
+<tr><td><code>@vue/runtime-core</code></td><td>65</td><td>44</td><td>277</td><td><span class="status open">partial</span></td></tr>
+<tr><td><code>@vue/runtime-dom</code></td><td>17</td><td>16</td><td>367</td><td><span class="status open">not-started</span></td></tr>
+<tr><td><code>@vue/compiler-core</code></td><td>30</td><td>20</td><td>227</td><td><span class="status open">runtime-complete</span></td></tr>
+<tr><td><code>@vue/compiler-dom</code></td><td>16</td><td>13</td><td>246</td><td><span class="status open">runtime-complete</span></td></tr>
+<tr><td><code>@vue/compiler-ssr</code></td><td>17</td><td>15</td><td>1</td><td><span class="status open">runtime-complete</span></td></tr>
+<tr><td><code>@vue/compiler-sfc</code></td><td>31</td><td>19</td><td>48</td><td><span class="status open">not-started</span></td></tr>
+<tr><td><code>@vue/server-renderer</code></td><td>15</td><td>17</td><td>28</td><td><span class="status open">not-started</span></td></tr>
+<tr><td><code>@vue/runtime-test</code></td><td>5</td><td>1</td><td>294</td><td><span class="status open">test-host-only</span></td></tr>
+<tr><td><code>@vue/compat</code></td><td>6</td><td>11</td><td>1</td><td><span class="status open">not-started</span></td></tr>
+<tr><td><code>vue</code></td><td>3</td><td>18</td><td>368</td><td><span class="status open">not-started</span></td></tr></tbody></table></div>
+    </section>
+    <section>
+      <div class="section-heading"><p>Project bundles</p><h2>Paired application scenarios</h2></div>
+      <p class="section-copy">Each scenario builds the same application source against upstream Vue and VueLil with identical production settings. Published library bundles are not completion evidence.</p>
+      <div class="table-wrap"><table><thead><tr><th>Scenario</th><th>Role</th><th>Application</th><th>Status</th></tr></thead><tbody><tr><td><code>reactivity-app</code></td><td>diagnostic</td><td>Reactivity-only application exercising reactive state, refs, computed values, and effects.</td><td><span class="status open">failed</span></td></tr>
+<tr><td><code>runtime-only-client</code></td><td>required</td><td>Production browser application using the runtime-only renderer with precompiled render functions.</td><td><span class="status open">pending</span></td></tr>
+<tr><td><code>runtime-compiler-client</code></td><td>required</td><td>Production browser application compiling a template at runtime.</td><td><span class="status open">pending</span></td></tr>
+<tr><td><code>ssr-app</code></td><td>required</td><td>Production server-rendered application including Vue server rendering.</td><td><span class="status open">pending</span></td></tr>
+<tr><td><code>sfc-production-app</code></td><td>required</td><td>Production browser application built from representative Vue single-file components.</td><td><span class="status open">pending</span></td></tr></tbody></table></div>
+    </section>
+    <section class="split">
+      <div><div class="section-heading"><p>Declared state</p><h2>Scope gates</h2></div><table><thead><tr><th>Gate</th><th>Value</th></tr></thead><tbody><tr><td>sourceParityRequired</td><td><span class="status open">234</span></td></tr>
+<tr><td>sourceParitySatisfied</td><td><span class="status open">92</span></td></tr>
+<tr><td>sourceParityMissing</td><td><span class="status open">140</span></td></tr>
+<tr><td>sourceParityLegacyMapped</td><td><span class="status open">2</span></td></tr>
+<tr><td>sourceParityLegacyNonconforming</td><td><span class="status open">2</span></td></tr>
+<tr><td>sourceParity</td><td><span class="status open">failed</span></td></tr>
+<tr><td>upstreamTestFiles</td><td><span class="status open">196</span></td></tr>
+<tr><td>declarationTestFiles</td><td><span class="status open">20</span></td></tr>
+<tr><td>candidatePassed</td><td><span class="status open">70</span></td></tr>
+<tr><td>candidateFailed</td><td><span class="status open">0</span></td></tr>
+<tr><td>candidatePending</td><td><span class="status open">126</span></td></tr>
+<tr><td>reactivityDiagnostic</td><td><span class="status open">failed</span></td></tr>
+<tr><td>projectSizeRequiredPassed</td><td><span class="status open">0</span></td></tr>
+<tr><td>projectSizeRequiredTotal</td><td><span class="status open">4</span></td></tr>
+<tr><td>projectSize</td><td><span class="status open">pending</span></td></tr>
+<tr><td>performance</td><td><span class="status open">pending</span></td></tr>
+<tr><td>pages</td><td><span class="status open">pending</span></td></tr></tbody></table></div>
+      <div><div class="section-heading"><p>Backing files</p><h2>Evidence reports</h2></div><table><thead><tr><th>Report</th><th>SHA-256</th><th>State</th></tr></thead><tbody><tr><td>compatibility</td><td>absent</td><td>pending</td></tr>
+<tr><td>size</td><td><code>d6d804799615</code></td><td>present</td></tr>
+<tr><td>performance</td><td>absent</td><td>pending</td></tr></tbody></table></div>
+    </section>
+    <section class="contract">
+      <div class="section-heading"><p>Completion rule</p><h2>No partial credit</h2></div>
+      <p>Complete means every tracked packages/*/src TypeScript or TSX file at pinned Vue v3.5.42 has one hash-verified, non-placeholder LilScript counterpart at its deterministic mirrored path (or strict declaration-only handling for a type-only file), module responsibility and algorithms are preserved without JavaScript delegation, every listed package entrypoint and format is independent of Vue implementation code, all applicable unchanged upstream tests pass, public runtime and declaration surfaces match, every required actual-project scenario produces a smaller Brotli-11 candidate bundle from identical application source and build settings with matching execution, and benchmark confidence bounds show no material regression.</p>
+      <p>Inspect the complete source-derived inventory in <a href="./evidence.json">evidence.json</a>. Generated presentation text is not itself a benchmark or compatibility result.</p>
+    </section>
+  </main>
+  <footer>Static evidence generated only from <code>compatibility/scope.json</code>, <code>compatibility/inventory.json</code>, and identified machine reports.</footer>
+</body>
+</html>

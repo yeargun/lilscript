@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "complete": false,
+  "upstream": {
+    "package": "vue",
+    "version": "3.5.42",
+    "tag": "v3.5.42",
+    "revision": "d63616ca17de965ed32dcb449a4c5cd9982f15d2",
+    "tree": "e3a0d0c0805529972dd8aaa86a1139257810c185",
+    "clean": true
+  },
+  "scope": {
+    "path": "compatibility/scope.json",
+    "sha256": "cbe327eb758df8c700143dfb725cb9ea6e243c5f756b707ff571842a08b26971"
+  },
+  "inventory": {
+    "path": "compatibility/inventory.json",
+    "sha256": "d274dbbd3a0ce92ffd6db8df92872090d1fd9d1a59ea30e4917c90ef7863805e",
+    "totals": {
+      "packages": 12,
+      "sourceFiles": 234,
+      "upstreamTestFiles": 196,
+      "declarationTestFiles": 20,
+      "publicExports": 2023
+    }
+  },
+  "reports": {
+    "compatibility": {
+      "path": "artifacts/compatibility-report.json",
+      "present": false
+    },
+    "size": {
+      "path": "artifacts/project-size-report.json",
+      "present": true,
+      "sha256": "d6d804799615825d3045db61e230313e772df494372d7a290b9cabca453ae49d",
+      "schemaVersion": 2
+    },
+    "performance": {
+      "path": "artifacts/performance-report.json",
+      "present": false
+    }
+  },
+  "blockers": [
+    "source-parity evidence is missing (compatibility/source-parity.json)",
+    "@vue/shared status is \"runtime-complete\"",
+    "@vue/reactivity status is \"runtime-complete\"",
+    "@vue/runtime-core status is \"partial\"",
+    "@vue/runtime-dom status is \"not-started\"",
+    "@vue/compiler-core status is \"runtime-complete\"",
+    "@vue/compiler-dom status is \"runtime-complete\"",
+    "@vue/compiler-ssr status is \"runtime-complete\"",
+    "@vue/compiler-sfc status is \"not-started\"",
+    "@vue/server-renderer status is \"not-started\"",
+    "@vue/compat status is \"not-started\"",
+    "vue status is \"not-started\"",
+    "runtime-only-client project-size status is \"pending\"",
+    "runtime-compiler-client project-size status is \"pending\"",
+    "ssr-app project-size status is \"pending\"",
+    "sfc-production-app project-size status is \"pending\"",
+    "sourceParityRequired is 234; audited value is undefined",
+    "sourceParitySatisfied is 92; audited value is undefined",
+    "sourceParityMissing is 140; audited value is undefined",
+    "sourceParityLegacyMapped is 2; audited value is undefined",
+    "sourceParityLegacyNonconforming is 2; audited value is undefined",
+    "sourceParity gate is \"failed\"",
+    "candidatePassed is 70; expected 216",
+    "candidatePending is 126; expected 0",
+    "projectSizeRequiredPassed is 0; expected 4",
+    "projectSize gate is \"pending\"",
+    "performance gate is \"pending\"",
+    "pages gate is \"pending\"",
+    "compatibility evidence is missing (artifacts/compatibility-report.json)",
+    "project-size evidence does not identify the current scope",
+    "project-size evidence is missing runtime-only-client",
+    "project-size evidence is missing runtime-compiler-client",
+    "project-size evidence is missing ssr-app",
+    "project-size evidence is missing sfc-production-app",
+    "reactivity-app has not proved paired execution and module-graph independence",
+    "the aggregate required project-size gate is not passed",
+    "performance evidence is missing (artifacts/performance-report.json)"
+  ]
+}

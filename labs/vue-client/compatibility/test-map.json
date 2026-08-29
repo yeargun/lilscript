@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "upstream": {
+    "version": "3.5.42",
+    "revision": "d63616ca17de965ed32dcb449a4c5cd9982f15d2"
+  },
+  "packages": {
+    "@vue/shared": {
+      "sourceRoot": "packages/shared/src",
+      "candidateFacade": "packages/vuelil/shared.js"
+    },
+    "@vue/reactivity": {
+      "sourceRoot": "packages/reactivity/src",
+      "candidateFacade": "packages/vuelil/reactivity.js"
+    },
+    "@vue/runtime-core": {
+      "sourceRoot": "packages/runtime-core/src",
+      "candidateFacade": null
+    },
+    "@vue/runtime-dom": {
+      "sourceRoot": "packages/runtime-dom/src",
+      "candidateFacade": null
+    }
+  },
+  "suites": {
+    "shared": {
+      "targetPackages": [
+        "@vue/shared"
+      ],
+      "testFiles": [
+        {
+          "path": "packages/shared/__tests__/codeframe.spec.ts",
+          "tests": 7
+        },
+        {
+          "path": "packages/shared/__tests__/cssVars.spec.ts",
+          "tests": 2
+        },
+        {
+          "path": "packages/shared/__tests__/escapeHtml.spec.ts",
+          "tests": 5
+        },
+        {
+          "path": "packages/shared/__tests__/looseEqual.spec.ts",
+          "tests": 14
+        },
+        {
+          "path": "packages/shared/__tests__/normalizeProp.spec.ts",
+          "tests": 22
+        },
+        {
+          "path": "packages/shared/__tests__/toDisplayString.spec.ts",
+          "tests": 12
+        }
+      ]
+    }
+  }
+}

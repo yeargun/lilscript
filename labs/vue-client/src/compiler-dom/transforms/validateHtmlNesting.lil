@@ -1,0 +1,41 @@
+import extern {
+  ElementTypes,
+  NodeTypes
+} from "../../../packages/vuelil/compiler-core.js";
+import { isValidHTMLNesting } from "../htmlNesting";
+
+extern JsValue ElementTypes;
+extern JsValue NodeTypes;
+extern JsValue Object;
+extern JsValue SyntaxError;
+
+export void validateHtmlNesting(JsValue node, JsValue context) {
+  JsValue parent = context["parent"];
+  if (
+    JS.strictEqual(node["type"], NodeTypes["ELEMENT"]) &&
+    JS.strictEqual(node["tagType"], ElementTypes["ELEMENT"]) &&
+    parent.truthy() &&
+    JS.strictEqual(parent["type"], NodeTypes["ELEMENT"]) &&
+    JS.strictEqual(parent["tagType"], ElementTypes["ELEMENT"]) &&
+    !isValidHTMLNesting(JS.string(parent["tag"]), JS.string(node["tag"]))
+  ) {
+    JsValue error = JS.construct(
+      SyntaxError,
+      "<" + JS.string(node["tag"]) + "> cannot be child of <" +
+      JS.string(parent["tag"]) + ">, according to HTML specifications. " +
+      "This can cause hydration errors or potentially disrupt future functionality."
+    );
+    error["loc"] = node["loc"];
+    JS.invoke(context, "onWarn", error);
+  }
+}
+
+JS.invoke(
+  Object,
+  "defineProperties",
+  validateHtmlNesting,
+  JS.object(
+    "name", JS.object("configurable", true, "value", "validateHtmlNesting"),
+    "length", JS.object("configurable", true, "value", 2)
+  )
+);

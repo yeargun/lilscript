@@ -1,0 +1,43 @@
+import extern { parse as uriParse } from "node:url";
+
+extern JsValue uriParse;
+extern string decodeURIComponent(string source);
+
+export bool isRelativeUrl(string url) {
+  string firstChar = url.charAt(0);
+  return firstChar == "." || firstChar == "~" || firstChar == "@" ||
+    firstChar == "#";
+}
+
+Regex externalRE = new Regex("^(?:https?:)?//");
+export bool isExternalUrl(string url) {
+  return externalRE.test(url);
+}
+
+Regex dataUrlRE = new Regex("^\\s*data:", "i");
+export bool isDataUrl(string url) {
+  return dataUrlRE.test(url);
+}
+
+export string normalizeDecodedImportPath(string source) {
+  try {
+    return decodeURIComponent(source);
+  } catch {
+    return source;
+  }
+}
+
+export JsValue parseUrl(string url) {
+  string firstChar = url.charAt(0);
+  if (firstChar == "~") {
+    string secondChar = url.charAt(1);
+    int start = 1;
+    if (secondChar == "/") start = 2;
+    url = url.slice(start);
+  }
+  return parseUriParts(url);
+}
+
+JsValue parseUriParts(string urlString) {
+  return JS.call(uriParse, JS.undefined(), urlString, false, true);
+}

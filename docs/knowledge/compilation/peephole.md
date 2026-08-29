@@ -1,20 +1,22 @@
 # Parsed peephole
 
 Parent: [Compilation](README.md). Architecture:
-[current architecture](current-architecture.md). Goal:
-[goal architecture](goal-architecture.md). Source: `src/js_peephole/`
+[current architecture](current-architecture.md). Target:
+[planned architecture](planned-architecture.md). Source: `src/js_peephole/`
 (`optimize_generated_javascript` in `mod.rs`). Feature: `parsed-peephole`
 (minimum `optimization_level` 9).
 
 ## Why it exists
 
 IR emission can still leave legal JS that a **parsed** rewrite can contract. The
-peephole Pratt-parses eligible expressions and validates the complete artifact.
+peephole tokenizes generated output, Pratt-parses eligible expressions, and runs
+targeted structural/binding checks over the complete artifact.
 It does **not** do unparsed text substitution.
 
 It is also, today, a **second optimizer**: class identity fusion, copy
 coalescing, ASI, integer coercions, declaration merging, and more. That second
-job is architectural debt ([07.5](../migration/07-global-compressor.md#075--peephole-is-contraction)).
+job is architectural debt
+([target-JS migration](../migration/planned-migration.md#phase-3-introduce-the-minimal-hygienic-target-js-tree)).
 The intended end state is contraction of already-legal JS, always codec-scored
 or skipped. Reconstructing `class` identity, inventing ternaries, or cloning
 Terser `collapse_vars` as an always-on pass is glue

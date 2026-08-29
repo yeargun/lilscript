@@ -28,7 +28,9 @@ pub struct OptimizationOptions {
     pub common_subexpression_elimination: bool,
     pub finite_value_propagation: bool,
     pub global_optimization: bool,
+    pub forward_global_aliases: bool,
     pub inlining: bool,
+    pub inline_exported_internal_calls: bool,
     pub inline_closure_factories: bool,
     pub scalar_replacement: bool,
     pub dead_store_elimination: bool,
@@ -58,7 +60,9 @@ impl Default for OptimizationOptions {
             common_subexpression_elimination: true,
             finite_value_propagation: true,
             global_optimization: true,
+            forward_global_aliases: false,
             inlining: true,
+            inline_exported_internal_calls: false,
             inline_closure_factories: true,
             scalar_replacement: true,
             dead_store_elimination: true,
@@ -90,7 +94,9 @@ impl OptimizationOptions {
             common_subexpression_elimination: false,
             finite_value_propagation: false,
             global_optimization: false,
+            forward_global_aliases: false,
             inlining: false,
+            inline_exported_internal_calls: false,
             inline_closure_factories: false,
             scalar_replacement: false,
             dead_store_elimination: false,
@@ -240,6 +246,9 @@ fn optimize_control_flow_inner(
 ) -> Result<Vec<OptimizationReport>, SsaError> {
     let mut reports = Vec::new();
     if options.global_optimization {
+        if options.forward_global_aliases {
+            reports.push(forward_single_assignment_global_aliases(module));
+        }
         reports.push(internalize_entry_globals(module));
     }
     if options.dead_code_elimination {
@@ -416,46 +425,567 @@ fn optimize_control_flow_inner(
     Ok(reports)
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+enum NativeArrayOrigin {
+    Literal(FunctionId, ValueId),
+    Global(SymbolId),
+    Field(u32),
+}
+
+#[derive(Debug, Clone, Copy)]
+struct NativeArrayStoreFacts {
+    count: usize,
+    all_arrays: bool,
+    stable_global_initializer: bool,
+}
+
+fn direct_array_method_name(intrinsic: Intrinsic) -> Option<&'static str> {
+    match intrinsic {
+        Intrinsic::JsArrayPush => Some("push"),
+        Intrinsic::JsArrayPop => Some("pop"),
+        Intrinsic::JsArraySlice => Some("slice"),
+        Intrinsic::JsArrayIndexOf => Some("indexOf"),
+        Intrinsic::JsArraySort => Some("sort"),
+        Intrinsic::JsArraySplice => Some("splice"),
+        Intrinsic::JsArrayJoin => Some("join"),
+        Intrinsic::JsArrayShift => Some("shift"),
+        Intrinsic::JsArrayUnshift => Some("unshift"),
+        Intrinsic::JsArrayFlat => Some("flat"),
+        _ => None,
+    }
+}
+
+fn typed_ordinary_array_operation(intrinsic: Intrinsic) -> bool {
+    matches!(
+        intrinsic,
+        Intrinsic::ArrayLength
+            | Intrinsic::ArrayMap
+            | Intrinsic::ArrayFilter
+            | Intrinsic::ArrayReduce
+            | Intrinsic::ArrayForEach
+            | Intrinsic::ArrayPush
+            | Intrinsic::ArrayPop
+            | Intrinsic::ArrayIndexOf
+            | Intrinsic::ArrayIncludes
+            | Intrinsic::ArrayJoin
+            | Intrinsic::ArraySome
+            | Intrinsic::ArrayEvery
+            | Intrinsic::ArrayFindIndex
+            | Intrinsic::ArrayConcat
+            | Intrinsic::ArrayCopyWithin
+            | Intrinsic::ArrayReverse
+            | Intrinsic::ArraySlice
+            | Intrinsic::ArraySplice
+            | Intrinsic::ArrayFill
+    )
+}
+
+fn collect_untyped_aggregate_owners<'src>(ty: &Type<'src>, owners: &mut AHashSet<&'src str>) {
+    match ty {
+        Type::Struct(name) | Type::Class(name) => {
+            owners.insert(name);
+        }
+        Type::StructInstance { name, args } | Type::ClassInstance { name, args } => {
+            owners.insert(name);
+            for argument in args {
+                collect_untyped_aggregate_owners(argument, owners);
+            }
+        }
+        Type::Array(element)
+        | Type::Record(element)
+        | Type::Set(element)
+        | Type::Nullable(element)
+        | Type::Task(element)
+        | Type::Generator(element) => collect_untyped_aggregate_owners(element, owners),
+        Type::Map(key, value) => {
+            collect_untyped_aggregate_owners(key, owners);
+            collect_untyped_aggregate_owners(value, owners);
+        }
+        Type::Union(members) => {
+            for member in members {
+                collect_untyped_aggregate_owners(member, owners);
+            }
+        }
+        Type::Function(signature) => {
+            for parameter in &signature.params {
+                collect_untyped_aggregate_owners(parameter, owners);
+            }
+            collect_untyped_aggregate_owners(&signature.return_type, owners);
+        }
+        Type::GenericFunction(function) => {
+            for parameter in &function.signature.params {
+                collect_untyped_aggregate_owners(parameter, owners);
+            }
+            collect_untyped_aggregate_owners(&function.signature.return_type, owners);
+        }
+        Type::Int
+        | Type::Float
+        | Type::Enum(_)
+        | Type::String
+        | Type::Bool
+        | Type::Null
+        | Type::Void
+        | Type::ArrayBuffer
+        | Type::SharedArrayBuffer
+        | Type::Int8Array
+        | Type::Uint8Array
+        | Type::Uint8ClampedArray
+        | Type::Int16Array
+        | Type::Uint16Array
+        | Type::Int32Array
+        | Type::Uint32Array
+        | Type::Float32Array
+        | Type::Float64Array
+        | Type::Symbol
+        | Type::Regex
+        | Type::ModuleNamespace(_)
+        | Type::ModuleLoadError
+        | Type::TypeParameter(_) => {}
+    }
+}
+
+fn definitely_native_array_use_is_safe(
+    op: &ControlFlowOp<'_>,
+    value: ValueId,
+    origin: NativeArrayOrigin,
+    value_types: &AHashMap<ValueId, Type<'_>>,
+    field_slots: &AHashMap<(&str, usize), u32>,
+    layouts: &AHashMap<&str, &AggregateLayout<'_>>,
+) -> bool {
+    match op {
+        ControlFlowOp::Intrinsic {
+            intrinsic,
+            receiver,
+            args,
+        } => {
+            *receiver == Some(value)
+                && !args.contains(&value)
+                && (direct_array_method_name(*intrinsic).is_some()
+                    || typed_ordinary_array_operation(*intrinsic))
+        }
+        ControlFlowOp::IndexGet { object, index } => *object == value && *index != value,
+        ControlFlowOp::ArrayGetOptional { object, .. } => *object == value,
+        ControlFlowOp::IndexSet {
+            object,
+            index,
+            value: stored,
+        } => {
+            *object == value
+                && *index != value
+                && *stored != value
+                && matches!(value_types.get(index), Some(Type::Int | Type::Float))
+        }
+        ControlFlowOp::StoreGlobal {
+            global,
+            value: stored,
+        } => *stored == value && origin == NativeArrayOrigin::Global(*global),
+        ControlFlowOp::FieldSet {
+            owner,
+            index,
+            value: stored,
+            ..
+        } => {
+            *stored == value
+                && field_slots
+                    .get(&(*owner, *index))
+                    .is_some_and(|slot| origin == NativeArrayOrigin::Field(*slot))
+        }
+        ControlFlowOp::Struct { name, fields } => {
+            let Some(layout) = layouts.get(name) else {
+                return false;
+            };
+            fields
+                .iter()
+                .enumerate()
+                .filter(|(_, field_value)| **field_value == value)
+                .all(|(position, _)| {
+                    layout
+                        .fields
+                        .get(position)
+                        .and_then(|field| field_slots.get(&(layout.name, field.index)))
+                        .is_some_and(|slot| origin == NativeArrayOrigin::Field(*slot))
+                })
+        }
+        _ => false,
+    }
+}
+
 /// `JS.push`/`JS.flat`-style helpers spell `Array.prototype.method.call(x,…)`
-/// because an untyped receiver may be array-like rather than a real array. A
-/// receiver built by an array literal in the same function is a genuine
-/// `Array`, so the direct `x.method(…)` spelling is observably identical and
-/// shorter — unless a string-keyed store could have shadowed the method as an
-/// own property, which disqualifies the receiver.
+/// because an untyped receiver may be array-like rather than a real array.
+/// This proof admits literal arrays and closed storage slots whose every value
+/// is such a literal. Any alias, dynamic write, or untyped boundary invalidates
+/// the complete storage identity before rewriting `x` to `x.method(…)`.
 fn call_array_methods_directly(module: &mut ControlFlowModule<'_>) -> OptimizationReport {
-    let mut changed = false;
-    for function in &mut module.functions {
-        let mut fresh_arrays = AHashSet::<ValueId>::default();
-        for block in &function.blocks {
-            for instruction in &block.instructions {
-                if let Some(out) = instruction.out {
-                    if matches!(
+    let live_functions = module
+        .functions
+        .iter()
+        .filter(|function| function.live)
+        .map(|function| function.id)
+        .collect::<AHashSet<_>>();
+    let literal_arrays = module
+        .functions
+        .iter()
+        .filter(|function| function.live)
+        .flat_map(|function| {
+            function.blocks.iter().flat_map(move |block| {
+                block.instructions.iter().filter_map(move |instruction| {
+                    (matches!(
                         instruction.op,
                         ControlFlowOp::Array(_) | ControlFlowOp::ArraySpread(_)
-                    ) {
-                        fresh_arrays.insert(out);
+                    ))
+                    .then_some(instruction.out)
+                    .flatten()
+                    .map(|out| (function.id, out))
+                })
+            })
+        })
+        .collect::<AHashSet<_>>();
+    let field_slots = aggregate_field_slot_ids(module);
+    let layouts = module
+        .structs
+        .iter()
+        .chain(&module.classes)
+        .map(|layout| (layout.name, layout))
+        .collect::<AHashMap<_, _>>();
+
+    let exported_globals = exported_globals(module);
+    let mut global_stores = AHashMap::<SymbolId, NativeArrayStoreFacts>::default();
+    let mut field_stores = AHashMap::<u32, NativeArrayStoreFacts>::default();
+    for function in module
+        .functions
+        .iter()
+        .filter(|function| live_functions.contains(&function.id))
+    {
+        for block in &function.blocks {
+            for (instruction_index, instruction) in block.instructions.iter().enumerate() {
+                match &instruction.op {
+                    ControlFlowOp::StoreGlobal { global, value } => {
+                        let native = literal_arrays.contains(&(function.id, *value));
+                        let stable = function.id == module.entry
+                            && block.id == function.entry
+                            && !block.instructions[..instruction_index].iter().any(|prior| {
+                                matches!(prior.op, ControlFlowOp::LoadGlobal(loaded) if loaded == *global)
+                                    || matches!(
+                                        prior.op,
+                                        ControlFlowOp::CallDirect { .. }
+                                            | ControlFlowOp::CallValue { .. }
+                                            | ControlFlowOp::CallMethod { .. }
+                                            | ControlFlowOp::HostCall { .. }
+                                            | ControlFlowOp::NewClass {
+                                                constructor: Some(_),
+                                                ..
+                                            }
+                                            | ControlFlowOp::Intrinsic { .. }
+                                    )
+                            });
+                        global_stores
+                            .entry(*global)
+                            .and_modify(|facts| {
+                                facts.count += 1;
+                                facts.all_arrays &= native;
+                                facts.stable_global_initializer &= stable;
+                            })
+                            .or_insert(NativeArrayStoreFacts {
+                                count: 1,
+                                all_arrays: native,
+                                stable_global_initializer: stable,
+                            });
                     }
+                    ControlFlowOp::Struct { name, fields } => {
+                        let Some(layout) = layouts.get(name) else {
+                            continue;
+                        };
+                        for (position, value) in fields.iter().enumerate() {
+                            let Some(slot) = layout.fields.get(position).and_then(|field| {
+                                field_slots.get(&(layout.name, field.index)).copied()
+                            }) else {
+                                continue;
+                            };
+                            let native = literal_arrays.contains(&(function.id, *value));
+                            field_stores
+                                .entry(slot)
+                                .and_modify(|facts| {
+                                    facts.count += 1;
+                                    facts.all_arrays &= native;
+                                })
+                                .or_insert(NativeArrayStoreFacts {
+                                    count: 1,
+                                    all_arrays: native,
+                                    stable_global_initializer: false,
+                                });
+                        }
+                    }
+                    ControlFlowOp::FieldSet {
+                        owner,
+                        index,
+                        value,
+                        ..
+                    } => {
+                        let Some(slot) = field_slots.get(&(*owner, *index)).copied() else {
+                            continue;
+                        };
+                        let native = literal_arrays.contains(&(function.id, *value));
+                        field_stores
+                            .entry(slot)
+                            .and_modify(|facts| {
+                                facts.count += 1;
+                                facts.all_arrays &= native;
+                            })
+                            .or_insert(NativeArrayStoreFacts {
+                                count: 1,
+                                all_arrays: native,
+                                stable_global_initializer: false,
+                            });
+                    }
+                    ControlFlowOp::NewClass { class, .. } => {
+                        // Class allocation installs defaults before the constructor.
+                        // They are not represented by Array/ArraySpread provenance.
+                        if let Some(layout) = layouts.get(class) {
+                            for field in &layout.fields {
+                                if let Some(slot) =
+                                    field_slots.get(&(layout.name, field.index)).copied()
+                                {
+                                    field_stores
+                                        .entry(slot)
+                                        .and_modify(|facts| {
+                                            facts.count += 1;
+                                            facts.all_arrays = false;
+                                        })
+                                        .or_insert(NativeArrayStoreFacts {
+                                            count: 1,
+                                            all_arrays: false,
+                                            stable_global_initializer: false,
+                                        });
+                                }
+                            }
+                        }
+                    }
+                    _ => {}
                 }
             }
         }
-        if fresh_arrays.is_empty() {
-            continue;
+    }
+
+    let candidate_globals = module
+        .globals
+        .iter()
+        .filter(|global| !global.external && !exported_globals.contains(&global.symbol))
+        .filter_map(|global| {
+            global_stores.get(&global.symbol).and_then(|facts| {
+                (facts.count == 1 && facts.all_arrays && facts.stable_global_initializer)
+                    .then_some(global.symbol)
+            })
+        })
+        .collect::<AHashSet<_>>();
+
+    let exported_functions = exported_functions(module);
+    let mut unsafe_owners = module
+        .structs
+        .iter()
+        .chain(&module.classes)
+        .filter(|layout| layout.external || layout.identity_observed)
+        .map(|layout| layout.name)
+        .collect::<AHashSet<_>>();
+    for global in module
+        .globals
+        .iter()
+        .filter(|global| global.external || exported_globals.contains(&global.symbol))
+    {
+        collect_untyped_aggregate_owners(&global.ty, &mut unsafe_owners);
+    }
+    for function in module.functions.iter().filter(|function| function.live) {
+        if function.kind == FunctionKind::Extern || exported_functions.contains(&function.id) {
+            for parameter in &function.params {
+                collect_untyped_aggregate_owners(&parameter.ty, &mut unsafe_owners);
+            }
+            collect_untyped_aggregate_owners(&function.return_type, &mut unsafe_owners);
         }
         let value_types = control_flow_value_types(function);
+        for (index, escape) in function.value_escapes.iter().enumerate() {
+            if *escape == EscapeState::EscapesToUntypedBoundary {
+                if let Some(ty) = value_types.get(&ValueId(index as u32)) {
+                    collect_untyped_aggregate_owners(ty, &mut unsafe_owners);
+                }
+            }
+        }
+    }
+    loop {
+        let inherited = module
+            .classes
+            .iter()
+            .filter(|layout| layout.base.is_some_and(|base| unsafe_owners.contains(base)))
+            .map(|layout| layout.name)
+            .filter(|name| !unsafe_owners.contains(name))
+            .collect::<Vec<_>>();
+        if inherited.is_empty() {
+            break;
+        }
+        unsafe_owners.extend(inherited);
+    }
+
+    let mut typed_field_slots = AHashMap::<u32, bool>::default();
+    let mut unsafe_field_slots = AHashSet::default();
+    for layout in module.structs.iter().chain(&module.classes) {
+        for field in &layout.fields {
+            let Some(slot) = field_slots.get(&(layout.name, field.index)).copied() else {
+                continue;
+            };
+            typed_field_slots
+                .entry(slot)
+                .and_modify(|typed| *typed &= matches!(field.ty, Type::Array(_)))
+                .or_insert_with(|| matches!(field.ty, Type::Array(_)));
+            if unsafe_owners.contains(layout.name) {
+                unsafe_field_slots.insert(slot);
+            }
+        }
+    }
+    let candidate_fields = typed_field_slots
+        .into_iter()
+        .filter_map(|(slot, typed)| {
+            field_stores.get(&slot).and_then(|facts| {
+                (typed
+                    && facts.count != 0
+                    && facts.all_arrays
+                    && !unsafe_field_slots.contains(&slot))
+                .then_some(slot)
+            })
+        })
+        .collect::<AHashSet<_>>();
+
+    let mut stored_origins =
+        AHashMap::<(FunctionId, ValueId), AHashSet<NativeArrayOrigin>>::default();
+    for function in module.functions.iter().filter(|function| function.live) {
         for block in &function.blocks {
             for instruction in &block.instructions {
-                if let ControlFlowOp::IndexSet { object, index, .. } = &instruction.op {
-                    if fresh_arrays.contains(object)
-                        && !matches!(value_types.get(index), Some(Type::Int | Type::Float))
+                match &instruction.op {
+                    ControlFlowOp::StoreGlobal { global, value }
+                        if candidate_globals.contains(global)
+                            && literal_arrays.contains(&(function.id, *value)) =>
                     {
-                        fresh_arrays.remove(object);
+                        stored_origins
+                            .entry((function.id, *value))
+                            .or_default()
+                            .insert(NativeArrayOrigin::Global(*global));
+                    }
+                    ControlFlowOp::FieldSet {
+                        owner,
+                        index,
+                        value,
+                        ..
+                    } if literal_arrays.contains(&(function.id, *value)) => {
+                        if let Some(slot) = field_slots
+                            .get(&(*owner, *index))
+                            .filter(|slot| candidate_fields.contains(slot))
+                        {
+                            stored_origins
+                                .entry((function.id, *value))
+                                .or_default()
+                                .insert(NativeArrayOrigin::Field(*slot));
+                        }
+                    }
+                    ControlFlowOp::Struct { name, fields } => {
+                        let Some(layout) = layouts.get(name) else {
+                            continue;
+                        };
+                        for (position, value) in fields.iter().enumerate() {
+                            if !literal_arrays.contains(&(function.id, *value)) {
+                                continue;
+                            }
+                            if let Some(slot) = layout
+                                .fields
+                                .get(position)
+                                .and_then(|field| field_slots.get(&(layout.name, field.index)))
+                                .filter(|slot| candidate_fields.contains(slot))
+                            {
+                                stored_origins
+                                    .entry((function.id, *value))
+                                    .or_default()
+                                    .insert(NativeArrayOrigin::Field(*slot));
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+
+    let mut origins = AHashMap::<(FunctionId, ValueId), NativeArrayOrigin>::default();
+    let mut invalid = AHashSet::<NativeArrayOrigin>::default();
+    for (function, value) in &literal_arrays {
+        let origin = match stored_origins.get(&(*function, *value)) {
+            None => NativeArrayOrigin::Literal(*function, *value),
+            Some(destinations) if destinations.len() == 1 => *destinations.iter().next().unwrap(),
+            Some(destinations) => {
+                invalid.extend(destinations.iter().copied());
+                NativeArrayOrigin::Literal(*function, *value)
+            }
+        };
+        origins.insert((*function, *value), origin);
+    }
+    for function in module.functions.iter().filter(|function| function.live) {
+        for block in &function.blocks {
+            for instruction in &block.instructions {
+                let Some(out) = instruction.out else {
+                    continue;
+                };
+                match instruction.op {
+                    ControlFlowOp::LoadGlobal(global) if candidate_globals.contains(&global) => {
+                        origins.insert((function.id, out), NativeArrayOrigin::Global(global));
+                    }
+                    ControlFlowOp::FieldGet { owner, index, .. } => {
+                        if let Some(slot) = field_slots
+                            .get(&(owner, index))
+                            .filter(|slot| candidate_fields.contains(slot))
+                        {
+                            origins.insert((function.id, out), NativeArrayOrigin::Field(*slot));
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+
+    for function in module.functions.iter().filter(|function| function.live) {
+        let value_types = control_flow_value_types(function);
+        for block in &function.blocks {
+            for phi in &block.phis {
+                for (_, value) in &phi.incoming {
+                    if let Some(origin) = origins.get(&(function.id, *value)) {
+                        invalid.insert(*origin);
+                    }
+                }
+            }
+            for instruction in &block.instructions {
+                for value in control_flow_used_values(&instruction.op) {
+                    let Some(origin) = origins.get(&(function.id, value)).copied() else {
+                        continue;
+                    };
+                    if !definitely_native_array_use_is_safe(
+                        &instruction.op,
+                        value,
+                        origin,
+                        &value_types,
+                        &field_slots,
+                        &layouts,
+                    ) {
+                        invalid.insert(origin);
+                    }
+                }
+            }
+            if let Some(terminator) = &block.terminator {
+                for value in terminator_used_values(terminator) {
+                    if let Some(origin) = origins.get(&(function.id, value)) {
+                        invalid.insert(*origin);
                     }
                 }
             }
         }
-        if fresh_arrays.is_empty() {
-            continue;
-        }
+    }
+
+    let mut changed = false;
+    for function in module.functions.iter_mut().filter(|function| function.live) {
         for block in &mut function.blocks {
             for instruction in &mut block.instructions {
                 let ControlFlowOp::Intrinsic {
@@ -466,22 +996,15 @@ fn call_array_methods_directly(module: &mut ControlFlowModule<'_>) -> Optimizati
                 else {
                     continue;
                 };
-                if !fresh_arrays.contains(receiver) {
+                let Some(origin) = origins.get(&(function.id, *receiver)) else {
+                    continue;
+                };
+                let Some(method) = direct_array_method_name(*intrinsic) else {
+                    continue;
+                };
+                if invalid.contains(origin) {
                     continue;
                 }
-                let method = match intrinsic {
-                    Intrinsic::JsArrayPush => "push",
-                    Intrinsic::JsArrayPop => "pop",
-                    Intrinsic::JsArraySlice => "slice",
-                    Intrinsic::JsArrayIndexOf => "indexOf",
-                    Intrinsic::JsArraySort => "sort",
-                    Intrinsic::JsArraySplice => "splice",
-                    Intrinsic::JsArrayJoin => "join",
-                    Intrinsic::JsArrayShift => "shift",
-                    Intrinsic::JsArrayUnshift => "unshift",
-                    Intrinsic::JsArrayFlat => "flat",
-                    _ => continue,
-                };
                 instruction.op = ControlFlowOp::HostCall {
                     receiver: *receiver,
                     method,
@@ -2299,6 +2822,16 @@ fn elide_stringify_in_op(
     }
 }
 
+/// A constant only materializes a primitive literal: it cannot observe or
+/// mutate state, throw, call, allocate observable identity, suspend, or coerce
+/// another value. This rule is deliberately type-independent, so an object or
+/// untyped JavaScript operand keeps its ToPrimitive order relative to every
+/// observable instruction. Any wider primitive-only window needs a separate
+/// proof rather than weakening this whitelist.
+fn stringify_elision_can_cross(op: &ControlFlowOp<'_>) -> bool {
+    matches!(op, ControlFlowOp::Const(_))
+}
+
 fn elide_single_use_stringify(module: &mut ControlFlowModule<'_>) -> OptimizationReport {
     let mut changed = false;
     for function in &mut module.functions {
@@ -2334,51 +2867,59 @@ fn elide_single_use_stringify(module: &mut ControlFlowModule<'_>) -> Optimizatio
         let known_strings = collect_known_string_values(function);
         let mut consumed = AHashSet::default();
         for (block_index, block) in function.blocks.iter_mut().enumerate() {
+            let definitions = stringify
+                .iter()
+                .filter_map(|(out, (inner, definition_block, definition_index))| {
+                    (*definition_block == block_index)
+                        .then_some((*definition_index, (*out, *inner)))
+                })
+                .collect::<AHashMap<_, _>>();
+            let mut available = AHashMap::default();
             for (instruction_index, instruction) in block.instructions.iter_mut().enumerate() {
-                let adjacent = stringify
-                    .iter()
-                    .filter_map(|(out, (inner, definition_block, definition_index))| {
-                        (*definition_block == block_index
-                            && definition_index.saturating_add(1) == instruction_index)
-                            .then_some((*out, *inner))
-                    })
-                    .collect::<AHashMap<_, _>>();
-                if adjacent.is_empty() {
+                if stringify_elision_can_cross(&instruction.op) {
                     continue;
                 }
-                if elide_stringify_in_op(
-                    &mut instruction.op,
-                    &adjacent,
-                    &known_strings,
-                    &mut consumed,
-                ) {
-                    changed = true;
-                }
-                if let ControlFlowOp::Intrinsic {
-                    intrinsic: Intrinsic::JsInvoke,
-                    receiver,
-                    args,
-                    ..
-                } = &mut instruction.op
-                {
-                    let invoke_name = args.first().and_then(|key| invoke_keys.get(key)).cloned();
-                    match invoke_name.as_deref() {
-                        Some(name) if is_string_prototype_method(name) => {
-                            if let Some(receiver) = receiver.as_mut() {
-                                if rewrite_stringify_slot(receiver, &adjacent, &mut consumed) {
-                                    changed = true;
-                                }
-                            }
-                        }
-                        Some("test" | "exec") => {
-                            if let Some(subject) = args.get_mut(1) {
-                                if rewrite_stringify_slot(subject, &adjacent, &mut consumed) {
-                                    changed = true;
-                                }
-                            }
-                        }
-                        _ => {}
+
+                if !available.is_empty() {
+                    if elide_stringify_in_op(
+                        &mut instruction.op,
+                        &available,
+                        &known_strings,
+                        &mut consumed,
+                    ) {
+                        changed = true;
                     }
+                    if let ControlFlowOp::Intrinsic {
+                        intrinsic: Intrinsic::JsInvoke,
+                        receiver,
+                        args,
+                        ..
+                    } = &mut instruction.op
+                    {
+                        let invoke_name =
+                            args.first().and_then(|key| invoke_keys.get(key)).cloned();
+                        match invoke_name.as_deref() {
+                            Some(name) if is_string_prototype_method(name) => {
+                                if let Some(receiver) = receiver.as_mut() {
+                                    if rewrite_stringify_slot(receiver, &available, &mut consumed) {
+                                        changed = true;
+                                    }
+                                }
+                            }
+                            Some("test" | "exec") => {
+                                if let Some(subject) = args.get_mut(1) {
+                                    if rewrite_stringify_slot(subject, &available, &mut consumed) {
+                                        changed = true;
+                                    }
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+                available.clear();
+                if let Some((out, inner)) = definitions.get(&instruction_index) {
+                    available.insert(*out, *inner);
                 }
             }
         }
@@ -2476,6 +3017,291 @@ fn eliminate_unread_globals(module: &mut ControlFlowModule<'_>) -> OptimizationR
     OptimizationReport {
         pass_name: "unused-global-elimination",
         changed,
+    }
+}
+
+fn forward_single_assignment_global_aliases(
+    module: &mut ControlFlowModule<'_>,
+) -> OptimizationReport {
+    let lazy_exported = module
+        .lazy_modules
+        .iter()
+        .flat_map(|module| module.exports.iter())
+        .filter_map(|export| match export.binding {
+            ExportBinding::Global(symbol) => Some(symbol),
+            _ => None,
+        })
+        .collect::<AHashSet<_>>();
+    let aliasable_globals = module
+        .globals
+        .iter()
+        .filter(|global| !global.external && !lazy_exported.contains(&global.symbol))
+        .map(|global| (global.symbol, global.ty.clone()))
+        .collect::<AHashMap<_, _>>();
+    let mut store_locations =
+        AHashMap::<crate::semantic::SymbolId, Vec<(FunctionId, usize, usize, ValueId)>>::default();
+    for function in &module.functions {
+        for (block_index, block) in function.blocks.iter().enumerate() {
+            for (instruction_index, instruction) in block.instructions.iter().enumerate() {
+                if let ControlFlowOp::StoreGlobal { global, value } = instruction.op {
+                    store_locations.entry(global).or_default().push((
+                        function.id,
+                        block_index,
+                        instruction_index,
+                        value,
+                    ));
+                }
+            }
+        }
+    }
+
+    let entry = &module.functions[module.entry.0 as usize];
+    let entry_block = entry.entry.0 as usize;
+    let entry_loads = entry
+        .blocks
+        .iter()
+        .enumerate()
+        .flat_map(|(block_index, block)| {
+            block.instructions.iter().enumerate().filter_map(
+                move |(instruction_index, instruction)| match instruction.op {
+                    ControlFlowOp::LoadGlobal(target) => instruction
+                        .out
+                        .map(|out| (out, (block_index, instruction_index, target))),
+                    _ => None,
+                },
+            )
+        })
+        .collect::<AHashMap<_, _>>();
+
+    // Record the syntactic alias graph before applying order checks. Strictly
+    // increasing initialization positions make cycles ineligible, but keeping
+    // the graph explicit also prevents partially dismantling one.
+    let raw_aliases = aliasable_globals
+        .keys()
+        .filter_map(|alias| {
+            let [(function, _, _, value)] = store_locations.get(alias)?.as_slice() else {
+                return None;
+            };
+            if *function != module.entry {
+                return None;
+            }
+            let (_, _, target) = entry_loads.get(value)?;
+            (target != alias
+                && aliasable_globals
+                    .get(alias)
+                    .zip(aliasable_globals.get(target))
+                    .is_some_and(|(alias_ty, target_ty)| alias_ty == target_ty))
+            .then_some((*alias, *target))
+        })
+        .collect::<AHashMap<_, _>>();
+    let cyclic_aliases = raw_aliases
+        .keys()
+        .copied()
+        .filter(|start| {
+            let mut current = *start;
+            let mut seen = AHashSet::default();
+            while seen.insert(current) {
+                let Some(next) = raw_aliases.get(&current).copied() else {
+                    return false;
+                };
+                if next == *start {
+                    return true;
+                }
+                current = next;
+            }
+            false
+        })
+        .collect::<AHashSet<_>>();
+
+    let reachable_entry_blocks = reachable_blocks(entry);
+    let entry_predecessors = cfg_predecessors(entry);
+    let entry_block_is_single_entry = entry_predecessors[entry_block]
+        .iter()
+        .all(|predecessor| !reachable_entry_blocks.contains(predecessor));
+    let exported_functions = exported_functions(module);
+    let direct_callees = module
+        .functions
+        .iter()
+        .map(|function| {
+            function
+                .blocks
+                .iter()
+                .flat_map(|block| &block.instructions)
+                .filter_map(|instruction| match instruction.op {
+                    ControlFlowOp::CallDirect { function, .. }
+                    | ControlFlowOp::CallMethod { function, .. }
+                    | ControlFlowOp::NewClass {
+                        constructor: Some(function),
+                        ..
+                    } => Some(function),
+                    _ => None,
+                })
+                .collect::<AHashSet<_>>()
+        })
+        .collect::<Vec<_>>();
+
+    let mut forwarded_aliases = AHashMap::default();
+    if entry_block_is_single_entry {
+        for (alias, target) in &raw_aliases {
+            if cyclic_aliases.contains(alias) {
+                continue;
+            }
+            let Some([(alias_function, alias_block, alias_store, alias_value)]) =
+                store_locations.get(alias).map(Vec::as_slice)
+            else {
+                continue;
+            };
+            let Some([(target_function, target_block, target_store, _)]) =
+                store_locations.get(target).map(Vec::as_slice)
+            else {
+                continue;
+            };
+            let Some((load_block, target_load, loaded_target)) = entry_loads.get(alias_value)
+            else {
+                continue;
+            };
+            if *alias_function != module.entry
+                || *target_function != module.entry
+                || *alias_block != entry_block
+                || *target_block != entry_block
+                || *load_block != entry_block
+                || loaded_target != target
+                || !(*target_store < *target_load && *target_load < *alias_store)
+            {
+                continue;
+            }
+
+            let mut may_read_alias = module
+                .functions
+                .iter()
+                .filter(|function| {
+                    function
+                        .blocks
+                        .iter()
+                        .flat_map(|block| &block.instructions)
+                        .any(|instruction| {
+                            matches!(instruction.op, ControlFlowOp::LoadGlobal(symbol) if symbol == *alias)
+                        })
+                })
+                .map(|function| function.id)
+                .collect::<AHashSet<_>>();
+            loop {
+                let callers = module
+                    .functions
+                    .iter()
+                    .filter(|function| {
+                        direct_callees[function.id.0 as usize]
+                            .iter()
+                            .any(|callee| may_read_alias.contains(callee))
+                    })
+                    .map(|function| function.id)
+                    .filter(|function| !may_read_alias.contains(function))
+                    .collect::<Vec<_>>();
+                if callers.is_empty() {
+                    break;
+                }
+                may_read_alias.extend(callers);
+            }
+
+            let has_unsafe_boundary = may_read_alias.iter().any(|function| {
+                *function != module.entry
+                    && (exported_functions.contains(function)
+                        || module
+                            .js_host_aliases
+                            .iter()
+                            .any(|alias| alias.function == *function)
+                        || !matches!(
+                            module.functions[function.0 as usize].kind,
+                            FunctionKind::Function
+                        ))
+            }) || module
+                .functions
+                .iter()
+                .flat_map(|function| &function.blocks)
+                .flat_map(|block| &block.instructions)
+                .any(|instruction| {
+                    matches!(instruction.op, ControlFlowOp::Closure { function, .. } if may_read_alias.contains(&function))
+                });
+            if has_unsafe_boundary {
+                continue;
+            }
+
+            let entry_use_before_initialization =
+                entry
+                    .blocks
+                    .iter()
+                    .enumerate()
+                    .filter(|(block_index, _)| reachable_entry_blocks.contains(block_index))
+                    .any(|(block_index, block)| {
+                        block.instructions.iter().enumerate().any(
+                            |(instruction_index, instruction)| {
+                                let reads_alias = matches!(
+                                    instruction.op,
+                                    ControlFlowOp::LoadGlobal(symbol) if symbol == *alias
+                                );
+                                let invokes_reader = match instruction.op {
+                                    ControlFlowOp::CallDirect { function, .. }
+                                    | ControlFlowOp::CallMethod { function, .. }
+                                    | ControlFlowOp::NewClass {
+                                        constructor: Some(function),
+                                        ..
+                                    } => may_read_alias.contains(&function),
+                                    _ => false,
+                                };
+                                (reads_alias || invokes_reader)
+                                    && block_index == entry_block
+                                    && instruction_index < *alias_store
+                            },
+                        )
+                    });
+            if !entry_use_before_initialization {
+                forwarded_aliases.insert(*alias, *target);
+            }
+        }
+    }
+
+    // If an alias targets another removable alias, keep the outer storage this
+    // round. Its initializer is still rewritten to the surviving target.
+    let removed_aliases = forwarded_aliases.keys().copied().collect::<AHashSet<_>>();
+    forwarded_aliases.retain(|_, target| !removed_aliases.contains(target));
+
+    if forwarded_aliases.is_empty() {
+        return OptimizationReport {
+            pass_name: "global-alias-forwarding",
+            changed: false,
+        };
+    }
+
+    for function in &mut module.functions {
+        for block in &mut function.blocks {
+            block.instructions.retain_mut(|instruction| {
+                if let ControlFlowOp::LoadGlobal(symbol) = instruction.op {
+                    if let Some(target) = forwarded_aliases.get(&symbol) {
+                        instruction.op = ControlFlowOp::LoadGlobal(*target);
+                    }
+                    return true;
+                }
+                !matches!(
+                    instruction.op,
+                    ControlFlowOp::StoreGlobal { global, .. }
+                        if forwarded_aliases.contains_key(&global)
+                )
+            });
+        }
+    }
+    for export in &mut module.exports {
+        if let ExportBinding::Global(symbol) = &mut export.binding {
+            if let Some(target) = forwarded_aliases.get(symbol) {
+                *symbol = *target;
+            }
+        }
+    }
+    module
+        .globals
+        .retain(|global| !forwarded_aliases.contains_key(&global.symbol));
+    OptimizationReport {
+        pass_name: "global-alias-forwarding",
+        changed: true,
     }
 }
 
@@ -5290,7 +6116,13 @@ fn inline_small_functions(
                 && !function.is_async
                 && !function.is_generator
                 && !recursive.contains(&function.id)
-                && !exported.contains(&function.id)
+                // Earlier closure-call devirtualization can produce a
+                // CallDirect. Keep exported address-taken targets out so this
+                // extension never absorbs a function-value-origin call.
+                && (!exported.contains(&function.id)
+                    || (options.inline_exported_internal_calls
+                        && function.kind == FunctionKind::Function
+                        && !address_taken.contains(&function.id)))
                 && !protected_callees.contains(&function.id)
                 // Adapter fusion is an alternate JavaScript ABI. When the
                 // same target also has a direct typed call, retain that call
@@ -5310,12 +6142,21 @@ fn inline_small_functions(
                         .instructions
                         .iter()
                         .any(|instruction| matches!(instruction.op, ControlFlowOp::Closure { .. })))
-                && (is_trivial_js_host_passthrough(function)
+                && ((!exported.contains(&function.id) && is_trivial_js_host_passthrough(function))
                     || (function.blocks[0].instructions.len() <= options.inline_instruction_limit
                         && options.inline_growth_limit.is_none_or(|limit| {
                             let instructions = function.blocks[0].instructions.len();
                             let calls = call_counts.get(&function.id).copied().unwrap_or(0);
-                            let retained_instructions = if address_taken.contains(&function.id) {
+                            // Exported and address-taken declarations survive
+                            // call-site rewriting, so their bodies are true
+                            // duplication rather than removable source bytes.
+                            // Complete-artifact emission and naming search
+                            // decide whether aligned local spellings and that
+                            // duplication help gzip/Brotli; this pass never
+                            // forces the candidate to win.
+                            let retained_instructions = if address_taken.contains(&function.id)
+                                || exported.contains(&function.id)
+                            {
                                 instructions
                             } else {
                                 0
@@ -5346,6 +6187,10 @@ fn inline_small_functions(
                     _ => None,
                 };
                 if let Some((class, constructor, args)) = constructor_call {
+                    if exported.contains(&constructor) {
+                        rewritten.push(instruction);
+                        continue;
+                    }
                     let Some(object) = instruction.out else {
                         rewritten.push(instruction);
                         continue;
@@ -6525,6 +7370,7 @@ pub(crate) fn analyze_escapes(module: &mut ControlFlowModule<'_>) -> Optimizatio
         .collect::<AHashSet<_>>();
     let exported_functions = exported_functions(module);
     let exported_globals = exported_globals(module);
+    let recursive_functions = recursive_functions(module);
     let aggregate_field_slots = aggregate_field_slot_ids(module);
     let dynamic_aggregate_fields = module
         .structs
@@ -6583,6 +7429,17 @@ pub(crate) fn analyze_escapes(module: &mut ControlFlowModule<'_>) -> Optimizatio
     for function in &module.functions {
         let value_types = control_flow_value_types(function);
         let closure_values = closure_targets(function);
+        let exact_closures = function
+            .blocks
+            .iter()
+            .flat_map(|block| &block.instructions)
+            .filter_map(|instruction| match (instruction.out, &instruction.op) {
+                (Some(out), ControlFlowOp::Closure { function, captures }) => {
+                    Some((out, (*function, captures.clone())))
+                }
+                _ => None,
+            })
+            .collect::<AHashMap<_, _>>();
         let exported = exported_functions.contains(&function.id);
         for (index, state) in function.value_escapes.iter().copied().enumerate() {
             if state != EscapeState::LocalOnly {
@@ -7108,24 +7965,58 @@ pub(crate) fn analyze_escapes(module: &mut ControlFlowModule<'_>) -> Optimizatio
                         }
                     }
                     ControlFlowOp::CallValue { callee, args } => {
-                        mark_escape_node(
-                            &mut states,
-                            value_node(*callee),
-                            EscapeState::EscapesToUntypedBoundary,
-                        );
-                        for value in args {
+                        let known = exact_closures.get(callee).and_then(|(target, captures)| {
+                            let target_function = module.functions.get(target.0 as usize)?;
+                            // Mutable captures are cells rather than ordinary value
+                            // parameters. Leave those and every uncertain ABI on the
+                            // existing untyped path.
+                            (target_function.kind != FunctionKind::Extern
+                                && *target != function.id
+                                && !recursive_functions.contains(target)
+                                && target_function.mutable_capture_locals.is_empty()
+                                && target_function.capture_count == captures.len()
+                                && target_function.params.len() == captures.len() + args.len())
+                            .then_some((*target, target_function, captures))
+                        });
+                        if let Some((target, target_function, captures)) = known {
+                            for (argument, parameter) in
+                                captures.iter().chain(args).zip(&target_function.params)
+                            {
+                                add_escape_edge(
+                                    &mut edges,
+                                    value_node(*argument),
+                                    EscapeNode::Value(target, parameter.value),
+                                );
+                            }
+                            if let Some(out) = instruction.out {
+                                for returned in &returns[&target] {
+                                    add_escape_edge(
+                                        &mut edges,
+                                        value_node(out),
+                                        EscapeNode::Value(target, *returned),
+                                    );
+                                }
+                            }
+                        } else {
                             mark_escape_node(
                                 &mut states,
-                                value_node(*value),
+                                value_node(*callee),
                                 EscapeState::EscapesToUntypedBoundary,
                             );
-                        }
-                        if let Some(out) = instruction.out {
-                            mark_escape_node(
-                                &mut states,
-                                value_node(out),
-                                EscapeState::EscapesToUntypedBoundary,
-                            );
+                            for value in args {
+                                mark_escape_node(
+                                    &mut states,
+                                    value_node(*value),
+                                    EscapeState::EscapesToUntypedBoundary,
+                                );
+                            }
+                            if let Some(out) = instruction.out {
+                                mark_escape_node(
+                                    &mut states,
+                                    value_node(out),
+                                    EscapeState::EscapesToUntypedBoundary,
+                                );
+                            }
                         }
                     }
                     ControlFlowOp::Intrinsic {
@@ -13141,7 +14032,11 @@ mod tests {
     const S: Span = Span::new(0, 0);
 
     fn run_javascript(script: &str) -> String {
-        let output = std::process::Command::new("node")
+        let mut command = std::process::Command::new("node");
+        if script.contains("export{") || script.contains("export {") {
+            command.arg("--input-type=module");
+        }
+        let output = command
             .arg("-e")
             .arg(script)
             .output()
@@ -13154,6 +14049,168 @@ mod tests {
             script
         );
         String::from_utf8(output.stdout).expect("node stdout is UTF-8")
+    }
+
+    fn optimized_array_call_module(
+        source: &'static str,
+        preserve_exports: bool,
+    ) -> ControlFlowModule<'static> {
+        let arena = Bump::new();
+        let program = parse_source(&arena, source).unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut module = lower_to_control_flow(&program, &semantics).unwrap();
+        optimize_control_flow_with_options(
+            &mut module,
+            &OptimizationOptions::disabled(),
+            preserve_exports,
+        )
+        .unwrap();
+        module
+    }
+
+    fn array_call_forms(module: &ControlFlowModule<'_>) -> (usize, usize) {
+        module
+            .functions
+            .iter()
+            .filter(|function| function.live)
+            .flat_map(|function| &function.blocks)
+            .flat_map(|block| &block.instructions)
+            .fold(
+                (0, 0),
+                |(direct, borrowed), instruction| match &instruction.op {
+                    ControlFlowOp::HostCall { method, .. }
+                        if [
+                            "push", "pop", "slice", "indexOf", "sort", "splice", "join", "shift",
+                            "unshift", "flat",
+                        ]
+                        .contains(method) =>
+                    {
+                        (direct + 1, borrowed)
+                    }
+                    ControlFlowOp::Intrinsic { intrinsic, .. }
+                        if direct_array_method_name(*intrinsic).is_some() =>
+                    {
+                        (direct, borrowed + 1)
+                    }
+                    _ => (direct, borrowed),
+                },
+            )
+    }
+
+    #[test]
+    fn calls_literal_array_methods_directly() {
+        let module = optimized_array_call_module(
+            "void run(){JsValue values=JS.array();JS.push(values,1);}run();",
+            false,
+        );
+
+        assert_eq!(array_call_forms(&module), (1, 0));
+    }
+
+    #[test]
+    fn calls_stable_private_global_array_methods_directly() {
+        let module = optimized_array_call_module(
+            "JsValue[] values=[];void append(){JS.push(values,1);}append();",
+            false,
+        );
+
+        assert_eq!(array_call_forms(&module), (1, 0));
+    }
+
+    #[test]
+    fn calls_private_typed_field_array_methods_directly() {
+        let module = optimized_array_call_module(
+            "struct Bucket{JsValue[] values;}Bucket bucket=Bucket{[]};void append(){JS.push(bucket.values,1);}append();",
+            false,
+        );
+
+        assert_eq!(array_call_forms(&module), (1, 0));
+    }
+
+    #[test]
+    fn keeps_borrowed_array_call_after_extern_can_shadow_method() {
+        let module = optimized_array_call_module(
+            "extern void expose(JsValue value);void run(){JsValue values=JS.array();expose(values);JS.push(values,1);print(JS.number(JS.get(values,\"length\")));}run();",
+            false,
+        );
+
+        assert_eq!(array_call_forms(&module), (0, 1));
+        let output = crate::codegen_ir_js::emit_optimized_ir_js(&module).unwrap();
+        assert!(output.contains(".push.call("), "{output}");
+        let result = run_javascript(&format!(
+            "let shadowed=false;function expose(value){{value.push=()=>{{shadowed=true;return 99}}}}{output};process.stdout.write('TRACE:'+shadowed)"
+        ));
+        assert_eq!(result, "1\nTRACE:false", "{output}");
+    }
+
+    #[test]
+    fn keeps_borrowed_array_call_for_exported_global() {
+        let module = optimized_array_call_module(
+            "export JsValue[] values=[];void append(){JS.push(values,1);}append();",
+            true,
+        );
+
+        assert_eq!(array_call_forms(&module), (0, 1));
+    }
+
+    #[test]
+    fn keeps_borrowed_array_call_for_mutable_global() {
+        let module = optimized_array_call_module(
+            "JsValue[] values=[];void reset(){values=[];}void append(){JS.push(values,1);}reset();append();",
+            false,
+        );
+
+        assert_eq!(array_call_forms(&module), (0, 1));
+    }
+
+    #[test]
+    fn keeps_borrowed_array_call_for_mixed_field_stores() {
+        let module = optimized_array_call_module(
+            "extern JsValue[] unknown();struct Bucket{JsValue[] values;}Bucket first=Bucket{[]};Bucket second=Bucket{unknown()};void append(){JS.push(first.values,1);}append();",
+            false,
+        );
+
+        assert_eq!(array_call_forms(&module), (0, 1));
+    }
+
+    #[test]
+    fn keeps_borrowed_array_call_for_defaulted_class_field() {
+        let module = optimized_array_call_module(
+            "class Bucket{JsValue[] values;}Bucket bucket=new Bucket();void append(){JS.push(bucket.values,1);}append();",
+            false,
+        );
+
+        assert_eq!(array_call_forms(&module), (0, 1));
+    }
+
+    #[test]
+    fn keeps_borrowed_array_call_after_dynamic_string_key_write() {
+        let module = optimized_array_call_module(
+            "extern string key();JsValue[] values=[];void append(){JS.set(values,key(),0);JS.push(values,1);}append();",
+            false,
+        );
+
+        assert_eq!(array_call_forms(&module), (0, 1));
+    }
+
+    #[test]
+    fn keeps_borrowed_array_calls_for_typed_array_and_array_like_js_value() {
+        let module = optimized_array_call_module(
+            "extern JsValue arrayLike();void run(){Uint8Array bytes=new Uint8Array(2);JsValue values=arrayLike();JS.push(bytes,1);JS.push(values,1);}run();",
+            false,
+        );
+
+        assert_eq!(array_call_forms(&module), (0, 2));
+    }
+
+    #[test]
+    fn keeps_borrowed_field_array_call_when_owner_escapes_untyped() {
+        let module = optimized_array_call_module(
+            "struct Bucket{JsValue[] values;}extern void expose(JsValue value);Bucket bucket=Bucket{[]};void run(){expose(bucket);JS.push(bucket.values,1);}run();",
+            false,
+        );
+
+        assert_eq!(array_call_forms(&module), (0, 1));
     }
 
     fn module(instructions: Vec<Instruction>) -> IrModule {
@@ -13208,6 +14265,58 @@ mod tests {
                 value.0
             );
         }
+    }
+
+    fn escape_analyzed_module(source: &'static str) -> ControlFlowModule<'static> {
+        let arena = Bump::new();
+        let program = parse_source(&arena, source).unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut module = lower_to_control_flow(&program, &semantics).unwrap();
+        promote_locals_to_ssa(&mut module).unwrap();
+        analyze_escapes(&mut module);
+        module
+    }
+
+    fn struct_escape_states(module: &ControlFlowModule<'_>, name: &str) -> Vec<EscapeState> {
+        module
+            .functions
+            .iter()
+            .flat_map(|function| {
+                function
+                    .blocks
+                    .iter()
+                    .flat_map(|block| &block.instructions)
+                    .filter_map(
+                        move |instruction| match (&instruction.op, instruction.out) {
+                            (ControlFlowOp::Struct { name: actual, .. }, Some(out))
+                                if *actual == name =>
+                            {
+                                Some(function.value_escapes[out.0 as usize])
+                            }
+                            _ => None,
+                        },
+                    )
+            })
+            .collect()
+    }
+
+    fn call_value_escape_states(module: &ControlFlowModule<'_>) -> Vec<EscapeState> {
+        module
+            .functions
+            .iter()
+            .flat_map(|function| {
+                function
+                    .blocks
+                    .iter()
+                    .flat_map(|block| &block.instructions)
+                    .filter_map(move |instruction| {
+                        matches!(instruction.op, ControlFlowOp::CallValue { .. })
+                            .then_some(instruction.out)
+                            .flatten()
+                            .map(|out| function.value_escapes[out.0 as usize])
+                    })
+            })
+            .collect()
     }
 
     #[test]
@@ -14508,6 +15617,120 @@ mod tests {
     }
 
     #[test]
+    fn exact_local_closure_call_keeps_nominal_argument_and_result_typed() {
+        let module = escape_analyzed_module(
+            "struct KnownCapture{int offset;}struct KnownArgument{int value;}struct KnownResult{int value;}void run(){KnownCapture capture=KnownCapture{1};KnownArgument argument=KnownArgument{7};func(KnownArgument)->KnownResult callback=(KnownArgument value)=>KnownResult{value.value+capture.offset};KnownResult result=callback(argument);print(result.value);}run();",
+        );
+
+        assert_eq!(
+            struct_escape_states(&module, "KnownCapture"),
+            vec![EscapeState::EscapesToTypedCode]
+        );
+        assert_eq!(
+            struct_escape_states(&module, "KnownArgument"),
+            vec![EscapeState::LocalOnly]
+        );
+        assert_eq!(
+            struct_escape_states(&module, "KnownResult"),
+            vec![EscapeState::EscapesToTypedCode]
+        );
+        assert_eq!(
+            call_value_escape_states(&module),
+            vec![EscapeState::EscapesToTypedCode]
+        );
+    }
+
+    #[test]
+    fn unknown_callback_call_remains_an_untyped_boundary() {
+        let module = escape_analyzed_module(
+            "struct UnknownArgument{int value;}struct UnknownResult{int value;}UnknownResult invoke(func(UnknownArgument)->UnknownResult callback){UnknownArgument argument=UnknownArgument{7};return callback(argument);}",
+        );
+
+        assert_eq!(
+            struct_escape_states(&module, "UnknownArgument"),
+            vec![EscapeState::EscapesToUntypedBoundary]
+        );
+        assert_eq!(
+            call_value_escape_states(&module),
+            vec![EscapeState::EscapesToUntypedBoundary]
+        );
+    }
+
+    #[test]
+    fn differing_closure_phi_call_remains_an_untyped_boundary() {
+        let module = escape_analyzed_module(
+            "struct PhiArgument{int value;}struct PhiResult{int value;}extern bool choose();void run(){func(PhiArgument)->PhiResult callback=(PhiArgument value)=>PhiResult{value.value};if(choose()){callback=(PhiArgument value)=>PhiResult{value.value+1};}PhiArgument argument=PhiArgument{7};PhiResult result=callback(argument);print(result.value);}run();",
+        );
+
+        assert_eq!(
+            struct_escape_states(&module, "PhiArgument"),
+            vec![EscapeState::EscapesToUntypedBoundary]
+        );
+        assert_eq!(
+            struct_escape_states(&module, "PhiResult"),
+            vec![
+                EscapeState::EscapesToUntypedBoundary,
+                EscapeState::EscapesToUntypedBoundary,
+            ]
+        );
+        assert_eq!(
+            call_value_escape_states(&module),
+            vec![EscapeState::EscapesToUntypedBoundary]
+        );
+    }
+
+    #[test]
+    fn mutable_capture_shared_by_sibling_closures_keeps_call_fallback() {
+        let module = escape_analyzed_module(
+            "struct SharedEntry{int value;}void run(){SharedEntry shared=SharedEntry{1};func(SharedEntry)->SharedEntry replace=(SharedEntry next)=>{shared=next;return shared;};func()->SharedEntry read=()=>shared;SharedEntry replacement=SharedEntry{2};SharedEntry result=replace(replacement);print(result.value+read().value);}run();",
+        );
+
+        let states = call_value_escape_states(&module);
+        assert_eq!(states.len(), 2);
+        assert!(
+            states
+                .iter()
+                .all(|state| *state == EscapeState::EscapesToUntypedBoundary),
+            "{states:?}"
+        );
+        let shared = struct_escape_states(&module, "SharedEntry");
+        assert_eq!(shared.len(), 2);
+        assert!(
+            shared.contains(&EscapeState::EscapesToUntypedBoundary),
+            "the replacement passed through the mutable closure must stay named: {shared:?}"
+        );
+        let capture_targets = module
+            .functions
+            .iter()
+            .filter(|function| {
+                function.kind == FunctionKind::Closure
+                    && !function.mutable_capture_locals.is_empty()
+            })
+            .count();
+        assert_eq!(capture_targets, 2);
+    }
+
+    #[test]
+    fn host_retained_exact_closure_keeps_nominal_call_shapes_untyped() {
+        let module = escape_analyzed_module(
+            "struct HostArgument{int value;}struct HostResult{int value;}extern void retain(func(HostArgument)->HostResult callback);void run(){func(HostArgument)->HostResult callback=(HostArgument value)=>HostResult{value.value+1};HostArgument argument=HostArgument{7};HostResult result=callback(argument);retain(callback);print(result.value);}run();",
+        );
+
+        assert_eq!(
+            struct_escape_states(&module, "HostArgument"),
+            vec![EscapeState::EscapesToUntypedBoundary]
+        );
+        assert_eq!(
+            struct_escape_states(&module, "HostResult"),
+            vec![EscapeState::EscapesToUntypedBoundary]
+        );
+        assert_eq!(
+            call_value_escape_states(&module),
+            vec![EscapeState::EscapesToUntypedBoundary]
+        );
+    }
+
+    #[test]
     fn marks_extern_arguments_as_untyped_escapes() {
         let arena = Bump::new();
         let program = parse_source(
@@ -15604,6 +16827,723 @@ mod tests {
             .any(|report| { report.pass_name == "global-constant-propagation" && report.changed }));
     }
 
+    fn named_global(module: &ControlFlowModule<'_>, name: &str) -> SymbolId {
+        module
+            .globals
+            .iter()
+            .find(|global| global.name == name)
+            .map(|global| global.symbol)
+            .unwrap_or_else(|| panic!("missing global {name}"))
+    }
+
+    fn has_global_access(module: &ControlFlowModule<'_>, symbol: SymbolId) -> bool {
+        module
+            .functions
+            .iter()
+            .flat_map(|function| &function.blocks)
+            .flat_map(|block| &block.instructions)
+            .any(|instruction| {
+                matches!(
+                    instruction.op,
+                    ControlFlowOp::LoadGlobal(global) if global == symbol
+                ) || matches!(
+                    instruction.op,
+                    ControlFlowOp::StoreGlobal { global, .. } if global == symbol
+                )
+            })
+    }
+
+    #[test]
+    fn forwards_stable_internal_global_aliases() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "extern int read();int target=read();int alias=target;int observe(){return target+alias;}print(observe());",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut module = lower_to_control_flow(&program, &semantics).unwrap();
+        let target = named_global(&module, "target");
+        let alias = named_global(&module, "alias");
+        assert!(has_global_access(&module, alias));
+
+        let reports = optimize_control_flow_with_options(
+            &mut module,
+            &OptimizationOptions {
+                global_optimization: true,
+                forward_global_aliases: true,
+                ..OptimizationOptions::disabled()
+            },
+            false,
+        )
+        .unwrap();
+
+        assert!(reports
+            .iter()
+            .any(|report| report.pass_name == "global-alias-forwarding" && report.changed));
+        assert!(!module.globals.iter().any(|global| global.symbol == alias));
+        assert!(!has_global_access(&module, alias));
+        assert!(has_global_access(&module, target));
+    }
+
+    #[test]
+    fn forwards_stable_root_export_aliases_to_one_public_identity() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "JsValue stableTarget=JS.object();export JsValue alias=stableTarget;export {alias as second};JsValue observe(){return alias;}print(observe()==stableTarget);",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let module = lower_to_control_flow(&program, &semantics).unwrap();
+        let target = named_global(&module, "stableTarget");
+        let alias = named_global(&module, "alias");
+        let original_global_count = module.globals.len();
+
+        let mut baseline = module.clone();
+        let baseline_reports = optimize_control_flow_with_options(
+            &mut baseline,
+            &OptimizationOptions {
+                global_optimization: true,
+                ..OptimizationOptions::disabled()
+            },
+            true,
+        )
+        .unwrap();
+        assert!(baseline_reports
+            .iter()
+            .all(|report| report.pass_name != "global-alias-forwarding"));
+        assert!(baseline.globals.iter().any(|global| global.symbol == alias));
+        assert_eq!(baseline.exports[0].binding, ExportBinding::Global(alias));
+        let baseline_output = crate::codegen_ir_js::emit_optimized_ir_js_module(&baseline).unwrap();
+
+        let mut optimized = module;
+        let reports = optimize_control_flow_with_options(
+            &mut optimized,
+            &OptimizationOptions {
+                global_optimization: true,
+                forward_global_aliases: true,
+                ..OptimizationOptions::disabled()
+            },
+            true,
+        )
+        .unwrap();
+
+        assert!(reports
+            .iter()
+            .any(|report| report.pass_name == "global-alias-forwarding" && report.changed));
+        assert_eq!(optimized.globals.len() + 1, original_global_count);
+        assert!(!optimized
+            .globals
+            .iter()
+            .any(|global| global.symbol == alias));
+        assert!(optimized
+            .globals
+            .iter()
+            .any(|global| global.symbol == target));
+        assert!(!has_global_access(&optimized, alias));
+        let exports = optimized
+            .exports
+            .iter()
+            .map(|export| (export.name, export.binding))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            exports,
+            vec![
+                ("alias", ExportBinding::Global(target)),
+                ("second", ExportBinding::Global(target)),
+            ]
+        );
+
+        let output = crate::codegen_ir_js::emit_optimized_ir_js_module(&optimized).unwrap();
+        assert!(
+            output.len() < baseline_output.len(),
+            "{baseline_output}\n{output}"
+        );
+        assert!(output.contains(" as alias"), "{output}");
+        assert!(output.contains(" as second"), "{output}");
+        let source = serde_json::to_string(&output).unwrap();
+        let trace = run_javascript(&format!(
+            "const source={source};const namespace=await import('data:text/javascript,'+encodeURIComponent(source));process.stdout.write(Object.keys(namespace).join(',')+':'+(namespace.alias===namespace.second))"
+        ));
+        assert_eq!(trace, "true\nalias,second:true", "{output}");
+    }
+
+    #[test]
+    fn keeps_aliases_of_mutated_globals() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "extern int read();int target=read();int alias=target;target=read();int observe(){return target+alias;}print(observe());",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut module = lower_to_control_flow(&program, &semantics).unwrap();
+        let alias = named_global(&module, "alias");
+
+        let report = forward_single_assignment_global_aliases(&mut module);
+
+        assert!(!report.changed);
+        assert!(module.globals.iter().any(|global| global.symbol == alias));
+        assert!(has_global_access(&module, alias));
+    }
+
+    #[test]
+    fn keeps_globals_with_multiple_alias_stores() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "extern int read();int target=read();int alias=target;alias=target;int observe(){return target+alias;}print(observe());",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut module = lower_to_control_flow(&program, &semantics).unwrap();
+        let alias = named_global(&module, "alias");
+
+        let report = forward_single_assignment_global_aliases(&mut module);
+
+        assert!(!report.changed);
+        assert!(module.globals.iter().any(|global| global.symbol == alias));
+        assert!(has_global_access(&module, alias));
+    }
+
+    #[test]
+    fn keeps_aliases_observed_before_initialization() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "extern int read();int target=read();int alias=target;int observe(){return target+alias;}print(observe());",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut module = lower_to_control_flow(&program, &semantics).unwrap();
+        let alias = named_global(&module, "alias");
+        let observe = module
+            .functions
+            .iter()
+            .find(|function| function.name == Some("observe"))
+            .map(|function| function.id)
+            .unwrap();
+        let entry = &mut module.functions[module.entry.0 as usize];
+        let entry_block = entry.entry.0 as usize;
+        let call_index = entry.blocks[entry_block]
+            .instructions
+            .iter()
+            .position(|instruction| {
+                matches!(instruction.op, ControlFlowOp::CallDirect { function, .. } if function == observe)
+            })
+            .unwrap();
+        let call = entry.blocks[entry_block].instructions.remove(call_index);
+        let alias_store = entry.blocks[entry_block]
+            .instructions
+            .iter()
+            .position(|instruction| {
+                matches!(instruction.op, ControlFlowOp::StoreGlobal { global, .. } if global == alias)
+            })
+            .unwrap();
+        entry.blocks[entry_block]
+            .instructions
+            .insert(alias_store, call);
+
+        let report = forward_single_assignment_global_aliases(&mut module);
+
+        assert!(!report.changed);
+        assert!(module.globals.iter().any(|global| global.symbol == alias));
+        assert!(has_global_access(&module, alias));
+    }
+
+    #[test]
+    fn keeps_cyclic_global_aliases() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "extern int read();int left=read();int right=left;int observe(){return left+right;}print(observe());",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut module = lower_to_control_flow(&program, &semantics).unwrap();
+        let left = named_global(&module, "left");
+        let right = named_global(&module, "right");
+        let entry = &mut module.functions[module.entry.0 as usize];
+        let entry_block = entry.entry.0 as usize;
+        let left_store = entry.blocks[entry_block]
+            .instructions
+            .iter()
+            .position(|instruction| {
+                matches!(instruction.op, ControlFlowOp::StoreGlobal { global, .. } if global == left)
+            })
+            .unwrap();
+        let cycle_value = ValueId(entry.value_count);
+        entry.value_count += 1;
+        entry.value_local_hints.push(None);
+        entry.value_escapes.push(EscapeState::LocalOnly);
+        entry.blocks[entry_block].instructions.insert(
+            left_store,
+            ControlFlowInstruction::generated(
+                Some(cycle_value),
+                Some(Type::Int),
+                ControlFlowOp::LoadGlobal(right),
+                S,
+            ),
+        );
+        let ControlFlowOp::StoreGlobal { value, .. } =
+            &mut entry.blocks[entry_block].instructions[left_store + 1].op
+        else {
+            unreachable!();
+        };
+        *value = cycle_value;
+
+        let report = forward_single_assignment_global_aliases(&mut module);
+
+        assert!(!report.changed);
+        assert!(module.globals.iter().any(|global| global.symbol == left));
+        assert!(module.globals.iter().any(|global| global.symbol == right));
+        assert!(has_global_access(&module, left));
+        assert!(has_global_access(&module, right));
+    }
+
+    #[test]
+    fn keeps_lazy_exported_alias_bindings() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "extern int read();int target=read();export int alias=target;int observe(){return target+alias;}print(observe());",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut lazy_module = lower_to_control_flow(&program, &semantics).unwrap();
+        let lazy_alias = named_global(&lazy_module, "alias");
+        let original_exports = lazy_module.exports.clone();
+        lazy_module.lazy_modules.push(crate::ir::IrLazyModule {
+            id: 0,
+            source: "./lazy.lil",
+            exports: vec![crate::ir::IrExport {
+                name: "alias",
+                binding: ExportBinding::Global(lazy_alias),
+                span: S,
+            }],
+            span: S,
+        });
+
+        let report = forward_single_assignment_global_aliases(&mut lazy_module);
+
+        assert!(!report.changed);
+        assert_eq!(lazy_module.exports, original_exports);
+        assert_eq!(
+            lazy_module.lazy_modules[0].exports[0].binding,
+            ExportBinding::Global(lazy_alias)
+        );
+        assert!(lazy_module
+            .globals
+            .iter()
+            .any(|global| global.symbol == lazy_alias));
+        assert!(has_global_access(&lazy_module, lazy_alias));
+    }
+
+    #[test]
+    fn keeps_root_export_aliases_with_mutable_or_external_targets() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "JsValue target=JS.object();export JsValue alias=target;target=JS.object();",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut mutable = lower_to_control_flow(&program, &semantics).unwrap();
+        let mutable_alias = named_global(&mutable, "alias");
+        let mutable_exports = mutable.exports.clone();
+
+        let report = forward_single_assignment_global_aliases(&mut mutable);
+
+        assert!(!report.changed);
+        assert_eq!(mutable.exports, mutable_exports);
+        assert!(mutable
+            .globals
+            .iter()
+            .any(|global| global.symbol == mutable_alias));
+        assert!(has_global_access(&mutable, mutable_alias));
+
+        let arena = Bump::new();
+        let program =
+            parse_source(&arena, "extern JsValue target;export JsValue alias=target;").unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut external = lower_to_control_flow(&program, &semantics).unwrap();
+        let external_alias = named_global(&external, "alias");
+        let external_exports = external.exports.clone();
+
+        let report = forward_single_assignment_global_aliases(&mut external);
+
+        assert!(!report.changed);
+        assert_eq!(external.exports, external_exports);
+        assert!(external
+            .globals
+            .iter()
+            .any(|global| global.symbol == external_alias));
+        assert!(has_global_access(&external, external_alias));
+    }
+
+    #[test]
+    fn keeps_root_export_aliases_observed_before_initialization() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "JsValue target=JS.object();export JsValue alias=target;JsValue observe(){return alias;}print(observe());",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut module = lower_to_control_flow(&program, &semantics).unwrap();
+        let alias = named_global(&module, "alias");
+        let original_exports = module.exports.clone();
+        let observe = module
+            .functions
+            .iter()
+            .find(|function| function.name == Some("observe"))
+            .map(|function| function.id)
+            .unwrap();
+        let entry = &mut module.functions[module.entry.0 as usize];
+        let entry_block = entry.entry.0 as usize;
+        let call_index = entry.blocks[entry_block]
+            .instructions
+            .iter()
+            .position(|instruction| {
+                matches!(instruction.op, ControlFlowOp::CallDirect { function, .. } if function == observe)
+            })
+            .unwrap();
+        let call = entry.blocks[entry_block].instructions.remove(call_index);
+        let alias_store = entry.blocks[entry_block]
+            .instructions
+            .iter()
+            .position(|instruction| {
+                matches!(instruction.op, ControlFlowOp::StoreGlobal { global, .. } if global == alias)
+            })
+            .unwrap();
+        entry.blocks[entry_block]
+            .instructions
+            .insert(alias_store, call);
+
+        let report = forward_single_assignment_global_aliases(&mut module);
+
+        assert!(!report.changed);
+        assert_eq!(module.exports, original_exports);
+        assert!(module.globals.iter().any(|global| global.symbol == alias));
+        assert!(has_global_access(&module, alias));
+    }
+
+    #[test]
+    fn exported_internal_inlining_is_scored_without_changing_the_export() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "export int adjust(int value){int added=value+1;int scaled=added*3;return scaled-2;}print(adjust(2));print(adjust(5));",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut original = lower_to_control_flow(&program, &semantics).unwrap();
+        promote_locals_to_ssa(&mut original).unwrap();
+        let adjust = original
+            .functions
+            .iter()
+            .find(|function| function.name == Some("adjust"))
+            .unwrap()
+            .id;
+        let exported_binding = original.exports.clone();
+        let exported_body = original.functions[adjust.0 as usize].clone();
+
+        let mut incumbent = original.clone();
+        let report = inline_small_functions(
+            &mut incumbent,
+            &OptimizationOptions::default(),
+            &AHashSet::default(),
+        );
+        assert!(!report.changed);
+        assert_eq!(direct_call_count(&incumbent, adjust), 2);
+
+        let mut growth_limited = original.clone();
+        let report = inline_small_functions(
+            &mut growth_limited,
+            &OptimizationOptions {
+                inline_exported_internal_calls: true,
+                inline_instruction_limit: 64,
+                inline_growth_limit: Some(0),
+                ..OptimizationOptions::default()
+            },
+            &AHashSet::default(),
+        );
+        assert!(!report.changed, "the retained export body is real growth");
+        assert_eq!(direct_call_count(&growth_limited, adjust), 2);
+
+        let mut candidate = original;
+        let report = inline_small_functions(
+            &mut candidate,
+            &OptimizationOptions {
+                inline_exported_internal_calls: true,
+                inline_instruction_limit: 64,
+                inline_growth_limit: None,
+                ..OptimizationOptions::default()
+            },
+            &AHashSet::default(),
+        );
+        assert!(report.changed);
+        assert_eq!(direct_call_count(&candidate, adjust), 0);
+        assert_eq!(candidate.exports, exported_binding);
+        assert_eq!(candidate.functions[adjust.0 as usize], exported_body);
+
+        let output = crate::codegen_ir_js::emit_optimized_ir_js(&candidate).unwrap();
+        assert_eq!(run_javascript(&output), "7\n16\n", "{output}");
+    }
+
+    #[test]
+    fn exported_internal_inlining_allocates_per_caller_ssa_metadata() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "export int bump(int value){int next=value+1;return next*2;}int left(){return bump(2);}int right(){int input=5;return bump(input);}print(left());print(right());",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut module = lower_to_control_flow(&program, &semantics).unwrap();
+        promote_locals_to_ssa(&mut module).unwrap();
+        let bump = module
+            .functions
+            .iter()
+            .find(|function| function.name == Some("bump"))
+            .unwrap()
+            .id;
+        let callers = ["left", "right"].map(|name| {
+            let function = module
+                .functions
+                .iter()
+                .find(|function| function.name == Some(name))
+                .unwrap();
+            (function.id, function.value_count)
+        });
+        let callee_outputs = module.functions[bump.0 as usize].blocks[0]
+            .instructions
+            .iter()
+            .filter_map(|instruction| instruction.out)
+            .collect::<Vec<_>>();
+        for out in &callee_outputs {
+            module.functions[bump.0 as usize].value_local_hints[out.0 as usize] = Some("aligned");
+            module.functions[bump.0 as usize].value_escapes[out.0 as usize] =
+                EscapeState::EscapesToTypedCode;
+        }
+        let protected = callers.iter().map(|(id, _)| *id).collect::<AHashSet<_>>();
+
+        let report = inline_small_functions(
+            &mut module,
+            &OptimizationOptions {
+                inline_exported_internal_calls: true,
+                inline_instruction_limit: 64,
+                inline_growth_limit: None,
+                ..OptimizationOptions::default()
+            },
+            &protected,
+        );
+
+        assert!(report.changed);
+        assert_eq!(direct_call_count(&module, bump), 0);
+        for (caller, old_value_count) in callers {
+            let caller = &module.functions[caller.0 as usize];
+            let fresh = caller
+                .blocks
+                .iter()
+                .flat_map(|block| &block.instructions)
+                .filter_map(|instruction| instruction.out)
+                .filter(|out| out.0 >= old_value_count)
+                .collect::<AHashSet<_>>();
+            assert_eq!(fresh.len(), callee_outputs.len());
+            assert_eq!(caller.value_local_hints.len(), caller.value_count as usize);
+            assert_eq!(caller.value_escapes.len(), caller.value_count as usize);
+            for out in fresh {
+                assert_eq!(caller.value_local_hints[out.0 as usize], Some("aligned"));
+                assert_eq!(
+                    caller.value_escapes[out.0 as usize],
+                    EscapeState::EscapesToTypedCode
+                );
+            }
+            assert_control_flow_values_are_defined(caller);
+        }
+
+        let output = crate::codegen_ir_js::emit_optimized_ir_js(&module).unwrap();
+        assert_eq!(run_javascript(&output), "6\n12\n", "{output}");
+    }
+
+    #[test]
+    fn exported_internal_inlining_preserves_owned_field_slots() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "struct Box{int value;}export int replace(Box box,int value){box.value=value;return box.value;}Box left=Box{1};Box right=Box{2};print(replace(left,4));print(replace(right,7));",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut module = lower_to_control_flow(&program, &semantics).unwrap();
+        promote_locals_to_ssa(&mut module).unwrap();
+        let replace = module
+            .functions
+            .iter()
+            .find(|function| function.name == Some("replace"))
+            .unwrap()
+            .id;
+        let expected = owned_field_slots(&module.functions[replace.0 as usize]);
+        assert_eq!(expected, vec![(true, "Box", 0), (false, "Box", 0)]);
+
+        let report = inline_small_functions(
+            &mut module,
+            &OptimizationOptions {
+                inline_exported_internal_calls: true,
+                inline_instruction_limit: 64,
+                inline_growth_limit: None,
+                ..OptimizationOptions::default()
+            },
+            &AHashSet::default(),
+        );
+
+        assert!(report.changed);
+        let copies = module
+            .functions
+            .iter()
+            .filter(|function| function.id != replace)
+            .flat_map(owned_field_slots)
+            .collect::<Vec<_>>();
+        assert_eq!(copies, expected.repeat(2));
+    }
+
+    #[test]
+    fn exported_internal_inlining_keeps_sensitive_call_shapes() {
+        let options = OptimizationOptions {
+            inline_exported_internal_calls: true,
+            inline_instruction_limit: 64,
+            inline_control_flow_limit: 64,
+            inline_growth_limit: None,
+            ..OptimizationOptions::default()
+        };
+
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "export int recurse(int value){return recurse(value);}print(recurse(1));",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut recursive = lower_to_control_flow(&program, &semantics).unwrap();
+        promote_locals_to_ssa(&mut recursive).unwrap();
+        let recurse = recursive
+            .functions
+            .iter()
+            .find(|function| function.name == Some("recurse"))
+            .unwrap()
+            .id;
+        inline_small_functions(&mut recursive, &options, &AHashSet::default());
+        assert_eq!(direct_call_count(&recursive, recurse), 2);
+
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "export int choose(bool first){if(first){return 1;}return 2;}print(choose(true));",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut control_flow = lower_to_control_flow(&program, &semantics).unwrap();
+        promote_locals_to_ssa(&mut control_flow).unwrap();
+        let choose = control_flow
+            .functions
+            .iter()
+            .find(|function| function.name == Some("choose"))
+            .unwrap()
+            .id;
+        let mut reports = Vec::new();
+        optimize_inlining_fixed_point(
+            &mut control_flow,
+            &options,
+            &AHashSet::default(),
+            &mut reports,
+        );
+        assert_eq!(direct_call_count(&control_flow, choose), 1);
+
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "export int increment(int value){return value+1;}void run(){func(int)->int callback=increment;print(callback(4));}run();",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut closure_call = lower_to_control_flow(&program, &semantics).unwrap();
+        promote_locals_to_ssa(&mut closure_call).unwrap();
+        let increment = closure_call
+            .functions
+            .iter()
+            .find(|function| function.name == Some("increment"))
+            .unwrap()
+            .id;
+        let run = closure_call
+            .functions
+            .iter()
+            .find(|function| function.name == Some("run"))
+            .unwrap()
+            .id;
+        devirtualize_known_closure_calls(&mut closure_call);
+        assert_eq!(direct_call_count(&closure_call, increment), 1);
+        inline_small_functions(&mut closure_call, &options, &AHashSet::from_iter([run]));
+        assert_eq!(direct_call_count(&closure_call, increment), 1);
+        assert!(closure_call
+            .functions
+            .iter()
+            .flat_map(|function| &function.blocks)
+            .flat_map(|block| &block.instructions)
+            .any(|instruction| {
+                matches!(instruction.op, ControlFlowOp::Closure { function, .. } if function == increment)
+            }));
+
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "export JsValue shared(JsValue self,JsValue args){return args[0];}JsValue wrapped=JS.methodRest(shared);print(shared(null,[1]));",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut adapter = lower_to_control_flow(&program, &semantics).unwrap();
+        promote_locals_to_ssa(&mut adapter).unwrap();
+        let shared = adapter
+            .functions
+            .iter()
+            .find(|function| function.name == Some("shared"))
+            .unwrap()
+            .id;
+        inline_small_functions(&mut adapter, &options, &AHashSet::default());
+        assert_eq!(direct_call_count(&adapter, shared), 1);
+
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "export class Box{int value;init(int value){this.value=value;}}Box box=new Box(7);print(box.value);",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut constructor = lower_to_control_flow(&program, &semantics).unwrap();
+        promote_locals_to_ssa(&mut constructor).unwrap();
+        let init = constructor
+            .functions
+            .iter()
+            .find(|function| matches!(function.kind, FunctionKind::Constructor { class: "Box" }))
+            .unwrap()
+            .id;
+        constructor.exports.push(crate::ir::IrExport {
+            name: "BoxInit",
+            binding: ExportBinding::Function(init),
+            span: S,
+        });
+        inline_small_functions(&mut constructor, &options, &AHashSet::default());
+        assert!(constructor
+            .functions
+            .iter()
+            .flat_map(|function| &function.blocks)
+            .flat_map(|block| &block.instructions)
+            .any(|instruction| {
+                matches!(instruction.op, ControlFlowOp::NewClass { constructor: Some(function), .. } if function == init)
+            }));
+    }
+
     #[test]
     fn does_not_inline_recursive_functions() {
         let arena = Bump::new();
@@ -15853,14 +17793,34 @@ mod tests {
     }
 
     fn has_direct_call(module: &ControlFlowModule<'_>, target: FunctionId) -> bool {
+        direct_call_count(module, target) != 0
+    }
+
+    fn direct_call_count(module: &ControlFlowModule<'_>, target: FunctionId) -> usize {
         module
             .functions
             .iter()
             .flat_map(|function| &function.blocks)
             .flat_map(|block| &block.instructions)
-            .any(|instruction| {
+            .filter(|instruction| {
                 matches!(instruction.op, ControlFlowOp::CallDirect { function, .. } if function == target)
             })
+            .count()
+    }
+
+    fn owned_field_slots<'src>(
+        function: &ControlFlowFunction<'src>,
+    ) -> Vec<(bool, &'src str, usize)> {
+        function
+            .blocks
+            .iter()
+            .flat_map(|block| &block.instructions)
+            .filter_map(|instruction| match instruction.op {
+                ControlFlowOp::FieldGet { owner, index, .. } => Some((false, owner, index)),
+                ControlFlowOp::FieldSet { owner, index, .. } => Some((true, owner, index)),
+                _ => None,
+            })
+            .collect()
     }
 
     #[test]
@@ -16006,6 +17966,59 @@ mod tests {
         assert_eq!(trace, "TRACE:1:false:-1:9", "{output}");
     }
 
+    fn optimize_stringify_elision_source(
+        source: &'static str,
+    ) -> (ControlFlowModule<'static>, bool) {
+        let arena = Bump::new();
+        let program = parse_source(&arena, source).unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut module = lower_to_control_flow(&program, &semantics).unwrap();
+        let reports = optimize_control_flow_with_options(
+            &mut module,
+            &OptimizationOptions::disabled(),
+            false,
+        )
+        .unwrap();
+        let changed = reports
+            .iter()
+            .any(|report| report.pass_name == "single-use-stringify-elision" && report.changed);
+        (module, changed)
+    }
+
+    fn js_stringify_count(module: &ControlFlowModule<'_>) -> usize {
+        module
+            .functions
+            .iter()
+            .filter(|function| function.live)
+            .flat_map(|function| &function.blocks)
+            .flat_map(|block| &block.instructions)
+            .filter(|instruction| {
+                matches!(
+                    instruction.op,
+                    ControlFlowOp::Intrinsic {
+                        intrinsic: Intrinsic::JsStringify,
+                        ..
+                    }
+                )
+            })
+            .count()
+    }
+
+    #[test]
+    fn stringify_elision_crosses_intervening_constants() {
+        let (module, changed) = optimize_stringify_elision_source(
+            "extern JsValue dynamic;extern void consume(string value);string text=JS.string(dynamic);consume(text+\"!\");",
+        );
+
+        assert!(changed);
+        assert_eq!(js_stringify_count(&module), 0);
+        let output = crate::codegen_ir_js::emit_optimized_ir_js(&module).unwrap();
+        let trace = run_javascript(&format!(
+            "let events=[];var dynamic={{toString(){{events.push('toString');return 'value'}}}};function consume(value){{events.push(value)}};{output};process.stdout.write(events.join(','))"
+        ));
+        assert_eq!(trace, "toString,value!", "{output}");
+    }
+
     #[test]
     fn stringify_elision_does_not_move_dynamic_coercion_across_a_call() {
         let arena = Bump::new();
@@ -16024,6 +18037,51 @@ mod tests {
         ));
 
         assert_eq!(trace, "coerce,side,value!", "{output}");
+    }
+
+    #[test]
+    fn stringify_elision_does_not_move_dynamic_coercion_across_a_getter() {
+        let (module, changed) = optimize_stringify_elision_source(
+            "extern JsValue dynamic;extern JsValue object;extern void consume(string value);void run(JsValue value,JsValue target){string text=JS.string(value);JsValue ignored=target[\"property\"];consume(text+\"!\");}run(dynamic,object);",
+        );
+
+        assert!(!changed);
+        assert_eq!(js_stringify_count(&module), 1);
+        let output = crate::codegen_ir_js::emit_optimized_ir_js(&module).unwrap();
+        let trace = run_javascript(&format!(
+            "let events=[];var dynamic={{toString(){{events.push('toString');return 'value'}}}};var object={{get property(){{events.push('get');return 1}}}};function consume(value){{events.push(value)}};{output};process.stdout.write(events.join(','))"
+        ));
+        assert_eq!(trace, "toString,get,value!", "{output}");
+    }
+
+    #[test]
+    fn stringify_elision_does_not_move_dynamic_coercion_across_a_mutation() {
+        let (module, changed) = optimize_stringify_elision_source(
+            "extern JsValue dynamic;extern JsValue object;extern void consume(string value);void run(JsValue value,JsValue target){string text=JS.string(value);target[\"property\"]=1;consume(text+\"!\");}run(dynamic,object);",
+        );
+
+        assert!(!changed);
+        assert_eq!(js_stringify_count(&module), 1);
+        let output = crate::codegen_ir_js::emit_optimized_ir_js(&module).unwrap();
+        let trace = run_javascript(&format!(
+            "let events=[];var dynamic={{toString(){{events.push('toString');return 'value'}}}};var object={{set property(value){{events.push('set')}}}};function consume(value){{events.push(value)}};{output};process.stdout.write(events.join(','))"
+        ));
+        assert_eq!(trace, "toString,set,value!", "{output}");
+    }
+
+    #[test]
+    fn stringify_elision_does_not_move_dynamic_coercion_across_another_coercion() {
+        let (module, changed) = optimize_stringify_elision_source(
+            "extern JsValue dynamic;extern JsValue other;extern void consume(string value);void run(JsValue value,JsValue second){string text=JS.string(value);JsValue ignored=JS.add(second,0);consume(text+\"!\");}run(dynamic,other);",
+        );
+
+        assert!(!changed);
+        assert_eq!(js_stringify_count(&module), 1);
+        let output = crate::codegen_ir_js::emit_optimized_ir_js(&module).unwrap();
+        let trace = run_javascript(&format!(
+            "let events=[];var dynamic={{toString(){{events.push('first');return 'value'}}}};var other={{valueOf(){{events.push('second');return 2}}}};function consume(value){{events.push(value)}};{output};process.stdout.write(events.join(','))"
+        ));
+        assert_eq!(trace, "first,second,value!", "{output}");
     }
 
     /// A helper that mutates one argument may have stored another inside it.

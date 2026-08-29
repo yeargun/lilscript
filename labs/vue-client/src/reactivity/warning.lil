@@ -1,0 +1,12 @@
+import { DEV } from "./constants";
+import { arguments } from "../shared/general";
+
+extern void hostWarn(string message, JsValue args);
+
+export void warn(
+  string message,
+  JsValue first = JS.undefined(),
+  JsValue second = JS.undefined()
+) {
+  if (DEV) hostWarn(message, arguments);
+}

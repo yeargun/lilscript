@@ -1,0 +1,1344 @@
+import extern { nextTick as dependencyNextTick } from "../../packages/vuelil/runtime-core.js";
+import extern {
+  camelize as dependencyCamelize,
+  capitalize as dependencyCapitalize,
+  hyphenate as dependencyHyphenate,
+  includeBooleanAttr as dependencyIncludeBooleanAttr,
+  isArray as dependencyIsArray,
+  isFunction as dependencyIsFunction,
+  isModelListener as dependencyIsModelListener,
+  isOn as dependencyIsOn,
+  isSet as dependencyIsSet,
+  isSpecialBooleanAttr as dependencyIsSpecialBooleanAttr,
+  isString as dependencyIsString,
+  isSymbol as dependencyIsSymbol,
+  looseEqual as dependencyLooseEqual,
+  looseIndexOf as dependencyLooseIndexOf,
+  looseToNumber as dependencyLooseToNumber
+} from "../../packages/vuelil/shared.js";
+import extern {
+  hostActiveElementIs,
+  hostAddEventListener,
+  hostAppendChild,
+  hostArrayFrom,
+  hostArraySlice,
+  hostArraySplice,
+  hostCall0,
+  hostCall1,
+  hostCall2,
+  hostCall3,
+  hostCall4,
+  hostCallMethod0,
+  hostCallMethod1,
+  hostCallMethod2,
+  hostCallMethod3,
+  hostCallWithEventArgs,
+  hostCloneNode,
+  hostCreateComment,
+  hostCreateElement,
+  hostCreateSet,
+  hostCreateSymbol,
+  hostCreateText,
+  hostDateNow,
+  hostDelete,
+  hostEventRestWrapper,
+  hostFirstChild,
+  hostGetAttribute,
+  hostHasProperty,
+  hostInsert,
+  hostLastChild,
+  hostNextSibling,
+  hostObjectKeys,
+  hostParentNode,
+  hostPreviousSibling,
+  hostPromiseThen,
+  hostQuerySelector,
+  hostRawType,
+  hostRead,
+  hostRemove,
+  hostRemoveAttribute,
+  hostRemoveAttributeNS,
+  hostRemoveChild,
+  hostRemoveEventListener,
+  hostResolvedPromise,
+  hostSetAdd,
+  hostSetAttribute,
+  hostSetAttributeNS,
+  hostSetDelete,
+  hostSetHas,
+  hostSetNodeValue,
+  hostSetSize,
+  hostSetTemplateHTML,
+  hostSetTextContent,
+  hostString,
+  hostTemplateContent,
+  hostUnsafeToTrustedHTML,
+  hostWarn,
+  hostWrite
+} from "./host.js";
+
+extern JsValue dependencyNextTick;
+extern JsValue dependencyCamelize;
+extern JsValue dependencyCapitalize;
+extern JsValue dependencyHyphenate;
+extern bool dependencyIncludeBooleanAttr(JsValue value);
+extern bool dependencyIsArray(JsValue value);
+extern bool dependencyIsFunction(JsValue value);
+extern bool dependencyIsModelListener(string value);
+extern bool dependencyIsOn(string value);
+extern bool dependencyIsSet(JsValue value);
+extern JsValue dependencyIsSpecialBooleanAttr;
+extern bool dependencyIsString(JsValue value);
+extern bool dependencyIsSymbol(JsValue value);
+extern bool dependencyLooseEqual(JsValue left, JsValue right);
+extern int dependencyLooseIndexOf(JsValue values, JsValue value);
+extern JsValue dependencyLooseToNumber(JsValue value);
+
+extern bool hostActiveElementIs(JsValue element);
+extern void hostAddEventListener(JsValue element, string event, JsValue handler, JsValue options);
+extern void hostAppendChild(JsValue parent, JsValue child);
+extern JsValue hostArrayFrom(JsValue value);
+extern JsValue hostArraySlice(JsValue value);
+extern void hostArraySplice(JsValue value, int index, int count);
+extern JsValue hostCall0(JsValue fn);
+extern JsValue hostCall1(JsValue fn, JsValue first);
+extern JsValue hostCall2(JsValue fn, JsValue first, JsValue second);
+extern JsValue hostCall3(JsValue fn, JsValue first, JsValue second, JsValue third);
+extern JsValue hostCall4(JsValue fn, JsValue first, JsValue second, JsValue third, JsValue fourth);
+extern JsValue hostCallMethod0(JsValue receiver, string name);
+extern JsValue hostCallMethod1(JsValue receiver, string name, JsValue first);
+extern JsValue hostCallMethod2(JsValue receiver, string name, JsValue first, JsValue second);
+extern JsValue hostCallMethod3(JsValue receiver, string name, JsValue first, JsValue second, JsValue third);
+extern JsValue hostCallWithEventArgs(JsValue fn, JsValue event, JsValue args);
+extern JsValue hostCloneNode(JsValue node);
+extern JsValue hostCreateComment(string text);
+extern JsValue hostCreateElement(string tag, JsValue namespace, JsValue isValue);
+extern JsValue hostCreateSet(JsValue value);
+extern JsValue hostCreateSymbol(string description);
+extern JsValue hostCreateText(string text);
+extern float hostDateNow();
+extern bool hostDelete(JsValue value, JsValue key);
+extern JsValue hostEventRestWrapper(JsValue callback);
+extern JsValue hostFirstChild(JsValue node);
+extern JsValue hostGetAttribute(JsValue element, string name);
+extern bool hostHasProperty(JsValue value, JsValue key);
+extern void hostInsert(JsValue child, JsValue parent, JsValue anchor);
+extern JsValue hostLastChild(JsValue node);
+extern JsValue hostNextSibling(JsValue node);
+extern JsValue hostObjectKeys(JsValue value);
+extern JsValue hostParentNode(JsValue node);
+extern JsValue hostPreviousSibling(JsValue node);
+extern JsValue hostPromiseThen(JsValue promise, JsValue callback);
+extern JsValue hostQuerySelector(string selector);
+extern string hostRawType(JsValue value);
+extern JsValue hostRead(JsValue value, JsValue key);
+extern void hostRemove(JsValue child);
+extern void hostRemoveAttribute(JsValue element, string name);
+extern void hostRemoveAttributeNS(JsValue element, string namespace, string name);
+extern void hostRemoveChild(JsValue parent, JsValue child);
+extern void hostRemoveEventListener(JsValue element, string event, JsValue handler, JsValue options);
+extern JsValue hostResolvedPromise();
+extern void hostSetAdd(JsValue value, JsValue item);
+extern void hostSetAttribute(JsValue element, string name, JsValue value);
+extern void hostSetAttributeNS(JsValue element, string namespace, string name, JsValue value);
+extern void hostSetDelete(JsValue value, JsValue item);
+extern bool hostSetHas(JsValue value, JsValue item);
+extern void hostSetNodeValue(JsValue node, string value);
+extern int hostSetSize(JsValue value);
+extern void hostSetTemplateHTML(JsValue value);
+extern void hostSetTextContent(JsValue element, string value);
+extern string hostString(JsValue value);
+extern JsValue hostTemplateContent();
+extern JsValue hostUnsafeToTrustedHTML(JsValue value);
+extern void hostWarn(string message, JsValue error);
+extern void hostWrite(JsValue value, JsValue key, JsValue next);
+
+int valueLength(JsValue value) {
+  return JS.number(hostRead(value, "length")).toInt();
+}
+
+bool isFunctionValue(JsValue value) {
+  return JS.typeOf(value) == "function";
+}
+
+bool same(JsValue left, JsValue right) {
+  return JS.strictEqual(left, right);
+}
+
+export string svgNS = "http://www.w3.org/2000/svg";
+export string mathmlNS = "http://www.w3.org/1998/Math/MathML";
+export string xlinkNS = "http://www.w3.org/1999/xlink";
+
+export JsValue vtcKey = hostCreateSymbol("_vtc");
+export JsValue vShowOriginalDisplay = hostCreateSymbol("_vod");
+export JsValue vShowHidden = hostCreateSymbol("_vsh");
+export JsValue CSS_VAR_TEXT = hostCreateSymbol("CSS_VAR_TEXT");
+
+export JsValue unsafeToTrustedHTML(JsValue value) {
+  return hostUnsafeToTrustedHTML(value);
+}
+
+JsValue insertStaticContent(
+  JsValue content,
+  JsValue parent,
+  JsValue anchor,
+  JsValue namespace,
+  JsValue start,
+  JsValue end
+) {
+  JsValue before = hostLastChild(parent);
+  if (!JS.isNullish(anchor)) before = hostPreviousSibling(anchor);
+  if (!JS.isNullish(start) && (same(start, end) || !JS.isNullish(hostNextSibling(start)))) {
+    while (true) {
+      hostInsert(hostCloneNode(start), parent, anchor);
+      if (same(start, end)) break;
+      start = hostNextSibling(start);
+      if (JS.isNullish(start)) break;
+    }
+  } else {
+    string kind = "";
+    if (!JS.isNullish(namespace)) kind = hostString(namespace);
+    string source = hostString(content);
+    if (kind == "svg") source = "<svg>" + source + "</svg>";
+    else if (kind == "mathml") source = "<math>" + source + "</math>";
+    hostSetTemplateHTML(hostUnsafeToTrustedHTML(source));
+    JsValue template = hostTemplateContent();
+    if (kind == "svg" || kind == "mathml") {
+      JsValue wrapper = hostFirstChild(template);
+      while (!JS.isNullish(hostFirstChild(wrapper))) {
+        hostAppendChild(template, hostFirstChild(wrapper));
+      }
+      hostRemoveChild(template, wrapper);
+    }
+    hostInsert(template, parent, anchor);
+  }
+  JsValue first = hostFirstChild(parent);
+  if (!JS.isNullish(before)) first = hostNextSibling(before);
+  JsValue last = hostLastChild(parent);
+  if (!JS.isNullish(anchor)) last = hostPreviousSibling(anchor);
+  return JS.array(first, last);
+}
+
+JsValue nodeCreateElement(JsValue tagValue, JsValue namespace, JsValue isValue, JsValue props) {
+  string tag = hostString(tagValue);
+  JsValue element = hostCreateElement(tag, namespace, isValue);
+  if (tag == "select" && !JS.isNullish(props) && !JS.isNullish(hostRead(props, "multiple"))) {
+    hostSetAttribute(element, "multiple", hostRead(props, "multiple"));
+  }
+  return element;
+}
+
+export JsValue nodeOps = JS.object(
+  "insert", JS.method3((JsValue _self, JsValue child, JsValue parent, JsValue anchor) => {
+    hostInsert(child, parent, anchor);
+    return JS.undefined();
+  }),
+  "remove", JS.method1((JsValue _self, JsValue child) => {
+    hostRemove(child);
+    return JS.undefined();
+  }),
+  "createElement", nodeCreateElement,
+  "createText", JS.method1((JsValue _self, JsValue text) => hostCreateText(hostString(text))),
+  "createComment", JS.method1((JsValue _self, JsValue text) => hostCreateComment(hostString(text))),
+  "setText", JS.method2((JsValue _self, JsValue node, JsValue text) => {
+    hostSetNodeValue(node, hostString(text));
+    return JS.undefined();
+  }),
+  "setElementText", JS.method2((JsValue _self, JsValue element, JsValue text) => {
+    hostSetTextContent(element, hostString(text));
+    return JS.undefined();
+  }),
+  "parentNode", JS.method1((JsValue _self, JsValue node) => hostParentNode(node)),
+  "nextSibling", JS.method1((JsValue _self, JsValue node) => hostNextSibling(node)),
+  "querySelector", JS.method1((JsValue _self, JsValue selector) => hostQuerySelector(hostString(selector))),
+  "setScopeId", JS.method2((JsValue _self, JsValue element, JsValue id) => {
+    hostSetAttribute(element, hostString(id), "");
+    return JS.undefined();
+  }),
+  "insertStaticContent", insertStaticContent
+);
+
+export void patchClass(JsValue element, JsValue value, bool isSVG) {
+  JsValue transitionClasses = hostRead(element, vtcKey);
+  if (!JS.isNullish(transitionClasses)) {
+    JsValue classes = hostArrayFrom(transitionClasses);
+    if (!JS.isNullish(value) && hostString(value) != "") {
+      JsValue combined = JS.array(value);
+      int classCount = valueLength(classes);
+      for (int index = 0; index < classCount; index++) {
+        hostWrite(combined, valueLength(combined), hostRead(classes, index));
+      }
+      value = JS.invoke(combined, "join", " ");
+    } else {
+      value = JS.invoke(classes, "join", " ");
+    }
+  }
+  if (JS.isNullish(value)) {
+    hostRemoveAttribute(element, "class");
+  } else if (isSVG) {
+    hostSetAttribute(element, "class", value);
+  } else {
+    hostWrite(element, "className", value);
+  }
+}
+
+Regex displayPattern = new Regex("(?:^|;)\\s*display\\s*:");
+Regex semicolonPattern = new Regex("[^\\\\];\\s*$");
+Regex importantPattern = new Regex("\\s*!important$");
+string[] stylePrefixes = ["Webkit", "Moz", "ms"];
+JsValue stylePrefixCache = JS.object();
+
+string callStringTransform(JsValue transform, string value) {
+  return hostString(hostCall1(transform, value));
+}
+
+string autoPrefix(JsValue style, string rawName) {
+  JsValue cached = hostRead(stylePrefixCache, rawName);
+  if (!JS.isNullish(cached) && hostString(cached) != "") return hostString(cached);
+  string name = callStringTransform(dependencyCamelize, rawName);
+  if (name != "filter" && hostHasProperty(style, name)) {
+    hostWrite(stylePrefixCache, rawName, name);
+    return name;
+  }
+  name = callStringTransform(dependencyCapitalize, name);
+  for (int index = 0; index < stylePrefixes.length; index++) {
+    string prefixed = stylePrefixes[index] + name;
+    if (hostHasProperty(style, prefixed)) {
+      hostWrite(stylePrefixCache, rawName, prefixed);
+      return prefixed;
+    }
+  }
+  return rawName;
+}
+
+void setStyle(JsValue style, string name, JsValue value) {
+  if (dependencyIsArray(value)) {
+    int length = valueLength(value);
+    for (int index = 0; index < length; index++) setStyle(style, name, hostRead(value, index));
+    return;
+  }
+  if (JS.isNullish(value)) value = "";
+  string text = hostString(value);
+  if (semicolonPattern.test(text)) {
+    hostWarn("Unexpected semicolon at the end of '" + name + "' style value: '" + text + "'", JS.undefined());
+  }
+  bool important = importantPattern.test(text);
+  if (important) text = hostString(JS.invoke(text, "replace", importantPattern, ""));
+  if (name.startsWith("--")) {
+    if (important) hostCallMethod3(style, "setProperty", name, text, "important");
+    else hostCallMethod2(style, "setProperty", name, text);
+  } else {
+    string prefixed = autoPrefix(style, name);
+    if (important) {
+      string hyphenated = callStringTransform(dependencyHyphenate, prefixed);
+      hostCallMethod3(style, "setProperty", hyphenated, text, "important");
+    } else {
+      hostWrite(style, prefixed, value);
+    }
+  }
+}
+
+bool preserveTextareaResize(JsValue element, string key, JsValue previous, JsValue next) {
+  string tag = hostString(hostRead(element, "tagName"));
+  return tag == "TEXTAREA" && (key == "width" || key == "height") &&
+    dependencyIsString(next) && same(previous, next);
+}
+
+export void patchStyle(JsValue element, JsValue previous, JsValue next) {
+  JsValue style = hostRead(element, "style");
+  bool cssString = dependencyIsString(next);
+  bool controlledDisplay = false;
+  if (!JS.isNullish(next) && next.truthy() && !cssString) {
+    if (!JS.isNullish(previous) && previous.truthy()) {
+      if (!dependencyIsString(previous)) {
+        for (string key in previous) {
+          if (JS.isNullish(hostRead(next, key))) setStyle(style, key, "");
+        }
+      } else {
+        string[] oldStyles = hostString(previous).split(";");
+        for (int index = 0; index < oldStyles.length; index++) {
+          string oldStyle = oldStyles[index];
+          int colon = oldStyle.indexOf(":");
+          string key = oldStyle.slice(0, colon).trim();
+          if (JS.isNullish(hostRead(next, key))) setStyle(style, key, "");
+        }
+      }
+    }
+    for (string key in next) {
+      if (key == "display") controlledDisplay = true;
+      JsValue value = hostRead(next, key);
+      if (!JS.isNullish(value)) {
+        JsValue oldValue = JS.undefined();
+        if (!dependencyIsString(previous) && !JS.isNullish(previous) && previous.truthy()) {
+          oldValue = hostRead(previous, key);
+        }
+        if (!preserveTextareaResize(element, key, oldValue, value)) setStyle(style, key, value);
+      } else {
+        setStyle(style, key, "");
+      }
+    }
+  } else if (cssString) {
+    if (!same(previous, next)) {
+      string text = hostString(next);
+      JsValue cssVars = hostRead(style, CSS_VAR_TEXT);
+      if (!JS.isNullish(cssVars) && cssVars.truthy()) text += ";" + hostString(cssVars);
+      hostWrite(style, "cssText", text);
+      controlledDisplay = displayPattern.test(text);
+    }
+  } else if (!JS.isNullish(previous) && previous.truthy()) {
+    hostRemoveAttribute(element, "style");
+  }
+  if (hostHasProperty(element, vShowOriginalDisplay)) {
+    JsValue originalDisplay = "";
+    if (controlledDisplay) originalDisplay = hostRead(style, "display");
+    hostWrite(element, vShowOriginalDisplay, originalDisplay);
+    JsValue hidden = hostRead(element, vShowHidden);
+    if (!JS.isNullish(hidden) && hidden.truthy()) hostWrite(style, "display", "none");
+  }
+}
+
+export void patchAttr(
+  JsValue element,
+  string key,
+  JsValue value,
+  bool isSVG,
+  JsValue instance,
+  JsValue booleanValue
+) {
+  bool isBoolean = booleanValue.truthy();
+  if (JS.isUndefined(booleanValue)) {
+    isBoolean = hostCall1(dependencyIsSpecialBooleanAttr, key).truthy();
+  }
+  if (isSVG && key.startsWith("xlink:")) {
+    if (JS.isNullish(value)) hostRemoveAttributeNS(element, xlinkNS, key.slice(6));
+    else hostSetAttributeNS(element, xlinkNS, key, value);
+    return;
+  }
+  if (JS.isNullish(value) || (isBoolean && !dependencyIncludeBooleanAttr(value))) {
+    hostRemoveAttribute(element, key);
+  } else {
+    JsValue attributeValue = value;
+    if (isBoolean) attributeValue = "";
+    else if (dependencyIsSymbol(value)) attributeValue = hostString(value);
+    hostSetAttribute(element, key, attributeValue);
+  }
+}
+
+export void patchDOMProp(
+  JsValue element,
+  string key,
+  JsValue value,
+  JsValue parentComponent,
+  JsValue attrName
+) {
+  if (key == "innerHTML" || key == "textContent") {
+    if (!JS.isNullish(value)) {
+      JsValue content = value;
+      if (key == "innerHTML") content = hostUnsafeToTrustedHTML(value);
+      hostWrite(element, key, content);
+    }
+    return;
+  }
+  string tag = hostString(hostRead(element, "tagName"));
+  if (key == "value" && tag != "PROGRESS" && !tag.includes("-")) {
+    JsValue oldValue = hostRead(element, "value");
+    if (tag == "OPTION") oldValue = hostGetAttribute(element, "value");
+    if (tag == "OPTION" && (JS.isNullish(oldValue) || !oldValue.truthy())) oldValue = "";
+    JsValue newValue = value;
+    if (JS.isNullish(value)) {
+      newValue = "";
+      if (same(hostRead(element, "type"), "checkbox")) newValue = "on";
+    } else {
+      newValue = hostString(value);
+    }
+    if (!same(oldValue, newValue) || !hostHasProperty(element, "_value")) hostWrite(element, "value", newValue);
+    if (JS.isNullish(value)) hostRemoveAttribute(element, key);
+    hostWrite(element, "_value", value);
+    return;
+  }
+  bool needRemove = false;
+  if (same(value, "") || JS.isNullish(value)) {
+    string kind = JS.typeOf(hostRead(element, key));
+    if (kind == "boolean") {
+      value = dependencyIncludeBooleanAttr(value);
+    } else if (JS.isNullish(value) && kind == "string") {
+      value = "";
+      needRemove = true;
+    } else if (kind == "number") {
+      value = 0;
+      needRemove = true;
+    }
+  }
+  try {
+    hostWrite(element, key, value);
+  } catch (JsValue error) {
+    if (!needRemove) {
+      hostWarn(
+        "Failed setting prop \"" + key + "\" on <" + tag.toLowerCase() + ">: value " +
+          hostString(value) + " is invalid.",
+        error
+      );
+    }
+  }
+  if (needRemove) {
+    string removeName = key;
+    if (!JS.isNullish(attrName)) removeName = hostString(attrName);
+    hostRemoveAttribute(element, removeName);
+  }
+}
+
+Regex optionModifierPattern = new Regex("(Once|Passive|Capture)$");
+Regex optionModifierEventPattern = new Regex("^on:?(?:Once|Passive|Capture)$");
+JsValue invokerKey = hostCreateSymbol("_vei");
+float cachedNow = 0.0;
+JsValue resolvedPromise = hostResolvedPromise();
+
+float getNow() {
+  if (cachedNow != 0.0) return cachedNow;
+  cachedNow = hostDateNow();
+  hostPromiseThen(resolvedPromise, JS.method0((JsValue _self) => {
+    cachedNow = 0.0;
+    return JS.undefined();
+  }));
+  return cachedNow;
+}
+
+JsValue parseEventName(string rawName) {
+  string name = rawName;
+  JsValue options = JS.undefined();
+  while (true) {
+    JsValue matched = optionModifierPattern.exec(name);
+    if (JS.isNullish(matched) || optionModifierEventPattern.test(name)) break;
+    if (JS.isUndefined(options)) options = JS.object();
+    string modifier = hostString(hostRead(matched, 1));
+    string option = modifier.toLowerCase();
+    hostWrite(options, option, true);
+    name = name.slice(0, name.length - modifier.length);
+  }
+  string event = callStringTransform(dependencyHyphenate, name.slice(2));
+  if (name.charCodeAt(2) == 58) event = name.slice(3);
+  return JS.array(event, options);
+}
+
+JsValue sanitizeEventValue(JsValue value, string propName) {
+  if (dependencyIsFunction(value) || dependencyIsArray(value)) return value;
+  hostWarn(
+    "Wrong type passed as event handler to " + propName + " - did you forget @ or : " +
+      "in front of your prop?\nExpected function or array of functions, received type " +
+      JS.typeOf(value) + ".",
+    JS.undefined()
+  );
+  return JS.method0((JsValue _self) => JS.undefined());
+}
+
+JsValue createInvoker(JsValue initialValue, JsValue instance) {
+  JsValue invoker = JS.undefined();
+  invoker = JS.method1((JsValue _self, JsValue event) => {
+    JsValue timestamp = hostRead(event, "_vts");
+    if (JS.isNullish(timestamp) || !timestamp.truthy()) {
+      hostWrite(event, "_vts", hostDateNow());
+    } else if (JS.number(timestamp) <= JS.number(hostRead(invoker, "attached"))) {
+      return JS.undefined();
+    }
+    JsValue value = hostRead(invoker, "value");
+    if (dependencyIsArray(value)) {
+      JsValue originalStop = hostRead(event, "stopImmediatePropagation");
+      hostWrite(event, "stopImmediatePropagation", JS.method0((JsValue _innerSelf) => {
+        hostCall0(JS.invoke(originalStop, "bind", event));
+        hostWrite(event, "_stopped", true);
+        return JS.undefined();
+      }));
+      JsValue handlers = hostArraySlice(value);
+      int count = valueLength(handlers);
+      for (int index = 0; index < count; index++) {
+        JsValue stopped = hostRead(event, "_stopped");
+        if (!JS.isNullish(stopped) && stopped.truthy()) break;
+        JsValue handler = hostRead(handlers, index);
+        if (!JS.isNullish(handler) && handler.truthy()) hostCall1(handler, event);
+      }
+    } else {
+      hostCall1(value, event);
+    }
+    return JS.undefined();
+  });
+  hostWrite(invoker, "value", initialValue);
+  hostWrite(invoker, "attached", getNow());
+  return invoker;
+}
+
+export void addEventListener(JsValue element, string event, JsValue handler, JsValue options) {
+  hostAddEventListener(element, event, handler, options);
+}
+
+export void removeEventListener(JsValue element, string event, JsValue handler, JsValue options) {
+  hostRemoveEventListener(element, event, handler, options);
+}
+
+export void patchEvent(
+  JsValue element,
+  string rawName,
+  JsValue previous,
+  JsValue next,
+  JsValue instance
+) {
+  JsValue invokers = hostRead(element, invokerKey);
+  if (JS.isNullish(invokers)) {
+    invokers = JS.object();
+    hostWrite(element, invokerKey, invokers);
+  }
+  JsValue existing = hostRead(invokers, rawName);
+  if (!JS.isNullish(next) && next.truthy() && !JS.isNullish(existing) && existing.truthy()) {
+    hostWrite(existing, "value", sanitizeEventValue(next, rawName));
+    return;
+  }
+  JsValue parsed = parseEventName(rawName);
+  string name = hostString(hostRead(parsed, 0));
+  JsValue options = hostRead(parsed, 1);
+  if (!JS.isNullish(next) && next.truthy()) {
+    JsValue invoker = createInvoker(sanitizeEventValue(next, rawName), instance);
+    hostWrite(invokers, rawName, invoker);
+    hostAddEventListener(element, name, invoker, options);
+  } else if (!JS.isNullish(existing) && existing.truthy()) {
+    hostRemoveEventListener(element, name, existing, options);
+    hostWrite(invokers, rawName, JS.undefined());
+  }
+}
+
+bool nativeOn(string key) {
+  if (key.length < 3) return false;
+  int third = key.charCodeAt(2);
+  return key.charCodeAt(0) == 111 && key.charCodeAt(1) == 110 && third > 96 && third < 123;
+}
+
+bool shouldSetAsProp(JsValue element, string key, JsValue value, bool isSVG) {
+  if (isSVG) {
+    if (key == "innerHTML" || key == "textContent") return true;
+    if (hostHasProperty(element, key) && nativeOn(key) && dependencyIsFunction(value)) return true;
+    return false;
+  }
+  if (key == "spellcheck" || key == "draggable" || key == "translate" || key == "autocorrect") return false;
+  string tag = hostString(hostRead(element, "tagName"));
+  if (key == "sandbox" && tag == "IFRAME") return false;
+  if (key == "form") return false;
+  if (key == "list" && tag == "INPUT") return false;
+  if (key == "type" && tag == "TEXTAREA") return false;
+  if ((key == "width" || key == "height") &&
+      (tag == "IMG" || tag == "VIDEO" || tag == "CANVAS" || tag == "SOURCE")) return false;
+  if (nativeOn(key) && dependencyIsString(value)) return false;
+  return hostHasProperty(element, key);
+}
+
+Regex upperCasePattern = new Regex("[A-Z]");
+
+bool shouldSetAsPropForVueCE(JsValue element, string key) {
+  JsValue definition = hostRead(element, "_def");
+  JsValue props = hostRead(definition, "props");
+  if (JS.isNullish(props)) return false;
+  string camelKey = callStringTransform(dependencyCamelize, key);
+  if (dependencyIsArray(props)) {
+    int count = valueLength(props);
+    for (int index = 0; index < count; index++) {
+      if (callStringTransform(dependencyCamelize, hostString(hostRead(props, index))) == camelKey) return true;
+    }
+    return false;
+  }
+  JsValue keys = hostObjectKeys(props);
+  int count = valueLength(keys);
+  for (int index = 0; index < count; index++) {
+    if (callStringTransform(dependencyCamelize, hostString(hostRead(keys, index))) == camelKey) return true;
+  }
+  return false;
+}
+
+export void patchProp(
+  JsValue element,
+  string originalKey,
+  JsValue previous,
+  JsValue next,
+  JsValue namespace,
+  JsValue parentComponent
+) {
+  string key = originalKey;
+  bool isSVG = !JS.isNullish(namespace) && same(namespace, "svg");
+  if (key == "class") {
+    patchClass(element, next, isSVG);
+  } else if (key == "style") {
+    patchStyle(element, previous, next);
+  } else if (dependencyIsOn(key)) {
+    if (!dependencyIsModelListener(key)) patchEvent(element, key, previous, next, parentComponent);
+  } else {
+    bool useProp = false;
+    if (key.startsWith(".")) {
+      key = key.slice(1);
+      useProp = true;
+    } else if (key.startsWith("^")) {
+      key = key.slice(1);
+      useProp = false;
+    } else {
+      useProp = shouldSetAsProp(element, key, next, isSVG);
+    }
+    if (useProp) {
+      patchDOMProp(element, key, next, parentComponent, JS.undefined());
+      string tag = hostString(hostRead(element, "tagName"));
+      if (!tag.includes("-") && (key == "value" || key == "checked" || key == "selected")) {
+        patchAttr(element, key, next, isSVG, parentComponent, key != "value");
+      }
+    } else {
+      JsValue isVueCE = hostRead(element, "_isVueCE");
+      JsValue definition = hostRead(element, "_def");
+      JsValue asyncLoader = hostRead(definition, "__asyncLoader");
+      bool forceVueCE = !JS.isNullish(isVueCE) && isVueCE.truthy() &&
+        (shouldSetAsPropForVueCE(element, key) ||
+          ((!JS.isNullish(asyncLoader) && asyncLoader.truthy()) &&
+            (upperCasePattern.test(key) || !dependencyIsString(next))));
+      if (forceVueCE) {
+        patchDOMProp(
+          element,
+          callStringTransform(dependencyCamelize, key),
+          next,
+          parentComponent,
+          key
+        );
+      } else {
+        if (key == "true-value") hostWrite(element, "_trueValue", next);
+        else if (key == "false-value") hostWrite(element, "_falseValue", next);
+        patchAttr(element, key, next, isSVG, parentComponent, JS.undefined());
+      }
+    }
+  }
+}
+
+bool hasModifier(JsValue modifiers, string expected) {
+  int count = valueLength(modifiers);
+  for (int index = 0; index < count; index++) {
+    if (hostString(hostRead(modifiers, index)) == expected) return true;
+  }
+  return false;
+}
+
+bool modifierStops(JsValue event, string modifier, JsValue modifiers) {
+  if (modifier == "stop") {
+    hostCallMethod0(event, "stopPropagation");
+    return false;
+  }
+  if (modifier == "prevent") {
+    hostCallMethod0(event, "preventDefault");
+    return false;
+  }
+  if (modifier == "self") return !same(hostRead(event, "target"), hostRead(event, "currentTarget"));
+  if (modifier == "ctrl") return !hostRead(event, "ctrlKey").truthy();
+  if (modifier == "shift") return !hostRead(event, "shiftKey").truthy();
+  if (modifier == "alt") return !hostRead(event, "altKey").truthy();
+  if (modifier == "meta") return !hostRead(event, "metaKey").truthy();
+  if (modifier == "left") return hostHasProperty(event, "button") && JS.number(hostRead(event, "button")) != 0.0;
+  if (modifier == "middle") return hostHasProperty(event, "button") && JS.number(hostRead(event, "button")) != 1.0;
+  if (modifier == "right") return hostHasProperty(event, "button") && JS.number(hostRead(event, "button")) != 2.0;
+  if (modifier == "exact") {
+    string[] systems = ["ctrl", "shift", "alt", "meta"];
+    for (int index = 0; index < systems.length; index++) {
+      string system = systems[index];
+      if (hostRead(event, system + "Key").truthy() && !hasModifier(modifiers, system)) return true;
+    }
+  }
+  return false;
+}
+
+export JsValue withModifiers(JsValue fn, JsValue modifiers) {
+  if (JS.isNullish(fn) || !fn.truthy()) return fn;
+  JsValue cache = hostRead(fn, "_withMods");
+  if (JS.isNullish(cache)) {
+    cache = JS.object();
+    hostWrite(fn, "_withMods", cache);
+  }
+  string cacheKey = hostString(JS.invoke(modifiers, "join", "."));
+  JsValue cached = hostRead(cache, cacheKey);
+  if (!JS.isNullish(cached) && cached.truthy()) return cached;
+  JsValue wrapped = hostEventRestWrapper(JS.method2((JsValue _self, JsValue event, JsValue args) => {
+    int count = valueLength(modifiers);
+    for (int index = 0; index < count; index++) {
+      string modifier = hostString(hostRead(modifiers, index));
+      if (modifierStops(event, modifier, modifiers)) return JS.undefined();
+    }
+    return hostCallWithEventArgs(fn, event, args);
+  }));
+  hostWrite(cache, cacheKey, wrapped);
+  return wrapped;
+}
+
+string keyAlias(string key) {
+  if (key == "esc") return "escape";
+  if (key == "space") return " ";
+  if (key == "up") return "arrow-up";
+  if (key == "left") return "arrow-left";
+  if (key == "right") return "arrow-right";
+  if (key == "down") return "arrow-down";
+  if (key == "delete") return "backspace";
+  return "";
+}
+
+export JsValue withKeys(JsValue fn, JsValue modifiers) {
+  JsValue cache = hostRead(fn, "_withKeys");
+  if (JS.isNullish(cache)) {
+    cache = JS.object();
+    hostWrite(fn, "_withKeys", cache);
+  }
+  string cacheKey = hostString(JS.invoke(modifiers, "join", "."));
+  JsValue cached = hostRead(cache, cacheKey);
+  if (!JS.isNullish(cached) && cached.truthy()) return cached;
+  JsValue wrapped = JS.method1((JsValue _self, JsValue event) => {
+    if (!hostHasProperty(event, "key")) return JS.undefined();
+    string eventKey = callStringTransform(dependencyHyphenate, hostString(hostRead(event, "key")));
+    int count = valueLength(modifiers);
+    for (int index = 0; index < count; index++) {
+      string modifier = hostString(hostRead(modifiers, index));
+      if (modifier == eventKey || keyAlias(modifier) == eventKey) return hostCall1(fn, event);
+    }
+    return JS.undefined();
+  });
+  hostWrite(cache, cacheKey, wrapped);
+  return wrapped;
+}
+
+void setDisplay(JsValue element, JsValue value) {
+  JsValue style = hostRead(element, "style");
+  JsValue display = "none";
+  if (value.truthy()) display = hostRead(element, vShowOriginalDisplay);
+  hostWrite(style, "display", display);
+  hostWrite(element, vShowHidden, !value.truthy());
+}
+
+JsValue vShowBeforeMount(JsValue _self, JsValue element, JsValue binding, JsValue vnode) {
+  JsValue style = hostRead(element, "style");
+  JsValue display = hostRead(style, "display");
+  JsValue originalDisplay = display;
+  if (same(display, "none")) originalDisplay = "";
+  hostWrite(element, vShowOriginalDisplay, originalDisplay);
+  JsValue value = hostRead(binding, "value");
+  JsValue transition = hostRead(vnode, "transition");
+  if (!JS.isNullish(transition) && transition.truthy() && value.truthy()) {
+    hostCall1(hostRead(transition, "beforeEnter"), element);
+  } else {
+    setDisplay(element, value);
+  }
+  return JS.undefined();
+}
+
+JsValue vShowMounted(JsValue _self, JsValue element, JsValue binding, JsValue vnode) {
+  JsValue value = hostRead(binding, "value");
+  JsValue transition = hostRead(vnode, "transition");
+  if (!JS.isNullish(transition) && transition.truthy() && value.truthy()) {
+    hostCall1(hostRead(transition, "enter"), element);
+  }
+  return JS.undefined();
+}
+
+JsValue vShowUpdated(JsValue _self, JsValue element, JsValue binding, JsValue vnode) {
+  JsValue value = hostRead(binding, "value");
+  JsValue oldValue = hostRead(binding, "oldValue");
+  if ((!value.truthy()) == (!oldValue.truthy())) return JS.undefined();
+  JsValue transition = hostRead(vnode, "transition");
+  if (!JS.isNullish(transition) && transition.truthy()) {
+    if (value.truthy()) {
+      hostCall1(hostRead(transition, "beforeEnter"), element);
+      setDisplay(element, true);
+      hostCall1(hostRead(transition, "enter"), element);
+    } else {
+      hostCall2(hostRead(transition, "leave"), element, JS.method0((JsValue _innerSelf) => {
+        setDisplay(element, false);
+        return JS.undefined();
+      }));
+    }
+  } else {
+    setDisplay(element, value);
+  }
+  return JS.undefined();
+}
+
+JsValue vShowBeforeUnmount(JsValue _self, JsValue element, JsValue binding) {
+  setDisplay(element, hostRead(binding, "value"));
+  return JS.undefined();
+}
+
+export JsValue vShow = JS.object(
+  "name", "show",
+  "beforeMount", JS.method3(vShowBeforeMount),
+  "mounted", JS.method3(vShowMounted),
+  "updated", JS.method3(vShowUpdated),
+  "beforeUnmount", JS.method2(vShowBeforeUnmount)
+);
+
+JsValue assignKey = hostCreateSymbol("_assign");
+JsValue initialValueKey = hostCreateSymbol("_initialValue");
+Regex textLineBreaks = new Regex("[\\r\\n]", "g");
+Regex textareaLineBreaks = new Regex("\\r\\n?", "g");
+Regex leadingZero = new Regex("^0\\d");
+
+JsValue modelAssigner(JsValue vnode) {
+  JsValue props = hostRead(vnode, "props");
+  JsValue fn = hostRead(props, "onUpdate:modelValue");
+  if (dependencyIsArray(fn)) {
+    return JS.method1((JsValue _self, JsValue value) => {
+      int count = valueLength(fn);
+      for (int index = 0; index < count; index++) hostCall1(hostRead(fn, index), value);
+      return JS.undefined();
+    });
+  }
+  return fn;
+}
+
+JsValue bindingModifiers(JsValue binding) {
+  JsValue modifiers = hostRead(binding, "modifiers");
+  if (JS.isNullish(modifiers)) return JS.object();
+  return modifiers;
+}
+
+JsValue castModelValue(JsValue value, bool trim, bool numeric) {
+  if (trim) value = hostString(value).trim();
+  if (numeric) value = dependencyLooseToNumber(value);
+  return value;
+}
+
+JsValue onCompositionStart(JsValue _self, JsValue event) {
+  hostWrite(hostRead(event, "target"), "composing", true);
+  return JS.undefined();
+}
+
+JsValue onCompositionEnd(JsValue _self, JsValue event) {
+  JsValue target = hostRead(event, "target");
+  JsValue composing = hostRead(target, "composing");
+  if (!JS.isNullish(composing) && composing.truthy()) {
+    hostWrite(target, "composing", false);
+    JsValue eventConstructor = hostRead(hostRead(target, "ownerDocument"), "defaultView");
+    JsValue EventClass = hostRead(eventConstructor, "Event");
+    JsValue inputEvent = JS.construct(EventClass, "input");
+    hostCallMethod1(target, "dispatchEvent", inputEvent);
+  }
+  return JS.undefined();
+}
+
+JsValue textCreated(JsValue _self, JsValue element, JsValue binding, JsValue vnode) {
+  JsValue parent = hostParentNode(element);
+  string type = hostString(hostRead(element, "type"));
+  if (!JS.isNullish(parent)) {
+    if (type == "text") {
+      string initial = hostString(hostRead(element, "defaultValue"));
+      hostWrite(element, initialValueKey, JS.invoke(initial, "replace", textLineBreaks, ""));
+    } else if (type == "textarea") {
+      string initial = hostString(hostRead(element, "defaultValue"));
+      hostWrite(element, initialValueKey, JS.invoke(initial, "replace", textareaLineBreaks, "\n"));
+    }
+  }
+  hostWrite(element, assignKey, modelAssigner(vnode));
+  JsValue modifiers = bindingModifiers(binding);
+  bool lazy = hostRead(modifiers, "lazy").truthy();
+  bool trim = hostRead(modifiers, "trim").truthy();
+  bool numeric = hostRead(modifiers, "number").truthy();
+  JsValue props = hostRead(vnode, "props");
+  bool castNumber = numeric || same(hostRead(props, "type"), "number");
+  JsValue inputHandler = JS.method1((JsValue _innerSelf, JsValue event) => {
+    JsValue target = hostRead(event, "target");
+    if (hostRead(target, "composing").truthy()) return JS.undefined();
+    hostCall1(hostRead(element, assignKey), castModelValue(hostRead(element, "value"), trim, castNumber));
+    return JS.undefined();
+  });
+  string eventName = "input";
+  if (lazy) eventName = "change";
+  hostAddEventListener(element, eventName, inputHandler, JS.undefined());
+  if (trim || castNumber) {
+    hostAddEventListener(element, "change", JS.method0((JsValue _innerSelf) => {
+      hostWrite(element, "value", castModelValue(hostRead(element, "value"), trim, castNumber));
+      return JS.undefined();
+    }), JS.undefined());
+  }
+  if (!lazy) {
+    hostAddEventListener(element, "compositionstart", JS.method1(onCompositionStart), JS.undefined());
+    hostAddEventListener(element, "compositionend", JS.method1(onCompositionEnd), JS.undefined());
+    hostAddEventListener(element, "change", JS.method1(onCompositionEnd), JS.undefined());
+  }
+  return JS.undefined();
+}
+
+JsValue textMounted(JsValue _self, JsValue element, JsValue binding) {
+  JsValue value = hostRead(binding, "value");
+  JsValue newValue = value;
+  if (JS.isNullish(value)) newValue = "";
+  JsValue initialValue = hostRead(element, initialValueKey);
+  hostDelete(element, initialValueKey);
+  string type = hostString(hostRead(element, "type"));
+  JsValue modifiers = bindingModifiers(binding);
+  if (!JS.isUndefined(initialValue) && (type == "text" || type == "textarea") &&
+      !same(hostRead(element, "value"), initialValue)) {
+    hostCall1(
+      hostRead(element, assignKey),
+      castModelValue(
+        hostRead(element, "value"),
+        hostRead(modifiers, "trim").truthy(),
+        hostRead(modifiers, "number").truthy()
+      )
+    );
+  } else {
+    hostWrite(element, "value", newValue);
+  }
+  return JS.undefined();
+}
+
+JsValue textBeforeUpdate(JsValue _self, JsValue element, JsValue binding, JsValue vnode) {
+  hostWrite(element, assignKey, modelAssigner(vnode));
+  if (hostRead(element, "composing").truthy()) return JS.undefined();
+  JsValue modifiers = bindingModifiers(binding);
+  bool lazy = hostRead(modifiers, "lazy").truthy();
+  bool trim = hostRead(modifiers, "trim").truthy();
+  bool numeric = hostRead(modifiers, "number").truthy();
+  string currentText = hostString(hostRead(element, "value"));
+  JsValue elementValue = currentText;
+  if ((numeric || same(hostRead(element, "type"), "number")) && !leadingZero.test(currentText)) {
+    elementValue = dependencyLooseToNumber(currentText);
+  }
+  JsValue value = hostRead(binding, "value");
+  JsValue newValue = value;
+  if (JS.isNullish(value)) newValue = "";
+  if (same(elementValue, newValue)) return JS.undefined();
+  if (hostActiveElementIs(element) && !same(hostRead(element, "type"), "range")) {
+    if (lazy && same(value, hostRead(binding, "oldValue"))) return JS.undefined();
+    if (trim && currentText.trim() == hostString(newValue)) return JS.undefined();
+  }
+  hostWrite(element, "value", newValue);
+  return JS.undefined();
+}
+
+JsValue elementModelValue(JsValue element) {
+  if (hostHasProperty(element, "_value")) return hostRead(element, "_value");
+  return hostRead(element, "value");
+}
+
+JsValue checkboxValue(JsValue element, bool checked) {
+  string key = "_falseValue";
+  if (checked) key = "_trueValue";
+  if (hostHasProperty(element, key)) return hostRead(element, key);
+  return checked;
+}
+
+JsValue checkboxCreated(JsValue _self, JsValue element, JsValue _binding, JsValue vnode) {
+  hostWrite(element, assignKey, modelAssigner(vnode));
+  hostAddEventListener(element, "change", JS.method0((JsValue _innerSelf) => {
+    JsValue modelValue = hostRead(element, "_modelValue");
+    JsValue value = elementModelValue(element);
+    bool checked = hostRead(element, "checked").truthy();
+    JsValue assigner = hostRead(element, assignKey);
+    if (dependencyIsArray(modelValue)) {
+      int index = dependencyLooseIndexOf(modelValue, value);
+      bool found = index != -1;
+      if (checked && !found) {
+        JsValue result = hostArraySlice(modelValue);
+        hostWrite(result, valueLength(result), value);
+        hostCall1(assigner, result);
+      } else if (!checked && found) {
+        JsValue result = hostArraySlice(modelValue);
+        hostArraySplice(result, index, 1);
+        hostCall1(assigner, result);
+      }
+    } else if (dependencyIsSet(modelValue)) {
+      JsValue result = hostCreateSet(modelValue);
+      if (checked) hostSetAdd(result, value);
+      else hostSetDelete(result, value);
+      hostCall1(assigner, result);
+    } else {
+      hostCall1(assigner, checkboxValue(element, checked));
+    }
+    return JS.undefined();
+  }), JS.undefined());
+  return JS.undefined();
+}
+
+JsValue setChecked(JsValue _self, JsValue element, JsValue binding, JsValue vnode) {
+  JsValue value = hostRead(binding, "value");
+  hostWrite(element, "_modelValue", value);
+  bool checked = false;
+  JsValue props = hostRead(vnode, "props");
+  JsValue vnodeValue = hostRead(props, "value");
+  if (dependencyIsArray(value)) {
+    checked = dependencyLooseIndexOf(value, vnodeValue) > -1;
+  } else if (dependencyIsSet(value)) {
+    checked = hostSetHas(value, vnodeValue);
+  } else {
+    if (same(value, hostRead(binding, "oldValue"))) return JS.undefined();
+    checked = dependencyLooseEqual(value, checkboxValue(element, true));
+  }
+  if (hostRead(element, "checked").truthy() != checked) hostWrite(element, "checked", checked);
+  return JS.undefined();
+}
+
+JsValue checkboxBeforeUpdate(JsValue _self, JsValue element, JsValue binding, JsValue vnode) {
+  hostWrite(element, assignKey, modelAssigner(vnode));
+  return setChecked(_self, element, binding, vnode);
+}
+
+JsValue radioCreated(JsValue _self, JsValue element, JsValue binding, JsValue vnode) {
+  hostWrite(element, "checked", dependencyLooseEqual(hostRead(binding, "value"), hostRead(hostRead(vnode, "props"), "value")));
+  hostWrite(element, assignKey, modelAssigner(vnode));
+  hostAddEventListener(element, "change", JS.method0((JsValue _innerSelf) => {
+    hostCall1(hostRead(element, assignKey), elementModelValue(element));
+    return JS.undefined();
+  }), JS.undefined());
+  return JS.undefined();
+}
+
+JsValue radioBeforeUpdate(JsValue _self, JsValue element, JsValue binding, JsValue vnode) {
+  hostWrite(element, assignKey, modelAssigner(vnode));
+  if (!same(hostRead(binding, "value"), hostRead(binding, "oldValue"))) {
+    hostWrite(element, "checked", dependencyLooseEqual(
+      hostRead(binding, "value"),
+      hostRead(hostRead(vnode, "props"), "value")
+    ));
+  }
+  return JS.undefined();
+}
+
+bool sameSelectValue(JsValue value, JsValue assigned, bool multiple) {
+  if (!multiple) return dependencyLooseEqual(value, assigned);
+  if (dependencyIsArray(value)) return dependencyLooseEqual(value, assigned);
+  if (dependencyIsSet(value)) {
+    if (hostSetSize(value) != valueLength(assigned)) return false;
+    int count = valueLength(assigned);
+    for (int index = 0; index < count; index++) {
+      if (!hostSetHas(value, hostRead(assigned, index))) return false;
+    }
+    return true;
+  }
+  return false;
+}
+
+void setSelected(JsValue element, JsValue value) {
+  bool multiple = hostRead(element, "multiple").truthy();
+  bool arrayValue = dependencyIsArray(value);
+  if (multiple && !arrayValue && !dependencyIsSet(value)) {
+    string description = hostRawType(value);
+    hostWarn(
+      "<select multiple v-model> expects an Array or Set value for its binding, but got " + description + ".",
+      JS.undefined()
+    );
+    return;
+  }
+  JsValue options = hostRead(element, "options");
+  int count = valueLength(options);
+  for (int index = 0; index < count; index++) {
+    JsValue option = hostRead(options, index);
+    JsValue optionValue = elementModelValue(option);
+    if (multiple) {
+      bool selected = false;
+      if (arrayValue) {
+        string kind = JS.typeOf(optionValue);
+        if (kind == "string" || kind == "number") {
+          selected = false;
+          int modelCount = valueLength(value);
+          for (int modelIndex = 0; modelIndex < modelCount; modelIndex++) {
+            if (hostString(hostRead(value, modelIndex)) == hostString(optionValue)) {
+              selected = true;
+              break;
+            }
+          }
+        } else {
+          selected = dependencyLooseIndexOf(value, optionValue) > -1;
+        }
+      } else {
+        selected = hostSetHas(value, optionValue);
+      }
+      hostWrite(option, "selected", selected);
+    } else if (dependencyLooseEqual(optionValue, value)) {
+      if (JS.number(hostRead(element, "selectedIndex")).toInt() != index) hostWrite(element, "selectedIndex", index);
+      return;
+    }
+  }
+  if (!multiple && JS.number(hostRead(element, "selectedIndex")).toInt() != -1) {
+    hostWrite(element, "selectedIndex", -1);
+  }
+}
+
+JsValue selectCreated(JsValue _self, JsValue element, JsValue binding, JsValue vnode) {
+  hostWrite(element, "_modelValue", hostRead(binding, "value"));
+  JsValue modifiers = bindingModifiers(binding);
+  bool numeric = hostRead(modifiers, "number").truthy();
+  hostAddEventListener(element, "change", JS.method0((JsValue _innerSelf) => {
+    JsValue selected = JS.array();
+    JsValue options = hostRead(element, "options");
+    int count = valueLength(options);
+    for (int index = 0; index < count; index++) {
+      JsValue option = hostRead(options, index);
+      if (hostRead(option, "selected").truthy()) {
+        JsValue item = elementModelValue(option);
+        if (numeric) item = dependencyLooseToNumber(item);
+        hostWrite(selected, valueLength(selected), item);
+      }
+    }
+    bool multiple = hostRead(element, "multiple").truthy();
+    JsValue assigned = JS.undefined();
+    if (multiple) {
+      assigned = selected;
+      if (dependencyIsSet(hostRead(element, "_modelValue"))) assigned = hostCreateSet(selected);
+    } else {
+      assigned = JS.undefined();
+      if (valueLength(selected) != 0) assigned = hostRead(selected, 0);
+    }
+    JsValue snapshot = assigned;
+    if (multiple && dependencyIsArray(assigned)) snapshot = hostArraySlice(selected);
+    JsValue pending = JS.array(multiple, snapshot);
+    hostWrite(element, "_pendingValue", pending);
+    try {
+      hostCall1(hostRead(element, assignKey), assigned);
+    } finally {
+      hostCall1(dependencyNextTick, JS.method0((JsValue _tickSelf) => {
+        if (same(hostRead(element, "_pendingValue"), pending)) {
+          hostWrite(element, "_pendingValue", JS.undefined());
+        }
+        return JS.undefined();
+      }));
+    }
+    return JS.undefined();
+  }), JS.undefined());
+  hostWrite(element, assignKey, modelAssigner(vnode));
+  return JS.undefined();
+}
+
+JsValue selectMounted(JsValue _self, JsValue element, JsValue binding) {
+  setSelected(element, hostRead(binding, "value"));
+  return JS.undefined();
+}
+
+JsValue selectBeforeUpdate(JsValue _self, JsValue element, JsValue binding, JsValue vnode) {
+  hostWrite(element, "_modelValue", hostRead(binding, "value"));
+  hostWrite(element, assignKey, modelAssigner(vnode));
+  return JS.undefined();
+}
+
+JsValue selectUpdated(JsValue _self, JsValue element, JsValue binding) {
+  JsValue pending = hostRead(element, "_pendingValue");
+  hostWrite(element, "_pendingValue", JS.undefined());
+  bool multiple = hostRead(element, "multiple").truthy();
+  if (JS.isNullish(pending) || !same(hostRead(pending, 0), multiple) ||
+      !sameSelectValue(hostRead(binding, "value"), hostRead(pending, 1), multiple)) {
+    setSelected(element, hostRead(binding, "value"));
+  }
+  return JS.undefined();
+}
+
+export JsValue vModelText = JS.object(
+  "created", JS.method3(textCreated),
+  "mounted", JS.method2(textMounted),
+  "beforeUpdate", JS.method3(textBeforeUpdate)
+);
+
+export JsValue vModelCheckbox = JS.object(
+  "deep", true,
+  "created", JS.method3(checkboxCreated),
+  "mounted", JS.method3(setChecked),
+  "beforeUpdate", JS.method3(checkboxBeforeUpdate)
+);
+
+export JsValue vModelRadio = JS.object(
+  "created", JS.method3(radioCreated),
+  "beforeUpdate", JS.method3(radioBeforeUpdate)
+);
+
+export JsValue vModelSelect = JS.object(
+  "deep", true,
+  "created", JS.method3(selectCreated),
+  "mounted", JS.method2(selectMounted),
+  "beforeUpdate", JS.method3(selectBeforeUpdate),
+  "updated", JS.method2(selectUpdated)
+);
+
+JsValue resolveDynamicModel(string tagName, JsValue type) {
+  if (tagName == "SELECT") return vModelSelect;
+  if (tagName == "TEXTAREA") return vModelText;
+  if (same(type, "checkbox")) return vModelCheckbox;
+  if (same(type, "radio")) return vModelRadio;
+  return vModelText;
+}
+
+void callModelHook(JsValue element, JsValue binding, JsValue vnode, JsValue previousVNode, string hook) {
+  JsValue props = hostRead(vnode, "props");
+  JsValue model = resolveDynamicModel(hostString(hostRead(element, "tagName")), hostRead(props, "type"));
+  JsValue callback = hostRead(model, hook);
+  if (!JS.isNullish(callback) && callback.truthy()) hostCall4(callback, element, binding, vnode, previousVNode);
+}
+
+JsValue dynamicCreated(JsValue element, JsValue binding, JsValue vnode) {
+  callModelHook(element, binding, vnode, null, "created");
+  return JS.undefined();
+}
+
+JsValue dynamicMounted(JsValue element, JsValue binding, JsValue vnode) {
+  callModelHook(element, binding, vnode, null, "mounted");
+  return JS.undefined();
+}
+
+JsValue dynamicBeforeUpdate(JsValue element, JsValue binding, JsValue vnode, JsValue previousVNode) {
+  callModelHook(element, binding, vnode, previousVNode, "beforeUpdate");
+  return JS.undefined();
+}
+
+JsValue dynamicUpdated(JsValue element, JsValue binding, JsValue vnode, JsValue previousVNode) {
+  callModelHook(element, binding, vnode, previousVNode, "updated");
+  return JS.undefined();
+}
+
+export JsValue vModelDynamic = JS.object(
+  "created", dynamicCreated,
+  "mounted", dynamicMounted,
+  "beforeUpdate", dynamicBeforeUpdate,
+  "updated", dynamicUpdated
+);
+
+export void initVShowForSSR() {
+  hostWrite(vShow, "getSSRProps", JS.method1((JsValue _self, JsValue binding) => {
+    if (!hostRead(binding, "value").truthy()) return JS.object("style", JS.object("display", "none"));
+    return JS.undefined();
+  }));
+}
+
+export void initVModelForSSR() {
+  hostWrite(vModelText, "getSSRProps", JS.method1((JsValue _self, JsValue binding) =>
+    JS.object("value", hostRead(binding, "value"))
+  ));
+  hostWrite(vModelRadio, "getSSRProps", JS.method2((JsValue _self, JsValue binding, JsValue vnode) => {
+    JsValue props = hostRead(vnode, "props");
+    if (!JS.isNullish(props) && dependencyLooseEqual(hostRead(props, "value"), hostRead(binding, "value"))) {
+      return JS.object("checked", true);
+    }
+    return JS.undefined();
+  }));
+  hostWrite(vModelCheckbox, "getSSRProps", JS.method2((JsValue _self, JsValue binding, JsValue vnode) => {
+    JsValue value = hostRead(binding, "value");
+    JsValue props = hostRead(vnode, "props");
+    if (dependencyIsArray(value)) {
+      if (!JS.isNullish(props) && dependencyLooseIndexOf(value, hostRead(props, "value")) > -1) {
+        return JS.object("checked", true);
+      }
+    } else if (dependencyIsSet(value)) {
+      if (!JS.isNullish(props) && hostSetHas(value, hostRead(props, "value"))) {
+        return JS.object("checked", true);
+      }
+    } else if (value.truthy()) {
+      return JS.object("checked", true);
+    }
+    return JS.undefined();
+  }));
+  hostWrite(vModelDynamic, "getSSRProps", JS.method2((JsValue _self, JsValue binding, JsValue vnode) => {
+    JsValue vnodeType = hostRead(vnode, "type");
+    if (JS.typeOf(vnodeType) != "string") return JS.undefined();
+    JsValue props = hostRead(vnode, "props");
+    JsValue model = resolveDynamicModel(hostString(vnodeType).toUpperCase(), hostRead(props, "type"));
+    JsValue callback = hostRead(model, "getSSRProps");
+    if (!JS.isNullish(callback) && callback.truthy()) return hostCall2(callback, binding, vnode);
+    return JS.undefined();
+  }));
+}
+
+bool ssrDirectivesInitialized = false;
+
+export void initDirectivesForSSR() {
+  if (ssrDirectivesInitialized) return;
+  ssrDirectivesInitialized = true;
+  initVModelForSSR();
+  initVShowForSSR();
+}

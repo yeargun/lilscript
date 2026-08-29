@@ -9,12 +9,16 @@ Highest precedence for these flags. Unset `identifiers` / `properties` / `export
 | `identifiers` | `identifier-mangling` | reserved externs, referenced globals |
 | `properties` | `property-mangling` (size-first default on) | `extern class` members when `extern_fields` is on; public named aggregate fields unless exports mangled |
 | `exports` | `export-mangling` (priority never enables) | — when true, public ESM names **and** public aggregate fields may shorten |
-| `extern_fields` | **on** (library ABI) | `extern class` member spellings. `false` is closed-world only: those names mangle. Host members such as `string.length` stay exact. |
+| `extern_fields` | **on** (host/library ABI) | `extern class` member spellings. `false` is a legacy coordinated closed-key mode, not permission to rename arbitrary host members. Core host members such as `string.length` stay exact. |
 | `pool_strings` | `string-pooling` | — |
 
 `mangle.exports = true` is for LilScript-only apps whose static imports are linked before codegen. Reusable packages (Solid open-world, jQuery `<script>` facade) keep `exports = false`.
 
-`mangle.extern_fields = false` is the matching switch for `extern class` members that exist only because JavaScript callers read them (`gfm`, `parse`, …). A program written entirely in LilScript does not need those spellings and can turn the pin off.
+`mangle.extern_fields = false` currently supports compiler-controlled objects
+typed through an extern-shaped interface, where every producer and consumer uses
+the same renamed keys. It must not be applied to browser objects or unknown
+foreign producers. The planned contract replaces this inverted broad switch with
+typed ownership or an explicit coordinated foreign ABI mapping.
 
 ## Benchmark vocabulary
 

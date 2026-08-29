@@ -1,0 +1,12 @@
+import extern { LRUCache } from "lru-cache";
+
+extern JsValue LRUCache;
+extern JsValue Map;
+
+// The browser facade changes this build constant to true before compilation.
+bool useSimpleCache = false;
+
+export JsValue createCache(int max = 500) {
+  if (useSimpleCache) return JS.construct(Map);
+  return JS.construct(LRUCache, JS.object("max", max));
+}

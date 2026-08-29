@@ -1,0 +1,295 @@
+import extern {
+  ElementTypes,
+  NodeTypes,
+  createBlockStatement,
+  createCallExpression,
+  createCompoundExpression,
+  createRoot,
+  createSimpleExpression,
+  createTemplateLiteral,
+  createTransformContext,
+  processExpression
+} from "../../packages/vuelil/compiler-dom.js";
+import extern { escapeHtml as sharedEscapeHtml } from "../../packages/vuelil/shared.js";
+import { SSRErrorCodes, createSSRCompilerError } from "./errors";
+import { SSR_INTERPOLATE, ssrHelpers } from "./runtimeHelpers";
+import { ssrProcessComponent } from "./transforms/ssrTransformComponent";
+import { ssrProcessElement } from "./transforms/ssrTransformElement";
+import { ssrProcessSlotOutlet } from "./transforms/ssrTransformSlotOutlet";
+import { ssrProcessFor } from "./transforms/ssrVFor";
+import { ssrProcessIf } from "./transforms/ssrVIf";
+
+extern JsValue Array;
+extern JsValue ElementTypes;
+extern JsValue NodeTypes;
+extern JsValue Set;
+extern JsValue createBlockStatement;
+extern JsValue createCallExpression;
+extern JsValue createCompoundExpression;
+extern JsValue createRoot;
+extern JsValue createSimpleExpression;
+extern JsValue createTemplateLiteral;
+extern JsValue createTransformContext;
+extern JsValue processExpression;
+extern JsValue sharedEscapeHtml;
+
+JsValue ssrCodegenUndefined() {
+  return JS.undefined();
+}
+
+int ssrCodegenLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+
+void ssrCodegenPush(JsValue values, JsValue value) {
+  values[ssrCodegenLength(values)] = value;
+}
+
+JsValue createSSRTransformContext(
+  JsValue root,
+  JsValue options,
+  JsValue inheritedHelpers = JS.undefined(),
+  bool withSlotScopeId = false
+) {
+  JsValue body = JS.array();
+  JsValue helpers = inheritedHelpers;
+  if (JS.isUndefined(helpers)) helpers = JS.construct(Set);
+  JsValue currentString = null;
+  JsValue context = JS.object(
+    "root", root,
+    "options", options,
+    "body", body,
+    "helpers", helpers,
+    "withSlotScopeId", withSlotScopeId
+  );
+  JsValue onError = options["onError"];
+  if (!onError.truthy()) {
+    onError = JS.method1((JsValue _self, JsValue error) => {
+      throw error;
+      return ssrCodegenUndefined();
+    });
+  }
+  context["onError"] = onError;
+  context["helper"] = JS.method1((JsValue _self, JsValue name) => {
+    JS.invoke(helpers, "add", name);
+    return name;
+  });
+  context["pushStringPart"] = JS.method1((JsValue _self, JsValue part) => {
+    if (!currentString.truthy()) {
+      JsValue currentCall = JS.call(
+        createCallExpression,
+        ssrCodegenUndefined(),
+        "_push"
+      );
+      ssrCodegenPush(body, currentCall);
+      currentString = JS.call(
+        createTemplateLiteral,
+        ssrCodegenUndefined(),
+        JS.array()
+      );
+      JS.invoke(currentCall["arguments"], "push", currentString);
+    }
+    JsValue elements = currentString["elements"];
+    int lastIndex = ssrCodegenLength(elements) - 1;
+    if (JS.typeOf(part) == "string" && lastIndex >= 0 &&
+      JS.typeOf(elements[lastIndex]) == "string") {
+      elements[lastIndex] = JS.string(elements[lastIndex]) + JS.string(part);
+    } else {
+      ssrCodegenPush(elements, part);
+    }
+    return ssrCodegenUndefined();
+  });
+  context["pushStatement"] = JS.method1((JsValue _self, JsValue statement) => {
+    currentString = null;
+    ssrCodegenPush(body, statement);
+    return ssrCodegenUndefined();
+  });
+  return context;
+}
+
+JsValue createChildContext(
+  JsValue parent,
+  JsValue withSlotScopeId = JS.undefined()
+) {
+  bool slotScope = parent["withSlotScopeId"].truthy();
+  if (!JS.isUndefined(withSlotScopeId)) slotScope = withSlotScopeId.truthy();
+  return createSSRTransformContext(
+    parent["root"],
+    parent["options"],
+    parent["helpers"],
+    slotScope
+  );
+}
+
+export void processChildren(
+  JsValue parent,
+  JsValue context,
+  bool asFragment = false,
+  bool disableNestedFragments = false,
+  bool disableComment = false
+) {
+  if (asFragment) JS.invoke(context, "pushStringPart", "<!--[-->");
+  JsValue children = parent["children"];
+  for (int index = 0; index < ssrCodegenLength(children); index++) {
+    JsValue child = children[index];
+    int type = JS.number(child["type"]).toInt();
+    if (type == JS.number(NodeTypes["ELEMENT"]).toInt()) {
+      int tagType = JS.number(child["tagType"]).toInt();
+      if (tagType == JS.number(ElementTypes["ELEMENT"]).toInt()) {
+        ssrProcessElement(child, context);
+      } else if (tagType == JS.number(ElementTypes["COMPONENT"]).toInt()) {
+        ssrProcessComponent(child, context, parent);
+      } else if (tagType == JS.number(ElementTypes["SLOT"]).toInt()) {
+        ssrProcessSlotOutlet(child, context);
+      } else if (tagType != JS.number(ElementTypes["TEMPLATE"]).toInt()) {
+        JS.invoke(
+          context,
+          "onError",
+          createSSRCompilerError(
+            JS.number(SSRErrorCodes["X_SSR_INVALID_AST_NODE"]).toInt(),
+            child["loc"]
+          )
+        );
+        return;
+      }
+    } else if (type == JS.number(NodeTypes["TEXT"]).toInt()) {
+      JS.invoke(
+        context,
+        "pushStringPart",
+        JS.call(sharedEscapeHtml, ssrCodegenUndefined(), child["content"])
+      );
+    } else if (type == JS.number(NodeTypes["COMMENT"]).toInt()) {
+      if (!disableComment) {
+        JS.invoke(
+          context,
+          "pushStringPart",
+          "<!--" + JS.string(child["content"]) + "-->"
+        );
+      }
+    } else if (type == JS.number(NodeTypes["INTERPOLATION"]).toInt()) {
+      JsValue call = JS.call(
+        createCallExpression,
+        ssrCodegenUndefined(),
+        JS.invoke(context, "helper", SSR_INTERPOLATE),
+        JS.array(child["content"])
+      );
+      JS.invoke(context, "pushStringPart", call);
+    } else if (type == JS.number(NodeTypes["IF"]).toInt()) {
+      ssrProcessIf(child, context, disableNestedFragments, disableComment);
+    } else if (type == JS.number(NodeTypes["FOR"]).toInt()) {
+      ssrProcessFor(child, context, disableNestedFragments);
+    } else if (type != JS.number(NodeTypes["IF_BRANCH"]).toInt() &&
+      type != JS.number(NodeTypes["TEXT_CALL"]).toInt() &&
+      type != JS.number(NodeTypes["COMPOUND_EXPRESSION"]).toInt()) {
+      JS.invoke(
+        context,
+        "onError",
+        createSSRCompilerError(
+          JS.number(SSRErrorCodes["X_SSR_INVALID_AST_NODE"]).toInt(),
+          child["loc"]
+        )
+      );
+      return;
+    }
+  }
+  if (asFragment) JS.invoke(context, "pushStringPart", "<!--]-->");
+}
+
+export JsValue processChildrenAsStatement(
+  JsValue parent,
+  JsValue parentContext,
+  bool asFragment = false,
+  JsValue withSlotScopeId = JS.undefined()
+) {
+  JsValue childContext = createChildContext(parentContext, withSlotScopeId);
+  processChildren(parent, childContext, asFragment);
+  return JS.call(
+    createBlockStatement,
+    ssrCodegenUndefined(),
+    childContext["body"]
+  );
+}
+
+export void ssrCodegenTransform(JsValue ast, JsValue options) {
+  JsValue context = createSSRTransformContext(ast, options);
+  if (options["ssrCssVars"].truthy()) {
+    JsValue emptyRoot = JS.call(
+      createRoot,
+      ssrCodegenUndefined(),
+      JS.array()
+    );
+    JsValue cssContext = JS.call(
+      createTransformContext,
+      ssrCodegenUndefined(),
+      emptyRoot,
+      options
+    );
+    JsValue expression = JS.call(
+      createSimpleExpression,
+      ssrCodegenUndefined(),
+      options["ssrCssVars"],
+      false
+    );
+    JsValue varsExpression = JS.call(
+      processExpression,
+      ssrCodegenUndefined(),
+      expression,
+      cssContext
+    );
+    ssrCodegenPush(
+      context["body"],
+      JS.call(
+        createCompoundExpression,
+        ssrCodegenUndefined(),
+        JS.array("const _cssVars = { style: ", varsExpression, "}")
+      )
+    );
+    JsValue cssKeys = JS.call(Array["from"], Array, JS.invoke(cssContext["helpers"], "keys"));
+    for (int index = 0; index < ssrCodegenLength(cssKeys); index++) {
+      JS.invoke(ast["helpers"], "add", cssKeys[index]);
+    }
+  }
+  JsValue children = ast["children"];
+  bool isFragment = ssrCodegenLength(children) > 1;
+  if (isFragment) {
+    bool nonText = false;
+    for (int index = 0; index < ssrCodegenLength(children); index++) {
+      int type = JS.number(children[index]["type"]).toInt();
+      if (type != JS.number(NodeTypes["INTERPOLATION"]).toInt() &&
+        type != JS.number(NodeTypes["TEXT"]).toInt() &&
+        type != JS.number(NodeTypes["COMPOUND_EXPRESSION"]).toInt()) nonText = true;
+    }
+    isFragment = nonText;
+  }
+  processChildren(ast, context, isFragment);
+  ast["codegenNode"] = JS.call(
+    createBlockStatement,
+    ssrCodegenUndefined(),
+    context["body"]
+  );
+
+  JsValue combined = JS.array();
+  JsValue helpers = JS.call(Array["from"], Array, ast["helpers"]);
+  for (int index = 0; index < ssrCodegenLength(helpers); index++) {
+    if (!JS.isUndefined(ssrHelpers[helpers[index]])) {
+      if (!JS.invoke(combined, "includes", helpers[index]).truthy()) {
+        ssrCodegenPush(combined, helpers[index]);
+      }
+    }
+  }
+  JsValue contextHelpers = JS.call(Array["from"], Array, context["helpers"]);
+  for (int index = 0; index < ssrCodegenLength(contextHelpers); index++) {
+    if (!JS.invoke(combined, "includes", contextHelpers[index]).truthy()) {
+      ssrCodegenPush(combined, contextHelpers[index]);
+    }
+  }
+  ast["ssrHelpers"] = combined;
+
+  JsValue vueHelpers = JS.array();
+  for (int index = 0; index < ssrCodegenLength(helpers); index++) {
+    if (JS.isUndefined(ssrHelpers[helpers[index]])) {
+      ssrCodegenPush(vueHelpers, helpers[index]);
+    }
+  }
+  ast["helpers"] = JS.construct(Set, vueHelpers);
+}

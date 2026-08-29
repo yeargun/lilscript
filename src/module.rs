@@ -10,9 +10,9 @@ use crate::ast::{
     ArrayBinding, ArrayElement, ArrowBody, CatchBinding, CatchClause, ClassDecl, ClassMember,
     ConstructorDecl, DynamicExport, DynamicImportDecl, EnumDecl, ExportDecl, Expr, ExternClassDecl,
     ExternClassMember, ExternDecl, ExternGlobalDecl, FieldDecl, ForInitializer, ForeignImportDecl,
-    FunctionDecl, Ident, ImportSpecifier, Item, MatchArm, MatchPattern, Param, Program,
-    RecordBinding, RecordElement, RecordEntry, Stmt, StructDecl, TemplatePart, TypeKind, TypeRef,
-    VarDecl,
+    FunctionDecl, Ident, ImportSpecifier, Item, MatchArm, MatchPattern, ModuleBinding, Param,
+    Program, RecordBinding, RecordElement, RecordEntry, Stmt, StructDecl, TemplatePart, TypeKind,
+    TypeRef, VarDecl,
 };
 use crate::config::ProjectConfig;
 use crate::package::{load_package_resolver, PackageResolver};
@@ -88,12 +88,6 @@ enum VisitState {
     Complete,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum ImportEdge {
-    Static,
-    Dynamic,
-}
-
 pub fn discover_modules(root: &Path) -> Result<ModuleSet, ModuleError> {
     discover_modules_inner(root, None, None)
 }
@@ -152,12 +146,10 @@ fn discover_modules_inner(
         by_path: AHashMap::default(),
         states: Vec::new(),
         dependency_order: Vec::new(),
-        stack: Vec::new(),
-        stack_edges: Vec::new(),
         overrides,
         package_resolver,
     };
-    let root = loader.visit(&root_path, None, ImportEdge::Static)?;
+    let root = loader.visit(&root_path, None)?;
     let mut offset = 0usize;
     for module in &mut loader.modules {
         module.offset = offset;
@@ -185,8 +177,6 @@ struct ModuleLoader {
     by_path: AHashMap<PathBuf, ModuleId>,
     states: Vec<VisitState>,
     dependency_order: Vec<ModuleId>,
-    stack: Vec<ModuleId>,
-    stack_edges: Vec<ImportEdge>,
     overrides: AHashMap<PathBuf, String>,
     package_resolver: Option<PackageResolver>,
 }
@@ -196,7 +186,6 @@ impl ModuleLoader {
         &mut self,
         requested: &Path,
         import_site: Option<(&Path, &str, Span)>,
-        edge: ImportEdge,
     ) -> Result<ModuleId, ModuleError> {
         let path = canonical_module_path(requested).map_err(|message| {
             let (path, source, span) = import_site.unwrap_or((requested, "", Span::empty(0)));
@@ -204,30 +193,9 @@ impl ModuleLoader {
         })?;
         if let Some(&id) = self.by_path.get(&path) {
             if self.states[id] == VisitState::Visiting {
-                let cycle_start = self
-                    .stack
-                    .iter()
-                    .position(|candidate| *candidate == id)
-                    .unwrap_or(0);
-                let entirely_static = self.stack_edges[cycle_start + 1..]
-                    .iter()
-                    .chain(std::iter::once(&edge))
-                    .all(|edge| *edge == ImportEdge::Static);
-                if !entirely_static {
-                    return Ok(id);
-                }
-                let mut cycle = self.stack[cycle_start..]
-                    .iter()
-                    .map(|module| display_module_path(&self.modules[*module].path))
-                    .collect::<Vec<_>>();
-                cycle.push(display_module_path(&path));
-                let (site_path, source, span) = import_site.unwrap_or((&path, "", Span::empty(0)));
-                return Err(ModuleError::new(
-                    site_path,
-                    source,
-                    span,
-                    format!("cyclic module import: {}", cycle.join(" -> ")),
-                ));
+                // Module interfaces are linked to a fixed point below. Keep the
+                // back-edge here and let each member of the SCC be emitted once.
+                return Ok(id);
             }
             return Ok(id);
         }
@@ -278,9 +246,6 @@ impl ModuleLoader {
             dynamic_dependencies: Vec::with_capacity(dynamic_imports.len()),
             offset: 0,
         });
-        self.stack.push(id);
-        self.stack_edges.push(edge);
-
         let parent = path.parent().unwrap_or_else(|| Path::new("."));
         let site_source = self.modules[id].source.clone();
         let mut dependencies = Vec::with_capacity(imports.len());
@@ -290,11 +255,7 @@ impl ModuleLoader {
                     .map_err(|message| {
                         ModuleError::new(&path, &self.modules[id].source, span, message)
                     })?;
-            let dependency = self.visit(
-                &dependency_path,
-                Some((&path, &site_source, span)),
-                ImportEdge::Static,
-            )?;
+            let dependency = self.visit(&dependency_path, Some((&path, &site_source, span)))?;
             dependencies.push(dependency);
         }
         self.modules[id].dependencies = dependencies;
@@ -318,16 +279,10 @@ impl ModuleLoader {
                     .map_err(|message| {
                         ModuleError::new(&path, &self.modules[id].source, span, message)
                     })?;
-            let dependency = self.visit(
-                &dependency_path,
-                Some((&path, &site_source, span)),
-                ImportEdge::Dynamic,
-            )?;
+            let dependency = self.visit(&dependency_path, Some((&path, &site_source, span)))?;
             dynamic_dependencies.push(dependency);
         }
         self.modules[id].dynamic_dependencies = dynamic_dependencies;
-        self.stack.pop();
-        self.stack_edges.pop();
         self.states[id] = VisitState::Complete;
         self.dependency_order.push(id);
         Ok(id)
@@ -413,13 +368,6 @@ fn resolve_import_path(parent: &Path, specifier: &str) -> Result<PathBuf, String
         ));
     }
     Ok(parent.join(path))
-}
-
-fn display_module_path(path: &Path) -> String {
-    path.file_name()
-        .and_then(|name| name.to_str())
-        .unwrap_or_else(|| path.to_str().unwrap_or("<module>"))
-        .to_string()
 }
 
 fn collect_program_dynamic_imports<'ast, 'src>(
@@ -911,6 +859,7 @@ pub fn link_modules<'arena>(
     }
 
     let mut items = BumpVec::new_in(arena);
+    let mut module_bindings = BumpVec::new_in(arena);
     let mut seen_externs = AHashMap::<&str, ExternDecl<'arena, 'arena>>::default();
     for &module_id in &modules.dependency_order {
         let mut cloner = ModuleCloner::new(
@@ -920,6 +869,16 @@ pub fn link_modules<'arena>(
         );
         for item in programs[module_id].items {
             let cloned = cloner.clone_item(item);
+            if let Item::Stmt(Stmt::VarDecl(decl)) = &cloned {
+                if !decl.ty.is_auto() {
+                    let module = &modules.modules[module_id];
+                    module_bindings.push(ModuleBinding {
+                        name: decl.name,
+                        ty: decl.ty,
+                        module_span: Span::new(module.offset, module.offset + module.source.len()),
+                    });
+                }
+            }
             if let Item::Extern(decl) = &cloned {
                 match seen_externs.entry(decl.name.name) {
                     Entry::Vacant(entry) => {
@@ -1102,6 +1061,7 @@ pub fn link_modules<'arena>(
         imports: &[],
         foreign_imports: linked_foreign_imports.into_bump_slice(),
         dynamic_imports: linked_dynamic_imports.into_bump_slice(),
+        module_bindings: module_bindings.into_bump_slice(),
         exports: linked_exports.into_bump_slice(),
         items,
         span,

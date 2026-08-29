@@ -1,0 +1,111 @@
+import {
+  isArray,
+  isFunction,
+  isMap,
+  isObject,
+  isPlainObject,
+  isSet,
+  isString,
+  isSymbol,
+  objectToString
+} from "./general";
+import { Array, JSON, String } from "./makeMap";
+
+JsValue undefinedValue() {
+  return JS.undefined();
+}
+
+int valueLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+
+int collectionSize(JsValue value) {
+  return JS.number(value["size"]).toInt();
+}
+
+bool isArrayValue(JsValue value) {
+  return JS.call(isArray, undefinedValue(), value).truthy();
+}
+
+string hostString(JsValue value) {
+  return JS.string(JS.call(String, undefinedValue(), value));
+}
+
+bool isRef(JsValue value) {
+  return value.truthy() && JS.strictEqual(value["__v_isRef"], true);
+}
+
+JsValue stringifySymbol(JsValue value, JsValue fallback) {
+  if (!isSymbol(value)) {
+    return value;
+  }
+  JsValue description = value["description"];
+  if (JS.isNullish(description)) {
+    description = fallback;
+  }
+  return "Symbol(" + JS.string(description) + ")";
+}
+
+JsValue displayReplacer(JsValue _key, JsValue value) {
+  if (isRef(value)) {
+    return displayReplacer(_key, value["value"]);
+  }
+  if (isMap(value)) {
+    JsValue entries = JS.object();
+    JsValue pairs = JS.invoke(Array, "from", JS.invoke(value, "entries"));
+    int length = valueLength(pairs);
+    for (int index = 0; index < length; index++) {
+      JsValue pair = pairs[index];
+      string key = hostString(stringifySymbol(pair[0], index)) + " =>";
+      entries[key] = pair[1];
+    }
+    JsValue result = JS.object();
+    result["Map(" + collectionSize(value) + ")"] = entries;
+    return result;
+  }
+  if (isSet(value)) {
+    JsValue source = JS.invoke(Array, "from", JS.invoke(value, "values"));
+    JsValue values = JS.array();
+    int length = valueLength(source);
+    for (int index = 0; index < length; index++) {
+      JS.push(values, stringifySymbol(source[index], ""));
+    }
+    JsValue result = JS.object();
+    result["Set(" + collectionSize(value) + ")"] = values;
+    return result;
+  }
+  if (isSymbol(value)) {
+    return stringifySymbol(value, "");
+  }
+  if (isObject(value) && !isArrayValue(value) && !isPlainObject(value)) {
+    return hostString(value);
+  }
+  return value;
+}
+
+export JsValue toDisplayString(JsValue value) {
+  if (isString(value)) {
+    return value;
+  }
+  if (JS.isNullish(value)) {
+    return "";
+  }
+  bool serialize = isArrayValue(value);
+  if (!serialize && isObject(value)) {
+    JsValue toStringValue = value["toString"];
+    serialize = JS.strictEqual(
+      toStringValue,
+      objectToString
+    ) || !isFunction(toStringValue);
+  }
+  if (!serialize) {
+    return hostString(value);
+  }
+  if (isRef(value)) {
+    return toDisplayString(value["value"]);
+  }
+  JsValue replacer = JS.method2(
+    (JsValue _self, JsValue key, JsValue item) => displayReplacer(key, item)
+  );
+  return JS.invoke(JSON, "stringify", value, replacer, 2);
+}

@@ -1,0 +1,217 @@
+import extern {
+  CompilerDeprecationTypes,
+  NodeTypes,
+  checkCompatEnabled,
+  createCallExpression,
+  createCompoundExpression,
+  createObjectProperty,
+  createSimpleExpression,
+  isStaticExp,
+  transformOn as coreTransformOn
+} from "../../../packages/vuelil/compiler-core.js";
+import extern {
+  capitalize as sharedCapitalize,
+  makeMap as sharedMakeMap
+} from "../../../packages/vuelil/shared.js";
+import { V_ON_WITH_KEYS, V_ON_WITH_MODIFIERS } from "../runtimeHelpers";
+
+extern JsValue CompilerDeprecationTypes;
+extern JsValue NodeTypes;
+extern JsValue checkCompatEnabled;
+extern JsValue createCallExpression;
+extern JsValue createCompoundExpression;
+extern JsValue createObjectProperty;
+extern JsValue createSimpleExpression;
+extern JsValue isStaticExp;
+extern JsValue coreTransformOn;
+extern JsValue sharedCapitalize;
+extern JsValue sharedMakeMap;
+extern JsValue JSON;
+
+JsValue domOnUndefined() {
+  return JS.undefined();
+}
+
+int domOnLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+
+void domOnPush(JsValue values, JsValue value) {
+  values[domOnLength(values)] = value;
+}
+
+JsValue domOnMakeMap(string values) {
+  return JS.call(sharedMakeMap, domOnUndefined(), values);
+}
+
+bool domOnMapHas(JsValue map, string value) {
+  return JS.call(map, domOnUndefined(), value).truthy();
+}
+
+JsValue isEventOptionModifier = domOnMakeMap("passive,once,capture");
+JsValue isNonKeyModifier = domOnMakeMap(
+  "stop,prevent,self,ctrl,shift,alt,meta,exact,middle"
+);
+JsValue maybeKeyModifier = domOnMakeMap("left,right");
+JsValue isKeyboardEvent = domOnMakeMap("onkeyup,onkeydown,onkeypress");
+
+bool staticExpression(JsValue expression) {
+  return JS.call(isStaticExp, domOnUndefined(), expression).truthy();
+}
+
+JsValue resolveModifiers(
+  JsValue key,
+  JsValue modifiers,
+  JsValue context,
+  JsValue loc
+) {
+  JsValue keyModifiers = JS.array();
+  JsValue nonKeyModifiers = JS.array();
+  JsValue eventOptionModifiers = JS.array();
+  for (int index = 0; index < domOnLength(modifiers); index++) {
+    string modifier = JS.string(modifiers[index]["content"]);
+    if (
+      modifier == "native" &&
+      JS.call(
+        checkCompatEnabled,
+        domOnUndefined(),
+        CompilerDeprecationTypes["COMPILER_V_ON_NATIVE"],
+        context,
+        loc
+      ).truthy()
+    ) {
+      domOnPush(eventOptionModifiers, modifier);
+    } else if (domOnMapHas(isEventOptionModifier, modifier)) {
+      domOnPush(eventOptionModifiers, modifier);
+    } else if (domOnMapHas(maybeKeyModifier, modifier)) {
+      if (staticExpression(key)) {
+        if (domOnMapHas(isKeyboardEvent, JS.string(key["content"]).toLowerCase())) {
+          domOnPush(keyModifiers, modifier);
+        } else {
+          domOnPush(nonKeyModifiers, modifier);
+        }
+      } else {
+        domOnPush(keyModifiers, modifier);
+        domOnPush(nonKeyModifiers, modifier);
+      }
+    } else if (domOnMapHas(isNonKeyModifier, modifier)) {
+      domOnPush(nonKeyModifiers, modifier);
+    } else {
+      domOnPush(keyModifiers, modifier);
+    }
+  }
+  return JS.object(
+    "keyModifiers", keyModifiers,
+    "nonKeyModifiers", nonKeyModifiers,
+    "eventOptionModifiers", eventOptionModifiers
+  );
+}
+
+JsValue transformClick(JsValue key, string eventName) {
+  bool staticClick = staticExpression(key) &&
+    JS.string(key["content"]).toLowerCase() == "onclick";
+  if (staticClick) {
+    return JS.call(createSimpleExpression, domOnUndefined(), eventName, true);
+  }
+  if (!JS.strictEqual(key["type"], NodeTypes["SIMPLE_EXPRESSION"])) {
+    return JS.call(
+      createCompoundExpression,
+      domOnUndefined(),
+      JS.array(
+        "(", key, ") === \"onClick\" ? \"" + eventName + "\" : (", key, ")"
+      )
+    );
+  }
+  return key;
+}
+
+JsValue appendEventOptions(JsValue key, JsValue modifiers) {
+  if (domOnLength(modifiers) == 0) return key;
+  string postfix = "";
+  for (int index = 0; index < domOnLength(modifiers); index++) {
+    postfix += JS.string(JS.call(
+      sharedCapitalize,
+      domOnUndefined(),
+      modifiers[index]
+    ));
+  }
+  if (staticExpression(key)) {
+    return JS.call(
+      createSimpleExpression,
+      domOnUndefined(),
+      JS.string(key["content"]) + postfix,
+      true
+    );
+  }
+  return JS.call(
+    createCompoundExpression,
+    domOnUndefined(),
+    JS.array("(", key, ") + \"" + postfix + "\"")
+  );
+}
+
+export JsValue transformOn(JsValue directive, JsValue node, JsValue context) {
+  JsValue augmentor = JS.method1((JsValue _self, JsValue baseResult) => {
+    JsValue modifiers = directive["modifiers"];
+    if (domOnLength(modifiers) == 0) return baseResult;
+
+    JsValue property = baseResult["props"][0];
+    JsValue key = property["key"];
+    JsValue handler = property["value"];
+    JsValue resolved = resolveModifiers(key, modifiers, context, directive["loc"]);
+    JsValue keyModifiers = resolved["keyModifiers"];
+    JsValue nonKeyModifiers = resolved["nonKeyModifiers"];
+    JsValue eventOptionModifiers = resolved["eventOptionModifiers"];
+
+    if (JS.invoke(nonKeyModifiers, "includes", "right").truthy()) {
+      key = transformClick(key, "onContextmenu");
+    }
+    if (JS.invoke(nonKeyModifiers, "includes", "middle").truthy()) {
+      key = transformClick(key, "onMouseup");
+    }
+
+    if (domOnLength(nonKeyModifiers) > 0) {
+      JsValue helper = JS.call(context["helper"], domOnUndefined(), V_ON_WITH_MODIFIERS);
+      handler = JS.call(
+        createCallExpression,
+        domOnUndefined(),
+        helper,
+        JS.array(handler, JS.invoke(JSON, "stringify", nonKeyModifiers))
+      );
+    }
+
+    if (
+      domOnLength(keyModifiers) > 0 &&
+      (
+        !staticExpression(key) ||
+        domOnMapHas(isKeyboardEvent, JS.string(key["content"]).toLowerCase())
+      )
+    ) {
+      JsValue helper = JS.call(context["helper"], domOnUndefined(), V_ON_WITH_KEYS);
+      handler = JS.call(
+        createCallExpression,
+        domOnUndefined(),
+        helper,
+        JS.array(handler, JS.invoke(JSON, "stringify", keyModifiers))
+      );
+    }
+
+    key = appendEventOptions(key, eventOptionModifiers);
+
+    JsValue transformed = JS.call(
+      createObjectProperty,
+      domOnUndefined(),
+      key,
+      handler
+    );
+    return JS.object("props", JS.array(transformed));
+  });
+  return JS.call(
+    coreTransformOn,
+    domOnUndefined(),
+    directive,
+    node,
+    context,
+    augmentor
+  );
+}

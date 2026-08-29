@@ -18,7 +18,9 @@ lilscript.toml
   → native: clone IR, optimize with native options, emit C / exec
 ```
 
-Legacy `compile_source` → `compile_to_js` (`src/codegen_js.rs`) is AST-direct. Configured production uses IR codegen (`src/codegen_ir_js.rs`) only.
+`compile_source` / `compile_to_js` in `src/codegen_js.rs` are convenience facades
+that analyze, lower, optimize, and use IR codegen. Production JavaScript emission
+lives in `src/codegen_ir_js.rs`.
 
 For `--target all` with `split` or `preserve-modules`,
 `compile_path_all_to_js_bundle_configured` performs discovery, parsing, linking,
@@ -54,10 +56,12 @@ discarded single JavaScript artifact before invoking the bundle pipeline.
 
 ## Explain metrics
 
-`JavaScriptSelectionMetrics`: codec name, transfer bytes, startup score, syntax
-and performance versus baseline, candidates/plans, pre-budget optimizer and
-bounded structural emissions, structural proposal work/limit, terminal work
-and exact-codec calls/limit, peephole rewrites, and compiler microseconds.
+`JavaScriptSelectionMetrics`: contract/objective fingerprints, codec name,
+transfer bytes, startup score, syntax and performance versus baseline,
+candidates/plans, pre-budget optimizer and bounded structural emissions,
+proposal/terminal work, family reserves/starvation, peephole rewrites, stop
+reason, and compiler microseconds. Complete replayable recipe serialization is
+planned, not implemented.
 Optimizer `OptimizationReport` lists pass changed/unchanged.
 
 ## Verification posture

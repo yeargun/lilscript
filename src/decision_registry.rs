@@ -1540,6 +1540,28 @@ pub const SCORED_IR_VARIANTS: &[ScoredIrVariant] = &[
         },
     },
     ScoredIrVariant {
+        name: "exported-internal-inlining",
+        admitted: |config, configured| {
+            configured.inlining && config.exported_internal_inlining_variants_enabled()
+        },
+        apply: |_, configured| OptimizationOptions {
+            inline_exported_internal_calls: true,
+            ..configured
+        },
+    },
+    ScoredIrVariant {
+        name: "global-alias-forwarding",
+        admitted: |config, configured| {
+            configured.global_optimization
+                && !configured.forward_global_aliases
+                && config.global_alias_forwarding_variants_enabled()
+        },
+        apply: |_, configured| OptimizationOptions {
+            forward_global_aliases: true,
+            ..configured
+        },
+    },
+    ScoredIrVariant {
         name: "keep-object",
         admitted: |config, configured| {
             configured.scalar_replacement && config.js_keep_object_variants_enabled()
@@ -1686,6 +1708,7 @@ mod tests {
         IR_JS_OPTION_FIELDS, MIGRATED_DECISIONS, SCORED_EMISSION_FAMILIES, SCORED_IR_VARIANTS,
     };
     use crate::config::{CompressionCostModel, ProjectConfig};
+    use crate::optimizer::OptimizationOptions;
 
     fn search_context(config: &ProjectConfig, module_output: bool) -> EmissionSearchContext<'_> {
         let candidate_beam_width = config.javascript.effective_candidate_beam_width();
@@ -1913,5 +1936,102 @@ mod tests {
         .unwrap();
         let exact_names = admitted_scored_ir_variant_names(&exact, exact.js_optimizer_options());
         assert!(!exact_names.contains(&"keep-object"), "{exact_names:?}");
+    }
+
+    #[test]
+    fn exported_internal_inlining_is_a_distinct_opt_in_ir_clone() {
+        assert!(!OptimizationOptions::default().inline_exported_internal_calls);
+        assert!(!OptimizationOptions::disabled().inline_exported_internal_calls);
+
+        let size = ProjectConfig::default();
+        let configured = size.js_optimizer_options();
+        assert!(!configured.inline_exported_internal_calls);
+        let names = admitted_scored_ir_variant_names(&size, configured);
+        assert!(names.contains(&"exported-internal-inlining"), "{names:?}");
+        let clones = scored_ir_optimizer_clones(&size, configured);
+        assert!(clones.contains(&configured));
+        assert!(clones
+            .iter()
+            .any(|candidate| candidate.inline_exported_internal_calls));
+
+        let mut no_inlining = size.clone();
+        no_inlining.optimization.inlining = Some(false);
+        let no_inlining_options = no_inlining.js_optimizer_options();
+        assert!(
+            !admitted_scored_ir_variant_names(&no_inlining, no_inlining_options)
+                .contains(&"exported-internal-inlining")
+        );
+
+        let no_variants: ProjectConfig = toml::from_str(
+            "[javascript]\npriority='size-first'\ncompression=['identifier-mangling']\n",
+        )
+        .unwrap();
+        let no_variant_options = no_variants.js_optimizer_options();
+        assert!(
+            !admitted_scored_ir_variant_names(&no_variants, no_variant_options)
+                .contains(&"exported-internal-inlining")
+        );
+
+        let legacy_exact: ProjectConfig = toml::from_str(
+            "[javascript]\npriority='size-first'\ncompression=['ir-inlining-variants']\n",
+        )
+        .unwrap();
+        assert!(!admitted_scored_ir_variant_names(
+            &legacy_exact,
+            legacy_exact.js_optimizer_options()
+        )
+        .contains(&"exported-internal-inlining"));
+
+        let explicit: ProjectConfig = toml::from_str(
+            "[javascript]\npriority='size-first'\ncompression=['ir-inlining-variants','exported-internal-inlining']\n",
+        )
+        .unwrap();
+        assert!(
+            admitted_scored_ir_variant_names(&explicit, explicit.js_optimizer_options())
+                .contains(&"exported-internal-inlining")
+        );
+    }
+
+    #[test]
+    fn global_alias_forwarding_is_a_distinct_exact_list_aware_ir_clone() {
+        assert!(!OptimizationOptions::default().forward_global_aliases);
+        assert!(!OptimizationOptions::disabled().forward_global_aliases);
+
+        let size = ProjectConfig::default();
+        let configured = size.js_optimizer_options();
+        assert!(!configured.forward_global_aliases);
+        let names = admitted_scored_ir_variant_names(&size, configured);
+        assert!(!names.contains(&"global-alias-forwarding"), "{names:?}");
+        let clones = scored_ir_optimizer_clones(&size, configured);
+        assert_eq!(clones[0], configured);
+        assert!(!clones
+            .iter()
+            .any(|candidate| candidate.forward_global_aliases));
+
+        let exact_omitted: ProjectConfig = toml::from_str(
+            "[javascript]\npriority='size-first'\ncompression=['identifier-mangling']\n",
+        )
+        .unwrap();
+        assert!(!admitted_scored_ir_variant_names(
+            &exact_omitted,
+            exact_omitted.js_optimizer_options()
+        )
+        .contains(&"global-alias-forwarding"));
+
+        let search_off: ProjectConfig =
+            toml::from_str("[javascript]\ncandidate_search='off'\n").unwrap();
+        assert!(
+            !admitted_scored_ir_variant_names(&search_off, search_off.js_optimizer_options())
+                .contains(&"global-alias-forwarding")
+        );
+
+        let explicit: ProjectConfig = toml::from_str(
+            "[javascript]\npriority='balanced'\ncompression=['global-alias-forwarding']\n",
+        )
+        .unwrap();
+        assert!(
+            admitted_scored_ir_variant_names(&explicit, explicit.js_optimizer_options())
+                .contains(&"global-alias-forwarding")
+        );
     }
 }

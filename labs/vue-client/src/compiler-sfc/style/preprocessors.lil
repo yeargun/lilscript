@@ -1,0 +1,237 @@
+import extern { default as preprocessMerge } from "merge-source-map";
+import extern {
+  hostAssign as preprocessAssign,
+  hostJsonParse as preprocessJsonParse,
+  hostRequire as preprocessRequire
+} from "../host.js";
+
+extern JsValue preprocessAssign;
+extern JsValue preprocessJsonParse;
+extern JsValue preprocessMerge;
+extern JsValue preprocessRequire;
+
+int preprocessLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+
+void preprocessPush(JsValue values, JsValue value) {
+  values[preprocessLength(values)] = value;
+}
+
+string getSource(string source, string filename, JsValue additionalData) {
+  if (!additionalData.truthy()) return source;
+  if (JS.typeOf(additionalData) == "function") {
+    return JS.string(JS.call(additionalData, JS.undefined(), source, filename));
+  }
+  return JS.string(additionalData) + source;
+}
+
+JsValue scssProcessor(
+  string source,
+  JsValue map,
+  JsValue options,
+  JsValue load = JS.undefined()
+) {
+  if (JS.isUndefined(load)) load = preprocessRequire;
+  JsValue nodeSass = JS.call(load, JS.undefined(), "sass");
+  JsValue compileString = nodeSass["compileString"];
+  JsValue renderSync = nodeSass["renderSync"];
+  string data = getSource(
+    source,
+    JS.string(options["filename"]),
+    options["additionalData"]
+  );
+  JsValue css = JS.undefined();
+  JsValue dependencies = JS.undefined();
+  JsValue sourceMap = JS.undefined();
+  try {
+    if (compileString.truthy()) {
+      JsValue urlModule = JS.call(load, JS.undefined(), "url");
+      JsValue compileOptions = JS.call(
+        preprocessAssign,
+        JS.undefined(),
+        JS.object(),
+        options,
+        JS.object(
+          "url", JS.call(
+            urlModule["pathToFileURL"],
+            JS.undefined(),
+            options["filename"]
+          ),
+          "sourceMap", map.truthy()
+        )
+      );
+      JsValue result = JS.call(compileString, JS.undefined(), data, compileOptions);
+      css = result["css"];
+      dependencies = JS.array();
+      JsValue loadedUrls = result["loadedUrls"];
+      for (int index = 0; index < preprocessLength(loadedUrls); index++) {
+        preprocessPush(
+          dependencies,
+          JS.call(
+            urlModule["fileURLToPath"],
+            JS.undefined(),
+            loadedUrls[index]
+          )
+        );
+      }
+      if (map.truthy()) sourceMap = result["sourceMap"];
+    } else {
+      JsValue renderOptions = JS.call(
+        preprocessAssign,
+        JS.undefined(),
+        JS.object(),
+        options,
+        JS.object(
+          "data", data,
+          "file", options["filename"],
+          "outFile", options["filename"],
+          "sourceMap", map.truthy()
+        )
+      );
+      JsValue result = JS.call(renderSync, JS.undefined(), renderOptions);
+      css = JS.invoke(result["css"], "toString");
+      dependencies = result["stats"]["includedFiles"];
+      if (map.truthy()) {
+        sourceMap = JS.call(
+          preprocessJsonParse,
+          JS.undefined(),
+          JS.invoke(result["map"], "toString")
+        );
+      }
+    }
+    if (map.truthy()) {
+      return JS.object(
+        "code", css,
+        "errors", JS.array(),
+        "dependencies", dependencies,
+        "map", JS.call(preprocessMerge, JS.undefined(), map, sourceMap)
+      );
+    }
+    return JS.object(
+      "code", css,
+      "errors", JS.array(),
+      "dependencies", dependencies
+    );
+  } catch (JsValue error) {
+    return JS.object(
+      "code", "",
+      "errors", JS.array(error),
+      "dependencies", JS.array()
+    );
+  }
+}
+
+JsValue sassProcessor(
+  string source,
+  JsValue map,
+  JsValue options,
+  JsValue load = JS.undefined()
+) {
+  JsValue sassOptions = JS.call(
+    preprocessAssign,
+    JS.undefined(),
+    JS.object(),
+    options,
+    JS.object("indentedSyntax", true)
+  );
+  return scssProcessor(source, map, sassOptions, load);
+}
+
+JsValue lessProcessor(
+  string source,
+  JsValue map,
+  JsValue options,
+  JsValue load = JS.undefined()
+) {
+  if (JS.isUndefined(load)) load = preprocessRequire;
+  JsValue nodeLess = JS.call(load, JS.undefined(), "less");
+  JsValue result = JS.undefined();
+  JsValue error = null;
+  JsValue callback = JS.method2((JsValue _self, JsValue caught, JsValue output) => {
+    error = caught;
+    result = output;
+    return JS.undefined();
+  });
+  JsValue renderOptions = JS.call(
+    preprocessAssign,
+    JS.undefined(),
+    JS.object(),
+    options,
+    JS.object("syncImport", true)
+  );
+  JS.call(
+    nodeLess["render"],
+    nodeLess,
+    getSource(source, JS.string(options["filename"]), options["additionalData"]),
+    renderOptions,
+    callback
+  );
+  if (error.truthy()) {
+    return JS.object("code", "", "errors", JS.array(error), "dependencies", JS.array());
+  }
+  JsValue dependencies = result["imports"];
+  if (map.truthy()) {
+    return JS.object(
+      "code", JS.invoke(result["css"], "toString"),
+      "map", JS.call(preprocessMerge, JS.undefined(), map, result["map"]),
+      "errors", JS.array(),
+      "dependencies", dependencies
+    );
+  }
+  return JS.object(
+    "code", JS.invoke(result["css"], "toString"),
+    "errors", JS.array(),
+    "dependencies", dependencies
+  );
+}
+
+JsValue stylProcessor(
+  string source,
+  JsValue map,
+  JsValue options,
+  JsValue load = JS.undefined()
+) {
+  if (JS.isUndefined(load)) load = preprocessRequire;
+  JsValue nodeStylus = JS.call(load, JS.undefined(), "stylus");
+  try {
+    JsValue reference = JS.call(nodeStylus, JS.undefined(), source, options);
+    if (map.truthy()) {
+      JS.invoke(
+        reference,
+        "set",
+        "sourcemap",
+        JS.object("inline", false, "comment", false)
+      );
+    }
+    JsValue result = JS.invoke(reference, "render");
+    JsValue dependencies = JS.invoke(reference, "deps");
+    if (map.truthy()) {
+      return JS.object(
+        "code", result,
+        "map", JS.call(preprocessMerge, JS.undefined(), map, reference["sourcemap"]),
+        "errors", JS.array(),
+        "dependencies", dependencies
+      );
+    }
+    return JS.object(
+      "code", result,
+      "errors", JS.array(),
+      "dependencies", dependencies
+    );
+  } catch (JsValue error) {
+    return JS.object(
+      "code", "",
+      "errors", JS.array(error),
+      "dependencies", JS.array()
+    );
+  }
+}
+
+export JsValue processors = JS.object(
+  "less", lessProcessor,
+  "sass", sassProcessor,
+  "scss", scssProcessor,
+  "styl", stylProcessor,
+  "stylus", stylProcessor
+);

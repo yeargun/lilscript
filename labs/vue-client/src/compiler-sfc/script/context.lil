@@ -1,0 +1,287 @@
+import extern { parse as contextBabelParse } from "@babel/parser";
+import extern { default as ContextMagicString } from "magic-string";
+import extern { generateCodeFrame } from "../../../packages/vuelil/shared.js";
+import extern { hostCreateNullObject, hostCreateSet as contextCreateSet } from "../host.js";
+import { warn as compilerSfcWarn } from "../warn";
+import { isJS as languageIsJS, isTS as languageIsTS } from "./utils";
+
+extern JsValue Error;
+extern JsValue ContextMagicString;
+extern JsValue contextBabelParse;
+extern JsValue generateCodeFrame;
+extern JsValue hostCreateNullObject;
+extern JsValue contextCreateSet;
+
+int contextLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+
+void contextPush(JsValue values, JsValue value) {
+  values[contextLength(values)] = value;
+}
+
+export constructor ScriptCompileContext;
+class ScriptCompileContext {
+  JsValue descriptor;
+  JsValue options;
+  JsValue isJS;
+  JsValue isTS;
+  JsValue isCE;
+  JsValue scriptAst;
+  JsValue scriptSetupAst;
+  JsValue source;
+  JsValue filename;
+  JsValue s;
+  JsValue startOffset;
+  JsValue endOffset;
+  JsValue scope;
+  JsValue globalScopes;
+  JsValue userImports;
+  JsValue hasDefinePropsCall;
+  JsValue hasDefineEmitCall;
+  JsValue hasDefineExposeCall;
+  JsValue hasDefaultExportName;
+  JsValue hasDefaultExportRender;
+  JsValue hasDefineOptionsCall;
+  JsValue hasDefineSlotsCall;
+  JsValue hasDefineModelCall;
+  JsValue propsCall;
+  JsValue propsDecl;
+  JsValue propsRuntimeDecl;
+  JsValue propsTypeDecl;
+  JsValue propsDestructureDecl;
+  JsValue propsDestructuredBindings;
+  JsValue propsDestructureRestId;
+  JsValue propsRuntimeDefaults;
+  JsValue emitsRuntimeDecl;
+  JsValue emitsTypeDecl;
+  JsValue emitDecl;
+  JsValue modelDecls;
+  JsValue optionsRuntimeDecl;
+  JsValue bindingMetadata;
+  JsValue helperImports;
+  JsValue deps;
+  JsValue fs;
+
+  init(JsValue descriptor, JsValue options) {
+    this.descriptor = descriptor;
+    this.options = options;
+    this.isCE = false;
+    this.scriptAst = null;
+    this.scriptSetupAst = null;
+    this.source = descriptor["source"];
+    this.filename = descriptor["filename"];
+    this.s = JS.construct(ContextMagicString, this.source);
+    this.startOffset = JS.undefined();
+    this.endOffset = JS.undefined();
+    if (!JS.isNullish(descriptor["scriptSetup"])) {
+      this.startOffset = descriptor["scriptSetup"]["loc"]["start"]["offset"];
+      this.endOffset = descriptor["scriptSetup"]["loc"]["end"]["offset"];
+    }
+    this.scope = JS.undefined();
+    this.globalScopes = JS.undefined();
+    this.userImports = JS.call(hostCreateNullObject, JS.undefined());
+    this.hasDefinePropsCall = false;
+    this.hasDefineEmitCall = false;
+    this.hasDefineExposeCall = false;
+    this.hasDefaultExportName = false;
+    this.hasDefaultExportRender = false;
+    this.hasDefineOptionsCall = false;
+    this.hasDefineSlotsCall = false;
+    this.hasDefineModelCall = false;
+    this.propsCall = JS.undefined();
+    this.propsDecl = JS.undefined();
+    this.propsRuntimeDecl = JS.undefined();
+    this.propsTypeDecl = JS.undefined();
+    this.propsDestructureDecl = JS.undefined();
+    this.propsDestructuredBindings = JS.call(hostCreateNullObject, JS.undefined());
+    this.propsDestructureRestId = JS.undefined();
+    this.propsRuntimeDefaults = JS.undefined();
+    this.emitsRuntimeDecl = JS.undefined();
+    this.emitsTypeDecl = JS.undefined();
+    this.emitDecl = JS.undefined();
+    this.modelDecls = JS.call(hostCreateNullObject, JS.undefined());
+    this.optionsRuntimeDecl = JS.undefined();
+    this.bindingMetadata = JS.object();
+    this.helperImports = JS.call(contextCreateSet, JS.undefined());
+    this.deps = JS.undefined();
+    this.fs = JS.undefined();
+
+    JsValue script = descriptor["script"];
+    JsValue scriptSetup = descriptor["scriptSetup"];
+    JsValue scriptLang = JS.undefined();
+    JsValue scriptSetupLang = JS.undefined();
+    if (!JS.isNullish(script)) scriptLang = script["lang"];
+    if (!JS.isNullish(scriptSetup)) scriptSetupLang = scriptSetup["lang"];
+    this.isJS = JS.call(
+      languageIsJS,
+      JS.undefined(),
+      scriptLang,
+      scriptSetupLang
+    );
+    this.isTS = JS.call(
+      languageIsTS,
+      JS.undefined(),
+      scriptLang,
+      scriptSetupLang
+    );
+
+    JsValue customElement = options["customElement"];
+    if (customElement.truthy()) {
+      if (JS.typeOf(customElement) == "boolean") this.isCE = customElement;
+      else this.isCE = JS.call(customElement, JS.undefined(), this.filename);
+    }
+    JsValue selectedLanguage = scriptSetupLang;
+    if (scriptLang.truthy()) selectedLanguage = scriptLang;
+    string language = JS.string(selectedLanguage);
+    JsValue plugins = resolveParserPlugins(
+      language,
+      options["babelParserPlugins"],
+      false
+    );
+
+    if (!JS.isNullish(script)) {
+      this.scriptAst = parseScriptBlock(
+        script["content"],
+        JS.number(script["loc"]["start"]["offset"]).toInt(),
+        descriptor,
+        plugins
+      );
+    }
+    if (!JS.isNullish(scriptSetup)) {
+      this.scriptSetupAst = parseScriptBlock(
+        scriptSetup["content"],
+        JS.number(this.startOffset).toInt(),
+        descriptor,
+        plugins
+      );
+    }
+  }
+
+  string helper(string key) {
+    JS.invoke(this.helperImports, "add", key);
+    return "_" + key;
+  }
+
+  string getString(JsValue node, bool scriptSetup = true) {
+    JsValue block = this.descriptor["script"];
+    if (scriptSetup) block = this.descriptor["scriptSetup"];
+    return JS.string(block["content"]).slice(
+      JS.number(node["start"]).toInt(),
+      JS.number(node["end"]).toInt()
+    );
+  }
+
+  void warn(string msg, JsValue node, JsValue scope = JS.undefined()) {
+    compilerSfcWarn(generateError(msg, node, this, scope));
+  }
+
+  void error(string msg, JsValue node, JsValue scope = JS.undefined()) {
+    throw JS.construct(
+      Error,
+      "[@vue/compiler-sfc] " + generateError(msg, node, this, scope)
+    );
+  }
+}
+
+JsValue parseScriptBlock(
+  JsValue input,
+  int offset,
+  JsValue descriptor,
+  JsValue plugins
+) {
+  try {
+    return JS.call(
+      contextBabelParse,
+      JS.undefined(),
+      input,
+      JS.object("plugins", plugins, "sourceType", "module")
+    )["program"];
+  } catch (JsValue error) {
+    error["message"] = "[vue/compiler-sfc] " + JS.string(error["message"]) +
+      "\n\n" + JS.string(descriptor["filename"]) + "\n" +
+      JS.string(JS.call(
+        generateCodeFrame,
+        JS.undefined(),
+        descriptor["source"],
+        JS.number(error["pos"]).toInt() + offset,
+        JS.number(error["pos"]).toInt() + offset + 1
+      ));
+    throw error;
+  }
+}
+
+string generateError(
+  string msg,
+  JsValue node,
+  JsValue ctx,
+  JsValue scope
+) {
+  JsValue owner = ctx["descriptor"];
+  int offset = JS.number(ctx["startOffset"]).toInt();
+  if (!JS.isNullish(scope) && !JS.isUndefined(scope)) {
+    owner = scope;
+    offset = JS.number(scope["offset"]).toInt();
+  }
+  return msg + "\n\n" + JS.string(owner["filename"]) + "\n" +
+    JS.string(JS.call(
+      generateCodeFrame,
+      JS.undefined(),
+      owner["source"],
+      JS.number(node["start"]).toInt() + offset,
+      JS.number(node["end"]).toInt() + offset
+    ));
+}
+
+export JsValue resolveParserPlugins(
+  string lang,
+  JsValue userPlugins = JS.undefined(),
+  bool dts = false
+) {
+  JsValue plugins = JS.array();
+  bool hasImportPlugin = false;
+  if (!JS.isNullish(userPlugins)) {
+    for (int index = 0; index < contextLength(userPlugins); index++) {
+      JsValue plugin = userPlugins[index];
+      if (JS.strictEqual(plugin, "importAssertions") ||
+        JS.strictEqual(plugin, "importAttributes") ||
+        (plugin.isArray() && JS.strictEqual(plugin[0], "importAttributes"))) {
+        hasImportPlugin = true;
+      }
+    }
+  }
+  if (JS.isNullish(userPlugins) || !hasImportPlugin) {
+    contextPush(plugins, "importAttributes");
+  }
+  if (lang == "jsx" || lang == "tsx" || lang == "mtsx") {
+    contextPush(plugins, "jsx");
+  } else if (!JS.isNullish(userPlugins)) {
+    JsValue filtered = JS.array();
+    for (int index = 0; index < contextLength(userPlugins); index++) {
+      if (!JS.strictEqual(userPlugins[index], "jsx")) {
+        contextPush(filtered, userPlugins[index]);
+      }
+    }
+    userPlugins = filtered;
+  }
+  if (lang == "ts" || lang == "mts" || lang == "tsx" || lang == "cts" ||
+    lang == "mtsx") {
+    contextPush(plugins, JS.array("typescript", JS.object("dts", dts)));
+    contextPush(plugins, "explicitResourceManagement");
+    bool decorators = false;
+    if (!JS.isNullish(userPlugins)) {
+      for (int index = 0; index < contextLength(userPlugins); index++) {
+        if (JS.strictEqual(userPlugins[index], "decorators")) decorators = true;
+      }
+    }
+    if (JS.isNullish(userPlugins) || !decorators) {
+      contextPush(plugins, "decorators-legacy");
+    }
+  }
+  if (!JS.isNullish(userPlugins)) {
+    for (int index = 0; index < contextLength(userPlugins); index++) {
+      contextPush(plugins, userPlugins[index]);
+    }
+  }
+  return plugins;
+}

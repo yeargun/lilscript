@@ -1,0 +1,49 @@
+Regex nestedAwaitRE = new Regex("\\bawait\\b");
+
+export void processAwait(
+  JsValue ctx,
+  JsValue node,
+  bool needSemi,
+  bool isStatement
+) {
+  JsValue extra = node["argument"]["extra"];
+  int argumentStart = 0;
+  if (extra.truthy() && extra["parenthesized"].truthy()) {
+    argumentStart = JS.number(extra["parenStart"]).toInt();
+  } else {
+    argumentStart = JS.number(node["argument"]["start"]).toInt();
+  }
+  int startOffset = JS.number(ctx["startOffset"]).toInt();
+  string source = JS.string(ctx["descriptor"]["source"]);
+  string argument = source.slice(
+    argumentStart + startOffset,
+    JS.number(node["argument"]["end"]).toInt() + startOffset
+  );
+  bool containsNestedAwait = nestedAwaitRE.test(argument);
+  JsValue helper = ctx["helper"];
+  string helperName = JS.string(JS.call(helper, ctx, "withAsyncContext"));
+  string prefix = "";
+  if (needSemi) prefix = ";";
+  string asyncPrefix = "";
+  if (containsNestedAwait) asyncPrefix = "async ";
+  JS.invoke(
+    ctx["s"],
+    "overwrite",
+    JS.number(node["start"]).toInt() + startOffset,
+    argumentStart + startOffset,
+    prefix + "(\n  ([__temp,__restore] = " + helperName +
+      "(" + asyncPrefix + "() => "
+  );
+  string assignment = "__temp = ";
+  string result = ",\n  __temp";
+  if (isStatement) {
+    assignment = "";
+    result = "";
+  }
+  JS.invoke(
+    ctx["s"],
+    "appendLeft",
+    JS.number(node["end"]).toInt() + startOffset,
+    ")),\n  " + assignment + "await __temp,\n  __restore()" + result + "\n)"
+  );
+}

@@ -1,0 +1,111 @@
+import extern {
+  Namespaces,
+  NodeTypes
+} from "../../packages/vuelil/compiler-core.js";
+import extern {
+  isHTMLTag as sharedIsHTMLTag,
+  isMathMLTag as sharedIsMathMLTag,
+  isSVGTag as sharedIsSVGTag,
+  isVoidTag as sharedIsVoidTag
+} from "../../packages/vuelil/shared.js";
+import { decodeHtmlBrowser } from "./decodeHtmlBrowser";
+import { TRANSITION, TRANSITION_GROUP } from "./runtimeHelpers";
+
+extern JsValue Namespaces;
+extern JsValue NodeTypes;
+extern JsValue sharedIsHTMLTag;
+extern JsValue sharedIsMathMLTag;
+extern JsValue sharedIsSVGTag;
+extern JsValue sharedIsVoidTag;
+
+JsValue parserOptionUndefined() {
+  return JS.undefined();
+}
+
+bool callTagPredicate(JsValue predicate, string tag) {
+  return JS.call(predicate, parserOptionUndefined(), tag).truthy();
+}
+
+JsValue domIsNativeTag = JS.method1((JsValue _self, JsValue value) => {
+  string tag = JS.string(value);
+  return callTagPredicate(sharedIsHTMLTag, tag) ||
+    callTagPredicate(sharedIsSVGTag, tag) ||
+    callTagPredicate(sharedIsMathMLTag, tag);
+});
+
+JsValue domIsPreTag = JS.method1((JsValue _self, JsValue value) => {
+  return JS.string(value) == "pre";
+});
+
+JsValue domIsIgnoreNewlineTag = JS.method1((JsValue _self, JsValue value) => {
+  string tag = JS.string(value);
+  return tag == "pre" || tag == "textarea";
+});
+
+JsValue domIsBuiltInComponent = JS.method1((JsValue _self, JsValue value) => {
+  string tag = JS.string(value);
+  if (tag == "Transition" || tag == "transition") return TRANSITION;
+  if (tag == "TransitionGroup" || tag == "transition-group") return TRANSITION_GROUP;
+  return parserOptionUndefined();
+});
+
+JsValue domGetNamespace = JS.method3((
+  JsValue _self,
+  JsValue tagValue,
+  JsValue parent,
+  JsValue rootNamespace
+) => {
+  string tag = JS.string(tagValue);
+  JsValue namespace = rootNamespace;
+  if (parent.truthy()) namespace = parent["ns"];
+  if (parent.truthy() && JS.strictEqual(namespace, Namespaces["MATH_ML"])) {
+    string parentTag = JS.string(parent["tag"]);
+    if (parentTag == "annotation-xml") {
+      if (tag == "svg") return Namespaces["SVG"];
+      JsValue props = parent["props"];
+      bool htmlEncoding = false;
+      for (int index = 0; index < JS.number(props["length"]).toInt(); index++) {
+        JsValue attribute = props[index];
+        if (
+          JS.strictEqual(attribute["type"], NodeTypes["ATTRIBUTE"]) &&
+          JS.string(attribute["name"]) == "encoding" &&
+          !JS.isNullish(attribute["value"])
+        ) {
+          string encoding = JS.string(attribute["value"]["content"]);
+          if (encoding == "text/html" || encoding == "application/xhtml+xml") {
+            htmlEncoding = true;
+          }
+        }
+      }
+      if (htmlEncoding) namespace = Namespaces["HTML"];
+    } else if (
+      JS.invoke(new Regex("^m(?:[ions]|text)$"), "test", parentTag).truthy() &&
+      tag != "mglyph" &&
+      tag != "malignmark"
+    ) {
+      namespace = Namespaces["HTML"];
+    }
+  } else if (parent.truthy() && JS.strictEqual(namespace, Namespaces["SVG"])) {
+    string parentTag = JS.string(parent["tag"]);
+    if (parentTag == "foreignObject" || parentTag == "desc" || parentTag == "title") {
+      namespace = Namespaces["HTML"];
+    }
+  }
+
+  if (JS.strictEqual(namespace, Namespaces["HTML"])) {
+    if (tag == "svg") return Namespaces["SVG"];
+    if (tag == "math") return Namespaces["MATH_ML"];
+  }
+  return namespace;
+});
+
+export JsValue parserOptions = JS.object(
+  "parseMode", "html",
+  "isVoidTag", sharedIsVoidTag,
+  "isNativeTag", domIsNativeTag,
+  "isPreTag", domIsPreTag,
+  "isIgnoreNewlineTag", domIsIgnoreNewlineTag,
+  "decodeEntities", parserOptionUndefined(),
+  "isBuiltInComponent", domIsBuiltInComponent,
+  "getNamespace", domGetNamespace
+);

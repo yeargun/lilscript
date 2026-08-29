@@ -2,10 +2,10 @@
 
 Parent: [Compilation](README.md). Architecture:
 [current architecture](current-architecture.md),
-[goal architecture](goal-architecture.md). Ranking math:
+[planned architecture](planned-architecture.md). Ranking math:
 [objectives](objectives.md). Search mechanics:
 [candidate search](candidate-search.md). Knobs: [config](../config/README.md).
-Migration: [07 — global compressor](../migration/07-global-compressor.md).
+Migration: [planned migration](../migration/planned-migration.md).
 
 This page is the implemented map of the known contested compilation choices. Field
 classification and scored emission families live in `src/decision_registry.rs`.
@@ -25,10 +25,10 @@ layer forbade.
 | 6. Search feature / level | May alternatives be measured? | `javascript.optimizations` / `optimization_level` (`JavaScriptOptimization`) |
 | 7. Codec canonical | What is the incumbent spelling for this `cost_model`? | `ProjectConfig::js_options()` |
 | 8. Candidate search | Which legal opposite wins the complete artifact? | `CARTESIAN_EMISSION_AXES` then `SCORED_EMISSION_FAMILIES` in `src/decision_registry.rs`, applied by `extend_scored_emission_phase` |
-| 9. Terminal rewrite | May parsed JS still change after IR search? | parsed peephole + late cleanup |
-| 10. Unscored heuristic | Local “smaller/safer/faster” with no complete-artifact competitor | leftover defaults, search-off peephole, IR always-on passes |
+| 9. Terminal rewrite | May generated JS still change after IR search? | scored parsed peephole + late-cleanup challengers |
+| 10. Heuristic debt | Local “smaller/safer/faster” with no complete-artifact competitor | leftover defaults and mandatory-vs-profitability ambiguity |
 
-In the goal architecture, layers 1–4 form the immutable compilation contract,
+In the planned architecture, layers 1–4 form the immutable compilation contract,
 layers 5–9 are the compressor, and layer 10 is removed. Today those authorities
 are not normalized into one object; this table records their scattered owners.
 Codec scores must never compensate for a missing proof, ABI mismatch, unsafe
@@ -52,12 +52,13 @@ choice. It is applying a heuristic.
 ## Source intent and operation provenance
 
 Each IR instruction now carries `OperationOrigin` (`Source` vs `Generated`) and
-an optional source `NodeId` assigned at lowering (`src/lower.rs`). Source `x | 0`
+an optional function-local source `NodeId` assigned at lowering (`src/lower.rs`). Source `x | 0`
 is still `IrBinaryOp::BitOr` with
 `LoweringObligation::PreserveJavaScriptBitOrZero`; `--explain` reports source vs
 generated counts. Optimizer-inserted instructions are `Generated` with no node
 id. `Span` remains a diagnostic location. Parsed peephole still reconstructs
-bindings from text; carrying `NodeId` into that AST is 07.5.
+bindings from text; globally unambiguous operation identity and a target witness
+remain planned target-JS work.
 
 The first required split is signed-i32 normalization:
 
@@ -67,11 +68,13 @@ The first required split is signed-i32 normalization:
 | `\|0` inserted for ordinary `int` arithmetic | generated normalization | May disappear after range proof or remain under a performance policy. |
 | Unreachable/unused pure expression containing either | ordinary liveness | The whole dead computation may disappear. |
 
-This requires stable `NodeId` and `OperationOrigin` data through lowering,
-inlining, specialization, outlining, and peephole preparation. `Span` remains a
-diagnostic location, not identity. A future typed JS lowering intrinsic uses the
-same mechanism and declares an exact optimization envelope; raw JavaScript
-strings and file-wide preservation pragmas are not alternatives.
+The current obligation is preserved conservatively. A general system needs a
+globally unambiguous source-operation identity, explicit clone/discharge lineage,
+and a printer witness through inlining, specialization, outlining, and target
+contraction. `Span` remains a diagnostic location, not identity. Future typed JS
+lowering intrinsics use the same mechanism and declare exact optimization
+envelopes; raw JavaScript strings and file-wide preservation pragmas are not
+alternatives.
 
 The registry implementation must therefore classify every decision as one of:
 
@@ -149,9 +152,9 @@ under Brotli.” What exists:
   It does **not** list `region-outlining`, so outlining cannot be reintroduced
   by compress-pass variants.
 
-Closure representation is also missing from this registry as one coherent
-family. The intended choices are inline, lifted direct function plus scalar
-captures, native lexical closure, or explicit positional/named environment.
+Closure representation is only partially coherent in this registry. Lexical
+capture and lifted immutable scalar snapshots compete; inline, lifted direct
+function, and any future explicit environment still span IR/emitter decisions.
 Legality depends on capture mutation, identity, escape, recursion,
 `name`/`length`/constructibility, and host use. Profitability must be scored with
 the call-graph/inlining family rather than decided independently by IR, emitter,
@@ -243,8 +246,9 @@ re-optimized and emitted with **configured** `js_options()`:
 | compress passes all-off; outlining contrast; fusion/merging off | `ir-compress-pass-variants` |
 | strongest bounded aggressive-inline × outlining | reserved 2nd/3rd slots |
 
-Not an IR variant today: DCE off, escape analysis off, or “keep this class as ES
-class.” Those remain proofs or later emission/peephole (07.4). `--explain`
+Not an IR variant today: DCE off, escape analysis off, or “keep this
+identity-free class as ES class.” Named class emission is proof-forced for an
+identity-observed constructor, not a profitability branch. `--explain`
 lists admitted `SCORED_IR_VARIANTS` names as `scored ir variants`.
 
 ## Emission families (level 2 search)
@@ -257,7 +261,8 @@ phases). Each sequential family starts from the current beam’s top
 family when the proposal ledger is exhausted. That is why
 [search-03](../migration/board/notes/search-03.md) had to lift the pack config:
 an 18 KiB module at level 15 with production search got 96 work units against
-~38 beam families. `--explain` lists branching cartesian axes, admitted scored families, and
+the then-active family set. The current registry declares 48 scored emission
+families. `--explain` lists branching cartesian axes, admitted scored families, and
 admitted IR variant names for that compile.
 
 Families that **are** flipped (the registry tables are the authority; names
@@ -335,11 +340,13 @@ Policy is duplicated across:
 
 Adding a scored emission tactic is a registry row plus the existing
 `extend_javascript_candidate_beam` construction site. ABI, unsafe, and
-illegal-to-flip fields must not appear as family names. The migration in
-[07](../migration/07-global-compressor.md) still has to finish reversible
-priors, IR class emit, scored peephole, reserved slices, and language cases.
+illegal-to-flip fields must not appear as family names. Reversible priors,
+named-class emission, scored canonical/search-off challengers, reserved slices,
+starvation reporting, and expression-language cases have landed. Remaining
+consolidation and target work is in the
+[planned migration](../migration/planned-migration.md).
 
-The goal code registry will consume two separate normalized values:
+The planned registry consumes two separate normalized values:
 
 1. `CompilationContract`: application/library world, public/host ABI, explicit
    operation obligations, target floor, and unsafe assumptions.

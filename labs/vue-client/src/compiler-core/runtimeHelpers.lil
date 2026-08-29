@@ -1,0 +1,111 @@
+extern JsValue Symbol;
+export extern JsValue Map;
+export extern JsValue Object;
+export extern JsValue WeakMap;
+export extern JsValue WeakSet;
+
+JsValue undefinedSymbolSelf() {
+  return JS.undefined();
+}
+
+JsValue makeRuntimeSymbol(string name) {
+  return JS.call(Symbol, undefinedSymbolSelf(), name);
+}
+
+export JsValue FRAGMENT = makeRuntimeSymbol("Fragment");
+export JsValue TELEPORT = makeRuntimeSymbol("Teleport");
+export JsValue SUSPENSE = makeRuntimeSymbol("Suspense");
+export JsValue KEEP_ALIVE = makeRuntimeSymbol("KeepAlive");
+export JsValue BASE_TRANSITION = makeRuntimeSymbol("BaseTransition");
+export JsValue OPEN_BLOCK = makeRuntimeSymbol("openBlock");
+export JsValue CREATE_BLOCK = makeRuntimeSymbol("createBlock");
+export JsValue CREATE_ELEMENT_BLOCK = makeRuntimeSymbol("createElementBlock");
+export JsValue CREATE_VNODE = makeRuntimeSymbol("createVNode");
+export JsValue CREATE_ELEMENT_VNODE = makeRuntimeSymbol("createElementVNode");
+export JsValue CREATE_COMMENT = makeRuntimeSymbol("createCommentVNode");
+export JsValue CREATE_TEXT = makeRuntimeSymbol("createTextVNode");
+export JsValue CREATE_STATIC = makeRuntimeSymbol("createStaticVNode");
+export JsValue RESOLVE_COMPONENT = makeRuntimeSymbol("resolveComponent");
+export JsValue RESOLVE_DYNAMIC_COMPONENT = makeRuntimeSymbol("resolveDynamicComponent");
+export JsValue RESOLVE_DIRECTIVE = makeRuntimeSymbol("resolveDirective");
+export JsValue RESOLVE_FILTER = makeRuntimeSymbol("resolveFilter");
+export JsValue WITH_DIRECTIVES = makeRuntimeSymbol("withDirectives");
+export JsValue RENDER_LIST = makeRuntimeSymbol("renderList");
+export JsValue RENDER_SLOT = makeRuntimeSymbol("renderSlot");
+export JsValue CREATE_SLOTS = makeRuntimeSymbol("createSlots");
+export JsValue TO_DISPLAY_STRING = makeRuntimeSymbol("toDisplayString");
+export JsValue MERGE_PROPS = makeRuntimeSymbol("mergeProps");
+export JsValue NORMALIZE_CLASS = makeRuntimeSymbol("normalizeClass");
+export JsValue NORMALIZE_STYLE = makeRuntimeSymbol("normalizeStyle");
+export JsValue NORMALIZE_PROPS = makeRuntimeSymbol("normalizeProps");
+export JsValue GUARD_REACTIVE_PROPS = makeRuntimeSymbol("guardReactiveProps");
+export JsValue TO_HANDLERS = makeRuntimeSymbol("toHandlers");
+export JsValue CAMELIZE = makeRuntimeSymbol("camelize");
+export JsValue CAPITALIZE = makeRuntimeSymbol("capitalize");
+export JsValue TO_HANDLER_KEY = makeRuntimeSymbol("toHandlerKey");
+export JsValue SET_BLOCK_TRACKING = makeRuntimeSymbol("setBlockTracking");
+export JsValue PUSH_SCOPE_ID = makeRuntimeSymbol("pushScopeId");
+export JsValue POP_SCOPE_ID = makeRuntimeSymbol("popScopeId");
+export JsValue WITH_CTX = makeRuntimeSymbol("withCtx");
+export JsValue UNREF = makeRuntimeSymbol("unref");
+export JsValue IS_REF = makeRuntimeSymbol("isRef");
+export JsValue WITH_MEMO = makeRuntimeSymbol("withMemo");
+export JsValue IS_MEMO_SAME = makeRuntimeSymbol("isMemoSame");
+
+export JsValue helperNameMap = JS.object();
+
+void registerHelperName(JsValue symbol, string name) {
+  helperNameMap[symbol] = name;
+}
+
+void initializeHelperNames() {
+  registerHelperName(FRAGMENT, "Fragment");
+  registerHelperName(TELEPORT, "Teleport");
+  registerHelperName(SUSPENSE, "Suspense");
+  registerHelperName(KEEP_ALIVE, "KeepAlive");
+  registerHelperName(BASE_TRANSITION, "BaseTransition");
+  registerHelperName(OPEN_BLOCK, "openBlock");
+  registerHelperName(CREATE_BLOCK, "createBlock");
+  registerHelperName(CREATE_ELEMENT_BLOCK, "createElementBlock");
+  registerHelperName(CREATE_VNODE, "createVNode");
+  registerHelperName(CREATE_ELEMENT_VNODE, "createElementVNode");
+  registerHelperName(CREATE_COMMENT, "createCommentVNode");
+  registerHelperName(CREATE_TEXT, "createTextVNode");
+  registerHelperName(CREATE_STATIC, "createStaticVNode");
+  registerHelperName(RESOLVE_COMPONENT, "resolveComponent");
+  registerHelperName(RESOLVE_DYNAMIC_COMPONENT, "resolveDynamicComponent");
+  registerHelperName(RESOLVE_DIRECTIVE, "resolveDirective");
+  registerHelperName(RESOLVE_FILTER, "resolveFilter");
+  registerHelperName(WITH_DIRECTIVES, "withDirectives");
+  registerHelperName(RENDER_LIST, "renderList");
+  registerHelperName(RENDER_SLOT, "renderSlot");
+  registerHelperName(CREATE_SLOTS, "createSlots");
+  registerHelperName(TO_DISPLAY_STRING, "toDisplayString");
+  registerHelperName(MERGE_PROPS, "mergeProps");
+  registerHelperName(NORMALIZE_CLASS, "normalizeClass");
+  registerHelperName(NORMALIZE_STYLE, "normalizeStyle");
+  registerHelperName(NORMALIZE_PROPS, "normalizeProps");
+  registerHelperName(GUARD_REACTIVE_PROPS, "guardReactiveProps");
+  registerHelperName(TO_HANDLERS, "toHandlers");
+  registerHelperName(CAMELIZE, "camelize");
+  registerHelperName(CAPITALIZE, "capitalize");
+  registerHelperName(TO_HANDLER_KEY, "toHandlerKey");
+  registerHelperName(SET_BLOCK_TRACKING, "setBlockTracking");
+  registerHelperName(PUSH_SCOPE_ID, "pushScopeId");
+  registerHelperName(POP_SCOPE_ID, "popScopeId");
+  registerHelperName(WITH_CTX, "withCtx");
+  registerHelperName(UNREF, "unref");
+  registerHelperName(IS_REF, "isRef");
+  registerHelperName(WITH_MEMO, "withMemo");
+  registerHelperName(IS_MEMO_SAME, "isMemoSame");
+}
+
+initializeHelperNames();
+
+export void registerRuntimeHelpers(JsValue helpers) {
+  JsValue symbols = JS.invoke(Object, "getOwnPropertySymbols", helpers);
+  for (int index = 0; index < JS.number(symbols["length"]).toInt(); index++) {
+    JsValue symbol = symbols[index];
+    helperNameMap[symbol] = helpers[symbol];
+  }
+}

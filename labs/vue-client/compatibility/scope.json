@@ -1,0 +1,100 @@
+{
+  "schemaVersion": 1,
+  "upstream": {
+    "package": "vue",
+    "version": "3.5.42",
+    "tag": "v3.5.42",
+    "revision": "d63616ca17de965ed32dcb449a4c5cd9982f15d2",
+    "repository": "https://github.com/vuejs/core.git"
+  },
+  "claimRule": "Complete means every tracked packages/*/src TypeScript or TSX file at pinned Vue v3.5.42 has one hash-verified, non-placeholder LilScript counterpart at its deterministic mirrored path (or strict declaration-only handling for a type-only file), module responsibility and algorithms are preserved without JavaScript delegation, every listed package entrypoint and format is independent of Vue implementation code, all applicable unchanged upstream tests pass, public runtime and declaration surfaces match, every required actual-project scenario produces a smaller Brotli-11 candidate bundle from identical application source and build settings with matching execution, and benchmark confidence bounds show no material regression.",
+  "packages": [
+    { "name": "@vue/shared", "status": "runtime-complete" },
+    { "name": "@vue/reactivity", "status": "runtime-complete" },
+    { "name": "@vue/runtime-core", "status": "partial" },
+    { "name": "@vue/runtime-dom", "status": "not-started" },
+    { "name": "@vue/compiler-core", "status": "runtime-complete" },
+    { "name": "@vue/compiler-dom", "status": "runtime-complete" },
+    { "name": "@vue/compiler-ssr", "status": "runtime-complete" },
+    { "name": "@vue/compiler-sfc", "status": "not-started" },
+    { "name": "@vue/server-renderer", "status": "not-started" },
+    { "name": "@vue/runtime-test", "status": "test-host-only" },
+    { "name": "@vue/compat", "status": "not-started" },
+    { "name": "vue", "status": "not-started" }
+  ],
+  "formats": [
+    "esm-bundler",
+    "esm-bundler-runtime",
+    "esm-browser",
+    "esm-browser-runtime",
+    "global",
+    "global-runtime",
+    "cjs"
+  ],
+  "bundleComparison": {
+    "method": "Build one application source twice with Vite 8 and Oxc in production mode; only resolution of the public vue specifier may change.",
+    "candidateResolution": "packages/vuelil",
+    "target": "es2022",
+    "metric": "brotli11",
+    "codecs": "canonical-lilscript-codec",
+    "requiresMatchingExecutionChecksum": true,
+    "requiresNoCandidateUpstreamRuntime": true,
+    "libraryDistributionComparisonsCountForCompletion": false
+  },
+  "bundleScenarios": [
+    {
+      "id": "reactivity-app",
+      "description": "Reactivity-only application exercising reactive state, refs, computed values, and effects.",
+      "entry": "apps/reactivity/index.html",
+      "completionRequired": false,
+      "status": "failed"
+    },
+    {
+      "id": "runtime-only-client",
+      "description": "Production browser application using the runtime-only renderer with precompiled render functions.",
+      "entry": "apps/runtime-only-client/index.html",
+      "completionRequired": true,
+      "status": "pending"
+    },
+    {
+      "id": "runtime-compiler-client",
+      "description": "Production browser application compiling a template at runtime.",
+      "entry": "apps/runtime-compiler-client/index.html",
+      "completionRequired": true,
+      "status": "pending"
+    },
+    {
+      "id": "ssr-app",
+      "description": "Production server-rendered application including Vue server rendering.",
+      "entry": "apps/ssr-app/src/main.js",
+      "completionRequired": true,
+      "status": "pending"
+    },
+    {
+      "id": "sfc-production-app",
+      "description": "Production browser application built from representative Vue single-file components.",
+      "entry": "apps/sfc-production-app/index.html",
+      "completionRequired": true,
+      "status": "pending"
+    }
+  ],
+  "gates": {
+    "sourceParityRequired": 234,
+    "sourceParitySatisfied": 92,
+    "sourceParityMissing": 140,
+    "sourceParityLegacyMapped": 2,
+    "sourceParityLegacyNonconforming": 2,
+    "sourceParity": "failed",
+    "upstreamTestFiles": 196,
+    "declarationTestFiles": 20,
+    "candidatePassed": 70,
+    "candidateFailed": 0,
+    "candidatePending": 126,
+    "reactivityDiagnostic": "failed",
+    "projectSizeRequiredPassed": 0,
+    "projectSizeRequiredTotal": 4,
+    "projectSize": "pending",
+    "performance": "pending",
+    "pages": "pending"
+  }
+}

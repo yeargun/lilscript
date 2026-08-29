@@ -1,0 +1,120 @@
+import {
+  NodeTypes,
+  createObjectProperty,
+  createSimpleExpression
+} from "../ast";
+import { ErrorCodes, createCompilerError } from "../errors";
+import { CAMELIZE } from "../runtimeHelpers";
+import { COMPILER_BROWSER } from "../validateExpression";
+
+Regex bindCamelizePattern = new Regex("-\\w", "g");
+
+JsValue bindUndefined() {
+  return JS.undefined();
+}
+
+int bindLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+
+void bindPush(JsValue values, JsValue value) {
+  values[bindLength(values)] = value;
+}
+
+string camelizeBindArgument(string value) {
+  JsValue replacement = JS.method1((JsValue _self, JsValue matched) => {
+    return JS.string(matched).slice(1).toUpperCase();
+  });
+  return JS.string(JS.invoke(value, "replace", bindCamelizePattern, replacement));
+}
+
+bool hasBindModifier(JsValue directive, string name) {
+  JsValue modifiers = directive["modifiers"];
+  for (int index = 0; index < bindLength(modifiers); index++) {
+    if (JS.string(modifiers[index]["content"]) == name) return true;
+  }
+  return false;
+}
+
+void injectPrefix(JsValue argument, string prefix) {
+  if (JS.strictEqual(argument["type"], NodeTypes["SIMPLE_EXPRESSION"])) {
+    if (argument["isStatic"].truthy()) {
+      argument["content"] = prefix + JS.string(argument["content"]);
+    } else {
+      argument["content"] = "`" + prefix + "${" + JS.string(argument["content"]) + "}`";
+    }
+  } else {
+    JS.invoke(argument["children"], "unshift", "'" + prefix + "' + (");
+    bindPush(argument["children"], ")");
+  }
+}
+
+export JsValue transformBind(JsValue directive, JsValue node, JsValue context) {
+  JsValue argument = directive["arg"];
+  JsValue expression = directive["exp"];
+
+  if (
+    expression.truthy() &&
+    JS.strictEqual(expression["type"], NodeTypes["SIMPLE_EXPRESSION"]) &&
+    JS.string(expression["content"]).trim() == ""
+  ) {
+    if (!COMPILER_BROWSER) {
+      JS.call(
+        context["onError"],
+        bindUndefined(),
+        createCompilerError(
+          JS.number(ErrorCodes["X_V_BIND_NO_EXPRESSION"]).toInt(),
+          directive["loc"]
+        )
+      );
+      return JS.object(
+        "props",
+        JS.array(createObjectProperty(
+          argument,
+          createSimpleExpression("", true, directive["loc"])
+        ))
+      );
+    }
+    expression = bindUndefined();
+  }
+
+  if (!JS.strictEqual(argument["type"], NodeTypes["SIMPLE_EXPRESSION"])) {
+    JS.invoke(argument["children"], "unshift", "(");
+    bindPush(argument["children"], ") || \"\"");
+  } else if (!argument["isStatic"].truthy()) {
+    string content = JS.string(argument["content"]);
+    if (content == "") argument["content"] = "\"\"";
+    else argument["content"] = content + " || \"\"";
+  }
+
+  if (hasBindModifier(directive, "camel")) {
+    if (JS.strictEqual(argument["type"], NodeTypes["SIMPLE_EXPRESSION"])) {
+      if (argument["isStatic"].truthy()) {
+        argument["content"] = camelizeBindArgument(JS.string(argument["content"]));
+      } else {
+        argument["content"] = JS.string(JS.call(
+          context["helperString"],
+          bindUndefined(),
+          CAMELIZE
+        )) + "(" + JS.string(argument["content"]) + ")";
+      }
+    } else {
+      JS.invoke(
+        argument["children"],
+        "unshift",
+        JS.string(JS.call(context["helperString"], bindUndefined(), CAMELIZE)) + "("
+      );
+      bindPush(argument["children"], ")");
+    }
+  }
+
+  if (!context["inSSR"].truthy()) {
+    if (hasBindModifier(directive, "prop")) injectPrefix(argument, ".");
+    if (hasBindModifier(directive, "attr")) injectPrefix(argument, "^");
+  }
+
+  return JS.object(
+    "props",
+    JS.array(createObjectProperty(argument, expression))
+  );
+}

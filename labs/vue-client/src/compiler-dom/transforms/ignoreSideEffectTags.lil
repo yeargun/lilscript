@@ -1,0 +1,41 @@
+import extern {
+  ElementTypes,
+  NodeTypes
+} from "../../../packages/vuelil/compiler-core.js";
+import { DOMErrorCodes, createDOMCompilerError } from "../errors";
+
+extern JsValue ElementTypes;
+extern JsValue NodeTypes;
+extern JsValue Object;
+
+JsValue sideEffectUndefined() {
+  return JS.undefined();
+}
+
+export void ignoreSideEffectTags(JsValue node, JsValue context) {
+  if (
+    JS.strictEqual(node["type"], NodeTypes["ELEMENT"]) &&
+    JS.strictEqual(node["tagType"], ElementTypes["ELEMENT"]) &&
+    (JS.string(node["tag"]) == "script" || JS.string(node["tag"]) == "style")
+  ) {
+    JS.call(
+      context["onError"],
+      sideEffectUndefined(),
+      createDOMCompilerError(
+        JS.number(DOMErrorCodes["X_IGNORED_SIDE_EFFECT_TAG"]).toInt(),
+        node["loc"]
+      )
+    );
+    JS.call(context["removeNode"], sideEffectUndefined());
+  }
+}
+
+JS.invoke(
+  Object,
+  "defineProperties",
+  ignoreSideEffectTags,
+  JS.object(
+    "name", JS.object("configurable", true, "value", "ignoreSideEffectTags"),
+    "length", JS.object("configurable", true, "value", 2)
+  )
+);

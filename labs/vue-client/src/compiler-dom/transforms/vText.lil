@@ -1,0 +1,64 @@
+import extern {
+  TO_DISPLAY_STRING,
+  createCallExpression,
+  createObjectProperty,
+  createSimpleExpression,
+  getConstantType
+} from "../../../packages/vuelil/compiler-core.js";
+import { DOMErrorCodes, createDOMCompilerError } from "../errors";
+
+extern JsValue TO_DISPLAY_STRING;
+extern JsValue createCallExpression;
+extern JsValue createObjectProperty;
+extern JsValue createSimpleExpression;
+extern JsValue getConstantType;
+
+JsValue vTextUndefined() {
+  return JS.undefined();
+}
+
+JsValue vTextSimple(string content, bool isStatic) {
+  return JS.call(createSimpleExpression, vTextUndefined(), content, isStatic);
+}
+
+export JsValue transformVText(JsValue directive, JsValue node, JsValue context) {
+  JsValue expression = directive["exp"];
+  JsValue loc = directive["loc"];
+  if (!expression.truthy()) {
+    JS.call(
+      context["onError"],
+      vTextUndefined(),
+      createDOMCompilerError(JS.number(DOMErrorCodes["X_V_TEXT_NO_EXPRESSION"]).toInt(), loc)
+    );
+  }
+  if (JS.number(node["children"]["length"]).toInt() > 0) {
+    JS.call(
+      context["onError"],
+      vTextUndefined(),
+      createDOMCompilerError(JS.number(DOMErrorCodes["X_V_TEXT_WITH_CHILDREN"]).toInt(), loc)
+    );
+    node["children"]["length"] = 0;
+  }
+  JsValue value = vTextSimple("", true);
+  if (expression.truthy()) {
+    if (JS.number(JS.call(getConstantType, vTextUndefined(), expression, context)).toInt() > 0) {
+      value = expression;
+    } else {
+      JsValue helper = JS.call(context["helperString"], vTextUndefined(), TO_DISPLAY_STRING);
+      value = JS.call(
+        createCallExpression,
+        vTextUndefined(),
+        helper,
+        JS.array(expression),
+        loc
+      );
+    }
+  }
+  JsValue property = JS.call(
+    createObjectProperty,
+    vTextUndefined(),
+    vTextSimple("textContent", true),
+    value
+  );
+  return JS.object("props", JS.array(property));
+}

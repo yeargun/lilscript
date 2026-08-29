@@ -1,0 +1,16 @@
+import extern { hostCreateHtmlDecoder } from "./host.js";
+
+extern JsValue hostCreateHtmlDecoder();
+
+JsValue htmlDecoder = null;
+
+export string decodeHtmlBrowser(string raw, bool asAttr = false) {
+  if (JS.isNullish(htmlDecoder)) htmlDecoder = hostCreateHtmlDecoder();
+  if (asAttr) {
+    string escaped = JS.string(JS.invoke(raw, "replace", new Regex("\"", "g"), "&quot;"));
+    htmlDecoder["innerHTML"] = "<div foo=\"" + escaped + "\">";
+    return JS.string(JS.invoke(htmlDecoder["children"][0], "getAttribute", "foo"));
+  }
+  htmlDecoder["innerHTML"] = raw;
+  return JS.string(htmlDecoder["textContent"]);
+}

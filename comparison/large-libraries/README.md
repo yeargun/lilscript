@@ -12,11 +12,13 @@ work is finished. When a final candidate lands, update the `checkpoint` Git
 object and source hash in `matrix.json`; the runner itself has no revision
 hard-coded outside that matrix.
 
-The four targets are the packaged SolidLil core, MarkedLil's shipped ESM,
-MobXLil's production ESM, and jQueryLil's shipped ESM. No library source or
-artifact is copied into this repository. At run time the harness requires a
-Git repository containing each pinned commit, verifies the commit and tree,
-and exports that exact tree into a temporary directory with `git archive`.
+The matrix currently has six pinned boundaries across five projects: packaged
+SolidLil core, direct MotionLil animate output, MarkedLil's shipped ESM, MobXLil
+regular production ESM, MobXLil's true production-min ESM, and jQueryLil's
+shipped ESM. No library source or artifact is copied into this repository. At
+run time the harness requires a Git repository containing each pinned commit,
+verifies the commit and tree, and exports that exact tree into a temporary
+directory with `git archive`.
 Dirty files, untracked files, and a sibling repository's checked-out branch
 therefore cannot enter a measurement.
 

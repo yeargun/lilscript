@@ -114,6 +114,66 @@
       "reason": "both exact revisions must emit every configured artifact"
     },
     {
+      "afterObservation": null,
+      "beforeObservation": null,
+      "gatePassed": false,
+      "library": "mobxlil-production-min",
+      "maxRegressionBytes": 0,
+      "metric": "raw",
+      "outcome": "ineligible",
+      "reason": "missing exact baseline or checkpoint observation"
+    },
+    {
+      "afterObservation": null,
+      "beforeObservation": null,
+      "gatePassed": false,
+      "library": "mobxlil-production-min",
+      "maxRegressionBytes": 0,
+      "metric": "gzip9",
+      "outcome": "ineligible",
+      "reason": "missing exact baseline or checkpoint observation"
+    },
+    {
+      "afterObservation": null,
+      "beforeObservation": null,
+      "gatePassed": false,
+      "library": "mobxlil-production-min",
+      "maxRegressionBytes": 0,
+      "metric": "brotli11",
+      "outcome": "ineligible",
+      "reason": "missing exact baseline or checkpoint observation"
+    },
+    {
+      "afterObservation": null,
+      "beforeObservation": null,
+      "gatePassed": false,
+      "library": "motionlil",
+      "maxRegressionBytes": 0,
+      "metric": "raw",
+      "outcome": "ineligible",
+      "reason": "missing exact baseline or checkpoint observation"
+    },
+    {
+      "afterObservation": null,
+      "beforeObservation": null,
+      "gatePassed": false,
+      "library": "motionlil",
+      "maxRegressionBytes": 0,
+      "metric": "gzip9",
+      "outcome": "ineligible",
+      "reason": "missing exact baseline or checkpoint observation"
+    },
+    {
+      "afterObservation": null,
+      "beforeObservation": null,
+      "gatePassed": false,
+      "library": "motionlil",
+      "maxRegressionBytes": 0,
+      "metric": "brotli11",
+      "outcome": "ineligible",
+      "reason": "missing exact baseline or checkpoint observation"
+    },
+    {
       "afterObservation": "fresh.solidlil.checkpoint",
       "beforeObservation": "fresh.solidlil.baseline",
       "gatePassed": false,
@@ -144,9 +204,9 @@
       "reason": "checkpoint 2931 bytes vs baseline 2922 bytes; allowed regression 0 bytes"
     }
   ],
-  "evidenceFingerprint": "f80cc12dece1b1cf822b2b6732e102fcbf2616746e3f4b5ffeb840fc801dbd37",
+  "evidenceFingerprint": "9af572e72a07151c8bcd7015f00314b926b3454393666715747ebeca83f2cc96",
   "format": "lilscript-large-library-observations",
-  "matrixSha256": "cfa94e51ed651845d479ed84faa18e26ce69f66702a3aff735a5e611999c6228",
+  "matrixSha256": "91fc1aaba2313b7792d30f906215b3d87c1445964bfab23d88ffb05f6b034dbc",
   "observations": [
     {
       "artifacts": [],

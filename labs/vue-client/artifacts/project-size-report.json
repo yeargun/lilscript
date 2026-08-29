@@ -1,0 +1,318 @@
+{
+  "schemaVersion": 2,
+  "generatedBy": "scripts/measure.mjs",
+  "upstream": {
+    "version": "3.5.42",
+    "tag": "v3.5.42",
+    "revision": "d63616ca17de965ed32dcb449a4c5cd9982f15d2"
+  },
+  "scope": {
+    "path": "compatibility/scope.json",
+    "sha256": "451bdd5bfaa79738579382344739cd97352e94e223103d83a320033e6295c4ad"
+  },
+  "inventory": {
+    "path": "compatibility/inventory.json",
+    "sha256": "d274dbbd3a0ce92ffd6db8df92872090d1fd9d1a59ea30e4917c90ef7863805e"
+  },
+  "buildEvidence": {
+    "path": "artifacts/generated/project-comparison/reactivity-app/build-report.json",
+    "sha256": "4b684dd703b02daca7255decfe0a842d3d2ef6460e21aafe330446d2d3eaf451"
+  },
+  "methodology": "Paired production application builds use one unchanged source tree and identical Vite/Oxc settings. The candidate resolution derives static vue imports and compiles that LilScript-owned surface before Vite; every emitted host-adapter byte remains in the measured bundle. Library distribution files do not count toward completion.",
+  "objective": "Every completion-required project has a smaller candidate Brotli-11 bundle.",
+  "toolchain": {
+    "node": "v24.11.1",
+    "vite": {
+      "version": "8.2.1",
+      "packageJson": {
+        "path": "node_modules/vite/package.json",
+        "bytes": 5083,
+        "sha256": "3baf6fb19ca2a2da0b739d984620e2c9d4aeba83d5ac68da9bacfb37d43afd61"
+      }
+    },
+    "bundler": {
+      "name": "rolldown",
+      "version": "1.2.6",
+      "packageJson": {
+        "path": "node_modules/rolldown/package.json",
+        "bytes": 6127,
+        "sha256": "7bc88ad0b975edec6c28c4cbe124c407829d262ec9c5b59efb930646cbc9ba1d"
+      }
+    },
+    "minifier": {
+      "name": "oxc",
+      "version": "0.147.0",
+      "integration": "Rolldown embedded Oxc Minifier",
+      "versionSource": {
+        "path": "node_modules/@oxc-project/types/package.json",
+        "bytes": 577,
+        "sha256": "cdc378bf4422ee30707c966d3010e8a1f80b5d15db5d497b8997c1ef6eb02c65"
+      }
+    },
+    "packageLock": {
+      "path": "package-lock.json",
+      "bytes": 66891,
+      "sha256": "4c46f8bc9605dfa16c565b212e658435c43efb41043a608024ab718ce7923167"
+    },
+    "config": {
+      "mode": "production",
+      "target": "es2022",
+      "minify": "oxc",
+      "sourcemap": false,
+      "modulePreload": false,
+      "cssCodeSplit": true,
+      "reportCompressedSize": false,
+      "defines": {
+        "__VUE_OPTIONS_API__": "false",
+        "__VUE_PROD_DEVTOOLS__": "false",
+        "__VUE_PROD_HYDRATION_MISMATCH_DETAILS__": "false",
+        "process.env.NODE_ENV": "\"production\""
+      },
+      "output": {
+        "format": "es",
+        "entryFileNames": "assets/app.js",
+        "chunkFileNames": "assets/chunks/[name]-[hash].js",
+        "assetFileNames": "assets/[name]-[hash][extname]",
+        "codeSplitting": false
+      }
+    },
+    "commonConfigSha256": "103c8705a075ec22f7a0d2596cd9c2bc8f1fa0cb9933e3747ef29741c0175599"
+  },
+  "codecs": {
+    "implementation": "lilscript-codec",
+    "schemaVersion": 1,
+    "scorer": {
+      "path": "target/release/lilscript-codec",
+      "sha256": "67b5d4538e09995079d39d8ca1585c3c5ff5ae7efd868009f6cc3b263ff3065e",
+      "bytes": 1805504
+    },
+    "gzip9": {
+      "encoder": "upstream-stock-zlib-c",
+      "libraryVersion": "1.3.1",
+      "cargoPackage": "libz-sys",
+      "cargoPackageVersion": "1.1.24",
+      "level": 9,
+      "mtime": 0
+    },
+    "brotli11": {
+      "encoder": "official-google-brotli-c",
+      "libraryVersion": "1.1.0",
+      "cargoPackage": "compu-brotli-sys",
+      "cargoPackageVersion": "1.1.0",
+      "quality": 11,
+      "lgwin": 22,
+      "mode": "generic"
+    },
+    "nodeCodecsAreDiagnosticOnly": true
+  },
+  "scenarios": [
+    {
+      "id": "reactivity-app",
+      "completionRequired": false,
+      "status": "failed",
+      "input": {
+        "entry": "apps/reactivity/index.html",
+        "source": "apps/reactivity/src/main.js",
+        "importSpecifier": "vue",
+        "files": [
+          {
+            "path": "apps/reactivity/index.html",
+            "bytes": 293,
+            "sha256": "7912b669057080ef04350bf7baf82aca233802354a141ea6e822de2185effac6"
+          },
+          {
+            "path": "apps/reactivity/src/main.js",
+            "bytes": 649,
+            "sha256": "6eae13ad7c6e275876c81505006ad0a25a74fec257f6344d31d4819b450e7a5b"
+          }
+        ],
+        "sha256": "cd547f4410133de070ac43e0ebd8a9c9ac3b08a4768ead0f6305e5d9f84933c8"
+      },
+      "execution": {
+        "deterministicChecksum": "6ca74c5976e4cbda32d2c0b8c6df969bc37c436d31f03e55696066649a7831a1",
+        "matching": true
+      },
+      "build": {
+        "commonConfigSha256": "103c8705a075ec22f7a0d2596cd9c2bc8f1fa0cb9933e3747ef29741c0175599",
+        "onlyModuleResolutionChanged": true
+      },
+      "moduleAudit": {
+        "candidate": {
+          "includesCandidateModule": true,
+          "upstreamRuntimeModules": [],
+          "noUpstreamRuntime": true,
+          "hostAdapterAccounting": {
+            "sourceBytes": 6123,
+            "selectedModuleRenderedBytes": 24537,
+            "emittedJavaScriptBytes": 19337,
+            "emittedJavaScriptChunks": 1,
+            "adapterExternalized": false,
+            "allEmittedAdapterCodeCounted": true
+          },
+          "graph": {
+            "sha256": "0e8e7ddfe48f19ab0bf9ec3ecae6dceac5d913f8692820322fd80db769c4f20e",
+            "modules": [
+              {
+                "id": "apps/reactivity/index.html",
+                "renderedBytes": 0
+              },
+              {
+                "id": "apps/reactivity/src/main.js",
+                "renderedBytes": 554
+              },
+              {
+                "id": "artifacts/reactivity.esm-browser.prod.js",
+                "renderedBytes": 24537
+              }
+            ]
+          }
+        },
+        "upstream": {
+          "upstreamRuntimeModules": [
+            "node_modules/@vue/reactivity/dist/reactivity.esm-bundler.js",
+            "node_modules/@vue/runtime-core/dist/runtime-core.esm-bundler.js",
+            "node_modules/@vue/shared/dist/shared.esm-bundler.js"
+          ],
+          "graph": {
+            "sha256": "3ca2d4ab0d0e4c9f27a969f8c95d39ff340cdbd8fe47d9169bfe6847d06f9653",
+            "modules": [
+              {
+                "id": "apps/reactivity/index.html",
+                "renderedBytes": 0
+              },
+              {
+                "id": "apps/reactivity/src/main.js",
+                "renderedBytes": 584
+              },
+              {
+                "id": "node_modules/@vue/reactivity/dist/reactivity.esm-bundler.js",
+                "renderedBytes": 28697
+              },
+              {
+                "id": "node_modules/@vue/runtime-core/dist/runtime-core.esm-bundler.js",
+                "renderedBytes": 4414
+              },
+              {
+                "id": "node_modules/@vue/shared/dist/shared.esm-bundler.js",
+                "renderedBytes": 2429
+              }
+            ]
+          }
+        },
+        "passed": true
+      },
+      "candidate": {
+        "path": "artifacts/generated/project-comparison/reactivity-app/candidate/app.js",
+        "sha256": "6b2244f7843b83450902b2d88668d6ccb8c70788e0d34ae194a6557c4c8fc458",
+        "sizes": {
+          "raw": 19337,
+          "gzip9": 6018,
+          "brotli11": 5513
+        },
+        "buildSha256": "6b2244f7843b83450902b2d88668d6ccb8c70788e0d34ae194a6557c4c8fc458"
+      },
+      "upstream": {
+        "path": "artifacts/generated/project-comparison/reactivity-app/upstream/app.js",
+        "sha256": "b378202e6a5255b50c848bf422ba4feb7e3a0efdc08078acf76e8a077ad37b44",
+        "sizes": {
+          "raw": 13347,
+          "gzip9": 5024,
+          "brotli11": 4657
+        },
+        "buildSha256": "b378202e6a5255b50c848bf422ba4feb7e3a0efdc08078acf76e8a077ad37b44"
+      },
+      "comparison": {
+        "deltaBytes": {
+          "raw": 5990,
+          "gzip9": 994,
+          "brotli11": 856
+        },
+        "ratio": {
+          "raw": 1.4487899902599835,
+          "gzip9": 1.1978503184713376,
+          "brotli11": 1.1838093193042731
+        },
+        "smallerBrotli11": false
+      },
+      "retainedCodeDiagnosis": {
+        "reusableCandidate": {
+          "path": "artifacts/generated/project-comparison/reactivity-app/reusable-candidate/app.js",
+          "sha256": "4c2cdb5142bd1443ac3cf1bc27da7f061738ca111b587a944b5b91b91d9205c8",
+          "sizes": {
+            "raw": 26117,
+            "gzip9": 8532,
+            "brotli11": 7851
+          },
+          "buildSha256": "4c2cdb5142bd1443ac3cf1bc27da7f061738ca111b587a944b5b91b91d9205c8"
+        },
+        "selectedCandidate": {
+          "path": "artifacts/generated/project-comparison/reactivity-app/candidate/app.js",
+          "sha256": "6b2244f7843b83450902b2d88668d6ccb8c70788e0d34ae194a6557c4c8fc458",
+          "sizes": {
+            "raw": 19337,
+            "gzip9": 6018,
+            "brotli11": 5513
+          },
+          "buildSha256": "6b2244f7843b83450902b2d88668d6ccb8c70788e0d34ae194a6557c4c8fc458"
+        },
+        "removedBytes": {
+          "raw": 6780,
+          "gzip9": 2514,
+          "brotli11": 2338
+        },
+        "reusableModuleGraph": {
+          "sha256": "ae90c68370af4f4f4c1551583ea728628871e85d4277f81eb2979b7aae00f943",
+          "modules": [
+            {
+              "id": "apps/reactivity/index.html",
+              "renderedBytes": 0
+            },
+            {
+              "id": "apps/reactivity/src/main.js",
+              "renderedBytes": 552
+            },
+            {
+              "id": "artifacts/reactivity.esm-browser.prod.js",
+              "renderedBytes": 33598
+            }
+          ]
+        },
+        "selectedModuleGraph": {
+          "sha256": "0e8e7ddfe48f19ab0bf9ec3ecae6dceac5d913f8692820322fd80db769c4f20e",
+          "modules": [
+            {
+              "id": "apps/reactivity/index.html",
+              "renderedBytes": 0
+            },
+            {
+              "id": "apps/reactivity/src/main.js",
+              "renderedBytes": 554
+            },
+            {
+              "id": "artifacts/reactivity.esm-browser.prod.js",
+              "renderedBytes": 24537
+            }
+          ]
+        }
+      },
+      "passed": false
+    }
+  ],
+  "requiredScenarios": {
+    "ids": [
+      "runtime-only-client",
+      "runtime-compiler-client",
+      "ssr-app",
+      "sfc-production-app"
+    ],
+    "passedIds": [],
+    "missingIds": [
+      "runtime-only-client",
+      "runtime-compiler-client",
+      "ssr-app",
+      "sfc-production-app"
+    ],
+    "passed": false
+  },
+  "passed": false
+}

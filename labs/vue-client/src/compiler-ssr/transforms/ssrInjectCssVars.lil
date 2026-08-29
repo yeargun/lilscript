@@ -1,0 +1,79 @@
+import extern {
+  ElementTypes,
+  NodeTypes,
+  createSimpleExpression,
+  findDir,
+  locStub
+} from "../../../packages/vuelil/compiler-dom.js";
+
+extern JsValue ElementTypes;
+extern JsValue NodeTypes;
+extern JsValue createSimpleExpression;
+extern JsValue findDir;
+extern JsValue locStub;
+
+JsValue cssVarsUndefined() {
+  return JS.undefined();
+}
+
+int cssVarsLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+
+void injectCssVars(JsValue node) {
+  if (!JS.strictEqual(node["type"], NodeTypes["ELEMENT"])) return;
+  bool renderable = JS.strictEqual(node["tagType"], ElementTypes["ELEMENT"]) ||
+    JS.strictEqual(node["tagType"], ElementTypes["COMPONENT"]);
+  if (!renderable || JS.call(findDir, cssVarsUndefined(), node, "for").truthy()) return;
+  string tag = JS.string(node["tag"]);
+  if (tag == "suspense" || tag == "Suspense") {
+    JsValue children = node["children"];
+    for (int index = 0; index < cssVarsLength(children); index++) {
+      JsValue child = children[index];
+      if (JS.strictEqual(child["type"], NodeTypes["ELEMENT"]) &&
+        JS.strictEqual(child["tagType"], ElementTypes["TEMPLATE"])) {
+        JsValue nested = child["children"];
+        for (int childIndex = 0; childIndex < cssVarsLength(nested); childIndex++) {
+          injectCssVars(nested[childIndex]);
+        }
+      } else {
+        injectCssVars(child);
+      }
+    }
+  } else {
+    JsValue expression = JS.call(
+      createSimpleExpression,
+      cssVarsUndefined(),
+      "_cssVars",
+      false
+    );
+    JS.invoke(node["props"], "push", JS.object(
+      "type", NodeTypes["DIRECTIVE"],
+      "name", "bind",
+      "arg", cssVarsUndefined(),
+      "exp", expression,
+      "modifiers", JS.array(),
+      "loc", locStub
+    ));
+  }
+}
+
+export JsValue ssrInjectCssVars(JsValue node, JsValue context) {
+  if (!context["ssrCssVars"].truthy()) return cssVarsUndefined();
+  if (JS.strictEqual(node["type"], NodeTypes["ROOT"])) {
+    context["identifiers"]["_cssVars"] = 1;
+  }
+  JsValue parent = context["parent"];
+  if (!parent.truthy() || !JS.strictEqual(parent["type"], NodeTypes["ROOT"])) {
+    return cssVarsUndefined();
+  }
+  if (JS.strictEqual(node["type"], NodeTypes["IF_BRANCH"])) {
+    JsValue children = node["children"];
+    for (int index = 0; index < cssVarsLength(children); index++) {
+      injectCssVars(children[index]);
+    }
+  } else {
+    injectCssVars(node);
+  }
+  return cssVarsUndefined();
+}

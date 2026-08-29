@@ -35,6 +35,7 @@ optimizer candidate may be discarded, but a failure in the configured frontend o
 lowering path is a compilation error; search is never a recovery mechanism for an
 invalid program.
 
-The AST-direct `src/codegen_js.rs` path exists for legacy source helpers. Configured
-path compilation and compression work must use typed control-flow IR plus
+`src/codegen_js.rs` exposes convenience compile helpers, but those helpers also
+analyze, lower, optimize, and route through typed control-flow IR. Production
+emission and compression work belongs in the typed IR path and
 `src/codegen_ir_js.rs`.

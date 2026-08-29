@@ -1,0 +1,30 @@
+export extern JsValue Object;
+export extern JsValue Array;
+export extern JsValue Number;
+export extern JsValue String;
+export extern JsValue JSON;
+export extern JsValue Math;
+export extern JsValue Uint8Array;
+export extern JsValue console;
+export extern JsValue globalThis;
+export extern JsValue self;
+export extern JsValue window;
+export extern JsValue global;
+export extern JsValue process;
+export extern JsValue parseInt;
+export extern JsValue parseFloat;
+
+JsValue undefinedValue() {
+  return JS.undefined();
+}
+
+export JsValue makeMap(string source) {
+  JsValue map = JS.invoke(Object, "create", null);
+  string[] keys = source.split(",");
+  for (int index = 0; index < keys.length; index++) {
+    map[keys[index]] = 1;
+  }
+  return JS.method1((JsValue _self, JsValue value) => {
+    return JS.in(value, map);
+  });
+}

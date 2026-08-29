@@ -1,0 +1,116 @@
+import extern {
+  ElementTypes,
+  NodeTypes,
+  TRANSITION,
+  TRANSITION_GROUP,
+  createCallExpression,
+  createFunctionExpression,
+  isSlotOutlet,
+  processSlotOutlet,
+  resolveComponentType
+} from "../../../packages/vuelil/compiler-dom.js";
+import { SSR_RENDER_SLOT, SSR_RENDER_SLOT_INNER } from "../runtimeHelpers";
+import { processChildrenAsStatement } from "../ssrCodegenTransform";
+
+extern JsValue ElementTypes;
+extern JsValue NodeTypes;
+extern JsValue TRANSITION;
+extern JsValue TRANSITION_GROUP;
+extern JsValue createCallExpression;
+extern JsValue createFunctionExpression;
+extern JsValue isSlotOutlet;
+extern JsValue processSlotOutlet;
+extern JsValue resolveComponentType;
+
+JsValue slotOutletUndefined() {
+  return JS.undefined();
+}
+
+export JsValue ssrTransformSlotOutlet(JsValue node, JsValue context) {
+  if (!JS.call(isSlotOutlet, slotOutletUndefined(), node).truthy()) {
+    return slotOutletUndefined();
+  }
+  JsValue processed = JS.call(
+    processSlotOutlet,
+    slotOutletUndefined(),
+    node,
+    context
+  );
+  JsValue slotName = processed["slotName"];
+  JsValue slotProps = processed["slotProps"];
+  if (!slotProps.truthy()) slotProps = "{}";
+  JsValue args = JS.array(
+    "_ctx.$slots",
+    slotName,
+    slotProps,
+    "null",
+    "_push",
+    "_parent"
+  );
+  if (context["scopeId"].truthy() && !JS.strictEqual(context["slotted"], false)) {
+    JS.invoke(args, "push", "\"" + JS.string(context["scopeId"]) + "-s\"");
+  }
+  JsValue method = SSR_RENDER_SLOT;
+  JsValue parent = context["parent"];
+  if (parent.truthy()) {
+    JsValue children = parent["children"];
+    if (JS.strictEqual(parent["type"], NodeTypes["IF_BRANCH"])) {
+      parent = context["grandParent"];
+    }
+    if (parent.truthy() &&
+      JS.strictEqual(parent["type"], NodeTypes["ELEMENT"]) &&
+      JS.strictEqual(parent["tagType"], ElementTypes["COMPONENT"])) {
+      JsValue componentType = JS.call(
+        resolveComponentType,
+        slotOutletUndefined(),
+        parent,
+        context,
+        true
+      );
+      int elementChildren = 0;
+      for (int index = 0; index < JS.number(children["length"]).toInt(); index++) {
+        if (JS.strictEqual(children[index]["type"], NodeTypes["ELEMENT"])) {
+          elementChildren++;
+        }
+      }
+      if ((JS.strictEqual(componentType, TRANSITION) ||
+        JS.strictEqual(componentType, TRANSITION_GROUP)) && elementChildren == 1) {
+        method = SSR_RENDER_SLOT_INNER;
+        if (!(context["scopeId"].truthy() &&
+          !JS.strictEqual(context["slotted"], false))) {
+          JS.invoke(args, "push", "null");
+        }
+        JS.invoke(args, "push", "true");
+      }
+    }
+  }
+  node["ssrCodegenNode"] = JS.call(
+    createCallExpression,
+    slotOutletUndefined(),
+    JS.invoke(context, "helper", method),
+    args
+  );
+  return slotOutletUndefined();
+}
+
+export void ssrProcessSlotOutlet(JsValue node, JsValue context) {
+  JsValue renderCall = node["ssrCodegenNode"];
+  if (JS.number(node["children"]["length"]).toInt() > 0) {
+    JsValue fallback = JS.call(
+      createFunctionExpression,
+      slotOutletUndefined(),
+      JS.array()
+    );
+    fallback["body"] = processChildrenAsStatement(node, context);
+    renderCall["arguments"][3] = fallback;
+  }
+  if (context["withSlotScopeId"].truthy()) {
+    JsValue slotScopeId = renderCall["arguments"][6];
+    if (slotScopeId.truthy()) {
+      renderCall["arguments"][6] = JS.string(slotScopeId) + " + _scopeId";
+    } else {
+      renderCall["arguments"][6] = "_scopeId";
+    }
+  }
+  JS.invoke(context, "pushStatement", renderCall);
+}

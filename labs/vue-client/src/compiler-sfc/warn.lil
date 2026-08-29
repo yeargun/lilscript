@@ -1,0 +1,23 @@
+extern JsValue console;
+extern JsValue process;
+
+JsValue hasWarned = JS.object();
+bool testBuild = false;
+
+export void warnOnce(string msg) {
+  bool isNodeProd = JS.typeOf(process) != "undefined" &&
+    JS.string(process["env"]["NODE_ENV"]) == "production";
+  if (!isNodeProd && !testBuild && !hasWarned[msg].truthy()) {
+    hasWarned[msg] = true;
+    warn(msg);
+  }
+}
+
+export void warn(string msg) {
+  JS.invoke(
+    console,
+    "warn",
+    "\u001b[1m\u001b[33m[@vue/compiler-sfc]\u001b[0m\u001b[33m " + msg +
+      "\u001b[0m\n"
+  );
+}

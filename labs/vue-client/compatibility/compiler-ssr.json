@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 1,
+  "oracle": {
+    "package": "@vue/compiler-ssr",
+    "version": "3.5.42",
+    "revision": "d63616ca17de965ed32dcb449a4c5cd9982f15d2"
+  },
+  "status": "runtime-complete",
+  "fullCompilerSSR": true,
+  "mappedSources": [
+    "packages/compiler-ssr/src/errors.ts",
+    "packages/compiler-ssr/src/index.ts",
+    "packages/compiler-ssr/src/runtimeHelpers.ts",
+    "packages/compiler-ssr/src/ssrCodegenTransform.ts",
+    "packages/compiler-ssr/src/transforms/ssrInjectCssVars.ts",
+    "packages/compiler-ssr/src/transforms/ssrInjectFallthroughAttrs.ts",
+    "packages/compiler-ssr/src/transforms/ssrTransformComponent.ts",
+    "packages/compiler-ssr/src/transforms/ssrTransformElement.ts",
+    "packages/compiler-ssr/src/transforms/ssrTransformSlotOutlet.ts",
+    "packages/compiler-ssr/src/transforms/ssrTransformSuspense.ts",
+    "packages/compiler-ssr/src/transforms/ssrTransformTeleport.ts",
+    "packages/compiler-ssr/src/transforms/ssrTransformTransition.ts",
+    "packages/compiler-ssr/src/transforms/ssrTransformTransitionGroup.ts",
+    "packages/compiler-ssr/src/transforms/ssrVFor.ts",
+    "packages/compiler-ssr/src/transforms/ssrVIf.ts",
+    "packages/compiler-ssr/src/transforms/ssrVModel.ts",
+    "packages/compiler-ssr/src/transforms/ssrVShow.ts"
+  ],
+  "implemented": [
+    "two-pass SSR transform and code generation",
+    "server-renderer runtime helper symbols and compiler-core registration",
+    "SSR compile option normalization and source-AST compilation",
+    "fallthrough attribute and SFC CSS variable injection",
+    "native element, component, slot, if, for, model, and show transforms",
+    "Teleport, Suspense, Transition, and TransitionGroup transforms",
+    "SSR and VNode fallback branches for component slots",
+    "exact generated-code snapshots across the unchanged upstream suite"
+  ],
+  "runtimeExports": [
+    "compile"
+  ],
+  "runtimeExportCount": 1,
+  "upstreamTests": {
+    "files": 15,
+    "filesPassed": 15,
+    "tests": 130,
+    "passed": 130,
+    "failed": 0,
+    "status": "passed",
+    "runner": "npx --yes node@24 tests/compiler-ssr-upstream.runner.mjs",
+    "filesRun": [
+      "packages/compiler-ssr/__tests__/ssrComponent.spec.ts",
+      "packages/compiler-ssr/__tests__/ssrElement.spec.ts",
+      "packages/compiler-ssr/__tests__/ssrFallthroughAttrs.spec.ts",
+      "packages/compiler-ssr/__tests__/ssrInjectCssVars.spec.ts",
+      "packages/compiler-ssr/__tests__/ssrPortal.spec.ts",
+      "packages/compiler-ssr/__tests__/ssrScopeId.spec.ts",
+      "packages/compiler-ssr/__tests__/ssrSlotOutlet.spec.ts",
+      "packages/compiler-ssr/__tests__/ssrSuspense.spec.ts",
+      "packages/compiler-ssr/__tests__/ssrText.spec.ts",
+      "packages/compiler-ssr/__tests__/ssrTransition.spec.ts",
+      "packages/compiler-ssr/__tests__/ssrTransitionGroup.spec.ts",
+      "packages/compiler-ssr/__tests__/ssrVFor.spec.ts",
+      "packages/compiler-ssr/__tests__/ssrVIf.spec.ts",
+      "packages/compiler-ssr/__tests__/ssrVModel.spec.ts",
+      "packages/compiler-ssr/__tests__/ssrVShow.spec.ts"
+    ]
+  },
+  "limitations": [
+    "Package formats and declaration parity remain incomplete."
+  ],
+  "sourceParity": {
+    "requiredFiles": 17,
+    "ownerModules": 16,
+    "deterministicFilesPresent": 17,
+    "verifiedExactMappings": 17,
+    "indexMapping": "faithful compile entrypoint",
+    "hostAdapters": 0,
+    "unverifiedFiles": []
+  }
+}

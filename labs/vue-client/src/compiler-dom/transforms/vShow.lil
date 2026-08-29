@@ -1,0 +1,23 @@
+import { DOMErrorCodes, createDOMCompilerError } from "../errors";
+import { V_SHOW } from "../runtimeHelpers";
+
+JsValue vShowUndefined() {
+  return JS.undefined();
+}
+
+export JsValue transformShow(JsValue directive, JsValue node, JsValue context) {
+  if (!directive["exp"].truthy()) {
+    JS.call(
+      context["onError"],
+      vShowUndefined(),
+      createDOMCompilerError(
+        JS.number(DOMErrorCodes["X_V_SHOW_NO_EXPRESSION"]).toInt(),
+        directive["loc"]
+      )
+    );
+  }
+  return JS.object(
+    "props", JS.array(),
+    "needRuntime", JS.call(context["helper"], vShowUndefined(), V_SHOW)
+  );
+}

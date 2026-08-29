@@ -1,0 +1,118 @@
+import {
+  ConstantTypes,
+  ElementTypes,
+  NodeTypes,
+  createCallExpression,
+  createCompoundExpression
+} from "../ast";
+import { CREATE_TEXT } from "../runtimeHelpers";
+import { isText } from "../utils";
+import { COMPILER_DEV } from "../validateExpression";
+import { PatchFlagNames, PatchFlags } from "../../shared/patchFlags";
+import { getConstantType } from "./cacheStatic";
+
+JsValue textUndefined() {
+  return JS.undefined();
+}
+
+int textLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+
+void textPush(JsValue values, JsValue value) {
+  values[textLength(values)] = value;
+}
+
+export JsValue transformText(JsValue node, JsValue context) {
+  int type = JS.number(node["type"]).toInt();
+  if (
+    type != JS.number(NodeTypes["ROOT"]).toInt() &&
+    type != JS.number(NodeTypes["ELEMENT"]).toInt() &&
+    type != JS.number(NodeTypes["FOR"]).toInt() &&
+    type != JS.number(NodeTypes["IF_BRANCH"]).toInt()
+  ) return textUndefined();
+
+  return JS.method0((JsValue _self) => {
+    JsValue children = node["children"];
+    JsValue currentContainer = textUndefined();
+    bool hasText = false;
+
+    for (int index = 0; index < textLength(children); index++) {
+      JsValue child = children[index];
+      if (isText(child)) {
+        hasText = true;
+        int nextIndex = index + 1;
+        while (nextIndex < textLength(children)) {
+          JsValue next = children[nextIndex];
+          if (isText(next)) {
+            if (JS.isUndefined(currentContainer)) {
+              currentContainer = createCompoundExpression(JS.array(child), child["loc"]);
+              children[index] = currentContainer;
+            }
+            textPush(currentContainer["children"], " + ");
+            textPush(currentContainer["children"], next);
+            JS.invoke(children, "splice", nextIndex, 1);
+          } else {
+            currentContainer = textUndefined();
+            break;
+          }
+        }
+      }
+    }
+
+    bool singlePlainText = false;
+    if (textLength(children) == 1) {
+      if (type == JS.number(NodeTypes["ROOT"]).toInt()) {
+        singlePlainText = true;
+      } else if (
+        type == JS.number(NodeTypes["ELEMENT"]).toInt() &&
+        JS.number(node["tagType"]).toInt() == JS.number(ElementTypes["ELEMENT"]).toInt() &&
+        JS.string(node["tag"]) != "template"
+      ) {
+        singlePlainText = true;
+        JsValue props = node["props"];
+        for (int propIndex = 0; propIndex < textLength(props); propIndex++) {
+          JsValue prop = props[propIndex];
+          if (
+            JS.number(prop["type"]).toInt() == JS.number(NodeTypes["DIRECTIVE"]).toInt() &&
+            !context["directiveTransforms"][prop["name"]].truthy()
+          ) singlePlainText = false;
+        }
+      }
+    }
+    if (!hasText || singlePlainText) return textUndefined();
+
+    for (int index = 0; index < textLength(children); index++) {
+      JsValue child = children[index];
+      int childType = JS.number(child["type"]).toInt();
+      if (isText(child) || childType == JS.number(NodeTypes["COMPOUND_EXPRESSION"]).toInt()) {
+        JsValue callArgs = JS.array();
+        if (
+          childType != JS.number(NodeTypes["TEXT"]).toInt() ||
+          JS.string(child["content"]) != " "
+        ) textPush(callArgs, child);
+        if (
+          !context["ssr"].truthy() &&
+          getConstantType(child, context) == JS.number(ConstantTypes["NOT_CONSTANT"]).toInt()
+        ) {
+          int textFlag = JS.number(PatchFlags["TEXT"]).toInt();
+          string flag = "" + textFlag;
+          if (COMPILER_DEV) {
+            flag += " /* " + JS.string(PatchFlagNames["" + textFlag]) + " */";
+          }
+          textPush(callArgs, flag);
+        }
+        children[index] = JS.object(
+          "type", NodeTypes["TEXT_CALL"],
+          "content", child,
+          "loc", child["loc"],
+          "codegenNode", createCallExpression(
+            JS.call(context["helper"], textUndefined(), CREATE_TEXT),
+            callArgs
+          )
+        );
+      }
+    }
+    return textUndefined();
+  });
+}

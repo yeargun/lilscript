@@ -1,0 +1,579 @@
+import {
+  createArrayExpression,
+  createCallExpression,
+  createObjectExpression,
+  createObjectProperty,
+  createSimpleExpression,
+  createVNodeCall
+} from "../ast";
+import { JSON } from "../codegen";
+import { createCompilerError } from "../errors";
+import {
+  GUARD_REACTIVE_PROPS,
+  KEEP_ALIVE,
+  Map,
+  MERGE_PROPS,
+  NORMALIZE_CLASS,
+  NORMALIZE_PROPS,
+  NORMALIZE_STYLE,
+  RESOLVE_COMPONENT,
+  RESOLVE_DIRECTIVE,
+  RESOLVE_DYNAMIC_COMPONENT,
+  SUSPENSE,
+  TELEPORT,
+  TO_HANDLERS,
+  UNREF,
+  WeakMap
+} from "../runtimeHelpers";
+import {
+  findProp,
+  isCoreComponent,
+  isStaticArgOf,
+  isStaticExp,
+  toValidAssetId
+} from "../utils";
+import { getConstantType } from "./cacheStatic";
+import { processExpression } from "./transformExpression";
+import { buildSlots } from "./vSlot";
+
+JsValue elementUndefined() {
+  return JS.undefined();
+}
+
+int elementLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+
+void elementPush(JsValue values, JsValue value) {
+  values[elementLength(values)] = value;
+}
+
+bool elementSame(JsValue left, JsValue right) {
+  return JS.strictEqual(left, right);
+}
+
+string camelizeText(string value) {
+  string result = "";
+  bool upper = false;
+  for (int index = 0; index < value.length; index++) {
+    string character = value.charAt(index);
+    if (character == "-") {
+      upper = true;
+    } else if (upper) {
+      result += character.toUpperCase();
+      upper = false;
+    } else {
+      result += character;
+    }
+  }
+  return result;
+}
+
+string capitalizeText(string value) {
+  if (value.length == 0) return value;
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+bool hasModifier(JsValue directive, string name) {
+  JsValue modifiers = directive["modifiers"];
+  for (int index = 0; index < elementLength(modifiers); index++) {
+    if (JS.string(modifiers[index]["content"]) == name) return true;
+  }
+  return false;
+}
+
+JsValue directiveImportMap = JS.construct(WeakMap);
+
+bool builtInDirective(string name) {
+  string names = ",bind,cloak,else-if,else,for,html,if,model,on,once,pre,show,slot,text,memo,";
+  return names.includes("," + name + ",");
+}
+
+bool eventName(string name) {
+  if (name.length < 3 || name.charAt(0) != "o" || name.charAt(1) != "n") return false;
+  int third = name.charCodeAt(2);
+  return third < 97 || third > 122;
+}
+
+bool reservedPropName(string name) {
+  string names = ",key,ref,ref_for,ref_key,onVnodeBeforeMount,onVnodeMounted,onVnodeBeforeUpdate,onVnodeUpdated,onVnodeBeforeUnmount,onVnodeUnmounted,";
+  return names.includes("," + name + ",");
+}
+
+void mergePropertyAsArray(JsValue existing, JsValue incoming) {
+  JsValue value = existing["value"];
+  if (JS.number(value["type"]).toInt() == 17) elementPush(value["elements"], incoming["value"]);
+  else existing["value"] = createArrayExpression(JS.array(value, incoming["value"]), existing["loc"]);
+}
+
+JsValue dedupeProperties(JsValue properties) {
+  JsValue known = JS.construct(Map);
+  JsValue deduped = JS.array();
+  for (int index = 0; index < elementLength(properties); index++) {
+    JsValue property = properties[index];
+    JsValue key = property["key"];
+    if (JS.number(key["type"]).toInt() == 8 || !key["isStatic"].truthy()) {
+      elementPush(deduped, property);
+    } else {
+      string name = JS.string(key["content"]);
+      JsValue existing = JS.invoke(known, "get", name);
+      if (existing.truthy()) {
+        if (name == "style" || name == "class" || eventName(name)) mergePropertyAsArray(existing, property);
+      } else {
+        JS.invoke(known, "set", name, property);
+        elementPush(deduped, property);
+      }
+    }
+  }
+  return deduped;
+}
+
+string stringifyDynamicProps(JsValue names) {
+  string result = "[";
+  for (int index = 0; index < elementLength(names); index++) {
+    result += JS.string(JS.invoke(JSON, "stringify", names[index]));
+    if (index + 1 < elementLength(names)) result += ", ";
+  }
+  return result + "]";
+}
+
+export JsValue buildDirectiveArgs(JsValue directive, JsValue context) {
+  JsValue args = JS.array();
+  JsValue runtime = JS.invoke(directiveImportMap, "get", directive);
+  if (runtime.truthy()) {
+    elementPush(args, JS.call(context["helperString"], elementUndefined(), runtime));
+  } else {
+    JS.call(context["helper"], elementUndefined(), RESOLVE_DIRECTIVE);
+    JS.invoke(context["directives"], "add", directive["name"]);
+    elementPush(args, toValidAssetId(JS.string(directive["name"]), "directive"));
+  }
+  if (directive["exp"].truthy()) elementPush(args, directive["exp"]);
+  if (directive["arg"].truthy()) {
+    if (!directive["exp"].truthy()) elementPush(args, "void 0");
+    elementPush(args, directive["arg"]);
+  }
+  JsValue modifiers = directive["modifiers"];
+  if (elementLength(modifiers) > 0) {
+    if (!directive["arg"].truthy()) {
+      if (!directive["exp"].truthy()) elementPush(args, "void 0");
+      elementPush(args, "void 0");
+    }
+    JsValue properties = JS.array();
+    JsValue trueExpression = createSimpleExpression("true", false, directive["loc"]);
+    for (int index = 0; index < elementLength(modifiers); index++) {
+      elementPush(properties, createObjectProperty(modifiers[index], trueExpression));
+    }
+    elementPush(args, createObjectExpression(properties, directive["loc"]));
+  }
+  return createArrayExpression(args, directive["loc"]);
+}
+
+bool componentTag(string tag) {
+  return tag == "component" || tag == "Component";
+}
+
+string setupReference(string name, JsValue context) {
+  JsValue bindings = context["bindingMetadata"];
+  if (JS.isNullish(bindings) || elementSame(bindings["__isScriptSetup"], false)) return "";
+  string camel = camelizeText(name);
+  string pascal = capitalizeText(camel);
+  string[] names = [name, camel, pascal];
+  for (int pass = 0; pass < 2; pass++) {
+    for (int index = 0; index < names.length; index++) {
+      string candidate = names[index];
+      string kind = "";
+      if (!JS.isUndefined(bindings[candidate])) kind = JS.string(bindings[candidate]);
+      bool matches = kind == "setup-let" || kind == "setup-ref" || kind == "setup-maybe-ref";
+      if (pass == 0) matches = kind == "setup-const" || kind == "setup-reactive-const" || kind == "literal-const";
+      if (matches) {
+        if (context["inline"].truthy()) {
+          if (pass == 0) return candidate;
+          return JS.string(JS.call(context["helperString"], elementUndefined(), UNREF)) + "(" + candidate + ")";
+        }
+        return "$setup[" + JS.string(JS.invoke(JSON, "stringify", candidate)) + "]";
+      }
+    }
+  }
+  for (int index = 0; index < names.length; index++) {
+    string candidate = names[index];
+    if (elementSame(bindings[candidate], "props")) {
+      string target = "$props";
+      if (context["inline"].truthy()) target = "__props";
+      return JS.string(JS.call(context["helperString"], elementUndefined(), UNREF)) + "(" + target + "[" +
+        JS.string(JS.invoke(JSON, "stringify", candidate)) + "])";
+    }
+  }
+  return "";
+}
+
+export JsValue resolveComponentType(JsValue node, JsValue context, bool ssr = false) {
+  string tag = JS.string(node["tag"]);
+  JsValue isProp = findProp(node, "is", false, true);
+  if (isProp.truthy()) {
+    if (componentTag(tag)) {
+      JsValue expression = elementUndefined();
+      if (JS.number(isProp["type"]).toInt() == 6 && isProp["value"].truthy()) {
+        expression = createSimpleExpression(JS.string(isProp["value"]["content"]), true);
+      } else {
+        expression = isProp["exp"];
+        if (!expression.truthy() && isProp["arg"].truthy()) {
+          expression = createSimpleExpression("is", false, isProp["arg"]["loc"]);
+          expression = processExpression(expression, context);
+          isProp["exp"] = expression;
+        }
+      }
+      if (expression.truthy()) return createCallExpression(
+        JS.call(context["helper"], elementUndefined(), RESOLVE_DYNAMIC_COMPONENT),
+        JS.array(expression)
+      );
+    } else if (JS.number(isProp["type"]).toInt() == 6 && isProp["value"].truthy() &&
+      JS.string(isProp["value"]["content"]).startsWith("vue:")) {
+      tag = JS.string(isProp["value"]["content"]).slice(4);
+    }
+  }
+  JsValue builtIn = isCoreComponent(tag);
+  if (JS.isUndefined(builtIn)) builtIn = JS.call(context["isBuiltInComponent"], elementUndefined(), tag);
+  if (builtIn.truthy()) {
+    if (!ssr) JS.call(context["helper"], elementUndefined(), builtIn);
+    return builtIn;
+  }
+  string setup = setupReference(tag, context);
+  if (setup != "") return setup;
+  int dot = JS.number(JS.invoke(tag, "indexOf", ".")).toInt();
+  if (dot > 0) {
+    setup = setupReference(tag.slice(0, dot), context);
+    if (setup != "") return setup + tag.slice(dot);
+  }
+  if (context["selfName"].truthy() && capitalizeText(camelizeText(tag)) == JS.string(context["selfName"])) {
+    JS.call(context["helper"], elementUndefined(), RESOLVE_COMPONENT);
+    JS.invoke(context["components"], "add", tag + "__self");
+    return toValidAssetId(tag, "component");
+  }
+  JS.call(context["helper"], elementUndefined(), RESOLVE_COMPONENT);
+  JS.invoke(context["components"], "add", tag);
+  return toValidAssetId(tag, "component");
+}
+
+export JsValue buildProps(
+  JsValue node,
+  JsValue context,
+  JsValue selectedProps = JS.undefined(),
+  bool isComponent = false,
+  bool isDynamicComponent = false,
+  bool ssr = false
+) {
+  JsValue props = selectedProps;
+  if (JS.isUndefined(props)) props = node["props"];
+  JsValue properties = JS.array();
+  JsValue mergeArgs = JS.array();
+  JsValue runtimeDirectives = JS.array();
+  JsValue dynamicNames = JS.array();
+  int patchFlag = 0;
+  bool hasDynamicKeys = false;
+  bool hasClass = false;
+  bool hasStyle = false;
+  bool hydration = false;
+  bool hasRef = false;
+  bool vnodeHook = false;
+  bool shouldUseBlock = false;
+  bool blockRequired = false;
+
+  for (int index = 0; index < elementLength(props); index++) {
+    JsValue prop = props[index];
+    if (JS.number(prop["type"]).toInt() == 6) {
+      string name = JS.string(prop["name"]);
+      bool staticAttribute = true;
+      if (name == "is" && (componentTag(JS.string(node["tag"])) ||
+        prop["value"].truthy() && JS.string(prop["value"]["content"]).startsWith("vue:"))) continue;
+      if (name == "ref") hasRef = true;
+      if (name == "ref" && JS.number(context["scopes"]["vFor"]).toInt() > 0) {
+        elementPush(properties, createObjectProperty(
+          createSimpleExpression("ref_for", true), createSimpleExpression("true")
+        ));
+      }
+      if (name == "ref" && prop["value"].truthy() && context["inline"].truthy()) {
+        JsValue refBinding = context["bindingMetadata"][prop["value"]["content"]];
+        if (elementSame(refBinding, "setup-let") || elementSame(refBinding, "setup-ref") || elementSame(refBinding, "setup-maybe-ref")) {
+          staticAttribute = false;
+          elementPush(properties, createObjectProperty(
+            createSimpleExpression("ref_key", true),
+            createSimpleExpression(JS.string(prop["value"]["content"]), true, prop["value"]["loc"])
+          ));
+        }
+      }
+      string value = "";
+      JsValue valueLoc = prop["loc"];
+      if (prop["value"].truthy()) {
+        value = JS.string(prop["value"]["content"]);
+        valueLoc = prop["value"]["loc"];
+      }
+      elementPush(properties, createObjectProperty(
+        createSimpleExpression(name, true, prop["nameLoc"]),
+        createSimpleExpression(value, staticAttribute, valueLoc)
+      ));
+    } else {
+      string name = JS.string(prop["name"]);
+      JsValue argument = prop["arg"];
+      JsValue expression = prop["exp"];
+      bool isBind = name == "bind";
+      bool isOnDirective = name == "on";
+      if (name == "slot") {
+        if (!isComponent) JS.call(context["onError"], elementUndefined(), createCompilerError(40, prop["loc"]));
+        continue;
+      }
+      if (name == "once" || name == "memo" || name == "is") continue;
+      if (isOnDirective && ssr) continue;
+      if (!argument.truthy() && (isBind || isOnDirective)) {
+        hasDynamicKeys = true;
+        if (expression.truthy()) {
+          if (isBind && JS.number(context["scopes"]["vFor"]).toInt() > 0) elementPush(properties, createObjectProperty(
+            createSimpleExpression("ref_for", true), createSimpleExpression("true")
+          ));
+          if (elementLength(properties) > 0) {
+            elementPush(mergeArgs, createObjectExpression(dedupeProperties(properties), node["loc"]));
+            properties = JS.array();
+          }
+          if (isBind) {
+            elementPush(mergeArgs, expression);
+          }
+          else {
+            JsValue handlerArgs = JS.array(expression, "true");
+            if (isComponent) handlerArgs = JS.array(expression);
+            elementPush(mergeArgs, createCallExpression(
+              JS.call(context["helper"], elementUndefined(), TO_HANDLERS), handlerArgs
+            ));
+          }
+        } else {
+          int errorCode = 35;
+          if (isBind) errorCode = 34;
+          JS.call(context["onError"], elementUndefined(), createCompilerError(errorCode, prop["loc"]));
+        }
+        continue;
+      }
+      if (isBind && isStaticArgOf(argument, "key")) shouldUseBlock = true;
+      if (isBind && isStaticArgOf(argument, "is") && componentTag(JS.string(node["tag"]))) continue;
+      if (isBind && isStaticArgOf(argument, "ref") && JS.number(context["scopes"]["vFor"]).toInt() > 0) {
+        elementPush(properties, createObjectProperty(
+          createSimpleExpression("ref_for", true), createSimpleExpression("true")
+        ));
+      }
+      if (isOnDirective && elementLength(node["children"]) > 0 && argument.truthy() && isStaticExp(argument)) {
+        string eventArgumentName = camelizeText(JS.string(argument["content"]));
+        if (eventArgumentName == "vue:beforeUpdate") {
+          shouldUseBlock = true;
+          blockRequired = true;
+        }
+      }
+      if (isBind && hasModifier(prop, "prop")) patchFlag = patchFlag | 32;
+      JsValue directiveTransform = context["directiveTransforms"][name];
+      if (JS.typeOf(directiveTransform) == "function") {
+        JsValue transformed = JS.call(directiveTransform, elementUndefined(), prop, node, context);
+        JsValue transformedProps = transformed["props"];
+        for (int propertyIndex = 0; propertyIndex < elementLength(transformedProps); propertyIndex++) {
+          JsValue property = transformedProps[propertyIndex];
+          JsValue key = property["key"];
+          JsValue valueNode = property["value"];
+          if (isStaticExp(key)) {
+            string keyName = JS.string(key["content"]);
+            bool handler = eventName(keyName);
+            if (handler && (!isComponent || isDynamicComponent) && keyName.toLowerCase() != "onclick" &&
+              keyName != "onUpdate:modelValue" && !reservedPropName(keyName)) hydration = true;
+            if (handler && reservedPropName(keyName)) vnodeHook = true;
+            if (keyName == "ref") hasRef = true;
+            if (handler && JS.number(valueNode["type"]).toInt() == 14) {
+              valueNode = valueNode["arguments"][0];
+            }
+            bool constant = JS.number(valueNode["type"]).toInt() == 20 ||
+              (JS.number(valueNode["type"]).toInt() == 4 || JS.number(valueNode["type"]).toInt() == 8) &&
+              getConstantType(valueNode, context) > 0;
+            if (!constant) {
+              if (keyName == "class") hasClass = true;
+              else if (keyName == "style") hasStyle = true;
+              else if (keyName != "ref" && keyName != "key" &&
+                JS.number(JS.invoke(dynamicNames, "indexOf", keyName)).toInt() < 0) elementPush(dynamicNames, keyName);
+              if (isComponent && (keyName == "class" || keyName == "style") &&
+                JS.number(JS.invoke(dynamicNames, "indexOf", keyName)).toInt() < 0) elementPush(dynamicNames, keyName);
+            }
+          } else {
+            hasDynamicKeys = true;
+          }
+          if (!(isOnDirective && argument.truthy() && !isStaticExp(argument))) {
+            elementPush(properties, property);
+          }
+        }
+        if (isOnDirective && argument.truthy() && !isStaticExp(argument)) {
+          if (elementLength(properties) > 0) {
+            elementPush(
+              mergeArgs,
+              createObjectExpression(dedupeProperties(properties), node["loc"])
+            );
+            properties = JS.array();
+          }
+          elementPush(
+            mergeArgs,
+            createObjectExpression(transformedProps, node["loc"])
+          );
+        }
+        if (transformed["needRuntime"].truthy()) {
+          elementPush(runtimeDirectives, prop);
+          if (JS.typeOf(transformed["needRuntime"]) == "symbol") {
+            JS.invoke(directiveImportMap, "set", prop, transformed["needRuntime"]);
+          }
+        }
+      } else if (!builtInDirective(name)) {
+        elementPush(runtimeDirectives, prop);
+        if (elementLength(node["children"]) > 0) {
+          shouldUseBlock = true;
+          blockRequired = true;
+        }
+      }
+    }
+  }
+  JsValue propsExpression = elementUndefined();
+  if (elementLength(mergeArgs) > 0) {
+    if (elementLength(properties) > 0) elementPush(mergeArgs, createObjectExpression(dedupeProperties(properties), node["loc"]));
+    if (elementLength(mergeArgs) > 1) propsExpression = createCallExpression(
+      JS.call(context["helper"], elementUndefined(), MERGE_PROPS), mergeArgs, node["loc"]
+    );
+    else propsExpression = mergeArgs[0];
+  } else if (elementLength(properties) > 0) {
+    propsExpression = createObjectExpression(dedupeProperties(properties), node["loc"]);
+  }
+  if (hasDynamicKeys) patchFlag = patchFlag | 16;
+  else {
+    if (hasClass && !isComponent) patchFlag = patchFlag | 2;
+    if (hasStyle && !isComponent) patchFlag = patchFlag | 4;
+    if (elementLength(dynamicNames) > 0) patchFlag = patchFlag | 8;
+    if (hydration) patchFlag = patchFlag | 32;
+  }
+  bool needsPatch = (patchFlag == 0 || patchFlag == 32) &&
+    (hasRef || vnodeHook || elementLength(runtimeDirectives) > 0);
+  if (!shouldUseBlock && needsPatch) patchFlag = patchFlag | 512;
+  if (!context["inSSR"].truthy() && propsExpression.truthy()) {
+    int expressionType = JS.number(propsExpression["type"]).toInt();
+    if (expressionType == 15) {
+      bool dynamicKey = false;
+      JsValue built = propsExpression["properties"];
+      int classIndex = -1;
+      int styleIndex = -1;
+      for (int index = 0; index < elementLength(built); index++) {
+        JsValue key = built[index]["key"];
+        if (isStaticExp(key)) {
+          if (JS.string(key["content"]) == "class") classIndex = index;
+          else if (JS.string(key["content"]) == "style") styleIndex = index;
+        } else if (!key["isHandlerKey"].truthy()) dynamicKey = true;
+      }
+      if (dynamicKey) {
+        propsExpression = createCallExpression(
+          JS.call(context["helper"], elementUndefined(), NORMALIZE_PROPS), JS.array(propsExpression)
+        );
+      } else {
+        if (classIndex >= 0 && !isStaticExp(built[classIndex]["value"])) {
+          built[classIndex]["value"] = createCallExpression(
+            JS.call(context["helper"], elementUndefined(), NORMALIZE_CLASS),
+            JS.array(built[classIndex]["value"])
+          );
+        }
+        if (styleIndex >= 0) {
+          JsValue styleValue = built[styleIndex]["value"];
+          bool arrayLiteral = JS.number(styleValue["type"]).toInt() == 4 &&
+            JS.string(styleValue["content"]).trim().startsWith("[");
+          if (hasStyle || arrayLiteral || JS.number(styleValue["type"]).toInt() == 17) {
+            built[styleIndex]["value"] = createCallExpression(
+              JS.call(context["helper"], elementUndefined(), NORMALIZE_STYLE),
+              JS.array(styleValue)
+            );
+          }
+        }
+      }
+    } else if (expressionType != 14) {
+      propsExpression = createCallExpression(
+        JS.call(context["helper"], elementUndefined(), NORMALIZE_PROPS),
+        JS.array(createCallExpression(
+          JS.call(context["helper"], elementUndefined(), GUARD_REACTIVE_PROPS),
+          JS.array(propsExpression)
+        ))
+      );
+    }
+  }
+  return JS.object(
+    "props", propsExpression,
+    "directives", runtimeDirectives,
+    "patchFlag", patchFlag,
+    "dynamicPropNames", dynamicNames,
+    "shouldUseBlock", shouldUseBlock,
+    "needsPatch", needsPatch,
+    "isBlockRequired", blockRequired
+  );
+}
+
+export JsValue transformElement(JsValue initialNode, JsValue context) {
+  if (JS.number(initialNode["type"]).toInt() != 1) return elementUndefined();
+  return JS.method0((JsValue _self) => {
+    JsValue node = context["currentNode"];
+    if (JS.isNullish(node) || JS.number(node["type"]).toInt() != 1) return elementUndefined();
+    int tagType = JS.number(node["tagType"]).toInt();
+    if (tagType != 0 && tagType != 1) return elementUndefined();
+    bool component = tagType == 1;
+    JsValue vnodeTag = "\"" + JS.string(node["tag"]) + "\"";
+    if (component) vnodeTag = resolveComponentType(node, context);
+    bool dynamicComponent = JS.typeOf(vnodeTag) == "object" &&
+      JS.number(vnodeTag["type"]).toInt() == 14 && elementSame(vnodeTag["callee"], RESOLVE_DYNAMIC_COMPONENT);
+    bool block = dynamicComponent || elementSame(vnodeTag, TELEPORT) || elementSame(vnodeTag, SUSPENSE);
+    string tag = JS.string(node["tag"]);
+    if (!component && (tag == "svg" || tag == "foreignObject" || tag == "math")) block = true;
+    JsValue vnodeProps = elementUndefined();
+    JsValue vnodeChildren = elementUndefined();
+    JsValue vnodeDirectives = elementUndefined();
+    JsValue dynamicProps = elementUndefined();
+    int patchFlag = 0;
+    bool needsPatch = false;
+    bool blockRequired = false;
+    if (elementLength(node["props"]) > 0) {
+      JsValue built = buildProps(node, context, elementUndefined(), component, dynamicComponent, false);
+      vnodeProps = built["props"];
+      patchFlag = JS.number(built["patchFlag"]).toInt();
+      needsPatch = built["needsPatch"].truthy();
+      blockRequired = built["isBlockRequired"].truthy();
+      if (built["shouldUseBlock"].truthy()) block = true;
+      JsValue names = built["dynamicPropNames"];
+      if (elementLength(names) > 0) dynamicProps = stringifyDynamicProps(names);
+      JsValue directives = built["directives"];
+      if (elementLength(directives) > 0) {
+        JsValue args = JS.array();
+        for (int index = 0; index < elementLength(directives); index++) {
+          elementPush(args, buildDirectiveArgs(directives[index], context));
+        }
+        vnodeDirectives = createArrayExpression(args);
+      }
+    }
+    JsValue children = node["children"];
+    if (elementLength(children) > 0) {
+      if (elementSame(vnodeTag, KEEP_ALIVE)) {
+        block = true;
+        patchFlag = patchFlag | 1024;
+        vnodeChildren = children;
+      } else if (component && !elementSame(vnodeTag, TELEPORT)) {
+        JsValue slotsResult = buildSlots(node, context);
+        vnodeChildren = slotsResult["slots"];
+        if (slotsResult["hasDynamicSlots"].truthy()) patchFlag = patchFlag | 1024;
+      } else if (elementLength(children) == 1 && !elementSame(vnodeTag, TELEPORT)) {
+        JsValue child = children[0];
+        int childType = JS.number(child["type"]).toInt();
+        if ((childType == 5 || childType == 8) && getConstantType(child, context) == 0) patchFlag = patchFlag | 1;
+        if (childType == 2 || childType == 5 || childType == 8) vnodeChildren = child;
+        else vnodeChildren = children;
+      } else vnodeChildren = children;
+    }
+    JsValue flag = elementUndefined();
+    if (patchFlag != 0) flag = patchFlag;
+    JsValue call = createVNodeCall(
+      context, vnodeTag, vnodeProps, vnodeChildren, flag, dynamicProps, vnodeDirectives,
+      block, false, component, node["loc"]
+    );
+    node["codegenNode"] = call;
+    if (needsPatch && (patchFlag == 0 || patchFlag == 32)) call["needsPatch"] = true;
+    if (blockRequired) call["isBlockRequired"] = true;
+    return elementUndefined();
+  });
+}

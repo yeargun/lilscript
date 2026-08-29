@@ -83,11 +83,15 @@ test("every comparable landing project publishes recalculated gzip and Brotli ra
   }));
 
   assert.equal((home.match(/class="lib-card"/g) ?? []).length, 16);
-  assert.equal(rates.length, 30);
+  assert.equal(rates.length, 28);
   const zodCard = home.match(/<a\s+[^>]*href="https:\/\/yeargun\.github\.io\/zodlil\/"[^>]*>[\s\S]*?<\/a>/)?.[0];
   assert.ok(zodCard);
   assert.doesNotMatch(zodCard, /data-compression-rate/);
   assert.match(zodCard, /Size claim<\/small><b>Withdrawn/);
+  const solidlilCard = home.match(/<a\s+[^>]*href="https:\/\/yeargun\.github\.io\/solidlil\/"[^>]*>[\s\S]*?<\/a>/)?.[0];
+  assert.ok(solidlilCard);
+  assert.doesNotMatch(solidlilCard, /data-compression-rate/);
+  assert.match(solidlilCard, /comparison withheld/);
 
   for (const rate of rates) {
     const delta = ((rate.candidate - rate.baseline) / rate.baseline) * 100;
@@ -108,10 +112,10 @@ test("every comparable landing project publishes recalculated gzip and Brotli ra
       : (reductions[middle - 1] + reductions[middle]) / 2;
   };
 
-  assert.equal(medianReduction("gzip").toFixed(1), "7.7");
-  assert.equal(medianReduction("Brotli").toFixed(1), "7.5");
-  assert.match(home, /median project result is 7\.7% smaller under\s+gzip-9 and 7\.5% smaller under Brotli-11/);
-  assert.match(home, /Zod stays visible but has no vote/);
+  assert.equal(medianReduction("gzip").toFixed(1), "5.3");
+  assert.equal(medianReduction("Brotli").toFixed(1), "6.6");
+  assert.match(home, /median project result is 5\.3% smaller under\s+gzip-9 and 6\.6% smaller under Brotli-11/);
+  assert.match(home, /Zod and SolidLil stay visible but have no\s+vote/);
 });
 
 test("Lilastro, Lastro, and SolidLil state distinct implementation boundaries", () => {
@@ -121,15 +125,11 @@ test("Lilastro, Lastro, and SolidLil state distinct implementation boundaries", 
   assert.match(lastro, /no separate Lastro compiler package/i);
   assert.match(lastro, /application experiment/i);
   assert.match(solidlil, /https:\/\/yeargun\.github\.io\/solidlil\//);
-  assert.match(solidlil, /11,180/);
-  assert.match(solidlil, /3,862/);
-  assert.match(solidlil, /135\/135\s+public\s+exports/);
-  assert.match(solidlil, /469\/469\s+unchanged\s+upstream\s+tests/);
-  assert.match(solidlil, /Runtime \+ client LSX parity/);
-  assert.match(solidlil, /data-solid-api-parity/);
-  assert.match(solidlil, /data-solid-runtime-results/);
-  assert.match(solidlil, /46-export client Web target/);
-  assert.match(solidlil, /full\s+73-export compatibility bundle/);
+  assert.match(solidlil, /47-module browser runtime/);
+  assert.match(solidlil, /size comparisons remain withheld/i);
+  assert.match(solidlil, /Compatibility coverage is not exact parity/);
+  assert.doesNotMatch(solidlil, /data-solid-api-parity/);
+  assert.doesNotMatch(solidlil, /data-solid-runtime-results/);
   assert.equal(solidParity.complete, true);
   assert.equal(solidParity.totals.expected, 135);
   assert.equal(solidParity.totals.verified, 135);
@@ -151,8 +151,8 @@ test("language and compare pages cover syntax, config, and measured ports", () =
     assert.match(compare, /id="monaco"/);
   assert.match(compare, /887,420/);
   assert.match(compare, /413,607/);
-  assert.match(compare, /11,180/);
-  assert.match(compare, /3,862/);
+  assert.match(compare, /Required modules<\/small><b>47/);
+  assert.match(compare, /Comparison<\/small><b>withheld/);
   assert.match(compare, /30,741/);
   assert.match(compare, /9,515/);
   assert.match(compare, /id="jquery"/);
@@ -170,7 +170,8 @@ test("language and compare pages cover syntax, config, and measured ports", () =
   assert.match(compare, /4,258/);
   assert.match(compare, /3,465/);
   assert.match(home, /887,420/);
-  assert.match(home, /11,180/);
+  assert.match(home, /Upstream modules<\/small><b>47/);
+  assert.match(home, /comparison withheld/);
   assert.match(home, /30,741/);
   assert.match(home, /9,515/);
   assert.match(home, /62,763/);

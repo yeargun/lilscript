@@ -1,0 +1,145 @@
+import {
+  isArray,
+  isDate,
+  isMap,
+  isObject,
+  isSet,
+  isSymbol
+} from "./general";
+import { Array, Object, String, Uint8Array } from "./makeMap";
+
+JsValue undefinedValue() {
+  return JS.undefined();
+}
+
+int valueLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+
+int collectionSize(JsValue value) {
+  return JS.number(value["size"]).toInt();
+}
+
+bool isArrayValue(JsValue value) {
+  return JS.call(isArray, undefinedValue(), value).truthy();
+}
+
+string hostString(JsValue value) {
+  return JS.string(JS.call(String, undefinedValue(), value));
+}
+
+bool looseCompareArrays(JsValue left, JsValue right) {
+  int length = valueLength(left);
+  if (length != valueLength(right)) {
+    return false;
+  }
+  int index = 0;
+  while (index < length) {
+    if (!looseEqual(left[index], right[index])) {
+      return false;
+    }
+    index += 1;
+  }
+  return true;
+}
+
+bool looseCompareCollections(JsValue left, JsValue right) {
+  int size = collectionSize(left);
+  if (size != collectionSize(right)) {
+    return false;
+  }
+  JsValue candidates = JS.invoke(Array, "from", right);
+  JsValue matched = JS.construct(Uint8Array, valueLength(candidates));
+  JsValue items = JS.invoke(Array, "from", left);
+  int itemCount = valueLength(items);
+  for (int outer = 0; outer < itemCount; outer++) {
+    int found = -1;
+    for (int inner = 0; inner < valueLength(candidates); inner++) {
+      if (!matched[inner].truthy() && looseEqual(items[outer], candidates[inner])) {
+        found = inner;
+        break;
+      }
+    }
+    if (found < 0) {
+      return false;
+    }
+    matched[found] = 1;
+  }
+  return true;
+}
+
+export bool looseEqual(JsValue left, JsValue right) {
+  if (JS.strictEqual(left, right)) {
+    return true;
+  }
+
+  bool leftValid = isDate(left);
+  bool rightValid = isDate(right);
+  if (leftValid || rightValid) {
+    if (!leftValid || !rightValid) {
+      return false;
+    }
+    return JS.strictEqual(
+      JS.invoke(left, "getTime"),
+      JS.invoke(right, "getTime")
+    );
+  }
+
+  leftValid = isSymbol(left);
+  rightValid = isSymbol(right);
+  if (leftValid || rightValid) {
+    return JS.strictEqual(left, right);
+  }
+
+  leftValid = isArrayValue(left);
+  rightValid = isArrayValue(right);
+  if (leftValid || rightValid) {
+    return leftValid && rightValid && looseCompareArrays(left, right);
+  }
+
+  leftValid = isObject(left);
+  rightValid = isObject(right);
+  if (leftValid || rightValid) {
+    if (!leftValid || !rightValid) {
+      return false;
+    }
+    leftValid = isMap(left);
+    rightValid = isMap(right);
+    if (leftValid || rightValid) {
+      return leftValid && rightValid && looseCompareCollections(left, right);
+    }
+    leftValid = isSet(left);
+    rightValid = isSet(right);
+    if (leftValid || rightValid) {
+      return leftValid && rightValid && looseCompareCollections(left, right);
+    }
+    if (
+      valueLength(JS.invoke(Object, "keys", left)) !=
+      valueLength(JS.invoke(Object, "keys", right))
+    ) {
+      return false;
+    }
+    for (string key in left) {
+      bool leftOwn = JS.invoke(left, "hasOwnProperty", key).truthy();
+      bool rightOwn = JS.invoke(right, "hasOwnProperty", key).truthy();
+      if (
+        (leftOwn && !rightOwn) ||
+        (!leftOwn && rightOwn) ||
+        !looseEqual(left[key], right[key])
+      ) {
+        return false;
+      }
+    }
+  }
+  return hostString(left) == hostString(right);
+}
+
+export int looseIndexOf(JsValue values, JsValue value) {
+  int length = valueLength(values);
+  for (int index = 0; index < length; index++) {
+    if (looseEqual(values[index], value)) {
+      return index;
+    }
+  }
+  return -1;
+}

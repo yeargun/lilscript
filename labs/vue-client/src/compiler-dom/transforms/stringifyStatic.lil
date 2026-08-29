@@ -1,0 +1,535 @@
+import extern {
+  CREATE_STATIC,
+  ConstantTypes,
+  ElementTypes,
+  Namespaces,
+  NodeTypes,
+  createCallExpression,
+  findDir,
+  isStaticArgOf
+} from "../../../packages/vuelil/compiler-core.js";
+import extern {
+  escapeHtml as sharedEscapeHtml,
+  includeBooleanAttr as sharedIncludeBooleanAttr,
+  isArray as sharedIsArray,
+  isBooleanAttr as sharedIsBooleanAttr,
+  isKnownHtmlAttr as sharedIsKnownHtmlAttr,
+  isKnownMathMLAttr as sharedIsKnownMathMLAttr,
+  isKnownSvgAttr as sharedIsKnownSvgAttr,
+  isString as sharedIsString,
+  isSymbol as sharedIsSymbol,
+  isVoidTag as sharedIsVoidTag,
+  makeMap as sharedMakeMap,
+  normalizeClass as sharedNormalizeClass,
+  normalizeStyle as sharedNormalizeStyle,
+  stringifyStyle as sharedStringifyStyle,
+  toDisplayString as sharedToDisplayString
+} from "../../../packages/vuelil/shared.js";
+
+extern JsValue CREATE_STATIC;
+extern JsValue ConstantTypes;
+extern JsValue ElementTypes;
+extern JsValue Namespaces;
+extern JsValue NodeTypes;
+extern JsValue createCallExpression;
+extern JsValue findDir;
+extern JsValue isStaticArgOf;
+extern JsValue sharedEscapeHtml;
+extern JsValue sharedIncludeBooleanAttr;
+extern JsValue sharedIsArray;
+extern JsValue sharedIsBooleanAttr;
+extern JsValue sharedIsKnownHtmlAttr;
+extern JsValue sharedIsKnownMathMLAttr;
+extern JsValue sharedIsKnownSvgAttr;
+extern JsValue sharedIsString;
+extern JsValue sharedIsSymbol;
+extern JsValue sharedIsVoidTag;
+extern JsValue sharedMakeMap;
+extern JsValue sharedNormalizeClass;
+extern JsValue sharedNormalizeStyle;
+extern JsValue sharedStringifyStyle;
+extern JsValue sharedToDisplayString;
+extern JsValue Function;
+extern JsValue JSON;
+
+JsValue stringifyUndefined() {
+  return JS.undefined();
+}
+
+int stringifyLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+
+void stringifyPush(JsValue values, JsValue value) {
+  values[stringifyLength(values)] = value;
+}
+
+bool stringifyCallPredicate(JsValue predicate, JsValue value) {
+  return JS.call(predicate, stringifyUndefined(), value).truthy();
+}
+
+JsValue stringifyThresholds = JS.object(
+  "ELEMENT_WITH_BINDING_COUNT", 5,
+  "NODE_COUNT", 20,
+  "5", "ELEMENT_WITH_BINDING_COUNT",
+  "20", "NODE_COUNT"
+);
+export JsValue StringifyThresholds = stringifyThresholds;
+
+Regex expReplaceRE = new Regex("__VUE_EXP_START__(.*?)__VUE_EXP_END__", "g");
+Regex dataAriaRE = new Regex("^(?:data|aria)-");
+JsValue isNonStringifiable = JS.call(
+  sharedMakeMap,
+  stringifyUndefined(),
+  "caption,thead,tr,th,tbody,td,tfoot,colgroup,col"
+);
+
+bool isStringifiableAttr(string name, int namespace) {
+  bool known = false;
+  if (namespace == JS.number(Namespaces["HTML"]).toInt()) {
+    known = stringifyCallPredicate(sharedIsKnownHtmlAttr, name);
+  } else if (namespace == JS.number(Namespaces["SVG"]).toInt()) {
+    known = stringifyCallPredicate(sharedIsKnownSvgAttr, name);
+  } else if (namespace == JS.number(Namespaces["MATH_ML"]).toInt()) {
+    known = stringifyCallPredicate(sharedIsKnownMathMLAttr, name);
+  }
+  return known || dataAriaRE.test(name);
+}
+
+JsValue getCachedNode(JsValue node) {
+  int type = JS.number(node["type"]).toInt();
+  bool stringifiableType =
+    (type == JS.number(NodeTypes["ELEMENT"]).toInt() &&
+      JS.strictEqual(node["tagType"], ElementTypes["ELEMENT"])) ||
+    type == JS.number(NodeTypes["TEXT_CALL"]).toInt();
+  if (
+    stringifiableType &&
+    node["codegenNode"].truthy() &&
+    JS.strictEqual(node["codegenNode"]["type"], NodeTypes["JS_CACHE_EXPRESSION"])
+  ) {
+    return node["codegenNode"];
+  }
+  return stringifyUndefined();
+}
+
+JsValue analyzeNode(JsValue node) {
+  int elementType = JS.number(NodeTypes["ELEMENT"]).toInt();
+  int type = JS.number(node["type"]).toInt();
+  if (
+    type == elementType &&
+    stringifyCallPredicate(isNonStringifiable, node["tag"])
+  ) {
+    return false;
+  }
+  if (
+    type == elementType &&
+    JS.call(findDir, stringifyUndefined(), node, "once", true).truthy()
+  ) {
+    return false;
+  }
+  if (type == JS.number(NodeTypes["TEXT_CALL"]).toInt()) {
+    return JS.array(1, 0);
+  }
+
+  int initialElementCount = 0;
+  if (stringifyLength(node["props"]) > 0) initialElementCount = 1;
+  JsValue state = JS.object(
+    "nodeCount", 1,
+    "elementCount", initialElementCount,
+    "bailed", false
+  );
+  JsValue walk = JS.undefined();
+  walk = JS.method1((JsValue _self, JsValue element) => {
+    bool optionTag =
+      JS.string(element["tag"]) == "option" &&
+      JS.strictEqual(element["ns"], Namespaces["HTML"]);
+    JsValue props = element["props"];
+    for (int index = 0; index < stringifyLength(props); index++) {
+      JsValue prop = props[index];
+      int propType = JS.number(prop["type"]).toInt();
+      if (
+        propType == JS.number(NodeTypes["ATTRIBUTE"]).toInt() &&
+        !isStringifiableAttr(
+          JS.string(prop["name"]),
+          JS.number(element["ns"]).toInt()
+        )
+      ) {
+        state["bailed"] = true;
+        return false;
+      }
+      if (
+        propType == JS.number(NodeTypes["DIRECTIVE"]).toInt() &&
+        JS.string(prop["name"]) == "bind"
+      ) {
+        JsValue arg = prop["arg"];
+        if (
+          arg.truthy() &&
+          (JS.strictEqual(arg["type"], NodeTypes["COMPOUND_EXPRESSION"]) ||
+            (arg["isStatic"].truthy() &&
+              !isStringifiableAttr(
+                JS.string(arg["content"]),
+                JS.number(element["ns"]).toInt()
+              )))
+        ) {
+          state["bailed"] = true;
+          return false;
+        }
+        JsValue expression = prop["exp"];
+        if (
+          expression.truthy() &&
+          (JS.strictEqual(expression["type"], NodeTypes["COMPOUND_EXPRESSION"]) ||
+            JS.number(expression["constType"]).toInt() <
+              JS.number(ConstantTypes["CAN_STRINGIFY"]).toInt())
+        ) {
+          state["bailed"] = true;
+          return false;
+        }
+        if (
+          optionTag &&
+          JS.call(
+            isStaticArgOf,
+            stringifyUndefined(),
+            arg,
+            "value"
+          ).truthy() &&
+          expression.truthy() &&
+          !expression["isStatic"].truthy()
+        ) {
+          state["bailed"] = true;
+          return false;
+        }
+      }
+    }
+
+    JsValue children = element["children"];
+    for (int index = 0; index < stringifyLength(children); index++) {
+      state["nodeCount"] = JS.number(state["nodeCount"]).toInt() + 1;
+      JsValue child = children[index];
+      if (JS.strictEqual(child["type"], NodeTypes["ELEMENT"])) {
+        if (stringifyLength(child["props"]) > 0) {
+          state["elementCount"] = JS.number(state["elementCount"]).toInt() + 1;
+        }
+        JS.call(walk, stringifyUndefined(), child);
+        if (state["bailed"].truthy()) return false;
+      }
+    }
+    return true;
+  });
+
+  if (!JS.call(walk, stringifyUndefined(), node).truthy()) return false;
+  return JS.array(state["nodeCount"], state["elementCount"]);
+}
+
+JsValue evaluateConstant(JsValue expression) {
+  if (JS.strictEqual(expression["type"], NodeTypes["SIMPLE_EXPRESSION"])) {
+    JsValue evaluator = JS.construct(
+      Function,
+      "return (" + JS.string(expression["content"]) + ")"
+    );
+    return JS.call(evaluator, stringifyUndefined());
+  }
+
+  string result = "";
+  JsValue children = expression["children"];
+  for (int index = 0; index < stringifyLength(children); index++) {
+    JsValue child = children[index];
+    if (
+      stringifyCallPredicate(sharedIsString, child) ||
+      stringifyCallPredicate(sharedIsSymbol, child)
+    ) {
+      continue;
+    }
+    if (JS.strictEqual(child["type"], NodeTypes["TEXT"])) {
+      result += JS.string(child["content"]);
+    } else if (JS.strictEqual(child["type"], NodeTypes["INTERPOLATION"])) {
+      result += JS.string(JS.call(
+        sharedToDisplayString,
+        stringifyUndefined(),
+        evaluateConstant(child["content"])
+      ));
+    } else {
+      result += JS.string(evaluateConstant(child));
+    }
+  }
+  return result;
+}
+
+string stringifyNode(JsValue node, JsValue context) {
+  if (stringifyCallPredicate(sharedIsString, node)) return JS.string(node);
+  if (stringifyCallPredicate(sharedIsSymbol, node)) return "";
+  int type = JS.number(node["type"]).toInt();
+  if (type == JS.number(NodeTypes["TEXT"]).toInt()) {
+    return JS.string(JS.call(
+      sharedEscapeHtml,
+      stringifyUndefined(),
+      node["content"]
+    ));
+  }
+  if (type == JS.number(NodeTypes["COMMENT"]).toInt()) {
+    return "<!--" + JS.string(JS.call(
+      sharedEscapeHtml,
+      stringifyUndefined(),
+      node["content"]
+    )) + "-->";
+  }
+  if (type == JS.number(NodeTypes["INTERPOLATION"]).toInt()) {
+    return JS.string(JS.call(
+      sharedEscapeHtml,
+      stringifyUndefined(),
+      JS.call(
+        sharedToDisplayString,
+        stringifyUndefined(),
+        evaluateConstant(node["content"])
+      )
+    ));
+  }
+  if (type == JS.number(NodeTypes["COMPOUND_EXPRESSION"]).toInt()) {
+    return JS.string(JS.call(
+      sharedEscapeHtml,
+      stringifyUndefined(),
+      evaluateConstant(node)
+    ));
+  }
+  if (type == JS.number(NodeTypes["TEXT_CALL"]).toInt()) {
+    return stringifyNode(node["content"], context);
+  }
+  if (type != JS.number(NodeTypes["ELEMENT"]).toInt()) return "";
+
+  string result = "<" + JS.string(node["tag"]);
+  JsValue innerHTML = "";
+  JsValue props = node["props"];
+  for (int index = 0; index < stringifyLength(props); index++) {
+    JsValue prop = props[index];
+    if (JS.strictEqual(prop["type"], NodeTypes["ATTRIBUTE"])) {
+      result += " " + JS.string(prop["name"]);
+      if (prop["value"].truthy()) {
+        result += "=\"" + JS.string(JS.call(
+          sharedEscapeHtml,
+          stringifyUndefined(),
+          prop["value"]["content"]
+        )) + "\"";
+      }
+    } else if (JS.strictEqual(prop["type"], NodeTypes["DIRECTIVE"])) {
+      string name = JS.string(prop["name"]);
+      if (name == "bind") {
+        JsValue expression = prop["exp"];
+        if (JS.string(expression["content"])[0] == "_") {
+          result += " " + JS.string(prop["arg"]["content"]) +
+            "=\"__VUE_EXP_START__" + JS.string(expression["content"]) +
+            "__VUE_EXP_END__\"";
+          continue;
+        }
+        string argument = JS.string(prop["arg"]["content"]);
+        if (
+          (stringifyCallPredicate(sharedIsBooleanAttr, argument) || argument == "hidden") &&
+          JS.string(expression["content"]) == "false"
+        ) {
+          continue;
+        }
+        JsValue evaluated = evaluateConstant(expression);
+        if (!JS.isNullish(evaluated)) {
+          if (
+            argument == "hidden" &&
+            JS.typeOf(evaluated) == "number" &&
+            !JS.call(
+              sharedIncludeBooleanAttr,
+              stringifyUndefined(),
+              evaluated
+            ).truthy()
+          ) {
+            continue;
+          }
+          if (argument == "class") {
+            evaluated = JS.call(
+              sharedNormalizeClass,
+              stringifyUndefined(),
+              evaluated
+            );
+          } else if (argument == "style") {
+            evaluated = JS.call(
+              sharedStringifyStyle,
+              stringifyUndefined(),
+              JS.call(
+                sharedNormalizeStyle,
+                stringifyUndefined(),
+                evaluated
+              )
+            );
+          }
+          result += " " + argument + "=\"" + JS.string(JS.call(
+            sharedEscapeHtml,
+            stringifyUndefined(),
+            evaluated
+          )) + "\"";
+        }
+      } else if (name == "html") {
+        innerHTML = evaluateConstant(prop["exp"]);
+      } else if (name == "text") {
+        innerHTML = JS.call(
+          sharedEscapeHtml,
+          stringifyUndefined(),
+          JS.call(
+            sharedToDisplayString,
+            stringifyUndefined(),
+            evaluateConstant(prop["exp"])
+          )
+        );
+      }
+    }
+  }
+  if (context["scopeId"].truthy()) {
+    result += " " + JS.string(context["scopeId"]);
+  }
+  result += ">";
+  if (innerHTML.truthy()) {
+    result += JS.string(innerHTML);
+  } else {
+    JsValue children = node["children"];
+    for (int index = 0; index < stringifyLength(children); index++) {
+      result += stringifyNode(children[index], context);
+    }
+  }
+  if (!stringifyCallPredicate(sharedIsVoidTag, node["tag"])) {
+    result += "</" + JS.string(node["tag"]) + ">";
+  }
+  return result;
+}
+
+int stringifyCurrentChunk(
+  JsValue children,
+  JsValue context,
+  JsValue currentChunk,
+  int currentIndex,
+  int nodeCount,
+  int elementCount,
+  bool isParentCached
+) {
+  if (
+    nodeCount < JS.number(StringifyThresholds["NODE_COUNT"]).toInt() &&
+    elementCount < JS.number(
+      StringifyThresholds["ELEMENT_WITH_BINDING_COUNT"]
+    ).toInt()
+  ) {
+    return 0;
+  }
+
+  string content = "";
+  for (int index = 0; index < stringifyLength(currentChunk); index++) {
+    content += stringifyNode(currentChunk[index], context);
+  }
+  string serialized = JS.string(JS.invoke(JSON, "stringify", content));
+  serialized = JS.string(JS.invoke(
+    serialized,
+    "replace",
+    expReplaceRE,
+    "\" + $1 + \""
+  ));
+  JsValue helper = JS.invoke(context, "helper", CREATE_STATIC);
+  JsValue staticCall = JS.call(
+    createCallExpression,
+    stringifyUndefined(),
+    helper,
+    JS.array(serialized, "" + stringifyLength(currentChunk))
+  );
+  int deleteCount = stringifyLength(currentChunk) - 1;
+  if (isParentCached) {
+    JS.invoke(
+      children,
+      "splice",
+      currentIndex - stringifyLength(currentChunk),
+      stringifyLength(currentChunk),
+      staticCall
+    );
+  } else {
+    currentChunk[0]["codegenNode"]["value"] = staticCall;
+    if (stringifyLength(currentChunk) > 1) {
+      JS.invoke(
+        children,
+        "splice",
+        currentIndex - stringifyLength(currentChunk) + 1,
+        deleteCount
+      );
+      JsValue cached = context["cached"];
+      int cacheIndex = JS.number(JS.invoke(
+        cached,
+        "indexOf",
+        currentChunk[stringifyLength(currentChunk) - 1]["codegenNode"]
+      )).toInt();
+      if (cacheIndex > -1) {
+        for (int index = cacheIndex; index < stringifyLength(cached); index++) {
+          JsValue cache = cached[index];
+          if (cache.truthy()) {
+            cache["index"] = JS.number(cache["index"]).toInt() - deleteCount;
+          }
+        }
+        JS.invoke(
+          cached,
+          "splice",
+          cacheIndex - deleteCount + 1,
+          deleteCount
+        );
+      }
+    }
+  }
+  return deleteCount;
+}
+
+export void stringifyStatic(JsValue children, JsValue context, JsValue parent) {
+  if (JS.number(context["scopes"]["vSlot"]).toInt() > 0) return;
+
+  bool isParentCached =
+    JS.strictEqual(parent["type"], NodeTypes["ELEMENT"]) &&
+    parent["codegenNode"].truthy() &&
+    JS.strictEqual(parent["codegenNode"]["type"], NodeTypes["VNODE_CALL"]) &&
+    parent["codegenNode"]["children"].truthy() &&
+    !JS.call(
+      sharedIsArray,
+      stringifyUndefined(),
+      parent["codegenNode"]["children"]
+    ).truthy() &&
+    JS.strictEqual(
+      parent["codegenNode"]["children"]["type"],
+      NodeTypes["JS_CACHE_EXPRESSION"]
+    );
+
+  int nodeCount = 0;
+  int elementCount = 0;
+  JsValue currentChunk = JS.array();
+  int index = 0;
+  while (index < stringifyLength(children)) {
+    JsValue child = children[index];
+    bool cached = isParentCached || getCachedNode(child).truthy();
+    if (cached) {
+      JsValue result = analyzeNode(child);
+      if (result.truthy()) {
+        nodeCount += JS.number(result[0]).toInt();
+        elementCount += JS.number(result[1]).toInt();
+        stringifyPush(currentChunk, child);
+        index++;
+        continue;
+      }
+    }
+    index -= stringifyCurrentChunk(
+      children,
+      context,
+      currentChunk,
+      index,
+      nodeCount,
+      elementCount,
+      isParentCached
+    );
+    nodeCount = 0;
+    elementCount = 0;
+    currentChunk["length"] = 0;
+    index++;
+  }
+  stringifyCurrentChunk(
+    children,
+    context,
+    currentChunk,
+    index,
+    nodeCount,
+    elementCount,
+    isParentCached
+  );
+}

@@ -1,0 +1,476 @@
+import { Set, createCallExpression, createObjectExpression } from "./ast";
+import { String } from "./errors";
+import {
+  BASE_TRANSITION,
+  GUARD_REACTIVE_PROPS,
+  KEEP_ALIVE,
+  MERGE_PROPS,
+  NORMALIZE_PROPS,
+  Object,
+  SUSPENSE,
+  TELEPORT,
+  TO_HANDLERS,
+  WITH_MEMO
+} from "./runtimeHelpers";
+
+extern JsValue hostParseExpression(string source, JsValue plugins, int mode);
+export extern JsValue Error;
+
+JsValue utilsUndefined() {
+  return JS.undefined();
+}
+
+int utilsLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+
+string utilsString(JsValue value) {
+  return JS.string(JS.call(String, utilsUndefined(), value));
+}
+
+export bool isStaticExp(JsValue node) {
+  return JS.number(node["type"]).toInt() == 4 && node["isStatic"].truthy();
+}
+
+export JsValue isCoreComponent(string tag) {
+  if (tag == "Teleport" || tag == "teleport") return TELEPORT;
+  if (tag == "Suspense" || tag == "suspense") return SUSPENSE;
+  if (tag == "KeepAlive" || tag == "keep-alive") return KEEP_ALIVE;
+  if (tag == "BaseTransition" || tag == "base-transition") return BASE_TRANSITION;
+  return utilsUndefined();
+}
+
+Regex nonIdentifierRE = new Regex("^$|^\\d|[^\\$\\w\\xA0-\\uFFFF]");
+
+export bool isSimpleIdentifier(string name) {
+  return !JS.invoke(nonIdentifierRE, "test", name).truthy();
+}
+
+export Regex validFirstIdentCharRE = new Regex("[A-Za-z_$\\xA0-\\uFFFF]");
+Regex validIdentCharRE = new Regex("[\\.\\?\\w$\\xA0-\\uFFFF]");
+Regex whitespaceRE = new Regex("\\s+[.[]\\s*|\\s*[.[]\\s+", "g");
+
+string getExpSource(JsValue exp) {
+  if (JS.number(exp["type"]).toInt() == 4) return JS.string(exp["content"]);
+  return JS.string(exp["loc"]["source"]);
+}
+
+export bool isMemberExpressionBrowser(JsValue exp) {
+  JsValue trimWhitespace = JS.method1((JsValue _self, JsValue matched) => {
+    return JS.string(matched).trim();
+  });
+  string path = JS.string(JS.invoke(getExpSource(exp).trim(), "replace", whitespaceRE, trimWhitespace));
+  int state = 0;
+  int bracketCount = 0;
+  int parenCount = 0;
+  int[] states = [];
+  int quote = 0;
+  for (int index = 0; index < path.length; index++) {
+    int code = path.charCodeAt(index);
+    if (state == 0) {
+      if (code == 91) {
+        states.push(state);
+        state = 1;
+        bracketCount++;
+      } else if (code == 40) {
+        states.push(state);
+        state = 2;
+        parenCount++;
+      } else {
+        JsValue pattern = validIdentCharRE;
+        if (index == 0) pattern = validFirstIdentCharRE;
+        if (!JS.invoke(pattern, "test", path.charAt(index)).truthy()) return false;
+      }
+    } else if (state == 1) {
+      if (code == 39 || code == 34 || code == 96) {
+        states.push(state);
+        state = 3;
+        quote = code;
+      } else if (code == 91) {
+        bracketCount++;
+      } else if (code == 93) {
+        bracketCount--;
+        if (bracketCount == 0) state = states.pop();
+      }
+    } else if (state == 2) {
+      if (code == 39 || code == 34 || code == 96) {
+        states.push(state);
+        state = 3;
+        quote = code;
+      } else if (code == 40) {
+        parenCount++;
+      } else if (code == 41) {
+        if (index == path.length - 1) return false;
+        parenCount--;
+        if (parenCount == 0) state = states.pop();
+      }
+    } else if (code == quote) {
+      state = states.pop();
+      quote = 0;
+    }
+  }
+  return bracketCount == 0 && parenCount == 0;
+}
+
+JsValue unwrapUtilsTSNode(JsValue node) {
+  while (!JS.isNullish(node)) {
+    string type = JS.string(node["type"]);
+    if (
+      type == "TSAsExpression" ||
+      type == "TSTypeAssertion" ||
+      type == "TSNonNullExpression" ||
+      type == "TSInstantiationExpression" ||
+      type == "TSSatisfiesExpression"
+    ) {
+      node = node["expression"];
+    } else {
+      return node;
+    }
+  }
+  return node;
+}
+
+export bool isMemberExpressionNode(JsValue exp, JsValue context) {
+  try {
+    JsValue parsed = exp["ast"];
+    if (!parsed.truthy()) {
+      parsed = hostParseExpression(getExpSource(exp), context["expressionPlugins"], 0);
+    }
+    parsed = unwrapUtilsTSNode(parsed);
+    string type = JS.string(parsed["type"]);
+    return type == "MemberExpression" ||
+      type == "OptionalMemberExpression" ||
+      (type == "Identifier" && JS.string(parsed["name"]) != "undefined");
+  } catch (JsValue error) {
+    return false;
+  }
+}
+
+export JsValue isMemberExpression = isMemberExpressionNode;
+
+Regex fnExpRE = new Regex(
+  "^\\s*(?:async\\s*)?(?:\\([^)]*?\\)|[\\w$_]+)\\s*(?::[^=]+)?=>|^\\s*(?:async\\s+)?function(?:\\s+[\\w$]+)?\\s*\\("
+);
+
+export bool isFnExpressionBrowser(JsValue exp) {
+  return JS.invoke(fnExpRE, "test", getExpSource(exp)).truthy();
+}
+
+export bool isFnExpressionNode(JsValue exp, JsValue context) {
+  try {
+    JsValue parsed = exp["ast"];
+    if (!parsed.truthy()) {
+      parsed = hostParseExpression(getExpSource(exp), context["expressionPlugins"], 0);
+    }
+    if (JS.string(parsed["type"]) == "Program") {
+      parsed = parsed["body"][0];
+      if (JS.string(parsed["type"]) == "ExpressionStatement") parsed = parsed["expression"];
+    }
+    parsed = unwrapUtilsTSNode(parsed);
+    string type = JS.string(parsed["type"]);
+    return type == "FunctionExpression" || type == "ArrowFunctionExpression";
+  } catch (JsValue error) {
+    return false;
+  }
+}
+
+export JsValue isFnExpression = isFnExpressionNode;
+
+export JsValue advancePositionWithClone(
+  JsValue pos,
+  string source,
+  JsValue numberOfCharacters = JS.undefined()
+) {
+  int count = source.length;
+  if (!JS.isUndefined(numberOfCharacters)) count = JS.number(numberOfCharacters).toInt();
+  JsValue clone = JS.object(
+    "offset", pos["offset"],
+    "line", pos["line"],
+    "column", pos["column"]
+  );
+  return advancePositionWithMutation(clone, source, count);
+}
+
+export JsValue advancePositionWithMutation(
+  JsValue pos,
+  string source,
+  JsValue numberOfCharacters = JS.undefined()
+) {
+  int count = source.length;
+  if (!JS.isUndefined(numberOfCharacters)) count = JS.number(numberOfCharacters).toInt();
+  int lines = 0;
+  int lastNewline = -1;
+  for (int index = 0; index < count; index++) {
+    if (source.charCodeAt(index) == 10) {
+      lines++;
+      lastNewline = index;
+    }
+  }
+  pos["offset"] = JS.number(pos["offset"]).toInt() + count;
+  pos["line"] = JS.number(pos["line"]).toInt() + lines;
+  if (lastNewline == -1) pos["column"] = JS.number(pos["column"]).toInt() + count;
+  else pos["column"] = count - lastNewline;
+  return pos;
+}
+
+export void assert(bool condition, JsValue message = JS.undefined()) {
+  if (!condition) {
+    string text = "unexpected compiler condition";
+    if (message.truthy()) text = JS.string(message);
+    throw JS.construct(Error, text);
+  }
+}
+
+export JsValue findDir(
+  JsValue node,
+  JsValue name,
+  bool allowEmpty = false
+) {
+  JsValue props = node["props"];
+  for (int index = 0; index < utilsLength(props); index++) {
+    JsValue prop = props[index];
+    if (JS.number(prop["type"]).toInt() == 7 && (allowEmpty || prop["exp"].truthy())) {
+      bool matches = false;
+      if (JS.typeOf(name) == "string") matches = JS.strictEqual(prop["name"], name);
+      else matches = JS.invoke(name, "test", prop["name"]).truthy();
+      if (matches) return prop;
+    }
+  }
+  return utilsUndefined();
+}
+
+export JsValue findProp(
+  JsValue node,
+  string name,
+  bool dynamicOnly = false,
+  bool allowEmpty = false
+) {
+  JsValue props = node["props"];
+  for (int index = 0; index < utilsLength(props); index++) {
+    JsValue prop = props[index];
+    int type = JS.number(prop["type"]).toInt();
+    if (type == 6) {
+      if (!dynamicOnly && JS.string(prop["name"]) == name && (prop["value"].truthy() || allowEmpty)) {
+        return prop;
+      }
+    } else if (
+      JS.string(prop["name"]) == "bind" &&
+      (prop["exp"].truthy() || allowEmpty) &&
+      isStaticArgOf(prop["arg"], name)
+    ) {
+      return prop;
+    }
+  }
+  return utilsUndefined();
+}
+
+export bool isStaticArgOf(JsValue arg, string name) {
+  return !JS.isNullish(arg) && isStaticExp(arg) && JS.string(arg["content"]) == name;
+}
+
+export bool hasDynamicKeyVBind(JsValue node) {
+  JsValue props = node["props"];
+  for (int index = 0; index < utilsLength(props); index++) {
+    JsValue prop = props[index];
+    if (JS.number(prop["type"]).toInt() == 7 && JS.string(prop["name"]) == "bind") {
+      JsValue arg = prop["arg"];
+      if (JS.isNullish(arg) || JS.number(arg["type"]).toInt() != 4 || !arg["isStatic"].truthy()) return true;
+    }
+  }
+  return false;
+}
+
+export bool isText(JsValue node) {
+  int type = JS.number(node["type"]).toInt();
+  return type == 5 || type == 2;
+}
+
+export bool isVPre(JsValue prop) {
+  return JS.number(prop["type"]).toInt() == 7 && JS.string(prop["name"]) == "pre";
+}
+
+export bool isVSlot(JsValue prop) {
+  return JS.number(prop["type"]).toInt() == 7 && JS.string(prop["name"]) == "slot";
+}
+
+export bool isTemplateNode(JsValue node) {
+  return JS.number(node["type"]).toInt() == 1 && JS.number(node["tagType"]).toInt() == 3;
+}
+
+export bool isSlotOutlet(JsValue node) {
+  return JS.number(node["type"]).toInt() == 1 && JS.number(node["tagType"]).toInt() == 2;
+}
+
+JsValue propsHelperSet = JS.construct(Set, JS.array(NORMALIZE_PROPS, GUARD_REACTIVE_PROPS));
+
+JsValue getUnnormalizedProps(JsValue props, JsValue calls) {
+  if (!JS.isNullish(props) && JS.typeOf(props) != "string" &&
+    JS.number(props["type"]).toInt() == 14) {
+    JsValue callee = props["callee"];
+    if (JS.typeOf(callee) != "string" && JS.invoke(propsHelperSet, "has", callee).truthy()) {
+      calls[utilsLength(calls)] = props;
+      return getUnnormalizedProps(props["arguments"][0], calls);
+    }
+  }
+  return props;
+}
+
+bool hasProp(JsValue property, JsValue object) {
+  if (JS.number(property["key"]["type"]).toInt() != 4) return false;
+  string name = JS.string(property["key"]["content"]);
+  JsValue properties = object["properties"];
+  for (int index = 0; index < utilsLength(properties); index++) {
+    JsValue candidate = properties[index];
+    if (JS.number(candidate["key"]["type"]).toInt() == 4 &&
+      JS.string(candidate["key"]["content"]) == name) return true;
+  }
+  return false;
+}
+
+bool injectSlotKey(JsValue node, JsValue property) {
+  JsValue key = property["key"];
+  if (JS.number(key["type"]).toInt() != 4 || JS.string(key["content"]) != "key") return false;
+  JsValue args = node["arguments"];
+  JsValue props = args[2];
+  if (!JS.isNullish(props) && JS.typeOf(props) != "string") {
+    JsValue calls = JS.array();
+    JsValue raw = getUnnormalizedProps(props, calls);
+    if (!JS.isNullish(raw) && JS.typeOf(raw) != "string" &&
+      JS.number(raw["type"]).toInt() == 15 && hasProp(property, raw)) return true;
+  }
+  if (!args[2].truthy()) args[2] = "{}";
+  if (!args[3].truthy()) args[3] = "undefined";
+  if (!args[4].truthy()) args[4] = "undefined";
+  args[5] = property["value"];
+  return true;
+}
+
+export void injectProp(JsValue node, JsValue property, JsValue context) {
+  if (JS.number(node["type"]).toInt() != 13 && injectSlotKey(node, property)) return;
+  JsValue props = utilsUndefined();
+  if (JS.number(node["type"]).toInt() == 13) props = node["props"];
+  else props = node["arguments"][2];
+  JsValue calls = JS.array();
+  JsValue parentCall = utilsUndefined();
+  if (!JS.isNullish(props) && JS.typeOf(props) != "string" && JS.number(props["type"]).toInt() == 14) {
+    props = getUnnormalizedProps(props, calls);
+    if (utilsLength(calls) > 0) parentCall = calls[utilsLength(calls) - 1];
+  }
+  JsValue injected = utilsUndefined();
+  if (JS.isNullish(props) || JS.typeOf(props) == "string") {
+    injected = createObjectExpression(JS.array(property));
+  } else if (JS.number(props["type"]).toInt() == 14) {
+    JsValue first = props["arguments"][0];
+    if (JS.typeOf(first) != "string" && JS.number(first["type"]).toInt() == 15) {
+      if (!hasProp(property, first)) JS.invoke(first["properties"], "unshift", property);
+    } else if (JS.strictEqual(props["callee"], TO_HANDLERS)) {
+      injected = createCallExpression(
+        JS.call(context["helper"], utilsUndefined(), MERGE_PROPS),
+        JS.array(createObjectExpression(JS.array(property)), props)
+      );
+    } else {
+      JS.invoke(props["arguments"], "unshift", createObjectExpression(JS.array(property)));
+    }
+    if (JS.isUndefined(injected)) injected = props;
+  } else if (JS.number(props["type"]).toInt() == 15) {
+    if (!hasProp(property, props)) JS.invoke(props["properties"], "unshift", property);
+    injected = props;
+  } else {
+    injected = createCallExpression(
+      JS.call(context["helper"], utilsUndefined(), MERGE_PROPS),
+      JS.array(createObjectExpression(JS.array(property)), props)
+    );
+    if (!JS.isUndefined(parentCall) && JS.strictEqual(parentCall["callee"], GUARD_REACTIVE_PROPS)) {
+      if (utilsLength(calls) > 1) parentCall = calls[utilsLength(calls) - 2];
+      else parentCall = utilsUndefined();
+    }
+  }
+  if (JS.number(node["type"]).toInt() == 13) {
+    if (!JS.isUndefined(parentCall)) parentCall["arguments"][0] = injected;
+    else node["props"] = injected;
+  } else {
+    if (!JS.isUndefined(parentCall)) parentCall["arguments"][0] = injected;
+    else node["arguments"][2] = injected;
+  }
+}
+
+Regex invalidAssetCharacter = new Regex("[^\\w]", "g");
+
+export string toValidAssetId(string name, string type) {
+  JsValue replacement = JS.method2((JsValue _self, JsValue matched, JsValue offset) => {
+    if (JS.string(matched) == "-") return "_";
+    return utilsString(name.charCodeAt(JS.number(offset).toInt()));
+  });
+  return "_" + type + "_" + JS.string(JS.invoke(name, "replace", invalidAssetCharacter, replacement));
+}
+
+export bool hasScopeRef(JsValue node, JsValue ids) {
+  if (!node.truthy() || utilsLength(JS.invoke(Object, "keys", ids)) == 0) return false;
+  int type = JS.number(node["type"]).toInt();
+  if (type == 1) {
+    JsValue props = node["props"];
+    for (int index = 0; index < utilsLength(props); index++) {
+      JsValue prop = props[index];
+      if (JS.number(prop["type"]).toInt() == 7 &&
+        (hasScopeRef(prop["arg"], ids) || hasScopeRef(prop["exp"], ids))) return true;
+    }
+    JsValue children = node["children"];
+    for (int index = 0; index < utilsLength(children); index++) {
+      if (hasScopeRef(children[index], ids)) return true;
+    }
+  } else if (type == 11) {
+    if (hasScopeRef(node["source"], ids)) return true;
+    JsValue children = node["children"];
+    for (int index = 0; index < utilsLength(children); index++) if (hasScopeRef(children[index], ids)) return true;
+  } else if (type == 9) {
+    JsValue branches = node["branches"];
+    for (int index = 0; index < utilsLength(branches); index++) if (hasScopeRef(branches[index], ids)) return true;
+  } else if (type == 10) {
+    if (hasScopeRef(node["condition"], ids)) return true;
+    JsValue children = node["children"];
+    for (int index = 0; index < utilsLength(children); index++) if (hasScopeRef(children[index], ids)) return true;
+  } else if (type == 4) {
+    string content = JS.string(node["content"]);
+    return !node["isStatic"].truthy() && isSimpleIdentifier(content) && ids[content].truthy();
+  } else if (type == 8) {
+    JsValue children = node["children"];
+    for (int index = 0; index < utilsLength(children); index++) {
+      JsValue child = children[index];
+      if (!JS.isNullish(child) && JS.typeOf(child) == "object" && hasScopeRef(child, ids)) return true;
+    }
+  } else if (type == 5 || type == 12) {
+    return hasScopeRef(node["content"], ids);
+  }
+  return false;
+}
+
+export JsValue getMemoedVNodeCall(JsValue node) {
+  if (JS.number(node["type"]).toInt() == 14 && JS.strictEqual(node["callee"], WITH_MEMO)) {
+    return node["arguments"][1]["returns"];
+  }
+  return node;
+}
+
+export Regex forAliasRE = new Regex("([\\s\\S]*?)\\s+(?:in|of)\\s+(\\S[\\s\\S]*)");
+
+bool isWhitespace(int code) {
+  return code == 32 || code == 10 || code == 9 || code == 12 || code == 13;
+}
+
+export bool isAllWhitespace(string source) {
+  for (int index = 0; index < source.length; index++) {
+    if (!isWhitespace(source.charCodeAt(index))) return false;
+  }
+  return true;
+}
+
+export bool isWhitespaceText(JsValue node) {
+  int type = JS.number(node["type"]).toInt();
+  if (type == 2) return isAllWhitespace(JS.string(node["content"]));
+  if (type == 12) return isWhitespaceText(node["content"]);
+  return false;
+}
+
+export bool isCommentOrWhitespace(JsValue node) {
+  return JS.number(node["type"]).toInt() == 3 || isWhitespaceText(node);
+}

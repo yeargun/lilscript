@@ -1,0 +1,19 @@
+JsValue trimPlugin = JS.method0((JsValue _self) => {
+  JsValue once = JS.method1((JsValue _onceSelf, JsValue root) => {
+    JsValue visit = JS.method1((JsValue _visitSelf, JsValue node) => {
+      string type = JS.string(node["type"]);
+      JsValue raws = node["raws"];
+      if (type == "rule" || type == "atrule") {
+        if (raws["before"].truthy()) raws["before"] = "\n";
+        if (JS.in("after", raws) && raws["after"].truthy()) raws["after"] = "\n";
+      }
+      return JS.undefined();
+    });
+    JS.invoke(root, "walk", visit);
+    return JS.undefined();
+  });
+  return JS.object("postcssPlugin", "vue-sfc-trim", "Once", once);
+});
+
+trimPlugin["postcss"] = true;
+export { trimPlugin };

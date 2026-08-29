@@ -1,0 +1,134 @@
+import { COMPILER_DEV } from "../validateExpression";
+import { String, SyntaxError } from "../errors";
+
+extern JsValue arguments;
+
+JsValue compatUndefined() {
+  return JS.undefined();
+}
+
+string compatString(JsValue value) {
+  return JS.string(JS.call(String, compatUndefined(), value));
+}
+
+export JsValue CompilerDeprecationTypes = JS.object(
+  "COMPILER_IS_ON_ELEMENT", "COMPILER_IS_ON_ELEMENT",
+  "COMPILER_V_BIND_SYNC", "COMPILER_V_BIND_SYNC",
+  "COMPILER_V_BIND_OBJECT_ORDER", "COMPILER_V_BIND_OBJECT_ORDER",
+  "COMPILER_V_ON_NATIVE", "COMPILER_V_ON_NATIVE",
+  "COMPILER_V_IF_V_FOR_PRECEDENCE", "COMPILER_V_IF_V_FOR_PRECEDENCE",
+  "COMPILER_NATIVE_TEMPLATE", "COMPILER_NATIVE_TEMPLATE",
+  "COMPILER_INLINE_TEMPLATE", "COMPILER_INLINE_TEMPLATE",
+  "COMPILER_FILTERS", "COMPILER_FILTERS"
+);
+
+JsValue createDeprecationData() {
+  JsValue data = JS.object();
+  data[CompilerDeprecationTypes["COMPILER_IS_ON_ELEMENT"]] = JS.object(
+    "message",
+    "Platform-native elements with \"is\" prop will no longer be " +
+      "treated as components in Vue 3 unless the \"is\" value is explicitly " +
+      "prefixed with \"vue:\".",
+    "link", "https://v3-migration.vuejs.org/breaking-changes/custom-elements-interop.html"
+  );
+  data[CompilerDeprecationTypes["COMPILER_V_BIND_SYNC"]] = JS.object(
+    "message", JS.method1((JsValue _self, JsValue key) =>
+      ".sync modifier for v-bind has been removed. Use v-model with " +
+        "argument instead. `v-bind:" + compatString(key) + ".sync` should be changed to " +
+        "`v-model:" + compatString(key) + "`."
+    ),
+    "link", "https://v3-migration.vuejs.org/breaking-changes/v-model.html"
+  );
+  data[CompilerDeprecationTypes["COMPILER_V_BIND_OBJECT_ORDER"]] = JS.object(
+    "message",
+    "v-bind=\"obj\" usage is now order sensitive and behaves like JavaScript " +
+      "object spread: it will now overwrite an existing non-mergeable attribute " +
+      "that appears before v-bind in the case of conflict. " +
+      "To retain 2.x behavior, move v-bind to make it the first attribute. " +
+      "You can also suppress this warning if the usage is intended.",
+    "link", "https://v3-migration.vuejs.org/breaking-changes/v-bind.html"
+  );
+  data[CompilerDeprecationTypes["COMPILER_V_ON_NATIVE"]] = JS.object(
+    "message", ".native modifier for v-on has been removed as is no longer necessary.",
+    "link", "https://v3-migration.vuejs.org/breaking-changes/v-on-native-modifier-removed.html"
+  );
+  data[CompilerDeprecationTypes["COMPILER_V_IF_V_FOR_PRECEDENCE"]] = JS.object(
+    "message",
+    "v-if / v-for precedence when used on the same element has changed " +
+      "in Vue 3: v-if now takes higher precedence and will no longer have " +
+      "access to v-for scope variables. It is best to avoid the ambiguity " +
+      "with <template> tags or use a computed property that filters v-for " +
+      "data source.",
+    "link", "https://v3-migration.vuejs.org/breaking-changes/v-if-v-for.html"
+  );
+  data[CompilerDeprecationTypes["COMPILER_NATIVE_TEMPLATE"]] = JS.object(
+    "message",
+    "<template> with no special directives will render as a native template " +
+      "element instead of its inner content in Vue 3."
+  );
+  data[CompilerDeprecationTypes["COMPILER_INLINE_TEMPLATE"]] = JS.object(
+    "message", "\"inline-template\" has been removed in Vue 3.",
+    "link", "https://v3-migration.vuejs.org/breaking-changes/inline-template-attribute.html"
+  );
+  data[CompilerDeprecationTypes["COMPILER_FILTERS"]] = JS.object(
+    "message",
+    "filters have been removed in Vue 3. " +
+      "The \"|\" symbol will be treated as native JavaScript bitwise OR operator. " +
+      "Use method calls or computed properties instead.",
+    "link", "https://v3-migration.vuejs.org/breaking-changes/filters.html"
+  );
+  return data;
+}
+
+JsValue deprecationData = createDeprecationData();
+
+JsValue getCompatValue(string key, JsValue context) {
+  JsValue config = context["compatConfig"];
+  JsValue value = compatUndefined();
+  if (config.truthy()) value = config[key];
+  if (key == "MODE") {
+    if (value.truthy()) return value;
+    return 3;
+  }
+  return value;
+}
+
+export bool isCompatEnabled(string key, JsValue context) {
+  JsValue mode = getCompatValue("MODE", context);
+  JsValue value = getCompatValue(key, context);
+  if (JS.strictEqual(mode, 3)) return JS.strictEqual(value, true);
+  return !JS.strictEqual(value, false);
+}
+
+export bool checkCompatEnabled(string key, JsValue context, JsValue loc) {
+  bool enabled = isCompatEnabled(key, context);
+  if (COMPILER_DEV && enabled) {
+    JS.apply(warnDeprecation, compatUndefined(), arguments);
+  }
+  return enabled;
+}
+
+export void warnDeprecation(string key, JsValue context, JsValue loc) {
+  JsValue value = getCompatValue(key, context);
+  if (JS.strictEqual(value, "suppress-warning")) return;
+
+  JsValue data = deprecationData[key];
+  JsValue message = data["message"];
+  if (JS.typeOf(message) == "function") {
+    JsValue args = JS.array();
+    int count = JS.number(arguments["length"]).toInt();
+    for (int index = 3; index < count; index++) {
+      args[index - 3] = arguments[index];
+    }
+    message = JS.apply(message, compatUndefined(), args);
+  }
+  string details = "";
+  if (data["link"].truthy()) details = "\n  Details: " + compatString(data["link"]);
+  JsValue error = JS.construct(
+    SyntaxError,
+    "(deprecation " + key + ") " + compatString(message) + details
+  );
+  error["code"] = key;
+  if (loc.truthy()) error["loc"] = loc;
+  JS.invoke(context, "onWarn", error);
+}

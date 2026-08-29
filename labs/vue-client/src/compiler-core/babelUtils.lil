@@ -1,0 +1,369 @@
+import { Set } from "./ast";
+import { Object } from "./runtimeHelpers";
+
+JsValue babelUndefined() {
+  return JS.undefined();
+}
+
+int babelLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+
+void babelPush(JsValue values, JsValue value) {
+  values[babelLength(values)] = value;
+}
+
+bool babelSame(JsValue left, JsValue right) {
+  return JS.strictEqual(left, right);
+}
+
+JsValue unwrapTypeScript(JsValue node) {
+  while (!JS.isNullish(node)) {
+    string type = JS.string(node["type"]);
+    if (
+      type == "TSAsExpression" ||
+      type == "TSTypeAssertion" ||
+      type == "TSNonNullExpression" ||
+      type == "TSInstantiationExpression" ||
+      type == "TSSatisfiesExpression"
+    ) {
+      node = node["expression"];
+    } else {
+      return node;
+    }
+  }
+  return node;
+}
+
+export JsValue TS_NODE_TYPES = JS.array(
+  "TSAsExpression",
+  "TSTypeAssertion",
+  "TSNonNullExpression",
+  "TSInstantiationExpression",
+  "TSSatisfiesExpression"
+);
+
+export JsValue unwrapTSNode(JsValue node) {
+  return unwrapTypeScript(node);
+}
+
+export JsValue extractIdentifiers(JsValue param, JsValue nodes = JS.undefined()) {
+  JsValue result = nodes;
+  if (JS.isUndefined(result)) result = JS.array();
+  string type = JS.string(param["type"]);
+  if (type == "Identifier") {
+    babelPush(result, param);
+  } else if (type == "MemberExpression") {
+    JsValue object = param;
+    while (JS.string(object["type"]) == "MemberExpression") object = object["object"];
+    babelPush(result, object);
+  } else if (type == "ObjectPattern") {
+    JsValue properties = param["properties"];
+    for (int index = 0; index < babelLength(properties); index++) {
+      JsValue property = properties[index];
+      JsValue child = property["value"];
+      if (JS.string(property["type"]) == "RestElement") child = property["argument"];
+      extractIdentifiers(child, result);
+    }
+  } else if (type == "ArrayPattern") {
+    JsValue elements = param["elements"];
+    for (int index = 0; index < babelLength(elements); index++) {
+      if (!JS.isNullish(elements[index])) extractIdentifiers(elements[index], result);
+    }
+  } else if (type == "RestElement") {
+    extractIdentifiers(param["argument"], result);
+  } else if (type == "AssignmentPattern") {
+    extractIdentifiers(param["left"], result);
+  }
+  return result;
+}
+
+export bool isInDestructureAssignment(JsValue parent, JsValue parentStack) {
+  string type = JS.string(parent["type"]);
+  if (type != "ObjectProperty" && type != "ArrayPattern") return false;
+  for (int index = babelLength(parentStack) - 1; index >= 0; index--) {
+    string parentType = JS.string(parentStack[index]["type"]);
+    if (parentType == "AssignmentExpression") return true;
+    if (parentType != "ObjectProperty" && !parentType.endsWith("Pattern")) return false;
+  }
+  return false;
+}
+
+export bool isInNewExpression(JsValue parentStack) {
+  for (int index = babelLength(parentStack) - 1; index >= 0; index--) {
+    string type = JS.string(parentStack[index]["type"]);
+    if (type == "NewExpression") return true;
+    if (type != "MemberExpression") return false;
+  }
+  return false;
+}
+
+export bool isReferencedIdentifier(JsValue id, JsValue parent, JsValue parentStack) {
+  if (JS.isNullish(parent)) return true;
+  if (JS.string(id["name"]) == "arguments") return false;
+  string type = JS.string(parent["type"]);
+  JsValue grandparent = babelUndefined();
+  if (babelLength(parentStack) > 1) grandparent = parentStack[babelLength(parentStack) - 2];
+  bool referenced = true;
+  if (type == "MemberExpression" || type == "OptionalMemberExpression") {
+    if (babelSame(parent["property"], id)) referenced = parent["computed"].truthy();
+    else referenced = babelSame(parent["object"], id);
+  } else if (type == "JSXMemberExpression") {
+    referenced = babelSame(parent["object"], id);
+  } else if (type == "VariableDeclarator") {
+    referenced = babelSame(parent["init"], id);
+  } else if (type == "ArrowFunctionExpression") {
+    referenced = babelSame(parent["body"], id);
+  } else if (
+    type == "PrivateName" || type == "LabeledStatement" || type == "CatchClause" ||
+    type == "RestElement" || type == "BreakStatement" || type == "ContinueStatement" ||
+    type == "FunctionDeclaration" || type == "FunctionExpression" ||
+    type == "ExportNamespaceSpecifier" || type == "ExportDefaultSpecifier" ||
+    type == "ImportDefaultSpecifier" || type == "ImportNamespaceSpecifier" ||
+    type == "ImportSpecifier" || type == "ImportAttribute" || type == "JSXAttribute" ||
+    type == "ObjectPattern" || type == "ArrayPattern" || type == "MetaProperty"
+  ) {
+    referenced = false;
+  } else if (
+    type == "ClassMethod" || type == "ClassPrivateMethod" || type == "ObjectMethod"
+  ) {
+    referenced = babelSame(parent["key"], id) && parent["computed"].truthy();
+  } else if (type == "ObjectProperty") {
+    if (babelSame(parent["key"], id)) referenced = parent["computed"].truthy();
+    else referenced = JS.isNullish(grandparent) || JS.string(grandparent["type"]) != "ObjectPattern";
+  } else if (type == "ClassProperty") {
+    referenced = !babelSame(parent["key"], id) || parent["computed"].truthy();
+  } else if (type == "ClassPrivateProperty") {
+    referenced = !babelSame(parent["key"], id);
+  } else if (type == "ClassDeclaration" || type == "ClassExpression") {
+    referenced = babelSame(parent["superClass"], id);
+  } else if (type == "AssignmentExpression" || type == "AssignmentPattern") {
+    referenced = babelSame(parent["right"], id);
+  } else if (type == "ExportSpecifier") {
+    referenced = (JS.isNullish(grandparent) || !grandparent["source"].truthy()) && babelSame(parent["local"], id);
+  } else if (type == "ObjectTypeProperty") {
+    referenced = !babelSame(parent["key"], id);
+  } else if (type == "TSEnumMember") {
+    referenced = !babelSame(parent["id"], id);
+  } else if (type == "TSPropertySignature") {
+    referenced = !babelSame(parent["key"], id) || parent["computed"].truthy();
+  }
+  if (referenced) return true;
+  if (type == "AssignmentExpression" || type == "AssignmentPattern") return true;
+  if (type == "ObjectProperty") return !babelSame(parent["key"], id) && isInDestructureAssignment(parent, parentStack);
+  if (type == "ArrayPattern") return isInDestructureAssignment(parent, parentStack);
+  return false;
+}
+
+export bool isFunctionType(JsValue node) {
+  string type = JS.string(node["type"]);
+  return type.endsWith("Method") || type.endsWith("FunctionExpression") || type.endsWith("FunctionDeclaration");
+}
+
+export bool isStaticProperty(JsValue node) {
+  if (JS.isNullish(node)) return false;
+  string type = JS.string(node["type"]);
+  return (type == "ObjectProperty" || type == "ObjectMethod") && !node["computed"].truthy();
+}
+
+export bool isStaticPropertyKey(JsValue node, JsValue parent) {
+  return isStaticProperty(parent) && babelSame(parent["key"], node);
+}
+
+void callIdentifierCallback(JsValue callback, JsValue identifier) {
+  JS.call(callback, babelUndefined(), identifier);
+}
+
+export void walkFunctionParams(JsValue node, JsValue callback) {
+  JsValue params = node["params"];
+  for (int index = 0; index < babelLength(params); index++) {
+    JsValue identifiers = extractIdentifiers(params[index]);
+    for (int inner = 0; inner < babelLength(identifiers); inner++) {
+      callIdentifierCallback(callback, identifiers[inner]);
+    }
+  }
+}
+
+bool isForStatementNode(JsValue node) {
+  string type = JS.string(node["type"]);
+  return type == "ForStatement" || type == "ForOfStatement" || type == "ForInStatement";
+}
+
+void walkForDeclarations(JsValue statement, bool isVar, JsValue callback) {
+  JsValue variable = statement["left"];
+  if (JS.string(statement["type"]) == "ForStatement") variable = statement["init"];
+  if (JS.isNullish(variable) || JS.string(variable["type"]) != "VariableDeclaration") return;
+  bool variableIsVar = JS.string(variable["kind"]) == "var";
+  if (variableIsVar != isVar) return;
+  JsValue declarations = variable["declarations"];
+  for (int index = 0; index < babelLength(declarations); index++) {
+    JsValue identifiers = extractIdentifiers(declarations[index]["id"]);
+    for (int inner = 0; inner < babelLength(identifiers); inner++) callIdentifierCallback(callback, identifiers[inner]);
+  }
+}
+
+void walkSwitchDeclarations(JsValue statement, bool isVar, JsValue callback) {
+  JsValue cases = statement["cases"];
+  for (int index = 0; index < babelLength(cases); index++) {
+    JsValue consequent = cases[index]["consequent"];
+    for (int inner = 0; inner < babelLength(consequent); inner++) {
+      JsValue child = consequent[inner];
+      if (JS.string(child["type"]) == "VariableDeclaration" &&
+        (JS.string(child["kind"]) == "var") == isVar) {
+        JsValue declarations = child["declarations"];
+        for (int declaration = 0; declaration < babelLength(declarations); declaration++) {
+          JsValue identifiers = extractIdentifiers(declarations[declaration]["id"]);
+          for (int item = 0; item < babelLength(identifiers); item++) callIdentifierCallback(callback, identifiers[item]);
+        }
+      }
+    }
+    walkBlockDeclarations(cases[index], callback);
+  }
+}
+
+export void walkBlockDeclarations(JsValue block, JsValue callback) {
+  JsValue body = block["body"];
+  if (JS.string(block["type"]) == "SwitchCase") body = block["consequent"];
+  for (int index = 0; index < babelLength(body); index++) {
+    JsValue statement = body[index];
+    string type = JS.string(statement["type"]);
+    if (type == "VariableDeclaration") {
+      if (statement["declare"].truthy()) continue;
+      JsValue declarations = statement["declarations"];
+      for (int declaration = 0; declaration < babelLength(declarations); declaration++) {
+        JsValue identifiers = extractIdentifiers(declarations[declaration]["id"]);
+        for (int item = 0; item < babelLength(identifiers); item++) callIdentifierCallback(callback, identifiers[item]);
+      }
+    } else if (type == "FunctionDeclaration" || type == "ClassDeclaration") {
+      if (!statement["declare"].truthy() && !JS.isNullish(statement["id"])) callIdentifierCallback(callback, statement["id"]);
+    } else if (isForStatementNode(statement)) {
+      walkForDeclarations(statement, true, callback);
+    } else if (type == "SwitchStatement") {
+      walkSwitchDeclarations(statement, true, callback);
+    }
+  }
+}
+
+void markKnownIdentifier(string name, JsValue known) {
+  if (JS.in(name, known)) known[name] = JS.number(known[name]).toInt() + 1;
+  else known[name] = 1;
+}
+
+void markScopedIdentifier(JsValue owner, JsValue identifier, JsValue known) {
+  string name = JS.string(identifier["name"]);
+  JsValue scope = owner["scopeIds"];
+  if (!JS.isNullish(scope) && JS.invoke(scope, "has", name).truthy()) return;
+  markKnownIdentifier(name, known);
+  if (JS.isNullish(scope)) {
+    scope = JS.construct(Set);
+    owner["scopeIds"] = scope;
+  }
+  JS.invoke(scope, "add", name);
+}
+
+bool isSkippedTypeScriptParent(JsValue parent) {
+  string type = JS.string(parent["type"]);
+  if (!type.startsWith("TS")) return false;
+  for (int index = 0; index < babelLength(TS_NODE_TYPES); index++) {
+    if (type == JS.string(TS_NODE_TYPES[index])) return false;
+  }
+  return true;
+}
+
+void walkIdentifierNode(
+  JsValue node,
+  JsValue parent,
+  JsValue parentStack,
+  JsValue callback,
+  bool includeAll,
+  JsValue known,
+  JsValue rootExpression
+) {
+  if (JS.isNullish(node) || JS.typeOf(node) != "object" || JS.typeOf(node["type"]) != "string") return;
+  if (!JS.isNullish(parent)) babelPush(parentStack, parent);
+  bool skipChildren = !JS.isNullish(parent) && isSkippedTypeScriptParent(parent);
+  string type = JS.string(node["type"]);
+  if (!skipChildren) {
+    if (type == "Identifier") {
+      string name = JS.string(node["name"]);
+      bool local = known[name].truthy();
+      bool referenced = isReferencedIdentifier(node, parent, parentStack);
+      if (includeAll || referenced && !local) {
+        JS.call(callback, babelUndefined(), node, parent, parentStack, referenced, local);
+      }
+    } else if (type == "ObjectProperty" && !JS.isNullish(parent) && JS.string(parent["type"]) == "ObjectPattern") {
+      node["inPattern"] = true;
+    } else if (isFunctionType(node)) {
+      JsValue marker = JS.method1((JsValue _self, JsValue identifier) => {
+        markScopedIdentifier(node, identifier, known);
+        return babelUndefined();
+      });
+      walkFunctionParams(node, marker);
+    } else if (type == "BlockStatement") {
+      JsValue marker = JS.method1((JsValue _self, JsValue identifier) => {
+        markScopedIdentifier(node, identifier, known);
+        return babelUndefined();
+      });
+      walkBlockDeclarations(node, marker);
+    } else if (type == "SwitchStatement") {
+      JsValue marker = JS.method1((JsValue _self, JsValue identifier) => {
+        markScopedIdentifier(node, identifier, known);
+        return babelUndefined();
+      });
+      walkSwitchDeclarations(node, false, marker);
+    } else if (type == "CatchClause" && !JS.isNullish(node["param"])) {
+      JsValue identifiers = extractIdentifiers(node["param"]);
+      for (int index = 0; index < babelLength(identifiers); index++) markScopedIdentifier(node, identifiers[index], known);
+    } else if (isForStatementNode(node)) {
+      JsValue marker = JS.method1((JsValue _self, JsValue identifier) => {
+        markScopedIdentifier(node, identifier, known);
+        return babelUndefined();
+      });
+      walkForDeclarations(node, false, marker);
+    }
+
+    JsValue keys = JS.invoke(Object, "keys", node);
+    for (int index = 0; index < babelLength(keys); index++) {
+      string key = JS.string(keys[index]);
+      if (key == "loc" || key == "start" || key == "end" || key == "scopeIds" || key == "inPattern") continue;
+      JsValue value = node[key];
+      if (JS.isArray(value)) {
+        for (int child = 0; child < babelLength(value); child++) {
+          walkIdentifierNode(value[child], node, parentStack, callback, includeAll, known, rootExpression);
+        }
+      } else {
+        walkIdentifierNode(value, node, parentStack, callback, includeAll, known, rootExpression);
+      }
+    }
+  }
+  if (!babelSame(node, rootExpression) && !JS.isNullish(node["scopeIds"])) {
+    JsValue removeKnown = JS.method1((JsValue _self, JsValue value) => {
+      string name = JS.string(value);
+      int count = JS.number(known[name]).toInt() - 1;
+      if (count == 0) JS.delete(known, name);
+      else known[name] = count;
+      return babelUndefined();
+    });
+    JS.invoke(node["scopeIds"], "forEach", removeKnown);
+  }
+  if (!JS.isNullish(parent)) JS.invoke(parentStack, "pop");
+}
+
+export void walkIdentifiers(
+  JsValue root,
+  JsValue callback,
+  bool includeAll = false,
+  JsValue parentStack = JS.undefined(),
+  JsValue knownIds = JS.undefined()
+) {
+  JsValue stack = parentStack;
+  if (JS.isUndefined(stack)) stack = JS.array();
+  JsValue known = knownIds;
+  if (JS.isUndefined(known)) known = JS.invoke(Object, "create", null);
+  JsValue rootExpression = root;
+  if (JS.string(root["type"]) == "Program" && babelLength(root["body"]) > 0 &&
+    JS.string(root["body"][0]["type"]) == "ExpressionStatement") {
+    rootExpression = root["body"][0]["expression"];
+  }
+  walkIdentifierNode(root, null, stack, callback, includeAll, known, rootExpression);
+}

@@ -19,11 +19,10 @@
 //!
 //! 1. The old name is declared exactly once in the scope, so the uses to
 //!    rewrite are precisely the tokens resolving to that declaration.
-//! 2. The new name appears nowhere inside the scope's extent. A name absent
-//!    from the whole extent cannot capture an inner reference, and no nested
-//!    scope can shadow it out from under a use we are about to rewrite.
-//! 3. No enclosing scope has already claimed the new name for a binding that
-//!    reaches into this one.
+//! 2. Every scope in the artifact was resolved. Whole-artifact rewriting cannot
+//!    leave an occurrence unchanged inside an unsupported nested scope.
+//! 3. The replacement cannot capture a free/outer use or be captured by a fixed
+//!    descendant function/class name.
 
 use crate::js_peephole::binding::{BindingResolution, Resolution};
 use crate::js_peephole::rewrite::{apply_token_rewrites, is_property_identifier};
@@ -33,6 +32,9 @@ use std::collections::{HashMap, HashSet};
 
 pub(crate) fn converge_local_names(source: &str) -> Result<(String, usize), JavaScriptParseError> {
     let tokens = lex(source)?;
+    if tokens.iter().any(|token| token.kind == TokenKind::Template) {
+        return Ok((source.to_string(), 0));
+    }
     // Converging on a spelling the artifact does not already use trades one
     // kind of repetition for another and loses. Measured on jQuery: renaming to
     // `a,b,c` while the file's own identifiers are `e,t,n,r` converges headers
@@ -41,6 +43,9 @@ pub(crate) fn converge_local_names(source: &str) -> Result<(String, usize), Java
     // identifier bytes on.
     let alphabet = dominant_identifier_alphabet(&tokens);
     let resolution = BindingResolution::new(&tokens);
+    if !resolution.is_total() {
+        return Ok((source.to_string(), 0));
+    }
 
     let mut uses = HashMap::<usize, Vec<usize>>::new();
     for index in 0..tokens.len() {
@@ -84,6 +89,12 @@ pub(crate) fn converge_local_names(source: &str) -> Result<(String, usize), Java
             if tokens[index].kind != TokenKind::Identifier || is_property_identifier(&tokens, index)
             {
                 continue;
+            }
+            // Named function/class expressions keep their spelling because
+            // `.name` is observable. An outer binding renamed to that spelling
+            // would be captured at uses inside the descendant scope.
+            if names_a_function_or_class(&tokens, index) {
+                blocked.insert(tokens[index].text.to_string());
             }
             match resolution.resolve(index) {
                 // A global or an unresolved spelling read here would be captured
@@ -134,10 +145,9 @@ pub(crate) fn converge_local_names(source: &str) -> Result<(String, usize), Java
         for (_, _, declaration) in renameable {
             let name = tokens[declaration].text;
             let replacement = loop {
-                let candidate = canonical.next_name();
-                if candidate.len() > 2 {
+                let Some(candidate) = canonical.next_name() else {
                     break None;
-                }
+                };
                 if is_reserved_word(&candidate) || blocked.contains(&candidate) {
                     continue;
                 }
@@ -208,20 +218,23 @@ impl<'a> CanonicalNames<'a> {
         Self { next: 0, alphabet }
     }
 
-    fn next_name(&mut self) -> String {
+    fn next_name(&mut self) -> Option<String> {
         let index = self.next;
         self.next += 1;
         let width = self.alphabet.len();
         if index < width {
-            return String::from(self.alphabet[index] as char);
+            return Some(String::from(self.alphabet[index] as char));
         }
         let index = index - width;
+        if index >= width.saturating_mul(width) {
+            return None;
+        }
         let first = self.alphabet[index / width] as char;
         let second = self.alphabet[index % width] as char;
         let mut name = String::with_capacity(2);
         name.push(first);
         name.push(second);
-        name
+        Some(name)
     }
 }
 
@@ -254,7 +267,7 @@ pub(crate) fn identifier_is_renameable(tokens: &[Token<'_>], at: usize) -> bool 
 
 #[cfg(test)]
 mod tests {
-    use super::converge_local_names;
+    use super::{converge_local_names, CanonicalNames, ALPHABET};
 
     /// Run the renamed program and the original under Node and require the same
     /// observable result. Convergence is worthless if it changes behavior.
@@ -444,6 +457,48 @@ mod tests {
         let (out, count) = converge_local_names(source).unwrap();
         assert_eq!(count, 0, "unresolved scopes must not be rewritten: {out}");
         assert_eq!(out, source);
+    }
+
+    #[test]
+    fn an_unresolved_descendant_disables_whole_artifact_convergence() {
+        let source = "function good(longName){return longName+1}function blocked({x}){return x}";
+        let (out, count) = converge_local_names(source).unwrap();
+        assert_eq!(
+            count, 0,
+            "an unresolved scope must close the whole rewrite: {out}"
+        );
+        assert_eq!(out, source);
+    }
+
+    #[test]
+    fn a_template_expression_disables_convergence_until_it_has_binding_identity() {
+        let source = "function f(longName){return`${longName+1}`}";
+        let (out, count) = converge_local_names(source).unwrap();
+        assert_eq!(
+            count, 0,
+            "template bindings must not be partially renamed: {out}"
+        );
+        assert_eq!(out, source);
+    }
+
+    #[test]
+    fn a_fixed_descendant_name_cannot_capture_a_renamed_outer_binding() {
+        let source = "function outer(eeee){return function e(){return+eeee}}";
+        same_behavior(source, "console.log(outer(7)())");
+        let (out, _) = converge_local_names(source).unwrap();
+        assert!(
+            !out.contains("outer(e)"),
+            "fixed descendant captured outer: {out}"
+        );
+    }
+
+    #[test]
+    fn canonical_names_report_exhaustion_after_two_characters() {
+        let mut names = CanonicalNames::new(ALPHABET);
+        for _ in 0..ALPHABET.len() + ALPHABET.len() * ALPHABET.len() {
+            assert!(names.next_name().is_some());
+        }
+        assert_eq!(names.next_name(), None);
     }
 
     #[test]

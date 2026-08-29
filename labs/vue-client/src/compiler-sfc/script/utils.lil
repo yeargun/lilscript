@@ -1,0 +1,165 @@
+import extern { default as path } from "node:path";
+
+extern JsValue JSON;
+extern JsValue String;
+extern JsValue path;
+
+export string UNKNOWN_TYPE = "Unknown";
+
+int scriptUtilsLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+
+void scriptUtilsPush(JsValue values, JsValue value) {
+  values[scriptUtilsLength(values)] = value;
+}
+
+export JsValue resolveObjectKey(JsValue node, bool computed) {
+  string type = JS.string(node["type"]);
+  if (type == "StringLiteral" || type == "NumericLiteral") {
+    return JS.call(String, JS.undefined(), node["value"]);
+  }
+  if (type == "Identifier" && !computed) return node["name"];
+  return JS.undefined();
+}
+
+export string concatStrings(JsValue strs) {
+  JsValue filtered = JS.array();
+  for (int index = 0; index < scriptUtilsLength(strs); index++) {
+    if (strs[index].truthy()) scriptUtilsPush(filtered, strs[index]);
+  }
+  return JS.string(JS.invoke(filtered, "join", ", "));
+}
+
+export bool isLiteralNode(JsValue node) {
+  return JS.string(node["type"]).endsWith("Literal");
+}
+
+export bool isCallOf(JsValue node, JsValue test) {
+  if (JS.isNullish(node) || JS.isNullish(test) ||
+    JS.string(node["type"]) != "CallExpression" ||
+    JS.string(node["callee"]["type"]) != "Identifier") return false;
+  string name = JS.string(node["callee"]["name"]);
+  if (JS.typeOf(test) == "string") return name == JS.string(test);
+  return JS.call(test, JS.undefined(), name).truthy();
+}
+
+export string toRuntimeTypeString(JsValue types) {
+  string joined = JS.string(JS.invoke(types, "join", ", "));
+  if (scriptUtilsLength(types) > 1) return "[" + joined + "]";
+  return JS.string(types[0]);
+}
+
+export string getImportedName(JsValue specifier) {
+  string type = JS.string(specifier["type"]);
+  if (type == "ImportSpecifier") {
+    if (JS.string(specifier["imported"]["type"]) == "Identifier") {
+      return JS.string(specifier["imported"]["name"]);
+    }
+    return JS.string(specifier["imported"]["value"]);
+  }
+  if (type == "ImportNamespaceSpecifier") return "*";
+  return "default";
+}
+
+export JsValue getId(JsValue node) {
+  string type = JS.string(node["type"]);
+  if (type == "Identifier") return node["name"];
+  if (type == "StringLiteral") return node["value"];
+  return null;
+}
+
+export JsValue getStringLiteralKey(JsValue node) {
+  JsValue key = node["key"];
+  if (node["computed"].truthy()) {
+    if (JS.string(key["type"]) != "TemplateLiteral" ||
+      scriptUtilsLength(key["expressions"]) != 0) return null;
+    string result = "";
+    JsValue quasis = key["quasis"];
+    for (int index = 0; index < scriptUtilsLength(quasis); index++) {
+      result += JS.string(quasis[index]["value"]["cooked"]);
+    }
+    return result;
+  }
+  string type = JS.string(key["type"]);
+  if (type == "Identifier") return key["name"];
+  if (type == "StringLiteral") return key["value"];
+  if (type == "NumericLiteral") {
+    return JS.call(String, JS.undefined(), key["value"]);
+  }
+  return null;
+}
+
+string identity(string value) {
+  return value;
+}
+
+Regex fileNameLowerCaseRegExp = new Regex(
+  "[^\\u0130\\u0131\\u00DFa-z0-9\\\\/:\\-_\\. ]+",
+  "g"
+);
+
+JsValue toLowerCaseCallback = JS.method1((JsValue _self, JsValue value) =>
+  JS.invoke(value, "toLowerCase")
+);
+
+string toFileNameLowerCase(string value) {
+  if (fileNameLowerCaseRegExp.test(value)) {
+    return JS.string(JS.invoke(value, "replace", fileNameLowerCaseRegExp, toLowerCaseCallback));
+  }
+  return value;
+}
+
+export JsValue createGetCanonicalFileName(bool useCaseSensitiveFileNames) {
+  if (useCaseSensitiveFileNames) {
+    return JS.method1((JsValue _self, JsValue value) => identity(JS.string(value)));
+  }
+  return JS.method1((JsValue _self, JsValue value) =>
+    toFileNameLowerCase(JS.string(value))
+  );
+}
+
+JsValue resolvePosixPath() {
+  if (path["posix"].truthy()) return path["posix"];
+  return path;
+}
+
+JsValue posixPath = resolvePosixPath();
+JsValue normalize = posixPath["normalize"];
+Regex windowsSlashRE = new Regex("\\\\", "g");
+
+export string normalizePath(string value) {
+  string slashes = JS.string(JS.invoke(value, "replace", windowsSlashRE, "/"));
+  return JS.string(JS.call(normalize, posixPath, slashes));
+}
+
+export JsValue joinPaths = posixPath["join"];
+
+export Regex propNameEscapeSymbolsRE = new Regex(
+  "[ !\\\"#$%&'()*+,./:;<=>?@[\\\\\\]\\^`{|}~\\-]"
+);
+
+export string getEscapedPropName(string key) {
+  if (propNameEscapeSymbolsRE.test(key)) {
+    return JS.string(JS.invoke(JSON, "stringify", key));
+  }
+  return key;
+}
+
+export JsValue isJS = JS.staticRest((JsValue langs) => {
+  for (int index = 0; index < scriptUtilsLength(langs); index++) {
+    if (JS.strictEqual(langs[index], "js") || JS.strictEqual(langs[index], "jsx")) {
+      return true;
+    }
+  }
+  return false;
+});
+
+export JsValue isTS = JS.staticRest((JsValue langs) => {
+  for (int index = 0; index < scriptUtilsLength(langs); index++) {
+    if (JS.strictEqual(langs[index], "ts") || JS.strictEqual(langs[index], "tsx")) {
+      return true;
+    }
+  }
+  return false;
+});

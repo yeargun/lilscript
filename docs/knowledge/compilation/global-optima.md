@@ -93,5 +93,5 @@ That incompleteness is honest: comparison among survivors is exact *T*; the
 survivor set is heuristic. See [objectives](objectives.md).
 Budgets, broad-module phase-order collapse, and one-way codec priors are
 documented in [decision registry](decision-registry.md) and
-[current architecture](current-architecture.md). The intended solver and
-guarantee levels are in [goal architecture](goal-architecture.md).
+[current architecture](current-architecture.md). Planned guarantees and explicit
+non-goals are in [planned architecture](planned-architecture.md).

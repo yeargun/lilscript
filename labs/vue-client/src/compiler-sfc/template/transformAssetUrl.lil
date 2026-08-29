@@ -1,0 +1,255 @@
+import extern { default as AssetPath } from "node:path";
+import extern {
+  ConstantTypes as AssetConstantTypes,
+  NodeTypes as AssetNodeTypes,
+  createSimpleExpression as assetCreateSimpleExpression
+} from "../../../packages/vuelil/compiler-core.js";
+import extern { hostAssign as assetHostAssign, hostKeys as assetHostKeys } from "../host.js";
+import {
+  isDataUrl,
+  isExternalUrl,
+  isRelativeUrl,
+  normalizeDecodedImportPath,
+  parseUrl
+} from "./templateUtils";
+
+extern JsValue AssetConstantTypes;
+extern JsValue AssetNodeTypes;
+extern JsValue AssetPath;
+extern JsValue assetCreateSimpleExpression;
+extern JsValue assetHostAssign;
+extern JsValue assetHostKeys;
+
+int assetLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+
+void assetPush(JsValue values, JsValue value) {
+  values[assetLength(values)] = value;
+}
+
+JsValue resourceUrlTagConfig = JS.object(
+  "video", JS.array("src", "poster"),
+  "source", JS.array("src"),
+  "img", JS.array("src")
+);
+
+export JsValue defaultAssetUrlOptions = JS.object(
+  "base", null,
+  "includeAbsolute", false,
+  "tags", JS.object(
+    "video", resourceUrlTagConfig["video"],
+    "source", resourceUrlTagConfig["source"],
+    "img", resourceUrlTagConfig["img"],
+    "image", JS.array("xlink:href", "href"),
+    "use", JS.array("xlink:href", "href")
+  )
+);
+
+bool assetIncludes(JsValue values, JsValue target) {
+  if (JS.isNullish(values)) return false;
+  return JS.invoke(values, "includes", target).truthy();
+}
+
+export JsValue normalizeOptions(JsValue options) {
+  JsValue keys = JS.call(assetHostKeys, JS.undefined(), options);
+  bool legacy = false;
+  for (int index = 0; index < assetLength(keys); index++) {
+    if (options[JS.string(keys[index])].isArray()) legacy = true;
+  }
+  if (legacy) {
+    return JS.call(
+      assetHostAssign,
+      JS.undefined(),
+      JS.object(),
+      defaultAssetUrlOptions,
+      JS.object("tags", options)
+    );
+  }
+  return JS.call(
+    assetHostAssign,
+    JS.undefined(),
+    JS.object(),
+    defaultAssetUrlOptions,
+    options
+  );
+}
+
+export JsValue createAssetUrlTransformWithOptions(JsValue options) {
+  return JS.method2((JsValue _self, JsValue node, JsValue context) => {
+    transformAssetUrl(node, context, options);
+    return JS.undefined();
+  });
+}
+
+bool canTransformHashImport(string tag, string attrName) {
+  JsValue attrs = resourceUrlTagConfig[tag];
+  return attrs.truthy() && assetIncludes(attrs, attrName);
+}
+
+export void transformAssetUrl(
+  JsValue node,
+  JsValue context,
+  JsValue options = JS.undefined()
+) {
+  if (JS.isUndefined(options)) options = defaultAssetUrlOptions;
+  if (!JS.strictEqual(node["type"], AssetNodeTypes["ELEMENT"])) return;
+  if (assetLength(node["props"]) == 0) return;
+
+  JsValue tags = options["tags"];
+  if (!tags.truthy()) tags = defaultAssetUrlOptions["tags"];
+  JsValue attrs = tags[JS.string(node["tag"])];
+  JsValue wildCardAttrs = tags["*"];
+  if (!attrs.truthy() && !wildCardAttrs.truthy()) return;
+
+  JsValue assetAttrs = JS.array();
+  if (attrs.truthy()) {
+    for (int index = 0; index < assetLength(attrs); index++) assetPush(assetAttrs, attrs[index]);
+  }
+  if (wildCardAttrs.truthy()) {
+    for (int index = 0; index < assetLength(wildCardAttrs); index++) {
+      assetPush(assetAttrs, wildCardAttrs[index]);
+    }
+  }
+
+  JsValue props = node["props"];
+  for (int index = 0; index < assetLength(props); index++) {
+    JsValue attr = props[index];
+    if (!JS.strictEqual(attr["type"], AssetNodeTypes["ATTRIBUTE"]) ||
+      !assetIncludes(assetAttrs, attr["name"]) ||
+      !attr["value"].truthy()) continue;
+
+    string urlValue = JS.string(attr["value"]["content"]);
+    bool isHashOnlyValue = urlValue.charAt(0) == "#";
+    if (isExternalUrl(urlValue) || isDataUrl(urlValue) || urlValue == "#" ||
+      (isHashOnlyValue && !canTransformHashImport(
+        JS.string(node["tag"]),
+        JS.string(attr["name"])
+      )) ||
+      (!options["includeAbsolute"].truthy() && !isRelativeUrl(urlValue))) continue;
+
+    JsValue url = parseUrl(urlValue);
+    if (options["base"].truthy() && urlValue.charAt(0) == ".") {
+      JsValue base = parseUrl(JS.string(options["base"]));
+      string protocol = "";
+      if (base["protocol"].truthy()) protocol = JS.string(base["protocol"]);
+      string host = "";
+      if (base["host"].truthy()) {
+        host = protocol + "//" + JS.string(base["host"]);
+      }
+      string basePath = "/";
+      if (base["path"].truthy()) basePath = JS.string(base["path"]);
+      JsValue pathApi = AssetPath;
+      if (AssetPath["posix"].truthy()) pathApi = AssetPath["posix"];
+      string suffix = JS.string(url["path"]);
+      if (url["hash"].truthy()) suffix += JS.string(url["hash"]);
+      attr["value"]["content"] = host + JS.string(JS.call(
+        pathApi["join"],
+        pathApi,
+        basePath,
+        suffix
+      ));
+      continue;
+    }
+
+    JsValue expression = getImportsExpressionExp(
+      url["path"],
+      url["hash"],
+      attr["loc"],
+      context
+    );
+    props[index] = JS.object(
+      "type", AssetNodeTypes["DIRECTIVE"],
+      "name", "bind",
+      "arg", JS.call(
+        assetCreateSimpleExpression,
+        JS.undefined(),
+        attr["name"],
+        true,
+        attr["loc"]
+      ),
+      "exp", expression,
+      "modifiers", JS.array(),
+      "loc", attr["loc"]
+    );
+  }
+}
+
+JsValue resolveOrRegisterImport(string source, JsValue loc, JsValue context) {
+  string normalizedSource = normalizeDecodedImportPath(source);
+  JsValue imports = context["imports"];
+  for (int index = 0; index < assetLength(imports); index++) {
+    if (JS.string(imports[index]["path"]) == normalizedSource) {
+      return JS.object(
+        "name", "_imports_" + index,
+        "exp", imports[index]["exp"]
+      );
+    }
+  }
+  string name = "_imports_" + assetLength(imports);
+  JsValue expression = JS.call(
+    assetCreateSimpleExpression,
+    JS.undefined(),
+    name,
+    false,
+    loc,
+    AssetConstantTypes["CAN_STRINGIFY"]
+  );
+  assetPush(imports, JS.object("exp", expression, "path", normalizedSource));
+  return JS.object("name", name, "exp", expression);
+}
+
+JsValue getImportsExpressionExp(
+  JsValue sourcePath,
+  JsValue hash,
+  JsValue loc,
+  JsValue context
+) {
+  if (!sourcePath.truthy() && !hash.truthy()) {
+    return JS.call(
+      assetCreateSimpleExpression,
+      JS.undefined(),
+      "''",
+      false,
+      loc,
+      AssetConstantTypes["CAN_STRINGIFY"]
+    );
+  }
+  if (!sourcePath.truthy() && hash.truthy()) {
+    return resolveOrRegisterImport(JS.string(hash), loc, context)["exp"];
+  }
+  if (sourcePath.truthy() && !hash.truthy()) {
+    return resolveOrRegisterImport(JS.string(sourcePath), loc, context)["exp"];
+  }
+  JsValue registered = resolveOrRegisterImport(JS.string(sourcePath), loc, context);
+  string hashExpression = JS.string(registered["name"]) + " + '" +
+    JS.string(hash) + "'";
+  JsValue finalExpression = JS.call(
+    assetCreateSimpleExpression,
+    JS.undefined(),
+    hashExpression,
+    false,
+    loc,
+    AssetConstantTypes["CAN_STRINGIFY"]
+  );
+  if (!context["hoistStatic"].truthy()) return finalExpression;
+
+  JsValue hoists = context["hoists"];
+  for (int index = 0; index < assetLength(hoists); index++) {
+    JsValue hoist = hoists[index];
+    if (hoist.truthy() &&
+      JS.strictEqual(hoist["type"], AssetNodeTypes["SIMPLE_EXPRESSION"]) &&
+      !hoist["isStatic"].truthy() &&
+      JS.string(hoist["content"]) == hashExpression) {
+      return JS.call(
+        assetCreateSimpleExpression,
+        JS.undefined(),
+        "_hoisted_" + (index + 1),
+        false,
+        loc,
+        AssetConstantTypes["CAN_STRINGIFY"]
+      );
+    }
+  }
+  return JS.call(context["hoist"], context, finalExpression);
+}

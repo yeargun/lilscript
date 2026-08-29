@@ -1,0 +1,834 @@
+import { createRoot, createSimpleExpression } from "./ast";
+import {
+  console,
+  createCompilerError,
+  defaultOnError,
+  defaultOnWarn
+} from "./errors";
+import { Object } from "./runtimeHelpers";
+import {
+  ParseMode,
+  Sequences,
+  Tokenizer,
+  isWhitespace,
+  toCharCodes
+} from "./tokenizer";
+import {
+  forAliasRE,
+  isAllWhitespace,
+  isCoreComponent,
+  isSimpleIdentifier,
+  isVPre
+} from "./utils";
+
+extern JsValue hostDecodeEntities(string source, bool attribute);
+extern JsValue hostParseExpression(string source, JsValue plugins, int mode);
+
+JsValue parserUndefined() {
+  return JS.undefined();
+}
+
+int parserLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+
+bool sameParserValue(JsValue left, JsValue right) {
+  return JS.strictEqual(left, right);
+}
+
+bool isSpaceCode(int code) {
+  return isWhitespace(code);
+}
+
+JsValue falseOption = JS.method1((JsValue _self, JsValue _value) => false);
+JsValue namespaceOption = JS.method3((
+  JsValue _self,
+  JsValue _tag,
+  JsValue _parent,
+  JsValue rootNamespace
+) => rootNamespace);
+
+// Parser state is deliberately kept in LilScript. The host only supplies
+// entity decoding and Babel expression parsing.
+JsValue currentOptions = JS.object();
+JsValue currentRoot = null;
+JsValue elementStack = JS.array();
+JsValue currentOpenTag = null;
+JsValue currentProp = null;
+int currentAttrStartIndex = -1;
+int currentAttrEndIndex = -1;
+int preDepth = 0;
+int vPreDepth = 0;
+JsValue vPreBoundary = null;
+JsValue tokenizerCallbacks = JS.object(
+  "onerr", onTokenizerError,
+  "ontext", onTokenizerText,
+  "ontextentity", onTokenizerTextEntity,
+  "oninterpolation", onTokenizerInterpolation,
+  "onopentagname", onTokenizerOpenTagName,
+  "onopentagend", onTokenizerOpenTagEnd,
+  "onselfclosingtag", onTokenizerSelfClosingTag,
+  "onclosetag", onTokenizerCloseTag,
+  "onattribdata", onTokenizerAttributeData,
+  "onattribentity", onTokenizerAttributeEntity,
+  "onattribend", onTokenizerAttributeEnd,
+  "onattribname", onTokenizerAttributeName,
+  "onattribnameend", onTokenizerAttributeNameEnd,
+  "ondirname", onTokenizerDirectiveName,
+  "ondirarg", onTokenizerDirectiveArgument,
+  "ondirmodifier", onTokenizerDirectiveModifier,
+  "oncomment", onTokenizerComment,
+  "oncdata", onTokenizerCdata,
+  "onprocessinginstruction", onTokenizerProcessingInstruction,
+  "onend", onTokenizerEnd
+);
+Tokenizer tokenizer = new Tokenizer(elementStack, tokenizerCallbacks);
+JsValue parserState = JS.object("input", "", "attrValue", "");
+
+string sourceText() {
+  return JS.string(parserState["input"]);
+}
+
+JsValue makePosition(int offset) {
+  return tokenizer.getPos(offset);
+}
+
+JsValue makeLoc(int start, int end) {
+  return JS.object(
+    "start", makePosition(start),
+    "end", makePosition(end),
+    "source", sourceText().slice(start, end)
+  );
+}
+
+export JsValue defaultParserOptions = JS.object(
+  "parseMode", "base",
+  "ns", 0,
+  "delimiters", JS.array("{{", "}}"),
+  "getNamespace", namespaceOption,
+  "isVoidTag", falseOption,
+  "isPreTag", falseOption,
+  "isIgnoreNewlineTag", falseOption,
+  "isCustomElement", falseOption,
+  "onError", defaultOnError,
+  "onWarn", defaultOnWarn,
+  "comments", true,
+  "prefixIdentifiers", false
+);
+
+JsValue topElement() {
+  int length = parserLength(elementStack);
+  if (length == 0) return parserUndefined();
+  return elementStack[0];
+}
+
+bool optionBool(string name, JsValue value) {
+  JsValue callback = currentOptions[name];
+  if (JS.typeOf(callback) != "function") return false;
+  return JS.call(callback, parserUndefined(), value).truthy();
+}
+
+JsValue optionResult(string name, JsValue value) {
+  JsValue callback = currentOptions[name];
+  if (JS.typeOf(callback) != "function") return parserUndefined();
+  return JS.call(callback, parserUndefined(), value);
+}
+
+void emitErrorAt(int code, int offset, string additional = "") {
+  JsValue callback = currentOptions["onError"];
+  JsValue error = createCompilerError(code, makeLoc(offset, offset), parserUndefined(), additional);
+  JS.call(callback, parserUndefined(), error);
+}
+
+void setLocationEnd(JsValue loc, int end) {
+  int start = JS.number(loc["start"]["offset"]).toInt();
+  loc["end"] = makePosition(end);
+  loc["source"] = sourceText().slice(start, end);
+}
+
+export JsValue cloneLoc(JsValue loc) {
+  return makeLoc(
+    JS.number(loc["start"]["offset"]).toInt(),
+    JS.number(loc["end"]["offset"]).toInt()
+  );
+}
+
+JsValue parentChildren() {
+  JsValue parent = topElement();
+  if (JS.isUndefined(parent)) return currentRoot["children"];
+  return parent["children"];
+}
+
+void addNode(JsValue node) {
+  JsValue children = parentChildren();
+  children[parserLength(children)] = node;
+}
+
+string condenseText(string source) {
+  string result = "";
+  bool previousWhitespace = false;
+  for (int index = 0; index < source.length; index++) {
+    if (isSpaceCode(source.charCodeAt(index))) {
+      if (!previousWhitespace) result += " ";
+      previousWhitespace = true;
+    } else {
+      result += source.charAt(index);
+      previousWhitespace = false;
+    }
+  }
+  return result;
+}
+
+bool containsNewline(string source) {
+  for (int index = 0; index < source.length; index++) {
+    int code = source.charCodeAt(index);
+    if (code == 10 || code == 13) return true;
+  }
+  return false;
+}
+
+JsValue condenseWhitespace(JsValue nodes) {
+  bool shouldCondense = JS.string(currentOptions["whitespace"]) != "preserve";
+  bool removed = false;
+  int count = parserLength(nodes);
+  for (int index = 0; index < count; index++) {
+    JsValue node = nodes[index];
+    if (JS.number(node["type"]).toInt() == 2) {
+      string content = JS.string(node["content"]);
+      if (preDepth == 0) {
+        if (isAllWhitespace(content)) {
+          int previousType = -1;
+          int nextType = -1;
+          if (index > 0 && !JS.isNullish(nodes[index - 1])) {
+            previousType = JS.number(nodes[index - 1]["type"]).toInt();
+          }
+          if (index + 1 < count && !JS.isNullish(nodes[index + 1])) {
+            nextType = JS.number(nodes[index + 1]["type"]).toInt();
+          }
+          bool remove = previousType < 0 || nextType < 0;
+          if (!remove && shouldCondense) {
+            remove =
+              (previousType == 3 && (nextType == 3 || nextType == 1)) ||
+              (previousType == 1 && (nextType == 3 || (nextType == 1 && containsNewline(content))));
+          }
+          if (remove) {
+            nodes[index] = null;
+            removed = true;
+          } else {
+            node["content"] = " ";
+          }
+        } else if (shouldCondense) {
+          node["content"] = condenseText(content);
+        }
+      } else {
+        node["content"] = JS.string(JS.invoke(content, "replace", new Regex("\\r\\n", "g"), "\n"));
+      }
+    }
+  }
+  if (!removed) return nodes;
+  JsValue filtered = JS.array();
+  for (int index = 0; index < count; index++) {
+    if (!JS.isNullish(nodes[index])) filtered[parserLength(filtered)] = nodes[index];
+  }
+  return filtered;
+}
+
+JsValue createExpression(
+  string content,
+  bool isStatic,
+  JsValue loc,
+  int constType = 0,
+  int parseMode = 0
+) {
+  JsValue expression = createSimpleExpression(content, isStatic, loc, constType);
+  if (!isStatic && currentOptions["prefixIdentifiers"].truthy() && parseMode != 3 && content.trim() != "") {
+    if (isSimpleIdentifier(content)) {
+      expression["ast"] = null;
+      return expression;
+    }
+    try {
+      expression["ast"] = hostParseExpression(content, currentOptions["expressionPlugins"], parseMode);
+    } catch (JsValue error) {
+      expression["ast"] = false;
+      emitErrorAt(46, JS.number(loc["start"]["offset"]).toInt(), JS.string(error["message"]));
+    }
+  }
+  return expression;
+}
+
+Regex forIteratorPattern = new Regex(",([^,\\}\\]]*)(?:,([^,\\}\\]]*))?$");
+Regex stripParensPattern = new Regex("^\\(|\\)$", "g");
+
+JsValue createAliasExpression(string content, int offset, bool asParam, JsValue inputLoc) {
+  int start = JS.number(inputLoc["start"]["offset"]).toInt() + offset;
+  int mode = 0;
+  if (asParam) mode = 2;
+  return createExpression(content, false, makeLoc(start, start + content.length), 0, mode);
+}
+
+JsValue parseForExpression(JsValue input) {
+  string expression = JS.string(input["content"]);
+  JsValue matched = JS.invoke(expression, "match", forAliasRE);
+  if (JS.isNullish(matched)) return parserUndefined();
+  string left = JS.string(matched[1]);
+  string right = JS.string(matched[2]);
+  JsValue loc = input["loc"];
+  int rightOffset = JS.number(JS.invoke(expression, "indexOf", right, left.length)).toInt();
+  JsValue result = JS.object(
+    "source", createAliasExpression(right.trim(), rightOffset, false, loc),
+    "value", parserUndefined(),
+    "key", parserUndefined(),
+    "index", parserUndefined(),
+    "finalized", false
+  );
+  string value = JS.string(JS.invoke(left.trim(), "replace", stripParensPattern, "")).trim();
+  int trimmedOffset = JS.number(JS.invoke(left, "indexOf", value)).toInt();
+  JsValue iterator = JS.invoke(value, "match", forIteratorPattern);
+  if (!JS.isNullish(iterator)) {
+    value = JS.string(JS.invoke(value, "replace", forIteratorPattern, "")).trim();
+    string key = JS.string(iterator[1]).trim();
+    int keyOffset = -1;
+    if (key != "") {
+      keyOffset = JS.number(JS.invoke(expression, "indexOf", key, trimmedOffset + value.length)).toInt();
+      result["key"] = createAliasExpression(key, keyOffset, true, loc);
+    }
+    if (!JS.isUndefined(iterator[2])) {
+      string indexValue = JS.string(iterator[2]).trim();
+      if (indexValue != "") {
+        int from = trimmedOffset + value.length;
+        if (keyOffset >= 0) from = keyOffset + key.length;
+        int indexOffset = JS.number(JS.invoke(expression, "indexOf", indexValue, from)).toInt();
+        result["index"] = createAliasExpression(indexValue, indexOffset, true, loc);
+      }
+    }
+  }
+  if (value != "") result["value"] = createAliasExpression(value, trimmedOffset, true, loc);
+  return result;
+}
+
+bool hasAttributeName(JsValue element, string rawName) {
+  JsValue props = element["props"];
+  for (int index = 0; index < parserLength(props); index++) {
+    JsValue prop = props[index];
+    string existing = JS.string(prop["name"]);
+    if (JS.number(prop["type"]).toInt() == 7) existing = JS.string(prop["rawName"]);
+    if (existing == rawName) return true;
+  }
+  return false;
+}
+
+JsValue directiveToAttribute(JsValue directive) {
+  string rawName = JS.string(directive["rawName"]);
+  int start = JS.number(directive["loc"]["start"]["offset"]).toInt();
+  JsValue attribute = JS.object(
+    "type", 6,
+    "name", rawName,
+    "nameLoc", makeLoc(start, start + rawName.length),
+    "value", parserUndefined(),
+    "loc", directive["loc"]
+  );
+  JsValue expression = directive["exp"];
+  if (!JS.isNullish(expression)) {
+    JsValue valueLoc = expression["loc"];
+    int valueEnd = JS.number(valueLoc["end"]["offset"]).toInt();
+    int directiveEnd = JS.number(directive["loc"]["end"]["offset"]).toInt();
+    if (valueEnd < directiveEnd) {
+      int valueStart = JS.number(valueLoc["start"]["offset"]).toInt() - 1;
+      valueLoc = makeLoc(valueStart, valueEnd + 1);
+    }
+    attribute["value"] = JS.object(
+      "type", 2,
+      "content", expression["content"],
+      "loc", valueLoc
+    );
+  }
+  return attribute;
+}
+
+void enterVPre(JsValue element) {
+  vPreDepth++;
+  tokenizer.inVPre = true;
+  vPreBoundary = element;
+  JsValue props = element["props"];
+  for (int index = 0; index < parserLength(props); index++) {
+    if (JS.number(props[index]["type"]).toInt() == 7) props[index] = directiveToAttribute(props[index]);
+  }
+}
+
+string parserSlice(int start, int end) {
+  return sourceText().slice(start, end);
+}
+
+void onTokenizerError(int code, int index) {
+  emitErrorAt(code, index);
+}
+
+void addText(string content, int start, int end) {
+  JsValue children = parentChildren();
+  int count = parserLength(children);
+  if (count > 0 && JS.number(children[count - 1]["type"]).toInt() == 2) {
+    JsValue text = children[count - 1];
+    text["content"] = JS.string(text["content"]) + content;
+    setLocationEnd(text["loc"], end);
+  } else {
+    children[count] = JS.object(
+      "type", 2,
+      "content", content,
+      "loc", makeLoc(start, end)
+    );
+  }
+}
+
+void onTokenizerText(int start, int end) {
+  addText(parserSlice(start, end), start, end);
+}
+
+void onTokenizerTextEntity(string character, int start, int end) {
+  addText(character, start, end);
+}
+
+void onTokenizerInterpolation(int start, int end) {
+  if (vPreDepth > 0) {
+    addText(parserSlice(start, end), start, end);
+    return;
+  }
+  int innerStart = start + parserLength(tokenizer.delimiterOpen);
+  int innerEnd = end - parserLength(tokenizer.delimiterClose);
+  while (isSpaceCode(sourceText().charCodeAt(innerStart))) innerStart++;
+  while (isSpaceCode(sourceText().charCodeAt(innerEnd - 1))) innerEnd--;
+  string expression = parserSlice(innerStart, innerEnd);
+  if (expression.includes("&")) expression = JS.string(hostDecodeEntities(expression, false));
+  addNode(JS.object(
+    "type", 5,
+    "content", createExpression(expression, false, makeLoc(innerStart, innerEnd)),
+    "loc", makeLoc(start, end)
+  ));
+}
+
+int elementNamespace(string tag) {
+  JsValue callback = currentOptions["getNamespace"];
+  if (JS.typeOf(callback) != "function") return JS.number(currentOptions["ns"]).toInt();
+  JsValue parent = topElement();
+  JsValue value = JS.call(callback, parserUndefined(), tag, parent, currentOptions["ns"]);
+  return JS.number(value).toInt();
+}
+
+void onTokenizerOpenTagName(int start, int end) {
+  string tag = parserSlice(start, end);
+  currentOpenTag = JS.object(
+    "type", 1,
+    "tag", tag,
+    "ns", elementNamespace(tag),
+    "tagType", 0,
+    "props", JS.array(),
+    "children", JS.array(),
+    "loc", makeLoc(start - 1, end),
+    "codegenNode", parserUndefined()
+  );
+}
+
+void onTokenizerAttributeName(int start, int end) {
+  currentProp = JS.object(
+    "type", 6,
+    "name", parserSlice(start, end),
+    "nameLoc", makeLoc(start, end),
+    "value", parserUndefined(),
+    "loc", makeLoc(start, end)
+  );
+  currentProp["loc"]["end"] = parserUndefined();
+  currentProp["loc"]["source"] = parserUndefined();
+}
+
+void onTokenizerDirectiveName(int start, int end) {
+  string raw = parserSlice(start, end);
+  string name = raw.slice(2);
+  if (raw == "." || raw == ":") name = "bind";
+  else if (raw == "@") name = "on";
+  else if (raw == "#") name = "slot";
+  if (vPreDepth == 0 && name == "") emitErrorAt(26, start);
+  if (vPreDepth > 0 || name == "") {
+    currentProp = JS.object(
+      "type", 6,
+      "name", raw,
+      "nameLoc", makeLoc(start, end),
+      "value", parserUndefined(),
+      "loc", makeLoc(start, end)
+    );
+    currentProp["loc"]["end"] = parserUndefined();
+    currentProp["loc"]["source"] = parserUndefined();
+  } else {
+    JsValue modifiers = JS.array();
+    if (raw == ".") modifiers[0] = createSimpleExpression("prop");
+    currentProp = JS.object(
+      "type", 7,
+      "name", name,
+      "rawName", raw,
+      "exp", parserUndefined(),
+      "arg", parserUndefined(),
+      "modifiers", modifiers,
+      "loc", makeLoc(start, end)
+    );
+    currentProp["loc"]["end"] = parserUndefined();
+    currentProp["loc"]["source"] = parserUndefined();
+    if (name == "pre") enterVPre(currentOpenTag);
+  }
+}
+
+void onTokenizerDirectiveArgument(int start, int end) {
+  if (start == end) return;
+  string argument = parserSlice(start, end);
+  if (vPreDepth > 0 && !isVPre(currentProp)) {
+    currentProp["name"] = JS.string(currentProp["name"]) + argument;
+    setLocationEnd(currentProp["nameLoc"], end);
+  } else {
+    bool isStatic = argument.charAt(0) != "[";
+    string content = argument;
+    int constantType = 3;
+    if (!isStatic) {
+      content = argument.slice(1, -1);
+      constantType = 0;
+    }
+    currentProp["arg"] = createExpression(
+      content,
+      isStatic,
+      makeLoc(start, end),
+      constantType
+    );
+  }
+}
+
+void onTokenizerDirectiveModifier(int start, int end) {
+  string modifier = parserSlice(start, end);
+  if (vPreDepth > 0 && !isVPre(currentProp)) {
+    currentProp["name"] = JS.string(currentProp["name"]) + "." + modifier;
+    setLocationEnd(currentProp["nameLoc"], end);
+  } else if (JS.string(currentProp["name"]) == "slot") {
+    JsValue argument = currentProp["arg"];
+    if (!JS.isNullish(argument)) {
+      argument["content"] = JS.string(argument["content"]) + "." + modifier;
+      setLocationEnd(argument["loc"], end);
+    }
+  } else {
+    JsValue modifiers = currentProp["modifiers"];
+    modifiers[parserLength(modifiers)] = createSimpleExpression(modifier, true, makeLoc(start, end));
+  }
+}
+
+void onTokenizerAttributeData(int start, int end) {
+  parserState["attrValue"] = JS.string(parserState["attrValue"]) + parserSlice(start, end);
+  if (currentAttrStartIndex < 0) currentAttrStartIndex = start;
+  currentAttrEndIndex = end;
+}
+
+void onTokenizerAttributeEntity(string character, int start, int end) {
+  parserState["attrValue"] = JS.string(parserState["attrValue"]) + character;
+  if (currentAttrStartIndex < 0) currentAttrStartIndex = start;
+  currentAttrEndIndex = end;
+}
+
+void onTokenizerAttributeNameEnd(int end) {
+  int start = JS.number(currentProp["loc"]["start"]["offset"]).toInt();
+  string name = parserSlice(start, end);
+  if (JS.number(currentProp["type"]).toInt() == 7) currentProp["rawName"] = name;
+  if (hasAttributeName(currentOpenTag, name)) emitErrorAt(2, start);
+}
+
+void onTokenizerAttributeEnd(int quote, int end) {
+  if (!JS.isNullish(currentOpenTag) && !JS.isNullish(currentProp)) {
+    setLocationEnd(currentProp["loc"], end);
+    if (quote != 0) {
+      string attrValue = JS.string(parserState["attrValue"]);
+      if (JS.number(currentProp["type"]).toInt() == 6) {
+        if (JS.string(currentProp["name"]) == "class") {
+          attrValue = condenseText(attrValue).trim();
+        }
+        if (quote == 1 && attrValue == "") emitErrorAt(13, end);
+        int valueStart = currentAttrStartIndex;
+        int valueEnd = currentAttrEndIndex;
+        if (quote == 2 || quote == 3) {
+          valueStart--;
+          valueEnd++;
+        }
+        currentProp["value"] = JS.object(
+          "type", 2,
+          "content", attrValue,
+          "loc", makeLoc(valueStart, valueEnd)
+        );
+        if (
+          tokenizer.inSFCRoot() && JS.string(currentOpenTag["tag"]) == "template" &&
+          JS.string(currentProp["name"]) == "lang" && attrValue != "" &&
+          attrValue != "html"
+        ) {
+          tokenizer.enterRCDATA(toCharCodes("</template"), 0);
+        }
+      } else {
+        string directiveName = JS.string(currentProp["name"]);
+        int mode = 0;
+        if (directiveName == "for") mode = 3;
+        else if (directiveName == "slot") mode = 2;
+        else if (directiveName == "on" && attrValue.includes(";")) mode = 1;
+        JsValue expression = createExpression(
+          attrValue,
+          false,
+          makeLoc(currentAttrStartIndex, currentAttrEndIndex),
+          0,
+          mode
+        );
+        currentProp["exp"] = expression;
+        if (directiveName == "for") currentProp["forParseResult"] = parseForExpression(expression);
+      }
+    }
+    if (JS.number(currentProp["type"]).toInt() != 7 || JS.string(currentProp["name"]) != "pre") {
+      JsValue props = currentOpenTag["props"];
+      props[parserLength(props)] = currentProp;
+    }
+  }
+  parserState["attrValue"] = "";
+  currentAttrStartIndex = -1;
+  currentAttrEndIndex = -1;
+}
+
+bool isFragmentTemplate(JsValue element) {
+  if (JS.string(element["tag"]) != "template") return false;
+  JsValue props = element["props"];
+  for (int index = 0; index < parserLength(props); index++) {
+    JsValue prop = props[index];
+    if (JS.number(prop["type"]).toInt() == 7) {
+      string name = JS.string(prop["name"]);
+      if (name == "if" || name == "else" || name == "else-if" || name == "for" || name == "slot") return true;
+    }
+  }
+  return false;
+}
+
+bool isComponentElement(JsValue element) {
+  string tag = JS.string(element["tag"]);
+  if (optionBool("isCustomElement", tag)) return false;
+  JsValue core = isCoreComponent(tag);
+  JsValue builtIn = optionResult("isBuiltInComponent", tag);
+  JsValue nativeResult = optionResult("isNativeTag", tag);
+  bool hasNativeCheck = JS.typeOf(currentOptions["isNativeTag"]) == "function";
+  if (tag == "component" || isUpperCaseCode(tag.charCodeAt(0)) || !JS.isUndefined(core) ||
+    !JS.isUndefined(builtIn) && builtIn.truthy() || hasNativeCheck && !nativeResult.truthy()) return true;
+  JsValue props = element["props"];
+  for (int index = 0; index < parserLength(props); index++) {
+    JsValue prop = props[index];
+    if (JS.number(prop["type"]).toInt() == 6 && JS.string(prop["name"]) == "is" && prop["value"].truthy()) {
+      if (JS.string(prop["value"]["content"]).startsWith("vue:")) return true;
+    }
+  }
+  return false;
+}
+
+bool isUpperCaseCode(int code) {
+  return code > 64 && code < 91;
+}
+
+void refineElementType(JsValue element) {
+  if (vPreDepth > 0) return;
+  string tag = JS.string(element["tag"]);
+  if (tag == "slot") element["tagType"] = 2;
+  else if (isFragmentTemplate(element)) element["tagType"] = 3;
+  else if (isComponentElement(element)) element["tagType"] = 1;
+}
+
+bool tagIsPre(JsValue element) {
+  return JS.number(element["ns"]).toInt() == 0 && optionBool("isPreTag", element["tag"]);
+}
+
+int lookAhead(int index, int code) {
+  int cursor = index;
+  while (sourceText().charCodeAt(cursor) != code && cursor < sourceText().length - 1) cursor++;
+  return cursor;
+}
+
+int backTrack(int index, int code) {
+  int cursor = index;
+  while (sourceText().charCodeAt(cursor) != code && cursor >= 0) cursor--;
+  return cursor;
+}
+
+void closeElement(JsValue element, int end, bool implied) {
+  if (implied) setLocationEnd(element["loc"], backTrack(end, 60));
+  else setLocationEnd(element["loc"], lookAhead(end, 62) + 1);
+  if (tokenizer.inSFCRoot() && element["innerLoc"].truthy()) {
+    JsValue children = element["children"];
+    JsValue inner = element["innerLoc"];
+    if (parserLength(children) > 0) {
+      inner["end"] = JS.invoke(Object, "assign", JS.object(), children[parserLength(children) - 1]["loc"]["end"]);
+    } else {
+      inner["end"] = JS.invoke(Object, "assign", JS.object(), inner["start"]);
+    }
+    int innerStart = JS.number(inner["start"]["offset"]).toInt();
+    int innerEnd = JS.number(inner["end"]["offset"]).toInt();
+    inner["source"] = sourceText().slice(innerStart, innerEnd);
+  }
+  refineElementType(element);
+  string tag = JS.string(element["tag"]);
+  if (!tokenizer.inRCDATA) element["children"] = condenseWhitespace(element["children"]);
+  if (JS.number(element["ns"]).toInt() == 0 && optionBool("isIgnoreNewlineTag", tag)) {
+    JsValue children = element["children"];
+    if (parserLength(children) > 0 && JS.number(children[0]["type"]).toInt() == 2) {
+      string text = JS.string(children[0]["content"]);
+      if (text.startsWith("\r\n")) children[0]["content"] = text.slice(2);
+      else if (text.startsWith("\n")) children[0]["content"] = text.slice(1);
+    }
+  }
+  if (tagIsPre(element)) preDepth--;
+  if (sameParserValue(vPreBoundary, element)) {
+    vPreDepth--;
+    tokenizer.inVPre = false;
+    vPreBoundary = null;
+  }
+  JsValue parent = topElement();
+  int parentNamespace = JS.number(currentOptions["ns"]).toInt();
+  if (!JS.isUndefined(parent)) parentNamespace = JS.number(parent["ns"]).toInt();
+  if (tokenizer.inXML && parentNamespace == 0) tokenizer.inXML = false;
+}
+
+void endOpenTag(int end) {
+  if (tokenizer.inSFCRoot()) currentOpenTag["innerLoc"] = makeLoc(end + 1, end + 1);
+  addNode(currentOpenTag);
+  string tag = JS.string(currentOpenTag["tag"]);
+  int namespace = JS.number(currentOpenTag["ns"]).toInt();
+  if (namespace == 0 && optionBool("isPreTag", tag)) preDepth++;
+  if (optionBool("isVoidTag", tag)) {
+    closeElement(currentOpenTag, end, false);
+  } else {
+    JS.invoke(elementStack, "unshift", currentOpenTag);
+    if (namespace == 1 || namespace == 2) tokenizer.inXML = true;
+  }
+  currentOpenTag = null;
+}
+
+void onTokenizerOpenTagEnd(int end) {
+  endOpenTag(end);
+}
+
+void onTokenizerCloseTag(int start, int end) {
+  string name = parserSlice(start, end);
+  if (!optionBool("isVoidTag", name)) {
+    bool found = false;
+    int count = parserLength(elementStack);
+    for (int index = 0; index < count; index++) {
+      JsValue element = elementStack[index];
+      if (JS.string(element["tag"]).toLowerCase() == name.toLowerCase()) {
+        found = true;
+        if (index > 0) emitErrorAt(24, JS.number(elementStack[0]["loc"]["start"]["offset"]).toInt());
+        for (int closeIndex = 0; closeIndex <= index; closeIndex++) {
+          JsValue closing = JS.invoke(elementStack, "shift");
+          closeElement(closing, end, closeIndex < index);
+        }
+        break;
+      }
+    }
+    if (!found) emitErrorAt(23, backTrack(start, 60));
+  }
+}
+
+void onTokenizerSelfClosingTag(int end) {
+  string name = JS.string(currentOpenTag["tag"]);
+  currentOpenTag["isSelfClosing"] = true;
+  endOpenTag(end);
+  if (parserLength(elementStack) > 0 && JS.string(elementStack[0]["tag"]) == name) {
+    JsValue element = JS.invoke(elementStack, "shift");
+    closeElement(element, end, false);
+  }
+}
+
+void onTokenizerComment(int start, int end) {
+  if (currentOptions["comments"].truthy()) addNode(JS.object(
+    "type", 3,
+    "content", parserSlice(start, end),
+    "loc", makeLoc(start - 4, end + 3)
+  ));
+}
+
+int currentNamespace() {
+  JsValue parent = topElement();
+  if (!JS.isUndefined(parent)) return JS.number(parent["ns"]).toInt();
+  return JS.number(currentOptions["ns"]).toInt();
+}
+
+void onTokenizerCdata(int start, int end) {
+  if (currentNamespace() != 0) addText(parserSlice(start, end), start, end);
+  else emitErrorAt(1, start - 9);
+}
+
+void onTokenizerProcessingInstruction(int start, int end) {
+  if (currentNamespace() == 0) emitErrorAt(21, start - 1);
+}
+
+void onTokenizerEnd() {
+  int end = sourceText().length;
+  if (tokenizer.state != 1) {
+    int state = tokenizer.state;
+    if (state == 5 || state == 8) {
+      emitErrorAt(5, end);
+    } else if (state == 3 || state == 4) {
+      emitErrorAt(25, tokenizer.sectionStart);
+    } else if (state == 28) {
+      if (sameParserValue(tokenizer.currentSequence, Sequences["CdataEnd"])) emitErrorAt(6, end);
+      else emitErrorAt(7, end);
+    } else if (
+      state == 6 || state == 7 || state == 9 || state == 11 || state == 12 ||
+      state == 13 || state == 14 || state == 15 || state == 16 || state == 17 ||
+      state == 18 || state == 19 || state == 20 || state == 21
+    ) {
+      emitErrorAt(9, end);
+    }
+  }
+  for (int index = 0; index < parserLength(elementStack); index++) {
+    JsValue element = elementStack[index];
+    closeElement(element, end - 1, false);
+    emitErrorAt(24, JS.number(element["loc"]["start"]["offset"]).toInt());
+  }
+}
+
+export JsValue baseParse(string input, JsValue options = JS.undefined()) {
+  tokenizer.reset();
+  parserState["input"] = input;
+  currentOpenTag = null;
+  currentProp = null;
+  parserState["attrValue"] = "";
+  currentAttrStartIndex = -1;
+  currentAttrEndIndex = -1;
+  preDepth = 0;
+  vPreDepth = 0;
+  vPreBoundary = null;
+  elementStack["length"] = 0;
+  currentOptions = JS.invoke(Object, "assign", JS.object(), defaultParserOptions);
+  if (!JS.isNullish(options)) {
+    JsValue keys = JS.invoke(Object, "keys", options);
+    for (int index = 0; index < parserLength(keys); index++) {
+      JsValue key = keys[index];
+      if (!JS.isNullish(options[key])) currentOptions[key] = options[key];
+    }
+  }
+  if (JS.isUndefined(currentOptions["whitespace"])) currentOptions["whitespace"] = "condense";
+  if (!JS.isUndefined(currentOptions["decodeEntities"])) {
+    JS.invoke(
+      console,
+      "warn",
+      "[@vue/compiler-core] decodeEntities option is passed but will be ignored in non-browser builds."
+    );
+  }
+  string parseMode = JS.string(currentOptions["parseMode"]);
+  if (parseMode == "html") tokenizer.mode = JS.number(ParseMode["HTML"]).toInt();
+  else if (parseMode == "sfc") tokenizer.mode = JS.number(ParseMode["SFC"]).toInt();
+  else tokenizer.mode = JS.number(ParseMode["BASE"]).toInt();
+  int namespace = JS.number(currentOptions["ns"]).toInt();
+  tokenizer.inXML = namespace == 1 || namespace == 2;
+  if (!JS.isNullish(options) && !JS.isNullish(options["delimiters"])) {
+    JsValue delimiters = options["delimiters"];
+    tokenizer.delimiterOpen = toCharCodes(JS.string(delimiters[0]));
+    tokenizer.delimiterClose = toCharCodes(JS.string(delimiters[1]));
+  }
+  currentRoot = createRoot(JS.array(), input);
+  tokenizer.parse(input);
+  currentRoot["loc"] = makeLoc(0, input.length);
+  currentRoot["children"] = condenseWhitespace(currentRoot["children"]);
+  JsValue result = currentRoot;
+  currentRoot = null;
+  return result;
+}

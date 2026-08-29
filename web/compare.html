@@ -43,10 +43,10 @@
           These are libraries and apps we rewrote in LilScript to see what the
           compiler actually does. Numbers are independently measured gzip-9 and
           Brotli-11 bytes of the selected JavaScript, scored with the same stock
-          zlib / official Brotli binaries. On the 15 currently comparable
-          landing rows, the median result is 7.7% smaller under gzip and 7.5%
-          smaller under Brotli. Zod is visible but excluded after its package
-          surface audit invalidated the old core-only size row.
+          zlib / official Brotli binaries. On the 14 currently comparable
+          landing rows, the median result is 5.3% smaller under gzip and 6.6%
+          smaller under Brotli. Zod and SolidLil are visible but excluded after
+          their parity audits invalidated the old size claims.
         </p>
         <nav class="compare-jumps" aria-label="Compare sections">
           <a href="#monaco">Monaco</a>
@@ -145,13 +145,13 @@
             <span class="lib-card-kicker">SolidLil · keyed app</span>
             <h3>Solid 2.0 vs SolidLil</h3>
             <p>
-              Official js-framework-benchmark keyed table. Solid 2.0 on the left,
-              compiler-only SolidLil on the right.
+              Exact file-for-file typed runtime port in progress. The previous
+              compatibility implementation is not a valid Solid comparison.
             </p>
             <div class="lib-card-metrics">
-              <div><small>Solid 2.0</small><b>11,180</b></div>
-              <div><small>SolidLil</small><b>3,862</b></div>
-              <div class="win"><small>Brotli</small><b>−65%</b></div>
+              <div><small>Required modules</small><b>47</b></div>
+              <div><small>Verified ports</small><b>0</b></div>
+              <div><small>Comparison</small><b>withheld</b></div>
             </div>
           </a>
           <a class="lib-card" href="/solidlil.html">
@@ -574,7 +574,7 @@
           >
             <span>SolidLil</span>
             <h3>yeargun.github.io/solidlil</h3>
-            <p>Solid 2.0 client lab and the official keyed table (11,180 B → 3,862 B).</p>
+            <p>Exact Solid 2.0 browser-runtime port status and non-qualifying implementation diagnostics.</p>
             <b>Open SolidLil</b>
           </a>
           <a

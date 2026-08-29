@@ -1,0 +1,44 @@
+import extern {
+  createObjectProperty,
+  createSimpleExpression
+} from "../../../packages/vuelil/compiler-core.js";
+import { DOMErrorCodes, createDOMCompilerError } from "../errors";
+
+extern JsValue createObjectProperty;
+extern JsValue createSimpleExpression;
+
+JsValue vHtmlUndefined() {
+  return JS.undefined();
+}
+
+JsValue vHtmlSimple(string content, bool isStatic, JsValue loc = JS.undefined()) {
+  return JS.call(createSimpleExpression, vHtmlUndefined(), content, isStatic, loc);
+}
+
+export JsValue transformVHtml(JsValue directive, JsValue node, JsValue context) {
+  JsValue expression = directive["exp"];
+  JsValue loc = directive["loc"];
+  if (!expression.truthy()) {
+    JS.call(
+      context["onError"],
+      vHtmlUndefined(),
+      createDOMCompilerError(JS.number(DOMErrorCodes["X_V_HTML_NO_EXPRESSION"]).toInt(), loc)
+    );
+  }
+  if (JS.number(node["children"]["length"]).toInt() > 0) {
+    JS.call(
+      context["onError"],
+      vHtmlUndefined(),
+      createDOMCompilerError(JS.number(DOMErrorCodes["X_V_HTML_WITH_CHILDREN"]).toInt(), loc)
+    );
+    node["children"]["length"] = 0;
+  }
+  if (!expression.truthy()) expression = vHtmlSimple("", true);
+  JsValue property = JS.call(
+    createObjectProperty,
+    vHtmlUndefined(),
+    vHtmlSimple("innerHTML", true, loc),
+    expression
+  );
+  return JS.object("props", JS.array(property));
+}

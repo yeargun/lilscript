@@ -1,0 +1,112 @@
+import {
+  customRef,
+  isRef,
+  proxyRefs,
+  ref,
+  shallowRef,
+  toRef,
+  toRefs,
+  toValue,
+  triggerRef,
+  unref
+} from "./ref";
+import {
+  isProxy,
+  isReactive,
+  isReadonly,
+  isShallow,
+  markRaw,
+  reactive,
+  readonly,
+  shallowReactive,
+  shallowReadonly,
+  toRaw,
+  toReactive,
+  toReadonly
+} from "./reactive";
+import { computed } from "./computed";
+import {
+  EffectFlags,
+  ReactiveEffect,
+  effect,
+  enableTracking,
+  onEffectCleanup,
+  pauseTracking,
+  resetTracking,
+  stop
+} from "./effect";
+import {
+  ARRAY_ITERATE_KEY,
+  ITERATE_KEY,
+  MAP_KEY_ITERATE_KEY,
+  track,
+  trigger
+} from "./dep";
+import {
+  EffectScope,
+  effectScope,
+  getCurrentScope,
+  onScopeDispose
+} from "./effectScope";
+import { reactiveReadArray, shallowReadArray } from "./arrayInstrumentations";
+import { ReactiveFlags, TrackOpTypes, TriggerOpTypes } from "./constants";
+import {
+  WatchErrorCodes,
+  getCurrentWatcher,
+  onWatcherCleanup,
+  traverse,
+  watch
+} from "./watch";
+
+export {
+  ARRAY_ITERATE_KEY,
+  EffectFlags,
+  EffectScope,
+  ITERATE_KEY,
+  MAP_KEY_ITERATE_KEY,
+  ReactiveEffect,
+  ReactiveFlags,
+  TrackOpTypes,
+  TriggerOpTypes,
+  WatchErrorCodes,
+  computed,
+  customRef,
+  effect,
+  effectScope,
+  enableTracking,
+  getCurrentScope,
+  getCurrentWatcher,
+  isProxy,
+  isReactive,
+  isReadonly,
+  isRef,
+  isShallow,
+  markRaw,
+  onEffectCleanup,
+  onScopeDispose,
+  onWatcherCleanup,
+  pauseTracking,
+  proxyRefs,
+  reactive,
+  reactiveReadArray,
+  readonly,
+  ref,
+  resetTracking,
+  shallowReactive,
+  shallowReadArray,
+  shallowReadonly,
+  shallowRef,
+  stop,
+  toRaw,
+  toReactive,
+  toReadonly,
+  toRef,
+  toRefs,
+  toValue,
+  track,
+  traverse,
+  trigger,
+  triggerRef,
+  unref,
+  watch
+};

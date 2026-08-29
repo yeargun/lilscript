@@ -8,16 +8,17 @@ Parent: [config](README.md). Language consequences:
 These keys can change observable JavaScript shape; do not treat them as invisible
 minifier flags.
 
-The goal migration normalizes them into an immutable `CompilationContract` before
+The planned migration normalizes them into an immutable compilation contract before
 optimization. `cost_model`, `priority`, and candidate-search effort consume that
 contract but cannot change it. Every raw/gzip/Brotli artifact for one contract
-must pass the same generated `AbiManifest`.
+must pass the same expected-versus-observed ABI checks. The current source-derived
+manifest is only the first slice.
 
 | Key | Default | Observable effect |
 |---|---|---|
 | `public_aggregate_abi` | `named` | `positional` exports opaque array handles instead of named public fields |
 | `aggregate_layout` | `positional` | internal/escaping instance backing; named objects trade transfer for runtime storage shape |
-| `function_spelling` | unset | explicit `arrow` permits public arrows and removes `new`/`prototype`; `function` forces ordinary functions |
+| `function_spelling` | unset | legacy combined public/private callable policy; planned normalization freezes public callable kind in ABI and searches only private spelling |
 | `strip_console` | `true` | removes `print`/`debugLog` but retains their argument effects; tests set false |
 | `pool_numeric_literals` | `true` | allows repeated-number aliases when candidate search finds a win |
 | `local_name_reserve` | 16 struct default | reserves short module spellings for reuse inside lexical functions |
@@ -37,13 +38,14 @@ does not force `properties=false`; internal owned fields can still mangle.
   available only when all consumers are linked and field opacity is part of the
   contract.
 - Host objects/records: `Record<T>` keys stay exact. `extern class` members stay
-  exact when `mangle.extern_fields` is unset/true; explicit `false` permits
-  closed-world mangling. There is no constructor-value ABI flag today; identity-observed
-  published classes are a language RFC plus IR emit, not a TOML shape
+  exact when `mangle.extern_fields` is unset/true; explicit `false` is a legacy
+  coordinated closed-key mode, not a browser-host setting. Constructor-value
+  export and proof-marked named class emission are implemented
   ([compressor surface](../language/compressor-surface.md),
   [class identity](../compilation/class-identity.md)).
 
-In the goal model, both recipes still optimize a closed internal `.lil` graph.
+In the planned model, compilation world, artifact format, and public roots are
+separate. Both application and library recipes still optimize a closed internal `.lil` graph.
 “Reusable” means the root manifest has unknown JavaScript consumers; it does not mean private
 identifiers, owned properties, closure captures, or internal layouts stay
 unoptimized. Conversely, a codec objective must never silently switch a public

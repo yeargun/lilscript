@@ -1,0 +1,315 @@
+import {
+  hasChanged,
+  isFunction,
+  isMap,
+  isObject,
+  isPlainObject,
+  isSet,
+  remove
+} from "../shared/general";
+import { DEV } from "./constants";
+import { getCurrentScope } from "./effectScope";
+import {
+  EffectFlags,
+  ReactiveEffect,
+  pauseTracking,
+  resetTracking
+} from "./effect";
+import { isReactive, isShallow } from "./reactive";
+import { isRef } from "./ref";
+import { warn } from "./warning";
+
+extern JsValue hostCreateObject();
+extern JsValue hostCreateArray(int length);
+extern JsValue hostCreateMap();
+extern JsValue hostCreateWeakMap();
+extern JsValue hostFunction2Rest(JsValue callback);
+extern JsValue hostRead(JsValue value, JsValue key);
+extern int hostLength(JsValue value);
+extern JsValue hostEnumerableSymbols(JsValue value);
+extern float hostInfinity();
+
+void write(JsValue value, JsValue key, JsValue next) {
+  value[key] = next;
+}
+
+JsValue call0(JsValue fn) { return JS.call(fn, JS.undefined()); }
+JsValue call1(JsValue fn, JsValue a) { return JS.call(fn, JS.undefined(), a); }
+JsValue call2(JsValue fn, JsValue a, JsValue b) { return JS.call(fn, JS.undefined(), a, b); }
+JsValue call3(JsValue fn, JsValue a, JsValue b, JsValue c) {
+  return JS.call(fn, JS.undefined(), a, b, c);
+}
+JsValue callMethod0(JsValue receiver, string method) {
+  return JS.call(receiver[method], receiver);
+}
+
+export JsValue WatchErrorCodes = JS.object(
+  "2", "WATCH_GETTER", "3", "WATCH_CALLBACK", "4", "WATCH_CLEANUP",
+  "WATCH_GETTER", 2, "WATCH_CALLBACK", 3, "WATCH_CLEANUP", 4
+);
+
+JsValue initialWatcherValue = hostCreateObject();
+JsValue cleanupMap = hostCreateWeakMap();
+JsValue activeWatcher = JS.undefined();
+
+export JsValue getCurrentWatcher() {
+  return activeWatcher;
+}
+
+export void onWatcherCleanup(
+  JsValue cleanupFn,
+  bool failSilently = false,
+  JsValue owner = JS.undefined()
+) {
+  if (JS.isUndefined(owner)) owner = activeWatcher;
+  if (!JS.isUndefined(owner)) {
+    JsValue cleanups = JS.invoke(cleanupMap, "get", owner);
+    if (JS.isUndefined(cleanups)) {
+      cleanups = JS.array();
+      JS.invoke(cleanupMap, "set", owner, cleanups);
+    }
+    JS.invoke(cleanups, "push", cleanupFn);
+  } else if (DEV && !failSilently) {
+    warn("onWatcherCleanup() was called when there was no active watcher to associate with.");
+  }
+}
+
+JsValue traverseInternal(JsValue value, float depth, JsValue seen) {
+  if (depth <= 0 || !isObject(value) || hostRead(value, "__v_skip").truthy()) return value;
+  JsValue prior = JS.invoke(seen, "get", value);
+  if (!JS.isUndefined(prior) && JS.number(prior) >= depth) return value;
+  JS.invoke(seen, "set", value, depth);
+  float nextDepth = depth - 1;
+  if (isRef(value)) {
+    traverseInternal(hostRead(value, "value"), nextDepth, seen);
+  } else if (JS.isArray(value)) {
+    for (int index = 0; index < hostLength(value); index++) {
+      traverseInternal(hostRead(value, index), nextDepth, seen);
+    }
+  } else if (isSet(value) || isMap(value)) {
+    JS.invoke(value, "forEach", JS.method1((JsValue _self, JsValue item) => {
+      traverseInternal(item, nextDepth, seen);
+      return JS.undefined();
+    }));
+  } else if (isPlainObject(value)) {
+    for (string key in value) traverseInternal(hostRead(value, key), nextDepth, seen);
+    JsValue symbols = hostEnumerableSymbols(value);
+    for (int index = 0; index < hostLength(symbols); index++) {
+      traverseInternal(hostRead(value, hostRead(symbols, index)), nextDepth, seen);
+    }
+  }
+  return value;
+}
+
+export JsValue traverse(
+  JsValue value,
+  float depth = 0,
+  JsValue seen = JS.undefined()
+) {
+  if (depth == 0) depth = hostInfinity();
+  if (JS.isUndefined(seen)) seen = hostCreateMap();
+  return traverseInternal(value, depth, seen);
+}
+
+JsValue watchImpl(JsValue source, JsValue callback, JsValue options) {
+  if (JS.isNullish(options)) options = hostCreateObject();
+  JsValue immediate = hostRead(options, "immediate");
+  JsValue deep = hostRead(options, "deep");
+  bool once = hostRead(options, "once").truthy();
+  JsValue scheduler = hostRead(options, "scheduler");
+  JsValue augmentJob = hostRead(options, "augmentJob");
+  JsValue call = hostRead(options, "call");
+  bool hasCallback = isFunction(callback);
+
+  JsValue effectValue = JS.undefined();
+  JsValue getter = JS.undefined();
+  JsValue cleanup = JS.undefined();
+  JsValue boundCleanup = JS.undefined();
+  bool forceTrigger = false;
+  bool multiSource = false;
+
+  JsValue warnInvalidSource = JS.method1((JsValue _self, JsValue invalid) => {
+    JsValue onWarn = hostRead(options, "onWarn");
+    string explanation = "A watch source can only be a getter/effect function, a ref, " +
+      "a reactive object, or an array of these types.";
+    if (isFunction(onWarn)) call3(onWarn, "Invalid watch source: ", invalid, explanation);
+    else if (DEV) warn("Invalid watch source: " + explanation);
+    return JS.undefined();
+  });
+
+  JsValue reactiveGetter = JS.method1((JsValue _self, JsValue value) => {
+    if (deep.truthy()) return value;
+    if (isShallow(value) || JS.strictEqual(deep, false) || JS.strictEqual(deep, 0)) {
+      return traverseInternal(value, 1, hostCreateMap());
+    }
+    return traverseInternal(value, hostInfinity(), hostCreateMap());
+  });
+
+  if (isRef(source)) {
+    getter = JS.method0((JsValue _self) => hostRead(source, "value"));
+    forceTrigger = isShallow(source);
+  } else if (isReactive(source)) {
+    getter = JS.method0((JsValue _self) => call1(reactiveGetter, source));
+    forceTrigger = true;
+  } else if (JS.isArray(source)) {
+    multiSource = true;
+    for (int index = 0; index < hostLength(source); index++) {
+      JsValue item = hostRead(source, index);
+      if (isReactive(item) || isShallow(item)) forceTrigger = true;
+    }
+    getter = JS.method0((JsValue _self) => {
+      JsValue values = hostCreateArray(hostLength(source));
+      for (int index = 0; index < hostLength(source); index++) {
+        JsValue item = hostRead(source, index);
+        JsValue value = JS.undefined();
+        if (isRef(item)) value = hostRead(item, "value");
+        else if (isReactive(item)) value = call1(reactiveGetter, item);
+        else if (isFunction(item)) {
+          if (isFunction(call)) value = call2(call, item, 2);
+          else value = call0(item);
+        }
+        else if (DEV) call1(warnInvalidSource, item);
+        write(values, index, value);
+      }
+      return values;
+    });
+  } else if (isFunction(source)) {
+    if (hasCallback) {
+      getter = source;
+      if (isFunction(call)) getter = JS.method0((JsValue _self) => call2(call, source, 2));
+    } else {
+      getter = JS.method0((JsValue _self) => {
+        if (isFunction(cleanup)) {
+          pauseTracking();
+          try {
+            call0(cleanup);
+          } finally {
+            resetTracking();
+          }
+        }
+        JsValue current = activeWatcher;
+        activeWatcher = effectValue;
+        try {
+          if (isFunction(call)) return call3(call, source, 3, JS.array(boundCleanup));
+          return call1(source, boundCleanup);
+        } finally {
+          activeWatcher = current;
+        }
+      });
+    }
+  } else {
+    getter = JS.method0((JsValue _self) => JS.undefined());
+    if (DEV) call1(warnInvalidSource, source);
+  }
+
+  if (hasCallback && deep.truthy()) {
+    JsValue baseGetter = getter;
+    float depth = JS.number(deep);
+    if (JS.strictEqual(deep, true)) depth = hostInfinity();
+    getter = JS.method0((JsValue _self) => traverseInternal(call0(baseGetter), depth, hostCreateMap()));
+  }
+
+  JsValue scope = getCurrentScope();
+  JsValue watchHandle = JS.method0((JsValue _self) => {
+    callMethod0(effectValue, "stop");
+    if (!JS.isUndefined(scope) && hostRead(scope, "active").truthy()) {
+      remove(hostRead(scope, "effects"), effectValue);
+    }
+    return JS.undefined();
+  });
+
+  JsValue oldValue = initialWatcherValue;
+  if (multiSource) {
+    oldValue = hostCreateArray(hostLength(source));
+    for (int index = 0; index < hostLength(source); index++) write(oldValue, index, initialWatcherValue);
+  }
+
+  JsValue job = JS.method1((JsValue _self, JsValue immediateFirstRun) => {
+    int flags = JS.number(hostRead(effectValue, "flags")).toInt();
+    if ((flags & 1) == 0 || (!hostRead(effectValue, "dirty").truthy() && !immediateFirstRun.truthy())) {
+      return JS.undefined();
+    }
+    if (hasCallback) {
+      JsValue newValue = callMethod0(effectValue, "run");
+      bool changed = immediateFirstRun.truthy() || deep.truthy() || forceTrigger;
+      if (!changed && multiSource) {
+        for (int index = 0; index < hostLength(newValue); index++) {
+          if (hasChanged(hostRead(newValue, index), hostRead(oldValue, index))) changed = true;
+        }
+      } else if (!changed) changed = hasChanged(newValue, oldValue);
+      if (changed) {
+        if (isFunction(cleanup)) call0(cleanup);
+        JsValue current = activeWatcher;
+        activeWatcher = effectValue;
+        try {
+          JsValue previous = oldValue;
+          if (JS.strictEqual(previous, initialWatcherValue)) previous = JS.undefined();
+          else if (multiSource && JS.strictEqual(hostRead(previous, 0), initialWatcherValue)) {
+            previous = JS.array();
+          }
+          JsValue args = JS.array(newValue, previous, boundCleanup);
+          oldValue = newValue;
+          if (isFunction(call)) call3(call, callback, 3, args);
+          else JS.apply(callback, JS.undefined(), args);
+        } finally {
+          activeWatcher = current;
+        }
+        if (once) call0(watchHandle);
+      }
+    } else {
+      callMethod0(effectValue, "run");
+    }
+    return JS.undefined();
+  });
+
+  if (isFunction(augmentJob)) call1(augmentJob, job);
+  effectValue = JS.construct(ReactiveEffect, getter);
+  JsValue effectScheduler = job;
+  if (isFunction(scheduler)) effectScheduler = JS.method0((JsValue _self) => {
+    call2(scheduler, job, false);
+    return JS.undefined();
+  });
+  write(effectValue, "scheduler", effectScheduler);
+  boundCleanup = JS.method1((JsValue _self, JsValue fn) => {
+    onWatcherCleanup(fn, false, effectValue);
+    return JS.undefined();
+  });
+  cleanup = JS.method0((JsValue _self) => {
+    JsValue cleanups = JS.invoke(cleanupMap, "get", effectValue);
+    if (!JS.isUndefined(cleanups)) {
+      if (isFunction(call)) call2(call, cleanups, 4);
+      else {
+        for (int index = 0; index < hostLength(cleanups); index++) call0(hostRead(cleanups, index));
+      }
+      JS.invoke(cleanupMap, "delete", effectValue);
+    }
+    return JS.undefined();
+  });
+  write(effectValue, "onStop", cleanup);
+  if (DEV) {
+    write(effectValue, "onTrack", hostRead(options, "onTrack"));
+    write(effectValue, "onTrigger", hostRead(options, "onTrigger"));
+  }
+
+  if (hasCallback) {
+    if (immediate.truthy()) call1(job, true);
+    else oldValue = callMethod0(effectValue, "run");
+  } else if (isFunction(scheduler)) {
+    JsValue firstJob = JS.method0((JsValue _self) => {
+      call1(job, true);
+      return JS.undefined();
+    });
+    call2(scheduler, firstJob, true);
+  } else {
+    callMethod0(effectValue, "run");
+  }
+
+  write(watchHandle, "pause", JS.method0((JsValue _self) => callMethod0(effectValue, "pause")));
+  write(watchHandle, "resume", JS.method0((JsValue _self) => callMethod0(effectValue, "resume")));
+  write(watchHandle, "stop", watchHandle);
+  return watchHandle;
+}
+
+export JsValue watch = hostFunction2Rest(JS.method1((JsValue _self, JsValue args) =>
+  watchImpl(hostRead(args, 0), hostRead(args, 1), hostRead(args, 2))
+));

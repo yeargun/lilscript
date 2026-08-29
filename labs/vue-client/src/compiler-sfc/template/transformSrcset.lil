@@ -1,0 +1,221 @@
+import extern { default as SrcsetPath } from "node:path";
+import extern {
+  ConstantTypes as SrcsetConstantTypes,
+  NodeTypes as SrcsetNodeTypes,
+  createCompoundExpression as srcsetCreateCompoundExpression,
+  createSimpleExpression as srcsetCreateSimpleExpression
+} from "../../../packages/vuelil/compiler-core.js";
+import {
+  isDataUrl,
+  isExternalUrl,
+  isRelativeUrl,
+  normalizeDecodedImportPath,
+  parseUrl
+} from "./templateUtils";
+import { defaultAssetUrlOptions } from "./transformAssetUrl";
+
+extern JsValue SrcsetConstantTypes;
+extern JsValue SrcsetNodeTypes;
+extern JsValue SrcsetPath;
+extern JsValue srcsetCreateCompoundExpression;
+extern JsValue srcsetCreateSimpleExpression;
+
+int srcsetLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+
+void srcsetPush(JsValue values, JsValue value) {
+  values[srcsetLength(values)] = value;
+}
+
+JsValue srcsetTags = JS.array("img", "source");
+Regex escapedSpaceCharacters = new Regex("( |\\t|\\n|\\f|\\r)+", "g");
+
+export JsValue createSrcsetTransformWithOptions(JsValue options) {
+  return JS.method2((JsValue _self, JsValue node, JsValue context) => {
+    transformSrcset(node, context, options);
+    return JS.undefined();
+  });
+}
+
+bool shouldProcessSrcsetUrl(string url, JsValue options) {
+  return url.length > 0 && !isExternalUrl(url) && !isDataUrl(url) &&
+    (options["includeAbsolute"].truthy() || isRelativeUrl(url));
+}
+
+export void transformSrcset(
+  JsValue node,
+  JsValue context,
+  JsValue options = JS.undefined()
+) {
+  if (JS.isUndefined(options)) options = defaultAssetUrlOptions;
+  if (!JS.strictEqual(node["type"], SrcsetNodeTypes["ELEMENT"]) ||
+    !JS.invoke(srcsetTags, "includes", node["tag"]).truthy() ||
+    srcsetLength(node["props"]) == 0) return;
+
+  JsValue props = node["props"];
+  for (int attrIndex = 0; attrIndex < srcsetLength(props); attrIndex++) {
+    JsValue attr = props[attrIndex];
+    if (JS.string(attr["name"]) != "srcset" ||
+      !JS.strictEqual(attr["type"], SrcsetNodeTypes["ATTRIBUTE"]) ||
+      !attr["value"].truthy()) continue;
+    string value = JS.string(attr["value"]["content"]);
+    if (value.length == 0) continue;
+
+    JsValue imageCandidates = JS.array();
+    JsValue pieces = JS.invoke(value, "split", ",");
+    for (int index = 0; index < srcsetLength(pieces); index++) {
+      string normalized = JS.string(JS.invoke(
+        JS.invoke(pieces[index], "replace", escapedSpaceCharacters, " "),
+        "trim"
+      ));
+      JsValue parts = JS.invoke(normalized, "split", " ", 2);
+      srcsetPush(imageCandidates, JS.object(
+        "url", parts[0],
+        "descriptor", parts[1]
+      ));
+    }
+    for (int index = 0; index < srcsetLength(imageCandidates); index++) {
+      string url = JS.string(imageCandidates[index]["url"]);
+      if (isDataUrl(url)) {
+        imageCandidates[index + 1]["url"] = url + "," +
+          JS.string(imageCandidates[index + 1]["url"]);
+        JS.invoke(imageCandidates, "splice", index, 1);
+      }
+    }
+    bool anyQualified = false;
+    for (int index = 0; index < srcsetLength(imageCandidates); index++) {
+      if (shouldProcessSrcsetUrl(
+        JS.string(imageCandidates[index]["url"]),
+        options
+      )) anyQualified = true;
+    }
+    if (!anyQualified) continue;
+
+    if (options["base"].truthy()) {
+      string base = JS.string(options["base"]);
+      JsValue set = JS.array();
+      bool needImportTransform = false;
+      for (int index = 0; index < srcsetLength(imageCandidates); index++) {
+        JsValue candidate = imageCandidates[index];
+        string url = JS.string(candidate["url"]);
+        string descriptor = "";
+        if (candidate["descriptor"].truthy()) {
+          descriptor = " " + JS.string(candidate["descriptor"]);
+        }
+        if (url.charAt(0) == ".") {
+          JsValue pathApi = SrcsetPath;
+          if (SrcsetPath["posix"].truthy()) pathApi = SrcsetPath["posix"];
+          candidate["url"] = JS.call(pathApi["join"], pathApi, base, url);
+          srcsetPush(set, JS.string(candidate["url"]) + descriptor);
+        } else if (shouldProcessSrcsetUrl(url, options)) {
+          needImportTransform = true;
+        } else {
+          srcsetPush(set, url + descriptor);
+        }
+      }
+      if (!needImportTransform) {
+        attr["value"]["content"] = JS.invoke(set, "join", ", ");
+        continue;
+      }
+    }
+
+    JsValue compoundExpression = JS.call(
+      srcsetCreateCompoundExpression,
+      JS.undefined(),
+      JS.array(),
+      attr["loc"]
+    );
+    for (int index = 0; index < srcsetLength(imageCandidates); index++) {
+      JsValue candidate = imageCandidates[index];
+      string url = JS.string(candidate["url"]);
+      JsValue descriptor = candidate["descriptor"];
+      if (shouldProcessSrcsetUrl(url, options)) {
+        JsValue parsed = parseUrl(url);
+        JsValue source = parsed["hash"];
+        if (parsed["path"].truthy()) source = parsed["path"];
+        if (source.truthy()) {
+          string normalizedSource = normalizeDecodedImportPath(JS.string(source));
+          JsValue imports = context["imports"];
+          int existingImportsIndex = -1;
+          for (int importIndex = 0; importIndex < srcsetLength(imports); importIndex++) {
+            if (JS.string(imports[importIndex]["path"]) == normalizedSource) {
+              existingImportsIndex = importIndex;
+            }
+          }
+          string importName = "";
+          if (existingImportsIndex > -1) importName = "_imports_" + existingImportsIndex;
+          else importName = "_imports_" + srcsetLength(imports);
+          JsValue expression = JS.call(
+            srcsetCreateSimpleExpression,
+            JS.undefined(),
+            importName,
+            false,
+            attr["loc"],
+            SrcsetConstantTypes["CAN_STRINGIFY"]
+          );
+          if (existingImportsIndex == -1) {
+            srcsetPush(imports, JS.object("exp", expression, "path", normalizedSource));
+          }
+          if (parsed["path"].truthy() && parsed["hash"].truthy()) {
+            expression = JS.call(
+              srcsetCreateSimpleExpression,
+              JS.undefined(),
+              JS.string(expression["content"]) + " + '" +
+                JS.string(parsed["hash"]) + "'",
+              false,
+              attr["loc"],
+              SrcsetConstantTypes["CAN_STRINGIFY"]
+            );
+          }
+          srcsetPush(compoundExpression["children"], expression);
+        }
+      } else {
+        srcsetPush(
+          compoundExpression["children"],
+          JS.call(
+            srcsetCreateSimpleExpression,
+            JS.undefined(),
+            "\"" + url + "\"",
+            false,
+            attr["loc"],
+            SrcsetConstantTypes["CAN_STRINGIFY"]
+          )
+        );
+      }
+      bool isNotLast = srcsetLength(imageCandidates) - 1 > index;
+      if (descriptor.truthy() && isNotLast) {
+        srcsetPush(
+          compoundExpression["children"],
+          " + ' " + JS.string(descriptor) + ", ' + "
+        );
+      } else if (descriptor.truthy()) {
+        srcsetPush(
+          compoundExpression["children"],
+          " + ' " + JS.string(descriptor) + "'"
+        );
+      } else if (isNotLast) {
+        srcsetPush(compoundExpression["children"], " + ', ' + ");
+      }
+    }
+    JsValue expression = compoundExpression;
+    if (context["hoistStatic"].truthy()) {
+      expression = JS.call(context["hoist"], context, compoundExpression);
+      expression["constType"] = SrcsetConstantTypes["CAN_STRINGIFY"];
+    }
+    props[attrIndex] = JS.object(
+      "type", SrcsetNodeTypes["DIRECTIVE"],
+      "name", "bind",
+      "arg", JS.call(
+        srcsetCreateSimpleExpression,
+        JS.undefined(),
+        "srcset",
+        true,
+        attr["loc"]
+      ),
+      "exp", expression,
+      "modifiers", JS.array(),
+      "loc", attr["loc"]
+    );
+  }
+}

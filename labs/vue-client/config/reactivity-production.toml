@@ -1,0 +1,40 @@
+[optimization]
+preset = "maximum"
+profile_guided = true
+call_site_specialization = true
+capture_signature_cloning = true
+identical_function_folding = true
+
+[javascript]
+priority = "size-first"
+ecmascript = "es2022"
+optimization_level = 15
+cost_model = "brotli"
+public_aggregate_abi = "positional"
+assume_pristine_builtins = false
+assume_pure_property_reads = false
+strip_console = true
+pool_numeric_literals = true
+candidate_search = "always"
+candidate_limit = 1536
+candidate_byte_budget = 1048576
+candidate_beam_width = 12
+candidate_proposal_limit = 384
+terminal_codec_probe_limit = 384
+max_candidate_raw_growth_percent = 10
+function_layout_exact_limit = 18
+local_name_reserve = 16
+stable_local_names = false
+local_name_coalescing = true
+
+[mangle]
+identifiers = true
+properties = true
+exports = false
+pool_strings = true
+
+[bundle]
+mode = "single"
+
+[lint]
+pure_extern_allowlist = ["hostCreateEffectScopeClass", "hostCreateWeakMap"]

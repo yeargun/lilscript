@@ -1,0 +1,124 @@
+import {
+  NodeTypes,
+  createCallExpression,
+  createFunctionExpression,
+  createSimpleExpression
+} from "../ast";
+import { JSON } from "../codegen";
+import { ErrorCodes, createCompilerError } from "../errors";
+import { RENDER_SLOT } from "../runtimeHelpers";
+import { isSlotOutlet, isStaticArgOf, isStaticExp } from "../utils";
+import { COMPILER_BROWSER } from "../validateExpression";
+import { processExpression } from "./transformExpression";
+import { buildProps } from "./transformElement";
+
+JsValue slotUndefined() {
+  return JS.undefined();
+}
+
+int slotLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+
+void slotPush(JsValue values, JsValue value) {
+  values[slotLength(values)] = value;
+}
+
+Regex slotCamelizePattern = new Regex("-\\w", "g");
+
+string camelizeSlotProp(string value) {
+  JsValue replacement = JS.method1((JsValue _self, JsValue matched) => {
+    return JS.string(matched).slice(1).toUpperCase();
+  });
+  return JS.string(JS.invoke(value, "replace", slotCamelizePattern, replacement));
+}
+
+export JsValue processSlotOutlet(JsValue node, JsValue context) {
+  JsValue slotName = "\"default\"";
+  JsValue nonNameProps = JS.array();
+  JsValue props = node["props"];
+  for (int index = 0; index < slotLength(props); index++) {
+    JsValue prop = props[index];
+    if (JS.strictEqual(prop["type"], NodeTypes["ATTRIBUTE"])) {
+      if (prop["value"].truthy()) {
+        if (JS.string(prop["name"]) == "name") {
+          slotName = JS.invoke(JSON, "stringify", prop["value"]["content"]);
+        } else {
+          prop["name"] = camelizeSlotProp(JS.string(prop["name"]));
+          slotPush(nonNameProps, prop);
+        }
+      }
+    } else if (JS.string(prop["name"]) == "bind" && isStaticArgOf(prop["arg"], "name")) {
+      if (prop["exp"].truthy()) {
+        slotName = prop["exp"];
+      } else if (
+        prop["arg"].truthy() &&
+        JS.strictEqual(prop["arg"]["type"], NodeTypes["SIMPLE_EXPRESSION"])
+      ) {
+        string name = camelizeSlotProp(JS.string(prop["arg"]["content"]));
+        prop["exp"] = createSimpleExpression(name, false, prop["arg"]["loc"]);
+        if (!COMPILER_BROWSER) prop["exp"] = processExpression(prop["exp"], context);
+        slotName = prop["exp"];
+      }
+    } else {
+      if (
+        JS.string(prop["name"]) == "bind" &&
+        prop["arg"].truthy() &&
+        isStaticExp(prop["arg"])
+      ) {
+        prop["arg"]["content"] = camelizeSlotProp(JS.string(prop["arg"]["content"]));
+      }
+      slotPush(nonNameProps, prop);
+    }
+  }
+
+  JsValue slotProps = slotUndefined();
+  if (slotLength(nonNameProps) > 0) {
+    JsValue built = buildProps(node, context, nonNameProps, false, false, false);
+    slotProps = built["props"];
+    if (slotLength(built["directives"]) > 0) {
+      JS.call(
+        context["onError"],
+        slotUndefined(),
+        createCompilerError(
+          JS.number(ErrorCodes["X_V_SLOT_UNEXPECTED_DIRECTIVE_ON_SLOT_OUTLET"]).toInt(),
+          built["directives"][0]["loc"]
+        )
+      );
+    }
+  }
+  return JS.object("slotName", slotName, "slotProps", slotProps);
+}
+
+export JsValue transformSlotOutlet(JsValue node, JsValue context) {
+  if (!isSlotOutlet(node)) return slotUndefined();
+  JsValue result = processSlotOutlet(node, context);
+  string slotsName = "$slots";
+  if (context["prefixIdentifiers"].truthy()) slotsName = "_ctx.$slots";
+  JsValue args = JS.array(slotsName, result["slotName"], "{}", "undefined", "true");
+  int expectedLength = 2;
+  if (result["slotProps"].truthy()) {
+    args[2] = result["slotProps"];
+    expectedLength = 3;
+  }
+  if (slotLength(node["children"]) > 0) {
+    args[3] = createFunctionExpression(
+      JS.array(),
+      node["children"],
+      false,
+      false,
+      node["loc"]
+    );
+    expectedLength = 4;
+  }
+  if (context["scopeId"].truthy() && !context["slotted"].truthy()) {
+    expectedLength = 5;
+  }
+  JS.invoke(args, "splice", expectedLength);
+  node["codegenNode"] = createCallExpression(
+    JS.call(context["helper"], slotUndefined(), RENDER_SLOT),
+    args,
+    node["loc"]
+  );
+  return slotUndefined();
+}

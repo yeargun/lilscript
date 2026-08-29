@@ -1,0 +1,114 @@
+import extern {
+  baseParse,
+  generate,
+  noopDirectiveTransform,
+  parserOptions,
+  trackSlotScopes,
+  trackVForSlotScopes,
+  transform,
+  transformBind,
+  transformExpression,
+  transformOn,
+  transformStyle,
+  transformVBindShorthand
+} from "../../packages/vuelil/compiler-dom.js";
+import { ssrCodegenTransform } from "./ssrCodegenTransform";
+import { rawOptionsMap, ssrTransformComponent } from "./transforms/ssrTransformComponent";
+import { ssrTransformElement } from "./transforms/ssrTransformElement";
+import { ssrTransformSlotOutlet } from "./transforms/ssrTransformSlotOutlet";
+import { ssrTransformFor } from "./transforms/ssrVFor";
+import { ssrTransformIf } from "./transforms/ssrVIf";
+import { ssrTransformModel } from "./transforms/ssrVModel";
+import { ssrTransformShow } from "./transforms/ssrVShow";
+import { ssrInjectCssVars } from "./transforms/ssrInjectCssVars";
+import { ssrInjectFallthroughAttrs } from "./transforms/ssrInjectFallthroughAttrs";
+
+extern JsValue Object;
+extern JsValue baseParse;
+extern JsValue generate;
+extern JsValue noopDirectiveTransform;
+extern JsValue parserOptions;
+extern JsValue trackSlotScopes;
+extern JsValue trackVForSlotScopes;
+extern JsValue transform;
+extern JsValue transformBind;
+extern JsValue transformExpression;
+extern JsValue transformOn;
+extern JsValue transformStyle;
+extern JsValue transformVBindShorthand;
+
+JsValue ssrCompileUndefined() {
+  return JS.undefined();
+}
+
+void ssrCompilePush(JsValue values, JsValue value) {
+  values[JS.number(values["length"]).toInt()] = value;
+}
+
+export JsValue compile(JsValue source, JsValue options = JS.undefined()) {
+  if (JS.isUndefined(options)) options = JS.object();
+  JsValue resolved = JS.invoke(Object, "assign", JS.object(), options, parserOptions);
+  resolved["ssr"] = true;
+  resolved["inSSR"] = true;
+  if (JS.strictEqual(options["mode"], "function")) resolved["scopeId"] = null;
+  else resolved["scopeId"] = options["scopeId"];
+  resolved["prefixIdentifiers"] = true;
+  resolved["cacheHandlers"] = false;
+  resolved["hoistStatic"] = false;
+
+  JsValue ast = source;
+  if (JS.typeOf(source) == "string") {
+    ast = JS.call(baseParse, ssrCompileUndefined(), source, resolved);
+  }
+  JS.invoke(rawOptionsMap, "set", ast, resolved);
+
+  JsValue nodeTransforms = JS.array(
+    transformVBindShorthand,
+    ssrTransformIf,
+    ssrTransformFor,
+    trackVForSlotScopes,
+    transformExpression,
+    ssrTransformSlotOutlet,
+    ssrInjectFallthroughAttrs,
+    ssrInjectCssVars,
+    ssrTransformElement,
+    ssrTransformComponent,
+    trackSlotScopes,
+    transformStyle
+  );
+  JsValue customNodeTransforms = options["nodeTransforms"];
+  if (customNodeTransforms.truthy()) {
+    for (int index = 0;
+      index < JS.number(customNodeTransforms["length"]).toInt();
+      index++) ssrCompilePush(nodeTransforms, customNodeTransforms[index]);
+  }
+  JsValue directiveTransforms = JS.object(
+    "bind", transformBind,
+    "on", transformOn,
+    "model", ssrTransformModel,
+    "show", ssrTransformShow,
+    "cloak", noopDirectiveTransform,
+    "once", noopDirectiveTransform,
+    "memo", noopDirectiveTransform
+  );
+  JsValue customDirectiveTransforms = options["directiveTransforms"];
+  if (customDirectiveTransforms.truthy()) {
+    for (string key in customDirectiveTransforms) {
+      directiveTransforms[key] = customDirectiveTransforms[key];
+    }
+  }
+  JsValue transformOptions = JS.invoke(
+    Object,
+    "assign",
+    JS.object(),
+    resolved,
+    JS.object(
+      "hoistStatic", false,
+      "nodeTransforms", nodeTransforms,
+      "directiveTransforms", directiveTransforms
+    )
+  );
+  JS.call(transform, ssrCompileUndefined(), ast, transformOptions);
+  ssrCodegenTransform(ast, resolved);
+  return JS.call(generate, ssrCompileUndefined(), ast, resolved);
+}

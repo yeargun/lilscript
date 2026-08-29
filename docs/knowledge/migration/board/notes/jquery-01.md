@@ -96,7 +96,7 @@ the compat suite is 6/6. The gap is not extra surface on either side.
   defect. — **LANDED**
 - 2026-08-25 — `fold_returned_temporaries`: a value stored only to be returned
   on the next statement is returned directly. Built on
-  [`BindingResolution`](../../../../src/js_peephole/binding.rs), so the store
+  [`BindingResolution`](../../../../../src/js_peephole/binding.rs), so the store
   must *resolve* to the returned binding rather than merely spell like it — the
   first draft absorbed `f(y){let x=…;y=2;return x}` into `return 2,mutate()`,
   which the corpus caught and which is now a regression test. Earlier reads are

@@ -1,0 +1,291 @@
+import {
+  Array,
+  JSON,
+  Number,
+  Object,
+  global,
+  globalThis,
+  makeMap,
+  parseFloat,
+  parseInt,
+  process,
+  self,
+  window
+} from "./makeMap";
+
+export extern JsValue arguments;
+
+JsValue undefinedValue() {
+  return JS.undefined();
+}
+
+int valueLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+
+bool strictTrue(JsValue value) {
+  return JS.strictEqual(value, true);
+}
+
+bool developmentMode() {
+  return JS.typeOf(process) == "undefined" ||
+    !JS.strictEqual(process["env"]["NODE_ENV"], "production");
+}
+
+JsValue emptyObject() {
+  JsValue value = JS.object();
+  if (developmentMode()) {
+    return JS.invoke(Object, "freeze", value);
+  }
+  return value;
+}
+
+JsValue emptyArray() {
+  JsValue value = JS.array();
+  if (developmentMode()) {
+    return JS.invoke(Object, "freeze", value);
+  }
+  return value;
+}
+
+export JsValue EMPTY_OBJ = emptyObject();
+export JsValue EMPTY_ARR = emptyArray();
+
+export void NOOP() {}
+
+export bool NO() {
+  return false;
+}
+
+export bool isOn(string key) {
+  int third = key.charCodeAt(2);
+  return key.charCodeAt(0) == 111 &&
+    key.charCodeAt(1) == 110 &&
+    (third > 122 || third < 97);
+}
+
+export bool isModelListener(string key) {
+  return key.startsWith("onUpdate:");
+}
+
+export JsValue extend = Object["assign"];
+
+export void remove(JsValue values, JsValue value) {
+  int index = JS.number(JS.invoke(values, "indexOf", value)).toInt();
+  if (index > -1) {
+    JS.invoke(values, "splice", index, 1);
+  }
+}
+
+export bool hasOwn(JsValue value, JsValue key) {
+  return JS.call(Object["prototype"]["hasOwnProperty"], value, key).truthy();
+}
+
+export JsValue isArray = Array["isArray"];
+export JsValue objectToString = Object["prototype"]["toString"];
+
+string typeString(JsValue value) {
+  return JS.string(JS.call(objectToString, value));
+}
+
+export bool isMap(JsValue value) {
+  return typeString(value) == "[object Map]";
+}
+
+export bool isSet(JsValue value) {
+  return typeString(value) == "[object Set]";
+}
+
+export bool isDate(JsValue value) {
+  return typeString(value) == "[object Date]";
+}
+
+export bool isRegExp(JsValue value) {
+  return typeString(value) == "[object RegExp]";
+}
+
+export bool isFunction(JsValue value) {
+  return JS.typeOf(value) == "function";
+}
+
+export bool isString(JsValue value) {
+  return JS.typeOf(value) == "string";
+}
+
+export bool isSymbol(JsValue value) {
+  return JS.typeOf(value) == "symbol";
+}
+
+export bool isObject(JsValue value) {
+  return !JS.strictEqual(value, null) && JS.typeOf(value) == "object";
+}
+
+export bool isPromise(JsValue value) {
+  if (!isObject(value) && !isFunction(value)) {
+    return false;
+  }
+  return isFunction(value["then"]) && isFunction(value["catch"]);
+}
+
+export string toTypeString(JsValue value) {
+  return typeString(value);
+}
+
+export string toRawType(JsValue value) {
+  return typeString(value).slice(8, -1);
+}
+
+export bool isPlainObject(JsValue value) {
+  return typeString(value) == "[object Object]";
+}
+
+export bool isIntegerKey(JsValue value) {
+  if (!isString(value)) {
+    return false;
+  }
+  string key = JS.string(value);
+  if (key == "NaN" || key.startsWith("-")) {
+    return false;
+  }
+  JsValue parsed = JS.call(parseInt, undefinedValue(), key, 10);
+  return JS.string(parsed) == key;
+}
+
+export JsValue isReservedProp = makeMap(
+  ",key,ref,ref_for,ref_key," +
+  "onVnodeBeforeMount,onVnodeMounted," +
+  "onVnodeBeforeUpdate,onVnodeUpdated," +
+  "onVnodeBeforeUnmount,onVnodeUnmounted"
+);
+
+export JsValue isBuiltInDirective = makeMap(
+  "bind,cloak,else-if,else,for,html,if,model,on,once,pre,show,slot,text,memo"
+);
+
+JsValue cacheStringFunction(JsValue transform) {
+  JsValue cache = JS.invoke(Object, "create", null);
+  return JS.method1((JsValue _self, JsValue input) => {
+    string value = JS.string(input);
+    JsValue hit = cache[value];
+    if (hit.truthy()) {
+      return hit;
+    }
+    JsValue result = JS.call(transform, undefinedValue(), value);
+    cache[value] = result;
+    return result;
+  });
+}
+
+Regex camelizePattern = new Regex("-\\w", "g");
+export JsValue camelize = cacheStringFunction(
+  JS.method1((JsValue _self, JsValue input) => {
+    string value = JS.string(input);
+    JsValue replacement = JS.method1((JsValue _innerSelf, JsValue matched) => {
+      return JS.string(matched).slice(1).toUpperCase();
+    });
+    return JS.invoke(value, "replace", camelizePattern, replacement);
+  })
+);
+
+Regex hyphenatePattern = new Regex("\\B([A-Z])", "g");
+export JsValue hyphenate = cacheStringFunction(
+  JS.method1((JsValue _self, JsValue input) => {
+    string value = JS.string(input);
+    return JS.string(JS.invoke(value, "replace", hyphenatePattern, "-$1")).toLowerCase();
+  })
+);
+
+export JsValue capitalize = cacheStringFunction(
+  JS.method1((JsValue _self, JsValue input) => {
+    string value = JS.string(input);
+    return value.charAt(0).toUpperCase() + value.slice(1);
+  })
+);
+
+export JsValue toHandlerKey = cacheStringFunction(
+  JS.method1((JsValue _self, JsValue input) => {
+    string value = JS.string(input);
+    if (value == "") {
+      return "";
+    }
+    return "on" + JS.string(JS.call(capitalize, undefinedValue(), value));
+  })
+);
+
+export bool hasChanged(JsValue value, JsValue oldValue) {
+  return !strictTrue(JS.invoke(Object, "is", value, oldValue));
+}
+
+export void invokeArrayFns(JsValue functions) {
+  JsValue args = JS.call(Array["prototype"]["slice"], arguments, 1);
+  int length = valueLength(functions);
+  for (int index = 0; index < length; index++) {
+    JS.apply(functions[index], functions, args);
+  }
+}
+
+export void def(JsValue object, JsValue key, JsValue value, bool writable = false) {
+  JsValue descriptor = JS.object(
+    "configurable", true,
+    "enumerable", false,
+    "writable", writable,
+    "value", value
+  );
+  JS.invoke(Object, "defineProperty", object, key, descriptor);
+}
+
+export JsValue looseToNumber(JsValue value) {
+  JsValue parsedNumber = JS.call(parseFloat, undefinedValue(), value);
+  if (!JS.strictEqual(parsedNumber, parsedNumber)) {
+    return value;
+  }
+  return parsedNumber;
+}
+
+export JsValue toNumber(JsValue value) {
+  if (!isString(value)) {
+    return value;
+  }
+  JsValue parsedNumber = JS.call(Number, undefinedValue(), value);
+  if (!JS.strictEqual(parsedNumber, parsedNumber)) {
+    return value;
+  }
+  return parsedNumber;
+}
+
+JsValue cachedGlobal = JS.undefined();
+export JsValue getGlobalThis() {
+  if (cachedGlobal.truthy()) {
+    return cachedGlobal;
+  }
+  if (JS.typeOf(globalThis) != "undefined") {
+    cachedGlobal = globalThis;
+  } else if (JS.typeOf(self) != "undefined") {
+    cachedGlobal = self;
+  } else if (JS.typeOf(window) != "undefined") {
+    cachedGlobal = window;
+  } else if (JS.typeOf(global) != "undefined") {
+    cachedGlobal = global;
+  } else {
+    cachedGlobal = JS.object();
+  }
+  return cachedGlobal;
+}
+
+Regex identifierPattern = new Regex("^[_$a-zA-Z\\xA0-\\uFFFF][_$a-zA-Z0-9\\xA0-\\uFFFF]*$");
+export string genPropsAccessExp(string name) {
+  if (identifierPattern.test(name)) {
+    return "__props." + name;
+  }
+  return "__props[" + JS.string(JS.invoke(JSON, "stringify", name)) + "]";
+}
+
+export string genCacheKey(string source, JsValue options) {
+  JsValue replacer = JS.method2((JsValue _self, JsValue _key, JsValue value) => {
+    if (isFunction(value)) {
+      return JS.invoke(value, "toString");
+    }
+    return value;
+  });
+  return source + JS.string(JS.invoke(JSON, "stringify", options, replacer));
+}

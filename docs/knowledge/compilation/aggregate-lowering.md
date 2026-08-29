@@ -11,8 +11,9 @@ key from silently disabling optimization of every typed aggregate.
 
 Which of those representations is **searched** versus configured is
 [decision registry — aggregates](decision-registry.md#aggregates-class-struct-object-record).
-Scalar replacement has no IR off-clone. Joint array/object search is gated and
-is omitted from root `lilscript.toml`.
+Scalar replacement is the configured incumbent; size-first library search can
+admit a scored `keep-object` IR clone. Joint array/object search is gated and is
+omitted from root `lilscript.toml`.
 
 Lowering is chosen from proof and boundary:
 
@@ -27,8 +28,8 @@ Lowering is chosen from proof and boundary:
    record representation preserves that prototype. A JS-only projection candidate
    may instead eliminate closed record construction and observations when the
    complete operation is proven equivalent. `extern class` uses exact host names
-   by default; explicit `mangle.extern_fields = false` permits closed-world
-   mangling under the current inverted configuration naming.
+   by default. The current explicitly configured closed-key mode is legacy ABI
+   policy and must not be inferred for arbitrary host objects.
 
 Class calls statically devirtualize because overriding is rejected. Base fields are
 flattened. Native currently rejects inheritance until its subtype pointer ABI is

@@ -1,0 +1,14 @@
+export JsValue SlotFlags = JS.object(
+  "STABLE", 1,
+  "1", "STABLE",
+  "DYNAMIC", 2,
+  "2", "DYNAMIC",
+  "FORWARDED", 3,
+  "3", "FORWARDED"
+);
+
+export JsValue slotFlagsText = JS.object(
+  "1", "STABLE",
+  "2", "DYNAMIC",
+  "3", "FORWARDED"
+);

@@ -1,0 +1,416 @@
+import extern {
+  NodeTypes as ParseNodeTypes,
+  createRoot as parseCreateRoot
+} from "../../packages/vuelil/compiler-core.js";
+import extern { parse as parseCompilerDOM } from "../../packages/vuelil/compiler-dom.js";
+import extern { genCacheKey as parseGenCacheKey } from "../../packages/vuelil/shared.js";
+import extern { SourceMapGenerator as ParseSourceMapGenerator } from "source-map-js";
+import extern { hostAssign as parseHostAssign } from "./host.js";
+import { createCache } from "./cache";
+import { isImportUsed } from "./script/importUsageCheck";
+import { parseCssVars } from "./style/cssVars";
+
+extern JsValue Array;
+extern JsValue ParseNodeTypes;
+extern JsValue ParseSourceMapGenerator;
+extern JsValue SyntaxError;
+extern JsValue parseCompilerDOM;
+extern JsValue parseCreateRoot;
+extern JsValue parseGenCacheKey;
+extern JsValue parseHostAssign;
+
+export string DEFAULT_FILENAME = "anonymous.vue";
+export JsValue parseCache = createCache();
+
+int parseLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+
+void parsePush(JsValue values, JsValue value) {
+  values[parseLength(values)] = value;
+}
+
+JsValue parseSyntaxError(string message) {
+  return JS.construct(SyntaxError, message);
+}
+
+string parseFilename(JsValue options) {
+  if (options["filename"].truthy()) return JS.string(options["filename"]);
+  return DEFAULT_FILENAME;
+}
+
+export JsValue parse(string source, JsValue options = JS.undefined()) {
+  if (JS.isUndefined(options)) options = JS.object();
+  JsValue compilerShape = JS.object("parse", JS.undefined());
+  if (options["compiler"].truthy()) {
+    compilerShape["parse"] = options["compiler"]["parse"];
+  }
+  JsValue keyOptions = JS.call(
+    parseHostAssign,
+    JS.undefined(),
+    JS.object(),
+    options,
+    JS.object("compiler", compilerShape)
+  );
+  string sourceKey = JS.string(JS.call(
+    parseGenCacheKey,
+    JS.undefined(),
+    source,
+    keyOptions
+  ));
+  JsValue cached = JS.invoke(parseCache, "get", sourceKey);
+  if (cached.truthy()) return cached;
+
+  bool sourceMap = true;
+  string filename = parseFilename(options);
+  string sourceRoot = "";
+  JsValue pad = false;
+  bool ignoreEmpty = true;
+  JsValue compiler = JS.undefined();
+  JsValue templateParseOptions = JS.object();
+  if (!JS.isUndefined(options["sourceMap"])) sourceMap = options["sourceMap"].truthy();
+  if (options["sourceRoot"].truthy()) sourceRoot = JS.string(options["sourceRoot"]);
+  if (!JS.isUndefined(options["pad"])) pad = options["pad"];
+  if (!JS.isUndefined(options["ignoreEmpty"])) {
+    ignoreEmpty = options["ignoreEmpty"].truthy();
+  }
+  if (options["compiler"].truthy()) compiler = options["compiler"];
+  if (options["templateParseOptions"].truthy()) {
+    templateParseOptions = options["templateParseOptions"];
+  }
+
+  JsValue descriptor = JS.object(
+    "filename", filename,
+    "source", source,
+    "template", null,
+    "script", null,
+    "scriptSetup", null,
+    "styles", JS.array(),
+    "customBlocks", JS.array(),
+    "cssVars", JS.array(),
+    "slotted", false
+  );
+  descriptor["shouldForceReload"] = JS.method1((JsValue _self, JsValue prevImports) =>
+    hmrShouldReload(prevImports, descriptor)
+  );
+  JsValue errors = JS.array();
+  JsValue onError = JS.method1((JsValue _self, JsValue error) => {
+    parsePush(errors, error);
+    return JS.undefined();
+  });
+  JsValue parserOptions = JS.call(
+    parseHostAssign,
+    JS.undefined(),
+    JS.object("parseMode", "sfc", "prefixIdentifiers", true),
+    templateParseOptions,
+    JS.object("onError", onError)
+  );
+  JsValue parseFunction = parseCompilerDOM;
+  JsValue parseReceiver = JS.undefined();
+  if (compiler.truthy()) {
+    parseFunction = compiler["parse"];
+    parseReceiver = compiler;
+  }
+  JsValue ast = JS.call(parseFunction, parseReceiver, source, parserOptions);
+  JsValue children = ast["children"];
+  for (int index = 0; index < parseLength(children); index++) {
+    JsValue node = children[index];
+    if (!JS.strictEqual(node["type"], ParseNodeTypes["ELEMENT"])) continue;
+    string tag = JS.string(node["tag"]);
+    if (ignoreEmpty && tag != "template" && isEmpty(node) && !hasSrc(node)) continue;
+    if (tag == "template") {
+      if (JS.isNullish(descriptor["template"])) {
+        JsValue templateBlock = createBlock(node, source, false);
+        descriptor["template"] = templateBlock;
+        if (!templateBlock["attrs"]["src"].truthy()) {
+          templateBlock["ast"] = JS.call(
+            parseCreateRoot,
+            JS.undefined(),
+            node["children"],
+            source
+          );
+        }
+        if (templateBlock["attrs"]["functional"].truthy()) {
+          JsValue error = parseSyntaxError(
+            "<template functional> is no longer supported in Vue 3, since " +
+              "functional components no longer have significant performance " +
+              "difference from stateful ones. Just use a normal <template> " +
+              "instead."
+          );
+          JsValue props = node["props"];
+          for (int propIndex = 0; propIndex < parseLength(props); propIndex++) {
+            JsValue prop = props[propIndex];
+            if (JS.strictEqual(prop["type"], ParseNodeTypes["ATTRIBUTE"]) &&
+              JS.string(prop["name"]) == "functional") error["loc"] = prop["loc"];
+          }
+          parsePush(errors, error);
+        }
+      } else parsePush(errors, createDuplicateBlockError(node, false));
+    } else if (tag == "script") {
+      JsValue scriptBlock = createBlock(node, source, pad);
+      bool isSetup = scriptBlock["attrs"]["setup"].truthy();
+      if (isSetup && JS.isNullish(descriptor["scriptSetup"])) {
+        descriptor["scriptSetup"] = scriptBlock;
+      } else if (!isSetup && JS.isNullish(descriptor["script"])) {
+        descriptor["script"] = scriptBlock;
+      } else parsePush(errors, createDuplicateBlockError(node, isSetup));
+    } else if (tag == "style") {
+      JsValue styleBlock = createBlock(node, source, pad);
+      if (styleBlock["attrs"]["vars"].truthy()) {
+        parsePush(errors, parseSyntaxError(
+          "<style vars> has been replaced by a new proposal: " +
+            "https://github.com/vuejs/rfcs/pull/231"
+        ));
+      }
+      parsePush(descriptor["styles"], styleBlock);
+    } else {
+      parsePush(descriptor["customBlocks"], createBlock(node, source, pad));
+    }
+  }
+  if (JS.isNullish(descriptor["template"]) &&
+    JS.isNullish(descriptor["script"]) &&
+    JS.isNullish(descriptor["scriptSetup"])) {
+    parsePush(errors, parseSyntaxError(
+      "At least one <template> or <script> is required in a single file component. " +
+        filename
+    ));
+  }
+  if (!JS.isNullish(descriptor["scriptSetup"])) {
+    if (descriptor["scriptSetup"]["src"].truthy()) {
+      parsePush(errors, parseSyntaxError(
+        "<script setup> cannot use the \"src\" attribute because " +
+          "its syntax will be ambiguous outside of the component."
+      ));
+      descriptor["scriptSetup"] = null;
+    }
+    if (!JS.isNullish(descriptor["script"]) && descriptor["script"]["src"].truthy()) {
+      parsePush(errors, parseSyntaxError(
+        "<script> cannot use the \"src\" attribute when <script setup> is " +
+          "also present because they must be processed together."
+      ));
+      descriptor["script"] = null;
+    }
+  }
+
+  int templateColumnOffset = 0;
+  JsValue template = descriptor["template"];
+  if (!JS.isNullish(template) &&
+    (JS.string(template["lang"]) == "pug" || JS.string(template["lang"]) == "jade")) {
+    JsValue dedented = dedent(JS.string(template["content"]));
+    template["content"] = dedented[0];
+    templateColumnOffset = JS.number(dedented[1]).toInt();
+  }
+  if (sourceMap) {
+    generateBlockMap(descriptor["template"], filename, source, sourceRoot, pad, templateColumnOffset);
+    generateBlockMap(descriptor["script"], filename, source, sourceRoot, pad, 0);
+    JsValue styles = descriptor["styles"];
+    for (int index = 0; index < parseLength(styles); index++) {
+      generateBlockMap(styles[index], filename, source, sourceRoot, pad, 0);
+    }
+    JsValue customBlocks = descriptor["customBlocks"];
+    for (int index = 0; index < parseLength(customBlocks); index++) {
+      generateBlockMap(customBlocks[index], filename, source, sourceRoot, pad, 0);
+    }
+  }
+  descriptor["cssVars"] = parseCssVars(descriptor);
+  Regex slottedRE = new Regex("(?:::v-|:)slotted\\(");
+  JsValue styles = descriptor["styles"];
+  bool slotted = false;
+  for (int index = 0; index < parseLength(styles); index++) {
+    if (styles[index]["scoped"].truthy() &&
+      slottedRE.test(JS.string(styles[index]["content"]))) slotted = true;
+  }
+  descriptor["slotted"] = slotted;
+  JsValue result = JS.object("descriptor", descriptor, "errors", errors);
+  JS.invoke(parseCache, "set", sourceKey, result);
+  return result;
+}
+
+JsValue createDuplicateBlockError(JsValue node, bool isScriptSetup = false) {
+  string suffix = "";
+  if (isScriptSetup) suffix = " setup";
+  JsValue error = parseSyntaxError(
+    "Single file component can contain only one <" + JS.string(node["tag"]) +
+      suffix + "> element"
+  );
+  error["loc"] = node["loc"];
+  return error;
+}
+
+JsValue createBlock(JsValue node, string source, JsValue pad) {
+  string type = JS.string(node["tag"]);
+  JsValue loc = node["innerLoc"];
+  JsValue attrs = JS.object();
+  JsValue block = JS.object(
+    "type", type,
+    "content", source.slice(
+      JS.number(loc["start"]["offset"]).toInt(),
+      JS.number(loc["end"]["offset"]).toInt()
+    ),
+    "loc", loc,
+    "attrs", attrs
+  );
+  if (pad.truthy()) {
+    block["content"] = padContent(source, block, pad) + JS.string(block["content"]);
+  }
+  JsValue props = node["props"];
+  for (int index = 0; index < parseLength(props); index++) {
+    JsValue prop = props[index];
+    if (!JS.strictEqual(prop["type"], ParseNodeTypes["ATTRIBUTE"])) continue;
+    string name = JS.string(prop["name"]);
+    JsValue value = true;
+    if (prop["value"].truthy() && prop["value"]["content"].truthy()) {
+      value = prop["value"]["content"];
+    }
+    attrs[name] = value;
+    if (name == "lang") {
+      block["lang"] = JS.undefined();
+      if (prop["value"].truthy()) block["lang"] = prop["value"]["content"];
+    } else if (name == "src") {
+      block["src"] = JS.undefined();
+      if (prop["value"].truthy()) block["src"] = prop["value"]["content"];
+    } else if (type == "style") {
+      if (name == "scoped") block["scoped"] = true;
+      else if (name == "module") block["module"] = attrs[name];
+    } else if (type == "script" && name == "setup") {
+      block["setup"] = attrs["setup"];
+    }
+  }
+  return block;
+}
+
+Regex splitRE = new Regex("\\r?\\n", "g");
+Regex emptyRE = new Regex("^(?://)?\\s*$");
+Regex replaceRE = new Regex(".", "g");
+Regex slashRE = new Regex("\\\\", "g");
+Regex whitespaceRE = new Regex("\\s");
+
+void generateBlockMap(
+  JsValue block,
+  string filename,
+  string source,
+  string sourceRoot,
+  JsValue pad,
+  int columnOffset
+) {
+  if (JS.isNullish(block) || block["src"].truthy()) return;
+  int lineOffset = 0;
+  if (!pad.truthy() || JS.string(block["type"]) == "template") {
+    lineOffset = JS.number(block["loc"]["start"]["line"]).toInt() - 1;
+  }
+  block["map"] = generateSourceMap(
+    filename,
+    source,
+    JS.string(block["content"]),
+    sourceRoot,
+    lineOffset,
+    columnOffset
+  );
+}
+
+JsValue generateSourceMap(
+  string filename,
+  string source,
+  string generated,
+  string sourceRoot,
+  int lineOffset,
+  int columnOffset
+) {
+  string normalizedFilename = JS.string(JS.invoke(filename, "replace", slashRE, "/"));
+  string normalizedRoot = JS.string(JS.invoke(sourceRoot, "replace", slashRE, "/"));
+  JsValue map = JS.construct(
+    ParseSourceMapGenerator,
+    JS.object("file", normalizedFilename, "sourceRoot", normalizedRoot)
+  );
+  JS.invoke(map, "setSourceContent", filename, source);
+  JS.invoke(map["_sources"], "add", filename);
+  JsValue lines = JS.invoke(generated, "split", splitRE);
+  for (int index = 0; index < parseLength(lines); index++) {
+    string line = JS.string(lines[index]);
+    if (!emptyRE.test(line)) {
+      int originalLine = index + 1 + lineOffset;
+      int generatedLine = index + 1;
+      for (int column = 0; column < line.length; column++) {
+        if (!whitespaceRE.test(line.charAt(column))) {
+          JS.invoke(map["_mappings"], "add", JS.object(
+            "originalLine", originalLine,
+            "originalColumn", column + columnOffset,
+            "generatedLine", generatedLine,
+            "generatedColumn", column,
+            "source", filename,
+            "name", null
+          ));
+        }
+      }
+    }
+  }
+  return JS.invoke(map, "toJSON");
+}
+
+string padContent(string content, JsValue block, JsValue pad) {
+  content = content.slice(0, JS.number(block["loc"]["start"]["offset"]).toInt());
+  if (JS.strictEqual(pad, "space")) {
+    return JS.string(JS.invoke(content, "replace", replaceRE, " "));
+  }
+  int offset = parseLength(JS.invoke(content, "split", splitRE));
+  string padChar = "\n";
+  if (JS.string(block["type"]) == "script" && !block["lang"].truthy()) {
+    padChar = "//\n";
+  }
+  JsValue padding = JS.construct(Array, offset);
+  return JS.string(JS.invoke(padding, "join", padChar));
+}
+
+bool hasSrc(JsValue node) {
+  JsValue props = node["props"];
+  for (int index = 0; index < parseLength(props); index++) {
+    JsValue prop = props[index];
+    if (JS.strictEqual(prop["type"], ParseNodeTypes["ATTRIBUTE"]) &&
+      JS.string(prop["name"]) == "src") return true;
+  }
+  return false;
+}
+
+bool isEmpty(JsValue node) {
+  JsValue children = node["children"];
+  for (int index = 0; index < parseLength(children); index++) {
+    JsValue child = children[index];
+    if (!JS.strictEqual(child["type"], ParseNodeTypes["TEXT"]) ||
+      JS.string(child["content"]).trim() != "") return false;
+  }
+  return true;
+}
+
+export bool hmrShouldReload(JsValue prevImports, JsValue next) {
+  JsValue scriptSetup = next["scriptSetup"];
+  if (JS.isNullish(scriptSetup) ||
+    (JS.string(scriptSetup["lang"]) != "ts" &&
+      JS.string(scriptSetup["lang"]) != "tsx")) return false;
+  for (string key in prevImports) {
+    if (!prevImports[key]["isUsedInTemplate"].truthy() &&
+      isImportUsed(key, next)) return true;
+  }
+  return false;
+}
+
+JsValue dedent(string source) {
+  JsValue lines = JS.invoke(source, "split", "\n");
+  int minIndent = 2147483647;
+  Regex indentRE = new Regex("^\\s*");
+  for (int index = 0; index < parseLength(lines); index++) {
+    string line = JS.string(lines[index]);
+    if (line.trim() == "") continue;
+    JsValue matched = JS.invoke(line, "match", indentRE);
+    int indent = 0;
+    if (!JS.isNullish(matched) && !JS.isNullish(matched[0])) {
+      indent = JS.string(matched[0]).length;
+    }
+    if (indent < minIndent) minIndent = indent;
+  }
+  if (minIndent == 0) return JS.array(source, minIndent);
+  JsValue transformed = JS.array();
+  for (int index = 0; index < parseLength(lines); index++) {
+    parsePush(transformed, JS.string(lines[index]).slice(minIndent));
+  }
+  return JS.array(JS.invoke(transformed, "join", "\n"), minIndent);
+}

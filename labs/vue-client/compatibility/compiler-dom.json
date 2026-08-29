@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "oracle": {
+    "package": "@vue/compiler-dom",
+    "version": "3.5.42",
+    "revision": "d63616ca17de965ed32dcb449a4c5cd9982f15d2"
+  },
+  "status": "runtime-complete",
+  "fullCompilerDom": true,
+  "mappedSources": [
+    "packages/compiler-dom/src/decodeHtmlBrowser.ts",
+    "packages/compiler-dom/src/errors.ts",
+    "packages/compiler-dom/src/htmlNesting.ts",
+    "packages/compiler-dom/src/index.ts",
+    "packages/compiler-dom/src/parserOptions.ts",
+    "packages/compiler-dom/src/runtimeHelpers.ts",
+    "packages/compiler-dom/src/transforms/Transition.ts",
+    "packages/compiler-dom/src/transforms/ignoreSideEffectTags.ts",
+    "packages/compiler-dom/src/transforms/stringifyStatic.ts",
+    "packages/compiler-dom/src/transforms/transformStyle.ts",
+    "packages/compiler-dom/src/transforms/vHtml.ts",
+    "packages/compiler-dom/src/transforms/vModel.ts",
+    "packages/compiler-dom/src/transforms/vOn.ts",
+    "packages/compiler-dom/src/transforms/vShow.ts",
+    "packages/compiler-dom/src/transforms/vText.ts",
+    "packages/compiler-dom/src/transforms/validateHtmlNesting.ts"
+  ],
+  "implemented": [
+    "DOM runtime helper symbols and compiler-core registration",
+    "browser DOM entity decoding",
+    "DOM compiler error codes, messages, construction, and source locations",
+    "HTML nesting categories, validation decisions, and diagnostics",
+    "HTML parser options, text modes, native tags, and namespaces",
+    "Transition built-in matching, child validation, persisted v-show props, runtime helpers, diagnostics, locations, reflection, and transform ordering",
+    "static style detection and parsing, object expression AST, locations, node-transform wiring, and reflection",
+    "v-html errors, child removal, innerHTML property AST, locations, and reflection",
+    "v-model native input, select, textarea and custom-element selection, dynamic type handling, diagnostics, runtime helpers, SSR delegation, AST and location identity, map wiring, and reflection",
+    "v-on modifier classification, key and non-key guards, event options, click rewrites, helper wrapping, caching, AST locations, map identity, and reflection",
+    "v-show missing-expression errors, V_SHOW registration, empty props, needRuntime identity, locations, map wiring, and reflection",
+    "v-text errors, child removal, textContent property AST, display conversion, constant handling, locations, and reflection",
+    "static tree thresholds and analysis, HTML/SVG/MathML serialization, constant evaluation, escaping, boolean attributes, scope IDs, template wrapping, cache replacement, helper registration, compile wiring, and reflection",
+    "browser parse and compile composition over compiler-core",
+    "compiler-core live-binding re-exports"
+  ],
+  "upstreamTests": {
+    "files": 13,
+    "filesPassed": 13,
+    "tests": 135,
+    "passed": 135,
+    "failed": 0,
+    "status": "passed",
+    "runner": "npx --yes node@24 tests/compiler-dom-upstream.runner.mjs",
+    "filesRun": [
+      "packages/compiler-dom/__tests__/decoderHtmlBrowser.spec.ts",
+      "packages/compiler-dom/__tests__/index.spec.ts",
+      "packages/compiler-dom/__tests__/parse.spec.ts",
+      "packages/compiler-dom/__tests__/transforms/Transition.spec.ts",
+      "packages/compiler-dom/__tests__/transforms/ignoreSideEffectTags.spec.ts",
+      "packages/compiler-dom/__tests__/transforms/stringifyStatic.spec.ts",
+      "packages/compiler-dom/__tests__/transforms/transformStyle.spec.ts",
+      "packages/compiler-dom/__tests__/transforms/vHtml.spec.ts",
+      "packages/compiler-dom/__tests__/transforms/vModel.spec.ts",
+      "packages/compiler-dom/__tests__/transforms/vOn.spec.ts",
+      "packages/compiler-dom/__tests__/transforms/vShow.spec.ts",
+      "packages/compiler-dom/__tests__/transforms/vText.spec.ts",
+      "packages/compiler-dom/__tests__/transforms/validateHtmlNesting.spec.ts"
+    ]
+  },
+  "limitations": [
+    "Package formats and declaration parity remain incomplete."
+  ],
+  "sourceParity": {
+    "requiredFiles": 16,
+    "deterministicFilesPresent": 16,
+    "verifiedExactMappings": 16,
+    "unverifiedFiles": []
+  }
+}

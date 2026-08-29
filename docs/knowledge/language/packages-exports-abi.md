@@ -9,13 +9,15 @@ Static relative `.lil` imports form one acyclic typed compilation unit. The link
 resolves and namespaces modules before SSA; source-module syntax is not a runtime
 wrapper. Initialization runs once in dependency-first order.
 
-Target determines what an export means:
+Compilation world and public roots determine what an export means; artifact
+format determines how it is delivered. The current compiler still couples some
+of these choices, which is tracked in the planned migration.
 
-| Target/boundary | Export behavior |
+| World/boundary | Export behavior |
 |---|---|
 | executable/closed app | accessibility declaration; an unused export is not a retention root |
-| `js-module` reusable root | runtime root exports are retained and mapped back to stable public names |
-| split/preserve output | optimized graph is partitioned into ESM artifacts after linking |
+| reusable-library public root | runtime root exports are retained and mapped to the declared public ABI |
+| internal split/preserve artifact | optimized graph is partitioned after linking; compiler-owned linkage is not automatically public ABI |
 | foreign ESM | `import extern` supplies runtime identity and a matching `extern` supplies the type contract |
 
 Type-only struct/class exports create no JS binding. That is a language contract
@@ -32,9 +34,10 @@ does not mean all internal owned property names remain long.
 The normalized `JavaScriptAbiManifest` begins to make that distinction executable.
 It records export spelling/kind, callable arity/constructibility, constructor
 method signatures, aggregate ABI mode, and stable aggregate/extern field sets.
-It is included in `--explain=json`. Descriptor details and post-emission manifest
-validation remain migration work. Raw/gzip/Brotli and optimization priority may
-choose different internals only after the manifest is fixed.
+It is included in `--explain=json`. Owner-qualified ordered fields, emitted names,
+live bindings/module identity, descriptor details, and expected-versus-observed
+post-emission validation remain migration work. Raw/gzip/Brotli and optimization
+priority may choose different internals only after the boundary is fixed.
 
 Bare imports require `[dependencies]` plus a verified `lilscript.lock`. Packages are
 currently local paths with name/version/compiler-ABI/entry metadata. The lock pins

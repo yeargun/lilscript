@@ -1,0 +1,46 @@
+import extern {
+  NodeTypes as TemplateAstNodeTypes,
+  createRoot as templateAstCreateRoot
+} from "../../../packages/vuelil/compiler-core.js";
+import extern { parse as templateAstDomParse } from "../../../packages/vuelil/compiler-dom.js";
+import extern { hostAssign as templateAstHostAssign } from "../host.js";
+
+extern JsValue TemplateAstNodeTypes;
+extern JsValue templateAstCreateRoot;
+extern JsValue templateAstDomParse;
+extern JsValue templateAstHostAssign;
+
+export JsValue resolveTemplateAST(JsValue inAST, JsValue options) {
+  if (JS.isNullish(inAST) || !inAST["transformed"].truthy()) return inAST;
+  JsValue compiler = options["compiler"];
+  JsValue parse = templateAstDomParse;
+  if (!options["ssr"].truthy() && compiler.truthy()) parse = compiler["parse"];
+  JsValue compilerOptions = JS.object();
+  if (options["compilerOptions"].truthy()) {
+    compilerOptions = options["compilerOptions"];
+  }
+  JsValue parserOptions = JS.call(
+    templateAstHostAssign,
+    JS.undefined(),
+    JS.object("prefixIdentifiers", true),
+    compilerOptions,
+    JS.object("parseMode", "sfc", "onError", options["onError"])
+  );
+  JsValue newAST = JS.call(parse, compiler, inAST["source"], parserOptions);
+  JsValue children = newAST["children"];
+  JsValue template = JS.undefined();
+  for (int index = 0; index < JS.number(children["length"]).toInt(); index++) {
+    JsValue node = children[index];
+    if (JS.strictEqual(node["type"], TemplateAstNodeTypes["ELEMENT"]) &&
+      JS.string(node["tag"]) == "template") {
+      template = node;
+      break;
+    }
+  }
+  return JS.call(
+    templateAstCreateRoot,
+    JS.undefined(),
+    template["children"],
+    inAST["source"]
+  );
+}

@@ -1,0 +1,35 @@
+[package]
+name = "vuelil"
+version = "3.5.42"
+abi = 1
+entry = "src/shared/index.lil"
+
+[optimization]
+preset = "maximum"
+call_site_specialization = true
+capture_signature_cloning = true
+identical_function_folding = true
+
+[javascript]
+priority = "size-first"
+optimization_level = 15
+cost_model = "brotli"
+public_aggregate_abi = "named"
+assume_pristine_builtins = false
+strip_console = false
+pool_numeric_literals = true
+candidate_search = "production"
+candidate_limit = 1536
+candidate_byte_budget = 1048576
+candidate_beam_width = 12
+max_candidate_raw_growth_percent = 0
+stable_local_names = true
+
+[mangle]
+identifiers = true
+properties = true
+exports = false
+pool_strings = true
+
+[bundle]
+mode = "single"

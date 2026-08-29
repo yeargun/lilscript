@@ -1,145 +1,123 @@
 # Mission
 
-LilScript exists to be the most **compression-friendly** language that compiles to the web.
+Parent: [knowledge tree](README.md). Current state:
+[`docs/current-status.md`](../current-status.md). Durable rationale:
+[design decisions](decisions/README.md).
 
-The primary artifact is JavaScript. Depending on config, it can be whole-program
-optimized, dead-code eliminated, tree-shaken, mangled, and searched across several
-equivalent representations. Every retained complete-artifact finalist is measured
-under the selected `raw`, `gzip`, or `brotli` cost model;
-`javascript.priority` decides how that measured size trades against the static
-performance model. Native/`exec` output is a real second backend of the same typed IR.
-It is not the current size race.
+## User Intent
 
-Return to the [tree](README.md). Children: [language](language/README.md),
-[compilation](compilation/README.md), [config](config/README.md).
-Implemented vs intended decision system:
-[current architecture](compilation/current-architecture.md),
-[goal architecture](compilation/goal-architecture.md),
-[objectives](compilation/objectives.md) (size/performance × raw/gzip/Brotli),
-[decision registry](compilation/decision-registry.md).
-How to write so those objectives can win:
-[compressor surface](language/compressor-surface.md).
+LilScript exists to make correct web programs and libraries transfer smaller by
+changing representations before JavaScript is fixed. JavaScript is the primary
+artifact. C/native is a real secondary backend for the portable typed subset,
+not the current compression race.
 
-## What “better than a JS bundler” means
+The intended advantage is not prettier minification. Types, ownership, effects,
+escape, identity, modules, `extern`, and explicit boundary contracts let the
+compiler remove objects, specialize calls, select layouts, mangle private names,
+and compare complete legal artifacts under raw, gzip, or Brotli.
 
-A JS bundler (Vite, esbuild, Terser, Closure `ADVANCED`) starts from JavaScript or from TypeScript after type erasure. It can rename locals, drop unused exports, and apply local peepholes. It cannot, in general:
+The long-term engineering bar is:
 
-- dissolve a class into SSA scalars because the type system already proved the object never escapes;
-- mangle a field name because the field is a positional index, not a string key;
-- treat a host call as a typed ABI rather than an untyped property access;
-- score two **semantically equal** whole programs under Brotli-11 and keep the one that transfers fewer bytes.
+> For every declared supported and semantically equivalent application or
+> reusable-library boundary in the maintained corpus, a `size-first` LilScript
+> compile for the selected metric is no larger than the best eligible pinned
+> JavaScript toolchain for that same boundary and metric.
 
-LilScript is designed so those proofs exist **before** JavaScript is spelled.
-The current compiler searches a bounded subset of spelling, layout, inlining,
-and chunking choices; the goal architecture makes that domain explicit and
-auditable. See [global optima](compilation/global-optima.md).
+That bar should expand across real libraries until the claim is broad and useful.
+It is not a theorem that LilScript can beat every possible JavaScript program.
+Every public claim must name its supported boundary, semantics, source, tools,
+config, artifact, and codec. Current evidence is mixed; see
+[`docs/current-status.md`](../current-status.md).
 
-The checked-in evidence does not establish that every program beats hand-specialized
-JS or Closure. That is not permission to accept a maintained paired loss: for every
-**supported, semantically equivalent paired case**, LilScript must be no larger than
-the metric-specific minimum eligible JavaScript baseline in every required metric.
-Any loss by an objective-specific build in its selected raw/gzip/Brotli metric is red
-and enters triage; the same artifact's other metric sizes are diagnostic and may
-trade off. A semantic mismatch is red before size is considered. This is an enforced engineering invariant over the declared
-corpus and boundaries, not a theorem for arbitrary JavaScript. Host boundaries,
-public identity, and missing proofs explain where compiler/language/port work remains;
-they do not turn a loss into a win.
+The repository maintainer also asks that LilScript and generated LilScript code
+not be used with React or React-related frameworks, runtimes, libraries, or
+products. This is project usage policy, not compiler semantics.
 
-The durable route is to expand supported semantics and whole-program opportunities,
-measure contested representations with the selected codec, and make every size claim
-name its corpus, boundary, toolchain, and config. Under `size-first`, transfer bytes
-are the primary rank key; the other priorities intentionally permit a size/runtime
-trade. That completion rule is also in [`docs/roadmap.md`](../roadmap.md).
+## Non-Negotiable Order
 
-## Types instead of glue
+```text
+language semantics + explicit source intent + boundary ABI + host assumptions
+  -> conservative proof of legal representations
+  -> retained incumbent + admitted alternatives
+  -> bounded deterministic search
+  -> exact selected-codec score of complete compiler output
+  -> behavior/API/evidence gates
+```
 
-TypeScript’s types are a glue layer: they check, then erase. The emitted JavaScript still has the shapes, wrappers, and `any` holes that minifiers must treat conservatively.
+Codec bytes never legalize a semantic, ABI, identity, effect-order, or host
+boundary change. Raw/gzip/Brotli may choose different private representations,
+but they must expose the same declared API and behavior.
 
-LilScript types **are** the compilation model:
+## Why A Language
 
-- each type has a defined JavaScript and native representation;
-- every exit from the closed world is explicit: typed `extern` / `import extern`, a
-  reusable root export, dynamic-module/task delivery, portable `print`, or the narrow
-  `JsValue` boundary;
-- escape, effects, and purity are first-class analyses;
-- internal aggregates can disappear; boundary aggregates keep a named or positional ABI by **config**, not by accident.
+JavaScript minifiers start after JavaScript has committed to object shapes,
+property strings, wrappers, dynamic calls, and erased types. LilScript can make
+different legal programs before JavaScript is spelled:
 
-The target optimization architecture has a semantic firewall. The compiler
-first freezes language semantics, application/library ABI, explicit source
-lowering obligations, and unsafe host assumptions. Only then may
-raw/gzip/Brotli and the selected priority choose among legal internal
-representations. Under the planned v0.2 contract, a live source-written
-`x | 0` remains a JavaScript `|0`; a compiler-generated redundant i32
-normalization may disappear. Reusable-library output preserves a public ABI
-manifest while private code remains fully closed-world and mangleable. This
-firewall is migration work, not a claim about the current v0.1 pipeline.
+- a non-escaping aggregate can disappear into SSA values;
+- a private owned field can become a positional slot or codec-friendly name;
+- a constructor whose identity is unobserved can dissolve, while a public
+  constructor value remains a named class;
+- a typed host boundary can preserve exact ABI while private code specializes;
+- equivalent whole programs can be measured with the actual configured codec.
 
-The belief is that this can yield better compile-time safety, sometimes better runtime shape, and in some cases smaller bundles — because the optimizer is not reverse-engineering glue. Details: [types are not glue](language/types-not-glue.md).
+The language must expose reusable proofs. If a port loses because it is full of
+`JsValue` bags or cannot express a hook-free owned object, the durable fix is a
+sound language/analysis contract used by many programs, not a package matcher or
+a Terser-shaped source workaround.
 
-## What the compiler optimizes
+## Compression Objective
 
-**Served bytes**, not editor bytes. Most deployments ship gzip or Brotli. `javascript.cost_model` selects the exact objective:
+`javascript.cost_model` defines transfer size:
 
-| Value | Measurement |
+| Objective | Canonical measurement |
 |---|---|
-| `raw` | emitted UTF-8 length |
-| `gzip` | statically bundled upstream stock zlib C 1.3.1, level 9, deterministic `mtime = 0` |
-| `brotli` | statically bundled official Google Brotli C 1.1.0, generic, quality 11, `lgwin` 22 (default compiler scorer) |
+| `raw` | emitted UTF-8 bytes |
+| `gzip` | bundled stock zlib 1.3.1, level 9, deterministic wrapper |
+| `brotli` | bundled Google Brotli 1.1.0, generic quality 11, `lgwin` 22 |
 
-Raw, gzip, and Brotli can disagree. A shorter raw spelling can lose under Brotli
-context modeling. A helper that wins raw can lose gzip because it breaks repetition.
-For gzip/Brotli, `max_candidate_raw_growth_percent = 0` still admits a candidate that
-does not regress the configured transfer score even if its raw output is larger. The
-percentage controls how much raw growth is admitted when that transfer condition is
-not met; it is not a universal raw ceiling. See [cost model](config/cost-model.md).
+One invocation has one authoritative metric. Other metrics are diagnostics.
+Local raw deltas, entropy estimates, and static models may schedule work, but
+only a complete-artifact score selects a gzip/Brotli size winner.
 
-## Tradeoff triangle
+Search is bounded. The normal result is `best-observed` under a fingerprinted
+domain and budget, with unvisited/starved work reported. Exactness is claimed
+only for a finite subdomain that was actually enumerated. See
+[exact scoring decision](decisions/exact-codec-bounded-search.md).
 
-Every contested knob sits on three axes:
+## Tradeoffs
 
-1. **Transfer size** (configured codec of the complete JS artifact, plus deploy cost for chunks)
-2. **Compile time** (candidate count × Brotli-11 probes × IR variants)
-3. **Runtime** (parse/compile/memory startup proxy; typed-IR deopt/allocation/indirect-call shape)
+Every contested optimization spends three resources:
 
-`javascript.priority` picks the ranking policy. `[optimization]` gates semantic IR
-passes. `javascript.compression` / `javascript.optimizations` /
-`optimization_level` / `candidate_*` control **which alternatives are even
-considered**. CLI `--mode development` turns the multi-IR/emission candidate expansion
-off; explicitly enabled finalization features may still run. The triangle is
-tabulated in [tradeoffs](config/tradeoffs.md).
+1. transfer bytes;
+2. compile time and peak memory;
+3. runtime/startup/allocation shape.
 
-Changing `javascript.priority` never weakens type checking, mandatory IR normalization, DCE correctness, or host-boundary rules. It also does not change the native optimizer: `--target all` shares parse/semantics, then optimizes JS and C copies separately.
+`javascript.priority` defines their order and guards. `size-first` protects the
+selected transfer metric against its retained incumbent. Other priorities may
+accept a documented size/runtime trade. More search, more choices, more knobs,
+or a more abstract architecture is not automatically better.
 
-## Language must be built for delivery
+## Refusals
 
-Bundling is not a post-hoc tool concern. The language and the compiler share these invariants:
+- No post-minifier in a LilScript compiler compression claim.
+- No package-name, path, or library-shaped compiler fold.
+- No default-on unsafe getter/proxy or pristine-host assumption.
+- No objective-dependent public API.
+- No global-optimum claim for bounded production search.
+- No universal solver, proof database, or target frontend before a measured need.
+- No weakening a semantic gate to preserve a size result.
 
-- static imports are compiler inputs, erased before SSA, so cross-file inlining and DCE are the default;
-- `import("./feature")` is a typed lazy boundary, not an untyped `Promise`;
-- lazy-only modules cannot run top-level statements (no silent eager init);
-- whole-program optimize **then** partition (`single` / `split` / `preserve-modules`);
-- progressive enhancement is a lint + host-boundary problem (`web/eager-host-access`), not a runtime wrapper;
-- public names vs internal layout are **config** (`[mangle]`, `public_aggregate_abi`), so one codebase can ship a script-tag facade and a fully mangled LilScript app.
+## How To Judge A Change
 
-See [modules and lazy loading](language/modules-lazy.md) and [delivery](delivery/README.md).
+1. Is it legal under the language, source intent, host, and ABI contract?
+2. Is legality supported by a conservative reusable proof?
+3. Is the current legal incumbent retained?
+4. Are all implemented admitted alternatives reachable and validated?
+5. Is the complete compiler artifact measured by the selected pinned codec?
+6. Are compile-time/runtime costs and unexplored work reported?
+7. Does the appropriate semantic/API corpus pass before a size claim is made?
 
-## Native is secondary, not fake
-
-The same typed IR lowers to C and a native executable. Features without a portable C ABI (`JsValue`, `Regex`, `Task`, `extern class`, dynamic import) are **rejected** on that target rather than approximated. That keeps the closed-world model honest: JS size wins must not rely on a second, incompatible semantics. See [JS vs native](language/js-vs-native.md).
-
-## How to judge a change
-
-1. Does it preserve explicit language/boundary semantics?
-2. Do optimized and optimizer-disabled executions agree?
-3. Where the feature is portable, do JS, C, and native agree?
-4. Is the representation search scoring the **complete** artifact under the configured codec?
-5. If it looks locally smaller, did the configured objective actually improve? Under
-   `size-first`, never select more transfer bytes; an exact transfer tie may be broken
-   by the performance model. Under another priority, record the deliberate
-   runtime/size trade.
-
-jQuery is the current large-library pressure test. Its checked-in public-library row
-is pre-canonical, ineligible, and not a size win. That is evidence about the measured
-port and boundary, not a current byte claim or proof that any single cause explains
-the gap. See
-[jQuery](evidence/jquery.md).
+Architecture: [current](compilation/current-architecture.md) ->
+[planned](compilation/planned-architecture.md). Execution:
+[planned migration](migration/planned-migration.md).

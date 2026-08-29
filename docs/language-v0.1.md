@@ -43,7 +43,7 @@ SSA optimization; they are not JavaScript wrappers in the generated bundle.
 | `bool`              | `true` or `false`                                             | boolean                                           | C11 `bool`                                  |
 | `string`            | immutable UTF-8 text                                          | string                                            | runtime string handle                       |
 | `T[]`               | mutable homogeneous array                                     | optimized array representation                    | runtime array handle                        |
-| `Record<T>`         | mutable open string-keyed homogeneous record                  | plain object                                      | tagged-value string map handle              |
+| `Record<T>`         | mutable open string-keyed homogeneous record                  | null-prototype object                             | tagged-value string map handle              |
 | `Map<K, V>`         | mutable insertion-ordered key/value collection                | native `Map`                                      | tagged-value map handle                     |
 | `Set<T>`            | mutable insertion-ordered unique-value collection             | native `Set`                                      | tagged-value set handle                     |
 | `ArrayBuffer`       | fixed-length byte storage                                     | native `ArrayBuffer`                              | owned byte-buffer handle                    |
@@ -118,7 +118,7 @@ arm evaluation retain the same exact-once and lazy semantics as enum matches.
 
 `Record<T>` is an open structural record whose values all have the same static
 type. A record literal uses `record { key: value, "quoted-key": value }` and
-lowers directly to a null-prototype plain JavaScript object; it is distinct from a nominal,
+lowers directly to a null-prototype JavaScript object; it is distinct from a nominal,
 fixed-layout `struct`. Duplicate literal keys and mixed value types are
 rejected. An empty literal needs an expected `Record<T>` type.
 
@@ -366,7 +366,9 @@ extern Document document;
 
 External globals are read-only bindings, external classes cannot be constructed,
 and declared member accesses emit direct JavaScript property operations. Their
-global and member names are never mangled. Host property reads and methods are
+global and member names are exact by default. The current explicitly configured
+closed-key mode assumes every producer and consumer shares the renamed ABI; it
+must not be used for ordinary browser/host objects. Host property reads and methods are
 effectful unless a method has a trusted `pure` contract. The C and native targets
 reject host-object access because the Web platform has no portable C ABI. See
 [web-platform.md](web-platform.md) for the complete implemented boundary and
@@ -578,9 +580,9 @@ continues to export only the instance type and may dissolve completely.
 
 Relative imports must begin with `./` or `../` and resolve to `.lil` files.
 Bare imports resolve only through a verified `lilscript.lock`. Static imports
-form an acyclic graph. Every static module is initialized once in
-dependency-first order, so side-effect-only imports preserve initialization
-behavior.
+may form cycles. Interfaces in a strongly connected component are resolved
+before linking, every module is initialized once, and acyclic dependencies
+retain dependency-first initialization order.
 
 A foreign ESM edge uses `import extern`. Its local binding must be backed by a
 top-level `extern` declaration in the importing LilScript module:
@@ -724,10 +726,11 @@ inheritance until its subtype pointer ABI is fixed rather than emitting
 incompatible C pointer calls.
 
 Structs and classes that do not escape are eligible for scalar replacement.
-Class calls are statically devirtualized, including inherited calls. Crossing `extern`
-materializes the boundary representation. JavaScript uses named object fields;
-native C uses generated positional value records for structs and pointer
-records for classes.
+Class calls are statically devirtualized, including inherited calls. Crossing
+`extern` materializes the boundary representation. JavaScript may use SSA
+scalars, positional arrays, owned named objects, or a proof-required named class;
+the declared public/host ABI constrains boundary shape. Native C uses generated
+positional value records for structs and pointer records for classes.
 
 ## Functions and callable values
 
@@ -935,40 +938,16 @@ embedded expressions left to right and apply the same string conversion rules.
 The `print(value)` intrinsic is the portable observable-output operation used
 by examples and backend equivalence tests.
 
-## Whole-program optimization requirements
+## Compiler conformance
 
-The optimized IR pipeline must run, in a fixed-point schedule where relevant:
+This contract defines behavior, not a required optimization pass list. Optimized
+and optimizer-disabled paths must preserve these semantics. Backend-specific
+representations and target contractions may differ only where this contract and
+the selected boundary permit them.
 
-1. constant folding and propagation;
-2. branch simplification and unreachable-block removal;
-3. escape analysis;
-4. scalar replacement of aggregates;
-5. call-graph analysis and dead function elimination;
-6. function and method inlining;
-7. class method devirtualization;
-8. dead instruction and dead binding elimination;
-9. representation selection;
-10. frequency- and compression-aware symbol assignment.
-
-These requirements apply after the complete static module graph has been
-linked, so propagation, inlining, devirtualization, scalar replacement, effect
-analysis, and DCE operate across source-file boundaries.
-
-The detailed Closure `ADVANCED` responsibility mapping and pass schedule are in
-[optimization-coverage.md](optimization-coverage.md).
-
-JavaScript emission consumes optimized IR only. Backend-specific peephole
-rewrites may run after IR optimization but may not change LilScript semantics.
-
-## Completion criteria
-
-The v0.1 implementation is complete only when:
-
-- every construct in this contract has parser, semantic, positive, negative,
-  and runtime tests;
-- JavaScript and native executions agree on the conformance suite;
-- the browser playground compiles and runs LilScript examples and reports source
-  diagnostics;
-- the benchmark suite executes equivalent LilScript and JavaScript programs,
-  verifies their output, invokes Closure Compiler in `ADVANCED` mode, and
-  reports raw, gzip, and Brotli sizes from fresh release builds.
+The implemented pipeline is documented in
+[current architecture](knowledge/compilation/current-architecture.md). The
+Closure responsibility comparison is
+[optimization-coverage.md](optimization-coverage.md). Project-wide completion
+criteria and current state live in [roadmap](roadmap.md) and
+[current status](current-status.md), not in the language semantics contract.

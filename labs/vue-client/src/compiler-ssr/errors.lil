@@ -1,0 +1,55 @@
+import extern {
+  DOMErrorCodes,
+  createCompilerError as coreCreateCompilerError
+} from "../../packages/vuelil/compiler-dom.js";
+
+extern JsValue DOMErrorCodes;
+extern JsValue coreCreateCompilerError;
+extern JsValue Error;
+
+JsValue ssrErrorUndefined() {
+  return JS.undefined();
+}
+
+JsValue ssrErrorNumericEnum(JsValue names, int offset) {
+  JsValue result = JS.object();
+  for (int index = 0; index < JS.number(names["length"]).toInt(); index++) {
+    string name = JS.string(names[index]);
+    int value = offset + index;
+    result[name] = value;
+    result["" + value] = name;
+  }
+  return result;
+}
+
+export JsValue SSRErrorCodes = ssrErrorNumericEnum(JS.array(
+  "X_SSR_UNSAFE_ATTR_NAME",
+  "X_SSR_NO_TELEPORT_TARGET",
+  "X_SSR_INVALID_AST_NODE"
+), 65);
+
+export JsValue SSRErrorMessages = JS.object(
+  "65", "Unsafe attribute name for SSR.",
+  "66", "Missing the 'to' prop on teleport element.",
+  "67", "Invalid AST node during SSR transform."
+);
+
+if (JS.number(SSRErrorCodes["X_SSR_UNSAFE_ATTR_NAME"]).toInt() <
+  JS.number(DOMErrorCodes["__EXTEND_POINT__"]).toInt()) {
+  throw JS.construct(
+    Error,
+    "SSRErrorCodes need to be updated to " +
+      JS.string(DOMErrorCodes["__EXTEND_POINT__"]) +
+      " to match extension point from core DOMErrorCodes."
+  );
+}
+
+export JsValue createSSRCompilerError(int code, JsValue loc = JS.undefined()) {
+  return JS.call(
+    coreCreateCompilerError,
+    ssrErrorUndefined(),
+    code,
+    loc,
+    SSRErrorMessages
+  );
+}

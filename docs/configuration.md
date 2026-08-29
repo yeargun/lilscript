@@ -298,10 +298,11 @@ baselines stay `es2022` unless a case is explicitly about a lower target.
 `javascript.priority` defaults. If omitted, the profile supplies the list.
 Listing a name turns that tactic on even when the profile would leave it off.
 `compression = []` disables all of them. Canonical options still follow the
-listed names when the table is present. Size-first **search-only** spellings
-such as `indexed-char-at` still compete unless the list is empty. Proven `|0`
-is not in that bargain: size-first and balanced still drop it unless
-`integer_coercions = true`.
+   listed names when the table is present. Size-first **search-only** spellings
+   such as `indexed-char-at` still compete unless the list is empty. A live
+   source-written `value | 0` is an explicit lowering obligation and is not in
+   that bargain; only compiler-generated redundant normalization may be dropped
+   by proof/policy.
 
 - `identifier-mangling` assigns short names by whole-program use frequency.
 - `entropy-aware-mangling` compares the canonical identifier alphabet with an
@@ -320,7 +321,10 @@ is not in that bargain: size-first and balanced still drop it unless
   default. Other priorities leave it off unless an exact allowlist or
   `mangle.properties` opts in.
 - `export-mangling` permits public ESM export names to be shortened.
-- `[mangle] extern_fields` (default on) keeps `extern class` member names exact so a JS library ABI stays readable. Set `false` for a closed LilScript program; host members such as `string.length` still do not mangle.
+- `[mangle] extern_fields` (default on) keeps `extern class` member names exact.
+  `false` is a legacy coordinated closed-key mode for compiler-controlled
+  producer/consumer pairs, not permission to rename arbitrary browser/host
+  fields. Core host members such as `string.length` remain exact.
 - `array-pipeline-fusion` fuses eligible same-block `map`→`map` chains.
 - `partial-escape-sinking` sinks LocalOnly allocations into the single Branch
   arm that uses them.
@@ -702,9 +706,10 @@ and OpenHarmony use libz-sys's platform-zlib path and must not publish canonical
 LilScript codec measurements without an additional vendoring or rejection gate.
 Under `size-first`, exact transfer bytes are the
 primary rank key and performance breaks only exact transfer ties. Final ties use
-the configured startup score, raw bytes, and then lexical output order. The search only disables already enabled
-contested tactics for comparison; it never turns on a tactic omitted from the
-exact `compression` allowlist. `candidate_search = "production"` is the
+the configured startup score, raw bytes, and then lexical output order. Search
+can disable enabled tactics, and explicitly defined size-first search-only
+spellings may compete under a non-empty exact list. Other omitted tactics remain
+off. `candidate_search = "production"` is the
 default. CLI `--mode development` forces multi-IR/emission candidate expansion off
 for every configured search value, including `always`. `off` still runs the configured
 optimizer/emission and mandatory validation, but it grants zero optional terminal

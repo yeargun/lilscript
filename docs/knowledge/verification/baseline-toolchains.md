@@ -27,7 +27,7 @@ minifier utility, and both esbuild's script-preserving transform and closed-IIFE
 (the latter permits top-level mangling but pays for its wrapper). It executes every
 result, excludes a semantically invalid candidate from size selection while failing
 the case, and selects the smallest valid artifact independently for raw, gzip-9, and
-Brotli-11. Schema 5 records exact options, resolved Oxc platform binding, runtime and
+Brotli-11. Schema 6 records exact options, resolved Oxc platform binding, runtime and
 canonical scorer identity, durations, and artifact hashes. It does not yet run Vite or Closure
 for those micro cases. The maintained Closure app lane pins a JAR version and SHA-256
 separately.

@@ -1,0 +1,285 @@
+import extern {
+  DOMErrorCodes,
+  ElementTypes,
+  NodeTypes,
+  createCallExpression,
+  createConditionalExpression,
+  createDOMCompilerError,
+  createInterpolation,
+  createObjectProperty,
+  createSimpleExpression,
+  findProp,
+  hasDynamicKeyVBind,
+  transformModel as coreTransformModel
+} from "../../../packages/vuelil/compiler-dom.js";
+import {
+  SSR_INCLUDE_BOOLEAN_ATTR,
+  SSR_LOOSE_CONTAIN,
+  SSR_LOOSE_EQUAL,
+  SSR_RENDER_DYNAMIC_MODEL
+} from "../runtimeHelpers";
+
+extern JsValue DOMErrorCodes;
+extern JsValue ElementTypes;
+extern JsValue JSON;
+extern JsValue NodeTypes;
+extern JsValue createCallExpression;
+extern JsValue createConditionalExpression;
+extern JsValue createDOMCompilerError;
+extern JsValue createInterpolation;
+extern JsValue createObjectProperty;
+extern JsValue createSimpleExpression;
+extern JsValue findProp;
+extern JsValue hasDynamicKeyVBind;
+extern JsValue coreTransformModel;
+
+JsValue ssrModelUndefined() {
+  return JS.undefined();
+}
+
+JsValue findValueBinding(JsValue node) {
+  JsValue value = JS.call(findProp, ssrModelUndefined(), node, "value");
+  if (value.truthy()) {
+    if (JS.strictEqual(value["type"], NodeTypes["DIRECTIVE"])) return value["exp"];
+    return JS.call(
+      createSimpleExpression,
+      ssrModelUndefined(),
+      value["value"]["content"],
+      true
+    );
+  }
+  return JS.call(createSimpleExpression, ssrModelUndefined(), "null", false);
+}
+
+void processSSRSelectChildren(JsValue children, JsValue model, JsValue context) {
+  for (int index = 0; index < JS.number(children["length"]).toInt(); index++) {
+    JsValue child = children[index];
+    if (JS.strictEqual(child["type"], NodeTypes["ELEMENT"])) {
+      processSSROption(child, model, context);
+    } else if (JS.strictEqual(child["type"], NodeTypes["FOR"])) {
+      processSSRSelectChildren(child["children"], model, context);
+    } else if (JS.strictEqual(child["type"], NodeTypes["IF"])) {
+      JsValue branches = child["branches"];
+      for (int branchIndex = 0;
+        branchIndex < JS.number(branches["length"]).toInt();
+        branchIndex++) {
+        processSSRSelectChildren(branches[branchIndex]["children"], model, context);
+      }
+    }
+  }
+}
+
+void processSSROption(JsValue node, JsValue model, JsValue context) {
+  string tag = JS.string(node["tag"]);
+  if (tag == "option") {
+    JsValue props = node["props"];
+    bool selected = false;
+    for (int index = 0; index < JS.number(props["length"]).toInt(); index++) {
+      if (JS.string(props[index]["name"]) == "selected") selected = true;
+    }
+    if (!selected) {
+      JsValue value = findValueBinding(node);
+      JsValue includeHelper = JS.invoke(context, "helper", SSR_INCLUDE_BOOLEAN_ATTR);
+      JsValue isArray = JS.call(
+        createCallExpression,
+        ssrModelUndefined(),
+        "Array.isArray",
+        JS.array(model)
+      );
+      JsValue contains = JS.call(
+        createCallExpression,
+        ssrModelUndefined(),
+        JS.invoke(context, "helper", SSR_LOOSE_CONTAIN),
+        JS.array(model, value)
+      );
+      JsValue equal = JS.call(
+        createCallExpression,
+        ssrModelUndefined(),
+        JS.invoke(context, "helper", SSR_LOOSE_EQUAL),
+        JS.array(model, value)
+      );
+      JsValue comparison = JS.call(
+        createConditionalExpression,
+        ssrModelUndefined(),
+        isArray,
+        contains,
+        equal
+      );
+      JsValue include = JS.call(
+        createCallExpression,
+        ssrModelUndefined(),
+        includeHelper,
+        JS.array(comparison)
+      );
+      JsValue selectedPart = JS.call(
+        createConditionalExpression,
+        ssrModelUndefined(),
+        include,
+        JS.call(createSimpleExpression, ssrModelUndefined(), " selected", true),
+        JS.call(createSimpleExpression, ssrModelUndefined(), "", true),
+        false
+      );
+      JS.invoke(node["ssrCodegenNode"]["elements"], "push", selectedPart);
+    }
+  } else if (tag == "optgroup") {
+    processSSRSelectChildren(node["children"], model, context);
+  }
+}
+
+void checkDuplicatedSSRValue(JsValue node, JsValue context) {
+  JsValue value = JS.call(findProp, ssrModelUndefined(), node, "value");
+  if (value.truthy()) {
+    JS.invoke(
+      context,
+      "onError",
+      JS.call(
+        createDOMCompilerError,
+        ssrModelUndefined(),
+        DOMErrorCodes["X_V_MODEL_UNNECESSARY_VALUE"],
+        value["loc"]
+      )
+    );
+  }
+}
+
+export JsValue ssrTransformModel(JsValue directive, JsValue node, JsValue context) {
+  JsValue model = directive["exp"];
+  if (!JS.strictEqual(node["tagType"], ElementTypes["ELEMENT"])) {
+    return JS.call(
+      coreTransformModel,
+      ssrModelUndefined(),
+      directive,
+      node,
+      context
+    );
+  }
+
+  JsValue result = JS.object("props", JS.array());
+  string tag = JS.string(node["tag"]);
+  if (tag == "input") {
+    JsValue defaultProps = JS.array(JS.call(
+      createObjectProperty,
+      ssrModelUndefined(),
+      "value",
+      model
+    ));
+    JsValue type = JS.call(findProp, ssrModelUndefined(), node, "type");
+    if (type.truthy()) {
+      JsValue value = findValueBinding(node);
+      if (JS.strictEqual(type["type"], NodeTypes["DIRECTIVE"])) {
+        result["ssrTagParts"] = JS.array(JS.call(
+          createCallExpression,
+          ssrModelUndefined(),
+          JS.invoke(context, "helper", SSR_RENDER_DYNAMIC_MODEL),
+          JS.array(type["exp"], model, value)
+        ));
+      } else if (type["value"].truthy()) {
+        string inputType = JS.string(type["value"]["content"]);
+        if (inputType == "radio") {
+          result["props"] = JS.array(JS.call(
+            createObjectProperty,
+            ssrModelUndefined(),
+            "checked",
+            JS.call(
+              createCallExpression,
+              ssrModelUndefined(),
+              JS.invoke(context, "helper", SSR_LOOSE_EQUAL),
+              JS.array(model, value)
+            )
+          ));
+        } else if (inputType == "checkbox") {
+          JsValue trueValueBinding = JS.call(
+            findProp,
+            ssrModelUndefined(),
+            node,
+            "true-value"
+          );
+          JsValue checked = ssrModelUndefined();
+          if (trueValueBinding.truthy()) {
+            JsValue trueValue = trueValueBinding["exp"];
+            if (JS.strictEqual(trueValueBinding["type"], NodeTypes["ATTRIBUTE"])) {
+              trueValue = JS.invoke(
+                JSON,
+                "stringify",
+                trueValueBinding["value"]["content"]
+              );
+            }
+            checked = JS.call(
+              createCallExpression,
+              ssrModelUndefined(),
+              JS.invoke(context, "helper", SSR_LOOSE_EQUAL),
+              JS.array(model, trueValue)
+            );
+          } else {
+            checked = JS.call(
+              createConditionalExpression,
+              ssrModelUndefined(),
+              JS.call(
+                createCallExpression,
+                ssrModelUndefined(),
+                "Array.isArray",
+                JS.array(model)
+              ),
+              JS.call(
+                createCallExpression,
+                ssrModelUndefined(),
+                JS.invoke(context, "helper", SSR_LOOSE_CONTAIN),
+                JS.array(model, value)
+              ),
+              model
+            );
+          }
+          result["props"] = JS.array(JS.call(
+            createObjectProperty,
+            ssrModelUndefined(),
+            "checked",
+            checked
+          ));
+        } else if (inputType == "file") {
+          JS.invoke(
+            context,
+            "onError",
+            JS.call(
+              createDOMCompilerError,
+              ssrModelUndefined(),
+              DOMErrorCodes["X_V_MODEL_ON_FILE_INPUT_ELEMENT"],
+              directive["loc"]
+            )
+          );
+        } else {
+          checkDuplicatedSSRValue(node, context);
+          result["props"] = defaultProps;
+        }
+      }
+    } else if (!JS.call(
+      hasDynamicKeyVBind,
+      ssrModelUndefined(),
+      node
+    ).truthy()) {
+      checkDuplicatedSSRValue(node, context);
+      result["props"] = defaultProps;
+    }
+  } else if (tag == "textarea") {
+    checkDuplicatedSSRValue(node, context);
+    node["children"] = JS.array(JS.call(
+      createInterpolation,
+      ssrModelUndefined(),
+      model,
+      model["loc"]
+    ));
+  } else if (tag == "select") {
+    processSSRSelectChildren(node["children"], model, context);
+  } else {
+    JS.invoke(
+      context,
+      "onError",
+      JS.call(
+        createDOMCompilerError,
+        ssrModelUndefined(),
+        DOMErrorCodes["X_V_MODEL_ON_INVALID_ELEMENT"],
+        directive["loc"]
+      )
+    );
+  }
+  return result;
+}

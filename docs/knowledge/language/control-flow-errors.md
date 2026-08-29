@@ -14,12 +14,13 @@ and `return` retain their structured targets through lowering.
 member/index access skips the index on a null receiver. Optional method calls are not
 accepted yet because receiver binding and portable call semantics are not defined.
 
-Closed enum `match` is exhaustive unless the final arm is `_`. The scrutinee runs
-once, duplicate/unknown variants are errors, and only one arm executes. `match` is
-**enum-only**. `if` / `else` is statement-only. `?` is nullable, not a ternary.
-Value-producing `if` lowers to a phi; the emitter may recover `?:` via
-`local_phi_expression_regions` (default off under Brotli). That recovery is not a
-source form. Language RFC: [compressor surface](compressor-surface.md).
+Closed enum `match` is exhaustive unless the final arm is `_`. Scalar literal
+`match` also supports enum, integer, string, and boolean patterns with duplicate
+and exhaustiveness checks. The scrutinee runs once and only one arm executes.
+`if` / `else` has both statement and value-producing expression forms; the
+expression form requires `else` and lowers to a conditional phi. `?` remains the
+nullable type marker, not ternary syntax. The emitter can score structured and
+conditional-expression spellings when both preserve evaluation order.
 
 `throw` accepts any non-`void` value. `try` requires `catch`, `finally`, or both, and
 native JavaScript completion order is preserved: `finally` runs for normal and abrupt

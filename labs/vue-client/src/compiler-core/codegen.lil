@@ -1,0 +1,738 @@
+import { getVNodeBlockHelper, getVNodeHelper, locStub } from "./ast";
+import { String } from "./errors";
+import {
+  CREATE_COMMENT,
+  CREATE_ELEMENT_VNODE,
+  CREATE_STATIC,
+  CREATE_TEXT,
+  CREATE_VNODE,
+  OPEN_BLOCK,
+  RESOLVE_COMPONENT,
+  RESOLVE_DIRECTIVE,
+  RESOLVE_FILTER,
+  SET_BLOCK_TRACKING,
+  TO_DISPLAY_STRING,
+  WITH_CTX,
+  WITH_DIRECTIVES,
+  helperNameMap
+} from "./runtimeHelpers";
+import {
+  advancePositionWithMutation,
+  assert,
+  isSimpleIdentifier,
+  toValidAssetId
+} from "./utils";
+
+export extern JsValue Array;
+export extern JsValue JSON;
+
+extern JsValue hostCreateSourceMap(string filename, string source);
+extern void hostAddSourceMapping(JsValue map, JsValue mapping);
+extern JsValue hostSourceMapJson(JsValue map);
+
+int codegenLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+
+JsValue codegenUndefined() {
+  return JS.undefined();
+}
+
+string jsonString(JsValue value) {
+  return JS.string(JS.invoke(JSON, "stringify", value));
+}
+
+string repeatIndent(int level) {
+  return JS.string(JS.invoke("  ", "repeat", level));
+}
+
+void writeCode(JsValue context, string code, JsValue node = JS.undefined()) {
+  context["code"] = JS.string(context["code"]) + code;
+  JsValue map = context["map"];
+  if (!JS.isUndefined(map)) {
+    if (!JS.isUndefined(node) && !JS.isNullish(node["loc"]) && JS.string(node["loc"]["source"]) != "") {
+      JsValue start = node["loc"]["start"];
+      string name = "";
+      if (JS.number(node["type"]).toInt() == 4 && !node["isStatic"].truthy()) {
+        string content = JS.string(node["content"]);
+        if (content.startsWith("_ctx.")) {
+          content = content.slice(5);
+          if (isSimpleIdentifier(content)) name = content;
+        }
+      }
+      JsValue mapping = JS.object(
+        "source", context["filename"],
+        "original", JS.object(
+          "line", start["line"],
+          "column", JS.number(start["column"]).toInt() - 1
+        ),
+        "generated", JS.object(
+          "line", context["line"],
+          "column", JS.number(context["column"]).toInt() - 1
+        )
+      );
+      if (name != "") mapping["name"] = name;
+      hostAddSourceMapping(map, mapping);
+    }
+    advancePositionWithMutation(context, code);
+    if (!JS.isUndefined(node) && !sameCodegenLoc(node["loc"], locStub) && JS.string(node["loc"]["source"]) != "") {
+      JsValue end = node["loc"]["end"];
+      hostAddSourceMapping(map, JS.object(
+        "source", context["filename"],
+        "original", JS.object("line", end["line"], "column", JS.number(end["column"]).toInt() - 1),
+        "generated", JS.object(
+          "line", context["line"],
+          "column", JS.number(context["column"]).toInt() - 1
+        )
+      ));
+    }
+  }
+}
+
+bool sameCodegenLoc(JsValue left, JsValue right) {
+  return JS.strictEqual(left, right);
+}
+
+void codegenNewline(JsValue context) {
+  writeCode(context, "\n" + repeatIndent(JS.number(context["indentLevel"]).toInt()));
+}
+
+void codegenIndent(JsValue context) {
+  context["indentLevel"] = JS.number(context["indentLevel"]).toInt() + 1;
+  codegenNewline(context);
+}
+
+void codegenDeindent(JsValue context, bool withoutNewline = false) {
+  context["indentLevel"] = JS.number(context["indentLevel"]).toInt() - 1;
+  if (!withoutNewline) codegenNewline(context);
+}
+
+string helperString(JsValue context, JsValue helper) {
+  return "_" + JS.string(helperNameMap[helper]);
+}
+
+string aliasHelper(JsValue helper) {
+  string name = JS.string(helperNameMap[helper]);
+  return name + ": _" + name;
+}
+
+string patchFlagName(int flag) {
+  if (flag == -1) return "CACHED";
+  if (flag == -2) return "BAIL";
+  string result = "";
+  int[] values = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048];
+  string[] names = [
+    "TEXT", "CLASS", "STYLE", "PROPS", "FULL_PROPS", "NEED_HYDRATION",
+    "STABLE_FRAGMENT", "KEYED_FRAGMENT", "UNKEYED_FRAGMENT", "NEED_PATCH",
+    "DYNAMIC_SLOTS", "DEV_ROOT_FRAGMENT"
+  ];
+  for (int index = 0; index < values.length; index++) {
+    if ((flag & values[index]) != 0) {
+      if (result != "") result += ", ";
+      result += names[index];
+    }
+  }
+  return result;
+}
+
+bool codegenTextLike(JsValue node) {
+  if (JS.typeOf(node) == "string") return true;
+  int type = JS.number(node["type"]).toInt();
+  return type == 2 || type == 4 || type == 5 || type == 8;
+}
+
+void generateNodeList(JsValue nodes, JsValue context, bool multiline = false, bool comma = true) {
+  for (int index = 0; index < codegenLength(nodes); index++) {
+    JsValue node = nodes[index];
+    if (JS.typeOf(node) == "string") writeCode(context, JS.string(node));
+    else if (JS.isArray(node)) generateNodeListAsArray(node, context);
+    else generateNode(node, context);
+    if (index + 1 < codegenLength(nodes)) {
+      if (multiline) {
+        if (comma) writeCode(context, ",");
+        codegenNewline(context);
+      } else if (comma) writeCode(context, ", ");
+    }
+  }
+}
+
+void generateNodeListAsArray(JsValue nodes, JsValue context) {
+  bool multiline = codegenLength(nodes) > 3;
+  if (!multiline) {
+    for (int index = 0; index < codegenLength(nodes); index++) {
+      if (JS.isArray(nodes[index]) || !codegenTextLike(nodes[index])) multiline = true;
+    }
+  }
+  writeCode(context, "[");
+  if (multiline) codegenIndent(context);
+  generateNodeList(nodes, context, multiline, true);
+  if (multiline) codegenDeindent(context);
+  writeCode(context, "]");
+}
+
+void generateExpressionKey(JsValue node, JsValue context) {
+  int type = JS.number(node["type"]).toInt();
+  if (type == 8) {
+    writeCode(context, "[");
+    generateNode(node, context);
+    writeCode(context, "]");
+  } else if (node["isStatic"].truthy()) {
+    string content = JS.string(node["content"]);
+    if (isSimpleIdentifier(content)) writeCode(context, content, node);
+    else writeCode(context, jsonString(content), node);
+  } else writeCode(context, "[" + JS.string(node["content"]) + "]", node);
+}
+
+JsValue nullableArguments(JsValue values) {
+  int last = codegenLength(values) - 1;
+  while (last >= 0 && JS.isNullish(values[last])) last--;
+  JsValue result = JS.array();
+  for (int index = 0; index <= last; index++) {
+    if (values[index].truthy()) result[index] = values[index];
+    else result[index] = "null";
+  }
+  return result;
+}
+
+void generateVNode(JsValue node, JsValue context) {
+  JsValue directives = node["directives"];
+  bool block = node["isBlock"].truthy();
+  bool component = node["isComponent"].truthy();
+  if (directives.truthy()) writeCode(context, helperString(context, WITH_DIRECTIVES) + "(");
+  if (block) {
+    string tracking = "";
+    if (node["disableTracking"].truthy()) tracking = "true";
+    writeCode(context, "(" + helperString(context, OPEN_BLOCK) + "(" + tracking + "), ");
+  }
+  if (context["pure"].truthy()) writeCode(context, "/*@__PURE__*/");
+  JsValue helper = getVNodeHelper(context["inSSR"].truthy(), component);
+  if (block) helper = getVNodeBlockHelper(context["inSSR"].truthy(), component);
+  writeCode(context, helperString(context, helper) + "(", node);
+  JsValue patch = node["patchFlag"];
+  JsValue patchText = codegenUndefined();
+  if (patch.truthy()) {
+    int flag = JS.number(patch).toInt();
+    patchText = asCodegenString(flag) + " /* " + patchFlagName(flag) + " */";
+  }
+  generateNodeList(nullableArguments(JS.array(
+    node["tag"], node["props"], node["children"], patchText, node["dynamicProps"]
+  )), context);
+  writeCode(context, ")");
+  if (block) writeCode(context, ")");
+  if (directives.truthy()) {
+    writeCode(context, ", ");
+    generateNode(directives, context);
+    writeCode(context, ")");
+  }
+}
+
+string asCodegenString(JsValue value) {
+  return JS.string(JS.call(String, codegenUndefined(), value));
+}
+
+void generateObject(JsValue node, JsValue context) {
+  JsValue properties = node["properties"];
+  if (codegenLength(properties) == 0) {
+    writeCode(context, "{}", node);
+    return;
+  }
+  bool multiline = codegenLength(properties) > 1;
+  if (!multiline) {
+    for (int index = 0; index < codegenLength(properties); index++) {
+      if (JS.number(properties[index]["value"]["type"]).toInt() != 4) multiline = true;
+    }
+  }
+  if (multiline) writeCode(context, "{");
+  else writeCode(context, "{ ");
+  if (multiline) codegenIndent(context);
+  for (int index = 0; index < codegenLength(properties); index++) {
+    generateExpressionKey(properties[index]["key"], context);
+    writeCode(context, ": ");
+    generateNode(properties[index]["value"], context);
+    if (index + 1 < codegenLength(properties)) {
+      writeCode(context, ",");
+      codegenNewline(context);
+    }
+  }
+  if (multiline) codegenDeindent(context);
+  if (multiline) writeCode(context, "}");
+  else writeCode(context, " }");
+}
+
+void generateFunction(JsValue node, JsValue context) {
+  bool slot = node["isSlot"].truthy();
+  if (slot) writeCode(context, helperString(context, WITH_CTX) + "(");
+  writeCode(context, "(", node);
+  JsValue params = node["params"];
+  if (JS.isArray(params)) generateNodeList(params, context);
+  else if (params.truthy()) generateNode(params, context);
+  writeCode(context, ") => ");
+  bool block = node["newline"].truthy() || node["body"].truthy();
+  if (block) {
+    writeCode(context, "{");
+    codegenIndent(context);
+  }
+  if (node["returns"].truthy()) {
+    if (node["newline"].truthy()) writeCode(context, "return ");
+    if (JS.isArray(node["returns"])) generateNodeListAsArray(node["returns"], context);
+    else generateNode(node["returns"], context);
+  } else if (node["body"].truthy()) generateNode(node["body"], context);
+  if (block) {
+    codegenDeindent(context);
+    writeCode(context, "}");
+  }
+  if (slot) {
+    if (node["isNonScopedSlot"].truthy()) writeCode(context, ", undefined, true");
+    writeCode(context, ")");
+  }
+}
+
+void generateConditional(JsValue node, JsValue context) {
+  JsValue test = node["test"];
+  if (JS.number(test["type"]).toInt() == 4) {
+    string content = JS.string(test["content"]);
+    bool parens = !isSimpleIdentifier(content);
+    if (parens) writeCode(context, "(");
+    generateNode(test, context);
+    if (parens) writeCode(context, ")");
+  } else {
+    writeCode(context, "(");
+    generateNode(test, context);
+    writeCode(context, ")");
+  }
+  bool newline = node["newline"].truthy();
+  if (newline) codegenIndent(context);
+  context["indentLevel"] = JS.number(context["indentLevel"]).toInt() + 1;
+  if (!newline) writeCode(context, " ");
+  writeCode(context, "? ");
+  generateNode(node["consequent"], context);
+  context["indentLevel"] = JS.number(context["indentLevel"]).toInt() - 1;
+  if (newline) codegenNewline(context);
+  else writeCode(context, " ");
+  writeCode(context, ": ");
+  bool nested = JS.number(node["alternate"]["type"]).toInt() == 19;
+  if (!nested) context["indentLevel"] = JS.number(context["indentLevel"]).toInt() + 1;
+  generateNode(node["alternate"], context);
+  if (!nested) context["indentLevel"] = JS.number(context["indentLevel"]).toInt() - 1;
+  if (newline) codegenDeindent(context, true);
+}
+
+void generateCache(JsValue node, JsValue context) {
+  bool pause = node["needPauseTracking"].truthy();
+  if (node["needArraySpread"].truthy()) writeCode(context, "[...(");
+  string index = asCodegenString(node["index"]);
+  writeCode(context, "_cache[" + index + "] || (");
+  if (pause) {
+    codegenIndent(context);
+    writeCode(context, helperString(context, SET_BLOCK_TRACKING) + "(-1");
+    if (node["inVOnce"].truthy()) writeCode(context, ", true");
+    writeCode(context, "),");
+    codegenNewline(context);
+    writeCode(context, "(");
+  }
+  writeCode(context, "_cache[" + index + "] = ");
+  generateNode(node["value"], context);
+  if (pause) {
+    writeCode(context, ").cacheIndex = " + index + ",");
+    codegenNewline(context);
+    writeCode(context, helperString(context, SET_BLOCK_TRACKING) + "(1),");
+    codegenNewline(context);
+    writeCode(context, "_cache[" + index + "]");
+    codegenDeindent(context);
+  }
+  writeCode(context, ")");
+  if (node["needArraySpread"].truthy()) writeCode(context, ")]");
+}
+
+void generateIfStatement(JsValue node, JsValue context) {
+  writeCode(context, "if (");
+  generateNode(node["test"], context);
+  writeCode(context, ") {");
+  codegenIndent(context);
+  generateNode(node["consequent"], context);
+  codegenDeindent(context);
+  writeCode(context, "}");
+  if (node["alternate"].truthy()) {
+    writeCode(context, " else ");
+    if (JS.number(node["alternate"]["type"]).toInt() == 23) generateIfStatement(node["alternate"], context);
+    else {
+      writeCode(context, "{");
+      codegenIndent(context);
+      generateNode(node["alternate"], context);
+      codegenDeindent(context);
+      writeCode(context, "}");
+    }
+  }
+}
+
+void generateNode(JsValue node, JsValue context) {
+  if (JS.typeOf(node) == "string") {
+    writeCode(context, JS.string(node));
+    return;
+  }
+  if (JS.typeOf(node) == "symbol") {
+    writeCode(context, helperString(context, node));
+    return;
+  }
+  int type = JS.number(node["type"]).toInt();
+  if (type == 1 || type == 9 || type == 11) {
+    generateNode(node["codegenNode"], context);
+  } else if (type == 2) writeCode(context, jsonString(node["content"]), node);
+  else if (type == 3) {
+    if (context["pure"].truthy()) writeCode(context, "/*@__PURE__*/");
+    writeCode(context, helperString(context, CREATE_COMMENT) + "(" + jsonString(node["content"]) + ")", node);
+  }
+  else if (type == 4) {
+    if (node["isStatic"].truthy()) writeCode(context, jsonString(node["content"]), node);
+    else writeCode(context, JS.string(node["content"]), node);
+  } else if (type == 5) {
+    if (context["pure"].truthy()) writeCode(context, "/*@__PURE__*/");
+    writeCode(context, helperString(context, TO_DISPLAY_STRING) + "(");
+    generateNode(node["content"], context);
+    writeCode(context, ")");
+  } else if (type == 8) {
+    JsValue children = node["children"];
+    for (int index = 0; index < codegenLength(children); index++) generateNode(children[index], context);
+  } else if (type == 12) generateNode(node["codegenNode"], context);
+  else if (type == 13) generateVNode(node, context);
+  else if (type == 14) {
+    if (context["pure"].truthy()) writeCode(context, "/*@__PURE__*/");
+    JsValue callee = node["callee"];
+    string name = "";
+    if (JS.typeOf(callee) == "string") name = JS.string(callee);
+    else name = helperString(context, callee);
+    writeCode(context, name + "(", node);
+    generateNodeList(node["arguments"], context);
+    writeCode(context, ")");
+  } else if (type == 15) generateObject(node, context);
+  else if (type == 17) generateNodeListAsArray(node["elements"], context);
+  else if (type == 18) generateFunction(node, context);
+  else if (type == 19) generateConditional(node, context);
+  else if (type == 20) generateCache(node, context);
+  else if (type == 21) generateNodeList(node["body"], context, true, false);
+  else if (type == 22) {
+    writeCode(context, "`");
+    JsValue elements = node["elements"];
+    bool multiline = codegenLength(elements) > 3;
+    for (int index = 0; index < codegenLength(elements); index++) {
+      if (JS.typeOf(elements[index]) == "string") {
+        string text = JS.string(elements[index]);
+        text = JS.string(JS.invoke(text, "replace", new Regex("(`|\\$|\\\\)", "g"), "\\$1"));
+        writeCode(context, text);
+      } else {
+        writeCode(context, "${");
+        if (multiline) codegenIndent(context);
+        generateNode(elements[index], context);
+        if (multiline) codegenDeindent(context);
+        writeCode(context, "}");
+      }
+    }
+    writeCode(context, "`");
+  } else if (type == 23) generateIfStatement(node, context);
+  else if (type == 24) {
+    generateNode(node["left"], context);
+    writeCode(context, " = ");
+    generateNode(node["right"], context);
+  } else if (type == 25) {
+    writeCode(context, "(");
+    generateNodeList(node["expressions"], context);
+    writeCode(context, ")");
+  } else if (type == 26) {
+    writeCode(context, "return ");
+    if (JS.isArray(node["returns"])) generateNodeListAsArray(node["returns"], context);
+    else generateNode(node["returns"], context);
+  } else if (type != 10) assert(false, "unhandled codegen node type: " + asCodegenString(type));
+}
+
+void generateHoists(JsValue ast, JsValue context) {
+  JsValue hoists = ast["hoists"];
+  if (codegenLength(hoists) == 0) return;
+  context["pure"] = true;
+  codegenNewline(context);
+  for (int index = 0; index < codegenLength(hoists); index++) {
+    if (hoists[index].truthy()) {
+      writeCode(context, "const _hoisted_" + asCodegenString(index + 1) + " = ");
+      generateNode(hoists[index], context);
+      codegenNewline(context);
+    }
+  }
+  context["pure"] = false;
+}
+
+void generateAssets(JsValue assets, string type, JsValue context) {
+  JsValue resolver = RESOLVE_DIRECTIVE;
+  if (type == "component") resolver = RESOLVE_COMPONENT;
+  else if (type == "filter") resolver = RESOLVE_FILTER;
+  for (int index = 0; index < codegenLength(assets); index++) {
+    string id = JS.string(assets[index]);
+    bool selfReference = id.endsWith("__self");
+    if (selfReference) id = id.slice(0, -6);
+    writeCode(context, "const " + toValidAssetId(id, type) + " = " + helperString(context, resolver) +
+      "(" + jsonString(id));
+    if (selfReference) writeCode(context, ", true");
+    writeCode(context, ")");
+    if (context["isTS"].truthy()) writeCode(context, "!");
+    if (index + 1 < codegenLength(assets)) codegenNewline(context);
+  }
+}
+
+string helpersAliasList(JsValue helpers) {
+  string result = "";
+  for (int index = 0; index < codegenLength(helpers); index++) {
+    if (index > 0) result += ", ";
+    result += aliasHelper(helpers[index]);
+  }
+  return result;
+}
+
+string moduleHelpersAliasList(JsValue helpers) {
+  string result = "";
+  for (int index = 0; index < codegenLength(helpers); index++) {
+    if (index > 0) result += ", ";
+    string name = JS.string(helperNameMap[helpers[index]]);
+    result += name + " as _" + name;
+  }
+  return result;
+}
+
+bool hasCodegenItems(JsValue values) {
+  return !JS.isNullish(values) && codegenLength(values) > 0;
+}
+
+JsValue createCodegenContext(JsValue ast, JsValue options) {
+  string mode = "function";
+  if (!JS.isNullish(options["mode"])) mode = JS.string(options["mode"]);
+  bool prefix = mode == "module";
+  if (!JS.isNullish(options["prefixIdentifiers"])) prefix = options["prefixIdentifiers"].truthy();
+  string filename = "template.vue.html";
+  if (!JS.isNullish(options["filename"])) filename = JS.string(options["filename"]);
+  JsValue scopeId = null;
+  if (!JS.isNullish(options["scopeId"])) scopeId = options["scopeId"];
+  string runtimeGlobal = "Vue";
+  if (!JS.isNullish(options["runtimeGlobalName"])) runtimeGlobal = JS.string(options["runtimeGlobalName"]);
+  string runtimeModule = "vue";
+  if (!JS.isNullish(options["runtimeModuleName"])) runtimeModule = JS.string(options["runtimeModuleName"]);
+  string ssrRuntimeModule = "vue/server-renderer";
+  if (!JS.isNullish(options["ssrRuntimeModuleName"])) ssrRuntimeModule = JS.string(options["ssrRuntimeModuleName"]);
+  JsValue context = JS.object(
+    "mode", mode,
+    "prefixIdentifiers", prefix,
+    "sourceMap", options["sourceMap"].truthy(),
+    "filename", filename,
+    "scopeId", scopeId,
+    "optimizeImports", options["optimizeImports"].truthy(),
+    "runtimeGlobalName", runtimeGlobal,
+    "runtimeModuleName", runtimeModule,
+    "ssrRuntimeModuleName", ssrRuntimeModule,
+    "ssr", options["ssr"].truthy(),
+    "isTS", options["isTS"].truthy(),
+    "inSSR", options["inSSR"].truthy(),
+    "source", ast["source"],
+    "code", "",
+    "line", 1,
+    "column", 1,
+    "offset", 0,
+    "indentLevel", 0,
+    "pure", false,
+    "map", codegenUndefined()
+  );
+  context["helper"] = JS.method1((JsValue _self, JsValue helper) => helperString(context, helper));
+  context["push"] = JS.method3((JsValue _self, JsValue code, JsValue _newlineIndex, JsValue node) => {
+    writeCode(context, JS.string(code), node);
+    return codegenUndefined();
+  });
+  context["indent"] = JS.method0((JsValue _self) => {
+    codegenIndent(context);
+    return codegenUndefined();
+  });
+  context["deindent"] = JS.method1((JsValue _self, JsValue withoutNewline) => {
+    codegenDeindent(context, withoutNewline.truthy());
+    return codegenUndefined();
+  });
+  context["newline"] = JS.method0((JsValue _self) => {
+    codegenNewline(context);
+    return codegenUndefined();
+  });
+  if (options["sourceMap"].truthy()) context["map"] = hostCreateSourceMap(filename, JS.string(ast["source"]));
+  return context;
+}
+
+void generateImports(JsValue imports, JsValue context) {
+  for (int index = 0; index < codegenLength(imports); index++) {
+    writeCode(context, "import ");
+    generateNode(imports[index]["exp"], context);
+    writeCode(context, " from '" + JS.string(imports[index]["path"]) + "'");
+    codegenNewline(context);
+  }
+}
+
+void generateFunctionPreamble(JsValue ast, JsValue context) {
+  JsValue helpers = JS.call(Array["from"], Array, ast["helpers"]);
+  string vueBinding = JS.string(context["runtimeGlobalName"]);
+  if (context["ssr"].truthy()) {
+    vueBinding = "require(" + jsonString(context["runtimeModuleName"]) + ")";
+  }
+  if (codegenLength(helpers) > 0) {
+    if (context["prefixIdentifiers"].truthy()) {
+      writeCode(context, "const { " + helpersAliasList(helpers) + " } = " + vueBinding + "\n");
+    } else {
+      writeCode(context, "const _Vue = " + vueBinding + "\n");
+      if (codegenLength(ast["hoists"]) > 0) {
+        JsValue staticHelpers = JS.array();
+        JsValue staticOrder = JS.array(CREATE_VNODE, CREATE_ELEMENT_VNODE, CREATE_COMMENT, CREATE_TEXT, CREATE_STATIC);
+        for (int index = 0; index < codegenLength(staticOrder); index++) {
+          if (JS.number(JS.invoke(helpers, "indexOf", staticOrder[index])).toInt() >= 0) {
+            staticHelpers[codegenLength(staticHelpers)] = staticOrder[index];
+          }
+        }
+        writeCode(context, "const { " + helpersAliasList(staticHelpers) + " } = _Vue\n");
+      }
+    }
+  }
+  JsValue ssrHelpers = ast["ssrHelpers"];
+  if (hasCodegenItems(ssrHelpers)) {
+    writeCode(context, "const { " + helpersAliasList(ssrHelpers) + " } = require(\"" +
+      JS.string(context["ssrRuntimeModuleName"]) + "\")\n");
+  }
+  generateHoists(ast, context);
+  codegenNewline(context);
+  writeCode(context, "return ");
+}
+
+void generateModulePreamble(JsValue ast, JsValue context, bool inline) {
+  JsValue helpers = JS.call(Array["from"], Array, ast["helpers"]);
+  if (codegenLength(helpers) > 0) {
+    if (context["optimizeImports"].truthy()) {
+      string imports = "";
+      string aliases = "";
+      for (int index = 0; index < codegenLength(helpers); index++) {
+        string name = JS.string(helperNameMap[helpers[index]]);
+        if (index > 0) {
+          imports += ", ";
+          aliases += ", ";
+        }
+        imports += name;
+        aliases += "_" + name + " = " + name;
+      }
+      writeCode(context, "import { " + imports + " } from " + jsonString(context["runtimeModuleName"]) + "\n");
+      writeCode(context, "\n// Binding optimization for webpack code-split\nconst " + aliases + "\n");
+    } else {
+      writeCode(context, "import { " + moduleHelpersAliasList(helpers) + " } from " +
+        jsonString(context["runtimeModuleName"]) + "\n");
+    }
+  }
+  JsValue ssrHelpers = ast["ssrHelpers"];
+  if (hasCodegenItems(ssrHelpers)) {
+    writeCode(context, "import { " + moduleHelpersAliasList(ssrHelpers) + " } from \"" +
+      JS.string(context["ssrRuntimeModuleName"]) + "\"\n");
+  }
+  JsValue imports = ast["imports"];
+  if (hasCodegenItems(imports)) {
+    generateImports(imports, context);
+    codegenNewline(context);
+  }
+  generateHoists(ast, context);
+  codegenNewline(context);
+  if (!inline) writeCode(context, "export ");
+}
+
+string generateSignature(bool ssr, bool isTS, bool bindingMetadata) {
+  string[] args = ["_ctx", "_cache"];
+  if (ssr) args = ["_ctx", "_push", "_parent", "_attrs"];
+  if (bindingMetadata) {
+    args.push("$props");
+    args.push("$setup");
+    args.push("$data");
+    args.push("$options");
+  }
+  string signature = "";
+  for (int index = 0; index < args.length; index++) {
+    if (index > 0) {
+      if (isTS) signature += ",";
+      else signature += ", ";
+    }
+    signature += args[index];
+    if (isTS) signature += ": any";
+  }
+  return signature;
+}
+
+export JsValue generate(JsValue ast, JsValue options = JS.undefined()) {
+  if (JS.isNullish(options)) options = JS.object();
+  JsValue context = createCodegenContext(ast, options);
+  if (JS.typeOf(options["onContextCreated"]) == "function") {
+    JS.call(options["onContextCreated"], codegenUndefined(), context);
+  }
+  string mode = JS.string(context["mode"]);
+  bool prefix = context["prefixIdentifiers"].truthy();
+  bool inline = options["inline"].truthy();
+  JsValue preambleContext = context;
+  if (inline) preambleContext = createCodegenContext(ast, options);
+  if (mode == "module") generateModulePreamble(ast, preambleContext, inline);
+  else generateFunctionPreamble(ast, preambleContext);
+
+  JsValue helpers = JS.call(Array["from"], Array, ast["helpers"]);
+  bool hasHelpers = codegenLength(helpers) > 0;
+  bool ssr = context["ssr"].truthy();
+  string functionName = "render";
+  if (ssr) functionName = "ssrRender";
+  bool bindingMetadata = !inline && options["bindingMetadata"].truthy();
+  string signature = generateSignature(ssr, context["isTS"].truthy(), bindingMetadata);
+  if (inline) writeCode(context, "(" + signature + ") => {");
+  else writeCode(context, "function " + functionName + "(" + signature + ") {");
+  codegenIndent(context);
+
+  bool withBlock = !prefix && mode != "module";
+  if (withBlock) {
+    writeCode(context, "with (_ctx) {");
+    codegenIndent(context);
+    if (hasHelpers) {
+      writeCode(context, "const { " + helpersAliasList(helpers) + " } = _Vue\n");
+      codegenNewline(context);
+    }
+  }
+
+  if (codegenLength(ast["components"]) > 0) {
+    generateAssets(ast["components"], "component", context);
+    if (codegenLength(ast["directives"]) > 0 || JS.number(ast["temps"]).toInt() > 0) codegenNewline(context);
+  }
+  if (codegenLength(ast["directives"]) > 0) {
+    generateAssets(ast["directives"], "directive", context);
+    if (JS.number(ast["temps"]).toInt() > 0) codegenNewline(context);
+  }
+  JsValue filters = ast["filters"];
+  if (hasCodegenItems(filters)) {
+    codegenNewline(context);
+    generateAssets(filters, "filter", context);
+    codegenNewline(context);
+  }
+
+  int temps = JS.number(ast["temps"]).toInt();
+  if (temps > 0) {
+    writeCode(context, "let ");
+    for (int index = 0; index < temps; index++) {
+      if (index > 0) writeCode(context, ", ");
+      writeCode(context, "_temp" + asCodegenString(index));
+    }
+  }
+  if (codegenLength(ast["components"]) > 0 || codegenLength(ast["directives"]) > 0 || temps > 0) {
+    writeCode(context, "\n");
+    codegenNewline(context);
+  }
+
+  if (!ssr) writeCode(context, "return ");
+  if (ast["codegenNode"].truthy()) generateNode(ast["codegenNode"], context);
+  else writeCode(context, "null");
+  if (withBlock) {
+    codegenDeindent(context);
+    writeCode(context, "}");
+  }
+  codegenDeindent(context);
+  writeCode(context, "}");
+
+  JsValue map = codegenUndefined();
+  if (!JS.isUndefined(context["map"])) map = hostSourceMapJson(context["map"]);
+  string preamble = "";
+  if (inline) preamble = JS.string(preambleContext["code"]);
+  return JS.object("ast", ast, "code", context["code"], "preamble", preamble, "map", map);
+}

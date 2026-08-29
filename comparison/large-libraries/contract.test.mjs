@@ -92,6 +92,20 @@ test("every configured objective has exactly one honest artifact lane", () => {
   }
 });
 
+test("the five-fork matrix includes direct Motion and true MobX production-min lanes", () => {
+  const motion = matrix.libraries.find((library) => library.id === "motionlil");
+  assert.equal(motion.build.environment.MOTIONLIL_KEEP_COMPILER_OUTPUT, "1");
+  assert.equal(motion.build.artifacts[0].id, "animate-direct");
+  assert.equal(motion.build.artifacts[0].derivation.kind, "identity");
+
+  const mobxMin = matrix.libraries.find(
+    (library) => library.id === "mobxlil-production-min",
+  );
+  assert.deepEqual(mobxMin.build.args, ["scripts/build.mjs", "--min"]);
+  assert.equal(mobxMin.build.artifacts[0].configPath, "config/production.min.toml");
+  assert.equal(mobxMin.build.artifacts[0].path, "dist/mobx.esm.production.min.js");
+});
+
 test("canonical evidence is stable under input and key ordering", () => {
   const reordered = {
     observations: [...seed.observations].reverse(),

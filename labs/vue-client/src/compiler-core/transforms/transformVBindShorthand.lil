@@ -1,0 +1,65 @@
+import { NodeTypes, createSimpleExpression } from "../ast";
+import { ErrorCodes, createCompilerError } from "../errors";
+import { validFirstIdentCharRE } from "../utils";
+
+Regex shorthandCamelizePattern = new Regex("-\\w", "g");
+
+JsValue shorthandUndefined() {
+  return JS.undefined();
+}
+
+string camelizeShorthand(string value) {
+  JsValue replacement = JS.method1((JsValue _self, JsValue matched) => {
+    return JS.string(matched).slice(1).toUpperCase();
+  });
+  return JS.string(JS.invoke(value, "replace", shorthandCamelizePattern, replacement));
+}
+
+bool isEmptyShorthandExpression(JsValue prop) {
+  JsValue expression = prop["exp"];
+  if (!expression.truthy()) return true;
+  return !JS.isUndefined(prop["rawName"]) &&
+    JS.string(prop["rawName"]).startsWith(":") &&
+    JS.strictEqual(expression["type"], NodeTypes["SIMPLE_EXPRESSION"]) &&
+    JS.string(expression["content"]).trim() == "";
+}
+
+export JsValue transformVBindShorthand(JsValue node, JsValue context) {
+  if (!JS.strictEqual(node["type"], NodeTypes["ELEMENT"])) return shorthandUndefined();
+
+  JsValue props = node["props"];
+  int count = JS.number(props["length"]).toInt();
+  for (int index = 0; index < count; index++) {
+    JsValue prop = props[index];
+    if (
+      JS.strictEqual(prop["type"], NodeTypes["DIRECTIVE"]) &&
+      JS.string(prop["name"]) == "bind" &&
+      isEmptyShorthandExpression(prop) &&
+      prop["arg"].truthy()
+    ) {
+      JsValue argument = prop["arg"];
+      if (
+        !JS.strictEqual(argument["type"], NodeTypes["SIMPLE_EXPRESSION"]) ||
+        !argument["isStatic"].truthy()
+      ) {
+        JS.call(
+          context["onError"],
+          shorthandUndefined(),
+          createCompilerError(
+            JS.number(ErrorCodes["X_V_BIND_INVALID_SAME_NAME_ARGUMENT"]).toInt(),
+            argument["loc"]
+          )
+        );
+        prop["exp"] = createSimpleExpression("", true, argument["loc"]);
+      } else {
+        string name = camelizeShorthand(JS.string(argument["content"]));
+        string first = name.charAt(0);
+        if (
+          JS.invoke(validFirstIdentCharRE, "test", first).truthy() ||
+          first == "-"
+        ) prop["exp"] = createSimpleExpression(name, false, argument["loc"]);
+      }
+    }
+  }
+  return shorthandUndefined();
+}

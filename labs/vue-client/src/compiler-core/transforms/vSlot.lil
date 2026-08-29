@@ -1,0 +1,309 @@
+import {
+  Set,
+  createArrayExpression,
+  createCallExpression,
+  createConditionalExpression,
+  createFunctionExpression,
+  createObjectExpression,
+  createObjectProperty,
+  createSimpleExpression
+} from "../ast";
+import { createCompilerError } from "../errors";
+import { createForLoopParams, finalizeForParseResult } from "./vFor";
+import { CREATE_SLOTS, RENDER_LIST, WITH_CTX } from "../runtimeHelpers";
+import {
+  findDir,
+  hasScopeRef,
+  isCommentOrWhitespace,
+  isStaticExp,
+  isTemplateNode,
+  isVSlot,
+  isWhitespaceText
+} from "../utils";
+import { COMPILER_BROWSER, COMPILER_DEV } from "../validateExpression";
+import { SlotFlags, slotFlagsText } from "../../shared/slotFlags";
+
+JsValue slotUndefined() {
+  return JS.undefined();
+}
+
+int slotLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+
+void slotPush(JsValue values, JsValue value) {
+  values[slotLength(values)] = value;
+}
+
+JsValue defaultFallback = createSimpleExpression("undefined", false);
+
+export JsValue trackSlotScopes(JsValue node, JsValue context) {
+  if (JS.number(node["type"]).toInt() != 1) return slotUndefined();
+  int tagType = JS.number(node["tagType"]).toInt();
+  if (tagType != 1 && tagType != 3) return slotUndefined();
+  JsValue directive = findDir(node, "slot");
+  if (!directive.truthy()) return slotUndefined();
+  JsValue slotProps = directive["exp"];
+  if (!COMPILER_BROWSER && context["prefixIdentifiers"].truthy() && slotProps.truthy()) {
+    JS.call(context["addIdentifiers"], slotUndefined(), slotProps);
+  }
+  context["scopes"]["vSlot"] = JS.number(context["scopes"]["vSlot"]).toInt() + 1;
+  return JS.method0((JsValue _self) => {
+    if (!COMPILER_BROWSER && context["prefixIdentifiers"].truthy() && slotProps.truthy()) {
+      JS.call(context["removeIdentifiers"], slotUndefined(), slotProps);
+    }
+    context["scopes"]["vSlot"] = JS.number(context["scopes"]["vSlot"]).toInt() - 1;
+    return slotUndefined();
+  });
+}
+
+export JsValue trackVForSlotScopes(JsValue node, JsValue context) {
+  if (!isTemplateNode(node)) return slotUndefined();
+  bool hasSlot = false;
+  JsValue props = node["props"];
+  for (int index = 0; index < slotLength(props); index++) {
+    if (isVSlot(props[index])) hasSlot = true;
+  }
+  if (!hasSlot) return slotUndefined();
+  JsValue directive = findDir(node, "for");
+  if (!directive.truthy() || !directive["forParseResult"].truthy()) return slotUndefined();
+  JsValue result = directive["forParseResult"];
+  finalizeForParseResult(result, context);
+  if (result["value"].truthy()) JS.call(context["addIdentifiers"], slotUndefined(), result["value"]);
+  if (result["key"].truthy()) JS.call(context["addIdentifiers"], slotUndefined(), result["key"]);
+  if (result["index"].truthy()) JS.call(context["addIdentifiers"], slotUndefined(), result["index"]);
+  return JS.method0((JsValue _self) => {
+    if (result["value"].truthy()) JS.call(context["removeIdentifiers"], slotUndefined(), result["value"]);
+    if (result["key"].truthy()) JS.call(context["removeIdentifiers"], slotUndefined(), result["key"]);
+    if (result["index"].truthy()) JS.call(context["removeIdentifiers"], slotUndefined(), result["index"]);
+    return slotUndefined();
+  });
+}
+
+JsValue buildClientSlotFn(JsValue props, JsValue _vFor, JsValue children, JsValue loc) {
+  JsValue functionLoc = loc;
+  if (slotLength(children) > 0) functionLoc = children[0]["loc"];
+  return createFunctionExpression(props, children, false, true, functionLoc);
+}
+
+JsValue buildDynamicSlot(JsValue name, JsValue fn, int index = -1) {
+  JsValue properties = JS.array(
+    createObjectProperty("name", name),
+    createObjectProperty("fn", fn)
+  );
+  if (index >= 0) slotPush(
+    properties,
+    createObjectProperty("key", createSimpleExpression("" + index, true))
+  );
+  return createObjectExpression(properties);
+}
+
+JsValue buildDefaultSlotProperty(
+  JsValue buildSlotFn,
+  JsValue props,
+  JsValue children,
+  JsValue loc,
+  JsValue context
+) {
+  JsValue fn = JS.call(buildSlotFn, slotUndefined(), props, slotUndefined(), children, loc);
+  if (context["compatConfig"].truthy()) fn["isNonScopedSlot"] = true;
+  return createObjectProperty("default", fn);
+}
+
+bool hasForwardedSlots(JsValue children) {
+  for (int index = 0; index < slotLength(children); index++) {
+    JsValue child = children[index];
+    int type = JS.number(child["type"]).toInt();
+    if (type == 1) {
+      if (JS.number(child["tagType"]).toInt() == 2 || hasForwardedSlots(child["children"])) return true;
+    } else if (type == 9) {
+      if (hasForwardedSlots(child["branches"])) return true;
+    } else if (type == 10 || type == 11) {
+      if (hasForwardedSlots(child["children"])) return true;
+    }
+  }
+  return false;
+}
+
+export JsValue buildSlots(
+  JsValue node,
+  JsValue context,
+  JsValue buildSlotFn = JS.undefined()
+) {
+  if (JS.isUndefined(buildSlotFn)) buildSlotFn = buildClientSlotFn;
+  JS.call(context["helper"], slotUndefined(), WITH_CTX);
+
+  JsValue children = node["children"];
+  JsValue loc = node["loc"];
+  JsValue properties = JS.array();
+  JsValue dynamicSlots = JS.array();
+  bool dynamic = JS.number(context["scopes"]["vSlot"]).toInt() > 0 ||
+    JS.number(context["scopes"]["vFor"]).toInt() > 0;
+  if (!COMPILER_BROWSER && !context["ssr"].truthy() && context["prefixIdentifiers"].truthy()) {
+    dynamic = false;
+    JsValue ownProps = node["props"];
+    for (int index = 0; index < slotLength(ownProps); index++) {
+      JsValue prop = ownProps[index];
+      if (isVSlot(prop) &&
+        (hasScopeRef(prop["arg"], context["identifiers"]) ||
+          hasScopeRef(prop["exp"], context["identifiers"]))) dynamic = true;
+    }
+    for (int index = 0; index < slotLength(children); index++) {
+      if (hasScopeRef(children[index], context["identifiers"])) dynamic = true;
+    }
+  }
+
+  JsValue onComponent = findDir(node, "slot", true);
+  if (onComponent.truthy()) {
+    JsValue name = createSimpleExpression("default", true);
+    if (onComponent["arg"].truthy()) name = onComponent["arg"];
+    if (!isStaticExp(name)) dynamic = true;
+    slotPush(properties, createObjectProperty(
+      name,
+      JS.call(buildSlotFn, slotUndefined(), onComponent["exp"], slotUndefined(), children, loc)
+    ));
+  }
+
+  bool hasTemplateSlots = false;
+  bool hasNamedDefaultSlot = false;
+  JsValue implicitChildren = JS.array();
+  JsValue seen = JS.construct(Set);
+  int conditionalIndex = 0;
+
+  for (int index = 0; index < slotLength(children); index++) {
+    JsValue child = children[index];
+    JsValue slot = slotUndefined();
+    if (isTemplateNode(child)) slot = findDir(child, "slot", true);
+    if (!slot.truthy()) {
+      if (JS.number(child["type"]).toInt() != 3) slotPush(implicitChildren, child);
+      continue;
+    }
+
+    if (onComponent.truthy()) {
+      JS.call(context["onError"], slotUndefined(), createCompilerError(37, slot["loc"]));
+      break;
+    }
+
+    hasTemplateSlots = true;
+    JsValue name = createSimpleExpression("default", true);
+    if (slot["arg"].truthy()) name = slot["arg"];
+    bool hasStaticName = isStaticExp(name);
+    string staticName = "";
+    if (hasStaticName) staticName = JS.string(name["content"]);
+    else dynamic = true;
+
+    JsValue forDirective = findDir(child, "for");
+    JsValue fn = JS.call(
+      buildSlotFn,
+      slotUndefined(),
+      slot["exp"],
+      forDirective,
+      child["children"],
+      child["loc"]
+    );
+    JsValue ifDirective = findDir(child, "if");
+    JsValue elseDirective = findDir(child, new Regex("^else(?:-if)?$"), true);
+    if (ifDirective.truthy()) {
+      dynamic = true;
+      slotPush(dynamicSlots, createConditionalExpression(
+        ifDirective["exp"],
+        buildDynamicSlot(name, fn, conditionalIndex),
+        defaultFallback
+      ));
+      conditionalIndex++;
+    } else if (elseDirective.truthy()) {
+      int previousIndex = index;
+      JsValue previous = slotUndefined();
+      while (previousIndex > 0) {
+        previousIndex--;
+        previous = children[previousIndex];
+        if (!isCommentOrWhitespace(previous)) break;
+      }
+      bool adjacentIf = previous.truthy() && isTemplateNode(previous) &&
+        findDir(previous, new Regex("^(?:else-)?if$")).truthy();
+      if (adjacentIf) {
+        JsValue conditional = dynamicSlots[slotLength(dynamicSlots) - 1];
+        while (JS.number(conditional["alternate"]["type"]).toInt() == 19) {
+          conditional = conditional["alternate"];
+        }
+        JsValue dynamicObject = buildDynamicSlot(name, fn, conditionalIndex);
+        conditionalIndex++;
+        if (elseDirective["exp"].truthy()) conditional["alternate"] = createConditionalExpression(
+          elseDirective["exp"], dynamicObject, defaultFallback
+        );
+        else conditional["alternate"] = dynamicObject;
+      } else {
+        JS.call(context["onError"], slotUndefined(), createCompilerError(30, elseDirective["loc"]));
+      }
+    } else if (forDirective.truthy()) {
+      dynamic = true;
+      JsValue parsed = forDirective["forParseResult"];
+      if (parsed.truthy()) {
+        finalizeForParseResult(parsed, context);
+        slotPush(dynamicSlots, createCallExpression(
+          JS.call(context["helper"], slotUndefined(), RENDER_LIST),
+          JS.array(
+            parsed["source"],
+            createFunctionExpression(
+              createForLoopParams(parsed),
+              buildDynamicSlot(name, fn),
+              true
+            )
+          )
+        ));
+      } else {
+        JS.call(context["onError"], slotUndefined(), createCompilerError(32, forDirective["loc"]));
+      }
+    } else {
+      if (hasStaticName) {
+        if (JS.invoke(seen, "has", staticName).truthy()) {
+          JS.call(context["onError"], slotUndefined(), createCompilerError(38, slot["loc"]));
+          continue;
+        }
+        JS.invoke(seen, "add", staticName);
+        if (staticName == "default") hasNamedDefaultSlot = true;
+      }
+      slotPush(properties, createObjectProperty(name, fn));
+    }
+  }
+
+  if (!onComponent.truthy()) {
+    if (!hasTemplateSlots) {
+      slotPush(properties, buildDefaultSlotProperty(
+        buildSlotFn, slotUndefined(), children, loc, context
+      ));
+    } else if (slotLength(implicitChildren) > 0) {
+      bool allWhitespace = true;
+      for (int index = 0; index < slotLength(implicitChildren); index++) {
+        if (!isWhitespaceText(implicitChildren[index])) allWhitespace = false;
+      }
+      if (!allWhitespace) {
+        if (hasNamedDefaultSlot) {
+          JS.call(
+            context["onError"],
+            slotUndefined(),
+            createCompilerError(39, implicitChildren[0]["loc"])
+          );
+        } else {
+          slotPush(properties, buildDefaultSlotProperty(
+            buildSlotFn, slotUndefined(), implicitChildren, loc, context
+          ));
+        }
+      }
+    }
+  }
+
+  int slotFlag = JS.number(SlotFlags["STABLE"]).toInt();
+  if (dynamic) slotFlag = JS.number(SlotFlags["DYNAMIC"]).toInt();
+  else if (hasForwardedSlots(children)) slotFlag = JS.number(SlotFlags["FORWARDED"]).toInt();
+  string flag = "" + slotFlag;
+  if (COMPILER_DEV) flag += " /* " + JS.string(slotFlagsText["" + slotFlag]) + " */";
+  slotPush(properties, createObjectProperty("_", createSimpleExpression(flag, false)));
+
+  JsValue slots = createObjectExpression(properties, loc);
+  if (slotLength(dynamicSlots) > 0) slots = createCallExpression(
+    JS.call(context["helper"], slotUndefined(), CREATE_SLOTS),
+    JS.array(slots, createArrayExpression(dynamicSlots))
+  );
+  return JS.object("slots", slots, "hasDynamicSlots", dynamic);
+}

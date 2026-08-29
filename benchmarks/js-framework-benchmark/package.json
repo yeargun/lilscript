@@ -12,7 +12,8 @@
     "build": "node scripts/build-frameworks.mjs",
     "install:runner": "node scripts/install-runner.mjs",
     "measure": "node scripts/measure.mjs",
-    "report": "node scripts/report.mjs",
+    "measure:solid2:size": "node scripts/measure.mjs --only keyed/solid-v2,keyed/solidlil-v2 --phase size --blocks 15 --checkpoint checkpoint-solid2-fair.json",
+    "report": "node scripts/report.mjs --checkpoint checkpoint-solid2-fair.json",
     "check": "npm run report && node --test test/*.test.mjs"
   }
 }

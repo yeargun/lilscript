@@ -1,0 +1,139 @@
+import { hasOwn, isObject, toRawType, def } from "../shared/general";
+import {
+  mutableHandlers,
+  readonlyHandlers,
+  shallowReactiveHandlers,
+  shallowReadonlyHandlers
+} from "./baseHandlers";
+import {
+  mutableCollectionHandlers,
+  readonlyCollectionHandlers,
+  shallowCollectionHandlers,
+  shallowReadonlyCollectionHandlers
+} from "./collectionHandlers";
+import { DEV } from "./constants";
+import { warn } from "./warning";
+
+extern JsValue hostCreateWeakMap();
+extern JsValue hostCreateProxy(JsValue target, JsValue handler);
+extern JsValue hostRead(JsValue value, JsValue key);
+extern bool hostIsExtensible(JsValue value);
+extern string hostString(JsValue value);
+
+export JsValue reactiveMap = hostCreateWeakMap();
+export JsValue shallowReactiveMap = hostCreateWeakMap();
+export JsValue readonlyMap = hostCreateWeakMap();
+export JsValue shallowReadonlyMap = hostCreateWeakMap();
+
+export JsValue proxyForTarget(JsValue target, bool readonlyValue, bool shallow) {
+  JsValue map = reactiveMap;
+  if (readonlyValue && shallow) map = shallowReadonlyMap;
+  else if (readonlyValue) map = readonlyMap;
+  else if (shallow) map = shallowReactiveMap;
+  return JS.invoke(map, "get", target);
+}
+
+int targetType(JsValue target) {
+  string kind = toRawType(target);
+  if (kind == "Object" || kind == "Array") return 1;
+  if (kind == "Map" || kind == "Set" || kind == "WeakMap" || kind == "WeakSet") return 2;
+  return 0;
+}
+
+JsValue createReactiveObject(
+  JsValue target,
+  bool readonlyValue,
+  JsValue baseHandlers,
+  JsValue collectionHandlers,
+  JsValue proxyMap
+) {
+  if (!isObject(target)) {
+    if (DEV) {
+      string kind = "reactive";
+      if (readonlyValue) kind = "readonly";
+      warn("value cannot be made " + kind + ": " + hostString(target), target);
+    }
+    return target;
+  }
+  JsValue raw = hostRead(target, "__v_raw");
+  if (!JS.isUndefined(raw) && !(readonlyValue && isReactive(target))) return target;
+  if (hostRead(target, "__v_skip").truthy() || !hostIsExtensible(target)) return target;
+  JsValue existing = JS.invoke(proxyMap, "get", target);
+  if (!JS.isUndefined(existing)) return existing;
+  int kind = targetType(target);
+  if (kind == 0) return target;
+  JsValue handlers = baseHandlers;
+  if (kind == 2) handlers = collectionHandlers;
+  JsValue proxy = hostCreateProxy(target, handlers);
+  JS.invoke(proxyMap, "set", target, proxy);
+  return proxy;
+}
+
+export JsValue reactive(JsValue target) {
+  if (isReadonly(target)) return target;
+  return createReactiveObject(target, false, mutableHandlers, mutableCollectionHandlers, reactiveMap);
+}
+
+export JsValue shallowReactive(JsValue target) {
+  return createReactiveObject(
+    target,
+    false,
+    shallowReactiveHandlers,
+    shallowCollectionHandlers,
+    shallowReactiveMap
+  );
+}
+
+export JsValue readonly(JsValue target) {
+  return createReactiveObject(target, true, readonlyHandlers, readonlyCollectionHandlers, readonlyMap);
+}
+
+export JsValue shallowReadonly(JsValue target) {
+  return createReactiveObject(
+    target,
+    true,
+    shallowReadonlyHandlers,
+    shallowReadonlyCollectionHandlers,
+    shallowReadonlyMap
+  );
+}
+
+export bool isReactive(JsValue value) {
+  if (isReadonly(value)) return isReactive(hostRead(value, "__v_raw"));
+  return hostRead(value, "__v_isReactive").truthy();
+}
+
+export bool isReadonly(JsValue value) {
+  return hostRead(value, "__v_isReadonly").truthy();
+}
+
+export bool isShallow(JsValue value) {
+  return hostRead(value, "__v_isShallow").truthy();
+}
+
+export bool isProxy(JsValue value) {
+  JsValue raw = hostRead(value, "__v_raw");
+  if (!JS.isUndefined(raw) && raw.truthy()) return true;
+  return false;
+}
+
+export JsValue toRaw(JsValue observed) {
+  JsValue raw = hostRead(observed, "__v_raw");
+  if (raw.truthy()) return toRaw(raw);
+  return observed;
+}
+
+export JsValue markRaw(JsValue value) {
+  if (!hasOwn(value, "__v_skip") && hostIsExtensible(value)) def(value, "__v_skip", true);
+  return value;
+}
+
+export JsValue toReactive(JsValue value) {
+  if (isObject(value)) return reactive(value);
+  return value;
+}
+
+export JsValue toReadonly(JsValue value) {
+  if (isObject(value)) return readonly(value);
+  return value;
+}

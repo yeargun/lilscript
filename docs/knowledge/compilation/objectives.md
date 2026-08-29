@@ -41,7 +41,7 @@ Native/`exec` does not use this pair. It clones lowered IR and runs
 
 ## Target firewall: objective is not semantics
 
-The goal architecture makes the two axes rank only programs already proved equivalent under one normalized
+The planned architecture makes the two axes rank only programs already proved legal under one normalized
 `CompilationContract`. That contract contains language semantics, the
 application/library boundary and public ABI, explicit source lowering
 obligations, target floor, and unsafe host assumptions. Changing `cost_model`,
@@ -53,11 +53,11 @@ The first required distinction is source-written versus generated i32
 normalization. A live source `x | 0` is a lowering obligation and remains JS
 `|0` for raw, gzip, Brotli, and every priority. A `|0` inserted to implement
 ordinary `int` semantics is generated compiler structure and may be elided when
-proof permits. Dead enclosing code may still disappear. Today both reach the
-same terminal text without an end-to-end obligation, even though source `|0`
-initially lowers as `IrBinaryOp::BitOr` and other normalization is introduced by
-the emitter. [Phase 07](../migration/07-global-compressor.md#the-0-rule) adds
-stable provenance before widening search.
+proof permits. Dead enclosing code may still disappear. The first end-to-end
+obligation is implemented conservatively: affected candidates preserve source
+`|0` and skip target-text rewrites that cannot carry it. Globally unambiguous
+operation identity and final-byte witnesses remain
+[planned target work](planned-architecture.md#5-target-js-boundary).
 
 Likewise, the target reusable-library mode does not disable optimization. It freezes an
 `AbiManifest` for unknown JavaScript consumers, while the linked internal graph
@@ -143,9 +143,10 @@ after erasure). They infer what LilScript is supposed to **state**:
 
 If the port throws that away (`JsValue` bags, `JS.method*` tables, ordinary `{}`
 when `Record` is null-proto, Proxy traps), the compiler is correctly forbidden
-to invent the proof. Then you are competing with Terser **on Terser’s terms**,
-plus adapter tax. That is not a compressor failure; it is a language-surface
-failure. See [compressor surface](../language/compressor-surface.md).
+to invent the proof. Then you are competing with Terser **on Terser's terms**,
+plus adapter tax. The result is still a LilScript product gap: classify whether
+the durable fix belongs in the language surface, proof analysis, port, or
+decision system. See [compressor surface](../language/compressor-surface.md).
 
 The elegant loop:
 
@@ -158,21 +159,27 @@ The elegant loop:
 
 Glue is anything that skips (1) or (2) and patches JS after the fact.
 
-## Representations search still does not see
+## Remaining objective gaps
 
-These are legal programs the compressor cannot yet choose among. They are
-07 work, not peephole shapes.
+Several formerly missing competitors now exist: `keep-object`, reversible
+packing/identifier pooling, expression `if` and scalar `match`, proof-marked
+named classes, owner-scoped properties, and immutable capture snapshots. Their
+existence does not mean every config admits them or every interaction is reached.
 
-| Missing competitor | Why it matters | Evidence |
-|---|---|---|
-| Keep `LocalOnly` object vs scalar-replace | Dissolution is always-on; the codec never gets to compare retained field syntax with SSA names. | No valid isolated scalar-replacement on/off library result yet; md-01 changed source representations and cannot establish this pass delta. |
-| Statement `if` vs expression `?:` as an IR family | jQuery remaining gap is control-flow shape (1.85× `if(`, 2.48× `else` vs `jquery.min.js`). Post-hoc rewriting of the emitted artifact **lost**. | jquery-01: declaration hoisting +277, comma +126, forced `function` +494 |
-| Named ES `class` vs dissolved `Foo$init` for identity-observed constructors | Compact legal spelling is `class`; ports rebuild tables in user space | PostHog error-tracking; [class identity](class-identity.md) |
-| Array vs named object instance | Only if `joint-representation-search` is listed; root toml omits it | [registry](decision-registry.md#aggregates-class-struct-object-record) |
-| Packing / identifier-string pooling under Brotli | Incumbent forced off; search cannot re-enable | `js_options()` + Cartesian `[configured, false]` |
+Current gaps are narrower:
 
-Language syntax that would give (1) instead of a flag is
-[compressor surface](../language/compressor-surface.md).
+- phase-order/compress probes, target contractions, entropy/naming, and chunk
+  planning do not yet share one recipe/acceptance model;
+- selected recipes are not fully serializable/replayable;
+- global booleans cannot express every measured per-entity mixed winner;
+- family/beam scheduling is not budget-prefix monotone;
+- final artifacts lack a complete expected-versus-observed ABI and obligation
+  witness;
+- closure/call-graph choices remain split across optimizer, emitter, and target
+  contraction.
+
+Add an alternative or joint/entity-scoped family only after a minimized case or
+fingerprinted corpus run proves the current model cannot express or reach it.
 
 ## Beating Terser / Oxc / Closure ADVANCED
 
@@ -210,5 +217,6 @@ A forked library that still loses is classified before any compiler change:
    vendored unminified host files. Rewrite representation, do not add a fold.
 4. **Legitimate dynamic hatch** — clsx. Measure and keep `JsValue`.
 
-(2) is 07.7. (3) is the port. (1) is 07.1–07.6. None of them is a
-library-specific matcher in `js_peephole`.
+The [planned migration](../migration/planned-migration.md) assigns those classes
+to evidence, legality, incumbent recovery, reusable proof, port, or search work.
+None belongs in a library-specific matcher in `js_peephole`.

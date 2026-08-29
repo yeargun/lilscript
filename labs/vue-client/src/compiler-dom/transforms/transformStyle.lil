@@ -1,0 +1,53 @@
+import extern {
+  ConstantTypes,
+  NodeTypes,
+  createSimpleExpression
+} from "../../../packages/vuelil/compiler-core.js";
+import extern {
+  parseStringStyle as sharedParseStringStyle
+} from "../../../packages/vuelil/shared.js";
+
+extern JsValue ConstantTypes;
+extern JsValue NodeTypes;
+extern JsValue createSimpleExpression;
+extern JsValue sharedParseStringStyle;
+extern JsValue JSON;
+
+JsValue styleUndefined() {
+  return JS.undefined();
+}
+
+JsValue parseInlineCSS(string cssText, JsValue loc) {
+  JsValue normalized = JS.call(sharedParseStringStyle, styleUndefined(), cssText);
+  string source = JS.string(JS.invoke(JSON, "stringify", normalized));
+  return JS.call(
+    createSimpleExpression,
+    styleUndefined(),
+    source,
+    false,
+    loc,
+    ConstantTypes["CAN_STRINGIFY"]
+  );
+}
+
+export void transformStyle(JsValue node) {
+  if (!JS.strictEqual(node["type"], NodeTypes["ELEMENT"])) return;
+  JsValue props = node["props"];
+  for (int index = 0; index < JS.number(props["length"]).toInt(); index++) {
+    JsValue prop = props[index];
+    if (
+      JS.strictEqual(prop["type"], NodeTypes["ATTRIBUTE"]) &&
+      JS.string(prop["name"]) == "style" &&
+      prop["value"].truthy()
+    ) {
+      props[index] = JS.object(
+        "type", NodeTypes["DIRECTIVE"],
+        "name", "bind",
+        "arg", JS.call(createSimpleExpression, styleUndefined(), "style", true, prop["loc"]),
+        "exp", parseInlineCSS(JS.string(prop["value"]["content"]), prop["loc"]),
+        "modifiers", JS.array(),
+        "loc", prop["loc"]
+      );
+    }
+  }
+}

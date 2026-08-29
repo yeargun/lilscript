@@ -6330,7 +6330,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         stable_property_names.insert((*method).to_string());
                     }
                     for key in js_member_keys_in_op(&instruction.op, &string_constants) {
-                        if !mangleable_internal_js_key(&key) {
+                        // Only explicit closed-world mode may coordinate an unowned key
+                        // with an owned field that happens to use the same spelling.
+                        if self.options.mangle_extern_fields || !mangleable_internal_js_key(&key) {
                             stable_property_names.insert(key);
                         }
                     }
@@ -6433,11 +6435,22 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
     fn assign_owned_property_names(&mut self, alphabet: IdentifierAlphabet) {
         let mut frequencies = AHashMap::<(&'src str, usize), usize>::default();
         let mut source_names = AHashMap::<(&'src str, usize), &'src str>::default();
+        let mut stable_ids = AHashSet::default();
         for layout in self.module.structs.iter().chain(&self.module.classes) {
+            let stable = (layout.external && self.options.mangle_extern_fields)
+                || self.dynamic_boundary_aggregates.contains(layout.name)
+                || (!self.options.mangle_exports
+                    && (self.abi_stable_aggregates.contains(layout.name)
+                        || layout.identity_observed));
             for field in &layout.fields {
                 let id = self.canonical_owned_property_id(layout.name, field.index);
                 source_names.entry(id).or_insert(field.name);
                 frequencies.entry(id).or_insert(0);
+                if stable {
+                    // Inherited fields retain the canonical base slot, including
+                    // when only a descendant exposes that slot through its ABI.
+                    stable_ids.insert(id);
+                }
             }
         }
         for function in self
@@ -6484,31 +6497,17 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 mangler.reserve(reserved);
             }
             for (id, _) in &fields {
-                if self.owned_property_is_stable(id.0) {
+                if stable_ids.contains(id) {
                     mangler.reserve(source_names[id]);
                 }
             }
             for (id, _) in fields {
-                if self.owned_property_is_stable(id.0) {
+                if stable_ids.contains(&id) {
                     continue;
                 }
                 self.owned_property_names.insert(id, mangler.next_name());
             }
         }
-    }
-
-    fn owned_property_is_stable(&self, owner: &str) -> bool {
-        self.module
-            .structs
-            .iter()
-            .chain(&self.module.classes)
-            .find(|layout| layout.name == owner)
-            .is_some_and(|layout| {
-                (layout.external && self.options.mangle_extern_fields)
-                    || self.dynamic_boundary_aggregates.contains(owner)
-                    || (!self.options.mangle_exports
-                        && (self.abi_stable_aggregates.contains(owner) || layout.identity_observed))
-            })
     }
 
     fn owned_property_component(&self, owner: &'src str) -> &'src str {
@@ -26581,6 +26580,26 @@ mod tests {
     }
 
     #[test]
+    fn escaped_arrays_keep_borrowed_builtin_method_calls() {
+        let output = compile(
+            r#"
+                extern JsValue read();
+                extern void expose(JsValue value);
+                JsValue values=JS.array();
+                expose(values);
+                JS.push(values,read());
+                print(values.length);
+            "#,
+        );
+
+        assert!(output.contains(".push.call("), "{output}");
+        let result = run_javascript(&format!(
+            "let touched=false;function read(){{return 1}}function expose(value){{value.push=()=>{{touched=true}}}}{output};process.stdout.write('TRACE:'+touched)"
+        ));
+        assert_eq!(result, "1\nTRACE:false", "{output}");
+    }
+
+    #[test]
     fn inlines_unique_oversized_single_block_helpers() {
         let output = compile(
             r#"
@@ -26895,9 +26914,12 @@ mod tests {
         );
         assert!(output.contains("{__proto__:null,["), "{output}");
         assert!(
-            output.contains("['__proto__']=2") || output.contains("[\"__proto__\"]=2"),
+            output.contains(".__proto__=2")
+                || output.contains("['__proto__']=2")
+                || output.contains("[\"__proto__\"]=2"),
             "{output}"
         );
+        assert_eq!(run_javascript(&output), "null\n2\n", "{output}");
     }
 
     #[test]
@@ -31215,6 +31237,109 @@ print(scale.factor);
     }
 
     #[test]
+    fn unowned_static_keys_only_coordinate_with_owned_slots_in_closed_mode() {
+        let source = "extern JsValue bag;class Box{int value_;init(int value){this.value_=value;}}Box box=new Box(2);bag[\"value_\"]=3;print(box.value_);print(bag[\"value_\"]);";
+        let options = IrJsOptions {
+            mangle_identifiers: false,
+            mangle_properties: true,
+            named_aggregate_fields: true,
+            entropy_property_names: false,
+            owner_scoped_property_names: true,
+            ..IrJsOptions::default()
+        };
+        let stable = compile_without_inlining_with_options(source, false, options);
+
+        assert!(stable.contains("bag.value_"), "{stable}");
+        assert!(stable.contains("{a:0}"), "{stable}");
+        assert!(stable.contains("$this.a"), "{stable}");
+        assert!(!stable.contains("$this.value_"), "{stable}");
+        assert_eq!(
+            run_javascript(&format!("let bag={{}};{stable}")).trim(),
+            "2\n3",
+            "{stable}"
+        );
+
+        let coordinated = compile_without_inlining_with_options(
+            source,
+            false,
+            IrJsOptions {
+                mangle_extern_fields: false,
+                ..options
+            },
+        );
+        assert!(!coordinated.contains("value_"), "{coordinated}");
+        assert!(coordinated.contains("bag.a"), "{coordinated}");
+        assert!(coordinated.contains("{a:0}"), "{coordinated}");
+        assert_eq!(
+            run_javascript(&format!("let bag={{}};{coordinated}")).trim(),
+            "2\n3",
+            "{coordinated}"
+        );
+    }
+
+    #[test]
+    fn canonical_owned_slots_inherit_stability_from_public_layouts() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "class PrivateBase{int inherited_;}export class PublicChild extends PrivateBase{}export class PublicBase{int exposed_;}class PrivateChild extends PublicBase{}class PrivateBox{int private_;}PrivateBox box=new PrivateBox();print(box.private_);",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut ir = lower_to_control_flow(&program, &semantics).unwrap();
+        optimize_control_flow_for_module(&mut ir).unwrap();
+        let mut emitter = IrJsEmitter::new(
+            &ir,
+            true,
+            IrJsOptions {
+                mangle_identifiers: false,
+                mangle_properties: true,
+                mangle_exports: false,
+                named_aggregate_fields: true,
+                entropy_property_names: false,
+                owner_scoped_property_names: true,
+                ..IrJsOptions::default()
+            },
+        );
+        emitter.prepare();
+
+        let private_base = emitter.canonical_owned_property_id("PrivateBase", 0);
+        let public_child = emitter.canonical_owned_property_id("PublicChild", 0);
+        assert_eq!(private_base, public_child);
+        assert!(!emitter.owned_property_names.contains_key(&private_base));
+        assert_eq!(
+            emitter.owned_property_name("PrivateBase", 0, "inherited_"),
+            "inherited_"
+        );
+        assert_eq!(
+            emitter.owned_property_name("PublicChild", 0, "inherited_"),
+            "inherited_"
+        );
+
+        let public_base = emitter.canonical_owned_property_id("PublicBase", 0);
+        let private_child = emitter.canonical_owned_property_id("PrivateChild", 0);
+        assert_eq!(public_base, private_child);
+        assert!(!emitter.owned_property_names.contains_key(&public_base));
+        assert_eq!(
+            emitter.owned_property_name("PrivateChild", 0, "exposed_"),
+            "exposed_"
+        );
+
+        let private = emitter.canonical_owned_property_id("PrivateBox", 0);
+        assert_eq!(
+            emitter
+                .owned_property_names
+                .get(&private)
+                .map(String::as_str),
+            Some("a")
+        );
+        assert_eq!(
+            emitter.owned_property_name("PrivateBox", 0, "private_"),
+            "a"
+        );
+    }
+
+    #[test]
     fn stable_host_fields_win_over_released_extern_fields_with_the_same_name() {
         let output = compile_with_options(
             "extern class Host{int lastIndex;}extern Host host;extern Regex regex;print(host.lastIndex);print(regex.lastIndex);",
@@ -33308,6 +33433,24 @@ run();
             "let seen=null;function consume(value){{seen=value}};{output};process.stdout.write(JSON.stringify(seen))"
         ));
         assert_eq!(trace, "{\"alpha\":1,\"beta\":2}", "{output}");
+    }
+
+    #[test]
+    fn preserves_fresh_object_assignments_without_pristine_builtins() {
+        let output = compile_with_options(
+            "extern void consume(JsValue value);JsValue obj=JS.object();obj[\"alpha\"]=1;consume(obj);",
+            IrJsOptions {
+                mangle_identifiers: false,
+                batch_property_assigns: false,
+                assume_pristine_builtins: false,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(output.contains("={}"), "{output}");
+        let trace = run_javascript(&format!(
+            "let inherited=0,seen;Object.defineProperty(Object.prototype,'alpha',{{set(value){{inherited=value}},configurable:true}});function consume(value){{seen=value}};{output};process.stdout.write(inherited+':'+Object.hasOwn(seen,'alpha'));delete Object.prototype.alpha"
+        ));
+        assert_eq!(trace, "1:false", "{output}");
     }
 
     #[test]

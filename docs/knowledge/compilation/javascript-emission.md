@@ -77,7 +77,7 @@ probes stay practical.
 
 ## Spelling families the beam may try
 
-Pooling (string/number), packing, boolean literals, grammar elision (independently — comment: raw punctuation deletion can lose codec), structured closures, proof-gated single-use function expressions, pure-helper substitution, dense string-return tables, host-alias spelling, regex literals, unused catch binding, generator star spacing, callee default arguments, SSA destruction (scalar vs tuple phi, affinity modes), control flow (structured vs state machine), loops (`while` vs `for(;cond;)` vs `do`), mutation (`=`, prefix, postfix, compound), conditionals/commas, `var` vs `let` top-level, function arrow vs `function`, quote style, identifier alphabet, local-name reserve, declaration order. Identity-observed constructors may additionally score a named ES `class` against a function table **once IR emits that family**; today the compact class spelling is primarily peephole fusion of tables. Identity-free instances never compete with dissolved object/array lowering ([class identity](class-identity.md)).
+Pooling (string/number), packing, boolean literals, grammar elision (independently — comment: raw punctuation deletion can lose codec), structured closures, proof-gated single-use function expressions, pure-helper substitution, dense string-return tables, host-alias spelling, regex literals, unused catch binding, generator star spacing, callee default arguments, SSA destruction (scalar vs tuple phi, affinity modes), control flow (structured vs state machine), loops (`while` vs `for(;cond;)` vs `do`), mutation (`=`, prefix, postfix, compound), conditionals/commas, `var` vs `let` top-level, function arrow vs `function`, quote style, identifier alphabet, local-name reserve, declaration order. Identity-observed constructor values emit a named ES `class` directly from IR; legacy user-space prototype tables may still be fused by the parsed target layer. Identity-free instances continue to compete through scalar/array/object representations rather than being forced to class ([class identity](class-identity.md)).
 
 Phi-affinity exploration retains Grouped, Direct, and Conservative modes. Liveness
 interference includes local-phi expression incoming dependencies for the result's
@@ -92,10 +92,9 @@ off switch. Listing a name that the profile would have left off still opts that
 decision in.
 
 A tactic omitted from an exact compression list is **usually** not introduced
-unless it is a size-first search-only spelling (`indexed-char-at`). Exceptions:
-`elide_length_tonumber` is flipped unconditionally, so omitted
-`length-to-number-elision` can still turn on; a Brotli-forced-off flag whose
-beam only probes `false` cannot be introduced. Field-by-field:
+unless it is a size-first search-only spelling (`indexed-char-at`).
+`length-to-number-elision` stays off when omitted. Brotli packing and identifier
+pooling priors can be reversed when their decisions are admitted. Field-by-field:
 [decision registry](decision-registry.md).
 
 The single-use function-expression proposal is the narrow exception to “canonical

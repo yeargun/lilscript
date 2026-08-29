@@ -1,0 +1,204 @@
+import extern {
+  NodeTypes as UsageNodeTypes,
+  isSimpleIdentifier as usageIsSimpleIdentifier,
+  parserOptions as usageParserOptions,
+  walkIdentifiers as usageWalkIdentifiers
+} from "../../../packages/vuelil/compiler-dom.js";
+import extern {
+  camelize as usageCamelize,
+  capitalize as usageCapitalize,
+  isBuiltInDirective as usageIsBuiltInDirective
+} from "../../../packages/vuelil/shared.js";
+import extern { hostCreateSet as usageCreateSet } from "../host.js";
+import { createCache } from "../cache";
+import { resolveTemplateAST } from "../template/resolveTemplateAST";
+
+extern JsValue UsageNodeTypes;
+extern JsValue usageCamelize;
+extern JsValue usageCapitalize;
+extern JsValue usageCreateSet;
+extern JsValue usageIsBuiltInDirective;
+extern JsValue usageIsSimpleIdentifier;
+extern JsValue usageParserOptions;
+extern JsValue usageWalkIdentifiers;
+
+int usageLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+
+export JsValue templateAnalysisCache = createCache();
+
+export bool isImportUsed(
+  string local,
+  JsValue sfc,
+  JsValue options = JS.undefined()
+) {
+  return JS.invoke(resolveTemplateUsedIdentifiers(sfc, options), "has", local).truthy();
+}
+
+export JsValue resolveTemplateVModelIdentifiers(
+  JsValue sfc,
+  JsValue options = JS.undefined()
+) {
+  return resolveTemplateAnalysisResult(sfc, false, options)["vModelIds"];
+}
+
+JsValue resolveTemplateUsedIdentifiers(JsValue sfc, JsValue options) {
+  return resolveTemplateAnalysisResult(sfc, true, options)["usedIds"];
+}
+
+void extractTemplateIdentifiers(JsValue ids, JsValue node) {
+  if (node["ast"].truthy()) {
+    JsValue collect = JS.method1((JsValue _self, JsValue identifier) => {
+      JS.invoke(ids, "add", identifier["name"]);
+      return JS.undefined();
+    });
+    JS.call(usageWalkIdentifiers, JS.undefined(), node["ast"], collect);
+  } else if (JS.strictEqual(node["ast"], null)) {
+    JS.invoke(ids, "add", node["content"]);
+  }
+}
+
+JsValue resolveTemplateAnalysisResult(
+  JsValue sfc,
+  bool collectUsedIds,
+  JsValue options
+) {
+  JsValue template = sfc["template"];
+  string content = JS.string(template["content"]);
+  JsValue cached = JS.invoke(templateAnalysisCache, "get", content);
+  if (cached.truthy() && (!collectUsedIds || cached["usedIds"].truthy())) {
+    return cached;
+  }
+  JsValue ids = JS.undefined();
+  if (collectUsedIds) ids = JS.call(usageCreateSet, JS.undefined());
+  JsValue vModelIds = JS.call(usageCreateSet, JS.undefined());
+  JsValue compiler = JS.undefined();
+  JsValue compilerOptions = JS.undefined();
+  JsValue ssr = JS.undefined();
+  if (!JS.isNullish(options)) {
+    compiler = options["compiler"];
+    compilerOptions = options["compilerOptions"];
+    ssr = options["ssr"];
+  }
+  JsValue ignoreError = JS.method1((JsValue _self, JsValue _error) => JS.undefined());
+  JsValue root = resolveTemplateAST(
+    template["ast"],
+    JS.object(
+      "compiler", compiler,
+      "compilerOptions", compilerOptions,
+      "ssr", ssr,
+      "onError", ignoreError
+    )
+  );
+
+  JsValue walk = JS.undefined();
+  walk = JS.method1((JsValue _self, JsValue node) => {
+    if (JS.strictEqual(node["type"], UsageNodeTypes["ELEMENT"])) {
+      string tag = JS.string(node["tag"]);
+      if (tag.indexOf(".") >= 0) {
+        tag = JS.string(JS.invoke(tag, "split", ".")[0]).trim();
+      }
+      bool nativeTag = JS.call(
+        usageParserOptions["isNativeTag"],
+        usageParserOptions,
+        tag
+      ).truthy();
+      bool builtIn = JS.call(
+        usageParserOptions["isBuiltInComponent"],
+        usageParserOptions,
+        tag
+      ).truthy();
+      if (!nativeTag && !builtIn && ids.truthy()) {
+        string camelized = JS.string(JS.call(
+          usageCamelize,
+          JS.undefined(),
+          tag
+        ));
+        JS.invoke(ids, "add", camelized);
+        JS.invoke(
+          ids,
+          "add",
+          JS.call(usageCapitalize, JS.undefined(), camelized)
+        );
+      }
+      JsValue props = node["props"];
+      for (int index = 0; index < usageLength(props); index++) {
+        JsValue prop = props[index];
+        if (JS.strictEqual(prop["type"], UsageNodeTypes["DIRECTIVE"])) {
+          string name = JS.string(prop["name"]);
+          if (ids.truthy() &&
+            !JS.call(usageIsBuiltInDirective, JS.undefined(), name).truthy()) {
+            string directive = JS.string(JS.call(
+              usageCamelize,
+              JS.undefined(),
+              name
+            ));
+            directive = JS.string(JS.call(
+              usageCapitalize,
+              JS.undefined(),
+              directive
+            ));
+            JS.invoke(ids, "add", "v" + directive);
+          }
+          if (name == "model") {
+            JsValue expression = prop["exp"];
+            if (expression.truthy() &&
+              JS.strictEqual(expression["type"], UsageNodeTypes["SIMPLE_EXPRESSION"])) {
+              string expressionString = JS.string(expression["content"]).trim();
+              if (JS.call(
+                usageIsSimpleIdentifier,
+                JS.undefined(),
+                expressionString
+              ).truthy() && expressionString != "undefined") {
+                JS.invoke(vModelIds, "add", expressionString);
+              }
+            }
+          }
+          if (ids.truthy() && prop["arg"].truthy() &&
+            !prop["arg"]["isStatic"].truthy()) {
+            extractTemplateIdentifiers(ids, prop["arg"]);
+          }
+          if (ids.truthy()) {
+            if (name == "for") {
+              extractTemplateIdentifiers(ids, prop["forParseResult"]["source"]);
+            } else if (prop["exp"].truthy()) {
+              extractTemplateIdentifiers(ids, prop["exp"]);
+            } else if (name == "bind" && !prop["exp"].truthy()) {
+              JS.invoke(
+                ids,
+                "add",
+                JS.call(
+                  usageCamelize,
+                  JS.undefined(),
+                  prop["arg"]["content"]
+                )
+              );
+            }
+          }
+        }
+        if (ids.truthy() &&
+          JS.strictEqual(prop["type"], UsageNodeTypes["ATTRIBUTE"]) &&
+          JS.string(prop["name"]) == "ref" &&
+          prop["value"]["content"].truthy()) {
+          JS.invoke(ids, "add", prop["value"]["content"]);
+        }
+      }
+      JsValue children = node["children"];
+      for (int index = 0; index < usageLength(children); index++) {
+        JS.call(walk, JS.undefined(), children[index]);
+      }
+    } else if (JS.strictEqual(node["type"], UsageNodeTypes["INTERPOLATION"]) &&
+      ids.truthy()) {
+      extractTemplateIdentifiers(ids, node["content"]);
+    }
+    return JS.undefined();
+  });
+  JsValue children = root["children"];
+  for (int index = 0; index < usageLength(children); index++) {
+    JS.call(walk, JS.undefined(), children[index]);
+  }
+  JsValue result = JS.object("usedIds", ids, "vModelIds", vModelIds);
+  JS.invoke(templateAnalysisCache, "set", content, result);
+  return result;
+}

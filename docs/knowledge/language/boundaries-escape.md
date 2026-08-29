@@ -39,16 +39,12 @@ document.createElement("button")
 element.textContent="Run"
 ```
 
-JS lowering of host ops is direct:
-
-```js
-document.createElement("button")
-element.textContent="Run"
-```
-
 No registries, proxies, or runtime type checks. Known host factories used by ports may still lower in the optimizer (`createEmptyObject()` → `{}`, `callN(f, null, …)` → direct call). That is whole-program knowledge, not a wrapper. See [jQuery](../evidence/jquery.md).
 
-`assume_pure_property_reads` is an explicit unsafe ABI opt-in (Terser `pure_getters`, default off). It is not a type proof. Language replacement is [07.7](../migration/07-global-compressor.md#077--language-proofs-and-explicit-lowering-contracts) / [compressor surface](compressor-surface.md).
+`assume_pure_property_reads` is an explicit unsafe ABI opt-in (Terser
+`pure_getters`, default off). It is not a type proof. Reusable typed replacements
+are tracked in [compressor surface](compressor-surface.md) and the
+[planned migration](../migration/planned-migration.md#phase-4-close-library-losses-with-reusable-proofs).
 
 ## `pure extern`
 
@@ -56,7 +52,7 @@ A trusted host promise. Unused calls may be DCE’d. Violating it is an integrat
 
 ## Config
 
-- `[mangle].properties` / `property-mangling` — owned fields only; `extern class` members never rename
+- `[mangle].properties` / `property-mangling` — owned fields only; host `extern` names stay exact by default
 - `[mangle].exports` / `export-mangling` — public ESM names and public aggregate fields
 - `javascript.public_aggregate_abi` — named vs positional **public** handles
 - Host reads stay effectful unless `pure`

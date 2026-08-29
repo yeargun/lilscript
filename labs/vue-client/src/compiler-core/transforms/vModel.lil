@@ -1,0 +1,230 @@
+import {
+  ConstantTypes,
+  ElementTypes,
+  NodeTypes,
+  createCompoundExpression,
+  createObjectProperty,
+  createSimpleExpression
+} from "../ast";
+import { JSON } from "../codegen";
+import { ErrorCodes, createCompilerError } from "../errors";
+import { BindingTypes } from "../options";
+import { IS_REF } from "../runtimeHelpers";
+import {
+  hasScopeRef,
+  isMemberExpression,
+  isSimpleIdentifier,
+  isStaticExp
+} from "../utils";
+import { COMPILER_BROWSER } from "../validateExpression";
+
+Regex modelCamelizePattern = new Regex("-\\w", "g");
+
+JsValue modelUndefined() {
+  return JS.undefined();
+}
+
+int modelLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+
+void modelPush(JsValue values, JsValue value) {
+  values[modelLength(values)] = value;
+}
+
+string camelizeModelArgument(string value) {
+  JsValue replacement = JS.method1((JsValue _self, JsValue matched) => {
+    return JS.string(matched).slice(1).toUpperCase();
+  });
+  return JS.string(JS.invoke(value, "replace", modelCamelizePattern, replacement));
+}
+
+JsValue createTransformProps(JsValue props = JS.undefined()) {
+  JsValue normalized = props;
+  if (JS.isUndefined(normalized)) normalized = JS.array();
+  return JS.object("props", normalized);
+}
+
+export JsValue transformModel(JsValue directive, JsValue node, JsValue context) {
+  JsValue expression = directive["exp"];
+  JsValue argument = directive["arg"];
+  if (!expression.truthy()) {
+    JS.call(
+      context["onError"],
+      modelUndefined(),
+      createCompilerError(
+        JS.number(ErrorCodes["X_V_MODEL_NO_EXPRESSION"]).toInt(),
+        directive["loc"]
+      )
+    );
+    return createTransformProps();
+  }
+
+  string rawExpression = JS.string(expression["loc"]["source"]).trim();
+  string expressionString = rawExpression;
+  if (JS.strictEqual(expression["type"], NodeTypes["SIMPLE_EXPRESSION"])) {
+    expressionString = JS.string(expression["content"]);
+  }
+  JsValue bindingType = context["bindingMetadata"][rawExpression];
+
+  if (
+    JS.strictEqual(bindingType, BindingTypes["PROPS"]) ||
+    JS.strictEqual(bindingType, BindingTypes["PROPS_ALIASED"])
+  ) {
+    JS.call(
+      context["onError"],
+      modelUndefined(),
+      createCompilerError(
+        JS.number(ErrorCodes["X_V_MODEL_ON_PROPS"]).toInt(),
+        expression["loc"]
+      )
+    );
+    return createTransformProps();
+  }
+
+  if (
+    JS.strictEqual(bindingType, BindingTypes["LITERAL_CONST"]) ||
+    JS.strictEqual(bindingType, BindingTypes["SETUP_CONST"])
+  ) {
+    JS.call(
+      context["onError"],
+      modelUndefined(),
+      createCompilerError(
+        JS.number(ErrorCodes["X_V_MODEL_ON_CONST"]).toInt(),
+        expression["loc"]
+      )
+    );
+    return createTransformProps();
+  }
+
+  bool maybeRef = !COMPILER_BROWSER && context["inline"].truthy() && (
+    JS.strictEqual(bindingType, BindingTypes["SETUP_LET"]) ||
+    JS.strictEqual(bindingType, BindingTypes["SETUP_REF"]) ||
+    JS.strictEqual(bindingType, BindingTypes["SETUP_MAYBE_REF"])
+  );
+  if (
+    expressionString.trim() == "" ||
+    (!JS.call(isMemberExpression, modelUndefined(), expression, context).truthy() && !maybeRef)
+  ) {
+    JS.call(
+      context["onError"],
+      modelUndefined(),
+      createCompilerError(
+        JS.number(ErrorCodes["X_V_MODEL_MALFORMED_EXPRESSION"]).toInt(),
+        expression["loc"]
+      )
+    );
+    return createTransformProps();
+  }
+
+  if (
+    !COMPILER_BROWSER &&
+    context["prefixIdentifiers"].truthy() &&
+    isSimpleIdentifier(expressionString) &&
+    context["identifiers"][expressionString].truthy()
+  ) {
+    JS.call(
+      context["onError"],
+      modelUndefined(),
+      createCompilerError(
+        JS.number(ErrorCodes["X_V_MODEL_ON_SCOPE_VARIABLE"]).toInt(),
+        expression["loc"]
+      )
+    );
+    return createTransformProps();
+  }
+
+  JsValue propName = createSimpleExpression("modelValue", true);
+  if (argument.truthy()) propName = argument;
+  JsValue eventName = "onUpdate:modelValue";
+  if (argument.truthy()) {
+    if (isStaticExp(argument)) {
+      eventName = "onUpdate:" + camelizeModelArgument(JS.string(argument["content"]));
+    } else {
+      eventName = createCompoundExpression(JS.array("\"onUpdate:\" + ", argument));
+    }
+  }
+
+  string eventArgument = "$event";
+  if (context["isTS"].truthy()) eventArgument = "($event: any)";
+  JsValue assignmentExpression = modelUndefined();
+  if (maybeRef) {
+    if (JS.strictEqual(bindingType, BindingTypes["SETUP_REF"])) {
+      assignmentExpression = createCompoundExpression(JS.array(
+        eventArgument + " => ((",
+        createSimpleExpression(rawExpression, false, expression["loc"]),
+        ").value = $event)"
+      ));
+    } else {
+      string alternateAssignment = "null";
+      if (JS.strictEqual(bindingType, BindingTypes["SETUP_LET"])) {
+        alternateAssignment = rawExpression + " = $event";
+      }
+      assignmentExpression = createCompoundExpression(JS.array(
+        eventArgument + " => (" + JS.string(JS.call(
+          context["helperString"],
+          modelUndefined(),
+          IS_REF
+        )) + "(" + rawExpression + ") ? (",
+        createSimpleExpression(rawExpression, false, expression["loc"]),
+        ").value = $event : " + alternateAssignment + ")"
+      ));
+    }
+  } else {
+    assignmentExpression = createCompoundExpression(JS.array(
+      eventArgument + " => ((",
+      expression,
+      ") = $event)"
+    ));
+  }
+
+  JsValue properties = JS.array(
+    createObjectProperty(propName, directive["exp"]),
+    createObjectProperty(eventName, assignmentExpression)
+  );
+
+  if (
+    !COMPILER_BROWSER &&
+    context["prefixIdentifiers"].truthy() &&
+    !context["inVOnce"].truthy() &&
+    context["cacheHandlers"].truthy() &&
+    !hasScopeRef(expression, context["identifiers"])
+  ) {
+    properties[1]["value"] = JS.call(
+      context["cache"],
+      modelUndefined(),
+      properties[1]["value"]
+    );
+  }
+
+  if (
+    modelLength(directive["modifiers"]) > 0 &&
+    JS.strictEqual(node["tagType"], ElementTypes["COMPONENT"])
+  ) {
+    string modifiers = "";
+    JsValue directiveModifiers = directive["modifiers"];
+    for (int index = 0; index < modelLength(directiveModifiers); index++) {
+      string name = JS.string(directiveModifiers[index]["content"]);
+      if (index > 0) modifiers += ", ";
+      if (isSimpleIdentifier(name)) modifiers += name;
+      else modifiers += JS.string(JS.invoke(JSON, "stringify", name));
+      modifiers += ": true";
+    }
+    JsValue modifiersKey = "modelModifiers";
+    if (argument.truthy()) {
+      if (isStaticExp(argument)) modifiersKey = JS.string(argument["content"]) + "Modifiers";
+      else modifiersKey = createCompoundExpression(JS.array(argument, " + \"Modifiers\""));
+    }
+    modelPush(properties, createObjectProperty(
+      modifiersKey,
+      createSimpleExpression(
+        "{ " + modifiers + " }",
+        false,
+        directive["loc"],
+        JS.number(ConstantTypes["CAN_CACHE"]).toInt()
+      )
+    ));
+  }
+
+  return createTransformProps(properties);
+}

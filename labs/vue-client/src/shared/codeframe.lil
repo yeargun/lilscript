@@ -1,0 +1,127 @@
+import { Math, Object } from "./makeMap";
+
+int valueLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+
+float mathMin(float left, float right) {
+  return JS.number(JS.invoke(Math, "min", left, right));
+}
+
+float mathMax(float left, float right) {
+  return JS.number(JS.invoke(Math, "max", left, right));
+}
+
+string repeatString(string value, float count) {
+  return JS.string(JS.invoke(value, "repeat", count));
+}
+
+string generateCodeFrameImpl(
+  string source,
+  JsValue startValue,
+  JsValue endValue
+) {
+  float start = 0;
+  if (JS.typeOf(startValue) != "undefined") {
+    start = JS.number(startValue);
+  }
+  float end = source.length;
+  if (JS.typeOf(endValue) != "undefined") {
+    end = JS.number(endValue);
+  }
+  start = mathMax(0, mathMin(start, source.length));
+  end = mathMax(0, mathMin(end, source.length));
+  if (start > end) {
+    return "";
+  }
+
+  Regex newlinePattern = new Regex("(\\r?\\n)");
+  JsValue split = JS.invoke(source, "split", newlinePattern);
+  string[] lines = [];
+  string[] newlines = [];
+  int splitLength = valueLength(split);
+  for (int index = 0; index < splitLength; index++) {
+    string part = JS.string(split[index]);
+    if (index % 2 == 1) {
+      newlines.push(part);
+    } else {
+      lines.push(part);
+    }
+  }
+
+  float count = 0;
+  string[] result = [];
+  for (int index = 0; index < lines.length; index++) {
+    int newlineLength = 0;
+    if (index < newlines.length) {
+      newlineLength = newlines[index].length;
+    }
+    count += lines[index].length + newlineLength;
+    if (count >= start) {
+      int lineIndex = index - 2;
+      while (lineIndex <= index + 2 || end > count) {
+        if (lineIndex >= 0 && lineIndex < lines.length) {
+          int lineNumber = lineIndex + 1;
+          string numberText = "" + lineNumber;
+          result.push(
+            numberText +
+            repeatString(" ", mathMax(3 - numberText.length, 0)) +
+            "|  " +
+            lines[lineIndex]
+          );
+
+          int lineLength = lines[lineIndex].length;
+          int lineBreakLength = 0;
+          if (lineIndex < newlines.length) {
+            lineBreakLength = newlines[lineIndex].length;
+          }
+          if (lineIndex == index) {
+            float padding = start - (count - (lineLength + lineBreakLength));
+            float underlineLength = 0;
+            if (end > count) {
+              underlineLength = lineLength - padding;
+            } else {
+              underlineLength = end - start;
+            }
+            underlineLength = mathMax(1, underlineLength);
+            result.push(
+              "   |  " +
+              repeatString(" ", padding) +
+              repeatString("^", underlineLength)
+            );
+          } else if (lineIndex > index) {
+            if (end > count) {
+              float underlineLength = mathMax(
+                mathMin(end - count, lineLength),
+                1
+              );
+              result.push("   |  " + repeatString("^", underlineLength));
+            }
+            count += lineLength + lineBreakLength;
+          }
+        }
+        lineIndex += 1;
+      }
+      break;
+    }
+  }
+  return result.join("\n");
+}
+
+export JsValue generateCodeFrame = JS.methodRest(
+  (JsValue _self, JsValue args) => {
+    return generateCodeFrameImpl(
+      JS.string(args[0]),
+      args[1],
+      args[2]
+    );
+  }
+);
+
+JS.invoke(
+  Object,
+  "defineProperty",
+  generateCodeFrame,
+  "length",
+  JS.object("value", 1)
+);

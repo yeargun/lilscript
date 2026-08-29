@@ -1,0 +1,461 @@
+import extern {
+  CREATE_VNODE,
+  DOMDirectiveTransforms,
+  DOMNodeTransforms,
+  ElementTypes,
+  Namespaces,
+  NodeTypes,
+  RESOLVE_DYNAMIC_COMPONENT,
+  SUSPENSE,
+  TELEPORT,
+  TRANSITION,
+  TRANSITION_GROUP,
+  buildProps,
+  buildSlots,
+  createCallExpression,
+  createFunctionExpression,
+  createIfStatement,
+  createReturnStatement,
+  createRoot,
+  createSimpleExpression,
+  createTransformContext,
+  getBaseTransformPreset,
+  locStub,
+  resolveComponentType,
+  stringifyExpression,
+  traverseNode
+} from "../../../packages/vuelil/compiler-dom.js";
+import extern {
+  extend as sharedExtend,
+  isArray as sharedIsArray,
+  isPlainObject as sharedIsPlainObject
+} from "../../../packages/vuelil/shared.js";
+import { SSR_RENDER_COMPONENT, SSR_RENDER_VNODE } from "../runtimeHelpers";
+import {
+  processChildren,
+  processChildrenAsStatement
+} from "../ssrCodegenTransform";
+import { buildSSRProps } from "./ssrTransformElement";
+import { ssrProcessTeleport } from "./ssrTransformTeleport";
+import {
+  ssrProcessSuspense,
+  ssrTransformSuspense
+} from "./ssrTransformSuspense";
+import {
+  ssrProcessTransition,
+  ssrTransformTransition
+} from "./ssrTransformTransition";
+import {
+  ssrProcessTransitionGroup,
+  ssrTransformTransitionGroup
+} from "./ssrTransformTransitionGroup";
+
+extern JsValue Array;
+extern JsValue CREATE_VNODE;
+extern JsValue DOMDirectiveTransforms;
+extern JsValue DOMNodeTransforms;
+extern JsValue ElementTypes;
+extern JsValue Namespaces;
+extern JsValue NodeTypes;
+extern JsValue Object;
+extern JsValue RESOLVE_DYNAMIC_COMPONENT;
+extern JsValue SUSPENSE;
+extern JsValue TELEPORT;
+extern JsValue TRANSITION;
+extern JsValue TRANSITION_GROUP;
+extern JsValue WeakMap;
+extern JsValue Symbol;
+extern JsValue buildProps;
+extern JsValue buildSlots;
+extern JsValue createCallExpression;
+extern JsValue createFunctionExpression;
+extern JsValue createIfStatement;
+extern JsValue createReturnStatement;
+extern JsValue createRoot;
+extern JsValue createSimpleExpression;
+extern JsValue createTransformContext;
+extern JsValue getBaseTransformPreset;
+extern JsValue locStub;
+extern JsValue resolveComponentType;
+extern JsValue sharedExtend;
+extern JsValue sharedIsArray;
+extern JsValue sharedIsPlainObject;
+extern JsValue stringifyExpression;
+extern JsValue traverseNode;
+
+JsValue componentUndefined() {
+  return JS.undefined();
+}
+
+int componentLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+
+void componentPush(JsValue values, JsValue value) {
+  values[componentLength(values)] = value;
+}
+
+JsValue componentWipMap = JS.construct(WeakMap);
+JsValue componentTypeMap = JS.construct(WeakMap);
+JsValue WIP_SLOT = JS.call(Symbol, componentUndefined());
+
+export JsValue rawOptionsMap = JS.construct(WeakMap);
+
+JsValue cloneComponentValue(JsValue value) {
+  if (JS.call(sharedIsArray, componentUndefined(), value).truthy()) {
+    JsValue result = JS.array();
+    for (int index = 0; index < componentLength(value); index++) {
+      componentPush(result, cloneComponentValue(value[index]));
+    }
+    return result;
+  }
+  if (JS.call(sharedIsPlainObject, componentUndefined(), value).truthy()) {
+    JsValue result = JS.object();
+    for (string key in value) result[key] = cloneComponentValue(value[key]);
+    return result;
+  }
+  return value;
+}
+
+JsValue basePreset = JS.call(
+  getBaseTransformPreset,
+  componentUndefined(),
+  true
+);
+JsValue vnodeNodeTransforms = JS.array();
+for (int baseIndex = 0; baseIndex < componentLength(basePreset[0]); baseIndex++) {
+  componentPush(vnodeNodeTransforms, basePreset[0][baseIndex]);
+}
+for (int domIndex = 0; domIndex < componentLength(DOMNodeTransforms); domIndex++) {
+  componentPush(vnodeNodeTransforms, DOMNodeTransforms[domIndex]);
+}
+JsValue vnodeDirectiveTransforms = JS.object();
+for (string directiveName in basePreset[1]) {
+  vnodeDirectiveTransforms[directiveName] = basePreset[1][directiveName];
+}
+for (string directiveName in DOMDirectiveTransforms) {
+  vnodeDirectiveTransforms[directiveName] = DOMDirectiveTransforms[directiveName];
+}
+
+void mergeSubTransformContext(JsValue childContext, JsValue parentContext) {
+  JsValue entries = JS.call(Array["from"], Array, childContext["helpers"]);
+  for (int index = 0; index < componentLength(entries); index++) {
+    JsValue entry = entries[index];
+    JsValue key = entry[0];
+    int value = JS.number(entry[1]).toInt();
+    JsValue parentValue = JS.invoke(parentContext["helpers"], "get", key);
+    if (JS.isUndefined(parentValue)) {
+      JS.invoke(parentContext["helpers"], "set", key, value);
+    } else {
+      JS.invoke(
+        parentContext["helpers"],
+        "set",
+        key,
+        value + JS.number(parentValue).toInt()
+      );
+    }
+  }
+  JsValue components = JS.call(Array["from"], Array, childContext["components"]);
+  for (int index = 0; index < componentLength(components); index++) {
+    JS.invoke(parentContext["components"], "add", components[index]);
+  }
+  JsValue directives = JS.call(Array["from"], Array, childContext["directives"]);
+  for (int index = 0; index < componentLength(directives); index++) {
+    JS.invoke(parentContext["directives"], "add", directives[index]);
+  }
+}
+
+void subTransformComponentNode(
+  JsValue node,
+  JsValue options,
+  JsValue parentContext
+) {
+  JsValue childRoot = JS.call(
+    createRoot,
+    componentUndefined(),
+    JS.array(node)
+  );
+  JsValue childContext = JS.call(
+    createTransformContext,
+    componentUndefined(),
+    childRoot,
+    options
+  );
+  childContext["ssr"] = false;
+  childContext["scopes"] = JS.invoke(Object, "assign", JS.object(), parentContext["scopes"]);
+  childContext["identifiers"] = JS.invoke(
+    Object,
+    "assign",
+    JS.object(),
+    parentContext["identifiers"]
+  );
+  childContext["imports"] = parentContext["imports"];
+  JS.call(traverseNode, componentUndefined(), childRoot, childContext);
+  mergeSubTransformContext(childContext, parentContext);
+}
+
+JsValue createVNodeSlotBranch(
+  JsValue slotProps,
+  JsValue vFor,
+  JsValue children,
+  JsValue parentContext
+) {
+  JsValue rawOptions = JS.invoke(rawOptionsMap, "get", parentContext["root"]);
+  JsValue nodeTransforms = JS.array();
+  for (int index = 0; index < componentLength(vnodeNodeTransforms); index++) {
+    componentPush(nodeTransforms, vnodeNodeTransforms[index]);
+  }
+  JsValue rawNodeTransforms = rawOptions["nodeTransforms"];
+  if (rawNodeTransforms.truthy()) {
+    for (int index = 0; index < componentLength(rawNodeTransforms); index++) {
+      componentPush(nodeTransforms, rawNodeTransforms[index]);
+    }
+  }
+  JsValue directiveTransforms = JS.object();
+  for (string key in vnodeDirectiveTransforms) {
+    directiveTransforms[key] = vnodeDirectiveTransforms[key];
+  }
+  JsValue rawDirectiveTransforms = rawOptions["directiveTransforms"];
+  if (rawDirectiveTransforms.truthy()) {
+    for (string key in rawDirectiveTransforms) {
+      directiveTransforms[key] = rawDirectiveTransforms[key];
+    }
+  }
+  JsValue subOptions = JS.invoke(
+    Object,
+    "assign",
+    JS.object(),
+    rawOptions,
+    JS.object(
+      "nodeTransforms", nodeTransforms,
+      "directiveTransforms", directiveTransforms
+    )
+  );
+  JsValue wrapperProps = JS.array();
+  if (slotProps.truthy()) {
+    componentPush(wrapperProps, JS.object(
+      "type", NodeTypes["DIRECTIVE"],
+      "name", "slot",
+      "exp", slotProps,
+      "arg", componentUndefined(),
+      "modifiers", JS.array(),
+      "loc", locStub
+    ));
+  }
+  if (vFor.truthy()) {
+    componentPush(
+      wrapperProps,
+      JS.call(sharedExtend, componentUndefined(), JS.object(), vFor)
+    );
+  }
+  JsValue wrapperNode = JS.object(
+    "type", NodeTypes["ELEMENT"],
+    "ns", Namespaces["HTML"],
+    "tag", "template",
+    "tagType", ElementTypes["TEMPLATE"],
+    "props", wrapperProps,
+    "children", children,
+    "loc", locStub,
+    "codegenNode", componentUndefined()
+  );
+  subTransformComponentNode(wrapperNode, subOptions, parentContext);
+  return JS.call(
+    createReturnStatement,
+    componentUndefined(),
+    children
+  );
+}
+
+export JsValue ssrTransformComponent(JsValue node, JsValue context) {
+  if (!JS.strictEqual(node["type"], NodeTypes["ELEMENT"]) ||
+    !JS.strictEqual(node["tagType"], ElementTypes["COMPONENT"])) {
+    return componentUndefined();
+  }
+  JsValue component = JS.call(
+    resolveComponentType,
+    componentUndefined(),
+    node,
+    context,
+    true
+  );
+  bool dynamicComponent = JS.typeOf(component) == "object" &&
+    !JS.strictEqual(component, null) &&
+    JS.strictEqual(component["callee"], RESOLVE_DYNAMIC_COMPONENT);
+  JS.invoke(componentTypeMap, "set", node, component);
+
+  if (JS.typeOf(component) == "symbol") {
+    if (JS.strictEqual(component, SUSPENSE)) {
+      return ssrTransformSuspense(node, context);
+    }
+    if (JS.strictEqual(component, TRANSITION_GROUP)) {
+      return ssrTransformTransitionGroup(node, context);
+    }
+    if (JS.strictEqual(component, TRANSITION)) {
+      return ssrTransformTransition(node, context);
+    }
+    return componentUndefined();
+  }
+
+  JsValue vnodeBranches = JS.array();
+  JsValue clonedNode = cloneComponentValue(node);
+  return JS.method0((JsValue _self) => {
+    if (componentLength(clonedNode["children"]) > 0) {
+      JsValue vnodeBuilder = JS.methodRest((JsValue _builderSelf, JsValue args) => {
+        componentPush(
+          vnodeBranches,
+          createVNodeSlotBranch(args[0], args[1], args[2], context)
+        );
+        return JS.call(
+          createFunctionExpression,
+          componentUndefined(),
+          componentUndefined()
+        );
+      });
+      JS.call(
+        buildSlots,
+        componentUndefined(),
+        clonedNode,
+        context,
+        vnodeBuilder
+      );
+    }
+
+    JsValue propsExp = "null";
+    if (componentLength(node["props"]) > 0) {
+      JsValue built = JS.call(
+        buildProps,
+        componentUndefined(),
+        node,
+        context,
+        componentUndefined(),
+        true,
+        dynamicComponent
+      );
+      if (built["props"].truthy() ||
+        componentLength(built["directives"]) > 0) {
+        propsExp = buildSSRProps(built["props"], built["directives"], context);
+      }
+    }
+
+    JsValue wipEntries = JS.array();
+    JS.invoke(componentWipMap, "set", node, wipEntries);
+    JsValue ssrBuilder = JS.methodRest((JsValue _builderSelf, JsValue args) => {
+      JsValue props = args[0];
+      JsValue children = args[2];
+      JsValue loc = args[3];
+      JsValue param0 = "_";
+      if (props.truthy()) {
+        JsValue renderedProps = JS.call(
+          stringifyExpression,
+          componentUndefined(),
+          props
+        );
+        if (renderedProps.truthy()) param0 = renderedProps;
+      }
+      JsValue fn = JS.call(
+        createFunctionExpression,
+        componentUndefined(),
+        JS.array(param0, "_push", "_parent", "_scopeId"),
+        componentUndefined(),
+        true,
+        true,
+        loc
+      );
+      int entryIndex = componentLength(wipEntries);
+      componentPush(wipEntries, JS.object(
+        "type", WIP_SLOT,
+        "fn", fn,
+        "children", children,
+        "vnodeBranch", vnodeBranches[entryIndex]
+      ));
+      return fn;
+    });
+    JsValue slots = "null";
+    if (componentLength(node["children"]) > 0) {
+      JsValue builtSlots = JS.call(
+        buildSlots,
+        componentUndefined(),
+        node,
+        context,
+        ssrBuilder
+      );
+      slots = builtSlots["slots"];
+    }
+
+    if (JS.typeOf(component) != "string") {
+      JsValue vnode = JS.call(
+        createCallExpression,
+        componentUndefined(),
+        JS.invoke(context, "helper", CREATE_VNODE),
+        JS.array(component, propsExp, slots)
+      );
+      node["ssrCodegenNode"] = JS.call(
+        createCallExpression,
+        componentUndefined(),
+        JS.invoke(context, "helper", SSR_RENDER_VNODE),
+        JS.array("_push", vnode, "_parent")
+      );
+    } else {
+      node["ssrCodegenNode"] = JS.call(
+        createCallExpression,
+        componentUndefined(),
+        JS.invoke(context, "helper", SSR_RENDER_COMPONENT),
+        JS.array(component, propsExp, slots, "_parent")
+      );
+    }
+    return componentUndefined();
+  });
+}
+
+export void ssrProcessComponent(
+  JsValue node,
+  JsValue context,
+  JsValue parent
+) {
+  JsValue component = JS.invoke(componentTypeMap, "get", node);
+  if (!node["ssrCodegenNode"].truthy()) {
+    if (JS.strictEqual(component, TELEPORT)) {
+      ssrProcessTeleport(node, context);
+    } else if (JS.strictEqual(component, SUSPENSE)) {
+      ssrProcessSuspense(node, context);
+    } else if (JS.strictEqual(component, TRANSITION_GROUP)) {
+      ssrProcessTransitionGroup(node, context);
+    } else {
+      if (JS.strictEqual(parent["type"], WIP_SLOT)) {
+        JS.invoke(context, "pushStringPart", "");
+      }
+      if (JS.strictEqual(component, TRANSITION)) {
+        ssrProcessTransition(node, context);
+      } else {
+        processChildren(node, context);
+      }
+    }
+    return;
+  }
+
+  JsValue entries = JS.invoke(componentWipMap, "get", node);
+  if (!entries.truthy()) entries = JS.array();
+  for (int index = 0; index < componentLength(entries); index++) {
+    JsValue entry = entries[index];
+    entry["fn"]["body"] = JS.call(
+      createIfStatement,
+      componentUndefined(),
+      JS.call(createSimpleExpression, componentUndefined(), "_push", false),
+      processChildrenAsStatement(entry, context, false, true),
+      entry["vnodeBranch"]
+    );
+  }
+  if (context["withSlotScopeId"].truthy()) {
+    componentPush(node["ssrCodegenNode"]["arguments"], "_scopeId");
+  }
+  if (JS.typeOf(component) == "string") {
+    JS.invoke(context, "pushStatement", JS.call(
+      createCallExpression,
+      componentUndefined(),
+      "_push",
+      JS.array(node["ssrCodegenNode"])
+    ));
+  } else {
+    JS.invoke(context, "pushStatement", node["ssrCodegenNode"]);
+  }
+}

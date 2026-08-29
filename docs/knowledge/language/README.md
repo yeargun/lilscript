@@ -3,6 +3,8 @@
 LilScript is an independent statically typed language. `.lil` is never parsed as JavaScript or TypeScript. JavaScript and native object code are backends of one typed whole-program IR.
 
 Parent: [Mission](../mission.md). Contract: [`docs/language-v0.1.md`](../../language-v0.1.md).
+Durable rationale: [typed proofs, not glue](../decisions/typed-proofs-not-glue.md),
+[representation and ABI](../decisions/representation-and-abi.md).
 
 ## Why the language looks this way
 
@@ -11,10 +13,11 @@ Every surface construct is judged by whether it gives the compiler a **proof** i
 | Construct | Proof it gives the compiler |
 |---|---|
 | Nominal `struct` / `class` | Field indexes; scalar replacement; no property names internally |
-| Closed `object` | ABI keys on one identity; private method bodies nest/mangle |
+| Named `object` | ABI keys on one singleton identity; private method bodies nest/mangle |
+| `object { ... }` | Ordinary-prototype JS dictionary; inherited hooks remain observable |
 | `Record<T>` | Open string keys are **data**, never mangled |
 | Closed `enum` + `match` | Integer discriminant, no metadata object; exhaustive DCE of arms |
-| `extern` / `extern class` | Exact host ABI; everything else may dissolve |
+| `extern` / `extern class` | Exact host ABI by default; everything else may dissolve |
 | `T?` and `A \| B` | Narrowing without wrappers; native tags only at boundaries |
 | `pure` / inferred effects | Unused calls are removable |
 | Static imports | Cross-file SSA; module syntax is not emitted |
@@ -56,10 +59,11 @@ Language design is upstream of [compilation](../compilation/README.md). If a fea
 [decision registry](../compilation/decision-registry.md). How to write a port so
 Terser/Oxc/Closure can lose: [compressor surface](compressor-surface.md).
 
-Config that changes **language-visible ABI** (not just spelling):
+Config that changes **language-visible ABI** must be normalized into the
+compilation contract, not treated as a codec preference:
 
 - `javascript.public_aggregate_abi` — named fields vs positional handles at the reusable JS boundary
 - `javascript.aggregate_layout` — named objects vs positional arrays for instances
-- `javascript.function_spelling` — constructible functions vs public arrows
+- `javascript.function_spelling` — legacy combined public/private callable policy
 - `[mangle] exports` / `properties` — public names vs owned fields
-- `[bundle] mode` — one artifact vs real ESM chunks vs preserve-modules
+- `[bundle] mode` — artifact/module layout, distinct from application vs library world

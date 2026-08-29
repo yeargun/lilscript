@@ -1,0 +1,46 @@
+import {
+  ElementTypes,
+  NodeTypes,
+  convertToBlock,
+  createCallExpression,
+  createFunctionExpression
+} from "../ast";
+import { WeakSet, WITH_MEMO } from "../runtimeHelpers";
+import { findDir } from "../utils";
+
+int memoLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+
+JsValue memoSeen = JS.construct(WeakSet);
+
+export JsValue transformMemo(JsValue node, JsValue context) {
+  if (JS.strictEqual(node["type"], NodeTypes["ELEMENT"])) {
+    JsValue directive = findDir(node, "memo");
+    if (!directive.truthy() || JS.invoke(memoSeen, "has", node).truthy() || context["inSSR"].truthy()) {
+      return JS.undefined();
+    }
+    JS.invoke(memoSeen, "add", node);
+    return JS.method0((JsValue _self) => {
+      JsValue codegen = node["codegenNode"];
+      if (!codegen.truthy()) codegen = context["currentNode"]["codegenNode"];
+      if (codegen.truthy() && JS.strictEqual(codegen["type"], NodeTypes["VNODE_CALL"])) {
+        if (!JS.strictEqual(node["tagType"], ElementTypes["COMPONENT"])) {
+          convertToBlock(codegen, context);
+        }
+        node["codegenNode"] = createCallExpression(
+          JS.call(context["helper"], JS.undefined(), WITH_MEMO),
+          JS.array(
+            directive["exp"],
+            createFunctionExpression(JS.undefined(), codegen),
+            "_cache",
+            "" + memoLength(context["cached"])
+          )
+        );
+        context["cached"][memoLength(context["cached"])] = null;
+      }
+      return JS.undefined();
+    });
+  }
+  return JS.undefined();
+}

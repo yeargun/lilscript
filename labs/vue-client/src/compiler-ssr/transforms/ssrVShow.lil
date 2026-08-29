@@ -1,0 +1,59 @@
+import extern {
+  DOMErrorCodes,
+  createConditionalExpression,
+  createDOMCompilerError,
+  createObjectExpression,
+  createObjectProperty,
+  createSimpleExpression
+} from "../../../packages/vuelil/compiler-dom.js";
+
+extern JsValue DOMErrorCodes;
+extern JsValue createConditionalExpression;
+extern JsValue createDOMCompilerError;
+extern JsValue createObjectExpression;
+extern JsValue createObjectProperty;
+extern JsValue createSimpleExpression;
+
+JsValue ssrShowUndefined() {
+  return JS.undefined();
+}
+
+export JsValue ssrTransformShow(JsValue directive, JsValue _node, JsValue context) {
+  if (!directive["exp"].truthy()) {
+    JS.invoke(
+      context,
+      "onError",
+      JS.call(
+        createDOMCompilerError,
+        ssrShowUndefined(),
+        DOMErrorCodes["X_V_SHOW_NO_EXPRESSION"]
+      )
+    );
+  }
+  JsValue display = JS.call(
+    createObjectProperty,
+    ssrShowUndefined(),
+    "display",
+    JS.call(createSimpleExpression, ssrShowUndefined(), "none", true)
+  );
+  JsValue hidden = JS.call(
+    createObjectExpression,
+    ssrShowUndefined(),
+    JS.array(display)
+  );
+  JsValue value = JS.call(
+    createConditionalExpression,
+    ssrShowUndefined(),
+    directive["exp"],
+    JS.call(createSimpleExpression, ssrShowUndefined(), "null", false),
+    hidden,
+    false
+  );
+  JsValue style = JS.call(
+    createObjectProperty,
+    ssrShowUndefined(),
+    "style",
+    value
+  );
+  return JS.object("props", JS.array(style));
+}

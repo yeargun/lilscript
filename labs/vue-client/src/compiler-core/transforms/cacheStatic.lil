@@ -1,0 +1,296 @@
+import {
+  createArrayExpression,
+  getVNodeBlockHelper,
+  getVNodeHelper
+} from "../ast";
+import {
+  GUARD_REACTIVE_PROPS,
+  NORMALIZE_CLASS,
+  NORMALIZE_PROPS,
+  NORMALIZE_STYLE,
+  OPEN_BLOCK
+} from "../runtimeHelpers";
+import { findDir, isSlotOutlet } from "../utils";
+
+int cacheLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+
+JsValue cacheUndefined() {
+  return JS.undefined();
+}
+
+bool cacheSame(JsValue left, JsValue right) {
+  return JS.strictEqual(left, right);
+}
+
+JsValue getCacheExpression(JsValue context, JsValue value) {
+  JsValue expression = JS.call(context["cache"], cacheUndefined(), value);
+  expression["needArraySpread"] = true;
+  return expression;
+}
+
+JsValue getSlotNode(JsValue node, JsValue name) {
+  JsValue children = node["children"];
+  if (children.truthy() && !JS.isArray(children) && JS.number(children["type"]).toInt() == 15) {
+    JsValue properties = children["properties"];
+    for (int index = 0; index < cacheLength(properties); index++) {
+      JsValue property = properties[index];
+      JsValue key = property["key"];
+      if (cacheSame(key, name) || cacheSame(key["content"], name)) return property["value"];
+    }
+  }
+  return cacheUndefined();
+}
+
+JsValue getNodeProps(JsValue node) {
+  JsValue codegenNode = node["codegenNode"];
+  if (JS.number(codegenNode["type"]).toInt() == 13) return codegenNode["props"];
+  return cacheUndefined();
+}
+
+bool isAllowedHoistedHelper(JsValue helper) {
+  return cacheSame(helper, NORMALIZE_CLASS) || cacheSame(helper, NORMALIZE_STYLE) ||
+    cacheSame(helper, NORMALIZE_PROPS) || cacheSame(helper, GUARD_REACTIVE_PROPS);
+}
+
+int getConstantTypeOfHelperCall(JsValue value, JsValue context) {
+  if (JS.number(value["type"]).toInt() == 14 && JS.typeOf(value["callee"]) != "string" &&
+    isAllowedHoistedHelper(value["callee"])) {
+    JsValue argument = value["arguments"][0];
+    int type = JS.number(argument["type"]).toInt();
+    if (type == 4) return getConstantType(argument, context);
+    if (type == 14) return getConstantTypeOfHelperCall(argument, context);
+  }
+  return 0;
+}
+
+int getGeneratedPropsConstantType(JsValue node, JsValue context) {
+  int constantType = 3;
+  JsValue props = getNodeProps(node);
+  if (props.truthy() && JS.number(props["type"]).toInt() == 15) {
+    JsValue properties = props["properties"];
+    for (int index = 0; index < cacheLength(properties); index++) {
+      JsValue property = properties[index];
+      int keyType = getConstantType(property["key"], context);
+      if (keyType == 0) return 0;
+      if (keyType < constantType) constantType = keyType;
+
+      JsValue value = property["value"];
+      int valueType = 0;
+      int type = JS.number(value["type"]).toInt();
+      if (type == 4) valueType = getConstantType(value, context);
+      else if (type == 14) valueType = getConstantTypeOfHelperCall(value, context);
+      if (valueType == 0) return 0;
+      if (valueType < constantType) constantType = valueType;
+    }
+  }
+  return constantType;
+}
+
+export int getConstantType(JsValue node, JsValue context) {
+  int type = JS.number(node["type"]).toInt();
+  if (type == 1) {
+    if (JS.number(node["tagType"]).toInt() != 0) return 0;
+    JsValue constantCache = context["constantCache"];
+    JsValue cached = JS.invoke(constantCache, "get", node);
+    if (!JS.isUndefined(cached)) return JS.number(cached).toInt();
+
+    JsValue codegenNode = node["codegenNode"];
+    if (JS.number(codegenNode["type"]).toInt() != 13) return 0;
+    string tag = JS.string(node["tag"]);
+    if (codegenNode["isBlock"].truthy() && tag != "svg" && tag != "foreignObject" && tag != "math") return 0;
+
+    if (JS.isUndefined(codegenNode["patchFlag"])) {
+      int constantType = 3;
+      int generatedPropsType = getGeneratedPropsConstantType(node, context);
+      if (generatedPropsType == 0) {
+        JS.invoke(constantCache, "set", node, 0);
+        return 0;
+      }
+      if (generatedPropsType < constantType) constantType = generatedPropsType;
+
+      JsValue children = node["children"];
+      for (int index = 0; index < cacheLength(children); index++) {
+        int childType = getConstantType(children[index], context);
+        if (childType == 0) {
+          JS.invoke(constantCache, "set", node, 0);
+          return 0;
+        }
+        if (childType < constantType) constantType = childType;
+      }
+
+      if (constantType > 1) {
+        JsValue props = node["props"];
+        for (int index = 0; index < cacheLength(props); index++) {
+          JsValue prop = props[index];
+          if (JS.number(prop["type"]).toInt() == 7 && JS.string(prop["name"]) == "bind" && prop["exp"].truthy()) {
+            int expressionType = getConstantType(prop["exp"], context);
+            if (expressionType == 0) {
+              JS.invoke(constantCache, "set", node, 0);
+              return 0;
+            }
+            if (expressionType < constantType) constantType = expressionType;
+          }
+        }
+      }
+
+      if (codegenNode["isBlock"].truthy()) {
+        JsValue props = node["props"];
+        for (int index = 0; index < cacheLength(props); index++) {
+          if (JS.number(props[index]["type"]).toInt() == 7) {
+            JS.invoke(constantCache, "set", node, 0);
+            return 0;
+          }
+        }
+        JS.call(context["removeHelper"], cacheUndefined(), OPEN_BLOCK);
+        JS.call(context["removeHelper"], cacheUndefined(), getVNodeBlockHelper(
+          context["inSSR"].truthy(), codegenNode["isComponent"].truthy()
+        ));
+        codegenNode["isBlock"] = false;
+        JS.call(context["helper"], cacheUndefined(), getVNodeHelper(
+          context["inSSR"].truthy(), codegenNode["isComponent"].truthy()
+        ));
+      }
+
+      JS.invoke(constantCache, "set", node, constantType);
+      return constantType;
+    }
+    JS.invoke(constantCache, "set", node, 0);
+    return 0;
+  }
+  if (type == 2 || type == 3) return 3;
+  if (type == 9 || type == 10 || type == 11) return 0;
+  if (type == 5 || type == 12) return getConstantType(node["content"], context);
+  if (type == 4) return JS.number(node["constType"]).toInt();
+  if (type == 8) {
+    int constantType = 3;
+    JsValue children = node["children"];
+    for (int index = 0; index < cacheLength(children); index++) {
+      JsValue child = children[index];
+      string childTypeOf = JS.typeOf(child);
+      if (childTypeOf == "string" || childTypeOf == "symbol") continue;
+      int childType = getConstantType(child, context);
+      if (childType == 0) return 0;
+      if (childType < constantType) constantType = childType;
+    }
+    return constantType;
+  }
+  if (type == 20) return 2;
+  return 0;
+}
+
+export JsValue getSingleElementRoot(JsValue root) {
+  JsValue children = root["children"];
+  JsValue selected = null;
+  int count = 0;
+  for (int index = 0; index < cacheLength(children); index++) {
+    if (JS.number(children[index]["type"]).toInt() != 3) {
+      selected = children[index];
+      count++;
+    }
+  }
+  if (count == 1 && JS.number(selected["type"]).toInt() == 1 && !isSlotOutlet(selected)) return selected;
+  return null;
+}
+
+void walkStatic(JsValue node, JsValue parent, JsValue context, bool doNotHoistNode = false, bool inFor = false) {
+  JsValue children = node["children"];
+  JsValue toCache = JS.array();
+  for (int index = 0; index < cacheLength(children); index++) {
+    JsValue child = children[index];
+    int type = JS.number(child["type"]).toInt();
+    if (type == 1 && JS.number(child["tagType"]).toInt() == 0) {
+      int constantType = 0;
+      if (!doNotHoistNode) constantType = getConstantType(child, context);
+      if (constantType > 0) {
+        if (constantType >= 2) {
+          child["codegenNode"]["patchFlag"] = -1;
+          toCache[cacheLength(toCache)] = child;
+          continue;
+        }
+      } else {
+        JsValue codegenNode = child["codegenNode"];
+        if (JS.number(codegenNode["type"]).toInt() == 13) {
+          JsValue patchFlag = codegenNode["patchFlag"];
+          if ((JS.isUndefined(patchFlag) || JS.number(patchFlag).toInt() == 512 || JS.number(patchFlag).toInt() == 1) &&
+            getGeneratedPropsConstantType(child, context) >= 2) {
+            JsValue props = getNodeProps(child);
+            if (props.truthy()) codegenNode["props"] = JS.call(context["hoist"], cacheUndefined(), props);
+          }
+          if (codegenNode["dynamicProps"].truthy()) {
+            codegenNode["dynamicProps"] = JS.call(context["hoist"], cacheUndefined(), codegenNode["dynamicProps"]);
+          }
+        }
+      }
+    } else if (type == 12) {
+      int constantType = 0;
+      if (!doNotHoistNode) constantType = getConstantType(child, context);
+      if (constantType >= 2) {
+        JsValue codegenNode = child["codegenNode"];
+        if (JS.number(codegenNode["type"]).toInt() == 14 && cacheLength(codegenNode["arguments"]) > 0) {
+          codegenNode["arguments"][cacheLength(codegenNode["arguments"])] = "-1 /* CACHED */";
+        }
+        toCache[cacheLength(toCache)] = child;
+        continue;
+      }
+    }
+
+    if (type == 1) {
+      bool isComponent = JS.number(child["tagType"]).toInt() == 1;
+      if (isComponent) context["scopes"]["vSlot"] = JS.number(context["scopes"]["vSlot"]).toInt() + 1;
+      walkStatic(child, node, context, false, inFor);
+      if (isComponent) context["scopes"]["vSlot"] = JS.number(context["scopes"]["vSlot"]).toInt() - 1;
+    } else if (type == 11) {
+      walkStatic(child, node, context, cacheLength(child["children"]) == 1, true);
+    } else if (type == 9) {
+      JsValue branches = child["branches"];
+      for (int branch = 0; branch < cacheLength(branches); branch++) {
+        walkStatic(branches[branch], node, context, cacheLength(branches[branch]["children"]) == 1, inFor);
+      }
+    }
+  }
+
+  bool cachedAsArray = false;
+  if (cacheLength(toCache) == cacheLength(children) && JS.number(node["type"]).toInt() == 1) {
+    int tagType = JS.number(node["tagType"]).toInt();
+    JsValue codegenNode = node["codegenNode"];
+    if (tagType == 0 && codegenNode.truthy() && JS.number(codegenNode["type"]).toInt() == 13 &&
+      JS.isArray(codegenNode["children"])) {
+      codegenNode["children"] = getCacheExpression(context, createArrayExpression(codegenNode["children"]));
+      cachedAsArray = true;
+    } else if (tagType == 1 && codegenNode.truthy() && JS.number(codegenNode["type"]).toInt() == 13) {
+      JsValue slot = getSlotNode(codegenNode, "default");
+      if (slot.truthy()) {
+        slot["returns"] = getCacheExpression(context, createArrayExpression(slot["returns"]));
+        cachedAsArray = true;
+      }
+    } else if (tagType == 3 && parent.truthy() && JS.number(parent["type"]).toInt() == 1 &&
+      JS.number(parent["tagType"]).toInt() == 1 && parent["codegenNode"].truthy() &&
+      JS.number(parent["codegenNode"]["type"]).toInt() == 13) {
+      JsValue slotName = findDir(node, "slot", true);
+      JsValue slot = cacheUndefined();
+      if (slotName.truthy() && slotName["arg"].truthy()) {
+        slot = getSlotNode(parent["codegenNode"], slotName["arg"]);
+      }
+      if (slot.truthy()) {
+        slot["returns"] = getCacheExpression(context, createArrayExpression(slot["returns"]));
+        cachedAsArray = true;
+      }
+    }
+  }
+
+  if (!cachedAsArray) {
+    for (int index = 0; index < cacheLength(toCache); index++) {
+      JsValue child = toCache[index];
+      child["codegenNode"] = JS.call(context["cache"], cacheUndefined(), child["codegenNode"]);
+    }
+  }
+  if (cacheLength(toCache) > 0 && JS.typeOf(context["transformHoist"]) == "function") {
+    JS.call(context["transformHoist"], cacheUndefined(), children, context, node);
+  }
+}
+
+export void cacheStatic(JsValue root, JsValue context) {
+  walkStatic(root, cacheUndefined(), context, getSingleElementRoot(root).truthy(), false);
+}

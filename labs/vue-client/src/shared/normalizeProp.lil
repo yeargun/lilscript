@@ -1,0 +1,131 @@
+import {
+  hyphenate,
+  isArray,
+  isObject,
+  isString
+} from "./general";
+
+JsValue undefinedValue() {
+  return JS.undefined();
+}
+
+int valueLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+
+bool isArrayValue(JsValue value) {
+  return JS.call(isArray, undefinedValue(), value).truthy();
+}
+
+export JsValue normalizeStyle(JsValue value) {
+  if (isArrayValue(value)) {
+    JsValue result = JS.object();
+    int length = valueLength(value);
+    for (int index = 0; index < length; index++) {
+      JsValue item = value[index];
+      JsValue normalized = JS.undefined();
+      if (isString(item)) {
+        normalized = parseStringStyle(JS.string(item));
+      } else {
+        normalized = normalizeStyle(item);
+      }
+      if (normalized.truthy()) {
+        for (string key in normalized) {
+          result[key] = normalized[key];
+        }
+      }
+    }
+    return result;
+  }
+  if (isString(value) || isObject(value)) {
+    return value;
+  }
+  return undefinedValue();
+}
+
+Regex styleListDelimiter = new Regex(";(?![^(]*\\))", "g");
+Regex stylePropertyDelimiter = new Regex(":([^]+)");
+Regex styleCommentPattern = new Regex("/\\*[^]*?\\*/", "g");
+
+export JsValue parseStringStyle(string cssText) {
+  JsValue result = JS.object();
+  string uncommented = JS.string(
+    JS.invoke(cssText, "replace", styleCommentPattern, "")
+  );
+  JsValue declarations = JS.invoke(uncommented, "split", styleListDelimiter);
+  int length = valueLength(declarations);
+  for (int index = 0; index < length; index++) {
+    string declaration = JS.string(declarations[index]);
+    if (declaration != "") {
+      JsValue pair = JS.invoke(declaration, "split", stylePropertyDelimiter);
+      if (valueLength(pair) > 1) {
+        string key = JS.string(pair[0]).trim();
+        result[key] = JS.string(pair[1]).trim();
+      }
+    }
+  }
+  return result;
+}
+
+string hyphenateString(string value) {
+  return JS.string(JS.call(hyphenate, undefinedValue(), value));
+}
+
+export string stringifyStyle(JsValue styles) {
+  if (!styles.truthy()) {
+    return "";
+  }
+  if (isString(styles)) {
+    return JS.string(styles);
+  }
+  string result = "";
+  for (string key in styles) {
+    JsValue value = styles[key];
+    string kind = JS.typeOf(value);
+    if (kind == "string" || kind == "number") {
+      string normalizedKey = key;
+      if (!key.startsWith("--")) {
+        normalizedKey = hyphenateString(key);
+      }
+      result += normalizedKey + ":" + JS.string(value) + ";";
+    }
+  }
+  return result;
+}
+
+export string normalizeClass(JsValue value) {
+  string result = "";
+  if (isString(value)) {
+    result = JS.string(value);
+  } else if (isArrayValue(value)) {
+    int length = valueLength(value);
+    for (int index = 0; index < length; index++) {
+      string normalized = normalizeClass(value[index]);
+      if (normalized != "") {
+        result += normalized + " ";
+      }
+    }
+  } else if (isObject(value)) {
+    for (string name in value) {
+      if (value[name].truthy()) {
+        result += name + " ";
+      }
+    }
+  }
+  return result.trim();
+}
+
+export JsValue normalizeProps(JsValue props) {
+  if (!props.truthy()) {
+    return null;
+  }
+  JsValue klass = props["class"];
+  JsValue style = props["style"];
+  if (klass.truthy() && !isString(klass)) {
+    props["class"] = normalizeClass(klass);
+  }
+  if (style.truthy()) {
+    props["style"] = normalizeStyle(style);
+  }
+  return props;
+}

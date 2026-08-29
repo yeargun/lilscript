@@ -7448,9 +7448,6 @@ fn repair_late_javascript_candidate(mut code: String) -> String {
     {
         code = repaired;
     }
-    if let Ok((repaired, _)) = fold_fresh_empty_object_assign(&code) {
-        code = repaired;
-    }
     if let Ok((repaired, rewritten)) = fold_constant_json_parse(&code) {
         if rewritten > 0 {
             code = repaired;
@@ -9282,9 +9279,13 @@ fn emit_javascript_candidate(
     } else {
         emit_optimized_ir_js_with_options_and_analysis(ir, &options, integer_analysis)?
     };
-    let code = match fold_fresh_empty_object_assign(&code) {
-        Ok((folded, rewritten)) if rewritten > 0 => folded,
-        _ => code,
+    let code = if options.assume_pristine_builtins {
+        match fold_fresh_empty_object_assign(&code) {
+            Ok((folded, rewritten)) if rewritten > 0 => folded,
+            _ => code,
+        }
+    } else {
+        code
     };
     let code = match fold_constant_json_parse(&code) {
         Ok((folded, rewritten)) if rewritten > 0 => folded,
@@ -19161,7 +19162,7 @@ mod tests {
     }
 
     #[test]
-    fn reports_missing_exports_and_module_cycles() {
+    fn reports_missing_exports_and_links_static_module_cycles() {
         let directory = std::env::temp_dir().join(format!(
             "lilscript-module-error-test-{}",
             std::process::id()
@@ -19176,17 +19177,166 @@ mod tests {
 
         std::fs::write(
             directory.join("left.lil"),
-            "import \"./right\";export int left(){return 1;}",
+            "import {right} from \"./right\";export int leaf(){return 3;}export int left(){return right()+1;}",
         )
         .unwrap();
         std::fs::write(
             directory.join("right.lil"),
-            "import \"./left\";export int right(){return 2;}",
+            "import {leaf} from \"./left\";export int right(){return leaf()+3;}",
         )
         .unwrap();
-        let cycle = compile_path(&directory.join("left.lil")).unwrap_err();
-        assert!(cycle.message.contains("cyclic module import"));
+        std::fs::write(&main, "import {left} from \"./left\";print(left());").unwrap();
+        assert_eq!(compile_path(&main).unwrap(), "console.log(7)");
         std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    fn compile_cycle_fixture(name: &str, files: &[(&str, &str)]) -> Result<String, ModuleError> {
+        let directory =
+            std::env::temp_dir().join(format!("lilscript-{name}-{}", std::process::id()));
+        std::fs::create_dir_all(&directory).unwrap();
+        for (file, source) in files {
+            std::fs::write(directory.join(file), source).unwrap();
+        }
+        let result = compile_path(&directory.join("a.lil"));
+        std::fs::remove_dir_all(directory).unwrap();
+        result
+    }
+
+    #[test]
+    fn links_two_module_cycle_with_exported_value() {
+        let javascript = compile_cycle_fixture(
+            "two-module-value-cycle-test",
+            &[
+                (
+                    "a.lil",
+                    "import {readLater} from \"./b\";export int entry(){return readLater();}export int later=7;print(entry());",
+                ),
+                (
+                    "b.lil",
+                    "import {later} from \"./a\";export int readLater(){return later;}",
+                ),
+            ],
+        )
+        .unwrap();
+
+        assert_eq!(node_stdout(&javascript), "7\n", "{javascript}");
+    }
+
+    #[test]
+    fn cyclic_imports_observe_live_export_updates() {
+        let javascript = compile_cycle_fixture(
+            "live-cycle-binding-test",
+            &[
+                (
+                    "a.lil",
+                    "import {readAfterBump} from \"./b\";export int count=1;export void bump(){count+=1;}print(readAfterBump());",
+                ),
+                (
+                    "b.lil",
+                    "import {count,bump} from \"./a\";export int readAfterBump(){bump();return count;}",
+                ),
+            ],
+        )
+        .unwrap();
+
+        assert_eq!(node_stdout(&javascript), "2\n", "{javascript}");
+    }
+
+    #[test]
+    fn resolves_reexports_through_a_static_cycle() {
+        let javascript = compile_cycle_fixture(
+            "cyclic-reexport-test",
+            &[
+                (
+                    "a.lil",
+                    "import {value} from \"./b\";export {value};export int read(){return value;}print(read());",
+                ),
+                (
+                    "b.lil",
+                    "import {read} from \"./a\";import {value} from \"./c\";export {value};export int through(){return read();}",
+                ),
+                ("c.lil", "export int value=9;"),
+            ],
+        )
+        .unwrap();
+
+        assert_eq!(node_stdout(&javascript), "9\n", "{javascript}");
+    }
+
+    #[test]
+    fn initializes_each_module_once_in_a_static_cycle() {
+        let javascript = compile_cycle_fixture(
+            "cycle-once-test",
+            &[
+                (
+                    "a.lil",
+                    "import {read} from \"./b\";int initialized=0;int initialize(){initialized+=1;return initialized;}export int value=initialize();print(read()+initialized);",
+                ),
+                (
+                    "b.lil",
+                    "import {value} from \"./a\";export int read(){return value;}",
+                ),
+            ],
+        )
+        .unwrap();
+
+        assert_eq!(node_stdout(&javascript), "2\n", "{javascript}");
+    }
+
+    #[test]
+    fn permits_deferred_cyclic_module_value_reads() {
+        let javascript = compile_cycle_fixture(
+            "deferred-cycle-read-test",
+            &[
+                (
+                    "a.lil",
+                    "import {reader} from \"./b\";export int later=11;print(reader());",
+                ),
+                (
+                    "b.lil",
+                    "import {later} from \"./a\";export func()->int reader=()=>later;",
+                ),
+            ],
+        )
+        .unwrap();
+
+        assert_eq!(node_stdout(&javascript), "11\n", "{javascript}");
+    }
+
+    #[test]
+    fn rejects_eager_cyclic_module_value_reads() {
+        let error = compile_cycle_fixture(
+            "eager-cycle-read-test",
+            &[
+                (
+                    "a.lil",
+                    "import {eager} from \"./b\";export int later=7;print(eager);",
+                ),
+                (
+                    "b.lil",
+                    "import {later} from \"./a\";export int eager=later;",
+                ),
+            ],
+        )
+        .unwrap_err();
+        assert!(
+            error.message.contains("cannot eagerly read module binding"),
+            "{error}"
+        );
+        assert!(error.path.ends_with("b.lil"), "{error}");
+
+        let same_module = compile_cycle_fixture(
+            "same-module-forward-read-test",
+            &[(
+                "a.lil",
+                "int read(){return later;}int later=7;print(read());",
+            )],
+        )
+        .unwrap_err();
+        assert!(
+            same_module.message.contains("before its declaration"),
+            "{same_module}"
+        );
     }
 
     #[test]

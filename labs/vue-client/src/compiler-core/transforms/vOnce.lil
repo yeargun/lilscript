@@ -1,0 +1,31 @@
+import { NodeTypes } from "../ast";
+import { SET_BLOCK_TRACKING, WeakSet } from "../runtimeHelpers";
+import { findDir } from "../utils";
+
+JsValue onceSeen = JS.construct(WeakSet);
+
+export JsValue transformOnce(JsValue node, JsValue context) {
+  if (JS.strictEqual(node["type"], NodeTypes["ELEMENT"]) && findDir(node, "once", true).truthy()) {
+    if (JS.invoke(onceSeen, "has", node).truthy() || context["inVOnce"].truthy() || context["inSSR"].truthy()) {
+      return JS.undefined();
+    }
+    JS.invoke(onceSeen, "add", node);
+    context["inVOnce"] = true;
+    JS.call(context["helper"], JS.undefined(), SET_BLOCK_TRACKING);
+    return JS.method0((JsValue _self) => {
+      context["inVOnce"] = false;
+      JsValue current = context["currentNode"];
+      if (current["codegenNode"].truthy()) {
+        current["codegenNode"] = JS.call(
+          context["cache"],
+          JS.undefined(),
+          current["codegenNode"],
+          true,
+          true
+        );
+      }
+      return JS.undefined();
+    });
+  }
+  return JS.undefined();
+}

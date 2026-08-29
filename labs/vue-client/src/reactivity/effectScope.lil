@@ -1,0 +1,214 @@
+import { DEV } from "./constants";
+import { warn } from "./warning";
+
+pure extern JsValue hostCreateEffectScopeClass(
+  string name,
+  JsValue initialize,
+  JsValue active,
+  JsValue pause,
+  JsValue resume,
+  JsValue run,
+  JsValue on,
+  JsValue off,
+  JsValue stop
+);
+extern JsValue hostRead(JsValue value, JsValue key);
+extern int hostLength(JsValue value);
+
+void write(JsValue value, JsValue key, JsValue next) {
+  value[key] = next;
+}
+
+JsValue call0(JsValue fn) {
+  return JS.call(fn, JS.undefined());
+}
+
+JsValue callMethod0(JsValue receiver, string method) {
+  return JS.call(receiver[method], receiver);
+}
+
+JsValue callMethod1(JsValue receiver, string method, JsValue value) {
+  return JS.call(receiver[method], receiver, value);
+}
+
+export JsValue activeEffectScope = JS.undefined();
+
+JsValue initializeScope = JS.methodRest((JsValue self, JsValue args) => {
+  bool detached = hostRead(args, 0).truthy();
+  write(self, "detached", detached);
+  write(self, "_active", true);
+  write(self, "_on", 0);
+  write(self, "effects", JS.array());
+  write(self, "cleanups", JS.array());
+  write(self, "_isPaused", false);
+  write(self, "_warnOnRun", true);
+  write(self, "parent", JS.undefined());
+  write(self, "scopes", JS.undefined());
+  write(self, "index", JS.undefined());
+  write(self, "prevScope", JS.undefined());
+  write(self, "__v_skip", true);
+  if (!detached && !JS.isUndefined(activeEffectScope)) {
+    if (hostRead(activeEffectScope, "active").truthy()) {
+      write(self, "parent", activeEffectScope);
+      JsValue scopes = hostRead(activeEffectScope, "scopes");
+      if (JS.isUndefined(scopes)) {
+        scopes = JS.array();
+        write(activeEffectScope, "scopes", scopes);
+      }
+      int index = hostLength(scopes);
+      JS.invoke(scopes, "push", self);
+      write(self, "index", index);
+    } else {
+      write(self, "_active", false);
+      write(self, "_warnOnRun", false);
+    }
+  }
+  return JS.undefined();
+});
+
+JsValue scopeActive = JS.method0((JsValue self) => hostRead(self, "_active"));
+
+JsValue pauseScope = JS.method0((JsValue self) => {
+  if (hostRead(self, "_active").truthy()) {
+    write(self, "_isPaused", true);
+    JsValue scopes = hostRead(self, "scopes");
+    if (!JS.isUndefined(scopes)) {
+      JsValue copied = JS.invoke(scopes, "slice");
+      for (int index = 0; index < hostLength(copied); index++) {
+        callMethod0(hostRead(copied, index), "pause");
+      }
+    }
+    JsValue effects = hostRead(self, "effects");
+    for (int index = 0; index < hostLength(effects); index++) {
+      callMethod0(hostRead(effects, index), "pause");
+    }
+  }
+  return JS.undefined();
+});
+
+JsValue resumeScope = JS.method0((JsValue self) => {
+  if (hostRead(self, "_active").truthy() && hostRead(self, "_isPaused").truthy()) {
+    write(self, "_isPaused", false);
+    JsValue scopes = hostRead(self, "scopes");
+    if (!JS.isUndefined(scopes)) {
+      JsValue copiedScopes = JS.invoke(scopes, "slice");
+      for (int index = 0; index < hostLength(copiedScopes); index++) {
+        callMethod0(hostRead(copiedScopes, index), "resume");
+      }
+    }
+    JsValue effects = JS.invoke(hostRead(self, "effects"), "slice");
+    for (int index = 0; index < hostLength(effects); index++) {
+      callMethod0(hostRead(effects, index), "resume");
+    }
+  }
+  return JS.undefined();
+});
+
+JsValue runScope = JS.method1((JsValue self, JsValue fn) => {
+  if (hostRead(self, "_active").truthy()) {
+    JsValue current = activeEffectScope;
+    try {
+      activeEffectScope = self;
+      return call0(fn);
+    } finally {
+      activeEffectScope = current;
+    }
+  }
+  if (DEV && hostRead(self, "_warnOnRun").truthy()) warn("cannot run an inactive effect scope.");
+  return JS.undefined();
+});
+
+JsValue onScope = JS.method0((JsValue self) => {
+  int count = JS.number(hostRead(self, "_on")).toInt() + 1;
+  write(self, "_on", count);
+  if (count == 1) {
+    write(self, "prevScope", activeEffectScope);
+    activeEffectScope = self;
+  }
+  return JS.undefined();
+});
+
+JsValue offScope = JS.method0((JsValue self) => {
+  int count = JS.number(hostRead(self, "_on")).toInt();
+  if (count > 0) {
+    count -= 1;
+    write(self, "_on", count);
+    if (count == 0) {
+      if (JS.strictEqual(activeEffectScope, self)) {
+        activeEffectScope = hostRead(self, "prevScope");
+      } else {
+        JsValue current = activeEffectScope;
+        while (!JS.isUndefined(current)) {
+          if (JS.strictEqual(hostRead(current, "prevScope"), self)) {
+            write(current, "prevScope", hostRead(self, "prevScope"));
+            break;
+          }
+          current = hostRead(current, "prevScope");
+        }
+      }
+      write(self, "prevScope", JS.undefined());
+    }
+  }
+  return JS.undefined();
+});
+
+JsValue stopScope = JS.method1((JsValue self, JsValue fromParent) => {
+  if (!hostRead(self, "_active").truthy()) return JS.undefined();
+  write(self, "_active", false);
+  JsValue effects = hostRead(self, "effects");
+  for (int index = 0; index < hostLength(effects); index++) {
+    callMethod0(hostRead(effects, index), "stop");
+  }
+  write(effects, "length", 0);
+  JsValue cleanups = hostRead(self, "cleanups");
+  for (int index = 0; index < hostLength(cleanups); index++) call0(hostRead(cleanups, index));
+  write(cleanups, "length", 0);
+  JsValue scopes = hostRead(self, "scopes");
+  if (!JS.isUndefined(scopes)) {
+    JsValue copied = JS.invoke(scopes, "slice");
+    for (int index = 0; index < hostLength(copied); index++) {
+      callMethod1(hostRead(copied, index), "stop", true);
+    }
+    write(scopes, "length", 0);
+  }
+  JsValue parent = hostRead(self, "parent");
+  if (!hostRead(self, "detached").truthy() && !JS.isUndefined(parent) && !fromParent.truthy()) {
+    JsValue parentScopes = hostRead(parent, "scopes");
+    JsValue last = JS.invoke(parentScopes, "pop");
+    if (!JS.isUndefined(last) && !JS.strictEqual(last, self)) {
+      JsValue index = hostRead(self, "index");
+      write(parentScopes, index, last);
+      write(last, "index", index);
+    }
+  }
+  write(self, "parent", JS.undefined());
+  return JS.undefined();
+});
+
+export JsValue EffectScope = hostCreateEffectScopeClass(
+  "EffectScope",
+  initializeScope,
+  scopeActive,
+  pauseScope,
+  resumeScope,
+  runScope,
+  onScope,
+  offScope,
+  stopScope
+);
+
+export JsValue effectScope(JsValue detached) {
+  return JS.construct(EffectScope, detached);
+}
+
+export JsValue getCurrentScope() {
+  return activeEffectScope;
+}
+
+export void onScopeDispose(JsValue fn, bool failSilently = false) {
+  if (!JS.isUndefined(activeEffectScope)) {
+    JS.invoke(hostRead(activeEffectScope, "cleanups"), "push", fn);
+  } else if (DEV && !failSilently) {
+    warn("onScopeDispose() is called when there is no active effect scope to be associated with.");
+  }
+}

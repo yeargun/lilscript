@@ -446,29 +446,32 @@
         const cpuRows = sortedFinite(DATA.frameworks.map((framework) => ({ id: framework.id, value: DATA.normalizedScores.cpu[framework.id] })));
         const memoryRows = sortedFinite(DATA.frameworks.map((framework) => ({ id: framework.id, value: DATA.normalizedScores.memory[framework.id] })));
         const coldRows = sortedFinite(DATA.frameworks.map((framework) => ({ id: framework.id, value: framework.cold["cold-page-load"]?.load?.median })));
-        const solidlil = DATA.frameworks.find((framework) => framework.solidlil);
+        const solidlil = DATA.frameworks.find((framework) => framework.id === "solidlil-v2") ?? DATA.frameworks.find((framework) => framework.solidlil);
+        if (!solidlil) return;
+        const solidlilId = solidlil.id;
         const solidlilCold = solidlil.cold["cold-page-load"]?.load?.median;
         const cards = [
-          ["SolidLil JS Brotli", format(solidlil.size.jsBrotli, "B"), "#" + rankOf(sizeRows, "solidlil") + " of " + sizeRows.length, true],
+          ["SolidLil JS Brotli", format(solidlil.size.jsBrotli, "B"), "#" + rankOf(sizeRows, solidlilId) + " of " + sizeRows.length, true],
           ["Whole page Brotli", format(solidlil.size.pageBrotli, "B"), "HTML + loaded JavaScript", false],
-          ["Normalized CPU", DATA.normalizedScores.cpu.solidlil?.toFixed(3) + "×", "#" + rankOf(cpuRows, "solidlil") + " of " + cpuRows.length, false],
-          ["Normalized memory", DATA.normalizedScores.memory.solidlil ? DATA.normalizedScores.memory.solidlil.toFixed(3) + "×" : "Pending", DATA.status.memory.complete ? "#" + rankOf(memoryRows, "solidlil") + " of " + memoryRows.length : "live partial result", false],
-          ["Cold load median", format(solidlilCold, "ms"), DATA.status.cold.complete ? "#" + rankOf(coldRows, "solidlil") + " of " + coldRows.length : "live partial result", false],
+          ["Normalized CPU", DATA.normalizedScores.cpu[solidlilId] == null ? "Pending" : DATA.normalizedScores.cpu[solidlilId].toFixed(3) + "×", DATA.status.cpu.complete ? "#" + rankOf(cpuRows, solidlilId) + " of " + cpuRows.length : "not measured for this artifact", false],
+          ["Normalized memory", DATA.normalizedScores.memory[solidlilId] == null ? "Pending" : DATA.normalizedScores.memory[solidlilId].toFixed(3) + "×", DATA.status.memory.complete ? "#" + rankOf(memoryRows, solidlilId) + " of " + memoryRows.length : "not measured for this artifact", false],
+          ["Cold load median", format(solidlilCold, "ms"), DATA.status.cold.complete ? "#" + rankOf(coldRows, solidlilId) + " of " + coldRows.length : "not measured for this artifact", false],
         ];
         elements.summary.innerHTML = cards.map(([label, value, note, primary]) => '<article class="summary-card ' + (primary ? "primary" : "") + '"><span>' + label + "</span><strong>" + value + "</strong><small>" + note + "</small></article>").join("");
 
-        const solid = DATA.frameworks.find((framework) => framework.id === "solid");
+        const solid = DATA.frameworks.find((framework) => framework.id === "solid-v2") ?? DATA.frameworks.find((framework) => framework.id === "solid");
         const store = DATA.frameworks.find((framework) => framework.id === "solid-store");
-        const sizeVsSolid = (solidlil.size.jsBrotli / solid.size.jsBrotli - 1) * 100;
-        const sizeVsStore = (solidlil.size.jsBrotli / store.size.jsBrotli - 1) * 100;
-        const cpuRank = rankOf(cpuRows, "solidlil");
-        const memoryRank = rankOf(memoryRows, "solidlil");
-        const coldRank = rankOf(coldRows, "solidlil");
-        const completion = DATA.status.memory.complete && DATA.status.cold.complete ? "All planned phases are complete." : "CPU and size are complete; unfinished phases are visibly marked and this report is regenerated as checkpoints fill.";
-        elements.narrative.innerHTML = '<p>SolidLil ranks <strong>#' + rankOf(sizeRows, "solidlil") + '</strong> for direct JavaScript Brotli at <strong>' + format(solidlil.size.jsBrotli, "B") + '</strong>. It is <strong>' + Math.abs(sizeVsStore).toFixed(1) + '% smaller than Solid Store</strong> and <strong>' + Math.abs(sizeVsSolid).toFixed(1) + '% ' + (sizeVsSolid >= 0 ? "larger" : "smaller") + ' than Solid</strong> in this delivered application.</p>' +
-          '<p>Across all nine CPU workloads, its normalized median score ranks <strong>#' + cpuRank + ' of ' + cpuRows.length + '</strong>. Use the controls above to inspect the individual workload tradeoffs; the aggregate intentionally cannot hide them.</p>' +
-          '<p>Normalized memory ranks <strong>#' + memoryRank + ' of ' + memoryRows.length + '</strong>, while median cold load is <strong>' + format(solidlilCold, "ms") + '</strong> at <strong>#' + coldRank + ' of ' + coldRows.length + '</strong>. Those are current tradeoffs, not size-adjusted scores.</p>' +
-          '<p>' + completion + "</p>";
+        const sizeVsSolid = solid ? (solidlil.size.jsBrotli / solid.size.jsBrotli - 1) * 100 : null;
+        const sizeVsStore = store ? (solidlil.size.jsBrotli / store.size.jsBrotli - 1) * 100 : null;
+        const cpuRank = rankOf(cpuRows, solidlilId);
+        const memoryRank = rankOf(memoryRows, solidlilId);
+        const coldRank = rankOf(coldRows, solidlilId);
+        const completion = Object.entries(DATA.status).filter(([, status]) => status.complete).map(([phase]) => phase).join(", ") || "No phase";
+        const comparisons = [store && '<strong>' + Math.abs(sizeVsStore).toFixed(1) + '% smaller than Solid Store</strong>', solid && '<strong>' + Math.abs(sizeVsSolid).toFixed(1) + '% ' + (sizeVsSolid >= 0 ? "larger" : "smaller") + ' than Solid</strong>'].filter(Boolean).join(" and ");
+        elements.narrative.innerHTML = '<p>SolidLil ranks <strong>#' + rankOf(sizeRows, solidlilId) + '</strong> for direct JavaScript Brotli at <strong>' + format(solidlil.size.jsBrotli, "B") + '</strong>' + (comparisons ? '. It is ' + comparisons + ' in this delivered application.' : '.') + '</p>' +
+          (DATA.status.cpu.complete ? '<p>Across all nine CPU workloads, its normalized median score ranks <strong>#' + cpuRank + ' of ' + cpuRows.length + '</strong>. Use the controls above to inspect the individual workload tradeoffs; the aggregate intentionally cannot hide them.</p>' : '<p>CPU has not been measured for this artifact.</p>') +
+          (DATA.status.memory.complete && DATA.status.cold.complete ? '<p>Normalized memory ranks <strong>#' + memoryRank + ' of ' + memoryRows.length + '</strong>, while median cold load is <strong>' + format(solidlilCold, "ms") + '</strong> at <strong>#' + coldRank + ' of ' + coldRows.length + '</strong>. Those are current tradeoffs, not size-adjusted scores.</p>' : '<p>Memory and cold-load results remain pending for this artifact.</p>') +
+          '<p>Complete phases: ' + completion + ".</p>";
       }
       function setupProvenance() {
         const values = {
@@ -497,7 +500,7 @@
         render();
       });
       $("#selectCompact").addEventListener("click", () => {
-        const compact = new Set(["solidlil", "solid", "solid-store", "lit-html", "rezact"]);
+        const compact = new Set(["solidlil-v2", "solid-v2", "solidlil", "solid", "solid-store", "lit-html", "rezact"]);
         selections.clear(); compact.forEach((id) => selections.add(id));
         elements.checks.querySelectorAll("input").forEach((input) => input.checked = compact.has(input.value));
         render();

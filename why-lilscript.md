@@ -9,8 +9,12 @@ that an NP-hard, non-additive space was exhausted. Tradeoffs among transfer size
 compile time, and runtime are explicit. Bundling, lazy `import()`, and progressive
 enhancement are language concerns, not afterthoughts.
 
-The full reasoning tree (language → compilation → every TOML knob → jQuery evidence):
+The maintained reasoning tree starts with user intent, then contracts, durable
+decisions, current architecture, planned architecture, verification, evidence,
+and migration:
 
 **[docs/knowledge/README.md](docs/knowledge/README.md)**
 
-Canonical syntax and schema: [docs/language-v0.1.md](docs/language-v0.1.md), [docs/configuration.md](docs/configuration.md).
+Canonical syntax and schema: [docs/language-v0.1.md](docs/language-v0.1.md),
+[docs/configuration.md](docs/configuration.md). Current truth:
+[docs/current-status.md](docs/current-status.md).

@@ -1,6 +1,12 @@
 # Motion Compatibility Gate
 
-Parent: [Evidence](README.md).
+Parent: [Evidence](README.md). Required evidence:
+[library proof matrix](library-proof-matrix.md). Live snapshot:
+[`docs/current-status.md`](../../current-status.md).
+
+This page defines scope and historical audit work, not current size authority.
+Any numerical claim requires a fresh tracked row for the exact named boundary;
+partial helper surfaces must not be described as the full Motion package.
 
 ## Scope
 
@@ -11,8 +17,10 @@ bindings are **out of scope** and are not ported.
 
 ## Current status
 
-LilScript has a Motion 13 DOM port under `benchmarks/popular/ports/motion/`
-mirroring `motion-utils`, `motion-dom`, and the `framer-motion/dom` surface.
+The in-tree Motion 13 audit under `benchmarks/popular/ports/motion/` mirrors
+`motion-utils`, `motion-dom`, and the `framer-motion/dom` surface. The separately
+versioned MotionLil package owns current package artifacts and compatibility
+commands; this document does not infer its current bytes from the in-tree copy.
 
 **DOM-level progress (compile-green, not yet behavior-certified):**
 

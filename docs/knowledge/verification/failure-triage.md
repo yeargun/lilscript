@@ -7,7 +7,7 @@ Parent: [verification](README.md). Release policy: [release gates](release-gates
 | Class | Examples | First owner |
 |---|---|---|
 | Semantic drift | stdout/DOM/API/effect mismatch | parser/semantic/lowering/optimizer/codegen |
-| Missing language proof | port cannot state a fact Terser guesses; `assume_*` papering | 07.7 RFC, not a fold ([compressor surface](../language/compressor-surface.md)) |
+| Missing language proof | port cannot state a fact Terser guesses; `assume_*` papering | reusable language/analysis contract, not a fold ([compressor surface](../language/compressor-surface.md)) |
 | Glue-TS port | `JsValue` internals, vendored unminified host, `JS.method*` constructor tables | rewrite representation; do not add a library matcher |
 | Invalid comparison | unmatched boundary or JS semantics | case author/harness |
 | Baseline failure | tool crash, invalid output, unsupported target | tool adapter |

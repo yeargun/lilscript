@@ -1,0 +1,444 @@
+import extern { Rule as ScopedRule } from "postcss";
+import extern { default as scopedSelectorParser } from "postcss-selector-parser";
+import extern {
+  hostApply as scopedApply,
+  hostCreateNullObject as scopedCreateNullObject,
+  hostKeys as scopedKeys
+} from "../host.js";
+import { warn as scopedWarn } from "../warn";
+
+extern JsValue ScopedRule;
+extern JsValue WeakSet;
+extern JsValue scopedApply;
+extern JsValue scopedCreateNullObject;
+extern JsValue scopedKeys;
+extern JsValue scopedSelectorParser;
+
+Regex animationNameRE = new Regex("^(?:-\\w+-)?animation-name$");
+Regex animationRE = new Regex("^(?:-\\w+-)?animation$");
+Regex keyframesRE = new Regex("^(?:-\\w+-)?keyframes$");
+Regex spaceCombinatorRE = new Regex("^\\s+$");
+
+int scopedLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+
+void scopedPush(JsValue values, JsValue value) {
+  values[scopedLength(values)] = value;
+}
+
+bool isSpaceCombinator(JsValue node) {
+  return JS.string(node["type"]) == "combinator" &&
+    spaceCombinatorRE.test(JS.string(node["value"]));
+}
+
+bool isDeepContainerPseudo(JsValue node) {
+  if (JS.string(node["type"]) != "pseudo") return false;
+  string value = JS.string(node["value"]);
+  return value == ":is" || value == ":where" || value == ":has" ||
+    value == ":not";
+}
+
+bool canSplitDeepContainerPseudo(JsValue node) {
+  string value = JS.string(node["value"]);
+  return value == ":is" || value == ":where" || value == ":has";
+}
+
+bool isDeepSelector(JsValue node) {
+  string type = JS.string(node["type"]);
+  string value = JS.string(node["value"]);
+  if (type == "pseudo" && (value == ":deep" || value == "::v-deep")) {
+    return true;
+  }
+  JsValue children = node["nodes"];
+  if (children.truthy()) {
+    for (int index = 0; index < scopedLength(children); index++) {
+      if (isDeepSelector(children[index])) return true;
+    }
+  }
+  return false;
+}
+
+bool selectorHasDeep(JsValue selector) {
+  JsValue nodes = selector["nodes"];
+  for (int index = 0; index < scopedLength(nodes); index++) {
+    if (isDeepSelector(nodes[index])) return true;
+  }
+  return false;
+}
+
+JsValue processedRules = JS.construct(WeakSet);
+
+void processRule(string id, JsValue rule) {
+  if (JS.invoke(processedRules, "has", rule).truthy()) return;
+  JsValue parent = rule["parent"];
+  if (parent.truthy() && JS.string(parent["type"]) == "atrule" &&
+    keyframesRE.test(JS.string(parent["name"]))) return;
+  JS.invoke(processedRules, "add", rule);
+  bool deep = false;
+  while (parent.truthy() && JS.string(parent["type"]) != "root") {
+    if (parent["__deep"].truthy()) {
+      deep = true;
+      break;
+    }
+    parent = parent["parent"];
+  }
+  JsValue selectorRootCallback = JS.method1((JsValue _self, JsValue selectorRoot) => {
+    JsValue eachSelector = JS.method1((JsValue _eachSelf, JsValue selector) => {
+      rewriteSelector(id, rule, selector, selectorRoot, deep, false);
+      return JS.undefined();
+    });
+    JS.invoke(selectorRoot, "each", eachSelector);
+    return JS.undefined();
+  });
+  JsValue processor = JS.call(
+    scopedSelectorParser,
+    JS.undefined(),
+    selectorRootCallback
+  );
+  rule["selector"] = JS.invoke(processor, "processSync", rule["selector"]);
+}
+
+void rewriteSelector(
+  string id,
+  JsValue rule,
+  JsValue selector,
+  JsValue selectorRoot,
+  bool deep,
+  bool slotted = false
+) {
+  JsValue node = null;
+  bool shouldInject = !deep;
+  bool hasNestedDeep = false;
+  bool splitForNestedDeep = false;
+  JsValue visit = JS.method1((JsValue _self, JsValue current) => {
+    string type = JS.string(current["type"]);
+    string value = JS.string(current["value"]);
+    if (type == "combinator" && (value == ">>>" || value == "/deep/")) {
+      current["value"] = " ";
+      current["spaces"]["before"] = "";
+      current["spaces"]["after"] = "";
+      scopedWarn(
+        "the >>> and /deep/ combinators have been deprecated. " +
+          "Use :deep() instead."
+      );
+      return false;
+    }
+    if (type == "pseudo") {
+      if (isDeepContainerPseudo(current)) {
+        JsValue branches = current["nodes"];
+        bool hasDeepSelectors = false;
+        bool hasMixedSelectors = false;
+        for (int index = 0; index < scopedLength(branches); index++) {
+          if (selectorHasDeep(branches[index])) hasDeepSelectors = true;
+          else hasMixedSelectors = true;
+        }
+        if (hasDeepSelectors) {
+          bool hasScopeAnchor = !JS.isNullish(node);
+          bool hasTrailingNodes = JS.number(JS.invoke(selector, "index", current)).toInt() <
+            scopedLength(selector) - 1;
+          if (canSplitDeepContainerPseudo(current) && !deep && !hasScopeAnchor &&
+            hasMixedSelectors && hasTrailingNodes) {
+            splitSelectorForNestedDeep(
+              id,
+              rule,
+              selector,
+              selectorRoot,
+              current,
+              deep,
+              slotted
+            );
+            splitForNestedDeep = true;
+            return false;
+          }
+          if (value == ":not" && !deep && !hasScopeAnchor &&
+            hasMixedSelectors && hasTrailingNodes) return JS.undefined();
+          for (int index = 0; index < scopedLength(branches); index++) {
+            rewriteSelector(
+              id,
+              rule,
+              branches[index],
+              selectorRoot,
+              deep || hasScopeAnchor,
+              slotted
+            );
+          }
+          if (!hasScopeAnchor) {
+            node = current;
+            shouldInject = false;
+          }
+          hasNestedDeep = true;
+        }
+      }
+      if (value == ":deep" || value == "::v-deep") {
+        rule["__deep"] = true;
+        if (scopedLength(current["nodes"]) > 0) {
+          JsValue last = current;
+          JsValue innerVisit = JS.method1((JsValue _innerSelf, JsValue inner) => {
+            JS.invoke(selector, "insertAfter", last, inner);
+            last = inner;
+            return JS.undefined();
+          });
+          JS.invoke(current["nodes"][0], "each", innerVisit);
+          int currentIndex = JS.number(JS.invoke(selector, "index", current)).toInt();
+          JsValue previous = JS.invoke(selector, "at", currentIndex - 1);
+          if (!previous.truthy() || !isSpaceCombinator(previous)) {
+            JsValue combinator = JS.call(
+              scopedSelectorParser["combinator"],
+              scopedSelectorParser,
+              JS.object("value", " ")
+            );
+            JS.invoke(selector, "insertAfter", current, combinator);
+          }
+          JS.invoke(selector, "removeChild", current);
+        } else {
+          scopedWarn(
+            value + " usage as a combinator has been deprecated. " +
+              "Use :deep(<inner-selector>) instead of " + value +
+              " <inner-selector>."
+          );
+          int currentIndex = JS.number(JS.invoke(selector, "index", current)).toInt();
+          JsValue previous = JS.invoke(selector, "at", currentIndex - 1);
+          if (previous.truthy() && isSpaceCombinator(previous)) {
+            JS.invoke(selector, "removeChild", previous);
+          }
+          JS.invoke(selector, "removeChild", current);
+        }
+        return false;
+      }
+      if (value == ":slotted" || value == "::v-slotted") {
+        rewriteSelector(
+          id,
+          rule,
+          current["nodes"][0],
+          selectorRoot,
+          deep,
+          true
+        );
+        JsValue last = current;
+        JsValue innerVisit = JS.method1((JsValue _innerSelf, JsValue inner) => {
+          JS.invoke(selector, "insertAfter", last, inner);
+          last = inner;
+          return JS.undefined();
+        });
+        JS.invoke(current["nodes"][0], "each", innerVisit);
+        JS.invoke(selector, "removeChild", current);
+        shouldInject = false;
+        return false;
+      }
+      if (value == ":global" || value == "::v-global") {
+        JS.invoke(selector, "replaceWith", current["nodes"][0]);
+        return false;
+      }
+    }
+    if (type == "universal") {
+      int currentIndex = JS.number(JS.invoke(selector, "index", current)).toInt();
+      JsValue previous = JS.invoke(selector, "at", currentIndex - 1);
+      JsValue next = JS.invoke(selector, "at", currentIndex + 1);
+      if (!previous.truthy()) {
+        if (next.truthy()) {
+          if (JS.string(next["type"]) == "combinator" &&
+            JS.string(next["value"]) == " ") {
+            JS.invoke(selector, "removeChild", next);
+          }
+          JS.invoke(selector, "removeChild", current);
+          return JS.undefined();
+        }
+        node = JS.call(
+          scopedSelectorParser["combinator"],
+          scopedSelectorParser,
+          JS.object("value", "")
+        );
+        JS.invoke(selector, "insertBefore", current, node);
+        JS.invoke(selector, "removeChild", current);
+        return false;
+      }
+      if (node.truthy()) return JS.undefined();
+    }
+    if (!hasNestedDeep &&
+      ((type != "pseudo" && type != "combinator") ||
+        (type == "pseudo" && (value == ":is" || value == ":where") &&
+          !node.truthy()))) node = current;
+    return JS.undefined();
+  });
+  JS.invoke(selector, "each", visit);
+  if (splitForNestedDeep) return;
+
+  JsValue ruleNodes = rule["nodes"];
+  bool hasNestedRule = false;
+  for (int index = 0; index < scopedLength(ruleNodes); index++) {
+    if (JS.string(ruleNodes[index]["type"]) == "rule") hasNestedRule = true;
+  }
+  if (hasNestedRule) {
+    bool ruleDeep = rule["__deep"].truthy();
+    if (!ruleDeep) {
+      extractAndWrapNodes(rule);
+      JsValue atRuleNodes = JS.array();
+      for (int index = 0; index < scopedLength(ruleNodes); index++) {
+        if (JS.string(ruleNodes[index]["type"]) == "atrule") {
+          scopedPush(atRuleNodes, ruleNodes[index]);
+        }
+      }
+      for (int index = 0; index < scopedLength(atRuleNodes); index++) {
+        extractAndWrapNodes(atRuleNodes[index]);
+      }
+    }
+    shouldInject = ruleDeep;
+  }
+
+  if (node.truthy() && !hasNestedDeep) {
+    string type = JS.string(node["type"]);
+    string value = JS.string(node["value"]);
+    if (type == "pseudo" && (value == ":is" || value == ":where")) {
+      JsValue branches = node["nodes"];
+      for (int index = 0; index < scopedLength(branches); index++) {
+        rewriteSelector(
+          id,
+          rule,
+          branches[index],
+          selectorRoot,
+          deep,
+          slotted
+        );
+      }
+      shouldInject = false;
+    }
+  }
+  if (node.truthy()) node["spaces"]["after"] = "";
+  else selector["first"]["spaces"]["before"] = "";
+  if (shouldInject) {
+    string idToAdd = id;
+    if (slotted) idToAdd += "-s";
+    JsValue attribute = JS.call(
+      scopedSelectorParser["attribute"],
+      scopedSelectorParser,
+      JS.object(
+        "attribute", idToAdd,
+        "value", idToAdd,
+        "raws", JS.object(),
+        "quoteMark", "\""
+      )
+    );
+    JS.invoke(selector, "insertAfter", node, attribute);
+  }
+}
+
+void splitSelectorForNestedDeep(
+  string id,
+  JsValue rule,
+  JsValue selector,
+  JsValue selectorRoot,
+  JsValue pseudo,
+  bool deep,
+  bool slotted
+) {
+  int pseudoIndex = JS.number(JS.invoke(selector, "index", pseudo)).toInt();
+  JsValue selectors = JS.array();
+  JsValue branches = pseudo["nodes"];
+  for (int index = 0; index < scopedLength(branches); index++) {
+    JsValue branch = branches[index];
+    JsValue branchSelector = JS.invoke(selector, "clone");
+    if (branchSelector["first"].truthy()) {
+      if (index == 0) {
+        branchSelector["first"]["spaces"]["before"] =
+          selector["first"]["spaces"]["before"];
+      } else branchSelector["first"]["spaces"]["before"] = " ";
+    }
+    JsValue branchPseudo = JS.invoke(branchSelector, "at", pseudoIndex);
+    JsValue branchClone = JS.invoke(branch, "clone");
+    if (branchClone["first"].truthy()) {
+      branchClone["first"]["spaces"]["before"] = "";
+    }
+    JS.invoke(branchPseudo, "removeAll");
+    JS.invoke(branchPseudo, "append", branchClone);
+    rewriteSelector(id, rule, branchSelector, selectorRoot, deep, slotted);
+    scopedPush(selectors, branchSelector);
+  }
+  JS.call(scopedApply, JS.undefined(), selector["replaceWith"], selector, selectors);
+}
+
+void extractAndWrapNodes(JsValue parentNode) {
+  if (!parentNode["nodes"].truthy()) return;
+  JsValue nodes = JS.array();
+  JsValue children = parentNode["nodes"];
+  for (int index = 0; index < scopedLength(children); index++) {
+    string type = JS.string(children[index]["type"]);
+    if (type == "decl" || type == "comment") scopedPush(nodes, children[index]);
+  }
+  if (scopedLength(nodes) == 0) return;
+  for (int index = 0; index < scopedLength(nodes); index++) {
+    JS.invoke(parentNode, "removeChild", nodes[index]);
+  }
+  JsValue wrappedRule = JS.construct(
+    ScopedRule,
+    JS.object("nodes", nodes, "selector", "&")
+  );
+  JS.invoke(parentNode, "prepend", wrappedRule);
+}
+
+export JsValue scopedPlugin = JS.method1((JsValue _self, JsValue rawId) => {
+  string id = "";
+  if (!JS.isUndefined(rawId)) id = JS.string(rawId);
+  JsValue keyframes = JS.call(scopedCreateNullObject, JS.undefined());
+  string shortId = JS.string(JS.invoke(id, "replace", new Regex("^data-v-"), ""));
+  JsValue ruleVisitor = JS.method1((JsValue _ruleSelf, JsValue rule) => {
+    processRule(id, rule);
+    return JS.undefined();
+  });
+  JsValue atRuleVisitor = JS.method1((JsValue _atSelf, JsValue node) => {
+    string name = JS.string(node["name"]);
+    string params = JS.string(node["params"]);
+    if (keyframesRE.test(name) && !params.endsWith("-" + shortId)) {
+      string renamed = params + "-" + shortId;
+      node["params"] = renamed;
+      keyframes[params] = renamed;
+    }
+    return JS.undefined();
+  });
+  JsValue onceExit = JS.method1((JsValue _exitSelf, JsValue root) => {
+    JsValue keys = JS.call(scopedKeys, JS.undefined(), keyframes);
+    if (scopedLength(keys) > 0) {
+      JsValue declarationVisitor = JS.method1((JsValue _declSelf, JsValue declaration) => {
+        string property = JS.string(declaration["prop"]);
+        if (animationNameRE.test(property)) {
+          JsValue values = JS.invoke(declaration["value"], "split", ",");
+          for (int index = 0; index < scopedLength(values); index++) {
+            string value = JS.string(values[index]).trim();
+            if (keyframes[value].truthy()) values[index] = keyframes[value];
+            else values[index] = value;
+          }
+          declaration["value"] = JS.invoke(values, "join", ",");
+        }
+        if (animationRE.test(property)) {
+          JsValue groups = JS.invoke(declaration["value"], "split", ",");
+          for (int groupIndex = 0; groupIndex < scopedLength(groups); groupIndex++) {
+            string original = JS.string(groups[groupIndex]);
+            JsValue values = JS.invoke(original.trim(), "split", new Regex("\\s+"));
+            int found = -1;
+            for (int index = 0; index < scopedLength(values); index++) {
+              if (keyframes[JS.string(values[index])].truthy()) {
+                found = index;
+                break;
+              }
+            }
+            if (found != -1) {
+              JS.invoke(values, "splice", found, 1, keyframes[JS.string(values[found])]);
+              groups[groupIndex] = JS.invoke(values, "join", " ");
+            } else groups[groupIndex] = original;
+          }
+          declaration["value"] = JS.invoke(groups, "join", ",");
+        }
+        return JS.undefined();
+      });
+      JS.invoke(root, "walkDecls", declarationVisitor);
+    }
+    return JS.undefined();
+  });
+  return JS.object(
+    "postcssPlugin", "vue-sfc-scoped",
+    "Rule", ruleVisitor,
+    "AtRule", atRuleVisitor,
+    "OnceExit", onceExit
+  );
+});
+scopedPlugin["postcss"] = true;

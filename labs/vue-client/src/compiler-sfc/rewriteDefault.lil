@@ -1,0 +1,160 @@
+import extern { parse as rewriteBabelParse } from "@babel/parser";
+import extern { default as RewriteMagicString } from "magic-string";
+import { resolveParserPlugins } from "./script/context";
+
+extern JsValue RewriteMagicString;
+extern JsValue rewriteBabelParse;
+
+int rewriteLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+
+export string rewriteDefault(
+  string input,
+  string asName,
+  JsValue parserPlugins = JS.undefined()
+) {
+  JsValue options = JS.object(
+    "sourceType", "module",
+    "plugins", resolveParserPlugins("js", parserPlugins, false)
+  );
+  JsValue ast = JS.call(rewriteBabelParse, JS.undefined(), input, options)["program"]["body"];
+  JsValue magic = JS.construct(RewriteMagicString, input);
+  rewriteDefaultAST(ast, magic, asName);
+  return JS.string(JS.invoke(magic, "toString"));
+}
+
+export void rewriteDefaultAST(JsValue ast, JsValue magic, string asName) {
+  if (!hasDefaultExport(ast)) {
+    JS.invoke(magic, "append", "\nconst " + asName + " = {}");
+    return;
+  }
+  for (int index = 0; index < rewriteLength(ast); index++) {
+    JsValue node = ast[index];
+    string type = JS.string(node["type"]);
+    if (type == "ExportDefaultDeclaration") {
+      JsValue declaration = node["declaration"];
+      if (JS.string(declaration["type"]) == "ClassDeclaration" &&
+        declaration["id"].truthy()) {
+        int start = JS.number(node["start"]).toInt();
+        JsValue decorators = declaration["decorators"];
+        if (decorators.truthy() && rewriteLength(decorators) > 0) {
+          start = JS.number(decorators[rewriteLength(decorators) - 1]["end"]).toInt();
+        }
+        JS.invoke(
+          magic,
+          "overwrite",
+          start,
+          JS.number(declaration["id"]["start"]).toInt(),
+          " class "
+        );
+        JS.invoke(
+          magic,
+          "append",
+          "\nconst " + asName + " = " + JS.string(declaration["id"]["name"])
+        );
+      } else {
+        JS.invoke(
+          magic,
+          "overwrite",
+          JS.number(node["start"]).toInt(),
+          JS.number(declaration["start"]).toInt(),
+          "const " + asName + " = "
+        );
+      }
+    } else if (type == "ExportNamedDeclaration") {
+      JsValue specifiers = node["specifiers"];
+      for (int specifierIndex = 0;
+        specifierIndex < rewriteLength(specifiers);
+        specifierIndex++) {
+        JsValue specifier = specifiers[specifierIndex];
+        if (JS.string(specifier["type"]) != "ExportSpecifier" ||
+          JS.string(specifier["exported"]["type"]) != "Identifier" ||
+          JS.string(specifier["exported"]["name"]) != "default") continue;
+        JsValue source = node["source"];
+        if (source.truthy()) {
+          string imported = "default";
+          int end = JS.number(specifier["local"]["end"]).toInt();
+          if (JS.string(specifier["local"]["name"]) != "default") {
+            imported = JS.string(JS.invoke(
+              magic,
+              "slice",
+              JS.number(specifier["local"]["start"]).toInt(),
+              JS.number(specifier["local"]["end"]).toInt()
+            ));
+            end = JS.number(specifier["exported"]["end"]).toInt();
+          }
+          JS.invoke(
+            magic,
+            "prepend",
+            "import { " + imported + " as __VUE_DEFAULT__ } from '" +
+              JS.string(source["value"]) + "'\n"
+          );
+          end = specifierEnd(magic, end, JS.number(node["end"]).toInt());
+          JS.invoke(
+            magic,
+            "remove",
+            JS.number(specifier["start"]).toInt(),
+            end
+          );
+          JS.invoke(magic, "append", "\nconst " + asName + " = __VUE_DEFAULT__");
+          continue;
+        }
+        int end = specifierEnd(
+          magic,
+          JS.number(specifier["end"]).toInt(),
+          JS.number(node["end"]).toInt()
+        );
+        JS.invoke(
+          magic,
+          "remove",
+          JS.number(specifier["start"]).toInt(),
+          end
+        );
+        JS.invoke(
+          magic,
+          "append",
+          "\nconst " + asName + " = " + JS.string(specifier["local"]["name"])
+        );
+      }
+    }
+  }
+}
+
+export bool hasDefaultExport(JsValue ast) {
+  for (int index = 0; index < rewriteLength(ast); index++) {
+    JsValue statement = ast[index];
+    if (JS.string(statement["type"]) == "ExportDefaultDeclaration") return true;
+    if (JS.string(statement["type"]) == "ExportNamedDeclaration") {
+      JsValue specifiers = statement["specifiers"];
+      for (int specifierIndex = 0;
+        specifierIndex < rewriteLength(specifiers);
+        specifierIndex++) {
+        if (JS.string(specifiers[specifierIndex]["exported"]["name"]) == "default") {
+          return true;
+        }
+      }
+    }
+  }
+  return false;
+}
+
+int specifierEnd(JsValue magic, int end, int nodeEnd) {
+  bool hasCommas = false;
+  int oldEnd = end;
+  Regex whitespace = new Regex("\\s");
+  while (end < nodeEnd) {
+    string character = JS.string(JS.invoke(magic, "slice", end, end + 1));
+    if (whitespace.test(character)) {
+      end++;
+    } else if (character == ",") {
+      end++;
+      hasCommas = true;
+      break;
+    } else if (character == "}") {
+      break;
+    }
+  }
+  if (hasCommas) return end;
+  return oldEnd;
+}

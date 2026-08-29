@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "provenance": {
+    "generatedAt": "2026-08-28T19:59:11.603Z",
+    "upstreamRepository": "https://github.com/krausest/js-framework-benchmark.git",
+    "upstreamCommit": "afe7c118dd217ccae4c10813613ac0d7566b1ef1",
+    "lilscriptCommit": "bcef1c42efa5df287af76bfe1a7eca9bba9ccc46",
+    "compilerSha256": "36f420798b32f788f6d0d1b2b72fad97a93ec2b63e18e63f2d531c4e4079dd67",
+    "node": "v24.20.0",
+    "chrome": "Google Chrome 151.0.7922.175",
+    "platform": "darwin 24.6.0 arm64",
+    "cpu": "Apple M3 Pro",
+    "logicalCpuCount": 12,
+    "totalMemoryBytes": 19327352832
+  },
+  "configuration": {
+    "runner": "upstream Playwright implementation",
+    "browser": "installed Google Chrome",
+    "blocks": 15,
+    "seed": 20260814,
+    "cpuThrottling": true,
+    "warmups": "upstream workload-specific warmupCount",
+    "memoryCollection": "forceGC + performance.measureUserAgentSpecificMemory",
+    "coldLoad": "fresh browser context with an empty cache",
+    "brotliQuality": 11,
+    "frameworkFilter": "keyed/solid-v2,keyed/solidlil-v2",
+    "measurementFingerprint": "d4f8b2d0175509f823fd7f5728a0bc0375657ca4bac45c56bd173925ab5ceb62"
+  },
+  "sizes": {
+    "solid-v2-v2.0.0-rc.0-keyed": {
+      "pageRawBytes": 32666,
+      "pageBrotliBytes": 11520,
+      "firstPaintMs": 144.16999998688698,
+      "bundle": {
+        "files": [
+          {
+            "file": "main.js",
+            "rawBytes": 32401,
+            "brotliBytes": 11255,
+            "gzipBytes": 12319,
+            "sha256": "8a7e084437435fa86ca3e06c43b5761aa0aba489eb91c5444417ac36583b1e39"
+          }
+        ],
+        "rawBytes": 32401,
+        "brotliBytes": 11255,
+        "gzipBytes": 12319
+      }
+    },
+    "solidlil-v2-v0.1.1-keyed": {
+      "pageRawBytes": 9569,
+      "pageBrotliBytes": 3678,
+      "firstPaintMs": 81.16499999165535,
+      "bundle": {
+        "files": [
+          {
+            "file": "main.js",
+            "rawBytes": 9305,
+            "brotliBytes": 3414,
+            "gzipBytes": 3789,
+            "sha256": "9aed5d82980ffc45b0f78e48bfebd0bfa0ed8b3b9a9fe3915e2c045c5dedcd49"
+          }
+        ],
+        "rawBytes": 9305,
+        "brotliBytes": 3414,
+        "gzipBytes": 3789
+      }
+    }
+  },
+  "samples": [],
+  "completedAt": "2026-08-28T19:59:15.141Z"
+}

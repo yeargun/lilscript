@@ -1,23 +1,20 @@
 # Compilation
 
-The compiler turns a closed, typed module graph into JavaScript (and optionally
-C/native). Contested choices are **supposed** to be decided by complete-artifact
-codec scores under a configured objective
-([objectives](objectives.md)). [Current architecture](current-architecture.md)
-records where that is true; [goal architecture](goal-architecture.md) defines
-the replacement decision system. [Decision registry](decision-registry.md)
-catalogs known varying behavior and gaps in that catalog.
+Parent: [knowledge tree](../README.md). Intent: [mission](../mission.md).
+Durable rationale: [design decisions](../decisions/README.md). Live state:
+[`docs/current-status.md`](../../current-status.md).
 
-Parent: [Mission](../mission.md). Language: [Language](../language/README.md).
-Knobs: [Config](../config/README.md). Plan:
-[07](../migration/07-global-compressor.md).
+The compiler turns a closed typed module graph into JavaScript and, for the
+portable subset, C/native. Correctness and boundary contracts constrain legal
+artifacts; the configured objective ranks only legal alternatives.
 
 ## Overview
 
+- [Architecture router](architecture.md) — authority and reading order
 - [Current architecture](current-architecture.md) — implemented pipeline and gaps
-- [Goal architecture](goal-architecture.md) — solver model, pseudocode, and guarantees
+- [Planned architecture](planned-architecture.md) — smallest intended replacement
 - [Objectives](objectives.md) — size/performance × raw/gzip/Brotli; exact vs heuristic
-- [Decision registry](decision-registry.md) — proof, incumbent, scored, or heuristic
+- [Decision registry](decision-registry.md) — implemented choice census
 - [Global optima](global-optima.md) — why local “smaller” can lose gzip/Brotli
 - [Pipeline](pipeline.md) — stages, single vs split vs native
 
@@ -40,7 +37,7 @@ Knobs: [Config](../config/README.md). Plan:
 - [Emission](javascript-emission.md) — spelling, `IrJsOptions`
 - [Mangling, layout, pooling](mangling-layout-pooling.md)
 - [Candidate search](candidate-search.md) — two-level search, beam, budgets
-- [Peephole](peephole.md) — parsed JS; scored in production, unscored when search is off
+- [Peephole](peephole.md) — parsed generated-JS migration layer
 - [Chunk planning](chunk-planning.md)
 
 ## Native and correctness
@@ -48,12 +45,10 @@ Knobs: [Config](../config/README.md). Plan:
 - [Native backend](native-backend.md)
 - [Correctness and fallbacks](correctness-fallbacks.md)
 
-## Invariants
+## Planning
 
-1. The configured optimizer and emission are always a candidate. Experimental variants that fail to compile are dropped.
-2. Search **usually** does not enable a tactic omitted from the exact `javascript.compression` allowlist. Exceptions: size-first search-only names (`indexed-char-at`), and the unconditional `elide_length_tonumber` flip.
-3. `[optimization] foo = false` is a hard off.
-4. Type checking and mandatory IR normalization do not depend on `priority` or `optimization_level`.
-5. Split/preserve-modules still whole-program optimize before any chunk boundary.
-
-Layout search is off in root `lilscript.toml` (no `joint-representation-search`). Brotli packing cannot be re-enabled by the Cartesian beam.
+- [Planned migration](../migration/planned-migration.md) is the executable order.
+- [Ledger](../migration/board/LEDGER.md) is live task state.
+- [Goal architecture](goal-architecture.md) and
+  [phase 07](../migration/07-global-compressor.md) are archived design history;
+  they do not override the smaller current plan.

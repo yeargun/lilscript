@@ -21,6 +21,7 @@ if (!supported) {
 LILSCRIPT_STATISTICAL_SAMPLES=401
 export LILSCRIPT_STATISTICAL_SAMPLES
 "$CARGO" fmt --all -- --check
+node "$ROOT/scripts/check-doc-links.mjs"
 "$CARGO" clippy --all-targets -- -D warnings
 "$CARGO" test --all-targets
 "$ROOT/scripts/verify.sh"

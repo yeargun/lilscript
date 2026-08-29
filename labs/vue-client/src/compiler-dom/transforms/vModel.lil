@@ -1,0 +1,121 @@
+import extern {
+  ElementTypes,
+  NodeTypes,
+  findDir,
+  findProp,
+  hasDynamicKeyVBind,
+  isStaticArgOf,
+  transformModel as coreTransformModel
+} from "../../../packages/vuelil/compiler-core.js";
+import { DOMErrorCodes, createDOMCompilerError } from "../errors";
+import {
+  V_MODEL_CHECKBOX,
+  V_MODEL_DYNAMIC,
+  V_MODEL_RADIO,
+  V_MODEL_SELECT,
+  V_MODEL_TEXT
+} from "../runtimeHelpers";
+
+extern JsValue ElementTypes;
+extern JsValue NodeTypes;
+extern JsValue findDir;
+extern JsValue findProp;
+extern JsValue hasDynamicKeyVBind;
+extern JsValue isStaticArgOf;
+extern JsValue coreTransformModel;
+
+JsValue domModelUndefined() {
+  return JS.undefined();
+}
+
+void reportModelError(JsValue context, string code, JsValue loc) {
+  JS.invoke(
+    context,
+    "onError",
+    createDOMCompilerError(JS.number(DOMErrorCodes[code]).toInt(), loc)
+  );
+}
+
+void checkDuplicatedModelValue(JsValue node, JsValue context) {
+  JsValue value = JS.call(findDir, domModelUndefined(), node, "bind");
+  if (
+    value.truthy() &&
+    JS.call(isStaticArgOf, domModelUndefined(), value["arg"], "value").truthy()
+  ) {
+    reportModelError(context, "X_V_MODEL_UNNECESSARY_VALUE", value["loc"]);
+  }
+}
+
+export JsValue transformModel(JsValue directive, JsValue node, JsValue context) {
+  JsValue result = JS.call(
+    coreTransformModel,
+    domModelUndefined(),
+    directive,
+    node,
+    context
+  );
+  if (
+    JS.number(result["props"]["length"]).toInt() == 0 ||
+    JS.strictEqual(node["tagType"], ElementTypes["COMPONENT"])
+  ) return result;
+
+  if (directive["arg"].truthy()) {
+    reportModelError(context, "X_V_MODEL_ARG_ON_ELEMENT", directive["arg"]["loc"]);
+  }
+
+  string tag = JS.string(node["tag"]);
+  bool customElement = JS.invoke(context, "isCustomElement", tag).truthy();
+  if (tag == "input" || tag == "textarea" || tag == "select" || customElement) {
+    JsValue directiveToUse = V_MODEL_TEXT;
+    bool invalidType = false;
+    if (tag == "input" || customElement) {
+      JsValue type = JS.call(findProp, domModelUndefined(), node, "type");
+      if (type.truthy()) {
+        if (JS.strictEqual(type["type"], NodeTypes["DIRECTIVE"])) {
+          directiveToUse = V_MODEL_DYNAMIC;
+        } else if (type["value"].truthy()) {
+          string typeName = JS.string(type["value"]["content"]);
+          if (typeName == "radio") directiveToUse = V_MODEL_RADIO;
+          else if (typeName == "checkbox") directiveToUse = V_MODEL_CHECKBOX;
+          else if (typeName == "file") {
+            invalidType = true;
+            reportModelError(
+              context,
+              "X_V_MODEL_ON_FILE_INPUT_ELEMENT",
+              directive["loc"]
+            );
+          } else {
+            checkDuplicatedModelValue(node, context);
+          }
+        }
+      } else if (
+        JS.call(hasDynamicKeyVBind, domModelUndefined(), node).truthy()
+      ) {
+        directiveToUse = V_MODEL_DYNAMIC;
+      } else {
+        checkDuplicatedModelValue(node, context);
+      }
+    } else if (tag == "select") {
+      directiveToUse = V_MODEL_SELECT;
+    } else {
+      checkDuplicatedModelValue(node, context);
+    }
+    if (!invalidType) {
+      result["needRuntime"] = JS.invoke(context, "helper", directiveToUse);
+    }
+  } else {
+    reportModelError(context, "X_V_MODEL_ON_INVALID_ELEMENT", directive["loc"]);
+  }
+
+  JsValue filtered = JS.array();
+  JsValue properties = result["props"];
+  for (int index = 0; index < JS.number(properties["length"]).toInt(); index++) {
+    JsValue property = properties[index];
+    bool modelValue =
+      JS.strictEqual(property["key"]["type"], NodeTypes["SIMPLE_EXPRESSION"]) &&
+      JS.string(property["key"]["content"]) == "modelValue";
+    if (!modelValue) filtered[JS.number(filtered["length"]).toInt()] = property;
+  }
+  result["props"] = filtered;
+  return result;
+}

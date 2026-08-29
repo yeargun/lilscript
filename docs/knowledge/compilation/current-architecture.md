@@ -1,283 +1,191 @@
 # Current compiler architecture
 
-Status: implemented behavior in this checkout. Goal architecture:
-[goal architecture](goal-architecture.md).
+Authority: source and tests. Status snapshot:
+[`docs/current-status.md`](../../current-status.md). Parent:
+[compilation](README.md). Target: [planned architecture](planned-architecture.md).
 
-Parent: [Compilation](README.md). Behavior catalog:
-[decision registry](decision-registry.md). Ranking math:
-[objectives](objectives.md). Language leverage:
-[compressor surface](../language/compressor-surface.md). Mission:
-[mission](../mission.md). Plan:
-[07 — global compressor](../migration/07-global-compressor.md).
+This page describes implemented behavior in the 2026-08-29 checkout. It does
+not turn current limitations into design goals.
 
-Snapshot of **what the compiler is**, not what the comments wish it were.
-Date of this reading: 2026-08-28.
+## System Shape
 
-## Implemented thesis
+```text
+source graph + config
+  -> parse and link
+  -> semantic analysis
+  -> typed CFG/SSA lowering with operation provenance
+  -> JavaScript optimization/selection
+       configured IR incumbent
+       scored IR variants
+       emission options and scored families
+       generated-JS contraction/naming challengers
+       exact complete-artifact ranking
+  -> JavaScript artifact or chunk set
 
-The implementation already combines:
-
-- a closed typed module graph and whole-program facts;
-- typed CFG/SSA optimization and representation lowering;
-- multiple optimizer and emission variants;
-- exact scoring of emitted artifacts with pinned raw, gzip, or Brotli metrics;
-- a separate native/C optimization path from the same lowered IR.
-
-`optimize_and_select_javascript`, two-level search, bundled zlib 1.3.1 / Brotli
-1.1.0 scorers, `[optimization]` vs `javascript.compression` vs
-`javascript.optimizations`, typed `extern`, scalar replacement, positional
-fields, and entropy-aware mangling are production code. Search is bounded and
-heuristic; exact codec measurement does not make the explored domain exhaustive.
-The [goal architecture](goal-architecture.md) specifies the replacement decision
-system. This page records the current gaps.
-
-## What “glue” means here
-
-Glue is a locally motivated rewrite, port workaround, or compact-is-better
-default that is **not** expressed as (proof → legal representations → complete
-artifact score). It includes:
-
-- a fold that repairs invalid or identity-wrong JS the emitter produced;
-- a `cost_model` `if` that disables a spelling search cannot turn back on;
-- an IR pass with no competing “don’t” candidate (scalar replacement);
-- a sequential beam family that never runs because the proposal ledger emptied;
-- a library-shaped assumption (`assume_pure_property_reads`) papering over a
-  language hole;
-- reconstructing ES class identity in user-space `JS.method*` /
-  `Object.defineProperty` because `export class` is type-only.
-
-The board’s standing refusal is “no glue.” The compiler still contains glue
-because search, identity, and representation were grown as patches on a
-working pipeline rather than as one decision system.
-
-## The real pipeline
-
-Configured path compilation (`src/compiler.rs`, `src/module.rs`):
-
-```
-toml → discover → parse → link → semantic → lower to CFG
-    → optimize_and_select_javascript
-         IR clones (inlining/specialization/compress/phase-order)
-         emit each finalist with IrJsOptions
-         sequential emission-beam families
-         terminal peephole / cleanup / naming (budgeted)
-    → optional native: clone of the **lowered** IR, optimized with
-      `optimizer_options()` / `[native]`, not the JS search winner
+lowered IR clone
+  -> native-specific optimization
+  -> C/native artifact for the portable subset
 ```
 
-Legacy `src/codegen_js.rs` is AST-direct. New size tactics do not belong there.
+`src/codegen_js.rs` is a facade into the IR path; new production optimization
+belongs in typed IR, `src/codegen_ir_js.rs`, the decision registry, or the
+target-side migration layer.
 
-`--mode development` and `candidate_search = off` skip multi-IR/emission
-expansion and zero the optional terminal codec budget. The configured pipeline
-still runs. Parsed peephole, if configured, then applies
-**unscored** (`apply_search_off_declaration_peephole`). That is a different
-compiler than production search, not a fast approximation of the same one.
+## Contract And Objective
 
-`split` whole-program optimizes once, then scores chunk plans with
-`score_javascript_chunk_plan`. With `joint-chunk-symbol-search`, it also scores
-`function_layout` and `local_name_reserve` variants; it does not rerun the
-single-file identifier-alphabet beam. `preserve-modules` uses fixed source
-partitions and configured `js_options()` rather than the chunk-plan scorer. Root
-compression omits `joint-chunk-symbol-search`.
+`src/compilation_contract.rs` defines:
 
-## The semantic firewall is missing
+- `JavaScriptCompilationContract` for world, syntax target, ABI policy, unsafe
+  assumptions, and effect-removal policy;
+- `JavaScriptOptimizationObjective` for transfer metric and priority;
+- `JavaScriptAbiManifest` derived from typed IR.
 
-The current pipeline does not materialize one immutable distinction between:
+`src/compiler.rs` compares the pre-selection and selected-IR manifests. This
+prevents some optimizer drift, but it is not a complete emitted-ABI gate:
 
-- language semantics;
-- closed-application versus reusable-library ABI;
-- explicit source lowering intent;
-- unsafe host assumptions;
-- objective and search policy.
+- the manifest is source/IR-derived rather than extracted from final artifacts;
+- fields are not owner-qualified and ordered for every public boundary;
+- ESM live bindings, lazy/module identity, descriptors, emitted export spelling,
+  and all host interactions are not fully represented;
+- single, split, and preserve-module paths do not yet share one contract and
+  observed-artifact validation path;
+- compilation world is still coupled too closely to module output.
 
-Those concerns meet in `JavaScriptConfig`, `OptimizationOptions`, and
-`IrJsOptions`. The first narrow exception now exists: source `value | 0` carries
-`LoweringObligation::PreserveJavaScriptBitOrZero`; generated normalization for
-other `int` operations remains emitter-owned, and candidates with a live
-obligation skip text rewrites that cannot preserve it. General stable `NodeId`
-provenance and target-AST obligation tracking do not exist yet.
+These are active correctness boundaries. The planned design separates world,
+artifact format, and boundary roots and compares expected ABI with an observed
+artifact witness.
 
-The proposed separation into contracts, objectives, and durable provenance is
-specified in [goal architecture](goal-architecture.md#semantic-firewall).
+## Typed IR And Proofs
 
-## Two optimizers, not one
+`src/ir.rs` and `src/lower.rs` retain source/generated operation origin and
+optional `NodeId`. A live source `value | 0` carries
+`PreserveJavaScriptBitOrZero`; generated integer normalization remains
+optimizable. Current provenance is function-local and broad peephole skipping is
+still used when an obligation survives, so this is a first contract, not a
+general witness system.
 
-### Typed IR (`src/optimizer.rs`, `src/compress_passes.rs`, `src/value_analysis.rs`)
+`src/semantic.rs`, `src/optimizer.rs`, and `src/value_analysis.rs` provide
+conservative type, escape, use, range, alias, identity, and effect facts. Several
+effect and observability queries remain duplicated between optimizer and
+emitter. `EscapeState` alone is not a proof that identity is unobservable;
+transforms also inspect uses and boundaries.
 
-An ordered schedule contains scalar fixed points and repeated inlining rounds,
-plus one-shot interprocedural, escape, scalar-replacement, and compression
-stages. This is the Closure-like whole-program machine. It is mostly
-**heuristic with gates**: pass on/off and numeric inline budgets, not
-complete-artifact scores. Search wraps it by cloning `OptimizationOptions` a
-handful of times (no-inline, no-factory, no-CSE, outlining on/off). It does not
-wrap the pass list as a searchable object.
+Implemented representation work includes:
 
-Scalar replacement of `LocalOnly` structs/classes is the flagship typed win and
-is **not** an IR search dimension. If dissolving a point into `x`/`y` locals
-hurts Brotli on some program, production cannot keep the object.
+- scalar replacement with a scored `keep-object` IR alternative when admitted;
+- positional/named aggregate emission and proof-marked named classes;
+- `export constructor C [as PublicC]` distinct from type-only `export class`;
+- owner/slot identity on typed fields and optional owner-scoped property naming;
+- lexical mutable captures and scored immutable scalar snapshots;
+- expression `if`, scalar literal `match`, and ordinary `object{...}`.
 
-### Parsed JS (`src/js_peephole/`)
+## Decision Registry
 
-A Pratt-parsed rewrite pipeline over generated JavaScript: copies, control,
-loops, ASI, integers, declarations, inlining, and a very large **class identity**
-module. Docs used to list five or six rewrites. The implemented session in
-`optimize_generated_javascript` runs dozens, including
-`fold_constructor_prototype_tables_to_classes` and `fold_named_class_identity`.
+`src/decision_registry.rs` is both a census and scheduler:
 
-This second optimizer exists because:
+- all 77 `IrJsOptions` fields are classified;
+- 48 scored emission families are named and gated;
+- scored IR variants include reversible priors and `keep-object`;
+- ABI, unsafe, and illegal fields are excluded from scored axes.
 
-- IR emission still leaves statement-shaped JS a human minifier would contract;
-- identity-observed constructors are not emitted as named `class` from IR;
-- several miscompiles were fixed across SSA name coalescing, emitter assignment
-  parsing, and parsed-JS folds; ident-08 is the recurring
-  sub-expression-as-enclosing-expression class.
+This is not yet a complete declarative proof engine. Only a small subset uses the
+new `DecisionSpec` form. Phase-order/compress probes, entropy/naming work, target
+contractions, validators, and some candidate construction remain specialized in
+`src/compiler.rs`. The 77-field exhaustiveness check is based on a maintained
+list rather than a type-level generated schema.
 
-When search is on, these rewrites enter normally ranked leaves or a late cleanup
-beam (skip-the-pass is a first-class branch). The canonical-winner challenger is
-now charged to the terminal ledger and uses the full configured rank and startup
-guard. Search-off's function-preserving challenger is exactly scored against the
-untouched emit. `repair_late_javascript_candidate` still forces several cleanup
-transforms inside candidate construction, and generated text is still reparsed;
-the hygienic target AST remains unfinished.
+The registry should remain a compact census and recipe owner. Typed
+materializers should return a candidate plus proof witness or a rejection
+reason; a generic proof-query DSL is not required.
 
-## Search is a coordinator, not a solver
+## Search And Scoring
 
-`src/compiler.rs` remains the candidate coordinator: arenas, beams, proposal
-ledgers, Rayon pools, entropy alphabets, and terminal naming. A code registry now
-classifies all 77 `IrJsOptions` fields and owns cartesian axes, sequential
-families, and scored IR variants. Entropy mapping and several terminal
-neighborhoods remain coordinator-specialized rather than graph-solved.
+The configured IR/emission artifact is retained. Search adds proof/config-gated
+IR variants, Cartesian seed axes, sequential emission families, naming/entropy
+alternatives, and terminal generated-JS challengers. It uses deterministic work
+budgets, family reserves, exact codec scores, startup/performance guards, and
+starvation reporting.
 
-Consequences:
+Important limitations:
 
-1. **Order matters.** `stable_local_names` is probed both early and late because
-   an early-only split sent zod the wrong way (−58 Brotli). That comment is the
-   architecture admitting sequential search is not monotone.
-2. **Budgets starve late families.** Artifact scaling divides proposal/terminal
-   work by 4 or 12 above 16 KiB. Class-shape and naming families sit at the end.
-   Pack-local TOML lifting the proposal limit is a config glue for a compiler
-   budget bug. Selected structural priorities and terminal naming/string work
-   already have reserves, but there is no minimum coverage guarantee or
-   starvation report for every representation family.
-3. **Invalid programs can be smaller.** [ident-05](../migration/board/notes/ident-05.md)
-   is active. A working-tree fix now reserves enclosing bindings and has focused
-   regression tests, but its full marked/react-markdown gate is not recorded as
-   landed. The last validated state allowed unresolved or wrong-nearer-binding
-   artifacts to rank, so identity remains the blocking class.
-4. **Cross-product is sampled, not enumerated.** Joint expansions exist only
-   where someone paid for them (pure-helper × dense tables; function spelling ×
-   single-use inline; aggressive inlining × outlining). Every other interaction
-   is “hope the beam kept the right parent.”
+- production search is a bounded portfolio, not exhaustive;
+- family order and beam retention affect which interactions are reached;
+- larger beam/limits are not guaranteed to consume a strict prefix of smaller
+  work and have measured regressions under fixed budgets;
+- current frontier diversity computes exact raw/gzip/Brotli costs for more
+  intermediate candidates than the selected metric alone requires;
+- some validation occurs only when finalists are prepared, so rejected shapes
+  can consume earlier beam work;
+- no stable serialized recipe can replay a previous compiler winner directly;
+- split planning uses a separate greedy mixed deployment-cost path and
+  preserve-modules has a narrower fixed path.
 
-Objective stratification (keep some raw/gzip/Brotli-diverse shapes in the
-intermediate beam) is the right idea for recovering non-local wins. It does not
-make the terminal ranking multi-objective. One `cost_model` still wins.
+Normal explain output reports best-observed search and starvation, but does not
+yet serialize every option, parent recipe, rejection, and evidence fingerprint
+needed for exact regression replay.
 
-## Policy is scattered
+## JavaScript Target Layer
 
-A single tactic currently touches some of:
+`src/codegen_ir_js.rs` emits strings with local expression metadata.
+`src/js_peephole/` tokenizes/parses generated JavaScript for binding-aware folds,
+naming, class/prototype contraction, control/loop contraction, and final
+validation. Search-on, canonical-winner, and search-off challengers are now
+scored against an incumbent.
 
-| Place | Example |
-|---|---|
-| `CompressionDecision` | `structured-closure-inlining` |
-| `JavaScriptOptimization` | `ir-inlining-variants` (sometimes **also** a compression decision) |
-| `JavaScriptPriority::enables_compression` | size-first-only packing |
-| `js_options()` | Brotli incumbents turn packing and identifier-string pooling off |
-| `IrJsOptions` field | `pack_string_arrays` |
-| beam / `src/decision_registry.rs` | packing and identifier pooling use `reversible_boolean_alternatives`; `keep-object` is a scored IR clone |
-| `[optimization]` | `inlining`, `scalar_replacement` |
-| board note / port TOML | `lilscript.identity.toml` proposal limit; `assume_pure_property_reads` |
+This layer has prevented real miscompiles, but semantic identity is still being
+reconstructed from generated text. The parser is targeted at compiler output,
+not a standards-complete ECMAScript frontend. It cannot prove general semantic
+equivalence, and it does not yet provide a complete target-syntax/ABI witness.
 
-`optimization_enabled` requiring **both** level/allowlist **and** compression
-for “legacy” dual-gated features is correct and easy to misconfigure. Putting
-`ir-inlining-variants` in `optimizations` but omitting it from an explicit
-`compression` list leaves the search off.
+The active architecture task is a narrow hygienic emission IR carrying binding,
+external/global, property, function/call, allocation, effect-order, module,
+syntax-floor, and lowering-obligation identities. The existing parser remains an
+independent final-byte checker during migration.
 
-Root `lilscript.toml` is itself a policy object: `priority = size-first`,
-`cost_model = brotli`, `candidate_search = production`, `local_name_reserve = 48`,
-and a **subset** compression list. Language tests compile under that subset, not
-under the full size-first matrix. Claims about “what size-first does” must name
-whether they mean `enables_compression` or the root file.
+## Boundaries And Mangling
 
-## Language holes that force compiler and port glue
+Private owned properties may be mangled or owner-scoped. Public manifest fields,
+dynamic/reflected keys, records, and host fields require exact treatment unless
+an explicit coordinated closed-world ABI owns both producer and consumer.
 
-These are upstream of search. Search cannot invent proofs the type system
-refused. Full inventory: [compressor surface](../language/compressor-surface.md).
+The current `mangle.extern_fields = false` mode and trailing-underscore key
+convention predate that distinction. They are legacy closed-world mechanisms,
+not proof that an arbitrary host `extern` field is safe to rename. The planned
+architecture replaces them with typed ownership or an explicit foreign ABI map;
+ordinary host names remain exact.
 
-| Hole | What happens | Why it is not a fold |
-|---|---|---|
-| Constructor **value** vs type-only `export class` | `export constructor C [as PublicC];` now marks and emits a named runtime class while `export class` remains type-only. Existing ports still carry `defineProperty` / `JS.method*` identity tables until migrated. | Internal inheritance and a base-class default constructor are preserved; derived defaults require explicit `init`/`super`. |
-| `JsValue` and dynamic `o[k]` | A member read is a coercion/proxy hook unless `assume_pure_property_reads`. Markdown stack: ~5,850 extra `NAME=…;` statements. The flag is Terser `pure_getters`, default **off**. Typed bags on that stack **lost** Brotli. | Plain-data proof, then **search** dissolve vs keep. A flag is a library contract. Always-on scalar replacement is also glue here. |
-| `?` is nullable | Source expression-if and enum/int/string/bool literal `match` create conditional phis and compete as `?:` versus structured control. | Destructuring and guarded patterns remain outside the current language. |
-| Open records vs ordinary objects | `Record<T>` remains null-prototype; `object{...}` now creates an ordinary-prototype `JsValue` dictionary with observable inherited hooks. | Typed ordinary dictionaries, spread, and per-allocation hook-free proof. |
-| Host-callable `this` on typed values | Class methods already have `this`. Public JS methods go through `JS.method*` `JsValue`. | Typed host-callable method ABI, or keep the hatch. |
-| Host `document` / `window` / builtins | Direct emit, no wrappers. Regex literals require `assume_pristine_builtins`. | Correct. Do not add trampolines (`pickRegex3` is a standing refusal). |
+## Verification
 
-jQuery’s remaining gap is compressibility (smaller raw, larger Brotli) and
-**control-flow representation**, not a missing local fold. Sequential search
-also cannot reach pairwise-neutral combinations
-([objectives](objectives.md); [jquery-01](../migration/board/notes/jquery-01.md)).
-Terser −345 on **our** artifact is emergent pipeline interaction. Implementing
-that as six separately-landed peepholes has already lost.
+- Rust unit/integration/all-target tests own compiler behavior.
+- The differential evaluator checks a portable semantic subset independently of
+  CFG/SSA optimization.
+- Canonical paired cases compare compiler output with independently authored JS
+  under matching raw/gzip/Brotli objectives.
+- The codec contract pins encoder behavior.
+- External library suites check scoped API/behavior boundaries.
+- Large-library evidence tooling exists but does not yet capture every current
+  artifact, explain recipe, resource metric, or deployment boundary needed for
+  the planned regression workflow.
 
-## Native is honest and secondary
+Current counts and mixed size results live only in
+[`docs/current-status.md`](../../current-status.md).
 
-The same IR lowers to C. `JsValue`, `Regex`, `Task`, `extern class`, dynamic
-import are **rejected** on native rather than faked. Inheritance is rejected on
-native until the subtype pointer ABI exists. JS size wins must not depend on
-semantics native cannot share. `[native]` only places storage. JS
-`javascript.priority` does not change the C optimizer.
+## Primary Gaps
 
-## What is already globally minded (keep)
+1. Freeze expected ABI independently of artifact format and validate observed
+   final artifact/module-set ABI.
+2. Validate syntax/bindings/properties/ABI/obligations before exact scoring;
+   behavioral semantics remain test-suite evidence.
+3. Serialize complete recipes and make evidence replayable before restoring old
+   size incumbents.
+4. Consolidate candidate ownership and acceptance without inventing a universal
+   choice graph or proof DSL.
+5. Introduce the minimal hygienic target-JS representation and retire text
+   identity recovery family by family.
+6. Recover current Motion/Marked/MobX regressions, then close maintained library
+   gaps with generic proofs and measured interactions.
+7. Defer unified chunk optimization until a maintained chunk workload defines a
+   calibrated delivery objective.
 
-- Complete-artifact zlib/Brotli scoring, not an entropy proxy as the winner.
-- Configured baseline always retained; experimental variants may fail.
-- Search may disable an enabled tactic. Most omitted non-search-only decisions
-  stay off (Cartesian `[configured, false]`, or `if configured.*` families).
-  Exception: `elide_length_tonumber` is flipped unconditionally in
-  `select_javascript_candidate_global`, so omitted `length-to-number-elision`
-  can still turn on. Size-first search-only names such as `indexed-char-at` use
-  `search_compression_enabled`.
-- `[optimization] foo = false` is a hard off.
-- Objective-stratified intermediate retention.
-- Skip-the-rewrite as a late-cleanup branch.
-- `struct_method_shorthand` and several other compact defaults promoted into
-  scored families after measurement.
-- Differential AST oracle (`lilscript-differential`) that does not go through SSA.
-- Paired-case gate: LilScript compiled under `cost_model = m` vs the smallest
-  valid JS minifier on metric `m`.
-
-## Current gap summary
-
-- ident-05 has landed (marked `local_name_reserve` 0/8/12/48 is 660/660;
-  react-markdown `always` is 93/93). search-02 still records corpus deltas.
-- There is no `ChoiceGraph` or stable decision vector; 07.2 put `IrJsOptions`
-  classification and scored emission families in `src/decision_registry.rs`.
-- `compilation_contract.rs` now separates world/ABI/unsafe/effect policy from the
-  optimization objective and emits an ABI manifest; deeper ABI validation is
-  still incomplete.
-- `export constructor C [as PublicC];` marks identity-observed constructor
-  hierarchies and emits named `class`; derived defaults remain explicit.
-- Owned properties retain canonical `(owner, slot)` identity through naming;
-  closure search can choose lexical capture or lifted immutable scalar snapshots.
-  Many contractions still operate on generated text.
-- Large artifacts can exhaust proposal work before late representation and
-  naming families run.
-- Split chunk planning uses a separate mixed deployment-cost path;
-  preserve-modules uses fixed configured emission.
-
-The intended replacements and guarantee levels are in
-[goal architecture](goal-architecture.md). Their landing order is
-[phase 07](../migration/07-global-compressor.md).
-
-## Related pages
-
-- [Objectives](objectives.md) — size/performance × raw/gzip/Brotli; exact vs heuristic
-- [Decision registry](decision-registry.md) — behavior-by-behavior table
-- [Global optima](global-optima.md) — why local smaller loses gzip/Brotli
-- [Compressor surface](../language/compressor-surface.md) — proofs ports still lack
-- [Class identity](class-identity.md) — constructor vs instance lowering
-- [Inlining](inlining-specialization-sharing.md) — opposing function transforms
-- [Peephole](peephole.md) — parsed JS as implemented
-- [Candidate search](candidate-search.md) — two-level search and budgets
-- [Closure ADVANCED](../research/closure-advanced.md) — reference discipline, not a clone checklist
+Execution order: [planned migration](../migration/planned-migration.md).
+Rationale: [design decisions](../decisions/README.md).

@@ -1,0 +1,379 @@
+import {
+  Set,
+  convertToBlock,
+  createCacheExpression,
+  createSimpleExpression,
+  createVNodeCall
+} from "./ast";
+import { Error, isVSlot } from "./utils";
+import { String, defaultOnError, defaultOnWarn } from "./errors";
+import {
+  CREATE_COMMENT,
+  FRAGMENT,
+  Map,
+  Object,
+  TO_DISPLAY_STRING,
+  WeakMap,
+  WeakSet,
+  helperNameMap
+} from "./runtimeHelpers";
+import { cacheStatic, getSingleElementRoot } from "./transforms/cacheStatic";
+
+JsValue transformUndefined() {
+  return JS.undefined();
+}
+
+int transformLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+
+string transformString(JsValue value) {
+  return JS.string(JS.call(String, transformUndefined(), value));
+}
+
+void transformPush(JsValue values, JsValue value) {
+  values[transformLength(values)] = value;
+}
+
+bool transformSame(JsValue left, JsValue right) {
+  return JS.strictEqual(left, right);
+}
+
+JsValue transformFalseOption = JS.method1((JsValue _self, JsValue _value) => false);
+
+string transformCamelize(string value) {
+  string result = "";
+  bool upper = false;
+  for (int index = 0; index < value.length; index++) {
+    string character = value.charAt(index);
+    if (character == "-") {
+      upper = true;
+    } else if (upper) {
+      result += character.toUpperCase();
+      upper = false;
+    } else {
+      result += character;
+    }
+  }
+  return result;
+}
+
+string transformCapitalize(string value) {
+  if (value.length == 0) return value;
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+JsValue transformOptionOr(JsValue options, string key, JsValue fallback) {
+  if (!JS.isNullish(options) && !JS.isNullish(options[key])) return options[key];
+  return fallback;
+}
+
+bool transformOptionFlag(JsValue options, string key, bool fallback = false) {
+  if (JS.isNullish(options) || JS.isNullish(options[key])) return fallback;
+  return options[key].truthy();
+}
+
+string transformOptionString(JsValue options, string key, string fallback) {
+  if (JS.isNullish(options) || JS.isNullish(options[key])) return fallback;
+  return JS.string(options[key]);
+}
+
+void addTransformIdentifier(JsValue identifiers, string name) {
+  if (JS.isUndefined(identifiers[name])) identifiers[name] = 1;
+  else identifiers[name] = JS.number(identifiers[name]).toInt() + 1;
+}
+
+export JsValue createTransformContext(JsValue root, JsValue options = JS.undefined()) {
+  if (JS.isNullish(options)) options = JS.object();
+  string filename = transformOptionString(options, "filename", "");
+  string cleanFilename = filename;
+  int question = JS.number(JS.invoke(cleanFilename, "indexOf", "?")).toInt();
+  if (question >= 0) cleanFilename = cleanFilename.slice(0, question);
+  int slash = JS.number(JS.invoke(cleanFilename, "lastIndexOf", "/")).toInt();
+  int backslash = JS.number(JS.invoke(cleanFilename, "lastIndexOf", "\\")).toInt();
+  if (backslash > slash) slash = backslash;
+  string basename = cleanFilename.slice(slash + 1);
+  int dot = JS.number(JS.invoke(basename, "lastIndexOf", ".")).toInt();
+  JsValue selfName = null;
+  if (dot > 0) selfName = transformCapitalize(transformCamelize(basename.slice(0, dot)));
+
+  JsValue context = JS.object(
+    "filename", filename,
+    "selfName", selfName,
+    "prefixIdentifiers", transformOptionFlag(options, "prefixIdentifiers"),
+    "hoistStatic", transformOptionFlag(options, "hoistStatic"),
+    "hmr", transformOptionFlag(options, "hmr"),
+    "cacheHandlers", transformOptionFlag(options, "cacheHandlers"),
+    "nodeTransforms", transformOptionOr(options, "nodeTransforms", JS.array()),
+    "directiveTransforms", transformOptionOr(options, "directiveTransforms", JS.object()),
+    "transformHoist", transformOptionOr(options, "transformHoist", null),
+    "isBuiltInComponent", transformOptionOr(options, "isBuiltInComponent", transformFalseOption),
+    "isCustomElement", transformOptionOr(options, "isCustomElement", transformFalseOption),
+    "expressionPlugins", transformOptionOr(options, "expressionPlugins", JS.array()),
+    "scopeId", transformOptionOr(options, "scopeId", null),
+    "slotted", transformOptionFlag(options, "slotted", true),
+    "ssr", transformOptionFlag(options, "ssr"),
+    "inSSR", transformOptionFlag(options, "inSSR"),
+    "ssrCssVars", transformOptionString(options, "ssrCssVars", ""),
+    "bindingMetadata", transformOptionOr(options, "bindingMetadata", JS.object()),
+    "inline", transformOptionFlag(options, "inline"),
+    "isTS", transformOptionFlag(options, "isTS"),
+    "onError", transformOptionOr(options, "onError", defaultOnError),
+    "onWarn", transformOptionOr(options, "onWarn", defaultOnWarn),
+    "compatConfig", transformOptionOr(options, "compatConfig", transformUndefined()),
+    "root", root,
+    "helpers", JS.construct(Map),
+    "components", JS.construct(Set),
+    "directives", JS.construct(Set),
+    "hoists", JS.array(),
+    "imports", JS.array(),
+    "cached", JS.array(),
+    "constantCache", JS.construct(WeakMap),
+    "vForMemoKeyedNodes", JS.construct(WeakSet),
+    "temps", 0,
+    "identifiers", JS.invoke(Object, "create", null),
+    "scopes", JS.object("vFor", 0, "vSlot", 0, "vPre", 0, "vOnce", 0),
+    "parent", null,
+    "grandParent", null,
+    "childIndex", 0,
+    "currentNode", root,
+    "inVOnce", false
+  );
+  context["helper"] = JS.method1((JsValue _self, JsValue name) => {
+    JsValue helpers = context["helpers"];
+    JsValue countValue = JS.invoke(helpers, "get", name);
+    int count = 0;
+    if (!JS.isUndefined(countValue)) count = JS.number(countValue).toInt();
+    JS.invoke(helpers, "set", name, count + 1);
+    return name;
+  });
+  context["removeHelper"] = JS.method1((JsValue _self, JsValue name) => {
+    JsValue helpers = context["helpers"];
+    JsValue countValue = JS.invoke(helpers, "get", name);
+    if (!JS.isUndefined(countValue)) {
+      int count = JS.number(countValue).toInt() - 1;
+      if (count == 0) JS.invoke(helpers, "delete", name);
+      else JS.invoke(helpers, "set", name, count);
+    }
+    return transformUndefined();
+  });
+  context["helperString"] = JS.method1((JsValue _self, JsValue name) => {
+    JS.call(context["helper"], transformUndefined(), name);
+    return "_" + JS.string(helperNameMap[name]);
+  });
+  context["replaceNode"] = JS.method1((JsValue _self, JsValue node) => {
+    if (JS.isNullish(context["currentNode"])) throw JS.construct(Error, "Node being replaced is already removed.");
+    if (JS.isNullish(context["parent"])) throw JS.construct(Error, "Cannot replace root node.");
+    context["parent"]["children"][context["childIndex"]] = node;
+    context["currentNode"] = node;
+    return transformUndefined();
+  });
+  context["onNodeRemoved"] = JS.method0((JsValue _self) => transformUndefined());
+  context["removeNode"] = JS.method1((JsValue _self, JsValue node) => {
+    if (JS.isNullish(context["parent"])) throw JS.construct(Error, "Cannot remove root node.");
+    JsValue children = context["parent"]["children"];
+    int removal = -1;
+    if (!JS.isUndefined(node)) removal = JS.number(JS.invoke(children, "indexOf", node)).toInt();
+    else if (!JS.isNullish(context["currentNode"])) removal = JS.number(context["childIndex"]).toInt();
+    if (removal < 0) throw JS.construct(Error, "node being removed is not a child of current parent");
+    if (JS.isUndefined(node) || transformSame(node, context["currentNode"])) {
+      context["currentNode"] = null;
+      JS.call(context["onNodeRemoved"], transformUndefined());
+    } else if (JS.number(context["childIndex"]).toInt() > removal) {
+      context["childIndex"] = JS.number(context["childIndex"]).toInt() - 1;
+      JS.call(context["onNodeRemoved"], transformUndefined());
+    }
+    JS.invoke(children, "splice", removal, 1);
+    return transformUndefined();
+  });
+  context["addIdentifiers"] = JS.method1((JsValue _self, JsValue expression) => {
+    JsValue identifiers = context["identifiers"];
+    if (JS.typeOf(expression) == "string") {
+      string name = JS.string(expression);
+      addTransformIdentifier(identifiers, name);
+    } else if (!JS.isNullish(expression["identifiers"])) {
+      JsValue names = expression["identifiers"];
+      for (int index = 0; index < transformLength(names); index++) {
+        string name = JS.string(names[index]);
+        addTransformIdentifier(identifiers, name);
+      }
+    } else if (JS.number(expression["type"]).toInt() == 4) {
+      string name = JS.string(expression["content"]);
+      addTransformIdentifier(identifiers, name);
+    }
+    return transformUndefined();
+  });
+  context["removeIdentifiers"] = JS.method1((JsValue _self, JsValue expression) => {
+    JsValue identifiers = context["identifiers"];
+    if (JS.typeOf(expression) == "string") {
+      string name = JS.string(expression);
+      identifiers[name] = JS.number(identifiers[name]).toInt() - 1;
+    } else if (!JS.isNullish(expression["identifiers"])) {
+      JsValue names = expression["identifiers"];
+      for (int index = 0; index < transformLength(names); index++) {
+        string name = JS.string(names[index]);
+        identifiers[name] = JS.number(identifiers[name]).toInt() - 1;
+      }
+    } else if (JS.number(expression["type"]).toInt() == 4) {
+      string name = JS.string(expression["content"]);
+      identifiers[name] = JS.number(identifiers[name]).toInt() - 1;
+    }
+    return transformUndefined();
+  });
+  context["hoist"] = JS.method1((JsValue _self, JsValue expression) => {
+    if (JS.typeOf(expression) == "string") expression = createSimpleExpression(JS.string(expression));
+    transformPush(context["hoists"], expression);
+    JsValue identifier = createSimpleExpression(
+      "_hoisted_" + transformString(transformLength(context["hoists"])),
+      false,
+      expression["loc"],
+      2
+    );
+    identifier["hoisted"] = expression;
+    return identifier;
+  });
+  context["cache"] = JS.method3((JsValue _self, JsValue expression, JsValue isVNode, JsValue inVOnce) => {
+    JsValue cached = context["cached"];
+    JsValue cacheExpression = createCacheExpression(
+      transformLength(cached),
+      expression,
+      isVNode.truthy(),
+      inVOnce.truthy()
+    );
+    transformPush(cached, cacheExpression);
+    return cacheExpression;
+  });
+  context["filters"] = JS.construct(Set);
+  return context;
+}
+
+export void traverseChildren(JsValue parent, JsValue context) {
+  int index = 0;
+  JsValue removed = JS.method0((JsValue _self) => {
+    index--;
+    return transformUndefined();
+  });
+  JsValue children = parent["children"];
+  while (index < transformLength(children)) {
+    JsValue child = children[index];
+    if (JS.typeOf(child) != "string") {
+      context["grandParent"] = context["parent"];
+      context["parent"] = parent;
+      context["childIndex"] = index;
+      context["onNodeRemoved"] = removed;
+      traverseNode(child, context);
+    }
+    index++;
+  }
+}
+
+export void traverseNode(JsValue initialNode, JsValue context) {
+  JsValue node = initialNode;
+  context["currentNode"] = node;
+  JsValue exits = JS.array();
+  JsValue transforms = context["nodeTransforms"];
+  for (int index = 0; index < transformLength(transforms); index++) {
+    JsValue onExit = JS.call(transforms[index], transformUndefined(), node, context);
+    if (onExit.truthy()) {
+      if (JS.isArray(onExit)) {
+        for (int exitIndex = 0; exitIndex < transformLength(onExit); exitIndex++) transformPush(exits, onExit[exitIndex]);
+      } else {
+        transformPush(exits, onExit);
+      }
+    }
+    if (JS.isNullish(context["currentNode"])) return;
+    node = context["currentNode"];
+  }
+  int type = JS.number(node["type"]).toInt();
+  if (type == 3 && !context["ssr"].truthy()) {
+    JS.call(context["helper"], transformUndefined(), CREATE_COMMENT);
+  } else if (type == 5 && !context["ssr"].truthy()) {
+    JS.call(context["helper"], transformUndefined(), TO_DISPLAY_STRING);
+  } else if (type == 9) {
+    JsValue branches = node["branches"];
+    for (int index = 0; index < transformLength(branches); index++) traverseNode(branches[index], context);
+  } else if (type == 0 || type == 1 || type == 10 || type == 11) {
+    traverseChildren(node, context);
+  }
+  context["currentNode"] = node;
+  for (int index = transformLength(exits) - 1; index >= 0; index--) JS.call(exits[index], transformUndefined());
+}
+
+void createRootCodegen(JsValue root, JsValue context) {
+  JsValue children = root["children"];
+  if (transformLength(children) == 1) {
+    JsValue single = getSingleElementRoot(root);
+    if (!JS.isNullish(single) && single["codegenNode"].truthy()) {
+      JsValue codegen = single["codegenNode"];
+      if (JS.number(codegen["type"]).toInt() == 13) convertToBlock(codegen, context);
+      root["codegenNode"] = codegen;
+    } else {
+      root["codegenNode"] = children[0];
+    }
+  } else if (transformLength(children) > 1) {
+    int nonComments = 0;
+    for (int index = 0; index < transformLength(children); index++) {
+      if (JS.number(children[index]["type"]).toInt() != 3) nonComments++;
+    }
+    int patchFlag = 64;
+    if (nonComments == 1) patchFlag = patchFlag | 2048;
+    root["codegenNode"] = createVNodeCall(
+      context,
+      JS.call(context["helper"], transformUndefined(), FRAGMENT),
+      transformUndefined(),
+      children,
+      patchFlag,
+      transformUndefined(),
+      transformUndefined(),
+      true,
+      false,
+      false
+    );
+  }
+}
+
+export void transform(JsValue root, JsValue options = JS.undefined()) {
+  if (JS.isNullish(options)) options = JS.object();
+  JsValue context = createTransformContext(root, options);
+  traverseNode(root, context);
+  if (transformOptionFlag(options, "hoistStatic")) cacheStatic(root, context);
+  if (!transformOptionFlag(options, "ssr")) createRootCodegen(root, context);
+  root["helpers"] = JS.construct(Set, JS.call(Array["from"], Array, JS.invoke(context["helpers"], "keys")));
+  root["components"] = JS.call(Array["from"], Array, context["components"]);
+  root["directives"] = JS.call(Array["from"], Array, context["directives"]);
+  root["imports"] = context["imports"];
+  root["hoists"] = context["hoists"];
+  root["temps"] = context["temps"];
+  root["cached"] = context["cached"];
+  root["transformed"] = true;
+  root["filters"] = JS.call(Array["from"], Array, context["filters"]);
+}
+
+export JsValue createStructuralDirectiveTransform(JsValue name, JsValue transformFunction) {
+  return JS.method2((JsValue _self, JsValue node, JsValue context) => {
+    JsValue exits = JS.array();
+    if (JS.number(node["type"]).toInt() != 1) return exits;
+    if (JS.number(node["tagType"]).toInt() == 3) {
+      JsValue props = node["props"];
+      for (int index = 0; index < transformLength(props); index++) if (isVSlot(props[index])) return exits;
+    }
+    JsValue props = node["props"];
+    int index = 0;
+    while (index < transformLength(props)) {
+      JsValue prop = props[index];
+      bool matches = false;
+      if (JS.number(prop["type"]).toInt() == 7) {
+        if (JS.typeOf(name) == "string") matches = transformSame(prop["name"], name);
+        else matches = JS.invoke(name, "test", prop["name"]).truthy();
+      }
+      if (matches) {
+        JS.invoke(props, "splice", index, 1);
+        JsValue exit = JS.call(transformFunction, transformUndefined(), node, prop, context);
+        if (exit.truthy()) transformPush(exits, exit);
+      } else {
+        index++;
+      }
+    }
+    return exits;
+  });
+}

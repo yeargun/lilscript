@@ -1,0 +1,164 @@
+export extern JsValue String;
+export extern JsValue SyntaxError;
+export extern JsValue console;
+
+JsValue errorsUndefined() {
+  return JS.undefined();
+}
+
+int errorsLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+
+string errorString(JsValue value) {
+  return JS.string(JS.call(String, errorsUndefined(), value));
+}
+
+JsValue errorNumericEnum(JsValue names) {
+  JsValue result = JS.object();
+  for (int index = 0; index < errorsLength(names); index++) {
+    string name = JS.string(names[index]);
+    result[name] = index;
+    result[errorString(index)] = name;
+  }
+  return result;
+}
+
+export JsValue ErrorCodes = errorNumericEnum(JS.array(
+  "ABRUPT_CLOSING_OF_EMPTY_COMMENT",
+  "CDATA_IN_HTML_CONTENT",
+  "DUPLICATE_ATTRIBUTE",
+  "END_TAG_WITH_ATTRIBUTES",
+  "END_TAG_WITH_TRAILING_SOLIDUS",
+  "EOF_BEFORE_TAG_NAME",
+  "EOF_IN_CDATA",
+  "EOF_IN_COMMENT",
+  "EOF_IN_SCRIPT_HTML_COMMENT_LIKE_TEXT",
+  "EOF_IN_TAG",
+  "INCORRECTLY_CLOSED_COMMENT",
+  "INCORRECTLY_OPENED_COMMENT",
+  "INVALID_FIRST_CHARACTER_OF_TAG_NAME",
+  "MISSING_ATTRIBUTE_VALUE",
+  "MISSING_END_TAG_NAME",
+  "MISSING_WHITESPACE_BETWEEN_ATTRIBUTES",
+  "NESTED_COMMENT",
+  "UNEXPECTED_CHARACTER_IN_ATTRIBUTE_NAME",
+  "UNEXPECTED_CHARACTER_IN_UNQUOTED_ATTRIBUTE_VALUE",
+  "UNEXPECTED_EQUALS_SIGN_BEFORE_ATTRIBUTE_NAME",
+  "UNEXPECTED_NULL_CHARACTER",
+  "UNEXPECTED_QUESTION_MARK_INSTEAD_OF_TAG_NAME",
+  "UNEXPECTED_SOLIDUS_IN_TAG",
+  "X_INVALID_END_TAG",
+  "X_MISSING_END_TAG",
+  "X_MISSING_INTERPOLATION_END",
+  "X_MISSING_DIRECTIVE_NAME",
+  "X_MISSING_DYNAMIC_DIRECTIVE_ARGUMENT_END",
+  "X_V_IF_NO_EXPRESSION",
+  "X_V_IF_SAME_KEY",
+  "X_V_ELSE_NO_ADJACENT_IF",
+  "X_V_FOR_NO_EXPRESSION",
+  "X_V_FOR_MALFORMED_EXPRESSION",
+  "X_V_FOR_TEMPLATE_KEY_PLACEMENT",
+  "X_V_BIND_NO_EXPRESSION",
+  "X_V_ON_NO_EXPRESSION",
+  "X_V_SLOT_UNEXPECTED_DIRECTIVE_ON_SLOT_OUTLET",
+  "X_V_SLOT_MIXED_SLOT_USAGE",
+  "X_V_SLOT_DUPLICATE_SLOT_NAMES",
+  "X_V_SLOT_EXTRANEOUS_DEFAULT_SLOT_CHILDREN",
+  "X_V_SLOT_MISPLACED",
+  "X_V_MODEL_NO_EXPRESSION",
+  "X_V_MODEL_MALFORMED_EXPRESSION",
+  "X_V_MODEL_ON_SCOPE_VARIABLE",
+  "X_V_MODEL_ON_PROPS",
+  "X_V_MODEL_ON_CONST",
+  "X_INVALID_EXPRESSION",
+  "X_KEEP_ALIVE_INVALID_CHILDREN",
+  "X_PREFIX_ID_NOT_SUPPORTED",
+  "X_MODULE_MODE_NOT_SUPPORTED",
+  "X_CACHE_HANDLER_NOT_SUPPORTED",
+  "X_SCOPE_ID_NOT_SUPPORTED",
+  "X_VNODE_HOOKS",
+  "X_V_BIND_INVALID_SAME_NAME_ARGUMENT",
+  "__EXTEND_POINT__"
+));
+
+export JsValue errorMessages = JS.object(
+  "0", "Illegal comment.",
+  "1", "CDATA section is allowed only in XML context.",
+  "2", "Duplicate attribute.",
+  "3", "End tag cannot have attributes.",
+  "4", "Illegal '/' in tags.",
+  "5", "Unexpected EOF in tag.",
+  "6", "Unexpected EOF in CDATA section.",
+  "7", "Unexpected EOF in comment.",
+  "8", "Unexpected EOF in script.",
+  "9", "Unexpected EOF in tag.",
+  "10", "Incorrectly closed comment.",
+  "11", "Incorrectly opened comment.",
+  "12", "Illegal tag name. Use '&lt;' to print '<'.",
+  "13", "Attribute value was expected.",
+  "14", "End tag name was expected.",
+  "15", "Whitespace was expected.",
+  "16", "Unexpected '<!--' in comment.",
+  "17", "Attribute name cannot contain U+0022 (\"), U+0027 ('), and U+003C (<).",
+  "18", "Unquoted attribute value cannot contain U+0022 (\"), U+0027 ('), U+003C (<), U+003D (=), and U+0060 (`).",
+  "19", "Attribute name cannot start with '='.",
+  "20", "Unexpected null character.",
+  "21", "'<?' is allowed only in XML context.",
+  "22", "Illegal '/' in tags.",
+  "23", "Invalid end tag.",
+  "24", "Element is missing end tag.",
+  "25", "Interpolation end sign was not found.",
+  "26", "Legal directive name was expected.",
+  "27", "End bracket for dynamic directive argument was not found. Note that dynamic directive argument cannot contain spaces.",
+  "28", "v-if/v-else-if is missing expression.",
+  "29", "v-if/else branches must use unique keys.",
+  "30", "v-else/v-else-if has no adjacent v-if or v-else-if.",
+  "31", "v-for is missing expression.",
+  "32", "v-for has invalid expression.",
+  "33", "<template v-for> key should be placed on the <template> tag.",
+  "34", "v-bind is missing expression.",
+  "35", "v-on is missing expression.",
+  "36", "Unexpected custom directive on <slot> outlet.",
+  "37", "Mixed v-slot usage on both the component and nested <template>. When there are multiple named slots, all slots should use <template> syntax to avoid scope ambiguity.",
+  "38", "Duplicate slot names found. ",
+  "39", "Extraneous children found when component already has explicitly named default slot. These children will be ignored.",
+  "40", "v-slot can only be used on components or <template> tags.",
+  "41", "v-model is missing expression.",
+  "42", "v-model value must be a valid JavaScript member expression.",
+  "43", "v-model cannot be used on v-for or v-slot scope variables because they are not writable.",
+  "44", "v-model cannot be used on a prop, because local prop bindings are not writable.\nUse a v-bind binding combined with a v-on listener that emits update:x event instead.",
+  "45", "v-model cannot be used on a const binding because it is not writable.",
+  "46", "Error parsing JavaScript expression: ",
+  "47", "<KeepAlive> expects exactly one child component.",
+  "48", "\"prefixIdentifiers\" option is not supported in this build of compiler.",
+  "49", "ES module mode is not supported in this build of compiler.",
+  "50", "\"cacheHandlers\" option is only supported when the \"prefixIdentifiers\" option is enabled.",
+  "51", "\"scopeId\" option is only supported in module mode.",
+  "52", "@vnode-* hooks in templates are no longer supported. Use the vue: prefix instead. For example, @vnode-mounted should be changed to @vue:mounted. @vnode-* hooks support has been removed in 3.4.",
+  "53", "v-bind with same-name shorthand only allows static argument.",
+  "54", ""
+);
+
+export JsValue createCompilerError(
+  int code,
+  JsValue loc = JS.undefined(),
+  JsValue messages = JS.undefined(),
+  string additionalMessage = ""
+) {
+  JsValue table = messages;
+  if (JS.isNullish(table)) table = errorMessages;
+  string message = errorString(table[errorString(code)]) + additionalMessage;
+  JsValue error = JS.construct(SyntaxError, message);
+  error["code"] = code;
+  error["loc"] = loc;
+  return error;
+}
+
+export void defaultOnError(JsValue error) {
+  throw error;
+}
+
+export void defaultOnWarn(JsValue warning) {
+  JS.invoke(console, "warn", "[Vue warn] " + errorString(warning["message"]));
+}

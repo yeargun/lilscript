@@ -1,0 +1,48 @@
+import extern { default as NormalMagicString } from "magic-string";
+import { rewriteDefaultAST } from "../rewriteDefault";
+import { genNormalScriptCssVarsCode } from "../style/cssVars";
+import { analyzeScriptBindings } from "./analyzeScriptBindings";
+
+extern JsValue NormalMagicString;
+
+export string normalScriptDefaultVar = "__default__";
+
+export JsValue processNormalScript(JsValue ctx, string scopeId) {
+  JsValue script = ctx["descriptor"]["script"];
+  try {
+    string content = JS.string(script["content"]);
+    JsValue map = script["map"];
+    JsValue scriptAst = ctx["scriptAst"];
+    JsValue bindings = analyzeScriptBindings(scriptAst["body"]);
+    JsValue cssVars = ctx["descriptor"]["cssVars"];
+    JsValue genDefaultAs = ctx["options"]["genDefaultAs"];
+    bool isProd = ctx["options"]["isProd"].truthy();
+    if (JS.number(cssVars["length"]).toInt() > 0 || genDefaultAs.truthy()) {
+      string defaultVariable = normalScriptDefaultVar;
+      if (genDefaultAs.truthy()) defaultVariable = JS.string(genDefaultAs);
+      JsValue magic = JS.construct(NormalMagicString, content);
+      rewriteDefaultAST(scriptAst["body"], magic, defaultVariable);
+      content = JS.string(JS.invoke(magic, "toString"));
+      if (JS.number(cssVars["length"]).toInt() > 0 &&
+        !ctx["options"]["templateOptions"]["ssr"].truthy()) {
+        content += genNormalScriptCssVarsCode(
+          cssVars,
+          bindings,
+          scopeId,
+          isProd,
+          defaultVariable
+        );
+      }
+      if (!genDefaultAs.truthy()) content += "\nexport default " + defaultVariable;
+    }
+    JsValue result = JS.object();
+    for (string key in script) result[key] = script[key];
+    result["content"] = content;
+    result["map"] = map;
+    result["bindings"] = bindings;
+    result["scriptAst"] = scriptAst["body"];
+    return result;
+  } catch {
+    return script;
+  }
+}

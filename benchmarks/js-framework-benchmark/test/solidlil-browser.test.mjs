@@ -30,7 +30,7 @@ async function serve(request, response) {
   }
 }
 
-test("closed-world SolidLil passes every keyed browser operation", async () => {
+test("source-aligned SolidLil v2 passes every keyed browser operation", async () => {
   const server = createServer(serve);
   await new Promise((resolvePromise) => server.listen(0, "127.0.0.1", resolvePromise));
   const address = server.address();
@@ -44,7 +44,7 @@ test("closed-world SolidLil passes every keyed browser operation", async () => {
     const errors = [];
     page.on("pageerror", (error) => errors.push(error.stack ?? error.message));
     await page.goto(
-      `http://127.0.0.1:${address.port}/frameworks/keyed/solidlil/index.html`,
+      `http://127.0.0.1:${address.port}/frameworks/keyed/solidlil-v2/index.html`,
     );
     const rows = page.locator("tbody > tr");
 

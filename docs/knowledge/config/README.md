@@ -68,8 +68,7 @@ searches. Default `es2022` matches the historical backend.
 Search may turn **off** an enabled compression tactic to compare. Size-first
 search-only spellings still compete from the priority matrix when a non-empty
 `compression` list omitted the new name. Most other omitted names stay off;
-`elide_length_tonumber` is an implemented exception
-([registry](../compilation/decision-registry.md)).
+`length-to-number-elision` is registry-gated and remains off when omitted.
 
 ## Mental model
 
@@ -81,7 +80,7 @@ javascript.optimizations / optimization_level → search dimensions
 javascript.cost_model   → what “smaller” means (raw | gzip | brotli)
 candidate_*             → compile-time budget for measuring “smaller”
 [mangle]                → highest-precedence name/pool overrides
-[bundle]                → after optimize: one file vs scored chunks
+[bundle]                → artifact layout; does not by itself define public world
 [profile]               → optional hotness for specialization
 [native]                → C storage placement only
 [lint] / [format]       → author constraints (eager host, allocations); not codegen

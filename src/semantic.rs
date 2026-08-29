@@ -527,8 +527,17 @@ struct Analyzer<'src> {
     async_depth: usize,
     callable_depth: usize,
     initializing: Option<(SymbolId, usize)>,
+    module_binding_declarations: AHashMap<Span, SymbolId>,
+    module_bindings: AHashMap<SymbolId, ModuleBindingState>,
+    initialized_module_bindings: AHashSet<SymbolId>,
     constructor_classes: Vec<Option<&'src str>>,
     generator_contexts: Vec<Option<Type<'src>>>,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct ModuleBindingState {
+    declaration: Span,
+    module_span: Span,
 }
 
 type Narrowing<'src> = AHashMap<SymbolId, Type<'src>>;
@@ -584,6 +593,9 @@ impl<'src> Analyzer<'src> {
             async_depth: 0,
             callable_depth: 0,
             initializing: None,
+            module_binding_declarations: AHashMap::default(),
+            module_bindings: AHashMap::default(),
+            initialized_module_bindings: AHashSet::default(),
             constructor_classes: Vec::new(),
             generator_contexts: Vec::new(),
         }
@@ -615,6 +627,7 @@ impl<'src> Analyzer<'src> {
         self.define_extern_classes(program)?;
         self.resolve_class_hierarchies()?;
         self.declare_functions(program)?;
+        self.instantiate_module_bindings(program)?;
 
         for item in program.items {
             match item {
@@ -631,6 +644,27 @@ impl<'src> Analyzer<'src> {
 
         self.finalize_parameter_default_bindings()?;
         Ok(self.model)
+    }
+
+    fn instantiate_module_bindings<'ast>(
+        &mut self,
+        program: &Program<'ast, 'src>,
+    ) -> Result<(), SemanticError> {
+        for binding in program.module_bindings {
+            let mut ty = self.resolve_value_type(binding.ty, "module binding")?;
+            strip_parameter_defaults_from_type(&mut ty);
+            let id = self.declare(binding.name, ty)?;
+            self.module_binding_declarations
+                .insert(binding.name.span, id);
+            self.module_bindings.insert(
+                id,
+                ModuleBindingState {
+                    declaration: binding.name.span,
+                    module_span: binding.module_span,
+                },
+            );
+        }
+        Ok(())
     }
 
     fn declare_nominal_types<'ast>(
@@ -1411,6 +1445,7 @@ impl<'src> Analyzer<'src> {
             .iter()
             .map(|param| self.resolve_value_type(param.ty, "parameter"))
             .collect::<Result<Vec<_>, _>>()?;
+        self.callable_depth += 1;
         self.analyze_parameter_defaults(constructor.params, &parameter_types)?;
         self.push_scope();
         let class_type_params = self
@@ -1443,6 +1478,7 @@ impl<'src> Analyzer<'src> {
         self.constructor_classes.pop();
         self.return_contexts.pop();
         self.pop_scope();
+        self.callable_depth -= 1;
         Ok(())
     }
 
@@ -1453,6 +1489,7 @@ impl<'src> Analyzer<'src> {
     ) -> Result<(), SemanticError> {
         self.push_type_params(function.type_params)?;
         let signature = self.function_type_in_current_scope(function)?;
+        self.callable_depth += 1;
         self.analyze_parameter_defaults(function.params, &signature.params)?;
         self.push_scope();
 
@@ -1513,6 +1550,7 @@ impl<'src> Analyzer<'src> {
             .pop()
             .expect("function analysis pushed a return context");
         self.pop_scope();
+        self.callable_depth -= 1;
         self.pop_type_params();
 
         if let ReturnContext::Declared { ty, .. } = context {
@@ -1539,7 +1577,9 @@ impl<'src> Analyzer<'src> {
             .iter()
             .map(|param| self.resolve_value_type(param.ty, "extern parameter"))
             .collect::<Result<Vec<_>, _>>()?;
+        self.callable_depth += 1;
         let result = self.analyze_parameter_defaults(extern_decl.params, &types);
+        self.callable_depth -= 1;
         self.pop_type_params();
         result
     }
@@ -2058,7 +2098,15 @@ impl<'src> Analyzer<'src> {
         let declared = self.resolve_value_type(decl.ty, "variable")?;
         let mut binding_ty = declared.clone();
         strip_parameter_defaults_from_type(&mut binding_ty);
-        let id = self.declare(decl.name, binding_ty)?;
+        let id = if let Some(id) = self
+            .module_binding_declarations
+            .get(&decl.name.span)
+            .copied()
+        {
+            id
+        } else {
+            self.declare(decl.name, binding_ty)?
+        };
         let previous = self.initializing;
         self.initializing = Some((id, self.callable_depth));
         let analyzed = if let Some(initializer) = &decl.initializer {
@@ -2081,6 +2129,7 @@ impl<'src> Analyzer<'src> {
         if referenced {
             self.model.assigned_symbols.insert(id);
         }
+        self.initialized_module_bindings.insert(id);
         Ok(())
     }
 
@@ -2186,6 +2235,25 @@ impl<'src> Analyzer<'src> {
                             ident.span,
                             format!(
                                 "cannot read `{}` in its own initializer; nest the reference in a function",
+                                ident.name
+                            ),
+                        ));
+                    }
+                }
+                if let Some(binding) = self.module_bindings.get(&id) {
+                    let from_owner = ident.span.start >= binding.module_span.start
+                        && ident.span.end <= binding.module_span.end;
+                    if from_owner && ident.span.start < binding.declaration.start {
+                        return Err(SemanticError::new(
+                            ident.span,
+                            format!("cannot read `{}` before its declaration", ident.name),
+                        ));
+                    }
+                    if !self.initialized_module_bindings.contains(&id) && self.callable_depth == 0 {
+                        return Err(SemanticError::new(
+                            ident.span,
+                            format!(
+                                "cannot eagerly read module binding `{}` before it is initialized",
                                 ident.name
                             ),
                         ));

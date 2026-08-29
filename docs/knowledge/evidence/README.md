@@ -1,12 +1,15 @@
 # Evidence
 
-Parent: [tree](../README.md). Mission: [how to judge a change](../mission.md). Roadmap: [`docs/roadmap.md`](../../roadmap.md).
+Parent: [tree](../README.md). Mission: [how to judge a change](../mission.md).
+Current snapshot: [`docs/current-status.md`](../../current-status.md).
 
 Test meaning is defined by [verification](../verification/README.md); work order lives
 in the [active migration](../migration/README.md); external ideas live under
 [research](../research/README.md).
 
-Claims about compression need a corpus, tool versions, codec, and scope. This folder records **what the current codebase believes it has shown**, and where it has not.
+Claims about compression need a semantic boundary, source revision, compiler,
+config, artifact, baseline toolchain, codec, and harness fingerprint. Tracked
+generated reports own numbers; prose here explains scope and limitations.
 
 How the compiler decides representations (including heuristics that evidence
 cannot yet justify as global): [current architecture](../compilation/current-architecture.md),
@@ -32,9 +35,14 @@ compiler bug vs missing proof vs JS-shaped rewrite:
 
 ### Ports
 
+- [Library proof matrix](library-proof-matrix.md) — required boundary/evidence for every maintained port
 - [jQuery](jquery.md)
+- [Marked](marked.md)
+- [MobX](mobx.md)
 - [Closure and corpus](closure-comparison.md)
 - [Motion compatibility](motion-compatibility.md)
+- [Large-library evidence contract](../../../comparison/large-libraries/README.md)
+- [Tracked immutable seed](../../../comparison/large-libraries/results/seed.json)
 
 ### Numbers
 
@@ -54,3 +62,18 @@ Related labs: [`benchmarks/popular/RESULTS.md`](../../../benchmarks/popular/RESU
 - For a cross-tool claim, name the selected objective and compare only that
   artifact's matching metric; raw/gzip/Brotli claims require separate builds.
 - Do not compare a mangled closed-world app to a public-API library without saying so.
+- Distinguish direct compiler output from a deployment pipeline that adds a
+  banner, facade, bundler, or JS minifier. Only direct output versus an
+  independently authored eligible JS baseline supports a compiler claim.
+- A before/after LilScript comparison proves regression or recovery, not a win
+  over JavaScript tooling.
+- Do not copy a result into multiple pages. Link the tracked result and describe
+  only its boundary and interpretation.
+
+## Numerical Authority
+
+`comparison/cases/summary.json` and other working summaries may be ignored or
+regenerated. Publication requires a tracked immutable report. The current
+large-library seed does not yet represent every latest Motion, Marked, MobX, and
+jQuery artifact; the gap is phase 0 of the
+[planned migration](../migration/planned-migration.md).

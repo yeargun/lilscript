@@ -1,0 +1,207 @@
+import {
+  ElementTypes,
+  NodeTypes,
+  createCompoundExpression,
+  createObjectProperty,
+  createSimpleExpression
+} from "../ast";
+import { ErrorCodes, createCompilerError } from "../errors";
+import { processExpression } from "./transformExpression";
+import { TO_HANDLER_KEY } from "../runtimeHelpers";
+import { hasScopeRef, isFnExpression, isMemberExpression } from "../utils";
+import {
+  COMPILER_BROWSER,
+  COMPILER_DEV,
+  validateBrowserExpression
+} from "../validateExpression";
+
+Regex eventCamelizePattern = new Regex("-\\w", "g");
+
+JsValue onUndefined() {
+  return JS.undefined();
+}
+
+int onLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+
+void onPush(JsValue values, JsValue value) {
+  values[onLength(values)] = value;
+}
+
+string camelizeEventName(string value) {
+  JsValue replacement = JS.method1((JsValue _self, JsValue matched) => {
+    return JS.string(matched).slice(1).toUpperCase();
+  });
+  return JS.string(JS.invoke(value, "replace", eventCamelizePattern, replacement));
+}
+
+string toEventHandlerKey(string value) {
+  if (value == "") return "";
+  return "on" + value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+bool eventNameHasUppercase(string value) {
+  for (int index = 0; index < value.length; index++) {
+    int code = value.charCodeAt(index);
+    if (code >= 65 && code <= 90) return true;
+  }
+  return false;
+}
+
+export JsValue transformOn(
+  JsValue directive,
+  JsValue node,
+  JsValue context,
+  JsValue augmentor = JS.undefined()
+) {
+  JsValue modifiers = directive["modifiers"];
+  JsValue argument = directive["arg"];
+  if (!directive["exp"].truthy() && onLength(modifiers) == 0) {
+    JS.call(
+      context["onError"],
+      onUndefined(),
+      createCompilerError(
+        JS.number(ErrorCodes["X_V_ON_NO_EXPRESSION"]).toInt(),
+        directive["loc"]
+      )
+    );
+  }
+
+  JsValue eventName = argument;
+  if (JS.strictEqual(argument["type"], NodeTypes["SIMPLE_EXPRESSION"])) {
+    if (argument["isStatic"].truthy()) {
+      string rawName = JS.string(argument["content"]);
+      if (COMPILER_DEV && rawName.startsWith("vnode")) {
+        JS.call(
+          context["onError"],
+          onUndefined(),
+          createCompilerError(
+            JS.number(ErrorCodes["X_VNODE_HOOKS"]).toInt(),
+            argument["loc"]
+          )
+        );
+      }
+      if (rawName.startsWith("vue:")) rawName = "vnode-" + rawName.slice(4);
+      string eventString = "";
+      if (
+        !JS.strictEqual(node["tagType"], ElementTypes["ELEMENT"]) ||
+        rawName.startsWith("vnode") ||
+        !eventNameHasUppercase(rawName)
+      ) {
+        eventString = toEventHandlerKey(camelizeEventName(rawName));
+      } else {
+        eventString = "on:" + rawName;
+      }
+      eventName = createSimpleExpression(eventString, true, argument["loc"]);
+    } else {
+      eventName = createCompoundExpression(JS.array(
+        JS.string(JS.call(context["helperString"], onUndefined(), TO_HANDLER_KEY)) + "(",
+        argument,
+        ")"
+      ));
+    }
+  } else {
+    JS.invoke(
+      eventName["children"],
+      "unshift",
+      JS.string(JS.call(context["helperString"], onUndefined(), TO_HANDLER_KEY)) + "("
+    );
+    onPush(eventName["children"], ")");
+  }
+
+  JsValue expression = directive["exp"];
+  if (expression.truthy() && JS.string(expression["content"]).trim() == "") {
+    expression = onUndefined();
+  }
+  bool shouldCache = context["cacheHandlers"].truthy() &&
+    !expression.truthy() &&
+    !context["inVOnce"].truthy();
+
+  if (expression.truthy()) {
+    bool memberExpression = JS.call(isMemberExpression, onUndefined(), expression, context).truthy();
+    bool inlineStatement = !memberExpression &&
+      !JS.call(isFnExpression, onUndefined(), expression, context).truthy();
+    bool multipleStatements = JS.string(expression["content"]).includes(";");
+
+    if (!COMPILER_BROWSER && context["prefixIdentifiers"].truthy()) {
+      if (inlineStatement) JS.call(context["addIdentifiers"], onUndefined(), "$event");
+      expression = processExpression(expression, context, false, multipleStatements);
+      directive["exp"] = expression;
+      if (inlineStatement) JS.call(context["removeIdentifiers"], onUndefined(), "$event");
+
+      shouldCache = context["cacheHandlers"].truthy() &&
+        !context["inVOnce"].truthy() &&
+        !(
+          JS.strictEqual(expression["type"], NodeTypes["SIMPLE_EXPRESSION"]) &&
+          JS.number(expression["constType"]).toInt() > 0
+        ) &&
+        !(
+          memberExpression &&
+          JS.strictEqual(node["tagType"], ElementTypes["COMPONENT"])
+        ) &&
+        !hasScopeRef(expression, context["identifiers"]);
+
+      if (shouldCache && memberExpression) {
+        if (JS.strictEqual(expression["type"], NodeTypes["SIMPLE_EXPRESSION"])) {
+          string content = JS.string(expression["content"]);
+          expression["content"] = content + " && " + content + "(...args)";
+        } else {
+          JsValue children = expression["children"];
+          JsValue repeated = JS.array();
+          for (int index = 0; index < onLength(children); index++) {
+            onPush(repeated, children[index]);
+          }
+          onPush(repeated, " && ");
+          for (int index = 0; index < onLength(children); index++) {
+            onPush(repeated, children[index]);
+          }
+          onPush(repeated, "(...args)");
+          expression["children"] = repeated;
+        }
+      }
+    }
+
+    if (COMPILER_DEV && COMPILER_BROWSER) {
+      validateBrowserExpression(expression, context, false, multipleStatements);
+    }
+
+    if (inlineStatement || shouldCache && memberExpression) {
+      string parameter = "(...args)";
+      if (inlineStatement) {
+        parameter = "$event";
+        if (!COMPILER_BROWSER && context["isTS"].truthy()) parameter = "($event: any)";
+      } else if (!COMPILER_BROWSER && context["isTS"].truthy()) {
+        parameter = "\n//@ts-ignore\n(...args)";
+      }
+      string start = parameter + " => (";
+      string end = ")";
+      if (multipleStatements) {
+        start = parameter + " => {";
+        end = "}";
+      }
+      expression = createCompoundExpression(JS.array(start, expression, end));
+    }
+  }
+
+  if (!expression.truthy()) {
+    expression = createSimpleExpression("() => {}", false, directive["loc"]);
+  }
+  JsValue result = JS.object(
+    "props",
+    JS.array(createObjectProperty(eventName, expression))
+  );
+
+  if (augmentor.truthy()) result = JS.call(augmentor, onUndefined(), result);
+
+  if (shouldCache) {
+    JsValue first = result["props"][0];
+    first["value"] = JS.call(context["cache"], onUndefined(), first["value"]);
+  }
+
+  JsValue properties = result["props"];
+  for (int index = 0; index < onLength(properties); index++) {
+    properties[index]["key"]["isHandlerKey"] = true;
+  }
+  return result;
+}

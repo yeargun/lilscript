@@ -8,8 +8,9 @@ use super::parse::{non_overlapping_parsed_node_count, parse_expression_regions};
 use super::token::{lex, punctuation_width};
 use super::{
     analyze_generated_javascript, function_leading_declaration_variant,
-    optimize_generated_javascript, optimize_generated_javascript_preserving_functions,
-    reorder_uninitialized_var_declarators, PeepholeResult,
+    optimize_generated_javascript, optimize_generated_javascript_assuming,
+    optimize_generated_javascript_preserving_functions, reorder_uninitialized_var_declarators,
+    PeepholeResult,
 };
 
 const LEGACY_PUNCTUATION: [&str; 31] = [
@@ -1001,7 +1002,10 @@ fn clear_binding_names_exclude_properties_and_object_keys() {
     assert!(
         super::single_character_name_is_clear_binding("function X(r){return X(r)}", b'X').unwrap()
     );
-    assert!(super::single_character_name_is_clear_binding("export{O as jQuery}", b'O').unwrap());
+    assert!(
+        super::single_character_name_is_clear_binding("let O=1;export{O as jQuery}", b'O').unwrap()
+    );
+    assert!(!super::single_character_name_is_clear_binding("export{O as jQuery}", b'O').unwrap());
     assert!(!super::single_character_name_is_clear_binding("console.log(x.O)", b'O').unwrap());
     assert!(!super::single_character_name_is_clear_binding("let O={O:1}", b'O').unwrap());
     assert!(!super::single_character_name_is_clear_binding("f({O})", b'O').unwrap());
@@ -1035,6 +1039,54 @@ fn remaps_two_character_bindings_without_touching_longer_names() {
         "var d=i.apply(r,n);if(d==r.promise()){return d}console.log(obj.get,merge)"
     );
     assert!(!super::identifier_name_is_clear_binding("f({ge:1,ge})", "ge").unwrap());
+}
+
+#[test]
+fn two_character_remapping_rejects_ambient_and_unresolved_names() {
+    assert!(!super::identifier_name_is_clear_binding("console.log(ge)", "ge").unwrap());
+    assert!(
+        !super::identifier_name_is_clear_binding("function f({x}){return ge+x}", "ge").unwrap()
+    );
+    assert_eq!(
+        super::remap_identifier("console.log(ge)", "ge", "a").unwrap(),
+        "console.log(ge)"
+    );
+}
+
+#[test]
+fn two_character_remapping_rejects_unresolved_template_occurrences() {
+    let source = "let ge=1;console.log(`${ge}`)";
+    assert!(!super::identifier_name_is_clear_binding(source, "ge").unwrap());
+    assert_eq!(super::remap_identifier(source, "ge", "a").unwrap(), source);
+}
+
+#[test]
+fn one_character_remap_candidates_reject_template_expressions() {
+    let source = "let a=1;console.log(`${a+1}`)";
+    assert!(super::single_character_resolved_binding_identifiers(source)
+        .unwrap()
+        .is_empty());
+    assert!(!super::single_character_name_is_clear_binding(source, b'a').unwrap());
+    assert!(
+        super::function_local_binding_swap_variants("function f(a,b){return`${a+b}`}")
+            .unwrap()
+            .is_empty()
+    );
+}
+
+#[test]
+fn fresh_object_assignment_collection_requires_pristine_builtins() {
+    let source = "let o={};o.x=value;export{o}";
+    let ordinary = optimize_generated_javascript(source).unwrap().code;
+    assert!(
+        ordinary.contains("o.x=value"),
+        "an inherited setter must remain observable: {ordinary}"
+    );
+
+    let pristine = optimize_generated_javascript_assuming(source, true)
+        .unwrap()
+        .code;
+    assert!(pristine.contains("{x:value}"), "{pristine}");
 }
 
 #[test]

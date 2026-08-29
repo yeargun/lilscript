@@ -1,0 +1,36 @@
+import extern { registerRuntimeHelpers as coreRegisterRuntimeHelpers } from "../../packages/vuelil/compiler-core.js";
+
+extern JsValue Symbol;
+extern void coreRegisterRuntimeHelpers(JsValue helpers);
+
+JsValue domHelperUndefined() {
+  return JS.undefined();
+}
+
+JsValue domRuntimeSymbol(string name) {
+  return JS.call(Symbol, domHelperUndefined(), name);
+}
+
+export JsValue V_MODEL_RADIO = domRuntimeSymbol("vModelRadio");
+export JsValue V_MODEL_CHECKBOX = domRuntimeSymbol("vModelCheckbox");
+export JsValue V_MODEL_TEXT = domRuntimeSymbol("vModelText");
+export JsValue V_MODEL_SELECT = domRuntimeSymbol("vModelSelect");
+export JsValue V_MODEL_DYNAMIC = domRuntimeSymbol("vModelDynamic");
+export JsValue V_ON_WITH_MODIFIERS = domRuntimeSymbol("vOnModifiersGuard");
+export JsValue V_ON_WITH_KEYS = domRuntimeSymbol("vOnKeysGuard");
+export JsValue V_SHOW = domRuntimeSymbol("vShow");
+export JsValue TRANSITION = domRuntimeSymbol("Transition");
+export JsValue TRANSITION_GROUP = domRuntimeSymbol("TransitionGroup");
+
+JsValue domRuntimeHelpers = JS.object();
+domRuntimeHelpers[V_MODEL_RADIO] = "vModelRadio";
+domRuntimeHelpers[V_MODEL_CHECKBOX] = "vModelCheckbox";
+domRuntimeHelpers[V_MODEL_TEXT] = "vModelText";
+domRuntimeHelpers[V_MODEL_SELECT] = "vModelSelect";
+domRuntimeHelpers[V_MODEL_DYNAMIC] = "vModelDynamic";
+domRuntimeHelpers[V_ON_WITH_MODIFIERS] = "withModifiers";
+domRuntimeHelpers[V_ON_WITH_KEYS] = "withKeys";
+domRuntimeHelpers[V_SHOW] = "vShow";
+domRuntimeHelpers[TRANSITION] = "Transition";
+domRuntimeHelpers[TRANSITION_GROUP] = "TransitionGroup";
+coreRegisterRuntimeHelpers(domRuntimeHelpers);

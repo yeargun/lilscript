@@ -1,0 +1,257 @@
+import { hasChanged, hasOwn, isMap, toRawType } from "../shared/general";
+import { DEV } from "./constants";
+import { ITERATE_KEY, MAP_KEY_ITERATE_KEY, track, trigger } from "./dep";
+import {
+  isReadonly,
+  isShallow,
+  toRaw,
+  toReactive,
+  toReadonly
+} from "./reactive";
+import { warn } from "./warning";
+
+extern JsValue hostCreateObject();
+extern JsValue hostRead(JsValue value, JsValue key);
+extern JsValue hostIteratorSymbol();
+extern JsValue hostIteratorFacade(JsValue inner, JsValue next);
+extern JsValue hostReflectGet(JsValue target, JsValue key, JsValue receiver);
+extern JsValue hostPrototypeMethodApply(JsValue receiver, JsValue method, JsValue args);
+extern JsValue hostCollectionSize(JsValue receiver);
+extern void hostDefineAccessor(JsValue object, JsValue key, JsValue get, JsValue set);
+extern JsValue hostCloneCollection(JsValue collection);
+extern string hostString(JsValue value);
+
+void write(JsValue value, JsValue key, JsValue next) {
+  value[key] = next;
+}
+
+JsValue args0() { return JS.array(); }
+JsValue args1(JsValue a) { return JS.array(a); }
+JsValue args2(JsValue a, JsValue b) { return JS.array(a, b); }
+
+JsValue protoCall(JsValue target, JsValue method, JsValue args) {
+  return hostPrototypeMethodApply(target, method, args);
+}
+
+JsValue callMethod(JsValue target, JsValue method, JsValue args) {
+  return JS.apply(hostRead(target, method), target, args);
+}
+
+JsValue wrapValue(JsValue value, bool readonlyValue, bool shallow) {
+  if (shallow) return value;
+  if (readonlyValue) return toReadonly(value);
+  return toReactive(value);
+}
+
+JsValue iterableMethod(JsValue observed, JsValue method, JsValue args, bool readonlyValue, bool shallow) {
+  JsValue target = hostRead(observed, "__v_raw");
+  JsValue rawTarget = toRaw(target);
+  bool targetIsMap = isMap(rawTarget);
+  bool pair = JS.strictEqual(method, "entries") ||
+    (JS.strictEqual(method, hostIteratorSymbol()) && targetIsMap);
+  bool keysOnly = JS.strictEqual(method, "keys") && targetIsMap;
+  JsValue inner = callMethod(target, method, args);
+  JsValue iterationKey = ITERATE_KEY;
+  if (keysOnly) iterationKey = MAP_KEY_ITERATE_KEY;
+  if (!readonlyValue) track(rawTarget, "iterate", iterationKey);
+  JsValue next = JS.method0((JsValue _self) => {
+    JsValue result = callMethod(inner, "next", args0());
+    if (!hostRead(result, "done").truthy()) {
+      JsValue value = hostRead(result, "value");
+      JsValue wrapped = wrapValue(value, readonlyValue, shallow);
+      if (pair) wrapped = JS.array(
+        wrapValue(hostRead(value, 0), readonlyValue, shallow),
+        wrapValue(hostRead(value, 1), readonlyValue, shallow)
+      );
+      write(result, "value", wrapped);
+    }
+    return result;
+  });
+  return hostIteratorFacade(inner, next);
+}
+
+void checkIdentityKeys(JsValue target, JsValue key) {
+  JsValue rawKey = toRaw(key);
+  if (!JS.strictEqual(rawKey, key) && protoCall(target, "has", args1(rawKey)).truthy()) {
+    string kind = toRawType(target);
+    string asKeys = "";
+    if (kind == "Map") asKeys = " as keys";
+    warn(
+      "Reactive " + kind + " contains both the raw and reactive versions of the same object" +
+      asKeys + ", which can lead to inconsistencies. Avoid differentiating between the raw and " +
+      "reactive versions of an object and only use the reactive version if possible."
+    );
+  }
+}
+
+JsValue readonlyMethod(string type) {
+  return JS.methodRest((JsValue self, JsValue args) => {
+    if (DEV) {
+      JsValue first = hostRead(args, 0);
+      string key = "";
+      if (first.truthy()) key = "on key \"" + hostString(first) + "\" ";
+      string operation = "Clear";
+      if (type == "add") operation = "Add";
+      else if (type == "set") operation = "Set";
+      else if (type == "delete") operation = "Delete";
+      warn(operation + " operation " + key + "failed: target is readonly.", toRaw(self));
+    }
+    if (type == "delete") return false;
+    if (type == "clear") return JS.undefined();
+    return self;
+  });
+}
+
+JsValue createInstrumentations(bool readonlyValue, bool shallow) {
+  JsValue methods = hostCreateObject();
+  write(methods, "get", JS.method1((JsValue self, JsValue key) => {
+    JsValue target = hostRead(self, "__v_raw");
+    JsValue rawTarget = toRaw(target);
+    JsValue rawKey = toRaw(key);
+    if (!readonlyValue) {
+      if (hasChanged(key, rawKey)) track(rawTarget, "get", key);
+      track(rawTarget, "get", rawKey);
+    }
+    if (protoCall(rawTarget, "has", args1(key)).truthy()) {
+      return wrapValue(callMethod(target, "get", args1(key)), readonlyValue, shallow);
+    }
+    if (protoCall(rawTarget, "has", args1(rawKey)).truthy()) {
+      return wrapValue(callMethod(target, "get", args1(rawKey)), readonlyValue, shallow);
+    }
+    if (!JS.strictEqual(target, rawTarget)) callMethod(target, "get", args1(key));
+    return JS.undefined();
+  }));
+  hostDefineAccessor(
+    methods,
+    "size",
+    JS.method0((JsValue self) => {
+      JsValue target = hostRead(self, "__v_raw");
+      if (!readonlyValue) track(toRaw(target), "iterate", ITERATE_KEY);
+      return hostRead(target, "size");
+    }),
+    JS.undefined()
+  );
+  write(methods, "has", JS.method1((JsValue self, JsValue key) => {
+    JsValue target = hostRead(self, "__v_raw");
+    JsValue rawTarget = toRaw(target);
+    JsValue rawKey = toRaw(key);
+    if (!readonlyValue) {
+      if (hasChanged(key, rawKey)) track(rawTarget, "has", key);
+      track(rawTarget, "has", rawKey);
+    }
+    if (JS.strictEqual(key, rawKey)) return callMethod(target, "has", args1(key));
+    return callMethod(target, "has", args1(key)).truthy() ||
+      callMethod(target, "has", args1(rawKey)).truthy();
+  }));
+  write(methods, "forEach", JS.method2((JsValue self, JsValue callback, JsValue thisArg) => {
+    JsValue target = hostRead(self, "__v_raw");
+    JsValue rawTarget = toRaw(target);
+    if (!readonlyValue) track(rawTarget, "iterate", ITERATE_KEY);
+    JsValue wrapped = JS.method2((JsValue _innerSelf, JsValue value, JsValue key) => JS.call(
+      callback,
+      thisArg,
+      wrapValue(value, readonlyValue, shallow),
+      wrapValue(key, readonlyValue, shallow),
+      self
+    ));
+    return callMethod(target, "forEach", args1(wrapped));
+  }));
+
+  if (readonlyValue) {
+    write(methods, "add", readonlyMethod("add"));
+    write(methods, "set", readonlyMethod("set"));
+    write(methods, "delete", readonlyMethod("delete"));
+    write(methods, "clear", readonlyMethod("clear"));
+  } else {
+    write(methods, "add", JS.method1((JsValue self, JsValue value) => {
+      JsValue target = toRaw(self);
+      JsValue rawValue = toRaw(value);
+      JsValue valueToAdd = value;
+      if (!shallow && !isShallow(value) && !isReadonly(value)) valueToAdd = rawValue;
+      bool hadKey = protoCall(target, "has", args1(valueToAdd)).truthy() ||
+        (hasChanged(value, valueToAdd) && protoCall(target, "has", args1(value)).truthy()) ||
+        (hasChanged(rawValue, valueToAdd) && protoCall(target, "has", args1(rawValue)).truthy());
+      if (!hadKey) {
+        callMethod(target, "add", args1(valueToAdd));
+        trigger(target, "add", valueToAdd, valueToAdd, JS.undefined(), JS.undefined());
+      }
+      return self;
+    }));
+    write(methods, "set", JS.method2((JsValue self, JsValue key, JsValue value) => {
+      if (!shallow && !isShallow(value) && !isReadonly(value)) value = toRaw(value);
+      JsValue target = toRaw(self);
+      bool hadKey = protoCall(target, "has", args1(key)).truthy();
+      if (!hadKey) {
+        key = toRaw(key);
+        hadKey = protoCall(target, "has", args1(key)).truthy();
+      } else if (DEV) checkIdentityKeys(target, key);
+      JsValue oldValue = protoCall(target, "get", args1(key));
+      callMethod(target, "set", args2(key, value));
+      if (!hadKey) trigger(target, "add", key, value, JS.undefined(), JS.undefined());
+      else if (hasChanged(value, oldValue)) {
+        trigger(target, "set", key, value, oldValue, JS.undefined());
+      }
+      return self;
+    }));
+    write(methods, "delete", JS.method1((JsValue self, JsValue key) => {
+      JsValue target = toRaw(self);
+      bool hadKey = protoCall(target, "has", args1(key)).truthy();
+      if (!hadKey) {
+        key = toRaw(key);
+        hadKey = protoCall(target, "has", args1(key)).truthy();
+      } else if (DEV) checkIdentityKeys(target, key);
+      JsValue oldValue = JS.undefined();
+      string kind = toRawType(target);
+      if (kind == "Map" || kind == "WeakMap") oldValue = protoCall(target, "get", args1(key));
+      JsValue result = callMethod(target, "delete", args1(key));
+      if (hadKey) trigger(target, "delete", key, JS.undefined(), oldValue, JS.undefined());
+      return result;
+    }));
+    write(methods, "clear", JS.method0((JsValue self) => {
+      JsValue target = toRaw(self);
+      bool hadItems = JS.number(hostCollectionSize(target)) != 0;
+      JsValue oldTarget = JS.undefined();
+      if (DEV) oldTarget = hostCloneCollection(target);
+      JsValue result = callMethod(target, "clear", args0());
+      if (hadItems) trigger(
+        target,
+        "clear",
+        JS.undefined(),
+        JS.undefined(),
+        JS.undefined(),
+        oldTarget
+      );
+      return result;
+    }));
+  }
+
+  JsValue iteratorSymbol = hostIteratorSymbol();
+  write(methods, "keys", JS.methodRest((JsValue self, JsValue args) =>
+    iterableMethod(self, "keys", args, readonlyValue, shallow)));
+  write(methods, "values", JS.methodRest((JsValue self, JsValue args) =>
+    iterableMethod(self, "values", args, readonlyValue, shallow)));
+  write(methods, "entries", JS.methodRest((JsValue self, JsValue args) =>
+    iterableMethod(self, "entries", args, readonlyValue, shallow)));
+  write(methods, iteratorSymbol, JS.methodRest((JsValue self, JsValue args) =>
+    iterableMethod(self, iteratorSymbol, args, readonlyValue, shallow)));
+  return methods;
+}
+
+JsValue createCollectionHandler(bool readonlyValue, bool shallow) {
+  JsValue instrumentations = createInstrumentations(readonlyValue, shallow);
+  return JS.object(
+    "get", JS.method3((JsValue _self, JsValue target, JsValue key, JsValue receiver) => {
+      if (JS.strictEqual(key, "__v_isReactive")) return !readonlyValue;
+      if (JS.strictEqual(key, "__v_isReadonly")) return readonlyValue;
+      if (JS.strictEqual(key, "__v_raw")) return target;
+      JsValue selected = target;
+      if (hasOwn(instrumentations, key) && JS.in(key, target)) selected = instrumentations;
+      return hostReflectGet(selected, key, receiver);
+    })
+  );
+}
+
+export JsValue mutableCollectionHandlers = createCollectionHandler(false, false);
+export JsValue shallowCollectionHandlers = createCollectionHandler(false, true);
+export JsValue readonlyCollectionHandlers = createCollectionHandler(true, false);
+export JsValue shallowReadonlyCollectionHandlers = createCollectionHandler(true, true);

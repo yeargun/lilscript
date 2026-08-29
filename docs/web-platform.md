@@ -35,10 +35,11 @@ element.setAttribute("data-state","ready")
 ```
 
 The compiler emits no host wrappers, registries, proxies, reflection tables, or
-runtime type checks. External global and member names are ABI names. Identifier,
-property, and export mangling never changes them. Internal values passed to or
-returned from a host operation are marked as escaping so representation-changing
-optimizations remain sound.
+runtime type checks. External global and member names are ABI names and remain
+exact by default. The legacy explicit closed-key configuration assumes a
+coordinated non-host ABI and is not valid for arbitrary browser objects. Internal
+values passed to or returned from a host operation are marked as escaping so
+representation-changing optimizations remain sound.
 
 Known pure host factories used by ports may also lower in the optimizer before
 codegen: `createEmptyObject()` becomes a plain `{}` (distinct from null-proto

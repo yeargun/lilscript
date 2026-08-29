@@ -164,8 +164,9 @@ keeps the eleven class names Oxc mangles away. Compat 5/5. What it took, beyond
 the list below:
 
 - The proposal budget, not the fold set, was the binding constraint: an 18 KiB
-  module at level 15 with `candidate_search = "production"` gets 96 work units
-  against ~38 beam families. `posthoglil/lilscript.identity.toml` lifts it.
+  module at level 15 with `candidate_search = "production"` got 96 work units
+  against the then-active family set. The current registry has 48 scored
+  families plus reserved work and starvation reporting.
 - Deleting the emulation the class replaces: the `new.target` guard call, the
   guard's declarator, the `name`/`length`/`prototype` finisher, and the
   `(function(){var v;v=…;return v})()` husk left by inlining the factory.

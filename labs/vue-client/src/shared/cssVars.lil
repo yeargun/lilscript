@@ -1,0 +1,40 @@
+import { Number, String, console, process } from "./makeMap";
+
+JsValue undefinedValue() {
+  return JS.undefined();
+}
+
+string hostString(JsValue value) {
+  return JS.string(JS.call(String, undefinedValue(), value));
+}
+
+bool developmentMode() {
+  return JS.typeOf(process) == "undefined" ||
+    !JS.strictEqual(process["env"]["NODE_ENV"], "production");
+}
+
+export string normalizeCssVarValue(JsValue value) {
+  if (JS.isNullish(value)) {
+    return "initial";
+  }
+  if (JS.typeOf(value) == "string") {
+    string text = JS.string(value);
+    if (text == "") {
+      return " ";
+    }
+    return text;
+  }
+  if (
+    developmentMode() &&
+    (JS.typeOf(value) != "number" ||
+      !JS.invoke(Number, "isFinite", value).truthy())
+  ) {
+    JS.invoke(
+      console,
+      "warn",
+      "[Vue warn] Invalid value used for CSS binding. Expected a string or a finite number but received:",
+      value
+    );
+  }
+  return hostString(value);
+}

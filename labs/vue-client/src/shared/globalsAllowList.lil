@@ -1,0 +1,9 @@
+import { makeMap } from "./makeMap";
+
+string globalsAllowed =
+  "Infinity,undefined,NaN,isFinite,isNaN,parseFloat,parseInt,decodeURI," +
+  "decodeURIComponent,encodeURI,encodeURIComponent,Math,Number,Date,Array," +
+  "Object,Boolean,String,RegExp,Map,Set,JSON,Intl,BigInt,console,Error,Symbol";
+
+export JsValue isGloballyAllowed = makeMap(globalsAllowed);
+export JsValue isGloballyWhitelisted = isGloballyAllowed;

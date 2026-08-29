@@ -4,15 +4,16 @@ Parent: [knowledge tree](../README.md). Active work:
 [migration](../migration/README.md). Test contract:
 [verification](../verification/README.md).
 
-This folder records external ideas worth testing and the limits on transferring them
-into LilScript. It is not an implementation checklist and it does not turn another
-compiler’s marketing or source code into LilScript evidence. Every imported idea must
-be expressed as a semantic proof, an eligible candidate, and a reproducible ablation.
+This folder is non-authoritative history and experimental evidence. It is not a
+default LLM retrieval set, implementation checklist, source of live status, or
+numerical release authority. Every imported idea must become a reusable semantic
+proof, registered candidate, and reproducible ablation before it enters the
+canonical architecture.
 
-How those ideas must enter the compiler (registry row, not a peephole special
-case): [goal architecture](../compilation/goal-architecture.md),
+How those ideas must enter the compiler (registered recipe, not a package-shaped
+special case): [planned architecture](../compilation/planned-architecture.md),
 [objectives](../compilation/objectives.md),
-[migration 07](../migration/07-global-compressor.md).
+[planned migration](../migration/planned-migration.md).
 What the language must state so Closure/Terser cannot uniquely guess it:
 [compressor surface](../language/compressor-surface.md).
 
@@ -42,5 +43,6 @@ What the language must state so Closure/Terser cannot uniquely guess it:
 5. Measure raw, gzip-9, and Brotli-11; record compilation/runtime cost.
 6. Keep a regression or ablation even when the idea is neutral or loses.
 
-An idea seen in Closure/Terser/Oxc is evidence that a pattern matters, not proof that
-the same spelling wins under LilScript’s Brotli-default objective.
+An idea seen in Closure/Terser/Oxc or in a small corpus is evidence that a pattern
+matters, not a universal rule or proof that the same spelling wins under
+LilScript's configured objective. Exact complete-artifact scoring remains final.

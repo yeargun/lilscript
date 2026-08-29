@@ -10,14 +10,15 @@ Parent: [Language](README.md). Related: [types](types-not-glue.md), [escape](bou
 | `class` | Nominal reference, `init`, methods | Indexes internally | Devirtualize methods; dissolve if `LocalOnly`; no virtual dispatch |
 | `object` | Closed public singleton | **ABI keys**; bodies are private functions | Nest/anonymize/fold implementations; never mangle keys unless `mangle.exports` |
 | `Record<T>` | Open homogeneous map | **String keys are data** | Never mangled; reads are `T?` |
-| `extern class` | Host interface | Exact ABI names | Never mangled; never constructed |
+| `extern class` | Host interface | Exact ABI names by default | Never constructed; legacy explicit closed-key mode is separate ABI policy |
 
 IR uses `FieldGet`/`FieldSet` with `index` for structs/classes, `RecordFieldGet`/`Set` with a string for records, and `HostFieldGet`/`Set` for host names (`src/ir.rs`).
 
-Positional arrays and SSA locals are the **usual** size win, not a theorem.
-`LocalOnly` dissolution is an always-on IR pass (no “keep the object” clone).
-Array vs named object is `aggregate_layout` unless `joint-representation-search`
-is actually enabled — root `lilscript.toml` omits that decision, so repo-default
+Positional arrays and SSA locals are common size wins, not a theorem.
+`LocalOnly` dissolution is the configured IR incumbent; size-first library search
+can admit a scored `keep-object` clone through `joint-representation-search`.
+Array vs named object is `aggregate_layout` unless that search is enabled. Root
+`lilscript.toml` omits the decision, so repo-default
 compiles do not compete layouts. ES `class` is constructor identity, not instance
 backing. Full map: [decision registry](../compilation/decision-registry.md#aggregates-class-struct-object-record),
 [class identity](../compilation/class-identity.md).

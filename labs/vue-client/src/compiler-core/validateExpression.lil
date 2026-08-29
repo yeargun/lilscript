@@ -1,0 +1,53 @@
+import { createCompilerError } from "./errors";
+
+extern void hostNewFunction(string body);
+
+// Selected by compiler-core graph builds, matching Vue's compile-time globals.
+export bool COMPILER_BROWSER = false;
+export bool COMPILER_DEV = true;
+
+string prohibitedKeywords =
+  "arguments,await,break,case,catch,class,const,continue,debugger,default," +
+  "delete,do,else,export,extends,finally,for,function,if,import,let,new," +
+  "return,super,switch,throw,try,var,void,while,with,yield";
+Regex prohibitedKeywordRE = new Regex(
+  "\\b" + JS.string(JS.invoke(JS.invoke(prohibitedKeywords, "split", ","), "join", "\\b|\\b")) + "\\b"
+);
+Regex stripStringRE = new Regex(
+  "'(?:[^'\\\\]|\\\\.)*'|\"(?:[^\"\\\\]|\\\\.)*\"|`(?:[^`\\\\]|\\\\.)*\\$\\{|\\}(?:[^`\\\\]|\\\\.)*`|`(?:[^`\\\\]|\\\\.)*`",
+  "g"
+);
+
+JsValue validationUndefined() {
+  return JS.undefined();
+}
+
+export void validateBrowserExpression(
+  JsValue node,
+  JsValue context,
+  bool asParams = false,
+  bool asRawStatements = false
+) {
+  string expression = JS.string(node["content"]);
+  if (expression.trim() == "") return;
+
+  try {
+    string body = "return (" + expression + ")";
+    if (asParams) body = "return (" + expression + ") => {}";
+    if (asRawStatements) body = " " + expression + " ";
+    hostNewFunction(body);
+  } catch (JsValue error) {
+    string message = JS.string(error["message"]);
+    string withoutStrings = JS.string(JS.invoke(expression, "replace", stripStringRE, ""));
+    JsValue keywordMatch = JS.invoke(withoutStrings, "match", prohibitedKeywordRE);
+    if (!JS.isNullish(keywordMatch)) {
+      message = "avoid using JavaScript keyword as property name: \"" +
+        JS.string(keywordMatch[0]) + "\"";
+    }
+    JS.call(
+      context["onError"],
+      validationUndefined(),
+      createCompilerError(46, node["loc"], validationUndefined(), message)
+    );
+  }
+}

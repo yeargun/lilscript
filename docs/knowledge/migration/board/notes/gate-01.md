@@ -1,20 +1,17 @@
-# gate-01 — the codec-contract gate is red at HEAD
+# gate-01 — canonical codec contract
 
-Parent: [ledger](../LEDGER.md). Status: todo.
+Parent: [ledger](../LEDGER.md). Status: landed.
 
 ## Question
 
-Five runners import Node's compressors directly, which the codec contract forbids.
-Is each one size *evidence* (must move to `lilscript-codec`), or is it serving/
-diagnostic use that the contract should name as allowed?
+Which direct Node-compressor uses produce size evidence and must move to
+`lilscript-codec`, and which are serving/generated/research paths that require a
+narrow documented exclusion?
 
 ## Why it matters here
 
-`scripts/release-check.sh:28` runs `node --test benchmarks/codec-contract.test.mjs`,
-so the release gate is red before the identity lane touches anything. A fresh context
-that runs the suite will see a failure that has nothing to do with the work it was
-asked to do, and may "fix" it by weakening the contract — which is
-[refusal 3](../README.md#standing-refusals).
+`scripts/release-check.sh` runs the codec contract, so every publication runner
+must use the pinned implementation rather than a platform-dependent Node codec.
 
 ## The five files
 
@@ -41,15 +38,16 @@ from reading imports, not a verdict — confirm per file before changing either 
 |---|---|---|---|---|
 | 2026-08-19 | Contract test state | `node --test benchmarks/codec-contract.test.mjs` | 9 pass, 1 fail — "benchmark and publication runners use only the canonical codec wrapper", 5 paths | diag |
 | 2026-08-19 | Pre-existing at HEAD, not from working-tree edits | `git show HEAD:<path> \| grep -cE "zlib\|gzipSync\|brotliCompressSync"` | 7 / 5 / 7 matches in the three `.mjs` files at HEAD | diag |
+| 2026-08-29 | Canonical wrapper and reviewed exclusions | `node --test benchmarks/codec-contract.test.mjs` | 10/10 pass | gate |
 
 ## Log
 
 - 2026-08-19 — Found while checking that `scripts/board.mjs` itself passes the scanner;
   it does. The failure predates this session and predates the working-tree edits. — **OPEN**
+- 2026-08-29 — Measurement scripts use the canonical wrapper; vendored,
+  research, and serving-only paths have narrow reviewed exclusions. — **LANDED**
 
 ## Next step
 
-Classify each of the five paths as evidence or not-evidence, and record the answer here
-before editing anything. Only then either port the evidence paths onto
-`benchmarks/codec-contract.mjs` / `lilscript-codec`, or add a narrow, reasoned exclusion
-for the non-evidence ones.
+Keep `node --test benchmarks/codec-contract.test.mjs` green when adding or moving
+any benchmark/publication runner.

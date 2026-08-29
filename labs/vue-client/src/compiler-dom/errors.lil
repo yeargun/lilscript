@@ -1,0 +1,74 @@
+import extern {
+  ErrorCodes,
+  createCompilerError as coreCreateCompilerError
+} from "../../packages/vuelil/compiler-core.js";
+
+extern JsValue ErrorCodes;
+extern JsValue Error;
+extern JsValue coreCreateCompilerError;
+
+JsValue domErrorUndefined() {
+  return JS.undefined();
+}
+
+JsValue domErrorNumericEnum(JsValue names, int start) {
+  JsValue result = JS.object();
+  for (int index = 0; index < JS.number(names["length"]).toInt(); index++) {
+    string name = JS.string(names[index]);
+    int value = start + index;
+    result[name] = value;
+    result["" + value] = name;
+  }
+  return result;
+}
+
+export JsValue DOMErrorCodes = domErrorNumericEnum(JS.array(
+  "X_V_HTML_NO_EXPRESSION",
+  "X_V_HTML_WITH_CHILDREN",
+  "X_V_TEXT_NO_EXPRESSION",
+  "X_V_TEXT_WITH_CHILDREN",
+  "X_V_MODEL_ON_INVALID_ELEMENT",
+  "X_V_MODEL_ARG_ON_ELEMENT",
+  "X_V_MODEL_ON_FILE_INPUT_ELEMENT",
+  "X_V_MODEL_UNNECESSARY_VALUE",
+  "X_V_SHOW_NO_EXPRESSION",
+  "X_TRANSITION_INVALID_CHILDREN",
+  "X_IGNORED_SIDE_EFFECT_TAG",
+  "__EXTEND_POINT__"
+), 54);
+
+export JsValue DOMErrorMessages = JS.object(
+  "54", "v-html is missing expression.",
+  "55", "v-html will override element children.",
+  "56", "v-text is missing expression.",
+  "57", "v-text will override element children.",
+  "58", "v-model can only be used on <input>, <textarea> and <select> elements.",
+  "59", "v-model argument is not supported on plain elements.",
+  "60", "v-model cannot be used on file inputs since they are read-only. Use a v-on:change listener instead.",
+  "61", "Unnecessary value binding used alongside v-model. It will interfere with v-model's behavior.",
+  "62", "v-show is missing expression.",
+  "63", "<Transition> expects exactly one child element or component.",
+  "64", "Tags with side effect (<script> and <style>) are ignored in client component templates."
+);
+
+export JsValue createDOMCompilerError(int code, JsValue loc = JS.undefined()) {
+  return JS.call(
+    coreCreateCompilerError,
+    domErrorUndefined(),
+    code,
+    loc,
+    DOMErrorMessages
+  );
+}
+
+if (
+  JS.number(DOMErrorCodes["X_V_HTML_NO_EXPRESSION"]).toInt() <
+  JS.number(ErrorCodes["__EXTEND_POINT__"]).toInt()
+) {
+  throw JS.construct(
+    Error,
+    "DOMErrorCodes need to be updated to " +
+    JS.string(ErrorCodes["__EXTEND_POINT__"]) +
+    " to match extension point from core ErrorCodes."
+  );
+}

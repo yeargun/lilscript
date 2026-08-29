@@ -1,0 +1,115 @@
+import extern { BindingTypes } from "../../../packages/vuelil/compiler-dom.js";
+import extern { hostDefineProperty } from "../host.js";
+import { resolveObjectKey } from "./utils";
+
+extern JsValue BindingTypes;
+extern JsValue hostDefineProperty;
+
+int bindingsLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+
+void bindingsPush(JsValue values, JsValue value) {
+  values[bindingsLength(values)] = value;
+}
+
+export JsValue analyzeScriptBindings(JsValue ast) {
+  for (int index = 0; index < bindingsLength(ast); index++) {
+    JsValue node = ast[index];
+    if (JS.string(node["type"]) == "ExportDefaultDeclaration" &&
+      JS.string(node["declaration"]["type"]) == "ObjectExpression") {
+      return analyzeBindingsFromOptions(node["declaration"]);
+    }
+  }
+  return JS.object();
+}
+
+JsValue analyzeBindingsFromOptions(JsValue node) {
+  JsValue bindings = JS.object();
+  JS.call(
+    hostDefineProperty,
+    JS.undefined(),
+    bindings,
+    "__isScriptSetup",
+    JS.object("enumerable", false, "value", false)
+  );
+  JsValue properties = node["properties"];
+  for (int index = 0; index < bindingsLength(properties); index++) {
+    JsValue property = properties[index];
+    if (JS.string(property["type"]) == "ObjectProperty" &&
+      !property["computed"].truthy() &&
+      JS.string(property["key"]["type"]) == "Identifier") {
+      string name = JS.string(property["key"]["name"]);
+      if (name == "props" || name == "inject") {
+        JsValue keys = getObjectOrArrayExpressionKeys(property["value"]);
+        for (int keyIndex = 0; keyIndex < bindingsLength(keys); keyIndex++) {
+          JsValue bindingType = BindingTypes["OPTIONS"];
+          if (name == "props") bindingType = BindingTypes["PROPS"];
+          bindings[JS.string(keys[keyIndex])] = bindingType;
+        }
+      } else if (JS.string(property["value"]["type"]) == "ObjectExpression" &&
+        (name == "computed" || name == "methods")) {
+        JsValue keys = getObjectExpressionKeys(property["value"]);
+        for (int keyIndex = 0; keyIndex < bindingsLength(keys); keyIndex++) {
+          bindings[JS.string(keys[keyIndex])] = BindingTypes["OPTIONS"];
+        }
+      }
+    } else if (JS.string(property["type"]) == "ObjectMethod" &&
+      JS.string(property["key"]["type"]) == "Identifier" &&
+      (JS.string(property["key"]["name"]) == "setup" ||
+        JS.string(property["key"]["name"]) == "data")) {
+      string name = JS.string(property["key"]["name"]);
+      JsValue body = property["body"]["body"];
+      for (int bodyIndex = 0; bodyIndex < bindingsLength(body); bodyIndex++) {
+        JsValue item = body[bodyIndex];
+        if (JS.string(item["type"]) == "ReturnStatement" &&
+          item["argument"].truthy() &&
+          JS.string(item["argument"]["type"]) == "ObjectExpression") {
+          JsValue keys = getObjectExpressionKeys(item["argument"]);
+          for (int keyIndex = 0; keyIndex < bindingsLength(keys); keyIndex++) {
+            JsValue bindingType = BindingTypes["DATA"];
+            if (name == "setup") bindingType = BindingTypes["SETUP_MAYBE_REF"];
+            bindings[JS.string(keys[keyIndex])] = bindingType;
+          }
+        }
+      }
+    }
+  }
+  return bindings;
+}
+
+JsValue getObjectExpressionKeys(JsValue node) {
+  JsValue keys = JS.array();
+  JsValue properties = node["properties"];
+  for (int index = 0; index < bindingsLength(properties); index++) {
+    JsValue prop = properties[index];
+    if (JS.string(prop["type"]) == "SpreadElement") continue;
+    JsValue key = resolveObjectKey(prop["key"], prop["computed"].truthy());
+    if (key.truthy()) {
+      bindingsPush(keys, JS.string(key));
+    }
+  }
+  return keys;
+}
+
+JsValue getArrayExpressionKeys(JsValue node) {
+  JsValue keys = JS.array();
+  JsValue elements = node["elements"];
+  for (int index = 0; index < bindingsLength(elements); index++) {
+    JsValue element = elements[index];
+    if (!JS.isNullish(element) && JS.string(element["type"]) == "StringLiteral") {
+      bindingsPush(keys, element["value"]);
+    }
+  }
+  return keys;
+}
+
+export JsValue getObjectOrArrayExpressionKeys(JsValue value) {
+  if (JS.string(value["type"]) == "ArrayExpression") {
+    return getArrayExpressionKeys(value);
+  }
+  if (JS.string(value["type"]) == "ObjectExpression") {
+    return getObjectExpressionKeys(value);
+  }
+  return JS.array();
+}

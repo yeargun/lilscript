@@ -1,0 +1,835 @@
+import { ErrorCodes } from "./errors";
+
+extern JsValue hostDecodeEntity(string source, int offset, bool attribute);
+extern JsValue Uint8Array;
+
+JsValue tokenizerUndefined() {
+  return JS.undefined();
+}
+
+int tokenizerLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+
+JsValue numericEnum(JsValue names, JsValue values) {
+  JsValue result = JS.object();
+  for (int index = 0; index < tokenizerLength(names); index++) {
+    string name = JS.string(names[index]);
+    int value = JS.number(values[index]).toInt();
+    result[name] = value;
+    result["" + value] = name;
+  }
+  return result;
+}
+
+export JsValue ParseMode = numericEnum(
+  JS.array("BASE", "HTML", "SFC"),
+  JS.array(0, 1, 2)
+);
+
+export JsValue CharCodes = numericEnum(
+  JS.array(
+    "Tab", "NewLine", "FormFeed", "CarriageReturn", "Space",
+    "ExclamationMark", "Number", "Amp", "SingleQuote", "DoubleQuote",
+    "GraveAccent", "Dash", "Slash", "Zero", "Nine", "Semi", "Lt", "Eq",
+    "Gt", "Questionmark", "UpperA", "LowerA", "UpperF", "LowerF", "UpperZ",
+    "LowerZ", "LowerX", "LowerV", "Dot", "Colon", "At", "LeftSquare",
+    "RightSquare"
+  ),
+  JS.array(
+    9, 10, 12, 13, 32, 33, 35, 38, 39, 34, 96, 45, 47, 48, 57, 59, 60,
+    61, 62, 63, 65, 97, 70, 102, 90, 122, 120, 118, 46, 58, 64, 91, 93
+  )
+);
+
+export JsValue State = numericEnum(
+  JS.array(
+    "Text", "InterpolationOpen", "Interpolation", "InterpolationClose",
+    "BeforeTagName", "InTagName", "InSelfClosingTag", "BeforeClosingTagName",
+    "InClosingTagName", "AfterClosingTagName", "BeforeAttrName", "InAttrName",
+    "InDirName", "InDirArg", "InDirDynamicArg", "InDirModifier",
+    "AfterAttrName", "BeforeAttrValue", "InAttrValueDq", "InAttrValueSq",
+    "InAttrValueNq", "BeforeDeclaration", "InDeclaration",
+    "InProcessingInstruction", "BeforeComment", "CDATASequence",
+    "InSpecialComment", "InCommentLike", "BeforeSpecialS", "BeforeSpecialT",
+    "SpecialStartSequence", "InRCDATA", "InEntity", "InSFCRootTagName"
+  ),
+  JS.array(
+    1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
+    20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34
+  )
+);
+
+export JsValue QuoteType = numericEnum(
+  JS.array("NoValue", "Unquoted", "Single", "Double"),
+  JS.array(0, 1, 2, 3)
+);
+
+export JsValue toCharCodes(string value) {
+  JsValue result = JS.construct(Uint8Array, value.length);
+  for (int index = 0; index < value.length; index++) {
+    result[index] = value.charCodeAt(index);
+  }
+  return result;
+}
+
+JsValue defaultDelimitersOpen = toCharCodes("{{");
+JsValue defaultDelimitersClose = toCharCodes("}}");
+
+export JsValue Sequences = JS.object(
+  "Cdata", toCharCodes("CDATA["),
+  "CdataEnd", toCharCodes("]]>") ,
+  "CommentEnd", toCharCodes("-->"),
+  "ScriptEnd", toCharCodes("</script"),
+  "StyleEnd", toCharCodes("</style"),
+  "TitleEnd", toCharCodes("</title"),
+  "TextareaEnd", toCharCodes("</textarea")
+);
+
+bool sameTokenizerValue(JsValue left, JsValue right) {
+  return JS.strictEqual(left, right);
+}
+
+bool isTagStartChar(int code) {
+  return (code >= 97 && code <= 122) || (code >= 65 && code <= 90);
+}
+
+export bool isWhitespace(int code) {
+  return code == 32 || code == 10 || code == 9 || code == 12 || code == 13;
+}
+
+bool isEndOfTagSection(int code) {
+  return code == 47 || code == 62 || isWhitespace(code);
+}
+
+export class Tokenizer {
+  int state;
+  string buffer;
+  int sectionStart;
+  int index;
+  int entityStart;
+  int baseState;
+  bool inRCDATA;
+  bool inXML;
+  bool inVPre;
+  JsValue newlines;
+  int mode;
+  JsValue stack;
+  JsValue cbs;
+  JsValue delimiterOpen;
+  JsValue delimiterClose;
+  int delimiterIndex;
+  JsValue currentSequence;
+  int sequenceIndex;
+
+  init(JsValue stack, JsValue callbacks) {
+    this.stack = stack;
+    this.cbs = callbacks;
+    this.state = 1;
+    this.buffer = "";
+    this.sectionStart = 0;
+    this.index = 0;
+    this.entityStart = 0;
+    this.baseState = 1;
+    this.inRCDATA = false;
+    this.inXML = false;
+    this.inVPre = false;
+    this.newlines = JS.array();
+    this.mode = 0;
+    this.delimiterOpen = defaultDelimitersOpen;
+    this.delimiterClose = defaultDelimitersClose;
+    this.delimiterIndex = -1;
+    this.currentSequence = tokenizerUndefined();
+    this.sequenceIndex = 0;
+  }
+
+  bool inSFCRoot() {
+    return this.mode == 2 && tokenizerLength(this.stack) == 0;
+  }
+
+  void reset() {
+    this.state = 1;
+    this.mode = 0;
+    this.buffer = "";
+    this.sectionStart = 0;
+    this.index = 0;
+    this.baseState = 1;
+    this.inRCDATA = false;
+    this.currentSequence = tokenizerUndefined();
+    this.newlines["length"] = 0;
+    this.delimiterOpen = defaultDelimitersOpen;
+    this.delimiterClose = defaultDelimitersClose;
+  }
+
+  JsValue getPos(int offset) {
+    int line = 1;
+    int column = offset + 1;
+    int length = tokenizerLength(this.newlines);
+    int found = -1;
+    if (length > 100) {
+      int left = -1;
+      int right = length;
+      while (left + 1 < right) {
+        int middle = (left + right) >> 1;
+        if (JS.number(this.newlines[middle]).toInt() < offset) left = middle;
+        else right = middle;
+      }
+      found = left;
+    } else {
+      for (int index = length - 1; index >= 0; index--) {
+        if (offset > JS.number(this.newlines[index]).toInt()) {
+          found = index;
+          break;
+        }
+      }
+    }
+    if (found >= 0) {
+      line = found + 2;
+      column = offset - JS.number(this.newlines[found]).toInt();
+    }
+    return JS.object("column", column, "line", line, "offset", offset);
+  }
+
+  int peek() {
+    return this.buffer.charCodeAt(this.index + 1);
+  }
+
+  void emit2(string name, JsValue first, JsValue second) {
+    JS.call(this.cbs[name], tokenizerUndefined(), first, second);
+  }
+
+  void emit3(string name, JsValue first, JsValue second, JsValue third) {
+    JS.call(this.cbs[name], tokenizerUndefined(), first, second, third);
+  }
+
+  void stateText(int code) {
+    if (code == 60) {
+      if (this.index > this.sectionStart) this.emit2("ontext", this.sectionStart, this.index);
+      this.state = 5;
+      this.sectionStart = this.index;
+    } else if (code == 38) {
+      this.startEntity();
+    } else if (!this.inVPre && code == JS.number(this.delimiterOpen[0]).toInt()) {
+      this.state = 2;
+      this.delimiterIndex = 0;
+      this.stateInterpolationOpen(code);
+    }
+  }
+
+  void stateInterpolationOpen(int code) {
+    if (code == JS.number(this.delimiterOpen[this.delimiterIndex]).toInt()) {
+      if (this.delimiterIndex == tokenizerLength(this.delimiterOpen) - 1) {
+        int start = this.index + 1 - tokenizerLength(this.delimiterOpen);
+        if (start > this.sectionStart) this.emit2("ontext", this.sectionStart, start);
+        this.state = 3;
+        this.sectionStart = start;
+      } else {
+        this.delimiterIndex++;
+      }
+    } else if (this.inRCDATA) {
+      this.state = 32;
+      this.stateInRCDATA(code);
+    } else {
+      this.state = 1;
+      this.stateText(code);
+    }
+  }
+
+  void stateInterpolation(int code) {
+    if (code == JS.number(this.delimiterClose[0]).toInt()) {
+      this.state = 4;
+      this.delimiterIndex = 0;
+      this.stateInterpolationClose(code);
+    }
+  }
+
+  void stateInterpolationClose(int code) {
+    if (code == JS.number(this.delimiterClose[this.delimiterIndex]).toInt()) {
+      if (this.delimiterIndex == tokenizerLength(this.delimiterClose) - 1) {
+        this.emit2("oninterpolation", this.sectionStart, this.index + 1);
+        if (this.inRCDATA) this.state = 32;
+        else this.state = 1;
+        this.sectionStart = this.index + 1;
+      } else {
+        this.delimiterIndex++;
+      }
+    } else {
+      this.state = 3;
+      this.stateInterpolation(code);
+    }
+  }
+
+  void stateSpecialStartSequence(int code) {
+    int sequenceLength = tokenizerLength(this.currentSequence);
+    bool atEnd = this.sequenceIndex == sequenceLength;
+    bool matches = false;
+    if (atEnd) matches = isEndOfTagSection(code);
+    else matches = (code | 32) == JS.number(this.currentSequence[this.sequenceIndex]).toInt();
+    if (!matches) {
+      this.inRCDATA = false;
+    } else if (!atEnd) {
+      this.sequenceIndex++;
+      return;
+    }
+    this.sequenceIndex = 0;
+    this.state = 6;
+    this.stateInTagName(code);
+  }
+
+  void stateInRCDATA(int code) {
+    int sequenceLength = tokenizerLength(this.currentSequence);
+    if (this.sequenceIndex == sequenceLength) {
+      if (code == 62 || isWhitespace(code)) {
+        int endOfText = this.index - sequenceLength;
+        if (this.sectionStart < endOfText) {
+          int actualIndex = this.index;
+          this.index = endOfText;
+          this.emit2("ontext", this.sectionStart, endOfText);
+          this.index = actualIndex;
+        }
+        this.sectionStart = endOfText + 2;
+        this.stateInClosingTagName(code);
+        this.inRCDATA = false;
+        return;
+      }
+      this.sequenceIndex = 0;
+    }
+    if ((code | 32) == JS.number(this.currentSequence[this.sequenceIndex]).toInt()) {
+      this.sequenceIndex++;
+    } else if (this.sequenceIndex == 0) {
+      if (
+        sameTokenizerValue(this.currentSequence, Sequences["TitleEnd"]) ||
+        sameTokenizerValue(this.currentSequence, Sequences["TextareaEnd"]) && !this.inSFCRoot()
+      ) {
+        if (code == 38) {
+          this.startEntity();
+        } else if (!this.inVPre && code == JS.number(this.delimiterOpen[0]).toInt()) {
+          this.state = 2;
+          this.delimiterIndex = 0;
+          this.stateInterpolationOpen(code);
+        }
+      } else if (this.fastForwardTo(60)) {
+        this.sequenceIndex = 1;
+      }
+    } else {
+      if (code == 60) this.sequenceIndex = 1;
+      else this.sequenceIndex = 0;
+    }
+  }
+
+  void stateCDATASequence(int code) {
+    if (code == JS.number(Sequences["Cdata"][this.sequenceIndex]).toInt()) {
+      this.sequenceIndex++;
+      if (this.sequenceIndex == tokenizerLength(Sequences["Cdata"])) {
+        this.state = 28;
+        this.currentSequence = Sequences["CdataEnd"];
+        this.sequenceIndex = 0;
+        this.sectionStart = this.index + 1;
+      }
+    } else {
+      this.sequenceIndex = 0;
+      this.state = 23;
+      this.stateInDeclaration(code);
+    }
+  }
+
+  bool fastForwardTo(int target) {
+    this.index++;
+    while (this.index < this.buffer.length) {
+      int code = this.buffer.charCodeAt(this.index);
+      if (code == 10) JS.invoke(this.newlines, "push", this.index);
+      if (code == target) return true;
+      this.index++;
+    }
+    this.index = this.buffer.length - 1;
+    return false;
+  }
+
+  void stateInCommentLike(int code) {
+    if (code == JS.number(this.currentSequence[this.sequenceIndex]).toInt()) {
+      this.sequenceIndex++;
+      if (this.sequenceIndex == tokenizerLength(this.currentSequence)) {
+        if (sameTokenizerValue(this.currentSequence, Sequences["CdataEnd"])) {
+          this.emit2("oncdata", this.sectionStart, this.index - 2);
+        } else {
+          this.emit2("oncomment", this.sectionStart, this.index - 2);
+        }
+        this.sequenceIndex = 0;
+        this.sectionStart = this.index + 1;
+        this.state = 1;
+      }
+    } else if (this.sequenceIndex == 0) {
+      if (this.fastForwardTo(JS.number(this.currentSequence[0]).toInt())) this.sequenceIndex = 1;
+    } else if (code != JS.number(this.currentSequence[this.sequenceIndex - 1]).toInt()) {
+      this.sequenceIndex = 0;
+    }
+  }
+
+  void startSpecial(JsValue sequence, int offset) {
+    this.enterRCDATA(sequence, offset);
+    this.state = 31;
+  }
+
+  void enterRCDATA(JsValue sequence, int offset) {
+    this.inRCDATA = true;
+    this.currentSequence = sequence;
+    this.sequenceIndex = offset;
+  }
+
+  void stateBeforeTagName(int code) {
+    if (code == 33) {
+      this.state = 22;
+      this.sectionStart = this.index + 1;
+    } else if (code == 63) {
+      this.state = 24;
+      this.sectionStart = this.index + 1;
+    } else if (isTagStartChar(code)) {
+      this.sectionStart = this.index;
+      if (this.mode == 0) {
+        this.state = 6;
+      } else if (this.inSFCRoot()) {
+        this.state = 34;
+      } else if (!this.inXML) {
+        if (code == 116) this.state = 30;
+        else if (code == 115) this.state = 29;
+        else this.state = 6;
+      } else {
+        this.state = 6;
+      }
+    } else if (code == 47) {
+      this.state = 8;
+    } else {
+      this.state = 1;
+      this.stateText(code);
+    }
+  }
+
+  void stateInTagName(int code) {
+    if (isEndOfTagSection(code)) this.handleTagName(code);
+  }
+
+  void stateInSFCRootTagName(int code) {
+    if (isEndOfTagSection(code)) {
+      string tag = this.buffer.slice(this.sectionStart, this.index);
+      if (tag != "template") this.enterRCDATA(toCharCodes("</" + tag), 0);
+      this.handleTagName(code);
+    }
+  }
+
+  void handleTagName(int code) {
+    this.emit2("onopentagname", this.sectionStart, this.index);
+    this.sectionStart = -1;
+    this.state = 11;
+    this.stateBeforeAttrName(code);
+  }
+
+  void stateBeforeClosingTagName(int code) {
+    if (isWhitespace(code)) {
+      return;
+    } else if (code == 62) {
+      this.emit2("onerr", ErrorCodes["MISSING_END_TAG_NAME"], this.index);
+      this.state = 1;
+      this.sectionStart = this.index + 1;
+    } else {
+      if (isTagStartChar(code)) this.state = 9;
+      else this.state = 27;
+      this.sectionStart = this.index;
+    }
+  }
+
+  void stateInClosingTagName(int code) {
+    if (code == 62 || isWhitespace(code)) {
+      this.emit2("onclosetag", this.sectionStart, this.index);
+      this.sectionStart = -1;
+      this.state = 10;
+      this.stateAfterClosingTagName(code);
+    }
+  }
+
+  void stateAfterClosingTagName(int code) {
+    if (code == 62) {
+      this.state = 1;
+      this.sectionStart = this.index + 1;
+    }
+  }
+
+  void stateBeforeAttrName(int code) {
+    if (code == 62) {
+      this.emit2("onopentagend", this.index, tokenizerUndefined());
+      if (this.inRCDATA) this.state = 32;
+      else this.state = 1;
+      this.sectionStart = this.index + 1;
+    } else if (code == 47) {
+      this.state = 7;
+      if (this.peek() != 62) {
+        this.emit2("onerr", ErrorCodes["UNEXPECTED_SOLIDUS_IN_TAG"], this.index);
+      }
+    } else if (code == 60 && this.peek() == 47) {
+      this.emit2("onopentagend", this.index, tokenizerUndefined());
+      this.state = 5;
+      this.sectionStart = this.index;
+    } else if (!isWhitespace(code)) {
+      if (code == 61) {
+        this.emit2(
+          "onerr",
+          ErrorCodes["UNEXPECTED_EQUALS_SIGN_BEFORE_ATTRIBUTE_NAME"],
+          this.index
+        );
+      }
+      this.handleAttrStart(code);
+    }
+  }
+
+  void handleAttrStart(int code) {
+    if (code == 118 && this.peek() == 45) {
+      this.state = 13;
+      this.sectionStart = this.index;
+    } else if (code == 46 || code == 58 || code == 64 || code == 35) {
+      this.emit2("ondirname", this.index, this.index + 1);
+      this.state = 14;
+      this.sectionStart = this.index + 1;
+    } else {
+      this.state = 12;
+      this.sectionStart = this.index;
+    }
+  }
+
+  void stateInSelfClosingTag(int code) {
+    if (code == 62) {
+      this.emit2("onselfclosingtag", this.index, tokenizerUndefined());
+      this.state = 1;
+      this.sectionStart = this.index + 1;
+      this.inRCDATA = false;
+    } else if (!isWhitespace(code)) {
+      this.state = 11;
+      this.stateBeforeAttrName(code);
+    }
+  }
+
+  void stateInAttrName(int code) {
+    if (code == 61 || isEndOfTagSection(code)) {
+      this.emit2("onattribname", this.sectionStart, this.index);
+      this.handleAttrNameEnd(code);
+    } else if (code == 34 || code == 39 || code == 60) {
+      this.emit2("onerr", ErrorCodes["UNEXPECTED_CHARACTER_IN_ATTRIBUTE_NAME"], this.index);
+    }
+  }
+
+  void stateInDirName(int code) {
+    if (code == 61 || isEndOfTagSection(code)) {
+      this.emit2("ondirname", this.sectionStart, this.index);
+      this.handleAttrNameEnd(code);
+    } else if (code == 58) {
+      this.emit2("ondirname", this.sectionStart, this.index);
+      this.state = 14;
+      this.sectionStart = this.index + 1;
+    } else if (code == 46) {
+      this.emit2("ondirname", this.sectionStart, this.index);
+      this.state = 16;
+      this.sectionStart = this.index + 1;
+    }
+  }
+
+  void stateInDirArg(int code) {
+    if (code == 61 || isEndOfTagSection(code)) {
+      this.emit2("ondirarg", this.sectionStart, this.index);
+      this.handleAttrNameEnd(code);
+    } else if (code == 91) {
+      this.state = 15;
+    } else if (code == 46) {
+      this.emit2("ondirarg", this.sectionStart, this.index);
+      this.state = 16;
+      this.sectionStart = this.index + 1;
+    }
+  }
+
+  void stateInDynamicDirArg(int code) {
+    if (code == 93) {
+      this.state = 14;
+    } else if (code == 61 || isEndOfTagSection(code)) {
+      this.emit2("ondirarg", this.sectionStart, this.index + 1);
+      this.handleAttrNameEnd(code);
+      this.emit2(
+        "onerr",
+        ErrorCodes["X_MISSING_DYNAMIC_DIRECTIVE_ARGUMENT_END"],
+        this.index
+      );
+    }
+  }
+
+  void stateInDirModifier(int code) {
+    if (code == 61 || isEndOfTagSection(code)) {
+      this.emit2("ondirmodifier", this.sectionStart, this.index);
+      this.handleAttrNameEnd(code);
+    } else if (code == 46) {
+      this.emit2("ondirmodifier", this.sectionStart, this.index);
+      this.sectionStart = this.index + 1;
+    }
+  }
+
+  void handleAttrNameEnd(int code) {
+    this.sectionStart = this.index;
+    this.state = 17;
+    this.emit2("onattribnameend", this.index, tokenizerUndefined());
+    this.stateAfterAttrName(code);
+  }
+
+  void stateAfterAttrName(int code) {
+    if (code == 61) {
+      this.state = 18;
+    } else if (code == 47 || code == 62) {
+      this.emit2("onattribend", 0, this.sectionStart);
+      this.sectionStart = -1;
+      this.state = 11;
+      this.stateBeforeAttrName(code);
+    } else if (!isWhitespace(code)) {
+      this.emit2("onattribend", 0, this.sectionStart);
+      this.handleAttrStart(code);
+    }
+  }
+
+  void stateBeforeAttrValue(int code) {
+    if (code == 34) {
+      this.state = 19;
+      this.sectionStart = this.index + 1;
+    } else if (code == 39) {
+      this.state = 20;
+      this.sectionStart = this.index + 1;
+    } else if (!isWhitespace(code)) {
+      this.sectionStart = this.index;
+      this.state = 21;
+      this.stateInAttrValueNoQuotes(code);
+    }
+  }
+
+  void handleInAttrValue(int code, int quote) {
+    if (code == quote) {
+      this.emit2("onattribdata", this.sectionStart, this.index);
+      this.sectionStart = -1;
+      int quoteType = 2;
+      if (quote == 34) quoteType = 3;
+      this.emit2("onattribend", quoteType, this.index + 1);
+      this.state = 11;
+    } else if (code == 38) {
+      this.startEntity();
+    }
+  }
+
+  void stateInAttrValueDoubleQuotes(int code) {
+    this.handleInAttrValue(code, 34);
+  }
+
+  void stateInAttrValueSingleQuotes(int code) {
+    this.handleInAttrValue(code, 39);
+  }
+
+  void stateInAttrValueNoQuotes(int code) {
+    if (isWhitespace(code) || code == 62) {
+      this.emit2("onattribdata", this.sectionStart, this.index);
+      this.sectionStart = -1;
+      this.emit2("onattribend", 1, this.index);
+      this.state = 11;
+      this.stateBeforeAttrName(code);
+    } else if (code == 34 || code == 39 || code == 60 || code == 61 || code == 96) {
+      this.emit2(
+        "onerr",
+        ErrorCodes["UNEXPECTED_CHARACTER_IN_UNQUOTED_ATTRIBUTE_VALUE"],
+        this.index
+      );
+    } else if (code == 38) {
+      this.startEntity();
+    }
+  }
+
+  void stateBeforeDeclaration(int code) {
+    if (code == 91) {
+      this.state = 26;
+      this.sequenceIndex = 0;
+    } else if (code == 45) {
+      this.state = 25;
+    } else {
+      this.state = 23;
+    }
+  }
+
+  void stateInDeclaration(int code) {
+    if (code == 62 || this.fastForwardTo(62)) {
+      this.state = 1;
+      this.sectionStart = this.index + 1;
+    }
+  }
+
+  void stateInProcessingInstruction(int code) {
+    if (code == 62 || this.fastForwardTo(62)) {
+      this.emit2("onprocessinginstruction", this.sectionStart, this.index);
+      this.state = 1;
+      this.sectionStart = this.index + 1;
+    }
+  }
+
+  void stateBeforeComment(int code) {
+    if (code == 45) {
+      this.state = 28;
+      this.currentSequence = Sequences["CommentEnd"];
+      this.sequenceIndex = 2;
+      this.sectionStart = this.index + 1;
+    } else {
+      this.state = 23;
+    }
+  }
+
+  void stateInSpecialComment(int code) {
+    if (code == 62 || this.fastForwardTo(62)) {
+      this.emit2("oncomment", this.sectionStart, this.index);
+      this.state = 1;
+      this.sectionStart = this.index + 1;
+    }
+  }
+
+  void stateBeforeSpecialS(int code) {
+    if (code == JS.number(Sequences["ScriptEnd"][3]).toInt()) {
+      this.startSpecial(Sequences["ScriptEnd"], 4);
+    } else if (code == JS.number(Sequences["StyleEnd"][3]).toInt()) {
+      this.startSpecial(Sequences["StyleEnd"], 4);
+    } else {
+      this.state = 6;
+      this.stateInTagName(code);
+    }
+  }
+
+  void stateBeforeSpecialT(int code) {
+    if (code == JS.number(Sequences["TitleEnd"][3]).toInt()) {
+      this.startSpecial(Sequences["TitleEnd"], 4);
+    } else if (code == JS.number(Sequences["TextareaEnd"][3]).toInt()) {
+      this.startSpecial(Sequences["TextareaEnd"], 4);
+    } else {
+      this.state = 6;
+      this.stateInTagName(code);
+    }
+  }
+
+  void startEntity() {
+    this.baseState = this.state;
+    this.state = 33;
+    this.entityStart = this.index;
+  }
+
+  void emitEntityCharacter(string character, int consumed) {
+    if (this.baseState != 1 && this.baseState != 32) {
+      if (this.sectionStart < this.entityStart) {
+        this.emit2("onattribdata", this.sectionStart, this.entityStart);
+      }
+      this.sectionStart = this.entityStart + consumed;
+      this.index = this.sectionStart - 1;
+      this.emit3("onattribentity", character, this.entityStart, this.sectionStart);
+    } else {
+      if (this.sectionStart < this.entityStart) {
+        this.emit2("ontext", this.sectionStart, this.entityStart);
+      }
+      this.sectionStart = this.entityStart + consumed;
+      this.index = this.sectionStart - 1;
+      this.emit3("ontextentity", character, this.entityStart, this.sectionStart);
+    }
+  }
+
+  void decodeCurrentEntity() {
+    bool attribute = this.baseState != 1 && this.baseState != 32;
+    JsValue decoded = hostDecodeEntity(this.buffer, this.entityStart + 1, attribute);
+    int consumed = JS.number(decoded["consumed"]).toInt();
+    JsValue characters = decoded["characters"];
+    for (int index = 0; index < tokenizerLength(characters); index++) {
+      this.emitEntityCharacter(JS.string(characters[index]), consumed);
+    }
+    this.state = this.baseState;
+    if (consumed == 0) this.index = this.entityStart;
+  }
+
+  void stateInEntity() {
+    this.decodeCurrentEntity();
+  }
+
+  void parse(string input) {
+    this.buffer = input;
+    while (this.index < this.buffer.length) {
+      int code = this.buffer.charCodeAt(this.index);
+      if (code == 10 && this.state != 33) JS.invoke(this.newlines, "push", this.index);
+      int state = this.state;
+      if (state == 1) this.stateText(code);
+      else if (state == 2) this.stateInterpolationOpen(code);
+      else if (state == 3) this.stateInterpolation(code);
+      else if (state == 4) this.stateInterpolationClose(code);
+      else if (state == 31) this.stateSpecialStartSequence(code);
+      else if (state == 32) this.stateInRCDATA(code);
+      else if (state == 26) this.stateCDATASequence(code);
+      else if (state == 19) this.stateInAttrValueDoubleQuotes(code);
+      else if (state == 12) this.stateInAttrName(code);
+      else if (state == 13) this.stateInDirName(code);
+      else if (state == 14) this.stateInDirArg(code);
+      else if (state == 15) this.stateInDynamicDirArg(code);
+      else if (state == 16) this.stateInDirModifier(code);
+      else if (state == 28) this.stateInCommentLike(code);
+      else if (state == 27) this.stateInSpecialComment(code);
+      else if (state == 11) this.stateBeforeAttrName(code);
+      else if (state == 6) this.stateInTagName(code);
+      else if (state == 34) this.stateInSFCRootTagName(code);
+      else if (state == 9) this.stateInClosingTagName(code);
+      else if (state == 5) this.stateBeforeTagName(code);
+      else if (state == 17) this.stateAfterAttrName(code);
+      else if (state == 20) this.stateInAttrValueSingleQuotes(code);
+      else if (state == 18) this.stateBeforeAttrValue(code);
+      else if (state == 8) this.stateBeforeClosingTagName(code);
+      else if (state == 10) this.stateAfterClosingTagName(code);
+      else if (state == 29) this.stateBeforeSpecialS(code);
+      else if (state == 30) this.stateBeforeSpecialT(code);
+      else if (state == 21) this.stateInAttrValueNoQuotes(code);
+      else if (state == 7) this.stateInSelfClosingTag(code);
+      else if (state == 23) this.stateInDeclaration(code);
+      else if (state == 22) this.stateBeforeDeclaration(code);
+      else if (state == 25) this.stateBeforeComment(code);
+      else if (state == 24) this.stateInProcessingInstruction(code);
+      else if (state == 33) this.stateInEntity();
+      this.index++;
+    }
+    this.cleanup();
+    this.finish();
+  }
+
+  void cleanup() {
+    if (this.sectionStart != this.index) {
+      if (this.state == 1 || this.state == 32 && this.sequenceIndex == 0) {
+        this.emit2("ontext", this.sectionStart, this.index);
+        this.sectionStart = this.index;
+      } else if (this.state == 19 || this.state == 20 || this.state == 21) {
+        this.emit2("onattribdata", this.sectionStart, this.index);
+        this.sectionStart = this.index;
+      }
+    }
+  }
+
+  void finish() {
+    if (this.state == 33) this.decodeCurrentEntity();
+    this.handleTrailingData();
+    JS.call(this.cbs["onend"], tokenizerUndefined());
+  }
+
+  void handleTrailingData() {
+    int endIndex = this.buffer.length;
+    if (this.sectionStart >= endIndex) return;
+    if (this.state == 28) {
+      if (sameTokenizerValue(this.currentSequence, Sequences["CdataEnd"])) {
+        this.emit2("oncdata", this.sectionStart, endIndex);
+      } else {
+        this.emit2("oncomment", this.sectionStart, endIndex);
+      }
+    } else if (
+      this.state == 6 || this.state == 11 || this.state == 18 || this.state == 17 ||
+      this.state == 12 || this.state == 13 || this.state == 14 || this.state == 15 ||
+      this.state == 16 || this.state == 20 || this.state == 19 || this.state == 21 ||
+      this.state == 9
+    ) {
+      return;
+    } else {
+      this.emit2("ontext", this.sectionStart, endIndex);
+    }
+  }
+}

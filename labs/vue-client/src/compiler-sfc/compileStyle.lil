@@ -1,0 +1,267 @@
+import extern { default as compileStylePostcss } from "postcss";
+import extern { default as compileStyleModules } from "postcss-modules";
+import extern {
+  hostAssign as compileStyleAssign,
+  hostCreateError as compileStyleCreateError,
+  hostCreateSet as compileStyleCreateSet
+} from "./host.js";
+import { cssVarsPlugin } from "./style/cssVars";
+import { scopedPlugin } from "./style/pluginScoped";
+import { processors } from "./style/preprocessors";
+import { trimPlugin } from "./style/pluginTrim";
+
+extern JsValue compileStyleAssign;
+extern JsValue compileStyleCreateError;
+extern JsValue compileStyleCreateSet;
+extern JsValue compileStyleModules;
+extern JsValue compileStylePostcss;
+
+// The browser facade changes this build constant before compilation.
+bool styleBrowserBuild = false;
+
+int styleLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+
+void stylePush(JsValue values, JsValue value) {
+  values[styleLength(values)] = value;
+}
+
+JsValue styleOption(JsValue options, string key, JsValue fallback) {
+  if (!JS.isUndefined(options[key])) return options[key];
+  return fallback;
+}
+
+export JsValue compileStyle(JsValue options) {
+  JsValue resolved = JS.call(
+    compileStyleAssign,
+    JS.undefined(),
+    JS.object(),
+    options,
+    JS.object("isAsync", false)
+  );
+  return doCompileStyle(resolved);
+}
+
+export JsValue compileStyleAsync(JsValue options) {
+  JsValue resolved = JS.call(
+    compileStyleAssign,
+    JS.undefined(),
+    JS.object(),
+    options,
+    JS.object("isAsync", true)
+  );
+  return doCompileStyle(resolved);
+}
+
+JsValue preprocessStyle(JsValue options, JsValue preprocessor) {
+  if (styleBrowserBuild && !options["preprocessCustomRequire"].truthy()) {
+    throw JS.call(
+      compileStyleCreateError,
+      JS.undefined(),
+      "[@vue/compiler-sfc] Style preprocessing in the browser build must " +
+        "provide the `preprocessCustomRequire` option to return the in-browser " +
+        "version of the preprocessor."
+    );
+  }
+  JsValue preprocessOptions = JS.object();
+  if (options["preprocessOptions"].truthy()) {
+    preprocessOptions = options["preprocessOptions"];
+  }
+  JsValue processorOptions = JS.call(
+    compileStyleAssign,
+    JS.undefined(),
+    JS.object("filename", options["filename"]),
+    preprocessOptions
+  );
+  JsValue map = options["inMap"];
+  if (!map.truthy()) map = options["map"];
+  return JS.call(
+    preprocessor,
+    JS.undefined(),
+    options["source"],
+    map,
+    processorOptions,
+    options["preprocessCustomRequire"]
+  );
+}
+
+export JsValue doCompileStyle(JsValue options) {
+  string filename = JS.string(options["filename"]);
+  string id = JS.string(options["id"]);
+  bool scoped = styleOption(options, "scoped", false).truthy();
+  bool trim = styleOption(options, "trim", true).truthy();
+  bool isProd = styleOption(options, "isProd", false).truthy();
+  bool modules = styleOption(options, "modules", false).truthy();
+  JsValue modulesOptions = styleOption(options, "modulesOptions", JS.object());
+  JsValue preprocessor = JS.undefined();
+  if (options["preprocessLang"].truthy()) {
+    preprocessor = processors[JS.string(options["preprocessLang"])];
+  }
+  JsValue preProcessedSource = JS.undefined();
+  if (preprocessor.truthy()) preProcessedSource = preprocessStyle(options, preprocessor);
+  JsValue map = options["inMap"];
+  if (!map.truthy()) map = options["map"];
+  string source = JS.string(options["source"]);
+  if (preProcessedSource.truthy()) {
+    map = preProcessedSource["map"];
+    source = JS.string(preProcessedSource["code"]);
+  }
+  string shortId = JS.string(JS.invoke(id, "replace", new Regex("^data-v-"), ""));
+  string longId = "data-v-" + shortId;
+  JsValue plugins = JS.array();
+  JsValue customPlugins = options["postcssPlugins"];
+  if (customPlugins.truthy()) {
+    for (int index = 0; index < styleLength(customPlugins); index++) {
+      stylePush(plugins, customPlugins[index]);
+    }
+  }
+  JS.invoke(
+    plugins,
+    "unshift",
+    JS.call(
+      cssVarsPlugin,
+      JS.undefined(),
+      JS.object("id", shortId, "isProd", isProd)
+    )
+  );
+  if (trim) stylePush(plugins, JS.call(trimPlugin, JS.undefined()));
+  if (scoped) stylePush(plugins, JS.call(scopedPlugin, JS.undefined(), longId));
+  JsValue cssModules = JS.undefined();
+  if (modules) {
+    if (styleBrowserBuild) {
+      throw JS.call(
+        compileStyleCreateError,
+        JS.undefined(),
+        "[@vue/compiler-sfc] `modules` option is not supported in the browser build."
+      );
+    }
+    if (!options["isAsync"].truthy()) {
+      throw JS.call(
+        compileStyleCreateError,
+        JS.undefined(),
+        "[@vue/compiler-sfc] `modules` option can only be used with compileStyleAsync()."
+      );
+    }
+    JsValue getJSON = JS.method2((JsValue _self, JsValue _cssFileName, JsValue json) => {
+      cssModules = json;
+      return JS.undefined();
+    });
+    JsValue moduleOptions = JS.call(
+      compileStyleAssign,
+      JS.undefined(),
+      JS.object(),
+      modulesOptions,
+      JS.object("getJSON", getJSON)
+    );
+    stylePush(
+      plugins,
+      JS.call(compileStyleModules, JS.undefined(), moduleOptions)
+    );
+  }
+
+  JsValue suppliedPostcssOptions = JS.object();
+  if (options["postcssOptions"].truthy()) {
+    suppliedPostcssOptions = options["postcssOptions"];
+  }
+  JsValue postCSSOptions = JS.call(
+    compileStyleAssign,
+    JS.undefined(),
+    JS.object(),
+    suppliedPostcssOptions,
+    JS.object("to", filename, "from", filename)
+  );
+  if (map.truthy()) {
+    postCSSOptions["map"] = JS.object(
+      "inline", false,
+      "annotation", false,
+      "prev", map
+    );
+  }
+  JsValue dependencyInput = JS.undefined();
+  if (preProcessedSource.truthy()) dependencyInput = preProcessedSource["dependencies"];
+  JsValue dependencies = JS.call(
+    compileStyleCreateSet,
+    JS.undefined(),
+    dependencyInput
+  );
+  JS.invoke(dependencies, "delete", filename);
+  JsValue errors = JS.array();
+  if (preProcessedSource.truthy() &&
+    styleLength(preProcessedSource["errors"]) > 0) {
+    JsValue preprocessErrors = preProcessedSource["errors"];
+    for (int index = 0; index < styleLength(preprocessErrors); index++) {
+      stylePush(errors, preprocessErrors[index]);
+    }
+  }
+  JsValue recordDependencies = JS.method1((JsValue _self, JsValue messages) => {
+    for (int index = 0; index < styleLength(messages); index++) {
+      JsValue message = messages[index];
+      if (JS.string(message["type"]) == "dependency") {
+        JS.invoke(dependencies, "add", message["file"]);
+      }
+    }
+    return dependencies;
+  });
+
+  JsValue result = JS.undefined();
+  JsValue code = JS.undefined();
+  JsValue outMap = JS.undefined();
+  try {
+    JsValue postcssRunner = JS.call(compileStylePostcss, JS.undefined(), plugins);
+    result = JS.invoke(postcssRunner, "process", source, postCSSOptions);
+    if (options["isAsync"].truthy()) {
+      JsValue onResolved = JS.method1((JsValue _self, JsValue resolved) => {
+        string resolvedCode = "";
+        if (resolved["css"].truthy()) resolvedCode = JS.string(resolved["css"]);
+        JsValue resolvedMap = JS.undefined();
+        if (resolved["map"].truthy()) {
+          resolvedMap = JS.invoke(resolved["map"], "toJSON");
+        }
+        return JS.object(
+          "code", resolvedCode,
+          "map", resolvedMap,
+          "errors", errors,
+          "modules", cssModules,
+          "rawResult", resolved,
+          "dependencies", JS.call(
+            recordDependencies,
+            JS.undefined(),
+            resolved["messages"]
+          )
+        );
+      });
+      JsValue onRejected = JS.method1((JsValue _self, JsValue error) => {
+        JsValue rejectedErrors = JS.array();
+        for (int index = 0; index < styleLength(errors); index++) {
+          stylePush(rejectedErrors, errors[index]);
+        }
+        stylePush(rejectedErrors, error);
+        return JS.object(
+          "code", "",
+          "map", JS.undefined(),
+          "errors", rejectedErrors,
+          "rawResult", JS.undefined(),
+          "dependencies", dependencies
+        );
+      });
+      return JS.invoke(JS.invoke(result, "then", onResolved), "catch", onRejected);
+    }
+    JS.call(recordDependencies, JS.undefined(), result["messages"]);
+    code = result["css"];
+    outMap = result["map"];
+  } catch (JsValue error) {
+    stylePush(errors, error);
+  }
+  string finalCode = "";
+  if (code.truthy()) finalCode = JS.string(code);
+  JsValue finalMap = JS.undefined();
+  if (outMap.truthy()) finalMap = JS.invoke(outMap, "toJSON");
+  return JS.object(
+    "code", finalCode,
+    "map", finalMap,
+    "errors", errors,
+    "rawResult", result,
+    "dependencies", dependencies
+  );
+}

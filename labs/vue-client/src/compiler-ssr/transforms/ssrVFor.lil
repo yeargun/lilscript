@@ -1,0 +1,73 @@
+import extern {
+  NodeTypes,
+  createCallExpression,
+  createForLoopParams,
+  createFunctionExpression,
+  createStructuralDirectiveTransform,
+  processFor
+} from "../../../packages/vuelil/compiler-dom.js";
+import { SSR_RENDER_LIST } from "../runtimeHelpers";
+import { processChildrenAsStatement } from "../ssrCodegenTransform";
+
+extern JsValue NodeTypes;
+extern JsValue createCallExpression;
+extern JsValue createForLoopParams;
+extern JsValue createFunctionExpression;
+extern JsValue createStructuralDirectiveTransform;
+extern JsValue processFor;
+
+JsValue ssrForUndefined() {
+  return JS.undefined();
+}
+
+JsValue ssrForProcessDirective(JsValue node, JsValue directive, JsValue context) {
+  return JS.call(processFor, ssrForUndefined(), node, directive, context);
+}
+
+export JsValue ssrTransformFor = JS.call(
+  createStructuralDirectiveTransform,
+  ssrForUndefined(),
+  "for",
+  JS.method3((JsValue _self, JsValue node, JsValue directive, JsValue context) =>
+    ssrForProcessDirective(node, directive, context)
+  )
+);
+
+export void ssrProcessFor(
+  JsValue node,
+  JsValue context,
+  bool disableNestedFragments = false
+) {
+  JsValue children = node["children"];
+  bool needFragmentWrapper = !disableNestedFragments &&
+    (JS.number(children["length"]).toInt() != 1 ||
+      !JS.strictEqual(children[0]["type"], NodeTypes["ELEMENT"]));
+  JsValue params = JS.call(
+    createForLoopParams,
+    ssrForUndefined(),
+    node["parseResult"]
+  );
+  JsValue renderLoop = JS.call(
+    createFunctionExpression,
+    ssrForUndefined(),
+    params
+  );
+  renderLoop["body"] = processChildrenAsStatement(
+    node,
+    context,
+    needFragmentWrapper
+  );
+  if (!disableNestedFragments) JS.invoke(context, "pushStringPart", "<!--[-->");
+  JsValue helper = JS.invoke(context, "helper", SSR_RENDER_LIST);
+  JS.invoke(
+    context,
+    "pushStatement",
+    JS.call(
+      createCallExpression,
+      ssrForUndefined(),
+      helper,
+      JS.array(node["source"], renderLoop)
+    )
+  );
+  if (!disableNestedFragments) JS.invoke(context, "pushStringPart", "<!--]-->");
+}

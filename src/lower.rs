@@ -2094,7 +2094,17 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
                 index,
                 span,
             } => {
+                let object_type = self.expression_type(object)?;
                 let object = self.lower_expr(object)?;
+                if matches!(object_type, Type::Record(_)) {
+                    if let Expr::String(property, _) = index {
+                        return self.emit_value(
+                            ControlFlowOp::RecordFieldGet { object, property },
+                            ty,
+                            *span,
+                        );
+                    }
+                }
                 let index = self.lower_expr(index)?;
                 self.emit_value(ControlFlowOp::IndexGet { object, index }, ty, *span)
             }
@@ -4038,11 +4048,24 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
                 object,
                 index,
                 span: _,
-            } => Ok(Place::Index {
-                object: self.lower_expr(object)?,
-                index: self.lower_expr(index)?,
-                ty,
-            }),
+            } => {
+                let object_type = self.expression_type(object)?;
+                let object = self.lower_expr(object)?;
+                if matches!(object_type, Type::Record(_)) {
+                    if let Expr::String(property, _) = index {
+                        return Ok(Place::RecordField {
+                            object,
+                            property,
+                            ty,
+                        });
+                    }
+                }
+                Ok(Place::Index {
+                    object,
+                    index: self.lower_expr(index)?,
+                    ty,
+                })
+            }
             _ => Err(LowerError::new(
                 expression.span(),
                 "expression is not an assignable place",
@@ -5282,5 +5305,107 @@ mod tests {
             .shapes
             .iter()
             .any(|shape| matches!(shape, ControlShape::ForOf { .. })));
+    }
+
+    #[test]
+    fn lowers_static_record_indexes_to_record_fields() {
+        let module = lower(
+            r#"Record<int> values=record{"\u0061":1};int selected=values["\u0061"]??0;values["beta"]=2;"#,
+        );
+        let operations = module
+            .functions
+            .iter()
+            .flat_map(|function| function.blocks.iter().flat_map(|block| &block.instructions));
+        let operations = operations
+            .map(|instruction| &instruction.op)
+            .collect::<Vec<_>>();
+
+        assert!(operations.iter().any(|operation| matches!(
+            operation,
+            ControlFlowOp::RecordFieldGet { property, .. } if *property == r#"\u0061"#
+        )));
+        assert!(operations.iter().any(|operation| matches!(
+            operation,
+            ControlFlowOp::RecordFieldSet {
+                property: "beta",
+                ..
+            }
+        )));
+        assert!(!operations.iter().any(|operation| matches!(
+            operation,
+            ControlFlowOp::IndexGet { .. } | ControlFlowOp::IndexSet { .. }
+        )));
+    }
+
+    #[test]
+    fn keeps_dynamic_record_indexes_generic() {
+        let module = lower(
+            "extern string key();Record<int> values=record{alpha:1};int selected=values[key()]??0;values[key()]=2;",
+        );
+        let operations = module
+            .functions
+            .iter()
+            .flat_map(|function| &function.blocks)
+            .flat_map(|block| &block.instructions)
+            .map(|instruction| &instruction.op)
+            .collect::<Vec<_>>();
+
+        assert!(operations
+            .iter()
+            .any(|operation| matches!(operation, ControlFlowOp::IndexGet { .. })));
+        assert!(operations
+            .iter()
+            .any(|operation| matches!(operation, ControlFlowOp::IndexSet { .. })));
+        assert!(!operations.iter().any(|operation| matches!(
+            operation,
+            ControlFlowOp::RecordFieldGet { .. } | ControlFlowOp::RecordFieldSet { .. }
+        )));
+    }
+
+    #[test]
+    fn lowers_static_proto_record_indexes_without_changing_the_key() {
+        let module = lower(
+            r#"Record<int> values=record{};values["__proto__"]=9;int selected=values["__proto__"]??0;"#,
+        );
+        let operations = module
+            .functions
+            .iter()
+            .flat_map(|function| &function.blocks)
+            .flat_map(|block| &block.instructions)
+            .map(|instruction| &instruction.op)
+            .collect::<Vec<_>>();
+
+        assert!(operations.iter().any(|operation| matches!(
+            operation,
+            ControlFlowOp::RecordFieldGet {
+                property: "__proto__",
+                ..
+            }
+        )));
+        assert!(operations.iter().any(|operation| matches!(
+            operation,
+            ControlFlowOp::RecordFieldSet {
+                property: "__proto__",
+                ..
+            }
+        )));
+    }
+
+    #[test]
+    fn static_record_index_enables_closed_record_projection() {
+        let mut module = lower(
+            r#"Record<int> values=record{alpha:1};int selected=values["alpha"]??0;print(selected);"#,
+        );
+        crate::optimizer::optimize_control_flow(&mut module).unwrap();
+        let report =
+            crate::optimizer::project_closed_record_observations_for_javascript(&mut module);
+
+        assert!(report.changed);
+        assert!(!module
+            .functions
+            .iter()
+            .flat_map(|function| &function.blocks)
+            .flat_map(|block| &block.instructions)
+            .any(|instruction| matches!(instruction.op, ControlFlowOp::RecordFieldGet { .. })));
     }
 }

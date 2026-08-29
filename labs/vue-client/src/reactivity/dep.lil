@@ -1,0 +1,302 @@
+import { isIntegerKey, isMap, isSymbol } from "../shared/general";
+import { DEV, TEST } from "./constants";
+import {
+  activeSub,
+  endBatch,
+  shouldTrack,
+  startBatch
+} from "./effect";
+
+extern JsValue hostCreateObject();
+extern JsValue hostCreateWeakMap();
+extern JsValue hostCreateMap();
+extern JsValue hostCreateFinalizationRegistry(JsValue callback);
+extern void hostFinalizationRegister(JsValue registry, JsValue target, JsValue heldValue);
+extern JsValue hostRead(JsValue value, JsValue key);
+extern bool hostObjectIs(JsValue left, JsValue right);
+extern JsValue hostSymbol(string description);
+
+void write(JsValue value, JsValue key, JsValue next) {
+  value[key] = next;
+}
+
+JsValue callMethod0(JsValue receiver, string method) {
+  return JS.call(receiver[method], receiver);
+}
+
+JsValue debuggerEvent(JsValue sub, JsValue info) {
+  JsValue event = hostCreateObject();
+  write(event, "effect", sub);
+  if (!JS.isUndefined(info)) {
+    for (string key in info) write(event, key, hostRead(info, key));
+  }
+  return event;
+}
+
+export int globalVersion = 0;
+
+JsValue computedCleanupRegistry = JS.undefined();
+if (TEST) {
+  computedCleanupRegistry = hostCreateFinalizationRegistry(JS.method1((JsValue _self, JsValue held) => {
+    JsValue dep = hostRead(held, "dep");
+    JsValue map = hostRead(held, "map");
+    JsValue key = hostRead(held, "key");
+    if (
+      JS.isUndefined(hostRead(dep, "subs")) &&
+      JS.strictEqual(JS.invoke(map, "get", key), dep)
+    ) JS.invoke(map, "delete", key);
+    return JS.undefined();
+  }));
+}
+
+export int currentGlobalVersion() {
+  return globalVersion;
+}
+
+export JsValue newLink(JsValue sub, JsValue dep) {
+  return JS.object(
+    "sub", sub,
+    "dep", dep,
+    "version", hostRead(dep, "version"),
+    "nextDep", JS.undefined(),
+    "prevDep", JS.undefined(),
+    "nextSub", JS.undefined(),
+    "prevSub", JS.undefined(),
+    "prevActiveLink", JS.undefined()
+  );
+}
+
+export JsValue newDep(JsValue computed = JS.undefined()) {
+  return JS.object(
+    "version", 0,
+    "activeLink", JS.undefined(),
+    "subs", JS.undefined(),
+    "subsHead", JS.undefined(),
+    "map", JS.undefined(),
+    "key", JS.undefined(),
+    "sc", 0,
+    "__v_skip", true,
+    "computed", computed
+  );
+}
+
+void addSub(JsValue link) {
+  JsValue dep = hostRead(link, "dep");
+  write(dep, "sc", JS.number(hostRead(dep, "sc")).toInt() + 1);
+  JsValue sub = hostRead(link, "sub");
+  if ((JS.number(hostRead(sub, "flags")).toInt() & 4) != 0) {
+    JsValue computed = hostRead(dep, "computed");
+    if (!JS.isUndefined(computed) && JS.isUndefined(hostRead(dep, "subs"))) {
+      write(computed, "flags", JS.number(hostRead(computed, "flags")).toInt() | 20);
+      JsValue current = hostRead(computed, "deps");
+      while (!JS.isUndefined(current)) {
+        addSub(current);
+        current = hostRead(current, "nextDep");
+      }
+    }
+    JsValue tail = hostRead(dep, "subs");
+    if (!JS.strictEqual(tail, link)) {
+      write(link, "prevSub", tail);
+      if (!JS.isUndefined(tail)) write(tail, "nextSub", link);
+    }
+    if (DEV && JS.isUndefined(hostRead(dep, "subsHead"))) write(dep, "subsHead", link);
+    write(dep, "subs", link);
+  }
+}
+
+export JsValue depTrack(JsValue dep, JsValue debugInfo = JS.undefined()) {
+  JsValue computed = hostRead(dep, "computed");
+  if (JS.isUndefined(activeSub) || !shouldTrack || JS.strictEqual(activeSub, computed)) {
+    return JS.undefined();
+  }
+  JsValue link = hostRead(dep, "activeLink");
+  if (JS.isUndefined(link) || !JS.strictEqual(hostRead(link, "sub"), activeSub)) {
+    link = newLink(activeSub, dep);
+    write(dep, "activeLink", link);
+    if (JS.isUndefined(hostRead(activeSub, "deps"))) {
+      write(activeSub, "deps", link);
+      write(activeSub, "depsTail", link);
+    } else {
+      JsValue tail = hostRead(activeSub, "depsTail");
+      write(link, "prevDep", tail);
+      write(tail, "nextDep", link);
+      write(activeSub, "depsTail", link);
+    }
+    addSub(link);
+    if (
+      TEST &&
+      (JS.number(hostRead(activeSub, "flags")).toInt() & 4) == 0 &&
+      !JS.isUndefined(hostRead(dep, "map"))
+    ) {
+      hostFinalizationRegister(computedCleanupRegistry, activeSub, JS.object(
+        "dep", dep,
+        "map", hostRead(dep, "map"),
+        "key", hostRead(dep, "key")
+      ));
+    }
+  } else if (JS.number(hostRead(link, "version")).toInt() == -1) {
+    write(link, "version", hostRead(dep, "version"));
+    JsValue next = hostRead(link, "nextDep");
+    if (!JS.isUndefined(next)) {
+      write(next, "prevDep", hostRead(link, "prevDep"));
+      JsValue previous = hostRead(link, "prevDep");
+      if (!JS.isUndefined(previous)) write(previous, "nextDep", next);
+      JsValue tail = hostRead(activeSub, "depsTail");
+      write(link, "prevDep", tail);
+      write(link, "nextDep", JS.undefined());
+      write(tail, "nextDep", link);
+      write(activeSub, "depsTail", link);
+      if (JS.strictEqual(hostRead(activeSub, "deps"), link)) write(activeSub, "deps", next);
+    }
+  }
+  if (DEV) {
+    JsValue onTrack = hostRead(activeSub, "onTrack");
+    if (!JS.isUndefined(onTrack)) {
+      JS.call(onTrack, JS.undefined(), debuggerEvent(activeSub, debugInfo));
+    }
+  }
+  return link;
+}
+
+export void depNotify(JsValue dep, JsValue debugInfo = JS.undefined()) {
+  startBatch();
+  try {
+    if (DEV) {
+      JsValue head = hostRead(dep, "subsHead");
+      while (!JS.isUndefined(head)) {
+        JsValue sub = hostRead(head, "sub");
+        JsValue onTrigger = hostRead(sub, "onTrigger");
+        if (!JS.isUndefined(onTrigger) && (JS.number(hostRead(sub, "flags")).toInt() & 8) == 0) {
+          JS.call(onTrigger, JS.undefined(), debuggerEvent(sub, debugInfo));
+        }
+        head = hostRead(head, "nextSub");
+      }
+    }
+    JsValue link = hostRead(dep, "subs");
+    while (!JS.isUndefined(link)) {
+      JsValue sub = hostRead(link, "sub");
+      JsValue result = callMethod0(sub, "notify");
+      if (JS.strictEqual(result, true)) depNotify(hostRead(sub, "dep"));
+      link = hostRead(link, "prevSub");
+    }
+  } finally {
+    endBatch();
+  }
+}
+
+export void depTrigger(JsValue dep, JsValue debugInfo = JS.undefined()) {
+  write(dep, "version", JS.number(hostRead(dep, "version")).toInt() + 1);
+  globalVersion += 1;
+  depNotify(dep, debugInfo);
+}
+
+export JsValue targetMap = hostCreateWeakMap();
+string iterateDescription = "";
+string mapIterateDescription = "";
+string arrayIterateDescription = "";
+if (DEV) {
+  iterateDescription = "Object iterate";
+  mapIterateDescription = "Map keys iterate";
+  arrayIterateDescription = "Array iterate";
+}
+export JsValue ITERATE_KEY = hostSymbol(iterateDescription);
+export JsValue MAP_KEY_ITERATE_KEY = hostSymbol(mapIterateDescription);
+export JsValue ARRAY_ITERATE_KEY = hostSymbol(arrayIterateDescription);
+
+export void track(JsValue target, JsValue operation, JsValue key) {
+  if (!shouldTrack || JS.isUndefined(activeSub)) return;
+  JsValue depsMap = JS.invoke(targetMap, "get", target);
+  if (JS.isUndefined(depsMap)) {
+    depsMap = hostCreateMap();
+    JS.invoke(targetMap, "set", target, depsMap);
+  }
+  JsValue dep = JS.invoke(depsMap, "get", key);
+  if (JS.isUndefined(dep)) {
+    dep = newDep();
+    JS.invoke(depsMap, "set", key, dep);
+    write(dep, "map", depsMap);
+    write(dep, "key", key);
+  }
+  if (DEV) depTrack(dep, JS.object("target", target, "type", operation, "key", key));
+  else depTrack(dep);
+}
+
+void runDep(JsValue dep, JsValue debugInfo) {
+  if (JS.isUndefined(dep)) return;
+  if (DEV) depTrigger(dep, debugInfo);
+  else depTrigger(dep);
+}
+
+export void trigger(
+  JsValue target,
+  JsValue operation,
+  JsValue key,
+  JsValue newValue,
+  JsValue oldValue,
+  JsValue oldTarget
+) {
+  JsValue depsMap = JS.invoke(targetMap, "get", target);
+  if (JS.isUndefined(depsMap)) {
+    globalVersion += 1;
+    return;
+  }
+  JsValue info = JS.undefined();
+  if (DEV) info = JS.object(
+    "target", target,
+    "type", operation,
+    "key", key,
+    "newValue", newValue,
+    "oldValue", oldValue,
+    "oldTarget", oldTarget
+  );
+  JsValue run = JS.method1((JsValue _self, JsValue dep) => {
+    runDep(dep, info);
+    return JS.undefined();
+  });
+  startBatch();
+  if (JS.strictEqual(operation, "clear")) {
+    JS.invoke(depsMap, "forEach", run);
+  } else {
+    bool targetIsArray = JS.isArray(target);
+    bool isArrayIndex = targetIsArray && isIntegerKey(key);
+    if (targetIsArray && JS.strictEqual(key, "length")) {
+      float nextLength = JS.number(newValue);
+      JsValue each = JS.method2((JsValue _self, JsValue dep, JsValue depKey) => {
+        if (
+          JS.strictEqual(depKey, "length") ||
+          JS.strictEqual(depKey, ARRAY_ITERATE_KEY) ||
+          (!isSymbol(depKey) && JS.number(depKey) >= nextLength)
+        ) runDep(dep, info);
+        return JS.undefined();
+      });
+      JS.invoke(depsMap, "forEach", each);
+    } else {
+      if (!JS.isUndefined(key) || JS.invoke(depsMap, "has", JS.undefined()).truthy()) {
+        runDep(JS.invoke(depsMap, "get", key), info);
+      }
+      if (isArrayIndex) runDep(JS.invoke(depsMap, "get", ARRAY_ITERATE_KEY), info);
+      if (JS.strictEqual(operation, "add")) {
+        if (!targetIsArray) {
+          runDep(JS.invoke(depsMap, "get", ITERATE_KEY), info);
+          if (isMap(target)) runDep(JS.invoke(depsMap, "get", MAP_KEY_ITERATE_KEY), info);
+        } else if (isArrayIndex) {
+          runDep(JS.invoke(depsMap, "get", "length"), info);
+        }
+      } else if (JS.strictEqual(operation, "delete")) {
+        if (!targetIsArray) {
+          runDep(JS.invoke(depsMap, "get", ITERATE_KEY), info);
+          if (isMap(target)) runDep(JS.invoke(depsMap, "get", MAP_KEY_ITERATE_KEY), info);
+        }
+      } else if (JS.strictEqual(operation, "set") && isMap(target)) {
+        runDep(JS.invoke(depsMap, "get", ITERATE_KEY), info);
+      }
+    }
+  }
+  endBatch();
+}
+
+export JsValue getDepFromReactive(JsValue object, JsValue key) {
+  JsValue depMap = JS.invoke(targetMap, "get", object);
+  if (JS.isUndefined(depMap)) return JS.undefined();
+  return JS.invoke(depMap, "get", key);
+}

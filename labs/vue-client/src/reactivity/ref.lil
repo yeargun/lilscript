@@ -1,0 +1,257 @@
+import {
+  arguments,
+  hasChanged,
+  isFunction,
+  isIntegerKey,
+  isObject,
+  isSymbol
+} from "../shared/general";
+import { DEV } from "./constants";
+import { depTrack, depTrigger, getDepFromReactive, newDep } from "./dep";
+import {
+  isProxy,
+  isReactive,
+  isReadonly,
+  isShallow,
+  toRaw,
+  toReactive
+} from "./reactive";
+import { warn } from "./warning";
+
+extern JsValue hostCreateObject();
+extern JsValue hostCreateArray(int length);
+extern JsValue hostCreateProxy(JsValue target, JsValue handler);
+extern JsValue hostRead(JsValue value, JsValue key);
+extern void hostDefineAccessor(JsValue object, JsValue key, JsValue get, JsValue set);
+extern bool hostReflectSet(JsValue target, JsValue key, JsValue value, JsValue receiver);
+extern JsValue hostReflectGet(JsValue target, JsValue key, JsValue receiver);
+extern int hostLength(JsValue value);
+extern string hostString(JsValue value);
+
+void write(JsValue value, JsValue key, JsValue next) {
+  value[key] = next;
+}
+
+export bool isRef(JsValue value) {
+  return JS.strictEqual(hostRead(value, "__v_isRef"), true);
+}
+
+JsValue createRef(JsValue rawValue, bool shallow) {
+  if (isRef(rawValue)) return rawValue;
+  JsValue refValue = hostCreateObject();
+  JsValue initialRaw = rawValue;
+  JsValue initialValue = rawValue;
+  if (!shallow) {
+    initialRaw = toRaw(rawValue);
+    initialValue = toReactive(rawValue);
+  }
+  JsValue dep = newDep();
+  write(refValue, "_rawValue", initialRaw);
+  write(refValue, "_value", initialValue);
+  write(refValue, "dep", dep);
+  write(refValue, "__v_isRef", true);
+  write(refValue, "__v_isShallow", shallow);
+  hostDefineAccessor(
+    refValue,
+    "value",
+    JS.method0((JsValue _self) => {
+      if (DEV) depTrack(dep, JS.object("target", refValue, "type", "get", "key", "value"));
+      else depTrack(dep);
+      return hostRead(refValue, "_value");
+    }),
+    JS.method1((JsValue _self, JsValue nextValue) => {
+      JsValue oldValue = hostRead(refValue, "_rawValue");
+      bool direct = shallow || isShallow(nextValue) || isReadonly(nextValue);
+      if (!direct) nextValue = toRaw(nextValue);
+      if (hasChanged(nextValue, oldValue)) {
+        write(refValue, "_rawValue", nextValue);
+        JsValue stored = nextValue;
+        if (!direct) stored = toReactive(nextValue);
+        write(refValue, "_value", stored);
+        if (DEV) depTrigger(dep, JS.object(
+          "target", refValue,
+          "type", "set",
+          "key", "value",
+          "newValue", nextValue,
+          "oldValue", oldValue
+        ));
+        else depTrigger(dep);
+      }
+      return JS.undefined();
+    })
+  );
+  return refValue;
+}
+
+export JsValue ref(JsValue value) {
+  return createRef(value, false);
+}
+
+export JsValue shallowRef(JsValue value) {
+  return createRef(value, true);
+}
+
+export void triggerRef(JsValue refValue) {
+  JsValue dep = hostRead(refValue, "dep");
+  if (!JS.isUndefined(dep)) {
+    if (DEV) depTrigger(dep, JS.object(
+      "target", refValue,
+      "type", "set",
+      "key", "value",
+      "newValue", hostRead(refValue, "_value")
+    ));
+    else depTrigger(dep);
+  }
+}
+
+export JsValue unref(JsValue value) {
+  if (isRef(value)) return hostRead(value, "value");
+  return value;
+}
+
+export JsValue toValue(JsValue source) {
+  if (isFunction(source)) return JS.call(source, JS.undefined());
+  return unref(source);
+}
+
+JsValue shallowUnwrapHandlers = JS.object(
+  "get", JS.method3((JsValue _self, JsValue target, JsValue key, JsValue receiver) => {
+    if (JS.strictEqual(key, "__v_raw")) return target;
+    return unref(hostReflectGet(target, key, receiver));
+  }),
+  "set", JS.methodRest((JsValue _self, JsValue args) => {
+    JsValue target = hostRead(args, 0);
+    JsValue key = hostRead(args, 1);
+    JsValue value = hostRead(args, 2);
+    JsValue receiver = hostRead(args, 3);
+    JsValue oldValue = hostRead(target, key);
+    if (isRef(oldValue) && !isRef(value)) {
+      write(oldValue, "value", value);
+      return true;
+    }
+    return hostReflectSet(target, key, value, receiver);
+  })
+);
+
+export JsValue proxyRefs(JsValue objectWithRefs) {
+  if (isReactive(objectWithRefs)) return objectWithRefs;
+  return hostCreateProxy(objectWithRefs, shallowUnwrapHandlers);
+}
+
+export JsValue customRef(JsValue factory) {
+  JsValue custom = hostCreateObject();
+  JsValue dep = newDep();
+  JsValue trackCallback = JS.method0((JsValue _self) => {
+    depTrack(dep);
+    return JS.undefined();
+  });
+  JsValue triggerCallback = JS.method0((JsValue _self) => {
+    depTrigger(dep);
+    return JS.undefined();
+  });
+  JsValue accessors = JS.call(factory, JS.undefined(), trackCallback, triggerCallback);
+  write(custom, "dep", dep);
+  write(custom, "_get", hostRead(accessors, "get"));
+  write(custom, "_set", hostRead(accessors, "set"));
+  write(custom, "__v_isRef", true);
+  write(custom, "_value", JS.undefined());
+  hostDefineAccessor(
+    custom,
+    "value",
+    JS.method0((JsValue _self) => {
+      JsValue value = JS.call(hostRead(custom, "_get"), JS.undefined());
+      write(custom, "_value", value);
+      return value;
+    }),
+    JS.method1((JsValue _self, JsValue value) => {
+      JS.call(hostRead(custom, "_set"), JS.undefined(), value);
+      return JS.undefined();
+    })
+  );
+  return custom;
+}
+
+JsValue createGetterRef(JsValue getter) {
+  JsValue result = hostCreateObject();
+  write(result, "_getter", getter);
+  write(result, "__v_isRef", true);
+  write(result, "__v_isReadonly", true);
+  write(result, "_value", JS.undefined());
+  hostDefineAccessor(
+    result,
+    "value",
+    JS.method0((JsValue _self) => {
+      JsValue value = JS.call(getter, JS.undefined());
+      write(result, "_value", value);
+      return value;
+    }),
+    JS.undefined()
+  );
+  return result;
+}
+
+JsValue propertyToRef(JsValue source, JsValue key, JsValue defaultValue) {
+  if (!isSymbol(key)) key = hostString(key);
+  JsValue raw = toRaw(source);
+  bool shallow = true;
+  JsValue object = source;
+  if (!JS.isArray(source) || isSymbol(key) || !isIntegerKey(key)) {
+    while (true) {
+      shallow = !isProxy(object) || isShallow(object);
+      object = hostRead(object, "__v_raw");
+      if (!shallow || JS.isUndefined(object) || !object.truthy()) break;
+    }
+  }
+  JsValue result = hostCreateObject();
+  write(result, "__v_isRef", true);
+  write(result, "_value", JS.undefined());
+  write(result, "_object", source);
+  write(result, "_key", key);
+  write(result, "_defaultValue", defaultValue);
+  write(result, "_raw", raw);
+  write(result, "_shallow", shallow);
+  hostDefineAccessor(
+    result,
+    "value",
+    JS.method0((JsValue _self) => {
+      JsValue value = hostRead(source, key);
+      if (shallow) value = unref(value);
+      if (JS.isUndefined(value)) value = defaultValue;
+      write(result, "_value", value);
+      return value;
+    }),
+    JS.method1((JsValue _self, JsValue value) => {
+      if (shallow && isRef(hostRead(raw, key))) {
+        JsValue nested = hostRead(source, key);
+        if (isRef(nested)) {
+          write(nested, "value", value);
+          return JS.undefined();
+        }
+      }
+      write(source, key, value);
+      return JS.undefined();
+    })
+  );
+  hostDefineAccessor(
+    result,
+    "dep",
+    JS.method0((JsValue _self) => getDepFromReactive(raw, key)),
+    JS.undefined()
+  );
+  return result;
+}
+
+export JsValue toRefs(JsValue object) {
+  if (DEV && !isProxy(object)) warn("toRefs() expects a reactive object but received a plain one.");
+  JsValue result = hostCreateObject();
+  if (JS.isArray(object)) result = hostCreateArray(hostLength(object));
+  for (string key in object) write(result, key, propertyToRef(object, key, JS.undefined()));
+  return result;
+}
+
+export JsValue toRef(JsValue source, JsValue key, JsValue defaultValue) {
+  if (isRef(source)) return source;
+  if (isFunction(source)) return createGetterRef(source);
+  if (isObject(source) && hostLength(arguments) > 1) return propertyToRef(source, key, defaultValue);
+  return ref(source);
+}

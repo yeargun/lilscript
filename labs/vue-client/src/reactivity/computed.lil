@@ -1,0 +1,73 @@
+import { isFunction } from "../shared/general";
+import { DEV } from "./constants";
+import { depTrack, newDep } from "./dep";
+import { EffectFlags, activeSub, batch, refreshComputed } from "./effect";
+import { warn } from "./warning";
+
+extern JsValue hostCreateObject();
+extern JsValue hostRead(JsValue value, JsValue key);
+extern void hostDefineAccessor(JsValue object, JsValue key, JsValue get, JsValue set);
+
+void write(JsValue value, JsValue key, JsValue next) {
+  value[key] = next;
+}
+
+export JsValue computed(JsValue getterOrOptions, JsValue debugOptions = JS.undefined()) {
+  JsValue getter = getterOrOptions;
+  JsValue setter = JS.undefined();
+  if (!isFunction(getterOrOptions)) {
+    getter = hostRead(getterOrOptions, "get");
+    setter = hostRead(getterOrOptions, "set");
+  }
+
+  JsValue computedRef = hostCreateObject();
+  JsValue dep = newDep(computedRef);
+  write(computedRef, "_value", JS.undefined());
+  write(computedRef, "dep", dep);
+  write(computedRef, "__v_isRef", true);
+  write(computedRef, "__v_isReadonly", JS.isUndefined(setter));
+  write(computedRef, "deps", JS.undefined());
+  write(computedRef, "depsTail", JS.undefined());
+  write(computedRef, "flags", 16);
+  write(computedRef, "globalVersion", -1);
+  write(computedRef, "isSSR", false);
+  write(computedRef, "next", JS.undefined());
+  write(computedRef, "effect", computedRef);
+  write(computedRef, "fn", getter);
+  write(computedRef, "setter", setter);
+  write(computedRef, "notify", JS.method0((JsValue _self) => {
+    int flags = JS.number(hostRead(computedRef, "flags")).toInt() | 16;
+    write(computedRef, "flags", flags);
+    if ((flags & 8) == 0 && !JS.strictEqual(activeSub, computedRef)) {
+      batch(computedRef, true);
+      return true;
+    }
+    return JS.undefined();
+  }));
+  if (DEV && !JS.isNullish(debugOptions)) {
+    write(computedRef, "onTrack", hostRead(debugOptions, "onTrack"));
+    write(computedRef, "onTrigger", hostRead(debugOptions, "onTrigger"));
+  }
+  hostDefineAccessor(
+    computedRef,
+    "value",
+    JS.method0((JsValue _self) => {
+      JsValue link = JS.undefined();
+      if (DEV) link = depTrack(dep, JS.object(
+        "target", computedRef,
+        "type", "get",
+        "key", "value"
+      ));
+      else link = depTrack(dep);
+      refreshComputed(computedRef);
+      if (!JS.isUndefined(link)) write(link, "version", hostRead(dep, "version"));
+      return hostRead(computedRef, "_value");
+    }),
+    JS.method1((JsValue _self, JsValue value) => {
+      if (!JS.isUndefined(setter)) JS.call(setter, JS.undefined(), value);
+      else if (DEV) warn("Write operation failed: computed value is readonly");
+      return JS.undefined();
+    })
+  );
+  return computedRef;
+}

@@ -1,0 +1,1115 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="LilScript's future direction: smaller JavaScript through typed proofs, explicit representation choices, bounded search, exact codec scoring, and reproducible library evidence."
+    />
+    <title>LilScript Future Direction - Smaller by Proof</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --paper: #f3efe4;
+        --paper-2: #e9e3d4;
+        --ink: #151512;
+        --muted: #68675e;
+        --line: #b7b09f;
+        --acid: #d9ff45;
+        --blue: #3155d9;
+        --red: #dc4c3f;
+        --white: #fffdf6;
+        --max: 1240px;
+        --mono: ui-monospace, "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+        --sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        --serif: Iowan Old Style, Baskerville, "Times New Roman", serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        margin: 0;
+        color: var(--ink);
+        background:
+          linear-gradient(var(--line) 1px, transparent 1px),
+          linear-gradient(90deg, var(--line) 1px, transparent 1px),
+          var(--paper);
+        background-size: 40px 40px;
+        font-family: var(--sans);
+        line-height: 1.55;
+      }
+
+      a {
+        color: inherit;
+      }
+
+      code,
+      .mono {
+        font-family: var(--mono);
+      }
+
+      .skip-link {
+        position: fixed;
+        z-index: 20;
+        top: 8px;
+        left: 8px;
+        padding: 8px 12px;
+        background: var(--ink);
+        color: var(--white);
+        transform: translateY(-160%);
+      }
+
+      .skip-link:focus {
+        transform: translateY(0);
+      }
+
+      .shell {
+        width: min(calc(100% - 32px), var(--max));
+        margin-inline: auto;
+      }
+
+      .topbar {
+        position: sticky;
+        z-index: 10;
+        top: 0;
+        border-bottom: 2px solid var(--ink);
+        background: color-mix(in srgb, var(--paper) 94%, transparent);
+        backdrop-filter: blur(12px);
+      }
+
+      .topbar-inner {
+        display: flex;
+        min-height: 58px;
+        align-items: center;
+        justify-content: space-between;
+        gap: 24px;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-family: var(--mono);
+        font-weight: 800;
+        text-decoration: none;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+
+      .brand-mark {
+        display: grid;
+        width: 30px;
+        height: 30px;
+        place-items: center;
+        border: 2px solid var(--ink);
+        background: var(--acid);
+      }
+
+      nav {
+        display: flex;
+        gap: 18px;
+        font-family: var(--mono);
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+      }
+
+      nav a {
+        text-decoration-thickness: 2px;
+        text-underline-offset: 4px;
+      }
+
+      .hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1.45fr) minmax(280px, 0.55fr);
+        min-height: 720px;
+        border-inline: 2px solid var(--ink);
+        background: var(--paper);
+      }
+
+      .hero-copy {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        padding: clamp(32px, 6vw, 84px);
+        border-right: 2px solid var(--ink);
+      }
+
+      .eyebrow,
+      .section-label,
+      .phase-number,
+      .card-number {
+        font-family: var(--mono);
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        width: fit-content;
+        padding: 7px 10px;
+        border: 2px solid var(--ink);
+        background: var(--acid);
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin-top: 0;
+      }
+
+      h1 {
+        max-width: 900px;
+        margin: 52px 0 32px;
+        font-family: var(--serif);
+        font-size: clamp(64px, 10vw, 150px);
+        font-weight: 600;
+        letter-spacing: -0.075em;
+        line-height: 0.82;
+      }
+
+      .hero-lead {
+        max-width: 760px;
+        margin-bottom: 52px;
+        font-size: clamp(19px, 2.1vw, 28px);
+        line-height: 1.35;
+      }
+
+      .hero-rule {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 18px;
+        align-items: start;
+        border-top: 2px solid var(--ink);
+        padding-top: 18px;
+        font-family: var(--mono);
+        font-size: 13px;
+      }
+
+      .hero-rule strong {
+        color: var(--red);
+        text-transform: uppercase;
+      }
+
+      .hero-side {
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+        background: var(--ink);
+        color: var(--white);
+      }
+
+      .status-stamp {
+        margin: 28px;
+        padding: 18px;
+        border: 2px solid var(--acid);
+        color: var(--acid);
+        font-family: var(--mono);
+        font-size: 14px;
+        font-weight: 800;
+        text-align: center;
+        text-transform: uppercase;
+        transform: rotate(2deg);
+      }
+
+      .scorecard {
+        display: grid;
+        align-content: center;
+      }
+
+      .score-row {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 16px;
+        padding: 18px 28px;
+        border-top: 1px solid #57574f;
+        font-family: var(--mono);
+        font-size: 13px;
+      }
+
+      .score-row:last-child {
+        border-bottom: 1px solid #57574f;
+      }
+
+      .score-row b {
+        color: var(--acid);
+      }
+
+      .hero-side footer {
+        padding: 28px;
+        color: #c8c6ba;
+        font-size: 13px;
+      }
+
+      .band {
+        border-block: 2px solid var(--ink);
+        background: var(--acid);
+      }
+
+      .band-inner {
+        display: grid;
+        grid-template-columns: 0.45fr 1.55fr;
+        gap: 48px;
+        padding: 26px 0;
+      }
+
+      .band p {
+        margin: 0;
+        font-size: clamp(18px, 2vw, 25px);
+        font-weight: 700;
+      }
+
+      section.content {
+        border-inline: 2px solid var(--ink);
+        background: var(--paper);
+        padding: clamp(54px, 8vw, 110px) clamp(24px, 5vw, 70px);
+      }
+
+      .section-head {
+        display: grid;
+        grid-template-columns: 0.45fr 1.55fr;
+        gap: 48px;
+        margin-bottom: 52px;
+      }
+
+      h2 {
+        margin-bottom: 18px;
+        font-family: var(--serif);
+        font-size: clamp(42px, 6vw, 78px);
+        font-weight: 600;
+        letter-spacing: -0.045em;
+        line-height: 0.95;
+      }
+
+      .section-intro {
+        max-width: 760px;
+        font-size: 20px;
+      }
+
+      .pipeline {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        border: 2px solid var(--ink);
+      }
+
+      .pipeline-step {
+        position: relative;
+        min-height: 190px;
+        padding: 22px;
+        border-right: 1px solid var(--ink);
+        background: var(--white);
+      }
+
+      .pipeline-step:last-child {
+        border-right: 0;
+      }
+
+      .pipeline-step::after {
+        position: absolute;
+        z-index: 2;
+        top: 50%;
+        right: -12px;
+        width: 22px;
+        height: 22px;
+        border-top: 2px solid var(--ink);
+        border-right: 2px solid var(--ink);
+        background: var(--white);
+        content: "";
+        transform: translateY(-50%) rotate(45deg);
+      }
+
+      .pipeline-step:last-child::after {
+        display: none;
+      }
+
+      .pipeline-step h3 {
+        margin: 28px 0 8px;
+        font-size: 19px;
+        line-height: 1.1;
+      }
+
+      .pipeline-step p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .cards {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        border-top: 2px solid var(--ink);
+        border-left: 2px solid var(--ink);
+      }
+
+      .card {
+        min-height: 310px;
+        padding: 26px;
+        border-right: 2px solid var(--ink);
+        border-bottom: 2px solid var(--ink);
+        background: var(--white);
+      }
+
+      .card:nth-child(2),
+      .card:nth-child(5) {
+        background: var(--paper-2);
+      }
+
+      .card-number {
+        color: var(--blue);
+      }
+
+      .card h3 {
+        margin: 60px 0 14px;
+        font-family: var(--serif);
+        font-size: 32px;
+        line-height: 1;
+      }
+
+      .card p {
+        color: var(--muted);
+      }
+
+      .decision-table {
+        width: 100%;
+        border-collapse: collapse;
+        border: 2px solid var(--ink);
+        background: var(--white);
+      }
+
+      .decision-table th,
+      .decision-table td {
+        padding: 18px;
+        border-right: 1px solid var(--line);
+        border-bottom: 1px solid var(--line);
+        text-align: left;
+        vertical-align: top;
+      }
+
+      .decision-table th {
+        background: var(--ink);
+        color: var(--white);
+        font-family: var(--mono);
+        font-size: 12px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .decision-table tr:last-child td {
+        border-bottom: 0;
+      }
+
+      .decision-table td:first-child {
+        width: 20%;
+        font-family: var(--mono);
+        font-weight: 800;
+      }
+
+      .split {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 28px;
+      }
+
+      .panel {
+        padding: 30px;
+        border: 2px solid var(--ink);
+        background: var(--white);
+      }
+
+      .panel.dark {
+        background: var(--ink);
+        color: var(--white);
+      }
+
+      .panel h3 {
+        margin-bottom: 20px;
+        font-family: var(--serif);
+        font-size: 38px;
+        line-height: 1;
+      }
+
+      .checklist {
+        display: grid;
+        gap: 12px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .checklist li {
+        display: grid;
+        grid-template-columns: 24px 1fr;
+        gap: 12px;
+      }
+
+      .checklist li::before {
+        color: var(--blue);
+        content: "[+]";
+        font-family: var(--mono);
+        font-size: 12px;
+        font-weight: 800;
+      }
+
+      .dark .checklist li::before {
+        color: var(--acid);
+        content: "[x]";
+      }
+
+      .library-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        border: 2px solid var(--ink);
+      }
+
+      .library {
+        padding: 26px;
+        border-right: 1px solid var(--ink);
+        background: var(--white);
+      }
+
+      .library:last-child {
+        border-right: 0;
+      }
+
+      .library h3 {
+        margin: 36px 0 12px;
+        font-family: var(--serif);
+        font-size: 30px;
+      }
+
+      .library .state {
+        display: inline-block;
+        padding: 4px 7px;
+        border: 1px solid var(--ink);
+        font-family: var(--mono);
+        font-size: 11px;
+        font-weight: 800;
+        text-transform: uppercase;
+      }
+
+      .library p,
+      .library li {
+        font-size: 14px;
+      }
+
+      .library ul {
+        padding-left: 18px;
+      }
+
+      .roadmap {
+        border-left: 3px solid var(--ink);
+      }
+
+      .phase {
+        display: grid;
+        grid-template-columns: 140px 1fr;
+        gap: 30px;
+        padding: 28px 0 28px 28px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .phase:first-child {
+        border-top: 1px solid var(--line);
+      }
+
+      .phase h3 {
+        margin-bottom: 8px;
+        font-size: 20px;
+      }
+
+      .phase p {
+        margin-bottom: 0;
+        color: var(--muted);
+      }
+
+      .proof-box {
+        padding: clamp(30px, 6vw, 72px);
+        border: 3px solid var(--ink);
+        background: var(--acid);
+      }
+
+      .proof-box pre {
+        overflow-x: auto;
+        margin: 30px 0 0;
+        padding: 22px;
+        border: 2px solid var(--ink);
+        background: var(--ink);
+        color: var(--white);
+        font-size: clamp(13px, 1.5vw, 18px);
+      }
+
+      .links {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        border-top: 2px solid var(--ink);
+        border-left: 2px solid var(--ink);
+      }
+
+      .links a {
+        min-height: 130px;
+        padding: 22px;
+        border-right: 2px solid var(--ink);
+        border-bottom: 2px solid var(--ink);
+        background: var(--white);
+        font-family: var(--mono);
+        font-size: 13px;
+        font-weight: 800;
+        text-decoration: none;
+      }
+
+      .links a:hover,
+      .links a:focus-visible {
+        background: var(--acid);
+      }
+
+      .site-footer {
+        padding: 34px 0 70px;
+        border-top: 2px solid var(--ink);
+        background: var(--paper);
+        font-family: var(--mono);
+        font-size: 12px;
+      }
+
+      @media (max-width: 900px) {
+        nav {
+          display: none;
+        }
+
+        .hero,
+        .band-inner,
+        .section-head,
+        .split {
+          grid-template-columns: 1fr;
+        }
+
+        .hero-copy {
+          border-right: 0;
+          border-bottom: 2px solid var(--ink);
+        }
+
+        .pipeline {
+          grid-template-columns: 1fr;
+        }
+
+        .pipeline-step {
+          min-height: 0;
+          border-right: 0;
+          border-bottom: 1px solid var(--ink);
+        }
+
+        .pipeline-step::after {
+          display: none;
+        }
+
+        .cards,
+        .library-grid,
+        .links {
+          grid-template-columns: 1fr 1fr;
+        }
+
+        .library:nth-child(2) {
+          border-right: 0;
+        }
+
+        .library:nth-child(-n + 2) {
+          border-bottom: 1px solid var(--ink);
+        }
+      }
+
+      @media (max-width: 580px) {
+        .shell {
+          width: min(calc(100% - 20px), var(--max));
+        }
+
+        .hero-copy {
+          padding: 28px 22px;
+        }
+
+        h1 {
+          margin-top: 38px;
+          font-size: clamp(56px, 22vw, 92px);
+        }
+
+        .cards,
+        .library-grid,
+        .links {
+          grid-template-columns: 1fr;
+        }
+
+        .library {
+          border-right: 0;
+          border-bottom: 1px solid var(--ink);
+        }
+
+        .phase {
+          grid-template-columns: 1fr;
+          gap: 8px;
+        }
+
+        .decision-table,
+        .decision-table tbody,
+        .decision-table tr,
+        .decision-table th,
+        .decision-table td {
+          display: block;
+        }
+
+        .decision-table thead {
+          display: none;
+        }
+
+        .decision-table td {
+          width: auto !important;
+          border-right: 0;
+        }
+
+        .decision-table td:first-child {
+          background: var(--paper-2);
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        html {
+          scroll-behavior: auto;
+        }
+      }
+
+      @media print {
+        .topbar {
+          position: static;
+        }
+
+        body {
+          background: white;
+        }
+
+        .hero,
+        section.content {
+          border-inline: 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <header class="topbar">
+      <div class="shell topbar-inner">
+        <a class="brand" href="../README.md">
+          <span class="brand-mark" aria-hidden="true">L</span>
+          <span>LilScript / direction</span>
+        </a>
+        <nav aria-label="Page sections">
+          <a href="#mechanism">Mechanism</a>
+          <a href="#libraries">Libraries</a>
+          <a href="#roadmap">Roadmap</a>
+          <a href="#proof">Proof</a>
+        </nav>
+      </div>
+    </header>
+
+    <main id="main">
+      <section class="shell hero" aria-labelledby="page-title">
+        <div class="hero-copy">
+          <div>
+            <span class="eyebrow">Future direction / 2026</span>
+            <h1 id="page-title">Smaller by proof, not patches.</h1>
+            <p class="hero-lead">
+              LilScript will get smaller by making more compact programs
+              <strong>legally reachable</strong>, then measuring complete compiler
+              output with the codec that will actually serve it. Not by adding a
+              minifier after the compiler. Not by recognizing package names. Not by
+              assuming every getter is pure.
+            </p>
+          </div>
+          <div class="hero-rule">
+            <strong>Current truth</strong>
+            <span>
+              The architecture work improved correctness and decision visibility,
+              but current Motion, Marked, MobX, and jQuery size results are mixed.
+              The next phase begins by recovering legal incumbents, not declaring a win.
+            </span>
+          </div>
+        </div>
+        <aside class="hero-side" aria-label="Current engineering checkpoint">
+          <div class="status-stamp">No overall size win yet</div>
+          <div class="scorecard">
+            <div class="score-row"><span>Canonical cases</span><b>54 / 54</b></div>
+            <div class="score-row"><span>Scored families</span><b>48</b></div>
+            <div class="score-row"><span>Emitter fields classified</span><b>77</b></div>
+            <div class="score-row"><span>Named pressure ports</span><b>4</b></div>
+          </div>
+          <footer>
+            Counts are a dated engineering checkpoint. Fingerprinted generated
+            evidence, not this page, owns release numbers.
+          </footer>
+        </aside>
+      </section>
+
+      <div class="band">
+        <div class="shell band-inner">
+          <span class="section-label">The objective</span>
+          <p>
+            For every declared supported and semantically equivalent maintained
+            boundary, size-first LilScript should eventually be no larger than the
+            best eligible pinned JavaScript toolchain for the selected metric.
+          </p>
+        </div>
+      </div>
+
+      <section class="shell content" id="mechanism" aria-labelledby="mechanism-title">
+        <div class="section-head">
+          <span class="section-label">01 / mechanism</span>
+          <div>
+            <h2 id="mechanism-title">How the bytes come out.</h2>
+            <p class="section-intro">
+              The compiler's advantage is upstream of minification. Types and
+              boundaries define which programs are equivalent; exact codec scoring
+              chooses among them.
+            </p>
+          </div>
+        </div>
+
+        <div class="pipeline" aria-label="Future compiler pipeline">
+          <article class="pipeline-step">
+            <span class="card-number">A</span>
+            <h3>Freeze the contract</h3>
+            <p>Semantics, source intent, public ABI, host names, and unsafe assumptions.</p>
+          </article>
+          <article class="pipeline-step">
+            <span class="card-number">B</span>
+            <h3>Prove legality</h3>
+            <p>Ownership, escape, effects, identity, ranges, aliases, captures, property hooks.</p>
+          </article>
+          <article class="pipeline-step">
+            <span class="card-number">C</span>
+            <h3>Expose choices</h3>
+            <p>Retain the incumbent; register every admitted legal representation and rejection.</p>
+          </article>
+          <article class="pipeline-step">
+            <span class="card-number">D</span>
+            <h3>Validate output</h3>
+            <p>Bindings, properties, syntax floor, ABI, module links, and source obligations.</p>
+          </article>
+          <article class="pipeline-step">
+            <span class="card-number">E</span>
+            <h3>Score the whole</h3>
+            <p>Exact raw, gzip, or Brotli bytes for one complete artifact or declared artifact set.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="shell content" aria-labelledby="levers-title">
+        <div class="section-head">
+          <span class="section-label">02 / levers</span>
+          <div>
+            <h2 id="levers-title">Six places we expect to remove bytes.</h2>
+            <p class="section-intro">
+              Each lever must expose a generic proof and an explicit alternative.
+              If it works only for one package-shaped AST, it does not belong in the compiler.
+            </p>
+          </div>
+        </div>
+
+        <div class="cards">
+          <article class="card">
+            <span class="card-number">01 / recover</span>
+            <h3>Keep old legal winners reachable.</h3>
+            <p>
+              Serialize and replay the complete selected recipe. When a new compiler
+              regresses, identify the first unreachable or outranked choice instead of
+              guessing from a raw diff.
+            </p>
+          </article>
+          <article class="card">
+            <span class="card-number">02 / dissolve</span>
+            <h3>Delete representations before naming them.</h3>
+            <p>
+              Prove when structs, classes, closure environments, arrays, and owned
+              objects can disappear into SSA. Keep-object remains a scored competitor,
+              because dissolution is legal, not automatically smaller.
+            </p>
+          </article>
+          <article class="card">
+            <span class="card-number">03 / language</span>
+            <h3>Replace dynamic glue with reusable proofs.</h3>
+            <p>
+              Typed optional bags, host-callable methods, accessors, object spread,
+              stronger array facts, and hook-free owned data can remove adapters and
+              string keys without lying about Proxy or getter behavior.
+            </p>
+          </article>
+          <article class="card">
+            <span class="card-number">04 / placement</span>
+            <h3>Move values, not just punctuation.</h3>
+            <p>
+              Effect-safe producer sinking, control-flow representation, call-graph
+              sharing, closure placement, and declaration order can remove temporary
+              stores and expose repetition that local peepholes miss.
+            </p>
+          </article>
+          <article class="card">
+            <span class="card-number">05 / target</span>
+            <h3>Carry identity into JavaScript.</h3>
+            <p>
+              A narrow hygienic target tree will preserve binding, property, call,
+              allocation, effect, ABI, and lowering identities. It replaces expensive
+              guesswork over generated strings, family by family.
+            </p>
+          </article>
+          <article class="card">
+            <span class="card-number">06 / search</span>
+            <h3>Spend codec work where choices interact.</h3>
+            <p>
+              Cover every admitted family once, then coordinate measured interactions.
+              Use cheap predictors to schedule. Use the selected exact codec to accept.
+              Add entity-scoped choices only when global switches demonstrably lose.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section class="shell content" aria-labelledby="heuristics-title">
+        <div class="section-head">
+          <span class="section-label">03 / heuristics</span>
+          <div>
+            <h2 id="heuristics-title">Heuristics schedule. They do not decide.</h2>
+            <p class="section-intro">
+              Compression is non-additive and the legal search space is combinatorial.
+              The practical design is a bounded portfolio with hard semantic gates.
+            </p>
+          </div>
+        </div>
+
+        <table class="decision-table">
+          <thead>
+            <tr>
+              <th>Technique</th>
+              <th>Allowed job</th>
+              <th>Failure control</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Raw delta</td>
+              <td>Order cheap proposals and reject obvious duplicates.</td>
+              <td>Never select a gzip/Brotli winner from raw size alone.</td>
+            </tr>
+            <tr>
+              <td>Codec predictor</td>
+              <td>Prioritize candidates likely to improve the selected metric.</td>
+              <td>Version and calibrate it; exact final scoring remains authoritative.</td>
+            </tr>
+            <tr>
+              <td>Coverage first</td>
+              <td>Give each admitted representation, call-graph, control, naming, and pooling family work.</td>
+              <td>Report unvisited and starved families instead of calling the incumbent best.</td>
+            </tr>
+            <tr>
+              <td>Joint family</td>
+              <td>Explore a measured non-monotone interaction such as spelling plus naming.</td>
+              <td>No general cross-product. Keep the incumbent in the joint set.</td>
+            </tr>
+            <tr>
+              <td>Entity scope</td>
+              <td>Let different functions or allocations choose differently when evidence shows mixed winners.</td>
+              <td>Do not add per-entity machinery before a global option is proven insufficient.</td>
+            </tr>
+            <tr>
+              <td>Deep release search</td>
+              <td>Spend a larger explicit budget on reproducible release candidates.</td>
+              <td>Compile-time and memory SLOs remain visible; more search is not automatically better.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="shell content" aria-labelledby="guardrails-title">
+        <div class="section-head">
+          <span class="section-label">04 / guardrails</span>
+          <div>
+            <h2 id="guardrails-title">Smaller is valid only after correct.</h2>
+          </div>
+        </div>
+
+        <div class="split">
+          <article class="panel">
+            <h3>Hard constraints</h3>
+            <ul class="checklist">
+              <li>Language evaluation, exceptions, coercions, identity, and effects.</li>
+              <li>Live source intent such as an explicit <code>value | 0</code>.</li>
+              <li>Expected public ABI and observed emitted ABI.</li>
+              <li>Exact browser/host names and declared unsafe assumptions.</li>
+              <li>Binding, property, module, target-syntax, and allocation identity.</li>
+              <li>Independent behavior and API suites for the claimed boundary.</li>
+            </ul>
+          </article>
+          <article class="panel dark">
+            <h3>Things we refuse</h3>
+            <ul class="checklist">
+              <li>Post-minifying compiler output to manufacture a compiler win.</li>
+              <li>Package-name, path, or library-shaped optimization matchers.</li>
+              <li>Default-on pure-getter or pristine-host assumptions.</li>
+              <li>Objective-dependent exports, descriptors, or constructibility.</li>
+              <li>A universal solver, proof database, or full JS frontend without measured need.</li>
+              <li>Calling bounded search globally optimal.</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <section class="shell content" id="libraries" aria-labelledby="libraries-title">
+        <div class="section-head">
+          <span class="section-label">05 / pressure ports</span>
+          <div>
+            <h2 id="libraries-title">Four libraries, four different lessons.</h2>
+            <p class="section-intro">
+              Libraries are pressure tests, never compiler matchers. Every boundary
+              needs its own behavior gate, shipping artifact, and eligible baseline.
+            </p>
+          </div>
+        </div>
+
+        <div class="library-grid">
+          <article class="library">
+            <span class="state">mixed regression</span>
+            <h3>MotionLil</h3>
+            <p>Large surfaces regress while a tiny import improves.</p>
+            <ul>
+              <li>Measure each import boundary independently.</li>
+              <li>Audit optional/keyframe <code>JsValue</code> bags.</li>
+              <li>Preserve the real DOM API and tree-shaking boundary.</li>
+            </ul>
+          </article>
+          <article class="library">
+            <span class="state">small Brotli regression</span>
+            <h3>MarkedLil</h3>
+            <p>Behavior is green; the selected package artifact must recover its prior recipe.</p>
+            <ul>
+              <li>Keep public options exact.</li>
+              <li>Separate public, parse-only, and closed-key rows.</li>
+              <li>Use ownership proof only for compiler-owned data.</li>
+            </ul>
+          </article>
+          <article class="library">
+            <span class="state">split result</span>
+            <h3>MobXLil</h3>
+            <p>Regular output improves slightly; production-min regresses materially.</p>
+            <ul>
+              <li>Replay production-only decisions.</li>
+              <li>Keep Proxy, Reflect, accessors, and descriptors exact.</li>
+              <li>Move class/accessor tables only with proof.</li>
+            </ul>
+          </article>
+          <article class="library">
+            <span class="state">unchanged, still larger</span>
+            <h3>jQueryLil</h3>
+            <p>The remaining gap is not solved by more naming or a post-minifier.</p>
+            <ul>
+              <li>Improve effect-safe value placement.</li>
+              <li>Widen sound array-ness facts.</li>
+              <li>Use landed ordinary-object and expression forms.</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <section class="shell content" id="roadmap" aria-labelledby="roadmap-title">
+        <div class="section-head">
+          <span class="section-label">06 / execution</span>
+          <div>
+            <h2 id="roadmap-title">The order matters.</h2>
+            <p class="section-intro">
+              Evidence and legality come before new search machinery. Measured loss
+              recovery comes before speculative architecture.
+            </p>
+          </div>
+        </div>
+
+        <div class="roadmap">
+          <article class="phase">
+            <span class="phase-number">Phase 0</span>
+            <div><h3>Replayable evidence</h3><p>Fingerprint every source, config, artifact, scorer, harness, recipe, and baseline. Split compiler-output from deployment lanes.</p></div>
+          </article>
+          <article class="phase">
+            <span class="phase-number">Phase 0.5</span>
+            <div><h3>Legality and ABI</h3><p>Separate world, format, and public roots. Compare expected ABI with observed final artifacts before scoring.</p></div>
+          </article>
+          <article class="phase">
+            <span class="phase-number">Phase 1</span>
+            <div><h3>Recover incumbents</h3><p>Replay old legal winners and identify the first unreachable or outranked decision for each regression.</p></div>
+          </article>
+          <article class="phase">
+            <span class="phase-number">Phase 2</span>
+            <div><h3>Consolidate decisions</h3><p>Make the registry own recipes and route candidates through one validation/scoring primitive without adding new alternatives.</p></div>
+          </article>
+          <article class="phase">
+            <span class="phase-number">Phase 3</span>
+            <div><h3>Hygienic target JS</h3><p>Move identity-sensitive generated-text work into a narrow target representation, one measured family at a time.</p></div>
+          </article>
+          <article class="phase">
+            <span class="phase-number">Phases 4-5</span>
+            <div><h3>Reusable proofs, then smarter search</h3><p>Close library gaps with language facts. Add joint/entity search only after evidence shows the existing model misses a legal win.</p></div>
+          </article>
+          <article class="phase">
+            <span class="phase-number">Phase 6</span>
+            <div><h3>Delete and certify</h3><p>Remove superseded text and policy paths only after behavior, size, resource, and evidence gates pass.</p></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="shell content" id="proof" aria-labelledby="proof-title">
+        <div class="proof-box">
+          <span class="section-label">The release proof</span>
+          <h2 id="proof-title">A win is a conjunction.</h2>
+          <p class="section-intro">
+            No aggregate average, historical screenshot, or cross-metric trade can
+            substitute for the exact boundary under test.
+          </p>
+          <pre><code>supported boundary
+AND semantics + API + ABI pass
+AND direct LilScript compiler artifact
+AND eligible independent JavaScript baseline
+AND selected metric uses the pinned codec
+AND lilscript_bytes &lt;= best_baseline_bytes
+AND compile/runtime costs are reported</code></pre>
+        </div>
+      </section>
+
+      <section class="shell content" aria-labelledby="read-title">
+        <div class="section-head">
+          <span class="section-label">07 / source documents</span>
+          <div>
+            <h2 id="read-title">Read from intent to evidence.</h2>
+          </div>
+        </div>
+        <div class="links">
+          <a href="knowledge/mission.md">01<br />Mission and user intent</a>
+          <a href="current-status.md">02<br />Current status</a>
+          <a href="knowledge/decisions/README.md">03<br />Design decisions</a>
+          <a href="knowledge/compilation/current-architecture.md">04<br />Current architecture</a>
+          <a href="knowledge/compilation/planned-architecture.md">05<br />Planned architecture</a>
+          <a href="knowledge/migration/planned-migration.md">06<br />Migration plan</a>
+          <a href="knowledge/verification/README.md">07<br />Verification contract</a>
+          <a href="knowledge/evidence/library-proof-matrix.md">08<br />Library proof matrix</a>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="shell">
+        LilScript future direction. Architecture is accepted only when the compiler,
+        tests, generated evidence, and resource budgets agree.
+      </div>
+    </footer>
+  </body>
+</html>

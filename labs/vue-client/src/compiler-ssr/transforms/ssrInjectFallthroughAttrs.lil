@@ -1,0 +1,114 @@
+import extern {
+  ElementTypes,
+  NodeTypes,
+  createSimpleExpression,
+  findDir,
+  isCommentOrWhitespace,
+  locStub
+} from "../../../packages/vuelil/compiler-dom.js";
+
+extern JsValue ElementTypes;
+extern JsValue NodeTypes;
+extern JsValue createSimpleExpression;
+extern JsValue findDir;
+extern JsValue isCommentOrWhitespace;
+extern JsValue locStub;
+
+JsValue fallthroughUndefined() {
+  return JS.undefined();
+}
+
+int fallthroughLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+
+JsValue filterFallthroughChildren(JsValue node) {
+  JsValue filtered = JS.array();
+  JsValue children = node["children"];
+  for (int index = 0; index < fallthroughLength(children); index++) {
+    JsValue child = children[index];
+    if (!JS.call(isCommentOrWhitespace, fallthroughUndefined(), child).truthy()) {
+      JS.invoke(filtered, "push", child);
+    }
+  }
+  return filtered;
+}
+
+bool hasSingleFallthroughChild(JsValue node) {
+  return fallthroughLength(filterFallthroughChildren(node)) == 1;
+}
+
+void injectFallthroughAttrs(JsValue node) {
+  if (!JS.strictEqual(node["type"], NodeTypes["ELEMENT"])) return;
+  bool renderable = JS.strictEqual(node["tagType"], ElementTypes["ELEMENT"]) ||
+    JS.strictEqual(node["tagType"], ElementTypes["COMPONENT"]);
+  if (!renderable || JS.call(findDir, fallthroughUndefined(), node, "for").truthy()) return;
+  JsValue expression = JS.call(
+    createSimpleExpression,
+    fallthroughUndefined(),
+    "_attrs",
+    false
+  );
+  JS.invoke(node["props"], "push", JS.object(
+    "type", NodeTypes["DIRECTIVE"],
+    "name", "bind",
+    "arg", fallthroughUndefined(),
+    "exp", expression,
+    "modifiers", JS.array(),
+    "loc", locStub
+  ));
+}
+
+export JsValue ssrInjectFallthroughAttrs(JsValue node, JsValue context) {
+  if (JS.strictEqual(node["type"], NodeTypes["ROOT"])) {
+    context["identifiers"]["_attrs"] = 1;
+  }
+
+  if (JS.strictEqual(node["type"], NodeTypes["ELEMENT"]) &&
+    JS.strictEqual(node["tagType"], ElementTypes["COMPONENT"])) {
+    string tag = JS.string(node["tag"]);
+    bool fallthroughComponent = tag == "transition" || tag == "Transition" ||
+      tag == "KeepAlive" || tag == "keep-alive";
+    if (fallthroughComponent) {
+      JsValue rootChildren = filterFallthroughChildren(context["root"]);
+      if (fallthroughLength(rootChildren) == 1 && JS.strictEqual(rootChildren[0], node)) {
+        if (hasSingleFallthroughChild(node)) injectFallthroughAttrs(node["children"][0]);
+        return fallthroughUndefined();
+      }
+    }
+  }
+
+  JsValue parent = context["parent"];
+  if (!parent.truthy() || !JS.strictEqual(parent["type"], NodeTypes["ROOT"])) {
+    return fallthroughUndefined();
+  }
+  if (JS.strictEqual(node["type"], NodeTypes["IF_BRANCH"]) &&
+    hasSingleFallthroughChild(node)) {
+    bool encounteredIf = false;
+    JsValue rootChildren = filterFallthroughChildren(parent);
+    for (int index = 0; index < fallthroughLength(rootChildren); index++) {
+      JsValue child = rootChildren[index];
+      bool isIf = JS.strictEqual(child["type"], NodeTypes["IF"]) ||
+        (JS.strictEqual(child["type"], NodeTypes["ELEMENT"]) &&
+          JS.call(findDir, fallthroughUndefined(), child, "if").truthy());
+      if (isIf) {
+        if (encounteredIf) return fallthroughUndefined();
+        encounteredIf = true;
+      } else {
+        bool isElse = JS.strictEqual(child["type"], NodeTypes["ELEMENT"]) &&
+          JS.call(
+            findDir,
+            fallthroughUndefined(),
+            child,
+            new Regex("else"),
+            true
+          ).truthy();
+        if (!encounteredIf || !isElse) return fallthroughUndefined();
+      }
+    }
+    injectFallthroughAttrs(node["children"][0]);
+  } else if (hasSingleFallthroughChild(parent)) {
+    injectFallthroughAttrs(node);
+  }
+  return fallthroughUndefined();
+}
