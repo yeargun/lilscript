@@ -1,7 +1,7 @@
 # Current status
 
 Authority: current source/tests for behavior; generated fingerprinted reports for
-numbers. Updated: 2026-08-29 after compiler commit `2d2268a`.
+numbers. Updated: 2026-08-29 during final-artifact admission.
 
 This page is the single prose snapshot of current state. It is not a language
 contract or a plan. When it disagrees with source/tests or a generated report,
@@ -14,7 +14,9 @@ those authorities win.
   the same lowered IR.
 - `JavaScriptCompilationContract`, `JavaScriptOptimizationObjective`, and
   `JavaScriptAbiManifest` separate much of legality/ABI from profitability. The
-  manifest is not yet a complete observed-final-artifact ABI validator.
+  compiler now emits an observed final-artifact witness for syntax, exports,
+  imports, free names, templates, obligations, and property ranges. Live-binding,
+  descriptor/order, and unique receiver-property identity checks remain.
 - Source/generated operation provenance exists. A live source `value | 0` has a
   lowering obligation that objective search may not erase.
 - All 77 `IrJsOptions` fields are classified. The current registry exposes 48

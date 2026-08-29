@@ -107,6 +107,42 @@ pub struct JavaScriptCompilation {
     pub optimization_reports: Vec<OptimizationReport>,
     pub selection_metrics: JavaScriptSelectionMetrics,
     pub abi_manifest: crate::compilation_contract::JavaScriptAbiManifest,
+    pub artifact_witness: JavaScriptArtifactWitness,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct JavaScriptArtifactWitness {
+    pub syntax_floor: String,
+    pub exports: Vec<String>,
+    pub foreign_imports: Vec<JavaScriptModuleEdgeWitness>,
+    pub free_identifiers: Vec<String>,
+    pub template_sha256: Vec<String>,
+    pub expected_bit_or_zero: usize,
+    pub observed_bit_or_zero: usize,
+    pub properties: Vec<JavaScriptPropertyOccurrenceWitness>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct JavaScriptModuleEdgeWitness {
+    pub source: String,
+    pub imported: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct JavaScriptPropertyOccurrenceWitness {
+    pub start: usize,
+    pub end: usize,
+    pub emitted: String,
+    pub identities: Vec<JavaScriptPropertyIdentityWitness>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct JavaScriptPropertyIdentityWitness {
+    pub owner: Option<String>,
+    pub slot: Option<usize>,
+    pub source: String,
+    pub category: String,
+    pub stable: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -371,6 +407,7 @@ fn compile_path_explained_inner(
         optimization_reports: selected.optimization_reports,
         selection_metrics: selected.selection_metrics,
         abi_manifest: selected.abi_manifest,
+        artifact_witness: selected.artifact_witness,
     })
 }
 
@@ -1445,6 +1482,7 @@ struct OptimizedJavascriptCandidate {
     optimization_reports: Vec<OptimizationReport>,
     selection_metrics: JavaScriptSelectionMetrics,
     abi_manifest: crate::compilation_contract::JavaScriptAbiManifest,
+    artifact_witness: JavaScriptArtifactWitness,
 }
 
 fn prepare_javascript_ir(ir: &mut ControlFlowModule<'_>, config: &ProjectConfig) {
@@ -2248,7 +2286,7 @@ fn optimize_and_select_javascript_inner<'src>(
     let abi_manifest = config
         .javascript_compilation_contract(preserve_exports)
         .abi_manifest(&selected_context.ir);
-    selected.admission.validate(&selected.code)?;
+    let artifact_witness = selected.admission.witness(&selected.code)?;
     let search_ctx =
         javascript_emission_search_context(config, preserve_exports, total_candidate_limit);
     let scored_emission_families =
@@ -2286,6 +2324,7 @@ fn optimize_and_select_javascript_inner<'src>(
         plan_identity: selected.plan_identity,
         optimization_reports,
         abi_manifest,
+        artifact_witness,
         selection_metrics: JavaScriptSelectionMetrics {
             codec: compression_cost_model_name(config.javascript.cost_model).to_string(),
             transfer_bytes: selected.transfer_cost,
@@ -4616,15 +4655,21 @@ struct JavaScriptArtifactAdmission {
 
 impl JavaScriptArtifactAdmission {
     fn validate(&self, source: &str) -> Result<(), CompileError> {
+        self.witness(source).map(|_| ())
+    }
+
+    fn witness(&self, source: &str) -> Result<JavaScriptArtifactWitness, CompileError> {
         validate_generated_javascript_syntax_floor(source, self.ecmascript)
             .map_err(generated_javascript_parse_error)?;
-        validate_observed_javascript_artifact(
+        let mut witness = validate_observed_javascript_artifact(
             source,
             &self.direct_source,
             &self.abi_manifest,
             self.lowering_obligations,
             &self.property_provenance,
-        )
+        )?;
+        witness.syntax_floor = self.ecmascript.name().to_string();
+        Ok(witness)
     }
 }
 
@@ -9538,7 +9583,7 @@ fn validate_observed_javascript_artifact(
     expected: &crate::compilation_contract::JavaScriptAbiManifest,
     expected_bit_or_zero: usize,
     property_provenance: &[IrJsPropertyProvenance],
-) -> Result<(), CompileError> {
+) -> Result<JavaScriptArtifactWitness, CompileError> {
     let observed =
         generated_javascript_export_names(source).map_err(generated_javascript_parse_error)?;
     let export_witnesses =
@@ -9728,7 +9773,47 @@ fn validate_observed_javascript_artifact(
         };
         available.remove(index);
     }
-    Ok(())
+    let properties = observed_properties
+        .into_iter()
+        .map(|property| JavaScriptPropertyOccurrenceWitness {
+            start: property.start,
+            end: property.end,
+            emitted: property.name.clone(),
+            identities: property_provenance
+                .iter()
+                .filter(|provenance| provenance.emitted == property.name)
+                .map(|provenance| JavaScriptPropertyIdentityWitness {
+                    owner: provenance.owner.clone(),
+                    slot: provenance.slot,
+                    source: provenance.source.clone(),
+                    category: match provenance.category {
+                        IrJsPropertyCategory::Owned => "owned",
+                        IrJsPropertyCategory::External => "external",
+                        IrJsPropertyCategory::Unowned => "unowned",
+                    }
+                    .to_string(),
+                    stable: provenance.stable,
+                })
+                .collect(),
+        })
+        .collect();
+    Ok(JavaScriptArtifactWitness {
+        syntax_floor: "validated".to_string(),
+        exports: observed,
+        foreign_imports: observed_imports
+            .into_iter()
+            .map(|(source, imported)| JavaScriptModuleEdgeWitness { source, imported })
+            .collect(),
+        free_identifiers: observed_free,
+        template_sha256: generated_javascript_template_literals(source)
+            .map_err(generated_javascript_parse_error)?
+            .into_iter()
+            .map(|template| content_hash(template.as_bytes()))
+            .collect(),
+        expected_bit_or_zero,
+        observed_bit_or_zero,
+        properties,
+    })
 }
 
 fn validate_direct_javascript_artifact(
@@ -9763,6 +9848,7 @@ fn validate_direct_javascript_artifact(
         lowering_obligations,
         &direct_properties,
     )
+    .map(|_| ())
 }
 
 fn compressed_size(bytes: &[u8], model: CompressionCostModel) -> Result<usize, String> {
@@ -15235,6 +15321,38 @@ mod tests {
         )
         .unwrap_err();
         assert!(error.to_string().contains("unclassified static properties"));
+    }
+
+    #[test]
+    fn explained_compilation_reports_property_ranges_and_owner_slots() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "export constructor Box;class Box{int value;init(int value){this.value=value;}int read(){return this.value;}}",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let ir = lower_to_control_flow(&program, &semantics).unwrap();
+        let mut config = javascript_oracle_config();
+        config.javascript.candidate_search = CandidateSearch::Off;
+        config.mangle.exports = Some(false);
+        let selected = optimize_and_select_javascript(ir, &config, true).unwrap();
+
+        assert_eq!(selected.artifact_witness.syntax_floor, "es2022");
+        let value = selected
+            .artifact_witness
+            .properties
+            .iter()
+            .find(|property| property.emitted == "value")
+            .unwrap();
+        assert_eq!(&selected.javascript[value.start..value.end], "value");
+        assert!(value.identities.iter().any(|identity| {
+            identity.owner.as_deref() == Some("Box")
+                && identity.slot == Some(0)
+                && identity.source == "value"
+                && identity.category == "owned"
+                && identity.stable
+        }));
     }
 
     #[test]

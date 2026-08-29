@@ -41,6 +41,7 @@ semantic identity. Do not weaken a rejection to preserve bytes.
 | 2026-08-29 | Opaque template witness | `cargo test --release --lib opaque_template` | two focused tests passed; final templates must be exact retained occurrences from direct emission | gate |
 | 2026-08-29 | Property byte ranges | `cargo test --release --lib observes_static_properties`; `cargo test --release --lib property_mangling_reserves_extern_fields_and_host_methods` | every final static property occurrence records an exact byte range and resolves to typed owner/slot, external, or unowned direct-emission provenance | gate |
 | 2026-08-29 | Artifact-set syntax admission | `cargo test --release --lib bundle` | three focused bundle/scorer tests passed; emitted chunks now pass generated-JS admission before gzip/Brotli measurement | gate |
+| 2026-08-29 | Serialized artifact witness | `cargo test --release --lib explained_compilation_reports_property_ranges`; `cargo check --all-targets` | explained compilation exposes syntax floor, exports, static imports, free names, template hashes, obligation counts, and property ranges with owner/slot identity candidates | gate |
 
 ## Log
 
@@ -56,9 +57,9 @@ semantic identity. Do not weaken a rejection to preserve bytes.
 - 2026-08-29 — Added owner/slot provenance from the typed property allocator, unowned fallback categories for direct static properties, and exact opaque-template retention. Mapping each final byte range back to one owner remains target-JS work. — **OPEN**
 - 2026-08-29 — Final static-property occurrences now carry exact byte ranges and must match an emitted provenance spelling; owned entries retain owner and slot. Shared spellings can still map to multiple legal owners until target-JS identity replaces text recovery. — **OPEN**
 - 2026-08-29 — Bundle artifact measurement now uses generated-JS admission instead of calling codecs directly. — **OPEN**
+- 2026-08-29 — Added deterministic `artifact_witness` output to explained compilation. Property occurrences carry byte ranges and every matching owner/slot provenance record. — **OPEN**
 
 ## Next step
 
-Add deterministic serialization of the many-to-many property occurrence map and
-the corresponding binding ranges, then review whether V-01 can graduate without
-waiting for the phase-3 target tree.
+Add declaration/use byte ranges for bound identifiers, then review whether V-01
+can graduate without waiting for the phase-3 target tree.

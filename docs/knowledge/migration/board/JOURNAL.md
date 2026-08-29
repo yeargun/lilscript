@@ -6,6 +6,13 @@ recorded verdict. This is cold storage: read it when you are about to redo somet
 Format: `## YYYY-MM-DD — <task id> — <one line>` then two or three lines of what
 changed, what the gate said, and the commit if there is one.
 
+## 2026-08-29 — gate-04 — serialized final-artifact witness
+
+Explained compilation now exposes syntax floor, exports, static imports, free
+identifiers, template hashes, obligation counts, and exact property byte ranges
+with owner/slot provenance candidates. The focused report test and all-target
+type check pass.
+
 ## 2026-08-29 — gate-04 — artifact-set scoring admission
 
 Generated bundle chunks now pass syntax/binding admission before gzip/Brotli

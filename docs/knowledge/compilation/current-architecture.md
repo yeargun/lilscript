@@ -40,13 +40,17 @@ target-side migration layer.
 - `JavaScriptOptimizationObjective` for transfer metric and priority;
 - `JavaScriptAbiManifest` derived from typed IR.
 
-`src/compiler.rs` compares the pre-selection and selected-IR manifests. This
-prevents some optimizer drift, but it is not a complete emitted-ABI gate:
+`src/compiler.rs` compares the pre-selection and selected-IR manifests and emits
+a final-artifact witness for syntax floor, exports, static imports, free names,
+opaque templates, lowering obligations, and property byte ranges. This prevents
+more optimizer/text-stage drift, but it is not yet complete:
 
-- the manifest is source/IR-derived rather than extracted from final artifacts;
-- fields are not owner-qualified and ordered for every public boundary;
-- ESM live bindings, lazy/module identity, descriptors, emitted export spelling,
-  and all host interactions are not fully represented;
+- expected ABI remains source/IR-derived while the observed witness covers only
+  the currently represented runtime facets;
+- property occurrences retain owner/slot candidate mappings, but a shared emitted
+  spelling is not uniquely resolved to one receiver identity;
+- ESM live binding behavior, lazy-module identity, descriptors, ordering, and all
+  host interactions are not fully represented;
 - single, split, and preserve-module paths do not yet share one contract and
   observed-artifact validation path;
 - compilation world is still coupled too closely to module output.

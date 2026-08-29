@@ -137,6 +137,7 @@ fn run() -> Result<(), String> {
                         &compilation.optimization_reports,
                         &compilation.selection_metrics,
                         &compilation.abi_manifest,
+                        &compilation.artifact_witness,
                     )?;
                     write_or_print(args.output.as_deref(), &compilation.javascript)?;
                 } else {
@@ -162,6 +163,7 @@ fn run() -> Result<(), String> {
                         &compilation.optimization_reports,
                         &compilation.selection_metrics,
                         &compilation.abi_manifest,
+                        &compilation.artifact_witness,
                     )?;
                     write_or_print(args.output.as_deref(), &compilation.javascript)?;
                 } else {
@@ -294,6 +296,7 @@ fn print_explanation(
     reports: &[lilscript::optimizer::OptimizationReport],
     metrics: &lilscript::JavaScriptSelectionMetrics,
     abi: &lilscript::JavaScriptAbiManifest,
+    artifact_witness: &lilscript::JavaScriptArtifactWitness,
 ) -> Result<(), String> {
     match format {
         ExplainFormat::Human => {
@@ -492,6 +495,7 @@ fn print_explanation(
                 "optimization_reports": reports,
                 "javascript_selection": metrics,
                 "abi_manifest": abi,
+                "artifact_witness": artifact_witness,
             }))
             .map_err(|error| format!("failed to serialize optimization report: {error}"))?
         ),
