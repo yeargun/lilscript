@@ -31,11 +31,11 @@ use crate::js_peephole::{
     fold_nested_unguarded_ifs, fold_pristine_static_method_calls, fold_redundant_null_undefined_or,
     function_leading_declaration_variant, function_local_binding_swap_variants,
     generated_javascript_bit_or_zero_count, generated_javascript_export_names,
-    generated_javascript_export_witnesses, generated_javascript_static_imports,
-    generated_javascript_static_property_names, identifier_name_is_clear_binding,
-    inline_single_use_functions, late_generated_javascript_cleanup,
-    late_generated_javascript_cleanup_local_variants, late_generated_javascript_cleanup_pass,
-    optimize_generated_javascript_assuming,
+    generated_javascript_export_witnesses, generated_javascript_free_identifiers,
+    generated_javascript_static_imports, generated_javascript_static_property_names,
+    identifier_name_is_clear_binding, inline_single_use_functions,
+    late_generated_javascript_cleanup, late_generated_javascript_cleanup_local_variants,
+    late_generated_javascript_cleanup_pass, optimize_generated_javascript_assuming,
     optimize_generated_javascript_preserving_functions_assuming, remap_identifier,
     remap_single_character_identifiers, repair_fused_keyword_identifiers,
     single_character_identifier_use_counts, single_character_identifiers,
@@ -9625,6 +9625,24 @@ fn validate_observed_javascript_artifact(
         )
         .into());
     }
+    let direct_free = generated_javascript_free_identifiers(direct_source)
+        .map_err(generated_javascript_parse_error)?;
+    let observed_free =
+        generated_javascript_free_identifiers(source).map_err(generated_javascript_parse_error)?;
+    let introduced_free = observed_free
+        .iter()
+        .filter(|name| !direct_free.contains(name))
+        .cloned()
+        .collect::<Vec<_>>();
+    if !introduced_free.is_empty() {
+        return Err(crate::codegen_js::CodegenError::new(
+            Span::empty(0),
+            format!(
+                "generated JavaScript introduced undeclared external names: {introduced_free:?}"
+            ),
+        )
+        .into());
+    }
     Ok(())
 }
 
@@ -15112,6 +15130,28 @@ mod tests {
         )
         .unwrap_err();
         assert!(error.to_string().contains("unclassified static properties"));
+    }
+
+    #[test]
+    fn final_javascript_cannot_introduce_an_undeclared_external() {
+        let manifest = crate::compilation_contract::JavaScriptAbiManifest {
+            world: "closed-application",
+            exports: Vec::new(),
+            export_names_may_mangle: false,
+            foreign_imports: Vec::new(),
+            public_aggregate_abi: "named",
+            stable_aggregate_fields: Vec::new(),
+            stable_extern_fields: Vec::new(),
+        };
+
+        let error = validate_observed_javascript_artifact(
+            "console.log(allowed()+typo())",
+            "console.log(allowed())",
+            &manifest,
+            0,
+        )
+        .unwrap_err();
+        assert!(error.to_string().contains("undeclared external names"));
     }
 
     #[test]

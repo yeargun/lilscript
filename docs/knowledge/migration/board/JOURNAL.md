@@ -6,6 +6,12 @@ recorded verdict. This is cold storage: read it when you are about to redo somet
 Format: `## YYYY-MM-DD — <task id> — <one line>` then two or three lines of what
 changed, what the gate said, and the commit if there is one.
 
+## 2026-08-29 — gate-04 — undeclared external rejection
+
+Final free identifiers must occur in the selected direct typed emission; text
+contraction cannot introduce a new ambient or host name. Focused free-name and
+syntax-floor rejection tests pass.
+
 ## 2026-08-29 — gate-04 — syntax-floor admission
 
 Candidate and final admission reject optional chaining, nullish/logical

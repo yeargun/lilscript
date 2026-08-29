@@ -908,6 +908,24 @@ pub fn generated_javascript_static_property_names(
     Ok(names.into_iter().collect())
 }
 
+pub fn generated_javascript_free_identifiers(
+    source: &str,
+) -> Result<Vec<String>, JavaScriptParseError> {
+    analyze_generated_javascript(source)?;
+    let tokens = lex(source)?;
+    let resolution = BindingResolution::new(&tokens);
+    let mut names = std::collections::BTreeSet::new();
+    for (index, token) in tokens.iter().enumerate() {
+        if token.kind == TokenKind::Identifier
+            && identifier_occurrence_is_clear_binding(&tokens, index)
+            && matches!(resolution.resolve(index), Resolution::Free)
+        {
+            names.insert(token.text.to_string());
+        }
+    }
+    Ok(names.into_iter().collect())
+}
+
 pub fn validate_generated_javascript_syntax_floor(
     source: &str,
     edition: EcmaScriptEdition,

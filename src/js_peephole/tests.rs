@@ -9,11 +9,11 @@ use super::token::{lex, punctuation_width};
 use super::{
     analyze_generated_javascript, function_leading_declaration_variant,
     generated_javascript_bit_or_zero_count, generated_javascript_export_names,
-    generated_javascript_export_witnesses, generated_javascript_static_imports,
-    generated_javascript_static_property_names, optimize_generated_javascript,
-    optimize_generated_javascript_assuming, optimize_generated_javascript_preserving_functions,
-    reorder_uninitialized_var_declarators, validate_generated_javascript_syntax_floor,
-    PeepholeResult,
+    generated_javascript_export_witnesses, generated_javascript_free_identifiers,
+    generated_javascript_static_imports, generated_javascript_static_property_names,
+    optimize_generated_javascript, optimize_generated_javascript_assuming,
+    optimize_generated_javascript_preserving_functions, reorder_uninitialized_var_declarators,
+    validate_generated_javascript_syntax_floor, PeepholeResult,
 };
 
 const LEGACY_PUNCTUATION: [&str; 31] = [
@@ -1206,6 +1206,17 @@ fn observes_static_properties_without_confusing_dynamic_keys() {
         )
         .unwrap(),
         ["bracket", "field", "method", "named", "quoted", "static"]
+    );
+}
+
+#[test]
+fn observes_free_identifiers_without_properties_or_bound_names() {
+    assert_eq!(
+        generated_javascript_free_identifiers(
+            "let local=external;function f(arg){return local+arg+other.value}"
+        )
+        .unwrap(),
+        ["external", "other"]
     );
 }
 
