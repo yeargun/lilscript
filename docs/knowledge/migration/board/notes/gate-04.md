@@ -33,6 +33,7 @@ semantic identity. Do not weaken a rejection to preserve bytes.
 | 2026-08-29 | Module and obligation witnesses | `cargo test --release --lib observes_generated_static_import_edges`; `cargo test --release --lib foreign_import`; `cargo test --release --lib observed_javascript_must_retain`; `cargo test --release --lib source_written_i32_normalization` | static source/imported names ignore local aliases; six foreign-import tests and three `|0` witness tests passed | gate |
 | 2026-08-29 | Callable ABI witness | `cargo test --release --lib observes_generated_export_callable_shapes`; `cargo test --release --lib can_mangle_public_esm_export_names`; `cargo test --release --lib explicit_constructor_export`; `cargo test --release --lib constructor_export_synthesizes` | function/arrow/constructor kind, default-sensitive arity, constructibility, inherited method shape, export mangling, and default constructors passed | gate |
 | 2026-08-29 | Static property admission | `cargo test --release --lib observes_static_properties`; `cargo test --release --lib final_javascript_cannot_introduce`; Marked gzip compile plus semantic lane | final contraction may remove but cannot invent a static property outside the selected direct typed emission; focused tests passed and Marked passed 660/660 in 65.59 s | gate |
+| 2026-08-29 | Pre-score typed admission | targeted export, constructor, foreign-import, and source-`|0` tests | configured root, optional IR contexts, projection variants, spelling variants, and entropy variants are checked against their typed IR before entering initial or terminal exact scoring | gate |
 
 ## Log
 
@@ -41,8 +42,9 @@ semantic identity. Do not weaken a rejection to preserve bytes.
 - 2026-08-29 — Final selected bytes now match typed runtime export names (or exact export count under explicit export mangling), static foreign module edges, and a conservative live source-`|0` obligation count. Callable topology and owner-qualified property categories remain open. The requested full G2 rerun was aborted and is not evidence. — **OPEN**
 - 2026-08-29 — Final selected exports now resolve to declarations and match typed callable kind, arity, constructibility, and inherited method signatures. Owner-qualified property categories remain open. — **OPEN**
 - 2026-08-29 — Added a conservative property gate: every final dot/object/class/static-bracket property must already occur in the selected plan's direct typed emission. This blocks text-stage property mutation; owner/slot identities still wait for target-JS provenance. — **OPEN**
+- 2026-08-29 — Moved current ABI/obligation/property admission ahead of initial and terminal scoring for every typed emission and prepared leaf. Late text challengers retain final fail-closed validation; carrying the full witness into each late probe remains open. — **OPEN**
 
 ## Next step
 
-Add owner/slot property provenance to target emission so the final static-property
-witness can compare identities rather than only the direct-emission spelling set.
+Carry the typed admission witness into every late text probe, then replace the
+spelling-set property check with owner/slot provenance from target emission.

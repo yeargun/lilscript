@@ -64,7 +64,9 @@ the full G2 rerun was explicitly deferred in favor of targeted development gates
   final bytes also witness export names/counts, static foreign module edges, and
   live source-`|0` counts. Exported callable kind, arity, constructibility, and
   inherited method signatures are witnessed. Final contractions cannot introduce
-  a static property absent from direct typed emission; owner/slot provenance remains.
+  a static property absent from direct typed emission. Typed emissions and
+  prepared leaves are admitted before scoring; late probes and owner/slot
+  provenance remain.
 - Historical Marked raw/gzip outputs from `06b89aa` fail 229 corpus checks and
   are ineligible incumbents; candidate `7128462` fixes them. The Brotli incumbent
   and all other selected rows remain byte-identical.

@@ -33,9 +33,9 @@ use crate::js_peephole::{
     generated_javascript_bit_or_zero_count, generated_javascript_export_names,
     generated_javascript_export_witnesses, generated_javascript_static_imports,
     generated_javascript_static_property_names, identifier_name_is_clear_binding,
-    inline_single_use_functions,
-    late_generated_javascript_cleanup, late_generated_javascript_cleanup_local_variants,
-    late_generated_javascript_cleanup_pass, optimize_generated_javascript_assuming,
+    inline_single_use_functions, late_generated_javascript_cleanup,
+    late_generated_javascript_cleanup_local_variants, late_generated_javascript_cleanup_pass,
+    optimize_generated_javascript_assuming,
     optimize_generated_javascript_preserving_functions_assuming, remap_identifier,
     remap_single_character_identifiers, repair_fused_keyword_identifiers,
     single_character_identifier_use_counts, single_character_identifiers,
@@ -1813,10 +1813,17 @@ fn optimize_and_select_javascript_inner<'src>(
         Interaction(usize, crate::codegen_ir_js::IrJsOptions),
     }
     let mut score_requests = Vec::with_capacity(ranked_probes.len().saturating_mul(2));
+    let mut configured_score_failed = vec![false; ranked_probes.len()];
     // The configured root remains the first authoritative request, but its
     // declaration leaves share the flattened codec batch with every optional
     // probe. Results are reconstructed in request order, so scheduling cannot
     // give an optional failure authority over the root.
+    validate_direct_javascript_artifact(
+        &ranked_probes[0].configured_code,
+        &ranked_probes[0].ir,
+        config,
+        preserve_exports,
+    )?;
     score_requests.push(SelectedModelEmissionScoreRequest {
         owner: ProbeScoreOwner::Configured(0),
         code: std::mem::take(&mut ranked_probes[0].configured_code),
@@ -1825,20 +1832,35 @@ fn optimize_and_select_javascript_inner<'src>(
     });
     for (index, probe) in ranked_probes.iter_mut().enumerate() {
         if index != 0 {
-            score_requests.push(SelectedModelEmissionScoreRequest {
-                owner: ProbeScoreOwner::Configured(index),
-                code: std::mem::take(&mut probe.configured_code),
-                model: config.javascript.cost_model,
-                semantics: JavaScriptDeclarationScoreSemantics::DeclarationPlan,
-            });
+            if validate_direct_javascript_artifact(
+                &probe.configured_code,
+                &probe.ir,
+                config,
+                preserve_exports,
+            )
+            .is_ok()
+            {
+                score_requests.push(SelectedModelEmissionScoreRequest {
+                    owner: ProbeScoreOwner::Configured(index),
+                    code: std::mem::take(&mut probe.configured_code),
+                    model: config.javascript.cost_model,
+                    semantics: JavaScriptDeclarationScoreSemantics::DeclarationPlan,
+                });
+            } else {
+                configured_score_failed[index] = true;
+            }
         }
         if let Some((code, options)) = probe.interaction_code.take() {
-            score_requests.push(SelectedModelEmissionScoreRequest {
-                owner: ProbeScoreOwner::Interaction(index, options),
-                code,
-                model: config.javascript.cost_model,
-                semantics: JavaScriptDeclarationScoreSemantics::DeclarationPlan,
-            });
+            if validate_direct_javascript_artifact(&code, &probe.ir, config, preserve_exports)
+                .is_ok()
+            {
+                score_requests.push(SelectedModelEmissionScoreRequest {
+                    owner: ProbeScoreOwner::Interaction(index, options),
+                    code,
+                    model: config.javascript.cost_model,
+                    semantics: JavaScriptDeclarationScoreSemantics::DeclarationPlan,
+                });
+            }
         }
     }
     let optimizer_emissions_attempted = score_requests.len();
@@ -1853,7 +1875,6 @@ fn optimize_and_select_javascript_inner<'src>(
     ranked_probes[0].configured_transfer = root_transfer;
     ranked_probes[0].configured_raw_size = root_raw_size;
     (ranked_probes[0].transfer, ranked_probes[0].raw_size) = (root_transfer, root_raw_size);
-    let mut configured_score_failed = vec![false; ranked_probes.len()];
     for result in score_results {
         match (result.owner, result.emission) {
             (ProbeScoreOwner::Configured(0), _) => {
@@ -2069,6 +2090,11 @@ fn optimize_and_select_javascript_inner<'src>(
             ) else {
                 continue;
             };
+            if validate_direct_javascript_artifact(&code, &projected_ir, config, preserve_exports)
+                .is_err()
+            {
+                continue;
+            }
             let context_id = context.id.saturating_add(1);
             let plan = JavaScriptEmissionPlan {
                 identity: JavaScriptPlanIdentity {
@@ -3577,6 +3603,13 @@ fn select_javascript_candidate_global(
                         let code = contexts
                             .emit(plan.identity.context_id, module_output, plan.options)
                             .ok()?;
+                        validate_direct_javascript_artifact(
+                            &code,
+                            contexts.get(plan.identity.context_id).baseline,
+                            config,
+                            module_output,
+                        )
+                        .ok()?;
                         measure_initial_javascript_emission(code, config.javascript.cost_model)
                             .ok()?
                     }
@@ -3703,6 +3736,13 @@ fn select_javascript_candidate_global(
                     let code = contexts
                         .emit(plan.identity.context_id, module_output, plan.options)
                         .ok()?;
+                    validate_direct_javascript_artifact(
+                        &code,
+                        contexts.get(plan.identity.context_id).baseline,
+                        config,
+                        module_output,
+                    )
+                    .ok()?;
                     measure_optional_javascript_candidate(
                         code,
                         plan,
@@ -3814,6 +3854,13 @@ fn select_javascript_candidate_global(
                 let code = contexts
                     .emit(plan.identity.context_id, module_output, plan.options)
                     .ok()?;
+                validate_direct_javascript_artifact(
+                    &code,
+                    contexts.get(plan.identity.context_id).baseline,
+                    config,
+                    module_output,
+                )
+                .ok()?;
                 measure_optional_javascript_candidate(
                     code,
                     plan,
@@ -5457,10 +5504,18 @@ fn finalize_javascript_candidates_with_parallelism(
         .collect::<Vec<_>>();
     let prepare_plan = |candidate: JavaScriptEmissionCandidate| {
         let plan_identity = candidate.identity();
-        let has_explicit_lowering_obligations = contexts
-            .get(plan_identity.context_id)
+        let context = contexts.get(plan_identity.context_id);
+        let has_explicit_lowering_obligations =
+            context.baseline.has_explicit_lowering_obligations();
+        let lowering_obligations = context
             .baseline
-            .has_explicit_lowering_obligations();
+            .lowering_obligation_count(crate::ir::LoweringObligation::PreserveJavaScriptBitOrZero);
+        let direct_source = candidate.emission.code.clone();
+        let module_output = generated_javascript_export_names(&direct_source)
+            .is_ok_and(|exports| !exports.is_empty());
+        let abi_manifest = config
+            .javascript_compilation_contract(module_output)
+            .abi_manifest(context.baseline);
         let prepare_peephole =
             peephole_plan_identities.contains(&plan_identity) && !has_explicit_lowering_obligations;
         let options = candidate.options();
@@ -5551,6 +5606,16 @@ fn finalize_javascript_candidates_with_parallelism(
                 vec![(declaration, metrics, 0, true)]
             };
             for (code, metrics, peephole_rewrites, is_declaration_spelling) in variants {
+                if validate_observed_javascript_artifact(
+                    &code,
+                    &direct_source,
+                    &abi_manifest,
+                    lowering_obligations,
+                )
+                .is_err()
+                {
+                    continue;
+                }
                 if config
                     .javascript
                     .startup
@@ -9496,6 +9561,20 @@ fn validate_observed_javascript_artifact(
         .into());
     }
     Ok(())
+}
+
+fn validate_direct_javascript_artifact(
+    source: &str,
+    ir: &ControlFlowModule<'_>,
+    config: &ProjectConfig,
+    module_output: bool,
+) -> Result<(), CompileError> {
+    let manifest = config
+        .javascript_compilation_contract(module_output)
+        .abi_manifest(ir);
+    let lowering_obligations =
+        ir.lowering_obligation_count(crate::ir::LoweringObligation::PreserveJavaScriptBitOrZero);
+    validate_observed_javascript_artifact(source, source, &manifest, lowering_obligations)
 }
 
 fn compressed_size(bytes: &[u8], model: CompressionCostModel) -> Result<usize, String> {
@@ -14917,14 +14996,13 @@ mod tests {
             stable_extern_fields: Vec::new(),
         };
 
-        let error =
-            validate_observed_javascript_artifact(
-                "let a=1;export{a as actual}",
-                "let a=1;export{a as actual}",
-                &manifest,
-                0,
-            )
-                .unwrap_err();
+        let error = validate_observed_javascript_artifact(
+            "let a=1;export{a as actual}",
+            "let a=1;export{a as actual}",
+            &manifest,
+            0,
+        )
+        .unwrap_err();
         assert!(error.to_string().contains("export ABI mismatch"));
     }
 
@@ -14943,13 +15021,8 @@ mod tests {
         let error =
             validate_observed_javascript_artifact("let a=1", "let a=1", &manifest, 1).unwrap_err();
         assert!(error.to_string().contains("lowering-obligation mismatch"));
-        validate_observed_javascript_artifact(
-            "let a=value|0",
-            "let a=value|0",
-            &manifest,
-            1,
-        )
-        .unwrap();
+        validate_observed_javascript_artifact("let a=value|0", "let a=value|0", &manifest, 1)
+            .unwrap();
     }
 
     #[test]

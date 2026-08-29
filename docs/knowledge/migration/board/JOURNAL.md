@@ -6,6 +6,13 @@ recorded verdict. This is cold storage: read it when you are about to redo somet
 Format: `## YYYY-MM-DD — <task id> — <one line>` then two or three lines of what
 changed, what the gate said, and the commit if there is one.
 
+## 2026-08-29 — gate-04 — typed candidates admitted before scoring
+
+Configured roots and optional IR/projection/spelling/entropy variants now match
+their typed export/module/obligation contract before initial scoring; prepared
+text leaves repeat admission before terminal scoring. Targeted gates pass. Late
+probe witness propagation and owner/slot provenance remain open.
+
 ## 2026-08-29 — gate-04 — static property admission
 
 Final contraction may remove static properties but may not invent a spelling
