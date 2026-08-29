@@ -37,10 +37,10 @@
     {
       "id": "candidate",
       "role": "migration-candidate",
-      "revision": "8fd78b4de12f630851e98c572edb9461f3cd1054",
-      "tree": "6ba1dd863efb7b0b94dfc82ae16a0378e164a89e",
+      "revision": "ee0dc582ed1733ded107989bbddfd0e7901c1fad",
+      "tree": "e42b2151da9e114bc77d97a0fa6799a55d4b0c28",
       "primarySourcePath": "src/compiler.rs",
-      "primarySourceSha256": "6ea8b79cfe2ccfc1b663e025583333bc4f553be9d869894233c9821376856050"
+      "primarySourceSha256": "35669a41aad2f218945e280e50c161e20155b0bc988e4bce8305c8adf52d0199"
     }
   ],
   "codec": {
