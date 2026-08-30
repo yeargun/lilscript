@@ -1728,6 +1728,86 @@ pub fn scored_ir_phase_ordering_clones(
     variants
 }
 
+pub fn append_ir_compress_pass_clones(
+    config: &ProjectConfig,
+    configured: OptimizationOptions,
+    options: &mut Vec<OptimizationOptions>,
+) -> (Option<OptimizationOptions>, Option<OptimizationOptions>) {
+    if !config.javascript_optimization_enabled(JavaScriptOptimization::IrCompressPassVariants) {
+        return (None, None);
+    }
+    let mut compression_contrast = None;
+    let mut outline_phase_interaction = None;
+
+    let mut without_compress = configured;
+    without_compress.pipeline_fusion = false;
+    without_compress.partial_escape_sinking = false;
+    without_compress.region_outlining = false;
+    without_compress.expression_superopt = false;
+    without_compress.path_sensitive_propagation = false;
+    without_compress.parameterized_function_merging = false;
+    push_unique_optimizer_option(options, without_compress);
+
+    if configured.region_outlining {
+        let mut without_outlining = configured;
+        without_outlining.region_outlining = false;
+        compression_contrast = Some(without_outlining);
+        push_unique_optimizer_option(options, without_outlining);
+    } else if config.js_region_outlining_candidate_enabled() {
+        let mut with_outlining = configured;
+        with_outlining.region_outlining = true;
+        compression_contrast = Some(with_outlining);
+        push_unique_optimizer_option(options, with_outlining);
+
+        if let Some(mut interaction) = options
+            .iter()
+            .copied()
+            .filter(|candidate| {
+                candidate.inlining
+                    && !candidate.region_outlining
+                    && !candidate.common_subexpression_elimination
+                    && (candidate.inline_instruction_limit > configured.inline_instruction_limit
+                        || candidate.inline_control_flow_limit
+                            > configured.inline_control_flow_limit
+                        || candidate.inline_growth_limit.unwrap_or(0)
+                            > configured.inline_growth_limit.unwrap_or(0))
+            })
+            .max_by_key(|candidate| {
+                (
+                    !candidate.constant_parameter_specialization,
+                    candidate.inline_instruction_limit,
+                    candidate.inline_control_flow_limit,
+                    candidate.inline_growth_limit.unwrap_or(0),
+                )
+            })
+        {
+            interaction.region_outlining = true;
+            outline_phase_interaction = Some(interaction);
+            push_unique_optimizer_option(options, interaction);
+        }
+    }
+    if configured.pipeline_fusion {
+        let mut without_fusion = configured;
+        without_fusion.pipeline_fusion = false;
+        push_unique_optimizer_option(options, without_fusion);
+    }
+    if configured.parameterized_function_merging {
+        let mut without_merging = configured;
+        without_merging.parameterized_function_merging = false;
+        push_unique_optimizer_option(options, without_merging);
+    }
+    (compression_contrast, outline_phase_interaction)
+}
+
+fn push_unique_optimizer_option(
+    options: &mut Vec<OptimizationOptions>,
+    candidate: OptimizationOptions,
+) {
+    if !options.contains(&candidate) {
+        options.push(candidate);
+    }
+}
+
 pub fn admitted_scored_ir_variant_names(
     config: &ProjectConfig,
     configured: OptimizationOptions,
@@ -1759,10 +1839,10 @@ mod tests {
 
     use super::{
         admitted_scored_emission_family_names, admitted_scored_ir_variant_names,
-        cartesian_emission_seeds, decision_spec, reversible_boolean_alternatives,
-        scored_ir_optimizer_clones, scored_ir_phase_ordering_clones, DecisionClass, DecisionId,
-        EmissionSearchContext, IR_JS_OPTION_FIELDS, MIGRATED_DECISIONS, SCORED_EMISSION_FAMILIES,
-        SCORED_IR_VARIANTS,
+        append_ir_compress_pass_clones, cartesian_emission_seeds, decision_spec,
+        reversible_boolean_alternatives, scored_ir_optimizer_clones,
+        scored_ir_phase_ordering_clones, DecisionClass, DecisionId, EmissionSearchContext,
+        IR_JS_OPTION_FIELDS, MIGRATED_DECISIONS, SCORED_EMISSION_FAMILIES, SCORED_IR_VARIANTS,
     };
     use crate::config::{CompressionCostModel, ProjectConfig};
     use crate::optimizer::OptimizationOptions;
@@ -1808,6 +1888,33 @@ mod tests {
         assert!(!broad[0].common_subexpression_elimination);
         assert!(!broad[0].constant_parameter_specialization);
         assert!(broad[0].inline_instruction_limit >= 48);
+    }
+
+    #[test]
+    fn compress_pass_recipes_retain_incumbent_and_named_contrasts() {
+        let mut config = ProjectConfig::default();
+        config.javascript.optimization_level = 15;
+        config.javascript.candidate_search = crate::config::CandidateSearch::Always;
+        let mut configured = config.js_optimizer_options();
+        configured.region_outlining = true;
+        configured.pipeline_fusion = true;
+        configured.parameterized_function_merging = true;
+        let mut options = vec![configured];
+
+        let (contrast, interaction) =
+            append_ir_compress_pass_clones(&config, configured, &mut options);
+
+        assert_eq!(contrast.unwrap().region_outlining, false);
+        assert!(interaction.is_none());
+        assert!(options.contains(&configured));
+        assert!(options.iter().any(|candidate| {
+            !candidate.pipeline_fusion
+                && !candidate.partial_escape_sinking
+                && !candidate.region_outlining
+                && !candidate.expression_superopt
+                && !candidate.path_sensitive_propagation
+                && !candidate.parameterized_function_merging
+        }));
     }
 
     #[test]

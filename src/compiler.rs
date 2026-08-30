@@ -1568,8 +1568,6 @@ fn optimize_and_select_javascript_inner<'src>(
     };
     let mut optimizer_options =
         crate::decision_registry::scored_ir_optimizer_clones(config, configured);
-    let mut compression_contrast = None;
-    let mut outline_phase_interaction = None;
     // Phase-order probes answer a narrow question: did an early CSE or the
     // default inlining budget hide a smaller program? Broad modules receive one
     // combined recipe rather than the small-module cross product.
@@ -1588,81 +1586,12 @@ fn optimize_and_select_javascript_inner<'src>(
             optimizer_options.push(candidate);
         }
     }
-    if config.javascript_optimization_enabled(JavaScriptOptimization::IrCompressPassVariants) {
-        let mut without_compress = configured;
-        without_compress.pipeline_fusion = false;
-        without_compress.partial_escape_sinking = false;
-        without_compress.region_outlining = false;
-        without_compress.expression_superopt = false;
-        without_compress.path_sensitive_propagation = false;
-        without_compress.parameterized_function_merging = false;
-        if !optimizer_options.contains(&without_compress) {
-            optimizer_options.push(without_compress);
-        }
-        if configured.region_outlining {
-            let mut without_outlining = configured;
-            without_outlining.region_outlining = false;
-            compression_contrast = Some(without_outlining);
-            if !optimizer_options.contains(&without_outlining) {
-                optimizer_options.push(without_outlining);
-            }
-        } else if config.js_region_outlining_candidate_enabled() {
-            let mut with_outlining = configured;
-            with_outlining.region_outlining = true;
-            compression_contrast = Some(with_outlining);
-            if !optimizer_options.contains(&with_outlining) {
-                optimizer_options.push(with_outlining);
-            }
-
-            // Aggressive inlining can expose a repeated composite region that
-            // the configured pipeline never presents to the outliner. Cross
-            // outlining with only the strongest already-bounded phase-order
-            // proposal; duplicating every optimizer tuple would multiply the
-            // expensive IR search without adding a distinct proof boundary.
-            if let Some(mut interaction) = optimizer_options
-                .iter()
-                .copied()
-                .filter(|options| {
-                    options.inlining
-                        && !options.region_outlining
-                        && !options.common_subexpression_elimination
-                        && (options.inline_instruction_limit > configured.inline_instruction_limit
-                            || options.inline_control_flow_limit
-                                > configured.inline_control_flow_limit
-                            || options.inline_growth_limit.unwrap_or(0)
-                                > configured.inline_growth_limit.unwrap_or(0))
-                })
-                .max_by_key(|options| {
-                    (
-                        !options.constant_parameter_specialization,
-                        options.inline_instruction_limit,
-                        options.inline_control_flow_limit,
-                        options.inline_growth_limit.unwrap_or(0),
-                    )
-                })
-            {
-                interaction.region_outlining = true;
-                outline_phase_interaction = Some(interaction);
-                if !optimizer_options.contains(&interaction) {
-                    optimizer_options.push(interaction);
-                }
-            }
-        }
-        if configured.pipeline_fusion {
-            let mut without_fusion = configured;
-            without_fusion.pipeline_fusion = false;
-            if !optimizer_options.contains(&without_fusion) {
-                optimizer_options.push(without_fusion);
-            }
-        }
-        if configured.parameterized_function_merging {
-            let mut without_merging = configured;
-            without_merging.parameterized_function_merging = false;
-            if !optimizer_options.contains(&without_merging) {
-                optimizer_options.push(without_merging);
-            }
-        }
-    }
+    let (compression_contrast, outline_phase_interaction) =
+        crate::decision_registry::append_ir_compress_pass_clones(
+            config,
+            configured,
+            &mut optimizer_options,
+        );
     optimizer_options.sort_by_key(|options| {
         (
             options.function_subsumption,
