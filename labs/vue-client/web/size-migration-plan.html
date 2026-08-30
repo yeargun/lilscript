@@ -108,8 +108,8 @@ element.className = value;</code></pre></article>
 
     <section id="refs">
       <p class="eyebrow">03 / internal object representation</p>
-      <h2>Move reactive internals from bags to shared class behavior.</h2>
-      <span class="status language">Source now; accessors may need language support</span>
+      <h2>Benchmark stable representations; do not assume a class wins.</h2>
+      <span class="status measure">Decision requires an A/B benchmark</span>
       <div class="pair">
         <article class="code-card before"><h3>Before: construct fields and closures manually</h3><pre><code>JsValue refValue = hostCreateObject();
 write(refValue, "_rawValue", raw);
@@ -121,7 +121,7 @@ hostDefineAccessor(
   JS.method0(() =&gt; hostRead(refValue, "_value")),
   JS.method1((_, next) =&gt; { /* update */ })
 );</code></pre></article>
-        <article class="code-card after"><h3>After: stable fields and shared methods</h3><pre><code>class RefImpl {
+        <article class="code-card after"><h3>Candidate A: typed class with shared methods</h3><pre><code>class RefImpl {
   JsValue rawValue;
   JsValue valueStorage;
   Dep dep;
@@ -136,7 +136,33 @@ hostDefineAccessor(
   void setValue(JsValue next) { /* compare, update */ }
 }</code></pre></article>
       </div>
-      <p class="why">Vue stores ref behavior once on <code>RefImpl.prototype</code>. VueLil currently carries object construction, string field writes, accessor descriptors, and bound closures. The migration keeps the exact public <code>.value</code> accessor through a thin boundary while making internal fields typed.</p>
+      <div class="pair" style="margin-top:1rem">
+        <article class="code-card after"><h3>Candidate B: one shared prototype, plain instances</h3><pre><code>JsValue refPrototype = createRefPrototype(
+  sharedGetValue,
+  sharedSetValue
+);
+
+JsValue createRef(JsValue value) {
+  JsValue ref = Object.create(refPrototype);
+  ref["_rawValue"] = value;
+  ref["_value"] = value;
+  ref["dep"] = newDep();
+  return ref;
+}</code></pre></article>
+        <article class="code-card after"><h3>Candidate C: flatten only proven private state</h3><pre><code>struct Link {
+  Effect sub;
+  Dep dep;
+  int version;
+  Link? next;
+}
+
+// If Link never escapes, optimization may become:
+Effect sub = ...;
+Dep dep = ...;
+int version = ...;</code></pre></article>
+      </div>
+      <p class="why">A JavaScript class is not the goal. The goal is to expose stable shape and shared behavior so the optimizer has options. An escaping public ref cannot be flattened into global locals because identity and multiple simultaneous instances must survive. A private <code>Link</code> may be scalar-replaced completely. A public ref may be smallest as a class or as a plain object inheriting one shared prototype.</p>
+      <p class="why guard"><strong>Decision gate:</strong> implement all viable representations behind the same exact public contract, run the 440 reactivity tests, compare prototypes/descriptors/identity, execute the workload, and choose by final application Brotli. Do not select “class” from source aesthetics.</p>
     </section>
 
     <section id="renderer">

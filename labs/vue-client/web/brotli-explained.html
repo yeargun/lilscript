@@ -347,7 +347,7 @@ void patchFromArgs(JsValue args) {
         <li><strong>Preserve ESM owner modules.</strong> Let Vite remove unused files instead of flattening the complete package into one side-effectful module.</li>
         <li><strong>Separate production and test graphs.</strong> Keep test exports, warnings, source maps, and compatibility initialization out of production artifacts.</li>
         <li><strong>Make reflection tree-shakable.</strong> Repair function reflection only in modules whose exports survive.</li>
-        <li><strong>Use typed internal classes.</strong> Start with refs, computed refs, dependency links, and deps.</li>
+        <li><strong>Benchmark typed stable representations.</strong> Compare classes, a shared prototype with plain instances, and scalar-replaceable private structs for refs, computed refs, links, and deps.</li>
         <li><strong>Use fixed collection helpers.</strong> Replace string-dispatched generic Map, Set, and Array calls on hot paths.</li>
         <li><strong>Remove renderer rest trampolines.</strong> Keep the public dynamic internals façade, but use fixed typed calls behind it.</li>
         <li><strong>Use typed DOM host interfaces.</strong> Keep generic helpers only for computed keys and genuinely dynamic user objects.</li>

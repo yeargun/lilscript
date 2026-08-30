@@ -254,8 +254,11 @@ until rerun against the reusable package lane.
 
 ### P0: Runtime source idioms
 
-- Represent refs, computed refs, dependency links, and deps with typed classes
-  or typed internal records rather than per-instance dynamic bags.
+- Benchmark refs, computed refs, dependency links, and deps as typed classes,
+  shared-prototype plain instances, and typed internal records rather than
+  assuming one representation beats the others. Private non-escaping links may
+  scalar-replace completely; escaping public refs must preserve identity,
+  descriptors, and prototype behavior.
 - Replace finite string-dispatched collection operations with fixed typed
   helpers.
 - Replace renderer rest-argument trampolines with fixed-signature callable
