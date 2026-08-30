@@ -16,8 +16,8 @@ use crate::js_peephole::scope::{
     GeneratedBindingIndex,
 };
 use crate::js_peephole::token::{
-    ascii_identifier_name_string, lex, matching_closers, validate_conditional_operators,
-    validate_delimiters, Token, TokenKind,
+    ascii_identifier_name_string, lex, matching_closers, scan_template_expression,
+    validate_conditional_operators, validate_delimiters, Token, TokenKind,
 };
 use crate::js_syntax_target::{EcmaScriptEdition, JsSyntaxFeature};
 
@@ -1946,13 +1946,11 @@ fn visit_single_character_identifiers(tokens: &[Token<'_>], mut visit: impl FnMu
         if token.kind == TokenKind::Identifier && token.text.len() == 1 {
             visit(token.text.as_bytes()[0]);
         } else if token.kind == TokenKind::Template {
-            for window in token.text.as_bytes().windows(4) {
-                if window[0] == b'$'
-                    && window[1] == b'{'
-                    && window[2].is_ascii_alphabetic()
-                    && window[3] == b'}'
-                {
-                    visit(window[2]);
+            if let Ok(names) = template_expression_identifier_names(token.text) {
+                for name in names {
+                    if name.len() == 1 {
+                        visit(name.as_bytes()[0]);
+                    }
                 }
             }
         }
@@ -1977,13 +1975,8 @@ pub fn single_character_resolved_binding_identifiers(
     source: &str,
 ) -> Result<Vec<u8>, JavaScriptParseError> {
     let tokens = lex(source)?;
-    if tokens.iter().any(|token| token.kind == TokenKind::Template) {
-        return Ok(Vec::new());
-    }
     let resolution = BindingResolution::new(&tokens);
-    if !resolution.is_total() {
-        return Ok(Vec::new());
-    }
+    let template_names = template_identifier_names_in_tokens(&tokens)?;
     let mut candidates = std::collections::BTreeSet::new();
     let mut rejected = std::collections::BTreeSet::new();
 
@@ -1993,6 +1986,7 @@ pub fn single_character_resolved_binding_identifiers(
             candidates.insert(byte);
             if !identifier_occurrence_is_clear_binding(&tokens, index)
                 || !matches!(resolution.resolve(index), Resolution::Bound(_))
+                || template_names.contains(token.text)
             {
                 rejected.insert(byte);
             }
@@ -2167,15 +2161,10 @@ pub fn identifier_name_is_clear_binding(
         return Ok(false);
     }
     let tokens = lex(source)?;
-    // The remapper cannot inspect identifiers embedded in template tokens, so
-    // a whole-artifact rename must leave any artifact containing one alone.
-    if tokens.iter().any(|token| token.kind == TokenKind::Template) {
+    if template_identifier_names_in_tokens(&tokens)?.contains(name) {
         return Ok(false);
     }
     let resolution = BindingResolution::new(&tokens);
-    if !resolution.is_total() {
-        return Ok(false);
-    }
     let mut seen = false;
     for (index, token) in tokens.iter().enumerate() {
         if token.kind != TokenKind::Identifier || token.text != name {
@@ -2189,6 +2178,48 @@ pub fn identifier_name_is_clear_binding(
         }
     }
     Ok(seen)
+}
+
+fn template_identifier_names_in_tokens(
+    tokens: &[Token<'_>],
+) -> Result<std::collections::BTreeSet<String>, JavaScriptParseError> {
+    let mut names = std::collections::BTreeSet::new();
+    for token in tokens {
+        if token.kind == TokenKind::Template {
+            names.extend(template_expression_identifier_names(token.text)?);
+        }
+    }
+    Ok(names)
+}
+
+fn template_expression_identifier_names(
+    template: &str,
+) -> Result<std::collections::BTreeSet<String>, JavaScriptParseError> {
+    let bytes = template.as_bytes();
+    let mut names = std::collections::BTreeSet::new();
+    let mut cursor = 1usize;
+    while cursor + 1 < bytes.len() {
+        if bytes[cursor] == b'\\' {
+            cursor = (cursor + 2).min(bytes.len());
+            continue;
+        }
+        if bytes[cursor] != b'$' || bytes[cursor + 1] != b'{' {
+            cursor += 1;
+            continue;
+        }
+        let expression_start = cursor + 2;
+        let expression_end = scan_template_expression(bytes, expression_start, 0)?;
+        let expression = &template[expression_start..expression_end - 1];
+        for token in lex(expression)? {
+            if token.kind == TokenKind::Identifier {
+                names.insert(token.text.to_string());
+            } else if token.kind == TokenKind::Template {
+                names.extend(template_expression_identifier_names(token.text)?);
+            }
+        }
+        cursor = expression_end;
+    }
+    Ok(names)
 }
 
 pub fn two_character_identifier_use_counts(

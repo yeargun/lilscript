@@ -1066,12 +1066,14 @@ fn two_character_remapping_rejects_unresolved_template_occurrences() {
 }
 
 #[test]
-fn one_character_remap_candidates_reject_template_expressions() {
-    let source = "let a=1;console.log(`${a+1}`)";
-    assert!(super::single_character_resolved_binding_identifiers(source)
-        .unwrap()
-        .is_empty());
+fn one_character_remap_candidates_reject_only_template_references() {
+    let source = "let a=1,b=2;console.log(`${a+1}`,b)";
+    assert_eq!(
+        super::single_character_resolved_binding_identifiers(source).unwrap(),
+        [b'b']
+    );
     assert!(!super::single_character_name_is_clear_binding(source, b'a').unwrap());
+    assert!(super::single_character_name_is_clear_binding(source, b'b').unwrap());
     assert!(
         super::function_local_binding_swap_variants("function f(a,b){return`${a+b}`}")
             .unwrap()

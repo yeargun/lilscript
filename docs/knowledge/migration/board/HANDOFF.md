@@ -1,7 +1,7 @@
 # Cloud handoff
 
 Updated: 2026-08-29. Parent: [board](README.md). Active task:
-[gate-04](notes/gate-04.md). Canonical plan:
+[phase2-01](notes/phase2-01.md). Canonical plan:
 [compression migration](../compression-migration.md).
 
 This file persists the live execution queue for a fresh VM. The ledger owns
@@ -13,7 +13,7 @@ resume packet.
 1. [`docs/knowledge/mission.md`](../../mission.md)
 2. [`board/README.md`](README.md)
 3. [`board/LEDGER.md`](LEDGER.md)
-4. [`notes/gate-04.md`](notes/gate-04.md)
+4. [`notes/phase2-01.md`](notes/phase2-01.md)
 5. [`compression-migration.md`](../compression-migration.md)
 
 ## Pinned repositories
@@ -56,6 +56,12 @@ the full G2 rerun was explicitly deferred in favor of targeted development gates
 - Marked raw/gzip now pass all 660 corpus cases after rejecting local-phi
   recovery that read a coalesced slot before its incoming definition.
 - Gate-02, V-02 (`ident-09`), and V-03 (`emit-08`) are landed.
+- MobX production-min recovery is closed: exact `2d2268` → `06b89aa` improves
+  16,012 → 15,491 Brotli; the prior +1,230 row mixed boundaries.
+- Motion recovery is closed: four direct boundaries tie exact `2d2268`, mini and
+  full improve, and template-aware naming recovers animateMini to 2,324 Brotli.
+- Marked current exact Brotli is 9,506, below every committed historical ESM;
+  jQuery ties its exact migration incumbent. Phase-1 recovery is closed.
 
 ## Known red or incomplete gates
 
@@ -87,12 +93,10 @@ the full G2 rerun was explicitly deferred in favor of targeted development gates
 
 1. Clone or pull LilScript, MotionLil, MarkedLil, MobXLil, jQueryLil, and SolidLil
    beside one another; verify the pinned objects with `--check-inputs`.
-2. Read `notes/gate-04.md`; syntax/binding admission is centralized at codec
-   call sites and has zero-call rejection tests.
-3. Complete V-01 with owner-qualified property witnesses.
-4. Run targeted rejection fixtures, full Rust/canonical/codec gates, then the
-   selected 13-boundary `migration,candidate` G2 command recorded in gate-02.
-5. Continue canonical phase 1 incumbent recovery only after V-01 lands.
+2. Read `notes/phase2-01.md` and inventory duplicate candidate acceptance paths.
+3. Consolidate one existing batch without changing alternatives or bytes.
+4. During development run focused tests/canaries; defer the full G2 until release
+   verification is requested.
 
 ## Refusals
 

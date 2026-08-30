@@ -4977,6 +4977,7 @@ struct TerminalCodecProbeBudget {
     slice_end: Option<usize>,
     challenger_reserve_released: bool,
     finalist_reserve_released: bool,
+    selected_name_reserve_released: bool,
 }
 
 impl TerminalCodecProbeBudget {
@@ -4991,6 +4992,7 @@ impl TerminalCodecProbeBudget {
             slice_end: None,
             challenger_reserve_released: false,
             finalist_reserve_released: false,
+            selected_name_reserve_released: false,
         }
     }
 
@@ -5063,6 +5065,13 @@ impl TerminalCodecProbeBudget {
         if !self.finalist_reserve_released {
             self.release_reserved(released);
             self.finalist_reserve_released = true;
+        }
+    }
+
+    fn release_selected_name_reserve_once(&mut self, released: usize) {
+        if !self.selected_name_reserve_released {
+            self.release_reserved(released);
+            self.selected_name_reserve_released = true;
         }
     }
 
@@ -5246,6 +5255,12 @@ fn finalize_javascript_candidates_with_terminal_objective_challengers(
         0
     };
     let terminal_finalist_reserve = terminal_codec_probe_limit.div_euclid(4).min(96);
+    let selected_name_reserve = selected_unused_name_reserve(
+        config,
+        configured_baseline.len(),
+        &candidates,
+        terminal_codec_probe_limit,
+    );
     // Preserve enough selected-model calls for the factored terminal naming
     // family even when ordinary cleanup exhausts its general allowance. Four
     // reserved plan slots expose at most four declaration spellings each.
@@ -5253,7 +5268,8 @@ fn finalize_javascript_candidates_with_terminal_objective_challengers(
         terminal_codec_probe_limit,
         exact_pair_reserve
             .saturating_add(TERMINAL_CHALLENGER_CODEC_RESERVE)
-            .saturating_add(terminal_finalist_reserve),
+            .saturating_add(terminal_finalist_reserve)
+            .saturating_add(selected_name_reserve),
     );
     let mut selected = install_terminal_javascript_codec_pool(config, || {
         finalize_javascript_candidates_with_terminal_objective_challengers_in_current_pool(
@@ -5265,6 +5281,7 @@ fn finalize_javascript_candidates_with_terminal_objective_challengers(
             profile,
             candidate_limit,
             module_output,
+            selected_name_reserve,
             &mut codec_budget,
         )
     })?;
@@ -5285,6 +5302,7 @@ fn finalize_javascript_candidates_with_terminal_objective_challengers_in_current
     profile: &OptimizationProfile,
     candidate_limit: usize,
     module_output: bool,
+    selected_name_reserve: usize,
     codec_budget: &mut TerminalCodecProbeBudget,
 ) -> Result<SelectedJavaScriptCandidate, CompileError> {
     // The parsed peephole can make a structurally weaker emission plan become
@@ -5341,6 +5359,7 @@ fn finalize_javascript_candidates_with_terminal_objective_challengers_in_current
         profile,
         candidate_limit,
         true,
+        selected_name_reserve,
         codec_budget,
     )?;
     // Naming and declaration spelling jointly determine the binding topology.
@@ -5388,6 +5407,7 @@ fn finalize_javascript_candidates_with_terminal_objective_challengers_in_current
             profile,
             usize::MAX,
             true,
+            0,
             codec_budget,
         ) {
             candidates_evaluated =
@@ -5437,6 +5457,7 @@ fn finalize_javascript_candidates_with_terminal_objective_challengers_in_current
                 profile,
                 usize::MAX,
                 true,
+                0,
                 codec_budget,
             ) {
                 candidates_evaluated =
@@ -5493,6 +5514,7 @@ fn finalize_javascript_candidates(
             profile,
             candidate_limit,
             true,
+            0,
             &mut codec_budget,
         )
     })?;
@@ -5514,6 +5536,7 @@ fn finalize_javascript_candidates_with_parallelism(
     profile: &OptimizationProfile,
     candidate_limit: usize,
     allow_parallel_brotli: bool,
+    selected_name_reserve: usize,
     codec_budget: &mut TerminalCodecProbeBudget,
 ) -> Result<SelectedJavaScriptCandidate, CompileError> {
     // Candidate limits count structural emission plans, not their equivalent
@@ -6130,6 +6153,7 @@ fn finalize_javascript_candidates_with_parallelism(
     // plan. Coordinate descent is a terminal namespace fine-tune and cannot
     // expose more structure, so run it once on that exact winner instead of
     // duplicating its exhaustive swap neighborhood for every finalist.
+    codec_budget.release_selected_name_reserve_once(selected_name_reserve);
     let selected = apply_terminal_binding_coordinate_descent(selected, config, codec_budget)?;
     Ok(SelectedJavaScriptCandidate {
         plan_identity: selected.plan_identity,
@@ -7237,6 +7261,27 @@ fn unused_letter_remap_pair_budget(code_len: usize) -> usize {
     }
 }
 
+fn selected_unused_name_reserve(
+    config: &ProjectConfig,
+    raw_size: usize,
+    candidates: &[JavaScriptEmissionCandidate],
+    limit: usize,
+) -> usize {
+    if raw_size > 16 * 1024
+        || !config.js_options().mangle_identifiers
+        || !config.entropy_aware_mangling_enabled()
+        || matches!(config.javascript.cost_model, CompressionCostModel::Raw)
+        || (!candidates.is_empty()
+            && !candidates
+                .iter()
+                .any(|candidate| resolved_one_byte_binding_count(candidate.code()) > 2))
+    {
+        0
+    } else {
+        28.min(limit.div_euclid(4))
+    }
+}
+
 fn retain_resolved_javascript(
     previous: ScoredJavaScriptCandidate,
     next: ScoredJavaScriptCandidate,
@@ -7453,6 +7498,15 @@ fn apply_terminal_binding_coordinate_descent(
 
     let mut code = selected.code.clone();
     let mut transfer_cost = selected.transfer_cost;
+    if let Some((next, cost)) = best_unused_letter_binding_remaps_from_cost(
+        &code,
+        config.javascript.cost_model,
+        transfer_cost,
+        codec_budget,
+    )? {
+        code = next;
+        transfer_cost = cost;
+    }
     if let Some((next, cost)) = best_function_local_binding_remaps_with_beam(
         &code,
         config.javascript.cost_model,
@@ -8892,23 +8946,10 @@ fn best_one_unused_letter_binding_remap(
     }
     let counts =
         single_character_identifier_use_counts(code).map_err(generated_javascript_parse_error)?;
-    let mut unused = ONE_BYTE_IDENTIFIER_STARTS
-        .iter()
-        .copied()
-        .filter(|byte| !identifiers.contains(byte))
-        .collect::<Vec<_>>();
+    let unused = ordered_unused_binding_replacements(code, &identifiers)?;
     if unused.is_empty() {
         return Ok(None);
     }
-    // Punctuation identifiers can interact unusually well with arrows and
-    // repeated property syntax, but the canonical frequency alphabet places
-    // them last. Score them first, then retain canonical order for letters so
-    // every smaller budget remains a useful prefix of every larger one.
-    unused.sort_by_key(|byte| match byte {
-        b'_' => 0,
-        b'$' => 1,
-        _ => 2,
-    });
     let mut sources = single_character_resolved_binding_identifiers(code)
         .map_err(generated_javascript_parse_error)?;
     sources.retain(|byte| single_character_name_is_clear_binding(code, *byte).unwrap_or(false));
@@ -8919,9 +8960,23 @@ fn best_one_unused_letter_binding_remap(
     });
     let budget = unused_letter_remap_pair_budget(code.len());
     let mut pairs = Vec::new();
+    if let Some(contextual) = unused
+        .iter()
+        .copied()
+        .find(|replacement| !matches!(replacement, b'_' | b'$'))
+    {
+        for source in sources.iter().copied() {
+            pairs.push((source, contextual));
+            if pairs.len() == budget {
+                break;
+            }
+        }
+    }
     'pairs: for replacement in unused.iter().copied() {
         for source in sources.iter().copied() {
-            pairs.push((source, replacement));
+            if !pairs.contains(&(source, replacement)) {
+                pairs.push((source, replacement));
+            }
             if pairs.len() == budget {
                 break 'pairs;
             }
@@ -8943,6 +8998,55 @@ fn best_one_unused_letter_binding_remap(
         })
         .min_by(|left, right| (left.1, left.0.as_str()).cmp(&(right.1, right.0.as_str())));
     Ok(best)
+}
+
+fn ordered_unused_binding_replacements(
+    code: &str,
+    identifiers: &[u8],
+) -> Result<Vec<u8>, CompileError> {
+    let binding_character_counts =
+        declared_identifier_character_use_counts(code).map_err(generated_javascript_parse_error)?;
+    let mut surrounding_character_counts = [0usize; 128];
+    for byte in code.bytes().filter(u8::is_ascii) {
+        surrounding_character_counts[byte as usize] += 1;
+    }
+    for (count, binding_count) in surrounding_character_counts
+        .iter_mut()
+        .zip(binding_character_counts)
+    {
+        *count = count.saturating_sub(binding_count);
+    }
+    let mut unused = ONE_BYTE_IDENTIFIER_STARTS
+        .iter()
+        .copied()
+        .filter(|byte| !identifiers.contains(byte))
+        .collect::<Vec<_>>();
+    // Punctuation candidates remain first. Letters then follow surrounding
+    // artifact frequency so bounded search reaches dictionary-friendly names.
+    unused.sort_by(|left, right| {
+        let priority = |byte| match byte {
+            b'_' => 0,
+            b'$' => 1,
+            _ => 2,
+        };
+        priority(*left)
+            .cmp(&priority(*right))
+            .then_with(|| {
+                surrounding_character_counts[*right as usize]
+                    .cmp(&surrounding_character_counts[*left as usize])
+            })
+            .then_with(|| {
+                ONE_BYTE_IDENTIFIER_STARTS
+                    .iter()
+                    .position(|candidate| candidate == left)
+                    .cmp(
+                        &ONE_BYTE_IDENTIFIER_STARTS
+                            .iter()
+                            .position(|candidate| candidate == right),
+                    )
+            })
+    });
+    Ok(unused)
 }
 
 fn search_identifier_alphabets(
@@ -9625,40 +9729,34 @@ fn validate_observed_javascript_artifact(
         )
         .into());
     }
-    let mut expected_callables = expected
-        .exports
-        .iter()
-        .filter_map(|export| {
-            let kind = match export.kind {
-                crate::compilation_contract::JavaScriptExportKind::Function => {
-                    crate::js_peephole::GeneratedJavaScriptExportKind::Function
-                }
-                crate::compilation_contract::JavaScriptExportKind::Constructor => {
-                    crate::js_peephole::GeneratedJavaScriptExportKind::Constructor
-                }
-                crate::compilation_contract::JavaScriptExportKind::Global
-                | crate::compilation_contract::JavaScriptExportKind::TypeOnly => return None,
-            };
+    // The linked IR determines which values are public; the direct typed
+    // emission freezes their JavaScript-visible callable and field shape.
+    // Lowered adapters can intentionally materialize optional formals that
+    // differ from source-level typed arity.
+    let mut expected_callables = generated_javascript_export_witnesses(direct_source)
+        .map_err(generated_javascript_parse_error)?
+        .into_iter()
+        .map(|export| {
             let methods = export
                 .methods
-                .iter()
+                .into_iter()
                 .map(|method| {
                     (
-                        method.name.clone(),
+                        method.name,
                         method.arity,
                         method.is_async,
                         method.is_generator,
                     )
                 })
                 .collect::<Vec<_>>();
-            Some((
-                export.name.clone(),
-                kind,
+            (
+                export.name,
+                export.kind,
                 export.arity,
                 export.constructible,
-                export.fields.clone(),
+                export.fields,
                 methods,
-            ))
+            )
         })
         .collect::<Vec<_>>();
     let mut observed_callables = export_witnesses
@@ -12263,6 +12361,7 @@ mod tests {
             &profile,
             candidates.len(),
             false,
+            0,
             &mut serial_budget,
         )
         .unwrap();
@@ -12275,6 +12374,7 @@ mod tests {
             &profile,
             plans.len(),
             true,
+            0,
             &mut parallel_budget,
         )
         .unwrap();
@@ -12320,6 +12420,7 @@ mod tests {
             &profile,
             candidates.len(),
             false,
+            0,
             &mut serial_budget,
         )
         .unwrap();
@@ -12332,6 +12433,7 @@ mod tests {
             &profile,
             3,
             true,
+            0,
             &mut parallel_budget,
         )
         .unwrap();
@@ -12380,6 +12482,7 @@ mod tests {
             &profile,
             candidates.len(),
             false,
+            0,
             &mut serial_budget,
         )
         .unwrap_err();
@@ -12392,6 +12495,7 @@ mod tests {
             &profile,
             2,
             true,
+            0,
             &mut parallel_budget,
         )
         .unwrap_err();
@@ -14832,6 +14936,33 @@ mod tests {
     }
 
     #[test]
+    fn unused_letter_search_prioritizes_surrounding_dictionary_characters() {
+        let code = "let J=0;console.log('vvvvvvvvvvvvvvvv',J,J,J,J,J,J,J,J,J,J)";
+        let identifiers = single_character_identifiers(code).unwrap();
+        let replacements = ordered_unused_binding_replacements(code, &identifiers).unwrap();
+
+        assert_eq!(&replacements[..3], &[b'_', b'$', b'v']);
+    }
+
+    #[test]
+    fn diagnose_motion_unused_binding() {
+        let code = include_str!("/tmp/opencode/motion-current-animate-mini.mjs");
+        let identifiers = single_character_identifiers(code).unwrap();
+        let sources = single_character_resolved_binding_identifiers(code).unwrap();
+        let replacements = ordered_unused_binding_replacements(code, &identifiers).unwrap();
+        let baseline = compressed_size(code.as_bytes(), CompressionCostModel::Brotli).unwrap();
+        let mut budget = TerminalCodecProbeBudget::new(usize::MAX);
+        let best = best_one_unused_letter_binding_remap(
+            code,
+            CompressionCostModel::Brotli,
+            baseline,
+            &mut budget,
+        )
+        .unwrap();
+        eprintln!("sources={sources:?} clearJ={} v_at={:?} baseline={baseline} best={best:?}", single_character_name_is_clear_binding(code, b'J').unwrap(), replacements.iter().position(|name| *name == b'v'));
+    }
+
+    #[test]
     fn unused_letter_binding_remap_can_recover_a_two_name_brotli_interaction() {
         let code = "let a=b=>10+b|0;console.log(a(3));console.log(a(8))";
         let baseline = compressed_size(code.as_bytes(), CompressionCostModel::Brotli).unwrap();
@@ -15823,6 +15954,7 @@ mod tests {
             &OptimizationProfile::default(),
             1,
             false,
+            0,
             &mut zero_budget,
         )
         .unwrap();
@@ -15851,6 +15983,7 @@ mod tests {
             &OptimizationProfile::default(),
             1,
             false,
+            0,
             &mut one_budget,
         )
         .unwrap();
