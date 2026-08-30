@@ -27,12 +27,20 @@
     .now { color:var(--green); }
     .language { color:var(--amber); }
     .measure { color:var(--blue); }
-    .pair { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
-    .code-card { min-width:0; border:1px solid var(--line); background:var(--paper); }
+    .pair { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:1rem; align-items:start; }
+    .code-card { min-width:0; overflow:hidden; border:1px solid var(--line); background:var(--paper); }
     .code-card h3 { padding:.8rem 1rem; margin:0; border-bottom:1px solid var(--line); }
     .before h3 { color:var(--red); }
     .after h3 { color:var(--green); }
-    pre { overflow:auto; min-height:100%; margin:0; padding:1rem; background:#101a14; color:#ecf7ef; font-size:.78rem; line-height:1.55; tab-size:2; }
+    pre { display:block; width:100%; max-width:100%; overflow:auto; margin:0; padding:1rem; background:#101a14; color:#ecf7ef; font-size:.78rem; line-height:1.55; tab-size:2; white-space:pre; }
+    pre code { display:block; width:max-content; min-width:100%; }
+    .tok-comment { color:#82958a; font-style:italic; }
+    .tok-keyword { color:#ff9f7f; }
+    .tok-string { color:#a7e36d; }
+    .tok-number { color:#e6c76e; }
+    .tok-type { color:#79c7ff; }
+    .tok-call { color:#d4adff; }
+    .tok-operator { color:#ffcf70; }
     .why { margin:1rem 0 0; padding:1rem 1.1rem; border-left:4px solid var(--blue); background:var(--paper); }
     .guard { border-left-color:var(--amber); }
     table { width:100%; border-collapse:collapse; margin-top:1rem; background:var(--paper); font-size:.84rem; }
@@ -262,5 +270,32 @@ export { renderer, vnode, ... };</code></pre></article>
     </section>
   </main>
   <footer><a href="./">Evidence overview</a> · <a href="./brotli-explained.html">Forensic explanation</a> · <a href="./bundles/">Exact minified bundles</a> · <a href="https://github.com/yeargun/vuelil">Repository</a></footer>
+  <script>
+    const escapeCode = value => value
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;");
+    const tokenPattern = /(\/\*[\s\S]*?\*\/|\/\/[^\n]*|`(?:\\.|[^`\\])*`|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|\b(?:class|function|return|new|const|let|var|if|else|for|while|import|from|export|void|bool|string|int|true|false|null|undefined)\b|\b(?:JsValue|RefImpl|Dep|Object|Array|Map|WeakMap|WeakSet|Proxy)\b|\b\d+(?:\.\d+)?\b|=>|===|!==|==|!=|\?\?|\?\.|&&|\|\|)/g;
+    function tokenClass(token) {
+      if (token.startsWith("//") || token.startsWith("/*")) return "tok-comment";
+      if (/^[`"']/.test(token)) return "tok-string";
+      if (/^\d/.test(token)) return "tok-number";
+      if (/^(JsValue|RefImpl|Dep|Object|Array|Map|WeakMap|WeakSet|Proxy)$/.test(token)) return "tok-type";
+      if (/^(=>|===|!==|==|!=|\?\?|\?\.|&&|\|\|)$/.test(token)) return "tok-operator";
+      return "tok-keyword";
+    }
+    for (const block of document.querySelectorAll("pre code")) {
+      const source = block.textContent;
+      let output = "";
+      let offset = 0;
+      for (const match of source.matchAll(tokenPattern)) {
+        output += escapeCode(source.slice(offset, match.index));
+        output += `<span class="${tokenClass(match[0])}">${escapeCode(match[0])}</span>`;
+        offset = match.index + match[0].length;
+      }
+      output += escapeCode(source.slice(offset));
+      block.innerHTML = output;
+    }
+  </script>
 </body>
 </html>
