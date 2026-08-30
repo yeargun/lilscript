@@ -221,6 +221,22 @@ hostDefineAccessor(
         </tbody>
       </table>
       <p>Terser removed some wrappers, including the dedicated null-object and WeakSet constructors, but retained helpers for ordinary objects, arrays, WeakMap, Map, Proxy, generic reads, and accessors. That means the current Oxc pass leaves meaningful optimization work, but deleting every constructor helper would not be correct or necessarily smaller.</p>
+      <h3>Forced constructor inlining, measured independently</h3>
+      <p>To test the constructor question directly, I resolved references to each top-level helper, replaced every call with its native expression, deleted that helper declaration, and then ran every variant through the same Terser configuration. All variants produced the exact execution checksum <code>4980359c3a2017ff38abd4e44e6d2a9a2c75508fb3bc92b25f7d96e8c9e35707</code>.</p>
+      <table>
+        <thead><tr><th>Forced inline variant</th><th>Calls replaced</th><th>Raw delta</th><th>gzip-9 delta</th><th>Brotli-11 delta</th></tr></thead>
+        <tbody>
+          <tr><td><code>{}</code></td><td>11</td><td>-35 B</td><td class="bad">+35 B</td><td class="bad">+39 B</td></tr>
+          <tr><td><code>Object.create(null)</code></td><td>1</td><td>0 B</td><td>0 B</td><td class="bad">+24 B</td></tr>
+          <tr><td><code>Array(length)</code></td><td>3</td><td>-21 B</td><td>-3 B</td><td class="pass">-18 B</td></tr>
+          <tr><td><code>new WeakMap</code></td><td>6</td><td class="bad">+13 B</td><td>0 B</td><td class="bad">+12 B</td></tr>
+          <tr><td><code>new WeakSet</code></td><td>1</td><td>0 B</td><td>0 B</td><td>0 B</td></tr>
+          <tr><td><code>new Map</code></td><td>5</td><td>-11 B</td><td>-8 B</td><td class="pass">-3 B</td></tr>
+          <tr><td><code>new Proxy(target, handlers)</code></td><td>2</td><td>-25 B</td><td>-13 B</td><td class="pass">-16 B</td></tr>
+          <tr><td><strong>All seven together</strong></td><td>29</td><td>-65 B</td><td class="bad">+132 B</td><td class="bad">+104 B</td></tr>
+        </tbody>
+      </table>
+      <p>This confirms the compression intuition: Brotli already commonalizes repeated constructor spellings. Pooling all seven is slightly better than inlining all seven. The result is only 104 bytes, so constructor pooling is effectively noise compared with the 25,750-byte runtime-only gap.</p>
       <div class="callout"><strong>The important distinction:</strong> tiny allocation helpers may be size-positive. Generic operations such as <code>hostRead(value, key)</code>, <code>JS.invoke(value, methodName, args)</code>, reflection helpers, and rest-argument trampolines are more damaging because they also hide semantics and prevent tree shaking or property reasoning.</div>
 
       <h3>Which objective is active?</h3>

@@ -117,6 +117,34 @@ size is 2.82x Vue while Brotli size is 2.35x. More dictionary tuning or string
 pooling attacks bytes Brotli already handles and cannot close the structural
 gap.
 
+## Forced constructor-wrapper ablation
+
+The seven simple constructor wrappers at the beginning of the runtime-only
+candidate were force-inlined at scope-resolved call sites, removed, and then
+processed with the same Terser configuration. Every variant produced execution
+checksum `4980359c3a2017ff38abd4e44e6d2a9a2c75508fb3bc92b25f7d96e8c9e35707`.
+
+The comparison baseline for this ablation is the unchanged candidate after the
+same Terser pass: 137,121 raw, 49,441 gzip-9, and 40,654 Brotli-11 bytes.
+
+| Forced inline | Calls | Raw delta | gzip-9 delta | Brotli-11 delta |
+| --- | ---: | ---: | ---: | ---: |
+| `{}` | 11 | -35 | +35 | +39 |
+| `Object.create(null)` | 1 | 0 | 0 | +24 |
+| `Array(length)` | 3 | -21 | -3 | -18 |
+| `new WeakMap` | 6 | +13 | 0 | +12 |
+| `new WeakSet` | 1 | 0 | 0 | 0 |
+| `new Map` | 5 | -11 | -8 | -3 |
+| `new Proxy(target, handlers)` | 2 | -25 | -13 | -16 |
+| All seven | 29 | -65 | +132 | +104 |
+
+Therefore Brotli already commonalizes these repeated constructor expressions.
+Pooling all seven is 104 Brotli bytes better than force-inlining all seven. This
+family is not a material cause of the 25,750-byte runtime-only gap. The more
+important host costs are generic property reads/writes, dynamic method dispatch,
+accessor/reflection construction, and the optimization barriers those operations
+create.
+
 ## Ranked root causes
 
 ### 1. Runtime-core retention and side-effectful generated shape
