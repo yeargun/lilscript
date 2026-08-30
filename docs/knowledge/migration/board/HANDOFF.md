@@ -20,13 +20,13 @@ resume packet.
 
 | Repository | Branch/commit | Purpose |
 |---|---|---|
-| LilScript | isolated candidate `8c7d04b` atop pushed `main` | V-01 implemented under targeted gates; phase-1 recovered; phase-2 active |
+| LilScript | isolated candidate `fc2c852` atop pushed `main` | V-01 implemented under targeted gates; phase-1 recovered; phase-2 active |
 | MotionLil | pushed `main` at `1102ba7` | Source-level evidence entries for exact direct compiler boundaries |
 | MarkedLil | pushed `main` at `9911cfd` | Cross-platform synchronized lockfile |
 | MobXLil | `main` at `960f2fb` | Split source, true production-min config, and synchronized lockfile |
 | Closure Compiler audit | commit `73eee2481cf1dd5dea0d8c9c0561b5a61498fec4` | Source comparison only; clone outside the repository |
 
-The earlier checkpoints were pushed without force. Candidate `8c7d04b` is pinned;
+The earlier checkpoints were pushed without force. Candidate `fc2c852` is pinned;
 the full G2 rerun was explicitly deferred in favor of targeted development gates.
 
 ## Completed
