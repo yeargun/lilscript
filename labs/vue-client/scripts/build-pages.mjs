@@ -155,6 +155,7 @@ function pageHtml(scope, inventory, evidence) {
       <p>${escapeHtml(scope.claimRule)}</p>
       <p>Inspect the complete source-derived inventory in <a href="./evidence.json">evidence.json</a>. Generated presentation text is not itself a benchmark or compatibility result.</p>
       <p>Read <a href="./brotli-explained.html">Why VueLil is larger after Brotli</a> for a visual source-to-bundle explanation, or inspect the <a href="https://github.com/yeargun/vuelil/blob/main/artifacts/brotli-regression-report.md">machine-oriented report</a>.</p>
+      <p>Use the concrete <a href="./size-migration-plan.html">Before → After size migration plan</a> for source, build, and future language changes.</p>
       <p>Open the exact report-pinned <a href="./bundles/">minified Vue and VueLil JavaScript bundles</a> side by side.</p>
     </section>
   </main>

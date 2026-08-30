@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="A concrete before-and-after migration plan for reducing VueLil's JavaScript and Brotli size.">
+  <title>VueLil smaller-build migration plan</title>
+  <style>
+    :root { color-scheme:light; --bg:#f6f3eb; --paper:#fffefa; --ink:#182019; --muted:#637067; --line:#cbd2ca; --green:#087f5b; --red:#b42318; --blue:#2558a5; --amber:#9a6700; font-family:Inter,ui-sans-serif,system-ui,sans-serif; }
+    * { box-sizing:border-box; }
+    html { scroll-behavior:smooth; }
+    body { margin:0; background:var(--bg); color:var(--ink); }
+    header,main,footer { width:min(1200px,calc(100% - 2rem)); margin:auto; }
+    header { padding:5rem 0 2.5rem; border-bottom:2px solid var(--ink); }
+    .eyebrow { margin:0 0 .7rem; color:var(--green); font:700 .72rem ui-monospace,monospace; letter-spacing:.15em; text-transform:uppercase; }
+    h1 { max-width:980px; margin:0; font:500 clamp(3rem,8vw,6.5rem)/.93 Georgia,serif; letter-spacing:-.055em; }
+    .lede { max-width:850px; color:var(--muted); font-size:1.12rem; line-height:1.7; }
+    nav { position:sticky; top:0; z-index:4; display:flex; gap:1rem; overflow:auto; padding:.9rem max(1rem,calc((100vw - 1200px)/2)); border-bottom:1px solid var(--line); background:color-mix(in srgb,var(--bg) 94%,transparent); backdrop-filter:blur(10px); }
+    nav a { flex:none; color:var(--ink); text-decoration:none; font:700 .7rem ui-monospace,monospace; text-transform:uppercase; }
+    section { padding:3.2rem 0; border-bottom:1px solid var(--line); }
+    h2 { margin:0 0 .8rem; font:500 clamp(2rem,5vw,4rem)/1 Georgia,serif; letter-spacing:-.04em; }
+    h3 { margin:0 0 .7rem; font-size:1rem; }
+    p,li { line-height:1.65; }
+    p { max-width:900px; }
+    code,pre { font-family:ui-monospace,"SFMono-Regular",Consolas,monospace; }
+    .status { display:inline-block; margin:.3rem 0 1.2rem; padding:.35rem .55rem; border:1px solid currentColor; font:700 .68rem ui-monospace,monospace; text-transform:uppercase; }
+    .now { color:var(--green); }
+    .language { color:var(--amber); }
+    .measure { color:var(--blue); }
+    .pair { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+    .code-card { min-width:0; border:1px solid var(--line); background:var(--paper); }
+    .code-card h3 { padding:.8rem 1rem; margin:0; border-bottom:1px solid var(--line); }
+    .before h3 { color:var(--red); }
+    .after h3 { color:var(--green); }
+    pre { overflow:auto; min-height:100%; margin:0; padding:1rem; background:#101a14; color:#ecf7ef; font-size:.78rem; line-height:1.55; tab-size:2; }
+    .why { margin:1rem 0 0; padding:1rem 1.1rem; border-left:4px solid var(--blue); background:var(--paper); }
+    .guard { border-left-color:var(--amber); }
+    table { width:100%; border-collapse:collapse; margin-top:1rem; background:var(--paper); font-size:.84rem; }
+    th,td { padding:.75rem; border-bottom:1px solid var(--line); text-align:right; }
+    th:first-child,td:first-child { text-align:left; }
+    th { color:var(--muted); font:700 .68rem ui-monospace,monospace; text-transform:uppercase; }
+    .bad { color:var(--red); font-weight:700; }
+    .good { color:var(--green); font-weight:700; }
+    .steps { counter-reset:step; padding:0; display:grid; gap:.75rem; }
+    .steps li { counter-increment:step; list-style:none; padding:1rem; border:1px solid var(--line); background:var(--paper); }
+    .steps li::before { content:"0" counter(step); display:inline-block; width:2.4rem; color:var(--green); font:700 .72rem ui-monospace,monospace; }
+    footer { padding:2rem 0 5rem; color:var(--muted); }
+    footer a { color:var(--green); }
+    @media(max-width:760px){header{padding-top:3rem}.pair{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <header>
+    <p class="eyebrow">VueLil / actionable migration / before → after</p>
+    <h1>How to make the generated JavaScript smaller.</h1>
+    <p class="lede">This plan does not change Vue algorithms. It changes how exact Vue behavior is expressed in LilScript and how reusable package modules are emitted. Every item below includes the current shape, the target shape, and the compatibility rule that must remain true.</p>
+  </header>
+  <nav>
+    <a href="#constructors">Constructors</a><a href="#reads">Host reads</a><a href="#refs">Refs</a><a href="#renderer">Renderer</a><a href="#reflection">Reflection</a><a href="#modules">Modules</a><a href="#flags">Flags</a><a href="#order">Order</a>
+  </nav>
+  <main>
+    <section id="constructors">
+      <p class="eyebrow">01 / measured non-problem</p>
+      <h2>Do not start by deleting constructor helpers.</h2>
+      <span class="status measure">Measured</span>
+      <div class="pair">
+        <article class="code-card before"><h3>Current pooled helper</h3><pre><code>function a(){ return new Map }
+
+let first = a()
+let second = a()
+let third = a()</code></pre></article>
+        <article class="code-card after"><h3>Forced inline experiment</h3><pre><code>let first = new Map
+let second = new Map
+let third = new Map</code></pre></article>
+      </div>
+      <p class="why">Inlining all seven constructor helpers saved 65 raw bytes but made gzip 132 bytes and Brotli 104 bytes larger. Brotli already commonalizes repeated constructor text. This family is not responsible for the 25,750-byte gap.</p>
+      <table><thead><tr><th>Forced inline</th><th>Calls</th><th>Brotli delta</th></tr></thead><tbody><tr><td><code>{}</code></td><td>11</td><td class="bad">+39 B</td></tr><tr><td><code>Object.create(null)</code></td><td>1</td><td class="bad">+24 B</td></tr><tr><td><code>Array(length)</code></td><td>3</td><td class="good">-18 B</td></tr><tr><td><code>new WeakMap</code></td><td>6</td><td class="bad">+12 B</td></tr><tr><td><code>new Map</code></td><td>5</td><td class="good">-3 B</td></tr><tr><td><code>new Proxy(...)</code></td><td>2</td><td class="good">-16 B</td></tr><tr><td><strong>All</strong></td><td>29</td><td class="bad">+104 B</td></tr></tbody></table>
+    </section>
+
+    <section id="reads">
+      <p class="eyebrow">02 / dynamic property access</p>
+      <h2>Keep dynamic access only where it is actually dynamic.</h2>
+      <span class="status now">Source migration now</span>
+      <div class="pair">
+        <article class="code-card before"><h3>Before: every operation crosses a helper</h3><pre><code>JsValue classes = hostRead(element, vtcKey);
+JS.invoke(classes, "unshift", value);
+value = JS.invoke(classes, "join", " ");
+hostWrite(element, "className", value);</code></pre></article>
+        <article class="code-card after"><h3>After: split dynamic and static operations</h3><pre><code>// Symbol lookup is genuinely dynamic.
+JsValue classes = rawElement[vtcKey];
+
+// Known DOM ABI is typed and lowers directly.
+classes.unshift(value);
+value = classes.join(" ");
+element.className = value;</code></pre></article>
+      </div>
+      <p class="why">A forced inline of 250 generic reads saved only 67 Brotli bytes. Merely replacing the helper text is not enough. The real win comes when types let the optimizer prove receiver shape, direct call kind, and stable property names.</p>
+      <p class="why guard"><strong>Guardrail:</strong> never turn a truly dynamic user object, getter, or Proxy into a pure typed record. Only internal owned values and declared host interfaces qualify.</p>
+    </section>
+
+    <section id="refs">
+      <p class="eyebrow">03 / internal object representation</p>
+      <h2>Move reactive internals from bags to shared class behavior.</h2>
+      <span class="status language">Source now; accessors may need language support</span>
+      <div class="pair">
+        <article class="code-card before"><h3>Before: construct fields and closures manually</h3><pre><code>JsValue refValue = hostCreateObject();
+write(refValue, "_rawValue", raw);
+write(refValue, "_value", value);
+write(refValue, "dep", dep);
+hostDefineAccessor(
+  refValue,
+  "value",
+  JS.method0(() =&gt; hostRead(refValue, "_value")),
+  JS.method1((_, next) =&gt; { /* update */ })
+);</code></pre></article>
+        <article class="code-card after"><h3>After: stable fields and shared methods</h3><pre><code>class RefImpl {
+  JsValue rawValue;
+  JsValue valueStorage;
+  Dep dep;
+  bool shallow;
+
+  init(JsValue value, bool shallow) {
+    this.rawValue = shallow ? value : toRaw(value);
+    this.valueStorage = shallow ? value : toReactive(value);
+  }
+
+  JsValue getValue() { /* track, return field */ }
+  void setValue(JsValue next) { /* compare, update */ }
+}</code></pre></article>
+      </div>
+      <p class="why">Vue stores ref behavior once on <code>RefImpl.prototype</code>. VueLil currently carries object construction, string field writes, accessor descriptors, and bound closures. The migration keeps the exact public <code>.value</code> accessor through a thin boundary while making internal fields typed.</p>
+    </section>
+
+    <section id="renderer">
+      <p class="eyebrow">04 / fixed callable ABI</p>
+      <h2>Remove rest-array trampolines from renderer hot paths.</h2>
+      <span class="status language">Language capability needed for 4+ host arguments</span>
+      <div class="pair">
+        <article class="code-card before"><h3>Before: wrapper + arguments array + second call</h3><pre><code>this.patchFn = JS.methodRest((_, args) =&gt; {
+  state.patchFromArgs(args);
+});
+
+void patchFromArgs(JsValue args) {
+  JsValue anchor = args.length &gt; 3 ? args[3] : null;
+  JsValue parent = args.length &gt; 4 ? args[4] : null;
+  // unpack seven more values
+  this.patch(n1, n2, container, anchor, parent, ...);
+}</code></pre></article>
+        <article class="code-card after"><h3>After: one fixed-signature callable</h3><pre><code>this.patchFn = JS.method((
+  JsValue self,
+  JsValue n1,
+  JsValue n2,
+  JsValue container,
+  JsValue anchor = null,
+  JsValue parent = null,
+  JsValue suspense = null,
+  JsValue namespace = JS.undefined(),
+  JsValue scopeIds = null,
+  bool optimized = false
+) =&gt; state.patch(
+  n1, n2, container, anchor, parent,
+  suspense, namespace, scopeIds, optimized
+));</code></pre></article>
+      </div>
+      <p class="why">Today LilScript exposes <code>JS.method0</code> through <code>JS.method3</code>, then <code>JS.methodRest</code>. Renderer callbacks need more arguments, so the port falls into the rest-array path. The required language feature is an arity-inferred host-callable typed closure that preserves <code>this</code>, function identity, <code>name</code>, and <code>length</code> without materializing <code>arguments</code>.</p>
+      <p class="why guard"><strong>Boundary rule:</strong> Teleport and Suspense still receive the dynamic renderer-internals object expected by Vue. Only calls behind that façade become fixed and typed.</p>
+    </section>
+
+    <section id="reflection">
+      <p class="eyebrow">05 / function reflection</p>
+      <h2>Make public reflection natural, not a top-level mutation.</h2>
+      <span class="status now">Build migration now</span>
+      <div class="pair">
+        <article class="code-card before"><h3>Before: mutate every exported function</h3><pre><code>Object.defineProperty(local, "name", {
+  configurable: true,
+  value: "createVNode"
+});
+Object.defineProperty(local, "length", {
+  configurable: true,
+  value: 0
+});
+export { local as createVNode };</code></pre></article>
+        <article class="code-card after"><h3>After: tree-shakable public boundary</h3><pre><code>// Internal implementation stays mangled.
+function a(type, props, children) { /* exact algorithm */ }
+
+// Only this module pays for public reflection.
+export function createVNode(type, props, children) {
+  return a(type, props, children);
+}</code></pre></article>
+      </div>
+      <p class="why">The before form is a top-level side effect. A bundler must retain the mutation and often the target function. Removing 52 public name/length mutations saved 1,030 Brotli bytes in the runtime-only ablation. A per-export module lets Vite discard both the wrapper and its implementation when the export is unused.</p>
+      <p class="why guard"><strong>Do not remove semantic accessors:</strong> <code>Object.defineProperty</code> used for actual reactive getters, setters, enumerability, or API descriptors is different. Only post-build public <code>name</code>/<code>length</code> repair belongs in this migration.</p>
+    </section>
+
+    <section id="modules">
+      <p class="eyebrow">06 / tree shaking</p>
+      <h2>Preserve owner modules in the reusable package.</h2>
+      <span class="status now">Build migration now</span>
+      <div class="pair">
+        <article class="code-card before"><h3>Before: one flattened module</h3><pre><code># config/open-world.toml
+[bundle]
+mode = "single"
+
+# Result
+runtime-core.js
+  ├─ scheduler
+  ├─ renderer
+  ├─ hydration
+  ├─ compat
+  └─ reflection initializers</code></pre></article>
+        <article class="code-card after"><h3>After: reusable open-world ESM graph</h3><pre><code>[bundle]
+mode = "preserve-modules"
+
+runtime-core/index.js
+runtime-core/scheduler.js
+runtime-core/renderer.js
+runtime-core/hydration.js
+runtime-core/compat/*.js
+
+// Vite removes whole unused owners.</code></pre></article>
+      </div>
+      <p class="why">The current runtime-only candidate retains 139,699 rendered runtime-core bytes versus Vue's 79,749. Flattening means a top-level effect in one owner can keep unrelated code in the same module. Preserved ESM modules provide robust deletion boundaries even when an optimizer cannot prove individual dynamic operations pure.</p>
+      <p class="why guard"><strong>Open-world rule:</strong> compile one reusable package with all public exports preserved and private names mangled. Do not generate per-scenario export lists. Application-specific removal belongs to Vite.</p>
+    </section>
+
+    <section id="flags">
+      <p class="eyebrow">07 / production graph</p>
+      <h2>False flags must remove imports and initialization.</h2>
+      <span class="status now">Source graph selection now</span>
+      <div class="pair">
+        <article class="code-card before"><h3>Before: import compat, then branch</h3><pre><code>import { warnDeprecation, compatConfig } from "./compat";
+
+if (COMPAT) {
+  warnDeprecation(...);
+}
+
+// compat module initialization already ran</code></pre></article>
+        <article class="code-card after"><h3>After: production entry excludes the edge</h3><pre><code>// index.production.lil
+import { renderer } from "./renderer";
+import { vnode } from "./vnode";
+// no compat import when the package format disables compat
+
+export { renderer, vnode, ... };</code></pre></article>
+      </div>
+      <p class="why">A false branch does not erase the side effects of a static import. Production graph selection must remove the import edge or prove the imported owner has no side effects. Runtime-only currently retains at least 3.1 KB of compatibility/development string payload before branch code.</p>
+    </section>
+
+    <section id="order">
+      <p class="eyebrow">08 / implementation order</p>
+      <h2>Migration sequence and acceptance gates.</h2>
+      <ol class="steps">
+        <li><strong>Reusable package lane.</strong> Remove final evidence dependence on <code>VUELIL_PROJECT_EXPORTS</code>. Build one open-world package and consume it in all scenarios.</li>
+        <li><strong>Preserve modules.</strong> Emit owner modules and verify small imports omit unrelated owners.</li>
+        <li><strong>Production graph cleanup.</strong> Remove test, dev, source-map, and disabled compat import edges.</li>
+        <li><strong>Tree-shakable reflection.</strong> Replace namespace-wide mutation loops with per-export boundaries.</li>
+        <li><strong>Typed reactivity internals.</strong> Migrate Ref, ComputedRef, Link, and Dep first; rerun 440 tests and the reactivity benchmark.</li>
+        <li><strong>Typed renderer callbacks.</strong> Add or adopt fixed host-callable arities, then remove <code>*FromArgs</code> trampolines.</li>
+        <li><strong>Typed DOM ABI.</strong> Replace static host reads/writes with <code>extern class</code> members.</li>
+        <li><strong>Remeasure.</strong> Require 234/234 mappings, 216/216 test files, matching scenario checksums, no upstream modules, and canonical Brotli-11.</li>
+      </ol>
+      <div class="why"><strong>Success criterion:</strong> the final package remains reusable and non-closed-world, all private implementation names are mangled, public Vue reflection stays exact, and downstream Vite removes unused owner modules.</div>
+    </section>
+  </main>
+  <footer><a href="./">Evidence overview</a> · <a href="./brotli-explained.html">Forensic explanation</a> · <a href="./bundles/">Exact minified bundles</a> · <a href="https://github.com/yeargun/vuelil">Repository</a></footer>
+</body>
+</html>
