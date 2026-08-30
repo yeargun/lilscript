@@ -1592,56 +1592,14 @@ fn optimize_and_select_javascript_inner<'src>(
             configured,
             &mut optimizer_options,
         );
-    optimizer_options.sort_by_key(|options| {
-        (
-            options.function_subsumption,
-            !options.inlining,
-            !options.inline_closure_factories,
-            options.common_subexpression_elimination,
-            !options.constant_parameter_specialization,
-            !options.specialize_tagged_constants,
-            !options.call_site_specialization,
-            !options.capture_signature_cloning,
-            options.inline_instruction_limit,
-            options.inline_control_flow_limit,
-            options.inline_growth_limit,
-        )
-    });
-    optimizer_options.dedup();
-
-    // Probe each optimizer IR with its configured emission before concentrating
-    // the terminal beam on the transfer-best finalists (configured always
-    // kept). Reusable boundaries receive one additional helper-interaction
-    // probe: AllEligible for a successful repeated-region outline, or
-    // SingleStaticUse for a deferred-inlining IR. Without that bounded joint
-    // score, the useful IR can be discarded before emission search gets a
-    // chance to inline its leaves while retaining its shared composite.
-    if let Some(configured_index) = optimizer_options
-        .iter()
-        .position(|options| options == &configured)
-    {
-        optimizer_options.swap(0, configured_index);
-    }
     let total_candidate_limit = config.javascript.effective_candidate_limit().max(1);
-    if total_candidate_limit >= 2 {
-        if let Some(contrast_index) = compression_contrast.and_then(|contrast| {
-            optimizer_options
-                .iter()
-                .position(|options| *options == contrast)
-        }) {
-            optimizer_options.swap(1, contrast_index);
-        }
-    }
-    if total_candidate_limit >= 3 {
-        if let Some(interaction_index) = outline_phase_interaction.and_then(|interaction| {
-            optimizer_options
-                .iter()
-                .position(|options| *options == interaction)
-        }) {
-            optimizer_options.swap(2, interaction_index);
-        }
-    }
-    optimizer_options.truncate(total_candidate_limit);
+    let optimizer_options = crate::decision_registry::finalize_scored_ir_optimizer_clones(
+        optimizer_options,
+        configured,
+        compression_contrast,
+        outline_phase_interaction,
+        total_candidate_limit,
+    );
 
     struct IrProbe<'probe> {
         context_id: usize,
@@ -4695,100 +4653,14 @@ fn terminal_scope_naming_options(
     parent: crate::codegen_ir_js::IrJsOptions,
     configured: crate::codegen_ir_js::IrJsOptions,
 ) -> Vec<crate::codegen_ir_js::IrJsOptions> {
-    if !configured.mangle_identifiers || !configured.cross_scope_name_reuse {
-        return Vec::new();
-    }
-
-    let mut variants = Vec::new();
-    let mut push = |options| {
-        if options != parent && !variants.contains(&options) {
-            variants.push(options);
-        }
-    };
-
-    // This is the closest safe analogue of Terser's per-scope allocator: a
-    // nested scope restarts the alphabet and excludes only parent bindings
-    // that its complete transitive reference graph can observe.
-    push(crate::codegen_ir_js::IrJsOptions {
-        precise_cross_scope_shadowing: true,
-        reserved_local_name_prefix: false,
-        ..parent
-    });
-
-    // A small globally unused prefix is intentionally raw-positive: module
-    // bindings move later in the alphabet so independent functions can start
-    // with exactly the same local names. Dictionary codecs may recover more
-    // from that repetition than the module namespace costs. Search a bounded
-    // geometric family, including both the selected and configured reserve.
-    let mut reserve_counts = vec![parent.local_name_reserve, configured.local_name_reserve];
-    reserve_counts.extend([8, 16, 32]);
-    reserve_counts.retain(|reserve| *reserve != 0);
-    reserve_counts.dedup();
-    for local_name_reserve in reserve_counts {
-        push(crate::codegen_ir_js::IrJsOptions {
-            precise_cross_scope_shadowing: true,
-            reserved_local_name_prefix: true,
-            local_name_reserve,
-            ..parent
-        });
-    }
-
-    // The narrower proof can occasionally spell a nested-function-heavy
-    // artifact better without perturbing globals and entry bindings.
-    if !parent.precise_cross_scope_shadowing {
-        push(crate::codegen_ir_js::IrJsOptions {
-            transitive_nested_shadowing: true,
-            ..parent
-        });
-    }
-    variants
+    crate::decision_registry::terminal_scope_naming_options(parent, configured)
 }
 
 fn terminal_string_pooling_options(
     parent: crate::codegen_ir_js::IrJsOptions,
     configured: crate::codegen_ir_js::IrJsOptions,
 ) -> Vec<crate::codegen_ir_js::IrJsOptions> {
-    if !configured.pool_strings {
-        return Vec::new();
-    }
-    let mut variants = Vec::new();
-    let mut push = |options| {
-        if options != parent && !variants.contains(&options) {
-            variants.push(options);
-        }
-    };
-
-    // Repeated literals are already dictionary material. Keeping every
-    // raw-profitable alias can therefore make gzip/Brotli larger, while a
-    // sparse set of very expensive literals can still win. Revisit both the
-    // unpooled spelling and a denser threshold ladder on the actual final
-    // structural/naming winner.
-    push(crate::codegen_ir_js::IrJsOptions {
-        pool_strings: false,
-        ..parent
-    });
-    for string_pool_minimum_savings in [
-        parent.string_pool_minimum_savings,
-        configured.string_pool_minimum_savings,
-        16,
-        32,
-        64,
-        96,
-        128,
-        192,
-        256,
-        384,
-        512,
-        768,
-        1024,
-    ] {
-        push(crate::codegen_ir_js::IrJsOptions {
-            pool_strings: true,
-            string_pool_minimum_savings,
-            ..parent
-        });
-    }
-    variants
+    crate::decision_registry::terminal_string_pooling_options(parent, configured)
 }
 
 fn finalized_javascript_candidate_precedes(
@@ -7548,48 +7420,10 @@ fn apply_selected_canonical_peephole(
     {
         return Ok(selected);
     }
-    if config
-        .javascript
-        .startup
-        .max_nesting
-        .is_some_and(|maximum| metrics.max_nesting > maximum)
-        || (config.javascript_optimization_configured(JavaScriptOptimization::StartupCostGuard)
-            && !startup_cost_allowed(
-                metrics,
-                selected.baseline_metrics,
-                &config.javascript.startup,
-            ))
-    {
-        return Ok(selected);
-    }
-    if selected.admission.validate(&code).is_err() {
-        return Ok(selected);
-    }
-    let cost = admitted_generated_javascript_size(&code, config.javascript.cost_model)
-        .map_err(|message| crate::codegen_js::CodegenError::new(Span::empty(0), message))?;
-    selected.terminal_codec_probes = selected.terminal_codec_probes.saturating_add(1);
-    let startup_score = metrics.startup_score(
-        config.javascript.startup.parse_weight,
-        config.javascript.startup.compile_weight,
-        config.javascript.startup.memory_weight,
-    );
-    let mut challenger = selected.clone();
-    challenger.code = code;
-    challenger.transfer_cost = cost;
-    challenger.startup_score = startup_score;
-    challenger.metrics = metrics;
-    challenger.peephole_rewrites = challenger
+    let rewrites = selected
         .peephole_rewrites
         .saturating_add(optimized.rewrites);
-    if !finalized_javascript_candidate_precedes(
-        &challenger,
-        &selected,
-        config,
-        selected.baseline_transfer,
-    ) {
-        return Ok(selected);
-    }
-    Ok(challenger)
+    accept_finalized_javascript_challenger(selected, code, metrics, rewrites, config)
 }
 
 fn apply_search_off_declaration_peephole(
@@ -7612,6 +7446,16 @@ fn apply_search_off_declaration_peephole(
     if rewrites == 0 || code == selected.code {
         return Ok(selected);
     }
+    accept_finalized_javascript_challenger(selected, code, metrics, rewrites, config)
+}
+
+fn accept_finalized_javascript_challenger(
+    mut incumbent: SelectedJavaScriptCandidate,
+    code: String,
+    metrics: JavaScriptSyntaxMetrics,
+    peephole_rewrites: usize,
+    config: &ProjectConfig,
+) -> Result<SelectedJavaScriptCandidate, CompileError> {
     if config
         .javascript
         .startup
@@ -7620,23 +7464,21 @@ fn apply_search_off_declaration_peephole(
         || (config.javascript_optimization_configured(JavaScriptOptimization::StartupCostGuard)
             && !startup_cost_allowed(
                 metrics,
-                selected.baseline_metrics,
+                incumbent.baseline_metrics,
                 &config.javascript.startup,
             ))
+        || incumbent.admission.validate(&code).is_err()
     {
-        return Ok(selected);
-    }
-    if selected.admission.validate(&code).is_err() {
-        return Ok(selected);
+        return Ok(incumbent);
     }
     let transfer_cost = admitted_generated_javascript_size(&code, config.javascript.cost_model)
         .map_err(|message| crate::codegen_js::CodegenError::new(Span::empty(0), message))?;
-    let mut challenger = selected.clone();
+    incumbent.terminal_codec_probes = incumbent.terminal_codec_probes.saturating_add(1);
+    let mut challenger = incumbent.clone();
     challenger.code = code;
     challenger.metrics = metrics;
     challenger.transfer_cost = transfer_cost;
-    challenger.peephole_rewrites = rewrites;
-    challenger.terminal_codec_probes = challenger.terminal_codec_probes.saturating_add(1);
+    challenger.peephole_rewrites = peephole_rewrites;
     challenger.startup_score = metrics.startup_score(
         config.javascript.startup.parse_weight,
         config.javascript.startup.compile_weight,
@@ -7644,13 +7486,13 @@ fn apply_search_off_declaration_peephole(
     );
     if finalized_javascript_candidate_precedes(
         &challenger,
-        &selected,
+        &incumbent,
         config,
-        selected.baseline_transfer,
+        incumbent.baseline_transfer,
     ) {
         Ok(challenger)
     } else {
-        Ok(selected)
+        Ok(incumbent)
     }
 }
 
