@@ -154,7 +154,7 @@ function pageHtml(scope, inventory, evidence) {
       <div class="section-heading"><p>Completion rule</p><h2>No partial credit</h2></div>
       <p>${escapeHtml(scope.claimRule)}</p>
       <p>Inspect the complete source-derived inventory in <a href="./evidence.json">evidence.json</a>. Generated presentation text is not itself a benchmark or compatibility result.</p>
-      <p>Read the detailed <a href="https://github.com/yeargun/vuelil/blob/main/artifacts/brotli-regression-report.md">Brotli regression analysis</a> for token counts, module attribution, and the no-compiler remediation plan.</p>
+      <p>Read <a href="./brotli-explained.html">Why VueLil is larger after Brotli</a> for a visual source-to-bundle explanation, or inspect the <a href="https://github.com/yeargun/vuelil/blob/main/artifacts/brotli-regression-report.md">machine-oriented report</a>.</p>
     </section>
   </main>
   <footer>Static evidence generated only from <code>compatibility/scope.json</code>, <code>compatibility/inventory.json</code>, and identified machine reports.</footer>

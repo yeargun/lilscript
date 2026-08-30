@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="A source-to-bundle explanation of VueLil's current Brotli size regression.">
+  <title>Why VueLil is larger after Brotli</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --paper: #f4f0e7;
+      --ink: #17221c;
+      --muted: #5e6a62;
+      --line: #c8cfc6;
+      --panel: #fffdf7;
+      --green: #087f5b;
+      --red: #b42318;
+      --blue: #2457a6;
+      --amber: #9a6700;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; color: var(--ink); background: var(--paper); }
+    header, main, footer { width: min(1180px, calc(100% - 2rem)); margin-inline: auto; }
+    header { padding: 5rem 0 2.5rem; border-bottom: 2px solid var(--ink); }
+    .eyebrow { margin: 0 0 .8rem; color: var(--green); font: 700 .74rem/1.2 ui-monospace, monospace; letter-spacing: .15em; text-transform: uppercase; }
+    h1 { max-width: 950px; margin: 0; font: 500 clamp(3rem, 8vw, 7rem)/.92 Georgia, serif; letter-spacing: -.055em; }
+    .lede { max-width: 800px; margin: 1.5rem 0 0; color: var(--muted); font-size: 1.15rem; line-height: 1.65; }
+    nav { position: sticky; top: 0; z-index: 5; display: flex; gap: 1.2rem; overflow-x: auto; padding: .9rem max(1rem, calc((100vw - 1180px) / 2)); border-bottom: 1px solid var(--line); background: color-mix(in srgb, var(--paper) 94%, transparent); backdrop-filter: blur(12px); }
+    nav a { flex: none; color: var(--ink); font: 700 .72rem/1 ui-monospace, monospace; text-decoration: none; text-transform: uppercase; }
+    section { padding: 3rem 0; border-bottom: 1px solid var(--line); }
+    h2 { margin: 0 0 1rem; font: 500 clamp(2rem, 5vw, 4rem)/1 Georgia, serif; letter-spacing: -.035em; }
+    h3 { margin: 2rem 0 .7rem; font-size: 1.15rem; }
+    p, li { line-height: 1.68; }
+    p { max-width: 880px; }
+    code { font-family: ui-monospace, "SFMono-Regular", Consolas, monospace; }
+    .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; margin-top: 2.5rem; padding: 1px; background: var(--ink); }
+    .metric { min-height: 145px; padding: 1.1rem; background: var(--panel); display: flex; flex-direction: column; justify-content: space-between; }
+    .metric strong { color: var(--red); font: 500 2.5rem/1 Georgia, serif; }
+    .metric span { color: var(--muted); font: 700 .7rem/1.3 ui-monospace, monospace; text-transform: uppercase; }
+    .good strong { color: var(--green); }
+    .callout { margin: 1.5rem 0; padding: 1rem 1.2rem; border-left: 4px solid var(--amber); background: var(--panel); }
+    .callout.good { border-color: var(--green); }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .card { padding: 1.2rem; border: 1px solid var(--line); background: var(--panel); }
+    .card h3 { margin-top: 0; }
+    pre { overflow-x: auto; margin: .8rem 0 0; padding: 1rem; border: 1px solid #24342b; background: #101b15; color: #e7f4eb; font: .78rem/1.55 ui-monospace, monospace; tab-size: 2; }
+    .vue { border-top: 4px solid var(--green); }
+    .lil { border-top: 4px solid var(--blue); }
+    table { width: 100%; border-collapse: collapse; margin-top: 1rem; background: var(--panel); font-size: .86rem; }
+    th, td { padding: .75rem; border-bottom: 1px solid var(--line); text-align: right; }
+    th:first-child, td:first-child { text-align: left; }
+    th { color: var(--muted); font: 700 .68rem/1.2 ui-monospace, monospace; letter-spacing: .07em; text-transform: uppercase; }
+    .bad { color: var(--red); font-weight: 700; }
+    .pass { color: var(--green); font-weight: 700; }
+    .flow { display: grid; grid-template-columns: repeat(5, 1fr); gap: .55rem; align-items: stretch; margin: 1.5rem 0; }
+    .flow div { position: relative; padding: 1rem .7rem; border: 1px solid var(--line); background: var(--panel); text-align: center; font: 700 .72rem/1.4 ui-monospace, monospace; }
+    .flow div:not(:last-child)::after { content: "→"; position: absolute; right: -.55rem; top: 50%; z-index: 2; color: var(--green); transform: translate(50%, -50%); }
+    .rank { counter-reset: rank; display: grid; gap: .7rem; padding: 0; }
+    .rank li { counter-increment: rank; list-style: none; padding: 1rem; border: 1px solid var(--line); background: var(--panel); }
+    .rank li::before { content: "0" counter(rank); display: inline-block; width: 2.2rem; color: var(--green); font: 700 .75rem ui-monospace, monospace; }
+    footer { padding: 2rem 0 5rem; color: var(--muted); }
+    footer a { color: var(--green); }
+    @media (max-width: 760px) {
+      header { padding-top: 3rem; }
+      .metrics, .grid { grid-template-columns: 1fr 1fr; }
+      .flow { grid-template-columns: 1fr; }
+      .flow div:not(:last-child)::after { content: "↓"; right: 50%; top: auto; bottom: -.62rem; transform: translate(50%, 50%); }
+    }
+    @media (max-width: 480px) { .metrics, .grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <header>
+    <p class="eyebrow">VueLil / build forensics / no compiler changes</p>
+    <h1>Why is VueLil larger after Brotli?</h1>
+    <p class="lede">The short answer: mangling works and Brotli works. VueLil currently emits and retains more executable structure. Runtime-core alone contributes almost 60 KB of extra rendered JavaScript before final minification.</p>
+    <div class="metrics">
+      <div class="metric good"><strong>234/234</strong><span>Vue sources handled</span></div>
+      <div class="metric good"><strong>216/216</strong><span>Test files passed</span></div>
+      <div class="metric"><strong>44.8 KB</strong><span>VueLil runtime Brotli</span></div>
+      <div class="metric"><strong>19.1 KB</strong><span>Vue runtime Brotli</span></div>
+    </div>
+  </header>
+
+  <nav aria-label="Page sections">
+    <a href="#ownership">Ownership</a>
+    <a href="#mangling">Mangling</a>
+    <a href="#jsvalue">JsValue</a>
+    <a href="#classes">Classes</a>
+    <a href="#reflection">Reflection</a>
+    <a href="#renderer">Renderer</a>
+    <a href="#modules">Modules</a>
+    <a href="#plan">Plan</a>
+  </nav>
+
+  <main>
+    <section id="ownership">
+      <p class="eyebrow">01 / source truth</p>
+      <h2>Yes, Vue is explicitly rewritten in LilScript.</h2>
+      <div class="grid">
+        <article class="card"><h3>232 algorithm owners</h3><p>Every runtime or mixed upstream TypeScript file maps to one deterministic <code>.lil</code> owner with pinned hashes.</p></article>
+        <article class="card"><h3>2 type-only records</h3><p>Files that emit no runtime JavaScript use explicit declaration-only handling rather than fake runtime modules.</p></article>
+        <article class="card"><h3>7 host adapters</h3><p>JavaScript adapters expose primitives such as DOM calls, streams, Proxy, parser loading, and object operations. They do not contain Vue algorithms.</p></article>
+        <article class="card"><h3>0 Vue wrappers</h3><p>The candidate graph is audited to reject imports from upstream Vue implementation files. Adapter bytes are included in measurements.</p></article>
+      </div>
+    </section>
+
+    <section id="mangling">
+      <p class="eyebrow">02 / misconception</p>
+      <h2>The identifiers are already mangled.</h2>
+      <p>For the final runtime-only bundle, every local binding is one or two characters. Oxc also converts eligible static <code>object["name"]</code> reads to <code>object.name</code>. The build is not losing because functions are called <code>createSomethingVeryLong</code>.</p>
+      <div class="callout good"><strong>What must stay named:</strong> public ESM exports, observable function <code>name</code>/<code>length</code>, plugin-facing AST fields, VNode fields, and dynamic user object properties. Renaming those would make a smaller but incompatible Vue.</div>
+      <table>
+        <thead><tr><th>Runtime-only token category</th><th>VueLil</th><th>Vue</th><th>Ratio</th></tr></thead>
+        <tbody>
+          <tr><td>All tokens</td><td>68,170</td><td>29,937</td><td class="bad">2.28x</td></tr>
+          <tr><td>Identifiers</td><td>21,018</td><td>10,337</td><td class="bad">2.03x</td></tr>
+          <tr><td>Operators / punctuation</td><td>36,373</td><td>16,282</td><td class="bad">2.23x</td></tr>
+          <tr><td>Strings / templates</td><td>4,554</td><td>1,029</td><td class="bad">4.43x</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="jsvalue">
+      <p class="eyebrow">03 / dynamic values</p>
+      <h2>What does <code>JsValue</code> cost?</h2>
+      <p><code>JsValue</code> is correct at dynamic JavaScript boundaries. The problem is using it for internal values whose fields and call signatures are already known.</p>
+      <div class="grid">
+        <article class="card vue">
+          <h3>Vue: direct DOM operations</h3>
+          <pre><code>const transitionClasses = el[vtcKey]
+if (transitionClasses) {
+  value = (value
+    ? [value, ...transitionClasses]
+    : [...transitionClasses]).join(' ')
+}
+el.className = value</code></pre>
+        </article>
+        <article class="card lil">
+          <h3>VueLil: generic host operations</h3>
+          <pre><code>JsValue transitionClasses =
+  hostRead(element, vtcKey);
+JsValue classes = hostArrayFrom(transitionClasses);
+JS.invoke(classes, "unshift", value);
+value = JS.invoke(classes, "join", " ");
+hostWrite(element, "className", value);</code></pre>
+        </article>
+      </div>
+      <h3>Why the second shape is harder to optimize</h3>
+      <ul>
+        <li><code>hostRead(value, key)</code> accepts any object and any key. A downstream optimizer must assume getters, proxies, or arbitrary behavior.</li>
+        <li><code>JS.invoke(value, "join", ...)</code> carries a method-name string and receiver plumbing instead of a statically typed method call.</li>
+        <li>Dynamic string keys cannot be safely property-mangled.</li>
+        <li>The helper function and each call add tokens, arguments, and punctuation even after local-name mangling.</li>
+      </ul>
+      <div class="callout"><strong>Correct usage:</strong> keep <code>JsValue</code> for public/user/plugin objects and genuinely computed keys. Use typed LilScript classes, fields, arrays, maps, and typed host interfaces for internal data and static DOM operations.</div>
+    </section>
+
+    <section id="classes">
+      <p class="eyebrow">04 / object shape</p>
+      <h2>Why Vue's class can be smaller than a dynamic object bag.</h2>
+      <div class="grid">
+        <article class="card vue">
+          <h3>Vue: one prototype implementation</h3>
+          <pre><code>class RefImpl {
+  dep = new Dep()
+  constructor(value, shallow) {
+    this._rawValue = shallow ? value : toRaw(value)
+    this._value = shallow ? value : toReactive(value)
+  }
+  get value() {
+    this.dep.track()
+    return this._value
+  }
+  set value(next) { /* update */ }
+}</code></pre>
+        </article>
+        <article class="card lil">
+          <h3>VueLil today: build each object dynamically</h3>
+          <pre><code>JsValue refValue = hostCreateObject();
+write(refValue, "_rawValue", initialRaw);
+write(refValue, "_value", initialValue);
+write(refValue, "dep", dep);
+hostDefineAccessor(
+  refValue,
+  "value",
+  JS.method0(() =&gt; hostRead(refValue, "_value")),
+  JS.method1((_, next) =&gt; { /* update */ })
+);</code></pre>
+        </article>
+      </div>
+      <p>The class stores getter/setter code once on the prototype. The dynamic factory must carry object creation, string-key writes, accessor descriptor creation, and closure construction. The closure source exists once in the bundle, but each runtime ref allocates bound closures and an accessor descriptor. That hurts both size and the measured reactivity workload.</p>
+      <p>This is why the candidate can contain fewer JavaScript <em>classes</em> but more total functions: runtime-only has 919 functions versus Vue's 443.</p>
+    </section>
+
+    <section id="reflection">
+      <p class="eyebrow">05 / observable API repair</p>
+      <h2>What are the <code>Object.defineProperty</code> calls?</h2>
+      <p>Some generated functions do not naturally have Vue's exact public <code>name</code> or <code>length</code>. Build scripts currently repair them after compilation:</p>
+      <pre><code>Object.defineProperty(local, "name", {
+  configurable: true,
+  value: "createVNode"
+});
+Object.defineProperty(local, "length", {
+  configurable: true,
+  value: 0
+});</code></pre>
+      <p>This is behaviorally important because Vue users and tests can observe <code>createVNode.name</code> and <code>createVNode.length</code>. The issue is <em>where</em> the repair runs. A top-level mutation is a side effect. Rolldown cannot freely delete the function or the mutation, even when an application never imports that export.</p>
+      <table>
+        <thead><tr><th>Runtime-only reflection</th><th>VueLil</th><th>Vue</th></tr></thead>
+        <tbody>
+          <tr><td><code>Object.defineProperty</code> calls</td><td class="bad">67</td><td>1</td></tr>
+          <tr><td>Approximate call-span raw bytes</td><td class="bad">5,461</td><td>77</td></tr>
+        </tbody>
+      </table>
+      <div class="callout"><strong>Better package shape:</strong> emit naturally named functions when possible. For unavoidable repairs, isolate each export in a tree-shakable module so importing ten Vue functions does not retain descriptor mutations for the other 136.</div>
+    </section>
+
+    <section id="renderer">
+      <p class="eyebrow">06 / hot path</p>
+      <h2>Renderer trampolines multiply calls.</h2>
+      <div class="grid">
+        <article class="card vue">
+          <h3>Vue: fixed-signature closure</h3>
+          <pre><code>const patch = (
+  n1, n2, container,
+  anchor = null,
+  parentComponent = null,
+  parentSuspense = null,
+  namespace,
+  slotScopeIds = null,
+  optimized = !!n2.dynamicChildren,
+) =&gt; { /* patch directly */ }</code></pre>
+        </article>
+        <article class="card lil">
+          <h3>VueLil today: rest-array adapter</h3>
+          <pre><code>this.patchFn = JS.methodRest((_, args) =&gt; {
+  state.patchFromArgs(args);
+});
+
+void patchFromArgs(JsValue args) {
+  JsValue anchor = null;
+  if (rendererLength(args) &gt; 3)
+    anchor = args[3];
+  // unpack every argument, then call patch
+}</code></pre>
+        </article>
+      </div>
+      <p>The adapter allocates or handles an argument array, performs length checks and dynamic indexing, and makes another call before entering the hot method. Runtime-core creates multiple adapters for patch, unmount, move, mount, children, block children, and render effects. Fixed typed callable fields can preserve the exact external renderer-internals object while keeping the hot implementation direct.</p>
+    </section>
+
+    <section id="modules">
+      <p class="eyebrow">07 / package topology</p>
+      <h2>Open-world does not mean unmangled.</h2>
+      <p>Open-world means a reusable package is compiled without knowing which exports a future application will import. Private names can still be mangled. Public exports must remain stable.</p>
+      <h3>Current report-pinned diagnostic</h3>
+      <div class="flow">
+        <div>application source</div><div>scenario-selected export entry</div><div>single flattened package module</div><div>Vite + Oxc</div><div>Brotli</div>
+      </div>
+      <h3>Required final lane</h3>
+      <div class="flow">
+        <div>application source</div><div>one reusable production package</div><div>preserved ESM owner modules</div><div>Vite tree shaking + Oxc</div><div>Brotli</div>
+      </div>
+      <p>The current report uses export-selected entries for runtime-only and SFC. That is closer to closed-world compilation and still loses. The next valid report must consume one reusable package build. Preserving modules is important because a side effect in one flattened file can retain unrelated owners; separate ESM modules give Vite a coarser but reliable removal boundary.</p>
+      <table>
+        <thead><tr><th>Runtime-only module</th><th>VueLil rendered</th><th>Vue rendered</th><th>Delta</th></tr></thead>
+        <tbody>
+          <tr><td>runtime-core</td><td>139,699 B</td><td>79,749 B</td><td class="bad">+59,950 B</td></tr>
+          <tr><td>runtime-dom</td><td>23,484 B</td><td>12,620 B</td><td class="bad">+10,864 B</td></tr>
+          <tr><td>reactivity</td><td>36,082 B</td><td>31,080 B</td><td class="bad">+5,002 B</td></tr>
+          <tr><td>shared</td><td>11,853 B</td><td>7,595 B</td><td class="bad">+4,258 B</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="plan">
+      <p class="eyebrow">08 / no-compiler plan</p>
+      <h2>What to change in VueLil first.</h2>
+      <ol class="rank">
+        <li><strong>Publish one reusable mangled package.</strong> Remove scenario-specific export selection from final evidence and preserve public names.</li>
+        <li><strong>Preserve ESM owner modules.</strong> Let Vite remove unused files instead of flattening the complete package into one side-effectful module.</li>
+        <li><strong>Separate production and test graphs.</strong> Keep test exports, warnings, source maps, and compatibility initialization out of production artifacts.</li>
+        <li><strong>Make reflection tree-shakable.</strong> Repair function reflection only in modules whose exports survive.</li>
+        <li><strong>Use typed internal classes.</strong> Start with refs, computed refs, dependency links, and deps.</li>
+        <li><strong>Use fixed collection helpers.</strong> Replace string-dispatched generic Map, Set, and Array calls on hot paths.</li>
+        <li><strong>Remove renderer rest trampolines.</strong> Keep the public dynamic internals façade, but use fixed typed calls behind it.</li>
+        <li><strong>Use typed DOM host interfaces.</strong> Keep generic helpers only for computed keys and genuinely dynamic user objects.</li>
+        <li><strong>Use typed internal enum constants.</strong> Preserve exported enum objects while eliminating repeated dynamic bag lookups.</li>
+        <li><strong>Remeasure after every tranche.</strong> Require all compatibility tests, matching checksums, reusable-package module audits, and canonical Brotli-11.</li>
+      </ol>
+      <div class="callout good"><strong>Not recommended:</strong> renaming public exports, changing Vue algorithms, hiding adapter bytes, relaxing scenarios, or tuning Brotli dictionaries before reducing retained code.</div>
+    </section>
+  </main>
+
+  <footer>
+    <p>Evidence: Vue 3.5.42, commit <code>d63616ca17de965ed32dcb449a4c5cd9982f15d2</code>.</p>
+    <p><a href="./">Back to VueLil evidence</a> · <a href="https://github.com/yeargun/vuelil/blob/main/artifacts/brotli-regression-report.md">Machine-oriented Markdown report</a> · <a href="https://github.com/yeargun/vuelil">Source repository</a></p>
+  </footer>
+</body>
+</html>
