@@ -5099,10 +5099,9 @@ impl TerminalCodecProbeBudget {
     fn measure_reserved(&self, bytes: &[u8], model: CompressionCostModel) -> Result<usize, String> {
         let source = std::str::from_utf8(bytes)
             .map_err(|error| format!("generated JavaScript is not UTF-8: {error}"))?;
-        analyze_generated_javascript(source)
-            .map_err(|error| format!("generated JavaScript admission failed: {error}"))?;
+        let admitted = admit_generated_javascript(source)?;
         self.codec_calls.fetch_add(1, Ordering::Relaxed);
-        compressed_size(bytes, model)
+        score_admitted_javascript(admitted, model)
     }
 
     fn measure_reserved_compile(
@@ -9129,7 +9128,6 @@ fn rank_identifier_mapping(
 ) -> Result<(), CompileError> {
     let remapped = remap_single_character_identifiers(code, &mapping)
         .map_err(generated_javascript_parse_error)?;
-    analyze_generated_javascript(&remapped).map_err(generated_javascript_parse_error)?;
     if ranked
         .iter()
         .any(|candidate| candidate.remapped == remapped)
@@ -9139,13 +9137,13 @@ fn rank_identifier_mapping(
     let objective_costs = [
         remapped.len(),
         optional_entropy_objective_cost_result(
-            compressed_size(remapped.as_bytes(), CompressionCostModel::Gzip),
+            admitted_generated_javascript_size(&remapped, CompressionCostModel::Gzip),
             CompressionCostModel::Gzip,
             model,
         )
         .map_err(|message| crate::codegen_js::CodegenError::new(Span::empty(0), message))?,
         optional_entropy_objective_cost_result(
-            compressed_size(remapped.as_bytes(), CompressionCostModel::Brotli),
+            admitted_generated_javascript_size(&remapped, CompressionCostModel::Brotli),
             CompressionCostModel::Brotli,
             model,
         )
@@ -9689,9 +9687,27 @@ fn admitted_generated_javascript_size(
     source: &str,
     model: CompressionCostModel,
 ) -> Result<usize, String> {
+    score_admitted_javascript(admit_generated_javascript(source)?, model)
+}
+
+#[derive(Clone, Copy)]
+struct AdmittedGeneratedJavaScript<'src> {
+    source: &'src str,
+}
+
+fn admit_generated_javascript(
+    source: &str,
+) -> Result<AdmittedGeneratedJavaScript<'_>, String> {
     analyze_generated_javascript(source)
         .map_err(|error| format!("generated JavaScript admission failed: {error}"))?;
-    compressed_size(source.as_bytes(), model)
+    Ok(AdmittedGeneratedJavaScript { source })
+}
+
+fn score_admitted_javascript(
+    admitted: AdmittedGeneratedJavaScript<'_>,
+    model: CompressionCostModel,
+) -> Result<usize, String> {
+    compressed_size(admitted.source.as_bytes(), model)
 }
 
 fn validate_observed_javascript_artifact(

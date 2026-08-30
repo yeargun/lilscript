@@ -6,6 +6,12 @@ recorded verdict. This is cold storage: read it when you are about to redo somet
 Format: `## YYYY-MM-DD — <task id> — <one line>` then two or three lines of what
 changed, what the gate said, and the commit if there is one.
 
+## 2026-08-29 — phase2-01 — one admitted codec boundary
+
+Generated text now becomes `AdmittedGeneratedJavaScript` before internal exact
+scoring. Budgeted, unbudgeted, declaration, and entropy routes share that gate;
+the public arbitrary-byte codec API remains intentionally separate.
+
 ## 2026-08-29 — gate-04 — implementation complete, G2 deferred
 
 V-01 now covers syntax floors, bindings and external names, static/dynamic

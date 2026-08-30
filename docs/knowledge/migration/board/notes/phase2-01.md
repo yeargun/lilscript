@@ -25,12 +25,14 @@ existing candidate identity stays reachable.
 | date | what | command | result | tag |
 |---|---|---|---|---|
 | 2026-08-29 | Phase-1 recovery review | `recover-01..04` | MobX and Motion exact direct boundaries reach or beat reproducible incumbents; Marked current is below committed artifacts; jQuery exact migration pair ties | gate |
+| 2026-08-29 | Shared syntax/binding score boundary | `cargo check --lib`; `cargo test --lib generated_javascript_admission_rejects_invalid_code_before_codec` | all internal generated-text codec routes use `AdmittedGeneratedJavaScript`; invalid bytes do not increment the codec counter | gate |
 
 ## Log
 
 - 2026-08-29 — Phase-1 implementation triage closed without package-specific compiler logic. Began acceptance-path inventory. — **OPEN**
+- 2026-08-29 — Consolidated the syntax/binding admission and exact-score boundary, including entropy alphabet probes. Full artifact contracts remain attached to typed/terminal candidates. — **OPEN**
 
 ## Next step
 
-Inventory every production `compressed_size` and `measure_reserved` caller and
-classify it as mandatory scoring, registry candidate acceptance, or diagnostic.
+Consolidate duplicate terminal winner comparisons onto the existing
+`finalized_javascript_candidate_precedes` ranking primitive without changing bytes.
