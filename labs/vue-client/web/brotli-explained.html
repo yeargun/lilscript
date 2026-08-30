@@ -88,6 +88,7 @@
     <a href="#ownership">Ownership</a>
     <a href="#mangling">Mangling</a>
     <a href="#jsvalue">JsValue</a>
+    <a href="#wrappers">Wrappers</a>
     <a href="#classes">Classes</a>
     <a href="#reflection">Reflection</a>
     <a href="#renderer">Renderer</a>
@@ -193,6 +194,37 @@ hostDefineAccessor(
       </div>
       <p>The class stores getter/setter code once on the prototype. The dynamic factory must carry object creation, string-key writes, accessor descriptor creation, and closure construction. The closure source exists once in the bundle, but each runtime ref allocates bound closures and an accessor descriptor. That hurts both size and the measured reactivity workload.</p>
       <p>This is why the candidate can contain fewer JavaScript <em>classes</em> but more total functions: runtime-only has 919 functions versus Vue's 443.</p>
+    </section>
+
+    <section id="wrappers">
+      <p class="eyebrow">04b / helper economics</p>
+      <h2>Do <code>hostCreateMap()</code> and friends help compression?</h2>
+      <p>Sometimes. A helper is a trade: pay once for its declaration, then use a short call at every construction site. After mangling, <code>a()</code> is shorter than repeating <code>new Map</code>. If it is called often enough, it can reduce raw size. Brotli already compresses repeated <code>new Map</code> well, however, so the break-even point for compressed size is different from the raw-byte break-even point.</p>
+      <table>
+        <thead><tr><th>Wrapper</th><th>Meaning</th><th>Likely value</th></tr></thead>
+        <tbody>
+          <tr><td><code>e()</code></td><td><code>{}</code></td><td>Usually questionable: the call is not shorter than an object literal after declaration cost.</td></tr>
+          <tr><td><code>t()</code></td><td><code>Object.create(null)</code></td><td>Can help when repeated; preserves the required null prototype.</td></tr>
+          <tr><td><code>n(length)</code></td><td><code>Array(length)</code></td><td>Can help when allocation with a known length is frequent.</td></tr>
+          <tr><td><code>r()</code> / <code>i()</code></td><td><code>new WeakMap</code> / <code>new WeakSet</code></td><td>Often reasonable shared constructors.</td></tr>
+          <tr><td><code>a()</code></td><td><code>new Map</code></td><td>Often raw-size positive after enough calls; runtime adds one call frame.</td></tr>
+          <tr><td><code>o(target, handlers)</code></td><td><code>new Proxy(target, handlers)</code></td><td>Can save repeated syntax, but hides construction from downstream analysis.</td></tr>
+        </tbody>
+      </table>
+      <h3>Measured post-minification ablation</h3>
+      <p>I ran both report-pinned runtime-only bundles through the same additional Terser pass with three compression passes and top-level mangling.</p>
+      <table>
+        <thead><tr><th>Artifact</th><th>Before Brotli-11</th><th>After Terser Brotli-11</th><th>Reduction</th></tr></thead>
+        <tbody>
+          <tr><td>VueLil</td><td>44,811 B</td><td>40,654 B</td><td class="pass">-4,157 B</td></tr>
+          <tr><td>Vue</td><td>19,061 B</td><td>18,766 B</td><td class="pass">-295 B</td></tr>
+        </tbody>
+      </table>
+      <p>Terser removed some wrappers, including the dedicated null-object and WeakSet constructors, but retained helpers for ordinary objects, arrays, WeakMap, Map, Proxy, generic reads, and accessors. That means the current Oxc pass leaves meaningful optimization work, but deleting every constructor helper would not be correct or necessarily smaller.</p>
+      <div class="callout"><strong>The important distinction:</strong> tiny allocation helpers may be size-positive. Generic operations such as <code>hostRead(value, key)</code>, <code>JS.invoke(value, methodName, args)</code>, reflection helpers, and rest-argument trampolines are more damaging because they also hide semantics and prevent tree shaking or property reasoning.</div>
+
+      <h3>Which objective is active?</h3>
+      <p>The LilScript production configurations use <code>priority = "size-first"</code>, <code>cost_model = "brotli"</code>, identifier/property mangling, and string pooling. gzip-9 is measured, but Brotli-11 is the completion metric. The limitation is scope: the compiler optimizes an individual generated package graph, while Vite later concatenates, tree-shakes, and minifies the application. A helper that wins inside one package can lose after cross-package composition. Final decisions therefore need A/B measurements on the complete reusable application bundle.</p>
     </section>
 
     <section id="reflection">
