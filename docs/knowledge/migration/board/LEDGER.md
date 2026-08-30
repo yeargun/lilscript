@@ -115,7 +115,8 @@ Documentation: [current architecture](../../compilation/current-architecture.md)
 | id | status | intent | gate | note |
 |---|---|---|---|---|
 | `phase2-01` | landed | Move phase-order, compress-contrast, terminal naming/pooling recipe construction and common ordering into the registry unchanged. | Byte-identical focused fixtures, candidate reachability, targeted Rust gates | [notes](notes/phase2-01.md) |
-| `phase2-02` | active | Route late terminal challengers through one materialize/validate/score/guard/compare operation. | Existing candidate set and byte order unchanged under focused terminal gates | [notes](notes/phase2-02.md) |
+| `phase2-02` | landed | Route final and late-cleanup challengers through shared admission, exact scoring, guards, and ordering; binding remaps retain V-02 proof. | Existing candidate set and byte order unchanged under focused terminal gates | [notes](notes/phase2-02.md) |
+| `phase2-03` | active | Replace lower-layer raw config policy reads with the normalized contract and execution options already in scope. | Byte-identical focused fixtures and policy tests | [notes](notes/phase2-03.md) |
 
 ## board — the system itself
 

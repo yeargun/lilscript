@@ -1,7 +1,7 @@
 # Cloud handoff
 
 Updated: 2026-08-29. Parent: [board](README.md). Active task:
-[phase2-02](notes/phase2-02.md). Canonical plan:
+[phase2-03](notes/phase2-03.md). Canonical plan:
 [compression migration](../compression-migration.md).
 
 This file persists the live execution queue for a fresh VM. The ledger owns
@@ -13,7 +13,7 @@ resume packet.
 1. [`docs/knowledge/mission.md`](../../mission.md)
 2. [`board/README.md`](README.md)
 3. [`board/LEDGER.md`](LEDGER.md)
-4. [`notes/phase2-02.md`](notes/phase2-02.md)
+4. [`notes/phase2-03.md`](notes/phase2-03.md)
 5. [`compression-migration.md`](../compression-migration.md)
 
 ## Pinned repositories
@@ -93,7 +93,8 @@ the full G2 rerun was explicitly deferred in favor of targeted development gates
 
 1. Clone or pull LilScript, MotionLil, MarkedLil, MobXLil, jQueryLil, and SolidLil
    beside one another; verify the pinned objects with `--check-inputs`.
-2. Read `notes/phase2-02.md` and consolidate duplicate late-terminal acceptance.
+2. Read `notes/phase2-03.md` and remove duplicated raw policy reads one batch at
+   a time.
 3. Preserve every candidate, budget charge, and selected byte sequence.
 4. During development run focused tests/canaries; defer the full G2 until release
    verification is requested.

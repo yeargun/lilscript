@@ -4649,20 +4649,6 @@ fn into_bounded_contiguous_batches<T>(items: Vec<T>, maximum_batches: usize) -> 
         .collect()
 }
 
-fn terminal_scope_naming_options(
-    parent: crate::codegen_ir_js::IrJsOptions,
-    configured: crate::codegen_ir_js::IrJsOptions,
-) -> Vec<crate::codegen_ir_js::IrJsOptions> {
-    crate::decision_registry::terminal_scope_naming_options(parent, configured)
-}
-
-fn terminal_string_pooling_options(
-    parent: crate::codegen_ir_js::IrJsOptions,
-    configured: crate::codegen_ir_js::IrJsOptions,
-) -> Vec<crate::codegen_ir_js::IrJsOptions> {
-    crate::decision_registry::terminal_string_pooling_options(parent, configured)
-}
-
 fn finalized_javascript_candidate_precedes(
     left: &SelectedJavaScriptCandidate,
     right: &SelectedJavaScriptCandidate,
@@ -5158,7 +5144,10 @@ fn finalize_javascript_candidates_with_terminal_objective_challengers_in_current
     let mut terminal_string_pooling_incumbent_bytes = None;
     let mut terminal_string_pooling_best_bytes = None;
 
-    let challenger_options = terminal_scope_naming_options(parent_options, config.js_options());
+    let challenger_options = crate::decision_registry::terminal_scope_naming_options(
+        parent_options,
+        config.js_options(),
+    );
     let challenger_candidates = emit_terminal_javascript_challengers(
         challenger_options,
         selected.plan_identity.context_id,
@@ -5210,8 +5199,10 @@ fn finalize_javascript_candidates_with_terminal_objective_challengers_in_current
         .registered_plan_by_identity(selected.plan_identity)
         .map(|plan| plan.options)
     {
-        let pooling_options =
-            terminal_string_pooling_options(pooling_parent_options, config.js_options());
+        let pooling_options = crate::decision_registry::terminal_string_pooling_options(
+            pooling_parent_options,
+            config.js_options(),
+        );
         let pooling_candidates = emit_terminal_javascript_challengers(
             pooling_options,
             selected.plan_identity.context_id,
@@ -7165,11 +7156,20 @@ fn apply_terminal_boolean_binding_remap(
         return Ok(selected);
     };
     let boolean_code = repair_late_javascript_candidate(boolean_code);
-    if boolean_code == selected.code || selected.admission.validate(&boolean_code).is_err() {
+    if boolean_code == selected.code {
         return Ok(selected);
     }
-    let boolean_cost = codec_budget
-        .measure_reserved_compile(boolean_code.as_bytes(), config.javascript.cost_model)?;
+    let Some(scored) = score_reserved_terminal_javascript(
+        boolean_code,
+        config.javascript.cost_model,
+        codec_budget,
+        &selected.admission,
+    )?
+    else {
+        return Ok(selected);
+    };
+    let boolean_code = scored.code;
+    let boolean_cost = scored.cost;
     let (candidate, candidate_cost) =
         if matches!(config.javascript.cost_model, CompressionCostModel::Raw) {
             (boolean_code, boolean_cost)
@@ -7543,6 +7543,40 @@ fn repair_late_javascript_candidate(mut code: String) -> String {
     code
 }
 
+#[derive(Clone)]
+struct ScoredTerminalJavaScript {
+    code: String,
+    cost: usize,
+}
+
+fn score_terminal_javascript(
+    code: String,
+    model: CompressionCostModel,
+    codec_budget: &mut TerminalCodecProbeBudget,
+    admission: &JavaScriptArtifactAdmission,
+) -> Result<Option<ScoredTerminalJavaScript>, CompileError> {
+    if admission.validate(&code).is_err() {
+        return Ok(None);
+    }
+    if !codec_budget.reserve_work_unit() {
+        return Ok(None);
+    }
+    score_reserved_terminal_javascript(code, model, codec_budget, admission)
+}
+
+fn score_reserved_terminal_javascript(
+    code: String,
+    model: CompressionCostModel,
+    codec_budget: &TerminalCodecProbeBudget,
+    admission: &JavaScriptArtifactAdmission,
+) -> Result<Option<ScoredTerminalJavaScript>, CompileError> {
+    if admission.validate(&code).is_err() {
+        return Ok(None);
+    }
+    let cost = codec_budget.measure_reserved_compile(code.as_bytes(), model)?;
+    Ok(Some(ScoredTerminalJavaScript { code, cost }))
+}
+
 fn apply_late_javascript_cleanup(
     mut selected: ScoredJavaScriptCandidate,
     config: &ProjectConfig,
@@ -7559,12 +7593,6 @@ fn apply_late_javascript_cleanup(
         return Ok(selected);
     }
 
-    #[derive(Clone)]
-    struct CleanupCandidate {
-        code: String,
-        cost: usize,
-    }
-
     // Keep enough independently valid spellings for later passes to skip a
     // locally attractive rewrite. Small codec differences can otherwise
     // discard the topology that wins after terminal namespace remapping.
@@ -7572,7 +7600,7 @@ fn apply_late_javascript_cleanup(
     const ROUNDS: usize = 2;
     let admission = Arc::clone(&selected.admission);
 
-    let original = CleanupCandidate {
+    let original = ScoredTerminalJavaScript {
         code: selected.code.clone(),
         cost: selected.transfer_cost,
     };
@@ -7614,10 +7642,12 @@ fn apply_late_javascript_cleanup(
                 })
                 && admission.validate(&code).is_ok()
             {
-                if let Some(cost) =
-                    codec_budget.compressed_size(code.as_bytes(), config.javascript.cost_model)?
-                {
-                    let candidate = CleanupCandidate { code, cost };
+                if let Some(candidate) = score_terminal_javascript(
+                    code,
+                    config.javascript.cost_model,
+                    codec_budget,
+                    &admission,
+                )? {
                     beam.push(candidate.clone());
                     canonical_peephole = Some(candidate);
                 }
@@ -7650,16 +7680,17 @@ fn apply_late_javascript_cleanup(
             if admission.validate(&converged).is_err() {
                 continue;
             }
-            let Some(cost) =
-                codec_budget.compressed_size(converged.as_bytes(), config.javascript.cost_model)?
+            let Some(scored) = score_terminal_javascript(
+                converged,
+                config.javascript.cost_model,
+                codec_budget,
+                &admission,
+            )?
             else {
                 continue;
             };
-            if cost < candidate.cost {
-                beam.push(CleanupCandidate {
-                    code: converged,
-                    cost,
-                });
+            if scored.cost < candidate.cost {
+                beam.push(scored);
             }
         }
     }
@@ -7704,19 +7735,20 @@ fn apply_late_javascript_cleanup(
             // The cleanup rounds below still reach this candidate if those
             // passes help it.
             let code = repair_late_javascript_candidate(inlined);
-            if analyze_generated_javascript(&code).is_err()
-                || admission.validate(&code).is_err()
-                || beam.iter().any(|existing| existing.code == code)
-            {
+            if beam.iter().any(|existing| existing.code == code) {
                 continue;
             }
-            let Some(cost) =
-                codec_budget.compressed_size(code.as_bytes(), config.javascript.cost_model)?
+            let Some(scored) = score_terminal_javascript(
+                code,
+                config.javascript.cost_model,
+                codec_budget,
+                &admission,
+            )?
             else {
                 continue;
             };
-            if cost < candidate.cost {
-                beam.push(CleanupCandidate { code, cost });
+            if scored.cost < candidate.cost {
+                beam.push(scored);
             }
         }
     }
@@ -7747,19 +7779,20 @@ fn apply_late_javascript_cleanup(
                 continue;
             }
             let code = repair_late_javascript_candidate(folded);
-            if analyze_generated_javascript(&code).is_err()
-                || admission.validate(&code).is_err()
-                || beam.iter().any(|existing| existing.code == code)
-            {
+            if beam.iter().any(|existing| existing.code == code) {
                 continue;
             }
-            let Some(cost) =
-                codec_budget.compressed_size(code.as_bytes(), config.javascript.cost_model)?
+            let Some(scored) = score_terminal_javascript(
+                code,
+                config.javascript.cost_model,
+                codec_budget,
+                &admission,
+            )?
             else {
                 continue;
             };
-            if cost < candidate.cost {
-                beam.push(CleanupCandidate { code, cost });
+            if scored.cost < candidate.cost {
+                beam.push(scored);
             }
         }
     }
@@ -7806,19 +7839,19 @@ fn apply_late_javascript_cleanup(
                     continue;
                 };
                 let code = repair_late_javascript_candidate(optimized.code);
-                if code == original.code
-                    || analyze_generated_javascript(&code).is_err()
-                    || admission.validate(&code).is_err()
-                    || beam.iter().any(|candidate| candidate.code == code)
-                {
+                if code == original.code || beam.iter().any(|candidate| candidate.code == code) {
                     continue;
                 }
-                let Some(cost) =
-                    codec_budget.compressed_size(code.as_bytes(), config.javascript.cost_model)?
+                let Some(scored) = score_terminal_javascript(
+                    code,
+                    config.javascript.cost_model,
+                    codec_budget,
+                    &admission,
+                )?
                 else {
                     break 'factored_naming;
                 };
-                beam.push(CleanupCandidate { code, cost });
+                beam.push(scored);
             }
         }
     }
@@ -7842,16 +7875,18 @@ fn apply_late_javascript_cleanup(
                 let Ok(code) = late_generated_javascript_cleanup_pass(&candidate.code, pass) else {
                     continue;
                 };
-                if code == candidate.code
-                    || analyze_generated_javascript(&code).is_err()
-                    || admission.validate(&code).is_err()
-                    || proposals.iter().any(|proposal| proposal.code == code)
+                if code == candidate.code || proposals.iter().any(|proposal| proposal.code == code)
                 {
                     continue;
                 }
-                let cost = codec_budget
-                    .measure_reserved_compile(code.as_bytes(), config.javascript.cost_model)?;
-                proposals.push(CleanupCandidate { code, cost });
+                if let Some(scored) = score_reserved_terminal_javascript(
+                    code,
+                    config.javascript.cost_model,
+                    codec_budget,
+                    &admission,
+                )? {
+                    proposals.push(scored);
+                }
             }
             proposals.sort_by(|left, right| {
                 (left.cost, left.code.len()).cmp(&(right.cost, right.code.len()))
@@ -7871,25 +7906,26 @@ fn apply_late_javascript_cleanup(
     if codec_budget.reserve_work_unit() {
         if let Ok(code) = late_generated_javascript_cleanup(&original.code) {
             let code = repair_late_javascript_candidate(code);
-            if code != original.code
-                && analyze_generated_javascript(&code).is_ok()
-                && admission.validate(&code).is_ok()
-                && !beam.iter().any(|candidate| candidate.code == code)
-            {
-                let cost = codec_budget
-                    .measure_reserved_compile(code.as_bytes(), config.javascript.cost_model)?;
-                if let Some((remapped, remapped_cost)) = best_one_function_local_binding_remap(
-                    &code,
+            if code != original.code && !beam.iter().any(|candidate| candidate.code == code) {
+                if let Some(scored) = score_reserved_terminal_javascript(
+                    code,
                     config.javascript.cost_model,
-                    cost,
                     codec_budget,
+                    &admission,
                 )? {
-                    beam.push(CleanupCandidate {
-                        code: remapped,
-                        cost: remapped_cost,
-                    });
+                    if let Some((remapped, remapped_cost)) = best_one_function_local_binding_remap(
+                        &scored.code,
+                        config.javascript.cost_model,
+                        scored.cost,
+                        codec_budget,
+                    )? {
+                        beam.push(ScoredTerminalJavaScript {
+                            code: remapped,
+                            cost: remapped_cost,
+                        });
+                    }
+                    beam.push(scored);
                 }
-                beam.push(CleanupCandidate { code, cost });
             }
         }
     }
@@ -7909,7 +7945,7 @@ fn apply_late_javascript_cleanup(
                 codec_budget,
             )?;
             if let Some((remapped, remapped_cost)) = remapped {
-                beam.push(CleanupCandidate {
+                beam.push(ScoredTerminalJavaScript {
                     code: remapped,
                     cost: remapped_cost,
                 });
@@ -7957,27 +7993,30 @@ fn apply_late_javascript_cleanup(
                     code = next;
                 }
                 code = repair_late_javascript_candidate(code);
-                if code == candidate.code
-                    || analyze_generated_javascript(&code).is_err()
-                    || admission.validate(&code).is_err()
-                    || beam.iter().any(|proposal| proposal.code == code)
-                {
+                if code == candidate.code || beam.iter().any(|proposal| proposal.code == code) {
                     continue;
                 }
-                let cost = codec_budget
-                    .measure_reserved_compile(code.as_bytes(), config.javascript.cost_model)?;
-                if let Some((remapped, remapped_cost)) = best_one_function_local_binding_remap(
-                    &code,
+                let Some(scored) = score_reserved_terminal_javascript(
+                    code,
                     config.javascript.cost_model,
-                    cost,
+                    codec_budget,
+                    &admission,
+                )?
+                else {
+                    continue;
+                };
+                if let Some((remapped, remapped_cost)) = best_one_function_local_binding_remap(
+                    &scored.code,
+                    config.javascript.cost_model,
+                    scored.cost,
                     codec_budget,
                 )? {
-                    beam.push(CleanupCandidate {
+                    beam.push(ScoredTerminalJavaScript {
                         code: remapped,
                         cost: remapped_cost,
                     });
                 }
-                beam.push(CleanupCandidate { code, cost });
+                beam.push(scored);
             }
         }
     }
@@ -8051,13 +8090,15 @@ fn apply_late_javascript_cleanup(
         let measured = proposal_codes
             .into_par_iter()
             .map(|code| {
-                codec_budget
-                    .measure_reserved(code.as_bytes(), config.javascript.cost_model)
-                    .map(|cost| CleanupCandidate { code, cost })
+                score_reserved_terminal_javascript(
+                    code,
+                    config.javascript.cost_model,
+                    codec_budget,
+                    &admission,
+                )
             })
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(|message| crate::codegen_js::CodegenError::new(Span::empty(0), message))?;
-        proposals.extend(measured);
+            .collect::<Result<Vec<_>, CompileError>>()?;
+        proposals.extend(measured.into_iter().flatten());
         proposals.sort_by(|left, right| {
             (left.cost, left.code.len()).cmp(&(right.cost, right.code.len()))
         });
@@ -8088,16 +8129,17 @@ fn apply_late_javascript_cleanup(
             continue;
         };
         let code = repair_late_javascript_candidate(code);
-        if code == candidate.code
-            || analyze_generated_javascript(&code).is_err()
-            || admission.validate(&code).is_err()
-            || beam.iter().any(|proposal| proposal.code == code)
-        {
+        if code == candidate.code || beam.iter().any(|proposal| proposal.code == code) {
             continue;
         }
-        let cost =
-            codec_budget.measure_reserved_compile(code.as_bytes(), config.javascript.cost_model)?;
-        beam.push(CleanupCandidate { code, cost });
+        if let Some(scored) = score_reserved_terminal_javascript(
+            code,
+            config.javascript.cost_model,
+            codec_budget,
+            &admission,
+        )? {
+            beam.push(scored);
+        }
     }
     beam.push(original);
     beam.sort_by(|left, right| (left.cost, left.code.len()).cmp(&(right.cost, right.code.len())));
@@ -8145,22 +8187,25 @@ fn parenthesize_logical_assignments(
     if repaired == selected.code {
         return Ok(selected);
     }
-    let Ok(metrics) = analyze_generated_javascript(&repaired) else {
+    let Some(scored) = score_reserved_terminal_javascript(
+        repaired,
+        config.javascript.cost_model,
+        codec_budget,
+        &selected.admission,
+    )?
+    else {
         return Ok(selected);
     };
-    if selected.admission.validate(&repaired).is_err() {
-        return Ok(selected);
-    }
-    let transfer_cost =
-        codec_budget.measure_reserved_compile(repaired.as_bytes(), config.javascript.cost_model)?;
+    let metrics =
+        analyze_generated_javascript(&scored.code).map_err(generated_javascript_parse_error)?;
     selected.metrics = metrics;
     selected.startup_score = selected.metrics.startup_score(
         config.javascript.startup.parse_weight,
         config.javascript.startup.compile_weight,
         config.javascript.startup.memory_weight,
     );
-    selected.code = repaired;
-    selected.transfer_cost = transfer_cost;
+    selected.code = scored.code;
+    selected.transfer_cost = scored.cost;
     Ok(selected)
 }
 
@@ -15052,7 +15097,7 @@ mod tests {
             local_name_reserve: 16,
             ..configured
         };
-        let variants = terminal_scope_naming_options(parent, configured);
+        let variants = crate::decision_registry::terminal_scope_naming_options(parent, configured);
         assert!(variants.iter().any(|variant| {
             variant.precise_cross_scope_shadowing && !variant.reserved_local_name_prefix
         }));
@@ -15747,7 +15792,7 @@ mod tests {
         let ir = lower_to_control_flow(&program, &semantics).unwrap();
         let config = ProjectConfig::default();
         let parent = config.js_options();
-        let options = terminal_scope_naming_options(parent, parent);
+        let options = crate::decision_registry::terminal_scope_naming_options(parent, parent);
         assert!(!options.is_empty());
         let contexts = test_javascript_contexts(&ir);
 
@@ -15861,7 +15906,8 @@ mod tests {
             string_pool_minimum_savings: 128,
             ..configured
         };
-        let variants = terminal_string_pooling_options(parent, configured);
+        let variants =
+            crate::decision_registry::terminal_string_pooling_options(parent, configured);
         assert!(variants.iter().any(|variant| !variant.pool_strings));
         for threshold in [16, 32, 64, 96, 192, 256, 384, 512, 768, 1024] {
             assert!(variants.iter().any(|variant| {
@@ -15874,7 +15920,9 @@ mod tests {
             pool_strings: false,
             ..configured
         };
-        assert!(terminal_string_pooling_options(parent, disabled).is_empty());
+        assert!(
+            crate::decision_registry::terminal_string_pooling_options(parent, disabled).is_empty()
+        );
     }
 
     #[test]
