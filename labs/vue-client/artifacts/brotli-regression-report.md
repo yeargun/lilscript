@@ -145,6 +145,28 @@ important host costs are generic property reads/writes, dynamic method dispatch,
 accessor/reflection construction, and the optimization barriers those operations
 create.
 
+## Structural ablations
+
+Additional scope-resolved transformations were applied before the same Terser
+pass. Every variant retained the runtime-only execution checksum.
+
+| Variant | Brotli-11 | Delta from Terser baseline |
+| --- | ---: | ---: |
+| Unchanged VueLil | 40,654 | 0 |
+| Inline 250 generic `hostRead` calls | 40,587 | -67 |
+| Remove 52 public name/length reflection mutations | 39,624 | -1,030 |
+| Fold production development globals | 40,588 | -66 |
+| Reflection removal plus generic read inlining | 39,534 | -1,120 |
+| Reflection removal plus production globals | 39,510 | -1,144 |
+| Vue after identical Terser | 18,766 | -21,888 versus VueLil baseline |
+
+The strongest combination leaves a 20,744-byte gap. This rules out constructor
+pooling, simple generic reads, public reflection, or obvious development checks
+as the dominant explanation. They should still be improved, but the main issue
+is the amount and shape of code considered reachable after package flattening:
+dynamic operation expansion, renderer trampolines, initialized compatibility
+state, and owner boundaries that downstream tree shaking cannot remove.
+
 ## Ranked root causes
 
 ### 1. Runtime-core retention and side-effectful generated shape

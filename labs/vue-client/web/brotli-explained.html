@@ -241,6 +241,22 @@ hostDefineAccessor(
 
       <h3>Which objective is active?</h3>
       <p>The LilScript production configurations use <code>priority = "size-first"</code>, <code>cost_model = "brotli"</code>, identifier/property mangling, and string pooling. gzip-9 is measured, but Brotli-11 is the completion metric. The limitation is scope: the compiler optimizes an individual generated package graph, while Vite later concatenates, tree-shakes, and minifies the application. A helper that wins inside one package can lose after cross-package composition. Final decisions therefore need A/B measurements on the complete reusable application bundle.</p>
+
+      <h3>Larger structural ablations</h3>
+      <p>The same scope-resolved method was used for generic reads and public reflection. Production globals were folded through Terser definitions. Every result retained the exact runtime checksum.</p>
+      <table>
+        <thead><tr><th>Variant after identical Terser</th><th>Brotli-11</th><th>Delta</th></tr></thead>
+        <tbody>
+          <tr><td>Unchanged VueLil baseline</td><td>40,654 B</td><td>0 B</td></tr>
+          <tr><td>Inline 250 <code>hostRead</code> calls</td><td>40,587 B</td><td class="pass">-67 B</td></tr>
+          <tr><td>Remove 52 public name/length reflection mutations</td><td>39,624 B</td><td class="pass">-1,030 B</td></tr>
+          <tr><td>Fold production development globals</td><td>40,588 B</td><td class="pass">-66 B</td></tr>
+          <tr><td>Reflection removal + generic read inlining</td><td>39,534 B</td><td class="pass">-1,120 B</td></tr>
+          <tr><td>Reflection removal + production globals</td><td>39,510 B</td><td class="pass">-1,144 B</td></tr>
+          <tr><td>Vue after the same Terser pass</td><td>18,766 B</td><td>-21,888 B vs baseline</td></tr>
+        </tbody>
+      </table>
+      <p>Even the most aggressive safe diagnostic above leaves a 20,744-byte gap. Constructor pooling, generic-read wrappers, public reflection, and obvious development checks are real but secondary. The large remainder comes from code that is still reachable or appears observable: expanded dynamic operations, more functions and objects, renderer trampolines, compatibility initialization, and flattened module boundaries.</p>
     </section>
 
     <section id="reflection">
