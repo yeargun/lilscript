@@ -4723,21 +4723,35 @@ fn test_property_provenance(source: &str) -> Vec<IrJsPropertyProvenance> {
 
 fn sort_scored_javascript_candidates(candidates: &mut [ScoredJavaScriptCandidate]) {
     candidates.sort_by(|left, right| {
-        (left.rank, scored_javascript_candidate_tiebreak(left))
-            .cmp(&(right.rank, scored_javascript_candidate_tiebreak(right)))
+        javascript_candidate_order(
+            left.rank,
+            &left.code,
+            left.startup_score,
+            left.plan_identity,
+        )
+        .cmp(&javascript_candidate_order(
+            right.rank,
+            &right.code,
+            right.startup_score,
+            right.plan_identity,
+        ))
     });
 }
 
-fn scored_javascript_candidate_tiebreak(
-    candidate: &ScoredJavaScriptCandidate,
-) -> (usize, u8, u64, &str, usize, usize) {
+fn javascript_candidate_order(
+    rank: (u64, u64),
+    code: &str,
+    startup_score: u64,
+    plan_identity: JavaScriptPlanIdentity,
+) -> ((u64, u64), usize, u8, u64, &str, usize, usize) {
     (
-        candidate.code.len(),
-        top_level_declaration_preference(&candidate.code),
-        candidate.startup_score,
-        &candidate.code,
-        candidate.plan_identity.context_id,
-        candidate.plan_identity.ordinal,
+        rank,
+        code.len(),
+        top_level_declaration_preference(code),
+        startup_score,
+        code,
+        plan_identity.context_id,
+        plan_identity.ordinal,
     )
 }
 
@@ -4757,8 +4771,18 @@ fn sort_terminal_javascript_candidates(
                     .cmp(&resolved_one_byte_binding_count(&left.code))
             })
             .then_with(|| {
-                scored_javascript_candidate_tiebreak(left)
-                    .cmp(&scored_javascript_candidate_tiebreak(right))
+                javascript_candidate_order(
+                    left.rank,
+                    &left.code,
+                    left.startup_score,
+                    left.plan_identity,
+                )
+                .cmp(&javascript_candidate_order(
+                    right.rank,
+                    &right.code,
+                    right.startup_score,
+                    right.plan_identity,
+                ))
             })
     });
 }
@@ -4903,23 +4927,19 @@ fn finalized_javascript_candidate_precedes(
         right.performance.score,
         right.baseline_performance.score,
     );
-    (
+    let left_order = javascript_candidate_order(
         left_rank,
-        left.code.len(),
-        top_level_declaration_preference(&left.code),
+        &left.code,
         left.startup_score,
-        left.code.as_str(),
-        left.plan_identity.context_id,
-        left.plan_identity.ordinal,
-    ) < (
+        left.plan_identity,
+    );
+    let right_order = javascript_candidate_order(
         right_rank,
-        right.code.len(),
-        top_level_declaration_preference(&right.code),
+        &right.code,
         right.startup_score,
-        right.code.as_str(),
-        right.plan_identity.context_id,
-        right.plan_identity.ordinal,
-    )
+        right.plan_identity,
+    );
+    left_order < right_order
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -9695,9 +9715,7 @@ struct AdmittedGeneratedJavaScript<'src> {
     source: &'src str,
 }
 
-fn admit_generated_javascript(
-    source: &str,
-) -> Result<AdmittedGeneratedJavaScript<'_>, String> {
+fn admit_generated_javascript(source: &str) -> Result<AdmittedGeneratedJavaScript<'_>, String> {
     analyze_generated_javascript(source)
         .map_err(|error| format!("generated JavaScript admission failed: {error}"))?;
     Ok(AdmittedGeneratedJavaScript { source })
@@ -14958,24 +14976,6 @@ mod tests {
         let replacements = ordered_unused_binding_replacements(code, &identifiers).unwrap();
 
         assert_eq!(&replacements[..3], &[b'_', b'$', b'v']);
-    }
-
-    #[test]
-    fn diagnose_motion_unused_binding() {
-        let code = include_str!("/tmp/opencode/motion-current-animate-mini.mjs");
-        let identifiers = single_character_identifiers(code).unwrap();
-        let sources = single_character_resolved_binding_identifiers(code).unwrap();
-        let replacements = ordered_unused_binding_replacements(code, &identifiers).unwrap();
-        let baseline = compressed_size(code.as_bytes(), CompressionCostModel::Brotli).unwrap();
-        let mut budget = TerminalCodecProbeBudget::new(usize::MAX);
-        let best = best_one_unused_letter_binding_remap(
-            code,
-            CompressionCostModel::Brotli,
-            baseline,
-            &mut budget,
-        )
-        .unwrap();
-        eprintln!("sources={sources:?} clearJ={} v_at={:?} baseline={baseline} best={best:?}", single_character_name_is_clear_binding(code, b'J').unwrap(), replacements.iter().position(|name| *name == b'v'));
     }
 
     #[test]
