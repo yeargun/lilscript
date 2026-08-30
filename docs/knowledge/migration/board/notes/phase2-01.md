@@ -1,6 +1,6 @@
 # phase2-01 — consolidate candidate acceptance
 
-Parent: [ledger](../LEDGER.md). Status: active.
+Parent: [ledger](../LEDGER.md). Status: landed.
 
 ## Question
 
@@ -29,6 +29,7 @@ existing candidate identity stays reachable.
 | 2026-08-29 | Shared ordering key | `cargo check --lib`; `cargo test --lib parallel_brotli_finalizer_preserves_exact_tie_breaking` | scored and finalized candidates share rank/raw/declaration/startup/code/identity ordering; focused tie-break test passed | gate |
 | 2026-08-29 | Registry-owned phase ordering | `cargo check --lib`; `cargo test --lib phase_ordering_recipes_preserve_small_and_broad_variants` | small and broad module recipes moved from `compiler.rs` to the decision registry unchanged | gate |
 | 2026-08-29 | Registry-owned compress contrasts | `cargo check --lib`; `cargo test --lib compress_pass_recipes_retain_incumbent_and_named_contrasts` | all-compress-off, outline contrast/interaction, fusion-off, and merging-off construction moved unchanged into the registry; incumbent retained | gate |
+| 2026-08-29 | Registry-owned terminal options | `cargo check --lib`; focused terminal scope-naming and string-pooling tests | existing naming and pooling option sets moved unchanged into `decision_registry.rs` | gate |
 
 ## Log
 
@@ -37,8 +38,8 @@ existing candidate identity stays reachable.
 - 2026-08-29 — Consolidated scored/final candidate ordering onto one key and removed a non-portable temporary diagnostic test that referenced `/tmp`. — **OPEN**
 - 2026-08-29 — Moved the existing phase-order probe construction into a registry-owned helper; no options or admission order changed. — **OPEN**
 - 2026-08-29 — Moved the imperative compress-pass contrast batch into the registry without adding candidates or changing ordering. — **OPEN**
+- 2026-08-29 — Moved terminal scope-naming and string-pooling option construction into the registry. Phase/order/compress/terminal recipe ownership and shared candidate ordering are consolidated. — **LANDED**
 
 ## Next step
 
-Classify the remaining candidate construction outside `decision_registry.rs` and
-move the next byte-identical batch behind named registry recipes.
+Continue with `phase2-02`: unify terminal materialize/validate/score/compare calls.

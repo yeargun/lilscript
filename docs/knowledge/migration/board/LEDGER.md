@@ -114,7 +114,8 @@ Documentation: [current architecture](../../compilation/current-architecture.md)
 
 | id | status | intent | gate | note |
 |---|---|---|---|---|
-| `phase2-01` | active | Route existing candidate paths through one materialize/validate/score/guard/compare acceptance primitive without adding alternatives. | Byte-identical focused fixtures, candidate reachability, targeted Rust gates | [notes](notes/phase2-01.md) |
+| `phase2-01` | landed | Move phase-order, compress-contrast, terminal naming/pooling recipe construction and common ordering into the registry unchanged. | Byte-identical focused fixtures, candidate reachability, targeted Rust gates | [notes](notes/phase2-01.md) |
+| `phase2-02` | active | Route late terminal challengers through one materialize/validate/score/guard/compare operation. | Existing candidate set and byte order unchanged under focused terminal gates | [notes](notes/phase2-02.md) |
 
 ## board — the system itself
 

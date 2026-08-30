@@ -1799,6 +1799,158 @@ pub fn append_ir_compress_pass_clones(
     (compression_contrast, outline_phase_interaction)
 }
 
+pub fn finalize_scored_ir_optimizer_clones(
+    mut options: Vec<OptimizationOptions>,
+    configured: OptimizationOptions,
+    compression_contrast: Option<OptimizationOptions>,
+    outline_phase_interaction: Option<OptimizationOptions>,
+    limit: usize,
+) -> Vec<OptimizationOptions> {
+    options.sort_by_key(|candidate| {
+        (
+            candidate.function_subsumption,
+            !candidate.inlining,
+            !candidate.inline_closure_factories,
+            candidate.common_subexpression_elimination,
+            !candidate.constant_parameter_specialization,
+            !candidate.specialize_tagged_constants,
+            !candidate.call_site_specialization,
+            !candidate.capture_signature_cloning,
+            candidate.inline_instruction_limit,
+            candidate.inline_control_flow_limit,
+            candidate.inline_growth_limit,
+        )
+    });
+    options.dedup();
+
+    pin_optimizer_option(&mut options, configured, 0);
+    if limit >= 2 {
+        if let Some(contrast) = compression_contrast {
+            pin_optimizer_option(&mut options, contrast, 1);
+        }
+    }
+    if limit >= 3 {
+        if let Some(interaction) = outline_phase_interaction {
+            pin_optimizer_option(&mut options, interaction, 2);
+        }
+    }
+    options.truncate(limit.max(1));
+    options
+}
+
+pub fn terminal_scope_naming_options(
+    parent: IrJsOptions,
+    configured: IrJsOptions,
+) -> Vec<IrJsOptions> {
+    if !configured.mangle_identifiers || !configured.cross_scope_name_reuse {
+        return Vec::new();
+    }
+    let mut variants = Vec::new();
+    push_unique_ir_js_option(
+        &mut variants,
+        parent,
+        IrJsOptions {
+            precise_cross_scope_shadowing: true,
+            reserved_local_name_prefix: false,
+            ..parent
+        },
+    );
+
+    let mut reserve_counts = vec![parent.local_name_reserve, configured.local_name_reserve];
+    reserve_counts.extend([8, 16, 32]);
+    reserve_counts.retain(|reserve| *reserve != 0);
+    reserve_counts.dedup();
+    for local_name_reserve in reserve_counts {
+        push_unique_ir_js_option(
+            &mut variants,
+            parent,
+            IrJsOptions {
+                precise_cross_scope_shadowing: true,
+                reserved_local_name_prefix: true,
+                local_name_reserve,
+                ..parent
+            },
+        );
+    }
+    if !parent.precise_cross_scope_shadowing {
+        push_unique_ir_js_option(
+            &mut variants,
+            parent,
+            IrJsOptions {
+                transitive_nested_shadowing: true,
+                ..parent
+            },
+        );
+    }
+    variants
+}
+
+pub fn terminal_string_pooling_options(
+    parent: IrJsOptions,
+    configured: IrJsOptions,
+) -> Vec<IrJsOptions> {
+    if !configured.pool_strings {
+        return Vec::new();
+    }
+    let mut variants = Vec::new();
+    push_unique_ir_js_option(
+        &mut variants,
+        parent,
+        IrJsOptions {
+            pool_strings: false,
+            ..parent
+        },
+    );
+    for string_pool_minimum_savings in [
+        parent.string_pool_minimum_savings,
+        configured.string_pool_minimum_savings,
+        16,
+        32,
+        64,
+        96,
+        128,
+        192,
+        256,
+        384,
+        512,
+        768,
+        1024,
+    ] {
+        push_unique_ir_js_option(
+            &mut variants,
+            parent,
+            IrJsOptions {
+                pool_strings: true,
+                string_pool_minimum_savings,
+                ..parent
+            },
+        );
+    }
+    variants
+}
+
+fn push_unique_ir_js_option(
+    variants: &mut Vec<IrJsOptions>,
+    parent: IrJsOptions,
+    candidate: IrJsOptions,
+) {
+    if candidate != parent && !variants.contains(&candidate) {
+        variants.push(candidate);
+    }
+}
+
+fn pin_optimizer_option(
+    options: &mut [OptimizationOptions],
+    candidate: OptimizationOptions,
+    position: usize,
+) {
+    if position < options.len() {
+        if let Some(index) = options.iter().position(|options| *options == candidate) {
+            options.swap(position, index);
+        }
+    }
+}
+
 fn push_unique_optimizer_option(
     options: &mut Vec<OptimizationOptions>,
     candidate: OptimizationOptions,
@@ -1840,9 +1992,10 @@ mod tests {
     use super::{
         admitted_scored_emission_family_names, admitted_scored_ir_variant_names,
         append_ir_compress_pass_clones, cartesian_emission_seeds, decision_spec,
-        reversible_boolean_alternatives, scored_ir_optimizer_clones,
-        scored_ir_phase_ordering_clones, DecisionClass, DecisionId, EmissionSearchContext,
-        IR_JS_OPTION_FIELDS, MIGRATED_DECISIONS, SCORED_EMISSION_FAMILIES, SCORED_IR_VARIANTS,
+        finalize_scored_ir_optimizer_clones, reversible_boolean_alternatives,
+        scored_ir_optimizer_clones, scored_ir_phase_ordering_clones, DecisionClass, DecisionId,
+        EmissionSearchContext, IR_JS_OPTION_FIELDS, MIGRATED_DECISIONS, SCORED_EMISSION_FAMILIES,
+        SCORED_IR_VARIANTS,
     };
     use crate::config::{CompressionCostModel, ProjectConfig};
     use crate::optimizer::OptimizationOptions;
@@ -1915,6 +2068,28 @@ mod tests {
                 && !candidate.path_sensitive_propagation
                 && !candidate.parameterized_function_merging
         }));
+    }
+
+    #[test]
+    fn finalized_ir_recipes_pin_incumbent_and_named_contrasts() {
+        let configured = OptimizationOptions::default();
+        let mut contrast = configured;
+        contrast.region_outlining = !configured.region_outlining;
+        let mut interaction = configured;
+        interaction.common_subexpression_elimination = false;
+        interaction.inline_instruction_limit = 48;
+        let mut extra = configured;
+        extra.inlining = !configured.inlining;
+
+        let ordered = finalize_scored_ir_optimizer_clones(
+            vec![extra, interaction, contrast, configured, configured],
+            configured,
+            Some(contrast),
+            Some(interaction),
+            4,
+        );
+
+        assert_eq!(ordered, [configured, contrast, interaction, extra]);
     }
 
     #[test]
