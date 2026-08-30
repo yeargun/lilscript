@@ -1570,67 +1570,22 @@ fn optimize_and_select_javascript_inner<'src>(
         crate::decision_registry::scored_ir_optimizer_clones(config, configured);
     let mut compression_contrast = None;
     let mut outline_phase_interaction = None;
-    if configured.inlining && config.ir_phase_ordering_variants_enabled() {
-        // Phase-order probes answer a narrow question: did an early CSE or the
-        // default inlining budget hide a smaller program?  Crossing them with
-        // every independent optimizer toggle is both redundant and extremely
-        // expensive on large modules.  Keep the configured pipeline and the
-        // one phase-adjacent specialization variant that can materially change
-        // what the inliner sees.
-        let broad_module = ir.functions.len() > 24
-            || ir
-                .functions
-                .iter()
-                .flat_map(|function| &function.blocks)
-                .map(|block| block.instructions.len() + block.phis.len() + 1)
-                .sum::<usize>()
-                > 2_048;
-        let mut phase_bases = vec![configured];
-        if configured.constant_parameter_specialization {
-            let mut without_constant_specialization = configured;
-            without_constant_specialization.constant_parameter_specialization = false;
-            if broad_module {
-                // One combined proposal retains the phase-order opportunity on
-                // broad modules without making every final-emission search run
-                // six additional times.
-                phase_bases.clear();
-            }
-            phase_bases.push(without_constant_specialization);
-        }
-        for base in phase_bases {
-            if broad_module {
-                let mut combined = base;
-                combined.common_subexpression_elimination = false;
-                combined.inline_instruction_limit = combined.inline_instruction_limit.max(48);
-                combined.inline_control_flow_limit = combined.inline_control_flow_limit.max(128);
-                combined.inline_growth_limit =
-                    Some(combined.inline_growth_limit.unwrap_or(0).max(40));
-                if !optimizer_options.contains(&combined) {
-                    optimizer_options.push(combined);
-                }
-                continue;
-            }
-            let mut without_early_cse = base;
-            without_early_cse.common_subexpression_elimination = false;
-            if !optimizer_options.contains(&without_early_cse) {
-                optimizer_options.push(without_early_cse);
-            }
-
-            let mut aggressive_inlining = base;
-            aggressive_inlining.inline_instruction_limit =
-                aggressive_inlining.inline_instruction_limit.max(48);
-            aggressive_inlining.inline_control_flow_limit =
-                aggressive_inlining.inline_control_flow_limit.max(128);
-            aggressive_inlining.inline_growth_limit =
-                Some(aggressive_inlining.inline_growth_limit.unwrap_or(0).max(40));
-            if !optimizer_options.contains(&aggressive_inlining) {
-                optimizer_options.push(aggressive_inlining);
-            }
-
-            aggressive_inlining.common_subexpression_elimination = false;
-            if !optimizer_options.contains(&aggressive_inlining) {
-                optimizer_options.push(aggressive_inlining);
-            }
+    // Phase-order probes answer a narrow question: did an early CSE or the
+    // default inlining budget hide a smaller program? Broad modules receive one
+    // combined recipe rather than the small-module cross product.
+    let broad_module = ir.functions.len() > 24
+        || ir
+            .functions
+            .iter()
+            .flat_map(|function| &function.blocks)
+            .map(|block| block.instructions.len() + block.phis.len() + 1)
+            .sum::<usize>()
+            > 2_048;
+    for candidate in
+        crate::decision_registry::scored_ir_phase_ordering_clones(config, configured, broad_module)
+    {
+        if !optimizer_options.contains(&candidate) {
+            optimizer_options.push(candidate);
         }
     }
     if config.javascript_optimization_enabled(JavaScriptOptimization::IrCompressPassVariants) {

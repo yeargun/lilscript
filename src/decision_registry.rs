@@ -1672,6 +1672,62 @@ pub fn scored_ir_optimizer_clones(
     options
 }
 
+pub fn scored_ir_phase_ordering_clones(
+    config: &ProjectConfig,
+    configured: OptimizationOptions,
+    broad_module: bool,
+) -> Vec<OptimizationOptions> {
+    if !configured.inlining || !config.ir_phase_ordering_variants_enabled() {
+        return Vec::new();
+    }
+    let mut bases = vec![configured];
+    if configured.constant_parameter_specialization {
+        let mut without_constant_specialization = configured;
+        without_constant_specialization.constant_parameter_specialization = false;
+        if broad_module {
+            bases.clear();
+        }
+        bases.push(without_constant_specialization);
+    }
+    let mut variants = Vec::new();
+    for base in bases {
+        if broad_module {
+            let mut combined = base;
+            combined.common_subexpression_elimination = false;
+            combined.inline_instruction_limit = combined.inline_instruction_limit.max(48);
+            combined.inline_control_flow_limit = combined.inline_control_flow_limit.max(128);
+            combined.inline_growth_limit = Some(combined.inline_growth_limit.unwrap_or(0).max(40));
+            if !variants.contains(&combined) {
+                variants.push(combined);
+            }
+            continue;
+        }
+
+        let mut without_early_cse = base;
+        without_early_cse.common_subexpression_elimination = false;
+        if !variants.contains(&without_early_cse) {
+            variants.push(without_early_cse);
+        }
+
+        let mut aggressive_inlining = base;
+        aggressive_inlining.inline_instruction_limit =
+            aggressive_inlining.inline_instruction_limit.max(48);
+        aggressive_inlining.inline_control_flow_limit =
+            aggressive_inlining.inline_control_flow_limit.max(128);
+        aggressive_inlining.inline_growth_limit =
+            Some(aggressive_inlining.inline_growth_limit.unwrap_or(0).max(40));
+        if !variants.contains(&aggressive_inlining) {
+            variants.push(aggressive_inlining);
+        }
+
+        aggressive_inlining.common_subexpression_elimination = false;
+        if !variants.contains(&aggressive_inlining) {
+            variants.push(aggressive_inlining);
+        }
+    }
+    variants
+}
+
 pub fn admitted_scored_ir_variant_names(
     config: &ProjectConfig,
     configured: OptimizationOptions,
@@ -1704,8 +1760,9 @@ mod tests {
     use super::{
         admitted_scored_emission_family_names, admitted_scored_ir_variant_names,
         cartesian_emission_seeds, decision_spec, reversible_boolean_alternatives,
-        scored_ir_optimizer_clones, DecisionClass, DecisionId, EmissionSearchContext,
-        IR_JS_OPTION_FIELDS, MIGRATED_DECISIONS, SCORED_EMISSION_FAMILIES, SCORED_IR_VARIANTS,
+        scored_ir_optimizer_clones, scored_ir_phase_ordering_clones, DecisionClass, DecisionId,
+        EmissionSearchContext, IR_JS_OPTION_FIELDS, MIGRATED_DECISIONS, SCORED_EMISSION_FAMILIES,
+        SCORED_IR_VARIANTS,
     };
     use crate::config::{CompressionCostModel, ProjectConfig};
     use crate::optimizer::OptimizationOptions;
@@ -1726,6 +1783,31 @@ mod tests {
             },
             declaration_variant_cap: 4,
         }
+    }
+
+    #[test]
+    fn phase_ordering_recipes_preserve_small_and_broad_variants() {
+        let mut config = ProjectConfig::default();
+        config.javascript.optimization_level = 15;
+        config.javascript.candidate_search = crate::config::CandidateSearch::Always;
+        let configured = config.js_optimizer_options();
+
+        let small = scored_ir_phase_ordering_clones(&config, configured, false);
+        assert!(small.iter().any(|options| {
+            !options.common_subexpression_elimination
+                && options.inline_instruction_limit == configured.inline_instruction_limit
+        }));
+        assert!(small.iter().any(|options| {
+            options.inline_instruction_limit >= 48
+                && options.inline_control_flow_limit >= 128
+                && options.common_subexpression_elimination
+        }));
+
+        let broad = scored_ir_phase_ordering_clones(&config, configured, true);
+        assert_eq!(broad.len(), 1);
+        assert!(!broad[0].common_subexpression_elimination);
+        assert!(!broad[0].constant_parameter_specialization);
+        assert!(broad[0].inline_instruction_limit >= 48);
     }
 
     #[test]
