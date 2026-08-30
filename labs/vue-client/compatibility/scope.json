@@ -33,12 +33,15 @@
   ],
   "bundleComparison": {
     "method": "Build one application source twice with Vite 8 and Oxc in production mode; only resolution of the public vue specifier may change.",
-    "candidateResolution": "packages/vuelil",
+    "candidateResolution": "packages/vuelil/production",
     "target": "es2022",
     "metric": "brotli11",
     "codecs": "canonical-lilscript-codec",
     "requiresMatchingExecutionChecksum": true,
     "requiresNoCandidateUpstreamRuntime": true,
+    "requiresReusableOpenWorldCandidate": true,
+    "requiresViteDownstreamTreeShaking": true,
+    "forbidsScenarioSpecificCandidateModules": true,
     "libraryDistributionComparisonsCountForCompletion": false
   },
   "bundleScenarios": [

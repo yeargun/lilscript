@@ -11,7 +11,7 @@
   },
   "scope": {
     "path": "compatibility/scope.json",
-    "sha256": "76948f10d50310acf7d1af64f9b8e32f58b70db08c24627ca96a49c53a008d45"
+    "sha256": "5b94371d79a91070d9a3aa41f5059a6a8ac89d2028fb3fa021cab3ca6bb39285"
   },
   "inventory": {
     "path": "compatibility/inventory.json",
@@ -151,9 +151,15 @@
     "projectSize gate is \"failed\"",
     "performance gate is \"failed\"",
     "project-size evidence does not identify the current scope",
+    "project-size evidence does not use the scoped Vite 8/Oxc configuration",
+    "project-size evidence does not state the reusable package methodology",
+    "runtime-only-client has not proved paired execution and module-graph independence",
     "runtime-only-client has not proved a smaller paired-project Brotli-11 bundle",
+    "runtime-compiler-client has not proved paired execution and module-graph independence",
     "runtime-compiler-client has not proved a smaller paired-project Brotli-11 bundle",
+    "ssr-app has not proved paired execution and module-graph independence",
     "ssr-app has not proved a smaller paired-project Brotli-11 bundle",
+    "sfc-production-app has not proved paired execution and module-graph independence",
     "sfc-production-app has not proved a smaller paired-project Brotli-11 bundle",
     "the aggregate required project-size gate is not passed",
     "browser-keyed-render has not passed its recomputed confidence bound",

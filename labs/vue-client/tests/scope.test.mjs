@@ -216,6 +216,7 @@ test("completion evaluator can pass only with exhaustive backing evidence", () =
     mode: "production",
     target: "es2022",
     minify: "oxc",
+    treeShaking: true,
     defines: {
       __VUE_OPTIONS_API__: "false",
       __VUE_PROD_DEVTOOLS__: "false",
@@ -232,7 +233,12 @@ test("completion evaluator can pass only with exhaustive backing evidence", () =
     .map(({ id, completionRequired }) => {
     const candidateModules = [
       { id: `apps/${id}/src/main.js`, renderedBytes: 1 },
-      { id: `packages/vuelil/${id}.js`, renderedBytes: 2 },
+      {
+        id: id === "runtime-compiler-client"
+          ? "packages/vuelil/production/vue.js"
+          : "packages/vuelil/production/vue.runtime.js",
+        renderedBytes: 2,
+      },
     ];
     const upstreamModules = [
       { id: `apps/${id}/src/main.js`, renderedBytes: 1 },
@@ -244,11 +250,19 @@ test("completion evaluator can pass only with exhaustive backing evidence", () =
       status: "passed",
       input: { importSpecifier: "vue", sha256: "a".repeat(64) },
       execution: { matching: true, deterministicChecksum: "b".repeat(64) },
-      build: { onlyModuleResolutionChanged: true },
+      build: {
+        onlyModuleResolutionChanged: true,
+        reusableProductionPackage: true,
+        viteDownstreamTreeShaking: true,
+      },
       moduleAudit: {
         candidate: {
           noUpstreamRuntime: true,
           includesCandidateModule: true,
+          noScenarioSpecificCandidateModules: true,
+          scenarioSpecificCandidateModules: [],
+          reusableProductionPackage: true,
+          viteDownstreamTreeShaking: true,
           upstreamRuntimeModules: [],
           adapters: [{ path: "src/runtime-core/host.js" }],
           allEmittedAdapterCodeCounted: true,
@@ -374,6 +388,8 @@ test("completion evaluator can pass only with exhaustive backing evidence", () =
       upstream: { revision: inventory.upstream.revision },
       scope: { sha256: scopeDigest },
       inventory: { sha256: inventoryDigest },
+      methodology:
+        "Every candidate uses packages/vuelil/production; no scenario-specific candidate module path is allowed and Vite performs downstream tree shaking.",
       toolchain: {
         vite: { version: "8.2.1" },
         bundler: { name: "rolldown", version: "1.2.6" },

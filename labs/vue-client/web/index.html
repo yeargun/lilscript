@@ -31,9 +31,15 @@
 <li>projectSize gate is &quot;failed&quot;</li>
 <li>performance gate is &quot;failed&quot;</li>
 <li>project-size evidence does not identify the current scope</li>
+<li>project-size evidence does not use the scoped Vite 8/Oxc configuration</li>
+<li>project-size evidence does not state the reusable package methodology</li>
+<li>runtime-only-client has not proved paired execution and module-graph independence</li>
 <li>runtime-only-client has not proved a smaller paired-project Brotli-11 bundle</li>
+<li>runtime-compiler-client has not proved paired execution and module-graph independence</li>
 <li>runtime-compiler-client has not proved a smaller paired-project Brotli-11 bundle</li>
+<li>ssr-app has not proved paired execution and module-graph independence</li>
 <li>ssr-app has not proved a smaller paired-project Brotli-11 bundle</li>
+<li>sfc-production-app has not proved paired execution and module-graph independence</li>
 <li>sfc-production-app has not proved a smaller paired-project Brotli-11 bundle</li>
 <li>the aggregate required project-size gate is not passed</li>
 <li>browser-keyed-render has not passed its recomputed confidence bound</li>
@@ -81,7 +87,7 @@
 <tr><td><code>runtime-core</code></td><td>139,699 B</td><td>79,749 B</td><td>+59,950 B</td></tr>
 <tr><td><code>runtime-dom</code></td><td>23,484 B</td><td>12,620 B</td><td>+10,864 B</td></tr>
 <tr><td><code>shared</code></td><td>11,853 B</td><td>7,595 B</td><td>+4,258 B</td></tr></tbody></table></div>
-      <p class="notice">The next measurement revision must consume one reusable, non-closed-world mangled package build. Scenario-specific export selection is diagnostic only and cannot establish the final size claim.</p>
+      <p class="notice">The next valid measurement must consume one reusable, open-world mangled production package. Module audits reject scenario-specific candidate paths, and Vite performs downstream application tree shaking. The checked-in report predates this stricter requirement and remains diagnostic.</p>
     </section>
     <section class="split">
       <div><div class="section-heading"><p>Declared state</p><h2>Scope gates</h2></div><table><thead><tr><th>Gate</th><th>Value</th></tr></thead><tbody><tr><td>sourceParityRequired</td><td><span class="status open">234</span></td></tr>
@@ -119,6 +125,7 @@
       <div class="section-heading"><p>Completion rule</p><h2>No partial credit</h2></div>
       <p>Complete means every tracked packages/*/src TypeScript or TSX file at pinned Vue v3.5.42 has one hash-verified, non-placeholder LilScript counterpart at its deterministic mirrored path (or strict declaration-only handling for a type-only file), module responsibility and algorithms are preserved without JavaScript delegation, every listed package entrypoint and format is independent of Vue implementation code, all applicable unchanged upstream tests pass, public runtime and declaration surfaces match, every required actual-project scenario produces a smaller Brotli-11 candidate bundle from identical application source and build settings with matching execution, and benchmark confidence bounds show no material regression.</p>
       <p>Inspect the complete source-derived inventory in <a href="./evidence.json">evidence.json</a>. Generated presentation text is not itself a benchmark or compatibility result.</p>
+      <p>Read the detailed <a href="https://github.com/yeargun/vuelil/blob/main/artifacts/brotli-regression-report.md">Brotli regression analysis</a> for token counts, module attribution, and the no-compiler remediation plan.</p>
     </section>
   </main>
   <footer>Static evidence generated only from <code>compatibility/scope.json</code>, <code>compatibility/inventory.json</code>, and identified machine reports.</footer>

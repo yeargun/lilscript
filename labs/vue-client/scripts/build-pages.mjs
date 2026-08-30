@@ -144,7 +144,7 @@ function pageHtml(scope, inventory, evidence) {
       <div class="section-heading"><p>Bundle anatomy</p><h2>Why the runtime-only bundle is larger</h2></div>
       <p class="section-copy">All ${evidence.sourceParity.mapped} runtime sources are explicitly written in LilScript; ${evidence.sourceParity.declarationOnly} type-only files use audited declaration-only handling. Seven JavaScript adapters expose host primitives only and their retained bytes are counted. Production compilation enables identifier and property mangling while preserving public export names. The current diagnostic still retains substantially more generated runtime code, primarily dynamic <code>JsValue</code> access, host-boundary calls, module initialization, and compatibility paths.</p>
       <div class="table-wrap"><table><thead><tr><th>Module family</th><th>VueLil rendered</th><th>Vue rendered</th><th>Raw delta</th></tr></thead><tbody>${artifactRows}</tbody></table></div>
-      <p class="notice">The next measurement revision must consume one reusable, non-closed-world mangled package build. Scenario-specific export selection is diagnostic only and cannot establish the final size claim.</p>
+      <p class="notice">The next valid measurement must consume one reusable, open-world mangled production package. Module audits reject scenario-specific candidate paths, and Vite performs downstream application tree shaking. The checked-in report predates this stricter requirement and remains diagnostic.</p>
     </section>
     <section class="split">
       <div><div class="section-heading"><p>Declared state</p><h2>Scope gates</h2></div><table><thead><tr><th>Gate</th><th>Value</th></tr></thead><tbody>${gateRows}</tbody></table></div>
@@ -154,6 +154,7 @@ function pageHtml(scope, inventory, evidence) {
       <div class="section-heading"><p>Completion rule</p><h2>No partial credit</h2></div>
       <p>${escapeHtml(scope.claimRule)}</p>
       <p>Inspect the complete source-derived inventory in <a href="./evidence.json">evidence.json</a>. Generated presentation text is not itself a benchmark or compatibility result.</p>
+      <p>Read the detailed <a href="https://github.com/yeargun/vuelil/blob/main/artifacts/brotli-regression-report.md">Brotli regression analysis</a> for token counts, module attribution, and the no-compiler remediation plan.</p>
     </section>
   </main>
   <footer>Static evidence generated only from <code>compatibility/scope.json</code>, <code>compatibility/inventory.json</code>, and identified machine reports.</footer>

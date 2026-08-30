@@ -89,9 +89,13 @@ npm run benchmark
 npm run build:pages
 ```
 
-`npm run measure` rebuilds and executes both variants of the reactivity project
-before writing `artifacts/project-size-report.json`. The report records source,
-bundle, module-graph, toolchain, package-lock, codec, and upstream provenance.
+The final `npm run measure` gate requires one reusable
+`packages/vuelil/production` graph built with `config/open-world.toml`.
+Runtime-only and SFC must resolve the same `vue.runtime.js`; Vite must perform
+all scenario-level tree shaking. The gate rejects scenario-specific candidate
+paths and records source, bundle, module-graph, toolchain, package-lock, codec,
+and upstream provenance. The currently checked-in size report predates this
+stricter reusable-package requirement and remains diagnostic.
 
 `npm run check` is intentionally fail-closed until every package and format and
 all 234 source mappings and four required project scenarios in the scope

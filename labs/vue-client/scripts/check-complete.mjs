@@ -295,6 +295,7 @@ function checkSizeEvidence(
     report.toolchain?.config?.mode !== "production" ||
     report.toolchain?.config?.target !== scope.bundleComparison?.target ||
     report.toolchain?.config?.minify !== "oxc" ||
+    report.toolchain?.config?.treeShaking !== true ||
     report.toolchain?.commonConfigSha256 !==
       sha256(Buffer.from(`${JSON.stringify(report.toolchain?.config)}\n`))
   ) {
@@ -308,6 +309,14 @@ function checkSizeEvidence(
   };
   if (!isDeepStrictEqual(report.toolchain?.config?.defines, expectedDefines)) {
     failures.push("project-size evidence does not use the required production defines");
+  }
+  if (
+    typeof report.methodology !== "string" ||
+    !report.methodology.includes("packages/vuelil/production") ||
+    !report.methodology.includes("no scenario-specific candidate module path") ||
+    !report.methodology.includes("Vite performs downstream tree shaking")
+  ) {
+    failures.push("project-size evidence does not state the reusable package methodology");
   }
   const requiredIds = expectedBundleScenarioIds(scope, true);
   const expectedIds = requiredIds;
@@ -368,6 +377,12 @@ function checkSizeEvidence(
           module.includes("node_modules/@vue/") ||
           module.includes("upstream/vue/")),
     );
+    const scenarioSpecificCandidateModules = candidateModuleIds.filter((module) => {
+      if (typeof module !== "string") return false;
+      const path = module.split("?", 1)[0];
+      return path.startsWith("packages/vuelil/") &&
+        !/^packages\/vuelil\/production\/[^/]+\.js$/u.test(path);
+    });
     const upstreamVueModules = upstreamModuleIds.filter(
       (module) =>
         typeof module === "string" &&
@@ -381,15 +396,24 @@ function checkSizeEvidence(
       typeof entry.execution?.deterministicChecksum !== "string" ||
       entry.execution.deterministicChecksum.length !== 64 ||
       entry.build?.onlyModuleResolutionChanged !== true ||
+      entry.build?.reusableProductionPackage !== true ||
+      entry.build?.viteDownstreamTreeShaking !== true ||
       entry.moduleAudit?.candidate?.noUpstreamRuntime !== true ||
       entry.moduleAudit?.candidate?.includesCandidateModule !== true ||
+      entry.moduleAudit?.candidate?.noScenarioSpecificCandidateModules !== true ||
+      entry.moduleAudit?.candidate?.scenarioSpecificCandidateModules?.length !== 0 ||
+      entry.moduleAudit?.candidate?.reusableProductionPackage !== true ||
+      entry.moduleAudit?.candidate?.viteDownstreamTreeShaking !== true ||
       entry.moduleAudit?.candidate?.upstreamRuntimeModules?.length !== 0 ||
       entry.moduleAudit?.candidate?.allEmittedAdapterCodeCounted !== true ||
       !Array.isArray(entry.moduleAudit?.candidate?.adapters) ||
       entry.moduleAudit.candidate.adapters.length === 0 ||
       candidateUpstreamModules.length !== 0 ||
+      scenarioSpecificCandidateModules.length !== 0 ||
       !candidateModuleIds.some(
-        (module) => typeof module === "string" && module.startsWith("packages/vuelil/"),
+        (module) =>
+          typeof module === "string" &&
+          module.startsWith("packages/vuelil/production/"),
       ) ||
       upstreamVueModules.length === 0 ||
       candidateGraphHash !==
@@ -520,8 +544,12 @@ export function evaluateCompletion({
   if (
     scope?.bundleComparison?.metric !== "brotli11" ||
     scope?.bundleComparison?.codecs !== "canonical-lilscript-codec" ||
+    scope?.bundleComparison?.candidateResolution !== "packages/vuelil/production" ||
     scope?.bundleComparison?.requiresMatchingExecutionChecksum !== true ||
     scope?.bundleComparison?.requiresNoCandidateUpstreamRuntime !== true ||
+    scope?.bundleComparison?.requiresReusableOpenWorldCandidate !== true ||
+    scope?.bundleComparison?.requiresViteDownstreamTreeShaking !== true ||
+    scope?.bundleComparison?.forbidsScenarioSpecificCandidateModules !== true ||
     scope?.bundleComparison?.libraryDistributionComparisonsCountForCompletion !== false
   ) {
     failures.push("scope does not define the required paired actual-project size methodology");
