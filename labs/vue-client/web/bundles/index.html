@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Direct URLs for the report-pinned minified Vue and VueLil project bundles.">
+  <title>VueLil minified bundle inspector</title>
+  <style>
+    :root { color-scheme: dark; --bg:#08110e; --panel:#10221b; --line:#2a493c; --ink:#edf7f1; --muted:#9fb7aa; --green:#6ee7a8; --red:#ff9a83; font-family:ui-monospace,"SFMono-Regular",Consolas,monospace; }
+    * { box-sizing:border-box; }
+    body { margin:0; color:var(--ink); background:radial-gradient(circle at 80% 0,#173c2e,transparent 34rem),var(--bg); }
+    header,main,footer { width:min(1160px,calc(100% - 2rem)); margin-inline:auto; }
+    header { padding:5rem 0 3rem; border-bottom:1px solid var(--line); }
+    .eyebrow { color:var(--green); font-size:.75rem; letter-spacing:.14em; text-transform:uppercase; }
+    h1 { max-width:900px; margin:.7rem 0 1.2rem; font:400 clamp(2.8rem,7vw,6rem)/.95 Georgia,serif; letter-spacing:-.05em; }
+    p { max-width:850px; color:var(--muted); line-height:1.7; }
+    section { padding:2.5rem 0; border-bottom:1px solid var(--line); }
+    h2 { margin:0 0 1rem; font:400 2rem Georgia,serif; }
+    .pair { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+    article { padding:1.1rem; border:1px solid var(--line); background:var(--panel); min-width:0; }
+    article h3 { margin:0 0 1rem; }
+    .vuelil h3 { color:var(--red); }
+    .vue h3 { color:var(--green); }
+    dl { display:grid; grid-template-columns:auto 1fr; gap:.45rem 1rem; margin:0 0 1rem; font-size:.8rem; }
+    dt { color:var(--muted); }
+    dd { margin:0; text-align:right; overflow-wrap:anywhere; }
+    a.button { display:inline-block; padding:.65rem .8rem; border:1px solid var(--green); color:var(--green); text-decoration:none; }
+    code { overflow-wrap:anywhere; }
+    .warning { padding:1rem; border-left:3px solid var(--red); background:var(--panel); }
+    footer { padding:2rem 0 4rem; }
+    footer a { color:var(--green); }
+    @media(max-width:720px){header{padding-top:3rem}.pair{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <header>
+    <p class="eyebrow">Vue 3.5.42 / exact report artifacts</p>
+    <h1>Minified bundle inspector</h1>
+    <p>Direct, unformatted JavaScript from the current paired project-size report. Each pair was built from identical application source with Vite 8, Rolldown, and Oxc; only Vue resolution changed.</p>
+    <p class="warning">These are the report-pinned scenario-selected diagnostics. They are published for inspection, not presented as the final reusable non-closed-world package measurement.</p>
+  </header>
+  <main>
+    <section>
+      <h2>Runtime-only client</h2>
+      <div class="pair">
+        <article class="vuelil"><h3>VueLil</h3><dl><dt>Raw</dt><dd>150,118 B</dd><dt>gzip-9</dt><dd>54,537 B</dd><dt>Brotli-11</dt><dd>44,811 B</dd><dt>SHA-256</dt><dd><code>da87ac52f24af5d6152179e9b62e4eccdfb08d8a5d96186d2f5ee34676ca0462</code></dd></dl><a class="button" href="./runtime-only.vuelil.min.js">Open minified JavaScript</a></article>
+        <article class="vue"><h3>Vue</h3><dl><dt>Raw</dt><dd>53,297 B</dd><dt>gzip-9</dt><dd>20,796 B</dd><dt>Brotli-11</dt><dd>19,061 B</dd><dt>SHA-256</dt><dd><code>e524c8958b92aa7ef0aa5485214e47e176d1cd503e18d11aa0ea6ec35225a5a0</code></dd></dl><a class="button" href="./runtime-only.vue.min.js">Open minified JavaScript</a></article>
+      </div>
+    </section>
+    <section>
+      <h2>Runtime compiler client</h2>
+      <div class="pair">
+        <article class="vuelil"><h3>VueLil</h3><dl><dt>Raw</dt><dd>460,862 B</dd><dt>gzip-9</dt><dd>172,602 B</dd><dt>Brotli-11</dt><dd>145,822 B</dd><dt>SHA-256</dt><dd><code>25497a4aa7a63dc9c374dea27dc585bfb722e819a99978d237269bd97d072673</code></dd></dl><a class="button" href="./runtime-compiler.vuelil.min.js">Open minified JavaScript</a></article>
+        <article class="vue"><h3>Vue</h3><dl><dt>Raw</dt><dd>170,961 B</dd><dt>gzip-9</dt><dd>61,920 B</dd><dt>Brotli-11</dt><dd>55,606 B</dd><dt>SHA-256</dt><dd><code>5106a83c272f070bf18f0ffcf57510f212f8774357f43503a8a3c9ec9463d8a8</code></dd></dl><a class="button" href="./runtime-compiler.vue.min.js">Open minified JavaScript</a></article>
+      </div>
+    </section>
+    <section>
+      <h2>SSR application</h2>
+      <div class="pair">
+        <article class="vuelil"><h3>VueLil</h3><dl><dt>Raw</dt><dd>815,960 B</dd><dt>gzip-9</dt><dd>266,788 B</dd><dt>Brotli-11</dt><dd>220,757 B</dd><dt>SHA-256</dt><dd><code>af905aaa2931f77ffe9d992109c895f532d68748032e74072a022ed682835723</code></dd></dl><a class="button" href="./ssr.vuelil.min.js">Open minified JavaScript</a></article>
+        <article class="vue"><h3>Vue</h3><dl><dt>Raw</dt><dd>625,957 B</dd><dt>gzip-9</dt><dd>199,168 B</dd><dt>Brotli-11</dt><dd>167,894 B</dd><dt>SHA-256</dt><dd><code>5f8fd691661e0f6042d074e6864440e149db3bd4b6cfdd1984d102b57c7458a1</code></dd></dl><a class="button" href="./ssr.vue.min.js">Open minified JavaScript</a></article>
+      </div>
+    </section>
+    <section>
+      <h2>Production SFC client</h2>
+      <div class="pair">
+        <article class="vuelil"><h3>VueLil</h3><dl><dt>Raw</dt><dd>150,624 B</dd><dt>gzip-9</dt><dd>54,760 B</dd><dt>Brotli-11</dt><dd>45,116 B</dd><dt>SHA-256</dt><dd><code>0089a4e9869393debffd3bebc1cc651b41dab5f935010d5d628db152dec75eee</code></dd></dl><a class="button" href="./sfc.vuelil.min.js">Open minified JavaScript</a></article>
+        <article class="vue"><h3>Vue</h3><dl><dt>Raw</dt><dd>54,271 B</dd><dt>gzip-9</dt><dd>21,145 B</dd><dt>Brotli-11</dt><dd>19,358 B</dd><dt>SHA-256</dt><dd><code>b37ab680561d194f0e456fd97526f481fc0dcb031561be7a102060e2f346ee72</code></dd></dl><a class="button" href="./sfc.vue.min.js">Open minified JavaScript</a></article>
+      </div>
+    </section>
+  </main>
+  <footer><a href="../">Evidence overview</a> · <a href="../brotli-explained.html">Detailed size explanation</a> · <a href="https://github.com/yeargun/vuelil/blob/main/artifacts/project-size-report.json">Machine-readable size report</a></footer>
+</body>
+</html>
