@@ -1,0 +1,69 @@
+import { isOn } from "../shared/general";
+import { JSON, Object } from "../shared/makeMap";
+import { TestNodeTypes } from "./nodeOps";
+
+export string serialize(
+  JsValue node,
+  int indent = 0,
+  int depth = 0
+) {
+  if (JS.strictEqual(node["type"], TestNodeTypes["ELEMENT"])) {
+    return serializeElement(node, indent, depth);
+  }
+  return serializeText(node, indent, depth);
+}
+
+export string serializeInner(
+  JsValue node,
+  int indent = 0,
+  int depth = 0
+) {
+  string newLine = "";
+  if (indent != 0) newLine = "\n";
+  JsValue children = node["children"];
+  if (JS.number(children["length"]).toInt() == 0) return "";
+  JsValue serialized = JS.invoke(
+    children,
+    "map",
+    JS.method1((JsValue _self, JsValue child) =>
+      serialize(child, indent, depth + 1)
+    )
+  );
+  return newLine + JS.string(JS.invoke(serialized, "join", newLine)) + newLine;
+}
+
+string serializeElement(JsValue node, int indent, int depth) {
+  JsValue properties = JS.invoke(
+    JS.invoke(Object, "keys", node["props"]),
+    "map",
+    JS.method1((JsValue _self, JsValue keyValue) => {
+      string key = JS.string(keyValue);
+      JsValue value = node["props"][key];
+      if (isOn(key) || JS.isNullish(value)) return "";
+      if (JS.strictEqual(value, "")) return key;
+      return key + "=" + JS.string(JS.invoke(JSON, "stringify", value));
+    })
+  );
+  properties = JS.invoke(
+    properties,
+    "filter",
+    JS.method1((JsValue _self, JsValue value) => value.truthy())
+  );
+  string props = JS.string(JS.invoke(properties, "join", " "));
+  string padding = "";
+  if (indent != 0) padding = " ".repeat(indent).repeat(depth);
+  string openingProps = "";
+  if (props != "") openingProps = " " + props;
+  return padding + "<" + JS.string(node["tag"]) + openingProps + ">" +
+    serializeInner(node, indent, depth) +
+    padding + "</" + JS.string(node["tag"]) + ">";
+}
+
+string serializeText(JsValue node, int indent, int depth) {
+  string padding = "";
+  if (indent != 0) padding = " ".repeat(indent).repeat(depth);
+  if (JS.strictEqual(node["type"], TestNodeTypes["COMMENT"])) {
+    return padding + "<!--" + JS.string(node["text"]) + "-->";
+  }
+  return padding + JS.string(node["text"]);
+}

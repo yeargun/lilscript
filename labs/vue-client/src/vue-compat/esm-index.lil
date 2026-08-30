@@ -1,0 +1,521 @@
+import { default as Vue } from "./index";
+import extern {
+  BaseTransition as eiBaseTransition,
+  BaseTransitionPropsValidators as eiBaseTransitionPropsValidators,
+  Comment as eiComment,
+  DeprecationTypes as eiDeprecationTypes,
+  EffectScope as eiEffectScopeClass,
+  ErrorCodes as eiErrorCodes,
+  ErrorTypeStrings as eiErrorTypeStrings,
+  Fragment as eiFragment,
+  KeepAlive as eiKeepAlive,
+  ReactiveEffect as eiReactiveEffect,
+  Static as eiStatic,
+  Suspense as eiSuspense,
+  Teleport as eiTeleport,
+  Text as eiText,
+  TrackOpTypes as eiTrackOpTypes,
+  Transition as eiTransition,
+  TransitionGroup as eiTransitionGroup,
+  TriggerOpTypes as eiTriggerOpTypes,
+  VueElement as eiVueElement,
+  assertNumber as eiAssertNumber,
+  callWithAsyncErrorHandling as eiCallWithAsyncErrorHandling,
+  callWithErrorHandling as eiCallWithErrorHandling,
+  camelize as eiCamelize,
+  capitalize as eiCapitalize,
+  cloneVNode as eiCloneVNode,
+  compatUtils as eiCompatUtils,
+  computed as eiComputed,
+  createApp as eiCreateApp,
+  createBlock as eiCreateBlock,
+  createCommentVNode as eiCreateCommentVNode,
+  createElementBlock as eiCreateElementBlock,
+  createElementVNode as eiCreateElementVNode,
+  createHydrationRenderer as eiCreateHydrationRenderer,
+  createPropsRestProxy as eiCreatePropsRestProxy,
+  createRenderer as eiCreateRenderer,
+  createSSRApp as eiCreateSSRApp,
+  createSlots as eiCreateSlots,
+  createStaticVNode as eiCreateStaticVNode,
+  createTextVNode as eiCreateTextVNode,
+  createVNode as eiCreateVNode,
+  customRef as eiCustomRef,
+  defineAsyncComponent as eiDefineAsyncComponent,
+  defineComponent as eiDefineComponent,
+  defineCustomElement as eiDefineCustomElement,
+  defineEmits as eiDefineEmits,
+  defineExpose as eiDefineExpose,
+  defineModel as eiDefineModel,
+  defineOptions as eiDefineOptions,
+  defineProps as eiDefineProps,
+  defineSSRCustomElement as eiDefineSSRCustomElement,
+  defineSlots as eiDefineSlots,
+  devtools as eiDevtools,
+  effect as eiEffect,
+  effectScope as eiEffectScope,
+  getCurrentInstance as eiGetCurrentInstance,
+  getCurrentScope as eiGetCurrentScope,
+  getCurrentWatcher as eiGetCurrentWatcher,
+  getTransitionRawChildren as eiGetTransitionRawChildren,
+  guardReactiveProps as eiGuardReactiveProps,
+  h as eiH,
+  handleError as eiHandleError,
+  hasInjectionContext as eiHasInjectionContext,
+  hydrate as eiHydrate,
+  hydrateOnIdle as eiHydrateOnIdle,
+  hydrateOnInteraction as eiHydrateOnInteraction,
+  hydrateOnMediaQuery as eiHydrateOnMediaQuery,
+  hydrateOnVisible as eiHydrateOnVisible,
+  initCustomFormatter as eiInitCustomFormatter,
+  initDirectivesForSSR as eiInitDirectivesForSSR,
+  inject as eiInject,
+  isMemoSame as eiIsMemoSame,
+  isProxy as eiIsProxy,
+  isReactive as eiIsReactive,
+  isReadonly as eiIsReadonly,
+  isRef as eiIsRef,
+  isRuntimeOnly as eiIsRuntimeOnly,
+  isShallow as eiIsShallow,
+  isVNode as eiIsVNode,
+  markRaw as eiMarkRaw,
+  mergeDefaults as eiMergeDefaults,
+  mergeModels as eiMergeModels,
+  mergeProps as eiMergeProps,
+  nextTick as eiNextTick,
+  nodeOps as eiNodeOps,
+  normalizeClass as eiNormalizeClass,
+  normalizeProps as eiNormalizeProps,
+  normalizeStyle as eiNormalizeStyle,
+  onActivated as eiOnActivated,
+  onBeforeMount as eiOnBeforeMount,
+  onBeforeUnmount as eiOnBeforeUnmount,
+  onBeforeUpdate as eiOnBeforeUpdate,
+  onDeactivated as eiOnDeactivated,
+  onErrorCaptured as eiOnErrorCaptured,
+  onMounted as eiOnMounted,
+  onRenderTracked as eiOnRenderTracked,
+  onRenderTriggered as eiOnRenderTriggered,
+  onScopeDispose as eiOnScopeDispose,
+  onServerPrefetch as eiOnServerPrefetch,
+  onUnmounted as eiOnUnmounted,
+  onUpdated as eiOnUpdated,
+  onWatcherCleanup as eiOnWatcherCleanup,
+  openBlock as eiOpenBlock,
+  patchProp as eiPatchProp,
+  popScopeId as eiPopScopeId,
+  provide as eiProvide,
+  proxyRefs as eiProxyRefs,
+  pushScopeId as eiPushScopeId,
+  queuePostFlushCb as eiQueuePostFlushCb,
+  reactive as eiReactive,
+  readonly as eiReadonly,
+  ref as eiRef,
+  registerRuntimeCompiler as eiRegisterRuntimeCompiler,
+  render as eiRender,
+  renderList as eiRenderList,
+  renderSlot as eiRenderSlot,
+  resolveComponent as eiResolveComponent,
+  resolveDirective as eiResolveDirective,
+  resolveDynamicComponent as eiResolveDynamicComponent,
+  resolveFilter as eiResolveFilter,
+  resolveTransitionHooks as eiResolveTransitionHooks,
+  setBlockTracking as eiSetBlockTracking,
+  setDevtoolsHook as eiSetDevtoolsHook,
+  setTransitionHooks as eiSetTransitionHooks,
+  shallowReactive as eiShallowReactive,
+  shallowReadonly as eiShallowReadonly,
+  shallowRef as eiShallowRef,
+  ssrContextKey as eiSsrContextKey,
+  ssrUtils as eiSsrUtils,
+  stop as eiStop,
+  toDisplayString as eiToDisplayString,
+  toHandlerKey as eiToHandlerKey,
+  toHandlers as eiToHandlers,
+  toRaw as eiToRaw,
+  toRef as eiToRef,
+  toRefs as eiToRefs,
+  toValue as eiToValue,
+  transformVNodeArgs as eiTransformVNodeArgs,
+  triggerRef as eiTriggerRef,
+  unref as eiUnref,
+  useAttrs as eiUseAttrs,
+  useCssModule as eiUseCssModule,
+  useCssVars as eiUseCssVars,
+  useHost as eiUseHost,
+  useId as eiUseId,
+  useModel as eiUseModel,
+  useSSRContext as eiUseSSRContext,
+  useShadowRoot as eiUseShadowRoot,
+  useSlots as eiUseSlots,
+  useTemplateRef as eiUseTemplateRef,
+  useTransitionState as eiUseTransitionState,
+  vModelCheckbox as eiVModelCheckbox,
+  vModelDynamic as eiVModelDynamic,
+  vModelRadio as eiVModelRadio,
+  vModelSelect as eiVModelSelect,
+  vModelText as eiVModelText,
+  vShow as eiVShow,
+  version as eiVersion,
+  warn as eiWarn,
+  watch as eiWatch,
+  watchEffect as eiWatchEffect,
+  watchPostEffect as eiWatchPostEffect,
+  watchSyncEffect as eiWatchSyncEffect,
+  withAsyncContext as eiWithAsyncContext,
+  withCtx as eiWithCtx,
+  withDefaults as eiWithDefaults,
+  withDirectives as eiWithDirectives,
+  withKeys as eiWithKeys,
+  withMemo as eiWithMemo,
+  withModifiers as eiWithModifiers,
+  withScopeId as eiWithScopeId
+} from "../../packages/vuelil/runtime-dom.js";
+
+extern JsValue eiBaseTransition;
+extern JsValue eiBaseTransitionPropsValidators;
+extern JsValue eiComment;
+extern JsValue eiDeprecationTypes;
+extern JsValue eiEffectScopeClass;
+extern JsValue eiErrorCodes;
+extern JsValue eiErrorTypeStrings;
+extern JsValue eiFragment;
+extern JsValue eiKeepAlive;
+extern JsValue eiReactiveEffect;
+extern JsValue eiStatic;
+extern JsValue eiSuspense;
+extern JsValue eiTeleport;
+extern JsValue eiText;
+extern JsValue eiTrackOpTypes;
+extern JsValue eiTransition;
+extern JsValue eiTransitionGroup;
+extern JsValue eiTriggerOpTypes;
+extern JsValue eiVueElement;
+extern JsValue eiAssertNumber;
+extern JsValue eiCallWithAsyncErrorHandling;
+extern JsValue eiCallWithErrorHandling;
+extern JsValue eiCamelize;
+extern JsValue eiCapitalize;
+extern JsValue eiCloneVNode;
+extern JsValue eiCompatUtils;
+extern JsValue eiComputed;
+extern JsValue eiCreateApp;
+extern JsValue eiCreateBlock;
+extern JsValue eiCreateCommentVNode;
+extern JsValue eiCreateElementBlock;
+extern JsValue eiCreateElementVNode;
+extern JsValue eiCreateHydrationRenderer;
+extern JsValue eiCreatePropsRestProxy;
+extern JsValue eiCreateRenderer;
+extern JsValue eiCreateSSRApp;
+extern JsValue eiCreateSlots;
+extern JsValue eiCreateStaticVNode;
+extern JsValue eiCreateTextVNode;
+extern JsValue eiCreateVNode;
+extern JsValue eiCustomRef;
+extern JsValue eiDefineAsyncComponent;
+extern JsValue eiDefineComponent;
+extern JsValue eiDefineCustomElement;
+extern JsValue eiDefineEmits;
+extern JsValue eiDefineExpose;
+extern JsValue eiDefineModel;
+extern JsValue eiDefineOptions;
+extern JsValue eiDefineProps;
+extern JsValue eiDefineSSRCustomElement;
+extern JsValue eiDefineSlots;
+extern JsValue eiDevtools;
+extern JsValue eiEffect;
+extern JsValue eiEffectScope;
+extern JsValue eiGetCurrentInstance;
+extern JsValue eiGetCurrentScope;
+extern JsValue eiGetCurrentWatcher;
+extern JsValue eiGetTransitionRawChildren;
+extern JsValue eiGuardReactiveProps;
+extern JsValue eiH;
+extern JsValue eiHandleError;
+extern JsValue eiHasInjectionContext;
+extern JsValue eiHydrate;
+extern JsValue eiHydrateOnIdle;
+extern JsValue eiHydrateOnInteraction;
+extern JsValue eiHydrateOnMediaQuery;
+extern JsValue eiHydrateOnVisible;
+extern JsValue eiInitCustomFormatter;
+extern JsValue eiInitDirectivesForSSR;
+extern JsValue eiInject;
+extern JsValue eiIsMemoSame;
+extern JsValue eiIsProxy;
+extern JsValue eiIsReactive;
+extern JsValue eiIsReadonly;
+extern JsValue eiIsRef;
+extern JsValue eiIsRuntimeOnly;
+extern JsValue eiIsShallow;
+extern JsValue eiIsVNode;
+extern JsValue eiMarkRaw;
+extern JsValue eiMergeDefaults;
+extern JsValue eiMergeModels;
+extern JsValue eiMergeProps;
+extern JsValue eiNextTick;
+extern JsValue eiNodeOps;
+extern JsValue eiNormalizeClass;
+extern JsValue eiNormalizeProps;
+extern JsValue eiNormalizeStyle;
+extern JsValue eiOnActivated;
+extern JsValue eiOnBeforeMount;
+extern JsValue eiOnBeforeUnmount;
+extern JsValue eiOnBeforeUpdate;
+extern JsValue eiOnDeactivated;
+extern JsValue eiOnErrorCaptured;
+extern JsValue eiOnMounted;
+extern JsValue eiOnRenderTracked;
+extern JsValue eiOnRenderTriggered;
+extern JsValue eiOnScopeDispose;
+extern JsValue eiOnServerPrefetch;
+extern JsValue eiOnUnmounted;
+extern JsValue eiOnUpdated;
+extern JsValue eiOnWatcherCleanup;
+extern JsValue eiOpenBlock;
+extern JsValue eiPatchProp;
+extern JsValue eiPopScopeId;
+extern JsValue eiProvide;
+extern JsValue eiProxyRefs;
+extern JsValue eiPushScopeId;
+extern JsValue eiQueuePostFlushCb;
+extern JsValue eiReactive;
+extern JsValue eiReadonly;
+extern JsValue eiRef;
+extern JsValue eiRegisterRuntimeCompiler;
+extern JsValue eiRender;
+extern JsValue eiRenderList;
+extern JsValue eiRenderSlot;
+extern JsValue eiResolveComponent;
+extern JsValue eiResolveDirective;
+extern JsValue eiResolveDynamicComponent;
+extern JsValue eiResolveFilter;
+extern JsValue eiResolveTransitionHooks;
+extern JsValue eiSetBlockTracking;
+extern JsValue eiSetDevtoolsHook;
+extern JsValue eiSetTransitionHooks;
+extern JsValue eiShallowReactive;
+extern JsValue eiShallowReadonly;
+extern JsValue eiShallowRef;
+extern JsValue eiSsrContextKey;
+extern JsValue eiSsrUtils;
+extern JsValue eiStop;
+extern JsValue eiToDisplayString;
+extern JsValue eiToHandlerKey;
+extern JsValue eiToHandlers;
+extern JsValue eiToRaw;
+extern JsValue eiToRef;
+extern JsValue eiToRefs;
+extern JsValue eiToValue;
+extern JsValue eiTransformVNodeArgs;
+extern JsValue eiTriggerRef;
+extern JsValue eiUnref;
+extern JsValue eiUseAttrs;
+extern JsValue eiUseCssModule;
+extern JsValue eiUseCssVars;
+extern JsValue eiUseHost;
+extern JsValue eiUseId;
+extern JsValue eiUseModel;
+extern JsValue eiUseSSRContext;
+extern JsValue eiUseShadowRoot;
+extern JsValue eiUseSlots;
+extern JsValue eiUseTemplateRef;
+extern JsValue eiUseTransitionState;
+extern JsValue eiVModelCheckbox;
+extern JsValue eiVModelDynamic;
+extern JsValue eiVModelRadio;
+extern JsValue eiVModelSelect;
+extern JsValue eiVModelText;
+extern JsValue eiVShow;
+extern JsValue eiVersion;
+extern JsValue eiWarn;
+extern JsValue eiWatch;
+extern JsValue eiWatchEffect;
+extern JsValue eiWatchPostEffect;
+extern JsValue eiWatchSyncEffect;
+extern JsValue eiWithAsyncContext;
+extern JsValue eiWithCtx;
+extern JsValue eiWithDefaults;
+extern JsValue eiWithDirectives;
+extern JsValue eiWithKeys;
+extern JsValue eiWithMemo;
+extern JsValue eiWithModifiers;
+extern JsValue eiWithScopeId;
+
+JsValue configureCompat = Vue["configureCompat"];
+
+export {
+  Vue as default,
+  eiBaseTransition as BaseTransition,
+  eiBaseTransitionPropsValidators as BaseTransitionPropsValidators,
+  eiComment as Comment,
+  eiDeprecationTypes as DeprecationTypes,
+  eiEffectScopeClass as EffectScope,
+  eiErrorCodes as ErrorCodes,
+  eiErrorTypeStrings as ErrorTypeStrings,
+  eiFragment as Fragment,
+  eiKeepAlive as KeepAlive,
+  eiReactiveEffect as ReactiveEffect,
+  eiStatic as Static,
+  eiSuspense as Suspense,
+  eiTeleport as Teleport,
+  eiText as Text,
+  eiTrackOpTypes as TrackOpTypes,
+  eiTransition as Transition,
+  eiTransitionGroup as TransitionGroup,
+  eiTriggerOpTypes as TriggerOpTypes,
+  eiVueElement as VueElement,
+  eiAssertNumber as assertNumber,
+  eiCallWithAsyncErrorHandling as callWithAsyncErrorHandling,
+  eiCallWithErrorHandling as callWithErrorHandling,
+  eiCamelize as camelize,
+  eiCapitalize as capitalize,
+  eiCloneVNode as cloneVNode,
+  eiCompatUtils as compatUtils,
+  eiComputed as computed,
+  eiCreateApp as createApp,
+  eiCreateBlock as createBlock,
+  eiCreateCommentVNode as createCommentVNode,
+  eiCreateElementBlock as createElementBlock,
+  eiCreateElementVNode as createElementVNode,
+  eiCreateHydrationRenderer as createHydrationRenderer,
+  eiCreatePropsRestProxy as createPropsRestProxy,
+  eiCreateRenderer as createRenderer,
+  eiCreateSSRApp as createSSRApp,
+  eiCreateSlots as createSlots,
+  eiCreateStaticVNode as createStaticVNode,
+  eiCreateTextVNode as createTextVNode,
+  eiCreateVNode as createVNode,
+  eiCustomRef as customRef,
+  eiDefineAsyncComponent as defineAsyncComponent,
+  eiDefineComponent as defineComponent,
+  eiDefineCustomElement as defineCustomElement,
+  eiDefineEmits as defineEmits,
+  eiDefineExpose as defineExpose,
+  eiDefineModel as defineModel,
+  eiDefineOptions as defineOptions,
+  eiDefineProps as defineProps,
+  eiDefineSSRCustomElement as defineSSRCustomElement,
+  eiDefineSlots as defineSlots,
+  eiDevtools as devtools,
+  eiEffect as effect,
+  eiEffectScope as effectScope,
+  eiGetCurrentInstance as getCurrentInstance,
+  eiGetCurrentScope as getCurrentScope,
+  eiGetCurrentWatcher as getCurrentWatcher,
+  eiGetTransitionRawChildren as getTransitionRawChildren,
+  eiGuardReactiveProps as guardReactiveProps,
+  eiH as h,
+  eiHandleError as handleError,
+  eiHasInjectionContext as hasInjectionContext,
+  eiHydrate as hydrate,
+  eiHydrateOnIdle as hydrateOnIdle,
+  eiHydrateOnInteraction as hydrateOnInteraction,
+  eiHydrateOnMediaQuery as hydrateOnMediaQuery,
+  eiHydrateOnVisible as hydrateOnVisible,
+  eiInitCustomFormatter as initCustomFormatter,
+  eiInitDirectivesForSSR as initDirectivesForSSR,
+  eiInject as inject,
+  eiIsMemoSame as isMemoSame,
+  eiIsProxy as isProxy,
+  eiIsReactive as isReactive,
+  eiIsReadonly as isReadonly,
+  eiIsRef as isRef,
+  eiIsRuntimeOnly as isRuntimeOnly,
+  eiIsShallow as isShallow,
+  eiIsVNode as isVNode,
+  eiMarkRaw as markRaw,
+  eiMergeDefaults as mergeDefaults,
+  eiMergeModels as mergeModels,
+  eiMergeProps as mergeProps,
+  eiNextTick as nextTick,
+  eiNodeOps as nodeOps,
+  eiNormalizeClass as normalizeClass,
+  eiNormalizeProps as normalizeProps,
+  eiNormalizeStyle as normalizeStyle,
+  eiOnActivated as onActivated,
+  eiOnBeforeMount as onBeforeMount,
+  eiOnBeforeUnmount as onBeforeUnmount,
+  eiOnBeforeUpdate as onBeforeUpdate,
+  eiOnDeactivated as onDeactivated,
+  eiOnErrorCaptured as onErrorCaptured,
+  eiOnMounted as onMounted,
+  eiOnRenderTracked as onRenderTracked,
+  eiOnRenderTriggered as onRenderTriggered,
+  eiOnScopeDispose as onScopeDispose,
+  eiOnServerPrefetch as onServerPrefetch,
+  eiOnUnmounted as onUnmounted,
+  eiOnUpdated as onUpdated,
+  eiOnWatcherCleanup as onWatcherCleanup,
+  eiOpenBlock as openBlock,
+  eiPatchProp as patchProp,
+  eiPopScopeId as popScopeId,
+  eiProvide as provide,
+  eiProxyRefs as proxyRefs,
+  eiPushScopeId as pushScopeId,
+  eiQueuePostFlushCb as queuePostFlushCb,
+  eiReactive as reactive,
+  eiReadonly as readonly,
+  eiRef as ref,
+  eiRegisterRuntimeCompiler as registerRuntimeCompiler,
+  eiRender as render,
+  eiRenderList as renderList,
+  eiRenderSlot as renderSlot,
+  eiResolveComponent as resolveComponent,
+  eiResolveDirective as resolveDirective,
+  eiResolveDynamicComponent as resolveDynamicComponent,
+  eiResolveFilter as resolveFilter,
+  eiResolveTransitionHooks as resolveTransitionHooks,
+  eiSetBlockTracking as setBlockTracking,
+  eiSetDevtoolsHook as setDevtoolsHook,
+  eiSetTransitionHooks as setTransitionHooks,
+  eiShallowReactive as shallowReactive,
+  eiShallowReadonly as shallowReadonly,
+  eiShallowRef as shallowRef,
+  eiSsrContextKey as ssrContextKey,
+  eiSsrUtils as ssrUtils,
+  eiStop as stop,
+  eiToDisplayString as toDisplayString,
+  eiToHandlerKey as toHandlerKey,
+  eiToHandlers as toHandlers,
+  eiToRaw as toRaw,
+  eiToRef as toRef,
+  eiToRefs as toRefs,
+  eiToValue as toValue,
+  eiTransformVNodeArgs as transformVNodeArgs,
+  eiTriggerRef as triggerRef,
+  eiUnref as unref,
+  eiUseAttrs as useAttrs,
+  eiUseCssModule as useCssModule,
+  eiUseCssVars as useCssVars,
+  eiUseHost as useHost,
+  eiUseId as useId,
+  eiUseModel as useModel,
+  eiUseSSRContext as useSSRContext,
+  eiUseShadowRoot as useShadowRoot,
+  eiUseSlots as useSlots,
+  eiUseTemplateRef as useTemplateRef,
+  eiUseTransitionState as useTransitionState,
+  eiVModelCheckbox as vModelCheckbox,
+  eiVModelDynamic as vModelDynamic,
+  eiVModelRadio as vModelRadio,
+  eiVModelSelect as vModelSelect,
+  eiVModelText as vModelText,
+  eiVShow as vShow,
+  eiVersion as version,
+  eiWarn as warn,
+  eiWatch as watch,
+  eiWatchEffect as watchEffect,
+  eiWatchPostEffect as watchPostEffect,
+  eiWatchSyncEffect as watchSyncEffect,
+  eiWithAsyncContext as withAsyncContext,
+  eiWithCtx as withCtx,
+  eiWithDefaults as withDefaults,
+  eiWithDirectives as withDirectives,
+  eiWithKeys as withKeys,
+  eiWithMemo as withMemo,
+  eiWithModifiers as withModifiers,
+  eiWithScopeId as withScopeId,
+  configureCompat
+};

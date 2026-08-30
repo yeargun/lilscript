@@ -1,0 +1,173 @@
+import extern {
+  Fragment as cssVarsFragment,
+  Static as cssVarsStatic,
+  getCurrentInstance as cssVarsGetCurrentInstance,
+  onBeforeUpdate as cssVarsOnBeforeUpdate,
+  onMounted as cssVarsOnMounted,
+  onUnmounted as cssVarsOnUnmounted,
+  queuePostFlushCb as cssVarsQueuePostFlushCb,
+  warn as cssVarsWarn,
+  watch as cssVarsWatch
+} from "../../../packages/vuelil/runtime-core.js";
+import extern {
+  NOOP as cssVarsNoop,
+  ShapeFlags as cssVarsShapeFlags,
+  normalizeCssVarValue as cssVarsNormalizeCssVarValue
+} from "../../../packages/vuelil/shared.js";
+import extern {
+  hostArrayFrom,
+  hostCall0,
+  hostCall1,
+  hostCreateMutationObserver,
+  hostCreateSymbol,
+  hostNextSibling,
+  hostQuerySelectorAll,
+  hostRead,
+  hostString,
+  hostWrite
+} from "../host.js";
+
+extern JsValue cssVarsFragment;
+extern JsValue cssVarsStatic;
+extern JsValue cssVarsGetCurrentInstance;
+extern JsValue cssVarsOnBeforeUpdate;
+extern JsValue cssVarsOnMounted;
+extern JsValue cssVarsOnUnmounted;
+extern JsValue cssVarsQueuePostFlushCb;
+extern JsValue cssVarsWarn;
+extern JsValue cssVarsWatch;
+extern JsValue cssVarsNoop;
+extern JsValue cssVarsShapeFlags;
+extern string cssVarsNormalizeCssVarValue(JsValue value);
+extern JsValue hostArrayFrom(JsValue value);
+extern JsValue hostCall0(JsValue fn);
+extern JsValue hostCall1(JsValue fn, JsValue first);
+extern JsValue hostCreateMutationObserver(JsValue callback);
+extern JsValue hostCreateSymbol(string description);
+extern JsValue hostNextSibling(JsValue node);
+extern JsValue hostQuerySelectorAll(string selector);
+extern JsValue hostRead(JsValue value, JsValue key);
+extern string hostString(JsValue value);
+extern void hostWrite(JsValue value, JsValue key, JsValue next);
+
+bool CSS_VARS_BROWSER = false;
+bool CSS_VARS_TEST = true;
+bool CSS_VARS_DEV = true;
+bool CSS_VARS_FEATURE_SUSPENSE = true;
+
+export JsValue CSS_VAR_TEXT = hostCreateSymbol("CSS_VAR_TEXT");
+
+int valueLength(JsValue value) {
+  return JS.number(hostRead(value, "length")).toInt();
+}
+
+int shapeFlag(string name) {
+  return JS.number(hostRead(cssVarsShapeFlags, name)).toInt();
+}
+
+void setVarsOnNode(JsValue element, JsValue vars) {
+  if (JS.number(hostRead(element, "nodeType")).toInt() != 1) return;
+  JsValue style = hostRead(element, "style");
+  string cssText = "";
+  for (string key in vars) {
+    string value = cssVarsNormalizeCssVarValue(hostRead(vars, key));
+    JS.invoke(style, "setProperty", "--" + key, value);
+    cssText += "--" + key + ": " + value + ";";
+  }
+  hostWrite(style, CSS_VAR_TEXT, cssText);
+}
+
+void setVarsOnVNode(JsValue vnode, JsValue vars) {
+  int flags = JS.number(hostRead(vnode, "shapeFlag")).toInt();
+  if (CSS_VARS_FEATURE_SUSPENSE && (flags & shapeFlag("SUSPENSE")) != 0) {
+    JsValue suspense = hostRead(vnode, "suspense");
+    vnode = hostRead(suspense, "activeBranch");
+    JsValue pending = hostRead(suspense, "pendingBranch");
+    if (!JS.isNullish(pending) && pending.truthy() && !hostRead(suspense, "isHydrating").truthy()) {
+      JS.invoke(hostRead(suspense, "effects"), "push", JS.method0((JsValue _self) => {
+        setVarsOnVNode(hostRead(suspense, "activeBranch"), vars);
+        return JS.undefined();
+      }));
+    }
+  }
+  while (!JS.isNullish(hostRead(vnode, "component")) && hostRead(vnode, "component").truthy()) {
+    vnode = hostRead(hostRead(vnode, "component"), "subTree");
+  }
+  flags = JS.number(hostRead(vnode, "shapeFlag")).toInt();
+  JsValue element = hostRead(vnode, "el");
+  if ((flags & shapeFlag("ELEMENT")) != 0 && !JS.isNullish(element) && element.truthy()) {
+    setVarsOnNode(element, vars);
+  } else if (JS.strictEqual(hostRead(vnode, "type"), cssVarsFragment)) {
+    JsValue children = hostRead(vnode, "children");
+    int count = valueLength(children);
+    for (int index = 0; index < count; index++) setVarsOnVNode(hostRead(children, index), vars);
+  } else if (JS.strictEqual(hostRead(vnode, "type"), cssVarsStatic)) {
+    JsValue current = element;
+    JsValue anchor = hostRead(vnode, "anchor");
+    while (!JS.isNullish(current) && current.truthy()) {
+      setVarsOnNode(current, vars);
+      if (JS.strictEqual(current, anchor)) break;
+      current = hostNextSibling(current);
+    }
+  }
+}
+
+export void useCssVars(JsValue getter) {
+  if (!CSS_VARS_BROWSER && !CSS_VARS_TEST) return;
+  JsValue instance = JS.call(cssVarsGetCurrentInstance, JS.undefined());
+  if (JS.isNullish(instance) || !instance.truthy()) {
+    if (CSS_VARS_DEV) {
+      JS.call(cssVarsWarn, JS.undefined(), "useCssVars is called without current active component instance.");
+    }
+    return;
+  }
+
+  JsValue updateTeleports = JS.undefined();
+  updateTeleports = JS.method1((JsValue _self, JsValue vars) => {
+    if (JS.isUndefined(vars)) vars = hostCall1(getter, hostRead(instance, "proxy"));
+    string selector = "[data-v-owner=\"" + hostString(hostRead(instance, "uid")) + "\"]";
+    JsValue nodes = hostArrayFrom(hostQuerySelectorAll(selector));
+    int count = valueLength(nodes);
+    for (int index = 0; index < count; index++) setVarsOnNode(hostRead(nodes, index), vars);
+    return JS.undefined();
+  });
+  hostWrite(instance, "ut", updateTeleports);
+
+  if (CSS_VARS_DEV) {
+    hostWrite(instance, "getCssVars", JS.method0((JsValue _self) =>
+      hostCall1(getter, hostRead(instance, "proxy"))
+    ));
+  }
+
+  JsValue setVars = JS.method0((JsValue _self) => {
+    JsValue vars = hostCall1(getter, hostRead(instance, "proxy"));
+    JsValue customElement = hostRead(instance, "ce");
+    if (!JS.isNullish(customElement) && customElement.truthy()) setVarsOnNode(customElement, vars);
+    else setVarsOnVNode(hostRead(instance, "subTree"), vars);
+    hostCall1(updateTeleports, vars);
+    return JS.undefined();
+  });
+
+  JS.call(cssVarsOnBeforeUpdate, JS.undefined(), JS.method0((JsValue _self) => {
+    JS.call(cssVarsQueuePostFlushCb, JS.undefined(), setVars);
+    return JS.undefined();
+  }));
+
+  JS.call(cssVarsOnMounted, JS.undefined(), JS.method0((JsValue _self) => {
+    JS.call(
+      cssVarsWatch,
+      JS.undefined(),
+      setVars,
+      cssVarsNoop,
+      JS.object("flush", "post")
+    );
+    JsValue observer = hostCreateMutationObserver(setVars);
+    JsValue parent = hostRead(hostRead(hostRead(instance, "subTree"), "el"), "parentNode");
+    JS.invoke(observer, "observe", parent, JS.object("childList", true));
+    JS.call(cssVarsOnUnmounted, JS.undefined(), JS.method0((JsValue _innerSelf) => {
+      JS.invoke(observer, "disconnect");
+      return JS.undefined();
+    }));
+    return JS.undefined();
+  }));
+}

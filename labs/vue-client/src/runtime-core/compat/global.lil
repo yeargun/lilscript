@@ -151,7 +151,10 @@ void applySingletonAppMutations(JsValue app) {
 
   isCopyingConfig = true;
   JsValue config = singletonApp["config"];
-  for (string key in config) {
+  JsValue configKeys = JS.invoke(globalObject, "keys", config);
+  int configLength = JS.number(configKeys["length"]).toInt();
+  for (int configIndex = 0; configIndex < configLength; configIndex++) {
+    string key = JS.string(configKeys[configIndex]);
     if (key == "isNativeTag") continue;
     if (
       coreIsRuntimeOnly() && (key == "isCustomElement" || key == "compilerOptions")

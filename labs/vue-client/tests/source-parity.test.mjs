@@ -30,20 +30,20 @@ test("source-parity evidence exactly matches the pinned Git tree and candidate t
     upstreamFiles: 234,
     algorithmFiles: 231,
     typeOnlyFiles: 3,
-    satisfiedFiles: 123,
-    mappedFiles: 121,
+    satisfiedFiles: 234,
+    mappedFiles: 232,
     declarationOnlyFiles: 2,
-    missingFiles: 109,
+    missingFiles: 0,
     unverifiedFiles: 0,
     invalidFiles: 0,
-    legacyMappedFiles: 2,
-    legacyNonconformingFiles: 2,
-    hostAdapters: 6,
+    legacyMappedFiles: 0,
+    legacyNonconformingFiles: 0,
+    hostAdapters: 7,
     mappingConflicts: 0,
     physicalManyToOneMappings: 0,
     unmappedCandidateFiles: 0,
   });
-  assert.equal(live.complete, false);
+  assert.equal(live.complete, true);
   assert.deepEqual(
     {
       sourceParityRequired: scope.gates.sourceParityRequired,
@@ -61,7 +61,7 @@ test("source-parity evidence exactly matches the pinned Git tree and candidate t
       sourceParityLegacyMapped: live.totals.legacyMappedFiles,
       sourceParityLegacyNonconforming:
         live.totals.legacyNonconformingFiles,
-      sourceParity: "failed",
+      sourceParity: "passed",
     },
   );
   assert.equal(live.files.length, 234);
@@ -75,7 +75,7 @@ test("source-parity evidence exactly matches the pinned Git tree and candidate t
     ),
   );
   const existingDeterministicCandidates = live.files.filter((entry) => entry.candidate);
-  assert.equal(existingDeterministicCandidates.length, 123);
+  assert.equal(existingDeterministicCandidates.length, 232);
   assert.ok(
     existingDeterministicCandidates.every((entry) =>
       /^[a-f0-9]{64}$/u.test(entry.candidate.sha256),
@@ -100,7 +100,7 @@ test("type-only files require explicit strict handling", () => {
     ),
     {
       "packages/compiler-sfc/src/shims.d.ts": "declaration-only",
-      "packages/runtime-dom/src/jsx.ts": "missing",
+      "packages/runtime-dom/src/jsx.ts": "mapped",
       "packages/shared/src/typeUtils.ts": "declaration-only",
     },
   );
@@ -189,6 +189,11 @@ test("placeholder and upstream JavaScript delegation checks fail closed", () => 
     "candidate is empty or comment-only",
   ]);
   assert.ok(inspectCandidateSource("// TODO: port this\nexport void run() {}\n").length >= 1);
+  assert.ok(
+    inspectCandidateSource("/* stub until ported */\nexport bool ready = true;\n").includes(
+      "candidate contains a placeholder marker",
+    ),
+  );
   assert.ok(inspectCandidateSource("export void run() {}\n").includes(
     "candidate contains only empty function stubs",
   ));
@@ -203,6 +208,10 @@ test("placeholder and upstream JavaScript delegation checks fail closed", () => 
     ),
     [],
   );
+  assert.deepEqual(
+    inspectCandidateSource('export JsValue labels = { "placeholder": true };\n'),
+    [],
+  );
   assert.ok(
     inspectCandidateSource(
       'import extern { ref } from "vue";\nexport JsValue value = ref;\n',
@@ -210,15 +219,8 @@ test("placeholder and upstream JavaScript delegation checks fail closed", () => 
   );
 });
 
-test("legacy monoliths and primitive adapters are separate and never count", () => {
-  const legacy = new Map(
-    evidence.legacyNonconforming.map((entry) => [entry.path, entry]),
-  );
-  for (const path of ["src/runtime-core/index.lil", "src/runtime-dom/index.lil"]) {
-    assert.equal(legacy.get(path)?.classification, "legacy-nonconforming");
-    assert.equal(legacy.get(path)?.counted, false);
-    assert.match(legacy.get(path)?.sha256 ?? "", /^[a-f0-9]{64}$/u);
-  }
+test("primitive adapters are separate and never satisfy source mappings", () => {
+  assert.deepEqual(evidence.legacyNonconforming, []);
   assert.ok(
     evidence.hostAdapters.every(
       (entry) =>
@@ -227,9 +229,61 @@ test("legacy monoliths and primitive adapters are separate and never count", () 
         /^[a-f0-9]{64}$/u.test(entry.sha256),
     ),
   );
-  assert.equal(legacy.has("src/compiler-core/index.lil"), false);
-  assert.equal(evidence.verifiedMappings.length, 121);
+  assert.equal(evidence.verifiedMappings.length, 232);
   assert.equal(evidence.declarationOnlyHandling.length, 2);
+});
+
+test("runtime-core has all sixty-five source files verified", () => {
+  const files = evidence.files.filter(entry =>
+    entry.upstreamPath.startsWith("packages/runtime-core/src/")
+  );
+  const mappings = evidence.verifiedMappings.filter(entry =>
+    entry.upstreamPath.startsWith("packages/runtime-core/src/")
+  );
+  assert.equal(files.length, 65);
+  assert.equal(mappings.length, 65);
+  assert.ok(files.every(entry => entry.handling === "mapped"));
+  assert.deepEqual(
+    mappings.map(entry => entry.upstreamPath),
+    files.map(entry => entry.upstreamPath),
+  );
+});
+
+test("runtime-dom has all seventeen deterministic source files verified", () => {
+  const files = evidence.files.filter(entry =>
+    entry.upstreamPath.startsWith("packages/runtime-dom/src/"),
+  );
+  const mappings = evidence.verifiedMappings.filter(entry =>
+    entry.upstreamPath.startsWith("packages/runtime-dom/src/"),
+  );
+  assert.equal(files.length, 17);
+  assert.equal(mappings.length, 17);
+  assert.ok(files.every(entry => entry.handling === "mapped"));
+  assert.deepEqual(
+    mappings.map(entry => entry.upstreamPath),
+    files.map(entry => entry.upstreamPath),
+  );
+  assert.equal(
+    mappings.find(entry => entry.upstreamPath === "packages/runtime-dom/src/jsx.ts")
+      ?.algorithmParity,
+    "not-applicable-type-only",
+  );
+});
+
+test("runtime-test has all five owner modules verified", () => {
+  const files = evidence.files.filter(entry =>
+    entry.upstreamPath.startsWith("packages/runtime-test/src/"),
+  );
+  const mappings = evidence.verifiedMappings.filter(entry =>
+    entry.upstreamPath.startsWith("packages/runtime-test/src/"),
+  );
+  assert.equal(files.length, 5);
+  assert.equal(mappings.length, 5);
+  assert.ok(files.every(entry => entry.handling === "mapped"));
+  assert.deepEqual(
+    mappings.map(entry => entry.upstreamPath),
+    files.map(entry => entry.upstreamPath),
+  );
 });
 
 test("compiler-core index is a verified declaration-free barrel", () => {
@@ -332,5 +386,37 @@ test("compiler-ssr has all seventeen owner modules verified", () => {
         entry.handling !== "mapped",
     ).length,
     0,
+  );
+});
+
+test("server-renderer has all fifteen owner modules verified", () => {
+  const files = evidence.files.filter(entry =>
+    entry.upstreamPath.startsWith("packages/server-renderer/src/"),
+  );
+  const mappings = evidence.verifiedMappings.filter(entry =>
+    entry.upstreamPath.startsWith("packages/server-renderer/src/"),
+  );
+  assert.equal(files.length, 15);
+  assert.equal(mappings.length, 15);
+  assert.ok(files.every(entry => entry.handling === "mapped"));
+  assert.deepEqual(
+    mappings.map(entry => entry.upstreamPath),
+    files.map(entry => entry.upstreamPath),
+  );
+});
+
+test("vue-compat has all six owner modules verified", () => {
+  const files = evidence.files.filter(entry =>
+    entry.upstreamPath.startsWith("packages/vue-compat/src/"),
+  );
+  const mappings = evidence.verifiedMappings.filter(entry =>
+    entry.upstreamPath.startsWith("packages/vue-compat/src/"),
+  );
+  assert.equal(files.length, 6);
+  assert.equal(mappings.length, 6);
+  assert.ok(files.every(entry => entry.handling === "mapped"));
+  assert.deepEqual(
+    mappings.map(entry => entry.upstreamPath),
+    files.map(entry => entry.upstreamPath),
   );
 });

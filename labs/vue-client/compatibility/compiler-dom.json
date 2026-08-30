@@ -67,7 +67,7 @@
     ]
   },
   "limitations": [
-    "Package formats and declaration parity remain incomplete."
+    "Repository-wide project-size, performance, and Pages gates remain pending."
   ],
   "sourceParity": {
     "requiredFiles": 16,

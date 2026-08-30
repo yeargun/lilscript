@@ -7,6 +7,7 @@ const labRoot = resolve(import.meta.dirname, "..");
 const upstreamRoot = resolve(labRoot, "upstream/vue");
 const runtimeDomRoot = resolve(upstreamRoot, "packages/runtime-dom/src");
 const candidate = resolve(labRoot, "tests/runtime-dom-upstream.candidate.mjs");
+const runtimeCoreCandidate = resolve(labRoot, "tests/runtime-core-upstream.candidate.mjs");
 const auditPath = process.env.VUELIL_RUNTIME_DOM_AUDIT;
 const redirects = new Set();
 const blocked = new Set();
@@ -41,8 +42,11 @@ function writeAudit() {
 }
 
 const aliases = Object.fromEntries(
-  Object.entries(vueSourceEntries).filter(([name]) => name !== "@vue/runtime-dom"),
+  Object.entries(vueSourceEntries).filter(
+    ([name]) => name !== "@vue/runtime-core" && name !== "@vue/runtime-dom",
+  ),
 );
+aliases["@vue/runtime-core"] = runtimeCoreCandidate;
 
 export default defineConfig({
   root: upstreamRoot,

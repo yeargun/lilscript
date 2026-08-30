@@ -1,5 +1,5 @@
 import { isReactive } from "../reactivity/reactive";
-import { DEV, TEST } from "../reactivity/constants";
+import { TEST } from "../reactivity/constants";
 import { isKnownHtmlAttr, isKnownSvgAttr, includeBooleanAttr, isBooleanAttr, isRenderableAttrValue } from "../shared/domAttrConfig";
 import { getEscapedCssVarName } from "../shared/escapeHtml";
 import { def, isOn, isReservedProp, isString } from "../shared/general";
@@ -35,10 +35,15 @@ extern JsValue String;
 extern JsValue SVGElement;
 extern JsValue Symbol;
 extern JsValue console;
+extern JsValue __DEV__;
 
 bool PROD_DEVTOOLS = false;
 bool PROD_HYDRATION_MISMATCH_DETAILS = false;
 bool HYDRATION_FEATURE_SUSPENSE = true;
+
+bool hydrationDev() {
+  return __DEV__.truthy();
+}
 
 export JsValue DOMNodeTypes = JS.object(
   "ELEMENT", 1,
@@ -386,7 +391,7 @@ class HydrationKernel {
 
   void hydrateRoot(JsValue vnode, JsValue container) {
     if (!JS.invoke(container, "hasChildNodes").truthy()) {
-      if (DEV || PROD_HYDRATION_MISMATCH_DETAILS) {
+      if (hydrationDev() || PROD_HYDRATION_MISMATCH_DETAILS) {
         JS.call(
           warn,
           JS.undefined(),
@@ -421,7 +426,7 @@ class HydrationKernel {
     int domType = hydrationNumber(node["nodeType"]);
     vnode["el"] = node;
 
-    if (DEV || PROD_DEVTOOLS) {
+    if (hydrationDev() || PROD_DEVTOOLS) {
       def(node, "__vnode", vnode, true);
       def(node, "__vueParentComponent", parentComponent, true);
     }
@@ -445,7 +450,7 @@ class HydrationKernel {
         }
       } else {
         if (!JS.strictEqual(node["data"], vnode["children"])) {
-          if (DEV || PROD_HYDRATION_MISMATCH_DETAILS) {
+          if (hydrationDev() || PROD_HYDRATION_MISMATCH_DETAILS) {
             JS.call(
               warn,
               JS.undefined(),
@@ -597,7 +602,7 @@ class HydrationKernel {
         this.internals,
         this.hydrateNodeFn
       );
-    } else if (DEV || PROD_HYDRATION_MISMATCH_DETAILS) {
+    } else if (hydrationDev() || PROD_HYDRATION_MISMATCH_DETAILS) {
       JS.call(warn, JS.undefined(), "Invalid HostVNode type:", type, "(" + JS.typeOf(type) + ")");
     }
 
@@ -625,7 +630,7 @@ class HydrationKernel {
     bool hasDynamicProps = dynamicProps.truthy();
 
     if (
-      DEV || forcePatch || hasDynamicProps ||
+      hydrationDev() || forcePatch || hasDynamicProps ||
       patchFlag != hydrationNumber(PatchFlags["CACHED"])
     ) {
       if (dirs.truthy()) invokeDirectiveHook(vnode, null, parentComponent, "created");
@@ -660,7 +665,7 @@ class HydrationKernel {
           optimized
         );
         if (next.truthy() && !isMismatchAllowed(element, hydrationNumber(MismatchTypes["CHILDREN"]))) {
-          if (DEV || PROD_HYDRATION_MISMATCH_DETAILS) {
+          if (hydrationDev() || PROD_HYDRATION_MISMATCH_DETAILS) {
             JS.call(
               warn,
               JS.undefined(),
@@ -692,7 +697,7 @@ class HydrationKernel {
         ));
         if (textContent != clientText && textContent != normalizedClientText) {
           if (!isMismatchAllowed(element, hydrationNumber(MismatchTypes["TEXT"]))) {
-            if (DEV || PROD_HYDRATION_MISMATCH_DETAILS) {
+            if (hydrationDev() || PROD_HYDRATION_MISMATCH_DETAILS) {
               JS.call(
                 warn,
                 JS.undefined(),
@@ -710,7 +715,7 @@ class HydrationKernel {
 
       if (props.truthy()) {
         if (
-          DEV || PROD_HYDRATION_MISMATCH_DETAILS || forcePatch || hasDynamicProps ||
+          hydrationDev() || PROD_HYDRATION_MISMATCH_DETAILS || forcePatch || hasDynamicProps ||
           !optimized ||
           (patchFlag & (
             hydrationNumber(PatchFlags["FULL_PROPS"]) |
@@ -732,7 +737,7 @@ class HydrationKernel {
               }
             }
             if (
-              (DEV || PROD_HYDRATION_MISMATCH_DETAILS) &&
+              (hydrationDev() || PROD_HYDRATION_MISMATCH_DETAILS) &&
               !createdDirective &&
               propHasMismatch(element, key, props[key], vnode, parentComponent)
             ) logMismatchError();
@@ -846,7 +851,7 @@ class HydrationKernel {
         if (!hasCheckedMismatch) {
           hasCheckedMismatch = true;
           if (!isMismatchAllowed(container, hydrationNumber(MismatchTypes["CHILDREN"]))) {
-            if (DEV || PROD_HYDRATION_MISMATCH_DETAILS) {
+            if (hydrationDev() || PROD_HYDRATION_MISMATCH_DETAILS) {
               JS.call(
                 warn,
                 JS.undefined(),
@@ -918,7 +923,7 @@ class HydrationKernel {
     bool isFragment
   ) {
     if (!isNodeMismatchAllowed(node, vnode)) {
-      if (DEV || PROD_HYDRATION_MISMATCH_DETAILS) {
+      if (hydrationDev() || PROD_HYDRATION_MISMATCH_DETAILS) {
         string description = "";
         if (hydrationNumber(node["nodeType"]) == hydrationNumber(DOMNodeTypes["TEXT"])) {
           description = "(text)";

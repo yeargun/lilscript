@@ -1,0 +1,21 @@
+import extern { createVNode as componentCreateVNode } from "../../../packages/vuelil/runtime-dom.js";
+import { renderComponentVNode } from "../render";
+
+extern JsValue componentCreateVNode;
+
+export JsValue ssrRenderComponent(
+  JsValue component,
+  JsValue props = JS.undefined(),
+  JsValue children = JS.undefined(),
+  JsValue parentComponent = JS.undefined(),
+  JsValue slotScopeId = JS.undefined()
+) {
+  if (JS.isUndefined(props)) props = null;
+  if (JS.isUndefined(children)) children = null;
+  if (JS.isUndefined(parentComponent)) parentComponent = null;
+  return renderComponentVNode(
+    JS.call(componentCreateVNode, JS.undefined(), component, props, children),
+    parentComponent,
+    slotScopeId
+  );
+}

@@ -1,0 +1,112 @@
+import extern { DeprecationTypes as propDeprecationTypes, compatUtils as propCompatUtils, warn as propWarn } from "../../../packages/vuelil/runtime-core.js";
+import extern { includeBooleanAttr as propIncludeBooleanAttr } from "../../../packages/vuelil/shared.js";
+import { unsafeToTrustedHTML } from "../nodeOps";
+import extern { hostGetAttribute, hostHasProperty, hostRemoveAttribute, hostString, hostWrite } from "../host.js";
+
+extern JsValue propDeprecationTypes;
+extern JsValue propCompatUtils;
+extern JsValue propWarn;
+extern bool propIncludeBooleanAttr(JsValue value);
+extern JsValue hostGetAttribute(JsValue element, string name);
+extern bool hostHasProperty(JsValue value, JsValue key);
+extern void hostRemoveAttribute(JsValue element, string name);
+extern string hostString(JsValue value);
+extern void hostWrite(JsValue value, JsValue key, JsValue next);
+
+bool PROP_COMPAT = false;
+bool PROP_DEV = true;
+
+export void patchDOMProp(
+  JsValue element,
+  string key,
+  JsValue value,
+  JsValue parentComponent,
+  JsValue attrName = JS.undefined()
+) {
+  if (key == "innerHTML" || key == "textContent") {
+    if (!JS.isNullish(value)) {
+      JsValue content = value;
+      if (key == "innerHTML") content = unsafeToTrustedHTML(value);
+      hostWrite(element, key, content);
+    }
+    return;
+  }
+
+  string tag = hostString(element["tagName"]);
+  if (key == "value" && tag != "PROGRESS" && !tag.includes("-")) {
+    JsValue oldValue = element["value"];
+    if (tag == "OPTION") {
+      oldValue = hostGetAttribute(element, "value");
+      if (JS.isNullish(oldValue) || !oldValue.truthy()) oldValue = "";
+    }
+    JsValue newValue = "";
+    if (JS.isNullish(value)) {
+      if (JS.strictEqual(element["type"], "checkbox")) newValue = "on";
+    } else {
+      newValue = hostString(value);
+    }
+    if (!JS.strictEqual(oldValue, newValue) || !hostHasProperty(element, "_value")) {
+      hostWrite(element, "value", newValue);
+    }
+    if (JS.isNullish(value)) hostRemoveAttribute(element, key);
+    hostWrite(element, "_value", value);
+    return;
+  }
+
+  bool needRemove = false;
+  if (JS.strictEqual(value, "") || JS.isNullish(value)) {
+    string kind = JS.typeOf(element[key]);
+    if (kind == "boolean") {
+      value = propIncludeBooleanAttr(value);
+    } else if (JS.isNullish(value) && kind == "string") {
+      value = "";
+      needRemove = true;
+    } else if (kind == "number") {
+      value = 0;
+      needRemove = true;
+    }
+  } else if (
+    PROP_COMPAT && JS.strictEqual(value, false) &&
+    JS.call(
+      propCompatUtils["isCompatEnabled"],
+      propCompatUtils,
+      propDeprecationTypes["ATTR_FALSE_VALUE"],
+      parentComponent
+    ).truthy()
+  ) {
+    string kind = JS.typeOf(element[key]);
+    if (kind == "string" || kind == "number") {
+      if (PROP_DEV) {
+        JS.call(
+          propCompatUtils["warnDeprecation"],
+          propCompatUtils,
+          propDeprecationTypes["ATTR_FALSE_VALUE"],
+          parentComponent,
+          key
+        );
+      }
+      if (kind == "number") value = 0;
+      else value = "";
+      needRemove = true;
+    }
+  }
+
+  try {
+    hostWrite(element, key, value);
+  } catch (JsValue error) {
+    if (PROP_DEV && !needRemove) {
+      JS.call(
+        propWarn,
+        JS.undefined(),
+        "Failed setting prop \"" + key + "\" on <" + tag.toLowerCase() + ">: value " +
+          hostString(value) + " is invalid.",
+        error
+      );
+    }
+  }
+  if (needRemove) {
+    string removeName = key;
+    if (!JS.isNullish(attrName)) removeName = hostString(attrName);
+    hostRemoveAttribute(element, removeName);
+  }
+}

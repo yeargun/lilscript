@@ -1,0 +1,30 @@
+"use strict";
+module.exports = require("../../dist/vuelil-packages.cjs")["server_renderer"];
+if (false) {
+  exports.pipeToNodeWritable = module.exports.pipeToNodeWritable;
+  exports.pipeToWebWritable = module.exports.pipeToWebWritable;
+  exports.renderToNodeStream = module.exports.renderToNodeStream;
+  exports.renderToSimpleStream = module.exports.renderToSimpleStream;
+  exports.renderToStream = module.exports.renderToStream;
+  exports.renderToString = module.exports.renderToString;
+  exports.renderToWebStream = module.exports.renderToWebStream;
+  exports.ssrGetDirectiveProps = module.exports.ssrGetDirectiveProps;
+  exports.ssrGetDynamicModelProps = module.exports.ssrGetDynamicModelProps;
+  exports.ssrIncludeBooleanAttr = module.exports.ssrIncludeBooleanAttr;
+  exports.ssrInterpolate = module.exports.ssrInterpolate;
+  exports.ssrLooseContain = module.exports.ssrLooseContain;
+  exports.ssrLooseEqual = module.exports.ssrLooseEqual;
+  exports.ssrRenderAttr = module.exports.ssrRenderAttr;
+  exports.ssrRenderAttrs = module.exports.ssrRenderAttrs;
+  exports.ssrRenderClass = module.exports.ssrRenderClass;
+  exports.ssrRenderComponent = module.exports.ssrRenderComponent;
+  exports.ssrRenderDynamicAttr = module.exports.ssrRenderDynamicAttr;
+  exports.ssrRenderDynamicModel = module.exports.ssrRenderDynamicModel;
+  exports.ssrRenderList = module.exports.ssrRenderList;
+  exports.ssrRenderSlot = module.exports.ssrRenderSlot;
+  exports.ssrRenderSlotInner = module.exports.ssrRenderSlotInner;
+  exports.ssrRenderStyle = module.exports.ssrRenderStyle;
+  exports.ssrRenderSuspense = module.exports.ssrRenderSuspense;
+  exports.ssrRenderTeleport = module.exports.ssrRenderTeleport;
+  exports.ssrRenderVNode = module.exports.ssrRenderVNode;
+}

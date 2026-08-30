@@ -1,0 +1,183 @@
+import extern {
+  DeprecationTypes as vOnDeprecationTypes,
+  compatUtils as vOnCompatUtils,
+  getCurrentInstance as vOnGetCurrentInstance
+} from "../../../packages/vuelil/runtime-core.js";
+import extern { hyphenate as vOnHyphenate, isArray as vOnIsArray } from "../../../packages/vuelil/shared.js";
+import extern {
+  hostCall1,
+  hostCallWithEventArgs,
+  hostEventRestWrapper,
+  hostHasProperty,
+  hostRead,
+  hostString,
+  hostWrite
+} from "../host.js";
+
+extern JsValue vOnDeprecationTypes;
+extern JsValue vOnCompatUtils;
+extern JsValue vOnGetCurrentInstance;
+extern JsValue vOnHyphenate;
+extern bool vOnIsArray(JsValue value);
+extern JsValue hostCall1(JsValue fn, JsValue first);
+extern JsValue hostCallWithEventArgs(JsValue fn, JsValue event, JsValue args);
+extern JsValue hostEventRestWrapper(JsValue callback);
+extern bool hostHasProperty(JsValue value, JsValue key);
+extern JsValue hostRead(JsValue value, JsValue key);
+extern string hostString(JsValue value);
+extern void hostWrite(JsValue value, JsValue key, JsValue next);
+
+bool V_ON_COMPAT = false;
+bool V_ON_DEV = true;
+string[] systemModifiers = ["ctrl", "shift", "alt", "meta"];
+Regex numericModifierPattern = new Regex("^\\d+$");
+
+int valueLength(JsValue value) {
+  return JS.number(hostRead(value, "length")).toInt();
+}
+
+bool hasModifier(JsValue modifiers, string expected) {
+  int count = valueLength(modifiers);
+  for (int index = 0; index < count; index++) {
+    if (hostString(hostRead(modifiers, index)) == expected) return true;
+  }
+  return false;
+}
+
+bool modifierStops(JsValue event, string modifier, JsValue modifiers) {
+  if (modifier == "stop") {
+    JS.invoke(event, "stopPropagation");
+    return false;
+  }
+  if (modifier == "prevent") {
+    JS.invoke(event, "preventDefault");
+    return false;
+  }
+  if (modifier == "self") return !JS.strictEqual(hostRead(event, "target"), hostRead(event, "currentTarget"));
+  if (modifier == "ctrl") return !hostRead(event, "ctrlKey").truthy();
+  if (modifier == "shift") return !hostRead(event, "shiftKey").truthy();
+  if (modifier == "alt") return !hostRead(event, "altKey").truthy();
+  if (modifier == "meta") return !hostRead(event, "metaKey").truthy();
+  if (modifier == "left") return hostHasProperty(event, "button") && JS.number(hostRead(event, "button")) != 0.0;
+  if (modifier == "middle") return hostHasProperty(event, "button") && JS.number(hostRead(event, "button")) != 1.0;
+  if (modifier == "right") return hostHasProperty(event, "button") && JS.number(hostRead(event, "button")) != 2.0;
+  if (modifier == "exact") {
+    for (int index = 0; index < systemModifiers.length; index++) {
+      string system = systemModifiers[index];
+      if (hostRead(event, system + "Key").truthy() && !hasModifier(modifiers, system)) return true;
+    }
+  }
+  return false;
+}
+
+export JsValue withModifiers(JsValue fn, JsValue modifiers) {
+  if (JS.isNullish(fn) || !fn.truthy()) return fn;
+  JsValue cache = hostRead(fn, "_withMods");
+  if (JS.isNullish(cache)) {
+    cache = JS.object();
+    hostWrite(fn, "_withMods", cache);
+  }
+  string cacheKey = hostString(JS.invoke(modifiers, "join", "."));
+  JsValue cached = hostRead(cache, cacheKey);
+  if (!JS.isNullish(cached) && cached.truthy()) return cached;
+  JsValue wrapped = hostEventRestWrapper(JS.method2((JsValue _self, JsValue event, JsValue args) => {
+    int count = valueLength(modifiers);
+    for (int index = 0; index < count; index++) {
+      string modifier = hostString(hostRead(modifiers, index));
+      if (modifierStops(event, modifier, modifiers)) return JS.undefined();
+    }
+    return hostCallWithEventArgs(fn, event, args);
+  }));
+  hostWrite(cache, cacheKey, wrapped);
+  return wrapped;
+}
+
+string keyAlias(string key) {
+  if (key == "esc") return "escape";
+  if (key == "space") return " ";
+  if (key == "up") return "arrow-up";
+  if (key == "left") return "arrow-left";
+  if (key == "right") return "arrow-right";
+  if (key == "down") return "arrow-down";
+  if (key == "delete") return "backspace";
+  return "";
+}
+
+bool modifierMatches(JsValue modifiers, string value) {
+  int count = valueLength(modifiers);
+  for (int index = 0; index < count; index++) {
+    string modifier = hostString(hostRead(modifiers, index));
+    if (modifier == value || keyAlias(modifier) == value) return true;
+  }
+  return false;
+}
+
+export JsValue withKeys(JsValue fn, JsValue modifiers) {
+  JsValue globalKeyCodes = JS.undefined();
+  JsValue instance = null;
+  if (V_ON_COMPAT) {
+    instance = JS.call(vOnGetCurrentInstance, JS.undefined());
+    if (JS.call(
+      vOnCompatUtils["isCompatEnabled"],
+      vOnCompatUtils,
+      vOnDeprecationTypes["CONFIG_KEY_CODES"],
+      instance
+    ).truthy() && !JS.isNullish(instance) && instance.truthy()) {
+      globalKeyCodes = instance["appContext"]["config"]["keyCodes"];
+    }
+    if (V_ON_DEV) {
+      int count = valueLength(modifiers);
+      for (int index = 0; index < count; index++) {
+        if (numericModifierPattern.test(hostString(hostRead(modifiers, index)))) {
+          JS.call(
+            vOnCompatUtils["warnDeprecation"],
+            vOnCompatUtils,
+            vOnDeprecationTypes["V_ON_KEYCODE_MODIFIER"],
+            instance
+          );
+          break;
+        }
+      }
+    }
+  }
+
+  JsValue cache = hostRead(fn, "_withKeys");
+  if (JS.isNullish(cache)) {
+    cache = JS.object();
+    hostWrite(fn, "_withKeys", cache);
+  }
+  string cacheKey = hostString(JS.invoke(modifiers, "join", "."));
+  JsValue cached = hostRead(cache, cacheKey);
+  if (!JS.isNullish(cached) && cached.truthy()) return cached;
+  JsValue wrapped = JS.method1((JsValue _self, JsValue event) => {
+    if (!hostHasProperty(event, "key")) return JS.undefined();
+    string eventKey = hostString(hostCall1(vOnHyphenate, hostRead(event, "key")));
+    if (modifierMatches(modifiers, eventKey)) return hostCall1(fn, event);
+    if (V_ON_COMPAT) {
+      string keyCode = hostString(hostRead(event, "keyCode"));
+      if (JS.call(
+        vOnCompatUtils["isCompatEnabled"],
+        vOnCompatUtils,
+        vOnDeprecationTypes["V_ON_KEYCODE_MODIFIER"],
+        instance
+      ).truthy() && modifierMatches(modifiers, keyCode)) return hostCall1(fn, event);
+      if (!JS.isNullish(globalKeyCodes) && globalKeyCodes.truthy()) {
+        int count = valueLength(modifiers);
+        for (int index = 0; index < count; index++) {
+          JsValue codes = hostRead(globalKeyCodes, hostRead(modifiers, index));
+          if (!JS.isNullish(codes) && codes.truthy()) {
+            if (vOnIsArray(codes)) {
+              int codeCount = valueLength(codes);
+              for (int codeIndex = 0; codeIndex < codeCount; codeIndex++) {
+                if (hostString(hostRead(codes, codeIndex)) == keyCode) return hostCall1(fn, event);
+              }
+            } else if (hostString(codes) == keyCode) return hostCall1(fn, event);
+          }
+        }
+      }
+    }
+    return JS.undefined();
+  });
+  hostWrite(cache, cacheKey, wrapped);
+  return wrapped;
+}

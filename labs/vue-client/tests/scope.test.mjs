@@ -14,6 +14,7 @@ import {
   sha256,
 } from "../scripts/check-complete.mjs";
 import { candidatePathFor } from "../scripts/audit-source-parity.mjs";
+import { pairedRatioStatistics } from "../scripts/performance-protocol.mjs";
 
 const scope = JSON.parse(readFileSync(scopePath, "utf8"));
 const inventory = JSON.parse(readFileSync(inventoryPath, "utf8"));
@@ -63,11 +64,45 @@ test("inventory derives representative public exports through re-export graphs",
   }
 });
 
+test("scope test-file totals match complete and test-host evidence", () => {
+  const completePackages = new Set(
+    scope.packages
+      .filter(entry =>
+        entry.status === "complete" ||
+        entry.status === "runtime-complete" ||
+        entry.status === "test-host-only"
+      )
+      .map(entry => entry.name),
+  );
+  const passed = inventory.packages
+    .filter(entry => completePackages.has(entry.name))
+    .reduce((total, entry) => total + entry.testFiles.length, 0);
+  const declarationPassed = scope.gates.declarations === "passed"
+    ? inventory.totals.declarationTestFiles
+    : 0;
+  assert.equal(scope.gates.runtimeTestFilesPassed, passed);
+  assert.equal(scope.gates.declarationTestFilesPassed, declarationPassed);
+  assert.equal(scope.gates.candidatePassed, passed + declarationPassed);
+  assert.equal(scope.gates.candidateFailed, 0);
+  assert.equal(
+    scope.gates.candidatePending,
+    inventory.totals.upstreamTestFiles - passed,
+  );
+  assert.equal(
+    scope.packages.find(entry => entry.name === "@vue/runtime-dom")?.status,
+    "complete",
+  );
+  assert.equal(
+    scope.packages.find(entry => entry.name === "@vue/runtime-test")?.status,
+    "test-host-only",
+  );
+});
+
 test("current completion state fails closed", () => {
   const result = evaluateCompletion({ scope, inventory });
   assert.equal(result.complete, false);
-  assert.ok(result.failures.some((failure) => failure.includes("@vue/shared status")));
-  assert.ok(result.failures.some((failure) => failure.includes("candidatePending")));
+  assert.ok(result.failures.some((failure) => failure.includes("source-parity evidence is missing")));
+  assert.ok(result.failures.some((failure) => failure.includes("compatibility evidence is missing")));
   assert.ok(result.failures.some((failure) => failure.includes("size evidence is missing")));
   assert.ok(result.failures.some((failure) => failure.includes("runtime-only-client")));
   assert.ok(result.failures.some((failure) => failure.includes("Pages evidence is missing")));
@@ -192,7 +227,9 @@ test("completion evaluator can pass only with exhaustive backing evidence", () =
     sha256: sha256(Buffer.from(`${JSON.stringify(modules)}\n`)),
     modules,
   });
-  const scenarioRows = completed.bundleScenarios.map(({ id, completionRequired }) => {
+  const scenarioRows = completed.bundleScenarios
+    .filter(({ completionRequired }) => completionRequired)
+    .map(({ id, completionRequired }) => {
     const candidateModules = [
       { id: `apps/${id}/src/main.js`, renderedBytes: 1 },
       { id: `packages/vuelil/${id}.js`, renderedBytes: 2 },
@@ -213,6 +250,8 @@ test("completion evaluator can pass only with exhaustive backing evidence", () =
           noUpstreamRuntime: true,
           includesCandidateModule: true,
           upstreamRuntimeModules: [],
+          adapters: [{ path: "src/runtime-core/host.js" }],
+          allEmittedAdapterCodeCounted: true,
           graph: graph(candidateModules),
         },
         upstream: {
@@ -237,6 +276,80 @@ test("completion evaluator can pass only with exhaustive backing evidence", () =
       passed: true,
     };
   });
+  const performanceProtocol = {
+    design: "paired isolated blocks with candidate/upstream execution order alternating every block",
+    seed: "scope-test",
+    samples: 21,
+    warmupRuns: 1,
+    bootstrapIterations: 1_000,
+    nonInferiorityMarginRatio: 1.03,
+    confidenceLevel: 0.95,
+    confidenceBound: "one-sided upper",
+    sampleAdequacyOverride: false,
+  };
+  const performancePaths = {
+    browser: ["vue", "vue.runtime.js", "node_modules/vue/index.js"],
+    compiler: ["@vue/compiler-dom", "compiler-dom.js", "node_modules/@vue/compiler-dom/index.js"],
+    reactivity: ["@vue/reactivity", "reactivity.js", "node_modules/@vue/reactivity/index.js"],
+    ssr: ["@vue/server-renderer", "server-renderer.js", "node_modules/@vue/server-renderer/index.js"],
+  };
+  const fakeFile = (path, character = "a") => ({
+    path,
+    sha256: character.repeat(64),
+    bytes: 1,
+  });
+  const fakeGraph = (module) => ({
+    sha256: sha256(Buffer.from(`${JSON.stringify([module])}\n`)),
+    modules: [module],
+  });
+  const performanceWorkloads = Object.entries(performancePaths).map(
+    ([category, [upstreamPackage, candidateName, upstreamPath]]) => {
+      const observations = Array.from({ length: 21 }, (_, block) => ({
+        block,
+        order:
+          block % 2 === 0
+            ? ["candidate", "upstream"]
+            : ["upstream", "candidate"],
+        candidate: { durationMs: 1, operations: 1_000, checksum: category },
+        upstream: { durationMs: 1, operations: 1_000, checksum: category },
+      }));
+      const candidateArtifact = fakeFile(`packages/vuelil/${candidateName}`, "b");
+      const upstreamArtifact = fakeFile(upstreamPath, "c");
+      return {
+        id: category,
+        category,
+        nodeEnv: category === "compiler" ? "development" : "production",
+        description: `Meaningful ${category} workload with enough detail for evidence.`,
+        metric: "durationMs",
+        runner: fakeFile(`benchmarks/runners/${category}.mjs`, "d"),
+        candidateArtifact,
+        upstreamArtifact,
+        candidatePackageManifest: fakeFile("packages/vuelil/package.json", "e"),
+        upstreamPackageManifest: fakeFile(
+          `node_modules/${upstreamPackage}/package.json`,
+          "f",
+        ),
+        candidateGraph: fakeGraph(candidateArtifact),
+        upstreamGraph: fakeGraph(upstreamArtifact),
+        environment: category === "browser"
+          ? { engine: "Chromium", version: "1" }
+          : { engine: "Node.js", version: "v24" },
+        statistics: {
+          ratio: pairedRatioStatistics(
+            observations.map(({ upstream }) => upstream.durationMs),
+            observations.map(({ candidate }) => candidate.durationMs),
+            {
+              bootstrapIterations: performanceProtocol.bootstrapIterations,
+              margin: performanceProtocol.nonInferiorityMarginRatio,
+              seed: `${performanceProtocol.seed}:${category}:bootstrap`,
+            },
+          ),
+        },
+        observations,
+        passed: true,
+      };
+    },
+  );
   const evidence = {
     compatibility: {
       schemaVersion: 1,
@@ -297,31 +410,28 @@ test("completion evaluator can pass only with exhaustive backing evidence", () =
     },
     performance: {
       schemaVersion: 1,
-      upstream: { revision: inventory.upstream.revision },
-      inventory: { sha256: inventoryDigest },
-      protocol: {
-        samples: 21,
-        bootstrapIterations: 1_000,
-        nonInferiorityMarginRatio: 1.03,
-        sampleAdequacyOverride: false,
+      upstream: {
+        version: inventory.upstream.version,
+        revision: inventory.upstream.revision,
       },
-      workloads: [...["browser", "compiler", "reactivity", "ssr"]].map(
-        (category) => ({
-          id: category,
-          category,
-          statistics: { ratio: { confidenceInterval: { upper95: 1 } } },
-          observations: Array.from({ length: 21 }, (_, block) => ({
-            block,
-            order:
-              block % 2 === 0
-                ? ["candidate", "upstream"]
-                : ["upstream", "candidate"],
-            candidate: { durationMs: 1, operations: 1, checksum: category },
-            upstream: { durationMs: 1, operations: 1, checksum: category },
-          })),
-          passed: true,
-        }),
-      ),
+      inventory: { sha256: inventoryDigest },
+      implementations: {
+        candidate: {
+          package: "vue",
+          version: "3.5.42-vuelil",
+          packageManifest: fakeFile("packages/vuelil/package.json", "e"),
+        },
+        upstream: Object.keys(performancePaths).map((category) => ({
+          package: performancePaths[category][0],
+          version: "3.5.42",
+          packageManifest: fakeFile(
+            `node_modules/${performancePaths[category][0]}/package.json`,
+            "f",
+          ),
+        })),
+      },
+      protocol: performanceProtocol,
+      workloads: performanceWorkloads,
       passed: true,
     },
     pages: {

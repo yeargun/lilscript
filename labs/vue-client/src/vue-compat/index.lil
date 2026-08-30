@@ -1,0 +1,453 @@
+import { createCompatVue } from "./createCompatVue";
+import extern {
+  compile as indexCompilerCompile,
+  warnDeprecation as indexCompilerWarnDeprecation
+} from "../../packages/vuelil/compiler-dom.js";
+import extern {
+  DeprecationTypes as indexDeprecationTypes,
+  compatUtils as indexCompatUtils,
+  registerRuntimeCompiler as indexRegisterRuntimeCompiler,
+  warn as indexWarn
+} from "../../packages/vuelil/runtime-dom.js";
+import extern {
+  NOOP as indexNoop,
+  extend as indexExtend,
+  genCacheKey as indexGenCacheKey,
+  generateCodeFrame as indexGenerateCodeFrame,
+  isString as indexIsString
+} from "../../packages/vuelil/shared.js";
+import { Object as compatObject, globalThis as compatGlobal } from "../shared/makeMap";
+
+extern JsValue indexCompilerCompile;
+extern JsValue indexCompilerWarnDeprecation;
+extern JsValue indexDeprecationTypes;
+extern JsValue indexCompatUtils;
+extern JsValue indexRegisterRuntimeCompiler;
+extern JsValue indexWarn;
+extern JsValue indexNoop;
+extern JsValue indexExtend;
+extern JsValue indexGenCacheKey;
+extern JsValue indexGenerateCodeFrame;
+extern bool indexIsString(JsValue value);
+
+bool INDEX_DEV = true;
+bool INDEX_GLOBAL = false;
+bool INDEX_TEST = false;
+
+JsValue compileCache = JS.invoke(compatObject, "create", null);
+JsValue runtimeDom = JS.undefined();
+
+bool compilerCompatEnabled(string key, JsValue context) {
+  JsValue config = context["compatConfig"];
+  if (!config.truthy()) return false;
+  JsValue mode = config["MODE"];
+  if (!mode.truthy()) mode = 3;
+  JsValue value = config[key];
+  if (JS.strictEqual(mode, 3)) return JS.strictEqual(value, true);
+  return !JS.strictEqual(value, false);
+}
+
+void warnCompilerCompat(
+  string key,
+  JsValue context,
+  JsValue location,
+  JsValue detail = JS.undefined()
+) {
+  JS.call(
+    indexCompilerWarnDeprecation,
+    JS.undefined(),
+    key,
+    context,
+    location,
+    detail
+  );
+}
+
+JsValue createCompatNodeTransform(string template) {
+  return JS.method2((JsValue _self, JsValue node, JsValue context) => {
+    if (JS.number(node["type"]).toInt() != 1) return JS.undefined();
+    JsValue props = node["props"];
+    int propsLength = JS.number(props["length"]).toInt();
+    int bindObjectIndex = -1;
+    bool hasOverridableBeforeBind = false;
+    bool hasIf = false;
+    bool hasFor = false;
+
+    for (int index = 0; index < propsLength; index++) {
+      JsValue prop = props[index];
+      int type = JS.number(prop["type"]).toInt();
+      string name = JS.string(prop["name"]);
+      if (type == 7) {
+        if (name == "if") hasIf = true;
+        else if (name == "for") hasFor = true;
+        if (name == "bind" && JS.isNullish(prop["arg"])) {
+          bindObjectIndex = index;
+        }
+        if (name == "bind") {
+          JsValue modifiers = prop["modifiers"];
+          int modifierLength = JS.number(modifiers["length"]).toInt();
+          for (int modifierIndex = modifierLength - 1; modifierIndex >= 0; modifierIndex--) {
+            if (JS.string(modifiers[modifierIndex]["content"]) == "sync" &&
+              compilerCompatEnabled("COMPILER_V_BIND_SYNC", context)) {
+              prop["name"] = "model";
+              JS.invoke(modifiers, "splice", modifierIndex, 1);
+              JsValue detail = JS.undefined();
+              if (prop["arg"].truthy()) detail = prop["arg"]["loc"]["source"];
+              warnCompilerCompat("COMPILER_V_BIND_SYNC", context, prop["loc"], detail);
+            }
+          }
+        }
+      } else if (bindObjectIndex < 0 && name != "class" && name != "style") {
+        hasOverridableBeforeBind = true;
+      }
+    }
+
+    string nodeSource = JS.string(node["loc"]["source"]);
+    if ((hasIf && hasFor || nodeSource.includes("v-if") && nodeSource.includes("v-for")) &&
+      compilerCompatEnabled("COMPILER_V_IF_V_FOR_PRECEDENCE", context)) {
+      warnCompilerCompat("COMPILER_V_IF_V_FOR_PRECEDENCE", context, node["loc"]);
+    }
+    if (bindObjectIndex > 0 && hasOverridableBeforeBind &&
+      compilerCompatEnabled("COMPILER_V_BIND_OBJECT_ORDER", context)) {
+      JsValue moved = JS.invoke(props, "splice", bindObjectIndex, 1);
+      JS.invoke(props, "unshift", moved[0]);
+      warnCompilerCompat("COMPILER_V_BIND_OBJECT_ORDER", context, node["loc"]);
+    }
+
+    bool isPlainElement = JS.number(node["tagType"]).toInt() == 0;
+    for (int index = 0; index < JS.number(props["length"]).toInt(); index++) {
+      JsValue prop = props[index];
+      int type = JS.number(prop["type"]).toInt();
+      string name = JS.string(prop["name"]);
+      bool staticIs = type == 6 && name == "is" && prop["value"].truthy();
+      bool boundIs = type == 7 && name == "bind" && prop["arg"].truthy() &&
+        JS.string(prop["arg"]["content"]) == "is";
+      if (isPlainElement && (staticIs || boundIs) &&
+        compilerCompatEnabled("COMPILER_IS_ON_ELEMENT", context)) {
+        node["tag"] = "component";
+        node["tagType"] = 1;
+        warnCompilerCompat("COMPILER_IS_ON_ELEMENT", context, prop["loc"]);
+      }
+      if (type == 6 && name == "inline-template" &&
+        compilerCompatEnabled("COMPILER_INLINE_TEMPLATE", context)) {
+        JsValue children = node["children"];
+        int childLength = JS.number(children["length"]).toInt();
+        if (childLength > 0) {
+          int start = JS.number(children[0]["loc"]["start"]["offset"]).toInt();
+          int end = JS.number(children[childLength - 1]["loc"]["end"]["offset"]).toInt();
+          prop["value"] = JS.object(
+            "type", 2,
+            "content", template.slice(start, end),
+            "loc", prop["loc"]
+          );
+          warnCompilerCompat("COMPILER_INLINE_TEMPLATE", context, prop["loc"]);
+        }
+      }
+    }
+    return JS.undefined();
+  });
+}
+
+JsValue compileToFunction(JsValue template, JsValue options = JS.undefined()) {
+  if (!indexIsString(template)) {
+    if (template["nodeType"].truthy()) {
+      template = template["innerHTML"];
+    } else {
+      if (INDEX_DEV) JS.call(indexWarn, JS.undefined(), "invalid template option: ", template);
+      return indexNoop;
+    }
+  }
+
+  JsValue key = JS.call(indexGenCacheKey, JS.undefined(), template, options);
+  JsValue cached = compileCache[key];
+  if (cached.truthy()) return cached;
+
+  if (JS.strictEqual(template[0], "#")) {
+    JsValue element = JS.invoke(compatGlobal["document"], "querySelector", template);
+    if (INDEX_DEV && !element.truthy()) {
+      JS.call(
+        indexWarn,
+        JS.undefined(),
+        "Template element not found or is empty: " + JS.string(template)
+      );
+    }
+    if (element.truthy()) template = element["innerHTML"];
+    else template = "";
+  }
+
+  if (INDEX_DEV && !INDEX_TEST && (!options.truthy() || !options["whitespace"].truthy())) {
+    JS.call(
+      indexCompatUtils["warnDeprecation"],
+      indexCompatUtils,
+      indexDeprecationTypes["CONFIG_WHITESPACE"],
+      null
+    );
+  }
+
+  JsValue onError = JS.method2((JsValue _self, JsValue error, JsValue asWarning) => {
+    string message = "Template compilation error: " + JS.string(error["message"]);
+    if (asWarning.truthy()) message = JS.string(error["message"]);
+    string codeFrame = "";
+    JsValue location = error["loc"];
+    if (location.truthy()) {
+      codeFrame = JS.string(JS.call(
+        indexGenerateCodeFrame,
+        JS.undefined(),
+        template,
+        location["start"]["offset"],
+        location["end"]["offset"]
+      ));
+    }
+    if (codeFrame != "") JS.call(indexWarn, JS.undefined(), message + "\n" + codeFrame);
+    else JS.call(indexWarn, JS.undefined(), message);
+    return JS.undefined();
+  });
+  JsValue onWarn = JS.method1((JsValue _self, JsValue warning) => {
+    return JS.call(onError, JS.undefined(), warning, true);
+  });
+  if (options.truthy() && options["compatConfig"].truthy()) {
+    JsValue nativeContext = JS.object(
+      "compatConfig", options["compatConfig"],
+      "onWarn", onWarn
+    );
+    if (compilerCompatEnabled("COMPILER_NATIVE_TEMPLATE", nativeContext)) {
+      JsValue pattern = JS.construct(
+        compatGlobal["RegExp"],
+        "<template\\s*>([\\s\\S]*?)<\\/template\\s*>",
+        "g"
+      );
+      string source = JS.string(template);
+      string unwrapped = JS.string(JS.invoke(source, "replace", pattern, "$1"));
+      if (source != unwrapped) {
+        warnCompilerCompat("COMPILER_NATIVE_TEMPLATE", nativeContext, JS.undefined());
+        template = unwrapped;
+      }
+    }
+  }
+  JsValue compilerOnError = JS.undefined();
+  JsValue compilerOnWarn = indexNoop;
+  if (INDEX_DEV) {
+    compilerOnError = onError;
+    compilerOnWarn = onWarn;
+  }
+
+  JsValue resolvedOptions = JS.call(
+    indexExtend,
+    JS.undefined(),
+    JS.object(
+      "hoistStatic", true,
+      "whitespace", "preserve",
+      "onError", compilerOnError,
+      "onWarn", compilerOnWarn
+    ),
+    options
+  );
+  if (resolvedOptions["compatConfig"].truthy()) {
+    JsValue transforms = JS.array(createCompatNodeTransform(JS.string(template)));
+    JsValue customTransforms = resolvedOptions["nodeTransforms"];
+    if (customTransforms.truthy()) {
+      int transformLength = JS.number(customTransforms["length"]).toInt();
+      for (int index = 0; index < transformLength; index++) {
+        transforms[JS.number(transforms["length"]).toInt()] = customTransforms[index];
+      }
+    }
+    resolvedOptions["nodeTransforms"] = transforms;
+  }
+  JsValue result = JS.call(
+    indexCompilerCompile,
+    JS.undefined(),
+    template,
+    resolvedOptions
+  );
+  JsValue renderFactory = JS.undefined();
+  JsValue render = JS.undefined();
+  if (INDEX_GLOBAL) {
+    renderFactory = JS.construct(compatGlobal["Function"], result["code"]);
+    render = JS.call(renderFactory, JS.undefined());
+  } else {
+    renderFactory = JS.construct(compatGlobal["Function"], "Vue", result["code"]);
+    render = JS.call(renderFactory, JS.undefined(), runtimeDom);
+  }
+  render["_rc"] = true;
+  compileCache[key] = render;
+  return render;
+}
+
+JS.call(indexRegisterRuntimeCompiler, JS.undefined(), compileToFunction);
+
+JsValue Vue = createCompatVue();
+runtimeDom = JS.object(
+  "BaseTransition", Vue["BaseTransition"],
+  "BaseTransitionPropsValidators", Vue["BaseTransitionPropsValidators"],
+  "Comment", Vue["Comment"],
+  "DeprecationTypes", Vue["DeprecationTypes"],
+  "EffectScope", Vue["EffectScope"],
+  "ErrorCodes", Vue["ErrorCodes"],
+  "ErrorTypeStrings", Vue["ErrorTypeStrings"],
+  "Fragment", Vue["Fragment"],
+  "KeepAlive", Vue["KeepAlive"],
+  "ReactiveEffect", Vue["ReactiveEffect"],
+  "Static", Vue["Static"],
+  "Suspense", Vue["Suspense"],
+  "Teleport", Vue["Teleport"],
+  "Text", Vue["Text"],
+  "TrackOpTypes", Vue["TrackOpTypes"],
+  "Transition", Vue["Transition"],
+  "TransitionGroup", Vue["TransitionGroup"],
+  "TriggerOpTypes", Vue["TriggerOpTypes"],
+  "VueElement", Vue["VueElement"],
+  "assertNumber", Vue["assertNumber"],
+  "callWithAsyncErrorHandling", Vue["callWithAsyncErrorHandling"],
+  "callWithErrorHandling", Vue["callWithErrorHandling"],
+  "camelize", Vue["camelize"],
+  "capitalize", Vue["capitalize"],
+  "cloneVNode", Vue["cloneVNode"],
+  "compatUtils", Vue["compatUtils"],
+  "computed", Vue["computed"],
+  "createApp", Vue["createApp"],
+  "createBlock", Vue["createBlock"],
+  "createCommentVNode", Vue["createCommentVNode"],
+  "createElementBlock", Vue["createElementBlock"],
+  "createElementVNode", Vue["createElementVNode"],
+  "createHydrationRenderer", Vue["createHydrationRenderer"],
+  "createPropsRestProxy", Vue["createPropsRestProxy"],
+  "createRenderer", Vue["createRenderer"],
+  "createSSRApp", Vue["createSSRApp"],
+  "createSlots", Vue["createSlots"],
+  "createStaticVNode", Vue["createStaticVNode"],
+  "createTextVNode", Vue["createTextVNode"],
+  "createVNode", Vue["createVNode"],
+  "customRef", Vue["customRef"],
+  "defineAsyncComponent", Vue["defineAsyncComponent"],
+  "defineComponent", Vue["defineComponent"],
+  "defineCustomElement", Vue["defineCustomElement"],
+  "defineEmits", Vue["defineEmits"],
+  "defineExpose", Vue["defineExpose"],
+  "defineModel", Vue["defineModel"],
+  "defineOptions", Vue["defineOptions"],
+  "defineProps", Vue["defineProps"],
+  "defineSSRCustomElement", Vue["defineSSRCustomElement"],
+  "defineSlots", Vue["defineSlots"],
+  "devtools", Vue["devtools"],
+  "effect", Vue["effect"],
+  "effectScope", Vue["effectScope"],
+  "getCurrentInstance", Vue["getCurrentInstance"],
+  "getCurrentScope", Vue["getCurrentScope"],
+  "getCurrentWatcher", Vue["getCurrentWatcher"],
+  "getTransitionRawChildren", Vue["getTransitionRawChildren"],
+  "guardReactiveProps", Vue["guardReactiveProps"],
+  "h", Vue["h"],
+  "handleError", Vue["handleError"],
+  "hasInjectionContext", Vue["hasInjectionContext"],
+  "hydrate", Vue["hydrate"],
+  "hydrateOnIdle", Vue["hydrateOnIdle"],
+  "hydrateOnInteraction", Vue["hydrateOnInteraction"],
+  "hydrateOnMediaQuery", Vue["hydrateOnMediaQuery"],
+  "hydrateOnVisible", Vue["hydrateOnVisible"],
+  "initCustomFormatter", Vue["initCustomFormatter"],
+  "initDirectivesForSSR", Vue["initDirectivesForSSR"],
+  "inject", Vue["inject"],
+  "isMemoSame", Vue["isMemoSame"],
+  "isProxy", Vue["isProxy"],
+  "isReactive", Vue["isReactive"],
+  "isReadonly", Vue["isReadonly"],
+  "isRef", Vue["isRef"],
+  "isRuntimeOnly", Vue["isRuntimeOnly"],
+  "isShallow", Vue["isShallow"],
+  "isVNode", Vue["isVNode"],
+  "markRaw", Vue["markRaw"],
+  "mergeDefaults", Vue["mergeDefaults"],
+  "mergeModels", Vue["mergeModels"],
+  "mergeProps", Vue["mergeProps"],
+  "nextTick", Vue["nextTick"],
+  "nodeOps", Vue["nodeOps"],
+  "normalizeClass", Vue["normalizeClass"],
+  "normalizeProps", Vue["normalizeProps"],
+  "normalizeStyle", Vue["normalizeStyle"],
+  "onActivated", Vue["onActivated"],
+  "onBeforeMount", Vue["onBeforeMount"],
+  "onBeforeUnmount", Vue["onBeforeUnmount"],
+  "onBeforeUpdate", Vue["onBeforeUpdate"],
+  "onDeactivated", Vue["onDeactivated"],
+  "onErrorCaptured", Vue["onErrorCaptured"],
+  "onMounted", Vue["onMounted"],
+  "onRenderTracked", Vue["onRenderTracked"],
+  "onRenderTriggered", Vue["onRenderTriggered"],
+  "onScopeDispose", Vue["onScopeDispose"],
+  "onServerPrefetch", Vue["onServerPrefetch"],
+  "onUnmounted", Vue["onUnmounted"],
+  "onUpdated", Vue["onUpdated"],
+  "onWatcherCleanup", Vue["onWatcherCleanup"],
+  "openBlock", Vue["openBlock"],
+  "patchProp", Vue["patchProp"],
+  "popScopeId", Vue["popScopeId"],
+  "provide", Vue["provide"],
+  "proxyRefs", Vue["proxyRefs"],
+  "pushScopeId", Vue["pushScopeId"],
+  "queuePostFlushCb", Vue["queuePostFlushCb"],
+  "reactive", Vue["reactive"],
+  "readonly", Vue["readonly"],
+  "ref", Vue["ref"],
+  "registerRuntimeCompiler", Vue["registerRuntimeCompiler"],
+  "render", Vue["render"],
+  "renderList", Vue["renderList"],
+  "renderSlot", Vue["renderSlot"],
+  "resolveComponent", Vue["resolveComponent"],
+  "resolveDirective", Vue["resolveDirective"],
+  "resolveDynamicComponent", Vue["resolveDynamicComponent"],
+  "resolveFilter", Vue["resolveFilter"],
+  "resolveTransitionHooks", Vue["resolveTransitionHooks"],
+  "setBlockTracking", Vue["setBlockTracking"],
+  "setDevtoolsHook", Vue["setDevtoolsHook"],
+  "setTransitionHooks", Vue["setTransitionHooks"],
+  "shallowReactive", Vue["shallowReactive"],
+  "shallowReadonly", Vue["shallowReadonly"],
+  "shallowRef", Vue["shallowRef"],
+  "ssrContextKey", Vue["ssrContextKey"],
+  "ssrUtils", Vue["ssrUtils"],
+  "stop", Vue["stop"],
+  "toDisplayString", Vue["toDisplayString"],
+  "toHandlerKey", Vue["toHandlerKey"],
+  "toHandlers", Vue["toHandlers"],
+  "toRaw", Vue["toRaw"],
+  "toRef", Vue["toRef"],
+  "toRefs", Vue["toRefs"],
+  "toValue", Vue["toValue"],
+  "transformVNodeArgs", Vue["transformVNodeArgs"],
+  "triggerRef", Vue["triggerRef"],
+  "unref", Vue["unref"],
+  "useAttrs", Vue["useAttrs"],
+  "useCssModule", Vue["useCssModule"],
+  "useCssVars", Vue["useCssVars"],
+  "useHost", Vue["useHost"],
+  "useId", Vue["useId"],
+  "useModel", Vue["useModel"],
+  "useSSRContext", Vue["useSSRContext"],
+  "useShadowRoot", Vue["useShadowRoot"],
+  "useSlots", Vue["useSlots"],
+  "useTemplateRef", Vue["useTemplateRef"],
+  "useTransitionState", Vue["useTransitionState"],
+  "vModelCheckbox", Vue["vModelCheckbox"],
+  "vModelDynamic", Vue["vModelDynamic"],
+  "vModelRadio", Vue["vModelRadio"],
+  "vModelSelect", Vue["vModelSelect"],
+  "vModelText", Vue["vModelText"],
+  "vShow", Vue["vShow"],
+  "version", Vue["version"],
+  "warn", Vue["warn"],
+  "watch", Vue["watch"],
+  "watchEffect", Vue["watchEffect"],
+  "watchPostEffect", Vue["watchPostEffect"],
+  "watchSyncEffect", Vue["watchSyncEffect"],
+  "withAsyncContext", Vue["withAsyncContext"],
+  "withCtx", Vue["withCtx"],
+  "withDefaults", Vue["withDefaults"],
+  "withDirectives", Vue["withDirectives"],
+  "withKeys", Vue["withKeys"],
+  "withMemo", Vue["withMemo"],
+  "withModifiers", Vue["withModifiers"],
+  "withScopeId", Vue["withScopeId"]
+);
+Vue["compile"] = compileToFunction;
+
+export { Vue as default };

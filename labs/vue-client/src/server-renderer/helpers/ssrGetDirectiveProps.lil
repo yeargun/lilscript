@@ -1,0 +1,35 @@
+import extern { ssrUtils as directiveSsrUtils } from "../../../packages/vuelil/runtime-dom.js";
+
+extern JsValue directiveSsrUtils;
+
+export JsValue ssrGetDirectiveProps(
+  JsValue instance,
+  JsValue directive,
+  JsValue value = JS.undefined(),
+  JsValue argument = JS.undefined(),
+  JsValue modifiers = JS.undefined()
+) {
+  if (JS.isUndefined(modifiers)) modifiers = JS.object();
+  if (JS.typeOf(directive) != "function" && directive["getSSRProps"].truthy()) {
+    JsValue binding = JS.object(
+      "dir", directive,
+      "instance", JS.call(
+        directiveSsrUtils["getComponentPublicInstance"],
+        JS.undefined(),
+        instance["$"]
+      ),
+      "value", value,
+      "oldValue", JS.undefined(),
+      "arg", argument,
+      "modifiers", modifiers
+    );
+    JsValue result = JS.invoke(
+      directive,
+      "getSSRProps",
+      binding,
+      null
+    );
+    if (result.truthy()) return result;
+  }
+  return JS.object();
+}

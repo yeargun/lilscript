@@ -1,0 +1,86 @@
+import extern { hostCreateSymbol, hostRead, hostWrite, hostCall1, hostCall2 } from "../host.js";
+
+extern JsValue hostCreateSymbol(string description);
+extern JsValue hostRead(JsValue value, JsValue key);
+extern void hostWrite(JsValue value, JsValue key, JsValue next);
+extern JsValue hostCall1(JsValue fn, JsValue first);
+extern JsValue hostCall2(JsValue fn, JsValue first, JsValue second);
+
+export JsValue vShowOriginalDisplay = hostCreateSymbol("_vod");
+export JsValue vShowHidden = hostCreateSymbol("_vsh");
+
+void setDisplay(JsValue element, JsValue value) {
+  JsValue display = "none";
+  if (value.truthy()) display = hostRead(element, vShowOriginalDisplay);
+  hostWrite(hostRead(element, "style"), "display", display);
+  hostWrite(element, vShowHidden, !value.truthy());
+}
+
+JsValue beforeMount(JsValue _self, JsValue element, JsValue binding, JsValue vnode) {
+  JsValue style = hostRead(element, "style");
+  JsValue display = hostRead(style, "display");
+  JsValue originalDisplay = display;
+  if (JS.strictEqual(display, "none")) originalDisplay = "";
+  hostWrite(element, vShowOriginalDisplay, originalDisplay);
+  JsValue value = hostRead(binding, "value");
+  JsValue transition = hostRead(vnode, "transition");
+  if (!JS.isNullish(transition) && transition.truthy() && value.truthy()) {
+    hostCall1(hostRead(transition, "beforeEnter"), element);
+  } else {
+    setDisplay(element, value);
+  }
+  return JS.undefined();
+}
+
+JsValue mounted(JsValue _self, JsValue element, JsValue binding, JsValue vnode) {
+  JsValue value = hostRead(binding, "value");
+  JsValue transition = hostRead(vnode, "transition");
+  if (!JS.isNullish(transition) && transition.truthy() && value.truthy()) {
+    hostCall1(hostRead(transition, "enter"), element);
+  }
+  return JS.undefined();
+}
+
+JsValue updated(JsValue _self, JsValue element, JsValue binding, JsValue vnode) {
+  JsValue value = hostRead(binding, "value");
+  JsValue oldValue = hostRead(binding, "oldValue");
+  if ((!value.truthy()) == (!oldValue.truthy())) return JS.undefined();
+  JsValue transition = hostRead(vnode, "transition");
+  if (!JS.isNullish(transition) && transition.truthy()) {
+    if (value.truthy()) {
+      hostCall1(hostRead(transition, "beforeEnter"), element);
+      setDisplay(element, true);
+      hostCall1(hostRead(transition, "enter"), element);
+    } else {
+      hostCall2(hostRead(transition, "leave"), element, JS.method0((JsValue _doneSelf) => {
+        setDisplay(element, false);
+        return JS.undefined();
+      }));
+    }
+  } else {
+    setDisplay(element, value);
+  }
+  return JS.undefined();
+}
+
+JsValue beforeUnmount(JsValue _self, JsValue element, JsValue binding) {
+  setDisplay(element, hostRead(binding, "value"));
+  return JS.undefined();
+}
+
+export JsValue vShow = JS.object(
+  "name", "show",
+  "beforeMount", JS.method3(beforeMount),
+  "mounted", JS.method3(mounted),
+  "updated", JS.method3(updated),
+  "beforeUnmount", JS.method2(beforeUnmount)
+);
+
+export void initVShowForSSR() {
+  hostWrite(vShow, "getSSRProps", JS.method1((JsValue _self, JsValue binding) => {
+    if (!hostRead(binding, "value").truthy()) {
+      return JS.object("style", JS.object("display", "none"));
+    }
+    return JS.undefined();
+  }));
+}

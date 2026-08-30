@@ -1,0 +1,3078 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-08-30T03:05:52.597Z",
+  "upstream": {
+    "version": "3.5.42",
+    "tag": "v3.5.42",
+    "revision": "d63616ca17de965ed32dcb449a4c5cd9982f15d2"
+  },
+  "inventory": {
+    "path": "compatibility/inventory.json",
+    "sha256": "d274dbbd3a0ce92ffd6db8df92872090d1fd9d1a59ea30e4917c90ef7863805e"
+  },
+  "implementations": {
+    "candidate": {
+      "package": "vue",
+      "version": "3.5.42-vuelil",
+      "packageManifest": {
+        "path": "packages/vuelil/package.json",
+        "sha256": "1c960b22af37a745482eb6e3666c51488382fe0eea0b372d52552977beb46b5c",
+        "bytes": 2821
+      }
+    },
+    "upstream": [
+      {
+        "package": "vue",
+        "version": "3.5.42",
+        "packageManifest": {
+          "path": "node_modules/vue/package.json",
+          "sha256": "c0907b63af03a21a63b3e7f6bd1279a8680d4478387ee2ae3502f0f73d52e1a7",
+          "bytes": 2769
+        }
+      },
+      {
+        "package": "@vue/compiler-dom",
+        "version": "3.5.42",
+        "packageManifest": {
+          "path": "node_modules/@vue/compiler-dom/package.json",
+          "sha256": "d332e21ef3c09484cc8b327536cdf4626a5d0a4d447e335eb48c647ae1f31551",
+          "bytes": 1380
+        }
+      },
+      {
+        "package": "@vue/reactivity",
+        "version": "3.5.42",
+        "packageManifest": {
+          "path": "node_modules/@vue/reactivity/package.json",
+          "sha256": "1475178beed45380b39d12aa96d8f16e50885ec0a503f42a6e36d0b13a0024b3",
+          "bytes": 1297
+        }
+      },
+      {
+        "package": "@vue/server-renderer",
+        "version": "3.5.42",
+        "packageManifest": {
+          "path": "node_modules/@vue/server-renderer/package.json",
+          "sha256": "1bdc2a07e138635b784cad5b87e4dc6c43f2f89d664ac3393b6520d08bf2b1fc",
+          "bytes": 1302
+        }
+      }
+    ]
+  },
+  "inputs": {
+    "path": "benchmarks/benchmark-inputs.json",
+    "sha256": "7aa856076f888fafea4d08b1fab51dfb1d446ad41d5d252adba4a8f52edee1a8"
+  },
+  "protocol": {
+    "design": "paired isolated blocks with candidate/upstream execution order alternating every block",
+    "seed": "vuelil-vue-3.5.42-performance-v1",
+    "samples": 21,
+    "warmupRuns": 3,
+    "bootstrapIterations": 10000,
+    "nonInferiorityMarginRatio": 1.03,
+    "confidenceLevel": 0.95,
+    "confidenceBound": "one-sided upper",
+    "sampleAdequacyOverride": false,
+    "timing": "Each runner reports positive workload durationMs; fresh-process wall time is retained as a diagnostic.",
+    "outlierPolicy": "No observations removed or winsorized."
+  },
+  "workloads": [
+    {
+      "id": "browser-keyed-render",
+      "category": "browser",
+      "description": "Warmed Chromium keyed-list rendering, reactive updates, DOM events, class/style patching, and unmount cleanup.",
+      "metric": "durationMs",
+      "nodeEnv": "production",
+      "runner": {
+        "path": "benchmarks/runners/browser.mjs",
+        "sha256": "b902c3ac30858620328b2c79650045b253dd71acaf9b8bdb37567acdab2e8d02",
+        "bytes": 4652
+      },
+      "candidateArtifact": {
+        "path": "packages/vuelil/vue.runtime.js",
+        "sha256": "d7ef0e331a244d632017523666752a9b2d461397929d2b277f6155f83ec2f8fb",
+        "bytes": 15999
+      },
+      "upstreamArtifact": {
+        "path": "node_modules/vue/dist/vue.runtime.esm-browser.prod.js",
+        "sha256": "85c5bc17be41da2f3491c25a6930d94a9e54d7ad878dcfa67e2fca3b55ee8cc9",
+        "bytes": 110634
+      },
+      "candidatePackageManifest": {
+        "path": "packages/vuelil/package.json",
+        "sha256": "1c960b22af37a745482eb6e3666c51488382fe0eea0b372d52552977beb46b5c",
+        "bytes": 2821
+      },
+      "upstreamPackageManifest": {
+        "path": "node_modules/vue/package.json",
+        "sha256": "c0907b63af03a21a63b3e7f6bd1279a8680d4478387ee2ae3502f0f73d52e1a7",
+        "bytes": 2769
+      },
+      "candidateGraph": {
+        "sha256": "d810fc2d712f7c563f47e030d3c911ce8bf6df23b8cbda60132c5f98808f0e94",
+        "modules": [
+          {
+            "path": "artifacts/shared-runtime.generated.js",
+            "sha256": "9ec3a74711d0ee116ca1d4bed8a022f59fca282f615ddbdc12ff6fc0c6c68781",
+            "bytes": 17475
+          },
+          {
+            "path": "packages/vuelil/reactivity.js",
+            "sha256": "704c6d90fc29d9d813443e7249d12eaaab37d5491bde062547c918a9ee720b29",
+            "bytes": 40447
+          },
+          {
+            "path": "packages/vuelil/runtime-core.internal.js",
+            "sha256": "9ae31f58f7e0f03262be8195dddaf9accd2946ff3c5bb78e0eb43ca495b2b0c4",
+            "bytes": 411193
+          },
+          {
+            "path": "packages/vuelil/runtime-core.js",
+            "sha256": "cf1d929626175d2c2208ca4005a2c15ec9f59c2a8d0fdfb0d59bb4275c5be6a9",
+            "bytes": 2222
+          },
+          {
+            "path": "packages/vuelil/runtime-dom.js",
+            "sha256": "3452580c5eeb6d08d09cecebae9082617811bb0b0826b05f9925b4e16cf685f8",
+            "bytes": 128210
+          },
+          {
+            "path": "packages/vuelil/shared.js",
+            "sha256": "af475ae0c9b7f2f43924bdc4e4d1a88966044d25570ffe5f11b6a3978db6e8b6",
+            "bytes": 569
+          },
+          {
+            "path": "packages/vuelil/vue.runtime.js",
+            "sha256": "d7ef0e331a244d632017523666752a9b2d461397929d2b277f6155f83ec2f8fb",
+            "bytes": 15999
+          }
+        ]
+      },
+      "upstreamGraph": {
+        "sha256": "531aab19568abe0f586080d77b13079bc817f6d497fac9ce88ada4ac1e314836",
+        "modules": [
+          {
+            "path": "node_modules/vue/dist/vue.runtime.esm-browser.prod.js",
+            "sha256": "85c5bc17be41da2f3491c25a6930d94a9e54d7ad878dcfa67e2fca3b55ee8cc9",
+            "bytes": 110634
+          }
+        ]
+      },
+      "environment": {
+        "engine": "Chromium",
+        "version": "151.0.7922.34",
+        "automation": "Playwright 1.62.1",
+        "headless": true
+      },
+      "statistics": {
+        "ratio": {
+          "method": "paired geometric-mean ratio with deterministic percentile bootstrap",
+          "estimand": "candidate duration / upstream duration",
+          "pointEstimate": 1.5432218472586912,
+          "confidenceLevel": 0.95,
+          "confidenceBound": "one-sided upper",
+          "confidenceInterval": {
+            "upper95": 1.6279584070364288
+          },
+          "bootstrapIterations": 10000,
+          "nonInferiorityMarginRatio": 1.03,
+          "nonInferior": false,
+          "ratios": [
+            1.7005464496508322,
+            1.8837988842799012,
+            1.67932067596807,
+            1.6566523606906878,
+            1.7717647075653076,
+            1.453815261957459,
+            1.4228187912252555,
+            1.5225677019028545,
+            1.0482611778511008,
+            1.2757909228507796,
+            1.8006430877369919,
+            1.6198662829741293,
+            1.6722354810496842,
+            1.5491453007236966,
+            1.6478260869565218,
+            1.3448540694355218,
+            1.162554427453691,
+            1.8019704442893343,
+            1.8446601941747574,
+            1.6277985067386243,
+            1.292873923895083
+          ]
+        }
+      },
+      "observations": [
+        {
+          "block": 0,
+          "order": [
+            "upstream",
+            "candidate"
+          ],
+          "upstream": {
+            "durationMs": 91.5,
+            "operations": 39120,
+            "checksum": "625e58d1:8128",
+            "environment": {
+              "engine": "Chromium",
+              "version": "151.0.7922.34",
+              "automation": "Playwright 1.62.1",
+              "headless": true
+            },
+            "processWallMs": 811.5570269999998
+          },
+          "candidate": {
+            "durationMs": 155.60000014305115,
+            "operations": 39120,
+            "checksum": "625e58d1:8128",
+            "environment": {
+              "engine": "Chromium",
+              "version": "151.0.7922.34",
+              "automation": "Playwright 1.62.1",
+              "headless": true
+            },
+            "processWallMs": 913.4516939999994
+          }
+        },
+        {
+          "block": 1,
+          "order": [
+            "candidate",
+            "upstream"
+          ],
+          "candidate": {
+            "durationMs": 168.60000014305115,
+            "operations": 39120,
+            "checksum": "625e58d1:8128",
+            "environment": {
+              "engine": "Chromium",
+              "version": "151.0.7922.34",
+              "automation": "Playwright 1.62.1",
+              "headless": true
+            },
+            "processWallMs": 929.5344070000001
+          },
+          "upstream": {
+            "durationMs": 89.5,
+            "operations": 39120,
+            "checksum": "625e58d1:8128",
+            "environment": {
+              "engine": "Chromium",
+              "version": "151.0.7922.34",
+              "automation": "Playwright 1.62.1",
+              "headless": true
+            },
+            "processWallMs": 791.0569500000001
+          }
+        },
+        {
+          "block": 2,
+          "order": [
+            "upstream",
+            "candidate"
+          ],
+          "upstream": {
+            "durationMs": 100.10000014305115,
+            "operations": 39120,
+            "checksum": "625e58d1:8128",
+            "environment": {
+              "engine": "Chromium",
+              "version": "151.0.7922.34",
+              "automation": "Playwright 1.62.1",
+              "headless": true
+            },
+            "processWallMs": 783.0485669999998
+          },
+          "candidate": {
+            "durationMs": 168.09999990463257,
+            "operations": 39120,
+            "checksum": "625e58d1:8128",
+            "environment": {
+              "engine": "Chromium",
+              "version": "151.0.7922.34",
+              "automation": "Playwright 1.62.1",
+              "headless": true
+            },
+            "processWallMs": 989.6964750000006
+          }
+        },
+        {
+          "block": 3,
+          "order": [
+            "candidate",
+            "upstream"
+          ],
+          "candidate": {
+            "durationMs": 154.40000009536743,
+            "operations": 39120,
+            "checksum": "625e58d1:8128",
+            "environment": {
+              "engine": "Chromium",
+              "version": "151.0.7922.34",
+              "automation": "Playwright 1.62.1",
+              "headless": true
+            },
+            "processWallMs": 1015.0081860000009
+          },
+          "upstream": {
+            "durationMs": 93.20000004768372,
+            "operations": 39120,
+            "checksum": "625e58d1:8128",
+            "environment": {
+              "engine": "Chromium",
+              "version": "151.0.7922.34",
+              "automation": "Playwright 1.62.1",
+              "headless": true
+            },
+            "processWallMs": 761.3593450000008
+          }
+        },
+        {
+          "block": 4,
+          "order": [
+            "upstream",
+            "candidate"
+          ],
+          "upstream": {
+            "durationMs": 85,
+            "operations": 39120,
+            "checksum": "625e58d1:8128",
+            "environment": {
+              "engine": "Chromium",
+              "version": "151.0.7922.34",
+              "automation": "Playwright 1.62.1",
+              "headless": true
+            },
+            "processWallMs": 755.8968509999995
+          },
+          "candidate": {
+            "durationMs": 150.60000014305115,
+            "operations": 39120,
+            "checksum": "625e58d1:8128",
+            "environment": {
+              "engine": "Chromium",
+              "version": "151.0.7922.34",
+              "automation": "Playwright 1.62.1",
+              "headless": true
+            },
+            "processWallMs": 914.2054669999998
+          }
+        },
+        {
+          "block": 5,
+          "order": [
+            "candidate",
+            "upstream"
+          ],
+          "candidate": {
+            "durationMs": 144.79999995231628,
+            "operations": 39120,
+            "checksum": "625e58d1:8128",
+            "environment": {
+              "engine": "Chromium",
+              "version": "151.0.7922.34",
+              "automation": "Playwright 1.62.1",
+              "headless": true
+            },
+            "processWallMs": 912.2824239999991
+          },
+          "upstream": {
+            "durationMs": 99.59999990463257,
+            "operations": 39120,
+            "checksum": "625e58d1:8128",
+            "environment": {
+              "engine": "Chromium",
+              "version": "151.0.7922.34",
+              "automation": "Playwright 1.62.1",
+              "headless": true
+            },
+            "processWallMs": 798.3432389999998
+          }
+        },
+        {
+          "block": 6,
+          "order": [
+            "upstream",
+            "candidate"
+          ],
+          "upstream": {
+            "durationMs": 104.29999995231628,
+            "operations": 39120,
+            "checksum": "625e58d1:8128",
+            "environment": {
+              "engine": "Chromium",
+              "version": "151.0.7922.34",
+              "automation": "Playwright 1.62.1",
+              "headless": true
+            },
+            "processWallMs": 815.0919029999986
+          },
+          "candidate": {
+            "durationMs": 148.39999985694885,
+            "operations": 39120,
+            "checksum": "625e58d1:8128",
+            "environment": {
+              "engine": "Chromium",
+              "version": "151.0.7922.34",
+              "automation": "Playwright 1.62.1",
+              "headless": true
+            },
+            "processWallMs": 915.9982480000035
+          }
+        },
+        {
+          "block": 7,
+          "order": [
+            "candidate",
+            "upstream"
+          ],
+          "candidate": {
+            "durationMs": 151.79999995231628,
+            "operations": 39120,
+            "checksum": "625e58d1:8128",
+            "environment": {
+              "engine": "Chromium",
+              "version": "151.0.7922.34",
+              "automation": "Playwright 1.62.1",
+              "headless": true
+            },
+            "processWallMs": 909.3817159999999
+          },
+          "upstream": {
+            "durationMs": 99.70000004768372,
+            "operations": 39120,
+            "checksum": "625e58d1:8128",
+            "environment": {
+              "engine": "Chromium",
+              "version": "151.0.7922.34",
+              "automation": "Playwright 1.62.1",
+              "headless": true
+            },
+            "processWallMs": 882.6311870000027
+          }
+        },
+        {
+          "block": 8,
+          "order": [
+            "upstream",
+            "candidate"
+          ],
+          "upstream": {
+            "durationMs": 140.89999985694885,
+            "operations": 39120,
+            "checksum": "625e58d1:8128",
+            "environment": {
+              "engine": "Chromium",
+              "version": "151.0.7922.34",
+              "automation": "Playwright 1.62.1",
+              "headless": true
+            },
+            "processWallMs": 1029.0578139999998
+          },
+          "candidate": {
+            "durationMs": 147.69999980926514,
+            "operations": 39120,
+            "checksum": "625e58d1:8128",
+            "environment": {
+              "engine": "Chromium",
+              "version": "151.0.7922.34",
+              "automation": "Playwright 1.62.1",
+              "headless": true
+            },
+            "processWallMs": 1095.8586680000008
+          }
+        },
+        {
+          "block": 9,
+          "order": [
+            "candidate",
+            "upstream"
+          ],
+          "candidate": {
+            "durationMs": 185.5,
+            "operations": 39120,
+            "checksum": "625e58d1:8128",
+            "environment": {
+              "engine": "Chromium",
+              "version": "151.0.7922.34",
+              "automation": "Playwright 1.62.1",
+              "headless": true
+            },
+            "processWallMs": 917.3580769999971
+          },
+          "upstream": {
+            "durationMs": 145.39999985694885,
+            "operations": 39120,
+            "checksum": "625e58d1:8128",
+            "environment": {
+              "engine": "Chromium",
+              "version": "151.0.7922.34",
+              "automation": "Playwright 1.62.1",
+              "headless": true
+            },
+            "processWallMs": 833.7294430000002
+          }
+        },
+        {
+          "block": 10,
+          "order": [
+            "upstream",
+            "candidate"
+          ],
+          "upstream": {
+            "durationMs": 93.29999995231628,
+            "operations": 39120,
+            "checksum": "625e58d1:8128",
+            "environment": {
+              "engine": "Chromium",
+              "version": "151.0.7922.34",
+              "automation": "Playwright 1.62.1",
+              "headless": true
+            },
+            "processWallMs": 871.0186119999998
+          },
+          "candidate": {
+            "durationMs": 168,
+            "operations": 39120,
+            "checksum": "625e58d1:8128",
+            "environment": {
+              "engine": "Chromium",
+              "version": "151.0.7922.34",
+              "automation": "Playwright 1.62.1",
+              "headless": true
+            },
+            "processWallMs": 943.2563599999994
+          }
+        },
+        {
+          "block": 11,
+          "order": [
+            "candidate",
+            "upstream"
+          ],
+          "candidate": {
+            "durationMs": 169.59999990463257,
+            "operations": 39120,
+            "checksum": "625e58d1:8128",
+            "environment": {
+              "engine": "Chromium",
+              "version": "151.0.7922.34",
+              "automation": "Playwright 1.62.1",
+              "headless": true
+            },
+            "processWallMs": 937.2168590000001
+          },
+          "upstream": {
+            "durationMs": 104.70000004768372,
+            "operations": 39120,
+            "checksum": "625e58d1:8128",
+            "environment": {
+              "engine": "Chromium",
+              "version": "151.0.7922.34",
+              "automation": "Playwright 1.62.1",
+              "headless": true
+            },
+            "processWallMs": 843.123771999999
+          }
+        },
+        {
+          "block": 12,
+          "order": [
+            "upstream",
+            "candidate"
+          ],
+          "upstream": {
+            "durationMs": 125.70000004768372,
+            "operations": 39120,
+            "checksum": "625e58d1:8128",
+            "environment": {
+              "engine": "Chromium",
+              "version": "151.0.7922.34",
+              "automation": "Playwright 1.62.1",
+              "headless": true
+            },
+            "processWallMs": 859.7012429999995
+          },
+          "candidate": {
+            "durationMs": 210.20000004768372,
+            "operations": 39120,
+            "checksum": "625e58d1:8128",
+            "environment": {
+              "engine": "Chromium",
+              "version": "151.0.7922.34",
+              "automation": "Playwright 1.62.1",
+              "headless": true
+            },
+            "processWallMs": 1012.4501100000016
+          }
+        },
+        {
+          "block": 13,
+          "order": [
+            "candidate",
+            "upstream"
+          ],
+          "candidate": {
+            "durationMs": 145,
+            "operations": 39120,
+            "checksum": "625e58d1:8128",
+            "environment": {
+              "engine": "Chromium",
+              "version": "151.0.7922.34",
+              "automation": "Playwright 1.62.1",
+              "headless": true
+            },
+            "processWallMs": 917.6544389999981
+          },
+          "upstream": {
+            "durationMs": 93.59999990463257,
+            "operations": 39120,
+            "checksum": "625e58d1:8128",
+            "environment": {
+              "engine": "Chromium",
+              "version": "151.0.7922.34",
+              "automation": "Playwright 1.62.1",
+              "headless": true
+            },
+            "processWallMs": 848.7337939999998
+          }
+        },
+        {
+          "block": 14,
+          "order": [
+            "upstream",
+            "candidate"
+          ],
+          "upstream": {
+            "durationMs": 115,
+            "operations": 39120,
+            "checksum": "625e58d1:8128",
+            "environment": {
+              "engine": "Chromium",
+              "version": "151.0.7922.34",
+              "automation": "Playwright 1.62.1",
+              "headless": true
+            },
+            "processWallMs": 953.9179049999984
+          },
+          "candidate": {
+            "durationMs": 189.5,
+            "operations": 39120,
+            "checksum": "625e58d1:8128",
+            "environment": {
+              "engine": "Chromium",
+              "version": "151.0.7922.34",
+              "automation": "Playwright 1.62.1",
+              "headless": true
+            },
+            "processWallMs": 1193.724929
+          }
+        },
+        {
+          "block": 15,
+          "order": [
+            "candidate",
+            "upstream"
+          ],
+          "candidate": {
+            "durationMs": 175.09999990463257,
+            "operations": 39120,
+            "checksum": "625e58d1:8128",
+            "environment": {
+              "engine": "Chromium",
+              "version": "151.0.7922.34",
+              "automation": "Playwright 1.62.1",
+              "headless": true
+            },
+            "processWallMs": 1182.3961510000008
+          },
+          "upstream": {
+            "durationMs": 130.20000004768372,
+            "operations": 39120,
+            "checksum": "625e58d1:8128",
+            "environment": {
+              "engine": "Chromium",
+              "version": "151.0.7922.34",
+              "automation": "Playwright 1.62.1",
+              "headless": true
+            },
+            "processWallMs": 986.2511620000005
+          }
+        },
+        {
+          "block": 16,
+          "order": [
+            "upstream",
+            "candidate"
+          ],
+          "upstream": {
+            "durationMs": 137.79999995231628,
+            "operations": 39120,
+            "checksum": "625e58d1:8128",
+            "environment": {
+              "engine": "Chromium",
+              "version": "151.0.7922.34",
+              "automation": "Playwright 1.62.1",
+              "headless": true
+            },
+            "processWallMs": 928.4450389999984
+          },
+          "candidate": {
+            "durationMs": 160.20000004768372,
+            "operations": 39120,
+            "checksum": "625e58d1:8128",
+            "environment": {
+              "engine": "Chromium",
+              "version": "151.0.7922.34",
+              "automation": "Playwright 1.62.1",
+              "headless": true
+            },
+            "processWallMs": 967.9998080000005
+          }
+        },
+        {
+          "block": 17,
+          "order": [
+            "candidate",
+            "upstream"
+          ],
+          "candidate": {
+            "durationMs": 182.90000009536743,
+            "operations": 39120,
+            "checksum": "625e58d1:8128",
+            "environment": {
+              "engine": "Chromium",
+              "version": "151.0.7922.34",
+              "automation": "Playwright 1.62.1",
+              "headless": true
+            },
+            "processWallMs": 984.4573509999973
+          },
+          "upstream": {
+            "durationMs": 101.5,
+            "operations": 39120,
+            "checksum": "625e58d1:8128",
+            "environment": {
+              "engine": "Chromium",
+              "version": "151.0.7922.34",
+              "automation": "Playwright 1.62.1",
+              "headless": true
+            },
+            "processWallMs": 818.4934769999963
+          }
+        },
+        {
+          "block": 18,
+          "order": [
+            "upstream",
+            "candidate"
+          ],
+          "upstream": {
+            "durationMs": 103,
+            "operations": 39120,
+            "checksum": "625e58d1:8128",
+            "environment": {
+              "engine": "Chromium",
+              "version": "151.0.7922.34",
+              "automation": "Playwright 1.62.1",
+              "headless": true
+            },
+            "processWallMs": 824.630416
+          },
+          "candidate": {
+            "durationMs": 190,
+            "operations": 39120,
+            "checksum": "625e58d1:8128",
+            "environment": {
+              "engine": "Chromium",
+              "version": "151.0.7922.34",
+              "automation": "Playwright 1.62.1",
+              "headless": true
+            },
+            "processWallMs": 1004.5071280000047
+          }
+        },
+        {
+          "block": 19,
+          "order": [
+            "candidate",
+            "upstream"
+          ],
+          "candidate": {
+            "durationMs": 174.5,
+            "operations": 39120,
+            "checksum": "625e58d1:8128",
+            "environment": {
+              "engine": "Chromium",
+              "version": "151.0.7922.34",
+              "automation": "Playwright 1.62.1",
+              "headless": true
+            },
+            "processWallMs": 1032.5481599999985
+          },
+          "upstream": {
+            "durationMs": 107.20000004768372,
+            "operations": 39120,
+            "checksum": "625e58d1:8128",
+            "environment": {
+              "engine": "Chromium",
+              "version": "151.0.7922.34",
+              "automation": "Playwright 1.62.1",
+              "headless": true
+            },
+            "processWallMs": 920.3318510000026
+          }
+        },
+        {
+          "block": 20,
+          "order": [
+            "upstream",
+            "candidate"
+          ],
+          "upstream": {
+            "durationMs": 127.70000004768372,
+            "operations": 39120,
+            "checksum": "625e58d1:8128",
+            "environment": {
+              "engine": "Chromium",
+              "version": "151.0.7922.34",
+              "automation": "Playwright 1.62.1",
+              "headless": true
+            },
+            "processWallMs": 869.6780829999989
+          },
+          "candidate": {
+            "durationMs": 165.10000014305115,
+            "operations": 39120,
+            "checksum": "625e58d1:8128",
+            "environment": {
+              "engine": "Chromium",
+              "version": "151.0.7922.34",
+              "automation": "Playwright 1.62.1",
+              "headless": true
+            },
+            "processWallMs": 1037.4149800000014
+          }
+        }
+      ],
+      "passed": false
+    },
+    {
+      "id": "compiler-dom-development",
+      "category": "compiler",
+      "description": "Warmed development-mode DOM compilation of structural directives, slots, events, models, static trees, and dynamic bindings.",
+      "metric": "durationMs",
+      "nodeEnv": "development",
+      "runner": {
+        "path": "benchmarks/runners/compiler.mjs",
+        "sha256": "7cf06f496a1f293a9e50eb47a911aa74179ad2f2ea47bc5e69086d092c948b18",
+        "bytes": 1833
+      },
+      "candidateArtifact": {
+        "path": "packages/vuelil/compiler-dom.js",
+        "sha256": "f24fd2a66cdf543debd2ad6e205f66090792bf6d66cbc086064fe0716bfa3e83",
+        "bytes": 2622
+      },
+      "upstreamArtifact": {
+        "path": "node_modules/@vue/compiler-dom/dist/compiler-dom.cjs.js",
+        "sha256": "9d195a4df05ece3ed1687d2f55e364e6ba00e1aafd2d5571ad82be2dfd39cb84",
+        "bytes": 27543
+      },
+      "candidatePackageManifest": {
+        "path": "packages/vuelil/package.json",
+        "sha256": "1c960b22af37a745482eb6e3666c51488382fe0eea0b372d52552977beb46b5c",
+        "bytes": 2821
+      },
+      "upstreamPackageManifest": {
+        "path": "node_modules/@vue/compiler-dom/package.json",
+        "sha256": "d332e21ef3c09484cc8b327536cdf4626a5d0a4d447e335eb48c647ae1f31551",
+        "bytes": 1380
+      },
+      "candidateGraph": {
+        "sha256": "b7ecdd3ef08bee4bf6faf544da1b8c6a6f40e3def81f1aefed53d5731faee9d8",
+        "modules": [
+          {
+            "path": "artifacts/compiler-dom.generated.js",
+            "sha256": "fdc75691b7715ba2b25605342ad42e923bdf3e1d5ef56fffbf994c4c8e1df2a7",
+            "bytes": 28615
+          },
+          {
+            "path": "artifacts/shared-runtime.generated.js",
+            "sha256": "9ec3a74711d0ee116ca1d4bed8a022f59fca282f615ddbdc12ff6fc0c6c68781",
+            "bytes": 17475
+          },
+          {
+            "path": "packages/vuelil/compiler-core.js",
+            "sha256": "32dbd7f92b5892917182a30ec0cb5aaaea6ed901f1a2a917e11ab879d68c82bc",
+            "bytes": 115562
+          },
+          {
+            "path": "packages/vuelil/compiler-dom.js",
+            "sha256": "f24fd2a66cdf543debd2ad6e205f66090792bf6d66cbc086064fe0716bfa3e83",
+            "bytes": 2622
+          },
+          {
+            "path": "packages/vuelil/shared.js",
+            "sha256": "af475ae0c9b7f2f43924bdc4e4d1a88966044d25570ffe5f11b6a3978db6e8b6",
+            "bytes": 569
+          }
+        ]
+      },
+      "upstreamGraph": {
+        "sha256": "20cfd77bf6ac24d48849afba0919da454aa7cb57a3d4e274ec7151f0b0bb64d9",
+        "modules": [
+          {
+            "path": "node_modules/@vue/compiler-dom/dist/compiler-dom.cjs.js",
+            "sha256": "9d195a4df05ece3ed1687d2f55e364e6ba00e1aafd2d5571ad82be2dfd39cb84",
+            "bytes": 27543
+          }
+        ]
+      },
+      "environment": {
+        "engine": "Node.js",
+        "version": "v24.20.0",
+        "architecture": "x64"
+      },
+      "statistics": {
+        "ratio": {
+          "method": "paired geometric-mean ratio with deterministic percentile bootstrap",
+          "estimand": "candidate duration / upstream duration",
+          "pointEstimate": 1.0195438434606514,
+          "confidenceLevel": 0.95,
+          "confidenceBound": "one-sided upper",
+          "confidenceInterval": {
+            "upper95": 1.0641369879298332
+          },
+          "bootstrapIterations": 10000,
+          "nonInferiorityMarginRatio": 1.03,
+          "nonInferior": false,
+          "ratios": [
+            1.0761508924820173,
+            1.0872737180058882,
+            0.8922180266659994,
+            1.3313483689940526,
+            1.1610483165588152,
+            1.3151397905091016,
+            0.8578817456372734,
+            1.0999480422171943,
+            0.9732414069824815,
+            1.0978415385567895,
+            1.0226092880734756,
+            0.9682963897591977,
+            1.024895263523207,
+            0.9512860442522859,
+            0.9464005326298442,
+            0.9166361049293094,
+            1.038336720777751,
+            0.947467394811727,
+            1.0610600593610244,
+            0.8495867508610278,
+            0.944792524853567
+          ]
+        }
+      },
+      "observations": [
+        {
+          "block": 0,
+          "order": [
+            "candidate",
+            "upstream"
+          ],
+          "candidate": {
+            "durationMs": 278.476083,
+            "operations": 960,
+            "checksum": "53ec82f2b25fd952ee9df546034df1f2f8ef7ce9a93d7425190761d630a8142b",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 460.28193199999805
+          },
+          "upstream": {
+            "durationMs": 258.77048,
+            "operations": 960,
+            "checksum": "53ec82f2b25fd952ee9df546034df1f2f8ef7ce9a93d7425190761d630a8142b",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 416.8663430000015
+          }
+        },
+        {
+          "block": 1,
+          "order": [
+            "upstream",
+            "candidate"
+          ],
+          "upstream": {
+            "durationMs": 286.883962,
+            "operations": 960,
+            "checksum": "53ec82f2b25fd952ee9df546034df1f2f8ef7ce9a93d7425190761d630a8142b",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 458.53738700000395
+          },
+          "candidate": {
+            "durationMs": 311.92139199999997,
+            "operations": 960,
+            "checksum": "53ec82f2b25fd952ee9df546034df1f2f8ef7ce9a93d7425190761d630a8142b",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 475.2071980000037
+          }
+        },
+        {
+          "block": 2,
+          "order": [
+            "candidate",
+            "upstream"
+          ],
+          "candidate": {
+            "durationMs": 297.68698500000005,
+            "operations": 960,
+            "checksum": "53ec82f2b25fd952ee9df546034df1f2f8ef7ce9a93d7425190761d630a8142b",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 494.8287790000031
+          },
+          "upstream": {
+            "durationMs": 333.64825199999996,
+            "operations": 960,
+            "checksum": "53ec82f2b25fd952ee9df546034df1f2f8ef7ce9a93d7425190761d630a8142b",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 517.7077729999946
+          }
+        },
+        {
+          "block": 3,
+          "order": [
+            "upstream",
+            "candidate"
+          ],
+          "upstream": {
+            "durationMs": 326.99092899999994,
+            "operations": 960,
+            "checksum": "53ec82f2b25fd952ee9df546034df1f2f8ef7ce9a93d7425190761d630a8142b",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 539.6653910000023
+          },
+          "candidate": {
+            "durationMs": 435.33884,
+            "operations": 960,
+            "checksum": "53ec82f2b25fd952ee9df546034df1f2f8ef7ce9a93d7425190761d630a8142b",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 648.7217640000017
+          }
+        },
+        {
+          "block": 4,
+          "order": [
+            "candidate",
+            "upstream"
+          ],
+          "candidate": {
+            "durationMs": 396.439539,
+            "operations": 960,
+            "checksum": "53ec82f2b25fd952ee9df546034df1f2f8ef7ce9a93d7425190761d630a8142b",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 576.9192629999961
+          },
+          "upstream": {
+            "durationMs": 341.44964799999997,
+            "operations": 960,
+            "checksum": "53ec82f2b25fd952ee9df546034df1f2f8ef7ce9a93d7425190761d630a8142b",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 539.509705000004
+          }
+        },
+        {
+          "block": 5,
+          "order": [
+            "upstream",
+            "candidate"
+          ],
+          "upstream": {
+            "durationMs": 296.35846000000004,
+            "operations": 960,
+            "checksum": "53ec82f2b25fd952ee9df546034df1f2f8ef7ce9a93d7425190761d630a8142b",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 540.5729559999963
+          },
+          "candidate": {
+            "durationMs": 389.75280300000003,
+            "operations": 960,
+            "checksum": "53ec82f2b25fd952ee9df546034df1f2f8ef7ce9a93d7425190761d630a8142b",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 641.138512000005
+          }
+        },
+        {
+          "block": 6,
+          "order": [
+            "candidate",
+            "upstream"
+          ],
+          "candidate": {
+            "durationMs": 340.739422,
+            "operations": 960,
+            "checksum": "53ec82f2b25fd952ee9df546034df1f2f8ef7ce9a93d7425190761d630a8142b",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 526.400447
+          },
+          "upstream": {
+            "durationMs": 397.186936,
+            "operations": 960,
+            "checksum": "53ec82f2b25fd952ee9df546034df1f2f8ef7ce9a93d7425190761d630a8142b",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 613.2461849999963
+          }
+        },
+        {
+          "block": 7,
+          "order": [
+            "upstream",
+            "candidate"
+          ],
+          "upstream": {
+            "durationMs": 260.080382,
+            "operations": 960,
+            "checksum": "53ec82f2b25fd952ee9df546034df1f2f8ef7ce9a93d7425190761d630a8142b",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 412.703211
+          },
+          "candidate": {
+            "durationMs": 286.074907,
+            "operations": 960,
+            "checksum": "53ec82f2b25fd952ee9df546034df1f2f8ef7ce9a93d7425190761d630a8142b",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 452.02580500000477
+          }
+        },
+        {
+          "block": 8,
+          "order": [
+            "candidate",
+            "upstream"
+          ],
+          "candidate": {
+            "durationMs": 277.56031199999995,
+            "operations": 960,
+            "checksum": "53ec82f2b25fd952ee9df546034df1f2f8ef7ce9a93d7425190761d630a8142b",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 444.1370999999999
+          },
+          "upstream": {
+            "durationMs": 285.191639,
+            "operations": 960,
+            "checksum": "53ec82f2b25fd952ee9df546034df1f2f8ef7ce9a93d7425190761d630a8142b",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 447.06191099999705
+          }
+        },
+        {
+          "block": 9,
+          "order": [
+            "upstream",
+            "candidate"
+          ],
+          "upstream": {
+            "durationMs": 265.22720699999996,
+            "operations": 960,
+            "checksum": "53ec82f2b25fd952ee9df546034df1f2f8ef7ce9a93d7425190761d630a8142b",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 424.9079980000024
+          },
+          "candidate": {
+            "durationMs": 291.17744500000003,
+            "operations": 960,
+            "checksum": "53ec82f2b25fd952ee9df546034df1f2f8ef7ce9a93d7425190761d630a8142b",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 456.4232550000015
+          }
+        },
+        {
+          "block": 10,
+          "order": [
+            "candidate",
+            "upstream"
+          ],
+          "candidate": {
+            "durationMs": 265.782397,
+            "operations": 960,
+            "checksum": "53ec82f2b25fd952ee9df546034df1f2f8ef7ce9a93d7425190761d630a8142b",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 431.01741200000106
+          },
+          "upstream": {
+            "durationMs": 259.906105,
+            "operations": 960,
+            "checksum": "53ec82f2b25fd952ee9df546034df1f2f8ef7ce9a93d7425190761d630a8142b",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 426.33937599999626
+          }
+        },
+        {
+          "block": 11,
+          "order": [
+            "upstream",
+            "candidate"
+          ],
+          "upstream": {
+            "durationMs": 270.313631,
+            "operations": 960,
+            "checksum": "53ec82f2b25fd952ee9df546034df1f2f8ef7ce9a93d7425190761d630a8142b",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 466.62470099999337
+          },
+          "candidate": {
+            "durationMs": 261.74371299999996,
+            "operations": 960,
+            "checksum": "53ec82f2b25fd952ee9df546034df1f2f8ef7ce9a93d7425190761d630a8142b",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 420.9867180000001
+          }
+        },
+        {
+          "block": 12,
+          "order": [
+            "candidate",
+            "upstream"
+          ],
+          "candidate": {
+            "durationMs": 278.090231,
+            "operations": 960,
+            "checksum": "53ec82f2b25fd952ee9df546034df1f2f8ef7ce9a93d7425190761d630a8142b",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 444.3414330000014
+          },
+          "upstream": {
+            "durationMs": 271.33526800000004,
+            "operations": 960,
+            "checksum": "53ec82f2b25fd952ee9df546034df1f2f8ef7ce9a93d7425190761d630a8142b",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 434.3713260000004
+          }
+        },
+        {
+          "block": 13,
+          "order": [
+            "upstream",
+            "candidate"
+          ],
+          "upstream": {
+            "durationMs": 281.663597,
+            "operations": 960,
+            "checksum": "53ec82f2b25fd952ee9df546034df1f2f8ef7ce9a93d7425190761d630a8142b",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 447.5212230000034
+          },
+          "candidate": {
+            "durationMs": 267.942649,
+            "operations": 960,
+            "checksum": "53ec82f2b25fd952ee9df546034df1f2f8ef7ce9a93d7425190761d630a8142b",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 431.97227199999907
+          }
+        },
+        {
+          "block": 14,
+          "order": [
+            "candidate",
+            "upstream"
+          ],
+          "candidate": {
+            "durationMs": 260.904773,
+            "operations": 960,
+            "checksum": "53ec82f2b25fd952ee9df546034df1f2f8ef7ce9a93d7425190761d630a8142b",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 419.12150400000246
+          },
+          "upstream": {
+            "durationMs": 275.681135,
+            "operations": 960,
+            "checksum": "53ec82f2b25fd952ee9df546034df1f2f8ef7ce9a93d7425190761d630a8142b",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 449.8051720000003
+          }
+        },
+        {
+          "block": 15,
+          "order": [
+            "upstream",
+            "candidate"
+          ],
+          "upstream": {
+            "durationMs": 291.358327,
+            "operations": 960,
+            "checksum": "53ec82f2b25fd952ee9df546034df1f2f8ef7ce9a93d7425190761d630a8142b",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 454.4765599999955
+          },
+          "candidate": {
+            "durationMs": 267.069562,
+            "operations": 960,
+            "checksum": "53ec82f2b25fd952ee9df546034df1f2f8ef7ce9a93d7425190761d630a8142b",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 434.9730339999951
+          }
+        },
+        {
+          "block": 16,
+          "order": [
+            "candidate",
+            "upstream"
+          ],
+          "candidate": {
+            "durationMs": 282.54768,
+            "operations": 960,
+            "checksum": "53ec82f2b25fd952ee9df546034df1f2f8ef7ce9a93d7425190761d630a8142b",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 442.75467599999683
+          },
+          "upstream": {
+            "durationMs": 272.11565800000005,
+            "operations": 960,
+            "checksum": "53ec82f2b25fd952ee9df546034df1f2f8ef7ce9a93d7425190761d630a8142b",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 432.2905909999972
+          }
+        },
+        {
+          "block": 17,
+          "order": [
+            "upstream",
+            "candidate"
+          ],
+          "upstream": {
+            "durationMs": 291.81950800000004,
+            "operations": 960,
+            "checksum": "53ec82f2b25fd952ee9df546034df1f2f8ef7ce9a93d7425190761d630a8142b",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 455.0049319999962
+          },
+          "candidate": {
+            "durationMs": 276.489469,
+            "operations": 960,
+            "checksum": "53ec82f2b25fd952ee9df546034df1f2f8ef7ce9a93d7425190761d630a8142b",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 461.25632599999517
+          }
+        },
+        {
+          "block": 18,
+          "order": [
+            "candidate",
+            "upstream"
+          ],
+          "candidate": {
+            "durationMs": 285.24505800000003,
+            "operations": 960,
+            "checksum": "53ec82f2b25fd952ee9df546034df1f2f8ef7ce9a93d7425190761d630a8142b",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 453.5815920000023
+          },
+          "upstream": {
+            "durationMs": 268.83026600000005,
+            "operations": 960,
+            "checksum": "53ec82f2b25fd952ee9df546034df1f2f8ef7ce9a93d7425190761d630a8142b",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 428.4202620000069
+          }
+        },
+        {
+          "block": 19,
+          "order": [
+            "upstream",
+            "candidate"
+          ],
+          "upstream": {
+            "durationMs": 331.869415,
+            "operations": 960,
+            "checksum": "53ec82f2b25fd952ee9df546034df1f2f8ef7ce9a93d7425190761d630a8142b",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 496.2195639999991
+          },
+          "candidate": {
+            "durationMs": 281.951858,
+            "operations": 960,
+            "checksum": "53ec82f2b25fd952ee9df546034df1f2f8ef7ce9a93d7425190761d630a8142b",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 448.77406399999745
+          }
+        },
+        {
+          "block": 20,
+          "order": [
+            "candidate",
+            "upstream"
+          ],
+          "candidate": {
+            "durationMs": 276.20172,
+            "operations": 960,
+            "checksum": "53ec82f2b25fd952ee9df546034df1f2f8ef7ce9a93d7425190761d630a8142b",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 446.5525520000083
+          },
+          "upstream": {
+            "durationMs": 292.341136,
+            "operations": 960,
+            "checksum": "53ec82f2b25fd952ee9df546034df1f2f8ef7ce9a93d7425190761d630a8142b",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 458.23627500000293
+          }
+        }
+      ],
+      "passed": false
+    },
+    {
+      "id": "reactivity-graph-updates",
+      "category": "reactivity",
+      "description": "Warmed reactive object graph mutations with computed invalidation, dependency tracking, synchronous effects, and cleanup.",
+      "metric": "durationMs",
+      "nodeEnv": "production",
+      "runner": {
+        "path": "benchmarks/runners/reactivity.mjs",
+        "sha256": "1405f61893bb03c5199ed8d201063148d7348deee020d296e30d2ffab2cd5304",
+        "bytes": 1418
+      },
+      "candidateArtifact": {
+        "path": "packages/vuelil/reactivity.js",
+        "sha256": "704c6d90fc29d9d813443e7249d12eaaab37d5491bde062547c918a9ee720b29",
+        "bytes": 40447
+      },
+      "upstreamArtifact": {
+        "path": "node_modules/@vue/reactivity/index.js",
+        "sha256": "ea58baa61892122ece77249d50c4b4bcdda46dd5233d6908d86d6bb4f874a109",
+        "bytes": 185
+      },
+      "candidatePackageManifest": {
+        "path": "packages/vuelil/package.json",
+        "sha256": "1c960b22af37a745482eb6e3666c51488382fe0eea0b372d52552977beb46b5c",
+        "bytes": 2821
+      },
+      "upstreamPackageManifest": {
+        "path": "node_modules/@vue/reactivity/package.json",
+        "sha256": "1475178beed45380b39d12aa96d8f16e50885ec0a503f42a6e36d0b13a0024b3",
+        "bytes": 1297
+      },
+      "candidateGraph": {
+        "sha256": "f08ea4ab000e8ae708b1ee0e2566eb82d88c7b1af16e9982c76a1a057e0dbacb",
+        "modules": [
+          {
+            "path": "packages/vuelil/reactivity.js",
+            "sha256": "704c6d90fc29d9d813443e7249d12eaaab37d5491bde062547c918a9ee720b29",
+            "bytes": 40447
+          }
+        ]
+      },
+      "upstreamGraph": {
+        "sha256": "a0a8670c854b21758152f0694af4ef22e267087f161ebc5ddf7b940ebb21ea46",
+        "modules": [
+          {
+            "path": "node_modules/@vue/reactivity/dist/reactivity.cjs.js",
+            "sha256": "d7ce0df6c01a8bcbac5941faef4cdc9e4e9093068cce3893c7d605c31031dc6a",
+            "bytes": 54389
+          },
+          {
+            "path": "node_modules/@vue/reactivity/dist/reactivity.cjs.prod.js",
+            "sha256": "5261ed7954bd4ec73f4a40bca682f1ec17db2ce427305fbd55b458341dd73dc9",
+            "bytes": 50120
+          },
+          {
+            "path": "node_modules/@vue/reactivity/index.js",
+            "sha256": "ea58baa61892122ece77249d50c4b4bcdda46dd5233d6908d86d6bb4f874a109",
+            "bytes": 185
+          }
+        ]
+      },
+      "environment": {
+        "engine": "Node.js",
+        "version": "v24.20.0",
+        "architecture": "x64"
+      },
+      "statistics": {
+        "ratio": {
+          "method": "paired geometric-mean ratio with deterministic percentile bootstrap",
+          "estimand": "candidate duration / upstream duration",
+          "pointEstimate": 2.7550896646837564,
+          "confidenceLevel": 0.95,
+          "confidenceBound": "one-sided upper",
+          "confidenceInterval": {
+            "upper95": 2.884719566667678
+          },
+          "bootstrapIterations": 10000,
+          "nonInferiorityMarginRatio": 1.03,
+          "nonInferior": false,
+          "ratios": [
+            2.780179521858143,
+            3.1293354880069,
+            2.099395086884882,
+            2.216795175619588,
+            3.067089547769277,
+            2.5567734295245557,
+            3.1552711855275453,
+            2.0780559853937266,
+            2.625230009458659,
+            2.970248672914786,
+            3.0442972154774135,
+            2.16317667363357,
+            2.8817351901828765,
+            3.168428580201304,
+            2.865889692754187,
+            2.7975755160252365,
+            2.988131222138802,
+            2.863060219775952,
+            3.047068021810279,
+            3.0797880512385563,
+            2.7840788023997645
+          ]
+        }
+      },
+      "observations": [
+        {
+          "block": 0,
+          "order": [
+            "upstream",
+            "candidate"
+          ],
+          "upstream": {
+            "durationMs": 329.207154,
+            "operations": 9216,
+            "checksum": "fe602be1a40416e0fe71c497a07cfed3e775195c82577d9f074f4d9f158e0d63",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 384.97749599999224
+          },
+          "candidate": {
+            "durationMs": 915.254988,
+            "operations": 9216,
+            "checksum": "fe602be1a40416e0fe71c497a07cfed3e775195c82577d9f074f4d9f158e0d63",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 987.5523200000025
+          }
+        },
+        {
+          "block": 1,
+          "order": [
+            "candidate",
+            "upstream"
+          ],
+          "candidate": {
+            "durationMs": 995.8361810000001,
+            "operations": 9216,
+            "checksum": "fe602be1a40416e0fe71c497a07cfed3e775195c82577d9f074f4d9f158e0d63",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 1058.256045999995
+          },
+          "upstream": {
+            "durationMs": 318.22608499999996,
+            "operations": 9216,
+            "checksum": "fe602be1a40416e0fe71c497a07cfed3e775195c82577d9f074f4d9f158e0d63",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 381.81741299999703
+          }
+        },
+        {
+          "block": 2,
+          "order": [
+            "upstream",
+            "candidate"
+          ],
+          "upstream": {
+            "durationMs": 451.552782,
+            "operations": 9216,
+            "checksum": "fe602be1a40416e0fe71c497a07cfed3e775195c82577d9f074f4d9f158e0d63",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 517.3243449999864
+          },
+          "candidate": {
+            "durationMs": 947.987692,
+            "operations": 9216,
+            "checksum": "fe602be1a40416e0fe71c497a07cfed3e775195c82577d9f074f4d9f158e0d63",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 1021.5914669999911
+          }
+        },
+        {
+          "block": 3,
+          "order": [
+            "candidate",
+            "upstream"
+          ],
+          "candidate": {
+            "durationMs": 895.438907,
+            "operations": 9216,
+            "checksum": "fe602be1a40416e0fe71c497a07cfed3e775195c82577d9f074f4d9f158e0d63",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 960.2611909999978
+          },
+          "upstream": {
+            "durationMs": 403.933984,
+            "operations": 9216,
+            "checksum": "fe602be1a40416e0fe71c497a07cfed3e775195c82577d9f074f4d9f158e0d63",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 466.4057929999981
+          }
+        },
+        {
+          "block": 4,
+          "order": [
+            "upstream",
+            "candidate"
+          ],
+          "upstream": {
+            "durationMs": 304.566459,
+            "operations": 9216,
+            "checksum": "fe602be1a40416e0fe71c497a07cfed3e775195c82577d9f074f4d9f158e0d63",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 369.0503480000043
+          },
+          "candidate": {
+            "durationMs": 934.132603,
+            "operations": 9216,
+            "checksum": "fe602be1a40416e0fe71c497a07cfed3e775195c82577d9f074f4d9f158e0d63",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 1001.6957070000062
+          }
+        },
+        {
+          "block": 5,
+          "order": [
+            "candidate",
+            "upstream"
+          ],
+          "candidate": {
+            "durationMs": 842.899287,
+            "operations": 9216,
+            "checksum": "fe602be1a40416e0fe71c497a07cfed3e775195c82577d9f074f4d9f158e0d63",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 915.852635999996
+          },
+          "upstream": {
+            "durationMs": 329.673047,
+            "operations": 9216,
+            "checksum": "fe602be1a40416e0fe71c497a07cfed3e775195c82577d9f074f4d9f158e0d63",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 399.9804790000053
+          }
+        },
+        {
+          "block": 6,
+          "order": [
+            "upstream",
+            "candidate"
+          ],
+          "upstream": {
+            "durationMs": 317.38365899999997,
+            "operations": 9216,
+            "checksum": "fe602be1a40416e0fe71c497a07cfed3e775195c82577d9f074f4d9f158e0d63",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 394.19753299999866
+          },
+          "candidate": {
+            "durationMs": 1001.4315140000001,
+            "operations": 9216,
+            "checksum": "fe602be1a40416e0fe71c497a07cfed3e775195c82577d9f074f4d9f158e0d63",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 1069.6311790000036
+          }
+        },
+        {
+          "block": 7,
+          "order": [
+            "candidate",
+            "upstream"
+          ],
+          "candidate": {
+            "durationMs": 950.31651,
+            "operations": 9216,
+            "checksum": "fe602be1a40416e0fe71c497a07cfed3e775195c82577d9f074f4d9f158e0d63",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 1011.154641000001
+          },
+          "upstream": {
+            "durationMs": 457.31034999999997,
+            "operations": 9216,
+            "checksum": "fe602be1a40416e0fe71c497a07cfed3e775195c82577d9f074f4d9f158e0d63",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 526.9572179999959
+          }
+        },
+        {
+          "block": 8,
+          "order": [
+            "upstream",
+            "candidate"
+          ],
+          "upstream": {
+            "durationMs": 300.66100500000005,
+            "operations": 9216,
+            "checksum": "fe602be1a40416e0fe71c497a07cfed3e775195c82577d9f074f4d9f158e0d63",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 371.90293300000485
+          },
+          "candidate": {
+            "durationMs": 789.304293,
+            "operations": 9216,
+            "checksum": "fe602be1a40416e0fe71c497a07cfed3e775195c82577d9f074f4d9f158e0d63",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 843.7038820000016
+          }
+        },
+        {
+          "block": 9,
+          "order": [
+            "candidate",
+            "upstream"
+          ],
+          "candidate": {
+            "durationMs": 824.0780530000001,
+            "operations": 9216,
+            "checksum": "fe602be1a40416e0fe71c497a07cfed3e775195c82577d9f074f4d9f158e0d63",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 891.0940989999945
+          },
+          "upstream": {
+            "durationMs": 277.44412800000003,
+            "operations": 9216,
+            "checksum": "fe602be1a40416e0fe71c497a07cfed3e775195c82577d9f074f4d9f158e0d63",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 334.898331999997
+          }
+        },
+        {
+          "block": 10,
+          "order": [
+            "upstream",
+            "candidate"
+          ],
+          "upstream": {
+            "durationMs": 296.299482,
+            "operations": 9216,
+            "checksum": "fe602be1a40416e0fe71c497a07cfed3e775195c82577d9f074f4d9f158e0d63",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 359.0529070000048
+          },
+          "candidate": {
+            "durationMs": 902.023688,
+            "operations": 9216,
+            "checksum": "fe602be1a40416e0fe71c497a07cfed3e775195c82577d9f074f4d9f158e0d63",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 961.4424349999899
+          }
+        },
+        {
+          "block": 11,
+          "order": [
+            "candidate",
+            "upstream"
+          ],
+          "candidate": {
+            "durationMs": 849.86154,
+            "operations": 9216,
+            "checksum": "fe602be1a40416e0fe71c497a07cfed3e775195c82577d9f074f4d9f158e0d63",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 916.8899739999906
+          },
+          "upstream": {
+            "durationMs": 392.87662,
+            "operations": 9216,
+            "checksum": "fe602be1a40416e0fe71c497a07cfed3e775195c82577d9f074f4d9f158e0d63",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 463.9334659999877
+          }
+        },
+        {
+          "block": 12,
+          "order": [
+            "upstream",
+            "candidate"
+          ],
+          "upstream": {
+            "durationMs": 298.19325,
+            "operations": 9216,
+            "checksum": "fe602be1a40416e0fe71c497a07cfed3e775195c82577d9f074f4d9f158e0d63",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 362.59248500000103
+          },
+          "candidate": {
+            "durationMs": 859.313982,
+            "operations": 9216,
+            "checksum": "fe602be1a40416e0fe71c497a07cfed3e775195c82577d9f074f4d9f158e0d63",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 924.8909379999968
+          }
+        },
+        {
+          "block": 13,
+          "order": [
+            "candidate",
+            "upstream"
+          ],
+          "candidate": {
+            "durationMs": 934.805431,
+            "operations": 9216,
+            "checksum": "fe602be1a40416e0fe71c497a07cfed3e775195c82577d9f074f4d9f158e0d63",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 1011.9477590000024
+          },
+          "upstream": {
+            "durationMs": 295.03755800000005,
+            "operations": 9216,
+            "checksum": "fe602be1a40416e0fe71c497a07cfed3e775195c82577d9f074f4d9f158e0d63",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 357.6728090000106
+          }
+        },
+        {
+          "block": 14,
+          "order": [
+            "upstream",
+            "candidate"
+          ],
+          "upstream": {
+            "durationMs": 297.02696100000003,
+            "operations": 9216,
+            "checksum": "fe602be1a40416e0fe71c497a07cfed3e775195c82577d9f074f4d9f158e0d63",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 356.9421980000043
+          },
+          "candidate": {
+            "durationMs": 851.246506,
+            "operations": 9216,
+            "checksum": "fe602be1a40416e0fe71c497a07cfed3e775195c82577d9f074f4d9f158e0d63",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 919.7455350000091
+          }
+        },
+        {
+          "block": 15,
+          "order": [
+            "candidate",
+            "upstream"
+          ],
+          "candidate": {
+            "durationMs": 829.3649459999999,
+            "operations": 9216,
+            "checksum": "fe602be1a40416e0fe71c497a07cfed3e775195c82577d9f074f4d9f158e0d63",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 885.5933899999945
+          },
+          "upstream": {
+            "durationMs": 296.458466,
+            "operations": 9216,
+            "checksum": "fe602be1a40416e0fe71c497a07cfed3e775195c82577d9f074f4d9f158e0d63",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 358.0175500000041
+          }
+        },
+        {
+          "block": 16,
+          "order": [
+            "upstream",
+            "candidate"
+          ],
+          "upstream": {
+            "durationMs": 288.879364,
+            "operations": 9216,
+            "checksum": "fe602be1a40416e0fe71c497a07cfed3e775195c82577d9f074f4d9f158e0d63",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 348.04013799999666
+          },
+          "candidate": {
+            "durationMs": 863.209447,
+            "operations": 9216,
+            "checksum": "fe602be1a40416e0fe71c497a07cfed3e775195c82577d9f074f4d9f158e0d63",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 918.4422760000016
+          }
+        },
+        {
+          "block": 17,
+          "order": [
+            "candidate",
+            "upstream"
+          ],
+          "candidate": {
+            "durationMs": 876.890288,
+            "operations": 9216,
+            "checksum": "fe602be1a40416e0fe71c497a07cfed3e775195c82577d9f074f4d9f158e0d63",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 934.6735530000005
+          },
+          "upstream": {
+            "durationMs": 306.27727699999997,
+            "operations": 9216,
+            "checksum": "fe602be1a40416e0fe71c497a07cfed3e775195c82577d9f074f4d9f158e0d63",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 372.80868299999565
+          }
+        },
+        {
+          "block": 18,
+          "order": [
+            "upstream",
+            "candidate"
+          ],
+          "upstream": {
+            "durationMs": 298.126041,
+            "operations": 9216,
+            "checksum": "fe602be1a40416e0fe71c497a07cfed3e775195c82577d9f074f4d9f158e0d63",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 355.55648500000825
+          },
+          "candidate": {
+            "durationMs": 908.410326,
+            "operations": 9216,
+            "checksum": "fe602be1a40416e0fe71c497a07cfed3e775195c82577d9f074f4d9f158e0d63",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 978.6326330000011
+          }
+        },
+        {
+          "block": 19,
+          "order": [
+            "candidate",
+            "upstream"
+          ],
+          "candidate": {
+            "durationMs": 955.853226,
+            "operations": 9216,
+            "checksum": "fe602be1a40416e0fe71c497a07cfed3e775195c82577d9f074f4d9f158e0d63",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 1022.9440190000023
+          },
+          "upstream": {
+            "durationMs": 310.36331399999995,
+            "operations": 9216,
+            "checksum": "fe602be1a40416e0fe71c497a07cfed3e775195c82577d9f074f4d9f158e0d63",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 386.976152999996
+          }
+        },
+        {
+          "block": 20,
+          "order": [
+            "upstream",
+            "candidate"
+          ],
+          "upstream": {
+            "durationMs": 365.656174,
+            "operations": 9216,
+            "checksum": "fe602be1a40416e0fe71c497a07cfed3e775195c82577d9f074f4d9f158e0d63",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 428.08950500001083
+          },
+          "candidate": {
+            "durationMs": 1018.0156029999999,
+            "operations": 9216,
+            "checksum": "fe602be1a40416e0fe71c497a07cfed3e775195c82577d9f074f4d9f158e0d63",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 1086.6156950000004
+          }
+        }
+      ],
+      "passed": false
+    },
+    {
+      "id": "ssr-component-tree",
+      "category": "ssr",
+      "description": "Warmed renderToString of component trees with keyed children, normalized attributes, interpolation, and SSR context writes.",
+      "metric": "durationMs",
+      "nodeEnv": "production",
+      "runner": {
+        "path": "benchmarks/runners/ssr.mjs",
+        "sha256": "a08230fbf0b0723a804c6a956e4f8b1cf980db8ae882b42a69b025f4f6505551",
+        "bytes": 1715
+      },
+      "candidateArtifact": {
+        "path": "packages/vuelil/server-renderer.js",
+        "sha256": "b7c001e568e8bea5e5cbda895db40cccce755681335cc2dda8c618fe9316b05b",
+        "bytes": 36120
+      },
+      "upstreamArtifact": {
+        "path": "node_modules/@vue/server-renderer/index.js",
+        "sha256": "649f9ecc1d681df415cfe6e0a94bcab03c8ac7a98c2f14dee08afeeec43e1880",
+        "bytes": 195
+      },
+      "candidatePackageManifest": {
+        "path": "packages/vuelil/package.json",
+        "sha256": "1c960b22af37a745482eb6e3666c51488382fe0eea0b372d52552977beb46b5c",
+        "bytes": 2821
+      },
+      "upstreamPackageManifest": {
+        "path": "node_modules/@vue/server-renderer/package.json",
+        "sha256": "1bdc2a07e138635b784cad5b87e4dc6c43f2f89d664ac3393b6520d08bf2b1fc",
+        "bytes": 1302
+      },
+      "candidateGraph": {
+        "sha256": "0c2e0be36a6a85336004fc113acac3bce5eb79b8959a701036866929378430e4",
+        "modules": [
+          {
+            "path": "artifacts/compiler-dom.generated.js",
+            "sha256": "fdc75691b7715ba2b25605342ad42e923bdf3e1d5ef56fffbf994c4c8e1df2a7",
+            "bytes": 28615
+          },
+          {
+            "path": "artifacts/compiler-ssr.generated.js",
+            "sha256": "f50bb7e264e282bed0fd40e0e967b02b81cc036a534dc5aec78babb07de3df18",
+            "bytes": 45796
+          },
+          {
+            "path": "artifacts/shared-runtime.generated.js",
+            "sha256": "9ec3a74711d0ee116ca1d4bed8a022f59fca282f615ddbdc12ff6fc0c6c68781",
+            "bytes": 17475
+          },
+          {
+            "path": "packages/vuelil/compiler-core.js",
+            "sha256": "32dbd7f92b5892917182a30ec0cb5aaaea6ed901f1a2a917e11ab879d68c82bc",
+            "bytes": 115562
+          },
+          {
+            "path": "packages/vuelil/compiler-dom.js",
+            "sha256": "f24fd2a66cdf543debd2ad6e205f66090792bf6d66cbc086064fe0716bfa3e83",
+            "bytes": 2622
+          },
+          {
+            "path": "packages/vuelil/compiler-ssr.js",
+            "sha256": "6153d1463e91998cf7839f72ad8ef6de4347fa85f48ec2b1f1fbba00ee2a15a0",
+            "bytes": 69
+          },
+          {
+            "path": "packages/vuelil/reactivity.js",
+            "sha256": "704c6d90fc29d9d813443e7249d12eaaab37d5491bde062547c918a9ee720b29",
+            "bytes": 40447
+          },
+          {
+            "path": "packages/vuelil/runtime-core.internal.js",
+            "sha256": "9ae31f58f7e0f03262be8195dddaf9accd2946ff3c5bb78e0eb43ca495b2b0c4",
+            "bytes": 411193
+          },
+          {
+            "path": "packages/vuelil/runtime-core.js",
+            "sha256": "cf1d929626175d2c2208ca4005a2c15ec9f59c2a8d0fdfb0d59bb4275c5be6a9",
+            "bytes": 2222
+          },
+          {
+            "path": "packages/vuelil/runtime-dom.js",
+            "sha256": "3452580c5eeb6d08d09cecebae9082617811bb0b0826b05f9925b4e16cf685f8",
+            "bytes": 128210
+          },
+          {
+            "path": "packages/vuelil/server-renderer.js",
+            "sha256": "b7c001e568e8bea5e5cbda895db40cccce755681335cc2dda8c618fe9316b05b",
+            "bytes": 36120
+          },
+          {
+            "path": "packages/vuelil/shared.js",
+            "sha256": "af475ae0c9b7f2f43924bdc4e4d1a88966044d25570ffe5f11b6a3978db6e8b6",
+            "bytes": 569
+          }
+        ]
+      },
+      "upstreamGraph": {
+        "sha256": "6e15996ac0f7e02a6549e9f35e5b5a3d7863169a434457398c93ded71116568e",
+        "modules": [
+          {
+            "path": "node_modules/@vue/server-renderer/dist/server-renderer.cjs.js",
+            "sha256": "90e979c73ee4c6adb5f53389c8b4248c30940774f8b433f953a911dd6ef274a6",
+            "bytes": 26872
+          },
+          {
+            "path": "node_modules/@vue/server-renderer/dist/server-renderer.cjs.prod.js",
+            "sha256": "681b6d549fbf579bbe6db1179a81d057f903b05d8c71ec8513c5770c2877acb9",
+            "bytes": 26301
+          },
+          {
+            "path": "node_modules/@vue/server-renderer/index.js",
+            "sha256": "649f9ecc1d681df415cfe6e0a94bcab03c8ac7a98c2f14dee08afeeec43e1880",
+            "bytes": 195
+          }
+        ]
+      },
+      "environment": {
+        "engine": "Node.js",
+        "version": "v24.20.0",
+        "architecture": "x64"
+      },
+      "statistics": {
+        "ratio": {
+          "method": "paired geometric-mean ratio with deterministic percentile bootstrap",
+          "estimand": "candidate duration / upstream duration",
+          "pointEstimate": 2.5970786931846623,
+          "confidenceLevel": 0.95,
+          "confidenceBound": "one-sided upper",
+          "confidenceInterval": {
+            "upper95": 2.7604586380996623
+          },
+          "bootstrapIterations": 10000,
+          "nonInferiorityMarginRatio": 1.03,
+          "nonInferior": false,
+          "ratios": [
+            3.1336017430894008,
+            3.538152635884342,
+            2.465473966287764,
+            1.862272024451706,
+            2.9074159119166096,
+            2.3022294974539634,
+            3.0423054222345645,
+            2.391994473286566,
+            2.418033117005873,
+            3.020433413117903,
+            2.1493887844232584,
+            2.399732919481587,
+            3.526653360719478,
+            2.2480101200504565,
+            2.997605192269659,
+            2.724704025182769,
+            2.0294196518526544,
+            2.1954328972379957,
+            2.5928775607445465,
+            2.5490479437539477,
+            2.841112207991381
+          ]
+        }
+      },
+      "observations": [
+        {
+          "block": 0,
+          "order": [
+            "candidate",
+            "upstream"
+          ],
+          "candidate": {
+            "durationMs": 102.992593,
+            "operations": 7056,
+            "checksum": "e2e53eff3fb34569d96a5dd7c6a020ef213c795473c5d42e8ecd776ec58841bf",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 280.2911699999968
+          },
+          "upstream": {
+            "durationMs": 32.86716100000001,
+            "operations": 7056,
+            "checksum": "e2e53eff3fb34569d96a5dd7c6a020ef213c795473c5d42e8ecd776ec58841bf",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 156.81433200000902
+          }
+        },
+        {
+          "block": 1,
+          "order": [
+            "upstream",
+            "candidate"
+          ],
+          "upstream": {
+            "durationMs": 30.62254999999999,
+            "operations": 7056,
+            "checksum": "e2e53eff3fb34569d96a5dd7c6a020ef213c795473c5d42e8ecd776ec58841bf",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 153.5517519999994
+          },
+          "candidate": {
+            "durationMs": 108.34725600000002,
+            "operations": 7056,
+            "checksum": "e2e53eff3fb34569d96a5dd7c6a020ef213c795473c5d42e8ecd776ec58841bf",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 273.6290020000015
+          }
+        },
+        {
+          "block": 2,
+          "order": [
+            "candidate",
+            "upstream"
+          ],
+          "candidate": {
+            "durationMs": 104.46919799999998,
+            "operations": 7056,
+            "checksum": "e2e53eff3fb34569d96a5dd7c6a020ef213c795473c5d42e8ecd776ec58841bf",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 301.90769100000034
+          },
+          "upstream": {
+            "durationMs": 42.372866000000016,
+            "operations": 7056,
+            "checksum": "e2e53eff3fb34569d96a5dd7c6a020ef213c795473c5d42e8ecd776ec58841bf",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 199.77565200001118
+          }
+        },
+        {
+          "block": 3,
+          "order": [
+            "upstream",
+            "candidate"
+          ],
+          "upstream": {
+            "durationMs": 44.006418999999994,
+            "operations": 7056,
+            "checksum": "e2e53eff3fb34569d96a5dd7c6a020ef213c795473c5d42e8ecd776ec58841bf",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 192.8487060000043
+          },
+          "candidate": {
+            "durationMs": 81.95192300000001,
+            "operations": 7056,
+            "checksum": "e2e53eff3fb34569d96a5dd7c6a020ef213c795473c5d42e8ecd776ec58841bf",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 234.70741099999577
+          }
+        },
+        {
+          "block": 4,
+          "order": [
+            "candidate",
+            "upstream"
+          ],
+          "candidate": {
+            "durationMs": 93.177906,
+            "operations": 7056,
+            "checksum": "e2e53eff3fb34569d96a5dd7c6a020ef213c795473c5d42e8ecd776ec58841bf",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 248.93351899999834
+          },
+          "upstream": {
+            "durationMs": 32.04835800000001,
+            "operations": 7056,
+            "checksum": "e2e53eff3fb34569d96a5dd7c6a020ef213c795473c5d42e8ecd776ec58841bf",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 155.86506100000406
+          }
+        },
+        {
+          "block": 5,
+          "order": [
+            "upstream",
+            "candidate"
+          ],
+          "upstream": {
+            "durationMs": 34.98200899999999,
+            "operations": 7056,
+            "checksum": "e2e53eff3fb34569d96a5dd7c6a020ef213c795473c5d42e8ecd776ec58841bf",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 159.12645100000373
+          },
+          "candidate": {
+            "durationMs": 80.536613,
+            "operations": 7056,
+            "checksum": "e2e53eff3fb34569d96a5dd7c6a020ef213c795473c5d42e8ecd776ec58841bf",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 230.3927110000077
+          }
+        },
+        {
+          "block": 6,
+          "order": [
+            "candidate",
+            "upstream"
+          ],
+          "candidate": {
+            "durationMs": 103.425774,
+            "operations": 7056,
+            "checksum": "e2e53eff3fb34569d96a5dd7c6a020ef213c795473c5d42e8ecd776ec58841bf",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 252.09887699999672
+          },
+          "upstream": {
+            "durationMs": 33.99585499999999,
+            "operations": 7056,
+            "checksum": "e2e53eff3fb34569d96a5dd7c6a020ef213c795473c5d42e8ecd776ec58841bf",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 170.80786499999522
+          }
+        },
+        {
+          "block": 7,
+          "order": [
+            "upstream",
+            "candidate"
+          ],
+          "upstream": {
+            "durationMs": 35.332391,
+            "operations": 7056,
+            "checksum": "e2e53eff3fb34569d96a5dd7c6a020ef213c795473c5d42e8ecd776ec58841bf",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 159.8565260000032
+          },
+          "candidate": {
+            "durationMs": 84.51488400000001,
+            "operations": 7056,
+            "checksum": "e2e53eff3fb34569d96a5dd7c6a020ef213c795473c5d42e8ecd776ec58841bf",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 242.11924099999305
+          }
+        },
+        {
+          "block": 8,
+          "order": [
+            "candidate",
+            "upstream"
+          ],
+          "candidate": {
+            "durationMs": 89.037079,
+            "operations": 7056,
+            "checksum": "e2e53eff3fb34569d96a5dd7c6a020ef213c795473c5d42e8ecd776ec58841bf",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 254.07900099999097
+          },
+          "upstream": {
+            "durationMs": 36.822109,
+            "operations": 7056,
+            "checksum": "e2e53eff3fb34569d96a5dd7c6a020ef213c795473c5d42e8ecd776ec58841bf",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 156.64542200000142
+          }
+        },
+        {
+          "block": 9,
+          "order": [
+            "upstream",
+            "candidate"
+          ],
+          "upstream": {
+            "durationMs": 29.327308000000002,
+            "operations": 7056,
+            "checksum": "e2e53eff3fb34569d96a5dd7c6a020ef213c795473c5d42e8ecd776ec58841bf",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 155.73132599999371
+          },
+          "candidate": {
+            "durationMs": 88.58118099999999,
+            "operations": 7056,
+            "checksum": "e2e53eff3fb34569d96a5dd7c6a020ef213c795473c5d42e8ecd776ec58841bf",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 237.08293999999296
+          }
+        },
+        {
+          "block": 10,
+          "order": [
+            "candidate",
+            "upstream"
+          ],
+          "candidate": {
+            "durationMs": 76.230674,
+            "operations": 7056,
+            "checksum": "e2e53eff3fb34569d96a5dd7c6a020ef213c795473c5d42e8ecd776ec58841bf",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 236.47479300000123
+          },
+          "upstream": {
+            "durationMs": 35.46620999999999,
+            "operations": 7056,
+            "checksum": "e2e53eff3fb34569d96a5dd7c6a020ef213c795473c5d42e8ecd776ec58841bf",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 159.4426620000013
+          }
+        },
+        {
+          "block": 11,
+          "order": [
+            "upstream",
+            "candidate"
+          ],
+          "upstream": {
+            "durationMs": 44.53188900000001,
+            "operations": 7056,
+            "checksum": "e2e53eff3fb34569d96a5dd7c6a020ef213c795473c5d42e8ecd776ec58841bf",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 179.54051200000686
+          },
+          "candidate": {
+            "durationMs": 106.86464,
+            "operations": 7056,
+            "checksum": "e2e53eff3fb34569d96a5dd7c6a020ef213c795473c5d42e8ecd776ec58841bf",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 285.7308859999903
+          }
+        },
+        {
+          "block": 12,
+          "order": [
+            "candidate",
+            "upstream"
+          ],
+          "candidate": {
+            "durationMs": 117.82062200000001,
+            "operations": 7056,
+            "checksum": "e2e53eff3fb34569d96a5dd7c6a020ef213c795473c5d42e8ecd776ec58841bf",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 312.5700050000014
+          },
+          "upstream": {
+            "durationMs": 33.40862000000001,
+            "operations": 7056,
+            "checksum": "e2e53eff3fb34569d96a5dd7c6a020ef213c795473c5d42e8ecd776ec58841bf",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 203.4009919999953
+          }
+        },
+        {
+          "block": 13,
+          "order": [
+            "upstream",
+            "candidate"
+          ],
+          "upstream": {
+            "durationMs": 58.692988000000014,
+            "operations": 7056,
+            "checksum": "e2e53eff3fb34569d96a5dd7c6a020ef213c795473c5d42e8ecd776ec58841bf",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 223.65520599999581
+          },
+          "candidate": {
+            "durationMs": 131.94243100000003,
+            "operations": 7056,
+            "checksum": "e2e53eff3fb34569d96a5dd7c6a020ef213c795473c5d42e8ecd776ec58841bf",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 326.1171900000045
+          }
+        },
+        {
+          "block": 14,
+          "order": [
+            "candidate",
+            "upstream"
+          ],
+          "candidate": {
+            "durationMs": 86.816114,
+            "operations": 7056,
+            "checksum": "e2e53eff3fb34569d96a5dd7c6a020ef213c795473c5d42e8ecd776ec58841bf",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 252.51184099999955
+          },
+          "upstream": {
+            "durationMs": 28.961823999999993,
+            "operations": 7056,
+            "checksum": "e2e53eff3fb34569d96a5dd7c6a020ef213c795473c5d42e8ecd776ec58841bf",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 143.97922599999583
+          }
+        },
+        {
+          "block": 15,
+          "order": [
+            "upstream",
+            "candidate"
+          ],
+          "upstream": {
+            "durationMs": 34.24945099999999,
+            "operations": 7056,
+            "checksum": "e2e53eff3fb34569d96a5dd7c6a020ef213c795473c5d42e8ecd776ec58841bf",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 164.50196999999753
+          },
+          "candidate": {
+            "durationMs": 93.31961700000001,
+            "operations": 7056,
+            "checksum": "e2e53eff3fb34569d96a5dd7c6a020ef213c795473c5d42e8ecd776ec58841bf",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 251.59308800000872
+          }
+        },
+        {
+          "block": 16,
+          "order": [
+            "candidate",
+            "upstream"
+          ],
+          "candidate": {
+            "durationMs": 88.770984,
+            "operations": 7056,
+            "checksum": "e2e53eff3fb34569d96a5dd7c6a020ef213c795473c5d42e8ecd776ec58841bf",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 226.11173899999994
+          },
+          "upstream": {
+            "durationMs": 43.742053999999996,
+            "operations": 7056,
+            "checksum": "e2e53eff3fb34569d96a5dd7c6a020ef213c795473c5d42e8ecd776ec58841bf",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 171.7197649999871
+          }
+        },
+        {
+          "block": 17,
+          "order": [
+            "upstream",
+            "candidate"
+          ],
+          "upstream": {
+            "durationMs": 40.371370999999996,
+            "operations": 7056,
+            "checksum": "e2e53eff3fb34569d96a5dd7c6a020ef213c795473c5d42e8ecd776ec58841bf",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 165.6582780000026
+          },
+          "candidate": {
+            "durationMs": 88.63263599999999,
+            "operations": 7056,
+            "checksum": "e2e53eff3fb34569d96a5dd7c6a020ef213c795473c5d42e8ecd776ec58841bf",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 232.6738660000119
+          }
+        },
+        {
+          "block": 18,
+          "order": [
+            "candidate",
+            "upstream"
+          ],
+          "candidate": {
+            "durationMs": 92.49806,
+            "operations": 7056,
+            "checksum": "e2e53eff3fb34569d96a5dd7c6a020ef213c795473c5d42e8ecd776ec58841bf",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 262.11248599999817
+          },
+          "upstream": {
+            "durationMs": 35.673902,
+            "operations": 7056,
+            "checksum": "e2e53eff3fb34569d96a5dd7c6a020ef213c795473c5d42e8ecd776ec58841bf",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 176.57082100000116
+          }
+        },
+        {
+          "block": 19,
+          "order": [
+            "upstream",
+            "candidate"
+          ],
+          "upstream": {
+            "durationMs": 38.948014000000015,
+            "operations": 7056,
+            "checksum": "e2e53eff3fb34569d96a5dd7c6a020ef213c795473c5d42e8ecd776ec58841bf",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 170.45498799999768
+          },
+          "candidate": {
+            "durationMs": 99.28035500000001,
+            "operations": 7056,
+            "checksum": "e2e53eff3fb34569d96a5dd7c6a020ef213c795473c5d42e8ecd776ec58841bf",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 270.50353799998993
+          }
+        },
+        {
+          "block": 20,
+          "order": [
+            "candidate",
+            "upstream"
+          ],
+          "candidate": {
+            "durationMs": 109.262229,
+            "operations": 7056,
+            "checksum": "e2e53eff3fb34569d96a5dd7c6a020ef213c795473c5d42e8ecd776ec58841bf",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 272.09876199999417
+          },
+          "upstream": {
+            "durationMs": 38.45755500000001,
+            "operations": 7056,
+            "checksum": "e2e53eff3fb34569d96a5dd7c6a020ef213c795473c5d42e8ecd776ec58841bf",
+            "environment": {
+              "engine": "Node.js",
+              "version": "v24.20.0",
+              "architecture": "x64"
+            },
+            "processWallMs": 187.5824949999951
+          }
+        }
+      ],
+      "passed": false
+    }
+  ],
+  "passed": false
+}

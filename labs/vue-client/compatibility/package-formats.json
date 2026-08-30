@@ -1,0 +1,131 @@
+{
+  "schemaVersion": 1,
+  "upstreamVersion": "3.5.42",
+  "packages": [
+    {
+      "name": "@vue/shared",
+      "root": "packages/vuelil/@vue/shared",
+      "source": "packages/vuelil/shared.js",
+      "filename": "shared",
+      "declarationSource": "node_modules/@vue/shared/dist/shared.d.ts",
+      "globalName": null,
+      "production": true
+    },
+    {
+      "name": "@vue/reactivity",
+      "root": "packages/vuelil/@vue/reactivity",
+      "source": "packages/vuelil/reactivity.js",
+      "filename": "reactivity",
+      "declarationSource": "node_modules/@vue/reactivity/dist/reactivity.d.ts",
+      "globalName": "VueReactivity",
+      "production": true
+    },
+    {
+      "name": "@vue/runtime-core",
+      "root": "packages/vuelil/@vue/runtime-core",
+      "source": "packages/vuelil/runtime-core.js",
+      "filename": "runtime-core",
+      "declarationSource": "node_modules/@vue/runtime-core/dist/runtime-core.d.ts",
+      "globalName": null,
+      "production": true
+    },
+    {
+      "name": "@vue/runtime-dom",
+      "root": "packages/vuelil/@vue/runtime-dom",
+      "source": "packages/vuelil/runtime-dom.js",
+      "filename": "runtime-dom",
+      "declarationSource": "node_modules/@vue/runtime-dom/dist/runtime-dom.d.ts",
+      "globalName": "VueRuntimeDOM",
+      "production": true
+    },
+    {
+      "name": "@vue/compiler-core",
+      "root": "packages/vuelil/@vue/compiler-core",
+      "source": "packages/vuelil/compiler-core.js",
+      "filename": "compiler-core",
+      "declarationSource": "node_modules/@vue/compiler-core/dist/compiler-core.d.ts",
+      "globalName": null,
+      "production": true,
+      "excludedRuntimeExports": [
+        "cloneLoc",
+        "defaultOnError",
+        "defaultOnWarn",
+        "defaultParserOptions",
+        "finalizeForParseResult",
+        "isCompatEnabled",
+        "transformFor",
+        "transformIf",
+        "transformMemo",
+        "transformOnce",
+        "transformSlotOutlet",
+        "transformText",
+        "traverseChildren"
+      ]
+    },
+    {
+      "name": "@vue/compiler-dom",
+      "root": "packages/vuelil/@vue/compiler-dom",
+      "source": "packages/vuelil/compiler-dom.js",
+      "filename": "compiler-dom",
+      "declarationSource": "node_modules/@vue/compiler-dom/dist/compiler-dom.d.ts",
+      "globalName": "VueCompilerDOM",
+      "production": true
+    },
+    {
+      "name": "@vue/compiler-ssr",
+      "root": "packages/vuelil/@vue/compiler-ssr",
+      "source": "packages/vuelil/compiler-ssr.js",
+      "filename": "compiler-ssr",
+      "declarationSource": "node_modules/@vue/compiler-ssr/dist/compiler-ssr.d.ts",
+      "globalName": null,
+      "production": false
+    },
+    {
+      "name": "@vue/compiler-sfc",
+      "root": "packages/vuelil/@vue/compiler-sfc",
+      "source": "packages/vuelil/compiler-sfc.js",
+      "filename": "compiler-sfc",
+      "declarationSource": "node_modules/@vue/compiler-sfc/dist/compiler-sfc.d.ts",
+      "globalName": "VueCompilerSFC",
+      "production": false
+    },
+    {
+      "name": "@vue/server-renderer",
+      "root": "packages/vuelil/@vue/server-renderer",
+      "source": "packages/vuelil/server-renderer.js",
+      "filename": "server-renderer",
+      "declarationSource": "node_modules/@vue/server-renderer/dist/server-renderer.d.ts",
+      "globalName": null,
+      "production": true
+    },
+    {
+      "name": "@vue/runtime-test",
+      "root": "packages/vuelil/@vue/runtime-test",
+      "source": "packages/vuelil/runtime-test.js",
+      "filename": "runtime-test",
+      "declarationSource": null,
+      "globalName": null,
+      "production": false
+    },
+    {
+      "name": "@vue/compat",
+      "root": "packages/vuelil/@vue/compat",
+      "source": "packages/vuelil/vue-compat.js",
+      "runtimeSource": "packages/vuelil/vue-compat.runtime.js",
+      "filename": "vue",
+      "declarationSource": null,
+      "globalName": "Vue",
+      "production": true
+    },
+    {
+      "name": "vue",
+      "root": "packages/vuelil",
+      "source": "packages/vuelil/vue.js",
+      "runtimeSource": "packages/vuelil/vue.runtime.js",
+      "filename": "vue",
+      "declarationSource": "node_modules/vue/dist/vue.d.ts",
+      "globalName": "Vue",
+      "production": true
+    }
+  ]
+}

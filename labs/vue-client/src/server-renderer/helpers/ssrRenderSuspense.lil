@@ -1,0 +1,8 @@
+export void ssrRenderSuspense(JsValue push, JsValue slots) {
+  JsValue renderContent = slots["default"];
+  if (renderContent.truthy()) {
+    JS.call(renderContent, JS.undefined());
+  } else {
+    JS.call(push, JS.undefined(), "<!---->");
+  }
+}

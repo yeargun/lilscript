@@ -1,0 +1,58 @@
+import extern {
+  isArray as modelIsArray,
+  looseEqual as modelLooseEqual,
+  looseIndexOf as modelLooseIndexOf
+} from "../../../packages/vuelil/shared.js";
+import { ssrRenderAttr } from "./ssrRenderAttrs";
+
+extern bool modelIsArray(JsValue value);
+extern JsValue modelLooseEqual;
+extern int modelLooseIndexOf(JsValue values, JsValue value);
+
+export JsValue ssrLooseEqual = modelLooseEqual;
+
+export bool ssrLooseContain(JsValue values, JsValue value) {
+  return modelLooseIndexOf(values, value) > -1;
+}
+
+export string ssrRenderDynamicModel(
+  JsValue type,
+  JsValue model,
+  JsValue value
+) {
+  if (JS.strictEqual(type, "radio")) {
+    if (JS.call(modelLooseEqual, JS.undefined(), model, value).truthy()) {
+      return " checked";
+    }
+    return "";
+  }
+  if (JS.strictEqual(type, "checkbox")) {
+    bool checked = model.truthy();
+    if (modelIsArray(model)) checked = ssrLooseContain(model, value);
+    if (checked) return " checked";
+    return "";
+  }
+  return ssrRenderAttr("value", model);
+}
+
+export JsValue ssrGetDynamicModelProps(
+  JsValue existingProps = JS.undefined(),
+  JsValue model = JS.undefined()
+) {
+  if (JS.isUndefined(existingProps)) existingProps = JS.object();
+  JsValue type = existingProps["type"];
+  JsValue value = existingProps["value"];
+  if (JS.strictEqual(type, "radio")) {
+    if (JS.call(modelLooseEqual, JS.undefined(), model, value).truthy()) {
+      return JS.object("checked", true);
+    }
+    return null;
+  }
+  if (JS.strictEqual(type, "checkbox")) {
+    bool checked = model.truthy();
+    if (modelIsArray(model)) checked = ssrLooseContain(model, value);
+    if (checked) return JS.object("checked", true);
+    return null;
+  }
+  return JS.object("value", model);
+}

@@ -1655,7 +1655,10 @@ class RendererKernel {
       return;
     }
     if ((shapeFlag & rendererNumber(ShapeFlags["TELEPORT"])) != 0) {
-      JS.call(type["move"], type, vnode, container, anchor, this.internals);
+      JS.call(
+        type["move"], type, vnode, container, anchor, this.internals,
+        rendererNumber(MoveType["REORDER"])
+      );
       return;
     }
     if (JS.strictEqual(type, Fragment)) {

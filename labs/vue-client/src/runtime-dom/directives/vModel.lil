@@ -1,0 +1,519 @@
+import extern { nextTick as modelNextTick, warn as modelWarn } from "../../../packages/vuelil/runtime-core.js";
+import extern {
+  isArray as modelIsArray,
+  isSet as modelIsSet,
+  invokeArrayFns as modelInvokeArrayFns,
+  looseEqual as modelLooseEqual,
+  looseIndexOf as modelLooseIndexOf,
+  looseToNumber as modelLooseToNumber
+} from "../../../packages/vuelil/shared.js";
+import { addEventListener } from "../modules/events";
+import extern {
+  hostActiveElementIs,
+  hostArraySlice,
+  hostArraySplice,
+  hostCall1,
+  hostCall2,
+  hostCall4,
+  hostCreateEvent,
+  hostCreateSet,
+  hostCreateSymbol,
+  hostDelete,
+  hostHasProperty,
+  hostParentNode,
+  hostRawType,
+  hostRead,
+  hostSetAdd,
+  hostSetDelete,
+  hostSetHas,
+  hostSetSize,
+  hostString,
+  hostWrite
+} from "../host.js";
+
+extern JsValue modelNextTick;
+extern JsValue modelWarn;
+extern bool modelIsArray(JsValue value);
+extern bool modelIsSet(JsValue value);
+extern JsValue modelInvokeArrayFns;
+extern bool modelLooseEqual(JsValue left, JsValue right);
+extern int modelLooseIndexOf(JsValue values, JsValue value);
+extern JsValue modelLooseToNumber(JsValue value);
+extern bool hostActiveElementIs(JsValue element);
+extern JsValue hostArraySlice(JsValue value);
+extern void hostArraySplice(JsValue value, int index, int count);
+extern JsValue hostCall1(JsValue fn, JsValue first);
+extern JsValue hostCall2(JsValue fn, JsValue first, JsValue second);
+extern JsValue hostCall4(JsValue fn, JsValue first, JsValue second, JsValue third, JsValue fourth);
+extern JsValue hostCreateEvent(string name);
+extern JsValue hostCreateSet(JsValue value);
+extern JsValue hostCreateSymbol(string description);
+extern bool hostDelete(JsValue value, JsValue key);
+extern bool hostHasProperty(JsValue value, JsValue key);
+extern JsValue hostParentNode(JsValue node);
+extern string hostRawType(JsValue value);
+extern JsValue hostRead(JsValue value, JsValue key);
+extern void hostSetAdd(JsValue value, JsValue item);
+extern void hostSetDelete(JsValue value, JsValue item);
+extern bool hostSetHas(JsValue value, JsValue item);
+extern int hostSetSize(JsValue value);
+extern string hostString(JsValue value);
+extern void hostWrite(JsValue value, JsValue key, JsValue next);
+
+bool V_MODEL_COMPAT = false;
+JsValue assignKey = hostCreateSymbol("_assign");
+JsValue initialValueKey = hostCreateSymbol("_initialValue");
+Regex textLineBreaks = new Regex("[\\r\\n]", "g");
+Regex textareaLineBreaks = new Regex("\\r\\n?", "g");
+Regex leadingZero = new Regex("^0\\d");
+
+int valueLength(JsValue value) {
+  return JS.number(hostRead(value, "length")).toInt();
+}
+
+JsValue getModelAssigner(JsValue vnode) {
+  JsValue props = hostRead(vnode, "props");
+  JsValue fn = hostRead(props, "onUpdate:modelValue");
+  if ((JS.isNullish(fn) || !fn.truthy()) && V_MODEL_COMPAT) {
+    fn = hostRead(props, "onModelCompat:input");
+  }
+  if (modelIsArray(fn)) {
+    return JS.method1((JsValue _self, JsValue value) => {
+      JS.call(modelInvokeArrayFns, JS.undefined(), fn, value);
+      return JS.undefined();
+    });
+  }
+  return fn;
+}
+
+JsValue bindingModifiers(JsValue binding) {
+  JsValue modifiers = hostRead(binding, "modifiers");
+  if (JS.isNullish(modifiers)) return JS.object();
+  return modifiers;
+}
+
+JsValue castValue(JsValue value, bool trim, bool numeric) {
+  if (trim) value = hostString(value).trim();
+  if (numeric) value = modelLooseToNumber(value);
+  return value;
+}
+
+JsValue onCompositionStart(JsValue _self, JsValue event) {
+  hostWrite(hostRead(event, "target"), "composing", true);
+  return JS.undefined();
+}
+
+JsValue onCompositionEnd(JsValue _self, JsValue event) {
+  JsValue target = hostRead(event, "target");
+  if (hostRead(target, "composing").truthy()) {
+    hostWrite(target, "composing", false);
+    JS.invoke(target, "dispatchEvent", hostCreateEvent("input"));
+  }
+  return JS.undefined();
+}
+
+JsValue textCreated(JsValue _self, JsValue element, JsValue binding, JsValue vnode) {
+  JsValue parent = hostParentNode(element);
+  string type = hostString(hostRead(element, "type"));
+  if (!JS.isNullish(parent)) {
+    if (type == "text") {
+      string initial = hostString(hostRead(element, "defaultValue"));
+      hostWrite(element, initialValueKey, JS.invoke(initial, "replace", textLineBreaks, ""));
+    } else if (type == "textarea") {
+      string initial = hostString(hostRead(element, "defaultValue"));
+      hostWrite(element, initialValueKey, JS.invoke(initial, "replace", textareaLineBreaks, "\n"));
+    }
+  }
+  hostWrite(element, assignKey, getModelAssigner(vnode));
+  JsValue modifiers = bindingModifiers(binding);
+  bool lazy = hostRead(modifiers, "lazy").truthy();
+  bool trim = hostRead(modifiers, "trim").truthy();
+  bool numeric = hostRead(modifiers, "number").truthy();
+  JsValue props = hostRead(vnode, "props");
+  bool castNumber = numeric || JS.strictEqual(hostRead(props, "type"), "number");
+  JsValue inputHandler = JS.method1((JsValue _innerSelf, JsValue event) => {
+    JsValue target = hostRead(event, "target");
+    if (hostRead(target, "composing").truthy()) return JS.undefined();
+    hostCall1(hostRead(element, assignKey), castValue(hostRead(element, "value"), trim, castNumber));
+    return JS.undefined();
+  });
+  string eventName = "input";
+  if (lazy) eventName = "change";
+  addEventListener(element, eventName, inputHandler);
+  if (trim || castNumber) {
+    addEventListener(element, "change", JS.method0((JsValue _innerSelf) => {
+      hostWrite(element, "value", castValue(hostRead(element, "value"), trim, castNumber));
+      return JS.undefined();
+    }));
+  }
+  if (!lazy) {
+    addEventListener(element, "compositionstart", JS.method1(onCompositionStart));
+    addEventListener(element, "compositionend", JS.method1(onCompositionEnd));
+    addEventListener(element, "change", JS.method1(onCompositionEnd));
+  }
+  return JS.undefined();
+}
+
+JsValue textMounted(JsValue _self, JsValue element, JsValue binding) {
+  JsValue value = hostRead(binding, "value");
+  JsValue newValue = value;
+  if (JS.isNullish(value)) newValue = "";
+  JsValue initialValue = hostRead(element, initialValueKey);
+  hostDelete(element, initialValueKey);
+  string type = hostString(hostRead(element, "type"));
+  JsValue modifiers = bindingModifiers(binding);
+  if (!JS.isUndefined(initialValue) && (type == "text" || type == "textarea") &&
+      !JS.strictEqual(hostRead(element, "value"), initialValue)) {
+    hostCall1(
+      hostRead(element, assignKey),
+      castValue(
+        hostRead(element, "value"),
+        hostRead(modifiers, "trim").truthy(),
+        hostRead(modifiers, "number").truthy()
+      )
+    );
+  } else {
+    hostWrite(element, "value", newValue);
+  }
+  return JS.undefined();
+}
+
+JsValue textBeforeUpdate(JsValue _self, JsValue element, JsValue binding, JsValue vnode) {
+  hostWrite(element, assignKey, getModelAssigner(vnode));
+  if (hostRead(element, "composing").truthy()) return JS.undefined();
+  JsValue modifiers = bindingModifiers(binding);
+  bool lazy = hostRead(modifiers, "lazy").truthy();
+  bool trim = hostRead(modifiers, "trim").truthy();
+  bool numeric = hostRead(modifiers, "number").truthy();
+  string currentText = hostString(hostRead(element, "value"));
+  JsValue elementValue = currentText;
+  if ((numeric || JS.strictEqual(hostRead(element, "type"), "number")) && !leadingZero.test(currentText)) {
+    elementValue = modelLooseToNumber(currentText);
+  }
+  JsValue value = hostRead(binding, "value");
+  JsValue newValue = value;
+  if (JS.isNullish(value)) newValue = "";
+  if (JS.strictEqual(elementValue, newValue)) return JS.undefined();
+  if (hostActiveElementIs(element) && !JS.strictEqual(hostRead(element, "type"), "range")) {
+    if (lazy && JS.strictEqual(value, hostRead(binding, "oldValue"))) return JS.undefined();
+    if (trim && currentText.trim() == hostString(newValue)) return JS.undefined();
+  }
+  hostWrite(element, "value", newValue);
+  return JS.undefined();
+}
+
+JsValue getValue(JsValue element) {
+  if (hostHasProperty(element, "_value")) return hostRead(element, "_value");
+  return hostRead(element, "value");
+}
+
+JsValue getCheckboxValue(JsValue element, bool checked) {
+  string key = "_falseValue";
+  if (checked) key = "_trueValue";
+  if (hostHasProperty(element, key)) return hostRead(element, key);
+  return checked;
+}
+
+JsValue checkboxCreated(JsValue _self, JsValue element, JsValue _binding, JsValue vnode) {
+  hostWrite(element, assignKey, getModelAssigner(vnode));
+  addEventListener(element, "change", JS.method0((JsValue _innerSelf) => {
+    JsValue modelValue = hostRead(element, "_modelValue");
+    JsValue value = getValue(element);
+    bool checked = hostRead(element, "checked").truthy();
+    JsValue assigner = hostRead(element, assignKey);
+    if (modelIsArray(modelValue)) {
+      int index = modelLooseIndexOf(modelValue, value);
+      bool found = index != -1;
+      if (checked && !found) {
+        JsValue result = JS.invoke(modelValue, "concat", value);
+        hostCall1(assigner, result);
+      } else if (!checked && found) {
+        JsValue result = hostArraySlice(modelValue);
+        hostArraySplice(result, index, 1);
+        hostCall1(assigner, result);
+      }
+    } else if (modelIsSet(modelValue)) {
+      JsValue result = hostCreateSet(modelValue);
+      if (checked) hostSetAdd(result, value);
+      else hostSetDelete(result, value);
+      hostCall1(assigner, result);
+    } else {
+      hostCall1(assigner, getCheckboxValue(element, checked));
+    }
+    return JS.undefined();
+  }));
+  return JS.undefined();
+}
+
+JsValue setChecked(JsValue _self, JsValue element, JsValue binding, JsValue vnode) {
+  JsValue value = hostRead(binding, "value");
+  hostWrite(element, "_modelValue", value);
+  bool checked = false;
+  JsValue vnodeValue = hostRead(hostRead(vnode, "props"), "value");
+  if (modelIsArray(value)) checked = modelLooseIndexOf(value, vnodeValue) > -1;
+  else if (modelIsSet(value)) checked = hostSetHas(value, vnodeValue);
+  else {
+    if (JS.strictEqual(value, hostRead(binding, "oldValue"))) return JS.undefined();
+    checked = modelLooseEqual(value, getCheckboxValue(element, true));
+  }
+  if (hostRead(element, "checked").truthy() != checked) hostWrite(element, "checked", checked);
+  return JS.undefined();
+}
+
+JsValue checkboxBeforeUpdate(JsValue _self, JsValue element, JsValue binding, JsValue vnode) {
+  hostWrite(element, assignKey, getModelAssigner(vnode));
+  return setChecked(_self, element, binding, vnode);
+}
+
+JsValue radioCreated(JsValue _self, JsValue element, JsValue binding, JsValue vnode) {
+  hostWrite(element, "checked", modelLooseEqual(
+    hostRead(binding, "value"),
+    hostRead(hostRead(vnode, "props"), "value")
+  ));
+  hostWrite(element, assignKey, getModelAssigner(vnode));
+  addEventListener(element, "change", JS.method0((JsValue _innerSelf) => {
+    hostCall1(hostRead(element, assignKey), getValue(element));
+    return JS.undefined();
+  }));
+  return JS.undefined();
+}
+
+JsValue radioBeforeUpdate(JsValue _self, JsValue element, JsValue binding, JsValue vnode) {
+  hostWrite(element, assignKey, getModelAssigner(vnode));
+  if (!JS.strictEqual(hostRead(binding, "value"), hostRead(binding, "oldValue"))) {
+    hostWrite(element, "checked", modelLooseEqual(
+      hostRead(binding, "value"),
+      hostRead(hostRead(vnode, "props"), "value")
+    ));
+  }
+  return JS.undefined();
+}
+
+bool sameSelectValue(JsValue value, JsValue assigned, bool multiple) {
+  if (!multiple) return modelLooseEqual(value, assigned);
+  if (modelIsArray(value)) return modelLooseEqual(value, assigned);
+  if (modelIsSet(value)) {
+    if (hostSetSize(value) != valueLength(assigned)) return false;
+    int count = valueLength(assigned);
+    for (int index = 0; index < count; index++) {
+      if (!hostSetHas(value, hostRead(assigned, index))) return false;
+    }
+    return true;
+  }
+  return false;
+}
+
+void setSelected(JsValue element, JsValue value) {
+  bool multiple = hostRead(element, "multiple").truthy();
+  bool arrayValue = modelIsArray(value);
+  if (multiple && !arrayValue && !modelIsSet(value)) {
+    JS.call(
+      modelWarn,
+      JS.undefined(),
+      "<select multiple v-model> expects an Array or Set value for its binding, but got " +
+        hostRawType(value) + "."
+    );
+    return;
+  }
+  JsValue options = hostRead(element, "options");
+  int count = valueLength(options);
+  for (int index = 0; index < count; index++) {
+    JsValue option = hostRead(options, index);
+    JsValue optionValue = getValue(option);
+    if (multiple) {
+      bool selected = false;
+      if (arrayValue) {
+        string kind = JS.typeOf(optionValue);
+        if (kind == "string" || kind == "number") {
+          int modelCount = valueLength(value);
+          for (int modelIndex = 0; modelIndex < modelCount; modelIndex++) {
+            if (hostString(hostRead(value, modelIndex)) == hostString(optionValue)) {
+              selected = true;
+              break;
+            }
+          }
+        } else selected = modelLooseIndexOf(value, optionValue) > -1;
+      } else selected = hostSetHas(value, optionValue);
+      hostWrite(option, "selected", selected);
+    } else if (modelLooseEqual(optionValue, value)) {
+      if (JS.number(hostRead(element, "selectedIndex")).toInt() != index) {
+        hostWrite(element, "selectedIndex", index);
+      }
+      return;
+    }
+  }
+  if (!multiple && JS.number(hostRead(element, "selectedIndex")).toInt() != -1) {
+    hostWrite(element, "selectedIndex", -1);
+  }
+}
+
+JsValue selectCreated(JsValue _self, JsValue element, JsValue binding, JsValue vnode) {
+  hostWrite(element, "_modelValue", hostRead(binding, "value"));
+  JsValue modifiers = bindingModifiers(binding);
+  bool numeric = hostRead(modifiers, "number").truthy();
+  addEventListener(element, "change", JS.method0((JsValue _innerSelf) => {
+    JsValue selected = JS.array();
+    JsValue options = hostRead(element, "options");
+    int count = valueLength(options);
+    for (int index = 0; index < count; index++) {
+      JsValue option = hostRead(options, index);
+      if (hostRead(option, "selected").truthy()) {
+        JsValue item = getValue(option);
+        if (numeric) item = modelLooseToNumber(item);
+        JS.invoke(selected, "push", item);
+      }
+    }
+    bool multiple = hostRead(element, "multiple").truthy();
+    JsValue assigned = JS.undefined();
+    if (multiple) {
+      assigned = selected;
+      if (modelIsSet(hostRead(element, "_modelValue"))) assigned = hostCreateSet(selected);
+    } else if (valueLength(selected) != 0) assigned = hostRead(selected, 0);
+    JsValue snapshot = assigned;
+    if (multiple) {
+      if (modelIsArray(assigned)) snapshot = hostArraySlice(selected);
+      else snapshot = selected;
+    }
+    JsValue pending = JS.array(multiple, snapshot);
+    hostWrite(element, "_pendingValue", pending);
+    try {
+      hostCall1(hostRead(element, assignKey), assigned);
+    } finally {
+      hostCall1(modelNextTick, JS.method0((JsValue _tickSelf) => {
+        if (JS.strictEqual(hostRead(element, "_pendingValue"), pending)) {
+          hostWrite(element, "_pendingValue", JS.undefined());
+        }
+        return JS.undefined();
+      }));
+    }
+    return JS.undefined();
+  }));
+  hostWrite(element, assignKey, getModelAssigner(vnode));
+  return JS.undefined();
+}
+
+JsValue selectMounted(JsValue _self, JsValue element, JsValue binding) {
+  setSelected(element, hostRead(binding, "value"));
+  return JS.undefined();
+}
+
+JsValue selectBeforeUpdate(JsValue _self, JsValue element, JsValue binding, JsValue vnode) {
+  hostWrite(element, "_modelValue", hostRead(binding, "value"));
+  hostWrite(element, assignKey, getModelAssigner(vnode));
+  return JS.undefined();
+}
+
+JsValue selectUpdated(JsValue _self, JsValue element, JsValue binding) {
+  JsValue pending = hostRead(element, "_pendingValue");
+  hostWrite(element, "_pendingValue", JS.undefined());
+  bool multiple = hostRead(element, "multiple").truthy();
+  if (JS.isNullish(pending) || !JS.strictEqual(hostRead(pending, 0), multiple) ||
+      !sameSelectValue(hostRead(binding, "value"), hostRead(pending, 1), multiple)) {
+    setSelected(element, hostRead(binding, "value"));
+  }
+  return JS.undefined();
+}
+
+export JsValue vModelText = JS.object(
+  "created", JS.method3(textCreated),
+  "mounted", JS.method2(textMounted),
+  "beforeUpdate", JS.method3(textBeforeUpdate)
+);
+
+export JsValue vModelCheckbox = JS.object(
+  "deep", true,
+  "created", JS.method3(checkboxCreated),
+  "mounted", JS.method3(setChecked),
+  "beforeUpdate", JS.method3(checkboxBeforeUpdate)
+);
+
+export JsValue vModelRadio = JS.object(
+  "created", JS.method3(radioCreated),
+  "beforeUpdate", JS.method3(radioBeforeUpdate)
+);
+
+export JsValue vModelSelect = JS.object(
+  "deep", true,
+  "created", JS.method3(selectCreated),
+  "mounted", JS.method2(selectMounted),
+  "beforeUpdate", JS.method3(selectBeforeUpdate),
+  "updated", JS.method2(selectUpdated)
+);
+
+JsValue resolveDynamicModel(string tagName, JsValue type) {
+  if (tagName == "SELECT") return vModelSelect;
+  if (tagName == "TEXTAREA") return vModelText;
+  if (JS.strictEqual(type, "checkbox")) return vModelCheckbox;
+  if (JS.strictEqual(type, "radio")) return vModelRadio;
+  return vModelText;
+}
+
+void callModelHook(JsValue element, JsValue binding, JsValue vnode, JsValue previousVNode, string hook) {
+  JsValue props = hostRead(vnode, "props");
+  JsValue model = resolveDynamicModel(hostString(hostRead(element, "tagName")), hostRead(props, "type"));
+  JsValue callback = hostRead(model, hook);
+  if (!JS.isNullish(callback) && callback.truthy()) hostCall4(callback, element, binding, vnode, previousVNode);
+}
+
+JsValue dynamicCreated(JsValue element, JsValue binding, JsValue vnode) {
+  callModelHook(element, binding, vnode, null, "created");
+  return JS.undefined();
+}
+
+JsValue dynamicMounted(JsValue element, JsValue binding, JsValue vnode) {
+  callModelHook(element, binding, vnode, null, "mounted");
+  return JS.undefined();
+}
+
+JsValue dynamicBeforeUpdate(JsValue element, JsValue binding, JsValue vnode, JsValue previousVNode) {
+  callModelHook(element, binding, vnode, previousVNode, "beforeUpdate");
+  return JS.undefined();
+}
+
+JsValue dynamicUpdated(JsValue element, JsValue binding, JsValue vnode, JsValue previousVNode) {
+  callModelHook(element, binding, vnode, previousVNode, "updated");
+  return JS.undefined();
+}
+
+export JsValue vModelDynamic = JS.object(
+  "created", dynamicCreated,
+  "mounted", dynamicMounted,
+  "beforeUpdate", dynamicBeforeUpdate,
+  "updated", dynamicUpdated
+);
+
+export void initVModelForSSR() {
+  hostWrite(vModelText, "getSSRProps", JS.method1((JsValue _self, JsValue binding) =>
+    JS.object("value", hostRead(binding, "value"))
+  ));
+  hostWrite(vModelRadio, "getSSRProps", JS.method2((JsValue _self, JsValue binding, JsValue vnode) => {
+    JsValue props = hostRead(vnode, "props");
+    if (!JS.isNullish(props) && modelLooseEqual(hostRead(props, "value"), hostRead(binding, "value"))) {
+      return JS.object("checked", true);
+    }
+    return JS.undefined();
+  }));
+  hostWrite(vModelCheckbox, "getSSRProps", JS.method2((JsValue _self, JsValue binding, JsValue vnode) => {
+    JsValue value = hostRead(binding, "value");
+    JsValue props = hostRead(vnode, "props");
+    if (modelIsArray(value)) {
+      if (!JS.isNullish(props) && modelLooseIndexOf(value, hostRead(props, "value")) > -1) {
+        return JS.object("checked", true);
+      }
+    } else if (modelIsSet(value)) {
+      if (!JS.isNullish(props) && hostSetHas(value, hostRead(props, "value"))) {
+        return JS.object("checked", true);
+      }
+    } else if (value.truthy()) return JS.object("checked", true);
+    return JS.undefined();
+  }));
+  hostWrite(vModelDynamic, "getSSRProps", JS.method2((JsValue _self, JsValue binding, JsValue vnode) => {
+    JsValue vnodeType = hostRead(vnode, "type");
+    if (JS.typeOf(vnodeType) != "string") return JS.undefined();
+    JsValue props = hostRead(vnode, "props");
+    JsValue model = resolveDynamicModel(hostString(vnodeType).toUpperCase(), hostRead(props, "type"));
+    JsValue callback = hostRead(model, "getSSRProps");
+    if (!JS.isNullish(callback) && callback.truthy()) return hostCall2(callback, binding, vnode);
+    return JS.undefined();
+  }));
+}

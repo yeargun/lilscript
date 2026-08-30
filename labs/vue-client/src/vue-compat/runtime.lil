@@ -1,0 +1,27 @@
+import { createCompatVue } from "./createCompatVue";
+import extern { warn as runtimeWarn } from "../../packages/vuelil/runtime-core.js";
+
+extern JsValue runtimeWarn;
+bool RUNTIME_DEV = true;
+bool RUNTIME_ESM_BROWSER = false;
+bool RUNTIME_ESM_BUNDLER = true;
+bool RUNTIME_GLOBAL = false;
+
+JsValue Vue = createCompatVue();
+
+Vue["compile"] = JS.method0((JsValue _self) => {
+  if (RUNTIME_DEV) {
+    string message = "Runtime compilation is not supported in this build of Vue.";
+    if (RUNTIME_ESM_BUNDLER) {
+      message += " Configure your bundler to alias \"vue\" to \"@vue/compat/dist/vue.esm-bundler.js\".";
+    } else if (RUNTIME_ESM_BROWSER) {
+      message += " Use \"vue.esm-browser.js\" instead.";
+    } else if (RUNTIME_GLOBAL) {
+      message += " Use \"vue.global.js\" instead.";
+    }
+    JS.call(runtimeWarn, JS.undefined(), message);
+  }
+  return JS.undefined();
+});
+
+export { Vue as default };

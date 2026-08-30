@@ -1,0 +1,165 @@
+import extern {
+  camelize as styleCamelize,
+  capitalize as styleCapitalize,
+  hyphenate as styleHyphenate,
+  isArray as styleIsArray,
+  isString as styleIsString
+} from "../../../packages/vuelil/shared.js";
+import extern { warn as styleWarn } from "../../../packages/vuelil/runtime-core.js";
+import { vShowHidden, vShowOriginalDisplay } from "../directives/vShow";
+import { CSS_VAR_TEXT } from "../helpers/useCssVars";
+import extern {
+  hostCall1,
+  hostCallMethod2,
+  hostCallMethod3,
+  hostHasProperty,
+  hostRead,
+  hostRemoveAttribute,
+  hostString,
+  hostWrite
+} from "../host.js";
+
+extern JsValue styleCamelize;
+extern JsValue styleCapitalize;
+extern JsValue styleHyphenate;
+extern bool styleIsArray(JsValue value);
+extern bool styleIsString(JsValue value);
+extern JsValue styleWarn;
+extern JsValue hostCall1(JsValue fn, JsValue first);
+extern JsValue hostCallMethod2(JsValue receiver, string name, JsValue first, JsValue second);
+extern JsValue hostCallMethod3(JsValue receiver, string name, JsValue first, JsValue second, JsValue third);
+extern bool hostHasProperty(JsValue value, JsValue key);
+extern JsValue hostRead(JsValue value, JsValue key);
+extern void hostRemoveAttribute(JsValue element, string name);
+extern string hostString(JsValue value);
+extern void hostWrite(JsValue value, JsValue key, JsValue next);
+
+bool STYLE_DEV = true;
+Regex displayPattern = new Regex("(?:^|;)\\s*display\\s*:");
+Regex semicolonPattern = new Regex("[^\\\\];\\s*$");
+Regex importantPattern = new Regex("\\s*!important$");
+string[] stylePrefixes = ["Webkit", "Moz", "ms"];
+JsValue stylePrefixCache = JS.object();
+
+int valueLength(JsValue value) {
+  return JS.number(hostRead(value, "length")).toInt();
+}
+
+string transformString(JsValue transform, string value) {
+  return hostString(hostCall1(transform, value));
+}
+
+string autoPrefix(JsValue style, string rawName) {
+  JsValue cached = hostRead(stylePrefixCache, rawName);
+  if (!JS.isNullish(cached) && cached.truthy()) return hostString(cached);
+  string name = transformString(styleCamelize, rawName);
+  if (name != "filter" && hostHasProperty(style, name)) {
+    hostWrite(stylePrefixCache, rawName, name);
+    return name;
+  }
+  name = transformString(styleCapitalize, name);
+  for (int index = 0; index < stylePrefixes.length; index++) {
+    string prefixed = stylePrefixes[index] + name;
+    if (hostHasProperty(style, prefixed)) {
+      hostWrite(stylePrefixCache, rawName, prefixed);
+      return prefixed;
+    }
+  }
+  return rawName;
+}
+
+void setStyle(JsValue style, string name, JsValue value) {
+  if (styleIsArray(value)) {
+    int count = valueLength(value);
+    for (int index = 0; index < count; index++) setStyle(style, name, hostRead(value, index));
+    return;
+  }
+  if (JS.isNullish(value)) value = "";
+  string text = hostString(value);
+  if (STYLE_DEV && semicolonPattern.test(text)) {
+    JS.call(
+      styleWarn,
+      JS.undefined(),
+      "Unexpected semicolon at the end of '" + name + "' style value: '" + text + "'"
+    );
+  }
+  bool important = importantPattern.test(text);
+  if (name.startsWith("--")) {
+    if (important) {
+      hostCallMethod3(style, "setProperty", name, JS.invoke(text, "replace", importantPattern, ""), "important");
+    } else {
+      hostCallMethod2(style, "setProperty", name, value);
+    }
+  } else {
+    string prefixed = autoPrefix(style, name);
+    if (important) {
+      hostCallMethod3(
+        style,
+        "setProperty",
+        transformString(styleHyphenate, prefixed),
+        JS.invoke(text, "replace", importantPattern, ""),
+        "important"
+      );
+    } else {
+      hostWrite(style, prefixed, value);
+    }
+  }
+}
+
+bool shouldPreserveTextareaResizeStyle(JsValue element, string key, JsValue previous, JsValue next) {
+  return JS.strictEqual(hostRead(element, "tagName"), "TEXTAREA") &&
+    (key == "width" || key == "height") && styleIsString(next) &&
+    JS.strictEqual(previous, next);
+}
+
+export void patchStyle(JsValue element, JsValue previous, JsValue next) {
+  JsValue style = hostRead(element, "style");
+  bool cssString = styleIsString(next);
+  bool controlledDisplay = false;
+  if (!JS.isNullish(next) && next.truthy() && !cssString) {
+    if (!JS.isNullish(previous) && previous.truthy()) {
+      if (!styleIsString(previous)) {
+        for (string key in previous) {
+          if (JS.isNullish(hostRead(next, key))) setStyle(style, key, "");
+        }
+      } else {
+        string[] oldStyles = hostString(previous).split(";");
+        for (int index = 0; index < oldStyles.length; index++) {
+          string oldStyle = oldStyles[index];
+          int colon = oldStyle.indexOf(":");
+          string key = oldStyle.slice(0, colon).trim();
+          if (JS.isNullish(hostRead(next, key))) setStyle(style, key, "");
+        }
+      }
+    }
+    for (string key in next) {
+      if (key == "display") controlledDisplay = true;
+      JsValue value = hostRead(next, key);
+      if (!JS.isNullish(value)) {
+        JsValue oldValue = JS.undefined();
+        if (!styleIsString(previous) && !JS.isNullish(previous) && previous.truthy()) {
+          oldValue = hostRead(previous, key);
+        }
+        if (!shouldPreserveTextareaResizeStyle(element, key, oldValue, value)) setStyle(style, key, value);
+      } else {
+        setStyle(style, key, "");
+      }
+    }
+  } else if (cssString) {
+    if (!JS.strictEqual(previous, next)) {
+      string text = hostString(next);
+      JsValue cssVars = hostRead(style, CSS_VAR_TEXT);
+      if (!JS.isNullish(cssVars) && cssVars.truthy()) text += ";" + hostString(cssVars);
+      hostWrite(style, "cssText", text);
+      controlledDisplay = displayPattern.test(text);
+    }
+  } else if (!JS.isNullish(previous) && previous.truthy()) {
+    hostRemoveAttribute(element, "style");
+  }
+  if (hostHasProperty(element, vShowOriginalDisplay)) {
+    JsValue originalDisplay = "";
+    if (controlledDisplay) originalDisplay = hostRead(style, "display");
+    hostWrite(element, vShowOriginalDisplay, originalDisplay);
+    if (hostRead(element, vShowHidden).truthy()) hostWrite(style, "display", "none");
+  }
+}

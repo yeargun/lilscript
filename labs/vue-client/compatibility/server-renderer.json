@@ -1,0 +1,85 @@
+{
+  "schemaVersion": 1,
+  "oracle": {
+    "package": "@vue/server-renderer",
+    "version": "3.5.42",
+    "revision": "d63616ca17de965ed32dcb449a4c5cd9982f15d2"
+  },
+  "status": "runtime-complete",
+  "runtimeExports": [
+    "pipeToNodeWritable",
+    "pipeToWebWritable",
+    "renderToNodeStream",
+    "renderToSimpleStream",
+    "renderToStream",
+    "renderToString",
+    "renderToWebStream",
+    "ssrGetDirectiveProps",
+    "ssrGetDynamicModelProps",
+    "ssrIncludeBooleanAttr",
+    "ssrInterpolate",
+    "ssrLooseContain",
+    "ssrLooseEqual",
+    "ssrRenderAttr",
+    "ssrRenderAttrs",
+    "ssrRenderClass",
+    "ssrRenderComponent",
+    "ssrRenderDynamicAttr",
+    "ssrRenderDynamicModel",
+    "ssrRenderList",
+    "ssrRenderSlot",
+    "ssrRenderSlotInner",
+    "ssrRenderStyle",
+    "ssrRenderSuspense",
+    "ssrRenderTeleport",
+    "ssrRenderVNode"
+  ],
+  "runtimeExportCount": 26,
+  "upstreamTests": {
+    "files": 17,
+    "filesPassed": 17,
+    "tests": 308,
+    "passed": 308,
+    "failed": 0,
+    "status": "passed",
+    "runner": "npm run test:upstream:server-renderer",
+    "filesRun": [
+      "packages/server-renderer/__tests__/render.spec.ts",
+      "packages/server-renderer/__tests__/ssrAttrFallthrough.spec.ts",
+      "packages/server-renderer/__tests__/ssrCompilerOptions.spec.ts",
+      "packages/server-renderer/__tests__/ssrComputed.spec.ts",
+      "packages/server-renderer/__tests__/ssrDirectives.spec.ts",
+      "packages/server-renderer/__tests__/ssrDynamicComponent.spec.ts",
+      "packages/server-renderer/__tests__/ssrInterpolate.spec.ts",
+      "packages/server-renderer/__tests__/ssrRender.spec.ts",
+      "packages/server-renderer/__tests__/ssrRenderAttrs.spec.ts",
+      "packages/server-renderer/__tests__/ssrRenderList.spec.ts",
+      "packages/server-renderer/__tests__/ssrScopeId.spec.ts",
+      "packages/server-renderer/__tests__/ssrSlot.spec.ts",
+      "packages/server-renderer/__tests__/ssrSuspense.spec.ts",
+      "packages/server-renderer/__tests__/ssrTeleport.spec.ts",
+      "packages/server-renderer/__tests__/ssrVModelHelpers.spec.ts",
+      "packages/server-renderer/__tests__/ssrWatch.spec.ts",
+      "packages/server-renderer/__tests__/webStream.spec.ts"
+    ]
+  },
+  "sourceParity": {
+    "requiredFiles": 15,
+    "ownerModules": 15,
+    "deterministicFilesPresent": 15,
+    "verifiedExactMappings": 15,
+    "hostAdapters": 1,
+    "hostAdapter": "src/server-renderer/host.js"
+  },
+  "runtimeIntegration": {
+    "runtimeCoreRuntimeDomSingleton": true,
+    "runtimeTestAlias": "packages/vuelil/runtime-test.js",
+    "upstreamRuntimeImplementationsBlocked": true,
+    "nodeStream": true,
+    "webStream": true
+  },
+  "blockers": [],
+  "limitations": [
+    "Repository-wide project-size, performance, and Pages gates remain pending."
+  ]
+}

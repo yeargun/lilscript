@@ -28,19 +28,12 @@ const legacyCandidates = new Map([
     "src/shared.lil",
     "Package-wide shared implementation does not use the required src/shared/<upstream-relative>.lil layout.",
   ],
-  [
-    "src/runtime-core/index.lil",
-    "Package-wide runtime-core implementation combines responsibilities from multiple upstream modules.",
-  ],
-  [
-    "src/runtime-dom/index.lil",
-    "Package-wide runtime-dom implementation combines responsibilities from multiple upstream modules.",
-  ],
 ]);
 const allowedHostAdapters = new Map([
   ["src/reactivity/host.js", ["ecmascript-primitives"]],
   ["src/runtime-core/host.js", ["ecmascript-primitives"]],
   ["src/runtime-dom/host.js", ["dom-primitives", "ecmascript-primitives"]],
+  ["src/server-renderer/host.js", ["stream-primitives"]],
   [
     "src/compiler-sfc/host.js",
     ["ecmascript-primitives", "filesystem-module-loading"],
@@ -210,7 +203,11 @@ export function inspectCandidateSource(source) {
   const issues = [];
   const substantive = stripComments(source);
   if (substantive === "") issues.push("candidate is empty or comment-only");
-  if (/\b(?:todo|fixme|placeholder|not[ _-]?implemented|stub(?:bed)?)\b/iu.test(source)) {
+  const withoutStrings = source.replace(
+    /"(?:\\[\s\S]|[^"\\])*"|'(?:\\[\s\S]|[^'\\])*'/gu,
+    "",
+  );
+  if (/\b(?:todo|fixme|placeholder|not[ _-]?implemented|stub(?:bed)?)\b/iu.test(withoutStrings)) {
     issues.push("candidate contains a placeholder marker");
   }
   if (

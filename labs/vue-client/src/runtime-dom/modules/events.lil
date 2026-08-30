@@ -1,0 +1,191 @@
+import extern {
+  ErrorCodes as eventErrorCodes,
+  callWithAsyncErrorHandling as eventCallWithAsyncErrorHandling,
+  warn as eventWarn
+} from "../../../packages/vuelil/runtime-core.js";
+import extern {
+  hyphenate as eventHyphenate,
+  isArray as eventIsArray,
+  isFunction as eventIsFunction,
+  NOOP as eventNoop
+} from "../../../packages/vuelil/shared.js";
+import extern {
+  hostAddEventListener,
+  hostArraySlice,
+  hostCall0,
+  hostCall1,
+  hostCreateSymbol,
+  hostDateNow,
+  hostPromiseThen,
+  hostRead,
+  hostRemoveEventListener,
+  hostResolvedPromise,
+  hostString,
+  hostWrite
+} from "../host.js";
+
+extern JsValue eventErrorCodes;
+extern JsValue eventCallWithAsyncErrorHandling;
+extern JsValue eventWarn;
+extern JsValue eventHyphenate;
+extern bool eventIsArray(JsValue value);
+extern bool eventIsFunction(JsValue value);
+extern JsValue eventNoop;
+extern void hostAddEventListener(JsValue element, string event, JsValue handler, JsValue options);
+extern JsValue hostArraySlice(JsValue value);
+extern JsValue hostCall0(JsValue fn);
+extern JsValue hostCall1(JsValue fn, JsValue first);
+extern JsValue hostCreateSymbol(string description);
+extern float hostDateNow();
+extern JsValue hostPromiseThen(JsValue promise, JsValue callback);
+extern JsValue hostRead(JsValue value, JsValue key);
+extern void hostRemoveEventListener(JsValue element, string event, JsValue handler, JsValue options);
+extern JsValue hostResolvedPromise();
+extern string hostString(JsValue value);
+extern void hostWrite(JsValue value, JsValue key, JsValue next);
+
+bool EVENT_DEV = true;
+JsValue invokerKey = hostCreateSymbol("_vei");
+Regex optionModifierPattern = new Regex("(Once|Passive|Capture)$");
+Regex optionModifierEventPattern = new Regex("^on:?(?:Once|Passive|Capture)$");
+float cachedNow = 0.0;
+JsValue resolvedPromise = hostResolvedPromise();
+
+int valueLength(JsValue value) {
+  return JS.number(hostRead(value, "length")).toInt();
+}
+
+export void addEventListener(
+  JsValue element,
+  string event,
+  JsValue handler,
+  JsValue options = JS.undefined()
+) {
+  hostAddEventListener(element, event, handler, options);
+}
+
+export void removeEventListener(
+  JsValue element,
+  string event,
+  JsValue handler,
+  JsValue options = JS.undefined()
+) {
+  hostRemoveEventListener(element, event, handler, options);
+}
+
+JsValue parseName(string rawName) {
+  string name = rawName;
+  JsValue options = JS.undefined();
+  while (true) {
+    JsValue matched = optionModifierPattern.exec(name);
+    if (JS.isNullish(matched) || optionModifierEventPattern.test(name)) break;
+    if (JS.isUndefined(options)) options = JS.object();
+    string modifier = hostString(hostRead(matched, 1));
+    hostWrite(options, modifier.toLowerCase(), true);
+    name = name.slice(0, name.length - modifier.length);
+  }
+  string event = hostString(hostCall1(eventHyphenate, name.slice(2)));
+  if (name.charCodeAt(2) == 58) event = name.slice(3);
+  return JS.array(event, options);
+}
+
+float getNow() {
+  if (cachedNow != 0.0) return cachedNow;
+  cachedNow = hostDateNow();
+  hostPromiseThen(resolvedPromise, JS.method0((JsValue _self) => {
+    cachedNow = 0.0;
+    return JS.undefined();
+  }));
+  return cachedNow;
+}
+
+JsValue sanitizeEventValue(JsValue value, string propName) {
+  if (eventIsFunction(value) || eventIsArray(value)) return value;
+  JS.call(
+    eventWarn,
+    JS.undefined(),
+    "Wrong type passed as event handler to " + propName + " - did you forget @ or : " +
+      "in front of your prop?\nExpected function or array of functions, received type " +
+      JS.typeOf(value) + "."
+  );
+  return eventNoop;
+}
+
+void callEventHandler(JsValue handler, JsValue instance, JsValue event) {
+  JS.call(
+    eventCallWithAsyncErrorHandling,
+    JS.undefined(),
+    handler,
+    instance,
+    eventErrorCodes["NATIVE_EVENT_HANDLER"],
+    JS.array(event)
+  );
+}
+
+JsValue createInvoker(JsValue initialValue, JsValue instance) {
+  JsValue invoker = JS.undefined();
+  invoker = JS.method1((JsValue _self, JsValue event) => {
+    JsValue timestamp = hostRead(event, "_vts");
+    if (JS.isNullish(timestamp) || !timestamp.truthy()) {
+      hostWrite(event, "_vts", hostDateNow());
+    } else if (JS.number(timestamp) <= JS.number(hostRead(invoker, "attached"))) {
+      return JS.undefined();
+    }
+    JsValue value = hostRead(invoker, "value");
+    if (eventIsArray(value)) {
+      JsValue originalStop = hostRead(event, "stopImmediatePropagation");
+      hostWrite(event, "stopImmediatePropagation", JS.method0((JsValue _innerSelf) => {
+        hostCall0(JS.invoke(originalStop, "bind", event));
+        hostWrite(event, "_stopped", true);
+        return JS.undefined();
+      }));
+      JsValue handlers = hostArraySlice(value);
+      int count = valueLength(handlers);
+      for (int index = 0; index < count; index++) {
+        if (hostRead(event, "_stopped").truthy()) break;
+        JsValue handler = hostRead(handlers, index);
+        if (!JS.isNullish(handler) && handler.truthy()) callEventHandler(handler, instance, event);
+      }
+    } else {
+      callEventHandler(value, instance, event);
+    }
+    return JS.undefined();
+  });
+  hostWrite(invoker, "value", initialValue);
+  hostWrite(invoker, "attached", getNow());
+  return invoker;
+}
+
+export void patchEvent(
+  JsValue element,
+  string rawName,
+  JsValue previous,
+  JsValue next,
+  JsValue instance = null
+) {
+  JsValue invokers = hostRead(element, invokerKey);
+  if (JS.isNullish(invokers)) {
+    invokers = JS.object();
+    hostWrite(element, invokerKey, invokers);
+  }
+  JsValue existing = hostRead(invokers, rawName);
+  if (!JS.isNullish(next) && next.truthy() && !JS.isNullish(existing) && existing.truthy()) {
+    JsValue value = next;
+    if (EVENT_DEV) value = sanitizeEventValue(next, rawName);
+    hostWrite(existing, "value", value);
+    return;
+  }
+  JsValue parsed = parseName(rawName);
+  string name = hostString(hostRead(parsed, 0));
+  JsValue options = hostRead(parsed, 1);
+  if (!JS.isNullish(next) && next.truthy()) {
+    JsValue value = next;
+    if (EVENT_DEV) value = sanitizeEventValue(next, rawName);
+    JsValue invoker = createInvoker(value, instance);
+    hostWrite(invokers, rawName, invoker);
+    addEventListener(element, name, invoker, options);
+  } else if (!JS.isNullish(existing) && existing.truthy()) {
+    removeEventListener(element, name, existing, options);
+    hostWrite(invokers, rawName, JS.undefined());
+  }
+}

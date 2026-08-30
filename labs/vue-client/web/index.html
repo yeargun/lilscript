@@ -17,95 +17,103 @@
   <main>
     <section class="summary-grid" aria-label="Audit summary">
       <article><strong>12</strong><span>scoped packages</span></article>
-      <article><strong>234</strong><span>source files</span></article>
-      <article><strong>216</strong><span>required test files</span></article>
+      <article><strong>234/234</strong><span>verified source files</span></article>
+      <article><strong>216/216</strong><span>test files passed</span></article>
       <article><strong>2023</strong><span>export names audited</span></article>
     </section>
     <section>
       <div class="section-heading"><p>Current truth</p><h2>Open gates</h2></div>
-      <ol class="blockers"><li>source-parity evidence is missing (compatibility/source-parity.json)</li>
-<li>@vue/shared status is &quot;runtime-complete&quot;</li>
-<li>@vue/reactivity status is &quot;runtime-complete&quot;</li>
-<li>@vue/runtime-core status is &quot;partial&quot;</li>
-<li>@vue/runtime-dom status is &quot;not-started&quot;</li>
-<li>@vue/compiler-core status is &quot;runtime-complete&quot;</li>
-<li>@vue/compiler-dom status is &quot;runtime-complete&quot;</li>
-<li>@vue/compiler-ssr status is &quot;runtime-complete&quot;</li>
-<li>@vue/compiler-sfc status is &quot;not-started&quot;</li>
-<li>@vue/server-renderer status is &quot;not-started&quot;</li>
-<li>@vue/compat status is &quot;not-started&quot;</li>
-<li>vue status is &quot;not-started&quot;</li>
-<li>runtime-only-client project-size status is &quot;pending&quot;</li>
-<li>runtime-compiler-client project-size status is &quot;pending&quot;</li>
-<li>ssr-app project-size status is &quot;pending&quot;</li>
-<li>sfc-production-app project-size status is &quot;pending&quot;</li>
-<li>sourceParityRequired is 234; audited value is undefined</li>
-<li>sourceParitySatisfied is 92; audited value is undefined</li>
-<li>sourceParityMissing is 140; audited value is undefined</li>
-<li>sourceParityLegacyMapped is 2; audited value is undefined</li>
-<li>sourceParityLegacyNonconforming is 2; audited value is undefined</li>
-<li>sourceParity gate is &quot;failed&quot;</li>
-<li>candidatePassed is 70; expected 216</li>
-<li>candidatePending is 126; expected 0</li>
+      <ol class="blockers"><li>runtime-only-client project-size status is &quot;failed&quot;</li>
+<li>runtime-compiler-client project-size status is &quot;failed&quot;</li>
+<li>ssr-app project-size status is &quot;failed&quot;</li>
+<li>sfc-production-app project-size status is &quot;failed&quot;</li>
 <li>projectSizeRequiredPassed is 0; expected 4</li>
-<li>projectSize gate is &quot;pending&quot;</li>
-<li>performance gate is &quot;pending&quot;</li>
-<li>pages gate is &quot;pending&quot;</li>
-<li>compatibility evidence is missing (artifacts/compatibility-report.json)</li>
+<li>projectSize gate is &quot;failed&quot;</li>
+<li>performance gate is &quot;failed&quot;</li>
 <li>project-size evidence does not identify the current scope</li>
-<li>project-size evidence is missing runtime-only-client</li>
-<li>project-size evidence is missing runtime-compiler-client</li>
-<li>project-size evidence is missing ssr-app</li>
-<li>project-size evidence is missing sfc-production-app</li>
-<li>reactivity-app has not proved paired execution and module-graph independence</li>
+<li>runtime-only-client has not proved a smaller paired-project Brotli-11 bundle</li>
+<li>runtime-compiler-client has not proved a smaller paired-project Brotli-11 bundle</li>
+<li>ssr-app has not proved a smaller paired-project Brotli-11 bundle</li>
+<li>sfc-production-app has not proved a smaller paired-project Brotli-11 bundle</li>
 <li>the aggregate required project-size gate is not passed</li>
-<li>performance evidence is missing (artifacts/performance-report.json)</li></ol>
+<li>browser-keyed-render has not passed its recomputed confidence bound</li>
+<li>compiler-dom-development has not passed its recomputed confidence bound</li>
+<li>reactivity-graph-updates has not passed its recomputed confidence bound</li>
+<li>ssr-component-tree has not passed its recomputed confidence bound</li>
+<li>the aggregate performance gate is not passed</li></ol>
     </section>
     <section>
       <div class="section-heading"><p>Coverage</p><h2>Packages from the pinned tree</h2></div>
-      <div class="table-wrap"><table><thead><tr><th>Package</th><th>Source</th><th>Tests</th><th>Exports</th><th>Scope status</th></tr></thead><tbody><tr><td><code>@vue/shared</code></td><td>16</td><td>6</td><td>80</td><td><span class="status open">runtime-complete</span></td></tr>
-<tr><td><code>@vue/reactivity</code></td><td>13</td><td>16</td><td>86</td><td><span class="status open">runtime-complete</span></td></tr>
-<tr><td><code>@vue/runtime-core</code></td><td>65</td><td>44</td><td>277</td><td><span class="status open">partial</span></td></tr>
-<tr><td><code>@vue/runtime-dom</code></td><td>17</td><td>16</td><td>367</td><td><span class="status open">not-started</span></td></tr>
-<tr><td><code>@vue/compiler-core</code></td><td>30</td><td>20</td><td>227</td><td><span class="status open">runtime-complete</span></td></tr>
-<tr><td><code>@vue/compiler-dom</code></td><td>16</td><td>13</td><td>246</td><td><span class="status open">runtime-complete</span></td></tr>
-<tr><td><code>@vue/compiler-ssr</code></td><td>17</td><td>15</td><td>1</td><td><span class="status open">runtime-complete</span></td></tr>
-<tr><td><code>@vue/compiler-sfc</code></td><td>31</td><td>19</td><td>48</td><td><span class="status open">not-started</span></td></tr>
-<tr><td><code>@vue/server-renderer</code></td><td>15</td><td>17</td><td>28</td><td><span class="status open">not-started</span></td></tr>
+      <div class="table-wrap"><table><thead><tr><th>Package</th><th>Source</th><th>Tests</th><th>Exports</th><th>Scope status</th></tr></thead><tbody><tr><td><code>@vue/shared</code></td><td>16</td><td>6</td><td>80</td><td><span class="status pass">complete</span></td></tr>
+<tr><td><code>@vue/reactivity</code></td><td>13</td><td>16</td><td>86</td><td><span class="status pass">complete</span></td></tr>
+<tr><td><code>@vue/runtime-core</code></td><td>65</td><td>44</td><td>277</td><td><span class="status pass">complete</span></td></tr>
+<tr><td><code>@vue/runtime-dom</code></td><td>17</td><td>16</td><td>367</td><td><span class="status pass">complete</span></td></tr>
+<tr><td><code>@vue/compiler-core</code></td><td>30</td><td>20</td><td>227</td><td><span class="status pass">complete</span></td></tr>
+<tr><td><code>@vue/compiler-dom</code></td><td>16</td><td>13</td><td>246</td><td><span class="status pass">complete</span></td></tr>
+<tr><td><code>@vue/compiler-ssr</code></td><td>17</td><td>15</td><td>1</td><td><span class="status pass">complete</span></td></tr>
+<tr><td><code>@vue/compiler-sfc</code></td><td>31</td><td>19</td><td>48</td><td><span class="status pass">complete</span></td></tr>
+<tr><td><code>@vue/server-renderer</code></td><td>15</td><td>17</td><td>28</td><td><span class="status pass">complete</span></td></tr>
 <tr><td><code>@vue/runtime-test</code></td><td>5</td><td>1</td><td>294</td><td><span class="status open">test-host-only</span></td></tr>
-<tr><td><code>@vue/compat</code></td><td>6</td><td>11</td><td>1</td><td><span class="status open">not-started</span></td></tr>
-<tr><td><code>vue</code></td><td>3</td><td>18</td><td>368</td><td><span class="status open">not-started</span></td></tr></tbody></table></div>
+<tr><td><code>@vue/compat</code></td><td>6</td><td>11</td><td>1</td><td><span class="status pass">complete</span></td></tr>
+<tr><td><code>vue</code></td><td>3</td><td>18</td><td>368</td><td><span class="status pass">complete</span></td></tr></tbody></table></div>
     </section>
     <section>
       <div class="section-heading"><p>Project bundles</p><h2>Paired application scenarios</h2></div>
       <p class="section-copy">Each scenario builds the same application source against upstream Vue and VueLil with identical production settings. Published library bundles are not completion evidence.</p>
-      <div class="table-wrap"><table><thead><tr><th>Scenario</th><th>Role</th><th>Application</th><th>Status</th></tr></thead><tbody><tr><td><code>reactivity-app</code></td><td>diagnostic</td><td>Reactivity-only application exercising reactive state, refs, computed values, and effects.</td><td><span class="status open">failed</span></td></tr>
-<tr><td><code>runtime-only-client</code></td><td>required</td><td>Production browser application using the runtime-only renderer with precompiled render functions.</td><td><span class="status open">pending</span></td></tr>
-<tr><td><code>runtime-compiler-client</code></td><td>required</td><td>Production browser application compiling a template at runtime.</td><td><span class="status open">pending</span></td></tr>
-<tr><td><code>ssr-app</code></td><td>required</td><td>Production server-rendered application including Vue server rendering.</td><td><span class="status open">pending</span></td></tr>
-<tr><td><code>sfc-production-app</code></td><td>required</td><td>Production browser application built from representative Vue single-file components.</td><td><span class="status open">pending</span></td></tr></tbody></table></div>
+      <div class="table-wrap"><table><thead><tr><th>Scenario</th><th>Role</th><th>Application</th><th>Brotli candidate / Vue</th><th>Delta</th><th>Status</th></tr></thead><tbody><tr><td><code>reactivity-app</code></td><td>diagnostic</td><td>Reactivity-only application exercising reactive state, refs, computed values, and effects.</td><td>pending</td><td>-</td><td><span class="status open">failed</span></td></tr>
+<tr><td><code>runtime-only-client</code></td><td>required</td><td>Production browser application using the runtime-only renderer with precompiled render functions.</td><td>44,947 / 19,197 B</td><td>+25,750 B</td><td><span class="status open">failed</span></td></tr>
+<tr><td><code>runtime-compiler-client</code></td><td>required</td><td>Production browser application compiling a template at runtime.</td><td>145,954 / 55,738 B</td><td>+90,216 B</td><td><span class="status open">failed</span></td></tr>
+<tr><td><code>ssr-app</code></td><td>required</td><td>Production server-rendered application including Vue server rendering.</td><td>220,757 / 167,894 B</td><td>+52,863 B</td><td><span class="status open">failed</span></td></tr>
+<tr><td><code>sfc-production-app</code></td><td>required</td><td>Production browser application built from representative Vue single-file components.</td><td>45,436 / 19,678 B</td><td>+25,758 B</td><td><span class="status open">failed</span></td></tr></tbody></table></div>
+    </section>
+    <section>
+      <div class="section-heading"><p>Runtime cost</p><h2>Paired performance confidence bounds</h2></div>
+      <p class="section-copy">Ratios are candidate duration divided by Vue duration. Passing requires the one-sided 95% upper bound to stay at or below the configured non-inferiority margin.</p>
+      <div class="table-wrap"><table><thead><tr><th>Workload</th><th>Category</th><th>Point ratio</th><th>Upper 95%</th><th>Margin</th><th>Status</th></tr></thead><tbody><tr><td><code>browser-keyed-render</code></td><td>browser</td><td>1.543x</td><td>1.628x</td><td>1.03x</td><td><span class="status open">failed</span></td></tr>
+<tr><td><code>compiler-dom-development</code></td><td>compiler</td><td>1.020x</td><td>1.064x</td><td>1.03x</td><td><span class="status open">failed</span></td></tr>
+<tr><td><code>reactivity-graph-updates</code></td><td>reactivity</td><td>2.755x</td><td>2.885x</td><td>1.03x</td><td><span class="status open">failed</span></td></tr>
+<tr><td><code>ssr-component-tree</code></td><td>ssr</td><td>2.597x</td><td>2.760x</td><td>1.03x</td><td><span class="status open">failed</span></td></tr></tbody></table></div>
+    </section>
+    <section>
+      <div class="section-heading"><p>Bundle anatomy</p><h2>Why the runtime-only bundle is larger</h2></div>
+      <p class="section-copy">All 232 runtime sources are explicitly written in LilScript; 2 type-only files use audited declaration-only handling. Seven JavaScript adapters expose host primitives only and their retained bytes are counted. Production compilation enables identifier and property mangling while preserving public export names. The current diagnostic still retains substantially more generated runtime code, primarily dynamic <code>JsValue</code> access, host-boundary calls, module initialization, and compatibility paths.</p>
+      <div class="table-wrap"><table><thead><tr><th>Module family</th><th>VueLil rendered</th><th>Vue rendered</th><th>Raw delta</th></tr></thead><tbody><tr><td><code>reactivity</code></td><td>36,082 B</td><td>31,080 B</td><td>+5,002 B</td></tr>
+<tr><td><code>runtime-core</code></td><td>139,699 B</td><td>79,749 B</td><td>+59,950 B</td></tr>
+<tr><td><code>runtime-dom</code></td><td>23,484 B</td><td>12,620 B</td><td>+10,864 B</td></tr>
+<tr><td><code>shared</code></td><td>11,853 B</td><td>7,595 B</td><td>+4,258 B</td></tr></tbody></table></div>
+      <p class="notice">The next measurement revision must consume one reusable, non-closed-world mangled package build. Scenario-specific export selection is diagnostic only and cannot establish the final size claim.</p>
     </section>
     <section class="split">
       <div><div class="section-heading"><p>Declared state</p><h2>Scope gates</h2></div><table><thead><tr><th>Gate</th><th>Value</th></tr></thead><tbody><tr><td>sourceParityRequired</td><td><span class="status open">234</span></td></tr>
-<tr><td>sourceParitySatisfied</td><td><span class="status open">92</span></td></tr>
-<tr><td>sourceParityMissing</td><td><span class="status open">140</span></td></tr>
-<tr><td>sourceParityLegacyMapped</td><td><span class="status open">2</span></td></tr>
-<tr><td>sourceParityLegacyNonconforming</td><td><span class="status open">2</span></td></tr>
-<tr><td>sourceParity</td><td><span class="status open">failed</span></td></tr>
+<tr><td>sourceParitySatisfied</td><td><span class="status open">234</span></td></tr>
+<tr><td>sourceParityMissing</td><td><span class="status open">0</span></td></tr>
+<tr><td>sourceParityLegacyMapped</td><td><span class="status open">0</span></td></tr>
+<tr><td>sourceParityLegacyNonconforming</td><td><span class="status open">0</span></td></tr>
+<tr><td>sourceParity</td><td><span class="status pass">passed</span></td></tr>
 <tr><td>upstreamTestFiles</td><td><span class="status open">196</span></td></tr>
 <tr><td>declarationTestFiles</td><td><span class="status open">20</span></td></tr>
-<tr><td>candidatePassed</td><td><span class="status open">70</span></td></tr>
+<tr><td>runtimeTestFilesPassed</td><td><span class="status open">196</span></td></tr>
+<tr><td>declarationTestFilesPassed</td><td><span class="status open">20</span></td></tr>
+<tr><td>declarations</td><td><span class="status pass">passed</span></td></tr>
+<tr><td>packageEntrypointsRequired</td><td><span class="status open">28</span></td></tr>
+<tr><td>packageEntrypointsPassed</td><td><span class="status open">28</span></td></tr>
+<tr><td>packageEntrypoints</td><td><span class="status pass">passed</span></td></tr>
+<tr><td>formatRowsRequired</td><td><span class="status open">38</span></td></tr>
+<tr><td>formatRowsPassed</td><td><span class="status open">38</span></td></tr>
+<tr><td>packageFormats</td><td><span class="status pass">passed</span></td></tr>
+<tr><td>candidatePassed</td><td><span class="status open">216</span></td></tr>
 <tr><td>candidateFailed</td><td><span class="status open">0</span></td></tr>
-<tr><td>candidatePending</td><td><span class="status open">126</span></td></tr>
+<tr><td>candidatePending</td><td><span class="status open">0</span></td></tr>
 <tr><td>reactivityDiagnostic</td><td><span class="status open">failed</span></td></tr>
 <tr><td>projectSizeRequiredPassed</td><td><span class="status open">0</span></td></tr>
 <tr><td>projectSizeRequiredTotal</td><td><span class="status open">4</span></td></tr>
-<tr><td>projectSize</td><td><span class="status open">pending</span></td></tr>
-<tr><td>performance</td><td><span class="status open">pending</span></td></tr>
-<tr><td>pages</td><td><span class="status open">pending</span></td></tr></tbody></table></div>
-      <div><div class="section-heading"><p>Backing files</p><h2>Evidence reports</h2></div><table><thead><tr><th>Report</th><th>SHA-256</th><th>State</th></tr></thead><tbody><tr><td>compatibility</td><td>absent</td><td>pending</td></tr>
-<tr><td>size</td><td><code>d6d804799615</code></td><td>present</td></tr>
-<tr><td>performance</td><td>absent</td><td>pending</td></tr></tbody></table></div>
+<tr><td>projectSize</td><td><span class="status open">failed</span></td></tr>
+<tr><td>performance</td><td><span class="status open">failed</span></td></tr>
+<tr><td>pages</td><td><span class="status pass">passed</span></td></tr></tbody></table></div>
+      <div><div class="section-heading"><p>Backing files</p><h2>Evidence reports</h2></div><table><thead><tr><th>Report</th><th>SHA-256</th><th>State</th></tr></thead><tbody><tr><td>sourceParity</td><td><code>23d9905cc5ae</code></td><td>present</td></tr>
+<tr><td>compatibility</td><td><code>f9561bad62e6</code></td><td>present</td></tr>
+<tr><td>size</td><td><code>175c047bbb6d</code></td><td>present</td></tr>
+<tr><td>performance</td><td><code>ed8b602f0492</code></td><td>present</td></tr></tbody></table></div>
     </section>
     <section class="contract">
       <div class="section-heading"><p>Completion rule</p><h2>No partial credit</h2></div>

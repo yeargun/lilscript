@@ -1,0 +1,246 @@
+import extern {
+  createApp as streamCreateApp,
+  createVNode as streamCreateVNode,
+  ssrContextKey as streamContextKey,
+  ssrUtils as streamSsrUtils
+} from "../../packages/vuelil/runtime-dom.js";
+import extern {
+  isPromise as streamIsPromise,
+  isString as streamIsString
+} from "../../packages/vuelil/shared.js";
+import extern { hostCreateNodeReadable } from "./host.js";
+import { renderComponentVNode } from "./render";
+import { resolveTeleports } from "./renderToString";
+
+extern JsValue streamCreateApp;
+extern JsValue streamCreateVNode;
+extern JsValue streamContextKey;
+extern JsValue streamSsrUtils;
+extern bool streamIsPromise(JsValue value);
+extern bool streamIsString(JsValue value);
+extern JsValue hostCreateNodeReadable();
+extern JsValue Error;
+extern JsValue Promise;
+extern JsValue ReadableStream;
+extern JsValue TextEncoder;
+extern JsValue console;
+extern JsValue __CJS__;
+
+JsValue streamIsVNode = streamSsrUtils["isVNode"];
+
+async JsValue unrollBuffer(JsValue buffer, JsValue stream) {
+  int length = JS.number(buffer["length"]).toInt();
+  if (buffer["hasAsync"].truthy()) {
+    for (int index = 0; index < length; index++) {
+      JsValue item = buffer[index];
+      if (streamIsPromise(item)) item = await Task.resolve(item);
+      if (streamIsString(item)) JS.invoke(stream, "push", item);
+      else await unrollBuffer(item, stream);
+    }
+  } else {
+    unrollBufferSync(buffer, stream);
+  }
+  return JS.undefined();
+}
+
+void unrollBufferSync(JsValue buffer, JsValue stream) {
+  int length = JS.number(buffer["length"]).toInt();
+  for (int index = 0; index < length; index++) {
+    JsValue item = buffer[index];
+    if (streamIsString(item)) JS.invoke(stream, "push", item);
+    else unrollBufferSync(item, stream);
+  }
+}
+
+export JsValue renderToSimpleStream(
+  JsValue input,
+  JsValue context,
+  JsValue stream
+) {
+  if (JS.call(streamIsVNode, JS.undefined(), input).truthy()) {
+    JsValue component = JS.object(
+      "render",
+      JS.method0((JsValue _self) => input)
+    );
+    return renderToSimpleStream(
+      JS.call(streamCreateApp, JS.undefined(), component),
+      context,
+      stream
+    );
+  }
+  JsValue vnode = JS.call(
+    streamCreateVNode,
+    JS.undefined(),
+    input["_component"],
+    input["_props"]
+  );
+  vnode["appContext"] = input["_context"];
+  JS.invoke(input, "provide", streamContextKey, context);
+  JsValue promise = JS.invoke(
+    Promise,
+    "resolve",
+    renderComponentVNode(vnode)
+  );
+  promise = JS.invoke(promise, "then", JS.method1((JsValue _self, JsValue buffer) => {
+    return unrollBuffer(buffer, stream);
+  }));
+  promise = JS.invoke(promise, "then", JS.method0((JsValue _self) => {
+    return resolveTeleports(context);
+  }));
+  promise = JS.invoke(promise, "then", JS.method0((JsValue _self) => {
+    JsValue watcherHandles = context["__watcherHandles"];
+    if (watcherHandles.truthy()) {
+      int length = JS.number(watcherHandles["length"]).toInt();
+      for (int index = 0; index < length; index++) {
+        JS.call(watcherHandles[index], JS.undefined());
+      }
+    }
+    return JS.undefined();
+  }));
+  promise = JS.invoke(promise, "then", JS.method0((JsValue _self) => {
+    JS.invoke(stream, "push", null);
+    return JS.undefined();
+  }));
+  JS.invoke(promise, "catch", JS.method1((JsValue _self, JsValue error) => {
+    JS.invoke(stream, "destroy", error);
+    return JS.undefined();
+  }));
+  return stream;
+}
+
+export JsValue renderToStream(
+  JsValue input,
+  JsValue context = JS.undefined()
+) {
+  if (JS.isUndefined(context)) context = JS.object();
+  JS.invoke(
+    console,
+    "warn",
+    "[@vue/server-renderer] renderToStream is deprecated - use " +
+    "renderToNodeStream instead."
+  );
+  return renderToNodeStream(input, context);
+}
+
+export JsValue renderToNodeStream(
+  JsValue input,
+  JsValue context = JS.undefined()
+) {
+  if (JS.isUndefined(context)) context = JS.object();
+  JsValue stream = null;
+  if (__CJS__.truthy()) stream = hostCreateNodeReadable();
+  if (!stream.truthy()) {
+    throw JS.construct(
+      Error,
+      "ESM build of renderToStream() does not support renderToNodeStream(). " +
+      "Use pipeToNodeWritable() with an existing Node.js Writable stream " +
+      "instance instead."
+    );
+  }
+  return renderToSimpleStream(input, context, stream);
+}
+
+export void pipeToNodeWritable(
+  JsValue input,
+  JsValue context,
+  JsValue writable
+) {
+  if (JS.isUndefined(context)) context = JS.object();
+  JsValue stream = JS.object(
+    "push", JS.method1((JsValue _self, JsValue content) => {
+      if (!JS.isNullish(content)) JS.invoke(writable, "write", content);
+      else JS.invoke(writable, "end");
+      return JS.undefined();
+    }),
+    "destroy", JS.method1((JsValue _self, JsValue error) => {
+      JS.invoke(writable, "destroy", error);
+      return JS.undefined();
+    })
+  );
+  renderToSimpleStream(input, context, stream);
+}
+
+export JsValue renderToWebStream(
+  JsValue input,
+  JsValue context = JS.undefined()
+) {
+  if (JS.isUndefined(context)) context = JS.object();
+  if (JS.typeOf(ReadableStream) != "function") {
+    throw JS.construct(
+      Error,
+      "ReadableStream constructor is not available in the global scope. " +
+      "If the target environment does support web streams, consider using " +
+      "pipeToWebWritable() with an existing WritableStream instance instead."
+    );
+  }
+  JsValue encoder = JS.construct(TextEncoder);
+  bool cancelled = false;
+  JsValue source = JS.object(
+    "start", JS.method1((JsValue _self, JsValue controller) => {
+      JsValue stream = JS.object(
+        "push", JS.method1((JsValue _streamSelf, JsValue content) => {
+          if (cancelled) return JS.undefined();
+          if (!JS.isNullish(content)) {
+            JS.invoke(controller, "enqueue", JS.invoke(encoder, "encode", content));
+          } else {
+            JS.invoke(controller, "close");
+          }
+          return JS.undefined();
+        }),
+        "destroy", JS.method1((JsValue _streamSelf, JsValue error) => {
+          JS.invoke(controller, "error", error);
+          return JS.undefined();
+        })
+      );
+      renderToSimpleStream(input, context, stream);
+      return JS.undefined();
+    }),
+    "cancel", JS.method0((JsValue _self) => {
+      cancelled = true;
+      return JS.undefined();
+    })
+  );
+  return JS.construct(ReadableStream, source);
+}
+
+async JsValue writeWebChunk(
+  JsValue writer,
+  JsValue encoder,
+  bool hasReady,
+  JsValue content
+) {
+  if (hasReady) await Task.resolve(writer["ready"]);
+  if (!JS.isNullish(content)) {
+    return JS.invoke(
+      writer,
+      "write",
+      JS.invoke(encoder, "encode", content)
+    );
+  }
+  return JS.invoke(writer, "close");
+}
+
+export void pipeToWebWritable(
+  JsValue input,
+  JsValue context,
+  JsValue writable
+) {
+  if (JS.isUndefined(context)) context = JS.object();
+  JsValue writer = JS.invoke(writable, "getWriter");
+  JsValue encoder = JS.construct(TextEncoder);
+  bool hasReady = false;
+  try {
+    hasReady = streamIsPromise(writer["ready"]);
+  } catch (JsValue _error) {}
+  JsValue stream = JS.object(
+    "push", JS.method1((JsValue _self, JsValue content) => {
+      return writeWebChunk(writer, encoder, hasReady, content);
+    }),
+    "destroy", JS.method1((JsValue _self, JsValue error) => {
+      JS.invoke(console, "log", error);
+      JS.invoke(writer, "close");
+      return JS.undefined();
+    })
+  );
+  renderToSimpleStream(input, context, stream);
+}

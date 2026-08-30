@@ -1,0 +1,28 @@
+import { isOn } from "../shared/general";
+import { NodeOpTypes, logNodeOp } from "./nodeOps";
+
+export void patchProp(
+  JsValue element,
+  string key,
+  JsValue previousValue,
+  JsValue nextValue
+) {
+  logNodeOp(JS.object(
+    "type", NodeOpTypes["PATCH"],
+    "targetNode", element,
+    "propKey", key,
+    "propPrevValue", previousValue,
+    "propNextValue", nextValue
+  ));
+  element["props"][key] = nextValue;
+  if (isOn(key)) {
+    string event = key.slice(2).toLowerCase();
+    if (key.charAt(2) == ":") event = key.slice(3);
+    JsValue listeners = element["eventListeners"];
+    if (!listeners.truthy()) {
+      listeners = JS.object();
+      element["eventListeners"] = listeners;
+    }
+    listeners[event] = nextValue;
+  }
+}

@@ -1,0 +1,129 @@
+import extern { ssrUtils as slotSsrUtils } from "../../../packages/vuelil/runtime-dom.js";
+import extern { isArray as slotIsArray } from "../../../packages/vuelil/shared.js";
+import { renderVNodeChildren } from "../render";
+
+extern JsValue slotSsrUtils;
+extern bool slotIsArray(JsValue value);
+
+export void ssrRenderSlot(
+  JsValue slots,
+  string slotName,
+  JsValue slotProps,
+  JsValue fallbackRender,
+  JsValue push,
+  JsValue parentComponent,
+  JsValue slotScopeId = JS.undefined()
+) {
+  JS.call(push, JS.undefined(), "<!--[-->");
+  ssrRenderSlotInner(
+    slots,
+    slotName,
+    slotProps,
+    fallbackRender,
+    push,
+    parentComponent,
+    slotScopeId
+  );
+  JS.call(push, JS.undefined(), "<!--]-->");
+}
+
+export void ssrRenderSlotInner(
+  JsValue slots,
+  string slotName,
+  JsValue slotProps,
+  JsValue fallbackRender,
+  JsValue push,
+  JsValue parentComponent,
+  JsValue slotScopeId = JS.undefined(),
+  bool transition = false
+) {
+  JsValue slot = slots[slotName];
+  if (slot.truthy()) {
+    JsValue slotBuffer = JS.array();
+    JsValue bufferedPush = JS.method1((JsValue _self, JsValue item) => {
+      JS.invoke(slotBuffer, "push", item);
+      return JS.undefined();
+    });
+    JsValue props = slotProps;
+    if (!props.truthy()) props = JS.object();
+    string scope = "";
+    if (slotScopeId.truthy()) scope = " " + JS.string(slotScopeId);
+    JsValue result = JS.call(
+      slot,
+      JS.undefined(),
+      props,
+      bufferedPush,
+      parentComponent,
+      scope
+    );
+    if (slotIsArray(result)) {
+      JsValue validContent = JS.call(
+        slotSsrUtils["ensureValidVNode"],
+        JS.undefined(),
+        result
+      );
+      if (validContent.truthy()) {
+        renderVNodeChildren(
+          push,
+          validContent,
+          parentComponent,
+          slotScopeId
+        );
+      } else if (fallbackRender.truthy()) {
+        JS.call(fallbackRender, JS.undefined());
+      } else if (transition) {
+        JS.call(push, JS.undefined(), "<!---->");
+      }
+    } else {
+      bool isEmptySlot = true;
+      if (transition) {
+        isEmptySlot = false;
+      } else {
+        int length = JS.number(slotBuffer["length"]).toInt();
+        for (int index = 0; index < length; index++) {
+          if (!isComment(slotBuffer[index])) {
+            isEmptySlot = false;
+            break;
+          }
+        }
+      }
+      if (isEmptySlot) {
+        if (fallbackRender.truthy()) JS.call(fallbackRender, JS.undefined());
+      } else {
+        int start = 0;
+        int end = JS.number(slotBuffer["length"]).toInt();
+        if (
+          transition &&
+          JS.strictEqual(slotBuffer[0], "<!--[-->") &&
+          JS.strictEqual(slotBuffer[end - 1], "<!--]-->")
+        ) {
+          start += 1;
+          end -= 1;
+        }
+        if (start < end) {
+          for (int index = start; index < end; index++) {
+            JS.call(push, JS.undefined(), slotBuffer[index]);
+          }
+        } else if (transition) {
+          JS.call(push, JS.undefined(), "<!---->");
+        }
+      }
+    }
+  } else if (fallbackRender.truthy()) {
+    JS.call(fallbackRender, JS.undefined());
+  } else if (transition) {
+    JS.call(push, JS.undefined(), "<!---->");
+  }
+}
+
+Regex commentTestRE = new Regex("^<!--[\\s\\S]*-->$");
+Regex commentRE = new Regex("<!--[^]*?-->", "gm");
+
+bool isComment(JsValue item) {
+  if (JS.typeOf(item) != "string" || !commentTestRE.test(JS.string(item))) {
+    return false;
+  }
+  string text = JS.string(item);
+  if (text.length <= 8) return true;
+  return JS.string(JS.invoke(text, "replace", commentRE, "")).trim() == "";
+}

@@ -288,7 +288,7 @@ bool isHydrating = false) {
     return JS.undefined();
   }
   unsetCurrentInstance();instance["asyncResolved"] = true;JsValue instanceVNode = instance["vnode"];if (SUSPENSE_DEV)pushWarningContext(instanceVNode);handleSetupResult(instance,
-  asyncSetupResult, false);if (hydratedElement.truthy())instanceVNode["el"] = hydratedElement;JsValue marker = null;if (! hydratedElement.truthy())marker = instance["subTree"]["el"];JsValue hostElement = instance["subTree"]["el"];if (hydratedElement.truthy())hostElement = hydratedElement;JsValue setupContainer = JS.call(parentNode,
+  asyncSetupResult, false);if (hydratedElement.truthy())instanceVNode["el"] = hydratedElement;JsValue marker = null;JsValue hostElement = hydratedElement;if (! hydratedElement.truthy()) { marker = instance["subTree"]["el"];hostElement = marker; }JsValue setupContainer = JS.call(parentNode,
   JS.undefined(), hostElement);JsValue setupAnchor = null;if (! hydratedElement.truthy()) {
     setupAnchor = JS.call(next, JS.undefined(), instance["subTree"]);
   }

@@ -2,9 +2,11 @@ import { spawnSync } from "node:child_process";
 import {
   copyFileSync,
   cpSync,
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  readdirSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
@@ -69,8 +71,13 @@ const vOnceSource = resolve(projectRoot, "src/compiler-core/transforms/vOnce.lil
 const vSlotSource = resolve(projectRoot, "src/compiler-core/transforms/vSlot.lil");
 const host = resolve(projectRoot, "src/compiler-core/host.js");
 const output = resolve(projectRoot, "packages/vuelil/compiler-core.js");
+const productionOutput = resolve(
+  projectRoot,
+  "packages/vuelil/production/compiler-core.js",
+);
 const temporary = mkdtempSync(resolve(tmpdir(), "vuelil-compiler-core-"));
 const compiled = resolve(temporary, "index.js");
+const productionCompiled = resolve(temporary, "production.js");
 const temporarySourceDirectory = resolve(temporary, "compiler-core");
 const temporarySource = resolve(temporarySourceDirectory, "index.lil");
 const sourceText = [
@@ -131,43 +138,40 @@ const correctedLengths = new Map([
 const correctedNames = new Map([["isText", "isText$1"]]);
 const internalExports = new Set(["Array", "JSON", "Object", "String"]);
 
-try {
-  cpSync(sourceDirectory, temporarySourceDirectory, { recursive: true });
-  cpSync(sharedSourceDirectory, resolve(temporary, "shared"), { recursive: true });
-  const canonicalBarrel = readFileSync(temporarySource, "utf8");
-  // Emit the cross-package live binding without linking duplicate host globals.
-  const temporaryBarrel = canonicalBarrel.replace(
-    'import { generateCodeFrame } from "../shared/codeframe";',
-    'import extern { generateCodeFrame } from "./shared.js";\nextern JsValue generateCodeFrame;',
-  );
-  if (temporaryBarrel === canonicalBarrel) {
-    throw new Error("failed to install compiler-core shared export bridge");
+function compile(input, target, production = false) {
+  const args = [input, "--target", "js-module"];
+  if (production) {
+    args.push(
+      "--mode", "production",
+      "--config", resolve(projectRoot, "config/open-world.toml"),
+      "--jobs", "1",
+      "--codec-jobs", "1",
+    );
+  } else {
+    args.push("--mode", "development");
   }
-  writeFileSync(temporarySource, temporaryBarrel);
-  writeFileSync(
-    resolve(temporarySourceDirectory, "shared.js"),
-    "export const generateCodeFrame = undefined;\n",
-  );
-  copyFileSync(host, resolve(temporary, "host.js"));
-  const result = spawnSync(
-    compilerPath(),
-    [temporarySource, "--target", "js-module", "--mode", "development", "-o", compiled],
-    { cwd: projectRoot, encoding: "utf8", env: process.env },
-  );
+  args.push("-o", target);
+  const result = spawnSync(compilerPath(), args, {
+    cwd: projectRoot,
+    encoding: "utf8",
+    env: process.env,
+  });
   if (result.status !== 0) {
     throw new Error(`${result.stdout ?? ""}${result.stderr ?? ""}`);
   }
+}
 
-  mkdirSync(resolve(projectRoot, "packages/vuelil"), { recursive: true });
-  const hostModule = readFileSync(host, "utf8").replaceAll("export function ", "function ");
-  const compiledModule = readFileSync(compiled, "utf8").replace(
-    /import\s*\{[^}]*\}\s*from\s*["']\.\/host\.js["'];?\s*/,
-    "",
-  );
-  if (/from\s*["']\.\/host\.js["']/.test(compiledModule)) {
+function prepareModule(compiledPath, sharedSpecifier) {
+  const compiledModule = readFileSync(compiledPath, "utf8")
+    .replace(/from["']\.\/shared\.js["']/gu, `from${JSON.stringify(sharedSpecifier)}`)
+    .replace(
+      /import\s*\{[^}]*\}\s*from\s*["']\.\/host\.js["'];?\s*/u,
+      "",
+    );
+  if (/from\s*["']\.\/host\.js["']/u.test(compiledModule)) {
     throw new Error("failed to inline compiler-core host adapter");
   }
-  const namedModule = compiledModule.replace(/export\{([^}]*)\}\s*$/, (statement, exports) => {
+  return compiledModule.replace(/export\{([^}]*)\}\s*$/, (statement, exports) => {
     const definitions = exports
       .split(",")
       .map(entry => {
@@ -187,11 +191,151 @@ try {
       .filter(entry => !internalExports.has(entry.trim().split(/\s+as\s+/).at(-1)));
     return `${definitions}export{${kept.join(",")}}`;
   });
+}
+
+function compilerDomCoreImports() {
+  const productionCompilerDom = resolve(
+    projectRoot,
+    "packages/vuelil/production/compiler-dom.js",
+  );
+  if (existsSync(productionCompilerDom)) {
+    const names = new Set();
+    const source = readFileSync(productionCompilerDom, "utf8");
+    for (const match of source.matchAll(
+      /import\{([^}]*)\}from["']\.\/compiler-core\.js["']/gu,
+    )) {
+      for (const binding of match[1].split(",")) {
+        const imported = binding.trim().split(/\s+as\s+/u)[0];
+        if (imported) names.add(imported);
+      }
+    }
+    if (names.size > 0) return [...names].sort();
+  }
+  const names = new Set();
+  const visit = directory => {
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+      const path = resolve(directory, entry.name);
+      if (entry.isDirectory()) visit(path);
+      else if (entry.name.endsWith(".lil")) {
+        const source = readFileSync(path, "utf8");
+        for (const match of source.matchAll(
+          /import\s+extern\s*\{([\s\S]*?)\}\s*from\s*"[^"]*packages\/vuelil\/compiler-core\.js"\s*;/gu,
+        )) {
+          for (const binding of match[1].split(",")) {
+            const imported = binding.trim().split(/\s+as\s+/u)[0];
+            if (imported) names.add(imported);
+          }
+        }
+      }
+    }
+  };
+  visit(resolve(projectRoot, "src/compiler-dom"));
+  return [...names].sort();
+}
+
+try {
+  cpSync(sourceDirectory, temporarySourceDirectory, { recursive: true });
+  cpSync(sharedSourceDirectory, resolve(temporary, "shared"), { recursive: true });
+  const canonicalBarrel = readFileSync(temporarySource, "utf8");
+  // Emit the cross-package live binding without linking duplicate host globals.
+  const temporaryBarrel = canonicalBarrel.replace(
+    'import { generateCodeFrame } from "../shared/codeframe";',
+    'import extern { generateCodeFrame } from "./shared.js";\nextern JsValue generateCodeFrame;',
+  );
+  if (temporaryBarrel === canonicalBarrel) {
+    throw new Error("failed to install compiler-core shared export bridge");
+  }
+  writeFileSync(temporarySource, temporaryBarrel);
+  writeFileSync(
+    resolve(temporarySourceDirectory, "shared.js"),
+    "export const generateCodeFrame = undefined;\n",
+  );
+  copyFileSync(host, resolve(temporary, "host.js"));
+  compile(temporarySource, compiled);
+
+  const validateExpression = resolve(temporarySourceDirectory, "validateExpression.lil");
+  const validationSource = readFileSync(validateExpression, "utf8")
+    .replace("export bool COMPILER_BROWSER = false;", "export bool COMPILER_BROWSER = true;")
+    .replace("export bool COMPILER_DEV = true;", "export bool COMPILER_DEV = false;");
+  writeFileSync(validateExpression, validationSource);
+  const compilerUtils = resolve(temporarySourceDirectory, "utils.lil");
+  const compilerUtilsSource = readFileSync(compilerUtils, "utf8")
+    .replace(
+      "export JsValue isMemberExpression = isMemberExpressionNode;",
+      "export JsValue isMemberExpression = isMemberExpressionBrowser;",
+    )
+    .replace(
+      "export JsValue isFnExpression = isFnExpressionNode;",
+      "export JsValue isFnExpression = isFnExpressionBrowser;",
+    );
+  writeFileSync(compilerUtils, compilerUtilsSource);
+  const transformExpression = resolve(
+    temporarySourceDirectory,
+    "transforms/transformExpression.lil",
+  );
+  const transformExpressionSource = readFileSync(transformExpression, "utf8");
+  const processStart = transformExpressionSource.indexOf(
+    "export JsValue processExpression(",
+  );
+  const processBodyStart = transformExpressionSource.indexOf(") {", processStart) + 3;
+  const processBodyEnd = transformExpressionSource.indexOf(
+    "\n}\n\nexport JsValue transformExpression",
+    processBodyStart,
+  );
+  if (processStart < 0 || processBodyStart < 3 || processBodyEnd < 0) {
+    throw new Error("failed to select browser production expression processing");
+  }
+  writeFileSync(
+    transformExpression,
+    `${transformExpressionSource.slice(0, processBodyStart)}\n  return node;` +
+      transformExpressionSource.slice(processBodyEnd),
+  );
+  const compilerParser = resolve(temporarySourceDirectory, "parser.lil");
+  const compilerParserSource = readFileSync(compilerParser, "utf8")
+    .replace(
+      'import { createRoot, createSimpleExpression } from "./ast";',
+      'import { createRoot, createSimpleExpression } from "./ast";\n' +
+        'import { COMPILER_BROWSER } from "./validateExpression";',
+    )
+    .replace(
+      'if (!isStatic && currentOptions["prefixIdentifiers"].truthy() && parseMode != 3 && content.trim() != "") {',
+      'if (!COMPILER_BROWSER && !isStatic && currentOptions["prefixIdentifiers"].truthy() && parseMode != 3 && content.trim() != "") {',
+    );
+  writeFileSync(compilerParser, compilerParserSource);
+  const productionEntry = resolve(temporarySourceDirectory, "production.lil");
+  const productionExports = compilerDomCoreImports();
+  writeFileSync(
+    productionEntry,
+    [
+      `import { ${productionExports.join(", ")} } from "./index";`,
+      `export { ${productionExports.join(", ")} };`,
+      "",
+    ].join("\n"),
+  );
+  compile(productionEntry, productionCompiled, true);
+
+  mkdirSync(resolve(projectRoot, "packages/vuelil"), { recursive: true });
+  const hostModule = readFileSync(host, "utf8").replaceAll("export function ", "function ");
+  const productionHostModule = hostModule.replace(
+    'import { parse, parseExpression } from "@babel/parser";\n',
+    "",
+  );
+  const namedModule = prepareModule(compiled, "./shared.js");
+  const productionModule = prepareModule(productionCompiled, "../shared.js");
   writeFileSync(
     output,
     `// Generated from compiler-core LilScript sources. Template parsing is LilScript-owned.\n${hostModule}\n${namedModule}`,
   );
-  console.log(JSON.stringify({ output, exports: await exportedNames(output) }));
+  mkdirSync(resolve(productionOutput, ".."), { recursive: true });
+  writeFileSync(
+    productionOutput,
+    `// Optimized browser production compiler-core.\n${productionHostModule}\n${productionModule}`,
+  );
+  console.log(JSON.stringify({
+    output,
+    productionOutput,
+    exports: await exportedNames(output),
+  }));
 } finally {
   rmSync(temporary, { force: true, recursive: true });
 }

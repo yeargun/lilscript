@@ -4,6 +4,7 @@ import {
   Object as functionalObject,
   globalThis as functionalGlobal
 } from "../../shared/makeMap";
+import { NOOP as functionalNoop } from "../../shared/general";
 import { getCompatListeners } from "./instanceListeners";
 import { compatH } from "./renderFn";
 
@@ -65,7 +66,9 @@ export JsValue convertLegacyFunctionalComponent(JsValue comp) {
         "configurable", true,
         "get", JS.method0((JsValue _getSelf) => {
           JsValue injections = JS.object();
-          if (comp["inject"].truthy()) coreResolveInjections(comp["inject"], injections);
+          if (comp["inject"].truthy()) {
+            coreResolveInjections(comp["inject"], injections, functionalNoop);
+          }
           return injections;
         })
       )

@@ -1,0 +1,143 @@
+import extern {
+  escapeHtml as attrsEscapeHtml,
+  includeBooleanAttr as attrsIncludeBooleanAttr,
+  isArray as attrsIsArray,
+  isBooleanAttr as attrsIsBooleanAttr,
+  isObject as attrsIsObject,
+  isOn as attrsIsOn,
+  isRenderableAttrValue as attrsIsRenderableAttrValue,
+  isSSRSafeAttrName as attrsIsSSRSafeAttrName,
+  isSVGTag as attrsIsSVGTag,
+  isString as attrsIsString,
+  makeMap as attrsMakeMap,
+  normalizeClass as attrsNormalizeClass,
+  normalizeCssVarValue as attrsNormalizeCssVarValue,
+  normalizeStyle as attrsNormalizeStyle,
+  propsToAttrMap as attrsPropsToAttrMap,
+  stringifyStyle as attrsStringifyStyle
+} from "../../../packages/vuelil/shared.js";
+
+extern string attrsEscapeHtml(JsValue value);
+extern bool attrsIncludeBooleanAttr(JsValue value);
+extern bool attrsIsArray(JsValue value);
+extern bool attrsIsBooleanAttr(string value);
+extern bool attrsIsObject(JsValue value);
+extern bool attrsIsOn(string value);
+extern bool attrsIsRenderableAttrValue(JsValue value);
+extern bool attrsIsSSRSafeAttrName(string value);
+extern bool attrsIsSVGTag(string value);
+extern bool attrsIsString(JsValue value);
+extern JsValue attrsMakeMap(string source);
+extern string attrsNormalizeClass(JsValue value);
+extern JsValue attrsNormalizeCssVarValue(JsValue value);
+extern JsValue attrsNormalizeStyle(JsValue value);
+extern JsValue attrsPropsToAttrMap;
+extern string attrsStringifyStyle(JsValue value);
+extern JsValue console;
+extern JsValue String;
+
+JsValue shouldIgnoreProp = attrsMakeMap(
+  ",key,ref,innerHTML,textContent,ref_key,ref_for"
+);
+
+export string ssrRenderAttrs(
+  JsValue props,
+  JsValue tag = JS.undefined()
+) {
+  string ret = "";
+  for (string rawKey in props) {
+    string key = rawKey;
+    if (
+      JS.call(shouldIgnoreProp, JS.undefined(), key).truthy() ||
+      attrsIsOn(key) ||
+      (JS.strictEqual(tag, "textarea") && key == "value") ||
+      key.startsWith(".")
+    ) {
+      continue;
+    }
+    JsValue value = props[key];
+    if (key.startsWith("^")) key = key.slice(1);
+    if (key == "class") {
+      ret += " class=\"" + ssrRenderClass(value) + "\"";
+    } else if (key == "style") {
+      ret += " style=\"" + ssrRenderStyle(value) + "\"";
+    } else if (key == "className") {
+      if (!JS.isNullish(value)) {
+        ret += " class=\"" + attrsEscapeHtml(
+          JS.call(String, JS.undefined(), value)
+        ) + "\"";
+      }
+    } else {
+      ret += ssrRenderDynamicAttr(key, value, tag);
+    }
+  }
+  return ret;
+}
+
+export string ssrRenderDynamicAttr(
+  string key,
+  JsValue value,
+  JsValue tag = JS.undefined()
+) {
+  if (!attrsIsRenderableAttrValue(value)) return "";
+  string attrKey = key;
+  if (
+    !tag.truthy() || (
+      JS.string(tag).indexOf("-") <= 0 &&
+      !attrsIsSVGTag(JS.string(tag))
+    )
+  ) {
+    JsValue mapped = attrsPropsToAttrMap[key];
+    if (mapped.truthy()) attrKey = JS.string(mapped);
+    else attrKey = key.toLowerCase();
+  }
+  string kind = JS.typeOf(value);
+  if (
+    attrsIsBooleanAttr(attrKey) ||
+    (attrKey == "hidden" && (kind == "boolean" || kind == "number"))
+  ) {
+    if (attrsIncludeBooleanAttr(value)) return " " + attrKey;
+    return "";
+  }
+  if (attrsIsSSRSafeAttrName(attrKey)) {
+    if (JS.strictEqual(value, "")) return " " + attrKey;
+    return " " + attrKey + "=\"" + attrsEscapeHtml(value) + "\"";
+  }
+  JS.invoke(
+    console,
+    "warn",
+    "[@vue/server-renderer] Skipped rendering unsafe attribute name: " + attrKey
+  );
+  return "";
+}
+
+export string ssrRenderAttr(string key, JsValue value) {
+  if (!attrsIsRenderableAttrValue(value)) return "";
+  return " " + key + "=\"" + attrsEscapeHtml(value) + "\"";
+}
+
+export string ssrRenderClass(JsValue raw) {
+  return attrsEscapeHtml(attrsNormalizeClass(raw));
+}
+
+export string ssrRenderStyle(JsValue raw) {
+  if (!raw.truthy()) return "";
+  if (attrsIsString(raw)) return attrsEscapeHtml(raw);
+  JsValue styles = attrsNormalizeStyle(ssrResetCssVars(raw));
+  return attrsEscapeHtml(attrsStringifyStyle(styles));
+}
+
+JsValue ssrResetCssVars(JsValue raw) {
+  if (!attrsIsArray(raw) && attrsIsObject(raw)) {
+    JsValue result = JS.object();
+    for (string key in raw) {
+      if (key.startsWith(":--")) {
+        result[key.slice(1)] = attrsNormalizeCssVarValue(raw[key]);
+      } else {
+        result[key] = raw[key];
+      }
+    }
+    return result;
+  }
+  return raw;
+}

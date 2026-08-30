@@ -52,17 +52,15 @@ Type-only files are identified from their parsed TypeScript module body and do
 not disappear from the gate. They require a normal verified `.lil` mapping or
 an explicit `declarationOnlyHandling` record containing the exact upstream
 hash, `handling: "declaration-only"`, and a specific reason. JavaScript files
-cannot satisfy source mappings. The five enumerated `host.js` files are audited
+cannot satisfy source mappings. The seven enumerated `host.js` files are audited
 separately as primitive host adapters and may not import upstream Vue code.
 
 The current evidence in
-[`compatibility/source-parity.json`](compatibility/source-parity.json) is
-intentionally failing: 92 of 234 files are satisfied by 91 mapped algorithms
-and one declaration-only file. Compiler-dom has all 16 source files mapped and
-compiler-ssr has all 17 source files mapped with its two-pass transform/codegen
-architecture intact. Package formats and declaration parity remain incomplete.
-The two package-wide runtime `.lil` files are legacy nonconforming monoliths and
-are not counted.
+[`compatibility/source-parity.json`](compatibility/source-parity.json) covers all
+234 files through 232 deterministic mappings and two strict declaration-only
+records. The separate package compatibility build preserves the pinned
+declarations, verifies every inventoried entrypoint and format, and writes
+hash-pinned evidence to `artifacts/compatibility-report.json`.
 
 ## Setup
 
@@ -81,6 +79,8 @@ canonical codec scorer from the repository root.
 ```sh
 npm run audit:source-parity
 npm run test:source-parity
+npm run test:declarations
+npm run test:package-parity
 npm run check:foundation
 npm run check
 npm run build:project-comparison

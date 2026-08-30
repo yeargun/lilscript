@@ -1,0 +1,74 @@
+{
+  "schemaVersion": 1,
+  "oracle": {
+    "package": "@vue/compat",
+    "version": "3.5.42",
+    "revision": "d63616ca17de965ed32dcb449a4c5cd9982f15d2"
+  },
+  "status": "runtime-complete",
+  "sourceOwners": [
+    "packages/vue-compat/src/createCompatVue.ts",
+    "packages/vue-compat/src/dev.ts",
+    "packages/vue-compat/src/esm-index.ts",
+    "packages/vue-compat/src/esm-runtime.ts",
+    "packages/vue-compat/src/index.ts",
+    "packages/vue-compat/src/runtime.ts"
+  ],
+  "esmEntries": {
+    "standard": "packages/vuelil/vue-compat.js",
+    "runtimeOnly": "packages/vuelil/vue-compat.runtime.js",
+    "runtimeDomGraph": "packages/vuelil/runtime-dom.compat.js",
+    "runtimeCoreGraph": "packages/vuelil/runtime-core.compat.js",
+    "compilerDomGraph": "packages/vuelil/compiler-dom.js",
+    "runtimeDomExports": 170,
+    "additionalExports": [
+      "configureCompat",
+      "default"
+    ],
+    "totalExports": 172,
+    "standardIncludesRuntimeCompiler": true,
+    "runtimeOnlyCompileWarning": "Runtime compilation is not supported in this build of Vue. Configure your bundler to alias \"vue\" to \"@vue/compat/dist/vue.esm-bundler.js\"."
+  },
+  "upstreamTests": {
+    "files": 11,
+    "filesPassed": 11,
+    "tests": 117,
+    "passed": 117,
+    "skipped": 0,
+    "failed": 0,
+    "status": "passed",
+    "runner": "npm run test:upstream:vue-compat",
+    "unchangedFiles": [
+      { "path": "packages/vue-compat/__tests__/compiler.spec.ts", "passed": 9, "skipped": 0 },
+      { "path": "packages/vue-compat/__tests__/componentAsync.spec.ts", "passed": 3, "skipped": 0 },
+      { "path": "packages/vue-compat/__tests__/componentFunctional.spec.ts", "passed": 2, "skipped": 0 },
+      { "path": "packages/vue-compat/__tests__/componentVModel.spec.ts", "passed": 5, "skipped": 0 },
+      { "path": "packages/vue-compat/__tests__/filters.spec.ts", "passed": 17, "skipped": 0 },
+      { "path": "packages/vue-compat/__tests__/global.spec.ts", "passed": 30, "skipped": 0 },
+      { "path": "packages/vue-compat/__tests__/globalConfig.spec.ts", "passed": 4, "skipped": 0 },
+      { "path": "packages/vue-compat/__tests__/instance.spec.ts", "passed": 21, "skipped": 0 },
+      { "path": "packages/vue-compat/__tests__/misc.spec.ts", "passed": 10, "skipped": 0 },
+      { "path": "packages/vue-compat/__tests__/options.spec.ts", "passed": 5, "skipped": 0 },
+      { "path": "packages/vue-compat/__tests__/renderFn.spec.ts", "passed": 11, "skipped": 0 }
+    ]
+  },
+  "sourceParity": {
+    "requiredFiles": 6,
+    "ownerModules": 6,
+    "deterministicFilesPresent": 6,
+    "verifiedExactMappings": 6,
+    "unverifiedFiles": []
+  },
+  "runtimeIntegration": {
+    "runtimeCoreRuntimeDomSingleton": true,
+    "standardAndRuntimeOnlyNamedExportIdentity": true,
+    "compilerDomSingleton": true,
+    "upstreamCompatImplementationsBlocked": true,
+    "upstreamRuntimeImplementationsBlocked": true,
+    "upstreamCompilerImplementationsBlocked": true
+  },
+  "blockers": [],
+  "limitations": [
+    "Repository-wide project-size, performance, and Pages gates remain pending."
+  ]
+}

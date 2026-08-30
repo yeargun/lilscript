@@ -1,0 +1,768 @@
+import extern {
+  createVNode as customElementCreateVNode,
+  defineComponent as customElementDefineComponent,
+  getCurrentInstance as customElementGetCurrentInstance,
+  nextTick as customElementNextTick,
+  unref as customElementUnref,
+  warn as customElementWarn
+} from "../../packages/vuelil/runtime-core.js";
+import extern {
+  camelize as customElementCamelize,
+  extend as customElementExtend,
+  hasOwn as customElementHasOwn,
+  hyphenate as customElementHyphenate,
+  isArray as customElementIsArray,
+  isPlainObject as customElementIsPlainObject,
+  toNumber as customElementToNumber
+} from "../../packages/vuelil/shared.js";
+import { createApp, createSSRApp, render } from "./index";
+import extern {
+  hostArgumentsSlice,
+  hostArrayFrom,
+  hostCall0,
+  hostCall1,
+  hostCall2,
+  hostCreateCustomElementClass,
+  hostCreateCustomEvent,
+  hostCreateMap,
+  hostCreateMutationObserver,
+  hostCreateNullObject,
+  hostCreateObject,
+  hostCreateSet,
+  hostCreateStyleElement,
+  hostCreateTreeWalker,
+  hostCreateVueElementClass,
+  hostCreateWeakMap,
+  hostCreateWeakSet,
+  hostDefineAccessor,
+  hostFunction1Rest,
+  hostGetPrototypeOf,
+  hostHasProperty,
+  hostInstanceOf,
+  hostIsNumberConstructor,
+  hostIsStyleElement,
+  hostObjectKeys,
+  hostRead,
+  hostSetPrototypeOf,
+  hostString,
+  hostWrite
+} from "./host.js";
+
+extern JsValue customElementCreateVNode;
+extern JsValue customElementDefineComponent;
+extern JsValue customElementGetCurrentInstance;
+extern JsValue customElementNextTick;
+extern JsValue customElementUnref;
+extern JsValue customElementWarn;
+extern JsValue customElementCamelize;
+extern JsValue customElementExtend;
+extern bool customElementHasOwn(JsValue value, JsValue key);
+extern JsValue customElementHyphenate;
+extern bool customElementIsArray(JsValue value);
+extern bool customElementIsPlainObject(JsValue value);
+extern JsValue customElementToNumber(JsValue value);
+extern JsValue hostArgumentsSlice(JsValue value, int start);
+extern JsValue hostArrayFrom(JsValue value);
+extern JsValue hostCall0(JsValue fn);
+extern JsValue hostCall1(JsValue fn, JsValue first);
+extern JsValue hostCall2(JsValue fn, JsValue first, JsValue second);
+extern JsValue hostCreateCustomElementClass(JsValue base, JsValue definition, JsValue createAppFunction);
+extern JsValue hostCreateCustomEvent(string name, JsValue options);
+extern JsValue hostCreateMap();
+extern JsValue hostCreateMutationObserver(JsValue callback);
+extern JsValue hostCreateNullObject();
+extern JsValue hostCreateObject();
+extern JsValue hostCreateSet(JsValue value);
+extern JsValue hostCreateStyleElement();
+extern JsValue hostCreateTreeWalker(JsValue root, int whatToShow);
+extern JsValue hostCreateVueElementClass(JsValue initialize, JsValue methods);
+extern JsValue hostCreateWeakMap();
+extern JsValue hostCreateWeakSet();
+extern void hostDefineAccessor(JsValue value, JsValue key, JsValue get, JsValue set);
+extern JsValue hostFunction1Rest(string name, JsValue callback);
+extern JsValue hostGetPrototypeOf(JsValue value);
+extern bool hostHasProperty(JsValue value, JsValue key);
+extern bool hostInstanceOf(JsValue value, JsValue constructor);
+extern bool hostIsNumberConstructor(JsValue value);
+extern bool hostIsStyleElement(JsValue value);
+extern JsValue hostObjectKeys(JsValue value);
+extern JsValue hostRead(JsValue value, JsValue key);
+extern void hostSetPrototypeOf(JsValue value, JsValue prototype);
+extern string hostString(JsValue value);
+extern void hostWrite(JsValue value, JsValue key, JsValue next);
+
+bool CUSTOM_ELEMENT_DEV = true;
+bool CUSTOM_ELEMENT_FEATURE_PROD_DEVTOOLS = false;
+JsValue REMOVAL = hostCreateObject();
+export JsValue VueElement = JS.undefined();
+
+int valueLength(JsValue value) {
+  return JS.number(hostRead(value, "length")).toInt();
+}
+
+string customElementCamelizeString(string value) {
+  return hostString(hostCall1(customElementCamelize, value));
+}
+
+string customElementHyphenateString(string value) {
+  return hostString(hostCall1(customElementHyphenate, value));
+}
+
+void customWarn(string message) {
+  JS.call(customElementWarn, JS.undefined(), message);
+}
+
+JsValue extend2(JsValue target, JsValue first, JsValue second) {
+  return JS.call(customElementExtend, JS.undefined(), target, first, second);
+}
+
+void inheritParentContext(JsValue self, JsValue parent = JS.undefined()) {
+  if (JS.isUndefined(parent)) parent = hostRead(self, "_parent");
+  JsValue app = hostRead(self, "_app");
+  if (!JS.isNullish(parent) && parent.truthy() && !JS.isNullish(app) && app.truthy()) {
+    hostSetPrototypeOf(
+      hostRead(hostRead(app, "_context"), "provides"),
+      hostRead(hostRead(parent, "_instance"), "provides")
+    );
+  }
+}
+
+void setParent(JsValue self, JsValue parent = JS.undefined()) {
+  if (JS.isUndefined(parent)) parent = hostRead(self, "_parent");
+  if (!JS.isNullish(parent) && parent.truthy()) {
+    hostWrite(hostRead(self, "_instance"), "parent", hostRead(parent, "_instance"));
+    inheritParentContext(self, parent);
+  }
+}
+
+void processMutations(JsValue self, JsValue mutations) {
+  int count = valueLength(mutations);
+  for (int index = 0; index < count; index++) {
+    JsValue mutation = hostRead(mutations, index);
+    JS.call(hostRead(self, "_setAttr"), self, hostRead(mutation, "attributeName"));
+  }
+}
+
+JsValue getStyleAnchor(JsValue self, JsValue component = JS.undefined()) {
+  if (JS.isUndefined(component) || JS.isNullish(component) || !component.truthy()) return null;
+  JsValue anchors = hostRead(self, "_styleAnchors");
+  JsValue anchor = JS.invoke(anchors, "get", component);
+  if (!JS.isNullish(anchor) && anchor.truthy() &&
+      JS.strictEqual(hostRead(anchor, "parentNode"), hostRead(self, "shadowRoot"))) return anchor;
+  if (!JS.isNullish(anchor) && anchor.truthy()) JS.invoke(anchors, "delete", component);
+  return null;
+}
+
+JsValue getRootStyleInsertionAnchor(JsValue root) {
+  JsValue children = hostRead(root, "childNodes");
+  int count = valueLength(children);
+  for (int index = 0; index < count; index++) {
+    JsValue node = hostRead(children, index);
+    if (!hostIsStyleElement(node)) return node;
+  }
+  return null;
+}
+
+void applyStyles(
+  JsValue self,
+  JsValue styles,
+  JsValue owner = JS.undefined(),
+  JsValue parentComponent = JS.undefined()
+) {
+  if (JS.isNullish(styles) || !styles.truthy()) return;
+  if (!JS.isUndefined(owner) && !JS.isNullish(owner) && owner.truthy()) {
+    if (JS.strictEqual(owner, hostRead(self, "_def")) ||
+        JS.invoke(hostRead(self, "_styleChildren"), "has", owner).truthy()) return;
+    JS.invoke(hostRead(self, "_styleChildren"), "add", owner);
+  }
+  JsValue nonce = hostRead(self, "_nonce");
+  JsValue root = hostRead(self, "shadowRoot");
+  JsValue insertionAnchor = JS.undefined();
+  if (!JS.isUndefined(parentComponent) && !JS.isNullish(parentComponent) && parentComponent.truthy()) {
+    insertionAnchor = getStyleAnchor(self, parentComponent);
+    if (JS.isNullish(insertionAnchor) || !insertionAnchor.truthy()) {
+      insertionAnchor = getStyleAnchor(self, hostRead(self, "_def"));
+    }
+  } else insertionAnchor = getRootStyleInsertionAnchor(root);
+  JsValue last = null;
+  for (int index = valueLength(styles) - 1; index >= 0; index--) {
+    JsValue style = hostCreateStyleElement();
+    if (!JS.isNullish(nonce) && nonce.truthy()) JS.invoke(style, "setAttribute", "nonce", nonce);
+    hostWrite(style, "textContent", hostRead(styles, index));
+    JsValue anchor = insertionAnchor;
+    if (!JS.isNullish(last) && last.truthy()) anchor = last;
+    JS.invoke(root, "insertBefore", style, anchor);
+    last = style;
+    if (index == 0) {
+      if (JS.isUndefined(parentComponent) || JS.isNullish(parentComponent) || !parentComponent.truthy()) {
+        JS.invoke(hostRead(self, "_styleAnchors"), "set", hostRead(self, "_def"), style);
+      }
+      if (!JS.isUndefined(owner) && !JS.isNullish(owner) && owner.truthy()) {
+        JS.invoke(hostRead(self, "_styleAnchors"), "set", owner, style);
+      }
+    }
+    if (CUSTOM_ELEMENT_DEV) {
+      if (!JS.isUndefined(owner) && !JS.isNullish(owner) && owner.truthy()) {
+        JsValue hmrId = hostRead(owner, "__hmrId");
+        if (!JS.isNullish(hmrId) && hmrId.truthy()) {
+          JsValue childStyles = hostRead(self, "_childStyles");
+          if (JS.isNullish(childStyles)) {
+            childStyles = hostCreateMap();
+            hostWrite(self, "_childStyles", childStyles);
+          }
+          JsValue entry = JS.invoke(childStyles, "get", hmrId);
+          if (JS.isNullish(entry) || !entry.truthy()) {
+            entry = JS.array();
+            JS.invoke(childStyles, "set", hmrId, entry);
+          }
+          JS.invoke(entry, "push", style);
+        }
+      } else {
+        JsValue ownStyles = hostRead(self, "_styles");
+        if (JS.isNullish(ownStyles)) {
+          ownStyles = JS.array();
+          hostWrite(self, "_styles", ownStyles);
+        }
+        JS.invoke(ownStyles, "push", style);
+      }
+    }
+  }
+}
+
+void parseSlots(JsValue self) {
+  JsValue slots = hostCreateObject();
+  hostWrite(self, "_slots", slots);
+  while (!JS.isNullish(hostRead(self, "firstChild")) && hostRead(self, "firstChild").truthy()) {
+    JsValue node = hostRead(self, "firstChild");
+    string slotName = "default";
+    if (JS.number(hostRead(node, "nodeType")).toInt() == 1) {
+      JsValue attribute = JS.invoke(node, "getAttribute", "slot");
+      if (!JS.isNullish(attribute) && attribute.truthy()) slotName = hostString(attribute);
+    }
+    JsValue slot = hostRead(slots, slotName);
+    if (JS.isNullish(slot)) {
+      slot = JS.array();
+      hostWrite(slots, slotName, slot);
+    }
+    JS.invoke(slot, "push", node);
+    JS.invoke(self, "removeChild", node);
+  }
+}
+
+JsValue getSlots(JsValue self) {
+  JsValue roots = JS.array(self);
+  JsValue teleportTargets = hostRead(self, "_teleportTargets");
+  if (!JS.isNullish(teleportTargets) && teleportTargets.truthy()) {
+    JsValue targets = hostArrayFrom(teleportTargets);
+    int targetCount = valueLength(targets);
+    for (int index = 0; index < targetCount; index++) JS.invoke(roots, "push", hostRead(targets, index));
+  }
+  JsValue slots = hostCreateSet(JS.undefined());
+  int rootCount = valueLength(roots);
+  for (int rootIndex = 0; rootIndex < rootCount; rootIndex++) {
+    JsValue found = JS.invoke(hostRead(roots, rootIndex), "querySelectorAll", "slot");
+    int foundCount = valueLength(found);
+    for (int index = 0; index < foundCount; index++) JS.invoke(slots, "add", hostRead(found, index));
+  }
+  return hostArrayFrom(slots);
+}
+
+void renderSlots(JsValue self) {
+  JsValue outlets = getSlots(self);
+  JsValue scopeId = hostRead(hostRead(hostRead(self, "_instance"), "type"), "__scopeId");
+  int count = valueLength(outlets);
+  for (int index = 0; index < count; index++) {
+    JsValue outlet = hostRead(outlets, index);
+    string slotName = "default";
+    JsValue name = JS.invoke(outlet, "getAttribute", "name");
+    if (!JS.isNullish(name) && name.truthy()) slotName = hostString(name);
+    JsValue content = hostRead(hostRead(self, "_slots"), slotName);
+    JsValue parent = hostRead(outlet, "parentNode");
+    if (!JS.isNullish(content) && content.truthy()) {
+      int nodeCount = valueLength(content);
+      for (int nodeIndex = 0; nodeIndex < nodeCount; nodeIndex++) {
+        JsValue node = hostRead(content, nodeIndex);
+        if (!JS.isNullish(scopeId) && scopeId.truthy() && JS.number(hostRead(node, "nodeType")).toInt() == 1) {
+          string id = hostString(scopeId) + "-s";
+          JsValue walker = hostCreateTreeWalker(node, 1);
+          JS.invoke(node, "setAttribute", id, "");
+          while (true) {
+            JsValue child = JS.invoke(walker, "nextNode");
+            if (JS.isNullish(child) || !child.truthy()) break;
+            JS.invoke(child, "setAttribute", id, "");
+          }
+        }
+        JS.invoke(parent, "insertBefore", node, outlet);
+      }
+    } else {
+      while (!JS.isNullish(hostRead(outlet, "firstChild")) && hostRead(outlet, "firstChild").truthy()) {
+        JS.invoke(parent, "insertBefore", hostRead(outlet, "firstChild"), outlet);
+      }
+    }
+    JS.invoke(parent, "removeChild", outlet);
+  }
+}
+
+void mountCustomElement(JsValue self, JsValue definition) {
+  if ((CUSTOM_ELEMENT_DEV || CUSTOM_ELEMENT_FEATURE_PROD_DEVTOOLS) &&
+      (JS.isNullish(hostRead(definition, "name")) || !hostRead(definition, "name").truthy())) {
+    hostWrite(definition, "name", "VueElement");
+  }
+  JsValue app = JS.call(hostRead(self, "_createApp"), JS.undefined(), definition);
+  hostWrite(self, "_app", app);
+  inheritParentContext(self);
+  JsValue configureApp = hostRead(definition, "configureApp");
+  if (!JS.isNullish(configureApp) && configureApp.truthy()) hostCall1(configureApp, app);
+  hostWrite(app, "_ceVNode", createCustomElementVNode(self));
+  JS.call(hostRead(app, "mount"), app, hostRead(self, "_root"));
+  JsValue instance = hostRead(self, "_instance");
+  JsValue exposed = hostRead(instance, "exposed");
+  if (JS.isNullish(exposed) || !exposed.truthy()) return;
+  for (string key in exposed) {
+    if (!customElementHasOwn(self, key)) {
+      string exposedKey = key;
+      hostDefineAccessor(
+        self,
+        exposedKey,
+        JS.method0((JsValue _self) => JS.call(customElementUnref, JS.undefined(), hostRead(exposed, exposedKey))),
+        JS.undefined()
+      );
+    } else if (CUSTOM_ELEMENT_DEV) customWarn("Exposed property \"" + key + "\" already exists on custom element.");
+  }
+}
+
+void resolveProps(JsValue self, JsValue definition) {
+  JsValue props = hostRead(definition, "props");
+  JsValue declaredPropKeys = JS.undefined();
+  if (customElementIsArray(props)) declaredPropKeys = props;
+  else {
+    if (JS.isNullish(props)) props = JS.object();
+    declaredPropKeys = hostObjectKeys(props);
+  }
+  JsValue ownKeys = hostObjectKeys(self);
+  int ownCount = valueLength(ownKeys);
+  for (int index = 0; index < ownCount; index++) {
+    string key = hostString(hostRead(ownKeys, index));
+    if (!key.startsWith("_") && JS.invoke(declaredPropKeys, "includes", key).truthy()) {
+      JS.call(hostRead(self, "_setProp"), self, key, hostRead(self, key));
+    }
+  }
+  int count = valueLength(declaredPropKeys);
+  for (int index = 0; index < count; index++) {
+    string key = customElementCamelizeString(hostString(hostRead(declaredPropKeys, index)));
+    if (CUSTOM_ELEMENT_DEV && hostHasProperty(hostGetPrototypeOf(self), key)) {
+      customWarn(
+        "Custom element prop \"" + key + "\" conflicts with an existing property " +
+          "on the element and will overwrite it."
+      );
+    }
+    string propKey = key;
+    hostDefineAccessor(
+      self,
+      propKey,
+      JS.method0((JsValue element) => JS.call(hostRead(element, "_getProp"), element, propKey)),
+      JS.method1((JsValue element, JsValue value) => {
+        JS.call(hostRead(element, "_setProp"), element, propKey, value, true, !hostRead(element, "_patching").truthy());
+        return JS.undefined();
+      })
+    );
+  }
+}
+
+JsValue resolveDefinition(JsValue self) {
+  JsValue pendingResolve = hostRead(self, "_pendingResolve");
+  if (!JS.isNullish(pendingResolve) && pendingResolve.truthy()) return pendingResolve;
+  JsValue attributes = hostRead(self, "attributes");
+  int attributeCount = valueLength(attributes);
+  for (int index = 0; index < attributeCount; index++) {
+    JS.call(hostRead(self, "_setAttr"), self, hostRead(hostRead(attributes, index), "name"));
+  }
+  JsValue observer = hostCreateMutationObserver(JS.method1((JsValue _self, JsValue mutations) => {
+    processMutations(self, mutations);
+    return JS.undefined();
+  }));
+  hostWrite(self, "_ob", observer);
+  JS.invoke(observer, "observe", self, JS.object("attributes", true));
+
+  JsValue resolve = JS.method2((JsValue _self, JsValue definition, JsValue asyncValue) => {
+    bool isAsync = asyncValue.truthy();
+    hostWrite(self, "_resolved", true);
+    hostWrite(self, "_pendingResolve", JS.undefined());
+    JsValue props = hostRead(definition, "props");
+    JsValue numberProps = null;
+    if (!JS.isNullish(props) && props.truthy() && !customElementIsArray(props)) {
+      for (string key in props) {
+        JsValue option = hostRead(props, key);
+        if (hostIsNumberConstructor(option) || hostIsNumberConstructor(hostRead(option, "type"))) {
+          if (hostHasProperty(hostRead(self, "_props"), key)) {
+            hostWrite(hostRead(self, "_props"), key, customElementToNumber(hostRead(hostRead(self, "_props"), key)));
+          }
+          if (JS.isNullish(numberProps)) numberProps = hostCreateNullObject();
+          hostWrite(numberProps, customElementCamelizeString(key), true);
+        }
+      }
+    }
+    hostWrite(self, "_numberProps", numberProps);
+    resolveProps(self, definition);
+    JsValue styles = hostRead(definition, "styles");
+    if (!JS.isNullish(hostRead(self, "shadowRoot")) && hostRead(self, "shadowRoot").truthy()) {
+      applyStyles(self, styles);
+    } else if (CUSTOM_ELEMENT_DEV && !JS.isNullish(styles) && styles.truthy()) {
+      customWarn("Custom element style injection is not supported when using shadowRoot: false");
+    }
+    mountCustomElement(self, definition);
+    return JS.undefined();
+  });
+
+  JsValue definition = hostRead(self, "_def");
+  JsValue asyncDefinition = hostRead(definition, "__asyncLoader");
+  if (!JS.isNullish(asyncDefinition) && asyncDefinition.truthy()) {
+    pendingResolve = JS.invoke(hostCall0(asyncDefinition), "then", JS.method1((JsValue _self, JsValue resolved) => {
+      hostWrite(resolved, "configureApp", hostRead(hostRead(self, "_def"), "configureApp"));
+      hostWrite(self, "_def", resolved);
+      hostCall2(resolve, resolved, true);
+      return JS.undefined();
+    }));
+    hostWrite(self, "_pendingResolve", pendingResolve);
+    return pendingResolve;
+  }
+  hostCall2(resolve, definition, false);
+  return JS.undefined();
+}
+
+void updateCustomElement(JsValue self) {
+  JsValue vnode = createCustomElementVNode(self);
+  JsValue app = hostRead(self, "_app");
+  if (!JS.isNullish(app) && app.truthy()) hostWrite(vnode, "appContext", hostRead(app, "_context"));
+  JS.call(render, JS.undefined(), vnode, hostRead(self, "_root"));
+}
+
+JsValue createCustomElementVNode(JsValue self) {
+  JsValue baseProps = JS.object();
+  if (JS.isNullish(hostRead(self, "shadowRoot")) || !hostRead(self, "shadowRoot").truthy()) {
+    JsValue renderSlotsCallback = JS.invoke(hostRead(self, "_renderSlots"), "bind", self);
+    hostWrite(baseProps, "onVnodeMounted", renderSlotsCallback);
+    hostWrite(baseProps, "onVnodeUpdated", renderSlotsCallback);
+  }
+  JsValue vnodeProps = JS.call(customElementExtend, JS.undefined(), baseProps, hostRead(self, "_props"));
+  JsValue vnode = JS.call(customElementCreateVNode, JS.undefined(), hostRead(self, "_def"), vnodeProps);
+  if (JS.isNullish(hostRead(self, "_instance")) || !hostRead(self, "_instance").truthy()) {
+    hostWrite(vnode, "ce", JS.method1((JsValue _self, JsValue instance) => {
+      hostWrite(self, "_instance", instance);
+      hostWrite(instance, "ce", self);
+      hostWrite(instance, "isCE", true);
+      if (CUSTOM_ELEMENT_DEV) {
+        hostWrite(instance, "ceReload", JS.method1((JsValue _reloadSelf, JsValue newStyles) => {
+          JsValue styles = hostRead(self, "_styles");
+          if (!JS.isNullish(styles) && styles.truthy()) {
+            int count = valueLength(styles);
+            for (int index = 0; index < count; index++) {
+              JS.invoke(hostRead(self, "_root"), "removeChild", hostRead(styles, index));
+            }
+            hostWrite(styles, "length", 0);
+          }
+          JS.invoke(hostRead(self, "_styleAnchors"), "delete", hostRead(self, "_def"));
+          applyStyles(self, newStyles);
+          hostWrite(self, "_instance", null);
+          updateCustomElement(self);
+          return JS.undefined();
+        }));
+      }
+      JsValue dispatch = JS.method2((JsValue _dispatchSelf, JsValue eventValue, JsValue args) => {
+        string event = hostString(eventValue);
+        JsValue options = JS.object("detail", args);
+        JsValue first = hostRead(args, 0);
+        if (customElementIsPlainObject(first)) options = extend2(JS.object("detail", args), first, JS.undefined());
+        JS.invoke(self, "dispatchEvent", hostCreateCustomEvent(event, options));
+        return JS.undefined();
+      });
+      hostWrite(instance, "emit", JS.methodRest((JsValue _emitSelf, JsValue emitArgs) => {
+        string event = hostString(hostRead(emitArgs, 0));
+        JsValue args = hostArgumentsSlice(emitArgs, 1);
+        hostCall2(dispatch, event, args);
+        string hyphenated = customElementHyphenateString(event);
+        if (hyphenated != event) hostCall2(dispatch, hyphenated, args);
+        return JS.undefined();
+      }));
+      setParent(self);
+      return JS.undefined();
+    }));
+  }
+  return vnode;
+}
+
+void initializeVueElement(JsValue self, JsValue definition, JsValue initialProps, JsValue createAppFunction) {
+  if (JS.isUndefined(initialProps)) initialProps = hostCreateObject();
+  if (JS.isUndefined(createAppFunction)) createAppFunction = createApp;
+  hostWrite(self, "_def", definition);
+  hostWrite(self, "_props", initialProps);
+  hostWrite(self, "_createApp", createAppFunction);
+  hostWrite(self, "_isVueCE", true);
+  hostWrite(self, "_instance", null);
+  hostWrite(self, "_app", null);
+  hostWrite(self, "_nonce", hostRead(definition, "nonce"));
+  hostWrite(self, "_connected", false);
+  hostWrite(self, "_resolved", false);
+  hostWrite(self, "_patching", false);
+  hostWrite(self, "_dirty", false);
+  hostWrite(self, "_numberProps", null);
+  hostWrite(self, "_styleChildren", hostCreateWeakSet());
+  hostWrite(self, "_pendingResolve", JS.undefined());
+  hostWrite(self, "_parent", JS.undefined());
+  hostWrite(self, "_styleAnchors", hostCreateWeakMap());
+  hostWrite(self, "_styles", JS.undefined());
+  hostWrite(self, "_childStyles", JS.undefined());
+  hostWrite(self, "_ob", null);
+  hostWrite(self, "_slots", JS.undefined());
+
+  JsValue shadowRoot = hostRead(self, "shadowRoot");
+  if (!JS.isNullish(shadowRoot) && shadowRoot.truthy() && !JS.strictEqual(createAppFunction, createApp)) {
+    hostWrite(self, "_root", shadowRoot);
+  } else {
+    if (CUSTOM_ELEMENT_DEV && !JS.isNullish(shadowRoot) && shadowRoot.truthy()) {
+      customWarn(
+        "Custom element has pre-rendered declarative shadow root but is not " +
+          "defined as hydratable. Use `defineSSRCustomElement`."
+      );
+    }
+    if (!JS.strictEqual(hostRead(definition, "shadowRoot"), false)) {
+      JsValue options = extend2(
+        hostCreateObject(),
+        hostRead(definition, "shadowRootOptions"),
+        JS.object("mode", "open")
+      );
+      JS.invoke(self, "attachShadow", options);
+      hostWrite(self, "_root", hostRead(self, "shadowRoot"));
+    } else hostWrite(self, "_root", self);
+  }
+}
+
+JsValue connectedCallback(JsValue self) {
+  if (!hostRead(self, "isConnected").truthy()) return JS.undefined();
+  if ((JS.isNullish(hostRead(self, "shadowRoot")) || !hostRead(self, "shadowRoot").truthy()) &&
+      !hostRead(self, "_resolved").truthy()) parseSlots(self);
+  hostWrite(self, "_connected", true);
+  JsValue parent = self;
+  while (!JS.isNullish(parent) && parent.truthy()) {
+    JsValue next = hostRead(parent, "assignedSlot");
+    if (JS.isNullish(next) || !next.truthy()) next = hostRead(parent, "parentNode");
+    if (JS.isNullish(next) || !next.truthy()) next = hostRead(parent, "host");
+    parent = next;
+    if (JS.isNullish(parent) || !parent.truthy()) break;
+    if (hostInstanceOf(parent, VueElement)) {
+      hostWrite(self, "_parent", parent);
+      break;
+    }
+  }
+  if (JS.isNullish(hostRead(self, "_instance")) || !hostRead(self, "_instance").truthy()) {
+    if (hostRead(self, "_resolved").truthy()) mountCustomElement(self, hostRead(self, "_def"));
+    else {
+      JsValue pending = hostRead(parent, "_pendingResolve");
+      if (!JS.isNullish(parent) && parent.truthy() && !JS.isNullish(pending) && pending.truthy()) {
+        pending = JS.invoke(pending, "then", JS.method0((JsValue _self) => {
+          hostWrite(self, "_pendingResolve", JS.undefined());
+          if (hostRead(self, "isConnected").truthy()) return resolveDefinition(self);
+          return JS.undefined();
+        }));
+        hostWrite(self, "_pendingResolve", pending);
+      } else resolveDefinition(self);
+    }
+  }
+  return JS.undefined();
+}
+
+JsValue disconnectedCallback(JsValue self) {
+  hostWrite(self, "_connected", false);
+  hostCall1(customElementNextTick, JS.method0((JsValue _self) => {
+    if (!hostRead(self, "_connected").truthy()) {
+      JsValue observer = hostRead(self, "_ob");
+      if (!JS.isNullish(observer) && observer.truthy()) {
+        JS.invoke(observer, "disconnect");
+        hostWrite(self, "_ob", null);
+      }
+      JsValue app = hostRead(self, "_app");
+      if (!JS.isNullish(app) && app.truthy()) JS.call(hostRead(app, "unmount"), app);
+      JsValue instance = hostRead(self, "_instance");
+      if (!JS.isNullish(instance) && instance.truthy()) hostWrite(instance, "ce", JS.undefined());
+      hostWrite(self, "_app", null);
+      hostWrite(self, "_instance", null);
+      JsValue targets = hostRead(self, "_teleportTargets");
+      if (!JS.isNullish(targets) && targets.truthy()) {
+        JS.invoke(targets, "clear");
+        hostWrite(self, "_teleportTargets", JS.undefined());
+      }
+    }
+    return JS.undefined();
+  }));
+  return JS.undefined();
+}
+
+JsValue setAttributeProp(JsValue self, JsValue keyValue) {
+  string key = hostString(keyValue);
+  if (key.startsWith("data-v-")) return JS.undefined();
+  bool has = JS.invoke(self, "hasAttribute", key).truthy();
+  JsValue value = REMOVAL;
+  if (has) value = JS.invoke(self, "getAttribute", key);
+  string camelKey = customElementCamelizeString(key);
+  JsValue numberProps = hostRead(self, "_numberProps");
+  if (has && !JS.isNullish(numberProps) && hostRead(numberProps, camelKey).truthy()) {
+    value = customElementToNumber(value);
+  }
+  JS.call(hostRead(self, "_setProp"), self, camelKey, value, false, true);
+  return JS.undefined();
+}
+
+JsValue setElementProp(JsValue self, JsValue args) {
+  string key = hostString(hostRead(args, 0));
+  JsValue value = hostRead(args, 1);
+  bool shouldReflect = true;
+  bool shouldUpdate = false;
+  if (valueLength(args) > 2 && !JS.isUndefined(hostRead(args, 2))) shouldReflect = hostRead(args, 2).truthy();
+  if (valueLength(args) > 3 && !JS.isUndefined(hostRead(args, 3))) shouldUpdate = hostRead(args, 3).truthy();
+  JsValue props = hostRead(self, "_props");
+  if (!JS.strictEqual(value, hostRead(props, key))) {
+    hostWrite(self, "_dirty", true);
+    if (JS.strictEqual(value, REMOVAL)) JS.delete(props, key);
+    else {
+      hostWrite(props, key, value);
+      if (key == "key" && !JS.isNullish(hostRead(self, "_app")) && hostRead(self, "_app").truthy()) {
+        hostWrite(hostRead(hostRead(self, "_app"), "_ceVNode"), "key", value);
+      }
+    }
+    if (shouldUpdate && !JS.isNullish(hostRead(self, "_instance")) && hostRead(self, "_instance").truthy()) {
+      updateCustomElement(self);
+    }
+    if (shouldReflect) {
+      JsValue observer = hostRead(self, "_ob");
+      if (!JS.isNullish(observer) && observer.truthy()) {
+        processMutations(self, JS.invoke(observer, "takeRecords"));
+        JS.invoke(observer, "disconnect");
+      }
+      string attribute = customElementHyphenateString(key);
+      if (JS.strictEqual(value, true)) JS.invoke(self, "setAttribute", attribute, "");
+      else if (JS.typeOf(value) == "string" || JS.typeOf(value) == "number") {
+        JS.invoke(self, "setAttribute", attribute, hostString(value));
+      } else if (!value.truthy()) JS.invoke(self, "removeAttribute", attribute);
+      if (!JS.isNullish(observer) && observer.truthy()) {
+        JS.invoke(observer, "observe", self, JS.object("attributes", true));
+      }
+    }
+  }
+  return JS.undefined();
+}
+
+JsValue customElementMethods = JS.object(
+  "connectedCallback", JS.method0((JsValue self) => connectedCallback(self)),
+  "disconnectedCallback", JS.method0((JsValue self) => disconnectedCallback(self)),
+  "_setParent", JS.method1((JsValue self, JsValue parent) => { setParent(self, parent); return JS.undefined(); }),
+  "_inheritParentContext", JS.method1((JsValue self, JsValue parent) => { inheritParentContext(self, parent); return JS.undefined(); }),
+  "_processMutations", JS.method1((JsValue self, JsValue mutations) => { processMutations(self, mutations); return JS.undefined(); }),
+  "_resolveDef", JS.method0((JsValue self) => resolveDefinition(self)),
+  "_mount", JS.method1((JsValue self, JsValue definition) => { mountCustomElement(self, definition); return JS.undefined(); }),
+  "_resolveProps", JS.method1((JsValue self, JsValue definition) => { resolveProps(self, definition); return JS.undefined(); }),
+  "_setAttr", JS.method1((JsValue self, JsValue key) => setAttributeProp(self, key)),
+  "_getProp", JS.method1((JsValue self, JsValue key) => hostRead(hostRead(self, "_props"), key)),
+  "_setProp", JS.methodRest((JsValue self, JsValue args) => setElementProp(self, args)),
+  "_update", JS.method0((JsValue self) => { updateCustomElement(self); return JS.undefined(); }),
+  "_createVNode", JS.method0((JsValue self) => createCustomElementVNode(self)),
+  "_applyStyles", JS.methodRest((JsValue self, JsValue args) => {
+    applyStyles(self, hostRead(args, 0), hostRead(args, 1), hostRead(args, 2));
+    return JS.undefined();
+  }),
+  "_getStyleAnchor", JS.method1((JsValue self, JsValue component) => getStyleAnchor(self, component)),
+  "_getRootStyleInsertionAnchor", JS.method1((JsValue _self, JsValue root) => getRootStyleInsertionAnchor(root)),
+  "_parseSlots", JS.method0((JsValue self) => { parseSlots(self); return JS.undefined(); }),
+  "_renderSlots", JS.method0((JsValue self) => { renderSlots(self); return JS.undefined(); }),
+  "_getSlots", JS.method0((JsValue self) => getSlots(self)),
+  "_injectChildStyle", JS.method2((JsValue self, JsValue component, JsValue parentComponent) => {
+    applyStyles(self, hostRead(component, "styles"), component, parentComponent);
+    return JS.undefined();
+  }),
+  "_beginPatch", JS.method0((JsValue self) => {
+    hostWrite(self, "_patching", true);
+    hostWrite(self, "_dirty", false);
+    return JS.undefined();
+  }),
+  "_endPatch", JS.method0((JsValue self) => {
+    hostWrite(self, "_patching", false);
+    if (hostRead(self, "_dirty").truthy() && !JS.isNullish(hostRead(self, "_instance")) && hostRead(self, "_instance").truthy()) {
+      updateCustomElement(self);
+    }
+    return JS.undefined();
+  }),
+  "_hasShadowRoot", JS.method0((JsValue self) => !JS.strictEqual(hostRead(hostRead(self, "_def"), "shadowRoot"), false)),
+  "_removeChildStyle", JS.method1((JsValue self, JsValue component) => {
+    if (CUSTOM_ELEMENT_DEV) {
+      JS.invoke(hostRead(self, "_styleChildren"), "delete", component);
+      JS.invoke(hostRead(self, "_styleAnchors"), "delete", component);
+      JsValue childStyles = hostRead(self, "_childStyles");
+      JsValue hmrId = hostRead(component, "__hmrId");
+      if (!JS.isNullish(childStyles) && childStyles.truthy() && !JS.isNullish(hmrId) && hmrId.truthy()) {
+        JsValue oldStyles = JS.invoke(childStyles, "get", hmrId);
+        if (!JS.isNullish(oldStyles) && oldStyles.truthy()) {
+          int count = valueLength(oldStyles);
+          for (int index = 0; index < count; index++) {
+            JS.invoke(hostRead(self, "_root"), "removeChild", hostRead(oldStyles, index));
+          }
+          hostWrite(oldStyles, "length", 0);
+        }
+      }
+    }
+    return JS.undefined();
+  })
+);
+
+VueElement = hostCreateVueElementClass(
+  JS.method3((JsValue self, JsValue definition, JsValue initialProps, JsValue createAppFunction) => {
+    initializeVueElement(self, definition, initialProps, createAppFunction);
+    return JS.undefined();
+  }),
+  customElementMethods
+);
+
+JsValue defineCustomElementImplementation(
+  JsValue options,
+  JsValue extraOptions = JS.undefined(),
+  JsValue createAppFunction = JS.undefined()
+) {
+  JsValue component = JS.call(customElementDefineComponent, JS.undefined(), options, extraOptions);
+  if (customElementIsPlainObject(component)) {
+    component = extend2(hostCreateObject(), component, extraOptions);
+  }
+  return hostCreateCustomElementClass(VueElement, component, createAppFunction);
+}
+
+export JsValue defineCustomElement = hostFunction1Rest(
+  "defineCustomElement",
+  JS.method2((JsValue _self, JsValue _receiver, JsValue args) =>
+    defineCustomElementImplementation(hostRead(args, 0), hostRead(args, 1), hostRead(args, 2))
+  )
+);
+
+export JsValue defineSSRCustomElement = JS.method2((JsValue _self, JsValue options, JsValue extraOptions) =>
+  defineCustomElementImplementation(options, extraOptions, createSSRApp)
+);
+
+export JsValue useHost(JsValue caller = JS.undefined()) {
+  JsValue instance = JS.call(customElementGetCurrentInstance, JS.undefined());
+  JsValue element = hostRead(instance, "ce");
+  if (!JS.isNullish(element) && element.truthy()) return element;
+  if (CUSTOM_ELEMENT_DEV) {
+    string name = "useHost";
+    if (!JS.isNullish(caller)) name = hostString(caller);
+    if (JS.isNullish(instance) || !instance.truthy()) {
+      customWarn(name + " called without an active component instance.");
+    } else {
+      customWarn(name + " can only be used in components defined via `defineCustomElement`.");
+    }
+  }
+  return null;
+}
+
+export JsValue useShadowRoot() {
+  JsValue element = JS.undefined();
+  if (CUSTOM_ELEMENT_DEV) element = useHost("useShadowRoot");
+  else element = useHost();
+  if (!JS.isNullish(element) && element.truthy()) return hostRead(element, "shadowRoot");
+  return null;
+}

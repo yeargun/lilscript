@@ -9,7 +9,10 @@ extern JsValue Symbol;
 extern JsValue Set;
 extern JsValue SVGElement;
 extern JsValue MathMLElement;
-bool TELEPORT_DEV = true;
+extern JsValue __DEV__;
+bool teleportDev() {
+  return __DEV__.truthy();
+}
 bool TELEPORT_FEATURE_SUSPENSE = true;
 int teleportLength(JsValue value) {
   return JS.number(value["length"]).toInt();
@@ -45,18 +48,18 @@ JsValue resolveTarget(JsValue props, JsValue select) {
   if (props.truthy())targetSelector = props["to"];
   if (dependencyIsString(targetSelector)) {
     if (! select.truthy()) {
-      if (TELEPORT_DEV) {
+      if (teleportDev()) {
         JS.call(warn, JS.undefined(), "Current renderer does not support string target for Teleports. " + "(missing querySelector renderer option)");
       }
       return null;
     }
     JsValue target = JS.call(select, JS.undefined(), targetSelector);
-    if (TELEPORT_DEV && ! target.truthy() && ! isTeleportDisabled(props)) {
+    if (teleportDev() && ! target.truthy() && ! isTeleportDisabled(props)) {
       JS.call(warn, JS.undefined(), "Failed to locate Teleport target with selector \"" + targetSelector + "\". Note the target element must exist before the component is mounted - " + "i.e. the target cannot be rendered by the component itself, and " + "ideally should be outside of the entire Vue component tree.");
     }
     return target;
   }
-  if (TELEPORT_DEV && ! targetSelector.truthy() && ! isTeleportDisabled(props)) {
+  if (teleportDev() && ! targetSelector.truthy() && ! isTeleportDisabled(props)) {
     JS.call(warn, JS.undefined(), "Invalid Teleport target: " + targetSelector);
   }
   return targetSelector;
@@ -105,7 +108,7 @@ JsValue parentSuspense, JsValue namespace, JsValue slotScopeIds, bool optimized,
   JsValue parentNode = operations["parentNode"];
   bool disabled = isTeleportDisabled(vnode["props"]);
   JsValue dynamicChildren = vnode["dynamicChildren"];
-  if (TELEPORT_DEV && isHmrUpdating) {
+  if (teleportDev() && isHmrUpdating) {
     optimized = false;
     dynamicChildren = null;
   }
@@ -132,7 +135,7 @@ JsValue parentSuspense, JsValue namespace, JsValue slotScopeIds, bool optimized,
       JS.call(mount, JS.undefined(), mountedVNode, target, targetAnchor);updateCssVars(mountedVNode,
       false);
     }
-  } else if (TELEPORT_DEV && ! mountedDisabled) {
+  } else if (teleportDev() && ! mountedDisabled) {
     JS.call(warn, JS.undefined(), "Invalid Teleport target on mount:", target, "(" + JS.typeOf(target) + ")");
   }
   return JS.undefined(); });
@@ -150,7 +153,7 @@ JsValue parentSuspense, JsValue namespace, JsValue slotScopeIds, bool optimized,
   if (JS.isNullish(oldVNode)) {
     JsValue startMarker = JS.undefined();
     JsValue mainAnchor = JS.undefined();
-    if (TELEPORT_DEV) {
+    if (teleportDev()) {
       startMarker = JS.call(createComment, JS.undefined(), "teleport start");
       mainAnchor = JS.call(createComment, JS.undefined(), "teleport end");
     } else {
@@ -203,7 +206,7 @@ JsValue parentSuspense, JsValue namespace, JsValue slotScopeIds, bool optimized,
   if (dynamicChildren.truthy()) {
     JS.call(patchBlockChildren, JS.undefined(), oldVNode["dynamicChildren"], dynamicChildren, currentContainer,
     parentComponent, parentSuspense, namespace, slotScopeIds);
-    traverseStaticChildren(oldVNode, vnode, ! TELEPORT_DEV);
+    traverseStaticChildren(oldVNode, vnode, ! teleportDev());
   } else if (! optimized) {
     JS.call(patchChildren, JS.undefined(), oldVNode, vnode, currentContainer, currentAnchor, parentComponent,
     parentSuspense, namespace, slotScopeIds, false);
@@ -220,7 +223,7 @@ JsValue parentSuspense, JsValue namespace, JsValue slotScopeIds, bool optimized,
     if (nextTarget.truthy()) {
       vnode["target"] = nextTarget;
       moveTeleport(vnode, nextTarget, null, internals, 0);
-    } else if (TELEPORT_DEV) {
+    } else if (teleportDev()) {
       JS.call(warn, JS.undefined(), "Invalid Teleport target on update:", target, "(" + JS.typeOf(target) + ")");
     }
   } else if (wasDisabled) {

@@ -1,0 +1,491 @@
+import extern {
+  BaseTransition as dependencyBaseTransition,
+  BaseTransitionPropsValidators as dependencyBaseTransitionPropsValidators,
+  DeprecationTypes as dependencyDeprecationTypes,
+  assertNumber as dependencyAssertNumber,
+  compatUtils as dependencyCompatUtils,
+  h as dependencyH
+} from "../../../packages/vuelil/runtime-core.js";
+import extern {
+  extend as transitionExtend,
+  isArray as transitionIsArray,
+  isObject as transitionIsObject,
+  toNumber as transitionToNumber
+} from "../../../packages/vuelil/shared.js";
+import extern {
+  hostBodyOffsetHeight,
+  hostCall1,
+  hostConstructors,
+  hostCreateSet,
+  hostCreateSymbol,
+  hostGetComputedStyle,
+  hostHasProperty,
+  hostMathMax,
+  hostNumber,
+  hostRead,
+  hostRemoveEventListener,
+  hostAddEventListener,
+  hostRequestAnimationFrame,
+  hostSetAdd,
+  hostSetDelete,
+  hostSetSize,
+  hostSetTimeout,
+  hostString,
+  hostWrite
+} from "../host.js";
+
+extern JsValue dependencyBaseTransition;
+extern JsValue dependencyBaseTransitionPropsValidators;
+extern JsValue dependencyDeprecationTypes;
+extern JsValue dependencyAssertNumber;
+extern JsValue dependencyCompatUtils;
+extern JsValue dependencyH;
+extern JsValue transitionExtend;
+extern bool transitionIsArray(JsValue value);
+extern bool transitionIsObject(JsValue value);
+extern JsValue transitionToNumber(JsValue value);
+extern float hostBodyOffsetHeight(JsValue node);
+extern JsValue hostCall1(JsValue fn, JsValue first);
+extern JsValue hostConstructors();
+extern JsValue hostCreateSet(JsValue value);
+extern JsValue hostCreateSymbol(string description);
+extern JsValue hostGetComputedStyle(JsValue element);
+extern bool hostHasProperty(JsValue value, JsValue key);
+extern float hostMathMax(float left, float right);
+extern float hostNumber(JsValue value);
+extern JsValue hostRead(JsValue value, JsValue key);
+extern void hostRemoveEventListener(JsValue element, string event, JsValue handler, JsValue options);
+extern void hostAddEventListener(JsValue element, string event, JsValue handler, JsValue options);
+extern JsValue hostRequestAnimationFrame(JsValue callback);
+extern void hostSetAdd(JsValue value, JsValue item);
+extern void hostSetDelete(JsValue value, JsValue item);
+extern int hostSetSize(JsValue value);
+extern JsValue hostSetTimeout(JsValue callback, float timeout);
+extern string hostString(JsValue value);
+extern void hostWrite(JsValue value, JsValue key, JsValue next);
+
+bool TRANSITION_DEV = true;
+bool TRANSITION_COMPAT = false;
+string transitionType = "transition";
+string animationType = "animation";
+export JsValue vtcKey = hostCreateSymbol("_vtc");
+
+JsValue constructors = hostConstructors();
+JsValue DOMTransitionPropsValidators = JS.object(
+  "name", constructors["String"],
+  "type", constructors["String"],
+  "css", JS.object("type", constructors["Boolean"], "default", true),
+  "duration", JS.array(constructors["String"], constructors["Number"], constructors["Object"]),
+  "enterFromClass", constructors["String"],
+  "enterActiveClass", constructors["String"],
+  "enterToClass", constructors["String"],
+  "appearFromClass", constructors["String"],
+  "appearActiveClass", constructors["String"],
+  "appearToClass", constructors["String"],
+  "leaveFromClass", constructors["String"],
+  "leaveActiveClass", constructors["String"],
+  "leaveToClass", constructors["String"]
+);
+
+export JsValue TransitionPropsValidators = JS.call(
+  transitionExtend,
+  JS.undefined(),
+  JS.object(),
+  dependencyBaseTransitionPropsValidators,
+  DOMTransitionPropsValidators
+);
+
+int valueLength(JsValue value) {
+  return JS.number(hostRead(value, "length")).toInt();
+}
+
+void callHook(JsValue hook, JsValue args = JS.undefined()) {
+  if (JS.isUndefined(args)) args = JS.array();
+  if (transitionIsArray(hook)) {
+    int count = valueLength(hook);
+    for (int index = 0; index < count; index++) JS.apply(hostRead(hook, index), JS.undefined(), args);
+  } else if (!JS.isNullish(hook) && hook.truthy()) {
+    JS.apply(hook, JS.undefined(), args);
+  }
+}
+
+bool hasExplicitCallback(JsValue hook) {
+  if (JS.isNullish(hook) || !hook.truthy()) return false;
+  if (transitionIsArray(hook)) {
+    int count = valueLength(hook);
+    for (int index = 0; index < count; index++) {
+      if (JS.number(hostRead(hostRead(hook, index), "length")).toInt() > 1) return true;
+    }
+    return false;
+  }
+  return JS.number(hostRead(hook, "length")).toInt() > 1;
+}
+
+float numberOf(JsValue value) {
+  JsValue result = transitionToNumber(value);
+  if (TRANSITION_DEV) {
+    JS.call(dependencyAssertNumber, JS.undefined(), result, "<transition> explicit duration");
+  }
+  return JS.number(result);
+}
+
+JsValue normalizeDuration(JsValue duration) {
+  if (JS.isNullish(duration)) return null;
+  if (transitionIsObject(duration)) {
+    return JS.array(numberOf(hostRead(duration, "enter")), numberOf(hostRead(duration, "leave")));
+  }
+  float value = numberOf(duration);
+  return JS.array(value, value);
+}
+
+void nextFrame(JsValue callback) {
+  hostRequestAnimationFrame(JS.method0((JsValue _self) => {
+    hostRequestAnimationFrame(callback);
+    return JS.undefined();
+  }));
+}
+
+export void addTransitionClass(JsValue element, string classes) {
+  JsValue names = JS.invoke(classes, "split", new Regex("\\s+"));
+  int count = valueLength(names);
+  for (int index = 0; index < count; index++) {
+    string name = hostString(hostRead(names, index));
+    if (name != "") JS.invoke(hostRead(element, "classList"), "add", name);
+  }
+  JsValue transitionClasses = hostRead(element, vtcKey);
+  if (JS.isNullish(transitionClasses) || !transitionClasses.truthy()) {
+    transitionClasses = hostCreateSet(JS.undefined());
+    hostWrite(element, vtcKey, transitionClasses);
+  }
+  hostSetAdd(transitionClasses, classes);
+}
+
+export void removeTransitionClass(JsValue element, string classes) {
+  JsValue names = JS.invoke(classes, "split", new Regex("\\s+"));
+  int count = valueLength(names);
+  for (int index = 0; index < count; index++) {
+    string name = hostString(hostRead(names, index));
+    if (name != "") JS.invoke(hostRead(element, "classList"), "remove", name);
+  }
+  JsValue transitionClasses = hostRead(element, vtcKey);
+  if (!JS.isNullish(transitionClasses) && transitionClasses.truthy()) {
+    hostSetDelete(transitionClasses, classes);
+    if (hostSetSize(transitionClasses) == 0) hostWrite(element, vtcKey, JS.undefined());
+  }
+}
+
+int transitionEndId = 0;
+
+float toMs(string value) {
+  if (value == "auto") return 0.0;
+  string numeric = hostString(JS.invoke(value.slice(0, -1), "replace", ",", "."));
+  return hostNumber(numeric) * 1000.0;
+}
+
+float getTimeout(JsValue delaysValue, JsValue durations) {
+  JsValue delays = delaysValue;
+  while (valueLength(delays) < valueLength(durations)) delays = JS.invoke(delays, "concat", delays);
+  float timeout = 0.0;
+  int count = valueLength(durations);
+  for (int index = 0; index < count; index++) {
+    float candidate = toMs(hostString(hostRead(durations, index))) + toMs(hostString(hostRead(delays, index)));
+    timeout = hostMathMax(timeout, candidate);
+  }
+  return timeout;
+}
+
+JsValue styleProperties(JsValue styles, string key) {
+  JsValue value = hostRead(styles, key);
+  if (JS.isNullish(value)) value = "";
+  return JS.invoke(hostString(value), "split", ", ");
+}
+
+Regex transformPattern = new Regex("\\b(?:transform|all)(?:,|$)");
+
+export JsValue getTransitionInfo(JsValue element, JsValue expectedType = JS.undefined()) {
+  JsValue styles = hostGetComputedStyle(element);
+  JsValue transitionDelays = styleProperties(styles, transitionType + "Delay");
+  JsValue transitionDurations = styleProperties(styles, transitionType + "Duration");
+  float transitionTimeout = getTimeout(transitionDelays, transitionDurations);
+  JsValue animationDelays = styleProperties(styles, animationType + "Delay");
+  JsValue animationDurations = styleProperties(styles, animationType + "Duration");
+  float animationTimeout = getTimeout(animationDelays, animationDurations);
+  JsValue type = null;
+  float timeout = 0.0;
+  int propCount = 0;
+  if (JS.strictEqual(expectedType, transitionType)) {
+    if (transitionTimeout > 0.0) {
+      type = transitionType;
+      timeout = transitionTimeout;
+      propCount = valueLength(transitionDurations);
+    }
+  } else if (JS.strictEqual(expectedType, animationType)) {
+    if (animationTimeout > 0.0) {
+      type = animationType;
+      timeout = animationTimeout;
+      propCount = valueLength(animationDurations);
+    }
+  } else {
+    timeout = hostMathMax(transitionTimeout, animationTimeout);
+    if (timeout > 0.0) {
+      if (transitionTimeout > animationTimeout) {
+        type = transitionType;
+        propCount = valueLength(transitionDurations);
+      } else {
+        type = animationType;
+        propCount = valueLength(animationDurations);
+      }
+    }
+  }
+  bool hasTransform = JS.strictEqual(type, transitionType) && transformPattern.test(
+    hostString(JS.invoke(styleProperties(styles, transitionType + "Property"), "toString"))
+  );
+  return JS.object("type", type, "timeout", timeout, "propCount", propCount, "hasTransform", hasTransform);
+}
+
+void whenTransitionEnds(JsValue element, JsValue expectedType, JsValue explicitTimeout, JsValue resolve) {
+  transitionEndId += 1;
+  int id = transitionEndId;
+  hostWrite(element, "_endId", id);
+  JsValue resolveIfNotStale = JS.method0((JsValue _self) => {
+    if (JS.number(hostRead(element, "_endId")).toInt() == id) JS.call(resolve, JS.undefined());
+    return JS.undefined();
+  });
+  if (!JS.isNullish(explicitTimeout)) {
+    hostSetTimeout(resolveIfNotStale, JS.number(explicitTimeout));
+    return;
+  }
+  JsValue info = getTransitionInfo(element, expectedType);
+  JsValue type = hostRead(info, "type");
+  if (JS.isNullish(type) || !type.truthy()) {
+    JS.call(resolve, JS.undefined());
+    return;
+  }
+  string endEvent = hostString(type) + "end";
+  int ended = 0;
+  int propCount = JS.number(hostRead(info, "propCount")).toInt();
+  JsValue onEnd = JS.undefined();
+  JsValue end = JS.method0((JsValue _self) => {
+    hostRemoveEventListener(element, endEvent, onEnd, JS.undefined());
+    JS.call(resolveIfNotStale, JS.undefined());
+    return JS.undefined();
+  });
+  onEnd = JS.method1((JsValue _self, JsValue event) => {
+    if (JS.strictEqual(hostRead(event, "target"), element)) {
+      ended += 1;
+      if (ended >= propCount) JS.call(end, JS.undefined());
+    }
+    return JS.undefined();
+  });
+  hostSetTimeout(JS.method0((JsValue _self) => {
+    if (ended < propCount) JS.call(end, JS.undefined());
+    return JS.undefined();
+  }), JS.number(hostRead(info, "timeout")) + 1.0);
+  hostAddEventListener(element, endEvent, onEnd, JS.undefined());
+}
+
+export float forceReflow(JsValue element = JS.undefined()) {
+  return hostBodyOffsetHeight(element);
+}
+
+export JsValue resolveTransitionProps(JsValue rawProps) {
+  JsValue baseProps = JS.object();
+  for (string key in rawProps) {
+    if (!hostHasProperty(DOMTransitionPropsValidators, key)) hostWrite(baseProps, key, hostRead(rawProps, key));
+  }
+  if (JS.strictEqual(hostRead(rawProps, "css"), false)) return baseProps;
+
+  string name = "v";
+  if (!JS.isUndefined(hostRead(rawProps, "name"))) name = hostString(hostRead(rawProps, "name"));
+  JsValue type = hostRead(rawProps, "type");
+  JsValue duration = hostRead(rawProps, "duration");
+  string enterFromClass = name + "-enter-from";
+  string enterActiveClass = name + "-enter-active";
+  string enterToClass = name + "-enter-to";
+  string appearFromClass = enterFromClass;
+  string appearActiveClass = enterActiveClass;
+  string appearToClass = enterToClass;
+  string leaveFromClass = name + "-leave-from";
+  string leaveActiveClass = name + "-leave-active";
+  string leaveToClass = name + "-leave-to";
+  if (!JS.isUndefined(hostRead(rawProps, "enterFromClass"))) enterFromClass = hostString(hostRead(rawProps, "enterFromClass"));
+  if (!JS.isUndefined(hostRead(rawProps, "enterActiveClass"))) enterActiveClass = hostString(hostRead(rawProps, "enterActiveClass"));
+  if (!JS.isUndefined(hostRead(rawProps, "enterToClass"))) enterToClass = hostString(hostRead(rawProps, "enterToClass"));
+  if (!JS.isUndefined(hostRead(rawProps, "appearFromClass"))) appearFromClass = hostString(hostRead(rawProps, "appearFromClass"));
+  if (!JS.isUndefined(hostRead(rawProps, "appearActiveClass"))) appearActiveClass = hostString(hostRead(rawProps, "appearActiveClass"));
+  if (!JS.isUndefined(hostRead(rawProps, "appearToClass"))) appearToClass = hostString(hostRead(rawProps, "appearToClass"));
+  if (!JS.isUndefined(hostRead(rawProps, "leaveFromClass"))) leaveFromClass = hostString(hostRead(rawProps, "leaveFromClass"));
+  if (!JS.isUndefined(hostRead(rawProps, "leaveActiveClass"))) leaveActiveClass = hostString(hostRead(rawProps, "leaveActiveClass"));
+  if (!JS.isUndefined(hostRead(rawProps, "leaveToClass"))) leaveToClass = hostString(hostRead(rawProps, "leaveToClass"));
+
+  bool legacyClassEnabled = TRANSITION_COMPAT && JS.call(
+    dependencyCompatUtils["isCompatEnabled"],
+    dependencyCompatUtils,
+    dependencyDeprecationTypes["TRANSITION_CLASSES"],
+    null
+  ).truthy();
+  string legacyEnterFromClass = "";
+  string legacyAppearFromClass = "";
+  string legacyLeaveFromClass = "";
+  Regex fromSuffix = new Regex("-from$");
+  if (TRANSITION_COMPAT && legacyClassEnabled) {
+    if (JS.isNullish(hostRead(rawProps, "enterFromClass"))) {
+      legacyEnterFromClass = hostString(JS.invoke(enterFromClass, "replace", fromSuffix, ""));
+    }
+    if (JS.isNullish(hostRead(rawProps, "appearFromClass"))) {
+      legacyAppearFromClass = hostString(JS.invoke(appearFromClass, "replace", fromSuffix, ""));
+    }
+    if (JS.isNullish(hostRead(rawProps, "leaveFromClass"))) {
+      legacyLeaveFromClass = hostString(JS.invoke(leaveFromClass, "replace", fromSuffix, ""));
+    }
+  }
+
+  JsValue durations = normalizeDuration(duration);
+  JsValue enterDuration = null;
+  JsValue leaveDuration = null;
+  if (!JS.isNullish(durations)) {
+    enterDuration = hostRead(durations, 0);
+    leaveDuration = hostRead(durations, 1);
+  }
+  JsValue onBeforeEnter = hostRead(baseProps, "onBeforeEnter");
+  JsValue onEnter = hostRead(baseProps, "onEnter");
+  JsValue onEnterCancelled = hostRead(baseProps, "onEnterCancelled");
+  JsValue onLeave = hostRead(baseProps, "onLeave");
+  JsValue onLeaveCancelled = hostRead(baseProps, "onLeaveCancelled");
+  JsValue onBeforeAppear = hostRead(baseProps, "onBeforeAppear");
+  if (JS.isUndefined(onBeforeAppear)) onBeforeAppear = onBeforeEnter;
+  JsValue onAppear = hostRead(baseProps, "onAppear");
+  if (JS.isUndefined(onAppear)) onAppear = onEnter;
+  JsValue onAppearCancelled = hostRead(baseProps, "onAppearCancelled");
+  if (JS.isUndefined(onAppearCancelled)) onAppearCancelled = onEnterCancelled;
+
+  JsValue finishEnter = JS.methodRest((JsValue _self, JsValue args) => {
+    JsValue element = hostRead(args, 0);
+    bool isAppear = hostRead(args, 1).truthy();
+    JsValue done = hostRead(args, 2);
+    JsValue cancelled = hostRead(args, 3);
+    hostWrite(element, "_enterCancelled", cancelled);
+    string toClass = enterToClass;
+    string activeClass = enterActiveClass;
+    if (isAppear) {
+      toClass = appearToClass;
+      activeClass = appearActiveClass;
+    }
+    removeTransitionClass(element, toClass);
+    removeTransitionClass(element, activeClass);
+    if (!JS.isNullish(done) && done.truthy()) JS.call(done, JS.undefined());
+    return JS.undefined();
+  });
+  JsValue finishLeave = JS.method2((JsValue _self, JsValue element, JsValue done) => {
+    hostWrite(element, "_isLeaving", false);
+    removeTransitionClass(element, leaveFromClass);
+    removeTransitionClass(element, leaveToClass);
+    removeTransitionClass(element, leaveActiveClass);
+    if (!JS.isNullish(done) && done.truthy()) JS.call(done, JS.undefined());
+    return JS.undefined();
+  });
+  JsValue makeEnterHook = JS.method1((JsValue _self, JsValue appearValue) => {
+    bool isAppear = appearValue.truthy();
+    return JS.method2((JsValue _hookSelf, JsValue element, JsValue done) => {
+      JsValue hook = onEnter;
+      if (isAppear) hook = onAppear;
+      JsValue resolve = JS.method0((JsValue _resolveSelf) => {
+        JS.call(finishEnter, JS.undefined(), element, isAppear, done);
+        return JS.undefined();
+      });
+      callHook(hook, JS.array(element, resolve));
+      nextFrame(JS.method0((JsValue _frameSelf) => {
+        string fromClass = enterFromClass;
+        string toClass = enterToClass;
+        if (isAppear) {
+          fromClass = appearFromClass;
+          toClass = appearToClass;
+        }
+        removeTransitionClass(element, fromClass);
+        if (TRANSITION_COMPAT && legacyClassEnabled) {
+          string legacyClass = legacyEnterFromClass;
+          if (isAppear) legacyClass = legacyAppearFromClass;
+          if (legacyClass != "") removeTransitionClass(element, legacyClass);
+        }
+        addTransitionClass(element, toClass);
+        if (!hasExplicitCallback(hook)) whenTransitionEnds(element, type, enterDuration, resolve);
+        return JS.undefined();
+      }));
+      return JS.undefined();
+    });
+  });
+
+  JsValue hooks = JS.object();
+  hostWrite(hooks, "onBeforeEnter", JS.method1((JsValue _self, JsValue element) => {
+    callHook(onBeforeEnter, JS.array(element));
+    addTransitionClass(element, enterFromClass);
+    if (TRANSITION_COMPAT && legacyClassEnabled && legacyEnterFromClass != "") addTransitionClass(element, legacyEnterFromClass);
+    addTransitionClass(element, enterActiveClass);
+    return JS.undefined();
+  }));
+  hostWrite(hooks, "onBeforeAppear", JS.method1((JsValue _self, JsValue element) => {
+    callHook(onBeforeAppear, JS.array(element));
+    addTransitionClass(element, appearFromClass);
+    if (TRANSITION_COMPAT && legacyClassEnabled && legacyAppearFromClass != "") addTransitionClass(element, legacyAppearFromClass);
+    addTransitionClass(element, appearActiveClass);
+    return JS.undefined();
+  }));
+  hostWrite(hooks, "onEnter", hostCall1(makeEnterHook, false));
+  hostWrite(hooks, "onAppear", hostCall1(makeEnterHook, true));
+  hostWrite(hooks, "onLeave", JS.method2((JsValue _self, JsValue element, JsValue done) => {
+    hostWrite(element, "_isLeaving", true);
+    JsValue resolve = JS.method0((JsValue _resolveSelf) => {
+      JS.call(finishLeave, JS.undefined(), element, done);
+      return JS.undefined();
+    });
+    addTransitionClass(element, leaveFromClass);
+    if (TRANSITION_COMPAT && legacyClassEnabled && legacyLeaveFromClass != "") addTransitionClass(element, legacyLeaveFromClass);
+    if (!hostRead(element, "_enterCancelled").truthy()) {
+      forceReflow(element);
+      addTransitionClass(element, leaveActiveClass);
+    } else {
+      addTransitionClass(element, leaveActiveClass);
+      forceReflow(element);
+    }
+    nextFrame(JS.method0((JsValue _frameSelf) => {
+      if (!hostRead(element, "_isLeaving").truthy()) return JS.undefined();
+      removeTransitionClass(element, leaveFromClass);
+      if (TRANSITION_COMPAT && legacyClassEnabled && legacyLeaveFromClass != "") removeTransitionClass(element, legacyLeaveFromClass);
+      addTransitionClass(element, leaveToClass);
+      if (!hasExplicitCallback(onLeave)) whenTransitionEnds(element, type, leaveDuration, resolve);
+      return JS.undefined();
+    }));
+    callHook(onLeave, JS.array(element, resolve));
+    return JS.undefined();
+  }));
+  hostWrite(hooks, "onEnterCancelled", JS.method1((JsValue _self, JsValue element) => {
+    JS.call(finishEnter, JS.undefined(), element, false, JS.undefined(), true);
+    callHook(onEnterCancelled, JS.array(element));
+    return JS.undefined();
+  }));
+  hostWrite(hooks, "onAppearCancelled", JS.method1((JsValue _self, JsValue element) => {
+    JS.call(finishEnter, JS.undefined(), element, true, JS.undefined(), true);
+    callHook(onAppearCancelled, JS.array(element));
+    return JS.undefined();
+  }));
+  hostWrite(hooks, "onLeaveCancelled", JS.method1((JsValue _self, JsValue element) => {
+    JS.call(finishLeave, JS.undefined(), element, JS.undefined());
+    callHook(onLeaveCancelled, JS.array(element));
+    return JS.undefined();
+  }));
+  return JS.call(transitionExtend, JS.undefined(), baseProps, hooks);
+}
+
+JsValue transitionRender = JS.method2((JsValue _self, JsValue props, JsValue context) =>
+  JS.call(
+    dependencyH,
+    JS.undefined(),
+    dependencyBaseTransition,
+    resolveTransitionProps(props),
+    hostRead(context, "slots")
+  )
+);
+hostWrite(transitionRender, "displayName", "Transition");
+hostWrite(transitionRender, "props", TransitionPropsValidators);
+if (TRANSITION_COMPAT) hostWrite(transitionRender, "__isBuiltIn", true);
+export JsValue Transition = transitionRender;

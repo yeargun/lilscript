@@ -10,6 +10,27 @@ import {
 } from "./compatConfig";
 import { isCopyingConfig } from "./global";
 
+void installLegacyConfigWarning(JsValue config, JsValue legacyConfigOptions, JsValue key) {
+  JsValue value = config[key];
+  JS.invoke(
+    globalConfigObject,
+    "defineProperty",
+    config,
+    key,
+    JS.object(
+      "enumerable", true,
+      "get", JS.method0((JsValue _self) => value),
+      "set", JS.method1((JsValue _self, JsValue nextValue) => {
+        if (!isCopyingConfig) {
+          warnDeprecation(JS.string(legacyConfigOptions[key]), null);
+        }
+        value = nextValue;
+        return JS.undefined();
+      })
+    )
+  );
+}
+
 export void installLegacyConfigWarnings(JsValue config) {
   JsValue legacyConfigOptions = JS.object(
     "silent", DeprecationTypes["CONFIG_SILENT"],
@@ -22,24 +43,7 @@ export void installLegacyConfigWarnings(JsValue config) {
   int length = JS.number(keys["length"]).toInt();
   for (int index = 0; index < length; index++) {
     JsValue key = keys[index];
-    JsValue value = config[key];
-    JS.invoke(
-      globalConfigObject,
-      "defineProperty",
-      config,
-      key,
-      JS.object(
-        "enumerable", true,
-        "get", JS.method0((JsValue _self) => value),
-        "set", JS.method1((JsValue _self, JsValue nextValue) => {
-          if (!isCopyingConfig) {
-            warnDeprecation(JS.string(legacyConfigOptions[key]), null);
-          }
-          value = nextValue;
-          return JS.undefined();
-        })
-      )
-    );
+    installLegacyConfigWarning(config, legacyConfigOptions, key);
   }
 }
 

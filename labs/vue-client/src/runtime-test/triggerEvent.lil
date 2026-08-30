@@ -1,0 +1,26 @@
+import { arguments, isArray } from "../shared/general";
+
+export void triggerEvent(
+  JsValue element,
+  string event
+) {
+  JsValue payload = arguments[2];
+  if (JS.isUndefined(payload)) payload = JS.array();
+  JsValue listeners = element["eventListeners"];
+  if (listeners.truthy()) {
+    JsValue listener = listeners[event];
+    if (listener.truthy()) {
+      if (JS.call(isArray, JS.undefined(), listener).truthy()) {
+        for (
+          int index = 0;
+          index < JS.number(listener["length"]).toInt();
+          index++
+        ) {
+          JS.apply(listener[index], JS.undefined(), payload);
+        }
+      } else {
+        JS.apply(listener, JS.undefined(), payload);
+      }
+    }
+  }
+}

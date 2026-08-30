@@ -1,4 +1,6 @@
 import { watch as baseWatch } from "../reactivity/watch";
+import { shallowReadArray } from "../reactivity/arrayInstrumentations";
+import { isReactive } from "../reactivity/reactive";
 import { EMPTY_OBJ, NOOP, extend, isFunction, isString } from "../shared/general";
 import {
   currentInstance,
@@ -78,6 +80,26 @@ JsValue doWatch(JsValue source, JsValue callback, JsValue options) {
   JsValue deep = options["deep"];
   JsValue flush = options["flush"];
   JsValue once = options["once"];
+
+  // Track only root array mutations; the local proxy otherwise reads nested ref values.
+  if (
+    isFunction(callback) &&
+    JS.isArray(source) &&
+    isReactive(source) &&
+    (JS.strictEqual(deep, false) || JS.strictEqual(deep, 0))
+  ) {
+    JsValue reactiveSource = source;
+    JsValue originalCallback = callback;
+    source = JS.method0((JsValue _self) => {
+      shallowReadArray(reactiveSource);
+      return JS.array();
+    });
+    callback = JS.method3((JsValue _self, JsValue _value, JsValue oldValue, JsValue onCleanup) => {
+      JsValue previous = reactiveSource;
+      if (JS.isUndefined(oldValue)) previous = JS.undefined();
+      return JS.call(originalCallback, JS.undefined(), reactiveSource, previous, onCleanup);
+    });
+  }
 
   if (!callback.truthy()) {
     if (!JS.isUndefined(immediate)) {

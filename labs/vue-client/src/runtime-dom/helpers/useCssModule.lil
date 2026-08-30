@@ -1,0 +1,36 @@
+import extern { getCurrentInstance as cssModuleGetCurrentInstance, warn as cssModuleWarnFunction } from "../../../packages/vuelil/runtime-core.js";
+import extern { EMPTY_OBJ as dependencyEmptyObject } from "../../../packages/vuelil/shared.js";
+
+extern JsValue cssModuleGetCurrentInstance;
+extern JsValue cssModuleWarnFunction;
+extern JsValue dependencyEmptyObject;
+
+bool CSS_MODULE_DEV = true;
+bool CSS_MODULE_GLOBAL = false;
+
+void cssModuleWarn(string message) {
+  JS.call(cssModuleWarnFunction, JS.undefined(), message);
+}
+
+export JsValue useCssModule(string name = "$style") {
+  if (!CSS_MODULE_GLOBAL) {
+    JsValue instance = JS.call(cssModuleGetCurrentInstance, JS.undefined());
+    if (JS.isNullish(instance) || !instance.truthy()) {
+      if (CSS_MODULE_DEV) cssModuleWarn("useCssModule must be called inside setup()");
+      return dependencyEmptyObject;
+    }
+    JsValue modules = instance["type"]["__cssModules"];
+    if (JS.isNullish(modules) || !modules.truthy()) {
+      if (CSS_MODULE_DEV) cssModuleWarn("Current instance does not have CSS modules injected.");
+      return dependencyEmptyObject;
+    }
+    JsValue moduleValue = modules[name];
+    if (JS.isNullish(moduleValue) || !moduleValue.truthy()) {
+      if (CSS_MODULE_DEV) cssModuleWarn("Current instance does not have CSS module named \"" + name + "\".");
+      return dependencyEmptyObject;
+    }
+    return moduleValue;
+  }
+  if (CSS_MODULE_DEV) cssModuleWarn("useCssModule() is not supported in the global build.");
+  return dependencyEmptyObject;
+}

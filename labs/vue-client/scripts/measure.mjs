@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import {
   existsSync,
   mkdirSync,
@@ -21,11 +20,10 @@ import {
   serializeInventory,
 } from "./audit-scope.mjs";
 import { sha256 } from "./check-complete.mjs";
-import { staticImportedNamesSync } from "../src/reactivity/build-entry.mjs";
 
 const defaultBuildReportPath = resolve(
   projectRoot,
-  "artifacts/generated/project-comparison/reactivity-app/build-report.json",
+  "artifacts/generated/project-comparison/build-report.json",
 );
 const reportPath = resolve(projectRoot, "artifacts/project-size-report.json");
 
@@ -37,24 +35,6 @@ function artifactPath(value, label) {
   if (!existsSync(path)) throw new Error(`${label} does not exist: ${path}`);
   if (!statSync(path).isFile()) throw new Error(`${label} is not a file: ${path}`);
   return path;
-}
-
-function artifactEvidence(path, measurement, buildArtifact) {
-  const bytes = readFileSync(path);
-  const digest = createHash("sha256").update(bytes).digest("hex");
-  if (digest !== measurement.sha256 || bytes.length !== measurement.raw) {
-    throw new Error(`${path} changed during canonical codec measurement`);
-  }
-  return {
-    path: relative(projectRoot, path),
-    sha256: digest,
-    sizes: {
-      raw: measurement.raw,
-      gzip9: measurement.gzip,
-      brotli11: measurement.brotli,
-    },
-    buildSha256: buildArtifact.sha256,
-  };
 }
 
 function sourceManifestHash(files) {
@@ -80,23 +60,44 @@ function validateFileEvidence(evidence, label) {
   return path;
 }
 
+function validateArtifact(artifact, label) {
+  if (!Array.isArray(artifact?.files) || artifact.files.length === 0) {
+    throw new Error(`${label} has no deploy files`);
+  }
+  const files = artifact.files.map((file) => ({
+    ...file,
+    absolutePath: validateFileEvidence(file, `${label} file`),
+  }));
+  if (
+    artifact.bytes !== files.reduce((sum, file) => sum + file.bytes, 0) ||
+    artifact.sha256 !== sourceManifestHash(artifact.files)
+  ) {
+    throw new Error(`${label} deployment manifest is invalid`);
+  }
+  const entry = artifactPath(artifact.entry, `${label} entry`);
+  if (!files.some((file) => realpathSync(file.absolutePath) === realpathSync(entry))) {
+    throw new Error(`${label} entry is not part of its deploy files`);
+  }
+  return { ...artifact, files, entryPath: entry };
+}
+
+function expectedDefines() {
+  return {
+    __VUE_OPTIONS_API__: "false",
+    __VUE_PROD_DEVTOOLS__: "false",
+    __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: "false",
+    "process.env.NODE_ENV": '"production"',
+  };
+}
+
 export function validateProjectBuildReport(report, scope) {
-  if (report?.schemaVersion !== 1) {
-    throw new Error("project build report schemaVersion must be 1");
+  if (report?.schemaVersion !== 2) {
+    throw new Error("project build report schemaVersion must be 2");
   }
   if (report.upstream?.revision !== scope.upstream.revision) {
     throw new Error(
       `project build report must name upstream revision ${scope.upstream.revision}`,
     );
-  }
-  const scenario = scope.bundleScenarios?.find(
-    ({ id }) => id === report.scenario?.id,
-  );
-  if (!scenario) {
-    throw new Error(`project build report names unknown scenario ${report.scenario?.id}`);
-  }
-  if (scenario.completionRequired !== false || report.scenario.completionRequired !== false) {
-    throw new Error("the reactivity project must remain a non-final diagnostic scenario");
   }
   if (
     report.toolchain?.vite?.version !== "8.2.1" ||
@@ -108,142 +109,132 @@ export function validateProjectBuildReport(report, scope) {
   ) {
     throw new Error("project build report does not identify the pinned Vite 8/Oxc configuration");
   }
-  const expectedDefines = {
-    __VUE_OPTIONS_API__: "false",
-    __VUE_PROD_DEVTOOLS__: "false",
-    __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: "false",
-    "process.env.NODE_ENV": '"production"',
-  };
-  if (JSON.stringify(report.toolchain.config.defines) !== JSON.stringify(expectedDefines)) {
+  if (JSON.stringify(report.toolchain.config.defines) !== JSON.stringify(expectedDefines())) {
     throw new Error("project build report has unexpected production defines");
   }
-  if (!Array.isArray(report.input?.files) || report.input.files.length === 0) {
-    throw new Error("project build report has no hashed input files");
+
+  const required = scope.bundleScenarios.filter(
+    ({ completionRequired }) => completionRequired,
+  );
+  const expectedIds = new Set(required.map(({ id }) => id));
+  if (
+    !Array.isArray(report.scenarios) ||
+    report.scenarios.length !== expectedIds.size ||
+    report.scenarios.some(({ scenario }) => !expectedIds.has(scenario?.id))
+  ) {
+    throw new Error("project build report must contain exactly the four required scenarios");
   }
-  const inputFiles = report.input.files.map((entry) => {
-    const path = artifactPath(entry.path, "project input");
-    const bytes = readFileSync(path);
-    const digest = sha256(bytes);
-    if (entry.bytes !== bytes.length || entry.sha256 !== digest) {
-      throw new Error(`project input changed after build: ${entry.path}`);
+
+  return report.scenarios.map((result) => {
+    const id = result.scenario.id;
+    if (result.scenario.completionRequired !== true) {
+      throw new Error(`${id} must be completion-required`);
     }
-    return entry;
+    if (!Array.isArray(result.input?.files) || result.input.files.length === 0) {
+      throw new Error(`${id} has no hashed input files`);
+    }
+    const inputFiles = result.input.files.map((entry) => {
+      validateFileEvidence(entry, `${id} input`);
+      return entry;
+    });
+    if (
+      sourceManifestHash(inputFiles) !== result.input.sha256 ||
+      result.input.importSpecifier !== "vue" ||
+      !result.input.importSpecifiers?.includes("vue")
+    ) {
+      throw new Error(`${id} input provenance is invalid`);
+    }
+    if (
+      result.comparison?.sameInput !== true ||
+      result.comparison?.sameBuildConfig !== true ||
+      result.comparison?.onlyModuleResolutionChanged !== true ||
+      result.comparison?.matchingExecution !== true ||
+      result.comparison?.candidateNoUpstreamRuntime !== true ||
+      result.comparison?.passed !== true
+    ) {
+      throw new Error(`${id} paired build invariants did not pass`);
+    }
+
+    const variants = {};
+    for (const name of ["candidate", "upstream"]) {
+      const variant = result.variants?.[name];
+      const artifact = validateArtifact(variant?.artifact, `${id}/${name}`);
+      if (
+        variant.execution?.expected !== true ||
+        variant.execution?.checksum !== result.comparison.deterministicChecksum ||
+        variant.buildConfigSha256 !== result.variants.candidate.buildConfigSha256 ||
+        !Array.isArray(variant.moduleGraph?.modules) ||
+        variant.moduleGraph.sha256 !== moduleGraphHash(variant.moduleGraph)
+      ) {
+        throw new Error(`${id}/${name} build provenance is invalid`);
+      }
+      variants[name] = { ...variant, artifact };
+    }
+    if (variants.candidate.execution.result !== variants.upstream.execution.result) {
+      throw new Error(`${id} execution results differ`);
+    }
+    const candidateModuleIds = variants.candidate.moduleGraph.modules.map(({ id }) => id);
+    const candidateUpstream = candidateModuleIds.filter(
+      (module) =>
+        module.includes("node_modules/vue/") ||
+        module.includes("node_modules/@vue/") ||
+        module.includes("upstream/vue/"),
+    );
+    if (
+      variants.candidate.resolution?.kind !== "vuelil-package-alias" ||
+      variants.candidate.audit?.includesCandidateModule !== true ||
+      variants.candidate.audit?.noUpstreamRuntime !== true ||
+      variants.candidate.audit?.allEmittedAdapterCodeCounted !== true ||
+      candidateUpstream.length !== 0 ||
+      !candidateModuleIds.some((module) => module.startsWith("packages/vuelil/"))
+    ) {
+      throw new Error(`${id} candidate did not prove VueLil-only module independence`);
+    }
+    if (
+      !Array.isArray(variants.upstream.audit?.upstreamRuntimeModules) ||
+      variants.upstream.audit.upstreamRuntimeModules.length === 0
+    ) {
+      throw new Error(`${id} upstream graph does not contain installed Vue`);
+    }
+    for (const adapter of variants.candidate.audit.adapters ?? []) {
+      validateFileEvidence(adapter, `${id} host adapter`);
+    }
+    return { ...result, variants };
   });
-  if (sourceManifestHash(inputFiles) !== report.input.sha256) {
-    throw new Error("project input source hash is invalid");
-  }
-  if (report.input.importSpecifier !== "vue") {
-    throw new Error("project source must import the public vue specifier");
-  }
-  if (
-    report.comparison?.sameInput !== true ||
-    report.comparison?.sameBuildConfig !== true ||
-    report.comparison?.onlyModuleResolutionChanged !== true ||
-    report.comparison?.onlyResolutionAndBuildIntegrationChanged !== true ||
-    report.comparison?.matchingExecution !== true ||
-    report.comparison?.candidateNoUpstreamRuntime !== true ||
-    report.comparison?.passed !== true
-  ) {
-    throw new Error("paired project build invariants did not pass");
-  }
-  const variants = {};
-  for (const name of ["candidate", "upstream"]) {
-    const variant = report.variants?.[name];
-    const path = artifactPath(variant?.artifact?.path, `${name} project bundle`);
-    const bytes = readFileSync(path);
-    if (
-      variant.artifact.bytes !== bytes.length ||
-      variant.artifact.sha256 !== sha256(bytes) ||
-      variant.execution?.expected !== true ||
-      variant.execution?.checksum !== report.comparison.deterministicChecksum
-    ) {
-      throw new Error(`${name} project bundle provenance or execution is invalid`);
-    }
-    if (
-      !Array.isArray(variant.moduleGraph?.modules) ||
-      variant.moduleGraph.sha256 !== moduleGraphHash(variant.moduleGraph)
-    ) {
-      throw new Error(`${name} project module graph hash is invalid`);
-    }
-    variants[name] = { ...variant, artifactPath: path };
-  }
-  if (
-    report.variants.candidate.resolution?.target !==
-      "artifacts/reactivity.esm-browser.prod.js" ||
-    report.variants.candidate.audit?.noUpstreamRuntime !== true ||
-    report.variants.candidate.audit?.includesCandidateModule !== true ||
-    report.variants.candidate.audit?.upstreamRuntimeModules?.length !== 0
-  ) {
-    throw new Error("candidate module graph did not prove independence from Vue runtime code");
-  }
-  const integration = report.variants.candidate.resolution.integration;
-  const expectedNames = staticImportedNamesSync(
-    readFileSync(artifactPath(report.input.source, "project application source"), "utf8"),
-    report.input.importSpecifier,
+}
+
+function sumSizes(files) {
+  return files.reduce(
+    (total, file) => ({
+      raw: total.raw + file.sizes.raw,
+      gzip9: total.gzip9 + file.sizes.gzip9,
+      brotli11: total.brotli11 + file.sizes.brotli11,
+    }),
+    { raw: 0, gzip9: 0, brotli11: 0 },
   );
-  if (
-    integration?.kind !== "lilscript-static-export-selection" ||
-    integration.applicationSource !== report.input.source ||
-    JSON.stringify(integration.staticExportNames) !== JSON.stringify(expectedNames)
-  ) {
-    throw new Error("candidate production exports were not derived from the application source");
-  }
-  validateFileEvidence(integration.selectedArtifact, "selected reactivity artifact");
-  validateFileEvidence(integration.reusableArtifact, "reusable reactivity artifact");
-  validateFileEvidence(integration.lilscriptSource, "complete reactivity source");
-  validateFileEvidence(integration.selectedLilscriptSource, "selected reactivity source");
-  validateFileEvidence(integration.productionConfig, "reactivity production config");
-  validateFileEvidence(integration.hostAdapter, "reactivity host adapter");
-  validateFileEvidence(integration.parser?.packageJson, "static import parser package");
-  const accounting = report.variants.candidate.audit.hostAdapterAccounting;
-  const selectedModule = report.variants.candidate.moduleGraph.modules.find(
-    ({ id }) => id === report.variants.candidate.resolution.target,
-  );
-  if (
-    accounting?.sourceBytes !== integration.hostAdapter.bytes ||
-    accounting.selectedModuleRenderedBytes !== selectedModule?.renderedBytes ||
-    accounting.emittedJavaScriptBytes !== report.variants.candidate.artifact.bytes ||
-    accounting.emittedJavaScriptChunks !== 1 ||
-    accounting.adapterExternalized !== false ||
-    accounting.allEmittedAdapterCodeCounted !== true
-  ) {
-    throw new Error("candidate host-adapter byte accounting is invalid");
-  }
-  if (
-    !Array.isArray(report.variants.upstream.audit?.upstreamRuntimeModules) ||
-    report.variants.upstream.audit.upstreamRuntimeModules.length === 0
-  ) {
-    throw new Error("upstream module graph does not contain the installed Vue runtime");
-  }
-  const reusableCandidate = report.diagnostics?.reusableCandidate;
-  const reusableCandidatePath = artifactPath(
-    reusableCandidate?.artifact?.path,
-    "reusable candidate diagnostic bundle",
-  );
-  const reusableBytes = readFileSync(reusableCandidatePath);
-  if (
-    reusableCandidate.artifact.bytes !== reusableBytes.length ||
-    reusableCandidate.artifact.sha256 !== sha256(reusableBytes) ||
-    reusableCandidate.execution?.checksum !== report.comparison.deterministicChecksum ||
-    reusableCandidate.audit?.includesCandidateModule !== true ||
-    reusableCandidate.audit?.noUpstreamRuntime !== true ||
-    reusableCandidate.moduleGraph?.sha256 !== moduleGraphHash(reusableCandidate.moduleGraph)
-  ) {
-    throw new Error("reusable candidate retained-code diagnostic is invalid");
-  }
-  const candidateStat = statSync(variants.candidate.artifactPath);
-  const upstreamStat = statSync(variants.upstream.artifactPath);
-  if (
-    realpathSync(variants.candidate.artifactPath) ===
-      realpathSync(variants.upstream.artifactPath) ||
-    (candidateStat.dev === upstreamStat.dev && candidateStat.ino === upstreamStat.ino)
-  ) {
-    throw new Error("candidate and upstream resolve to the same project bundle");
-  }
+}
+
+function measuredArtifact(variant, measurements) {
+  const files = variant.artifact.files.map((file) => {
+    const measurement = measurements.get(file.path);
+    if (!measurement) throw new Error(`missing canonical measurement for ${file.path}`);
+    return {
+      path: file.path,
+      bytes: file.bytes,
+      sha256: file.sha256,
+      sizes: {
+        raw: measurement.raw,
+        gzip9: measurement.gzip,
+        brotli11: measurement.brotli,
+      },
+    };
+  });
   return {
-    scenario,
-    variants,
-    reusableCandidate: { ...reusableCandidate, artifactPath: reusableCandidatePath },
+    path: variant.artifact.entry,
+    sha256: variant.artifact.sha256,
+    files,
+    sizes: sumSizes(files),
+    buildSha256: variant.artifact.sha256,
   };
 }
 
@@ -284,88 +275,66 @@ export function measure() {
   }
   const buildReportBytes = readFileSync(buildReportPath);
   const buildReport = JSON.parse(buildReportBytes);
-  const { scenario, variants, reusableCandidate } = validateProjectBuildReport(
-    buildReport,
-    scope,
+  const scenarios = validateProjectBuildReport(buildReport, scope);
+  const paths = scenarios.flatMap(({ variants }) =>
+    ["candidate", "upstream"].flatMap((name) =>
+      variants[name].artifact.files.map(({ absolutePath }) => absolutePath),
+    ),
   );
-  const measurements = canonicalCodecMeasurementsForFiles(
-    [
-      variants.candidate.artifactPath,
-      variants.upstream.artifactPath,
-      reusableCandidate.artifactPath,
-    ],
-    "VueLil paired actual-project bundles",
+  const measured = canonicalCodecMeasurementsForFiles(
+    paths,
+    "VueLil paired actual-project deploy assets",
   );
-  const candidate = artifactEvidence(
-    variants.candidate.artifactPath,
-    measurements[0],
-    variants.candidate.artifact,
+  const measurements = new Map(
+    measured.map((entry) => [relative(projectRoot, entry.path), entry]),
   );
-  const upstream = artifactEvidence(
-    variants.upstream.artifactPath,
-    measurements[1],
-    variants.upstream.artifact,
-  );
-  const reusable = artifactEvidence(
-    reusableCandidate.artifactPath,
-    measurements[2],
-    reusableCandidate.artifact,
-  );
-  const sizePassed = candidate.sizes.brotli11 < upstream.sizes.brotli11;
-  const scenarioResult = {
-    id: scenario.id,
-    completionRequired: scenario.completionRequired,
-    status: sizePassed ? "passed" : "failed",
-    input: buildReport.input,
-    execution: {
-      deterministicChecksum: buildReport.comparison.deterministicChecksum,
-      matching: true,
-    },
-    build: {
-      commonConfigSha256: buildReport.toolchain.commonConfigSha256,
-      onlyModuleResolutionChanged: true,
-    },
-    moduleAudit: {
-      candidate: {
-        ...buildReport.variants.candidate.audit,
-        graph: buildReport.variants.candidate.moduleGraph,
+
+  const scenarioResults = scenarios.map((result) => {
+    const candidate = measuredArtifact(result.variants.candidate, measurements);
+    const upstream = measuredArtifact(result.variants.upstream, measurements);
+    const sizePassed = candidate.sizes.brotli11 < upstream.sizes.brotli11;
+    return {
+      id: result.scenario.id,
+      completionRequired: true,
+      status: sizePassed ? "passed" : "failed",
+      input: result.input,
+      execution: {
+        deterministicChecksum: result.comparison.deterministicChecksum,
+        matching: true,
       },
-      upstream: {
-        upstreamRuntimeModules:
-          buildReport.variants.upstream.audit.upstreamRuntimeModules,
-        graph: buildReport.variants.upstream.moduleGraph,
+      build: {
+        commonConfigSha256: buildReport.toolchain.commonConfigSha256,
+        scenarioConfigSha256: result.variants.candidate.buildConfigSha256,
+        onlyModuleResolutionChanged: true,
       },
-      passed: true,
-    },
-    candidate,
-    upstream,
-    comparison: {
-      deltaBytes: delta(candidate, upstream),
-      ratio: ratio(candidate, upstream),
-      smallerBrotli11: sizePassed,
-    },
-    retainedCodeDiagnosis: {
-      reusableCandidate: reusable,
-      selectedCandidate: candidate,
-      removedBytes: {
-        raw: reusable.sizes.raw - candidate.sizes.raw,
-        gzip9: reusable.sizes.gzip9 - candidate.sizes.gzip9,
-        brotli11: reusable.sizes.brotli11 - candidate.sizes.brotli11,
+      moduleAudit: {
+        candidate: {
+          ...result.variants.candidate.audit,
+          graph: result.variants.candidate.moduleGraph,
+        },
+        upstream: {
+          upstreamRuntimeModules:
+            result.variants.upstream.audit.upstreamRuntimeModules,
+          graph: result.variants.upstream.moduleGraph,
+        },
+        passed: true,
       },
-      reusableModuleGraph: reusableCandidate.moduleGraph,
-      selectedModuleGraph: buildReport.variants.candidate.moduleGraph,
-    },
-    passed: sizePassed,
-  };
-  const requiredIds = scope.bundleScenarios
-    .filter(({ completionRequired }) => completionRequired)
-    .map(({ id }) => id);
-  const passedIds = scenarioResult.completionRequired && scenarioResult.passed
-    ? [scenarioResult.id]
-    : [];
-  const missingIds = requiredIds.filter((id) => id !== scenarioResult.id);
-  const requiredPassed =
-    missingIds.length === 0 && requiredIds.every((id) => passedIds.includes(id));
+      candidate,
+      upstream,
+      comparison: {
+        deltaBytes: delta(candidate, upstream),
+        ratio: ratio(candidate, upstream),
+        smallerBrotli11: sizePassed,
+      },
+      passed: sizePassed,
+    };
+  });
+  const requiredIds = scenarios.map(({ scenario }) => scenario.id);
+  const passedIds = scenarioResults.filter(({ passed }) => passed).map(({ id }) => id);
+  const measuredIds = new Set(scenarioResults.map(({ id }) => id));
+  const missingIds = requiredIds.filter((id) => !measuredIds.has(id));
+  const failedIds = scenarioResults.filter(({ passed }) => !passed).map(({ id }) => id);
+  const requiredPassed = missingIds.length === 0 && failedIds.length === 0;
   const report = {
     schemaVersion: 2,
     generatedBy: "scripts/measure.mjs",
@@ -387,28 +356,30 @@ export function measure() {
       sha256: sha256(buildReportBytes),
     },
     methodology:
-      "Paired production application builds use one unchanged source tree and identical Vite/Oxc settings. The candidate resolution derives static vue imports and compiles that LilScript-owned surface before Vite; every emitted host-adapter byte remains in the measured bundle. Library distribution files do not count toward completion.",
-    objective: "Every completion-required project has a smaller candidate Brotli-11 bundle.",
+      "Each required real application is built twice from identical source and identical Vite 8/Rolldown/Oxc production settings. Only Vue package resolution changes. Candidate graphs contain only VueLil implementation modules, with retained inlined host-adapter code counted. Every emitted deployment asset is scored independently and summed; published Vue distribution sizes are not used as the gate.",
+    objective: "Every completion-required project has a smaller candidate Brotli-11 deployment.",
     toolchain: buildReport.toolchain,
     codecs: canonicalCodecProvenance("VueLil actual-project size evidence"),
-    scenarios: [scenarioResult],
+    scenarios: scenarioResults,
     requiredScenarios: {
       ids: requiredIds,
       passedIds,
       missingIds,
+      failedIds,
       passed: requiredPassed,
     },
     passed: requiredPassed,
   };
   mkdirSync(dirname(reportPath), { recursive: true });
   writeFileSync(reportPath, `${JSON.stringify(report, null, 2)}\n`);
+  for (const result of scenarioResults) {
+    console.log(
+      `${result.id}: candidate raw/gzip9/brotli11 ${result.candidate.sizes.raw}/${result.candidate.sizes.gzip9}/${result.candidate.sizes.brotli11}; ` +
+        `upstream ${result.upstream.sizes.raw}/${result.upstream.sizes.gzip9}/${result.upstream.sizes.brotli11}; ${result.status}.`,
+    );
+  }
   console.log(
-    `${scenario.id}: candidate raw/gzip9/brotli11 ${candidate.sizes.raw}/${candidate.sizes.gzip9}/${candidate.sizes.brotli11}; ` +
-      `upstream ${upstream.sizes.raw}/${upstream.sizes.gzip9}/${upstream.sizes.brotli11}; ` +
-      `diagnostic ${sizePassed ? "passed" : "failed"}.`,
-  );
-  console.log(
-    `Final project-size gate remains ${requiredPassed ? "passed" : "pending"}: ${missingIds.length} required scenarios are unmeasured.`,
+    `Required project-size gate ${requiredPassed ? "passed" : "failed"}: ${passedIds.length}/${requiredIds.length} strict Brotli-11 wins.`,
   );
   return report;
 }

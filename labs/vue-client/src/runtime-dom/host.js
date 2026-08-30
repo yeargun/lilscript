@@ -1,20 +1,14 @@
-// DOM and ECMAScript primitives used by the LilScript runtime-dom kernel.
+// DOM and ECMAScript primitives used by the LilScript runtime-dom owners.
 
 const doc = typeof document !== "undefined" ? document : null;
 const templateContainer = doc && doc.createElement("template");
 
-let trustedTypesPolicy;
-const trustedTypes = typeof window !== "undefined" && window.trustedTypes;
-if (trustedTypes) {
-  try {
-    trustedTypesPolicy = trustedTypes.createPolicy("vue", { createHTML: value => value });
-  } catch (error) {
-    console.warn(`[Vue warn]: Error creating trusted types policy: ${error}`);
-  }
+export function hostTrustedTypes() {
+  return typeof window !== "undefined" ? window.trustedTypes : undefined;
 }
 
-export function hostUnsafeToTrustedHTML(value) {
-  return trustedTypesPolicy ? trustedTypesPolicy.createHTML(value) : value;
+export function hostCreateTrustedTypesPolicy(trustedTypes, name, createHTML) {
+  return trustedTypes.createPolicy(name, { createHTML });
 }
 
 export function hostInsert(child, parent, anchor) {
@@ -100,6 +94,10 @@ export function hostCloneNode(node) {
   return node.cloneNode(true);
 }
 
+export function hostCloneNodeShallow(node) {
+  return node.cloneNode();
+}
+
 export function hostAppendChild(parent, child) {
   parent.appendChild(child);
 }
@@ -150,6 +148,10 @@ export function hostArrayFrom(value) {
 
 export function hostArraySlice(value) {
   return value.slice();
+}
+
+export function hostArgumentsSlice(value, start) {
+  return Array.prototype.slice.call(value, start);
 }
 
 export function hostArraySplice(value, index, count) {
@@ -216,6 +218,24 @@ export function hostCallWithEventArgs(fn, event, args) {
   return Reflect.apply(fn, undefined, [event, ...args]);
 }
 
+export function hostApply(fn, receiver, args) {
+  return Reflect.apply(fn, receiver, args);
+}
+
+export function hostFunctionRest(callback) {
+  return function (...args) {
+    return callback(args);
+  };
+}
+
+export function hostFunction1Rest(name, callback) {
+  const fn = function (first) {
+    return Reflect.apply(callback, undefined, [this, arguments]);
+  };
+  Object.defineProperty(fn, "name", { configurable: true, value: name });
+  return fn;
+}
+
 export function hostEventRestWrapper(callback) {
   return function (event, ...args) {
     return callback(event, args);
@@ -244,6 +264,185 @@ export function hostPromiseThen(promise, callback) {
 
 export function hostCreateSymbol(description) {
   return Symbol(description);
+}
+
+export function hostCreateObject() {
+  return {};
+}
+
+export function hostCreateNullObject() {
+  return Object.create(null);
+}
+
+export function hostCreateMap() {
+  return new Map();
+}
+
+export function hostCreateWeakMap() {
+  return new WeakMap();
+}
+
+export function hostCreateWeakSet() {
+  return new WeakSet();
+}
+
+export function hostSetPrototypeOf(value, prototype) {
+  Object.setPrototypeOf(value, prototype);
+}
+
+export function hostGetPrototypeOf(value) {
+  return Object.getPrototypeOf(value);
+}
+
+export function hostDefineValue(value, key, next, writable = true) {
+  Object.defineProperty(value, key, {
+    configurable: false,
+    enumerable: false,
+    writable,
+    value: next,
+  });
+}
+
+export function hostDefineAccessor(value, key, get, set) {
+  Object.defineProperty(value, key, {
+    configurable: false,
+    enumerable: false,
+    get,
+    set,
+  });
+}
+
+export function hostDefineMethod(prototype, key, method) {
+  Object.defineProperty(method, "name", { configurable: true, value: key });
+  Object.defineProperty(prototype, key, {
+    configurable: true,
+    enumerable: false,
+    writable: true,
+    value: method,
+  });
+}
+
+export function hostCreateVueElementClass(initialize, methods) {
+  const Base = typeof HTMLElement !== "undefined" ? HTMLElement : class {};
+  class VueElement extends Base {
+    constructor(def, ...args) {
+      super();
+      Reflect.apply(initialize, this, [def, args[0], args[1]]);
+    }
+  }
+  for (const [name, method] of Object.entries(methods)) {
+    hostDefineMethod(VueElement.prototype, name, method);
+  }
+  return VueElement;
+}
+
+export function hostCreateCustomElementClass(base, definition, createApp) {
+  class VueCustomElement extends base {
+    static def = definition;
+    constructor(initialProps) {
+      super(definition, initialProps, createApp);
+    }
+  }
+  return VueCustomElement;
+}
+
+export function hostInstanceOf(value, constructor) {
+  return typeof constructor === "function" && value instanceof constructor;
+}
+
+export function hostIsElement(value) {
+  return typeof Element !== "undefined" && value instanceof Element;
+}
+
+export function hostIsStyleElement(value) {
+  return typeof HTMLStyleElement !== "undefined" && value instanceof HTMLStyleElement;
+}
+
+export function hostIsClosedShadowRoot(value) {
+  return (
+    typeof window !== "undefined" &&
+    typeof window.ShadowRoot === "function" &&
+    value instanceof window.ShadowRoot &&
+    value.mode === "closed"
+  );
+}
+
+export function hostResolveRootNamespace(value) {
+  if (typeof SVGElement !== "undefined" && value instanceof SVGElement) return "svg";
+  if (typeof MathMLElement === "function" && value instanceof MathMLElement) return "mathml";
+  return undefined;
+}
+
+export function hostIsDocumentOrShadowRoot(value) {
+  return (
+    (typeof Document !== "undefined" && value instanceof Document) ||
+    (typeof ShadowRoot !== "undefined" && value instanceof ShadowRoot)
+  );
+}
+
+export function hostCreateMutationObserver(callback) {
+  return new MutationObserver(callback);
+}
+
+export function hostCreateCustomEvent(name, options) {
+  return new CustomEvent(name, options);
+}
+
+export function hostCreateEvent(name) {
+  return new Event(name);
+}
+
+export function hostCreateStyleElement() {
+  return document.createElement("style");
+}
+
+export function hostCreateTreeWalker(root, whatToShow) {
+  return document.createTreeWalker(root, whatToShow);
+}
+
+export function hostQuerySelectorAll(selector) {
+  return document.querySelectorAll(selector);
+}
+
+export function hostGetComputedStyle(element) {
+  return window.getComputedStyle(element);
+}
+
+export function hostRequestAnimationFrame(callback) {
+  return requestAnimationFrame(callback);
+}
+
+export function hostSetTimeout(callback, timeout) {
+  return setTimeout(callback, timeout);
+}
+
+export function hostNumber(value) {
+  return Number(value);
+}
+
+export function hostNumberIsFinite(value) {
+  return Number.isFinite(value);
+}
+
+export function hostMathAbs(value) {
+  return Math.abs(value);
+}
+
+export function hostMathMax(left, right) {
+  return Math.max(left, right);
+}
+
+export function hostBodyOffsetHeight(node) {
+  const targetDocument = node ? node.ownerDocument : document;
+  return targetDocument.body.offsetHeight;
+}
+
+export function hostConstructors() {
+  return { Array, Boolean, Function, Number, Object, String };
+}
+
+export function hostIsNumberConstructor(value) {
+  return value === Number;
 }
 
 export function hostActiveElementIs(element) {

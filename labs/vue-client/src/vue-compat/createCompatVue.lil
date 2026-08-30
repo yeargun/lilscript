@@ -1,0 +1,550 @@
+import { initDev } from "./dev";
+import extern {
+  BaseTransition,
+  BaseTransitionPropsValidators,
+  Comment,
+  DeprecationTypes,
+  EffectScope,
+  ErrorCodes,
+  ErrorTypeStrings,
+  Fragment,
+  KeepAlive,
+  ReactiveEffect,
+  Static,
+  Suspense,
+  Teleport,
+  Text,
+  TrackOpTypes,
+  Transition,
+  TransitionGroup,
+  TriggerOpTypes,
+  VueElement,
+  assertNumber,
+  callWithAsyncErrorHandling,
+  callWithErrorHandling,
+  camelize,
+  capitalize,
+  cloneVNode,
+  compatUtils,
+  computed,
+  createApp as runtimeCreateApp,
+  createBlock,
+  createCommentVNode,
+  createElementBlock,
+  createElementVNode,
+  createHydrationRenderer,
+  createPropsRestProxy,
+  createRenderer,
+  createSSRApp,
+  createSlots,
+  createStaticVNode,
+  createTextVNode,
+  createVNode,
+  customRef,
+  defineAsyncComponent,
+  defineComponent,
+  defineCustomElement,
+  defineEmits,
+  defineExpose,
+  defineModel,
+  defineOptions,
+  defineProps,
+  defineSSRCustomElement,
+  defineSlots,
+  devtools,
+  effect,
+  effectScope,
+  getCurrentInstance,
+  getCurrentScope,
+  getCurrentWatcher,
+  getTransitionRawChildren,
+  guardReactiveProps,
+  h,
+  handleError,
+  hasInjectionContext,
+  hydrate,
+  hydrateOnIdle,
+  hydrateOnInteraction,
+  hydrateOnMediaQuery,
+  hydrateOnVisible,
+  initCustomFormatter,
+  initDirectivesForSSR,
+  inject,
+  isMemoSame,
+  isProxy,
+  isReactive,
+  isReadonly,
+  isRef,
+  isRuntimeOnly,
+  isShallow,
+  isVNode,
+  markRaw,
+  mergeDefaults,
+  mergeModels,
+  mergeProps,
+  nextTick,
+  nodeOps,
+  normalizeClass,
+  normalizeProps,
+  normalizeStyle,
+  onActivated,
+  onBeforeMount,
+  onBeforeUnmount,
+  onBeforeUpdate,
+  onDeactivated,
+  onErrorCaptured,
+  onMounted,
+  onRenderTracked,
+  onRenderTriggered,
+  onScopeDispose,
+  onServerPrefetch,
+  onUnmounted,
+  onUpdated,
+  onWatcherCleanup,
+  openBlock,
+  patchProp,
+  popScopeId,
+  provide,
+  proxyRefs,
+  pushScopeId,
+  queuePostFlushCb,
+  reactive,
+  readonly,
+  ref,
+  registerRuntimeCompiler,
+  render,
+  renderList,
+  renderSlot,
+  resolveComponent,
+  resolveDirective,
+  resolveDynamicComponent,
+  resolveFilter,
+  resolveTransitionHooks,
+  setBlockTracking,
+  setDevtoolsHook,
+  setTransitionHooks,
+  shallowReactive,
+  shallowReadonly,
+  shallowRef,
+  ssrContextKey,
+  ssrUtils,
+  stop,
+  toDisplayString,
+  toHandlerKey,
+  toHandlers,
+  toRaw,
+  toRef,
+  toRefs,
+  toValue,
+  transformVNodeArgs,
+  triggerRef,
+  unref,
+  useAttrs,
+  useCssModule,
+  useCssVars,
+  useHost,
+  useId,
+  useModel,
+  useSSRContext,
+  useShadowRoot,
+  useSlots,
+  useTemplateRef,
+  useTransitionState,
+  vModelCheckbox,
+  vModelDynamic,
+  vModelRadio,
+  vModelSelect,
+  vModelText,
+  vShow,
+  version,
+  warn,
+  watch,
+  watchEffect,
+  watchPostEffect,
+  watchSyncEffect,
+  withAsyncContext,
+  withCtx,
+  withDefaults,
+  withDirectives,
+  withKeys,
+  withMemo,
+  withModifiers,
+  withScopeId
+} from "../../packages/vuelil/runtime-dom.js";
+import extern { extend as sharedExtend } from "../../packages/vuelil/shared.js";
+
+extern JsValue BaseTransition;
+extern JsValue BaseTransitionPropsValidators;
+extern JsValue Comment;
+extern JsValue DeprecationTypes;
+extern JsValue EffectScope;
+extern JsValue ErrorCodes;
+extern JsValue ErrorTypeStrings;
+extern JsValue Fragment;
+extern JsValue KeepAlive;
+extern JsValue ReactiveEffect;
+extern JsValue Static;
+extern JsValue Suspense;
+extern JsValue Teleport;
+extern JsValue Text;
+extern JsValue TrackOpTypes;
+extern JsValue Transition;
+extern JsValue TransitionGroup;
+extern JsValue TriggerOpTypes;
+extern JsValue VueElement;
+extern JsValue assertNumber;
+extern JsValue callWithAsyncErrorHandling;
+extern JsValue callWithErrorHandling;
+extern JsValue camelize;
+extern JsValue capitalize;
+extern JsValue cloneVNode;
+extern JsValue compatUtils;
+extern JsValue computed;
+extern JsValue runtimeCreateApp;
+extern JsValue createBlock;
+extern JsValue createCommentVNode;
+extern JsValue createElementBlock;
+extern JsValue createElementVNode;
+extern JsValue createHydrationRenderer;
+extern JsValue createPropsRestProxy;
+extern JsValue createRenderer;
+extern JsValue createSSRApp;
+extern JsValue createSlots;
+extern JsValue createStaticVNode;
+extern JsValue createTextVNode;
+extern JsValue createVNode;
+extern JsValue customRef;
+extern JsValue defineAsyncComponent;
+extern JsValue defineComponent;
+extern JsValue defineCustomElement;
+extern JsValue defineEmits;
+extern JsValue defineExpose;
+extern JsValue defineModel;
+extern JsValue defineOptions;
+extern JsValue defineProps;
+extern JsValue defineSSRCustomElement;
+extern JsValue defineSlots;
+extern JsValue devtools;
+extern JsValue effect;
+extern JsValue effectScope;
+extern JsValue getCurrentInstance;
+extern JsValue getCurrentScope;
+extern JsValue getCurrentWatcher;
+extern JsValue getTransitionRawChildren;
+extern JsValue guardReactiveProps;
+extern JsValue h;
+extern JsValue handleError;
+extern JsValue hasInjectionContext;
+extern JsValue hydrate;
+extern JsValue hydrateOnIdle;
+extern JsValue hydrateOnInteraction;
+extern JsValue hydrateOnMediaQuery;
+extern JsValue hydrateOnVisible;
+extern JsValue initCustomFormatter;
+extern JsValue initDirectivesForSSR;
+extern JsValue inject;
+extern JsValue isMemoSame;
+extern JsValue isProxy;
+extern JsValue isReactive;
+extern JsValue isReadonly;
+extern JsValue isRef;
+extern JsValue isRuntimeOnly;
+extern JsValue isShallow;
+extern JsValue isVNode;
+extern JsValue markRaw;
+extern JsValue mergeDefaults;
+extern JsValue mergeModels;
+extern JsValue mergeProps;
+extern JsValue nextTick;
+extern JsValue nodeOps;
+extern JsValue normalizeClass;
+extern JsValue normalizeProps;
+extern JsValue normalizeStyle;
+extern JsValue onActivated;
+extern JsValue onBeforeMount;
+extern JsValue onBeforeUnmount;
+extern JsValue onBeforeUpdate;
+extern JsValue onDeactivated;
+extern JsValue onErrorCaptured;
+extern JsValue onMounted;
+extern JsValue onRenderTracked;
+extern JsValue onRenderTriggered;
+extern JsValue onScopeDispose;
+extern JsValue onServerPrefetch;
+extern JsValue onUnmounted;
+extern JsValue onUpdated;
+extern JsValue onWatcherCleanup;
+extern JsValue openBlock;
+extern JsValue patchProp;
+extern JsValue popScopeId;
+extern JsValue provide;
+extern JsValue proxyRefs;
+extern JsValue pushScopeId;
+extern JsValue queuePostFlushCb;
+extern JsValue reactive;
+extern JsValue readonly;
+extern JsValue ref;
+extern JsValue registerRuntimeCompiler;
+extern JsValue render;
+extern JsValue renderList;
+extern JsValue renderSlot;
+extern JsValue resolveComponent;
+extern JsValue resolveDirective;
+extern JsValue resolveDynamicComponent;
+extern JsValue resolveFilter;
+extern JsValue resolveTransitionHooks;
+extern JsValue setBlockTracking;
+extern JsValue setDevtoolsHook;
+extern JsValue setTransitionHooks;
+extern JsValue shallowReactive;
+extern JsValue shallowReadonly;
+extern JsValue shallowRef;
+extern JsValue ssrContextKey;
+extern JsValue ssrUtils;
+extern JsValue stop;
+extern JsValue toDisplayString;
+extern JsValue toHandlerKey;
+extern JsValue toHandlers;
+extern JsValue toRaw;
+extern JsValue toRef;
+extern JsValue toRefs;
+extern JsValue toValue;
+extern JsValue transformVNodeArgs;
+extern JsValue triggerRef;
+extern JsValue unref;
+extern JsValue useAttrs;
+extern JsValue useCssModule;
+extern JsValue useCssVars;
+extern JsValue useHost;
+extern JsValue useId;
+extern JsValue useModel;
+extern JsValue useSSRContext;
+extern JsValue useShadowRoot;
+extern JsValue useSlots;
+extern JsValue useTemplateRef;
+extern JsValue useTransitionState;
+extern JsValue vModelCheckbox;
+extern JsValue vModelDynamic;
+extern JsValue vModelRadio;
+extern JsValue vModelSelect;
+extern JsValue vModelText;
+extern JsValue vShow;
+extern JsValue version;
+extern JsValue warn;
+extern JsValue watch;
+extern JsValue watchEffect;
+extern JsValue watchPostEffect;
+extern JsValue watchSyncEffect;
+extern JsValue withAsyncContext;
+extern JsValue withCtx;
+extern JsValue withDefaults;
+extern JsValue withDirectives;
+extern JsValue withKeys;
+extern JsValue withMemo;
+extern JsValue withModifiers;
+extern JsValue withScopeId;
+extern JsValue sharedExtend;
+bool CREATE_COMPAT_DEV = true;
+
+JsValue runtimeDom = JS.object(
+  "BaseTransition", BaseTransition,
+  "BaseTransitionPropsValidators", BaseTransitionPropsValidators,
+  "Comment", Comment,
+  "DeprecationTypes", DeprecationTypes,
+  "EffectScope", EffectScope,
+  "ErrorCodes", ErrorCodes,
+  "ErrorTypeStrings", ErrorTypeStrings,
+  "Fragment", Fragment,
+  "KeepAlive", KeepAlive,
+  "ReactiveEffect", ReactiveEffect,
+  "Static", Static,
+  "Suspense", Suspense,
+  "Teleport", Teleport,
+  "Text", Text,
+  "TrackOpTypes", TrackOpTypes,
+  "Transition", Transition,
+  "TransitionGroup", TransitionGroup,
+  "TriggerOpTypes", TriggerOpTypes,
+  "VueElement", VueElement,
+  "assertNumber", assertNumber,
+  "callWithAsyncErrorHandling", callWithAsyncErrorHandling,
+  "callWithErrorHandling", callWithErrorHandling,
+  "camelize", camelize,
+  "capitalize", capitalize,
+  "cloneVNode", cloneVNode,
+  "compatUtils", compatUtils,
+  "computed", computed,
+  "createApp", runtimeCreateApp,
+  "createBlock", createBlock,
+  "createCommentVNode", createCommentVNode,
+  "createElementBlock", createElementBlock,
+  "createElementVNode", createElementVNode,
+  "createHydrationRenderer", createHydrationRenderer,
+  "createPropsRestProxy", createPropsRestProxy,
+  "createRenderer", createRenderer,
+  "createSSRApp", createSSRApp,
+  "createSlots", createSlots,
+  "createStaticVNode", createStaticVNode,
+  "createTextVNode", createTextVNode,
+  "createVNode", createVNode,
+  "customRef", customRef,
+  "defineAsyncComponent", defineAsyncComponent,
+  "defineComponent", defineComponent,
+  "defineCustomElement", defineCustomElement,
+  "defineEmits", defineEmits,
+  "defineExpose", defineExpose,
+  "defineModel", defineModel,
+  "defineOptions", defineOptions,
+  "defineProps", defineProps,
+  "defineSSRCustomElement", defineSSRCustomElement,
+  "defineSlots", defineSlots,
+  "devtools", devtools,
+  "effect", effect,
+  "effectScope", effectScope,
+  "getCurrentInstance", getCurrentInstance,
+  "getCurrentScope", getCurrentScope,
+  "getCurrentWatcher", getCurrentWatcher,
+  "getTransitionRawChildren", getTransitionRawChildren,
+  "guardReactiveProps", guardReactiveProps,
+  "h", h,
+  "handleError", handleError,
+  "hasInjectionContext", hasInjectionContext,
+  "hydrate", hydrate,
+  "hydrateOnIdle", hydrateOnIdle,
+  "hydrateOnInteraction", hydrateOnInteraction,
+  "hydrateOnMediaQuery", hydrateOnMediaQuery,
+  "hydrateOnVisible", hydrateOnVisible,
+  "initCustomFormatter", initCustomFormatter,
+  "initDirectivesForSSR", initDirectivesForSSR,
+  "inject", inject,
+  "isMemoSame", isMemoSame,
+  "isProxy", isProxy,
+  "isReactive", isReactive,
+  "isReadonly", isReadonly,
+  "isRef", isRef,
+  "isRuntimeOnly", isRuntimeOnly,
+  "isShallow", isShallow,
+  "isVNode", isVNode,
+  "markRaw", markRaw,
+  "mergeDefaults", mergeDefaults,
+  "mergeModels", mergeModels,
+  "mergeProps", mergeProps,
+  "nextTick", nextTick,
+  "nodeOps", nodeOps,
+  "normalizeClass", normalizeClass,
+  "normalizeProps", normalizeProps,
+  "normalizeStyle", normalizeStyle,
+  "onActivated", onActivated,
+  "onBeforeMount", onBeforeMount,
+  "onBeforeUnmount", onBeforeUnmount,
+  "onBeforeUpdate", onBeforeUpdate,
+  "onDeactivated", onDeactivated,
+  "onErrorCaptured", onErrorCaptured,
+  "onMounted", onMounted,
+  "onRenderTracked", onRenderTracked,
+  "onRenderTriggered", onRenderTriggered,
+  "onScopeDispose", onScopeDispose,
+  "onServerPrefetch", onServerPrefetch,
+  "onUnmounted", onUnmounted,
+  "onUpdated", onUpdated,
+  "onWatcherCleanup", onWatcherCleanup,
+  "openBlock", openBlock,
+  "patchProp", patchProp,
+  "popScopeId", popScopeId,
+  "provide", provide,
+  "proxyRefs", proxyRefs,
+  "pushScopeId", pushScopeId,
+  "queuePostFlushCb", queuePostFlushCb,
+  "reactive", reactive,
+  "readonly", readonly,
+  "ref", ref,
+  "registerRuntimeCompiler", registerRuntimeCompiler,
+  "render", render,
+  "renderList", renderList,
+  "renderSlot", renderSlot,
+  "resolveComponent", resolveComponent,
+  "resolveDirective", resolveDirective,
+  "resolveDynamicComponent", resolveDynamicComponent,
+  "resolveFilter", resolveFilter,
+  "resolveTransitionHooks", resolveTransitionHooks,
+  "setBlockTracking", setBlockTracking,
+  "setDevtoolsHook", setDevtoolsHook,
+  "setTransitionHooks", setTransitionHooks,
+  "shallowReactive", shallowReactive,
+  "shallowReadonly", shallowReadonly,
+  "shallowRef", shallowRef,
+  "ssrContextKey", ssrContextKey,
+  "ssrUtils", ssrUtils,
+  "stop", stop,
+  "toDisplayString", toDisplayString,
+  "toHandlerKey", toHandlerKey,
+  "toHandlers", toHandlers,
+  "toRaw", toRaw,
+  "toRef", toRef,
+  "toRefs", toRefs,
+  "toValue", toValue,
+  "transformVNodeArgs", transformVNodeArgs,
+  "triggerRef", triggerRef,
+  "unref", unref,
+  "useAttrs", useAttrs,
+  "useCssModule", useCssModule,
+  "useCssVars", useCssVars,
+  "useHost", useHost,
+  "useId", useId,
+  "useModel", useModel,
+  "useSSRContext", useSSRContext,
+  "useShadowRoot", useShadowRoot,
+  "useSlots", useSlots,
+  "useTemplateRef", useTemplateRef,
+  "useTransitionState", useTransitionState,
+  "vModelCheckbox", vModelCheckbox,
+  "vModelDynamic", vModelDynamic,
+  "vModelRadio", vModelRadio,
+  "vModelSelect", vModelSelect,
+  "vModelText", vModelText,
+  "vShow", vShow,
+  "version", version,
+  "warn", warn,
+  "watch", watch,
+  "watchEffect", watchEffect,
+  "watchPostEffect", watchPostEffect,
+  "watchSyncEffect", watchSyncEffect,
+  "withAsyncContext", withAsyncContext,
+  "withCtx", withCtx,
+  "withDefaults", withDefaults,
+  "withDirectives", withDirectives,
+  "withKeys", withKeys,
+  "withMemo", withMemo,
+  "withModifiers", withModifiers,
+  "withScopeId", withScopeId
+);
+
+if (CREATE_COMPAT_DEV) initDev();
+
+JsValue wrappedCreateApp = JS.methodRest((JsValue _self, JsValue args) => {
+  JsValue app = JS.apply(runtimeCreateApp, JS.undefined(), args);
+  if (JS.call(
+    compatUtils["isCompatEnabled"],
+    compatUtils,
+    DeprecationTypes["RENDER_FUNCTION"],
+    null
+  ).truthy()) {
+    JS.invoke(app, "component", "__compat__transition", Transition);
+    JS.invoke(app, "component", "__compat__transition-group", TransitionGroup);
+    JS.invoke(app, "component", "__compat__keep-alive", KeepAlive);
+    app["_context"]["directives"]["show"] = vShow;
+    app["_context"]["directives"]["model"] = vModelDynamic;
+  }
+  return app;
+});
+
+export JsValue createCompatVue() {
+  JsValue Vue = JS.call(
+    compatUtils["createCompatVue"],
+    compatUtils,
+    runtimeCreateApp,
+    wrappedCreateApp
+  );
+  JS.call(sharedExtend, JS.undefined(), Vue, runtimeDom);
+  return Vue;
+}

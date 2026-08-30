@@ -498,6 +498,12 @@ export void finishComponentSetup(
       resetTracking();
       JS.call(reset, componentUndefined());
     }
+    if (
+      COMPONENT_SSR && !isSSR &&
+      resolveMergedOptions(instance)["serverPrefetch"].truthy()
+    ) {
+      markAsyncBoundary(instance);
+    }
   }
 
   if (

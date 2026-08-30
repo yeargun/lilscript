@@ -218,6 +218,7 @@ JsValue postClone) {
   element[leaveCbKey] = JS.undefined();if (JS.strictEqual(leavingVNodesCache[leaveKey], vnode)) {
     JS.delete(leavingVNodesCache, leaveKey);
   }
+  if (vnode["component"].truthy() && vnode["component"]["isUnmounted"].truthy()) vnode = null;
   return JS.undefined(); });JsValue done = JS.invoke(element[leaveCbKey], "bind", null, false);leavingVNodesCache[leaveKey] = vnode;if (onLeave.truthy()) {
     callAsyncTransitionHook(onLeave, JS.array(element, done), instance);
   } else {

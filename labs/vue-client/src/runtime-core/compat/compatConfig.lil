@@ -10,7 +10,6 @@ import {
   console as compatConsole,
   globalThis as compatGlobal
 } from "../../shared/makeMap";
-import { arguments as compatArguments } from "../../shared/general";
 import {
   formatComponentName as compatFormatComponentName,
   getComponentName as compatGetComponentName,
@@ -309,7 +308,7 @@ export void warnDeprecation(
   JsValue config = getCompatConfigForKey(key, instance);
   if (JS.strictEqual(config, "suppress-warning")) return;
 
-  JsValue args = JS.call(compatArray["prototype"]["slice"], compatArguments, 2);
+  JsValue args = JS.array(_arg0, _arg1, _arg2);
   string duplicateKey = key + JS.string(JS.invoke(args, "join", ""));
   JsValue componentId = null;
   if (instance.truthy()) componentId = compatFormatComponentName(instance, instance["type"]);
@@ -413,7 +412,7 @@ export void assertCompatEnabled(
   if (!isCompatEnabled(key, instance)) {
     throw JS.construct(compatGlobal["Error"], key + " compat has been disabled.");
   }
-  if (COMPAT_DEV) JS.apply(warnDeprecation, JS.undefined(), compatArguments);
+  if (COMPAT_DEV) warnDeprecation(key, instance, _arg0, _arg1, _arg2);
 }
 
 export bool softAssertCompatEnabled(
@@ -423,7 +422,7 @@ export bool softAssertCompatEnabled(
   JsValue _arg1 = JS.undefined(),
   JsValue _arg2 = JS.undefined()
 ) {
-  if (COMPAT_DEV) JS.apply(warnDeprecation, JS.undefined(), compatArguments);
+  if (COMPAT_DEV) warnDeprecation(key, instance, _arg0, _arg1, _arg2);
   return isCompatEnabled(key, instance);
 }
 
@@ -435,7 +434,7 @@ export bool checkCompatEnabled(
   JsValue _arg2 = JS.undefined()
 ) {
   bool enabled = isCompatEnabled(key, instance);
-  if (COMPAT_DEV && enabled) JS.apply(warnDeprecation, JS.undefined(), compatArguments);
+  if (COMPAT_DEV && enabled) warnDeprecation(key, instance, _arg0, _arg1, _arg2);
   return enabled;
 }
 

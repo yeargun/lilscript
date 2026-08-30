@@ -1,0 +1,23 @@
+import { vtcKey } from "../components/Transition";
+import extern { hostArrayFrom, hostRead, hostRemoveAttribute, hostSetAttribute, hostString, hostWrite } from "../host.js";
+
+extern JsValue hostArrayFrom(JsValue value);
+extern JsValue hostRead(JsValue value, JsValue key);
+extern void hostRemoveAttribute(JsValue element, string name);
+extern void hostSetAttribute(JsValue element, string name, JsValue value);
+extern string hostString(JsValue value);
+extern void hostWrite(JsValue value, JsValue key, JsValue next);
+
+export void patchClass(JsValue element, JsValue value, bool isSVG) {
+  JsValue transitionClasses = hostRead(element, vtcKey);
+  if (!JS.isNullish(transitionClasses) && transitionClasses.truthy()) {
+    JsValue classes = hostArrayFrom(transitionClasses);
+    if (!JS.isNullish(value) && hostString(value) != "") {
+      JS.invoke(classes, "unshift", value);
+    }
+    value = JS.invoke(classes, "join", " ");
+  }
+  if (JS.isNullish(value)) hostRemoveAttribute(element, "class");
+  else if (isSVG) hostSetAttribute(element, "class", value);
+  else hostWrite(element, "className", value);
+}

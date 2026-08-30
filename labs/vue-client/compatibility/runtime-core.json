@@ -5,55 +5,90 @@
     "version": "3.5.42",
     "revision": "d63616ca17de965ed32dcb449a4c5cd9982f15d2"
   },
-  "status": "partial",
+  "status": "runtime-complete",
   "runtimeExports": [
+    "BaseTransition",
+    "BaseTransitionPropsValidators",
     "Comment",
+    "DeprecationTypes",
     "EffectScope",
+    "ErrorCodes",
+    "ErrorTypeStrings",
     "Fragment",
+    "KeepAlive",
     "ReactiveEffect",
     "Static",
+    "Suspense",
+    "Teleport",
     "Text",
     "TrackOpTypes",
     "TriggerOpTypes",
+    "assertNumber",
+    "callWithAsyncErrorHandling",
+    "callWithErrorHandling",
     "camelize",
     "capitalize",
     "cloneVNode",
+    "compatUtils",
     "computed",
     "createBlock",
     "createCommentVNode",
     "createElementBlock",
     "createElementVNode",
+    "createHydrationRenderer",
+    "createPropsRestProxy",
     "createRenderer",
+    "createSlots",
     "createStaticVNode",
     "createTextVNode",
     "createVNode",
     "customRef",
+    "defineAsyncComponent",
     "defineComponent",
+    "defineEmits",
+    "defineExpose",
+    "defineModel",
+    "defineOptions",
+    "defineProps",
+    "defineSlots",
+    "devtools",
     "effect",
     "effectScope",
     "getCurrentInstance",
     "getCurrentScope",
     "getCurrentWatcher",
+    "getTransitionRawChildren",
     "guardReactiveProps",
     "h",
+    "handleError",
     "hasInjectionContext",
+    "hydrateOnIdle",
+    "hydrateOnInteraction",
+    "hydrateOnMediaQuery",
+    "hydrateOnVisible",
+    "initCustomFormatter",
     "inject",
     "isMemoSame",
     "isProxy",
     "isReactive",
     "isReadonly",
     "isRef",
+    "isRuntimeOnly",
     "isShallow",
     "isVNode",
     "markRaw",
+    "mergeDefaults",
+    "mergeModels",
     "mergeProps",
     "nextTick",
     "normalizeClass",
     "normalizeProps",
     "normalizeStyle",
+    "onActivated",
     "onBeforeMount",
     "onBeforeUnmount",
     "onBeforeUpdate",
+    "onDeactivated",
     "onErrorCaptured",
     "onMounted",
     "onRenderTracked",
@@ -72,14 +107,22 @@
     "reactive",
     "readonly",
     "ref",
+    "registerRuntimeCompiler",
     "renderList",
+    "renderSlot",
     "resolveComponent",
     "resolveDirective",
     "resolveDynamicComponent",
+    "resolveFilter",
+    "resolveTransitionHooks",
     "setBlockTracking",
+    "setDevtoolsHook",
+    "setTransitionHooks",
     "shallowReactive",
     "shallowReadonly",
     "shallowRef",
+    "ssrContextKey",
+    "ssrUtils",
     "stop",
     "toDisplayString",
     "toHandlerKey",
@@ -91,97 +134,63 @@
     "transformVNodeArgs",
     "triggerRef",
     "unref",
+    "useAttrs",
+    "useId",
+    "useModel",
+    "useSSRContext",
+    "useSlots",
+    "useTemplateRef",
+    "useTransitionState",
     "version",
+    "warn",
     "watch",
     "watchEffect",
     "watchPostEffect",
     "watchSyncEffect",
+    "withAsyncContext",
     "withCtx",
+    "withDefaults",
     "withDirectives",
     "withMemo",
     "withScopeId"
   ],
+  "runtimeExportCount": 146,
   "testOnlyExports": [
-    "KeepAlive",
-    "LifecycleHooks",
     "SchedulerJobFlags",
-    "Teleport",
-    "blockStack",
-    "cloneIfMounted",
-    "closeBlock",
+    "SuspenseImpl",
     "createAppAPI",
-    "createAppContext",
-    "createBaseVNode",
-    "createComponentInstance",
-    "createInternalObject",
-    "createSetupContext",
-    "currentApp",
-    "currentBlock",
     "currentInstance",
-    "currentRenderingInstance",
-    "currentScopeId",
     "flushPostFlushCbs",
     "flushPreFlushCbs",
-    "getComponentName",
-    "injectHook",
+    "formatComponentName",
     "isBlockTreeEnabled",
-    "isClassComponent",
-    "isInSSRComponentSetup",
-    "isSameVNodeType",
-    "normalizeChildren",
+    "isEmitListener",
     "normalizeVNode",
-    "onActivated",
-    "onDeactivated",
     "queueJob",
-    "renderComponentRoot",
+    "resetSuspenseId",
     "setCurrentInstance",
-    "setCurrentRenderingInstance",
-    "setInSSRSetupState",
-    "setupComponent",
-    "unsetCurrentInstance",
-    "warn"
+    "setCurrentRenderingInstance"
   ],
   "upstreamTests": {
-    "files": 12,
-    "tests": 244,
+    "files": 44,
+    "filesPassed": 44,
+    "tests": 1076,
+    "passed": 1076,
+    "failed": 0,
     "status": "passed",
     "runner": "npx --yes node@24 tests/runtime-core-upstream.runner.mjs",
     "unchangedFiles": [
       {
-        "path": "packages/runtime-core/__tests__/h.spec.ts",
-        "tests": 6
-      },
-      {
-        "path": "packages/runtime-core/__tests__/helpers/renderList.spec.ts",
-        "tests": 13
-      },
-      {
-        "path": "packages/runtime-core/__tests__/helpers/toHandlers.spec.ts",
-        "tests": 2
-      },
-      {
-        "path": "packages/runtime-core/__tests__/scheduler.spec.ts",
-        "tests": 39
-      },
-      {
-        "path": "packages/runtime-core/__tests__/rendererElement.spec.ts",
-        "tests": 6
-      },
-      {
-        "path": "packages/runtime-core/__tests__/rendererChildren.spec.ts",
-        "tests": 38
-      },
-      {
-        "path": "packages/runtime-core/__tests__/rendererFragment.spec.ts",
-        "tests": 13
-      },
-      {
-        "path": "packages/runtime-core/__tests__/rendererComponent.spec.ts",
-        "tests": 16
+        "path": "packages/runtime-core/__tests__/apiAsyncComponent.spec.ts",
+        "tests": 25
       },
       {
         "path": "packages/runtime-core/__tests__/apiCreateApp.spec.ts",
         "tests": 22
+      },
+      {
+        "path": "packages/runtime-core/__tests__/apiExpose.spec.ts",
+        "tests": 11
       },
       {
         "path": "packages/runtime-core/__tests__/apiInject.spec.ts",
@@ -192,112 +201,175 @@
         "tests": 14
       },
       {
+        "path": "packages/runtime-core/__tests__/apiOptions.spec.ts",
+        "tests": 48
+      },
+      {
+        "path": "packages/runtime-core/__tests__/apiSetupContext.spec.ts",
+        "tests": 7
+      },
+      {
+        "path": "packages/runtime-core/__tests__/apiSetupHelpers.spec.ts",
+        "tests": 20
+      },
+      {
+        "path": "packages/runtime-core/__tests__/apiWatch.spec.ts",
+        "tests": 85
+      },
+      {
+        "path": "packages/runtime-core/__tests__/component.spec.ts",
+        "tests": 9
+      },
+      {
+        "path": "packages/runtime-core/__tests__/componentEmits.spec.ts",
+        "tests": 28
+      },
+      {
+        "path": "packages/runtime-core/__tests__/componentProps.spec.ts",
+        "tests": 28
+      },
+      {
+        "path": "packages/runtime-core/__tests__/componentPublicInstance.spec.ts",
+        "tests": 20
+      },
+      {
+        "path": "packages/runtime-core/__tests__/componentSlots.spec.ts",
+        "tests": 17
+      },
+      {
+        "path": "packages/runtime-core/__tests__/components/BaseTransition.spec.ts",
+        "tests": 39
+      },
+      {
+        "path": "packages/runtime-core/__tests__/components/KeepAlive.spec.ts",
+        "tests": 32
+      },
+      {
+        "path": "packages/runtime-core/__tests__/components/Suspense.spec.ts",
+        "tests": 59
+      },
+      {
+        "path": "packages/runtime-core/__tests__/components/Teleport.spec.ts",
+        "tests": 56
+      },
+      {
+        "path": "packages/runtime-core/__tests__/directives.spec.ts",
+        "tests": 7
+      },
+      {
+        "path": "packages/runtime-core/__tests__/errorHandling.spec.ts",
+        "tests": 21
+      },
+      {
+        "path": "packages/runtime-core/__tests__/h.spec.ts",
+        "tests": 6
+      },
+      {
+        "path": "packages/runtime-core/__tests__/helpers/createSlots.spec.ts",
+        "tests": 6
+      },
+      {
+        "path": "packages/runtime-core/__tests__/helpers/renderList.spec.ts",
+        "tests": 13
+      },
+      {
+        "path": "packages/runtime-core/__tests__/helpers/renderSlot.spec.ts",
+        "tests": 14
+      },
+      {
+        "path": "packages/runtime-core/__tests__/helpers/resolveAssets.spec.ts",
+        "tests": 7
+      },
+      {
+        "path": "packages/runtime-core/__tests__/helpers/toHandlers.spec.ts",
+        "tests": 2
+      },
+      {
+        "path": "packages/runtime-core/__tests__/helpers/useId.spec.ts",
+        "tests": 8
+      },
+      {
+        "path": "packages/runtime-core/__tests__/helpers/useModel.spec.ts",
+        "tests": 15
+      },
+      {
+        "path": "packages/runtime-core/__tests__/helpers/useTemplateRef.spec.ts",
+        "tests": 15
+      },
+      {
+        "path": "packages/runtime-core/__tests__/helpers/withMemo.spec.ts",
+        "tests": 9
+      },
+      {
+        "path": "packages/runtime-core/__tests__/hmr.spec.ts",
+        "tests": 25
+      },
+      {
+        "path": "packages/runtime-core/__tests__/hydration.spec.ts",
+        "tests": 125
+      },
+      {
+        "path": "packages/runtime-core/__tests__/misc.spec.ts",
+        "tests": 1
+      },
+      {
+        "path": "packages/runtime-core/__tests__/rendererAttrsFallthrough.spec.ts",
+        "tests": 22
+      },
+      {
+        "path": "packages/runtime-core/__tests__/rendererChildren.spec.ts",
+        "tests": 38
+      },
+      {
+        "path": "packages/runtime-core/__tests__/rendererComponent.spec.ts",
+        "tests": 16
+      },
+      {
+        "path": "packages/runtime-core/__tests__/rendererElement.spec.ts",
+        "tests": 6
+      },
+      {
+        "path": "packages/runtime-core/__tests__/rendererFragment.spec.ts",
+        "tests": 13
+      },
+      {
+        "path": "packages/runtime-core/__tests__/rendererOptimizedMode.spec.ts",
+        "tests": 35
+      },
+      {
+        "path": "packages/runtime-core/__tests__/rendererTemplateRef.spec.ts",
+        "tests": 24
+      },
+      {
+        "path": "packages/runtime-core/__tests__/scheduler.spec.ts",
+        "tests": 39
+      },
+      {
+        "path": "packages/runtime-core/__tests__/scopeId.spec.ts",
+        "tests": 12
+      },
+      {
         "path": "packages/runtime-core/__tests__/vnode.spec.ts",
         "tests": 56
+      },
+      {
+        "path": "packages/runtime-core/__tests__/vnodeHooks.spec.ts",
+        "tests": 2
       }
     ]
   },
   "differentialTests": {
-    "tests": 8,
+    "tests": 9,
     "status": "passed",
     "runner": "node --test tests/runtime-core-core.test.mjs"
   },
-  "unsupportedRuntimeExports": [
-    "BaseTransition",
-    "BaseTransitionPropsValidators",
-    "DeprecationTypes",
-    "ErrorCodes",
-    "ErrorTypeStrings",
-    "KeepAlive",
-    "Suspense",
-    "Teleport",
-    "assertNumber",
-    "callWithAsyncErrorHandling",
-    "callWithErrorHandling",
-    "compatUtils",
-    "createHydrationRenderer",
-    "createPropsRestProxy",
-    "createSlots",
-    "defineAsyncComponent",
-    "defineEmits",
-    "defineExpose",
-    "defineModel",
-    "defineOptions",
-    "defineProps",
-    "defineSlots",
-    "devtools",
-    "getTransitionRawChildren",
-    "handleError",
-    "hydrateOnIdle",
-    "hydrateOnInteraction",
-    "hydrateOnMediaQuery",
-    "hydrateOnVisible",
-    "initCustomFormatter",
-    "isRuntimeOnly",
-    "mergeDefaults",
-    "mergeModels",
-    "onActivated",
-    "onDeactivated",
-    "registerRuntimeCompiler",
-    "renderSlot",
-    "resolveFilter",
-    "resolveTransitionHooks",
-    "setDevtoolsHook",
-    "setTransitionHooks",
-    "ssrContextKey",
-    "ssrUtils",
-    "useAttrs",
-    "useId",
-    "useModel",
-    "useSSRContext",
-    "useSlots",
-    "useTemplateRef",
-    "useTransitionState",
-    "warn",
-    "withAsyncContext",
-    "withDefaults"
-  ],
-  "unsupportedAreas": [
-    "hydration renderer and hydration mismatch handling",
-    "advanced component option, public proxy, props validation, emits validation, slots, and expose edge cases",
-    "built-in Teleport, Suspense, KeepAlive, and transition components",
-    "complete directive edge cases, renderSlot, and createSlots",
-    "async components and hydration strategies",
-    "SSR, devtools, HMR, error-boundary, and Vue 2 compatibility integration",
-    "runtime-core declaration surface and package formats"
-  ],
-  "unsupportedUpstreamTestFiles": [
-    "packages/runtime-core/__tests__/apiAsyncComponent.spec.ts",
-    "packages/runtime-core/__tests__/apiExpose.spec.ts",
-    "packages/runtime-core/__tests__/apiOptions.spec.ts",
-    "packages/runtime-core/__tests__/apiSetupContext.spec.ts",
-    "packages/runtime-core/__tests__/apiSetupHelpers.spec.ts",
-    "packages/runtime-core/__tests__/apiWatch.spec.ts",
-    "packages/runtime-core/__tests__/component.spec.ts",
-    "packages/runtime-core/__tests__/componentEmits.spec.ts",
-    "packages/runtime-core/__tests__/componentProps.spec.ts",
-    "packages/runtime-core/__tests__/componentPublicInstance.spec.ts",
-    "packages/runtime-core/__tests__/componentSlots.spec.ts",
-    "packages/runtime-core/__tests__/components/BaseTransition.spec.ts",
-    "packages/runtime-core/__tests__/components/KeepAlive.spec.ts",
-    "packages/runtime-core/__tests__/components/Suspense.spec.ts",
-    "packages/runtime-core/__tests__/components/Teleport.spec.ts",
-    "packages/runtime-core/__tests__/directives.spec.ts",
-    "packages/runtime-core/__tests__/errorHandling.spec.ts",
-    "packages/runtime-core/__tests__/helpers/createSlots.spec.ts",
-    "packages/runtime-core/__tests__/helpers/renderSlot.spec.ts",
-    "packages/runtime-core/__tests__/helpers/resolveAssets.spec.ts",
-    "packages/runtime-core/__tests__/helpers/useId.spec.ts",
-    "packages/runtime-core/__tests__/helpers/useModel.spec.ts",
-    "packages/runtime-core/__tests__/helpers/useTemplateRef.spec.ts",
-    "packages/runtime-core/__tests__/helpers/withMemo.spec.ts",
-    "packages/runtime-core/__tests__/hmr.spec.ts",
-    "packages/runtime-core/__tests__/hydration.spec.ts",
-    "packages/runtime-core/__tests__/misc.spec.ts",
-    "packages/runtime-core/__tests__/rendererAttrsFallthrough.spec.ts",
-    "packages/runtime-core/__tests__/rendererOptimizedMode.spec.ts",
-    "packages/runtime-core/__tests__/rendererTemplateRef.spec.ts",
-    "packages/runtime-core/__tests__/scopeId.spec.ts",
-    "packages/runtime-core/__tests__/vnodeHooks.spec.ts"
-  ]
+  "sourceParity": {
+    "requiredFiles": 65,
+    "deterministicFilesPresent": 65,
+    "verifiedExactMappings": 65,
+    "unverifiedFiles": []
+  },
+  "unsupportedRuntimeExports": [],
+  "unsupportedAreas": [],
+  "unsupportedUpstreamTestFiles": []
 }

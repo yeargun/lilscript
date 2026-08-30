@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "oracle": {
+    "package": "@vue/shared",
+    "version": "3.5.42",
+    "revision": "d63616ca17de965ed32dcb449a4c5cd9982f15d2"
+  },
+  "status": "runtime-complete",
+  "runtimeExportCount": 73,
+  "upstreamTests": {
+    "files": 6,
+    "filesPassed": 6,
+    "tests": 62,
+    "passed": 62,
+    "failed": 0,
+    "status": "passed",
+    "runner": "npm run test:upstream:shared"
+  }
+}

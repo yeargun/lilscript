@@ -1,0 +1,118 @@
+import extern {
+  createApp as stringCreateApp,
+  createVNode as stringCreateVNode,
+  ssrContextKey as stringContextKey,
+  ssrUtils as stringSsrUtils
+} from "../../packages/vuelil/runtime-dom.js";
+import extern {
+  isPromise as stringIsPromise,
+  isString as stringIsString
+} from "../../packages/vuelil/shared.js";
+import { renderComponentVNode } from "./render";
+
+extern JsValue stringCreateApp;
+extern JsValue stringCreateVNode;
+extern JsValue stringContextKey;
+extern JsValue stringSsrUtils;
+extern bool stringIsPromise(JsValue value);
+extern bool stringIsString(JsValue value);
+
+JsValue stringIsVNode = stringSsrUtils["isVNode"];
+
+JsValue nestedUnrollBuffer(
+  JsValue buffer,
+  string parentRet,
+  int startIndex
+) {
+  if (!buffer["hasAsync"].truthy()) {
+    return parentRet + unrollBufferSync(buffer);
+  }
+  string ret = parentRet;
+  int length = JS.number(buffer["length"]).toInt();
+  for (int index = startIndex; index < length; index += 1) {
+    JsValue item = buffer[index];
+    if (stringIsString(item)) {
+      ret += JS.string(item);
+      continue;
+    }
+    if (stringIsPromise(item)) {
+      return JS.invoke(item, "then", JS.method1((JsValue _self, JsValue nestedItem) => {
+        buffer[index] = nestedItem;
+        return nestedUnrollBuffer(buffer, ret, index);
+      }));
+    }
+    JsValue result = nestedUnrollBuffer(item, ret, 0);
+    if (stringIsPromise(result)) {
+      return JS.invoke(result, "then", JS.method1((JsValue _self, JsValue nestedItem) => {
+        buffer[index] = nestedItem;
+        return nestedUnrollBuffer(buffer, "", index);
+      }));
+    }
+    ret = JS.string(result);
+  }
+  return ret;
+}
+
+export JsValue unrollBuffer(JsValue buffer) {
+  return nestedUnrollBuffer(buffer, "", 0);
+}
+
+string unrollBufferSync(JsValue buffer) {
+  string ret = "";
+  int length = JS.number(buffer["length"]).toInt();
+  for (int index = 0; index < length; index++) {
+    JsValue item = buffer[index];
+    if (stringIsString(item)) ret += JS.string(item);
+    else ret += unrollBufferSync(item);
+  }
+  return ret;
+}
+
+export async JsValue renderToString(
+  JsValue input,
+  JsValue context = JS.undefined()
+) {
+  if (JS.isUndefined(context)) context = JS.object();
+  if (JS.call(stringIsVNode, JS.undefined(), input).truthy()) {
+    JsValue component = JS.object(
+      "render",
+      JS.method0((JsValue _self) => input)
+    );
+    JsValue app = JS.call(stringCreateApp, JS.undefined(), component);
+    return await renderToString(app, context);
+  }
+  JsValue vnode = JS.call(
+    stringCreateVNode,
+    JS.undefined(),
+    input["_component"],
+    input["_props"]
+  );
+  vnode["appContext"] = input["_context"];
+  JS.invoke(input, "provide", stringContextKey, context);
+  JsValue buffer = await Task.resolve(renderComponentVNode(vnode));
+  JsValue result = await Task.resolve(unrollBuffer(buffer));
+  await resolveTeleports(context);
+  JsValue watcherHandles = context["__watcherHandles"];
+  if (watcherHandles.truthy()) {
+    int length = JS.number(watcherHandles["length"]).toInt();
+    for (int index = 0; index < length; index++) {
+      JS.call(watcherHandles[index], JS.undefined());
+    }
+  }
+  return result;
+}
+
+export async JsValue resolveTeleports(JsValue context) {
+  JsValue teleportBuffers = context["__teleportBuffers"];
+  if (teleportBuffers.truthy()) {
+    JsValue teleports = context["teleports"];
+    if (!teleports.truthy()) {
+      teleports = JS.object();
+      context["teleports"] = teleports;
+    }
+    for (string key in teleportBuffers) {
+      teleports[key] = await Task.resolve(unrollBuffer(teleportBuffers[key]));
+    }
+  }
+  return JS.undefined();
+}

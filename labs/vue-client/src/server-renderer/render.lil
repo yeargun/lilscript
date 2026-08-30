@@ -1,0 +1,485 @@
+import extern {
+  Comment as renderComment,
+  ErrorCodes as renderErrorCodes,
+  Fragment as renderFragment,
+  Static as renderStatic,
+  Text as renderText,
+  handleError as renderHandleError,
+  mergeProps as renderMergeProps,
+  ssrUtils as renderSsrUtils,
+  warn as renderWarn
+} from "../../packages/vuelil/runtime-dom.js";
+import extern {
+  NOOP as renderNOOP,
+  ShapeFlags as renderShapeFlags,
+  escapeHtml as renderEscapeHtml,
+  escapeHtmlComment as renderEscapeHtmlComment,
+  hasOwn as renderHasOwn,
+  isArray as renderIsArray,
+  isFunction as renderIsFunction,
+  isPromise as renderIsPromise,
+  isString as renderIsString,
+  isVoidTag as renderIsVoidTag
+} from "../../packages/vuelil/shared.js";
+import { ssrRenderAttrs } from "./helpers/ssrRenderAttrs";
+import { ssrCompile } from "./helpers/ssrCompile";
+import { ssrRenderTeleport } from "./helpers/ssrRenderTeleport";
+
+extern JsValue renderComment;
+extern JsValue renderErrorCodes;
+extern JsValue renderFragment;
+extern JsValue renderStatic;
+extern JsValue renderText;
+extern JsValue renderHandleError;
+extern JsValue renderMergeProps;
+extern JsValue renderSsrUtils;
+extern JsValue renderWarn;
+extern JsValue renderNOOP;
+extern JsValue renderShapeFlags;
+extern string renderEscapeHtml(JsValue value);
+extern string renderEscapeHtmlComment(string value);
+extern bool renderHasOwn(JsValue value, JsValue key);
+extern bool renderIsArray(JsValue value);
+extern bool renderIsFunction(JsValue value);
+extern bool renderIsPromise(JsValue value);
+extern bool renderIsString(JsValue value);
+extern bool renderIsVoidTag(string value);
+extern JsValue Object;
+extern JsValue Promise;
+extern JsValue __DEV__;
+
+JsValue createComponentInstance = renderSsrUtils["createComponentInstance"];
+JsValue setCurrentRenderingInstance = renderSsrUtils["setCurrentRenderingInstance"];
+JsValue setupComponent = renderSsrUtils["setupComponent"];
+JsValue renderComponentRoot = renderSsrUtils["renderComponentRoot"];
+JsValue normalizeVNode = renderSsrUtils["normalizeVNode"];
+JsValue pushWarningContext = renderSsrUtils["pushWarningContext"];
+JsValue popWarningContext = renderSsrUtils["popWarningContext"];
+
+int renderLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+
+void renderPush(JsValue push, JsValue item) {
+  JS.call(push, JS.undefined(), item);
+}
+
+int renderShape(string name) {
+  return JS.number(renderShapeFlags[name]).toInt();
+}
+
+export JsValue createBuffer() {
+  bool appendable = false;
+  JsValue buffer = JS.array();
+  JsValue getBuffer = JS.method0((JsValue _self) => buffer);
+  JsValue push = JS.method1((JsValue _self, JsValue item) => {
+    bool stringItem = renderIsString(item);
+    int length = renderLength(buffer);
+    if (appendable && stringItem) {
+      buffer[length - 1] = JS.string(buffer[length - 1]) + JS.string(item);
+      return JS.undefined();
+    }
+    buffer[length] = item;
+    appendable = stringItem;
+    if (
+      renderIsPromise(item) ||
+      (renderIsArray(item) && item["hasAsync"].truthy())
+    ) {
+      buffer["hasAsync"] = true;
+    }
+    return JS.undefined();
+  });
+  return JS.object("getBuffer", getBuffer, "push", push);
+}
+
+export JsValue renderComponentVNode(
+  JsValue vnode,
+  JsValue parentComponent = JS.undefined(),
+  JsValue slotScopeId = JS.undefined()
+) {
+  if (JS.isUndefined(parentComponent)) parentComponent = null;
+  JsValue instance = JS.call(
+    createComponentInstance,
+    JS.undefined(),
+    vnode,
+    parentComponent,
+    null
+  );
+  vnode["component"] = instance;
+  if (__DEV__.truthy()) JS.call(pushWarningContext, JS.undefined(), vnode);
+  JsValue result = JS.call(setupComponent, JS.undefined(), instance, true);
+  if (__DEV__.truthy()) JS.call(popWarningContext, JS.undefined());
+  bool hasAsyncSetup = renderIsPromise(result);
+  JsValue prefetches = instance["sp"];
+  if (hasAsyncSetup || prefetches.truthy()) {
+    JsValue promise = JS.invoke(Promise, "resolve", result);
+    promise = JS.invoke(promise, "then", JS.method0((JsValue _self) => {
+      if (hasAsyncSetup) prefetches = instance["sp"];
+      if (prefetches.truthy()) {
+        JsValue pending = JS.invoke(
+          prefetches,
+          "map",
+          JS.method1((JsValue _mapSelf, JsValue prefetch) => {
+            return JS.call(prefetch, instance["proxy"]);
+          })
+        );
+        return JS.invoke(Promise, "all", pending);
+      }
+      return JS.undefined();
+    }));
+    promise = JS.invoke(promise, "catch", renderNOOP);
+    return JS.invoke(promise, "then", JS.method0((JsValue _self) => {
+      return renderComponentSubTree(instance, slotScopeId);
+    }));
+  }
+  try {
+    return renderComponentSubTree(instance, slotScopeId);
+  } catch (JsValue error) {
+    return JS.invoke(Promise, "reject", error);
+  }
+}
+
+JsValue renderComponentSubTree(JsValue instance, JsValue slotScopeId) {
+  if (__DEV__.truthy()) {
+    JS.call(pushWarningContext, JS.undefined(), instance["vnode"]);
+  }
+  JsValue component = instance["type"];
+  JsValue bufferState = createBuffer();
+  JsValue getBuffer = bufferState["getBuffer"];
+  JsValue push = bufferState["push"];
+  if (renderIsFunction(component)) {
+    JsValue root = JS.call(renderComponentRoot, JS.undefined(), instance);
+    if (!component["props"].truthy()) {
+      JsValue attrs = instance["attrs"];
+      for (string key in attrs) {
+        if (key.startsWith("data-v-")) {
+          JsValue rootProps = root["props"];
+          if (!rootProps.truthy()) {
+            rootProps = JS.object();
+            root["props"] = rootProps;
+          }
+          rootProps[key] = "";
+        }
+      }
+    }
+    instance["subTree"] = root;
+    renderVNode(push, root, instance, slotScopeId);
+  } else {
+    if (
+      (!instance["render"].truthy() || JS.strictEqual(instance["render"], renderNOOP)) &&
+      !instance["ssrRender"].truthy() &&
+      !component["ssrRender"].truthy() &&
+      renderIsString(component["template"])
+    ) {
+      component["ssrRender"] = ssrCompile(
+        JS.string(component["template"]),
+        instance
+      );
+    }
+    JsValue ssrRender = instance["ssrRender"];
+    if (!ssrRender.truthy()) ssrRender = component["ssrRender"];
+    if (ssrRender.truthy()) {
+      JsValue attrs = JS.undefined();
+      if (!JS.strictEqual(instance["inheritAttrs"], false)) attrs = instance["attrs"];
+      bool hasCloned = false;
+      JsValue current = instance;
+      while (true) {
+        JsValue scopeId = current["vnode"]["scopeId"];
+        if (scopeId.truthy()) {
+          if (!hasCloned) {
+            attrs = JS.invoke(Object, "assign", JS.object(), attrs);
+            hasCloned = true;
+          }
+          attrs[scopeId] = "";
+        }
+        JsValue parent = current["parent"];
+        if (
+          parent.truthy() &&
+          parent["subTree"].truthy() &&
+          JS.strictEqual(parent["subTree"], current["vnode"])
+        ) {
+          current = parent;
+        } else {
+          break;
+        }
+      }
+      if (slotScopeId.truthy()) {
+        if (!hasCloned) attrs = JS.invoke(Object, "assign", JS.object(), attrs);
+        JsValue scopeIds = JS.invoke(JS.string(slotScopeId).trim(), "split", " ");
+        int length = renderLength(scopeIds);
+        for (int index = 0; index < length; index++) attrs[scopeIds[index]] = "";
+      }
+      JsValue previous = JS.call(
+        setCurrentRenderingInstance,
+        JS.undefined(),
+        instance
+      );
+      try {
+        JS.call(
+          ssrRender,
+          JS.undefined(),
+          instance["proxy"],
+          push,
+          instance,
+          attrs,
+          instance["props"],
+          instance["setupState"],
+          instance["data"],
+          instance["ctx"]
+        );
+      } catch (JsValue error) {
+        JS.call(
+          renderHandleError,
+          JS.undefined(),
+          error,
+          instance,
+          renderErrorCodes["RENDER_FUNCTION"]
+        );
+      } finally {
+        JS.call(setCurrentRenderingInstance, JS.undefined(), previous);
+      }
+    } else if (
+      instance["render"].truthy() &&
+      !JS.strictEqual(instance["render"], renderNOOP)
+    ) {
+      JsValue root = JS.call(renderComponentRoot, JS.undefined(), instance);
+      instance["subTree"] = root;
+      renderVNode(push, root, instance, slotScopeId);
+    } else {
+      JsValue componentName = component["name"];
+      if (!componentName.truthy()) componentName = component["__file"];
+      if (!componentName.truthy()) componentName = "<Anonymous>";
+      JS.call(
+        renderWarn,
+        JS.undefined(),
+        "Component " + JS.string(componentName) +
+        " is missing template or render function."
+      );
+      renderPush(push, "<!---->");
+    }
+  }
+  if (__DEV__.truthy()) JS.call(popWarningContext, JS.undefined());
+  return JS.call(getBuffer, JS.undefined());
+}
+
+export void renderVNode(
+  JsValue push,
+  JsValue vnode,
+  JsValue parentComponent,
+  JsValue slotScopeId = JS.undefined()
+) {
+  JsValue type = vnode["type"];
+  int shapeFlag = JS.number(vnode["shapeFlag"]).toInt();
+  JsValue children = vnode["children"];
+  JsValue dirs = vnode["dirs"];
+  JsValue props = vnode["props"];
+  if (dirs.truthy()) vnode["props"] = applySSRDirectives(vnode, props, dirs);
+  if (JS.strictEqual(type, renderText)) {
+    renderPush(push, renderEscapeHtml(children));
+  } else if (JS.strictEqual(type, renderComment)) {
+    if (children.truthy()) {
+      renderPush(
+        push,
+        "<!--" + renderEscapeHtmlComment(JS.string(children)) + "-->"
+      );
+    } else {
+      renderPush(push, "<!---->");
+    }
+  } else if (JS.strictEqual(type, renderStatic)) {
+    renderPush(push, children);
+  } else if (JS.strictEqual(type, renderFragment)) {
+    if (vnode["slotScopeIds"].truthy()) {
+      string inherited = "";
+      if (slotScopeId.truthy()) inherited = JS.string(slotScopeId) + " ";
+      slotScopeId = inherited + JS.string(
+        JS.invoke(vnode["slotScopeIds"], "join", " ")
+      );
+    }
+    renderPush(push, "<!--[-->");
+    renderVNodeChildren(push, children, parentComponent, slotScopeId);
+    renderPush(push, "<!--]-->");
+  } else if ((shapeFlag & renderShape("ELEMENT")) != 0) {
+    renderElementVNode(push, vnode, parentComponent, slotScopeId);
+  } else if ((shapeFlag & renderShape("COMPONENT")) != 0) {
+    renderPush(
+      push,
+      renderComponentVNode(vnode, parentComponent, slotScopeId)
+    );
+  } else if ((shapeFlag & renderShape("TELEPORT")) != 0) {
+    renderTeleportVNode(push, vnode, parentComponent, slotScopeId);
+  } else if ((shapeFlag & renderShape("SUSPENSE")) != 0) {
+    renderVNode(push, vnode["ssContent"], parentComponent, slotScopeId);
+  } else {
+    JS.call(
+      renderWarn,
+      JS.undefined(),
+      "[@vue/server-renderer] Invalid VNode type:",
+      type,
+      "(" + JS.typeOf(type) + ")"
+    );
+  }
+}
+
+export void renderVNodeChildren(
+  JsValue push,
+  JsValue children,
+  JsValue parentComponent,
+  JsValue slotScopeId = JS.undefined()
+) {
+  int length = renderLength(children);
+  for (int index = 0; index < length; index++) {
+    renderVNode(
+      push,
+      JS.call(normalizeVNode, JS.undefined(), children[index]),
+      parentComponent,
+      slotScopeId
+    );
+  }
+}
+
+void renderElementVNode(
+  JsValue push,
+  JsValue vnode,
+  JsValue parentComponent,
+  JsValue slotScopeId
+) {
+  string tag = JS.string(vnode["type"]);
+  JsValue props = vnode["props"];
+  JsValue children = vnode["children"];
+  int shapeFlag = JS.number(vnode["shapeFlag"]).toInt();
+  JsValue scopeId = vnode["scopeId"];
+  string openTag = "<" + tag;
+  if (props.truthy()) openTag += ssrRenderAttrs(props, tag);
+  JsValue renderedScopeIds = JS.array();
+  JsValue appendScopeId = JS.method1((JsValue _self, JsValue id) => {
+    if (
+      id.truthy() &&
+      (!props.truthy() || !renderHasOwn(props, id)) &&
+      !JS.invoke(renderedScopeIds, "includes", id).truthy()
+    ) {
+      openTag += " " + JS.string(id);
+      JS.invoke(renderedScopeIds, "push", id);
+    }
+    return JS.undefined();
+  });
+  if (scopeId.truthy()) JS.call(appendScopeId, JS.undefined(), scopeId);
+  JsValue currentParent = parentComponent;
+  JsValue currentVNode = vnode;
+  while (
+    currentParent.truthy() &&
+    JS.strictEqual(currentVNode, currentParent["subTree"])
+  ) {
+    currentVNode = currentParent["vnode"];
+    if (currentVNode["scopeId"].truthy()) {
+      JS.call(appendScopeId, JS.undefined(), currentVNode["scopeId"]);
+    }
+    currentParent = currentParent["parent"];
+  }
+  if (slotScopeId.truthy()) {
+    JsValue scopeIds = JS.invoke(JS.string(slotScopeId).trim(), "split", " ");
+    int length = renderLength(scopeIds);
+    for (int index = 0; index < length; index++) {
+      JS.call(appendScopeId, JS.undefined(), scopeIds[index]);
+    }
+  }
+  renderPush(push, openTag + ">");
+  if (!renderIsVoidTag(tag)) {
+    bool hasChildrenOverride = false;
+    if (props.truthy()) {
+      if (props["innerHTML"].truthy()) {
+        hasChildrenOverride = true;
+        renderPush(push, props["innerHTML"]);
+      } else if (props["textContent"].truthy()) {
+        hasChildrenOverride = true;
+        renderPush(push, renderEscapeHtml(props["textContent"]));
+      } else if (tag == "textarea" && props["value"].truthy()) {
+        hasChildrenOverride = true;
+        renderPush(push, renderEscapeHtml(props["value"]));
+      }
+    }
+    if (!hasChildrenOverride) {
+      if ((shapeFlag & renderShape("TEXT_CHILDREN")) != 0) {
+        renderPush(push, renderEscapeHtml(children));
+      } else if ((shapeFlag & renderShape("ARRAY_CHILDREN")) != 0) {
+        renderVNodeChildren(push, children, parentComponent, slotScopeId);
+      }
+    }
+    renderPush(push, "</" + tag + ">");
+  }
+}
+
+JsValue applySSRDirectives(JsValue vnode, JsValue rawProps, JsValue dirs) {
+  JsValue toMerge = JS.array();
+  int length = renderLength(dirs);
+  for (int index = 0; index < length; index++) {
+    JsValue binding = dirs[index];
+    JsValue getSSRProps = binding["dir"]["getSSRProps"];
+    if (getSSRProps.truthy()) {
+      JsValue props = JS.call(
+        getSSRProps,
+        JS.undefined(),
+        binding,
+        vnode
+      );
+      if (props.truthy()) JS.invoke(toMerge, "push", props);
+    }
+  }
+  JsValue arguments = JS.array();
+  JsValue base = rawProps;
+  if (!base.truthy()) base = JS.object();
+  arguments[0] = base;
+  for (int index = 0; index < renderLength(toMerge); index++) {
+    arguments[index + 1] = toMerge[index];
+  }
+  return JS.apply(renderMergeProps, JS.undefined(), arguments);
+}
+
+JsValue renderTeleportVNode(
+  JsValue push,
+  JsValue vnode,
+  JsValue parentComponent,
+  JsValue slotScopeId
+) {
+  JsValue props = vnode["props"];
+  JsValue target = null;
+  JsValue disabled = null;
+  if (props.truthy()) {
+    target = props["to"];
+    disabled = props["disabled"];
+  }
+  if (!target.truthy()) {
+    if (!disabled.truthy()) {
+      JS.call(
+        renderWarn,
+        JS.undefined(),
+        "[@vue/server-renderer] Teleport is missing target prop."
+      );
+    }
+    return JS.array();
+  }
+  if (!renderIsString(target)) {
+    JS.call(
+      renderWarn,
+      JS.undefined(),
+      "[@vue/server-renderer] Teleport target must be a query selector string."
+    );
+    return JS.array();
+  }
+  JsValue contentRender = JS.method1((JsValue _self, JsValue childPush) => {
+    renderVNodeChildren(
+      childPush,
+      vnode["children"],
+      parentComponent,
+      slotScopeId
+    );
+    return JS.undefined();
+  });
+  ssrRenderTeleport(
+    push,
+    contentRender,
+    JS.string(target),
+    disabled.truthy() || JS.strictEqual(disabled, ""),
+    parentComponent
+  );
+  return JS.undefined();
+}

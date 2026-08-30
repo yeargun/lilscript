@@ -1,0 +1,303 @@
+import extern { compile as compileSsrTemplate } from "../../../packages/vuelil/compiler-ssr.js";
+import extern {
+  NO as compileNO,
+  extend as compileExtend,
+  generateCodeFrame as compileGenerateCodeFrame,
+  isFunction as compileIsFunction
+} from "../../../packages/vuelil/shared.js";
+import extern {
+  BaseTransition as compileVueBaseTransition,
+  Fragment as compileVueFragment,
+  KeepAlive as compileVueKeepAlive,
+  Suspense as compileVueSuspense,
+  Teleport as compileVueTeleport,
+  Transition as compileVueTransition,
+  TransitionGroup as compileVueTransitionGroup,
+  camelize as compileVueCamelize,
+  capitalize as compileVueCapitalize,
+  createBlock as compileVueCreateBlock,
+  createCommentVNode as compileVueCreateCommentVNode,
+  createElementBlock as compileVueCreateElementBlock,
+  createElementVNode as compileVueCreateElementVNode,
+  createSlots as compileVueCreateSlots,
+  createStaticVNode as compileVueCreateStaticVNode,
+  createTextVNode as compileVueCreateTextVNode,
+  createVNode as compileVueCreateVNode,
+  guardReactiveProps as compileVueGuardReactiveProps,
+  isMemoSame as compileVueIsMemoSame,
+  isRef as compileVueIsRef,
+  mergeProps as compileVueMergeProps,
+  normalizeClass as compileVueNormalizeClass,
+  normalizeProps as compileVueNormalizeProps,
+  normalizeStyle as compileVueNormalizeStyle,
+  openBlock as compileVueOpenBlock,
+  popScopeId as compileVuePopScopeId,
+  pushScopeId as compileVuePushScopeId,
+  renderList as compileVueRenderList,
+  renderSlot as compileVueRenderSlot,
+  resolveComponent as compileVueResolveComponent,
+  resolveDirective as compileVueResolveDirective,
+  resolveDynamicComponent as compileVueResolveDynamicComponent,
+  resolveFilter as compileVueResolveFilter,
+  setBlockTracking as compileVueSetBlockTracking,
+  toDisplayString as compileVueToDisplayString,
+  toHandlerKey as compileVueToHandlerKey,
+  toHandlers as compileVueToHandlers,
+  unref as compileVueUnref,
+  vModelCheckbox as compileVueVModelCheckbox,
+  vModelDynamic as compileVueVModelDynamic,
+  vModelRadio as compileVueVModelRadio,
+  vModelSelect as compileVueVModelSelect,
+  vModelText as compileVueVModelText,
+  vShow as compileVueVShow,
+  warn as compileWarn,
+  withCtx as compileVueWithCtx,
+  withDirectives as compileVueWithDirectives,
+  withKeys as compileVueWithKeys,
+  withModifiers as compileVueWithModifiers,
+  withMemo as compileVueWithMemo
+} from "../../../packages/vuelil/runtime-dom.js";
+import {
+  ssrGetDirectiveProps,
+  ssrGetDynamicModelProps,
+  ssrIncludeBooleanAttr,
+  ssrInterpolate,
+  ssrLooseContain,
+  ssrLooseEqual,
+  ssrRenderAttr,
+  ssrRenderAttrs,
+  ssrRenderClass,
+  ssrRenderComponent,
+  ssrRenderDynamicAttr,
+  ssrRenderDynamicModel,
+  ssrRenderList,
+  ssrRenderSlot,
+  ssrRenderSlotInner,
+  ssrRenderStyle,
+  ssrRenderSuspense,
+  ssrRenderTeleport,
+  ssrRenderVNode
+} from "../internal";
+
+extern JsValue compileSsrTemplate;
+extern JsValue compileNO;
+extern JsValue compileExtend;
+extern string compileGenerateCodeFrame(string source, int start, int end);
+extern bool compileIsFunction(JsValue value);
+extern JsValue compileVueBaseTransition;
+extern JsValue compileVueFragment;
+extern JsValue compileVueKeepAlive;
+extern JsValue compileVueSuspense;
+extern JsValue compileVueTeleport;
+extern JsValue compileVueTransition;
+extern JsValue compileVueTransitionGroup;
+extern JsValue compileVueCamelize;
+extern JsValue compileVueCapitalize;
+extern JsValue compileVueCreateBlock;
+extern JsValue compileVueCreateCommentVNode;
+extern JsValue compileVueCreateElementBlock;
+extern JsValue compileVueCreateElementVNode;
+extern JsValue compileVueCreateSlots;
+extern JsValue compileVueCreateStaticVNode;
+extern JsValue compileVueCreateTextVNode;
+extern JsValue compileVueCreateVNode;
+extern JsValue compileVueGuardReactiveProps;
+extern JsValue compileVueIsMemoSame;
+extern JsValue compileVueIsRef;
+extern JsValue compileVueMergeProps;
+extern JsValue compileVueNormalizeClass;
+extern JsValue compileVueNormalizeProps;
+extern JsValue compileVueNormalizeStyle;
+extern JsValue compileVueOpenBlock;
+extern JsValue compileVuePopScopeId;
+extern JsValue compileVuePushScopeId;
+extern JsValue compileVueRenderList;
+extern JsValue compileVueRenderSlot;
+extern JsValue compileVueResolveComponent;
+extern JsValue compileVueResolveDirective;
+extern JsValue compileVueResolveDynamicComponent;
+extern JsValue compileVueResolveFilter;
+extern JsValue compileVueSetBlockTracking;
+extern JsValue compileVueToDisplayString;
+extern JsValue compileVueToHandlerKey;
+extern JsValue compileVueToHandlers;
+extern JsValue compileVueUnref;
+extern JsValue compileVueVModelCheckbox;
+extern JsValue compileVueVModelDynamic;
+extern JsValue compileVueVModelRadio;
+extern JsValue compileVueVModelSelect;
+extern JsValue compileVueVModelText;
+extern JsValue compileVueVShow;
+extern JsValue compileWarn;
+extern JsValue compileVueWithCtx;
+extern JsValue compileVueWithDirectives;
+extern JsValue compileVueWithKeys;
+extern JsValue compileVueWithModifiers;
+extern JsValue compileVueWithMemo;
+extern JsValue Error;
+extern JsValue Function;
+extern JsValue JSON;
+extern JsValue Object;
+extern JsValue __CJS__;
+extern JsValue __DEV__;
+
+JsValue compileCache = JS.invoke(Object, "create", null);
+
+export JsValue ssrCompile(string template, JsValue instance) {
+  if (!__CJS__.truthy()) {
+    throw JS.construct(
+      Error,
+      "On-the-fly template compilation is not supported in the ESM build of " +
+      "@vue/server-renderer. All templates must be pre-compiled into " +
+      "render functions."
+    );
+  }
+  JsValue component = instance["type"];
+  JsValue config = instance["appContext"]["config"];
+  JsValue finalCompilerOptions = JS.call(
+    compileExtend,
+    JS.undefined(),
+    JS.call(
+      compileExtend,
+      JS.undefined(),
+      JS.object(
+        "isCustomElement", config["isCustomElement"],
+        "delimiters", component["delimiters"]
+      ),
+      config["compilerOptions"]
+    ),
+    component["compilerOptions"]
+  );
+  if (!finalCompilerOptions["isCustomElement"].truthy()) {
+    finalCompilerOptions["isCustomElement"] = compileNO;
+  }
+  if (!finalCompilerOptions["isNativeTag"].truthy()) {
+    finalCompilerOptions["isNativeTag"] = compileNO;
+  }
+  JsValue cacheDescriptor = JS.object(
+    "template", template,
+    "compilerOptions", finalCompilerOptions
+  );
+  JsValue replacer = JS.method2((JsValue _self, JsValue _key, JsValue value) => {
+    if (compileIsFunction(value)) return JS.invoke(value, "toString");
+    return value;
+  });
+  string cacheKey = JS.string(
+    JS.invoke(JSON, "stringify", cacheDescriptor, replacer)
+  );
+  JsValue cached = compileCache[cacheKey];
+  if (cached.truthy()) return cached;
+  finalCompilerOptions["onError"] = JS.method1((JsValue _self, JsValue error) => {
+    if (__DEV__.truthy()) {
+      string message = "[@vue/server-renderer] Template compilation error: " +
+        JS.string(error["message"]);
+      string codeFrame = "";
+      if (error["loc"].truthy()) {
+        codeFrame = compileGenerateCodeFrame(
+          template,
+          JS.number(error["loc"]["start"]["offset"]).toInt(),
+          JS.number(error["loc"]["end"]["offset"]).toInt()
+        );
+      }
+      if (codeFrame != "") compileWarn(message + "\n" + codeFrame);
+      else compileWarn(message);
+    } else {
+      throw error;
+    }
+    return JS.undefined();
+  });
+  JsValue compiled = JS.call(
+    compileSsrTemplate,
+    JS.undefined(),
+    template,
+    finalCompilerOptions
+  );
+  JsValue vue = JS.object(
+    "BaseTransition", compileVueBaseTransition,
+    "Fragment", compileVueFragment,
+    "KeepAlive", compileVueKeepAlive,
+    "Suspense", compileVueSuspense,
+    "Teleport", compileVueTeleport,
+    "Transition", compileVueTransition,
+    "TransitionGroup", compileVueTransitionGroup,
+    "camelize", compileVueCamelize,
+    "capitalize", compileVueCapitalize,
+    "createBlock", compileVueCreateBlock,
+    "createCommentVNode", compileVueCreateCommentVNode,
+    "createElementBlock", compileVueCreateElementBlock,
+    "createElementVNode", compileVueCreateElementVNode,
+    "createSlots", compileVueCreateSlots,
+    "createStaticVNode", compileVueCreateStaticVNode,
+    "createTextVNode", compileVueCreateTextVNode,
+    "createVNode", compileVueCreateVNode,
+    "guardReactiveProps", compileVueGuardReactiveProps,
+    "isMemoSame", compileVueIsMemoSame,
+    "isRef", compileVueIsRef,
+    "mergeProps", compileVueMergeProps,
+    "normalizeClass", compileVueNormalizeClass,
+    "normalizeProps", compileVueNormalizeProps,
+    "normalizeStyle", compileVueNormalizeStyle,
+    "openBlock", compileVueOpenBlock,
+    "popScopeId", compileVuePopScopeId,
+    "pushScopeId", compileVuePushScopeId,
+    "renderList", compileVueRenderList,
+    "renderSlot", compileVueRenderSlot,
+    "resolveComponent", compileVueResolveComponent,
+    "resolveDirective", compileVueResolveDirective,
+    "resolveDynamicComponent", compileVueResolveDynamicComponent,
+    "resolveFilter", compileVueResolveFilter,
+    "setBlockTracking", compileVueSetBlockTracking,
+    "toDisplayString", compileVueToDisplayString,
+    "toHandlerKey", compileVueToHandlerKey,
+    "toHandlers", compileVueToHandlers,
+    "unref", compileVueUnref,
+    "vModelCheckbox", compileVueVModelCheckbox,
+    "vModelDynamic", compileVueVModelDynamic,
+    "vModelRadio", compileVueVModelRadio,
+    "vModelSelect", compileVueVModelSelect,
+    "vModelText", compileVueVModelText,
+    "vShow", compileVueVShow,
+    "withCtx", compileVueWithCtx,
+    "withDirectives", compileVueWithDirectives,
+    "withKeys", compileVueWithKeys,
+    "withModifiers", compileVueWithModifiers,
+    "withMemo", compileVueWithMemo
+  );
+  JsValue helpers = JS.object(
+    "ssrGetDirectiveProps", ssrGetDirectiveProps,
+    "ssrGetDynamicModelProps", ssrGetDynamicModelProps,
+    "ssrIncludeBooleanAttr", ssrIncludeBooleanAttr,
+    "ssrInterpolate", ssrInterpolate,
+    "ssrLooseContain", ssrLooseContain,
+    "ssrLooseEqual", ssrLooseEqual,
+    "ssrRenderAttr", ssrRenderAttr,
+    "ssrRenderAttrs", ssrRenderAttrs,
+    "ssrRenderClass", ssrRenderClass,
+    "ssrRenderComponent", ssrRenderComponent,
+    "ssrRenderDynamicAttr", ssrRenderDynamicAttr,
+    "ssrRenderDynamicModel", ssrRenderDynamicModel,
+    "ssrRenderList", ssrRenderList,
+    "ssrRenderSlot", ssrRenderSlot,
+    "ssrRenderSlotInner", ssrRenderSlotInner,
+    "ssrRenderStyle", ssrRenderStyle,
+    "ssrRenderSuspense", ssrRenderSuspense,
+    "ssrRenderTeleport", ssrRenderTeleport,
+    "ssrRenderVNode", ssrRenderVNode
+  );
+  JsValue requireMap = JS.object(
+    "vue", vue,
+    "vue/server-renderer", helpers
+  );
+  JsValue fakeRequire = JS.method1((JsValue _self, JsValue id) => {
+    return requireMap[id];
+  });
+  JsValue factory = JS.call(
+    Function,
+    JS.undefined(),
+    "require",
+    compiled["code"]
+  );
+  JsValue render = JS.call(factory, JS.undefined(), fakeRequire);
+  compileCache[cacheKey] = render;
+  return render;
+}

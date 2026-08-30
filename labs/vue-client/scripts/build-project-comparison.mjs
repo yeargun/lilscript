@@ -3,33 +3,29 @@ import { createHash } from "node:crypto";
 import {
   mkdirSync,
   readFileSync,
+  readdirSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
-import { relative, resolve, sep } from "node:path";
+import { extname, relative, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
+import vue from "@vitejs/plugin-vue";
 import { build } from "vite";
-import { buildSelectedReactivity } from "./build-reactivity.mjs";
 import { projectRoot, scopePath } from "./audit-scope.mjs";
-import { staticImportedNames } from "../src/reactivity/build-entry.mjs";
 
-const scenarioId = "reactivity-app";
-const appRoot = resolve(projectRoot, "apps/reactivity");
-const appEntry = resolve(appRoot, "index.html");
-const appSource = resolve(appRoot, "src/main.js");
-const candidateModule = resolve(
-  projectRoot,
-  "artifacts/reactivity.esm-browser.prod.js",
-);
-const reactivitySource = resolve(projectRoot, "src/reactivity/index.lil");
-const hostAdapter = resolve(projectRoot, "src/reactivity/host.js");
-const productionConfig = resolve(projectRoot, "config/reactivity-production.toml");
-const outputRoot = resolve(
-  projectRoot,
-  "artifacts/generated/project-comparison/reactivity-app",
-);
-const selectedCandidateModule = resolve(outputRoot, "integration/reactivity.js");
+const outputRoot = resolve(projectRoot, "artifacts/generated/project-comparison");
 const reportPath = resolve(outputRoot, "build-report.json");
+const packageRoot = resolve(projectRoot, "packages/vuelil");
+const productionRoot = resolve(packageRoot, "production");
+const vueRuntimeOnly = resolve(productionRoot, "runtime-only/vue.runtime.js");
+const vueSfc = resolve(productionRoot, "sfc/vue.runtime.js");
+const vueRuntimeReusable = resolve(packageRoot, "vue.runtime.js");
+const vueCompiler = resolve(packageRoot, "production/vue.js");
+const vueServerRenderer = resolve(packageRoot, "server-renderer.js");
+const upstreamCompiler = resolve(
+  projectRoot,
+  "node_modules/vue/dist/vue.esm-bundler.js",
+);
 
 const defines = Object.freeze({
   __VUE_OPTIONS_API__: "false",
@@ -46,15 +42,85 @@ const commonBuildConfig = Object.freeze({
   modulePreload: false,
   cssCodeSplit: true,
   reportCompressedSize: false,
+  emptyOutDir: false,
   defines,
   output: {
     format: "es",
     entryFileNames: "assets/app.js",
-    chunkFileNames: "assets/chunks/[name]-[hash].js",
-    assetFileNames: "assets/[name]-[hash][extname]",
+    chunkFileNames: "assets/chunks/[name].js",
+    assetFileNames: "assets/[name][extname]",
     codeSplitting: false,
   },
 });
+
+const scenarios = Object.freeze([
+  {
+    id: "runtime-only-client",
+    kind: "browser",
+    root: resolve(projectRoot, "apps/runtime-only-client"),
+    entry: "index.html",
+    candidateAliases: [["vue", vueRuntimeOnly]],
+    productionExports: [
+      "Fragment",
+      "computed",
+      "createApp",
+      "createElementBlock",
+      "createElementVNode",
+      "nextTick",
+      "openBlock",
+      "reactive",
+      "renderList",
+      "toDisplayString",
+    ],
+    adapters: ["reactivity", "runtime-core", "runtime-dom"],
+  },
+  {
+    id: "runtime-compiler-client",
+    kind: "browser",
+    root: resolve(projectRoot, "apps/runtime-compiler-client"),
+    entry: "index.html",
+    upstreamAliases: [["vue", upstreamCompiler]],
+    candidateAliases: [["vue", vueCompiler]],
+    adapters: ["reactivity", "runtime-core", "runtime-dom", "compiler-dom"],
+  },
+  {
+    id: "ssr-app",
+    kind: "ssr",
+    root: resolve(projectRoot, "apps/ssr-app"),
+    entry: "src/main.js",
+    candidateAliases: [
+      ["vue/server-renderer", vueServerRenderer],
+      ["vue", vueRuntimeReusable],
+    ],
+    adapters: ["reactivity", "runtime-core", "runtime-dom", "server-renderer"],
+  },
+  {
+    id: "sfc-production-app",
+    kind: "sfc",
+    root: resolve(projectRoot, "apps/sfc-production-app"),
+    entry: "index.html",
+    candidateAliases: [["vue", vueSfc]],
+    productionExports: [
+      "Fragment",
+      "computed",
+      "createApp",
+      "createBlock",
+      "createElementBlock",
+      "createElementVNode",
+      "createTextVNode",
+      "createVNode",
+      "normalizeClass",
+      "openBlock",
+      "popScopeId",
+      "pushScopeId",
+      "ref",
+      "renderList",
+      "resolveComponent",
+      "toDisplayString",
+    ],
+    adapters: ["reactivity", "runtime-core", "runtime-dom"],
+  },
+]);
 
 function sha256(value) {
   return createHash("sha256").update(value).digest("hex");
@@ -77,40 +143,141 @@ function jsonPackage(path) {
   return JSON.parse(readFileSync(path, "utf8"));
 }
 
-function inputEvidence() {
-  const files = [appEntry, appSource]
-    .map(fileEvidence)
-    .sort((left, right) => compareText(left.path, right.path));
+function buildCandidateModules() {
+  const builds = [
+    ...scenarios
+      .filter(({ productionExports }) => productionExports)
+      .flatMap(scenario => [
+        ["build-runtime-core.mjs", scenario],
+        ["build-runtime-dom.mjs", scenario],
+      ]),
+  ];
+  for (const [script, scenario] of builds) {
+    const env = scenario
+      ? {
+          ...process.env,
+          VUELIL_PROJECT_VARIANT: scenario.id === "sfc-production-app"
+            ? "sfc"
+            : "runtime-only",
+          VUELIL_PROJECT_EXPORTS: scenario.productionExports.join(","),
+        }
+      : process.env;
+    const result = spawnSync(process.execPath, [resolve(projectRoot, "scripts", script)], {
+      cwd: projectRoot,
+      encoding: "utf8",
+      env,
+      maxBuffer: 64 * 1024 * 1024,
+    });
+    if (result.status !== 0) {
+      throw new Error(
+        `Unable to build project VueLil modules with ${script}: ${(
+          result.stderr || result.stdout || `exit ${result.status}`
+        ).trim()}`,
+      );
+    }
+  }
+}
+
+function sourceFiles(root) {
+  const files = [];
+  function visit(directory) {
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+      const path = resolve(directory, entry.name);
+      if (entry.isDirectory()) visit(path);
+      else if ([".html", ".js", ".vue"].includes(extname(entry.name))) files.push(path);
+    }
+  }
+  visit(root);
+  return files.sort((left, right) => compareText(projectPath(left), projectPath(right)));
+}
+
+function inputEvidence(scenario) {
+  const files = sourceFiles(scenario.root).map(fileEvidence);
   const manifest = files
     .map(({ path, bytes, sha256: digest }) => `${path}\0${bytes}\0${digest}\n`)
     .join("");
+  const importSpecifiers = [...new Set(files.flatMap((entry) => {
+    const source = readFileSync(resolve(projectRoot, entry.path), "utf8");
+    return [...source.matchAll(/\bfrom\s+["'](vue(?:\/[^"']*)?)["']/gu)]
+      .map((match) => match[1]);
+  }))].sort(compareText);
   return {
-    entry: projectPath(appEntry),
-    source: projectPath(appSource),
+    entry: projectPath(resolve(scenario.root, scenario.entry)),
     importSpecifier: "vue",
+    importSpecifiers,
     files,
     sha256: sha256(manifest),
   };
 }
 
 function normalizeModuleId(id) {
-  const clean = id.replace(/^\0/u, "virtual:").split("?")[0];
-  if (!clean.startsWith("/")) return clean;
-  const path = projectPath(clean);
-  return path.startsWith("../") ? clean : path;
+  const nul = id.startsWith("\0");
+  const clean = nul ? id.slice(1) : id;
+  const queryIndex = clean.indexOf("?");
+  const path = queryIndex === -1 ? clean : clean.slice(0, queryIndex);
+  const query = queryIndex === -1 ? "" : clean.slice(queryIndex);
+  if (!path.startsWith("/")) return `${nul ? "virtual:" : ""}${clean}`;
+  const normalized = projectPath(path);
+  return `${normalized.startsWith("../") ? path : normalized}${query}`;
 }
 
-function executeBundle(path) {
-  const runner = [
-    "await import(process.argv[1]);",
-    'const result = globalThis.__VUELIL_REACTIVITY_RESULT__;',
+function aliases(entries = []) {
+  return entries.map(([specifier, replacement]) => ({
+    find: new RegExp(`^${specifier.replace("/", "\\/")}$`, "u"),
+    replacement,
+  }));
+}
+
+function serializedAliases(entries = []) {
+  return entries.map(([specifier, replacement]) => ({
+    specifier,
+    target: projectPath(replacement),
+    targetSha256: fileEvidence(replacement).sha256,
+  }));
+}
+
+function adapterEvidence(names) {
+  return names.map((name) => {
+    const path = resolve(projectRoot, `src/${name}/host.js`);
+    return {
+      ...fileEvidence(path),
+      owner: name,
+      accounting: "inlined into VueLil before Vite; all retained bytes are measured in emitted assets",
+    };
+  });
+}
+
+function executionRunner(kind) {
+  const publish = [
+    'const result = globalThis.__VUELIL_PROJECT_RESULT__;',
     'if (typeof result !== "string") throw new Error("bundle did not publish a result");',
     "process.stdout.write(result);",
+  ];
+  if (kind === "ssr") {
+    return ["await import(process.argv[1]);", ...publish].join("");
+  }
+  return [
+    'const { JSDOM } = await import("jsdom");',
+    'const dom = new JSDOM("<!doctype html><html><body><div id=app></div></body></html>", { url: "https://vuelil.test/" });',
+    "const window = dom.window;",
+    "for (const name of ['window','document','navigator','Node','Element','HTMLElement','SVGElement','MathMLElement','Document','ShadowRoot','Event','CustomEvent','MutationObserver']) { if (window[name] !== undefined) Object.defineProperty(globalThis, name, { configurable: true, value: window[name] }); }",
+    "await import(process.argv[1]);",
+    ...publish,
   ].join("");
+}
+
+function executeBundle(path, kind) {
   const execution = spawnSync(
-    process.execPath,
-    ["--input-type=module", "--eval", runner, pathToFileURL(path).href],
-    { cwd: projectRoot, encoding: "utf8", maxBuffer: 1024 * 1024 },
+    "npx",
+    [
+      "--yes",
+      "node@24",
+      "--input-type=module",
+      "--eval",
+      executionRunner(kind),
+      pathToFileURL(path).href,
+    ],
+    { cwd: projectRoot, encoding: "utf8", maxBuffer: 4 * 1024 * 1024 },
   );
   if (execution.status !== 0 || execution.stderr !== "") {
     throw new Error(
@@ -123,35 +290,50 @@ function executeBundle(path) {
     result: execution.stdout,
     checksum: sha256(execution.stdout),
     expected: true,
+    runtime: "node@24",
   };
 }
 
-async function buildVariant(name, integration, useSelectedArtifact = false) {
-  const candidate = name !== "upstream";
-  const candidateCode = useSelectedArtifact
-    ? readFileSync(selectedCandidateModule, "utf8")
-    : null;
+function writeOutputs(root, outputs) {
+  const files = [];
+  for (const output of outputs) {
+    const path = resolve(root, output.fileName);
+    mkdirSync(resolve(path, ".."), { recursive: true });
+    const bytes = output.type === "chunk" ? output.code : output.source;
+    writeFileSync(path, bytes);
+    files.push(fileEvidence(path));
+  }
+  files.sort((left, right) => compareText(left.path, right.path));
+  const manifest = files
+    .map(({ path, bytes, sha256: digest }) => `${path}\0${bytes}\0${digest}\n`)
+    .join("");
+  return {
+    files,
+    bytes: files.reduce((sum, file) => sum + file.bytes, 0),
+    sha256: sha256(manifest),
+  };
+}
+
+async function buildVariant(scenario, name) {
+  const candidate = name === "candidate";
+  const aliasEntries = candidate
+    ? scenario.candidateAliases
+    : scenario.upstreamAliases ?? [];
+  const plugins = scenario.kind === "sfc" ? [vue()] : [];
+  const scenarioConfig = {
+    kind: scenario.kind,
+    plugins: plugins.map((plugin) => plugin.name),
+    ssrNoExternal: scenario.kind === "ssr",
+  };
   const result = await build({
     configFile: false,
-    root: appRoot,
+    root: scenario.root,
     mode: commonBuildConfig.mode,
     logLevel: "silent",
-    resolve: candidate
-      ? { alias: [{ find: /^vue$/u, replacement: candidateModule }] }
-      : undefined,
-    plugins: useSelectedArtifact
-      ? [{
-          name: "vuelil-closed-world-production-integration",
-          enforce: "pre",
-          load(id) {
-            if (id.split("?", 1)[0] === candidateModule) {
-              return { code: candidateCode, map: null };
-            }
-            return null;
-          },
-        }]
-      : undefined,
+    plugins,
+    resolve: { alias: aliases(aliasEntries) },
     define: { ...defines },
+    ssr: scenario.kind === "ssr" ? { noExternal: true } : undefined,
     build: {
       write: false,
       target: commonBuildConfig.target,
@@ -160,6 +342,8 @@ async function buildVariant(name, integration, useSelectedArtifact = false) {
       modulePreload: commonBuildConfig.modulePreload,
       cssCodeSplit: commonBuildConfig.cssCodeSplit,
       reportCompressedSize: commonBuildConfig.reportCompressedSize,
+      emptyOutDir: commonBuildConfig.emptyOutDir,
+      ssr: scenario.kind === "ssr" ? resolve(scenario.root, scenario.entry) : false,
       rolldownOptions: { output: { ...commonBuildConfig.output } },
     },
   });
@@ -167,17 +351,16 @@ async function buildVariant(name, integration, useSelectedArtifact = false) {
     (entry) => entry.output,
   );
   const chunks = outputs.filter((entry) => entry.type === "chunk");
-  const chunk = chunks.find((entry) => entry.isEntry);
-  if (!chunk || chunks.length !== 1) {
-    throw new Error(`${name} build emitted ${chunks.length} chunks; expected one entry bundle`);
+  const entryChunk = chunks.find((entry) => entry.isEntry);
+  if (!entryChunk || chunks.length !== 1) {
+    throw new Error(`${scenario.id}/${name} emitted ${chunks.length} chunks; expected one`);
   }
 
-  const variantRoot = resolve(outputRoot, name);
-  const artifactPath = resolve(variantRoot, "app.js");
+  const variantRoot = resolve(outputRoot, scenario.id, name);
   mkdirSync(variantRoot, { recursive: true });
-  writeFileSync(artifactPath, chunk.code);
-
-  const modules = Object.entries(chunk.modules)
+  const artifact = writeOutputs(variantRoot, outputs);
+  artifact.entry = projectPath(resolve(variantRoot, entryChunk.fileName));
+  const modules = Object.entries(entryChunk.modules)
     .map(([id, details]) => ({
       id: normalizeModuleId(id),
       renderedBytes: details.renderedLength,
@@ -191,73 +374,62 @@ async function buildVariant(name, integration, useSelectedArtifact = false) {
         id.includes("node_modules/@vue/") ||
         id.includes("upstream/vue/"),
     );
-  const includesCandidateModule = modules.some(
-    ({ id }) => id === projectPath(candidateModule),
-  );
-  const candidateRenderedBytes = modules.find(
-    ({ id }) => id === projectPath(candidateModule),
-  )?.renderedBytes ?? 0;
-  if (candidate && (!includesCandidateModule || upstreamRuntimeModules.length !== 0)) {
+  const candidateModules = modules
+    .map(({ id }) => id)
+    .filter((id) => id.split("?", 1)[0].startsWith("packages/vuelil/"));
+  if (candidate && (candidateModules.length === 0 || upstreamRuntimeModules.length !== 0)) {
     throw new Error(
-      `candidate module audit failed: includesCandidate=${includesCandidateModule}, upstream=${upstreamRuntimeModules.join(", ")}`,
+      `${scenario.id} candidate module audit failed: VueLil=${candidateModules.length}, upstream=${upstreamRuntimeModules.join(", ")}`,
     );
   }
   if (!candidate && upstreamRuntimeModules.length === 0) {
-    throw new Error("upstream build did not include an installed Vue runtime module");
+    throw new Error(`${scenario.id} upstream build did not bundle the installed Vue runtime`);
   }
-
   return {
-    resolution: candidate
-      ? {
-          kind: "source-derived-closed-world-alias",
-          specifier: "vue",
-          target: projectPath(candidateModule),
-          targetSha256: fileEvidence(candidateModule).sha256,
-          ...(useSelectedArtifact ? { integration } : {}),
-        }
-      : {
-          kind: "vite-package-resolution",
-          specifier: "vue",
-          target: "vue@3.5.42",
-        },
-    artifact: fileEvidence(artifactPath),
-    execution: executeBundle(artifactPath),
+    resolution: {
+      kind: candidate ? "vuelil-package-alias" : "installed-vue-package",
+      aliases: serializedAliases(aliasEntries),
+    },
+    artifact,
+    execution: executeBundle(resolve(projectRoot, artifact.entry), scenario.kind),
+    buildConfigSha256: sha256(
+      Buffer.from(`${JSON.stringify({ commonBuildConfig, scenarioConfig })}\n`),
+    ),
     moduleGraph: {
       sha256: sha256(Buffer.from(`${JSON.stringify(modules)}\n`)),
       modules,
     },
     audit: {
-      includesCandidateModule,
+      includesCandidateModule: candidateModules.length > 0,
+      candidateModules,
       upstreamRuntimeModules,
       noUpstreamRuntime: upstreamRuntimeModules.length === 0,
-      ...(useSelectedArtifact
-        ? {
-            hostAdapterAccounting: {
-              sourceBytes: integration.hostAdapter.bytes,
-              selectedModuleRenderedBytes: candidateRenderedBytes,
-              emittedJavaScriptBytes: Buffer.byteLength(chunk.code),
-              emittedJavaScriptChunks: chunks.length,
-              adapterExternalized: false,
-              allEmittedAdapterCodeCounted: chunks.length === 1,
-            },
-          }
-        : {}),
+      adapters: candidate ? adapterEvidence(scenario.adapters) : [],
+      allEmittedAdapterCodeCounted: candidate,
     },
   };
 }
 
 export async function buildProjectComparison() {
   const scope = jsonPackage(scopePath);
-  const scenario = scope.bundleScenarios?.find(({ id }) => id === scenarioId);
-  if (!scenario || scenario.completionRequired !== false) {
-    throw new Error(`${scenarioId} must be declared as a diagnostic bundle scenario`);
+  const scopedScenarios = new Map(
+    scope.bundleScenarios
+      .filter(({ completionRequired }) => completionRequired)
+      .map((scenario) => [scenario.id, scenario]),
+  );
+  if (
+    scopedScenarios.size !== scenarios.length ||
+    scenarios.some(({ id }) => !scopedScenarios.has(id))
+  ) {
+    throw new Error("project harness must exactly match the four completion-required scenarios");
   }
-  const sourceText = readFileSync(appSource, "utf8");
-  if (!/from\s+["']vue["']/u.test(sourceText)) {
-    throw new Error(`${projectPath(appSource)} must import from the public vue specifier`);
-  }
+  buildCandidateModules();
 
   const vitePackagePath = resolve(projectRoot, "node_modules/vite/package.json");
+  const pluginPackagePath = resolve(
+    projectRoot,
+    "node_modules/@vitejs/plugin-vue/package.json",
+  );
   const rolldownPackagePath = resolve(projectRoot, "node_modules/rolldown/package.json");
   const oxcPackagePath = resolve(
     projectRoot,
@@ -265,14 +437,13 @@ export async function buildProjectComparison() {
   );
   const vuePackagePath = resolve(projectRoot, "node_modules/vue/package.json");
   const lockPath = resolve(projectRoot, "package-lock.json");
-  const lexerPackagePath = resolve(projectRoot, "node_modules/es-module-lexer/package.json");
   const vitePackage = jsonPackage(vitePackagePath);
+  const pluginPackage = jsonPackage(pluginPackagePath);
   const rolldownPackage = jsonPackage(rolldownPackagePath);
   const oxcPackage = jsonPackage(oxcPackagePath);
   const vuePackage = jsonPackage(vuePackagePath);
   const lock = jsonPackage(lockPath);
-  const lexerPackage = jsonPackage(lexerPackagePath);
-  if (vitePackage.version !== "8.2.1" || !vitePackage.version.startsWith("8.")) {
+  if (vitePackage.version !== "8.2.1") {
     throw new Error(`project comparison requires pinned Vite 8.2.1, found ${vitePackage.version}`);
   }
   if (vuePackage.version !== scope.upstream.version) {
@@ -283,47 +454,46 @@ export async function buildProjectComparison() {
 
   rmSync(outputRoot, { recursive: true, force: true });
   mkdirSync(outputRoot, { recursive: true });
-  const staticExportNames = await staticImportedNames(sourceText, "vue");
-  const selected = await buildSelectedReactivity(staticExportNames, selectedCandidateModule);
-  const integration = {
-    kind: "lilscript-static-export-selection",
-    applicationSource: projectPath(appSource),
-    importSpecifier: "vue",
-    staticExportNames: selected.exportNames,
-    selectedArtifact: fileEvidence(selectedCandidateModule),
-    reusableArtifact: fileEvidence(candidateModule),
-    lilscriptSource: fileEvidence(reactivitySource),
-    selectedLilscriptSource: fileEvidence(selected.sourcePath),
-    selectedSourceKind: selected.sourceKind,
-    productionConfig: fileEvidence(productionConfig),
-    hostAdapter: {
-      ...fileEvidence(hostAdapter),
-      accounting: "inlined before Vite; every retained adapter byte is part of the measured entry chunk",
-    },
-    parser: {
-      name: lexerPackage.name,
-      version: lexerPackage.version,
-      packageJson: fileEvidence(lexerPackagePath),
-    },
-  };
-  const upstream = await buildVariant("upstream", integration);
-  const reusableCandidate = await buildVariant("reusable-candidate", integration);
-  const candidate = await buildVariant("candidate", integration, true);
-  if (
-    upstream.execution.result !== candidate.execution.result ||
-    upstream.execution.result !== reusableCandidate.execution.result
-  ) {
-    throw new Error("paired bundles returned different deterministic results");
+  const results = [];
+  for (const scenario of scenarios) {
+    const input = inputEvidence(scenario);
+    if (!input.importSpecifiers.includes("vue")) {
+      throw new Error(`${scenario.id} must import from the public vue specifier`);
+    }
+    const upstream = await buildVariant(scenario, "upstream");
+    const candidate = await buildVariant(scenario, "candidate");
+    if (upstream.execution.result !== candidate.execution.result) {
+      throw new Error(`${scenario.id} paired bundles returned different deterministic results`);
+    }
+    if (upstream.buildConfigSha256 !== candidate.buildConfigSha256) {
+      throw new Error(`${scenario.id} paired bundles used different build settings`);
+    }
+    results.push({
+      scenario: {
+        id: scenario.id,
+        completionRequired: true,
+        description: scopedScenarios.get(scenario.id).description,
+      },
+      input,
+      variants: { upstream, candidate },
+      comparison: {
+        sameInput: true,
+        sameBuildConfig: true,
+        onlyModuleResolutionChanged: true,
+        deterministicChecksum: upstream.execution.checksum,
+        matchingExecution: true,
+        candidateNoUpstreamRuntime: true,
+        passed: true,
+      },
+    });
+    console.log(
+      `Built ${scenario.id} with matching checksum ${upstream.execution.checksum}.`,
+    );
   }
 
   const report = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     generatedBy: "scripts/build-project-comparison.mjs",
-    scenario: {
-      id: scenarioId,
-      completionRequired: false,
-      description: scenario.description,
-    },
     upstream: {
       package: "vue",
       version: scope.upstream.version,
@@ -331,10 +501,14 @@ export async function buildProjectComparison() {
       npmIntegrity: lock.packages?.["node_modules/vue"]?.integrity ?? null,
       packageJson: fileEvidence(vuePackagePath),
     },
-    input: inputEvidence(),
     toolchain: {
       node: process.version,
+      executionNode: "node@24",
       vite: { version: vitePackage.version, packageJson: fileEvidence(vitePackagePath) },
+      viteVuePlugin: {
+        version: pluginPackage.version,
+        packageJson: fileEvidence(pluginPackagePath),
+      },
       bundler: {
         name: "rolldown",
         version: rolldownPackage.version,
@@ -352,28 +526,9 @@ export async function buildProjectComparison() {
         Buffer.from(`${JSON.stringify(commonBuildConfig)}\n`),
       ),
     },
-    variants: { upstream, candidate },
-    diagnostics: {
-      reusableCandidate: {
-        purpose: "retained-code baseline before source-derived closed-world selection",
-        ...reusableCandidate,
-      },
-    },
-    comparison: {
-      sameInput: true,
-      sameBuildConfig: true,
-      onlyModuleResolutionChanged: true,
-      onlyResolutionAndBuildIntegrationChanged: true,
-      deterministicChecksum: upstream.execution.checksum,
-      matchingExecution: true,
-      candidateNoUpstreamRuntime: candidate.audit.noUpstreamRuntime,
-      passed: true,
-    },
+    scenarios: results,
   };
   writeFileSync(reportPath, `${JSON.stringify(report, null, 2)}\n`);
-  console.log(
-    `Built paired ${scenarioId} bundles with matching checksum ${report.comparison.deterministicChecksum}.`,
-  );
   return report;
 }
 

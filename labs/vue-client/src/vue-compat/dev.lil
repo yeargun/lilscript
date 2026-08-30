@@ -1,0 +1,20 @@
+import extern { initCustomFormatter as runtimeInitCustomFormatter } from "../../packages/vuelil/runtime-dom.js";
+import { console as compatConsole } from "../shared/makeMap";
+
+extern JsValue runtimeInitCustomFormatter;
+bool DEV_BROWSER = true;
+bool DEV_ESM_BUNDLER = false;
+
+export void initDev() {
+  if (DEV_BROWSER) {
+    if (!DEV_ESM_BUNDLER) {
+      JS.invoke(
+        compatConsole,
+        "info",
+        "You are running a development build of Vue.\n" +
+          "Make sure to use the production build (*.prod.js) when deploying for production."
+      );
+    }
+    JS.call(runtimeInitCustomFormatter, JS.undefined());
+  }
+}

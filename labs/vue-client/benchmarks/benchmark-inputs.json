@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "upstream": {
+    "version": "3.5.42",
+    "tag": "v3.5.42",
+    "revision": "d63616ca17de965ed32dcb449a4c5cd9982f15d2"
+  },
+  "candidateVersion": "3.5.42-vuelil",
+  "seed": "vuelil-vue-3.5.42-performance-v1",
+  "samples": 21,
+  "warmupRuns": 3,
+  "bootstrapIterations": 10000,
+  "nonInferiorityMarginRatio": 1.03,
+  "workloads": [
+    {
+      "id": "browser-keyed-render",
+      "category": "browser",
+      "nodeEnv": "production",
+      "description": "Warmed Chromium keyed-list rendering, reactive updates, DOM events, class/style patching, and unmount cleanup.",
+      "runner": "runners/browser.mjs",
+      "candidateArtifact": "../packages/vuelil/vue.runtime.js",
+      "upstreamArtifact": "../node_modules/vue/dist/vue.runtime.esm-browser.prod.js",
+      "candidatePackageManifest": "../packages/vuelil/package.json",
+      "upstreamPackageManifest": "../node_modules/vue/package.json",
+      "cwd": ".."
+    },
+    {
+      "id": "compiler-dom-development",
+      "category": "compiler",
+      "nodeEnv": "development",
+      "description": "Warmed development-mode DOM compilation of structural directives, slots, events, models, static trees, and dynamic bindings.",
+      "runner": "runners/compiler.mjs",
+      "candidateArtifact": "../packages/vuelil/compiler-dom.js",
+      "upstreamArtifact": "../node_modules/@vue/compiler-dom/dist/compiler-dom.cjs.js",
+      "candidatePackageManifest": "../packages/vuelil/package.json",
+      "upstreamPackageManifest": "../node_modules/@vue/compiler-dom/package.json",
+      "cwd": ".."
+    },
+    {
+      "id": "reactivity-graph-updates",
+      "category": "reactivity",
+      "nodeEnv": "production",
+      "description": "Warmed reactive object graph mutations with computed invalidation, dependency tracking, synchronous effects, and cleanup.",
+      "runner": "runners/reactivity.mjs",
+      "candidateArtifact": "../packages/vuelil/reactivity.js",
+      "upstreamArtifact": "../node_modules/@vue/reactivity/index.js",
+      "candidatePackageManifest": "../packages/vuelil/package.json",
+      "upstreamPackageManifest": "../node_modules/@vue/reactivity/package.json",
+      "cwd": ".."
+    },
+    {
+      "id": "ssr-component-tree",
+      "category": "ssr",
+      "nodeEnv": "production",
+      "description": "Warmed renderToString of component trees with keyed children, normalized attributes, interpolation, and SSR context writes.",
+      "runner": "runners/ssr.mjs",
+      "candidateArtifact": "../packages/vuelil/server-renderer.js",
+      "upstreamArtifact": "../node_modules/@vue/server-renderer/index.js",
+      "candidatePackageManifest": "../packages/vuelil/package.json",
+      "upstreamPackageManifest": "../node_modules/@vue/server-renderer/package.json",
+      "cwd": ".."
+    }
+  ]
+}

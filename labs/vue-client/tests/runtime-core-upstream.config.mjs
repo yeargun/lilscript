@@ -2,11 +2,14 @@ import { writeFileSync } from "node:fs";
 import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import { defineConfig } from "vitest/config";
 import { entries as vueSourceEntries } from "../upstream/vue/scripts/aliases.js";
+import { runtimeCoreTestFlags } from "./runtime-core-test-flags.mjs";
 
 const labRoot = resolve(import.meta.dirname, "..");
 const upstreamRoot = resolve(labRoot, "upstream/vue");
 const runtimeCoreRoot = resolve(upstreamRoot, "packages/runtime-core/src");
 const candidate = resolve(labRoot, "tests/runtime-core-upstream.candidate.mjs");
+const reactivityCandidate = resolve(labRoot, "packages/vuelil/reactivity.js");
+const sharedCandidate = resolve(labRoot, "packages/vuelil/shared.js");
 const auditPath = process.env.VUELIL_RUNTIME_CORE_AUDIT;
 const redirects = new Set();
 const blocked = new Set();
@@ -43,8 +46,8 @@ function writeAudit() {
 const aliases = Object.fromEntries(
   Object.entries(vueSourceEntries).filter(([name]) => name !== "@vue/runtime-core"),
 );
-aliases["@vue/reactivity"] = resolve(labRoot, "packages/vuelil/reactivity.js");
-aliases["@vue/shared"] = resolve(labRoot, "packages/vuelil/shared.js");
+aliases["@vue/reactivity"] = reactivityCandidate;
+aliases["@vue/shared"] = sharedCandidate;
 
 export default defineConfig({
   root: upstreamRoot,
@@ -52,6 +55,8 @@ export default defineConfig({
     name: "vuelil-runtime-core-candidate",
     enforce: "pre",
     resolveId(source, importer) {
+      if (source === "@vue/reactivity") return reactivityCandidate;
+      if (source === "@vue/shared") return sharedCandidate;
       if (targetFor(source, importer)) {
         redirects.add(`${source} <- ${importer ?? "entry"}`);
         writeAudit();
@@ -73,22 +78,9 @@ export default defineConfig({
     },
     closeBundle: writeAudit,
   }],
-  define: {
-    __DEV__: true,
-    __TEST__: true,
-    __VERSION__: '"test"',
-    __BROWSER__: false,
-    __GLOBAL__: false,
-    __ESM_BUNDLER__: true,
-    __ESM_BROWSER__: false,
-    __CJS__: true,
-    __SSR__: true,
-    __FEATURE_OPTIONS_API__: true,
-    __FEATURE_SUSPENSE__: true,
-    __FEATURE_PROD_DEVTOOLS__: false,
-    __FEATURE_PROD_HYDRATION_MISMATCH_DETAILS__: false,
-    __COMPAT__: true,
-  },
+  define: Object.fromEntries(
+    Object.entries(runtimeCoreTestFlags).map(([name, value]) => [name, JSON.stringify(value)]),
+  ),
   resolve: { alias: aliases },
   server: { fs: { allow: [labRoot, upstreamRoot] } },
   test: {

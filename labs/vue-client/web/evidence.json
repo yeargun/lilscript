@@ -11,7 +11,7 @@
   },
   "scope": {
     "path": "compatibility/scope.json",
-    "sha256": "cbe327eb758df8c700143dfb725cb9ea6e243c5f756b707ff571842a08b26971"
+    "sha256": "76948f10d50310acf7d1af64f9b8e32f58b70db08c24627ca96a49c53a008d45"
   },
   "inventory": {
     "path": "compatibility/inventory.json",
@@ -25,58 +25,141 @@
     }
   },
   "reports": {
+    "sourceParity": {
+      "path": "compatibility/source-parity.json",
+      "present": true,
+      "sha256": "23d9905cc5ae62f178c8b8e6f5b9ab1b0b0752b79f3875bdb9b4a26a8f39f14e",
+      "schemaVersion": 1
+    },
     "compatibility": {
       "path": "artifacts/compatibility-report.json",
-      "present": false
+      "present": true,
+      "sha256": "f9561bad62e6aaefc8ff1c01843c725c8c1a262dab79f8a271f4897d3938a74e",
+      "schemaVersion": 1
     },
     "size": {
       "path": "artifacts/project-size-report.json",
       "present": true,
-      "sha256": "d6d804799615825d3045db61e230313e772df494372d7a290b9cabca453ae49d",
+      "sha256": "175c047bbb6d8cbab8c6f8d5015830de96f56bbf7bd338fbe8c9dd8c357af466",
       "schemaVersion": 2
     },
     "performance": {
       "path": "artifacts/performance-report.json",
-      "present": false
+      "present": true,
+      "sha256": "ed8b602f04927e438fc693c2980e30ec1e3de0849cf1e1f6433bc2af6e3179f4",
+      "schemaVersion": 1
     }
   },
+  "sourceParity": {
+    "satisfied": 234,
+    "required": 234,
+    "mapped": 232,
+    "declarationOnly": 2
+  },
+  "sizeScenarios": [
+    {
+      "id": "runtime-only-client",
+      "candidateBrotli11": 44947,
+      "upstreamBrotli11": 19197,
+      "deltaBrotli11": 25750,
+      "passed": false
+    },
+    {
+      "id": "runtime-compiler-client",
+      "candidateBrotli11": 145954,
+      "upstreamBrotli11": 55738,
+      "deltaBrotli11": 90216,
+      "passed": false
+    },
+    {
+      "id": "ssr-app",
+      "candidateBrotli11": 220757,
+      "upstreamBrotli11": 167894,
+      "deltaBrotli11": 52863,
+      "passed": false
+    },
+    {
+      "id": "sfc-production-app",
+      "candidateBrotli11": 45436,
+      "upstreamBrotli11": 19678,
+      "deltaBrotli11": 25758,
+      "passed": false
+    }
+  ],
+  "performanceWorkloads": [
+    {
+      "id": "browser-keyed-render",
+      "category": "browser",
+      "ratio": 1.5432218472586912,
+      "upper95": 1.6279584070364288,
+      "margin": 1.03,
+      "passed": false
+    },
+    {
+      "id": "compiler-dom-development",
+      "category": "compiler",
+      "ratio": 1.0195438434606514,
+      "upper95": 1.0641369879298332,
+      "margin": 1.03,
+      "passed": false
+    },
+    {
+      "id": "reactivity-graph-updates",
+      "category": "reactivity",
+      "ratio": 2.7550896646837564,
+      "upper95": 2.884719566667678,
+      "margin": 1.03,
+      "passed": false
+    },
+    {
+      "id": "ssr-component-tree",
+      "category": "ssr",
+      "ratio": 2.5970786931846623,
+      "upper95": 2.7604586380996623,
+      "margin": 1.03,
+      "passed": false
+    }
+  ],
+  "runtimeOnlyModules": [
+    {
+      "name": "reactivity",
+      "candidateBytes": 36082,
+      "upstreamBytes": 31080
+    },
+    {
+      "name": "runtime-core",
+      "candidateBytes": 139699,
+      "upstreamBytes": 79749
+    },
+    {
+      "name": "runtime-dom",
+      "candidateBytes": 23484,
+      "upstreamBytes": 12620
+    },
+    {
+      "name": "shared",
+      "candidateBytes": 11853,
+      "upstreamBytes": 7595
+    }
+  ],
   "blockers": [
-    "source-parity evidence is missing (compatibility/source-parity.json)",
-    "@vue/shared status is \"runtime-complete\"",
-    "@vue/reactivity status is \"runtime-complete\"",
-    "@vue/runtime-core status is \"partial\"",
-    "@vue/runtime-dom status is \"not-started\"",
-    "@vue/compiler-core status is \"runtime-complete\"",
-    "@vue/compiler-dom status is \"runtime-complete\"",
-    "@vue/compiler-ssr status is \"runtime-complete\"",
-    "@vue/compiler-sfc status is \"not-started\"",
-    "@vue/server-renderer status is \"not-started\"",
-    "@vue/compat status is \"not-started\"",
-    "vue status is \"not-started\"",
-    "runtime-only-client project-size status is \"pending\"",
-    "runtime-compiler-client project-size status is \"pending\"",
-    "ssr-app project-size status is \"pending\"",
-    "sfc-production-app project-size status is \"pending\"",
-    "sourceParityRequired is 234; audited value is undefined",
-    "sourceParitySatisfied is 92; audited value is undefined",
-    "sourceParityMissing is 140; audited value is undefined",
-    "sourceParityLegacyMapped is 2; audited value is undefined",
-    "sourceParityLegacyNonconforming is 2; audited value is undefined",
-    "sourceParity gate is \"failed\"",
-    "candidatePassed is 70; expected 216",
-    "candidatePending is 126; expected 0",
+    "runtime-only-client project-size status is \"failed\"",
+    "runtime-compiler-client project-size status is \"failed\"",
+    "ssr-app project-size status is \"failed\"",
+    "sfc-production-app project-size status is \"failed\"",
     "projectSizeRequiredPassed is 0; expected 4",
-    "projectSize gate is \"pending\"",
-    "performance gate is \"pending\"",
-    "pages gate is \"pending\"",
-    "compatibility evidence is missing (artifacts/compatibility-report.json)",
+    "projectSize gate is \"failed\"",
+    "performance gate is \"failed\"",
     "project-size evidence does not identify the current scope",
-    "project-size evidence is missing runtime-only-client",
-    "project-size evidence is missing runtime-compiler-client",
-    "project-size evidence is missing ssr-app",
-    "project-size evidence is missing sfc-production-app",
-    "reactivity-app has not proved paired execution and module-graph independence",
+    "runtime-only-client has not proved a smaller paired-project Brotli-11 bundle",
+    "runtime-compiler-client has not proved a smaller paired-project Brotli-11 bundle",
+    "ssr-app has not proved a smaller paired-project Brotli-11 bundle",
+    "sfc-production-app has not proved a smaller paired-project Brotli-11 bundle",
     "the aggregate required project-size gate is not passed",
-    "performance evidence is missing (artifacts/performance-report.json)"
+    "browser-keyed-render has not passed its recomputed confidence bound",
+    "compiler-dom-development has not passed its recomputed confidence bound",
+    "reactivity-graph-updates has not passed its recomputed confidence bound",
+    "ssr-component-tree has not passed its recomputed confidence bound",
+    "the aggregate performance gate is not passed"
   ]
 }

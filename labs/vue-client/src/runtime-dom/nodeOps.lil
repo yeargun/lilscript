@@ -1,0 +1,161 @@
+import extern { warn as nodeOpsWarn } from "../../packages/vuelil/runtime-core.js";
+import extern {
+  hostAppendChild,
+  hostCloneNode,
+  hostCreateComment,
+  hostCreateElement,
+  hostCreateText,
+  hostCreateTrustedTypesPolicy,
+  hostFirstChild,
+  hostInsert,
+  hostLastChild,
+  hostNextSibling,
+  hostParentNode,
+  hostPreviousSibling,
+  hostQuerySelector,
+  hostRemove,
+  hostRemoveChild,
+  hostSetAttribute,
+  hostSetNodeValue,
+  hostSetTemplateHTML,
+  hostSetTextContent,
+  hostString,
+  hostTemplateContent,
+  hostTrustedTypes
+} from "./host.js";
+
+extern JsValue nodeOpsWarn;
+extern void hostAppendChild(JsValue parent, JsValue child);
+extern JsValue hostCloneNode(JsValue node);
+extern JsValue hostCreateComment(string text);
+extern JsValue hostCreateElement(string tag, JsValue namespace, JsValue isValue);
+extern JsValue hostCreateText(string text);
+extern JsValue hostCreateTrustedTypesPolicy(JsValue trustedTypes, string name, JsValue createHTML);
+extern JsValue hostFirstChild(JsValue node);
+extern void hostInsert(JsValue child, JsValue parent, JsValue anchor);
+extern JsValue hostLastChild(JsValue node);
+extern JsValue hostNextSibling(JsValue node);
+extern JsValue hostParentNode(JsValue node);
+extern JsValue hostPreviousSibling(JsValue node);
+extern JsValue hostQuerySelector(string selector);
+extern void hostRemove(JsValue child);
+extern void hostRemoveChild(JsValue parent, JsValue child);
+extern void hostSetAttribute(JsValue element, string name, JsValue value);
+extern void hostSetNodeValue(JsValue node, string value);
+extern void hostSetTemplateHTML(JsValue value);
+extern void hostSetTextContent(JsValue element, string value);
+extern string hostString(JsValue value);
+extern JsValue hostTemplateContent();
+extern JsValue hostTrustedTypes();
+
+export string svgNS = "http://www.w3.org/2000/svg";
+export string mathmlNS = "http://www.w3.org/1998/Math/MathML";
+
+JsValue trustedTypesPolicy = JS.undefined();
+JsValue trustedTypes = hostTrustedTypes();
+if (!JS.isNullish(trustedTypes) && trustedTypes.truthy()) {
+  try {
+    trustedTypesPolicy = hostCreateTrustedTypesPolicy(
+      trustedTypes,
+      "vue",
+      JS.method1((JsValue _self, JsValue value) => value)
+    );
+  } catch (JsValue error) {
+    JS.call(nodeOpsWarn, JS.undefined(), "Error creating trusted types policy: " + hostString(error));
+  }
+}
+
+export JsValue unsafeToTrustedHTML(JsValue value) {
+  if (!JS.isNullish(trustedTypesPolicy) && trustedTypesPolicy.truthy()) {
+    return JS.invoke(trustedTypesPolicy, "createHTML", value);
+  }
+  return value;
+}
+
+bool same(JsValue left, JsValue right) {
+  return JS.strictEqual(left, right);
+}
+
+int valueLength(JsValue value) {
+  return JS.number(value["length"]).toInt();
+}
+
+JsValue insertStaticContent(
+  JsValue content,
+  JsValue parent,
+  JsValue anchor,
+  JsValue namespace,
+  JsValue start,
+  JsValue end
+) {
+  JsValue before = hostLastChild(parent);
+  if (!JS.isNullish(anchor)) before = hostPreviousSibling(anchor);
+  if (!JS.isNullish(start) && (same(start, end) || !JS.isNullish(hostNextSibling(start)))) {
+    while (true) {
+      hostInsert(hostCloneNode(start), parent, anchor);
+      if (same(start, end)) break;
+      start = hostNextSibling(start);
+      if (JS.isNullish(start)) break;
+    }
+  } else {
+    string kind = "";
+    if (!JS.isNullish(namespace)) kind = hostString(namespace);
+    string source = hostString(content);
+    if (kind == "svg") source = "<svg>" + source + "</svg>";
+    else if (kind == "mathml") source = "<math>" + source + "</math>";
+    hostSetTemplateHTML(unsafeToTrustedHTML(source));
+    JsValue template = hostTemplateContent();
+    if (kind == "svg" || kind == "mathml") {
+      JsValue wrapper = hostFirstChild(template);
+      while (!JS.isNullish(hostFirstChild(wrapper))) {
+        hostAppendChild(template, hostFirstChild(wrapper));
+      }
+      hostRemoveChild(template, wrapper);
+    }
+    hostInsert(template, parent, anchor);
+  }
+  JsValue first = hostFirstChild(parent);
+  if (!JS.isNullish(before)) first = hostNextSibling(before);
+  JsValue last = hostLastChild(parent);
+  if (!JS.isNullish(anchor)) last = hostPreviousSibling(anchor);
+  return JS.array(first, last);
+}
+
+JsValue createElement(JsValue tagValue, JsValue namespace, JsValue isValue, JsValue props) {
+  string tag = hostString(tagValue);
+  JsValue element = hostCreateElement(tag, namespace, isValue);
+  if (tag == "select" && !JS.isNullish(props) && !JS.isNullish(props["multiple"])) {
+    hostSetAttribute(element, "multiple", props["multiple"]);
+  }
+  return element;
+}
+
+export JsValue nodeOps = JS.object(
+  "insert", JS.method3((JsValue _self, JsValue child, JsValue parent, JsValue anchor) => {
+    hostInsert(child, parent, anchor);
+    return JS.undefined();
+  }),
+  "remove", JS.method1((JsValue _self, JsValue child) => {
+    hostRemove(child);
+    return JS.undefined();
+  }),
+  "createElement", createElement,
+  "createText", JS.method1((JsValue _self, JsValue text) => hostCreateText(hostString(text))),
+  "createComment", JS.method1((JsValue _self, JsValue text) => hostCreateComment(hostString(text))),
+  "setText", JS.method2((JsValue _self, JsValue node, JsValue text) => {
+    hostSetNodeValue(node, hostString(text));
+    return JS.undefined();
+  }),
+  "setElementText", JS.method2((JsValue _self, JsValue element, JsValue text) => {
+    hostSetTextContent(element, hostString(text));
+    return JS.undefined();
+  }),
+  "parentNode", JS.method1((JsValue _self, JsValue node) => hostParentNode(node)),
+  "nextSibling", JS.method1((JsValue _self, JsValue node) => hostNextSibling(node)),
+  "querySelector", JS.method1((JsValue _self, JsValue selector) => hostQuerySelector(hostString(selector))),
+  "setScopeId", JS.method2((JsValue _self, JsValue element, JsValue id) => {
+    hostSetAttribute(element, hostString(id), "");
+    return JS.undefined();
+  }),
+  "insertStaticContent", insertStaticContent
+);

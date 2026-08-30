@@ -1,0 +1,296 @@
+import {
+  TransitionPropsValidators,
+  addTransitionClass,
+  forceReflow,
+  getTransitionInfo,
+  removeTransitionClass,
+  resolveTransitionProps,
+  vtcKey
+} from "./Transition";
+import { vShowHidden } from "../directives/vShow";
+import extern {
+  DeprecationTypes as transitionGroupDeprecationTypes,
+  Fragment as transitionGroupFragment,
+  Text as transitionGroupText,
+  compatUtils as transitionGroupCompatUtils,
+  createVNode as transitionGroupCreateVNode,
+  getCurrentInstance as transitionGroupGetCurrentInstance,
+  getTransitionRawChildren as transitionGroupGetTransitionRawChildren,
+  onUpdated as transitionGroupOnUpdated,
+  resolveTransitionHooks as transitionGroupResolveTransitionHooks,
+  setTransitionHooks as transitionGroupSetTransitionHooks,
+  toRaw as transitionGroupToRaw,
+  useTransitionState as transitionGroupUseTransitionState,
+  warn as transitionGroupWarn
+} from "../../../packages/vuelil/runtime-core.js";
+import extern { extend as transitionGroupExtend } from "../../../packages/vuelil/shared.js";
+import extern {
+  hostArrayFrom,
+  hostCloneNodeShallow,
+  hostConstructors,
+  hostCreateSymbol,
+  hostCreateWeakMap,
+  hostDelete,
+  hostIsElement,
+  hostMathAbs,
+  hostNumberIsFinite,
+  hostRead,
+  hostString,
+  hostWrite
+} from "../host.js";
+
+extern JsValue transitionGroupDeprecationTypes;
+extern JsValue transitionGroupFragment;
+extern JsValue transitionGroupText;
+extern JsValue transitionGroupCompatUtils;
+extern JsValue transitionGroupCreateVNode;
+extern JsValue transitionGroupGetCurrentInstance;
+extern JsValue transitionGroupGetTransitionRawChildren;
+extern JsValue transitionGroupOnUpdated;
+extern JsValue transitionGroupResolveTransitionHooks;
+extern JsValue transitionGroupSetTransitionHooks;
+extern JsValue transitionGroupToRaw;
+extern JsValue transitionGroupUseTransitionState;
+extern JsValue transitionGroupWarn;
+extern JsValue transitionGroupExtend;
+extern JsValue hostArrayFrom(JsValue value);
+extern JsValue hostCloneNodeShallow(JsValue node);
+extern JsValue hostConstructors();
+extern JsValue hostCreateSymbol(string description);
+extern JsValue hostCreateWeakMap();
+extern bool hostDelete(JsValue value, JsValue key);
+extern bool hostIsElement(JsValue value);
+extern float hostMathAbs(float value);
+extern bool hostNumberIsFinite(JsValue value);
+extern JsValue hostRead(JsValue value, JsValue key);
+extern string hostString(JsValue value);
+extern void hostWrite(JsValue value, JsValue key, JsValue next);
+
+bool TRANSITION_GROUP_DEV = true;
+bool TRANSITION_GROUP_COMPAT = false;
+JsValue positionMap = hostCreateWeakMap();
+JsValue newPositionMap = hostCreateWeakMap();
+JsValue moveCbKey = hostCreateSymbol("_moveCb");
+JsValue enterCbKey = hostCreateSymbol("_enterCb");
+
+int valueLength(JsValue value) {
+  return JS.number(hostRead(value, "length")).toInt();
+}
+
+JsValue getPosition(JsValue element) {
+  JsValue rect = JS.invoke(element, "getBoundingClientRect");
+  return JS.object("left", hostRead(rect, "left"), "top", hostRead(rect, "top"));
+}
+
+void callPendingCbs(JsValue child) {
+  JsValue element = hostRead(child, "el");
+  JsValue move = hostRead(element, moveCbKey);
+  if (!JS.isNullish(move) && move.truthy()) JS.call(move, JS.undefined());
+  JsValue enter = hostRead(element, enterCbKey);
+  if (!JS.isNullish(enter) && enter.truthy()) JS.call(enter, JS.undefined());
+}
+
+void recordPosition(JsValue child) {
+  JS.invoke(newPositionMap, "set", child, getPosition(hostRead(child, "el")));
+}
+
+JsValue applyTranslation(JsValue child) {
+  JsValue oldPosition = JS.invoke(positionMap, "get", child);
+  JsValue newPosition = JS.invoke(newPositionMap, "get", child);
+  float dx = JS.number(hostRead(oldPosition, "left")) - JS.number(hostRead(newPosition, "left"));
+  float dy = JS.number(hostRead(oldPosition, "top")) - JS.number(hostRead(newPosition, "top"));
+  if (dx == 0.0 && dy == 0.0) return JS.undefined();
+  JsValue element = hostRead(child, "el");
+  JsValue style = hostRead(element, "style");
+  JsValue rect = JS.invoke(element, "getBoundingClientRect");
+  float scaleX = 1.0;
+  float scaleY = 1.0;
+  float offsetWidth = JS.number(hostRead(element, "offsetWidth"));
+  float offsetHeight = JS.number(hostRead(element, "offsetHeight"));
+  if (offsetWidth != 0.0) scaleX = JS.number(hostRead(rect, "width")) / offsetWidth;
+  if (offsetHeight != 0.0) scaleY = JS.number(hostRead(rect, "height")) / offsetHeight;
+  if (!hostNumberIsFinite(scaleX) || scaleX == 0.0) scaleX = 1.0;
+  if (!hostNumberIsFinite(scaleY) || scaleY == 0.0) scaleY = 1.0;
+  if (hostMathAbs(scaleX - 1.0) < 0.01) scaleX = 1.0;
+  if (hostMathAbs(scaleY - 1.0) < 0.01) scaleY = 1.0;
+  string transform = "translate(" + hostString(dx / scaleX) + "px," + hostString(dy / scaleY) + "px)";
+  hostWrite(style, "transform", transform);
+  hostWrite(style, "webkitTransform", transform);
+  hostWrite(style, "transitionDuration", "0s");
+  return child;
+}
+
+JsValue splitClasses(string classes) {
+  return JS.invoke(classes, "split", new Regex("\\s+"));
+}
+
+bool hasCSSTransform(JsValue element, JsValue root, string moveClass) {
+  JsValue clone = hostCloneNodeShallow(element);
+  JsValue transitionClasses = hostRead(element, vtcKey);
+  if (!JS.isNullish(transitionClasses) && transitionClasses.truthy()) {
+    JsValue values = hostArrayFrom(transitionClasses);
+    int count = valueLength(values);
+    for (int index = 0; index < count; index++) {
+      JsValue classes = splitClasses(hostString(hostRead(values, index)));
+      int classCount = valueLength(classes);
+      for (int classIndex = 0; classIndex < classCount; classIndex++) {
+        string name = hostString(hostRead(classes, classIndex));
+        if (name != "") JS.invoke(hostRead(clone, "classList"), "remove", name);
+      }
+    }
+  }
+  JsValue moveClasses = splitClasses(moveClass);
+  int moveCount = valueLength(moveClasses);
+  for (int index = 0; index < moveCount; index++) {
+    string name = hostString(hostRead(moveClasses, index));
+    if (name != "") JS.invoke(hostRead(clone, "classList"), "add", name);
+  }
+  hostWrite(hostRead(clone, "style"), "display", "none");
+  JsValue container = root;
+  if (JS.number(hostRead(root, "nodeType")).toInt() != 1) container = hostRead(root, "parentNode");
+  JS.invoke(container, "appendChild", clone);
+  bool hasTransform = hostRead(getTransitionInfo(clone), "hasTransform").truthy();
+  JS.invoke(container, "removeChild", clone);
+  return hasTransform;
+}
+
+JsValue transitionGroupSetup(JsValue props, JsValue context) {
+  JsValue instance = JS.call(transitionGroupGetCurrentInstance, JS.undefined());
+  JsValue state = JS.call(transitionGroupUseTransitionState, JS.undefined());
+  JsValue slots = hostRead(context, "slots");
+  JsValue prevChildren = JS.array();
+  JsValue children = JS.undefined();
+
+  JS.call(transitionGroupOnUpdated, JS.undefined(), JS.method0((JsValue _self) => {
+    if (valueLength(prevChildren) == 0) return JS.undefined();
+    string moveClass = "";
+    if (!JS.isNullish(hostRead(props, "moveClass")) && hostRead(props, "moveClass").truthy()) {
+      moveClass = hostString(hostRead(props, "moveClass"));
+    } else {
+      string name = "v";
+      if (!JS.isNullish(hostRead(props, "name")) && hostRead(props, "name").truthy()) {
+        name = hostString(hostRead(props, "name"));
+      }
+      moveClass = name + "-move";
+    }
+    if (!hasCSSTransform(hostRead(hostRead(prevChildren, 0), "el"), hostRead(hostRead(instance, "vnode"), "el"), moveClass)) {
+      prevChildren = JS.array();
+      return JS.undefined();
+    }
+    int count = valueLength(prevChildren);
+    for (int index = 0; index < count; index++) callPendingCbs(hostRead(prevChildren, index));
+    for (int index = 0; index < count; index++) recordPosition(hostRead(prevChildren, index));
+    JsValue movedChildren = JS.array();
+    for (int index = 0; index < count; index++) {
+      JsValue moved = applyTranslation(hostRead(prevChildren, index));
+      if (!JS.isUndefined(moved)) JS.invoke(movedChildren, "push", moved);
+    }
+    forceReflow(hostRead(hostRead(instance, "vnode"), "el"));
+    int movedCount = valueLength(movedChildren);
+    for (int index = 0; index < movedCount; index++) {
+      JsValue element = hostRead(hostRead(movedChildren, index), "el");
+      JsValue style = hostRead(element, "style");
+      addTransitionClass(element, moveClass);
+      hostWrite(style, "transform", "");
+      hostWrite(style, "webkitTransform", "");
+      hostWrite(style, "transitionDuration", "");
+      JsValue callback = JS.undefined();
+      callback = JS.method1((JsValue _callbackSelf, JsValue event) => {
+        if (!JS.isNullish(event) && event.truthy() && !JS.strictEqual(hostRead(event, "target"), element)) {
+          return JS.undefined();
+        }
+        if (JS.isNullish(event) || !event.truthy() || hostString(hostRead(event, "propertyName")).endsWith("transform")) {
+          JS.invoke(element, "removeEventListener", "transitionend", callback);
+          hostWrite(element, moveCbKey, null);
+          removeTransitionClass(element, moveClass);
+        }
+        return JS.undefined();
+      });
+      hostWrite(element, moveCbKey, callback);
+      JS.invoke(element, "addEventListener", "transitionend", callback);
+    }
+    prevChildren = JS.array();
+    return JS.undefined();
+  }));
+
+  return JS.method0((JsValue _self) => {
+    JsValue rawProps = JS.call(transitionGroupToRaw, JS.undefined(), props);
+    JsValue cssTransitionProps = resolveTransitionProps(rawProps);
+    JsValue tag = hostRead(rawProps, "tag");
+    if (JS.isNullish(tag) || !tag.truthy()) tag = transitionGroupFragment;
+    if (TRANSITION_GROUP_COMPAT &&
+        (JS.isNullish(hostRead(rawProps, "tag")) || !hostRead(rawProps, "tag").truthy()) &&
+        JS.call(
+          transitionGroupCompatUtils["checkCompatEnabled"],
+          transitionGroupCompatUtils,
+          transitionGroupDeprecationTypes["TRANSITION_GROUP_ROOT"],
+          hostRead(instance, "parent")
+        ).truthy()) tag = "span";
+
+    prevChildren = JS.array();
+    if (!JS.isUndefined(children)) {
+      int oldCount = valueLength(children);
+      for (int index = 0; index < oldCount; index++) {
+        JsValue child = hostRead(children, index);
+        JsValue element = hostRead(child, "el");
+        if (!JS.isNullish(element) && element.truthy() && hostIsElement(element) && !hostRead(element, vShowHidden).truthy()) {
+          JS.invoke(prevChildren, "push", child);
+          JsValue hooks = JS.call(
+            transitionGroupResolveTransitionHooks,
+            JS.undefined(),
+            child,
+            cssTransitionProps,
+            state,
+            instance
+          );
+          JS.call(transitionGroupSetTransitionHooks, JS.undefined(), child, hooks);
+          JS.invoke(positionMap, "set", child, getPosition(element));
+        }
+      }
+    }
+
+    JsValue defaultSlot = hostRead(slots, "default");
+    if (!JS.isNullish(defaultSlot) && defaultSlot.truthy()) {
+      children = JS.call(
+        transitionGroupGetTransitionRawChildren,
+        JS.undefined(),
+        JS.call(defaultSlot, JS.undefined())
+      );
+    } else children = JS.array();
+    int count = valueLength(children);
+    for (int index = 0; index < count; index++) {
+      JsValue child = hostRead(children, index);
+      if (!JS.isNullish(hostRead(child, "key"))) {
+        JsValue hooks = JS.call(
+          transitionGroupResolveTransitionHooks,
+          JS.undefined(),
+          child,
+          cssTransitionProps,
+          state,
+          instance
+        );
+        JS.call(transitionGroupSetTransitionHooks, JS.undefined(), child, hooks);
+      } else if (TRANSITION_GROUP_DEV && !JS.strictEqual(hostRead(child, "type"), transitionGroupText)) {
+        JS.call(transitionGroupWarn, JS.undefined(), "<TransitionGroup> children must be keyed.");
+      }
+    }
+    return JS.call(transitionGroupCreateVNode, JS.undefined(), tag, null, children);
+  });
+}
+
+JsValue groupConstructors = hostConstructors();
+JsValue groupProps = JS.call(
+  transitionGroupExtend,
+  JS.undefined(),
+  JS.object(),
+  TransitionPropsValidators,
+  JS.object("tag", groupConstructors["String"], "moveClass", groupConstructors["String"])
+);
+hostDelete(groupProps, "mode");
+JsValue TransitionGroupImpl = JS.object(
+  "name", "TransitionGroup",
+  "props", groupProps,
+  "setup", JS.method2((JsValue _self, JsValue props, JsValue context) => transitionGroupSetup(props, context))
+);
+if (TRANSITION_GROUP_COMPAT) hostWrite(TransitionGroupImpl, "__isBuiltIn", true);
+export JsValue TransitionGroup = TransitionGroupImpl;

@@ -53,6 +53,27 @@ function summarizeVNode(vnode) {
 }
 
 describe("Vue 3.5.42 runtime-core tranche", () => {
+  test("keeps public and upstream-test build semantics separate", () => {
+    assert.equal(candidate.version, "3.5.42");
+    assert.equal(candidate.compatUtils, null);
+    assert.equal(candidate.resolveFilter, null);
+    assert.equal(candidate.DeprecationTypes, null);
+
+    assert.equal(internal.version, "test");
+    assert.ok(internal.compatUtils);
+    assert.equal(typeof internal.resolveFilter, "function");
+    assert.ok(internal.DeprecationTypes);
+    for (const name of [
+      "formatComponentName",
+      "isEmitListener",
+      "currentInstance",
+      "resetSuspenseId",
+      "SuspenseImpl",
+    ]) {
+      assert.ok(name in internal, `${name} remains available to upstream tests`);
+    }
+  });
+
   test("exports the complete upstream runtime surface with matching reflection", () => {
     const expected = Object.keys(oracle).filter(name =>
       name !== "default" && name !== "__esModule" && name !== "module.exports"

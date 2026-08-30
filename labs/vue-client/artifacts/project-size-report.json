@@ -8,26 +8,35 @@
   },
   "scope": {
     "path": "compatibility/scope.json",
-    "sha256": "451bdd5bfaa79738579382344739cd97352e94e223103d83a320033e6295c4ad"
+    "sha256": "fcd14a4c4226803d5761f6743fa40184cef6d2bd87052d5c0bd45a5ba46176dd"
   },
   "inventory": {
     "path": "compatibility/inventory.json",
     "sha256": "d274dbbd3a0ce92ffd6db8df92872090d1fd9d1a59ea30e4917c90ef7863805e"
   },
   "buildEvidence": {
-    "path": "artifacts/generated/project-comparison/reactivity-app/build-report.json",
-    "sha256": "4b684dd703b02daca7255decfe0a842d3d2ef6460e21aafe330446d2d3eaf451"
+    "path": "artifacts/generated/project-comparison/build-report.json",
+    "sha256": "30c30d8d17d3a1276356a56ab646b223bfab265d1d1eba279664dbc4b870a98b"
   },
-  "methodology": "Paired production application builds use one unchanged source tree and identical Vite/Oxc settings. The candidate resolution derives static vue imports and compiles that LilScript-owned surface before Vite; every emitted host-adapter byte remains in the measured bundle. Library distribution files do not count toward completion.",
-  "objective": "Every completion-required project has a smaller candidate Brotli-11 bundle.",
+  "methodology": "Each required real application is built twice from identical source and identical Vite 8/Rolldown/Oxc production settings. Only Vue package resolution changes. Candidate graphs contain only VueLil implementation modules, with retained inlined host-adapter code counted. Every emitted deployment asset is scored independently and summed; published Vue distribution sizes are not used as the gate.",
+  "objective": "Every completion-required project has a smaller candidate Brotli-11 deployment.",
   "toolchain": {
-    "node": "v24.11.1",
+    "node": "v20.19.0",
+    "executionNode": "node@24",
     "vite": {
       "version": "8.2.1",
       "packageJson": {
         "path": "node_modules/vite/package.json",
         "bytes": 5083,
         "sha256": "3baf6fb19ca2a2da0b739d984620e2c9d4aeba83d5ac68da9bacfb37d43afd61"
+      }
+    },
+    "viteVuePlugin": {
+      "version": "6.0.8",
+      "packageJson": {
+        "path": "node_modules/@vitejs/plugin-vue/package.json",
+        "bytes": 1539,
+        "sha256": "a59732ca8c476ddca71ec45b921da9fd0d3ba81e3b70dd03f715330c97da4fd8"
       }
     },
     "bundler": {
@@ -51,8 +60,8 @@
     },
     "packageLock": {
       "path": "package-lock.json",
-      "bytes": 66891,
-      "sha256": "4c46f8bc9605dfa16c565b212e658435c43efb41043a608024ab718ce7923167"
+      "bytes": 107440,
+      "sha256": "cfa6786d19c2efc1d0569a6fa190622ad906262abd1021180517f7cf0c8d9ada"
     },
     "config": {
       "mode": "production",
@@ -62,6 +71,7 @@
       "modulePreload": false,
       "cssCodeSplit": true,
       "reportCompressedSize": false,
+      "emptyOutDir": false,
       "defines": {
         "__VUE_OPTIONS_API__": "false",
         "__VUE_PROD_DEVTOOLS__": "false",
@@ -71,20 +81,20 @@
       "output": {
         "format": "es",
         "entryFileNames": "assets/app.js",
-        "chunkFileNames": "assets/chunks/[name]-[hash].js",
-        "assetFileNames": "assets/[name]-[hash][extname]",
+        "chunkFileNames": "assets/chunks/[name].js",
+        "assetFileNames": "assets/[name][extname]",
         "codeSplitting": false
       }
     },
-    "commonConfigSha256": "103c8705a075ec22f7a0d2596cd9c2bc8f1fa0cb9933e3747ef29741c0175599"
+    "commonConfigSha256": "39af945402f31b66aaccfc9a37916036424a987e765f6cbd149f2974182e9a9d"
   },
   "codecs": {
     "implementation": "lilscript-codec",
     "schemaVersion": 1,
     "scorer": {
       "path": "target/release/lilscript-codec",
-      "sha256": "67b5d4538e09995079d39d8ca1585c3c5ff5ae7efd868009f6cc3b263ff3065e",
-      "bytes": 1805504
+      "sha256": "c7a6cf4a12db10bcba3af51a473e870e52ce19b6587bc6e1100ead4565bb613b",
+      "bytes": 2412424
     },
     "gzip9": {
       "encoder": "upstream-stock-zlib-c",
@@ -107,62 +117,104 @@
   },
   "scenarios": [
     {
-      "id": "reactivity-app",
-      "completionRequired": false,
+      "id": "runtime-only-client",
+      "completionRequired": true,
       "status": "failed",
       "input": {
-        "entry": "apps/reactivity/index.html",
-        "source": "apps/reactivity/src/main.js",
+        "entry": "apps/runtime-only-client/index.html",
         "importSpecifier": "vue",
+        "importSpecifiers": [
+          "vue"
+        ],
         "files": [
           {
-            "path": "apps/reactivity/index.html",
-            "bytes": 293,
-            "sha256": "7912b669057080ef04350bf7baf82aca233802354a141ea6e822de2185effac6"
+            "path": "apps/runtime-only-client/index.html",
+            "bytes": 307,
+            "sha256": "99a4b74f0601b8aefe39fe2eb0a83c3d19611c3ad3f97c047da614848e748595"
           },
           {
-            "path": "apps/reactivity/src/main.js",
-            "bytes": 649,
-            "sha256": "6eae13ad7c6e275876c81505006ad0a25a74fec257f6344d31d4819b450e7a5b"
+            "path": "apps/runtime-only-client/src/main.js",
+            "bytes": 1714,
+            "sha256": "65d21d43bba31100782afba0046a88e415ea04dd3aa1777f326cbb91f9649435"
           }
         ],
-        "sha256": "cd547f4410133de070ac43e0ebd8a9c9ac3b08a4768ead0f6305e5d9f84933c8"
+        "sha256": "aa0a1b8b94ee32d95bd1176608a9099c70d1d49203e198e47fcee19221995f0c"
       },
       "execution": {
-        "deterministicChecksum": "6ca74c5976e4cbda32d2c0b8c6df969bc37c436d31f03e55696066649a7831a1",
+        "deterministicChecksum": "4980359c3a2017ff38abd4e44e6d2a9a2c75508fb3bc92b25f7d96e8c9e35707",
         "matching": true
       },
       "build": {
-        "commonConfigSha256": "103c8705a075ec22f7a0d2596cd9c2bc8f1fa0cb9933e3747ef29741c0175599",
+        "commonConfigSha256": "39af945402f31b66aaccfc9a37916036424a987e765f6cbd149f2974182e9a9d",
+        "scenarioConfigSha256": "cc7309b415ebba07d2448fdfa82e534deed86ced57ae68a793472ce594b40e1e",
         "onlyModuleResolutionChanged": true
       },
       "moduleAudit": {
         "candidate": {
           "includesCandidateModule": true,
+          "candidateModules": [
+            "packages/vuelil/reactivity.project.generated.js",
+            "packages/vuelil/runtime-core.project.generated.js",
+            "packages/vuelil/runtime-dom.project.generated.js",
+            "packages/vuelil/shared.project.generated.js",
+            "packages/vuelil/vue.runtime.project.js"
+          ],
           "upstreamRuntimeModules": [],
           "noUpstreamRuntime": true,
-          "hostAdapterAccounting": {
-            "sourceBytes": 6123,
-            "selectedModuleRenderedBytes": 24537,
-            "emittedJavaScriptBytes": 19337,
-            "emittedJavaScriptChunks": 1,
-            "adapterExternalized": false,
-            "allEmittedAdapterCodeCounted": true
-          },
+          "adapters": [
+            {
+              "path": "src/reactivity/host.js",
+              "bytes": 6123,
+              "sha256": "7e238e4b1d8020f63583b39c72c6c8170de3710186b9b78bd00b7995c41d953f",
+              "owner": "reactivity",
+              "accounting": "inlined into VueLil before Vite; all retained bytes are measured in emitted assets"
+            },
+            {
+              "path": "src/runtime-core/host.js",
+              "bytes": 5430,
+              "sha256": "04ecdcd7573d34cdf0388c5211ed0ffa1fa3fab9550ba7a40560f47c10e6f702",
+              "owner": "runtime-core",
+              "accounting": "inlined into VueLil before Vite; all retained bytes are measured in emitted assets"
+            },
+            {
+              "path": "src/runtime-dom/host.js",
+              "bytes": 11101,
+              "sha256": "3cf2fe57cf4936dc9613eb79351bb1af035a68abe656122310a1160e3ad4594f",
+              "owner": "runtime-dom",
+              "accounting": "inlined into VueLil before Vite; all retained bytes are measured in emitted assets"
+            }
+          ],
+          "allEmittedAdapterCodeCounted": true,
           "graph": {
-            "sha256": "0e8e7ddfe48f19ab0bf9ec3ecae6dceac5d913f8692820322fd80db769c4f20e",
+            "sha256": "9b2e7f148c4cefb75797d367b4b6fc23f3b56af5119cecb7fe7b4c466cecdeb0",
             "modules": [
               {
-                "id": "apps/reactivity/index.html",
+                "id": "apps/runtime-only-client/index.html",
                 "renderedBytes": 0
               },
               {
-                "id": "apps/reactivity/src/main.js",
-                "renderedBytes": 554
+                "id": "apps/runtime-only-client/src/main.js",
+                "renderedBytes": 1194
               },
               {
-                "id": "artifacts/reactivity.esm-browser.prod.js",
-                "renderedBytes": 24537
+                "id": "packages/vuelil/reactivity.project.generated.js",
+                "renderedBytes": 36082
+              },
+              {
+                "id": "packages/vuelil/runtime-core.project.generated.js",
+                "renderedBytes": 139699
+              },
+              {
+                "id": "packages/vuelil/runtime-dom.project.generated.js",
+                "renderedBytes": 23484
+              },
+              {
+                "id": "packages/vuelil/shared.project.generated.js",
+                "renderedBytes": 11853
+              },
+              {
+                "id": "packages/vuelil/vue.runtime.project.js",
+                "renderedBytes": 0
               }
             ]
           }
@@ -171,30 +223,35 @@
           "upstreamRuntimeModules": [
             "node_modules/@vue/reactivity/dist/reactivity.esm-bundler.js",
             "node_modules/@vue/runtime-core/dist/runtime-core.esm-bundler.js",
+            "node_modules/@vue/runtime-dom/dist/runtime-dom.esm-bundler.js",
             "node_modules/@vue/shared/dist/shared.esm-bundler.js"
           ],
           "graph": {
-            "sha256": "3ca2d4ab0d0e4c9f27a969f8c95d39ff340cdbd8fe47d9169bfe6847d06f9653",
+            "sha256": "570cf4fa78a05028a64812410e184b2f144331df2148cc454319fce335a5fe55",
             "modules": [
               {
-                "id": "apps/reactivity/index.html",
+                "id": "apps/runtime-only-client/index.html",
                 "renderedBytes": 0
               },
               {
-                "id": "apps/reactivity/src/main.js",
-                "renderedBytes": 584
+                "id": "apps/runtime-only-client/src/main.js",
+                "renderedBytes": 1377
               },
               {
                 "id": "node_modules/@vue/reactivity/dist/reactivity.esm-bundler.js",
-                "renderedBytes": 28697
+                "renderedBytes": 31080
               },
               {
                 "id": "node_modules/@vue/runtime-core/dist/runtime-core.esm-bundler.js",
-                "renderedBytes": 4414
+                "renderedBytes": 79749
+              },
+              {
+                "id": "node_modules/@vue/runtime-dom/dist/runtime-dom.esm-bundler.js",
+                "renderedBytes": 12620
               },
               {
                 "id": "node_modules/@vue/shared/dist/shared.esm-bundler.js",
-                "renderedBytes": 2429
+                "renderedBytes": 7595
               }
             ]
           }
@@ -202,98 +259,1137 @@
         "passed": true
       },
       "candidate": {
-        "path": "artifacts/generated/project-comparison/reactivity-app/candidate/app.js",
-        "sha256": "6b2244f7843b83450902b2d88668d6ccb8c70788e0d34ae194a6557c4c8fc458",
+        "path": "artifacts/generated/project-comparison/runtime-only-client/candidate/assets/app.js",
+        "sha256": "d508308568d6a44fb61bda795e5e2765a4087e0c6a95b5231755a648d013f208",
+        "files": [
+          {
+            "path": "artifacts/generated/project-comparison/runtime-only-client/candidate/assets/app.js",
+            "bytes": 150118,
+            "sha256": "da87ac52f24af5d6152179e9b62e4eccdfb08d8a5d96186d2f5ee34676ca0462",
+            "sizes": {
+              "raw": 150118,
+              "gzip9": 54537,
+              "brotli11": 44811
+            }
+          },
+          {
+            "path": "artifacts/generated/project-comparison/runtime-only-client/candidate/index.html",
+            "bytes": 321,
+            "sha256": "3a5343f39fe0c9d7300430ea527bfe2f0c459058b7e735dff9a6a6f092c7d358",
+            "sizes": {
+              "raw": 321,
+              "gzip9": 228,
+              "brotli11": 136
+            }
+          }
+        ],
         "sizes": {
-          "raw": 19337,
-          "gzip9": 6018,
-          "brotli11": 5513
+          "raw": 150439,
+          "gzip9": 54765,
+          "brotli11": 44947
         },
-        "buildSha256": "6b2244f7843b83450902b2d88668d6ccb8c70788e0d34ae194a6557c4c8fc458"
+        "buildSha256": "d508308568d6a44fb61bda795e5e2765a4087e0c6a95b5231755a648d013f208"
       },
       "upstream": {
-        "path": "artifacts/generated/project-comparison/reactivity-app/upstream/app.js",
-        "sha256": "b378202e6a5255b50c848bf422ba4feb7e3a0efdc08078acf76e8a077ad37b44",
+        "path": "artifacts/generated/project-comparison/runtime-only-client/upstream/assets/app.js",
+        "sha256": "0a20a6c675facd00462d88b36f3ad918347b2015d880c135a5b41779a3b66f2a",
+        "files": [
+          {
+            "path": "artifacts/generated/project-comparison/runtime-only-client/upstream/assets/app.js",
+            "bytes": 53297,
+            "sha256": "e524c8958b92aa7ef0aa5485214e47e176d1cd503e18d11aa0ea6ec35225a5a0",
+            "sizes": {
+              "raw": 53297,
+              "gzip9": 20796,
+              "brotli11": 19061
+            }
+          },
+          {
+            "path": "artifacts/generated/project-comparison/runtime-only-client/upstream/index.html",
+            "bytes": 321,
+            "sha256": "3a5343f39fe0c9d7300430ea527bfe2f0c459058b7e735dff9a6a6f092c7d358",
+            "sizes": {
+              "raw": 321,
+              "gzip9": 228,
+              "brotli11": 136
+            }
+          }
+        ],
         "sizes": {
-          "raw": 13347,
-          "gzip9": 5024,
-          "brotli11": 4657
+          "raw": 53618,
+          "gzip9": 21024,
+          "brotli11": 19197
         },
-        "buildSha256": "b378202e6a5255b50c848bf422ba4feb7e3a0efdc08078acf76e8a077ad37b44"
+        "buildSha256": "0a20a6c675facd00462d88b36f3ad918347b2015d880c135a5b41779a3b66f2a"
       },
       "comparison": {
         "deltaBytes": {
-          "raw": 5990,
-          "gzip9": 994,
-          "brotli11": 856
+          "raw": 96821,
+          "gzip9": 33741,
+          "brotli11": 25750
         },
         "ratio": {
-          "raw": 1.4487899902599835,
-          "gzip9": 1.1978503184713376,
-          "brotli11": 1.1838093193042731
+          "raw": 2.8057555298593755,
+          "gzip9": 2.6048801369863015,
+          "brotli11": 2.341355420117727
         },
         "smallerBrotli11": false
       },
-      "retainedCodeDiagnosis": {
-        "reusableCandidate": {
-          "path": "artifacts/generated/project-comparison/reactivity-app/reusable-candidate/app.js",
-          "sha256": "4c2cdb5142bd1443ac3cf1bc27da7f061738ca111b587a944b5b91b91d9205c8",
-          "sizes": {
-            "raw": 26117,
-            "gzip9": 8532,
-            "brotli11": 7851
+      "passed": false
+    },
+    {
+      "id": "runtime-compiler-client",
+      "completionRequired": true,
+      "status": "failed",
+      "input": {
+        "entry": "apps/runtime-compiler-client/index.html",
+        "importSpecifier": "vue",
+        "importSpecifiers": [
+          "vue"
+        ],
+        "files": [
+          {
+            "path": "apps/runtime-compiler-client/index.html",
+            "bytes": 306,
+            "sha256": "00467088d789b6620918b9098dd8b71e0a0eda5db115d1b92ae57020bf35687c"
           },
-          "buildSha256": "4c2cdb5142bd1443ac3cf1bc27da7f061738ca111b587a944b5b91b91d9205c8"
+          {
+            "path": "apps/runtime-compiler-client/src/main.js",
+            "bytes": 1206,
+            "sha256": "a6ac21c1f1d19b24ed8180e2863818cdb76e391426ef9ddeffb778855a3f9791"
+          }
+        ],
+        "sha256": "11073f97d77a2f2b7a30a772128e75648132ef2f0566848da267602386204105"
+      },
+      "execution": {
+        "deterministicChecksum": "45516f5f4f6a54fc46e4c59482931add1e2ccb01608e33eb7b51f606ea6b765a",
+        "matching": true
+      },
+      "build": {
+        "commonConfigSha256": "39af945402f31b66aaccfc9a37916036424a987e765f6cbd149f2974182e9a9d",
+        "scenarioConfigSha256": "cc7309b415ebba07d2448fdfa82e534deed86ced57ae68a793472ce594b40e1e",
+        "onlyModuleResolutionChanged": true
+      },
+      "moduleAudit": {
+        "candidate": {
+          "includesCandidateModule": true,
+          "candidateModules": [
+            "packages/vuelil/production/compiler-core.js",
+            "packages/vuelil/production/compiler-dom.js",
+            "packages/vuelil/production/vue.js",
+            "packages/vuelil/reactivity.js",
+            "packages/vuelil/runtime-core.internal.js",
+            "packages/vuelil/runtime-core.js",
+            "packages/vuelil/runtime-dom.js",
+            "packages/vuelil/shared.js"
+          ],
+          "upstreamRuntimeModules": [],
+          "noUpstreamRuntime": true,
+          "adapters": [
+            {
+              "path": "src/reactivity/host.js",
+              "bytes": 6123,
+              "sha256": "7e238e4b1d8020f63583b39c72c6c8170de3710186b9b78bd00b7995c41d953f",
+              "owner": "reactivity",
+              "accounting": "inlined into VueLil before Vite; all retained bytes are measured in emitted assets"
+            },
+            {
+              "path": "src/runtime-core/host.js",
+              "bytes": 5430,
+              "sha256": "04ecdcd7573d34cdf0388c5211ed0ffa1fa3fab9550ba7a40560f47c10e6f702",
+              "owner": "runtime-core",
+              "accounting": "inlined into VueLil before Vite; all retained bytes are measured in emitted assets"
+            },
+            {
+              "path": "src/runtime-dom/host.js",
+              "bytes": 11101,
+              "sha256": "3cf2fe57cf4936dc9613eb79351bb1af035a68abe656122310a1160e3ad4594f",
+              "owner": "runtime-dom",
+              "accounting": "inlined into VueLil before Vite; all retained bytes are measured in emitted assets"
+            },
+            {
+              "path": "src/compiler-dom/host.js",
+              "bytes": 161,
+              "sha256": "b7248c143bc5337dd49720eff478bf589065f577cbd7efe653fd2b226e76add7",
+              "owner": "compiler-dom",
+              "accounting": "inlined into VueLil before Vite; all retained bytes are measured in emitted assets"
+            }
+          ],
+          "allEmittedAdapterCodeCounted": true,
+          "graph": {
+            "sha256": "cc652b7d4113a6c3c83e5f54bfed8fd174807bfcd6c7e66662069697eb148b8e",
+            "modules": [
+              {
+                "id": "apps/runtime-compiler-client/index.html",
+                "renderedBytes": 0
+              },
+              {
+                "id": "apps/runtime-compiler-client/src/main.js",
+                "renderedBytes": 1138
+              },
+              {
+                "id": "artifacts/shared-runtime.generated.js",
+                "renderedBytes": 16288
+              },
+              {
+                "id": "node_modules/entities/dist/decode-codepoint.js",
+                "renderedBytes": 668
+              },
+              {
+                "id": "node_modules/entities/dist/decode.js",
+                "renderedBytes": 10414
+              },
+              {
+                "id": "node_modules/entities/dist/generated/decode-data-html.js",
+                "renderedBytes": 32335
+              },
+              {
+                "id": "node_modules/entities/dist/internal/bin-trie-flags.js",
+                "renderedBytes": 424
+              },
+              {
+                "id": "node_modules/entities/dist/internal/decode-shared.js",
+                "renderedBytes": 425
+              },
+              {
+                "id": "node_modules/source-map-js/lib/array-set.js",
+                "renderedBytes": 1986
+              },
+              {
+                "id": "node_modules/source-map-js/lib/base64-vlq.js",
+                "renderedBytes": 1513
+              },
+              {
+                "id": "node_modules/source-map-js/lib/base64.js",
+                "renderedBytes": 981
+              },
+              {
+                "id": "node_modules/source-map-js/lib/binary-search.js",
+                "renderedBytes": 1264
+              },
+              {
+                "id": "node_modules/source-map-js/lib/mapping-list.js",
+                "renderedBytes": 1300
+              },
+              {
+                "id": "node_modules/source-map-js/lib/quick-sort.js",
+                "renderedBytes": 1314
+              },
+              {
+                "id": "node_modules/source-map-js/lib/source-map-consumer.js",
+                "renderedBytes": 21973
+              },
+              {
+                "id": "node_modules/source-map-js/lib/source-map-generator.js",
+                "renderedBytes": 9714
+              },
+              {
+                "id": "node_modules/source-map-js/lib/source-node.js",
+                "renderedBytes": 8079
+              },
+              {
+                "id": "node_modules/source-map-js/lib/util.js",
+                "renderedBytes": 9012
+              },
+              {
+                "id": "node_modules/source-map-js/source-map.js",
+                "renderedBytes": 355
+              },
+              {
+                "id": "packages/vuelil/production/compiler-core.js",
+                "renderedBytes": 120297
+              },
+              {
+                "id": "packages/vuelil/production/compiler-dom.js",
+                "renderedBytes": 21016
+              },
+              {
+                "id": "packages/vuelil/production/vue.js",
+                "renderedBytes": 7108
+              },
+              {
+                "id": "packages/vuelil/reactivity.js",
+                "renderedBytes": 47852
+              },
+              {
+                "id": "packages/vuelil/runtime-core.internal.js",
+                "renderedBytes": 471558
+              },
+              {
+                "id": "packages/vuelil/runtime-core.js",
+                "renderedBytes": 0
+              },
+              {
+                "id": "packages/vuelil/runtime-dom.js",
+                "renderedBytes": 135401
+              },
+              {
+                "id": "packages/vuelil/shared.js",
+                "renderedBytes": 298
+              },
+              {
+                "id": "virtual:rolldown/runtime.js",
+                "renderedBytes": 161
+              }
+            ]
+          }
         },
-        "selectedCandidate": {
-          "path": "artifacts/generated/project-comparison/reactivity-app/candidate/app.js",
-          "sha256": "6b2244f7843b83450902b2d88668d6ccb8c70788e0d34ae194a6557c4c8fc458",
-          "sizes": {
-            "raw": 19337,
-            "gzip9": 6018,
-            "brotli11": 5513
+        "upstream": {
+          "upstreamRuntimeModules": [
+            "node_modules/@vue/compiler-core/dist/compiler-core.esm-bundler.js",
+            "node_modules/@vue/compiler-dom/dist/compiler-dom.esm-bundler.js",
+            "node_modules/@vue/reactivity/dist/reactivity.esm-bundler.js",
+            "node_modules/@vue/runtime-core/dist/runtime-core.esm-bundler.js",
+            "node_modules/@vue/runtime-dom/dist/runtime-dom.esm-bundler.js",
+            "node_modules/@vue/shared/dist/shared.esm-bundler.js",
+            "node_modules/vue/dist/vue.esm-bundler.js"
+          ],
+          "graph": {
+            "sha256": "71b9c33d21ab2047ab3faa1d9ec7151a78d6227cefd7b662b53f59576959e7fa",
+            "modules": [
+              {
+                "id": "apps/runtime-compiler-client/index.html",
+                "renderedBytes": 0
+              },
+              {
+                "id": "apps/runtime-compiler-client/src/main.js",
+                "renderedBytes": 1161
+              },
+              {
+                "id": "node_modules/@vue/compiler-core/dist/compiler-core.esm-bundler.js",
+                "renderedBytes": 113888
+              },
+              {
+                "id": "node_modules/@vue/compiler-dom/dist/compiler-dom.esm-bundler.js",
+                "renderedBytes": 8944
+              },
+              {
+                "id": "node_modules/@vue/reactivity/dist/reactivity.esm-bundler.js",
+                "renderedBytes": 40638
+              },
+              {
+                "id": "node_modules/@vue/runtime-core/dist/runtime-core.esm-bundler.js",
+                "renderedBytes": 151028
+              },
+              {
+                "id": "node_modules/@vue/runtime-dom/dist/runtime-dom.esm-bundler.js",
+                "renderedBytes": 54360
+              },
+              {
+                "id": "node_modules/@vue/shared/dist/shared.esm-bundler.js",
+                "renderedBytes": 10797
+              },
+              {
+                "id": "node_modules/vue/dist/vue.esm-bundler.js",
+                "renderedBytes": 939
+              },
+              {
+                "id": "virtual:rolldown/runtime.js",
+                "renderedBytes": 348
+              }
+            ]
+          }
+        },
+        "passed": true
+      },
+      "candidate": {
+        "path": "artifacts/generated/project-comparison/runtime-compiler-client/candidate/assets/app.js",
+        "sha256": "edc8887b460f725734f1edd7b5544e773974aeb7e1e2106fab90531d6c696d8a",
+        "files": [
+          {
+            "path": "artifacts/generated/project-comparison/runtime-compiler-client/candidate/assets/app.js",
+            "bytes": 460862,
+            "sha256": "25497a4aa7a63dc9c374dea27dc585bfb722e819a99978d237269bd97d072673",
+            "sizes": {
+              "raw": 460862,
+              "gzip9": 172602,
+              "brotli11": 145822
+            }
           },
-          "buildSha256": "6b2244f7843b83450902b2d88668d6ccb8c70788e0d34ae194a6557c4c8fc458"
-        },
-        "removedBytes": {
-          "raw": 6780,
-          "gzip9": 2514,
-          "brotli11": 2338
-        },
-        "reusableModuleGraph": {
-          "sha256": "ae90c68370af4f4f4c1551583ea728628871e85d4277f81eb2979b7aae00f943",
-          "modules": [
-            {
-              "id": "apps/reactivity/index.html",
-              "renderedBytes": 0
-            },
-            {
-              "id": "apps/reactivity/src/main.js",
-              "renderedBytes": 552
-            },
-            {
-              "id": "artifacts/reactivity.esm-browser.prod.js",
-              "renderedBytes": 33598
+          {
+            "path": "artifacts/generated/project-comparison/runtime-compiler-client/candidate/index.html",
+            "bytes": 320,
+            "sha256": "a475993703599b5ff7a1a5cf9e30be33f5a6e94bb46d9db9ae7d940b6a20faa8",
+            "sizes": {
+              "raw": 320,
+              "gzip9": 226,
+              "brotli11": 132
             }
-          ]
+          }
+        ],
+        "sizes": {
+          "raw": 461182,
+          "gzip9": 172828,
+          "brotli11": 145954
         },
-        "selectedModuleGraph": {
-          "sha256": "0e8e7ddfe48f19ab0bf9ec3ecae6dceac5d913f8692820322fd80db769c4f20e",
-          "modules": [
-            {
-              "id": "apps/reactivity/index.html",
-              "renderedBytes": 0
-            },
-            {
-              "id": "apps/reactivity/src/main.js",
-              "renderedBytes": 554
-            },
-            {
-              "id": "artifacts/reactivity.esm-browser.prod.js",
-              "renderedBytes": 24537
+        "buildSha256": "edc8887b460f725734f1edd7b5544e773974aeb7e1e2106fab90531d6c696d8a"
+      },
+      "upstream": {
+        "path": "artifacts/generated/project-comparison/runtime-compiler-client/upstream/assets/app.js",
+        "sha256": "8b59e58a2254003de03487d3486f7d4aa03436301b1b237c2a0775add5248ba2",
+        "files": [
+          {
+            "path": "artifacts/generated/project-comparison/runtime-compiler-client/upstream/assets/app.js",
+            "bytes": 170961,
+            "sha256": "5106a83c272f070bf18f0ffcf57510f212f8774357f43503a8a3c9ec9463d8a8",
+            "sizes": {
+              "raw": 170961,
+              "gzip9": 61920,
+              "brotli11": 55606
             }
-          ]
-        }
+          },
+          {
+            "path": "artifacts/generated/project-comparison/runtime-compiler-client/upstream/index.html",
+            "bytes": 320,
+            "sha256": "a475993703599b5ff7a1a5cf9e30be33f5a6e94bb46d9db9ae7d940b6a20faa8",
+            "sizes": {
+              "raw": 320,
+              "gzip9": 226,
+              "brotli11": 132
+            }
+          }
+        ],
+        "sizes": {
+          "raw": 171281,
+          "gzip9": 62146,
+          "brotli11": 55738
+        },
+        "buildSha256": "8b59e58a2254003de03487d3486f7d4aa03436301b1b237c2a0775add5248ba2"
+      },
+      "comparison": {
+        "deltaBytes": {
+          "raw": 289901,
+          "gzip9": 110682,
+          "brotli11": 90216
+        },
+        "ratio": {
+          "raw": 2.6925461668252755,
+          "gzip9": 2.7809995816303545,
+          "brotli11": 2.6185726075567834
+        },
+        "smallerBrotli11": false
+      },
+      "passed": false
+    },
+    {
+      "id": "ssr-app",
+      "completionRequired": true,
+      "status": "failed",
+      "input": {
+        "entry": "apps/ssr-app/src/main.js",
+        "importSpecifier": "vue",
+        "importSpecifiers": [
+          "vue",
+          "vue/server-renderer"
+        ],
+        "files": [
+          {
+            "path": "apps/ssr-app/src/main.js",
+            "bytes": 1191,
+            "sha256": "8d8e163e9a9ca2c5f43a75efed21aaf658b7b3f750f65bc17b2616f9a04bbe5d"
+          }
+        ],
+        "sha256": "d31064ae8189ceb7e42d16ebd51ba4ffa92da67bb909625a4958974239d6540c"
+      },
+      "execution": {
+        "deterministicChecksum": "520aa412eb6f6ef7e4690772bea53df6e32dcb5578b67ffcc9c8a76ed34e2266",
+        "matching": true
+      },
+      "build": {
+        "commonConfigSha256": "39af945402f31b66aaccfc9a37916036424a987e765f6cbd149f2974182e9a9d",
+        "scenarioConfigSha256": "99f041e7fa9e8b122a3de510b488a50fcbf34ad316fc2db3e24a7dfbd9552206",
+        "onlyModuleResolutionChanged": true
+      },
+      "moduleAudit": {
+        "candidate": {
+          "includesCandidateModule": true,
+          "candidateModules": [
+            "packages/vuelil/compiler-core.js",
+            "packages/vuelil/compiler-dom.js",
+            "packages/vuelil/compiler-ssr.js",
+            "packages/vuelil/reactivity.js",
+            "packages/vuelil/runtime-core.internal.js",
+            "packages/vuelil/runtime-core.js",
+            "packages/vuelil/runtime-dom.js",
+            "packages/vuelil/server-renderer.js",
+            "packages/vuelil/shared.js",
+            "packages/vuelil/vue.runtime.js"
+          ],
+          "upstreamRuntimeModules": [],
+          "noUpstreamRuntime": true,
+          "adapters": [
+            {
+              "path": "src/reactivity/host.js",
+              "bytes": 6123,
+              "sha256": "7e238e4b1d8020f63583b39c72c6c8170de3710186b9b78bd00b7995c41d953f",
+              "owner": "reactivity",
+              "accounting": "inlined into VueLil before Vite; all retained bytes are measured in emitted assets"
+            },
+            {
+              "path": "src/runtime-core/host.js",
+              "bytes": 5430,
+              "sha256": "04ecdcd7573d34cdf0388c5211ed0ffa1fa3fab9550ba7a40560f47c10e6f702",
+              "owner": "runtime-core",
+              "accounting": "inlined into VueLil before Vite; all retained bytes are measured in emitted assets"
+            },
+            {
+              "path": "src/runtime-dom/host.js",
+              "bytes": 11101,
+              "sha256": "3cf2fe57cf4936dc9613eb79351bb1af035a68abe656122310a1160e3ad4594f",
+              "owner": "runtime-dom",
+              "accounting": "inlined into VueLil before Vite; all retained bytes are measured in emitted assets"
+            },
+            {
+              "path": "src/server-renderer/host.js",
+              "bytes": 422,
+              "sha256": "2c1146fdfef645bc0b0d86ca32bc13a5e086e01e9c4585c24d343bdb20fb1547",
+              "owner": "server-renderer",
+              "accounting": "inlined into VueLil before Vite; all retained bytes are measured in emitted assets"
+            }
+          ],
+          "allEmittedAdapterCodeCounted": true,
+          "graph": {
+            "sha256": "8957aaa01e6a2c31e27b349257dff09790847a46a54e5a40c32e0059e565cd20",
+            "modules": [
+              {
+                "id": "apps/ssr-app/src/main.js",
+                "renderedBytes": 1030
+              },
+              {
+                "id": "artifacts/compiler-dom.generated.js",
+                "renderedBytes": 22526
+              },
+              {
+                "id": "artifacts/compiler-ssr.generated.js",
+                "renderedBytes": 28634
+              },
+              {
+                "id": "artifacts/shared-runtime.generated.js",
+                "renderedBytes": 16963
+              },
+              {
+                "id": "node_modules/@babel/parser/lib/index.js",
+                "renderedBytes": 463523
+              },
+              {
+                "id": "node_modules/entities/dist/decode-codepoint.js",
+                "renderedBytes": 700
+              },
+              {
+                "id": "node_modules/entities/dist/decode.js",
+                "renderedBytes": 10414
+              },
+              {
+                "id": "node_modules/entities/dist/generated/decode-data-html.js",
+                "renderedBytes": 32335
+              },
+              {
+                "id": "node_modules/entities/dist/internal/bin-trie-flags.js",
+                "renderedBytes": 424
+              },
+              {
+                "id": "node_modules/entities/dist/internal/decode-shared.js",
+                "renderedBytes": 425
+              },
+              {
+                "id": "node_modules/source-map-js/lib/array-set.js",
+                "renderedBytes": 1986
+              },
+              {
+                "id": "node_modules/source-map-js/lib/base64-vlq.js",
+                "renderedBytes": 1513
+              },
+              {
+                "id": "node_modules/source-map-js/lib/base64.js",
+                "renderedBytes": 981
+              },
+              {
+                "id": "node_modules/source-map-js/lib/binary-search.js",
+                "renderedBytes": 1264
+              },
+              {
+                "id": "node_modules/source-map-js/lib/mapping-list.js",
+                "renderedBytes": 1300
+              },
+              {
+                "id": "node_modules/source-map-js/lib/quick-sort.js",
+                "renderedBytes": 1314
+              },
+              {
+                "id": "node_modules/source-map-js/lib/source-map-consumer.js",
+                "renderedBytes": 21973
+              },
+              {
+                "id": "node_modules/source-map-js/lib/source-map-generator.js",
+                "renderedBytes": 9714
+              },
+              {
+                "id": "node_modules/source-map-js/lib/source-node.js",
+                "renderedBytes": 8079
+              },
+              {
+                "id": "node_modules/source-map-js/lib/util.js",
+                "renderedBytes": 9012
+              },
+              {
+                "id": "node_modules/source-map-js/source-map.js",
+                "renderedBytes": 355
+              },
+              {
+                "id": "packages/vuelil/compiler-core.js",
+                "renderedBytes": 148465
+              },
+              {
+                "id": "packages/vuelil/compiler-dom.js",
+                "renderedBytes": 0
+              },
+              {
+                "id": "packages/vuelil/compiler-ssr.js",
+                "renderedBytes": 0
+              },
+              {
+                "id": "packages/vuelil/reactivity.js",
+                "renderedBytes": 49189
+              },
+              {
+                "id": "packages/vuelil/runtime-core.internal.js",
+                "renderedBytes": 471646
+              },
+              {
+                "id": "packages/vuelil/runtime-core.js",
+                "renderedBytes": 0
+              },
+              {
+                "id": "packages/vuelil/runtime-dom.js",
+                "renderedBytes": 125071
+              },
+              {
+                "id": "packages/vuelil/server-renderer.js",
+                "renderedBytes": 36208
+              },
+              {
+                "id": "packages/vuelil/shared.js",
+                "renderedBytes": 300
+              },
+              {
+                "id": "packages/vuelil/vue.runtime.js",
+                "renderedBytes": 1409
+              },
+              {
+                "id": "virtual:rolldown/runtime.js",
+                "renderedBytes": 235
+              }
+            ]
+          }
+        },
+        "upstream": {
+          "upstreamRuntimeModules": [
+            "node_modules/@vue/compiler-core/dist/compiler-core.cjs.prod.js",
+            "node_modules/@vue/compiler-core/node_modules/entities/dist/commonjs/decode-codepoint.js",
+            "node_modules/@vue/compiler-core/node_modules/entities/dist/commonjs/decode.js",
+            "node_modules/@vue/compiler-core/node_modules/entities/dist/commonjs/generated/decode-data-html.js",
+            "node_modules/@vue/compiler-core/node_modules/entities/dist/commonjs/generated/decode-data-xml.js",
+            "node_modules/@vue/compiler-core/node_modules/entities/dist/commonjs/internal/bin-trie-flags.js",
+            "node_modules/@vue/compiler-core/node_modules/entities/dist/commonjs/internal/decode-shared.js",
+            "node_modules/@vue/compiler-dom/dist/compiler-dom.cjs.prod.js",
+            "node_modules/@vue/compiler-ssr/dist/compiler-ssr.cjs.js",
+            "node_modules/@vue/reactivity/dist/reactivity.cjs.prod.js",
+            "node_modules/@vue/runtime-core/dist/runtime-core.cjs.prod.js",
+            "node_modules/@vue/runtime-dom/dist/runtime-dom.cjs.prod.js",
+            "node_modules/@vue/server-renderer/dist/server-renderer.cjs.prod.js",
+            "node_modules/@vue/shared/dist/shared.cjs.prod.js",
+            "node_modules/vue/dist/vue.cjs.prod.js",
+            "node_modules/vue/index.js",
+            "node_modules/vue/index.mjs",
+            "node_modules/vue/server-renderer/index.mjs"
+          ],
+          "graph": {
+            "sha256": "2b8fb4c8802720def17c866d570e3ec9b1c35d308e5580b26e0ac28c8d7b5fe5",
+            "modules": [
+              {
+                "id": "apps/ssr-app/src/main.js",
+                "renderedBytes": 1187
+              },
+              {
+                "id": "node_modules/@babel/parser/lib/index.js",
+                "renderedBytes": 463553
+              },
+              {
+                "id": "node_modules/@vue/compiler-core/dist/compiler-core.cjs.prod.js",
+                "renderedBytes": 172267
+              },
+              {
+                "id": "node_modules/@vue/compiler-core/node_modules/entities/dist/commonjs/decode-codepoint.js",
+                "renderedBytes": 1527
+              },
+              {
+                "id": "node_modules/@vue/compiler-core/node_modules/entities/dist/commonjs/decode.js",
+                "renderedBytes": 13184
+              },
+              {
+                "id": "node_modules/@vue/compiler-core/node_modules/entities/dist/commonjs/generated/decode-data-html.js",
+                "renderedBytes": 32620
+              },
+              {
+                "id": "node_modules/@vue/compiler-core/node_modules/entities/dist/commonjs/generated/decode-data-xml.js",
+                "renderedBytes": 480
+              },
+              {
+                "id": "node_modules/@vue/compiler-core/node_modules/entities/dist/commonjs/internal/bin-trie-flags.js",
+                "renderedBytes": 671
+              },
+              {
+                "id": "node_modules/@vue/compiler-core/node_modules/entities/dist/commonjs/internal/decode-shared.js",
+                "renderedBytes": 822
+              },
+              {
+                "id": "node_modules/@vue/compiler-dom/dist/compiler-dom.cjs.prod.js",
+                "renderedBytes": 18600
+              },
+              {
+                "id": "node_modules/@vue/compiler-ssr/dist/compiler-ssr.cjs.js",
+                "renderedBytes": 37556
+              },
+              {
+                "id": "node_modules/@vue/reactivity/dist/reactivity.cjs.prod.js",
+                "renderedBytes": 45105
+              },
+              {
+                "id": "node_modules/@vue/runtime-core/dist/runtime-core.cjs.prod.js",
+                "renderedBytes": 173372
+              },
+              {
+                "id": "node_modules/@vue/runtime-dom/dist/runtime-dom.cjs.prod.js",
+                "renderedBytes": 50076
+              },
+              {
+                "id": "node_modules/@vue/server-renderer/dist/server-renderer.cjs.prod.js",
+                "renderedBytes": 18863
+              },
+              {
+                "id": "node_modules/@vue/shared/dist/shared.cjs.prod.js",
+                "renderedBytes": 24177
+              },
+              {
+                "id": "node_modules/estree-walker/dist/umd/estree-walker.js",
+                "renderedBytes": 5509
+              },
+              {
+                "id": "node_modules/source-map-js/lib/array-set.js",
+                "renderedBytes": 1986
+              },
+              {
+                "id": "node_modules/source-map-js/lib/base64-vlq.js",
+                "renderedBytes": 1513
+              },
+              {
+                "id": "node_modules/source-map-js/lib/base64.js",
+                "renderedBytes": 981
+              },
+              {
+                "id": "node_modules/source-map-js/lib/binary-search.js",
+                "renderedBytes": 1264
+              },
+              {
+                "id": "node_modules/source-map-js/lib/mapping-list.js",
+                "renderedBytes": 1300
+              },
+              {
+                "id": "node_modules/source-map-js/lib/quick-sort.js",
+                "renderedBytes": 1314
+              },
+              {
+                "id": "node_modules/source-map-js/lib/source-map-consumer.js",
+                "renderedBytes": 21973
+              },
+              {
+                "id": "node_modules/source-map-js/lib/source-map-generator.js",
+                "renderedBytes": 9714
+              },
+              {
+                "id": "node_modules/source-map-js/lib/source-node.js",
+                "renderedBytes": 8079
+              },
+              {
+                "id": "node_modules/source-map-js/lib/util.js",
+                "renderedBytes": 9012
+              },
+              {
+                "id": "node_modules/source-map-js/source-map.js",
+                "renderedBytes": 355
+              },
+              {
+                "id": "node_modules/vue/dist/vue.cjs.prod.js",
+                "renderedBytes": 1726
+              },
+              {
+                "id": "node_modules/vue/index.js",
+                "renderedBytes": 168
+              },
+              {
+                "id": "node_modules/vue/index.mjs",
+                "renderedBytes": 169
+              },
+              {
+                "id": "node_modules/vue/server-renderer/index.mjs",
+                "renderedBytes": 230
+              },
+              {
+                "id": "virtual:rolldown/runtime.js",
+                "renderedBytes": 1572
+              }
+            ]
+          }
+        },
+        "passed": true
+      },
+      "candidate": {
+        "path": "artifacts/generated/project-comparison/ssr-app/candidate/assets/app.js",
+        "sha256": "09c9a04151d9bc57cad2df840d8fd47a2e6189c1c26a334c76f3680a0c8e0438",
+        "files": [
+          {
+            "path": "artifacts/generated/project-comparison/ssr-app/candidate/assets/app.js",
+            "bytes": 815960,
+            "sha256": "af905aaa2931f77ffe9d992109c895f532d68748032e74072a022ed682835723",
+            "sizes": {
+              "raw": 815960,
+              "gzip9": 266788,
+              "brotli11": 220757
+            }
+          }
+        ],
+        "sizes": {
+          "raw": 815960,
+          "gzip9": 266788,
+          "brotli11": 220757
+        },
+        "buildSha256": "09c9a04151d9bc57cad2df840d8fd47a2e6189c1c26a334c76f3680a0c8e0438"
+      },
+      "upstream": {
+        "path": "artifacts/generated/project-comparison/ssr-app/upstream/assets/app.js",
+        "sha256": "9c883485c37121fb0780b42d5782cdd7bed65508ca44c05b42da613e1ee2def0",
+        "files": [
+          {
+            "path": "artifacts/generated/project-comparison/ssr-app/upstream/assets/app.js",
+            "bytes": 625957,
+            "sha256": "5f8fd691661e0f6042d074e6864440e149db3bd4b6cfdd1984d102b57c7458a1",
+            "sizes": {
+              "raw": 625957,
+              "gzip9": 199168,
+              "brotli11": 167894
+            }
+          }
+        ],
+        "sizes": {
+          "raw": 625957,
+          "gzip9": 199168,
+          "brotli11": 167894
+        },
+        "buildSha256": "9c883485c37121fb0780b42d5782cdd7bed65508ca44c05b42da613e1ee2def0"
+      },
+      "comparison": {
+        "deltaBytes": {
+          "raw": 190003,
+          "gzip9": 67620,
+          "brotli11": 52863
+        },
+        "ratio": {
+          "raw": 1.3035400195221079,
+          "gzip9": 1.3395123714652957,
+          "brotli11": 1.314859375558388
+        },
+        "smallerBrotli11": false
+      },
+      "passed": false
+    },
+    {
+      "id": "sfc-production-app",
+      "completionRequired": true,
+      "status": "failed",
+      "input": {
+        "entry": "apps/sfc-production-app/index.html",
+        "importSpecifier": "vue",
+        "importSpecifiers": [
+          "vue"
+        ],
+        "files": [
+          {
+            "path": "apps/sfc-production-app/index.html",
+            "bytes": 299,
+            "sha256": "c13a9479fa4cd6085fa9aec9239e69c495e1595df3393d2ae65f8e308aa887ac"
+          },
+          {
+            "path": "apps/sfc-production-app/src/App.vue",
+            "bytes": 1009,
+            "sha256": "e615b7af92d0d2f4bd44e53c427f56b5eebed4f3fbc25afdea87002493398568"
+          },
+          {
+            "path": "apps/sfc-production-app/src/TaskRow.vue",
+            "bytes": 428,
+            "sha256": "93b12d13d722c7ab2336d7937c2b057e12862d1893faea112b579a4899a56845"
+          },
+          {
+            "path": "apps/sfc-production-app/src/main.js",
+            "bytes": 425,
+            "sha256": "91903ae928846c88b498f0c69807d671a3315cb92b9753886c889fe449717f9f"
+          }
+        ],
+        "sha256": "4549135b1fc9a30dd6e3668b03b19df203cb1f7e7976f85e472dc7e4c37a7f92"
+      },
+      "execution": {
+        "deterministicChecksum": "d369f1df9e4833173d06416e5b45575854898e1db511ed97b373c96030d7f1ad",
+        "matching": true
+      },
+      "build": {
+        "commonConfigSha256": "39af945402f31b66aaccfc9a37916036424a987e765f6cbd149f2974182e9a9d",
+        "scenarioConfigSha256": "34e4df47fda980f78e9bd815ba4a7c3a12c92e5c374db153f4ca5eadc68c39bb",
+        "onlyModuleResolutionChanged": true
+      },
+      "moduleAudit": {
+        "candidate": {
+          "includesCandidateModule": true,
+          "candidateModules": [
+            "packages/vuelil/reactivity.project.generated.js",
+            "packages/vuelil/runtime-core.project.generated.js",
+            "packages/vuelil/runtime-dom.project.generated.js",
+            "packages/vuelil/shared.project.generated.js",
+            "packages/vuelil/vue.runtime.project.js"
+          ],
+          "upstreamRuntimeModules": [],
+          "noUpstreamRuntime": true,
+          "adapters": [
+            {
+              "path": "src/reactivity/host.js",
+              "bytes": 6123,
+              "sha256": "7e238e4b1d8020f63583b39c72c6c8170de3710186b9b78bd00b7995c41d953f",
+              "owner": "reactivity",
+              "accounting": "inlined into VueLil before Vite; all retained bytes are measured in emitted assets"
+            },
+            {
+              "path": "src/runtime-core/host.js",
+              "bytes": 5430,
+              "sha256": "04ecdcd7573d34cdf0388c5211ed0ffa1fa3fab9550ba7a40560f47c10e6f702",
+              "owner": "runtime-core",
+              "accounting": "inlined into VueLil before Vite; all retained bytes are measured in emitted assets"
+            },
+            {
+              "path": "src/runtime-dom/host.js",
+              "bytes": 11101,
+              "sha256": "3cf2fe57cf4936dc9613eb79351bb1af035a68abe656122310a1160e3ad4594f",
+              "owner": "runtime-dom",
+              "accounting": "inlined into VueLil before Vite; all retained bytes are measured in emitted assets"
+            }
+          ],
+          "allEmittedAdapterCodeCounted": true,
+          "graph": {
+            "sha256": "32d83a45697a2540471033702e592bcd02ec35f275a101624b0ca2a69046aae0",
+            "modules": [
+              {
+                "id": "apps/sfc-production-app/index.html",
+                "renderedBytes": 0
+              },
+              {
+                "id": "apps/sfc-production-app/src/App.vue",
+                "renderedBytes": 1234
+              },
+              {
+                "id": "apps/sfc-production-app/src/App.vue?vue&type=style&index=0&scoped=a2e9d933&lang.css",
+                "renderedBytes": 0
+              },
+              {
+                "id": "apps/sfc-production-app/src/TaskRow.vue",
+                "renderedBytes": 622
+              },
+              {
+                "id": "apps/sfc-production-app/src/TaskRow.vue?vue&type=style&index=0&scoped=ee2d94eb&lang.css",
+                "renderedBytes": 0
+              },
+              {
+                "id": "apps/sfc-production-app/src/main.js",
+                "renderedBytes": 402
+              },
+              {
+                "id": "packages/vuelil/reactivity.project.generated.js",
+                "renderedBytes": 36082
+              },
+              {
+                "id": "packages/vuelil/runtime-core.project.generated.js",
+                "renderedBytes": 139699
+              },
+              {
+                "id": "packages/vuelil/runtime-dom.project.generated.js",
+                "renderedBytes": 23484
+              },
+              {
+                "id": "packages/vuelil/shared.project.generated.js",
+                "renderedBytes": 11853
+              },
+              {
+                "id": "packages/vuelil/vue.runtime.project.js",
+                "renderedBytes": 0
+              },
+              {
+                "id": "virtual:plugin-vue:export-helper",
+                "renderedBytes": 217
+              }
+            ]
+          }
+        },
+        "upstream": {
+          "upstreamRuntimeModules": [
+            "node_modules/@vue/reactivity/dist/reactivity.esm-bundler.js",
+            "node_modules/@vue/runtime-core/dist/runtime-core.esm-bundler.js",
+            "node_modules/@vue/runtime-dom/dist/runtime-dom.esm-bundler.js",
+            "node_modules/@vue/shared/dist/shared.esm-bundler.js"
+          ],
+          "graph": {
+            "sha256": "b4c6616934a76ed14839f5b05ccaf74c4f8333bb1ce517fb887b6df2a0a239a8",
+            "modules": [
+              {
+                "id": "apps/sfc-production-app/index.html",
+                "renderedBytes": 0
+              },
+              {
+                "id": "apps/sfc-production-app/src/App.vue",
+                "renderedBytes": 1405
+              },
+              {
+                "id": "apps/sfc-production-app/src/App.vue?vue&type=style&index=0&scoped=a2e9d933&lang.css",
+                "renderedBytes": 0
+              },
+              {
+                "id": "apps/sfc-production-app/src/TaskRow.vue",
+                "renderedBytes": 709
+              },
+              {
+                "id": "apps/sfc-production-app/src/TaskRow.vue?vue&type=style&index=0&scoped=ee2d94eb&lang.css",
+                "renderedBytes": 0
+              },
+              {
+                "id": "apps/sfc-production-app/src/main.js",
+                "renderedBytes": 415
+              },
+              {
+                "id": "node_modules/@vue/reactivity/dist/reactivity.esm-bundler.js",
+                "renderedBytes": 32095
+              },
+              {
+                "id": "node_modules/@vue/runtime-core/dist/runtime-core.esm-bundler.js",
+                "renderedBytes": 79909
+              },
+              {
+                "id": "node_modules/@vue/runtime-dom/dist/runtime-dom.esm-bundler.js",
+                "renderedBytes": 12620
+              },
+              {
+                "id": "node_modules/@vue/shared/dist/shared.esm-bundler.js",
+                "renderedBytes": 7595
+              },
+              {
+                "id": "virtual:plugin-vue:export-helper",
+                "renderedBytes": 217
+              }
+            ]
+          }
+        },
+        "passed": true
+      },
+      "candidate": {
+        "path": "artifacts/generated/project-comparison/sfc-production-app/candidate/assets/app.js",
+        "sha256": "ebbbca9263c0d1f5d917719134049efd29002a29b385c53648f1be31dcc96c71",
+        "files": [
+          {
+            "path": "artifacts/generated/project-comparison/sfc-production-app/candidate/assets/app.js",
+            "bytes": 150624,
+            "sha256": "0089a4e9869393debffd3bebc1cc651b41dab5f935010d5d628db152dec75eee",
+            "sizes": {
+              "raw": 150624,
+              "gzip9": 54760,
+              "brotli11": 45116
+            }
+          },
+          {
+            "path": "artifacts/generated/project-comparison/sfc-production-app/candidate/assets/index.css",
+            "bytes": 389,
+            "sha256": "c6e2736a8e7f500924f489b7cb6fd6d51624fdf9a5eeb2d71c9a4d8dda18eb40",
+            "sizes": {
+              "raw": 389,
+              "gzip9": 246,
+              "brotli11": 176
+            }
+          },
+          {
+            "path": "artifacts/generated/project-comparison/sfc-production-app/candidate/index.html",
+            "bytes": 378,
+            "sha256": "9af84c2be442bf3b0d8e39101b596d5ff5be13f4da9b24f688814f6302c529bc",
+            "sizes": {
+              "raw": 378,
+              "gzip9": 252,
+              "brotli11": 144
+            }
+          }
+        ],
+        "sizes": {
+          "raw": 151391,
+          "gzip9": 55258,
+          "brotli11": 45436
+        },
+        "buildSha256": "ebbbca9263c0d1f5d917719134049efd29002a29b385c53648f1be31dcc96c71"
+      },
+      "upstream": {
+        "path": "artifacts/generated/project-comparison/sfc-production-app/upstream/assets/app.js",
+        "sha256": "2072b923d78706f24c236bb0534a3fae14323eb06c055b5d6904e281b68d8381",
+        "files": [
+          {
+            "path": "artifacts/generated/project-comparison/sfc-production-app/upstream/assets/app.js",
+            "bytes": 54271,
+            "sha256": "b37ab680561d194f0e456fd97526f481fc0dcb031561be7a102060e2f346ee72",
+            "sizes": {
+              "raw": 54271,
+              "gzip9": 21145,
+              "brotli11": 19358
+            }
+          },
+          {
+            "path": "artifacts/generated/project-comparison/sfc-production-app/upstream/assets/index.css",
+            "bytes": 389,
+            "sha256": "c6e2736a8e7f500924f489b7cb6fd6d51624fdf9a5eeb2d71c9a4d8dda18eb40",
+            "sizes": {
+              "raw": 389,
+              "gzip9": 246,
+              "brotli11": 176
+            }
+          },
+          {
+            "path": "artifacts/generated/project-comparison/sfc-production-app/upstream/index.html",
+            "bytes": 378,
+            "sha256": "9af84c2be442bf3b0d8e39101b596d5ff5be13f4da9b24f688814f6302c529bc",
+            "sizes": {
+              "raw": 378,
+              "gzip9": 252,
+              "brotli11": 144
+            }
+          }
+        ],
+        "sizes": {
+          "raw": 55038,
+          "gzip9": 21643,
+          "brotli11": 19678
+        },
+        "buildSha256": "2072b923d78706f24c236bb0534a3fae14323eb06c055b5d6904e281b68d8381"
+      },
+      "comparison": {
+        "deltaBytes": {
+          "raw": 96353,
+          "gzip9": 33615,
+          "brotli11": 25758
+        },
+        "ratio": {
+          "raw": 2.7506631781678115,
+          "gzip9": 2.5531580649632675,
+          "brotli11": 2.3089744892773654
+        },
+        "smallerBrotli11": false
       },
       "passed": false
     }
@@ -306,7 +1402,8 @@
       "sfc-production-app"
     ],
     "passedIds": [],
-    "missingIds": [
+    "missingIds": [],
+    "failedIds": [
       "runtime-only-client",
       "runtime-compiler-client",
       "ssr-app",

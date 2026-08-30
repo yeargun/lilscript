@@ -17,6 +17,10 @@ const sourceDirectory = resolve(projectRoot, "src/compiler-dom");
 const host = resolve(sourceDirectory, "host.js");
 const artifact = resolve(projectRoot, "artifacts/compiler-dom.generated.js");
 const facade = resolve(projectRoot, "packages/vuelil/compiler-dom.js");
+const productionFacade = resolve(
+  projectRoot,
+  "packages/vuelil/production/compiler-dom.js",
+);
 const upstreamCandidate = resolve(
   projectRoot,
   "tests/compiler-dom-upstream.candidate.mjs",
@@ -77,22 +81,22 @@ const reflectedFunctions = new Map([
   ["transformVText", ["transformVText", 3]],
 ]);
 
-function runCompiler(input, output) {
+function runCompiler(input, output, production = false) {
+  const args = [input, "--target", "js-module"];
+  if (production) {
+    args.push(
+      "--mode", "production",
+      "--config", resolve(projectRoot, "config/open-world.toml"),
+      "--jobs", "1",
+      "--codec-jobs", "1",
+    );
+  } else {
+    args.push("--mode", "development", "--jobs", "1", "--codec-jobs", "1");
+  }
+  args.push("-o", output);
   const result = spawnSync(
     compilerPath(),
-    [
-      input,
-      "--target",
-      "js-module",
-      "--mode",
-      "development",
-      "--jobs",
-      "1",
-      "--codec-jobs",
-      "1",
-      "-o",
-      output,
-    ],
+    args,
     { cwd: projectRoot, encoding: "utf8", env: process.env },
   );
   if (result.status !== 0) {
@@ -226,6 +230,7 @@ const temporary = mkdtempSync(resolve(tmpdir(), "vuelil-compiler-dom-"));
 const graph = resolve(temporary, "src/compiler-dom");
 const compiled = resolve(temporary, "index.js");
 const compiledTest = resolve(temporary, "test.js");
+const compiledProduction = resolve(temporary, "production.js");
 
 try {
   mkdirSync(resolve(temporary, "src"), { recursive: true });
@@ -263,6 +268,16 @@ try {
   const aliases = isolateExternBindings(graph);
   runCompiler(resolve(graph, "index.lil"), compiled);
   runCompiler(resolve(graph, "test.lil"), compiledTest);
+  copyFileSync(
+    resolve(projectRoot, "packages/vuelil/production/compiler-core.js"),
+    resolve(temporary, "packages/vuelil/compiler-core.js"),
+  );
+  const productionEntry = resolve(graph, "production.lil");
+  writeFileSync(
+    productionEntry,
+    'import { compile } from "./index";\nexport { compile };\n',
+  );
+  runCompiler(productionEntry, compiledProduction, true);
 
   const hostModule = readFileSync(host, "utf8").replaceAll(
     "export function ",
@@ -276,6 +291,12 @@ try {
     `${banner}${hostModule}\n${assemble(compiled, "../packages/vuelil/", aliases)}`,
   );
   writeFileSync(facade, renderFacade());
+  mkdirSync(resolve(productionFacade, ".."), { recursive: true });
+  writeFileSync(
+    productionFacade,
+    `${banner}${hostModule}\n${assemble(compiledProduction, "./", aliases)
+      .replaceAll('"./shared.js"', '"../shared.js"')}`,
+  );
   writeFileSync(
     upstreamCandidate,
     `${banner}${hostModule}\n${assemble(compiledTest, "../packages/vuelil/", aliases)}\n` +
@@ -290,6 +311,7 @@ try {
   console.log(JSON.stringify({
     artifact,
     facade,
+    productionFacade,
     exports: Object.keys(runtime).length,
   }));
 } finally {

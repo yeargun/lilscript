@@ -6,8 +6,11 @@ import { getCurrentInstance } from "../component";
 import { warn } from "../warning";
 
 extern JsValue WeakSet;
+extern JsValue __DEV__;
 
-bool DEV = true;
+bool templateRefDev() {
+  return __DEV__.truthy();
+}
 
 export JsValue knownTemplateRefs = JS.construct(WeakSet);
 
@@ -20,7 +23,7 @@ export JsValue useTemplateRef(string key) {
       refs = JS.object();
       instance["refs"] = refs;
     }
-    if (DEV && isTemplateRefKey(refs, key)) {
+    if (templateRefDev() && isTemplateRefKey(refs, key)) {
       warn("useTemplateRef('" + key + "') already exists.");
     } else {
       JS.invoke(
@@ -38,14 +41,14 @@ export JsValue useTemplateRef(string key) {
         )
       );
     }
-  } else if (DEV) {
+  } else if (templateRefDev()) {
     warn(
       "useTemplateRef() is called when there is no active component instance to be associated with."
     );
   }
   JsValue result = reference;
-  if (DEV) result = readonly(reference);
-  if (DEV) JS.invoke(knownTemplateRefs, "add", result);
+  if (templateRefDev()) result = readonly(reference);
+  if (templateRefDev()) JS.invoke(knownTemplateRefs, "add", result);
   return result;
 }
 

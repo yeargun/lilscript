@@ -1,0 +1,55 @@
+import extern { ssrContextKey as teleportContextKey } from "../../../packages/vuelil/runtime-dom.js";
+import extern {
+  isArray as teleportIsArray,
+  isPromise as teleportIsPromise
+} from "../../../packages/vuelil/shared.js";
+import { createBuffer } from "../render";
+
+extern JsValue teleportContextKey;
+extern bool teleportIsArray(JsValue value);
+extern bool teleportIsPromise(JsValue value);
+
+export void ssrRenderTeleport(
+  JsValue parentPush,
+  JsValue contentRender,
+  string target,
+  bool disabled,
+  JsValue parentComponent
+) {
+  JS.call(parentPush, JS.undefined(), "<!--teleport start-->");
+  JsValue context = parentComponent["appContext"]["provides"][teleportContextKey];
+  JsValue teleportBuffers = context["__teleportBuffers"];
+  if (!teleportBuffers.truthy()) {
+    teleportBuffers = JS.object();
+    context["__teleportBuffers"] = teleportBuffers;
+  }
+  JsValue targetBuffer = teleportBuffers[target];
+  if (!targetBuffer.truthy()) {
+    targetBuffer = JS.array();
+    teleportBuffers[target] = targetBuffer;
+  }
+  int bufferIndex = JS.number(targetBuffer["length"]).toInt();
+  JsValue teleportContent = JS.undefined();
+  if (disabled) {
+    JS.call(contentRender, JS.undefined(), parentPush);
+    teleportContent = "<!--teleport start anchor--><!--teleport anchor-->";
+  } else {
+    JsValue bufferState = createBuffer();
+    JsValue push = bufferState["push"];
+    JS.call(push, JS.undefined(), "<!--teleport start anchor-->");
+    JS.call(contentRender, JS.undefined(), push);
+    JS.call(push, JS.undefined(), "<!--teleport anchor-->");
+    teleportContent = JS.call(
+      bufferState["getBuffer"],
+      JS.undefined()
+    );
+  }
+  JS.invoke(targetBuffer, "splice", bufferIndex, 0, teleportContent);
+  if (
+    teleportIsPromise(teleportContent) ||
+    (teleportIsArray(teleportContent) && teleportContent["hasAsync"].truthy())
+  ) {
+    targetBuffer["hasAsync"] = true;
+  }
+  JS.call(parentPush, JS.undefined(), "<!--teleport end-->");
+}

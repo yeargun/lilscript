@@ -37,6 +37,7 @@ th { color: var(--muted); font-size: .7rem; letter-spacing: .08em; text-transfor
 .split { display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; }
 .contract p { max-width: 850px; color: var(--muted); font-family: system-ui, sans-serif; line-height: 1.75; }
 .section-copy { max-width: 850px; color: var(--muted); font-family: system-ui, sans-serif; line-height: 1.7; }
+.notice { max-width: 850px; margin-top: 1.5rem; padding: 1rem; border-left: 3px solid var(--warning); background: var(--panel); color: var(--muted); font-family: system-ui, sans-serif; line-height: 1.6; }
 a { color: var(--accent); }
 footer { padding: 2rem 0 4rem; color: var(--muted); font-size: .72rem; line-height: 1.7; }
 @media (max-width: 720px) {

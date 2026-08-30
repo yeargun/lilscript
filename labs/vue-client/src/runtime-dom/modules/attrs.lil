@@ -1,0 +1,106 @@
+import extern {
+  includeBooleanAttr as attrIncludeBooleanAttr,
+  isSpecialBooleanAttr as attrIsSpecialBooleanAttr,
+  isSymbol as attrIsSymbol
+} from "../../../packages/vuelil/shared.js";
+import extern { DeprecationTypes as attrDeprecationTypes, compatUtils as attrCompatUtils } from "../../../packages/vuelil/runtime-core.js";
+import extern {
+  hostCall1,
+  hostRemoveAttribute,
+  hostRemoveAttributeNS,
+  hostSetAttribute,
+  hostSetAttributeNS,
+  hostString
+} from "../host.js";
+
+extern bool attrIncludeBooleanAttr(JsValue value);
+extern JsValue attrIsSpecialBooleanAttr;
+extern bool attrIsSymbol(JsValue value);
+extern JsValue attrDeprecationTypes;
+extern JsValue attrCompatUtils;
+extern JsValue hostCall1(JsValue fn, JsValue first);
+extern void hostRemoveAttribute(JsValue element, string name);
+extern void hostRemoveAttributeNS(JsValue element, string namespace, string name);
+extern void hostSetAttribute(JsValue element, string name, JsValue value);
+extern void hostSetAttributeNS(JsValue element, string namespace, string name, JsValue value);
+extern string hostString(JsValue value);
+
+bool ATTR_COMPAT = false;
+export string xlinkNS = "http://www.w3.org/1999/xlink";
+
+bool specialBoolean(string key) {
+  return hostCall1(attrIsSpecialBooleanAttr, key).truthy();
+}
+
+export bool compatCoerceAttr(
+  JsValue element,
+  string key,
+  JsValue value,
+  JsValue instance = null
+) {
+  bool enumerated = key == "contenteditable" || key == "draggable" || key == "spellcheck";
+  if (enumerated) {
+    JsValue coerced = "true";
+    if (JS.isUndefined(value)) coerced = null;
+    else if (JS.isNullish(value) || JS.strictEqual(value, false) || JS.strictEqual(value, "false")) coerced = "false";
+    if (!JS.isNullish(coerced) && coerced.truthy() && JS.call(
+      attrCompatUtils["softAssertCompatEnabled"],
+      attrCompatUtils,
+      attrDeprecationTypes["ATTR_ENUMERATED_COERCION"],
+      instance,
+      key,
+      value,
+      coerced
+    ).truthy()) {
+      hostSetAttribute(element, key, coerced);
+      return true;
+    }
+  } else if (
+    JS.strictEqual(value, false) &&
+    !(JS.strictEqual(element["tagName"], "INPUT") && key == "value") &&
+    !specialBoolean(key) &&
+    JS.call(
+      attrCompatUtils["isCompatEnabled"],
+      attrCompatUtils,
+      attrDeprecationTypes["ATTR_FALSE_VALUE"],
+      instance
+    ).truthy()
+  ) {
+    JS.call(
+      attrCompatUtils["warnDeprecation"],
+      attrCompatUtils,
+      attrDeprecationTypes["ATTR_FALSE_VALUE"],
+      instance,
+      key
+    );
+    hostRemoveAttribute(element, key);
+    return true;
+  }
+  return false;
+}
+
+export void patchAttr(
+  JsValue element,
+  string key,
+  JsValue value,
+  bool isSVG,
+  JsValue instance = null,
+  JsValue booleanValue = JS.undefined()
+) {
+  bool isBoolean = specialBoolean(key);
+  if (!JS.isUndefined(booleanValue)) isBoolean = booleanValue.truthy();
+  if (isSVG && key.startsWith("xlink:")) {
+    if (JS.isNullish(value)) hostRemoveAttributeNS(element, xlinkNS, key.slice(6));
+    else hostSetAttributeNS(element, xlinkNS, key, value);
+    return;
+  }
+  if (ATTR_COMPAT && compatCoerceAttr(element, key, value, instance)) return;
+  if (JS.isNullish(value) || (isBoolean && !attrIncludeBooleanAttr(value))) {
+    hostRemoveAttribute(element, key);
+  } else {
+    JsValue attributeValue = value;
+    if (isBoolean) attributeValue = "";
+    else if (attrIsSymbol(value)) attributeValue = hostString(value);
+    hostSetAttribute(element, key, attributeValue);
+  }
+}

@@ -1,0 +1,68 @@
+import extern {
+  isArray as listIsArray,
+  isObject as listIsObject,
+  isString as listIsString
+} from "../../../packages/vuelil/shared.js";
+import extern { warn as listWarn } from "../../../packages/vuelil/runtime-dom.js";
+
+extern bool listIsArray(JsValue value);
+extern bool listIsObject(JsValue value);
+extern bool listIsString(JsValue value);
+extern void listWarn(string message);
+extern JsValue Number;
+extern JsValue Object;
+extern JsValue Symbol;
+extern JsValue __DEV__;
+
+export void ssrRenderList(JsValue source, JsValue renderItem) {
+  if (listIsArray(source) || listIsString(source)) {
+    int length = JS.number(source["length"]).toInt();
+    for (int index = 0; index < length; index++) {
+      JS.call(renderItem, JS.undefined(), source[index], index);
+    }
+  } else if (JS.typeOf(source) == "number") {
+    if (
+      __DEV__.truthy() &&
+      (!JS.invoke(Number, "isInteger", source).truthy() || JS.number(source) < 0)
+    ) {
+      listWarn(
+        "The v-for range expects a positive integer value but got " +
+        JS.string(source) + "."
+      );
+      return;
+    }
+    int length = JS.number(source).toInt();
+    for (int index = 0; index < length; index++) {
+      JS.call(renderItem, JS.undefined(), index + 1, index);
+    }
+  } else if (listIsObject(source)) {
+    JsValue iteratorMethod = source[Symbol["iterator"]];
+    if (iteratorMethod.truthy()) {
+      JsValue iterator = JS.call(iteratorMethod, source);
+      int index = 0;
+      while (true) {
+        JsValue step = JS.invoke(iterator, "next");
+        if (step["done"].truthy()) break;
+        try {
+          JS.call(renderItem, JS.undefined(), step["value"], index);
+        } catch (JsValue error) {
+          JsValue close = iterator["return"];
+          if (close.truthy()) {
+            try {
+              JS.call(close, iterator);
+            } catch (JsValue _closeError) {}
+          }
+          throw error;
+        }
+        index += 1;
+      }
+    } else {
+      JsValue keys = JS.invoke(Object, "keys", source);
+      int length = JS.number(keys["length"]).toInt();
+      for (int index = 0; index < length; index++) {
+        JsValue key = keys[index];
+        JS.call(renderItem, JS.undefined(), source[key], key, index);
+      }
+    }
+  }
+}

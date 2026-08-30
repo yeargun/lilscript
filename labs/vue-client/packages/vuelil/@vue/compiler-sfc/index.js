@@ -1,0 +1,29 @@
+"use strict";
+module.exports = require("../../dist/vuelil-packages.cjs")["compiler_sfc"];
+if (false) {
+  exports.MagicString = module.exports.MagicString;
+  exports.babelParse = module.exports.babelParse;
+  exports.compileScript = module.exports.compileScript;
+  exports.compileStyle = module.exports.compileStyle;
+  exports.compileStyleAsync = module.exports.compileStyleAsync;
+  exports.compileTemplate = module.exports.compileTemplate;
+  exports.errorMessages = module.exports.errorMessages;
+  exports.extractIdentifiers = module.exports.extractIdentifiers;
+  exports.extractRuntimeEmits = module.exports.extractRuntimeEmits;
+  exports.extractRuntimeProps = module.exports.extractRuntimeProps;
+  exports.generateCodeFrame = module.exports.generateCodeFrame;
+  exports.inferRuntimeType = module.exports.inferRuntimeType;
+  exports.invalidateTypeCache = module.exports.invalidateTypeCache;
+  exports.isInDestructureAssignment = module.exports.isInDestructureAssignment;
+  exports.isStaticProperty = module.exports.isStaticProperty;
+  exports.parse = module.exports.parse;
+  exports.parseCache = module.exports.parseCache;
+  exports.registerTS = module.exports.registerTS;
+  exports.resolveTypeElements = module.exports.resolveTypeElements;
+  exports.rewriteDefault = module.exports.rewriteDefault;
+  exports.rewriteDefaultAST = module.exports.rewriteDefaultAST;
+  exports.shouldTransformRef = module.exports.shouldTransformRef;
+  exports.version = module.exports.version;
+  exports.walk = module.exports.walk;
+  exports.walkIdentifiers = module.exports.walkIdentifiers;
+}

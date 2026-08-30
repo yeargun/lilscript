@@ -16,6 +16,7 @@ import {
   serializeSourceParity,
   sourceParityPath,
 } from "./audit-source-parity.mjs";
+import { performanceEvidenceFailures } from "./performance-protocol.mjs";
 
 const evidencePaths = {
   compatibility: resolve(projectRoot, "artifacts/compatibility-report.json"),
@@ -308,8 +309,8 @@ function checkSizeEvidence(
   if (!isDeepStrictEqual(report.toolchain?.config?.defines, expectedDefines)) {
     failures.push("project-size evidence does not use the required production defines");
   }
-  const expectedIds = expectedBundleScenarioIds(scope);
   const requiredIds = expectedBundleScenarioIds(scope, true);
+  const expectedIds = requiredIds;
   const rows = exactRows(
     report.scenarios,
     expectedIds,
@@ -383,6 +384,9 @@ function checkSizeEvidence(
       entry.moduleAudit?.candidate?.noUpstreamRuntime !== true ||
       entry.moduleAudit?.candidate?.includesCandidateModule !== true ||
       entry.moduleAudit?.candidate?.upstreamRuntimeModules?.length !== 0 ||
+      entry.moduleAudit?.candidate?.allEmittedAdapterCodeCounted !== true ||
+      !Array.isArray(entry.moduleAudit?.candidate?.adapters) ||
+      entry.moduleAudit.candidate.adapters.length === 0 ||
       candidateUpstreamModules.length !== 0 ||
       !candidateModuleIds.some(
         (module) => typeof module === "string" && module.startsWith("packages/vuelil/"),
@@ -424,80 +428,7 @@ function checkSizeEvidence(
 }
 
 function checkPerformanceEvidence(report, inventory, inventoryDigest, failures) {
-  if (!report) {
-    failures.push("performance evidence is missing (artifacts/performance-report.json)");
-    return;
-  }
-  if (report.schemaVersion !== 1) failures.push("performance evidence schema is not 1");
-  if (report.upstream?.revision !== inventory.upstream?.revision) {
-    failures.push("performance evidence does not identify the audited upstream revision");
-  }
-  if (report.inventory?.sha256 !== inventoryDigest) {
-    failures.push("performance evidence does not identify the current inventory");
-  }
-  const samples = report.protocol?.samples;
-  const performanceMargin = report.protocol?.nonInferiorityMarginRatio;
-  if (
-    !Number.isSafeInteger(samples) ||
-    samples < 21 ||
-    !Number.isSafeInteger(report.protocol?.bootstrapIterations) ||
-    report.protocol.bootstrapIterations < 1_000 ||
-    !Number.isFinite(performanceMargin) ||
-    performanceMargin < 1 ||
-    report.protocol?.sampleAdequacyOverride === true
-  ) {
-    failures.push("performance evidence does not meet the minimum sampling protocol");
-  }
-  const requiredCategories = new Set(["browser", "compiler", "reactivity", "ssr"]);
-  const workloads = Array.isArray(report.workloads) ? report.workloads : [];
-  for (const category of requiredCategories) {
-    if (!workloads.some((entry) => entry.category === category)) {
-      failures.push(`performance evidence is missing the ${category} workload category`);
-    }
-  }
-  const workloadIds = new Set();
-  for (const workload of workloads) {
-    if (typeof workload.id !== "string" || workload.id === "" || workloadIds.has(workload.id)) {
-      failures.push("performance evidence contains an invalid or duplicate workload id");
-    } else {
-      workloadIds.add(workload.id);
-    }
-    const upper = workload.statistics?.ratio?.confidenceInterval?.upper95;
-    const observations = Array.isArray(workload.observations)
-      ? workload.observations
-      : [];
-    const alternating = observations.every((entry, index) => {
-      if (!Array.isArray(entry.order) || entry.order.length !== 2) return false;
-      if (entry.order[0] === entry.order[1]) return false;
-      if (!entry.order.includes("candidate") || !entry.order.includes("upstream")) return false;
-      if (entry.block !== index) return false;
-      if (index === 0) return true;
-      return entry.order[0] !== observations[index - 1].order[0];
-    });
-    const paired = observations.every(
-      (entry) =>
-        Number.isFinite(entry.candidate?.durationMs) &&
-        entry.candidate.durationMs > 0 &&
-        Number.isFinite(entry.upstream?.durationMs) &&
-        entry.upstream.durationMs > 0 &&
-        Number.isSafeInteger(entry.candidate?.operations) &&
-        entry.candidate.operations > 0 &&
-        entry.candidate?.operations === entry.upstream?.operations &&
-        isDeepStrictEqual(entry.candidate?.checksum, entry.upstream?.checksum),
-    );
-    if (
-      workload.passed !== true ||
-      !Number.isFinite(upper) ||
-      !Number.isFinite(performanceMargin) ||
-      upper > performanceMargin ||
-      observations.length !== samples ||
-      !alternating ||
-      !paired
-    ) {
-      failures.push(`${workload.id ?? "unnamed workload"} has not passed its confidence bound`);
-    }
-  }
-  if (report.passed !== true) failures.push("the aggregate performance gate is not passed");
+  failures.push(...performanceEvidenceFailures(report, inventory, inventoryDigest));
 }
 
 function checkPagesEvidence(

@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 1,
+  "oracle": {
+    "package": "vue",
+    "version": "3.5.42",
+    "revision": "d63616ca17de965ed32dcb449a4c5cd9982f15d2"
+  },
+  "status": "runtime-complete",
+  "sourceOwners": [
+    "packages/vue/src/dev.ts",
+    "packages/vue/src/index.ts",
+    "packages/vue/src/runtime.ts"
+  ],
+  "esmEntries": {
+    "standard": "packages/vuelil/vue.js",
+    "runtimeOnly": "packages/vuelil/vue.runtime.js",
+    "runtimeDomGraph": "packages/vuelil/runtime-dom.js",
+    "compilerDomGraph": "packages/vuelil/compiler-dom.js",
+    "runtimeDomExports": 170,
+    "additionalExports": ["compile"],
+    "totalExports": 171,
+    "standardIncludesRuntimeCompiler": true,
+    "runtimeCompilerRegistered": true,
+    "runtimeOnlyCompileWarning": "Runtime compilation is not supported in this build of Vue. Configure your bundler to alias \"vue\" to \"vue/dist/vue.esm-bundler.js\"."
+  },
+  "candidatePackageEntrypoints": [
+    ".",
+    "./compiler-sfc",
+    "./dist/vue.esm-bundler.js",
+    "./dist/vue.runtime.esm-bundler.js",
+    "./jsx-dev-runtime",
+    "./jsx-runtime",
+    "./package.json",
+    "./server-renderer"
+  ],
+  "upstreamTests": {
+    "files": 18,
+    "filesPassed": 18,
+    "tests": 144,
+    "passed": 144,
+    "skipped": 0,
+    "failed": 0,
+    "status": "passed",
+    "runner": "npm run test:upstream:vue",
+    "unchangedFiles": [
+      { "path": "packages/vue/__tests__/customElementCasing.spec.ts", "passed": 1, "skipped": 0 },
+      { "path": "packages/vue/__tests__/e2e/Transition.spec.ts", "passed": 58, "skipped": 0 },
+      { "path": "packages/vue/__tests__/e2e/TransitionGroup.spec.ts", "passed": 15, "skipped": 0 },
+      { "path": "packages/vue/__tests__/e2e/commits.spec.ts", "passed": 2, "skipped": 0 },
+      { "path": "packages/vue/__tests__/e2e/grid.spec.ts", "passed": 2, "skipped": 0 },
+      { "path": "packages/vue/__tests__/e2e/hydrationStrategies.spec.ts", "passed": 11, "skipped": 0 },
+      { "path": "packages/vue/__tests__/e2e/markdown.spec.ts", "passed": 2, "skipped": 0 },
+      { "path": "packages/vue/__tests__/e2e/memory-leak.spec.ts", "passed": 4, "skipped": 0 },
+      { "path": "packages/vue/__tests__/e2e/ssr-custom-element.spec.ts", "passed": 3, "skipped": 0 },
+      { "path": "packages/vue/__tests__/e2e/svg.spec.ts", "passed": 2, "skipped": 0 },
+      { "path": "packages/vue/__tests__/e2e/todomvc.spec.ts", "passed": 2, "skipped": 0 },
+      { "path": "packages/vue/__tests__/e2e/tree.spec.ts", "passed": 2, "skipped": 0 },
+      { "path": "packages/vue/__tests__/e2e/trusted-types.spec.ts", "passed": 3, "skipped": 0 },
+      { "path": "packages/vue/__tests__/e2e/vModel.spec.ts", "passed": 1, "skipped": 0 },
+      { "path": "packages/vue/__tests__/index.spec.ts", "passed": 24, "skipped": 0 },
+      { "path": "packages/vue/__tests__/mathmlNamespace.spec.ts", "passed": 2, "skipped": 0 },
+      { "path": "packages/vue/__tests__/runtimeCompilerOptions.spec.ts", "passed": 8, "skipped": 0 },
+      { "path": "packages/vue/__tests__/svgNamespace.spec.ts", "passed": 2, "skipped": 0 }
+    ]
+  },
+  "sourceParity": {
+    "requiredFiles": 3,
+    "ownerModules": 3,
+    "deterministicFilesPresent": 3,
+    "verifiedExactMappings": 3,
+    "unverifiedFiles": []
+  },
+  "runtimeIntegration": {
+    "runtimeCoreRuntimeDomSingleton": true,
+    "standardAndRuntimeOnlyNamedExportIdentity": true,
+    "reactivityAndSharedSingletonIdentity": true,
+    "compilerDomSingleton": true,
+    "upstreamVueImplementationsBlocked": true,
+    "upstreamRuntimeImplementationsBlocked": true,
+    "upstreamCompilerImplementationsBlocked": true
+  },
+  "blockers": [],
+  "limitations": [
+    "Required project-size scenarios and performance validation remain pending."
+  ]
+}

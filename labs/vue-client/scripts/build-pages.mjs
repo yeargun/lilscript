@@ -9,9 +9,11 @@ import {
   serializeInventory,
 } from "./audit-scope.mjs";
 import { evaluateCompletion, sha256 } from "./check-complete.mjs";
+import { sourceParityPath } from "./audit-source-parity.mjs";
 
 const webRoot = resolve(projectRoot, "web");
 const reportPaths = {
+  sourceParity: sourceParityPath,
   compatibility: resolve(projectRoot, "artifacts/compatibility-report.json"),
   size: resolve(projectRoot, "artifacts/project-size-report.json"),
   performance: resolve(projectRoot, "artifacts/performance-report.json"),
@@ -74,9 +76,21 @@ function pageHtml(scope, inventory, evidence) {
     .join("\n");
   const bundleScenarioRows = scope.bundleScenarios
     .map(
-      (entry) =>
-        `<tr><td><code>${escapeHtml(entry.id)}</code></td><td>${entry.completionRequired ? "required" : "diagnostic"}</td><td>${escapeHtml(entry.description)}</td><td><span class="status ${statusClass(entry.status)}">${escapeHtml(entry.status)}</span></td></tr>`,
+      (entry) => {
+        const measured = evidence.sizeScenarios.find(({ id }) => id === entry.id);
+        const sizes = measured
+          ? `${measured.candidateBrotli11.toLocaleString()} / ${measured.upstreamBrotli11.toLocaleString()} B`
+          : "pending";
+        const delta = measured ? `${measured.deltaBrotli11 >= 0 ? "+" : ""}${measured.deltaBrotli11.toLocaleString()} B` : "-";
+        return `<tr><td><code>${escapeHtml(entry.id)}</code></td><td>${entry.completionRequired ? "required" : "diagnostic"}</td><td>${escapeHtml(entry.description)}</td><td>${sizes}</td><td>${delta}</td><td><span class="status ${statusClass(entry.status)}">${escapeHtml(entry.status)}</span></td></tr>`;
+      },
     )
+    .join("\n");
+  const performanceRows = evidence.performanceWorkloads
+    .map((entry) => `<tr><td><code>${escapeHtml(entry.id)}</code></td><td>${escapeHtml(entry.category)}</td><td>${entry.ratio.toFixed(3)}x</td><td>${entry.upper95.toFixed(3)}x</td><td>${entry.margin.toFixed(2)}x</td><td><span class="status ${entry.passed ? "pass" : "open"}">${entry.passed ? "passed" : "failed"}</span></td></tr>`)
+    .join("\n");
+  const artifactRows = evidence.runtimeOnlyModules
+    .map((entry) => `<tr><td><code>${escapeHtml(entry.name)}</code></td><td>${entry.candidateBytes.toLocaleString()} B</td><td>${entry.upstreamBytes.toLocaleString()} B</td><td>+${(entry.candidateBytes - entry.upstreamBytes).toLocaleString()} B</td></tr>`)
     .join("\n");
   const headline = evidence.complete
     ? "Complete evidence set"
@@ -104,8 +118,8 @@ function pageHtml(scope, inventory, evidence) {
   <main>
     <section class="summary-grid" aria-label="Audit summary">
       <article><strong>${inventory.totals.packages}</strong><span>scoped packages</span></article>
-      <article><strong>${inventory.totals.sourceFiles}</strong><span>source files</span></article>
-      <article><strong>${inventory.totals.upstreamTestFiles + inventory.totals.declarationTestFiles}</strong><span>required test files</span></article>
+      <article><strong>${evidence.sourceParity.satisfied}/${inventory.totals.sourceFiles}</strong><span>verified source files</span></article>
+      <article><strong>${scope.gates.candidatePassed}/${inventory.totals.upstreamTestFiles + inventory.totals.declarationTestFiles}</strong><span>test files passed</span></article>
       <article><strong>${inventory.totals.publicExports}</strong><span>export names audited</span></article>
     </section>
     <section>
@@ -119,7 +133,18 @@ function pageHtml(scope, inventory, evidence) {
     <section>
       <div class="section-heading"><p>Project bundles</p><h2>Paired application scenarios</h2></div>
       <p class="section-copy">Each scenario builds the same application source against upstream Vue and VueLil with identical production settings. Published library bundles are not completion evidence.</p>
-      <div class="table-wrap"><table><thead><tr><th>Scenario</th><th>Role</th><th>Application</th><th>Status</th></tr></thead><tbody>${bundleScenarioRows}</tbody></table></div>
+      <div class="table-wrap"><table><thead><tr><th>Scenario</th><th>Role</th><th>Application</th><th>Brotli candidate / Vue</th><th>Delta</th><th>Status</th></tr></thead><tbody>${bundleScenarioRows}</tbody></table></div>
+    </section>
+    <section>
+      <div class="section-heading"><p>Runtime cost</p><h2>Paired performance confidence bounds</h2></div>
+      <p class="section-copy">Ratios are candidate duration divided by Vue duration. Passing requires the one-sided 95% upper bound to stay at or below the configured non-inferiority margin.</p>
+      <div class="table-wrap"><table><thead><tr><th>Workload</th><th>Category</th><th>Point ratio</th><th>Upper 95%</th><th>Margin</th><th>Status</th></tr></thead><tbody>${performanceRows}</tbody></table></div>
+    </section>
+    <section>
+      <div class="section-heading"><p>Bundle anatomy</p><h2>Why the runtime-only bundle is larger</h2></div>
+      <p class="section-copy">All ${evidence.sourceParity.mapped} runtime sources are explicitly written in LilScript; ${evidence.sourceParity.declarationOnly} type-only files use audited declaration-only handling. Seven JavaScript adapters expose host primitives only and their retained bytes are counted. Production compilation enables identifier and property mangling while preserving public export names. The current diagnostic still retains substantially more generated runtime code, primarily dynamic <code>JsValue</code> access, host-boundary calls, module initialization, and compatibility paths.</p>
+      <div class="table-wrap"><table><thead><tr><th>Module family</th><th>VueLil rendered</th><th>Vue rendered</th><th>Raw delta</th></tr></thead><tbody>${artifactRows}</tbody></table></div>
+      <p class="notice">The next measurement revision must consume one reusable, non-closed-world mangled package build. Scenario-specific export selection is diagnostic only and cannot establish the final size claim.</p>
     </section>
     <section class="split">
       <div><div class="section-heading"><p>Declared state</p><h2>Scope gates</h2></div><table><thead><tr><th>Gate</th><th>Value</th></tr></thead><tbody>${gateRows}</tbody></table></div>
@@ -176,6 +201,7 @@ th { color: var(--muted); font-size: .7rem; letter-spacing: .08em; text-transfor
 .split { display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; }
 .contract p { max-width: 850px; color: var(--muted); font-family: system-ui, sans-serif; line-height: 1.75; }
 .section-copy { max-width: 850px; color: var(--muted); font-family: system-ui, sans-serif; line-height: 1.7; }
+.notice { max-width: 850px; margin-top: 1.5rem; padding: 1rem; border-left: 3px solid var(--warning); background: var(--panel); color: var(--muted); font-family: system-ui, sans-serif; line-height: 1.6; }
 a { color: var(--accent); }
 footer { padding: 2rem 0 4rem; color: var(--muted); font-size: .72rem; line-height: 1.7; }
 @media (max-width: 720px) {
@@ -200,6 +226,7 @@ export function buildPages() {
   const result = evaluateCompletion({
     scope,
     inventory,
+    sourceParity: reports.sourceParity.report,
     scopeDigest: sha256(scopeBytes),
     inventoryDigest: sha256(inventoryBytes),
     evidence: Object.fromEntries(
@@ -226,6 +253,38 @@ export function buildPages() {
         reportReference(reportPaths[name], entry),
       ]),
     ),
+    sourceParity: {
+      satisfied: reports.sourceParity.report?.totals?.satisfiedFiles ?? 0,
+      required: reports.sourceParity.report?.totals?.upstreamFiles ?? inventory.totals.sourceFiles,
+      mapped: reports.sourceParity.report?.totals?.mappedFiles ?? 0,
+      declarationOnly: reports.sourceParity.report?.totals?.declarationOnlyFiles ?? 0,
+    },
+    sizeScenarios: (reports.size.report?.scenarios ?? []).map((entry) => ({
+      id: entry.id,
+      candidateBrotli11: entry.candidate?.sizes?.brotli11 ?? 0,
+      upstreamBrotli11: entry.upstream?.sizes?.brotli11 ?? 0,
+      deltaBrotli11: entry.comparison?.deltaBytes?.brotli11 ?? 0,
+      passed: entry.passed === true,
+    })),
+    performanceWorkloads: (reports.performance.report?.workloads ?? []).map((entry) => ({
+      id: entry.id,
+      category: entry.category,
+      ratio: entry.statistics?.ratio?.pointEstimate ?? 0,
+      upper95: entry.statistics?.ratio?.confidenceInterval?.upper95 ?? 0,
+      margin: entry.statistics?.ratio?.nonInferiorityMarginRatio ?? 0,
+      passed: entry.passed === true,
+    })),
+    runtimeOnlyModules: [
+      ["reactivity", "reactivity.project.generated.js", "reactivity.esm-bundler.js"],
+      ["runtime-core", "runtime-core.project.generated.js", "runtime-core.esm-bundler.js"],
+      ["runtime-dom", "runtime-dom.project.generated.js", "runtime-dom.esm-bundler.js"],
+      ["shared", "shared.project.generated.js", "shared.esm-bundler.js"],
+    ].map(([name, candidateSuffix, upstreamSuffix]) => {
+      const scenario = (reports.size.report?.scenarios ?? []).find(({ id }) => id === "runtime-only-client");
+      const candidate = scenario?.moduleAudit?.candidate?.graph?.modules?.find(({ id }) => id.endsWith(candidateSuffix));
+      const upstream = scenario?.moduleAudit?.upstream?.graph?.modules?.find(({ id }) => id.endsWith(upstreamSuffix));
+      return { name, candidateBytes: candidate?.renderedBytes ?? 0, upstreamBytes: upstream?.renderedBytes ?? 0 };
+    }),
     blockers: result.failures,
   };
   mkdirSync(webRoot, { recursive: true });

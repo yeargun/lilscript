@@ -1,0 +1,234 @@
+import { markRaw } from "../reactivity/reactive";
+import { arguments } from "../shared/general";
+import { console } from "../shared/makeMap";
+
+extern JsValue Error;
+
+export JsValue TestNodeTypes = JS.object(
+  "TEXT", "text",
+  "ELEMENT", "element",
+  "COMMENT", "comment"
+);
+
+export JsValue NodeOpTypes = JS.object(
+  "CREATE", "create",
+  "INSERT", "insert",
+  "REMOVE", "remove",
+  "SET_TEXT", "setText",
+  "SET_ELEMENT_TEXT", "setElementText",
+  "PATCH", "patch"
+);
+
+int nodeId = 0;
+JsValue recordedNodeOps = JS.array();
+
+export void logNodeOp(JsValue op) {
+  JS.invoke(recordedNodeOps, "push", op);
+}
+
+export void resetOps() {
+  recordedNodeOps = JS.array();
+}
+
+export JsValue dumpOps() {
+  JsValue ops = JS.invoke(recordedNodeOps, "slice");
+  resetOps();
+  return ops;
+}
+
+JsValue createElement(string tag) {
+  JsValue node = JS.object(
+    "id", nodeId,
+    "type", TestNodeTypes["ELEMENT"],
+    "tag", tag,
+    "children", JS.array(),
+    "props", JS.object(),
+    "parentNode", null,
+    "eventListeners", null
+  );
+  nodeId += 1;
+  logNodeOp(JS.object(
+    "type", NodeOpTypes["CREATE"],
+    "nodeType", TestNodeTypes["ELEMENT"],
+    "targetNode", node,
+    "tag", tag
+  ));
+  markRaw(node);
+  return node;
+}
+
+JsValue createText(string text) {
+  JsValue node = JS.object(
+    "id", nodeId,
+    "type", TestNodeTypes["TEXT"],
+    "text", text,
+    "parentNode", null
+  );
+  nodeId += 1;
+  logNodeOp(JS.object(
+    "type", NodeOpTypes["CREATE"],
+    "nodeType", TestNodeTypes["TEXT"],
+    "targetNode", node,
+    "text", text
+  ));
+  markRaw(node);
+  return node;
+}
+
+JsValue createComment(string text) {
+  JsValue node = JS.object(
+    "id", nodeId,
+    "type", TestNodeTypes["COMMENT"],
+    "text", text,
+    "parentNode", null
+  );
+  nodeId += 1;
+  logNodeOp(JS.object(
+    "type", NodeOpTypes["CREATE"],
+    "nodeType", TestNodeTypes["COMMENT"],
+    "targetNode", node,
+    "text", text
+  ));
+  markRaw(node);
+  return node;
+}
+
+void setText(JsValue node, string text) {
+  logNodeOp(JS.object(
+    "type", NodeOpTypes["SET_TEXT"],
+    "targetNode", node,
+    "text", text
+  ));
+  node["text"] = text;
+}
+
+void remove(JsValue child) {
+  bool logOp = true;
+  if (
+    JS.number(arguments["length"]).toInt() > 1 &&
+    !JS.isUndefined(arguments[1])
+  ) {
+    logOp = arguments[1].truthy();
+  }
+  JsValue parent = child["parentNode"];
+  if (parent.truthy()) {
+    if (logOp) {
+      logNodeOp(JS.object(
+        "type", NodeOpTypes["REMOVE"],
+        "targetNode", child,
+        "parentNode", parent
+      ));
+    }
+    int index = JS.number(JS.invoke(parent["children"], "indexOf", child)).toInt();
+    if (index > -1) {
+      JS.invoke(parent["children"], "splice", index, 1);
+    } else {
+      JS.invoke(console, "error", "target: ", child);
+      JS.invoke(console, "error", "parent: ", parent);
+      throw JS.construct(Error, "target is not a childNode of parent");
+    }
+    child["parentNode"] = null;
+  }
+}
+
+void insert(
+  JsValue child,
+  JsValue parent,
+  JsValue reference = JS.undefined()
+) {
+  int referenceIndex = -1;
+  if (reference.truthy()) {
+    referenceIndex = JS.number(
+      JS.invoke(parent["children"], "indexOf", reference)
+    ).toInt();
+    if (referenceIndex == -1) {
+      JS.invoke(console, "error", "ref: ", reference);
+      JS.invoke(console, "error", "parent: ", parent);
+      throw JS.construct(Error, "ref is not a child of parent");
+    }
+  }
+  logNodeOp(JS.object(
+    "type", NodeOpTypes["INSERT"],
+    "targetNode", child,
+    "parentNode", parent,
+    "refNode", reference
+  ));
+  JS.call(remove, JS.undefined(), child, false);
+  if (reference.truthy()) {
+    referenceIndex = JS.number(
+      JS.invoke(parent["children"], "indexOf", reference)
+    ).toInt();
+  } else {
+    referenceIndex = -1;
+  }
+  if (referenceIndex == -1) {
+    JS.invoke(parent["children"], "push", child);
+    child["parentNode"] = parent;
+  } else {
+    JS.invoke(parent["children"], "splice", referenceIndex, 0, child);
+    child["parentNode"] = parent;
+  }
+}
+
+void setElementText(JsValue element, JsValue text) {
+  logNodeOp(JS.object(
+    "type", NodeOpTypes["SET_ELEMENT_TEXT"],
+    "targetNode", element,
+    "text", text
+  ));
+  JS.invoke(
+    element["children"],
+    "forEach",
+    JS.method1((JsValue _self, JsValue child) => {
+      child["parentNode"] = null;
+      return JS.undefined();
+    })
+  );
+  if (!text.truthy()) {
+    element["children"] = JS.array();
+  } else {
+    JsValue child = JS.object(
+      "id", nodeId,
+      "type", TestNodeTypes["TEXT"],
+      "text", text,
+      "parentNode", element
+    );
+    nodeId += 1;
+    element["children"] = JS.array(child);
+  }
+}
+
+JsValue parentNode(JsValue node) {
+  return node["parentNode"];
+}
+
+JsValue nextSibling(JsValue node) {
+  JsValue parent = node["parentNode"];
+  if (!parent.truthy()) return null;
+  int index = JS.number(JS.invoke(parent["children"], "indexOf", node)).toInt();
+  JsValue sibling = parent["children"][index + 1];
+  if (!sibling.truthy()) return null;
+  return sibling;
+}
+
+JsValue querySelector() {
+  throw JS.construct(Error, "querySelector not supported in test renderer.");
+}
+
+void setScopeId(JsValue element, string id) {
+  element["props"][id] = "";
+}
+
+export JsValue nodeOps = JS.object(
+  "insert", insert,
+  "remove", remove,
+  "createElement", createElement,
+  "createText", createText,
+  "createComment", createComment,
+  "setText", setText,
+  "setElementText", setElementText,
+  "parentNode", parentNode,
+  "nextSibling", nextSibling,
+  "querySelector", querySelector,
+  "setScopeId", setScopeId
+);
