@@ -115,12 +115,16 @@ function buildPort(port, slot) {
       cwd: join(siblings, port),
       env: { ...process.env, LILSCRIPT_ROOT: repo, RAYON_NUM_THREADS: String(coresPerSlot) },
       stdio: ["ignore", "pipe", "pipe"],
+      detached: true,
     })
     let err = ""
     child.stderr.on("data", (d) => { err += d.toString().slice(0, 4000) })
     child.stdout.on("data", () => {})
-    const kill = setTimeout(() => child.kill("SIGKILL"), buildTimeoutMs)
-    child.on("close", (code) => {
+    // Kill the whole group, not just the direct child: build.mjs spawns the
+    // compiler, and killing only the wrapper leaves that grandchild running
+    // and holding the stdio pipes open, which hangs the pool on "close".
+    const kill = setTimeout(() => { try { process.kill(-child.pid, "SIGKILL") } catch { child.kill("SIGKILL") } }, buildTimeoutMs)
+    child.on("exit", (code) => {
       clearTimeout(kill)
       done({ port, ok: code === 0, seconds: (Date.now() - started) / 1000, error: code === 0 ? null : err.trim().slice(-600) })
     })
