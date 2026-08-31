@@ -362,3 +362,64 @@ It was not. Measured convergence on the jQuery port is **2** rounds for the scal
 **12** for the inlining pipeline, together under 6% of wall clock — see
 [004](../004-peephole-relex-tax/README.md). The cap is a correctness/robustness fix, and the real
 compile-time cause was elsewhere. A structural gap and a performance cause are different claims.
+
+---
+
+# Addendum 2 — terser's statement sequencing, read against LilScript's gap
+
+Prompted by [013](../013-statement-density/README.md): jQueryLil emits **2.06x** Terser's assignment
+statements, and [016](../016-marked-size-regression/README.md) showed a regression whose whole
+signature was **+479 `;` and −388 `,`**. So the obvious question is what terser does to merge
+statements that LilScript does not.
+
+## What terser actually does
+
+`TERSER/compress/tighten-body.js` has two distinct passes.
+
+**`sequencesize` (:1253)** merges runs of adjacent simple statements into one comma expression,
+bounded by `compressor.sequences_limit` (default 200). Note the detail at :1272 — every statement
+after the first goes through `body.drop_side_effect_free(compressor)`, so a pure statement in the
+middle of the run is *deleted*, not merged.
+
+**`sequencesize_2` (:1305)** is the one with no LilScript counterpart. It absorbs a preceding simple
+statement into the *head* of the next control-flow construct:
+
+| construct | rewrite |
+|---|---|
+| `AST_Exit` (:1317) | `x=1; return v` → `return (x=1, v)` |
+| `AST_For` (:1319) | `x=1; for(i;;)` → `for((x=1,i);;)`, or `for(x=1;;)` when there is no init |
+| `AST_ForIn` (:1338) | `x=1; for(k in o)` → `for(k in (x=1,o))` |
+| `AST_If` (:1343) | `x=1; if(c)` → `if((x=1,c))` |
+| `AST_Switch` (:1345) | `x=1; switch(e)` → `switch((x=1,e))` |
+| `AST_With` (:1347) | same shape |
+
+Plus `to_simple_statement` (:1287), which hoists `var` declarations out of an `if`'s branches so the
+`if` itself becomes a simple statement and can then be sequenced.
+
+LilScript has the for-init case (`fold_prior_assign_into_for_init`, `folds/loops.rs:2104`) and the
+adjacent-statement merge (`fold_adjacent_expression_statements`, `folds/calls.rs:132`). It has **no**
+fold that absorbs a prior statement into an `if` condition, a `return` value, or a `switch`
+discriminant.
+
+## ...and that gap is worth approximately nothing
+
+Before proposing it, the arithmetic:
+
+```
+a=1;if(c){...}      ->  if(a=1,c){...}        9 chars -> 9 chars
+a=1;b=2;return x    ->  return(a=1,b=2,x)    16 chars -> 17 chars
+```
+
+**`;` and `,` are both one byte, so sequencing is byte-neutral on raw and can be a byte worse** once
+the wrapping parentheses are counted. terser wants it because it feeds `drop_side_effect_free` and
+its other expression-level passes, not because the comma itself is smaller.
+
+This also corrects the reading of 013's own evidence. The +479 `;` / −388 `,` in the regressed
+artifact roughly cancel; the actual cost was the **+261 `var`/`let` keywords** (3–4 bytes each) and
+**+441 identifier occurrences** that came with them. The expensive thing is starting a new
+*declaration*, not starting a new *statement*.
+
+**So the technique to chase is not sequence absorption — LilScript already has
+`merge_adjacent_declarations` — it is not splitting a declarator list in the first place.** That is
+an SSA-destruction decision, upstream of every fold discussed here. Recorded so the terser pass is
+not ported on the strength of its name.
