@@ -68,6 +68,48 @@
 8. **Standing homework (no hypothesis required)**: continuously read Terser and Oxc (`oxc_minifier`)
    sources to harvest techniques, and record what was learned.
 
+## Standing target (updated)
+
+The single number this workstream is judged on:
+
+> **Every `*Lil` port's shipped artifact must be smaller than its upstream npm equivalent under the
+> port's declared `cost_model` — usually Brotli-11. Beat, don't tie.**
+
+Current state, committed artifacts, pinned codec: **11 wins / 9 losses, −33140 Brotli overall.**
+Reproduce with `node auto-finer-lilscript/fleet.mjs --measure --committed`.
+
+The nine losses, worst first:
+
+| port | delta | note |
+|---|---:|---|
+| motionlil | +9314 | scope-suspect: `dist/full.js` against the real motion UMD may not be the same program |
+| remarklil | +5833 | |
+| remark-parselil | +3812 | micromark family |
+| katexlil | +3742 | |
+| mdast-util-from-markdownlil | +3698 | micromark family |
+| micromarklil | +3381 | micromark family — these three share a core, so one fix moves ~10.9 KB |
+| mobxlil | +2657 | |
+| jquerylil | +780 | already beats upstream on **raw** by 4489; loses only on compressibility |
+| remark-mathlil | +202 | |
+
+## How to run the fleet
+
+Ports are built and measured in parallel by `auto-finer-lilscript/fleet.mjs`. Each port gets a fixed
+core slice (`taskset`) with `RAYON_NUM_THREADS` matched, because the compiler is itself Rayon-parallel
+and unpinned concurrency makes every slice thrash.
+
+```sh
+node auto-finer-lilscript/fleet.mjs                    # build + measure everything
+node auto-finer-lilscript/fleet.mjs --measure          # measure the working tree, no builds
+node auto-finer-lilscript/fleet.mjs --measure --committed   # measure HEAD's artifacts
+node auto-finer-lilscript/fleet.mjs --ports markedlil,jquerylil --slots 2
+```
+
+It reports each port's `src` dirtiness alongside its size, because **a size measured against a
+mid-migration source tree is not a compiler measurement**. At the time of writing 16 of the ports
+have modified sources; only `jquerylil`, `markedlil`, `mobxlil`, `motionlil` and the untracked-source
+ports give a clean compiler comparison.
+
 ## Fixed measurement rules
 
 - gzip = stock zlib 1.3.1, level 9, mtime 0. Brotli = official Google Brotli 1.1.0, quality 11,
