@@ -246,6 +246,15 @@ impl ProjectConfig {
                 self.javascript
                     .compression_enabled(CompressionDecision::StringPooling)
             }),
+            // Objective-scaled, but the scale is raw bytes and the underlying
+            // savings model credits every repeated occurrence at full literal
+            // width. Under a compressing objective those repeats were already
+            // matches, so the model overstates the benefit. Raising the Brotli
+            // number is *not* the fix: measured on jQuery, thresholds of 16 and
+            // 32 are worse than 8 while 64 is better, because the knob
+            // perturbs which candidates the beam explores rather than moving a
+            // smooth cost curve. The principled fix is to stop crediting the
+            // repeats. See auto-finer-lilscript/011-string-pooling-under-compression.
             string_pool_minimum_savings: match self.javascript.cost_model {
                 CompressionCostModel::Raw => 1,
                 CompressionCostModel::Gzip => 4,
@@ -1253,7 +1262,15 @@ impl Default for JavaScriptConfig {
             priority: JavaScriptPriority::SizeFirst,
             ecmascript: EcmaScriptEdition::Es2022,
             browsers: Vec::new(),
-            optimization_level: 15,
+            // Level 13, not the ceiling. Measured on the jQuery port: level 15
+            // costs 1829 CPU-seconds against level 13's 89.8 — 20x — to save
+            // 426 Brotli bytes, 1.4%, and it issues 500 canonical encodes
+            // against 52. Levels 12 through 14 sit on a plateau within 0.15% of
+            // each other on both jQuery and acorn, and the curve only breaks
+            // down at 11 and below. A project that wants the last percent can
+            // still ask for 15 explicitly; it should not be the price of not
+            // having an opinion. See auto-finer-lilscript/007-level-13-sweet-spot.
+            optimization_level: 13,
             optimizations: None,
             compression: None,
             pool_numeric_literals: true,
@@ -1826,8 +1843,25 @@ impl JavaScriptConfig {
             8 => 24,
             9..=10 => 64,
             11..=12 => 128,
-            13 => 192,
-            14 => 256,
+            // The terminal probe budget is the one dimension of the effort
+            // ladder that measurably buys bytes, and 13 was rationing it.
+            // Measured with the budget pinned explicitly, so artifact scaling
+            // is out of the picture: on the acorn port the Brotli curve is
+            // 3071 at 192 probes and 3063 from 384 onward — flat through 3072 —
+            // and 3063 beats what level 15 produces (3069). On jQuery, the
+            // budget that level 13 actually reaches after artifact scaling was
+            // ~42 probes; doubling this base takes it to ~84 and moves Brotli
+            // from 30651 to 30593, which is 87% of the gain an unscaled 384
+            // achieves (30587) for half the probes.
+            //
+            // Levels above 13 deliberately stop here too. Raising them to 512
+            // and 768 was tried on the strength of jQuery still gaining at 768
+            // unscaled probes, and then measured: level 15 went from 1829 to
+            // **5434 CPU-seconds** — three times slower — to save 192 Brotli
+            // bytes. That is the same bad trade level 15 was already criticized
+            // for, made worse, so it was reverted. 384 is the measured knee on
+            // acorn (flat from 384 through 3072) and it restores level 15 to
+            // exactly the budget it had before.
             _ => 384,
         };
         match self.candidate_search {
@@ -2310,7 +2344,11 @@ shared_min_imports = 3
         assert!(balanced.js_options().elide_safe_string_coercions);
         assert!(!balanced.js_options().pack_string_arrays);
 
-        let size: ProjectConfig = toml::from_str("[javascript]\npriority='size-first'\n").unwrap();
+        // This case is about what `priority` maps to, not about the effort
+        // ladder, so it pins the level rather than inheriting the default.
+        // Four of the assertions below name features gated at level 14.
+        let size: ProjectConfig =
+            toml::from_str("[javascript]\npriority='size-first'\noptimization_level=15\n").unwrap();
         assert_eq!(size.js_optimizer_options().inline_growth_limit, Some(16));
         assert!(size.js_options().pool_strings);
         assert!(size.js_options().elide_safe_integer_coercions);
@@ -2678,6 +2716,11 @@ local_name_coalescing = false
         );
 
         let mut legacy = ProjectConfig::default();
+        // The legacy path gates on the compression allowlist alone, but the
+        // level gate still applies underneath it: two of these eleven searches
+        // are level-14 features, so the ladder is pinned to isolate the axis
+        // this case is about.
+        legacy.javascript.optimization_level = 15;
         legacy.javascript.optimizations = None;
         legacy.javascript.compression = Some(all_compression);
         assert_eq!(states(&legacy), [true; 11]);
@@ -2860,7 +2903,7 @@ local_name_coalescing = false
             level_fourteen
                 .javascript
                 .effective_terminal_codec_probe_limit(),
-            256
+            384
         );
         let level_fifteen: ProjectConfig =
             toml::from_str("[javascript]\noptimization_level=15\n").unwrap();
@@ -3083,7 +3126,12 @@ optimization_level = 0
     fn artifact_work_limits_scale_gradually_at_size_boundaries() {
         let config: ProjectConfig =
             toml::from_str("[javascript]\noptimization_level=15\n").unwrap();
-        let expected_limits = [
+        // The two budgets share one scaling curve and, at level 15, the same
+        // base. They are checked separately anyway: the terminal probe ladder
+        // was retuned at level 13 (192 -> 384) while the proposal ladder was
+        // left alone, so the two are no longer guaranteed to agree at every
+        // level and a shared expectation would hide that.
+        let expected_proposal_limits = [
             (16 * 1024 - 1, 384),
             (16 * 1024, 384),
             (16 * 1024 + 1, 384),
@@ -3096,7 +3144,7 @@ optimization_level = 0
             (256 * 1024 + 1, 32),
             (usize::MAX, 32),
         ];
-        for (raw_size, expected) in expected_limits {
+        for (raw_size, expected) in expected_proposal_limits {
             assert_eq!(
                 config
                     .javascript
@@ -3104,6 +3152,21 @@ optimization_level = 0
                 expected,
                 "candidate proposal limit at {raw_size} bytes"
             );
+        }
+        let expected_probe_limits = [
+            (16 * 1024 - 1, 384),
+            (16 * 1024, 384),
+            (16 * 1024 + 1, 384),
+            (64 * 1024 - 1, 97),
+            (64 * 1024, 96),
+            (64 * 1024 + 1, 96),
+            (66_672, 96),
+            (256 * 1024 - 1, 33),
+            (256 * 1024, 32),
+            (256 * 1024 + 1, 32),
+            (usize::MAX, 32),
+        ];
+        for (raw_size, expected) in expected_probe_limits {
             assert_eq!(
                 config
                     .javascript
@@ -3337,6 +3400,24 @@ providers = ["correctness", "web"]
         assert_eq!(config.profile.specialization_min_count, 50);
         assert_eq!(config.native_options().stack_array_element_limit, 32);
         assert_eq!(config.lint.providers.as_ref().unwrap().len(), 2);
+    }
+
+    #[test]
+    fn default_optimization_level_is_the_measured_effort_plateau() {
+        // Guards the deliberate choice of 13 over the 0..=15 ceiling. Raising
+        // this is a 20x compile-time decision on a large artifact, not a
+        // tuning tweak, so it should not happen by accident.
+        let config = JavaScriptConfig::default();
+        assert_eq!(config.optimization_level, 13);
+        // The level must still admit the features that make the plateau: the
+        // three gated at 13 are what separate it from the 11-and-below cliff.
+        for feature in [
+            JavaScriptOptimization::IdenticalFunctionFolding,
+            JavaScriptOptimization::FunctionLayoutVariants,
+            JavaScriptOptimization::JointRepresentationSearch,
+        ] {
+            assert!(config.optimization_level >= feature.minimum_level());
+        }
     }
 
     #[test]

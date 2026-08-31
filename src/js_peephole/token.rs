@@ -37,6 +37,7 @@ pub(crate) fn ascii_identifier_name_string(literal: &str) -> Option<&str> {
 }
 
 pub(crate) fn matching_closers(tokens: &[Token<'_>]) -> Vec<Option<usize>> {
+    let _timing = crate::timing::CLOSERS.scope(tokens.len());
     let mut matching_close = vec![None; tokens.len()];
     let mut stack = Vec::<usize>::new();
     for (index, token) in tokens.iter().enumerate() {
@@ -152,7 +153,95 @@ pub(crate) fn lex_certainly(source: &str) -> Result<Option<Vec<Token<'_>>>, Java
     Ok(lexed.slash_classification_certain.then_some(lexed.tokens))
 }
 
+/// One remembered tokenization, stored without borrowing its source.
+///
+/// `Token` carries `text` as a borrow, but that borrow is redundant with the
+/// `start`/`end` offsets beside it. Keeping only the offsets lets a cached
+/// tokenization be replayed against *any* string with the same bytes, which is
+/// what makes the cache below possible at all.
+struct CachedLex {
+    source: String,
+    spans: Vec<(TokenKind, u32, u32)>,
+    slash_classification_certain: bool,
+}
+
+/// Sources larger than this are not remembered. The peephole never sees an
+/// artifact anywhere near it, and the bound keeps a pathological input from
+/// pinning many megabytes per worker thread.
+const MAX_CACHED_LEX_BYTES: usize = 8 * 1024 * 1024;
+const CACHED_LEX_SLOTS: usize = 4;
+
+thread_local! {
+    /// The peephole pipeline is ~135 folds, each of which takes `&str` and
+    /// re-tokenizes from scratch. A fold that rewrites nothing hands the
+    /// *identical* string to the next fold, so a small per-thread cache
+    /// collapses that run of tokenizations into one. The comparison is an exact
+    /// byte equality — length first, so a mismatch is usually O(1) — which is
+    /// two orders of magnitude cheaper than the scan it replaces and cannot
+    /// return another string's tokens.
+    static CACHED_LEXES: std::cell::RefCell<Vec<CachedLex>> =
+        const { std::cell::RefCell::new(Vec::new()) };
+}
+
+fn replay_cached_lex<'src>(source: &'src str) -> Option<LexedSource<'src>> {
+    CACHED_LEXES.with(|slots| {
+        let slots = slots.borrow();
+        let cached = slots.iter().find(|cached| cached.source == source)?;
+        Some(LexedSource {
+            tokens: cached
+                .spans
+                .iter()
+                .map(|&(kind, start, end)| Token {
+                    kind,
+                    text: &source[start as usize..end as usize],
+                    start: start as usize,
+                    end: end as usize,
+                })
+                .collect(),
+            slash_classification_certain: cached.slash_classification_certain,
+        })
+    })
+}
+
+fn remember_lex(source: &str, lexed: &LexedSource<'_>) {
+    if source.len() > MAX_CACHED_LEX_BYTES {
+        return;
+    }
+    CACHED_LEXES.with(|slots| {
+        let mut slots = slots.borrow_mut();
+        if slots.len() >= CACHED_LEX_SLOTS {
+            slots.remove(0);
+        }
+        slots.push(CachedLex {
+            source: source.to_string(),
+            spans: lexed
+                .tokens
+                .iter()
+                .map(|token| (token.kind, token.start as u32, token.end as u32))
+                .collect(),
+            slash_classification_certain: lexed.slash_classification_certain,
+        });
+    });
+}
+
 pub(crate) fn lex_classified(source: &str) -> Result<LexedSource<'_>, JavaScriptParseError> {
+    // `u32` spans keep the cache compact; anything that cannot be addressed by
+    // one is simply not cached rather than specially handled.
+    let cacheable = source.len() <= u32::MAX as usize && crate::artifact_memo::enabled();
+    if cacheable {
+        if let Some(cached) = replay_cached_lex(source) {
+            return Ok(cached);
+        }
+    }
+    let lexed = lex_classified_uncached(source)?;
+    if cacheable {
+        remember_lex(source, &lexed);
+    }
+    Ok(lexed)
+}
+
+fn lex_classified_uncached(source: &str) -> Result<LexedSource<'_>, JavaScriptParseError> {
+    let _timing = crate::timing::LEX.scope(source.len());
     let bytes = source.as_bytes();
     let mut tokens = Vec::with_capacity(source.len() / 2);
     let mut groups = Vec::<GroupKind>::new();

@@ -1,0 +1,35 @@
+{
+  "name": "lilscript-markdown-stack-harness",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test contract.test.mjs",
+    "check": "npm test && node run.mjs --check"
+  },
+  "dependencies": {
+    "devlop": "1.1.0",
+    "esbuild": "0.28.1",
+    "hast-util-to-html": "9.0.5",
+    "hast-util-to-jsx-runtime": "2.3.6",
+    "katex": "0.16.22",
+    "mdast-util-from-markdown": "2.0.3",
+    "mdast-util-to-hast": "13.2.1",
+    "micromark": "4.0.2",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "react-markdown": "10.1.0",
+    "rehype": "13.0.2",
+    "rehype-katex": "7.0.1",
+    "rehype-stringify": "10.0.1",
+    "remark": "15.0.1",
+    "remark-breaks": "4.0.0",
+    "remark-gfm": "4.0.1",
+    "remark-math": "6.0.0",
+    "remark-parse": "11.0.0",
+    "remark-rehype": "11.1.2",
+    "terser": "5.51.2",
+    "unified": "11.0.5",
+    "unist-util-visit": "5.1.0",
+    "vfile": "6.0.3"
+  }
+}

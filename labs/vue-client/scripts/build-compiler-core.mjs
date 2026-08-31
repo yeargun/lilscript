@@ -2,11 +2,9 @@ import { spawnSync } from "node:child_process";
 import {
   copyFileSync,
   cpSync,
-  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
-  readdirSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
@@ -75,6 +73,9 @@ const productionOutput = resolve(
   projectRoot,
   "packages/vuelil/production/compiler-core.js",
 );
+const productionExports = JSON.parse(
+  readFileSync(resolve(projectRoot, "compatibility/compiler-core.json"), "utf8"),
+).runtimeExports;
 const temporary = mkdtempSync(resolve(tmpdir(), "vuelil-compiler-core-"));
 const compiled = resolve(temporary, "index.js");
 const productionCompiled = resolve(temporary, "production.js");
@@ -193,46 +194,6 @@ function prepareModule(compiledPath, sharedSpecifier) {
   });
 }
 
-function compilerDomCoreImports() {
-  const productionCompilerDom = resolve(
-    projectRoot,
-    "packages/vuelil/production/compiler-dom.js",
-  );
-  if (existsSync(productionCompilerDom)) {
-    const names = new Set();
-    const source = readFileSync(productionCompilerDom, "utf8");
-    for (const match of source.matchAll(
-      /import\{([^}]*)\}from["']\.\/compiler-core\.js["']/gu,
-    )) {
-      for (const binding of match[1].split(",")) {
-        const imported = binding.trim().split(/\s+as\s+/u)[0];
-        if (imported) names.add(imported);
-      }
-    }
-    if (names.size > 0) return [...names].sort();
-  }
-  const names = new Set();
-  const visit = directory => {
-    for (const entry of readdirSync(directory, { withFileTypes: true })) {
-      const path = resolve(directory, entry.name);
-      if (entry.isDirectory()) visit(path);
-      else if (entry.name.endsWith(".lil")) {
-        const source = readFileSync(path, "utf8");
-        for (const match of source.matchAll(
-          /import\s+extern\s*\{([\s\S]*?)\}\s*from\s*"[^"]*packages\/vuelil\/compiler-core\.js"\s*;/gu,
-        )) {
-          for (const binding of match[1].split(",")) {
-            const imported = binding.trim().split(/\s+as\s+/u)[0];
-            if (imported) names.add(imported);
-          }
-        }
-      }
-    }
-  };
-  visit(resolve(projectRoot, "src/compiler-dom"));
-  return [...names].sort();
-}
-
 try {
   cpSync(sourceDirectory, temporarySourceDirectory, { recursive: true });
   cpSync(sharedSourceDirectory, resolve(temporary, "shared"), { recursive: true });
@@ -303,7 +264,6 @@ try {
     );
   writeFileSync(compilerParser, compilerParserSource);
   const productionEntry = resolve(temporarySourceDirectory, "production.lil");
-  const productionExports = compilerDomCoreImports();
   writeFileSync(
     productionEntry,
     [
@@ -321,7 +281,7 @@ try {
     "",
   );
   const namedModule = prepareModule(compiled, "./shared.js");
-  const productionModule = prepareModule(productionCompiled, "../shared.js");
+  const productionModule = prepareModule(productionCompiled, "./shared.js");
   writeFileSync(
     output,
     `// Generated from compiler-core LilScript sources. Template parsing is LilScript-owned.\n${hostModule}\n${namedModule}`,

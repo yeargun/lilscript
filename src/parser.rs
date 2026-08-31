@@ -3260,6 +3260,35 @@ int result=from(3);"#,
     }
 
     #[test]
+    fn parses_fixed_arity_javascript_method10_adapter() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "JsValue callback=JS.method10((JsValue self,JsValue a,JsValue b,JsValue c,JsValue d,JsValue e,JsValue f,JsValue g,JsValue h,JsValue i,JsValue j)=>j);",
+        )
+        .unwrap();
+        let Item::Stmt(Stmt::VarDecl(binding)) = &program.items[0] else {
+            panic!("expected adapter binding");
+        };
+        let Some(Expr::Call { callee, args, .. }) = &binding.initializer else {
+            panic!("expected adapter call");
+        };
+        assert!(matches!(
+            callee,
+            Expr::Member {
+                object,
+                property,
+                ..
+            } if property.name == "method10"
+                && matches!(object, Expr::Ident(identifier) if identifier.name == "JS")
+        ));
+        let [Expr::ArrowFunction { params, .. }] = args else {
+            panic!("expected one callback");
+        };
+        assert_eq!(params.len(), 11);
+    }
+
+    #[test]
     fn parses_generators_yield_and_delegated_yield() {
         let arena = Bump::new();
         let program =

@@ -1,6 +1,5 @@
 use serde::Serialize;
 
-use crate::js_syntax_target::{EcmaScriptEdition, JsSyntaxFeature};
 use crate::js_peephole::binding::{BindingResolution, Resolution};
 pub(crate) use crate::js_peephole::folds::fold_constructor_prototype_tables_to_classes;
 use crate::js_peephole::folds::*;
@@ -20,6 +19,7 @@ use crate::js_peephole::token::{
     ascii_identifier_name_string, lex, matching_closers, validate_conditional_operators,
     validate_delimiters, Token, TokenKind,
 };
+use crate::js_syntax_target::{EcmaScriptEdition, JsSyntaxFeature};
 
 mod folds;
 pub(crate) use folds::{
@@ -321,10 +321,23 @@ fn is_hoist_independent_literal_initializer(tokens: &[Token<'_>]) -> bool {
 pub fn analyze_generated_javascript(
     source: &str,
 ) -> Result<JavaScriptSyntaxMetrics, JavaScriptParseError> {
-    analyze_generated_javascript_inner(source).map_err(|error| {
+    // Candidate scoring re-validates the whole artifact on every measurement,
+    // and the search revisits identical byte strings constantly. The analysis
+    // is a pure function of the source, so a digest hit returns exactly the
+    // metrics a fresh lex-and-validate pass would have produced. Only accepted
+    // programs are retained: a rejection is fatal, and its diagnostic borrows
+    // the source it was built from.
+    let key = crate::artifact_memo::content_digest(source.as_bytes());
+    if let Some(metrics) = crate::artifact_memo::GENERATED_ANALYSIS.get(&key) {
+        return Ok(metrics);
+    }
+    let _timing = crate::timing::ANALYZE.scope(source.len());
+    let metrics = analyze_generated_javascript_inner(source).map_err(|error| {
         dump_rejected_generated_javascript(source, &error);
         error.with_source(source)
-    })
+    })?;
+    crate::artifact_memo::GENERATED_ANALYSIS.insert(key, metrics);
+    Ok(metrics)
 }
 
 pub fn generated_javascript_export_names(
@@ -2282,6 +2295,35 @@ pub fn function_local_binding_swap_variants(
     Ok(variants)
 }
 
+/// Run one fold outside a [`RewriteSession`], skipping it when it has already
+/// declined these exact bytes.
+///
+/// `emit_javascript_candidate` applies six folds directly to every emission,
+/// which is the hottest path in the compiler on a large artifact. Those calls
+/// deserve the same decline memo the session pipeline gets, but they have no
+/// session to carry a cached digest, so the digest is paid per call. That is
+/// microseconds against folds measured in tens of milliseconds.
+/// The fold identifies itself by its Rust type name, exactly as
+/// [`RewriteSession::run`] does, so the two paths share cache entries and no
+/// caller has to keep a name string in sync with a function.
+pub fn fold_once_memoized(
+    source: &str,
+    fold: impl Fn(&str) -> Result<(String, usize), JavaScriptParseError>,
+) -> Result<(String, usize), JavaScriptParseError> {
+    let key = (
+        std::any::type_name_of_val(&fold),
+        crate::artifact_memo::content_digest(source.as_bytes()),
+    );
+    if crate::artifact_memo::DECLINED_FOLDS.get(&key).is_some() {
+        return Ok((source.to_string(), 0));
+    }
+    let (next, count) = fold(source)?;
+    if count == 0 && next == source {
+        crate::artifact_memo::DECLINED_FOLDS.insert(key, ());
+    }
+    Ok((next, count))
+}
+
 /// Parses generated JavaScript, applies semantics-preserving local rewrites,
 /// and derives deterministic engine-startup proxies from the parsed program.
 ///
@@ -2328,6 +2370,7 @@ fn optimize_generated_javascript_with(
     elide_functions: bool,
     pristine_builtins: bool,
 ) -> Result<PeepholeResult, JavaScriptParseError> {
+    let _timing = crate::timing::PEEPHOLE.scope(source.len());
     let first = optimize_generated_javascript_pass(source, elide_functions, pristine_builtins)?;
     if first.rewrites == 0 || !constructor_table_remains(&first.code) {
         return Ok(first);
@@ -2552,6 +2595,7 @@ pub fn repair_fused_keyword_identifiers(source: &str) -> Result<String, JavaScri
 }
 
 pub fn late_generated_javascript_cleanup(source: &str) -> Result<String, JavaScriptParseError> {
+    let _timing = crate::timing::CLEANUP.scope(source.len());
     let mut session = RewriteSession::new(source.to_string());
     late_generated_javascript_cleanup_into(&mut session)?;
     Ok(session.code)
@@ -2774,22 +2818,77 @@ fn canonical_late_generated_javascript_cleanup_into(
 struct RewriteSession {
     code: String,
     rewrites: usize,
+    /// Digest of `code`, computed lazily and dropped whenever `code` changes.
+    /// Most folds leave the artifact alone, so this is recomputed far less
+    /// often than it is read.
+    digest: Option<crate::artifact_memo::ContentDigest>,
 }
 
 impl RewriteSession {
     fn new(code: String) -> Self {
-        Self { code, rewrites: 0 }
+        Self {
+            code,
+            rewrites: 0,
+            digest: None,
+        }
+    }
+
+    fn digest(&mut self) -> crate::artifact_memo::ContentDigest {
+        *self
+            .digest
+            .get_or_insert_with(|| crate::artifact_memo::content_digest(self.code.as_bytes()))
+    }
+
+    /// Replace the artifact, keeping the cached digest only when the bytes are
+    /// unchanged. Returns whether anything actually moved.
+    fn adopt(&mut self, next: String) -> bool {
+        if next == self.code {
+            return false;
+        }
+        self.code = next;
+        self.digest = None;
+        true
+    }
+
+    /// Run one fold unless it has already declined these exact bytes, and
+    /// record it when it declines them now. `name` is the fold's Rust type
+    /// name, which is unique per fold because every fold in the pipeline is a
+    /// plain function item rather than a state-capturing closure.
+    fn run_named(
+        &mut self,
+        name: &'static str,
+        fold: impl Fn(&str) -> Result<(String, usize), JavaScriptParseError>,
+    ) -> Result<(), JavaScriptParseError> {
+        let key = (name, self.digest());
+        if crate::artifact_memo::DECLINED_FOLDS.get(&key).is_some() {
+            return Ok(());
+        }
+        let started = crate::timing::enabled().then(std::time::Instant::now);
+        let (next, count) = fold(&self.code)?;
+        if let Some(started) = started {
+            let elapsed = started.elapsed().as_nanos() as u64;
+            let bucket = if count == 0 {
+                &crate::timing::IDLE_FOLD
+            } else {
+                &crate::timing::ACTIVE_FOLD
+            };
+            bucket.record_pass(self.code.len() as u64, elapsed);
+            crate::timing::record_fold(name, count == 0, elapsed);
+        }
+        trace_fold(&fold, &self.code, &next);
+        let moved = self.adopt(next);
+        self.rewrites += count;
+        if count == 0 && !moved {
+            crate::artifact_memo::DECLINED_FOLDS.insert(key, ());
+        }
+        Ok(())
     }
 
     fn run(
         &mut self,
         fold: impl Fn(&str) -> Result<(String, usize), JavaScriptParseError>,
     ) -> Result<(), JavaScriptParseError> {
-        let (next, count) = fold(&self.code)?;
-        trace_fold(&fold, &self.code, &next);
-        self.code = next;
-        self.rewrites += count;
-        Ok(())
+        self.run_named(std::any::type_name_of_val(&fold), fold)
     }
 
     fn run_if(
@@ -2808,10 +2907,18 @@ impl RewriteSession {
         &mut self,
         fold: impl Fn(&str) -> Result<(String, bool), JavaScriptParseError>,
     ) -> Result<(), JavaScriptParseError> {
+        let name = std::any::type_name_of_val(&fold);
+        let key = (name, self.digest());
+        if crate::artifact_memo::DECLINED_FOLDS.get(&key).is_some() {
+            return Ok(());
+        }
         let (next, changed) = fold(&self.code)?;
         trace_fold(&fold, &self.code, &next);
-        self.code = next;
+        let moved = self.adopt(next);
         self.rewrites += usize::from(changed);
+        if !changed && !moved {
+            crate::artifact_memo::DECLINED_FOLDS.insert(key, ());
+        }
         Ok(())
     }
 
@@ -2820,12 +2927,11 @@ impl RewriteSession {
         fold: impl Fn(&str) -> Result<(String, usize), JavaScriptParseError>,
         max_rounds: usize,
     ) -> Result<(), JavaScriptParseError> {
+        let name = std::any::type_name_of_val(&fold);
         for _ in 0..max_rounds {
-            let (next, count) = fold(&self.code)?;
-            trace_fold(&fold, &self.code, &next);
-            self.code = next;
-            self.rewrites += count;
-            if count == 0 {
+            let before = self.rewrites;
+            self.run_named(name, &fold)?;
+            if self.rewrites == before {
                 break;
             }
         }

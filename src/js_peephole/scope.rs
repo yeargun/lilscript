@@ -46,6 +46,7 @@ pub(crate) struct GeneratedBindingIndex<'src> {
 
 impl<'src> GeneratedBindingIndex<'src> {
     pub(crate) fn new(tokens: &[Token<'src>], matching_close: &[Option<usize>]) -> Self {
+        let _timing = crate::timing::SCOPES.scope(tokens.len());
         let matching_open = matching_openers(matching_close);
         let mut construction_token_visits = 0usize;
 

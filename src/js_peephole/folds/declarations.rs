@@ -1283,6 +1283,7 @@ pub(crate) fn declare_implicit_assignment_bindings(
 ) -> Result<(String, usize), JavaScriptParseError> {
     let tokens = lex(source)?;
     let matching_close = matching_closers(&tokens);
+    let enclosing_groups = enclosing_group_openers(&tokens);
     let mut binding_index = None;
     let mut replacements = Vec::<(usize, usize, String)>::new();
     let mut declared = Vec::<(usize, &str)>::new();
@@ -1299,7 +1300,7 @@ pub(crate) fn declare_implicit_assignment_bindings(
         }) {
             continue;
         }
-        if assignment_is_parameter_default(&tokens, &matching_close, at) {
+        if assignment_is_parameter_default(&tokens, &matching_close, &enclosing_groups, at) {
             continue;
         }
         let comma_sequence_assignment = is_comma_sequence_assignment_target(&tokens, at);
@@ -1369,46 +1370,57 @@ pub(crate) fn declare_implicit_assignment_bindings(
     Ok(apply_token_rewrites(source, replacements))
 }
 
+/// Index of the innermost `(`, `[`, or `{` enclosing each token.
+///
+/// This replaces a backward scan that ran from the query position to the start
+/// of the program. `declare_implicit_assignment_bindings` asks the question at
+/// every `identifier =` site, so that scan made the fold quadratic in the
+/// artifact: the jQuery port has roughly two thousand such sites over twenty
+/// thousand tokens, and the fold measured **195 ms per call** — the most
+/// expensive fold in the pipeline. One stack pass here answers every query in
+/// time proportional to nesting depth instead.
+#[cfg(test)]
+pub(crate) fn enclosing_group_openers_for_test(tokens: &[Token<'_>]) -> Vec<Option<usize>> {
+    enclosing_group_openers(tokens)
+}
+
+fn enclosing_group_openers(tokens: &[Token<'_>]) -> Vec<Option<usize>> {
+    let mut enclosing = vec![None; tokens.len()];
+    let mut open_groups = Vec::<usize>::new();
+    for (index, token) in tokens.iter().enumerate() {
+        match token.text {
+            "(" | "[" | "{" => {
+                enclosing[index] = open_groups.last().copied();
+                open_groups.push(index);
+            }
+            ")" | "]" | "}" => {
+                open_groups.pop();
+                enclosing[index] = open_groups.last().copied();
+            }
+            _ => enclosing[index] = open_groups.last().copied(),
+        }
+    }
+    enclosing
+}
+
 fn assignment_is_parameter_default(
     tokens: &[Token<'_>],
     matching_close: &[Option<usize>],
+    enclosing: &[Option<usize>],
     at: usize,
 ) -> bool {
-    let mut cursor = at;
-    while let Some((open, close)) = enclosing_paren_span(tokens, matching_close, cursor) {
-        if paren_list_is_function_parameters(tokens, open, close) {
-            return true;
-        }
-        if open == 0 {
-            break;
-        }
-        cursor = open;
-    }
-    false
-}
-
-fn enclosing_paren_span(
-    tokens: &[Token<'_>],
-    matching_close: &[Option<usize>],
-    at: usize,
-) -> Option<(usize, usize)> {
-    let mut depth = 0i32;
-    let mut index = at;
-    while index > 0 {
-        index -= 1;
-        match tokens[index].text {
-            ")" | "]" | "}" => depth += 1,
-            "(" if depth == 0 => {
-                let close = matching_close.get(index).copied().flatten()?;
-                if close > at {
-                    return Some((index, close));
+    let mut group = enclosing.get(at).copied().flatten();
+    while let Some(open) = group {
+        if tokens[open].text == "(" {
+            if let Some(close) = matching_close.get(open).copied().flatten() {
+                if close > at && paren_list_is_function_parameters(tokens, open, close) {
+                    return true;
                 }
             }
-            "(" | "[" | "{" => depth = depth.saturating_sub(1),
-            _ => {}
         }
+        group = enclosing.get(open).copied().flatten();
     }
-    None
+    false
 }
 
 fn paren_list_is_function_parameters(tokens: &[Token<'_>], open: usize, close: usize) -> bool {

@@ -30,7 +30,8 @@ const upstream = resolve(
   "upstream/vue/packages/reactivity/dist/reactivity.esm-browser.prod.js",
 );
 const upstreamCandidate = resolve(projectRoot, "tests/reactivity-upstream.candidate.js");
-const productionConfig = resolve(projectRoot, "config/reactivity-production.toml");
+const productionConfig = resolve(projectRoot, "config/open-world.toml");
+const selectedConfig = resolve(projectRoot, "config/reactivity-production.toml");
 
 const publicFunctionNames = new Set([
   "computed", "customRef", "effect", "effectScope", "enableTracking",
@@ -176,7 +177,7 @@ export async function buildSelectedReactivity(exportNames, output) {
       selectedSource,
       renderClosedReactivityBuildEntry(exportNames, owners),
     );
-    compile(selectedSource, selectedCompiled, "production", productionConfig, "js");
+    compile(selectedSource, selectedCompiled, "production", selectedConfig, "js");
     const bridge = [
       "let __vuelilSelectedExports;",
       "function hostInstallSelected(value){__vuelilSelectedExports=value}",
@@ -266,6 +267,15 @@ export async function buildReactivity() {
     }
   }
   writeFileSync(productionOutput, minified.code);
+  if (process.env.VUELIL_SKIP_REACTIVITY_REPORT === "1") {
+    console.log(JSON.stringify({
+      developmentOutput,
+      productionOutput,
+      sourceBytes: bytes(source),
+      hostBytes: bytes(host),
+    }));
+    return;
+  }
 
   const measurement = spawnSync(
     codecPath(),

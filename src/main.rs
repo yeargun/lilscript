@@ -91,9 +91,16 @@ struct Args {
 }
 
 fn main() {
+    let started = std::time::Instant::now();
     if let Err(error) = run() {
         eprintln!("{error}");
         std::process::exit(1);
+    }
+    if let Some(report) = lilscript::timing::report(started.elapsed().as_nanos()) {
+        eprintln!("lilscript-timing {report}");
+        if let Some(folds) = lilscript::timing::idle_fold_report(24) {
+            eprint!("{folds}");
+        }
     }
     report_store_census();
 }

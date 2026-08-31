@@ -16,11 +16,16 @@ import { compilerPath, projectRoot, repositoryRoot } from "../tooling/compiler-p
 
 const sourceDirectory = resolve(projectRoot, "src/server-renderer");
 const output = resolve(projectRoot, "packages/vuelil/server-renderer.js");
+const productionOutput = resolve(
+  projectRoot,
+  "packages/vuelil/production/server-renderer.js",
+);
 const testOutput = resolve(projectRoot, "tests/server-renderer-upstream.candidate.mjs");
 const temporary = mkdtempSync(resolve(tmpdir(), "vuelil-server-renderer-"));
 const graph = resolve(temporary, "src/server-renderer");
 const source = resolve(graph, "index.lil");
 const compiled = resolve(temporary, "server-renderer.js");
+const productionCompiled = resolve(temporary, "server-renderer.production.js");
 
 const expectedExports = [
   "pipeToNodeWritable",
@@ -150,20 +155,26 @@ function prepareGraph() {
     );
     writeFileSync(path, module);
   }
+  return buildGlobals;
 }
 
-function compile() {
-  const result = spawnSync(
-    compilerPath(),
-    [
-      source,
-      "--target", "js-module",
+function compile(output, production = false) {
+  const args = [source, "--target", "js-module"];
+  if (production) {
+    args.push(
+      "--mode", "production",
+      "--config", resolve(projectRoot, "config/open-world.toml"),
+    );
+  } else {
+    args.push(
       "--mode", "development",
       "--config", resolve(repositoryRoot, "tests/config/no-optimization-no-peephole.toml"),
-      "--jobs", "1",
-      "--codec-jobs", "1",
-      "-o", compiled,
-    ],
+    );
+  }
+  args.push("--jobs", "1", "--codec-jobs", "1", "-o", output);
+  const result = spawnSync(
+    compilerPath(),
+    args,
     { cwd: projectRoot, encoding: "utf8", env: process.env },
   );
   if (result.status !== 0) throw new Error(`${result.stdout ?? ""}${result.stderr ?? ""}`);
@@ -222,10 +233,24 @@ function assemble(module, dependencyPrefix) {
 }
 
 try {
-  prepareGraph();
-  compile();
+  const buildGlobals = prepareGraph();
+  compile(compiled);
 
   const compiledModule = readFileSync(compiled, "utf8");
+  writeFileSync(
+    buildGlobals,
+    readFileSync(buildGlobals, "utf8")
+      .replace("export JsValue __CJS__ = true;", "export JsValue __CJS__ = false;")
+      .replace("export JsValue __DEV__ = true;", "export JsValue __DEV__ = false;"),
+  );
+  for (const name of ["compiler-ssr.js", "runtime-dom.js", "shared.js"]) {
+    copyFileSync(
+      resolve(projectRoot, "packages/vuelil/production", name),
+      resolve(temporary, "packages/vuelil", name),
+    );
+  }
+  compile(productionCompiled, true);
+
   const hostModule = readFileSync(resolve(sourceDirectory, "host.js"), "utf8")
     .replaceAll("export function ", "function ");
   const banner = "// Generated from all 15 src/server-renderer/*.lil owners and the stream host adapter.\n";
@@ -233,18 +258,38 @@ try {
   mkdirSync(resolve(projectRoot, "packages/vuelil"), { recursive: true });
   const packageModule = `${banner}${hostModule}\n${assemble(compiledModule, "./")}\n`;
   const candidateModule = `${banner}${hostModule}\n${assemble(compiledModule, "../packages/vuelil/")}\n`;
+  const productionModule = `${banner}${hostModule}\n${assemble(
+    readFileSync(productionCompiled, "utf8"),
+    "./",
+  )}\n`;
   writeFileSync(output, packageModule);
   writeFileSync(testOutput, candidateModule);
+  mkdirSync(resolve(productionOutput, ".."), { recursive: true });
+  writeFileSync(productionOutput, productionModule);
+  assert.doesNotMatch(
+    productionModule,
+    /(?:from|import\()\s*["'](?:vue|@vue\/)/u,
+    "production server-renderer imports an upstream Vue implementation",
+  );
 
   const stamp = Date.now();
-  const [serverRenderer, runtimeDom, runtimeCore, runtimeTest, shared] = await Promise.all([
+  const [
+    serverRenderer,
+    productionServerRenderer,
+    runtimeDom,
+    runtimeCore,
+    runtimeTest,
+    shared,
+  ] = await Promise.all([
     import(`../packages/vuelil/server-renderer.js?build=${stamp}`),
+    import(`../packages/vuelil/production/server-renderer.js?build=${stamp}`),
     import("../packages/vuelil/runtime-dom.js"),
     import("../packages/vuelil/runtime-core.js"),
     import("../packages/vuelil/runtime-test.js"),
     import("../packages/vuelil/shared.js"),
   ]);
   assert.deepEqual(Object.keys(serverRenderer).sort(), expectedExports);
+  assert.deepEqual(Object.keys(productionServerRenderer).sort(), expectedExports);
   assert.equal(serverRenderer.ssrIncludeBooleanAttr, shared.includeBooleanAttr);
   assert.equal(serverRenderer.ssrLooseEqual, shared.looseEqual);
   for (const name of Object.keys(runtimeCore)) {
@@ -260,6 +305,7 @@ try {
 
   console.log(JSON.stringify({
     output,
+    productionOutput,
     testOutput,
     exports: Object.keys(serverRenderer).sort(),
     bytes: readFileSync(output).byteLength,

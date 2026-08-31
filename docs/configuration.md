@@ -42,7 +42,7 @@ profile_guided = true
 priority = "size-first"
 # ecmascript = "es2022" # es2015 | es2016 | ... | es2022 | esnext; omitted = es2022
 # browsers = ["chrome80", "firefox78"] # optional; intersected with ecmascript (conservative floor wins)
-optimization_level = 15 # 0..15 compiler-effort budget
+optimization_level = 13 # 0..15 compiler-effort budget; 13 is the default (see note below)
 cost_model = "brotli" # raw | gzip | brotli
 pool_numeric_literals = true # alias repeated profitable numeric literals
 # integer_coercions = true # keep generated `|0`; source-written `value | 0` is always retained while live
@@ -208,6 +208,47 @@ missing score for the mandatory configured incumbent is measured outside this
 optional budget so the fallback cannot disappear. Omitted defaults use artifact
 scaling; an explicit ceiling bypasses that scaling while remaining bounded by
 the optimization-level and search tier.
+
+## Choosing `optimization_level`
+
+The level is a compile-effort budget, not a quality dial, and it is strongly
+non-linear. Measured on the jQuery port (219 KB of `.lil`, ~90 KB emitted, Brotli
+objective, `candidate_search = "production"`):
+
+| level | CPU seconds | peak RSS | Brotli-11 bytes | canonical encodes | emissions |
+|---|---:|---:|---:|---:|---:|
+| 15 | 1829.0 | 250 MB | 30225 | 500 | 94 |
+| 14 | 151.1 | 199 MB | 30607 | 72 | 63 |
+| 13 (default) | 89.8 | 170 MB | 30651 | 52 | 58 |
+| 12 | 74.8 | 154 MB | 30635 | 47 | 51 |
+
+Level 15 costs **20x the CPU of level 13 for 1.4% of the bytes**, and the step
+from 14 to 15 alone is 12x the CPU for 382 bytes. Levels 12 through 14 form a
+plateau — on the acorn port they are within 3 bytes (0.1%) of each other — and
+the curve only breaks down at 11 and below. More search is also not monotone:
+acorn's smallest Brotli artifact was produced at level 14, and jQuery's at
+level 12.
+
+The `terminal_codec_probe_limit` ladder was subsequently retuned on the strength
+of that measurement — level 13's base went from 192 to 384 — because the terminal
+probe budget turned out to be the one ladder dimension that reliably buys bytes.
+Levels 14 and 15 were deliberately left at 384: raising them was tried and
+measured at **three times the CPU for 192 Brotli bytes** on jQuery, so it was
+reverted.
+With it, level 13 produces **30593** Brotli on jQuery (from 30651) and **3063**
+on acorn (from 3071), the latter smaller than what level 15 produces on the same
+port. Set `terminal_codec_probe_limit` explicitly to go further: an explicit
+value bypasses artifact scaling, and jQuery keeps gaining to roughly 768 probes
+(30550).
+
+**13 is therefore the default.** Raise it only for an artifact whose last
+percent is worth minutes of wall clock, and measure rather than assume — the
+same sweep is reproducible with `auto-finer-lilscript/bench.sh`. Lower it to 9
+or 10 for fast iteration; expect roughly +1% Brotli.
+
+Note that the level interacts with `cost_model`. Level 15 spends *raw* bytes to
+buy Brotli bytes: jQuery's raw output is 92706 at level 15 against 89858 at
+level 13. A project whose objective is `raw` gains nothing from the top levels.
 
 Every optional optimization key overrides its preset independently. The
 `none` preset disables optional transforms but retains mandatory IR

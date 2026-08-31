@@ -1171,6 +1171,21 @@ fn observes_generated_export_callable_shapes() {
 }
 
 #[test]
+fn observes_exported_callable_named_with_contextual_of() {
+    let witnesses = generated_javascript_export_witnesses(
+        "let a=1,of=(value)=>value+a;export{of as advancePositionWithClone}",
+    )
+    .unwrap();
+    assert_eq!(witnesses.len(), 1);
+    assert_eq!(witnesses[0].name, "advancePositionWithClone");
+    assert_eq!(
+        witnesses[0].kind,
+        super::GeneratedJavaScriptExportKind::Function
+    );
+    assert_eq!(witnesses[0].arity, Some(1));
+}
+
+#[test]
 fn observes_generated_static_import_edges_without_local_aliases() {
     assert_eq!(
         generated_javascript_static_imports(
@@ -1213,17 +1228,13 @@ fn observes_static_properties_without_confusing_dynamic_keys() {
 fn rejects_generated_syntax_above_the_configured_floor() {
     use crate::js_syntax_target::EcmaScriptEdition;
 
-    validate_generated_javascript_syntax_floor("let a=o?.x??0", EcmaScriptEdition::Es2020)
-        .unwrap();
-    let error =
-        validate_generated_javascript_syntax_floor("let a=o?.x", EcmaScriptEdition::Es2019)
-            .unwrap_err();
+    validate_generated_javascript_syntax_floor("let a=o?.x??0", EcmaScriptEdition::Es2020).unwrap();
+    let error = validate_generated_javascript_syntax_floor("let a=o?.x", EcmaScriptEdition::Es2019)
+        .unwrap_err();
     assert!(error.to_string().contains("syntax floor"));
-    let error = validate_generated_javascript_syntax_floor(
-        "class A{x=0}",
-        EcmaScriptEdition::Es2021,
-    )
-    .unwrap_err();
+    let error =
+        validate_generated_javascript_syntax_floor("class A{x=0}", EcmaScriptEdition::Es2021)
+            .unwrap_err();
     assert!(error.to_string().contains("syntax floor"));
 }
 
@@ -3013,4 +3024,87 @@ fn consecutive_pushes_onto_a_fresh_array_become_a_literal() {
         fold_fresh_empty_array_pushes("f=(T=[],T.push(qa(1))),g(f)").expect("fold");
     assert_eq!(grouped_count, 1, "{grouped}");
     assert!(grouped.contains("f=(T=[qa(1)]),g(f)"), "{grouped}");
+}
+
+#[test]
+fn folds_single_use_identifier_copies_inside_a_declarator_list() {
+    // Shape observed verbatim in the jQueryLil artifact: an SSA destruction
+    // leaves pure identifier copies as extra declarators, each read exactly
+    // once by the very next statement. `La=Fg,_a=Gg` is eleven bytes that buy
+    // nothing.
+    let source = "function f(Fg,Gg,ah,X){var Ka=Fg(Gg,ah),La=Fg,_a=Gg;return Ka+La(_a,ah,X)}";
+    let (folded, count) = fold_identifier_copies(source).expect("fold");
+    assert!(count > 0, "no rewrite: {folded}");
+    // The reads are redirected to the source names, but the copies themselves
+    // are still declared. The pipeline as a whole is what has to remove them.
+    let whole = super::optimize_generated_javascript(source).expect("peephole");
+    assert!(!whole.code.contains("La"), "{}", whole.code);
+    assert!(!whole.code.contains("_a"), "{}", whole.code);
+}
+
+#[test]
+fn enclosing_group_index_matches_the_scan_it_replaced() {
+    // `enclosing_group_openers` replaced a backward scan that ran from the
+    // query position to the start of the program. The rewrite is only a
+    // speedup if it answers identically, so the original is kept here as the
+    // oracle and both are run over real generated shapes.
+    fn original(
+        tokens: &[super::token::Token<'_>],
+        matching_close: &[Option<usize>],
+        at: usize,
+    ) -> Option<(usize, usize)> {
+        let mut depth = 0i32;
+        let mut index = at;
+        while index > 0 {
+            index -= 1;
+            match tokens[index].text {
+                ")" | "]" | "}" => depth += 1,
+                "(" if depth == 0 => {
+                    let close = matching_close.get(index).copied().flatten()?;
+                    if close > at {
+                        return Some((index, close));
+                    }
+                }
+                "(" | "[" | "{" => depth = depth.saturating_sub(1),
+                _ => {}
+            }
+        }
+        None
+    }
+
+    for source in [
+        "function f(a){return a}",
+        "let g=(a=1)=>a+1;g()",
+        "function h(a){var b;if(a){b=1}else{b=2}return b}",
+        "var o={x:(1),y:[2,3]};function k(p=(4)){return p}",
+        "for(var i=0;i<(3);i++){var q=(i);console.log(q)}",
+        "function n(){try{a=(1)}catch(e){b=(2)}finally{c=(3)}}",
+        "((a,b)=>{x=a;return(b)})(1,2)",
+        "class C{m(a=(5)){return a}}",
+        "switch(v){case(1):z=1;break;default:z=(2)}",
+        "function w(){return function(q=(7)){return q}}",
+    ] {
+        let tokens = super::token::lex(source).expect("lex");
+        let matching_close = super::token::matching_closers(&tokens);
+        let enclosing = crate::js_peephole::enclosing_group_openers_for_test(&tokens);
+        for at in 0..tokens.len() {
+            let expected = original(&tokens, &matching_close, at);
+            // Walk the index the way `assignment_is_parameter_default` does and
+            // take the first enclosing `(` whose close is past `at`.
+            let mut group = enclosing.get(at).copied().flatten();
+            let mut found = None;
+            while let Some(open) = group {
+                if tokens[open].text == "(" {
+                    if let Some(close) = matching_close.get(open).copied().flatten() {
+                        if close > at {
+                            found = Some((open, close));
+                            break;
+                        }
+                    }
+                }
+                group = enclosing.get(open).copied().flatten();
+            }
+            assert_eq!(found, expected, "at token {at} of {source}");
+        }
+    }
 }

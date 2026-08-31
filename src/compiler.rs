@@ -1393,6 +1393,13 @@ fn compile_program_all_configured<'ast, 'src>(
 fn javascript_oracle_config() -> ProjectConfig {
     let mut config = ProjectConfig::default();
     config.javascript.strip_console = false;
+    // These cases exercise search features across the whole effort ladder,
+    // including the four gated at level 14, so the oracle pins the ceiling
+    // rather than inheriting the shipped default. The default is a
+    // compile-time policy for real projects (13, the measured plateau — see
+    // `docs/configuration.md`); it is not what the search tests are about, and
+    // letting it move them would silently narrow their coverage.
+    config.javascript.optimization_level = 15;
     config
 }
 
@@ -4591,6 +4598,16 @@ struct JavaScriptArtifactAdmission {
 
 impl JavaScriptArtifactAdmission {
     fn validate(&self, source: &str) -> Result<(), CompileError> {
+        let outcome = self.validate_inner(source);
+        if crate::timing::enabled() {
+            // `bytes` accumulates rejections so the report shows discards
+            // against total validations.
+            crate::timing::ADMISSION.record_pass(u64::from(outcome.is_err()), 0);
+        }
+        outcome
+    }
+
+    fn validate_inner(&self, source: &str) -> Result<(), CompileError> {
         validate_generated_javascript_syntax_floor(source, self.ecmascript)
             .map_err(generated_javascript_parse_error)?;
         validate_observed_javascript_artifact(
@@ -9424,39 +9441,48 @@ fn emit_javascript_candidate(
 ) -> Result<String, crate::codegen_js::CodegenError> {
     #[cfg(test)]
     JAVASCRIPT_CANDIDATE_EMISSIONS.with(|count| count.set(count.get() + 1));
+    let started = std::time::Instant::now();
     let code = if module_output {
         emit_optimized_ir_js_module_with_options_and_analysis(ir, &options, integer_analysis)?
     } else {
         emit_optimized_ir_js_with_options_and_analysis(ir, &options, integer_analysis)?
     };
+    // Each of these six re-scans the whole artifact, on every emission, which
+    // is the hottest path in the compiler on a large program. Routing them
+    // through the decline memo means an emission whose bytes a fold has already
+    // refused does not pay for that refusal again.
     let code = if options.assume_pristine_builtins {
-        match fold_fresh_empty_object_assign(&code) {
+        match crate::js_peephole::fold_once_memoized(&code, fold_fresh_empty_object_assign) {
             Ok((folded, rewritten)) if rewritten > 0 => folded,
             _ => code,
         }
     } else {
         code
     };
-    let code = match fold_constant_json_parse(&code) {
+    let code = match crate::js_peephole::fold_once_memoized(&code, fold_constant_json_parse) {
         Ok((folded, rewritten)) if rewritten > 0 => folded,
         _ => code,
     };
-    let code = match fold_redundant_null_undefined_or(&code) {
+    let code = match crate::js_peephole::fold_once_memoized(&code, fold_redundant_null_undefined_or) {
         Ok((folded, rewritten)) if rewritten > 0 => folded,
         _ => code,
     };
-    let code = match fold_dead_identifier_copy_declarators(&code) {
+    let code = match crate::js_peephole::fold_once_memoized(&code, fold_dead_identifier_copy_declarators) {
         Ok((folded, rewritten)) if rewritten > 0 => folded,
         _ => code,
     };
-    let code = match fold_if_prefixed_returns(&code) {
+    let code = match crate::js_peephole::fold_once_memoized(&code, fold_if_prefixed_returns) {
         Ok((folded, rewritten)) if rewritten > 0 => folded,
         _ => code,
     };
-    Ok(match fold_nested_unguarded_ifs(&code) {
+    let code = match crate::js_peephole::fold_once_memoized(&code, fold_nested_unguarded_ifs) {
         Ok((folded, rewritten)) if rewritten > 0 => folded,
         _ => code,
-    })
+    };
+    if crate::timing::enabled() {
+        crate::timing::EMIT.record(code.len() as u64, started.elapsed().as_nanos() as u64);
+    }
+    Ok(code)
 }
 
 fn admitted_generated_javascript_size(
@@ -9640,10 +9666,59 @@ fn validate_direct_javascript_artifact(
 fn compressed_size(bytes: &[u8], model: CompressionCostModel) -> Result<usize, String> {
     #[cfg(test)]
     JAVASCRIPT_CODEC_MEASUREMENTS.with(|count| count.set(count.get() + 1));
+    if matches!(model, CompressionCostModel::Raw) {
+        // Nothing to memoize: the answer is already the length.
+        return Ok(bytes.len());
+    }
+    // Digesting the artifact costs microseconds; a canonical encode of the same
+    // bytes costs tens of milliseconds. A hit returns exactly the value the
+    // encoder would have produced, so this cannot move a selection.
+    let key = (
+        crate::artifact_memo::content_digest(bytes),
+        compression_cost_model_key(model),
+    );
+    if let Some(size) = crate::artifact_memo::COMPRESSED_SIZE.get(&key) {
+        return Ok(size);
+    }
+    let _timing = crate::timing::CODEC.scope(bytes.len());
+    let size = match model {
+        CompressionCostModel::Raw => bytes.len(),
+        CompressionCostModel::Gzip => canonical_gzip_size(bytes)?,
+        CompressionCostModel::Brotli => canonical_brotli_size(bytes)?,
+    };
+    crate::artifact_memo::COMPRESSED_SIZE.insert(key, size);
+    dump_scored_candidate(bytes, &key.0, size);
+    Ok(size)
+}
+
+/// Write every distinctly scored artifact to `LILSCRIPT_DUMP_CANDIDATES` as
+/// `<size>-<digest>.js`. This exists to study whether a cheaper encoder ranks
+/// the search's real candidate population the same way the canonical one does;
+/// it is never enabled in a normal compile.
+fn dump_scored_candidate(bytes: &[u8], digest: &[u8; 32], size: usize) {
+    static DIRECTORY: OnceLock<Option<std::path::PathBuf>> = OnceLock::new();
+    let Some(directory) = DIRECTORY.get_or_init(|| {
+        std::env::var_os("LILSCRIPT_DUMP_CANDIDATES").map(std::path::PathBuf::from)
+    }) else {
+        return;
+    };
+    let mut name = String::with_capacity(24);
+    name.push_str(&format!("{size:09}-"));
+    for byte in &digest[..8] {
+        name.push_str(&format!("{byte:02x}"));
+    }
+    name.push_str(".js");
+    let _ = std::fs::create_dir_all(directory);
+    let _ = std::fs::write(directory.join(name), bytes);
+}
+
+/// Stable discriminant for the memo key. Written out rather than derived so a
+/// future cost model cannot silently alias an existing one's cache entries.
+const fn compression_cost_model_key(model: CompressionCostModel) -> u8 {
     match model {
-        CompressionCostModel::Raw => Ok(bytes.len()),
-        CompressionCostModel::Gzip => canonical_gzip_size(bytes),
-        CompressionCostModel::Brotli => canonical_brotli_size(bytes),
+        CompressionCostModel::Raw => 0,
+        CompressionCostModel::Gzip => 1,
+        CompressionCostModel::Brotli => 2,
     }
 }
 

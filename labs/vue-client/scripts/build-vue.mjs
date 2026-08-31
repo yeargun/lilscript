@@ -184,8 +184,8 @@ try {
   };
   const productionDependencies = {
     "compiler-dom": "./compiler-dom.js",
-    "runtime-dom": "../runtime-dom.js",
-    shared: "../shared.js",
+    "runtime-dom": "./runtime-dom.js",
+    shared: "./shared.js",
   };
   const banner = "// Generated from all three src/vue owners.\n";
   const standardModule = `${banner}${rewriteDependencies(

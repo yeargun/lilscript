@@ -523,6 +523,13 @@ static inline LilScriptString lilscript_json_record(LilScriptMap m){LilScriptJso
                                 | Intrinsic::JsMethod1
                                 | Intrinsic::JsMethod2
                                 | Intrinsic::JsMethod3
+                                | Intrinsic::JsMethod4
+                                | Intrinsic::JsMethod5
+                                | Intrinsic::JsMethod6
+                                | Intrinsic::JsMethod7
+                                | Intrinsic::JsMethod8
+                                | Intrinsic::JsMethod9
+                                | Intrinsic::JsMethod10
                                 | Intrinsic::JsMethodRest
                                 | Intrinsic::JsStaticRest
                                 | Intrinsic::JsDeleteProperty
@@ -4278,8 +4285,11 @@ mod tests {
     #[test]
     fn rejects_typed_javascript_adapters_for_native_targets() {
         let arena = Bump::new();
-        let program =
-            parse_source(&arena, "JsValue wrapped=JS.method0((JsValue self)=>self);").unwrap();
+        let program = parse_source(
+            &arena,
+            "JsValue wrapped=JS.method10((JsValue self,JsValue a,JsValue b,JsValue c,JsValue d,JsValue e,JsValue f,JsValue g,JsValue h,JsValue i,JsValue j)=>j);",
+        )
+        .unwrap();
         let error = compile_to_c(&program).unwrap_err();
         assert!(
             error

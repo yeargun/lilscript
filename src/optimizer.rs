@@ -244,6 +244,7 @@ fn optimize_control_flow_inner(
     guidance: &OptimizationGuidance,
     preserve_exports: bool,
 ) -> Result<Vec<OptimizationReport>, SsaError> {
+    let _timing = crate::timing::OPTIMIZE.scope(module.functions.len());
     let mut reports = Vec::new();
     if options.global_optimization {
         if options.forward_global_aliases {
@@ -1023,6 +1024,20 @@ fn call_array_methods_directly(module: &mut ControlFlowModule<'_>) -> Optimizati
 
 /// Converge reachability and inlining together.
 ///
+/// Iteration ceilings for the two SSA fixed points below.
+///
+/// Both loops ran unbounded. Measured convergence on the jQuery port is **2**
+/// rounds for the scalar pipeline and **12** for the inlining pipeline, so these
+/// ceilings are safety valves rather than budgets: a pipeline of this many
+/// interacting passes can in principle oscillate, and an oscillation would
+/// surface as an unbounded compile rather than as a diagnosable failure. Both
+/// competitors bound the equivalent loop — oxc caps its combined peephole
+/// traversal at 11 passes, terser caps `tighten_body` at `max_iter = 10`. The
+/// `debug_assert!` turns a real oscillation into a test failure while the
+/// `break` keeps release builds terminating.
+const MAX_SCALAR_FIXED_POINT_ROUNDS: u64 = 32;
+const MAX_INLINING_FIXED_POINT_ROUNDS: u64 = 24;
+
 /// Inlining removes a call edge but leaves the old callee body in the module
 /// until reachability is recomputed. Counting calls in that now-dead body can
 /// make the next layer of the call graph appear shared forever. Keeping dead
@@ -1035,7 +1050,10 @@ fn optimize_inlining_fixed_point(
     protected_callees: &AHashSet<FunctionId>,
     reports: &mut Vec<OptimizationReport>,
 ) {
+    let started = std::time::Instant::now();
+    let mut iterations = 0u64;
     loop {
+        iterations += 1;
         let reachability = eliminate_dead_functions(module);
         let inlining = inline_small_functions(module, options, protected_callees);
         let cfg_inlining =
@@ -1047,7 +1065,15 @@ fn optimize_inlining_fixed_point(
         if !changed {
             break;
         }
+        if iterations >= MAX_INLINING_FIXED_POINT_ROUNDS {
+            debug_assert!(
+                false,
+                "inlining fixed point did not converge in {MAX_INLINING_FIXED_POINT_ROUNDS} rounds"
+            );
+            break;
+        }
     }
+    crate::timing::INLINE_FIXPOINT.record(iterations, started.elapsed().as_nanos() as u64);
 }
 
 pub fn strip_console_output(module: &mut ControlFlowModule<'_>) -> OptimizationReport {
@@ -2365,7 +2391,10 @@ fn optimize_scalar_fixed_point(
     options: &OptimizationOptions,
     reports: &mut Vec<OptimizationReport>,
 ) {
+    let started = std::time::Instant::now();
+    let mut iterations = 0u64;
     loop {
+        iterations += 1;
         let propagation = options
             .constant_folding
             .then(|| fold_and_propagate_control_flow(module, options.finite_value_propagation));
@@ -2401,7 +2430,15 @@ fn optimize_scalar_fixed_point(
         if !changed {
             break;
         }
+        if iterations >= MAX_SCALAR_FIXED_POINT_ROUNDS {
+            debug_assert!(
+                false,
+                "scalar fixed point did not converge in {MAX_SCALAR_FIXED_POINT_ROUNDS} rounds"
+            );
+            break;
+        }
     }
+    crate::timing::SCALAR_FIXPOINT.record(iterations, started.elapsed().as_nanos() as u64);
 }
 
 fn fold_owned_plain_object_reads(module: &mut ControlFlowModule<'_>) -> OptimizationReport {
@@ -6068,6 +6105,13 @@ fn inline_small_functions(
                     | Intrinsic::JsMethod1
                     | Intrinsic::JsMethod2
                     | Intrinsic::JsMethod3
+                    | Intrinsic::JsMethod4
+                    | Intrinsic::JsMethod5
+                    | Intrinsic::JsMethod6
+                    | Intrinsic::JsMethod7
+                    | Intrinsic::JsMethod8
+                    | Intrinsic::JsMethod9
+                    | Intrinsic::JsMethod10
                     | Intrinsic::JsMethodRest
                     | Intrinsic::JsStaticRest,
                 receiver: None,
@@ -8486,6 +8530,13 @@ fn intrinsic_uses_untyped_javascript_values(intrinsic: Intrinsic) -> bool {
             | Intrinsic::JsMethod1
             | Intrinsic::JsMethod2
             | Intrinsic::JsMethod3
+            | Intrinsic::JsMethod4
+            | Intrinsic::JsMethod5
+            | Intrinsic::JsMethod6
+            | Intrinsic::JsMethod7
+            | Intrinsic::JsMethod8
+            | Intrinsic::JsMethod9
+            | Intrinsic::JsMethod10
             | Intrinsic::JsMethodRest
             | Intrinsic::JsStaticRest
             | Intrinsic::JsGetProperty
@@ -8574,6 +8625,13 @@ fn add_container_retention_flows(
             | Intrinsic::JsMethod1
             | Intrinsic::JsMethod2
             | Intrinsic::JsMethod3
+            | Intrinsic::JsMethod4
+            | Intrinsic::JsMethod5
+            | Intrinsic::JsMethod6
+            | Intrinsic::JsMethod7
+            | Intrinsic::JsMethod8
+            | Intrinsic::JsMethod9
+            | Intrinsic::JsMethod10
             | Intrinsic::JsMethodRest
             | Intrinsic::JsStaticRest
     ) {
@@ -13005,6 +13063,13 @@ fn javascript_typeof_name(op: &ControlFlowOp<'_>) -> Option<&'static str> {
             | Intrinsic::JsMethod1
             | Intrinsic::JsMethod2
             | Intrinsic::JsMethod3
+            | Intrinsic::JsMethod4
+            | Intrinsic::JsMethod5
+            | Intrinsic::JsMethod6
+            | Intrinsic::JsMethod7
+            | Intrinsic::JsMethod8
+            | Intrinsic::JsMethod9
+            | Intrinsic::JsMethod10
             | Intrinsic::JsMethodRest
             | Intrinsic::JsStaticRest => Some("function"),
             Intrinsic::JsTypeOf => Some("string"),
@@ -14317,6 +14382,17 @@ mod tests {
                     })
             })
             .collect()
+    }
+
+    #[test]
+    fn method10_wrapper_propagates_untyped_escape_to_callback_captures() {
+        let module = escape_analyzed_module(
+            "struct Payload{int value;}extern void consume(JsValue value);Payload payload=Payload{7};consume(JS.method10((JsValue self,JsValue a,JsValue b,JsValue c,JsValue d,JsValue e,JsValue f,JsValue g,JsValue h,JsValue i,JsValue j)=>payload));",
+        );
+        assert_eq!(
+            struct_escape_states(&module, "Payload"),
+            [EscapeState::EscapesToUntypedBoundary]
+        );
     }
 
     #[test]
@@ -17499,6 +17575,24 @@ mod tests {
         let program = parse_source(
             &arena,
             "export JsValue shared(JsValue self,JsValue args){return args[0];}JsValue wrapped=JS.methodRest(shared);print(shared(null,[1]));",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut adapter = lower_to_control_flow(&program, &semantics).unwrap();
+        promote_locals_to_ssa(&mut adapter).unwrap();
+        let shared = adapter
+            .functions
+            .iter()
+            .find(|function| function.name == Some("shared"))
+            .unwrap()
+            .id;
+        inline_small_functions(&mut adapter, &options, &AHashSet::default());
+        assert_eq!(direct_call_count(&adapter, shared), 1);
+
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "JsValue shared(JsValue self,JsValue a,JsValue b,JsValue c,JsValue d,JsValue e,JsValue f,JsValue g,JsValue h,JsValue i,JsValue j){return j;}JsValue wrapped=JS.method10(shared);print(shared(null,0,0,0,0,0,0,0,0,0,1));print(wrapped);",
         )
         .unwrap();
         let semantics = analyze(&program).unwrap();

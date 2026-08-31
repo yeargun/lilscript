@@ -67,6 +67,13 @@ pub enum BuiltinCall {
     JsMethod1,
     JsMethod2,
     JsMethod3,
+    JsMethod4,
+    JsMethod5,
+    JsMethod6,
+    JsMethod7,
+    JsMethod8,
+    JsMethod9,
+    JsMethod10,
     JsMethodRest,
     JsStaticRest,
     JsGet,
@@ -4472,13 +4479,22 @@ impl<'src> Analyzer<'src> {
                     require_arity(3..=3)?;
                     (BuiltinCall::JsApply, js.clone(), vec![js.clone(); 3])
                 }
-                "method0" | "method1" | "method2" | "method3" | "methodRest" | "staticRest" => {
+                "method0" | "method1" | "method2" | "method3" | "method4" | "method5"
+                | "method6" | "method7" | "method8" | "method9" | "method10" | "methodRest"
+                | "staticRest" => {
                     require_arity(1..=1)?;
                     let parameter_count = match method {
                         "method0" | "staticRest" => 1,
                         "method1" | "methodRest" => 2,
                         "method2" => 3,
                         "method3" => 4,
+                        "method4" => 5,
+                        "method5" => 6,
+                        "method6" => 7,
+                        "method7" => 8,
+                        "method8" => 9,
+                        "method9" => 10,
+                        "method10" => 11,
                         _ => unreachable!(),
                     };
                     let callback = Type::Function(FunctionType {
@@ -4492,6 +4508,13 @@ impl<'src> Analyzer<'src> {
                             "method1" => BuiltinCall::JsMethod1,
                             "method2" => BuiltinCall::JsMethod2,
                             "method3" => BuiltinCall::JsMethod3,
+                            "method4" => BuiltinCall::JsMethod4,
+                            "method5" => BuiltinCall::JsMethod5,
+                            "method6" => BuiltinCall::JsMethod6,
+                            "method7" => BuiltinCall::JsMethod7,
+                            "method8" => BuiltinCall::JsMethod8,
+                            "method9" => BuiltinCall::JsMethod9,
+                            "method10" => BuiltinCall::JsMethod10,
                             "methodRest" => BuiltinCall::JsMethodRest,
                             "staticRest" => BuiltinCall::JsStaticRest,
                             _ => unreachable!(),
@@ -8157,7 +8180,7 @@ mod tests {
     #[test]
     fn checks_typed_javascript_adapter_callback_conventions() {
         check(
-            "JsValue method0=JS.method0((JsValue self)=>self);JsValue method1=JS.method1((JsValue self,JsValue value)=>value);JsValue method2=JS.method2((JsValue self,JsValue a,JsValue b)=>a);JsValue method3=JS.method3((JsValue self,JsValue a,JsValue b,JsValue c)=>a);JsValue methodRest=JS.methodRest((JsValue self,JsValue args)=>args);JsValue staticRest=JS.staticRest((JsValue args)=>args);JsValue constructed=JS.construct(method0);",
+            "JsValue method0=JS.method0((JsValue self)=>self);JsValue method1=JS.method1((JsValue self,JsValue a)=>a);JsValue method2=JS.method2((JsValue self,JsValue a,JsValue b)=>b);JsValue method3=JS.method3((JsValue self,JsValue a,JsValue b,JsValue c)=>c);JsValue method4=JS.method4((JsValue self,JsValue a,JsValue b,JsValue c,JsValue d)=>d);JsValue method5=JS.method5((JsValue self,JsValue a,JsValue b,JsValue c,JsValue d,JsValue e)=>e);JsValue method6=JS.method6((JsValue self,JsValue a,JsValue b,JsValue c,JsValue d,JsValue e,JsValue f)=>f);JsValue method7=JS.method7((JsValue self,JsValue a,JsValue b,JsValue c,JsValue d,JsValue e,JsValue f,JsValue g)=>g);JsValue method8=JS.method8((JsValue self,JsValue a,JsValue b,JsValue c,JsValue d,JsValue e,JsValue f,JsValue g,JsValue h)=>h);JsValue method9=JS.method9((JsValue self,JsValue a,JsValue b,JsValue c,JsValue d,JsValue e,JsValue f,JsValue g,JsValue h,JsValue i)=>i);JsValue method10=JS.method10((JsValue self,JsValue a,JsValue b,JsValue c,JsValue d,JsValue e,JsValue f,JsValue g,JsValue h,JsValue i,JsValue j)=>j);JsValue methodRest=JS.methodRest((JsValue self,JsValue args)=>args);JsValue staticRest=JS.staticRest((JsValue args)=>args);JsValue constructed=JS.construct(method0);",
         )
         .unwrap();
 
@@ -8174,6 +8197,17 @@ mod tests {
                 .message
                 .contains("expects 4 parameters, found 3"),
             "{method3_arity}"
+        );
+
+        let method10_arity = check(
+            "JS.method10((JsValue self,JsValue a,JsValue b,JsValue c,JsValue d,JsValue e,JsValue f,JsValue g,JsValue h,JsValue i)=>i);",
+        )
+        .unwrap_err();
+        assert!(
+            method10_arity
+                .message
+                .contains("expects 11 parameters, found 10"),
+            "{method10_arity}"
         );
 
         let parameter_type = check("JS.method1((int self,JsValue value)=>value);").unwrap_err();

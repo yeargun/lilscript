@@ -202,6 +202,7 @@ pub(crate) struct ParsedRegion<'src> {
 }
 
 pub(crate) fn parse_expression_regions<'src>(tokens: &[Token<'src>]) -> Vec<ParsedRegion<'src>> {
+    let _timing = crate::timing::REGIONS.scope(tokens.len());
     let mut regions = Vec::new();
     for start in 0..tokens.len() {
         if !can_start_expression_region(tokens, start) {

@@ -1,0 +1,1363 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="An evidence-backed explanation of what the LilScript compiler migration has achieved and what comes next."
+    />
+    <title>LilScript Migration Progress - Proof Before Bytes</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #10282b;
+        --paper: #f4efe2;
+        --paper-soft: #fbf8ef;
+        --navy: #0c3940;
+        --navy-soft: #164b51;
+        --orange: #f05a32;
+        --orange-soft: #ffd7c5;
+        --mint: #b9e4d0;
+        --lime: #dce98c;
+        --muted: #667271;
+        --line: #a7afa5;
+        --white: #fffdf7;
+        --shadow: 0 18px 45px rgb(16 40 43 / 10%);
+        --mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+        --sans:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", sans-serif;
+        --serif: Iowan Old Style, Baskerville, "Times New Roman", serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        margin: 0;
+        color: var(--ink);
+        background:
+          linear-gradient(90deg, rgb(12 57 64 / 4%) 1px, transparent 1px),
+          linear-gradient(rgb(12 57 64 / 4%) 1px, transparent 1px), var(--paper);
+        background-size: 32px 32px;
+        font-family: var(--sans);
+        line-height: 1.55;
+      }
+
+      a {
+        color: inherit;
+        text-decoration-thickness: 1px;
+        text-underline-offset: 3px;
+      }
+
+      a:hover {
+        color: var(--orange);
+      }
+
+      code,
+      .mono {
+        font-family: var(--mono);
+      }
+
+      .skip-link {
+        position: fixed;
+        z-index: 50;
+        top: 8px;
+        left: 8px;
+        padding: 8px 12px;
+        color: var(--white);
+        background: var(--ink);
+        transform: translateY(-150%);
+      }
+
+      .skip-link:focus {
+        transform: translateY(0);
+      }
+
+      .shell {
+        width: min(calc(100% - 36px), 1240px);
+        margin-inline: auto;
+      }
+
+      .topbar {
+        position: sticky;
+        z-index: 20;
+        top: 0;
+        border-bottom: 1px solid rgb(255 255 255 / 16%);
+        color: var(--white);
+        background: rgb(12 57 64 / 94%);
+        backdrop-filter: blur(14px);
+      }
+
+      .topbar-inner {
+        display: flex;
+        min-height: 58px;
+        align-items: center;
+        justify-content: space-between;
+        gap: 24px;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 11px;
+        font-family: var(--mono);
+        font-size: 0.78rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .brand-mark {
+        width: 15px;
+        height: 15px;
+        background: var(--orange);
+        box-shadow: 5px 5px 0 var(--lime);
+        transform: translateY(-2px);
+      }
+
+      nav {
+        display: flex;
+        gap: 20px;
+        font-family: var(--mono);
+        font-size: 0.72rem;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      nav a {
+        text-decoration: none;
+      }
+
+      .hero {
+        position: relative;
+        overflow: hidden;
+        padding: 76px 0 64px;
+        color: var(--white);
+        background: var(--navy);
+      }
+
+      .hero::after {
+        position: absolute;
+        right: -90px;
+        bottom: -170px;
+        width: 460px;
+        height: 460px;
+        border: 70px solid rgb(185 228 208 / 13%);
+        border-radius: 50%;
+        content: "";
+      }
+
+      .hero-grid {
+        position: relative;
+        z-index: 1;
+        display: grid;
+        grid-template-columns: minmax(0, 1.5fr) minmax(280px, 0.65fr);
+        gap: 64px;
+        align-items: end;
+      }
+
+      .eyebrow,
+      .section-kicker {
+        margin: 0 0 18px;
+        font-family: var(--mono);
+        font-size: 0.74rem;
+        font-weight: 800;
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+      }
+
+      .eyebrow {
+        color: var(--lime);
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin-top: 0;
+      }
+
+      h1 {
+        max-width: 850px;
+        margin-bottom: 24px;
+        font-family: var(--serif);
+        font-size: clamp(3.4rem, 8vw, 7.8rem);
+        font-weight: 500;
+        letter-spacing: -0.065em;
+        line-height: 0.84;
+      }
+
+      .hero h1 em {
+        color: var(--orange);
+        font-weight: 500;
+      }
+
+      .lede {
+        max-width: 720px;
+        margin-bottom: 0;
+        color: #d2dfdb;
+        font-size: clamp(1rem, 1.8vw, 1.25rem);
+      }
+
+      .state-card {
+        border: 1px solid rgb(255 255 255 / 26%);
+        background: rgb(255 255 255 / 6%);
+        box-shadow: 10px 10px 0 rgb(240 90 50 / 40%);
+      }
+
+      .state-card .label {
+        padding: 12px 16px;
+        border-bottom: 1px solid rgb(255 255 255 / 20%);
+        color: var(--mint);
+        font-family: var(--mono);
+        font-size: 0.7rem;
+        letter-spacing: 0.11em;
+        text-transform: uppercase;
+      }
+
+      .state-card .body {
+        padding: 20px 18px 18px;
+      }
+
+      .state-card strong {
+        display: block;
+        margin-bottom: 6px;
+        font-family: var(--serif);
+        font-size: 2rem;
+        font-weight: 500;
+      }
+
+      .state-card p {
+        margin-bottom: 20px;
+        color: #c9d7d3;
+        font-size: 0.9rem;
+      }
+
+      .commit {
+        display: inline-flex;
+        gap: 8px;
+        align-items: center;
+        padding: 6px 9px;
+        color: var(--white);
+        border: 1px solid rgb(255 255 255 / 22%);
+        font-family: var(--mono);
+        font-size: 0.7rem;
+        text-decoration: none;
+      }
+
+      .dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--lime);
+      }
+
+      main section {
+        padding: 76px 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .section-head {
+        display: grid;
+        grid-template-columns: 0.55fr 1.45fr;
+        gap: 36px;
+        margin-bottom: 38px;
+      }
+
+      .section-kicker {
+        color: var(--orange);
+      }
+
+      h2 {
+        max-width: 800px;
+        margin-bottom: 10px;
+        font-family: var(--serif);
+        font-size: clamp(2.2rem, 5vw, 4.5rem);
+        font-weight: 500;
+        letter-spacing: -0.045em;
+        line-height: 0.98;
+      }
+
+      .section-intro {
+        max-width: 760px;
+        margin-bottom: 0;
+        color: var(--muted);
+        font-size: 1.03rem;
+      }
+
+      .phase-rail {
+        display: grid;
+        grid-template-columns: repeat(8, minmax(105px, 1fr));
+        overflow-x: auto;
+        border: 1px solid var(--ink);
+        background: var(--paper-soft);
+        box-shadow: var(--shadow);
+      }
+
+      .phase {
+        min-height: 154px;
+        padding: 14px 13px;
+        border-right: 1px solid var(--line);
+      }
+
+      .phase:last-child {
+        border-right: 0;
+      }
+
+      .phase.complete {
+        background: var(--mint);
+      }
+
+      .phase.active {
+        color: var(--white);
+        background: var(--orange);
+      }
+
+      .phase-number {
+        display: block;
+        margin-bottom: 32px;
+        font-family: var(--mono);
+        font-size: 0.7rem;
+        font-weight: 800;
+      }
+
+      .phase strong {
+        display: block;
+        margin-bottom: 5px;
+        font-size: 0.9rem;
+        line-height: 1.15;
+      }
+
+      .phase small {
+        display: block;
+        color: currentColor;
+        font-size: 0.71rem;
+        line-height: 1.35;
+        opacity: 0.78;
+      }
+
+      .status-note {
+        display: flex;
+        gap: 12px;
+        align-items: flex-start;
+        margin-top: 16px;
+        color: var(--muted);
+        font-size: 0.84rem;
+      }
+
+      .status-note::before {
+        flex: 0 0 auto;
+        width: 9px;
+        height: 9px;
+        margin-top: 5px;
+        border: 2px solid var(--orange);
+        border-radius: 50%;
+        content: "";
+      }
+
+      .metric-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 14px;
+      }
+
+      .metric {
+        position: relative;
+        min-height: 230px;
+        overflow: hidden;
+        padding: 22px;
+        border: 1px solid var(--ink);
+        background: var(--paper-soft);
+      }
+
+      .metric:nth-child(1),
+      .metric:nth-child(4) {
+        background: var(--mint);
+      }
+
+      .metric-index {
+        color: var(--muted);
+        font-family: var(--mono);
+        font-size: 0.7rem;
+      }
+
+      .metric-value {
+        display: block;
+        margin: 33px 0 4px;
+        font-family: var(--serif);
+        font-size: clamp(2.3rem, 4vw, 4rem);
+        font-weight: 500;
+        letter-spacing: -0.055em;
+        line-height: 0.95;
+      }
+
+      .metric-delta {
+        display: inline-block;
+        margin-bottom: 18px;
+        padding: 3px 7px;
+        color: var(--white);
+        background: var(--navy);
+        font-family: var(--mono);
+        font-size: 0.68rem;
+      }
+
+      .metric p {
+        margin-bottom: 0;
+        color: #485756;
+        font-size: 0.82rem;
+      }
+
+      .achievement-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+      }
+
+      .achievement {
+        padding: 25px;
+        border: 1px solid var(--line);
+        background: rgb(255 253 247 / 72%);
+      }
+
+      .achievement-id {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 28px;
+        color: var(--orange);
+        font-family: var(--mono);
+        font-size: 0.7rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .pill {
+        padding: 4px 7px;
+        color: var(--navy);
+        background: var(--mint);
+        font-size: 0.64rem;
+      }
+
+      h3 {
+        margin-bottom: 9px;
+        font-family: var(--serif);
+        font-size: 1.75rem;
+        font-weight: 500;
+        line-height: 1.05;
+      }
+
+      .achievement p {
+        margin-bottom: 0;
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+
+      .flow-wrap {
+        padding: 28px;
+        color: var(--white);
+        background: var(--navy);
+        box-shadow: var(--shadow);
+      }
+
+      .flow {
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        gap: 1px;
+        border: 1px solid rgb(255 255 255 / 20%);
+        background: rgb(255 255 255 / 20%);
+      }
+
+      .flow-step {
+        position: relative;
+        min-height: 180px;
+        padding: 18px 15px;
+        background: var(--navy);
+      }
+
+      .flow-step:not(:last-child)::after {
+        position: absolute;
+        z-index: 2;
+        top: 50%;
+        right: -9px;
+        width: 16px;
+        height: 16px;
+        border-top: 1px solid var(--mint);
+        border-right: 1px solid var(--mint);
+        background: var(--navy);
+        content: "";
+        transform: translateY(-50%) rotate(45deg);
+      }
+
+      .flow-step span {
+        display: block;
+        margin-bottom: 44px;
+        color: var(--lime);
+        font-family: var(--mono);
+        font-size: 0.65rem;
+      }
+
+      .flow-step strong {
+        display: block;
+        margin-bottom: 6px;
+        font-size: 0.83rem;
+      }
+
+      .flow-step small {
+        display: block;
+        color: #b9cbc7;
+        font-size: 0.7rem;
+        line-height: 1.4;
+      }
+
+      .architecture-note {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 18px;
+        margin-top: 18px;
+      }
+
+      .architecture-note article {
+        padding: 20px;
+        border: 1px solid rgb(255 255 255 / 18%);
+      }
+
+      .architecture-note h3 {
+        margin-bottom: 8px;
+        color: var(--mint);
+        font-family: var(--mono);
+        font-size: 0.77rem;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+
+      .architecture-note p {
+        margin-bottom: 0;
+        color: #bdceca;
+        font-size: 0.84rem;
+      }
+
+      .evidence-strip {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        margin-top: 18px;
+        border: 1px solid var(--ink);
+      }
+
+      .evidence-cell {
+        padding: 18px;
+        border-right: 1px solid var(--ink);
+        background: var(--lime);
+      }
+
+      .evidence-cell:last-child {
+        border-right: 0;
+      }
+
+      .evidence-cell strong {
+        display: block;
+        font-family: var(--serif);
+        font-size: 2rem;
+        font-weight: 500;
+      }
+
+      .evidence-cell span {
+        display: block;
+        font-size: 0.72rem;
+        line-height: 1.3;
+      }
+
+      .next-layout {
+        display: grid;
+        grid-template-columns: minmax(250px, 0.62fr) minmax(0, 1.38fr);
+        gap: 36px;
+      }
+
+      .now-card {
+        align-self: start;
+        padding: 28px;
+        color: var(--white);
+        background: var(--orange);
+        box-shadow: 12px 12px 0 var(--orange-soft);
+      }
+
+      .now-card .mono {
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .now-card h3 {
+        margin: 38px 0 12px;
+        font-size: 2.25rem;
+      }
+
+      .now-card p {
+        margin-bottom: 22px;
+        color: #fff0e8;
+      }
+
+      .now-card a {
+        font-family: var(--mono);
+        font-size: 0.72rem;
+        font-weight: 800;
+        text-transform: uppercase;
+      }
+
+      .next-list {
+        border-top: 1px solid var(--ink);
+      }
+
+      .next-item {
+        display: grid;
+        grid-template-columns: 64px minmax(0, 1fr) 120px;
+        gap: 20px;
+        padding: 23px 0;
+        border-bottom: 1px solid var(--ink);
+        align-items: start;
+      }
+
+      .next-index {
+        color: var(--orange);
+        font-family: var(--mono);
+        font-size: 0.72rem;
+        font-weight: 800;
+      }
+
+      .next-item h3 {
+        margin-bottom: 6px;
+        font-family: var(--sans);
+        font-size: 1rem;
+        font-weight: 800;
+      }
+
+      .next-item p {
+        margin-bottom: 0;
+        color: var(--muted);
+        font-size: 0.86rem;
+      }
+
+      .next-state {
+        justify-self: end;
+        padding: 5px 8px;
+        border: 1px solid var(--line);
+        font-family: var(--mono);
+        font-size: 0.63rem;
+        text-transform: uppercase;
+      }
+
+      .next-state.active {
+        color: var(--white);
+        border-color: var(--orange);
+        background: var(--orange);
+      }
+
+      .risk-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 14px;
+      }
+
+      .risk {
+        padding: 22px;
+        border-top: 5px solid var(--orange);
+        background: var(--paper-soft);
+        box-shadow: var(--shadow);
+      }
+
+      .risk .mono {
+        color: var(--orange);
+        font-size: 0.67rem;
+        font-weight: 800;
+        text-transform: uppercase;
+      }
+
+      .risk h3 {
+        margin: 24px 0 9px;
+        font-size: 1.5rem;
+      }
+
+      .risk p {
+        margin-bottom: 0;
+        color: var(--muted);
+        font-size: 0.84rem;
+      }
+
+      .rule {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 22px;
+        align-items: center;
+        margin-top: 30px;
+        padding: 20px 23px;
+        border: 1px solid var(--ink);
+        background: var(--mint);
+      }
+
+      .rule strong {
+        font-family: var(--serif);
+        font-size: 2rem;
+        font-weight: 500;
+        white-space: nowrap;
+      }
+
+      .rule p {
+        margin-bottom: 0;
+        font-size: 0.88rem;
+      }
+
+      footer {
+        padding: 34px 0 48px;
+        color: #bbcbc7;
+        background: var(--navy);
+      }
+
+      .footer-grid {
+        display: flex;
+        justify-content: space-between;
+        gap: 28px;
+        align-items: flex-start;
+      }
+
+      footer p {
+        max-width: 660px;
+        margin-bottom: 0;
+        font-size: 0.8rem;
+      }
+
+      footer .links {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 14px;
+        font-family: var(--mono);
+        font-size: 0.68rem;
+        text-transform: uppercase;
+      }
+
+      @media (max-width: 960px) {
+        .hero-grid,
+        .section-head,
+        .next-layout {
+          grid-template-columns: 1fr;
+        }
+
+        .hero-grid {
+          align-items: start;
+        }
+
+        .state-card {
+          max-width: 420px;
+        }
+
+        .metric-grid {
+          grid-template-columns: repeat(2, 1fr);
+        }
+
+        .flow {
+          grid-template-columns: repeat(3, 1fr);
+        }
+
+        .flow-step:nth-child(3)::after {
+          display: none;
+        }
+
+        .evidence-strip {
+          grid-template-columns: repeat(5, minmax(130px, 1fr));
+          overflow-x: auto;
+        }
+
+        .risk-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media (max-width: 680px) {
+        .shell {
+          width: min(calc(100% - 24px), 1240px);
+        }
+
+        nav {
+          display: none;
+        }
+
+        .hero {
+          padding: 54px 0 50px;
+        }
+
+        main section {
+          padding: 56px 0;
+        }
+
+        h1 {
+          font-size: clamp(3.2rem, 19vw, 5.6rem);
+        }
+
+        .metric-grid,
+        .achievement-grid,
+        .architecture-note {
+          grid-template-columns: 1fr;
+        }
+
+        .flow {
+          grid-template-columns: 1fr;
+        }
+
+        .flow-step {
+          min-height: 0;
+        }
+
+        .flow-step span {
+          margin-bottom: 20px;
+        }
+
+        .flow-step::after {
+          display: none;
+        }
+
+        .next-item {
+          grid-template-columns: 42px 1fr;
+        }
+
+        .next-state {
+          grid-column: 2;
+          justify-self: start;
+        }
+
+        .rule,
+        .footer-grid {
+          display: block;
+        }
+
+        .rule strong {
+          display: block;
+          margin-bottom: 10px;
+          white-space: normal;
+        }
+
+        footer .links {
+          justify-content: flex-start;
+          margin-top: 22px;
+        }
+      }
+
+      @media print {
+        .topbar {
+          position: static;
+        }
+
+        body {
+          background: white;
+        }
+
+        main section {
+          break-inside: avoid;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <a class="skip-link" href="#content">Skip to report</a>
+
+    <header class="topbar">
+      <div class="shell topbar-inner">
+        <a
+          class="brand"
+          href="#top"
+          aria-label="LilScript migration progress home"
+        >
+          <span class="brand-mark" aria-hidden="true"></span>
+          LilScript / migration field report
+        </a>
+        <nav aria-label="Report sections">
+          <a href="#achieved">Achieved</a>
+          <a href="#architecture">Architecture</a>
+          <a href="#next">Next</a>
+          <a href="#open">Open gates</a>
+        </nav>
+      </div>
+    </header>
+
+    <div class="hero" id="top">
+      <div class="shell hero-grid">
+        <div>
+          <p class="eyebrow">Compiler migration / 29 Aug 2026</p>
+          <h1>Proof before <em>bytes.</em></h1>
+          <p class="lede">
+            LilScript now preserves a known-valid artifact, admits only
+            JavaScript proven compatible with the source contract, and ranks
+            legal complete outputs under the requested codec. The migration has
+            recovered its incumbents and is consolidating the last policy
+            decisions before the target-JavaScript phase.
+          </p>
+        </div>
+        <aside class="state-card" aria-label="Current migration state">
+          <div class="label">Current position</div>
+          <div class="body">
+            <strong>Phase 2.03</strong>
+            <p>
+              Normalize compilation policy. Two decision-consolidation batches
+              are landed; one is active.
+            </p>
+            <a
+              class="commit"
+              href="https://github.com/yeargun/lilscript/commit/fda9f11a9c078f09e2e4f978eb58da76c30c2585"
+            >
+              <span class="dot" aria-hidden="true"></span>
+              fda9f11 on main
+            </a>
+          </div>
+        </aside>
+      </div>
+    </div>
+
+    <main id="content">
+      <section aria-labelledby="journey-title">
+        <div class="shell">
+          <div class="section-head">
+            <p class="section-kicker">Where we are</p>
+            <div>
+              <h2 id="journey-title">
+                The evidence and recovery foundations are in place.
+              </h2>
+              <p class="section-intro">
+                Phase 2 is active. The compiler is being reorganized without
+                changing which legal artifacts are reachable or which bytes win.
+                Phase 3 starts only after that consolidation is byte-stable.
+              </p>
+            </div>
+          </div>
+
+          <div class="phase-rail" aria-label="Canonical migration phases">
+            <article class="phase complete">
+              <span class="phase-number">00</span>
+              <strong>Evidence</strong>
+              <small>Pinned inputs, codecs, artifacts, and replay.</small>
+            </article>
+            <article class="phase complete">
+              <span class="phase-number">00.5</span>
+              <strong>Legality + ABI</strong>
+              <small>Implementation complete; release promotion pending.</small>
+            </article>
+            <article class="phase complete">
+              <span class="phase-number">01</span>
+              <strong>Recovery</strong>
+              <small>Maintained-library incumbents recovered.</small>
+            </article>
+            <article class="phase active">
+              <span class="phase-number">02</span>
+              <strong>Consolidate</strong>
+              <small>One contract, recipes, and acceptance path.</small>
+            </article>
+            <article class="phase">
+              <span class="phase-number">03</span>
+              <strong>Target JS</strong>
+              <small>Hygienic identities replace text recovery.</small>
+            </article>
+            <article class="phase">
+              <span class="phase-number">04</span>
+              <strong>Proofs</strong>
+              <small>Reusable language and representation facts.</small>
+            </article>
+            <article class="phase">
+              <span class="phase-number">05</span>
+              <strong>Search</strong>
+              <small>Only measured, bounded alternatives.</small>
+            </article>
+            <article class="phase">
+              <span class="phase-number">06</span>
+              <strong>Release</strong>
+              <small>Retire superseded paths and certify claims.</small>
+            </article>
+          </div>
+          <p class="status-note">
+            V-01 final-artifact admission is implemented under targeted gates.
+            Its full five-fork G2 promotion run remains deliberately deferred,
+            so the release ledger stays non-optimistic.
+          </p>
+        </div>
+      </section>
+
+      <section id="achieved" aria-labelledby="achieved-title">
+        <div class="shell">
+          <div class="section-head">
+            <p class="section-kicker">What is achieved</p>
+            <div>
+              <h2 id="achieved-title">
+                Correctness first, then recovered bytes.
+              </h2>
+              <p class="section-intro">
+                The migration did not hide regressions behind aggregate wins.
+                Each maintained boundary retained semantics and was compared
+                against an exact, pinned compiler incumbent.
+              </p>
+            </div>
+          </div>
+
+          <div class="metric-grid" aria-label="Recovered library results">
+            <article class="metric">
+              <span class="metric-index">RECOVER-01 / MOBX</span>
+              <strong class="metric-value">15,491 B</strong>
+              <span class="metric-delta">-521 Brotli</span>
+              <p>
+                Production-min improved from 16,012 bytes after correcting a
+                mixed-boundary comparison.
+              </p>
+            </article>
+            <article class="metric">
+              <span class="metric-index">RECOVER-02 / MOTION</span>
+              <strong class="metric-value">2,324 B</strong>
+              <span class="metric-delta">animateMini recovered</span>
+              <p>
+                Four direct boundaries tie the exact incumbent; mini and full
+                improve.
+              </p>
+            </article>
+            <article class="metric">
+              <span class="metric-index">RECOVER-03 / MARKED</span>
+              <strong class="metric-value">9,506 B</strong>
+              <span class="metric-delta">-9 vs best history</span>
+              <p>
+                Exact Brotli result is below every committed historical ESM
+                artifact, with 660 corpus cases.
+              </p>
+            </article>
+            <article class="metric">
+              <span class="metric-index">RECOVER-04 / JQUERY</span>
+              <strong class="metric-value">30,275 B</strong>
+              <span class="metric-delta">exact incumbent tie</span>
+              <p>
+                The migration pair ties. The independent gap to jQuery's
+                JavaScript baseline remains separate work.
+              </p>
+            </article>
+          </div>
+
+          <div class="achievement-grid" style="margin-top: 18px">
+            <article class="achievement">
+              <div class="achievement-id">
+                <span>V-01</span><span class="pill">implemented</span>
+              </div>
+              <h3>Final artifacts are admitted before scoring.</h3>
+              <p>
+                Syntax, bindings, exports, imports, free names, ABI, properties,
+                ranges, feature floors, and live lowering obligations are
+                checked before a codec can choose the output.
+              </p>
+            </article>
+            <article class="achievement">
+              <div class="achievement-id">
+                <span>V-02</span><span class="pill">landed</span>
+              </div>
+              <h3>Terminal renames preserve identity.</h3>
+              <p>
+                Whole-artifact remaps require total binding resolution, reserve
+                fixed descendant names, and fail closed when the bounded name
+                alphabet is exhausted.
+              </p>
+            </article>
+            <article class="achievement">
+              <div class="achievement-id">
+                <span>V-03</span><span class="pill">landed</span>
+              </div>
+              <h3>Ordinary objects keep assignment semantics.</h3>
+              <p>
+                Literal collection is legal only with an explicit
+                pristine-builtins contract; inherited setters and
+                <code>__proto__</code> cannot be silently erased.
+              </p>
+            </article>
+            <article class="achievement">
+              <div class="achievement-id">
+                <span>PHASE 2.01-02</span><span class="pill">landed</span>
+              </div>
+              <h3>Decisions and acceptance have one route.</h3>
+              <p>
+                Phase-order, compression contrasts, naming, pooling, final
+                challengers, and late cleanup now share registry recipes,
+                admission, exact scoring, guards, and deterministic ordering.
+              </p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section id="architecture" aria-labelledby="architecture-title">
+        <div class="shell">
+          <div class="section-head">
+            <p class="section-kicker">What changed</p>
+            <div>
+              <h2 id="architecture-title">
+                One-way authority from semantics to selected bytes.
+              </h2>
+              <p class="section-intro">
+                A smaller result is allowed to win only after source facts have
+                established that it is legal. Codec cost influences
+                profitability, never meaning.
+              </p>
+            </div>
+          </div>
+
+          <div class="flow-wrap">
+            <div class="flow" aria-label="Compiler decision flow">
+              <div class="flow-step">
+                <span>01</span>
+                <strong>Source semantics</strong>
+                <small>Types, effects, identity, ownership, and escape.</small>
+              </div>
+              <div class="flow-step">
+                <span>02</span>
+                <strong>Immutable contract</strong>
+                <small
+                  >World, ABI, syntax floor, effects, and assumptions.</small
+                >
+              </div>
+              <div class="flow-step">
+                <span>03</span>
+                <strong>Typed IR options</strong>
+                <small>Legal representations keep their incumbent.</small>
+              </div>
+              <div class="flow-step">
+                <span>04</span>
+                <strong>Registry recipes</strong>
+                <small
+                  >Bounded candidate families and deterministic order.</small
+                >
+              </div>
+              <div class="flow-step">
+                <span>05</span>
+                <strong>Artifact admission</strong>
+                <small
+                  >Final bytes prove syntax, identity, ABI, and
+                  obligations.</small
+                >
+              </div>
+              <div class="flow-step">
+                <span>06</span>
+                <strong>Exact codec score</strong>
+                <small
+                  >Raw, gzip, or Brotli selects among legal artifacts.</small
+                >
+              </div>
+            </div>
+
+            <div class="architecture-note">
+              <article>
+                <h3>Already centralized</h3>
+                <p>
+                  The registry classifies all 77 JavaScript emission option
+                  fields and names 48 scored emission families. Terminal
+                  JavaScript now has shared admitted scoring rather than
+                  repeated local acceptance sequences.
+                </p>
+              </article>
+              <article>
+                <h3>Still transitional</h3>
+                <p>
+                  Generated JavaScript is still string-produced, and some target
+                  folds reparse it to recover identity. Phase 3 replaces that
+                  fragile boundary with a minimal hygienic target tree.
+                </p>
+              </article>
+            </div>
+          </div>
+
+          <div class="evidence-strip" aria-label="Verification evidence">
+            <div class="evidence-cell">
+              <strong>15</strong><span>immutable source/config boundaries</span>
+            </div>
+            <div class="evidence-cell">
+              <strong>13</strong><span>eligible Brotli incumbent ties</span>
+            </div>
+            <div class="evidence-cell">
+              <strong>524</strong><span>generated-JS peephole checks</span>
+            </div>
+            <div class="evidence-cell">
+              <strong>54</strong><span>canonical paired cases</span>
+            </div>
+            <div class="evidence-cell">
+              <strong>5</strong><span>maintained library forks in G2</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="next" aria-labelledby="next-title">
+        <div class="shell">
+          <div class="section-head">
+            <p class="section-kicker">What comes next</p>
+            <div>
+              <h2 id="next-title">
+                Finish consolidation, then stop recovering identity from text.
+              </h2>
+              <p class="section-intro">
+                The immediate task is intentionally small and byte-preserving.
+                The larger architectural payoff follows in Phase 3.
+              </p>
+            </div>
+          </div>
+
+          <div class="next-layout">
+            <aside class="now-card">
+              <span class="mono">Active / phase2-03</span>
+              <h3>Normalize compilation policy.</h3>
+              <p>
+                Replace lower-layer reads of raw project configuration with the
+                immutable compilation contract and normalized execution options
+                already in scope.
+              </p>
+              <a
+                href="https://github.com/yeargun/lilscript/blob/main/docs/knowledge/migration/board/notes/phase2-03.md"
+                >Read the active note</a
+              >
+            </aside>
+
+            <div class="next-list">
+              <article class="next-item">
+                <span class="next-index">01</span>
+                <div>
+                  <h3>Close Phase 2 without byte drift</h3>
+                  <p>
+                    Preserve every candidate, budget charge, selected byte
+                    sequence, and known-valid incumbent while raw policy reads
+                    are removed.
+                  </p>
+                </div>
+                <span class="next-state active">in progress</span>
+              </article>
+              <article class="next-item">
+                <span class="next-index">02</span>
+                <div>
+                  <h3>TJS-01: minimal target tree and printer</h3>
+                  <p>
+                    Represent only compiler-emitted constructs, carrying
+                    binding, property, effect, module, ABI, syntax, and
+                    obligation identity directly.
+                  </p>
+                </div>
+                <span class="next-state">queued</span>
+              </article>
+              <article class="next-item">
+                <span class="next-index">03</span>
+                <div>
+                  <h3>TJS-02/03: migrate naming and contractions</h3>
+                  <p>
+                    Move one text rewrite family at a time. Old and migrated
+                    forms compete under exact codec scoring until the
+                    replacement is proven.
+                  </p>
+                </div>
+                <span class="next-state">queued</span>
+              </article>
+              <article class="next-item">
+                <span class="next-index">04</span>
+                <div>
+                  <h3>TJS-04: provenance report</h3>
+                  <p>
+                    Connect typed identities to printed byte ranges and artifact
+                    ownership without persisting a rename map as ABI.
+                  </p>
+                </div>
+                <span class="next-state">queued</span>
+              </article>
+              <article class="next-item">
+                <span class="next-index">05</span>
+                <div>
+                  <h3>Reusable proofs, measured search, release</h3>
+                  <p>
+                    Add only evidence-backed language/proof capabilities and
+                    bounded alternatives, then retire superseded paths and run
+                    the full release matrix.
+                  </p>
+                </div>
+                <span class="next-state">phases 4-6</span>
+              </article>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="open" aria-labelledby="open-title">
+        <div class="shell">
+          <div class="section-head">
+            <p class="section-kicker">What is not done</p>
+            <div>
+              <h2 id="open-title">The remaining red is explicit.</h2>
+              <p class="section-intro">
+                These are tracked boundaries, not hidden caveats. None can be
+                declared complete from a local size win or diagnostic preflight.
+              </p>
+            </div>
+          </div>
+
+          <div class="risk-grid">
+            <article class="risk">
+              <span class="mono">Gate-04</span>
+              <h3>Full G2 promotion</h3>
+              <p>
+                V-01 is complete under targeted gates, but final release
+                promotion still requires the explicitly deferred five-fork
+                checkpoint.
+              </p>
+            </article>
+            <article class="risk">
+              <span class="mono">Arch-05</span>
+              <h3>Hygienic target JS</h3>
+              <p>
+                Production still reparses generated strings for some
+                binding-sensitive transforms. The minimal target tree has not
+                landed yet.
+              </p>
+            </article>
+            <article class="risk">
+              <span class="mono">Corpus work</span>
+              <h3>Known library gaps</h3>
+              <p>
+                jQuery value placement, markdown-stack representation overhead,
+                and the post-identity search corpus rerun remain measured active
+                work.
+              </p>
+            </article>
+          </div>
+
+          <div class="rule">
+            <strong>The governing rule:</strong>
+            <p>
+              No package matcher, hidden post-minifier, objective-dependent ABI,
+              unsafe assumption, or aggregate win may substitute for a
+              source-derived proof and independently valid final artifact.
+            </p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div class="shell footer-grid">
+        <p>
+          Snapshot based on the migration ledger and commit
+          <code>fda9f11</code>. Historical measurements explain achieved
+          recovery; tracked generated reports remain authoritative for current
+          release numbers.
+        </p>
+        <div class="links">
+          <a href="knowledge/migration/board/LEDGER.md">Ledger</a>
+          <a href="knowledge/migration/board/HANDOFF.md">Handoff</a>
+          <a href="knowledge/migration/compression-migration.md"
+            >Canonical plan</a
+          >
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

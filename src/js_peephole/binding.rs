@@ -29,6 +29,15 @@ use crate::js_peephole::rewrite::{is_property_identifier, is_statement_boundary}
 use crate::js_peephole::token::{matching_closers, matching_openers, Token, TokenKind};
 use std::collections::HashMap;
 
+fn is_binding_identifier(token: &Token<'_>) -> bool {
+    token.kind == TokenKind::Identifier
+        || token.kind == TokenKind::Keyword
+            && matches!(
+                token.text,
+                "as" | "async" | "from" | "get" | "of" | "set" | "undefined"
+            )
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Resolution {
     /// The identifier resolves to the declaration at this token index.
@@ -77,6 +86,7 @@ pub(crate) struct BindingResolution<'src> {
 
 impl<'src> BindingResolution<'src> {
     pub(crate) fn new(tokens: &[Token<'src>]) -> Self {
+        let _timing = crate::timing::BINDINGS.scope(tokens.len());
         let matching_close = matching_closers(tokens);
         let matching_open = matching_openers(&matching_close);
         let mut scopes = vec![Scope {
@@ -208,7 +218,7 @@ fn assign_named_function_expression_scopes(
         }
         if tokens
             .get(name_at)
-            .is_none_or(|token| token.kind != TokenKind::Identifier)
+            .is_none_or(|token| !is_binding_identifier(token))
             || tokens.get(name_at + 1).map(|token| token.text) != Some("(")
         {
             continue;
@@ -284,10 +294,7 @@ fn function_scope_at(
         if tokens.get(cursor).map(|token| token.text) == Some("*") {
             cursor += 1;
         }
-        if tokens
-            .get(cursor)
-            .is_some_and(|token| token.kind == TokenKind::Identifier)
-        {
+        if tokens.get(cursor).is_some_and(is_binding_identifier) {
             cursor += 1;
         }
         if tokens.get(cursor).map(|token| token.text) != Some("(") {
@@ -306,7 +313,7 @@ fn function_scope_at(
         let previous = index.checked_sub(1)?;
         let start = if tokens[previous].text == ")" {
             matching_open.get(previous).copied().flatten()?
-        } else if tokens[previous].kind == TokenKind::Identifier {
+        } else if is_binding_identifier(&tokens[previous]) {
             previous
         } else {
             return None;
@@ -320,7 +327,7 @@ fn function_scope_at(
     }
 
     // Method shorthand in a class body or object literal: `name(params){body}`.
-    if tokens[index].kind == TokenKind::Identifier
+    if is_binding_identifier(&tokens[index])
         && tokens.get(index + 1).map(|token| token.text) == Some("(")
         && !is_property_identifier(tokens, index)
     {
@@ -418,10 +425,7 @@ fn collect_declarations<'src>(
                 if tokens.get(cursor).map(|token| token.text) == Some("*") {
                     cursor += 1;
                 }
-                if tokens
-                    .get(cursor)
-                    .is_some_and(|token| token.kind == TokenKind::Identifier)
-                {
+                if tokens.get(cursor).is_some_and(is_binding_identifier) {
                     vec![cursor]
                 } else {
                     Vec::new()
@@ -458,7 +462,7 @@ fn import_names(
     let mut names = Vec::new();
     let mut cursor = open + 1;
     while cursor < close {
-        if tokens[cursor].kind != TokenKind::Identifier {
+        if !is_binding_identifier(&tokens[cursor]) {
             cursor += 1;
             continue;
         }
@@ -466,10 +470,7 @@ fn import_names(
             .get(cursor + 1)
             .is_some_and(|token| token.text == "as")
         {
-            if tokens
-                .get(cursor + 2)
-                .is_some_and(|token| token.kind == TokenKind::Identifier)
-            {
+            if tokens.get(cursor + 2).is_some_and(is_binding_identifier) {
                 names.push(cursor + 2);
             }
         } else {
@@ -501,10 +502,7 @@ fn parameter_names<'src>(
     open: usize,
 ) -> (Vec<(&'src str, usize)>, bool) {
     // A bare-identifier arrow parameter: `x => …`.
-    if tokens
-        .get(open)
-        .is_some_and(|token| token.kind == TokenKind::Identifier)
-    {
+    if tokens.get(open).is_some_and(is_binding_identifier) {
         return (vec![(tokens[open].text, open)], true);
     }
     if tokens.get(open).map(|token| token.text) != Some("(") {
@@ -539,7 +537,7 @@ fn parameter_names<'src>(
             }
             "[" | "{" | "..." => return (names, false),
             _ => {
-                if expect_name && tokens[index].kind == TokenKind::Identifier {
+                if expect_name && is_binding_identifier(&tokens[index]) {
                     names.push((tokens[index].text, index));
                     expect_name = false;
                     index += 1;
@@ -581,9 +579,12 @@ fn declarator_names(
                 expect_name = false;
                 cursor += 1;
             }
-            "in" | "of" => break,
+            "in" => break,
+            // `of` is contextual: it ends `for (var value of values)`, but it
+            // is also a valid generated binding in `var ...,of=...`.
+            "of" if !expect_name => break,
             _ => {
-                if expect_name && tokens[cursor].kind == TokenKind::Identifier {
+                if expect_name && is_binding_identifier(&tokens[cursor]) {
                     names.push(cursor);
                     expect_name = false;
                 }
@@ -597,7 +598,7 @@ fn declarator_names(
 fn resolve(tokens: &[Token<'_>], scopes: &[Scope<'_>], scope_of_token: &[u32]) -> Vec<Resolution> {
     let mut out = vec![Resolution::Free; tokens.len()];
     for (index, token) in tokens.iter().enumerate() {
-        if token.kind != TokenKind::Identifier || is_property_identifier(tokens, index) {
+        if !is_binding_identifier(token) || is_property_identifier(tokens, index) {
             out[index] = Resolution::Free;
             continue;
         }
@@ -799,6 +800,21 @@ mod tests {
             .nth(1)
             .unwrap();
         assert_eq!(use_at.2, Resolution::Bound(top_decl), "{all:?}");
+    }
+
+    #[test]
+    fn contextual_of_name_is_a_module_binding() {
+        let tokens = lex("var a=1,of=()=>a;export{of as value}").unwrap();
+        let resolution = BindingResolution::new(&tokens);
+        let occurrences = tokens
+            .iter()
+            .enumerate()
+            .filter(|(_, token)| token.text == "of")
+            .map(|(index, _)| resolution.resolve(index))
+            .collect::<Vec<_>>();
+        assert_eq!(occurrences.len(), 2);
+        assert!(matches!(occurrences[0], Resolution::Bound(_)));
+        assert_eq!(occurrences[0], occurrences[1]);
     }
 
     #[test]

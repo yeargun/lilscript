@@ -7,7 +7,10 @@ identical_function_folding = true
 
 [javascript]
 priority = "size-first"
-optimization_level = 15
+# 13 is the compiler default and the measured effort plateau: level 15 costs
+# roughly 20x the CPU for 1.4% of the Brotli bytes on a large artifact.
+# See docs/configuration.md and auto-finer-lilscript/007-level-13-sweet-spot.
+optimization_level = 13
 cost_model = "brotli"
 # Language tests use `print` as the observable oracle.
 strip_console = false

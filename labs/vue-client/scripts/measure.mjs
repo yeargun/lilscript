@@ -91,8 +91,8 @@ function expectedDefines() {
 }
 
 export function validateProjectBuildReport(report, scope) {
-  if (report?.schemaVersion !== 2) {
-    throw new Error("project build report schemaVersion must be 2");
+  if (report?.schemaVersion !== 3) {
+    throw new Error("project build report schemaVersion must be 3");
   }
   if (report.upstream?.revision !== scope.upstream.revision) {
     throw new Error(
@@ -111,6 +111,43 @@ export function validateProjectBuildReport(report, scope) {
   }
   if (JSON.stringify(report.toolchain.config.defines) !== JSON.stringify(expectedDefines())) {
     throw new Error("project build report has unexpected production defines");
+  }
+  const productionPackage = report.productionPackage;
+  if (
+    productionPackage?.root !== "packages/vuelil/production" ||
+    productionPackage.exportsPreserved !== true ||
+    productionPackage.identifiersMangled !== true ||
+    productionPackage.propertiesMangled !== true ||
+    productionPackage.scenarioSpecificBuildInputs !== false ||
+    productionPackage.viteDownstreamTreeShaking !== true ||
+    report.toolchain.config.treeShaking !== true
+  ) {
+    throw new Error("project build report does not identify the reusable open-world package");
+  }
+  const openWorldConfig = validateFileEvidence(
+    productionPackage.config,
+    "open-world production config",
+  );
+  const openWorldSource = readFileSync(openWorldConfig, "utf8");
+  for (const setting of [
+    "identifiers = true",
+    "properties = true",
+    "exports = false",
+  ]) {
+    if (!openWorldSource.includes(setting)) {
+      throw new Error(`open-world production config is missing ${setting}`);
+    }
+  }
+  const expectedEntries = {
+    runtime: "packages/vuelil/production/vue.runtime.js",
+    compiler: "packages/vuelil/production/vue.js",
+    serverRenderer: "packages/vuelil/production/server-renderer.js",
+  };
+  for (const [name, path] of Object.entries(expectedEntries)) {
+    if (productionPackage.entries?.[name]?.path !== path) {
+      throw new Error(`production package ${name} entry must be ${path}`);
+    }
+    validateFileEvidence(productionPackage.entries[name], `production package ${name}`);
   }
 
   const required = scope.bundleScenarios.filter(
@@ -174,6 +211,11 @@ export function validateProjectBuildReport(report, scope) {
       throw new Error(`${id} execution results differ`);
     }
     const candidateModuleIds = variants.candidate.moduleGraph.modules.map(({ id }) => id);
+    const scenarioSpecificCandidateModules = candidateModuleIds.filter((module) => {
+      const path = module.split("?", 1)[0];
+      return path.startsWith("packages/vuelil/") &&
+        !/^packages\/vuelil\/production\/[^/]+\.js$/u.test(path);
+    });
     const candidateUpstream = candidateModuleIds.filter(
       (module) =>
         module.includes("node_modules/vue/") ||
@@ -184,11 +226,35 @@ export function validateProjectBuildReport(report, scope) {
       variants.candidate.resolution?.kind !== "vuelil-package-alias" ||
       variants.candidate.audit?.includesCandidateModule !== true ||
       variants.candidate.audit?.noUpstreamRuntime !== true ||
+      variants.candidate.audit?.noScenarioSpecificCandidateModules !== true ||
+      variants.candidate.audit?.scenarioSpecificCandidateModules?.length !== 0 ||
+      variants.candidate.audit?.reusableProductionPackage !== true ||
+      variants.candidate.audit?.viteDownstreamTreeShaking !== true ||
       variants.candidate.audit?.allEmittedAdapterCodeCounted !== true ||
       candidateUpstream.length !== 0 ||
-      !candidateModuleIds.some((module) => module.startsWith("packages/vuelil/"))
+      scenarioSpecificCandidateModules.length !== 0 ||
+      !candidateModuleIds.some((module) =>
+        module.startsWith("packages/vuelil/production/"))
     ) {
       throw new Error(`${id} candidate did not prove VueLil-only module independence`);
+    }
+    const expectedAliases = id === "runtime-compiler-client"
+      ? [["vue", expectedEntries.compiler]]
+      : id === "ssr-app"
+      ? [
+          ["vue/server-renderer", expectedEntries.serverRenderer],
+          ["vue", expectedEntries.runtime],
+        ]
+      : [["vue", expectedEntries.runtime]];
+    const actualAliases = new Map(
+      variants.candidate.resolution.aliases?.map(({ specifier, target }) =>
+        [specifier, target]) ?? [],
+    );
+    if (
+      actualAliases.size !== expectedAliases.length ||
+      expectedAliases.some(([specifier, target]) => actualAliases.get(specifier) !== target)
+    ) {
+      throw new Error(`${id} does not resolve through the reusable production entries`);
     }
     if (
       !Array.isArray(variants.upstream.audit?.upstreamRuntimeModules) ||
@@ -306,6 +372,8 @@ export function measure() {
         commonConfigSha256: buildReport.toolchain.commonConfigSha256,
         scenarioConfigSha256: result.variants.candidate.buildConfigSha256,
         onlyModuleResolutionChanged: true,
+        reusableProductionPackage: true,
+        viteDownstreamTreeShaking: true,
       },
       moduleAudit: {
         candidate: {
@@ -356,7 +424,7 @@ export function measure() {
       sha256: sha256(buildReportBytes),
     },
     methodology:
-      "Each required real application is built twice from identical source and identical Vite 8/Rolldown/Oxc production settings. Only Vue package resolution changes. Candidate graphs contain only VueLil implementation modules, with retained inlined host-adapter code counted. Every emitted deployment asset is scored independently and summed; published Vue distribution sizes are not used as the gate.",
+      "Each required real application is built twice from identical source and identical Vite 8/Rolldown/Oxc production settings. Only Vue package resolution changes. Every candidate resolves through the same reusable packages/vuelil/production entries compiled with config/open-world.toml, where identifiers and properties are mangled and exports are preserved; no scenario-specific candidate module path is allowed. Vite performs downstream tree shaking. Candidate graphs contain only VueLil implementation modules, with retained inlined host-adapter code counted. Every emitted deployment asset is scored independently and summed; published Vue distribution sizes are not used as the gate.",
     objective: "Every completion-required project has a smaller candidate Brotli-11 deployment.",
     toolchain: buildReport.toolchain,
     codecs: canonicalCodecProvenance("VueLil actual-project size evidence"),

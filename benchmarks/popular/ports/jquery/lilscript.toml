@@ -12,7 +12,12 @@ compression = [
   "entropy-aware-mangling",
   "quote-style-selection",
   "property-mangling",
-  "string-pooling",
+  # `string-pooling` is deliberately absent. Under this port's Brotli objective
+  # it costs 35 bytes (30590 -> 30555 with it removed): pooling replaces a
+  # repeated literal, which the compressor already matched almost for free,
+  # with a fresh identifier token. It also costs 28 gzip bytes. It does save 92
+  # raw bytes, which is not this artifact's objective.
+  # See auto-finer-lilscript/011-string-pooling-under-compression.
   "size-aware-inlining",
   "compact-boolean-literals",
   "standard-grammar-elision",

@@ -275,7 +275,8 @@ try {
   const productionEntry = resolve(graph, "production.lil");
   writeFileSync(
     productionEntry,
-    'import { compile } from "./index";\nexport { compile };\n',
+    `import { ${ownExports.join(", ")} } from "./index";\n` +
+      `export { ${ownExports.join(", ")} };\n`,
   );
   runCompiler(productionEntry, compiledProduction, true);
 
@@ -294,8 +295,8 @@ try {
   mkdirSync(resolve(productionFacade, ".."), { recursive: true });
   writeFileSync(
     productionFacade,
-    `${banner}${hostModule}\n${assemble(compiledProduction, "./", aliases)
-      .replaceAll('"./shared.js"', '"../shared.js"')}`,
+    `${banner}${hostModule}\n${assemble(compiledProduction, "./", aliases)}\n` +
+      `export { ${coreExports.join(", ")} } from "./compiler-core.js";\n`,
   );
   writeFileSync(
     upstreamCandidate,

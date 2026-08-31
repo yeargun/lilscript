@@ -446,16 +446,30 @@ enum JsCallingConvention {
     Method1,
     Method2,
     Method3,
+    Method4,
+    Method5,
+    Method6,
+    Method7,
+    Method8,
+    Method9,
+    Method10,
     MethodRest,
     StaticRest,
 }
 
 impl JsCallingConvention {
-    const ALL: [Self; 6] = [
+    const ALL: [Self; 13] = [
         Self::Method0,
         Self::Method1,
         Self::Method2,
         Self::Method3,
+        Self::Method4,
+        Self::Method5,
+        Self::Method6,
+        Self::Method7,
+        Self::Method8,
+        Self::Method9,
+        Self::Method10,
         Self::MethodRest,
         Self::StaticRest,
     ];
@@ -466,6 +480,13 @@ impl JsCallingConvention {
             Intrinsic::JsMethod1 => Some(Self::Method1),
             Intrinsic::JsMethod2 => Some(Self::Method2),
             Intrinsic::JsMethod3 => Some(Self::Method3),
+            Intrinsic::JsMethod4 => Some(Self::Method4),
+            Intrinsic::JsMethod5 => Some(Self::Method5),
+            Intrinsic::JsMethod6 => Some(Self::Method6),
+            Intrinsic::JsMethod7 => Some(Self::Method7),
+            Intrinsic::JsMethod8 => Some(Self::Method8),
+            Intrinsic::JsMethod9 => Some(Self::Method9),
+            Intrinsic::JsMethod10 => Some(Self::Method10),
             Intrinsic::JsMethodRest => Some(Self::MethodRest),
             Intrinsic::JsStaticRest => Some(Self::StaticRest),
             _ => None,
@@ -478,8 +499,15 @@ impl JsCallingConvention {
             Self::Method1 => 1,
             Self::Method2 => 2,
             Self::Method3 => 3,
-            Self::MethodRest => 4,
-            Self::StaticRest => 5,
+            Self::Method4 => 4,
+            Self::Method5 => 5,
+            Self::Method6 => 6,
+            Self::Method7 => 7,
+            Self::Method8 => 8,
+            Self::Method9 => 9,
+            Self::Method10 => 10,
+            Self::MethodRest => 11,
+            Self::StaticRest => 12,
         }
     }
 
@@ -489,6 +517,13 @@ impl JsCallingConvention {
             Self::Method1 => "$jsMethod1",
             Self::Method2 => "$jsMethod2",
             Self::Method3 => "$jsMethod3",
+            Self::Method4 => "$jsMethod4",
+            Self::Method5 => "$jsMethod5",
+            Self::Method6 => "$jsMethod6",
+            Self::Method7 => "$jsMethod7",
+            Self::Method8 => "$jsMethod8",
+            Self::Method9 => "$jsMethod9",
+            Self::Method10 => "$jsMethod10",
             Self::MethodRest => "$jsMethodRest",
             Self::StaticRest => "$jsStaticRest",
         }
@@ -500,6 +535,13 @@ impl JsCallingConvention {
             Self::Method1 => 2,
             Self::Method2 => 3,
             Self::Method3 => 4,
+            Self::Method4 => 5,
+            Self::Method5 => 6,
+            Self::Method6 => 7,
+            Self::Method7 => 8,
+            Self::Method8 => 9,
+            Self::Method9 => 10,
+            Self::Method10 => 11,
             Self::MethodRest => 2,
             Self::StaticRest => 1,
         }
@@ -507,18 +549,13 @@ impl JsCallingConvention {
 
     const fn replaced_parameter_indices(self) -> &'static [usize] {
         match self {
-            Self::Method0 | Self::Method1 | Self::Method2 | Self::Method3 | Self::StaticRest => {
-                &[0]
-            }
             Self::MethodRest => &[0, 1],
+            _ => &[0],
         }
     }
 
     const fn has_receiver(self) -> bool {
-        matches!(
-            self,
-            Self::Method0 | Self::Method1 | Self::Method2 | Self::Method3 | Self::MethodRest
-        )
+        !matches!(self, Self::StaticRest)
     }
 }
 
@@ -5258,6 +5295,21 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 JsCallingConvention::Method1 => "function(a){return e(this,a)}",
                 JsCallingConvention::Method2 => "function(a,b){return e(this,a,b)}",
                 JsCallingConvention::Method3 => "function(a,b,c){return e(this,a,b,c)}",
+                JsCallingConvention::Method4 => "function(a,b,c,d){return e(this,a,b,c,d)}",
+                JsCallingConvention::Method5 => "function(a,b,c,d,f){return e(this,a,b,c,d,f)}",
+                JsCallingConvention::Method6 => "function(a,b,c,d,f,g){return e(this,a,b,c,d,f,g)}",
+                JsCallingConvention::Method7 => {
+                    "function(a,b,c,d,f,g,h){return e(this,a,b,c,d,f,g,h)}"
+                }
+                JsCallingConvention::Method8 => {
+                    "function(a,b,c,d,f,g,h,i){return e(this,a,b,c,d,f,g,h,i)}"
+                }
+                JsCallingConvention::Method9 => {
+                    "function(a,b,c,d,f,g,h,i,j){return e(this,a,b,c,d,f,g,h,i,j)}"
+                }
+                JsCallingConvention::Method10 => {
+                    "function(a,b,c,d,f,g,h,i,j,k){return e(this,a,b,c,d,f,g,h,i,j,k)}"
+                }
                 JsCallingConvention::MethodRest => "function(){return e(this,arguments)}",
                 JsCallingConvention::StaticRest => "function(){return e(arguments)}",
             });
@@ -6050,6 +6102,24 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 .then_with(|| right.1.cmp(&left.1))
                 .then_with(|| left.2.cmp(&right.2))
         });
+        // The ranking above models every alias as a single character, which is
+        // wrong: the pool draws from the same top-level namespace as every other
+        // module binding, so on a large artifact most aliases are two characters
+        // wide. On the in-repo jQuery benchmark port that makes it pool `""`
+        // across 105 uses into a two-character alias — 216 bytes of aliased
+        // spelling against 210 inline, a loss before the compressing objective
+        // is even consulted.
+        //
+        // Pricing each candidate against the name it would actually receive
+        // (the way `assign_numeric_aliases` does, twenty lines below) was tried
+        // and **reverted**: skipping one candidate frees the name it would have
+        // taken, so every later pooled binding shifts by one name, and that
+        // reshuffle dominates the direct saving. Measured with identical source
+        // and config, it was worth -8 Brotli on markedlil and **+282 on
+        // jQueryLil**. The decisions are coupled through this shared allocator,
+        // so a correct fix has to price the whole assignment jointly rather than
+        // one candidate at a time. See
+        // auto-finer-lilscript/010-string-pool-alias-pricing.
         for (_, _, value) in candidates {
             let name = self.top_level_mangler.next_name();
             self.string_aliases.insert(value.clone(), name.clone());
@@ -7250,7 +7320,14 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             JsCallingConvention::Method0
             | JsCallingConvention::Method1
             | JsCallingConvention::Method2
-            | JsCallingConvention::Method3 => &[(0, "this")],
+            | JsCallingConvention::Method3
+            | JsCallingConvention::Method4
+            | JsCallingConvention::Method5
+            | JsCallingConvention::Method6
+            | JsCallingConvention::Method7
+            | JsCallingConvention::Method8
+            | JsCallingConvention::Method9
+            | JsCallingConvention::Method10 => &[(0, "this")],
             JsCallingConvention::MethodRest => &[(0, "this"), (1, "arguments")],
             JsCallingConvention::StaticRest => &[(0, "arguments")],
         };
@@ -7309,7 +7386,14 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             Some(
                 JsCallingConvention::Method1
                 | JsCallingConvention::Method2
-                | JsCallingConvention::Method3,
+                | JsCallingConvention::Method3
+                | JsCallingConvention::Method4
+                | JsCallingConvention::Method5
+                | JsCallingConvention::Method6
+                | JsCallingConvention::Method7
+                | JsCallingConvention::Method8
+                | JsCallingConvention::Method9
+                | JsCallingConvention::Method10,
             ) => &function.params[function.capture_count + 1..],
             Some(JsCallingConvention::MethodRest | JsCallingConvention::StaticRest) => &[],
             None => &function.params,
@@ -7325,7 +7409,14 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             Some(
                 JsCallingConvention::Method1
                 | JsCallingConvention::Method2
-                | JsCallingConvention::Method3,
+                | JsCallingConvention::Method3
+                | JsCallingConvention::Method4
+                | JsCallingConvention::Method5
+                | JsCallingConvention::Method6
+                | JsCallingConvention::Method7
+                | JsCallingConvention::Method8
+                | JsCallingConvention::Method9
+                | JsCallingConvention::Method10,
             ) => &function.params[function.capture_count + 1..],
             Some(JsCallingConvention::MethodRest | JsCallingConvention::StaticRest) => &[],
             None => &function.params[function.capture_count..],
@@ -8917,6 +9008,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         let uses = &context.use_counts;
         let mut cache = ExpressionCache::default();
         let mut previous_binding = false;
+        let mut joined_binding_names = AHashSet::<String>::default();
         let mut previous_expressions = None::<(usize, Vec<JsExpression>)>;
         let phi_edge = self.options.phi_edge_value_forwarding;
         let fuse_with_next = block
@@ -8977,16 +9069,14 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 }
             }
             let binding = is_single_binding_statement(&statement);
+            let binding_name = let_declarator_name(&statement).map(str::to_string);
             let statement_start = out.len();
             if previous_binding && binding {
-                if let Some(name) = let_declarator_name(&statement) {
-                    if let_list_declares(out, name) {
-                        out.push_str(&statement[4..]);
-                    } else {
-                        out.pop();
-                        out.push(',');
-                        out.push_str(&statement[4..]);
-                    }
+                if binding_name
+                    .as_ref()
+                    .is_some_and(|name| joined_binding_names.contains(name))
+                {
+                    out.push_str(&statement[4..]);
                 } else {
                     out.pop();
                     out.push(',');
@@ -9011,6 +9101,16 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 previous_expressions = Some((start, expressions));
             } else {
                 out.push_str(&statement);
+            }
+            if binding {
+                if !previous_binding {
+                    joined_binding_names.clear();
+                }
+                if let Some(name) = binding_name {
+                    joined_binding_names.insert(name);
+                }
+            } else {
+                joined_binding_names.clear();
             }
             previous_binding = binding;
             if !binding && is_comma_eligible_statement(&statement) && previous_expressions.is_none()
@@ -14945,6 +15045,13 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             | Intrinsic::JsMethod1
             | Intrinsic::JsMethod2
             | Intrinsic::JsMethod3
+            | Intrinsic::JsMethod4
+            | Intrinsic::JsMethod5
+            | Intrinsic::JsMethod6
+            | Intrinsic::JsMethod7
+            | Intrinsic::JsMethod8
+            | Intrinsic::JsMethod9
+            | Intrinsic::JsMethod10
             | Intrinsic::JsMethodRest
             | Intrinsic::JsStaticRest
             | Intrinsic::JsGetProperty
@@ -26184,18 +26291,6 @@ fn let_declarator_name(statement: &str) -> Option<&str> {
         .filter(|name| !name.is_empty())
 }
 
-fn let_list_declares(output: &str, name: &str) -> bool {
-    let Some(list) = output.rsplit("let ").next() else {
-        return false;
-    };
-    let list = list.strip_suffix(';').unwrap_or(list);
-    list.split(',').any(|item| {
-        item.split('=')
-            .next()
-            .is_some_and(|declared| declared.trim() == name)
-    })
-}
-
 #[derive(Debug, Clone)]
 struct Mangler {
     next: usize,
@@ -27543,6 +27638,17 @@ mod tests {
         assert_eq!(output.matches("let ").count(), 0, "{output}");
         assert!(!output.contains("let a="), "{output}");
         assert!(output.contains("a=a+1;a=a*a;a=a+a;a=a*a"), "{output}");
+    }
+
+    #[test]
+    fn adjacent_binding_merge_ignores_names_inside_nested_initializers() {
+        let output = compile(
+            "extern void inspect(JsValue value);extern void consume(JsValue value);JsValue make(JsValue state){JsValue callback=JS.method3((JsValue self,JsValue first,JsValue second,JsValue third)=>{consume(state);return third;});JsValue hydrate=state[0];return JS.object(\"callback\",callback,\"hydrate\",hydrate);}inspect(make(JS.array(7)));",
+        );
+        let trace = run_javascript(&format!(
+            "let result;function inspect(value){{result=value}}function consume(){{}}{output};process.stdout.write('TRACE:'+result.hydrate)"
+        ));
+        assert_eq!(trace, "TRACE:7", "{output}");
     }
 
     #[test]
@@ -33845,6 +33951,21 @@ consume(field(JS.object("type", 1), "type"));
     }
 
     #[test]
+    fn fallback_method10_preserves_receiver_arguments_evaluation_and_reflection() {
+        let output = compile(
+            "extern void inspect(JsValue value);extern void keep(JsValue value);JsValue target(JsValue self,JsValue a,JsValue b,JsValue c,JsValue d,JsValue e,JsValue f,JsValue g,JsValue h,JsValue i,JsValue j){return JS.array(self,a,b,c,d,e,f,g,h,i,j);}inspect(JS.method10(target));inspect(JS.method10(target));keep(target(null,0,0,0,0,0,0,0,0,0,0));",
+        );
+        assert!(output.contains("=e=>function("), "{output}");
+        let trace = run_javascript(&format!(
+            "let wrappers=[];function inspect(value){{wrappers.push(value)}}function keep(){{}}{output};let [first,second]=wrappers,marker={{ok:true}},order=[];function next(value){{order.push(value);return value}}let result=first.call(marker,next(1),next(2),next(3),next(4),next(5),next(6),next(7),next(8),next(9),next(10),next(11)),constructible=true;try{{Reflect.construct(first,[])}}catch{{constructible=false}}process.stdout.write('TRACE:'+[first!==second,first.length,first.name==='',Object.hasOwn(first,'prototype'),constructible,result[0]===marker,result.slice(1).join(','),order.join(',')].join(':'))"
+        ));
+        assert_eq!(
+            trace, "TRACE:true:10:true:true:true:true:1,2,3,4,5,6,7,8,9,10:1,2,3,4,5,6,7,8,9,10,11",
+            "{output}"
+        );
+    }
+
+    #[test]
     fn fused_adapters_still_allocate_fresh_constructible_anonymous_functions() {
         let output = compile(
             "extern void inspect(JsValue value);JsValue make(){return JS.method0((JsValue self)=>self);}inspect(make());inspect(make());",
@@ -33854,6 +33975,21 @@ consume(field(JS.object("type", 1), "type"));
             "let wrappers=[];function inspect(value){{wrappers.push(value)}}{output};let [first,second]=wrappers,marker={{ok:true}},constructible=true;try{{Reflect.construct(first,[])}}catch{{constructible=false}}process.stdout.write('TRACE:'+[first!==second,first.length,first.name==='',Object.hasOwn(first,'prototype'),constructible,first.call(marker)===marker].join(':'))"
         ));
         assert_eq!(trace, "TRACE:true:0:true:true:true:true", "{output}");
+    }
+
+    #[test]
+    fn fused_method10_preserves_receiver_arity_identity_and_arguments() {
+        let output = compile(
+            "extern void inspect(JsValue value);JsValue make(){return JS.method10((JsValue self,JsValue a,JsValue b,JsValue c,JsValue d,JsValue e,JsValue f,JsValue g,JsValue h,JsValue i,JsValue j)=>JS.array(self,a,b,c,d,e,f,g,h,i,j));}inspect(make());inspect(make());",
+        );
+        assert!(!output.contains("=e=>function("), "{output}");
+        let trace = run_javascript(&format!(
+            "let wrappers=[];function inspect(value){{wrappers.push(value)}}{output};let [first,second]=wrappers,marker={{ok:true}},result=first.call(marker,1,2,3,4,5,6,7,8,9,10),constructible=true;try{{Reflect.construct(first,[])}}catch{{constructible=false}}process.stdout.write('TRACE:'+[first!==second,first.length,first.name==='',Object.hasOwn(first,'prototype'),constructible,result[0]===marker,result.slice(1).join(',')].join(':'))"
+        ));
+        assert_eq!(
+            trace, "TRACE:true:10:true:true:true:true:1,2,3,4,5,6,7,8,9,10",
+            "{output}"
+        );
     }
 
     #[test]

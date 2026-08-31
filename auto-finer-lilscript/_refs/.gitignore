@@ -1,0 +1,5 @@
+oxc_*/
+*.crate
+idx.json
+meta.json
+terser*/

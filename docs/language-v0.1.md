@@ -388,32 +388,27 @@ dispatch. Its implemented operations are deliberately explicit:
 - `value is string`, `value is float`, and `value is bool` are sound narrowing guards. JavaScript numbers must use `float`; array and function signatures cannot be proven by `typeof` and are rejected as narrowing targets.
 - `JS.construct(ctor, ...args)` evaluates `new ctor(...args)`. The callee is required; up to six further `JsValue` arguments are constructor arguments. C/native targets reject it.
 
-Six typed JavaScript adapter primitives create ordinary host-callable
+Thirteen typed JavaScript adapter primitives create ordinary host-callable
 functions without weakening the callback's static signature:
 
-- `JS.method0(func(JsValue) -> JsValue)` passes the wrapper's `this` and no
-  call arguments;
-- `JS.method1(func(JsValue, JsValue) -> JsValue)` passes `this` and the first
-  call argument;
-- `JS.method2(func(JsValue, JsValue, JsValue) -> JsValue)` passes `this` and
-  the first two call arguments;
-- `JS.method3(func(JsValue, JsValue, JsValue, JsValue) -> JsValue)` passes
-  `this` and the first three call arguments;
+- `JS.methodN(func(JsValue, ...N JsValue parameters) -> JsValue)`, for each
+  integer `N` from `0` through `10`, passes the wrapper's `this` followed by
+  its first `N` call arguments;
 - `JS.methodRest(func(JsValue, JsValue) -> JsValue)` passes `this` and the
   wrapper's real JavaScript `arguments` object;
 - `JS.staticRest(func(JsValue) -> JsValue)` passes only that `arguments`
   object.
 
 Each evaluation returns a fresh anonymous, constructible ordinary function.
-Their JavaScript `length` values are respectively `0`, `1`, `2`, `3`, `0`, and
-`0`, and their callback is invoked as a plain function. Semantic analysis
+Each `methodN` wrapper has JavaScript `length == N`; both rest wrappers have
+`length == 0`, and every callback is invoked as a plain function. Semantic analysis
 resolves these operations by builtin identity and checks the exact callback
 arity and types; an unrelated extern with the same spelling has no special
 behavior. The JavaScript backend may fuse a private callback with its wrapper
 only after proving its identity and lexical bindings do not escape; where
 JavaScript would infer a function name, the fused spelling explicitly
 preserves the wrapper's anonymous reflection. Otherwise it emits a
-compiler-private shared factory. C/native targets reject all six adapters.
+compiler-private shared factory. C/native targets reject all thirteen adapters.
 
 String concatenation may consume a guarded `JsValue` and uses JavaScript's
 ordinary coercion. An unguarded Symbol therefore throws exactly as it would in

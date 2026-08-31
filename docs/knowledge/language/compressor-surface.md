@@ -135,7 +135,7 @@ Do not RFC these. They already exist.
 | `pure` / inferred effects | unused calls removable | `JsValue` ops are effectful; purity cannot override that |
 | positional `struct` | field indexes | `createEmptyObject()` for closed internal shapes |
 | `Record<T>` | open **null-prototype** string keys | wrong for ordinary-`{}` dictionaries; right for maps that must not see `Object.prototype` |
-| `JS.method0..3` / `JS.methodRest` | host-callable `this` + args as `JsValue` | intended hatch; emitter may fuse a private callback when identity does not escape. Not a typed method |
+| `JS.method0..10` / `JS.methodRest` | host-callable `this` + args as `JsValue` | intended hatch; emitter may fuse a private callback when identity does not escape. Not a typed method |
 
 `export class` as **type-only** is also existing, and it is a language contract,
 not an accident. [`docs/language-v0.1.md`](../../language-v0.1.md) § Modules:
@@ -157,7 +157,7 @@ explicit unsafe ABI flag. None becomes a library-specific optimizer matcher.
 | **Broader plain-data / no-hook proof** | Non-escaping compiler-owned `object{...}` allocations now forward statically own reads; dynamic/missing keys, writes, phis, returns, closures, globals, and host escapes cancel the proof. The markdown stack still needs broader ownership facts. | Silent `pure_getters`; treating an external object declaration as hook-free |
 | **Typed ordinary-object dictionary** vs null-proto `Record<T>` | `object{...}` now provides explicit ordinary `%Object.prototype%` semantics as `JsValue`; a homogeneous typed dictionary and spread remain. | Inferring `{}` after record observation projection; treating ordinary objects as hook-free |
 | **Destructuring/guarded `match`** | Expression `if(condition){left}else{right}` and enum/int/string/bool literal `match` are landed; destructuring and guards remain. | Reconstructing ternaries as an always-on Brotli prior; post-minify contraction of `if(` |
-| **Host-callable typed method** (`this` + rest on a typed receiver, not `JsValue`) | `JS.method0..3` / `JS.methodRest` / `extern JsValue arguments` for public JS methods. Class `this` already exists for LilScript methods. | Treating JS `this` as a free optimization; fusing wrappers whose identity escapes |
+| **Host-callable typed method** (`this` + rest on a typed receiver, not `JsValue`) | `JS.method0..10` / `JS.methodRest` / `extern JsValue arguments` for public JS methods. Class `this` already exists for LilScript methods. | Treating JS `this` as a free optimization; fusing wrappers whose identity escapes |
 | **Getters / setters as ABI** | `defineProperty` / Proxy traps when the published contract is an accessor | Peephole inventing accessors on dissolved fields |
 | **Sound optional / structural bags** | Motion/Preact option objects become `JsValue` | Structural TS `any` |
 | **Explicit target lowering contract** (first slice landed) | Live source `x \| 0` carries an IR obligation; globally unambiguous clone lineage and final-byte witnesses remain. | Treating every source spelling as frozen; raw JS text injection |

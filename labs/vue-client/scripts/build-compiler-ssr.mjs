@@ -16,6 +16,10 @@ import { compilerPath, projectRoot } from "../tooling/compiler-path.mjs";
 const sourceDirectory = resolve(projectRoot, "src/compiler-ssr");
 const artifact = resolve(projectRoot, "artifacts/compiler-ssr.generated.js");
 const facade = resolve(projectRoot, "packages/vuelil/compiler-ssr.js");
+const productionFacade = resolve(
+  projectRoot,
+  "packages/vuelil/production/compiler-ssr.js",
+);
 const upstreamCandidate = resolve(
   projectRoot,
   "tests/compiler-ssr-upstream.candidate.mjs",
@@ -43,22 +47,20 @@ const runtimeHelpers = [
   "ssrHelpers",
 ];
 
-function runCompiler(input, output) {
+function runCompiler(input, output, production = false) {
+  const args = [input, "--target", "js-module"];
+  if (production) {
+    args.push(
+      "--mode", "production",
+      "--config", resolve(projectRoot, "config/open-world.toml"),
+    );
+  } else {
+    args.push("--mode", "development");
+  }
+  args.push("--jobs", "1", "--codec-jobs", "1", "-o", output);
   const result = spawnSync(
     compilerPath(),
-    [
-      input,
-      "--target",
-      "js-module",
-      "--mode",
-      "development",
-      "--jobs",
-      "1",
-      "--codec-jobs",
-      "1",
-      "-o",
-      output,
-    ],
+    args,
     { cwd: projectRoot, encoding: "utf8", env: process.env },
   );
   if (result.status !== 0) {
@@ -159,6 +161,7 @@ const temporary = mkdtempSync(resolve(tmpdir(), "vuelil-compiler-ssr-"));
 const graph = resolve(temporary, "src/compiler-ssr");
 const compiled = resolve(temporary, "index.js");
 const compiledTest = resolve(temporary, "test.js");
+const compiledProduction = resolve(temporary, "production.js");
 
 try {
   mkdirSync(resolve(temporary, "src"), { recursive: true });
@@ -184,6 +187,15 @@ try {
   const aliases = isolateExternBindings(graph);
   runCompiler(resolve(graph, "index.lil"), compiled);
   runCompiler(resolve(graph, "test.lil"), compiledTest);
+  copyFileSync(
+    resolve(projectRoot, "packages/vuelil/production/compiler-dom.js"),
+    resolve(temporary, "packages/vuelil/compiler-dom.js"),
+  );
+  copyFileSync(
+    resolve(projectRoot, "packages/vuelil/production/shared.js"),
+    resolve(temporary, "packages/vuelil/shared.js"),
+  );
+  runCompiler(resolve(graph, "index.lil"), compiledProduction, true);
 
   const banner = "// Generated from the complete compiler-ssr LilScript source graph.\n";
   mkdirSync(resolve(projectRoot, "artifacts"), { recursive: true });
@@ -196,16 +208,35 @@ try {
     facade,
     'export { compile } from "../../artifacts/compiler-ssr.generated.js";\n',
   );
+  mkdirSync(resolve(productionFacade, ".."), { recursive: true });
+  writeFileSync(
+    productionFacade,
+    `${banner}${reflectCompile(assemble(compiledProduction, "./", aliases))}`,
+  );
   writeFileSync(
     upstreamCandidate,
     `${banner}${reflectCompile(assemble(compiledTest, "../packages/vuelil/", aliases))}`,
   );
 
-  const runtime = await import(`${facade}?build=${Date.now()}`);
+  const stamp = Date.now();
+  const [runtime, productionRuntime] = await Promise.all([
+    import(`${facade}?build=${stamp}`),
+    import(`${productionFacade}?build=${stamp}`),
+  ]);
   if (Object.keys(runtime).join(",") !== "compile") {
     throw new Error(`compiler-ssr facade exports ${Object.keys(runtime).join(", ")}`);
   }
-  console.log(JSON.stringify({ artifact, facade, exports: Object.keys(runtime) }));
+  if (Object.keys(productionRuntime).join(",") !== "compile") {
+    throw new Error(
+      `production compiler-ssr exports ${Object.keys(productionRuntime).join(", ")}`,
+    );
+  }
+  console.log(JSON.stringify({
+    artifact,
+    facade,
+    productionFacade,
+    exports: Object.keys(runtime),
+  }));
 } finally {
   rmSync(temporary, { force: true, recursive: true });
 }

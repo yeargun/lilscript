@@ -1,3 +1,4 @@
+pub mod artifact_memo;
 pub mod ast;
 pub mod codegen_ir_js;
 pub mod codegen_js;
@@ -25,6 +26,7 @@ pub mod profile;
 pub mod semantic;
 pub mod span;
 mod stable_hash;
+pub mod timing;
 pub mod typed_array;
 pub mod value_analysis;
 

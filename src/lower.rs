@@ -3159,7 +3159,8 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
                 ty,
                 span,
             ),
-            JsMethod0 | JsMethod1 | JsMethod2 | JsMethod3 | JsMethodRest | JsStaticRest => self
+            JsMethod0 | JsMethod1 | JsMethod2 | JsMethod3 | JsMethod4 | JsMethod5 | JsMethod6
+            | JsMethod7 | JsMethod8 | JsMethod9 | JsMethod10 | JsMethodRest | JsStaticRest => self
                 .emit_value(
                     ControlFlowOp::Intrinsic {
                         intrinsic: match builtin {
@@ -3167,6 +3168,13 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
                             JsMethod1 => Intrinsic::JsMethod1,
                             JsMethod2 => Intrinsic::JsMethod2,
                             JsMethod3 => Intrinsic::JsMethod3,
+                            JsMethod4 => Intrinsic::JsMethod4,
+                            JsMethod5 => Intrinsic::JsMethod5,
+                            JsMethod6 => Intrinsic::JsMethod6,
+                            JsMethod7 => Intrinsic::JsMethod7,
+                            JsMethod8 => Intrinsic::JsMethod8,
+                            JsMethod9 => Intrinsic::JsMethod9,
+                            JsMethod10 => Intrinsic::JsMethod10,
                             JsMethodRest => Intrinsic::JsMethodRest,
                             JsStaticRest => Intrinsic::JsStaticRest,
                             _ => unreachable!(),
@@ -5209,6 +5217,45 @@ mod tests {
             .instructions
             .iter()
             .any(|instruction| matches!(instruction.op, ControlFlowOp::CallMethod { .. }))));
+    }
+
+    #[test]
+    fn lowers_extended_javascript_method_adapters_to_distinct_intrinsics() {
+        let module = lower(
+            "JS.method4((JsValue self,JsValue a,JsValue b,JsValue c,JsValue d)=>d);JS.method5((JsValue self,JsValue a,JsValue b,JsValue c,JsValue d,JsValue e)=>e);JS.method6((JsValue self,JsValue a,JsValue b,JsValue c,JsValue d,JsValue e,JsValue f)=>f);JS.method7((JsValue self,JsValue a,JsValue b,JsValue c,JsValue d,JsValue e,JsValue f,JsValue g)=>g);JS.method8((JsValue self,JsValue a,JsValue b,JsValue c,JsValue d,JsValue e,JsValue f,JsValue g,JsValue h)=>h);JS.method9((JsValue self,JsValue a,JsValue b,JsValue c,JsValue d,JsValue e,JsValue f,JsValue g,JsValue h,JsValue i)=>i);JS.method10((JsValue self,JsValue a,JsValue b,JsValue c,JsValue d,JsValue e,JsValue f,JsValue g,JsValue h,JsValue i,JsValue j)=>j);",
+        );
+        let adapters = module
+            .functions
+            .iter()
+            .flat_map(|function| &function.blocks)
+            .flat_map(|block| &block.instructions)
+            .filter_map(|instruction| match instruction.op {
+                ControlFlowOp::Intrinsic {
+                    intrinsic:
+                        intrinsic @ (Intrinsic::JsMethod4
+                        | Intrinsic::JsMethod5
+                        | Intrinsic::JsMethod6
+                        | Intrinsic::JsMethod7
+                        | Intrinsic::JsMethod8
+                        | Intrinsic::JsMethod9
+                        | Intrinsic::JsMethod10),
+                    ..
+                } => Some(intrinsic),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            adapters,
+            [
+                Intrinsic::JsMethod4,
+                Intrinsic::JsMethod5,
+                Intrinsic::JsMethod6,
+                Intrinsic::JsMethod7,
+                Intrinsic::JsMethod8,
+                Intrinsic::JsMethod9,
+                Intrinsic::JsMethod10,
+            ]
+        );
     }
 
     #[test]

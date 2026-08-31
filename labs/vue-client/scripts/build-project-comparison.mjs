@@ -17,11 +17,10 @@ const outputRoot = resolve(projectRoot, "artifacts/generated/project-comparison"
 const reportPath = resolve(outputRoot, "build-report.json");
 const packageRoot = resolve(projectRoot, "packages/vuelil");
 const productionRoot = resolve(packageRoot, "production");
-const vueRuntimeOnly = resolve(productionRoot, "runtime-only/vue.runtime.js");
-const vueSfc = resolve(productionRoot, "sfc/vue.runtime.js");
-const vueRuntimeReusable = resolve(packageRoot, "vue.runtime.js");
-const vueCompiler = resolve(packageRoot, "production/vue.js");
-const vueServerRenderer = resolve(packageRoot, "server-renderer.js");
+const openWorldConfig = resolve(projectRoot, "config/open-world.toml");
+const vueRuntime = resolve(productionRoot, "vue.runtime.js");
+const vueCompiler = resolve(productionRoot, "vue.js");
+const vueServerRenderer = resolve(productionRoot, "server-renderer.js");
 const upstreamCompiler = resolve(
   projectRoot,
   "node_modules/vue/dist/vue.esm-bundler.js",
@@ -51,6 +50,7 @@ const commonBuildConfig = Object.freeze({
     assetFileNames: "assets/[name][extname]",
     codeSplitting: false,
   },
+  treeShaking: true,
 });
 
 const scenarios = Object.freeze([
@@ -59,19 +59,7 @@ const scenarios = Object.freeze([
     kind: "browser",
     root: resolve(projectRoot, "apps/runtime-only-client"),
     entry: "index.html",
-    candidateAliases: [["vue", vueRuntimeOnly]],
-    productionExports: [
-      "Fragment",
-      "computed",
-      "createApp",
-      "createElementBlock",
-      "createElementVNode",
-      "nextTick",
-      "openBlock",
-      "reactive",
-      "renderList",
-      "toDisplayString",
-    ],
+    candidateAliases: [["vue", vueRuntime]],
     adapters: ["reactivity", "runtime-core", "runtime-dom"],
   },
   {
@@ -90,7 +78,7 @@ const scenarios = Object.freeze([
     entry: "src/main.js",
     candidateAliases: [
       ["vue/server-renderer", vueServerRenderer],
-      ["vue", vueRuntimeReusable],
+      ["vue", vueRuntime],
     ],
     adapters: ["reactivity", "runtime-core", "runtime-dom", "server-renderer"],
   },
@@ -99,25 +87,7 @@ const scenarios = Object.freeze([
     kind: "sfc",
     root: resolve(projectRoot, "apps/sfc-production-app"),
     entry: "index.html",
-    candidateAliases: [["vue", vueSfc]],
-    productionExports: [
-      "Fragment",
-      "computed",
-      "createApp",
-      "createBlock",
-      "createElementBlock",
-      "createElementVNode",
-      "createTextVNode",
-      "createVNode",
-      "normalizeClass",
-      "openBlock",
-      "popScopeId",
-      "pushScopeId",
-      "ref",
-      "renderList",
-      "resolveComponent",
-      "toDisplayString",
-    ],
+    candidateAliases: [["vue", vueRuntime]],
     adapters: ["reactivity", "runtime-core", "runtime-dom"],
   },
 ]);
@@ -145,22 +115,19 @@ function jsonPackage(path) {
 
 function buildCandidateModules() {
   const builds = [
-    ...scenarios
-      .filter(({ productionExports }) => productionExports)
-      .flatMap(scenario => [
-        ["build-runtime-core.mjs", scenario],
-        ["build-runtime-dom.mjs", scenario],
-      ]),
+    "build-shared.mjs",
+    "build-reactivity.mjs",
+    "build-runtime-core.mjs",
+    "build-runtime-dom.mjs",
+    "build-compiler-core.mjs",
+    "build-compiler-dom.mjs",
+    "build-vue.mjs",
+    "build-compiler-ssr.mjs",
+    "build-server-renderer.mjs",
   ];
-  for (const [script, scenario] of builds) {
-    const env = scenario
-      ? {
-          ...process.env,
-          VUELIL_PROJECT_VARIANT: scenario.id === "sfc-production-app"
-            ? "sfc"
-            : "runtime-only",
-          VUELIL_PROJECT_EXPORTS: scenario.productionExports.join(","),
-        }
+  for (const script of builds) {
+    const env = script === "build-reactivity.mjs"
+      ? { ...process.env, VUELIL_SKIP_REACTIVITY_REPORT: "1" }
       : process.env;
     const result = spawnSync(process.execPath, [resolve(projectRoot, "scripts", script)], {
       cwd: projectRoot,
@@ -170,7 +137,7 @@ function buildCandidateModules() {
     });
     if (result.status !== 0) {
       throw new Error(
-        `Unable to build project VueLil modules with ${script}: ${(
+        `Unable to build reusable VueLil production modules with ${script}: ${(
           result.stderr || result.stdout || `exit ${result.status}`
         ).trim()}`,
       );
@@ -344,7 +311,10 @@ async function buildVariant(scenario, name) {
       reportCompressedSize: commonBuildConfig.reportCompressedSize,
       emptyOutDir: commonBuildConfig.emptyOutDir,
       ssr: scenario.kind === "ssr" ? resolve(scenario.root, scenario.entry) : false,
-      rolldownOptions: { output: { ...commonBuildConfig.output } },
+      rolldownOptions: {
+        treeshake: commonBuildConfig.treeShaking,
+        output: { ...commonBuildConfig.output },
+      },
     },
   });
   const outputs = (Array.isArray(result) ? result : [result]).flatMap(
@@ -377,9 +347,21 @@ async function buildVariant(scenario, name) {
   const candidateModules = modules
     .map(({ id }) => id)
     .filter((id) => id.split("?", 1)[0].startsWith("packages/vuelil/"));
-  if (candidate && (candidateModules.length === 0 || upstreamRuntimeModules.length !== 0)) {
+  const scenarioSpecificCandidateModules = candidateModules.filter(
+    (id) => !/^packages\/vuelil\/production\/[^/]+\.js$/u.test(id.split("?", 1)[0]),
+  );
+  if (
+    candidate &&
+    (
+      candidateModules.length === 0 ||
+      upstreamRuntimeModules.length !== 0 ||
+      scenarioSpecificCandidateModules.length !== 0
+    )
+  ) {
     throw new Error(
-      `${scenario.id} candidate module audit failed: VueLil=${candidateModules.length}, upstream=${upstreamRuntimeModules.join(", ")}`,
+      `${scenario.id} candidate module audit failed: VueLil=${candidateModules.length}, ` +
+        `upstream=${upstreamRuntimeModules.join(", ")}, ` +
+        `non-reusable=${scenarioSpecificCandidateModules.join(", ")}`,
     );
   }
   if (!candidate && upstreamRuntimeModules.length === 0) {
@@ -402,8 +384,13 @@ async function buildVariant(scenario, name) {
     audit: {
       includesCandidateModule: candidateModules.length > 0,
       candidateModules,
+      scenarioSpecificCandidateModules,
+      noScenarioSpecificCandidateModules:
+        scenarioSpecificCandidateModules.length === 0,
       upstreamRuntimeModules,
       noUpstreamRuntime: upstreamRuntimeModules.length === 0,
+      reusableProductionPackage: candidate,
+      viteDownstreamTreeShaking: commonBuildConfig.treeShaking,
       adapters: candidate ? adapterEvidence(scenario.adapters) : [],
       allEmittedAdapterCodeCounted: candidate,
     },
@@ -412,6 +399,16 @@ async function buildVariant(scenario, name) {
 
 export async function buildProjectComparison() {
   const scope = jsonPackage(scopePath);
+  const openWorldSource = readFileSync(openWorldConfig, "utf8");
+  for (const setting of [
+    "identifiers = true",
+    "properties = true",
+    "exports = false",
+  ]) {
+    if (!openWorldSource.includes(setting)) {
+      throw new Error(`open-world production config is missing ${setting}`);
+    }
+  }
   const scopedScenarios = new Map(
     scope.bundleScenarios
       .filter(({ completionRequired }) => completionRequired)
@@ -423,7 +420,9 @@ export async function buildProjectComparison() {
   ) {
     throw new Error("project harness must exactly match the four completion-required scenarios");
   }
-  buildCandidateModules();
+  if (process.env.VUELIL_REUSE_PRODUCTION_MODULES !== "1") {
+    buildCandidateModules();
+  }
 
   const vitePackagePath = resolve(projectRoot, "node_modules/vite/package.json");
   const pluginPackagePath = resolve(
@@ -492,8 +491,23 @@ export async function buildProjectComparison() {
   }
 
   const report = {
-    schemaVersion: 2,
+    schemaVersion: 3,
     generatedBy: "scripts/build-project-comparison.mjs",
+    productionPackage: {
+      root: projectPath(productionRoot),
+      reusedPrebuiltModules: process.env.VUELIL_REUSE_PRODUCTION_MODULES === "1",
+      config: fileEvidence(openWorldConfig),
+      exportsPreserved: true,
+      identifiersMangled: true,
+      propertiesMangled: true,
+      scenarioSpecificBuildInputs: false,
+      viteDownstreamTreeShaking: true,
+      entries: {
+        runtime: fileEvidence(vueRuntime),
+        compiler: fileEvidence(vueCompiler),
+        serverRenderer: fileEvidence(vueServerRenderer),
+      },
+    },
     upstream: {
       package: "vue",
       version: scope.upstream.version,

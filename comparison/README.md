@@ -26,6 +26,16 @@ then gated for stdout plus independent raw, gzip, and Brotli size:
 node comparison/cases/run.mjs
 ```
 
+The pinned source/package/test and apples-to-apples public-entry graph audit for
+the 16 react-markdown stack ports lives under
+[`markdown-stack/`](markdown-stack/README.md):
+
+```sh
+npm --prefix comparison/markdown-stack test
+node comparison/markdown-stack/run.mjs --check-inputs
+node comparison/markdown-stack/run.mjs --measure
+```
+
 Escalating multi-function algorithms with fixed runtime vectors, structural
 metadata, module graphs, and Terser/Oxc/esbuild/Vite frontiers live under
 `algorithms/`:
