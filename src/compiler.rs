@@ -9528,32 +9528,60 @@ fn validate_observed_javascript_artifact(
         )
         .into());
     }
-    // Candidate rewrites must preserve the callable ABI emitted by the direct
-    // lowering. Some LilScript defaults are materialized in function bodies,
-    // so their JavaScript `length` intentionally differs from the typed arity.
-    let mut expected_callables = generated_javascript_export_witnesses(direct_source)
-        .map_err(generated_javascript_parse_error)?
-        .into_iter()
-        .map(|export| {
+    // Candidate rewrites must preserve the declared callable ABI. Deriving the
+    // expectation from the *direct emission's* witnesses instead was measured
+    // to cost real bytes: it constrains every candidate to the incidental
+    // shape of one unoptimized lowering rather than to the contract, and on
+    // markedlil that was 1568 raw bytes, 4.7%. See
+    // auto-finer-lilscript/016-marked-size-regression.
+    //
+    // Where a LilScript default is materialized in a function body, the
+    // emitted JavaScript `length` legitimately differs from the typed arity,
+    // so arity is compared against the direct emission below rather than
+    // against the manifest.
+    let direct_witnesses = generated_javascript_export_witnesses(direct_source)
+        .map_err(generated_javascript_parse_error)?;
+    let direct_arity = direct_witnesses
+        .iter()
+        .map(|export| (export.name.clone(), export.arity))
+        .collect::<std::collections::BTreeMap<_, _>>();
+    let mut expected_callables = expected
+        .exports
+        .iter()
+        .filter_map(|export| {
+            let kind = match export.kind {
+                crate::compilation_contract::JavaScriptExportKind::Function => {
+                    crate::js_peephole::GeneratedJavaScriptExportKind::Function
+                }
+                crate::compilation_contract::JavaScriptExportKind::Constructor => {
+                    crate::js_peephole::GeneratedJavaScriptExportKind::Constructor
+                }
+                crate::compilation_contract::JavaScriptExportKind::Global
+                | crate::compilation_contract::JavaScriptExportKind::TypeOnly => return None,
+            };
             let methods = export
                 .methods
-                .into_iter()
+                .iter()
                 .map(|method| {
                     (
-                        method.name,
+                        method.name.clone(),
                         method.arity,
                         method.is_async,
                         method.is_generator,
                     )
                 })
                 .collect::<Vec<_>>();
-            (
-                export.name,
-                export.kind,
-                export.arity,
+            let arity = direct_arity
+                .get(&export.name)
+                .copied()
+                .unwrap_or(export.arity);
+            Some((
+                export.name.clone(),
+                kind,
+                arity,
                 export.constructible,
                 methods,
-            )
+            ))
         })
         .collect::<Vec<_>>();
     let mut observed_callables = export_witnesses
