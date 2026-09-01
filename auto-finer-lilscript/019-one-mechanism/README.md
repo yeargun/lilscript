@@ -82,6 +82,65 @@ prove counts.
 different blocks, while Terser starts from an AST where they already share a tree. Note
 `fallthrough_only` is **0–10**, so naive block merging is not the lever.
 
+## Minimal reproduction of the mechanism
+
+Reduced to something a port author can pattern-match against. Same config, `candidate_search = "off"`
+so no search noise:
+
+```lil
+// dynamic — the shape both losing families are written in
+export JsValue walk(JsValue token, JsValue out) {
+  JsValue a = token["start"];  JsValue b = token["end"];  JsValue c = token["type"];
+  out["s"] = a;  out["e"] = b;  out["t"] = c;  return out;
+}
+
+// typed
+export struct TokenView { int start; int end; int type; }
+export struct OutView { int s; int e; int t; }
+export OutView walk(TokenView token, OutView out) {
+  int a = token.start;  int b = token.end;  int c = token.type;
+  out.s = a;  out.e = b;  out.t = c;  return out;
+}
+```
+
+emits:
+
+```js
+// dynamic: 91 bytes, 3 unstable values, three named temporaries
+function q(b,a){let c=b.start,d=b.end,e=b.type;a.s=c,a.e=d,a.t=e;return a}
+
+// typed:   87 bytes, 2 unstable values — one read fuses straight into its use
+function q(b,a){let d=b.end,e=b.type;a.s=b.start,a.e=d,a.t=e;return a}
+```
+
+The typed version fuses `token.start` directly into `out.s` instead of giving it a name. That is the
+whole mechanism in six lines: **a dynamic receiver makes the read observable, an observable read is
+`unstable`, and an unstable value cannot be fused into its consumer, so it takes a name and a
+statement.**
+
+**Do not extrapolate the 4 bytes.** This case is far too small to scale from, and the directly
+measured whole-port numbers above (−540 jQueryLil, −327 micromarkLil) are the real prize. What the
+reduction establishes is the *mechanism*, reproducibly, so a port author can recognize the shape.
+
+## What was tried and did not reproduce it
+
+Worth recording, because it narrows where the cost is. Typing a *comparison* changes nothing:
+
+```lil
+export JsValue classify(JsValue code, JsValue acc) { if (code == 62) { acc = 1; } ... }
+export int      classify(int code, int acc)        { if (code == 62) { acc = 1; } ... }
+```
+
+Both emit the identical 90 bytes with **zero** unstable values.
+`binary_evaluation_can_invoke_coercion` (`codegen_ir_js.rs:25309`) does return `true` for any dynamic
+operand, so the comparison *is* nominally observable — but with a constant on one side the value
+analysis resolves the category anyway and the whole chain folds to a ternary.
+
+So micromarkLil's 248 `JsValue code` declarations are **not** the lever, despite being the single most
+common annotation in that source. The cost is in **property reads on dynamic receivers**, not in
+arithmetic or comparison on dynamic scalars. That distinction is what a retyping effort should be
+aimed at, and guessing it the other way round would have wasted the effort.
+
 ## What this changes about the scoreboard
 
 The eleven losses are not eleven problems. Subtract the two located regressions
