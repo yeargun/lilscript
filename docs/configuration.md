@@ -243,7 +243,7 @@ value bypasses artifact scaling, and jQuery keeps gaining to roughly 768 probes
 
 **13 is therefore the default.** Raise it only for an artifact whose last
 percent is worth minutes of wall clock, and measure rather than assume — the
-same sweep is reproducible with `auto-finer-lilscript/bench.sh`. Lower it to 9
+same sweep is reproducible with `finer/tools/bench.sh`. Lower it to 9
 or 10 for fast iteration; expect roughly +1% Brotli.
 
 Note that the level interacts with `cost_model`. Level 15 spends *raw* bytes to

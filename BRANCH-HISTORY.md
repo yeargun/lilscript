@@ -25,7 +25,7 @@ Nobody force-pushed and nothing was lost: the working checkout simply kept commi
 local branch never needed to pull.
 
 **The reason for the reset is simply that the work is here.** Every hypothesis, measurement and fix
-from 2026-08-31 and 09-01 — the whole `auto-finer-lilscript/` investigation, 32 numbered folders —
+from 2026-08-31 and 09-01 — the whole `finer/` investigation (then `auto-finer-lilscript/`), 32 numbered folders —
 exists only on this line. The old `main` stops on 08-30 and has none of it.
 
 ## What the old `main` has that this line does not
@@ -46,8 +46,8 @@ Concentrated in `src/compiler.rs` (+1458), `src/js_peephole/mod.rs` (+410) and
 `src/decision_registry.rs` (+370).
 
 **This overlaps directly with work on this line, and that matters.**
-[031](auto-finer-lilscript/031-admission-blocks-the-class-rewrite/README.md) and
-[032](auto-finer-lilscript/032-export-resolver-false-negative/README.md) diagnose two admission
+[031](finer/hypotheses/031-admission-blocks-the-class-rewrite/README.md) and
+[032](finer/hypotheses/032-export-resolver-false-negative/README.md) diagnose two admission
 validators wrongly refusing the peephole's `class` rewrite — worth 194 Brotli on micromarklil and 769
 on mobxlil. Three of the old-`main` commits touch `validate_observed_javascript_artifact` and
 `generated_javascript_export_witnesses`, the exact functions involved. It has now been read, and the two validators come out differently:
@@ -69,15 +69,15 @@ on mobxlil. Three of the old-`main` commits touch `validate_observed_javascript_
 
 56 commits: the same 08-29/08-30 port work, plus everything from 08-31 onward.
 
-- **Compiler fixes.** Unparseable class expressions ([023](auto-finer-lilscript/023-unparseable-class-expressions/README.md)),
-  a dead ES-syntax floor check ([024](auto-finer-lilscript/024-optional-chain-floor/README.md)), a
+- **Compiler fixes.** Unparseable class expressions ([023](finer/hypotheses/023-unparseable-class-expressions/README.md)),
+  a dead ES-syntax floor check ([024](finer/hypotheses/024-optional-chain-floor/README.md)), a
   conditional arm swallowing the enclosing colon, and the admission fix in
-  [031](auto-finer-lilscript/031-admission-blocks-the-class-rewrite/README.md).
+  [031](finer/hypotheses/031-admission-blocks-the-class-rewrite/README.md).
 - **Measurement corrections.** The size harness was comparing our *unminified* bundle against
   Terser's minified one for three ports — 10634 Brotli of reported loss that was never real
-  ([028](auto-finer-lilscript/028-unminified-lil-lane/README.md)) — and micromarklil's build script
+  ([028](finer/hypotheses/028-unminified-lil-lane/README.md)) — and micromarklil's build script
   was un-minifying the compiler's output
-  ([030](auto-finer-lilscript/030-the-build-undoes-the-compiler/README.md)).
+  ([030](finer/hypotheses/030-the-build-undoes-the-compiler/README.md)).
 - **Infrastructure.** `fleet.mjs` (parallel build+measure of all 26 ports), `sweep.mjs` (per-port
   config search), `repeat-coverage.mjs`, `shipped-vs-compiled.mjs`, `parse-check.mjs`,
   `LILSCRIPT_VALIDATE_FOLDS`, `src/timing.rs`.

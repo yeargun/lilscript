@@ -9592,7 +9592,7 @@ fn validate_observed_javascript_artifact_allowing(
     // to cost real bytes: it constrains every candidate to the incidental
     // shape of one unoptimized lowering rather than to the contract, and on
     // markedlil that was 1568 raw bytes, 4.7%. See
-    // auto-finer-lilscript/016-marked-size-regression.
+    // finer/hypotheses/016-marked-size-regression.
     //
     // Where a LilScript default is materialized in a function body, the
     // emitted JavaScript `length` legitimately differs from the typed arity,

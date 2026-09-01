@@ -26,6 +26,8 @@ meaning and eligible comparisons are defined by the
 [verification contract](docs/knowledge/verification/README.md); tracked reports
 and scoped interpretations are indexed under
 [evidence](docs/knowledge/evidence/README.md).
+The standing optimization loop — the contract handed to every agent, the fleet standings,
+and the hypothesis log — lives in [finer/](finer/README.md).
 
 ## How it compresses JS finer than Vite / Oxc / Terser / esbuild
 

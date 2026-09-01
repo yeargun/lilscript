@@ -11,19 +11,19 @@
 // parallel, each pinned to its own core slice so the Rayon-parallel compiler
 // inside each slot does not fight the others.
 //
-//   node auto-finer-lilscript/sweep.mjs --ports posthoglil,unifiedlil
-//   node auto-finer-lilscript/sweep.mjs --ports jquerylil --variants base,l13
-//   node auto-finer-lilscript/sweep.mjs --slots 4 --timeout 3600
+//   node finer/tools/sweep.mjs --ports posthoglil,unifiedlil
+//   node finer/tools/sweep.mjs --ports jquerylil --variants base,l13
+//   node finer/tools/sweep.mjs --slots 4 --timeout 3600
 import { spawn, spawnSync } from "node:child_process"
 import { readFileSync, writeFileSync, copyFileSync, existsSync, mkdirSync } from "node:fs"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import { cpus } from "node:os"
 
-const repo = resolve(dirname(fileURLToPath(import.meta.url)), "..")
+const repo = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..")
 const siblings = resolve(repo, "..")
 const codec = join(repo, "target/release/lilscript-codec")
-const outDir = join(repo, "auto-finer-lilscript", "sweep-out")
+const outDir = join(repo, "finer", "out", "sweep")
 
 const argv = process.argv.slice(2)
 const flag = (n, d) => { const i = argv.indexOf(`--${n}`); return i === -1 ? d : argv[i + 1] }

@@ -10,7 +10,7 @@ genuinely lacked it. It does not apply to LilScript's output.
 each where `;` and `,` both cost one. Reading oxc's statement minimizer for that specific thing found
 exactly the matching pass:
 
-`merge_assignment_to_declaration`, `_refs/oxc_minifier-0.147.0/src/peephole/minimize_statements.rs:516`
+`merge_assignment_to_declaration`, `refs/oxc_minifier-0.147.0/src/peephole/minimize_statements.rs:516`
 
 ```
 var a; a = b();   =>   var a = b();
@@ -80,6 +80,6 @@ raw bytes on an 89 KB artifact). All three share a shape:
 > **A minifier pass exists to repair a shape a human wrote. A compiler that generates its own output
 > can simply not emit that shape — and LilScript mostly doesn't.**
 
-So the technique inventory in `_refs/competitor-techniques.md` should be read as a list of *shapes to
+So the technique inventory in `refs/competitor-techniques.md` should be read as a list of *shapes to
 avoid emitting*, not a list of *passes to port*. Porting the pass is the expensive way to get a
 result the code generator can give for free, and it adds pipeline cost forever.

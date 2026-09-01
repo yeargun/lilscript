@@ -125,5 +125,5 @@ sweeps confirm it from the other direction: `candidate_search`, `candidate_beam_
 problem — and it is the same set [021](../021-reflective-ffi-predicts-loss/README.md) reached from
 reflective host-FFI density, now with a much stronger statistic behind it.
 
-Tools: `auto-finer-lilscript/repeat-coverage.mjs` (the falsified metric — still the right instrument
+Tools: `finer/tools/repeat-coverage.mjs` (the falsified metric — still the right instrument
 for the remark-math class) and the raw/Brotli columns of any harness run for the one that predicts.

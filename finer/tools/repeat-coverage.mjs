@@ -9,7 +9,7 @@
 // greedy LZ77 proxy -- the share of bytes covered by a match of at least N to
 // something already seen.
 //
-//   node auto-finer-lilscript/repeat-coverage.mjs a.js b.js
+//   node finer/tools/repeat-coverage.mjs a.js b.js
 import { readFileSync } from "node:fs"
 
 function coverage(text, minimum) {

@@ -14,14 +14,14 @@
 // `dist/*.raw.js` and the artifact the port ships, and reports where the shipped
 // one has lost compact spellings or grown out of proportion.
 //
-//   node auto-finer-lilscript/shipped-vs-compiled.mjs
+//   node finer/tools/shipped-vs-compiled.mjs
 //
 // Exits non-zero if any port ships a less compact artifact than it compiled.
 import {readFileSync, existsSync, readdirSync} from 'node:fs'
 import {basename, dirname, join, resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
 
-const siblings = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
+const siblings = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..')
 
 // Spellings a minifier chooses and a plain re-print throws away. Counting them in
 // both files turns "the bundler normalised our output" into a number.

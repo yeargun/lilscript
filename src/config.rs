@@ -254,7 +254,7 @@ impl ProjectConfig {
             // 32 are worse than 8 while 64 is better, because the knob
             // perturbs which candidates the beam explores rather than moving a
             // smooth cost curve. The principled fix is to stop crediting the
-            // repeats. See auto-finer-lilscript/011-string-pooling-under-compression.
+            // repeats. See finer/hypotheses/011-string-pooling-under-compression.
             string_pool_minimum_savings: match self.javascript.cost_model {
                 CompressionCostModel::Raw => 1,
                 CompressionCostModel::Gzip => 4,
@@ -1284,7 +1284,7 @@ impl Default for JavaScriptConfig {
             // each other on both jQuery and acorn, and the curve only breaks
             // down at 11 and below. A project that wants the last percent can
             // still ask for 15 explicitly; it should not be the price of not
-            // having an opinion. See auto-finer-lilscript/007-level-13-sweet-spot.
+            // having an opinion. See finer/hypotheses/007-level-13-sweet-spot.
             optimization_level: 13,
             optimizations: None,
             compression: None,

@@ -13,21 +13,21 @@
 // zlib-1.3.1 / Brotli-1.1.0 encoders — never Node's, which disagree with the
 // canonical encoder often enough to invalidate a comparison.
 //
-//   node auto-finer-lilscript/fleet.mjs                 # build + measure all
-//   node auto-finer-lilscript/fleet.mjs --measure       # measure checked-in dist only
-//   node auto-finer-lilscript/fleet.mjs --ports a,b     # a subset
-//   node auto-finer-lilscript/fleet.mjs --slots 4       # concurrent ports
-//   node auto-finer-lilscript/fleet.mjs --committed     # measure HEAD's dist, not the worktree's
+//   node finer/tools/fleet.mjs                 # build + measure all
+//   node finer/tools/fleet.mjs --measure       # measure checked-in dist only
+//   node finer/tools/fleet.mjs --ports a,b     # a subset
+//   node finer/tools/fleet.mjs --slots 4       # concurrent ports
+//   node finer/tools/fleet.mjs --committed     # measure HEAD's dist, not the worktree's
 import { spawn, spawnSync } from "node:child_process"
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import { cpus } from "node:os"
 
-const repo = resolve(dirname(fileURLToPath(import.meta.url)), "..")
+const repo = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..")
 const siblings = resolve(repo, "..")
 const codec = join(repo, "target/release/lilscript-codec")
-const outDir = join(repo, "auto-finer-lilscript", "fleet-out")
+const outDir = join(repo, "finer", "out", "fleet")
 
 const argv = process.argv.slice(2)
 const flag = (name, fallback) => {

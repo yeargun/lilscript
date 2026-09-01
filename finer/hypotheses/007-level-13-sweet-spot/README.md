@@ -20,7 +20,7 @@ differences between 13 and 15 are only four things:
 
 ## Method
 
-`auto-finer-lilscript/bench.sh` sweeps levels on one port, recording CPU time (user+sys, summed over
+`finer/tools/bench.sh` sweeps levels on one port, recording CPU time (user+sys, summed over
 workers), peak RSS, canonical raw/gzip-9/Brotli-11 sizes from `lilscript-codec`, and the
 deterministic work counters. Wall clock is unusable on this host — unrelated processes hold 1-2
 cores continuously and identical runs have varied 3x — so CPU time is reported and the work counters

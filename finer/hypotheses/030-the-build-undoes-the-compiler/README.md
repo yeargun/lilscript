@@ -71,7 +71,7 @@ The pattern is the same each time: **a tool between the compiler and the artifac
 and normalises away what the compiler decided.** Nothing in the pipeline notices, because the output
 is still correct — only bigger.
 
-So `auto-finer-lilscript/shipped-vs-compiled.mjs` now makes that comparison standing: for every port
+So `finer/tools/shipped-vs-compiled.mjs` now makes that comparison standing: for every port
 it reads the compiler's own `dist/*.raw.js` beside the artifact the port ships, and fails when a
 compact spelling the compiler chose has been *completely* lost, or when the shipped file has gained
 more than twenty `true`/`false`/`undefined` the compiler never emitted. A bundle legitimately grows

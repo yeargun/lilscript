@@ -352,6 +352,6 @@ codegen/source gaps.
 6. **Chase the remaining, currently-unexplained losses** (katex +6532, micromark +4568,
    remark-parse +3738, mdast-util-from-markdown +3573, and the ~+150 residual unified after its
    bundling tax) with real profiling once 1-2 land, the same way
-   `auto-finer-lilscript/004-peephole-relex-tax` profiled jQuery — these were out of this task's
+   `finer/hypotheses/004-peephole-relex-tax` profiled jQuery — these were out of this task's
    "top 3" scope and no artifact-bucketing was done for them beyond confirming they are apples-to-
    apples single-program comparisons with no build-script or dependency-leakage bug.

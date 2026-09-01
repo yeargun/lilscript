@@ -6135,7 +6135,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         // jQueryLil**. The decisions are coupled through this shared allocator,
         // so a correct fix has to price the whole assignment jointly rather than
         // one candidate at a time. See
-        // auto-finer-lilscript/010-string-pool-alias-pricing.
+        // finer/hypotheses/010-string-pool-alias-pricing.
         for (_, _, value) in candidates {
             let name = self.top_level_mangler.next_name();
             self.string_aliases.insert(value.clone(), name.clone());

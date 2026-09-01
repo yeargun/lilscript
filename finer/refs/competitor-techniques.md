@@ -1,12 +1,12 @@
 # Competitor technique inventory: oxc_minifier vs terser vs LilScript
 
-Standing homework (objective.md item 8), not tied to a hypothesis folder. Read directly from the
+Standing homework (objective.md §7, harvest), not tied to a hypothesis folder. Read directly from the
 vendored sources below; nothing was downloaded.
 
 **Path shorthands used in citations**
 
-- `OXC/<path>:<line>` = `auto-finer-lilscript/_refs/oxc_minifier-0.147.0/src/<path>`
-- `ECMA/<path>:<line>` = `auto-finer-lilscript/_refs/oxc_ecmascript-0.147.0/src/<path>`
+- `OXC/<path>:<line>` = `finer/refs/oxc_minifier-0.147.0/src/<path>`
+- `ECMA/<path>:<line>` = `finer/refs/oxc_ecmascript-0.147.0/src/<path>`
 - `TERSER/<path>:<line>` = `benchmarks/popular/node_modules/terser/lib/<path>` (all under
   `/home/azureuser/lilscript/`)
 - `LS/<path>:<line>` = `/home/azureuser/lilscript/src/<path>`

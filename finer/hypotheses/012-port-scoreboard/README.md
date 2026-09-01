@@ -296,7 +296,7 @@ Three things follow, and they matter more than the row itself:
    Terser's 0.643 and semicolon density at **2.1x**. That is a single, well-localized mechanism:
    surplus statements carrying surplus names.
 3. **There is a live 3258-byte Brotli regression uncommitted in `jquerylil/dist/`.** Those files were
-   written at 03:43 on 2026-08-31; the `auto-finer-lilscript` workstream started at 08:14, so this
+   written at 03:43 on 2026-08-31; the `finer/` workstream (then `auto-finer-lilscript/`) started at 08:14, so this
    is not from those compiler changes. It should be investigated before it is committed.
 
 Reproduce with:

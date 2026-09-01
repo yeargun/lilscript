@@ -9,8 +9,8 @@
 #
 # usage: bench.sh <port-dir> <entry.lil> <base-config> <level>...
 set -euo pipefail
-root=/home/azureuser/lilscript
-out=${BENCH_OUT:-/tmp/claude-1000/-home-azureuser-lilscript/7bb5c8d5-a852-4426-863b-016079ae3ac7/scratchpad/bench}
+root=$(cd "$(dirname "$0")/../.." && pwd)
+out=${BENCH_OUT:-$root/finer/out/bench}
 mkdir -p "$out"
 port=$1; entry=$2; config=$3; shift 3
 name=$(basename "$port")

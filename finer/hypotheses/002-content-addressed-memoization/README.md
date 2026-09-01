@@ -63,7 +63,7 @@ s-equivalent, a 37% reduction**.
 2. **The codec was already near-unique.** Only 9% of encodes were repeats. This is the honest
    negative half of the result: memoization does **not** solve the Brotli problem. The search
    genuinely proposes distinct byte strings, so the fix there must attack the 49 ms *per-encode
-   constant* or the *number of distinct proposals*, not repetition. That is [005](../005-*/).
+   constant* or the *number of distinct proposals*, not repetition. That is [005](../005-idle-fold-guards/README.md).
 3. **Byte-identical output** across the A/B confirms the memo is behavior-preserving, as the purity
    argument required.
 
