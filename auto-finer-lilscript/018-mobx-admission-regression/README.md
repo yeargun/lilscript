@@ -121,6 +121,40 @@ Two further notes from the same telemetry, both worth acting on independently:
 - only **35** families are scored here against acorn's 45, so this port is starting from a narrower
   search before starvation is even counted.
 
+## It is not only classes — a whole family of spellings reverts
+
+Comparing the same function in both artifacts shows the loss is broad, not a single fold:
+
+```js
+// good
+Nb=a=>{if(0!=(a.dependenciesState_|0)){...  while(b>0)b--,a=c[b],a.lowestObserverState_=0}}
+
+// bad
+let Nb=a=>{if(0==(+a.dependenciesState_|0))return;...  while(e>0){e=e-1|0;a=c[e];a.lowestObserverState_=0}}
+```
+
+Four independent size decisions revert together:
+
+| decision | good | bad |
+|---|---|---|
+| declarator chaining | `Nb=…,ab=…` under one keyword | `let Nb=…; let ab=…` |
+| integer-coercion elision | `a.dependenciesState_\|0` | `+a.dependenciesState_\|0` |
+| update operators | `b--` | `e=e-1\|0` |
+| comma statement bodies | `while(b>0)b--,a=c[b],…` | `while(e>0){e=e-1\|0;a=c[e];…}` |
+| class spelling | `class na{constructor(b){…}}` | `function` + `.prototype` + `setPrototypeOf` |
+
+Several unrelated decisions all falling back to their plain form at once is the signature of the
+**selection landing on the baseline emission** rather than on an optimized candidate — not of any one
+fold breaking.
+
+The search telemetry is consistent with that: `optimizer_emissions_attempted` is **4**,
+`candidates_evaluated` **13**, and both the proposal and probe limits are **96** and both reached.
+96 is what `gradual_artifact_work_limit` scales 384 down to for a 65 KB artifact.
+
+But raising those limits twentyfold recovers 280 bytes of 7546 and zero classes, so a thin budget is
+the *condition*, not the *cause*. The optimized spellings are not losing a scoring contest; they are
+not being produced.
+
 ## Reproduction
 
 59 seconds per probe, frozen source:
