@@ -2253,7 +2253,12 @@ fn optimize_and_select_javascript_inner<'src>(
     let abi_manifest = config
         .javascript_compilation_contract(preserve_exports)
         .abi_manifest(&selected_context.ir);
-    selected.admission.validate(&selected.code)?;
+    // The selected artifact may legitimately contain the class rewrite's own
+    // `constructor`; see `validate_observed_javascript_artifact_allowing`. This is
+    // the same "re-check an artifact that already won" position as the canonical
+    // peephole, so it takes the same opt-in. Admission stays strict everywhere the
+    // search is still choosing between candidates.
+    selected.admission.validate_selected(&selected.code)?;
     let search_ctx =
         javascript_emission_search_context(config, preserve_exports, total_candidate_limit);
     let scored_emission_families =
@@ -4604,6 +4609,27 @@ impl JavaScriptArtifactAdmission {
         if crate::timing::enabled() {
             // `bytes` accumulates rejections so the report shows discards
             // against total validations.
+            crate::timing::ADMISSION.record_pass(u64::from(outcome.is_err()), 0);
+        }
+        outcome
+    }
+
+    /// Re-check an artifact that has already been selected, allowing the class
+    /// rewrite's own `constructor` keyword. See
+    /// [`validate_observed_javascript_artifact_allowing`] for why this is opt-in.
+    fn validate_selected(&self, source: &str) -> Result<(), CompileError> {
+        let outcome = validate_generated_javascript_syntax_floor(source, self.ecmascript)
+            .map_err(generated_javascript_parse_error)
+            .and_then(|()| {
+                validate_observed_javascript_artifact_allowing(
+                    source,
+                    &self.direct_source,
+                    &self.abi_manifest,
+                    self.lowering_obligations,
+                    true,
+                )
+            });
+        if crate::timing::enabled() {
             crate::timing::ADMISSION.record_pass(u64::from(outcome.is_err()), 0);
         }
         outcome
@@ -7503,7 +7529,7 @@ fn apply_selected_canonical_peephole(
     {
         return Ok(selected);
     }
-    if selected.admission.validate(&code).is_err() {
+    if selected.admission.validate_selected(&code).is_err() {
         return Ok(selected);
     }
     let cost = admitted_generated_javascript_size(&code, config.javascript.cost_model)
@@ -9503,6 +9529,36 @@ fn validate_observed_javascript_artifact(
     expected: &crate::compilation_contract::JavaScriptAbiManifest,
     expected_bit_or_zero: usize,
 ) -> Result<(), CompileError> {
+    validate_observed_javascript_artifact_allowing(
+        source,
+        direct_source,
+        expected,
+        expected_bit_or_zero,
+        false,
+    )
+}
+
+/// `allow_class_constructor` exempts the single name `constructor` from the
+/// introduced-property check.
+///
+/// The peephole's class rewrite spells `function X(){...}` plus its prototype
+/// table as `class X{constructor(){...}}`, and the property-name census counts
+/// that class element like any other property, so the rewrite is refused for
+/// containing its own keyword. Every object already carries `constructor`
+/// through its prototype chain, so nothing there is newly observable and there
+/// is nothing for property mangling to get wrong.
+///
+/// It is opt-in rather than unconditional because admission runs over every
+/// candidate in the search, and relaxing it globally admits a different
+/// portfolio: measured on micromarklil that settles 826 Brotli *worse*. Only the
+/// one call that re-checks an already-selected artifact passes `true`.
+fn validate_observed_javascript_artifact_allowing(
+    source: &str,
+    direct_source: &str,
+    expected: &crate::compilation_contract::JavaScriptAbiManifest,
+    expected_bit_or_zero: usize,
+    allow_class_constructor: bool,
+) -> Result<(), CompileError> {
     let observed =
         generated_javascript_export_names(source).map_err(generated_javascript_parse_error)?;
     let export_witnesses =
@@ -9664,6 +9720,7 @@ fn validate_observed_javascript_artifact(
     let introduced = observed_properties
         .iter()
         .filter(|property| !direct_properties.contains(property))
+        .filter(|property| !(allow_class_constructor && property.as_str() == "constructor"))
         .cloned()
         .collect::<Vec<_>>();
     if !introduced.is_empty() {

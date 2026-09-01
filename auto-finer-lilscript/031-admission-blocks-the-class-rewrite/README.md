@@ -1,7 +1,8 @@
 # 031 — Why the class rewrite never lands: admission counts `constructor` as a new property
 
-**Status: 018'S MECHANISM FOUND, and the obvious fix MEASURED AND REJECTED. The gate is wrong in
-principle and load-bearing in practice, which means something downstream is worse than it looks.**
+**Status: 018'S MECHANISM FOUND AND FIXED — on the third attempt, after the first measured 826 bytes
+worse and the second failed the build. −194 Brotli on micromarklil's shipped artifact, −29 on
+markedlil, no regressions.**
 
 ## The observation
 
@@ -47,7 +48,9 @@ hunting.** It instrumented admission and reported *150 validations, 0 rejections
 the scoring gate, not at this one, and concluded the class-bearing candidate was "never generated or
 scored". It was generated, scored, and refused, here, over a keyword.
 
-## The fix, measured and rejected
+## The fix, on the third attempt
+
+**Attempt 1 — exempt `constructor` globally.** Wrong, and measurably so.
 
 Exempting `constructor` does exactly what it should — the rewrite lands, `;var ` falls 434 → 117 —
 and the artifact gets **worse**:
@@ -58,9 +61,44 @@ and the artifact gets **worse**:
 | `constructor` exempted | 94564 | 29061 | 27334 |
 | | −2952 | **+1154** | **+826** |
 
-Nearly 3 KB of raw disappears and Brotli gets 1154 bytes worse. So the gate is wrong in principle and
-was accidentally protecting the artifact. **Reverted** — shipping a measured regression to fix a
-mis-stated check is the wrong trade.
+Nearly 3 KB of raw disappears and Brotli gets 1154 bytes worse. The reason is scope:
+`validate_observed_javascript_artifact` is admission for the **entire search**, so relaxing it admits
+a different portfolio and the search settles somewhere else — somewhere worse. The gate being wrong
+did not make relaxing it right.
+
+**Attempt 2 — exempt it only where the canonical peephole re-checks.** The rewrite passed that gate
+and the build then failed outright:
+
+```
+error: generated JavaScript introduced unclassified static properties: ["constructor"]
+ --> src/index.lil:1:1
+```
+
+The *final* validation of the selected artifact rejected what the peephole had just produced. That
+was the confirmation the diagnosis was right, arriving as a compile error.
+
+**Attempt 3 — exempt it at both places that re-check an artifact that has already won**, and nowhere
+else. There are exactly two: the canonical peephole, and the final validation of `selected.code`.
+Admission stays strict everywhere the search is still choosing between candidates, so the portfolio
+is unchanged and only the winner is allowed to carry a class.
+
+| | raw | Brotli |
+|---|---:|---:|
+| micromarklil `raw.js` before | 97516 | 27907 |
+| micromarklil `raw.js` after | **93758** | **27722** |
+| micromarklil shipped `esm.js` before | 94907 | 26508 |
+| micromarklil shipped `esm.js` after | **94138** | **26314** |
+
+**−194 Brotli on the artifact that ships**, `;var ` runs 434 → 117, and `markedlil` picks up
+**−29** (9535 → 9506) from the same change. `mobxlil` and `hast-util-to-htmllil` are unchanged.
+Tests: 1634 compiler, 1963 micromark, 29 marked — all passing.
+
+## What it does not reach
+
+`mobxlil` still emits **0 classes and 120 `.prototype`**, exactly as
+[018](../018-mobx-admission-regression/README.md) found. So this gate was one instance of the
+refusal, not the only one: mobx's class-bearing candidate is lost somewhere in the search itself,
+before any artifact has "already won", and that path is still unexplained.
 
 ## What that leaves, precisely
 
