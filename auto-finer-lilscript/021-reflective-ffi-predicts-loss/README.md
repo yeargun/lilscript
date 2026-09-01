@@ -1,7 +1,10 @@
 # 021 — Reflective host-FFI density predicts the size gap
 
-**Status: CONFIRMED. This is the answer to "sometimes lilscript code might be the reason why we
-compile into less optimized code" — yes, and here is the metric.**
+**Status: CORRELATION CONFIRMED, REMEDY FALSIFIED.** Reflective-FFI density orders the scoreboard
+almost perfectly, and it is the answer to *"sometimes lilscript code might be the reason why we
+compile into less optimized code"*. But the obvious fix — converting those calls to typed LilScript —
+was tried two ways on a real file and **regressed both times**. Partial typing cannot pay: the port's
+helper layer is `JsValue`-typed end to end, so it is all-or-nothing per data path.
 
 ## How this was found
 
@@ -60,6 +63,47 @@ The chain is measured end to end, not inferred:
    **370 untyped keys, 0 local-only, 0 typed.**
 
 Each step has its own measurement in this log.
+
+## The obvious remedy was tested, twice, and both times it regressed
+
+021's correlation invites one action: convert the reflective calls to typed LilScript. That was tried
+on `micromarklil/src/core/label-end.lil` in a scratch copy, two different ways, measuring the whole
+port each time.
+
+**Attempt 1 — construction.** Nine `JS.set(o, "k", v)` calls folded into three
+`JS.object("type", …, "start", …, "end", …)` literals, the exact idiom `core/attention.lil` already
+uses:
+
+| | raw | gzip-9 | Brotli-11 |
+|---|---:|---:|---:|
+| delta | −6 | −21 | **+18** |
+
+**Attempt 2 — reads.** Six dynamic `objGet(events[i][1], "start")` reads replaced by a struct view
+plus field access, again the idiom `attention.lil` uses:
+
+| | raw | gzip-9 | Brotli-11 |
+|---|---:|---:|---:|
+| delta | +129 | +44 | **+84** |
+
+Both worse. The construction swap changes syntax the emitter already compiles to compact property
+assignments; the read swap costs five extra local bindings to save six short reads.
+
+## Why partial typing cannot pay here
+
+The second attempt is the informative failure. It was first written with real field types —
+`PointView start; PointView end;` — and did not compile: `copyPoint`, `objGet`, `call1` and the rest
+of `host.lil` all take and return `JsValue`. To hand a typed field to any helper the helper has to be
+typed too, and to type the helper its callers have to be typed, and so on.
+
+**The port's helper layer is `JsValue`-typed end to end, so typing is all-or-nothing per data path.**
+Retyping one file cannot pay, because every value it produces immediately re-enters an untyped
+helper and loses whatever was proven about it. That is why the attempt above had to fall back to
+`JsValue` fields — and with `JsValue` fields the typed view proves nothing, so it is pure overhead.
+
+**So 021's correlation is a valid description and its obvious remedy is not a valid plan.** A
+retyping effort has to convert a whole data path — token/event/point representation *and* every
+helper that touches it — before any of it shows up in bytes. That is a real project, and this is the
+measurement that says so rather than assuming it either way.
 
 ## What to do, in payoff order
 
