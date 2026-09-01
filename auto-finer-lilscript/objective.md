@@ -85,10 +85,32 @@
 
    Note what does *not* hold: "our code is too `JsValue`-typed" was measured across 14 ports and
    correlates **−0.09** with the losses. Check, do not assume.
-7. **Method**: every change is a numbered hypothesis folder under `auto-finer-lilscript/NNN-slug/`
+7. **Representation is a measured choice, not a preferred one.** Closure ADVANCED's tricks are on the
+   table — flattening nested access into a single scope, mangling and renaming across the whole
+   program, turning objects into arrays with integer indices. Two things follow, and they pull in
+   opposite directions:
+
+   - **Flattening often wins twice.** A nested access path costs bytes at every mention and a
+     dereference at every read; hoisting it flat can be both smaller under a compressor and faster.
+   - **Sometimes the class *is* the right answer.** Where the algorithm genuinely uses class
+     behaviour, the `class` spelling is dramatically more compact than the
+     `function` + `.prototype` table it would otherwise become — measured at **−7049 raw / −769
+     Brotli** on mobxlil for ten classes ([032](032-export-resolver-false-negative/README.md)) and
+     **−3758 raw / −194 Brotli** on micromarklil
+     ([031](031-admission-blocks-the-class-rewrite/README.md)).
+
+   So neither representation is the default. **The compressor decides**, through `cost_model`, over
+   candidates the search actually proposes — which is the real failure mode found so far: both class
+   rewrites above were *generated and then refused by a validator*, so the cost model never got to
+   vote. A representation the search never proposes cannot be measured, and an artifact a validator
+   wrongly refuses cannot be scored. Fix those before adding new representations.
+
+   The bound on all of it is compile time (point 4): a representation search that cannot be afforded
+   at level 13 is not a win, it is a level-15 option.
+8. **Method**: every change is a numbered hypothesis folder under `auto-finer-lilscript/NNN-slug/`
    containing the hypothesis, the experiment, the measurements, and the verdict — including
    falsified ones. Negative results are kept, not deleted.
-8. **Standing homework (no hypothesis required)**: continuously read Terser and Oxc (`oxc_minifier`)
+9. **Standing homework (no hypothesis required)**: continuously read Terser and Oxc (`oxc_minifier`)
    sources to harvest techniques, and record what was learned.
 
 ## Standing target (updated 2026-09-01)

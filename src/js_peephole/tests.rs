@@ -3155,3 +3155,4 @@ fn export_binding_resolves_after_a_brace_initializer() {
         assert_eq!(witnesses.len(), 1, "{label}: {witnesses:?}");
     }
 }
+

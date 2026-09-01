@@ -69,6 +69,27 @@ class's own `constructor`; this is the binding resolver losing a declarator. Bot
 rewrite* specifically, which is why 018 saw its ten classes vanish and could not find a rejection —
 it was counting at the wrong gate, and there were two gates.
 
+## The drift, located
+
+`Resolution` has three states, and the export check demands `Bound`. Probing the real artifact shows
+the resolver returning the third:
+
+```
+idx=7616  -> Bound(7546)
+idx=8077  -> Unresolved      <-- scanner gave up here
+idx=8682  -> Bound(8661)
+idx=10734 -> Unresolved      <-- and here
+```
+
+`Unresolved` is documented in `binding.rs` as *"the scanner could not account for this scope.
+Consumers must not rewrite anything here."* So this is not a mis-resolution: the scope scanner
+**abandons regions of the artifact**, and any export whose binding lands in an abandoned region is
+reported unresolved and the artifact refused.
+
+That reframes the fix. The question is not "which declarator form is unhandled" — it is **why the
+scope scanner gives up**, and the answer will be a construct earlier in the file that it cannot
+account for. Ports large enough to contain one lose their class rewrite entirely.
+
 ## Next
 
 Find where `BindingResolution` drops the declarator, with the full artifact as the reproducer:
