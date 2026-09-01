@@ -1519,7 +1519,13 @@ fn emit_class(
         }
     }
     class.push('}');
-    if declaration_keyword.is_none() {
+    // `class Name{...}` is a declaration and needs no terminator. Every other shape this
+    // emits is a statement that does: `var Name=class Identity{...}` when the binding and
+    // the observed name differ, and `Name=class{...}` with no keyword at all. Leaving those
+    // bare runs the class body straight into whatever follows -- the proto alias below, or
+    // the caller's `Object.defineProperty` name fixup -- and emits unparseable JavaScript.
+    let emitted_declaration = declaration_keyword.is_some() && identity == name;
+    if !emitted_declaration {
         class.push(';');
     }
     if emit_proto_alias {
@@ -6927,6 +6933,34 @@ mod tests {
             "{}",
             optimized.code
         );
+    }
+
+    #[test]
+    fn class_expression_declarations_carry_a_terminator() {
+        // `class Name{...}` is a declaration and needs no terminator, but
+        // `var Name=class Identity{...}` is a statement that does. Emitting the second shape
+        // bare ran the class body straight into the caller's following `Object.defineProperty`
+        // name fixup, which is unparseable JavaScript and broke the unifiedlil and remarklil
+        // builds until the terminator was keyed off the shape instead of the keyword.
+        let declaration = super::emit_class(
+            "VFile", None, "a", "this.a=a", &[], &[], &[], None, None, Some("var"), Some("VFile"),
+            false,
+        );
+        assert!(declaration.starts_with("class VFile{"), "{declaration}");
+        assert!(!declaration.ends_with(';'), "{declaration}");
+
+        let expression = super::emit_class(
+            "u", None, "a", "this.a=a", &[], &[], &[], None, None, Some("var"), Some("VFile"),
+            false,
+        );
+        assert!(expression.starts_with("var u=class VFile{"), "{expression}");
+        assert!(expression.ends_with(';'), "{expression}");
+
+        let assignment = super::emit_class(
+            "u", None, "a", "this.a=a", &[], &[], &[], None, None, None, Some("VFile"), false,
+        );
+        assert!(assignment.starts_with("u=class VFile{"), "{assignment}");
+        assert!(assignment.ends_with(';'), "{assignment}");
     }
 
     #[test]

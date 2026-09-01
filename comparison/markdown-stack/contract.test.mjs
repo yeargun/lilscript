@@ -83,7 +83,7 @@ test('site evidence and full npm test counts are separate exact contracts', () =
     'mdast-util-to-hast': 148,
     micromark: 1958,
     'react-markdown': 116,
-    'rehype-katex': 60,
+    'rehype-katex': 63,
     'rehype-stringify': 10,
     rehype: 146,
     'remark-breaks': 20,
@@ -96,14 +96,14 @@ test('site evidence and full npm test counts are separate exact contracts', () =
   }
   assert.equal(
     manifest.ports.reduce((sum, port) => sum + port.port.evidence.expectedPassed, 0),
-    5595
+    5598
   )
   assert.equal(
     manifest.ports.reduce(
       (sum, port) => sum + port.test.summaries.reduce((subtotal, item) => subtotal + item.expectedPassed, 0),
       0
     ),
-    5731
+    5734
   )
   assert.ok(manifest.ports.every((port) => port.test.command.join(' ') === 'npm test'))
   assert.deepEqual(

@@ -931,7 +931,18 @@ pub fn validate_generated_javascript_syntax_floor(
     let class_names = class_element_name_occurrences(&tokens, &matching_close);
     for (index, token) in tokens.iter().enumerate() {
         let feature = match token.text {
-            "?." => Some(JsSyntaxFeature::OptionalChain),
+            // The lexer emits `?.` as `?` then `.` -- optional chaining is not a
+            // conditional and has no `:` to pair with -- so matching the two-character
+            // spelling here never fired, and the floor silently admitted `?.` into
+            // ES2019 output. `token.rs` already tests the pair by adjacency; do the same.
+            // A `?` before a number (`a?.5:b`) is a conditional, and the lexer hands that
+            // back as one `.5` number token, so it cannot be mistaken for a chain.
+            "?" if tokens
+                .get(index + 1)
+                .is_some_and(|next| next.text == "." && next.start == token.end) =>
+            {
+                Some(JsSyntaxFeature::OptionalChain)
+            }
             "??" => Some(JsSyntaxFeature::NullishCoalescing),
             "&&=" | "||=" | "??=" => Some(JsSyntaxFeature::LogicalAssignment),
             "await" => Some(JsSyntaxFeature::AsyncAwait),

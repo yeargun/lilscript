@@ -310,7 +310,8 @@
         "scripts": {
           "build": "node scripts/build.mjs --compile",
           "build:site": "node scripts/build-site.mjs",
-          "test": "npm run test:types && node --test test/*.test.mjs test/official/*.js",
+          "test": "npm run check:sources && npm run test:types && node --test test/*.test.mjs test/official/*.js",
+          "check:sources": "node scripts/shared-sources.mjs",
           "test:types": "tsc --noEmit --strict --module NodeNext --moduleResolution NodeNext --target ES2022 test/types.test.ts",
           "check:site": "npm run build:site && node --test test/site.test.mjs",
           "check:pack": "node scripts/check-pack.mjs",
@@ -342,7 +343,7 @@
       },
       "test": {
         "command": ["npm", "test"],
-        "packageScript": "npm run test:types && node --test test/*.test.mjs test/official/*.js",
+        "packageScript": "npm run check:sources && npm run test:types && node --test test/*.test.mjs test/official/*.js",
         "summaries": [
           {"parser": "node-test", "expectedPassed": 500, "expectedFailed": 0}
         ],
@@ -369,7 +370,8 @@
         "scripts": {
           "build": "node scripts/build.mjs --compile",
           "build:site": "node scripts/build-site.mjs",
-          "test": "node --test test/*.test.mjs test/official/index.js && npm run check:types",
+          "test": "npm run check:sources && node --test test/*.test.mjs test/official/index.js && npm run check:types",
+          "check:sources": "node scripts/check-shared-sources.mjs",
           "check:types": "tsc --noEmit --strict --target ES2022 --module NodeNext --moduleResolution NodeNext test/types.test.ts",
           "check:site": "npm run build:site && node --test test/site.test.mjs",
           "check:pack": "node scripts/check-pack.mjs",
@@ -407,7 +409,7 @@
       },
       "test": {
         "command": ["npm", "test"],
-        "packageScript": "node --test test/*.test.mjs test/official/index.js && npm run check:types",
+        "packageScript": "npm run check:sources && node --test test/*.test.mjs test/official/index.js && npm run check:types",
         "summaries": [
           {"parser": "node-test", "expectedPassed": 215, "expectedFailed": 0}
         ],
@@ -616,8 +618,11 @@
         "scripts": {
           "build": "node scripts/build.mjs --compile",
           "build:site": "node scripts/build-site.mjs",
+          "generate:parse5-entities": "node scripts/generate-parse5-entity-data.mjs",
           "test": "npm run check:types && node --test test/*.test.mjs test/official/api.js test/official/parse-error.js",
           "test:parse5-corpus": "node scripts/check-parse5-corpus.mjs",
+          "test:parse5-parser": "node scripts/check-parse5-parser.mjs",
+          "test:parse5-tokenizer": "node scripts/check-parse5-tokenizer.mjs",
           "check:types": "tsc --noEmit",
           "check:brotli": "node scripts/compare-brotli.mjs",
           "check:site": "npm run build:site && node --test test/site.test.mjs",
@@ -1007,12 +1012,13 @@
         "scripts": {
           "build": "node scripts/build.mjs --compile",
           "build:site": "node scripts/build-site.mjs",
-          "test": "node --test test/official/test.js test/*.test.mjs",
+          "test": "npm run check:types && node --test test/official/test.js test/*.test.mjs",
+          "check:types": "tsc --noEmit --strict --skipLibCheck --module NodeNext --moduleResolution NodeNext --target ES2022 test/types.test.ts",
           "check:site": "npm run build:site && node --test test/site.test.mjs",
           "check:pack": "node scripts/check-pack.mjs",
           "prepublishOnly": "npm test && npm run check:pack && npm run check:site"
         },
-        "evidence": {"path": "site/results.json", "expectedPassed": 60, "expectedFailed": 0},
+        "evidence": {"path": "site/results.json", "expectedPassed": 63, "expectedFailed": 0},
         "exports": {
           ".": {"types": "./dist/rehype-katex.d.ts", "import": "./dist/rehype-katex.esm.js", "require": "./dist/rehype-katex.cjs", "default": "./dist/rehype-katex.esm.js"},
           "./closed": "./dist/rehype-katex.closed.js",
@@ -1038,9 +1044,9 @@
       },
       "test": {
         "command": ["npm", "test"],
-        "packageScript": "node --test test/official/test.js test/*.test.mjs",
+        "packageScript": "npm run check:types && node --test test/official/test.js test/*.test.mjs",
         "summaries": [
-          {"parser": "node-test", "expectedPassed": 60, "expectedFailed": 0}
+          {"parser": "node-test", "expectedPassed": 63, "expectedFailed": 0}
         ],
         "timeoutMs": 900000
       }
@@ -1064,12 +1070,16 @@
         "packageVersion": "10.1.0",
         "scripts": {
           "build": "node scripts/build.mjs --compile",
+          "graph:lock": "node scripts/source-graph.mjs --write-lock",
+          "graph:sync": "node scripts/source-graph.mjs --sync",
+          "check:graph": "node scripts/source-graph.mjs --require-siblings",
+          "check:reproducible": "node scripts/check-reproducible-build.mjs",
           "build:site": "node scripts/build-site.mjs",
           "generate:schema": "node scripts/generate-schema.mjs",
           "test": "node --conditions development --experimental-loader=./test/load-jsx.js --no-warnings --test test/*.test.mjs test/official/test.jsx && npm run check:types",
-          "check:types": "tsc --noEmit --strict --module node16 --moduleResolution node16 --target es2022 test/types.ts",
+          "check:types": "tsc --noEmit --strict --preserveSymlinks --module node16 --moduleResolution node16 --target es2022 test/types.ts",
           "check:site": "npm run build:site && node --test test/site.test.mjs",
-          "check:pack": "node scripts/check-pack.mjs && node scripts/check-local-graph.mjs",
+          "check:pack": "node scripts/check-pack.mjs && node scripts/check-local-graph.mjs && npm run check:graph",
           "measure:graph": "node scripts/measure-graph.mjs",
           "prepublishOnly": "npm test && npm run check:pack && npm run check:site"
         },
