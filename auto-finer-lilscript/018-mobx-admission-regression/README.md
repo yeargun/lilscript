@@ -1,6 +1,27 @@
-# 018 — A second admission regression, 7940 raw bytes on mobxlil
+# 018 — A second admission regression: 7546 raw bytes, but only 253 Brotli
 
-**Status: BISECTED to a file and a commit range, four mechanisms falsified, reported not patched.**
+**Status: BISECTED to a file and a commit range. Seven mechanisms falsified. The headline number was
+wrong at first and is corrected below — under mobxlil's declared Brotli objective this is worth 253
+bytes, not the 920 originally claimed.**
+
+> **CORRECTION.** This document initially attributed **+920 Brotli** to the bisected range by
+> comparing the current compiler against mobxlil's *committed artifact*. That artifact was built by a
+> different, older compiler, so the comparison folded in unrelated history. Measuring the range
+> itself — same source, same config, one file reverted:
+>
+> | | raw | gzip-9 | Brotli-11 | `class` |
+> |---|---:|---:|---:|---:|
+> | `edbdf3a` | 64945 | 18496 | **16514** | 0 |
+> | `42c1ad0` (compiler.rs reverted) | 57399 | 18115 | **16261** | 10 |
+> | delta | **−7546 (12%)** | −381 | **−253 (1.5%)** | +10 |
+>
+> **7546 raw bytes, 253 Brotli.** The prototype-table spelling is verbose but extremely repetitive,
+> so the compressor recovers almost all of it — the same 10:1 raw-to-Brotli ratio measured for
+> property mangling in [008](../008-jquery-compressibility-gap/README.md).
+>
+> That changes the priority. This is a **serious regression for a raw-objective project** and a minor
+> one for a Brotli-objective project, and mobxlil declares Brotli. Its remaining +3324 against
+> upstream is mostly *not* this.
 
 ## Subject
 
@@ -10,9 +31,10 @@ artifact is a straight compiler comparison.
 
 | `mobxlil/dist/mobx.esm.js` | raw | gzip-9 | Brotli-11 |
 |---|---:|---:|---:|
-| committed | 57005 | 17337 | 15594 |
+| committed (older compiler, not a clean comparison) | 57005 | 17337 | 15594 |
 | built with the current compiler | 64945 | 18496 | 16514 |
-| **regression** | **+7940 (14%)** | +1159 | **+920** |
+| *apparent* regression | +7940 | +1159 | +920 |
+| **attributable to this range** (see correction above) | **+7546** | **+381** | **+253** |
 
 ## Bisect
 
@@ -44,7 +66,10 @@ Reverting files individually across that range:
 `generated_class_shape` and friends. No new folds, no pipeline change. The behavior change is in
 `compiler.rs`'s wiring of those helpers into validation.
 
-## Five mechanisms falsified
+## Seven mechanisms falsified
+
+Output is **deterministic** across repeated runs and across thread counts, so every number below is
+a real difference and not scheduling noise — that was checked before any of it was believed.
 
 The obvious story is that validation rejects good candidates and the search settles for worse ones.
 It is not what happens.
@@ -52,6 +77,9 @@ It is not what happens.
 0. **Budget starvation** — 20x the search work recovers 280 bytes of 7546 and zero classes. Detailed
    below, because it was the most plausible mechanism and disproving it is what made the real
    statement possible.
+0b. **IR probes being dropped** when their configured emission fails to validate or score — a dropped
+   probe takes every variant it would have produced with it, so it is invisible to every other
+   counter. Given its own bucket (`timing::PROBE_DROPPED`): **0 drops**.
 1. **Admission rejecting candidates.** Instrumented: **150 validations, 0 rejections** on mobxlil.
    (markedlil: 201 validations, 0 rejections.)
 2. **Direct-artifact validation dropping whole plans** before admission is ever reached — this would

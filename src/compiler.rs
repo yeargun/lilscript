@@ -1856,6 +1856,7 @@ fn optimize_and_select_javascript_inner<'src>(
                 });
             } else {
                 configured_score_failed[index] = true;
+                crate::timing::PROBE_DROPPED.record_pass(1, 0);
             }
         }
         if let Some((code, options)) = probe.interaction_code.take() {
@@ -1903,6 +1904,7 @@ fn optimize_and_select_javascript_inner<'src>(
             }
             (ProbeScoreOwner::Configured(index), Err(_)) => {
                 configured_score_failed[index] = true;
+                crate::timing::PROBE_DROPPED.record_pass(1, 0);
             }
             (ProbeScoreOwner::Interaction(index, options), Ok(emission)) => {
                 let probe = &mut ranked_probes[index];

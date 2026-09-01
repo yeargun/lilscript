@@ -117,15 +117,20 @@ pub static ADMISSION: Bucket = Bucket::new("admission");
 /// before any of its candidates reach admission, so it is invisible to the
 /// `admission` bucket.
 pub static DIRECT_VALIDATE: Bucket = Bucket::new("direct_validate");
+/// IR probes dropped because their configured emission failed to validate or
+/// to score. A dropped probe takes every emission variant it would have
+/// produced with it, so this is invisible to every other counter.
+pub static PROBE_DROPPED: Bucket = Bucket::new("probe_dropped");
 
 /// Iteration-count buckets. `calls` is the number of times the loop was
 /// entered and `bytes` holds the worst single call's iteration count.
 pub static SCALAR_FIXPOINT: Bucket = Bucket::new("scalar_fixpoint");
 pub static INLINE_FIXPOINT: Bucket = Bucket::new("inline_fixpoint");
 
-const BYTE_BUCKETS: [&Bucket; 15] = [
+const BYTE_BUCKETS: [&Bucket; 16] = [
     &ADMISSION,
     &DIRECT_VALIDATE,
+    &PROBE_DROPPED,
     &CODEC,
     &ANALYZE,
     &EMIT,
