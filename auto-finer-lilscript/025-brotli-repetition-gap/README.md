@@ -72,6 +72,42 @@ Our compression *ratios* are competitive or better (micromark 3.72× vs 3.58×, 
 react-markdown 4.39× vs 3.79×). We are not compressing badly. **We are emitting 9.5% to 85% more
 code than the library needs**, and Brotli faithfully reports it.
 
+## Naming is a contributor, not the driver
+
+The obvious follow-up is *why* we emit more. Counting distinct identifiers in each artifact splits
+the losers in two:
+
+| port | unique ids (lil / official) | excess | raw % | Brotli % |
+|---|---|---:|---:|---:|
+| react-markdown | 5412 / 1788 | **+203%** | +85.3 | +59.7 |
+| rehype | 7764 / 3322 | **+134%** | −13.1 | **−3.1 (win)** |
+| micromark | 4120 / 2589 | +59% | +22.9 | +18.2 |
+| remark | 4603 / 2915 | +58% | +53.3 | +31.9 |
+| unified | 312 / 256 | +22% | +53.7 | +18.3 |
+| katex | 2822 / 2744 | **+3%** | +9.5 | +9.2 |
+| remark-parse | 2660 / 2602 | **+2%** | +11.1 | +13.9 |
+| mdast-util-from-markdown | 2658 / 2599 | **+2%** | +9.7 | +13.6 |
+
+```
+corr(unique-identifier excess %, Brotli excess %) = +0.693
+```
+
+Weaker than raw volume's +0.940, and `rehype` is a flat counterexample: 134% more distinct names and
+it still wins. Function *counts* track the official closely everywhere (micromark +6%, remark +12%,
+react-markdown +13%) — we are not emitting more functions, we are emitting bigger ones with more
+names in them.
+
+So the losers are at least two populations:
+
+- **Volume without naming excess** — katex, remark-parse, mdast-util-from-markdown all sit within 3%
+  of the official's distinct-name count and still emit 9–11% more bytes. Nothing here is a mangling
+  failure; the code itself is larger.
+- **Volume with naming excess** — micromark, remark, react-markdown, unified. Every port in the fleet
+  declares the *same* `[mangle]` block (`identifiers`, `properties`, `pool_strings` on;
+  `exports` off), so this is not configuration: it is names the mangler is not permitted to touch,
+  which is exactly what [021](../021-reflective-ffi-predicts-loss/README.md) measured as reflective
+  host-FFI density.
+
 ## What this changes
 
 Compressor-side tuning is the wrong place to look for the big losses, and this session's knob

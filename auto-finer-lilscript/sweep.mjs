@@ -68,7 +68,19 @@ const VARIANTS = {
   beam24: compose(set("candidate_search", '"always"'), set("candidate_beam_width", "24")),
   beam24l13: compose(set("optimization_level", "13"), set("candidate_search", '"always"'), set("candidate_beam_width", "24")),
   beam32: compose(set("candidate_search", '"always"'), set("candidate_beam_width", "32")),
-  beam8: compose(set("candidate_search", '"always"'), set("candidate_beam_width", "8"))
+  beam8: compose(set("candidate_search", '"always"'), set("candidate_beam_width", "8")),
+  // Level 13 plus a tuned beam is the shape that has actually won so far, so the
+  // grid walks the beam at 13 rather than reaching for 15 -- which measured worse
+  // on unifiedlil (4696 against 4674) and is the objective's stated default anyway.
+  b8: compose(set("optimization_level", "13"), set("candidate_search", '"always"'), set("candidate_beam_width", "8")),
+  b16: compose(set("optimization_level", "13"), set("candidate_search", '"always"'), set("candidate_beam_width", "16")),
+  b20: compose(set("optimization_level", "13"), set("candidate_search", '"always"'), set("candidate_beam_width", "20")),
+  b28: compose(set("optimization_level", "13"), set("candidate_search", '"always"'), set("candidate_beam_width", "28")),
+  b32: compose(set("optimization_level", "13"), set("candidate_search", '"always"'), set("candidate_beam_width", "32")),
+  b48: compose(set("optimization_level", "13"), set("candidate_search", '"always"'), set("candidate_beam_width", "48")),
+  l14: compose(set("optimization_level", "14"), set("candidate_search", '"always"')),
+  pure: compose(set("optimization_level", "13"), set("candidate_search", '"always"'), set("assume_pure_property_reads", "true")),
+  proposals: compose(set("optimization_level", "13"), set("candidate_search", '"always"'), set("candidate_proposal_limit", "1536"))
 }
 
 const portNames = (flag("ports", "") || Object.keys(PORTS).join(",")).split(",").filter(Boolean)
