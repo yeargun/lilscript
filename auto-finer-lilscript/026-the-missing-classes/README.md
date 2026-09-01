@@ -1,7 +1,9 @@
 # 026 — 018's missing `class` declarations, found
 
-**Status: MECHANISM LOCATED. The candidate was never missing — it is generated with all ten classes
-and then corrupted by a fold, and the corrupted artifact is thrown away by the syntax validator.**
+**Status: HALF ANSWERED, AND THE OTHER HALF FALSIFIED BY MY OWN TEST.** The candidate is not
+missing — it is generated with all ten classes and a fold corrupts it. But removing that fold does
+**not** bring the classes back, so the corruption is not why the final artifact has none. The
+correction is at the bottom; the headline this document originally carried was wrong.
 
 ## What 018 left open
 
@@ -60,12 +62,37 @@ never had the idea.** The fix for that is not more counters at the decision poin
 that names the *producer* of the invalid artifact — which is what `LILSCRIPT_VALIDATE_FOLDS` does,
 and it located in one run what seven falsified mechanisms could not.
 
+## CORRECTION: disabling the fold does not restore the classes
+
+I predicted that suppressing `fold_unread_prototype_aliases` would bring the ten classes back and
+recover 018's 7546 bytes. **Tested, and it does not.** Same source, same config, the fold made a
+no-op:
+
+| | `class` | `.prototype` | raw | Brotli |
+|---|---:|---:|---:|---:|
+| fold on | 0 | 120 | 64943 | 15944 |
+| **fold off** | **0** | **120** | 63526 | **15944** |
+| delta | 0 | 0 | −1417 | **0** |
+
+So the corruption is real and the fold is a genuine defect — it takes a valid artifact with ten
+classes and emits one that does not resolve, 36 times per build — but **it is not the reason the
+shipped artifact has none.** The class-bearing candidate loses even when nothing corrupts it, which
+puts the question back where 018 left it: something upstream of this fold is not scoring or not
+proposing that plan. What is now ruled out is "this fold destroys the winner."
+
+Two things survive from this investigation and are worth keeping:
+
+1. **018's stated conclusion is still wrong.** Candidates *are* refused, by the syntax validator,
+   before any admission counter sees them — that is directly observed, 36 times, and no counter 018
+   added sits early enough to notice.
+2. **`LILSCRIPT_VALIDATE_FOLDS` works.** It found two real defects in one run — this one and the
+   `ternary_end` colon bug fixed in `c7533be` — where seven hand-instrumented mechanisms found none.
+
 ## Status of the fix
 
-The `:`-stranding bug in `boolean::ternary_end`, found the same way and fixed in the previous commit,
-was worth 4 bytes on mobxlil — the candidate it rescued was not the better one. This one is worth
-7546 raw and 253 Brotli by 018's own measurement, and it is not yet fixed: `unread_pure_alias_is_live`
-has to account for a reused temporary whose later reads it currently misses.
+`unread_pure_alias_is_live` still misses the later reads of a reused temporary, so the fold still
+emits unresolvable JavaScript on mobxlil. That is worth fixing on correctness grounds. It is not
+worth 7546 bytes, and this document should not have implied it was before the test was run.
 
 Two more folds turn valid mobxlil artifacts invalid the same way and are unexamined:
 `control::fold_single_use_if_assigns` (8) and `declarations::merge_adjacent_declarations` (6).
