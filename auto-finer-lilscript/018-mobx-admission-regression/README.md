@@ -196,6 +196,27 @@ git checkout 42c1ad0 -- src/compiler.rs && cargo build --release
   --config ~/mobxlil/lilscript.toml -o /tmp/good.js       # 57399
 ```
 
+## Narrowed by function group: two of four cleared, one is a *win*
+
+Hunk-level bisection does not compile, but grouping the 47 revert hunks by enclosing function does,
+for two of the four candidate groups. Reverting each group on top of `edbdf3a`:
+
+| function group reverted | hunks | mobxlil raw | verdict |
+|---|---:|---:|---|
+| `apply_late_javascript_cleanup` | 11 | **66212** | **worse — these changes are a 1267-byte *improvement*** |
+| `select_javascript_candidate_global` | 3 | 64945 | no effect — cleared |
+| `finalize_javascript_candidates_with_parallelism` | 6 | — | does not build alone |
+| `optimize_and_select_javascript_inner` | 6 | — | does not build alone |
+
+So the regression sits in the **admission plumbing** spanning the last two, and the largest single
+group in the whole diff — the eleven `apply_late_javascript_cleanup` hunks — is not merely innocent
+but **actively worth 1267 bytes**. Any wholesale revert of `src/compiler.rs` would throw that away.
+
+The two remaining groups do not build in isolation, together, or together with both their struct
+fields and the import and validation hunks — the admission value is constructed in `finalize` and
+consumed in `optimize_and_select`, and the `apply_*` and `select_*` paths all call `.validate` on it.
+That is why the earlier file-level revert was the smallest change that compiles.
+
 ## What I could not do, and exactly what would unblock it
 
 Hunk-level bisection of the 342-line `compiler.rs` diff — the technique that isolated
