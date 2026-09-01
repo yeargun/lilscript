@@ -77,7 +77,14 @@ Note also that the flag itself is **not a legitimate win** — it is Terser's `p
 baselines also leave off ([013](../013-statement-density/README.md)). Only a *type* the compiler can
 prove counts.
 
-**Fix B — the `unstable` + `cross_block` 79–90%.** This is the rest, and it is compiler work:
+**Fix B — the `unstable` + `cross_block` 79–90%.** Attempted and reverted in
+[020](../020-unstable-transitivity/README.md): narrowing the `unstable` transitive closure to fusible
+operands is sound and cuts the unstable count 12%, but nets **+69 Brotli** across the shipped ports.
+**Reducing the unstable count is not a proxy for reducing bytes** — fusing a value into its consumer
+substitutes an expression where a short name used to stand, and on the two largest ports that loses.
+This mechanism is real but has no lever that can be pulled from the census; it has to be scored per
+candidate against the real codec.
+ This is the rest, and it is compiler work:
 `cross_block` is LilScript reconstructing expressions from a CFG where definition and use sit in
 different blocks, while Terser starts from an AST where they already share a tree. Note
 `fallthrough_only` is **0–10**, so naive block merging is not the lever.
