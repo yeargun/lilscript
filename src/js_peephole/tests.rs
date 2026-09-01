@@ -3156,3 +3156,61 @@ fn export_binding_resolves_after_a_brace_initializer() {
     }
 }
 
+
+#[test]
+fn class_member_bodies_open_their_own_scope() {
+    // A member body the scanner does not recognise leaks its `var` declarations
+    // into the nearest scope it does recognise -- for a top-level class, the
+    // module. A name declared in both then goes ambiguous, every use resolves
+    // `Unresolved`, and exporting it is refused as an unresolved binding, which
+    // throws away an otherwise valid artifact. Accessors, `static`, generators
+    // and computed names were all unrecognised; mobxlil's class rewrite emits
+    // `[Symbol.toPrimitive](){...}` and lost 769 Brotli to it.
+    for (label, source) in [
+        ("plain-method", "class C{m(){var n=1;return n}}var n=2;export{n as x}"),
+        ("constructor", "class C{constructor(){var n=1;this.n=n}}var n=2;export{n as x}"),
+        ("getter", "class C{get p(){var n=1;return n}}var n=2;export{n as x}"),
+        ("setter", "class C{set p(v){var n=v;this.q=n}}var n=2;export{n as x}"),
+        ("static", "class C{static m(){var n=1;return n}}var n=2;export{n as x}"),
+        ("async", "class C{async m(){var n=1;return n}}var n=2;export{n as x}"),
+        ("generator", "class C{*m(){var n=1;yield n}}var n=2;export{n as x}"),
+        ("computed-symbol", "class C{[Symbol.iterator](){var n=1;return n}}var n=2;export{n as x}"),
+        ("computed-string", "class C{[\"m\"](){var n=1;return n}}var n=2;export{n as x}"),
+        ("object-getter", "var o={get p(){var n=1;return n}};var n=2;export{n as x}"),
+        ("extends", "class C extends Object{m(){var n=1;return n}}var n=2;export{n as x}"),
+        // Reserved words are legal member names; mobxlil emits `delete(e){...}`.
+        ("keyword-delete", "class C{delete(e){var n=1;return n+e}}var n=2;export{n as x}"),
+        ("keyword-new", "class C{new(){var n=1;return n}}var n=2;export{n as x}"),
+        ("keyword-default", "class C{default(){var n=1;return n}}var n=2;export{n as x}"),
+        ("keyword-in", "class C{in(){var n=1;return n}}var n=2;export{n as x}"),
+        ("keyword-get-computed", "class C{get [Symbol.toStringTag](){var n=1;return n}}var n=2;export{n as x}"),
+    ] {
+        let witnesses = crate::js_peephole::generated_javascript_export_witnesses(source)
+            .unwrap_or_else(|error| panic!("{label}: {error}"));
+        assert_eq!(witnesses.len(), 1, "{label}");
+    }
+
+    // A computed *call* is not a member and must not open a scope: `n` inside it
+    // still belongs to the function that contains it.
+    // A control header has the same token shape as a keyword-named member and is
+    // not one: `if(x){var n=1}` must keep `n` in the function that contains it.
+    for (label, source) in [
+        ("if-header", "function f(x){if(x){var n=1;return n}return 0}var n=2;export{n as x}"),
+        ("for-header", "function f(x){for(var i=0;i<x;i++){var n=i}return n}var n=2;export{n as x}"),
+        ("while-header", "function f(x){while(x){var n=1;x--}return n}var n=2;export{n as x}"),
+        ("catch-header", "function f(){try{g()}catch(e){var n=1;return n}return 0}var n=2;export{n as x}"),
+    ] {
+        let witnesses = crate::js_peephole::generated_javascript_export_witnesses(source)
+            .unwrap_or_else(|error| panic!("{label}: {error}"));
+        assert_eq!(witnesses.len(), 1, "{label}");
+    }
+
+    let call = "function f(o,k){var n=1;return o[k](n)}var n=2;export{n as x}";
+    assert_eq!(
+        crate::js_peephole::generated_javascript_export_witnesses(call)
+            .unwrap_or_else(|error| panic!("computed-call: {error}"))
+            .len(),
+        1
+    );
+}
+

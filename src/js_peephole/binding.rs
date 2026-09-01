@@ -326,26 +326,67 @@ fn function_scope_at(
         return Some((start, end, ScopeKind::Function));
     }
 
-    // Method shorthand in a class body or object literal: `name(params){body}`.
-    if is_binding_identifier(&tokens[index])
+    // Method shorthand in a class body or object literal: `name(params){body}`,
+    // including the accessor, static, generator and computed-name spellings.
+    //
+    // Missing any of these does not merely lose a scope: the method's `var`
+    // declarations then attach to the nearest scope that *is* recognised, which
+    // for a top-level class is the module. A name declared both there and inside
+    // the method becomes ambiguous, every use of it resolves `Unresolved`, and an
+    // export of that name is refused as an unresolved binding -- discarding an
+    // otherwise valid artifact. Measured on mobxlil, whose class rewrite emits
+    // `[Symbol.toPrimitive](){...}`, that cost 769 Brotli.
+    // A member may be named with a reserved word -- `delete(e){...}`, `new(){...}`,
+    // `default(){...}` are all legal and mobxlil emits the first. Only the keywords
+    // that introduce a parenthesized control header are excluded, because `if(x){...}`
+    // at statement level has the same token shape as a method and is not one.
+    let names_a_member = |at: usize| {
+        matches!(tokens[at].kind, TokenKind::Identifier | TokenKind::Keyword)
+            && !matches!(
+                tokens[at].text,
+                "while" | "for" | "if" | "switch" | "catch" | "with" | "function" | "class"
+            )
+    };
+    let member_name = if names_a_member(index)
         && tokens.get(index + 1).map(|token| token.text) == Some("(")
         && !is_property_identifier(tokens, index)
     {
-        let opens_member = index
+        Some(index)
+    } else if tokens[index].text == "]"
+        && tokens.get(index + 1).map(|token| token.text) == Some("(")
+    {
+        // A computed member name: the head starts at its `[`.
+        matching_open.get(index).copied().flatten()
+    } else {
+        None
+    };
+    if let Some(name_start) = member_name {
+        // `static`, `get`, `set`, `async` and a generator `*` may stack in front
+        // of the name; the member still begins at the delimiter before them.
+        let mut head = name_start;
+        while let Some(previous) = head.checked_sub(1) {
+            if matches!(tokens[previous].text, "static" | "get" | "set" | "async" | "*") {
+                head = previous;
+            } else {
+                break;
+            }
+        }
+        // A computed *call* -- `obj[key](arg)` -- reaches here too. It is turned
+        // away by the delimiter test (its `[` follows an operand, not a member
+        // boundary) and, failing that, by the `{` body requirement below.
+        if !head
             .checked_sub(1)
             .is_some_and(|previous| matches!(tokens[previous].text, "{" | "}" | ";" | ","))
-            || index
-                .checked_sub(1)
-                .is_some_and(|previous| tokens[previous].text == "async");
-        if !opens_member {
+        {
             return None;
         }
-        let params_close = matching_close.get(index + 1).copied().flatten()?;
+        let params_open = index + 1;
+        let params_close = matching_close.get(params_open).copied().flatten()?;
         if tokens.get(params_close + 1).map(|token| token.text) != Some("{") {
             return None;
         }
         let body_end = matching_close.get(params_close + 1).copied().flatten()?;
-        return Some((index + 1, body_end + 1, ScopeKind::Function));
+        return Some((params_open, body_end + 1, ScopeKind::Function));
     }
     None
 }

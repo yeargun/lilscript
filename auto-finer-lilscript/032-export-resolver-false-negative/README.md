@@ -1,6 +1,6 @@
 # 032 — mobxlil's missing classes are a false negative in our own export resolver
 
-**Status: DIAGNOSED, WORTH 769 BROTLI, NOT YET FIXED. The rejected artifact is valid — node runs it.**
+**Status: DIAGNOSED HERE, FIXED IN [033](../033-member-bodies-are-scopes/README.md).** The rejected artifact was valid — node runs it — and the resolver was losing a binding to an unrecognised class member body.
 
 ## The prize
 
