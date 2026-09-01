@@ -12,6 +12,11 @@ larger than its best eligible pinned JavaScript baseline for the selected metric
 That is the direction of the project, not a theorem or a claim that every current
 port already wins.
 
+> **Branch note (2026-09-01).** `main` was reset to the line where the active work lives; the
+> previous `main` is preserved as `main-pre-2026-09-01`. The two lines had run in parallel from
+> `bb413e0` since 08-29. See [BRANCH-HISTORY.md](BRANCH-HISTORY.md) for what each side contains and
+> what still needs reconciling.
+
 ## Evidence Status
 
 The canonical paired corpus is green, while current real-library measurements are
@@ -21,6 +26,8 @@ meaning and eligible comparisons are defined by the
 [verification contract](docs/knowledge/verification/README.md); tracked reports
 and scoped interpretations are indexed under
 [evidence](docs/knowledge/evidence/README.md).
+The standing optimization loop — the contract handed to every agent, the fleet standings,
+and the hypothesis log — lives in [finer/](finer/README.md).
 
 ## How it compresses JS finer than Vite / Oxc / Terser / esbuild
 

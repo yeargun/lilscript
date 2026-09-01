@@ -3180,3 +3180,175 @@ fn enclosing_group_index_matches_the_scan_it_replaced() {
         }
     }
 }
+
+#[test]
+fn conditional_value_fold_stops_at_the_enclosing_colon() {
+    // `t?A?!0:B?!0:!1:!1` -- a conditional whose else-arm is itself a conditional
+    // nested inside an outer one. Scanning the inner arm used to run straight
+    // through the outer `:`, folding to `t?A||(B||(!1:!1))`: a `:` answering no
+    // `?`. The validator caught it and threw the whole artifact away, so the only
+    // symptom was that the search quietly kept a worse candidate.
+    let source = concat!(
+        "function Da(e){if(e==null)return !1;var t=e.constructor;",
+        "return t?'GeneratorFunction'==t.name+\"\"?!0:'GeneratorFunction'==t.displayName+\"\"?!0:!1:!1}"
+    );
+    let (folded, count) =
+        crate::js_peephole::folds::fold_boolean_conditional_values(source).unwrap();
+    assert!(count > 0, "fold did not fire: {folded}");
+    assert!(!folded.contains(":!1)"), "stranded colon: {folded}");
+    crate::js_peephole::analyze_generated_javascript(&folded)
+        .unwrap_or_else(|error| panic!("{error}\n{folded}"));
+
+    let probe = format!("{folded}console.log([Da(null),Da({{constructor:{{name:'GeneratorFunction'}}}}),Da({{constructor:{{displayName:'GeneratorFunction'}}}}),Da({{constructor:{{name:'x'}}}})].join(','))");
+    let original = format!("{source}console.log([Da(null),Da({{constructor:{{name:'GeneratorFunction'}}}}),Da({{constructor:{{displayName:'GeneratorFunction'}}}}),Da({{constructor:{{name:'x'}}}})].join(','))");
+    assert_eq!(
+        run_javascript(&probe).trim(),
+        run_javascript(&original).trim()
+    );
+    assert_eq!(run_javascript(&probe).trim(), "false,true,true,false");
+}
+
+#[test]
+fn export_binding_resolves_after_a_brace_initializer() {
+    // `merge_adjacent_declarations` folds consecutive `var` statements into one
+    // declarator list, which routinely puts a plain declarator *after* one whose
+    // initializer contains braces. Losing those later names makes a valid export
+    // look unresolved, and the whole artifact is refused.
+    for (label, source) in [
+        (
+            "function-initializer",
+            "var a=function(){return 1},n=2;export{n as x}",
+        ),
+        ("object-initializer", "var a={k:1},n=2;export{n as x}"),
+        (
+            "class-initializer",
+            "var a=class{m(){return 1}},n=2;export{n as x}",
+        ),
+        (
+            "arrow-initializer",
+            "var a=()=>{return 1},n=2;export{n as x}",
+        ),
+        ("plain", "var a=1,n=2;export{n as x}"),
+    ] {
+        let witnesses = crate::js_peephole::generated_javascript_export_witnesses(source)
+            .unwrap_or_else(|error| panic!("{label}: {error}"));
+        assert_eq!(witnesses.len(), 1, "{label}: {witnesses:?}");
+    }
+}
+
+#[test]
+fn class_member_bodies_open_their_own_scope() {
+    // A member body the scanner does not recognise leaks its `var` declarations
+    // into the nearest scope it does recognise -- for a top-level class, the
+    // module. A name declared in both then goes ambiguous, every use resolves
+    // `Unresolved`, and exporting it is refused as an unresolved binding, which
+    // throws away an otherwise valid artifact. Accessors, `static`, generators
+    // and computed names were all unrecognised; mobxlil's class rewrite emits
+    // `[Symbol.toPrimitive](){...}` and lost 769 Brotli to it.
+    for (label, source) in [
+        (
+            "plain-method",
+            "class C{m(){var n=1;return n}}var n=2;export{n as x}",
+        ),
+        (
+            "constructor",
+            "class C{constructor(){var n=1;this.n=n}}var n=2;export{n as x}",
+        ),
+        (
+            "getter",
+            "class C{get p(){var n=1;return n}}var n=2;export{n as x}",
+        ),
+        (
+            "setter",
+            "class C{set p(v){var n=v;this.q=n}}var n=2;export{n as x}",
+        ),
+        (
+            "static",
+            "class C{static m(){var n=1;return n}}var n=2;export{n as x}",
+        ),
+        (
+            "async",
+            "class C{async m(){var n=1;return n}}var n=2;export{n as x}",
+        ),
+        (
+            "generator",
+            "class C{*m(){var n=1;yield n}}var n=2;export{n as x}",
+        ),
+        (
+            "computed-symbol",
+            "class C{[Symbol.iterator](){var n=1;return n}}var n=2;export{n as x}",
+        ),
+        (
+            "computed-string",
+            "class C{[\"m\"](){var n=1;return n}}var n=2;export{n as x}",
+        ),
+        (
+            "object-getter",
+            "var o={get p(){var n=1;return n}};var n=2;export{n as x}",
+        ),
+        (
+            "extends",
+            "class C extends Object{m(){var n=1;return n}}var n=2;export{n as x}",
+        ),
+        // Reserved words are legal member names; mobxlil emits `delete(e){...}`.
+        (
+            "keyword-delete",
+            "class C{delete(e){var n=1;return n+e}}var n=2;export{n as x}",
+        ),
+        (
+            "keyword-new",
+            "class C{new(){var n=1;return n}}var n=2;export{n as x}",
+        ),
+        (
+            "keyword-default",
+            "class C{default(){var n=1;return n}}var n=2;export{n as x}",
+        ),
+        (
+            "keyword-in",
+            "class C{in(){var n=1;return n}}var n=2;export{n as x}",
+        ),
+        (
+            "keyword-get-computed",
+            "class C{get [Symbol.toStringTag](){var n=1;return n}}var n=2;export{n as x}",
+        ),
+    ] {
+        let witnesses = crate::js_peephole::generated_javascript_export_witnesses(source)
+            .unwrap_or_else(|error| panic!("{label}: {error}"));
+        assert_eq!(witnesses.len(), 1, "{label}");
+    }
+
+    // A computed *call* is not a member and must not open a scope: `n` inside it
+    // still belongs to the function that contains it.
+    // A control header has the same token shape as a keyword-named member and is
+    // not one: `if(x){var n=1}` must keep `n` in the function that contains it.
+    for (label, source) in [
+        (
+            "if-header",
+            "function f(x){if(x){var n=1;return n}return 0}var n=2;export{n as x}",
+        ),
+        (
+            "for-header",
+            "function f(x){for(var i=0;i<x;i++){var n=i}return n}var n=2;export{n as x}",
+        ),
+        (
+            "while-header",
+            "function f(x){while(x){var n=1;x--}return n}var n=2;export{n as x}",
+        ),
+        (
+            "catch-header",
+            "function f(){try{g()}catch(e){var n=1;return n}return 0}var n=2;export{n as x}",
+        ),
+    ] {
+        let witnesses = crate::js_peephole::generated_javascript_export_witnesses(source)
+            .unwrap_or_else(|error| panic!("{label}: {error}"));
+        assert_eq!(witnesses.len(), 1, "{label}");
+    }
+
+    let call = "function f(o,k){var n=1;return o[k](n)}var n=2;export{n as x}";
+    assert_eq!(
+        crate::js_peephole::generated_javascript_export_witnesses(call)
+            .unwrap_or_else(|error| panic!("computed-call: {error}"))
+            .len(),
+        1
+    );
+}

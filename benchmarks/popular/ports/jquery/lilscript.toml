@@ -17,7 +17,7 @@ compression = [
   # repeated literal, which the compressor already matched almost for free,
   # with a fresh identifier token. It also costs 28 gzip bytes. It does save 92
   # raw bytes, which is not this artifact's objective.
-  # See auto-finer-lilscript/011-string-pooling-under-compression.
+  # See finer/hypotheses/011-string-pooling-under-compression.
   "size-aware-inlining",
   "compact-boolean-literals",
   "standard-grammar-elision",

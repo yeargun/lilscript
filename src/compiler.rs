@@ -2313,7 +2313,10 @@ fn optimize_and_select_javascript_inner<'src>(
     let abi_manifest = config
         .javascript_compilation_contract(preserve_exports)
         .abi_manifest(&selected_context.ir);
-    let artifact_witness = selected.admission.witness(&selected.code)?;
+    // The selected artifact may legitimately contain the class rewrite's own
+    // `constructor`. Candidate admission stays strict; only re-checks of an
+    // artifact that has already won opt into that exemption.
+    let artifact_witness = selected.admission.witness_selected(&selected.code)?;
     // Capture provenance only for the winning plan, after the full candidate
     // search. Disabled builds therefore perform neither tracing nor map work.
     let source_trace = capture_source_trace
@@ -4716,7 +4719,7 @@ impl JavaScriptArtifactAdmission {
     }
 
     fn witness(&self, source: &str) -> Result<JavaScriptArtifactWitness, CompileError> {
-        let outcome = self.witness_inner(source);
+        let outcome = self.witness_inner(source, false);
         if crate::timing::enabled() {
             // `bytes` accumulates rejections so the report shows discards
             // against total validations.
@@ -4725,15 +4728,35 @@ impl JavaScriptArtifactAdmission {
         outcome
     }
 
-    fn witness_inner(&self, source: &str) -> Result<JavaScriptArtifactWitness, CompileError> {
+    /// Re-check an artifact that has already been selected, allowing the class
+    /// rewrite's own `constructor` keyword. See
+    /// [`validate_observed_javascript_artifact_allowing`] for why this is opt-in.
+    fn validate_selected(&self, source: &str) -> Result<(), CompileError> {
+        self.witness_selected(source).map(|_| ())
+    }
+
+    fn witness_selected(&self, source: &str) -> Result<JavaScriptArtifactWitness, CompileError> {
+        let outcome = self.witness_inner(source, true);
+        if crate::timing::enabled() {
+            crate::timing::ADMISSION.record_pass(u64::from(outcome.is_err()), 0);
+        }
+        outcome
+    }
+
+    fn witness_inner(
+        &self,
+        source: &str,
+        allow_class_constructor: bool,
+    ) -> Result<JavaScriptArtifactWitness, CompileError> {
         validate_generated_javascript_syntax_floor(source, self.ecmascript)
             .map_err(generated_javascript_parse_error)?;
-        let mut witness = validate_observed_javascript_artifact(
+        let mut witness = validate_observed_javascript_artifact_allowing(
             source,
             &self.direct_source,
             &self.abi_manifest,
             self.lowering_obligations,
             &self.property_provenance,
+            allow_class_constructor,
         )?;
         witness.syntax_floor = self.ecmascript.name().to_string();
         Ok(witness)
@@ -7605,14 +7628,15 @@ fn apply_selected_canonical_peephole(
     {
         return Ok(selected);
     }
-    if selected
-        .terminal_work_units
-        .saturating_add(CANONICAL_PEEPHOLE_WORK_UNITS)
-        > selected.terminal_codec_probe_limit
-    {
-        selected.terminal_codec_probe_limit_reached = true;
-        return Ok(selected);
-    }
+    // Deliberately *not* gated on the remaining probe budget. Charging these two
+    // units against the same ledger as the search probes means a big artifact --
+    // exactly the kind with the most to gain -- spends its budget on permutation
+    // scoring and then skips the one rewrite this function exists to guarantee.
+    // Measured on micromarklil, whose ledger is full long before here: the emitted
+    // artifact still had 434 `;var ` runs the canonical rewrite merges, and running
+    // it cost 3574 raw and 171 Brotli to skip. The rewrite is two units against a
+    // limit of 384 and is still scored below like any other candidate, so it can
+    // only be kept when it measures smaller.
     selected.terminal_work_units = selected
         .terminal_work_units
         .saturating_add(CANONICAL_PEEPHOLE_WORK_UNITS);
@@ -7637,7 +7661,7 @@ fn apply_selected_canonical_peephole(
     let rewrites = selected
         .peephole_rewrites
         .saturating_add(optimized.rewrites);
-    accept_finalized_javascript_challenger(selected, code, metrics, rewrites, config)
+    accept_finalized_javascript_challenger(selected, code, metrics, rewrites, config, true)
 }
 
 fn apply_search_off_declaration_peephole(
@@ -7660,7 +7684,7 @@ fn apply_search_off_declaration_peephole(
     if rewrites == 0 || code == selected.code {
         return Ok(selected);
     }
-    accept_finalized_javascript_challenger(selected, code, metrics, rewrites, config)
+    accept_finalized_javascript_challenger(selected, code, metrics, rewrites, config, false)
 }
 
 fn accept_finalized_javascript_challenger(
@@ -7669,6 +7693,7 @@ fn accept_finalized_javascript_challenger(
     metrics: JavaScriptSyntaxMetrics,
     peephole_rewrites: usize,
     config: &ProjectConfig,
+    allow_class_constructor: bool,
 ) -> Result<SelectedJavaScriptCandidate, CompileError> {
     if config
         .javascript
@@ -7681,7 +7706,12 @@ fn accept_finalized_javascript_challenger(
                 incumbent.baseline_metrics,
                 &config.javascript.startup,
             ))
-        || incumbent.admission.validate(&code).is_err()
+        || (if allow_class_constructor {
+            incumbent.admission.validate_selected(&code)
+        } else {
+            incumbent.admission.validate(&code)
+        })
+        .is_err()
     {
         return Ok(incumbent);
     }
@@ -9733,6 +9763,38 @@ fn validate_observed_javascript_artifact(
     expected_bit_or_zero: usize,
     property_provenance: &[IrJsPropertyProvenance],
 ) -> Result<JavaScriptArtifactWitness, CompileError> {
+    validate_observed_javascript_artifact_allowing(
+        source,
+        direct_source,
+        expected,
+        expected_bit_or_zero,
+        property_provenance,
+        false,
+    )
+}
+
+/// `allow_class_constructor` exempts the single name `constructor` from the
+/// introduced-property check.
+///
+/// The peephole's class rewrite spells `function X(){...}` plus its prototype
+/// table as `class X{constructor(){...}}`, and the property-name census counts
+/// that class element like any other property, so the rewrite is refused for
+/// containing its own keyword. Every object already carries `constructor`
+/// through its prototype chain, so nothing there is newly observable and there
+/// is nothing for property mangling to get wrong.
+///
+/// It is opt-in rather than unconditional because admission runs over every
+/// candidate in the search, and relaxing it globally admits a different
+/// portfolio: measured on micromarklil that settles 826 Brotli *worse*. Only
+/// re-checks of the canonical winner and final selected artifact pass `true`.
+fn validate_observed_javascript_artifact_allowing(
+    source: &str,
+    direct_source: &str,
+    expected: &crate::compilation_contract::JavaScriptAbiManifest,
+    expected_bit_or_zero: usize,
+    property_provenance: &[IrJsPropertyProvenance],
+    allow_class_constructor: bool,
+) -> Result<JavaScriptArtifactWitness, CompileError> {
     let observed =
         generated_javascript_export_names(source).map_err(generated_javascript_parse_error)?;
     let export_witnesses =
@@ -9766,7 +9828,7 @@ fn validate_observed_javascript_artifact(
     // to cost real bytes: it constrains every candidate to the incidental
     // shape of one unoptimized lowering rather than to the contract, and on
     // markedlil that was 1568 raw bytes, 4.7%. See
-    // auto-finer-lilscript/016-marked-size-regression.
+    // finer/hypotheses/016-marked-size-regression.
     //
     // Where a LilScript default is materialized in a function body, the
     // emitted JavaScript `length` legitimately differs from the typed arity,
@@ -9899,6 +9961,7 @@ fn validate_observed_javascript_artifact(
                 .iter()
                 .any(|provenance| provenance.emitted == property.name)
         })
+        .filter(|property| !(allow_class_constructor && property.name == "constructor"))
         .map(|property| (property.name.clone(), property.start, property.end))
         .collect::<Vec<_>>();
     if !introduced.is_empty() {

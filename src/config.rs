@@ -254,7 +254,7 @@ impl ProjectConfig {
             // 32 are worse than 8 while 64 is better, because the knob
             // perturbs which candidates the beam explores rather than moving a
             // smooth cost curve. The principled fix is to stop crediting the
-            // repeats. See auto-finer-lilscript/011-string-pooling-under-compression.
+            // repeats. See finer/hypotheses/011-string-pooling-under-compression.
             string_pool_minimum_savings: match self.javascript.cost_model {
                 CompressionCostModel::Raw => 1,
                 CompressionCostModel::Gzip => 4,
@@ -367,6 +367,13 @@ impl ProjectConfig {
                     self.javascript.cost_model,
                     CompressionCostModel::Brotli
                 )),
+            // Naming a twice-read aggregate field is the raw-cheap spelling and,
+            // under a compressor, sometimes the expensive one: the un-hoisted read
+            // repeats verbatim and every copy after the first costs a
+            // back-reference. Off by default -- it is a raw regression by
+            // construction, so a port turns it on only after measuring its own
+            // artifact.
+            rematerialize_member_reads: self.javascript.rematerialize_member_reads.unwrap_or(false),
             phi_edge_value_forwarding: self
                 .javascript
                 .optimization_enabled(JavaScriptOptimization::PhiEdgeValueForwardingVariants, None)
@@ -1268,6 +1275,11 @@ pub struct JavaScriptConfig {
     /// terminal cleanup, so a beam that ranks mid-pipeline drops it. A port that
     /// has measured its own artifact says so here.
     pub local_phi_expression_regions: Option<bool>,
+    /// Re-emit a twice-read LilScript aggregate field at each use instead of
+    /// binding it to a name. Off by default: it is a raw-byte regression by
+    /// construction, and only pays when the un-hoisted spelling repeats often
+    /// enough for the compressor to charge a back-reference instead of the text.
+    pub rematerialize_member_reads: Option<bool>,
     pub public_aggregate_abi: PublicAggregateAbi,
     pub aggregate_layout: AggregateLayout,
     /// Allow representations that bypass ambient JavaScript constructor
@@ -1307,7 +1319,7 @@ impl Default for JavaScriptConfig {
             // each other on both jQuery and acorn, and the curve only breaks
             // down at 11 and below. A project that wants the last percent can
             // still ask for 15 explicitly; it should not be the price of not
-            // having an opinion. See auto-finer-lilscript/007-level-13-sweet-spot.
+            // having an opinion. See finer/hypotheses/007-level-13-sweet-spot.
             optimization_level: 13,
             optimizations: None,
             compression: None,
@@ -1336,6 +1348,7 @@ impl Default for JavaScriptConfig {
             function_spelling: None,
             struct_method_shorthand: None,
             local_phi_expression_regions: None,
+            rematerialize_member_reads: None,
             public_aggregate_abi: PublicAggregateAbi::Named,
             aggregate_layout: AggregateLayout::default(),
             assume_pristine_builtins: false,

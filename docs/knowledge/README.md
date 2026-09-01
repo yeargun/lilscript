@@ -22,7 +22,8 @@ more specific question and links to detail instead of repeating it.
 7. **Proof of claims:** [verification](verification/README.md) defines valid
    evidence; [evidence](evidence/README.md) links results.
 8. **Live work:** [ledger](migration/board/LEDGER.md). Board notes and journals
-   are context, not architecture authority.
+   are context, not architecture authority. The size workstream's contract,
+   standings and hypothesis log are in [`finer/`](../../finer/README.md).
 9. **Research:** [research](research/README.md) contains experiments and rejected
    ideas. Load it only when the canonical pages cite a specific finding.
 
