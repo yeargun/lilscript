@@ -44,8 +44,16 @@ corr(repeat-coverage gap >= 32B, relative Brotli delta) = +0.134
 Raw emitted volume:
 
 ```
-corr(raw excess %, Brotli excess %) = +0.940   over 15 ports
+corr(raw excess %, Brotli excess %) = +0.924   over 15 ports
 ```
+
+> **Recomputed after [028](../028-unminified-lil-lane/README.md).** The first figure here was
+> +0.940, measured before the harness was found to be comparing our *unminified* bundle against
+> Terser's minified one on `remark`, `unified` and `react-markdown` — the three largest raw excesses
+> in the table below, so the statistic was reading that bug at its own top end. On corrected numbers
+> it is +0.924 and the separation is now **perfect**: every winning port emits less than the
+> official, every losing port emits more, with no overlap. The table below is the pre-correction
+> data; the corrected raw/Brotli pairs are in 028.
 
 | port | lil raw | official raw | raw % | Brotli % |
 |---|---:|---:|---:|---:|
