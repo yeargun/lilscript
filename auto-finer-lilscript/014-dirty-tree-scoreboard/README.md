@@ -79,6 +79,25 @@ Two ports are excluded as **scope-suspect**, on the objective test that their Li
 are meaningless: the committed one marks React and the submodules external, the working-tree one
 inlines them. Neither is a codegen comparison, so neither is counted.
 
+### react-markdown, settled
+
+Measuring every artifact the harness keeps, with the pinned codec:
+
+| artifact | react | raw | Brotli-11 | vs official |
+|---|---|---:|---:|---:|
+| `official-terser.js` | **external** | 117759 | **31092** | — |
+| `lil-graph.js` — *what `REPORT.md` uses* | **INLINED** | 216436 | 47861 | +16769 |
+| `lil-graph-terser.js` | external | 165508 | 47520 | +16428 |
+| **`react-markdownlil/dist/react-markdown.esm.js`** | **external** | 150642 | **45258** | **+14166** |
+
+**`REPORT.md` compares a React-inlining Lil graph against a React-external Terser baseline**, which
+overstates the loss by **2603 Brotli**. The fair row is the shipped dist against `official-terser`:
+both externalize React, both carry the full react-markdown graph, and the loss is **+14166** — real,
+comparable, and the largest single row on the scoreboard.
+
+Worth noting in passing: running Terser *over* the Lil graph (`lil-graph-terser.js`, +16428) is
+**worse** than LilScript's own dist (+14166). The compiler beats a post-pass on its own output.
+
 ## Result
 
 | | wins | losses | total Brotli |
