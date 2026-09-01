@@ -1,7 +1,8 @@
 # 035 — Where the compiler-side headroom actually is, measured
 
-**Status: MEASURED, NOT YET ACTED ON. Two leads quantified, one of them large, and one common
-assumption ruled out.**
+**Status: MEASURED AND DIAGNOSED, NOT YET ACTED ON.** The largest lead is name allocation, and the
+mechanism is now located: we allocate module and local names from disjoint pools, so 62 of 63
+top-level bindings get two-character names where Terser gives 53 of 58 one-character ones.
 
 ## Method
 
@@ -78,12 +79,47 @@ is visibly worse.
 
 The shipped value is already the optimum and every direction is worse. This is not a tuning problem.
 
+## The mechanism, located
+
+Reading the allocator settles what the statistics only hinted at. Top-level names **are** already
+assigned in descending use order — `assign_top_level_names` builds a `bindings` vector carrying each
+binding's use count and sorts it `right.0.cmp(&left.0)` before handing out names. Frequency ordering
+is not missing.
+
+Two wrong guesses, both cheap to kill:
+
+- *"Locals overflow the reserve and spill to two characters."* **No.** The deepest function in
+  micromarklil declares 23 locals, the median declares 1, and nothing exceeds the 24-name reserve on
+  any port measured.
+- *"`local_name_reserve` is mistuned."* **No** — swept, and the shipped 24 is the optimum.
+
+The actual mechanism is the pool split. Counting names declared at brace depth zero:
+
+| micromark | top-level bindings | one-char | two-char |
+|---|---:|---:|---:|
+| ours | 63 | **1** | **62** |
+| Terser | 58 | **53** | 5 |
+
+**We give essentially every top-level binding a two-character name.** The reserve, the synthesized
+runtime roots, the class identities, the import aliases and the adapter factories consume the
+one-character alphabet before module bindings are reached, so they start at the two-character names.
+
+Terser does not have this problem because it **lets a function's locals shadow module bindings**. It
+can spend all 54 one-character names on module bindings *and* spend the same 54 again on locals in
+every function, because a local `a` inside a function that never mentions the module's `a` is
+unambiguous. We allocate the two from disjoint pools, so with 54 one-character names available we
+can give them to locals or to module bindings but not both — and the sweep result now makes sense:
+every `local_name_reserve` setting is just a different point on that trade, and 24 is where it
+balances.
+
 ## Entry criterion for the work
 
-Frequency-ordered allocation across the whole artifact, and using the full 54-name alphabet before
-going to two characters. It is a real change to a large subsystem — `LocalNames` and the alphabet
-selection in `codegen_ir_js.rs` — with scope, export and reserved-name correctness to preserve, so it
-wants its own hypothesis and its own measurement rather than being bolted onto this one.
+**Scope-aware shadowing**: let a function's locals reuse a module binding's name when that binding is
+not referenced anywhere in the function. That removes the disjoint-pool constraint and is what buys
+Terser both columns of the table above. It is a real change to `LocalNames` and
+`assign_top_level_names` in `codegen_ir_js.rs`, and it has to prove it never captures — the existing
+reserve exists precisely to make capture impossible by construction, so replacing it means replacing
+that guarantee with an analysis. That wants its own hypothesis and its own measurement.
 
 The number to beat is in the table above: **−884 on micromark, −856 on mobx, −1136 on jquery**, and
 those are what a competitor extracts from artifacts we have already finished optimising.
