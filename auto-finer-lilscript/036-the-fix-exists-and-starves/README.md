@@ -1,7 +1,8 @@
 # 036 — The name-allocation fix already exists, and starves
 
-**Status: DIAGNOSED. The transform [035](../035-where-the-compiler-headroom-is/README.md) concluded
-we needed is already implemented, already registered as a scored emission family, and never runs.**
+**Status: THE TRANSFORM EXISTS, AND IT LOSES.** 035 concluded we needed scope-aware shadowing; it is
+already implemented as `precise_cross_scope_shadowing`, already registered as a scored family, and
+starves. Forcing it on costs **+432 Brotli**. 035's premise is falsified below.
 
 ## What 035 asked for
 
@@ -68,7 +69,44 @@ The general shape is worth stating: **a scored family that never gets measured i
 from a feature that does not exist.** Two hypotheses in this log went looking for missing transforms
 that were already implemented and simply never reached the beam.
 
-## What is being tested
+## FALSIFIED: the transform loses, and the current allocation is correct
+
+Forcing `precise_cross_scope_shadowing = true` in the pinned emission and rebuilding micromarklil
+does exactly what [035](../035-where-the-compiler-headroom-is/README.md) predicted structurally —
+and the artifact gets **bigger**:
+
+| | top-level 1-char | top-level 2-char | raw | Brotli |
+|---|---:|---:|---:|---:|
+| shipped (flag off) | **1** | 62 | 87117 | **26097** |
+| flag forced on | **40** | 23 | 90710 | **26529** |
+| | | | **+3593** | **+432** |
+
+The transform works. Module bindings get their one-character names, exactly as the structural
+comparison against Terser said they should. And it costs 432 Brotli, because those one-character
+names come *out of the locals' pool*, and locals outnumber module bindings by an order of magnitude
+in occurrences. Trading 62 module bindings up to one character to push thousands of local
+occurrences down to two is a bad trade on this artifact.
+
+**So 035's premise was wrong.** The 62-of-63 two-character top-level naming is not a defect; it is
+the compiler already picking the better side of the trade. Terser's distribution is better *for
+Terser's artifact*, and reading a structural difference as a defect was the error — the same mistake
+[025](../025-brotli-repetition-gap/README.md) made with repeat coverage, and it should have been
+caught the same way, by measuring before theorising.
+
+This also explains cleanly why **every budget knob produced byte-identical output**:
+
+| variant | Brotli | time |
+|---|---:|---:|
+| base | 26097 | 225s |
+| `terminal_codec_probe_limit = 1536` | 26097 | 314s |
+| `terminal_codec_probe_limit = 4096` | 26097 | 540s |
+| `candidate_proposal_limit = 1536` too | 26097 | 315s |
+
+The family was never the bottleneck. Even scored, its variant loses, so the incumbent survives and
+the artifact does not move. "Starved" in `--explain` marks a family that did not get to run; it does
+not promise the family would have won.
+
+## What was tested
 
 `terminal_codec_probe_limit` at 1536 and 4096 against micromarklil's default, plus a combined
 variant. jquerylil is a useful control: it already sets 1536 by hand and still loses 1825, so budget
