@@ -125,6 +125,18 @@ Seven candidate mechanisms have been falsified by instrumentation rather than ar
 live in `src/timing.rs` (`admission`, `direct_validate`, `probe_dropped`) and are free when
 `LILSCRIPT_TIMING` is unset.
 
+## The default is 13; a port may still measure its way above it
+
+Level 13 is the right *default* — that is what [007](007-level-13-sweet-spot/README.md) measures. It
+is not a ceiling, and one port has earned its way past it: `jquerylil` ships
+`optimization_level = 15` with `candidate_search = "always"`, and measured on its own source that is
+worth **4.3% Brotli and 5475 raw bytes** for 23x the CPU. Dropping it to the default would widen its
+gap against `jquery.min.js` from +780 to +3077.
+
+**Do not transfer an effort curve between artifacts.** The 1.4%-for-20x plateau that justifies the
+default was measured on the in-repo `benchmarks/popular/ports/jquery`; the shipped `jquerylil` port
+is a different program and its curve is three times steeper.
+
 ## How to run the fleet
 
 Ports are built and measured in parallel by `auto-finer-lilscript/fleet.mjs`. Each port gets a fixed

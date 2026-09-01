@@ -121,8 +121,45 @@ Two things make it hard to justify:
 
 `docs/knowledge/evidence/jquery.md` already lists "simply widening the beam" among the **measured
 rejected directions** for this port. Its shipped config is nevertheless the widest beam available.
-Dropping it to level 13 with `candidate_search = "production"` is the obvious experiment, and on the
-evidence here it should cost a fraction of a percent and return hours.
+Dropping it to level 13 with `candidate_search = "production"` looked like the obvious experiment.
+
+### ...and running that experiment refutes the paragraph above
+
+| jquerylil config | CPU | raw | gzip-9 | Brotli-11 |
+|---|---:|---:|---:|---:|
+| level 13, `production` | **219 s** | 89156 | 34038 | **30522** |
+| **level 15, `always` (shipped)** | **~5100 s** | **83681** | **32480** | **29209** |
+| delta | **23x** | −5475 | −1558 | **−1313 (4.3%)** |
+
+**The expensive config is buying real bytes on this port — 4.3% Brotli and 5475 raw.** Dropping to
+level 13 would turn jQueryLil's +780 gap against `jquery.min.js` into +3077. The recommendation above
+was wrong and is retained only so it is not made again.
+
+The mistake was transferring a curve across artifacts. The 1.4%-for-20x figure in the table at the
+top of this document is the **in-repo `benchmarks/popular/ports/jquery`** artifact. The **shipped
+`jquerylil`** port is a different program with a different config, and its curve is three times
+steeper. A plateau measured on one artifact does not license a config change on another — which is
+the same error, in the other direction, as
+[020](../020-unstable-transitivity/README.md)'s generalization from small ports.
+
+So the level-13 *default* stands on its own evidence, and so does jQueryLil's deliberate 15: **a port
+that has measured its own curve may legitimately sit above the default.** That is what a default is
+for.
+
+### `local_name_reserve` is not a lever either
+
+[008](../008-jquery-compressibility-gap/README.md) flagged jQueryLil's `local_name_reserve = 8` as
+unusually small — the repo default is 16 and most ports use 48 — and guessed it contributed to the
+2.1x two-character-identifier count. Swept at level 13 with production search:
+
+| `local_name_reserve` | raw | gzip-9 | Brotli-11 |
+|---|---:|---:|---:|
+| 8 (shipped) | 89156 | 34038 | **30522** |
+| 24 | 88729 | 34053 | **30523** |
+| 48 | 89359 | 34567 | 30971 |
+
+8 and 24 are within **one byte**; 48 is **449 worse**. The setting is already at its optimum and the
+008 lever is falsified.
 
 ## What would make 13 better still
 
