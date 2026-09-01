@@ -1,6 +1,7 @@
 # 018 — A second admission regression: 7546 raw bytes, but only 253 Brotli
 
-**Status: BISECTED to a file and a commit range. Seven mechanisms falsified. The headline number was
+**Status: BISECTED to a commit range, and reframed. The admission gate is load-bearing — removing it
+emits unparseable JavaScript — so this is not "a regression to revert". Seven mechanisms falsified. The headline number was
 wrong at first and is corrected below — under mobxlil's declared Brotli objective this is worth 253
 bytes, not the 920 originally claimed.**
 
@@ -216,6 +217,42 @@ The two remaining groups do not build in isolation, together, or together with b
 fields and the import and validation hunks — the admission value is constructed in `finalize` and
 consumed in `optimize_and_select`, and the `apply_*` and `select_*` paths all call `.validate` on it.
 That is why the earlier file-level revert was the smallest change that compiles.
+
+## The gate is load-bearing — removing it produces invalid JavaScript
+
+The last test settles the character of this finding. Removing **only** the three-line admission gate
+in the variants loop of `finalize_javascript_candidates_with_parallelism`, on top of `edbdf3a`:
+
+```
+error: generated JavaScript parser failed: unresolved generated export binding at byte 56958
+  ...as makeObservable,<<<HERE>>>e as ObservableMap,k as ObservableSet,...
+ --> mobxlil/src/core/shared.lil:68:9
+```
+
+**The compile fails outright.** The gate is not surplus verification sitting on top of a working
+search — at `edbdf3a` it is filtering candidates that would otherwise emit unparseable JavaScript.
+
+That changes what this whole document is reporting, and the seven falsified mechanisms now make
+sense together:
+
+- At `42c1ad0` there is no gate and the output is valid, at 57399 bytes.
+- At `edbdf3a` something admits candidates that need filtering, and the gate filters them — at 64945.
+- Remove the gate at `edbdf3a` and the artifact is broken.
+
+So the 7546 bytes are **not a gate that should not be there**. They are the combined cost of whatever
+`edbdf3a` changed about candidate generation *plus* the gate that compensates for it. That is exactly
+why no partial revert compiles or behaves: the pieces are genuinely interdependent, not merely
+tangled by imports.
+
+It also explains the 150-validations-zero-rejections measurement that blocked six earlier
+hypotheses. **That instrumentation ran against current `HEAD`, which includes `41b88f2`** — this
+workstream's fix relaxing the ABI expectation from the direct emission's witnesses back to the
+declared contract. After that fix the gate rejects nothing; before it, at `edbdf3a`, it rejects
+plenty. The counter was measuring a compiler that had already been partly repaired.
+
+**This retires the framing of "a regression to revert."** The right question is not "which line do I
+take out" but "what does `edbdf3a` do that makes the gate necessary" — and that is a question about
+its author's intent, which is where this stops.
 
 ## What I could not do, and exactly what would unblock it
 
