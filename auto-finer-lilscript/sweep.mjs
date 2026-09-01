@@ -62,6 +62,17 @@ const compose = (...fns) => (text) => fns.reduce((acc, fn) => fn(acc), text)
 // Append a pass to an explicit `compression = [...]` allowlist. A port without one
 // already gets the profile default, so there is nothing to add and the variant is
 // reported as identical to base rather than silently measuring the same build twice.
+// Set a key in `[optimization]` rather than `[javascript]`, creating the section
+// if the port does not declare one.
+const setOpt = (key, value) => (text) => {
+  const line = `${key} = ${value}`
+  if (new RegExp(`^${key}\\s*=.*$`, "m").test(text)) {
+    return text.replace(new RegExp(`^${key}\\s*=.*$`, "m"), line)
+  }
+  return /^\[optimization\]$/m.test(text)
+    ? text.replace(/^\[optimization\]$/m, `[optimization]\n${line}`)
+    : `[optimization]\n${line}\n\n${text}`
+}
 const addPass = (pass) => (text) =>
   text.includes(`"${pass}"`) || !/^compression = \[$/m.test(text)
     ? text
@@ -100,7 +111,22 @@ const VARIANTS = {
   jqPhi: compose(set("optimization_level", "13"), set("local_phi_expression_regions", "true")),
   jqBoth: compose(set("optimization_level", "13"), addPass("region-outlining"), set("local_phi_expression_regions", "true")),
   jqRegion15: addPass("region-outlining"),
-  jqBoth15: compose(addPass("region-outlining"), set("local_phi_expression_regions", "true"))
+  jqBoth15: compose(addPass("region-outlining"), set("local_phi_expression_regions", "true")),
+
+  // Specialisation is the suspected cause of the repetition class -- jquerylil and
+  // remark-mathlil both emit *fewer* raw bytes than the competitor and still lose
+  // Brotli, with roughly half the >=32-byte back-reference coverage (025). Cloning a
+  // function per constant argument shortens each site and destroys the long identical
+  // spans the compressor was paying almost nothing for. These ask the compiler to
+  // keep one generic callee instead.
+  nospec: setOpt("constant_parameter_specialization", "false"),
+  nocallsite: setOpt("call_site_specialization", "false"),
+  nocapture: setOpt("capture_signature_cloning", "false"),
+  fold: setOpt("identical_function_folding", "true"),
+  subsume: setOpt("function_subsumption", "true"),
+  noclone: compose(setOpt("call_site_specialization", "false"), setOpt("capture_signature_cloning", "false"), setOpt("constant_parameter_specialization", "false")),
+  foldsubsume: compose(setOpt("identical_function_folding", "true"), setOpt("function_subsumption", "true")),
+  nofactory: setOpt("inline_closure_factories", "false")
 }
 
 const portNames = (flag("ports", "") || Object.keys(PORTS).join(",")).split(",").filter(Boolean)
