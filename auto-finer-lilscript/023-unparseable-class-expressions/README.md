@@ -73,6 +73,13 @@ Costs one byte on a shape that was previously invalid, so no valid output grows.
   `comparison/markdown-stack/.parsecheck.mjs`; running esbuild over every declared artifact is
   cheap and would have caught this years earlier than the scoreboard did.
 
+## It never reached either repo's history
+
+Worth checking rather than assuming: **all 8 artifacts committed to `remarklil` and `unifiedlil`
+parse.** The unparseable files were working-copy rebuilds only, so nothing published carries the
+defect and neither port's git history needs repair. Their working trees stay mid-migration and are
+left alone.
+
 ## Scoreboard, all sixteen ports
 
 Brotli delta, `lil-graph` vs `official-terser`, against the numbers published in `REPORT.md`:
