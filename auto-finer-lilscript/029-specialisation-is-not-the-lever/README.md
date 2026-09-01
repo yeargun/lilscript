@@ -60,6 +60,29 @@ Also settled while there: **level 13 is 1402 bytes worse than 15 on jquerylil** 
 29270), so this port's level-15 config is correct, and ESM-vs-UMD is worth only 70 bytes, so the
 comparison against `jquery.min.js` is fair rather than a format artifact.
 
+## The concrete instance, and the switch that does not reach it
+
+Diffing the 48-byte repeated substrings of both artifacts shows the shape of the deficit exactly.
+The same operation, in both:
+
+```js
+// ours     -- hoists the receiver into a temporary
+n=this.stack,r=n[n.length-1];this.exit(e),r.valu...
+// Terser's -- leaves it inline
+),n=this.stack[this.stack.length-1];n.type,this....
+```
+
+Terser's spelling is **longer**, and it is a phrase Terser repeats verbatim elsewhere, so every copy
+after the first costs a back-reference instead of its bytes. Ours is shorter at each site and shares
+nothing. That is [025](../025-brotli-repetition-gap/README.md)'s mechanism caught in a single
+expression, and it names the transform responsible: hoisting a common subexpression into a
+temporary.
+
+So the obvious switch is `[optimization] common_subexpression_elimination = false`. **It changes
+nothing** — 2287 with it on, 2287 with it off, 2287 with `scalar_replacement` off too, and 2287 with
+both off. The hoisting is not the IR-level CSE pass; it is the JavaScript emitter, where no
+configuration key reaches it.
+
 ## Where that leaves the repetition class
 
 Every configuration surface is now exhausted for these two ports: search effort, beam width,
