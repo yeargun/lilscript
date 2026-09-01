@@ -9681,6 +9681,19 @@ fn validate_direct_javascript_artifact(
     config: &ProjectConfig,
     module_output: bool,
 ) -> Result<(), CompileError> {
+    let outcome = validate_direct_javascript_artifact_inner(source, ir, config, module_output);
+    if crate::timing::enabled() {
+        crate::timing::DIRECT_VALIDATE.record_pass(u64::from(outcome.is_err()), 0);
+    }
+    outcome
+}
+
+fn validate_direct_javascript_artifact_inner(
+    source: &str,
+    ir: &ControlFlowModule<'_>,
+    config: &ProjectConfig,
+    module_output: bool,
+) -> Result<(), CompileError> {
     validate_generated_javascript_syntax_floor(source, config.javascript.resolved_ecmascript())
         .map_err(generated_javascript_parse_error)?;
     let manifest = config

@@ -113,14 +113,19 @@ pub static ACTIVE_FOLD: Bucket = Bucket::new("active_fold");
 /// of proposed candidates the admission gate discards. A high rejection rate
 /// means the search is settling for artifacts it did not choose on size.
 pub static ADMISSION: Bucket = Bucket::new("admission");
+/// Direct-artifact validation outcomes. A failure here discards a whole plan
+/// before any of its candidates reach admission, so it is invisible to the
+/// `admission` bucket.
+pub static DIRECT_VALIDATE: Bucket = Bucket::new("direct_validate");
 
 /// Iteration-count buckets. `calls` is the number of times the loop was
 /// entered and `bytes` holds the worst single call's iteration count.
 pub static SCALAR_FIXPOINT: Bucket = Bucket::new("scalar_fixpoint");
 pub static INLINE_FIXPOINT: Bucket = Bucket::new("inline_fixpoint");
 
-const BYTE_BUCKETS: [&Bucket; 14] = [
+const BYTE_BUCKETS: [&Bucket; 15] = [
     &ADMISSION,
+    &DIRECT_VALIDATE,
     &CODEC,
     &ANALYZE,
     &EMIT,
