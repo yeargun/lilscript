@@ -135,6 +135,13 @@ const VARIANTS = {
   reserve8: set("local_name_reserve", "8"),
   reserve48: set("local_name_reserve", "48"),
   reserve96: set("local_name_reserve", "96"),
+  // micromarklil stops with work-budget-exhausted and 46 of 47 emission families
+  // starved, including precise-cross-scope-shadowing -- the one that would stop
+  // 62 of its 63 top-level bindings taking two-character names. Give the terminal
+  // search room and see whether it reaches them.
+  probe1536: set("terminal_codec_probe_limit", "1536"),
+  probe4096: set("terminal_codec_probe_limit", "4096"),
+  probe1536always: compose(set("candidate_search", '"always"'), set("terminal_codec_probe_limit", "1536"), set("candidate_proposal_limit", "1536")),
   // Hoisting a common subexpression into a temporary is a raw-byte win and can be a
   // compressed-byte loss: we emit `n=this.stack,r=n[n.length-1]` where Terser leaves
   // `this.stack[this.stack.length-1]` inline -- longer, but a phrase it repeats
