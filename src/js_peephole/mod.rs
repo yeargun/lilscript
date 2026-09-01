@@ -1010,6 +1010,11 @@ fn generated_export_name<'src>(token: &Token<'src>) -> Option<&'src str> {
 /// A validator that fails closed keeps invalid JavaScript from shipping, but it
 /// also destroys the only copy of the program that shows why. Setting
 /// `LILSCRIPT_DUMP_REJECTED` to a directory keeps each rejected candidate.
+fn validate_each_fold() -> bool {
+    static ENABLED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ENABLED.get_or_init(|| std::env::var_os("LILSCRIPT_VALIDATE_FOLDS").is_some())
+}
+
 fn dump_rejected_generated_javascript(source: &str, error: &JavaScriptParseError) {
     let Some(directory) = std::env::var_os("LILSCRIPT_DUMP_REJECTED") else {
         return;
@@ -2887,6 +2892,33 @@ impl RewriteSession {
             crate::timing::record_fold(name, count == 0, elapsed);
         }
         trace_fold(&fold, &self.code, &next);
+        // A fold that emits JavaScript the validator rejects does not announce
+        // itself: the artifact is dropped whole, the search settles for a worse
+        // candidate, and the only evidence is a size regression nobody can
+        // attribute to anything. `LILSCRIPT_VALIDATE_FOLDS` re-validates after
+        // every fold and names the first one whose output stops parsing; set it
+        // to a directory to also keep that fold's input and output.
+        if validate_each_fold() {
+            // Only a fold that turns a *valid* artifact invalid is the culprit.
+            // Checking the output alone reports every fold downstream of the
+            // real one, which on mobxlil is 4669 reports for a handful of
+            // breakages, and the first line of that is not the answer either --
+            // the pipeline passes through states an end-of-run validator would
+            // reject and a later fold repairs.
+            let broke_it = analyze_generated_javascript_inner(&next)
+                .err()
+                .filter(|_| analyze_generated_javascript_inner(&self.code).is_ok());
+            if let Some(error) = broke_it {
+                eprintln!("LILSCRIPT_VALIDATE_FOLDS: `{name}` emitted invalid JavaScript: {error}");
+                if let Some(directory) = std::env::var_os("LILSCRIPT_VALIDATE_FOLDS") {
+                    let directory = std::path::Path::new(&directory);
+                    if directory.is_dir() {
+                        let _ = std::fs::write(directory.join(format!("broken-by-{name}.js")), &next);
+                        let _ = std::fs::write(directory.join(format!("input-to-{name}.js")), &self.code);
+                    }
+                }
+            }
+        }
         let moved = self.adopt(next);
         self.rewrites += count;
         if count == 0 && !moved {

@@ -1862,6 +1862,12 @@ fn ternary_end(tokens: &[Token<'_>], after_colon: usize) -> usize {
                 nested += 1;
             }
             ":" if depth == 0 && nested > 0 => nested -= 1,
+            // A `:` here with nothing nested to close belongs to an *enclosing*
+            // conditional, so this arm ended before it. Scanning past it swallows
+            // the outer `:` and its else-arm into this one's value, which is how
+            // `t?A?!0:B?!0:!1:!1` folded to `t?A||(B||(!1:!1))` -- the artifact was
+            // then rejected whole and the search silently kept a worse candidate.
+            ":" if depth == 0 => return index,
             "," | ";" if depth == 0 && nested == 0 => return index,
             _ => {}
         }

@@ -3108,3 +3108,27 @@ fn enclosing_group_index_matches_the_scan_it_replaced() {
         }
     }
 }
+
+#[test]
+fn conditional_value_fold_stops_at_the_enclosing_colon() {
+    // `t?A?!0:B?!0:!1:!1` -- a conditional whose else-arm is itself a conditional
+    // nested inside an outer one. Scanning the inner arm used to run straight
+    // through the outer `:`, folding to `t?A||(B||(!1:!1))`: a `:` answering no
+    // `?`. The validator caught it and threw the whole artifact away, so the only
+    // symptom was that the search quietly kept a worse candidate.
+    let source = concat!(
+        "function Da(e){if(e==null)return !1;var t=e.constructor;",
+        "return t?'GeneratorFunction'==t.name+\"\"?!0:'GeneratorFunction'==t.displayName+\"\"?!0:!1:!1}"
+    );
+    let (folded, count) =
+        crate::js_peephole::folds::fold_boolean_conditional_values(source).unwrap();
+    assert!(count > 0, "fold did not fire: {folded}");
+    assert!(!folded.contains(":!1)"), "stranded colon: {folded}");
+    crate::js_peephole::analyze_generated_javascript(&folded)
+        .unwrap_or_else(|error| panic!("{error}\n{folded}"));
+
+    let probe = format!("{folded}console.log([Da(null),Da({{constructor:{{name:'GeneratorFunction'}}}}),Da({{constructor:{{displayName:'GeneratorFunction'}}}}),Da({{constructor:{{name:'x'}}}})].join(','))");
+    let original = format!("{source}console.log([Da(null),Da({{constructor:{{name:'GeneratorFunction'}}}}),Da({{constructor:{{displayName:'GeneratorFunction'}}}}),Da({{constructor:{{name:'x'}}}})].join(','))");
+    assert_eq!(run_javascript(&probe).trim(), run_javascript(&original).trim());
+    assert_eq!(run_javascript(&probe).trim(), "false,true,true,false");
+}
