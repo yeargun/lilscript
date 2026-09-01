@@ -101,6 +101,29 @@ actually chose, without reference to this measurement:
 evidence for the same conclusion, gathered by people optimizing their own artifacts rather than by
 this sweep, and it is the strongest single argument that 13 is the right default.
 
+## The port that is slowest to build is configured for the theoretical maximum
+
+`jquerylil/lilscript.toml` sets **`optimization_level = 15` *and* `candidate_search = "always"`** —
+the most expensive combination the compiler offers. `always` does not just widen the search, it
+removes the production caps: `effective_candidate_limit` and `effective_candidate_byte_budget` go to
+`usize::MAX`, and the terminal probe tier is multiplied by four (`src/config.rs`).
+
+Measured while sweeping that port's `local_name_reserve`: **one artifact took over 85 minutes on
+three dedicated cores** and had not finished. That is the "compilation takes infinitely long"
+complaint in its most extreme form, and it is entirely config-driven.
+
+Two things make it hard to justify:
+
+- level 15 buys **1.4% over level 13 for 20x the CPU** on this very port (the table above), and
+- after all that search, jQueryLil is still **+780 Brotli** from `jquery.min.js` — while *beating* it
+  on raw by 4489 ([008](../008-jquery-compressibility-gap/README.md)). The remaining gap is
+  compressibility, which more search does not buy.
+
+`docs/knowledge/evidence/jquery.md` already lists "simply widening the beam" among the **measured
+rejected directions** for this port. Its shipped config is nevertheless the widest beam available.
+Dropping it to level 13 with `candidate_search = "production"` is the obvious experiment, and on the
+evidence here it should cost a fraction of a percent and return hours.
+
 ## What would make 13 better still
 
 The 382 bytes between 14 and 15 come almost entirely from the unbounded candidate byte budget: 428
