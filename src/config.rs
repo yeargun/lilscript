@@ -367,6 +367,16 @@ impl ProjectConfig {
                     self.javascript.cost_model,
                     CompressionCostModel::Brotli
                 )),
+            // Naming a twice-read aggregate field is the raw-cheap spelling and,
+            // under a compressor, sometimes the expensive one: the un-hoisted read
+            // repeats verbatim and every copy after the first costs a
+            // back-reference. Off by default -- it is a raw regression by
+            // construction, so a port turns it on only after measuring its own
+            // artifact.
+            rematerialize_member_reads: self
+                .javascript
+                .rematerialize_member_reads
+                .unwrap_or(false),
             phi_edge_value_forwarding: self
                 .javascript
                 .optimization_enabled(JavaScriptOptimization::PhiEdgeValueForwardingVariants, None)
@@ -1234,6 +1244,11 @@ pub struct JavaScriptConfig {
     /// terminal cleanup, so a beam that ranks mid-pipeline drops it. A port that
     /// has measured its own artifact says so here.
     pub local_phi_expression_regions: Option<bool>,
+    /// Re-emit a twice-read LilScript aggregate field at each use instead of
+    /// binding it to a name. Off by default: it is a raw-byte regression by
+    /// construction, and only pays when the un-hoisted spelling repeats often
+    /// enough for the compressor to charge a back-reference instead of the text.
+    pub rematerialize_member_reads: Option<bool>,
     pub public_aggregate_abi: PublicAggregateAbi,
     pub aggregate_layout: AggregateLayout,
     /// Allow representations that bypass ambient JavaScript constructor
@@ -1298,6 +1313,7 @@ impl Default for JavaScriptConfig {
             function_spelling: None,
             struct_method_shorthand: None,
             local_phi_expression_regions: None,
+            rematerialize_member_reads: None,
             public_aggregate_abi: PublicAggregateAbi::Named,
             aggregate_layout: AggregateLayout::default(),
             assume_pristine_builtins: false,

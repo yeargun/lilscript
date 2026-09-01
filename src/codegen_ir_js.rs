@@ -83,6 +83,21 @@ pub struct IrJsOptions {
     /// exports, address-taken functions, recursion, and module output before
     /// this representation can be selected.
     pub inline_single_use_functions: bool,
+    /// Re-emit a cheap, pure member read at each of its uses instead of binding
+    /// it to a name.
+    ///
+    /// SSA destruction names every value used more than once, so `this.stack`
+    /// read twice becomes `n=this.stack,r=n[n.length-1]`. That is fewer raw
+    /// bytes and can be more compressed bytes: Terser leaves
+    /// `this.stack[this.stack.length-1]` inline, which is longer but a phrase it
+    /// repeats verbatim elsewhere, so every copy after the first costs a
+    /// back-reference rather than its bytes. Measured on remark-mathlil the
+    /// hoisted spelling carries half the >=32-byte repeat coverage of Terser's.
+    ///
+    /// Only reads whose object is already a bare name or `this` qualify, so the
+    /// duplicated text is short and evaluating it twice is a property read of a
+    /// local -- not a call, not an index, and never order-sensitive.
+    pub rematerialize_member_reads: bool,
     /// Emit a private function whose only use is one `Closure` site as a
     /// function expression there. A thin capture wrapper around a shared
     /// declaration is the same per-call allocation, so reusable and loop
@@ -285,6 +300,7 @@ impl Default for IrJsOptions {
             unused_catch_binding_elision: true,
             compact_generator_star: true,
             inline_single_use_functions: false,
+            rematerialize_member_reads: false,
             inline_exclusive_closures: true,
             iife_private_callee_clusters: false,
             nested_once_run_helpers: false,
@@ -8840,11 +8856,35 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 // CFG into a conditional would otherwise leave later uses
                 // referring to an undeclared name. Keep the statement form in
                 // that case so evaluation remains both single and sound.
+                // A value used more than once is normally named, which is what
+                // turns two reads of `this.stack` into `n=this.stack,r=n[n.length-1]`.
+                // Fewer raw bytes, and under a compressor objective often more
+                // bytes: the un-hoisted spelling repeats verbatim and every copy
+                // after the first costs a back-reference. Only LilScript-owned
+                // aggregate fields qualify -- a host property read could run a
+                // getter, and duplicating it would change how many times it runs --
+                // and only off an object already spelled as a bare name or `this`,
+                // so the duplicated text stays short.
+                let rematerialize_read = self.options.rematerialize_member_reads
+                    && use_count > 1
+                    && use_count <= 3
+                    && (matches!(
+                        instruction.op,
+                        ControlFlowOp::FieldGet { .. } | ControlFlowOp::RecordFieldGet { .. }
+                    ) || (self.options.assume_pure_property_reads
+                        && op_is_member_read(&instruction.op)))
+                    && member_read_object(&instruction.op).is_some_and(|object| {
+                        cache.get(&object).is_some_and(|expression| {
+                            expression.code == "this"
+                                || is_js_property_identifier(expression.code.as_str())
+                        })
+                    });
                 if (!expression_only_op(&instruction.op)
                     && !deferred_effect
                     && !inline_pure_call
                     && !host_wrapper_op)
                     || (use_count > 1
+                        && !rematerialize_read
                         && !matches!(instruction.op, ControlFlowOp::Const(_))
                         && !reuses_parameter_binding
                         && !(allow_eager_bindings

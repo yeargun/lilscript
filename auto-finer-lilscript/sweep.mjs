@@ -131,6 +131,7 @@ const VARIANTS = {
   // compressed-byte loss: we emit `n=this.stack,r=n[n.length-1]` where Terser leaves
   // `this.stack[this.stack.length-1]` inline -- longer, but a phrase it repeats
   // verbatim elsewhere, so the copy costs a back-reference instead of its bytes.
+  remat: set("rematerialize_member_reads", "true"),
   nocse: setOpt("common_subexpression_elimination", "false"),
   noscalar: setOpt("scalar_replacement", "false"),
   nocsescalar: compose(setOpt("common_subexpression_elimination", "false"), setOpt("scalar_replacement", "false"))
