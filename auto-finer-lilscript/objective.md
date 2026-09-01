@@ -104,6 +104,27 @@ The wins: rehype-katex (−112118, scope-suspect), rehype (−1735), hast-util-t
 rehype-stringify (−794), mdast-util-to-hast (−752), remark-rehype (−687), **marked (−579)**,
 remark-gfm (−383), remark-breaks (−67).
 
+## Open regressions, and what each is worth under its own objective
+
+Two compiler regressions are precisely located and reproducible. Both were measured the same way:
+frozen port source and config, one file reverted, deterministic output verified across runs and
+thread counts.
+
+| port | commit / range | raw | Brotli | status |
+|---|---|---:|---:|---|
+| markedlil | `593f048`, `src/compiler.rs` | −1568 | — | **fixed** in `41b88f2`; markedlil now 9506, its best ever |
+| mobxlil | `42c1ad0..edbdf3a`, `src/compiler.rs` | **−7546 (12%)** | **−253 (1.5%)** | open — [018](018-mobx-admission-regression/README.md) |
+
+The mobxlil one loses ten `class` declarations to `function` + `.prototype` + `setPrototypeOf`
+tables. Note the asymmetry, which decides how urgent it is: **12% of raw and 1.5% of Brotli**,
+because prototype tables are verbose but extremely repetitive. It is a serious regression for a
+`cost_model = "raw"` project and a minor one under Brotli — the same 10:1 ratio measured for property
+mangling in [008](008-jquery-compressibility-gap/README.md).
+
+Seven candidate mechanisms have been falsified by instrumentation rather than argument; the counters
+live in `src/timing.rs` (`admission`, `direct_validate`, `probe_dropped`) and are free when
+`LILSCRIPT_TIMING` is unset.
+
 ## How to run the fleet
 
 Ports are built and measured in parallel by `auto-finer-lilscript/fleet.mjs`. Each port gets a fixed

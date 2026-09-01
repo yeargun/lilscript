@@ -196,6 +196,25 @@ git checkout 42c1ad0 -- src/compiler.rs && cargo build --release
   --config ~/mobxlil/lilscript.toml -o /tmp/good.js       # 57399
 ```
 
+## What I could not do, and exactly what would unblock it
+
+Hunk-level bisection of the 342-line `compiler.rs` diff — the technique that isolated
+[016](../016-marked-size-regression/README.md) to a single hunk — **does not work here**: the hunks
+are interdependent (validation call sites, struct fields and imports land together), so no partial
+revert compiles.
+
+Three added `validate_direct_javascript_artifact` calls inside `select_javascript_candidate_global`
+sit on `.ok()?` chains, where a failure silently drops a candidate plan. That is the right *shape*
+for this bug. But the instrumented wrapper records **11 calls and 0 failures** on mobxlil, and 11 is
+about what the probe loop alone accounts for — so those three sites are evidently not reached for
+this port at all.
+
+The one thing that would settle it in minutes is knowledge this workstream does not have: **what
+`42c1ad0..edbdf3a` was intended to change about candidate generation.** Every observable effect of it
+is a validation that never fires, and yet reverting it restores ten `class` declarations. Either the
+intent is not fully captured by the validation calls, or one of them has a side effect on shared
+emission state. Both are one question to the author and neither is safe to guess.
+
 ## Why this is a report
 
 That range is the owner's own in-flight admission work, and its stated purpose — proving the emitted
