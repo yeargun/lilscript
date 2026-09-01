@@ -44,11 +44,14 @@ Reverting files individually across that range:
 `generated_class_shape` and friends. No new folds, no pipeline change. The behavior change is in
 `compiler.rs`'s wiring of those helpers into validation.
 
-## Four mechanisms falsified
+## Five mechanisms falsified
 
 The obvious story is that validation rejects good candidates and the search settles for worse ones.
 It is not what happens.
 
+0. **Budget starvation** — 20x the search work recovers 280 bytes of 7546 and zero classes. Detailed
+   below, because it was the most plausible mechanism and disproving it is what made the real
+   statement possible.
 1. **Admission rejecting candidates.** Instrumented: **150 validations, 0 rejections** on mobxlil.
    (markedlil: 201 validations, 0 rejections.)
 2. **Direct-artifact validation dropping whole plans** before admission is ever reached — this would
@@ -86,22 +89,29 @@ spelling it replaced.
 This is the Closure-ADVANCED-style structural choice the objective names — and it is being lost, not
 by a rejection, but by never being scored.
 
-## And the search never gets to it
+## Starvation looked like the answer, and is not
 
-`--explain json` on mobxlil:
+`--explain json` on mobxlil reports `work-budget-exhausted` with **33 of 35 families starved** — 94%,
+against 51–62% on acorn ([009](../009-search-starvation/README.md)). The obvious reading is that the
+class-emission variant is simply one of the families that never runs, and that the admission work
+pushed an already-thin budget past it.
 
-```
-transfer_bytes 16514   stop: work-budget-exhausted   starved: 33 of 35 families
-```
+**Tested, and false.** Re-running with `terminal_codec_probe_limit = 4096`,
+`candidate_proposal_limit = 1536` and a 32 MiB candidate byte budget — roughly twenty times the
+default work, and twenty minutes of compile against fifty-nine seconds:
 
-**94% of the decision families are starved**, against 51–62% on acorn
-([009](../009-search-starvation/README.md)). The class-emission variant is one of the families that
-never runs. So the mechanism is the one 009 identified — the search is budget-starved — and the
-admission work added per-candidate cost that pushed an already-thin budget past the point where the
-class variant gets explored.
+| | raw | `class` declarations |
+|---|---:|---:|
+| default budget | 64945 | 0 |
+| **20x budget** | **64665** | **0** |
+| pre-regression | 57399 | **10** |
 
-That reconciles every falsified mechanism above: nothing is refused, because the winning candidate is
-never generated.
+280 bytes of 7546, and **still not one class**. The class form is not being out-competed and it is not
+being starved: it is **no longer in the candidate space at all**.
+
+That is the sharpest statement available and it reconciles every falsified mechanism above. Nothing
+is refused, nothing is out-scored, and no amount of budget recovers it — so something in that
+`compiler.rs` range stopped the class-shaped emission from being *generated*.
 
 Two further notes from the same telemetry, both worth acting on independently:
 
