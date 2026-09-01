@@ -1,7 +1,7 @@
 # 034 — The bundler was escaping 2304 characters into six bytes each
 
-**Status: FIXED on micromarklil. −7021 raw, −217 Brotli, 1963/1963 tests pass. This is the largest
-single raw saving found in this log, and it is one line of build configuration.**
+**Status: FIXED on micromarklil and rehypelil. −27689 raw and −1093 Brotli across the two, from one
+line of build configuration. Largest saving in this log.**
 
 ## How it surfaced
 
@@ -64,9 +64,21 @@ almost invisible, while a raw- or gzip-objective artifact would have been paying
 ## Scope
 
 Scanning every port's shipped ESM for escapes: **micromarklil (2037)** and **rehypelil (6327)** are
-the two carrying them, with katexlil a distant third at 55. rehypelil's fix is in the same commit but
-its measurement is pending a `--compile` rebuild — its build only regenerates the ESM under that
-flag, which is worth knowing on its own.
+the two carrying them, with katexlil a distant third at 55. rehypelil is the larger of the two by
+far:
+
+| port | raw before | raw after | Brotli before | Brotli after |
+|---|---:|---:|---:|---:|
+| micromarklil | 94138 | 87117 | 26314 | **26097** (−217) |
+| **rehypelil** | 192557 | **171889** | 53239 | **52363** (−876) |
+| | | **−27689** | | **−1093** |
+
+`159/159` rehypelil tests pass. It was already a win at −1841 against upstream and is now **−2717**.
+One line of build configuration, two ports, 27 KB of raw and 1093 Brotli.
+
+Worth noting for anyone reproducing: rehypelil compiles into a temporary directory and only
+regenerates its ESM under `--compile`, so a plain `node scripts/build.mjs` silently measures the old
+artifact.
 
 ## The pattern, fourth instance
 

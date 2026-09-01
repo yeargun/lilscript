@@ -127,6 +127,14 @@ const VARIANTS = {
   noclone: compose(setOpt("call_site_specialization", "false"), setOpt("capture_signature_cloning", "false"), setOpt("constant_parameter_specialization", "false")),
   foldsubsume: compose(setOpt("identical_function_folding", "true"), setOpt("function_subsumption", "true")),
   nofactory: setOpt("inline_closure_factories", "false"),
+  // Terser puts 6975 identifier occurrences on one-character names in micromarklil
+  // where we manage 4280, spending 3592 occurrences on two-character names against
+  // its 513. `local_name_reserve` is the knob that decides how many short names are
+  // held back, so sweep it rather than assume the default is right for every port.
+  reserve0: set("local_name_reserve", "0"),
+  reserve8: set("local_name_reserve", "8"),
+  reserve48: set("local_name_reserve", "48"),
+  reserve96: set("local_name_reserve", "96"),
   // Hoisting a common subexpression into a temporary is a raw-byte win and can be a
   // compressed-byte loss: we emit `n=this.stack,r=n[n.length-1]` where Terser leaves
   // `this.stack[this.stack.length-1]` inline -- longer, but a phrase it repeats
