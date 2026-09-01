@@ -7459,14 +7459,15 @@ fn apply_selected_canonical_peephole(
     {
         return Ok(selected);
     }
-    if selected
-        .terminal_work_units
-        .saturating_add(CANONICAL_PEEPHOLE_WORK_UNITS)
-        > selected.terminal_codec_probe_limit
-    {
-        selected.terminal_codec_probe_limit_reached = true;
-        return Ok(selected);
-    }
+    // Deliberately *not* gated on the remaining probe budget. Charging these two
+    // units against the same ledger as the search probes means a big artifact --
+    // exactly the kind with the most to gain -- spends its budget on permutation
+    // scoring and then skips the one rewrite this function exists to guarantee.
+    // Measured on micromarklil, whose ledger is full long before here: the emitted
+    // artifact still had 434 `;var ` runs the canonical rewrite merges, and running
+    // it cost 3574 raw and 171 Brotli to skip. The rewrite is two units against a
+    // limit of 384 and is still scored below like any other candidate, so it can
+    // only be kept when it measures smaller.
     selected.terminal_work_units = selected
         .terminal_work_units
         .saturating_add(CANONICAL_PEEPHOLE_WORK_UNITS);

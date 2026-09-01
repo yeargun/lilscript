@@ -3133,3 +3133,4 @@ fn conditional_value_fold_stops_at_the_enclosing_colon() {
     assert_eq!(run_javascript(&probe).trim(), "false,true,true,false");
 }
 
+
