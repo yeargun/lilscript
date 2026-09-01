@@ -63,6 +63,54 @@ It is not what happens.
 **Nothing is being rejected anywhere, and the output is still 7940 bytes bigger.** Whatever the
 mechanism is, it changes which candidates are *generated or scored*, not which are *refused*.
 
+## What the bytes actually are: `class` emission is gone
+
+Structurally diffing the recovered artifact against the current one is what finally located it:
+
+| | good (57399) | bad (64945) | delta |
+|---|---:|---:|---:|
+| **`class`** | **10** | **0** | **−10** |
+| **`.prototype`** | 19 | **120** | **+101** |
+| `function` keyword | 206 | 310 | +104 |
+| `=function` | 114 | 200 | +86 |
+| `Object.setPrototypeOf` | 0 | 2 | +2 |
+| `;` | 952 | 2196 | +1244 |
+| `,` | 2194 | 1338 | −856 |
+| identifier occurrences | 11155 | 12631 | +1476 |
+
+**The good build emits ten `class` declarations; the current one emits none**, falling back to
+`function` + `.prototype` assignment tables and `Object.setPrototypeOf` for inheritance. That is the
+entire 7.5 KB: a class body is dramatically more compact than the constructor-plus-prototype-table
+spelling it replaced.
+
+This is the Closure-ADVANCED-style structural choice the objective names — and it is being lost, not
+by a rejection, but by never being scored.
+
+## And the search never gets to it
+
+`--explain json` on mobxlil:
+
+```
+transfer_bytes 16514   stop: work-budget-exhausted   starved: 33 of 35 families
+```
+
+**94% of the decision families are starved**, against 51–62% on acorn
+([009](../009-search-starvation/README.md)). The class-emission variant is one of the families that
+never runs. So the mechanism is the one 009 identified — the search is budget-starved — and the
+admission work added per-candidate cost that pushed an already-thin budget past the point where the
+class variant gets explored.
+
+That reconciles every falsified mechanism above: nothing is refused, because the winning candidate is
+never generated.
+
+Two further notes from the same telemetry, both worth acting on independently:
+
+- mobxlil declares `priority = "realistic-performance-first"`, not `size-first`. Some of its distance
+  from upstream is a deliberate performance choice, not a compiler failure, and its −3577 should not
+  be read as a pure size loss.
+- only **35** families are scored here against acorn's 45, so this port is starting from a narrower
+  search before starvation is even counted.
+
 ## Reproduction
 
 59 seconds per probe, frozen source:
