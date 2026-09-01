@@ -75,22 +75,34 @@ The single number this workstream is judged on:
 > **Every `*Lil` port's shipped artifact must be smaller than its upstream npm equivalent under the
 > port's declared `cost_model` — usually Brotli-11. Beat, don't tie.**
 
-Current state, committed artifacts, pinned codec: **11 wins / 9 losses, −33140 Brotli overall.**
-Reproduce with `node auto-finer-lilscript/fleet.mjs --measure --committed`.
+Current state, **all 26 ports freshly rebuilt** with the current compiler, pinned codec:
+**9 wins / 11 losses, −65794 Brotli overall.** Reproduce with `node auto-finer-lilscript/fleet.mjs`.
 
-The nine losses, worst first:
+Read that alongside the dirtiness column: **16 ports have modified sources**, so their numbers move
+with in-flight port work as well as with the compiler. The four ports with clean sources —
+`jquerylil`, `markedlil`, `mobxlil`, `motionlil` — are the only ones where a compiler change can be
+attributed, and they are where a fix should be proven before it is believed.
 
-| port | delta | note |
-|---|---:|---|
-| motionlil | +9314 | scope-suspect: `dist/full.js` against the real motion UMD may not be the same program |
-| remarklil | +5833 | |
-| remark-parselil | +3812 | micromark family |
-| katexlil | +3742 | |
-| mdast-util-from-markdownlil | +3698 | micromark family |
-| micromarklil | +3381 | micromark family — these three share a core, so one fix moves ~10.9 KB |
-| mobxlil | +2657 | |
-| jquerylil | +780 | already beats upstream on **raw** by 4489; loses only on compressibility |
-| remark-mathlil | +202 | |
+The eleven losses, worst first. `src` = modified source files, i.e. how much of the number is *not*
+the compiler:
+
+| port | delta | src | note |
+|---|---:|---:|---|
+| react-markdownlil | +14166 | 19 | committed artifact was glue-only (React external); the tree's inlines it. Not the same program |
+| motionlil | +9314 | **0** | scope-suspect baseline: `dist/full.js` against the real motion UMD |
+| remarklil | +6704 | 46 | |
+| katexlil | +5800 | 11 | |
+| micromarklil | +4154 | 51 | micromark family |
+| **mobxlil** | **+3577** | **0** | **clean source — a real, attributable loss** |
+| remark-parselil | +3235 | 36 | micromark family |
+| mdast-util-from-markdownlil | +3175 | 33 | micromark family — these three share a core, so one fix moves ~10.6 KB |
+| **jquerylil** | **+1825** | **0** | **clean source.** Beats upstream on *raw* by 4489; loses only on compressibility |
+| unifiedlil | +248 | 6 | |
+| remark-mathlil | +137 | 9 | |
+
+The wins: rehype-katex (−112118, scope-suspect), rehype (−1735), hast-util-to-html (−1014),
+rehype-stringify (−794), mdast-util-to-hast (−752), remark-rehype (−687), **marked (−579)**,
+remark-gfm (−383), remark-breaks (−67).
 
 ## How to run the fleet
 
