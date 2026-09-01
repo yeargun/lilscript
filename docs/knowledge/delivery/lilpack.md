@@ -10,6 +10,13 @@ lilscript <file> --target js-module --delegate-bundling [--mode development|prod
 
 `--delegate-bundling` forces `bundle.mode = single`. Vite then tree-shakes and chunks the mixed graph (TS, CSS, WASM, workers, assets) using Vite’s semantics. Production hashing and `lilpack.manifest.json` are Lilpack/Vite output, distinct from LilScript’s `<entry>.manifest.json` in `split` mode.
 
+When `[javascript.source_map]` is enabled, the compiler returns a structured
+code-and-map artifact to Lilpack instead of publishing a sidecar itself. The
+Vite plugin passes that map through its transform hook, preserving authored
+`.lil` locations across Vite's later transformations. Use `lilpack build
+--sourcemap` to publish maps for the final production assets; the compiler's
+`hidden` / `linked` / `inline` mode only controls direct `lilscript` output.
+
 ## Dev vs production
 
 | | Dev (`lilpack dev`) | Production (`lilpack build`) |

@@ -99,6 +99,11 @@ compression = [
 # inline_control_flow_limit = 45
 # max_inline_growth = 16
 
+[javascript.source_map]
+enabled = false # opt in; disabled builds do no provenance or map work
+mode = "hidden" # hidden | linked | inline
+include_sources_content = true # embed the exact authored .lil text
+
 [javascript.startup]
 parse_weight = 1
 compile_weight = 1
@@ -306,6 +311,17 @@ checks, mandatory IR normalization, DCE correctness, or host-boundary rules:
 ship `print()` as `console.log`. Language tests and the root `lilscript.toml`
 oracle set `false`. `debugLog` is also dropped; argument side effects stay.
 `console.warn` is not stripped. Policy: [javascript.priority](knowledge/config/javascript-priority.md).
+
+`javascript.source_map.enabled` defaults to `false`. When enabled, the compiler
+builds a standard Source Map v3 from the final selected JavaScript back to the
+linked `.lil` modules. `hidden` writes a `.js.map` sidecar without changing one
+byte of JavaScript; `linked` also appends a `sourceMappingURL` comment; `inline`
+embeds the map as a data URL. Hidden and linked CLI builds require `--output`.
+`include_sources_content = true` lets a debugger show the exact authored
+LilScript without the source tree, but can expose source in a deployed map.
+Inlining, scalar replacement, and dead-code elimination mean a map explains
+surviving generated code rather than reversing optimization. Full contract and
+mangling behavior: [source maps](source-maps.md).
 
 `javascript.function_spelling` is an explicit JavaScript ABI and spelling
 override. When omitted, exported functions retain ordinary-function

@@ -96,6 +96,11 @@ target/release/lilscript examples/v01.lil --target all -o build/v01
 
 You pick the objective codec in `lilscript.toml` (`javascript.cost_model`: `raw`, `gzip`, or `brotli`), plus the usual size / performance / compile-time tradeoffs. Full schema: [docs/configuration.md](docs/configuration.md). Language contract: [docs/language-v0.1.md](docs/language-v0.1.md). Why the knobs exist: [docs/knowledge/README.md](docs/knowledge/README.md).
 
+Optional [Source Map v3 output](docs/source-maps.md) maps the final optimized and
+mangled JavaScript back to exact LilScript sources. Hidden maps are disabled by
+default and, when enabled, leave the production JavaScript byte-for-byte
+unchanged.
+
 Lilpack is the Vite-based delivery path (`lilpack dev` / `lilpack build`). VS Code + `lilscript-lsp` live in this repo.
 
 ## Models, PRs, discussion

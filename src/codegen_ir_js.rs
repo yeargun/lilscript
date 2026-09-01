@@ -1657,6 +1657,63 @@ pub(crate) fn emit_optimized_ir_js_module_with_options_and_analysis(
     IrJsEmitter::with_integer_analysis(module, true, *options, integer_analysis).emit()
 }
 
+/// Source provenance captured from the exact IR emission selected by the
+/// compiler. Generated offsets refer to `IrJsSourceTrace::code`; the source-map
+/// composer later carries them through final JavaScript-only rewrites.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct IrJsSourceAnchor {
+    pub generated: usize,
+    pub span: crate::span::Span,
+    pub original_name: Option<String>,
+    pub function: Option<FunctionId>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct IrJsFunctionRegion {
+    pub generated_start: usize,
+    pub generated_end: usize,
+    pub function: FunctionId,
+    pub span: crate::span::Span,
+    pub original_name: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) enum IrJsBindingCategory {
+    Function,
+    Global,
+    Parameter,
+    Local,
+    Temporary,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct IrJsBindingProvenance {
+    pub function: Option<FunctionId>,
+    pub emitted: String,
+    pub source: String,
+    pub span: crate::span::Span,
+    pub category: IrJsBindingCategory,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct IrJsSourceTrace {
+    pub code: String,
+    pub anchors: Vec<IrJsSourceAnchor>,
+    pub function_regions: Vec<IrJsFunctionRegion>,
+    pub bindings: Vec<IrJsBindingProvenance>,
+    pub properties: Vec<IrJsPropertyProvenance>,
+}
+
+pub(crate) fn emit_optimized_ir_js_source_trace_with_options_and_analysis(
+    module: &ControlFlowModule<'_>,
+    module_output: bool,
+    options: &IrJsOptions,
+    integer_analysis: Arc<IntegerValueAnalysis>,
+) -> Result<IrJsSourceTrace, CodegenError> {
+    IrJsEmitter::with_integer_analysis(module, module_output, *options, integer_analysis)
+        .emit_with_source_trace()
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) enum IrJsPropertyCategory {
     Owned,
@@ -1672,6 +1729,7 @@ pub(crate) struct IrJsPropertyProvenance {
     pub emitted: String,
     pub category: IrJsPropertyCategory,
     pub stable: bool,
+    pub span: Option<crate::span::Span>,
 }
 
 pub(crate) fn ir_js_property_provenance_with_options_and_analysis(
@@ -1719,6 +1777,16 @@ pub fn emit_optimized_ir_js_chunks_with_options(
     let mut chunk_options = *options;
     chunk_options.inline_fresh_empty_array_factories = false;
     IrJsEmitter::new(module, true, chunk_options).emit_chunks(plan)
+}
+
+pub(crate) fn emit_optimized_ir_js_chunks_source_traces_with_options(
+    module: &ControlFlowModule<'_>,
+    options: &IrJsOptions,
+    plan: &IrJsChunkPlan,
+) -> Result<(Vec<IrJsChunk>, Vec<IrJsSourceTrace>), CodegenError> {
+    let mut chunk_options = *options;
+    chunk_options.inline_fresh_empty_array_factories = false;
+    IrJsEmitter::new(module, true, chunk_options).emit_chunks_with_source_traces(plan)
 }
 
 pub fn ir_function_can_move_to_chunk(module: &ControlFlowModule<'_>, function: FunctionId) -> bool {
@@ -1872,6 +1940,9 @@ struct IrJsEmitter<'module, 'src> {
     module_output: bool,
     options: IrJsOptions,
     dynamic_chunk_files: AHashMap<u32, String>,
+    source_anchors: Option<Vec<IrJsSourceAnchor>>,
+    source_function_regions: Option<Vec<IrJsFunctionRegion>>,
+    source_bindings: Option<Vec<IrJsBindingProvenance>>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -1964,12 +2035,35 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             module_output,
             options,
             dynamic_chunk_files: AHashMap::default(),
+            source_anchors: None,
+            source_function_regions: None,
+            source_bindings: None,
         }
     }
 
     fn emit(mut self) -> Result<String, CodegenError> {
+        self.emit_code()
+    }
+
+    fn emit_with_source_trace(mut self) -> Result<IrJsSourceTrace, CodegenError> {
+        self.source_anchors = Some(Vec::new());
+        self.source_function_regions = Some(Vec::new());
+        self.source_bindings = Some(Vec::new());
+        let code = self.emit_code()?;
+        let properties = self.property_provenance();
+        Ok(IrJsSourceTrace {
+            code,
+            anchors: self.source_anchors.take().unwrap_or_default(),
+            function_regions: self.source_function_regions.take().unwrap_or_default(),
+            bindings: self.source_bindings.take().unwrap_or_default(),
+            properties,
+        })
+    }
+
+    fn emit_code(&mut self) -> Result<String, CodegenError> {
         self.validate_caller_materialized_default_abis()?;
         self.prepare();
+        self.record_top_level_binding_provenance();
         let entry = self.function(self.module.entry)?.clone();
         let entry_is_single_block = entry.blocks.len() == 1 && entry.blocks[0].phis.is_empty();
         let entry_can_structure = can_structure(&entry);
@@ -2029,6 +2123,8 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         }
 
         self.loop_captured_closures = loop_captured_closures(&entry);
+        let entry_start = out.len();
+        self.record_source_anchor(entry_start, entry.span, None, Some(entry.id));
         if entry_is_single_block {
             self.emit_single_block(&entry, false, &mut out)?;
         } else if entry_can_structure {
@@ -2038,6 +2134,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             self.emit_state_machine(&entry, &mut out)?;
             out.push_str(")();");
         }
+        self.record_function_region(entry_start, out.len(), &entry);
         self.loop_captured_closures.clear();
         if self.module_output {
             self.emit_exports(&mut out)?;
@@ -2046,6 +2143,210 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             out.pop();
         }
         Ok(out)
+    }
+
+    fn record_source_anchor(
+        &mut self,
+        generated: usize,
+        span: crate::span::Span,
+        original_name: Option<&str>,
+        function: Option<FunctionId>,
+    ) {
+        if let Some(anchors) = &mut self.source_anchors {
+            anchors.push(IrJsSourceAnchor {
+                generated,
+                span,
+                original_name: original_name.map(str::to_string),
+                function,
+            });
+        }
+    }
+
+    fn record_function_region(
+        &mut self,
+        generated_start: usize,
+        generated_end: usize,
+        function: &ControlFlowFunction<'src>,
+    ) {
+        if generated_end <= generated_start {
+            return;
+        }
+        if let Some(regions) = &mut self.source_function_regions {
+            regions.push(IrJsFunctionRegion {
+                generated_start,
+                generated_end,
+                function: function.id,
+                span: function.span,
+                original_name: function.name.map(str::to_string),
+            });
+        }
+    }
+
+    fn record_top_level_binding_provenance(&mut self) {
+        let Some(bindings) = &mut self.source_bindings else {
+            return;
+        };
+        for function in &self.module.functions {
+            let Some(emitted) = self.function_names.get(&function.id) else {
+                continue;
+            };
+            let Some(source) = function.name.filter(|name| !name.is_empty()) else {
+                continue;
+            };
+            bindings.push(IrJsBindingProvenance {
+                function: None,
+                emitted: emitted.clone(),
+                source: source.to_string(),
+                span: function.span,
+                category: IrJsBindingCategory::Function,
+            });
+        }
+        for global in &self.module.globals {
+            let Some(emitted) = self.global_names.get(&global.symbol) else {
+                continue;
+            };
+            bindings.push(IrJsBindingProvenance {
+                function: None,
+                emitted: emitted.clone(),
+                source: global.name.to_string(),
+                span: global.span,
+                category: IrJsBindingCategory::Global,
+            });
+        }
+    }
+
+    fn record_function_binding_provenance(
+        &mut self,
+        function: &ControlFlowFunction<'src>,
+        context: &LocalNames,
+    ) {
+        if self.source_bindings.is_none() {
+            return;
+        }
+        let mut selected =
+            AHashMap::<String, (&str, crate::span::Span, IrJsBindingCategory)>::default();
+        let mut consider = |emitted: &str,
+                            source: &'src str,
+                            span: crate::span::Span,
+                            category: IrJsBindingCategory| {
+            let replace = selected.get(emitted).is_none_or(
+                |(current_source, current_span, current_category)| {
+                    (source != emitted, category, span.start, source)
+                        < (
+                            *current_source != emitted,
+                            *current_category,
+                            current_span.start,
+                            *current_source,
+                        )
+                },
+            );
+            if replace {
+                selected.insert(emitted.to_string(), (source, span, category));
+            }
+        };
+        for parameter in &function.params {
+            let Some(emitted) = context.value_names.get(&parameter.value) else {
+                continue;
+            };
+            if parameter.name.is_empty() || matches!(emitted.as_str(), "this" | "arguments") {
+                continue;
+            }
+            consider(
+                emitted,
+                parameter.name,
+                parameter.span,
+                IrJsBindingCategory::Parameter,
+            );
+        }
+        for local in &function.locals {
+            let Some(emitted) = context.local_names.get(&local.id) else {
+                continue;
+            };
+            consider(emitted, local.name, local.span, IrJsBindingCategory::Local);
+        }
+        let mut value_spans = vec![None; function.value_local_hints.len()];
+        for instruction in function.blocks.iter().flat_map(|block| &block.instructions) {
+            if let Some(value) = instruction.out {
+                if let Some(slot) = value_spans.get_mut(value.0 as usize) {
+                    *slot = Some(instruction.span);
+                }
+            }
+        }
+        let mut named_values = context.value_names.iter().collect::<Vec<_>>();
+        named_values.sort_by_key(|(value, _)| value.0);
+        for (value, emitted) in named_values {
+            let Some(source) = function
+                .value_local_hints
+                .get(value.0 as usize)
+                .copied()
+                .flatten()
+                .filter(|name| !name.is_empty())
+            else {
+                continue;
+            };
+            let span = value_spans
+                .get(value.0 as usize)
+                .copied()
+                .flatten()
+                .unwrap_or(function.span);
+            consider(emitted, source, span, IrJsBindingCategory::Temporary);
+        }
+        let mut bindings = selected.into_iter().collect::<Vec<_>>();
+        bindings.sort_by(|left, right| left.0.cmp(&right.0));
+        self.source_bindings
+            .as_mut()
+            .expect("source bindings were checked")
+            .extend(
+                bindings
+                    .into_iter()
+                    .map(
+                        |(emitted, (source, span, category))| IrJsBindingProvenance {
+                            function: Some(function.id),
+                            emitted,
+                            source: source.to_string(),
+                            span,
+                            category,
+                        },
+                    ),
+            );
+    }
+
+    fn record_instruction_anchor(
+        &mut self,
+        generated: usize,
+        generated_end: usize,
+        function: &ControlFlowFunction<'src>,
+        instruction: &ControlFlowInstruction<'src>,
+    ) {
+        if self.source_anchors.is_none() || generated_end <= generated {
+            return;
+        }
+        let original_name = instruction
+            .out
+            .and_then(|value| {
+                function
+                    .value_local_hints
+                    .get(value.0 as usize)
+                    .copied()
+                    .flatten()
+            })
+            .or_else(|| match &instruction.op {
+                ControlFlowOp::LoadLocal(local)
+                | ControlFlowOp::CaptureLocal(local)
+                | ControlFlowOp::StoreLocal { local, .. } => function
+                    .locals
+                    .get(local.0 as usize)
+                    .filter(|candidate| candidate.id == *local)
+                    .map(|local| local.name),
+                _ => None,
+            })
+            .filter(|name| !name.is_empty());
+        self.record_source_anchor(
+            generated,
+            instruction.span,
+            original_name,
+            Some(function.id),
+        );
     }
 
     fn prepare(&mut self) {
@@ -2100,6 +2401,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         IrJsPropertyCategory::Owned
                     },
                     stable: self.stable_property_names.contains(field.name),
+                    span: Some(field.span),
                 })
             })
             .collect::<Vec<_>>();
@@ -2115,6 +2417,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     emitted: emitted.clone(),
                     category: IrJsPropertyCategory::Unowned,
                     stable: false,
+                    span: None,
                 });
             }
         }
@@ -2127,6 +2430,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     emitted: name.clone(),
                     category: IrJsPropertyCategory::Unowned,
                     stable: true,
+                    span: None,
                 });
             }
         }
@@ -4878,7 +5182,26 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         Some(range.max < length as i64)
     }
 
-    fn emit_chunks(mut self, plan: &IrJsChunkPlan) -> Result<Vec<IrJsChunk>, CodegenError> {
+    fn emit_chunks(self, plan: &IrJsChunkPlan) -> Result<Vec<IrJsChunk>, CodegenError> {
+        self.emit_chunks_internal(plan, false)
+            .map(|(chunks, _)| chunks)
+    }
+
+    fn emit_chunks_with_source_traces(
+        mut self,
+        plan: &IrJsChunkPlan,
+    ) -> Result<(Vec<IrJsChunk>, Vec<IrJsSourceTrace>), CodegenError> {
+        self.source_anchors = Some(Vec::new());
+        self.source_function_regions = Some(Vec::new());
+        self.source_bindings = Some(Vec::new());
+        self.emit_chunks_internal(plan, true)
+    }
+
+    fn emit_chunks_internal(
+        mut self,
+        plan: &IrJsChunkPlan,
+        capture_source_traces: bool,
+    ) -> Result<(Vec<IrJsChunk>, Vec<IrJsSourceTrace>), CodegenError> {
         let fallback_span = self.function(self.module.entry)?.span;
         let mut files = AHashSet::default();
         for file in std::iter::once(&plan.entry_file)
@@ -4906,6 +5229,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         // that specialized ownership is represented in the plan itself.
         self.disable_js_adapter_fusion = true;
         self.prepare();
+        let property_provenance = capture_source_traces.then(|| self.property_provenance());
         for chunk in &plan.chunks {
             if let Some(module) = chunk.lazy_module {
                 if self
@@ -5098,7 +5422,27 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         }
 
         let mut output = Vec::with_capacity(unit_files.len());
+        let mut source_traces = Vec::with_capacity(if capture_source_traces {
+            unit_files.len()
+        } else {
+            0
+        });
         for unit in 0..unit_files.len() {
+            if capture_source_traces {
+                self.source_anchors
+                    .as_mut()
+                    .expect("chunk source anchors are enabled")
+                    .clear();
+                self.source_function_regions
+                    .as_mut()
+                    .expect("chunk source regions are enabled")
+                    .clear();
+                self.source_bindings
+                    .as_mut()
+                    .expect("chunk source bindings are enabled")
+                    .clear();
+                self.record_top_level_binding_provenance();
+            }
             let mut code = String::new();
             emit_chunk_imports(
                 &mut code,
@@ -5131,6 +5475,27 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     self.emit_dynamic_module_exports(module, &mut code)?;
                 }
             }
+            if capture_source_traces {
+                source_traces.push(IrJsSourceTrace {
+                    code: code.clone(),
+                    anchors: std::mem::take(
+                        self.source_anchors
+                            .as_mut()
+                            .expect("chunk source anchors are enabled"),
+                    ),
+                    function_regions: std::mem::take(
+                        self.source_function_regions
+                            .as_mut()
+                            .expect("chunk source regions are enabled"),
+                    ),
+                    bindings: std::mem::take(
+                        self.source_bindings
+                            .as_mut()
+                            .expect("chunk source bindings are enabled"),
+                    ),
+                    properties: property_provenance.clone().unwrap_or_default(),
+                });
+            }
             output.push(IrJsChunk {
                 file_name: unit_files[unit].clone(),
                 code,
@@ -5155,7 +5520,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 },
             });
         }
-        Ok(output)
+        Ok((output, source_traces))
     }
 
     fn emit_dynamic_module_exports(
@@ -7531,9 +7896,19 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         function: &ControlFlowFunction<'src>,
         out: &mut String,
     ) -> Result<(), CodegenError> {
+        let generated_start = out.len();
+        self.record_source_anchor(
+            generated_start,
+            function.span,
+            function.name,
+            Some(function.id),
+        );
         let previous = self.emitting_function.replace(function.id);
         let result = self.emit_function_inner(function, out);
         self.emitting_function = previous;
+        if result.is_ok() {
+            self.record_function_region(generated_start, out.len(), function);
+        }
         result
     }
 
@@ -8163,6 +8538,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             calling_convention,
             self.arguments_global_symbol(),
         );
+        self.record_function_binding_provenance(function, &context);
         self.function_js_bindings
             .insert(function.id, context.binding_names());
         let mut params = String::new();
@@ -8443,11 +8819,27 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         }
         if let Some(constructor) = constructor {
             let function = self.function(constructor)?.clone();
+            let generated_start = out.len();
+            self.record_source_anchor(
+                generated_start,
+                function.span,
+                function.name,
+                Some(function.id),
+            );
             self.emit_function_body(&function, "constructor".to_string(), false, true, out)?;
+            self.record_function_region(generated_start, out.len(), &function);
         }
         for (name, id) in methods {
             let function = self.function(id)?.clone();
+            let generated_start = out.len();
+            self.record_source_anchor(
+                generated_start,
+                function.span,
+                function.name,
+                Some(function.id),
+            );
             self.emit_function_body(&function, name.to_string(), false, true, out)?;
+            self.record_function_region(generated_start, out.len(), &function);
         }
         out.push('}');
         Ok(())
@@ -8552,11 +8944,32 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             return Ok(());
         }
         let mut segments = Vec::with_capacity(functions.len());
+        let mut segment_anchors: Option<Vec<Vec<IrJsSourceAnchor>>> = self
+            .source_anchors
+            .is_some()
+            .then(|| Vec::with_capacity(functions.len()));
+        let mut segment_regions: Option<Vec<Vec<IrJsFunctionRegion>>> = self
+            .source_function_regions
+            .is_some()
+            .then(|| Vec::with_capacity(functions.len()));
         for function in functions {
             let function = self.function(*function)?.clone();
             let mut code = String::new();
+            let anchor_start = self.source_anchors.as_ref().map_or(0, Vec::len);
+            let region_start = self.source_function_regions.as_ref().map_or(0, Vec::len);
             self.emit_function(&function, &mut code)?;
             segments.push(code);
+            if let (Some(grouped), Some(anchors)) =
+                (segment_anchors.as_mut(), self.source_anchors.as_mut())
+            {
+                grouped.push(anchors.drain(anchor_start..).collect());
+            }
+            if let (Some(grouped), Some(regions)) = (
+                segment_regions.as_mut(),
+                self.source_function_regions.as_mut(),
+            ) {
+                grouped.push(regions.drain(region_start..).collect());
+            }
         }
         let order = match self.options.function_layout {
             FunctionLayout::Source => unreachable!("source layout returned before buffering"),
@@ -8570,6 +8983,25 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             ),
         };
         for index in order {
+            let generated_base = out.len();
+            if let (Some(anchors), Some(segment_anchors)) =
+                (self.source_anchors.as_mut(), segment_anchors.as_ref())
+            {
+                anchors.extend(segment_anchors[index].iter().cloned().map(|mut anchor| {
+                    anchor.generated = anchor.generated.saturating_add(generated_base);
+                    anchor
+                }));
+            }
+            if let (Some(regions), Some(segment_regions)) = (
+                self.source_function_regions.as_mut(),
+                segment_regions.as_ref(),
+            ) {
+                regions.extend(segment_regions[index].iter().cloned().map(|mut region| {
+                    region.generated_start = region.generated_start.saturating_add(generated_base);
+                    region.generated_end = region.generated_end.saturating_add(generated_base);
+                    region
+                }));
+            }
             out.push_str(&segments[index]);
         }
         Ok(())
@@ -9070,6 +9502,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             &self.loop_captured_closures,
             &self.global_names,
         );
+        self.record_function_binding_provenance(function, &context);
         self.with_published_js_scope(function.id, context.binding_names(), |this| {
             this.emit_single_block_with_context(function, wrapped, context, out)
         })
@@ -9117,6 +9550,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             .collect::<Vec<_>>();
         let mut index = 0;
         while index < block.instructions.len() {
+            let source_instruction_index = index;
             if self.emit_sunk_entry_function(&block.instructions[index], out)? {
                 previous_binding = false;
                 previous_expressions = None;
@@ -9155,7 +9589,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             let binding = is_single_binding_statement(&statement);
             let binding_name = let_declarator_name(&statement).map(str::to_string);
             let statement_start = out.len();
+            let generated_anchor;
             if previous_binding && binding {
+                generated_anchor = statement_start.saturating_sub(1);
                 if binding_name
                     .as_ref()
                     .is_some_and(|name| joined_binding_names.contains(name))
@@ -9173,6 +9609,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 let (start, mut expressions) = previous_expressions
                     .take()
                     .expect("comma expression candidate was checked");
+                generated_anchor = start;
                 expressions.push(JsExpression::raw(
                     statement
                         .strip_suffix(';')
@@ -9184,8 +9621,15 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 out.push(';');
                 previous_expressions = Some((start, expressions));
             } else {
+                generated_anchor = statement_start;
                 out.push_str(&statement);
             }
+            self.record_instruction_anchor(
+                generated_anchor.min(out.len()),
+                out.len(),
+                function,
+                &block.instructions[source_instruction_index],
+            );
             if binding {
                 if !previous_binding {
                     joined_binding_names.clear();
@@ -10071,6 +10515,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             &self.loop_captured_closures,
             &self.global_names,
         );
+        self.record_function_binding_provenance(function, &context);
         self.with_published_js_scope(function.id, context.binding_names(), |this| {
             this.emit_state_machine_with_context(function, context, out)
         })
@@ -10165,6 +10610,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 .collect::<Vec<_>>();
             let mut index = 0;
             while index < block.instructions.len() {
+                let generated_start = out.len();
                 if let Some((consumed, batched)) = self.batched_property_assign_statement(
                     function,
                     block,
@@ -10176,6 +10622,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     &fuse_with_next,
                 )? {
                     out.push_str(&batched);
+                    self.record_instruction_anchor(
+                        generated_start,
+                        out.len(),
+                        function,
+                        &block.instructions[index],
+                    );
                     index += consumed;
                     continue;
                 }
@@ -10190,6 +10642,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     &mut cache,
                     out,
                 )?;
+                self.record_instruction_anchor(
+                    generated_start,
+                    out.len(),
+                    function,
+                    &block.instructions[index],
+                );
                 index += 1;
             }
             match block
@@ -10292,6 +10750,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             &self.global_names,
         );
         context.inline_declarations = true;
+        self.record_function_binding_provenance(function, &context);
         self.with_published_js_scope(function.id, context.binding_names(), |this| {
             this.emit_structured_with_context(function, wrapped, context, out)
         })
@@ -11605,6 +12064,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             if instruction_in_header_cone(instruction, &cone) {
                 continue;
             }
+            let generated_start = out.len();
             self.emit_linear_instruction(
                 instruction,
                 block.id,
@@ -11616,6 +12076,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 cache,
                 out,
             )?;
+            self.record_instruction_anchor(generated_start, out.len(), function, instruction);
         }
         Ok(())
     }
@@ -12516,6 +12977,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             .collect::<Vec<_>>();
         let mut index = 0;
         while index < block.instructions.len() {
+            let generated_start = out.len();
             self.emit_sunk_entry_function(&block.instructions[index], out)?;
             if let Some((consumed, batched)) = self.batched_property_assign_statement(
                 function,
@@ -12528,6 +12990,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 &fuse_with_next,
             )? {
                 out.push_str(&batched);
+                self.record_instruction_anchor(
+                    generated_start,
+                    out.len(),
+                    function,
+                    &block.instructions[index],
+                );
                 index += consumed;
                 continue;
             }
@@ -12542,6 +13010,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 cache,
                 out,
             )?;
+            self.record_instruction_anchor(
+                generated_start,
+                out.len(),
+                function,
+                &block.instructions[index],
+            );
             index += 1;
         }
         Ok(())
