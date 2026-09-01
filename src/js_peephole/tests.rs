@@ -3214,3 +3214,4 @@ fn class_member_bodies_open_their_own_scope() {
     );
 }
 
+

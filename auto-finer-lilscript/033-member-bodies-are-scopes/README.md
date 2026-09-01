@@ -65,11 +65,20 @@ operand rather than a member boundary. Both are pinned by tests.
 **Ten classes**, which is exactly what [018](../018-mobx-admission-regression/README.md) measured in
 the last good build before the regression, and −6786 raw for −235 Brotli.
 
-The Brotli gain is smaller than the 769 that 032 measured by running the pipeline over the shipped
-artifact directly. That gap is real and unexplained: the compiler reaches a different artifact than
-a straight pipeline pass over its own output does, which is the same discrepancy
-[031](../031-admission-blocks-the-class-rewrite/README.md) recorded from the other direction. Worth
-its own hypothesis.
+The Brotli gain is smaller than the 769 [032](../032-export-resolver-false-negative/README.md)
+measured, and I first recorded that as an unexplained gap. **It is not one, and the claim was wrong.**
+032's 769 was the distance from the *old* artifact (63493 raw, zero classes) to a pipeline pass over
+it; the fix has now captured 6786 of that 7049 raw. Re-running the pipeline over the **new** artifact
+converges in two rounds and finds only:
+
+| | raw | Brotli |
+|---|---:|---:|
+| mobxlil as it now ships | 56707 | 15708 |
+| pipeline run to convergence | 56514 | 15685 |
+| **remaining headroom** | **−193** | **−23** |
+
+So 23 Brotli, not 534. The compiler is now within a rounding error of what its own peephole reaches
+on this port, and there is no second mechanism hiding here.
 
 No other port moves: micromarklil 26314, markedlil 9506 (29/29 tests), hast-util-to-htmllil 8825
 (456/456). 1636 compiler tests pass. mobxlil's own suite is unchanged at 15 failures — verified
