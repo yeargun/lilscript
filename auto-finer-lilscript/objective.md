@@ -60,49 +60,89 @@
 5. **Competitive bar**: every `*Lil` port must be **≤** the upstream minified+Brotli size of the real
    npm library, and **≤** what Terser/Oxc/esbuild/Closure produce from equivalent input. Beat, don't
    tie. Ties are the acceptable floor; losses are bugs to be chased.
-6. **A loss may be the LilScript source's fault, not the compiler's.** When a port loses, check whether
-   the `.lil` source forces a worse shape before blaming codegen.
+6. **A loss is frequently NOT the compiler's fault. Investigate the whole chain before blaming
+   codegen.** This is not a footnote — it has been the *entire* story three separate times, and each
+   time the compiler's own output was already correct:
+
+   - **The build script.** [030](030-the-build-undoes-the-compiler/README.md): micromarklil's
+     `scripts/build.mjs` re-bundles the compiler's ESM through esbuild with `minifySyntax: false`.
+     esbuild parses `!0`, understands it as the boolean, and prints the canonical `true` on the way
+     out — discarding all 87 compact booleans the compiler chose. Worth **4538 raw / 229 Brotli**.
+     [006](006-markdown-stack-loss-diagnosis/README.md) was the same class in rehypelil, worth
+     **2517 Brotli**.
+   - **The measurement harness.** [028](028-unminified-lil-lane/README.md): `run.mjs` minified only
+     the *official* lane, so for `remark`, `unified` and `react-markdown` our unminified esbuild
+     bundle was being compared against Terser output. **10634 Brotli of reported loss was not real.**
+   - **The port's `.lil` source shape.** Upstream micromark spells eight character classes as one
+     closure factory (`regexCheck(/[A-Za-z]/)`, emitting `d=E(/…/),h=E(/…/),…`); the port spells them
+     as eight separate exported functions. Same behaviour, more code.
+
+   So the order of investigation when a port loses is: **(a)** does the shipped artifact match what
+   the compiler actually wrote (`dist/*.raw.js`)? **(b)** is the comparison like-for-like — same
+   bundling, same minification, same graph on both sides? **(c)** does the `.lil` source force a
+   worse shape than the original library's own source, which is cloned and available to diff
+   against? Only then **(d)** blame the compiler.
+
+   Note what does *not* hold: "our code is too `JsValue`-typed" was measured across 14 ports and
+   correlates **−0.09** with the losses. Check, do not assume.
 7. **Method**: every change is a numbered hypothesis folder under `auto-finer-lilscript/NNN-slug/`
    containing the hypothesis, the experiment, the measurements, and the verdict — including
    falsified ones. Negative results are kept, not deleted.
 8. **Standing homework (no hypothesis required)**: continuously read Terser and Oxc (`oxc_minifier`)
    sources to harvest techniques, and record what was learned.
 
-## Standing target (updated)
+## Standing target (updated 2026-09-01)
 
 The single number this workstream is judged on:
 
 > **Every `*Lil` port's shipped artifact must be smaller than its upstream npm equivalent under the
 > port's declared `cost_model` — usually Brotli-11. Beat, don't tie.**
 
-Current state, **all 26 ports freshly rebuilt** with the current compiler, pinned codec:
-**9 wins / 11 losses, −65794 Brotli overall.** Reproduce with `node auto-finer-lilscript/fleet.mjs`.
+**`fleet.mjs` is the authority**, because it measures each port's own `dist/` — the bytes that ship.
+Where it and the markdown-stack harness disagreed, the fleet was right ([028](028-unminified-lil-lane/README.md)).
+Reproduce with `node auto-finer-lilscript/fleet.mjs`; sweep one port's configs with
+`node auto-finer-lilscript/sweep.mjs --ports <name>`.
 
-Read that alongside the dirtiness column: **16 ports have modified sources**, so their numbers move
-with in-flight port work as well as with the compiler. The four ports with clean sources —
-`jquerylil`, `markedlil`, `mobxlil`, `motionlil` — are the only ones where a compiler change can be
-attributed, and they are where a fix should be proven before it is believed.
+Last full rebuild of all 26 ports: **11 wins / 11 losses**, 4 ports without a declared baseline.
 
-The eleven losses, worst first. `src` = modified source files, i.e. how much of the number is *not*
-the compiler:
+Losses, worst first. `src` = modified source files, i.e. how much of the number is *not* the compiler:
 
 | port | delta | src | note |
 |---|---:|---:|---|
 | react-markdownlil | +14166 | 19 | committed artifact was glue-only (React external); the tree's inlines it. Not the same program |
 | motionlil | +9314 | **0** | scope-suspect baseline: `dist/full.js` against the real motion UMD |
-| remarklil | +6704 | 46 | |
+| remarklil | +6752 | 46 | |
 | katexlil | +5800 | 11 | |
-| micromarklil | +4154 | 51 | micromark family |
-| **mobxlil** | **+3577** | **0** | **clean source — a real, attributable loss** |
+| micromarklil | +3925 | 51 | was +4154; [030](030-the-build-undoes-the-compiler/README.md) recovered 229 |
+| **mobxlil** | **+3007** | **0** | **clean source — a real, attributable loss** |
 | remark-parselil | +3235 | 36 | micromark family |
-| mdast-util-from-markdownlil | +3175 | 33 | micromark family — these three share a core, so one fix moves ~10.6 KB |
+| mdast-util-from-markdownlil | +3175 | 33 | micromark family — these three share a core, so one fix moves ~10 KB |
 | **jquerylil** | **+1825** | **0** | **clean source.** Beats upstream on *raw* by 4489; loses only on compressibility |
-| unifiedlil | +248 | 6 | |
-| remark-mathlil | +137 | 9 | |
+| unifiedlil | +234 | 6 | was +912; level 13 + `always` is worth 416 |
+| remark-mathlil | +190 | 9 | |
 
-The wins: rehype-katex (−112118, scope-suspect), rehype (−1735), hast-util-to-html (−1014),
-rehype-stringify (−794), mdast-util-to-hast (−752), remark-rehype (−687), **marked (−579)**,
-remark-gfm (−383), remark-breaks (−67).
+Wins: rehype-katex (−112118, scope-suspect), zod (−20103), rehype (−1841),
+hast-util-to-html (−1014), rehype-stringify (−794), mdast-util-to-hast (−752),
+remark-rehype (−687), marked (−550), remark-gfm (−383), remark-breaks (−67),
+**posthog (−1)**.
+
+### What is settled, so it is not re-litigated
+
+- **Configuration is exhausted on the near misses.** 20 builds over remark-math and unified buy 10
+  bytes, and those 10 fail tests ([027](027-tuning-is-exhausted/README.md)). Beam width is worth 47
+  bytes on posthog and *exactly zero* on unified — tune it per port, never raise it as a default.
+- **Level 13 is the best *trade*, not universally the best bytes.** remark-math is 2287 at 15 and
+  2336 at 13; unified goes the other way; jquery is 1402 bytes worse at 13. Measure per port.
+- **Emitted volume predicts the losses at r=+0.924**, with perfect separation — every winner emits
+  less JavaScript than the official, every loser more ([025](025-brotli-repetition-gap/README.md)).
+  Compression *ratios* are already competitive; the problem is how much code we emit.
+- **Specialisation is not the lever for the repetition class**
+  ([029](029-specialisation-is-not-the-lever/README.md)): every anti-cloning switch makes it bigger.
+- **Terser still finds 1578 Brotli / 16113 raw in our own micromark output** — statement→sequence
+  merging (`;` −1498, `,` +932), branch→expression (`if(` −299), declaration merging (`var ` −344).
+  We emit **607 `var` statements where Terser needs 38.** That is the largest known compiler-side
+  lever and it is not yet taken.
+
 
 ## Open regressions, and what each is worth under its own objective
 
