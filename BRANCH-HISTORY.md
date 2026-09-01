@@ -50,9 +50,20 @@ Concentrated in `src/compiler.rs` (+1458), `src/js_peephole/mod.rs` (+410) and
 [032](auto-finer-lilscript/032-export-resolver-false-negative/README.md) diagnose two admission
 validators wrongly refusing the peephole's `class` rewrite — worth 194 Brotli on micromarklil and 769
 on mobxlil. Three of the old-`main` commits touch `validate_observed_javascript_artifact` and
-`generated_javascript_export_witnesses`, the exact functions involved. That line may contain a
-different fix for the same defect, a stricter version of it, or something orthogonal. **It has not
-been read yet**, and it is the first thing to look at before writing more admission code.
+`generated_javascript_export_witnesses`, the exact functions involved. It has now been read, and the two validators come out differently:
+
+- **031's property census — the old line redesigns it.** Where this line compares the candidate's
+  static property names against the *direct emission's* set, the old line checks each observed
+  property against a **`property_provenance`** list carried from source, and reports byte ranges
+  rather than bare names. That is the better model: a property is legitimate because the source
+  produced it, not because one particular lowering happened to emit it. This line's `constructor`
+  exemption is a patch on the design the old line replaces, so **the old line's version should win
+  a merge** — with the open question of whether a class body's `constructor` appears in its
+  provenance list, since if it does not, the same rejection returns in a new form.
+- **032's export resolver — the two lines are identical.** `generated_javascript_export_witnesses`
+  demands `Resolution::Bound` and raises the same `unresolved generated export binding` in both.
+  **The 769-byte false negative on mobxlil exists on the old line too**, so merging neither fixes
+  nor worsens it, and it has to be fixed on whichever line survives.
 
 ## What this line has that the old `main` does not
 
