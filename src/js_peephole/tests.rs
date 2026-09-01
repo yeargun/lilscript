@@ -3135,3 +3135,23 @@ fn conditional_value_fold_stops_at_the_enclosing_colon() {
 
 
 
+
+
+#[test]
+fn export_binding_resolves_after_a_brace_initializer() {
+    // `merge_adjacent_declarations` folds consecutive `var` statements into one
+    // declarator list, which routinely puts a plain declarator *after* one whose
+    // initializer contains braces. Losing those later names makes a valid export
+    // look unresolved, and the whole artifact is refused.
+    for (label, source) in [
+        ("function-initializer", "var a=function(){return 1},n=2;export{n as x}"),
+        ("object-initializer", "var a={k:1},n=2;export{n as x}"),
+        ("class-initializer", "var a=class{m(){return 1}},n=2;export{n as x}"),
+        ("arrow-initializer", "var a=()=>{return 1},n=2;export{n as x}"),
+        ("plain", "var a=1,n=2;export{n as x}"),
+    ] {
+        let witnesses = crate::js_peephole::generated_javascript_export_witnesses(source)
+            .unwrap_or_else(|error| panic!("{label}: {error}"));
+        assert_eq!(witnesses.len(), 1, "{label}: {witnesses:?}");
+    }
+}
