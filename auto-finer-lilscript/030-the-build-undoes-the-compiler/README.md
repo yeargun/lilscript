@@ -69,9 +69,18 @@ compiler's spelling choices.
 
 The pattern is the same each time: **a tool between the compiler and the artifact re-prints the code
 and normalises away what the compiler decided.** Nothing in the pipeline notices, because the output
-is still correct — only bigger. A cheap standing check would catch all three: compare a compact-form
-census (`!0`/`!1`, and byte count) between `dist/*.raw.js` and the shipped artifact, and fail when the
-shipped one is *less* compact than what the compiler emitted.
+is still correct — only bigger.
+
+So `auto-finer-lilscript/shipped-vs-compiled.mjs` now makes that comparison standing: for every port
+it reads the compiler's own `dist/*.raw.js` beside the artifact the port ships, and fails when a
+compact spelling the compiler chose has been *completely* lost, or when the shipped file has gained
+more than twenty `true`/`false`/`undefined` the compiler never emitted. A bundle legitimately grows
+by pulling in dependencies, so partial changes are ignored; total loss of a spelling is
+normalisation, not inlining. It would have caught this in one second, and it catches 006's class too.
+
+Running it now flags one port: `rehype-katexlil`, whose ESM is the mid-refactor stub
+[023](../023-unparseable-class-expressions/README.md) documents — its `!0`s are gone because the code
+is gone. That is the check working.
 
 ## What it does not fix
 
