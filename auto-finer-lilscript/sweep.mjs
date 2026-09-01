@@ -59,6 +59,13 @@ const set = (key, value) => (text) => {
     : text.replace(/^\[javascript\]$/m, `[javascript]\n${line}`)
 }
 const compose = (...fns) => (text) => fns.reduce((acc, fn) => fn(acc), text)
+// Append a pass to an explicit `compression = [...]` allowlist. A port without one
+// already gets the profile default, so there is nothing to add and the variant is
+// reported as identical to base rather than silently measuring the same build twice.
+const addPass = (pass) => (text) =>
+  text.includes(`"${pass}"`) || !/^compression = \[$/m.test(text)
+    ? text
+    : text.replace(/^compression = \[$/m, `compression = [\n  "${pass}",`)
 
 const VARIANTS = {
   base: (t) => t,
@@ -80,7 +87,20 @@ const VARIANTS = {
   b48: compose(set("optimization_level", "13"), set("candidate_search", '"always"'), set("candidate_beam_width", "48")),
   l14: compose(set("optimization_level", "14"), set("candidate_search", '"always"')),
   pure: compose(set("optimization_level", "13"), set("candidate_search", '"always"'), set("assume_pure_property_reads", "true")),
-  proposals: compose(set("optimization_level", "13"), set("candidate_search", '"always"'), set("candidate_proposal_limit", "1536"))
+  proposals: compose(set("optimization_level", "13"), set("candidate_search", '"always"'), set("candidate_proposal_limit", "1536")),
+
+  // jquerylil is the only port that enumerates `compression` explicitly, and its
+  // list omits region-outlining -- the repeated-region outliner, which is the one
+  // pass aimed squarely at emitted volume. It also does not set
+  // local_phi_expression_regions, which config.rs records as -87 Brotli on this
+  // exact artifact. Both are run at level 13 so a variant costs ten minutes
+  // instead of the fifty the shipped level-15 config takes.
+  jqL13: set("optimization_level", "13"),
+  jqRegion: compose(set("optimization_level", "13"), addPass("region-outlining")),
+  jqPhi: compose(set("optimization_level", "13"), set("local_phi_expression_regions", "true")),
+  jqBoth: compose(set("optimization_level", "13"), addPass("region-outlining"), set("local_phi_expression_regions", "true")),
+  jqRegion15: addPass("region-outlining"),
+  jqBoth15: compose(addPass("region-outlining"), set("local_phi_expression_regions", "true"))
 }
 
 const portNames = (flag("ports", "") || Object.keys(PORTS).join(",")).split(",").filter(Boolean)
@@ -94,9 +114,13 @@ function measure(path) {
 
 function build(port, cores, log) {
   return new Promise((done) => {
+    // `scripts/build.mjs --compile`, never `npm run build`: several ports (jquerylil
+    // among them) define `build` without `--compile`, so it re-bundles the cached
+    // compiler output and returns in 0.15s. A config sweep driven through it reports
+    // every variant as identical -- which is exactly what it did before this changed.
     const child = spawn(
       "taskset",
-      ["-c", cores, "npm", "run", "build"],
+      ["-c", cores, "node", "scripts/build.mjs", "--compile"],
       {
         cwd: join(siblings, port),
         detached: true,

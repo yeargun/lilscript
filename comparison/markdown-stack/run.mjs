@@ -618,12 +618,23 @@ async function buildGraphs(port, options, toolchain) {
     outfile: officialGraph
   })
   const lilBundled = manifest.toolchain.graph.lilBundlePorts.includes(port.id)
+  // A port whose Lil lane is not bundled is measured as the file the compiler wrote,
+  // which is already minified. Bundling reformats it: esbuild re-prints every token
+  // with whitespace and renames colliding identifiers, so `unified`'s 14580-byte
+  // compiler output arrives here as 20869 bytes across 588 lines -- and is then
+  // compared against an official graph that Terser has minified. Restoring whitespace
+  // and identifiers puts the bundled ports back at the density the compiler emitted,
+  // and matches how the other thirteen are measured. `minifySyntax` stays off: that
+  // would be optimisation the compiler did not do, and the Lil lane must not borrow it.
   const lilBuild = await toolchain.build({
     ...buildOptions,
     entryPoints: [lilEntry],
     outfile: lilGraph,
     alias: graphAliases(port),
-    write: lilBundled
+    write: lilBundled,
+    ...(lilBundled
+      ? {minifyWhitespace: true, minifyIdentifiers: true, minifySyntax: false}
+      : {})
   })
   if (!lilBundled) copyFileSync(lilEntry, lilGraph)
 
