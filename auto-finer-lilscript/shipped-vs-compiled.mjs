@@ -65,6 +65,20 @@ for (const entry of readdirSync(siblings, {withFileTypes: true})) {
         findings.push(`${entry.name}: ${shipped} lost every \`${name}\` (${had} in ${raw})`)
       }
     }
+    // Character encoding, not spelling: a bundler that defaults to an ASCII-safe
+    // charset re-prints every literal non-ASCII character as a `\uXXXX` escape --
+    // six ASCII bytes where the literal is two or three UTF-8 ones. On micromarklil
+    // that was 2304 characters and 7021 raw bytes (034). It compresses away to
+    // almost nothing, so a Brotli comparison barely sees it; only counting does.
+    const literalsBefore = count(before, /[^\x00-\x7F]/g)
+    const escapesAfter = count(after, /\\u[0-9A-Fa-f]{4}/g) + count(after, /\\x[0-9A-Fa-f]{2}/g)
+    if (literalsBefore > 50 && count(after, /[^\x00-\x7F]/g) === 0 && escapesAfter > 50) {
+      findings.push(
+        `${entry.name}: ${shipped} escaped all ${literalsBefore} literal non-ASCII characters ` +
+          `(${escapesAfter} escapes) — set the bundler's charset to utf8`
+      )
+    }
+
     for (const [name, pattern] of EXPANDED) {
       const gained = count(after, pattern) - count(before, pattern)
       if (gained > 20) {
