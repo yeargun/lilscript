@@ -51,6 +51,14 @@ const BASELINES = {
   markedlil: { artifact: "dist/marked.esm.js", upstream: join(repo, "benchmarks/popular/node_modules/marked/marked.min.js") },
   mobxlil: { artifact: "dist/mobx.esm.js", upstream: join(repo, "benchmarks/popular/node_modules/mobx/dist/mobx.esm.production.min.js") },
   motionlil: { artifact: "dist/full.js", upstream: join(repo, "benchmarks/popular/node_modules/motion/dist/motion.js") },
+  // posthoglil's bar is the official kernel through Vite 8 / Oxc with mangling on,
+  // measured by the port's own site harness with this same codec (site/results.json,
+  // row `kernel-oxc-mangle`). Terser lands one byte behind it at 5626, so Oxc is the
+  // one to beat.
+  posthoglil: { artifact: "dist/posthog.esm.js", terserBrotli: 5622 },
+  // zodlil ships a closer-world build as its primary, compared against the official
+  // graph minified by Terser with mangling on (site/results.json, `official-terser-mangle`).
+  zodlil: { artifact: "dist/zod.core.js", terserBrotli: 52561 },
   katexlil: { artifact: "dist/katex.esm.js", terserBrotli: 63137 },
   micromarklil: { artifact: "dist/micromark.esm.js", terserBrotli: 22776 },
   "mdast-util-from-markdownlil": { artifact: "dist/from-markdown.esm.js", terserBrotli: 23279 },
