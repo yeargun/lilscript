@@ -1,7 +1,7 @@
 # Cloud handoff
 
 Updated: 2026-08-29. Parent: [board](README.md). Active task:
-[gate-04](notes/gate-04.md). Canonical plan:
+[phase2-03](notes/phase2-03.md). Canonical plan:
 [compression migration](../compression-migration.md).
 
 This file persists the live execution queue for a fresh VM. The ledger owns
@@ -13,20 +13,20 @@ resume packet.
 1. [`docs/knowledge/mission.md`](../../mission.md)
 2. [`board/README.md`](README.md)
 3. [`board/LEDGER.md`](LEDGER.md)
-4. [`notes/gate-04.md`](notes/gate-04.md)
+4. [`notes/phase2-03.md`](notes/phase2-03.md)
 5. [`compression-migration.md`](../compression-migration.md)
 
 ## Pinned repositories
 
 | Repository | Branch/commit | Purpose |
 |---|---|---|
-| LilScript | local `main` through terminal admission `edbdf3a` | Green targeted gates, phi safety, expanded matrix, and partial V-01 admission |
+| LilScript | isolated candidate `7f40027` atop pushed `main` | V-01 implemented under targeted gates; phase-1 recovered; phase-2 active |
 | MotionLil | pushed `main` at `1102ba7` | Source-level evidence entries for exact direct compiler boundaries |
 | MarkedLil | pushed `main` at `9911cfd` | Cross-platform synchronized lockfile |
 | MobXLil | `main` at `960f2fb` | Split source, true production-min config, and synchronized lockfile |
 | Closure Compiler audit | commit `73eee2481cf1dd5dea0d8c9c0561b5a61498fec4` | Source comparison only; clone outside the repository |
 
-The earlier checkpoints were pushed without force. Candidate `edbdf3a` is pinned;
+The earlier checkpoints were pushed without force. Candidate `7f40027` is pinned;
 the full G2 rerun was explicitly deferred in favor of targeted development gates.
 
 ## Completed
@@ -56,17 +56,33 @@ the full G2 rerun was explicitly deferred in favor of targeted development gates
 - Marked raw/gzip now pass all 660 corpus cases after rejecting local-phi
   recovery that read a coalesced slot before its incoming definition.
 - Gate-02, V-02 (`ident-09`), and V-03 (`emit-08`) are landed.
+- MobX production-min recovery is closed: exact `2d2268` → `06b89aa` improves
+  16,012 → 15,491 Brotli; the prior +1,230 row mixed boundaries.
+- Motion recovery is closed: four direct boundaries tie exact `2d2268`, mini and
+  full improve, and template-aware naming recovers animateMini to 2,324 Brotli.
+- Marked current exact Brotli is 9,506, below every committed historical ESM;
+  jQuery ties its exact migration incumbent. Phase-1 recovery is closed.
 
 ## Known red or incomplete gates
 
-- V-01 final-artifact admission is not implemented. Current semantic harnesses
+- V-01 final-artifact admission has not graduated. Current semantic harnesses
   now require syntax and binding admission before compiler-internal codec calls;
   final bytes also witness export names/counts, static foreign module edges, and
   live source-`|0` counts. Exported callable kind, arity, constructibility, and
   inherited method signatures are witnessed. Final contractions cannot introduce
   a static property absent from direct typed emission. Typed emissions and
   prepared leaves are admitted before scoring; the witness is retained through
-  terminal cleanup and final selection. Owner/slot provenance remains.
+  terminal cleanup and final selection. Configured optional-chain, nullish,
+  logical-assignment, optional-catch, selected built-in, and class-field syntax
+  floors are checked, including async and object rest/spread. Owner/slot
+  provenance is recorded, final property byte ranges resolve against it, and newly
+  introduced free globals/templates/properties are rejected. Bundle chunks are
+  syntax/binding-admitted before measurement. Explained compilation serializes
+  export/import/free/template/obligation/property witnesses plus bound-use and
+  declaration byte ranges; computed member ranges are explicitly dynamic.
+- V-01 implementation is complete at targeted scope, including cross-objective
+  live-binding and descriptor/order fixtures. Its required full G2 promotion run
+  is deferred by explicit request and the ledger remains non-optimistic.
 - Historical Marked raw/gzip outputs from `06b89aa` fail 229 corpus checks and
   are ineligible incumbents; candidate `7128462` fixes them. The Brotli incumbent
   and all other selected rows remain byte-identical.
@@ -77,12 +93,11 @@ the full G2 rerun was explicitly deferred in favor of targeted development gates
 
 1. Clone or pull LilScript, MotionLil, MarkedLil, MobXLil, jQueryLil, and SolidLil
    beside one another; verify the pinned objects with `--check-inputs`.
-2. Read `notes/gate-04.md`; syntax/binding admission is centralized at codec
-   call sites and has zero-call rejection tests.
-3. Complete V-01 with owner-qualified property witnesses.
-4. Run targeted rejection fixtures, full Rust/canonical/codec gates, then the
-   selected 13-boundary `migration,candidate` G2 command recorded in gate-02.
-5. Continue canonical phase 1 incumbent recovery only after V-01 lands.
+2. Read `notes/phase2-03.md` and remove duplicated raw policy reads one batch at
+   a time.
+3. Preserve every candidate, budget charge, and selected byte sequence.
+4. During development run focused tests/canaries; defer the full G2 until release
+   verification is requested.
 
 ## Refusals
 

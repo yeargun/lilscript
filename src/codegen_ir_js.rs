@@ -1657,6 +1657,35 @@ pub(crate) fn emit_optimized_ir_js_module_with_options_and_analysis(
     IrJsEmitter::with_integer_analysis(module, true, *options, integer_analysis).emit()
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) enum IrJsPropertyCategory {
+    Owned,
+    External,
+    Unowned,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) struct IrJsPropertyProvenance {
+    pub owner: Option<String>,
+    pub slot: Option<usize>,
+    pub source: String,
+    pub emitted: String,
+    pub category: IrJsPropertyCategory,
+    pub stable: bool,
+}
+
+pub(crate) fn ir_js_property_provenance_with_options_and_analysis(
+    module: &ControlFlowModule<'_>,
+    module_output: bool,
+    options: &IrJsOptions,
+    integer_analysis: Arc<IntegerValueAnalysis>,
+) -> Vec<IrJsPropertyProvenance> {
+    let mut emitter =
+        IrJsEmitter::with_integer_analysis(module, module_output, *options, integer_analysis);
+    emitter.prepare();
+    emitter.property_provenance()
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IrJsChunkSpec {
     pub file_name: String,
@@ -2049,6 +2078,61 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         self.assign_named_field_aggregates();
         self.assign_property_names();
         self.assign_missing_function_names();
+    }
+
+    fn property_provenance(&self) -> Vec<IrJsPropertyProvenance> {
+        let mut provenance = self
+            .module
+            .structs
+            .iter()
+            .chain(&self.module.classes)
+            .flat_map(|layout| {
+                layout.fields.iter().map(|field| IrJsPropertyProvenance {
+                    owner: Some(layout.name.to_string()),
+                    slot: Some(field.index),
+                    source: field.name.to_string(),
+                    emitted: self
+                        .owned_property_name(layout.name, field.index, field.name)
+                        .to_string(),
+                    category: if layout.external {
+                        IrJsPropertyCategory::External
+                    } else {
+                        IrJsPropertyCategory::Owned
+                    },
+                    stable: self.stable_property_names.contains(field.name),
+                })
+            })
+            .collect::<Vec<_>>();
+        for (source, emitted) in &self.property_names {
+            if !provenance
+                .iter()
+                .any(|property| property.source == *source && property.emitted == *emitted)
+            {
+                provenance.push(IrJsPropertyProvenance {
+                    owner: None,
+                    slot: None,
+                    source: source.clone(),
+                    emitted: emitted.clone(),
+                    category: IrJsPropertyCategory::Unowned,
+                    stable: false,
+                });
+            }
+        }
+        for name in &self.stable_property_names {
+            if !provenance.iter().any(|property| property.emitted == *name) {
+                provenance.push(IrJsPropertyProvenance {
+                    owner: None,
+                    slot: None,
+                    source: name.clone(),
+                    emitted: name.clone(),
+                    category: IrJsPropertyCategory::Unowned,
+                    stable: true,
+                });
+            }
+        }
+        provenance.sort();
+        provenance.dedup();
+        provenance
     }
 
     /// Complex typed defaults are recreated at every omitted LilScript call
@@ -31343,6 +31427,22 @@ print(scale.factor);
         for stable in ["a", "b", "trailing_"] {
             assert!(!emitter.property_names.contains_key(stable), "{stable}");
         }
+        let provenance = emitter.property_provenance();
+        let private = provenance
+            .iter()
+            .find(|property| property.owner.as_deref() == Some("Box") && property.slot == Some(0))
+            .unwrap();
+        assert_eq!(private.source, "privateValue");
+        assert_eq!(private.emitted, "c");
+        assert_eq!(private.category, IrJsPropertyCategory::Owned);
+        assert!(!private.stable);
+        let external = provenance
+            .iter()
+            .find(|property| property.owner.as_deref() == Some("Host") && property.source == "a")
+            .unwrap();
+        assert_eq!(external.emitted, "a");
+        assert_eq!(external.category, IrJsPropertyCategory::External);
+        assert!(external.stable);
     }
 
     #[test]

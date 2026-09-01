@@ -16,8 +16,8 @@ use crate::js_peephole::scope::{
     GeneratedBindingIndex,
 };
 use crate::js_peephole::token::{
-    ascii_identifier_name_string, lex, matching_closers, validate_conditional_operators,
-    validate_delimiters, Token, TokenKind,
+    ascii_identifier_name_string, lex, matching_closers, scan_template_expression,
+    validate_conditional_operators, validate_delimiters, Token, TokenKind,
 };
 use crate::js_syntax_target::{EcmaScriptEdition, JsSyntaxFeature};
 
@@ -88,6 +88,7 @@ pub struct GeneratedJavaScriptExportWitness {
     pub kind: GeneratedJavaScriptExportKind,
     pub arity: Option<usize>,
     pub constructible: Option<bool>,
+    pub fields: Vec<String>,
     pub methods: Vec<GeneratedJavaScriptMethodWitness>,
 }
 
@@ -97,6 +98,30 @@ pub struct GeneratedJavaScriptMethodWitness {
     pub arity: usize,
     pub is_async: bool,
     pub is_generator: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GeneratedJavaScriptPropertyOccurrence {
+    pub name: String,
+    pub start: usize,
+    pub end: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GeneratedJavaScriptBindingKind {
+    Bound,
+    Free,
+    Unresolved,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GeneratedJavaScriptBindingOccurrence {
+    pub name: String,
+    pub start: usize,
+    pub end: usize,
+    pub kind: GeneratedJavaScriptBindingKind,
+    pub declaration_start: Option<usize>,
+    pub declaration_end: Option<usize>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -432,7 +457,7 @@ pub fn generated_javascript_export_witnesses(
                 source,
             ));
         };
-        let (kind, arity, constructible, methods) = classify_generated_export_binding(
+        let (kind, arity, constructible, fields, methods) = classify_generated_export_binding(
             &tokens,
             &matching_close,
             &resolution,
@@ -444,6 +469,7 @@ pub fn generated_javascript_export_witnesses(
             kind,
             arity,
             constructible,
+            fields,
             methods,
         });
     }
@@ -517,10 +543,17 @@ fn classify_generated_export_binding(
     GeneratedJavaScriptExportKind,
     Option<usize>,
     Option<bool>,
+    Vec<String>,
     Vec<GeneratedJavaScriptMethodWitness>,
 ) {
     if !visited.insert(declaration) {
-        return (GeneratedJavaScriptExportKind::Value, None, None, Vec::new());
+        return (
+            GeneratedJavaScriptExportKind::Value,
+            None,
+            None,
+            Vec::new(),
+            Vec::new(),
+        );
     }
     let previous = declaration
         .checked_sub(1)
@@ -540,10 +573,11 @@ fn classify_generated_export_binding(
             generated_parameter_arity(tokens, matching_close, open),
             Some(!generated_function_is_async_or_generator(tokens, function)),
             Vec::new(),
+            Vec::new(),
         );
     }
     if previous == Some("class") {
-        let (arity, methods) = generated_class_shape(
+        let (arity, fields, methods) = generated_class_shape(
             tokens,
             matching_close,
             resolution,
@@ -554,11 +588,18 @@ fn classify_generated_export_binding(
             GeneratedJavaScriptExportKind::Constructor,
             arity,
             Some(true),
+            fields,
             methods,
         );
     }
     if tokens.get(declaration + 1).map(|token| token.text) != Some("=") {
-        return (GeneratedJavaScriptExportKind::Value, None, None, Vec::new());
+        return (
+            GeneratedJavaScriptExportKind::Value,
+            None,
+            None,
+            Vec::new(),
+            Vec::new(),
+        );
     }
     let rhs = declaration + 2;
     if tokens.get(rhs + 1).map(|token| token.text) == Some("=>") {
@@ -566,6 +607,7 @@ fn classify_generated_export_binding(
             GeneratedJavaScriptExportKind::Function,
             Some(1),
             Some(false),
+            Vec::new(),
             Vec::new(),
         );
     }
@@ -576,6 +618,7 @@ fn classify_generated_export_binding(
                     GeneratedJavaScriptExportKind::Function,
                     generated_parameter_arity(tokens, matching_close, rhs),
                     Some(false),
+                    Vec::new(),
                     Vec::new(),
                 );
             }
@@ -597,11 +640,12 @@ fn classify_generated_export_binding(
                 generated_parameter_arity(tokens, matching_close, open),
                 Some(!generated_function_is_async_or_generator(tokens, index)),
                 Vec::new(),
+                Vec::new(),
             );
         }
         if tokens[index].text == "class" {
             let class_name = index + 1;
-            let (arity, methods) = generated_class_shape(
+            let (arity, fields, methods) = generated_class_shape(
                 tokens,
                 matching_close,
                 resolution,
@@ -612,6 +656,7 @@ fn classify_generated_export_binding(
                 GeneratedJavaScriptExportKind::Constructor,
                 arity,
                 Some(true),
+                fields,
                 methods,
             );
         }
@@ -633,7 +678,13 @@ fn classify_generated_export_binding(
             );
         }
     }
-    (GeneratedJavaScriptExportKind::Value, None, None, Vec::new())
+    (
+        GeneratedJavaScriptExportKind::Value,
+        None,
+        None,
+        Vec::new(),
+        Vec::new(),
+    )
 }
 
 fn generated_function_is_async_or_generator(tokens: &[Token<'_>], function: usize) -> bool {
@@ -685,17 +736,22 @@ fn generated_class_shape(
     resolution: &BindingResolution<'_>,
     class_name: usize,
     visited: &mut std::collections::BTreeSet<usize>,
-) -> (Option<usize>, Vec<GeneratedJavaScriptMethodWitness>) {
+) -> (
+    Option<usize>,
+    Vec<String>,
+    Vec<GeneratedJavaScriptMethodWitness>,
+) {
     if !visited.insert(class_name) {
-        return (None, Vec::new());
+        return (None, Vec::new(), Vec::new());
     }
     let Some(open) = (class_name + 1..tokens.len()).find(|index| tokens[*index].text == "{") else {
-        return (None, Vec::new());
+        return (None, Vec::new(), Vec::new());
     };
     let Some(close) = matching_close[open] else {
-        return (None, Vec::new());
+        return (None, Vec::new(), Vec::new());
     };
     let mut arity = Some(0);
+    let mut fields = Vec::new();
     let mut methods = Vec::new();
     let mut cursor = open + 1;
     while cursor < close {
@@ -721,6 +777,14 @@ fn generated_class_shape(
         };
         let params = cursor + 1;
         if tokens.get(params).map(|token| token.text) != Some("(") {
+            if tokens
+                .get(params)
+                .is_some_and(|token| matches!(token.text, "=" | ";"))
+            {
+                if let Some(name) = generated_export_name(name) {
+                    fields.push(name.to_string());
+                }
+            }
             cursor += 1;
             continue;
         }
@@ -748,13 +812,18 @@ fn generated_class_shape(
     if tokens.get(class_name + 1).map(|token| token.text) == Some("extends") {
         let base = class_name + 2;
         if let Resolution::Bound(base_declaration) = resolution.resolve(base) {
-            let (_, base_methods) = generated_class_shape(
+            let (_, base_fields, base_methods) = generated_class_shape(
                 tokens,
                 matching_close,
                 resolution,
                 base_declaration,
                 visited,
             );
+            for field in base_fields.into_iter().rev() {
+                if !fields.contains(&field) {
+                    fields.insert(0, field);
+                }
+            }
             for method in base_methods {
                 if !methods.iter().any(|existing| {
                     let existing: &GeneratedJavaScriptMethodWitness = existing;
@@ -765,8 +834,9 @@ fn generated_class_shape(
             }
         }
     }
+    fields.dedup();
     methods.sort();
-    (arity, methods)
+    (arity, fields, methods)
 }
 
 pub fn generated_javascript_static_imports(
@@ -890,17 +960,33 @@ pub fn generated_javascript_bit_or_zero_count(source: &str) -> Result<usize, Jav
 pub fn generated_javascript_static_property_names(
     source: &str,
 ) -> Result<Vec<String>, JavaScriptParseError> {
+    let mut names = generated_javascript_static_property_occurrences(source)?
+        .into_iter()
+        .map(|property| property.name)
+        .collect::<Vec<_>>();
+    names.sort();
+    names.dedup();
+    Ok(names)
+}
+
+pub fn generated_javascript_static_property_occurrences(
+    source: &str,
+) -> Result<Vec<GeneratedJavaScriptPropertyOccurrence>, JavaScriptParseError> {
     analyze_generated_javascript(source)?;
     let tokens = lex(source)?;
     let matching_close = matching_closers(&tokens);
     let class_names = class_element_name_occurrences(&tokens, &matching_close);
-    let mut names = std::collections::BTreeSet::new();
+    let mut properties = Vec::new();
     for (index, token) in tokens.iter().enumerate() {
         if matches!(token.kind, TokenKind::Identifier | TokenKind::Keyword)
             && (is_property_identifier(&tokens, index)
                 || class_names.get(index).copied().unwrap_or(false))
         {
-            names.insert(token.text.to_string());
+            properties.push(GeneratedJavaScriptPropertyOccurrence {
+                name: token.text.to_string(),
+                start: token.start,
+                end: token.end,
+            });
             continue;
         }
         if token.kind != TokenKind::String {
@@ -914,11 +1000,123 @@ pub fn generated_javascript_static_property_names(
                 && previous.is_some_and(|token| matches!(token.text, "{" | ","));
         if static_property {
             if let Some(name) = unescape_js_string(token.text) {
-                names.insert(name);
+                properties.push(GeneratedJavaScriptPropertyOccurrence {
+                    name,
+                    start: token.start,
+                    end: token.end,
+                });
             }
         }
     }
+    Ok(properties)
+}
+
+pub fn generated_javascript_dynamic_property_occurrences(
+    source: &str,
+) -> Result<Vec<(usize, usize)>, JavaScriptParseError> {
+    analyze_generated_javascript(source)?;
+    let tokens = lex(source)?;
+    let matching_close = matching_closers(&tokens);
+    let mut occurrences = Vec::new();
+    for (index, token) in tokens.iter().enumerate() {
+        if token.text != "[" || index == 0 {
+            continue;
+        }
+        let previous = &tokens[index - 1];
+        let optional = previous.text == "."
+            && index > 1
+            && tokens[index - 2].text == "?"
+            && tokens[index - 2].end == previous.start;
+        let receiver = matches!(
+            previous.kind,
+            TokenKind::Identifier
+                | TokenKind::Number
+                | TokenKind::String
+                | TokenKind::Template
+                | TokenKind::Regex
+        ) || matches!(previous.text, ")" | "]")
+            || optional;
+        if !receiver {
+            continue;
+        }
+        let Some(close) = matching_close[index] else {
+            continue;
+        };
+        if close == index + 2 && tokens[index + 1].kind == TokenKind::String {
+            continue;
+        }
+        occurrences.push((token.start, tokens[close].end));
+    }
+    Ok(occurrences)
+}
+
+pub fn generated_javascript_free_identifiers(
+    source: &str,
+) -> Result<Vec<String>, JavaScriptParseError> {
+    analyze_generated_javascript(source)?;
+    let tokens = lex(source)?;
+    let resolution = BindingResolution::new(&tokens);
+    let mut names = std::collections::BTreeSet::new();
+    for (index, token) in tokens.iter().enumerate() {
+        if token.kind == TokenKind::Identifier
+            && identifier_occurrence_is_clear_binding(&tokens, index)
+            && matches!(resolution.resolve(index), Resolution::Free)
+        {
+            names.insert(token.text.to_string());
+        }
+    }
     Ok(names.into_iter().collect())
+}
+
+pub fn generated_javascript_binding_occurrences(
+    source: &str,
+) -> Result<Vec<GeneratedJavaScriptBindingOccurrence>, JavaScriptParseError> {
+    analyze_generated_javascript(source)?;
+    let tokens = lex(source)?;
+    let matching_close = matching_closers(&tokens);
+    let class_names = class_element_name_occurrences(&tokens, &matching_close);
+    let resolution = BindingResolution::new(&tokens);
+    Ok(tokens
+        .iter()
+        .enumerate()
+        .filter(|(index, token)| {
+            token.kind == TokenKind::Identifier
+                && !is_property_identifier(&tokens, *index)
+                && !class_names.get(*index).copied().unwrap_or(false)
+        })
+        .map(|(index, token)| {
+            let (kind, declaration_start, declaration_end) = match resolution.resolve(index) {
+                Resolution::Bound(declaration) => (
+                    GeneratedJavaScriptBindingKind::Bound,
+                    Some(tokens[declaration].start),
+                    Some(tokens[declaration].end),
+                ),
+                Resolution::Free => (GeneratedJavaScriptBindingKind::Free, None, None),
+                Resolution::Unresolved => (GeneratedJavaScriptBindingKind::Unresolved, None, None),
+            };
+            GeneratedJavaScriptBindingOccurrence {
+                name: token.text.to_string(),
+                start: token.start,
+                end: token.end,
+                kind,
+                declaration_start,
+                declaration_end,
+            }
+        })
+        .collect())
+}
+
+pub fn generated_javascript_template_literals(
+    source: &str,
+) -> Result<Vec<String>, JavaScriptParseError> {
+    analyze_generated_javascript(source)?;
+    let mut templates = lex(source)?
+        .into_iter()
+        .filter(|token| token.kind == TokenKind::Template)
+        .map(|token| token.text.to_string())
+        .collect::<Vec<_>>();
+    templates.sort();
+    Ok(templates)
 }
 
 pub fn validate_generated_javascript_syntax_floor(
@@ -930,47 +1128,53 @@ pub fn validate_generated_javascript_syntax_floor(
     let matching_close = matching_closers(&tokens);
     let class_names = class_element_name_occurrences(&tokens, &matching_close);
     for (index, token) in tokens.iter().enumerate() {
-        let feature = match token.text {
-            // The lexer emits `?.` as `?` then `.` -- optional chaining is not a
-            // conditional and has no `:` to pair with -- so matching the two-character
-            // spelling here never fired, and the floor silently admitted `?.` into
-            // ES2019 output. `token.rs` already tests the pair by adjacency; do the same.
-            // A `?` before a number (`a?.5:b`) is a conditional, and the lexer hands that
-            // back as one `.5` number token, so it cannot be mistaken for a chain.
-            "?" if tokens
+        // The lexer emits `?.` as adjacent `?` and `.` tokens. A conditional
+        // before a numeric literal (`a?.5:b`) instead yields a `.5` number
+        // token, so adjacency distinguishes it from optional chaining.
+        let optional_chain = token.text == "?"
+            && tokens
                 .get(index + 1)
-                .is_some_and(|next| next.text == "." && next.start == token.end) =>
-            {
-                Some(JsSyntaxFeature::OptionalChain)
+                .is_some_and(|next| next.text == "." && next.start == token.end);
+        let feature = if optional_chain {
+            Some(JsSyntaxFeature::OptionalChain)
+        } else if generated_object_rest_or_spread(&tokens, index) {
+            Some(JsSyntaxFeature::ObjectRestSpread)
+        } else {
+            match token.text {
+                "??" => Some(JsSyntaxFeature::NullishCoalescing),
+                "&&=" | "||=" | "??=" => Some(JsSyntaxFeature::LogicalAssignment),
+                "await" if !is_property_identifier(&tokens, index) => {
+                    Some(JsSyntaxFeature::AsyncAwait)
+                }
+                "async" if generated_async_function_or_arrow(&tokens, &matching_close, index) => {
+                    Some(JsSyntaxFeature::AsyncAwait)
+                }
+                "catch" if tokens.get(index + 1).is_some_and(|next| next.text == "{") => {
+                    Some(JsSyntaxFeature::OptionalCatchBinding)
+                }
+                "values"
+                    if index > 1
+                        && tokens[index - 1].text == "."
+                        && tokens[index - 2].text == "Object" =>
+                {
+                    Some(JsSyntaxFeature::ObjectValues)
+                }
+                "hasOwn"
+                    if index > 1
+                        && tokens[index - 1].text == "."
+                        && tokens[index - 2].text == "Object" =>
+                {
+                    Some(JsSyntaxFeature::ObjectHasOwn)
+                }
+                _ if class_names.get(index).copied().unwrap_or(false)
+                    && tokens
+                        .get(index + 1)
+                        .is_some_and(|next| matches!(next.text, "=" | ";")) =>
+                {
+                    Some(JsSyntaxFeature::ClassFields)
+                }
+                _ => None,
             }
-            "??" => Some(JsSyntaxFeature::NullishCoalescing),
-            "&&=" | "||=" | "??=" => Some(JsSyntaxFeature::LogicalAssignment),
-            "await" => Some(JsSyntaxFeature::AsyncAwait),
-            "catch" if tokens.get(index + 1).is_some_and(|token| token.text == "{") => {
-                Some(JsSyntaxFeature::OptionalCatchBinding)
-            }
-            "values"
-                if index > 1
-                    && tokens[index - 1].text == "."
-                    && tokens[index - 2].text == "Object" =>
-            {
-                Some(JsSyntaxFeature::ObjectValues)
-            }
-            "hasOwn"
-                if index > 1
-                    && tokens[index - 1].text == "."
-                    && tokens[index - 2].text == "Object" =>
-            {
-                Some(JsSyntaxFeature::ObjectHasOwn)
-            }
-            _ if class_names.get(index).copied().unwrap_or(false)
-                && tokens
-                    .get(index + 1)
-                    .is_some_and(|next| matches!(next.text, "=" | ";")) =>
-            {
-                Some(JsSyntaxFeature::ClassFields)
-            }
-            _ => None,
         };
         if feature.is_some_and(|feature| !edition.allows(feature)) {
             return Err(JavaScriptParseError {
@@ -982,6 +1186,48 @@ pub fn validate_generated_javascript_syntax_floor(
         }
     }
     Ok(())
+}
+
+fn generated_async_function_or_arrow(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    index: usize,
+) -> bool {
+    let next = index + 1;
+    if tokens
+        .get(next)
+        .is_some_and(|token| token.text == "function")
+        || (tokens
+            .get(next)
+            .is_some_and(|token| token.kind == TokenKind::Identifier)
+            && tokens.get(next + 1).is_some_and(|token| token.text == "=>"))
+    {
+        return true;
+    }
+    tokens.get(next).is_some_and(|token| token.text == "(")
+        && matching_close[next]
+            .and_then(|close| tokens.get(close + 1))
+            .is_some_and(|token| token.text == "=>")
+}
+
+fn generated_object_rest_or_spread(tokens: &[Token<'_>], index: usize) -> bool {
+    if tokens.get(index).is_none_or(|token| token.text != ".")
+        || tokens.get(index + 1).is_none_or(|token| token.text != ".")
+        || tokens.get(index + 2).is_none_or(|token| token.text != ".")
+    {
+        return false;
+    }
+    let mut depth = 0i32;
+    for token in tokens[..index].iter().rev() {
+        match token.text {
+            ")" | "]" | "}" => depth += 1,
+            "(" | "[" | "{" if depth > 0 => depth -= 1,
+            "{" if depth == 0 => return true,
+            "(" | "[" if depth == 0 => return false,
+            _ => {}
+        }
+    }
+    false
 }
 
 fn generated_import_error(
@@ -1716,13 +1962,11 @@ fn visit_single_character_identifiers(tokens: &[Token<'_>], mut visit: impl FnMu
         if token.kind == TokenKind::Identifier && token.text.len() == 1 {
             visit(token.text.as_bytes()[0]);
         } else if token.kind == TokenKind::Template {
-            for window in token.text.as_bytes().windows(4) {
-                if window[0] == b'$'
-                    && window[1] == b'{'
-                    && window[2].is_ascii_alphabetic()
-                    && window[3] == b'}'
-                {
-                    visit(window[2]);
+            if let Ok(names) = template_expression_identifier_names(token.text) {
+                for name in names {
+                    if name.len() == 1 {
+                        visit(name.as_bytes()[0]);
+                    }
                 }
             }
         }
@@ -1747,13 +1991,8 @@ pub fn single_character_resolved_binding_identifiers(
     source: &str,
 ) -> Result<Vec<u8>, JavaScriptParseError> {
     let tokens = lex(source)?;
-    if tokens.iter().any(|token| token.kind == TokenKind::Template) {
-        return Ok(Vec::new());
-    }
     let resolution = BindingResolution::new(&tokens);
-    if !resolution.is_total() {
-        return Ok(Vec::new());
-    }
+    let template_names = template_identifier_names_in_tokens(&tokens)?;
     let mut candidates = std::collections::BTreeSet::new();
     let mut rejected = std::collections::BTreeSet::new();
 
@@ -1763,6 +2002,7 @@ pub fn single_character_resolved_binding_identifiers(
             candidates.insert(byte);
             if !identifier_occurrence_is_clear_binding(&tokens, index)
                 || !matches!(resolution.resolve(index), Resolution::Bound(_))
+                || template_names.contains(token.text)
             {
                 rejected.insert(byte);
             }
@@ -1937,15 +2177,10 @@ pub fn identifier_name_is_clear_binding(
         return Ok(false);
     }
     let tokens = lex(source)?;
-    // The remapper cannot inspect identifiers embedded in template tokens, so
-    // a whole-artifact rename must leave any artifact containing one alone.
-    if tokens.iter().any(|token| token.kind == TokenKind::Template) {
+    if template_identifier_names_in_tokens(&tokens)?.contains(name) {
         return Ok(false);
     }
     let resolution = BindingResolution::new(&tokens);
-    if !resolution.is_total() {
-        return Ok(false);
-    }
     let mut seen = false;
     for (index, token) in tokens.iter().enumerate() {
         if token.kind != TokenKind::Identifier || token.text != name {
@@ -1959,6 +2194,48 @@ pub fn identifier_name_is_clear_binding(
         }
     }
     Ok(seen)
+}
+
+fn template_identifier_names_in_tokens(
+    tokens: &[Token<'_>],
+) -> Result<std::collections::BTreeSet<String>, JavaScriptParseError> {
+    let mut names = std::collections::BTreeSet::new();
+    for token in tokens {
+        if token.kind == TokenKind::Template {
+            names.extend(template_expression_identifier_names(token.text)?);
+        }
+    }
+    Ok(names)
+}
+
+fn template_expression_identifier_names(
+    template: &str,
+) -> Result<std::collections::BTreeSet<String>, JavaScriptParseError> {
+    let bytes = template.as_bytes();
+    let mut names = std::collections::BTreeSet::new();
+    let mut cursor = 1usize;
+    while cursor + 1 < bytes.len() {
+        if bytes[cursor] == b'\\' {
+            cursor = (cursor + 2).min(bytes.len());
+            continue;
+        }
+        if bytes[cursor] != b'$' || bytes[cursor + 1] != b'{' {
+            cursor += 1;
+            continue;
+        }
+        let expression_start = cursor + 2;
+        let expression_end = scan_template_expression(bytes, expression_start, 0)?;
+        let expression = &template[expression_start..expression_end - 1];
+        for token in lex(expression)? {
+            if token.kind == TokenKind::Identifier {
+                names.insert(token.text.to_string());
+            } else if token.kind == TokenKind::Template {
+                names.extend(template_expression_identifier_names(token.text)?);
+            }
+        }
+        cursor = expression_end;
+    }
+    Ok(names)
 }
 
 pub fn two_character_identifier_use_counts(

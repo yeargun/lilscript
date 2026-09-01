@@ -72,6 +72,7 @@ pub struct JavaScriptExportAbi {
     pub kind: JavaScriptExportKind,
     pub arity: Option<usize>,
     pub constructible: Option<bool>,
+    pub fields: Vec<String>,
     pub methods: Vec<JavaScriptMethodAbi>,
 }
 
@@ -107,7 +108,7 @@ impl JavaScriptCompilationContract {
                 .exports
                 .iter()
                 .map(|export| {
-                    let (kind, arity, constructible, methods) = match export.binding {
+                    let (kind, arity, constructible, fields, methods) = match export.binding {
                         ExportBinding::Function(function) => {
                             let ir_function = module.functions.get(function.0 as usize);
                             let arity = ir_function.map(javascript_function_arity);
@@ -118,6 +119,18 @@ impl JavaScriptCompilationContract {
                             let hierarchy = class
                                 .map(|class| javascript_class_hierarchy(module, class))
                                 .unwrap_or_default();
+                            let mut fields = Vec::new();
+                            for owner in hierarchy.iter().rev() {
+                                if let Some(layout) =
+                                    module.classes.iter().find(|layout| layout.name == *owner)
+                                {
+                                    for field in &layout.fields {
+                                        if !fields.iter().any(|name| name == field.name) {
+                                            fields.push(field.name.to_string());
+                                        }
+                                    }
+                                }
+                            }
                             let mut methods = Vec::new();
                             for owner in hierarchy {
                                 for function in &module.functions {
@@ -157,21 +170,31 @@ impl JavaScriptCompilationContract {
                                             && self.abi.public_function_spelling
                                                 != Some(FunctionSpelling::Arrow))
                                 })),
+                                fields,
                                 methods,
                             )
                         }
-                        ExportBinding::Global(_) => {
-                            (JavaScriptExportKind::Global, None, None, Vec::new())
-                        }
-                        ExportBinding::TypeOnly => {
-                            (JavaScriptExportKind::TypeOnly, None, None, Vec::new())
-                        }
+                        ExportBinding::Global(_) => (
+                            JavaScriptExportKind::Global,
+                            None,
+                            None,
+                            Vec::new(),
+                            Vec::new(),
+                        ),
+                        ExportBinding::TypeOnly => (
+                            JavaScriptExportKind::TypeOnly,
+                            None,
+                            None,
+                            Vec::new(),
+                            Vec::new(),
+                        ),
                     };
                     JavaScriptExportAbi {
                         name: export.name.to_string(),
                         kind,
                         arity,
                         constructible,
+                        fields,
                         methods,
                     }
                 })
@@ -428,6 +451,7 @@ mod tests {
         );
         assert_eq!(manifest.exports[0].arity, Some(1));
         assert_eq!(manifest.exports[0].constructible, Some(true));
+        assert_eq!(manifest.exports[0].fields, ["value"]);
         assert_eq!(manifest.exports[0].methods.len(), 1);
         assert_eq!(manifest.exports[0].methods[0].name, "read");
         assert_eq!(manifest.exports[0].methods[0].arity, 0);

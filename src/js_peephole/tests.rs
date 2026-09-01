@@ -8,12 +8,14 @@ use super::parse::{non_overlapping_parsed_node_count, parse_expression_regions};
 use super::token::{lex, punctuation_width};
 use super::{
     analyze_generated_javascript, function_leading_declaration_variant,
-    generated_javascript_bit_or_zero_count, generated_javascript_export_names,
-    generated_javascript_export_witnesses, generated_javascript_static_imports,
-    generated_javascript_static_property_names, optimize_generated_javascript,
-    optimize_generated_javascript_assuming, optimize_generated_javascript_preserving_functions,
-    reorder_uninitialized_var_declarators, validate_generated_javascript_syntax_floor,
-    PeepholeResult,
+    generated_javascript_binding_occurrences, generated_javascript_bit_or_zero_count,
+    generated_javascript_dynamic_property_occurrences, generated_javascript_export_names,
+    generated_javascript_export_witnesses, generated_javascript_free_identifiers,
+    generated_javascript_static_imports, generated_javascript_static_property_names,
+    generated_javascript_static_property_occurrences, generated_javascript_template_literals,
+    optimize_generated_javascript, optimize_generated_javascript_assuming,
+    optimize_generated_javascript_preserving_functions, reorder_uninitialized_var_declarators,
+    validate_generated_javascript_syntax_floor, PeepholeResult,
 };
 
 const LEGACY_PUNCTUATION: [&str; 31] = [
@@ -1064,12 +1066,14 @@ fn two_character_remapping_rejects_unresolved_template_occurrences() {
 }
 
 #[test]
-fn one_character_remap_candidates_reject_template_expressions() {
-    let source = "let a=1;console.log(`${a+1}`)";
-    assert!(super::single_character_resolved_binding_identifiers(source)
-        .unwrap()
-        .is_empty());
+fn one_character_remap_candidates_reject_only_template_references() {
+    let source = "let a=1,b=2;console.log(`${a+1}`,b)";
+    assert_eq!(
+        super::single_character_resolved_binding_identifiers(source).unwrap(),
+        [b'b']
+    );
     assert!(!super::single_character_name_is_clear_binding(source, b'a').unwrap());
+    assert!(super::single_character_name_is_clear_binding(source, b'b').unwrap());
     assert!(
         super::function_local_binding_swap_variants("function f(a,b){return`${a+b}`}")
             .unwrap()
@@ -1128,7 +1132,7 @@ fn rejects_duplicate_generated_export_names() {
 #[test]
 fn observes_generated_export_callable_shapes() {
     let witnesses = generated_javascript_export_witnesses(
-        "class B{base(a){}}function f(a,b=1){}class C extends B{constructor(a,b){}read(a=1){}}let g=(a,b)=>a+b,v=1;export{f,C,g,v}",
+        "class B{baseField=0;base(a){}}function f(a,b=1){}class C extends B{ownField=0;constructor(a,b){}read(a=1){}}let g=(a,b)=>a+b,v=1;export{f,C,g,v}",
     )
     .unwrap();
     assert_eq!(witnesses.len(), 4);
@@ -1148,6 +1152,7 @@ fn observes_generated_export_callable_shapes() {
         super::GeneratedJavaScriptExportKind::Constructor
     );
     assert_eq!(class.arity, Some(2));
+    assert_eq!(class.fields, ["baseField", "ownField"]);
     assert_eq!(
         class
             .methods
@@ -1222,6 +1227,62 @@ fn observes_static_properties_without_confusing_dynamic_keys() {
         .unwrap(),
         ["bracket", "field", "method", "named", "quoted", "static"]
     );
+    let occurrences = generated_javascript_static_property_occurrences("value.field").unwrap();
+    assert_eq!(occurrences[0].name, "field");
+    assert_eq!(
+        &"value.field"[occurrences[0].start..occurrences[0].end],
+        "field"
+    );
+}
+
+#[test]
+fn records_dynamic_property_ranges_separately_from_static_keys() {
+    let source = "value[key]+value['fixed']+call()[next()]";
+    let occurrences = generated_javascript_dynamic_property_occurrences(source).unwrap();
+    assert_eq!(
+        occurrences
+            .iter()
+            .map(|(start, end)| &source[*start..*end])
+            .collect::<Vec<_>>(),
+        ["[key]", "[next()]"]
+    );
+}
+
+#[test]
+fn observes_free_identifiers_without_properties_or_bound_names() {
+    assert_eq!(
+        generated_javascript_free_identifiers(
+            "let local=external;function f(arg){return local+arg+other.value}"
+        )
+        .unwrap(),
+        ["external", "other"]
+    );
+}
+
+#[test]
+fn records_binding_and_declaration_byte_ranges() {
+    let source = "let value=1;function read(){return value+external}";
+    let bindings = generated_javascript_binding_occurrences(source).unwrap();
+    let captured = bindings
+        .iter()
+        .find(|binding| binding.name == "value" && binding.start > 20)
+        .unwrap();
+    assert_eq!(captured.kind, super::GeneratedJavaScriptBindingKind::Bound);
+    assert_eq!(captured.declaration_start, Some(4));
+    assert_eq!(captured.declaration_end, Some(9));
+    let external = bindings
+        .iter()
+        .find(|binding| binding.name == "external")
+        .unwrap();
+    assert_eq!(external.kind, super::GeneratedJavaScriptBindingKind::Free);
+}
+
+#[test]
+fn records_opaque_template_literals_exactly() {
+    assert_eq!(
+        generated_javascript_template_literals("let a=`x${value}`;let b=`plain`").unwrap(),
+        ["`plain`", "`x${value}`"]
+    );
 }
 
 #[test]
@@ -1235,6 +1296,17 @@ fn rejects_generated_syntax_above_the_configured_floor() {
     let error =
         validate_generated_javascript_syntax_floor("class A{x=0}", EcmaScriptEdition::Es2021)
             .unwrap_err();
+    assert!(error.to_string().contains("syntax floor"));
+    validate_generated_javascript_syntax_floor(
+        "let f=(...a)=>a;let o={...source}",
+        EcmaScriptEdition::Es2018,
+    )
+    .unwrap();
+    let error = validate_generated_javascript_syntax_floor(
+        "let f=(...a)=>a;let o={...source}",
+        EcmaScriptEdition::Es2017,
+    )
+    .unwrap_err();
     assert!(error.to_string().contains("syntax floor"));
 }
 

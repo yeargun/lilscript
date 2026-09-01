@@ -6943,21 +6943,52 @@ mod tests {
         // name fixup, which is unparseable JavaScript and broke the unifiedlil and remarklil
         // builds until the terminator was keyed off the shape instead of the keyword.
         let declaration = super::emit_class(
-            "VFile", None, "a", "this.a=a", &[], &[], &[], None, None, Some("var"), Some("VFile"),
+            "VFile",
+            None,
+            "a",
+            "this.a=a",
+            &[],
+            &[],
+            &[],
+            None,
+            None,
+            Some("var"),
+            Some("VFile"),
             false,
         );
         assert!(declaration.starts_with("class VFile{"), "{declaration}");
         assert!(!declaration.ends_with(';'), "{declaration}");
 
         let expression = super::emit_class(
-            "u", None, "a", "this.a=a", &[], &[], &[], None, None, Some("var"), Some("VFile"),
+            "u",
+            None,
+            "a",
+            "this.a=a",
+            &[],
+            &[],
+            &[],
+            None,
+            None,
+            Some("var"),
+            Some("VFile"),
             false,
         );
         assert!(expression.starts_with("var u=class VFile{"), "{expression}");
         assert!(expression.ends_with(';'), "{expression}");
 
         let assignment = super::emit_class(
-            "u", None, "a", "this.a=a", &[], &[], &[], None, None, None, Some("VFile"), false,
+            "u",
+            None,
+            "a",
+            "this.a=a",
+            &[],
+            &[],
+            &[],
+            None,
+            None,
+            None,
+            Some("VFile"),
+            false,
         );
         assert!(assignment.starts_with("u=class VFile{"), "{assignment}");
         assert!(assignment.ends_with(';'), "{assignment}");
