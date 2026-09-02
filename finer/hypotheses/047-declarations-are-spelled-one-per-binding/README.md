@@ -1,8 +1,12 @@
 # 047 — declarations are spelled one per binding
 
-**Status: OPEN — three generic declaration folds landed in the peephole (initializer `void 0`
-dropped off fresh `var` bindings, adjacent declarations joined, the var-into-assign fold widened
-and repeated); unit tests green; katexlil and a three-port portfolio building on the pool.**
+**Status: CONFIRMED, landed (e0c1c22) — katexlil's shipped ESM 66819 → 65586 Brotli (−1233), the
+portfolio +4 / +13 / −13, every gate green. Most of it is not the declaration folds (−320 codec
+bytes as a scored late candidate) but the whole-artifact canonical peephole candidate finally
+entering the beam: two validators refused it wrongly (a declarator scan that ran past an elided
+block-terminal semicolon; the class rewrite's `constructor` counted as a new property) and one fold
+behind it was wrong (`fold_while_trailing_increments` lifting an increment out of an `if/else`
+arm). Measured on feature/source-maps + the patch, which has the terminal parser gate main lacks.**
 Lane: compiler. Objective: brotli. Ports: katexlil (found there), mobxlil, micromarklil,
 remark-gfmlil (portfolio). Opened: 2026-09-02.
 
@@ -61,8 +65,8 @@ and this join fight and the net is under −50 on katexlil.
    `finer/out/044/scoreboard.new.json` (the others, built on 20f4e09); each port's tests.
 
 ```sh
-cargo test --release --lib -- js_peephole::tests::drops_void_initializers_only_where_the_binding_is_fresh_and_runs_once js_peephole::tests::joins_adjacent_declarations_of_one_kind js_peephole::tests::module_globals_declared_then_assigned_become_one_declaration
-node finer/tools/workers.mjs up 2 && node finer/tools/workers.mjs build --ports katexlil,mobxlil,micromarklil,remark-gfmlil --dist-dir finer/out/047/dist --compiler target/release/lilscript
+cargo test --release --lib -- js_peephole   # the fold, resolver and lift tests
+node finer/tools/workers.mjs build --ports katexlil,mobxlil,micromarklil,remark-gfmlil --dist-dir finer/out/047/dist --compiler .claude/worktrees/agent-a5be67e76a2b44fdd/target/release/lilscript
 ```
 
 ## Result
@@ -74,20 +78,19 @@ output). Sizes `lilscript-codec`; portfolio ports rebuilt on the pool with the b
 | variant | raw | gzip9 | brotli11 | counters / CPU | tests |
 |---|---:|---:|---:|---|---|
 | katexlil ESM, 046 build B (base) | 289019 | 80966 | 66819 | | 17/17, Jest 1230/1230 |
-| hand: initializer off | −1575 | −102 | −88 | 225 sites | |
-| hand: + joins | −3531 | −299 | −240 | 489 joins | |
-| hand: + assignments folded | −3762 | −500 | −388 | 78 folds; the rewrite itself mis-nested once | |
+| hand rewrites (AST positions, legal shapes): initializer off / + joins / + assignments folded | | | −88 / −240 / −388 | 225 / 489 / 78 sites; `finer/out/047/` | |
 | **C**: folds unconditional in the per-declaration pass | 289019 | 80966 | 66819 | katexlil **byte-identical**: the pass sees one declaration at a time, so there is never a second `var` to join | |
-| C on mobx / micromark / remark-gfm | −77 / −31 / −35 | | **−12 / +64 / +41** | the joins never fire there either; the `void 0` drops and the widened fold perturb the local rename (remark-gfm: every short name reassigned) and lose a repeated `void 0` match (micromark) | |
+| C on mobx / micromark / remark-gfm | −77 / −31 / −35 | | **−12 / +64 / +41** | no joins there either; the `void 0` drops perturb the local rename (remark-gfm: every short name reassigned) | |
 | **D**: the folds as a scored late-cleanup family (`shape_declarations`) | 285228 | 80423 | **66464** (−355) | compiler output 227668 / 56880 (−434); `cleanup_shaped_pushed=1`, 320 codec bytes | 17/17 |
-| D on mobx / micromark / remark-gfm | +7 / −99 / −78 | | **+10 / +11 / +13** | the family reserves one probe per beam member; on a default budget (`level_limit` scaled to 1/4–1/12 by artifact size) those probes starve the later families | |
+| D on mobx / micromark / remark-gfm | +7 / −99 / −78 | | **+10 / +11 / +13** | one probe per beam member, taken from a default budget the later families then lack | |
 | whole-artifact peephole over build B, offline (`optimize_generated_javascript`) | 222374 | 67651 | **56125** (−1189) | 8 → 28 `class`, 213 → 96 prototype assigns, 29 → 0 `arguments[`; parses; this is what the late cleanup's canonical candidate would be | |
 | **E**: + the resolver fix (`declarator_names` stops at an unbalanced closer), pool | 279731 | 79534 | **65589** (−1230) | compiler output 222171 / 56122 — the whole-artifact rewrite lands (8 → 5 `class`, 213 → 96 prototype assigns, 29 → 0 `arguments[`, 101 → 0 `+literal`) | 17/17, Jest 1230/1230 |
 | E on mobx / micromark / remark-gfm | 0 / −99 / −88 | | **+10 / +64 / −22** | micromark: the shaped candidate is renamed differently from the original (short-name churn), the family ran before the rename | |
 | **F**: shaping after the rename; canonical candidate admitted through `validate_selected` | | | ESM 65618 but **invalid** | `cleanup_canonical_pushed=1`; `fold_while_trailing_increments` hoisted the `h++` ending an `else` arm into the `for` header and left `if(c)…;else}` — esbuild refuses it, 14/17 port tests fail. Main has no terminal-parser gate (that is feature/source-maps 4e799a8), so admission let it through | 3/17 |
 | F on mobx / micromark / remark-gfm | 0 / −36 / −88 | | **0 / +13 / −22** | the rename-first order removes the naming churn | |
-| **G1**: F + the lift guard (`increment_is_body_level`), built on feature/source-maps (the parser gate), pool | | | | | |
-| **G2**: G1 + the port's `JS.push` → `JS.invoke(…, "push", …)` (140 sites; `JS.push` *is* `Array.prototype.push.call` by definition) | | | | | |
+| **G1**: F + the lift guard (`increment_is_body_level`), built on feature/source-maps (the parser gate), pool | 279814 | 79536 | **65586** (−1233) | compiler output 222254 / 56236; `cleanup_canonical_pushed=1` | **17/17, Jest 1230/1230** |
+| G1 on mobx / micromark / remark-gfm | +1 / −36 / −65 | | **+4 / +13 / −13** | fleet net −1229 | |
+| **G2**: G1 + the port's `JS.push` → `JS.invoke(…, "push", …)` (140 sites) | 283262 | 80308 | 66282 (**+696 against G1**) | raw +3448: the intrinsic (`Array.prototype.push.call` by definition) is what the compiler's array families fold — fresh-array pushes into literals, `alias-array-prototype-methods` — and an opaque method call is not. The 86 prototype calls left in G1 are the ones nothing could fold. **Reverted**; not a port lever | |
 
 **Why the canonical candidate never lands on katexlil.** The late cleanup re-opens the canonical
 peephole on the whole finalist and admits it as one candidate (`compiler.rs`
@@ -117,8 +120,24 @@ coercion the emitter writes for a `JsValue` operand survives constant propagatio
 
 ## Verdict
 
-<pending the pool build>
+Confirmed, and the claim was the smaller half of the answer. The declaration folds are worth 320
+codec bytes on katexlil as a scored late candidate and nothing when applied per declaration; the
+−1233 comes from the late cleanup's canonical whole-artifact candidate, which every earlier
+katexlil compile refused for a resolver defect nobody could see (`rename_candidates=1` was the only
+trace; the new `cleanup_canonical_*` counters name the exit now). What status.md carries: (1) on a
+port with many module globals the per-declaration peephole cannot join anything, and the late
+canonical candidate is the only path for cross-declaration folds — its counters are the first
+thing to read; (2) main's admission has no terminal parser gate, so a wrong fold ships on main and
+is merely refused on feature/source-maps: compiler changes are measured there; (3) unconditional
+raw-motivated folds perturb the local rename on other ports (remark-gfm +41 from name churn
+alone) — a fold that is not obviously codec-neutral goes in as a scored candidate after the
+rename; (4) `JS.push` is not a port smell: the intrinsic is what the array families fold.
 
 ## Next
 
-<pending>
+The canonical candidate is now admitted, but it is one candidate: the declaration folds and the
+class rewrite reach the artifact only through it, and a budget-starved cleanup
+(`cleanup_unbudgeted=2` on katexlil, default budgets a twelfth of `level_limit` above 256 KB)
+drops it silently. Run the four-port A/B with `terminal_codec_probe_limit` at 2× and 4× the
+default to see whether the late families are budget-limited on the fleet the way jQuery was (043),
+and read `cleanup_canonical_*` on every port of the next fleet measure.

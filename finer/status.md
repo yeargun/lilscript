@@ -20,7 +20,7 @@ at measurement: how much of the number is *not* the compiler.
 | react-markdownlil | +10815 | 19 | was +14166: the zero probe budget is gone (037). The committed artifact was React-external glue and the tree inlines it — not the same program; the tree is a 45-file migration |
 | motionlil | +9314 | 0 | fails to build under the fleet (`ERR_MODULE_NOT_FOUND`); baseline scope-suspect: `dist/full.js` against the real motion UMD |
 | remarklil | +4688 | 46 | was +6782: −2094 from 041's local rename. Bundles unminified npm `vfile` instead of the sibling port (~1821, 006); micromark core |
-| katexlil | +5800 | 0 | **examined (046): a source-shape number.** Closed (`extern_fields=false`) is byte-identical to open — the port owns no fields, every object is a `JsValue` bag and every class a prototype table; the site's "closed" lane was level 8. Per-module maps put the loss in the glue and hand-built classes; 60/88 modules beat Terser. Rebuilt on this binary: −1255 on the compiler output that the old cache key had hidden, plus the unicode table → generator loop (046 Result) |
+| katexlil | +2542 | 0 | was +5800 (046/047): −1175 from rebuilding on the current binary, −943 from the unicode table → generator loop, −1233 from the late cleanup's whole-artifact candidate finally being admitted (047). Closed = open until the port is typed; the rest of the number is the `JsValue` shape (046) |
 | micromarklil | +3321 | 51 | micromark core: emitted volume; Terser still extracts −884 from our artifact (035) |
 | remark-parselil | +2922 | 36 | micromark core |
 | mdast-util-from-markdownlil | +2824 | 33 | micromark core — the three share it, so one fix moves ~9 KB |
@@ -94,6 +94,22 @@ pinned lane; Terser, Oxc, esbuild, Vite and Closure do
   stale: today −54 / −219 / −9 / −25. What Terser's `compress` band on micromark actually is:
   `collapse_vars` +280 and `unused` +296 when removed — single-use assignment collapsing.
 
+- **The late cleanup's canonical candidate is the only path for cross-declaration folds** (047).
+  The compile runs the peephole one top-level declaration at a time; joins, the class rewrite over
+  a prototype table split across declarations, and every other whole-artifact fold reach the
+  artifact only through `apply_late_javascript_cleanup`'s canonical candidate. On katexlil it had
+  never entered the beam (two validator false refusals, then a wrong fold behind them); admitted,
+  −1233 Brotli. `LILSCRIPT_TIMING=1` now reports `cleanup_canonical_{err,same,boundary,refused,
+  unprobed,pushed}` and `cleanup_shaped_*`: read them before claiming a fold is missing.
+- **Main's admission has no terminal parser gate** (047): a fold that emits a wrong program ships on
+  main and is refused on feature/source-maps (4e799a8's Oxc gate). Compiler changes are measured
+  with a feature/source-maps binary until the branch lands.
+- **A raw-motivated fold goes in as a scored candidate after the local rename, or not at all**
+  (047): applied unconditionally per declaration, three declaration folds moved remark-gfm +41
+  by name churn alone; as a late family before the rename, micromark +64; after it, +13 / +4.
+- **`JS.push` is not a port smell** (047): spelled as a method invoke it is +696 on katexlil; the
+  intrinsic is what the array families fold.
+
 ## Landed by this workstream
 
 Effort telemetry (`src/timing.rs`); content-addressed memos (−27% CPU, byte-identical); lexer
@@ -107,6 +123,11 @@ jquerylil), the narrowed `unstable` closure (+69 net), the levels-14/15 probe ra
 bytes).
 
 ## Open leads, ranked by measured value
+
+0. **Budget for the late cleanup** (047's Next): the canonical candidate is admitted now but is one
+   candidate on a budget that is a twelfth of `level_limit` above 256 KB (`cleanup_unbudgeted=2`
+   on katexlil); a four-port A/B at 2× and 4× `terminal_codec_probe_limit` says whether the late
+   families are budget-limited on the fleet the way jQuery was.
 
 1. **The arrow candidate can spell a `this` method as an arrow** (042's finding): shipped
    jquerylil's `scrollTop(1)` TypeError is exactly that, and the same whole-artifact
