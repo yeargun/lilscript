@@ -1909,14 +1909,18 @@ fn fold_self_assignment_chain_step(
             continue;
         };
         let rest = &tokens[first_end + 4..second_end];
-        // A declarator link absorbs only a second statement that is this one assignment;
-        // a comma chain after it folds into one assignment first, then the declarator takes it.
-        if (in_declaration && !matches!(tokens[second_end].text, ";" | "}"))
+        // A declarator link absorbs the assignment that follows it; when that assignment
+        // opens a comma sequence (`var c=a.size;c=c||X,this.size=c`), the comma after it
+        // becomes the declaration's semicolon and the rest stays a statement.
+        if (in_declaration && !matches!(tokens[second_end].text, ";" | "}" | ","))
             || expression_has_top_level(rest, &["?", ":", "=>", "=", "+=", "-=", "||=", "&&=", "??="])
             || identifier_occurs(&tokens, first_end + 4, second_end, name)
         {
             cursor += 1;
             continue;
+        }
+        if in_declaration && tokens[second_end].text == "," {
+            replacements.push((tokens[second_end].start, tokens[second_end].end, ";".to_string()));
         }
         let first_text = &source[tokens[cursor + 2].start..tokens[first_end - 1].end];
         let op = binary_precedence(tokens[first_end + 4].text).unwrap_or(0);

@@ -3736,6 +3736,10 @@ fn self_assignment_chains_collapse_into_one_expression() {
     assert!(folded.contains("var c=a.has(b)||Object.prototype.hasOwnProperty.call(a,b)||b in a;return c"), "{folded}");
     assert!(folded.contains("var y=(b+1)*2-a;"), "{folded}");
     assert!(folded.contains("x=a?1:2,x=x+b"), "a conditional first value keeps its temporary: {folded}");
+    let sizes = "var o={size:0,textSize:0};function S(a){var c=a.size;c=c||8,o.size=c;var b=a.textSize;b=b||o.size,o.textSize=b;return o}console.log(JSON.stringify(S({})),JSON.stringify(S({size:2,textSize:3})))";
+    let (sized, _) = fold_self_assignment_chains(sizes).unwrap();
+    assert!(sized.contains("var c=a.size||8;o.size=c;var b=a.textSize||o.size;o.textSize=b"), "{sized}");
+    assert_eq!(run_javascript(&sized), run_javascript(sizes));
     assert!(folded.contains("z=z&&w"), "a right side that reads the name elsewhere keeps its temporary: {folded}");
     assert!(count >= 5, "{count}");
     assert_eq!(run_javascript(&folded), run_javascript(source));
