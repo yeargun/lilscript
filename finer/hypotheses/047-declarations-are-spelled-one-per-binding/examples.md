@@ -148,3 +148,35 @@ through the compiler's map charges inlined and hoisted code to the module of its
 (`functions/font` on our side carries buildCommon's `makeVList` positioning), and the two
 ownership modes disagree by ±300 per module, so a module table cannot be used as a proof here.
 Whole-artifact rewrites can, and they are what the table above is.
+
+## Bottom-up, at the function boundary (2026-09-02, later)
+
+`scripts/function-pairs.mjs` in katexlil collects every outermost function body in both
+artifacts (a body is a unit wherever it sits), compresses each alone, each lane's bodies
+concatenated, and the artifact with the bodies cut out (the glue), with `lilscript-codec`.
+
+| measurement | LilScript | Terser (sources) | delta |
+|---|---:|---:|---:|
+| every function body compressed alone, summed (478 / 462 bodies) | 70113 | 71113 | **−1000** |
+| all bodies concatenated | 35278 | 32431 | **+2847** |
+| the glue (artifact minus bodies; Terser's includes the 9462-byte font table) | 21070 | 29416 | +1116 like for like |
+| whole artifact, code only | 56236 | 52263 | +3973 |
+| 78 content-matched pairs within 10 % raw of each other, in-context cost | 6377 | 3471 | ours costs 84 % more for the same code |
+| matched bodies that cost ≤ 5 bytes in context (near-duplicates) | 1 | 22 | |
+| candidate search off (`candidate_search = "off"`, level 13) | 59477 | | +3241: the search is a large net win, not the source of the variety |
+| `candidate_search = "production"` (gated binary) | 56236 | | byte-identical to `always` |
+
+Function by function we are already smaller. What we lose is *collective*: KaTeX's builders and
+handlers are near-identical upstream and Terser keeps them near-identical, so Brotli copies each
+next one for a few bytes (`isCharacterBox`: 87 raw, 3 Brotli in context; ours 91 raw, 77 Brotli).
+Our versions of the same functions differ from each other because the port's transliteration
+spells the same idiom several ways (`or3`/`or4` temporaries for `||`, `toStr` here and `+""`
+there, `while` here and `for` there) and the compiler compiles each faithfully; turning the search
+off makes it 3241 worse, so the search is not what creates the variety. Terser's own passes on our
+artifact recover only 576 of the 2847 (compress-only), which says the variety is structural, not
+a spelling a minifier reaches. The per-module attribution through the compiler's map is not usable
+at this granularity (it charges inlined bodies to the module of their first token); content
+matching by shared string literals is.
+
+Language gap seen on the way: no `instanceof` on `JsValue`, so the port carries an `isPrototypeOf`
+helper; spelled as `instanceof` it is −60 Brotli (raw +182).

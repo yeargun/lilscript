@@ -107,6 +107,13 @@ pinned lane; Terser, Oxc, esbuild, Vite and Closure do
 - **A raw-motivated fold goes in as a scored candidate after the local rename, or not at all**
   (047): applied unconditionally per declaration, three declaration folds moved remark-gfm +41
   by name churn alone; as a late family before the rename, micromark +64; after it, +13 / +4.
+- **Function by function we already beat Terser on katexlil; the loss is collective** (047,
+  `examples.md`): every outermost body compressed alone sums to 70113 against Terser's 71113,
+  but concatenated 35278 against 32431 — Terser's near-identical builders compress against each
+  other and ours do not (78 same-size matched pairs: 6377 vs 3471 in context). Search off is
+  +3241, so the search is not the variety; Terser's passes on our artifact recover 576 of the
+  2847, so it is not a spelling either. It is the port's transliteration spelling one idiom
+  several ways; the lever is the port, written once per idiom.
 - **`JS.push` is not a port smell** (047): spelled as a method invoke it is +696 on katexlil; the
   intrinsic is what the array families fold.
 
@@ -182,6 +189,9 @@ bytes).
     not one port's; re-run on every fresh three-way build of markedlil.
 
 ## Known issues
+
+- No `instanceof` on `JsValue` in the language (047): ports carry an `isPrototypeOf` helper
+  (`ga(a,Y)` on katexlil, 26 sites); as `instanceof` it is −60 Brotli. A language item.
 
 - `bundle.mode = "preserve-modules"` fails on katexlil at level 8: "function 393 (`<unnamed>`,
   closure) has no emitted name (live=true inlined=true …)" at `functions/hbox.lil:12` — a closure
