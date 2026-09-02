@@ -1,8 +1,11 @@
 # 043 — statement fusion is mostly absent
 
-**Status: OPEN — of Terser's seven boundary-absorbing shapes we have one, three partial and three
-refused by a keyword list; is the `return E,V` fold a silent non-runner at level 13, and is the class
-worth ≥ 100 Brotli on micromarklil?**
+**Status: FALSIFIED — C1 and C3 without a line of code: Terser's own `sequences`, removed from its
+defaults, costs at most +3 Brotli on any of four ports, and micromarklil's shipped artifact already
+carries the fusion because its build re-prints through esbuild `minifySyntax` (+20 when the
+compiler's file arrives fused). C2: the `return E,V` fold lands 0 of 162 eligible sites at the
+shipped budget and still 0 at 8192 probes; applied by hand it is worth −19 on the compiler's file
+and 0 on the shipped one. Terser's band is `collapse_vars`/`unused`: 013's `var ` gap.**
 Lane: compiler. Objective: brotli. Ports: micromarklil first (reprint gain 0, so its −254
 "+compress" band is all transforms; −1498 `;` / +932 `,` / −299 `if(` against Terser), then the
 fleet. Opened: 2026-09-02.
@@ -84,15 +87,82 @@ never share cores with a fleet pass. micromarklil's build is ~6 min on 8 cores.
 
 ## Result
 
-| variant | port | `;` | `,` | `if(` | `return E,V` | raw | gzip9 | brotli11 | tests |
-|---|---|---:|---:|---:|---:|---:|---:|---:|---|
-| shipped | micromarklil | | | | | 87117 | 30563 | 26097 | 1963/1963 |
-| Terser over shipped | micromarklil | | | | | | | 25397 | |
+Data and harness in `finer/out/043/`; sizes from `lilscript-codec`; `return E,V` AST-counted.
+`raw.js` is what the compiler wrote, `esm.js` what ships: `raw.js` through esbuild `minifySyntax`
+(`bundle.mjs` reproduces it exactly). Port tests 1963/1963 on the rebuilt dist.
+
+| variant (micromarklil) | `;` | `,` | `if(` | `return E,V` | raw | gzip9 | brotli11 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| compiled `raw.js` | 958 | 4952 | 255 | 71, all `if(c)return E,V`; block-terminal **0 of 162** | 93758 | 32693 | 27722 |
+| shipped `esm.js` | 643 | 4724 | 146 | 125, 0 sites left | 87117 | 30563 | 26097 |
+| `raw.js` → esbuild, `minifySyntax` off | 988 | 4450 | 252 | 71 | 88550 | 30911 | 26408 |
+| Terser `sequences` only over `raw.js` | 733 | 5209 | 255 | 244 | 93740 | 32597 | 27610 |
+| … then esbuild (the shipped pipeline) | 634 | 4738 | 140 | 126 | 87123 | 30553 | **26117 (+20)** |
+| Terser defaults over `raw.js` | 606 | 4962 | 140 | 125 | 91917 | 32101 | 27260 |
+| … then esbuild | 569 | 4521 | 123 | 110 | 86032 | 30136 | **25767 (−330)** |
+| base: this binary (54ab05a), shipped config; byte-identical | 958 | 4952 | 255 | 71 / 0 of 162 | 93758 | 32693 | 27722 |
+| un-starved: `terminal_codec_probe_limit = 8192`; `esm.js` byte-identical | 960 | 4950 | 257 | 71 / 0 of 162 | 93766 | 32698 | 27691 |
+| the fold by hand over `raw.js` (`tests.rs` `diagnose_043_…`), 141 sites; `esm.js` byte-identical | 812 | 5098 | 255 | 71 + 141 | 93763 | 32669 | **27703 (−19)** |
+
+Leave-one-out over Terser's defaults: Brotli cost of removing the option (micromarklil after its
+esbuild step; the others ship the compiler's file; full table `ablation*.txt`):
+
+| removed | micromark | mobx | jquery | marked |
+|---|---:|---:|---:|---:|
+| (defaults vs shipped) | −330 | −241 | −359 | −95 |
+| `sequences` | **−17** | **+3** | **−8** | **−11** |
+| `conditionals` | +21 | +72 | +136 | +24 |
+| `if_return` | +9 | −5 | +53 | −30 |
+| `collapse_vars` | **+280** | +56 | **+136** | +60 |
+| `unused` | **+296** | **+132** | +94 | +29 |
+| `sequences` alone, against Terser's reprint | +20 | −20 | −50 | −19 |
 
 ## Verdict
 
-<open>
+**C2 — mechanism located, numbers falsified, value refuted.** The brief counted the wrong scope:
+the compiled file has 71 `return E,V`, the shipped one 125 (Terser 125), but all 71 are the
+guard-return folds' braceless `if(c)return E,V`; in `fold_expression_suffix_returns`'s own scope —
+a block-terminal return after expression statements — the compiler lands **0 of 162** eligible
+sites (`b.consume(a);return 92===a?h:g`). `terminal_local_rounds` is not a
+config key but a call-site literal: 6 at the one live site (`compiler.rs:6012`, every terminal
+finalist), 0 at the two pre-cleanup calls; the walk (`:8140-8195`) is gated by
+`codec_budget.reserve_work_unit()`, i.e. `terminal_codec_probe_limit`. Measured
+(`LILSCRIPT_TIMING=1`, `*.compile.log`): at the shipped budget 221 codec calls, the cleanup entered
+4 times with 254 units in total and **unbudgeted 15 times**; at 8192, 7944 codec calls, 4 entries
+with 8097 units — and still **15 unbudgeted**: the 0-round entries (`:5920`, `:5998`) meet a zero
+ledger at any ceiling, by the reserve accounting, not the limit. Un-starved, the artifact still has
+0 sites (`esm.js` byte-identical). By hand the fold takes 141 sites, passes
+`analyze_generated_javascript`, and is worth **−19** on the compiler's file and **0 on what ships**,
+because esbuild `minifySyntax` fuses the remaining 157 returns and 53 ifs itself. Whether the walk
+ever scored it is moot at −19.
+
+**C1 — falsified before implementation.** Terser's own `sequences` as the ceiling of the five
+shapes: +20 on micromarklil (claim ≥ −100); −20 / −50 / −19 against reprint on mobx / jquery /
+marked; removing it from Terser's defaults costs at most +3 anywhere; the shipped file has 643 `;`,
+so "≥ −500 `;`" is unreachable.
+
+**C3 — falsified.** `if(` on the shipped file moves 146 → 123 (−23) under all of Terser;
+`conditionals` is +21..+136 and does not depend on `sequences` (removing it moves ≤ 3). The band is
+`collapse_vars` + `unused` — a single-use assignment collapsed into its use and the declarator it
+frees — 013's `var ` gap (`var ` 260 → 239 micromarklil, 444 → 416 jquery), the class of our
+objective-only `fold_{statement,sequence}_assignments_into_first_use` (beam `compiler.rs:8080-8092`).
+
+**Shipped ≠ compiled, new form.** micromarklil, playcanvaslil and rehype-katexlil ship esbuild's
+`minifySyntax` re-print, a post-minifier by objective.md §7: −311 on micromarklil, of which 030
+attributed 266 to `!0` re-picking, so ≈ −45 of esbuild's own transforms (109 `if(`, 157 returns)
+hide compiler gaps from the fleet number; the other 22 ports ship the compiler's file. status.md's
+"−1498 `;` / +932 `,` / −299 `if(` / −344 `var `" is stale: today −54 / −219 / −9 / −25 (shipped),
+−352 / +10 / −115 / −21 (compiled).
 
 ## Next
 
-<open>
+1. **Open the `collapse_vars`/`unused` class** (013 → new folder): harvest Terser
+   `tighten-body.js:278-1000` (`collapse`), `drop-unused.js:113`; Closure `InlineVariables` /
+   `CollapseVariableDeclarations`; Oxc `substitute_single_use_symbol_in_statement`
+   (`minimize_statements.rs:1149`); ours `copies.rs:1040, 1185`. Confirms at ≥ −150 on micromarklil
+   and ≥ −50 on mobx and jquery.
+2. **Decide the post-minifier** (§5, §7; lead 9): the three esbuild `minifySyntax` builds either
+   ship the compiler's file (`minifySyntax: false`, the `!0` re-print fixed at the boundary, 030) or
+   micromarklil's fleet number stays partly esbuild's.
+3. **The zero ledger** (036, lead 7): 15 of 19 cleanup entries are unbudgeted at 330 and at 8192
+   probes alike — the reserve accounting, not the ceiling, decides which cleanup calls run.

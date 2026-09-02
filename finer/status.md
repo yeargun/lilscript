@@ -82,9 +82,12 @@ pinned lane; Terser, Oxc, esbuild, Vite and Closure do
 - **Name spelling is not the jquery gap either** (039). A same-length relabel in Terser's
   frequency order moves −27; the emitter already spells from frequency alphabets. Terser's remaining
   −765 there is its *local* rename, and it exists only against the working-tree artifact.
-- **Terser still finds −1498 `;` / +932 `,` / −299 `if(` / −344 `var ` in our micromark output**
-  (013, 035). The statement-boundary transforms (`e;return x` → `return e,x` and four siblings) are
-  absent; each is raw-neutral alone and pays only by letting other folds reach across.
+- **Statement fusion is not a lever** (043). Terser's `sequences`, ablated from its defaults, is
+  worth at most 3 Brotli on four ports; our `return E,V` fold lands 0 of 162 eligible sites because
+  the late cleanup finds a zero ledger on 15 of 19 entries (the reserve accounting, not the ceiling),
+  and by hand it is −19. The 013/035 line of −1498 `;` / +932 `,` / −299 `if(` / −344 `var ` is
+  stale: today −54 / −219 / −9 / −25. What Terser's `compress` band on micromark actually is:
+  `collapse_vars` +280 and `unused` +296 when removed — single-use assignment collapsing.
 
 ## Landed by this workstream
 
@@ -119,9 +122,16 @@ bytes).
 4. **A plain-data object type** (013 → 042, opened from a harvest): 013's −540 included DOM reads
    no honest type can free, so the ceiling is lower; first a no-syntax port experiment re-typing
    jquerylil's five compiler-owned bags (≤ −80 confirms), then `object<T>` and a callable `object`.
-5. **Statement-boundary absorption** (035 → 043, opened from a harvest): of Terser's seven
-   `sequencesize_2` shapes we have one, three partial and three keyword-refused; the `return E,V`
-   fold runs only with `terminal_local_rounds > 0`, zero at three of four sites. Cheap claim first.
+5. **Single-use assignment collapsing** (013 → 043's redirection): Terser's `collapse_vars` and
+   `unused` are +280 / +296 on micromark, +56 / +132 on mobx, +136 / +94 on jquery when ablated —
+   the largest compiler-side class left with a measured ceiling. Prior art to read before opening:
+   `tighten-body.js:278-1000`, `drop-unused.js:113`, Oxc `minimize_statements.rs:1149`, ours
+   `copies.rs:1040, 1185`. Confirms at ≥ −150 on micromarklil and ≥ −50 on mobx and jquery.
+5b. **Three ports ship an esbuild post-minifier** (043): micromarklil, playcanvaslil and
+   rehype-katexlil bundle with `minifySyntax` on, which is −311 on micromarklil over the compiler's
+   own file, ~266 of it compact booleans the compiler left as `true`/`false`. That is compiler
+   headroom the gate cannot see because the shipped artifact is *more* compact; measure what
+   `compact-boolean-literals` misses on micromarklil's raw output.
 6. **Pooling benefit model** (011): `count * length` is a raw-objective formula; under Brotli the
    repeats were already matches. About −35 on jquerylil and should generalize to every Brotli port.
 7. **Budget allocation** (009, 036): 46 of 47 families starve at micromarklil's shipped config while
