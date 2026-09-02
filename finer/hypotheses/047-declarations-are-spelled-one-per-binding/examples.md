@@ -180,3 +180,15 @@ matching by shared string literals is.
 
 Language gap seen on the way: no `instanceof` on `JsValue`, so the port carries an `isPrototypeOf`
 helper; spelled as `instanceof` it is −60 Brotli (raw +182).
+
+## Follow-ups landed on the compiler (5ceeb59)
+
+| change | proof before | pool A/B (katexlil / mobx / micromark / remark-gfm, Brotli) |
+|---|---|---|
+| `!a.b.c\|\|(…)` → `a.b.c&&(…)` (the fold took bare names only) | −38 on the ESM by rewrite | with the regex candidate: **+7 / +12 / −1 / −41** — neutral |
+| `new RegExp("…","f")` → `/…/f`, a late codec-scored candidate | −68 by rewrite | (same run; 38 of 44 literals landed, compiler output −36, ESM +7) |
+| `x=E1,x=x OP …` → `x=(E1)OP …`, declarator first link allowed | in context: `isCharacterBox` 77 vs Terser 3, `isDefined` chains; the peephole left them whole | build I pending |
+
+The neutral pair is the noise floor again (±60): two rewrites that were −106 alone on the ESM
+add up to +7 on the compile, because the search re-decides around them. Kept: generic, prior art,
+codec-scored where they can be wrong.
