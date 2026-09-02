@@ -20,7 +20,7 @@ at measurement: how much of the number is *not* the compiler.
 | react-markdownlil | +10815 | 19 | was +14166: the zero probe budget is gone (037). The committed artifact was React-external glue and the tree inlines it — not the same program; the tree is a 45-file migration |
 | motionlil | +9314 | 0 | fails to build under the fleet (`ERR_MODULE_NOT_FOUND`); baseline scope-suspect: `dist/full.js` against the real motion UMD |
 | remarklil | +4688 | 46 | was +6782: −2094 from 041's local rename. Bundles unminified npm `vfile` instead of the sibling port (~1821, 006); micromark core |
-| katexlil | +2542 | 0 | was +5800 (046/047): −1175 from rebuilding on the current binary, −943 from the unicode table → generator loop, −1233 from the late cleanup's whole-artifact candidate finally being admitted (047). Closed = open until the port is typed; the rest of the number is the `JsValue` shape (046) |
+| katexlil | +2293 | 0 | was +5800 (046/047): the current binary −1175, the unicode table → generator loop −943, the whole-artifact candidate admitted −1233, chain collapse and friends −79, the port's for-in −165 and for-loops −12. Closed = open until the port is typed; function bodies alone already beat Terser (examples.md), the rest is collective similarity |
 | micromarklil | +3321 | 51 | micromark core: emitted volume; Terser still extracts −884 from our artifact (035) |
 | remark-parselil | +2922 | 36 | micromark core |
 | mdast-util-from-markdownlil | +2824 | 33 | micromark core — the three share it, so one fix moves ~9 KB |
