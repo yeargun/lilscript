@@ -42,10 +42,19 @@ hot mangler:
 
 1. Candidate generation and scoring run through the normal untraced emitter.
 2. After selection, the compiler re-emits only the winning IR/emission plan.
+   With `candidate_search = "off"` there is exactly one emission, so that one
+   is traced as it happens and the winner is never emitted twice.
 3. That replay records compact semantic naming facts.
 4. Final JavaScript token provenance is composed once. Source Map v3 and the
    analysis map share this result when both are enabled.
 5. JSON strings are constructed only while serializing the sidecar.
+
+`LILSCRIPT_TIMING=1` reports the four phases as `debug_trace`,
+`debug_compose`, `debug_source_map` and `debug_analysis_map`, separate from
+the search's own buckets. Measured with both maps on (`full`): markedlil at
+level 15 on a 16-core worker, 36.2 s off against 36.9 s; acorn with the search
+off, 273 ms against 304 ms; robust-predicates with the search off, 6.13 s
+against 6.25 s.
 
 Consequently, builds with both maps disabled have no replay, hashing, token
 composition, record allocation, or JSON serialization. With a source map

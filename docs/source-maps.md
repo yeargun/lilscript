@@ -21,7 +21,16 @@ include_sources_content = true
 ```
 
 `enabled = false` is the default. In that state the compiler skips provenance
-capture, token composition, and map serialization entirely.
+capture, token composition, and map serialization entirely; the emitter's
+recording hooks are one `Option` check each, and the selected JavaScript is
+byte-for-byte what the same compiler produces with the map on. Enabled, the
+map costs one traced emission of the winner (none when the candidate search
+is off, where the single emission is traced as it happens), one token
+alignment of that emission against the final JavaScript, and the
+serialization: markedlil at level 15 takes 37.5 s with a hidden map against
+36.2 s without, on a 16-core worker; acorn with the search off, 300 ms
+against 273 ms. See [analysis maps](analysis-maps.md#performance-model) for
+the timing buckets.
 
 ## Publication modes
 
