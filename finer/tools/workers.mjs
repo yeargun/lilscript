@@ -10,7 +10,8 @@
 //   node finer/tools/workers.mjs status              # instances, power, IPs
 //   node finer/tools/workers.mjs up [N|all]          # start N instances (default all)
 //   node finer/tools/workers.mjs down [N|all]        # deallocate (stops billing)
-//   node finer/tools/workers.mjs provision           # node 22 + rsync on every running worker
+//   node finer/tools/workers.mjs provision           # node 22, rsync and the idle auto-deallocate timer on every running worker
+//   node finer/tools/workers.mjs grant               # let the scale set's identity deallocate its own instances (once per scale set)
 //   node finer/tools/workers.mjs sync                # compiler binaries + every port to every worker
 //   node finer/tools/workers.mjs build --ports a,b   # build those ports on the pool, copy dist/ back
 //   node finer/tools/workers.mjs fleet [--down]      # up, sync, build every port, measure, [down]
@@ -158,20 +159,24 @@ function down() {
   discover()
 }
 
-const PROVISION = `set -e
-if ! command -v rsync >/dev/null; then sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -q rsync >/dev/null; fi
-if ! node --version 2>/dev/null | grep -q '^v2[2-9]'; then
-  curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash - >/dev/null 2>&1
-  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -q nodejs >/dev/null
-fi
-mkdir -p ~/${REMOTE}
-echo "nproc=$(nproc) node=$(node --version) rsync=$(rsync --version | head -1 | awk '{print $3}')"`
-
+/** worker-provision.sh on each running worker: node, rsync, /usr/bin/time and the idle watchdog. */
 function provision(workers = running(discover())) {
+  const script = readFileSync(join(repo, "finer", "tools", "worker-provision.sh"), "utf8")
+  const idle = flag("idle-minutes", "20")
   for (const w of workers) {
-    const r = ssh(w.ip, PROVISION, { timeoutS: 600 })
+    const r = ssh(w.ip, `cat > ~/worker-provision.sh <<'PROVISION_EOF'\n${script}\nPROVISION_EOF\nbash ~/worker-provision.sh ${idle}`, { timeoutS: 900 })
     log(`${w.ip} provision: ${r.ok ? r.out.split("\n").pop() : "FAILED " + r.err.slice(-300)}`)
   }
+}
+
+/** The scale set's system identity may deallocate its own instances: what the idle watchdog calls. */
+function grant() {
+  const vmss = az(["vmss", "show", "-g", RG, "-n", VMSS, "--query", "{id:id,principal:identity.principalId}"])
+  if (!vmss?.principal) fail(`${VMSS} has no system-assigned identity; create it with --assign-identity [system] or \`az vmss identity assign\``)
+  const existing = az(["role", "assignment", "list", "--assignee", vmss.principal, "--scope", vmss.id, "--query", "[?roleDefinitionName=='Virtual Machine Contributor'].id"])
+  if (existing.length) { log(`already granted on ${VMSS}`); return }
+  az(["role", "assignment", "create", "--assignee-object-id", vmss.principal, "--assignee-principal-type", "ServicePrincipal", "--role", "Virtual Machine Contributor", "--scope", vmss.id])
+  log(`granted Virtual Machine Contributor on ${VMSS} to its identity`)
 }
 
 /** Every sibling checkout with a build script, plus this repo's binaries and finer/tools. */
@@ -214,7 +219,8 @@ function sync(workers = running(discover()), ports = null) {
 async function buildOn(w, port) {
   const logFile = join(outDir, `${port}.log`)
   writeFileSync(logFile, `# ${port} on ${w.ip} (${VMSS}/${w.id}) ${new Date().toISOString()}\n`)
-  const script = `cd ~/${REMOTE}/${port} && export LILSCRIPT_ROOT=~/${REMOTE}/lilscript LILSCRIPT_COMPILER=~/${REMOTE}/lilscript/target/release/lilscript RAYON_NUM_THREADS=$(( $(nproc) / ${PER_WORKER} > 0 ? $(nproc) / ${PER_WORKER} : 1 )) LILSCRIPT_TIMING=1 && node scripts/build.mjs --compile`
+  // The heartbeat is what the worker's idle watchdog reads (worker-provision.sh).
+  const script = `touch ~/${REMOTE}/.heartbeat; cd ~/${REMOTE}/${port} && export LILSCRIPT_ROOT=~/${REMOTE}/lilscript LILSCRIPT_COMPILER=~/${REMOTE}/lilscript/target/release/lilscript RAYON_NUM_THREADS=$(( $(nproc) / ${PER_WORKER} > 0 ? $(nproc) / ${PER_WORKER} : 1 )) LILSCRIPT_TIMING=1 && node scripts/build.mjs --compile; status=$?; touch ~/${REMOTE}/.heartbeat; exit $status`
   const started = Date.now()
   const r = await sshAsync(w.ip, script, { timeoutS: BUILD_TIMEOUT_S, logFile })
   const seconds = (Date.now() - started) / 1000
@@ -262,6 +268,7 @@ async function main() {
     case "up": up(); break
     case "down": down(); break
     case "provision": provision(); break
+    case "grant": grant(); break
     case "sync": sync(); break
     case "run": {
       const script = argv[1]; if (!script) fail("run needs a shell command")
