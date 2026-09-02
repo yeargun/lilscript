@@ -1673,6 +1673,163 @@ pub(crate) fn emit_optimized_ir_js_module_with_options_and_analysis(
     IrJsEmitter::with_integer_analysis(module, true, *options, integer_analysis).emit()
 }
 
+/// Source provenance captured from the exact IR emission selected by the
+/// compiler. Generated offsets refer to `IrJsSourceTrace::code`; the source-map
+/// composer later carries them through final JavaScript-only rewrites.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct IrJsSourceAnchor {
+    pub generated: usize,
+    pub span: crate::span::Span,
+    pub original_name: Option<String>,
+    pub function: Option<FunctionId>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct IrJsFunctionRegion {
+    pub generated_start: usize,
+    pub generated_end: usize,
+    pub function: FunctionId,
+    pub span: crate::span::Span,
+    pub original_name: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) enum IrJsBindingCategory {
+    Function,
+    Global,
+    Parameter,
+    Local,
+    Temporary,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum IrJsIdentifierSelection {
+    /// The binding is owned by an imported/ambient JavaScript ABI.
+    ExternalAbi,
+    /// A constructible/public identity is part of the reusable-module ABI.
+    PublicAbi,
+    /// Identifier mangling was disabled and a hygienic readable spelling won.
+    ReadableHygienic,
+    /// A cross-scope stable-local preference successfully claimed this name.
+    StableLocalPreference,
+    /// Bindings/colors were ordered by weighted generated use frequency.
+    FrequencyRanked,
+    /// The next legal compact identifier in deterministic order was selected.
+    CompactSequential,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum IrJsPropertyStabilityReason {
+    ManglingDisabled,
+    PrototypeSensitive,
+    ExternalAbi,
+    DynamicBoundary,
+    PublicAggregateAbi,
+    HostMember,
+    HostMethod,
+    UnownedKeySafety,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct IrJsIdentifierDecisionTrace {
+    pub function: Option<FunctionId>,
+    pub emitted: String,
+    pub source: String,
+    pub span: crate::span::Span,
+    pub category: IrJsBindingCategory,
+    pub selection: IrJsIdentifierSelection,
+    pub coalesced_values: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct IrJsPropertyDecisionTrace {
+    pub provenance: IrJsPropertyProvenance,
+    pub stability: Option<IrJsPropertyStabilityReason>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct IrJsExportDecisionTrace {
+    pub source: String,
+    pub binding_source: String,
+    pub internal: String,
+    pub public: String,
+    pub span: crate::span::Span,
+    pub category: IrJsBindingCategory,
+    pub mangling_enabled: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct IrJsManglingOptionsTrace {
+    pub identifiers: bool,
+    pub properties: bool,
+    pub exports: bool,
+    /// Historical option name: `true` means extern fields are ABI-stable.
+    pub preserve_extern_fields: bool,
+    pub owner_scoped_properties: bool,
+    pub entropy_property_names: bool,
+    pub stable_local_names: bool,
+    pub frequency_order_local_names: bool,
+    pub local_name_coalescing: bool,
+    pub alphabet_first: usize,
+    pub alphabet_rest: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct IrJsManglingTrace {
+    pub options: IrJsManglingOptionsTrace,
+    pub identifiers: Vec<IrJsIdentifierDecisionTrace>,
+    pub properties: Vec<IrJsPropertyDecisionTrace>,
+    pub exports: Vec<IrJsExportDecisionTrace>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct IrJsBindingProvenance {
+    pub function: Option<FunctionId>,
+    pub emitted: String,
+    pub source: String,
+    pub span: crate::span::Span,
+    pub category: IrJsBindingCategory,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct IrJsSourceTrace {
+    pub code: String,
+    pub anchors: Vec<IrJsSourceAnchor>,
+    pub function_regions: Vec<IrJsFunctionRegion>,
+    pub bindings: Vec<IrJsBindingProvenance>,
+    pub properties: Vec<IrJsPropertyProvenance>,
+    pub mangling: Option<IrJsManglingTrace>,
+}
+
+pub(crate) fn emit_optimized_ir_js_source_trace_with_options_and_analysis(
+    module: &ControlFlowModule<'_>,
+    module_output: bool,
+    options: &IrJsOptions,
+    integer_analysis: Arc<IntegerValueAnalysis>,
+    capture_mangling_analysis: bool,
+) -> Result<IrJsSourceTrace, CodegenError> {
+    IrJsEmitter::with_integer_analysis(module, module_output, *options, integer_analysis)
+        .emit_with_source_trace(capture_mangling_analysis)
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) enum IrJsPropertyCategory {
+    Owned,
+    External,
+    Unowned,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) struct IrJsPropertyProvenance {
+    pub owner: Option<String>,
+    pub slot: Option<usize>,
+    pub source: String,
+    pub emitted: String,
+    pub category: IrJsPropertyCategory,
+    pub stable: bool,
+    pub span: Option<crate::span::Span>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IrJsChunkSpec {
     pub file_name: String,
@@ -1706,6 +1863,18 @@ pub fn emit_optimized_ir_js_chunks_with_options(
     let mut chunk_options = *options;
     chunk_options.inline_fresh_empty_array_factories = false;
     IrJsEmitter::new(module, true, chunk_options).emit_chunks(plan)
+}
+
+pub(crate) fn emit_optimized_ir_js_chunks_source_traces_with_options(
+    module: &ControlFlowModule<'_>,
+    options: &IrJsOptions,
+    plan: &IrJsChunkPlan,
+    capture_mangling_analysis: bool,
+) -> Result<(Vec<IrJsChunk>, Vec<IrJsSourceTrace>), CodegenError> {
+    let mut chunk_options = *options;
+    chunk_options.inline_fresh_empty_array_factories = false;
+    IrJsEmitter::new(module, true, chunk_options)
+        .emit_chunks_with_source_traces(plan, capture_mangling_analysis)
 }
 
 pub fn ir_function_can_move_to_chunk(module: &ControlFlowModule<'_>, function: FunctionId) -> bool {
@@ -1859,6 +2028,10 @@ struct IrJsEmitter<'module, 'src> {
     module_output: bool,
     options: IrJsOptions,
     dynamic_chunk_files: AHashMap<u32, String>,
+    source_anchors: Option<Vec<IrJsSourceAnchor>>,
+    source_function_regions: Option<Vec<IrJsFunctionRegion>>,
+    source_bindings: Option<Vec<IrJsBindingProvenance>>,
+    mangling_bindings: Option<Vec<IrJsIdentifierDecisionTrace>>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -1951,12 +2124,44 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             module_output,
             options,
             dynamic_chunk_files: AHashMap::default(),
+            source_anchors: None,
+            source_function_regions: None,
+            source_bindings: None,
+            mangling_bindings: None,
         }
     }
 
     fn emit(mut self) -> Result<String, CodegenError> {
+        self.emit_code()
+    }
+
+    fn emit_with_source_trace(
+        mut self,
+        capture_mangling_analysis: bool,
+    ) -> Result<IrJsSourceTrace, CodegenError> {
+        self.source_anchors = Some(Vec::new());
+        self.source_function_regions = Some(Vec::new());
+        self.source_bindings = Some(Vec::new());
+        self.mangling_bindings = capture_mangling_analysis.then(Vec::new);
+        let code = self.emit_code()?;
+        let properties = self.property_provenance();
+        let mangling_bindings = self.mangling_bindings.take().unwrap_or_default();
+        let mangling =
+            capture_mangling_analysis.then(|| self.mangling_trace(mangling_bindings, &properties));
+        Ok(IrJsSourceTrace {
+            code,
+            anchors: self.source_anchors.take().unwrap_or_default(),
+            function_regions: self.source_function_regions.take().unwrap_or_default(),
+            bindings: self.source_bindings.take().unwrap_or_default(),
+            properties,
+            mangling,
+        })
+    }
+
+    fn emit_code(&mut self) -> Result<String, CodegenError> {
         self.validate_caller_materialized_default_abis()?;
         self.prepare();
+        self.record_top_level_binding_provenance();
         let entry = self.function(self.module.entry)?.clone();
         let entry_is_single_block = entry.blocks.len() == 1 && entry.blocks[0].phis.is_empty();
         let entry_can_structure = can_structure(&entry);
@@ -2016,6 +2221,8 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         }
 
         self.loop_captured_closures = loop_captured_closures(&entry);
+        let entry_start = out.len();
+        self.record_source_anchor(entry_start, entry.span, None, Some(entry.id));
         if entry_is_single_block {
             self.emit_single_block(&entry, false, &mut out)?;
         } else if entry_can_structure {
@@ -2025,6 +2232,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             self.emit_state_machine(&entry, &mut out)?;
             out.push_str(")();");
         }
+        self.record_function_region(entry_start, out.len(), &entry);
         self.loop_captured_closures.clear();
         if self.module_output {
             self.emit_exports(&mut out)?;
@@ -2033,6 +2241,333 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             out.pop();
         }
         Ok(out)
+    }
+
+    fn record_source_anchor(
+        &mut self,
+        generated: usize,
+        span: crate::span::Span,
+        original_name: Option<&str>,
+        function: Option<FunctionId>,
+    ) {
+        if let Some(anchors) = &mut self.source_anchors {
+            anchors.push(IrJsSourceAnchor {
+                generated,
+                span,
+                original_name: original_name.map(str::to_string),
+                function,
+            });
+        }
+    }
+
+    fn record_function_region(
+        &mut self,
+        generated_start: usize,
+        generated_end: usize,
+        function: &ControlFlowFunction<'src>,
+    ) {
+        if generated_end <= generated_start {
+            return;
+        }
+        if let Some(regions) = &mut self.source_function_regions {
+            regions.push(IrJsFunctionRegion {
+                generated_start,
+                generated_end,
+                function: function.id,
+                span: function.span,
+                original_name: function.name.map(str::to_string),
+            });
+        }
+    }
+
+    fn record_top_level_binding_provenance(&mut self) {
+        if self.source_bindings.is_none() {
+            return;
+        }
+        let mut recorded = Vec::new();
+        let mut decisions = Vec::new();
+        for function in &self.module.functions {
+            let Some(emitted) = self.function_names.get(&function.id) else {
+                continue;
+            };
+            let Some(source) = function.name.filter(|name| !name.is_empty()) else {
+                continue;
+            };
+            let provenance = IrJsBindingProvenance {
+                function: None,
+                emitted: emitted.clone(),
+                source: source.to_string(),
+                span: function.span,
+                category: IrJsBindingCategory::Function,
+            };
+            if self.mangling_bindings.is_some() {
+                decisions.push(IrJsIdentifierDecisionTrace {
+                    function: provenance.function,
+                    emitted: provenance.emitted.clone(),
+                    source: provenance.source.clone(),
+                    span: provenance.span,
+                    category: provenance.category,
+                    selection: self
+                        .top_level_identifier_selection(function.kind == FunctionKind::Extern),
+                    coalesced_values: 1,
+                });
+            }
+            recorded.push(provenance);
+        }
+        for global in &self.module.globals {
+            let Some(emitted) = self.global_names.get(&global.symbol) else {
+                continue;
+            };
+            let provenance = IrJsBindingProvenance {
+                function: None,
+                emitted: emitted.clone(),
+                source: global.name.to_string(),
+                span: global.span,
+                category: IrJsBindingCategory::Global,
+            };
+            if self.mangling_bindings.is_some() {
+                decisions.push(IrJsIdentifierDecisionTrace {
+                    function: provenance.function,
+                    emitted: provenance.emitted.clone(),
+                    source: provenance.source.clone(),
+                    span: provenance.span,
+                    category: provenance.category,
+                    selection: self.top_level_identifier_selection(global.external),
+                    coalesced_values: 1,
+                });
+            }
+            recorded.push(provenance);
+        }
+        for layout in self
+            .module
+            .classes
+            .iter()
+            .filter(|layout| layout.identity_observed)
+        {
+            let Some(emitted) = self.identity_class_names.get(layout.name) else {
+                continue;
+            };
+            let Some(constructor) = self.module.functions.iter().find(|function| {
+                matches!(function.kind, FunctionKind::Constructor { class } if class == layout.name)
+            }) else {
+                continue;
+            };
+            let provenance = IrJsBindingProvenance {
+                function: None,
+                emitted: emitted.clone(),
+                source: layout.name.to_string(),
+                span: constructor.span,
+                category: IrJsBindingCategory::Function,
+            };
+            if self.mangling_bindings.is_some() {
+                let public_identity = !self.options.mangle_exports
+                    && self.module.exports.iter().any(|export| {
+                        matches!(export.binding, ExportBinding::Function(function)
+                            if function == constructor.id)
+                    });
+                decisions.push(IrJsIdentifierDecisionTrace {
+                    function: None,
+                    emitted: provenance.emitted.clone(),
+                    source: provenance.source.clone(),
+                    span: provenance.span,
+                    category: provenance.category,
+                    selection: if public_identity {
+                        IrJsIdentifierSelection::PublicAbi
+                    } else if self.options.mangle_identifiers {
+                        IrJsIdentifierSelection::CompactSequential
+                    } else {
+                        IrJsIdentifierSelection::ReadableHygienic
+                    },
+                    coalesced_values: 1,
+                });
+            }
+            recorded.push(provenance);
+        }
+        self.source_bindings
+            .as_mut()
+            .expect("source bindings were checked")
+            .extend(recorded);
+        if let Some(bindings) = &mut self.mangling_bindings {
+            bindings.extend(decisions);
+        }
+    }
+
+    fn top_level_identifier_selection(&self, external: bool) -> IrJsIdentifierSelection {
+        if external {
+            IrJsIdentifierSelection::ExternalAbi
+        } else if !self.options.mangle_identifiers {
+            IrJsIdentifierSelection::ReadableHygienic
+        } else {
+            IrJsIdentifierSelection::FrequencyRanked
+        }
+    }
+
+    fn record_function_binding_provenance(
+        &mut self,
+        function: &ControlFlowFunction<'src>,
+        context: &LocalNames,
+    ) {
+        if self.source_bindings.is_none() {
+            return;
+        }
+        let mut selected =
+            AHashMap::<String, (&str, crate::span::Span, IrJsBindingCategory)>::default();
+        let mut consider = |emitted: &str,
+                            source: &'src str,
+                            span: crate::span::Span,
+                            category: IrJsBindingCategory| {
+            let replace = selected.get(emitted).is_none_or(
+                |(current_source, current_span, current_category)| {
+                    (source != emitted, category, span.start, source)
+                        < (
+                            *current_source != emitted,
+                            *current_category,
+                            current_span.start,
+                            *current_source,
+                        )
+                },
+            );
+            if replace {
+                selected.insert(emitted.to_string(), (source, span, category));
+            }
+        };
+        for parameter in &function.params {
+            let Some(emitted) = context.value_names.get(&parameter.value) else {
+                continue;
+            };
+            if parameter.name.is_empty() || matches!(emitted.as_str(), "this" | "arguments") {
+                continue;
+            }
+            consider(
+                emitted,
+                parameter.name,
+                parameter.span,
+                IrJsBindingCategory::Parameter,
+            );
+        }
+        for local in &function.locals {
+            let Some(emitted) = context.local_names.get(&local.id) else {
+                continue;
+            };
+            consider(emitted, local.name, local.span, IrJsBindingCategory::Local);
+        }
+        let mut value_spans = vec![None; function.value_local_hints.len()];
+        for instruction in function.blocks.iter().flat_map(|block| &block.instructions) {
+            if let Some(value) = instruction.out {
+                if let Some(slot) = value_spans.get_mut(value.0 as usize) {
+                    *slot = Some(instruction.span);
+                }
+            }
+        }
+        let mut named_values = context.value_names.iter().collect::<Vec<_>>();
+        named_values.sort_by_key(|(value, _)| value.0);
+        for (value, emitted) in named_values {
+            let Some(source) = function
+                .value_local_hints
+                .get(value.0 as usize)
+                .copied()
+                .flatten()
+                .filter(|name| !name.is_empty())
+            else {
+                continue;
+            };
+            let span = value_spans
+                .get(value.0 as usize)
+                .copied()
+                .flatten()
+                .unwrap_or(function.span);
+            consider(emitted, source, span, IrJsBindingCategory::Temporary);
+        }
+        let mut bindings = selected.into_iter().collect::<Vec<_>>();
+        bindings.sort_by(|left, right| left.0.cmp(&right.0));
+        if let Some(mangling_bindings) = &mut self.mangling_bindings {
+            let decisions = bindings
+                .iter()
+                .map(|(emitted, (source, span, category))| {
+                    let coalesced_values = context
+                        .value_names
+                        .values()
+                        .filter(|name| *name == emitted)
+                        .count()
+                        .max(1);
+                    let selection = if !self.options.mangle_identifiers {
+                        IrJsIdentifierSelection::ReadableHygienic
+                    } else if self.options.stable_local_names
+                        && self.preferred_local_names.get(*source) == Some(emitted)
+                    {
+                        IrJsIdentifierSelection::StableLocalPreference
+                    } else if self.options.frequency_order_local_names {
+                        IrJsIdentifierSelection::FrequencyRanked
+                    } else {
+                        IrJsIdentifierSelection::CompactSequential
+                    };
+                    IrJsIdentifierDecisionTrace {
+                        function: Some(function.id),
+                        emitted: emitted.clone(),
+                        source: (*source).to_string(),
+                        span: *span,
+                        category: *category,
+                        selection,
+                        coalesced_values,
+                    }
+                })
+                .collect::<Vec<_>>();
+            mangling_bindings.extend(decisions);
+        }
+        self.source_bindings
+            .as_mut()
+            .expect("source bindings were checked")
+            .extend(
+                bindings
+                    .into_iter()
+                    .map(
+                        |(emitted, (source, span, category))| IrJsBindingProvenance {
+                            function: Some(function.id),
+                            emitted,
+                            source: source.to_string(),
+                            span,
+                            category,
+                        },
+                    ),
+            );
+    }
+
+    fn record_instruction_anchor(
+        &mut self,
+        generated: usize,
+        generated_end: usize,
+        function: &ControlFlowFunction<'src>,
+        instruction: &ControlFlowInstruction<'src>,
+    ) {
+        if self.source_anchors.is_none() || generated_end <= generated {
+            return;
+        }
+        let original_name = instruction
+            .out
+            .and_then(|value| {
+                function
+                    .value_local_hints
+                    .get(value.0 as usize)
+                    .copied()
+                    .flatten()
+            })
+            .or_else(|| match &instruction.op {
+                ControlFlowOp::LoadLocal(local)
+                | ControlFlowOp::CaptureLocal(local)
+                | ControlFlowOp::StoreLocal { local, .. } => function
+                    .locals
+                    .get(local.0 as usize)
+                    .filter(|candidate| candidate.id == *local)
+                    .map(|local| local.name),
+                _ => None,
+            })
+            .filter(|name| !name.is_empty());
+        self.record_source_anchor(
+            generated,
+            instruction.span,
+            original_name,
+            Some(function.id),
+        );
     }
 
     fn prepare(&mut self) {
@@ -2065,6 +2600,328 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         self.assign_named_field_aggregates();
         self.assign_property_names();
         self.assign_missing_function_names();
+    }
+
+    fn property_provenance(&self) -> Vec<IrJsPropertyProvenance> {
+        let mut provenance = self
+            .module
+            .structs
+            .iter()
+            .chain(&self.module.classes)
+            .flat_map(|layout| {
+                layout.fields.iter().map(|field| IrJsPropertyProvenance {
+                    owner: Some(layout.name.to_string()),
+                    slot: Some(field.index),
+                    source: field.name.to_string(),
+                    emitted: self
+                        .owned_property_name(layout.name, field.index, field.name)
+                        .to_string(),
+                    category: if layout.external {
+                        IrJsPropertyCategory::External
+                    } else {
+                        IrJsPropertyCategory::Owned
+                    },
+                    stable: self.stable_property_names.contains(field.name),
+                    span: Some(field.span),
+                })
+            })
+            .collect::<Vec<_>>();
+        for (source, emitted) in &self.property_names {
+            if !provenance
+                .iter()
+                .any(|property| property.source == *source && property.emitted == *emitted)
+            {
+                provenance.push(IrJsPropertyProvenance {
+                    owner: None,
+                    slot: None,
+                    source: source.clone(),
+                    emitted: emitted.clone(),
+                    category: IrJsPropertyCategory::Unowned,
+                    stable: false,
+                    span: None,
+                });
+            }
+        }
+        for name in &self.stable_property_names {
+            if !provenance.iter().any(|property| property.emitted == *name) {
+                provenance.push(IrJsPropertyProvenance {
+                    owner: None,
+                    slot: None,
+                    source: name.clone(),
+                    emitted: name.clone(),
+                    category: IrJsPropertyCategory::Unowned,
+                    stable: true,
+                    span: None,
+                });
+            }
+        }
+        provenance.sort();
+        provenance.dedup();
+        provenance
+    }
+
+    fn mangling_trace(
+        &self,
+        mut identifiers: Vec<IrJsIdentifierDecisionTrace>,
+        properties: &[IrJsPropertyProvenance],
+    ) -> IrJsManglingTrace {
+        identifiers.sort_by(|left, right| {
+            (
+                left.function.map(|function| function.0),
+                left.category,
+                left.span.start,
+                &left.source,
+                &left.emitted,
+            )
+                .cmp(&(
+                    right.function.map(|function| function.0),
+                    right.category,
+                    right.span.start,
+                    &right.source,
+                    &right.emitted,
+                ))
+        });
+        identifiers.dedup_by(|left, right| {
+            left.function == right.function
+                && left.category == right.category
+                && left.span == right.span
+                && left.source == right.source
+                && left.emitted == right.emitted
+        });
+        IrJsManglingTrace {
+            options: self.mangling_options_trace(),
+            identifiers,
+            properties: self.property_decision_trace(properties),
+            exports: self.export_decision_trace(),
+        }
+    }
+
+    fn mangling_options_trace(&self) -> IrJsManglingOptionsTrace {
+        IrJsManglingOptionsTrace {
+            identifiers: self.options.mangle_identifiers,
+            properties: self.options.mangle_properties,
+            exports: self.options.mangle_exports,
+            preserve_extern_fields: self.options.mangle_extern_fields,
+            owner_scoped_properties: self.options.owner_scoped_property_names,
+            entropy_property_names: self.options.entropy_property_names,
+            stable_local_names: self.options.stable_local_names,
+            frequency_order_local_names: self.options.frequency_order_local_names,
+            local_name_coalescing: self.options.local_name_coalescing,
+            alphabet_first: self.options.identifier_alphabet.first.len(),
+            alphabet_rest: self.options.identifier_alphabet.rest.len(),
+        }
+    }
+
+    fn property_decision_trace(
+        &self,
+        properties: &[IrJsPropertyProvenance],
+    ) -> Vec<IrJsPropertyDecisionTrace> {
+        let stability = self.property_stability_reasons();
+        properties
+            .iter()
+            .cloned()
+            .map(|provenance| {
+                let allocated = self.property_name_was_allocated(&provenance);
+                let reason = if !self.options.mangle_properties {
+                    Some(IrJsPropertyStabilityReason::ManglingDisabled)
+                } else if !allocated && provenance.emitted == provenance.source {
+                    stability.get(&provenance.source).copied().or_else(|| {
+                        provenance
+                            .stable
+                            .then_some(IrJsPropertyStabilityReason::UnownedKeySafety)
+                    })
+                } else {
+                    None
+                };
+                IrJsPropertyDecisionTrace {
+                    provenance,
+                    stability: reason,
+                }
+            })
+            .collect()
+    }
+
+    fn property_name_was_allocated(&self, provenance: &IrJsPropertyProvenance) -> bool {
+        if self
+            .property_names
+            .get(&provenance.source)
+            .is_some_and(|emitted| emitted == &provenance.emitted)
+        {
+            return true;
+        }
+        let Some((owner, slot)) = provenance.owner.as_deref().zip(provenance.slot) else {
+            return false;
+        };
+        let Some(owner) = self
+            .module
+            .structs
+            .iter()
+            .chain(&self.module.classes)
+            .find(|layout| layout.name == owner)
+            .map(|layout| layout.name)
+        else {
+            return false;
+        };
+        self.owned_property_names
+            .contains_key(&self.canonical_owned_property_id(owner, slot))
+    }
+
+    fn property_stability_reasons(&self) -> AHashMap<String, IrJsPropertyStabilityReason> {
+        let mut reasons = AHashMap::default();
+        for name in PROTOTYPE_SENSITIVE_PROPERTY_NAMES {
+            reasons.insert(
+                (*name).to_string(),
+                IrJsPropertyStabilityReason::PrototypeSensitive,
+            );
+        }
+        if self.options.mangle_extern_fields {
+            for layout in self
+                .module
+                .structs
+                .iter()
+                .chain(&self.module.classes)
+                .filter(|layout| layout.external)
+            {
+                for field in &layout.fields {
+                    reasons
+                        .entry(field.name.to_string())
+                        .or_insert(IrJsPropertyStabilityReason::ExternalAbi);
+                }
+            }
+        }
+        for layout in self.module.structs.iter().chain(&self.module.classes) {
+            let reason = if self.dynamic_boundary_aggregates.contains(layout.name) {
+                Some(IrJsPropertyStabilityReason::DynamicBoundary)
+            } else if !self.options.mangle_exports
+                && (self.abi_stable_aggregates.contains(layout.name) || layout.identity_observed)
+            {
+                Some(IrJsPropertyStabilityReason::PublicAggregateAbi)
+            } else {
+                None
+            };
+            if let Some(reason) = reason {
+                for field in &layout.fields {
+                    reasons.entry(field.name.to_string()).or_insert(reason);
+                }
+            }
+        }
+        for function in self
+            .module
+            .functions
+            .iter()
+            .filter(|function| function.live)
+        {
+            let string_constants = function_string_constants(function);
+            for instruction in function.blocks.iter().flat_map(|block| &block.instructions) {
+                if let ControlFlowOp::HostFieldGet { object, property }
+                | ControlFlowOp::HostFieldSet {
+                    object, property, ..
+                } = &instruction.op
+                {
+                    if self.options.mangle_extern_fields
+                        || !host_field_is_extern_member(self.module, function, *object, property)
+                    {
+                        reasons
+                            .entry((*property).to_string())
+                            .or_insert(IrJsPropertyStabilityReason::HostMember);
+                    }
+                }
+                if let ControlFlowOp::HostCall { method, .. } = &instruction.op {
+                    reasons
+                        .entry((*method).to_string())
+                        .or_insert(IrJsPropertyStabilityReason::HostMethod);
+                }
+                for key in js_member_keys_in_op(&instruction.op, &string_constants) {
+                    if self.options.mangle_extern_fields || !mangleable_internal_js_key(&key) {
+                        reasons
+                            .entry(key)
+                            .or_insert(IrJsPropertyStabilityReason::UnownedKeySafety);
+                    }
+                }
+            }
+        }
+        reasons
+    }
+
+    fn export_decision_trace(&self) -> Vec<IrJsExportDecisionTrace> {
+        let mut exports = Vec::new();
+        let mut record = |export: &crate::ir::IrExport<'src>, mangling_enabled: bool| {
+            let (internal, binding_source, category) = match export.binding {
+                ExportBinding::Function(function) => {
+                    let Some(item) = self.module.functions.get(function.0 as usize) else {
+                        return;
+                    };
+                    let internal = self
+                        .function_names
+                        .get(&function)
+                        .or_else(|| match item.kind {
+                            FunctionKind::Constructor { class } => {
+                                self.identity_class_names.get(class)
+                            }
+                            _ => None,
+                        });
+                    let Some(internal) = internal else {
+                        return;
+                    };
+                    (
+                        internal.clone(),
+                        item.name.unwrap_or(export.name).to_string(),
+                        IrJsBindingCategory::Function,
+                    )
+                }
+                ExportBinding::Global(symbol) => {
+                    let Some(item) = self
+                        .module
+                        .globals
+                        .iter()
+                        .find(|global| global.symbol == symbol)
+                    else {
+                        return;
+                    };
+                    let Some(internal) = self.global_names.get(&symbol) else {
+                        return;
+                    };
+                    (
+                        internal.clone(),
+                        item.name.to_string(),
+                        IrJsBindingCategory::Global,
+                    )
+                }
+                ExportBinding::TypeOnly => return,
+            };
+            exports.push(IrJsExportDecisionTrace {
+                source: export.name.to_string(),
+                binding_source,
+                public: if mangling_enabled {
+                    internal.clone()
+                } else {
+                    export.name.to_string()
+                },
+                internal,
+                span: export.span,
+                category,
+                mangling_enabled,
+            });
+        };
+        for export in &self.module.exports {
+            record(export, self.options.mangle_exports);
+        }
+        for module in &self.module.lazy_modules {
+            for export in &module.exports {
+                // Dynamic imports are a JavaScript boundary and retain their
+                // declared public names even when root exports may mangle.
+                record(export, false);
+            }
+        }
+        exports.sort_by(|left, right| {
+            (left.span.start, &left.source, &left.internal).cmp(&(
+                right.span.start,
+                &right.source,
+                &right.internal,
+            ))
+        });
+        exports.dedup();
+        exports
     }
 
     /// Complex typed defaults are recreated at every omitted LilScript call
@@ -4810,7 +5667,28 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         Some(range.max < length as i64)
     }
 
-    fn emit_chunks(mut self, plan: &IrJsChunkPlan) -> Result<Vec<IrJsChunk>, CodegenError> {
+    fn emit_chunks(self, plan: &IrJsChunkPlan) -> Result<Vec<IrJsChunk>, CodegenError> {
+        self.emit_chunks_internal(plan, false)
+            .map(|(chunks, _)| chunks)
+    }
+
+    fn emit_chunks_with_source_traces(
+        mut self,
+        plan: &IrJsChunkPlan,
+        capture_mangling_analysis: bool,
+    ) -> Result<(Vec<IrJsChunk>, Vec<IrJsSourceTrace>), CodegenError> {
+        self.source_anchors = Some(Vec::new());
+        self.source_function_regions = Some(Vec::new());
+        self.source_bindings = Some(Vec::new());
+        self.mangling_bindings = capture_mangling_analysis.then(Vec::new);
+        self.emit_chunks_internal(plan, true)
+    }
+
+    fn emit_chunks_internal(
+        mut self,
+        plan: &IrJsChunkPlan,
+        capture_source_traces: bool,
+    ) -> Result<(Vec<IrJsChunk>, Vec<IrJsSourceTrace>), CodegenError> {
         let fallback_span = self.function(self.module.entry)?.span;
         let mut files = AHashSet::default();
         for file in std::iter::once(&plan.entry_file)
@@ -4838,6 +5716,18 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         // that specialized ownership is represented in the plan itself.
         self.disable_js_adapter_fusion = true;
         self.prepare();
+        let property_provenance = capture_source_traces.then(|| self.property_provenance());
+        let property_decisions = self.mangling_bindings.is_some().then(|| {
+            self.property_decision_trace(property_provenance.as_deref().unwrap_or_default())
+        });
+        let export_decisions = self
+            .mangling_bindings
+            .is_some()
+            .then(|| self.export_decision_trace());
+        let mangling_options = self
+            .mangling_bindings
+            .is_some()
+            .then(|| self.mangling_options_trace());
         for chunk in &plan.chunks {
             if let Some(module) = chunk.lazy_module {
                 if self
@@ -5030,7 +5920,30 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         }
 
         let mut output = Vec::with_capacity(unit_files.len());
+        let mut source_traces = Vec::with_capacity(if capture_source_traces {
+            unit_files.len()
+        } else {
+            0
+        });
         for unit in 0..unit_files.len() {
+            if capture_source_traces {
+                self.source_anchors
+                    .as_mut()
+                    .expect("chunk source anchors are enabled")
+                    .clear();
+                self.source_function_regions
+                    .as_mut()
+                    .expect("chunk source regions are enabled")
+                    .clear();
+                self.source_bindings
+                    .as_mut()
+                    .expect("chunk source bindings are enabled")
+                    .clear();
+                if let Some(bindings) = &mut self.mangling_bindings {
+                    bindings.clear();
+                }
+                self.record_top_level_binding_provenance();
+            }
             let mut code = String::new();
             emit_chunk_imports(
                 &mut code,
@@ -5063,6 +5976,35 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     self.emit_dynamic_module_exports(module, &mut code)?;
                 }
             }
+            if capture_source_traces {
+                source_traces.push(IrJsSourceTrace {
+                    code: code.clone(),
+                    anchors: std::mem::take(
+                        self.source_anchors
+                            .as_mut()
+                            .expect("chunk source anchors are enabled"),
+                    ),
+                    function_regions: std::mem::take(
+                        self.source_function_regions
+                            .as_mut()
+                            .expect("chunk source regions are enabled"),
+                    ),
+                    bindings: std::mem::take(
+                        self.source_bindings
+                            .as_mut()
+                            .expect("chunk source bindings are enabled"),
+                    ),
+                    properties: property_provenance.clone().unwrap_or_default(),
+                    mangling: self.mangling_bindings.as_mut().zip(mangling_options).map(
+                        |(bindings, options)| IrJsManglingTrace {
+                            options,
+                            identifiers: std::mem::take(bindings),
+                            properties: property_decisions.clone().unwrap_or_default(),
+                            exports: export_decisions.clone().unwrap_or_default(),
+                        },
+                    ),
+                });
+            }
             output.push(IrJsChunk {
                 file_name: unit_files[unit].clone(),
                 code,
@@ -5087,7 +6029,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 },
             });
         }
-        Ok(output)
+        Ok((output, source_traces))
     }
 
     fn emit_dynamic_module_exports(
@@ -7463,9 +8405,19 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         function: &ControlFlowFunction<'src>,
         out: &mut String,
     ) -> Result<(), CodegenError> {
+        let generated_start = out.len();
+        self.record_source_anchor(
+            generated_start,
+            function.span,
+            function.name,
+            Some(function.id),
+        );
         let previous = self.emitting_function.replace(function.id);
         let result = self.emit_function_inner(function, out);
         self.emitting_function = previous;
+        if result.is_ok() {
+            self.record_function_region(generated_start, out.len(), function);
+        }
         result
     }
 
@@ -8095,6 +9047,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             calling_convention,
             self.arguments_global_symbol(),
         );
+        self.record_function_binding_provenance(function, &context);
         self.function_js_bindings
             .insert(function.id, context.binding_names());
         let mut params = String::new();
@@ -8375,11 +9328,27 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         }
         if let Some(constructor) = constructor {
             let function = self.function(constructor)?.clone();
+            let generated_start = out.len();
+            self.record_source_anchor(
+                generated_start,
+                function.span,
+                function.name,
+                Some(function.id),
+            );
             self.emit_function_body(&function, "constructor".to_string(), false, true, out)?;
+            self.record_function_region(generated_start, out.len(), &function);
         }
         for (name, id) in methods {
             let function = self.function(id)?.clone();
+            let generated_start = out.len();
+            self.record_source_anchor(
+                generated_start,
+                function.span,
+                function.name,
+                Some(function.id),
+            );
             self.emit_function_body(&function, name.to_string(), false, true, out)?;
+            self.record_function_region(generated_start, out.len(), &function);
         }
         out.push('}');
         Ok(())
@@ -8484,11 +9453,32 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             return Ok(());
         }
         let mut segments = Vec::with_capacity(functions.len());
+        let mut segment_anchors: Option<Vec<Vec<IrJsSourceAnchor>>> = self
+            .source_anchors
+            .is_some()
+            .then(|| Vec::with_capacity(functions.len()));
+        let mut segment_regions: Option<Vec<Vec<IrJsFunctionRegion>>> = self
+            .source_function_regions
+            .is_some()
+            .then(|| Vec::with_capacity(functions.len()));
         for function in functions {
             let function = self.function(*function)?.clone();
             let mut code = String::new();
+            let anchor_start = self.source_anchors.as_ref().map_or(0, Vec::len);
+            let region_start = self.source_function_regions.as_ref().map_or(0, Vec::len);
             self.emit_function(&function, &mut code)?;
             segments.push(code);
+            if let (Some(grouped), Some(anchors)) =
+                (segment_anchors.as_mut(), self.source_anchors.as_mut())
+            {
+                grouped.push(anchors.drain(anchor_start..).collect());
+            }
+            if let (Some(grouped), Some(regions)) = (
+                segment_regions.as_mut(),
+                self.source_function_regions.as_mut(),
+            ) {
+                grouped.push(regions.drain(region_start..).collect());
+            }
         }
         let order = match self.options.function_layout {
             FunctionLayout::Source => unreachable!("source layout returned before buffering"),
@@ -8502,6 +9492,25 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             ),
         };
         for index in order {
+            let generated_base = out.len();
+            if let (Some(anchors), Some(segment_anchors)) =
+                (self.source_anchors.as_mut(), segment_anchors.as_ref())
+            {
+                anchors.extend(segment_anchors[index].iter().cloned().map(|mut anchor| {
+                    anchor.generated = anchor.generated.saturating_add(generated_base);
+                    anchor
+                }));
+            }
+            if let (Some(regions), Some(segment_regions)) = (
+                self.source_function_regions.as_mut(),
+                segment_regions.as_ref(),
+            ) {
+                regions.extend(segment_regions[index].iter().cloned().map(|mut region| {
+                    region.generated_start = region.generated_start.saturating_add(generated_base);
+                    region.generated_end = region.generated_end.saturating_add(generated_base);
+                    region
+                }));
+            }
             out.push_str(&segments[index]);
         }
         Ok(())
@@ -9026,6 +10035,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             &self.loop_captured_closures,
             &self.global_names,
         );
+        self.record_function_binding_provenance(function, &context);
         self.with_published_js_scope(function.id, context.binding_names(), |this| {
             this.emit_single_block_with_context(function, wrapped, context, out)
         })
@@ -9073,6 +10083,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             .collect::<Vec<_>>();
         let mut index = 0;
         while index < block.instructions.len() {
+            let source_instruction_index = index;
             if self.emit_sunk_entry_function(&block.instructions[index], out)? {
                 previous_binding = false;
                 previous_expressions = None;
@@ -9111,7 +10122,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             let binding = is_single_binding_statement(&statement);
             let binding_name = let_declarator_name(&statement).map(str::to_string);
             let statement_start = out.len();
+            let generated_anchor;
             if previous_binding && binding {
+                generated_anchor = statement_start.saturating_sub(1);
                 if binding_name
                     .as_ref()
                     .is_some_and(|name| joined_binding_names.contains(name))
@@ -9129,6 +10142,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 let (start, mut expressions) = previous_expressions
                     .take()
                     .expect("comma expression candidate was checked");
+                generated_anchor = start;
                 expressions.push(JsExpression::raw(
                     statement
                         .strip_suffix(';')
@@ -9140,8 +10154,15 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 out.push(';');
                 previous_expressions = Some((start, expressions));
             } else {
+                generated_anchor = statement_start;
                 out.push_str(&statement);
             }
+            self.record_instruction_anchor(
+                generated_anchor.min(out.len()),
+                out.len(),
+                function,
+                &block.instructions[source_instruction_index],
+            );
             if binding {
                 if !previous_binding {
                     joined_binding_names.clear();
@@ -10027,6 +11048,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             &self.loop_captured_closures,
             &self.global_names,
         );
+        self.record_function_binding_provenance(function, &context);
         self.with_published_js_scope(function.id, context.binding_names(), |this| {
             this.emit_state_machine_with_context(function, context, out)
         })
@@ -10121,6 +11143,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 .collect::<Vec<_>>();
             let mut index = 0;
             while index < block.instructions.len() {
+                let generated_start = out.len();
                 if let Some((consumed, batched)) = self.batched_property_assign_statement(
                     function,
                     block,
@@ -10132,6 +11155,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     &fuse_with_next,
                 )? {
                     out.push_str(&batched);
+                    self.record_instruction_anchor(
+                        generated_start,
+                        out.len(),
+                        function,
+                        &block.instructions[index],
+                    );
                     index += consumed;
                     continue;
                 }
@@ -10146,6 +11175,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     &mut cache,
                     out,
                 )?;
+                self.record_instruction_anchor(
+                    generated_start,
+                    out.len(),
+                    function,
+                    &block.instructions[index],
+                );
                 index += 1;
             }
             match block
@@ -10248,6 +11283,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             &self.global_names,
         );
         context.inline_declarations = true;
+        self.record_function_binding_provenance(function, &context);
         self.with_published_js_scope(function.id, context.binding_names(), |this| {
             this.emit_structured_with_context(function, wrapped, context, out)
         })
@@ -11561,6 +12597,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             if instruction_in_header_cone(instruction, &cone) {
                 continue;
             }
+            let generated_start = out.len();
             self.emit_linear_instruction(
                 instruction,
                 block.id,
@@ -11572,6 +12609,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 cache,
                 out,
             )?;
+            self.record_instruction_anchor(generated_start, out.len(), function, instruction);
         }
         Ok(())
     }
@@ -12472,6 +13510,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             .collect::<Vec<_>>();
         let mut index = 0;
         while index < block.instructions.len() {
+            let generated_start = out.len();
             self.emit_sunk_entry_function(&block.instructions[index], out)?;
             if let Some((consumed, batched)) = self.batched_property_assign_statement(
                 function,
@@ -12484,6 +13523,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 &fuse_with_next,
             )? {
                 out.push_str(&batched);
+                self.record_instruction_anchor(
+                    generated_start,
+                    out.len(),
+                    function,
+                    &block.instructions[index],
+                );
                 index += consumed;
                 continue;
             }
@@ -12498,6 +13543,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 cache,
                 out,
             )?;
+            self.record_instruction_anchor(
+                generated_start,
+                out.len(),
+                function,
+                &block.instructions[index],
+            );
             index += 1;
         }
         Ok(())
