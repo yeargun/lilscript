@@ -90,20 +90,26 @@ thread count (determinism across thread counts holds on the pool, objective.md �
 |---|---:|---:|---:|---:|---:|---:|
 | micromarklil (13, `always`) | 149.7 s | 123.2 s | 104.8 s | 104.0 s | 1.44x | ≈ 35% |
 | mobxlil (13, `always`) | 193.9 s | 128.8 s | 92.7 s | 91.5 s | 2.12x | ≈ 70% |
-| jquerylil (15, `always`, 042's state-5 source) | ≈ 6100 s (CPU) | | 4-thread run pending | 1452 s | ≈ 4.2x | ≈ 87% |
 
 Per-core speed across generations, same binary, same artifacts (md5 identical), dedicated instances:
 
 | port, 1 thread | F8s_v2 Cascade Lake | F16as_v6 Genoa | Genoa gain | D16als_v7 Turin |
 |---|---:|---:|---:|---:|
-| micromarklil | 149.7 s | 77.3 s | **1.94x** | pending |
-| mobxlil | 193.9 s | 106.4 s | **1.82x** | pending |
-| micromarklil, 4 / 8 / 16 threads | 104.8 / 104.0 / — | 55.2 / 54.3 / 53.5 | | |
-| mobxlil, 4 / 8 / 16 threads | 92.7 / 91.5 / — | 50.7 / 48.2 / 47.9 | | |
+| micromarklil | 149.7 s | 77.3 s | 1.94x | **59.5 s (2.52x)** |
+| mobxlil | 193.9 s | 106.4 s | 1.82x | **78.1 s (2.48x)** |
+| micromarklil, 4 / 8 / 16 threads | 104.8 / 104.0 / — | 55.2 / 54.3 / 53.5 | | 42.9 / 43.3 / 42.9 |
+| mobxlil, 4 / 8 / 16 threads | 92.7 / 91.5 / — | 50.7 / 48.2 / 47.9 | | 36.9 / 35.7 / 35.5 |
+| jquerylil (15, `always`), 4 / 8 threads | 1512 / 1452 s | — / 535 s | 2.7x at 8 | pending |
+
+Turin (Dalsv7, AMD Zen 5) costs what the Intel Dlsv6 set costs — $0.778/h for 16 cores — and is the
+production pool. jquery's 4-thread run (1512 s, 5443 s CPU) against its 8-thread run (1452 s,
+6100 s CPU) shows even the level-15 search keeps only about four cores busy, so the "87% parallel"
+read above was the CPU-time ratio, not usable parallelism: nothing in the fleet gains past four
+threads, and per-core speed decides every port.
 
 So a port's build is mostly serial at level 13: past four threads a worker's extra cores are idle.
-Level 15 `always` is the exception — jquery's search is ≈ 87% parallel and still gains at eight —
-which is why the two giants get a worker's full cores while the rest share.
+Level 15 `always` is not the exception it looked: jquery gains 4% from four threads to eight. Every
+port is four threads' worth of work, and a 16-core worker runs four of them at once.
 The fleet's wall clock is cut by *more ports in flight*, not by more cores per port — two ports per
 8-core worker at four threads each costs micromark 1 s and mobx about 12 s — and by per-core speed,
 which is why Genoa over Cascade Lake matters more than the core count.
