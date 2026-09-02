@@ -435,12 +435,18 @@ fn inspect_analysis_map(path: &Path, artifact: Option<&Path>) -> Result<(), Stri
         }
     }
 
-    println!("analysis map        {}", path.display());
-    println!(
+    // The report is built first and written once: a reader that closes the
+    // pipe early (`| head`) must end the inspector quietly, not panic it.
+    use std::fmt::Write as _;
+    let mut report = String::new();
+    writeln!(report, "analysis map        {}", path.display()).expect("String is infallible");
+    writeln!(
+        report,
         "schema/version      {level}/{}",
         lilscript::JAVASCRIPT_ANALYSIS_MAP_VERSION
-    );
-    println!("artifact sha256     {expected_hash}");
+    )
+    .expect("String is infallible");
+    writeln!(report, "artifact sha256     {expected_hash}").expect("String is infallible");
     for (label, key) in [
         ("decisions", "decisions"),
         ("identifiers", "identifiers"),
@@ -451,7 +457,7 @@ fn inspect_analysis_map(path: &Path, artifact: Option<&Path>) -> Result<(), Stri
         ("coalesced bindings", "coalescedBindings"),
     ] {
         if let Some(value) = summary.get(key).and_then(serde_json::Value::as_u64) {
-            println!("{label:<20} {value}");
+            writeln!(report, "{label:<20} {value}").expect("String is infallible");
         }
     }
     if let Some(artifact) = artifact {
@@ -472,7 +478,8 @@ fn inspect_analysis_map(path: &Path, artifact: Option<&Path>) -> Result<(), Stri
             }
             None => unreachable!("hash mismatch returned above"),
         };
-        println!("artifact verified   {}{scope}", artifact.display());
+        writeln!(report, "artifact verified   {}{scope}", artifact.display())
+            .expect("String is infallible");
     }
     for decision in decisions {
         let kind = decision
@@ -511,9 +518,29 @@ fn inspect_analysis_map(path: &Path, artifact: Option<&Path>) -> Result<(), Stri
             .and_then(serde_json::Value::as_u64)
             .unwrap_or(0)
             + 1;
-        println!("{kind:<10} {original} -> {emitted}  {rule}  {source_path}:{line}:{column}");
+        writeln!(
+            report,
+            "{kind:<10} {original} -> {emitted}  {rule}  {source_path}:{line}:{column}"
+        )
+        .expect("String is infallible");
     }
+    write_report(&report)?;
     Ok(())
+}
+
+/// Writes to stdout, treating a closed pipe as the reader having seen enough.
+fn write_report(report: &str) -> Result<(), String> {
+    use std::io::Write as _;
+    let stdout = std::io::stdout();
+    let mut handle = stdout.lock();
+    match handle
+        .write_all(report.as_bytes())
+        .and_then(|()| handle.flush())
+    {
+        Ok(()) => Ok(()),
+        Err(error) if error.kind() == std::io::ErrorKind::BrokenPipe => Ok(()),
+        Err(error) => Err(format!("failed to write report: {error}")),
+    }
 }
 
 fn sha256_hex(bytes: &[u8]) -> String {
