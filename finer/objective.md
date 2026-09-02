@@ -128,6 +128,11 @@ emitted volume +0.92 (025).
 - **Gates before wins**: the port's own tests and the shipped-vs-compiled check pass first.
 - **Every hypothesis is a numbered folder**, falsified ones included; a negative result is what
   stops the next context paying for the idea twice.
+- **A compiler change is generic or it is not landed** (2026-09-02). It is stated as a claim about
+  any program, with the semantic argument written down; it lands only with the compiler suite
+  green, every port's own tests green on a pool build with the branch binary, codec sizes per
+  port against the main binary, and the perf harnesses that exist. A change that alters artifact
+  shape ships as an explicit config knob first and flips its default only on a fleet measure.
 
 ## 9. Compute
 
