@@ -2,8 +2,9 @@ use crate::js_peephole::rewrite::{
     apply_token_rewrites, is_property_identifier, rewrite_identifier_span, top_level_stop,
 };
 use crate::js_peephole::scope::{
-    name_is_bound_in_nested_function_between, nested_function_end, parse_function_expression,
-    same_scope_name_is_read_after, FunctionExpression,
+    binding_is_observed_outside_span, name_is_bound_in_nested_function_between,
+    nested_function_end, parse_function_expression, same_scope_name_is_read_after,
+    FunctionExpression,
 };
 use crate::js_peephole::token::{
     ascii_identifier_name_string, lex, matching_closers, matching_openers, Token, TokenKind,
@@ -1797,6 +1798,7 @@ fn identifier_is_read_after(
     same_scope_name_is_read_after(tokens, matching_close, name, from)
 }
 
+
 fn pooled_identifier_strings<'a>(
     tokens: &'a [Token<'a>],
 ) -> std::collections::HashMap<&'a str, &'a str> {
@@ -2977,24 +2979,52 @@ pub(crate) fn fold_constructor_prototype_tables_to_classes(
                 if let Some(installed) =
                     consume_method_length_installer(&tokens, &matching_close, after_capture, alias)
                 {
+                    let after_install = skip_separators(&tokens, installed + 1);
+                    // The same hoisting blind spot as the prototype alias above: a
+                    // captured method alias read by an earlier function declaration,
+                    // or inside a method body the class absorbs, is live however the
+                    // forward scan reads it. A live read cannot be served by the
+                    // `let alias;` re-declaration below -- that keeps the binding,
+                    // not the value -- so the capture and its installer stay in
+                    // place, where `Name.prototype.method` exists by the time they
+                    // run.
+                    if binding_is_observed_outside_span(
+                        &tokens,
+                        &matching_close,
+                        scan,
+                        after_install,
+                        alias,
+                        false,
+                    ) {
+                        break;
+                    }
+                    let mentioned =
+                        identifier_is_read_after(&tokens, &matching_close, alias, after_install);
+                    if mentioned && !declared {
+                        // A later write through a nested function needs the binding
+                        // to exist, and only a declared alias can be re-created.
+                        break;
+                    }
                     if let Some(length) =
                         installer_numeric_value(&tokens, after_capture, installed + 1)
                     {
                         restored_lengths.push((method_name, length));
                     }
-                    let after_install = skip_separators(&tokens, installed + 1);
-                    if identifier_is_read_after(&tokens, &matching_close, alias, after_install) {
-                        if declared {
-                            live_capture_alias = Some(alias);
-                        }
-                    } else {
-                        live_capture_alias = None;
-                    }
+                    live_capture_alias = mentioned.then_some(alias);
                     fused_end = tokens[installed].end;
                     scan = after_install;
                     continue;
                 }
-                if identifier_is_read_after(&tokens, &matching_close, alias, after_capture) {
+                if identifier_is_read_after(&tokens, &matching_close, alias, after_capture)
+                    || binding_is_observed_outside_span(
+                        &tokens,
+                        &matching_close,
+                        scan,
+                        after_capture,
+                        alias,
+                        false,
+                    )
+                {
                     break;
                 }
                 live_capture_alias = None;
@@ -3013,8 +3043,17 @@ pub(crate) fn fold_constructor_prototype_tables_to_classes(
                 }
             }
         }
-        let live_alias_decl = live_capture_alias
-            .filter(|alias| identifier_is_read_after(&tokens, &matching_close, alias, scan));
+        let live_alias_decl = live_capture_alias.filter(|alias| {
+            identifier_is_read_after(&tokens, &matching_close, alias, scan)
+                || binding_is_observed_outside_span(
+                    &tokens,
+                    &matching_close,
+                    end + 1,
+                    scan,
+                    alias,
+                    false,
+                )
+        });
         let this_aliases = constructor_this_aliases(&tokens, block_open, function.end);
         let ctor_source = strip_trailing_return_this(
             &source[tokens[block_open + 1].start..tokens[function.end].start],
@@ -3064,8 +3103,34 @@ pub(crate) fn fold_constructor_prototype_tables_to_classes(
         let pooled = pooled_identifier_strings(&tokens);
         let observed_name =
             observed_constructor_name(&tokens, &matching_close, scan, name, &pooled);
-        let emit_proto_alias = proto_alias
-            .is_some_and(|alias| identifier_is_read_after(&tokens, &matching_close, alias, scan));
+        // The scope-aware read check decides whether the alias assignment survives.
+        // A false negative is not a missed optimisation: it drops
+        // `alias=Name.prototype` while every later read stays, leaving the alias
+        // `undefined` and breaking the program. react-markdownlil hit exactly that --
+        // `var Xa=void 0,Ma=class VFile extends Object{...}` with `Xa` read by an
+        // accessor installer defined further down, throwing
+        // `Object.defineProperty called on non-object` on import (037).
+        //
+        // So a plain textual occurrence backs it up. The alias is dropped only when
+        // the name does not appear again at all, which is the case the rewrite is
+        // actually for -- every use absorbed into the class body -- and any remaining
+        // mention keeps the assignment.
+        // Dropping `alias=Name.prototype` is only sound when nothing the class
+        // does not absorb still observes the alias. The forward scope scan alone
+        // is not that check: it never sees a hoisted function declared before the
+        // constructor, and that false negative shipped a module that throws on
+        // import (037). Both are consulted; either keeps the assignment.
+        let emit_proto_alias = proto_alias.is_some_and(|alias| {
+            identifier_is_read_after(&tokens, &matching_close, alias, scan)
+                || binding_is_observed_outside_span(
+                    &tokens,
+                    &matching_close,
+                    end + 1,
+                    scan,
+                    alias,
+                    proto_alias_keyword.is_some(),
+                )
+        });
         let mut emitted = emit_class(
             name,
             base,
@@ -5666,6 +5731,78 @@ mod tests {
             "{out}"
         );
         assert!(!out.contains("prototypevar"), "{out}");
+    }
+
+    #[test]
+    fn proto_alias_read_by_a_function_declared_before_the_constructor_survives() {
+        // 037. react-markdownlil's accessor installer is a function declaration
+        // 61 KB before the constructor whose prototype alias it reads. Hoisting
+        // means it runs after `P=R.prototype`, so textual order says nothing
+        // about liveness, and the forward scope scan that decided the alias was
+        // dead shipped a module that throws on import.
+        for (label, source) in [
+            (
+                "function-declaration",
+                r#"function Q(a,b){Object.defineProperty(P,a,b)}var P=void 0,R=(0,function(c){this.a=c;return this});P=R.prototype,P.m=function(){return this.a};Q("x",{get:function(){return 1}})"#,
+            ),
+            (
+                "expression-arrow",
+                r#"var Q=(a,b)=>Object.defineProperty(P,a,b);var P=void 0,R=(0,function(c){this.a=c;return this});P=R.prototype,P.m=function(){return this.a};Q("x",{get:function(){return 1}})"#,
+            ),
+            (
+                "constructor-body",
+                r#"var P=void 0,R=(0,function(c){this.a=c;this.p=P;return this});P=R.prototype,P.m=function(){return this.a};var gb=(0,function(){return 1})"#,
+            ),
+        ] {
+            let (out, count) = fold_constructor_prototype_tables_to_classes(source).unwrap();
+            assert!(count >= 1, "{label}: {out}");
+            assert!(out.contains("R=class{"), "{label}: {out}");
+            assert!(out.contains("P=R.prototype"), "{label}: {out}");
+        }
+    }
+
+    #[test]
+    fn proto_alias_read_by_an_earlier_function_survives_the_whole_peephole() {
+        let source = r#"function Q(a,b){Object.defineProperty(P,a,b)}var P=void 0,R=(0,function(c){this.a=c;return this});P=R.prototype,P.m=function(){return this.a};Q("x",{get:function(){return 1}});export{R}"#;
+        let optimized = crate::js_peephole::optimize_generated_javascript(source).unwrap();
+        assert!(optimized.code.contains("P=R.prototype"), "{}", optimized.code);
+    }
+
+    #[test]
+    fn proto_alias_read_inside_an_absorbed_method_body_survives() {
+        // The method body moves into the class unchanged, so a read of the
+        // alias inside it is as live as one after the table.
+        let source = r#"var R=(0,function(c){this.a=c;return this});P=R.prototype,P.m=function(){return P.n.call(this)},P.n=function(){return this.a};var gb=(0,function(){return 1})"#;
+        let (out, count) = fold_constructor_prototype_tables_to_classes(source).unwrap();
+        assert!(count >= 1, "{out}");
+        assert!(out.contains("class R{"), "{out}");
+        assert!(out.contains("P=R.prototype"), "{out}");
+    }
+
+    #[test]
+    fn proto_alias_nothing_else_observes_is_dropped() {
+        // The control: with every use absorbed into the class body the alias is
+        // dead, and keeping it would cost the bytes the rewrite exists to save.
+        // A same-named property and a declaration-only mention are not reads.
+        let source = r#"var o={P:1};var R=(0,function(c){this.a=c;return this});P=R.prototype,P.m=function(){return this.a},P.n=function(){return o.P};var gb=(0,function(){return 1})"#;
+        let (out, count) = fold_constructor_prototype_tables_to_classes(source).unwrap();
+        assert!(count >= 1, "{out}");
+        assert!(out.contains("class R{"), "{out}");
+        assert!(!out.contains("P=R.prototype"), "{out}");
+    }
+
+    #[test]
+    fn captured_method_alias_read_by_an_earlier_function_stays_in_place() {
+        // The captured-method shape has the same blind spot: `b` is read by a
+        // function declared before the constructor. `let b;` after the class
+        // would keep the binding and lose the value, so the capture and its
+        // installer are left where they are.
+        let source = r#"function U(){return b.length}var R=(0,function(c){this.a=c;return this});P=R.prototype,P.m=function(x,y){return this.a};let b=R.prototype.m;Object.defineProperty(b,"length",{value:1,configurable:!0});var gb=(0,function(){return 1})"#;
+        let (out, count) = fold_constructor_prototype_tables_to_classes(source).unwrap();
+        assert!(count >= 1, "{out}");
+        assert!(out.contains("class R{"), "{out}");
+        assert!(out.contains("b=R.prototype.m"), "{out}");
+        assert!(!out.contains("let b;"), "{out}");
     }
 
     #[test]

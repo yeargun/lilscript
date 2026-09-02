@@ -2272,6 +2272,74 @@ fn folds_dead_pure_prototype_aliases() {
 }
 
 #[test]
+fn hoisted_readers_before_a_module_assignment_keep_it_live() {
+    // The 037 class of miscompile. A function declaration is hoisted, so a body
+    // that appears *before* a module-level assignment still runs after it and
+    // reads the assigned value. Every elimination that scans forward from the
+    // assignment is blind to that reader; react-markdownlil's accessor installer
+    // sat 61 KB before the `VFile.prototype` alias it reads, the alias was
+    // dropped as unread, and the module threw on import. The oracle is the
+    // program's own output, so the shape of the surviving code is free.
+    for (label, source) in [
+        (
+            "prototype-alias",
+            r#"function Q(){return typeof P}var P=void 0,R=(0,function(c){this.a=c;return this});P=R.prototype,P.m=function(){return this.a};console.log(Q(),new R(2).m())"#,
+        ),
+        (
+            "prototype-alias-declared",
+            r#"function Q(){return typeof P}var R=(0,function(c){this.a=c;return this});var P=R.prototype;P.m=function(){return this.a};console.log(Q(),new R(2).m())"#,
+        ),
+        (
+            "prototype-alias-read-through-call",
+            r#"function Q(a,b){Object.defineProperty(P,a,b)}var P=void 0,R=(0,function(c){this.a=c;return this});P=R.prototype,P.m=function(){return this.a};Q("x",{get:function(){return 7}});console.log(new R(2).x,new R(3).m())"#,
+        ),
+        (
+            "symbol-alias",
+            r#"function Q(){return typeof ve}var ve;class M{constructor(){this.n=1}}ve=Symbol.iterator;console.log(Q(),new M().n)"#,
+        ),
+        (
+            "pure-identifier-assign",
+            r#"function Q(){return t}var u=5,t;t=u;console.log(Q())"#,
+        ),
+        (
+            "copy-declarator",
+            r#"function Q(){return t}var u=5,t=u;console.log(Q())"#,
+        ),
+        (
+            "standalone-var",
+            r#"function Q(){return t}var t=5;console.log(Q())"#,
+        ),
+        (
+            "single-use-temp",
+            r#"function Q(){return t}var t=[1,2].length;console.log(Q())"#,
+        ),
+        (
+            "arrow-before",
+            r#"var Q=()=>typeof P;var P=void 0,R=(0,function(c){this.a=c;return this});P=R.prototype,P.m=function(){return this.a};console.log(Q(),new R(2).m())"#,
+        ),
+        (
+            "method-body-reads-alias",
+            r#"var R=(0,function(c){this.a=c;return this});P=R.prototype,P.m=function(){return P.n.call(this)},P.n=function(){return this.a};console.log(new R(4).m())"#,
+        ),
+    ] {
+        let optimized =
+            optimize_generated_javascript(source).unwrap_or_else(|error| panic!("{label}: {error}"));
+        let expected = run_javascript(source);
+        let actual = run_javascript(&optimized.code);
+        assert_eq!(actual.trim(), expected.trim(), "{label}\n{}", optimized.code);
+    }
+
+    // The direct check on the fold that dropped react-markdownlil's alias, and
+    // its control: an alias nothing observes still goes.
+    let hoisted = "function Q(){return P}var P;class R{m(){return 1}}P=R.prototype;Q()";
+    let (kept, _) = crate::js_peephole::fold_unread_prototype_aliases(hoisted).unwrap();
+    assert!(kept.contains("P=R.prototype"), "{kept}");
+    let dead = "function Q(a){return a}var P;class R{m(){return 1}}P=R.prototype;Q(1)";
+    let (dropped, _) = crate::js_peephole::fold_unread_prototype_aliases(dead).unwrap();
+    assert!(!dropped.contains("P=R.prototype"), "{dropped}");
+}
+
+#[test]
 fn preserves_copied_method_snapshot_and_replaceable_call() {
     let source = concat!(
         "var reads=0,method=function(r){return this.tag+':'+r};",
@@ -3215,4 +3283,103 @@ fn class_member_bodies_open_their_own_scope() {
 }
 
 
+
+
+#[test]
+fn return_keyword_is_never_fused_into_its_operand() {
+    // Shipped jquerylil carries `n=n||[],returnRn(n,t,e,r)||...` inside `createTween`:
+    // `return` glued onto the identifier that follows it, which node reads as a call
+    // to an undeclared global, so `$(el).animate(...)` throws `ReferenceError` (039).
+    for (label, source) in [
+        (
+            "assign-then-return-call",
+            "var J={},Rn=(n,t,e,r)=>n.length,g=e=>e;var Fn=(r,e,t)=>{var n=J[e];n=n||[];return Rn(n,t,e,r)||g(e)};console.log(Fn(1,\"a\",2))",
+        ),
+        (
+            "assign-then-return-ident",
+            "var Rn=3;var Fn=(r,e)=>{var n=r;n=n||[];return Rn||e};console.log(Fn(1,2))",
+        ),
+        (
+            "decl-then-return-call",
+            "var J={},Rn=(n,t)=>n.length,g=e=>e;var Fn=(r,e,t)=>{var n=J[e]||[];return Rn(n,t)||g(e)};console.log(Fn(1,\"a\",2))",
+        ),
+    ] {
+        let optimized =
+            optimize_generated_javascript(source).unwrap_or_else(|error| panic!("{label}: {error}"));
+        assert!(
+            !optimized.code.contains("returnR") && !optimized.code.contains("returng"),
+            "{label}\n{}",
+            optimized.code
+        );
+        assert_eq!(
+            run_javascript(&optimized.code).trim(),
+            run_javascript(source).trim(),
+            "{label}\n{}",
+            optimized.code
+        );
+    }
+}
+
+#[test]
+fn return_before_a_grouped_indirect_call_keeps_its_space() {
+    let source = "var J={},Rn=(n,t,e,r)=>n.length,g=e=>e;var Fn=(r,e,t)=>{var n=J[e];n=n||[];return(0,Rn)(n,t,e,r)||g(e)};console.log(Fn(1,\"a\",2))";
+    let optimized = optimize_generated_javascript(source).unwrap();
+    assert!(!optimized.code.contains("returnR"), "{}", optimized.code);
+    assert_eq!(run_javascript(&optimized.code).trim(), run_javascript(source).trim(), "{}", optimized.code);
+}
+
+#[test]
+fn splices_never_fuse_neighbouring_tokens() {
+    // The printer's rule at the splice point (040). Each case is a replacement a
+    // real fold makes; without the guard the join lexes as one token.
+    use crate::js_peephole::rewrite::apply_token_rewrites;
+    for (label, source, replacements, expected) in [
+        (
+            "drop parens after return",
+            "return(n=f(x))?n:g(y)",
+            vec![(6usize, 21usize, "f(x)||g(y)".to_string())],
+            "return f(x)||g(y)",
+        ),
+        (
+            "delete a grouped-call wrapper after return",
+            "return(0,f)(x)",
+            vec![(6usize, 9usize, String::new()), (10usize, 11usize, String::new())],
+            "return f(x)",
+        ),
+        (
+            "compact boolean after a keyword",
+            "return!0",
+            vec![(6usize, 8usize, "true".to_string())],
+            "return true",
+        ),
+        (
+            "unary plus after a plus",
+            "a+(+b)",
+            vec![(2usize, 6usize, "+b".to_string())],
+            "a+ +b",
+        ),
+        (
+            "keyword before an identifier",
+            "typeof(x)",
+            vec![(6usize, 9usize, "x".to_string())],
+            "typeof x",
+        ),
+        (
+            "no space where none is needed",
+            "return(a)+(b)",
+            vec![(6usize, 9usize, "a".to_string()), (10usize, 13usize, "b".to_string())],
+            "return a+b",
+        ),
+    ] {
+        let (out, count) = apply_token_rewrites(source, replacements);
+        assert!(count >= 1, "{label}");
+        assert_eq!(out, expected, "{label}");
+    }
+
+    // The shape that shipped: `createTween` in jquerylil, through the whole peephole.
+    let source = "var K={\"*\":[7]},Ir=(r,t,e,n)=>r.length;function Sr(n,e,t){var r=K[e];r=r||[];r=Ir(r,t,e,n);if(r)return r;return Ir(K[\"*\"],t,e,n)}console.log(Sr(1,\"a\",2))";
+    let optimized = optimize_generated_javascript(source).unwrap();
+    assert!(!optimized.code.contains("returnI"), "{}", optimized.code);
+    assert_eq!(run_javascript(&optimized.code).trim(), run_javascript(source).trim(), "{}", optimized.code);
+}
 

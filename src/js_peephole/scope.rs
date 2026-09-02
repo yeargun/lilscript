@@ -1279,7 +1279,420 @@ pub(crate) fn same_scope_name_is_read_after(
         .any(|&use_at| identifier_use_observes_value(tokens, use_at))
 }
 
-fn identifier_use_observes_value(tokens: &[Token<'_>], use_at: usize) -> bool {
+/// Whether the binding `name` denotes at the top level of `span_start..span_end`
+/// is observed anywhere that span does not absorb: before it, after it, inside
+/// any nested function, and inside the span itself from within a nested
+/// function.
+///
+/// The prototype-alias rewrite asks this before dropping `alias=Name.prototype`.
+/// It used to ask "is the alias read after the table?", and hoisting drives a
+/// hole through that question: a function declaration 61 KB *before* the
+/// constructor runs after the alias is assigned and reads it then. That false
+/// negative shipped a react-markdownlil that throws on import (037).
+///
+/// Textual order is therefore ignored; scoping is not. An occurrence inside a
+/// function whose parameters or own declarations bind the name, inside a block
+/// that `let`s it, inside a `catch` or `for` header that binds it, or inside an
+/// expression arrow whose parameter it is, resolves to that binding and is
+/// skipped. Every shadowing test here is exact or under-approximate: where a
+/// binding cannot be proven to shadow, the occurrence counts, because a kept
+/// alias costs bytes and a dropped live one costs the module.
+///
+/// What lies *after* the span stays the caller's forward scan's business: that
+/// scan knows a later same-scope write kills the value, which this one does
+/// not, and the two are meant to be combined with `||`. So by default only the
+/// region before the span, and nested functions inside it, are examined.
+///
+/// `binding_would_vanish` is for the caller that removes the alias's own
+/// declaration rather than one assignment to it. Then every mention anywhere
+/// outside the span keeps it -- reads, writes, declarations, before and after --
+/// because a later `alias=...` through a binding that no longer exists throws in
+/// strict code.
+pub(crate) fn binding_is_observed_outside_span(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    span_start: usize,
+    span_end: usize,
+    name: &str,
+    binding_would_vanish: bool,
+) -> bool {
+    let matching_open = matching_openers(matching_close);
+    let enclosing = innermost_enclosing_openers(tokens);
+    let arrow_bodies = expression_arrow_bodies_binding(tokens, &matching_open, name);
+    let mut brace_binds = HashMap::<usize, bool>::new();
+    let scan_end = if binding_would_vanish { tokens.len() } else { span_end };
+    (0..scan_end).any(|at| {
+        let token = &tokens[at];
+        token.kind == TokenKind::Identifier
+            && token.text == name
+            && !is_property_identifier(tokens, at)
+            && !identifier_is_arrow_parameter(tokens, at)
+            && !identifier_is_declared_parameter(tokens, matching_close, &matching_open, &enclosing, at)
+            && (binding_would_vanish || identifier_use_observes_value(tokens, at))
+            && (at < span_start
+                || at >= span_end
+                || use_is_in_nested_function(tokens, matching_close, span_start, at))
+            && !arrow_bodies
+                .iter()
+                .any(|&(start, end)| at > start && at < end)
+            && !enclosing_brace_binds_name(
+                tokens,
+                matching_close,
+                &matching_open,
+                &enclosing,
+                &mut brace_binds,
+                at,
+                name,
+            )
+    })
+}
+
+/// For every token, the index of the innermost opener whose pair strictly
+/// contains it, so scope walks climb in O(depth) instead of rescanning pairs.
+fn innermost_enclosing_openers(tokens: &[Token<'_>]) -> Vec<Option<usize>> {
+    let mut enclosing = vec![None; tokens.len()];
+    let mut stack = Vec::<usize>::new();
+    for (index, token) in tokens.iter().enumerate() {
+        match token.text {
+            "(" | "[" | "{" => {
+                enclosing[index] = stack.last().copied();
+                stack.push(index);
+            }
+            ")" | "]" | "}" => {
+                stack.pop();
+                enclosing[index] = stack.last().copied();
+            }
+            _ => enclosing[index] = stack.last().copied(),
+        }
+    }
+    enclosing
+}
+
+/// `at` is a formal parameter: the innermost pair around it is the parameter
+/// list of a function, method or parenthesised arrow, and it sits at that
+/// list's own level directly after `(`, `,` or `...`. A default value's
+/// operands, a destructuring pattern's names and an `extends` call's
+/// arguments do not qualify.
+fn identifier_is_declared_parameter(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    matching_open: &[Option<usize>],
+    enclosing: &[Option<usize>],
+    at: usize,
+) -> bool {
+    let Some(open) = enclosing[at] else {
+        return false;
+    };
+    if tokens[open].text != "(" {
+        return false;
+    }
+    let Some(close) = matching_close[open] else {
+        return false;
+    };
+    if !paren_pair_is_parameter_list(tokens, matching_open, open, close) {
+        return false;
+    }
+    let previous = tokens[at - 1].text;
+    matches!(previous, "(" | ",")
+        || (previous == "."
+            && at >= 3
+            && tokens[at - 2].text == "."
+            && tokens[at - 3].text == ".")
+}
+
+fn paren_pair_is_parameter_list(
+    tokens: &[Token<'_>],
+    matching_open: &[Option<usize>],
+    open: usize,
+    close: usize,
+) -> bool {
+    let _ = matching_open;
+    match tokens.get(close + 1).map(|token| token.text) {
+        Some("=>") => true,
+        Some("{") => {
+            !paren_close_is_control_header(tokens, close)
+                && !paren_open_follows_extends_callee(tokens, open)
+        }
+        _ => false,
+    }
+}
+
+/// `class X extends f(a){` -- the pair before the class body is a call, not
+/// a parameter list.
+fn paren_open_follows_extends_callee(tokens: &[Token<'_>], open: usize) -> bool {
+    let mut index = open;
+    while let Some(previous) = index.checked_sub(1) {
+        match tokens[previous].text {
+            "extends" => return true,
+            "." => {}
+            _ if tokens[previous].kind == TokenKind::Identifier => {}
+            _ => return false,
+        }
+        index = previous;
+    }
+    false
+}
+
+/// Body ranges of the expression-bodied arrows whose parameter list binds
+/// `name`; an occurrence inside one is the parameter, not the outer binding.
+fn expression_arrow_bodies_binding(
+    tokens: &[Token<'_>],
+    matching_open: &[Option<usize>],
+    name: &str,
+) -> Vec<(usize, usize)> {
+    let mut bodies = Vec::new();
+    for (index, token) in tokens.iter().enumerate() {
+        if token.text != "=>" || tokens.get(index + 1).map(|next| next.text) == Some("{") {
+            continue;
+        }
+        if !arrow_parameters_bind_name(tokens, matching_open, index, name) {
+            continue;
+        }
+        let body_end =
+            top_level_stop(tokens, index + 1, &[",", ";", ")", "]", "}"]).unwrap_or(tokens.len());
+        bodies.push((index, body_end));
+    }
+    bodies
+}
+
+/// The parameters written before `arrow` (`=>`): a bare identifier or a
+/// parenthesised list.
+fn arrow_parameters_bind_name(
+    tokens: &[Token<'_>],
+    matching_open: &[Option<usize>],
+    arrow: usize,
+    name: &str,
+) -> bool {
+    let Some(before_arrow) = arrow.checked_sub(1) else {
+        return false;
+    };
+    if tokens[before_arrow].text == ")" {
+        matching_open[before_arrow]
+            .is_some_and(|open| parameter_list_binds_name(tokens, open, before_arrow, name))
+    } else {
+        tokens[before_arrow].kind == TokenKind::Identifier && tokens[before_arrow].text == name
+    }
+}
+
+/// A name at the list's own level directly after `(`, `,` or `...` is a
+/// formal. Destructured names are not recognised, so they never shadow here.
+fn parameter_list_binds_name(tokens: &[Token<'_>], open: usize, close: usize, name: &str) -> bool {
+    let mut depth = 0usize;
+    let mut index = open + 1;
+    while index < close {
+        let token = tokens[index];
+        match token.text {
+            "(" | "[" | "{" => depth += 1,
+            ")" | "]" | "}" => depth = depth.saturating_sub(1),
+            _ => {
+                if depth == 0 && token.kind == TokenKind::Identifier && token.text == name {
+                    let previous = tokens[index - 1].text;
+                    if matches!(previous, "(" | ",")
+                        || (previous == "."
+                            && index >= 3
+                            && tokens[index - 2].text == "."
+                            && tokens[index - 3].text == ".")
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+        index += 1;
+    }
+    false
+}
+
+/// Climb the `{` pairs around `at`; any that provably binds `name` shadows the
+/// outer binding for everything inside it.
+fn enclosing_brace_binds_name(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    matching_open: &[Option<usize>],
+    enclosing: &[Option<usize>],
+    memo: &mut std::collections::HashMap<usize, bool>,
+    at: usize,
+    name: &str,
+) -> bool {
+    let mut cursor = enclosing[at];
+    while let Some(open) = cursor {
+        if tokens[open].text == "{" {
+            let binds = *memo
+                .entry(open)
+                .or_insert_with(|| brace_binds_name(tokens, matching_close, matching_open, open, name));
+            if binds {
+                return true;
+            }
+        }
+        cursor = enclosing[open];
+    }
+    false
+}
+
+fn brace_binds_name(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    matching_open: &[Option<usize>],
+    open: usize,
+    name: &str,
+) -> bool {
+    let Some(close) = matching_close[open] else {
+        return false;
+    };
+    let Some(before) = open.checked_sub(1) else {
+        return braced_scope_declares(tokens, matching_close, open, close, name, false);
+    };
+    match tokens[before].text {
+        "=>" => {
+            arrow_parameters_bind_name(tokens, matching_open, before, name)
+                || braced_scope_declares(tokens, matching_close, open, close, name, true)
+        }
+        ")" if paren_close_is_control_header(tokens, before) => {
+            control_header_binds_name(tokens, matching_open, before, name)
+                || braced_scope_declares(tokens, matching_close, open, close, name, false)
+        }
+        ")" => {
+            let Some(params_open) = matching_open[before] else {
+                return false;
+            };
+            if paren_open_follows_extends_callee(tokens, params_open) {
+                return braced_scope_declares(tokens, matching_close, open, close, name, false);
+            }
+            parameter_list_binds_name(tokens, params_open, before, name)
+                || braced_scope_declares(tokens, matching_close, open, close, name, true)
+        }
+        _ => braced_scope_declares(tokens, matching_close, open, close, name, false),
+    }
+}
+
+/// `catch(name)`, `for(let name`, `for(const name`, `for(var name`.
+fn control_header_binds_name(
+    tokens: &[Token<'_>],
+    matching_open: &[Option<usize>],
+    close: usize,
+    name: &str,
+) -> bool {
+    let Some(open) = matching_open[close] else {
+        return false;
+    };
+    let keyword = open.checked_sub(1).map(|index| tokens[index].text);
+    for index in open + 1..close {
+        let token = tokens[index];
+        if token.kind != TokenKind::Identifier || token.text != name {
+            continue;
+        }
+        let previous = tokens[index - 1].text;
+        if matches!(previous, "let" | "const" | "var") || (previous == "(" && keyword == Some("catch")) {
+            return true;
+        }
+    }
+    false
+}
+
+/// What the braces `open..close` themselves declare. `var` and function
+/// declarations hoist to the nearest function, so they count only for a
+/// function body; `let`, `const` and `class` at the braces' own level count
+/// for any block. Nested functions are skipped entirely: their declarations are
+/// theirs.
+fn braced_scope_declares(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    open: usize,
+    close: usize,
+    name: &str,
+    is_function_body: bool,
+) -> bool {
+    let mut depth = 0usize;
+    let mut cursor = open + 1;
+    while cursor < close {
+        let token = tokens[cursor];
+        if token.text == "function"
+            && depth == 0
+            && tokens
+                .get(cursor + 1)
+                .is_some_and(|next| next.kind == TokenKind::Identifier && next.text == name)
+            && declaration_starts_statement(tokens, cursor)
+        {
+            return true;
+        }
+        if let Some(end) = nested_function_end(tokens, matching_close, cursor) {
+            cursor = end + 1;
+            continue;
+        }
+        match token.text {
+            "(" | "[" | "{" => depth += 1,
+            ")" | "]" | "}" => depth = depth.saturating_sub(1),
+            "var" if is_function_body => {
+                if declarator_list_binds_name(tokens, cursor + 1, close, name) {
+                    return true;
+                }
+            }
+            "let" | "const" if depth == 0 => {
+                if declarator_list_binds_name(tokens, cursor + 1, close, name) {
+                    return true;
+                }
+            }
+            "class" if depth == 0 => {
+                if tokens
+                    .get(cursor + 1)
+                    .is_some_and(|next| next.kind == TokenKind::Identifier && next.text == name)
+                    && declaration_starts_statement(tokens, cursor)
+                {
+                    return true;
+                }
+            }
+            _ => {}
+        }
+        cursor += 1;
+    }
+    false
+}
+
+/// `function d(){}` and `class d{}` bind `d` in the enclosing scope only as
+/// statements. As expressions -- `x=function d(){}`, `f(class d{})` -- the name
+/// is visible inside the body alone, and treating it as a declaration would
+/// hide a live outer `d` from the scan.
+fn declaration_starts_statement(tokens: &[Token<'_>], keyword_at: usize) -> bool {
+    let mut index = keyword_at;
+    while let Some(previous) = index.checked_sub(1) {
+        match tokens[previous].text {
+            "async" | "export" | "default" => index = previous,
+            ";" | "{" | "}" => return true,
+            _ => return false,
+        }
+    }
+    true
+}
+
+/// The plain names of a declarator list starting at `from`: `a=1,b,c=f()`.
+/// Destructured names are not recognised.
+fn declarator_list_binds_name(tokens: &[Token<'_>], from: usize, end: usize, name: &str) -> bool {
+    let mut depth = 0usize;
+    let mut expects_name = true;
+    let mut cursor = from;
+    while cursor < end {
+        let token = tokens[cursor];
+        if depth == 0 && matches!(token.text, ";" | ")" | "]" | "}") {
+            return false;
+        }
+        if expects_name {
+            if token.kind == TokenKind::Identifier && token.text == name {
+                return true;
+            }
+            expects_name = false;
+        }
+        match token.text {
+            "(" | "[" | "{" => depth += 1,
+            ")" | "]" | "}" => depth = depth.saturating_sub(1),
+            "," if depth == 0 => expects_name = true,
+            _ => {}
+        }
+        cursor += 1;
+    }
+    false
+}
+
+pub(crate) fn identifier_use_observes_value(tokens: &[Token<'_>], use_at: usize) -> bool {
     let previous = use_at
         .checked_sub(1)
         .map(|prev| tokens[prev].text)

@@ -269,9 +269,61 @@ pub(crate) fn apply_token_rewrites(
     let count = retained.len();
     let mut output = source.to_string();
     for (start, end, replacement) in retained.into_iter().rev() {
+        let replacement = separated_at_boundaries(&output, start, end, replacement);
         output.replace_range(start..end, &replacement);
     }
     (output, count)
+}
+
+/// The printer's rule, applied at the one place folds join text. Terser never
+/// fuses two tokens because spacing is not a transform's job: its `print`
+/// (`lib/output.js`, `might_need_space`) emits a space exactly when the last
+/// character written and the next token's first character would lex as one
+/// token -- two identifier characters, `+ +`, `- -`, `/ /`. Closure's
+/// `CodeConsumer` does the same. Every fold here splices strings instead, so a
+/// fold that drops the parenthesis after `return(`, or that replaces `!0` with
+/// `true` after a keyword, produced `returnIr(...)` -- a call to an undeclared
+/// global that shipped in jquerylil and throws on `animate` (039, 040). The
+/// guard is symmetric and covers deletions, where the two neighbours meet.
+fn separated_at_boundaries(output: &str, start: usize, end: usize, replacement: String) -> String {
+    let before = output[..start].bytes().last();
+    let after = output[end..].bytes().next();
+    let (first, last) = if replacement.is_empty() {
+        (after, before)
+    } else {
+        (replacement.bytes().next(), replacement.bytes().last())
+    };
+    let leading = would_lex_as_one(before, first);
+    let trailing = !replacement.is_empty() && would_lex_as_one(last, after);
+    if !leading && !trailing {
+        return replacement;
+    }
+    let mut spaced = String::with_capacity(replacement.len() + 2);
+    if leading {
+        spaced.push(' ');
+    }
+    spaced.push_str(&replacement);
+    if trailing {
+        spaced.push(' ');
+    }
+    spaced
+}
+
+fn would_lex_as_one(left: Option<u8>, right: Option<u8>) -> bool {
+    let (Some(left), Some(right)) = (left, right) else {
+        return false;
+    };
+    (is_identifier_char_broad(left) && is_identifier_char_broad(right))
+        || (left == b'+' && right == b'+')
+        || (left == b'-' && right == b'-')
+        || (left == b'/' && right == b'/')
+}
+
+/// Identifier characters as a printer sees them: ASCII identifier bytes, digits
+/// (`return 1`), and every non-ASCII byte, which can only belong to an
+/// identifier or to text a token-aligned splice never cuts through.
+fn is_identifier_char_broad(byte: u8) -> bool {
+    byte.is_ascii_alphanumeric() || byte == b'_' || byte == b'$' || byte == b'\\' || byte >= 0x80
 }
 
 pub(crate) fn rewrite_identifier_span(

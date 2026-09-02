@@ -4,8 +4,9 @@ use crate::js_peephole::rewrite::{
     top_level_stop,
 };
 use crate::js_peephole::scope::{
-    collect_same_scope_name_uses, enclosing_block_end, enclosing_function_span,
-    function_scope_declares, name_is_used_in_scope, GeneratedBindingIndex,
+    binding_is_observed_outside_span, collect_same_scope_name_uses, enclosing_block_end,
+    enclosing_function_span, function_scope_declares, name_is_used_in_scope,
+    GeneratedBindingIndex,
 };
 use crate::js_peephole::token::{lex, lex_certainly, matching_closers, Token, TokenKind};
 use crate::js_peephole::JavaScriptParseError;
@@ -1733,6 +1734,7 @@ pub(crate) fn fold_unread_prototype_aliases(
     source: &str,
 ) -> Result<(String, usize), JavaScriptParseError> {
     let tokens = lex(source)?;
+    let matching_close = matching_closers(&tokens);
     let mut replacements = Vec::<(usize, usize, String)>::new();
     let mut cursor = 0usize;
     while cursor + 4 < tokens.len() {
@@ -1740,17 +1742,37 @@ pub(crate) fn fold_unread_prototype_aliases(
             cursor += 1;
             continue;
         };
-        if unread_pure_alias_is_live(&tokens, alias.after + 1, alias.name) {
-            cursor += 1;
-            continue;
-        }
         let preceded_by_comma = cursor > 0 && tokens[cursor - 1].text == ",";
         let preceded_by_decl =
             cursor > 0 && matches!(tokens[cursor - 1].text, "var" | "let" | "const");
+        // The forward scan below cannot see a function declared *before* the
+        // alias that reads it: hoisting runs that body after the assignment.
+        // react-markdownlil's accessor installer is one, 61 KB earlier than the
+        // `VFile.prototype` alias it reads, and dropping the assignment shipped a
+        // module that throws on import (037). When the declaration itself goes,
+        // every later mention keeps it too.
+        let observed_elsewhere = |at: usize, alias: &PrototypeAlias<'_>| {
+            binding_is_observed_outside_span(
+                &tokens,
+                &matching_close,
+                at,
+                alias.after + 1,
+                alias.name,
+                preceded_by_decl,
+            )
+        };
+        if unread_pure_alias_is_live(&tokens, alias.after + 1, alias.name)
+            || observed_elsewhere(cursor, &alias)
+        {
+            cursor += 1;
+            continue;
+        }
         let mut end_token = alias.after;
         let mut scan = alias.after + 1;
         while let Some(next) = unread_pure_alias_at(&tokens, scan) {
-            if unread_pure_alias_is_live(&tokens, next.after + 1, next.name) {
+            if unread_pure_alias_is_live(&tokens, next.after + 1, next.name)
+                || observed_elsewhere(scan, &next)
+            {
                 break;
             }
             end_token = next.after;
