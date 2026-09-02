@@ -2817,6 +2817,7 @@ fn optimize_generated_javascript_pass(
     session.run(fold_or_empty_object_assign)?;
     session.run_if(pristine_builtins, fold_fresh_empty_object_assign)?;
     if pristine_builtins {
+        session.run(fold_array_literal_borrow_pushes)?;
         session.repeat(fold_fresh_empty_array_pushes, 4)?;
     }
     session.run(fold_named_class_identity)?;

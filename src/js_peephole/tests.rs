@@ -1,5 +1,5 @@
 use super::folds::{
-    fold_common_conditional_arms, fold_ident_ternary_to_or, fold_early_exit_guards, fold_fresh_empty_array_pushes,
+    fold_array_literal_borrow_pushes, fold_common_conditional_arms, fold_ident_ternary_to_or, fold_early_exit_guards, fold_fresh_empty_array_pushes,
     fold_identifier_copies, fold_identity_arrow_iife, fold_if_expression_to_and,
     fold_sequence_assignments_into_first_use, fold_single_use_if_assigns,
     fold_single_use_temporaries, fold_statement_assignments_into_first_use,
@@ -3898,4 +3898,15 @@ fn an_identity_ternary_keeps_a_conditional_else_arm_grouped() {
     let (folded, count) = fold_ident_ternary_to_or(member).expect("fold");
     assert_eq!(run_javascript(member), run_javascript(&folded), "{folded}");
     assert_eq!(count, 0, "{folded}");
+}
+
+#[test]
+fn borrowed_pushes_onto_an_array_literal_become_method_calls() {
+    let source = "function f(){var o={a:1},a=[],t={type:\"elem\"};Array.prototype.push.call(a,t),t={type:\"kern\"},Array.prototype.push.call(a,t),o.children=a;return o}var b={length:0};Array.prototype.push.call(b,7);var c=[];c=b;Array.prototype.push.call(c,8);console.log(JSON.stringify([f(),b,c]))";
+    let (folded, count) = fold_array_literal_borrow_pushes(source).expect("fold");
+    assert_eq!(run_javascript(source), run_javascript(&folded), "{folded}");
+    assert!(folded.contains("a.push(t),t={type:\"kern\"},a.push(t)"), "{folded}");
+    assert!(folded.contains("Array.prototype.push.call(b,7)"), "{folded}");
+    assert!(folded.contains("Array.prototype.push.call(c,8)"), "{folded}");
+    assert_eq!(count, 2, "{folded}");
 }
