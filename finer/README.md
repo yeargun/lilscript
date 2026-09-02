@@ -119,6 +119,7 @@ with an estimated byte value.
 | `node finer/tools/repeat-coverage.mjs a.js b.js` | Share of bytes inside long back-references — a diagnostic, not a predictor (025) |
 | `node finer/tools/new.mjs <slug> --lane <lane>` | Opens the next hypothesis folder from the template and prints its `log.md` row |
 | `node finer/tools/new.mjs check` | Every folder has a Status line and a `log.md` row; every row has a folder |
+| `node finer/tools/workers.mjs status\|up\|down\|sync\|build --ports a,b\|fleet` | The `lilscript-workers` pool (objective.md §9): start it, sync the compiler and every port, build one port per worker, bring `dist/` back, measure here, deallocate |
 
 Compiler-side instruments: `LILSCRIPT_TIMING=1` (effort buckets and work counters, one JSON line on
 stderr), `LILSCRIPT_NO_MEMO=1` (A/B the memos inside one binary), `LILSCRIPT_DUMP_CANDIDATES=<dir>`
@@ -127,10 +128,11 @@ scored and starved, budget stop reason).
 
 ## Compute
 
-The loop is meant to run across the owner's pool of Azure machines (objective.md §9): every fleet
-build, sweep and A/B is dispatched one port or variant per machine. The dispatcher does not exist
-yet; until [038](hypotheses/038-the-loop-runs-on-one-host/README.md) lands it, `fleet.mjs` pins
-ports to core slices of this host, and a full fleet pass is the slowest step in the loop.
+The loop runs across the owner's pool of Azure machines (objective.md §9): `lilscript-workers`, a
+scale set on this host's subnet, driven by `finer/tools/workers.mjs` — every fleet build, sweep and
+A/B is dispatched one port per worker and measured here. `fleet.mjs` alone still pins ports to core
+slices of this host, which is the slow path; [038](hypotheses/038-the-loop-runs-on-one-host/README.md)
+holds the pool's prices and the SKU decision.
 
 ## This host
 

@@ -1,7 +1,8 @@
 # 038 — the loop runs on one host
 
-**Status: OPEN — the fleet dispatcher does not exist; the owner's pool of Azure machines is named in the
-brief and nowhere else.**
+**Status: IN PROGRESS — the pool is `lilscript-workers`, a six-instance Standard_F8s_v2 scale set on
+this host's own subnet; `finer/tools/workers.mjs` starts it, syncs the compiler and every port, builds
+one port per worker and brings `dist/` back; first end-to-end build running 2026-09-02.**
 Lane: measure. Objective: brotli. Ports: all 23 that build. Opened: 2026-09-01.
 
 ## Claim
@@ -40,7 +41,7 @@ is what is broken, and that outranks the speed-up) or a pass no faster than the 
    at the same commit, `cargo build --release`, run one port's `scripts/build.mjs --compile`, copy
    `dist/` back, measure with the local `lilscript-codec`. Confirm the artifact is byte-identical to
    the single-host build of the same commit.
-3. **The pool.** `fleet.mjs --hosts a,b,c`: a host is a slot; a port is dispatched to a free host
+3. **The pool.** `workers.mjs build --ports …`: a worker is a slot; a port is dispatched to a free host
    with `RAYON_NUM_THREADS` set to that host's cores; dists come back over rsync; measurement stays
    local. Keep `--slots` as the fallback when no hosts are given.
 4. **Measure the pass.** Wall clock of the whole pass, and per-port build seconds, single host versus
@@ -48,20 +49,52 @@ is what is broken, and that outranks the speed-up) or a pass no faster than the 
 
 ```sh
 az vm list -d -o table
-node finer/tools/fleet.mjs --hosts <host>,<host> --measure
+node finer/tools/workers.mjs fleet --down
 ```
+
+## The pool, found
+
+Owner brief of 2026-09-02 ([intent](../../intent/2026-09-02.md)): `lilscript-workers`, a Uniform VM
+scale set in resource group `lilscript-build-farm`, West Europe, capacity 6, Standard_F8s_v2 (8 vCPU
+Intel Cascade Lake, 16 GiB), Ubuntu 24.04 with Node 24 preinstalled, admin `lilfarm`, SSH key = this
+host's `~/.ssh/id_ed25519`, private IPs 10.1.0.5–.10 on this host's subnet (this host is
+10.1.0.4, a burstable Standard_B8als_v2 whose CPU credits are why identical work varied 3x). All six
+were deallocated when found; deallocated instances cost nothing.
+
+## Prices (West Europe, Linux, USD/hour, Azure retail price API, 2026-09-02)
+
+| SKU | vCPU | CPU | pay-as-you-go | Spot |
+|---|---:|---|---:|---:|
+| Standard_F8s_v2 (the pool) | 8 | Intel Cascade Lake | 0.388 | 0.072 |
+| Standard_D8als_v6 | 8 | AMD Genoa | 0.389 | 0.072 |
+| Standard_F8as_v6 | 8 | AMD Genoa, higher clocks, 32 GiB | 0.661 | 0.122 |
+| Standard_D16als_v6 | 16 | AMD Genoa | 0.778 | 0.144 |
+| Standard_D32als_v6 | 32 | AMD Genoa | 1.555 | 0.287 |
+| Standard_F16s_v2 / F32s_v2 | 16 / 32 | Cascade Lake | 0.776 / 1.552 | 0.143 / 0.287 |
+| Standard_B8als_v2 (this host) | 8 | AMD Milan, burstable | 0.306 | — |
+| Standard_HB120rs_v3 | 120 | Milan-X HPC | 4.680 | 0.865 |
+
+Fsv6 (Intel) is not priced in West Europe. Trade-offs for this workload: one process per port, so
+per-core speed first (Genoa over Cascade Lake), memory irrelevant, extra cores only for the four big
+ports, Spot 5.4x cheaper and fine for retryable batch builds. Recommendation: six D16als_v6 on Spot
+(≈ $0.86/h for 96 Genoa cores; a fleet pass ≈ jquery alone on 16 cores) with pay-as-you-go as the
+fallback; Spot needs a second scale set beside this one. The Genoa gain is an estimate (≈ 1.5x per
+core from compile benchmarks) until one port is built on each.
 
 ## Result
 
 | variant | ports | pass wall clock | artifacts identical | notes |
 |---|---:|---:|---|---|
-| this host, 4 slots x 2 cores | | | — | |
-| pool | | | | |
+| this host, 4 slots x 2 cores | 23 | 45–70 min, jquerylil and markedlil time out at 90 | — | 2026-09-01/02 passes |
+| one F8s_v2 worker, unifiedlil | 1 | 67 s build (+170 s first sync of 26 ports) | yes: 14647 / 5159 / 4666, the local pass's bytes | this host's slot: 517–602 s |
+| six F8s_v2 workers, fleet | | | | |
 
 ## Verdict
 
-<open>
+Not yet: the first end-to-end worker build decides whether artifacts are byte-identical across hosts
+(the falsifier) before the fleet pass measures the speed-up.
 
 ## Next
 
-Ask the owner which machines form the pool, or whether the loop may create them; then step 2.
+Finish the first end-to-end build, then a full fleet pass on the six workers with `workers.mjs fleet`;
+then the owner's SKU decision (a Spot Dalsv6 set) and `fleet.mjs --workers`.
