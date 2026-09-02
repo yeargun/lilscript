@@ -127,11 +127,12 @@ bytes).
    the largest compiler-side class left with a measured ceiling. Prior art to read before opening:
    `tighten-body.js:278-1000`, `drop-unused.js:113`, Oxc `minimize_statements.rs:1149`, ours
    `copies.rs:1040, 1185`. Confirms at ≥ −150 on micromarklil and ≥ −50 on mobx and jquery.
-5b. **Three ports ship an esbuild post-minifier** (043): micromarklil, playcanvaslil and
-   rehype-katexlil bundle with `minifySyntax` on, which is −311 on micromarklil over the compiler's
-   own file, ~266 of it compact booleans the compiler left as `true`/`false`. That is compiler
-   headroom the gate cannot see because the shipped artifact is *more* compact; measure what
-   `compact-boolean-literals` misses on micromarklil's raw output.
+5b. **Three ports ship through an esbuild post-minifier** (043): micromarklil, playcanvaslil and
+   rehype-katexlil bundle with `minifySyntax` on. On micromarklil that step is −311 against the
+   same bundle with it off, of which 030's `!0` re-print is 266; esbuild's *own* transforms — 157
+   `return` fusions and 109 `if(` rewrites — are worth ≈ −45 over the compiler's file. Small
+   headroom, and a doctrine question for the owner: objective.md §7 forbids a post-minifier in the
+   compiler, and these builds are one.
 6. **Pooling benefit model** (011): `count * length` is a raw-objective formula; under Brotli the
    repeats were already matches. About −35 on jquerylil and should generalize to every Brotli port.
 7. **Budget allocation** (009, 036): 46 of 47 families starve at micromarklil's shipped config while
