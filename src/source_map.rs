@@ -92,6 +92,17 @@ pub(crate) enum OriginKind {
     Property,
 }
 
+impl OriginKind {
+    /// Kinds that name a JavaScript binding, as opposed to a property key or a
+    /// bare instruction location.
+    pub(crate) const fn is_binding(self) -> bool {
+        matches!(
+            self,
+            Self::Function | Self::Global | Self::Parameter | Self::Local | Self::Temporary
+        )
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Origin {
     span: Span,
@@ -218,7 +229,7 @@ pub(crate) fn compose_javascript_provenance(
     let mut final_origins = if final_tokens.is_empty() {
         Vec::new()
     } else {
-        let mut raw_origins = origins_for_raw_tokens(trace, raw_tokens)?;
+        let mut raw_origins = origins_for_raw_tokens(trace, raw_tokens, &raw_analysis.bindings)?;
         apply_raw_binding_origins(
             trace,
             modules,
@@ -564,31 +575,60 @@ fn build_empty_source_map(
 fn origins_for_raw_tokens(
     trace: &IrJsSourceTrace,
     tokens: &[GeneratedJavaScriptTokenOccurrence],
+    bindings: &[GeneratedJavaScriptBindingOccurrence],
 ) -> Result<Vec<Option<Origin>>, SourceMapBuildError> {
     let mut anchors = trace.anchors.clone();
     anchors.sort_by_key(|anchor| anchor.generated);
+    let bound_starts = bindings
+        .iter()
+        .filter(|binding| binding.kind == GeneratedJavaScriptBindingKind::Bound)
+        .map(|binding| binding.start)
+        .collect::<BTreeSet<_>>();
     let mut origins = vec![None; tokens.len()];
     let mut anchor_index = 0usize;
-    let mut current = None;
+    // Every token in an anchor's range takes the anchor's location. The
+    // anchor's original name belongs to one token only: the first bound
+    // identifier the instruction emits, which is the binding it produces. A
+    // name spread over the whole statement would label host members,
+    // keywords and unrelated bindings as that value.
+    let mut current: Option<Origin> = None;
+    let mut pending_name: Option<String> = None;
     for (token_index, token) in tokens.iter().enumerate() {
         while anchors
             .get(anchor_index)
             .is_some_and(|anchor| anchor.generated <= token.start)
         {
-            current = anchors.get(anchor_index).map(origin_from_anchor);
+            let anchor = &anchors[anchor_index];
+            current = Some(origin_from_anchor(anchor));
+            pending_name = anchor.original_name.clone();
             anchor_index += 1;
         }
         if current.is_none() {
             while let Some(anchor) = anchors.get(anchor_index) {
                 if anchor.generated <= token.end {
                     current = Some(origin_from_anchor(anchor));
+                    pending_name = anchor.original_name.clone();
                     anchor_index += 1;
                 } else {
                     break;
                 }
             }
         }
-        origins[token_index] = current.clone();
+        let Some(location) = current.as_ref() else {
+            continue;
+        };
+        let named = pending_name.is_some()
+            && token.kind == GeneratedJavaScriptTokenKind::Identifier
+            && bound_starts.contains(&token.start);
+        origins[token_index] = Some(if named {
+            Origin {
+                span: location.span,
+                name: pending_name.take(),
+                kind: OriginKind::Temporary,
+            }
+        } else {
+            location.clone()
+        });
     }
     Ok(origins)
 }
@@ -596,12 +636,8 @@ fn origins_for_raw_tokens(
 fn origin_from_anchor(anchor: &IrJsSourceAnchor) -> Origin {
     Origin {
         span: anchor.span,
-        name: anchor.original_name.clone(),
-        kind: if anchor.original_name.is_some() {
-            OriginKind::Temporary
-        } else {
-            OriginKind::Instruction
-        },
+        name: None,
+        kind: OriginKind::Instruction,
     }
 }
 
@@ -827,7 +863,7 @@ fn stabilize_final_binding_origins(
             indices
                 .iter()
                 .filter_map(|index| origins[*index].as_ref())
-                .find(|origin| origin.name.is_some())
+                .find(|origin| origin.name.is_some() && origin.kind.is_binding())
                 .cloned()
         });
         let Some(origin) = origin else {
@@ -918,21 +954,27 @@ fn is_identifier_continue(character: char) -> bool {
     character == '_' || character == '$' || character.is_alphanumeric()
 }
 
+/// Tokens with no provenance of their own take the nearest mapped location,
+/// and only the location: a name describes one token, so glue between named
+/// tokens must not inherit it.
 fn fill_unmapped_origins(origins: &mut [Option<Origin>]) {
-    let mut current = None;
+    let location_of = |origin: &Origin| Origin {
+        span: origin.span,
+        name: None,
+        kind: OriginKind::Instruction,
+    };
+    let mut current: Option<Origin> = None;
     for origin in origins.iter_mut() {
-        if origin.is_some() {
-            current.clone_from(origin);
-        } else if current.is_some() {
-            origin.clone_from(&current);
+        match origin {
+            Some(mapped) => current = Some(location_of(mapped)),
+            None => origin.clone_from(&current),
         }
     }
-    let mut current = None;
+    let mut current: Option<Origin> = None;
     for origin in origins.iter_mut().rev() {
-        if origin.is_some() {
-            current.clone_from(origin);
-        } else if current.is_some() {
-            origin.clone_from(&current);
+        match origin {
+            Some(mapped) => current = Some(location_of(mapped)),
+            None => origin.clone_from(&current),
         }
     }
 }

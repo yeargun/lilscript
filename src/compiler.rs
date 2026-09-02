@@ -653,10 +653,7 @@ fn build_chunk_debug_artifacts(
     };
     let composed = compose_javascript_provenance(&chunk.code, trace, modules)
         .map_err(|error| chunk_error("compose debug provenance", error.to_string()))?;
-    let source_base = config
-        .config_dir
-        .as_deref()
-        .or_else(|| root.path.parent());
+    let source_base = config.config_dir.as_deref().or_else(|| root.path.parent());
     let source_map = config
         .javascript
         .source_map
@@ -10343,6 +10340,50 @@ mod tests {
         JavaScriptPriority, OptimizationPreset, StartupCostConfig,
     };
 
+    /// Every named mapping must label the generated identifier it sits on:
+    /// the token's spelling is the original name itself or one of the
+    /// spellings `x_lilscript.mangledNames` records for it. A name that
+    /// spreads onto neighbouring tokens (host members, keywords, other
+    /// bindings) is a debugger lying about what a variable is.
+    fn assert_source_map_names_label_their_tokens(generated: &str, source_map: &str) {
+        let json: serde_json::Value = serde_json::from_str(source_map).unwrap();
+        let mut spellings = std::collections::BTreeMap::<&str, Vec<&str>>::new();
+        for record in json["x_lilscript"]["mangledNames"].as_array().unwrap() {
+            spellings
+                .entry(record["original"].as_str().unwrap())
+                .or_default()
+                .push(record["generated"].as_str().unwrap());
+        }
+        let sourcemap::DecodedMap::Regular(decoded) =
+            sourcemap::decode_slice(source_map.as_bytes()).unwrap()
+        else {
+            panic!("compiler emits a regular Source Map v3 artifact");
+        };
+        let lines = generated.lines().collect::<Vec<_>>();
+        let mut named = 0usize;
+        for token in decoded.tokens() {
+            let Some(name) = token.get_name() else {
+                continue;
+            };
+            named += 1;
+            let rest = &lines[token.get_dst_line() as usize][token.get_dst_col() as usize..];
+            let identifier = rest
+                .char_indices()
+                .find(|(_, character)| {
+                    !(character.is_alphanumeric() || *character == '_' || *character == '$')
+                })
+                .map_or(rest, |(end, _)| &rest[..end]);
+            let expected = spellings.get(name).cloned().unwrap_or_default();
+            assert!(
+                identifier == name || expected.contains(&identifier),
+                "mapping named `{name}` at {}:{} sits on `{identifier}`, not on `{name}` or {expected:?}",
+                token.get_dst_line(),
+                token.get_dst_col()
+            );
+        }
+        assert!(named > 0, "no named mappings");
+    }
+
     #[test]
     fn hidden_source_map_preserves_selected_javascript_and_names() {
         let nonce = std::time::SystemTime::now()
@@ -10430,6 +10471,7 @@ mod tests {
             panic!("compiler emits a regular Source Map v3 artifact");
         };
         assert!(decoded.lookup_token(0, 0).is_some());
+        assert_source_map_names_label_their_tokens(&generated_javascript, source_map.as_str());
         for original in ["startingValue", "verboseOption"] {
             let token = decoded
                 .tokens()
@@ -10506,6 +10548,44 @@ mod tests {
         assert_eq!(empty_json["sourcesContent"][0], empty_source);
 
         std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    /// A decision explains one name: a preserved outcome keeps the source
+    /// spelling, a mangled one changes it, and a property key that has no
+    /// owner (so no owner-scoped namespace) is spelled one way in the whole
+    /// artifact. A source name paired with several generated spellings would
+    /// mean provenance leaked from one token onto its neighbours.
+    fn assert_analysis_decisions_are_consistent(analysis: &serde_json::Value) {
+        let mut unowned_spellings = std::collections::BTreeMap::<
+            (String, u64, u64),
+            std::collections::BTreeSet<String>,
+        >::new();
+        for decision in analysis["decisions"].as_array().unwrap() {
+            let source = decision["source"]["name"].as_str().unwrap();
+            let generated = decision["generated"]["name"].as_str().unwrap();
+            match decision["outcome"].as_str().unwrap() {
+                "preserved" => assert_eq!(source, generated, "{decision}"),
+                "mangled" => assert_ne!(source, generated, "{decision}"),
+                other => panic!("unexpected outcome {other}"),
+            }
+            if decision["kind"] == "property" && decision["category"] == "unowned" {
+                unowned_spellings
+                    .entry((
+                        source.to_string(),
+                        decision["source"]["line"].as_u64().unwrap(),
+                        decision["source"]["column"].as_u64().unwrap(),
+                    ))
+                    .or_default()
+                    .insert(generated.to_string());
+            }
+        }
+        for (key, spellings) in unowned_spellings {
+            assert_eq!(
+                spellings.len(),
+                1,
+                "unowned property {key:?} spelled as {spellings:?}"
+            );
+        }
     }
 
     #[test]
@@ -10598,6 +10678,7 @@ mod tests {
         let full_map = full.analysis_map.expect("full analysis map");
         let full_json: serde_json::Value = serde_json::from_str(full_map.as_str()).unwrap();
         assert_eq!(full_json["level"], "full");
+        assert_analysis_decisions_are_consistent(&full_json);
         assert!(full_json["decisions"]
             .as_array()
             .unwrap()
@@ -10767,6 +10848,7 @@ mod tests {
             assert!(source_map.original_name_count() > 0, "{name}");
             let decoded = sourcemap::decode_slice(source_map.as_str().as_bytes()).unwrap();
             assert!(decoded.lookup_token(0, 0).is_some(), "{name}");
+            assert_source_map_names_label_their_tokens(&with_map.javascript, source_map.as_str());
             let json: serde_json::Value = serde_json::from_str(source_map.as_str()).unwrap();
             let sources = json["sources"].as_array().unwrap();
             let contents = json["sourcesContent"].as_array().unwrap();
