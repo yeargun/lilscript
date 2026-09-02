@@ -393,3 +393,109 @@ mod tests {
         assert_eq!(stmt, "a=b;c=d");
     }
 }
+
+
+/// `new RegExp("…")` / `new RegExp("…","flags")` → `/…/flags` when the pattern is a
+/// string literal whose escapes decode plainly: 44 sites on katexlil, −68 Brotli measured.
+/// Terser does this only under `unsafe` (`RegExp` could be shadowed); here it is offered as a
+/// late codec-scored candidate under `assume_pristine_builtins`, last, because a regex
+/// literal is what the peephole's compact lexer refuses to see through. A pattern that is
+/// empty, starts with `*`, or holds a line break keeps the constructor.
+pub(crate) fn spell_regexp_literals(
+    source: &str,
+) -> Result<(String, usize), JavaScriptParseError> {
+    let Some(tokens) = lex_certainly(source)? else {
+        return Ok((source.to_string(), 0));
+    };
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+    let mut index = 0usize;
+    while index + 3 < tokens.len() {
+        if tokens[index].text != "new"
+            || tokens[index + 1].text != "RegExp"
+            || tokens[index + 2].text != "("
+            || tokens[index + 3].kind != TokenKind::String
+        {
+            index += 1;
+            continue;
+        }
+        let pattern_at = index + 3;
+        let (flags, close) = match tokens.get(pattern_at + 1).map(|token| token.text) {
+            Some(")") => (String::new(), pattern_at + 1),
+            Some(",")
+                if tokens
+                    .get(pattern_at + 2)
+                    .is_some_and(|token| token.kind == TokenKind::String)
+                    && tokens.get(pattern_at + 3).map(|token| token.text) == Some(")") =>
+            {
+                match decode_plain_string(tokens[pattern_at + 2].text) {
+                    Some(flags) => (flags, pattern_at + 3),
+                    None => {
+                        index += 1;
+                        continue;
+                    }
+                }
+            }
+            _ => {
+                index += 1;
+                continue;
+            }
+        };
+        let Some(pattern) = decode_plain_string(tokens[pattern_at].text) else {
+            index += 1;
+            continue;
+        };
+        if pattern.is_empty()
+            || pattern.starts_with('*')
+            || pattern.contains(['\n', '\r', '\u{2028}', '\u{2029}'])
+            || !flags.chars().all(|flag| "dgimsuvy".contains(flag))
+        {
+            index += 1;
+            continue;
+        }
+        let body = pattern.replace('/', "\\/");
+        replacements.push((
+            tokens[index].start,
+            tokens[close].end,
+            format!("/{body}/{flags}"),
+        ));
+        index = close + 1;
+    }
+    Ok(apply_token_rewrites(source, replacements))
+}
+
+/// The value of a JavaScript string literal whose escapes are the plain ones
+/// (`\\`, `\"`, `\'`, `\n`, `\r`, `\t`, `\0`, `\xHH`, `\uHHHH`); `None` for anything else.
+fn decode_plain_string(literal: &str) -> Option<String> {
+    let quote = literal.chars().next()?;
+    if !matches!(quote, '"' | '\'') || literal.len() < 2 || !literal.ends_with(quote) {
+        return None;
+    }
+    let inner = &literal[1..literal.len() - 1];
+    let mut out = String::with_capacity(inner.len());
+    let mut chars = inner.chars();
+    while let Some(ch) = chars.next() {
+        if ch != '\\' {
+            out.push(ch);
+            continue;
+        }
+        match chars.next()? {
+            '\\' => out.push('\\'),
+            '"' => out.push('"'),
+            '\'' => out.push('\''),
+            'n' => out.push('\n'),
+            'r' => out.push('\r'),
+            't' => out.push('\t'),
+            '0' => out.push('\0'),
+            'x' => {
+                let hex: String = chars.by_ref().take(2).collect();
+                out.push(char::from_u32(u32::from_str_radix(&hex, 16).ok()?)?);
+            }
+            'u' => {
+                let hex: String = chars.by_ref().take(4).collect();
+                out.push(char::from_u32(u32::from_str_radix(&hex, 16).ok()?)?);
+            }
+            _ => return None,
+        }
+    }
+    Some(out)
+}

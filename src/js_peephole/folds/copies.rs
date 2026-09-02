@@ -1,4 +1,5 @@
 use crate::js_peephole::rewrite::{
+    is_statement_boundary,
     apply_token_rewrites, assign_is_in_declaration, identifier_is_expression_slot,
     identifier_is_read, identifier_occurs, is_property_identifier, parse_bare_assign,
     replacement_overlaps, substituted_expression_needs_grouping, top_level_stop,
@@ -1781,4 +1782,169 @@ pub(crate) fn fold_typeof_identifier_caches(
         cursor += 5;
     }
     Ok(apply_token_rewrites(source, replacements))
+}
+
+/// `x=E1,x=x OP …` → `x=(E1)OP …`: the second assignment reads the first as the
+/// leftmost leaf of its right-hand side, so the leaf can be the expression
+/// itself. Chains fold by repetition (`a=A,a=a||B,a=a||C` → `a=A||B||C`), after
+/// which the returned-temporary folds take the `a`. A `JsValue` `||` has no
+/// spelling in the language, so ports write it as this chain (89 temporaries
+/// on katexlil); Terser's `collapse_vars` (`compress/tighten-body.js`) and
+/// Oxc's `substitute_single_use_symbol` do the same collapse. Refused when `x`
+/// is read anywhere else on the right, when `E1` holds a top-level comma,
+/// assignment, arrow or conditional, or when the right side does (its tree
+/// would not be the one the leaf sits in). Parentheses around `E1` when it is
+/// not a single leaf, so its own operators keep their binding.
+pub(crate) fn fold_self_assignment_chains(
+    source: &str,
+) -> Result<(String, usize), JavaScriptParseError> {
+    // Each pass folds one link of every chain; run to a fixed point.
+    let mut code = source.to_string();
+    let mut total = 0usize;
+    for _ in 0..8 {
+        let (next, count) = fold_self_assignment_chain_step(&code)?;
+        if count == 0 {
+            break;
+        }
+        total += count;
+        code = next;
+    }
+    Ok((code, total))
+}
+
+/// Binding strength of a top-level binary operator, higher binds tighter.
+fn binary_precedence(text: &str) -> Option<u8> {
+    Some(match text {
+        "??" | "||" => 1,
+        "&&" => 2,
+        "|" => 3,
+        "^" => 4,
+        "&" => 5,
+        "==" | "!=" | "===" | "!==" => 6,
+        "<" | ">" | "<=" | ">=" | "instanceof" | "in" => 7,
+        "<<" | ">>" | ">>>" => 8,
+        "+" | "-" => 9,
+        "*" | "/" | "%" => 10,
+        "**" => 11,
+        _ => return None,
+    })
+}
+
+/// The loosest binary operator at the top level of an expression, if any.
+fn loosest_top_level_operator(tokens: &[Token<'_>]) -> Option<u8> {
+    let mut depth = 0i32;
+    let mut loosest = None;
+    for (index, token) in tokens.iter().enumerate() {
+        match token.text {
+            "(" | "[" | "{" => depth += 1,
+            ")" | "]" | "}" => depth -= 1,
+            _ if depth == 0 => {
+                // A `+`/`-` right after an operator or at the start is unary, not binary.
+                let unary = matches!(token.text, "+" | "-")
+                    && (index == 0
+                        || tokens[index - 1].kind == TokenKind::Punct
+                            && !matches!(tokens[index - 1].text, ")" | "]"));
+                if !unary {
+                    if let Some(p) = binary_precedence(token.text) {
+                        loosest = Some(loosest.map_or(p, |q: u8| q.min(p)));
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    loosest
+}
+
+fn fold_self_assignment_chain_step(
+    source: &str,
+) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+    let mut cursor = 0usize;
+    while cursor + 6 < tokens.len() {
+        let at_boundary = is_statement_boundary(&tokens, cursor)
+            || cursor
+                .checked_sub(1)
+                .is_some_and(|previous| matches!(tokens[previous].text, "," | "(" | "var" | "let"));
+        if !at_boundary
+            || tokens[cursor].kind != TokenKind::Identifier
+            || tokens.get(cursor + 1).map(|token| token.text) != Some("=")
+        {
+            cursor += 1;
+            continue;
+        }
+        // A declarator may be the first link (`var x=E1;x=x OP …` → `var x=E1 OP …;`)
+        // when it closes its declaration; a `const` never, since its binding cannot be
+        // reassigned in the first place.
+        let in_declaration = assign_is_in_declaration(&tokens, cursor);
+        let name = tokens[cursor].text;
+        let Some(first_end) = top_level_stop(&tokens, cursor + 2, &[",", ";", ")", "}"]) else {
+            cursor += 1;
+            continue;
+        };
+        // `x=E1,x=x OP` or `x=E1;x=x OP`
+        if (in_declaration && tokens[first_end].text != ";")
+            || !matches!(tokens[first_end].text, "," | ";")
+            || tokens.get(first_end + 1).map(|token| token.text) != Some(name)
+            || tokens.get(first_end + 2).map(|token| token.text) != Some("=")
+            || tokens.get(first_end + 3).map(|token| token.text) != Some(name)
+            || !tokens.get(first_end + 4).is_some_and(|token| {
+                matches!(
+                    token.text,
+                    "||" | "&&" | "??" | "+" | "-" | "*" | "/" | "%" | "|" | "&" | "^" | "<<" | ">>" | ">>>"
+                )
+            })
+        {
+            cursor += 1;
+            continue;
+        }
+        let first = &tokens[cursor + 2..first_end];
+        if first.is_empty() || expression_has_top_level(first, &["?", ":", "=>", "=", "+=", "-=", "||=", "&&=", "??="]) {
+            cursor += 1;
+            continue;
+        }
+        let Some(second_end) = top_level_stop(&tokens, first_end + 4, &[",", ";", ")", "}"]) else {
+            cursor += 1;
+            continue;
+        };
+        let rest = &tokens[first_end + 4..second_end];
+        // A declarator link absorbs only a second statement that is this one assignment;
+        // a comma chain after it folds into one assignment first, then the declarator takes it.
+        if (in_declaration && !matches!(tokens[second_end].text, ";" | "}"))
+            || expression_has_top_level(rest, &["?", ":", "=>", "=", "+=", "-=", "||=", "&&=", "??="])
+            || identifier_occurs(&tokens, first_end + 4, second_end, name)
+        {
+            cursor += 1;
+            continue;
+        }
+        let first_text = &source[tokens[cursor + 2].start..tokens[first_end - 1].end];
+        let op = binary_precedence(tokens[first_end + 4].text).unwrap_or(0);
+        // `E1` becomes the leftmost operand of `OP`: it needs parentheses only when it
+        // holds a looser top-level operator (`a+1` under `*`), never for `a===b` under `||`.
+        let needs_parens = loosest_top_level_operator(first).is_some_and(|loosest| loosest < op)
+            || first.iter().any(|token| token.text == "=>");
+        let wrapped = if needs_parens { format!("({first_text})") } else { first_text.to_string() };
+        // Replace `E1,x=x` (from the first expression through the second `x`) with `(E1)`.
+        replacements.push((
+            tokens[cursor + 2].start,
+            tokens[first_end + 3].end,
+            wrapped,
+        ));
+        cursor = second_end;
+    }
+    Ok(apply_token_rewrites(source, replacements))
+}
+
+fn expression_has_top_level(tokens: &[Token<'_>], stops: &[&str]) -> bool {
+    let mut depth = 0i32;
+    for token in tokens {
+        match token.text {
+            "(" | "[" | "{" => depth += 1,
+            ")" | "]" | "}" => depth -= 1,
+            text if depth == 0 && stops.contains(&text) => return true,
+            _ => {}
+        }
+    }
+    false
 }

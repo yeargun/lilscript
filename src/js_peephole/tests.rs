@@ -14,7 +14,8 @@ use super::{
     generated_javascript_static_property_names, late_generated_javascript_cleanup_pass,
     optimize_generated_javascript, optimize_generated_javascript_assuming,
     optimize_generated_javascript_preserving_functions, reorder_uninitialized_var_declarators,
-    fold_void_initializers_off_fresh_vars, join_adjacent_declarations, shape_declarations,
+    fold_void_initializers_off_fresh_vars, join_adjacent_declarations, shape_declarations, spell_regexp_literals,
+    fold_statement_negated_ors, fold_self_assignment_chains,
     validate_generated_javascript_syntax_floor, LateJavaScriptCleanupPass, PeepholeResult,
 };
 
@@ -3696,5 +3697,49 @@ fn trailing_increment_in_an_else_arm_is_not_lifted() {
     let optimized = optimize_emitted_without_regex_literals(source);
     assert!(!optimized.code.contains("else}"), "{}", optimized.code);
     assert!(optimized.code.contains("for(;u<3;u++)"), "{}", optimized.code);
+    assert_eq!(run_javascript(&optimized.code), run_javascript(source));
+}
+
+
+#[test]
+fn negated_member_chain_or_becomes_and() {
+    let source = "var o={a:{b:0},c:1},n=0;!o.a.b||(n+=1);!o.c||(n+=10);!o.a.b.length||(n+=100);console.log(n)";
+    let (folded, count) = fold_statement_negated_ors(source).unwrap();
+    assert_eq!(folded, "var o={a:{b:0},c:1},n=0;o.a.b&&(n+=1);o.c&&(n+=10);o.a.b.length&&(n+=100);console.log(n)");
+    assert_eq!(count, 3);
+    assert_eq!(run_javascript(&folded), run_javascript(source));
+}
+
+#[test]
+fn regexp_constructors_with_plain_string_patterns_become_literals() {
+    let source = "var a=new RegExp(\"^[1-9]$\",\"\"),b=new RegExp(\"a/b\\\\d+\",\"g\"),c=new RegExp(\"\\\\u2212\",\"\"),d=new RegExp(\"\",\"\"),e=()=>new RegExp(\"*x\"),f=new RegExp(v),g=new RegExp(\"x\",\"q\");console.log(a.test(\"5\"),\"xa/b12\".replace(b,\"_\"),c.test(\"\\u2212\"),d.source,typeof e,f.source,g)";
+    let source = source.replace(",g=new RegExp(\"x\",\"q\")", "").replace(",g)", ")");
+    let (folded, count) = spell_regexp_literals(&source).unwrap();
+    assert!(folded.contains("a=/^[1-9]$/,"), "{folded}");
+    assert!(folded.contains("b=/a\\/b\\d+/g,"), "{folded}");
+    assert!(folded.contains("c=/\\u2212/,"), "{folded}");
+    assert!(folded.contains("d=new RegExp(\"\",\"\")"), "{folded}");
+    assert!(folded.contains("e=()=>new RegExp(\"*x\")"), "{folded}");
+    assert!(folded.contains("f=new RegExp(v)"), "{folded}");
+    assert_eq!(count, 3);
+    let runnable = folded.replace(",f=new RegExp(v)", "").replace(",f.source", "");
+    let original = source.replace(",f=new RegExp(v)", "").replace(",f.source", "");
+    assert_eq!(run_javascript(&runnable), run_javascript(&original));
+}
+
+
+#[test]
+fn self_assignment_chains_collapse_into_one_expression() {
+    let source = "let Ra=a=>a.base||a;let f=a=>{var b=Ra(a);a=\"mathord\"===b.type,a=a||\"textord\"===b.type,a=a||\"atom\"===b.type;return a};let g=(a,b)=>{var c=a.has(b);c=c||Object.prototype.hasOwnProperty.call(a,b),c=c||b in a;return c};let h=(a,b)=>{var x;x=a?1:2,x=x+b;var y=b+1;y=y*2;y=y-a;var z=a||b,w=z;z=z&&w;return[x,y,z]};console.log(f({type:\"atom\"}),f({type:\"x\"}),g(new Set([1]),1),h(0,3),h(1,3))";
+    let (folded, count) = fold_self_assignment_chains(source).unwrap();
+    assert!(folded.contains("a=\"mathord\"===b.type||\"textord\"===b.type||\"atom\"===b.type;return a"), "{folded}");
+    assert!(folded.contains("var c=a.has(b)||Object.prototype.hasOwnProperty.call(a,b)||b in a;return c"), "{folded}");
+    assert!(folded.contains("var y=(b+1)*2-a;"), "{folded}");
+    assert!(folded.contains("x=a?1:2,x=x+b"), "a conditional first value keeps its temporary: {folded}");
+    assert!(folded.contains("z=z&&w"), "a right side that reads the name elsewhere keeps its temporary: {folded}");
+    assert!(count >= 5, "{count}");
+    assert_eq!(run_javascript(&folded), run_javascript(source));
+    let optimized = optimize_emitted_without_regex_literals(source);
+    assert!(optimized.code.contains("return\"mathord\"===b.type||\"textord\"===b.type||\"atom\"===b.type") || optimized.code.contains("=>\"mathord\"==="), "{}", optimized.code);
     assert_eq!(run_javascript(&optimized.code), run_javascript(source));
 }

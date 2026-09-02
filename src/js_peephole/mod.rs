@@ -2557,6 +2557,7 @@ fn optimize_generated_javascript_pass(
     session.run(fold_arguments_length_formal_copies)?;
     session.run(fold_arguments_slice_to_rest)?;
     session.run(fold_dead_pure_identifier_assigns)?;
+    session.repeat(fold_self_assignment_chains, 6)?;
     session.run(fold_conditional_assigned_false_phi)?;
     session.run(remove_unused_standalone_vars)?;
     session.run(fold_uninitialized_var_into_assign)?;
@@ -2754,6 +2755,8 @@ impl LateJavaScriptCleanupPass {
 /// Applied to the whole finalist, never per declaration: the joins only exist
 /// across declarations, and on two ports the raw-smaller text scored worse
 /// under Brotli, so the codec decides.
+pub(crate) use folds::spell_regexp_literals;
+
 pub(crate) fn shape_declarations(
     source: &str,
 ) -> Result<(String, usize), JavaScriptParseError> {

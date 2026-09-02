@@ -7866,6 +7866,43 @@ fn apply_late_javascript_cleanup(
             }
         }
     }
+    // Regex literal spelling (047): `new RegExp("…")` → `/…/`, offered last as a scored
+    // candidate under pristine builtins; the compact lexer's `/` certainty is why it is not
+    // an ordinary fold.
+    if config.javascript.assume_pristine_builtins {
+        let sources = beam.clone();
+        for candidate in sources {
+            if !codec_budget.reserve_work_unit() {
+                break;
+            }
+            let Ok((spelled, rewrites)) = crate::js_peephole::spell_regexp_literals(&candidate.code)
+            else {
+                continue;
+            };
+            if rewrites == 0 || spelled == candidate.code {
+                continue;
+            }
+            let code = repair_late_javascript_candidate(spelled);
+            if analyze_generated_javascript(&code).is_err()
+                || admission.validate(&code).is_err()
+                || beam.iter().any(|existing| existing.code == code)
+            {
+                crate::timing::CLEANUP_SHAPED_REFUSED.event(0);
+                continue;
+            }
+            let Some(cost) =
+                codec_budget.compressed_size(code.as_bytes(), config.javascript.cost_model)?
+            else {
+                continue;
+            };
+            if cost < candidate.cost {
+                crate::timing::CLEANUP_SHAPED_PUSHED.event((candidate.cost - cost) as u64);
+                beam.push(CleanupCandidate { code, cost });
+            } else {
+                crate::timing::CLEANUP_SHAPED_LOST.event((cost - candidate.cost) as u64);
+            }
+        }
+    }
     // A function bound once and read once costs a declarator for nothing: no
     // second reference shares the name, and creating a function is pure, so the
     // literal can move to the site that reads it. The move is not free in

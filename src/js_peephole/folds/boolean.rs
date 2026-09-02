@@ -1452,19 +1452,22 @@ pub(crate) fn fold_statement_negated_ors(
     let mut replacements = Vec::<(usize, usize, String)>::new();
     let mut cursor = 0usize;
     while cursor + 4 < tokens.len() {
+        // `!x||(…)` and, since 047, `!a.b.c||(…)` / `!this.x||(…)`: a member chain
+        // is evaluated once either way, so `a.b.c&&(…)` is the same program one
+        // byte shorter (23 sites on katexlil, −38 Brotli measured).
+        let chain_end = negated_operand_end(&tokens, cursor + 1);
         if !is_statement_boundary(&tokens, cursor)
             || tokens[cursor].text != "!"
-            || tokens
-                .get(cursor + 1)
-                .is_none_or(|token| token.kind != TokenKind::Identifier)
-            || tokens.get(cursor + 2).map(|token| token.text) != Some("||")
-            || tokens.get(cursor + 3).map(|token| token.text) != Some("(")
+            || chain_end.is_none()
+            || tokens.get(chain_end.unwrap()).map(|token| token.text) != Some("||")
+            || tokens.get(chain_end.unwrap() + 1).map(|token| token.text) != Some("(")
         {
             cursor += 1;
             continue;
         }
-        let name = tokens[cursor + 1].text;
-        let Some(close) = matching_close.get(cursor + 3).copied().flatten() else {
+        let or_at = chain_end.unwrap();
+        let name = &source[tokens[cursor + 1].start..tokens[or_at - 1].end];
+        let Some(close) = matching_close.get(or_at + 1).copied().flatten() else {
             cursor += 1;
             continue;
         };
@@ -1472,7 +1475,7 @@ pub(crate) fn fold_statement_negated_ors(
             cursor += 1;
             continue;
         }
-        let rhs = &source[tokens[cursor + 4].start..tokens[close].start];
+        let rhs = &source[tokens[or_at + 2].start..tokens[close].start];
         let end_at = if tokens.get(close + 1).map(|token| token.text) == Some(";") {
             close + 1
         } else {
@@ -1764,6 +1767,24 @@ fn statement_or_assign_rewrite(
         format!("{name}={name}||{rhs};"),
         block_close + 1,
     ))
+}
+
+/// The token after a member chain `x`, `x.y.z` or `this.y` starting at `start`;
+/// `None` when no chain starts there.
+fn negated_operand_end(tokens: &[Token<'_>], start: usize) -> Option<usize> {
+    let first = tokens.get(start)?;
+    if first.kind != TokenKind::Identifier && first.text != "this" {
+        return None;
+    }
+    let mut cursor = start + 1;
+    while tokens.get(cursor).map(|token| token.text) == Some(".")
+        && tokens
+            .get(cursor + 1)
+            .is_some_and(|token| token.kind == TokenKind::Identifier || token.kind == TokenKind::Keyword)
+    {
+        cursor += 2;
+    }
+    Some(cursor)
 }
 
 fn statement_follows_paren(tokens: &[Token<'_>], close: usize) -> bool {
