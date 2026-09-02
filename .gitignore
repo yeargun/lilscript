@@ -36,3 +36,6 @@
 /benchmarks/popular/ports/jquery/*.raw.js
 /benchmarks/popular/ports/jquery/*.bak
 /benchmarks/popular/ports/build/
+
+# Isolated agent worktrees created by Claude Code
+.claude/worktrees/
