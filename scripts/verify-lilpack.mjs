@@ -11,6 +11,7 @@ const compiler = process.argv[3] ?? path.join(root, "target/release/lilscript");
 const verification = path.join(root, "target/verification/lilpack");
 const app = path.join(verification, "app");
 const dist = path.join(verification, "dist");
+const sourceMapDist = path.join(verification, "dist-source-map");
 
 await rm(verification, { recursive: true, force: true });
 await mkdir(verification, { recursive: true });
@@ -53,6 +54,51 @@ assert.match(bundle, /22/u);
 assert.doesNotMatch(bundle, /:\s*number/u);
 assert.doesNotMatch(bundle, /\.ts["']/u);
 assert.doesNotMatch(bundle, /modulepreload|MutationObserver/u);
+
+execFileSync(
+  lilpack,
+  [
+    "build",
+    path.join(app, "main.lil"),
+    "--root",
+    app,
+    "--out-dir",
+    sourceMapDist,
+    "--config",
+    path.join(root, "tests/bundles/foreign/lilscript-sourcemap.toml"),
+    "--sourcemap",
+  ],
+  {
+    cwd: root,
+    env: { ...process.env, LILSCRIPT_COMPILER: compiler },
+    stdio: "inherit",
+  },
+);
+const sourceMapManifest = JSON.parse(
+  await readFile(path.join(sourceMapDist, "lilpack.manifest.json"), "utf8"),
+);
+const sourceMapEntry = sourceMapManifest["index.html"].file;
+const mappedBundle = await readFile(path.join(sourceMapDist, sourceMapEntry), "utf8");
+assert.match(mappedBundle, /\/\/# sourceMappingURL=.*\.js\.map/u);
+const composedMap = JSON.parse(
+  await readFile(path.join(sourceMapDist, `${sourceMapEntry}.map`), "utf8"),
+);
+assert.equal(composedMap.version, 3);
+assert.ok(composedMap.sources.some((source) => source.endsWith("main.lil")));
+assert.ok(composedMap.sources.some((source) => source.endsWith("value.lil")));
+assert.ok(composedMap.sourcesContent.some((source) => source.includes("hotAccept")));
+assert.ok(composedMap.sourcesContent.some((source) => source.includes("return 20")));
+const compilerAnalysis = JSON.parse(
+  await readFile(
+    path.join(sourceMapDist, "lilscript-analysis/main.lil.lilmap.json"),
+    "utf8",
+  ),
+);
+assert.equal(compilerAnalysis.kind, "lilscript-javascript-analysis-map");
+assert.equal(compilerAnalysis.level, "full");
+assert.equal(compilerAnalysis.artifact.sha256.length, 64);
+assert.ok(compilerAnalysis.summary.decisions > 0);
+assert.ok(compilerAnalysis.decisions.some((decision) => decision.rules?.length > 0));
 
 const port = await freePort();
 const server = spawn(
@@ -110,7 +156,7 @@ try {
   ]);
 }
 
-console.log("Lilpack Vite build, TypeScript delivery, and hot reload passed.");
+console.log("Lilpack Vite build, composed source maps, TypeScript delivery, and hot reload passed.");
 
 async function fetchText(url) {
   const response = await fetch(url);

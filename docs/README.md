@@ -23,6 +23,8 @@ If two pages disagree, use the higher authority and fix the lower one.
 | What exists and what is green | [Current status](current-status.md) |
 | Syntax or semantics | [Language v0.1](language-v0.1.md) |
 | TOML behavior | [Configuration](configuration.md) |
+| Debug optimized source locations | [JavaScript source maps](source-maps.md) |
+| Explain mangling decisions and heuristics | [JavaScript analysis maps](analysis-maps.md) |
 | Why a design choice exists | [Design decisions](knowledge/decisions/README.md) |
 | How the compiler works now | [Current architecture](knowledge/compilation/current-architecture.md) |
 | Where the architecture is going | [Planned architecture](knowledge/compilation/planned-architecture.md) |
@@ -37,6 +39,7 @@ If two pages disagree, use the higher authority and fix the lower one.
 |---|---|
 | [language-v0.1.md](language-v0.1.md) | Syntax, types, evaluation, target behavior |
 | [configuration.md](configuration.md) | `lilscript.toml` schema and defaults |
+| [analysis-maps.md](analysis-maps.md) | Selected-artifact mangling decisions and inspection |
 | [modules-and-delivery.md](modules-and-delivery.md) | Imports, chunks, lockfiles, Lilpack |
 | [web-platform.md](web-platform.md) | Host and `extern` boundary |
 | [differential-testing.md](differential-testing.md) | Independent semantic oracle |

@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -54,6 +55,7 @@ if (options.command === "dev") {
 function lilscriptPlugin(options) {
   const dependencyOwners = new Map();
   const ownerDependencies = new Map();
+  const analysisMaps = new Map();
   const entryUrl = `/${path.relative(options.root, options.entry).split(path.sep).join("/")}`;
   const entryRequest = options.command === "dev" ? `${entryUrl}?import` : entryUrl;
 
@@ -91,9 +93,12 @@ function lilscriptPlugin(options) {
       trackDependencies(file, dependencies, ownerDependencies, dependencyOwners);
       for (const dependency of dependencies) this.addWatchFile(dependency);
 
-      let code = compileLilscript(file, options);
+      const artifact = compileLilscript(file, options);
+      if (artifact.analysisMap) analysisMaps.set(normalizeFile(file), artifact.analysisMap);
+      else analysisMaps.delete(normalizeFile(file));
+      let code = artifact.code;
       if (options.command === "dev") code = addHotBoundary(code);
-      return { code, map: null };
+      return { code, map: artifact.map };
     },
 
     handleHotUpdate(context) {
@@ -118,6 +123,18 @@ function lilscriptPlugin(options) {
       }
       return [...affected];
     },
+
+    generateBundle() {
+      for (const [file, analysisMap] of [...analysisMaps].sort(([left], [right]) =>
+        left.localeCompare(right),
+      )) {
+        this.emitFile({
+          type: "asset",
+          fileName: analysisAssetFileName(options.root, file),
+          source: `${JSON.stringify(analysisMap)}\n`,
+        });
+      }
+    },
   };
 }
 
@@ -130,10 +147,53 @@ function compileLilscript(file, options) {
       "--mode",
       options.command === "dev" ? "development" : "production",
       "--delegate-bundling",
+      "--print-delegated-artifact",
     ],
     options,
   );
-  return result.stdout;
+  try {
+    const artifact = JSON.parse(result.stdout);
+    if (
+      artifact.version !== 1 ||
+      typeof artifact.code !== "string" ||
+      (artifact.map !== null &&
+        (typeof artifact.map !== "object" || Array.isArray(artifact.map))) ||
+      (artifact.analysisMap !== null && artifact.analysisMap !== undefined &&
+        (typeof artifact.analysisMap !== "object" || Array.isArray(artifact.analysisMap)))
+    ) {
+      throw new Error("unsupported artifact shape");
+    }
+    const analysisMap = artifact.analysisMap ?? null;
+    if (analysisMap) validateAnalysisMap(analysisMap, artifact.code);
+    return { ...artifact, analysisMap };
+  } catch (error) {
+    throw new Error(`Lilscript returned an invalid delegated artifact: ${error.message}`);
+  }
+}
+
+function validateAnalysisMap(analysisMap, code) {
+  if (
+    analysisMap.kind !== "lilscript-javascript-analysis-map" ||
+    analysisMap.version !== 1 ||
+    !["summary", "full"].includes(analysisMap.level) ||
+    typeof analysisMap.artifact?.sha256 !== "string"
+  ) {
+    throw new Error("unsupported Lilscript analysis-map shape");
+  }
+  const actual = createHash("sha256").update(code).digest("hex");
+  if (actual !== analysisMap.artifact.sha256) {
+    throw new Error("Lilscript analysis map does not match delegated JavaScript");
+  }
+}
+
+function analysisAssetFileName(root, file) {
+  const relative = path.relative(root, file).split(path.sep).join("/");
+  const safe = relative
+    .split("/")
+    .filter((segment) => segment.length > 0 && segment !== ".")
+    .map((segment) => (segment === ".." ? "__up__" : encodeURIComponent(segment)))
+    .join("/");
+  return `lilscript-analysis/${safe || "index.lil"}.lilmap.json`;
 }
 
 function compilerDependencies(file, options) {

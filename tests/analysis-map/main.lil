@@ -1,0 +1,9 @@
+extern class DebugOptions {
+  JsValue descriptiveProperty;
+}
+
+export JsValue buildDebugOptions(int descriptiveValue) {
+  DebugOptions options = JS.assume(JS.object());
+  options.descriptiveProperty = descriptiveValue;
+  return options;
+}

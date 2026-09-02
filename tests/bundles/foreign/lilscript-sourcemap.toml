@@ -1,0 +1,19 @@
+[optimization]
+preset = "maximum"
+
+[javascript]
+candidate_search = "off"
+
+[javascript.source_map]
+enabled = true
+mode = "hidden"
+include_sources_content = true
+
+[javascript.analysis_map]
+level = "full"
+
+[bundle]
+mode = "split"
+min_chunk_bytes = 1
+max_chunks = 8
+shared_min_imports = 2
