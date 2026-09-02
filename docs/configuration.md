@@ -104,6 +104,9 @@ enabled = false # opt in; disabled builds do no provenance or map work
 mode = "hidden" # hidden | linked | inline
 include_sources_content = true # embed the exact authored .lil text
 
+[javascript.analysis_map]
+level = "off" # off | summary | full; writes <output>.lilmap.json
+
 [javascript.startup]
 parse_weight = 1
 compile_weight = 1
@@ -322,6 +325,15 @@ LilScript without the source tree, but can expose source in a deployed map.
 Inlining, scalar replacement, and dead-code elimination mean a map explains
 surviving generated code rather than reversing optimization. Full contract and
 mangling behavior: [source maps](source-maps.md).
+
+`javascript.analysis_map.level` defaults to `"off"` and is independent from
+Source Map v3. `"summary"` records each retained identifier/property/export
+outcome, its primary semantic rule, and bounded facts about the selected
+search. `"full"` also records ordered rule evaluations and naming evidence.
+Both write an external `<output>.lilmap.json`, never change JavaScript bytes,
+and run only after candidate search has selected a winner. Disabled builds do
+no analysis replay, hashing, record allocation, or JSON work. Contract, schema,
+performance model, and inspector usage: [analysis maps](analysis-maps.md).
 
 `javascript.function_spelling` is an explicit JavaScript ABI and spelling
 override. When omitted, exported functions retain ordinary-function

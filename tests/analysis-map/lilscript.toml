@@ -1,0 +1,12 @@
+[javascript]
+candidate_search = "off"
+strip_console = false
+
+[javascript.analysis_map]
+level = "full"
+
+[mangle]
+identifiers = true
+properties = true
+exports = true
+extern_fields = false

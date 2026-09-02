@@ -9,6 +9,9 @@ enabled = true
 mode = "hidden"
 include_sources_content = true
 
+[javascript.analysis_map]
+level = "full"
+
 [bundle]
 mode = "split"
 min_chunk_bytes = 1

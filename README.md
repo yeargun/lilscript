@@ -108,6 +108,11 @@ mangled JavaScript back to exact LilScript sources. Hidden maps are disabled by
 default and, when enabled, leave the production JavaScript byte-for-byte
 unchanged.
 
+Optional [analysis maps](docs/analysis-maps.md) write a separate
+`.lilmap.json` explaining the selected identifier, property, and export
+mangling rules. They are independently opt-in and likewise add no JavaScript or
+runtime overhead.
+
 Lilpack is the Vite-based delivery path (`lilpack dev` / `lilpack build`). VS Code + `lilscript-lsp` live in this repo.
 
 ## Models, PRs, discussion

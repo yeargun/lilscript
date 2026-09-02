@@ -1175,6 +1175,45 @@ pub enum JavaScriptSourceMapMode {
     Inline,
 }
 
+/// Detail retained in LilScript's compiler-analysis sidecar.
+///
+/// This is deliberately independent from Source Map v3: source maps answer
+/// where selected JavaScript came from, while analysis maps explain why the
+/// selected mangling policy produced each retained spelling.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize, serde::Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum JavaScriptAnalysisMapLevel {
+    /// Perform no analysis capture, hashing, or serialization.
+    #[default]
+    Off,
+    /// Record final name outcomes and one stable primary reason per outcome.
+    Summary,
+    /// Also record the ordered semantic rule evaluations and search evidence.
+    Full,
+}
+
+impl JavaScriptAnalysisMapLevel {
+    pub const fn enabled(self) -> bool {
+        !matches!(self, Self::Off)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct JavaScriptAnalysisMapConfig {
+    /// Analysis is opt-in. `summary` is intended for routine build auditing;
+    /// `full` retains ordered rule evidence for compiler debugging.
+    pub level: JavaScriptAnalysisMapLevel,
+}
+
+impl Default for JavaScriptAnalysisMapConfig {
+    fn default() -> Self {
+        Self {
+            level: JavaScriptAnalysisMapLevel::Off,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct JavaScriptSourceMapConfig {
@@ -1302,6 +1341,10 @@ pub struct JavaScriptConfig {
     /// the selected JavaScript byte-for-byte unchanged; linked and inline
     /// modes only affect how the CLI publishes the already-built map.
     pub source_map: JavaScriptSourceMapConfig,
+    /// Optional compiler-decision sidecar. Unlike Source Map v3, this records
+    /// why identifier, property, and export names were preserved or mangled.
+    /// Disabled builds do no winner replay or analysis serialization for it.
+    pub analysis_map: JavaScriptAnalysisMapConfig,
     pub startup: StartupCostConfig,
     pub performance: JavaScriptPerformanceConfig,
 }
@@ -1355,6 +1398,7 @@ impl Default for JavaScriptConfig {
             assume_pure_property_reads: false,
             strip_console: true,
             source_map: JavaScriptSourceMapConfig::default(),
+            analysis_map: JavaScriptAnalysisMapConfig::default(),
             startup: StartupCostConfig::default(),
             performance: JavaScriptPerformanceConfig::default(),
         }
@@ -2347,6 +2391,38 @@ include_sources_content = false
             "[javascript.source_map]\nenabled=true\nmode='sidecar'\n"
         )
         .is_err());
+    }
+
+    #[test]
+    fn analysis_maps_are_independently_opt_in_and_parse_detail_levels() {
+        let defaults = ProjectConfig::default();
+        assert_eq!(
+            defaults.javascript.analysis_map.level,
+            JavaScriptAnalysisMapLevel::Off
+        );
+        assert!(!defaults.javascript.analysis_map.level.enabled());
+
+        let summary: ProjectConfig =
+            toml::from_str("[javascript.analysis_map]\nlevel='summary'\n").unwrap();
+        assert_eq!(
+            summary.javascript.analysis_map.level,
+            JavaScriptAnalysisMapLevel::Summary
+        );
+        assert!(summary.javascript.analysis_map.level.enabled());
+
+        let full: ProjectConfig =
+            toml::from_str("[javascript.analysis_map]\nlevel='full'\n").unwrap();
+        assert_eq!(
+            full.javascript.analysis_map.level,
+            JavaScriptAnalysisMapLevel::Full
+        );
+        assert!(
+            toml::from_str::<ProjectConfig>("[javascript.analysis_map]\nlevel='verbose'\n")
+                .is_err()
+        );
+        assert!(
+            toml::from_str::<ProjectConfig>("[javascript.analysis_map]\nenabled=true\n").is_err()
+        );
     }
 
     #[test]

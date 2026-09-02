@@ -9,6 +9,10 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Instant;
 
+use crate::analysis_map::{
+    build_javascript_analysis_map, AnalysisMapBuildContext, JavaScriptAnalysisMap,
+    JavaScriptAnalysisSearchEvidence,
+};
 use crate::codegen_ir_js::{
     emit_optimized_ir_js, emit_optimized_ir_js_chunks_source_traces_with_options,
     emit_optimized_ir_js_chunks_with_options, emit_optimized_ir_js_module,
@@ -66,7 +70,7 @@ use crate::profile::{
 };
 use crate::semantic::analyze;
 use crate::source_map::{
-    build_javascript_source_map, build_javascript_source_map_from_trace, JavaScriptSourceMap,
+    build_javascript_source_map_from_provenance, compose_javascript_provenance, JavaScriptSourceMap,
 };
 use crate::span::Span;
 use crate::value_analysis::{analyze_integer_values, IntegerValueAnalysis};
@@ -75,6 +79,7 @@ use crate::value_analysis::{analyze_integer_values, IntegerValueAnalysis};
 pub struct CompilationArtifacts {
     pub javascript: String,
     pub source_map: Option<JavaScriptSourceMap>,
+    pub analysis_map: Option<JavaScriptAnalysisMap>,
     pub c: String,
     pub optimization_reports: Vec<OptimizationReport>,
 }
@@ -112,6 +117,7 @@ fn configured_module_lowering_count() -> usize {
 pub struct JavaScriptCompilation {
     pub javascript: String,
     pub source_map: Option<JavaScriptSourceMap>,
+    pub analysis_map: Option<JavaScriptAnalysisMap>,
     pub optimization_reports: Vec<OptimizationReport>,
     pub selection_metrics: JavaScriptSelectionMetrics,
     pub abi_manifest: crate::compilation_contract::JavaScriptAbiManifest,
@@ -250,6 +256,7 @@ pub struct JavaScriptBundleFile {
     pub file_name: String,
     pub code: String,
     pub source_map: Option<JavaScriptSourceMap>,
+    pub analysis_map: Option<JavaScriptAnalysisMap>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -371,6 +378,7 @@ pub fn compile_source_all(source: &str) -> Result<CompilationArtifacts, SourceCo
     Ok(CompilationArtifacts {
         javascript,
         source_map: None,
+        analysis_map: None,
         c,
         optimization_reports,
     })
@@ -424,16 +432,18 @@ fn compile_path_explained_inner(
             )),
         ));
     }
-    let source_map = build_selected_source_map(
+    let debug_artifacts = build_selected_debug_artifacts(
         &selected,
         &modules,
         config.config_dir.as_deref().or_else(|| path.parent()),
         config,
+        None,
     )
     .map_err(|error| module_compile_error(&modules, error))?;
     Ok(JavaScriptCompilation {
         javascript: selected.javascript,
-        source_map,
+        source_map: debug_artifacts.source_map,
+        analysis_map: debug_artifacts.analysis_map,
         optimization_reports: selected.optimization_reports,
         selection_metrics: selected.selection_metrics,
         abi_manifest: selected.abi_manifest,
@@ -441,14 +451,25 @@ fn compile_path_explained_inner(
     })
 }
 
-fn build_selected_source_map(
+struct JavaScriptDebugArtifacts {
+    source_map: Option<JavaScriptSourceMap>,
+    analysis_map: Option<JavaScriptAnalysisMap>,
+}
+
+fn build_selected_debug_artifacts(
     selected: &OptimizedJavascriptCandidate,
     modules: &ModuleSet,
     source_base: Option<&Path>,
     config: &ProjectConfig,
-) -> Result<Option<JavaScriptSourceMap>, CompileError> {
-    if !config.javascript.source_map.enabled {
-        return Ok(None);
+    file_name: Option<&str>,
+) -> Result<JavaScriptDebugArtifacts, CompileError> {
+    let source_map_enabled = config.javascript.source_map.enabled;
+    let analysis_level = config.javascript.analysis_map.level;
+    if !source_map_enabled && !analysis_level.enabled() {
+        return Ok(JavaScriptDebugArtifacts {
+            source_map: None,
+            analysis_map: None,
+        });
     }
     let trace = selected.source_trace.as_ref().ok_or_else(|| {
         crate::codegen_js::CodegenError::new(
@@ -456,22 +477,86 @@ fn build_selected_source_map(
             "selected JavaScript is missing its source provenance trace",
         )
     })?;
-    build_javascript_source_map(
+    let composed = compose_javascript_provenance(
         &selected.javascript,
         trace,
-        &selected.artifact_witness,
+        Some(&selected.artifact_witness),
         modules,
-        source_base,
-        config.javascript.source_map.include_sources_content,
     )
-    .map(Some)
     .map_err(|error| {
-        crate::codegen_js::CodegenError::new(
+        CompileError::from(crate::codegen_js::CodegenError::new(
             Span::empty(0),
-            format!("failed to build JavaScript source map: {error}"),
-        )
-        .into()
+            format!("failed to compose JavaScript debug provenance: {error}"),
+        ))
+    })?;
+    let source_map = source_map_enabled
+        .then(|| {
+            build_javascript_source_map_from_provenance(
+                &selected.javascript,
+                &composed,
+                modules,
+                source_base,
+                config.javascript.source_map.include_sources_content,
+            )
+        })
+        .transpose()
+        .map_err(|error| {
+            CompileError::from(crate::codegen_js::CodegenError::new(
+                Span::empty(0),
+                format!("failed to build JavaScript source map: {error}"),
+            ))
+        })?;
+    let analysis_map = analysis_level
+        .enabled()
+        .then(|| {
+            build_javascript_analysis_map(AnalysisMapBuildContext {
+                generated: &selected.javascript,
+                file_name,
+                trace,
+                composed: &composed,
+                modules,
+                source_base,
+                level: analysis_level,
+                search: analysis_search_evidence(&selected.selection_metrics),
+            })
+        })
+        .transpose()
+        .map_err(|error| {
+            CompileError::from(crate::codegen_js::CodegenError::new(
+                Span::empty(0),
+                format!("failed to build JavaScript analysis map: {error}"),
+            ))
+        })?;
+    Ok(JavaScriptDebugArtifacts {
+        source_map,
+        analysis_map,
     })
+}
+
+fn analysis_search_evidence(
+    metrics: &JavaScriptSelectionMetrics,
+) -> JavaScriptAnalysisSearchEvidence {
+    JavaScriptAnalysisSearchEvidence {
+        strategy: if metrics.search_stop_reason == "search-disabled" {
+            "configured-emission"
+        } else {
+            "bounded-candidate-search"
+        }
+        .to_string(),
+        objective: metrics.codec.clone(),
+        selected_transfer_bytes: Some(metrics.transfer_bytes),
+        candidates_evaluated: Some(metrics.candidates_evaluated),
+        plans_registered: Some(metrics.plans_registered),
+        emissions_attempted: Some(metrics.emissions_attempted),
+        terminal_codec_probes: Some(metrics.terminal_codec_probes),
+        terminal_scope_naming_selected: Some(metrics.decisions.terminal_scope_naming_selected),
+        terminal_scope_naming_incumbent_bytes: metrics
+            .decisions
+            .terminal_scope_naming_incumbent_bytes,
+        terminal_scope_naming_best_bytes: metrics.decisions.terminal_scope_naming_best_bytes,
+        search_stop_reason: Some(metrics.search_stop_reason.clone()),
+        decision_registry_version: metrics.decision_registry_version,
+    }
 }
 
 pub fn profile_template_path_configured(
@@ -640,8 +725,15 @@ fn compile_javascript_bundle_from_ir<'src>(
             })
             .collect(),
     };
-    let (mut emitted, source_traces) = if config.javascript.source_map.enabled {
-        emit_optimized_ir_js_chunks_source_traces_with_options(&ir, &selected_plan.options, &plan)
+    let capture_debug_provenance =
+        config.javascript.source_map.enabled || config.javascript.analysis_map.level.enabled();
+    let (mut emitted, source_traces) = if capture_debug_provenance {
+        emit_optimized_ir_js_chunks_source_traces_with_options(
+            &ir,
+            &selected_plan.options,
+            &plan,
+            config.javascript.analysis_map.level.enabled(),
+        )
     } else {
         emit_optimized_ir_js_chunks_with_options(&ir, &selected_plan.options, &plan)
             .map(|chunks| (chunks, Vec::new()))
@@ -661,7 +753,7 @@ fn compile_javascript_bundle_from_ir<'src>(
             .collect(),
     };
     apply_module_preloads(&mut emitted, entry_file, &preload);
-    let source_maps = if config.javascript.source_map.enabled {
+    let debug_artifacts = if capture_debug_provenance {
         if source_traces.len() != emitted.len() {
             return Err(ModuleError::new(
                 &modules.modules[modules.root].path,
@@ -674,32 +766,106 @@ fn compile_javascript_bundle_from_ir<'src>(
             .iter()
             .zip(&source_traces)
             .map(|(chunk, trace)| {
-                build_javascript_source_map_from_trace(
-                    &chunk.code,
-                    trace,
-                    modules,
-                    config
-                        .config_dir
-                        .as_deref()
-                        .or_else(|| modules.modules[modules.root].path.parent()),
-                    config.javascript.source_map.include_sources_content,
-                )
-                .map(Some)
-                .map_err(|error| {
-                    ModuleError::new(
-                        &modules.modules[modules.root].path,
-                        &modules.modules[modules.root].source,
-                        Span::empty(0),
-                        format!(
-                            "failed to build source map for chunk `{}`: {error}",
-                            chunk.file_name
-                        ),
-                    )
+                let composed = compose_javascript_provenance(&chunk.code, trace, None, modules)
+                    .map_err(|error| {
+                        ModuleError::new(
+                            &modules.modules[modules.root].path,
+                            &modules.modules[modules.root].source,
+                            Span::empty(0),
+                            format!(
+                                "failed to compose debug provenance for chunk `{}`: {error}",
+                                chunk.file_name
+                            ),
+                        )
+                    })?;
+                let source_base = config
+                    .config_dir
+                    .as_deref()
+                    .or_else(|| modules.modules[modules.root].path.parent());
+                let source_map = config
+                    .javascript
+                    .source_map
+                    .enabled
+                    .then(|| {
+                        build_javascript_source_map_from_provenance(
+                            &chunk.code,
+                            &composed,
+                            modules,
+                            source_base,
+                            config.javascript.source_map.include_sources_content,
+                        )
+                    })
+                    .transpose()
+                    .map_err(|error| {
+                        ModuleError::new(
+                            &modules.modules[modules.root].path,
+                            &modules.modules[modules.root].source,
+                            Span::empty(0),
+                            format!(
+                                "failed to build source map for chunk `{}`: {error}",
+                                chunk.file_name
+                            ),
+                        )
+                    })?;
+                let analysis_map = config
+                    .javascript
+                    .analysis_map
+                    .level
+                    .enabled()
+                    .then(|| {
+                        build_javascript_analysis_map(AnalysisMapBuildContext {
+                            generated: &chunk.code,
+                            file_name: Some(&chunk.file_name),
+                            trace,
+                            composed: &composed,
+                            modules,
+                            source_base,
+                            level: config.javascript.analysis_map.level,
+                            search: JavaScriptAnalysisSearchEvidence {
+                                strategy: "selected-chunk-plan".to_string(),
+                                objective: compression_cost_model_name(
+                                    config.javascript.cost_model,
+                                )
+                                .to_string(),
+                                selected_transfer_bytes: None,
+                                candidates_evaluated: None,
+                                plans_registered: None,
+                                emissions_attempted: None,
+                                terminal_codec_probes: None,
+                                terminal_scope_naming_selected: None,
+                                terminal_scope_naming_incumbent_bytes: None,
+                                terminal_scope_naming_best_bytes: None,
+                                search_stop_reason: Some("chunk-plan-selected".to_string()),
+                                decision_registry_version:
+                                    crate::decision_registry::DECISION_REGISTRY_VERSION,
+                            },
+                        })
+                    })
+                    .transpose()
+                    .map_err(|error| {
+                        ModuleError::new(
+                            &modules.modules[modules.root].path,
+                            &modules.modules[modules.root].source,
+                            Span::empty(0),
+                            format!(
+                                "failed to build analysis map for chunk `{}`: {error}",
+                                chunk.file_name
+                            ),
+                        )
+                    })?;
+                Ok(JavaScriptDebugArtifacts {
+                    source_map,
+                    analysis_map,
                 })
             })
             .collect::<Result<Vec<_>, ModuleError>>()?
     } else {
-        vec![None; emitted.len()]
+        (0..emitted.len())
+            .map(|_| JavaScriptDebugArtifacts {
+                source_map: None,
+                analysis_map: None,
+            })
+            .collect()
     };
     let depths = chunk_dependency_depths(&emitted, entry_file);
     let reachability = chunk_reachability(&emitted);
@@ -818,11 +984,12 @@ fn compile_javascript_bundle_from_ir<'src>(
     );
     let files = emitted
         .into_iter()
-        .zip(source_maps)
-        .map(|(chunk, source_map)| JavaScriptBundleFile {
+        .zip(debug_artifacts)
+        .map(|(chunk, debug)| JavaScriptBundleFile {
             file_name: chunk.file_name,
             code: chunk.code,
-            source_map,
+            source_map: debug.source_map,
+            analysis_map: debug.analysis_map,
         })
         .collect::<Vec<_>>();
     let bundle = JavaScriptBundle {
@@ -1518,6 +1685,7 @@ fn compile_program_all<'ast, 'src>(
     Ok(CompilationArtifacts {
         javascript,
         source_map: None,
+        analysis_map: None,
         c,
         optimization_reports,
     })
@@ -1548,7 +1716,9 @@ fn compile_program_all_configured_inner<'ast, 'src>(
     let semantics = analyze(program)?;
     let javascript_ir = lower_to_control_flow(program, &semantics)?;
     let mut native_ir = javascript_ir.clone();
-    let selected = if source_context.is_some() && config.javascript.source_map.enabled {
+    let selected = if source_context.is_some()
+        && (config.javascript.source_map.enabled || config.javascript.analysis_map.level.enabled())
+    {
         optimize_and_select_javascript_with_source_trace(javascript_ir, config, false)?
     } else {
         optimize_and_select_javascript(javascript_ir, config, false)?
@@ -1562,15 +1732,19 @@ fn compile_program_all_configured_inner<'ast, 'src>(
         &native_guidance,
     )?;
     let c = emit_native_c_with_options(&native_ir, &config.native_options())?;
-    let source_map = source_context
+    let debug_artifacts = source_context
         .map(|(modules, source_base)| {
-            build_selected_source_map(&selected, modules, source_base, config)
+            build_selected_debug_artifacts(&selected, modules, source_base, config, None)
         })
         .transpose()?
-        .flatten();
+        .unwrap_or(JavaScriptDebugArtifacts {
+            source_map: None,
+            analysis_map: None,
+        });
     Ok(CompilationArtifacts {
         javascript: selected.javascript,
-        source_map,
+        source_map: debug_artifacts.source_map,
+        analysis_map: debug_artifacts.analysis_map,
         c,
         optimization_reports: selected.optimization_reports,
     })
@@ -1650,7 +1824,7 @@ fn optimize_and_select_javascript<'src>(
     config: &ProjectConfig,
     module_output: bool,
 ) -> Result<OptimizedJavascriptCandidate, CompileError> {
-    optimize_and_select_javascript_with_provenance(ir, config, module_output, false)
+    optimize_and_select_javascript_with_provenance(ir, config, module_output, false, false)
 }
 
 fn optimize_and_select_javascript_with_source_trace<'src>(
@@ -1662,7 +1836,8 @@ fn optimize_and_select_javascript_with_source_trace<'src>(
         ir,
         config,
         module_output,
-        config.javascript.source_map.enabled,
+        config.javascript.source_map.enabled || config.javascript.analysis_map.level.enabled(),
+        config.javascript.analysis_map.level.enabled(),
     )
 }
 
@@ -1671,6 +1846,7 @@ fn optimize_and_select_javascript_with_provenance<'src>(
     config: &ProjectConfig,
     module_output: bool,
     capture_source_trace: bool,
+    capture_mangling_analysis: bool,
 ) -> Result<OptimizedJavascriptCandidate, CompileError> {
     let contract = config.javascript_compilation_contract(module_output);
     let objective = config.javascript_optimization_objective();
@@ -1682,6 +1858,7 @@ fn optimize_and_select_javascript_with_provenance<'src>(
             module_output,
             contract.abi.preserve_root_exports,
             capture_source_trace,
+            capture_mangling_analysis,
         )
     })
 }
@@ -1718,6 +1895,7 @@ fn optimize_and_select_javascript_inner<'src>(
     module_output: bool,
     preserve_exports: bool,
     capture_source_trace: bool,
+    capture_mangling_analysis: bool,
 ) -> Result<OptimizedJavascriptCandidate, CompileError> {
     let started = Instant::now();
     let mut ir = ir;
@@ -2323,7 +2501,7 @@ fn optimize_and_select_javascript_inner<'src>(
         .then(|| {
             contexts
                 .get(selected.plan_identity.context_id)
-                .source_trace(module_output, selected_options)
+                .source_trace(module_output, selected_options, capture_mangling_analysis)
         })
         .transpose()?;
     let search_ctx =
@@ -2990,6 +3168,7 @@ impl<'ir, 'src> JavaScriptEmissionContext<'ir, 'src> {
         &self,
         module_output: bool,
         options: crate::codegen_ir_js::IrJsOptions,
+        capture_mangling_analysis: bool,
     ) -> Result<IrJsSourceTrace, crate::codegen_js::CodegenError> {
         let (ir, integer_analysis) = if options.constructor_initializer_fusion {
             self.constructor_fused()
@@ -3003,6 +3182,7 @@ impl<'ir, 'src> JavaScriptEmissionContext<'ir, 'src> {
             module_output,
             &options,
             integer_analysis,
+            capture_mangling_analysis,
         )
     }
 
@@ -10375,8 +10555,8 @@ fn render_message_diagnostic(path: &Path, source: &str, span: Span, message: &st
 mod tests {
     use super::*;
     use crate::config::{
-        CandidateSearch, CompressionDecision, JavaScriptOptimization, JavaScriptPriority,
-        OptimizationPreset, StartupCostConfig,
+        CandidateSearch, CompressionDecision, JavaScriptAnalysisMapLevel, JavaScriptOptimization,
+        JavaScriptPriority, OptimizationPreset, StartupCostConfig,
     };
 
     #[test]
@@ -10545,6 +10725,193 @@ mod tests {
     }
 
     #[test]
+    fn analysis_maps_explain_selected_mangling_without_changing_javascript() {
+        let nonce = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let directory = std::env::temp_dir().join(format!(
+            "lilscript-analysis-map-{}-{nonce}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&directory).unwrap();
+        let main = directory.join("main.lil");
+        std::fs::write(
+            &main,
+            r#"
+                extern class DebugOptions {
+                  JsValue a;
+                  JsValue descriptiveProperty;
+                }
+
+                export JsValue buildDebugOptions(int descriptiveValue) {
+                  DebugOptions options = JS.assume(JS.object());
+                  options.a = descriptiveValue;
+                  options.descriptiveProperty = descriptiveValue;
+                  return options;
+                }
+            "#,
+        )
+        .unwrap();
+
+        let mut baseline_config = ProjectConfig {
+            config_dir: Some(directory.clone()),
+            ..ProjectConfig::default()
+        };
+        baseline_config.javascript.candidate_search = CandidateSearch::Off;
+        baseline_config.mangle.identifiers = Some(true);
+        baseline_config.mangle.properties = Some(true);
+        baseline_config.mangle.exports = Some(true);
+        baseline_config.mangle.extern_fields = Some(false);
+        let baseline =
+            compile_path_to_js_module_explained_configured(&main, &baseline_config).unwrap();
+        assert!(baseline.source_map.is_none());
+        assert!(baseline.analysis_map.is_none());
+
+        let mut summary_config = baseline_config.clone();
+        summary_config.javascript.analysis_map.level = JavaScriptAnalysisMapLevel::Summary;
+        let summary =
+            compile_path_to_js_module_explained_configured(&main, &summary_config).unwrap();
+        assert_eq!(summary.javascript, baseline.javascript);
+        assert!(summary.source_map.is_none());
+        let summary_map = summary.analysis_map.expect("summary analysis map");
+        assert!(summary_map.matches_javascript(&summary.javascript));
+        assert!(summary_map.decision_count() > 0);
+        assert!(summary_map.mangled_count() > 0);
+        let summary_json: serde_json::Value = serde_json::from_str(summary_map.as_str()).unwrap();
+        assert_eq!(summary_json["version"], 1);
+        assert_eq!(summary_json["kind"], "lilscript-javascript-analysis-map");
+        assert_eq!(summary_json["level"], "summary");
+        assert_eq!(summary_json["search"]["strategy"], "configured-emission");
+        assert_eq!(
+            summary_json["configuration"]["manglingPolicySha256"]
+                .as_str()
+                .map(str::len),
+            Some(64)
+        );
+        assert_eq!(
+            summary_json["artifact"]["sha256"],
+            summary_map.artifact_sha256()
+        );
+        let summary_decisions = summary_json["decisions"].as_array().unwrap();
+        assert!(summary_decisions
+            .iter()
+            .any(|decision| decision["kind"] == "identifier"));
+        assert!(summary_decisions
+            .iter()
+            .any(|decision| decision["kind"] == "property"));
+        assert!(summary_decisions
+            .iter()
+            .any(|decision| decision["kind"] == "export"));
+        assert!(summary_decisions
+            .iter()
+            .all(|decision| decision.get("rules").is_none()));
+
+        let mut full_config = summary_config.clone();
+        full_config.javascript.analysis_map.level = JavaScriptAnalysisMapLevel::Full;
+        let full = compile_path_to_js_module_explained_configured(&main, &full_config).unwrap();
+        assert_eq!(full.javascript, baseline.javascript);
+        let full_map = full.analysis_map.expect("full analysis map");
+        let full_json: serde_json::Value = serde_json::from_str(full_map.as_str()).unwrap();
+        assert_eq!(full_json["level"], "full");
+        assert!(full_json["decisions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|decision| {
+                decision["rules"]
+                    .as_array()
+                    .is_some_and(|rules| !rules.is_empty())
+            }));
+        assert!(full_json["decisions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|decision| {
+                let primary = decision["primaryRule"].as_str().unwrap();
+                decision["rules"].as_array().unwrap().iter().any(|rule| {
+                    rule["rule"] == primary
+                        && matches!(rule["result"].as_str(), Some("matched" | "applied"))
+                })
+            }));
+        assert!(full_json["decisions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|decision| {
+                decision["rules"].as_array().unwrap().iter().any(|rule| {
+                    rule["rule"] == "identifier.reserved-and-capture-exclusion"
+                        && rule["result"] == "applied"
+                })
+            }));
+        let allocator_identity = full_json["decisions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|decision| decision["kind"] == "property" && decision["source"]["name"] == "a")
+            .expect("property whose allocated spelling equals its source spelling");
+        assert_eq!(allocator_identity["generated"]["name"], "a");
+        assert_eq!(allocator_identity["outcome"], "preserved");
+        assert_eq!(
+            allocator_identity["primaryRule"],
+            "property.shared-frequency-ranked"
+        );
+
+        let mut stable_boundary_config = baseline_config.clone();
+        stable_boundary_config.javascript.analysis_map.level = JavaScriptAnalysisMapLevel::Full;
+        stable_boundary_config.mangle.extern_fields = Some(true);
+        stable_boundary_config.mangle.exports = Some(false);
+        let stable_boundary =
+            compile_path_to_js_module_explained_configured(&main, &stable_boundary_config).unwrap();
+        let stable_json: serde_json::Value = serde_json::from_str(
+            stable_boundary
+                .analysis_map
+                .as_ref()
+                .expect("stable-boundary analysis map")
+                .as_str(),
+        )
+        .unwrap();
+        let stable_decisions = stable_json["decisions"].as_array().unwrap();
+        let stable_property = stable_decisions
+            .iter()
+            .find(|decision| {
+                decision["kind"] == "property"
+                    && decision["source"]["name"] == "descriptiveProperty"
+            })
+            .expect("extern property decision");
+        assert_eq!(stable_property["generated"]["name"], "descriptiveProperty");
+        assert_eq!(stable_property["outcome"], "preserved");
+        assert_eq!(stable_property["primaryRule"], "property.external-abi");
+        assert!(stable_property["rules"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|rule| {
+                rule["rule"] == "property.external-abi" && rule["result"] == "matched"
+            }));
+        let stable_export = stable_decisions
+            .iter()
+            .find(|decision| decision["kind"] == "export")
+            .expect("stable export decision");
+        assert_eq!(stable_export["generated"]["name"], "buildDebugOptions");
+        assert_eq!(stable_export["outcome"], "preserved");
+        assert_eq!(stable_export["primaryRule"], "export.public-name-preserved");
+
+        let repeated = compile_path_to_js_module_explained_configured(&main, &full_config).unwrap();
+        assert_eq!(repeated.javascript, full.javascript);
+        assert_eq!(repeated.analysis_map.as_ref(), Some(&full_map));
+
+        let mut both_config = full_config;
+        both_config.javascript.source_map.enabled = true;
+        let both = compile_path_to_js_module_explained_configured(&main, &both_config).unwrap();
+        assert_eq!(both.javascript, baseline.javascript);
+        assert!(both.source_map.is_some());
+        assert_eq!(both.analysis_map.as_ref(), Some(&full_map));
+
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
     #[ignore = "explicit real-library source-map transparency audit"]
     fn source_maps_are_transparent_across_real_libraries() {
         let root = Path::new(env!("CARGO_MANIFEST_DIR"));
@@ -10653,6 +11020,132 @@ mod tests {
         assert!(
             audited > 0,
             "unknown source-map audit filter: {requested:?}"
+        );
+    }
+
+    #[test]
+    #[ignore = "explicit real-library analysis-map transparency/performance audit"]
+    fn analysis_maps_are_transparent_across_real_libraries() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+        let cases = [
+            (
+                "clsx",
+                "benchmarks/popular/ports/clsx/index.lil",
+                Some("benchmarks/popular/ports/clsx/lilscript.toml"),
+            ),
+            (
+                "mitt",
+                "benchmarks/popular/ports/mitt/index.lil",
+                Some("benchmarks/popular/ports/mitt/lilscript.toml"),
+            ),
+            (
+                "acorn",
+                "benchmarks/popular/ports/acorn/index.lil",
+                Some("benchmarks/popular/ports/acorn/lilscript.toml"),
+            ),
+            (
+                "robust-predicates",
+                "benchmarks/libraries/ports/robust-predicates/index.lil",
+                None,
+            ),
+            (
+                "mobx",
+                "benchmarks/popular/ports/mobx/src/mobx.lil",
+                Some("benchmarks/popular/ports/mobx/lilscript.toml"),
+            ),
+        ];
+        let requested = std::env::var("LILSCRIPT_ANALYSIS_MAP_AUDIT").ok();
+        let mut audited = 0usize;
+        for (name, entry, config_path) in cases {
+            if requested
+                .as_deref()
+                .is_some_and(|requested| requested != name)
+            {
+                continue;
+            }
+            audited += 1;
+            let entry = root.join(entry);
+            let mut config = if let Some(config_path) = config_path {
+                crate::config::load_project_config(&entry, Some(&root.join(config_path)))
+                    .unwrap()
+                    .config
+            } else {
+                ProjectConfig {
+                    config_dir: entry.parent().map(Path::to_path_buf),
+                    ..ProjectConfig::default()
+                }
+            };
+            config.javascript.candidate_search = CandidateSearch::Off;
+            config.javascript.source_map.enabled = false;
+            config.javascript.analysis_map.level = JavaScriptAnalysisMapLevel::Off;
+            let baseline_started = Instant::now();
+            let baseline = compile_path_to_js_module_explained_configured(&entry, &config).unwrap();
+            let baseline_elapsed = baseline_started.elapsed();
+            assert!(baseline.analysis_map.is_none(), "{name}");
+
+            config.javascript.analysis_map.level = JavaScriptAnalysisMapLevel::Full;
+            let analyzed_started = Instant::now();
+            let analyzed = compile_path_to_js_module_explained_configured(&entry, &config).unwrap();
+            let analyzed_elapsed = analyzed_started.elapsed();
+            assert_eq!(baseline.javascript, analyzed.javascript, "{name}");
+            let map = analyzed.analysis_map.expect("full analysis map");
+            assert!(map.matches_javascript(&analyzed.javascript), "{name}");
+            assert!(map.decision_count() > 0, "{name}");
+            let json: serde_json::Value = serde_json::from_str(map.as_str()).unwrap();
+            assert_eq!(json["version"], 1, "{name}");
+            assert_eq!(json["level"], "full", "{name}");
+            assert_eq!(
+                json["summary"]["decisions"].as_u64().unwrap() as usize,
+                json["decisions"].as_array().unwrap().len(),
+                "{name}"
+            );
+            assert!(json["sources"].as_array().unwrap().iter().all(|source| {
+                source["path"]
+                    .as_str()
+                    .is_some_and(|path| path.ends_with(".lil"))
+                    && source["sha256"]
+                        .as_str()
+                        .is_some_and(|hash| hash.len() == 64)
+            }));
+            assert!(json["decisions"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .all(|decision| {
+                    decision["rules"]
+                        .as_array()
+                        .is_some_and(|rules| !rules.is_empty())
+                }));
+            assert!(
+                json["decisions"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .all(|decision| {
+                        let primary = decision["primaryRule"].as_str().unwrap();
+                        decision["rules"].as_array().unwrap().iter().any(|rule| {
+                            rule["rule"] == primary
+                                && matches!(rule["result"].as_str(), Some("matched" | "applied"))
+                        })
+                    }),
+                "{name}"
+            );
+            let repeated = compile_path_to_js_module_explained_configured(&entry, &config).unwrap();
+            assert_eq!(repeated.javascript, analyzed.javascript, "{name}");
+            assert_eq!(repeated.analysis_map.as_ref(), Some(&map), "{name}");
+            eprintln!(
+                "analysis-map audit {name}: {} JS bytes, {} map bytes, {} decisions, {} mangled, off {:?}, full {:?}",
+                analyzed.javascript.len(),
+                map.as_str().len(),
+                map.decision_count(),
+                map.mangled_count(),
+                baseline_elapsed,
+                analyzed_elapsed,
+            );
+        }
+        assert!(
+            audited > 0,
+            "unknown analysis-map audit filter: {requested:?}"
         );
     }
 
@@ -19807,6 +20300,7 @@ mod tests {
         let without_maps =
             compile_path_to_js_bundle_configured(&main, &config, "entry.js").unwrap();
         config.javascript.source_map.enabled = true;
+        config.javascript.analysis_map.level = JavaScriptAnalysisMapLevel::Full;
         let bundle = compile_path_to_js_bundle_configured(&main, &config, "entry.js").unwrap();
         for _ in 0..8 {
             assert_eq!(
@@ -19831,6 +20325,11 @@ mod tests {
             let source_map = file.source_map.as_ref().expect("chunk source map");
             assert!(source_map.mapping_count() > 0, "{}", file.file_name);
             sourcemap::decode_slice(source_map.as_str().as_bytes()).unwrap();
+            let analysis_map = file.analysis_map.as_ref().expect("chunk analysis map");
+            assert!(analysis_map.matches_javascript(&file.code));
+            let json: serde_json::Value = serde_json::from_str(analysis_map.as_str()).unwrap();
+            assert_eq!(json["artifact"]["file"], file.file_name);
+            assert_eq!(json["level"], "full");
         }
         assert_eq!(bundle.manifest.chunks.len(), 1);
         assert_eq!(bundle.manifest.chunks[0].modules, ["library.lil"]);
@@ -20110,6 +20609,7 @@ mod tests {
                 file_name: chunk.file_name,
                 code: chunk.code,
                 source_map: None,
+                analysis_map: None,
             })
             .collect::<Vec<_>>();
 
