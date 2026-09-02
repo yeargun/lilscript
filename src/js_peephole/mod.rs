@@ -1035,12 +1035,63 @@ fn analyze_generated_javascript_inner(
     validate_generated_declaration_syntax(source, &tokens)?;
     validate_generated_bare_arrow_parameters(&tokens)?;
     validate_conditional_operators(&tokens)?;
+    validate_conditional_arm_sequences(&tokens)?;
     validate_unique_top_level_bindings(&tokens)?;
     validate_class_body_members(&tokens)?;
     validate_for_heads(&tokens)?;
     validate_resolved_generated_bindings(&tokens)?;
     let parsed = parse_expression_regions(&tokens);
     Ok(syntax_metrics(source, &tokens, &parsed, delimiter_nesting))
+}
+
+/// Either arm of a conditional is an AssignmentExpression, so a `,` at the
+/// arm's own bracket level between a `?` and its `:` is a syntax error node
+/// refuses: `a?b,c:d`. The pairing check above admits it, because every `?`
+/// still meets its `:`, and a fold that stripped a sequence's parentheses as
+/// it moved the sequence into an arm shipped exactly that (044). A bracket
+/// opens a fresh frame, so `a?(b,c):d`, `a?[b,c]:d`, `a?{b:1,c:2}:d` and
+/// `a?f(b,c):d` pass; after the `:` the count is back to zero, so `a?b:c,d`
+/// -- a sequence whose first element is the conditional -- passes too.
+fn validate_conditional_arm_sequences(tokens: &[Token<'_>]) -> Result<(), JavaScriptParseError> {
+    // Open `?` operators still waiting for their `:`, one count per frame.
+    let mut pending = vec![0usize];
+    for (index, token) in tokens.iter().enumerate() {
+        match token.text {
+            "(" | "[" | "{" => pending.push(0),
+            ")" | "]" | "}" => {
+                if pending.len() > 1 {
+                    pending.pop();
+                }
+            }
+            "?" => {
+                // `?.` reaches the lexer as `?` then `.`; it opens no arm.
+                let optional_chain = tokens
+                    .get(index + 1)
+                    .is_some_and(|next| next.text == "." && next.start == token.end);
+                if !optional_chain {
+                    if let Some(open) = pending.last_mut() {
+                        *open += 1;
+                    }
+                }
+            }
+            ":" => {
+                if let Some(open) = pending.last_mut() {
+                    *open = open.saturating_sub(1);
+                }
+            }
+            "," => {
+                if pending.last().is_some_and(|open| *open > 0) {
+                    return Err(JavaScriptParseError {
+                        offset: token.start,
+                        message: "sequence in a conditional arm without parentheses",
+                        context: None,
+                    });
+                }
+            }
+            _ => {}
+        }
+    }
+    Ok(())
 }
 
 /// The tokenizer marks contextual words such as `of` and `as` as keywords even

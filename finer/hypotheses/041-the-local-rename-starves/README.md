@@ -1,11 +1,11 @@
 # 041 — the local rename starves
 
-**Status: FALSIFIED AS STATED; THE PASS DOES NOT RUN FOR ANOTHER REASON.** The ledger never starves
-it (`rename_starved=0`); it rewrites nothing on any jquery candidate because the resolver calls a
-second `var t` in one function ambiguous and the pass demands a total resolution (`rename.rs:46-48`).
-Narrowed, it is −765 Brotli on the finished artifact and −733 through the pipeline (one binary, one
-variable) but ships a syntax error from `fold_common_conditional_arms`, so it is held as
-`finer/out/041/narrow-the-bail.patch`, not landed. Closed 2026-09-02.
+**Status: FALSIFIED AS STATED; THE PASS DID NOT RUN FOR ANOTHER REASON — NARROWING LANDED.** The
+ledger never starves it (`rename_starved=0`); it rewrote nothing on any jquery candidate because the
+resolver calls a second `var t` in one function ambiguous and the pass demanded a total resolution
+(`rename.rs:46-48`). Narrowed to unsound scopes it is in the tree behind 044's fold fix: fleet A/B
+jquerylil −663 Brotli (28641), remarklil −2094, rehypelil −766, remark-gfmlil −277,
+markedlil −62, no port worse, 1663/1663. Closed 2026-09-02.
 Lane: compiler. Objective: brotli. Ports: jquerylil first; micromarklil (template-literal bail);
 fleet A/B before landing. Opened: 2026-09-01.
 
@@ -118,9 +118,10 @@ The site: tree `A?B?(o=…,s=u in e,s&&(r=e[u])):s=o:s=o`, narrowed `A&&B?o=…,
 (`src/js_peephole/folds/boolean.rs:2352-2360`), and `analyze_generated_javascript` admits `a?b,c:d`;
 `node` refuses it. The converged candidate validates.
 
-**C** — not reached: A is falsified as a mechanism and the narrowed build fails its gate. No fleet A/B;
-`step-c-fleet.sh` and `scoreboard.baseline.json` are ready. Suite on the tree as left (counters,
-artifact test, shipped bail): 1660 passed, 0 failed.
+**C** (with 044; two full fleet passes, one binary each; [measurements.md](measurements.md) §C):
+jquerylil 29304 → 28641 (**−663**), 40 headers, 6/6; remarklil −2094, rehypelil −766,
+remark-gfmlil −277, markedlil −62, mdast-util-to-hast −2, fifteen ports byte-identical, none worse;
+every changed port passes its own tests. Suite 1663/1663.
 
 ## Verdict
 
@@ -138,9 +139,9 @@ names, the headers diverge to 90–91 spellings, and no later stage re-converges
 **B confirmed once the gate is opened.** Over the finished tree artifact the narrowed pass reaches
 25 spellings and 28505 Brotli, Terser's locals-only figure exactly, 6/6.
 Through the pipeline it is −733 against a one-variable baseline, 40 spellings left because the
-remaps after it re-diverge some — and it ships `a?b,c:d`, a latent bug in
-`fold_common_conditional_arms` the validator does not catch. Correctness outranks the byte, so the
-narrowing is a patch in this folder, not a change in the tree; the tree keeps the exit counters and the artifact test.
+remaps after it re-diverge some — and it shipped `a?b,c:d`, a latent bug in
+`fold_common_conditional_arms` the validator did not catch (044, fixed). With that fix the
+narrowing is in the tree: −663 on jquerylil and −3201 across the fleet's other ports.
 
 The narrowing is sound by construction: every token of an ambiguous name resolves `Unresolved`
 (`binding.rs:649-652`), which the pass blocks in every scope containing one (`rename.rs:126-128`),
@@ -151,11 +152,9 @@ included, into one token; mobx's rest parameter `(s,p,...c)` is an unsound scope
 
 ## Next
 
-1. **Fix the fold, then land the patch.** `fold_common_conditional_arms` must re-parenthesize a
-   `then_value`/`else_value` whose stripped range holds a top-level comma (anything below
-   AssignmentExpression), and the validator must refuse `?a,b:c`. Then `git apply
-   finer/out/041/narrow-the-bail.patch`, suite, and the fleet A/B with `step-c-fleet.sh` against
-   `scoreboard.baseline.json`: jquerylil about −733 against 29304, micromarklil and mobxlil 0.
+1. **Done with 044**: the fold re-parenthesizes, the validator refuses `?a,b:c`, the patch is
+   applied; jquerylil −663 (predicted −733), micromarklil and mobxlil 0 as predicted. Commit,
+   then refresh status.md's jquerylil row from the tree artifact and ship it with an `animate` test.
 2. **Run the pass last, ungated, scored**, as `apply_selected_canonical_peephole` runs the canonical
    rewrite (1632fb1): the finished artifact converges to 25 spellings, the pipeline to 40, because
    the remaps after the beam undo part of it.

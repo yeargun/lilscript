@@ -2298,8 +2298,8 @@ pub(crate) fn fold_common_conditional_arms(
                         inner_question,
                         false,
                     );
-                    let then_value = expression_range_text(&output, &tokens, outer_then);
-                    let else_value = expression_range_text(
+                    let then_value = conditional_arm_text(&output, &tokens, outer_then);
+                    let else_value = conditional_arm_text(
                         &output,
                         &tokens,
                         strip_parenthesized_range(
@@ -2348,7 +2348,7 @@ pub(crate) fn fold_common_conditional_arms(
                         inner_question,
                         true,
                     );
-                    let then_value = expression_range_text(
+                    let then_value = conditional_arm_text(
                         &output,
                         &tokens,
                         strip_parenthesized_range(
@@ -2358,7 +2358,7 @@ pub(crate) fn fold_common_conditional_arms(
                             inner_colon,
                         ),
                     );
-                    let else_value = expression_range_text(&output, &tokens, outer_else);
+                    let else_value = conditional_arm_text(&output, &tokens, outer_else);
                     replacement = Some((
                         tokens[condition_start].start,
                         tokens[end - 1].end,
@@ -2391,6 +2391,22 @@ fn strip_parenthesized_range(
         end -= 1;
     }
     (start, end)
+}
+
+/// The text of an arm this fold re-emits after `strip_parenthesized_range`.
+/// Either arm of a conditional is an AssignmentExpression, so a sequence --
+/// the one expression below that -- needs its parentheses back: rendered
+/// bare, `a?(b,c):d` became `a?b,c:d`, which node refuses (044). Terser
+/// never meets this because its printer owns the decision
+/// (`PARENS(AST_Sequence)` under an `AST_Conditional` parent); here the fold
+/// is the printer, so the rule sits at the one place it spells an arm.
+fn conditional_arm_text(source: &str, tokens: &[Token<'_>], range: (usize, usize)) -> String {
+    let text = expression_range_text(source, tokens, range);
+    if spans_top_level_comma(tokens, range.0, range.1) {
+        format!("({text})")
+    } else {
+        text.to_string()
+    }
 }
 
 fn root_ternary_question(tokens: &[Token<'_>], start: usize, end: usize) -> Option<usize> {

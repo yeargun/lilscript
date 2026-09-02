@@ -48,25 +48,27 @@ pub(crate) fn converge_local_names(source: &str) -> Result<(String, usize), Java
     // identifier bytes on.
     let alphabet = dominant_identifier_alphabet(&tokens);
     let resolution = BindingResolution::new(&tokens);
-    if !resolution.is_total() {
-        // Which of the two things `is_total` refuses: a scope the resolver
-        // could not account for (a destructured or rest parameter), or a name
-        // a function declares twice. The second closed the rewrite over all of
-        // jQuery in both its committed and its tree artifact (041); narrowing
-        // this bail to the first is `finer/out/041/narrow-the-bail.patch`,
-        // held back until `fold_common_conditional_arms` keeps the parentheses
-        // of a sequence it moves into a ternary arm.
-        let unsound = resolution
-            .function_scopes()
-            .iter()
-            .filter(|(scope, _, _)| !resolution.scope_is_sound(*scope))
-            .count();
-        if unsound > 0 {
-            crate::timing::RENAME_UNSOUND.event(unsound as u64);
-        } else {
-            crate::timing::RENAME_AMBIGUOUS.event(1);
-        }
+    // A scope the resolver could not account for -- a destructured parameter
+    // list -- resolves every use inside it, of outer bindings included, to
+    // nothing, so a rename around it would leave those uses behind: one such
+    // scope closes the whole rewrite. A name a function declares twice is
+    // not that case. Its tokens all resolve `Unresolved`, which blocks the
+    // spelling in every scope that contains one (below), and every other name
+    // in the scope still resolves exactly. Asking for a total resolution here
+    // instead treated the two alike, and the emitter's second `var t` in one
+    // function -- six of them on jQuery, in both the committed artifact and
+    // the tree build -- closed the rewrite over the whole artifact (041).
+    let unsound = resolution
+        .function_scopes()
+        .iter()
+        .filter(|(scope, _, _)| !resolution.scope_is_sound(*scope))
+        .count();
+    if unsound > 0 {
+        crate::timing::RENAME_UNSOUND.event(unsound as u64);
         return Ok((source.to_string(), 0));
+    }
+    if !resolution.is_total() {
+        crate::timing::RENAME_AMBIGUOUS.event(1);
     }
 
     let mut uses = HashMap::<usize, Vec<usize>>::new();
@@ -490,6 +492,46 @@ mod tests {
             "an unresolved scope must close the whole rewrite: {out}"
         );
         assert_eq!(out, source);
+    }
+
+    /// A function that declares one name twice (the emitter's `var t` inside a
+    /// branch after `var t` at the top) keeps that name and still converges
+    /// the rest. Six such functions closed the rewrite over all of jQuery.
+    #[test]
+    fn a_name_declared_twice_keeps_its_spelling_while_its_scope_still_converges() {
+        let source = concat!(
+            "function q(elem,key){var t=elem.x;if(!t){var r,t=\"\",a=0;",
+            "for(;a<key;a++)t+=a}return t+elem.y}",
+            "function w(key,elem){return key-elem}",
+        );
+        same_behavior(source, "console.log(q({x:0,y:'!'},3),q({x:2,y:'?'},1),w(5,2))");
+        let (out, count) = converge_local_names(source).unwrap();
+        assert!(count > 0, "the duplicate must not close the rewrite: {out}");
+        assert!(
+            out.contains("var t=") && out.contains(",t=\"\""),
+            "the duplicate keeps its name: {out}"
+        );
+        // `w` binds no `t`, so it may take it; `q` may not.
+        let header = out
+            .split("function q(")
+            .nth(1)
+            .and_then(|rest| rest.split(')').next())
+            .unwrap_or_default();
+        assert!(!header.split(',').any(|name| name == "t"), "captured `t`: {out}");
+    }
+
+    /// And an ancestor may not take the duplicated name for a binding the
+    /// inner scope reads.
+    #[test]
+    fn an_ancestor_avoids_a_name_a_descendant_declares_twice() {
+        let source = concat!(
+            "function outer(alpha){",
+            "function inner(beta){var t=beta;if(beta>1){var t=beta*2}return t+alpha}",
+            "return inner(1)+inner(3)}",
+        );
+        same_behavior(source, "console.log(outer(10))");
+        let (out, _) = converge_local_names(source).unwrap();
+        assert!(!out.contains("function outer(t)"), "captured by the inner `t`: {out}");
     }
 
     #[test]

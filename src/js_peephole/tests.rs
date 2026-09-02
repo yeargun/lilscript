@@ -1,8 +1,9 @@
 use super::folds::{
-    fold_early_exit_guards, fold_fresh_empty_array_pushes, fold_identifier_copies,
-    fold_identity_arrow_iife, fold_if_expression_to_and, fold_sequence_assignments_into_first_use,
-    fold_single_use_if_assigns, fold_single_use_temporaries,
-    fold_statement_assignments_into_first_use, fold_typeof_identifier_caches,
+    fold_common_conditional_arms, fold_early_exit_guards, fold_fresh_empty_array_pushes,
+    fold_identifier_copies, fold_identity_arrow_iife, fold_if_expression_to_and,
+    fold_sequence_assignments_into_first_use, fold_single_use_if_assigns,
+    fold_single_use_temporaries, fold_statement_assignments_into_first_use,
+    fold_typeof_identifier_caches,
 };
 use super::parse::{non_overlapping_parsed_node_count, parse_expression_regions};
 use super::token::{lex, punctuation_width};
@@ -10,10 +11,10 @@ use super::{
     analyze_generated_javascript, function_leading_declaration_variant,
     generated_javascript_bit_or_zero_count, generated_javascript_export_names,
     generated_javascript_export_witnesses, generated_javascript_static_imports,
-    generated_javascript_static_property_names, optimize_generated_javascript,
-    optimize_generated_javascript_assuming, optimize_generated_javascript_preserving_functions,
-    reorder_uninitialized_var_declarators, validate_generated_javascript_syntax_floor,
-    PeepholeResult,
+    generated_javascript_static_property_names, late_generated_javascript_cleanup_pass,
+    optimize_generated_javascript, optimize_generated_javascript_assuming,
+    optimize_generated_javascript_preserving_functions, reorder_uninitialized_var_declarators,
+    validate_generated_javascript_syntax_floor, LateJavaScriptCleanupPass, PeepholeResult,
 };
 
 const LEGACY_PUNCTUATION: [&str; 31] = [
@@ -3464,5 +3465,140 @@ fn converge_local_names_over_an_artifact_file() {
     }
     for (scope, name, offset) in ambiguous {
         println!("041 ambiguous {name:?} in scope {scope} at byte {offset}: {:?}", excerpt(offset));
+    }
+}
+
+/// 044 -- either arm of a conditional is an AssignmentExpression, so a
+/// sequence `fold_common_conditional_arms` moves into one keeps its
+/// parentheses. Each shape goes through the fold alone and through the late
+/// cleanup pass that runs it, with node as the oracle on the program's output;
+/// the last is the jquerylil site 041's narrowed rename exposed.
+#[test]
+fn a_sequence_moved_into_a_conditional_arm_keeps_its_parentheses() {
+    for (label, source, expected) in [
+        (
+            "x?(a,b):c, a common then-arm",
+            "var n=[];function f(x,y){return x?(n.push(1),y):y?(n.push(1),y):0}console.log(f(1,2),f(0,3),f(0,0),n.length)",
+            "x||y?(n.push(1),y):0",
+        ),
+        (
+            "x?c:(a,b), a common else-arm",
+            "var n=[];function g(x,y){return x?(y?1:(n.push(2),0)):(n.push(2),0)}console.log(g(1,1),g(1,0),g(0,1),n.length)",
+            "x&&y?1:(n.push(2),0)",
+        ),
+        (
+            "x?(a,b):(c,d), both arms",
+            "var n=[];function h(x,y){return x?(y?(n.push(1),1):(n.push(2),2)):(n.push(2),2)}console.log(h(1,1),h(1,0),h(0,0),n.join())",
+            "x&&y?(n.push(1),1):(n.push(2),2)",
+        ),
+        (
+            "nested ternaries",
+            "var n=[];function k(x,y,z){return x?(n.push(1),1):y?(n.push(1),1):z?(n.push(1),1):2}console.log(k(1,0,0),k(0,1,0),k(0,0,1),k(0,0,0),n.length)",
+            "x||y||z?(n.push(1),1):2",
+        ),
+        (
+            "a sequence as an arrow body",
+            "var n=[];function m(x,y){return x?()=>(n.push(1),1):y?()=>(n.push(1),1):()=>2}console.log(m(1,0)(),m(0,1)(),m(0,0)(),n.length)",
+            "x||y?()=>(n.push(1),1):()=>2",
+        ),
+        (
+            "a sequence as a call argument",
+            "var n=[];function q(v){return v*2}function p(x,y){return x?q((n.push(1),1)):y?q((n.push(1),1)):q(2)}console.log(p(1,0),p(0,1),p(0,0),n.length)",
+            "x||y?q((n.push(1),1)):q(2)",
+        ),
+        (
+            "the jquerylil site (041)",
+            "function w(a,b,e,u){var o,s,r=5;a?b?(o=\"border-box\"===e.box,s=u in e,s&&(r=e[u])):s=o:s=o;return[o,s,r]}console.log(JSON.stringify([w(1,1,{box:\"border-box\",u:9},\"u\"),w(1,0,{},\"u\"),w(0,1,{},\"u\")]))",
+            "a&&b?(o=\"border-box\"===e.box,s=u in e,s&&(r=e[u])):s=o",
+        ),
+    ] {
+        let (folded, count) = fold_common_conditional_arms(source).unwrap();
+        assert!(count >= 1, "{label}: nothing folded: {folded}");
+        assert!(folded.contains(expected), "{label}: {folded}");
+        analyze_generated_javascript(&folded)
+            .unwrap_or_else(|error| panic!("{label}: {error}: {folded}"));
+        assert_eq!(run_javascript(&folded), run_javascript(source), "{label}: {folded}");
+
+        let late = late_generated_javascript_cleanup_pass(
+            source,
+            LateJavaScriptCleanupPass::CommonConditionalArms,
+        )
+        .unwrap();
+        assert!(late.contains(expected), "{label}, late pass: {late}");
+        assert_eq!(run_javascript(&late), run_javascript(source), "{label}, late pass: {late}");
+    }
+}
+
+/// 044 -- the validator's half: a bare sequence between a `?` and its `:` is
+/// refused with a named error, so no fold can ship one again, while every
+/// bracketed or post-`:` comma still passes.
+#[test]
+fn a_bare_sequence_in_a_conditional_arm_is_refused() {
+    for source in [
+        "x?a,b:c",
+        "x?y?a,b:c:d",
+        "x?c:y?a,b:c",
+        "f(x?a,b:c)",
+        "x?a:b?c,d:e",
+        "function w(a,b,e,u,o,s,r){a&&b?o=e.box,s=u in e,s&&(r=e[u]):s=o}",
+    ] {
+        let error = analyze_generated_javascript(source).expect_err(source);
+        assert_eq!(
+            error.message, "sequence in a conditional arm without parentheses",
+            "{source}"
+        );
+    }
+    for source in [
+        "x?(a,b):c",
+        "x?a:(b,c)",
+        "x?[a,b]:c",
+        "x?f(a,b):c",
+        "x?{a:1,b:2}:c",
+        "x?a:b,c",
+        "x?a:b,y?c:d",
+        "x?()=>(a,b):c",
+        "x?function(){a,b}:c",
+        "for(x?a:b,c;;);",
+        "x?.y",
+        "a??b?c:d",
+        "var o={a:x?1:2,b:3}",
+        "function w(a,b,e,u,o,s,r){a&&b?(o=e.box,s=u in e,s&&(r=e[u])):s=o}",
+    ] {
+        analyze_generated_javascript(source).unwrap_or_else(|error| panic!("{source}: {error}"));
+    }
+}
+
+/// 044 -- `analyze_generated_javascript` over a finished artifact named by
+/// `LILSCRIPT_ANALYZE_INPUT`: prints whether admission accepts it and, when it
+/// does not, the offset, the message and the text around it. A measurement
+/// harness, not an assertion: it passes vacuously when the variable is unset.
+#[test]
+fn analyze_generated_javascript_over_an_artifact_file() {
+    let Some(input) = std::env::var_os("LILSCRIPT_ANALYZE_INPUT") else {
+        return;
+    };
+    let input = std::path::PathBuf::from(input);
+    let source =
+        std::fs::read_to_string(&input).expect("LILSCRIPT_ANALYZE_INPUT must be readable");
+    match analyze_generated_javascript(&source) {
+        Ok(_) => println!("044 input={} bytes={} admitted", input.display(), source.len()),
+        Err(error) => {
+            let offset = error.offset().min(source.len());
+            let mut start = offset.saturating_sub(72);
+            while !source.is_char_boundary(start) {
+                start -= 1;
+            }
+            let mut end = (offset + 40).min(source.len());
+            while !source.is_char_boundary(end) {
+                end -= 1;
+            }
+            println!(
+                "044 input={} bytes={} rejected offset={offset} message={:?} excerpt={:?}",
+                input.display(),
+                source.len(),
+                error.message,
+                &source[start..end],
+            );
+        }
     }
 }

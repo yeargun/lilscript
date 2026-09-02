@@ -64,3 +64,24 @@ The committed artifact has the same six shapes at 1030, 5811, 11281, 15054, 5604
 The invalid site, byte 40725 of the narrowed artifact. Tree: `…?e.getClientRects().length>0?(a="border-box"===d(e,"boxSizing",!1,i),l=s in e,l&&(n=e[s])):l=a:l=a,…`.
 Narrowed: `(m&&o||g||s||c)&&e.getClientRects().length>0?o="border-box"===i(e,"boxSizing",!1,a),s=u in e,s&&(r=e[u]):s=o,…`.
 `node --check` on all 22 fleet dists: only mobxlil fails, on `export` in CommonJS mode — a false positive, not this shape.
+
+## C — fleet A/B, the narrowing landed behind the 044 fix (2026-09-02)
+
+One host, two full passes of the fleet on the same port sources: A = the HEAD (54ab05a) binary,
+B = the same tree with 044's fold fix and validator and `narrow-the-bail.patch` applied
+(`finer/out/044/`: `scoreboard.base.json`, `scoreboard.new.json`, `fleet-diff.base-vs-new.md`, the
+build logs). The A pass reproduced the 01:16 baseline byte for byte on 18 ports (rehype-katexlil −9
+is the 4117ea2 build-script fix), so the two binaries are the one variable. jquerylil and markedlil
+were built outside the fleet on four cores each (`build-port.sh`), jquerylil's B in the port's
+tree. Sizes from `lilscript-codec`; build seconds are wall clock on a contended host, not a result.
+
+| port | A brotli11 | B brotli11 | Δ brotli | Δ raw | port tests on B |
+|---|---:|---:|---:|---:|---|
+| remarklil | 39333 | 37239 | **−2094** | −1307 | 504/504 (`node --test`; `check:sources`/types not run) |
+| rehypelil | 52462 | 51696 | **−766** | +1362 | 159/159 |
+| remark-gfmlil | 10836 | 10559 | **−277** | −464 | 19/19 |
+| mdast-util-to-hastlil | 4264 | 4262 | −2 | +3 | 149/149 |
+| markedlil (`marked.esm.js`, Brotli) | 9506 | 9444 | **−62** | −15 | 29/29; every lane under its own objective: `marked.raw.js` (Brotli config) 9423→9392, gzip lane gzip9 10574→10502, bytes lane raw 33537→33537, closed 9341→9278; the purity diagonal holds on B |
+| jquerylil (`jquery.esm.js`, level 15 `always`) | 29304 | 28641 | **−663** | −1235 | `--check`, 6/6, `animate` smoke ok (`scrollTop(1)` TypeError pre-existing, on A too); A rebuilt byte-identical to 041's `jquery.esm.base.js` (sha 938cba…) |
+| react-markdownlil, katexlil, micromarklil, remark-parselil, mdast-util-from-markdownlil, mobxlil, unifiedlil, remark-mathlil, posthoglil, remark-breakslil, remark-rehypelil, rehype-stringifylil, hast-util-to-htmllil, zodlil, rehype-katexlil | — | — | 0 | 0 | byte-identical |
+| monacolil, playcanvaslil | — | — | — | — | fail to build on both sides (`ERR_MODULE_NOT_FOUND`) |
