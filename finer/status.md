@@ -20,7 +20,7 @@ at measurement: how much of the number is *not* the compiler.
 | react-markdownlil | +10815 | 19 | was +14166: the zero probe budget is gone (037). The committed artifact was React-external glue and the tree inlines it — not the same program; the tree is a 45-file migration |
 | motionlil | +9314 | 0 | fails to build under the fleet (`ERR_MODULE_NOT_FOUND`); baseline scope-suspect: `dist/full.js` against the real motion UMD |
 | remarklil | +4688 | 46 | was +6782: −2094 from 041's local rename. Bundles unminified npm `vfile` instead of the sibling port (~1821, 006); micromark core |
-| katexlil | +2542 | 0 | was +5800 (046/047): −1175 from rebuilding on the current binary, −943 from the unicode table → generator loop, −1233 from the late cleanup's whole-artifact candidate finally being admitted (047). Closed = open until the port is typed; the rest of the number is the `JsValue` shape (046) |
+| katexlil | +2293 | 0 | was +5800 (046/047): the current binary −1175, the unicode table → generator loop −943, the whole-artifact candidate admitted −1233, chain collapse and friends −79, the port's for-in −165 and for-loops −12. Closed = open until the port is typed; function bodies alone already beat Terser (examples.md), the rest is collective similarity |
 | micromarklil | +3321 | 51 | micromark core: emitted volume; Terser still extracts −884 from our artifact (035) |
 | remark-parselil | +2922 | 36 | micromark core |
 | mdast-util-from-markdownlil | +2824 | 33 | micromark core — the three share it, so one fix moves ~9 KB |
@@ -28,6 +28,11 @@ at measurement: how much of the number is *not* the compiler.
 | **jquerylil** | **+1196** | **0** | **clean source, real loss.** Was +1825: −663 from 041's local rename, on a build that also carries 040's fix (`animate` runs; the tree `dist/` holds it, uncommitted). 40 header spellings remain against Terser's 24; −540 is the plain-data type (013 → 042) |
 | unifiedlil | +241 | 6 | config exhausted (027); emits 47% more functions, each 29% bigger. +7 from 037, and its HEAD build threw on import |
 | remark-mathlil | +137 | 9 | config exhausted (027) |
+
+**cnlil** (not in the fleet measure; 048, 2026-09-02): committed port +283 Brotli and 1.03-1.49x
+slower than upstream on its nine harness lanes; rewritten as module state it is **−367 Brotli**
+(9416 against 9783 at level 13, production search) and 1.03-1.2x, with the residual attributed
+(module-cell reads, `arguments`, hash spelling). The perf gate (objective §3) is still open there.
 
 Wins: rehype-katex −112118 (scope-suspect), zod −20103, rehype −3384 (−766 from 041),
 hast-util-to-html −1014, rehype-stringify −794, mdast-util-to-hast −754, remark-rehype −687, remark-gfm
@@ -117,6 +122,31 @@ pinned lane; Terser, Oxc, esbuild, Vite and Closure do
 - **`JS.push` is not a port smell** (047): spelled as a method invoke it is +696 on katexlil; the
   intrinsic is what the array families fold.
 
+- **A class singleton in a port is a positional handle in the artifact** (048): every field read in
+  a hot loop is a bounds-checked element load through it, the handle literal carries every typed
+  default and the init re-stores every slot. cnlil's engine (66 fields), tables (24) and argument
+  cache (5) were that; as module bindings the port went from +283 to −367 Brotli on the same
+  compiler. Closure, Terser and Oxc do not dissolve `new` instances either (refs §D.2).
+- **Module-scope state costs a V8 module-cell read per access; closure state one context slot**
+  (048): one process per variant puts a closure cache hit at 6.9-7.8 ns against 8.2-9.1 for a
+  module `var`; wrapping cnlil's artifact in a function scope took arb 1.15 → 1.00 and ssr
+  1.15 → 0.94 on Node 20. The compiler emits every single-bundle binding at module scope; a
+  factory-closure port hit a name-coalescing miscompile (`na = function…` reused the binding a
+  nested closure still read; `local_name_coalescing = false` repairs it at +1812 Brotli). Both are
+  compiler items; the port ships module state.
+- **A whole `arguments` object passed to a callee is allocated on every call** (048): cnlil's `cn`
+  passed its rest `args` to the miss path and paid it on predicted hits too (component:loop
+  1.48 → 1.09 when only the miss path builds an array). Read `args` by index; copy on the miss.
+- **`int * int` is `a*b|0` in the artifact, not i32 wrapping** (048): products past 2^53 lose low
+  bits; `Math.imul` is accepted in `.lil` source and is what upstream's hashes spell.
+- **The js_peephole never runs at level 8 with `candidate_search = "off"`** (048):
+  `peephole_calls=0`, `cleanup_entered=0`; a fold measured on a port needs level 13 / production.
+- **Measurement order is a variable** (048): a microbenchmark that runs several variants in one
+  process makes the first one fastest; the harness lanes swing between phases (workset: 45 → 24
+  ns after ~1.2M calls for every implementation), and Node 22 on the Turin pool and Node 20 here
+  rank the same artifacts differently. One process per variant, median of interleaved rounds, and
+  the port's declared runtime.
+
 ## Landed by this workstream
 
 Effort telemetry (`src/timing.rs`); content-addressed memos (−27% CPU, byte-identical); lexer
@@ -136,6 +166,17 @@ bytes).
    Generic emission folds with an obvious proof; the 115 `+member` coercions beside them are the
    port's untyped fields. Budget is settled: 512 and 1024 probes are byte-identical to 256 there.
 
+0b. **Module-internal state in a function scope** (048): every single-bundle binding is emitted at
+   module scope and V8 reads it through a module cell; a function-scoped artifact was 0.94-1.00x
+   on cnlil's cold lanes where the module-scoped one was 1.15x. An emission family (wrap the
+   bundle's internals in a function scope, keep the export bindings outside) scored by the codec
+   and mandatory under the performance priorities; measured by `finer/out/048/iife.mjs`. Behind
+   it, the name-coalescing miscompile a factory-closure source exposed (`finer/out/048/`, the r3
+   build: `na = function(b3){…}` over a binding a nested closure still reads).
+0c. **Dissolve module-init singletons** (048): a `new` executed once at module init whose identity
+   never reaches export/host/`JsValue` should scalar-replace into module bindings
+   (`scalar_replace_linear_classes` stops at `LocalOnly`); the class-shaped cnlil source is the
+   oracle (must compile to the module-state artifact: 9416 Brotli).
 1. **The arrow candidate can spell a `this` method as an arrow** (042's finding): shipped
    jquerylil's `scrollTop(1)` TypeError is exactly that, and the same whole-artifact
    `function-spelling` flip is source-dependent at level 15 (+99 / +141 on two 16-line source
@@ -190,12 +231,13 @@ bytes).
 
 ## Known issues
 
-- `fold_while_trailing_increments` had two defects on an `if/else` body whose arms both end in
-  the counter increment (047): it lifted the last one into the `for` header and left the other —
-  a bare `else}` (F, a syntax error the feature/source-maps gate refuses) and, with braces, a
-  double increment (L, a wrong program no gate refuses; katexlil's screenshot corpus caught it).
-  Both fixed in the lift's body-level guard. A wrong-program fold is only ever caught by a port's
-  tests: they are part of every A/B.
+- The two trailing-increment lifts (`fold_while_trailing_increments`,
+  `fold_for_trailing_increments`) lifted the last `i++` of an `if/else` body into the loop header
+  and left the other arm's (047): a bare `else}` (F, a syntax error the feature/source-maps gate
+  refuses) and, with braces, a double increment (L, a wrong program no gate refuses; katexlil's
+  screenshot corpus caught it, and only the full port reproduced it). Both share
+  `increment_is_body_level` now. A wrong-program fold is only ever caught by a port's tests: they
+  are part of every A/B, and `LILSCRIPT_PEEPHOLE_TRACE_LIFT` names the fold behind a lifted header.
 
 - No `instanceof` on `JsValue` in the language (047): ports carry an `isPrototypeOf` helper
   (`ga(a,Y)` on katexlil, 26 sites); as `instanceof` it is −60 Brotli. A language item.

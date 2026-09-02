@@ -43,6 +43,10 @@ the effort ladder.
 - **Runtime performance is a constraint, not the current objective.** Generated code stays close to
   idiomatic hand-written JavaScript under `[javascript.performance] max_regression_percent`. The
   performance-first priorities must keep working; the work now is compression.
+- **A port is not slower than its upstream.** Where a port has its upstream's benchmark, the shipped
+  artifact is faster or equal on every lane of it, measured interleaved in isolated processes; a
+  lane above 1.00 is a loss with an owner, exactly like a byte (2026-09-02, cnlil). The compression
+  objective picks the config only among builds that pass this gate.
 
 ## 4. Whom we beat, in which world
 
@@ -124,6 +128,11 @@ emitted volume +0.92 (025).
 - **Gates before wins**: the port's own tests and the shipped-vs-compiled check pass first.
 - **Every hypothesis is a numbered folder**, falsified ones included; a negative result is what
   stops the next context paying for the idea twice.
+- **A compiler change is generic or it is not landed** (2026-09-02). It is stated as a claim about
+  any program, with the semantic argument written down; it lands only with the compiler suite
+  green, every port's own tests green on a pool build with the branch binary, codec sizes per
+  port against the main binary, and the perf harnesses that exist. A change that alters artifact
+  shape ships as an explicit config knob first and flips its default only on a fleet measure.
 
 ## 9. Compute
 

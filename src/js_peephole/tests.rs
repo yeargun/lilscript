@@ -17,6 +17,7 @@ use super::{
     fold_void_initializers_off_fresh_vars, join_adjacent_declarations, shape_declarations, spell_regexp_literals,
     fold_statement_negated_ors, fold_self_assignment_chains, fold_while_trailing_increments,
     fold_null_normalized_nullable_tests, wrap_module_internals_in_function_scope,
+    fold_for_trailing_increments, fold_self_receiver_calls,
     validate_generated_javascript_syntax_floor, LateJavaScriptCleanupPass, PeepholeResult,
 };
 
@@ -3760,6 +3761,37 @@ fn trailing_increment_inside_a_braced_else_arm_is_not_lifted() {
     assert_eq!(count, 0, "{folded}");
 }
 
+#[test]
+fn probe_047_column_loop() {
+    let loop_text = std::fs::read_to_string("/tmp/claude-1000/-home-azureuser-lilscript/3005c3a0-daf3-4bd3-9e52-8352114297ee/scratchpad/km/loop.J.js").unwrap_or_default();
+    if loop_text.is_empty() { return }
+    let source = format!("let q=(a,b,f,n,z,r,X,A,E,ba,W,Z,la)=>{{var e,i,c,h,d,g=[],k,t,O,_;e=0,i=0;{loop_text}return g}};console.log(typeof q)");
+    let optimized = optimize_emitted_without_regex_literals(&source);
+    eprintln!("PROBELOOP {}", &optimized.code[..optimized.code.len().min(600)]);
+}
+
+#[test]
+fn for_loop_trailing_increment_inside_an_else_arm_is_not_lifted() {
+    // The `for(;cond;)` sibling of the while fold: the last `i++` sits in a braced else arm
+    // while the then arm keeps its own; lifting it ran the then path's increment twice
+    // (katexlil build L: every align environment gained a column separator).
+    let source = "var log=[],n=3,f=[1,2,3,4,5,6],e=0,i=0;for(;e<n||i<f.length;){if(e>=n)e++,i++;else{log.push(f[i]);e++,i++}}var k=0,s=0;for(;k<3;){s+=k;k++}console.log(e,i,log.join(\",\"),k,s)";
+    let (folded, count) = fold_for_trailing_increments(source).unwrap();
+    assert!(folded.contains("for(;e<n||i<f.length;){if(e>=n)e++,i++;else{log.push(f[i]);e++,i++}}"), "{folded}");
+    assert!(folded.contains("for(;k<3;k++)"), "{folded}");
+    assert_eq!(count, 1, "{folded}");
+    assert_eq!(run_javascript(&folded), run_javascript(source));
+    let optimized = optimize_emitted_without_regex_literals(source);
+    assert_eq!(run_javascript(&optimized.code), run_javascript(source), "{}", optimized.code);
+}
+
+#[test]
+fn a_method_borrowed_onto_its_own_receiver_is_a_method_call() {
+    let source = "var T={arr:[],a(x){return this===T?x+1:-1},b:{c(y){return this===T.b?y*2:-1}}},k=\"a\";var r=[T[k].call(T,1),T.a.call(T,2),T.b.c.call(T.b,3),T.a.call(T.b,4),T.a.call(T),Array.prototype.push.call(T.arr,0)];console.log(JSON.stringify(r),JSON.stringify(T.arr))";
+    let (folded, count) = fold_self_receiver_calls(source).unwrap();
+    assert!(folded.contains("[T[k](1),T.a(2),T.b.c(3),T.a.call(T.b,4),T.a(),Array.prototype.push.call(T.arr,0)]"), "{folded}");
+    assert_eq!(count, 4);
+    assert_eq!(run_javascript(&folded), run_javascript(source));
 fn assert_null_normalization_fold(source: &str, expected: &str, probe: &str) {
     let (folded, count) = fold_null_normalized_nullable_tests(source).unwrap();
     assert_eq!(folded, expected, "source: {source}");
