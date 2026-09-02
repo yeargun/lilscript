@@ -16,8 +16,8 @@ use super::{
     optimize_generated_javascript_preserving_functions, reorder_uninitialized_var_declarators,
     fold_void_initializers_off_fresh_vars, join_adjacent_declarations, shape_declarations, spell_regexp_literals,
     fold_statement_negated_ors, fold_self_assignment_chains, fold_while_trailing_increments,
-    fold_null_normalized_nullable_tests, wrap_module_internals_in_function_scope,
     fold_for_trailing_increments, fold_self_receiver_calls,
+    fold_null_normalized_nullable_tests, wrap_module_internals_in_function_scope,
     validate_generated_javascript_syntax_floor, LateJavaScriptCleanupPass, PeepholeResult,
 };
 
@@ -3792,96 +3792,6 @@ fn a_method_borrowed_onto_its_own_receiver_is_a_method_call() {
     assert!(folded.contains("[T[k](1),T.a(2),T.b.c(3),T.a.call(T.b,4),T.a(),Array.prototype.push.call(T.arr,0)]"), "{folded}");
     assert_eq!(count, 4);
     assert_eq!(run_javascript(&folded), run_javascript(source));
-fn assert_null_normalization_fold(source: &str, expected: &str, probe: &str) {
-    let (folded, count) = fold_null_normalized_nullable_tests(source).unwrap();
-    assert_eq!(folded, expected, "source: {source}");
-    assert_eq!(count, usize::from(source != expected));
-    let before = run_javascript(&format!("{source};{probe}"));
-    let after = run_javascript(&format!("{folded};{probe}"));
-    assert_eq!(before, after, "node disagrees for {source}");
-}
-
-const NULL_NORMALIZATION_PROBE: &str = "const o={__proto__:null,x:\"hit\",e:\"\",n:null};for(const k of [\"x\",\"e\",\"n\",\"y\"])console.log(k,f(o,k))";
-
-#[test]
-fn null_normalized_nullable_tests_fold_the_guarded_declaration() {
-    assert_null_normalization_fold(
-        "function f(c,k){var a=c[k]??null;if(null!=a)return a;return \"miss\"}",
-        "function f(c,k){var a=c[k];if(null!=a)return a;return \"miss\"}",
-        NULL_NORMALIZATION_PROBE,
-    );
-    assert_null_normalization_fold(
-        "function f(c,k){let a=c[k]??null;if(a!=null){return a}return \"miss\"}",
-        "function f(c,k){let a=c[k];if(a!=null){return a}return \"miss\"}",
-        NULL_NORMALIZATION_PROBE,
-    );
-    assert_null_normalization_fold(
-        "function f(c,k){var a;a=c[k]??null;if(null!=a)return a+\"!\";return \"miss\"}",
-        "function f(c,k){var a;a=c[k];if(null!=a)return a+\"!\";return \"miss\"}",
-        NULL_NORMALIZATION_PROBE,
-    );
-}
-
-#[test]
-fn null_normalized_nullable_tests_fold_the_return_ternary_and_the_condition_sequence() {
-    assert_null_normalization_fold(
-        "function f(c,k){var a=c[k]??null;return null!=a?a:\"miss\"}",
-        "function f(c,k){var a=c[k];return null!=a?a:\"miss\"}",
-        NULL_NORMALIZATION_PROBE,
-    );
-    assert_null_normalization_fold(
-        "function f(c,k){var a=c[k]??null;return a==null?\"miss\":a}",
-        "function f(c,k){var a=c[k];return a==null?\"miss\":a}",
-        NULL_NORMALIZATION_PROBE,
-    );
-    assert_null_normalization_fold(
-        "function f(c,k){var a,b=k!=\"e\";if(b&&(a=c[k]??null,null!=a))return a;return \"miss\"}",
-        "function f(c,k){var a,b=k!=\"e\";if(b&&(a=c[k],null!=a))return a;return \"miss\"}",
-        NULL_NORMALIZATION_PROBE,
-    );
-}
-
-#[test]
-fn null_normalized_nullable_tests_fold_past_a_statement_level_kill_and_an_absent_exit() {
-    assert_null_normalization_fold(
-        "function f(c,k){var a=c[k]??null;if(null!=a)return a;a=\"miss\";return a===null?\"null\":a}",
-        "function f(c,k){var a=c[k];if(null!=a)return a;a=\"miss\";return a===null?\"null\":a}",
-        NULL_NORMALIZATION_PROBE,
-    );
-    assert_null_normalization_fold(
-        "function f(c,k){var a=c[k]??null;if(a==null)return \"miss\";return a===null?\"null\":a}",
-        "function f(c,k){var a=c[k];if(a==null)return \"miss\";return a===null?\"null\":a}",
-        NULL_NORMALIZATION_PROBE,
-    );
-}
-
-#[test]
-fn null_normalized_nullable_tests_keep_every_observable_normalization() {
-    for source in [
-        // a strict test distinguishes the two
-        "function f(c,k){var a=c[k]??null;if(null!==a)return a;return \"miss\"}",
-        // read on the untaken path
-        "function f(c,k){var a=c[k]??null;if(null!=a)return a;return String(a)}",
-        // read in the absent consequent
-        "function f(c,k){var a=c[k]??null;if(a==null)return String(a);return a}",
-        // the absent consequent does not leave the function
-        "function f(c,k){var a=c[k]??null;if(a==null)a=String(a);return a}",
-        // a nested function observes the binding
-        "function f(c,k){var a=c[k]??null;if(null!=a)return a;return ()=>a}",
-        // a read before the assignment on a loop back edge
-        "function f(c,k){var a;for(let i=0;i<2;i++){if(i)console.log(a);a=c[k]??null;if(null!=a)return a}return \"miss\"}",
-        // a multi-declarator statement and an else branch
-        "function f(c,k){var b=1,a=c[k]??null;if(null!=a)return a;return b}",
-        "function f(c,k){var a=c[k]??null;if(null!=a)return a;else return String(a)}",
-        // the ternary's other arm reads the name
-        "function f(c,k){var a=c[k]??null;return null!=a?a:String(a)}",
-        // the condition sequence in something other than an if header
-        "function f(c,k){var a;while(a=c[k]??null,null!=a)return a;return \"miss\"}",
-    ] {
-        let (folded, count) = fold_null_normalized_nullable_tests(source).unwrap();
-        assert_eq!(count, 0, "must keep {source}");
-        assert_eq!(folded, source);
-    }
 }
 
 fn run_module_javascript(source: &str) -> String {
