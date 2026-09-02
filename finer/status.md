@@ -2,35 +2,36 @@
 
 Standings, settled facts and ranked leads for the [finer loop](README.md). Volatile: rewritten
 after every fleet measure and every verdict. Contract: [objective.md](objective.md). History:
-[log.md](log.md). Updated 2026-09-01 after 039.
+[log.md](log.md). Updated 2026-09-02 after 040 and the cc18452 fleet measure.
 
 ## Standings
 
-Last full fleet measure: 2026-09-01 18:15, working tree, `lilscript-codec`, Brotli-11 (every port
-declares `cost_model = "brotli"`). It predates the 034 charset fix landing in two dists, so those
-two rows carry their post-fix numbers from the folders. Regenerate with
-`node finer/tools/fleet.mjs --measure`.
+Last full fleet measure: 2026-09-02 01:05, working tree, `lilscript-codec`, Brotli-11 (every port
+declares `cost_model = "brotli"`), every port rebuilt with the binary at cc18452 except three:
+jquerylil timed out at 90 min on its two-core fleet slot (row carries the 2026-09-01 18:15 build,
+which still has the 040 fusion), katexlil never recompiles under the fleet (lead 9), motionlil fails
+to build. Regenerate with `node finer/tools/fleet.mjs --measure`.
 
-**11 wins / 11 losses**, net about −89 KB Brotli. `src` is the count of modified source files in the
-port at measurement: how much of the number is *not* the compiler.
+**11 wins / 11 losses**, net −92513 Brotli. `src` is the count of modified source files in the port
+at measurement: how much of the number is *not* the compiler.
 
 | port | delta | src | attribution |
 |---|---:|---:|---|
-| react-markdownlil | +14166 | 19 | `terminal_codec_probe_limit = 0` hides a miscompile worth −3364 (037); the committed artifact was React-external glue and the tree inlines it — not the same program |
+| react-markdownlil | +10815 | 19 | was +14166: the zero probe budget is gone (037). The committed artifact was React-external glue and the tree inlines it — not the same program; the tree is a 45-file migration |
 | motionlil | +9314 | 0 | fails to build under the fleet (`ERR_MODULE_NOT_FOUND`); baseline scope-suspect: `dist/full.js` against the real motion UMD |
-| remarklil | +6752 | 46 | bundles unminified npm `vfile` instead of the sibling port (~1821, 006); micromark core |
-| katexlil | +5800 | 11 | unexamined |
-| micromarklil | +3321 | 51 | post-034 (26097). Micromark core: emitted volume; Terser still extracts −884 from our artifact (035) |
+| remarklil | +6782 | 46 | bundles unminified npm `vfile` instead of the sibling port (~1821, 006); micromark core. +30 from 037, and its HEAD build failed `api` and `closed` |
+| katexlil | +5800 | 11 | unexamined, and never rebuilt: its build skips the compiler while `dist/` is newer than `src/` (lead 9) |
+| micromarklil | +3321 | 51 | micromark core: emitted volume; Terser still extracts −884 from our artifact (035) |
 | remark-parselil | +2922 | 36 | micromark core |
 | mdast-util-from-markdownlil | +2824 | 33 | micromark core — the three share it, so one fix moves ~9 KB |
-| **mobxlil** | **+2771** | **0** | **clean source, real loss.** Was +3007 before 033; Terser extracts −856 from our artifact (035) |
-| **jquerylil** | **+1825** | **0** | **clean source, real loss.** Beats upstream raw by 4489 and loses on compressibility; −540 is the plain-data type (013), −1136 is rename headroom (035) |
-| unifiedlil | +234 | 6 | config exhausted (027); emits 47% more functions, each 29% bigger |
+| **mobxlil** | **+2641** | **0** | **clean source, real loss.** Was +2771; −130 from 037's search re-deciding. Terser extracts −652 from our artifact (039) |
+| **jquerylil** | **+1825** | **0** | **clean source, real loss, stale row.** The committed artifact is 1045 smaller than this tree build (039 → 041: the local rename); −540 is the plain-data type (013); shipped `animate` throws (040, fixed in the compiler, port not yet rebuilt) |
+| unifiedlil | +241 | 6 | config exhausted (027); emits 47% more functions, each 29% bigger. +7 from 037, and its HEAD build threw on import |
 | remark-mathlil | +137 | 9 | config exhausted (027) |
 
-Wins: rehype-katex −112118 (scope-suspect), zod −20103, rehype −2717 (post-034), hast-util-to-html
-−1014, rehype-stringify −794, mdast-util-to-hast −752, remark-rehype −687, marked −579, remark-gfm
-−402, remark-breaks −67, posthog −1.
+Wins: rehype-katex −112118 (scope-suspect), zod −20103, rehype −2618 (+99 from 037's search),
+hast-util-to-html −1014, rehype-stringify −794, mdast-util-to-hast −752, remark-rehype −687, marked
+−579, remark-gfm −402, remark-breaks −67, posthog −1.
 
 No baseline and failing to build under the fleet: lil-solidjs, monacolil, playcanvaslil, solidlil.
 
@@ -99,18 +100,18 @@ bytes).
 
 ## Open leads, ranked by measured value
 
-1. **jquerylil ships a miscompile** (039, folder 040 pending its mechanism): `createTween` carries
-   `returnHr(r,n,t,e)||…` — `return` fused onto its operand, so the call is to an undeclared global
-   and `$(el).animate(…)` throws `ReferenceError`. The callee was then inlined at its only *visible*
-   use and its declaration deleted, and `split_fused_keyword_identifiers` refuses to repair a name
-   that is no longer declared. In both the committed dist and the tree; the port's six compat tests
-   never animate. Correctness outranks every byte below.
-2. **`converge_local_names` starves on jquerylil** (039): the committed artifact is **1045 Brotli
-   smaller** than the working-tree build of the same clean source (28225 against 29270), and Terser
-   *loses* 274 on the committed one. The tree build has 90 distinct parameter-header spellings
-   against 25; the pass is budget-gated at `compiler.rs:7764` and a template-literal bail at
-   `rename.rs:37` disables it on micromarklil. Trace why it does not land: the same class as 036 and
-   037, a stage that silently does not run.
+1. **jquerylil still ships the 040 miscompile** until it is rebuilt: `returnHr(r,n,t,e)` in
+   `createTween`, so `$(el).animate(…)` throws. The compiler is fixed (040: the printer's adjacency
+   rule at the splice; every other port byte-identical), but the port's 90-minute level-15 `always`
+   build has timed out on every two-core fleet slot today. Rebuild it on four or more cores, add an
+   `animate` test to the port, ship. Correctness outranks every byte below.
+2. **The local rename starves on jquerylil** (039 → 041, in progress): the committed artifact is
+   **1045 Brotli smaller** than the working-tree build of the same clean source (28225 against
+   29270), and Terser *loses* 274 on the committed one. The tree build has 90 distinct
+   parameter-header spellings against 25; `converge_local_names` is a scored candidate behind the
+   codec ledger's fair slice, a template-literal bail and a totality check where Terser's rename is
+   an unconditional last pass, and `reserve_enclosing_js_bindings` (2d2268a) dates the divergence.
+   The same class as 036 and 037: a stage that silently does not run.
 3. **The loop runs on one host** (038): the owner's pool of Azure machines must carry fleet builds,
    sweeps and A/Bs (objective.md §9); a fleet A/B on this host is two hours, most of it jquerylil at
    level 15 on two cores. Inventory first — nothing in the repo names the machines.
