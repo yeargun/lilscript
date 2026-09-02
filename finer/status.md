@@ -190,12 +190,13 @@ bytes).
 
 ## Known issues
 
-- `fold_while_trailing_increments` had two defects on an `if/else` body whose arms both end in
-  the counter increment (047): it lifted the last one into the `for` header and left the other —
-  a bare `else}` (F, a syntax error the feature/source-maps gate refuses) and, with braces, a
-  double increment (L, a wrong program no gate refuses; katexlil's screenshot corpus caught it).
-  Both fixed in the lift's body-level guard. A wrong-program fold is only ever caught by a port's
-  tests: they are part of every A/B.
+- The two trailing-increment lifts (`fold_while_trailing_increments`,
+  `fold_for_trailing_increments`) lifted the last `i++` of an `if/else` body into the loop header
+  and left the other arm's (047): a bare `else}` (F, a syntax error the feature/source-maps gate
+  refuses) and, with braces, a double increment (L, a wrong program no gate refuses; katexlil's
+  screenshot corpus caught it, and only the full port reproduced it). Both share
+  `increment_is_body_level` now. A wrong-program fold is only ever caught by a port's tests: they
+  are part of every A/B, and `LILSCRIPT_PEEPHOLE_TRACE_LIFT` names the fold behind a lifted header.
 
 - No `instanceof` on `JsValue` in the language (047): ports carry an `isPrototypeOf` helper
   (`ga(a,Y)` on katexlil, 26 sites); as `instanceof` it is −60 Brotli. A language item.

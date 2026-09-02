@@ -1127,6 +1127,7 @@ pub(crate) fn fold_for_trailing_increments(
                 .get(last)
                 .is_none_or(|token| token.kind != TokenKind::Identifier)
             || !increment_can_lift(&tokens, last)
+            || !increment_is_body_level(&tokens, body_at + 1, last)
         {
             continue;
         }

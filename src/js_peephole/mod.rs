@@ -3063,6 +3063,23 @@ fn trace_fold<F: ?Sized>(_fold: &F, before: &str, after: &str) {
     if std::env::var_os("LILSCRIPT_PEEPHOLE_TRACE").is_some() {
         eprintln!("[peephole] {}\n{after}", std::any::type_name::<F>());
     }
+    // Debug aid (047): name the fold whose output first shows a lifted `for` header
+    // right before a nested `for(`, i.e. `….length;x++){for(`.
+    if std::env::var_os("LILSCRIPT_PEEPHOLE_TRACE_LIFT").is_some() {
+        let shows = |text: &str| {
+            text.match_indices("++){for(").any(|(at, _)| text[..at].ends_with(|c: char| c.is_ascii_alphabetic()) && text[..at].len() >= 12 && text[at.saturating_sub(12)..at].contains(".length;"))
+        };
+        if shows(after) && !shows(before) {
+            let at = after.find("++){for(").unwrap_or(0);
+            let lo = at.saturating_sub(700);
+            let hi = (at + 400).min(after.len());
+            let anchor = "\"separator\"===";
+            let bat = before.find(anchor).unwrap_or(0);
+            let blo = bat.saturating_sub(900);
+            let bhi = (bat + 300).min(before.len());
+            eprintln!("[lift] {}\nBEFORE: {}\nAFTER: {}", std::any::type_name::<F>(), &before[blo..bhi], &after[lo..hi]);
+        }
+    }
     verify_fold(std::any::type_name::<F>(), before, after);
 }
 
