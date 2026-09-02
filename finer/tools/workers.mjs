@@ -56,7 +56,10 @@ const COMPILER = resolve(flag("compiler", join(repo, "target", "release", "lilsc
 const CODEC = join(repo, "target", "release", "lilscript-codec")
 const BUILD_TIMEOUT_S = Number(flag("timeout", 5400))
 const PER_WORKER = Math.max(1, Number(flag("per-worker", 2)))
-const SSH_OPTS = ["-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=accept-new", "-o", "ConnectTimeout=10", "-o", "ServerAliveInterval=30"]
+// The pool lives on a private subnet whose addresses are reused when a scale
+// set is recreated, so host keys change under the same IP; known_hosts would
+// then refuse every new worker. No host verification on this subnet.
+const SSH_OPTS = ["-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null", "-o", "LogLevel=ERROR", "-o", "ConnectTimeout=10", "-o", "ServerAliveInterval=30"]
 
 const log = (line) => { const stamp = new Date().toISOString().slice(11, 19); process.stderr.write(`[workers ${stamp}] ${line}\n`) }
 const fail = (message) => { log(message); process.exit(1) }
