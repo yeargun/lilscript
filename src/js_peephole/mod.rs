@@ -940,13 +940,24 @@ pub fn generated_javascript_bit_or_zero_count(source: &str) -> Result<usize, Jav
 pub fn generated_javascript_static_property_names(
     source: &str,
 ) -> Result<Vec<String>, JavaScriptParseError> {
-    let mut names = generated_javascript_static_property_occurrences(source)?
+    // Admission calls this on every candidate, so it deduplicates as it goes
+    // and never allocates for an identifier: the set holds borrowed token text
+    // and owns only the unescaped string keys.
+    analyze_generated_javascript(source)?;
+    let tokens = lex(source)?;
+    let matching_close = matching_closers(&tokens);
+    let class_names = class_element_name_occurrences(&tokens, &matching_close);
+    let mut names = std::collections::BTreeSet::<std::borrow::Cow<'_, str>>::new();
+    for_each_static_property_token(&tokens, &class_names, |token, name| {
+        names.insert(match name {
+            Some(name) => std::borrow::Cow::Owned(name),
+            None => std::borrow::Cow::Borrowed(token.text),
+        });
+    });
+    Ok(names
         .into_iter()
-        .map(|property| property.name)
-        .collect::<Vec<_>>();
-    names.sort();
-    names.dedup();
-    Ok(names)
+        .map(std::borrow::Cow::into_owned)
+        .collect())
 }
 
 pub fn generated_javascript_static_property_occurrences(
@@ -962,21 +973,20 @@ pub fn generated_javascript_static_property_occurrences(
     ))
 }
 
-fn generated_static_property_occurrences_from_tokens(
-    tokens: &[Token<'_>],
+/// Calls `visit` for every static property key: an identifier/keyword member
+/// or class element name (with `None`), or a string key whose unescaped
+/// spelling is passed as `Some`.
+fn for_each_static_property_token<'t, 'src>(
+    tokens: &'t [Token<'src>],
     class_names: &[bool],
-) -> Vec<GeneratedJavaScriptPropertyOccurrence> {
-    let mut properties = Vec::new();
+    mut visit: impl FnMut(&'t Token<'src>, Option<String>),
+) {
     for (index, token) in tokens.iter().enumerate() {
         if matches!(token.kind, TokenKind::Identifier | TokenKind::Keyword)
             && (is_property_identifier(tokens, index)
                 || class_names.get(index).copied().unwrap_or(false))
         {
-            properties.push(GeneratedJavaScriptPropertyOccurrence {
-                name: token.text.to_string(),
-                start: token.start,
-                end: token.end,
-            });
+            visit(token, None);
             continue;
         }
         if token.kind != TokenKind::String {
@@ -990,14 +1000,24 @@ fn generated_static_property_occurrences_from_tokens(
                 && previous.is_some_and(|token| matches!(token.text, "{" | ","));
         if static_property {
             if let Some(name) = unescape_js_string(token.text) {
-                properties.push(GeneratedJavaScriptPropertyOccurrence {
-                    name,
-                    start: token.start,
-                    end: token.end,
-                });
+                visit(token, Some(name));
             }
         }
     }
+}
+
+fn generated_static_property_occurrences_from_tokens(
+    tokens: &[Token<'_>],
+    class_names: &[bool],
+) -> Vec<GeneratedJavaScriptPropertyOccurrence> {
+    let mut properties = Vec::new();
+    for_each_static_property_token(tokens, class_names, |token, name| {
+        properties.push(GeneratedJavaScriptPropertyOccurrence {
+            name: name.unwrap_or_else(|| token.text.to_string()),
+            start: token.start,
+            end: token.end,
+        });
+    });
     properties
 }
 
