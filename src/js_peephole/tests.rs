@@ -3383,3 +3383,86 @@ fn splices_never_fuse_neighbouring_tokens() {
     assert_eq!(run_javascript(&optimized.code).trim(), run_javascript(source).trim(), "{}", optimized.code);
 }
 
+
+/// 041 — `converge_local_names` ungated over a finished artifact. Reads the
+/// artifact named by `LILSCRIPT_RENAME_INPUT`, writes the converged text to
+/// `LILSCRIPT_RENAME_OUTPUT` (default: the input with a `.converged.js`
+/// suffix) and prints the rewrite count and which of the pass's two bails
+/// fired, with every unsound scope and ambiguous name it found. A measurement
+/// harness, not an assertion: it passes vacuously when the variable is unset.
+#[test]
+fn converge_local_names_over_an_artifact_file() {
+    use super::binding::BindingResolution;
+    use super::token::TokenKind;
+    let Some(input) = std::env::var_os("LILSCRIPT_RENAME_INPUT") else {
+        return;
+    };
+    let input = std::path::PathBuf::from(input);
+    let source = std::fs::read_to_string(&input).expect("LILSCRIPT_RENAME_INPUT must be readable");
+    let output = std::env::var_os("LILSCRIPT_RENAME_OUTPUT")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| input.with_extension("converged.js"));
+    let excerpt = |offset: usize| -> &str {
+        let mut end = (offset + 72).min(source.len());
+        while !source.is_char_boundary(end) {
+            end -= 1;
+        }
+        let mut start = offset.min(source.len());
+        while !source.is_char_boundary(start) {
+            start -= 1;
+        }
+        &source[start..end]
+    };
+
+    let tokens = lex(&source).expect("the artifact must lex");
+    let template_literals = tokens
+        .iter()
+        .filter(|token| token.kind == TokenKind::Template)
+        .count();
+    let resolution = BindingResolution::new(&tokens);
+    let mut scopes = resolution.function_scopes();
+    scopes.insert(0, (0, 0, tokens.len()));
+    let mut unsound = Vec::new();
+    let mut ambiguous = Vec::new();
+    for (scope, start, _) in &scopes {
+        if !resolution.scope_is_sound(*scope) {
+            unsound.push((*scope, tokens.get(*start).map_or(source.len(), |token| token.start)));
+            continue;
+        }
+        for (name, at) in resolution.declarations(*scope) {
+            if !resolution.name_is_unambiguous(*scope, name) {
+                ambiguous.push((*scope, name.to_string(), tokens[at].start));
+            }
+        }
+    }
+
+    let (converged, rewrites) =
+        super::converge_local_names(&source).expect("the pass must not fail");
+    std::fs::write(&output, &converged).expect("LILSCRIPT_RENAME_OUTPUT must be writable");
+    let bail = if template_literals > 0 {
+        "template literal (rename.rs:35-37)"
+    } else if !resolution.is_total() {
+        "resolution not total (rename.rs:46-48)"
+    } else {
+        "none"
+    };
+    println!(
+        "041 input={} bytes={} tokens={} function_scopes={} template_literals={} is_total={} unsound_scopes={} ambiguous_names={} bail={bail} rewrites={rewrites} output={} output_bytes={}",
+        input.display(),
+        source.len(),
+        tokens.len(),
+        scopes.len() - 1,
+        template_literals,
+        resolution.is_total(),
+        unsound.len(),
+        ambiguous.len(),
+        output.display(),
+        converged.len(),
+    );
+    for (scope, offset) in unsound {
+        println!("041 unsound scope {scope} at byte {offset}: {:?}", excerpt(offset));
+    }
+    for (scope, name, offset) in ambiguous {
+        println!("041 ambiguous {name:?} in scope {scope} at byte {offset}: {:?}", excerpt(offset));
+    }
+}

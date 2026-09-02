@@ -54,6 +54,18 @@ impl Bucket {
         self.nanos.fetch_add(elapsed_nanos, Ordering::Relaxed);
     }
 
+    /// Record one deterministic event; `sum` is whatever the site wants
+    /// totalled (a codec delta, a count of candidates left untried). Events
+    /// are counters, not clocks, so unlike the timings they are exact across
+    /// thread counts and hosts and can stand as a result (objective.md §8).
+    pub fn event(&self, sum: u64) {
+        if !enabled() {
+            return;
+        }
+        self.calls.fetch_add(1, Ordering::Relaxed);
+        self.bytes.fetch_add(sum, Ordering::Relaxed);
+    }
+
     fn snapshot(&self) -> (u64, u64, u64) {
         (
             self.nanos.load(Ordering::Relaxed),
@@ -127,6 +139,29 @@ pub static PROBE_DROPPED: Bucket = Bucket::new("probe_dropped");
 pub static SCALAR_FIXPOINT: Bucket = Bucket::new("scalar_fixpoint");
 pub static INLINE_FIXPOINT: Bucket = Bucket::new("inline_fixpoint");
 
+/// Exits of the late cleanup and of its converged-local-naming candidate
+/// (`converge_local_names`), so a stage that silently never runs (036, 037,
+/// 041) is visible in the report. `calls` counts the exit; the sum is the
+/// site's own: the ledger left at entry, candidates left untried when a
+/// starved loop broke, the codec delta of each vote.
+pub static CLEANUP_ENTERED: Bucket = Bucket::new("cleanup_entered");
+pub static CLEANUP_UNBUDGETED: Bucket = Bucket::new("cleanup_unbudgeted");
+pub static CLEANUP_SKIPPED: Bucket = Bucket::new("cleanup_skipped");
+pub static RENAME_CANDIDATES: Bucket = Bucket::new("rename_candidates");
+pub static RENAME_STARVED: Bucket = Bucket::new("rename_starved");
+pub static RENAME_IDLE: Bucket = Bucket::new("rename_idle");
+pub static RENAME_UNPARSED: Bucket = Bucket::new("rename_unparsed");
+pub static RENAME_REFUSED: Bucket = Bucket::new("rename_refused");
+pub static RENAME_UNPROBED: Bucket = Bucket::new("rename_unprobed");
+pub static RENAME_WON: Bucket = Bucket::new("rename_won");
+pub static RENAME_LOST: Bucket = Bucket::new("rename_lost");
+/// The pass's own exits: a template literal (sum: how many), an unsound scope
+/// (sum: how many), and a resolution that is not total only because a
+/// function declares a name twice -- the case the pass proceeds through.
+pub static RENAME_TEMPLATED: Bucket = Bucket::new("rename_templated");
+pub static RENAME_UNSOUND: Bucket = Bucket::new("rename_unsound");
+pub static RENAME_AMBIGUOUS: Bucket = Bucket::new("rename_ambiguous");
+
 const BYTE_BUCKETS: [&Bucket; 16] = [
     &ADMISSION,
     &DIRECT_VALIDATE,
@@ -146,6 +181,24 @@ const BYTE_BUCKETS: [&Bucket; 16] = [
     &ACTIVE_FOLD,
 ];
 const ITERATION_BUCKETS: [&Bucket; 2] = [&SCALAR_FIXPOINT, &INLINE_FIXPOINT];
+/// Deterministic event counters, reported as `<name>` (events) and
+/// `<name>_sum`.
+const EVENT_BUCKETS: [&Bucket; 14] = [
+    &CLEANUP_ENTERED,
+    &CLEANUP_UNBUDGETED,
+    &CLEANUP_SKIPPED,
+    &RENAME_CANDIDATES,
+    &RENAME_STARVED,
+    &RENAME_IDLE,
+    &RENAME_UNPARSED,
+    &RENAME_REFUSED,
+    &RENAME_UNPROBED,
+    &RENAME_WON,
+    &RENAME_LOST,
+    &RENAME_TEMPLATED,
+    &RENAME_UNSOUND,
+    &RENAME_AMBIGUOUS,
+];
 
 /// `true` when the caller asked for a telemetry dump. Checked once; the
 /// environment probe is far more expensive than the atomics it guards.
@@ -232,6 +285,13 @@ pub fn report(wall_nanos: u128) -> Option<String> {
             r#","{name}_ms":{ms:.1},"{name}_runs":{calls},"{name}_max":{worst}"#,
             name = bucket.name,
             ms = nanos as f64 / 1.0e6,
+        ));
+    }
+    for bucket in EVENT_BUCKETS {
+        let (_, calls, sum) = bucket.snapshot();
+        out.push_str(&format!(
+            r#","{name}":{calls},"{name}_sum":{sum}"#,
+            name = bucket.name,
         ));
     }
     let [(codec_hits, _), (analyze_hits, _)] = crate::artifact_memo::statistics();

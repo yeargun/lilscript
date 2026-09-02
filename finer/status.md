@@ -2,7 +2,7 @@
 
 Standings, settled facts and ranked leads for the [finer loop](README.md). Volatile: rewritten
 after every fleet measure and every verdict. Contract: [objective.md](objective.md). History:
-[log.md](log.md). Updated 2026-09-02 after 040 and the cc18452 fleet measure.
+[log.md](log.md). Updated 2026-09-02 after 041 and the harvests that opened 042–044.
 
 ## Standings
 
@@ -105,20 +105,23 @@ bytes).
    rule at the splice; every other port byte-identical), but the port's 90-minute level-15 `always`
    build has timed out on every two-core fleet slot today. Rebuild it on four or more cores, add an
    `animate` test to the port, ship. Correctness outranks every byte below.
-2. **The local rename starves on jquerylil** (039 → 041, in progress): the committed artifact is
-   **1045 Brotli smaller** than the working-tree build of the same clean source (28225 against
-   29270), and Terser *loses* 274 on the committed one. The tree build has 90 distinct
-   parameter-header spellings against 25; `converge_local_names` is a scored candidate behind the
-   codec ledger's fair slice, a template-literal bail and a totality check where Terser's rename is
-   an unconditional last pass, and `reserve_enclosing_js_bindings` (2d2268a) dates the divergence.
-   The same class as 036 and 037: a stage that silently does not run.
+2. **The local rename does not run on jquerylil, and it is −733** (041, patch held): the ledger
+   never starves `converge_local_names`; it bails because the resolver calls a second `var t` in
+   one function ambiguous and the pass demands a total resolution. Narrowed to unsound scopes it
+   is −765 on the artifact and −733 through the pipeline, equal to Terser's locals-only rename,
+   with 40 header spellings instead of 91 — but that build ships `a?b,c:d` from
+   `fold_common_conditional_arms` (044), so the narrowing waits in
+   `finer/out/041/narrow-the-bail.patch` behind the 044 fix, then a fleet A/B. Deterministic exit
+   counters (`LILSCRIPT_TIMING=1`: `rename_*`, `cleanup_*`) now make the stage visible.
 3. **The loop runs on one host** (038): the owner's pool of Azure machines must carry fleet builds,
    sweeps and A/Bs (objective.md §9); a fleet A/B on this host is two hours, most of it jquerylil at
    level 15 on two cores. Inventory first — nothing in the repo names the machines.
-4. **A plain-data object type** (013): −540 on jquerylil, 69% of its gap, without the
-   `pure_getters` rules change. Language work; the largest single measured win found.
-5. **Statement-boundary absorption** (035): the five `sequencesize_2` shapes, worth 95–359 per port
-   only through the folds they unblock. Measure as a portfolio change.
+4. **A plain-data object type** (013 → 042, opened from a harvest): 013's −540 included DOM reads
+   no honest type can free, so the ceiling is lower; first a no-syntax port experiment re-typing
+   jquerylil's five compiler-owned bags (≤ −80 confirms), then `object<T>` and a callable `object`.
+5. **Statement-boundary absorption** (035 → 043, opened from a harvest): of Terser's seven
+   `sequencesize_2` shapes we have one, three partial and three keyword-refused; the `return E,V`
+   fold runs only with `terminal_local_rounds > 0`, zero at three of four sites. Cheap claim first.
 6. **Pooling benefit model** (011): `count * length` is a raw-objective formula; under Brotli the
    repeats were already matches. About −35 on jquerylil and should generalize to every Brotli port.
 7. **Budget allocation** (009, 036): 46 of 47 families starve at micromarklil's shipped config while

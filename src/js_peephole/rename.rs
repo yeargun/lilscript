@@ -32,7 +32,12 @@ use std::collections::{HashMap, HashSet};
 
 pub(crate) fn converge_local_names(source: &str) -> Result<(String, usize), JavaScriptParseError> {
     let tokens = lex(source)?;
-    if tokens.iter().any(|token| token.kind == TokenKind::Template) {
+    let templates = tokens
+        .iter()
+        .filter(|token| token.kind == TokenKind::Template)
+        .count();
+    if templates > 0 {
+        crate::timing::RENAME_TEMPLATED.event(templates as u64);
         return Ok((source.to_string(), 0));
     }
     // Converging on a spelling the artifact does not already use trades one
@@ -44,6 +49,23 @@ pub(crate) fn converge_local_names(source: &str) -> Result<(String, usize), Java
     let alphabet = dominant_identifier_alphabet(&tokens);
     let resolution = BindingResolution::new(&tokens);
     if !resolution.is_total() {
+        // Which of the two things `is_total` refuses: a scope the resolver
+        // could not account for (a destructured or rest parameter), or a name
+        // a function declares twice. The second closed the rewrite over all of
+        // jQuery in both its committed and its tree artifact (041); narrowing
+        // this bail to the first is `finer/out/041/narrow-the-bail.patch`,
+        // held back until `fold_common_conditional_arms` keeps the parentheses
+        // of a sequence it moves into a ternary arm.
+        let unsound = resolution
+            .function_scopes()
+            .iter()
+            .filter(|(scope, _, _)| !resolution.scope_is_sound(*scope))
+            .count();
+        if unsound > 0 {
+            crate::timing::RENAME_UNSOUND.event(unsound as u64);
+        } else {
+            crate::timing::RENAME_AMBIGUOUS.event(1);
+        }
         return Ok((source.to_string(), 0));
     }
 

@@ -1,7 +1,11 @@
 # 041 — the local rename starves
 
-**Status: OPEN — does `converge_local_names` fail to run on the jquerylil tree build, and is that the
-1045 Brotli between the committed artifact and the tree one?**
+**Status: FALSIFIED AS STATED; THE PASS DOES NOT RUN FOR ANOTHER REASON.** The ledger never starves
+it (`rename_starved=0`); it rewrites nothing on any jquery candidate because the resolver calls a
+second `var t` in one function ambiguous and the pass demands a total resolution (`rename.rs:46-48`).
+Narrowed, it is −765 Brotli on the finished artifact and −733 through the pipeline (one binary, one
+variable) but ships a syntax error from `fold_common_conditional_arms`, so it is held as
+`finer/out/041/narrow-the-bail.patch`, not landed. Closed 2026-09-02.
 Lane: compiler. Objective: brotli. Ports: jquerylil first; micromarklil (template-literal bail);
 fleet A/B before landing. Opened: 2026-09-01.
 
@@ -48,7 +52,7 @@ many scopes were unsound or ambiguous.
 **C.** (only if A and B confirm) The pass gets its own ledger, as commit 1632fb1 gave the canonical
 peephole, and the template-literal bail is lifted or narrowed. Confirms: jquerylil ≥ −600 and
 micromarklil ≥ −500 Brotli (Terser: −700 / −785) with no port worse than +50 in the fleet A/B.
-Falsifies: jquerylil < −200, or any port > +100.
+Falsifies: jquerylil less than −200, or any port more than +100.
 
 ## Read
 
@@ -81,16 +85,86 @@ port and do not trust wall clock. Step B needs no port build; A and C do — wai
 
 ## Result
 
-| variant | rewrites | distinct multi-param headers | raw | gzip9 | brotli11 | tests |
+Tables, offsets and run details: [measurements.md](measurements.md).
+
+**B** (no build). The shipped pass rewrites nothing on either jquery artifact: 0 unsound scopes, 6
+ambiguous names, bail at `rename.rs:46-48` — the same six functions in both, each declaring a name
+with `var` twice (`var t=e.nodeType;if(!t){var r,t="",a=0;…}`, `for(var r=[],e=t[0],o=0,…)` after
+`var o=[]`), which `binding.rs:451,485` records as ambiguous and `is_total()` refuses. With the bail narrowed
+to unsound scopes (`narrow-the-bail.patch`, two tests):
+
+| artifact, pass narrowed | rewrites | headers | raw | gzip9 | brotli11 | tests |
 |---|---:|---:|---:|---:|---:|---|
-| tree artifact (039 copy) | — | 90 | 83778 | 32540 | 29270 | 6/6 |
-| ungated pass over it | | | | | | |
-| committed artifact | — | 25 | 83044 | 31530 | 28225 | 6/6 |
+| tree (83778 / 32540 / 29270, 90 headers) | 5880 | **25** | 83470 | 31759 | **28505 (−765)** | 6/6, `--check` |
+| committed (83044 / 31530 / 28225, 25 headers) | 836 | 25 | 83044 | 31550 | 28233 (+8) | 6/6, `--check` |
+
+Terser's locals-only mangle is 28505 too. mobx bails on `(s,p,...c)`, micromark on 4 templates.
+
+**A** (two jquerylil builds, one source, one variable; the port's config: level 15, `always`,
+1536 probes, not level 13's 42–84). Counters, narrowed build: `cleanup_entered` 10,
+`cleanup_unbudgeted` **19** (the cleanup exits at `:7681` on an empty ledger), `rename_candidates`
+20, `rename_starved` **0**, `rename_ambiguous` **20 of 20** (the shipped bail would have fired on
+every one), idle/unparsed/refused/unprobed 0, arrivals at `:7783`: `rename_won` **15** (Σ 8681),
+`rename_lost` 5 (Σ 196). So the shipped binary: 20 idle exits, 0 arrivals, 90 spellings — the predicted
+number, from the pass's own gate.
+
+Artifacts (raw / gzip9 / brotli11): base (HEAD compiler) 83837 / 32564 / 29304, 91 headers, 6/6;
+narrowed as shipped 82596 / 31879 / 28567 but **`node --check` fails** at one site; with its two
+parentheses restored by hand 82598 / 31878 / **28571 (−733)**, 40 headers, 6/6.
+
+The site: tree `A?B?(o=…,s=u in e,s&&(r=e[u])):s=o:s=o`, narrowed `A&&B?o=…,s=u in e,s&&(r=e[u]):s=o`.
+`fold_common_conditional_arms` merges the identical else-arms and renders the inner consequent via
+`strip_parenthesized_range` without restoring the parentheses a sequence needs in a ternary arm
+(`src/js_peephole/folds/boolean.rs:2352-2360`), and `analyze_generated_javascript` admits `a?b,c:d`;
+`node` refuses it. The converged candidate validates.
+
+**C** — not reached: A is falsified as a mechanism and the narrowed build fails its gate. No fleet A/B;
+`step-c-fleet.sh` and `scoreboard.baseline.json` are ready. Suite on the tree as left (counters,
+artifact test, shipped bail): 1660 passed, 0 failed.
 
 ## Verdict
 
-<open>
+**Falsified as stated.** The pass does not starve on the ledger: `rename_starved=0`, every candidate
+that reaches the loop is charged, probed and voted, and 15 of 20 votes go its way once it runs. It
+never ran on jquery — in the tree build *or* the committed one — because `binding.rs:451,485` records
+a name a function declares twice as ambiguous, `is_total()` reports that as a non-total resolution,
+and `rename.rs:46-48` closes the whole artifact on it. The premise was wrong too: the committed
+artifact's 25 header spellings are not this pass's work; they are the emitter's before 2d2268a
+(2026-08-28) added `reserve_enclosing_js_bindings` for ident-05, one commit after the compiler
+(bcef1c4) that built that dist. Since then each function's pool is reserved against its enclosing
+names, the headers diverge to 90–91 spellings, and no later stage re-converges them. That is the
+1045.
+
+**B confirmed once the gate is opened.** Over the finished tree artifact the narrowed pass reaches
+25 spellings and 28505 Brotli, Terser's locals-only figure exactly, 6/6.
+Through the pipeline it is −733 against a one-variable baseline, 40 spellings left because the
+remaps after it re-diverge some — and it ships `a?b,c:d`, a latent bug in
+`fold_common_conditional_arms` the validator does not catch. Correctness outranks the byte, so the
+narrowing is a patch in this folder, not a change in the tree; the tree keeps the exit counters and the artifact test.
+
+The narrowing is sound by construction: every token of an ambiguous name resolves `Unresolved`
+(`binding.rs:649-652`), which the pass blocks in every scope containing one (`rename.rs:126-128`),
+while the scope's other names resolve exactly; only an unsound scope hides uses of outer bindings.
+The other two bails are real: micromarklil's `scan_template` swallows the whole template, `${…}`
+included, into one token; mobx's rest parameter `(s,p,...c)` is an unsound scope
+(`binding.rs:579-586`). Neither is in this folder's May-touch.
 
 ## Next
 
-<open>
+1. **Fix the fold, then land the patch.** `fold_common_conditional_arms` must re-parenthesize a
+   `then_value`/`else_value` whose stripped range holds a top-level comma (anything below
+   AssignmentExpression), and the validator must refuse `?a,b:c`. Then `git apply
+   finer/out/041/narrow-the-bail.patch`, suite, and the fleet A/B with `step-c-fleet.sh` against
+   `scoreboard.baseline.json`: jquerylil about −733 against 29304, micromarklil and mobxlil 0.
+2. **Run the pass last, ungated, scored**, as `apply_selected_canonical_peephole` runs the canonical
+   rewrite (1632fb1): the finished artifact converges to 25 spellings, the pipeline to 40, because
+   the remaps after the beam undo part of it.
+3. **The resolver, not the pass, is where the duplicate belongs.** A `var` declared twice in one
+   function is one binding; `binding.rs:456-459` marks it ambiguous "because only block scoping could
+   tell those bindings apart", which is true of `let` and false of `var`. Merging `var` duplicates
+   makes the resolution total with no bail change; `...rest` is one more parameter shape
+   (`:579-586`) and unblocks mobx.
+4. **micromarklil needs a template-aware lexer**: expressions inside `${…}` as tokens with binding
+   identity; Terser's −785 there is this pass's value on that port.
+5. **The ledger is exhausted elsewhere**: the cleanup is skipped for an empty ledger 19 times in 29
+   on jquerylil at 1536 probes — 036's budget question, measured; it did not decide this claim.

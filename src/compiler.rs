@@ -7681,8 +7681,14 @@ fn apply_late_javascript_cleanup(
         || codec_budget.remaining() == 0
         || !config.javascript_optimization_configured(JavaScriptOptimization::ParsedPeephole)
     {
+        if codec_budget.remaining() == 0 {
+            crate::timing::CLEANUP_UNBUDGETED.event(0);
+        } else {
+            crate::timing::CLEANUP_SKIPPED.event(0);
+        }
         return Ok(selected);
     }
+    crate::timing::CLEANUP_ENTERED.event(codec_budget.remaining() as u64);
 
     #[derive(Clone)]
     struct CleanupCandidate {
@@ -7759,32 +7765,43 @@ fn apply_late_javascript_cleanup(
         && !matches!(config.javascript.cost_model, CompressionCostModel::Raw)
     {
         let sources = beam.clone();
-        for candidate in sources {
+        let source_count = sources.len();
+        for (position, candidate) in sources.into_iter().enumerate() {
             if !codec_budget.reserve_work_unit() {
+                crate::timing::RENAME_STARVED.event((source_count - position) as u64);
                 break;
             }
+            crate::timing::RENAME_CANDIDATES.event(candidate.code.len() as u64);
             let Ok((converged, rewrites)) = converge_local_names(&candidate.code) else {
+                crate::timing::RENAME_UNPARSED.event(0);
                 continue;
             };
             if rewrites == 0 || converged == candidate.code {
+                crate::timing::RENAME_IDLE.event(0);
                 continue;
             }
             if analyze_generated_javascript(&converged).is_err() {
+                crate::timing::RENAME_UNPARSED.event(rewrites as u64);
                 continue;
             }
             if admission.validate(&converged).is_err() {
+                crate::timing::RENAME_REFUSED.event(rewrites as u64);
                 continue;
             }
             let Some(cost) =
                 codec_budget.compressed_size(converged.as_bytes(), config.javascript.cost_model)?
             else {
+                crate::timing::RENAME_UNPROBED.event(rewrites as u64);
                 continue;
             };
             if cost < candidate.cost {
+                crate::timing::RENAME_WON.event((candidate.cost - cost) as u64);
                 beam.push(CleanupCandidate {
                     code: converged,
                     cost,
                 });
+            } else {
+                crate::timing::RENAME_LOST.event((cost - candidate.cost) as u64);
             }
         }
     }
