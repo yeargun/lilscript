@@ -1066,3 +1066,82 @@ pub(crate) fn fold_pristine_static_method_calls(
     }
     Ok(apply_token_rewrites(source, replacements))
 }
+
+
+/// `E.k.call(E,…)` / `E[k].call(E,…)` → `E.k(…)` / `E[k](…)`: a method borrowed with
+/// `call` onto its own receiver is an ordinary method call — `this` is `E` either way, and
+/// `E` is evaluated the same number of times (twice; both forms read it twice). Ports that
+/// dispatch through `JS.call(table[key], table, …)` emit the borrowed form (10 sites on
+/// katexlil, −71 Brotli measured). Only under pristine builtins: `Function.prototype.call`
+/// must be the real one. `E` is a name or member chain; a computed key must be one token or
+/// a plain member chain so that the second evaluation is provably the same.
+pub(crate) fn fold_self_receiver_calls(
+    source: &str,
+) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let matching_close = matching_closers(&tokens);
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+    let mut index = 0usize;
+    while index < tokens.len() {
+        // receiver: identifier (.identifier)*
+        if tokens[index].kind != TokenKind::Identifier
+            || index
+                .checked_sub(1)
+                .is_some_and(|previous| matches!(tokens[previous].text, "." | "?."))
+        {
+            index += 1;
+            continue;
+        }
+        let mut cursor = index + 1;
+        // Extend the receiver chain until the member whose next member is `.call`.
+        while tokens.get(cursor).map(|token| token.text) == Some(".")
+            && tokens
+                .get(cursor + 1)
+                .is_some_and(|token| token.kind == TokenKind::Identifier)
+            && !(tokens.get(cursor + 2).map(|token| token.text) == Some(".")
+                && tokens.get(cursor + 3).map(|token| token.text) == Some("call"))
+        {
+            cursor += 2;
+        }
+        let receiver_end = cursor; // exclusive
+        // the borrowed member: `.name` or `[key]`
+        let key_end = match tokens.get(receiver_end).map(|token| token.text) {
+            Some(".") if tokens.get(receiver_end + 1).is_some_and(|token| token.kind == TokenKind::Identifier) => receiver_end + 2,
+            Some("[") => match matching_close.get(receiver_end).copied().flatten() {
+                Some(close) if close > receiver_end + 1 && tokens[receiver_end + 1..close].iter().all(|token| token.kind == TokenKind::Identifier || token.kind == TokenKind::String || token.kind == TokenKind::Number || token.text == ".") => close + 1,
+                _ => { index += 1; continue }
+            },
+            _ => { index += 1; continue }
+        };
+        // `.call(` then the receiver's own text then `,` or `)`
+        if tokens.get(key_end).map(|token| token.text) != Some(".")
+            || tokens.get(key_end + 1).map(|token| token.text) != Some("call")
+            || tokens.get(key_end + 2).map(|token| token.text) != Some("(")
+        {
+            index += 1;
+            continue;
+        }
+        let receiver_text = &source[tokens[index].start..tokens[receiver_end - 1].end];
+        let arg_start = key_end + 3;
+        let receiver_len = receiver_end - index;
+        let repeats = (0..receiver_len).all(|offset| {
+            tokens
+                .get(arg_start + offset)
+                .is_some_and(|token| token.text == tokens[index + offset].text)
+        });
+        let after = tokens.get(arg_start + receiver_len).map(|token| token.text);
+        if !repeats || !matches!(after, Some(",") | Some(")")) {
+            index += 1;
+            continue;
+        }
+        let _ = receiver_text;
+        // drop `.call` and the receiver argument (plus its comma)
+        let drop_end = if after == Some(",") { tokens[arg_start + receiver_len].end } else { tokens[arg_start + receiver_len - 1].end };
+        replacements.push((tokens[key_end].start, tokens[key_end + 2].start, String::new()));
+        replacements.push((tokens[arg_start].start, drop_end, String::new()));
+        index = arg_start + receiver_len;
+    }
+    let count = replacements.len() / 2;
+    let (output, _) = apply_token_rewrites(source, replacements);
+    Ok((output, count))
+}

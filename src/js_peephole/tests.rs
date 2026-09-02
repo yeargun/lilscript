@@ -16,7 +16,7 @@ use super::{
     optimize_generated_javascript_preserving_functions, reorder_uninitialized_var_declarators,
     fold_void_initializers_off_fresh_vars, join_adjacent_declarations, shape_declarations, spell_regexp_literals,
     fold_statement_negated_ors, fold_self_assignment_chains, fold_while_trailing_increments,
-    fold_for_trailing_increments,
+    fold_for_trailing_increments, fold_self_receiver_calls,
     validate_generated_javascript_syntax_floor, LateJavaScriptCleanupPass, PeepholeResult,
 };
 
@@ -3782,4 +3782,13 @@ fn for_loop_trailing_increment_inside_an_else_arm_is_not_lifted() {
     assert_eq!(run_javascript(&folded), run_javascript(source));
     let optimized = optimize_emitted_without_regex_literals(source);
     assert_eq!(run_javascript(&optimized.code), run_javascript(source), "{}", optimized.code);
+}
+
+#[test]
+fn a_method_borrowed_onto_its_own_receiver_is_a_method_call() {
+    let source = "var T={arr:[],a(x){return this===T?x+1:-1},b:{c(y){return this===T.b?y*2:-1}}},k=\"a\";var r=[T[k].call(T,1),T.a.call(T,2),T.b.c.call(T.b,3),T.a.call(T.b,4),T.a.call(T),Array.prototype.push.call(T.arr,0)];console.log(JSON.stringify(r),JSON.stringify(T.arr))";
+    let (folded, count) = fold_self_receiver_calls(source).unwrap();
+    assert!(folded.contains("[T[k](1),T.a(2),T.b.c(3),T.a.call(T.b,4),T.a(),Array.prototype.push.call(T.arr,0)]"), "{folded}");
+    assert_eq!(count, 4);
+    assert_eq!(run_javascript(&folded), run_javascript(source));
 }

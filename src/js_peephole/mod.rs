@@ -2557,6 +2557,7 @@ fn optimize_generated_javascript_pass(
     session.run(fold_arguments_length_formal_copies)?;
     session.run(fold_arguments_slice_to_rest)?;
     session.run(fold_dead_pure_identifier_assigns)?;
+    session.run_if(pristine_builtins, fold_self_receiver_calls)?;
     session.repeat(fold_self_assignment_chains, 6)?;
     session.run(fold_conditional_assigned_false_phi)?;
     session.run(remove_unused_standalone_vars)?;
