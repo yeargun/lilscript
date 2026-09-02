@@ -107,6 +107,33 @@ that selected JavaScript. A linked or inline publication comment is debugging
 metadata added afterward and is not fed back into optimizer scoring; hidden mode
 adds no such bytes.
 
+## Verification
+
+The gates a map-enabled build has passed, on this branch, and how to re-run
+them:
+
+- **Maps off is the same compiler.** markedlil, micromarklil and mobxlil built
+  with this binary and with the map-less one on separate pool workers, twice
+  with the binaries swapped: every artifact byte-identical, wall clock within
+  worker variance (`finer/tools/workers.mjs build --compiler <bin> --dist-dir
+  <dir>`, then `diff -r`).
+- **Maps on leaves the JavaScript alone.** `hidden` and the analysis map
+  produce the same bytes as off; `linked` and `inline` append only the
+  publication comment. Sidecars are deterministic across hosts and runs.
+- **Names label their tokens.** Every named mapping sits on the identifier it
+  names or its recorded mangled spelling (asserted by
+  `hidden_source_map_preserves_selected_javascript_and_names` and the ignored
+  real-library audit `cargo test --release -- --ignored
+  transparent_across_real_libraries`).
+- **The map validates.** `finer/out/sourcemaps/validate-map.mjs <js> <map>
+  [name …]` checks a map with the `source-map` package: every mapping inside
+  both texts, every position resolving, spot-checked names.
+
+Map-enabled builds compile through the same explained path as `--explain`,
+which also verifies that the selected artifact's ABI manifest still matches
+the source's. Foreign imports the optimizer lowered to direct JavaScript and
+then pruned are tree shaking, not drift, and pass that check.
+
 ## Rust API
 
 Artifact-returning compiler APIs expose `Option<JavaScriptSourceMap>` alongside
