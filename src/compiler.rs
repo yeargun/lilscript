@@ -372,12 +372,15 @@ fn compile_path_explained_inner(
     let abi_manifest = contract.abi_manifest(&ir);
     let selected = optimize_and_select_javascript_with_source_trace(ir, config, module_output)
         .map_err(|error| module_compile_error(&modules, error))?;
-    if selected.abi_manifest != abi_manifest {
+    if abi_manifest_drifted(&abi_manifest, &selected.abi_manifest) {
         return Err(module_compile_error(
             &modules,
             CompileError::Codegen(crate::codegen_js::CodegenError::new(
                 Span::empty(0),
-                "selected JavaScript candidate changed the normalized ABI manifest",
+                format!(
+                    "selected JavaScript candidate changed the normalized ABI manifest: {}",
+                    abi_manifest_difference(&abi_manifest, &selected.abi_manifest)
+                ),
             )),
         ));
     }
@@ -397,6 +400,65 @@ fn compile_path_explained_inner(
         selection_metrics: selected.selection_metrics,
         abi_manifest: selected.abi_manifest,
     })
+}
+
+/// Whether the selected candidate's manifest differs from the source's in a
+/// way the boundary can observe. Foreign imports are the exception: the
+/// optimizer lowers known host helpers to direct JavaScript and then prunes
+/// the imports nothing uses any more (`unused-foreign-import-elimination`),
+/// so the selected manifest may import fewer names from a source, never more
+/// or from a source the program did not name. jquerylil imports 100 helpers
+/// from its host module and ships importing none of them.
+fn abi_manifest_drifted(
+    expected: &crate::compilation_contract::JavaScriptAbiManifest,
+    selected: &crate::compilation_contract::JavaScriptAbiManifest,
+) -> bool {
+    let imports_within_expected = selected.foreign_imports.iter().all(|import| {
+        expected
+            .foreign_imports
+            .iter()
+            .find(|candidate| candidate.source == import.source)
+            .is_some_and(|candidate| {
+                import
+                    .imported
+                    .iter()
+                    .all(|name| candidate.imported.contains(name))
+            })
+    });
+    !imports_within_expected
+        || crate::compilation_contract::JavaScriptAbiManifest {
+            foreign_imports: expected.foreign_imports.clone(),
+            ..selected.clone()
+        } != *expected
+}
+
+/// Names the manifest fields the selected candidate changed, with both values,
+/// so the failure says what drifted rather than only that something did.
+fn abi_manifest_difference(
+    expected: &crate::compilation_contract::JavaScriptAbiManifest,
+    selected: &crate::compilation_contract::JavaScriptAbiManifest,
+) -> String {
+    let (Ok(serde_json::Value::Object(expected)), Ok(serde_json::Value::Object(selected))) = (
+        serde_json::to_value(expected),
+        serde_json::to_value(selected),
+    ) else {
+        return "manifests differ".to_string();
+    };
+    let differences = expected
+        .iter()
+        .filter(|(key, value)| selected.get(*key) != Some(value))
+        .map(|(key, value)| {
+            format!(
+                "{key}: expected {value}, selected {}",
+                selected.get(key).unwrap_or(&serde_json::Value::Null)
+            )
+        })
+        .collect::<Vec<_>>();
+    if differences.is_empty() {
+        "manifests differ".to_string()
+    } else {
+        differences.join("; ")
+    }
 }
 
 /// Debug sidecars for one selected JavaScript artifact. Both are built from the
@@ -11386,6 +11448,73 @@ mod tests {
             !output.contains("unused"),
             "unused foreign import survived closed js-module tree shake:\n{output}"
         );
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    /// The explained compile (what `--explain` and the debug sidecars use)
+    /// checks the winner's ABI manifest against the source's. Pruning an
+    /// unused foreign import is tree shaking, not drift: jquerylil imports a
+    /// hundred host helpers and ships none of them.
+    #[test]
+    fn explained_compile_accepts_pruned_foreign_imports() {
+        let directory = std::env::temp_dir().join(format!(
+            "lilscript-explained-foreign-shake-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&directory).unwrap();
+        std::fs::write(
+            directory.join("host.js"),
+            "export const used=(n)=>n;export const unused=(n)=>n+1;",
+        )
+        .unwrap();
+        let main = directory.join("main.lil");
+        std::fs::write(
+            &main,
+            r#"
+                import extern { used, unused } from "./host.js";
+                extern int used(int value);
+                extern int unused(int value);
+                print(used(41));
+            "#,
+        )
+        .unwrap();
+        let mut config = ProjectConfig {
+            config_dir: Some(directory.clone()),
+            ..ProjectConfig::default()
+        };
+        config.javascript.strip_console = false;
+        config.javascript.source_map.enabled = true;
+
+        let compilation = compile_path_to_js_module_explained_configured(&main, &config).unwrap();
+        assert_eq!(
+            compile_path_to_js_module_configured(&main, &config).unwrap(),
+            compilation.javascript
+        );
+        assert!(!compilation.javascript.contains("unused"));
+        assert_eq!(
+            compilation.abi_manifest.foreign_imports,
+            vec![crate::compilation_contract::JavaScriptForeignImportAbi {
+                source: "./host.js".to_string(),
+                imported: vec!["used".to_string()],
+            }]
+        );
+        assert!(compilation.source_map.is_some());
+
+        let mut drifted = compilation.abi_manifest.clone();
+        drifted.foreign_imports[0]
+            .imported
+            .push("invented".to_string());
+        assert!(abi_manifest_drifted(&compilation.abi_manifest, &drifted));
+        let mut narrowed = compilation.abi_manifest.clone();
+        narrowed.foreign_imports.clear();
+        assert!(!abi_manifest_drifted(&compilation.abi_manifest, &narrowed));
+        let mut world = compilation.abi_manifest.clone();
+        world.world = "closed-application";
+        assert!(abi_manifest_drifted(&compilation.abi_manifest, &world));
         std::fs::remove_dir_all(directory).unwrap();
     }
 
