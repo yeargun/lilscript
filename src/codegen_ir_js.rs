@@ -12909,7 +12909,15 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             }
             ControlFlowOp::IndexGet { object, index } if context.is_record(*object) => {
                 let indexed = self.render_index_access(*object, *index, context, cache)?;
-                if self.options.allows(JsSyntaxFeature::NullishCoalescing) {
+                if instruction
+                    .out
+                    .is_some_and(|out| context.undefined_absent_reads.contains(&out))
+                {
+                    // Absent stays `undefined`: every use of this read is a
+                    // null test spelled `===void 0` below, or the narrowing
+                    // after one, so nothing can tell it from `null`.
+                    Ok(indexed)
+                } else if self.options.allows(JsSyntaxFeature::NullishCoalescing) {
                     Ok(JsExpression::grouped(
                         format!("{indexed}??null"),
                         JsPrecedence::LogicalOr,
@@ -13003,14 +13011,29 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 JsExpression::raw(format!("await {task}"), JsPrecedence::Unary)
             }
             ControlFlowOp::Binary { op, lhs, rhs } => {
+                let undefined_absent = matches!(op, IrBinaryOp::Eq | IrBinaryOp::NotEq)
+                    .then(|| context.undefined_absent_operand(*lhs, *rhs))
+                    .flatten();
                 let truthy_nullable = (self.options.truthy_nullable_checks
+                    && undefined_absent.is_none()
                     && matches!(op, IrBinaryOp::Eq | IrBinaryOp::NotEq))
                 .then(|| context.truthy_nullable_operand(*lhs, *rhs))
                 .flatten();
                 let nullable_on_lhs = truthy_nullable == Some(*lhs);
+                let absent_on_lhs = undefined_absent == Some(*lhs);
                 let lhs = value(*lhs, cache)?;
                 let rhs = value(*rhs, cache)?;
-                if truthy_nullable.is_some() {
+                if undefined_absent.is_some() {
+                    let operand = if absent_on_lhs { lhs } else { rhs };
+                    let operator = if *op == IrBinaryOp::Eq { "===" } else { "!==" };
+                    JsExpression::raw(
+                        format!(
+                            "{}{operator}void 0",
+                            operand.at_least(JsPrecedence::Equality)
+                        ),
+                        JsPrecedence::Equality,
+                    )
+                } else if truthy_nullable.is_some() {
                     let operand = if nullable_on_lhs { lhs } else { rhs };
                     let boolean = JsExpression::unary("!", operand);
                     if *op == IrBinaryOp::Eq {
@@ -14256,6 +14279,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 ));
             }
             Intrinsic::JsIsNullish => {
+                if context.undefined_absent_reads.contains(&receiver_id) {
+                    return Ok(JsExpression::raw(
+                        format!("{}===void 0", receiver.at_least(JsPrecedence::Equality)),
+                        JsPrecedence::Equality,
+                    ));
+                }
                 return Ok(JsExpression::raw(
                     format!("{}==null", receiver.at_least(JsPrecedence::Equality)),
                     JsPrecedence::Equality,
@@ -17913,6 +17942,10 @@ struct LocalNames {
     null_values: AHashSet<ValueId>,
     js_undefined_values: AHashSet<ValueId>,
     truthy_nullable_values: AHashSet<ValueId>,
+    /// Record reads whose absence stays `undefined`: every use is a null test
+    /// or the narrowing after one, so the `??null` normalization would be
+    /// unobservable and the test can be the strict `===void 0`.
+    undefined_absent_reads: AHashSet<ValueId>,
     safe_int_array_reads: AHashSet<ValueId>,
     in_range_string_indexes: AHashSet<(ValueId, ValueId)>,
     safe_in_place_updates: AHashSet<(ValueId, ValueId)>,
@@ -19353,6 +19386,7 @@ impl LocalNames {
                 _ => None,
             })
             .collect();
+        let undefined_absent_reads = undefined_absent_record_reads(function, &record_values, &null_values);
         let mut truthy_nullable_values = function
             .params
             .iter()
@@ -19737,6 +19771,7 @@ impl LocalNames {
             null_values,
             js_undefined_values,
             truthy_nullable_values,
+            undefined_absent_reads,
             safe_int_array_reads,
             in_range_string_indexes,
             safe_in_place_updates,
@@ -19873,6 +19908,18 @@ impl LocalNames {
 
     fn can_elide_int_array_read(&self, value: Option<ValueId>) -> bool {
         value.is_some_and(|value| self.safe_int_array_reads.contains(&value))
+    }
+
+    /// The operand of `x == null` / `x != null` that is a record read whose
+    /// absence stays `undefined`, when the other operand is the null constant.
+    fn undefined_absent_operand(&self, lhs: ValueId, rhs: ValueId) -> Option<ValueId> {
+        if self.null_values.contains(&lhs) && self.undefined_absent_reads.contains(&rhs) {
+            Some(rhs)
+        } else if self.null_values.contains(&rhs) && self.undefined_absent_reads.contains(&lhs) {
+            Some(lhs)
+        } else {
+            None
+        }
     }
 
     fn truthy_nullable_operand(&self, lhs: ValueId, rhs: ValueId) -> Option<ValueId> {
@@ -23457,6 +23504,81 @@ fn value_is_used_outside_expression_region(
             .as_ref()
             .is_some_and(|terminator| terminator_values(terminator).contains(&value))
     })
+}
+
+/// Record reads (`rec[k]`, typed `T?` with `T` not itself nullable) whose
+/// every use is a comparison against the null constant, a nullish test, or
+/// the narrowing after one. Their `??null` normalization is unobservable:
+/// the tests accept `undefined` spelled as `===void 0`, and the narrowing
+/// only runs when the value is present. Any other use — a phi, a store, a
+/// call argument, a return, a strict comparison — keeps the normalization,
+/// because there `null` and `undefined` are distinguishable.
+fn undefined_absent_record_reads(
+    function: &ControlFlowFunction<'_>,
+    record_values: &AHashSet<ValueId>,
+    null_values: &AHashSet<ValueId>,
+) -> AHashSet<ValueId> {
+    let mut candidates = function
+        .blocks
+        .iter()
+        .flat_map(|block| &block.instructions)
+        .filter_map(|instruction| match (&instruction.op, instruction.out, &instruction.ty) {
+            (ControlFlowOp::IndexGet { object, .. }, Some(out), Some(Type::Nullable(inner)))
+                if record_values.contains(object) && !matches!(inner.as_ref(), Type::Nullable(_)) =>
+            {
+                Some(out)
+            }
+            _ => None,
+        })
+        .collect::<AHashSet<_>>();
+    if candidates.is_empty() {
+        return candidates;
+    }
+    for block in &function.blocks {
+        for phi in &block.phis {
+            for (_, value) in &phi.incoming {
+                candidates.remove(value);
+            }
+        }
+        for instruction in &block.instructions {
+            let allowed = match &instruction.op {
+                ControlFlowOp::Binary {
+                    op: IrBinaryOp::Eq | IrBinaryOp::NotEq,
+                    lhs,
+                    rhs,
+                } => {
+                    if null_values.contains(lhs) {
+                        Some(*rhs)
+                    } else if null_values.contains(rhs) {
+                        Some(*lhs)
+                    } else {
+                        None
+                    }
+                }
+                ControlFlowOp::Intrinsic {
+                    intrinsic: Intrinsic::UnwrapNullable | Intrinsic::JsIsNullish,
+                    receiver: Some(receiver),
+                    args,
+                } if args.is_empty() => Some(*receiver),
+                _ => None,
+            };
+            for value in op_values(&instruction.op) {
+                if allowed != Some(value) {
+                    candidates.remove(&value);
+                }
+            }
+        }
+        match block.terminator.as_ref() {
+            Some(Terminator::Branch { condition, .. }) => {
+                candidates.remove(condition);
+            }
+            Some(Terminator::Return(Some(value)) | Terminator::Throw(value)) => {
+                candidates.remove(value);
+            }
+            _ => {}
+        }
+    }
+    candidates
 }
 
 fn use_counts(function: &ControlFlowFunction<'_>) -> AHashMap<ValueId, usize> {

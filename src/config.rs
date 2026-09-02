@@ -288,7 +288,10 @@ impl ProjectConfig {
                 .compression_enabled(CompressionDecision::StructuredClosureInlining),
             snapshot_immutable_closure_captures: false,
             struct_method_shorthand: self.javascript.struct_method_shorthand.unwrap_or(true),
-            truthy_nullable_checks: true,
+            truthy_nullable_checks: self
+                .javascript
+                .truthy_nullable_checks
+                .unwrap_or(!self.javascript.priority.keeps_integer_coercions()),
             pack_string_arrays: self
                 .javascript
                 .compression_enabled(CompressionDecision::StringArrayPacking)
@@ -1210,6 +1213,20 @@ pub struct JavaScriptConfig {
     /// final JavaScript. Unmangled output preserves source-oriented names and
     /// does not use this switch.
     pub local_name_coalescing: bool,
+    /// Emit a single-bundle module's internal bindings inside one function
+    /// scope, with the export bindings assigned outside it. V8 reads a
+    /// module-scope binding through a module cell (several dependent loads)
+    /// and a function-scope binding through one context slot, so hot state
+    /// declared at module scope pays per access; upstream libraries hand-write
+    /// that state as closures. Off by default: the wrapper is a few dozen raw
+    /// bytes per artifact, so a port turns it on against its own measure.
+    pub function_scope: Option<bool>,
+    /// Spell `x != null` on a nullable whose present values are always truthy
+    /// (classes, arrays, maps, …) as `x` / `!x`. Shorter, and slower: V8 tests
+    /// an object for truthiness in about 3.8 ns against 2.6 for `x!==null`
+    /// (finer 048, one process per variant). Omitted: on for size-first and
+    /// balanced, off for performance-first and realistic-performance-first.
+    pub truthy_nullable_checks: Option<bool>,
     /// Wrap exclusive callees of a named root in a once-run IIFE so those
     /// helpers can reuse short names. Off only for oracles that need the
     /// three-address helper spelling their fixture was written against.
@@ -1305,6 +1322,8 @@ impl Default for JavaScriptConfig {
             local_name_reserve: 16,
             stable_local_names: true,
             local_name_coalescing: true,
+            function_scope: None,
+            truthy_nullable_checks: None,
             iife_private_callee_clusters: true,
             nested_once_run_helpers: true,
             operand_order_fusion: true,

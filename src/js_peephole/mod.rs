@@ -9,11 +9,11 @@ use crate::js_peephole::parse::{
 pub(crate) use crate::js_peephole::rename::converge_local_names;
 use crate::js_peephole::rewrite::{
     apply_rewrites, apply_token_rewrites, assign_is_in_declaration, is_property_identifier,
-    non_overlapping_rewrites,
+    non_overlapping_rewrites, top_level_stop,
 };
 use crate::js_peephole::scope::{
     identifier_is_arrow_parameter, identifier_is_catch_parameter, identifier_is_function_parameter,
-    GeneratedBindingIndex,
+    name_use_is_mutated, GeneratedBindingIndex,
 };
 use crate::js_peephole::token::{
     ascii_identifier_name_string, lex, matching_closers, validate_conditional_operators,
@@ -339,6 +339,170 @@ pub fn analyze_generated_javascript(
     })?;
     crate::artifact_memo::GENERATED_ANALYSIS.insert(key, metrics);
     Ok(metrics)
+}
+
+/// Emit a single-bundle module's internal bindings inside one function scope
+/// and assign its export bindings outside it:
+/// `var _a,_b;(function(){…;_a=x;_b=y})();export{_a as x,_b as y}`.
+///
+/// V8 reaches a module-scope binding through a module cell — several
+/// dependent loads — and a function-scope binding through one context slot,
+/// so hot state declared at module scope pays per access (cnlil, finer 048:
+/// the cold merge lanes went from 1.15x to 1.00x of upstream with this
+/// wrapper alone). Every binding the module declares keeps its name and its
+/// hoisting; only the scope that holds it changes, and strictness is lexical,
+/// so module code stays strict inside the function.
+///
+/// `Ok(Err(reason))` leaves the artifact as is when the transform cannot be proven
+/// equivalent from the text: an `export` other than the trailing list, a
+/// top-level `await`, an `import` after the body has started, or an exported
+/// binding assigned from inside a nested function (the outer alias is a
+/// one-time snapshot taken after the body ran, not a live binding).
+pub fn wrap_module_internals_in_function_scope(
+    source: &str,
+) -> Result<Result<String, &'static str>, JavaScriptParseError> {
+    analyze_generated_javascript(source)?;
+    let tokens = lex(source)?;
+    let matching_close = matching_closers(&tokens);
+    // The leading static imports stay at module scope.
+    let mut body_start = 0usize;
+    while body_start < tokens.len() && tokens[body_start].text == "import" {
+        if tokens.get(body_start + 1).is_some_and(|next| next.text == "(") {
+            break;
+        }
+        let Some(end) = top_level_stop(&tokens, body_start + 1, &[";"]) else {
+            return Ok(Err("unterminated import"));
+        };
+        body_start = end + 1;
+    }
+    // Exactly one export clause, trailing, of the `export{a as b,…}` form.
+    let exports = tokens
+        .iter()
+        .enumerate()
+        .filter(|(_, token)| token.text == "export")
+        .map(|(index, _)| index)
+        .collect::<Vec<_>>();
+    let [export_at] = exports.as_slice() else {
+        return Ok(Err("not exactly one export clause"));
+    };
+    let export_at = *export_at;
+    if export_at < body_start || tokens.get(export_at + 1).map(|token| token.text) != Some("{") {
+        return Ok(Err("export is not a trailing specifier list"));
+    }
+    let Some(export_close) = matching_close[export_at + 1] else {
+        return Ok(Err("unclosed export clause"));
+    };
+    if tokens[export_close + 1..]
+        .iter()
+        .any(|token| token.text != ";")
+    {
+        return Ok(Err("code after the export clause"));
+    }
+    let mut specifiers = Vec::<(&str, String)>::new();
+    let mut cursor = export_at + 2;
+    while cursor < export_close {
+        if tokens[cursor].text == "," {
+            cursor += 1;
+            continue;
+        }
+        let internal = tokens[cursor];
+        if internal.kind != TokenKind::Identifier {
+            return Ok(Err("export specifier is not an identifier"));
+        }
+        cursor += 1;
+        let public = if cursor < export_close && tokens[cursor].text == "as" {
+            let name = tokens.get(cursor + 1).map(|token| token.text).unwrap_or("");
+            cursor += 2;
+            name.to_string()
+        } else {
+            internal.text.to_string()
+        };
+        specifiers.push((internal.text, public));
+    }
+    if specifiers.is_empty() {
+        return Ok(Err("empty export clause"));
+    }
+    // The body: no further imports, no top-level await, no exported binding
+    // written from inside a nested scope.
+    let body = &tokens[body_start..export_at];
+    let mut depth = 0usize;
+    for (offset, token) in body.iter().enumerate() {
+        match token.text {
+            "{" | "(" | "[" => depth += 1,
+            "}" | ")" | "]" => depth = depth.saturating_sub(1),
+            "import" if depth == 0 && body.get(offset + 1).map(|next| next.text) != Some("(") => {
+                return Ok(Err("import after the body started"));
+            }
+            "await" if depth == 0 => return Ok(Err("top-level await")),
+            _ => {}
+        }
+        if depth != 0
+            && token.kind == TokenKind::Identifier
+            && specifiers.iter().any(|(internal, _)| *internal == token.text)
+            && !is_property_identifier(&tokens, body_start + offset)
+            && name_use_is_mutated(&tokens, body_start + offset)
+        {
+            return Ok(Err("exported binding written from a nested scope"));
+        }
+    }
+    // Aliases the artifact does not use anywhere.
+    let taken = tokens
+        .iter()
+        .filter(|token| token.kind == TokenKind::Identifier)
+        .map(|token| token.text)
+        .collect::<std::collections::HashSet<_>>();
+    let mut aliases = Vec::with_capacity(specifiers.len());
+    let mut serial = 0usize;
+    while aliases.len() < specifiers.len() {
+        let candidate = format!("_{}", identifier_suffix(serial));
+        serial += 1;
+        if !taken.contains(candidate.as_str()) {
+            aliases.push(candidate);
+        }
+    }
+    let prefix = &source[..tokens.get(body_start).map_or(source.len(), |token| token.start)];
+    let body_text = &source[tokens[body_start].start..tokens[export_at].start];
+    let mut out = String::with_capacity(source.len() + 64);
+    out.push_str(prefix);
+    out.push_str("var ");
+    out.push_str(&aliases.join(","));
+    out.push_str(";(function(){");
+    out.push_str(body_text.trim_end_matches(';'));
+    for (alias, (internal, _)) in aliases.iter().zip(&specifiers) {
+        out.push(';');
+        out.push_str(alias);
+        out.push('=');
+        out.push_str(internal);
+    }
+    out.push_str("})();export{");
+    for (index, (alias, (_, public))) in aliases.iter().zip(&specifiers).enumerate() {
+        if index != 0 {
+            out.push(',');
+        }
+        out.push_str(alias);
+        if alias != public {
+            out.push_str(" as ");
+            out.push_str(public);
+        }
+    }
+    out.push('}');
+    analyze_generated_javascript(&out)?;
+    Ok(Ok(out))
+}
+
+fn identifier_suffix(mut serial: usize) -> String {
+    let alphabet = b"abcdefghijklmnopqrstuvwxyz";
+    let mut suffix = Vec::new();
+    loop {
+        suffix.push(alphabet[serial % alphabet.len()]);
+        serial /= alphabet.len();
+        if serial == 0 {
+            break;
+        }
+        serial -= 1;
+    }
+    suffix.reverse();
+    String::from_utf8(suffix).expect("ascii")
 }
 
 pub fn generated_javascript_export_names(

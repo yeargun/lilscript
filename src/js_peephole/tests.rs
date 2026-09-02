@@ -16,7 +16,7 @@ use super::{
     optimize_generated_javascript_preserving_functions, reorder_uninitialized_var_declarators,
     fold_void_initializers_off_fresh_vars, join_adjacent_declarations, shape_declarations, spell_regexp_literals,
     fold_statement_negated_ors, fold_self_assignment_chains, fold_while_trailing_increments,
-    fold_null_normalized_nullable_tests,
+    fold_null_normalized_nullable_tests, wrap_module_internals_in_function_scope,
     validate_generated_javascript_syntax_floor, LateJavaScriptCleanupPass, PeepholeResult,
 };
 
@@ -3850,4 +3850,69 @@ fn null_normalized_nullable_tests_keep_every_observable_normalization() {
         assert_eq!(count, 0, "must keep {source}");
         assert_eq!(folded, source);
     }
+}
+
+fn run_module_javascript(source: &str) -> String {
+    let output = std::process::Command::new("node")
+        .arg("--input-type=module")
+        .arg("-e")
+        .arg(source)
+        .output()
+        .expect("node must execute generated JavaScript");
+    assert!(
+        output.status.success(),
+        "node failed:\n{}\nsource:\n{source}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    String::from_utf8(output.stdout).expect("node stdout must be UTF-8")
+}
+
+#[test]
+fn function_scope_wrapper_moves_internals_and_aliases_the_exports() {
+    let source = "var a=1,c={__proto__:null};function f(k){var v=c[k];return v===void 0?a++:v}var g=function(){return f(\"x\")};c.y=7;console.log(f(\"y\"),g(),g(),a);export{g as run,f as look}";
+    let wrapped = wrap_module_internals_in_function_scope(source).unwrap().unwrap();
+    assert_eq!(
+        wrapped,
+        "var _a,_b;(function(){var a=1,c={__proto__:null};function f(k){var v=c[k];return v===void 0?a++:v}var g=function(){return f(\"x\")};c.y=7;console.log(f(\"y\"),g(),g(),a);_a=g;_b=f})();export{_a as run,_b as look}"
+    );
+    assert_eq!(run_module_javascript(source), run_module_javascript(&wrapped));
+    // the exported functions keep their identity, name and arity
+    let probe = ";console.log(typeof run,run.name,run.length,look.name,look.length,run())";
+    assert_eq!(
+        run_module_javascript(&format!("{}{probe}", source.replace("export{g as run,f as look}", "var run=g,look=f"))),
+        run_module_javascript(&format!("{}{probe}", wrapped.replace("export{_a as run,_b as look}", "var run=_a,look=_b")))
+    );
+}
+
+#[test]
+fn function_scope_wrapper_keeps_static_imports_outside() {
+    let source = "import{x}from\"./x.js\";var a=x+1;function f(){return a}export{f}";
+    let wrapped = wrap_module_internals_in_function_scope(source).unwrap().unwrap();
+    assert_eq!(
+        wrapped,
+        "import{x}from\"./x.js\";var _a;(function(){var a=x+1;function f(){return a};_a=f})();export{_a as f}"
+    );
+}
+
+#[test]
+fn function_scope_wrapper_refuses_what_it_cannot_prove() {
+    for source in [
+        // an exported binding written from inside a nested function is a live binding
+        "var n=0;function bump(){n++}export{n,bump}",
+        // more than one export clause
+        "var a=1;export{a};var b=2;export{b}",
+        // a declaration export
+        "export function f(){return 1}",
+        // top-level await
+        "var a=await Promise.resolve(1);export{a}",
+        // an import after the body started
+        "var a=1;import{b}from\"./b.js\";export{a}",
+        // nothing exported
+        "var a=1;console.log(a)",
+    ] {
+        assert!(wrap_module_internals_in_function_scope(source).unwrap().is_err(), "{source}");
+    }
+    // a top-level (module-init) assignment to an exported binding is a one-time value: allowed
+    let source = "var a;a=2;function f(){return a}export{a,f}";
+    assert!(wrap_module_internals_in_function_scope(source).unwrap().is_ok());
 }

@@ -57,6 +57,8 @@ function_layout_exact_limit = 13 # 0 = heuristic only; maximum 18
 local_name_reserve = 48 # consistent short identifiers reserved for lexical locals
 stable_local_names = true # preserve source-local affinity across generated kernels
 local_name_coalescing = true # reuse bindings for SSA values with disjoint live ranges
+# function_scope = true # single-bundle internals inside one function scope; exports assigned outside (V8 context slots instead of module cells)
+# truthy_nullable_checks = false # `x!==null` instead of `x` for always-truthy nullables; default off under the performance priorities
 # function_spelling = "arrow" # arrow | function; see public-ABI note below
 # strip_console = true # drop print()/debugLog; default on. Tests/oracles set false.
 # assume_pristine_builtins = false # required before regex literals may bypass ambient RegExp
@@ -663,6 +665,24 @@ colors using non-semantic source-local affinity, with deterministic definition
 order as the fallback. It does not alter liveness or the number of slots; it
 makes duplicated numerical and generated kernels retain similar local
 spellings for transport compression.
+`function_scope = true` wraps a single-bundle module's internal bindings in one
+function scope and assigns the export bindings outside it (`var a,b;(function(){…;a=x;b=y})();export{a as x,b as y}`).
+V8 reaches a module-scope binding through a module cell — several dependent loads — and a
+function-scope binding through one context slot, so a library whose hot state lives at module scope
+pays per access; upstream libraries hand-write that state as closures. Measured on cnlil (finer
+048): the wrapper is +53 raw / +27 Brotli and takes the cold merge lanes from 1.15x to 1.00x of
+upstream. It is refused, and the artifact left as is, when the module has any `export` other than
+the trailing list, a top-level `await`, or an exported binding assigned from inside a nested
+function (the outer alias is a one-time snapshot, not a live binding). Off by default; a port turns
+it on against its own measure. Multi-chunk bundles are not wrapped.
+
+`truthy_nullable_checks` chooses how `x != null` is spelled when `x` is a nullable whose present
+values are always truthy (a class, array, map, set or buffer): `x` and `!x` are the shortest
+spelling, and V8 evaluates an object's truthiness in about 3.8 ns against 2.6 ns for `x!==null`
+(finer 048). Omitted, the truthiness spelling is used by `size-first` and `balanced` and the
+strict comparison by `performance-first` and `realistic-performance-first`; a port that ships
+`size-first` under a runtime gate sets it to `false`.
+
 `local_name_coalescing = true` (the default) lets identifier-mangled JavaScript
 reuse one local binding for SSA values whose live ranges provably do not
 interfere. Setting it to `false` retains distinct bindings; liveness and

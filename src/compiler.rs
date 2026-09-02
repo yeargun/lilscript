@@ -364,8 +364,14 @@ fn compile_path_explained_inner(
             )),
         ));
     }
+    let javascript = if module_output {
+        finish_javascript_module(selected.javascript, config)
+            .map_err(|error| module_compile_error(&modules, error))?
+    } else {
+        selected.javascript
+    };
     Ok(JavaScriptCompilation {
-        javascript: selected.javascript,
+        javascript,
         optimization_reports: selected.optimization_reports,
         selection_metrics: selected.selection_metrics,
         abi_manifest: selected.abi_manifest,
@@ -1438,7 +1444,33 @@ fn compile_program_to_js_module_configured<'ast, 'src>(
 ) -> Result<String, CompileError> {
     let semantics = analyze(program)?;
     let ir = lower_to_control_flow(program, &semantics)?;
-    optimize_and_select_javascript(ir, config, true).map(|selected| selected.javascript)
+    let selected = optimize_and_select_javascript(ir, config, true)?;
+    finish_javascript_module(selected.javascript, config)
+}
+
+/// The last step of a single-bundle module: `javascript.function_scope`
+/// moves the module's internal bindings into one function scope (V8 reads
+/// them through context slots instead of module cells). The wrapper is a
+/// textual transform of the selected artifact, after every fold and the
+/// rename, and it is refused rather than guessed when the artifact's export
+/// shape is not the plain trailing list.
+fn finish_javascript_module(
+    javascript: String,
+    config: &ProjectConfig,
+) -> Result<String, CompileError> {
+    if config.javascript.function_scope != Some(true) {
+        return Ok(javascript);
+    }
+    match crate::js_peephole::wrap_module_internals_in_function_scope(&javascript) {
+        Ok(Ok(wrapped)) => Ok(wrapped),
+        Ok(Err(_reason)) => Ok(javascript),
+        Err(error) => Err(CompileError::Codegen(
+            crate::codegen_js::CodegenError::new(
+                Span::empty(0),
+                format!("function_scope wrapper produced an unparseable module: {error}"),
+            ),
+        )),
+    }
 }
 
 struct OptimizedJavascriptCandidate {
@@ -20156,5 +20188,134 @@ mod tests {
         assert!(error.span.start > 0);
         assert!(error.message.contains("declared `pure`"));
         std::fs::remove_dir_all(directory).unwrap();
+    }
+}
+
+#[cfg(test)]
+mod function_scope_tests {
+    use super::*;
+    use crate::config::JavaScriptPriority;
+    use crate::parser::parse_source;
+    use bumpalo::Bump;
+
+    fn run_module(javascript: &str, probe: &str) -> String {
+        let encoded = base64_encode(javascript.as_bytes());
+        let output = std::process::Command::new("node")
+            .arg("--input-type=module")
+            .arg("-e")
+            .arg(format!(
+                "import * as m from \"data:text/javascript;base64,{encoded}\";const {{{names}}}=m;{probe}",
+                names = crate::js_peephole::generated_javascript_export_names(javascript)
+                    .unwrap()
+                    .join(",")
+            ))
+            .output()
+            .expect("Node.js is required for JavaScript runtime parity tests");
+        assert!(
+            output.status.success(),
+            "node failed with {}:\n{}\n{javascript}",
+            output.status,
+            String::from_utf8_lossy(&output.stderr)
+        );
+        String::from_utf8(output.stdout).unwrap()
+    }
+
+    fn base64_encode(bytes: &[u8]) -> String {
+        const ALPHABET: &[u8; 64] =
+            b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+        let mut out = String::with_capacity(bytes.len().div_ceil(3) * 4);
+        for chunk in bytes.chunks(3) {
+            let word = chunk.iter().enumerate().fold(0u32, |acc, (index, byte)| acc | (u32::from(*byte) << (16 - 8 * index)));
+            for position in 0..4 {
+                if position <= chunk.len() {
+                    out.push(char::from(ALPHABET[((word >> (18 - 6 * position)) & 63) as usize]));
+                } else {
+                    out.push('=');
+                }
+            }
+        }
+        out
+    }
+
+    #[test]
+    fn function_scope_wraps_the_module_internals_and_keeps_the_public_api() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "Record<string> cache = record{};int misses = 0;export string look(string key){string? hit = cache[key];if (hit != null) return hit;misses = misses + 1;string made = key + \"!\";cache[key] = made;return made;}export int missed(){return misses;}",
+        )
+        .unwrap();
+        let mut config = ProjectConfig::default();
+        config.mangle.exports = Some(false);
+        let plain = compile_program_to_js_module_configured(&program, &config).unwrap();
+        config.javascript.function_scope = Some(true);
+        let wrapped = compile_program_to_js_module_configured(&program, &config).unwrap();
+
+        assert!(!plain.starts_with("var _"), "{plain}");
+        assert_eq!(
+            crate::js_peephole::wrap_module_internals_in_function_scope(&plain).unwrap().as_ref().map(|_| ()),
+            Ok(()),
+            "{plain}"
+        );
+        assert!(wrapped.starts_with("var _a,_b;(function(){"), "{wrapped}");
+        assert!(wrapped.ends_with("})();export{_a as look,_b as missed}") || wrapped.ends_with("})();export{_a as missed,_b as look}"), "{wrapped}");
+        // identity-observable facts stay what the unwrapped module had: names, arity, values
+        let probe = "process.stdout.write([look('a'),look('b'),look('a'),missed(),look.name===missed.name,look.length,typeof look.prototype].join(':'))";
+        assert_eq!(run_module(&plain, probe), run_module(&wrapped, probe));
+        assert!(run_module(&wrapped, probe).starts_with("a!:b!:a!:2:false:1:"), "{wrapped}");
+    }
+
+    #[test]
+    fn a_record_read_tested_for_null_stays_undefined_when_absent() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "Record<string> cache = record{};export string look(string key){string? hit = cache[key];if (hit != null) return hit;cache[key] = key + \"!\";return cache[key] ?? \"\";}export string? raw(string key){return cache[key];}",
+        )
+        .unwrap();
+        let mut config = ProjectConfig::default();
+        config.mangle.exports = Some(false);
+        let javascript = compile_program_to_js_module_configured(&program, &config).unwrap();
+        // the tested read is spelled bare with a strict undefined test …
+        assert!(javascript.contains("!==void 0") || javascript.contains("===void 0"), "{javascript}");
+        // … while the read that escapes as a `string?` keeps its null normalization
+        assert!(javascript.contains("??null"), "{javascript}");
+        let probe = "process.stdout.write([look('a'),look('a'),String(raw('a')),String(raw('zz'))].join(':'))";
+        assert_eq!(run_module(&javascript, probe), "a!:a!:a!:null");
+    }
+
+    #[test]
+    fn truthy_nullable_checks_follow_the_priority_unless_configured() {
+        let mut config = ProjectConfig::default();
+        assert!(config.js_options().truthy_nullable_checks);
+        config.javascript.priority = JavaScriptPriority::PerformanceFirst;
+        assert!(!config.js_options().truthy_nullable_checks);
+        config.javascript.truthy_nullable_checks = Some(true);
+        assert!(config.js_options().truthy_nullable_checks);
+        config.javascript.priority = JavaScriptPriority::SizeFirst;
+        config.javascript.truthy_nullable_checks = Some(false);
+        assert!(!config.js_options().truthy_nullable_checks);
+    }
+
+    #[test]
+    fn a_nullable_object_test_is_strict_under_performance_first() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "class Entry { string r; Entry? n; init(string r) { this.r = r; this.n = null; } }Entry? last = null;export string step(string r){Entry? prior = last;if (prior != null) { Entry? next = prior.n; if (next != null) return next.r; }Entry made = new Entry(r);if (prior != null) prior.n = made;last = made;return made.r;}",
+        )
+        .unwrap();
+        let mut config = ProjectConfig::default();
+        config.mangle.exports = Some(false);
+        let size_first = compile_program_to_js_module_configured(&program, &config).unwrap();
+        config.javascript.priority = JavaScriptPriority::PerformanceFirst;
+        let performance = compile_program_to_js_module_configured(&program, &config).unwrap();
+        // performance-first spells the nullable object test as a null comparison, never as
+        // truthiness; the strict `!==null` needs a provenance proof and is a later step
+        assert!(performance.contains("null!=") || performance.contains("!=null"), "{performance}");
+        assert!(!performance.contains("if(a)") && !performance.contains("if(c)"), "{performance}");
+        assert!(size_first.len() <= performance.len(), "{size_first}\n{performance}");
+        let probe = "process.stdout.write([step('a'),step('b'),step('c'),step('d')].join(':'))";
+        assert_eq!(run_module(&size_first, probe), run_module(&performance, probe));
     }
 }
