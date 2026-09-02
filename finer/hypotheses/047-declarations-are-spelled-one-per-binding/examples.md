@@ -205,3 +205,16 @@ finding predicts, and it paid. The census of the port's other spellings: `JS.add
 290, `toNum` 499, `JS.strictEqual` 523, `JS.invoke` 1326, `undef()` 2387 — consistent, so the
 next candidates are the shapes, not the helpers: the counter `while` (`int i = 0; while (i < n)
 {…; i = i + 1;}`) where the language has `for (int i = 0; i < n; i++)`.
+
+## Counter loops → `for`, and the miscompile it exposed (build L)
+
+22 of the port's `int i = 0; while (i < n) {…; i = i + 1;}` loops became `for (int i = 0; i < n;
+i++)`: −37 on the same compiler (65349 → 65312), but one screenshot-corpus test failed: every
+`align` environment gained an `arraycolsep` and flipped a column alignment. At level 8 the
+rewritten source is byte-identical to the old one, so it was the searched compile:
+`fold_while_trailing_increments` lifted the `i++` that ends a braced `else{…}` arm into the `for`
+header while the then-arm kept its own — that path incremented twice. The body-level guard added
+earlier today stopped at the first unmatched `{`, which was the else arm's brace, not the loop
+body's; it now accepts only the loop's own opener (node-oracle test in exactly this shape). The
+same fold had produced the `else}` syntax error in build F; syntax gates catch the one, only the
+port's tests catch the other — which is why every build here runs them.

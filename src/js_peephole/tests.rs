@@ -15,7 +15,7 @@ use super::{
     optimize_generated_javascript, optimize_generated_javascript_assuming,
     optimize_generated_javascript_preserving_functions, reorder_uninitialized_var_declarators,
     fold_void_initializers_off_fresh_vars, join_adjacent_declarations, shape_declarations, spell_regexp_literals,
-    fold_statement_negated_ors, fold_self_assignment_chains,
+    fold_statement_negated_ors, fold_self_assignment_chains, fold_while_trailing_increments,
     validate_generated_javascript_syntax_floor, LateJavaScriptCleanupPass, PeepholeResult,
 };
 
@@ -3746,4 +3746,15 @@ fn self_assignment_chains_collapse_into_one_expression() {
     let optimized = optimize_emitted_without_regex_literals(source);
     assert!(optimized.code.contains("return\"mathord\"===b.type||\"textord\"===b.type||\"atom\"===b.type") || optimized.code.contains("=>\"mathord\"==="), "{}", optimized.code);
     assert_eq!(run_javascript(&optimized.code), run_javascript(source));
+}
+
+#[test]
+fn trailing_increment_inside_a_braced_else_arm_is_not_lifted() {
+    // Both arms end with `i++`; the last one is inside `else{…}`. Lifting it would leave the
+    // then-arm's increment in place and run `i++` twice on that path.
+    let source = "var log=[],n=3,f=[1,2,3,4,5,6],e=0,i=0;while(e<n||i<f.length){if(e>=n)e++,i++;else{log.push(f[i]);e++,i++}}console.log(e,i,log.join(\",\"))";
+    let optimized = optimize_emitted_without_regex_literals(source);
+    assert_eq!(run_javascript(&optimized.code), run_javascript(source), "{}", optimized.code);
+    let (folded, count) = fold_while_trailing_increments(source).unwrap();
+    assert_eq!(count, 0, "{folded}");
 }

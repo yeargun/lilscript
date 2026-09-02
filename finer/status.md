@@ -190,6 +190,13 @@ bytes).
 
 ## Known issues
 
+- `fold_while_trailing_increments` had two defects on an `if/else` body whose arms both end in
+  the counter increment (047): it lifted the last one into the `for` header and left the other —
+  a bare `else}` (F, a syntax error the feature/source-maps gate refuses) and, with braces, a
+  double increment (L, a wrong program no gate refuses; katexlil's screenshot corpus caught it).
+  Both fixed in the lift's body-level guard. A wrong-program fold is only ever caught by a port's
+  tests: they are part of every A/B.
+
 - No `instanceof` on `JsValue` in the language (047): ports carry an `isPrototypeOf` helper
   (`ga(a,Y)` on katexlil, 26 sites); as `instanceof` it is −60 Brotli. A language item.
 

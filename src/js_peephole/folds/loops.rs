@@ -874,7 +874,11 @@ fn increment_is_body_level(tokens: &[Token<'_>], body_from: usize, name_at: usiz
             ")" | "]" | "}" => depth += 1,
             "(" | "[" | "{" => {
                 if depth == 0 {
-                    return true;
+                    // An unmatched opener between the body start and the increment
+                    // means the increment sits inside a nested block or group — an
+                    // `else{…}` arm included (that arm's `{` is not the body's, and
+                    // lifting its `i++` while the other arm keeps one ran it twice).
+                    return index + 1 == body_from;
                 }
                 depth -= 1;
             }
