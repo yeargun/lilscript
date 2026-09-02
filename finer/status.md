@@ -124,10 +124,10 @@ bytes).
 
 ## Open leads, ranked by measured value
 
-0. **Budget for the late cleanup** (047's Next): the canonical candidate is admitted now but is one
-   candidate on a budget that is a twelfth of `level_limit` above 256 KB (`cleanup_unbudgeted=2`
-   on katexlil); a four-port A/B at 2× and 4× `terminal_codec_probe_limit` says whether the late
-   families are budget-limited on the fleet the way jQuery was.
+0. **Redundant number coercions** (047, `finer/out/047/examples.md`): `+(a-b)` where the operand is
+   already a number — 64 sites on katexlil against Terser's 3 — and `-1` spelled `0-1` (2 sites).
+   Generic emission folds with an obvious proof; the 115 `+member` coercions beside them are the
+   port's untyped fields. Budget is settled: 512 and 1024 probes are byte-identical to 256 there.
 
 1. **The arrow candidate can spell a `this` method as an arrow** (042's finding): shipped
    jquerylil's `scrollTop(1)` TypeError is exactly that, and the same whole-artifact
