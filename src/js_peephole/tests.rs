@@ -3602,3 +3602,42 @@ fn analyze_generated_javascript_over_an_artifact_file() {
         }
     }
 }
+
+/// 043 diagnostic, run by hand: what `fold_expression_suffix_returns` does to
+/// a whole artifact named by `LILSCRIPT_043_INPUT`. The all-sites cleanup pass
+/// output is written beside the input as `<stem>.suffix-returns.js` so the
+/// codec and the AST counters can look at it.
+#[test]
+#[ignore]
+fn diagnose_043_expression_suffix_returns_on_an_artifact() {
+    let Some(input) = std::env::var_os("LILSCRIPT_043_INPUT") else {
+        return;
+    };
+    let input = std::path::PathBuf::from(input);
+    let source = std::fs::read_to_string(&input).expect("043 input is readable");
+    let (all_sites, rewrites) =
+        super::folds::fold_expression_suffix_returns(&source).expect("043 fold lexes the input");
+    let variants = super::folds::expression_suffix_return_variants(&source)
+        .expect("043 variants lex the input");
+    let pass = super::late_generated_javascript_cleanup_pass(
+        &source,
+        super::LateJavaScriptCleanupPass::ExpressionSuffixReturns,
+    )
+    .expect("043 cleanup pass lexes the input");
+    let analyzed = super::analyze_generated_javascript(&pass)
+        .map(|_| ())
+        .map_err(|error| format!("{error:?}"));
+    let output = input.with_extension("suffix-returns.js");
+    std::fs::write(&output, &pass).expect("043 output is written");
+    println!(
+        "043 input={} bytes={} rewrites={rewrites} variants={} all_sites_bytes={} pass_bytes={} pass_changed={} analyze={:?} output={}",
+        input.display(),
+        source.len(),
+        variants.len(),
+        all_sites.len(),
+        pass.len(),
+        pass != source,
+        analyzed,
+        output.display(),
+    );
+}
