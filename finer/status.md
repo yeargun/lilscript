@@ -94,13 +94,13 @@ pinned lane; Terser, Oxc, esbuild, Vite and Closure do
   stale: today −54 / −219 / −9 / −25. What Terser's `compress` band on micromark actually is:
   `collapse_vars` +280 and `unused` +296 when removed — single-use assignment collapsing.
 
-- **The late cleanup's canonical candidate is the only path for cross-declaration folds** (047).
-  The compile runs the peephole one top-level declaration at a time; joins, the class rewrite over
-  a prototype table split across declarations, and every other whole-artifact fold reach the
-  artifact only through `apply_late_javascript_cleanup`'s canonical candidate. On katexlil it had
-  never entered the beam (two validator false refusals, then a wrong fold behind them); admitted,
-  −1233 Brotli. `LILSCRIPT_TIMING=1` now reports `cleanup_canonical_{err,same,boundary,refused,
-  unprobed,pushed}` and `cleanup_shaped_*`: read them before claiming a fold is missing.
+- **A validator defect can silently un-peephole a whole port** (047). On katexlil the resolver
+  took `,_(j),j={}` after an elided block-terminal semicolon for declarators, `_` became
+  ambiguous, and every peepholed candidate — the search's whole-artifact peephole and the late
+  cleanup's canonical candidate alike — failed admission; the port shipped essentially
+  un-peepholed output and nothing said so. Fixed: −1233 Brotli. `LILSCRIPT_TIMING=1` now reports
+  `cleanup_canonical_{err,same,boundary,refused,unprobed,pushed}` and `cleanup_shaped_*`; a port
+  whose canonical candidate is refused is the first thing to check on a loss.
 - **Main's admission has no terminal parser gate** (047): a fold that emits a wrong program ships on
   main and is refused on feature/source-maps (4e799a8's Oxc gate). Compiler changes are measured
   with a feature/source-maps binary until the branch lands.
@@ -182,6 +182,12 @@ bytes).
     not one port's; re-run on every fresh three-way build of markedlil.
 
 ## Known issues
+
+- `bundle.mode = "preserve-modules"` fails on katexlil at level 8: "function 393 (`<unnamed>`,
+  closure) has no emitted name (live=true inlined=true …)" at `functions/hbox.lil:12` — a closure
+  the whole-program pass inlined has no name to export from its chunk. Blocks a per-module
+  bottom-up comparison; the function-level pairing (`scripts/function-pairs.mjs` in katexlil)
+  is the workaround.
 
 - katexlil (046): `mangle.exports = true` is refused with "generated JavaScript callable ABI
   mismatch" (the check compares the mangled export names against the unmangled manifest), so

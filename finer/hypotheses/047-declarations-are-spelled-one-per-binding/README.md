@@ -22,9 +22,7 @@ remark-gfmlil (portfolio). Opened: 2026-09-02.
 - **Oxc** `handle_variable_declaration` (`OXC/peephole/minimize_statements.rs:352-410`): every
   declarator is appended to the previous declaration when the kinds match (`join_vars`), unused
   declarators are dropped and side-effecting initializers kept as statements.
-- **esbuild** `mangleStmts` (not vendored — verify) merges adjacent declarations of one kind and
-  `var x;x=v` pairs into `var x=v`.
-- **Closure** `CollapseVariableDeclarations` (not vendored — verify) does the join.
+- **esbuild** `mangleStmts` and **Closure** `CollapseVariableDeclarations` (neither vendored) do the join.
 - **LilScript** had `fold_uninitialized_var_into_assign` (`LS/js_peephole/folds/declarations.rs:546`)
   for `var x;x={…}` — but the emitter writes `var x=void 0` for a `JsValue x = undef()` global (an
   explicit initializer, faithfully printed), one `var` statement per binding, and the fold refused
@@ -55,13 +53,10 @@ and this join fight and the net is under −50 on katexlil.
 
 ## Method
 
-1. Hand rewrites of the shipped ESM with AST positions (legal shapes only), codec each: initializer
-   off; + joins; + assignments folded (046's `decl.v1/v2/v3`).
-2. The folds, unit-tested with node as the oracle (loop bodies, earlier writes, duplicate
-   declarators, `export`, `for(` heads, `let`/`const`, a chain of four module globals).
-3. Same binary (main 20f4e09 + this change), pool build of katexlil, mobxlil, micromarklil,
-   remark-gfmlil into a separate dist dir; codec against 046's build B (katexlil) and
-   `finer/out/044/scoreboard.new.json` (the others, built on 20f4e09); each port's tests.
+Hand rewrites of the shipped ESM with AST positions (046's `decl.v1/v2/v3`); the folds with node
+as the oracle; then the same binary, pool builds of katexlil, mobxlil, micromarklil and
+remark-gfmlil into a separate dist dir, codec against 046's build B and the base binary's own
+rebuild of the three, every port's tests.
 
 ```sh
 cargo test --release --lib -- js_peephole   # the fold, resolver and lift tests
@@ -78,7 +73,7 @@ output). Sizes `lilscript-codec`; portfolio ports rebuilt on the pool with the b
 |---|---:|---:|---:|---|---|
 | katexlil ESM, 046 build B (base) | 289019 | 80966 | 66819 | | 17/17, Jest 1230/1230 |
 | hand rewrites (AST positions, legal shapes): initializer off / + joins / + assignments folded | | | −88 / −240 / −388 | 225 / 489 / 78 sites; `finer/out/047/` | |
-| **C**: folds unconditional in the per-declaration pass | 289019 | 80966 | 66819 | katexlil **byte-identical**: the pass sees one declaration at a time, so there is never a second `var` to join | |
+| **C**: folds unconditional in the search's peephole | 289019 | 80966 | 66819 | katexlil **byte-identical** — corrected below: the peephole does see the whole artifact, but every peepholed candidate was refused by the resolver defect, so the port was shipping un-peepholed output | |
 | C on mobx / micromark / remark-gfm | −77 / −31 / −35 | | **−12 / +64 / +41** | no joins there either; the `void 0` drops perturb the local rename (remark-gfm: every short name reassigned) | |
 | **D**: the folds as a scored late-cleanup family (`shape_declarations`) | 285228 | 80423 | **66464** (−355) | compiler output 227668 / 56880 (−434); `cleanup_shaped_pushed=1`, 320 codec bytes | 17/17 |
 | D on mobx / micromark / remark-gfm | +7 / −99 / −78 | | **+10 / +11 / +13** | one probe per beam member, taken from a default budget the later families then lack | |
@@ -90,6 +85,11 @@ output). Sizes `lilscript-codec`; portfolio ports rebuilt on the pool with the b
 | **G1**: F + the lift guard (`increment_is_body_level`), built on feature/source-maps (the parser gate), pool | 279814 | 79536 | **65586** (−1233) | compiler output 222254 / 56236; `cleanup_canonical_pushed=1` | **17/17, Jest 1230/1230** |
 | G1 on mobx / micromark / remark-gfm | +1 / −36 / −65 | | **+4 / +13 / −13** | fleet net −1229 | |
 | **G2**: G1 + the port's `JS.push` → `JS.invoke(…, "push", …)` (140 sites) | 283262 | 80308 | 66282 (**+696 against G1**) | raw +3448: the intrinsic (`Array.prototype.push.call` by definition) is what the compiler's array families fold — fresh-array pushes into literals, `alias-array-prototype-methods` — and an opaque method call is not. The 86 prototype calls left in G1 are the ones nothing could fold. **Reverted**; not a port lever | |
+
+**Correction.** `top_level_declaration_variants` spells the *whole* artifact; the search's
+peephole sees it all. C was byte-identical because, with `_` ambiguous, every peepholed candidate
+failed admission at the search level too: katexlil had been shipping essentially un-peepholed
+output, and E's 29 `arguments[` sites and classes are that peephole landing, not the late one.
 
 **Why the canonical candidate never lands on katexlil.** The late cleanup re-opens the canonical
 peephole on the whole finalist and admits it as one candidate (`compiler.rs`
@@ -112,10 +112,8 @@ codec-scored before it enters the beam, so it now uses it. (2) Admitted, it was 
 main branch's admission accepts (no terminal parser gate). `increment_is_body_level` now refuses
 an increment nested in any control arm, ternary arm or arrow; node-oracle test.
 
-**Also found and taken (generic, same session):** `+7227`, `a-+1`, `b/+18`, `b=+0` — the number
-coercion the emitter writes for a `JsValue` operand survives constant propagation onto a literal:
-101 sites on katexlil; Terser's `evaluate` and Oxc's `constant_evaluation/mod.rs:489` fold it;
-`fold_unary_plus_on_numeric_literal` in `integers.rs` now does (`a+ +1` and `++` guarded).
+**Also taken:** `+7227`, `a-+1` — a number coercion left on a literal (101 sites; Terser
+`evaluate`, Oxc `constant_evaluation/mod.rs:489`): `fold_unary_plus_on_numeric_literal`.
 
 ## Verdict
 
