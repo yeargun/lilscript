@@ -128,11 +128,17 @@ scored and starved, budget stop reason).
 
 ## Compute
 
-The loop runs across the owner's pool of Azure machines (objective.md §9): `lilscript-workers`, a
-scale set on this host's subnet, driven by `finer/tools/workers.mjs` — every fleet build, sweep and
-A/B is dispatched one port per worker and measured here. `fleet.mjs` alone still pins ports to core
-slices of this host, which is the slow path; [038](hypotheses/038-the-loop-runs-on-one-host/README.md)
-holds the pool's prices and the SKU decision.
+The loop runs across the owner's pool of Azure machines (objective.md §9), driven by
+`finer/tools/workers.mjs`: two scale sets on this host's subnet, `lilscript-workers-v6` (six
+Standard_D16ls_v6, Intel Emerald Rapids, the default once proven) and `lilscript-workers` (six
+Standard_F8s_v2, the fallback). Every fleet build, sweep and A/B is dispatched several ports per
+worker and measured here; `node finer/tools/fleet.mjs --workers` is the fleet on the pool. Workers
+provision themselves (`worker-provision.sh`) and deallocate themselves twenty minutes after their
+last build, so a pass costs minutes of pay-as-you-go and a deallocated pool costs its disks; the
+synced state on those disks makes the next `up` warm (about a minute to SSH, seconds to sync).
+`fleet.mjs` without `--workers` still pins ports to core slices of this host, the slow path.
+[038](hypotheses/038-the-loop-runs-on-one-host/README.md) holds the prices, the scaling curve and
+the quota state.
 
 ## This host
 

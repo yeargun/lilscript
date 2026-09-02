@@ -89,9 +89,12 @@ thread count (determinism across thread counts holds on the pool, objective.md �
 | port (level, search) | 1 thread | 2 | 4 | 8 | speed-up at 8 | parallel share (Amdahl) |
 |---|---:|---:|---:|---:|---:|---:|
 | micromarklil (13, `always`) | 149.7 s | 123.2 s | 104.8 s | 104.0 s | 1.44x | ≈ 35% |
-| mobxlil (13, `always`) | 193.9 s | 128.8 s | 92.7 s | see below | 2.09x at 4 | ≈ 70% |
+| mobxlil (13, `always`) | 193.9 s | 128.8 s | 92.7 s | 91.5 s | 2.12x | ≈ 70% |
+| jquerylil (15, `always`, 042's state-5 source) | ≈ 6100 s (CPU) | | 4-thread run pending | 1452 s | ≈ 4.2x | ≈ 87% |
 
 So a port's build is mostly serial at level 13: past four threads a worker's extra cores are idle.
+Level 15 `always` is the exception — jquery's search is ≈ 87% parallel and still gains at eight —
+which is why the two giants get a worker's full cores while the rest share.
 The fleet's wall clock is cut by *more ports in flight*, not by more cores per port — two ports per
 8-core worker at four threads each costs micromark 1 s and mobx about 12 s — and by per-core speed,
 which is why Genoa over Cascade Lake matters more than the core count.
