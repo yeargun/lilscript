@@ -3,6 +3,13 @@
 **Status: OPEN — <one sentence: the verdict and its number, once known>.**
 Lane: {{lane}}. Objective: brotli. Ports: <which>. Opened: {{date}}.
 
+## Prior art
+
+<What Closure ADVANCED, Terser, Oxc, esbuild and SWC do for this technique class, each with
+file:line into the vendored or npm source; what each refuses and why; the row(s) this adds or updates
+in refs/competitor-techniques.md; and what it implies for the numbers below. Read before the claim
+is written (objective.md §10).>
+
 ## Claim
 
 <What is predicted, in one paragraph. The number that confirms it and the number that falsifies it.

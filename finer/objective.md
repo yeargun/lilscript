@@ -101,10 +101,15 @@ emitted volume +0.92 (025).
   A local win that moves the fleet the wrong way is a loss (031: −194 local, +826 fleet).
 - **Budget is allocated, not added.** Level 13 buys bytes by spending probes where the hit rate is
   (009), not by raising ceilings.
-- **Harvest, continuously.** Terser, Oxc, esbuild, SWC and Closure are read, not remembered. Every
-  technique is PRESENT / PARTIAL / ABSENT with file:line evidence in
+- **Harvest is a precondition, not a phase** (§10). Terser, Oxc, esbuild, SWC and Closure are read,
+  not remembered. Every technique is PRESENT / PARTIAL / ABSENT with file:line evidence in
   [refs/competitor-techniques.md](refs/competitor-techniques.md), and an ABSENT one enters as a
   semantics-preserving candidate the codec can vote on, never as a local cost rule.
+- **The target is the global optimum.** The search exists to find the smallest artifact the
+  objective admits, not the nearest local minimum. A family never proposed, a region the beam prunes
+  at its first plateau, a budget that stops when the incumbent survives one round: each is a search
+  that stopped early, and each is measured as such. The effort ladder (§3) bounds the spend per
+  level; it never lowers the target, and what 13 cannot afford is 15's job, not nobody's.
 - **Legality first**, as [mission.md](../docs/knowledge/mission.md) refuses: no unsafe getter, proxy
   or pristine-host assumption on by default; no post-minifier; no library-shaped fold; no
   objective-dependent public API; no semantic gate weakened to keep a byte.
@@ -119,3 +124,33 @@ emitted volume +0.92 (025).
 - **Gates before wins**: the port's own tests and the shipped-vs-compiled check pass first.
 - **Every hypothesis is a numbered folder**, falsified ones included; a negative result is what
   stops the next context paying for the idea twice.
+
+## 9. Compute
+
+Compiles are the loop's clock, and the loop runs on a pool of Azure machines, not on one host. Fleet
+builds, level curves, config sweeps and A/B measurements are dispatched across the pool, one port
+or one variant per machine, and a tool that serializes them on the orchestrator's host is the
+defect, not the workload. A hypothesis is scoped so its builds can run side by side. The rules of §8
+hold on every machine: the same commit, the pinned codec, counters over clocks. Wall clock is still
+never a result; the wall clock of the *loop* is a cost the owner pays, and it is bought down with
+machines before patience.
+
+## 10. Understanding before work
+
+The bar is Terser today and Closure ADVANCED at the end, and both are open source: a hypothesis or a
+migration step designed without reading how they handle the same class of shape is guessing with a
+codec. So the reading comes first, and it is written down.
+
+- **Before a hypothesis folder is opened**, the technique class it touches is read in the competitors'
+  source — Closure first, since it is the ceiling; then Terser, Oxc, esbuild, SWC — and the folder's
+  *Prior art* section says, with file:line, what each does, what each refuses and why, and what that
+  implies for the claim's confirming and falsifying numbers. A brief that cannot say what Closure
+  does for its class is not ready, and `tools/new.mjs check` refuses the folder.
+- **Before a migration step in a port**, the upstream library's own source for that module and the
+  way the baseline toolchain shapes it are read, so the `.lil` is written to the shape the compiler
+  can prove, not transliterated (§5).
+- **Before a measurement is trusted**, the instrument's own assumptions are read: the harness, the
+  encoder, the build script between the compiler and the artifact (§6, step 1).
+- The reading accrues in [refs/competitor-techniques.md](refs/competitor-techniques.md), one row per
+  technique with its status against us, so no context pays for the same file twice. A closed folder
+  leaves the inventory richer than it found it.

@@ -20,6 +20,9 @@ const lanes = ["lang", "port", "compiler", "measure"]
 // Folders below this number predate the template; they are held to the row
 // rule only. Everything from here on carries a Status line and a size budget.
 const templatedFrom = 38
+// Folders from here on were opened after the owner's brief of 2026-09-01 made reading the
+// competitors' source a precondition (objective.md §10): they carry a Prior art section.
+const priorArtFrom = 40
 const sizeBudget = 12_000
 
 const folders = () => readdirSync(hypotheses).filter((name) => /^\d{3}-/u.test(name)).sort()
@@ -39,6 +42,9 @@ function check() {
     if (Number(number) < templatedFrom) continue
     const text = readFileSync(readme, "utf8")
     if (!/^\*\*Status: /mu.test(text)) failures.push(`${name}: no "**Status: ...**" line`)
+    if (Number(number) >= priorArtFrom && !/^## Prior art$/mu.test(text)) {
+      failures.push(`${name}: no "## Prior art" section (objective.md §10)`)
+    }
     if (text.length > sizeBudget) failures.push(`${name}: README is ${text.length} bytes; split it or move data to out/`)
     if (/<[^>`\n]*>/u.test(text) && /^\*\*Status: OPEN/mu.test(text) === false) {
       failures.push(`${name}: template placeholders remain but Status is not OPEN`)

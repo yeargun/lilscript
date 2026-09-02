@@ -46,10 +46,13 @@ One writer per file. A hypothesis agent writes only its own folder; the orchestr
    highest-ranked lead in `status.md`. Check `log.md`: a settled verdict is not re-run without a
    new fact.
 3. **Attribute** in the order objective.md §6 gives. Most losses so far ended at step 1 or 2.
-4. **Claim.** `node finer/tools/new.mjs <slug> --lane <lane>` opens the folder from the template.
-   Write the claim, the number that confirms it and the number that falsifies it, the files to
-   read, the files that may change, the exact commands. That top half *is* the brief a
-   clean-context agent receives; if it cannot be written, the hypothesis is not ready.
+4. **Read the prior art, then claim.** Before the folder is opened, read how Closure, Terser, Oxc,
+   esbuild and SWC handle the technique class (objective.md §10); record it in
+   `refs/competitor-techniques.md`. `node finer/tools/new.mjs <slug> --lane <lane>` opens the folder
+   from the template. Write the prior art with file:line, the claim, the number that confirms it and
+   the number that falsifies it, the files to read, the files that may change, the exact commands.
+   That top half *is* the brief a clean-context agent receives; if it cannot be written, the
+   hypothesis is not ready, and `new.mjs check` refuses a folder without a Prior art section.
 5. **Test one variable.** Same binary, frozen source and config, pinned codec, deterministic
    counters (objective.md §8). Data larger than a table goes under `out/` or the folder, not into
    the README.
@@ -59,7 +62,8 @@ One writer per file. A hypothesis agent writes only its own folder; the orchestr
    local win that costs the portfolio is recorded as a loss.
 7. **Record.** Status line in the folder, row in `log.md`, standings and leads in `status.md`, a
    settled fact if one was established. The folder is committed with the change it measured.
-8. **Harvest**, between hypotheses. Read one competitor's source for one technique class, update
+8. **Harvest**, continuously, and never skipped for a hypothesis: step 4 already read one class;
+   between hypotheses read one more competitor source for one more technique class, update
    `refs/competitor-techniques.md`, open a folder for any ABSENT technique worth its bytes. Also
    standing: the objective-purity check of objective.md §2 on every port that ships more than one
    objective.
@@ -81,8 +85,8 @@ per hypothesis with a three-line prompt — read `finer/objective.md`, `finer/st
 `finer/hypotheses/NNN-slug/README.md`; fill in Result, Verdict and Next; return at most twenty
 lines — and works from the twenty lines, not the folder.
 
-**Hypothesis agent** — a clean context. Reads the three files above and only what the folder's
-Read section names. Writes its folder. Touches only what the folder's May-touch section names.
+**Hypothesis agent** — a clean context. Reads the three files above, the competitor source the
+folder's Prior art section cites, and only what the folder's Read section names. Writes its folder. Touches only what the folder's May-touch section names.
 Does not edit `log.md`, `status.md` or another folder. Returns the Status line, the numbers, the
 single next step.
 
@@ -120,6 +124,13 @@ Compiler-side instruments: `LILSCRIPT_TIMING=1` (effort buckets and work counter
 stderr), `LILSCRIPT_NO_MEMO=1` (A/B the memos inside one binary), `LILSCRIPT_DUMP_CANDIDATES=<dir>`
 (every distinctly scored artifact), `LILSCRIPT_VALIDATE_FOLDS=1`, and `--explain json` (families
 scored and starved, budget stop reason).
+
+## Compute
+
+The loop is meant to run across the owner's pool of Azure machines (objective.md §9): every fleet
+build, sweep and A/B is dispatched one port or variant per machine. The dispatcher does not exist
+yet; until [038](hypotheses/038-the-loop-runs-on-one-host/README.md) lands it, `fleet.mjs` pins
+ports to core slices of this host, and a full fleet pass is the slowest step in the loop.
 
 ## This host
 
