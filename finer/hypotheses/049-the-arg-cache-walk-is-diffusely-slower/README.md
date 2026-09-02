@@ -1,13 +1,12 @@
-# 049 — the argument-cache walk is diffusely slower
+# 049 — the argument-cache walk is one shape, not a diffuse sum
 
-**Status: OPEN — after 048 cnlil is at parity or better on eight of nine lanes (0.998-1.042) and
-1.09-1.10 on `component:dup-loop`, the lane whose calls miss the sequence prediction and walk the
-argument-cache bucket. A line profile puts 110 ticks in our `resolveArguments` against 86 in
-upstream's, spread over the whole body rather than in one shape: the four shapes hand-tested there
-(a polymorphic coalesced binding, a per-call empty-array allocation, a re-read invariant property,
-a string hole guard) are worth 1.19 → 1.07 together and nothing apart, and two of them are already
-fixed in the port. What remains is a per-operation gap in the same code, and this folder is where
-it gets measured instead of guessed.**
+**Status: CONFIRMED as one shape, not a diffuse sum. On an idle 16-core machine, where the lane's
+range is ±0.03 instead of ±0.15, the `|| ""` hole guard on a `string[]` element read is the whole
+remaining gap: removing it alone takes `dup-loop` from 1.09 to 1.04, and the other three shapes
+tested with it move nothing. The compiler now drops that guard when every use of the read is a
+strict equality against a value a dominating branch proves truthy — the same fact upstream gets
+from writing `if (v && v !== ea[k++])`. cnlil: dup-loop 1.09 → 1.04 and −52 Brotli.**
+
 Lane: port. Objective: brotli, with runtime ≤ upstream on every lane of the port's own harness
 (objective §3). Ports: cnlil. Opened: 2026-09-02.
 
@@ -53,6 +52,29 @@ benchmarked interleaved (seven rounds) before any compiler work.
 
 ## Result
 
+Measured on an idle 16-core pool worker, seven interleaved rounds per lane, the ranges in
+brackets. The local host is shared with other sessions and its ranges are four to five times
+wider, which is why the earlier hand tests read as noise.
+
+| variant, cumulative | dup-loop | range |
+|---|---:|---|
+| shipped port | 1.092 | 1.05-1.19 |
+| drop the hole guard in the walk | **1.036** | 1.02-1.14 |
+| + upstream's labelled `continue` instead of the boolean flag | 1.036 | 1.01-1.09 |
+| + `bucket === void 0` instead of the null normalization | 1.033 | 1.01-1.11 |
+| + strict identity in the chain update | 1.018 | 0.98-1.03 |
+
+The guard is the step that matters; the other three are worth about 0.02 together. Compiled with
+the elision (no hand edits): dup-loop 1.041, single 1.049, loop 1.056, and the artifact is
+9400 Brotli against upstream's 9783.
+
+An explicit `if (valueIndex >= entryCount) break` in the port does **not** buy the elision:
+`string_index_in_bounds` does not learn from a dominating comparison, and even with the range the
+array's density is unprovable for an `extern class` field. The fact that works is about the *other*
+operand, not the index.
+
+### Earlier, on the shared host (kept for the record)
+
 | variant (hand, on the shipped shape) | dup-loop | note |
 |---|---:|---|
 | base | 1.185 | |
@@ -66,10 +88,16 @@ benchmarked interleaved (seven rounds) before any compiler work.
 
 ## Verdict
 
-Open.
+Confirmed and landed on the compiler side (`b6da284`): the hole guard was one shape, not a
+diffuse sum, and the fact that removes it is a dominating branch on the compared value. What
+status.md carries: (1) a lane whose range on the shared host is ±0.15 cannot be read there at all
+— the pool's idle workers resolve 2% steps; (2) `string_index_in_bounds` is an index-range
+question and the guard is often an *operand* question, which is where the proof was; (3) the port
+kept its own two shapes (the bucket walk allocates nothing on a hit, the entry's values are read
+once per candidate) because they are what upstream writes.
 
 ## Next
 
-Attribute the 110-against-86 ticks line by line on the current artifact (the table above was taken
-on the pre-fix shape), and price loop-invariant member motion on a benchmark that isolates it
-before proposing a pass.
+`ssr` at 1.09 is now the widest lane and is untouched by this: it is all cold `mergeUncached`, so
+the next attribution belongs there, on the same idle-worker method. Loop-invariant member motion
+stays unpriced — the port hoisted its one hot case by hand.
