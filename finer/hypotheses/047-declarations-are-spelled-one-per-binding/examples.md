@@ -192,3 +192,16 @@ helper; spelled as `instanceof` it is −60 Brotli (raw +182).
 The neutral pair is the noise floor again (±60): two rewrites that were −106 alone on the ESM
 add up to +7 on the compile, because the search re-decides around them. Kept: generic, prior art,
 codec-scored where they can be wrong.
+
+## Port idioms the language already has (katexlil 91ffa74)
+
+| port change | sites | same compiler, shipped ESM Brotli |
+|---|---:|---:|
+| `Object.keys` counter loops → `for (string key in value)` (mathMLTree already used it) | 19 | **−165** (65507 → 65342), 17/17, Jest 1230/1230 |
+
+The transliterator spelled upstream's `for…in` as `objectKeys` + a counter `while` in 19 places
+and as the language's `for…in` in 2; one idiom, one spelling, is what the collective similarity
+finding predicts, and it paid. The census of the port's other spellings: `JS.add` 422, `toStr`
+290, `toNum` 499, `JS.strictEqual` 523, `JS.invoke` 1326, `undef()` 2387 — consistent, so the
+next candidates are the shapes, not the helpers: the counter `while` (`int i = 0; while (i < n)
+{…; i = i + 1;}`) where the language has `for (int i = 0; i < n; i++)`.
