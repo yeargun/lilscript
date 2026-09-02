@@ -13011,13 +13011,17 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 JsExpression::raw(format!("await {task}"), JsPrecedence::Unary)
             }
             ControlFlowOp::Binary { op, lhs, rhs } => {
-                let undefined_absent = matches!(op, IrBinaryOp::Eq | IrBinaryOp::NotEq)
-                    .then(|| context.undefined_absent_operand(*lhs, *rhs))
-                    .flatten();
+                // An always-truthy nullable tests as truthiness when the priority
+                // wants the bytes; otherwise a value whose absence is `undefined`
+                // (a bare record read, an un-normalized `Map.get`) tests strictly
+                // against it, the cheapest spelling V8 has for the question.
                 let truthy_nullable = (self.options.truthy_nullable_checks
-                    && undefined_absent.is_none()
                     && matches!(op, IrBinaryOp::Eq | IrBinaryOp::NotEq))
                 .then(|| context.truthy_nullable_operand(*lhs, *rhs))
+                .flatten();
+                let undefined_absent = (truthy_nullable.is_none()
+                    && matches!(op, IrBinaryOp::Eq | IrBinaryOp::NotEq))
+                .then(|| context.undefined_absent_operand(*lhs, *rhs))
                 .flatten();
                 let nullable_on_lhs = truthy_nullable == Some(*lhs);
                 let absent_on_lhs = undefined_absent == Some(*lhs);
@@ -14279,7 +14283,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 ));
             }
             Intrinsic::JsIsNullish => {
-                if context.undefined_absent_reads.contains(&receiver_id) {
+                if context.absent_is_undefined(receiver_id) {
                     return Ok(JsExpression::raw(
                         format!("{}===void 0", receiver.at_least(JsPrecedence::Equality)),
                         JsPrecedence::Equality,
@@ -19913,13 +19917,22 @@ impl LocalNames {
     /// The operand of `x == null` / `x != null` that is a record read whose
     /// absence stays `undefined`, when the other operand is the null constant.
     fn undefined_absent_operand(&self, lhs: ValueId, rhs: ValueId) -> Option<ValueId> {
-        if self.null_values.contains(&lhs) && self.undefined_absent_reads.contains(&rhs) {
+        if self.null_values.contains(&lhs) && self.absent_is_undefined(rhs) {
             Some(rhs)
-        } else if self.null_values.contains(&rhs) && self.undefined_absent_reads.contains(&lhs) {
+        } else if self.null_values.contains(&rhs) && self.absent_is_undefined(lhs) {
             Some(lhs)
         } else {
             None
         }
+    }
+
+    /// A read whose absence is spelled `undefined` in the artifact: a record
+    /// read kept bare, or a `Map.get` whose normalization was elided. Both
+    /// elisions require that every use is a null test or the narrowing after
+    /// one, so the test can be `===void 0`.
+    fn absent_is_undefined(&self, value: ValueId) -> bool {
+        self.undefined_absent_reads.contains(&value)
+            || self.elidable_map_get_normalizations.contains(&value)
     }
 
     fn truthy_nullable_operand(&self, lhs: ValueId, rhs: ValueId) -> Option<ValueId> {

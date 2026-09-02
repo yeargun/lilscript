@@ -20285,6 +20285,28 @@ mod function_scope_tests {
     }
 
     #[test]
+    fn an_unnormalized_map_get_tests_strictly_for_undefined_unless_truthiness_is_cheaper() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "Map<string, string[]> buckets = new Map<string, string[]>();export int count(string key){string[]? bucket = buckets.get(key);if (bucket == null) { string[] made = [key]; buckets.set(key, made); return 1; }bucket.push(key);return bucket.length;}",
+        )
+        .unwrap();
+        let mut config = ProjectConfig::default();
+        config.mangle.exports = Some(false);
+        let size_first = compile_program_to_js_module_configured(&program, &config).unwrap();
+        config.javascript.priority = JavaScriptPriority::PerformanceFirst;
+        let performance = compile_program_to_js_module_configured(&program, &config).unwrap();
+        // neither spelling normalizes the read, and the performance spelling tests `undefined` strictly
+        assert!(!size_first.contains("??null") && !performance.contains("??null"), "{size_first}\n{performance}");
+        assert!(performance.contains("===void 0") || performance.contains("!==void 0"), "{performance}");
+        assert!(!size_first.contains("void 0"), "{size_first}");
+        let probe = "process.stdout.write([count('a'),count('b'),count('a'),count('a')].join(':'))";
+        assert_eq!(run_module(&size_first, probe), "1:1:2:3");
+        assert_eq!(run_module(&performance, probe), "1:1:2:3");
+    }
+
+    #[test]
     fn truthy_nullable_checks_follow_the_priority_unless_configured() {
         let mut config = ProjectConfig::default();
         assert!(config.js_options().truthy_nullable_checks);
