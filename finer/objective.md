@@ -43,6 +43,10 @@ the effort ladder.
 - **Runtime performance is a constraint, not the current objective.** Generated code stays close to
   idiomatic hand-written JavaScript under `[javascript.performance] max_regression_percent`. The
   performance-first priorities must keep working; the work now is compression.
+- **A port is not slower than its upstream.** Where a port has its upstream's benchmark, the shipped
+  artifact is faster or equal on every lane of it, measured interleaved in isolated processes; a
+  lane above 1.00 is a loss with an owner, exactly like a byte (2026-09-02, cnlil). The compression
+  objective picks the config only among builds that pass this gate.
 
 ## 4. Whom we beat, in which world
 
