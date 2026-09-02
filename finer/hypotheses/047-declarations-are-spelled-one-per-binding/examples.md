@@ -114,3 +114,37 @@ numbers.
 | redundant coercions the compiler could drop | 64 `+(a-b)`, 2 `0-1` | compiler, generic fold |
 | Terser's remaining extraction from our artifact | −811: `unused` +241, `collapse_vars` +175, `evaluate` +162 | compiler (045) |
 | internal field/method names | all 117 renamed: −581 | port typing (structure, not names) |
+
+## Proof under Brotli, not raw
+
+Every shape above, rewritten across the shipped ESM (katexlil 70f2f6b, 65586 Brotli) and scored
+with `lilscript-codec`. Only the Brotli column counts; the raw column is why these looked like
+levers. Files: `scripts/.proof.mjs` in the session, variants parsed with `node --check`.
+
+| rewrite | sites | raw | gzip | **Brotli** | verdict |
+|---|---:|---:|---:|---:|---|
+| `Array.prototype.push.call(x,v)` → `x.push(v)` | 86 | −1806 | −101 | **−71** | what typed arrays would buy; the real port change (`JS.invoke`) was +696 because it hides the intrinsic from the array folds |
+| `new RegExp("…")` → `/…/` | 44 | −706 | −71 | **−68** | compiler fold, gated on pristine builtins; needs the peephole lexer to stay certain about `/` |
+| `ga(a,Y)` (helper) → `a instanceof Y` | 26 | +182 | +45 | **−60** | raw *bigger*, Brotli smaller: the helper's call shape repeats worse than the keyword |
+| `!x\|\|(…)` → `x&&(…)` | 23 | −23 | −26 | **−38** | compiler spelling |
+| `+x.y` coercions dropped | 93 | −93 | −40 | **−18** | what typed number fields would buy |
+| `+""` coercions dropped | 41 | −123 | −54 | **−16** | what typed string fields would buy |
+| `+(a-b)` → `(a-b)` | 61 | −61 | +6 | −3 | noise |
+| `x!==void 0&&x!=null` → `x!=null` | 8 | −96 | −21 | 0 | noise |
+| `fa(x,k)` (helper) → `x.hasOwnProperty(k)` | 35 | +420 | −7 | +2 | noise |
+| `oa(x)` (helper) → `Object.keys(x)` | 20 | +180 | +10 | +24 | the helper is *better* |
+| `while(!0)` → `for(;;)` | 9 | −18 | +2 | +52 | worse |
+| `0-1` → `-1` | 4 | −4 | −4 | +60 | worse: four bytes moved 60, which is the noise floor of this artifact |
+| all semantics-preserving rows together | | −1932 | −190 | **−173** | |
+| everything, type simulations included | | −2148 | −290 | **−199** | |
+| all 117 internal field/method names shortened | 1236 | −7737 | −921 | **−581** | names are not where the bytes are |
+| symbols: inlined `"math","main","rel"` → 2-byte names (module alone) | 646 | −7291 | | −44 | the call spelling is not the module's loss |
+| symbols: `,i)` → `,!0)` (module alone) | 600 | +364 | | +20 | |
+
+What is proven: the visible shape differences are worth about 200 Brotli together, names about
+600, and Terser's remaining passes 811 (`unused` 241, `collapse_vars` 175, `evaluate` 162). The
+gap to Terser of the published graph is 2542. The rest is not localised: per-module attribution
+through the compiler's map charges inlined and hoisted code to the module of its first token
+(`functions/font` on our side carries buildCommon's `makeVList` positioning), and the two
+ownership modes disagree by ±300 per module, so a module table cannot be used as a proof here.
+Whole-artifact rewrites can, and they are what the table above is.
