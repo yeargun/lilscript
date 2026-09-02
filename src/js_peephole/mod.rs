@@ -353,6 +353,11 @@ pub fn analyze_generated_javascript(
 /// hoisting; only the scope that holds it changes, and strictness is lexical,
 /// so module code stays strict inside the function.
 ///
+/// The one difference the transform does not preserve is the value an importer
+/// sees *during* this module's evaluation: the aliases hold `undefined` until
+/// the body has run, which only an import cycle can observe. That is the
+/// knob's documented price, not something the text can detect here.
+///
 /// `Ok(Err(reason))` leaves the artifact as is when the transform cannot be proven
 /// equivalent from the text: an `export` other than the trailing list, a
 /// top-level `await`, an `import` after the body has started, or an exported

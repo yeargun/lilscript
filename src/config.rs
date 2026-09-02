@@ -1219,7 +1219,9 @@ pub struct JavaScriptConfig {
     /// and a function-scope binding through one context slot, so hot state
     /// declared at module scope pays per access; upstream libraries hand-write
     /// that state as closures. Off by default: the wrapper is a few dozen raw
-    /// bytes per artifact, so a port turns it on against its own measure.
+    /// bytes per artifact, and the exported bindings hold `undefined` until the
+    /// body has run, which only an import cycle can observe. A port turns it on
+    /// against its own measure.
     pub function_scope: Option<bool>,
     /// Spell `x != null` on a nullable whose present values are always truthy
     /// (classes, arrays, maps, …) as `x` / `!x`. Shorter, and slower: V8 tests

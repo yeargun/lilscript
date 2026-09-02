@@ -676,6 +676,13 @@ the trailing list, a top-level `await`, or an exported binding assigned from ins
 function (the outer alias is a one-time snapshot, not a live binding). Off by default; a port turns
 it on against its own measure. Multi-chunk bundles are not wrapped.
 
+One observable difference remains and is the price of the knob: the exported bindings hold
+`undefined` until the module body has run. A module that imports this artifact and calls into it
+*during its own evaluation*, in an import cycle, would previously have seen a hoisted function
+declaration and now sees `undefined`. Ordinary (acyclic) importers are unaffected: their code runs
+after the imported module has finished evaluating. Leave the knob off for an artifact that
+participates in an import cycle.
+
 `truthy_nullable_checks` chooses how `x != null` is spelled when `x` is a nullable whose present
 values are always truthy (a class, array, map, set or buffer): `x` and `!x` are the shortest
 spelling, and V8 evaluates an object's truthiness in about 3.8 ns against 2.6 ns for `x!==null`
